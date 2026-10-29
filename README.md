@@ -27,6 +27,8 @@ Finde den **Schlüssel**, öffne die **Tür** und steige die **Treppe** hinauf i
 Fässer, Kisten, Tische, Truhen und Wandregale lassen sich durchsuchen: Darin steckt Gold,
 Wurfmesser, ein Heiltrank oder auch gar nichts. Durchsuchtes bekommt ein Häkchen.
 Skelette greifen mit Klingen oder Armbrüsten an. Über **Stacheln** kannst du springen.
+An einem **Schrein** wählst du einmal eine Gabe: +1 Leben, +1 Kampfkraft oder +15% Tempo.
+Die Gaben bleiben bis zum Ende des Spiels.
 Du siehst nur, was in deiner Sichtlinie liegt. Bereits erkundete Bereiche bleiben grau sichtbar.
 
 ## Neue Levels bauen
@@ -44,7 +46,7 @@ nach Dateinamen sortiert gespielt. Ein Zeichen steht für ein Feld:
 | `b`     | Fässer           | `x`     | Kisten           |
 | `o`     | Säule            | `t`     | Tisch            |
 | `k`     | kleine Truhe     | `M`     | Skelett-Krieger  |
-| `A`     | Skelett-Schütze  |         |                  |
+| `A`     | Skelett-Schütze  | `H`     | Schrein          |
 
 Der Ausgang `E` braucht eine Wand im Norden (oben) und wird von Süden betreten.
 Eine Tür `D` steht in einem ein Feld breiten Durchgang.

@@ -27,6 +27,10 @@ var controllable := true
 var frozen := false
 var dead := false
 var hp := MAX_HP
+# Gifts from shrines, kept for the whole run.
+var max_hp := MAX_HP
+var power := 1
+var speed := SPEED
 var knives := 5
 var path: Array[Vector3] = []
 
@@ -120,7 +124,7 @@ func facing() -> Vector3:
 
 func revive(at: Vector3) -> void:
 	dead = false
-	hp = MAX_HP
+	hp = max_hp
 	path.clear()
 	_target = null
 	velocity = Vector3.ZERO
@@ -180,7 +184,7 @@ func melee() -> void:
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0
 		if to.length() < MELEE_RANGE and (to.length() < 1.2 or facing().dot(to.normalized()) > 0.25):
-			e.take_hit(1, global_position)
+			e.take_hit(power, global_position)
 
 
 ## Throws a knife at `aim` (a world position), or at the closest enemy in sight.
@@ -212,7 +216,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 	else:
 		play_once("Throw", 0.45)
 	await get_tree().create_timer(0.2).timeout
-	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true)
+	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true).damage = power
 
 
 func _engage(enemy: Enemy) -> void:
@@ -239,6 +243,12 @@ func _auto_attack() -> void:
 	elif d <= AUTO_THROW_RANGE and knives > 0 and level.has_line_of_sight(global_position, _target.global_position):
 		_auto_cooldown = AUTO_THROW_INTERVAL
 		throw_knife(_target.global_position, true)
+
+
+func reset_gifts() -> void:
+	max_hp = MAX_HP
+	power = 1
+	speed = SPEED
 
 
 func take_damage(amount: int, from: Vector3) -> void:
@@ -298,7 +308,7 @@ func _physics_process(delta: float) -> void:
 				to.y = 0.0
 				dir = to.normalized()
 	var vy := velocity.y - GRAVITY * delta
-	velocity = dir * SPEED + _knockback
+	velocity = dir * speed + _knockback
 	velocity.y = vy
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 45.0)
 	move_and_slide()

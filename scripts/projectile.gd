@@ -8,6 +8,7 @@ const LIFETIME := 2.0
 var level: Level
 var direction := Vector3.FORWARD
 var from_player := true
+var damage := 1
 var _age := 0.0
 
 
@@ -39,7 +40,7 @@ func _physics_process(delta: float) -> void:
 	if from_player:
 		for e in level.enemies:
 			if is_instance_valid(e) and not e.dead and _hits(e.global_position):
-				e.take_hit(1, global_position - direction)
+				e.take_hit(damage, global_position - direction)
 				queue_free()
 				return
 	else:

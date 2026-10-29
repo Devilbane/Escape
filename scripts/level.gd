@@ -9,6 +9,7 @@ extends Node3D
 ##   C  treasure chest  k  small trunk
 ##   b  barrel        x  crates          o  pillar        t  table
 ##   M  skeleton warrior (melee)          A  skeleton archer (ranged)
+##   H  shrine: grants one gift (more life, strength or speed)
 ##
 ## Barrels, crates, tables, trunks, chests and wall shelves can be searched.
 
@@ -22,7 +23,7 @@ signal exit_reached
 
 const TILE := 4.0
 const ASSET_DIR := "res://assets/dungeon/"
-const SOLID := "#bxotkCD"
+const SOLID := "#bxotkCDH"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
@@ -51,6 +52,7 @@ var _spikes: Array = []
 var _pickups: Array = []
 var interactables: Array = []
 var enemies: Array = []
+var shrines: Array = []
 var fog: Fog
 var _doors: Array = []
 var _torch_spots: Array[Vector3] = []
@@ -276,6 +278,8 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"o":
 			_place("pillar_decorated", pos)
 			_add_solid(pos, Vector3(1.6, 4, 1.6))
+		"H":
+			_build_shrine(c)
 		"t":
 			_place("table_medium_decorated_A", pos, _random_quarter_turn())
 			_add_solid(pos, Vector3(3.0, 2, 2.2))
@@ -344,6 +348,69 @@ func _build_chest(c: Vector2i) -> void:
 	obj.loot = {"gold": 5}
 
 
+## A small stone shrine with a floating, glowing crystal.
+func _build_shrine(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var base := _place("pillar", pos)
+	base.scale = Vector3(1.2, 0.32, 1.2)
+	for i in 3:
+		var a := TAU * i / 3.0 + 0.5
+		_place("candle_lit", pos + Vector3(cos(a), 0, sin(a)) * 1.25, _rng.randf() * TAU)
+	var orb := MeshInstance3D.new()
+	var crystal := PrismMesh.new()
+	crystal.size = Vector3(0.55, 0.8, 0.55)
+	orb.mesh = crystal
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.55, 0.85, 1.0)
+	mat.emission_enabled = true
+	mat.emission = Color(0.4, 0.75, 1.0)
+	mat.emission_energy_multiplier = 3.0
+	orb.material_override = mat
+	orb.position = pos + Vector3(0, 2.3, 0)
+	add_child(orb)
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.45, 0.75, 1.0)
+	light.light_energy = 2.5
+	light.omni_range = 7.0
+	light.position = pos + Vector3(0, 2.6, 0)
+	add_child(light)
+	var motes := Effects.make_sparkles(Color(0.6, 0.85, 1.0))
+	motes.position = pos + Vector3(0, 2.0, 0)
+	add_child(motes)
+	_add_solid(pos, Vector3(2.2, 2, 2.2))
+	shrines.append({"cell": c, "pos": pos, "used": false, "orb": orb, "light": light, "motes": motes})
+
+
+## The unused shrine whose cell contains a world position, if any.
+func shrine_at(point: Vector3) -> Dictionary:
+	var c := world_to_cell(point)
+	for s in shrines:
+		if s.cell == c and not s.used:
+			return s
+	return {}
+
+
+## The closest unused shrine within reach of a position, if any.
+func nearest_shrine(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
+	for s in shrines:
+		if not s.used and Vector2(from.x - s.pos.x, from.z - s.pos.z).length() <= max_distance:
+			return s
+	return {}
+
+
+## A shrine gives only one gift: its crystal goes dark afterwards.
+func use_shrine(s: Dictionary) -> void:
+	s.used = true
+	s.motes.emitting = false
+	var burst := Effects.make_sparkles(Color(0.6, 0.85, 1.0), true)
+	burst.position = s.orb.position
+	add_child(burst)
+	var tween := create_tween()
+	tween.tween_property(s.light, "light_energy", 0.0, 1.2)
+	tween.parallel().tween_property(s.orb.material_override, "emission_energy_multiplier", 0.0, 1.2)
+	tween.parallel().tween_property(s.orb.material_override, "albedo_color", Color(0.3, 0.3, 0.35), 1.2)
+
+
 func _build_door(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	var blocks_north_south := cell_char(c + Vector2i(-1, 0)) == "#" and cell_char(c + Vector2i(1, 0)) == "#"
@@ -381,6 +448,10 @@ func _process(delta: float) -> void:
 	for t in _torches:
 		var s: float = t.seed + _time * 9.0
 		t.light.light_energy = 3.4 + sin(s) * 0.25 + sin(s * 2.3) * 0.15
+	for s in shrines:
+		s.orb.rotation.y += delta * 1.5
+		if not s.used:
+			s.orb.position.y = 2.3 + sin(_time * 2.0) * 0.15
 	for p in _pickups:
 		if is_instance_valid(p.node):
 			p.node.rotation.y += delta * 2.0

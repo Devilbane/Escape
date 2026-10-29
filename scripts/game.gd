@@ -26,6 +26,10 @@ var _level_label: Label
 var _coin_label: Label
 var _key_label: Label
 var _hp_label: Label
+var _gift_label: Label
+var _shrine_panel: Control
+var _shrine: Dictionary = {}
+var _pending_shrine: Dictionary = {}
 var _knife_label: Label
 var _prompt: Label
 var _message: Label
@@ -161,6 +165,8 @@ func _setup_hud() -> void:
 	left.add_child(_level_label)
 	_hp_label = _make_label(TEXT_FONT, 24, Color(1.0, 0.45, 0.42))
 	left.add_child(_hp_label)
+	_gift_label = _make_label(TEXT_FONT, 18, Color(0.65, 0.85, 1.0))
+	left.add_child(_gift_label)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -219,6 +225,8 @@ func _setup_hud() -> void:
 	buttons.add_child(_make_button("Werfen", func(): if state == State.PLAYING: player.throw_knife()))
 	buttons.add_child(_make_button("Schlagen", func(): if state == State.PLAYING: player.melee()))
 
+	_setup_shrine_panel()
+
 	_fade = ColorRect.new()
 	_fade.color = Color(0.03, 0.015, 0.04, 1.0)
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -240,6 +248,80 @@ func _setup_hud() -> void:
 	_title_sub.custom_minimum_size = Vector2(0, 70)
 
 
+## The choice shown at a shrine: one of three gifts.
+func _setup_shrine_panel() -> void:
+	_shrine_panel = PanelContainer.new()
+	_shrine_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_shrine_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_shrine_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.04, 0.03, 0.08, 0.88)
+	style.border_color = Color(0.5, 0.75, 1.0, 0.7)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(18)
+	style.set_content_margin_all(28)
+	_shrine_panel.add_theme_stylebox_override("panel", style)
+	_shrine_panel.visible = false
+	_hud.add_child(_shrine_panel)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 14)
+	_shrine_panel.add_child(box)
+	var title := _make_label(TITLE_FONT, 40, Color(0.65, 0.85, 1.0))
+	title.text = "Schrein der Ahnen"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+	var sub := _make_label(TEXT_FONT, 22)
+	sub.text = "Wähle eine Gabe"
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	box.add_child(row)
+	var gifts := ["+1 Leben", "+1 Kampfkraft", "+15% Tempo"]
+	for i in gifts.size():
+		var b := _make_button("%s\n(Taste %d)" % [gifts[i], i + 1], _choose_gift.bind(i))
+		b.custom_minimum_size = Vector2(200, 96)
+		row.add_child(b)
+
+
+func _open_shrine(s: Dictionary) -> void:
+	_shrine = s
+	_pending_shrine = {}
+	player.path.clear()
+	player.face(s.pos - player.global_position)
+	player.play("Idle")
+	player.frozen = true
+	level.process_mode = Node.PROCESS_MODE_DISABLED
+	_shrine_panel.visible = true
+
+
+func _choose_gift(index: int) -> void:
+	if _shrine.is_empty():
+		return
+	var text := ""
+	match index:
+		0:
+			player.max_hp += 1
+			player.hp += 1
+			text = "Du fühlst dich zäher: +1 Leben"
+		1:
+			player.power += 1
+			text = "Deine Hiebe werden härter: +1 Kampfkraft"
+		2:
+			player.speed *= 1.15
+			text = "Deine Schritte werden leichter: +15% Tempo"
+	level.process_mode = Node.PROCESS_MODE_INHERIT
+	player.frozen = false
+	level.use_shrine(_shrine)
+	_shrine = {}
+	_shrine_panel.visible = false
+	player.play_once("PickUp", 0.6)
+	show_message(text)
+	_update_hud()
+
+
 func _version_text() -> String:
 	var text := "Version " + VERSION
 	if FileAccess.file_exists("res://build_info.txt"):
@@ -249,7 +331,13 @@ func _version_text() -> String:
 
 func _update_hud() -> void:
 	_level_label.text = "Ebene %d: %s" % [level_index + 1, level.level_name]
-	_hp_label.text = "Leben: %d / %d" % [maxi(0, player.hp), Player.MAX_HP]
+	_hp_label.text = "Leben: %d / %d" % [maxi(0, player.hp), player.max_hp]
+	var gifts := []
+	if player.power > 1:
+		gifts.append("Kampfkraft %d" % player.power)
+	if player.speed > Player.SPEED + 0.01:
+		gifts.append("Tempo %d%%" % roundi(player.speed / Player.SPEED * 100.0))
+	_gift_label.text = "   ".join(gifts)
 	_coin_label.text = "Gold: %d" % coins
 	_knife_label.text = "Messer: %d" % player.knives
 	_key_label.text = "Schlüssel gefunden" if level.has_key else "Kein Schlüssel"
@@ -280,6 +368,7 @@ func load_level(index: int) -> void:
 	level.enemy_killed.connect(func(): show_message("Das Skelett zerfällt zu Staub.", 1.4))
 	level.exit_reached.connect(_on_exit_reached)
 	_pending_search = {}
+	_pending_shrine = {}
 	_snap_camera()
 	_update_hud()
 
@@ -334,6 +423,10 @@ func _on_coins_collected(amount: int) -> void:
 func _on_player_bumped(point: Vector3) -> void:
 	if state != State.PLAYING or not player.can_act():
 		return
+	var shrine := level.shrine_at(point)
+	if not shrine.is_empty():
+		_open_shrine(shrine)
+		return
 	var obj := level.unsearched_at(point)
 	if not obj.is_empty():
 		_search(obj)
@@ -359,7 +452,7 @@ func _search(obj: Dictionary) -> void:
 		text = "+%d Wurfmesser" % loot.knives
 		color = Color(0.8, 0.9, 1.0)
 	elif loot.has("potion"):
-		player.hp = mini(Player.MAX_HP, player.hp + 2)
+		player.hp = mini(player.max_hp, player.hp + 2)
 		text = "Heiltrank! +2 Leben"
 		color = Color(1.0, 0.5, 0.55)
 	Effects.float_text(level, obj.icon_pos, text, color)
@@ -444,9 +537,13 @@ func _process(delta: float) -> void:
 	camera.global_position = camera.global_position.lerp(target, 1.0 - exp(-5.0 * delta))
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
-	if state != State.PLAYING:
+	if state != State.PLAYING or not _shrine.is_empty():
 		_prompt.text = ""
 		return
+	if not _pending_shrine.is_empty() and player.path.is_empty() and player.can_act():
+		if Vector2(player.global_position.x - _pending_shrine.pos.x, player.global_position.z - _pending_shrine.pos.z).length() <= Level.SEARCH_RANGE + 0.3:
+			_open_shrine(_pending_shrine)
+		_pending_shrine = {}
 	if not _pending_search.is_empty() and player.path.is_empty() and player.can_act():
 		var reach := Vector2(player.global_position.x - _pending_search.pos.x, player.global_position.z - _pending_search.pos.z).length()
 		if reach <= Level.SEARCH_RANGE + 0.3:
@@ -455,6 +552,8 @@ func _process(delta: float) -> void:
 	var near := level.nearest_interactable(player.global_position)
 	# Only the first levels explain how to search; after that players know.
 	_prompt.text = "Dagegenlaufen, um %s zu untersuchen" % _with_article(near.label) if level_index < 2 and not near.is_empty() and not near.searched else ""
+	if level_index < 2 and _shrine.is_empty() and not level.nearest_shrine(player.global_position).is_empty():
+		_prompt.text = "Dagegenlaufen, um den Schrein zu berühren"
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -467,6 +566,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.WON:
 			coins = 0
 			player.knives = 5
+			player.reset_gifts()
 			state = State.TRANSITION
 			var tween := create_tween()
 			tween.tween_property(_title, "modulate:a", 0.0, 0.4)
@@ -474,6 +574,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				load_level(0)
 				_start_playing())
 		State.PLAYING:
+			if not _shrine.is_empty():
+				if event is InputEventKey and event.physical_keycode in [KEY_1, KEY_2, KEY_3]:
+					_choose_gift(event.physical_keycode - KEY_1)
+				return
 			if event is InputEventKey:
 				match event.physical_keycode:
 					KEY_SPACE:
@@ -509,10 +613,18 @@ func _click(point: Vector3) -> void:
 			else:
 				player.throw_knife(e.global_position)
 			return
+	var shrine := level.nearest_shrine(point, 2.2)
+	if not shrine.is_empty():
+		_pending_shrine = shrine
+		_pending_search = {}
+		player.walk_to(shrine.pos)
+		return
 	var obj := level.nearest_interactable(point, 2.2)
 	if not obj.is_empty():
 		_pending_search = obj
+		_pending_shrine = {}
 		player.walk_to(obj.pos)
 		return
 	_pending_search = {}
+	_pending_shrine = {}
 	player.walk_to(point)

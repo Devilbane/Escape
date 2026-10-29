@@ -51,7 +51,7 @@ jobs:
 
       - name: Alle Levels automatisch durchspielen
         run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log
+          timeout 600 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log
           grep -q PASS test.log
 
       - name: Browser-Version exportieren

@@ -244,7 +244,7 @@ func melee() -> void:
 			continue
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0
-		if to.length() < MELEE_RANGE and (to.length() < 1.2 or facing().dot(to.normalized()) > 0.25):
+		if to.length() < MELEE_RANGE + e.girth() and (to.length() < 1.2 + e.girth() or facing().dot(to.normalized()) > 0.25):
 			e.take_hit(power, global_position)
 			hits += 1
 	if hits == 0 and target:

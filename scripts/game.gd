@@ -55,6 +55,10 @@ var _name_box: Control
 var _name_edit: LineEdit
 var _ranking_slot: Control
 var _lang_row: Control
+## Holding the left mouse button this long turns a click into running.
+const HOLD_TO_RUN := 0.2
+var _mouse_held := false
+var _mouse_held_time := 0.0
 
 
 func _ready() -> void:
@@ -217,7 +221,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: hinklicken zum Laufen, Rechtsklick wirft ein Messer")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken oder gedrückt halten zum Laufen, Rechtsklick wirft ein Messer")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -833,6 +837,7 @@ func _process(delta: float) -> void:
 	camera.global_position = camera.global_position.lerp(target, 1.0 - exp(-5.0 * delta))
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
+	_steer_by_mouse(delta)
 	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
 		_prompt.text = ""
 		return
@@ -858,7 +863,33 @@ func _process(delta: float) -> void:
 		}[station.kind]
 
 
+## While the left mouse button is held down on the dungeon, the hero keeps
+## running towards the cursor. A short click still walks, attacks or searches.
+func _steer_by_mouse(delta: float) -> void:
+	player.steer = Vector3.ZERO
+	if not _mouse_held or not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_mouse_held = false
+		_mouse_held_time = 0.0
+		return
+	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
+		return
+	_mouse_held_time += delta
+	if _mouse_held_time < HOLD_TO_RUN:
+		return
+	var point = _mouse_to_floor(get_viewport().get_mouse_position())
+	if point == null:
+		return
+	var to: Vector3 = point - player.global_position
+	to.y = 0.0
+	if to.length() > 0.6:
+		player.steer = to.normalized()
+		_pending_search = {}
+		_pending_station = {}
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		_mouse_held = event.pressed
 	var pressed: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed and not event.echo)
 	if not pressed:
 		return

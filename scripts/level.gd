@@ -83,6 +83,7 @@ func load_from_file(path: String) -> void:
 
 func build() -> void:
 	_rng.seed = hash(level_name)
+	_clear_passages()
 	add_child(_walls_body)
 	for y in height:
 		for x in width:
@@ -103,6 +104,115 @@ func build() -> void:
 	fog.setup(self)
 	add_child(fog)
 	_spawn_enemies()
+
+
+# --- Keeping the way free ---------------------------------------------------
+
+## Furniture that stands on a whole tile and cannot be walked through.
+const FURNITURE := "bxotkCHBLV"
+const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+
+
+## Moves furniture out of the way: nothing may stand in a narrow passage, next
+## to a door, the stairs or the start, or cut off any part of the level.
+func _clear_passages() -> void:
+	for round in 20:
+		var blocker := _find_blocker()
+		if blocker.x < 0:
+			return
+		var ch := cell_char(blocker)
+		_set_cell(blocker, ".")
+		var spot := _free_spot_near(blocker)
+		if spot.x >= 0:
+			_set_cell(spot, ch)
+
+
+func _find_blocker() -> Vector2i:
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if FURNITURE.contains(cell_char(c)) and _crowds_passage(c):
+				return c
+	# Anything still cut off: free the furniture next to it.
+	var reach := _reachable()
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if _walkable(c) and not reach.has(c):
+				for d in DIRS:
+					if FURNITURE.contains(cell_char(c + d)):
+						return c + d
+	return Vector2i(-1, -1)
+
+
+## Is this tile, or a tile next to it, a doorway, the stairs, the start or a
+## one tile wide gap?
+func _crowds_passage(c: Vector2i) -> bool:
+	if _is_narrow(c):
+		return true
+	for d in DIRS:
+		var n := c + d
+		if "DEP".contains(cell_char(n)) or (_walkable(n) and _is_narrow(n)):
+			return true
+	return false
+
+
+func _is_narrow(c: Vector2i) -> bool:
+	var wall := func(o: Vector2i) -> bool: return cell_char(c + o) == "#"
+	return (wall.call(Vector2i(1, 0)) and wall.call(Vector2i(-1, 0))) \
+			or (wall.call(Vector2i(0, 1)) and wall.call(Vector2i(0, -1)))
+
+
+func _walkable(c: Vector2i) -> bool:
+	var ch := cell_char(c)
+	return ch != "#" and not FURNITURE.contains(ch)
+
+
+## Every tile the hero can reach from the start, walking through doors.
+func _reachable() -> Dictionary:
+	var start := Vector2i(-1, -1)
+	for y in height:
+		var x := grid[y].find("P")
+		if x >= 0:
+			start = Vector2i(x, y)
+	var seen := {start: true}
+	var todo: Array[Vector2i] = [start]
+	while not todo.is_empty():
+		var c: Vector2i = todo.pop_back()
+		for d in DIRS:
+			var n := c + d
+			if _walkable(n) and not seen.has(n):
+				seen[n] = true
+				todo.append(n)
+	return seen
+
+
+## The nearest plain floor tile where the furniture blocks nothing.
+func _free_spot_near(from: Vector2i) -> Vector2i:
+	var seen := {from: true}
+	var todo: Array[Vector2i] = [from]
+	var i := 0
+	while i < todo.size():
+		var c := todo[i]
+		i += 1
+		if ".,".contains(cell_char(c)) and c != from and not _crowds_passage(c):
+			var count := _reachable().size()
+			_set_cell(c, "x")
+			var ok := _reachable().size() == count - 1
+			_set_cell(c, ".")
+			if ok:
+				return c
+		for d in DIRS:
+			var n := c + d
+			if _walkable(n) and not seen.has(n):
+				seen[n] = true
+				todo.append(n)
+	return Vector2i(-1, -1)
+
+
+func _set_cell(c: Vector2i, ch: String) -> void:
+	var row := grid[c.y]
+	grid[c.y] = row.substr(0, c.x) + ch + row.substr(c.x + 1)
 
 
 # --- Grid helpers -----------------------------------------------------------
@@ -512,8 +622,8 @@ func _process(delta: float) -> void:
 	_check_pickups()
 	_check_doors()
 	if exit_cell.x >= 0:
-		var exit_pos := cell_to_world(exit_cell)
-		if Vector2(player.global_position.x - exit_pos.x, player.global_position.z - exit_pos.z).length() < 1.4:
+		# The stairs fill the whole exit cell: climbing starts at the first step.
+		if world_to_cell(player.global_position) == exit_cell:
 			finished = true
 			exit_reached.emit()
 

@@ -138,9 +138,11 @@ func _build_inventory() -> void:
 	_add_label("Inventar", 38, game.GOLD, game.TITLE_FONT)
 	_add_label(_stats_text(), 18, BLUE)
 	_add_label("Angelegt (anklicken zum Ablegen)", 20)
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 8)
+	var row := GridContainer.new()
+	row.columns = 5
+	row.add_theme_constant_override("h_separation", 8)
+	row.add_theme_constant_override("v_separation", 8)
+	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_box.add_child(row)
 	for slot in Items.SLOTS:
 		var id: String = p.equipped.get(slot, "")

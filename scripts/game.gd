@@ -9,10 +9,13 @@ const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const GOLD := Color(1.0, 0.82, 0.4)
 ## Raised by hand for every bigger update. The build number comes from GitHub.
-const VERSION := "0.4"
+const VERSION := "0.5"
+## Filled in by GitHub with the number of each published build, so the
+## version shown in the game changes with every update.
+const BUILD := ""
 const SAVE_FILE := "user://spielstand.json"
 
-enum State { TITLE, PLAYING, TRANSITION, WON }
+enum State { TITLE, PLAYING, TRANSITION, WON, OVER }
 
 var state := State.TITLE
 var level_files: Array[String] = []
@@ -46,6 +49,11 @@ var menus: Menus
 var storage: Array[String] = []
 var shop_stock: Array[String] = []
 var _title_buttons: Control
+## The hero's name, asked for when a new game starts; it goes into the ranking.
+var hero_name := ""
+var _name_box: Control
+var _name_edit: LineEdit
+var _ranking_slot: Control
 
 
 func _ready() -> void:
@@ -259,6 +267,11 @@ func _setup_hud() -> void:
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_title.add_child(l)
 	_title_sub.custom_minimum_size = Vector2(0, 70)
+	_ranking_slot = CenterContainer.new()
+	_ranking_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title.add_child(_ranking_slot)
+	_title.move_child(_ranking_slot, _title_sub.get_index() + 1)
+	_setup_name_box()
 	var title_row := HBoxContainer.new()
 	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	title_row.add_theme_constant_override("separation", 20)
@@ -361,10 +374,7 @@ func _choose_gift(index: int) -> void:
 
 
 func _version_text() -> String:
-	var text := "Version " + VERSION
-	if FileAccess.file_exists("res://build_info.txt"):
-		text += " · Build " + FileAccess.get_file_as_string("res://build_info.txt").strip_edges()
-	return text
+	return "Version " + VERSION + ("." + BUILD if BUILD != "" else "")
 
 
 func _update_hud() -> void:
@@ -403,7 +413,7 @@ func load_level(index: int, restock := true) -> void:
 	level.door_opened.connect(func(): show_message("Die Tür öffnet sich knarrend..."))
 	level.door_locked.connect(func(): show_message("Verschlossen. Finde den Schlüssel!"))
 	level.player_hurt.connect(func(): player.take_damage(1, player.global_position - player.facing()))
-	level.enemy_killed.connect(func(): show_message("Das Skelett zerfällt zu Staub.", 1.4))
+	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
 	_pending_search = {}
 	_pending_station = {}
@@ -418,6 +428,10 @@ func load_level(index: int, restock := true) -> void:
 
 
 func _show_title(text: String, sub: String, prompt: String) -> void:
+	for child in _ranking_slot.get_children():
+		child.queue_free()
+	_name_box.visible = false
+	_title_text.add_theme_font_size_override("font_size", 120)
 	_title_text.text = text
 	_title_sub.text = sub
 	_title_prompt.text = prompt
@@ -440,9 +454,56 @@ func _show_start_title(text: String, sub: String) -> void:
 		_title_buttons.visible = false
 
 
+## Asks for the hero's name; the game starts once it is given.
 func new_game() -> void:
-	if state != State.TITLE and state != State.WON:
+	if not state in [State.TITLE, State.WON, State.OVER] or _name_box.visible:
 		return
+	state = State.TITLE
+	_title_buttons.visible = false
+	_title_prompt.text = ""
+	_name_box.visible = true
+	_name_edit.text = hero_name
+	_name_edit.grab_focus()
+	_name_edit.select_all()
+
+
+func _setup_name_box() -> void:
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 14)
+	box.visible = false
+	_title.add_child(box)
+	_name_box = box
+	var ask := _make_label(TEXT_FONT, 30, GOLD)
+	ask.text = "Wie heißt dein Held?"
+	ask.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(ask)
+	_name_edit = LineEdit.new()
+	_name_edit.max_length = 16
+	_name_edit.placeholder_text = "Dein Name"
+	_name_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_name_edit.custom_minimum_size = Vector2(360, 60)
+	_name_edit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_name_edit.add_theme_font_override("font", TEXT_FONT)
+	_name_edit.add_theme_font_size_override("font_size", 28)
+	_name_edit.add_theme_stylebox_override("normal", Menus.panel_style(Color(0.85, 0.66, 0.32, 0.8)))
+	_name_edit.add_theme_stylebox_override("focus", Menus.panel_style(GOLD))
+	_name_edit.text_submitted.connect(func(_t): _start_new_game())
+	box.add_child(_name_edit)
+	var go := _make_button("Los geht's", _start_new_game)
+	go.custom_minimum_size = Vector2(240, 64)
+	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(go)
+
+
+func _start_new_game() -> void:
+	if not _name_box.visible:
+		return
+	hero_name = _name_edit.text.strip_edges()
+	if hero_name == "":
+		hero_name = "Namenlos"
+	_name_box.visible = false
+	_name_edit.release_focus()
 	coins = 0
 	storage.clear()
 	shop_stock.clear()
@@ -456,6 +517,7 @@ func continue_game() -> void:
 		return
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SAVE_FILE))
 	_leave_title(func():
+		hero_name = data.get("name", "Namenlos")
 		coins = int(data.coins)
 		storage.assign(data.storage)
 		shop_stock.assign(data.shop)
@@ -490,7 +552,7 @@ func has_save() -> bool:
 ## Writes everything needed to wake up in this safe room later.
 func save_game() -> void:
 	var data := {
-		"version": 1, "level": level_index, "coins": coins, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed,
 		"equipped": player.equipped, "bag": player.bag, "storage": storage, "shop": shop_stock,
 	}
@@ -545,8 +607,21 @@ func _on_key_collected() -> void:
 
 
 func _on_coins_collected(amount: int) -> void:
-	coins += amount
+	coins += _gold(amount)
 	_update_hud()
+
+
+## Gold found, doubled by the lucky clover.
+func _gold(amount: int) -> int:
+	return amount * 2 if player.has_special("gluecksklee") else amount
+
+
+func _on_enemy_killed() -> void:
+	show_message("Das Skelett zerfällt zu Staub.", 1.4)
+	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:
+		player.hp += 1
+		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+1", Color(0.5, 1.0, 0.5))
+		_update_hud()
 
 
 ## Running into an object searches it.
@@ -578,8 +653,8 @@ func _search(obj: Dictionary) -> void:
 	var text := "%s: leer" % obj.label
 	var color := Color(0.8, 0.8, 0.85)
 	if loot.has("gold"):
-		coins += loot.gold
-		text = "+%d Gold" % loot.gold
+		coins += _gold(loot.gold)
+		text = "+%d Gold" % _gold(loot.gold)
 		color = GOLD
 	elif loot.has("knives"):
 		player.knives += loot.knives
@@ -619,18 +694,33 @@ func _on_player_hurt(_amount: int) -> void:
 	tween.tween_property(_fade, "color:a", 0.0, 0.35)
 
 
+## Death ends the run: it goes into the ranking with a skull.
 func _on_player_defeated() -> void:
 	state = State.TRANSITION
-	show_message("Du wurdest besiegt... und erwachst am Eingang.", 2.5)
+	show_message("Du wurdest besiegt...", 2.0)
 	var tween := create_tween()
-	tween.tween_interval(1.4)
-	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.6)
-	tween.tween_callback(func():
-		player.revive(level.cell_to_world(level.start_cell))
-		_snap_camera()
-		_update_hud()
-		state = State.PLAYING)
-	tween.tween_property(_fade, "color:a", 0.0, 0.6)
+	tween.tween_interval(1.6)
+	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.8)
+	tween.tween_callback(func(): _end_run(false))
+
+
+## Puts the finished run into the ranking and shows the list.
+func _end_run(escaped: bool) -> void:
+	state = State.WON if escaped else State.OVER
+	var entry := Ranking.add(hero_name, level_index + 1, level.level_name, coins, escaped)
+	# The run is over, so the saved game in the safe room is gone too.
+	if has_save():
+		DirAccess.remove_absolute(SAVE_FILE)
+	if escaped:
+		_show_title("Frei!", "%s ist entkommen und hat %d Gold erbeutet." % [hero_name, coins], "Klicken für ein neues Spiel")
+	else:
+		_show_title("Gefallen", "%s fiel auf Ebene %d mit %d Gold." % [hero_name, level_index + 1, coins], "Klicken für ein neues Spiel")
+	_title_text.add_theme_font_size_override("font_size", 90)
+	_ranking_slot.add_child(Ranking.build(self, entry))
+
+
+## Time for the hero to climb one exit step.
+const STEP_TIME := 0.2
 
 
 func _on_exit_reached() -> void:
@@ -639,17 +729,25 @@ func _on_exit_reached() -> void:
 	player.path.clear()
 	player.face(Vector3.FORWARD)
 	player.play("Walking_A")
-	var top := level.cell_to_world(level.exit_cell) + Vector3(0, 4.5, -4.5)
+	# The stairs rise northwards across the exit cell in 8 steps of half a metre:
+	# step k (1..8) is 0.5 * k high, its middle 0.5 * k further north.
+	var foot := level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.5)
 	var tween := create_tween()
-	tween.tween_property(player, "global_position", top, 1.8)
-	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.6).set_delay(0.4)
+	tween.tween_property(player, "global_position", foot + Vector3(0, 0, 0.1), 0.15)
+	for k in range(1, 9):
+		var step := foot + Vector3(0, 0.5 * k, -0.5 * k + 0.25)
+		tween.tween_property(player, "global_position:z", step.z, STEP_TIME)
+		tween.parallel().tween_property(player, "global_position:y", step.y, STEP_TIME * 0.6) \
+				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_callback(_next_level)
+	# Darken while the hero climbs the upper half of the stairs.
+	create_tween().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), STEP_TIME * 5.5) \
+			.set_delay(0.15 + STEP_TIME * 3)
 
 
 func _next_level() -> void:
 	if level_index + 1 >= level_files.size():
-		state = State.WON
-		_show_title("Frei!", "Du bist entkommen und hast %d Gold erbeutet." % coins, "Klicken für ein neues Spiel")
+		_end_run(true)
 		return
 	load_level(level_index + 1)
 	state = State.PLAYING
@@ -708,11 +806,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	match state:
 		State.TITLE:
+			if _name_box.visible:
+				return
 			if has_save() and not (event is InputEventKey and event.physical_keycode == KEY_N):
 				continue_game()
 			else:
 				new_game()
-		State.WON:
+		State.WON, State.OVER:
 			new_game()
 		State.PLAYING:
 			if not _shrine.is_empty():

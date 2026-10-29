@@ -56,7 +56,8 @@ jobs:
 
       - name: Browser-Version exportieren
         run: |
-          echo "${{ github.run_number }} (${GITHUB_SHA::7})" > build_info.txt
+          sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd
+          grep -q 'const BUILD := "${{ github.run_number }}"' scripts/game.gd
           mkdir -p build/web
           ~/godot/godot --headless --export-release Web build/web/index.html
 

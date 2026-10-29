@@ -12,6 +12,13 @@ const HURT_WORDS := ["AUA!", "UFF!", "AUTSCH!"]
 const BREAK_WORDS := ["KNACK!", "KLAPPER!"]
 const MISS_WORDS := ["WUSCH!"]
 
+## How much a bubble grows at most (with its tilt), so it is kept apart at full size.
+const GROWN := 1.5
+## Free pixels kept between a bubble and fighters or other bubbles.
+const GAP := 6.0
+## Height of a fighter from the feet to the top of the hood or helmet.
+const BODY_HEIGHT := 2.3
+
 ## The one comic layer in the game, so anything can call Comic.pop().
 static var current: Comic
 
@@ -69,21 +76,22 @@ func _pop(world_pos: Vector3, kind: String) -> void:
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(label)
 
-	# Starts medium, stretches out like rubber, wobbles, then bursts.
-	root.scale = Vector2.ONE * 0.6
+	# Starts medium, stretches out like rubber, wobbles hard, then bursts.
+	root.scale = Vector2.ONE * 0.55
 	var tween := root.create_tween()
-	tween.tween_property(root, "scale", Vector2(1.0, 0.82), 0.11).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tween.tween_property(root, "scale", Vector2(0.88, 1.04), 0.09).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(root, "scale", Vector2(1.14, 0.96), 0.09).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(root, "scale", Vector2(1.0, 1.08), 0.08).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(root, "scale", Vector2(1.08, 1.03), 0.08).set_trans(Tween.TRANS_SINE)
-	tween.parallel().tween_property(root, "rotation", root.rotation + deg_to_rad(randf_range(-8.0, 8.0)), 0.25).set_trans(Tween.TRANS_SINE)
-	tween.tween_interval(0.16)
-	# One last swell before it pops.
-	tween.tween_property(root, "scale", Vector2(1.32, 1.26), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	for target in [Vector2(1.3, 0.62), Vector2(0.72, 1.3), Vector2(1.24, 0.8),
+			Vector2(0.86, 1.16), Vector2(1.12, 0.92), Vector2(0.98, 1.06), Vector2(1.04, 1.0)]:
+		tween.tween_property(root, "scale", target, 0.085).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	root.create_tween().tween_property(root, "rotation", root.rotation + deg_to_rad(randf_range(-10.0, 10.0)), 0.4).set_trans(Tween.TRANS_SINE)
+	tween.tween_interval(0.12)
+	# Squeezes together once, then swells up and pops.
+	tween.tween_property(root, "scale", Vector2(0.86, 1.2), 0.07).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(root, "scale", Vector2(1.45, 1.3), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_callback(_burst.bind(root, fill, size))
-	_pops.append({"node": root, "pos": world_pos + Vector3(randf_range(-0.6, 0.6), 3.2, 0), "age": 0.0})
-	_place(_pops[-1])
+	var anchor := world_pos + Vector3(0, 1.0, 0)
+	var pop := {"node": root, "pos": anchor, "offset": _free_spot(anchor, root.size * GROWN)}
+	_pops.append(pop)
+	_place(pop)
 
 
 func _process(delta: float) -> void:
@@ -91,7 +99,6 @@ func _process(delta: float) -> void:
 		if not is_instance_valid(p.node):
 			_pops.erase(p)
 			continue
-		p.age += delta
 		_place(p)
 
 
@@ -128,11 +135,58 @@ func _burst(root: Control, fill: Color, size: float) -> void:
 		t.tween_callback(shard.queue_free)
 
 
-## Keeps a bubble over its spot in the world while it floats upwards.
+## Keeps a bubble at its spot beside the fight, even when the camera moves.
 func _place(p: Dictionary) -> void:
-	var world: Vector3 = p.pos + Vector3(0, p.age * 0.8, 0)
-	p.node.visible = not camera.is_position_behind(world)
-	p.node.position = camera.unproject_position(world) - p.node.size * 0.5
+	p.node.visible = not camera.is_position_behind(p.pos)
+	p.node.position = camera.unproject_position(p.pos) + p.offset - p.node.size * 0.5
+
+
+## Finds a place on screen near the fight where the bubble touches neither a
+## fighter nor another bubble. Returns the offset from the fight's screen point.
+func _free_spot(anchor: Vector3, extent: Vector2) -> Vector2:
+	var center := camera.unproject_position(anchor)
+	var blocked: Array[Rect2] = []
+	for node in get_tree().get_nodes_in_group("combatant"):
+		var body := node as Node3D
+		if body and body.is_visible_in_tree() and not camera.is_position_behind(body.global_position):
+			blocked.append(_body_rect(body).grow(GAP))
+	for p in _pops:
+		if is_instance_valid(p.node):
+			var other: Vector2 = camera.unproject_position(p.pos) + p.offset
+			var other_extent: Vector2 = p.node.size * GROWN
+			blocked.append(Rect2(other - other_extent * 0.5, other_extent).grow(GAP))
+	# Keep clear of the status line at the top and the buttons at the bottom.
+	var screen := get_viewport().get_visible_rect().grow_individual(-16, -100, -16, -110)
+	var best := Vector2.ZERO
+	var best_overlap := INF
+	# Try rings of spots around the fight, closest first and from above round.
+	var start := extent.length() * 0.3
+	for ring in 14:
+		var radius := start + ring * 20.0
+		for step in 16:
+			var angle := -PI / 2 + ceilf(step / 2.0) * TAU / 16.0 * (1.0 if step % 2 == 0 else -1.0)
+			var offset := Vector2(cos(angle), sin(angle)) * radius * Vector2(1.2, 1.0)
+			var rect := Rect2(center + offset - extent * 0.5, extent)
+			if not screen.encloses(rect):
+				continue
+			var overlap := 0.0
+			for b in blocked:
+				overlap += b.intersection(rect).get_area()
+			if overlap == 0.0:
+				return offset
+			if overlap < best_overlap:
+				best_overlap = overlap
+				best = offset
+	return best
+
+
+## The screen box around a fighter, from feet to the top of the head.
+func _body_rect(body: Node3D) -> Rect2:
+	var feet := camera.unproject_position(body.global_position)
+	var head := camera.unproject_position(body.global_position + Vector3(0, BODY_HEIGHT, 0))
+	var height := absf(feet.y - head.y)
+	var width := height * 0.8
+	return Rect2(Vector2(feet.x - width * 0.5, minf(feet.y, head.y)), Vector2(width, height + height * 0.15))
 
 
 ## A jagged comic explosion: coloured star with a thick black rim and speed lines.

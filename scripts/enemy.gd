@@ -27,6 +27,7 @@ var _home := Vector3.ZERO
 
 func _ready() -> void:
 	hp = 2 if ranged else 3
+	add_to_group("combatant")
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.6
@@ -165,7 +166,7 @@ func _strike(player: Player) -> void:
 	var d := player.global_position - global_position
 	d.y = 0.0
 	if d.length() < MELEE_RANGE + 0.6:
-		player.take_damage(1, global_position)
+		player.take_damage(1, global_position, self)
 
 
 func _shoot(player: Player) -> void:

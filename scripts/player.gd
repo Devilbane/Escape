@@ -56,6 +56,7 @@ var _anim_hold := 0.0
 
 
 func _ready() -> void:
+	add_to_group("combatant")
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.55
@@ -93,11 +94,11 @@ func _add_trim() -> void:
 	gold.metallic = 0.7
 	gold.roughness = 0.35
 	gold.emission_enabled = true
-	gold.emission = Color(0.35, 0.22, 0.05)
+	gold.emission = Color(0.55, 0.36, 0.08)
 	var cape := _model.find_child("Rogue_Cape", true, false) as MeshInstance3D
 	if cape:
 		var cord := MeshInstance3D.new()
-		cord.mesh = Effects.cord_mesh(Effects.open_edges(cape.mesh), 0.028, gold)
+		cord.mesh = Effects.cord_mesh(Effects.open_edges(cape.mesh), 0.075, gold)
 		cape.add_child(cord)
 	var head := _model.find_child("Rogue_Head_Hooded", true, false) as MeshInstance3D
 	var skeleton := _model.find_child("Skeleton3D", true, false) as Skeleton3D
@@ -123,7 +124,7 @@ func _add_trim() -> void:
 	attach.bone_name = "head"
 	skeleton.add_child(attach)
 	var hood_cord := MeshInstance3D.new()
-	hood_cord.mesh = Effects.cord_mesh(rim, 0.03, gold)
+	hood_cord.mesh = Effects.cord_mesh(rim, 0.07, gold)
 	attach.add_child(hood_cord)
 	var feather := MeshInstance3D.new()
 	feather.mesh = Effects.feather_mesh()
@@ -331,6 +332,32 @@ func refresh_stats() -> void:
 	hp = mini(hp, max_hp)
 	_show_held("waffe", "handslot_r", "Knife")
 	_show_held("schild", "handslot_l", "")
+	_show_tint("umhang", ["Rogue_Cape"])
+	_show_tint("ruestung", ["Rogue_Body"])
+	_show_tint("schuhe", ["Rogue_LegLeft", "Rogue_LegRight"])
+
+
+const TINT_SHADER := preload("res://shaders/tint.gdshader")
+
+
+## Colours the hero's cloak, body or legs after the worn cloak, armour or shoes.
+func _show_tint(slot: String, parts: Array) -> void:
+	var item: Dictionary = Items.ALL.get(equipped.get(slot, ""), {})
+	for part in parts:
+		var mesh := _model.find_child(part, true, false) as MeshInstance3D
+		if not item.has("tint"):
+			mesh.material_override = null
+			continue
+		var mat := ShaderMaterial.new()
+		mat.shader = TINT_SHADER
+		mat.set_shader_parameter("tex", (mesh.mesh.surface_get_material(0) as StandardMaterial3D).albedo_texture)
+		mat.set_shader_parameter("tint", item.tint)
+		mat.set_shader_parameter("metal", item.get("metal", 0.0))
+		mesh.material_override = mat
+
+
+func has_special(id: String) -> bool:
+	return equipped.get("spezial_1", "") == id or equipped.get("spezial_2", "") == id
 
 
 func _show_held(slot: String, hand_name: String, default_part: String) -> void:
@@ -350,6 +377,9 @@ func _show_held(slot: String, hand_name: String, default_part: String) -> void:
 ## Moves a bag item into its slot; whatever was worn there goes into the bag.
 func equip(id: String) -> void:
 	var slot: String = Items.ALL[id].slot
+	if slot == "spezial":
+		# Two places for specials: take a free one, else swap out the first.
+		slot = "spezial_2" if equipped.has("spezial_1") and not equipped.has("spezial_2") else "spezial_1"
 	bag.erase(id)
 	if equipped.has(slot):
 		bag.append(equipped[slot])
@@ -367,10 +397,18 @@ func unequip(slot: String) -> bool:
 	return true
 
 
-func take_damage(amount: int, from: Vector3) -> void:
+func take_damage(amount: int, from: Vector3, attacker: Node = null) -> void:
 	if dead or _invulnerable > 0.0 or frozen:
 		return
 	hp -= amount
+	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
+		attacker.take_hit(1, global_position)
+	if hp <= 0 and has_special("phoenixfeder"):
+		# The feather burns up and brings the hero back.
+		equipped.erase("spezial_1" if equipped.get("spezial_1", "") == "phoenixfeder" else "spezial_2")
+		refresh_stats()
+		hp = mini(3, max_hp)
+		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), "Phönixfeder!", Color(1.0, 0.6, 0.2))
 	_invulnerable = 0.9
 	var away := global_position - from
 	away.y = 0.0

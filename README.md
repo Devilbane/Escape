@@ -30,7 +30,7 @@ Finde den **Schlüssel**, öffne die **Tür** und steige die **Treppe** hinauf i
 Fässer, Kisten, Tische, Truhen und Wandregale lassen sich durchsuchen: Darin steckt Gold,
 Wurfmesser, ein Heiltrank oder auch gar nichts. Durchsuchtes bekommt ein Häkchen.
 Skelette greifen mit Klingen oder Armbrüsten an. Über **Stacheln** kannst du springen.
-An einem **Schrein** wählst du einmal eine Gabe: +1 Leben, +1 Kampfkraft oder +15% Tempo.
+An einem **Schrein** wählst du einmal eine Gabe: +1 Leben, +1 Kampfkraft oder +7% Tempo.
 Die Gaben bleiben bis zum Ende des Spiels.
 
 Manchmal findest du **Ausrüstung**: Schwert und Axt geben Kampfkraft, Schilde geben Leben,

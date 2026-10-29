@@ -347,7 +347,7 @@ func _setup_shrine_panel() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
 	box.add_child(row)
-	var gifts := [Lang.t("+1 Leben"), Lang.t("+1 Kampfkraft"), Lang.t("+15% Tempo")]
+	var gifts := [Lang.t("+1 Leben"), Lang.t("+1 Kampfkraft"), Lang.t("+7% Tempo")]
 	for i in gifts.size():
 		var b := _make_button(Lang.t("%s\n(Taste %d)") % [gifts[i], i + 1], _choose_gift.bind(i))
 		b.custom_minimum_size = Vector2(200, 96)
@@ -415,8 +415,8 @@ func _choose_gift(index: int) -> void:
 			player.gift_power += 1
 			text = Lang.t("Deine Hiebe werden härter: +1 Kampfkraft")
 		2:
-			player.gift_speed += 0.15
-			text = Lang.t("Deine Schritte werden leichter: +15% Tempo")
+			player.gift_speed += 0.07
+			text = Lang.t("Deine Schritte werden leichter: +7% Tempo")
 	set_world_paused(false)
 	if player.cure():
 		text += "\n" + Lang.t("Dein Leiden ist geheilt.")

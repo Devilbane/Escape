@@ -104,11 +104,11 @@ const EN := {
 	"Wähle eine Gabe": "Choose a gift",
 	"+1 Leben": "+1 life",
 	"+1 Kampfkraft": "+1 strength",
-	"+15% Tempo": "+15% speed",
+	"+7% Tempo": "+7% speed",
 	"%s\n(Taste %d)": "%s\n(key %d)",
 	"Du fühlst dich zäher: +1 Leben": "You feel tougher: +1 life",
 	"Deine Hiebe werden härter: +1 Kampfkraft": "Your blows grow harder: +1 strength",
-	"Deine Schritte werden leichter: +15% Tempo": "Your steps grow lighter: +15% speed",
+	"Deine Schritte werden leichter: +7% Tempo": "Your steps grow lighter: +7% speed",
 	# Windows
 	"Schließen": "Close",
 	"Leben %d / %d    Kampfkraft %d    Tempo %d%%    Messer %d    Gold %d": "Life %d / %d    Strength %d    Speed %d%%    Knives %d    Gold %d",

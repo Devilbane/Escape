@@ -33,6 +33,7 @@ const EN := {
 	"Gold": "Gold",
 	"Datum": "Date",
 	"Entkommen": "Escaped",
+	"Alle Rechte vorbehalten": "All rights reserved",
 	# HUD and help
 	"WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: hinklicken zum Laufen, Rechtsklick wirft ein Messer":
 		"WASD: walk   Space: jump   F: strike   R: throwing knife   I: inventory\nRun into things: search, attack, use\nMouse: click to walk, right click throws a knife",

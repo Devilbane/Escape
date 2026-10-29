@@ -233,6 +233,20 @@ func _setup_hud() -> void:
 	version.offset_bottom = -4
 	_hud.add_child(version)
 
+	# The devilbane logo as a faint watermark in the corner, above the buttons.
+	var mark := TextureRect.new()
+	mark.texture = preload("res://assets/logo/devilbane_logo.png")
+	mark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	mark.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	mark.offset_left = -110
+	mark.offset_top = -205
+	mark.offset_right = -20
+	mark.offset_bottom = -102
+	mark.modulate = Color(1, 1, 1, 0.35)
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud.add_child(mark)
+
 	var buttons := GridContainer.new()
 	buttons.columns = 4
 	buttons.add_theme_constant_override("h_separation", 10)
@@ -377,7 +391,7 @@ func _choose_gift(index: int) -> void:
 
 
 func _version_text() -> String:
-	return "Version " + VERSION + ("." + BUILD if BUILD != "" else "")
+	return "Version " + VERSION + ("." + BUILD if BUILD != "" else "") + " · © 2026 devilbane · " + Lang.t("Alle Rechte vorbehalten")
 
 
 func _update_hud() -> void:

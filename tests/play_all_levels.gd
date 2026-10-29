@@ -1,7 +1,8 @@
 extends SceneTree
 ## Headless smoke test: plays every level like a (very determined) player.
 ## It fights skeletons, searches every object, grabs the key and leaves by
-## the stairs. Run with: godot --headless -s tests/play_all_levels.gd
+## the stairs. Run with: godot --headless --fixed-fps 60 -s tests/play_all_levels.gd
+## (--fixed-fps makes the run deterministic and much faster than real time).
 
 var game: Node
 var total := 0.0
@@ -11,6 +12,7 @@ var reached := 0
 
 
 func _initialize() -> void:
+	seed(int(OS.get_environment("TEST_SEED")) if OS.has_environment("TEST_SEED") else 1)
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 

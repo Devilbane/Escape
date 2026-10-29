@@ -63,7 +63,7 @@ const EN := {
 	"Das Wasser des Brunnens heilt dich von allem Übel.": "The fountain's water cures you of every ailment.",
 	"Das kühle Wasser heilt deine Wunden.": "The cool water heals your wounds.",
 	"Du trinkst vom klaren Wasser.": "You drink the clear water.",
-	"Das Gift ist fort.": "The poison is gone.",
+	"Dein Leiden ist geheilt.": "Your ailment is cured.",
 	# Messages
 	"Die Tür öffnet sich knarrend...": "The door creaks open...",
 	"Verschlossen. Finde den Schlüssel!": "Locked. Find the key!",

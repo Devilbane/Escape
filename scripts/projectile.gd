@@ -15,6 +15,7 @@ var _age := 0.0
 
 const MAGIC_SPEED := 10.0
 const MAGIC_TURN := 1.6
+const CURSE_CHANCE := 0.35
 
 
 static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: bool, is_magic := false) -> Projectile:
@@ -77,8 +78,8 @@ func _physics_process(delta: float) -> void:
 		if not player.dead and _hits(player.global_position) and player.global_position.y < 1.2:
 			var before := player.hp
 			player.take_damage(1, global_position - direction)
-			# A mage's orb curses whoever it hits.
-			if magic and player.hp < before:
+			# A mage's orb sometimes curses whoever it hits.
+			if magic and player.hp < before and randf() < CURSE_CHANCE:
 				player.afflict("fluch")
 			queue_free()
 

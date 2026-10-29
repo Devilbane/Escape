@@ -414,6 +414,8 @@ func _choose_gift(index: int) -> void:
 			player.gift_speed += 0.15
 			text = Lang.t("Deine Schritte werden leichter: +15% Tempo")
 	set_world_paused(false)
+	if player.cure():
+		text += "\n" + Lang.t("Dein Leiden ist geheilt.")
 	player.refresh_stats()
 	level.use_shrine(_shrine)
 	_shrine = {}
@@ -754,8 +756,8 @@ func _search(obj: Dictionary) -> void:
 	elif loot.has("potion"):
 		player.hp = mini(player.max_hp, player.hp + 2)
 		text = Lang.t("Heiltrank! +2 Leben")
-		if player.cure("gift"):
-			text += "\n" + Lang.t("Das Gift ist fort.")
+		if player.cure():
+			text += "\n" + Lang.t("Dein Leiden ist geheilt.")
 		color = Color(1.0, 0.5, 0.55)
 	if loot.has("item"):
 		player.bag.append(loot.item)

@@ -41,8 +41,8 @@ var power := 1
 var speed := SPEED
 var knives := 5
 ## Ailments and the seconds each has left. Poison ("gift") takes a life every
-## few seconds but never the last one; a curse ("fluch") weakens and slows.
-## Both wear off in time, a fountain cures them at once.
+## few seconds but never the last one; a curse ("fluch") slows the hero.
+## Both wear off soon; a fountain, a shrine or a healing potion cures them.
 var ailments := {}
 var _poison_tick := 0.0
 ## A direction to run in, set every frame while the mouse button is held.
@@ -350,7 +350,6 @@ func refresh_stats() -> void:
 	power = 1 + power_bonus
 	speed = SPEED * (1.0 + speed_bonus)
 	if ailments.has("fluch"):
-		power = maxi(1, power - 1)
 		speed *= CURSE_SLOW
 	hp = mini(hp, max_hp)
 	_show_held("waffe", "handslot_r", "Knife")
@@ -379,9 +378,9 @@ func _show_tint(slot: String, parts: Array) -> void:
 		mesh.material_override = mat
 
 
-const AILMENT_TIME := 45.0
-const POISON_TICK := 6.0
-const CURSE_SLOW := 0.8
+const AILMENT_TIME := 20.0
+const POISON_TICK := 8.0
+const CURSE_SLOW := 0.85
 const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0)}
 
 

@@ -8,6 +8,7 @@ extends CharacterBody3D
 signal died
 
 const SIGHT := 26.0
+const POISON_CHANCE := 0.25
 ## Model, weapon, life, speed, damage, reach, scale and pause between attacks.
 const KINDS := {
 	"krieger": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Blade", "hp": 3, "speed": 4.8, "damage": 1, "reach": 2.0, "size": 1.0, "cooldown": 1.4},
@@ -245,8 +246,8 @@ func _strike(player: Player) -> void:
 	if d.length() < float(_stats.reach) + 0.6:
 		var before := player.hp
 		player.take_damage(_stats.damage, global_position, self)
-		# Minion blades are poisoned.
-		if kind == "wicht" and player.hp < before:
+		# Minion blades are sometimes poisoned.
+		if kind == "wicht" and player.hp < before and randf() < POISON_CHANCE:
 			player.afflict("gift")
 
 

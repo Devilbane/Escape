@@ -1,0 +1,11 @@
+name: Die Zuflucht
+hint: Ein sicherer Ort. Hier kannst du Dinge lagern, handeln und im Bett speichern.
+safe: ja
+##############
+######E#######
+####.....#####
+#B.........L.#
+#............#
+#....P.....V.#
+#..t.........#
+##############

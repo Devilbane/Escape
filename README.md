@@ -13,6 +13,7 @@ Einfache Steuerung, schöne 2.5D-Grafik, viele Levels.
 | Springen | Leertaste | Knopf „Springen“ |
 | Nahkampf | gegen den Gegner laufen oder F | Gegner anklicken, Knopf „Schlagen“ |
 | Wurfmesser | R | Rechtsklick, Knopf „Werfen“ |
+| Inventar | I | Knopf „Inventar“ |
 
 Wer gegen ein Skelett läuft, kämpft automatisch: Solange du daneben stehst, schlägst du weiter zu.
 Gehst du auf Abstand, wirfst du Messer auf das zuletzt angegriffene Skelett, solange du es siehst
@@ -29,6 +30,12 @@ Wurfmesser, ein Heiltrank oder auch gar nichts. Durchsuchtes bekommt ein Häkche
 Skelette greifen mit Klingen oder Armbrüsten an. Über **Stacheln** kannst du springen.
 An einem **Schrein** wählst du einmal eine Gabe: +1 Leben, +1 Kampfkraft oder +15% Tempo.
 Die Gaben bleiben bis zum Ende des Spiels.
+
+Manchmal findest du **Ausrüstung**: Schwert und Axt geben Kampfkraft, Schilde geben Leben,
+Amulette geben Tempo, Kraft oder Leben. Im **Inventar** (Taste I) legst du sie an oder wirfst sie weg.
+Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es eine Lagertruhe,
+einen Händler, der für Gold kauft und verkauft, und ein Bett. Im Bett wird gespeichert und du loggst aus.
+Beim nächsten Start geht es mit „Weiterspielen“ dort weiter. Der Spielstand liegt im Browser.
 Du siehst nur, was in deiner Sichtlinie liegt. Bereits erkundete Bereiche bleiben grau sichtbar.
 
 ## Neue Levels bauen
@@ -47,6 +54,10 @@ nach Dateinamen sortiert gespielt. Ein Zeichen steht für ein Feld:
 | `o`     | Säule            | `t`     | Tisch            |
 | `k`     | kleine Truhe     | `M`     | Skelett-Krieger  |
 | `A`     | Skelett-Schütze  | `H`     | Schrein          |
+| `B`     | Bett (speichern) | `L`     | Lagertruhe       |
+| `V`     | Händler          |         |                  |
+
+Eine Zeile `safe: ja` macht ein Level zum Saferoom.
 
 Der Ausgang `E` braucht eine Wand im Norden (oben) und wird von Süden betreten.
 Eine Tür `D` steht in einem ein Feld breiten Durchgang.

@@ -63,7 +63,9 @@ jobs:
           # A new file name for the game data on every build, so browsers
           # cannot keep showing an old version from their cache.
           v=${{ github.run_number }}
-          mv build/web/index.pck build/web/index-$v.pck
+          # The plain index.pck stays too: a page still cached from an
+          # older release asks for that name.
+          cp build/web/index.pck build/web/index-$v.pck
           sed -i "s/\"executable\":\"index\"/\"executable\":\"index\",\"mainPack\":\"index-$v.pck\"/; s/\"index.pck\":/\"index-$v.pck\":/" build/web/index.html
           grep -q "\"mainPack\":\"index-$v.pck\"" build/web/index.html
 

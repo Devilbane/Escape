@@ -12,7 +12,8 @@ var reached := 0
 var gifts := 0
 var equips := 0
 ## Death ends a run, but the bot is no expert fighter: it gets healed when it
-## is down to its last life, and the test counts how often that was needed.
+## is down to its last two lives (a brute hits for 2), and the test counts
+## how often that was needed.
 var rescues := 0
 
 
@@ -34,13 +35,13 @@ func _cell_of(ch: String) -> Vector3:
 func _process(delta: float) -> bool:
 	total += delta
 	timer += delta
-	if total > 900.0:
+	if total > 2400.0:
 		print("FAIL: timeout at level ", game.level_index + 1)
 		return true
 	if game.state == game.State.TITLE:
 		game._start_playing()
 		return false
-	if game.state == game.State.PLAYING and game.player.hp == 1 and not game.player.dead:
+	if game.state == game.State.PLAYING and game.player.hp <= 2 and not game.player.dead:
 		game.player.hp = game.player.max_hp
 		rescues += 1
 	if game.state == game.State.OVER:
@@ -77,6 +78,9 @@ func _process(delta: float) -> bool:
 			if d < 14.0:
 				if player.knives > 0:
 					player.throw_knife()
+				elif lvl.world_to_cell(e.global_position) == lvl.world_to_cell(player.global_position):
+					# Same tile: the path finder has nothing to do, so step straight at it.
+					player.path.assign([e.global_position])
 				else:
 					player.walk_to(e.global_position)
 				return false

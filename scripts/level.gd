@@ -9,10 +9,14 @@ extends Node3D
 ##   C  treasure chest  k  small trunk
 ##   b  barrel        x  crates          o  pillar        t  table
 ##   M  skeleton warrior (melee)          A  skeleton archer (ranged)
+##   Z  skeleton mage (magic orbs)        w  skeleton minion (small, quick)
+##   G  skeleton brute (big, slow, hits hard)
 ##   H  shrine: grants one gift (more life, strength or speed)
 ##   B  bed (save and log out)  L  storage chest  V  merchant
 ##
 ## A level with the line "safe: ja" is a safe room without enemies.
+## A level with the line "elite: ja" has stronger skeletons with dark bones
+## and glowing red eyes.
 ##
 ## Barrels, crates, tables, trunks, chests and wall shelves can be searched.
 
@@ -58,6 +62,7 @@ var enemies: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
 var safe := false
+var elite := false
 var fog: Fog
 var _doors: Array = []
 var _torch_spots: Array[Vector3] = []
@@ -75,6 +80,8 @@ func load_from_file(path: String) -> void:
 			hint = line.substr(5).strip_edges()
 		elif line.begins_with("safe:"):
 			safe = true
+		elif line.begins_with("elite:"):
+			elite = true
 		elif line != "":
 			grid.append(line)
 			width = maxi(width, line.length())
@@ -775,9 +782,10 @@ func _spawn_enemies() -> void:
 		for x in width:
 			var c := Vector2i(x, y)
 			var ch := cell_char(c)
-			if ch == "M" or ch == "A":
+			if Enemy.LETTERS.has(ch):
 				var e := Enemy.new()
-				e.ranged = ch == "A"
+				e.kind = Enemy.LETTERS[ch]
+				e.elite = elite and ch in "MA"
 				e.level = self
 				add_child(e)
 				e.global_position = cell_to_world(c)

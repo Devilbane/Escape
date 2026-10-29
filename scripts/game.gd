@@ -633,17 +633,30 @@ func _on_player_defeated() -> void:
 	tween.tween_property(_fade, "color:a", 0.0, 0.6)
 
 
+## Time for the hero to climb one exit step.
+const STEP_TIME := 0.2
+
+
 func _on_exit_reached() -> void:
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
 	player.face(Vector3.FORWARD)
 	player.play("Walking_A")
-	var top := level.cell_to_world(level.exit_cell) + Vector3(0, 4.5, -4.5)
+	# The stairs rise northwards across the exit cell in 8 steps of half a metre:
+	# step k (1..8) is 0.5 * k high, its middle 0.5 * k further north.
+	var foot := level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.5)
 	var tween := create_tween()
-	tween.tween_property(player, "global_position", top, 1.8)
-	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.6).set_delay(0.4)
+	tween.tween_property(player, "global_position", foot + Vector3(0, 0, 0.1), 0.15)
+	for k in range(1, 9):
+		var step := foot + Vector3(0, 0.5 * k, -0.5 * k + 0.25)
+		tween.tween_property(player, "global_position:z", step.z, STEP_TIME)
+		tween.parallel().tween_property(player, "global_position:y", step.y, STEP_TIME * 0.6) \
+				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_callback(_next_level)
+	# Darken while the hero climbs the upper half of the stairs.
+	create_tween().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), STEP_TIME * 5.5) \
+			.set_delay(0.15 + STEP_TIME * 3)
 
 
 func _next_level() -> void:

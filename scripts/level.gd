@@ -512,8 +512,8 @@ func _process(delta: float) -> void:
 	_check_pickups()
 	_check_doors()
 	if exit_cell.x >= 0:
-		var exit_pos := cell_to_world(exit_cell)
-		if Vector2(player.global_position.x - exit_pos.x, player.global_position.z - exit_pos.z).length() < 1.4:
+		# The stairs fill the whole exit cell: climbing starts at the first step.
+		if world_to_cell(player.global_position) == exit_cell:
 			finished = true
 			exit_reached.emit()
 

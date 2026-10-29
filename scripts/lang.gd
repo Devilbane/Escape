@@ -10,7 +10,12 @@ const EN := {
 	# Title, name, ranking
 	"Entkomme aus dem Verlies": "Escape from the dungeon",
 	"Sprache wählen": "Choose your language",
-	"Weiterspielen": "Continue",
+	"Spielstand laden": "Load saved game",
+	"Laden": "Load",
+	"Abbrechen": "Cancel",
+	"Es gibt noch keinen Spielstand. Gespeichert wird im Bett der Zuflucht.": "There is no saved game yet. You save in the bed of the refuge.",
+	"%s auf Ebene %d mit %d Gold.": "%s on level %d with %d gold.",
+	"Was du seitdem erlebt hast, geht verloren.": "Everything since then will be lost.",
 	"Neues Spiel": "New game",
 	"Klicken oder eine Taste: weiterspielen.  N: neues Spiel": "Click or press a key to continue.  N: new game",
 	"Klicken oder eine Taste drücken": "Click or press a key",
@@ -35,8 +40,8 @@ const EN := {
 	"Entkommen": "Escaped",
 	"Alle Rechte vorbehalten": "All rights reserved",
 	# HUD and help
-	"WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken/halten zum Laufen, Rechtsklick: Messer (im Lauf: Sprung), Rad: Zoom":
-		"WASD: walk   Space: jump   F: strike   R: throwing knife   I: inventory\nRun into things: search, attack, use\nMouse: click/hold to walk, right click: knife (running: jump), wheel: zoom",
+	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer\nI: Inventar   L: Laden   Rad: Zoom   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)":
+		"WASD: walk   Space: jump   F: strike   R: knife\nI: inventory   L: load   Wheel: zoom   Run into things: use\nMouse: click/hold to walk, right click: knife (running: jump)",
 	"Inventar": "Inventory",
 	"Springen": "Jump",
 	"Werfen": "Throw",

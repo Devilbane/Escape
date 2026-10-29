@@ -16,6 +16,7 @@ Einfache Steuerung, schöne 2.5D-Grafik, viele Levels.
 
 Ein Sprung aus dem Lauf behält den Schwung: je schneller du bist, desto weiter fliegst du.
 | Inventar | I | Knopf „Inventar“ |
+| Spielstand laden | L | Knopf „Laden“ (auch auf dem Startbildschirm) |
 | Zoom | + und − | Mausrad (nah dran kippt die Kamera, du siehst das Gesicht) |
 
 Wer gegen ein Skelett läuft, kämpft automatisch: Solange du daneben stehst, schlägst du weiter zu.

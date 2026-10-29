@@ -31,7 +31,7 @@ signal enemy_killed
 signal exit_reached
 signal item_collected(id: String)
 signal bag_full
-signal secret_found
+signal secret_found(lever_pos: Vector3, wall_pos: Vector3)
 
 const TILE := 4.0
 const ASSET_DIR := "res://assets/dungeon/"
@@ -681,7 +681,14 @@ func _open_secret(s: Dictionary) -> void:
 	s.body.queue_free()
 	astar.set_point_solid(s.cell, false)
 	_set_cell(s.cell, ".")
-	secret_found.emit()
+	# Dust rolls out of the gap while the stone grinds down.
+	var dust := Effects.make_sparkles(Color(0.75, 0.62, 0.45), true)
+	dust.position = cell_to_world(s.cell) + Vector3(0, 1.0, 0)
+	dust.amount = 80
+	dust.scale_amount_min = 2.0
+	dust.scale_amount_max = 4.0
+	add_child(dust)
+	secret_found.emit(torch.global_position, cell_to_world(s.cell) + Vector3(0, 2.0, 0))
 
 
 ## A knight who trades behind a little table.

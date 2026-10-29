@@ -26,6 +26,8 @@ var camera: Camera3D
 var coins := 0
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
+## Seconds of camera shake left.
+var _shake := 0.0
 
 var _hud: CanvasLayer
 var _level_label: Label
@@ -708,10 +710,18 @@ func _on_key_collected() -> void:
 	_update_hud()
 
 
-func _on_secret_found() -> void:
+## A lever torch found: click, rumble, shaking ground and a golden message.
+func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	secrets_found += 1
 	level.secret_chance = Level.SECRET_CHANCE + secrets_found
-	show_message(Lang.t("Eine Fackel gibt nach... ein Geheimgang öffnet sich!"), 2.5)
+	Comic.pop(lever_pos, "lever")
+	show_message(Lang.t("Eine Fackel gibt nach... ein Geheimgang öffnet sich!"), 3.5)
+	_message.add_theme_color_override("font_color", GOLD)
+	get_tree().create_timer(3.8).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
+	await get_tree().create_timer(0.45).timeout
+	_shake = 1.6
+	Comic.pop(wall_pos, "rumble")
+	Effects.float_text(level, wall_pos + Vector3(0, 1.5, 0), Lang.t("Geheimgang!"), GOLD)
 
 
 ## A piece of gear a skeleton dropped.
@@ -891,6 +901,11 @@ func _process(delta: float) -> void:
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
 	var target := p + _camera_offset()
 	camera.global_position = camera.global_position.lerp(target, 1.0 - exp(-5.0 * delta))
+	if _shake > 0.0:
+		# The ground trembles while a secret wall sinks.
+		_shake = maxf(0.0, _shake - delta)
+		var strength := 0.25 * minf(1.0, _shake)
+		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)

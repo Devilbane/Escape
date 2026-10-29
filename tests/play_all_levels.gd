@@ -11,6 +11,9 @@ var searched := 0
 var reached := 0
 var gifts := 0
 var equips := 0
+## Death ends a run, but the bot is no expert fighter: it gets healed when it
+## is down to its last life, and the test counts how often that was needed.
+var rescues := 0
 
 
 func _initialize() -> void:
@@ -37,8 +40,14 @@ func _process(delta: float) -> bool:
 	if game.state == game.State.TITLE:
 		game._start_playing()
 		return false
+	if game.state == game.State.PLAYING and game.player.hp == 1 and not game.player.dead:
+		game.player.hp = game.player.max_hp
+		rescues += 1
+	if game.state == game.State.OVER:
+		print("FAIL: the hero fell on level ", game.level_index + 1)
+		return true
 	if game.state == game.State.WON:
-		print("PASS: all ", game.level_files.size(), " levels finished, gold ", game.coins, ", searched ", searched, ", shrine gifts ", gifts, ", bag emptied ", equips, ", worn ", game.player.equipped.values())
+		print("PASS: all ", game.level_files.size(), " levels finished, gold ", game.coins, ", searched ", searched, ", shrine gifts ", gifts, ", bag emptied ", equips, ", worn ", game.player.equipped.values(), ", rescued ", rescues, "x")
 		return true
 	if game.level_index > reached:
 		reached = game.level_index

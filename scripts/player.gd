@@ -1,6 +1,6 @@
 class_name Player
 extends CharacterBody3D
-## The hooded rogue. Moves with WASD / arrow keys or walks to a clicked spot,
+## The rogue. Moves with WASD / arrow keys or walks to a clicked spot,
 ## jumps, fights with a dagger up close and throws knives from afar.
 
 signal hurt(amount: int)
@@ -80,7 +80,7 @@ func _ready() -> void:
 	shape.position.y = 1.2
 	add_child(shape)
 
-	_model = preload("res://assets/characters/Rogue_Hooded.glb").instantiate()
+	_model = preload("res://assets/characters/Rogue.glb").instantiate()
 	add_child(_model)
 	for part in HIDDEN_PARTS:
 		var node := _model.find_child(part, true, false)
@@ -102,7 +102,7 @@ func _ready() -> void:
 	add_child(lantern)
 
 
-## A golden cord along the edges of cape and hood, and a white feather on the hood.
+## A golden cord along the edge of the cape, and a white feather at the head.
 func _add_trim() -> void:
 	var gold := StandardMaterial3D.new()
 	gold.albedo_color = Color(1.0, 0.76, 0.28)
@@ -115,36 +115,24 @@ func _add_trim() -> void:
 		var cord := MeshInstance3D.new()
 		cord.mesh = Effects.cord_mesh(Effects.open_edges(cape.mesh), 0.075, gold)
 		cape.add_child(cord)
-	var head := _model.find_child("Rogue_Head_Hooded", true, false) as MeshInstance3D
+	var head := _model.find_child("Rogue_Head", true, false) as MeshInstance3D
 	var skeleton := _model.find_child("Skeleton3D", true, false) as Skeleton3D
 	if head == null or skeleton == null:
 		return
-	# The hood is skinned to the head bone: move its rim into that bone's space.
+	# The head is skinned to the head bone: place the feather in that bone's space.
 	var bind := Transform3D.IDENTITY
 	for i in head.skin.get_bind_count():
 		if head.skin.get_bind_name(i) == "head":
 			bind = head.skin.get_bind_pose(i)
-	# The front edge of the hood around the face, read off the model (right half).
-	var half := [Vector3(0, 1.80, 0.61), Vector3(0.11, 1.765, 0.565), Vector3(0.21, 1.735, 0.515),
-		Vector3(0.28, 1.70, 0.48), Vector3(0.34, 1.66, 0.45), Vector3(0.415, 1.605, 0.425),
-		Vector3(0.455, 1.48, 0.395), Vector3(0.43, 1.35, 0.385), Vector3(0.37, 1.275, 0.39),
-		Vector3(0.26, 1.235, 0.425), Vector3(0.15, 1.22, 0.435), Vector3(0, 1.205, 0.425)]
-	var loop := half.duplicate()
-	for i in range(half.size() - 2, 0, -1):
-		loop.append(half[i] * Vector3(-1, 1, 1))
-	var rim := []
-	for i in loop.size():
-		rim.append([bind * loop[i], bind * loop[(i + 1) % loop.size()]])
 	var attach := BoneAttachment3D.new()
+	attach.name = "HeadSlot"
 	attach.bone_name = "head"
 	skeleton.add_child(attach)
-	var hood_cord := MeshInstance3D.new()
-	hood_cord.mesh = Effects.cord_mesh(rim, 0.07, gold)
-	attach.add_child(hood_cord)
 	var feather := MeshInstance3D.new()
+	feather.name = "Feather"
 	feather.mesh = Effects.feather_mesh()
 	feather.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Tucked in on the left side of the hood, sweeping up and back.
+	# Tucked in on the left side of the head, sweeping up and back.
 	feather.transform = Transform3D(Basis.from_euler(Vector3(-0.75, 0.0, -0.45)).scaled(Vector3.ONE * 1.3), bind * Vector3(0.47, 1.66, -0.05))
 	attach.add_child(feather)
 
@@ -373,6 +361,7 @@ func refresh_stats() -> void:
 	hp = mini(hp, max_hp)
 	_show_held("waffe", "handslot_r", "Knife")
 	_show_held("schild", "handslot_l", "")
+	_show_headgear()
 	_show_tint("umhang", ["Rogue_Cape"])
 	_show_tint("ruestung", ["Rogue_Body"])
 	_show_tint("schuhe", ["Rogue_LegLeft", "Rogue_LegRight"])
@@ -461,6 +450,28 @@ func _ailments_changed() -> void:
 			add_child(haze)
 			break
 	ailments_changed.emit()
+
+
+## Puts the worn helmet or hat on the hero's head; the feather makes room for it.
+func _show_headgear() -> void:
+	var slot := _model.find_child("HeadSlot", true, false)
+	if slot == null:
+		return
+	var old := slot.get_node_or_null("Headgear")
+	if old:
+		old.free()
+	var item: Dictionary = Items.ALL.get(equipped.get("kopf", ""), {})
+	var feather := slot.get_node_or_null("Feather") as Node3D
+	if feather:
+		feather.visible = not item.has("hat")
+	if not item.has("hat"):
+		return
+	# The hats sit on the head bone of their own character, which matches the hero's.
+	var source: Node = load(item.hat[0]).instantiate()
+	var hat := source.find_child(item.hat[1], true, false).duplicate() as Node3D
+	source.free()
+	hat.name = "Headgear"
+	slot.add_child(hat)
 
 
 func has_special(id: String) -> bool:

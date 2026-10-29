@@ -219,6 +219,15 @@ func _setup_hud() -> void:
 	_coin_label = _make_label(TEXT_FONT, 22, GOLD)
 	row.add_child(_coin_label)
 
+	var quit := _make_button(Lang.t("Beenden"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("beenden"))
+	quit.custom_minimum_size = Vector2(130, 44)
+	quit.add_theme_font_size_override("font_size", 17)
+	quit.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	quit.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	quit.offset_right = -24
+	quit.offset_top = 104
+	_hud.add_child(quit)
+
 	_prompt = _make_label(TEXT_FONT, 22, Color(1, 1, 1, 0.9))
 	_prompt.set_anchors_preset(Control.PRESET_CENTER)
 	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -236,7 +245,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken/halten zum Laufen, Rechtsklick: Messer (im Lauf: Sprung), Rad: Zoom")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer\nI: Inventar   L: Laden   Rad: Zoom   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -271,7 +280,7 @@ func _setup_hud() -> void:
 	_hud.add_child(mark)
 
 	var buttons := GridContainer.new()
-	buttons.columns = 4
+	buttons.columns = 5
 	buttons.add_theme_constant_override("h_separation", 10)
 	buttons.add_theme_constant_override("v_separation", 10)
 	buttons.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -280,6 +289,7 @@ func _setup_hud() -> void:
 	buttons.offset_right = -20
 	buttons.offset_bottom = -20
 	_hud.add_child(buttons)
+	buttons.add_child(_make_button(Lang.t("Laden"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("laden")))
 	buttons.add_child(_make_button(Lang.t("Inventar"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("inventar")))
 	buttons.add_child(_make_button(Lang.t("Springen"), func(): if state == State.PLAYING: player.jump()))
 	buttons.add_child(_make_button(Lang.t("Werfen"), func(): if state == State.PLAYING: player.throw_knife()))
@@ -317,7 +327,7 @@ func _setup_hud() -> void:
 	title_row.add_theme_constant_override("separation", 20)
 	_title.add_child(title_row)
 	_title_buttons = title_row
-	for entry in [[Lang.t("Weiterspielen"), continue_game], [Lang.t("Neues Spiel"), new_game]]:
+	for entry in [[Lang.t("Spielstand laden"), continue_game], [Lang.t("Neues Spiel"), new_game]]:
 		var b := _make_button(entry[0], entry[1])
 		b.custom_minimum_size = Vector2(240, 64)
 		title_row.add_child(b)
@@ -625,23 +635,71 @@ func _start_new_game() -> void:
 func continue_game() -> void:
 	if state != State.TITLE or not has_save():
 		return
-	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SAVE_FILE))
-	_leave_title(func():
-		hero_name = data.get("name", Lang.t("Namenlos"))
-		coins = int(data.coins)
-		secrets_found = int(data.get("secrets", 0))
-		storage.assign(data.storage)
-		shop_stock.assign(data.shop)
-		player.knives = int(data.knives)
-		player.gift_hp = int(data.gift_hp)
-		player.gift_power = int(data.gift_power)
-		player.gift_speed = float(data.gift_speed)
-		player.equipped = data.equipped
-		player.bag.assign(data.bag)
-		player.refresh_stats()
-		load_level(clampi(int(data.level), 0, level_files.size() - 1), false)
-		player.hp = clampi(int(data.hp), 1, player.max_hp)
-		_update_hud())
+	var data := _read_save()
+	_leave_title(func(): _apply_save(data))
+
+
+## Loads the saved game in the middle of a run (from the "Laden" window).
+func load_saved_game() -> void:
+	if state != State.PLAYING or not has_save():
+		return
+	var data := _read_save()
+	state = State.TRANSITION
+	player.frozen = true
+	var tween := create_tween()
+	_fade.color = Color(0, 0, 0, 0)
+	tween.tween_property(_fade, "color:a", 1.0, 0.5)
+	tween.tween_callback(func():
+		player.frozen = false
+		_apply_save(data)
+		_start_playing())
+
+
+## Leaves the game for the title screen. A browser tab cannot close itself,
+## so only the desktop version quits outright.
+func quit_game() -> void:
+	if state != State.PLAYING:
+		return
+	if not OS.has_feature("web"):
+		get_tree().quit()
+		return
+	state = State.TRANSITION
+	player.frozen = true
+	var tween := create_tween()
+	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.8)
+	tween.tween_callback(func(): _show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies")))
+
+
+## Name, level and gold of the saved game, or nothing when there is none.
+func save_info() -> Dictionary:
+	if not has_save():
+		return {}
+	var data := _read_save()
+	return {"name": data.get("name", Lang.t("Namenlos")), "level": int(data.level) + 1, "coins": int(data.coins)}
+
+
+func _read_save() -> Dictionary:
+	var data = JSON.parse_string(FileAccess.get_file_as_string(SAVE_FILE))
+	return data if data is Dictionary else {}
+
+
+func _apply_save(data: Dictionary) -> void:
+	hero_name = data.get("name", Lang.t("Namenlos"))
+	coins = int(data.coins)
+	secrets_found = int(data.get("secrets", 0))
+	storage.assign(data.storage)
+	shop_stock.assign(data.shop)
+	player.knives = int(data.knives)
+	player.gift_hp = int(data.gift_hp)
+	player.gift_power = int(data.gift_power)
+	player.gift_speed = float(data.gift_speed)
+	player.equipped = data.equipped
+	player.bag.assign(data.bag)
+	player.refresh_stats()
+	load_level(clampi(int(data.level), 0, level_files.size() - 1), false)
+	player.hp = clampi(int(data.hp), 1, player.max_hp)
+	player.cure()
+	_update_hud()
 
 
 func _leave_title(prepare: Callable) -> void:
@@ -900,7 +958,8 @@ func _camera_offset() -> Vector3:
 
 
 func zoom_by(steps: float) -> void:
-	_zoom_target = clampf(_zoom_target + steps * ZOOM_STEP, 0.0, 1.0)
+	# One step below 0 looks from a little further out than the normal view.
+	_zoom_target = clampf(_zoom_target + steps * ZOOM_STEP, -ZOOM_STEP, 1.0)
 
 
 func _snap_camera() -> void:
@@ -1029,6 +1088,12 @@ func _unhandled_input(event: InputEvent) -> void:
 					KEY_I:
 						if player.can_act():
 							menus.open("inventar")
+					KEY_L:
+						if player.can_act():
+							menus.open("laden")
+					KEY_ESCAPE:
+						if player.can_act():
+							menus.open("beenden")
 			elif event is InputEventMouseButton:
 				var point = _mouse_to_floor(event.position)
 				if point == null:

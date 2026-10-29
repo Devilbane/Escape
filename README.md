@@ -16,6 +16,8 @@ Einfache Steuerung, schöne 2.5D-Grafik, viele Levels.
 
 Ein Sprung aus dem Lauf behält den Schwung: je schneller du bist, desto weiter fliegst du.
 | Inventar | I | Knopf „Inventar“ |
+| Spielstand laden | L | Knopf „Laden“ (auch auf dem Startbildschirm) |
+| Spiel beenden | Esc | Knopf „Beenden“ oben rechts |
 | Zoom | + und − | Mausrad (nah dran kippt die Kamera, du siehst das Gesicht) |
 
 Wer gegen ein Skelett läuft, kämpft automatisch: Solange du daneben stehst, schlägst du weiter zu.
@@ -34,7 +36,7 @@ Skelette greifen mit Klingen oder Armbrüsten an. Über **Stacheln** kannst du s
 An einem **Schrein** wählst du einmal eine Gabe: +1 Leben, +1 Kampfkraft oder +7% Tempo.
 Die Gaben bleiben bis zum Ende des Spiels.
 
-Manchmal findest du **Ausrüstung**: Schwert und Axt geben Kampfkraft, Schilde geben Leben,
+Manchmal findest du **Ausrüstung**: Helme und Hüte (Knochenhelm, Zauberhut, Ritterhelm, Bärenkappe) sitzen sichtbar auf dem Kopf, Schwert und Axt geben Kampfkraft, Schilde geben Leben,
 Amulette geben Tempo, Kraft oder Leben. Im **Inventar** (Taste I) legst du sie an oder wirfst sie weg.
 Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es einen **Brunnen**,
 der dein Leben auffüllt und Gift und Flüche heilt, eine Lagertruhe, einen Händler, der für Gold kauft und verkauft, und ein Bett. Im Bett wird gespeichert und du loggst aus.

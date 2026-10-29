@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dxb4qpaa5wyae"
-path="res://.godot/imported/Rogue_Hooded.glb-0c8c92bf08f13477d78ba773f0fadd4e.scn"
+uid="uid://bxxsjtbq2t2gh"
+path="res://.godot/imported/Barbarian.glb-ffb45b7414b733fd395c586d03bb877e.scn"
 
 [deps]
 
-source_file="res://assets/characters/Rogue_Hooded.glb"
-dest_files=["res://.godot/imported/Rogue_Hooded.glb-0c8c92bf08f13477d78ba773f0fadd4e.scn"]
+source_file="res://assets/characters/Barbarian.glb"
+dest_files=["res://.godot/imported/Barbarian.glb-ffb45b7414b733fd395c586d03bb877e.scn"]
 
 [params]
 

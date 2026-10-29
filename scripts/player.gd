@@ -41,6 +41,7 @@ var speed := SPEED
 var knives := 5
 ## A direction to run in, set every frame while the mouse button is held.
 var steer := Vector3.ZERO
+var _stuck_time := 0.0
 var path: Array[Vector3] = []
 
 var _model: Node3D
@@ -194,12 +195,21 @@ func revive(at: Vector3, heal := true) -> void:
 	play("Idle")
 
 
-func walk_to(target: Vector3) -> void:
+## Walks along the grid to `target`. With `stop_short` the hero walks right
+## up to a thing standing there (a chest, a barrel, the merchant) and stops
+## that far from its middle, instead of waiting a whole tile away.
+func walk_to(target: Vector3, stop_short := 0.0) -> void:
 	var from := level.world_to_cell(global_position)
 	var to := level.world_to_cell(target)
 	path.clear()
 	for c in level.astar.get_id_path(from, to, true).slice(1):
 		path.append(level.cell_to_world(c))
+	if stop_short > 0.0:
+		var last: Vector3 = path[-1] if not path.is_empty() else global_position
+		var away := last - target
+		away.y = 0.0
+		if away.length() > stop_short:
+			path.append(target + away.normalized() * stop_short)
 
 
 func can_act() -> bool:
@@ -472,7 +482,15 @@ func _physics_process(delta: float) -> void:
 	velocity = dir * speed + _knockback
 	velocity.y = vy
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 45.0)
+	var before := global_position
 	move_and_slide()
+	# Walking a path but pressed against something: give the path up.
+	if not path.is_empty() and dir != Vector3.ZERO and (global_position - before).length() < speed * delta * 0.2:
+		_stuck_time += delta
+		if _stuck_time > 0.3:
+			path.clear()
+	else:
+		_stuck_time = 0.0
 	if is_on_floor() and velocity.y < 0.0:
 		velocity.y = 0.0
 	if dir != Vector3.ZERO:

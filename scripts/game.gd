@@ -57,6 +57,9 @@ var _ranking_slot: Control
 var _lang_row: Control
 ## Holding the left mouse button this long turns a click into running.
 const HOLD_TO_RUN := 0.2
+## How close to a clicked object's middle the hero walks before using it:
+## half its size plus the hero's own width.
+const WALK_UP_TO := 2.0
 var _mouse_held := false
 var _mouse_held_time := 0.0
 
@@ -841,13 +844,14 @@ func _process(delta: float) -> void:
 	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
 		_prompt.text = ""
 		return
-	if not _pending_station.is_empty() and player.path.is_empty() and player.can_act():
-		if Vector2(player.global_position.x - _pending_station.pos.x, player.global_position.z - _pending_station.pos.z).length() <= Level.SEARCH_RANGE + 0.3:
+	if not _pending_station.is_empty() and player.can_act() and _arrived(_pending_station.pos):
+		player.path.clear()
+		if _reach(_pending_station.pos) <= Level.SEARCH_RANGE + 0.3:
 			_use_station(_pending_station)
 		_pending_station = {}
-	if not _pending_search.is_empty() and player.path.is_empty() and player.can_act():
-		var reach := Vector2(player.global_position.x - _pending_search.pos.x, player.global_position.z - _pending_search.pos.z).length()
-		if reach <= Level.SEARCH_RANGE + 0.3:
+	if not _pending_search.is_empty() and player.can_act() and _arrived(_pending_search.pos):
+		player.path.clear()
+		if _reach(_pending_search.pos) <= Level.SEARCH_RANGE + 0.3:
 			_search(_pending_search)
 		_pending_search = {}
 	var near := level.nearest_interactable(player.global_position)
@@ -861,6 +865,16 @@ func _process(delta: float) -> void:
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
 			"haendler": Lang.t("Dagegenlaufen, um mit dem Händler zu handeln"),
 		}[station.kind]
+
+
+func _reach(pos: Vector3) -> float:
+	return Vector2(player.global_position.x - pos.x, player.global_position.z - pos.z).length()
+
+
+## The hero has walked up to a clicked thing: at the end of the path, or close
+## enough already (the last steps can be blocked by the thing itself).
+func _arrived(pos: Vector3) -> bool:
+	return player.path.is_empty() or _reach(pos) <= WALK_UP_TO + 0.6
 
 
 ## While the left mouse button is held down on the dungeon, the hero keeps
@@ -954,13 +968,13 @@ func _click(point: Vector3) -> void:
 	if not station.is_empty():
 		_pending_station = station
 		_pending_search = {}
-		player.walk_to(station.pos)
+		player.walk_to(station.pos, WALK_UP_TO)
 		return
 	var obj := level.nearest_interactable(point, 2.2)
 	if not obj.is_empty():
 		_pending_search = obj
 		_pending_station = {}
-		player.walk_to(obj.pos)
+		player.walk_to(obj.pos, WALK_UP_TO)
 		return
 	_pending_search = {}
 	_pending_station = {}

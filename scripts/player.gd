@@ -39,6 +39,8 @@ var max_hp := MAX_HP
 var power := 1
 var speed := SPEED
 var knives := 5
+## A direction to run in, set every frame while the mouse button is held.
+var steer := Vector3.ZERO
 var path: Array[Vector3] = []
 
 var _model: Node3D
@@ -453,6 +455,8 @@ func _physics_process(delta: float) -> void:
 	var dir := Vector3.ZERO
 	if controllable and not dead and _busy <= 0.0:
 		dir = _keyboard_direction()
+		if dir == Vector3.ZERO:
+			dir = steer
 		if dir != Vector3.ZERO:
 			path.clear()
 		elif not path.is_empty():

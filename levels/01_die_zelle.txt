@@ -1,0 +1,12 @@
+name: Die Zelle
+hint: Finde den Schlüssel und öffne die Tür.
+##########
+####E#####
+###.c.####
+###b..####
+###...x###
+####D#####
+#........#
+#.P..b.K.#
+#.c....c.#
+##########

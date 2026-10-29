@@ -13,7 +13,7 @@ const BREAK_WORDS := ["KNACK!", "KLAPPER!"]
 const MISS_WORDS := ["WUSCH!"]
 
 ## How much a bubble grows at most (with its tilt), so it is kept apart at full size.
-const GROWN := 1.38
+const GROWN := 1.5
 ## Free pixels kept between a bubble and fighters or other bubbles.
 const GAP := 6.0
 ## Height of a fighter from the feet to the top of the hood or helmet.
@@ -76,18 +76,17 @@ func _pop(world_pos: Vector3, kind: String) -> void:
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(label)
 
-	# Starts medium, stretches out like rubber, wobbles, then bursts.
-	root.scale = Vector2.ONE * 0.6
+	# Starts medium, stretches out like rubber, wobbles hard, then bursts.
+	root.scale = Vector2.ONE * 0.55
 	var tween := root.create_tween()
-	tween.tween_property(root, "scale", Vector2(1.0, 0.82), 0.11).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tween.tween_property(root, "scale", Vector2(0.88, 1.04), 0.09).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(root, "scale", Vector2(1.14, 0.96), 0.09).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(root, "scale", Vector2(1.0, 1.08), 0.08).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(root, "scale", Vector2(1.08, 1.03), 0.08).set_trans(Tween.TRANS_SINE)
-	tween.parallel().tween_property(root, "rotation", root.rotation + deg_to_rad(randf_range(-8.0, 8.0)), 0.25).set_trans(Tween.TRANS_SINE)
-	tween.tween_interval(0.16)
-	# One last swell before it pops.
-	tween.tween_property(root, "scale", Vector2(1.32, 1.26), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	for target in [Vector2(1.3, 0.62), Vector2(0.72, 1.3), Vector2(1.24, 0.8),
+			Vector2(0.86, 1.16), Vector2(1.12, 0.92), Vector2(0.98, 1.06), Vector2(1.04, 1.0)]:
+		tween.tween_property(root, "scale", target, 0.085).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	root.create_tween().tween_property(root, "rotation", root.rotation + deg_to_rad(randf_range(-10.0, 10.0)), 0.4).set_trans(Tween.TRANS_SINE)
+	tween.tween_interval(0.12)
+	# Squeezes together once, then swells up and pops.
+	tween.tween_property(root, "scale", Vector2(0.86, 1.2), 0.07).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(root, "scale", Vector2(1.45, 1.3), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_callback(_burst.bind(root, fill, size))
 	var anchor := world_pos + Vector3(0, 1.0, 0)
 	var pop := {"node": root, "pos": anchor, "offset": _free_spot(anchor, root.size * GROWN)}

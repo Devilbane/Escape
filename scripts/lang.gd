@@ -35,8 +35,8 @@ const EN := {
 	"Entkommen": "Escaped",
 	"Alle Rechte vorbehalten": "All rights reserved",
 	# HUD and help
-	"WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken oder gedrückt halten zum Laufen, Rechtsklick wirft ein Messer, im Laufen springt er":
-		"WASD: walk   Space: jump   F: strike   R: throwing knife   I: inventory\nRun into things: search, attack, use\nMouse: click or hold to walk, right click throws a knife, or jumps while running",
+	"WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken/halten zum Laufen, Rechtsklick: Messer (im Lauf: Sprung), Rad: Zoom":
+		"WASD: walk   Space: jump   F: strike   R: throwing knife   I: inventory\nRun into things: search, attack, use\nMouse: click/hold to walk, right click: knife (running: jump), wheel: zoom",
 	"Inventar": "Inventory",
 	"Springen": "Jump",
 	"Werfen": "Throw",
@@ -57,6 +57,11 @@ const EN := {
 	"Dagegenlaufen, um mit dem Händler zu handeln": "Run into the merchant to trade",
 	"Dagegenlaufen, um aus dem Brunnen zu trinken": "Run into the fountain to drink",
 	"Eine Fackel gibt nach... ein Geheimgang öffnet sich!": "A torch gives way... a secret passage opens!",
+	"Geheimgang!": "Secret passage!",
+	"KLACK!": "CLACK!",
+	"KLICK!": "CLICK!",
+	"RUMMS!": "RUMBLE!",
+	"GRUMPEL!": "GRRRIND!",
 	"Vergiftet": "Poisoned",
 	"Verflucht": "Cursed",
 	"Vergiftet!": "Poisoned!",
@@ -99,11 +104,11 @@ const EN := {
 	"Wähle eine Gabe": "Choose a gift",
 	"+1 Leben": "+1 life",
 	"+1 Kampfkraft": "+1 strength",
-	"+15% Tempo": "+15% speed",
+	"+7% Tempo": "+7% speed",
 	"%s\n(Taste %d)": "%s\n(key %d)",
 	"Du fühlst dich zäher: +1 Leben": "You feel tougher: +1 life",
 	"Deine Hiebe werden härter: +1 Kampfkraft": "Your blows grow harder: +1 strength",
-	"Deine Schritte werden leichter: +15% Tempo": "Your steps grow lighter: +15% speed",
+	"Deine Schritte werden leichter: +7% Tempo": "Your steps grow lighter: +7% speed",
 	# Windows
 	"Schließen": "Close",
 	"Leben %d / %d    Kampfkraft %d    Tempo %d%%    Messer %d    Gold %d": "Life %d / %d    Strength %d    Speed %d%%    Knives %d    Gold %d",

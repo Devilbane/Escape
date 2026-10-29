@@ -5,6 +5,10 @@ const LEVEL_DIR := "res://levels/"
 const CAMERA_PITCH := 54.0
 ## Far enough out to show about half again as much dungeon as a close view.
 const CAMERA_DISTANCE := 27.0
+## Fully zoomed in (mouse wheel, + and -): close and low, to see the hero's face.
+const CLOSE_PITCH := 22.0
+const CLOSE_DISTANCE := 7.5
+const ZOOM_STEP := 0.12
 const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const GOLD := Color(1.0, 0.82, 0.4)
@@ -26,6 +30,11 @@ var camera: Camera3D
 var coins := 0
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
+## Seconds of camera shake left.
+var _shake := 0.0
+## 0 is the normal view from above, 1 the close view; _zoom eases toward the target.
+var _zoom := 0.0
+var _zoom_target := 0.0
 
 var _hud: CanvasLayer
 var _level_label: Label
@@ -227,7 +236,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken oder gedrückt halten zum Laufen, Rechtsklick wirft ein Messer, im Laufen springt er")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken/halten zum Laufen, Rechtsklick: Messer (im Lauf: Sprung), Rad: Zoom")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -345,7 +354,7 @@ func _setup_shrine_panel() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
 	box.add_child(row)
-	var gifts := [Lang.t("+1 Leben"), Lang.t("+1 Kampfkraft"), Lang.t("+15% Tempo")]
+	var gifts := [Lang.t("+1 Leben"), Lang.t("+1 Kampfkraft"), Lang.t("+7% Tempo")]
 	for i in gifts.size():
 		var b := _make_button(Lang.t("%s\n(Taste %d)") % [gifts[i], i + 1], _choose_gift.bind(i))
 		b.custom_minimum_size = Vector2(200, 96)
@@ -413,8 +422,8 @@ func _choose_gift(index: int) -> void:
 			player.gift_power += 1
 			text = Lang.t("Deine Hiebe werden härter: +1 Kampfkraft")
 		2:
-			player.gift_speed += 0.15
-			text = Lang.t("Deine Schritte werden leichter: +15% Tempo")
+			player.gift_speed += 0.07
+			text = Lang.t("Deine Schritte werden leichter: +7% Tempo")
 	set_world_paused(false)
 	if player.cure():
 		text += "\n" + Lang.t("Dein Leiden ist geheilt.")
@@ -708,10 +717,18 @@ func _on_key_collected() -> void:
 	_update_hud()
 
 
-func _on_secret_found() -> void:
+## A lever torch found: click, rumble, shaking ground and a golden message.
+func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	secrets_found += 1
 	level.secret_chance = Level.SECRET_CHANCE + secrets_found
-	show_message(Lang.t("Eine Fackel gibt nach... ein Geheimgang öffnet sich!"), 2.5)
+	Comic.pop(lever_pos, "lever")
+	show_message(Lang.t("Eine Fackel gibt nach... ein Geheimgang öffnet sich!"), 3.5)
+	_message.add_theme_color_override("font_color", GOLD)
+	get_tree().create_timer(3.8).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
+	await get_tree().create_timer(0.45).timeout
+	_shake = 1.6
+	Comic.pop(wall_pos, "rumble")
+	Effects.float_text(level, wall_pos + Vector3(0, 1.5, 0), Lang.t("Geheimgang!"), GOLD)
 
 
 ## A piece of gear a skeleton dropped.
@@ -876,8 +893,14 @@ func _next_level() -> void:
 # --- Per frame --------------------------------------------------------------
 
 func _camera_offset() -> Vector3:
-	var pitch := deg_to_rad(CAMERA_PITCH)
-	return Vector3(0, sin(pitch), cos(pitch)) * CAMERA_DISTANCE + Vector3(0, 1.0, 0)
+	var pitch := deg_to_rad(lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom))
+	var distance := lerpf(CAMERA_DISTANCE, CLOSE_DISTANCE, _zoom)
+	# Up close the camera looks at the hero's chest instead of the feet.
+	return Vector3(0, sin(pitch), cos(pitch)) * distance + Vector3(0, lerpf(1.0, 1.6, _zoom), 0)
+
+
+func zoom_by(steps: float) -> void:
+	_zoom_target = clampf(_zoom_target + steps * ZOOM_STEP, 0.0, 1.0)
 
 
 func _snap_camera() -> void:
@@ -889,8 +912,15 @@ func _snap_camera() -> void:
 func _process(delta: float) -> void:
 	var p := player.global_position
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
+	_zoom = move_toward(_zoom, _zoom_target, delta * 2.5)
+	camera.rotation_degrees.x = -lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom)
 	var target := p + _camera_offset()
 	camera.global_position = camera.global_position.lerp(target, 1.0 - exp(-5.0 * delta))
+	if _shake > 0.0:
+		# The ground trembles while a secret wall sinks.
+		_shake = maxf(0.0, _shake - delta)
+		var strength := 0.25 * minf(1.0, _shake)
+		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)
@@ -956,6 +986,14 @@ func _steer_by_mouse(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Mouse wheel or + and - zoom the camera.
+	if event is InputEventMouseButton and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		if event.pressed and state == State.PLAYING:
+			zoom_by(event.factor if event.factor > 0.0 else 1.0) if event.button_index == MOUSE_BUTTON_WHEEL_UP else zoom_by(-(event.factor if event.factor > 0.0 else 1.0))
+		return
+	if event is InputEventKey and event.pressed and state == State.PLAYING and event.physical_keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD, KEY_MINUS, KEY_KP_SUBTRACT]:
+		zoom_by(2.0 if event.physical_keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD] else -2.0)
+		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_mouse_held = event.pressed
 	var pressed: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed and not event.echo)

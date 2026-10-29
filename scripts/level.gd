@@ -6,19 +6,25 @@ extends Node3D
 ##   #  wall          .  floor           ,  dirt floor
 ##   P  player start  E  exit stairs     K  key
 ##   D  locked door   S  spike trap      c  coin
-##   C  treasure chest
+##   C  treasure chest  k  small trunk
 ##   b  barrel        x  crates          o  pillar        t  table
+##   M  skeleton warrior (melee)          A  skeleton archer (ranged)
+##
+## Barrels, crates, tables, trunks, chests and wall shelves can be searched.
 
 signal key_collected
 signal coins_collected(amount: int)
 signal door_opened
 signal door_locked
 signal player_hurt
+signal enemy_killed
 signal exit_reached
 
 const TILE := 4.0
 const ASSET_DIR := "res://assets/dungeon/"
-const SOLID := "#bxotCD"
+const SOLID := "#bxotkCD"
+## Reach for searching: anything on a neighbouring tile.
+const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
 const LOW_WALL_SCALE := 0.3
 const SPIKE_PERIOD := 3.0
@@ -43,7 +49,9 @@ var _time := 0.0
 var _torches: Array = []
 var _spikes: Array = []
 var _pickups: Array = []
-var _chests: Array = []
+var interactables: Array = []
+var enemies: Array = []
+var fog: Fog
 var _doors: Array = []
 var _torch_spots: Array[Vector3] = []
 var _walls_body := StaticBody3D.new()
@@ -79,6 +87,13 @@ func build() -> void:
 	_build_corner_pillars()
 	_build_wall_collision()
 	_setup_astar()
+	var floor_shape := CollisionShape3D.new()
+	floor_shape.shape = WorldBoundaryShape3D.new()
+	_walls_body.add_child(floor_shape)
+	fog = Fog.new()
+	fog.setup(self)
+	add_child(fog)
+	_spawn_enemies()
 
 
 # --- Grid helpers -----------------------------------------------------------
@@ -173,6 +188,9 @@ func _build_walls(c: Vector2i) -> void:
 		elif not low and roll < 0.2:
 			piece = "wall_cracked"
 		var wall := _place(piece, pos, rot)
+		if piece == "wall_shelves":
+			var facing := Vector3(sin(rot), 0, cos(rot))
+			_add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
 		if low:
 			wall.scale.y = LOW_WALL_SCALE
 		else:
@@ -245,15 +263,22 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_place("barrel_large", pos + Vector3(_rng.randf_range(-0.4, 0.4), 0, _rng.randf_range(-0.4, 0.4)), _rng.randf() * TAU)
 			_place("barrel_small", pos + Vector3(1.2, 0, 1.1), _rng.randf() * TAU)
 			_add_solid(pos, Vector3(2.4, 2, 2.4))
+			_add_interactable("Fass", pos, pos + Vector3(0, 2.8, 0), c)
 		"x":
 			_place("crates_stacked", pos, _random_quarter_turn())
 			_add_solid(pos, Vector3(3.0, 2, 3.0))
+			_add_interactable("Kiste", pos, pos + Vector3(0, 3.6, 0), c)
+		"k":
+			_place("trunk_large_A", pos, _random_quarter_turn())
+			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
+			_add_interactable("Truhe", pos, pos + Vector3(0, 2.4, 0), c)
 		"o":
 			_place("pillar_decorated", pos)
 			_add_solid(pos, Vector3(1.6, 4, 1.6))
 		"t":
 			_place("table_medium_decorated_A", pos, _random_quarter_turn())
 			_add_solid(pos, Vector3(3.0, 2, 2.2))
+			_add_interactable("Tisch", pos, pos + Vector3(0, 2.8, 0), c)
 
 
 func _maybe_add_torch(wall_pos: Vector3, rot: float) -> void:
@@ -313,7 +338,9 @@ func _build_chest(c: Vector2i) -> void:
 		rot = PI
 	var chest := _place("chest_gold", pos, rot)
 	_add_solid(pos, Vector3(2.0, 1.5, 2.0))
-	_chests.append({"node": chest, "lid": chest.find_child("chest_gold_lid", true, false), "pos": pos, "open": false})
+	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c)
+	obj.lid = chest.find_child("chest_gold_lid", true, false)
+	obj.loot = {"gold": 5}
 
 
 func _build_door(c: Vector2i) -> void:
@@ -362,7 +389,6 @@ func _process(delta: float) -> void:
 		return
 	_check_pickups()
 	_check_doors()
-	_check_chests()
 	if exit_cell.x >= 0:
 		var exit_pos := cell_to_world(exit_cell)
 		if Vector2(player.global_position.x - exit_pos.x, player.global_position.z - exit_pos.z).length() < 1.4:
@@ -386,7 +412,7 @@ func _update_spikes(delta: float) -> void:
 			target = SPIKE_DOWN_Y + 0.35 # A small twitch warns before they shoot up.
 			speed = 10.0
 		s.node.position.y = move_toward(s.node.position.y, target, delta * speed * 2.0)
-		if player and not finished and _spike_is_up(s):
+		if player and not finished and _spike_is_up(s) and player.global_position.y < 0.6:
 			var sp := cell_to_world(s.cell)
 			if absf(player.global_position.x - sp.x) < 1.6 and absf(player.global_position.z - sp.z) < 1.6:
 				player_hurt.emit()
@@ -438,16 +464,104 @@ func _check_doors() -> void:
 			_door_hint_shown = false
 
 
-func _check_chests() -> void:
-	for ch in _chests:
-		if ch.open:
-			continue
-		if Vector2(player.global_position.x - ch.pos.x, player.global_position.z - ch.pos.z).length() > 4.3:
-			continue
-		ch.open = true
-		if ch.lid:
-			create_tween().tween_property(ch.lid, "rotation:x", ch.lid.rotation.x - deg_to_rad(70), 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+# --- Searching --------------------------------------------------------------
+
+func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector2i) -> Dictionary:
+	var loot_rng := RandomNumberGenerator.new()
+	loot_rng.seed = hash("%s:%d:%d:%d" % [level_name, c.x, c.y, interactables.size()])
+	var roll := loot_rng.randf()
+	var loot := {}
+	if roll < 0.35:
+		loot = {}
+	elif roll < 0.7:
+		loot = {"gold": loot_rng.randi_range(1, 3)}
+	elif roll < 0.85:
+		loot = {"knives": 2}
+	else:
+		loot = {"potion": 1}
+	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "searched": false, "loot": loot, "lid": null, "icon": null}
+	interactables.append(obj)
+	return obj
+
+
+## The closest object within reach of a world position, preferring objects
+## that have not been searched yet. Empty when nothing is in reach.
+func nearest_interactable(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
+	var best := {}
+	var best_d := INF
+	for obj in interactables:
+		var d := Vector2(from.x - obj.pos.x, from.z - obj.pos.z).length()
+		if obj.searched:
+			d += 1000.0
+		if d - (1000.0 if obj.searched else 0.0) <= max_distance and d < best_d:
+			best = obj
+			best_d = d
+	return best
+
+
+## Marks an object as searched and returns what was inside.
+func search(obj: Dictionary) -> Dictionary:
+	if obj.searched:
+		return {}
+	obj.searched = true
+	if obj.lid:
+		create_tween().tween_property(obj.lid, "rotation:x", obj.lid.rotation.x - deg_to_rad(70), 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var icon := Sprite3D.new()
+	icon.texture = Effects.searched_icon()
+	icon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	icon.pixel_size = 0.012
+	icon.no_depth_test = true
+	icon.render_priority = 10
+	icon.modulate = Color(1, 1, 1, 0.85)
+	icon.position = obj.icon_pos
+	add_child(icon)
+	obj.icon = icon
+	if not obj.loot.is_empty():
 		var burst := Effects.make_sparkles(Color(1.0, 0.85, 0.3), true)
-		burst.position = ch.pos + Vector3(0, 1.2, 0)
+		burst.position = obj.icon_pos - Vector3(0, 1.0, 0)
 		add_child(burst)
-		coins_collected.emit(5)
+	return obj.loot
+
+
+# --- Enemies ----------------------------------------------------------------
+
+func _spawn_enemies() -> void:
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			var ch := cell_char(c)
+			if ch == "M" or ch == "A":
+				var e := Enemy.new()
+				e.ranged = ch == "A"
+				e.level = self
+				add_child(e)
+				e.global_position = cell_to_world(c)
+				e.died.connect(func(): enemy_killed.emit())
+				enemies.append(e)
+
+
+## True when nothing blocks the view between two points on the grid.
+func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
+	var from := Vector2(a.x, a.z) / TILE
+	var to := Vector2(b.x, b.z) / TILE
+	var target := Vector2i(roundi(to.x), roundi(to.y))
+	var steps := int(from.distance_to(to) * 4.0) + 1
+	for i in range(1, steps):
+		var p := from.lerp(to, float(i) / steps)
+		var c := Vector2i(roundi(p.x), roundi(p.y))
+		if c == target:
+			break
+		if is_opaque(c):
+			return false
+	return true
+
+
+func is_opaque(c: Vector2i) -> bool:
+	var ch := cell_char(c)
+	if ch == "#":
+		return true
+	if ch == "D":
+		for d in _doors:
+			if d.cell == c:
+				return not d.open
+	return false

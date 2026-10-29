@@ -13,8 +13,8 @@ var damage := 1
 var magic := false
 var _age := 0.0
 
-const MAGIC_SPEED := 10.0
-const MAGIC_TURN := 1.6
+const MAGIC_SPEED := 5.5
+const MAGIC_TURN := 0.8
 const CURSE_CHANCE := 0.35
 
 

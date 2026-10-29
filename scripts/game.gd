@@ -9,7 +9,8 @@ const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const GOLD := Color(1.0, 0.82, 0.4)
 ## Raised by hand for every bigger update. The build number comes from GitHub.
-const VERSION := "0.3"
+const VERSION := "0.4"
+const SAVE_FILE := "user://spielstand.json"
 
 enum State { TITLE, PLAYING, TRANSITION, WON }
 
@@ -26,6 +27,10 @@ var _level_label: Label
 var _coin_label: Label
 var _key_label: Label
 var _hp_label: Label
+var _gift_label: Label
+var _shrine_panel: Control
+var _shrine: Dictionary = {}
+var _pending_station: Dictionary = {}
 var _knife_label: Label
 var _prompt: Label
 var _message: Label
@@ -36,6 +41,11 @@ var _title_sub: Label
 var _title_prompt: Label
 var _message_tween: Tween
 var _pending_search := {}
+var menus: Menus
+## Items left in the safe room's storage chest, and what the merchant sells.
+var storage: Array[String] = []
+var shop_stock: Array[String] = []
+var _title_buttons: Control
 
 
 func _ready() -> void:
@@ -45,13 +55,16 @@ func _ready() -> void:
 	level_files.sort()
 	_setup_world()
 	_setup_hud()
+	menus = Menus.new()
+	add_child(menus)
+	menus.setup(self, _hud)
 	player = Player.new()
 	add_child(player)
 	player.hurt.connect(_on_player_hurt)
 	player.defeated.connect(_on_player_defeated)
 	player.bumped.connect(_on_player_bumped)
 	load_level(_start_level())
-	_show_title("Escape!", "Entkomme aus dem Verlies", "Klicken oder eine Taste drücken")
+	_show_start_title("Escape!", "Entkomme aus dem Verlies")
 
 
 ## Lets a link like .../Escape/?level=3 jump straight to a level.
@@ -161,6 +174,8 @@ func _setup_hud() -> void:
 	left.add_child(_level_label)
 	_hp_label = _make_label(TEXT_FONT, 24, Color(1.0, 0.45, 0.42))
 	left.add_child(_hp_label)
+	_gift_label = _make_label(TEXT_FONT, 18, Color(0.65, 0.85, 1.0))
+	left.add_child(_gift_label)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -189,7 +204,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = "WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser\nDagegenlaufen: Fässer, Kisten, Truhen, Tische und Regale durchsuchen, Skelette angreifen\nMaus: hinklicken zum Laufen und Untersuchen, Rechtsklick wirft ein Messer"
+	help.text = "WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: hinklicken zum Laufen, Rechtsklick wirft ein Messer"
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -206,7 +221,7 @@ func _setup_hud() -> void:
 	_hud.add_child(version)
 
 	var buttons := GridContainer.new()
-	buttons.columns = 3
+	buttons.columns = 4
 	buttons.add_theme_constant_override("h_separation", 10)
 	buttons.add_theme_constant_override("v_separation", 10)
 	buttons.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -215,9 +230,12 @@ func _setup_hud() -> void:
 	buttons.offset_right = -20
 	buttons.offset_bottom = -20
 	_hud.add_child(buttons)
+	buttons.add_child(_make_button("Inventar", func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("inventar")))
 	buttons.add_child(_make_button("Springen", func(): if state == State.PLAYING: player.jump()))
 	buttons.add_child(_make_button("Werfen", func(): if state == State.PLAYING: player.throw_knife()))
 	buttons.add_child(_make_button("Schlagen", func(): if state == State.PLAYING: player.melee()))
+
+	_setup_shrine_panel()
 
 	_fade = ColorRect.new()
 	_fade.color = Color(0.03, 0.015, 0.04, 1.0)
@@ -238,6 +256,105 @@ func _setup_hud() -> void:
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_title.add_child(l)
 	_title_sub.custom_minimum_size = Vector2(0, 70)
+	var title_row := HBoxContainer.new()
+	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	title_row.add_theme_constant_override("separation", 20)
+	_title.add_child(title_row)
+	_title_buttons = title_row
+	for entry in [["Weiterspielen", continue_game], ["Neues Spiel", new_game]]:
+		var b := _make_button(entry[0], entry[1])
+		b.custom_minimum_size = Vector2(240, 64)
+		title_row.add_child(b)
+
+
+## The choice shown at a shrine: one of three gifts.
+func _setup_shrine_panel() -> void:
+	_shrine_panel = PanelContainer.new()
+	_shrine_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_shrine_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_shrine_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.04, 0.03, 0.08, 0.88)
+	style.border_color = Color(0.5, 0.75, 1.0, 0.7)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(18)
+	style.set_content_margin_all(28)
+	_shrine_panel.add_theme_stylebox_override("panel", style)
+	_shrine_panel.visible = false
+	_hud.add_child(_shrine_panel)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 14)
+	_shrine_panel.add_child(box)
+	var title := _make_label(TITLE_FONT, 40, Color(0.65, 0.85, 1.0))
+	title.text = "Schrein der Ahnen"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+	var sub := _make_label(TEXT_FONT, 22)
+	sub.text = "Wähle eine Gabe"
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	box.add_child(row)
+	var gifts := ["+1 Leben", "+1 Kampfkraft", "+15% Tempo"]
+	for i in gifts.size():
+		var b := _make_button("%s\n(Taste %d)" % [gifts[i], i + 1], _choose_gift.bind(i))
+		b.custom_minimum_size = Vector2(200, 96)
+		row.add_child(b)
+
+
+## Stops the dungeon while a window is open, so nothing can hurt the hero.
+func set_world_paused(paused: bool) -> void:
+	level.process_mode = Node.PROCESS_MODE_DISABLED if paused else Node.PROCESS_MODE_INHERIT
+	player.frozen = paused
+	if paused:
+		player.path.clear()
+		player.play("Idle")
+
+
+## Running into a shrine, the bed, the storage chest or the merchant.
+func _use_station(s: Dictionary) -> void:
+	_pending_station = {}
+	if s.kind == "schrein":
+		_open_shrine(s)
+	else:
+		player.face(s.pos - player.global_position)
+		menus.open(s.kind)
+
+
+func _open_shrine(s: Dictionary) -> void:
+	_shrine = s
+	_pending_station = {}
+	player.face(s.pos - player.global_position)
+	set_world_paused(true)
+	_shrine_panel.visible = true
+
+
+func _choose_gift(index: int) -> void:
+	if _shrine.is_empty():
+		return
+	var text := ""
+	match index:
+		0:
+			player.gift_hp += 1
+			player.hp += 1
+			text = "Du fühlst dich zäher: +1 Leben"
+		1:
+			player.gift_power += 1
+			text = "Deine Hiebe werden härter: +1 Kampfkraft"
+		2:
+			player.gift_speed += 0.15
+			text = "Deine Schritte werden leichter: +15% Tempo"
+	set_world_paused(false)
+	player.refresh_stats()
+	level.use_shrine(_shrine)
+	_shrine = {}
+	_shrine_panel.visible = false
+	player.play_once("PickUp", 0.6)
+	show_message(text)
+	_update_hud()
 
 
 func _version_text() -> String:
@@ -249,7 +366,13 @@ func _version_text() -> String:
 
 func _update_hud() -> void:
 	_level_label.text = "Ebene %d: %s" % [level_index + 1, level.level_name]
-	_hp_label.text = "Leben: %d / %d" % [maxi(0, player.hp), Player.MAX_HP]
+	_hp_label.text = "Leben: %d / %d" % [maxi(0, player.hp), player.max_hp]
+	var gifts := []
+	if player.power > 1:
+		gifts.append("Kampfkraft %d" % player.power)
+	if player.speed > Player.SPEED + 0.01:
+		gifts.append("Tempo %d%%" % roundi(player.speed / Player.SPEED * 100.0))
+	_gift_label.text = "   ".join(gifts)
 	_coin_label.text = "Gold: %d" % coins
 	_knife_label.text = "Messer: %d" % player.knives
 	_key_label.text = "Schlüssel gefunden" if level.has_key else "Kein Schlüssel"
@@ -258,7 +381,7 @@ func _update_hud() -> void:
 
 # --- Flow -------------------------------------------------------------------
 
-func load_level(index: int) -> void:
+func load_level(index: int, restock := true) -> void:
 	if level:
 		level.queue_free()
 	level_index = index
@@ -280,6 +403,13 @@ func load_level(index: int) -> void:
 	level.enemy_killed.connect(func(): show_message("Das Skelett zerfällt zu Staub.", 1.4))
 	level.exit_reached.connect(_on_exit_reached)
 	_pending_search = {}
+	_pending_station = {}
+	if level.safe and restock:
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		shop_stock.clear()
+		for i in 4:
+			shop_stock.append(Items.random_item(rng))
 	_snap_camera()
 	_update_hud()
 
@@ -296,6 +426,88 @@ func _show_title(text: String, sub: String, prompt: String) -> void:
 	blink.tween_property(_title_prompt, "modulate:a", 1.0, 0.9)
 
 
+## The title before a game: with a saved game it offers to carry on.
+func _show_start_title(text: String, sub: String) -> void:
+	state = State.TITLE
+	if has_save():
+		_show_title(text, sub, "Klicken oder eine Taste: weiterspielen.  N: neues Spiel")
+		_title_buttons.visible = true
+	else:
+		_show_title(text, sub, "Klicken oder eine Taste drücken")
+		_title_buttons.visible = false
+
+
+func new_game() -> void:
+	if state != State.TITLE and state != State.WON:
+		return
+	coins = 0
+	storage.clear()
+	shop_stock.clear()
+	player.knives = 5
+	player.reset_gifts()
+	_leave_title(func(): load_level(_start_level()))
+
+
+func continue_game() -> void:
+	if state != State.TITLE or not has_save():
+		return
+	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SAVE_FILE))
+	_leave_title(func():
+		coins = int(data.coins)
+		storage.assign(data.storage)
+		shop_stock.assign(data.shop)
+		player.knives = int(data.knives)
+		player.gift_hp = int(data.gift_hp)
+		player.gift_power = int(data.gift_power)
+		player.gift_speed = float(data.gift_speed)
+		player.equipped = data.equipped
+		player.bag.assign(data.bag)
+		player.refresh_stats()
+		load_level(clampi(int(data.level), 0, level_files.size() - 1), false)
+		player.hp = clampi(int(data.hp), 1, player.max_hp)
+		_update_hud())
+
+
+func _leave_title(prepare: Callable) -> void:
+	state = State.TRANSITION
+	_title_buttons.visible = false
+	var tween := create_tween()
+	tween.tween_property(_title, "modulate:a", 0.0, 0.4)
+	tween.tween_callback(func():
+		prepare.call()
+		_start_playing())
+
+
+# --- Saving -----------------------------------------------------------------
+
+func has_save() -> bool:
+	return FileAccess.file_exists(SAVE_FILE)
+
+
+## Writes everything needed to wake up in this safe room later.
+func save_game() -> void:
+	var data := {
+		"version": 1, "level": level_index, "coins": coins, "hp": player.hp, "knives": player.knives,
+		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed,
+		"equipped": player.equipped, "bag": player.bag, "storage": storage, "shop": shop_stock,
+	}
+	var file := FileAccess.open(SAVE_FILE, FileAccess.WRITE)
+	file.store_string(JSON.stringify(data))
+	file.close()
+
+
+## The hero lies down in the safe room's bed: save, then back to the title.
+func sleep() -> void:
+	save_game()
+	state = State.TRANSITION
+	player.frozen = true
+	player.play("Lie_Down", 0.2)
+	var tween := create_tween()
+	tween.tween_interval(1.2)
+	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
+	tween.tween_callback(func(): _show_start_title("Gute Nacht", "Dein Spiel ist gespeichert."))
+
+
 func _start_playing() -> void:
 	state = State.PLAYING
 	var tween := create_tween()
@@ -306,6 +518,10 @@ func _start_playing() -> void:
 
 func _announce_level() -> void:
 	show_message("Ebene %d: %s\n%s" % [level_index + 1, level.level_name, level.hint], 3.5)
+
+
+func _message_busy() -> bool:
+	return _message.modulate.a > 0.05
 
 
 func show_message(text: String, duration := 2.2) -> void:
@@ -334,6 +550,10 @@ func _on_coins_collected(amount: int) -> void:
 func _on_player_bumped(point: Vector3) -> void:
 	if state != State.PLAYING or not player.can_act():
 		return
+	var station := level.station_at(point)
+	if not station.is_empty():
+		_use_station(station)
+		return
 	var obj := level.unsearched_at(point)
 	if not obj.is_empty():
 		_search(obj)
@@ -345,6 +565,10 @@ func _search(obj: Dictionary) -> void:
 	player.face(obj.pos - player.global_position)
 	if obj.searched:
 		Effects.float_text(level, obj.icon_pos, "Schon durchsucht", Color(0.8, 0.8, 0.8))
+		return
+	if obj.loot.has("item") and player.bag.size() >= Items.BAG_SIZE:
+		if not _message_busy():
+			show_message("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.", 2.0)
 		return
 	player.play_once("Interact", 0.55)
 	var loot := level.search(obj)
@@ -359,9 +583,15 @@ func _search(obj: Dictionary) -> void:
 		text = "+%d Wurfmesser" % loot.knives
 		color = Color(0.8, 0.9, 1.0)
 	elif loot.has("potion"):
-		player.hp = mini(Player.MAX_HP, player.hp + 2)
+		player.hp = mini(player.max_hp, player.hp + 2)
 		text = "Heiltrank! +2 Leben"
 		color = Color(1.0, 0.5, 0.55)
+	if loot.has("item"):
+		player.bag.append(loot.item)
+		var found := "Gefunden: %s (%s)" % [Items.item_name(loot.item), Items.describe(loot.item)]
+		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
+		color = Color(0.75, 0.9, 1.0)
+		show_message(found + "\nTaste I öffnet das Inventar.", 2.5)
 	Effects.float_text(level, obj.icon_pos, text, color)
 	if loot.is_empty():
 		show_message("Du durchsuchst %s... nichts." % _with_article(obj.label), 1.2)
@@ -444,16 +674,29 @@ func _process(delta: float) -> void:
 	camera.global_position = camera.global_position.lerp(target, 1.0 - exp(-5.0 * delta))
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
-	if state != State.PLAYING:
+	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
 		_prompt.text = ""
 		return
+	if not _pending_station.is_empty() and player.path.is_empty() and player.can_act():
+		if Vector2(player.global_position.x - _pending_station.pos.x, player.global_position.z - _pending_station.pos.z).length() <= Level.SEARCH_RANGE + 0.3:
+			_use_station(_pending_station)
+		_pending_station = {}
 	if not _pending_search.is_empty() and player.path.is_empty() and player.can_act():
 		var reach := Vector2(player.global_position.x - _pending_search.pos.x, player.global_position.z - _pending_search.pos.z).length()
 		if reach <= Level.SEARCH_RANGE + 0.3:
 			_search(_pending_search)
 		_pending_search = {}
 	var near := level.nearest_interactable(player.global_position)
-	_prompt.text = "Dagegenlaufen, um %s zu untersuchen" % _with_article(near.label) if not near.is_empty() and not near.searched else ""
+	# Only the first levels explain how to search; after that players know.
+	_prompt.text = "Dagegenlaufen, um %s zu untersuchen" % _with_article(near.label) if level_index < 2 and not near.is_empty() and not near.searched else ""
+	var station := level.nearest_station(player.global_position)
+	if not station.is_empty() and (level_index < 2 or station.kind != "schrein"):
+		_prompt.text = {
+			"schrein": "Dagegenlaufen, um den Schrein zu berühren",
+			"bett": "Dagegenlaufen, um dich ins Bett zu legen",
+			"lager": "Dagegenlaufen, um die Lagertruhe zu öffnen",
+			"haendler": "Dagegenlaufen, um mit dem Händler zu handeln",
+		}[station.kind]
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -462,17 +705,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	match state:
 		State.TITLE:
-			_start_playing()
+			if has_save() and not (event is InputEventKey and event.physical_keycode == KEY_N):
+				continue_game()
+			else:
+				new_game()
 		State.WON:
-			coins = 0
-			player.knives = 5
-			state = State.TRANSITION
-			var tween := create_tween()
-			tween.tween_property(_title, "modulate:a", 0.0, 0.4)
-			tween.tween_callback(func():
-				load_level(0)
-				_start_playing())
+			new_game()
 		State.PLAYING:
+			if not _shrine.is_empty():
+				if event is InputEventKey and event.physical_keycode in [KEY_1, KEY_2, KEY_3]:
+					_choose_gift(event.physical_keycode - KEY_1)
+				return
+			if menus.is_open():
+				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_ESCAPE]:
+					menus.close()
+				return
 			if event is InputEventKey:
 				match event.physical_keycode:
 					KEY_SPACE:
@@ -481,6 +728,9 @@ func _unhandled_input(event: InputEvent) -> void:
 						player.melee()
 					KEY_R, KEY_K:
 						player.throw_knife()
+					KEY_I:
+						if player.can_act():
+							menus.open("inventar")
 			elif event is InputEventMouseButton:
 				var point = _mouse_to_floor(event.position)
 				if point == null:
@@ -508,10 +758,18 @@ func _click(point: Vector3) -> void:
 			else:
 				player.throw_knife(e.global_position)
 			return
+	var station := level.nearest_station(point, 2.2)
+	if not station.is_empty():
+		_pending_station = station
+		_pending_search = {}
+		player.walk_to(station.pos)
+		return
 	var obj := level.nearest_interactable(point, 2.2)
 	if not obj.is_empty():
 		_pending_search = obj
+		_pending_station = {}
 		player.walk_to(obj.pos)
 		return
 	_pending_search = {}
+	_pending_station = {}
 	player.walk_to(point)

@@ -9,6 +9,10 @@ extends Node3D
 ##   C  treasure chest  k  small trunk
 ##   b  barrel        x  crates          o  pillar        t  table
 ##   M  skeleton warrior (melee)          A  skeleton archer (ranged)
+##   H  shrine: grants one gift (more life, strength or speed)
+##   B  bed (save and log out)  L  storage chest  V  merchant
+##
+## A level with the line "safe: ja" is a safe room without enemies.
 ##
 ## Barrels, crates, tables, trunks, chests and wall shelves can be searched.
 
@@ -22,7 +26,7 @@ signal exit_reached
 
 const TILE := 4.0
 const ASSET_DIR := "res://assets/dungeon/"
-const SOLID := "#bxotkCD"
+const SOLID := "#bxotkCDHBLV"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
@@ -51,6 +55,9 @@ var _spikes: Array = []
 var _pickups: Array = []
 var interactables: Array = []
 var enemies: Array = []
+## Shrines and the safe room's bed, storage chest and merchant: things to run into.
+var stations: Array = []
+var safe := false
 var fog: Fog
 var _doors: Array = []
 var _torch_spots: Array[Vector3] = []
@@ -66,6 +73,8 @@ func load_from_file(path: String) -> void:
 			level_name = line.substr(5).strip_edges()
 		elif line.begins_with("hint:"):
 			hint = line.substr(5).strip_edges()
+		elif line.begins_with("safe:"):
+			safe = true
 		elif line != "":
 			grid.append(line)
 			width = maxi(width, line.length())
@@ -276,6 +285,18 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"o":
 			_place("pillar_decorated", pos)
 			_add_solid(pos, Vector3(1.6, 4, 1.6))
+		"H":
+			_build_shrine(c)
+		"B":
+			_place("bed_decorated", pos, _facing_room(c))
+			_add_solid(pos, Vector3(3.2, 1.5, 3.2))
+			stations.append({"kind": "bett", "cell": c, "pos": pos, "used": false})
+		"L":
+			_place("chest", pos, _facing_room(c))
+			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
+			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
+		"V":
+			_build_merchant(c)
 		"t":
 			_place("table_medium_decorated_A", pos, _random_quarter_turn())
 			_add_solid(pos, Vector3(3.0, 2, 2.2))
@@ -341,7 +362,101 @@ func _build_chest(c: Vector2i) -> void:
 	_add_solid(pos, Vector3(2.0, 1.5, 2.0))
 	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c)
 	obj.lid = chest.find_child("chest_gold_lid", true, false)
-	obj.loot = {"gold": 5}
+	var loot_rng := RandomNumberGenerator.new()
+	loot_rng.seed = hash("%s:chest:%d:%d" % [level_name, c.x, c.y])
+	obj.loot = {"gold": 5, "item": Items.random_item(loot_rng)}
+
+
+## A small stone shrine with a floating, glowing crystal.
+func _build_shrine(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var base := _place("pillar", pos)
+	base.scale = Vector3(1.2, 0.32, 1.2)
+	for i in 3:
+		var a := TAU * i / 3.0 + 0.5
+		_place("candle_lit", pos + Vector3(cos(a), 0, sin(a)) * 1.25, _rng.randf() * TAU)
+	var orb := MeshInstance3D.new()
+	var crystal := PrismMesh.new()
+	crystal.size = Vector3(0.55, 0.8, 0.55)
+	orb.mesh = crystal
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.55, 0.85, 1.0)
+	mat.emission_enabled = true
+	mat.emission = Color(0.4, 0.75, 1.0)
+	mat.emission_energy_multiplier = 3.0
+	orb.material_override = mat
+	orb.position = pos + Vector3(0, 2.3, 0)
+	add_child(orb)
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.45, 0.75, 1.0)
+	light.light_energy = 2.5
+	light.omni_range = 7.0
+	light.position = pos + Vector3(0, 2.6, 0)
+	add_child(light)
+	var motes := Effects.make_sparkles(Color(0.6, 0.85, 1.0))
+	motes.position = pos + Vector3(0, 2.0, 0)
+	add_child(motes)
+	_add_solid(pos, Vector3(2.2, 2, 2.2))
+	stations.append({"kind": "schrein", "cell": c, "pos": pos, "used": false, "orb": orb, "light": light, "motes": motes})
+
+
+## A turn that points a piece at the open side of its tile.
+func _facing_room(c: Vector2i) -> float:
+	for d in [Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1)]:
+		if not SOLID.contains(cell_char(c + d)):
+			return atan2(float(d.x), float(d.y))
+	return 0.0
+
+
+## A knight who trades behind a little table.
+func _build_merchant(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var rot := _facing_room(c)
+	var facing := Vector3(sin(rot), 0, cos(rot))
+	var knight: Node3D = load("res://assets/characters/Knight.glb").instantiate()
+	knight.position = pos - facing * 0.6
+	knight.rotation.y = rot
+	add_child(knight)
+	for part in ["1H_Sword", "2H_Sword", "Badge_Shield", "Rectangle_Shield", "Spike_Shield", "Round_Shield", "Knight_Helmet"]:
+		var node := knight.find_child(part, true, false)
+		if node:
+			node.visible = false
+	var anim: AnimationPlayer = knight.find_child("AnimationPlayer", true, false)
+	anim.get_animation("Idle").loop_mode = Animation.LOOP_LINEAR
+	anim.play("Idle")
+	_place("table_medium_decorated_A", pos + facing * 1.1, rot + PI * 0.5)
+	_add_solid(pos, Vector3(3.0, 2, 3.0))
+	stations.append({"kind": "haendler", "cell": c, "pos": pos, "used": false})
+
+
+## The unused station whose cell contains a world position, if any.
+func station_at(point: Vector3) -> Dictionary:
+	var c := world_to_cell(point)
+	for s in stations:
+		if s.cell == c and not s.used:
+			return s
+	return {}
+
+
+## The closest unused station within reach of a position, if any.
+func nearest_station(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
+	for s in stations:
+		if not s.used and Vector2(from.x - s.pos.x, from.z - s.pos.z).length() <= max_distance:
+			return s
+	return {}
+
+
+## A shrine gives only one gift: its crystal goes dark afterwards.
+func use_shrine(s: Dictionary) -> void:
+	s.used = true
+	s.motes.emitting = false
+	var burst := Effects.make_sparkles(Color(0.6, 0.85, 1.0), true)
+	burst.position = s.orb.position
+	add_child(burst)
+	var tween := create_tween()
+	tween.tween_property(s.light, "light_energy", 0.0, 1.2)
+	tween.parallel().tween_property(s.orb.material_override, "emission_energy_multiplier", 0.0, 1.2)
+	tween.parallel().tween_property(s.orb.material_override, "albedo_color", Color(0.3, 0.3, 0.35), 1.2)
 
 
 func _build_door(c: Vector2i) -> void:
@@ -381,6 +496,12 @@ func _process(delta: float) -> void:
 	for t in _torches:
 		var s: float = t.seed + _time * 9.0
 		t.light.light_energy = 3.4 + sin(s) * 0.25 + sin(s * 2.3) * 0.15
+	for s in stations:
+		if s.kind != "schrein":
+			continue
+		s.orb.rotation.y += delta * 1.5
+		if not s.used:
+			s.orb.position.y = 2.3 + sin(_time * 2.0) * 0.15
 	for p in _pickups:
 		if is_instance_valid(p.node):
 			p.node.rotation.y += delta * 2.0
@@ -441,7 +562,7 @@ func _check_doors() -> void:
 		if d.open:
 			continue
 		var dist := Vector2(player.global_position.x - d.pos.x, player.global_position.z - d.pos.z).length()
-		if dist > 4.2:
+		if dist > 4.6:
 			continue
 		if not has_key:
 			if not _door_hint_shown:
@@ -472,14 +593,16 @@ func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector
 	loot_rng.seed = hash("%s:%d:%d:%d" % [level_name, c.x, c.y, interactables.size()])
 	var roll := loot_rng.randf()
 	var loot := {}
-	if roll < 0.35:
+	if roll < 0.3:
 		loot = {}
-	elif roll < 0.7:
+	elif roll < 0.62:
 		loot = {"gold": loot_rng.randi_range(1, 3)}
-	elif roll < 0.85:
+	elif roll < 0.75:
 		loot = {"knives": 2}
-	else:
+	elif roll < 0.87:
 		loot = {"potion": 1}
+	else:
+		loot = {"item": Items.random_item(loot_rng)}
 	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null, "icon": null}
 	interactables.append(obj)
 	return obj

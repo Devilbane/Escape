@@ -27,6 +27,17 @@ var controllable := true
 var frozen := false
 var dead := false
 var hp := MAX_HP
+# Gifts from shrines, kept for the whole run.
+var gift_hp := 0
+var gift_power := 0
+var gift_speed := 0.0
+## Worn items by slot ("waffe", "schild", "amulett") and the bag of carried ones.
+var equipped := {}
+var bag: Array[String] = []
+# Values from gifts and worn items together; see refresh_stats().
+var max_hp := MAX_HP
+var power := 1
+var speed := SPEED
 var knives := 5
 var path: Array[Vector3] = []
 
@@ -120,7 +131,7 @@ func facing() -> Vector3:
 
 func revive(at: Vector3) -> void:
 	dead = false
-	hp = MAX_HP
+	hp = max_hp
 	path.clear()
 	_target = null
 	velocity = Vector3.ZERO
@@ -180,7 +191,7 @@ func melee() -> void:
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0
 		if to.length() < MELEE_RANGE and (to.length() < 1.2 or facing().dot(to.normalized()) > 0.25):
-			e.take_hit(1, global_position)
+			e.take_hit(power, global_position)
 
 
 ## Throws a knife at `aim` (a world position), or at the closest enemy in sight.
@@ -212,7 +223,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 	else:
 		play_once("Throw", 0.45)
 	await get_tree().create_timer(0.2).timeout
-	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true)
+	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true).damage = power
 
 
 func _engage(enemy: Enemy) -> void:
@@ -239,6 +250,69 @@ func _auto_attack() -> void:
 	elif d <= AUTO_THROW_RANGE and knives > 0 and level.has_line_of_sight(global_position, _target.global_position):
 		_auto_cooldown = AUTO_THROW_INTERVAL
 		throw_knife(_target.global_position, true)
+
+
+## A fresh hero for a new game: no gifts, no items.
+func reset_gifts() -> void:
+	gift_hp = 0
+	gift_power = 0
+	gift_speed = 0.0
+	equipped = {}
+	bag.clear()
+	refresh_stats()
+
+
+## Recomputes life, strength and speed from gifts and worn items,
+## and shows the worn weapon and shield in the hero's hands.
+func refresh_stats() -> void:
+	var hp_bonus := gift_hp
+	var power_bonus := gift_power
+	var speed_bonus := gift_speed
+	for slot in equipped:
+		var item: Dictionary = Items.ALL[equipped[slot]]
+		hp_bonus += item.get("hp", 0)
+		power_bonus += item.get("power", 0)
+		speed_bonus += item.get("speed", 0.0)
+	max_hp = MAX_HP + hp_bonus
+	power = 1 + power_bonus
+	speed = SPEED * (1.0 + speed_bonus)
+	hp = mini(hp, max_hp)
+	_show_held("waffe", "handslot_r", "Knife")
+	_show_held("schild", "handslot_l", "")
+
+
+func _show_held(slot: String, hand_name: String, default_part: String) -> void:
+	var hand := _model.find_child(hand_name, true, false)
+	var old := hand.get_node_or_null("Held")
+	if old:
+		old.free()
+	var id: String = equipped.get(slot, "")
+	if default_part != "":
+		hand.get_node(default_part).visible = id == ""
+	if id != "" and Items.ALL[id].has("model"):
+		var model: Node3D = load(Items.ALL[id].model).instantiate()
+		model.name = "Held"
+		hand.add_child(model)
+
+
+## Moves a bag item into its slot; whatever was worn there goes into the bag.
+func equip(id: String) -> void:
+	var slot: String = Items.ALL[id].slot
+	bag.erase(id)
+	if equipped.has(slot):
+		bag.append(equipped[slot])
+	equipped[slot] = id
+	refresh_stats()
+
+
+## Takes off a worn item. False when the bag has no room for it.
+func unequip(slot: String) -> bool:
+	if not equipped.has(slot) or bag.size() >= Items.BAG_SIZE:
+		return false
+	bag.append(equipped[slot])
+	equipped.erase(slot)
+	refresh_stats()
+	return true
 
 
 func take_damage(amount: int, from: Vector3) -> void:
@@ -298,7 +372,7 @@ func _physics_process(delta: float) -> void:
 				to.y = 0.0
 				dir = to.normalized()
 	var vy := velocity.y - GRAVITY * delta
-	velocity = dir * SPEED + _knockback
+	velocity = dir * speed + _knockback
 	velocity.y = vy
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 45.0)
 	move_and_slide()

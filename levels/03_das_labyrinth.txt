@@ -13,5 +13,5 @@ hint: Vorsicht, Skelett-Schützen! Halte Abstand oder wirf Messer.
 #..b..#.M.#..c.k.#
 ###.#####.####.###
 #P.......c.......#
-#..x....t.....b..#
+#..x....t..H..b..#
 ##################

@@ -10,5 +10,5 @@ hint: Spring über die Stacheln! (Leertaste)
 #..b.......x...#
 #.P....S....M..#
 #..k...t...K...#
-#b..........c..#
+#b......H...c..#
 ################

@@ -9,7 +9,10 @@ const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const GOLD := Color(1.0, 0.82, 0.4)
 ## Raised by hand for every bigger update. The build number comes from GitHub.
-const VERSION := "0.4"
+const VERSION := "0.5"
+## Filled in by GitHub with the number of each published build, so the
+## version shown in the game changes with every update.
+const BUILD := ""
 const SAVE_FILE := "user://spielstand.json"
 
 enum State { TITLE, PLAYING, TRANSITION, WON }
@@ -361,10 +364,7 @@ func _choose_gift(index: int) -> void:
 
 
 func _version_text() -> String:
-	var text := "Version " + VERSION
-	if FileAccess.file_exists("res://build_info.txt"):
-		text += " · Build " + FileAccess.get_file_as_string("res://build_info.txt").strip_edges()
-	return text
+	return "Version " + VERSION + ("." + BUILD if BUILD != "" else "")
 
 
 func _update_hud() -> void:

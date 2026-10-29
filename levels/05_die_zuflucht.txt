@@ -1,11 +1,11 @@
 name: Die Zuflucht
-hint: Ein sicherer Ort. Deine Wunden heilen, und du kannst Dinge lagern, handeln und im Bett speichern.
+hint: Ein sicherer Ort. Der Brunnen heilt deine Wunden und jedes Gift, und du kannst Dinge lagern, handeln und im Bett speichern.
 safe: ja
 ##############
 ######E#######
 ####.....#####
 #B.........L.#
-#............#
+#.......F....#
 #....P.....V.#
 #..t.........#
 ##############

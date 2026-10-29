@@ -35,8 +35,8 @@ const EN := {
 	"Entkommen": "Escaped",
 	"Alle Rechte vorbehalten": "All rights reserved",
 	# HUD and help
-	"WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken oder gedrückt halten zum Laufen, Rechtsklick wirft ein Messer":
-		"WASD: walk   Space: jump   F: strike   R: throwing knife   I: inventory\nRun into things: search, attack, use\nMouse: click or hold to walk, right click throws a knife",
+	"WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken oder gedrückt halten zum Laufen, Rechtsklick wirft ein Messer, im Laufen springt er":
+		"WASD: walk   Space: jump   F: strike   R: throwing knife   I: inventory\nRun into things: search, attack, use\nMouse: click or hold to walk, right click throws a knife, or jumps while running",
 	"Inventar": "Inventory",
 	"Springen": "Jump",
 	"Werfen": "Throw",
@@ -55,6 +55,16 @@ const EN := {
 	"Dagegenlaufen, um dich ins Bett zu legen": "Run into the bed to lie down",
 	"Dagegenlaufen, um die Lagertruhe zu öffnen": "Run into the storage chest to open it",
 	"Dagegenlaufen, um mit dem Händler zu handeln": "Run into the merchant to trade",
+	"Dagegenlaufen, um aus dem Brunnen zu trinken": "Run into the fountain to drink",
+	"Eine Fackel gibt nach... ein Geheimgang öffnet sich!": "A torch gives way... a secret passage opens!",
+	"Vergiftet": "Poisoned",
+	"Verflucht": "Cursed",
+	"Vergiftet!": "Poisoned!",
+	"Verflucht!": "Cursed!",
+	"Das Wasser des Brunnens heilt dich von allem Übel.": "The fountain's water cures you of every ailment.",
+	"Das kühle Wasser heilt deine Wunden.": "The cool water heals your wounds.",
+	"Du trinkst vom klaren Wasser.": "You drink the clear water.",
+	"Dein Leiden ist geheilt.": "Your ailment is cured.",
 	# Messages
 	"Die Tür öffnet sich knarrend...": "The door creaks open...",
 	"Verschlossen. Finde den Schlüssel!": "Locked. Find the key!",
@@ -172,7 +182,7 @@ const EN := {
 	"Die Gruft": "The Crypt",
 	"Hier ruhen die alten Wächter. Weck sie nicht alle auf.": "The old guardians rest here. Don't wake them all.",
 	"Die Zuflucht": "The Refuge",
-	"Ein sicherer Ort. Deine Wunden heilen, und du kannst Dinge lagern, handeln und im Bett speichern.": "A safe place. Your wounds heal, and you can store things, trade and save in the bed.",
+	"Ein sicherer Ort. Der Brunnen heilt deine Wunden und jedes Gift, und du kannst Dinge lagern, handeln und im Bett speichern.": "A safe place. The fountain heals your wounds and any poison, and you can store things, trade and save in the bed.",
 	"Die Katakomben": "The Catacombs",
 	"Kleine Wichte kommen in Scharen. Bleib in Bewegung!": "Little minions come in swarms. Keep moving!",
 	"Die Bibliothek": "The Library",

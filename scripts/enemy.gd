@@ -8,6 +8,7 @@ extends CharacterBody3D
 signal died
 
 const SIGHT := 26.0
+const POISON_CHANCE := 0.25
 ## Model, weapon, life, speed, damage, reach, scale and pause between attacks.
 const KINDS := {
 	"krieger": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Blade", "hp": 3, "speed": 4.8, "damage": 1, "reach": 2.0, "size": 1.0, "cooldown": 1.4},
@@ -24,6 +25,9 @@ var kind := "krieger"
 ## Elite skeletons have two more life, move and strike faster, and show it
 ## with dark bones and glowing red eyes.
 var elite := false
+## Items the skeleton wears, from the same list as the hero's. Each one
+## makes it stronger and may drop when it falls.
+var gear: Array[String] = []
 var ranged := false
 var hp := 3
 var dead := false
@@ -49,6 +53,16 @@ func _ready() -> void:
 		_stats.cooldown *= 0.8
 		if not _stats.has("tint"):
 			_stats.tint = Color(0.42, 0.38, 0.46)
+	var power := 0
+	for id in gear:
+		var item: Dictionary = Items.ALL[id]
+		_stats.hp += item.get("hp", 0)
+		power += item.get("power", 0)
+		_stats.speed *= 1.0 + item.get("speed", 0.0)
+	# Strength makes blows come faster; a lot of it makes them hit harder too.
+	_stats.cooldown /= 1.0 + 0.2 * power
+	if power >= 3:
+		_stats.damage += 1
 	ranged = _stats.get("ranged", false)
 	hp = _stats.hp
 	add_to_group("combatant")
@@ -66,13 +80,25 @@ func _ready() -> void:
 	_model.rotation.y = PI
 	_model.scale = Vector3.ONE * size
 	var skeleton: Skeleton3D = _model.find_child("Skeleton3D", true, false)
-	_hold(skeleton, "handslot.r", _stats.weapon)
+	var weapon := _worn("waffe")
+	if weapon.has("model") and not ranged:
+		_hold(skeleton, "handslot.r", weapon.model)
+	else:
+		_hold(skeleton, "handslot.r", "res://assets/weapons/%s.gltf" % _stats.weapon)
+	var shield := _worn("schild")
 	if _stats.has("shield"):
-		_hold(skeleton, "handslot.l", _stats.shield)
+		_hold(skeleton, "handslot.l", "res://assets/weapons/%s.gltf" % _stats.shield)
+	elif shield.has("model"):
+		_hold(skeleton, "handslot.l", shield.model)
 	if _stats.has("tint"):
 		for mesh in _model.find_children("*", "MeshInstance3D", true, false):
 			if not mesh.name.ends_with("_Eyes"):
 				_tint(mesh, _stats.tint)
+	# Worn cloaks and armour colour the skeleton like they colour the hero.
+	for mesh in _model.find_children("*", "MeshInstance3D", true, false):
+		var part := "umhang" if mesh.name.ends_with("_Cloak") or mesh.name.ends_with("_Cape") else "ruestung" if mesh.name.ends_with("_Body") else ""
+		if part != "" and _worn(part).has("tint"):
+			_tint(mesh, _worn(part).tint, _worn(part).get("metal", 0.0))
 	if elite or kind == "koloss":
 		_glowing_eyes()
 	_anim = _model.find_child("AnimationPlayer", true, false)
@@ -88,18 +114,26 @@ func girth() -> float:
 	return 0.6 * (float(_stats.size) - 1.0)
 
 
-func _hold(skeleton: Skeleton3D, bone: String, item: String) -> void:
+## The worn item for a slot, or an empty one.
+func _worn(slot: String) -> Dictionary:
+	for id in gear:
+		if Items.ALL[id].slot == slot:
+			return Items.ALL[id]
+	return {}
+
+
+func _hold(skeleton: Skeleton3D, bone: String, model: String) -> void:
 	var hand := BoneAttachment3D.new()
 	hand.bone_name = bone
 	skeleton.add_child(hand)
-	hand.add_child(load("res://assets/weapons/%s.gltf" % item).instantiate())
+	hand.add_child(load(model).instantiate())
 
 
 const TINT_SHADER := preload("res://shaders/tint.gdshader")
 
 
-## Gives the brute its reddish bones.
-func _tint(mesh: MeshInstance3D, color: Color) -> void:
+## Recolours bones (brutes, elites) or worn cloaks and armour.
+func _tint(mesh: MeshInstance3D, color: Color, metal := 0.0) -> void:
 	var source := mesh.mesh.surface_get_material(0) as StandardMaterial3D
 	if source == null:
 		return
@@ -107,6 +141,7 @@ func _tint(mesh: MeshInstance3D, color: Color) -> void:
 	mat.shader = TINT_SHADER
 	mat.set_shader_parameter("tex", source.albedo_texture)
 	mat.set_shader_parameter("tint", color)
+	mat.set_shader_parameter("metal", metal)
 	mesh.material_override = mat
 
 
@@ -243,7 +278,11 @@ func _strike(player: Player) -> void:
 	var d := player.global_position - global_position
 	d.y = 0.0
 	if d.length() < float(_stats.reach) + 0.6:
+		var before := player.hp
 		player.take_damage(_stats.damage, global_position, self)
+		# Minion blades are sometimes poisoned.
+		if kind == "wicht" and player.hp < before and randf() < POISON_CHANCE:
+			player.afflict("gift")
 
 
 func _shoot(player: Player) -> void:

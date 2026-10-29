@@ -10,9 +10,11 @@ Einfache Steuerung, schöne 2.5D-Grafik, viele Levels.
 | Aktion | Tastatur | Maus / Touch |
 |---|---|---|
 | Laufen | WASD oder Pfeiltasten | auf den Boden klicken/tippen |
-| Springen | Leertaste | Knopf „Springen“ |
+| Springen | Leertaste | Rechtsklick beim Laufen (linke Taste gehalten), Knopf „Springen“ |
 | Nahkampf | gegen den Gegner laufen oder F | Gegner anklicken, Knopf „Schlagen“ |
-| Wurfmesser | R | Rechtsklick, Knopf „Werfen“ |
+| Wurfmesser | R | Rechtsklick im Stehen, Knopf „Werfen“ |
+
+Ein Sprung aus dem Lauf behält den Schwung: je schneller du bist, desto weiter fliegst du.
 | Inventar | I | Knopf „Inventar“ |
 
 Wer gegen ein Skelett läuft, kämpft automatisch: Solange du daneben stehst, schlägst du weiter zu.
@@ -33,9 +35,12 @@ Die Gaben bleiben bis zum Ende des Spiels.
 
 Manchmal findest du **Ausrüstung**: Schwert und Axt geben Kampfkraft, Schilde geben Leben,
 Amulette geben Tempo, Kraft oder Leben. Im **Inventar** (Taste I) legst du sie an oder wirfst sie weg.
-Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es eine Lagertruhe,
-einen Händler, der für Gold kauft und verkauft, und ein Bett. Im Bett wird gespeichert und du loggst aus.
+Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es einen **Brunnen**,
+der dein Leben auffüllt und Gift und Flüche heilt, eine Lagertruhe, einen Händler, der für Gold kauft und verkauft, und ein Bett. Im Bett wird gespeichert und du loggst aus.
 Beim nächsten Start geht es mit „Weiterspielen“ dort weiter. Der Spielstand liegt im Browser.
+In manchen Ebenen liegen **Geheimräume**. Eine der Fackeln ist ein Hebel: Läufst du zum ersten Mal
+an ihr vorbei, entdeckst du ihn mit 30 % Chance (W100), jeder gefundene Geheimraum erhöht die Chance
+um 1. Jede Fackel würfelt nur einmal.
 Du siehst nur, was in deiner Sichtlinie liegt. Bereits erkundete Bereiche bleiben grau sichtbar.
 
 ## Neue Levels bauen

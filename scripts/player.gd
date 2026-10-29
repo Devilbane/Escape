@@ -5,6 +5,7 @@ extends CharacterBody3D
 
 signal hurt(amount: int)
 signal defeated
+signal ailments_changed
 ## Emitted when the hero runs into something solid, with a point just inside it.
 signal bumped(point: Vector3)
 
@@ -39,9 +40,17 @@ var max_hp := MAX_HP
 var power := 1
 var speed := SPEED
 var knives := 5
+## Ailments and the seconds each has left. Poison ("gift") takes a life every
+## few seconds but never the last one; a curse ("fluch") slows the hero.
+## Both wear off soon; a fountain, a shrine or a healing potion cures them.
+var ailments := {}
+var _poison_tick := 0.0
 ## A direction to run in, set every frame while the mouse button is held.
 var steer := Vector3.ZERO
 var _stuck_time := 0.0
+var _sidestepped := false
+## Speed carried through the air by a running jump.
+var _air_momentum := Vector3.ZERO
 var path: Array[Vector3] = []
 
 var _model: Node3D
@@ -216,10 +225,23 @@ func can_act() -> bool:
 	return controllable and not frozen and not dead and _busy <= 0.0
 
 
+## True while the hero is moving under its own steam.
+func is_running() -> bool:
+	return Vector2(velocity.x, velocity.z).length() > SPEED * 0.4
+
+
+## A jump from a run keeps its momentum and flies further the faster the
+## hero runs; a standing jump goes straight up.
 func jump() -> void:
 	if not controllable or frozen or dead or not is_on_floor():
 		return
-	velocity.y = JUMP_VELOCITY
+	_air_momentum = Vector3.ZERO
+	var jump_boost := 1.0
+	if is_running():
+		var run := Vector3(velocity.x, 0, velocity.z) - Vector3(_knockback.x, 0, _knockback.z)
+		jump_boost = clampf(run.length() / SPEED, 0.6, 1.6)
+		_air_momentum = run * (1.0 + 0.15 * jump_boost)
+	velocity.y = JUMP_VELOCITY * (0.85 + 0.15 * jump_boost)
 	_current_anim = ""
 	play("Jump_Full_Short", 0.1)
 
@@ -343,6 +365,8 @@ func refresh_stats() -> void:
 	max_hp = MAX_HP + hp_bonus
 	power = 1 + power_bonus
 	speed = SPEED * (1.0 + speed_bonus)
+	if ailments.has("fluch"):
+		speed *= CURSE_SLOW
 	hp = mini(hp, max_hp)
 	_show_held("waffe", "handslot_r", "Knife")
 	_show_held("schild", "handslot_l", "")
@@ -368,6 +392,72 @@ func _show_tint(slot: String, parts: Array) -> void:
 		mat.set_shader_parameter("tint", item.tint)
 		mat.set_shader_parameter("metal", item.get("metal", 0.0))
 		mesh.material_override = mat
+
+
+const AILMENT_TIME := 20.0
+const POISON_TICK := 8.0
+const CURSE_SLOW := 0.85
+const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0)}
+
+
+func afflict(kind: String) -> void:
+	if dead:
+		return
+	var fresh := not ailments.has(kind)
+	ailments[kind] = AILMENT_TIME
+	if fresh:
+		if kind == "gift":
+			_poison_tick = POISON_TICK
+		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t("Vergiftet!" if kind == "gift" else "Verflucht!"), AILMENT_COLORS[kind])
+		_ailments_changed()
+
+
+## Cures one ailment, or all of them; true if there was anything to cure.
+func cure(kind := "") -> bool:
+	var had := ailments.has(kind) if kind != "" else not ailments.is_empty()
+	if kind == "":
+		ailments.clear()
+	else:
+		ailments.erase(kind)
+	if had:
+		_ailments_changed()
+	return had
+
+
+func _tick_ailments(delta: float) -> void:
+	if ailments.is_empty() or dead:
+		return
+	var changed := false
+	for kind in ailments.keys():
+		ailments[kind] -= delta
+		if ailments[kind] <= 0.0:
+			ailments.erase(kind)
+			changed = true
+	if ailments.has("gift"):
+		_poison_tick -= delta
+		if _poison_tick <= 0.0:
+			_poison_tick = POISON_TICK
+			if hp > 1:
+				hp -= 1
+				Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-1", AILMENT_COLORS.gift)
+				hurt.emit(1)
+	if changed:
+		_ailments_changed()
+
+
+## Updates strength and speed, and shows a coloured haze while ailing.
+func _ailments_changed() -> void:
+	refresh_stats()
+	var old := get_node_or_null("AilmentHaze")
+	if old:
+		old.free()
+	for kind in ["gift", "fluch"]:
+		if ailments.has(kind):
+			var haze := Effects.make_sparkles(AILMENT_COLORS[kind])
+			haze.name = "AilmentHaze"
+			add_child(haze)
+			break
+	ailments_changed.emit()
 
 
 func has_special(id: String) -> bool:
@@ -461,6 +551,7 @@ func _physics_process(delta: float) -> void:
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_auto_cooldown = maxf(0.0, _auto_cooldown - delta)
 	_anim_hold = maxf(0.0, _anim_hold - delta)
+	_tick_ailments(delta)
 	_auto_attack()
 	var dir := Vector3.ZERO
 	if controllable and not dead and _busy <= 0.0:
@@ -480,17 +571,31 @@ func _physics_process(delta: float) -> void:
 				dir = to.normalized()
 	var vy := velocity.y - GRAVITY * delta
 	velocity = dir * speed + _knockback
+	if _air_momentum != Vector3.ZERO:
+		if is_on_floor() and vy <= 0.0:
+			_air_momentum = Vector3.ZERO
+		else:
+			# In the air the run carries on; steering only nudges it.
+			velocity = _air_momentum + dir * speed * 0.25 + _knockback
 	velocity.y = vy
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 45.0)
 	var before := global_position
 	move_and_slide()
-	# Walking a path but pressed against something: give the path up.
+	# Walking a path but pressed against something, like a door frame: first
+	# step back to the middle of the tile, and give the path up if that fails.
 	if not path.is_empty() and dir != Vector3.ZERO and (global_position - before).length() < speed * delta * 0.2:
 		_stuck_time += delta
-		if _stuck_time > 0.3:
+		var middle := level.cell_to_world(level.world_to_cell(global_position))
+		if _stuck_time > 0.15 and not _sidestepped and Vector2(middle.x - global_position.x, middle.z - global_position.z).length() > 0.4:
+			_sidestepped = true
+			_stuck_time = 0.0
+			path.push_front(middle)
+		elif _stuck_time > 0.3:
 			path.clear()
 	else:
 		_stuck_time = 0.0
+		if path.is_empty():
+			_sidestepped = false
 	if is_on_floor() and velocity.y < 0.0:
 		velocity.y = 0.0
 	if dir != Vector3.ZERO:

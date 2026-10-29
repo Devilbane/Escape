@@ -24,6 +24,8 @@ var level: Level
 var player: Player
 var camera: Camera3D
 var coins := 0
+## Secret rooms found this run; each one sharpens the eye for the next lever.
+var secrets_found := 0
 
 var _hud: CanvasLayer
 var _level_label: Label
@@ -81,6 +83,7 @@ func _ready() -> void:
 	player = Player.new()
 	add_child(player)
 	player.hurt.connect(_on_player_hurt)
+	player.ailments_changed.connect(_update_hud)
 	player.defeated.connect(_on_player_defeated)
 	player.bumped.connect(_on_player_bumped)
 	load_level(_start_level())
@@ -224,7 +227,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken oder gedrückt halten zum Laufen, Rechtsklick wirft ein Messer")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken oder gedrückt halten zum Laufen, Rechtsklick wirft ein Messer, im Laufen springt er")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -363,9 +366,30 @@ func _use_station(s: Dictionary) -> void:
 	_pending_station = {}
 	if s.kind == "schrein":
 		_open_shrine(s)
+	elif s.kind == "brunnen":
+		_drink(s)
 	else:
 		player.face(s.pos - player.global_position)
 		menus.open(s.kind)
+
+
+## The fountain: full life and every ailment gone, as often as you like.
+func _drink(s: Dictionary) -> void:
+	player.face(s.pos - player.global_position)
+	var healed := player.hp < player.max_hp
+	player.hp = player.max_hp
+	var cured := player.cure()
+	player.play_once("PickUp", 0.6)
+	var burst := Effects.make_sparkles(Color(0.5, 0.8, 1.0), true)
+	burst.position = player.global_position + Vector3(0, 1.0, 0)
+	level.add_child(burst)
+	if cured:
+		show_message(Lang.t("Das Wasser des Brunnens heilt dich von allem Übel."))
+	elif healed:
+		show_message(Lang.t("Das kühle Wasser heilt deine Wunden."))
+	else:
+		show_message(Lang.t("Du trinkst vom klaren Wasser."))
+	_update_hud()
 
 
 func _open_shrine(s: Dictionary) -> void:
@@ -392,6 +416,8 @@ func _choose_gift(index: int) -> void:
 			player.gift_speed += 0.15
 			text = Lang.t("Deine Schritte werden leichter: +15% Tempo")
 	set_world_paused(false)
+	if player.cure():
+		text += "\n" + Lang.t("Dein Leiden ist geheilt.")
 	player.refresh_stats()
 	level.use_shrine(_shrine)
 	_shrine = {}
@@ -413,6 +439,10 @@ func _update_hud() -> void:
 		gifts.append(Lang.t("Kampfkraft %d") % player.power)
 	if player.speed > Player.SPEED + 0.01:
 		gifts.append(Lang.t("Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0))
+	if player.ailments.has("gift"):
+		gifts.append(Lang.t("Vergiftet"))
+	if player.ailments.has("fluch"):
+		gifts.append(Lang.t("Verflucht"))
 	_gift_label.text = "   ".join(gifts)
 	_coin_label.text = Lang.t("Gold: %d") % coins
 	_knife_label.text = Lang.t("Messer: %d") % player.knives
@@ -428,17 +458,22 @@ func load_level(index: int, restock := true) -> void:
 	level_index = index
 	level = Level.new()
 	level.load_from_file(level_files[index])
+	level.depth = index
+	level.secret_chance = Level.SECRET_CHANCE + secrets_found
 	add_child(level)
 	level.build()
 	level.player = player
 	player.level = level
 	player.frozen = false
 	player.controllable = true
-	# Only the safe room heals; walking down to the next level does not.
-	player.revive(level.cell_to_world(level.start_cell), level.safe)
+	# Walking down to the next level never heals; the fountain does.
+	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
+	level.item_collected.connect(_on_item_collected)
+	level.secret_found.connect(_on_secret_found)
+	level.bag_full.connect(func(): show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0))
 	level.door_opened.connect(func(): show_message(Lang.t("Die Tür öffnet sich knarrend...")))
 	level.door_locked.connect(func(): show_message(Lang.t("Verschlossen. Finde den Schlüssel!")))
 	level.player_hurt.connect(func(): player.take_damage(1, player.global_position - player.facing()))
@@ -568,6 +603,7 @@ func _start_new_game() -> void:
 	_name_box.visible = false
 	_name_edit.release_focus()
 	coins = 0
+	secrets_found = 0
 	storage.clear()
 	shop_stock.clear()
 	player.knives = 5
@@ -584,6 +620,7 @@ func continue_game() -> void:
 	_leave_title(func():
 		hero_name = data.get("name", Lang.t("Namenlos"))
 		coins = int(data.coins)
+		secrets_found = int(data.get("secrets", 0))
 		storage.assign(data.storage)
 		shop_stock.assign(data.shop)
 		player.knives = int(data.knives)
@@ -617,7 +654,7 @@ func has_save() -> bool:
 ## Writes everything needed to wake up in this safe room later.
 func save_game() -> void:
 	var data := {
-		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed,
 		"equipped": player.equipped, "bag": player.bag, "storage": storage, "shop": shop_stock,
 	}
@@ -668,6 +705,20 @@ func _on_key_collected() -> void:
 	level.has_key = true
 	player.play_once("PickUp", 0.6)
 	show_message(Lang.t("Du hast den Schlüssel gefunden!"))
+	_update_hud()
+
+
+func _on_secret_found() -> void:
+	secrets_found += 1
+	level.secret_chance = Level.SECRET_CHANCE + secrets_found
+	show_message(Lang.t("Eine Fackel gibt nach... ein Geheimgang öffnet sich!"), 2.5)
+
+
+## A piece of gear a skeleton dropped.
+func _on_item_collected(id: String) -> void:
+	player.bag.append(id)
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Color(0.75, 0.9, 1.0))
+	show_message(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)] + Lang.t("\nTaste I öffnet das Inventar."), 2.5)
 	_update_hud()
 
 
@@ -728,6 +779,8 @@ func _search(obj: Dictionary) -> void:
 	elif loot.has("potion"):
 		player.hp = mini(player.max_hp, player.hp + 2)
 		text = Lang.t("Heiltrank! +2 Leben")
+		if player.cure():
+			text += "\n" + Lang.t("Dein Leiden ist geheilt.")
 		color = Color(1.0, 0.5, 0.55)
 	if loot.has("item"):
 		player.bag.append(loot.item)
@@ -864,6 +917,7 @@ func _process(delta: float) -> void:
 			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
 			"haendler": Lang.t("Dagegenlaufen, um mit dem Händler zu handeln"),
+			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 		}[station.kind]
 
 
@@ -942,7 +996,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				if point == null:
 					return
 				if event.button_index == MOUSE_BUTTON_RIGHT:
-					player.throw_knife(point)
+					# While running with the left button held, right click jumps.
+					if _mouse_held and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and player.is_running():
+						player.jump()
+					else:
+						player.throw_knife(point)
 				elif event.button_index == MOUSE_BUTTON_LEFT:
 					_click(point)
 

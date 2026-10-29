@@ -27,6 +27,7 @@ var _home := Vector3.ZERO
 
 func _ready() -> void:
 	hp = 2 if ranged else 3
+	add_to_group("combatant")
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.6

@@ -56,6 +56,7 @@ var _anim_hold := 0.0
 
 
 func _ready() -> void:
+	add_to_group("combatant")
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.55

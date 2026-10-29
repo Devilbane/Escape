@@ -5,12 +5,20 @@ extends CharacterBody3D
 
 signal hurt(amount: int)
 signal defeated
+## Emitted when the hero runs into something solid, with a point just inside it.
+signal bumped(point: Vector3)
 
 const SPEED := 7.0
 const JUMP_VELOCITY := 9.0
 const GRAVITY := 26.0
 const MAX_HP := 5
 const MELEE_RANGE := 2.8
+## Running into a skeleton starts a fight: the hero keeps swinging while
+## standing next to it, and throws knives at it once the two are apart.
+const ENGAGE_RANGE := MELEE_RANGE
+const AUTO_MELEE_INTERVAL := 0.8
+const AUTO_THROW_INTERVAL := 1.2
+const AUTO_THROW_RANGE := 22.0
 const HIDDEN_PARTS := ["Knife_Offhand", "1H_Crossbow", "2H_Crossbow", "Throwable"]
 
 var level: Level
@@ -29,6 +37,11 @@ var _busy := 0.0
 var _invulnerable := 0.0
 var _attack_cooldown := 0.0
 var _knockback := Vector3.ZERO
+## The skeleton last fought up close, kept under fire from afar.
+var _target: Enemy = null
+var _auto_cooldown := 0.0
+## Time left on an animation that plays while the hero keeps moving.
+var _anim_hold := 0.0
 
 
 func _ready() -> void:
@@ -67,7 +80,7 @@ func _add_cape_logo() -> void:
 	if cape == null:
 		return
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.66, 0.7)
+	quad.size = Vector2(0.6, 0.64)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = preload("res://assets/logo/devilbane_logo.png")
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -77,9 +90,9 @@ func _add_cape_logo() -> void:
 	var logo := MeshInstance3D.new()
 	logo.mesh = quad
 	logo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# The cape's back is nearly flat at z = -0.386 in its own space.
-	logo.position = Vector3(0, -0.62, -0.395)
-	logo.rotation.y = PI
+	# Up near the shoulders, tilted to follow the cape's slope towards the hood.
+	logo.position = Vector3(0, -0.36, -0.39)
+	logo.rotation = Vector3(-0.3, PI, 0)
 	cape.add_child(logo)
 
 
@@ -109,6 +122,7 @@ func revive(at: Vector3) -> void:
 	dead = false
 	hp = MAX_HP
 	path.clear()
+	_target = null
 	velocity = Vector3.ZERO
 	global_position = at
 	_invulnerable = 1.5
@@ -155,6 +169,7 @@ func melee() -> void:
 	path.clear()
 	var target := _nearest_enemy(MELEE_RANGE + 1.2, true)
 	if target:
+		_target = target
 		face(target.global_position - global_position)
 	_attack_cooldown = 0.5
 	play_once("1H_Melee_Attack_Slice_Horizontal", 0.45)
@@ -169,7 +184,8 @@ func melee() -> void:
 
 
 ## Throws a knife at `aim` (a world position), or at the closest enemy in sight.
-func throw_knife(aim = null) -> void:
+## On the move the hero throws without stopping.
+func throw_knife(aim = null, on_the_move := false) -> void:
 	if not can_act() or _attack_cooldown > 0.0:
 		return
 	if knives <= 0:
@@ -189,9 +205,40 @@ func throw_knife(aim = null) -> void:
 	face(dir)
 	knives -= 1
 	_attack_cooldown = 0.6
-	play_once("Throw", 0.45)
+	if on_the_move:
+		_current_anim = ""
+		play("Throw", 0.1)
+		_anim_hold = 0.45
+	else:
+		play_once("Throw", 0.45)
 	await get_tree().create_timer(0.2).timeout
 	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true)
+
+
+func _engage(enemy: Enemy) -> void:
+	if enemy.dead:
+		return
+	if _target != enemy:
+		_auto_cooldown = 0.0
+	_target = enemy
+
+
+## Keeps fighting the current target: blade while next to it, knives from afar.
+func _auto_attack() -> void:
+	if _target == null:
+		return
+	if not is_instance_valid(_target) or _target.dead:
+		_target = null
+		return
+	if not can_act() or _auto_cooldown > 0.0 or _attack_cooldown > 0.0:
+		return
+	var d := global_position.distance_to(_target.global_position)
+	if d <= ENGAGE_RANGE:
+		_auto_cooldown = AUTO_MELEE_INTERVAL
+		melee()
+	elif d <= AUTO_THROW_RANGE and knives > 0 and level.has_line_of_sight(global_position, _target.global_position):
+		_auto_cooldown = AUTO_THROW_INTERVAL
+		throw_knife(_target.global_position, true)
 
 
 func take_damage(amount: int, from: Vector3) -> void:
@@ -233,6 +280,9 @@ func _physics_process(delta: float) -> void:
 	_busy = maxf(0.0, _busy - delta)
 	_invulnerable = maxf(0.0, _invulnerable - delta)
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
+	_auto_cooldown = maxf(0.0, _auto_cooldown - delta)
+	_anim_hold = maxf(0.0, _anim_hold - delta)
+	_auto_attack()
 	var dir := Vector3.ZERO
 	if controllable and not dead and _busy <= 0.0:
 		dir = _keyboard_direction()
@@ -255,10 +305,19 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor() and velocity.y < 0.0:
 		velocity.y = 0.0
 	if dir != Vector3.ZERO:
+		for i in get_slide_collision_count():
+			var hit := get_slide_collision(i)
+			if dir.dot(-hit.get_normal()) > 0.5:
+				var enemy := hit.get_collider() as Enemy
+				if enemy:
+					_engage(enemy)
+				else:
+					bumped.emit(hit.get_position() - hit.get_normal() * 0.2)
+	if dir != Vector3.ZERO and _anim_hold <= 0.0:
 		_model.rotation.y = lerp_angle(_model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-14.0 * delta))
 	# Blink while invulnerable after a hit.
 	_model.visible = dead or _invulnerable <= 0.0 or int(_invulnerable * 12.0) % 2 == 0
-	if _busy > 0.0 or not controllable or dead:
+	if _busy > 0.0 or _anim_hold > 0.0 or not controllable or dead:
 		return
 	if not is_on_floor():
 		if _current_anim != "Jump_Full_Short":

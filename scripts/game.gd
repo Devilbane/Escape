@@ -49,6 +49,7 @@ func _ready() -> void:
 	add_child(player)
 	player.hurt.connect(_on_player_hurt)
 	player.defeated.connect(_on_player_defeated)
+	player.bumped.connect(_on_player_bumped)
 	load_level(_start_level())
 	_show_title("Escape!", "Entkomme aus dem Verlies", "Klicken oder eine Taste drücken")
 
@@ -188,7 +189,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = "WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   E: untersuchen\nMaus: hinklicken zum Laufen und Untersuchen, Rechtsklick wirft ein Messer"
+	help.text = "WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser\nDagegenlaufen: Fässer, Kisten, Truhen, Tische und Regale durchsuchen, Skelette angreifen\nMaus: hinklicken zum Laufen und Untersuchen, Rechtsklick wirft ein Messer"
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -205,7 +206,7 @@ func _setup_hud() -> void:
 	_hud.add_child(version)
 
 	var buttons := GridContainer.new()
-	buttons.columns = 2
+	buttons.columns = 3
 	buttons.add_theme_constant_override("h_separation", 10)
 	buttons.add_theme_constant_override("v_separation", 10)
 	buttons.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -214,7 +215,6 @@ func _setup_hud() -> void:
 	buttons.offset_right = -20
 	buttons.offset_bottom = -20
 	_hud.add_child(buttons)
-	buttons.add_child(_make_button("Suchen", _search_nearby))
 	buttons.add_child(_make_button("Springen", func(): if state == State.PLAYING: player.jump()))
 	buttons.add_child(_make_button("Werfen", func(): if state == State.PLAYING: player.throw_knife()))
 	buttons.add_child(_make_button("Schlagen", func(): if state == State.PLAYING: player.melee()))
@@ -330,14 +330,13 @@ func _on_coins_collected(amount: int) -> void:
 	_update_hud()
 
 
-func _search_nearby() -> void:
+## Running into an object searches it.
+func _on_player_bumped(point: Vector3) -> void:
 	if state != State.PLAYING or not player.can_act():
 		return
-	var obj := level.nearest_interactable(player.global_position)
-	if obj.is_empty():
-		Effects.float_text(level, player.global_position + Vector3(0, 3.2, 0), "Hier gibt es nichts", Color(1, 1, 1, 0.8))
-		return
-	_search(obj)
+	var obj := level.unsearched_at(point)
+	if not obj.is_empty():
+		_search(obj)
 
 
 func _search(obj: Dictionary) -> void:
@@ -454,7 +453,7 @@ func _process(delta: float) -> void:
 			_search(_pending_search)
 		_pending_search = {}
 	var near := level.nearest_interactable(player.global_position)
-	_prompt.text = "E: %s untersuchen" % _with_article(near.label) if not near.is_empty() and not near.searched else ""
+	_prompt.text = "Dagegenlaufen, um %s zu untersuchen" % _with_article(near.label) if not near.is_empty() and not near.searched else ""
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -482,8 +481,6 @@ func _unhandled_input(event: InputEvent) -> void:
 						player.melee()
 					KEY_R, KEY_K:
 						player.throw_knife()
-					KEY_E:
-						_search_nearby()
 			elif event is InputEventMouseButton:
 				var point = _mouse_to_floor(event.position)
 				if point == null:

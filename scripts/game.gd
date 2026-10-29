@@ -55,6 +55,9 @@ func _ready() -> void:
 	level_files.sort()
 	_setup_world()
 	_setup_hud()
+	var comic := Comic.new()
+	comic.camera = camera
+	add_child(comic)
 	menus = Menus.new()
 	add_child(menus)
 	menus.setup(self, _hud)

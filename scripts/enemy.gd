@@ -65,7 +65,8 @@ func _play_once(anim_name: String, duration: float) -> void:
 	_busy = duration
 
 
-func take_hit(damage: int, from: Vector3) -> void:
+## Kind is "hit" for a blade or "knife" for a thrown knife; it picks the comic word.
+func take_hit(damage: int, from: Vector3, kind := "hit") -> void:
 	if dead:
 		return
 	hp -= damage
@@ -73,10 +74,12 @@ func take_hit(damage: int, from: Vector3) -> void:
 	var away := global_position - from
 	away.y = 0.0
 	_knockback = away.normalized() * 9.0
-	Effects.float_text(level, global_position + Vector3(0, 3.2, 0), "-%d" % damage, Color(1, 0.45, 0.35))
+	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-%d" % damage, Color(1, 0.45, 0.35))
 	if hp <= 0:
+		Comic.pop(global_position, "break")
 		_die()
 	else:
+		Comic.pop(global_position, "big" if damage >= 2 else kind)
 		_play_once("Hit_A", 0.45)
 
 

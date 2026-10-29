@@ -71,6 +71,7 @@ func _ready() -> void:
 		if node:
 			node.visible = false
 	_add_cape_logo()
+	_add_trim()
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -83,6 +84,53 @@ func _ready() -> void:
 	lantern.omni_range = 8.5
 	lantern.position = Vector3(0, 3.2, 0.6)
 	add_child(lantern)
+
+
+## A golden cord along the edges of cape and hood, and a white feather on the hood.
+func _add_trim() -> void:
+	var gold := StandardMaterial3D.new()
+	gold.albedo_color = Color(1.0, 0.76, 0.28)
+	gold.metallic = 0.7
+	gold.roughness = 0.35
+	gold.emission_enabled = true
+	gold.emission = Color(0.35, 0.22, 0.05)
+	var cape := _model.find_child("Rogue_Cape", true, false) as MeshInstance3D
+	if cape:
+		var cord := MeshInstance3D.new()
+		cord.mesh = Effects.cord_mesh(Effects.open_edges(cape.mesh), 0.028, gold)
+		cape.add_child(cord)
+	var head := _model.find_child("Rogue_Head_Hooded", true, false) as MeshInstance3D
+	var skeleton := _model.find_child("Skeleton3D", true, false) as Skeleton3D
+	if head == null or skeleton == null:
+		return
+	# The hood is skinned to the head bone: move its rim into that bone's space.
+	var bind := Transform3D.IDENTITY
+	for i in head.skin.get_bind_count():
+		if head.skin.get_bind_name(i) == "head":
+			bind = head.skin.get_bind_pose(i)
+	# The front edge of the hood around the face, read off the model (right half).
+	var half := [Vector3(0, 1.80, 0.61), Vector3(0.11, 1.765, 0.565), Vector3(0.21, 1.735, 0.515),
+		Vector3(0.28, 1.70, 0.48), Vector3(0.34, 1.66, 0.45), Vector3(0.415, 1.605, 0.425),
+		Vector3(0.455, 1.48, 0.395), Vector3(0.43, 1.35, 0.385), Vector3(0.37, 1.275, 0.39),
+		Vector3(0.26, 1.235, 0.425), Vector3(0.15, 1.22, 0.435), Vector3(0, 1.205, 0.425)]
+	var loop := half.duplicate()
+	for i in range(half.size() - 2, 0, -1):
+		loop.append(half[i] * Vector3(-1, 1, 1))
+	var rim := []
+	for i in loop.size():
+		rim.append([bind * loop[i], bind * loop[(i + 1) % loop.size()]])
+	var attach := BoneAttachment3D.new()
+	attach.bone_name = "head"
+	skeleton.add_child(attach)
+	var hood_cord := MeshInstance3D.new()
+	hood_cord.mesh = Effects.cord_mesh(rim, 0.03, gold)
+	attach.add_child(hood_cord)
+	var feather := MeshInstance3D.new()
+	feather.mesh = Effects.feather_mesh()
+	feather.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Tucked in on the left side of the hood, sweeping up and back.
+	feather.transform = Transform3D(Basis.from_euler(Vector3(-0.75, 0.0, -0.45)).scaled(Vector3.ONE * 1.3), bind * Vector3(0.47, 1.66, -0.05))
+	attach.add_child(feather)
 
 
 ## The glowing devilbane emblem on the back of the cape.
@@ -185,6 +233,7 @@ func melee() -> void:
 	_attack_cooldown = 0.5
 	play_once("1H_Melee_Attack_Slice_Horizontal", 0.45)
 	await get_tree().create_timer(0.18).timeout
+	var hits := 0
 	for e in level.enemies:
 		if not is_instance_valid(e) or e.dead:
 			continue
@@ -192,6 +241,9 @@ func melee() -> void:
 		to.y = 0.0
 		if to.length() < MELEE_RANGE and (to.length() < 1.2 or facing().dot(to.normalized()) > 0.25):
 			e.take_hit(power, global_position)
+			hits += 1
+	if hits == 0 and target:
+		Comic.pop(global_position + facing() * 1.5, "miss")
 
 
 ## Throws a knife at `aim` (a world position), or at the closest enemy in sight.
@@ -324,7 +376,8 @@ func take_damage(amount: int, from: Vector3) -> void:
 	away.y = 0.0
 	_knockback = away.normalized() * 10.0
 	path.clear()
-	Effects.float_text(level, global_position + Vector3(0, 3.2, 0), "-%d" % amount, Color(1, 0.3, 0.3))
+	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-%d" % amount, Color(1, 0.3, 0.3))
+	Comic.pop(global_position, "hurt")
 	hurt.emit(amount)
 	if hp <= 0:
 		dead = true

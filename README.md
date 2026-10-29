@@ -11,8 +11,12 @@ Einfache Steuerung, schöne 2.5D-Grafik, viele Levels.
 |---|---|---|
 | Laufen | WASD oder Pfeiltasten | auf den Boden klicken/tippen |
 | Springen | Leertaste | Knopf „Springen“ |
-| Nahkampf | F | Gegner anklicken, Knopf „Schlagen“ |
+| Nahkampf | gegen den Gegner laufen oder F | Gegner anklicken, Knopf „Schlagen“ |
 | Wurfmesser | R | Rechtsklick, Knopf „Werfen“ |
+
+Wer gegen ein Skelett läuft, kämpft automatisch: Solange du daneben stehst, schlägst du weiter zu.
+Gehst du auf Abstand, wirfst du Messer auf das zuletzt angegriffene Skelett, solange du es siehst
+und Messer hast.
 | Untersuchen | dagegenlaufen | Gegenstand anklicken |
 
 Mit `?level=3` hinter der Adresse startet das Spiel direkt in Ebene 3.

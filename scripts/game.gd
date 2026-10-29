@@ -189,7 +189,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = "WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser\nDagegenlaufen: Fässer, Kisten, Truhen, Tische und Regale durchsuchen\nMaus: hinklicken zum Laufen und Untersuchen, Rechtsklick wirft ein Messer"
+	help.text = "WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser\nDagegenlaufen: Fässer, Kisten, Truhen, Tische und Regale durchsuchen, Skelette angreifen\nMaus: hinklicken zum Laufen und Untersuchen, Rechtsklick wirft ein Messer"
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24

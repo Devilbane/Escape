@@ -162,3 +162,99 @@ static func float_text(parent: Node, pos: Vector3, text: String, color: Color) -
 	tween.tween_property(label, "global_position", pos + Vector3(0, 1.6, 0), 1.3).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(label, "modulate:a", 0.0, 1.3).set_delay(0.5)
 	tween.tween_callback(label.queue_free)
+
+
+## A round cord following a list of line segments ([from, to] pairs).
+static func cord_mesh(segments: Array, radius: float, material: Material) -> ArrayMesh:
+	const SIDES := 6
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for seg in segments:
+		var a: Vector3 = seg[0]
+		var b: Vector3 = seg[1]
+		var along := (b - a).normalized()
+		var side := along.cross(Vector3.UP if absf(along.y) < 0.9 else Vector3.RIGHT).normalized()
+		var up := side.cross(along)
+		# Overlap each piece a little so the joints stay closed.
+		a -= along * radius * 0.6
+		b += along * radius * 0.6
+		for i in SIDES:
+			var t0 := TAU * i / SIDES
+			var t1 := TAU * (i + 1) / SIDES
+			var n0 := side * cos(t0) + up * sin(t0)
+			var n1 := side * cos(t1) + up * sin(t1)
+			for p in [[a, n0], [b, n0], [b, n1], [a, n0], [b, n1], [a, n1]]:
+				st.set_normal(p[1])
+				st.add_vertex(p[0] + p[1] * radius)
+	st.set_material(material)
+	return st.commit()
+
+
+## The open edges of a mesh: edges that belong to only one triangle.
+static func open_edges(mesh: Mesh) -> Array:
+	var arrays := mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var count := {}
+	var ends := {}
+	for t in range(0, index.size(), 3):
+		for k in 3:
+			var a := verts[index[t + k]]
+			var b := verts[index[t + (k + 1) % 3]]
+			var ka := Vector3i((a * 1000.0).round())
+			var kb := Vector3i((b * 1000.0).round())
+			var key := [ka, kb] if str(ka) < str(kb) else [kb, ka]
+			count[key] = count.get(key, 0) + 1
+			ends[key] = [a, b]
+	var result := []
+	for key in count:
+		if count[key] == 1:
+			result.append(ends[key])
+	return result
+
+
+## A soft white feather, about 0.7 m long, growing along +Y and curling back.
+static func feather_mesh() -> ArrayMesh:
+	const STEPS := 14
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var spine := []
+	for i in STEPS + 1:
+		var t := float(i) / STEPS
+		spine.append(Vector3(0, t * 0.7, -t * t * 0.22))
+	for i in STEPS:
+		var t0 := float(i) / STEPS
+		var t1 := float(i + 1) / STEPS
+		# Narrow at the quill, widest past the middle, pointed at the tip.
+		# Every other step is a little narrower, which reads as separate barbs.
+		var w0 := 0.1 * sin(pow(t0, 0.8) * PI) * (1.0 if i % 2 == 0 else 0.8)
+		var w1 := 0.1 * sin(pow(t1, 0.8) * PI) * (0.8 if i % 2 == 0 else 1.0)
+		var p0: Vector3 = spine[i]
+		var p1: Vector3 = spine[i + 1]
+		# The vane droops a little towards its edges.
+		var l0 := p0 + Vector3(-w0, -w0 * 0.25, 0)
+		var r0 := p0 + Vector3(w0, -w0 * 0.25, 0)
+		var l1 := p1 + Vector3(-w1, -w1 * 0.25, 0)
+		var r1 := p1 + Vector3(w1, -w1 * 0.25, 0)
+		var n := (p1 - p0).cross(Vector3.RIGHT).normalized()
+		for p in [p0, l0, l1, p0, l1, p1, p0, p1, r1, p0, r1, r0]:
+			st.set_normal(n)
+			st.add_vertex(p)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.97, 0.96, 0.92)
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.roughness = 0.8
+	mat.emission_enabled = true
+	mat.emission = Color(0.55, 0.55, 0.52)
+	st.set_material(mat)
+	var mesh := st.commit()
+	# A thin pale quill down the middle.
+	var quill := StandardMaterial3D.new()
+	quill.albedo_color = Color(0.85, 0.82, 0.75)
+	var segments := []
+	for i in STEPS:
+		segments.append([spine[i] + Vector3(0, 0, 0.004), spine[i + 1] + Vector3(0, 0, 0.004)])
+	var quill_mesh := cord_mesh(segments, 0.008, quill)
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, quill_mesh.surface_get_arrays(0))
+	mesh.surface_set_material(1, quill)
+	return mesh

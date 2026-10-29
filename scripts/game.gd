@@ -453,7 +453,8 @@ func _process(delta: float) -> void:
 			_search(_pending_search)
 		_pending_search = {}
 	var near := level.nearest_interactable(player.global_position)
-	_prompt.text = "Dagegenlaufen, um %s zu untersuchen" % _with_article(near.label) if not near.is_empty() and not near.searched else ""
+	# Only the first levels explain how to search; after that players know.
+	_prompt.text = "Dagegenlaufen, um %s zu untersuchen" % _with_article(near.label) if level_index < 2 and not near.is_empty() and not near.searched else ""
 
 
 func _unhandled_input(event: InputEvent) -> void:

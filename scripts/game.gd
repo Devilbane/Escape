@@ -8,6 +8,8 @@ const CAMERA_DISTANCE := 27.0
 const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const GOLD := Color(1.0, 0.82, 0.4)
+## Raised by hand for every bigger update. The build number comes from GitHub.
+const VERSION := "0.3"
 
 enum State { TITLE, PLAYING, TRANSITION, WON }
 
@@ -190,8 +192,17 @@ func _setup_hud() -> void:
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
-	help.offset_bottom = -16
+	help.offset_bottom = -26
 	_hud.add_child(help)
+
+	var version := _make_label(TEXT_FONT, 14, Color(1, 1, 1, 0.4))
+	version.text = _version_text()
+	version.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	version.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	version.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	version.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	version.offset_bottom = -4
+	_hud.add_child(version)
 
 	var buttons := GridContainer.new()
 	buttons.columns = 2
@@ -227,6 +238,13 @@ func _setup_hud() -> void:
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_title.add_child(l)
 	_title_sub.custom_minimum_size = Vector2(0, 70)
+
+
+func _version_text() -> String:
+	var text := "Version " + VERSION
+	if FileAccess.file_exists("res://build_info.txt"):
+		text += " · Build " + FileAccess.get_file_as_string("res://build_info.txt").strip_edges()
+	return text
 
 
 func _update_hud() -> void:

@@ -46,6 +46,7 @@ func _ready() -> void:
 		var node := _model.find_child(part, true, false)
 		if node:
 			node.visible = false
+	_add_cape_logo()
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -58,6 +59,28 @@ func _ready() -> void:
 	lantern.omni_range = 8.5
 	lantern.position = Vector3(0, 3.2, 0.6)
 	add_child(lantern)
+
+
+## The glowing devilbane emblem on the back of the cape.
+func _add_cape_logo() -> void:
+	var cape := _model.find_child("Rogue_Cape", true, false) as Node3D
+	if cape == null:
+		return
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.66, 0.7)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = preload("res://assets/logo/devilbane_logo.png")
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(1.3, 1.3, 1.3)
+	quad.material = mat
+	var logo := MeshInstance3D.new()
+	logo.mesh = quad
+	logo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The cape's back is nearly flat at z = -0.386 in its own space.
+	logo.position = Vector3(0, -0.62, -0.395)
+	logo.rotation.y = PI
+	cape.add_child(logo)
 
 
 func play(anim_name: String, blend := 0.2) -> void:

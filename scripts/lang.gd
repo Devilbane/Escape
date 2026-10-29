@@ -35,8 +35,8 @@ const EN := {
 	"Entkommen": "Escaped",
 	"Alle Rechte vorbehalten": "All rights reserved",
 	# HUD and help
-	"WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken oder gedrückt halten zum Laufen, Rechtsklick wirft ein Messer":
-		"WASD: walk   Space: jump   F: strike   R: throwing knife   I: inventory\nRun into things: search, attack, use\nMouse: click or hold to walk, right click throws a knife",
+	"WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken oder gedrückt halten zum Laufen, Rechtsklick wirft ein Messer, im Laufen springt er":
+		"WASD: walk   Space: jump   F: strike   R: throwing knife   I: inventory\nRun into things: search, attack, use\nMouse: click or hold to walk, right click throws a knife, or jumps while running",
 	"Inventar": "Inventory",
 	"Springen": "Jump",
 	"Werfen": "Throw",
@@ -56,6 +56,7 @@ const EN := {
 	"Dagegenlaufen, um die Lagertruhe zu öffnen": "Run into the storage chest to open it",
 	"Dagegenlaufen, um mit dem Händler zu handeln": "Run into the merchant to trade",
 	"Dagegenlaufen, um aus dem Brunnen zu trinken": "Run into the fountain to drink",
+	"Eine Fackel gibt nach... ein Geheimgang öffnet sich!": "A torch gives way... a secret passage opens!",
 	"Vergiftet": "Poisoned",
 	"Verflucht": "Cursed",
 	"Vergiftet!": "Poisoned!",

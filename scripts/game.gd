@@ -24,6 +24,8 @@ var level: Level
 var player: Player
 var camera: Camera3D
 var coins := 0
+## Secret rooms found this run; each one sharpens the eye for the next lever.
+var secrets_found := 0
 
 var _hud: CanvasLayer
 var _level_label: Label
@@ -225,7 +227,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken oder gedrückt halten zum Laufen, Rechtsklick wirft ein Messer")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: klicken oder gedrückt halten zum Laufen, Rechtsklick wirft ein Messer, im Laufen springt er")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -457,6 +459,7 @@ func load_level(index: int, restock := true) -> void:
 	level = Level.new()
 	level.load_from_file(level_files[index])
 	level.depth = index
+	level.secret_chance = Level.SECRET_CHANCE + secrets_found
 	add_child(level)
 	level.build()
 	level.player = player
@@ -469,6 +472,7 @@ func load_level(index: int, restock := true) -> void:
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
 	level.item_collected.connect(_on_item_collected)
+	level.secret_found.connect(_on_secret_found)
 	level.bag_full.connect(func(): show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0))
 	level.door_opened.connect(func(): show_message(Lang.t("Die Tür öffnet sich knarrend...")))
 	level.door_locked.connect(func(): show_message(Lang.t("Verschlossen. Finde den Schlüssel!")))
@@ -599,6 +603,7 @@ func _start_new_game() -> void:
 	_name_box.visible = false
 	_name_edit.release_focus()
 	coins = 0
+	secrets_found = 0
 	storage.clear()
 	shop_stock.clear()
 	player.knives = 5
@@ -615,6 +620,7 @@ func continue_game() -> void:
 	_leave_title(func():
 		hero_name = data.get("name", Lang.t("Namenlos"))
 		coins = int(data.coins)
+		secrets_found = int(data.get("secrets", 0))
 		storage.assign(data.storage)
 		shop_stock.assign(data.shop)
 		player.knives = int(data.knives)
@@ -648,7 +654,7 @@ func has_save() -> bool:
 ## Writes everything needed to wake up in this safe room later.
 func save_game() -> void:
 	var data := {
-		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed,
 		"equipped": player.equipped, "bag": player.bag, "storage": storage, "shop": shop_stock,
 	}
@@ -700,6 +706,12 @@ func _on_key_collected() -> void:
 	player.play_once("PickUp", 0.6)
 	show_message(Lang.t("Du hast den Schlüssel gefunden!"))
 	_update_hud()
+
+
+func _on_secret_found() -> void:
+	secrets_found += 1
+	level.secret_chance = Level.SECRET_CHANCE + secrets_found
+	show_message(Lang.t("Eine Fackel gibt nach... ein Geheimgang öffnet sich!"), 2.5)
 
 
 ## A piece of gear a skeleton dropped.
@@ -984,7 +996,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				if point == null:
 					return
 				if event.button_index == MOUSE_BUTTON_RIGHT:
-					player.throw_knife(point)
+					# While running with the left button held, right click jumps.
+					if _mouse_held and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and player.is_running():
+						player.jump()
+					else:
+						player.throw_knife(point)
 				elif event.button_index == MOUSE_BUTTON_LEFT:
 					_click(point)
 

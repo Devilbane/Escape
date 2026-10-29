@@ -48,6 +48,9 @@ var _poison_tick := 0.0
 ## A direction to run in, set every frame while the mouse button is held.
 var steer := Vector3.ZERO
 var _stuck_time := 0.0
+var _sidestepped := false
+## Speed carried through the air by a running jump.
+var _air_momentum := Vector3.ZERO
 var path: Array[Vector3] = []
 
 var _model: Node3D
@@ -222,10 +225,23 @@ func can_act() -> bool:
 	return controllable and not frozen and not dead and _busy <= 0.0
 
 
+## True while the hero is moving under its own steam.
+func is_running() -> bool:
+	return Vector2(velocity.x, velocity.z).length() > SPEED * 0.4
+
+
+## A jump from a run keeps its momentum and flies further the faster the
+## hero runs; a standing jump goes straight up.
 func jump() -> void:
 	if not controllable or frozen or dead or not is_on_floor():
 		return
-	velocity.y = JUMP_VELOCITY
+	_air_momentum = Vector3.ZERO
+	var jump_boost := 1.0
+	if is_running():
+		var run := Vector3(velocity.x, 0, velocity.z) - Vector3(_knockback.x, 0, _knockback.z)
+		jump_boost = clampf(run.length() / SPEED, 0.6, 1.6)
+		_air_momentum = run * (1.0 + 0.15 * jump_boost)
+	velocity.y = JUMP_VELOCITY * (0.85 + 0.15 * jump_boost)
 	_current_anim = ""
 	play("Jump_Full_Short", 0.1)
 
@@ -555,17 +571,31 @@ func _physics_process(delta: float) -> void:
 				dir = to.normalized()
 	var vy := velocity.y - GRAVITY * delta
 	velocity = dir * speed + _knockback
+	if _air_momentum != Vector3.ZERO:
+		if is_on_floor() and vy <= 0.0:
+			_air_momentum = Vector3.ZERO
+		else:
+			# In the air the run carries on; steering only nudges it.
+			velocity = _air_momentum + dir * speed * 0.25 + _knockback
 	velocity.y = vy
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 45.0)
 	var before := global_position
 	move_and_slide()
-	# Walking a path but pressed against something: give the path up.
+	# Walking a path but pressed against something, like a door frame: first
+	# step back to the middle of the tile, and give the path up if that fails.
 	if not path.is_empty() and dir != Vector3.ZERO and (global_position - before).length() < speed * delta * 0.2:
 		_stuck_time += delta
-		if _stuck_time > 0.3:
+		var middle := level.cell_to_world(level.world_to_cell(global_position))
+		if _stuck_time > 0.15 and not _sidestepped and Vector2(middle.x - global_position.x, middle.z - global_position.z).length() > 0.4:
+			_sidestepped = true
+			_stuck_time = 0.0
+			path.push_front(middle)
+		elif _stuck_time > 0.3:
 			path.clear()
 	else:
 		_stuck_time = 0.0
+		if path.is_empty():
+			_sidestepped = false
 	if is_on_floor() and velocity.y < 0.0:
 		velocity.y = 0.0
 	if dir != Vector3.ZERO:

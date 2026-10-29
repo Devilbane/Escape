@@ -14,6 +14,7 @@ extends Node3D
 ##   H  shrine: grants one gift (more life, strength or speed)
 ##   B  bed (save and log out)  L  storage chest  V  merchant
 ##   F  fountain: refills life and cures poison and curses
+##   ?  secret wall: looks like a wall until its lever torch is found
 ##
 ## A level with the line "safe: ja" is a safe room without enemies.
 ## A level with the line "elite: ja" has stronger skeletons with dark bones
@@ -30,10 +31,11 @@ signal enemy_killed
 signal exit_reached
 signal item_collected(id: String)
 signal bag_full
+signal secret_found
 
 const TILE := 4.0
 const ASSET_DIR := "res://assets/dungeon/"
-const SOLID := "#bxotkCDHBLVF"
+const SOLID := "#bxotkCDHBLVF?"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
@@ -73,6 +75,13 @@ var _doors: Array = []
 var _torch_spots: Array[Vector3] = []
 var _walls_body := StaticBody3D.new()
 var _door_hint_shown := false
+## Hidden walls and the torches that open them. Each lever rolls once,
+## the first time the hero walks past it.
+var _secrets: Array = []
+## Chance in percent to notice a lever; the game adds 1 per room found.
+var secret_chance := SECRET_CHANCE
+const SECRET_CHANCE := 30
+const LEVER_RANGE := 7.0
 
 
 func load_from_file(path: String) -> void:
@@ -164,7 +173,7 @@ func _crowds_passage(c: Vector2i) -> bool:
 		return true
 	for d in DIRS:
 		var n := c + d
-		if "DEP".contains(cell_char(n)) or (_walkable(n) and _is_narrow(n)):
+		if "DEP?".contains(cell_char(n)) or (_walkable(n) and _is_narrow(n)):
 			return true
 	return false
 
@@ -299,6 +308,9 @@ func _build_floor(c: Vector2i, ch: String) -> void:
 func _build_walls(c: Vector2i) -> void:
 	for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
 		var n: Vector2i = c + d
+		if cell_char(n) == "?" and cell_char(c) != "?":
+			_build_secret_face(c, d)
+			continue
 		if cell_char(n) != "#":
 			continue
 		if d == Vector2i(0, -1) and cell_char(c) == "E":
@@ -319,6 +331,11 @@ func _build_walls(c: Vector2i) -> void:
 		elif not low and roll < 0.2:
 			piece = "wall_cracked"
 		var wall := _place(piece, pos, rot)
+		if cell_char(c) == "?":
+			# The passage's own side walls stay hidden until it opens.
+			wall.visible = false
+			_secret_at(c).inner.append(wall)
+			continue
 		if piece == "wall_shelves":
 			var facing := Vector3(sin(rot), 0, cos(rot))
 			var shelf := _add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
@@ -336,10 +353,10 @@ func _build_corner_pillars() -> void:
 			var walls := 0
 			var low := false
 			for cc in cells:
-				if cell_char(cc) == "#":
+				if cell_char(cc) == "#" or cell_char(cc) == "?":
 					walls += 1
 					low = low or _is_low_wall(cc)
-			var diagonal := walls == 2 and (cell_char(cells[0]) == "#") == (cell_char(cells[3]) == "#")
+			var diagonal := walls == 2 and ("#?".contains(cell_char(cells[0]))) == ("#?".contains(cell_char(cells[3])))
 			if walls == 1 or diagonal:
 				var pillar := _place("pillar", Vector3(vx * TILE - TILE * 0.5, 0, vy * TILE - TILE * 0.5))
 				if low:
@@ -421,16 +438,18 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_build_merchant(c)
 		"F":
 			_build_fountain(c)
+		"?":
+			_secret_at(c)
 		"t":
 			_place("table_medium_decorated_A", pos, _random_quarter_turn())
 			_add_solid(pos, Vector3(3.0, 2, 2.2))
 			_add_interactable("Tisch", pos, pos + Vector3(0, 2.8, 0), c)
 
 
-func _maybe_add_torch(wall_pos: Vector3, rot: float) -> void:
+func _maybe_add_torch(wall_pos: Vector3, rot: float, forced := false) -> Node3D:
 	for spot in _torch_spots:
-		if spot.distance_to(wall_pos) < TILE * 2.2:
-			return
+		if spot.distance_to(wall_pos) < TILE * 2.2 and not forced:
+			return null
 	_torch_spots.append(wall_pos)
 	var facing := Vector3(sin(rot), 0, cos(rot))
 	var holder := Node3D.new()
@@ -449,6 +468,7 @@ func _maybe_add_torch(wall_pos: Vector3, rot: float) -> void:
 	light.position = Vector3(0, 1.0, 1.0)
 	holder.add_child(light)
 	_torches.append({"light": light, "seed": _rng.randf() * 100.0})
+	return holder
 
 
 func _build_key(pos: Vector3) -> void:
@@ -581,6 +601,89 @@ func _build_fountain(c: Vector2i) -> void:
 	stations.append({"kind": "brunnen", "cell": c, "pos": pos, "used": false})
 
 
+## A secret passage: a wall tile with a fake wall on each open side.
+func _secret_at(c: Vector2i) -> Dictionary:
+	for s in _secrets:
+		if s.cell == c:
+			return s
+	var body := StaticBody3D.new()
+	add_child(body)
+	_add_box(body, cell_to_world(c) + Vector3(0, 2, 0), Vector3(TILE, 4, TILE))
+	_secrets.append({"cell": c, "body": body, "walls": [], "inner": [], "lever": null, "lever_cell": c, "rolled": false, "open": false})
+	return _secrets[-1]
+
+
+## One face of a secret wall, seen from the room at c. The face toward the
+## part of the level the hero starts in carries the lever torch.
+func _build_secret_face(c: Vector2i, d: Vector2i) -> void:
+	var secret := _secret_at(c + d)
+	var pos := cell_to_world(c) + Vector3(d.x, 0, d.y) * TILE * 0.5
+	var rot := atan2(-float(d.x), -float(d.y))
+	var wall := _place("wall", pos, rot)
+	secret.walls.append(wall)
+	if d == Vector2i(0, 1):
+		wall.scale.y = LOW_WALL_SCALE
+	elif _outer_side().has(c):
+		secret.lever = _maybe_add_torch(pos, rot, true)
+		secret.lever_cell = c
+
+
+var _outer: Dictionary = {}
+
+
+## Tiles reachable from the start without passing a secret wall.
+func _outer_side() -> Dictionary:
+	if _outer.is_empty():
+		var start := Vector2i(-1, -1)
+		for y in height:
+			var x := grid[y].find("P")
+			if x >= 0:
+				start = Vector2i(x, y)
+		_outer = {start: true}
+		var todo: Array[Vector2i] = [start]
+		while not todo.is_empty():
+			var c: Vector2i = todo.pop_back()
+			for d in DIRS:
+				var n := c + d
+				if cell_char(n) != "#" and cell_char(n) != "?" and not _outer.has(n):
+					_outer[n] = true
+					todo.append(n)
+	return _outer
+
+
+## Rolls each lever once, the first time the hero walks past it in view.
+func _check_secrets() -> void:
+	for s in _secrets:
+		if s.rolled or s.lever == null:
+			continue
+		var torch: Node3D = s.lever
+		var d := Vector2(player.global_position.x - torch.global_position.x, player.global_position.z - torch.global_position.z)
+		if d.length() > LEVER_RANGE or not has_line_of_sight(player.global_position, cell_to_world(s.lever_cell)):
+			continue
+		s.rolled = true
+		if randi_range(1, 100) <= secret_chance:
+			_open_secret(s)
+
+
+func _open_secret(s: Dictionary) -> void:
+	s.open = true
+	var torch: Node3D = s.lever
+	var tween := create_tween()
+	# The torch tips down like a lever, then the false walls sink into the floor.
+	tween.tween_property(torch, "rotation:x", deg_to_rad(-40), 0.35).set_trans(Tween.TRANS_BACK)
+	for inner in s.inner:
+		inner.visible = true
+	for node in s.walls + [torch]:
+		tween.parallel().tween_property(node, "position:y", node.position.y - 4.6, 1.6).set_delay(0.4).set_ease(Tween.EASE_IN)
+	tween.tween_callback(func():
+		for node in s.walls + [torch]:
+			node.queue_free())
+	s.body.queue_free()
+	astar.set_point_solid(s.cell, false)
+	_set_cell(s.cell, ".")
+	secret_found.emit()
+
+
 ## A knight who trades behind a little table.
 func _build_merchant(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
@@ -667,6 +770,8 @@ func _build_exit(c: Vector2i) -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	for t in _torches:
+		if not is_instance_valid(t.light):
+			continue
 		var s: float = t.seed + _time * 9.0
 		t.light.light_energy = 3.4 + sin(s) * 0.25 + sin(s * 2.3) * 0.15
 	for s in stations:
@@ -684,6 +789,7 @@ func _process(delta: float) -> void:
 		return
 	_check_pickups()
 	_check_doors()
+	_check_secrets()
 	if exit_cell.x >= 0:
 		# The stairs fill the whole exit cell: climbing starts at the first step.
 		if world_to_cell(player.global_position) == exit_cell:
@@ -947,7 +1053,7 @@ func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
 
 func is_opaque(c: Vector2i) -> bool:
 	var ch := cell_char(c)
-	if ch == "#":
+	if ch == "#" or ch == "?":
 		return true
 	if ch == "D":
 		for d in _doors:

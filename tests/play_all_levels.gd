@@ -81,7 +81,7 @@ func _process(delta: float) -> bool:
 				elif lvl.world_to_cell(e.global_position) == lvl.world_to_cell(player.global_position):
 					# Same tile: the path finder has nothing to do, so step straight at it.
 					player.path.assign([e.global_position])
-				else:
+				elif player.path.is_empty():
 					player.walk_to(e.global_position)
 				return false
 
@@ -119,6 +119,10 @@ func _process(delta: float) -> bool:
 				return false
 	if not lvl.has_key and not lvl._doors.all(func(d): return d.open):
 		player.walk_to(_cell_of("K"))
+	elif not lvl._doors.all(func(d): return d.open):
+		# Head for the door first: from a secret room the stairs can seem
+		# closer than the way round to them.
+		player.walk_to(_cell_of("D"))
 	else:
 		player.walk_to(_cell_of("E"))
 	return false

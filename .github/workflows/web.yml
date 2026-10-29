@@ -60,6 +60,12 @@ jobs:
           grep -q 'const BUILD := "${{ github.run_number }}"' scripts/game.gd
           mkdir -p build/web
           ~/godot/godot --headless --export-release Web build/web/index.html
+          # A new file name for the game data on every build, so browsers
+          # cannot keep showing an old version from their cache.
+          v=${{ github.run_number }}
+          mv build/web/index.pck build/web/index-$v.pck
+          sed -i "s/\"executable\":\"index\"/\"executable\":\"index\",\"mainPack\":\"index-$v.pck\"/; s/\"index.pck\":/\"index-$v.pck\":/" build/web/index.html
+          grep -q "\"mainPack\":\"index-$v.pck\"" build/web/index.html
 
       - uses: actions/upload-pages-artifact@v3
         with:

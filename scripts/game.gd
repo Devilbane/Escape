@@ -233,14 +233,18 @@ func _setup_hud() -> void:
 	version.offset_bottom = -4
 	_hud.add_child(version)
 
-	# The devilbane logo as a faint watermark in the corner, above the buttons.
+	# The "db" of the devilbane logo as a faint watermark in the corner,
+	# above the buttons (the "HARDCORE" lettering below it is cut off).
 	var mark := TextureRect.new()
-	mark.texture = preload("res://assets/logo/devilbane_logo.png")
+	var db := AtlasTexture.new()
+	db.atlas = preload("res://assets/logo/devilbane_logo.png")
+	db.region = Rect2(0, 0, 480, 388)
+	mark.texture = db
 	mark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	mark.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	mark.offset_left = -110
-	mark.offset_top = -205
+	mark.offset_left = -116
+	mark.offset_top = -190
 	mark.offset_right = -20
 	mark.offset_bottom = -102
 	mark.modulate = Color(1, 1, 1, 0.35)

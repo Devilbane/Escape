@@ -1,5 +1,5 @@
 name: Die Zuflucht
-hint: Ein sicherer Ort. Hier kannst du Dinge lagern, handeln und im Bett speichern.
+hint: Ein sicherer Ort. Deine Wunden heilen, und du kannst Dinge lagern, handeln und im Bett speichern.
 safe: ja
 ##############
 ######E#######

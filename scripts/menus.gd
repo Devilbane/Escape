@@ -80,7 +80,7 @@ func _rebuild() -> void:
 	if _note != "":
 		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
 	if current != "bett":
-		var close_button: Button = game._make_button("Schließen", close)
+		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
 		close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		close_button.custom_minimum_size = Vector2(180, 52)
 		_box.add_child(close_button)
@@ -127,7 +127,7 @@ func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callabl
 
 func _stats_text() -> String:
 	var p: Player = game.player
-	return "Leben %d / %d    Kampfkraft %d    Tempo %d%%    Messer %d    Gold %d" % [
+	return Lang.t("Leben %d / %d    Kampfkraft %d    Tempo %d%%    Messer %d    Gold %d") % [
 		p.hp, p.max_hp, p.power, roundi(p.speed / Player.SPEED * 100.0), p.knives, game.coins]
 
 
@@ -135,9 +135,9 @@ func _stats_text() -> String:
 
 func _build_inventory() -> void:
 	var p: Player = game.player
-	_add_label("Inventar", 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Inventar"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(_stats_text(), 18, BLUE)
-	_add_label("Angelegt (anklicken zum Ablegen)", 20)
+	_add_label(Lang.t("Angelegt (anklicken zum Ablegen)"), 20)
 	var row := GridContainer.new()
 	row.columns = 5
 	row.add_theme_constant_override("h_separation", 8)
@@ -146,9 +146,9 @@ func _build_inventory() -> void:
 	_box.add_child(row)
 	for slot in Items.SLOTS:
 		var id: String = p.equipped.get(slot, "")
-		var text: String = "%s\n%s" % [Items.SLOT_NAMES[slot], Items.item_name(id) if id != "" else "-"]
+		var text: String = "%s\n%s" % [Lang.t(Items.SLOT_NAMES[slot]), Items.item_name(id) if id != "" else "-"]
 		row.add_child(_item_button(text, _unequip.bind(slot), id != ""))
-	_add_label("Tasche (%d / %d)" % [p.bag.size(), Items.BAG_SIZE], 20)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), Items.BAG_SIZE], 20)
 	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _select)
 	if _selected >= 0 and _selected < p.bag.size():
 		var id: String = p.bag[_selected]
@@ -157,8 +157,8 @@ func _build_inventory() -> void:
 		actions.alignment = BoxContainer.ALIGNMENT_CENTER
 		actions.add_theme_constant_override("separation", 8)
 		_box.add_child(actions)
-		actions.add_child(_item_button("Anlegen", _equip_selected))
-		actions.add_child(_item_button("Wegwerfen", _drop_selected))
+		actions.add_child(_item_button(Lang.t("Anlegen"), _equip_selected))
+		actions.add_child(_item_button(Lang.t("Wegwerfen"), _drop_selected))
 
 
 func _select(index: int) -> void:
@@ -177,14 +177,14 @@ func _equip_selected() -> void:
 
 func _drop_selected() -> void:
 	var p: Player = game.player
-	_note = "%s weggeworfen." % Items.item_name(p.bag[_selected])
+	_note = Lang.t("%s weggeworfen.") % Items.item_name(p.bag[_selected])
 	p.bag.remove_at(_selected)
 	_selected = -1
 	_rebuild()
 
 
 func _unequip(slot: String) -> void:
-	_note = "" if game.player.unequip(slot) else "Deine Tasche ist voll."
+	_note = "" if game.player.unequip(slot) else Lang.t("Deine Tasche ist voll.")
 	_selected = -1
 	_rebuild()
 
@@ -193,17 +193,17 @@ func _unequip(slot: String) -> void:
 
 func _build_storage() -> void:
 	var p: Player = game.player
-	_add_label("Lagertruhe", 38, game.GOLD, game.TITLE_FONT)
-	_add_label("Klicke einen Gegenstand an, um ihn zu verschieben.", 18, BLUE)
-	_add_label("Tasche (%d / %d)" % [p.bag.size(), Items.BAG_SIZE], 20)
+	_add_label(Lang.t("Lagertruhe"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 18, BLUE)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), Items.BAG_SIZE], 20)
 	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _store, 6)
-	_add_label("Truhe (%d / %d)" % [game.storage.size(), STORAGE_SIZE], 20)
+	_add_label(Lang.t("Truhe (%d / %d)") % [game.storage.size(), STORAGE_SIZE], 20)
 	_add_item_grid(game.storage, STORAGE_SIZE, Items.item_name, _take, 6)
 
 
 func _store(index: int) -> void:
 	if game.storage.size() >= STORAGE_SIZE:
-		_note = "Die Truhe ist voll."
+		_note = Lang.t("Die Truhe ist voll.")
 	else:
 		game.storage.append(game.player.bag[index])
 		game.player.bag.remove_at(index)
@@ -213,7 +213,7 @@ func _store(index: int) -> void:
 
 func _take(index: int) -> void:
 	if game.player.bag.size() >= Items.BAG_SIZE:
-		_note = "Deine Tasche ist voll."
+		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.player.bag.append(game.storage[index])
 		game.storage.remove_at(index)
@@ -229,25 +229,25 @@ static func sell_price(id: String) -> int:
 
 func _build_shop() -> void:
 	var p: Player = game.player
-	_add_label("Händler", 38, game.GOLD, game.TITLE_FONT)
-	_add_label("Dein Gold: %d" % game.coins, 20, game.GOLD)
-	_add_label("Kaufen", 20)
-	_add_item_grid(game.shop_stock, maxi(4, game.shop_stock.size()), func(id): return "%s\n%d Gold" % [Items.item_name(id), Items.ALL[id].price], _buy)
-	_add_label("Verkaufen", 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, func(id): return "%s\n%d Gold" % [Items.item_name(id), sell_price(id)], _sell)
+	_add_label(Lang.t("Händler"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
+	_add_label(Lang.t("Kaufen"), 20)
+	_add_item_grid(game.shop_stock, maxi(4, game.shop_stock.size()), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), Items.ALL[id].price], _buy)
+	_add_label(Lang.t("Verkaufen"), 20)
+	_add_item_grid(p.bag, Items.BAG_SIZE, func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), sell_price(id)], _sell)
 
 
 func _buy(index: int) -> void:
 	var id: String = game.shop_stock[index]
 	if game.coins < Items.ALL[id].price:
-		_note = "Dafür reicht dein Gold nicht."
+		_note = Lang.t("Dafür reicht dein Gold nicht.")
 	elif game.player.bag.size() >= Items.BAG_SIZE:
-		_note = "Deine Tasche ist voll."
+		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.coins -= Items.ALL[id].price
 		game.player.bag.append(id)
 		game.shop_stock.remove_at(index)
-		_note = "Gekauft: %s (%s)" % [Items.item_name(id), Items.describe(id)]
+		_note = Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 	_rebuild()
 
 
@@ -256,24 +256,24 @@ func _sell(index: int) -> void:
 	game.coins += sell_price(id)
 	game.player.bag.remove_at(index)
 	game.shop_stock.append(id)
-	_note = "Verkauft: %s für %d Gold" % [Items.item_name(id), sell_price(id)]
+	_note = Lang.t("Verkauft: %s für %d Gold") % [Items.item_name(id), sell_price(id)]
 	_rebuild()
 
 
 # --- Bed --------------------------------------------------------------------
 
 func _build_bed() -> void:
-	_add_label("Ein weiches Bett", 38, game.GOLD, game.TITLE_FONT)
-	_add_label("Hier kannst du dich ausruhen. Dein Spiel wird gespeichert\nund du loggst dich aus. Später geht es genau hier weiter.", 20)
+	_add_label(Lang.t("Ein weiches Bett"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Hier kannst du dich ausruhen. Dein Spiel wird gespeichert\nund du loggst dich aus. Später geht es genau hier weiter."), 20)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
 	_box.add_child(row)
-	var sleep: Button = game._make_button("Schlafen und ausloggen", func():
+	var sleep: Button = game._make_button(Lang.t("Schlafen und ausloggen"), func():
 		close()
 		game.sleep())
 	sleep.custom_minimum_size = Vector2(300, 60)
 	row.add_child(sleep)
-	var cancel: Button = game._make_button("Weiter wach bleiben", close)
+	var cancel: Button = game._make_button(Lang.t("Weiter wach bleiben"), close)
 	cancel.custom_minimum_size = Vector2(260, 60)
 	row.add_child(cancel)

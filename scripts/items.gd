@@ -41,7 +41,7 @@ const ALL := {
 
 
 static func item_name(id: String) -> String:
-	return ALL[id].name if ALL.has(id) else ""
+	return Lang.t(ALL[id].name) if ALL.has(id) else ""
 
 
 ## A short line like "+1 Kampfkraft, +2 Leben".
@@ -51,13 +51,13 @@ static func describe(id: String) -> String:
 	var item: Dictionary = ALL[id]
 	var parts := []
 	if item.get("power", 0) > 0:
-		parts.append("+%d Kampfkraft" % item.power)
+		parts.append(Lang.t("+%d Kampfkraft") % item.power)
 	if item.get("hp", 0) > 0:
-		parts.append("+%d Leben" % item.hp)
+		parts.append(Lang.t("+%d Leben") % item.hp)
 	if item.get("speed", 0.0) > 0.0:
-		parts.append("+%d%% Tempo" % roundi(item.speed * 100.0))
+		parts.append(Lang.t("+%d%% Tempo") % roundi(item.speed * 100.0))
 	if item.has("effect"):
-		parts.append(item.effect)
+		parts.append(Lang.t(item.effect))
 	return ", ".join(parts)
 
 

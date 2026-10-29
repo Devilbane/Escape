@@ -69,3 +69,7 @@ Eine Tür `D` steht in einem ein Feld breiten Durchgang.
 - Schrift: Cinzel und Cinzel Decorative (SIL Open Font License)
 - Comic-Schrift der Kampfblasen: Bangers von Vernon Adams (SIL Open Font License)
 - Jeder Push auf `main` spielt alle Levels automatisch durch und veröffentlicht die Browser-Version über GitHub Pages
+
+## Lizenz
+
+© 2026 devilbane. Alle Rechte vorbehalten, siehe [LICENSE](LICENSE). Grafiken und Schriften von anderen stehen unter ihren eigenen Lizenzen (siehe oben).

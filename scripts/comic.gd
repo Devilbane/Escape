@@ -64,7 +64,7 @@ func _pop(world_pos: Vector3, kind: String) -> void:
 		burst.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		root.add_child(burst)
 	var label := Label.new()
-	label.text = words.pick_random()
+	label.text = Lang.t(words.pick_random())
 	label.add_theme_font_override("font", FONT)
 	label.add_theme_font_size_override("font_size", int(size * 0.34))
 	label.add_theme_color_override("font_color", Color(0.12, 0.05, 0.1) if kind != "miss" else Color(1, 1, 1))

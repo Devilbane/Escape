@@ -46,7 +46,7 @@ static func build(game: Node, current: Dictionary) -> Control:
 	box.add_theme_constant_override("separation", 8)
 	panel.add_child(box)
 	var heading: Label = game._make_label(game.TITLE_FONT, 30, game.GOLD)
-	heading.text = "Rangliste"
+	heading.text = Lang.t("Rangliste")
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(heading)
 	var grid := GridContainer.new()
@@ -54,7 +54,7 @@ static func build(game: Node, current: Dictionary) -> Control:
 	grid.add_theme_constant_override("h_separation", 26)
 	grid.add_theme_constant_override("v_separation", 4)
 	box.add_child(grid)
-	for title in ["Platz", "Name", "Status", "Ebene", "Gold", "Datum"]:
+	for title in [Lang.t("Platz"), Lang.t("Name"), Lang.t("Status"), Lang.t("Ebene"), Lang.t("Gold"), Lang.t("Datum")]:
 		_cell(game, grid, title, Color(0.65, 0.85, 1.0))
 	var runs := load_all()
 	var rank := 0
@@ -77,9 +77,9 @@ static func build(game: Node, current: Dictionary) -> Control:
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		status.add_child(icon)
-		_cell(game, status, "Entkommen" if run.escaped else "Gefallen", game.GOLD if run.escaped else RED)
+		_cell(game, status, Lang.t("Entkommen") if run.escaped else Lang.t("Gefallen"), game.GOLD if run.escaped else RED)
 		grid.add_child(status)
-		_cell(game, grid, "%d  %s" % [run.level, run.level_name], color)
+		_cell(game, grid, "%d  %s" % [run.level, Lang.t(run.level_name)], color)
 		_cell(game, grid, str(int(run.gold)), game.GOLD)
 		_cell(game, grid, run.date, color)
 	return panel

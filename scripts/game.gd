@@ -54,9 +54,11 @@ var hero_name := ""
 var _name_box: Control
 var _name_edit: LineEdit
 var _ranking_slot: Control
+var _lang_row: Control
 
 
 func _ready() -> void:
+	Lang.setup()
 	for f in DirAccess.get_files_at(LEVEL_DIR):
 		if f.ends_with(".txt"):
 			level_files.append(LEVEL_DIR + f)
@@ -75,7 +77,7 @@ func _ready() -> void:
 	player.defeated.connect(_on_player_defeated)
 	player.bumped.connect(_on_player_bumped)
 	load_level(_start_level())
-	_show_start_title("Escape!", "Entkomme aus dem Verlies")
+	_show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies"))
 
 
 ## Lets a link like .../Escape/?level=3 jump straight to a level.
@@ -215,7 +217,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = "WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: hinklicken zum Laufen, Rechtsklick wirft ein Messer"
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Wurfmesser   I: Inventar\nDagegenlaufen: durchsuchen, angreifen, benutzen\nMaus: hinklicken zum Laufen, Rechtsklick wirft ein Messer")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -231,6 +233,24 @@ func _setup_hud() -> void:
 	version.offset_bottom = -4
 	_hud.add_child(version)
 
+	# The "db" of the devilbane logo as a faint watermark in the corner,
+	# above the buttons (the "HARDCORE" lettering below it is cut off).
+	var mark := TextureRect.new()
+	var db := AtlasTexture.new()
+	db.atlas = preload("res://assets/logo/devilbane_logo.png")
+	db.region = Rect2(0, 0, 480, 388)
+	mark.texture = db
+	mark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	mark.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	mark.offset_left = -116
+	mark.offset_top = -190
+	mark.offset_right = -20
+	mark.offset_bottom = -102
+	mark.modulate = Color(1, 1, 1, 0.35)
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud.add_child(mark)
+
 	var buttons := GridContainer.new()
 	buttons.columns = 4
 	buttons.add_theme_constant_override("h_separation", 10)
@@ -241,10 +261,10 @@ func _setup_hud() -> void:
 	buttons.offset_right = -20
 	buttons.offset_bottom = -20
 	_hud.add_child(buttons)
-	buttons.add_child(_make_button("Inventar", func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("inventar")))
-	buttons.add_child(_make_button("Springen", func(): if state == State.PLAYING: player.jump()))
-	buttons.add_child(_make_button("Werfen", func(): if state == State.PLAYING: player.throw_knife()))
-	buttons.add_child(_make_button("Schlagen", func(): if state == State.PLAYING: player.melee()))
+	buttons.add_child(_make_button(Lang.t("Inventar"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("inventar")))
+	buttons.add_child(_make_button(Lang.t("Springen"), func(): if state == State.PLAYING: player.jump()))
+	buttons.add_child(_make_button(Lang.t("Werfen"), func(): if state == State.PLAYING: player.throw_knife()))
+	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
 
 	_setup_shrine_panel()
 
@@ -272,12 +292,13 @@ func _setup_hud() -> void:
 	_title.add_child(_ranking_slot)
 	_title.move_child(_ranking_slot, _title_sub.get_index() + 1)
 	_setup_name_box()
+	_setup_language_row()
 	var title_row := HBoxContainer.new()
 	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	title_row.add_theme_constant_override("separation", 20)
 	_title.add_child(title_row)
 	_title_buttons = title_row
-	for entry in [["Weiterspielen", continue_game], ["Neues Spiel", new_game]]:
+	for entry in [[Lang.t("Weiterspielen"), continue_game], [Lang.t("Neues Spiel"), new_game]]:
 		var b := _make_button(entry[0], entry[1])
 		b.custom_minimum_size = Vector2(240, 64)
 		title_row.add_child(b)
@@ -303,20 +324,20 @@ func _setup_shrine_panel() -> void:
 	box.add_theme_constant_override("separation", 14)
 	_shrine_panel.add_child(box)
 	var title := _make_label(TITLE_FONT, 40, Color(0.65, 0.85, 1.0))
-	title.text = "Schrein der Ahnen"
+	title.text = Lang.t("Schrein der Ahnen")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 	var sub := _make_label(TEXT_FONT, 22)
-	sub.text = "Wähle eine Gabe"
+	sub.text = Lang.t("Wähle eine Gabe")
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
 	box.add_child(row)
-	var gifts := ["+1 Leben", "+1 Kampfkraft", "+15% Tempo"]
+	var gifts := [Lang.t("+1 Leben"), Lang.t("+1 Kampfkraft"), Lang.t("+15% Tempo")]
 	for i in gifts.size():
-		var b := _make_button("%s\n(Taste %d)" % [gifts[i], i + 1], _choose_gift.bind(i))
+		var b := _make_button(Lang.t("%s\n(Taste %d)") % [gifts[i], i + 1], _choose_gift.bind(i))
 		b.custom_minimum_size = Vector2(200, 96)
 		row.add_child(b)
 
@@ -356,13 +377,13 @@ func _choose_gift(index: int) -> void:
 		0:
 			player.gift_hp += 1
 			player.hp += 1
-			text = "Du fühlst dich zäher: +1 Leben"
+			text = Lang.t("Du fühlst dich zäher: +1 Leben")
 		1:
 			player.gift_power += 1
-			text = "Deine Hiebe werden härter: +1 Kampfkraft"
+			text = Lang.t("Deine Hiebe werden härter: +1 Kampfkraft")
 		2:
 			player.gift_speed += 0.15
-			text = "Deine Schritte werden leichter: +15% Tempo"
+			text = Lang.t("Deine Schritte werden leichter: +15% Tempo")
 	set_world_paused(false)
 	player.refresh_stats()
 	level.use_shrine(_shrine)
@@ -374,21 +395,21 @@ func _choose_gift(index: int) -> void:
 
 
 func _version_text() -> String:
-	return "Version " + VERSION + ("." + BUILD if BUILD != "" else "")
+	return "Version " + VERSION + ("." + BUILD if BUILD != "" else "") + " · © 2026 devilbane · " + Lang.t("Alle Rechte vorbehalten")
 
 
 func _update_hud() -> void:
-	_level_label.text = "Ebene %d: %s" % [level_index + 1, level.level_name]
-	_hp_label.text = "Leben: %d / %d" % [maxi(0, player.hp), player.max_hp]
+	_level_label.text = Lang.t("Ebene %d: %s") % [level_index + 1, Lang.t(level.level_name)]
+	_hp_label.text = Lang.t("Leben: %d / %d") % [maxi(0, player.hp), player.max_hp]
 	var gifts := []
 	if player.power > 1:
-		gifts.append("Kampfkraft %d" % player.power)
+		gifts.append(Lang.t("Kampfkraft %d") % player.power)
 	if player.speed > Player.SPEED + 0.01:
-		gifts.append("Tempo %d%%" % roundi(player.speed / Player.SPEED * 100.0))
+		gifts.append(Lang.t("Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0))
 	_gift_label.text = "   ".join(gifts)
-	_coin_label.text = "Gold: %d" % coins
-	_knife_label.text = "Messer: %d" % player.knives
-	_key_label.text = "Schlüssel gefunden" if level.has_key else "Kein Schlüssel"
+	_coin_label.text = Lang.t("Gold: %d") % coins
+	_knife_label.text = Lang.t("Messer: %d") % player.knives
+	_key_label.text = Lang.t("Schlüssel gefunden") if level.has_key else Lang.t("Kein Schlüssel")
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
 
 
@@ -406,12 +427,13 @@ func load_level(index: int, restock := true) -> void:
 	player.level = level
 	player.frozen = false
 	player.controllable = true
-	player.revive(level.cell_to_world(level.start_cell))
+	# Only the safe room heals; walking down to the next level does not.
+	player.revive(level.cell_to_world(level.start_cell), level.safe)
 	player.face(Vector3.BACK)
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
-	level.door_opened.connect(func(): show_message("Die Tür öffnet sich knarrend..."))
-	level.door_locked.connect(func(): show_message("Verschlossen. Finde den Schlüssel!"))
+	level.door_opened.connect(func(): show_message(Lang.t("Die Tür öffnet sich knarrend...")))
+	level.door_locked.connect(func(): show_message(Lang.t("Verschlossen. Finde den Schlüssel!")))
 	level.player_hurt.connect(func(): player.take_damage(1, player.global_position - player.facing()))
 	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
@@ -431,6 +453,7 @@ func _show_title(text: String, sub: String, prompt: String) -> void:
 	for child in _ranking_slot.get_children():
 		child.queue_free()
 	_name_box.visible = false
+	_lang_row.visible = false
 	_title_text.add_theme_font_size_override("font_size", 120)
 	_title_text.text = text
 	_title_sub.text = sub
@@ -446,12 +469,44 @@ func _show_title(text: String, sub: String, prompt: String) -> void:
 ## The title before a game: with a saved game it offers to carry on.
 func _show_start_title(text: String, sub: String) -> void:
 	state = State.TITLE
+	if Lang.language == "":
+		# The very first start: the language comes before anything else.
+		_show_title(text, "Sprache wählen  ·  Choose your language", "")
+		_title_buttons.visible = false
+		_lang_row.visible = true
+		return
 	if has_save():
-		_show_title(text, sub, "Klicken oder eine Taste: weiterspielen.  N: neues Spiel")
+		_show_title(text, sub, Lang.t("Klicken oder eine Taste: weiterspielen.  N: neues Spiel"))
 		_title_buttons.visible = true
 	else:
-		_show_title(text, sub, "Klicken oder eine Taste drücken")
+		_show_title(text, sub, Lang.t("Klicken oder eine Taste drücken"))
 		_title_buttons.visible = false
+	_lang_row.visible = true
+
+
+## Two buttons to switch between German and English on the title screen.
+func _setup_language_row() -> void:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	row.visible = false
+	_title.add_child(row)
+	_lang_row = row
+	for entry in [["Deutsch", "de"], ["English", "en"]]:
+		var b := _make_button(entry[0], _choose_language.bind(entry[1]))
+		b.custom_minimum_size = Vector2(180, 56)
+		b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		if Lang.language != "" and Lang.language != entry[1]:
+			b.modulate = Color(1, 1, 1, 0.5)
+		row.add_child(b)
+
+
+## Every text was made in the old language, so the whole game starts afresh.
+func _choose_language(code: String) -> void:
+	if state != State.TITLE or _name_box.visible:
+		return
+	Lang.choose(code)
+	get_tree().reload_current_scene()
 
 
 ## Asks for the hero's name; the game starts once it is given.
@@ -460,6 +515,7 @@ func new_game() -> void:
 		return
 	state = State.TITLE
 	_title_buttons.visible = false
+	_lang_row.visible = false
 	_title_prompt.text = ""
 	_name_box.visible = true
 	_name_edit.text = hero_name
@@ -475,12 +531,12 @@ func _setup_name_box() -> void:
 	_title.add_child(box)
 	_name_box = box
 	var ask := _make_label(TEXT_FONT, 30, GOLD)
-	ask.text = "Wie heißt dein Held?"
+	ask.text = Lang.t("Wie heißt dein Held?")
 	ask.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(ask)
 	_name_edit = LineEdit.new()
 	_name_edit.max_length = 16
-	_name_edit.placeholder_text = "Dein Name"
+	_name_edit.placeholder_text = Lang.t("Dein Name")
 	_name_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name_edit.custom_minimum_size = Vector2(360, 60)
 	_name_edit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -490,7 +546,7 @@ func _setup_name_box() -> void:
 	_name_edit.add_theme_stylebox_override("focus", Menus.panel_style(GOLD))
 	_name_edit.text_submitted.connect(func(_t): _start_new_game())
 	box.add_child(_name_edit)
-	var go := _make_button("Los geht's", _start_new_game)
+	var go := _make_button(Lang.t("Los geht's"), _start_new_game)
 	go.custom_minimum_size = Vector2(240, 64)
 	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(go)
@@ -501,7 +557,7 @@ func _start_new_game() -> void:
 		return
 	hero_name = _name_edit.text.strip_edges()
 	if hero_name == "":
-		hero_name = "Namenlos"
+		hero_name = Lang.t("Namenlos")
 	_name_box.visible = false
 	_name_edit.release_focus()
 	coins = 0
@@ -509,7 +565,9 @@ func _start_new_game() -> void:
 	shop_stock.clear()
 	player.knives = 5
 	player.reset_gifts()
-	_leave_title(func(): load_level(_start_level()))
+	_leave_title(func():
+		player.hp = player.max_hp
+		load_level(_start_level()))
 
 
 func continue_game() -> void:
@@ -517,7 +575,7 @@ func continue_game() -> void:
 		return
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SAVE_FILE))
 	_leave_title(func():
-		hero_name = data.get("name", "Namenlos")
+		hero_name = data.get("name", Lang.t("Namenlos"))
 		coins = int(data.coins)
 		storage.assign(data.storage)
 		shop_stock.assign(data.shop)
@@ -570,7 +628,7 @@ func sleep() -> void:
 	var tween := create_tween()
 	tween.tween_interval(1.2)
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
-	tween.tween_callback(func(): _show_start_title("Gute Nacht", "Dein Spiel ist gespeichert."))
+	tween.tween_callback(func(): _show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.")))
 
 
 func _start_playing() -> void:
@@ -582,7 +640,7 @@ func _start_playing() -> void:
 
 
 func _announce_level() -> void:
-	show_message("Ebene %d: %s\n%s" % [level_index + 1, level.level_name, level.hint], 3.5)
+	show_message(Lang.t("Ebene %d: %s\n%s") % [level_index + 1, Lang.t(level.level_name), Lang.t(level.hint)], 3.5)
 
 
 func _message_busy() -> bool:
@@ -602,7 +660,7 @@ func show_message(text: String, duration := 2.2) -> void:
 func _on_key_collected() -> void:
 	level.has_key = true
 	player.play_once("PickUp", 0.6)
-	show_message("Du hast den Schlüssel gefunden!")
+	show_message(Lang.t("Du hast den Schlüssel gefunden!"))
 	_update_hud()
 
 
@@ -617,7 +675,7 @@ func _gold(amount: int) -> int:
 
 
 func _on_enemy_killed() -> void:
-	show_message("Das Skelett zerfällt zu Staub.", 1.4)
+	show_message(Lang.t("Das Skelett zerfällt zu Staub."), 1.4)
 	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:
 		player.hp += 1
 		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+1", Color(0.5, 1.0, 0.5))
@@ -642,37 +700,37 @@ func _search(obj: Dictionary) -> void:
 	player.path.clear()
 	player.face(obj.pos - player.global_position)
 	if obj.searched:
-		Effects.float_text(level, obj.icon_pos, "Schon durchsucht", Color(0.8, 0.8, 0.8))
+		Effects.float_text(level, obj.icon_pos, Lang.t("Schon durchsucht"), Color(0.8, 0.8, 0.8))
 		return
 	if obj.loot.has("item") and player.bag.size() >= Items.BAG_SIZE:
 		if not _message_busy():
-			show_message("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.", 2.0)
+			show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0)
 		return
 	player.play_once("Interact", 0.55)
 	var loot := level.search(obj)
-	var text := "%s: leer" % obj.label
+	var text := Lang.t("%s: leer") % Lang.t(obj.label)
 	var color := Color(0.8, 0.8, 0.85)
 	if loot.has("gold"):
 		coins += _gold(loot.gold)
-		text = "+%d Gold" % _gold(loot.gold)
+		text = Lang.t("+%d Gold") % _gold(loot.gold)
 		color = GOLD
 	elif loot.has("knives"):
 		player.knives += loot.knives
-		text = "+%d Wurfmesser" % loot.knives
+		text = Lang.t("+%d Wurfmesser") % loot.knives
 		color = Color(0.8, 0.9, 1.0)
 	elif loot.has("potion"):
 		player.hp = mini(player.max_hp, player.hp + 2)
-		text = "Heiltrank! +2 Leben"
+		text = Lang.t("Heiltrank! +2 Leben")
 		color = Color(1.0, 0.5, 0.55)
 	if loot.has("item"):
 		player.bag.append(loot.item)
-		var found := "Gefunden: %s (%s)" % [Items.item_name(loot.item), Items.describe(loot.item)]
+		var found := Lang.t("Gefunden: %s (%s)") % [Items.item_name(loot.item), Items.describe(loot.item)]
 		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
 		color = Color(0.75, 0.9, 1.0)
-		show_message(found + "\nTaste I öffnet das Inventar.", 2.5)
+		show_message(found + Lang.t("\nTaste I öffnet das Inventar."), 2.5)
 	Effects.float_text(level, obj.icon_pos, text, color)
 	if loot.is_empty():
-		show_message("Du durchsuchst %s... nichts." % _with_article(obj.label), 1.2)
+		show_message(Lang.t("Du durchsuchst %s... nichts.") % Lang.t(_with_article(obj.label)), 1.2)
 	_update_hud()
 
 
@@ -697,7 +755,7 @@ func _on_player_hurt(_amount: int) -> void:
 ## Death ends the run: it goes into the ranking with a skull.
 func _on_player_defeated() -> void:
 	state = State.TRANSITION
-	show_message("Du wurdest besiegt...", 2.0)
+	show_message(Lang.t("Du wurdest besiegt..."), 2.0)
 	var tween := create_tween()
 	tween.tween_interval(1.6)
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.8)
@@ -712,9 +770,9 @@ func _end_run(escaped: bool) -> void:
 	if has_save():
 		DirAccess.remove_absolute(SAVE_FILE)
 	if escaped:
-		_show_title("Frei!", "%s ist entkommen und hat %d Gold erbeutet." % [hero_name, coins], "Klicken für ein neues Spiel")
+		_show_title(Lang.t("Frei!"), Lang.t("%s ist entkommen und hat %d Gold erbeutet.") % [hero_name, coins], Lang.t("Klicken für ein neues Spiel"))
 	else:
-		_show_title("Gefallen", "%s fiel auf Ebene %d mit %d Gold." % [hero_name, level_index + 1, coins], "Klicken für ein neues Spiel")
+		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], Lang.t("Klicken für ein neues Spiel"))
 	_title_text.add_theme_font_size_override("font_size", 90)
 	_ranking_slot.add_child(Ranking.build(self, entry))
 
@@ -789,14 +847,14 @@ func _process(delta: float) -> void:
 		_pending_search = {}
 	var near := level.nearest_interactable(player.global_position)
 	# Only the first levels explain how to search; after that players know.
-	_prompt.text = "Dagegenlaufen, um %s zu untersuchen" % _with_article(near.label) if level_index < 2 and not near.is_empty() and not near.searched else ""
+	_prompt.text = Lang.t("Dagegenlaufen, um %s zu untersuchen") % Lang.t(_with_article(near.label)) if level_index < 2 and not near.is_empty() and not near.searched else ""
 	var station := level.nearest_station(player.global_position)
 	if not station.is_empty() and (level_index < 2 or station.kind != "schrein"):
 		_prompt.text = {
-			"schrein": "Dagegenlaufen, um den Schrein zu berühren",
-			"bett": "Dagegenlaufen, um dich ins Bett zu legen",
-			"lager": "Dagegenlaufen, um die Lagertruhe zu öffnen",
-			"haendler": "Dagegenlaufen, um mit dem Händler zu handeln",
+			"schrein": Lang.t("Dagegenlaufen, um den Schrein zu berühren"),
+			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),
+			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
+			"haendler": Lang.t("Dagegenlaufen, um mit dem Händler zu handeln"),
 		}[station.kind]
 
 
@@ -806,7 +864,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	match state:
 		State.TITLE:
-			if _name_box.visible:
+			if _name_box.visible or Lang.language == "":
 				return
 			if has_save() and not (event is InputEventKey and event.physical_keycode == KEY_N):
 				continue_game()

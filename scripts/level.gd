@@ -28,6 +28,8 @@ signal door_locked
 signal player_hurt
 signal enemy_killed
 signal exit_reached
+signal item_collected(id: String)
+signal bag_full
 
 const TILE := 4.0
 const ASSET_DIR := "res://assets/dungeon/"
@@ -64,6 +66,8 @@ var enemies: Array = []
 var stations: Array = []
 var safe := false
 var elite := false
+## How deep the level lies (0 for the first); deeper skeletons wear more gear.
+var depth := 0
 var fog: Fog
 var _doors: Array = []
 var _torch_spots: Array[Vector3] = []
@@ -714,6 +718,12 @@ func _check_pickups() -> void:
 		var n: Node3D = p.node
 		var d := Vector2(player.global_position.x - n.global_position.x, player.global_position.z - n.global_position.z)
 		if d.length() > p.radius:
+			p.erase("warned")
+			continue
+		if p.kind == "item" and player.bag.size() >= Items.BAG_SIZE:
+			if not p.has("warned"):
+				p.warned = true
+				bag_full.emit()
 			continue
 		_pickups.erase(p)
 		var tween := create_tween()
@@ -722,6 +732,8 @@ func _check_pickups() -> void:
 		tween.tween_callback(n.queue_free)
 		if p.kind == "key":
 			key_collected.emit()
+		elif p.kind == "item":
+			item_collected.emit(p.id)
 		else:
 			coins_collected.emit(1)
 
@@ -838,11 +850,83 @@ func _spawn_enemies() -> void:
 				var e := Enemy.new()
 				e.kind = Enemy.LETTERS[ch]
 				e.elite = elite and ch in "MA"
+				e.gear = _roll_gear(e.kind, c)
 				e.level = self
 				add_child(e)
 				e.global_position = cell_to_world(c)
-				e.died.connect(func(): enemy_killed.emit())
+				e.died.connect(func():
+					enemy_killed.emit()
+					_drop_gear(e))
 				enemies.append(e)
+
+
+## Chance for each piece of gear a skeleton may wear: higher the deeper it lies.
+const GEAR_CHANCE := 0.1
+const GEAR_CHANCE_PER_LEVEL := 0.05
+## Chance that a worn piece drops when its skeleton falls.
+const DROP_CHANCE := 0.1
+
+
+## The items a skeleton wears: up to two (three for a brute), no specials,
+## one per slot. Fixed per level and tile, like the loot in chests.
+func _roll_gear(kind: String, c: Vector2i) -> Array[String]:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%s:gear:%d:%d" % [level_name, c.x, c.y])
+	var gear: Array[String] = []
+	var chance := GEAR_CHANCE + GEAR_CHANCE_PER_LEVEL * depth
+	for i in (3 if kind == "koloss" else 2):
+		if rng.randf() >= chance:
+			continue
+		for attempt in 6:
+			var id := Items.random_item(rng)
+			var slot: String = Items.ALL[id].slot
+			if slot != "spezial" and not gear.any(func(g): return Items.ALL[g].slot == slot):
+				gear.append(id)
+				break
+	return gear
+
+
+func _drop_gear(e: Enemy) -> void:
+	var spot := e.global_position
+	for id in e.gear:
+		if randf() < DROP_CHANCE:
+			_drop_item(id, spot)
+			spot += Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
+
+
+## A worn piece left on the floor, glowing until the hero walks over it.
+func _drop_item(id: String, pos: Vector3) -> void:
+	var item: Dictionary = Items.ALL[id]
+	var holder := Node3D.new()
+	holder.position = Vector3(pos.x, 1.0, pos.z)
+	add_child(holder)
+	if item.has("model"):
+		var model: Node3D = load(item.model).instantiate()
+		model.scale = Vector3.ONE * 1.6
+		holder.add_child(model)
+	else:
+		var gem := MeshInstance3D.new()
+		var mesh := SphereMesh.new()
+		mesh.radius = 0.35
+		mesh.height = 0.7
+		mesh.radial_segments = 6
+		mesh.rings = 2
+		gem.mesh = mesh
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = item.get("tint", Color(1.0, 0.8, 0.3))
+		mat.metallic = 0.6
+		mat.emission_enabled = true
+		mat.emission = mat.albedo_color
+		mat.emission_energy_multiplier = 0.6
+		gem.material_override = mat
+		holder.add_child(gem)
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.75, 0.9, 1.0)
+	light.light_energy = 1.4
+	light.omni_range = 3.5
+	holder.add_child(light)
+	holder.add_child(Effects.make_sparkles(Color(0.75, 0.9, 1.0)))
+	_pickups.append({"node": holder, "kind": "item", "id": id, "radius": 1.6})
 
 
 ## True when nothing blocks the view between two points on the grid.

@@ -456,17 +456,20 @@ func load_level(index: int, restock := true) -> void:
 	level_index = index
 	level = Level.new()
 	level.load_from_file(level_files[index])
+	level.depth = index
 	add_child(level)
 	level.build()
 	level.player = player
 	player.level = level
 	player.frozen = false
 	player.controllable = true
-	# Only the safe room heals; walking down to the next level does not.
+	# Walking down to the next level never heals; the fountain does.
 	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
+	level.item_collected.connect(_on_item_collected)
+	level.bag_full.connect(func(): show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0))
 	level.door_opened.connect(func(): show_message(Lang.t("Die Tür öffnet sich knarrend...")))
 	level.door_locked.connect(func(): show_message(Lang.t("Verschlossen. Finde den Schlüssel!")))
 	level.player_hurt.connect(func(): player.take_damage(1, player.global_position - player.facing()))
@@ -696,6 +699,14 @@ func _on_key_collected() -> void:
 	level.has_key = true
 	player.play_once("PickUp", 0.6)
 	show_message(Lang.t("Du hast den Schlüssel gefunden!"))
+	_update_hud()
+
+
+## A piece of gear a skeleton dropped.
+func _on_item_collected(id: String) -> void:
+	player.bag.append(id)
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Color(0.75, 0.9, 1.0))
+	show_message(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)] + Lang.t("\nTaste I öffnet das Inventar."), 2.5)
 	_update_hud()
 
 

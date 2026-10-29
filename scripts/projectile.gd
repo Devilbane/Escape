@@ -40,7 +40,7 @@ func _physics_process(delta: float) -> void:
 	if from_player:
 		for e in level.enemies:
 			if is_instance_valid(e) and not e.dead and _hits(e.global_position):
-				e.take_hit(damage, global_position - direction)
+				e.take_hit(damage, global_position - direction, "knife")
 				queue_free()
 				return
 	else:

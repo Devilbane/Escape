@@ -233,6 +233,7 @@ func melee() -> void:
 	_attack_cooldown = 0.5
 	play_once("1H_Melee_Attack_Slice_Horizontal", 0.45)
 	await get_tree().create_timer(0.18).timeout
+	var hits := 0
 	for e in level.enemies:
 		if not is_instance_valid(e) or e.dead:
 			continue
@@ -240,6 +241,9 @@ func melee() -> void:
 		to.y = 0.0
 		if to.length() < MELEE_RANGE and (to.length() < 1.2 or facing().dot(to.normalized()) > 0.25):
 			e.take_hit(power, global_position)
+			hits += 1
+	if hits == 0 and target:
+		Comic.pop(global_position + facing() * 1.5, "miss")
 
 
 ## Throws a knife at `aim` (a world position), or at the closest enemy in sight.
@@ -372,7 +376,8 @@ func take_damage(amount: int, from: Vector3) -> void:
 	away.y = 0.0
 	_knockback = away.normalized() * 10.0
 	path.clear()
-	Effects.float_text(level, global_position + Vector3(0, 3.2, 0), "-%d" % amount, Color(1, 0.3, 0.3))
+	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-%d" % amount, Color(1, 0.3, 0.3))
+	Comic.pop(global_position, "hurt")
 	hurt.emit(amount)
 	if hp <= 0:
 		dead = true

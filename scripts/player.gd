@@ -93,11 +93,11 @@ func _add_trim() -> void:
 	gold.metallic = 0.7
 	gold.roughness = 0.35
 	gold.emission_enabled = true
-	gold.emission = Color(0.35, 0.22, 0.05)
+	gold.emission = Color(0.55, 0.36, 0.08)
 	var cape := _model.find_child("Rogue_Cape", true, false) as MeshInstance3D
 	if cape:
 		var cord := MeshInstance3D.new()
-		cord.mesh = Effects.cord_mesh(Effects.open_edges(cape.mesh), 0.028, gold)
+		cord.mesh = Effects.cord_mesh(Effects.open_edges(cape.mesh), 0.075, gold)
 		cape.add_child(cord)
 	var head := _model.find_child("Rogue_Head_Hooded", true, false) as MeshInstance3D
 	var skeleton := _model.find_child("Skeleton3D", true, false) as Skeleton3D
@@ -123,7 +123,7 @@ func _add_trim() -> void:
 	attach.bone_name = "head"
 	skeleton.add_child(attach)
 	var hood_cord := MeshInstance3D.new()
-	hood_cord.mesh = Effects.cord_mesh(rim, 0.03, gold)
+	hood_cord.mesh = Effects.cord_mesh(rim, 0.07, gold)
 	attach.add_child(hood_cord)
 	var feather := MeshInstance3D.new()
 	feather.mesh = Effects.feather_mesh()

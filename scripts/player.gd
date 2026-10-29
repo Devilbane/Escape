@@ -9,7 +9,7 @@ signal ailments_changed
 ## Emitted when the hero runs into something solid, with a point just inside it.
 signal bumped(point: Vector3)
 
-const SPEED := 7.0
+const SPEED := 4.0
 const JUMP_VELOCITY := 9.0
 const GRAVITY := 26.0
 const MAX_HP := 5

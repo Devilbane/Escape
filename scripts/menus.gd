@@ -7,7 +7,7 @@ const STORAGE_SIZE := 16
 const BLUE := Color(0.65, 0.85, 1.0)
 
 var game: Node
-## The open window: "", "inventar", "lager", "haendler", "bett" or "laden".
+## The open window: "", "inventar", "lager", "haendler", "bett", "laden" or "beenden".
 var current := ""
 var _panel: PanelContainer
 var _box: VBoxContainer
@@ -79,9 +79,11 @@ func _rebuild() -> void:
 			_build_bed()
 		"laden":
 			_build_load()
+		"beenden":
+			_build_quit()
 	if _note != "":
 		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
-	if current != "bett" and current != "laden":
+	if not current in ["bett", "laden", "beenden"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
 		close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		close_button.custom_minimum_size = Vector2(180, 52)
@@ -283,6 +285,23 @@ func _build_load() -> void:
 			game.load_saved_game())
 		load_button.custom_minimum_size = Vector2(220, 60)
 		row.add_child(load_button)
+	var cancel: Button = game._make_button(Lang.t("Abbrechen"), close)
+	cancel.custom_minimum_size = Vector2(220, 60)
+	row.add_child(cancel)
+
+
+func _build_quit() -> void:
+	_add_label(Lang.t("Spiel beenden"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Was seit dem letzten Schlaf im Bett geschah, geht verloren."), 20, Color(1.0, 0.75, 0.5))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	_box.add_child(row)
+	var quit: Button = game._make_button(Lang.t("Beenden"), func():
+		close()
+		game.quit_game())
+	quit.custom_minimum_size = Vector2(220, 60)
+	row.add_child(quit)
 	var cancel: Button = game._make_button(Lang.t("Abbrechen"), close)
 	cancel.custom_minimum_size = Vector2(220, 60)
 	row.add_child(cancel)

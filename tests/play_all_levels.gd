@@ -122,7 +122,12 @@ func _process(delta: float) -> bool:
 	elif not lvl._doors.all(func(d): return d.open):
 		# Head for the door first: from a secret room the stairs can seem
 		# closer than the way round to them.
-		player.walk_to(_cell_of("D"))
+		var door := _cell_of("D")
+		if player.global_position.distance_to(door) < 8.0:
+			# Path finding stops a step short: run into it like a player.
+			player.path.assign([door])
+		else:
+			player.walk_to(door)
 	else:
 		player.walk_to(_cell_of("E"))
 	return false

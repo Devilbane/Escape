@@ -12,6 +12,9 @@ signal bumped(point: Vector3)
 const SPEED := 4.0
 const JUMP_VELOCITY := 9.0
 const GRAVITY := 26.0
+## How fast the feet travel over the ground in the run animation at normal
+## playback (metres per second, measured from the foot bone).
+const RUN_ANIM_SPEED := 3.5
 const MAX_HP := 5
 const MELEE_RANGE := 2.8
 ## Running into a skeleton starts a fight: the hero keeps swinging while
@@ -611,6 +614,9 @@ func _physics_process(delta: float) -> void:
 		_model.rotation.y = lerp_angle(_model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-14.0 * delta))
 	# Blink while invulnerable after a hit.
 	_model.visible = dead or _invulnerable <= 0.0 or int(_invulnerable * 12.0) % 2 == 0
+	# Feet keep pace with the ground: the run plays faster or slower with the speed.
+	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
+	_anim.speed_scale = clampf(ground_speed / RUN_ANIM_SPEED, 0.5, 2.5) if _current_anim == "Running_A" else 1.0
 	if _busy > 0.0 or _anim_hold > 0.0 or not controllable or dead:
 		return
 	if not is_on_floor():

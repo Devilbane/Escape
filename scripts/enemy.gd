@@ -256,6 +256,9 @@ func _physics_process(delta: float) -> void:
 	if _busy > 0.0:
 		return
 	_play("Running_A" if move != Vector3.ZERO else "Idle")
+	# Feet keep pace with the ground; bigger skeletons take longer strides.
+	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
+	_anim.speed_scale = clampf(ground_speed / (Player.RUN_ANIM_SPEED * float(_stats.size)), 0.5, 2.5) if _current_anim == "Running_A" else 1.0
 
 
 func _face(dir: Vector3, delta := -1.0) -> void:

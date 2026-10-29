@@ -136,6 +136,11 @@ const EN := {
 	"Schlafen und ausloggen": "Sleep and log out",
 	"Weiter wach bleiben": "Stay awake",
 	# Item slots and items
+	"Kopf": "Head",
+	"Knochenhelm": "Bone helmet",
+	"Zauberhut": "Wizard hat",
+	"Ritterhelm": "Knight's helmet",
+	"Bärenkappe": "Bear cap",
 	"Waffe": "Weapon",
 	"Schild": "Shield",
 	"Umhang": "Cloak",

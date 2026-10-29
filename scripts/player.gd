@@ -125,9 +125,11 @@ func _add_trim() -> void:
 		if head.skin.get_bind_name(i) == "head":
 			bind = head.skin.get_bind_pose(i)
 	var attach := BoneAttachment3D.new()
+	attach.name = "HeadSlot"
 	attach.bone_name = "head"
 	skeleton.add_child(attach)
 	var feather := MeshInstance3D.new()
+	feather.name = "Feather"
 	feather.mesh = Effects.feather_mesh()
 	feather.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# Tucked in on the left side of the head, sweeping up and back.
@@ -359,6 +361,7 @@ func refresh_stats() -> void:
 	hp = mini(hp, max_hp)
 	_show_held("waffe", "handslot_r", "Knife")
 	_show_held("schild", "handslot_l", "")
+	_show_headgear()
 	_show_tint("umhang", ["Rogue_Cape"])
 	_show_tint("ruestung", ["Rogue_Body"])
 	_show_tint("schuhe", ["Rogue_LegLeft", "Rogue_LegRight"])
@@ -447,6 +450,28 @@ func _ailments_changed() -> void:
 			add_child(haze)
 			break
 	ailments_changed.emit()
+
+
+## Puts the worn helmet or hat on the hero's head; the feather makes room for it.
+func _show_headgear() -> void:
+	var slot := _model.find_child("HeadSlot", true, false)
+	if slot == null:
+		return
+	var old := slot.get_node_or_null("Headgear")
+	if old:
+		old.free()
+	var item: Dictionary = Items.ALL.get(equipped.get("kopf", ""), {})
+	var feather := slot.get_node_or_null("Feather") as Node3D
+	if feather:
+		feather.visible = not item.has("hat")
+	if not item.has("hat"):
+		return
+	# The hats sit on the head bone of their own character, which matches the hero's.
+	var source: Node = load(item.hat[0]).instantiate()
+	var hat := source.find_child(item.hat[1], true, false).duplicate() as Node3D
+	source.free()
+	hat.name = "Headgear"
+	slot.add_child(hat)
 
 
 func has_special(id: String) -> bool:

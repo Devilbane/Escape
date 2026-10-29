@@ -3,9 +3,9 @@ extends RefCounted
 ## Everything the hero can carry: weapons, shields, clothes, jewellery and specials.
 ## Each item adds to one of the hero's values while it is worn.
 
-const SLOTS := ["waffe", "schild", "umhang", "ruestung", "schuhe",
+const SLOTS := ["kopf", "waffe", "schild", "umhang", "ruestung", "schuhe",
 		"amulett", "ring", "armreif", "spezial_1", "spezial_2"]
-const SLOT_NAMES := {"waffe": "Waffe", "schild": "Schild", "umhang": "Umhang",
+const SLOT_NAMES := {"kopf": "Kopf", "waffe": "Waffe", "schild": "Schild", "umhang": "Umhang",
 		"ruestung": "Rüstung", "schuhe": "Schuhe", "amulett": "Amulett", "ring": "Ring",
 		"armreif": "Armreif", "spezial_1": "Spezial 1", "spezial_2": "Spezial 2"}
 const BAG_SIZE := 8
@@ -18,6 +18,10 @@ const ALL := {
 	"rundschild": {"name": "Rundschild", "slot": "schild", "hp": 1, "price": 10, "model": "res://assets/weapons/shield_round.gltf"},
 	"wappenschild": {"name": "Wappenschild", "slot": "schild", "hp": 2, "price": 22, "model": "res://assets/weapons/shield_badge.gltf"},
 	"stachelschild": {"name": "Stachelschild", "slot": "schild", "hp": 2, "power": 1, "price": 35, "model": "res://assets/weapons/shield_spikes.gltf"},
+	"knochenhelm": {"name": "Knochenhelm", "slot": "kopf", "power": 1, "price": 18, "hat": ["res://assets/enemies/Skeleton_Warrior.glb", "Skeleton_Warrior_Helmet"]},
+	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "hp": 1, "speed": 0.07, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"]},
+	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "hp": 2, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"]},
+	"baerenkappe": {"name": "Bärenkappe", "slot": "kopf", "hp": 1, "power": 1, "price": 34, "hat": ["res://assets/characters/Barbarian.glb", "Barbarian_Hat"]},
 	"wollumhang": {"name": "Wollumhang", "slot": "umhang", "hp": 1, "price": 12, "tint": Color(0.55, 0.4, 0.28)},
 	"schattenumhang": {"name": "Schattenumhang", "slot": "umhang", "hp": 1, "speed": 0.1, "price": 26, "tint": Color(0.16, 0.15, 0.24)},
 	"koenigsumhang": {"name": "Königsumhang", "slot": "umhang", "hp": 2, "power": 1, "price": 42, "tint": Color(0.75, 0.08, 0.1)},

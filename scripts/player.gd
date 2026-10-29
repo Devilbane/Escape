@@ -67,7 +67,7 @@ func _add_cape_logo() -> void:
 	if cape == null:
 		return
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.66, 0.7)
+	quad.size = Vector2(0.6, 0.64)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = preload("res://assets/logo/devilbane_logo.png")
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -77,9 +77,9 @@ func _add_cape_logo() -> void:
 	var logo := MeshInstance3D.new()
 	logo.mesh = quad
 	logo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# The cape's back is nearly flat at z = -0.386 in its own space.
-	logo.position = Vector3(0, -0.62, -0.395)
-	logo.rotation.y = PI
+	# Up near the shoulders, tilted to follow the cape's slope towards the hood.
+	logo.position = Vector3(0, -0.36, -0.39)
+	logo.rotation = Vector3(-0.3, PI, 0)
 	cape.add_child(logo)
 
 

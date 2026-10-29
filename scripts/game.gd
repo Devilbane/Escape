@@ -81,6 +81,7 @@ func _ready() -> void:
 	player = Player.new()
 	add_child(player)
 	player.hurt.connect(_on_player_hurt)
+	player.ailments_changed.connect(_update_hud)
 	player.defeated.connect(_on_player_defeated)
 	player.bumped.connect(_on_player_bumped)
 	load_level(_start_level())
@@ -363,9 +364,30 @@ func _use_station(s: Dictionary) -> void:
 	_pending_station = {}
 	if s.kind == "schrein":
 		_open_shrine(s)
+	elif s.kind == "brunnen":
+		_drink(s)
 	else:
 		player.face(s.pos - player.global_position)
 		menus.open(s.kind)
+
+
+## The fountain: full life and every ailment gone, as often as you like.
+func _drink(s: Dictionary) -> void:
+	player.face(s.pos - player.global_position)
+	var healed := player.hp < player.max_hp
+	player.hp = player.max_hp
+	var cured := player.cure()
+	player.play_once("PickUp", 0.6)
+	var burst := Effects.make_sparkles(Color(0.5, 0.8, 1.0), true)
+	burst.position = player.global_position + Vector3(0, 1.0, 0)
+	level.add_child(burst)
+	if cured:
+		show_message(Lang.t("Das Wasser des Brunnens heilt dich von allem Übel."))
+	elif healed:
+		show_message(Lang.t("Das kühle Wasser heilt deine Wunden."))
+	else:
+		show_message(Lang.t("Du trinkst vom klaren Wasser."))
+	_update_hud()
 
 
 func _open_shrine(s: Dictionary) -> void:
@@ -413,6 +435,10 @@ func _update_hud() -> void:
 		gifts.append(Lang.t("Kampfkraft %d") % player.power)
 	if player.speed > Player.SPEED + 0.01:
 		gifts.append(Lang.t("Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0))
+	if player.ailments.has("gift"):
+		gifts.append(Lang.t("Vergiftet"))
+	if player.ailments.has("fluch"):
+		gifts.append(Lang.t("Verflucht"))
 	_gift_label.text = "   ".join(gifts)
 	_coin_label.text = Lang.t("Gold: %d") % coins
 	_knife_label.text = Lang.t("Messer: %d") % player.knives
@@ -435,7 +461,7 @@ func load_level(index: int, restock := true) -> void:
 	player.frozen = false
 	player.controllable = true
 	# Only the safe room heals; walking down to the next level does not.
-	player.revive(level.cell_to_world(level.start_cell), level.safe)
+	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
@@ -728,6 +754,8 @@ func _search(obj: Dictionary) -> void:
 	elif loot.has("potion"):
 		player.hp = mini(player.max_hp, player.hp + 2)
 		text = Lang.t("Heiltrank! +2 Leben")
+		if player.cure("gift"):
+			text += "\n" + Lang.t("Das Gift ist fort.")
 		color = Color(1.0, 0.5, 0.55)
 	if loot.has("item"):
 		player.bag.append(loot.item)
@@ -864,6 +892,7 @@ func _process(delta: float) -> void:
 			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
 			"haendler": Lang.t("Dagegenlaufen, um mit dem Händler zu handeln"),
+			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 		}[station.kind]
 
 

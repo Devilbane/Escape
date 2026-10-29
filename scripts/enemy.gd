@@ -243,7 +243,11 @@ func _strike(player: Player) -> void:
 	var d := player.global_position - global_position
 	d.y = 0.0
 	if d.length() < float(_stats.reach) + 0.6:
+		var before := player.hp
 		player.take_damage(_stats.damage, global_position, self)
+		# Minion blades are poisoned.
+		if kind == "wicht" and player.hp < before:
+			player.afflict("gift")
 
 
 func _shoot(player: Player) -> void:

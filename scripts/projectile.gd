@@ -75,7 +75,11 @@ func _physics_process(delta: float) -> void:
 	else:
 		var player: Player = level.player
 		if not player.dead and _hits(player.global_position) and player.global_position.y < 1.2:
+			var before := player.hp
 			player.take_damage(1, global_position - direction)
+			# A mage's orb curses whoever it hits.
+			if magic and player.hp < before:
+				player.afflict("fluch")
 			queue_free()
 
 

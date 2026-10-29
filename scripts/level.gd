@@ -13,6 +13,7 @@ extends Node3D
 ##   G  skeleton brute (big, slow, hits hard)
 ##   H  shrine: grants one gift (more life, strength or speed)
 ##   B  bed (save and log out)  L  storage chest  V  merchant
+##   F  fountain: refills life and cures poison and curses
 ##
 ## A level with the line "safe: ja" is a safe room without enemies.
 ## A level with the line "elite: ja" has stronger skeletons with dark bones
@@ -30,7 +31,7 @@ signal exit_reached
 
 const TILE := 4.0
 const ASSET_DIR := "res://assets/dungeon/"
-const SOLID := "#bxotkCDHBLV"
+const SOLID := "#bxotkCDHBLVF"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
@@ -116,7 +117,7 @@ func build() -> void:
 # --- Keeping the way free ---------------------------------------------------
 
 ## Furniture that stands on a whole tile and cannot be walked through.
-const FURNITURE := "bxotkCHBLV"
+const FURNITURE := "bxotkCHBLVF"
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 
@@ -414,6 +415,8 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
 		"V":
 			_build_merchant(c)
+		"F":
+			_build_fountain(c)
 		"t":
 			_place("table_medium_decorated_A", pos, _random_quarter_turn())
 			_add_solid(pos, Vector3(3.0, 2, 2.2))
@@ -523,6 +526,55 @@ func _facing_room(c: Vector2i) -> float:
 		if not SOLID.contains(cell_char(c + d)):
 			return atan2(float(d.x), float(d.y))
 	return 0.0
+
+
+## A round stone basin with a spout of glowing water.
+func _build_fountain(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.4, 0.4, 0.48)
+	stone.roughness = 0.9
+	var water := StandardMaterial3D.new()
+	water.albedo_color = Color(0.25, 0.6, 1.0, 0.85)
+	water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water.emission_enabled = true
+	water.emission = Color(0.2, 0.55, 1.0)
+	water.emission_energy_multiplier = 0.8
+	water.roughness = 0.1
+	# Basin wall, water surface, centre column and the bowl on top.
+	for part in [[1.5, 1.5, 0.8, 0.4, stone], [1.3, 1.3, 0.05, 0.75, water], [0.3, 0.4, 1.8, 0.9, stone], [0.7, 0.3, 0.3, 1.9, stone], [0.6, 0.6, 0.05, 2.04, water]]:
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = part[0]
+		mesh.bottom_radius = part[1]
+		mesh.height = part[2]
+		mesh.radial_segments = 24
+		var node := MeshInstance3D.new()
+		node.mesh = mesh
+		node.material_override = part[4]
+		node.position = pos + Vector3(0, part[3], 0)
+		add_child(node)
+	var spray := CPUParticles3D.new()
+	spray.amount = 40
+	spray.lifetime = 1.0
+	spray.mesh = SphereMesh.new()
+	(spray.mesh as SphereMesh).radius = 0.06
+	(spray.mesh as SphereMesh).height = 0.12
+	spray.material_override = water
+	spray.direction = Vector3.UP
+	spray.spread = 25.0
+	spray.initial_velocity_min = 2.5
+	spray.initial_velocity_max = 3.2
+	spray.gravity = Vector3(0, -9.0, 0)
+	spray.position = pos + Vector3(0, 2.1, 0)
+	add_child(spray)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(0.4, 0.7, 1.0)
+	glow.light_energy = 1.5
+	glow.omni_range = 6.0
+	glow.position = pos + Vector3(0, 2.0, 0)
+	add_child(glow)
+	_add_solid(pos, Vector3(3.0, 2, 3.0))
+	stations.append({"kind": "brunnen", "cell": c, "pos": pos, "used": false})
 
 
 ## A knight who trades behind a little table.

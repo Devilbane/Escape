@@ -33,8 +33,8 @@ Die Gaben bleiben bis zum Ende des Spiels.
 
 Manchmal findest du **Ausrüstung**: Schwert und Axt geben Kampfkraft, Schilde geben Leben,
 Amulette geben Tempo, Kraft oder Leben. Im **Inventar** (Taste I) legst du sie an oder wirfst sie weg.
-Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es eine Lagertruhe,
-einen Händler, der für Gold kauft und verkauft, und ein Bett. Im Bett wird gespeichert und du loggst aus.
+Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es einen **Brunnen**,
+der dein Leben auffüllt und Gift und Flüche heilt, eine Lagertruhe, einen Händler, der für Gold kauft und verkauft, und ein Bett. Im Bett wird gespeichert und du loggst aus.
 Beim nächsten Start geht es mit „Weiterspielen“ dort weiter. Der Spielstand liegt im Browser.
 Du siehst nur, was in deiner Sichtlinie liegt. Bereits erkundete Bereiche bleiben grau sichtbar.
 

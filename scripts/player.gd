@@ -5,6 +5,7 @@ extends CharacterBody3D
 
 signal hurt(amount: int)
 signal defeated
+signal ailments_changed
 ## Emitted when the hero runs into something solid, with a point just inside it.
 signal bumped(point: Vector3)
 
@@ -39,6 +40,11 @@ var max_hp := MAX_HP
 var power := 1
 var speed := SPEED
 var knives := 5
+## Ailments and the seconds each has left. Poison ("gift") takes a life every
+## few seconds but never the last one; a curse ("fluch") weakens and slows.
+## Both wear off in time, a fountain cures them at once.
+var ailments := {}
+var _poison_tick := 0.0
 ## A direction to run in, set every frame while the mouse button is held.
 var steer := Vector3.ZERO
 var _stuck_time := 0.0
@@ -343,6 +349,9 @@ func refresh_stats() -> void:
 	max_hp = MAX_HP + hp_bonus
 	power = 1 + power_bonus
 	speed = SPEED * (1.0 + speed_bonus)
+	if ailments.has("fluch"):
+		power = maxi(1, power - 1)
+		speed *= CURSE_SLOW
 	hp = mini(hp, max_hp)
 	_show_held("waffe", "handslot_r", "Knife")
 	_show_held("schild", "handslot_l", "")
@@ -368,6 +377,72 @@ func _show_tint(slot: String, parts: Array) -> void:
 		mat.set_shader_parameter("tint", item.tint)
 		mat.set_shader_parameter("metal", item.get("metal", 0.0))
 		mesh.material_override = mat
+
+
+const AILMENT_TIME := 45.0
+const POISON_TICK := 6.0
+const CURSE_SLOW := 0.8
+const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0)}
+
+
+func afflict(kind: String) -> void:
+	if dead:
+		return
+	var fresh := not ailments.has(kind)
+	ailments[kind] = AILMENT_TIME
+	if fresh:
+		if kind == "gift":
+			_poison_tick = POISON_TICK
+		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t("Vergiftet!" if kind == "gift" else "Verflucht!"), AILMENT_COLORS[kind])
+		_ailments_changed()
+
+
+## Cures one ailment, or all of them; true if there was anything to cure.
+func cure(kind := "") -> bool:
+	var had := ailments.has(kind) if kind != "" else not ailments.is_empty()
+	if kind == "":
+		ailments.clear()
+	else:
+		ailments.erase(kind)
+	if had:
+		_ailments_changed()
+	return had
+
+
+func _tick_ailments(delta: float) -> void:
+	if ailments.is_empty() or dead:
+		return
+	var changed := false
+	for kind in ailments.keys():
+		ailments[kind] -= delta
+		if ailments[kind] <= 0.0:
+			ailments.erase(kind)
+			changed = true
+	if ailments.has("gift"):
+		_poison_tick -= delta
+		if _poison_tick <= 0.0:
+			_poison_tick = POISON_TICK
+			if hp > 1:
+				hp -= 1
+				Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-1", AILMENT_COLORS.gift)
+				hurt.emit(1)
+	if changed:
+		_ailments_changed()
+
+
+## Updates strength and speed, and shows a coloured haze while ailing.
+func _ailments_changed() -> void:
+	refresh_stats()
+	var old := get_node_or_null("AilmentHaze")
+	if old:
+		old.free()
+	for kind in ["gift", "fluch"]:
+		if ailments.has(kind):
+			var haze := Effects.make_sparkles(AILMENT_COLORS[kind])
+			haze.name = "AilmentHaze"
+			add_child(haze)
+			break
+	ailments_changed.emit()
 
 
 func has_special(id: String) -> bool:
@@ -461,6 +536,7 @@ func _physics_process(delta: float) -> void:
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_auto_cooldown = maxf(0.0, _auto_cooldown - delta)
 	_anim_hold = maxf(0.0, _anim_hold - delta)
+	_tick_ailments(delta)
 	_auto_attack()
 	var dir := Vector3.ZERO
 	if controllable and not dead and _busy <= 0.0:

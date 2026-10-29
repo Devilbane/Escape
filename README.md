@@ -13,7 +13,7 @@ Einfache Steuerung, schöne 2.5D-Grafik, viele Levels.
 | Springen | Leertaste | Knopf „Springen“ |
 | Nahkampf | F | Gegner anklicken, Knopf „Schlagen“ |
 | Wurfmesser | R | Rechtsklick, Knopf „Werfen“ |
-| Untersuchen | E | Gegenstand anklicken, Knopf „Suchen“ |
+| Untersuchen | dagegenlaufen | Gegenstand anklicken |
 
 Mit `?level=3` hinter der Adresse startet das Spiel direkt in Ebene 3.
 

@@ -190,7 +190,8 @@ func _build_walls(c: Vector2i) -> void:
 		var wall := _place(piece, pos, rot)
 		if piece == "wall_shelves":
 			var facing := Vector3(sin(rot), 0, cos(rot))
-			_add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
+			var shelf := _add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
+			shelf.touch_cell = n
 		if low:
 			wall.scale.y = LOW_WALL_SCALE
 		else:
@@ -479,7 +480,7 @@ func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector
 		loot = {"knives": 2}
 	else:
 		loot = {"potion": 1}
-	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "searched": false, "loot": loot, "lid": null, "icon": null}
+	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null, "icon": null}
 	interactables.append(obj)
 	return obj
 
@@ -500,6 +501,17 @@ func nearest_interactable(from: Vector3, max_distance := SEARCH_RANGE) -> Dictio
 
 
 ## Marks an object as searched and returns what was inside.
+## The unsearched object whose solid cell contains a world position, if any.
+func unsearched_at(point: Vector3) -> Dictionary:
+	var c := world_to_cell(point)
+	var best := {}
+	for obj in interactables:
+		if obj.touch_cell == c and not obj.searched:
+			if best.is_empty() or point.distance_to(obj.pos) < point.distance_to(best.pos):
+				best = obj
+	return best
+
+
 func search(obj: Dictionary) -> Dictionary:
 	if obj.searched:
 		return {}

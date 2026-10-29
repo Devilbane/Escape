@@ -5,6 +5,8 @@ extends CharacterBody3D
 
 signal hurt(amount: int)
 signal defeated
+## Emitted when the hero runs into something solid, with a point just inside it.
+signal bumped(point: Vector3)
 
 const SPEED := 7.0
 const JUMP_VELOCITY := 9.0
@@ -254,6 +256,11 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	if is_on_floor() and velocity.y < 0.0:
 		velocity.y = 0.0
+	if dir != Vector3.ZERO:
+		for i in get_slide_collision_count():
+			var hit := get_slide_collision(i)
+			if dir.dot(-hit.get_normal()) > 0.5:
+				bumped.emit(hit.get_position() - hit.get_normal() * 0.2)
 	if dir != Vector3.ZERO:
 		_model.rotation.y = lerp_angle(_model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-14.0 * delta))
 	# Blink while invulnerable after a hit.

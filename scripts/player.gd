@@ -178,9 +178,11 @@ func facing() -> Vector3:
 	return Vector3(sin(_model.rotation.y), 0, cos(_model.rotation.y))
 
 
-func revive(at: Vector3) -> void:
+## Puts the hero at a level's start; `heal` fills up life again.
+func revive(at: Vector3, heal := true) -> void:
 	dead = false
-	hp = max_hp
+	if heal or hp <= 0:
+		hp = max_hp
 	path.clear()
 	_target = null
 	velocity = Vector3.ZERO
@@ -253,7 +255,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 	if not can_act() or _attack_cooldown > 0.0:
 		return
 	if knives <= 0:
-		Effects.float_text(level, global_position + Vector3(0, 3.2, 0), "Keine Wurfmesser", Color(1, 1, 1, 0.8))
+		Effects.float_text(level, global_position + Vector3(0, 3.2, 0), Lang.t("Keine Wurfmesser"), Color(1, 1, 1, 0.8))
 		return
 	path.clear()
 	var dir := facing()
@@ -408,7 +410,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null) -> void:
 		equipped.erase("spezial_1" if equipped.get("spezial_1", "") == "phoenixfeder" else "spezial_2")
 		refresh_stats()
 		hp = mini(3, max_hp)
-		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), "Phönixfeder!", Color(1.0, 0.6, 0.2))
+		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t("Phönixfeder!"), Color(1.0, 0.6, 0.2))
 	_invulnerable = 0.9
 	var away := global_position - from
 	away.y = 0.0

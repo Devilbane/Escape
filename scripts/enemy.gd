@@ -166,7 +166,7 @@ func _strike(player: Player) -> void:
 	var d := player.global_position - global_position
 	d.y = 0.0
 	if d.length() < MELEE_RANGE + 0.6:
-		player.take_damage(1, global_position)
+		player.take_damage(1, global_position, self)
 
 
 func _shoot(player: Player) -> void:

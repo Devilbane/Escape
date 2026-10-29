@@ -403,7 +403,7 @@ func load_level(index: int, restock := true) -> void:
 	level.door_opened.connect(func(): show_message("Die Tür öffnet sich knarrend..."))
 	level.door_locked.connect(func(): show_message("Verschlossen. Finde den Schlüssel!"))
 	level.player_hurt.connect(func(): player.take_damage(1, player.global_position - player.facing()))
-	level.enemy_killed.connect(func(): show_message("Das Skelett zerfällt zu Staub.", 1.4))
+	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
 	_pending_search = {}
 	_pending_station = {}
@@ -545,8 +545,21 @@ func _on_key_collected() -> void:
 
 
 func _on_coins_collected(amount: int) -> void:
-	coins += amount
+	coins += _gold(amount)
 	_update_hud()
+
+
+## Gold found, doubled by the lucky clover.
+func _gold(amount: int) -> int:
+	return amount * 2 if player.has_special("gluecksklee") else amount
+
+
+func _on_enemy_killed() -> void:
+	show_message("Das Skelett zerfällt zu Staub.", 1.4)
+	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:
+		player.hp += 1
+		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+1", Color(0.5, 1.0, 0.5))
+		_update_hud()
 
 
 ## Running into an object searches it.
@@ -578,8 +591,8 @@ func _search(obj: Dictionary) -> void:
 	var text := "%s: leer" % obj.label
 	var color := Color(0.8, 0.8, 0.85)
 	if loot.has("gold"):
-		coins += loot.gold
-		text = "+%d Gold" % loot.gold
+		coins += _gold(loot.gold)
+		text = "+%d Gold" % _gold(loot.gold)
 		color = GOLD
 	elif loot.has("knives"):
 		player.knives += loot.knives

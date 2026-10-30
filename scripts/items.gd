@@ -26,8 +26,8 @@ const ALL := {
 	"schattenumhang": {"name": "Schattenumhang", "slot": "umhang", "hp": 1, "speed": 0.1, "price": 26, "tint": Color(0.16, 0.15, 0.24)},
 	"koenigsumhang": {"name": "Königsumhang", "slot": "umhang", "hp": 2, "power": 1, "price": 42, "tint": Color(0.75, 0.08, 0.1)},
 	"lederwams": {"name": "Lederwams", "slot": "ruestung", "hp": 1, "price": 14, "tint": Color(0.5, 0.3, 0.15)},
-	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "hp": 2, "price": 28, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4},
-	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "hp": 3, "power": 1, "price": 48, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55},
+	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "hp": 2, "speed": -0.04, "price": 28, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4},
+	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "hp": 3, "power": 1, "speed": -0.07, "price": 48, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55},
 	"lederstiefel": {"name": "Lederstiefel", "slot": "schuhe", "speed": 0.05, "price": 10, "tint": Color(0.45, 0.27, 0.13)},
 	"eilstiefel": {"name": "Eilstiefel", "slot": "schuhe", "speed": 0.15, "price": 26, "tint": Color(0.25, 0.45, 0.95)},
 	"amulett_tempo": {"name": "Amulett der Eile", "slot": "amulett", "speed": 0.1, "price": 15},
@@ -60,6 +60,9 @@ static func describe(id: String) -> String:
 		parts.append(Lang.t("+%d Leben") % item.hp)
 	if item.get("speed", 0.0) > 0.0:
 		parts.append(Lang.t("+%d%% Tempo") % roundi(item.speed * 100.0))
+	elif item.get("speed", 0.0) < 0.0:
+		# Heavy armour slows you down.
+		parts.append(Lang.t("%d%% Tempo") % roundi(item.speed * 100.0))
 	if item.has("effect"):
 		parts.append(Lang.t(item.effect))
 	return ", ".join(parts)

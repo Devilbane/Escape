@@ -36,21 +36,48 @@ signal secret_found(lever_pos: Vector3, wall_pos: Vector3)
 const TILE := 4.0
 const ASSET_DIR := "res://assets/dungeon/"
 const KIT_DIR := "res://assets/kit/"
-## Floors, walls and pillars from Omie's 3D Modular Dungeon Kit (CC0): real
-## carved stone instead of flat tiles. The kit is built on a 3 m grid with
-## pieces anchored at a corner, so each gets shifted and scaled onto ours.
-## piece: [kit model, texture set, offset, scale]
+## Floors, walls, pillars and furniture from Omie's 3D Modular Dungeon Kit
+## (CC0): carved stone and wood instead of the flat cartoon pieces. The kit is
+## built on a 3 m grid with pieces anchored at a corner, so each part gets
+## shifted, scaled and turned onto ours. Wall ends overlap their neighbours a
+## little, so every other wall sits 2 cm higher to keep the tops from flickering.
+## piece: list of parts [kit model, texture set, offset, scale, turn]
+const WALL_PART := ["SM_Wall", "walls", Vector3(2, 0, 0), Vector3(4.0 / 3.0, 4.0 / 2.56, 4.0 / 3.0), 0.0]
 const KIT_PIECES := {
-	"floor_tile_large": ["SM_TileFloor", "floor", Vector3(2, 0, 2), Vector3(4.0 / 3.0, 1.0, 4.0 / 3.0)],
-	"floor_dirt_large": ["SM_RockyFloor", "floor", Vector3(2, 0, 2), Vector3(4.0 / 3.0, 1.0, 4.0 / 3.0)],
-	"wall": ["SM_Wall", "walls", Vector3(2, 0, 0), Vector3(4.0 / 3.0, 4.0 / 2.56, 4.0 / 3.0)],
-	"wall_cracked": ["SM_Wall", "walls", Vector3(2, 0, 0), Vector3(4.0 / 3.0, 4.0 / 2.56, 4.0 / 3.0)],
-	"pillar": ["SM_Pillar", "floor", Vector3.ZERO, Vector3(2.2, 4.0 / 2.59, 2.2)],
+	"floor_tile_large": [["SM_TileFloor", "floor", Vector3(2, 0, 2), Vector3(4.0 / 3.0, 1.0, 4.0 / 3.0), 0.0]],
+	"floor_dirt_large": [["SM_RockyFloor", "floor", Vector3(2, 0, 2), Vector3(4.0 / 3.0, 1.0, 4.0 / 3.0), 0.0]],
+	"wall": [WALL_PART],
+	"wall_cracked": [WALL_PART],
+	# A tall bookcase stands against a plain wall.
+	"wall_shelves": [WALL_PART, ["SM_FullBookShelf", "props", Vector3(0, 0, 1.05), Vector3.ONE * 2.2, PI]],
+	# A touch taller than the walls, so the tops do not flicker against each other.
+	"pillar": [["SM_Pillar", "floor", Vector3.ZERO, Vector3(2.2, 4.1 / 2.59, 2.2), 0.0]],
+	"pillar_decorated": [["SM_Pillar", "floor", Vector3.ZERO, Vector3(2.8, 4.1 / 2.59, 2.8), 0.0]],
+	"barrel_large": [["SM_WoodenBarrel", "props", Vector3.ZERO, Vector3.ONE * 2.2, 0.0]],
+	"barrel_small": [["SM_WoodenBarrel", "props", Vector3.ZERO, Vector3.ONE * 1.2, 0.0]],
+	"crates_stacked": [
+		["SM_WoodenCrate", "props", Vector3(-0.2, 0, 0), Vector3.ONE * 2.2, 0.0],
+		["SM_MetalCrate", "props", Vector3(0.1, 1.62, 0.1), Vector3.ONE * 1.5, 0.4],
+	],
+	"trunk_large_A": [["SM_UnlockedChestBronze", "chests", Vector3.ZERO, Vector3.ONE * 2.0, 0.0]],
+	"table_medium_decorated_A": [
+		["SM_WoodenTable", "props", Vector3.ZERO, Vector3.ONE * 1.6, 0.0],
+		["SM_Candle", "props", Vector3(-1.1, 1.0, 0.2), Vector3.ONE * 1.6, 0.0],
+		["SM_BookPile", "props", Vector3(0.6, 1.0, -0.2), Vector3.ONE * 1.6, 0.6],
+		["SM_Bottle", "props", Vector3(-0.3, 1.0, -0.4), Vector3.ONE * 1.6, 0.0],
+	],
+	"torch_mounted": [["SM_WallTorch", "wallprops", Vector3(0, 0.2, 0), Vector3.ONE * 2.0, PI]],
 }
+## Wall decorations for some plain walls: banners and a sword with a shield.
+const WALL_DECOR := [
+	["SM_RedFlag", "wallprops", Vector3(0, 3.7, 0.55), Vector3.ONE * 2.2, PI],
+	["SM_BlueFlag", "wallprops", Vector3(0, 3.7, 0.55), Vector3.ONE * 2.2, PI],
+	["SM_SwordAndShield", "wallprops", Vector3(0, 2.4, 0.55), Vector3.ONE * 1.8, PI],
+]
 ## The bright cartoon stone of the pieces the kit has no match for is darkened
 ## to sit among the kit's stone.
 const STONE_TINT := Color(0.6, 0.56, 0.52)
-const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_shelves", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs", "pillar_decorated"]
+const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
 const SOLID := "#bxotkCDHBLVF?"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
@@ -303,22 +330,29 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 	return node
 
 
-func _place_kit(entry: Array, pos: Vector3, rot_y: float, parent: Node) -> Node3D:
-	var model: String = entry[0]
-	if not _scenes.has(model):
-		_scenes[model] = load(KIT_DIR + model + ".fbx")
+func _place_kit(parts: Array, pos: Vector3, rot_y: float, parent: Node) -> Node3D:
 	var node := Node3D.new()
 	node.position = pos
 	node.rotation.y = rot_y
 	parent.add_child(node)
+	for part in parts:
+		_add_kit_part(part, node)
+	return node
+
+
+func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
+	var model: String = part[0]
+	if not _scenes.has(model):
+		_scenes[model] = load(KIT_DIR + model + ".fbx")
 	var kit: Node3D = _scenes[model].instantiate()
-	kit.position = entry[2]
-	kit.scale = entry[3]
-	node.add_child(kit)
-	var mat := _kit_material(entry[1])
+	kit.position = part[2]
+	kit.scale = part[3]
+	kit.rotation.y = part[4]
+	parent.add_child(kit)
+	var mat := _kit_material(part[1])
 	for mi in kit.find_children("*", "MeshInstance3D", true, false):
 		mi.material_override = mat
-	return node
+	return kit
 
 
 func _tinted(mat: Material) -> Material:
@@ -391,6 +425,8 @@ func _build_walls(c: Vector2i) -> void:
 		elif not low and roll < 0.2:
 			piece = "wall_cracked"
 		var wall := _place(piece, pos, rot)
+		if (c.x + c.y + d.x + d.y) % 2 != 0:
+			wall.position.y += 0.02
 		if cell_char(c) == "?":
 			# The passage's own side walls stay hidden until it opens.
 			wall.visible = false
@@ -402,8 +438,8 @@ func _build_walls(c: Vector2i) -> void:
 			shelf.touch_cell = n
 		if low:
 			wall.scale.y = LOW_WALL_SCALE
-		else:
-			_maybe_add_torch(pos, rot)
+		elif _maybe_add_torch(pos, rot) == null and piece == "wall" and _rng.randf() < 0.18:
+			_add_kit_part(WALL_DECOR[_rng.randi() % WALL_DECOR.size()], wall)
 
 
 func _build_corner_pillars() -> void:

@@ -18,6 +18,7 @@ Ein Sprung aus dem Lauf behält den Schwung: je schneller du bist, desto weiter 
 | Inventar | I | Knopf „Inventar“ |
 | Spielstand laden | L | Knopf „Laden“ (auch auf dem Startbildschirm) |
 | Spiel beenden | Esc | Knopf „Beenden“ oben rechts |
+| Ton an/aus | M | Knopf „Ton“ oben rechts |
 | Zoom | + und − | Mausrad (nah dran kippt die Kamera, du siehst das Gesicht) |
 
 Wer gegen ein Skelett läuft, kämpft automatisch: Solange du daneben stehst, schlägst du weiter zu.
@@ -74,7 +75,8 @@ Eine Tür `D` steht in einem ein Feld breiten Durchgang.
 
 - Engine: [Godot 4.5](https://godotengine.org) mit dem Compatibility-Renderer, damit es im Browser läuft
 - Grafik: KayKit Dungeon Remastered, Adventurers und Skeletons von Kay Lousberg (CC0)
-- Böden, Wände und Säulen: 3D Modular Dungeon Kit von Omie's Assets (CC0)
+- Böden, Wände, Säulen und Möbel: 3D Modular Dungeon Kit von Omie's Assets (CC0)
+- Geräusche: selbst erzeugt mit `tools/make_sounds.py`
 - Schrift: Cinzel und Cinzel Decorative (SIL Open Font License)
 - Comic-Schrift der Kampfblasen: Bangers von Vernon Adams (SIL Open Font License)
 - Jeder Push auf `main` spielt alle Levels automatisch durch und veröffentlicht die Browser-Version über GitHub Pages

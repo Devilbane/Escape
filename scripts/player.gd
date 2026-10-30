@@ -58,6 +58,9 @@ var path: Array[Vector3] = []
 
 var _model: Node3D
 var _anim: AnimationPlayer
+## Where in the run cycle each foot touches the ground (left, right).
+const FOOT_LANDINGS := [0.17, 0.67]
+var _last_phase := -1.0
 var _current_anim := ""
 var _busy := 0.0
 var _invulnerable := 0.0
@@ -250,6 +253,23 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 	return best
 
 
+## A step sounds each time a foot lands in the run animation, so the sound
+## keeps the rhythm of the feet at any speed.
+func _footsteps(ground_speed: float) -> void:
+	if _current_anim != "Running_A" or not is_on_floor() or ground_speed < 0.5:
+		_last_phase = -1.0
+		return
+	var phase := _anim.current_animation_position / _anim.current_animation_length
+	if _last_phase >= 0.0:
+		for landing: float in FOOT_LANDINGS:
+			var crossed: bool = _last_phase < landing and phase >= landing
+			if phase < _last_phase:
+				crossed = _last_phase < landing or phase >= landing
+			if crossed:
+				Sfx.play(self, "step_%d" % (randi() % 3), -6.0)
+	_last_phase = phase
+
+
 func melee() -> void:
 	if not can_act() or _attack_cooldown > 0.0:
 		return
@@ -260,6 +280,7 @@ func melee() -> void:
 		face(target.global_position - global_position)
 	_attack_cooldown = 0.5
 	play_once("1H_Melee_Attack_Slice_Horizontal", 0.45)
+	Sfx.play(self, "swing")
 	await get_tree().create_timer(0.18).timeout
 	var hits := 0
 	for e in level.enemies:
@@ -303,6 +324,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 	else:
 		play_once("Throw", 0.45)
 	await get_tree().create_timer(0.2).timeout
+	Sfx.play(self, "throw")
 	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true).damage = power
 
 
@@ -534,6 +556,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null) -> void:
 	path.clear()
 	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-%d" % amount, Color(1, 0.3, 0.3))
 	Comic.pop(global_position, "hurt")
+	Sfx.play(self, "hurt")
 	hurt.emit(amount)
 	if hp <= 0:
 		dead = true
@@ -628,6 +651,7 @@ func _physics_process(delta: float) -> void:
 	# Feet keep pace with the ground: the run plays faster or slower with the speed.
 	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
 	_anim.speed_scale = clampf(ground_speed / RUN_ANIM_SPEED, 0.5, 2.5) if _current_anim == "Running_A" else 1.0
+	_footsteps(ground_speed)
 	if _busy > 0.0 or _anim_hold > 0.0 or not controllable or dead:
 		return
 	if not is_on_floor():

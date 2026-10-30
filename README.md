@@ -45,8 +45,9 @@ Beim nächsten Start geht es mit „Weiterspielen“ dort weiter. Der Spielstand
 Jede Ebene hat einen **Geheimraum**. Eine der Fackeln in seiner Nähe ist ein Hebel, in jedem Lauf
 eine andere. Läufst du zum ersten Mal an ihr vorbei, entdeckst du ihn mit etwas Glück (W100), und
 2,5 Sekunden später sinkt die Wand. Je reicher der Raum, desto kleiner die Chance:
-Gewöhnlich 30 %, Ungewöhnlich 22 %, Selten 15 %, Episch 9 %, Gottgeboren 4 %. Jeder gefundene
-Geheimraum erhöht die Chance um 1. Der Hebel würfelt nur einmal.
+Gewöhnlich 55 %, Ungewöhnlich 40 %, Selten 28 %, Episch 18 %, Gottgeboren 10 %. Jeder gefundene
+Geheimraum erhöht die Chance um 1. Der Hebel würfelt nur einmal. Hast du bis Ebene 3 noch keinen
+gefunden, ist der dortige sicher; danach vergehen nie mehr als 4 Ebenen ohne Geheimraum.
 Du siehst nur, was in deiner Sichtlinie liegt und Licht hat: eine brennende Fackel in der Nähe oder
 deine eigene Laterne. Dunkle Ecken bleiben schwarz, Skelette darin hörst du nur an ihren Schritten.
 Bereits erkundete Bereiche bleiben grau sichtbar. Manche Fackeln brennen, manche nicht: Lauf gegen

@@ -31,6 +31,12 @@ var camera: Camera3D
 var coins := 0
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
+## Levels left in a row without finding their secret room.
+var dry_levels := 0
+## From this level on (counting from 0) a run that has found no secret room
+## yet gets one for sure, and never more than this many levels pass without.
+const FIRST_SURE_SECRET := 2
+const MAX_DRY_LEVELS := 4
 ## Seconds of camera shake left.
 var _shake := 0.0
 ## 0 is the normal view from above, 1 the close view; _zoom eases toward the target.
@@ -494,6 +500,7 @@ func load_level(index: int, restock := true) -> void:
 	level.load_from_file(level_files[index])
 	level.depth = index
 	level.secret_bonus = secrets_found
+	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
 	add_child(level)
 	level.build()
 	level.player = player
@@ -640,6 +647,7 @@ func _start_new_game() -> void:
 	_name_edit.release_focus()
 	coins = 0
 	secrets_found = 0
+	dry_levels = 0
 	storage.clear()
 	shop_stock.clear()
 	player.knives = 5
@@ -728,6 +736,7 @@ func _apply_save(data: Dictionary) -> void:
 	hero_name = data.get("name", Lang.t("Namenlos"))
 	coins = int(data.coins)
 	secrets_found = int(data.get("secrets", 0))
+	dry_levels = int(data.get("dry", 0))
 	storage.assign(data.storage)
 	shop_stock.assign(data.shop)
 	player.knives = int(data.knives)
@@ -762,7 +771,7 @@ func has_save() -> bool:
 ## Writes everything needed to wake up in this safe room later.
 func save_game() -> void:
 	var data := {
-		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed,
 		"equipped": player.equipped, "bag": player.bag, "storage": storage, "shop": shop_stock,
 	}
@@ -1009,6 +1018,7 @@ func _on_exit_reached() -> void:
 
 func _next_level() -> void:
 	Sfx.play(self, "level_done", -2.0)
+	dry_levels = 0 if level.secret_opened() else dry_levels + 1
 	if level_index + 1 >= level_files.size():
 		_end_run(true)
 		return

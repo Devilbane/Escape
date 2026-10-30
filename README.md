@@ -62,6 +62,10 @@ rundherum, außer du schleichst oder stehst still. Ganz nah bemerken sie dich im
 dich aus den Augen, suchen sie noch ein paar Sekunden und gehen dann zurück auf ihren Posten.
 Hat dich schon ein Skelett entdeckt (rotes **!**), kannst du erst wieder schleichen, wenn es aufgibt.
 Ein „tapp“ im Dunkeln ist ein Skelett, das du nicht siehst, aber hörst.
+Jede Art hat außerdem eine eigene Stimme, die du in der Nähe hörst: Krieger knurren, Schützen
+zischen, Magier murmeln, Wichte kichern, Kolosse grollen und Wächter klirren mit der Rüstung.
+Je näher ein Skelett kommt, desto lauter, öfter und drängender hörst du es (und seine Schritte).
+Im Dunkeln zeigt ein Wort, woher es kam; ganz nah wird es zum Ausruf.
 
 **Stich in den Rücken:** Ein Schlag von hinten auf ein Skelett, das dich noch nicht bemerkt hat,
 fällt es sofort. Schleichst du dich von hinten an, bemerkt es dich auch ganz nah nicht. In der Gruft
@@ -101,7 +105,7 @@ Eine Tür `D` steht in einem ein Feld breiten Durchgang.
 - Engine: [Godot 4.5](https://godotengine.org) mit dem Compatibility-Renderer, damit es im Browser läuft
 - Grafik: KayKit Dungeon Remastered, Adventurers und Skeletons von Kay Lousberg (CC0)
 - Böden, Wände, Säulen und Möbel: 3D Modular Dungeon Kit von Omie's Assets (CC0)
-- Geräusche: selbst erzeugt mit `tools/make_sounds.py`, Schritte und Tür: Aufnahmen von Fantozzi, „Footsteps Leather, Cloth, Armor“ und qubodup, Kreaturen und Ketten von rubberduck (CC0, siehe `assets/sounds/CREDITS.txt`)
+- Geräusche: selbst erzeugt mit `tools/make_sounds.py`, Schritte und Tür: Aufnahmen von Fantozzi, „Footsteps Leather, Cloth, Armor“ und qubodup, Kreaturen, Skelettstimmen und Ketten von rubberduck, Armbrustschüsse aus „Medieval sound effects - Weapon Textures“ (CC0, siehe `assets/sounds/CREDITS.txt`)
 - Schrift: Cinzel und Cinzel Decorative (SIL Open Font License)
 - Comic-Schrift der Kampfblasen: Bangers von Vernon Adams (SIL Open Font License)
 - Jeder Push auf `main` spielt alle Levels automatisch durch und veröffentlicht die Browser-Version über GitHub Pages

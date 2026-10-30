@@ -78,6 +78,12 @@ var _watch := Vector3.INF
 var _step_timer := 0.0
 ## How far the hero hears a skeleton walking in the dark.
 const HEARD_FROM := 16.0
+## Every kind has a voice of its own (voice_<kind>_0 and _1), so the hero
+## can tell what lurks nearby. Out of sight, a word shows where it came from.
+const VOICE_RANGE := 18.0
+const VOICE_WORDS := {"krieger": "knurr", "schuetze": "zisch", "magier": "murmel",
+	"wicht": "kicher", "koloss": "GROLL", "waechter": "klirr"}
+var _voice_timer := 0.0
 
 
 func _ready() -> void:
@@ -145,6 +151,7 @@ func _ready() -> void:
 	_look_angle = randf() * TAU
 	_model.rotation.y = _look_angle
 	_look_timer = randf_range(2.0, 5.0)
+	_voice_timer = randf_range(2.0, 10.0)
 
 
 ## How much wider than a normal skeleton this one is, so blades reach it.
@@ -372,6 +379,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_play("Running_A" if move != Vector3.ZERO else "Idle")
 	_footfalls(delta, move != Vector3.ZERO, dist)
+	_voice(delta, dist)
 	# Feet keep pace with the ground; bigger skeletons take longer strides.
 	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
 	_anim.speed_scale = clampf(ground_speed / (Player.RUN_ANIM_SPEED * float(_stats.size)), 0.5, 2.5) if _current_anim == "Running_A" else 1.0
@@ -384,8 +392,30 @@ func _footfalls(delta: float, moving: bool, dist: float) -> void:
 	if visible or not moving or dist > HEARD_FROM or _step_timer > 0.0:
 		return
 	_step_timer = 0.8
-	Sfx.play(level, "step_%d" % (randi() % 6), -16.0, global_position)
+	Sfx.play(level, "step_%d" % (randi() % 6), lerpf(-24.0, -10.0, 1.0 - dist / HEARD_FROM), global_position)
 	Effects.float_text(level, global_position + Vector3(0, 1.0, 0), Lang.t("tapp"), Color(0.7, 0.7, 0.75, 0.6))
+
+
+## Now and then a groan, hiss, murmur or clank. The nearer the skeleton, the
+## louder, more often and more urgent its voice; on the hunt it never stops.
+func _voice(delta: float, dist: float) -> void:
+	_voice_timer -= delta
+	if _voice_timer > 0.0:
+		return
+	# 0 at the edge of hearing, 1 right next to the hero.
+	var near := clampf(1.0 - dist / VOICE_RANGE, 0.0, 1.0)
+	_voice_timer = lerpf(11.0, 2.5, near) * randf_range(0.7, 1.3)
+	if _awake:
+		_voice_timer *= 0.5
+	if near <= 0.0:
+		return
+	var db := lerpf(-28.0, 2.0, pow(near, 1.4)) + (3.0 if _awake else 0.0)
+	Sfx.play(level, "voice_%s_%d" % [kind, randi() % 2], db, global_position, lerpf(0.9, 1.1, near))
+	if not visible:
+		var word: String = Lang.t(VOICE_WORDS[kind])
+		if near > 0.6:
+			word = word.to_upper() + "!"
+		Effects.float_text(level, global_position + Vector3(0, 1.6, 0), word, Color(0.75, 0.72, 0.8, lerpf(0.4, 0.9, near)))
 
 
 ## Caught on a table corner or a door frame: step aside for a moment and

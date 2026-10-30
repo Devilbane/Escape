@@ -1096,6 +1096,18 @@ func _next_level() -> void:
 		player.hp += healed
 		_update_hud()
 		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+%d" % healed, Color(0.5, 1.0, 0.5))
+	if level.safe:
+		_autosave()
+
+
+## Reaching a safe room saves the game at once, so the way there is never
+## lost. The notice waits until the level message has had its say.
+func _autosave() -> void:
+	var saved := save_game()
+	var text := Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")
+	get_tree().create_timer(4.2).timeout.connect(func():
+		if state == State.PLAYING and level != null and level.safe:
+			show_message(text, 2.4))
 
 
 # --- Per frame --------------------------------------------------------------

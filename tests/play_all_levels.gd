@@ -57,6 +57,10 @@ func _process(delta: float) -> bool:
 	if game.level_index > reached:
 		reached = game.level_index
 		print("  reached level ", reached + 1)
+		# Entering the safe room must have saved the game right there.
+		if game.level.safe and (not game.has_save() or int(game.save_info().level) != reached + 1):
+			print("FAIL: no autosave on entering the safe room, level ", reached + 1)
+			return true
 	var player: Player = game.player
 	# A shrine asks for a choice: take each gift once over the run.
 	if not game._shrine.is_empty():

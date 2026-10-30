@@ -48,6 +48,10 @@ var _current_anim := ""
 var _busy := 0.0
 var _cooldown := 0.0
 var _awake := false
+## Seconds spent pushing without getting anywhere, and the sidestep out.
+var _stuck := 0.0
+var _detour := Vector3.ZERO
+var _detour_time := 0.0
 var _path: Array[Vector3] = []
 var _repath := 0.0
 var _knockback := Vector3.ZERO
@@ -87,7 +91,8 @@ func _ready() -> void:
 	var size: float = _stats.size
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.6 * size
+	# The colossus is a touch slimmer than it looks, so it fits through doors.
+	capsule.radius = 0.6 * minf(size, 1.25)
 	capsule.height = 2.4 * size
 	shape.shape = capsule
 	shape.position.y = 1.2 * size
@@ -284,12 +289,16 @@ func _physics_process(delta: float) -> void:
 				_look_around(delta)
 	elif not _awake and not dead:
 		move = _rest(delta)
+	if _detour_time > 0.0 and move != Vector3.ZERO:
+		_detour_time -= delta
+		move = (move * 0.3 + _detour).normalized()
 	velocity = move * float(_stats.speed) + _knockback
 	velocity.y = -9.0
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 40.0)
 	move_and_slide()
 	if move != Vector3.ZERO:
 		_face(move, delta)
+	_check_stuck(delta, move)
 	if _busy > 0.0:
 		return
 	_play("Running_A" if move != Vector3.ZERO else "Idle")
@@ -310,6 +319,29 @@ func _footfalls(delta: float, moving: bool, dist: float) -> void:
 	Effects.float_text(level, global_position + Vector3(0, 1.0, 0), Lang.t("tapp"), Color(0.7, 0.7, 0.75, 0.6))
 
 
+## Caught on a table corner or a door frame: step aside for a moment and
+## look for a new way.
+func _check_stuck(delta: float, move: Vector3) -> void:
+	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
+	if move == Vector3.ZERO or ground_speed > float(_stats.speed) * 0.3:
+		_stuck = maxf(0.0, _stuck - delta)
+		return
+	_stuck += delta
+	if _stuck < 0.5:
+		return
+	_stuck = 0.0
+	_repath = 0.0
+	_path.clear()
+	var side := move.cross(Vector3.UP).normalized()
+	var cell := level.world_to_cell(global_position + side * Level.TILE * 0.6)
+	if level.astar.is_in_boundsv(cell) and level.astar.is_point_solid(cell):
+		side = -side
+	elif randf() < 0.3:
+		side = -side
+	_detour = side
+	_detour_time = 0.6
+
+
 ## Pushed into a tile with a pillar or furniture, where neither paths nor
 ## the hero's blade reach well: walk out to the nearest free tile.
 func _step_out() -> Vector3:
@@ -322,6 +354,11 @@ func _step_out() -> Vector3:
 			to.y = 0.0
 			return to.normalized()
 	return Vector3.ZERO
+
+
+## Whether the skeleton has spotted the hero and is after them.
+func is_hunting() -> bool:
+	return _awake and not dead
 
 
 ## Whether the skeleton sees or hears the hero right now.

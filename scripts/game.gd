@@ -871,6 +871,9 @@ func _on_enemy_killed() -> void:
 func _toggle_sneak() -> void:
 	if player.dead or not player.controllable:
 		return
+	if not player.sneaking and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):
+		show_message(Lang.t("Zu spät zum Schleichen: Du wurdest entdeckt!"), 1.6)
+		return
 	player.set_sneaking(not player.sneaking)
 	show_message(Lang.t("Du schleichst. Im Dunkeln sieht dich keiner.") if player.sneaking else Lang.t("Du gehst wieder normal."), 1.6)
 

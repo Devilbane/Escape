@@ -56,6 +56,10 @@ die Wand an einer Fackel, um sie anzuzünden oder zu löschen.
 abgeblendet. Skelette sehen nach vorn (120°), aber nur, was im Licht steht. Hören können sie dich
 rundherum, außer du schleichst oder stehst still. Ganz nah bemerken sie dich immer. Verlieren sie
 dich aus den Augen, suchen sie noch ein paar Sekunden und gehen dann zurück auf ihren Posten.
+Hat dich schon ein Skelett entdeckt (rotes **!**), kannst du erst wieder schleichen, wenn es aufgibt.
+Ein „tapp“ im Dunkeln ist ein Skelett, das du nicht siehst, aber hörst.
+
+Durchsuchte Fässer, Kisten, Tische und Truhen erkennst du an Münzen und einem zerrissenen Blatt davor.
 
 ## Neue Levels bauen
 

@@ -112,36 +112,6 @@ static func make_dust() -> CPUParticles3D:
 	return p
 
 
-static var _check: Texture2D
-
-## A small round badge with a tick, shown above searched objects.
-static func searched_icon() -> Texture2D:
-	if _check == null:
-		var size := 64
-		var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
-		img.fill(Color(0, 0, 0, 0))
-		var center := Vector2(size, size) * 0.5
-		for y in size:
-			for x in size:
-				var d := Vector2(x + 0.5, y + 0.5).distance_to(center)
-				if d < 30.0:
-					var edge := clampf(30.0 - d, 0.0, 1.0)
-					var ring := d > 25.0
-					img.set_pixel(x, y, Color(0.85, 0.7, 0.35, edge) if ring else Color(0.12, 0.08, 0.14, 0.85 * edge))
-		var tick: Array[Vector2] = [Vector2(18, 33), Vector2(28, 43), Vector2(46, 22)]
-		for i in tick.size() - 1:
-			var a := tick[i]
-			var b := tick[i + 1]
-			for s in 60:
-				var p := a.lerp(b, s / 59.0)
-				for oy in range(-3, 4):
-					for ox in range(-3, 4):
-						if Vector2(ox, oy).length() <= 3.2:
-							img.set_pixel(int(p.x) + ox, int(p.y) + oy, Color(0.55, 0.95, 0.5))
-		_check = ImageTexture.create_from_image(img)
-	return _check
-
-
 ## Text that floats up from a point in the world and fades away.
 static func float_text(parent: Node, pos: Vector3, text: String, color: Color) -> void:
 	var label := Label3D.new()

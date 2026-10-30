@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ctbnqj4xln0pf"
-path="res://.godot/imported/Skeleton_Warrior_skeleton_texture.png-faaef26ddfee8e6961ff9c20416e1fbf.ctex"
+path.s3tc="res://.godot/imported/Skeleton_Warrior_skeleton_texture.png-faaef26ddfee8e6961ff9c20416e1fbf.s3tc.ctex"
+path.etc2="res://.godot/imported/Skeleton_Warrior_skeleton_texture.png-faaef26ddfee8e6961ff9c20416e1fbf.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "661544b1e8ba10b5a0c98b638eae6d0b"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/enemies/Skeleton_Warrior_skeleton_texture.png"
-dest_files=["res://.godot/imported/Skeleton_Warrior_skeleton_texture.png-faaef26ddfee8e6961ff9c20416e1fbf.ctex"]
+dest_files=["res://.godot/imported/Skeleton_Warrior_skeleton_texture.png-faaef26ddfee8e6961ff9c20416e1fbf.s3tc.ctex", "res://.godot/imported/Skeleton_Warrior_skeleton_texture.png-faaef26ddfee8e6961ff9c20416e1fbf.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

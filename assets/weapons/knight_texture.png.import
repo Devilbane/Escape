@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bdykdac6scwi4"
-path="res://.godot/imported/knight_texture.png-b8c3a5e648e7104161e4f94be5978c9a.ctex"
+path.s3tc="res://.godot/imported/knight_texture.png-b8c3a5e648e7104161e4f94be5978c9a.s3tc.ctex"
+path.etc2="res://.godot/imported/knight_texture.png-b8c3a5e648e7104161e4f94be5978c9a.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/weapons/knight_texture.png"
-dest_files=["res://.godot/imported/knight_texture.png-b8c3a5e648e7104161e4f94be5978c9a.ctex"]
+dest_files=["res://.godot/imported/knight_texture.png-b8c3a5e648e7104161e4f94be5978c9a.s3tc.ctex", "res://.godot/imported/knight_texture.png-b8c3a5e648e7104161e4f94be5978c9a.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

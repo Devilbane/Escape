@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c3cpd1pfwbnp8"
-path="res://.godot/imported/key_dungeon_texture.png-e3e46f6ad664906c91c1d3ea1f30db3a.ctex"
+path.s3tc="res://.godot/imported/key_dungeon_texture.png-e3e46f6ad664906c91c1d3ea1f30db3a.s3tc.ctex"
+path.etc2="res://.godot/imported/key_dungeon_texture.png-e3e46f6ad664906c91c1d3ea1f30db3a.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "9a714bc33f4314ea4520009f20b048a8"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/dungeon/key_dungeon_texture.png"
-dest_files=["res://.godot/imported/key_dungeon_texture.png-e3e46f6ad664906c91c1d3ea1f30db3a.ctex"]
+dest_files=["res://.godot/imported/key_dungeon_texture.png-e3e46f6ad664906c91c1d3ea1f30db3a.s3tc.ctex", "res://.godot/imported/key_dungeon_texture.png-e3e46f6ad664906c91c1d3ea1f30db3a.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

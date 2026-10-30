@@ -16,6 +16,9 @@ var equips := 0
 ## how often that was needed.
 var rescues := 0
 var backstabs := 0
+## Where the hero stood a moment ago, to notice it walking into a corner.
+var _last_spot := Vector3.INF
+var _still := 0.0
 
 
 func _initialize() -> void:
@@ -68,6 +71,18 @@ func _process(delta: float) -> bool:
 	if game.state != game.State.PLAYING or not player.can_act():
 		return false
 	var lvl: Level = game.level
+
+	# Caught on a shrine or a table edge with somewhere to go: step aside.
+	if player.global_position.distance_to(_last_spot) > 0.3:
+		_last_spot = player.global_position
+		_still = 0.0
+	else:
+		_still += delta
+		if _still > 4.0:
+			_still = 0.0
+			var side := Vector3.RIGHT.rotated(Vector3.UP, randf() * TAU) * 2.5
+			player.path.assign([player.global_position + side])
+			return false
 
 	# Fight anything close by.
 	for e in lvl.enemies:

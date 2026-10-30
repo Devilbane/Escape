@@ -31,6 +31,8 @@ const EN := {
 	"Namenlos": "Nameless",
 	"Gute Nacht": "Good night",
 	"Dein Spiel ist gespeichert.": "Your game has been saved.",
+	"Spiel gespeichert.": "Game saved.",
+	"Speichern fehlgeschlagen!": "Saving failed!",
 	"Frei!": "Free!",
 	"%s ist entkommen und hat %d Gold erbeutet.": "%s escaped with %d gold.",
 	"Klicken für ein neues Spiel": "Click for a new game",

@@ -304,7 +304,7 @@ func _setup_hud() -> void:
 	_hud.add_child(mark)
 
 	var buttons := GridContainer.new()
-	buttons.columns = 6
+	buttons.columns = 3
 	buttons.add_theme_constant_override("h_separation", 10)
 	buttons.add_theme_constant_override("v_separation", 10)
 	buttons.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -798,8 +798,9 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_FILE)
 
 
-## Writes everything needed to wake up in this safe room later.
-func save_game() -> void:
+## Writes everything needed to wake up in this safe room later. True when
+## the file is really there afterwards.
+func save_game() -> bool:
 	var data := {
 		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed,
@@ -807,20 +808,25 @@ func save_game() -> void:
 		"lore": lore,
 	}
 	var file := FileAccess.open(SAVE_FILE, FileAccess.WRITE)
+	if file == null:
+		return false
 	file.store_string(JSON.stringify(data))
 	file.close()
+	return FileAccess.file_exists(SAVE_FILE)
 
 
 ## The hero lies down in the safe room's bed: save, then back to the title.
 func sleep() -> void:
-	save_game()
+	var saved := save_game()
+	# Say so at once, so nobody has to wonder whether the save went through.
+	show_message(Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"), 2.4)
 	state = State.TRANSITION
 	player.frozen = true
 	player.play("Lie_Down", 0.2)
 	var tween := create_tween()
 	tween.tween_interval(1.2)
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
-	tween.tween_callback(func(): _show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.")))
+	tween.tween_callback(func(): _show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")))
 
 
 func _start_playing() -> void:

@@ -137,6 +137,9 @@ var _secrets: Array = []
 var secret_tier := "normal"
 ## Extra chance in percent to notice a lever; the game adds 1 per room found.
 var secret_bonus := 0
+## Set by the game when the run is overdue a secret room: the lever is
+## noticed for sure.
+var secret_sure := false
 const LEVER_RANGE := 7.0
 ## How many steps from the secret wall a torch may be to serve as its lever.
 const LEVER_STEPS := 10
@@ -145,11 +148,11 @@ const SECRET_DELAY := 2.5
 ## Per wealth: chance in percent to notice the lever, gold in each chest,
 ## the cheapest gear a chest may hold, and the colour of its name.
 const TIERS := {
-	"normal": {"name": "Gewöhnlich", "chance": 30, "gold": 10, "min_price": 0, "color": Color(0.85, 0.85, 0.85)},
-	"ungewoehnlich": {"name": "Ungewöhnlich", "chance": 22, "gold": 18, "min_price": 15, "color": Color(0.45, 0.9, 0.4)},
-	"selten": {"name": "Selten", "chance": 15, "gold": 30, "min_price": 25, "color": Color(0.35, 0.6, 1.0)},
-	"episch": {"name": "Episch", "chance": 9, "gold": 45, "min_price": 34, "color": Color(0.75, 0.4, 1.0)},
-	"gottgeboren": {"name": "Gottgeboren", "chance": 4, "gold": 70, "min_price": 42, "color": Color(1.0, 0.6, 0.15)},
+	"normal": {"name": "Gewöhnlich", "chance": 55, "gold": 10, "min_price": 0, "color": Color(0.85, 0.85, 0.85)},
+	"ungewoehnlich": {"name": "Ungewöhnlich", "chance": 40, "gold": 18, "min_price": 15, "color": Color(0.45, 0.9, 0.4)},
+	"selten": {"name": "Selten", "chance": 28, "gold": 30, "min_price": 25, "color": Color(0.35, 0.6, 1.0)},
+	"episch": {"name": "Episch", "chance": 18, "gold": 45, "min_price": 34, "color": Color(0.75, 0.4, 1.0)},
+	"gottgeboren": {"name": "Gottgeboren", "chance": 10, "gold": 70, "min_price": 42, "color": Color(1.0, 0.6, 0.15)},
 }
 ## Every wall torch, with the tile it lights, and the plain walls without one.
 var _wall_torches: Array = []
@@ -927,7 +930,12 @@ func _check_secrets() -> void:
 
 ## Chance in percent to notice this level's lever.
 func secret_chance() -> int:
-	return TIERS[secret_tier].chance + secret_bonus
+	return 100 if secret_sure else TIERS[secret_tier].chance + secret_bonus
+
+
+## Whether the hero found this level's secret room.
+func secret_opened() -> bool:
+	return _secrets.any(func(s): return s.open)
 
 
 func _open_secret(s: Dictionary) -> void:

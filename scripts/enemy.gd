@@ -186,8 +186,10 @@ func take_hit(damage: int, from: Vector3, kind := "hit") -> void:
 	away.y = 0.0
 	_knockback = away.normalized() * 9.0 / (_stats.size * _stats.size)
 	Effects.float_text(level, global_position + Vector3(0, 2.2 * _stats.size, 0), "-%d" % damage, Color(1, 0.45, 0.35))
+	Sfx.play(self, "hit", 0.0, global_position)
 	if hp <= 0:
 		Comic.pop(global_position, "break")
+		Sfx.play(self, "bones", 0.0, global_position)
 		_die()
 	else:
 		Comic.pop(global_position, "big" if damage >= 2 else kind)
@@ -273,6 +275,7 @@ func _strike(player: Player) -> void:
 	_cooldown = _stats.cooldown
 	var slow: float = _stats.size
 	_play_once("1H_Melee_Attack_Chop", 0.9 * slow)
+	Sfx.play(self, "swing", -4.0, global_position)
 	_anim.speed_scale = 1.0 / slow
 	await get_tree().create_timer(0.45 * slow).timeout
 	_anim.speed_scale = 1.0
@@ -297,4 +300,5 @@ func _shoot(player: Player) -> void:
 		return
 	var origin := global_position + Vector3(0, 1.4, 0)
 	var target := player.global_position + Vector3(0, 1.2, 0)
+	Sfx.play(self, "magic" if magic else "bow", -2.0, global_position)
 	Projectile.spawn(level, origin, target - origin, false, magic)

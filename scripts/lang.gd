@@ -14,6 +14,9 @@ const EN := {
 	"Laden": "Load",
 	"Abbrechen": "Cancel",
 	"Beenden": "Quit",
+	"Ton: an": "Sound: on",
+	"Ton: aus": "Sound: off",
+	"%d%% Tempo": "%d%% speed",
 	"Spiel beenden": "Quit game",
 	"Was seit dem letzten Schlaf im Bett geschah, geht verloren.": "Whatever happened since you last slept in the bed is lost.",
 	"Es gibt noch keinen Spielstand. Gespeichert wird im Bett der Zuflucht.": "There is no saved game yet. You save in the bed of the refuge.",
@@ -43,8 +46,8 @@ const EN := {
 	"Entkommen": "Escaped",
 	"Alle Rechte vorbehalten": "All rights reserved",
 	# HUD and help
-	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer\nI: Inventar   L: Laden   Rad: Zoom   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)":
-		"WASD: walk   Space: jump   F: strike   R: knife\nI: inventory   L: load   Wheel: zoom   Run into things: use\nMouse: click/hold to walk, right click: knife (running: jump)",
+	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   L: Laden   Rad: Zoom   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)":
+		"WASD: walk   Space: jump   F: strike   R: knife   M: sound\nI: inventory   L: load   Wheel: zoom   Run into things: use\nMouse: click/hold to walk, right click: knife (running: jump)",
 	"Inventar": "Inventory",
 	"Springen": "Jump",
 	"Werfen": "Throw",

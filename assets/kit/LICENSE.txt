@@ -2,5 +2,6 @@
 https://omies-assets.itch.io/dungeonkit
 Licence: CC0 ("free for personal and commercial use, no attribution required").
 
-Used here: SM_TileFloor, SM_RockyFloor, SM_Pillar and SM_Wall, plus the floor and
-wall textures (scaled to 1024 px and toned down in colour).
+Used here: floors, walls and pillars, furniture (barrels, crates, table, bookcase,
+candle, books, bottle, chest), wall torch, banners and sword with shield, plus
+their textures (scaled to 1024 px and toned down in colour).

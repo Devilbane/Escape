@@ -22,6 +22,7 @@ const SAVE_FILE := "user://spielstand.json"
 enum State { TITLE, PLAYING, TRANSITION, WON, OVER }
 
 var state := State.TITLE
+var _sound_button: Button
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
@@ -88,6 +89,9 @@ func _ready() -> void:
 	add_child(comic)
 	menus = Menus.new()
 	add_child(menus)
+	Sfx.load_settings()
+	_update_sound_button()
+	Sfx.start_ambience(self)
 	menus.setup(self, _hud)
 	player = Player.new()
 	add_child(player)
@@ -227,6 +231,15 @@ func _setup_hud() -> void:
 	quit.offset_right = -24
 	quit.offset_top = 104
 	_hud.add_child(quit)
+	_sound_button = _make_button("", _toggle_sound)
+	_sound_button.custom_minimum_size = Vector2(130, 44)
+	_sound_button.add_theme_font_size_override("font_size", 17)
+	_sound_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_sound_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_sound_button.offset_right = -24
+	_sound_button.offset_top = 156
+	_hud.add_child(_sound_button)
+	_update_sound_button()
 
 	_prompt = _make_label(TEXT_FONT, 22, Color(1, 1, 1, 0.9))
 	_prompt.set_anchors_preset(Control.PRESET_CENTER)
@@ -245,7 +258,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer\nI: Inventar   L: Laden   Rad: Zoom   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   L: Laden   Rad: Zoom   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -399,6 +412,7 @@ func _drink(s: Dictionary) -> void:
 	player.hp = player.max_hp
 	var cured := player.cure()
 	player.play_once("PickUp", 0.6)
+	Sfx.play(self, "drink")
 	var burst := Effects.make_sparkles(Color(0.5, 0.8, 1.0), true)
 	burst.position = player.global_position + Vector3(0, 1.0, 0)
 	level.add_child(burst)
@@ -435,6 +449,7 @@ func _choose_gift(index: int) -> void:
 			player.gift_speed += 0.07
 			text = Lang.t("Deine Schritte werden leichter: +7% Tempo")
 	set_world_paused(false)
+	Sfx.play(self, "gift")
 	if player.cure():
 		text += "\n" + Lang.t("Dein Leiden ist geheilt.")
 	player.refresh_stats()
@@ -493,7 +508,9 @@ func load_level(index: int, restock := true) -> void:
 	level.item_collected.connect(_on_item_collected)
 	level.secret_found.connect(_on_secret_found)
 	level.bag_full.connect(func(): show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0))
-	level.door_opened.connect(func(): show_message(Lang.t("Die Tür öffnet sich knarrend...")))
+	level.door_opened.connect(func():
+		Sfx.play(self, "door")
+		show_message(Lang.t("Die Tür öffnet sich knarrend...")))
 	level.door_locked.connect(func(): show_message(Lang.t("Verschlossen. Finde den Schlüssel!")))
 	level.player_hurt.connect(func(): player.take_damage(1, player.global_position - player.facing()))
 	level.enemy_killed.connect(_on_enemy_killed)
@@ -655,6 +672,16 @@ func load_saved_game() -> void:
 		_start_playing())
 
 
+func _toggle_sound() -> void:
+	Sfx.toggle_mute()
+	_update_sound_button()
+
+
+func _update_sound_button() -> void:
+	if _sound_button:
+		_sound_button.text = Lang.t("Ton: aus") if Sfx.muted else Lang.t("Ton: an")
+
+
 ## Leaves the game for the title screen. A browser tab cannot close itself,
 ## so only the desktop version quits outright.
 func quit_game() -> void:
@@ -771,6 +798,7 @@ func show_message(text: String, duration := 2.2) -> void:
 func _on_key_collected() -> void:
 	level.has_key = true
 	player.play_once("PickUp", 0.6)
+	Sfx.play(self, "key")
 	show_message(Lang.t("Du hast den Schlüssel gefunden!"))
 	_update_hud()
 
@@ -780,18 +808,22 @@ func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	secrets_found += 1
 	level.secret_chance = Level.SECRET_CHANCE + secrets_found
 	Comic.pop(lever_pos, "lever")
+	Sfx.play(self, "lever")
 	show_message(Lang.t("Eine Fackel gibt nach... ein Geheimgang öffnet sich!"), 3.5)
 	_message.add_theme_color_override("font_color", GOLD)
 	get_tree().create_timer(3.8).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
 	await get_tree().create_timer(0.45).timeout
 	_shake = 1.6
 	Comic.pop(wall_pos, "rumble")
+	Sfx.play(self, "rumble")
+	Sfx.play(self, "secret", -4.0)
 	Effects.float_text(level, wall_pos + Vector3(0, 1.5, 0), Lang.t("Geheimgang!"), GOLD)
 
 
 ## A piece of gear a skeleton dropped.
 func _on_item_collected(id: String) -> void:
 	player.bag.append(id)
+	Sfx.play(self, "key", -3.0)
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Color(0.75, 0.9, 1.0))
 	show_message(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)] + Lang.t("\nTaste I öffnet das Inventar."), 2.5)
 	_update_hud()
@@ -799,6 +831,7 @@ func _on_item_collected(id: String) -> void:
 
 func _on_coins_collected(amount: int) -> void:
 	coins += _gold(amount)
+	Sfx.play(self, "coin")
 	_update_hud()
 
 
@@ -840,10 +873,12 @@ func _search(obj: Dictionary) -> void:
 			show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0)
 		return
 	player.play_once("Interact", 0.55)
+	Sfx.play(self, "chest", -3.0 if obj.label != "Schatztruhe" else 0.0)
 	var loot := level.search(obj)
 	var text := Lang.t("%s: leer") % Lang.t(obj.label)
 	var color := Color(0.8, 0.8, 0.85)
 	if loot.has("gold"):
+		Sfx.play(self, "coin")
 		coins += _gold(loot.gold)
 		text = Lang.t("+%d Gold") % _gold(loot.gold)
 		color = GOLD
@@ -852,6 +887,7 @@ func _search(obj: Dictionary) -> void:
 		text = Lang.t("+%d Wurfmesser") % loot.knives
 		color = Color(0.8, 0.9, 1.0)
 	elif loot.has("potion"):
+		Sfx.play(self, "drink")
 		player.hp = mini(player.max_hp, player.hp + 2)
 		text = Lang.t("Heiltrank! +2 Leben")
 		if player.cure():
@@ -939,6 +975,7 @@ func _on_exit_reached() -> void:
 
 
 func _next_level() -> void:
+	Sfx.play(self, "level_done", -2.0)
 	if level_index + 1 >= level_files.size():
 		_end_run(true)
 		return
@@ -1091,6 +1128,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					KEY_L:
 						if player.can_act():
 							menus.open("laden")
+					KEY_M:
+						_toggle_sound()
 					KEY_ESCAPE:
 						if player.can_act():
 							menus.open("beenden")

@@ -69,8 +69,11 @@ Im Dunkeln zeigt ein Wort, woher es kam; ganz nah wird es zum Ausruf.
 
 **Stich in den Rücken:** Ein Schlag von hinten auf ein Skelett, das dich noch nicht bemerkt hat,
 fällt es sofort. Schleichst du dich von hinten an, bemerkt es dich auch ganz nah nicht. In der Gruft
-(Ebene 4) bewacht ein gepanzerter **Wächter** den Schlüssel: Klingen und Messer prallen an ihm ab,
-nur ein Stich in den Rücken bezwingt ihn. Er steht still und blickt auf das, was er bewacht.
+(Ebene 4) trägt ein gepanzerter **Wächter** den Schlüssel: Klingen und Messer prallen an ihm ab,
+nur ein Stich in den Rücken bezwingt ihn, mit einem Schlag. Er steht still in seinem Saal neben der
+Feuerschale, die nur die Mitte erhellt; der Rand bleibt dunkel. Im Gang davor erfährst du, wie es
+geht: Schleichen (C), im Schatten am Rand um ihn herum, von hinten zuschlagen. Ein Saal mit Wächter
+hat keine Wandfackeln. Ein Wächter in einem Level ohne `K` lässt beim Tod den Schlüssel fallen.
 
 Durchsuchte Fässer, Kisten, Tische und Truhen erkennst du an Münzen und einem zerrissenen Blatt davor.
 
@@ -92,6 +95,7 @@ nach Dateinamen sortiert gespielt. Ein Zeichen steht für ein Feld:
 | `A`     | Skelett-Schütze  | `H`     | Schrein          |
 | `B`     | Bett (speichern) | `L`     | Lagertruhe       |
 | `V`     | Händler          | `?`     | Geheimwand       |
+| `W`     | Wächter          | `f`     | Feuerschale      |
 
 Eine Zeile `safe: ja` macht ein Level zum Saferoom. Eine Zeile wie `secret: episch` legt fest,
 wie reich der Geheimraum hinter der Wand `?` ist: `normal`, `ungewoehnlich`, `selten`, `episch`

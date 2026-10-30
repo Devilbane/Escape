@@ -1,5 +1,5 @@
 name: Die Gruft
-hint: Hier ruhen die alten Wächter. Einer bewacht den Schlüssel, und nur ein Stich in den Rücken bezwingt ihn.
+hint: Hier ruhen die alten Wächter. Einer trägt den Schlüssel, und nur ein Stich in den Rücken bezwingt ihn.
 secret: selten
 ########################
 #########E##############
@@ -12,6 +12,15 @@ secret: selten
 #.......S....M.....#C.c#
 #..x....#.....H....?...#
 ###.#####...A......#k.C#
-#K....W.#.o.....b..#####
-#..c....S......c...#####
+#...#####.o.....b..#####
+#.#######......c...#####
+#.......################
+#.......################
+#.......################
+#.......################
+#.......################
+#...f...################
+#...W...################
+#.......################
+#c.....c################
 ########################

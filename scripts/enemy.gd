@@ -20,6 +20,9 @@ const HEARING := 10.0
 const TOUCH := 2.2
 ## Seconds a hunting skeleton searches after losing the hero before it gives up.
 const GIVE_UP := 5.0
+## A guardian never strays farther than this from its post: it breaks off
+## the hunt and walks back, so running out of its hall always works.
+const LEASH := 14.0
 const POISON_CHANCE := 0.25
 ## Model, weapon, life, speed, damage, reach, scale and pause between attacks.
 const KINDS := {
@@ -331,6 +334,10 @@ func _physics_process(delta: float) -> void:
 			_awake = false
 			_path.clear()
 			_repath = 0.0
+	if _awake and _watch != Vector3.INF and _home != Vector3.INF and global_position.distance_to(_home) > LEASH:
+		_awake = false
+		_path.clear()
+		_repath = 0.0
 
 	var move := _step_out() if _busy <= 0.0 else Vector3.ZERO
 	if move != Vector3.ZERO:

@@ -108,10 +108,17 @@ func _process(delta: float) -> bool:
 	# behind it while it stands guard; while it hunts, just carry on.
 	var guardian: Enemy = null
 	for e in lvl.enemies:
-		if is_instance_valid(e) and not e.dead and e.kind == "waechter" and not e.is_hunting():
+		if is_instance_valid(e) and not e.dead and e.kind == "waechter":
+			if e.is_hunting():
+				# Spotted: run back to the start until it gives up and returns.
+				if player.sneaking:
+					game._toggle_sneak()
+				if player.path.is_empty():
+					player.walk_to(_cell_of("P"))
+				return false
 			guardian = e
 	if guardian:
-		var near_it := guardian.global_position.distance_to(player.global_position) < 16.0
+		var near_it := guardian.global_position.distance_to(player.global_position) < 27.0
 		if near_it != player.sneaking and lvl.enemies.all(func(e): return not is_instance_valid(e) or not e.is_hunting()):
 			game._toggle_sneak()
 		if guardian.open_to_backstab(player.global_position) and player.global_position.distance_to(guardian.global_position) < Player.MELEE_RANGE + guardian.girth() - 0.4:
@@ -122,15 +129,16 @@ func _process(delta: float) -> bool:
 			# Right behind it: step straight up to it.
 			player.path.assign([guardian.global_position])
 		elif player.path.is_empty():
-			# Round it by the side, out of its eyes and reach, then up behind it.
+			# Keep to the dark rim: round the far corner behind it, then up its back.
+			var back: Vector3 = guardian.global_position - guardian.ahead() * Level.TILE * 2.0
 			var target: Vector3 = guardian.global_position - guardian.ahead() * Level.TILE * 0.9
-			if guardian.ahead().dot(player.global_position - guardian.global_position) > 1.0:
-				var side := guardian.ahead().cross(Vector3.UP) * Level.TILE
-				if lvl.cell_char(lvl.world_to_cell(guardian.global_position + side)) == "#" or \
-						(player.global_position.distance_to(guardian.global_position - side) < player.global_position.distance_to(guardian.global_position + side) \
-						and lvl.cell_char(lvl.world_to_cell(guardian.global_position - side)) != "#"):
+			if not guardian.open_to_backstab(player.global_position):
+				var side := guardian.ahead().cross(Vector3.UP) * Level.TILE * 3.0
+				if player.global_position.distance_to(guardian.global_position - side) < player.global_position.distance_to(guardian.global_position + side):
 					side = -side
-				target = guardian.global_position + side
+				target = back + side if lvl.cell_char(lvl.world_to_cell(back + side)) != "#" else back
+			elif player.global_position.distance_to(back) > Level.TILE * 0.7:
+				target = back
 			player.walk_to(target)
 			if player.path.is_empty():
 				player.path.assign([target])
@@ -174,7 +182,18 @@ func _process(delta: float) -> bool:
 					player.path.assign([obj.pos])
 				return false
 	if not lvl.has_key and not lvl._doors.all(func(d): return d.open):
-		player.walk_to(_cell_of("K"))
+		var key_cell := _cell_of("K")
+		if key_cell == Vector3.INF:
+			# A guardian carries the key: go to it, and the sneak above takes over.
+			for e in lvl.enemies:
+				if is_instance_valid(e) and not e.dead and e.kind == "waechter":
+					key_cell = e.global_position
+			if key_cell == Vector3.INF:
+				# The guardian fell: the key lies where it stood.
+				for p in lvl._pickups:
+					if p.kind == "key" and is_instance_valid(p.node):
+						key_cell = p.node.global_position
+		player.walk_to(key_cell)
 	elif not lvl._doors.all(func(d): return d.open):
 		# Head for the door first: from a secret room the stairs can seem
 		# closer than the way round to them.

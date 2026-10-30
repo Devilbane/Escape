@@ -906,7 +906,7 @@ func _search(obj: Dictionary) -> void:
 			show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0)
 		return
 	player.play_once("Interact", 0.55)
-	Sfx.play(self, "chest", -3.0 if obj.label != "Schatztruhe" else 0.0)
+	Sfx.play(self, "chest" if obj.label == "Schatztruhe" else "rummage", -3.0)
 	var loot := level.search(obj)
 	var text := Lang.t("%s: leer") % Lang.t(obj.label)
 	var color := Color(0.8, 0.8, 0.85)

@@ -164,8 +164,40 @@ def creak(sec, base):
     return x * np.sin(np.pi * tt / sec)
 
 
+def knock(freq, decay):
+    # A small wooden knock: a short, damped ring.
+    tt = t(decay * 6)
+    return np.sin(2 * np.pi * freq * tt) * np.exp(-tt / decay)
+
+
+def rummage(seed=3):
+    # Hands going through a barrel or crate: a few dry rustles and the
+    # light knock of things bumping into wood.
+    r = np.random.default_rng(seed)
+    out = np.zeros(int(SR * 0.55))
+    for _ in range(5):
+        at = int(r.uniform(0, 0.4) * SR)
+        rustle = scuff(r.uniform(0.05, 0.1), 1500, 6000, 0.008, r.uniform(0.02, 0.035)) * r.uniform(0.4, 0.8)
+        out[at:at + len(rustle)] += rustle[: len(out) - at]
+    for _ in range(3):
+        at = int(r.uniform(0.05, 0.45) * SR)
+        k = knock(r.uniform(350, 700), 0.012) * r.uniform(0.3, 0.6)
+        out[at:at + len(k)] += k[: len(out) - at]
+    return out
+
+
 def chest():
-    return creak(0.5, 70)
+    # A heavy lid: a short squeak of the hinge, then the rummaging.
+    tt = t(0.22)
+    f = 700 + 500 * tt / 0.22 + 25 * np.sin(2 * np.pi * 30 * tt)
+    squeak = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * tt / 0.22) * 0.25
+    lid = knock(180, 0.03) * 0.5
+    out = np.zeros(int(SR * 0.9))
+    out[: len(squeak)] += squeak
+    out[int(SR * 0.22): int(SR * 0.22) + len(lid)] += lid
+    r = rummage(5)
+    out[int(SR * 0.3): int(SR * 0.3) + len(r)] += r[: len(out) - int(SR * 0.3)]
+    return out
 
 
 def door():
@@ -267,7 +299,8 @@ if __name__ == "__main__":
     save("throw", throw(), 0.5)
     save("coin", coin(), 0.45)
     save("key", key(), 0.5)
-    save("chest", chest(), 0.7)
+    save("chest", chest(), 0.6)
+    save("rummage", rummage(), 0.5)
     save("door", door(), 0.8)
     save("lever", lever(), 0.8)
     save("rumble", rumble(), 0.9)

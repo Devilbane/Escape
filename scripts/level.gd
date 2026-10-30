@@ -107,6 +107,14 @@ var _rng := RandomNumberGenerator.new()
 var _scenes := {}
 var _time := 0.0
 var _torches: Array = []
+## Lights that always burn: the stairs, shrines and fountains.
+var _light_spots: Array[Vector3] = []
+## Chance that a wall torch burns when the level starts.
+const TORCH_LIT_CHANCE := 0.5
+## How far a light reaches far enough to see someone by.
+const LIGHT_REACH := 8.0
+## How close to a torch's wall the hero must run to reach it.
+const TORCH_TOUCH := 1.6
 var _spikes: Array = []
 var _pickups: Array = []
 var interactables: Array = []
@@ -600,8 +608,47 @@ func _maybe_add_torch(wall_pos: Vector3, rot: float, forced := false) -> Node3D:
 	light.omni_attenuation = 1.3
 	light.position = Vector3(0, 1.0, 1.0)
 	holder.add_child(light)
-	_torches.append({"light": light, "seed": _rng.randf() * 100.0})
+	# Some torches burn, some are cold: a new mix every run.
+	var torch := {"light": light, "flame": flame, "holder": holder, "wall_pos": wall_pos, "seed": _rng.randf() * 100.0, "on": true, "touched": -10.0}
+	_torches.append(torch)
+	set_torch(torch, randf() < TORCH_LIT_CHANCE)
 	return holder
+
+
+## Lights or puts out a torch.
+func set_torch(torch: Dictionary, on: bool) -> void:
+	torch.on = on
+	torch.light.visible = on
+	torch.flame.visible = on
+	torch.flame.emitting = on
+
+
+## The torch on the wall the hero runs into, only when the run against the
+## wall starts (not while pressing on). Empty otherwise.
+func torch_touched(point: Vector3) -> Dictionary:
+	for t in _torches:
+		if not is_instance_valid(t.holder):
+			continue
+		if Vector2(point.x - t.wall_pos.x, point.z - t.wall_pos.z).length() < TORCH_TOUCH:
+			var fresh: bool = _time - t.touched > 0.4
+			t.touched = _time
+			return t if fresh else {}
+	return {}
+
+
+## Whether a burning torch, the stairs, a shrine or the fountain lights a spot.
+func is_lit(pos: Vector3) -> bool:
+	for t in _torches:
+		if t.on and is_instance_valid(t.light) and _flat_distance(pos, t.light.global_position) < LIGHT_REACH:
+			return true
+	for spot in _light_spots:
+		if _flat_distance(pos, spot) < LIGHT_REACH:
+			return true
+	return false
+
+
+func _flat_distance(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
 func _build_key(pos: Vector3) -> void:
@@ -693,6 +740,7 @@ func _build_shrine(c: Vector2i) -> void:
 	motes.position = pos + Vector3(0, 2.0, 0)
 	add_child(motes)
 	_add_solid(pos, Vector3(2.2, 2, 2.2))
+	_light_spots.append(pos)
 	stations.append({"kind": "schrein", "cell": c, "pos": pos, "used": false, "orb": orb, "light": light, "motes": motes})
 
 
@@ -750,6 +798,7 @@ func _build_fountain(c: Vector2i) -> void:
 	glow.position = pos + Vector3(0, 2.0, 0)
 	add_child(glow)
 	_add_solid(pos, Vector3(3.0, 2, 3.0))
+	_light_spots.append(pos)
 	stations.append({"kind": "brunnen", "cell": c, "pos": pos, "used": false})
 
 
@@ -974,6 +1023,7 @@ func _build_exit(c: Vector2i) -> void:
 	light.omni_range = 10.0
 	light.position = pos + Vector3(0, 6.0, -2.5)
 	add_child(light)
+	_light_spots.append(pos)
 	var motes := Effects.make_sparkles(Color(0.7, 0.85, 1.0))
 	motes.position = pos + Vector3(0, 2.5, -1.0)
 	add_child(motes)
@@ -1001,6 +1051,7 @@ func _process(delta: float) -> void:
 	_update_spikes(delta)
 	if player == null or finished:
 		return
+	player.in_shadow = not is_lit(player.global_position)
 	_check_pickups()
 	_check_doors()
 	_check_secrets()

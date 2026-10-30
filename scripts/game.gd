@@ -223,7 +223,7 @@ func _setup_hud() -> void:
 	_coin_label = _make_label(TEXT_FONT, 22, GOLD)
 	row.add_child(_coin_label)
 
-	var quit := _make_button(Lang.t("Beenden"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("beenden"))
+	var quit := _make_button(Lang.t("Beenden"), _on_quit_pressed)
 	quit.custom_minimum_size = Vector2(130, 44)
 	quit.add_theme_font_size_override("font_size", 17)
 	quit.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -258,7 +258,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   L: Laden   Rad: Zoom   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -682,6 +682,20 @@ func _update_sound_button() -> void:
 		_sound_button.text = Lang.t("Ton: aus") if Sfx.muted else Lang.t("Ton: an")
 
 
+## In the game the quit button asks first. On the title and while naming the
+## hero it leaves at once: the desktop version closes, the browser goes back
+## to the title.
+func _on_quit_pressed() -> void:
+	if state == State.PLAYING:
+		if player.can_act() and not menus.is_open():
+			menus.open("beenden")
+	elif state == State.TITLE:
+		if not OS.has_feature("web"):
+			get_tree().quit()
+		elif _name_box.visible:
+			get_tree().reload_current_scene()
+
+
 ## Leaves the game for the title screen. A browser tab cannot close itself,
 ## so only the desktop version quits outright.
 func quit_game() -> void:
@@ -853,9 +867,23 @@ func _on_enemy_killed() -> void:
 		_update_hud()
 
 
-## Running into an object searches it.
+## Double click or C: sneak (slow, silent, hard to see) or walk normally.
+func _toggle_sneak() -> void:
+	if player.dead or not player.controllable:
+		return
+	player.set_sneaking(not player.sneaking)
+	show_message(Lang.t("Du schleichst. Im Dunkeln sieht dich keiner.") if player.sneaking else Lang.t("Du gehst wieder normal."), 1.6)
+
+
+## Running into an object searches it, running into a torch lights it or
+## puts it out.
 func _on_player_bumped(point: Vector3) -> void:
 	if state != State.PLAYING or not player.can_act():
+		return
+	var torch := level.torch_touched(point)
+	if not torch.is_empty():
+		level.set_torch(torch, not torch.on)
+		Sfx.play(self, "swing", -6.0)
 		return
 	var station := level.station_at(point)
 	if not station.is_empty():
@@ -1135,6 +1163,8 @@ func _unhandled_input(event: InputEvent) -> void:
 							menus.open("laden")
 					KEY_M:
 						_toggle_sound()
+					KEY_C:
+						_toggle_sneak()
 					KEY_ESCAPE:
 						if player.can_act():
 							menus.open("beenden")
@@ -1149,7 +1179,10 @@ func _unhandled_input(event: InputEvent) -> void:
 					else:
 						player.throw_knife(point)
 				elif event.button_index == MOUSE_BUTTON_LEFT:
-					_click(point)
+					if event.double_click:
+						_toggle_sneak()
+					else:
+						_click(point)
 
 
 func _mouse_to_floor(screen_pos: Vector2):

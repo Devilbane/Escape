@@ -47,7 +47,15 @@ eine andere. Läufst du zum ersten Mal an ihr vorbei, entdeckst du ihn mit etwas
 2,5 Sekunden später sinkt die Wand. Je reicher der Raum, desto kleiner die Chance:
 Gewöhnlich 30 %, Ungewöhnlich 22 %, Selten 15 %, Episch 9 %, Gottgeboren 4 %. Jeder gefundene
 Geheimraum erhöht die Chance um 1. Der Hebel würfelt nur einmal.
-Du siehst nur, was in deiner Sichtlinie liegt. Bereits erkundete Bereiche bleiben grau sichtbar.
+Du siehst nur, was in deiner Sichtlinie liegt und Licht hat: eine brennende Fackel in der Nähe oder
+deine eigene Laterne. Dunkle Ecken bleiben schwarz, Skelette darin hörst du nur an ihren Schritten.
+Bereits erkundete Bereiche bleiben grau sichtbar. Manche Fackeln brennen, manche nicht: Lauf gegen
+die Wand an einer Fackel, um sie anzuzünden oder zu löschen.
+
+**Schleichen** (C oder Doppelklick): 60 % langsamer, lautlos, halb durchsichtig, und die Laterne ist
+abgeblendet. Skelette sehen nach vorn (120°), aber nur, was im Licht steht. Hören können sie dich
+rundherum, außer du schleichst oder stehst still. Ganz nah bemerken sie dich immer. Verlieren sie
+dich aus den Augen, suchen sie noch ein paar Sekunden und gehen dann zurück auf ihren Posten.
 
 ## Neue Levels bauen
 

@@ -72,7 +72,7 @@ func _process(delta: float) -> bool:
 	for e in lvl.enemies:
 		if is_instance_valid(e) and not e.dead and lvl.has_line_of_sight(player.global_position, e.global_position):
 			var d := player.global_position.distance_to(e.global_position)
-			if d < 2.6:
+			if d < Player.MELEE_RANGE + e.girth() - 0.2:
 				player.melee()
 				return false
 			if d < 14.0:
@@ -83,6 +83,9 @@ func _process(delta: float) -> bool:
 					player.path.assign([e.global_position])
 				elif player.path.is_empty():
 					player.walk_to(e.global_position)
+					if player.path.is_empty():
+						# It stands where the path finder cannot go (by a pillar): step straight at it.
+						player.path.assign([e.global_position])
 				return false
 
 	if timer < 0.4 or not player.path.is_empty():
@@ -116,6 +119,9 @@ func _process(delta: float) -> bool:
 			var path := lvl.astar.get_id_path(lvl.world_to_cell(player.global_position), obj.cell, true)
 			if not path.is_empty() and lvl.cell_to_world(path[-1]).distance_to(obj.pos) <= Level.SEARCH_RANGE:
 				player.walk_to(obj.pos)
+				if player.path.is_empty():
+					# Right next to it but off to one side: run into it like a player.
+					player.path.assign([obj.pos])
 				return false
 	if not lvl.has_key and not lvl._doors.all(func(d): return d.open):
 		player.walk_to(_cell_of("K"))

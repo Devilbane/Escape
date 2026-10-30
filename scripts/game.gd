@@ -54,6 +54,9 @@ var _gift_label: Label
 var _shrine_panel: Control
 var _shrine: Dictionary = {}
 var _pending_station: Dictionary = {}
+## Everything the hero has been told so far, for the compendium (key H):
+## level hints ("#<index>") and explanatory tips, in the order they came.
+var lore: Array = []
 var _knife_label: Label
 var _prompt: Label
 var _message: Label
@@ -266,7 +269,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -301,7 +304,7 @@ func _setup_hud() -> void:
 	_hud.add_child(mark)
 
 	var buttons := GridContainer.new()
-	buttons.columns = 5
+	buttons.columns = 6
 	buttons.add_theme_constant_override("h_separation", 10)
 	buttons.add_theme_constant_override("v_separation", 10)
 	buttons.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -310,6 +313,7 @@ func _setup_hud() -> void:
 	buttons.offset_right = -20
 	buttons.offset_bottom = -20
 	_hud.add_child(buttons)
+	buttons.add_child(_make_button(Lang.t("Kompendium"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("kompendium")))
 	buttons.add_child(_make_button(Lang.t("Laden"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("laden")))
 	buttons.add_child(_make_button(Lang.t("Inventar"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("inventar")))
 	buttons.add_child(_make_button(Lang.t("Springen"), func(): if state == State.PLAYING: player.jump()))
@@ -769,6 +773,7 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_speed = float(data.gift_speed)
 	player.equipped = data.equipped
 	player.wear = data.get("wear", {})
+	lore.assign(data.get("lore", []))
 	player.bag.assign(data.bag)
 	player.refresh_stats()
 	load_level(clampi(int(data.level), 0, level_files.size() - 1), false)
@@ -799,6 +804,7 @@ func save_game() -> void:
 		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed,
 		"equipped": player.equipped, "wear": player.wear, "bag": player.bag, "storage": storage, "shop": shop_stock,
+		"lore": lore,
 	}
 	var file := FileAccess.open(SAVE_FILE, FileAccess.WRITE)
 	file.store_string(JSON.stringify(data))
@@ -827,11 +833,31 @@ func _start_playing() -> void:
 
 func _announce_level() -> void:
 	_guardian_tip = -1
+	learn("#%d" % level_index)
 	show_message(Lang.t("Ebene %d: %s\n%s") % [level_index + 1, Lang.t(level.level_name), Lang.t(level.hint)], 3.5)
 
 
 func _message_busy() -> bool:
 	return _message.modulate.a > 0.05
+
+
+## Name and hint of a level, read from its file, for the compendium.
+func level_hint(index: int) -> Dictionary:
+	var info := {"name": "", "hint": ""}
+	if index < 0 or index >= level_files.size():
+		return info
+	for line in FileAccess.get_file_as_string(level_files[index]).split("\n"):
+		if line.begins_with("name:"):
+			info.name = line.substr(5).strip_edges()
+		elif line.begins_with("hint:"):
+			info.hint = line.substr(5).strip_edges()
+	return info
+
+
+## Remembers an explanation for the compendium, once.
+func learn(entry: String) -> void:
+	if not lore.has(entry):
+		lore.append(entry)
 
 
 func show_message(text: String, duration := 2.2) -> void:
@@ -859,6 +885,7 @@ func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	level.secret_bonus = secrets_found
 	Comic.pop(lever_pos, "lever")
 	Sfx.play(self, "lever")
+	learn("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!")
 	show_message(Lang.t("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!"), 4.5)
 	_message.add_theme_color_override("font_color", GOLD)
 	get_tree().create_timer(4.8).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
@@ -910,6 +937,8 @@ func _toggle_sneak() -> void:
 		show_message(Lang.t("Zu spät zum Schleichen: Du wurdest entdeckt!"), 1.6)
 		return
 	player.set_sneaking(not player.sneaking)
+	if player.sneaking:
+		learn("Schleichen (C oder Doppelklick): langsamer, lautlos, Laterne abgeblendet. Im Dunkeln sieht dich keiner, und von hinten bemerkt dich ein Skelett auch ganz nah nicht.")
 	show_message(Lang.t("Du schleichst. Im Dunkeln sieht dich keiner.") if player.sneaking else Lang.t("Du gehst wieder normal."), 1.6)
 
 
@@ -1104,6 +1133,7 @@ func _guardian_intro() -> void:
 				and e.global_position.distance_to(player.global_position) < 34.0):
 			return
 		_guardian_tip = 0
+	learn(GUARDIAN_TIPS[_guardian_tip])
 	show_message(Lang.t(GUARDIAN_TIPS[_guardian_tip]), 6.5)
 	_guardian_tip += 1
 
@@ -1216,7 +1246,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					_choose_gift(event.physical_keycode - KEY_1)
 				return
 			if menus.is_open():
-				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_ESCAPE]:
+				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_ESCAPE]:
 					menus.close()
 				return
 			if event is InputEventKey:
@@ -1233,6 +1263,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					KEY_L:
 						if player.can_act():
 							menus.open("laden")
+					KEY_H:
+						if player.can_act():
+							menus.open("kompendium")
 					KEY_M:
 						_toggle_sound()
 					KEY_C:

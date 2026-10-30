@@ -16,6 +16,7 @@ Einfache Steuerung, schöne 2.5D-Grafik, viele Levels.
 
 Ein Sprung aus dem Lauf behält den Schwung: je schneller du bist, desto weiter fliegst du.
 | Inventar | I | Knopf „Inventar“ |
+| Kompendium | H | Knopf „Kompendium“ |
 | Spielstand laden | L | Knopf „Laden“ (auch auf dem Startbildschirm) |
 | Spiel beenden | Esc | Knopf „Beenden“ oben rechts |
 | Ton an/aus | M | Knopf „Ton“ oben rechts |
@@ -76,6 +77,10 @@ geht: Schleichen (C), im Schatten am Rand um ihn herum, von hinten zuschlagen. E
 hat keine Wandfackeln. Ein Wächter in einem Level ohne `K` lässt beim Tod den Schlüssel fallen.
 
 Durchsuchte Fässer, Kisten, Tische und Truhen erkennst du an Münzen und einem zerrissenen Blatt davor.
+
+Das **Kompendium** (Taste H) zeigt alle Tasten und Mausbefehle und sammelt jeden Hinweis und jede
+Erklärung, die du bisher bekommen hast: die Einleitung jeder Ebene, die Tipps zum Schleichen und zum
+Wächter, den Geheimhebel. Es wird mit dem Spielstand gespeichert.
 
 ## Neue Levels bauen
 

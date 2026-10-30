@@ -1,6 +1,6 @@
 """Builds the game's sound effects from scratch (noise, tones and envelopes),
 so there are no licences to worry about. Run: python3 tools/make_sounds.py
-The footsteps (step_*, sneak_*) are real recordings instead, see
+The footsteps (step_*, sneak_*) and the door are real recordings instead, see
 assets/sounds/CREDITS.txt."""
 import os, subprocess, wave
 import numpy as np
@@ -129,16 +129,6 @@ def key():
     return out
 
 
-def creak(sec, base):
-    tt = t(sec)
-    # Wood creak: a scratchy pulse train with a wobbling pitch.
-    f = base * (1 + 0.25 * np.sin(2 * np.pi * 1.3 * tt) + 0.1 * np.sin(2 * np.pi * 7 * tt))
-    phase = np.cumsum(f) / SR
-    pulses = (np.mod(phase, 1.0) < 0.08).astype(float)
-    x = lowpass(pulses - pulses.mean(), 2500)
-    return x * np.sin(np.pi * tt / sec)
-
-
 def knock(freq, decay):
     # A small wooden knock: a short, damped ring.
     tt = t(decay * 6)
@@ -172,15 +162,6 @@ def chest():
     out[int(SR * 0.22): int(SR * 0.22) + len(lid)] += lid
     r = rummage(5)
     out[int(SR * 0.3): int(SR * 0.3) + len(r)] += r[: len(out) - int(SR * 0.3)]
-    return out
-
-
-def door():
-    c = creak(0.9, 55)
-    thud = lowpass(noise(0.5), 150) * env(int(SR * 0.5), 0.002, 0.12) * 4
-    out = np.zeros(len(c) + len(thud))
-    out[: len(c)] += c
-    out[len(c) - int(SR * 0.05):len(c) - int(SR * 0.05) + len(thud)] += thud
     return out
 
 
@@ -273,7 +254,6 @@ if __name__ == "__main__":
     save("key", key(), 0.5)
     save("chest", chest(), 0.6)
     save("rummage", rummage(), 0.5)
-    save("door", door(), 0.8)
     save("lever", lever(), 0.8)
     save("rumble", rumble(), 0.9)
     save("drink", drink(), 0.5)

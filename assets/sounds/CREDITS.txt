@@ -8,4 +8,8 @@ Sneaking steps (sneak_0 to sneak_3): the cloth steps from
 https://opengameart.org/content/footsteps-leather-cloth-armor
 License: CC0 (public domain).
 
+Door (door): qubodup-DoorOpen07 from "Door Open, Door Close Set" by qubodup,
+https://opengameart.org/content/door-open-door-close-set
+License: CC0 (public domain).
+
 All other sounds are made by tools/make_sounds.py.

@@ -329,9 +329,9 @@ func _footsteps(ground_speed: float) -> void:
 			if crossed:
 				# Sneaking: only a very soft touch, barely to be heard.
 				if sneak:
-					Sfx.play(self, "sneak_%d" % (randi() % 4), -14.0)
+					Sfx.play(self, "sneak_%d" % (randi() % 4), -22.0)
 				else:
-					Sfx.play(self, "step_%d" % (randi() % 6), -6.0)
+					Sfx.play(self, "step_%d" % (randi() % 6), -14.0)
 	_last_phase = phase
 
 

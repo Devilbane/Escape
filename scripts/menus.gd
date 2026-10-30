@@ -7,7 +7,8 @@ const STORAGE_SIZE := 16
 const BLUE := Color(0.65, 0.85, 1.0)
 
 var game: Node
-## The open window: "", "inventar", "lager", "haendler", "bett", "laden" or "beenden".
+## The open window: "", "inventar", "lager", "haendler", "bett", "laden",
+## "kompendium" or "beenden".
 var current := ""
 var _panel: PanelContainer
 var _box: VBoxContainer
@@ -16,6 +17,21 @@ var _note := ""
 ## Shows the stats of the item under the mouse (or last tapped).
 var _info: Label
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
+## Every control, for the compendium: action and keys.
+const SHORTCUTS := [
+	["Laufen", "WASD / Pfeiltasten, Klick oder Halten auf den Boden"],
+	["Springen", "Leertaste, Rechtsklick im Lauf"],
+	["Nahkampf", "F oder J, gegen das Skelett laufen oder es anklicken"],
+	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],
+	["Schleichen", "C oder Doppelklick"],
+	["Benutzen, durchsuchen, Fackel", "Dagegenlaufen"],
+	["Inventar", "I"],
+	["Kompendium", "H"],
+	["Spielstand laden", "L"],
+	["Ton an/aus", "M"],
+	["Zoom", "+ und −, Mausrad"],
+	["Spiel beenden", "Esc"],
+]
 
 
 func setup(owner_game: Node, hud: CanvasLayer) -> void:
@@ -82,6 +98,8 @@ func _rebuild() -> void:
 			_build_bed()
 		"laden":
 			_build_load()
+		"kompendium":
+			_build_compendium()
 		"beenden":
 			_build_quit()
 	if current in ["inventar", "lager", "haendler"]:
@@ -308,6 +326,68 @@ func _build_load() -> void:
 	var cancel: Button = game._make_button(Lang.t("Abbrechen"), close)
 	cancel.custom_minimum_size = Vector2(220, 60)
 	row.add_child(cancel)
+
+
+## Every control on one side, everything the hero has been told on the other.
+func _build_compendium() -> void:
+	_add_label(Lang.t("Kompendium"), 38, game.GOLD, game.TITLE_FONT)
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 36)
+	_box.add_child(columns)
+
+	var keys := VBoxContainer.new()
+	keys.add_theme_constant_override("separation", 4)
+	columns.add_child(keys)
+	var keys_title: Label = game._make_label(game.TEXT_FONT, 24, game.GOLD)
+	keys_title.text = Lang.t("Steuerung")
+	keys.add_child(keys_title)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 18)
+	grid.add_theme_constant_override("v_separation", 2)
+	keys.add_child(grid)
+	for s in SHORTCUTS:
+		var what: Label = game._make_label(game.TEXT_FONT, 17, BLUE)
+		what.text = Lang.t(s[0])
+		what.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		grid.add_child(what)
+		var how: Label = game._make_label(game.TEXT_FONT, 17)
+		how.text = Lang.t(s[1])
+		how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		how.custom_minimum_size.x = 260
+		grid.add_child(how)
+
+	var learned := VBoxContainer.new()
+	learned.add_theme_constant_override("separation", 4)
+	columns.add_child(learned)
+	var learned_title: Label = game._make_label(game.TEXT_FONT, 24, game.GOLD)
+	learned_title.text = Lang.t("Gelerntes")
+	learned.add_child(learned_title)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(430, 380)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	learned.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 10)
+	scroll.add_child(list)
+	if game.lore.is_empty():
+		var none: Label = game._make_label(game.TEXT_FONT, 18)
+		none.text = Lang.t("Noch nichts. Hinweise und Erklärungen sammeln sich hier.")
+		list.add_child(none)
+	for entry in game.lore:
+		var l: Label = game._make_label(game.TEXT_FONT, 17)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size.x = 410
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if entry.begins_with("#"):
+			var index := int(entry.substr(1))
+			var info: Dictionary = game.level_hint(index)
+			l.text = Lang.t("Ebene %d: %s") % [index + 1, Lang.t(info.name)] + "\n" + Lang.t(info.hint)
+			l.add_theme_color_override("font_color", game.GOLD)
+		else:
+			l.text = Lang.t(entry)
+		list.add_child(l)
 
 
 func _build_quit() -> void:

@@ -485,12 +485,15 @@ func _build_walls(c: Vector2i) -> void:
 		if low:
 			wall.scale.y = LOW_WALL_SCALE
 			continue
-		var torch := _maybe_add_torch(pos, rot)
+		# No torch behind a barrel, crate or table: the hero must reach it.
+		var torch: Node3D = null
+		if not FURNITURE.contains(cell_char(c)):
+			torch = _maybe_add_torch(pos, rot)
 		if torch != null:
 			_wall_torches.append({"holder": torch, "cell": c, "pos": pos, "rot": rot})
 		elif piece == "wall" and _rng.randf() < 0.18:
 			_add_kit_part(WALL_DECOR[_rng.randi() % WALL_DECOR.size()], wall)
-		elif piece == "wall" and cell_char(c) != "?":
+		elif piece == "wall" and cell_char(c) != "?" and not FURNITURE.contains(cell_char(c)):
 			_bare_walls.append({"cell": c, "pos": pos, "rot": rot})
 
 

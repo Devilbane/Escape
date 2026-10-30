@@ -159,8 +159,8 @@ static func float_text(parent: Node, pos: Vector3, text: String, color: Color) -
 	parent.add_child(label)
 	label.global_position = pos
 	var tween := label.create_tween()
-	tween.tween_property(label, "global_position", pos + Vector3(0, 1.6, 0), 1.3).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(label, "modulate:a", 0.0, 1.3).set_delay(0.5)
+	tween.tween_property(label, "global_position", pos + Vector3(0, 1.6, 0), 2.6).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(label, "modulate:a", 0.0, 1.2).set_delay(1.8)
 	tween.tween_callback(label.queue_free)
 
 

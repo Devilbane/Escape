@@ -493,7 +493,7 @@ func load_level(index: int, restock := true) -> void:
 	level = Level.new()
 	level.load_from_file(level_files[index])
 	level.depth = index
-	level.secret_chance = Level.SECRET_CHANCE + secrets_found
+	level.secret_bonus = secrets_found
 	add_child(level)
 	level.build()
 	level.player = player
@@ -803,21 +803,26 @@ func _on_key_collected() -> void:
 	_update_hud()
 
 
-## A lever torch found: click, rumble, shaking ground and a golden message.
+## A lever torch found: a click and a golden message, then, a moment later,
+## rumbling and shaking ground while the secret wall sinks.
 func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	secrets_found += 1
-	level.secret_chance = Level.SECRET_CHANCE + secrets_found
+	level.secret_bonus = secrets_found
 	Comic.pop(lever_pos, "lever")
 	Sfx.play(self, "lever")
-	show_message(Lang.t("Eine Fackel gibt nach... ein Geheimgang öffnet sich!"), 3.5)
+	show_message(Lang.t("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!"), 4.5)
 	_message.add_theme_color_override("font_color", GOLD)
-	get_tree().create_timer(3.8).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
-	await get_tree().create_timer(0.45).timeout
+	get_tree().create_timer(4.8).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
+	var tier: Dictionary = Level.TIERS[level.secret_tier]
+	var here := level
+	await get_tree().create_timer(Level.SECRET_DELAY).timeout
+	if level != here:
+		return
 	_shake = 1.6
 	Comic.pop(wall_pos, "rumble")
-	Sfx.play(self, "rumble")
+	Sfx.play(self, "rumble", 0.0, wall_pos)
 	Sfx.play(self, "secret", -4.0)
-	Effects.float_text(level, wall_pos + Vector3(0, 1.5, 0), Lang.t("Geheimgang!"), GOLD)
+	Effects.float_text(level, wall_pos + Vector3(0, 1.5, 0), Lang.t("Geheimraum: %s") % Lang.t(tier.name), tier.color)
 
 
 ## A piece of gear a skeleton dropped.
@@ -825,7 +830,7 @@ func _on_item_collected(id: String) -> void:
 	player.bag.append(id)
 	Sfx.play(self, "key", -3.0)
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Color(0.75, 0.9, 1.0))
-	show_message(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)] + Lang.t("\nTaste I öffnet das Inventar."), 2.5)
+	show_message(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)] + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
 	_update_hud()
 
 
@@ -841,7 +846,7 @@ func _gold(amount: int) -> int:
 
 
 func _on_enemy_killed() -> void:
-	show_message(Lang.t("Das Skelett zerfällt zu Staub."), 1.4)
+	show_message(Lang.t("Das Skelett zerfällt zu Staub."), 2.5)
 	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:
 		player.hp += 1
 		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+1", Color(0.5, 1.0, 0.5))
@@ -898,7 +903,7 @@ func _search(obj: Dictionary) -> void:
 		var found := Lang.t("Gefunden: %s (%s)") % [Items.item_name(loot.item), Items.describe(loot.item)]
 		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
 		color = Color(0.75, 0.9, 1.0)
-		show_message(found + Lang.t("\nTaste I öffnet das Inventar."), 2.5)
+		show_message(found + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
 	Effects.float_text(level, obj.icon_pos, text, color)
 	if loot.is_empty():
 		show_message(Lang.t("Du durchsuchst %s... nichts.") % Lang.t(_with_article(obj.label)), 1.2)

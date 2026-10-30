@@ -42,9 +42,11 @@ Amulette geben Tempo, Kraft oder Leben. Im **Inventar** (Taste I) legst du sie a
 Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es einen **Brunnen**,
 der dein Leben auffüllt und Gift und Flüche heilt, eine Lagertruhe, einen Händler, der für Gold kauft und verkauft, und ein Bett. Im Bett wird gespeichert und du loggst aus.
 Beim nächsten Start geht es mit „Weiterspielen“ dort weiter. Der Spielstand liegt im Browser.
-In manchen Ebenen liegen **Geheimräume**. Eine der Fackeln ist ein Hebel: Läufst du zum ersten Mal
-an ihr vorbei, entdeckst du ihn mit 30 % Chance (W100), jeder gefundene Geheimraum erhöht die Chance
-um 1. Jede Fackel würfelt nur einmal.
+Jede Ebene hat einen **Geheimraum**. Eine der Fackeln in seiner Nähe ist ein Hebel, in jedem Lauf
+eine andere. Läufst du zum ersten Mal an ihr vorbei, entdeckst du ihn mit etwas Glück (W100), und
+2,5 Sekunden später sinkt die Wand. Je reicher der Raum, desto kleiner die Chance:
+Gewöhnlich 30 %, Ungewöhnlich 22 %, Selten 15 %, Episch 9 %, Gottgeboren 4 %. Jeder gefundene
+Geheimraum erhöht die Chance um 1. Der Hebel würfelt nur einmal.
 Du siehst nur, was in deiner Sichtlinie liegt. Bereits erkundete Bereiche bleiben grau sichtbar.
 
 ## Neue Levels bauen
@@ -64,9 +66,11 @@ nach Dateinamen sortiert gespielt. Ein Zeichen steht für ein Feld:
 | `k`     | kleine Truhe     | `M`     | Skelett-Krieger  |
 | `A`     | Skelett-Schütze  | `H`     | Schrein          |
 | `B`     | Bett (speichern) | `L`     | Lagertruhe       |
-| `V`     | Händler          |         |                  |
+| `V`     | Händler          | `?`     | Geheimwand       |
 
-Eine Zeile `safe: ja` macht ein Level zum Saferoom.
+Eine Zeile `safe: ja` macht ein Level zum Saferoom. Eine Zeile wie `secret: episch` legt fest,
+wie reich der Geheimraum hinter der Wand `?` ist: `normal`, `ungewoehnlich`, `selten`, `episch`
+oder `gottgeboren`.
 
 Der Ausgang `E` braucht eine Wand im Norden (oben) und wird von Süden betreten.
 Eine Tür `D` steht in einem ein Feld breiten Durchgang.

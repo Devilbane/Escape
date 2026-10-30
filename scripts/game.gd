@@ -31,9 +31,6 @@ var camera: Camera3D
 var coins := 0
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
-## Seconds until the next far-off howl or scream somewhere in the dungeon.
-var _eerie_timer := 20.0
-const EERIE_SOUNDS := 6
 ## Seconds of camera shake left.
 var _shake := 0.0
 ## 0 is the normal view from above, 1 the close view; _zoom eases toward the target.
@@ -1223,6 +1220,10 @@ func _click(point: Vector3) -> void:
 	_pending_station = {}
 	player.walk_to(point)
 
+
+## Seconds until the next far-off howl or scream somewhere in the dungeon.
+var _eerie_timer := 20.0
+const EERIE_SOUNDS := 6
 
 ## Now and then something howls, roars or screams far away in the dark.
 ## Never in a safe room.

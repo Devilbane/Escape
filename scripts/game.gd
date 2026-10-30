@@ -694,6 +694,24 @@ func _on_quit_pressed() -> void:
 			get_tree().quit()
 		elif _name_box.visible:
 			get_tree().reload_current_scene()
+		else:
+			_close_tab()
+
+
+## Browsers only let a page close a tab it opened itself. When the tab stays
+## open, the game gives way to a goodbye page with a link to play again.
+func _close_tab() -> void:
+	var bye := Lang.t("Bis bald! Du kannst diesen Tab jetzt schließen.")
+	var again := Lang.t("Nochmal spielen")
+	JavaScriptBridge.eval("""
+		window.close();
+		setTimeout(function () {
+			if (window.closed) return;
+			document.body.innerHTML = '<div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#08040a;color:#f3d38a;font:24px Georgia,serif;text-align:center;padding:16px">'
+				+ '<div>' + %s + '</div>'
+				+ '<a href="" style="color:#c9a25a;font-size:18px">' + %s + '</a></div>';
+		}, 300);
+	""" % [JSON.stringify(bye), JSON.stringify(again)])
 
 
 ## Leaves the game for the title screen. A browser tab cannot close itself,

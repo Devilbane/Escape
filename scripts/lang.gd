@@ -50,6 +50,8 @@ const EN := {
 		"WASD: walk   Space: jump   F: strike   R: knife   M: sound\nI: inventory   L: load   C/double click: sneak   Run into things: use\nMouse: click/hold to walk, right click: knife (running: jump)",
 	"Du schleichst. Im Dunkeln sieht dich keiner.": "You sneak. In the dark nobody sees you.",
 	"Du gehst wieder normal.": "You walk normally again.",
+	"Bis bald! Du kannst diesen Tab jetzt schließen.": "See you soon! You can close this tab now.",
+	"Nochmal spielen": "Play again",
 	"tapp": "tap",
 	"Inventar": "Inventory",
 	"Springen": "Jump",

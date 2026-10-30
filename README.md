@@ -30,7 +30,7 @@ Mit `?level=3` hinter der Adresse startet das Spiel direkt in Ebene 3.
 
 ## Ziel jeder Ebene
 
-Finde den **Schlüssel**, öffne die **Tür** und steige die **Treppe** hinauf in die nächste Ebene.
+Finde den **Schlüssel**, öffne die **Tür** und steige die **Treppe** hinauf in die nächste Ebene. Oben angekommen bekommst du 5 Leben zurück.
 Fässer, Kisten, Tische, Truhen und Wandregale lassen sich durchsuchen: Darin steckt Gold,
 Wurfmesser, ein Heiltrank oder auch gar nichts. Durchsuchtes bekommt ein Häkchen.
 Skelette greifen mit Klingen oder Armbrüsten an. Über **Stacheln** kannst du springen.

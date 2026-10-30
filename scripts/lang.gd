@@ -96,6 +96,8 @@ const EN := {
 	"Du hast den Schlüssel gefunden!": "You found the key!",
 	"Das Skelett zerfällt zu Staub.": "The skeleton crumbles to dust.",
 	"Schon durchsucht": "Already searched",
+	"Bis bald! Du kannst diesen Tab jetzt schließen.": "See you soon! You can close this tab now.",
+	"Nochmal spielen": "Play again",
 	"Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.": "Your bag is full. Drop something in the inventory (key I).",
 	"%s: leer": "%s: empty",
 	"+%d Gold": "+%d gold",

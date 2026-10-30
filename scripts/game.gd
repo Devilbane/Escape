@@ -31,6 +31,9 @@ var camera: Camera3D
 var coins := 0
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
+## Seconds until the next far-off howl or scream somewhere in the dungeon.
+var _eerie_timer := 20.0
+const EERIE_SOUNDS := 6
 ## Seconds of camera shake left.
 var _shake := 0.0
 ## 0 is the normal view from above, 1 the close view; _zoom eases toward the target.
@@ -510,6 +513,7 @@ func load_level(index: int, restock := true) -> void:
 	level.bag_full.connect(func(): show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0))
 	level.door_opened.connect(func():
 		Sfx.play(self, "door")
+		Sfx.play(self, "chain", -6.0)
 		show_message(Lang.t("Die Tür öffnet sich knarrend...")))
 	level.door_locked.connect(func(): show_message(Lang.t("Verschlossen. Finde den Schlüssel!")))
 	level.player_hurt.connect(func(): player.take_damage(1, player.global_position - player.facing()))
@@ -1039,6 +1043,7 @@ func _snap_camera() -> void:
 
 
 func _process(delta: float) -> void:
+	_eerie(delta)
 	var p := player.global_position
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
 	_zoom = move_toward(_zoom, _zoom_target, delta * 2.5)
@@ -1217,3 +1222,15 @@ func _click(point: Vector3) -> void:
 	_pending_search = {}
 	_pending_station = {}
 	player.walk_to(point)
+
+
+## Now and then something howls, roars or screams far away in the dark.
+## Never in a safe room.
+func _eerie(delta: float) -> void:
+	if state != State.PLAYING or level == null or level.safe:
+		return
+	_eerie_timer -= delta
+	if _eerie_timer > 0.0:
+		return
+	_eerie_timer = randf_range(25.0, 70.0)
+	Sfx.play(self, "eerie_%d" % (randi() % EERIE_SOUNDS), randf_range(-14.0, -8.0))

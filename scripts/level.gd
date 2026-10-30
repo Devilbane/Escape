@@ -387,7 +387,16 @@ func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
 	kit.rotation.y = part[4]
 	parent.add_child(kit)
 	var mat := _kit_material(part[1])
-	for mi in kit.find_children("*", "MeshInstance3D", true, false):
+	for mi: MeshInstance3D in kit.find_children("*", "MeshInstance3D", true, false):
+		var skeleton := mi.get_parent() as Skeleton3D
+		if skeleton:
+			# The chests come rigged, and the rig shows only the lid, tipped
+			# on its back: use the plain mesh, standing upright, instead.
+			var plain := MeshInstance3D.new()
+			plain.mesh = mi.mesh
+			kit.add_child(plain)
+			skeleton.get_parent().queue_free()
+			mi = plain
 		mi.material_override = mat
 	return kit
 

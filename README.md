@@ -74,6 +74,7 @@ Eine Tür `D` steht in einem ein Feld breiten Durchgang.
 
 - Engine: [Godot 4.5](https://godotengine.org) mit dem Compatibility-Renderer, damit es im Browser läuft
 - Grafik: KayKit Dungeon Remastered, Adventurers und Skeletons von Kay Lousberg (CC0)
+- Böden, Wände und Säulen: 3D Modular Dungeon Kit von Omie's Assets (CC0)
 - Schrift: Cinzel und Cinzel Decorative (SIL Open Font License)
 - Comic-Schrift der Kampfblasen: Bangers von Vernon Adams (SIL Open Font License)
 - Jeder Push auf `main` spielt alle Levels automatisch durch und veröffentlicht die Browser-Version über GitHub Pages

@@ -35,6 +35,22 @@ signal secret_found(lever_pos: Vector3, wall_pos: Vector3)
 
 const TILE := 4.0
 const ASSET_DIR := "res://assets/dungeon/"
+const KIT_DIR := "res://assets/kit/"
+## Floors, walls and pillars from Omie's 3D Modular Dungeon Kit (CC0): real
+## carved stone instead of flat tiles. The kit is built on a 3 m grid with
+## pieces anchored at a corner, so each gets shifted and scaled onto ours.
+## piece: [kit model, texture set, offset, scale]
+const KIT_PIECES := {
+	"floor_tile_large": ["SM_TileFloor", "floor", Vector3(2, 0, 2), Vector3(4.0 / 3.0, 1.0, 4.0 / 3.0)],
+	"floor_dirt_large": ["SM_RockyFloor", "floor", Vector3(2, 0, 2), Vector3(4.0 / 3.0, 1.0, 4.0 / 3.0)],
+	"wall": ["SM_Wall", "walls", Vector3(2, 0, 0), Vector3(4.0 / 3.0, 4.0 / 2.56, 4.0 / 3.0)],
+	"wall_cracked": ["SM_Wall", "walls", Vector3(2, 0, 0), Vector3(4.0 / 3.0, 4.0 / 2.56, 4.0 / 3.0)],
+	"pillar": ["SM_Pillar", "floor", Vector3.ZERO, Vector3(2.2, 4.0 / 2.59, 2.2)],
+}
+## The bright cartoon stone of the pieces the kit has no match for is darkened
+## to sit among the kit's stone.
+const STONE_TINT := Color(0.6, 0.56, 0.52)
+const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_shelves", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs", "pillar_decorated"]
 const SOLID := "#bxotkCDHBLVF?"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
@@ -273,13 +289,57 @@ func _setup_astar() -> void:
 # --- Building ---------------------------------------------------------------
 
 func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> Node3D:
+	if KIT_PIECES.has(piece):
+		return _place_kit(KIT_PIECES[piece], pos, rot_y, parent)
 	if not _scenes.has(piece):
 		_scenes[piece] = load(ASSET_DIR + piece + ".glb")
 	var node: Node3D = _scenes[piece].instantiate()
 	node.position = pos
 	node.rotation.y = rot_y
 	parent.add_child(node)
+	if piece in TINTED_PIECES:
+		for mi in node.find_children("*", "MeshInstance3D", true, false):
+			mi.material_override = _tinted(mi.get_active_material(0))
 	return node
+
+
+func _place_kit(entry: Array, pos: Vector3, rot_y: float, parent: Node) -> Node3D:
+	var model: String = entry[0]
+	if not _scenes.has(model):
+		_scenes[model] = load(KIT_DIR + model + ".fbx")
+	var node := Node3D.new()
+	node.position = pos
+	node.rotation.y = rot_y
+	parent.add_child(node)
+	var kit: Node3D = _scenes[model].instantiate()
+	kit.position = entry[2]
+	kit.scale = entry[3]
+	node.add_child(kit)
+	var mat := _kit_material(entry[1])
+	for mi in kit.find_children("*", "MeshInstance3D", true, false):
+		mi.material_override = mat
+	return node
+
+
+func _tinted(mat: Material) -> Material:
+	# All KayKit pieces share one texture, so one darkened copy serves them all.
+	if not _scenes.has("mat_tinted"):
+		var m: StandardMaterial3D = mat.duplicate()
+		m.albedo_color = STONE_TINT
+		_scenes["mat_tinted"] = m
+	return _scenes["mat_tinted"]
+
+
+func _kit_material(set_name: String) -> StandardMaterial3D:
+	var key := "mat_" + set_name
+	if not _scenes.has(key):
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = load(KIT_DIR + set_name + "_albedo.png")
+		m.normal_enabled = true
+		m.normal_texture = load(KIT_DIR + set_name + "_normal.png")
+		m.roughness = 0.9
+		_scenes[key] = m
+	return _scenes[key]
 
 
 func _random_quarter_turn() -> float:

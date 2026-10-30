@@ -115,7 +115,7 @@ func _setup_world() -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0, 0, 0)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.36, 0.32, 0.58)
+	env.ambient_light_color = Color(0.42, 0.40, 0.37)
 	env.ambient_light_energy = 0.3
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.05
@@ -125,15 +125,15 @@ func _setup_world() -> void:
 	env.glow_hdr_threshold = 0.9
 	env.adjustment_enabled = true
 	env.adjustment_contrast = 1.08
-	env.adjustment_saturation = 1.15
+	env.adjustment_saturation = 1.0
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
 
-	# Faint cold moonlight from above gives every stone a soft shadow.
+	# Faint pale moonlight from above gives every stone a soft shadow.
 	var moon := DirectionalLight3D.new()
 	moon.rotation_degrees = Vector3(-62, 28, 0)
-	moon.light_color = Color(0.6, 0.65, 1.0)
+	moon.light_color = Color(0.82, 0.84, 0.9)
 	moon.light_energy = 0.28
 	moon.shadow_enabled = true
 	moon.directional_shadow_max_distance = 70.0

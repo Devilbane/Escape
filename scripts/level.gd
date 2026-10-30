@@ -16,6 +16,10 @@ extends Node3D
 ##   F  fountain: refills life and cures poison and curses
 ##   ?  secret wall: looks like a wall until its lever torch is found
 ##
+## The line "secret: normal|ungewoehnlich|selten|episch|gottgeboren" sets how
+## rich the secret room is. The richer it is, the harder its lever is to
+## notice. Any torch near the secret wall can be the lever, a new one each run.
+##
 ## A level with the line "safe: ja" is a safe room without enemies.
 ## A level with the line "elite: ja" has stronger skeletons with dark bones
 ## and glowing red eyes.
@@ -121,10 +125,29 @@ var _door_hint_shown := false
 ## Hidden walls and the torches that open them. Each lever rolls once,
 ## the first time the hero walks past it.
 var _secrets: Array = []
-## Chance in percent to notice a lever; the game adds 1 per room found.
-var secret_chance := SECRET_CHANCE
-const SECRET_CHANCE := 30
+## The secret room's wealth: one of TIERS.
+var secret_tier := "normal"
+## Extra chance in percent to notice a lever; the game adds 1 per room found.
+var secret_bonus := 0
 const LEVER_RANGE := 7.0
+## How many steps from the secret wall a torch may be to serve as its lever.
+const LEVER_STEPS := 10
+## Seconds between pulling the lever and the stone starting to move.
+const SECRET_DELAY := 2.5
+## Per wealth: chance in percent to notice the lever, gold in each chest,
+## the cheapest gear a chest may hold, and the colour of its name.
+const TIERS := {
+	"normal": {"name": "Gewöhnlich", "chance": 30, "gold": 10, "min_price": 0, "color": Color(0.85, 0.85, 0.85)},
+	"ungewoehnlich": {"name": "Ungewöhnlich", "chance": 22, "gold": 18, "min_price": 15, "color": Color(0.45, 0.9, 0.4)},
+	"selten": {"name": "Selten", "chance": 15, "gold": 30, "min_price": 25, "color": Color(0.35, 0.6, 1.0)},
+	"episch": {"name": "Episch", "chance": 9, "gold": 45, "min_price": 34, "color": Color(0.75, 0.4, 1.0)},
+	"gottgeboren": {"name": "Gottgeboren", "chance": 4, "gold": 70, "min_price": 42, "color": Color(1.0, 0.6, 0.15)},
+}
+## Every wall torch, with the tile it lights, and the plain walls without one.
+var _wall_torches: Array = []
+var _bare_walls: Array = []
+## A secret wall's lever is picked from at least this many torches.
+const LEVER_CHOICES := 3
 
 
 func load_from_file(path: String) -> void:
@@ -139,6 +162,11 @@ func load_from_file(path: String) -> void:
 			safe = true
 		elif line.begins_with("elite:"):
 			elite = true
+		elif line.begins_with("secret:"):
+			secret_tier = line.substr(7).strip_edges()
+			if not TIERS.has(secret_tier):
+				push_warning("Unknown secret tier: " + secret_tier)
+				secret_tier = "normal"
 		elif line != "":
 			grid.append(line)
 			width = maxi(width, line.length())
@@ -159,6 +187,7 @@ func build() -> void:
 			_build_walls(c)
 			_build_content(c, ch)
 	_build_corner_pillars()
+	_pick_levers()
 	_build_wall_collision()
 	_setup_astar()
 	var floor_shape := CollisionShape3D.new()
@@ -438,8 +467,14 @@ func _build_walls(c: Vector2i) -> void:
 			shelf.touch_cell = n
 		if low:
 			wall.scale.y = LOW_WALL_SCALE
-		elif _maybe_add_torch(pos, rot) == null and piece == "wall" and _rng.randf() < 0.18:
+			continue
+		var torch := _maybe_add_torch(pos, rot)
+		if torch != null:
+			_wall_torches.append({"holder": torch, "cell": c, "pos": pos, "rot": rot})
+		elif piece == "wall" and _rng.randf() < 0.18:
 			_add_kit_part(WALL_DECOR[_rng.randi() % WALL_DECOR.size()], wall)
+		elif piece == "wall" and cell_char(c) != "?":
+			_bare_walls.append({"cell": c, "pos": pos, "rot": rot})
 
 
 func _build_corner_pillars() -> void:
@@ -516,7 +551,9 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"k":
 			_place("trunk_large_A", pos, _random_quarter_turn())
 			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
-			_add_interactable("Truhe", pos, pos + Vector3(0, 2.4, 0), c)
+			var trunk := _add_interactable("Truhe", pos, pos + Vector3(0, 2.4, 0), c)
+			if _in_secret_room(c):
+				trunk.loot = _secret_loot(c, 0.5)
 		"o":
 			_place("pillar_decorated", pos)
 			_add_solid(pos, Vector3(1.6, 4, 1.6))
@@ -602,9 +639,28 @@ func _build_chest(c: Vector2i) -> void:
 	_add_solid(pos, Vector3(2.0, 1.5, 2.0))
 	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c)
 	obj.lid = chest.find_child("chest_gold_lid", true, false)
+	if _in_secret_room(c):
+		obj.loot = _secret_loot(c, 1.0)
+		return
 	var loot_rng := RandomNumberGenerator.new()
 	loot_rng.seed = hash("%s:chest:%d:%d" % [level_name, c.x, c.y])
 	obj.loot = {"gold": 5, "item": Items.random_item(loot_rng)}
+
+
+## Gold and gear for a chest in the secret room, as rich as its tier. A trunk
+## gets a share of the gold and, in the richest rooms, gear too.
+func _secret_loot(c: Vector2i, share: float) -> Dictionary:
+	var tier: Dictionary = TIERS[secret_tier]
+	var loot_rng := RandomNumberGenerator.new()
+	loot_rng.seed = hash("%s:secret:%d:%d" % [level_name, c.x, c.y])
+	var loot := {"gold": int(round(tier.gold * share * loot_rng.randf_range(0.8, 1.2)))}
+	if share >= 1.0 or tier.min_price >= 34:
+		loot.item = Items.random_item(loot_rng, tier.min_price)
+	return loot
+
+
+func _in_secret_room(c: Vector2i) -> bool:
+	return not _outer_side().has(c)
 
 
 ## A small stone shrine with a floating, glowing crystal.
@@ -705,7 +761,7 @@ func _secret_at(c: Vector2i) -> Dictionary:
 	var body := StaticBody3D.new()
 	add_child(body)
 	_add_box(body, cell_to_world(c) + Vector3(0, 2, 0), Vector3(TILE, 4, TILE))
-	_secrets.append({"cell": c, "body": body, "walls": [], "inner": [], "lever": null, "lever_cell": c, "rolled": false, "open": false})
+	_secrets.append({"cell": c, "body": body, "walls": [], "inner": [], "lever": null, "lever_cell": c, "lever_on_wall": false, "faces": [], "rolled": false, "open": false})
 	return _secrets[-1]
 
 
@@ -720,8 +776,55 @@ func _build_secret_face(c: Vector2i, d: Vector2i) -> void:
 	if d == Vector2i(0, 1):
 		wall.scale.y = LOW_WALL_SCALE
 	elif _outer_side().has(c):
-		secret.lever = _maybe_add_torch(pos, rot, true)
-		secret.lever_cell = c
+		secret.faces.append({"cell": c, "pos": pos, "rot": rot})
+
+
+## Tiles of the room in front of a secret wall, up to LEVER_STEPS steps
+## away, without going through a door: where its lever may hang.
+func _steps_from_secret(s: Dictionary) -> Dictionary:
+	var steps := {}
+	var todo: Array[Vector2i] = []
+	for face in s.faces:
+		steps[face.cell] = 0
+		todo.append(face.cell)
+	while not todo.is_empty():
+		var c: Vector2i = todo.pop_front()
+		if steps[c] >= LEVER_STEPS:
+			continue
+		for d in DIRS:
+			var n := c + d
+			if not steps.has(n) and _outer_side().has(n) and cell_char(n) != "D":
+				steps[n] = steps[c] + 1
+				todo.append(n)
+	return steps
+
+
+## Picks each secret wall's lever from the torches around it, at random, so
+## it is a different one every run. With no torch near, the wall gets one.
+func _pick_levers() -> void:
+	for s in _secrets:
+		var steps := _steps_from_secret(s)
+		var near: Array = []
+		for t in _wall_torches:
+			if steps.has(t.cell):
+				near.append(t)
+		# Too few torches around: hang more on the bare walls nearby.
+		var bare := _bare_walls.filter(func(w): return steps.has(w.cell))
+		while near.size() < LEVER_CHOICES and not bare.is_empty():
+			var w: Dictionary = bare.pop_at(_rng.randi() % bare.size())
+			if _torch_spots.any(func(spot): return spot.distance_to(w.pos) < TILE * 1.5):
+				continue
+			near.append({"holder": _maybe_add_torch(w.pos, w.rot, true), "cell": w.cell, "pos": w.pos, "rot": w.rot})
+			_wall_torches.append(near[-1])
+		if not near.is_empty():
+			var t: Dictionary = near[randi() % near.size()]
+			s.lever = t.holder
+			s.lever_cell = t.cell
+		elif not s.faces.is_empty():
+			var face: Dictionary = s.faces[0]
+			s.lever = _maybe_add_torch(face.pos, face.rot, true)
+			s.lever_cell = face.cell
+			s.lever_on_wall = true
 
 
 var _outer: Dictionary = {}
@@ -757,33 +860,41 @@ func _check_secrets() -> void:
 		if d.length() > LEVER_RANGE or not has_line_of_sight(player.global_position, cell_to_world(s.lever_cell)):
 			continue
 		s.rolled = true
-		if randi_range(1, 100) <= secret_chance:
+		if randi_range(1, 100) <= secret_chance():
 			_open_secret(s)
+
+
+## Chance in percent to notice this level's lever.
+func secret_chance() -> int:
+	return TIERS[secret_tier].chance + secret_bonus
 
 
 func _open_secret(s: Dictionary) -> void:
 	s.open = true
 	var torch: Node3D = s.lever
+	# The torch tips down like a lever. A moment later the false walls grind
+	# down into the floor, somewhere nearby.
 	var tween := create_tween()
-	# The torch tips down like a lever, then the false walls sink into the floor.
-	tween.tween_property(torch, "rotation:x", deg_to_rad(-40), 0.35).set_trans(Tween.TRANS_BACK)
-	for inner in s.inner:
-		inner.visible = true
-	for node in s.walls + [torch]:
-		tween.parallel().tween_property(node, "position:y", node.position.y - 4.6, 1.6).set_delay(0.4).set_ease(Tween.EASE_IN)
+	tween.tween_property(torch, "rotation:x", deg_to_rad(-30), 0.35).set_trans(Tween.TRANS_BACK)
+	var sinking: Array = s.walls + ([torch] if s.lever_on_wall else [])
 	tween.tween_callback(func():
-		for node in s.walls + [torch]:
-			node.queue_free())
-	s.body.queue_free()
-	astar.set_point_solid(s.cell, false)
-	_set_cell(s.cell, ".")
-	# Dust rolls out of the gap while the stone grinds down.
-	var dust := Effects.make_sparkles(Color(0.75, 0.62, 0.45), true)
-	dust.position = cell_to_world(s.cell) + Vector3(0, 1.0, 0)
-	dust.amount = 80
-	dust.scale_amount_min = 2.0
-	dust.scale_amount_max = 4.0
-	add_child(dust)
+		for inner in s.inner:
+			inner.visible = true
+		# Dust rolls out of the gap while the stone grinds down.
+		var dust := Effects.make_sparkles(Color(0.75, 0.62, 0.45), true)
+		dust.position = cell_to_world(s.cell) + Vector3(0, 1.0, 0)
+		dust.amount = 80
+		dust.scale_amount_min = 2.0
+		dust.scale_amount_max = 4.0
+		add_child(dust)).set_delay(SECRET_DELAY)
+	for node in sinking:
+		tween.parallel().tween_property(node, "position:y", node.position.y - 4.6, 1.6).set_delay(SECRET_DELAY).set_ease(Tween.EASE_IN)
+	tween.tween_callback(func():
+		for node in sinking:
+			node.queue_free()
+		s.body.queue_free()
+		astar.set_point_solid(s.cell, false)
+		_set_cell(s.cell, "."))
 	secret_found.emit(torch.global_position, cell_to_world(s.cell) + Vector3(0, 2.0, 0))
 
 

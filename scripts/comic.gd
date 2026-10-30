@@ -50,7 +50,7 @@ func _pop(world_pos: Vector3, kind: String) -> void:
 		"knife": Color(0.55, 0.9, 1.0), "hurt": Color(1.0, 0.25, 0.2),
 		"break": Color(0.95, 0.92, 0.8), "miss": Color(1, 1, 1),
 		"lever": Color(1.0, 0.8, 0.3), "rumble": Color(0.8, 0.68, 0.5)}[kind]
-	var size := 150.0 if kind in ["big", "rumble"] else (100.0 if kind == "miss" else 125.0)
+	var size := 112.0 if kind in ["big", "rumble"] else (75.0 if kind == "miss" else 94.0)
 
 	var root := Control.new()
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE

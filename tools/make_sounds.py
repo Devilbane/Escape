@@ -1,5 +1,7 @@
 """Builds the game's sound effects from scratch (noise, tones and envelopes),
-so there are no licences to worry about. Run: python3 tools/make_sounds.py"""
+so there are no licences to worry about. Run: python3 tools/make_sounds.py
+The footsteps (step_*, sneak_*) and the door are real recordings instead, see
+assets/sounds/CREDITS.txt."""
 import os, subprocess, wave
 import numpy as np
 
@@ -66,33 +68,6 @@ def scuff(sec, low, high, attack, decay):
     return (lowpass(n, high) - lowpass(n, low)) * env(len(n), attack, decay)
 
 
-def step(seed):
-    # A soft boot on stone: heel, then toe, a little grit under the sole and
-    # only a hint of weight. No low thud, which sounds like a drum.
-    r = np.random.default_rng(seed)
-    length = 0.2
-    out = np.zeros(int(SR * length))
-    heel = scuff(0.09, 500 + r.uniform(-80, 80), 3200 + r.uniform(-400, 400), 0.003, 0.022)
-    out[:len(heel)] += heel
-    toe_at = int(SR * r.uniform(0.055, 0.08))
-    toe = scuff(0.07, 900, 4200, 0.004, 0.016) * r.uniform(0.4, 0.6)
-    out[toe_at:toe_at + len(toe)] += toe
-    # Grit: a few tiny dry clicks as small stones shift.
-    grit = np.zeros_like(out)
-    for _ in range(r.integers(4, 9)):
-        i = int(r.uniform(0, 0.11) * SR)
-        grit[i] += r.uniform(-1, 1)
-    grit = highpass(grit, 2500) * 0.35
-    weight = lowpass(noise(length), 220) * env(len(out), 0.004, 0.012) * 0.5
-    return out + grit + weight
-
-
-def sneak_step(seed):
-    # Sneaking: just the faint brush of a sole set down with care.
-    r = np.random.default_rng(seed + 10)
-    return scuff(0.08, 1200 + r.uniform(-150, 150), 4500, 0.012, 0.02)
-
-
 def swing():
     n = noise(0.28)
     tt = t(0.28)
@@ -154,16 +129,6 @@ def key():
     return out
 
 
-def creak(sec, base):
-    tt = t(sec)
-    # Wood creak: a scratchy pulse train with a wobbling pitch.
-    f = base * (1 + 0.25 * np.sin(2 * np.pi * 1.3 * tt) + 0.1 * np.sin(2 * np.pi * 7 * tt))
-    phase = np.cumsum(f) / SR
-    pulses = (np.mod(phase, 1.0) < 0.08).astype(float)
-    x = lowpass(pulses - pulses.mean(), 2500)
-    return x * np.sin(np.pi * tt / sec)
-
-
 def knock(freq, decay):
     # A small wooden knock: a short, damped ring.
     tt = t(decay * 6)
@@ -197,15 +162,6 @@ def chest():
     out[int(SR * 0.22): int(SR * 0.22) + len(lid)] += lid
     r = rummage(5)
     out[int(SR * 0.3): int(SR * 0.3) + len(r)] += r[: len(out) - int(SR * 0.3)]
-    return out
-
-
-def door():
-    c = creak(0.9, 55)
-    thud = lowpass(noise(0.5), 150) * env(int(SR * 0.5), 0.002, 0.12) * 4
-    out = np.zeros(len(c) + len(thud))
-    out[: len(c)] += c
-    out[len(c) - int(SR * 0.05):len(c) - int(SR * 0.05) + len(thud)] += thud
     return out
 
 
@@ -289,9 +245,6 @@ def ambience():
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
-    for i in range(3):
-        save("step_%d" % i, step(i), 0.4)
-        save("sneak_%d" % i, sneak_step(i), 0.4)
     save("swing", swing(), 0.6)
     save("hit", hit(), 0.8)
     save("bones", bones(), 0.7)
@@ -301,7 +254,6 @@ if __name__ == "__main__":
     save("key", key(), 0.5)
     save("chest", chest(), 0.6)
     save("rummage", rummage(), 0.5)
-    save("door", door(), 0.8)
     save("lever", lever(), 0.8)
     save("rumble", rumble(), 0.9)
     save("drink", drink(), 0.5)

@@ -88,7 +88,7 @@ Eine Tür `D` steht in einem ein Feld breiten Durchgang.
 - Engine: [Godot 4.5](https://godotengine.org) mit dem Compatibility-Renderer, damit es im Browser läuft
 - Grafik: KayKit Dungeon Remastered, Adventurers und Skeletons von Kay Lousberg (CC0)
 - Böden, Wände, Säulen und Möbel: 3D Modular Dungeon Kit von Omie's Assets (CC0)
-- Geräusche: selbst erzeugt mit `tools/make_sounds.py`
+- Geräusche: selbst erzeugt mit `tools/make_sounds.py`, Schritte und Tür: Aufnahmen von Fantozzi, „Footsteps Leather, Cloth, Armor“ und qubodup (CC0, siehe `assets/sounds/CREDITS.txt`)
 - Schrift: Cinzel und Cinzel Decorative (SIL Open Font License)
 - Comic-Schrift der Kampfblasen: Bangers von Vernon Adams (SIL Open Font License)
 - Jeder Push auf `main` spielt alle Levels automatisch durch und veröffentlicht die Browser-Version über GitHub Pages

@@ -1225,6 +1225,7 @@ func _click(point: Vector3) -> void:
 var _eerie_timer := 20.0
 const EERIE_SOUNDS := 6
 
+
 ## Now and then something howls, roars or screams far away in the dark.
 ## Never in a safe room.
 func _eerie(delta: float) -> void:

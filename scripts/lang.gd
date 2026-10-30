@@ -203,6 +203,7 @@ const EN := {
 	"Rettet dich einmal vor dem Tod, dann verbrennt sie": "Saves you from death once, then burns up",
 	"+%d Kampfkraft": "+%d strength",
 	"+%d Härtung": "+%d hardening",
+	"Zeig auf einen Gegenstand, um seine Werte zu sehen.": "Point at an item to see its stats.",
 	"Härtung %d": "Hardening %d",
 	"Haltbarkeit %d / %d": "Durability %d / %d",
 	"%s zerbricht!": "%s breaks!",

@@ -13,6 +13,9 @@ var _panel: PanelContainer
 var _box: VBoxContainer
 var _selected := -1
 var _note := ""
+## Shows the stats of the item under the mouse (or last tapped).
+var _info: Label
+const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 
 
 func setup(owner_game: Node, hud: CanvasLayer) -> void:
@@ -81,6 +84,9 @@ func _rebuild() -> void:
 			_build_load()
 		"beenden":
 			_build_quit()
+	if current in ["inventar", "lager", "haendler"]:
+		_info = _add_label(Lang.t(INFO_HINT), 18, BLUE)
+		_info.custom_minimum_size.y = 26
 	if _note != "":
 		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
 	if not current in ["bett", "laden", "beenden"]:
@@ -100,8 +106,13 @@ func _add_label(text: String, size: int, color := Color.WHITE, font: Font = null
 	return l
 
 
-func _item_button(text: String, action: Callable, enabled := true) -> Button:
+func _item_button(text: String, action: Callable, enabled := true, id := "") -> Button:
 	var b: Button = game._make_button(text, action)
+	if id != "":
+		# Pointing at an item (or tapping it) shows its stats right away.
+		b.mouse_entered.connect(_show_info.bind(id))
+		b.focus_entered.connect(_show_info.bind(id))
+		b.mouse_exited.connect(_show_info.bind(""))
 	b.custom_minimum_size = Vector2(160, 54)
 	b.add_theme_font_size_override("font_size", 16)
 	b.disabled = not enabled
@@ -121,12 +132,21 @@ func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callabl
 	_box.add_child(grid)
 	for i in size:
 		if i < items.size():
-			var b := _item_button(label_of.call(items[i]), action.bind(i))
+			var b := _item_button(label_of.call(items[i]), action.bind(i), true, items[i])
 			if current == "inventar" and i == _selected:
 				b.modulate = Color(0.7, 1.0, 0.7)
 			grid.add_child(b)
 		else:
 			grid.add_child(_item_button("-", func(): pass, false))
+
+
+func _show_info(id: String) -> void:
+	if _info == null or not is_instance_valid(_info):
+		return
+	if id == "":
+		_info.text = Lang.t(INFO_HINT)
+	else:
+		_info.text = "%s: %s" % [Items.item_name(id), Items.describe(id, game.player.wear.get(id, 0))]
 
 
 func _stats_text() -> String:
@@ -151,7 +171,7 @@ func _build_inventory() -> void:
 	for slot in Items.SLOTS:
 		var id: String = p.equipped.get(slot, "")
 		var text: String = "%s\n%s" % [Lang.t(Items.SLOT_NAMES[slot]), Items.item_name(id) if id != "" else "-"]
-		row.add_child(_item_button(text, _unequip.bind(slot), id != ""))
+		row.add_child(_item_button(text, _unequip.bind(slot), id != "", id))
 	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), Items.BAG_SIZE], 20)
 	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _select)
 	if _selected >= 0 and _selected < p.bag.size():

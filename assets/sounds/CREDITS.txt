@@ -19,4 +19,9 @@ https://opengameart.org/content/80-cc0-creature-sfx
 https://opengameart.org/content/80-cc0-rpg-sfx
 License: CC0 (public domain).
 
+Archer shots (bow_0 to bow_2): "Crossbow Shoot" and "Crossbow Bolt Pass" from
+"Medieval sound effects - Weapon Textures", layered and trimmed,
+https://opengameart.org/content/medieval-sound-effects-weapon-textures
+License: CC0 (public domain).
+
 All other sounds are made by tools/make_sounds.py.

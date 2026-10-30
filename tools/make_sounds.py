@@ -60,12 +60,37 @@ def save(name, x, peak=0.9):
         w.writeframes((x * 32767).astype(np.int16).tobytes())
 
 
+def scuff(sec, low, high, attack, decay):
+    # Band of noise, like a boot sole brushing over stone.
+    n = noise(sec)
+    return (lowpass(n, high) - lowpass(n, low)) * env(len(n), attack, decay)
+
+
 def step(seed):
+    # A soft boot on stone: heel, then toe, a little grit under the sole and
+    # only a hint of weight. No low thud, which sounds like a drum.
     r = np.random.default_rng(seed)
-    n = noise(0.12)
-    thud = lowpass(n, 380 + r.uniform(-60, 60)) * env(len(n), 0.002, 0.03) * 3
-    grit = highpass(noise(0.12), 2500) * env(len(n), 0.001, 0.012) * 0.25
-    return thud + grit
+    length = 0.2
+    out = np.zeros(int(SR * length))
+    heel = scuff(0.09, 500 + r.uniform(-80, 80), 3200 + r.uniform(-400, 400), 0.003, 0.022)
+    out[:len(heel)] += heel
+    toe_at = int(SR * r.uniform(0.055, 0.08))
+    toe = scuff(0.07, 900, 4200, 0.004, 0.016) * r.uniform(0.4, 0.6)
+    out[toe_at:toe_at + len(toe)] += toe
+    # Grit: a few tiny dry clicks as small stones shift.
+    grit = np.zeros_like(out)
+    for _ in range(r.integers(4, 9)):
+        i = int(r.uniform(0, 0.11) * SR)
+        grit[i] += r.uniform(-1, 1)
+    grit = highpass(grit, 2500) * 0.35
+    weight = lowpass(noise(length), 220) * env(len(out), 0.004, 0.012) * 0.5
+    return out + grit + weight
+
+
+def sneak_step(seed):
+    # Sneaking: just the faint brush of a sole set down with care.
+    r = np.random.default_rng(seed + 10)
+    return scuff(0.08, 1200 + r.uniform(-150, 150), 4500, 0.012, 0.02)
 
 
 def swing():
@@ -139,8 +164,40 @@ def creak(sec, base):
     return x * np.sin(np.pi * tt / sec)
 
 
+def knock(freq, decay):
+    # A small wooden knock: a short, damped ring.
+    tt = t(decay * 6)
+    return np.sin(2 * np.pi * freq * tt) * np.exp(-tt / decay)
+
+
+def rummage(seed=3):
+    # Hands going through a barrel or crate: a few dry rustles and the
+    # light knock of things bumping into wood.
+    r = np.random.default_rng(seed)
+    out = np.zeros(int(SR * 0.55))
+    for _ in range(5):
+        at = int(r.uniform(0, 0.4) * SR)
+        rustle = scuff(r.uniform(0.05, 0.1), 1500, 6000, 0.008, r.uniform(0.02, 0.035)) * r.uniform(0.4, 0.8)
+        out[at:at + len(rustle)] += rustle[: len(out) - at]
+    for _ in range(3):
+        at = int(r.uniform(0.05, 0.45) * SR)
+        k = knock(r.uniform(350, 700), 0.012) * r.uniform(0.3, 0.6)
+        out[at:at + len(k)] += k[: len(out) - at]
+    return out
+
+
 def chest():
-    return creak(0.5, 70)
+    # A heavy lid: a short squeak of the hinge, then the rummaging.
+    tt = t(0.22)
+    f = 700 + 500 * tt / 0.22 + 25 * np.sin(2 * np.pi * 30 * tt)
+    squeak = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * tt / 0.22) * 0.25
+    lid = knock(180, 0.03) * 0.5
+    out = np.zeros(int(SR * 0.9))
+    out[: len(squeak)] += squeak
+    out[int(SR * 0.22): int(SR * 0.22) + len(lid)] += lid
+    r = rummage(5)
+    out[int(SR * 0.3): int(SR * 0.3) + len(r)] += r[: len(out) - int(SR * 0.3)]
+    return out
 
 
 def door():
@@ -233,7 +290,8 @@ def ambience():
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for i in range(3):
-        save("step_%d" % i, step(i), 0.5)
+        save("step_%d" % i, step(i), 0.4)
+        save("sneak_%d" % i, sneak_step(i), 0.4)
     save("swing", swing(), 0.6)
     save("hit", hit(), 0.8)
     save("bones", bones(), 0.7)
@@ -241,7 +299,8 @@ if __name__ == "__main__":
     save("throw", throw(), 0.5)
     save("coin", coin(), 0.45)
     save("key", key(), 0.5)
-    save("chest", chest(), 0.7)
+    save("chest", chest(), 0.6)
+    save("rummage", rummage(), 0.5)
     save("door", door(), 0.8)
     save("lever", lever(), 0.8)
     save("rumble", rumble(), 0.9)

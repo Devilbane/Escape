@@ -33,6 +33,8 @@ var coins := 0
 var secrets_found := 0
 ## Levels left in a row without finding their secret room.
 var dry_levels := 0
+## Lives the hero gets back for climbing to the next level.
+const STAIRS_HEAL := 5
 ## From this level on (counting from 0) a run that has found no secret room
 ## yet gets one for sure, and never more than this many levels pass without.
 const FIRST_SURE_SECRET := 2
@@ -507,7 +509,8 @@ func load_level(index: int, restock := true) -> void:
 	player.level = level
 	player.frozen = false
 	player.controllable = true
-	# Walking down to the next level never heals; the fountain does.
+	# Arriving on a level never heals by itself; climbing the stairs gives
+	# STAIRS_HEAL (see _next_level) and the fountain heals fully.
 	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
 	level.key_collected.connect(_on_key_collected)
@@ -1048,6 +1051,12 @@ func _next_level() -> void:
 	state = State.PLAYING
 	create_tween().tween_property(_fade, "color:a", 0.0, 0.8)
 	_announce_level()
+	# A breather on the stairs.
+	var healed := mini(STAIRS_HEAL, player.max_hp - player.hp)
+	if healed > 0:
+		player.hp += healed
+		_update_hud()
+		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+%d" % healed, Color(0.5, 1.0, 0.5))
 
 
 # --- Per frame --------------------------------------------------------------

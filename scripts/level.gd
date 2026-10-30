@@ -1327,6 +1327,8 @@ func _spawn_enemies() -> void:
 				e.level = self
 				add_child(e)
 				e.global_position = cell_to_world(c)
+				if e.kind == "waechter":
+					e.watch(_guarded_spot())
 				e.died.connect(func():
 					enemy_killed.emit()
 					_drop_gear(e))
@@ -1342,6 +1344,16 @@ const DROP_CHANCE := 0.1
 
 ## The items a skeleton wears: up to two (three for a brute), no specials,
 ## one per slot. Fixed per level and tile, like the loot in chests.
+## What a guardian watches over: the key, or else the stairs out.
+func _guarded_spot() -> Vector3:
+	for ch in "KE":
+		for y in height:
+			for x in width:
+				if cell_char(Vector2i(x, y)) == ch:
+					return cell_to_world(Vector2i(x, y))
+	return Vector3.ZERO
+
+
 func _roll_gear(kind: String, c: Vector2i) -> Array[String]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("%s:gear:%d:%d" % [level_name, c.x, c.y])

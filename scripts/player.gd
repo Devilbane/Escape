@@ -360,7 +360,10 @@ func melee() -> void:
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0
 		if to.length() < MELEE_RANGE + e.girth() and (to.length() < 1.2 + e.girth() or facing().dot(to.normalized()) > 0.25):
-			e.take_hit(power, global_position)
+			if e.open_to_backstab(global_position):
+				e.take_hit(power, global_position, "backstab")
+			else:
+				e.take_hit(power, global_position)
 			hits += 1
 	if hits == 0 and target:
 		Comic.pop(global_position + facing() * 1.5, "miss")

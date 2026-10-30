@@ -15,6 +15,10 @@ var equips := 0
 ## is down to its last two lives (a brute hits for 2), and the test counts
 ## how often that was needed.
 var rescues := 0
+var backstabs := 0
+## Where the hero stood a moment ago, to notice it walking into a corner.
+var _last_spot := Vector3.INF
+var _still := 0.0
 
 
 func _initialize() -> void:
@@ -48,7 +52,7 @@ func _process(delta: float) -> bool:
 		print("FAIL: the hero fell on level ", game.level_index + 1)
 		return true
 	if game.state == game.State.WON:
-		print("PASS: all ", game.level_files.size(), " levels finished, gold ", game.coins, ", searched ", searched, ", shrine gifts ", gifts, ", bag emptied ", equips, ", worn ", game.player.equipped.values(), ", rescued ", rescues, "x")
+		print("PASS: all ", game.level_files.size(), " levels finished, gold ", game.coins, ", searched ", searched, ", shrine gifts ", gifts, ", bag emptied ", equips, ", worn ", game.player.equipped.values(), ", rescued ", rescues, "x, backstabs ", backstabs)
 		return true
 	if game.level_index > reached:
 		reached = game.level_index
@@ -68,9 +72,21 @@ func _process(delta: float) -> bool:
 		return false
 	var lvl: Level = game.level
 
+	# Caught on a shrine or a table edge with somewhere to go: step aside.
+	if player.global_position.distance_to(_last_spot) > 0.3:
+		_last_spot = player.global_position
+		_still = 0.0
+	else:
+		_still += delta
+		if _still > 4.0:
+			_still = 0.0
+			var side := Vector3.RIGHT.rotated(Vector3.UP, randf() * TAU) * 2.5
+			player.path.assign([player.global_position + side])
+			return false
+
 	# Fight anything close by.
 	for e in lvl.enemies:
-		if is_instance_valid(e) and not e.dead and lvl.has_line_of_sight(player.global_position, e.global_position):
+		if is_instance_valid(e) and not e.dead and e.kind != "waechter" and lvl.has_line_of_sight(player.global_position, e.global_position):
 			var d := player.global_position.distance_to(e.global_position)
 			if d < Player.MELEE_RANGE + e.girth() - 0.2:
 				player.melee()
@@ -87,6 +103,40 @@ func _process(delta: float) -> bool:
 						# It stands where the path finder cannot go (by a pillar): step straight at it.
 						player.path.assign([e.global_position])
 				return false
+
+	# An armoured guardian only falls to a stab in the back: sneak round
+	# behind it while it stands guard; while it hunts, just carry on.
+	var guardian: Enemy = null
+	for e in lvl.enemies:
+		if is_instance_valid(e) and not e.dead and e.kind == "waechter" and not e.is_hunting():
+			guardian = e
+	if guardian:
+		var near_it := guardian.global_position.distance_to(player.global_position) < 16.0
+		if near_it != player.sneaking and lvl.enemies.all(func(e): return not is_instance_valid(e) or not e.is_hunting()):
+			game._toggle_sneak()
+		if guardian.open_to_backstab(player.global_position) and player.global_position.distance_to(guardian.global_position) < Player.MELEE_RANGE + guardian.girth() - 0.4:
+			player.melee()
+			backstabs += 1
+			return false
+		if guardian.open_to_backstab(player.global_position) and player.global_position.distance_to(guardian.global_position) < Level.TILE * 1.2:
+			# Right behind it: step straight up to it.
+			player.path.assign([guardian.global_position])
+		elif player.path.is_empty():
+			# Round it by the side, out of its eyes and reach, then up behind it.
+			var target: Vector3 = guardian.global_position - guardian.ahead() * Level.TILE * 0.9
+			if guardian.ahead().dot(player.global_position - guardian.global_position) > 1.0:
+				var side := guardian.ahead().cross(Vector3.UP) * Level.TILE
+				if lvl.cell_char(lvl.world_to_cell(guardian.global_position + side)) == "#" or \
+						(player.global_position.distance_to(guardian.global_position - side) < player.global_position.distance_to(guardian.global_position + side) \
+						and lvl.cell_char(lvl.world_to_cell(guardian.global_position - side)) != "#"):
+					side = -side
+				target = guardian.global_position + side
+			player.walk_to(target)
+			if player.path.is_empty():
+				player.path.assign([target])
+		return false
+	elif player.sneaking:
+		game._toggle_sneak()
 
 	if timer < 0.4 or not player.path.is_empty():
 		return false

@@ -826,6 +826,7 @@ func _start_playing() -> void:
 
 
 func _announce_level() -> void:
+	_guardian_tip = -1
 	show_message(Lang.t("Ebene %d: %s\n%s") % [level_index + 1, Lang.t(level.level_name), Lang.t(level.hint)], 3.5)
 
 
@@ -1082,8 +1083,34 @@ func _snap_camera() -> void:
 	camera.global_position = p + _camera_offset()
 
 
+## Tips on sneaking, shown one after another the first time the hero sees
+## an armoured guardian on a level; -1 until then.
+const GUARDIAN_TIPS := [
+	"Ein gepanzerter Wächter! Klingen und Messer prallen an ihm ab.\nNur ein Stich in den Rücken bezwingt ihn.",
+	"Skelette sehen nur nach vorn (120°) und nur, was im Licht steht.\nIm Dunkeln sieht er dich nicht, im Schein einer Fackel schon.",
+	"Deine Laterne verrät dich, und deine Schritte hört er rundherum.\nSchleich dich an (C oder Doppelklick): leise, langsam, Laterne abgeblendet.",
+	"Von hinten bemerkt er dich beim Schleichen auch ganz nah nicht.\nStell dich hinter ihn und schlag zu (F)!",
+	"Entdeckt er dich, lauf weg. Nach ein paar Sekunden gibt er auf\nund kehrt auf seinen Posten zurück. Dann versuch es noch einmal.",
+]
+var _guardian_tip := -1
+
+
+## The first time the hero sees an armoured guardian, explains how to beat it.
+func _guardian_intro() -> void:
+	if state != State.PLAYING or _message_busy() or _guardian_tip >= GUARDIAN_TIPS.size():
+		return
+	if _guardian_tip < 0:
+		if not level.enemies.any(func(e): return is_instance_valid(e) and not e.dead and e.kind == "waechter" \
+				and e.global_position.distance_to(player.global_position) < (16.0 if e.visible else 10.0)):
+			return
+		_guardian_tip = 0
+	show_message(Lang.t(GUARDIAN_TIPS[_guardian_tip]), 4.5)
+	_guardian_tip += 1
+
+
 func _process(delta: float) -> void:
 	_eerie(delta)
+	_guardian_intro()
 	var p := player.global_position
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
 	_zoom = move_toward(_zoom, _zoom_target, delta * 2.5)

@@ -3,7 +3,10 @@ extends CharacterBody3D
 ## A skeleton guard. Warriors run at the hero and strike with a blade,
 ## archers keep their distance and shoot crossbow bolts, mages cast magic
 ## orbs that curve after the hero, minions are small, quick and frail, and
-## brutes are big, slow and hit twice as hard.
+## brutes are big, slow and hit twice as hard. A guardian wears armour no
+## blade gets through: only a stab in the back, before it has noticed the
+## hero, brings it down. It stands still and watches what it guards.
+## Any skeleton that has not noticed the hero falls to such a stab at once.
 
 signal died
 
@@ -25,9 +28,13 @@ const KINDS := {
 	"magier": {"model": "Skeleton_Mage", "weapon": "Skeleton_Staff", "hp": 2, "speed": 3.4, "damage": 1, "reach": 20.0, "size": 1.0, "cooldown": 3.0, "ranged": true},
 	"wicht": {"model": "Skeleton_Minion", "weapon": "Skeleton_Blade", "hp": 1, "speed": 6.4, "damage": 1, "reach": 1.8, "size": 0.8, "cooldown": 1.0},
 	"koloss": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Axe", "shield": "Skeleton_Shield_Large_A", "hp": 7, "speed": 3.3, "damage": 2, "reach": 2.5, "size": 1.5, "cooldown": 2.0, "tint": Color(0.72, 0.42, 0.34)},
+	"waechter": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Axe", "shield": "Skeleton_Shield_Large_A", "hp": 1, "speed": 3.0, "damage": 2, "reach": 2.3, "size": 1.25, "cooldown": 1.6, "tint": Color(0.46, 0.5, 0.58), "armored": true},
 }
 ## Which map letter places which kind.
-const LETTERS := {"M": "krieger", "A": "schuetze", "Z": "magier", "w": "wicht", "G": "koloss"}
+const LETTERS := {"M": "krieger", "A": "schuetze", "Z": "magier", "w": "wicht", "G": "koloss", "W": "waechter"}
+## A stab counts as from behind when it comes from outside this angle either
+## side of where the skeleton looks.
+const BEHIND := deg_to_rad(100.0)
 
 var level: Level
 var kind := "krieger"
@@ -57,13 +64,17 @@ var _detour_time := 0.0
 var _path: Array[Vector3] = []
 var _repath := 0.0
 var _knockback := Vector3.ZERO
-var _home := Vector3.ZERO
+## The post, taken where the skeleton stands on its first frame (the level
+## places it only after it is ready).
+var _home := Vector3.INF
 ## Where the hero was last noticed, and how long ago.
 var _last_known := Vector3.ZERO
 var _lost := 0.0
 ## A guard at rest looks around now and then.
 var _look_angle := 0.0
 var _look_timer := 0.0
+## Where a guardian keeps looking while at its post.
+var _watch := Vector3.INF
 var _step_timer := 0.0
 ## How far the hero hears a skeleton walking in the dark.
 const HEARD_FROM := 16.0
@@ -124,13 +135,12 @@ func _ready() -> void:
 		var part := "umhang" if mesh.name.ends_with("_Cloak") or mesh.name.ends_with("_Cape") else "ruestung" if mesh.name.ends_with("_Body") else ""
 		if part != "" and _worn(part).has("tint"):
 			_tint(mesh, _worn(part).tint, _worn(part).get("metal", 0.0))
-	if elite or kind == "koloss":
+	if elite or kind == "koloss" or kind == "waechter":
 		_glowing_eyes()
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_D_Skeletons", "Skeleton_Inactive_Standing_Pose"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	_play("Idle")
-	_home = global_position
 	_cooldown = randf_range(0.5, 1.5)
 	_look_angle = randf() * TAU
 	_model.rotation.y = _look_angle
@@ -204,9 +214,41 @@ func _play_once(anim_name: String, duration: float) -> void:
 	_busy = duration
 
 
-## Kind is "hit" for a blade or "knife" for a thrown knife; it picks the comic word.
+## Has the guardian look at a spot (what it guards) while at its post.
+func watch(at: Vector3) -> void:
+	_watch = at
+	var dir := at - global_position
+	_look_angle = atan2(dir.x, dir.z)
+	_model.rotation.y = _look_angle
+
+
+## Which way the skeleton looks.
+func ahead() -> Vector3:
+	return Vector3(sin(_model.rotation.y), 0, cos(_model.rotation.y))
+
+
+## Whether a blade from `from` would be a stab in the back: from behind,
+## and the skeleton has not noticed the hero.
+func open_to_backstab(from: Vector3) -> bool:
+	var to := from - global_position
+	to.y = 0.0
+	return not _awake and not dead and ahead().angle_to(to) > BEHIND
+
+
+## Kind is "hit" for a blade, "knife" for a thrown knife or "backstab" for a
+## stab in the back; it picks the comic word.
 func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	if dead:
+		return
+	if kind == "backstab":
+		damage = hp
+	elif _stats.get("armored", false):
+		# Blades glance off the guardian's armour, and it turns to fight.
+		if wakes:
+			_wake(from)
+		Effects.float_text(level, global_position + Vector3(0, 2.2 * _stats.size, 0), Lang.t("Nur ein Stich in den Rücken!"), Color(0.8, 0.85, 0.95))
+		Sfx.play(self, "hit", 0.0, global_position)
+		Comic.pop(global_position, "block")
 		return
 	hp -= damage
 	if wakes:
@@ -217,7 +259,7 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	Effects.float_text(level, global_position + Vector3(0, 2.2 * _stats.size, 0), "-%d" % damage, Color(1, 0.45, 0.35))
 	Sfx.play(self, "hit", 0.0, global_position)
 	if hp <= 0:
-		Comic.pop(global_position, "break")
+		Comic.pop(global_position, "backstab" if kind == "backstab" else "break")
 		Sfx.play(self, "bones", 0.0, global_position)
 		_die()
 	else:
@@ -227,7 +269,7 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 
 ## Spikes hurt skeletons too, once per thrust.
 func hurt_by_trap(at: Vector3) -> void:
-	if _trap_cool > 0.0 or dead:
+	if _trap_cool > 0.0 or dead or _stats.get("armored", false):
 		return
 	_trap_cool = 1.2
 	take_hit(1, at, "hit", false)
@@ -260,6 +302,8 @@ func _die() -> void:
 func _physics_process(delta: float) -> void:
 	if dead or level == null or level.player == null:
 		return
+	if _home == Vector3.INF:
+		_home = global_position
 	_busy = maxf(0.0, _busy - delta)
 	_trap_cool = maxf(0.0, _trap_cool - delta)
 	_cooldown = maxf(0.0, _cooldown - delta)
@@ -388,15 +432,20 @@ func is_hunting() -> bool:
 
 ## Whether the skeleton sees or hears the hero right now.
 func _notices(player: Player, to_player: Vector3, dist: float, sees: bool) -> bool:
-	if dist < TOUCH:
+	var in_view := ahead_angle(to_player) <= SIGHT_CONE
+	# Right up close it notices, unless the hero sneaks up from behind.
+	if dist < TOUCH and (in_view or not player.sneaking or _awake):
 		return true
 	if dist < HEARING and player.is_noisy():
 		return true
 	if not sees or not player.is_lit():
 		return false
-	var ahead := Vector3(sin(_model.rotation.y), 0, cos(_model.rotation.y))
 	# Once hunting, a skeleton keeps its eyes on the hero all around.
-	return _awake or ahead.angle_to(to_player) <= SIGHT_CONE
+	return _awake or in_view
+
+
+func ahead_angle(to: Vector3) -> float:
+	return ahead().angle_to(to)
 
 
 ## Starts or keeps up the hunt, heading for where the hero was noticed.
@@ -412,7 +461,11 @@ func _rest(delta: float) -> Vector3:
 	to_home.y = 0.0
 	if to_home.length() < 1.0:
 		_path.clear()
-		_look_around(delta)
+		if _watch != Vector3.INF:
+			# A guardian turns back to what it guards and keeps still.
+			_model.rotation.y = lerp_angle(_model.rotation.y, _look_angle, 1.0 - exp(-3.0 * delta))
+		else:
+			_look_around(delta)
 		return Vector3.ZERO
 	if _repath <= 0.0 or _path.is_empty():
 		_repath = 1.0

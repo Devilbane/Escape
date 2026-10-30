@@ -473,5 +473,5 @@ func _shoot(player: Player) -> void:
 		return
 	var origin := global_position + Vector3(0, 1.4, 0)
 	var target := player.global_position + Vector3(0, 1.2, 0)
-	Sfx.play(self, "magic" if magic else "bow", -2.0, global_position)
+	Sfx.play(self, "magic" if magic else "bow_%d" % (randi() % 3), -2.0, global_position)
 	Projectile.spawn(level, origin, target - origin, false, magic)

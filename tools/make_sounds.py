@@ -203,14 +203,6 @@ def magic():
     return x * np.sin(np.pi * tt / 0.6)
 
 
-def bow():
-    tt = t(0.35)
-    out = np.sin(2 * np.pi * 180 * tt) * env(len(tt), 0.001, 0.06)
-    w = throw()
-    out[: len(w)] += w * 0.5
-    return out
-
-
 def chime(notes, gap, decay):
     total = gap * len(notes) + decay * 4
     tt = t(total)
@@ -258,7 +250,6 @@ if __name__ == "__main__":
     save("rumble", rumble(), 0.9)
     save("drink", drink(), 0.5)
     save("magic", magic(), 0.5)
-    save("bow", bow(), 0.6)
     save("secret", chime([523, 659, 784, 1047], 0.12, 0.25), 0.5)
     save("level_done", chime([392, 523, 659, 784], 0.15, 0.3), 0.5)
     save("gift", chime([784, 988, 1175], 0.1, 0.3), 0.45)

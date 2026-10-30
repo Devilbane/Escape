@@ -44,7 +44,7 @@ Harte Rüstung (Ritterhelm, Wappenschild, Kettenhemd, Plattenpanzer) hat **Härt
 Treffer einen festen Wert ab (mindestens 1 Schaden bleibt). Jeder Treffer nutzt sie mit 5 % Chance um einen
 Punkt **Haltbarkeit** ab; ist die verbraucht, zerbricht das Teil.
 Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es einen **Brunnen**,
-der dein Leben auffüllt und Gift und Flüche heilt, eine Lagertruhe, einen Händler, der für Gold kauft und verkauft, und ein Bett. Im Bett wird gespeichert und du loggst aus.
+der dein Leben auffüllt und Gift und Flüche heilt, eine Lagertruhe, einen Händler, der für Gold kauft und verkauft, und ein Bett. Beim Betreten der Zuflucht wird automatisch gespeichert; im Bett wird noch einmal gespeichert und du loggst aus.
 Beim nächsten Start geht es mit „Weiterspielen“ dort weiter. Der Spielstand liegt im Browser.
 Jede Ebene hat einen **Geheimraum**. Eine der Fackeln in seiner Nähe ist ein Hebel, in jedem Lauf
 eine andere. Läufst du zum ersten Mal an ihr vorbei, entdeckst du ihn mit etwas Glück (W100), und

@@ -40,7 +40,8 @@ static func _stream(sound: String) -> AudioStream:
 
 
 ## Plays a sound once. With `at`, it fades with the distance from the camera.
-static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null) -> void:
+## `pitch` shifts the sound up or down around the usual small random spread.
+static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null, pitch := 1.0) -> void:
 	if tree_node == null or not tree_node.is_inside_tree():
 		return
 	var tree := tree_node.get_tree()
@@ -55,7 +56,7 @@ static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null) ->
 	var p := AudioStreamPlayer.new()
 	p.stream = _stream(sound)
 	p.volume_db = volume_db
-	p.pitch_scale = 1.0 + randf_range(-PITCH_SPREAD, PITCH_SPREAD)
+	p.pitch_scale = pitch + randf_range(-PITCH_SPREAD, PITCH_SPREAD)
 	p.process_mode = Node.PROCESS_MODE_ALWAYS
 	tree.root.add_child(p)
 	p.finished.connect(p.queue_free)

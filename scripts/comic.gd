@@ -13,6 +13,8 @@ const BREAK_WORDS := ["KNACK!", "KLAPPER!"]
 const MISS_WORDS := ["WUSCH!"]
 const LEVER_WORDS := ["KLACK!", "KLICK!"]
 const RUMBLE_WORDS := ["RUMMS!", "GRUMPEL!"]
+const BACKSTAB_WORDS := ["STICH!", "RATSCH!"]
+const BLOCK_WORDS := ["KLONG!", "PLONG!"]
 
 ## How much a bubble grows at most (with its tilt), so it is kept apart at full size.
 const GROWN := 1.5
@@ -35,7 +37,8 @@ func _ready() -> void:
 
 
 ## Shows a word at a point in the world. Kind picks words and colours:
-## "hit", "big", "knife", "hurt", "break", "miss", "lever" or "rumble".
+## "hit", "big", "knife", "hurt", "break", "miss", "lever", "rumble",
+## "backstab" or "block".
 static func pop(world_pos: Vector3, kind: String) -> void:
 	if current == null or current.camera == null:
 		return
@@ -45,12 +48,14 @@ static func pop(world_pos: Vector3, kind: String) -> void:
 func _pop(world_pos: Vector3, kind: String) -> void:
 	var words: Array = {"hit": HIT_WORDS, "big": BIG_WORDS, "knife": KNIFE_WORDS,
 		"hurt": HURT_WORDS, "break": BREAK_WORDS, "miss": MISS_WORDS,
-		"lever": LEVER_WORDS, "rumble": RUMBLE_WORDS}[kind]
+		"lever": LEVER_WORDS, "rumble": RUMBLE_WORDS, "backstab": BACKSTAB_WORDS,
+		"block": BLOCK_WORDS}[kind]
 	var fill: Color = {"hit": Color(1.0, 0.86, 0.15), "big": Color(1.0, 0.55, 0.1),
 		"knife": Color(0.55, 0.9, 1.0), "hurt": Color(1.0, 0.25, 0.2),
 		"break": Color(0.95, 0.92, 0.8), "miss": Color(1, 1, 1),
-		"lever": Color(1.0, 0.8, 0.3), "rumble": Color(0.8, 0.68, 0.5)}[kind]
-	var size := 112.0 if kind in ["big", "rumble"] else (75.0 if kind == "miss" else 94.0)
+		"lever": Color(1.0, 0.8, 0.3), "rumble": Color(0.8, 0.68, 0.5),
+		"backstab": Color(0.85, 0.15, 0.25), "block": Color(0.72, 0.78, 0.88)}[kind]
+	var size := 112.0 if kind in ["big", "rumble", "backstab"] else (75.0 if kind == "miss" else 94.0)
 
 	var root := Control.new()
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE

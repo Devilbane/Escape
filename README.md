@@ -63,6 +63,11 @@ dich aus den Augen, suchen sie noch ein paar Sekunden und gehen dann zurück auf
 Hat dich schon ein Skelett entdeckt (rotes **!**), kannst du erst wieder schleichen, wenn es aufgibt.
 Ein „tapp“ im Dunkeln ist ein Skelett, das du nicht siehst, aber hörst.
 
+**Stich in den Rücken:** Ein Schlag von hinten auf ein Skelett, das dich noch nicht bemerkt hat,
+fällt es sofort. Schleichst du dich von hinten an, bemerkt es dich auch ganz nah nicht. In der Gruft
+(Ebene 4) bewacht ein gepanzerter **Wächter** den Schlüssel: Klingen und Messer prallen an ihm ab,
+nur ein Stich in den Rücken bezwingt ihn. Er steht still und blickt auf das, was er bewacht.
+
 Durchsuchte Fässer, Kisten, Tische und Truhen erkennst du an Münzen und einem zerrissenen Blatt davor.
 
 ## Neue Levels bauen

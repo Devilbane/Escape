@@ -1016,9 +1016,9 @@ func _build_door(c: Vector2i) -> void:
 	body.position = pos
 	body.rotation.y = rot
 	add_child(body)
-	_add_box(body, Vector3(-1.45, 2, 0), Vector3(1.1, 4, 1))
-	_add_box(body, Vector3(1.45, 2, 0), Vector3(1.1, 4, 1))
-	var leaf := _add_box(body, Vector3(0, 2, 0), Vector3(1.8, 4, 1))
+	_add_box(body, Vector3(-1.55, 2, 0), Vector3(1.0, 4, 1))
+	_add_box(body, Vector3(1.55, 2, 0), Vector3(1.0, 4, 1))
+	var leaf := _add_box(body, Vector3(0, 2, 0), Vector3(2.2, 4, 1))
 	_doors.append({"door": door.find_child("wall_doorway_door", true, false), "leaf": leaf, "cell": c, "pos": pos, "open": false})
 
 
@@ -1164,7 +1164,7 @@ func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector
 		loot = {"potion": 1}
 	else:
 		loot = {"item": Items.random_item(loot_rng)}
-	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null, "icon": null}
+	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null}
 	interactables.append(obj)
 	return obj
 
@@ -1202,21 +1202,62 @@ func search(obj: Dictionary) -> Dictionary:
 	obj.searched = true
 	if obj.lid:
 		create_tween().tween_property(obj.lid, "rotation:x", obj.lid.rotation.x - deg_to_rad(70), 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	var icon := Sprite3D.new()
-	icon.texture = Effects.searched_icon()
-	icon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	icon.pixel_size = 0.012
-	icon.no_depth_test = true
-	icon.render_priority = 10
-	icon.modulate = Color(1, 1, 1, 0.85)
-	icon.position = obj.icon_pos
-	add_child(icon)
-	obj.icon = icon
+	_scatter_debris(obj)
 	if not obj.loot.is_empty():
 		var burst := Effects.make_sparkles(Color(1.0, 0.85, 0.3), true)
 		burst.position = obj.icon_pos - Vector3(0, 1.0, 0)
 		add_child(burst)
 	return obj.loot
+
+
+## A coin or two and a torn page left on the floor in front of a searched
+## object, toward where the hero stood, so it reads as already gone through.
+func _scatter_debris(obj: Dictionary) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(obj.cell) ^ hash(level_name)
+	var front := Vector3(player.global_position.x - obj.pos.x, 0, player.global_position.z - obj.pos.z) if player else Vector3.BACK
+	front = front.normalized() if front.length() > 0.01 else Vector3.BACK
+	var side := front.cross(Vector3.UP)
+	var base := Vector3(obj.pos.x, 0.03, obj.pos.z) + front * 1.5
+	for i in rng.randi_range(1, 2):
+		var coin := _place("coin", base + side * rng.randf_range(-1.0, 1.0) + front * rng.randf_range(-0.3, 0.4), 0.0)
+		coin.scale = Vector3.ONE * 1.6
+		coin.rotation = Vector3(0, rng.randf() * TAU, 0)
+	var page := MeshInstance3D.new()
+	page.mesh = _torn_page(rng)
+	page.position = base + side * rng.randf_range(-0.8, 0.8) + Vector3(0, 0.02, 0)
+	page.rotation.y = rng.randf() * TAU
+	add_child(page)
+
+
+static var _page_material: StandardMaterial3D
+
+## A flat scrap of parchment with ragged edges.
+func _torn_page(rng: RandomNumberGenerator) -> Mesh:
+	if _page_material == null:
+		_page_material = StandardMaterial3D.new()
+		_page_material.albedo_color = Color(0.62, 0.55, 0.4)
+		_page_material.roughness = 1.0
+		_page_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	var rim: Array[Vector3] = []
+	var steps := 14
+	for i in steps:
+		var a := TAU * i / steps
+		# A squashed square: x, z between the corners of a 0.9 x 0.65 sheet.
+		var dir := Vector2(cos(a), sin(a))
+		var r := 1.0 / maxf(absf(dir.x) / 0.45, absf(dir.y) / 0.32)
+		r *= rng.randf_range(0.72, 1.0)
+		rim.append(Vector3(dir.x * r, 0, dir.y * r))
+	for i in steps:
+		st.add_vertex(Vector3.ZERO)
+		st.add_vertex(rim[i])
+		st.add_vertex(rim[(i + 1) % steps])
+	var mesh := st.commit()
+	mesh.surface_set_material(0, _page_material)
+	return mesh
 
 
 # --- Enemies ----------------------------------------------------------------

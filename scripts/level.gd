@@ -339,7 +339,9 @@ func world_to_cell(p: Vector3) -> Vector2i:
 ## A wall tile is "low" when the room lies north of it, i.e. it stands between
 ## the camera and the floor.
 func _is_low_wall(c: Vector2i) -> bool:
-	return cell_char(c) == "#" and cell_char(c + Vector2i(0, -1)) != "#"
+	# A secret wall counts as wall here: the wall below it stays full height
+	# and gives nothing away.
+	return cell_char(c) == "#" and not "#?".contains(cell_char(c + Vector2i(0, -1)))
 
 
 func _setup_astar() -> void:

@@ -133,7 +133,7 @@ const EN := {
 	"Deine Schritte werden leichter: +7% Tempo": "Your steps grow lighter: +7% speed",
 	# Windows
 	"Schließen": "Close",
-	"Leben %d / %d    Kampfkraft %d    Härtung %d / %d    Tempo %d%%    Messer %d    Gold %d": "Life %d / %d    Strength %d    Hardening %d / %d    Speed %d%%    Knives %d    Gold %d",
+	"Leben %d / %d    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Gold %d": "Life %d / %d    Strength %d    Hardening %d    Speed %d%%    Knives %d    Gold %d",
 	"Angelegt (anklicken zum Ablegen)": "Worn (click to take off)",
 	"Tasche (%d / %d)": "Bag (%d / %d)",
 	"Anlegen": "Wear",
@@ -203,7 +203,9 @@ const EN := {
 	"Rettet dich einmal vor dem Tod, dann verbrennt sie": "Saves you from death once, then burns up",
 	"+%d Kampfkraft": "+%d strength",
 	"+%d Härtung": "+%d hardening",
-	"Härtung: %d / %d": "Hardening: %d / %d",
+	"Härtung %d": "Hardening %d",
+	"Haltbarkeit %d / %d": "Durability %d / %d",
+	"%s zerbricht!": "%s breaks!",
 	"+%d Leben": "+%d life",
 	"+%d%% Tempo": "+%d%% speed",
 	# Levels

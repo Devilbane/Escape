@@ -41,10 +41,12 @@ var bag: Array[String] = []
 # Values from gifts and worn items together; see refresh_stats().
 var max_hp := MAX_HP
 var power := 1
-## Hardening from worn armour: hits wear it down before they cost lives.
-## It is full again on every new level.
+## Taken off every hit by worn armour; a hit still costs at least 1 life.
 var hardening := 0
-var armor_points := 0
+## How much each armour piece has worn down, by item id.
+var wear := {}
+## Chance per hit that a worn armour piece loses a point of durability.
+const WEAR_CHANCE := 0.05
 var speed := SPEED
 var knives := 5
 ## Ailments and the seconds each has left. Poison ("gift") takes a life every
@@ -429,6 +431,7 @@ func reset_gifts() -> void:
 	gift_power = 0
 	gift_speed = 0.0
 	equipped = {}
+	wear.clear()
 	bag.clear()
 	refresh_stats()
 
@@ -439,7 +442,6 @@ func refresh_stats() -> void:
 	var hp_bonus := gift_hp
 	var power_bonus := gift_power
 	var speed_bonus := gift_speed
-	var old_hardening := hardening
 	hardening = 0
 	for slot in equipped:
 		var item: Dictionary = Items.ALL[equipped[slot]]
@@ -453,7 +455,6 @@ func refresh_stats() -> void:
 	if ailments.has("fluch"):
 		speed *= CURSE_SLOW
 	hp = mini(hp, max_hp)
-	armor_points = clampi(armor_points + hardening - old_hardening, 0, hardening)
 	_show_held("waffe", "handslot_r", "Knife")
 	_show_held("schild", "handslot_l", "")
 	_show_headgear()
@@ -612,13 +613,29 @@ func unequip(slot: String) -> bool:
 	return true
 
 
+## Every hit may wear down each worn armour piece; a piece worn through
+## falls apart.
+func _wear_armor() -> void:
+	for slot in equipped.keys():
+		var id: String = equipped[slot]
+		var durability: int = Items.ALL[id].get("durability", 0)
+		if durability <= 0 or randf() >= WEAR_CHANCE:
+			continue
+		wear[id] = wear.get(id, 0) + 1
+		if wear[id] >= durability:
+			wear.erase(id)
+			equipped.erase(slot)
+			refresh_stats()
+			Effects.float_text(level, global_position + Vector3(0, 3.2, 0), Lang.t("%s zerbricht!") % Items.item_name(id), Color(0.75, 0.8, 0.9))
+			Sfx.play(self, "bones")
+
+
 func take_damage(amount: int, from: Vector3, attacker: Node = null) -> void:
 	if dead or _invulnerable > 0.0 or frozen:
 		return
-	# The armour takes what it can, the rest goes to the hero.
-	var soaked := mini(armor_points, amount)
-	armor_points -= soaked
-	amount -= soaked
+	if hardening > 0:
+		amount = maxi(1, amount - hardening)
+		_wear_armor()
 	hp -= amount
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
 		attacker.take_hit(1, global_position)
@@ -633,12 +650,6 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null) -> void:
 	away.y = 0.0
 	_knockback = away.normalized() * 10.0
 	path.clear()
-	if soaked > 0:
-		Effects.float_text(level, global_position + Vector3(0.8, 2.6, 0), "-%d" % soaked, Color(0.65, 0.75, 0.9))
-		Sfx.play(self, "hit", -4.0)
-	if amount <= 0:
-		hurt.emit(0)
-		return
 	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-%d" % amount, Color(1, 0.3, 0.3))
 	Comic.pop(global_position, "hurt")
 	Sfx.play(self, "hurt")

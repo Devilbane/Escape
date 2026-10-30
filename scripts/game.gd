@@ -475,7 +475,7 @@ func _update_hud() -> void:
 	_level_label.text = Lang.t("Ebene %d: %s") % [level_index + 1, Lang.t(level.level_name)]
 	_hp_label.text = Lang.t("Leben: %d / %d") % [maxi(0, player.hp), player.max_hp]
 	if player.hardening > 0:
-		_hp_label.text += "    " + Lang.t("Härtung: %d / %d") % [player.armor_points, player.hardening]
+		_hp_label.text += "    " + Lang.t("Härtung %d") % player.hardening
 	var gifts := []
 	if player.power > 1:
 		gifts.append(Lang.t("Kampfkraft %d") % player.power)
@@ -511,7 +511,6 @@ func load_level(index: int, restock := true) -> void:
 	player.controllable = true
 	# Walking down to the next level never heals; the fountain does.
 	player.revive(level.cell_to_world(level.start_cell), false)
-	player.armor_points = player.hardening
 	player.face(Vector3.BACK)
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
@@ -766,6 +765,7 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_power = int(data.gift_power)
 	player.gift_speed = float(data.gift_speed)
 	player.equipped = data.equipped
+	player.wear = data.get("wear", {})
 	player.bag.assign(data.bag)
 	player.refresh_stats()
 	load_level(clampi(int(data.level), 0, level_files.size() - 1), false)
@@ -795,7 +795,7 @@ func save_game() -> void:
 	var data := {
 		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed,
-		"equipped": player.equipped, "bag": player.bag, "storage": storage, "shop": shop_stock,
+		"equipped": player.equipped, "wear": player.wear, "bag": player.bag, "storage": storage, "shop": shop_stock,
 	}
 	var file := FileAccess.open(SAVE_FILE, FileAccess.WRITE)
 	file.store_string(JSON.stringify(data))
@@ -982,10 +982,8 @@ func _with_article(label: String) -> String:
 	return label
 
 
-func _on_player_hurt(amount: int) -> void:
+func _on_player_hurt(_amount: int) -> void:
 	_update_hud()
-	if amount <= 0:
-		return # The armour took it all.
 	var tween := create_tween()
 	_fade.color = Color(0.6, 0.02, 0.02, 0.0)
 	tween.tween_property(_fade, "color:a", 0.35, 0.08)

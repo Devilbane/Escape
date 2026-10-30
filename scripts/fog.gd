@@ -5,6 +5,9 @@ extends MeshInstance3D
 
 const SIGHT_RADIUS := 8
 const FADE_SPEED := 6.0
+## How far the hero's own lantern lights up the dark, hooded or not.
+const LANTERN_REACH := 7.0
+const HOODED_REACH := 4.0
 
 var level: Level
 var _visible_target := PackedFloat32Array()
@@ -55,7 +58,12 @@ func _recompute(origin: Vector3) -> void:
 			var c := Vector2i(x, y)
 			if (c - center).length() > SIGHT_RADIUS + 0.5:
 				continue
-			if level.has_line_of_sight(origin, level.cell_to_world(c)):
+			# Without a torch nearby a tile is dark: only the lantern shows it.
+			var spot := level.cell_to_world(c)
+			var reach := HOODED_REACH if level.player.sneaking else LANTERN_REACH
+			if Vector2(spot.x - origin.x, spot.z - origin.z).length() > reach and not level.is_lit(spot):
+				continue
+			if level.has_line_of_sight(origin, spot):
 				var i := y * level.width + x
 				_visible_target[i] = 1.0
 				_explored[i] = 1.0

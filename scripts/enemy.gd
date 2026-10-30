@@ -8,6 +8,15 @@ extends CharacterBody3D
 signal died
 
 const SIGHT := 26.0
+## Noticing the hero. Eyes look ahead in a 120 degree cone and need light on
+## the hero (a burning torch nearby, or the lantern when not sneaking). Ears
+## hear all around, but not a hero who sneaks or stands still. Right up
+## close, a skeleton always notices.
+const SIGHT_CONE := deg_to_rad(60.0)
+const HEARING := 10.0
+const TOUCH := 2.2
+## Seconds a hunting skeleton searches after losing the hero before it gives up.
+const GIVE_UP := 5.0
 const POISON_CHANCE := 0.25
 ## Model, weapon, life, speed, damage, reach, scale and pause between attacks.
 const KINDS := {
@@ -43,6 +52,15 @@ var _path: Array[Vector3] = []
 var _repath := 0.0
 var _knockback := Vector3.ZERO
 var _home := Vector3.ZERO
+## Where the hero was last noticed, and how long ago.
+var _last_known := Vector3.ZERO
+var _lost := 0.0
+## A guard at rest looks around now and then.
+var _look_angle := 0.0
+var _look_timer := 0.0
+var _step_timer := 0.0
+## How far the hero hears a skeleton walking in the dark.
+const HEARD_FROM := 16.0
 
 
 func _ready() -> void:
@@ -107,6 +125,9 @@ func _ready() -> void:
 	_play("Idle")
 	_home = global_position
 	_cooldown = randf_range(0.5, 1.5)
+	_look_angle = randf() * TAU
+	_model.rotation.y = _look_angle
+	_look_timer = randf_range(2.0, 5.0)
 
 
 ## How much wider than a normal skeleton this one is, so blades reach it.
@@ -181,7 +202,7 @@ func take_hit(damage: int, from: Vector3, kind := "hit") -> void:
 	if dead:
 		return
 	hp -= damage
-	_awake = true
+	_wake(from)
 	var away := global_position - from
 	away.y = 0.0
 	_knockback = away.normalized() * 9.0 / (_stats.size * _stats.size)
@@ -219,13 +240,23 @@ func _physics_process(delta: float) -> void:
 	to_player.y = 0.0
 	var dist := to_player.length()
 	var sees := dist < SIGHT and level.has_line_of_sight(global_position, player.global_position)
-	if sees and not player.dead:
-		_awake = true
 	visible = level.fog.is_cell_visible(level.world_to_cell(global_position))
+	if not player.dead and _notices(player, to_player, dist, sees):
+		if not _awake:
+			Effects.float_text(level, global_position + Vector3(0, 3.4 * _stats.size, 0), "!", Color(1.0, 0.3, 0.2))
+		_wake(player.global_position)
+	elif _awake:
+		_lost += delta
+		if _lost > GIVE_UP or player.dead:
+			_awake = false
+			_path.clear()
+			_repath = 0.0
 
-	var move := Vector3.ZERO
-	if _awake and not player.dead and _busy <= 0.0:
-		if ranged and sees and dist < _stats.reach:
+	var move := _step_out() if _busy <= 0.0 else Vector3.ZERO
+	if move != Vector3.ZERO:
+		pass # Out of the furniture first.
+	elif _awake and not player.dead and _busy <= 0.0:
+		if ranged and sees and _lost <= 0.0 and dist < _stats.reach:
 			_face(to_player)
 			if _cooldown <= 0.0:
 				_shoot(player)
@@ -237,9 +268,9 @@ func _physics_process(delta: float) -> void:
 			if _repath <= 0.0 or _path.is_empty():
 				_repath = 0.5
 				_path.clear()
-				for c in level.astar.get_id_path(level.world_to_cell(global_position), level.world_to_cell(player.global_position), true).slice(1):
+				for c in level.astar.get_id_path(level.world_to_cell(global_position), level.world_to_cell(_last_known), true).slice(1):
 					_path.append(level.cell_to_world(c))
-				if sees and _path.size() <= 1:
+				if _lost <= 0.0 and sees and _path.size() <= 1:
 					_path.clear()
 					_path.append(player.global_position)
 			if not _path.is_empty():
@@ -249,6 +280,10 @@ func _physics_process(delta: float) -> void:
 					_path.remove_at(0)
 				else:
 					move = to.normalized()
+			elif _lost > 0.0:
+				_look_around(delta)
+	elif not _awake and not dead:
+		move = _rest(delta)
 	velocity = move * float(_stats.speed) + _knockback
 	velocity.y = -9.0
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 40.0)
@@ -258,9 +293,85 @@ func _physics_process(delta: float) -> void:
 	if _busy > 0.0:
 		return
 	_play("Running_A" if move != Vector3.ZERO else "Idle")
+	_footfalls(delta, move != Vector3.ZERO, dist)
 	# Feet keep pace with the ground; bigger skeletons take longer strides.
 	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
 	_anim.speed_scale = clampf(ground_speed / (Player.RUN_ANIM_SPEED * float(_stats.size)), 0.5, 2.5) if _current_anim == "Running_A" else 1.0
+
+
+## A skeleton hidden in the dark can still be heard: footsteps and a faint
+## mark where they sound.
+func _footfalls(delta: float, moving: bool, dist: float) -> void:
+	_step_timer -= delta
+	if visible or not moving or dist > HEARD_FROM or _step_timer > 0.0:
+		return
+	_step_timer = 0.8
+	Sfx.play(level, "step_%d" % (randi() % 3), -10.0, global_position)
+	Effects.float_text(level, global_position + Vector3(0, 1.0, 0), Lang.t("tapp"), Color(0.7, 0.7, 0.75, 0.6))
+
+
+## Pushed into a tile with a pillar or furniture, where neither paths nor
+## the hero's blade reach well: walk out to the nearest free tile.
+func _step_out() -> Vector3:
+	var cell := level.world_to_cell(global_position)
+	if not level.astar.is_in_boundsv(cell) or not level.astar.is_point_solid(cell):
+		return Vector3.ZERO
+	for d in Level.DIRS:
+		if level.astar.is_in_boundsv(cell + d) and not level.astar.is_point_solid(cell + d):
+			var to := level.cell_to_world(cell + d) - global_position
+			to.y = 0.0
+			return to.normalized()
+	return Vector3.ZERO
+
+
+## Whether the skeleton sees or hears the hero right now.
+func _notices(player: Player, to_player: Vector3, dist: float, sees: bool) -> bool:
+	if dist < TOUCH:
+		return true
+	if dist < HEARING and player.is_noisy():
+		return true
+	if not sees or not player.is_lit():
+		return false
+	var ahead := Vector3(sin(_model.rotation.y), 0, cos(_model.rotation.y))
+	# Once hunting, a skeleton keeps its eyes on the hero all around.
+	return _awake or ahead.angle_to(to_player) <= SIGHT_CONE
+
+
+## Starts or keeps up the hunt, heading for where the hero was noticed.
+func _wake(at: Vector3) -> void:
+	_awake = true
+	_lost = 0.0
+	_last_known = at
+
+
+## Off the hunt: walk back to the post, then stand guard and look around.
+func _rest(delta: float) -> Vector3:
+	var to_home := _home - global_position
+	to_home.y = 0.0
+	if to_home.length() < 1.0:
+		_path.clear()
+		_look_around(delta)
+		return Vector3.ZERO
+	if _repath <= 0.0 or _path.is_empty():
+		_repath = 1.0
+		_path.clear()
+		for c in level.astar.get_id_path(level.world_to_cell(global_position), level.world_to_cell(_home), true).slice(1):
+			_path.append(level.cell_to_world(c))
+		_path.append(_home)
+	var to := _path[0] - global_position
+	to.y = 0.0
+	if to.length() < 0.4:
+		_path.remove_at(0)
+		return Vector3.ZERO
+	return to.normalized() * 0.6
+
+
+func _look_around(delta: float) -> void:
+	_look_timer -= delta
+	if _look_timer <= 0.0:
+		_look_timer = randf_range(2.5, 5.0)
+		_look_angle = _model.rotation.y + randf_range(-PI * 0.75, PI * 0.75)
+	_model.rotation.y = lerp_angle(_model.rotation.y, _look_angle, 1.0 - exp(-3.0 * delta))
 
 
 func _face(dir: Vector3, delta := -1.0) -> void:

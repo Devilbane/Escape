@@ -46,8 +46,11 @@ const EN := {
 	"Entkommen": "Escaped",
 	"Alle Rechte vorbehalten": "All rights reserved",
 	# HUD and help
-	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   L: Laden   Rad: Zoom   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)":
-		"WASD: walk   Space: jump   F: strike   R: knife   M: sound\nI: inventory   L: load   Wheel: zoom   Run into things: use\nMouse: click/hold to walk, right click: knife (running: jump)",
+	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)":
+		"WASD: walk   Space: jump   F: strike   R: knife   M: sound\nI: inventory   L: load   C/double click: sneak   Run into things: use\nMouse: click/hold to walk, right click: knife (running: jump)",
+	"Du schleichst. Im Dunkeln sieht dich keiner.": "You sneak. In the dark nobody sees you.",
+	"Du gehst wieder normal.": "You walk normally again.",
+	"tapp": "tap",
 	"Inventar": "Inventory",
 	"Springen": "Jump",
 	"Werfen": "Throw",

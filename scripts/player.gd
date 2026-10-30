@@ -55,6 +55,15 @@ var _sidestepped := false
 ## Speed carried through the air by a running jump.
 var _air_momentum := Vector3.ZERO
 var path: Array[Vector3] = []
+## Sneaking: much slower, but silent, with the lantern hooded, and see-through
+## (more so in the dark). Skeletons cannot hear a sneaking hero.
+var sneaking := false
+## Set by the level each frame: no light falls on the hero but the lantern.
+var in_shadow := false
+const SNEAK_SPEED := 0.4
+const SNEAK_ANIM := "Walking_C"
+var _lantern: OmniLight3D
+var _shown_alpha := -1.0
 
 var _model: Node3D
 var _anim: AnimationPlayer
@@ -92,17 +101,66 @@ func _ready() -> void:
 	_add_cape_logo()
 	_add_trim()
 	_anim = _model.find_child("AnimationPlayer", true, false)
-	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle"]:
+	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle", SNEAK_ANIM]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	play("Idle")
 
 	# A warm lantern glow around the hero, so the way ahead is never pitch black.
-	var lantern := OmniLight3D.new()
-	lantern.light_color = Color(1.0, 0.75, 0.5)
-	lantern.light_energy = 1.1
-	lantern.omni_range = 8.5
-	lantern.position = Vector3(0, 3.2, 0.6)
-	add_child(lantern)
+	_lantern = OmniLight3D.new()
+	_lantern.light_color = Color(1.0, 0.75, 0.5)
+	_lantern.light_energy = 1.1
+	_lantern.omni_range = 8.5
+	_lantern.position = Vector3(0, 3.2, 0.6)
+	add_child(_lantern)
+
+
+## Switches between walking normally and sneaking.
+func set_sneaking(on: bool) -> void:
+	sneaking = on
+	# A hooded lantern: just enough to see the floor, too little to be seen by.
+	_lantern.light_energy = 0.45 if on else 1.1
+	_lantern.omni_range = 5.0 if on else 8.5
+
+
+## Whether skeletons could see the hero by some light, the lantern included.
+func is_lit() -> bool:
+	return not sneaking or not in_shadow
+
+
+## Whether the hero makes noise: moving without sneaking.
+func is_noisy() -> bool:
+	return not sneaking and (Vector2(velocity.x, velocity.z).length() > 0.5 or not is_on_floor())
+
+
+## Fades the hero while sneaking, and further in the shadows.
+func _update_sneak_look() -> void:
+	var alpha := 0.0
+	if sneaking:
+		alpha = 0.65 if in_shadow else 0.4
+	if is_equal_approx(alpha, _shown_alpha):
+		return
+	_shown_alpha = alpha
+	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+		if mesh.material_override is ShaderMaterial:
+			# A tinted part: swap in the shader that can fade.
+			var tinted := mesh.material_override as ShaderMaterial
+			tinted.shader = TINT_FADE_SHADER if alpha > 0.0 else TINT_SHADER
+			tinted.set_shader_parameter("fade", alpha)
+			continue
+		if mesh.mesh == null:
+			continue
+		for i in mesh.mesh.get_surface_count():
+			var mat := mesh.get_surface_override_material(i) as StandardMaterial3D
+			if mat == null:
+				if alpha <= 0.0:
+					continue # Never faded: nothing to undo.
+				var base := mesh.mesh.surface_get_material(i) as StandardMaterial3D
+				if base == null:
+					continue
+				mat = base.duplicate()
+				mesh.set_surface_override_material(i, mat)
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if alpha > 0.0 else BaseMaterial3D.TRANSPARENCY_DISABLED
+			mat.albedo_color.a = 1.0 - alpha
 
 
 ## A golden cord along the edge of the cape, and a white feather at the head.
@@ -221,7 +279,7 @@ func can_act() -> bool:
 
 ## True while the hero is moving under its own steam.
 func is_running() -> bool:
-	return Vector2(velocity.x, velocity.z).length() > SPEED * 0.4
+	return not sneaking and Vector2(velocity.x, velocity.z).length() > SPEED * 0.4
 
 
 ## A jump from a run keeps its momentum and flies further the faster the
@@ -387,9 +445,11 @@ func refresh_stats() -> void:
 	_show_tint("umhang", ["Rogue_Cape"])
 	_show_tint("ruestung", ["Rogue_Body"])
 	_show_tint("schuhe", ["Rogue_LegLeft", "Rogue_LegRight"])
+	_shown_alpha = -1.0 # New parts: fade them too if sneaking.
 
 
 const TINT_SHADER := preload("res://shaders/tint.gdshader")
+const TINT_FADE_SHADER := preload("res://shaders/tint_fade.gdshader")
 
 
 ## Colours the hero's cloak, body or legs after the worn cloak, armour or shoes.
@@ -607,20 +667,21 @@ func _physics_process(delta: float) -> void:
 				to.y = 0.0
 				dir = to.normalized()
 	var vy := velocity.y - GRAVITY * delta
-	velocity = dir * speed + _knockback
+	var pace := speed * (SNEAK_SPEED if sneaking else 1.0)
+	velocity = dir * pace + _knockback
 	if _air_momentum != Vector3.ZERO:
 		if is_on_floor() and vy <= 0.0:
 			_air_momentum = Vector3.ZERO
 		else:
 			# In the air the run carries on; steering only nudges it.
-			velocity = _air_momentum + dir * speed * 0.25 + _knockback
+			velocity = _air_momentum + dir * pace * 0.25 + _knockback
 	velocity.y = vy
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 45.0)
 	var before := global_position
 	move_and_slide()
 	# Walking a path but pressed against something, like a door frame: first
 	# step back to the middle of the tile, and give the path up if that fails.
-	if not path.is_empty() and dir != Vector3.ZERO and (global_position - before).length() < speed * delta * 0.2:
+	if not path.is_empty() and dir != Vector3.ZERO and (global_position - before).length() < pace * delta * 0.2:
 		_stuck_time += delta
 		var middle := level.cell_to_world(level.world_to_cell(global_position))
 		if _stuck_time > 0.15 and not _sidestepped and Vector2(middle.x - global_position.x, middle.z - global_position.z).length() > 0.4:
@@ -652,10 +713,14 @@ func _physics_process(delta: float) -> void:
 	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
 	_anim.speed_scale = clampf(ground_speed / RUN_ANIM_SPEED, 0.5, 2.5) if _current_anim == "Running_A" else 1.0
 	_footsteps(ground_speed)
+	_update_sneak_look()
 	if _busy > 0.0 or _anim_hold > 0.0 or not controllable or dead:
 		return
 	if not is_on_floor():
 		if _current_anim != "Jump_Full_Short":
 			play("Jump_Idle")
 		return
-	play("Running_A" if dir != Vector3.ZERO else "Idle")
+	if dir == Vector3.ZERO:
+		play("Idle")
+	else:
+		play(SNEAK_ANIM if sneaking else "Running_A")

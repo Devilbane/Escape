@@ -87,6 +87,12 @@ def step(seed):
     return out + grit + weight
 
 
+def sneak_step(seed):
+    # Sneaking: just the faint brush of a sole set down with care.
+    r = np.random.default_rng(seed + 10)
+    return scuff(0.08, 1200 + r.uniform(-150, 150), 4500, 0.012, 0.02)
+
+
 def swing():
     n = noise(0.28)
     tt = t(0.28)
@@ -253,6 +259,7 @@ if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for i in range(3):
         save("step_%d" % i, step(i), 0.4)
+        save("sneak_%d" % i, sneak_step(i), 0.4)
     save("swing", swing(), 0.6)
     save("hit", hit(), 0.8)
     save("bones", bones(), 0.7)

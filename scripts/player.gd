@@ -69,6 +69,8 @@ var _model: Node3D
 var _anim: AnimationPlayer
 ## Where in the run cycle each foot touches the ground (left, right).
 const FOOT_LANDINGS := [0.17, 0.67]
+## The same for the sneaking walk, whose feet land later in its cycle.
+const SNEAK_LANDINGS := [0.29, 0.79]
 var _last_phase := -1.0
 var _current_anim := ""
 var _busy := 0.0
@@ -314,17 +316,19 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 ## A step sounds each time a foot lands in the run animation, so the sound
 ## keeps the rhythm of the feet at any speed.
 func _footsteps(ground_speed: float) -> void:
-	if _current_anim != "Running_A" or not is_on_floor() or ground_speed < 0.5:
+	var sneak := _current_anim == SNEAK_ANIM
+	if not (sneak or _current_anim == "Running_A") or not is_on_floor() or ground_speed < 0.3:
 		_last_phase = -1.0
 		return
 	var phase := _anim.current_animation_position / _anim.current_animation_length
 	if _last_phase >= 0.0:
-		for landing: float in FOOT_LANDINGS:
+		for landing: float in (SNEAK_LANDINGS if sneak else FOOT_LANDINGS):
 			var crossed: bool = _last_phase < landing and phase >= landing
 			if phase < _last_phase:
 				crossed = _last_phase < landing or phase >= landing
 			if crossed:
-				Sfx.play(self, "step_%d" % (randi() % 3), -6.0)
+				# Sneaking: only a very soft touch, barely to be heard.
+				Sfx.play(self, ("sneak_%d" if sneak else "step_%d") % (randi() % 3), -20.0 if sneak else -6.0)
 	_last_phase = phase
 
 

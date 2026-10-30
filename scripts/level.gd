@@ -82,7 +82,7 @@ const WALL_DECOR := [
 ## to sit among the kit's stone.
 const STONE_TINT := Color(0.6, 0.56, 0.52)
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "#bxotkCDHBLVF?"
+const SOLID := "#bxotkCDHBLVF?f"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
@@ -215,7 +215,7 @@ func build() -> void:
 # --- Keeping the way free ---------------------------------------------------
 
 ## Furniture that stands on a whole tile and cannot be walked through.
-const FURNITURE := "bxotkCHBLVF"
+const FURNITURE := "bxotkCHBLVFf"
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 
@@ -497,7 +497,9 @@ func _build_walls(c: Vector2i) -> void:
 			continue
 		# No torch behind a barrel, crate or table: the hero must reach it.
 		var torch: Node3D = null
-		if not FURNITURE.contains(cell_char(c)):
+		# A guardian's hall has no wall torches: only its fire bowl lights
+		# the middle, and the rim stays dark for the hero to creep along.
+		if not FURNITURE.contains(cell_char(c)) and not _near_guardian(c):
 			torch = _maybe_add_torch(pos, rot)
 		if torch != null:
 			_wall_torches.append({"holder": torch, "cell": c, "pos": pos, "rot": rot})
@@ -563,6 +565,8 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_build_exit(c)
 		"K":
 			_build_key(pos)
+		"f":
+			_build_fire_bowl(pos)
 		"c":
 			_build_coin(pos)
 		"C":
@@ -607,6 +611,42 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_place("table_medium_decorated_A", pos, _random_quarter_turn())
 			_add_solid(pos, Vector3(3.0, 2, 2.2))
 			_add_interactable("Tisch", pos, pos + Vector3(0, 2.8, 0), c)
+
+
+func _has_cell(ch: String) -> bool:
+	for row in grid:
+		if row.contains(ch):
+			return true
+	return false
+
+
+## Whether a cell lies within a guardian's hall (a few tiles of a W).
+func _near_guardian(c: Vector2i) -> bool:
+	for dy in range(-5, 6):
+		for dx in range(-5, 6):
+			if cell_char(c + Vector2i(dx, dy)) == "W":
+				return true
+	return false
+
+
+## A standing fire bowl: a low stone base with a burning fire that always
+## lights the tiles around it.
+func _build_fire_bowl(pos: Vector3) -> void:
+	var base := _place("pillar", pos)
+	base.scale = Vector3(1.0, 0.28, 1.0)
+	var flame := Effects.make_flame()
+	flame.position = pos + Vector3(0, 1.3, 0)
+	flame.scale = Vector3.ONE * 2.2
+	add_child(flame)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.6, 0.28)
+	light.light_energy = 4.5
+	light.omni_range = 11.0
+	light.omni_attenuation = 1.4
+	light.position = pos + Vector3(0, 2.2, 0)
+	add_child(light)
+	_add_solid(pos, Vector3(1.8, 2, 1.8))
+	_light_spots.append(pos)
 
 
 func _maybe_add_torch(wall_pos: Vector3, rot: float, forced := false) -> Node3D:
@@ -1331,7 +1371,10 @@ func _spawn_enemies() -> void:
 					e.watch(_guarded_spot())
 				e.died.connect(func():
 					enemy_killed.emit()
-					_drop_gear(e))
+					_drop_gear(e)
+					# A guardian on a level without a key carries it.
+					if e.kind == "waechter" and not has_key and not _has_cell("K"):
+						_build_key(Vector3(e.global_position.x, 0, e.global_position.z)))
 				enemies.append(e)
 
 
@@ -1344,9 +1387,9 @@ const DROP_CHANCE := 0.1
 
 ## The items a skeleton wears: up to two (three for a brute), no specials,
 ## one per slot. Fixed per level and tile, like the loot in chests.
-## What a guardian watches over: the key, or else the stairs out.
+## What a guardian watches over: its fire bowl, the key, or else the stairs.
 func _guarded_spot() -> Vector3:
-	for ch in "KE":
+	for ch in "fKE":
 		for y in height:
 			for x in width:
 				if cell_char(Vector2i(x, y)) == ch:

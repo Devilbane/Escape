@@ -1115,11 +1115,9 @@ func _snap_camera() -> void:
 ## Tips on sneaking, shown one after another the first time the hero sees
 ## an armoured guardian on a level; -1 until then.
 const GUARDIAN_TIPS := [
-	"Ein gepanzerter Wächter! Klingen und Messer prallen an ihm ab.\nNur ein Stich in den Rücken bezwingt ihn.",
-	"Skelette sehen nur nach vorn (120°) und nur, was im Licht steht.\nIm Dunkeln sieht er dich nicht, im Schein einer Fackel schon.",
-	"Deine Laterne verrät dich, und deine Schritte hört er rundherum.\nSchleich dich an (C oder Doppelklick): leise, langsam, Laterne abgeblendet.",
-	"Von hinten bemerkt er dich beim Schleichen auch ganz nah nicht.\nStell dich hinter ihn und schlag zu (F)!",
-	"Entdeckt er dich, lauf weg. Nach ein paar Sekunden gibt er auf\nund kehrt auf seinen Posten zurück. Dann versuch es noch einmal.",
+	"Vor dir wacht ein gepanzerter Wächter mit dem Schlüssel.\nKlingen und Messer prallen an ihm ab.\nNur ein Stich in den Rücken tötet ihn, mit einem einzigen Schlag.",
+	"Drück C (oder Doppelklick), um zu schleichen, bevor du eintrittst.\nEr sieht nur, was im Licht seiner Feuerschale steht.\nAm dunklen Rand des Saals bist du unsichtbar.",
+	"Schleich im Schatten um ihn herum, bis du in seinem Rücken stehst.\nDann tritt heran und schlag zu (F).\nEntdeckt er dich, lauf hinaus: Er gibt bald auf.",
 ]
 var _guardian_tip := -1
 
@@ -1129,12 +1127,14 @@ func _guardian_intro() -> void:
 	if state != State.PLAYING or _message_busy() or _guardian_tip >= GUARDIAN_TIPS.size():
 		return
 	if _guardian_tip < 0:
+		# Told in the corridor, before the hall: the hero must sneak before
+		# stepping into the guardian's sight.
 		if not level.enemies.any(func(e): return is_instance_valid(e) and not e.dead and e.kind == "waechter" \
-				and e.global_position.distance_to(player.global_position) < (16.0 if e.visible else 10.0)):
+				and e.global_position.distance_to(player.global_position) < 34.0):
 			return
 		_guardian_tip = 0
 	learn(GUARDIAN_TIPS[_guardian_tip])
-	show_message(Lang.t(GUARDIAN_TIPS[_guardian_tip]), 4.5)
+	show_message(Lang.t(GUARDIAN_TIPS[_guardian_tip]), 6.5)
 	_guardian_tip += 1
 
 

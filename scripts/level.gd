@@ -90,6 +90,8 @@ const LOW_WALL_SCALE := 0.3
 const SPIKE_PERIOD := 3.0
 const SPIKE_UP_TIME := 1.1
 const SPIKE_DOWN_Y := -1.95
+## How much longer a path through a spike trap counts for skeletons.
+const SPIKE_DETOUR := 6.0
 
 var level_name := ""
 var hint := ""
@@ -353,6 +355,9 @@ func _setup_astar() -> void:
 		for x in width:
 			var c := Vector2i(x, y)
 			astar.set_point_solid(c, SOLID.contains(cell_char(c)))
+	# Skeletons go around spike traps when there is another way.
+	for s in _spikes:
+		astar.set_point_weight_scale(s.cell, SPIKE_DETOUR)
 
 
 # --- Building ---------------------------------------------------------------
@@ -1104,6 +1109,25 @@ func _update_spikes(delta: float) -> void:
 			var sp := cell_to_world(s.cell)
 			if absf(player.global_position.x - sp.x) < 1.6 and absf(player.global_position.z - sp.z) < 1.6:
 				player_hurt.emit()
+		if _spike_is_up(s):
+			# Skeletons caught on the spikes get hurt too.
+			var sp := cell_to_world(s.cell)
+			for e in enemies:
+				if is_instance_valid(e) and absf(e.global_position.x - sp.x) < 1.6 and absf(e.global_position.z - sp.z) < 1.6:
+					e.hurt_by_trap(sp)
+
+
+## Whether a tile has spikes that are up or about to shoot up: skeletons
+## wait at the edge instead of stepping on.
+func spike_danger(c: Vector2i) -> bool:
+	for s in _spikes:
+		if s.cell == c:
+			return fposmod(_time + s.phase, SPIKE_PERIOD) > SPIKE_PERIOD - 0.7 or _spike_is_up(s)
+	return false
+
+
+func is_spike_cell(c: Vector2i) -> bool:
+	return _spikes.any(func(s): return s.cell == c)
 
 
 func _check_pickups() -> void:

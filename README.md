@@ -33,7 +33,7 @@ Mit `?level=3` hinter der Adresse startet das Spiel direkt in Ebene 3.
 Finde den **Schlüssel**, öffne die **Tür** und steige die **Treppe** hinauf in die nächste Ebene. Oben angekommen bekommst du 5 Leben zurück.
 Fässer, Kisten, Tische, Truhen und Wandregale lassen sich durchsuchen: Darin steckt Gold,
 Wurfmesser, ein Heiltrank oder auch gar nichts. Durchsuchtes bekommt ein Häkchen.
-Skelette greifen mit Klingen oder Armbrüsten an. Über **Stacheln** kannst du springen.
+Skelette greifen mit Klingen oder Armbrüsten an. Über **Stacheln** kannst du springen. Skelette gehen Stachelfallen aus dem Weg, warten, bis sie unten sind, und verletzen sich selbst daran.
 An einem **Schrein** wählst du einmal eine Gabe: +1 Leben, +1 Kampfkraft oder +7% Tempo.
 Die Gaben bleiben bis zum Ende des Spiels.
 

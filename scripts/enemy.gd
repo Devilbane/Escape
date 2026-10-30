@@ -50,6 +50,8 @@ var _cooldown := 0.0
 var _awake := false
 ## Seconds spent pushing without getting anywhere, and the sidestep out.
 var _stuck := 0.0
+## Seconds before spikes can hurt this skeleton again.
+var _trap_cool := 0.0
 var _detour := Vector3.ZERO
 var _detour_time := 0.0
 var _path: Array[Vector3] = []
@@ -203,11 +205,12 @@ func _play_once(anim_name: String, duration: float) -> void:
 
 
 ## Kind is "hit" for a blade or "knife" for a thrown knife; it picks the comic word.
-func take_hit(damage: int, from: Vector3, kind := "hit") -> void:
+func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	if dead:
 		return
 	hp -= damage
-	_wake(from)
+	if wakes:
+		_wake(from)
 	var away := global_position - from
 	away.y = 0.0
 	_knockback = away.normalized() * 9.0 / (_stats.size * _stats.size)
@@ -220,6 +223,26 @@ func take_hit(damage: int, from: Vector3, kind := "hit") -> void:
 	else:
 		Comic.pop(global_position, "big" if damage >= 2 else kind)
 		_play_once("Hit_A", 0.45)
+
+
+## Spikes hurt skeletons too, once per thrust.
+func hurt_by_trap(at: Vector3) -> void:
+	if _trap_cool > 0.0 or dead:
+		return
+	_trap_cool = 1.2
+	take_hit(1, at, "hit", false)
+
+
+## Waits at the edge of a spike trap that is up or about to strike, rather
+## than walk into it. Already standing on one, it keeps going to get off.
+func _mind_spikes(move: Vector3) -> Vector3:
+	if move == Vector3.ZERO:
+		return move
+	var here := level.world_to_cell(global_position)
+	var ahead := level.world_to_cell(global_position + move * Level.TILE * 0.45)
+	if ahead != here and not level.is_spike_cell(here) and level.spike_danger(ahead):
+		return Vector3.ZERO
+	return move
 
 
 func _die() -> void:
@@ -238,6 +261,7 @@ func _physics_process(delta: float) -> void:
 	if dead or level == null or level.player == null:
 		return
 	_busy = maxf(0.0, _busy - delta)
+	_trap_cool = maxf(0.0, _trap_cool - delta)
 	_cooldown = maxf(0.0, _cooldown - delta)
 	_repath -= delta
 	var player: Player = level.player
@@ -292,6 +316,7 @@ func _physics_process(delta: float) -> void:
 	if _detour_time > 0.0 and move != Vector3.ZERO:
 		_detour_time -= delta
 		move = (move * 0.3 + _detour).normalized()
+	move = _mind_spikes(move)
 	velocity = move * float(_stats.speed) + _knockback
 	velocity.y = -9.0
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 40.0)

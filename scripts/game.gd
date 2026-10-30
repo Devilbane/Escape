@@ -474,6 +474,8 @@ func _version_text() -> String:
 func _update_hud() -> void:
 	_level_label.text = Lang.t("Ebene %d: %s") % [level_index + 1, Lang.t(level.level_name)]
 	_hp_label.text = Lang.t("Leben: %d / %d") % [maxi(0, player.hp), player.max_hp]
+	if player.hardening > 0:
+		_hp_label.text += "    " + Lang.t("Härtung: %d / %d") % [player.armor_points, player.hardening]
 	var gifts := []
 	if player.power > 1:
 		gifts.append(Lang.t("Kampfkraft %d") % player.power)
@@ -509,6 +511,7 @@ func load_level(index: int, restock := true) -> void:
 	player.controllable = true
 	# Walking down to the next level never heals; the fountain does.
 	player.revive(level.cell_to_world(level.start_cell), false)
+	player.armor_points = player.hardening
 	player.face(Vector3.BACK)
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
@@ -979,8 +982,10 @@ func _with_article(label: String) -> String:
 	return label
 
 
-func _on_player_hurt(_amount: int) -> void:
+func _on_player_hurt(amount: int) -> void:
 	_update_hud()
+	if amount <= 0:
+		return # The armour took it all.
 	var tween := create_tween()
 	_fade.color = Color(0.6, 0.02, 0.02, 0.0)
 	tween.tween_property(_fade, "color:a", 0.35, 0.08)

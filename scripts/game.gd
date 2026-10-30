@@ -476,6 +476,8 @@ func _version_text() -> String:
 func _update_hud() -> void:
 	_level_label.text = Lang.t("Ebene %d: %s") % [level_index + 1, Lang.t(level.level_name)]
 	_hp_label.text = Lang.t("Leben: %d / %d") % [maxi(0, player.hp), player.max_hp]
+	if player.hardening > 0:
+		_hp_label.text += "    " + Lang.t("Härtung %d") % player.hardening
 	var gifts := []
 	if player.power > 1:
 		gifts.append(Lang.t("Kampfkraft %d") % player.power)
@@ -766,6 +768,7 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_power = int(data.gift_power)
 	player.gift_speed = float(data.gift_speed)
 	player.equipped = data.equipped
+	player.wear = data.get("wear", {})
 	player.bag.assign(data.bag)
 	player.refresh_stats()
 	load_level(clampi(int(data.level), 0, level_files.size() - 1), false)
@@ -795,7 +798,7 @@ func save_game() -> void:
 	var data := {
 		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed,
-		"equipped": player.equipped, "bag": player.bag, "storage": storage, "shop": shop_stock,
+		"equipped": player.equipped, "wear": player.wear, "bag": player.bag, "storage": storage, "shop": shop_stock,
 	}
 	var file := FileAccess.open(SAVE_FILE, FileAccess.WRITE)
 	file.store_string(JSON.stringify(data))

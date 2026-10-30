@@ -41,6 +41,12 @@ var bag: Array[String] = []
 # Values from gifts and worn items together; see refresh_stats().
 var max_hp := MAX_HP
 var power := 1
+## Taken off every hit by worn armour; a hit still costs at least 1 life.
+var hardening := 0
+## How much each armour piece has worn down, by item id.
+var wear := {}
+## Chance per hit that a worn armour piece loses a point of durability.
+const WEAR_CHANCE := 0.05
 var speed := SPEED
 var knives := 5
 ## Ailments and the seconds each has left. Poison ("gift") takes a life every
@@ -425,6 +431,7 @@ func reset_gifts() -> void:
 	gift_power = 0
 	gift_speed = 0.0
 	equipped = {}
+	wear.clear()
 	bag.clear()
 	refresh_stats()
 
@@ -435,11 +442,13 @@ func refresh_stats() -> void:
 	var hp_bonus := gift_hp
 	var power_bonus := gift_power
 	var speed_bonus := gift_speed
+	hardening = 0
 	for slot in equipped:
 		var item: Dictionary = Items.ALL[equipped[slot]]
 		hp_bonus += item.get("hp", 0)
 		power_bonus += item.get("power", 0)
 		speed_bonus += item.get("speed", 0.0)
+		hardening += item.get("armor", 0)
 	max_hp = MAX_HP + hp_bonus
 	power = 1 + power_bonus
 	speed = SPEED * (1.0 + speed_bonus)
@@ -604,9 +613,29 @@ func unequip(slot: String) -> bool:
 	return true
 
 
+## Every hit may wear down each worn armour piece; a piece worn through
+## falls apart.
+func _wear_armor() -> void:
+	for slot in equipped.keys():
+		var id: String = equipped[slot]
+		var durability: int = Items.ALL[id].get("durability", 0)
+		if durability <= 0 or randf() >= WEAR_CHANCE:
+			continue
+		wear[id] = wear.get(id, 0) + 1
+		if wear[id] >= durability:
+			wear.erase(id)
+			equipped.erase(slot)
+			refresh_stats()
+			Effects.float_text(level, global_position + Vector3(0, 3.2, 0), Lang.t("%s zerbricht!") % Items.item_name(id), Color(0.75, 0.8, 0.9))
+			Sfx.play(self, "bones")
+
+
 func take_damage(amount: int, from: Vector3, attacker: Node = null) -> void:
 	if dead or _invulnerable > 0.0 or frozen:
 		return
+	if hardening > 0:
+		amount = maxi(1, amount - hardening)
+		_wear_armor()
 	hp -= amount
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
 		attacker.take_hit(1, global_position)

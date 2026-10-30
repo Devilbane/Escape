@@ -131,8 +131,8 @@ func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callabl
 
 func _stats_text() -> String:
 	var p: Player = game.player
-	return Lang.t("Leben %d / %d    Kampfkraft %d    Tempo %d%%    Messer %d    Gold %d") % [
-		p.hp, p.max_hp, p.power, roundi(p.speed / Player.SPEED * 100.0), p.knives, game.coins]
+	return Lang.t("Leben %d / %d    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Gold %d") % [
+		p.hp, p.max_hp, p.power, p.hardening, roundi(p.speed / Player.SPEED * 100.0), p.knives, game.coins]
 
 
 # --- Inventory --------------------------------------------------------------
@@ -156,7 +156,7 @@ func _build_inventory() -> void:
 	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _select)
 	if _selected >= 0 and _selected < p.bag.size():
 		var id: String = p.bag[_selected]
-		_add_label("%s: %s" % [Items.item_name(id), Items.describe(id)], 18, BLUE)
+		_add_label("%s: %s" % [Items.item_name(id), Items.describe(id, p.wear.get(id, 0))], 18, BLUE)
 		var actions := HBoxContainer.new()
 		actions.alignment = BoxContainer.ALIGNMENT_CENTER
 		actions.add_theme_constant_override("separation", 8)

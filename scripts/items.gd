@@ -1,7 +1,9 @@
 class_name Items
 extends RefCounted
 ## Everything the hero can carry: weapons, shields, clothes, jewellery and specials.
-## Each item adds to one of the hero's values while it is worn.
+## Each item adds to one of the hero's values while it is worn. Hard armour
+## takes "armor" off every hit (a hit still costs at least 1 life) and has
+## "durability": each hit may wear it down, and at 0 it breaks.
 
 const SLOTS := ["kopf", "waffe", "schild", "umhang", "ruestung", "schuhe",
 		"amulett", "ring", "armreif", "spezial_1", "spezial_2"]
@@ -16,18 +18,18 @@ const ALL := {
 	"schwert": {"name": "Schwert", "slot": "waffe", "power": 1, "price": 12, "model": "res://assets/weapons/sword_1handed.gltf"},
 	"axt": {"name": "Axt", "slot": "waffe", "power": 2, "price": 25, "model": "res://assets/weapons/axe_1handed.gltf"},
 	"rundschild": {"name": "Rundschild", "slot": "schild", "hp": 1, "price": 10, "model": "res://assets/weapons/shield_round.gltf"},
-	"wappenschild": {"name": "Wappenschild", "slot": "schild", "hp": 2, "price": 22, "model": "res://assets/weapons/shield_badge.gltf"},
+	"wappenschild": {"name": "Wappenschild", "slot": "schild", "hp": 2, "armor": 1, "durability": 4, "price": 22, "model": "res://assets/weapons/shield_badge.gltf"},
 	"stachelschild": {"name": "Stachelschild", "slot": "schild", "hp": 2, "power": 1, "price": 35, "model": "res://assets/weapons/shield_spikes.gltf"},
 	"knochenhelm": {"name": "Knochenhelm", "slot": "kopf", "power": 1, "price": 18, "hat": ["res://assets/enemies/Skeleton_Warrior.glb", "Skeleton_Warrior_Helmet"]},
 	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "hp": 1, "speed": 0.07, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"]},
-	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "hp": 2, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"]},
+	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "hp": 2, "armor": 1, "durability": 4, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"]},
 	"baerenkappe": {"name": "Bärenkappe", "slot": "kopf", "hp": 1, "power": 1, "price": 34, "hat": ["res://assets/characters/Barbarian.glb", "Barbarian_Hat"]},
 	"wollumhang": {"name": "Wollumhang", "slot": "umhang", "hp": 1, "price": 12, "tint": Color(0.55, 0.4, 0.28)},
 	"schattenumhang": {"name": "Schattenumhang", "slot": "umhang", "hp": 1, "speed": 0.1, "price": 26, "tint": Color(0.16, 0.15, 0.24)},
 	"koenigsumhang": {"name": "Königsumhang", "slot": "umhang", "hp": 2, "power": 1, "price": 42, "tint": Color(0.75, 0.08, 0.1)},
 	"lederwams": {"name": "Lederwams", "slot": "ruestung", "hp": 1, "price": 14, "tint": Color(0.5, 0.3, 0.15)},
-	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "hp": 2, "speed": -0.04, "price": 28, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4},
-	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "hp": 3, "power": 1, "speed": -0.07, "price": 48, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55},
+	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "hp": 2, "armor": 1, "durability": 5, "speed": -0.04, "price": 28, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4},
+	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "hp": 3, "armor": 2, "durability": 6, "power": 1, "speed": -0.07, "price": 48, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55},
 	"lederstiefel": {"name": "Lederstiefel", "slot": "schuhe", "speed": 0.05, "price": 10, "tint": Color(0.45, 0.27, 0.13)},
 	"eilstiefel": {"name": "Eilstiefel", "slot": "schuhe", "speed": 0.15, "price": 26, "tint": Color(0.25, 0.45, 0.95)},
 	"amulett_tempo": {"name": "Amulett der Eile", "slot": "amulett", "speed": 0.1, "price": 15},
@@ -49,7 +51,7 @@ static func item_name(id: String) -> String:
 
 
 ## A short line like "+1 Kampfkraft, +2 Leben".
-static func describe(id: String) -> String:
+static func describe(id: String, worn := 0) -> String:
 	if not ALL.has(id):
 		return ""
 	var item: Dictionary = ALL[id]
@@ -58,6 +60,10 @@ static func describe(id: String) -> String:
 		parts.append(Lang.t("+%d Kampfkraft") % item.power)
 	if item.get("hp", 0) > 0:
 		parts.append(Lang.t("+%d Leben") % item.hp)
+	if item.get("armor", 0) > 0:
+		parts.append(Lang.t("+%d Härtung") % item.armor)
+	if item.has("durability"):
+		parts.append(Lang.t("Haltbarkeit %d / %d") % [item.durability - worn, item.durability])
 	if item.get("speed", 0.0) > 0.0:
 		parts.append(Lang.t("+%d%% Tempo") % roundi(item.speed * 100.0))
 	elif item.get("speed", 0.0) < 0.0:

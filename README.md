@@ -39,6 +39,9 @@ Die Gaben bleiben bis zum Ende des Spiels.
 
 Manchmal findest du **Ausrüstung**: Helme und Hüte (Knochenhelm, Zauberhut, Ritterhelm, Bärenkappe) sitzen sichtbar auf dem Kopf, Schwert und Axt geben Kampfkraft, Schilde geben Leben,
 Amulette geben Tempo, Kraft oder Leben. Im **Inventar** (Taste I) legst du sie an oder wirfst sie weg.
+Harte Rüstung (Ritterhelm, Wappenschild, Kettenhemd, Plattenpanzer) hat **Härtung**: Sie zieht von jedem
+Treffer einen festen Wert ab (mindestens 1 Schaden bleibt). Jeder Treffer nutzt sie mit 5 % Chance um einen
+Punkt **Haltbarkeit** ab; ist die verbraucht, zerbricht das Teil.
 Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es einen **Brunnen**,
 der dein Leben auffüllt und Gift und Flüche heilt, eine Lagertruhe, einen Händler, der für Gold kauft und verkauft, und ein Bett. Im Bett wird gespeichert und du loggst aus.
 Beim nächsten Start geht es mit „Weiterspielen“ dort weiter. Der Spielstand liegt im Browser.

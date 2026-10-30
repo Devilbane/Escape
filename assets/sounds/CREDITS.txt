@@ -1,0 +1,11 @@
+Footsteps (step_0 to step_5): "Fantozzi's Footsteps (Grass/Sand & Stone)",
+the stone steps, recorded by Fantozzi (freesound.org/people/Fantozzi),
+https://opengameart.org/content/fantozzis-footsteps-grasssand-stone
+License: CC0 (public domain).
+
+Sneaking steps (sneak_0 to sneak_3): the cloth steps from
+"Footsteps Leather, Cloth, Armor",
+https://opengameart.org/content/footsteps-leather-cloth-armor
+License: CC0 (public domain).
+
+All other sounds are made by tools/make_sounds.py.

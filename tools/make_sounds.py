@@ -1,5 +1,7 @@
 """Builds the game's sound effects from scratch (noise, tones and envelopes),
-so there are no licences to worry about. Run: python3 tools/make_sounds.py"""
+so there are no licences to worry about. Run: python3 tools/make_sounds.py
+The footsteps (step_*, sneak_*) are real recordings instead, see
+assets/sounds/CREDITS.txt."""
 import os, subprocess, wave
 import numpy as np
 
@@ -64,33 +66,6 @@ def scuff(sec, low, high, attack, decay):
     # Band of noise, like a boot sole brushing over stone.
     n = noise(sec)
     return (lowpass(n, high) - lowpass(n, low)) * env(len(n), attack, decay)
-
-
-def step(seed):
-    # A soft boot on stone: heel, then toe, a little grit under the sole and
-    # only a hint of weight. No low thud, which sounds like a drum.
-    r = np.random.default_rng(seed)
-    length = 0.2
-    out = np.zeros(int(SR * length))
-    heel = scuff(0.09, 500 + r.uniform(-80, 80), 3200 + r.uniform(-400, 400), 0.003, 0.022)
-    out[:len(heel)] += heel
-    toe_at = int(SR * r.uniform(0.055, 0.08))
-    toe = scuff(0.07, 900, 4200, 0.004, 0.016) * r.uniform(0.4, 0.6)
-    out[toe_at:toe_at + len(toe)] += toe
-    # Grit: a few tiny dry clicks as small stones shift.
-    grit = np.zeros_like(out)
-    for _ in range(r.integers(4, 9)):
-        i = int(r.uniform(0, 0.11) * SR)
-        grit[i] += r.uniform(-1, 1)
-    grit = highpass(grit, 2500) * 0.35
-    weight = lowpass(noise(length), 220) * env(len(out), 0.004, 0.012) * 0.5
-    return out + grit + weight
-
-
-def sneak_step(seed):
-    # Sneaking: just the faint brush of a sole set down with care.
-    r = np.random.default_rng(seed + 10)
-    return scuff(0.08, 1200 + r.uniform(-150, 150), 4500, 0.012, 0.02)
 
 
 def swing():
@@ -289,9 +264,6 @@ def ambience():
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
-    for i in range(3):
-        save("step_%d" % i, step(i), 0.4)
-        save("sneak_%d" % i, sneak_step(i), 0.4)
     save("swing", swing(), 0.6)
     save("hit", hit(), 0.8)
     save("bones", bones(), 0.7)

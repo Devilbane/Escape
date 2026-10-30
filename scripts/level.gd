@@ -1234,11 +1234,26 @@ func _scatter_debris(obj: Dictionary) -> void:
 		var coin := _place("coin", base + side * rng.randf_range(-1.0, 1.0) + front * rng.randf_range(-0.3, 0.4), 0.0)
 		coin.scale = Vector3.ONE * 1.6
 		coin.rotation = Vector3(0, rng.randf() * TAU, 0)
+		# Worthless copper, so nobody mistakes it for gold to pick up.
+		for mi in coin.find_children("*", "MeshInstance3D", true, false):
+			mi.material_override = _copper()
 	var page := MeshInstance3D.new()
 	page.mesh = _torn_page(rng)
 	page.position = base + side * rng.randf_range(-0.8, 0.8) + Vector3(0, 0.02, 0)
 	page.rotation.y = rng.randf() * TAU
 	add_child(page)
+
+
+static var _copper_material: StandardMaterial3D
+
+
+func _copper() -> StandardMaterial3D:
+	if _copper_material == null:
+		_copper_material = StandardMaterial3D.new()
+		_copper_material.albedo_color = Color(0.45, 0.24, 0.14)
+		_copper_material.metallic = 0.5
+		_copper_material.roughness = 0.7
+	return _copper_material
 
 
 static var _page_material: StandardMaterial3D

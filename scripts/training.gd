@@ -63,7 +63,7 @@ const WISE_SHRINE := 12
 ## Every skill is governed by one or two of the three main attributes
 ## ("attributes"); that places it in one of the six SECTORS of the character
 ## page. A roll on a skill (skill_chance) uses their average.
-## A basic skill sits in the inner ring, right around the attributes. A
+## A basic skill sits in the inner ring, right around the attributes. An
 ## advanced skill has "needs" (basic skill id -> level): it sits in the outer
 ## ring and can only be used and learned once those levels are reached.
 const SKILLS := {

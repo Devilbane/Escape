@@ -54,6 +54,11 @@ jobs:
           timeout 600 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log
           grep -q PASS test.log
 
+      - name: Time away (offline activities) test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/offline_schedule.gd | tee offline.log
+          grep -q PASS offline.log
+
       - name: Browser-Version exportieren
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

@@ -87,6 +87,12 @@ var _title_buttons: Control
 ## The hero's name, asked for when a new game starts; it goes into the ranking.
 var hero_name := ""
 var _name_box: Control
+## The day the hero lives over and over while the player is away (see
+## Offline), planned at the refuge's bed and kept in the saved game.
+var away_plan := Offline.empty_plan()
+## What the hero did while the player was away, line by line, for the
+## welcome-back window.
+var away_report: Array[String] = []
 var _name_edit: LineEdit
 var _ranking_slot: Control
 var _lang_row: Control
@@ -734,6 +740,7 @@ func _start_new_game() -> void:
 	dry_levels = 0
 	storage.clear()
 	shop_stock.clear()
+	away_plan = Offline.empty_plan()
 	player.knives = 5
 	player.reset_gifts()
 	# The hero keeps what they trained in earlier runs under this name.
@@ -748,7 +755,9 @@ func continue_game() -> void:
 	if (state != State.TITLE and state != State.OVER) or not has_save():
 		return
 	var data := _read_save()
-	_leave_title(func(): _apply_save(data))
+	_leave_title(func():
+		_apply_save(data)
+		_return_from_away(data))
 
 
 ## Loads the saved game in the middle of a run (from the "Laden" window).
@@ -764,7 +773,8 @@ func load_saved_game() -> void:
 	tween.tween_callback(func():
 		player.frozen = false
 		_apply_save(data)
-		_start_playing())
+		_start_playing()
+		_return_from_away(data))
 
 
 func _toggle_sound() -> void:
@@ -855,6 +865,8 @@ func _apply_save(data: Dictionary) -> void:
 	lore.assign(data.get("lore", []))
 	escaped = bool(data.get("escaped", false))
 	home_given = bool(data.get("home", false))
+	var plan = data.get("plan", {})
+	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
 	player.refresh_stats()
 	load_level(clampi(int(data.level), 0, level_files.size() - 1), false)
@@ -882,22 +894,27 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_FILE)
 
 
-## Writes everything needed to wake up in this safe room later. True when
-## the file is really there afterwards.
+## Whether the elder has handed the hero the house, kept up to date while in
+## the village.
 func _home_given_now() -> bool:
 	if level is Outdoor:
 		home_given = level.house_given
 	return home_given
 
 
-func save_game() -> bool:
+## Writes everything needed to wake up in this safe room later. True when
+## the file is really there afterwards. Going away also writes the hero's
+## plan for the time away and when the player left.
+func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp)
 	var data := {
 		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "bag": player.bag, "storage": storage, "shop": shop_stock,
-		"lore": lore, "escaped": escaped, "home": _home_given_now(),
+		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(),
 	}
+	if going_away:
+		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
 	var file := FileAccess.open(SAVE_FILE, FileAccess.WRITE)
 	if file == null:
 		return false
@@ -908,7 +925,7 @@ func save_game() -> bool:
 
 ## The hero lies down in the safe room's bed: save, then back to the title.
 func sleep() -> void:
-	var saved := save_game()
+	var saved := save_game(true)
 	# Say so at once, so nobody has to wonder whether the save went through.
 	show_message(Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"), 2.4)
 	state = State.TRANSITION
@@ -918,6 +935,130 @@ func sleep() -> void:
 	tween.tween_interval(1.2)
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
 	tween.tween_callback(func(): _show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")))
+
+
+# --- Time away ----------------------------------------------------------------
+
+## What the hero can do while the player is away, right now: block -> ids.
+## Jobs the hero is fit for, attributes and skills that can still grow (a
+## skill only with its gear worn), books the hero owns (in the bag or the
+## storage chest) and every recipe.
+func away_choices() -> Dictionary:
+	var jobs := Offline.JOBS.keys().filter(func(id): return player.can_use(Offline.JOBS[id].get("requires", {})))
+	var train := []
+	for id in Offline.TRAINABLE:
+		if player.attribute(id) < Training.ATTRIBUTES[id].max:
+			train.append(id)
+	for id in Training.SKILLS:
+		if player.skill_enabled(id) and Training.skill_level(player.xp.get(id, 0.0)) < Training.SKILL_MAX:
+			train.append(id)
+	var books := []
+	var owned: Array = player.bag.duplicate()
+	owned.append_array(storage)
+	for id in owned:
+		if Items.is_book(id) and not id in books:
+			books.append(id)
+	return {"job": jobs, "train": train, "study": books, "craft": Offline.RECIPES.keys()}
+
+
+## Back after a sleep in the bed: the hero has lived the planned day for as
+## long as the player was away. The result goes into the hero and the saved
+## game, and a window tells what happened.
+func _return_from_away(data: Dictionary) -> void:
+	var away = data.get("away", {})
+	if not (away is Dictionary) or away.is_empty():
+		return
+	var real_seconds := maxf(0.0, Time.get_unix_time_from_system() - float(away.get("since", 0.0)))
+	var plan := Offline.normalized(away.get("plan", {}), away_choices())
+	var hours := Offline.game_hours(real_seconds)
+	var result := Offline.simulate(plan, hours)
+	away_report = _apply_away(plan, result)
+	away_report.push_front(Lang.t("Du warst %s weg, für %s vergingen %s.") % [
+			_real_time_text(real_seconds), hero_name, Offline.duration_text(hours)])
+	if real_seconds > Offline.MAX_REAL_SECONDS:
+		away_report.append(Lang.t("Mehr als 8 Tage (32 Stunden) zählen nicht."))
+	# Saving again without "away" makes sure the same time never counts twice.
+	save_game()
+	_update_hud()
+	menus.open("rueckkehr")
+
+
+## Gives the hero what the time away brought; returns a line for each thing.
+func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
+	var lines: Array[String] = []
+	var spent: Dictionary = result.spent
+	var before := {}
+	for id in Training.ATTRIBUTES:
+		before[id] = player.attribute(id)
+	for id in Training.SKILLS:
+		before[id] = Training.skill_level(player.xp.get(id, 0.0))
+	# No floating texts for each new point: the window lists them all.
+	player.set_block_signals(true)
+	for id in result.xp:
+		player.train(id, result.xp[id])
+	for id in result.study_xp:
+		player.train(id, result.study_xp[id], false)
+	player.set_block_signals(false)
+	coins += int(result.gold)
+	player.knives += int(result.knives)
+	var repaired := _repair_gear(int(result.repairs))
+	if spent.job > 0.0:
+		lines.append(Lang.t("%s: %s, +%d Gold") % [Lang.t(Offline.JOBS[plan.job].name), Offline.duration_text(spent.job), result.gold])
+	if spent.train > 0.0:
+		lines.append(Lang.t("Training (%s): %s") % [_training_name(plan.train), Offline.duration_text(spent.train)])
+	if spent.study > 0.0:
+		lines.append(Lang.t("Gelesen (%s): %s") % [Items.item_name(plan.study), Offline.duration_text(spent.study)])
+	if spent.craft > 0.0:
+		var made := ""
+		if Offline.RECIPES[plan.craft].makes == "knife":
+			made = Lang.t("%d Wurfmesser") % result.knives
+		else:
+			made = Lang.t("%d Punkte Haltbarkeit") % repaired
+		lines.append(Lang.t("%s: %s, %s") % [Lang.t(Offline.RECIPES[plan.craft].name), Offline.duration_text(spent.craft), made])
+	if spent.rest > 0.0:
+		# Each hour of rest heals an eighth of the hero's life; a full night
+		# also cures poison and curses.
+		player.hp = mini(player.max_hp, player.hp + ceili(spent.rest * player.max_hp / float(Offline.REST_HOURS)))
+		if spent.rest >= Offline.REST_HOURS:
+			player.cure()
+		lines.append(Lang.t("Geruht: %s, Leben %d / %d") % [Offline.duration_text(spent.rest), player.hp, player.max_hp])
+	for id in Training.ATTRIBUTES:
+		if player.attribute(id) > before[id]:
+			var shown := ("%d%%" % player.attribute(id)) if id == "tempo" else str(player.attribute(id))
+			lines.append(Lang.t("%s steigt auf %s!") % [Lang.t(Training.ATTRIBUTES[id].name), shown])
+	for id in Training.SKILLS:
+		var now := Training.skill_level(player.xp.get(id, 0.0))
+		if now > before[id]:
+			lines.append(Lang.t("%s: Stufe %d!") % [Lang.t(Training.SKILLS[id].name), now])
+	return lines
+
+
+## Takes away up to `points` of wear, worn gear first; returns how many.
+func _repair_gear(points: int) -> int:
+	var done := 0
+	var order: Array = player.equipped.values()
+	order.append_array(player.bag)
+	for id in order:
+		while done < points and player.wear.get(id, 0) > 0:
+			player.wear[id] -= 1
+			done += 1
+			if player.wear[id] <= 0:
+				player.wear.erase(id)
+	return done
+
+
+func _training_name(id: String) -> String:
+	if Training.is_skill(id):
+		return Lang.t(Training.SKILLS[id].name)
+	return Lang.t(Training.ATTRIBUTES[id].name)
+
+
+## Real time like "5 Stunden 20 Minuten".
+func _real_time_text(seconds: float) -> String:
+	var minutes := floori(seconds / 60.0)
+	if minutes < 60:
+		return Lang.t("%d Minuten") % minutes
+	return Lang.t("%d Std. %d Min.") % [floori(minutes / 60.0), minutes % 60]
 
 
 func _start_playing() -> void:

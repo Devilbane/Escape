@@ -1455,7 +1455,7 @@ func _roll_gear(kind: String, c: Vector2i) -> Array[String]:
 		for attempt in 6:
 			var id := Items.random_item(rng)
 			var slot: String = Items.ALL[id].slot
-			if slot != "spezial" and not gear.any(func(g): return Items.ALL[g].slot == slot):
+			if slot != "spezial" and slot != "buch" and not gear.any(func(g): return Items.ALL[g].slot == slot):
 				gear.append(id)
 				break
 	return gear

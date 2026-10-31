@@ -139,6 +139,26 @@ The **compendium** (key H) shows all keys and mouse commands and collects every 
 explanation you have been given so far: the introduction of every level, the tips on sneaking and on the
 guardian, the secret lever. It is saved with the game.
 
+## Time away (offline activities)
+
+When your hero lies down in the refuge's bed, you plan **one day** for them. While you are logged out,
+the hero lives that day over and over: every **10 real minutes are one in-game hour**, so one in-game day
+(24 hours) takes 4 real hours. At most **8 in-game days (32 real hours)** count; longer absences are capped.
+When you come back, a "Welcome back" window shows what the hero did.
+
+| Block | Hours per day | What it does |
+|---|---|---|
+| Job | 0 to 12 | City guard (3 gold/h, a little Konstitution and Stärke), smithy helper (needs Stärke 11, 2 gold/h, Stärke), scribe (needs Intelligenz 11, 2 gold/h, Intelligenz) |
+| Training | any | practise Stärke, Konstitution, Tempo or Geschick, or a skill whose gear is worn |
+| Study | any | read a book you carry or keep in the storage chest: it teaches its skill (no gear needed) and a little Intelligenz |
+| Crafting | any | forge throwing knives (1 per 3 h) or mend worn-down gear (1 durability per 2 h); both train Geschick a little |
+| Rest | at least 8 | heals an eighth of your life per hour; a full night also cures poison and curses |
+
+The blocks are lived in this order each day, so a short absence pays for the job and the training first.
+Training follows the same slow growth as in the dungeon: eight days of eight hours of training bring a fresh
+attribute up by one point and most of a second, and every further point costs a quarter more.
+Six books (one per skill) can turn up in chests and at the merchant. The rules are in `scripts/offline.gd`.
+
 ## Building new levels
 
 Every level is a simple text file in the `levels/` folder. The levels are

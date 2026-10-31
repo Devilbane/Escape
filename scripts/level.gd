@@ -16,12 +16,13 @@ extends Node3D
 ##   F  fountain: refills life and cures poison and curses
 ##   ?  secret wall: looks like a wall until its lever torch is found
 ##
-## The line "secret: normal|ungewoehnlich|selten|episch|gottgeboren" sets how
-## rich the secret room is. The richer it is, the harder its lever is to
+## The line "secret: normal|uncommon|rare|epic|godborn" sets how rich the
+## secret room is (the German ids ungewoehnlich, selten, episch, gottgeboren
+## work too). The richer it is, the harder its lever is to
 ## notice. Any torch near the secret wall can be the lever, a new one each run.
 ##
-## A level with the line "safe: ja" is a safe room without enemies.
-## A level with the line "elite: ja" has stronger skeletons with dark bones
+## A level with the line "safe: yes" is a safe room without enemies.
+## A level with the line "elite: yes" has stronger skeletons with dark bones
 ## and glowing red eyes.
 ##
 ## Barrels, crates, tables, trunks, chests and wall shelves can be searched.
@@ -156,6 +157,8 @@ const TIERS := {
 	"episch": {"name": "Episch", "chance": 18, "gold": 45, "min_price": 34, "color": Color(0.75, 0.4, 1.0)},
 	"gottgeboren": {"name": "Gottgeboren", "chance": 10, "gold": 70, "min_price": 42, "color": Color(1.0, 0.6, 0.15)},
 }
+## English names for the secret tiers, accepted in level files.
+const TIER_ALIASES := {"common": "normal", "uncommon": "ungewoehnlich", "rare": "selten", "epic": "episch", "godborn": "gottgeboren"}
 ## Every wall torch, with the tile it lights, and the plain walls without one.
 var _wall_torches: Array = []
 var _bare_walls: Array = []
@@ -177,6 +180,7 @@ func load_from_file(path: String) -> void:
 			elite = true
 		elif line.begins_with("secret:"):
 			secret_tier = line.substr(7).strip_edges()
+			secret_tier = TIER_ALIASES.get(secret_tier, secret_tier)
 			if not TIERS.has(secret_tier):
 				push_warning("Unknown secret tier: " + secret_tier)
 				secret_tier = "normal"

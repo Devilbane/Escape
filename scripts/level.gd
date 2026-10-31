@@ -15,6 +15,7 @@ extends Node3D
 ##   B  bed (save and log out)  L  storage chest  V  merchant
 ##   F  fountain: refills life and cures poison and curses
 ##   ?  secret wall: looks like a wall until its lever torch is found
+##   =  iron bars           U  a vault behind the bars (the bank's cellar)
 ##
 ## The line "secret: normal|uncommon|rare|epic|godborn" sets how rich the
 ## secret room is (the German ids ungewoehnlich, selten, episch, gottgeboren
@@ -22,6 +23,10 @@ extends Node3D
 ## notice. Any torch near the secret wall can be the lever, a new one each run.
 ##
 ## A level with the line "safe: yes" is a safe room without enemies.
+## A level with the line "outdoor: yes" lies in the open air and is built by
+## Outdoor, with its own map legend. The lines "building: b" and
+## "floor: cellar" (or "upstairs") make a level a floor inside the village
+## building with that letter: entered by its door, left by its stairs.
 ## A level with the line "elite: yes" has stronger skeletons with dark bones
 ## and glowing red eyes.
 ##
@@ -83,7 +88,7 @@ const WALL_DECOR := [
 ## to sit among the kit's stone.
 const STONE_TINT := Color(0.6, 0.56, 0.52)
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "#bxotkCDHBLVF?f"
+const SOLID := "#bxotkCDHBLVF?f=U"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
@@ -125,6 +130,16 @@ var enemies: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
 var safe := false
+## The world above ground after the last dungeon level: see Outdoor.
+var outdoor := false
+## Inside a village building: the building's letter on the village map,
+## and which floor ("cellar" below, "upstairs" above).
+var building := ""
+var floor_name := ""
+## The hero's name: the cellar shows which vault is theirs.
+var hero := ""
+var _vault_slots: Array[Vector2i] = []
+var _vault_shows: Array = []
 var elite := false
 ## How deep the level lies (0 for the first); deeper skeletons wear more gear.
 var depth := 0
@@ -166,6 +181,14 @@ var _bare_walls: Array = []
 const LEVER_CHOICES := 3
 
 
+## Whether a level file describes the open air (built by Outdoor).
+static func is_outdoor_file(path: String) -> bool:
+	for line in FileAccess.get_file_as_string(path).split("\n"):
+		if line.begins_with("outdoor:"):
+			return true
+	return false
+
+
 func load_from_file(path: String) -> void:
 	var text := FileAccess.get_file_as_string(path)
 	for line in text.split("\n"):
@@ -178,6 +201,17 @@ func load_from_file(path: String) -> void:
 			safe = true
 		elif line.begins_with("elite:"):
 			elite = true
+		elif line.begins_with("building:"):
+			# A floor inside a village building (see Outdoor): safe, and its
+			# stairs lead back out of the building's door.
+			building = line.substr(9).strip_edges()
+			safe = true
+		elif line.begins_with("floor:"):
+			floor_name = line.substr(6).strip_edges()
+		elif line.begins_with("outdoor:"):
+			# Out in the open (see Outdoor): no enemies, like a safe room.
+			outdoor = true
+			safe = true
 		elif line.begins_with("secret:"):
 			secret_tier = line.substr(7).strip_edges()
 			secret_tier = TIER_ALIASES.get(secret_tier, secret_tier)
@@ -214,6 +248,8 @@ func build() -> void:
 	fog.setup(self)
 	add_child(fog)
 	_spawn_enemies()
+	if not _vault_slots.is_empty():
+		refresh_vaults()
 
 
 # --- Keeping the way free ---------------------------------------------------
@@ -607,6 +643,10 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
 		"V":
 			_build_merchant(c)
+		"=":
+			_build_bars(c)
+		"U":
+			_vault_slots.append(c)
 		"F":
 			_build_fountain(c)
 		"?":
@@ -1431,10 +1471,22 @@ func _drop_gear(e: Enemy) -> void:
 
 ## A worn piece left on the floor, glowing until the hero walks over it.
 func _drop_item(id: String, pos: Vector3) -> void:
-	var item: Dictionary = Items.ALL[id]
-	var holder := Node3D.new()
+	var holder := _item_model(id)
 	holder.position = Vector3(pos.x, 1.0, pos.z)
 	add_child(holder)
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.75, 0.9, 1.0)
+	light.light_energy = 1.4
+	light.omni_range = 3.5
+	holder.add_child(light)
+	holder.add_child(Effects.make_sparkles(Color(0.75, 0.9, 1.0)))
+	_pickups.append({"node": holder, "kind": "item", "id": id, "radius": 1.6})
+
+
+## What an item looks like lying about: its own model, or a gem.
+func _item_model(id: String) -> Node3D:
+	var item: Dictionary = Items.ALL[id]
+	var holder := Node3D.new()
 	if item.has("model"):
 		var model: Node3D = load(item.model).instantiate()
 		model.scale = Vector3.ONE * 1.6
@@ -1455,13 +1507,68 @@ func _drop_item(id: String, pos: Vector3) -> void:
 		mat.emission_energy_multiplier = 0.6
 		gem.material_override = mat
 		holder.add_child(gem)
-	var light := OmniLight3D.new()
-	light.light_color = Color(0.75, 0.9, 1.0)
-	light.light_energy = 1.4
-	light.omni_range = 3.5
-	holder.add_child(light)
-	holder.add_child(Effects.make_sparkles(Color(0.75, 0.9, 1.0)))
-	_pickups.append({"node": holder, "kind": "item", "id": id, "radius": 1.6})
+	return holder
+
+
+# --- The bank's vault cellar ----------------------------------------------------
+
+## Iron bars across a one tile gap: solid, but you can see through.
+func _build_bars(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	_place("wall_gated", pos, 0.0)
+	_add_solid(pos, Vector3(TILE, 4, 0.6))
+
+
+## Fills the vaults behind the bars: one for every hero who rented one, in
+## the order they rented, each with a name plate, their gold and treasures.
+## The hero's own vault opens when they run into its bars.
+func refresh_vaults() -> void:
+	for node in _vault_shows:
+		if is_instance_valid(node):
+			node.queue_free()
+	_vault_shows.clear()
+	stations = stations.filter(func(s): return s.kind != "tresor")
+	var holders := Bank.vault_holders()
+	for i in _vault_slots.size():
+		var slot := _vault_slots[i]
+		var bars := slot + (Vector2i(0, 1) if cell_char(slot + Vector2i(0, 1)) == "=" else Vector2i(0, -1))
+		var owner: String = holders[i] if i < holders.size() else ""
+		var show := Node3D.new()
+		show.position = cell_to_world(slot)
+		add_child(show)
+		_vault_shows.append(show)
+		var plate := Label3D.new()
+		plate.text = owner if owner != "" else Lang.t("Zu vermieten")
+		plate.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+		plate.font_size = 48
+		plate.pixel_size = 0.012
+		plate.outline_size = 10
+		plate.modulate = Color(1.0, 0.82, 0.4) if owner == hero and owner != "" else Color(0.85, 0.85, 0.9)
+		plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		plate.position = cell_to_world(bars) - show.position + Vector3(0, 4.3, 0)
+		show.add_child(plate)
+		if owner == "":
+			continue
+		var gold := Bank.gold(owner)
+		if gold > 0:
+			var stack := _place("coin_stack_large", Vector3(1.1, 0, -1.0), 0.4, show)
+			stack.scale = Vector3.ONE * clampf(0.6 + gold / 200.0, 0.6, 1.6)
+		var items := Bank.vault_items(owner)
+		for k in items.size():
+			if not Items.ALL.has(items[k]):
+				continue
+			var thing := _item_model(items[k])
+			thing.position = Vector3(-1.2 + (k % 3) * 1.2, 0.8, -1.2 + (k / 3) * 1.1)
+			thing.rotation.y = k * 0.7
+			show.add_child(thing)
+		var glow := OmniLight3D.new()
+		glow.light_color = Color(1.0, 0.85, 0.55)
+		glow.light_energy = 1.2
+		glow.omni_range = 4.0
+		glow.position = Vector3(0, 2.5, 0)
+		show.add_child(glow)
+		if owner == hero:
+			stations.append({"kind": "tresor", "cell": bars, "pos": cell_to_world(bars), "used": false})
 
 
 ## True when nothing blocks the view between two points on the grid.

@@ -111,6 +111,30 @@ has no wall torches. A guardian in a level without `K` drops the key when it die
 
 Searched barrels, crates, tables and chests can be recognised by coins and a torn sheet in front of them.
 
+## Beyond the gate: freedom
+
+Whoever climbs the last stairs steps out of a **crypt** onto a graveyard under the evening sky. That counts
+as an escape: it goes into the ranking and the game is saved. But the game goes on. A long path leads
+through the autumn forest, past a pond and a woodcutter, to the village of **Lindenhain**. Run into anyone
+to hear what they have to say. The **village elder** gives you the empty house with the tiled roof, and a
+golden light shows the door. Inside are a **bed** (save and log out) and a **chest** (your storage). When you
+play on, you wake up in your own house.
+
+In the middle of the village lies the paved **market square** with a fountain that heals, benches and
+lanterns. Around it stand the **smithy**, the **temple**, the **office of the crown**, the **post office**, the
+**adventurers' guild**, the **general store** (Mira, the shopkeeper, buys and sells), the **tavern** and the
+**bank**. Fifteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
+makes the rounds, the postmaster carries letters, the priestess tends the temple. Every so often the
+**herald** rings the bell and calls out the news, and the whole village gathers on the square to listen.
+
+At the **bank** the banker keeps your gold safe (deposit and withdraw) and rents you a **vault** for
+50 gold. The vaults are in the **cellar**: small cells behind iron bars, each with its holder's name, their
+gold and their treasures. You can walk down and look at what every other hero keeps there; your own cell
+opens for you. Until there is a server, the bank keeps one account per hero name on this computer.
+
+The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
+computing time and nothing to run.
+
 The **compendium** (key H) shows all keys and mouse commands and collects every hint and every
 explanation you have been given so far: the introduction of every level, the tips on sneaking and on the
 guardian, the secret lever. It is saved with the game.
@@ -162,6 +186,22 @@ A line `safe: yes` makes a level a safe room, and `elite: yes` gives it stronger
 A line like `secret: epic` sets how rich the secret room behind the wall `?` is: `normal`, `uncommon`, `rare`, `epic`
 or `godborn` (the older German ids `ungewoehnlich`, `selten`, `episch` and `gottgeboren` still work).
 
+A line `outdoor: yes` turns a level into the world under the open sky (see `levels/11_die_freiheit.txt`).
+It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `~` pond, `R` crypt, `g` grave,
+`d` dead tree, `z` graveyard fence, `a` gate in the fence, `l` lantern, `p` pumpkins, `r` rock, `T` tree,
+`t` tree stump, `e` barrels and crates, `q` well, `F` fountain, `x` bench, `y` pumpkin field. Buildings are a
+rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general store, `u` windmill,
+`s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank. The hero's house:
+`I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The villagers: `0` elder,
+`1` smith, `2` farmer, `3` woodcutter, `4` guard, `5` drinker, `6` shopkeeper, `7` child, `8` scholar,
+`9` water carrier, `K` herald, `O` priestess, `G` guild master, `M` postmaster, `Y` banker.
+
+**Floors of buildings.** A level file with the lines `building: b` and `floor: cellar` or
+`floor: upstairs` is a floor of the village building with that character: walking in at the
+building's door leads there, and its stairs `E` lead back out of the door. Such floors are never part of
+the run through the dungeon. Inside, `=` is a wall of iron bars and `U` a vault cell (see
+`levels/12_der_tresorkeller.txt`, the bank's vault cellar).
+
 The exit `E` needs a wall to the north (top) and is entered from the south.
 A door `D` stands in a passage one tile wide.
 
@@ -175,6 +215,8 @@ entry there.
 
 - Engine: [Godot 4.5](https://godotengine.org) with the Compatibility renderer, so it runs in the browser
 - Graphics: KayKit Dungeon Remastered, Adventurers and Skeletons by Kay Lousberg (CC0)
+- Graveyard, crypt and autumn trees: KayKit Halloween Bits; village buildings, trees and rocks: KayKit Medieval Hexagon Pack, both by Kay Lousberg (CC0)
+- Wooden floor and roof tiles of the house: "Wood 062" and "Roofing Tiles 014 C" by ambientCG (CC0)
 - Floors, walls, pillars and furniture: 3D Modular Dungeon Kit by Omie's Assets (CC0)
 - Sounds: made from scratch with `tools/make_sounds.py`; footsteps and door: recordings by Fantozzi, “Footsteps Leather, Cloth, Armor” and qubodup; creatures, skeleton voices and chains by rubberduck; crossbow shots from “Medieval sound effects - Weapon Textures” (CC0, see `assets/sounds/CREDITS.txt`)
 - Font: Cinzel and Cinzel Decorative (SIL Open Font License)

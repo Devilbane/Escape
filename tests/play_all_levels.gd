@@ -1,7 +1,8 @@
 extends SceneTree
 ## Headless smoke test: plays every level like a (very determined) player.
 ## It fights skeletons, searches every object, grabs the key and leaves by
-## the stairs. Run with: godot --headless --fixed-fps 60 -s tests/play_all_levels.gd
+## the stairs. Out of the dungeon, it walks to the village elder and then
+## into its new house, up to the bed. Run with: godot --headless --fixed-fps 60 -s tests/play_all_levels.gd
 ## (--fixed-fps makes the run deterministic and much faster than real time).
 
 var game: Node
@@ -67,7 +68,7 @@ func _process(delta: float) -> bool:
 		reached = game.level_index
 		print("  reached level ", reached + 1)
 		# Entering the safe room must have saved the game right there.
-		if game.level.safe and (not game.has_save() or int(game.save_info().level) != reached + 1):
+		if game.level.safe and not game.level.outdoor and game.level.building == "" and (not game.has_save() or int(game.save_info().level) != reached + 1):
 			print("FAIL: no autosave on entering the safe room, level ", reached + 1)
 			return true
 	var player: Player = game.player
@@ -84,6 +85,10 @@ func _process(delta: float) -> bool:
 	if game.state != game.State.PLAYING or not player.can_act():
 		return false
 	var lvl: Level = game.level
+	if lvl.building != "":
+		return _in_building(lvl, player)
+	if lvl.outdoor:
+		return _back_outside(lvl, player) if _was_in_cellar else _village(lvl, player)
 
 	# Caught on a shrine or a table edge with somewhere to go: step aside.
 	if player.global_position.distance_to(_last_spot) > 0.3:
@@ -219,3 +224,69 @@ func _process(delta: float) -> bool:
 	else:
 		player.walk_to(_cell_of("E"))
 	return false
+
+
+## Out in the open: the escape is in the ranking and saved, the elder hands
+## over the house, the villagers go about their day, and the hero walks home.
+var _village_time := 0.0
+var _slept := false
+func _village(lvl: Outdoor, player: Player) -> bool:
+	_village_time += 1.0 / 60.0
+	if not game.escaped:
+		print("FAIL: stepping out of the crypt did not count as an escape")
+		return true
+	if not game.has_save() or int(game.save_info().level) != game.level_index + 1:
+		print("FAIL: no autosave on stepping out of the crypt")
+		return true
+	if not player.path.is_empty():
+		return false
+	if not lvl.house_given:
+		var elder: Node3D = lvl.villagers.filter(func(v): return v.role == "0")[0]
+		player.walk_to(elder.global_position, 3.0)
+		return false
+	var bed: Dictionary = lvl.stations.filter(func(s): return s.kind == "bett")[0]
+	if not _slept and player.global_position.distance_to(bed.pos) > Level.SEARCH_RANGE:
+		player.walk_to(bed.pos, 2.0)
+		if player.path.is_empty():
+			print("FAIL: no way to the bed in the hero's house")
+			return true
+		return false
+	_slept = true
+	var moved: int = lvl.villagers.filter(func(v): return v.global_position.distance_to(lvl.cell_to_world(v.home)) > 1.0).size()
+	if moved == 0:
+		print("FAIL: no villager moved from their spot")
+		return true
+	# Then over to the bank and down into its vault cellar.
+	var door: Vector3 = lvl.doors["b"]
+	if player.global_position.distance_to(door) > 3.0:
+		player.walk_to(door, 2.0)
+		if player.path.is_empty():
+			print("FAIL: no way to the bank door")
+			return true
+		return false
+	_moved = moved
+	game.go_inside("b")
+	return false
+
+
+## Inside the bank's vault cellar, then up the stairs and out of the door.
+var _moved := 0
+var _was_in_cellar := false
+func _in_building(lvl: Level, player: Player) -> bool:
+	if lvl.building != "b" or lvl.floor_name != "cellar":
+		print("FAIL: the bank door led to ", lvl.level_name)
+		return true
+	if lvl._vault_slots.size() < 16:
+		print("FAIL: the vault cellar has only ", lvl._vault_slots.size(), " cells")
+		return true
+	_was_in_cellar = true
+	game._next_level()
+	return false
+
+
+func _back_outside(lvl: Outdoor, player: Player) -> bool:
+	if player.global_position.distance_to(lvl.doors["b"]) > 3.0:
+		print("FAIL: leaving the cellar did not lead out of the bank door")
+		return true
+	print("PASS: all ", game.level_files.size() - 2, " levels finished and home in the village after ", int(_village_time), " s, gold ", game.coins, ", searched ", searched, ", shrine gifts ", gifts, ", bag emptied ", equips, ", worn ", game.player.equipped.values(), ", rescued ", rescues, "x, backstabs ", backstabs, ", villagers away from their spot ", _moved, ", visited the vault cellar")
+	return true

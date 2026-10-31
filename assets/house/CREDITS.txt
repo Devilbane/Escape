@@ -1,0 +1,2 @@
+wood_floor.jpg  - "Wood 062" from ambientCG (https://ambientcg.com/a/Wood062), CC0, scaled down to 512 px
+roof_tiles.jpg  - "Roofing Tiles 014 C" from ambientCG (https://ambientcg.com/a/RoofingTiles014C), CC0, scaled down to 512 px

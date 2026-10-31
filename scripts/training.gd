@@ -56,17 +56,36 @@ const WISE_SHRINE := 12
 
 ## Each skill; what a level does is in Player. A skill may have "requires"
 ## (attribute id -> value), like an item, before it can be used or learned.
-##   Klingen, Äxte, Messerwurf: +5 % chance per level of a heavy hit (+1 damage).
+##   Klingen, Äxte, Messerwurf: a heavy hit (+1 damage) is a skill roll.
 ##   Blocken: +2 % block chance per level.  Rüstung tragen: hard armour
 ##   weighs 6 % less per level.  Schleichen: sneaking 3 % faster per level.
+##
+## Every skill is governed by one or two of the three main attributes
+## ("attributes"); that places it in one of the six SECTORS of the character
+## page. A roll on a skill (skill_chance) uses their average.
+## A basic skill sits in the inner ring, right around the attributes. A
+## specialisation has "needs" (basic skill id -> level): it sits in the outer
+## ring and can only be used and learned once those levels are reached.
 const SKILLS := {
-	"klingen": {"name": "Klingen"},
-	"aexte": {"name": "Äxte"},
-	"werfen": {"name": "Messerwurf"},
-	"blocken": {"name": "Blocken"},
-	"ruestung": {"name": "Rüstung tragen"},
-	"schleichen": {"name": "Schleichen"},
+	"klingen": {"name": "Klingen", "attributes": ["staerke", "geschick"]},
+	"aexte": {"name": "Äxte", "attributes": ["staerke"]},
+	"werfen": {"name": "Messerwurf", "attributes": ["geschick"]},
+	"blocken": {"name": "Blocken", "attributes": ["staerke", "geschick"]},
+	"ruestung": {"name": "Rüstung tragen", "attributes": ["staerke"]},
+	"schleichen": {"name": "Schleichen", "attributes": ["geschick", "intelligenz"]},
 }
+## The three main attributes, clockwise from the top of the character page.
+const MAIN_ATTRIBUTES := ["staerke", "geschick", "intelligenz"]
+## The ring of skills around them, clockwise from the top, 60 degrees each:
+## a main attribute alone, then the pair it shares with the next one.
+const SECTORS := [
+	["staerke"],
+	["staerke", "geschick"],
+	["geschick"],
+	["geschick", "intelligenz"],
+	["intelligenz"],
+	["intelligenz", "staerke"],
+]
 const SKILL_MAX := 10
 const SKILL_FIRST := 8.0
 const SKILL_GROWTH := 1.45
@@ -116,6 +135,29 @@ static func skill_level(xp: float) -> int:
 
 static func skill_progress(xp: float) -> float:
 	return progress(xp, SKILL_FIRST, SKILL_GROWTH, SKILL_MAX)
+
+
+## The chance in percent that a roll on a skill succeeds, d100 <= chance:
+## the average of the governing attributes times (skill level + 1). An
+## average of 10 at level 0 is 10 %, at level 4 it is 50 %; 100 or more
+## always succeeds.
+static func skill_chance(attribute_average: float, level: int) -> int:
+	return floori(attribute_average * (level + 1))
+
+
+## 1 for a basic skill (inner ring), 2 for a specialisation (outer ring).
+static func tier(id: String) -> int:
+	return 2 if SKILLS[id].has("needs") else 1
+
+
+## Which of the six SECTORS a skill sits in.
+static func sector_of(id: String) -> int:
+	var governing: Array = SKILLS[id].attributes
+	for i in SECTORS.size():
+		var sector: Array = SECTORS[i]
+		if sector.size() == governing.size() and governing.all(func(a): return sector.has(a)):
+			return i
+	return 0
 
 
 static func is_skill(id: String) -> bool:

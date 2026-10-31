@@ -457,7 +457,6 @@ func _auto_attack() -> void:
 
 # --- Training -----------------------------------------------------------------
 
-const HEAVY_PER_LEVEL := 0.05
 const BLOCK_PER_LEVEL := 0.02
 const ARMOR_LIGHTER_PER_LEVEL := 0.06
 const SNEAK_PER_LEVEL := 0.03
@@ -514,6 +513,11 @@ func skill(id: String) -> int:
 func skill_enabled(id: String) -> bool:
 	if not can_use(Training.SKILLS[id].get("requires", {})):
 		return false
+	# A specialisation builds on basic skills.
+	var needs: Dictionary = Training.SKILLS[id].get("needs", {})
+	for basic in needs:
+		if Training.skill_level(xp.get(basic, 0.0)) < int(needs[basic]):
+			return false
 	match id:
 		"klingen", "aexte":
 			return weapon_skill() == id
@@ -529,9 +533,31 @@ func weapon_skill() -> String:
 	return Items.ALL.get(equipped.get("waffe", ""), {}).get("uses", "klingen")
 
 
-## 1 now and then, more often the better the skill: a heavy hit.
+## A heavy hit (+1 damage) is a roll on the weapon's skill.
 func heavy_hit(skill_id: String) -> int:
-	return 1 if randf() < HEAVY_PER_LEVEL * skill(skill_id) else 0
+	return 1 if skill_check(skill_id) else 0
+
+
+## The average of the attributes that govern a skill.
+func skill_attribute_average(id: String) -> float:
+	var governing: Array = Training.SKILLS[id].attributes
+	var total := 0
+	for a in governing:
+		total += attribute(a)
+	return float(total) / governing.size()
+
+
+## The chance in percent that a roll on this skill succeeds (see Training).
+## 0 while the gear it needs is not worn.
+func skill_chance(id: String) -> int:
+	if not skill_enabled(id):
+		return 0
+	return Training.skill_chance(skill_attribute_average(id), skill(id))
+
+
+## A roll on a skill: d100 against skill_chance.
+func skill_check(id: String) -> bool:
+	return randi_range(1, 100) <= skill_chance(id)
 
 
 ## Adds training to an attribute or skill. Skills only train while their gear

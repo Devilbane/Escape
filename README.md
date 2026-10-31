@@ -17,6 +17,7 @@ Einfache Steuerung, schöne 2.5D-Grafik, viele Levels.
 Ein Sprung aus dem Lauf behält den Schwung: je schneller du bist, desto weiter fliegst du.
 | Inventar | I | Knopf „Inventar“ |
 | Kompendium | H | Knopf „Kompendium“ |
+| Charakter | P | Knopf „Charakter“ |
 | Spielstand laden | L | Knopf „Laden“ (auch auf dem Startbildschirm) |
 | Spiel beenden | Esc | Knopf „Beenden“ oben rechts |
 | Ton an/aus | M | Knopf „Ton“ oben rechts |
@@ -67,11 +68,22 @@ braucht ein Viertel mehr Übung als der davor:
 Dazu kommen **Fertigkeiten** (Stufe 0 bis 10). Sie wachsen viel schneller, aber nur mit der Ausrüstung,
 die sie braucht: **Klingen** mit Dolch oder Schwert, **Äxte** mit der Axt, **Blocken** mit einem Schild,
 **Rüstung tragen** mit harter Rüstung; **Messerwurf** und **Schleichen** gehen immer.
-Klingen, Äxte und Messerwurf geben je Stufe 5 % Chance auf einen Wuchttreffer (+1 Schaden), Blocken +2 %
+Mit Klingen, Äxten und Messerwurf ist jeder Wuchttreffer (+1 Schaden) eine Probe auf die Fertigkeit (siehe unten), Blocken +2 %
 Blocken, Rüstung tragen lässt harte Rüstung 6 % leichter wiegen, Schleichen macht 3 % schneller.
 Manche Gegenstände geben selbst Stufen dazu (Schattenumhang +2 Schleichen, Wappenschild +1 Blocken,
 Kettenhemd +1 Rüstung tragen, Silberarmreif +1 Messerwurf). Alles steht im Inventar, mit dem Fortschritt
 zum nächsten Punkt. Was dein Held gelernt hat, bleibt mit seinem Namen gespeichert, auch über neue Spiele hinweg.
+
+Die **Charakterseite** (Taste P) zeigt alles als Rad. In der Mitte stehen die Eigenschaften: Stärke,
+Geschick und Intelligenz, dazwischen Konstitution, Weisheit und Intuition, ganz innen Leben und Tempo.
+Darum liegt ein Ring aus sechs Feldern: Stärke, Stärke · Geschick, Geschick, Geschick · Intelligenz,
+Intelligenz, Intelligenz · Stärke. Jede Fertigkeit liegt im Feld der Eigenschaften, die sie bestimmen:
+Äxte und Rüstung tragen bei Stärke, Klingen und Blocken bei Stärke · Geschick, Messerwurf bei Geschick,
+Schleichen bei Geschick · Intelligenz. Die Grundfertigkeiten liegen im inneren Ring; Spezialisierungen,
+die eine Grundfertigkeit voraussetzen (`needs` in `Training.SKILLS`), kommen in den äußeren Ring.
+Eine **Probe** auf eine Fertigkeit gelingt, wenn W100 ≤ (Summe der Eigenschaften / ihre Anzahl) × (Stufe + 1).
+Beispiel: Klingen 2 mit Stärke 12 und Geschick 10 ergibt (12 + 10) / 2 × 3 = 33 %. Die Seite zeigt diese
+Chance bei jeder Fertigkeit.
 
 Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es einen **Brunnen**,
 der dein Leben auffüllt und Gift und Flüche heilt, eine Lagertruhe, einen Händler, der für Gold kauft und verkauft, und ein Bett. Beim Betreten der Zuflucht wird automatisch gespeichert; im Bett wird noch einmal gespeichert und du loggst aus. Fällt der Held später, bleibt der Spielstand erhalten: Ein Klick auf dem Gefallen-Bildschirm setzt das Spiel ab der Zuflucht fort, N beginnt ein neues.

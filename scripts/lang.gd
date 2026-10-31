@@ -49,8 +49,8 @@ const EN := {
 	"Entkommen": "Escaped",
 	"Alle Rechte vorbehalten": "All rights reserved",
 	# HUD and help
-	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)":
-		"WASD: walk   Space: jump   F: strike   R: knife   M: sound\nI: inventory   H: compendium   L: load   C/double click: sneak   Run into things: use\nMouse: click/hold to walk, right click: knife (running: jump)",
+	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)":
+		"WASD: walk   Space: jump   F: strike   R: knife   M: sound\nI: inventory   H: compendium   P: character   L: load   C/double click: sneak   Run into things: use\nMouse: click/hold to walk, right click: knife (running: jump)",
 	# Compendium
 	"Kompendium": "Compendium",
 	"Steuerung": "Controls",
@@ -270,6 +270,15 @@ const EN := {
 	"Rüstung tragen": "Wearing armour",
 	"Fertigkeit: %s": "Skill: %s",
 	"Fertigkeiten:": "Skills:",
+	# Character page
+	"Charakter": "Character",
+	"Leben": "Life",
+	"Jede Fertigkeit liegt im Feld der Eigenschaften, die sie bestimmen.": "Every skill sits in the field of the attributes that govern it.",
+	"Probe auf eine Fertigkeit:\nW100 ≤ (Summe der Eigenschaften / ihre Anzahl) × (Stufe + 1)": "Roll on a skill:\nd100 ≤ (sum of the attributes / their number) × (level + 1)",
+	"Beispiel: Klingen 2, Stärke 12, Geschick 10: (12 + 10) / 2 × 3 = 33 %": "Example: Blades 2, Strength 12, Dexterity 10: (12 + 10) / 2 × 3 = 33 %",
+	"Ein Wuchttreffer (+1 Schaden) ist eine Probe auf die Waffen-Fertigkeit.": "A heavy hit (+1 damage) is a roll on the weapon's skill.",
+	"Innen: Grundfertigkeiten. Außen: Spezialisierungen, die eine Grundfertigkeit voraussetzen.": "Inside: basic skills. Outside: specialisations that build on a basic skill.",
+	"Gedimmt: braucht passende Ausrüstung": "Dimmed: needs the right gear",
 	"In Klammern: braucht passende Ausrüstung": "In brackets: needs the right gear",
 	" (höchster Wert)": " (highest)",
 	"Die vielen Kämpfe machen dich stärker: Stärke %d, +1 Kampfkraft": "All the fighting makes you stronger: Strength %d, +1 power",

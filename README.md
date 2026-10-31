@@ -78,6 +78,21 @@ hat keine Wandfackeln. Ein Wächter in einem Level ohne `K` lässt beim Tod den 
 
 Durchsuchte Fässer, Kisten, Tische und Truhen erkennst du an Münzen und einem zerrissenen Blatt davor.
 
+## Nach dem Tor: die Freiheit
+
+Wer die letzte Treppe hinaufsteigt, tritt aus einer **Gruft** auf einen Friedhof unter dem Abendhimmel.
+Das zählt als Flucht und kommt in die Rangliste, und das Spiel wird gespeichert. Aber es geht weiter:
+Ein langer Weg führt durch den Herbstwald, vorbei an einem Teich und einem Holzfäller, ins Dorf
+**Lindenhain**. Dort gehen zehn Dorfbewohner ihrer Arbeit nach: der Schmied hämmert, die Bäuerin erntet
+Kürbisse, die Wache macht ihre Runde, die Wasserträgerin läuft zwischen Brunnen und Häusern hin und her,
+der Zecher sitzt mit seinem Krug vor dem Wirtshaus und Pip rennt herum. Lauf gegen jemanden, um zu
+hören, was er zu sagen hat. Der **Dorfvorsteher** schenkt dir das leere Haus mit dem Ziegeldach; ein
+goldenes Licht zeigt die Tür. Drinnen stehen ein **Bett** (speichern und ausloggen) und eine **Truhe**
+(dein Lager). Wer weiterspielt, wacht im eigenen Haus auf.
+
+Die Dorfbewohner folgen einem festen Tagesablauf (kleine Skripte, keine KI im Netz): Das kostet keine
+Rechenzeit, die man merkt, und keine laufenden Kosten.
+
 Das **Kompendium** (Taste H) zeigt alle Tasten und Mausbefehle und sammelt jeden Hinweis und jede
 Erklärung, die du bisher bekommen hast: die Einleitung jeder Ebene, die Tipps zum Schleichen und zum
 Wächter, den Geheimhebel. Es wird mit dem Spielstand gespeichert.
@@ -106,6 +121,15 @@ Eine Zeile `safe: ja` macht ein Level zum Saferoom. Eine Zeile wie `secret: epis
 wie reich der Geheimraum hinter der Wand `?` ist: `normal`, `ungewoehnlich`, `selten`, `episch`
 oder `gottgeboren`.
 
+Eine Zeile `outdoor: ja` macht ein Level zur Welt unter freiem Himmel (siehe `levels/11_die_freiheit.txt`).
+Dort gilt eine eigene Zeichenliste: `#` Wald, `.` Wiese, `,` Weg, `~` Teich, `R` Gruft, `g` Grab,
+`d` toter Baum, `z` Friedhofszaun, `a` Tor im Zaun, `l` Laterne, `p` Kürbisse, `r` Fels, `T` Baum,
+`t` Baumstumpf, `e` Fässer und Kisten, `q` Brunnen, `y` Kürbisfeld; Gebäude als Rechteck aus gleichen
+Zeichen: `h` Haus, `j` Schmiede, `n` Wirtshaus, `m` Markt, `u` Windmühle. Das Haus des Helden: `I` Wand,
+`i` Holzboden (eine Lücke in der Wand ist die Tür), `B` Bett, `L` Truhe. Die Ziffern `0` bis `9` sind
+Dorfbewohner: 0 Dorfvorsteher, 1 Schmied, 2 Bäuerin, 3 Holzfäller, 4 Wache, 5 Zecher, 6 Händlerin,
+7 Kind, 8 Gelehrter, 9 Wasserträgerin.
+
 Der Ausgang `E` braucht eine Wand im Norden (oben) und wird von Süden betreten.
 Eine Tür `D` steht in einem ein Feld breiten Durchgang.
 
@@ -113,6 +137,8 @@ Eine Tür `D` steht in einem ein Feld breiten Durchgang.
 
 - Engine: [Godot 4.5](https://godotengine.org) mit dem Compatibility-Renderer, damit es im Browser läuft
 - Grafik: KayKit Dungeon Remastered, Adventurers und Skeletons von Kay Lousberg (CC0)
+- Friedhof, Gruft und Herbstbäume: KayKit Halloween Bits, Dorf, Bäume und Felsen: KayKit Medieval Hexagon Pack, beide von Kay Lousberg (CC0)
+- Holzboden und Dachziegel des Hauses: „Wood 062“ und „Roofing Tiles 014 C“ von ambientCG (CC0)
 - Böden, Wände, Säulen und Möbel: 3D Modular Dungeon Kit von Omie's Assets (CC0)
 - Geräusche: selbst erzeugt mit `tools/make_sounds.py`, Schritte und Tür: Aufnahmen von Fantozzi, „Footsteps Leather, Cloth, Armor“ und qubodup, Kreaturen, Skelettstimmen und Ketten von rubberduck, Armbrustschüsse aus „Medieval sound effects - Weapon Textures“ (CC0, siehe `assets/sounds/CREDITS.txt`)
 - Schrift: Cinzel und Cinzel Decorative (SIL Open Font License)

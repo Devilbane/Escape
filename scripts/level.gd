@@ -21,6 +21,8 @@ extends Node3D
 ## notice. Any torch near the secret wall can be the lever, a new one each run.
 ##
 ## A level with the line "safe: ja" is a safe room without enemies.
+## A level with the line "outdoor: ja" lies in the open air and is built by
+## Outdoor, with its own map legend.
 ## A level with the line "elite: ja" has stronger skeletons with dark bones
 ## and glowing red eyes.
 ##
@@ -124,6 +126,8 @@ var enemies: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
 var safe := false
+## The world above ground after the last dungeon level: see Outdoor.
+var outdoor := false
 var elite := false
 ## How deep the level lies (0 for the first); deeper skeletons wear more gear.
 var depth := 0
@@ -163,6 +167,14 @@ var _bare_walls: Array = []
 const LEVER_CHOICES := 3
 
 
+## Whether a level file describes the open air (built by Outdoor).
+static func is_outdoor_file(path: String) -> bool:
+	for line in FileAccess.get_file_as_string(path).split("\n"):
+		if line.begins_with("outdoor:"):
+			return true
+	return false
+
+
 func load_from_file(path: String) -> void:
 	var text := FileAccess.get_file_as_string(path)
 	for line in text.split("\n"):
@@ -175,6 +187,10 @@ func load_from_file(path: String) -> void:
 			safe = true
 		elif line.begins_with("elite:"):
 			elite = true
+		elif line.begins_with("outdoor:"):
+			# Out in the open (see Outdoor): no enemies, like a safe room.
+			outdoor = true
+			safe = true
 		elif line.begins_with("secret:"):
 			secret_tier = line.substr(7).strip_edges()
 			if not TIERS.has(secret_tier):

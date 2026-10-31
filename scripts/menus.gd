@@ -309,7 +309,7 @@ func _build_load() -> void:
 	_add_label(Lang.t("Spielstand laden"), 38, game.GOLD, game.TITLE_FONT)
 	var info: Dictionary = game.save_info()
 	if info.is_empty():
-		_add_label(Lang.t("Es gibt noch keinen Spielstand. Gespeichert wird im Bett der Zuflucht."), 20)
+		_add_label(Lang.t("Es gibt noch keinen Spielstand. Gespeichert wird beim Betreten der Zuflucht und in ihrem Bett."), 20)
 	else:
 		_add_label(Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins], 22)
 		_add_label(Lang.t("Was du seitdem erlebt hast, geht verloren."), 20, Color(1.0, 0.75, 0.5))

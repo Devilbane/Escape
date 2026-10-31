@@ -668,7 +668,7 @@ func _start_new_game() -> void:
 
 
 func continue_game() -> void:
-	if state != State.TITLE or not has_save():
+	if (state != State.TITLE and state != State.OVER) or not has_save():
 		return
 	var data := _read_save()
 	_leave_title(func(): _apply_save(data))
@@ -1042,11 +1042,14 @@ func _on_player_defeated() -> void:
 func _end_run(escaped: bool) -> void:
 	state = State.WON if escaped else State.OVER
 	var entry := Ranking.add(hero_name, level_index + 1, level.level_name, coins, escaped)
-	# The run is over, so the saved game in the safe room is gone too.
-	if has_save():
-		DirAccess.remove_absolute(SAVE_FILE)
 	if escaped:
+		# The run is over, so the saved game in the safe room is gone too.
+		if has_save():
+			DirAccess.remove_absolute(SAVE_FILE)
 		_show_title(Lang.t("Frei!"), Lang.t("%s ist entkommen und hat %d Gold erbeutet.") % [hero_name, coins], Lang.t("Klicken für ein neues Spiel"))
+	elif has_save():
+		# A fallen hero may rise again in the safe room.
+		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], Lang.t("Klicken oder eine Taste: ab der Zuflucht weiterspielen.  N: neues Spiel"))
 	else:
 		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], Lang.t("Klicken für ein neues Spiel"))
 	_title_text.add_theme_font_size_override("font_size", 90)
@@ -1255,8 +1258,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				continue_game()
 			else:
 				new_game()
-		State.WON, State.OVER:
+		State.WON:
 			new_game()
+		State.OVER:
+			if has_save() and not (event is InputEventKey and event.physical_keycode == KEY_N):
+				continue_game()
+			else:
+				new_game()
 		State.PLAYING:
 			if not _shrine.is_empty():
 				if event is InputEventKey and event.physical_keycode in [KEY_1, KEY_2, KEY_3]:

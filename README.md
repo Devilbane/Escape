@@ -50,7 +50,7 @@ Jeder Gegenstand hat ein **Gewicht**. Alles, was du trägst, angelegt oder in de
 1 % Tempo pro kg, höchstens 35 %. Schmuck wiegt fast nichts, ein Plattenpanzer 8 kg. Skelette tragen ihre
 Ausrüstung genauso.
 Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es einen **Brunnen**,
-der dein Leben auffüllt und Gift und Flüche heilt, eine Lagertruhe, einen Händler, der für Gold kauft und verkauft, und ein Bett. Beim Betreten der Zuflucht wird automatisch gespeichert; im Bett wird noch einmal gespeichert und du loggst aus.
+der dein Leben auffüllt und Gift und Flüche heilt, eine Lagertruhe, einen Händler, der für Gold kauft und verkauft, und ein Bett. Beim Betreten der Zuflucht wird automatisch gespeichert; im Bett wird noch einmal gespeichert und du loggst aus. Fällt der Held später, bleibt der Spielstand erhalten: Ein Klick auf dem Gefallen-Bildschirm setzt das Spiel ab der Zuflucht fort, N beginnt ein neues.
 Beim nächsten Start geht es mit „Weiterspielen“ dort weiter. Der Spielstand liegt im Browser.
 Jede Ebene hat einen **Geheimraum**. Eine der Fackeln in seiner Nähe ist ein Hebel, in jedem Lauf
 eine andere. Läufst du zum ersten Mal an ihr vorbei, entdeckst du ihn mit etwas Glück (W100), und

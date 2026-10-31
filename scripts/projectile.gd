@@ -72,6 +72,8 @@ func _physics_process(delta: float) -> void:
 			if is_instance_valid(e) and not e.dead and _hits(e.global_position):
 				e.take_hit(damage, global_position - direction, "knife")
 				level.player.train("werfen", 1.0)
+				if e.dead and e.kind == "magier":
+					level.player.train("intelligenz", 4.0)
 				queue_free()
 				return
 	else:

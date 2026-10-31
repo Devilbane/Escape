@@ -37,6 +37,8 @@ var hp := MAX_HP
 var gift_hp := 0
 var gift_power := 0
 var gift_speed := 0.0
+## From the fourth shrine gift, which only a wise hero is offered.
+var gift_armor := 0
 ## Training so far, by attribute and skill id (see Training). It belongs to
 ## the hero's name and is kept from one run to the next.
 var xp := {}
@@ -387,6 +389,8 @@ func melee() -> void:
 			# Every blow that lands trains the hand and the arm; a kill a little more.
 			train(weapon, 1.0)
 			train("staerke", 3.0 if e.dead else 1.0)
+			if e.dead and e.kind == "magier":
+				train("intelligenz", 4.0)
 	if hits == 0 and target:
 		Comic.pop(global_position + facing() * 1.5, "miss")
 
@@ -508,6 +512,8 @@ func skill(id: String) -> int:
 
 ## Whether the worn gear lets the hero use (and train) a skill.
 func skill_enabled(id: String) -> bool:
+	if not can_use(Training.SKILLS[id].get("requires", {})):
+		return false
 	match id:
 		"klingen", "aexte":
 			return weapon_skill() == id
@@ -531,8 +537,11 @@ func heavy_hit(skill_id: String) -> int:
 ## Adds training to an attribute or skill. Skills only train while their gear
 ## is worn. Tells the game when a new point or level is reached.
 func train(id: String, amount: float) -> void:
-	if amount <= 0.0 or dead:
+	# Even a fall teaches wisdom.
+	if amount <= 0.0 or (dead and id != "weisheit"):
 		return
+	if id != "weisheit":
+		amount *= 1.0 + Training.LEARNING_PER_WISDOM * (attribute("weisheit") - Training.ATTRIBUTES.weisheit.start)
 	var is_skill := Training.is_skill(id)
 	if is_skill and not skill_enabled(id):
 		return
@@ -570,6 +579,7 @@ func reset_gifts() -> void:
 	gift_hp = 0
 	gift_power = 0
 	gift_speed = 0.0
+	gift_armor = 0
 	equipped = {}
 	wear.clear()
 	bag.clear()
@@ -582,7 +592,7 @@ func refresh_stats() -> void:
 	var hp_bonus := gift_hp
 	var power_bonus := gift_power
 	var speed_bonus := gift_speed
-	hardening = 0
+	hardening = gift_armor
 	block_chance = 0.0
 	for slot in equipped:
 		var item: Dictionary = Items.ALL[equipped[slot]]
@@ -735,8 +745,19 @@ func _show_held(slot: String, hand_name: String, default_part: String) -> void:
 		hand.add_child(model)
 
 
+## Whether the hero has what an item asks for ("requires"), e.g. Intelligenz.
+func can_use(requires: Dictionary) -> bool:
+	for attr in requires:
+		if attribute(attr) < int(requires[attr]):
+			return false
+	return true
+
+
 ## Moves a bag item into its slot; whatever was worn there goes into the bag.
+## Items the hero is not yet able to use stay in the bag.
 func equip(id: String) -> void:
+	if not can_use(Items.ALL[id].get("requires", {})):
+		return
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":
 		# Two places for specials: take a free one, else swap out the first.

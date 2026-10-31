@@ -9,6 +9,8 @@ extends RefCounted
 ## bag, slows them down by WEIGHT_SLOW per kg (at most MAX_WEIGHT_SLOW).
 ## A weapon "uses" a skill (see Training): the hero gets better with it by
 ## fighting, and only while holding it. "skills" are levels an item adds.
+## "requires" names attributes the hero needs to use an item, e.g. the wizard's
+## hat asks for some Intelligenz.
 
 const SLOTS := ["kopf", "waffe", "schild", "umhang", "ruestung", "schuhe",
 		"amulett", "ring", "armreif", "spezial_1", "spezial_2"]
@@ -28,7 +30,7 @@ const ALL := {
 	"wappenschild": {"name": "Wappenschild", "slot": "schild", "weight": 5, "hp": 2, "armor": 1, "block": 0.25, "durability": 6, "skills": {"blocken": 1}, "price": 22, "model": "res://assets/weapons/shield_badge.gltf"},
 	"stachelschild": {"name": "Stachelschild", "slot": "schild", "weight": 6, "hp": 2, "power": 1, "block": 0.3, "durability": 7, "price": 35, "model": "res://assets/weapons/shield_spikes.gltf"},
 	"knochenhelm": {"name": "Knochenhelm", "slot": "kopf", "weight": 1, "power": 1, "price": 18, "hat": ["res://assets/enemies/Skeleton_Warrior.glb", "Skeleton_Warrior_Helmet"]},
-	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "weight": 0.5, "hp": 1, "speed": 0.07, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"]},
+	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "requires": {"intelligenz": 11}, "weight": 0.5, "hp": 1, "speed": 0.07, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"]},
 	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 3, "hp": 2, "armor": 1, "durability": 4, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"]},
 	"baerenkappe": {"name": "Bärenkappe", "slot": "kopf", "weight": 1, "hp": 1, "power": 1, "price": 34, "hat": ["res://assets/characters/Barbarian.glb", "Barbarian_Hat"]},
 	"wollumhang": {"name": "Wollumhang", "slot": "umhang", "weight": 1, "hp": 1, "price": 12, "tint": Color(0.55, 0.4, 0.28)},
@@ -92,6 +94,8 @@ static func describe(id: String, worn := 0) -> String:
 		parts.append(Lang.t("+%d%% Tempo") % roundi(item.speed * 100.0))
 	elif item.get("speed", 0.0) < 0.0:
 		parts.append(Lang.t("%d%% Tempo") % roundi(item.speed * 100.0))
+	for attr in item.get("requires", {}):
+		parts.append(Lang.t("braucht %s %d") % [Lang.t(Training.ATTRIBUTES[attr].name), item.requires[attr]])
 	if item.has("uses"):
 		parts.append(Lang.t("Fertigkeit: %s") % Lang.t(Training.SKILLS[item.uses].name))
 	for skill_id in item.get("skills", {}):

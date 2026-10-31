@@ -35,7 +35,7 @@ Finde den **Schlüssel**, öffne die **Tür** und steige die **Treppe** hinauf i
 Fässer, Kisten, Tische, Truhen und Wandregale lassen sich durchsuchen: Darin steckt Gold,
 Wurfmesser, ein Heiltrank oder auch gar nichts. Durchsuchtes bekommt ein Häkchen.
 Skelette greifen mit Klingen oder Armbrüsten an. Über **Stacheln** kannst du springen. Skelette gehen Stachelfallen aus dem Weg, warten, bis sie unten sind, und verletzen sich selbst daran.
-An einem **Schrein** wählst du einmal eine Gabe: +1 Leben, +1 Kampfkraft oder +7% Tempo.
+An einem **Schrein** wählst du einmal eine Gabe: +1 Leben, +1 Kampfkraft oder +7% Tempo (ein weiser Held auch +1 Härtung).
 Die Gaben bleiben bis zum Ende des Spiels.
 
 Manchmal findest du **Ausrüstung**: Helme und Hüte (Knochenhelm, Zauberhut, Ritterhelm, Bärenkappe) sitzen sichtbar auf dem Kopf, Schwert und Axt geben Kampfkraft, Schilde geben Leben,
@@ -50,7 +50,7 @@ Jeder Gegenstand hat ein **Gewicht**. Alles, was du trägst, angelegt oder in de
 1 % Tempo pro kg, höchstens 35 %. Schmuck wiegt fast nichts, ein Plattenpanzer 8 kg. Skelette tragen ihre
 Ausrüstung genauso.
 
-**Dein Held wächst durch Tun.** Er hat fünf **Eigenschaften**, die ganz langsam steigen, und zwar nur
+**Dein Held wächst durch Tun.** Er hat sieben **Eigenschaften**, die ganz langsam steigen, und zwar nur
 durch das, was er tut. Ein ganzer Lauf durch das Verlies bringt etwa einen Punkt, und jeder weitere Punkt
 braucht ein Viertel mehr Übung als der davor:
 
@@ -61,6 +61,8 @@ braucht ein Viertel mehr Übung als der davor:
 | Tempo | 100 % bis 150 %, in 5er-Schritten | Laufen und Springen | schneller laufen |
 | Geschick | 10 bis 30 | Springen, Messer werfen, Stachelfallen | Sprünge aus dem Lauf 2 % weiter je Punkt, 4 % je Punkt, hochschießenden Stacheln auszuweichen |
 | Intuition | 10 bis 30 | Durchsuchen, an Geheimhebeln vorbeikommen, Geheimräume finden | +2 % je Punkt, einen Geheimhebel zu bemerken |
+| Weisheit | 10 bis 30 | Erlebtes, egal wie es ausgeht: Ebenen schaffen, Schlüssel und Geheimräume finden, am Schrein wählen, jeder beendete Lauf, auch ein tödlicher | alle anderen Eigenschaften und Fertigkeiten lernen 5 % schneller je Punkt; ab Weisheit 12 bietet jeder Schrein eine vierte Gabe (+1 Härtung) |
+| Intelligenz | 10 bis 30 | Neues verstehen (jeder neue Eintrag im Kompendium), Skelett-Magier besiegen | Dinge des Geistes brauchen sie: der Zauberhut ab Intelligenz 11, später Schriftrollen, Zauberstäbe und Fertigkeiten des Geistes |
 
 Dazu kommen **Fertigkeiten** (Stufe 0 bis 10). Sie wachsen viel schneller, aber nur mit der Ausrüstung,
 die sie braucht: **Klingen** mit Dolch oder Schwert, **Äxte** mit der Axt, **Blocken** mit einem Schild,

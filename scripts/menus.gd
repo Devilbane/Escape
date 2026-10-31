@@ -236,9 +236,14 @@ func _select(index: int) -> void:
 
 func _equip_selected() -> void:
 	var p: Player = game.player
-	p.equip(p.bag[_selected])
-	_selected = -1
+	var id: String = p.bag[_selected]
+	var requires: Dictionary = Items.ALL[id].get("requires", {})
 	_note = ""
+	if not p.can_use(requires):
+		var attr: String = requires.keys()[0]
+		_note = Lang.t("Dafür brauchst du %s %d.") % [Lang.t(Training.ATTRIBUTES[attr].name), requires[attr]]
+	p.equip(id)
+	_selected = -1
 	_rebuild()
 
 

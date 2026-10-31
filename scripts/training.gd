@@ -15,6 +15,15 @@ extends RefCounted
 ##   Geschick (dexterity) 10..30: jumping, throwing and spike traps train it;
 ##     each point makes running jumps 2 % longer and is 4 % chance to slip
 ##     past spikes. Locks and disarming traps can ask it later too.
+##   Weisheit (wisdom) 10..30: grows from going through things, whatever
+##     the outcome: finishing a level, finding the key or a secret, choosing
+##     at a shrine, and the end of every run, fallen or free. Each point makes
+##     all other training 5 % quicker, and from WISE_SHRINE on the shrines
+##     offer a fourth gift.
+##   Intelligenz (intelligence) 10..30: grows from understanding things
+##     (every new entry in the compendium) and from beating skeleton mages.
+##     Items of the mind (hats, later scrolls and wands) need some of it:
+##     "requires" in Items.ALL, and a skill in SKILLS can ask for it too.
 ##
 ## Skills (Fertigkeiten) say how well the hero handles a kind of equipment.
 ## A skill only works, and only trains, while the gear that needs it is worn
@@ -36,10 +45,17 @@ const ATTRIBUTES := {
 	"tempo": {"name": "Tempo", "start": 100, "max": 150, "step": 5, "first": 4500.0},
 	"intuition": {"name": "Intuition", "start": 10, "max": 30, "step": 1, "first": 180.0},
 	"geschick": {"name": "Geschick", "start": 10, "max": 30, "step": 1, "first": 60.0},
+	"weisheit": {"name": "Weisheit", "start": 10, "max": 30, "step": 1, "first": 200.0},
+	"intelligenz": {"name": "Intelligenz", "start": 10, "max": 30, "step": 1, "first": 130.0},
 }
 const ATTRIBUTE_GROWTH := 1.25
+## Each point of Weisheit above 10 makes all other training this much quicker.
+const LEARNING_PER_WISDOM := 0.05
+## From this much Weisheit on, a shrine offers a fourth gift.
+const WISE_SHRINE := 12
 
-## Each skill; what a level does is in Player:
+## Each skill; what a level does is in Player. A skill may have "requires"
+## (attribute id -> value), like an item, before it can be used or learned.
 ##   Klingen, Äxte, Messerwurf: +5 % chance per level of a heavy hit (+1 damage).
 ##   Blocken: +2 % block chance per level.  Rüstung tragen: hard armour
 ##   weighs 6 % less per level.  Schleichen: sneaking 3 % faster per level.

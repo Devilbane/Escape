@@ -8,6 +8,8 @@ signal defeated
 signal ailments_changed
 ## Emitted when the hero runs into something solid, with a point just inside it.
 signal bumped(point: Vector3)
+## Emitted when training raises an attribute or a skill, with its new value.
+signal trained(id: String, value: int)
 
 const SPEED := 4.0
 const JUMP_VELOCITY := 9.0
@@ -35,6 +37,11 @@ var hp := MAX_HP
 var gift_hp := 0
 var gift_power := 0
 var gift_speed := 0.0
+## From the fourth shrine gift, which only a wise hero is offered.
+var gift_armor := 0
+## Training so far, by attribute and skill id (see Training). It belongs to
+## the hero's name and is kept from one run to the next.
+var xp := {}
 ## Worn items by slot ("waffe", "schild", "amulett") and the bag of carried ones.
 var equipped := {}
 var bag: Array[String] = []
@@ -47,7 +54,17 @@ var hardening := 0
 var wear := {}
 ## Chance per hit that a worn armour piece loses a point of durability.
 const WEAR_CHANCE := 0.05
-var speed := SPEED
+## Chance to stop a whole hit with the worn shield (from the shield's "block").
+var block_chance := 0.0
+## Chance that a blocked hit costs the shield a point of durability.
+const BLOCK_WEAR_CHANCE := 0.2
+## Speed from gifts, worn items and ailments, before the load is counted.
+var base_speed := SPEED
+## The speed the hero really runs at: everything carried (worn or in the bag)
+## weighs them down.
+var speed: float:
+	get:
+		return base_speed * Items.load_factor(load_weight())
 var knives := 5
 ## Ailments and the seconds each has left. Poison ("gift") takes a life every
 ## few seconds but never the last one; a curse ("fluch") slows the hero.
@@ -300,8 +317,10 @@ func jump() -> void:
 	if is_running():
 		var run := Vector3(velocity.x, 0, velocity.z) - Vector3(_knockback.x, 0, _knockback.z)
 		jump_boost = clampf(run.length() / SPEED, 0.6, 1.6)
-		_air_momentum = run * (1.0 + 0.15 * jump_boost)
+		_air_momentum = run * (1.0 + 0.15 * jump_boost) * (1.0 + JUMP_PER_DEXTERITY * dexterity_points())
 	velocity.y = JUMP_VELOCITY * (0.85 + 0.15 * jump_boost)
+	train("tempo", 3.0)
+	train("geschick", 2.0)
 	_current_anim = ""
 	play("Jump_Full_Short", 0.1)
 
@@ -354,6 +373,7 @@ func melee() -> void:
 	Sfx.play(self, "swing")
 	await get_tree().create_timer(0.18).timeout
 	var hits := 0
+	var weapon := weapon_skill()
 	for e in level.enemies:
 		if not is_instance_valid(e) or e.dead:
 			continue
@@ -362,9 +382,15 @@ func melee() -> void:
 		if to.length() < MELEE_RANGE + e.girth() and (to.length() < 1.2 + e.girth() or facing().dot(to.normalized()) > 0.25):
 			if e.open_to_backstab(global_position):
 				e.take_hit(power, global_position, "backstab")
+				train("schleichen", 4.0)
 			else:
-				e.take_hit(power, global_position)
+				e.take_hit(power + heavy_hit(weapon), global_position)
 			hits += 1
+			# Every blow that lands trains the hand and the arm; a kill a little more.
+			train(weapon, 1.0)
+			train("staerke", 3.0 if e.dead else 1.0)
+			if e.dead and e.kind == "magier":
+				train("intelligenz", 4.0)
 	if hits == 0 and target:
 		Comic.pop(global_position + facing() * 1.5, "miss")
 
@@ -390,6 +416,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 		dir = facing()
 	face(dir)
 	knives -= 1
+	train("geschick", 0.5)
 	_attack_cooldown = 0.6
 	if on_the_move:
 		_current_anim = ""
@@ -399,7 +426,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 		play_once("Throw", 0.45)
 	await get_tree().create_timer(0.2).timeout
 	Sfx.play(self, "throw")
-	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true).damage = power
+	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true).damage = power + heavy_hit("werfen")
 
 
 func _engage(enemy: Enemy) -> void:
@@ -428,11 +455,131 @@ func _auto_attack() -> void:
 		throw_knife(_target.global_position, true)
 
 
+# --- Training -----------------------------------------------------------------
+
+const HEAVY_PER_LEVEL := 0.05
+const BLOCK_PER_LEVEL := 0.02
+const ARMOR_LIGHTER_PER_LEVEL := 0.06
+const SNEAK_PER_LEVEL := 0.03
+
+
+const SECRET_PER_INTUITION := 2
+const JUMP_PER_DEXTERITY := 0.02
+const DODGE_PER_DEXTERITY := 0.04
+
+
+## Points of Geschick above the start: each makes running jumps 2 % longer
+## and gives 4 % chance to slip past spikes shooting up.
+func dexterity_points() -> int:
+	return attribute("geschick") - Training.ATTRIBUTES.geschick.start
+
+
+## Spikes shoot up under the hero: a deft hero may jump aside in time.
+## Either way the trap teaches a little.
+func spring_trap() -> void:
+	if dead or _invulnerable > 0.0 or frozen:
+		return
+	if randf() < DODGE_PER_DEXTERITY * dexterity_points():
+		train("geschick", 4.0)
+		_invulnerable = 0.6
+		Effects.float_text(level, global_position + Vector3(0, 2.2, 0), Lang.t("Ausgewichen!"), Color(0.72, 0.9, 0.78))
+		return
+	train("geschick", 2.0)
+	take_damage(1, global_position - facing(), null, false)
+
+
+## Intuition sharpens the hero's gut feeling: +2 percent per point above 10
+## to notice a lever to a secret room.
+func intuition_bonus() -> int:
+	return SECRET_PER_INTUITION * (attribute("intuition") - Training.ATTRIBUTES.intuition.start)
+
+
+## An attribute's value now: Stärke and Konstitution 10..30, Tempo 100..150 (%).
+func attribute(id: String) -> int:
+	return Training.attribute_value(id, xp.get(id, 0.0))
+
+
+## A skill's level: what was trained plus what worn items add. 0 while the
+## gear it needs is not worn.
+func skill(id: String) -> int:
+	if not skill_enabled(id):
+		return 0
+	var level_now := Training.skill_level(xp.get(id, 0.0))
+	for slot in equipped:
+		level_now += int(Items.ALL[equipped[slot]].get("skills", {}).get(id, 0))
+	return level_now
+
+
+## Whether the worn gear lets the hero use (and train) a skill.
+func skill_enabled(id: String) -> bool:
+	if not can_use(Training.SKILLS[id].get("requires", {})):
+		return false
+	match id:
+		"klingen", "aexte":
+			return weapon_skill() == id
+		"blocken":
+			return equipped.has("schild")
+		"ruestung":
+			return equipped.values().any(func(item): return Items.ALL[item].get("armor", 0) > 0)
+	return true
+
+
+## The skill the weapon in hand needs; the hero's own dagger is a blade.
+func weapon_skill() -> String:
+	return Items.ALL.get(equipped.get("waffe", ""), {}).get("uses", "klingen")
+
+
+## 1 now and then, more often the better the skill: a heavy hit.
+func heavy_hit(skill_id: String) -> int:
+	return 1 if randf() < HEAVY_PER_LEVEL * skill(skill_id) else 0
+
+
+## Adds training to an attribute or skill. Skills only train while their gear
+## is worn. Tells the game when a new point or level is reached.
+func train(id: String, amount: float) -> void:
+	# Even a fall teaches wisdom.
+	if amount <= 0.0 or (dead and id != "weisheit"):
+		return
+	if id != "weisheit":
+		amount *= 1.0 + Training.LEARNING_PER_WISDOM * (attribute("weisheit") - Training.ATTRIBUTES.weisheit.start)
+	var is_skill := Training.is_skill(id)
+	if is_skill and not skill_enabled(id):
+		return
+	var old_xp: float = xp.get(id, 0.0)
+	xp[id] = old_xp + amount
+	var before := Training.skill_level(old_xp) if is_skill else Training.attribute_value(id, old_xp)
+	var after := Training.skill_level(xp[id]) if is_skill else Training.attribute_value(id, xp[id])
+	if after == before:
+		return
+	var old_max := max_hp
+	refresh_stats()
+	# A tougher body: the new life is there at once.
+	hp += max_hp - old_max
+	trained.emit(id, after)
+
+
+## Everything the hero carries, as it weighs on them: a trained wearer feels
+## hard armour less, and a strong hero feels every load less.
+func load_weight() -> float:
+	var armor_skill := skill("ruestung")
+	var total := 0.0
+	for slot in equipped:
+		var id: String = equipped[slot]
+		var kg := Items.weight(id)
+		if Items.ALL[id].get("armor", 0) > 0:
+			kg *= maxf(0.0, 1.0 - ARMOR_LIGHTER_PER_LEVEL * armor_skill)
+		total += kg
+	for id in bag:
+		total += Items.weight(id)
+	return total * Training.ATTRIBUTES.staerke.start / float(attribute("staerke"))
+
+
 ## A fresh hero for a new game: no gifts, no items.
 func reset_gifts() -> void:
 	gift_hp = 0
 	gift_power = 0
 	gift_speed = 0.0
+	gift_armor = 0
 	equipped = {}
 	wear.clear()
 	bag.clear()
@@ -445,18 +592,22 @@ func refresh_stats() -> void:
 	var hp_bonus := gift_hp
 	var power_bonus := gift_power
 	var speed_bonus := gift_speed
-	hardening = 0
+	hardening = gift_armor
+	block_chance = 0.0
 	for slot in equipped:
 		var item: Dictionary = Items.ALL[equipped[slot]]
 		hp_bonus += item.get("hp", 0)
 		power_bonus += item.get("power", 0)
 		speed_bonus += item.get("speed", 0.0)
 		hardening += item.get("armor", 0)
-	max_hp = MAX_HP + hp_bonus
-	power = 1 + power_bonus
-	speed = SPEED * (1.0 + speed_bonus)
+		block_chance += item.get("block", 0.0)
+	if equipped.has("schild"):
+		block_chance += BLOCK_PER_LEVEL * skill("blocken")
+	max_hp = MAX_HP + hp_bonus + attribute("konstitution") - Training.ATTRIBUTES.konstitution.start
+	power = 1 + power_bonus + attribute("staerke") - Training.ATTRIBUTES.staerke.start
+	base_speed = SPEED * (1.0 + speed_bonus) * attribute("tempo") / 100.0
 	if ailments.has("fluch"):
-		speed *= CURSE_SLOW
+		base_speed *= CURSE_SLOW
 	hp = mini(hp, max_hp)
 	_show_held("waffe", "handslot_r", "Knife")
 	_show_held("schild", "handslot_l", "")
@@ -532,6 +683,7 @@ func _tick_ailments(delta: float) -> void:
 			_poison_tick = POISON_TICK
 			if hp > 1:
 				hp -= 1
+				train("konstitution", 1.0)
 				Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-1", AILMENT_COLORS.gift)
 				hurt.emit(1)
 	if changed:
@@ -593,8 +745,19 @@ func _show_held(slot: String, hand_name: String, default_part: String) -> void:
 		hand.add_child(model)
 
 
+## Whether the hero has what an item asks for ("requires"), e.g. Intelligenz.
+func can_use(requires: Dictionary) -> bool:
+	for attr in requires:
+		if attribute(attr) < int(requires[attr]):
+			return false
+	return true
+
+
 ## Moves a bag item into its slot; whatever was worn there goes into the bag.
+## Items the hero is not yet able to use stay in the bag.
 func equip(id: String) -> void:
+	if not can_use(Items.ALL[id].get("requires", {})):
+		return
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":
 		# Two places for specials: take a free one, else swap out the first.
@@ -616,29 +779,69 @@ func unequip(slot: String) -> bool:
 	return true
 
 
-## Every hit may wear down each worn armour piece; a piece worn through
-## falls apart.
+## Everything the hero carries, worn or in the bag, in kg.
+func carried_weight() -> float:
+	var total := 0.0
+	for slot in equipped:
+		total += Items.weight(equipped[slot])
+	for id in bag:
+		total += Items.weight(id)
+	return total
+
+
+## Every hit may wear down each worn armour piece and shield; a piece worn
+## through falls apart.
 func _wear_armor() -> void:
 	for slot in equipped.keys():
-		var id: String = equipped[slot]
-		var durability: int = Items.ALL[id].get("durability", 0)
-		if durability <= 0 or randf() >= WEAR_CHANCE:
-			continue
-		wear[id] = wear.get(id, 0) + 1
-		if wear[id] >= durability:
-			wear.erase(id)
-			equipped.erase(slot)
-			refresh_stats()
-			Effects.float_text(level, global_position + Vector3(0, 3.2, 0), Lang.t("%s zerbricht!") % Items.item_name(id), Color(0.75, 0.8, 0.9))
-			Sfx.play(self, "bones")
+		if randf() < WEAR_CHANCE:
+			_wear_down(slot)
 
 
-func take_damage(amount: int, from: Vector3, attacker: Node = null) -> void:
+## Takes a point of durability off the item in a slot; at 0 it breaks.
+func _wear_down(slot: String) -> void:
+	var id: String = equipped.get(slot, "")
+	var durability: int = Items.ALL[id].get("durability", 0) if id != "" else 0
+	if durability <= 0:
+		return
+	wear[id] = wear.get(id, 0) + 1
+	if wear[id] >= durability:
+		wear.erase(id)
+		equipped.erase(slot)
+		refresh_stats()
+		Effects.float_text(level, global_position + Vector3(0, 3.2, 0), Lang.t("%s zerbricht!") % Items.item_name(id), Color(0.75, 0.8, 0.9))
+		Sfx.play(self, "bones")
+
+
+## The worn shield stops a whole hit: no harm, only a short shove.
+func _block(from: Vector3) -> void:
+	if randf() < BLOCK_WEAR_CHANCE:
+		_wear_down("schild")
+	_invulnerable = 0.5
+	var away := global_position - from
+	away.y = 0.0
+	_knockback = away.normalized() * 4.0
+	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), Lang.t("Geblockt!"), Color(0.72, 0.78, 0.88))
+	Comic.pop(global_position, "block")
+
+
+## Blows and shots can be blocked with a shield; spikes from below (blockable
+## false) cannot.
+func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable := true) -> void:
 	if dead or _invulnerable > 0.0 or frozen:
 		return
+	if blockable and block_chance > 0.0 and randf() < block_chance:
+		train("blocken", 2.0)
+		train("staerke", 1.0)
+		_block(from)
+		return
+	if blockable:
+		train("blocken", 0.5)
 	if hardening > 0:
 		amount = maxi(1, amount - hardening)
-		_wear_armor()
+	train("ruestung", 1.0)
+	_wear_armor()
+	# Every life lost hardens the body a little.
+	train("konstitution", amount)
 	hp -= amount
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
 		attacker.take_hit(1, global_position)
@@ -654,8 +857,9 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null) -> void:
 	_knockback = away.normalized() * 10.0
 	path.clear()
 	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-%d" % amount, Color(1, 0.3, 0.3))
+	# The blow lands; the comic word's cry ("AUA!") comes with the bubble.
 	Comic.pop(global_position, "hurt")
-	Sfx.play(self, "hurt")
+	Sfx.play(self, "hit", -3.0)
 	hurt.emit(amount)
 	if hp <= 0:
 		dead = true
@@ -663,6 +867,18 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null) -> void:
 		defeated.emit()
 	else:
 		play_once("Hit_A", 0.35)
+
+
+## Running trains speed, carrying a heavy load trains strength, sneaking
+## trains sneaking. Knockback and the stairs do not count.
+func _train_legs(metres: float) -> void:
+	if metres <= 0.0 or metres > 1.0 or _knockback.length() > 1.0 or not controllable:
+		return
+	if sneaking:
+		train("schleichen", metres * 0.1)
+	else:
+		train("tempo", metres)
+		train("staerke", metres * carried_weight() * 0.0005)
 
 
 func _keyboard_direction() -> Vector3:
@@ -706,7 +922,7 @@ func _physics_process(delta: float) -> void:
 				to.y = 0.0
 				dir = to.normalized()
 	var vy := velocity.y - GRAVITY * delta
-	var pace := speed * (SNEAK_SPEED if sneaking else 1.0)
+	var pace := speed * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else 1.0)
 	velocity = dir * pace + _knockback
 	if _air_momentum != Vector3.ZERO:
 		if is_on_floor() and vy <= 0.0:
@@ -718,6 +934,7 @@ func _physics_process(delta: float) -> void:
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 45.0)
 	var before := global_position
 	move_and_slide()
+	_train_legs(Vector2(global_position.x - before.x, global_position.z - before.z).length())
 	# Walking a path but pressed against something, like a door frame: first
 	# step back to the middle of the tile, and give the path up if that fails.
 	if not path.is_empty() and dir != Vector3.ZERO and (global_position - before).length() < pace * delta * 0.2:

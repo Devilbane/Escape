@@ -987,13 +987,16 @@ func _check_secrets() -> void:
 		if d.length() > LEVER_RANGE or not has_line_of_sight(player.global_position, cell_to_world(s.lever_cell)):
 			continue
 		s.rolled = true
+		# Walking past a strange torch sharpens the hero's sense for such things.
+		player.train("intuition", 3.0)
 		if randi_range(1, 100) <= secret_chance():
+			player.train("intuition", 12.0)
 			_open_secret(s)
 
 
 ## Chance in percent to notice this level's lever.
 func secret_chance() -> int:
-	return 100 if secret_sure else TIERS[secret_tier].chance + secret_bonus
+	return 100 if secret_sure else TIERS[secret_tier].chance + secret_bonus + player.intuition_bonus()
 
 
 ## Whether the hero found this level's secret room.

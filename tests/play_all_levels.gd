@@ -53,6 +53,15 @@ func _process(delta: float) -> bool:
 		print("FAIL: the hero fell on level ", game.level_index + 1)
 		return true
 	if game.state == game.State.WON:
+		# A whole run of fighting and running must have trained the hero,
+		# but only a little: about one point per attribute.
+		var trained := {}
+		for id in game.player.xp:
+			trained[id] = roundi(game.player.xp[id])
+		print("  trained ", trained, ", attributes ", Training.ATTRIBUTES.keys().map(func(id): return game.player.attribute(id)))
+		if game.player.xp.get("staerke", 0.0) <= 0.0 or game.player.xp.get("tempo", 0.0) <= 0.0:
+			print("FAIL: fighting and running trained nothing")
+			return true
 		print("PASS: all ", game.level_files.size(), " levels finished, gold ", game.coins, ", searched ", searched, ", shrine gifts ", gifts, ", bag emptied ", equips, ", worn ", game.player.equipped.values(), ", rescued ", rescues, "x, backstabs ", backstabs)
 		return true
 	if game.level_index > reached:

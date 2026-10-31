@@ -1,4 +1,4 @@
-"""Builds the game's sound effects from scratch (noise, tones and envelopes),
+"""Builds the game's sound effects (and one sound per comic word) from scratch (noise, tones and envelopes),
 so there are no licences to worry about. Run: python3 tools/make_sounds.py
 The footsteps (step_*, sneak_*) and the door are real recordings instead, see
 assets/sounds/CREDITS.txt."""
@@ -235,6 +235,185 @@ def ambience():
     return x
 
 
+# --- Comic words: each word in a comic bubble gets its own sound. ---
+
+def at(out, x, sec):
+    s = int(SR * sec)
+    n = min(len(x), len(out) - s)
+    out[s:s + n] += x[:n]
+    return out
+
+
+def thud(freq, sec, drop=3.0, decay=0.08):
+    # A deep body blow: a sine that falls in pitch.
+    tt = t(sec)
+    f = freq * np.exp(-tt * drop)
+    return np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(tt), 0.002, decay)
+
+
+def ring(partials, sec, decay):
+    # Metal: a few out-of-tune partials that ring out.
+    tt = t(sec)
+    out = np.zeros(len(tt))
+    for i, (f, a) in enumerate(partials):
+        out += np.sin(2 * np.pi * f * tt) * a * np.exp(-tt / (decay / (1 + i * 0.4)))
+    return out * env(len(tt), 0.0008, sec)
+
+
+def word_zack():
+    # A snappy, sharp smack.
+    out = np.zeros(int(SR * 0.25))
+    at(out, highpass(noise(0.05), 2500) * env(int(SR * 0.05), 0.0003, 0.008) * 1.4, 0)
+    at(out, thud(260, 0.2, 6, 0.04), 0.003)
+    return out
+
+
+def word_klonk():
+    # A hollow knock on a skull.
+    tt = t(0.35)
+    x = (np.sin(2 * np.pi * 330 * tt) + 0.6 * np.sin(2 * np.pi * 495 * tt) + 0.3 * np.sin(2 * np.pi * 760 * tt))
+    x *= env(len(tt), 0.001, 0.06)
+    return x + lowpass(noise(0.35), 1500) * env(len(tt), 0.0005, 0.01) * 2
+
+
+def word_wumm():
+    # A dull, deep blow.
+    return thud(110, 0.45, 2.5, 0.12) * 1.2 + lowpass(noise(0.45), 400) * env(int(SR * 0.45), 0.002, 0.05) * 3
+
+
+def word_krach():
+    # A big crash: a hard hit with splintering crackle.
+    out = np.zeros(int(SR * 0.6))
+    at(out, thud(150, 0.4, 3, 0.1), 0)
+    at(out, lowpass(noise(0.6), 2500) * env(int(SR * 0.6), 0.001, 0.12) * 1.5, 0)
+    for i in range(10):
+        c = highpass(noise(0.02), 2000) * env(int(SR * 0.02), 0.0003, 0.004) * rng.uniform(0.5, 1.0)
+        at(out, c, 0.02 + i * 0.03 + rng.uniform(0, 0.02))
+    return out
+
+
+def word_boing():
+    # A springy wobble.
+    tt = t(0.7)
+    f = 180 + 120 * np.exp(-tt * 3) + 45 * np.sin(2 * np.pi * 11 * tt) * np.exp(-tt * 2.5)
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) + 0.3 * np.sin(4 * np.pi * np.cumsum(f) / SR)
+    return x * env(len(tt), 0.003, 0.25)
+
+
+def word_wamm():
+    # A heavy slam: deep thud with a flat smack on top.
+    out = thud(90, 0.5, 2, 0.14) * 1.3
+    at(out, (lowpass(noise(0.15), 1800) - lowpass(noise(0.15), 300)) * env(int(SR * 0.15), 0.0005, 0.03) * 3, 0)
+    return out
+
+
+def word_zing():
+    # A thrown blade singing through the air and biting.
+    tt = t(0.5)
+    f = 2400 + 600 * np.exp(-tt * 8)
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) * 0.5 + ring([(3150, 0.4), (4380, 0.25)], 0.5, 0.12)
+    return x * env(len(tt), 0.002, 0.13)
+
+
+def word_tschak():
+    # "Tsch" of the blade, then the dry "ack" as it lands.
+    out = np.zeros(int(SR * 0.3))
+    at(out, highpass(noise(0.1), 3000) * np.sin(np.pi * t(0.1) / 0.1) ** 2 * 0.8, 0)
+    at(out, word_zack()[: int(SR * 0.15)], 0.08)
+    return out
+
+
+def word_knack():
+    # A bone snapping.
+    out = np.zeros(int(SR * 0.3))
+    at(out, highpass(noise(0.04), 1200) * env(int(SR * 0.04), 0.0002, 0.006) * 1.5, 0)
+    at(out, knock(900, 0.008) * 0.8, 0.002)
+    at(out, highpass(noise(0.03), 1800) * env(int(SR * 0.03), 0.0002, 0.005), 0.05)
+    return out
+
+
+def word_klapper():
+    # Loose bones clattering to the floor.
+    r = np.random.default_rng(11)
+    out = np.zeros(int(SR * 0.8))
+    for i in range(18):
+        k = knock(r.uniform(700, 1800), 0.006) * (1 - i / 22)
+        at(out, k, i * 0.035 + r.uniform(0, 0.025))
+    return out
+
+
+def word_wusch():
+    # A blade cutting only air: a long, airy whoosh.
+    n = noise(0.4)
+    tt = t(0.4)
+    return (lowpass(n, 2500) - lowpass(n, 300)) * np.sin(np.pi * tt / 0.4) ** 2
+
+
+def click(freq, sec=0.08):
+    out = highpass(noise(sec), 2500) * env(int(SR * sec), 0.0002, 0.004)
+    return at(out, knock(freq, 0.006), 0)
+
+
+def word_klack():
+    out = np.zeros(int(SR * 0.3))
+    at(out, click(1200), 0)
+    at(out, knock(380, 0.025), 0.06)
+    return out
+
+
+def word_klick():
+    out = np.zeros(int(SR * 0.2))
+    at(out, click(2600), 0)
+    at(out, click(1900) * 0.6, 0.05)
+    return out
+
+
+def word_rumms():
+    # Stone dropping into place.
+    return thud(70, 0.8, 1.5, 0.2) * 1.4 + lowpass(noise(0.8), 250) * env(int(SR * 0.8), 0.002, 0.15) * 4
+
+
+def word_grumpel():
+    # Stones tumbling and grinding.
+    r = np.random.default_rng(13)
+    out = lowpass(noise(1.0), 300) * env(int(SR * 1.0), 0.05, 0.4) * 2
+    for i in range(9):
+        at(out, thud(r.uniform(80, 160), 0.2, 4, 0.05) * r.uniform(0.4, 0.9), i * 0.09 + r.uniform(0, 0.04))
+    return out
+
+
+def word_stich():
+    # A quick thrust: a hiss and a sharp, wet bite.
+    out = np.zeros(int(SR * 0.35))
+    at(out, highpass(noise(0.08), 4000) * np.linspace(0, 1, int(SR * 0.08)) * 0.7, 0)
+    at(out, thud(400, 0.15, 10, 0.03), 0.07)
+    at(out, highpass(noise(0.05), 1500) * env(int(SR * 0.05), 0.0002, 0.01), 0.07)
+    return out
+
+
+def word_ratsch():
+    # Cloth and leather tearing: rough noise with a rasping buzz.
+    tt = t(0.4)
+    n = lowpass(noise(0.4), 5000) - lowpass(noise(0.4), 900)
+    buzz = 0.5 + 0.5 * np.sign(np.sin(2 * np.pi * (60 + 80 * tt) * tt))
+    return n * buzz * np.sin(np.pi * tt / 0.4) ** 0.5
+
+
+def word_klong():
+    # A blade bouncing off armour: a bright clang.
+    return at(ring([(620, 0.8), (1480, 0.5), (2390, 0.35), (3510, 0.2)], 0.9, 0.3), click(3000) * 0.5, 0)
+
+
+def word_plong():
+    # A duller clang off a shield.
+    return at(ring([(310, 0.9), (745, 0.4), (1190, 0.2)], 0.7, 0.18), knock(200, 0.02) * 0.5, 0)
+
+
+WORDS = ["zack", "klonk", "wumm", "krach", "boing", "wamm", "zing", "tschak", "knack",
+         "klapper", "wusch", "klack", "klick", "rumms", "grumpel", "stich", "ratsch",
+         "klong", "plong"]
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     save("swing", swing(), 0.6)
@@ -258,3 +437,5 @@ if __name__ == "__main__":
     wav = os.path.join(OUT, "ambience.wav")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", wav, "-c:a", "libvorbis", "-q:a", "3", wav[:-4] + ".ogg"], check=True)
     os.remove(wav)
+    for w in WORDS:
+        save("word_" + w, globals()["word_" + w](), 0.7)

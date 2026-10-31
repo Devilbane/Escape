@@ -173,12 +173,37 @@ func _stats_text() -> String:
 		p.hp, p.max_hp, p.power, p.hardening, roundi(p.speed / Player.SPEED * 100.0), p.knives, game.coins]
 
 
+## The hero's attributes, each with how far it is to the next point.
+func _attributes_text() -> String:
+	var p: Player = game.player
+	var parts := []
+	for id in Training.ATTRIBUTES:
+		var value := p.attribute(id)
+		var shown := ("%d%%" % value) if id == "tempo" else str(value)
+		var at_cap: bool = value >= Training.ATTRIBUTES[id].max
+		parts.append("%s %s%s" % [Lang.t(Training.ATTRIBUTES[id].name), shown,
+				Lang.t(" (höchster Wert)") if at_cap else " (%d%%)" % floori(Training.attribute_progress(id, p.xp.get(id, 0.0)) * 100.0)])
+	return "    ".join(parts)
+
+
+## Every skill with its level; skills the worn gear does not allow are in brackets.
+func _skills_text() -> String:
+	var p: Player = game.player
+	var parts := []
+	for id in Training.SKILLS:
+		var text := "%s %d" % [Lang.t(Training.SKILLS[id].name), p.skill(id) if p.skill_enabled(id) else Training.skill_level(p.xp.get(id, 0.0))]
+		parts.append(text if p.skill_enabled(id) else "(%s)" % text)
+	return Lang.t("Fertigkeiten:") + " " + "   ".join(parts) + "\n" + Lang.t("In Klammern: braucht passende Ausrüstung")
+
+
 # --- Inventory --------------------------------------------------------------
 
 func _build_inventory() -> void:
 	var p: Player = game.player
 	_add_label(Lang.t("Inventar"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(_stats_text(), 18, BLUE)
+	_add_label(_attributes_text(), 18, game.GOLD)
+	_add_label(_skills_text(), 16, Color(0.8, 0.85, 0.9))
 	_add_label(Lang.t("Angelegt (anklicken zum Ablegen)"), 20)
 	var row := GridContainer.new()
 	row.columns = 5
@@ -190,7 +215,7 @@ func _build_inventory() -> void:
 		var id: String = p.equipped.get(slot, "")
 		var text: String = "%s\n%s" % [Lang.t(Items.SLOT_NAMES[slot]), Items.item_name(id) if id != "" else "-"]
 		row.add_child(_item_button(text, _unequip.bind(slot), id != "", id))
-	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), Items.BAG_SIZE], 20)
+	_add_label(Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), Items.BAG_SIZE, Items.weight_text(p.carried_weight())], 20)
 	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _select)
 	if _selected >= 0 and _selected < p.bag.size():
 		var id: String = p.bag[_selected]
@@ -211,9 +236,14 @@ func _select(index: int) -> void:
 
 func _equip_selected() -> void:
 	var p: Player = game.player
-	p.equip(p.bag[_selected])
-	_selected = -1
+	var id: String = p.bag[_selected]
+	var requires: Dictionary = Items.ALL[id].get("requires", {})
 	_note = ""
+	if not p.can_use(requires):
+		var attr: String = requires.keys()[0]
+		_note = Lang.t("Dafür brauchst du %s %d.") % [Lang.t(Training.ATTRIBUTES[attr].name), requires[attr]]
+	p.equip(id)
+	_selected = -1
 	_rebuild()
 
 
@@ -309,7 +339,7 @@ func _build_load() -> void:
 	_add_label(Lang.t("Spielstand laden"), 38, game.GOLD, game.TITLE_FONT)
 	var info: Dictionary = game.save_info()
 	if info.is_empty():
-		_add_label(Lang.t("Es gibt noch keinen Spielstand. Gespeichert wird im Bett der Zuflucht."), 20)
+		_add_label(Lang.t("Es gibt noch keinen Spielstand. Gespeichert wird beim Betreten der Zuflucht und in ihrem Bett."), 20)
 	else:
 		_add_label(Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins], 22)
 		_add_label(Lang.t("Was du seitdem erlebt hast, geht verloren."), 20, Color(1.0, 0.75, 0.5))

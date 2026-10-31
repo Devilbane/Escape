@@ -11,6 +11,8 @@ extends RefCounted
 ## fighting, and only while holding it. "skills" are levels an item adds.
 ## "requires" names attributes the hero needs to use an item, e.g. the wizard's
 ## hat asks for some Intelligenz.
+## Books ("teaches") are carried, not worn: they are read while the player is
+## away (see Offline).
 
 const SLOTS := ["kopf", "waffe", "schild", "umhang", "ruestung", "schuhe",
 		"amulett", "ring", "armreif", "spezial_1", "spezial_2"]
@@ -52,6 +54,14 @@ const ALL := {
 	"gluecksklee": {"name": "Glücksklee", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Doppeltes Gold"},
 	"dornenrune": {"name": "Dornenrune", "slot": "spezial", "weight": 0.5, "price": 45, "effect": "Wer dich im Nahkampf trifft, erleidet 1 Schaden"},
 	"phoenixfeder": {"name": "Phönixfeder", "slot": "spezial", "weight": 0.1, "price": 60, "effect": "Rettet dich einmal vor dem Tod, dann verbrennt sie"},
+	# Books are not worn. The hero reads them while the player is away
+	# (Offline, "study"): each "teaches" one skill.
+	"fechtbuch": {"name": "Buch der Klingen", "slot": "buch", "weight": 1, "teaches": "klingen", "price": 40},
+	"axtbuch": {"name": "Handbuch der Axt", "slot": "buch", "weight": 1, "teaches": "aexte", "price": 40},
+	"wurfbuch": {"name": "Fibel des Messerwurfs", "slot": "buch", "weight": 1, "teaches": "werfen", "price": 40},
+	"schildbuch": {"name": "Lehre vom Schild", "slot": "buch", "weight": 1, "teaches": "blocken", "price": 40},
+	"ruestbuch": {"name": "Vom Tragen der Rüstung", "slot": "buch", "weight": 1, "teaches": "ruestung", "price": 40},
+	"schleichbuch": {"name": "Die leisen Sohlen", "slot": "buch", "weight": 1, "teaches": "schleichen", "price": 45},
 }
 
 
@@ -68,6 +78,10 @@ static func load_factor(total_weight: float) -> float:
 static func weight_text(kg: float) -> String:
 	var text := ("%d" % roundi(kg)) if is_equal_approx(kg, roundf(kg)) else ("%.1f" % kg)
 	return (text if Lang.language == "en" else text.replace(".", ",")) + " kg"
+
+
+static func is_book(id: String) -> bool:
+	return ALL.has(id) and ALL[id].has("teaches")
 
 
 static func item_name(id: String) -> String:
@@ -96,6 +110,8 @@ static func describe(id: String, worn := 0) -> String:
 		parts.append(Lang.t("%d%% Tempo") % roundi(item.speed * 100.0))
 	for attr in item.get("requires", {}):
 		parts.append(Lang.t("braucht %s %d") % [Lang.t(Training.ATTRIBUTES[attr].name), item.requires[attr]])
+	if item.has("teaches"):
+		parts.append(Lang.t("lehrt %s (beim Lernen im Bett planen)") % Lang.t(Training.SKILLS[item.teaches].name))
 	if item.has("uses"):
 		parts.append(Lang.t("Fertigkeit: %s") % Lang.t(Training.SKILLS[item.uses].name))
 	for skill_id in item.get("skills", {}):

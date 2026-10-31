@@ -47,7 +47,17 @@ var hardening := 0
 var wear := {}
 ## Chance per hit that a worn armour piece loses a point of durability.
 const WEAR_CHANCE := 0.05
-var speed := SPEED
+## Chance to stop a whole hit with the worn shield (from the shield's "block").
+var block_chance := 0.0
+## Chance that a blocked hit costs the shield a point of durability.
+const BLOCK_WEAR_CHANCE := 0.2
+## Speed from gifts, worn items and ailments, before the load is counted.
+var base_speed := SPEED
+## The speed the hero really runs at: everything carried (worn or in the bag)
+## weighs them down.
+var speed: float:
+	get:
+		return base_speed * Items.load_factor(carried_weight())
 var knives := 5
 ## Ailments and the seconds each has left. Poison ("gift") takes a life every
 ## few seconds but never the last one; a curse ("fluch") slows the hero.
@@ -446,17 +456,19 @@ func refresh_stats() -> void:
 	var power_bonus := gift_power
 	var speed_bonus := gift_speed
 	hardening = 0
+	block_chance = 0.0
 	for slot in equipped:
 		var item: Dictionary = Items.ALL[equipped[slot]]
 		hp_bonus += item.get("hp", 0)
 		power_bonus += item.get("power", 0)
 		speed_bonus += item.get("speed", 0.0)
 		hardening += item.get("armor", 0)
+		block_chance += item.get("block", 0.0)
 	max_hp = MAX_HP + hp_bonus
 	power = 1 + power_bonus
-	speed = SPEED * (1.0 + speed_bonus)
+	base_speed = SPEED * (1.0 + speed_bonus)
 	if ailments.has("fluch"):
-		speed *= CURSE_SLOW
+		base_speed *= CURSE_SLOW
 	hp = mini(hp, max_hp)
 	_show_held("waffe", "handslot_r", "Knife")
 	_show_held("schild", "handslot_l", "")
@@ -616,29 +628,62 @@ func unequip(slot: String) -> bool:
 	return true
 
 
-## Every hit may wear down each worn armour piece; a piece worn through
-## falls apart.
+## Everything the hero carries, worn or in the bag, in kg.
+func carried_weight() -> float:
+	var total := 0.0
+	for slot in equipped:
+		total += Items.weight(equipped[slot])
+	for id in bag:
+		total += Items.weight(id)
+	return total
+
+
+## Every hit may wear down each worn armour piece and shield; a piece worn
+## through falls apart.
 func _wear_armor() -> void:
 	for slot in equipped.keys():
-		var id: String = equipped[slot]
-		var durability: int = Items.ALL[id].get("durability", 0)
-		if durability <= 0 or randf() >= WEAR_CHANCE:
-			continue
-		wear[id] = wear.get(id, 0) + 1
-		if wear[id] >= durability:
-			wear.erase(id)
-			equipped.erase(slot)
-			refresh_stats()
-			Effects.float_text(level, global_position + Vector3(0, 3.2, 0), Lang.t("%s zerbricht!") % Items.item_name(id), Color(0.75, 0.8, 0.9))
-			Sfx.play(self, "bones")
+		if randf() < WEAR_CHANCE:
+			_wear_down(slot)
 
 
-func take_damage(amount: int, from: Vector3, attacker: Node = null) -> void:
+## Takes a point of durability off the item in a slot; at 0 it breaks.
+func _wear_down(slot: String) -> void:
+	var id: String = equipped.get(slot, "")
+	var durability: int = Items.ALL[id].get("durability", 0) if id != "" else 0
+	if durability <= 0:
+		return
+	wear[id] = wear.get(id, 0) + 1
+	if wear[id] >= durability:
+		wear.erase(id)
+		equipped.erase(slot)
+		refresh_stats()
+		Effects.float_text(level, global_position + Vector3(0, 3.2, 0), Lang.t("%s zerbricht!") % Items.item_name(id), Color(0.75, 0.8, 0.9))
+		Sfx.play(self, "bones")
+
+
+## The worn shield stops a whole hit: no harm, only a short shove.
+func _block(from: Vector3) -> void:
+	if randf() < BLOCK_WEAR_CHANCE:
+		_wear_down("schild")
+	_invulnerable = 0.5
+	var away := global_position - from
+	away.y = 0.0
+	_knockback = away.normalized() * 4.0
+	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), Lang.t("Geblockt!"), Color(0.72, 0.78, 0.88))
+	Comic.pop(global_position, "block")
+
+
+## Blows and shots can be blocked with a shield; spikes from below (blockable
+## false) cannot.
+func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable := true) -> void:
 	if dead or _invulnerable > 0.0 or frozen:
+		return
+	if blockable and block_chance > 0.0 and randf() < block_chance:
+		_block(from)
 		return
 	if hardening > 0:
 		amount = maxi(1, amount - hardening)
-		_wear_armor()
+	_wear_armor()
 	hp -= amount
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
 		attacker.take_hit(1, global_position)

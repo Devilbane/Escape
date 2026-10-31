@@ -98,11 +98,15 @@ func _ready() -> void:
 		if not _stats.has("tint"):
 			_stats.tint = Color(0.42, 0.38, 0.46)
 	var power := 0
+	var gear_weight := 0.0
 	for id in gear:
 		var item: Dictionary = Items.ALL[id]
 		_stats.hp += item.get("hp", 0)
 		power += item.get("power", 0)
 		_stats.speed *= 1.0 + item.get("speed", 0.0)
+		gear_weight += Items.weight(id)
+	# Skeletons carry their gear's weight just like the hero.
+	_stats.speed *= Items.load_factor(gear_weight)
 	# Strength makes blows come faster; a lot of it makes them hit harder too.
 	_stats.cooldown /= 1.0 + 0.2 * power
 	if power >= 3:

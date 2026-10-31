@@ -485,7 +485,7 @@ func _update_hud() -> void:
 	var gifts := []
 	if player.power > 1:
 		gifts.append(Lang.t("Kampfkraft %d") % player.power)
-	if player.speed > Player.SPEED + 0.01:
+	if absf(player.speed - Player.SPEED) > 0.01:
 		gifts.append(Lang.t("Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0))
 	if player.ailments.has("gift"):
 		gifts.append(Lang.t("Vergiftet"))
@@ -529,7 +529,7 @@ func load_level(index: int, restock := true) -> void:
 		Sfx.play(self, "chain", -6.0)
 		show_message(Lang.t("Die Tür öffnet sich knarrend...")))
 	level.door_locked.connect(func(): show_message(Lang.t("Verschlossen. Finde den Schlüssel!")))
-	level.player_hurt.connect(func(): player.take_damage(1, player.global_position - player.facing()))
+	level.player_hurt.connect(func(): player.take_damage(1, player.global_position - player.facing(), null, false))
 	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
 	_pending_search = {}

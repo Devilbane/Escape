@@ -241,6 +241,10 @@ const EN := {
 	"%s zerbricht!": "%s breaks!",
 	"+%d Leben": "+%d life",
 	"+%d%% Tempo": "+%d%% speed",
+	"%d%% Blocken": "%d%% block",
+	"Gewicht %s": "Weight %s",
+	"Geblockt!": "Blocked!",
+	"Tasche (%d / %d)    Gewicht %s": "Bag (%d / %d)    Weight %s",
 	# Levels
 	"Die Zelle": "The Cell",
 	"Durchsuche alles, finde den Schlüssel und öffne die Tür.": "Search everything, find the key and open the door.",

@@ -110,6 +110,7 @@ func _ready() -> void:
 	player.ailments_changed.connect(_update_hud)
 	player.defeated.connect(_on_player_defeated)
 	player.bumped.connect(_on_player_bumped)
+	player.trained.connect(_on_player_trained)
 	load_level(_start_level())
 	_show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies"))
 
@@ -529,7 +530,7 @@ func load_level(index: int, restock := true) -> void:
 		Sfx.play(self, "chain", -6.0)
 		show_message(Lang.t("Die Tür öffnet sich knarrend...")))
 	level.door_locked.connect(func(): show_message(Lang.t("Verschlossen. Finde den Schlüssel!")))
-	level.player_hurt.connect(func(): player.take_damage(1, player.global_position - player.facing(), null, false))
+	level.player_hurt.connect(player.spring_trap)
 	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
 	_pending_search = {}
@@ -662,6 +663,9 @@ func _start_new_game() -> void:
 	shop_stock.clear()
 	player.knives = 5
 	player.reset_gifts()
+	# The hero keeps what they trained in earlier runs under this name.
+	player.xp = Training.load_hero(hero_name)
+	player.refresh_stats()
 	_leave_title(func():
 		player.hp = player.max_hp
 		load_level(_start_level()))
@@ -773,6 +777,7 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_speed = float(data.gift_speed)
 	player.equipped = data.equipped
 	player.wear = data.get("wear", {})
+	player.xp = Training.load_hero(hero_name)
 	lore.assign(data.get("lore", []))
 	player.bag.assign(data.bag)
 	player.refresh_stats()
@@ -801,6 +806,7 @@ func has_save() -> bool:
 ## Writes everything needed to wake up in this safe room later. True when
 ## the file is really there afterwards.
 func save_game() -> bool:
+	Training.save_hero(hero_name, player.xp)
 	var data := {
 		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed,
@@ -934,6 +940,32 @@ func _on_enemy_killed() -> void:
 		_update_hud()
 
 
+## Training raised an attribute or a skill: say so, the attributes louder.
+func _on_player_trained(id: String, value: int) -> void:
+	var text := ""
+	match id:
+		"staerke":
+			text = Lang.t("Die vielen Kämpfe machen dich stärker: Stärke %d, +1 Kampfkraft") % value
+		"konstitution":
+			text = Lang.t("Dein Körper wird zäher: Konstitution %d, +1 Leben") % value
+		"tempo":
+			text = Lang.t("Deine Beine werden schneller: Tempo %d%%") % value
+		"intuition":
+			text = Lang.t("Dein Gespür wird feiner: Intuition %d") % value
+		"geschick":
+			text = Lang.t("Deine Hände und Füße werden flinker: Geschick %d") % value
+		_:
+			text = Lang.t("Du wirst geübter: %s, Stufe %d") % [Lang.t(Training.SKILLS[id].name), value]
+	var attribute := Training.ATTRIBUTES.has(id)
+	Effects.float_text(level, player.global_position + Vector3(0, 3.4, 0), text.get_slice(":", 1).strip_edges() if attribute else Lang.t(Training.SKILLS[id].name) + " %d" % value,
+			GOLD if attribute else Color(0.65, 0.85, 1.0))
+	if attribute:
+		Sfx.play(self, "secret", -6.0)
+	show_message(text, 3.5 if attribute else 2.4)
+	learn("Eigenschaften wachsen sehr langsam durch Tun: Kämpfen macht stärker (Stärke, +1 Kampfkraft je Punkt, Lasten wiegen weniger), Treffer einstecken macht zäher (Konstitution, +1 Leben je Punkt), Laufen und Springen machen schneller (Tempo bis 150 %), Springen, Werfen und Fallen machen geschickter (Geschick: weiter springen, Stacheln ausweichen), Durchsuchen und Geheimnisse schärfen das Gespür (Intuition, +2 % je Punkt, Geheimräume zu entdecken). Fertigkeiten wachsen schneller, aber nur mit der passenden Ausrüstung. Alles bleibt deinem Helden über alle Läufe.")
+	_update_hud()
+
+
 ## Double click or C: sneak (slow, silent, hard to see) or walk normally.
 func _toggle_sneak() -> void:
 	if player.dead or not player.controllable:
@@ -980,6 +1012,8 @@ func _search(obj: Dictionary) -> void:
 	player.play_once("Interact", 0.55)
 	Sfx.play(self, "chest" if obj.label == "Schatztruhe" else "rummage", -3.0)
 	var loot := level.search(obj)
+	# Searching every nook trains a feeling for where things hide.
+	player.train("intuition", 1.0)
 	var text := Lang.t("%s: leer") % Lang.t(obj.label)
 	var color := Color(0.8, 0.8, 0.85)
 	if loot.has("gold"):
@@ -1042,6 +1076,8 @@ func _on_player_defeated() -> void:
 func _end_run(escaped: bool) -> void:
 	state = State.WON if escaped else State.OVER
 	var entry := Ranking.add(hero_name, level_index + 1, level.level_name, coins, escaped)
+	# What the hero trained stays with their name, fallen or free.
+	Training.save_hero(hero_name, player.xp)
 	# The run is over, so the saved game in the safe room is gone too.
 	if has_save():
 		DirAccess.remove_absolute(SAVE_FILE)
@@ -1081,6 +1117,7 @@ func _on_exit_reached() -> void:
 
 func _next_level() -> void:
 	Sfx.play(self, "level_done", -2.0)
+	Training.save_hero(hero_name, player.xp)
 	dry_levels = 0 if level.secret_opened() else dry_levels + 1
 	if level_index + 1 >= level_files.size():
 		_end_run(true)

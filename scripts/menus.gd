@@ -173,12 +173,37 @@ func _stats_text() -> String:
 		p.hp, p.max_hp, p.power, p.hardening, roundi(p.speed / Player.SPEED * 100.0), p.knives, game.coins]
 
 
+## The hero's attributes, each with how far it is to the next point.
+func _attributes_text() -> String:
+	var p: Player = game.player
+	var parts := []
+	for id in Training.ATTRIBUTES:
+		var value := p.attribute(id)
+		var shown := ("%d%%" % value) if id == "tempo" else str(value)
+		var at_cap: bool = value >= Training.ATTRIBUTES[id].max
+		parts.append("%s %s%s" % [Lang.t(Training.ATTRIBUTES[id].name), shown,
+				Lang.t(" (höchster Wert)") if at_cap else " (%d%%)" % floori(Training.attribute_progress(id, p.xp.get(id, 0.0)) * 100.0)])
+	return "    ".join(parts)
+
+
+## Every skill with its level; skills the worn gear does not allow are in brackets.
+func _skills_text() -> String:
+	var p: Player = game.player
+	var parts := []
+	for id in Training.SKILLS:
+		var text := "%s %d" % [Lang.t(Training.SKILLS[id].name), p.skill(id) if p.skill_enabled(id) else Training.skill_level(p.xp.get(id, 0.0))]
+		parts.append(text if p.skill_enabled(id) else "(%s)" % text)
+	return Lang.t("Fertigkeiten:") + " " + "   ".join(parts) + "\n" + Lang.t("In Klammern: braucht passende Ausrüstung")
+
+
 # --- Inventory --------------------------------------------------------------
 
 func _build_inventory() -> void:
 	var p: Player = game.player
 	_add_label(Lang.t("Inventar"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(_stats_text(), 18, BLUE)
+	_add_label(_attributes_text(), 18, game.GOLD)
+	_add_label(_skills_text(), 16, Color(0.8, 0.85, 0.9))
 	_add_label(Lang.t("Angelegt (anklicken zum Ablegen)"), 20)
 	var row := GridContainer.new()
 	row.columns = 5

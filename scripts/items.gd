@@ -7,6 +7,8 @@ extends RefCounted
 ## a "block" chance: a blocked hit does no harm at all, but may wear the shield.
 ## Every item has a "weight" in kg; everything the hero carries, worn or in the
 ## bag, slows them down by WEIGHT_SLOW per kg (at most MAX_WEIGHT_SLOW).
+## A weapon "uses" a skill (see Training): the hero gets better with it by
+## fighting, and only while holding it. "skills" are levels an item adds.
 
 const SLOTS := ["kopf", "waffe", "schild", "umhang", "ruestung", "schuhe",
 		"amulett", "ring", "armreif", "spezial_1", "spezial_2"]
@@ -20,20 +22,20 @@ const MAX_WEIGHT_SLOW := 0.35
 ## Cloaks, armour and shoes also colour the hero ("tint"; "metal" makes it shine).
 ## Specials ("spezial") have an effect of their own instead of plain numbers.
 const ALL := {
-	"schwert": {"name": "Schwert", "slot": "waffe", "weight": 3, "power": 1, "price": 12, "model": "res://assets/weapons/sword_1handed.gltf"},
-	"axt": {"name": "Axt", "slot": "waffe", "weight": 4, "power": 2, "price": 25, "model": "res://assets/weapons/axe_1handed.gltf"},
+	"schwert": {"name": "Schwert", "slot": "waffe", "uses": "klingen", "weight": 3, "power": 1, "price": 12, "model": "res://assets/weapons/sword_1handed.gltf"},
+	"axt": {"name": "Axt", "slot": "waffe", "uses": "aexte", "weight": 4, "power": 2, "price": 25, "model": "res://assets/weapons/axe_1handed.gltf"},
 	"rundschild": {"name": "Rundschild", "slot": "schild", "weight": 3, "hp": 1, "block": 0.2, "durability": 5, "price": 10, "model": "res://assets/weapons/shield_round.gltf"},
-	"wappenschild": {"name": "Wappenschild", "slot": "schild", "weight": 5, "hp": 2, "armor": 1, "block": 0.25, "durability": 6, "price": 22, "model": "res://assets/weapons/shield_badge.gltf"},
+	"wappenschild": {"name": "Wappenschild", "slot": "schild", "weight": 5, "hp": 2, "armor": 1, "block": 0.25, "durability": 6, "skills": {"blocken": 1}, "price": 22, "model": "res://assets/weapons/shield_badge.gltf"},
 	"stachelschild": {"name": "Stachelschild", "slot": "schild", "weight": 6, "hp": 2, "power": 1, "block": 0.3, "durability": 7, "price": 35, "model": "res://assets/weapons/shield_spikes.gltf"},
 	"knochenhelm": {"name": "Knochenhelm", "slot": "kopf", "weight": 1, "power": 1, "price": 18, "hat": ["res://assets/enemies/Skeleton_Warrior.glb", "Skeleton_Warrior_Helmet"]},
 	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "weight": 0.5, "hp": 1, "speed": 0.07, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"]},
 	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 3, "hp": 2, "armor": 1, "durability": 4, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"]},
 	"baerenkappe": {"name": "Bärenkappe", "slot": "kopf", "weight": 1, "hp": 1, "power": 1, "price": 34, "hat": ["res://assets/characters/Barbarian.glb", "Barbarian_Hat"]},
 	"wollumhang": {"name": "Wollumhang", "slot": "umhang", "weight": 1, "hp": 1, "price": 12, "tint": Color(0.55, 0.4, 0.28)},
-	"schattenumhang": {"name": "Schattenumhang", "slot": "umhang", "weight": 1, "hp": 1, "speed": 0.1, "price": 26, "tint": Color(0.16, 0.15, 0.24)},
+	"schattenumhang": {"name": "Schattenumhang", "slot": "umhang", "weight": 1, "hp": 1, "speed": 0.1, "skills": {"schleichen": 2}, "price": 26, "tint": Color(0.16, 0.15, 0.24)},
 	"koenigsumhang": {"name": "Königsumhang", "slot": "umhang", "weight": 2, "hp": 2, "power": 1, "price": 42, "tint": Color(0.75, 0.08, 0.1)},
 	"lederwams": {"name": "Lederwams", "slot": "ruestung", "weight": 2, "hp": 1, "price": 14, "tint": Color(0.5, 0.3, 0.15)},
-	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "weight": 5, "hp": 2, "armor": 1, "durability": 5, "price": 28, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4},
+	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "weight": 5, "hp": 2, "armor": 1, "durability": 5, "skills": {"ruestung": 1}, "price": 28, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4},
 	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "weight": 8, "hp": 3, "armor": 2, "durability": 6, "power": 1, "price": 48, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55},
 	"lederstiefel": {"name": "Lederstiefel", "slot": "schuhe", "weight": 1, "speed": 0.05, "price": 10, "tint": Color(0.45, 0.27, 0.13)},
 	"eilstiefel": {"name": "Eilstiefel", "slot": "schuhe", "weight": 1, "speed": 0.15, "price": 26, "tint": Color(0.25, 0.45, 0.95)},
@@ -43,7 +45,7 @@ const ALL := {
 	"kupferring": {"name": "Kupferring", "slot": "ring", "weight": 0.1, "power": 1, "price": 16},
 	"rubinring": {"name": "Rubinring", "slot": "ring", "weight": 0.1, "hp": 1, "power": 1, "price": 32},
 	"bronzearmreif": {"name": "Bronzearmreif", "slot": "armreif", "weight": 0.4, "hp": 1, "price": 12},
-	"silberarmreif": {"name": "Silberarmreif", "slot": "armreif", "weight": 0.3, "power": 1, "speed": 0.05, "price": 27},
+	"silberarmreif": {"name": "Silberarmreif", "slot": "armreif", "weight": 0.3, "power": 1, "speed": 0.05, "skills": {"werfen": 1}, "price": 27},
 	"vampirzahn": {"name": "Vampirzahn", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Jeder besiegte Gegner gibt dir 1 Leben"},
 	"gluecksklee": {"name": "Glücksklee", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Doppeltes Gold"},
 	"dornenrune": {"name": "Dornenrune", "slot": "spezial", "weight": 0.5, "price": 45, "effect": "Wer dich im Nahkampf trifft, erleidet 1 Schaden"},
@@ -90,6 +92,10 @@ static func describe(id: String, worn := 0) -> String:
 		parts.append(Lang.t("+%d%% Tempo") % roundi(item.speed * 100.0))
 	elif item.get("speed", 0.0) < 0.0:
 		parts.append(Lang.t("%d%% Tempo") % roundi(item.speed * 100.0))
+	if item.has("uses"):
+		parts.append(Lang.t("Fertigkeit: %s") % Lang.t(Training.SKILLS[item.uses].name))
+	for skill_id in item.get("skills", {}):
+		parts.append(Lang.t("+%d %s") % [item.skills[skill_id], Lang.t(Training.SKILLS[skill_id].name)])
 	if item.get("weight", 0.0) > 0.0:
 		parts.append(Lang.t("Gewicht %s") % weight_text(item.weight))
 	if item.has("effect"):

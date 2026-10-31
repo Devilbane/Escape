@@ -49,6 +49,28 @@ Jeder Block nutzt sie mit 20 % Chance ab, jeder Treffer wie bei Rüstung mit 5 %
 Jeder Gegenstand hat ein **Gewicht**. Alles, was du trägst, angelegt oder in der Tasche, macht dich langsamer:
 1 % Tempo pro kg, höchstens 35 %. Schmuck wiegt fast nichts, ein Plattenpanzer 8 kg. Skelette tragen ihre
 Ausrüstung genauso.
+
+**Dein Held wächst durch Tun.** Er hat fünf **Eigenschaften**, die ganz langsam steigen, und zwar nur
+durch das, was er tut. Ein ganzer Lauf durch das Verlies bringt etwa einen Punkt, und jeder weitere Punkt
+braucht ein Viertel mehr Übung als der davor:
+
+| Eigenschaft | Wert | Wird geübt durch | Wirkung |
+|---|---|---|---|
+| Stärke | 10 bis 30 | Treffer landen, Gegner fällen, Schläge blocken, schwere Lasten tragen | +1 Kampfkraft je Punkt, alles Getragene wiegt weniger |
+| Konstitution | 10 bis 30 | Leben verlieren (Treffer, Stacheln, Gift) | +1 Leben je Punkt |
+| Tempo | 100 % bis 150 %, in 5er-Schritten | Laufen und Springen | schneller laufen |
+| Geschick | 10 bis 30 | Springen, Messer werfen, Stachelfallen | Sprünge aus dem Lauf 2 % weiter je Punkt, 4 % je Punkt, hochschießenden Stacheln auszuweichen |
+| Intuition | 10 bis 30 | Durchsuchen, an Geheimhebeln vorbeikommen, Geheimräume finden | +2 % je Punkt, einen Geheimhebel zu bemerken |
+
+Dazu kommen **Fertigkeiten** (Stufe 0 bis 10). Sie wachsen viel schneller, aber nur mit der Ausrüstung,
+die sie braucht: **Klingen** mit Dolch oder Schwert, **Äxte** mit der Axt, **Blocken** mit einem Schild,
+**Rüstung tragen** mit harter Rüstung; **Messerwurf** und **Schleichen** gehen immer.
+Klingen, Äxte und Messerwurf geben je Stufe 5 % Chance auf einen Wuchttreffer (+1 Schaden), Blocken +2 %
+Blocken, Rüstung tragen lässt harte Rüstung 6 % leichter wiegen, Schleichen macht 3 % schneller.
+Manche Gegenstände geben selbst Stufen dazu (Schattenumhang +2 Schleichen, Wappenschild +1 Blocken,
+Kettenhemd +1 Rüstung tragen, Silberarmreif +1 Messerwurf). Alles steht im Inventar, mit dem Fortschritt
+zum nächsten Punkt. Was dein Held gelernt hat, bleibt mit seinem Namen gespeichert, auch über neue Spiele hinweg.
+
 Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es einen **Brunnen**,
 der dein Leben auffüllt und Gift und Flüche heilt, eine Lagertruhe, einen Händler, der für Gold kauft und verkauft, und ein Bett. Beim Betreten der Zuflucht wird automatisch gespeichert; im Bett wird noch einmal gespeichert und du loggst aus.
 Beim nächsten Start geht es mit „Weiterspielen“ dort weiter. Der Spielstand liegt im Browser.

@@ -18,8 +18,14 @@ extends Level
 ##   y  pumpkin field
 ##   The hero's house: I  stone wall   i  wooden floor (a gap in the
 ##   walls is the door)   B  bed (save and log out)   L  chest (storage)
-##   0-9  villagers: 0 elder, 1 smith, 2 farmer, 3 woodcutter, 4 guard,
-##        5 tavern guest, 6 merchant, 7 child, 8 scholar, 9 water carrier
+##   :  paved square         F  fountain (heals)   x  bench
+##   More buildings: s  temple   k  office of the crown   o  post office
+##   w  adventurers' guild   b  bank. A building turns its door to the square or path.
+##   Villagers: 0 elder, 1 smith, 2 farmer, 3 woodcutter, 4 guard,
+##   5 tavern guest, 6 shopkeeper (buys and sells), 7 child, 8 scholar,
+##   9 water carrier, K herald of the crown, O priestess, G guild master,
+##   M postmaster, Y banker. Now and then the herald calls out news on the square,
+##   and the villagers come over to listen.
 
 ## A notice for the message line, e.g. when the house is handed over.
 signal notice(text: String, duration: float)
@@ -27,13 +33,23 @@ signal notice(text: String, duration: float)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai0123456789"
-const BLOCK_CHARS := "Rhjnmu"
+const WALK := ".,Pai:0123456789KOGMY"
+const VILLAGERS := "0123456789KOGMY"
+const BLOCK_CHARS := "Rhjnmuskowb"
 const HOMES := ["building_home_A_blue", "building_home_B_red", "building_home_A_yellow", "building_home_B_green"]
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
 	"m": "building_market_green", "u": "building_windmill_red",
+	"s": "building_church_yellow", "k": "building_castle_blue", "o": "building_home_A_yellow",
+	"w": "building_barracks_red", "b": "building_tower_A_blue",
 }
+## The herald calls out news this often (seconds); the first time sooner.
+const BUILDING_NAMES := {
+	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
+	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
+}
+const HERALD_EVERY := 80.0
+const HERALD_FIRST := 25.0
 const GRAVES := ["grave_A", "grave_B", "gravestone", "gravemarker_A", "gravemarker_B", "grave_A_destroyed"]
 const PROPS := ["barrel", "crate_A_big", "sack", "wheelbarrow", "bucket_water", "resource_lumber", "resource_stone"]
 ## The village props come as table-top miniatures: this blows them up to
@@ -67,6 +83,12 @@ var _entered_once := false
 var _marker: Node3D
 var _elder: Node3D
 var _aabbs := {}
+## Buildings with floors of their own: building letter -> level index.
+var interiors := {}
+## Where each building's door is, by building letter.
+var doors := {}
+var _herald: Node3D
+var _herald_timer := HERALD_FIRST
 
 
 func build() -> void:
@@ -91,17 +113,22 @@ func build() -> void:
 
 # --- Ground -------------------------------------------------------------------
 
-## One mask pixel per tile: red is path, green graveyard soil, blue water,
-## alpha open ground (the forest floor is darker).
+## One mask pixel per tile: red is path, green graveyard soil, both the
+## paved square, blue water, alpha open ground (the forest floor is darker).
 func _build_ground() -> void:
 	var mask := Image.create(width, height, false, Image.FORMAT_RGBA8)
 	var fence := _bounds_of("z")
+	var square := _bounds_of(":")
 	for y in height:
 		for x in width:
 			var c := Vector2i(x, y)
 			var ch := cell_char(c)
 			var path := 1.0 if ",aP".contains(ch) else 0.0
 			var soil := 1.0 if (fence.has_point(c) and not ",aP".contains(ch)) or ch == "y" else 0.0
+			# Paving stones: path and soil together mean the square.
+			if square.has_point(c) and not BLOCK_CHARS.contains(ch):
+				path = 1.0
+				soil = 1.0
 			var wet := 1.0 if ch == "~" else 0.0
 			var open := 0.0 if ch == "#" else 1.0
 			mask.set_pixel(x, y, Color(path, soil, wet, open))
@@ -269,17 +296,26 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 					var kind: String = ["pumpkin_orange", "pumpkin_orange", "pumpkin_yellow_small"][_rng.randi() % 3]
 					_put(kind, pos + Vector3(-1.0 + col * 2.0, 0, -1.0 + row * 2.0) + _jitter(0.3), _rng.randf() * TAU, _rng.randf_range(0.9, 1.3))
 			_add_solid(pos, Vector3(TILE * 0.9, 1, TILE * 0.9))
-		",":
-			if _near_block(c):
-				spots.square.append(pos)
+		":":
+			spots.square.append(pos)
+		"F":
+			_build_fountain(c)
+			spots.well.append(pos + Vector3(0, 0, 2.6))
+		"x":
+			_build_bench(c)
 
 
-func _near_block(c: Vector2i) -> bool:
-	for dy in range(-2, 3):
-		for dx in range(-2, 3):
-			if "hjnmq".contains(cell_char(c + Vector2i(dx, dy))):
-				return true
-	return false
+## A bench on the square, its seat turned to the fountain.
+func _build_bench(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var to := Vector3.ZERO
+	for y in height:
+		for x in width:
+			if cell_char(Vector2i(x, y)) == "F":
+				to = cell_to_world(Vector2i(x, y)) - pos
+	var rot := atan2(to.x, to.z) if to.length() > 0.1 else 0.0
+	_put("bench", pos, rot, 1.3)
+	_add_solid(pos, Vector3(2.4, 1, 2.4))
 
 
 ## A post with a lantern hanging from its arm, glowing warm.
@@ -381,14 +417,25 @@ func _build_blocks() -> void:
 func _build_block(ch: String, block: Rect2i) -> void:
 	var model: String = HOMES[_rng.randi() % HOMES.size()] if ch == "h" else BLOCK_MODELS[ch]
 	var box := _aabb_of(model)
+	var facing := _block_facing(block) if ch != "R" else Vector2i(0, 1)
+	var rot := atan2(float(facing.x), float(facing.y))
+	var turned := facing.x != 0
 	var room := Vector2(block.size) * TILE * 0.92
-	var s := minf(room.x / box.size.x, room.y / box.size.z)
+	var model_size := Vector2(box.size.z, box.size.x) if turned else Vector2(box.size.x, box.size.z)
+	var s := minf(room.x / model_size.x, room.y / model_size.y)
 	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
-	var foot := Vector3(box.position.x + box.size.x * 0.5, 0, box.position.z + box.size.z * 0.5) * s
-	var node := _put(model, center - foot, 0.0, s)
+	var foot := (Vector3(box.position.x + box.size.x * 0.5, 0, box.position.z + box.size.z * 0.5) * s).rotated(Vector3.UP, rot)
+	var node := _put(model, center - foot, rot, s)
 	var solid := Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86)
 	_add_solid(center, solid)
-	var front := center + Vector3(0, 0, block.size.y * TILE * 0.5 + 2.0)
+	var reach := Vector2(block.size) * TILE * 0.5 + Vector2(2.0, 2.0)
+	var front := center + Vector3(facing.x * reach.x, 0, facing.y * reach.y)
+	doors[ch] = front
+	if interiors.has(ch):
+		# Run into the door to go in.
+		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
+		stations.append({"kind": "eingang", "building": ch, "name": BUILDING_NAMES.get(ch, ""),
+				"cell": world_to_cell(door - Vector3(facing.x, 0, facing.y) * 0.5), "pos": door, "used": false})
 	if ch == "h":
 		spots.houses.append(front)
 	elif ch == "R":
@@ -402,9 +449,48 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		var motes := Effects.make_sparkles(Color(0.7, 0.85, 1.0))
 		motes.position = center + Vector3(0, 2.0, block.size.y * TILE * 0.5 - 0.5)
 		add_child(motes)
-	elif ch in ["n", "m", "j"]:
+	elif ch in ["n", "m", "j", "s", "k", "o", "w", "b"]:
 		spots.square.append(front)
+	if ch == "w":
+		# Banners and a rack of weapons by the guild door.
+		var side := Vector3(-facing.y, 0, facing.x) * 2.2
+		_put("weaponrack", front + side - Vector3(facing.x, 0, facing.y) * 0.8, rot, PROP_SCALE)
+		_put("flag_red", front - side - Vector3(facing.x, 0, facing.y) * 0.8, rot, PROP_SCALE)
+	elif ch == "k":
+		var side := Vector3(-facing.y, 0, facing.x) * 4.0
+		for flag in [-1, 1]:
+			_put("flag_blue", front + side * flag - Vector3(facing.x, 0, facing.y) * 1.2, rot, PROP_SCALE)
+	elif ch == "o":
+		# Parcels waiting at the post office.
+		var side := Vector3(-facing.y, 0, facing.x) * 2.4
+		_put("crate_long_A", front + side - Vector3(facing.x, 0, facing.y) * 1.0, rot, PROP_SCALE)
+		_put("crate_open", front - side - Vector3(facing.x, 0, facing.y) * 1.0, rot + 0.3, PROP_SCALE)
 	node.set_meta("block", block)
+
+
+## Which way a building's door looks: towards the square if it borders it,
+## else towards a path, else south.
+func _block_facing(block: Rect2i) -> Vector2i:
+	var best := Vector2i(0, 1)
+	var best_score := 0
+	for d: Vector2i in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+		var score := 0
+		for y in range(block.position.y, block.end.y):
+			for x in range(block.position.x, block.end.x):
+				var n := Vector2i(x, y) + d
+				if block.has_point(n):
+					continue
+				if cell_char(n) == ":":
+					score += 3
+				elif cell_char(n) == ",":
+					score += 1
+		# Doors facing away from the camera are only taken for the square.
+		if d.y < 0:
+			score = score - 1 if score >= 3 else 0
+		if score > best_score:
+			best_score = score
+			best = d
+	return best
 
 
 # --- The hero's house ---------------------------------------------------------
@@ -559,24 +645,31 @@ func _spawn_villagers() -> void:
 		for x in width:
 			var c := Vector2i(x, y)
 			var ch := cell_char(c)
-			if not "0123456789".contains(ch):
+			if not VILLAGERS.contains(ch):
 				continue
 			var v := Villager.new()
 			v.setup(self, ch, c)
 			add_child(v)
 			v.global_position = cell_to_world(c)
 			villagers.append(v)
-			var station := {"kind": "npc", "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
+			# The shopkeeper trades like the merchant in the refuge.
+			var kind: String = {"6": "haendler", "Y": "bank"}.get(ch, "npc")
+			var station := {"kind": kind, "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)
 			if ch == "0":
 				_elder = v
+			elif ch == "K":
+				_herald = v
 
 
 ## Bumping into a villager: they walk around, so their tile is not enough.
+## A door is hit anywhere along the front of its building.
 func station_at(point: Vector3) -> Dictionary:
 	for s in stations:
-		if s.kind == "npc" and _flat_distance(point, s.pos) < 1.6:
+		if s.has("npc") and _flat_distance(point, s.pos) < 1.6:
+			return s
+		if s.kind == "eingang" and _flat_distance(point, s.pos) < 2.4:
 			return s
 	return super(point)
 
@@ -632,8 +725,37 @@ func _process(delta: float) -> void:
 		if inside and _marker:
 			_marker.queue_free()
 			_marker = null
+	_herald_timer -= delta
+	if _herald and _herald_timer <= 0.0:
+		_herald_timer = HERALD_EVERY
+		_call_the_village()
 	if not house_given and _elder and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:
 		house_given = true
 		_elder.greet_newcomer(player)
 		_show_house_marker()
 		notice.emit(Lang.t("Der Dorfvorsteher schenkt dir das leere Haus. Ein goldenes Licht zeigt dir die Tür."), 4.5)
+
+
+## The herald rings the news across the square, and everyone in the village
+## comes over to listen for a while: a reason to gather.
+func _call_the_village() -> void:
+	var stand: Vector3 = _herald.global_position
+	_herald.proclaim()
+	var ring: Array[Vector3] = []
+	var at := world_to_cell(stand)
+	for dy in range(-1, 5):
+		for dx in range(-4, 5):
+			var c := at + Vector2i(dx, dy)
+			if cell_char(c) == ":" and absi(dx) + absi(dy) >= 2:
+				ring.append(cell_to_world(c))
+	ring.shuffle()
+	var i := 0
+	for v in villagers:
+		if v == _herald or not v.comes_to_listen() or i >= ring.size():
+			continue
+		if _flat_distance(v.global_position, stand) > 22.0 * TILE * 0.5:
+			continue
+		v.gather_at(ring[i], stand)
+		i += 1
+	if player and _flat_distance(player.global_position, stand) < 30.0:
+		notice.emit(Lang.t("Der Herold ruft auf dem Marktplatz aus. Das Dorf kommt zusammen."), 3.0)

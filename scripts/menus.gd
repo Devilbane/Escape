@@ -92,6 +92,10 @@ func _rebuild() -> void:
 			_build_inventory()
 		"lager":
 			_build_storage()
+		"bank":
+			_build_bank()
+		"tresor":
+			_build_vault()
 		"haendler":
 			_build_shop()
 		"bett":
@@ -102,7 +106,7 @@ func _rebuild() -> void:
 			_build_compendium()
 		"beenden":
 			_build_quit()
-	if current in ["inventar", "lager", "haendler"]:
+	if current in ["inventar", "lager", "haendler", "tresor"]:
 		_info = _add_label(Lang.t(INFO_HINT), 18, BLUE)
 		_info.custom_minimum_size.y = 26
 	if _note != "":
@@ -290,6 +294,103 @@ func _take(index: int) -> void:
 		game.player.bag.append(game.storage[index])
 		game.storage.remove_at(index)
 		_note = ""
+	_rebuild()
+
+
+# --- Bank -------------------------------------------------------------------
+
+func _build_bank() -> void:
+	var hero: String = game.hero_name
+	_add_label(Lang.t("Bank der Krone"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Im Beutel: %d Gold      Auf der Bank: %d Gold") % [game.coins, Bank.gold(hero)], 22)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	_box.add_child(row)
+	for b in [[Lang.t("Alles einzahlen"), func(): _pay_in(game.coins), game.coins > 0],
+			[Lang.t("10 einzahlen"), func(): _pay_in(10), game.coins >= 10],
+			[Lang.t("10 abheben"), func(): _pay_out(10), Bank.gold(hero) > 0],
+			[Lang.t("Alles abheben"), func(): _pay_out(Bank.gold(hero)), Bank.gold(hero) > 0]]:
+		row.add_child(_item_button(b[0], b[1], b[2]))
+	if Bank.has_vault(hero):
+		_add_label(Lang.t("Dein Schließfach im Tresorkeller hat Platz für %d Schätze.") % Bank.VAULT_SIZE, 18, BLUE)
+	else:
+		_add_label(Lang.t("Ein Schließfach im Tresorkeller kostet einmalig %d Gold (vom Bankkonto).") % Bank.VAULT_PRICE, 18, BLUE)
+		var rent := _item_button(Lang.t("Schließfach mieten"), _rent_vault, Bank.gold(hero) >= Bank.VAULT_PRICE)
+		rent.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		rent.custom_minimum_size = Vector2(300, 54)
+		_box.add_child(rent)
+	var down: Button = game._make_button(Lang.t("In den Tresorkeller gehen"), func():
+		close()
+		game.go_to_vaults())
+	down.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	down.custom_minimum_size = Vector2(320, 54)
+	_box.add_child(down)
+
+
+func _pay_in(amount: int) -> void:
+	amount = mini(amount, game.coins)
+	game.coins -= amount
+	Bank.deposit(game.hero_name, amount)
+	Sfx.play(game, "coin")
+	_note = ""
+	# Bank and saved game must agree, or gold could be had twice.
+	game.save_game()
+	_rebuild()
+
+
+func _pay_out(amount: int) -> void:
+	game.coins += Bank.withdraw(game.hero_name, amount)
+	Sfx.play(game, "coin")
+	_note = ""
+	# Bank and saved game must agree, or gold could be had twice.
+	game.save_game()
+	_rebuild()
+
+
+func _rent_vault() -> void:
+	if Bank.withdraw(game.hero_name, Bank.VAULT_PRICE) == Bank.VAULT_PRICE:
+		Bank.rent_vault(game.hero_name)
+		_note = Lang.t("Das Schließfach gehört dir. Du findest es im Tresorkeller.")
+	# Bank and saved game must agree, or gold could be had twice.
+	game.save_game()
+	_rebuild()
+
+
+## The hero's own vault in the cellar: like the chest at home.
+func _build_vault() -> void:
+	var p: Player = game.player
+	var hero: String = game.hero_name
+	_add_label(Lang.t("Dein Schließfach"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 18, BLUE)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), Items.BAG_SIZE], 20)
+	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _to_vault, 6)
+	var items := Bank.vault_items(hero)
+	_add_label(Lang.t("Schließfach (%d / %d)") % [items.size(), Bank.VAULT_SIZE], 20)
+	_add_item_grid(items, Bank.VAULT_SIZE, Items.item_name, _from_vault, 6)
+
+
+func _to_vault(index: int) -> void:
+	if Bank.store(game.hero_name, game.player.bag[index]):
+		game.player.bag.remove_at(index)
+		_note = ""
+		game.level.refresh_vaults()
+	else:
+		_note = Lang.t("Das Schließfach ist voll.")
+	# Bank and saved game must agree, or gold could be had twice.
+	game.save_game()
+	_rebuild()
+
+
+func _from_vault(index: int) -> void:
+	if game.player.bag.size() >= Items.BAG_SIZE:
+		_note = Lang.t("Deine Tasche ist voll.")
+	else:
+		game.player.bag.append(Bank.take(game.hero_name, index))
+		_note = ""
+		game.level.refresh_vaults()
+	# Bank and saved game must agree, or gold could be had twice.
+	game.save_game()
 	_rebuild()
 
 

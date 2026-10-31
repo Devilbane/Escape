@@ -35,9 +35,9 @@ const ROLES := {
 	"5": {"name": "Zecher Fritz", "model": "Barbarian", "show": ["Mug"],
 		"colors": [Color(0.4, 0.55, 0.4), Color(0.45, 0.35, 0.28), Color(1, 1, 1)], "plan": "sit", "work": "Sit_Floor_Idle",
 		"lines": ["Prost! Auf die Freiheit!", "Das Bier hier ist das beste diesseits der Berge.", "Setz dich doch, erzähl von da unten!"]},
-	"6": {"name": "Händlerin Mira", "model": "Rogue", "show": ["Rogue_Cape"],
-		"colors": [Color(0.7, 0.35, 0.6), Color(0.35, 0.3, 0.45), Color(0.6, 0.3, 0.5)], "plan": "work", "work": "Interact",
-		"lines": ["Frische Äpfel! Feines Tuch! Kommt näher!", "Morgen kommt ein Händler aus der Stadt.", "Für einen Helden mache ich einen guten Preis."]},
+	"6": {"name": "Krämerin Mira", "model": "Rogue", "show": ["Rogue_Cape"],
+		"colors": [Color(0.7, 0.35, 0.6), Color(0.35, 0.3, 0.45), Color(0.6, 0.3, 0.5)], "plan": "shop", "work": "Interact",
+		"lines": ["Brot, Käse, Seile, Fackeln: alles für den Alltag!", "Ich kaufe auch, was du aus dem Verlies mitbringst.", "Für einen Helden mache ich einen guten Preis."]},
 	"7": {"name": "Pip", "model": "Rogue", "show": [], "scale": 0.72,
 		"colors": [Color(0.45, 0.6, 0.9), Color(0.6, 0.45, 0.3), Color(0.9, 0.8, 0.3)], "plan": "wander", "work": "Cheer",
 		"lines": ["Fang mich doch!", "Bist du ein echter Abenteurer?", "Mama sagt, in der Gruft spukt es!"]},
@@ -47,7 +47,34 @@ const ROLES := {
 	"9": {"name": "Wasserträgerin Hanna", "model": "Knight", "show": [],
 		"colors": [Color(0.4, 0.65, 0.75), Color(0.45, 0.4, 0.35), Color(1, 1, 1)], "plan": "carry", "work": "PickUp",
 		"lines": ["Frisches Wasser vom Brunnen!", "Puh, die Eimer sind schwer.", "Der Brunnen ist so alt wie das Dorf."]},
+	"K": {"name": "Herold Konrad", "model": "Knight", "show": ["Knight_Cape", "Badge_Shield"],
+		"colors": [Color(0.4, 0.5, 0.9), Color(0.85, 0.75, 0.4), Color(0.3, 0.4, 0.85)], "plan": "stay", "work": "Idle",
+		"lines": ["Ich bin der Herold der Krone. Ich rufe die Neuigkeiten aus.", "Bleib in der Nähe, gleich gibt es Neues!", "Das Amt der Krone kümmert sich um Recht und Steuern."]},
+	"O": {"name": "Priesterin Elsbeth", "model": "Mage", "show": ["Mage_Cape", "2H_Staff"],
+		"colors": [Color(0.95, 0.93, 0.85), Color(0.9, 0.88, 0.8), Color(0.95, 0.8, 0.4)], "plan": "work", "work": "Spellcast_Raise",
+		"lines": ["Die Götter haben dich aus der Tiefe geführt.", "Der Tempel steht allen offen, Tag und Nacht.", "Möge das Licht deinen Weg erhellen."]},
+	"G": {"name": "Gildenmeisterin Ragna", "model": "Barbarian", "show": ["Barbarian_Round_Shield", "1H_Axe", "Barbarian_Cape"],
+		"colors": [Color(0.6, 0.25, 0.2), Color(0.3, 0.28, 0.26), Color(0.7, 0.2, 0.15)], "plan": "stay", "work": "Idle",
+		"lines": ["Die Gilde sucht Leute wie dich. Wer aus dem Verlies kommt, ist zäh.", "Bald gibt es Aufträge: Wölfe im Wald, Räuber am Pass.", "Zeig mir deine Narben, dann reden wir."]},
+	"M": {"name": "Postmeister Anselm", "model": "Rogue", "show": [],
+		"colors": [Color(0.95, 0.8, 0.3), Color(0.35, 0.35, 0.5), Color(1, 1, 1)], "plan": "carry", "work": "PickUp",
+		"lines": ["Ein Brief für dich? Noch nicht, aber bald bestimmt.", "Ich bringe die Post zu jedem Haus im Dorf.", "Die Postkutsche kommt jeden dritten Tag."]},
+	"Y": {"name": "Bankier Goldwin", "model": "Mage", "show": ["Mage_Hat"],
+		"colors": [Color(0.25, 0.45, 0.3), Color(0.25, 0.25, 0.28), Color(0.2, 0.35, 0.25)], "plan": "work", "work": "Interact",
+		"lines": ["Gold ist bei uns sicherer als in jeder Truhe.", "Die Bank der Krone öffnet bald ihre Schalter für Abenteurer.", "Zinsen? Nur für treue Kunden."]},
 }
+
+## What the herald calls out on the square, one after another.
+const NEWS := [
+	"Hört, hört! Ein Held ist aus der alten Gruft entkommen!",
+	"Hört, hört! Die Krone sucht mutige Helden. Meldet euch in der Abenteurergilde!",
+	"Hört, hört! Morgen ist Markttag. Die Krämerin hat frisches Brot!",
+	"Hört, hört! Briefe aus der Hauptstadt liegen auf der Post bereit.",
+	"Hört, hört! Die Bank der Krone verwahrt euer Gold sicher.",
+	"Hört, hört! Heute Abend gibt es Segen im Tempel für alle!",
+]
+## How long the village listens to the herald (seconds).
+const LISTEN_TIME := 13.0
 
 var level: Level
 var role := "7"
@@ -70,6 +97,9 @@ var _line := 0
 var _current_anim := ""
 var _look_at := Vector3.INF
 var _greeted := false
+## Who the villager listens to while gathered on the square.
+var _listen_to := Vector3.INF
+var _news := 0
 
 
 func setup(owner_level: Level, role_char: String, cell: Vector2i) -> void:
@@ -165,8 +195,11 @@ func _start(task: String, time: float) -> void:
 ## walk somewhere in the village.
 func _next_task() -> void:
 	match _info.plan:
-		"stay":
-			_start("work", 6.0)
+		"stay", "shop":
+			if level.world_to_cell(global_position) != home:
+				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
+			else:
+				_start("work", 6.0)
 		"work", "sit":
 			if _task in ["work", "sit"] and _rng.randf() < 0.35:
 				_walk_to(_errand(), WALK_SPEED, "idle")
@@ -250,8 +283,15 @@ func _physics_process(delta: float) -> void:
 			_walk(delta, hero)
 		"work", "sit", "idle":
 			_do(_task, delta)
+		"listen":
+			_turn_to(_listen_to - global_position, delta)
+			play("Idle")
 	_task_time -= delta
 	if _task != "walk" and _task_time <= 0.0:
+		if _task == "listen":
+			# The news is out: back to the day's work.
+			_listen_to = Vector3.INF
+			_start("idle", 0.1)
 		_next_task()
 	if role == "0" and hero.global_position.distance_to(global_position) < 8.0:
 		_turn_to(hero.global_position - global_position, delta)
@@ -259,7 +299,13 @@ func _physics_process(delta: float) -> void:
 
 func _walk(delta: float, hero: Node3D) -> void:
 	if _path.is_empty():
-		_start(get_meta("then", "idle"), _rng.randf_range(8.0, 16.0) if get_meta("then", "") in ["work", "sit"] else _rng.randf_range(2.0, 5.0))
+		var then: String = get_meta("then", "idle")
+		var time := _rng.randf_range(2.0, 5.0)
+		if then in ["work", "sit"]:
+			time = _rng.randf_range(8.0, 16.0)
+		elif then == "listen":
+			time = LISTEN_TIME + _rng.randf_range(-2.0, 2.0)
+		_start(then, time)
 		return
 	var to := _path[0] - global_position
 	to.y = 0.0
@@ -322,6 +368,27 @@ func _turn_to(direction: Vector3, delta: float) -> void:
 		return
 	var target := atan2(direction.x, direction.z)
 	rotation.y = lerp_angle(rotation.y, target, minf(1.0, delta * 8.0))
+
+
+# --- Gathering on the square -------------------------------------------------
+
+## Who drops their work to hear the herald: not the shopkeeper at her
+## stall, the elder or the woodcutter out in the woods.
+func comes_to_listen() -> bool:
+	return _info.plan in ["work", "sit", "patrol", "stroll", "wander", "carry"] and role != "3" and _task != "listen"
+
+
+func gather_at(spot: Vector3, speaker: Vector3) -> void:
+	_listen_to = speaker
+	_walk_to(spot, WALK_SPEED * 1.2, "listen")
+
+
+## The herald's call: the next piece of news, arm raised.
+func proclaim() -> void:
+	say(Lang.t(NEWS[_news % NEWS.size()]), Vector3.INF, 7.0)
+	_news += 1
+	_current_anim = "Cheer"
+	_anim.play("Cheer", 0.2)
 
 
 # --- Talking ------------------------------------------------------------------

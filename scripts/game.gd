@@ -34,6 +34,10 @@ var _ambience: AudioStreamPlayer
 ## Set once the hero has stepped out of the crypt into the open air: the run
 ## is in the ranking as an escape, and goes on in the village.
 var escaped := false
+## Whether the village elder has given the hero a house.
+var home_given := false
+## Village buildings with floors of their own: building letter -> level index.
+var interiors := {}
 var coins := 0
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
@@ -101,6 +105,10 @@ func _ready() -> void:
 		if f.ends_with(".txt"):
 			level_files.append(LEVEL_DIR + f)
 	level_files.sort()
+	for i in level_files.size():
+		for line in FileAccess.get_file_as_string(level_files[i]).split("\n"):
+			if line.begins_with("building:") and not interiors.has(line.substr(9).strip_edges()):
+				interiors[line.substr(9).strip_edges()] = i
 	_setup_world()
 	_setup_hud()
 	var comic := Comic.new()
@@ -449,6 +457,13 @@ func _use_station(s: Dictionary) -> void:
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
 		s.npc.talk(player)
+	elif s.kind == "eingang":
+		go_inside(s.building)
+	elif s.has("npc"):
+		# A villager who trades: a word, then the goods.
+		s.npc.talk(player)
+		player.face(s.pos - player.global_position)
+		menus.open(s.kind)
 	elif s.kind == "schrein":
 		_open_shrine(s)
 	elif s.kind == "brunnen":
@@ -527,7 +542,7 @@ func _version_text() -> String:
 
 
 func _update_hud() -> void:
-	_level_label.text = Lang.t(level.level_name) if level.outdoor else Lang.t("Ebene %d: %s") % [level_index + 1, Lang.t(level.level_name)]
+	_level_label.text = Lang.t(level.level_name) if level.outdoor or level.building != "" else Lang.t("Ebene %d: %s") % [level_index + 1, Lang.t(level.level_name)]
 	_hp_label.text = Lang.t("Leben: %d / %d") % [maxi(0, player.hp), player.max_hp]
 	if player.hardening > 0:
 		_hp_label.text += "    " + Lang.t("Härtung %d") % player.hardening
@@ -544,7 +559,7 @@ func _update_hud() -> void:
 	_coin_label.text = Lang.t("Gold: %d") % coins
 	_knife_label.text = Lang.t("Messer: %d") % player.knives
 	_key_label.text = Lang.t("Schlüssel gefunden") if level.has_key else Lang.t("Kein Schlüssel")
-	_key_label.visible = not level.outdoor
+	_key_label.visible = not level.outdoor and level.building == ""
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
 
 
@@ -557,6 +572,11 @@ func load_level(index: int, restock := true) -> void:
 	level = Outdoor.new() if Level.is_outdoor_file(level_files[index]) else Level.new()
 	level.load_from_file(level_files[index])
 	level.depth = index
+	level.hero = hero_name
+	if level is Outdoor:
+		level.interiors = interiors
+		level.house_given = home_given
+		level._entered_once = home_given
 	level.secret_bonus = secrets_found
 	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
 	add_child(level)
@@ -834,12 +854,12 @@ func _apply_save(data: Dictionary) -> void:
 	player.xp = Training.load_hero(hero_name)
 	lore.assign(data.get("lore", []))
 	escaped = bool(data.get("escaped", false))
+	home_given = bool(data.get("home", false))
 	player.bag.assign(data.bag)
 	player.refresh_stats()
 	load_level(clampi(int(data.level), 0, level_files.size() - 1), false)
-	if level is Outdoor and level.home_spot != Vector3.ZERO:
+	if level is Outdoor and home_given and level.home_spot != Vector3.ZERO:
 		# Up from the bed in the hero's own house.
-		level.wake_at_home()
 		player.global_position = level.home_spot
 	player.hp = clampi(int(data.hp), 1, player.max_hp)
 	player.cure()
@@ -864,13 +884,19 @@ func has_save() -> bool:
 
 ## Writes everything needed to wake up in this safe room later. True when
 ## the file is really there afterwards.
+func _home_given_now() -> bool:
+	if level is Outdoor:
+		home_given = level.house_given
+	return home_given
+
+
 func save_game() -> bool:
 	Training.save_hero(hero_name, player.xp)
 	var data := {
 		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "bag": player.bag, "storage": storage, "shop": shop_stock,
-		"lore": lore, "escaped": escaped,
+		"lore": lore, "escaped": escaped, "home": _home_given_now(),
 	}
 	var file := FileAccess.open(SAVE_FILE, FileAccess.WRITE)
 	if file == null:
@@ -905,7 +931,7 @@ func _start_playing() -> void:
 func _announce_level() -> void:
 	_guardian_tip = -1
 	learn("#%d" % level_index)
-	if level.outdoor:
+	if level.outdoor or level.building != "":
 		show_message("%s\n%s" % [Lang.t(level.level_name), Lang.t(level.hint)], 4.5)
 		return
 	show_message(Lang.t("Ebene %d: %s\n%s") % [level_index + 1, Lang.t(level.level_name), Lang.t(level.hint)], 3.5)
@@ -1193,6 +1219,9 @@ func _on_exit_reached() -> void:
 
 
 func _next_level() -> void:
+	if level.building != "":
+		_leave_building()
+		return
 	Sfx.play(self, "level_done", -2.0)
 	player.train("weisheit", 10.0)
 	Training.save_hero(hero_name, player.xp)
@@ -1250,6 +1279,44 @@ func _step_out_of_crypt() -> void:
 		get_tree().create_timer(4.8).timeout.connect(func():
 			if state == State.PLAYING:
 				show_message(text, 3.5)))
+
+
+## Walks in at a village building's door, to its own floor.
+func go_inside(building: String) -> void:
+	if state != State.PLAYING or not interiors.has(building):
+		return
+	_home_given_now()
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	var tween := create_tween()
+	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.5)
+	tween.tween_callback(func():
+		load_level(interiors[building], false)
+		player.frozen = false
+		state = State.PLAYING
+		create_tween().tween_property(_fade, "color:a", 0.0, 0.6)
+		_announce_level())
+
+
+## The banker shows the hero down into the vault cellar.
+func go_to_vaults() -> void:
+	go_inside("b")
+
+
+## Up the stairs of a building floor and out of its door into the village.
+func _leave_building() -> void:
+	var building := level.building
+	for i in level_files.size():
+		if Level.is_outdoor_file(level_files[i]):
+			load_level(i, false)
+			break
+	if level is Outdoor and level.doors.has(building):
+		player.global_position = level.doors[building]
+		player.face(Vector3.BACK)
+	_snap_camera()
+	state = State.PLAYING
+	create_tween().tween_property(_fade, "color:a", 0.0, 0.8)
 
 
 ## Reaching a safe room saves the game at once, so the way there is never
@@ -1347,9 +1414,12 @@ func _process(delta: float) -> void:
 			"schrein": Lang.t("Dagegenlaufen, um den Schrein zu berühren"),
 			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
-			"haendler": Lang.t("Dagegenlaufen, um mit dem Händler zu handeln"),
+			"haendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else Lang.t("Dagegenlaufen, um mit dem Händler zu handeln"),
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
+			"bank": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
+			"eingang": Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
+			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 		}[station.kind]
 
 
@@ -1510,7 +1580,7 @@ const EERIE_SOUNDS := 6
 func _eerie(delta: float) -> void:
 	if state != State.PLAYING or level == null or level.safe:
 		return
-	if level and level.outdoor:
+	if level and (level.outdoor or level.building != ""):
 		return
 	_eerie_timer -= delta
 	if _eerie_timer > 0.0:

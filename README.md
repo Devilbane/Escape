@@ -108,20 +108,29 @@ hat keine Wandfackeln. Ein Wächter in einem Level ohne `K` lässt beim Tod den 
 
 Durchsuchte Fässer, Kisten, Tische und Truhen erkennst du an Münzen und einem zerrissenen Blatt davor.
 
-## Nach dem Tor: die Freiheit
+## Beyond the gate: freedom
 
-Wer die letzte Treppe hinaufsteigt, tritt aus einer **Gruft** auf einen Friedhof unter dem Abendhimmel.
-Das zählt als Flucht und kommt in die Rangliste, und das Spiel wird gespeichert. Aber es geht weiter:
-Ein langer Weg führt durch den Herbstwald, vorbei an einem Teich und einem Holzfäller, ins Dorf
-**Lindenhain**. Dort gehen zehn Dorfbewohner ihrer Arbeit nach: der Schmied hämmert, die Bäuerin erntet
-Kürbisse, die Wache macht ihre Runde, die Wasserträgerin läuft zwischen Brunnen und Häusern hin und her,
-der Zecher sitzt mit seinem Krug vor dem Wirtshaus und Pip rennt herum. Lauf gegen jemanden, um zu
-hören, was er zu sagen hat. Der **Dorfvorsteher** schenkt dir das leere Haus mit dem Ziegeldach; ein
-goldenes Licht zeigt die Tür. Drinnen stehen ein **Bett** (speichern und ausloggen) und eine **Truhe**
-(dein Lager). Wer weiterspielt, wacht im eigenen Haus auf.
+Whoever climbs the last stairs steps out of a **crypt** onto a graveyard under the evening sky. That counts
+as an escape: it goes into the ranking and the game is saved. But the game goes on. A long path leads
+through the autumn forest, past a pond and a woodcutter, to the village of **Lindenhain**. Run into anyone
+to hear what they have to say. The **village elder** gives you the empty house with the tiled roof, and a
+golden light shows the door. Inside are a **bed** (save and log out) and a **chest** (your storage). When you
+play on, you wake up in your own house.
 
-Die Dorfbewohner folgen einem festen Tagesablauf (kleine Skripte, keine KI im Netz): Das kostet keine
-Rechenzeit, die man merkt, und keine laufenden Kosten.
+In the middle of the village lies the paved **market square** with a fountain that heals, benches and
+lanterns. Around it stand the **smithy**, the **temple**, the **office of the crown**, the **post office**, the
+**adventurers' guild**, the **general store** (Mira, the shopkeeper, buys and sells), the **tavern** and the
+**bank**. Fifteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
+makes the rounds, the postmaster carries letters, the priestess tends the temple. Every so often the
+**herald** rings the bell and calls out the news, and the whole village gathers on the square to listen.
+
+At the **bank** the banker keeps your gold safe (deposit and withdraw) and rents you a **vault** for
+50 gold. The vaults are in the **cellar**: small cells behind iron bars, each with its holder's name, their
+gold and their treasures. You can walk down and look at what every other hero keeps there; your own cell
+opens for you. Until there is a server, the bank keeps one account per hero name on this computer.
+
+The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
+computing time and nothing to run.
 
 Das **Kompendium** (Taste H) zeigt alle Tasten und Mausbefehle und sammelt jeden Hinweis und jede
 Erklärung, die du bisher bekommen hast: die Einleitung jeder Ebene, die Tipps zum Schleichen und zum
@@ -151,14 +160,21 @@ Eine Zeile `safe: ja` macht ein Level zum Saferoom. Eine Zeile wie `secret: epis
 wie reich der Geheimraum hinter der Wand `?` ist: `normal`, `ungewoehnlich`, `selten`, `episch`
 oder `gottgeboren`.
 
-Eine Zeile `outdoor: ja` macht ein Level zur Welt unter freiem Himmel (siehe `levels/11_die_freiheit.txt`).
-Dort gilt eine eigene Zeichenliste: `#` Wald, `.` Wiese, `,` Weg, `~` Teich, `R` Gruft, `g` Grab,
-`d` toter Baum, `z` Friedhofszaun, `a` Tor im Zaun, `l` Laterne, `p` Kürbisse, `r` Fels, `T` Baum,
-`t` Baumstumpf, `e` Fässer und Kisten, `q` Brunnen, `y` Kürbisfeld; Gebäude als Rechteck aus gleichen
-Zeichen: `h` Haus, `j` Schmiede, `n` Wirtshaus, `m` Markt, `u` Windmühle. Das Haus des Helden: `I` Wand,
-`i` Holzboden (eine Lücke in der Wand ist die Tür), `B` Bett, `L` Truhe. Die Ziffern `0` bis `9` sind
-Dorfbewohner: 0 Dorfvorsteher, 1 Schmied, 2 Bäuerin, 3 Holzfäller, 4 Wache, 5 Zecher, 6 Händlerin,
-7 Kind, 8 Gelehrter, 9 Wasserträgerin.
+A line `outdoor: ja` turns a level into the world under the open sky (see `levels/11_die_freiheit.txt`).
+It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `~` pond, `R` crypt, `g` grave,
+`d` dead tree, `z` graveyard fence, `a` gate in the fence, `l` lantern, `p` pumpkins, `r` rock, `T` tree,
+`t` tree stump, `e` barrels and crates, `q` well, `F` fountain, `x` bench, `y` pumpkin field. Buildings are a
+rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general store, `u` windmill,
+`s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank. The hero's house:
+`I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The villagers: `0` elder,
+`1` smith, `2` farmer, `3` woodcutter, `4` guard, `5` drinker, `6` shopkeeper, `7` child, `8` scholar,
+`9` water carrier, `K` herald, `O` priestess, `G` guild master, `M` postmaster, `Y` banker.
+
+**Floors of buildings.** A level file with the lines `building: b` and `floor: keller` (cellar) or
+`floor: oben` (upstairs) is a floor of the village building with that character: walking in at the
+building's door leads there, and its stairs `E` lead back out of the door. Such floors are never part of
+the run through the dungeon. Inside, `=` is a wall of iron bars and `U` a vault cell (see
+`levels/12_der_tresorkeller.txt`, the bank's vault cellar).
 
 Der Ausgang `E` braucht eine Wand im Norden (oben) und wird von Süden betreten.
 Eine Tür `D` steht in einem ein Feld breiten Durchgang.
@@ -167,8 +183,8 @@ Eine Tür `D` steht in einem ein Feld breiten Durchgang.
 
 - Engine: [Godot 4.5](https://godotengine.org) mit dem Compatibility-Renderer, damit es im Browser läuft
 - Grafik: KayKit Dungeon Remastered, Adventurers und Skeletons von Kay Lousberg (CC0)
-- Friedhof, Gruft und Herbstbäume: KayKit Halloween Bits, Dorf, Bäume und Felsen: KayKit Medieval Hexagon Pack, beide von Kay Lousberg (CC0)
-- Holzboden und Dachziegel des Hauses: „Wood 062“ und „Roofing Tiles 014 C“ von ambientCG (CC0)
+- Graveyard, crypt and autumn trees: KayKit Halloween Bits; village buildings, trees and rocks: KayKit Medieval Hexagon Pack, both by Kay Lousberg (CC0)
+- Wooden floor and roof tiles of the house: "Wood 062" and "Roofing Tiles 014 C" by ambientCG (CC0)
 - Böden, Wände, Säulen und Möbel: 3D Modular Dungeon Kit von Omie's Assets (CC0)
 - Geräusche: selbst erzeugt mit `tools/make_sounds.py`, Schritte und Tür: Aufnahmen von Fantozzi, „Footsteps Leather, Cloth, Armor“ und qubodup, Kreaturen, Skelettstimmen und Ketten von rubberduck, Armbrustschüsse aus „Medieval sound effects - Weapon Textures“ (CC0, siehe `assets/sounds/CREDITS.txt`)
 - Schrift: Cinzel und Cinzel Decorative (SIL Open Font License)

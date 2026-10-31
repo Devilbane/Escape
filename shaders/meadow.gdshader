@@ -13,6 +13,7 @@ uniform vec3 forest : source_color = vec3(0.11, 0.17, 0.08);
 uniform vec3 dirt : source_color = vec3(0.40, 0.31, 0.22);
 uniform vec3 grave_soil : source_color = vec3(0.20, 0.23, 0.14);
 uniform vec3 water : source_color = vec3(0.16, 0.30, 0.38);
+uniform vec3 paving : source_color = vec3(0.50, 0.47, 0.43);
 
 varying vec3 world_pos;
 
@@ -46,10 +47,20 @@ void fragment() {
 	col *= 0.92 + fine * 0.16;
 	// Forest floor where the mask is dark (alpha), soil on the graveyard.
 	col = mix(col, forest * (0.9 + fine * 0.2), smoothstep(0.45, 0.75, 1.0 - m.a + (n - 0.5) * 0.4));
-	col = mix(col, grave_soil * (0.9 + fine * 0.2), smoothstep(0.4, 0.7, m.g + (n - 0.5) * 0.3));
+	float square = smoothstep(0.55, 0.75, min(m.r, m.g) + (n - 0.5) * 0.15);
+	col = mix(col, grave_soil * (0.9 + fine * 0.2), smoothstep(0.4, 0.7, m.g + (n - 0.5) * 0.3) * (1.0 - square));
 	float path = smoothstep(0.42, 0.62, m.r + (n - 0.5) * 0.35);
 	vec3 earth = dirt * (0.85 + fbm(p * 0.9) * 0.3);
-	col = mix(col, earth, path);
+	col = mix(col, earth, path * (1.0 - square));
+	// Paving stones in rows, each a little different, with dark joints.
+	vec2 sp = p / vec2(1.1, 0.75);
+	sp.x += step(1.0, mod(floor(sp.y), 2.0)) * 0.5;
+	vec2 stone_id = floor(sp);
+	vec2 inner = fract(sp);
+	float joint = smoothstep(0.0, 0.08, inner.x) * smoothstep(1.0, 0.92, inner.x)
+			* smoothstep(0.0, 0.1, inner.y) * smoothstep(1.0, 0.9, inner.y);
+	vec3 stone = paving * (0.8 + hash(stone_id) * 0.35) * (0.9 + fine * 0.15);
+	col = mix(col, mix(paving * 0.45, stone, joint), square);
 	float wet = smoothstep(0.5, 0.62, m.b + (n - 0.5) * 0.15);
 	vec3 pond = water * (0.85 + 0.15 * sin(TIME * 0.8 + p.x * 0.7 + p.y * 0.4));
 	col = mix(col, pond, wet);

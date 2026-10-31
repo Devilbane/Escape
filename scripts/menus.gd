@@ -8,7 +8,8 @@ const BLUE := Color(0.65, 0.85, 1.0)
 
 var game: Node
 ## The open window: "", "inventar", "lager", "haendler", "bett", "laden",
-## "kompendium", "charakter" or "beenden".
+## "kompendium", "charakter", "beenden", "plan" (the day planned for the
+## time away) or "rueckkehr" (what the hero did while the player was away).
 var current := ""
 var _panel: PanelContainer
 var _box: VBoxContainer
@@ -105,12 +106,16 @@ func _rebuild() -> void:
 			_build_character()
 		"beenden":
 			_build_quit()
+		"plan":
+			_build_plan()
+		"rueckkehr":
+			_build_return()
 	if current in ["inventar", "lager", "haendler"]:
 		_info = _add_label(Lang.t(INFO_HINT), 18, BLUE)
 		_info.custom_minimum_size.y = 26
 	if _note != "":
 		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
-	if not current in ["bett", "laden", "beenden"]:
+	if not current in ["bett", "laden", "beenden", "plan", "rueckkehr"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
 		close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		close_button.custom_minimum_size = Vector2(180, 52)
@@ -273,6 +278,11 @@ func _equip_selected() -> void:
 	var id: String = p.bag[_selected]
 	var requires: Dictionary = Items.ALL[id].get("requires", {})
 	_note = ""
+	if Items.is_book(id):
+		_note = Lang.t("Bücher liest dein Held, während du weg bist. Plane es am Bett.")
+		_selected = -1
+		_rebuild()
+		return
 	if not p.can_use(requires):
 		var attr: String = requires.keys()[0]
 		_note = Lang.t("Dafür brauchst du %s %d.") % [Lang.t(Training.ATTRIBUTES[attr].name), requires[attr]]
@@ -474,6 +484,12 @@ func _build_quit() -> void:
 func _build_bed() -> void:
 	_add_label(Lang.t("Ein weiches Bett"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Hier kannst du dich ausruhen. Dein Spiel wird gespeichert\nund du loggst dich aus. Später geht es genau hier weiter."), 20)
+	_add_label(Lang.t("Solange du weg bist, lebt dein Held nach seinem Tagesplan:"), 20, BLUE)
+	_add_label(_plan_summary(), 18, game.GOLD)
+	var plan_button: Button = game._make_button(Lang.t("Tagesplan ändern"), open.bind("plan"))
+	plan_button.custom_minimum_size = Vector2(300, 56)
+	plan_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(plan_button)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
@@ -486,3 +502,158 @@ func _build_bed() -> void:
 	var cancel: Button = game._make_button(Lang.t("Weiter wach bleiben"), close)
 	cancel.custom_minimum_size = Vector2(260, 60)
 	row.add_child(cancel)
+
+
+# --- Time away (see Offline) ------------------------------------------------
+
+## The blocks of the day plan, as shown: block, heading.
+const PLAN_ROWS := [["job", "Arbeit"], ["train", "Training"], ["study", "Lernen"], ["craft", "Handwerk"], ["rest", "Ruhe"]]
+
+
+## One line like "Stadtwache 8 Std. · Training Stärke 4 Std. · Ruhe 8 Std.".
+func _plan_summary() -> String:
+	var plan := Offline.normalized(game.away_plan, game.away_choices())
+	var parts := []
+	for row in PLAN_ROWS:
+		var hours: int = plan[row[0] + "_hours"]
+		if hours > 0:
+			var what: String = Lang.t(row[1]) if row[0] == "rest" else _choice_name(row[0], plan[row[0]])
+			parts.append(Lang.t("%s %d Std.") % [what, hours])
+	if Offline.free_hours(plan) > 0:
+		parts.append(Lang.t("%s %d Std.") % [Lang.t("Freizeit"), Offline.free_hours(plan)])
+	return "  ·  ".join(parts)
+
+
+func _choice_name(block: String, id: String) -> String:
+	if id == "":
+		return Lang.t("nichts")
+	match block:
+		"job":
+			return Lang.t("%s (%d Gold/Std.)") % [Lang.t(Offline.JOBS[id].name), Offline.JOBS[id].gold]
+		"train":
+			return game._training_name(id)
+		"study":
+			return "%s (%s)" % [Items.item_name(id), Lang.t(Training.SKILLS[Items.ALL[id].teaches].name)]
+		"craft":
+			return Lang.t(Offline.RECIPES[id].name)
+	return id
+
+
+func _build_plan() -> void:
+	var choices: Dictionary = game.away_choices()
+	game.away_plan = Offline.normalized(game.away_plan, choices)
+	var plan: Dictionary = game.away_plan
+	_add_label(Lang.t("Tagesplan"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Je 10 Minuten, die du weg bist, ist für deinen Helden eine Stunde: ein Tag dauert 4 Stunden.\nDein Held lebt diesen Tag immer wieder, höchstens 8 Tage lang (32 Stunden)."), 18, BLUE)
+	var grid := GridContainer.new()
+	grid.columns = 5
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 8)
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(grid)
+	for row in PLAN_ROWS:
+		var block: String = row[0]
+		var heading: Label = game._make_label(game.TEXT_FONT, 22, game.GOLD)
+		heading.text = Lang.t(row[1])
+		heading.custom_minimum_size.x = 150
+		grid.add_child(heading)
+		if block == "rest":
+			var sleep_label: Label = game._make_label(game.TEXT_FONT, 18)
+			sleep_label.text = Lang.t("Schlafen und heilen (mindestens 8 Std.)")
+			sleep_label.custom_minimum_size.x = 420
+			grid.add_child(sleep_label)
+		else:
+			var options: Array = choices[block]
+			var text := _choice_name(block, plan[block]) if not options.is_empty() else _no_choice_text(block)
+			var pick: Button = game._make_button(text, _cycle_choice.bind(block))
+			pick.custom_minimum_size = Vector2(420, 52)
+			pick.disabled = options.is_empty()
+			grid.add_child(pick)
+		var minus: Button = game._make_button("−", _change_hours.bind(block, -1))
+		minus.custom_minimum_size = Vector2(52, 52)
+		grid.add_child(minus)
+		var hours: Label = game._make_label(game.TEXT_FONT, 22)
+		hours.text = Lang.t("%d Std.") % plan[block + "_hours"]
+		hours.custom_minimum_size.x = 90
+		hours.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		grid.add_child(hours)
+		var plus: Button = game._make_button("+", _change_hours.bind(block, 1))
+		plus.custom_minimum_size = Vector2(52, 52)
+		grid.add_child(plus)
+	_add_label(Lang.t("Freizeit: %d Std.    Arbeit höchstens %d Std. am Tag") % [Offline.free_hours(plan), Offline.JOB_MAX_HOURS], 20)
+	if _note != "":
+		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
+		_note = ""
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 12)
+	_box.add_child(buttons)
+	var sleep: Button = game._make_button(Lang.t("Schlafen und ausloggen"), func():
+		close()
+		game.sleep())
+	sleep.custom_minimum_size = Vector2(300, 60)
+	buttons.add_child(sleep)
+	var back: Button = game._make_button(Lang.t("Zurück"), open.bind("bett"))
+	back.custom_minimum_size = Vector2(200, 60)
+	buttons.add_child(back)
+
+
+func _no_choice_text(block: String) -> String:
+	match block:
+		"study":
+			return Lang.t("Kein Buch dabei (Bücher findest du in Truhen und beim Händler)")
+		"train":
+			return Lang.t("Nichts mehr zu üben")
+	return Lang.t("nichts")
+
+
+## The next choice for a block, then "nothing", then the first again.
+func _cycle_choice(block: String) -> void:
+	var options: Array = game.away_choices()[block]
+	var plan: Dictionary = game.away_plan
+	var i := options.find(plan[block])
+	if i + 1 < options.size():
+		plan[block] = options[i + 1]
+	else:
+		plan[block] = ""
+		plan[block + "_hours"] = 0
+	_rebuild()
+
+
+func _change_hours(block: String, delta: int) -> void:
+	var plan: Dictionary = game.away_plan
+	var key := block + "_hours"
+	if delta > 0:
+		if Offline.free_hours(plan) <= 0:
+			_note = Lang.t("Der Tag ist voll: nimm erst woanders Stunden weg.")
+		elif block == "job" and plan[key] >= Offline.JOB_MAX_HOURS:
+			_note = Lang.t("Mehr als %d Stunden am Tag arbeitet niemand.") % Offline.JOB_MAX_HOURS
+		else:
+			if block != "rest" and plan[block] == "":
+				var options: Array = game.away_choices()[block]
+				if options.is_empty():
+					_rebuild()
+					return
+				plan[block] = options[0]
+			plan[key] += 1
+	else:
+		var lowest := Offline.REST_HOURS if block == "rest" else 0
+		if plan[key] > lowest:
+			plan[key] -= 1
+		elif block == "rest":
+			_note = Lang.t("Dein Held braucht jeden Tag mindestens %d Stunden Ruhe.") % Offline.REST_HOURS
+	_rebuild()
+
+
+func _build_return() -> void:
+	_add_label(Lang.t("Willkommen zurück"), 38, game.GOLD, game.TITLE_FONT)
+	var lines: Array[String] = game.away_report
+	if lines.size() <= 1:
+		lines = lines.duplicate()
+		lines.append(Lang.t("Dein Held hat in der Zwischenzeit nichts Besonderes getan."))
+	for i in lines.size():
+		_add_label(lines[i], 22 if i == 0 else 20, BLUE if i == 0 else Color.WHITE)
+	var go: Button = game._make_button(Lang.t("Weiter"), close)
+	go.custom_minimum_size = Vector2(220, 60)
+	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(go)

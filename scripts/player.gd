@@ -561,15 +561,16 @@ func skill_check(id: String) -> bool:
 
 
 ## Adds training to an attribute or skill. Skills only train while their gear
-## is worn. Tells the game when a new point or level is reached.
-func train(id: String, amount: float) -> void:
+## is worn, unless need_gear is false (reading a book about it, see Offline).
+## Tells the game when a new point or level is reached.
+func train(id: String, amount: float, need_gear := true) -> void:
 	# Even a fall teaches wisdom.
 	if amount <= 0.0 or (dead and id != "weisheit"):
 		return
 	if id != "weisheit":
 		amount *= 1.0 + Training.LEARNING_PER_WISDOM * (attribute("weisheit") - Training.ATTRIBUTES.weisheit.start)
 	var is_skill := Training.is_skill(id)
-	if is_skill and not skill_enabled(id):
+	if is_skill and need_gear and not skill_enabled(id):
 		return
 	var old_xp: float = xp.get(id, 0.0)
 	xp[id] = old_xp + amount
@@ -780,9 +781,9 @@ func can_use(requires: Dictionary) -> bool:
 
 
 ## Moves a bag item into its slot; whatever was worn there goes into the bag.
-## Items the hero is not yet able to use stay in the bag.
+## Items the hero is not yet able to use stay in the bag, and so do books.
 func equip(id: String) -> void:
-	if not can_use(Items.ALL[id].get("requires", {})):
+	if Items.is_book(id) or not can_use(Items.ALL[id].get("requires", {})):
 		return
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":

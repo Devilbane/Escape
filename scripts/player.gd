@@ -654,8 +654,9 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null) -> void:
 	_knockback = away.normalized() * 10.0
 	path.clear()
 	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-%d" % amount, Color(1, 0.3, 0.3))
+	# The blow lands; the comic word's cry ("AUA!") comes with the bubble.
 	Comic.pop(global_position, "hurt")
-	Sfx.play(self, "hurt")
+	Sfx.play(self, "hit", -3.0)
 	hurt.emit(amount)
 	if hp <= 0:
 		dead = true

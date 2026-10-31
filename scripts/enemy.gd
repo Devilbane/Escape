@@ -257,7 +257,6 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		if wakes:
 			_wake(from)
 		Effects.float_text(level, global_position + Vector3(0, 2.2 * _stats.size, 0), Lang.t("Nur ein Stich in den Rücken!"), Color(0.8, 0.85, 0.95))
-		Sfx.play(self, "hit", 0.0, global_position)
 		Comic.pop(global_position, "block")
 		return
 	hp -= damage
@@ -267,7 +266,7 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	away.y = 0.0
 	_knockback = away.normalized() * 9.0 / (_stats.size * _stats.size)
 	Effects.float_text(level, global_position + Vector3(0, 2.2 * _stats.size, 0), "-%d" % damage, Color(1, 0.45, 0.35))
-	Sfx.play(self, "hit", 0.0, global_position)
+	# The comic word below makes the sound of the blow.
 	if hp <= 0:
 		Comic.pop(global_position, "backstab" if kind == "backstab" else "break")
 		Sfx.play(self, "bones", 0.0, global_position)

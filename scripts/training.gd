@@ -56,18 +56,47 @@ const WISE_SHRINE := 12
 
 ## Each skill; what a level does is in Player. A skill may have "requires"
 ## (attribute id -> value), like an item, before it can be used or learned.
-##   Klingen, Äxte, Messerwurf: +5 % chance per level of a heavy hit (+1 damage).
+##   Klingen, Äxte, Messerwurf: a heavy hit (+1 damage) is a skill roll.
 ##   Blocken: +2 % block chance per level.  Rüstung tragen: hard armour
 ##   weighs 6 % less per level.  Schleichen: sneaking 3 % faster per level.
+##
+## Every skill is governed by one or two of the three main attributes
+## ("attributes"); that places it in one of the six SECTORS of the character
+## page. A roll on a skill (skill_chance) uses their average.
+## A basic skill sits in the inner ring, right around the attributes. An
+## advanced skill has "needs" (basic skill id -> level): it sits in the outer
+## ring and can only be used and learned once those levels are reached.
 const SKILLS := {
-	"klingen": {"name": "Klingen"},
-	"aexte": {"name": "Äxte"},
-	"werfen": {"name": "Messerwurf"},
-	"blocken": {"name": "Blocken"},
-	"ruestung": {"name": "Rüstung tragen"},
-	"schleichen": {"name": "Schleichen"},
+	"klingen": {"name": "Klingen", "attributes": ["staerke", "geschick"]},
+	"aexte": {"name": "Äxte", "attributes": ["staerke"]},
+	"werfen": {"name": "Messerwurf", "attributes": ["geschick"]},
+	"blocken": {"name": "Blocken", "attributes": ["staerke", "geschick"]},
+	"ruestung": {"name": "Rüstung tragen", "attributes": ["staerke"]},
+	"schleichen": {"name": "Schleichen", "attributes": ["geschick", "intelligenz"]},
 }
+## The three main attributes, clockwise from the top of the character page.
+const MAIN_ATTRIBUTES := ["staerke", "geschick", "intelligenz"]
+## The ring of skills around them, clockwise from the top, 60 degrees each:
+## a main attribute alone, then the pair it shares with the next one.
+const SECTORS := [
+	["staerke"],
+	["staerke", "geschick"],
+	["geschick"],
+	["geschick", "intelligenz"],
+	["intelligenz"],
+	["intelligenz", "staerke"],
+]
+## A basic skill is learned up to SKILL_MAX. An advanced skill (one with
+## "needs") has ADVANCED_MAX levels. The first nine come in three ranks of
+## RANK_SIZE: Novice, Advanced, Master; that is what training reaches for now
+## (ADVANCED_LEARNED). Levels 10 to 15 are still to be defined. Beyond them
+## lies special knowledge, only from quests and rewards (items with "skills").
 const SKILL_MAX := 10
+const ADVANCED_MAX := 15
+const ADVANCED_LEARNED := 9
+const RANK_SIZE := 3
+const RANKS := ["Novize", "Fortgeschritten", "Meister"]
+const SPECIAL_RANK := "Sonderwissen"
 const SKILL_FIRST := 8.0
 const SKILL_GROWTH := 1.45
 
@@ -110,12 +139,53 @@ static func attribute_progress(id: String, xp: float) -> float:
 	return progress(xp, a.first, ATTRIBUTE_GROWTH, attribute_cap(id))
 
 
-static func skill_level(xp: float) -> int:
-	return points(xp, SKILL_FIRST, SKILL_GROWTH, SKILL_MAX)
+## The most levels training can give a skill (all of them for an unknown id).
+static func skill_max(id: String) -> int:
+	return ADVANCED_LEARNED if SKILLS.has(id) and tier(id) == 2 else SKILL_MAX
 
 
-static func skill_progress(xp: float) -> float:
-	return progress(xp, SKILL_FIRST, SKILL_GROWTH, SKILL_MAX)
+static func skill_level(xp: float, id := "") -> int:
+	return points(xp, SKILL_FIRST, SKILL_GROWTH, skill_max(id))
+
+
+static func skill_progress(xp: float, id := "") -> float:
+	return progress(xp, SKILL_FIRST, SKILL_GROWTH, skill_max(id))
+
+
+## The rank of an advanced skill at a level: Novice, Advanced or Master up to
+## 9, "?" for the levels still to be defined, special knowledge above
+## ADVANCED_MAX. Empty for basic skills and level 0.
+static func rank(id: String, level: int) -> String:
+	if tier(id) != 2 or level <= 0:
+		return ""
+	if level > ADVANCED_MAX:
+		return SPECIAL_RANK
+	if level > ADVANCED_LEARNED:
+		return "?"
+	return RANKS[(level - 1) / RANK_SIZE]
+
+
+## The chance in percent that a roll on a skill succeeds, d100 <= chance:
+## the average of the governing attributes times (skill level + 1). An
+## average of 10 at level 0 is 10 %, at level 4 it is 50 %; 100 or more
+## always succeeds.
+static func skill_chance(attribute_average: float, level: int) -> int:
+	return floori(attribute_average * (level + 1))
+
+
+## 1 for a basic skill (inner ring), 2 for an advanced skill (outer ring).
+static func tier(id: String) -> int:
+	return 2 if SKILLS[id].has("needs") else 1
+
+
+## Which of the six SECTORS a skill sits in.
+static func sector_of(id: String) -> int:
+	var governing: Array = SKILLS[id].attributes
+	for i in SECTORS.size():
+		var sector: Array = SECTORS[i]
+		if sector.size() == governing.size() and governing.all(func(a): return sector.has(a)):
+			return i
+	return 0
 
 
 static func is_skill(id: String) -> bool:

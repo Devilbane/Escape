@@ -317,7 +317,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -352,7 +352,7 @@ func _setup_hud() -> void:
 	_hud.add_child(mark)
 
 	var buttons := GridContainer.new()
-	buttons.columns = 3
+	buttons.columns = 4
 	buttons.add_theme_constant_override("h_separation", 10)
 	buttons.add_theme_constant_override("v_separation", 10)
 	buttons.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -364,6 +364,7 @@ func _setup_hud() -> void:
 	buttons.add_child(_make_button(Lang.t("Kompendium"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("kompendium")))
 	buttons.add_child(_make_button(Lang.t("Laden"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("laden")))
 	buttons.add_child(_make_button(Lang.t("Inventar"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("inventar")))
+	buttons.add_child(_make_button(Lang.t("Charakter"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("charakter")))
 	buttons.add_child(_make_button(Lang.t("Springen"), func(): if state == State.PLAYING: player.jump()))
 	buttons.add_child(_make_button(Lang.t("Werfen"), func(): if state == State.PLAYING: player.throw_knife()))
 	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
@@ -1633,7 +1634,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					_choose_gift(event.physical_keycode - KEY_1)
 				return
 			if menus.is_open():
-				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_ESCAPE]:
+				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_P, KEY_ESCAPE]:
 					menus.close()
 				return
 			if event is InputEventKey:
@@ -1653,6 +1654,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					KEY_H:
 						if player.can_act():
 							menus.open("kompendium")
+					KEY_P:
+						if player.can_act():
+							menus.open("charakter")
 					KEY_M:
 						_toggle_sound()
 					KEY_C:

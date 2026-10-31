@@ -8,8 +8,8 @@ const BLUE := Color(0.65, 0.85, 1.0)
 
 var game: Node
 ## The open window: "", "inventar", "lager", "haendler", "bett", "laden",
-## "kompendium", "beenden", "plan" (the day planned for the time away) or
-## "rueckkehr" (what the hero did while the player was away).
+## "kompendium", "charakter", "beenden", "plan" (the day planned for the
+## time away) or "rueckkehr" (what the hero did while the player was away).
 var current := ""
 var _panel: PanelContainer
 var _box: VBoxContainer
@@ -28,6 +28,7 @@ const SHORTCUTS := [
 	["Benutzen, durchsuchen, Fackel", "Dagegenlaufen"],
 	["Inventar", "I"],
 	["Kompendium", "H"],
+	["Charakter", "P"],
 	["Spielstand laden", "L"],
 	["Ton an/aus", "M"],
 	["Zoom", "+ und −, Mausrad"],
@@ -105,6 +106,8 @@ func _rebuild() -> void:
 			_build_load()
 		"kompendium":
 			_build_compendium()
+		"charakter":
+			_build_character()
 		"beenden":
 			_build_quit()
 		"plan":
@@ -200,9 +203,40 @@ func _skills_text() -> String:
 	var p: Player = game.player
 	var parts := []
 	for id in Training.SKILLS:
-		var text := "%s %d" % [Lang.t(Training.SKILLS[id].name), p.skill(id) if p.skill_enabled(id) else Training.skill_level(p.xp.get(id, 0.0))]
+		var text := "%s %d" % [Lang.t(Training.SKILLS[id].name), p.skill(id) if p.skill_enabled(id) else Training.skill_level(p.xp.get(id, 0.0), id)]
 		parts.append(text if p.skill_enabled(id) else "(%s)" % text)
 	return Lang.t("Fertigkeiten:") + " " + "   ".join(parts) + "\n" + Lang.t("In Klammern: braucht passende Ausrüstung")
+
+
+# --- Character page -------------------------------------------------------
+
+## The wheel of attributes and skills, with how a roll on a skill works.
+func _build_character() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 24)
+	_box.add_child(row)
+	row.add_child(CharacterPage.new(game.player, game.TEXT_FONT))
+	var side := VBoxContainer.new()
+	side.alignment = BoxContainer.ALIGNMENT_CENTER
+	side.custom_minimum_size.x = 300
+	side.add_theme_constant_override("separation", 14)
+	row.add_child(side)
+	var title: Label = game._make_label(game.TITLE_FONT, 34, game.GOLD)
+	title.text = Lang.t("Charakter")
+	side.add_child(title)
+	for entry in [
+		[Lang.t("Jede Fertigkeit liegt im Feld der Eigenschaften, die sie bestimmen."), Color(0.85, 0.87, 0.92)],
+		[Lang.t("Probe auf eine Fertigkeit:\nW100 ≤ (Summe der Eigenschaften / ihre Anzahl) × (Stufe + 1)"), game.GOLD],
+		[Lang.t("Beispiel: Klingen 2, Stärke 12, Geschick 10: (12 + 10) / 2 × 3 = 33 %"), BLUE],
+		[Lang.t("Ein Wuchttreffer (+1 Schaden) ist eine Probe auf die Waffen-Fertigkeit."), Color(0.85, 0.87, 0.92)],
+		[Lang.t("Innen: Grundfertigkeiten. Außen: fortgeschrittene Fertigkeiten, die auf einer Grundfertigkeit aufbauen (Novize, Fortgeschritten, Meister: je 3 Stufen)."), Color(0.85, 0.87, 0.92)],
+		[Lang.t("Gedimmt: braucht passende Ausrüstung"), Color(0.75, 0.75, 0.8)],
+	]:
+		var l: Label = game._make_label(game.TEXT_FONT, 16, entry[1])
+		l.text = entry[0]
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size.x = 300
+		side.add_child(l)
 
 
 # --- Inventory --------------------------------------------------------------

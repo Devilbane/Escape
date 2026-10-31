@@ -17,6 +17,7 @@ The game can be played in English or German; you choose the language on the titl
 | Use, search | run into it | click the object |
 | Inventory | I | “Inventory” button |
 | Compendium | H | “Compendium” button |
+| Character page | P | “Character” button |
 | Load saved game | L | “Load” button (also on the title screen) |
 | Quit game | Esc | “Quit” button, top right |
 | Sound on/off | M | “Sound” button, top right |
@@ -68,11 +69,25 @@ needs a quarter more practice than the one before:
 On top of that come **skills** (level 0 to 10). They grow much faster, but only with the gear
 they need: **Blades** with a dagger or sword, **Axes** with the axe, **Blocking** with a shield,
 **Wearing armour** with hard armour; **Knife throwing** and **Sneaking** always work.
-Blades, Axes and Knife throwing give a 5 % chance per level of a heavy hit (+1 damage), Blocking +2 %
-block chance, Wearing armour makes hard armour 6 % lighter, Sneaking makes you 3 % faster.
+With Blades, Axes and Knife throwing, every heavy hit (+1 damage) is a skill roll (see the character page below).
+Each level of Blocking adds 2 % block chance, Wearing armour makes hard armour 6 % lighter, Sneaking makes you 3 % faster.
 Some items add levels themselves (shadow cloak +2 Sneaking, crest shield +1 Blocking,
 chain mail +1 Wearing armour, silver bracelet +1 Knife throwing). Everything is shown in the inventory, with the progress
 towards the next point. What your hero has learned stays saved with their name, even across new games.
+
+The **character page** (key P) shows everything as a wheel. The centre circle holds the attributes:
+Strength, Dexterity and Intelligence, with Constitution, Wisdom and Intuition between them, and life and
+speed in the very middle. Around it is a ring of six sectors: Strength, Strength · Dexterity, Dexterity,
+Dexterity · Intelligence, Intelligence, Intelligence · Strength. Every skill sits in the sector of the
+attributes that govern it: Axes and Wearing armour under Strength, Blades and Blocking under
+Strength · Dexterity, Knife throwing under Dexterity, Sneaking under Dexterity · Intelligence.
+Basic skills (levels 0 to 10) sit in the inner ring. Advanced skills build on a basic skill (`needs` in
+`Training.SKILLS`) and go in the outer ring. They have 15 levels: the first nine are learned in three ranks
+of three, Novice, Advanced and Master; levels 10 to 15 are still to be defined. Anything above that is
+special knowledge, only from quests and rewards.
+A **skill roll** succeeds if d100 ≤ (sum of the governing attributes / their number) × (skill level + 1).
+Example: Blades 2 with Strength 12 and Dexterity 10 gives (12 + 10) / 2 × 3 = 33 %. The page shows this
+chance next to every skill.
 
 After every 4 levels you reach a **safe room** without enemies, the refuge. It has a **fountain**
 that refills your life and cures poison and curses, a storage chest, a merchant who buys and sells for gold, and a bed. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero falls later, the saved game is kept: a click on the “Fallen” screen continues the game from the refuge, N starts a new one.

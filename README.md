@@ -68,8 +68,8 @@ braucht ein Viertel mehr Übung als der davor:
 Dazu kommen **Fertigkeiten** (Stufe 0 bis 10). Sie wachsen viel schneller, aber nur mit der Ausrüstung,
 die sie braucht: **Klingen** mit Dolch oder Schwert, **Äxte** mit der Axt, **Blocken** mit einem Schild,
 **Rüstung tragen** mit harter Rüstung; **Messerwurf** und **Schleichen** gehen immer.
-With Blades, Axes and Knife throwing, every heavy hit (+1 damage) is a skill roll (see the character page below); Blocken +2 %
-Blocken, Rüstung tragen lässt harte Rüstung 6 % leichter wiegen, Schleichen macht 3 % schneller.
+With Blades, Axes and Knife throwing, every heavy hit (+1 damage) is a skill roll (see the character page below).
+Each level of Blocking adds 2 % block chance, Wearing armour makes hard armour 6 % lighter, Sneaking makes you 3 % faster.
 Manche Gegenstände geben selbst Stufen dazu (Schattenumhang +2 Schleichen, Wappenschild +1 Blocken,
 Kettenhemd +1 Rüstung tragen, Silberarmreif +1 Messerwurf). Alles steht im Inventar, mit dem Fortschritt
 zum nächsten Punkt. Was dein Held gelernt hat, bleibt mit seinem Namen gespeichert, auch über neue Spiele hinweg.

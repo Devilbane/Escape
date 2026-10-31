@@ -1,7 +1,8 @@
 class_name Comic
 extends CanvasLayer
 ## Comic-book combat words ("ZACK!", "AUA!") that pop out of a jagged
-## burst bubble over the fighters, wobble, and float away.
+## burst bubble over the fighters, wobble, and float away. Each word plays
+## its own sound: the blow itself, or the hero's cry.
 
 const FONT := preload("res://assets/fonts/Bangers-Regular.woff2")
 
@@ -15,6 +16,20 @@ const LEVER_WORDS := ["KLACK!", "KLICK!"]
 const RUMBLE_WORDS := ["RUMMS!", "GRUMPEL!"]
 const BACKSTAB_WORDS := ["STICH!", "RATSCH!"]
 const BLOCK_WORDS := ["KLONG!", "PLONG!"]
+
+## The sound each word makes: an impact for the blows, a cry for the hero's pain.
+const SOUNDS := {"ZACK!": "word_zack", "KLONK!": "word_klonk", "WUMM!": "word_wumm",
+	"KRACH!": "word_krach", "BOING!": "word_boing", "WAMM!": "word_wamm",
+	"ZING!": "word_zing", "TSCHAK!": "word_tschak",
+	"AUA!": "voice_aua", "UFF!": "voice_uff", "AUTSCH!": "voice_autsch",
+	"KNACK!": "word_knack", "KLAPPER!": "word_klapper", "WUSCH!": "word_wusch",
+	"KLACK!": "word_klack", "KLICK!": "word_klick", "RUMMS!": "word_rumms",
+	"GRUMPEL!": "word_grumpel", "STICH!": "word_stich", "RATSCH!": "word_ratsch",
+	"KLONG!": "word_klong", "PLONG!": "word_plong"}
+## In English the hero cries "OUCH!", "OOF!" and "OW!" instead.
+const SOUNDS_EN := {"AUA!": "voice_autsch", "UFF!": "voice_uff", "AUTSCH!": "voice_au"}
+## Loudness per kind; the whoosh of a miss sits quietly on top of the swing.
+const VOLUME := {"hurt": -3.0, "miss": -8.0, "rumble": -4.0, "lever": -2.0}
 
 ## How much a bubble grows at most (with its tilt), so it is kept apart at full size.
 const GROWN := 1.5
@@ -73,7 +88,10 @@ func _pop(world_pos: Vector3, kind: String) -> void:
 		burst.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		root.add_child(burst)
 	var label := Label.new()
-	label.text = Lang.t(words.pick_random())
+	var word: String = words.pick_random()
+	label.text = Lang.t(word)
+	var sound: String = SOUNDS_EN.get(word, SOUNDS[word]) if Lang.language == "en" else SOUNDS[word]
+	Sfx.play(self, sound, VOLUME.get(kind, 0.0), world_pos)
 	label.add_theme_font_override("font", FONT)
 	label.add_theme_font_size_override("font_size", int(size * 0.34))
 	label.add_theme_color_override("font_color", Color(0.12, 0.05, 0.1) if kind != "miss" else Color(1, 1, 1))

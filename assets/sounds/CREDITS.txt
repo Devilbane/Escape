@@ -25,4 +25,11 @@ Archer shots (bow_0 to bow_2): "Crossbow Shoot" and "Crossbow Bolt Pass" from
 https://opengameart.org/content/medieval-sound-effects-weapon-textures
 License: CC0 (public domain).
 
-All other sounds are made by tools/make_sounds.py.
+The hero's cries for the comic words (voice_aua, voice_uff, voice_autsch,
+voice_au) are spoken by the Piper speech synthesizer with the "thorsten_emotional"
+voice (angry), built by tools/make_voices.py. Voice data: Thorsten-Voice by
+Thorsten Müller, https://github.com/thorstenMueller/Thorsten-Voice
+License: CC0 (public domain).
+
+All other sounds, including the comic word noises (word_*), are made by
+tools/make_sounds.py.

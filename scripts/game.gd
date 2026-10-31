@@ -890,7 +890,6 @@ func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	secrets_found += 1
 	level.secret_bonus = secrets_found
 	Comic.pop(lever_pos, "lever")
-	Sfx.play(self, "lever")
 	learn("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!")
 	show_message(Lang.t("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!"), 4.5)
 	_message.add_theme_color_override("font_color", GOLD)

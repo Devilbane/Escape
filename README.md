@@ -43,6 +43,12 @@ Amulette geben Tempo, Kraft oder Leben. Im **Inventar** (Taste I) legst du sie a
 Harte Rüstung (Ritterhelm, Wappenschild, Kettenhemd, Plattenpanzer) hat **Härtung**: Sie zieht von jedem
 Treffer einen festen Wert ab (mindestens 1 Schaden bleibt). Jeder Treffer nutzt sie mit 5 % Chance um einen
 Punkt **Haltbarkeit** ab; ist die verbraucht, zerbricht das Teil.
+**Schilde** blocken: Rundschild 20 %, Wappenschild 25 %, Stachelschild 30 %. Ein geblockter Schlag oder
+Schuss macht gar keinen Schaden (Stacheln von unten lassen sich nicht blocken). Auch Schilde haben Haltbarkeit:
+Jeder Block nutzt sie mit 20 % Chance ab, jeder Treffer wie bei Rüstung mit 5 %.
+Jeder Gegenstand hat ein **Gewicht**. Alles, was du trägst, angelegt oder in der Tasche, macht dich langsamer:
+1 % Tempo pro kg, höchstens 35 %. Schmuck wiegt fast nichts, ein Plattenpanzer 8 kg. Skelette tragen ihre
+Ausrüstung genauso.
 Nach jeweils 4 Ebenen kommst du in einen **Saferoom** ohne Gegner. Dort gibt es einen **Brunnen**,
 der dein Leben auffüllt und Gift und Flüche heilt, eine Lagertruhe, einen Händler, der für Gold kauft und verkauft, und ein Bett. Beim Betreten der Zuflucht wird automatisch gespeichert; im Bett wird noch einmal gespeichert und du loggst aus.
 Beim nächsten Start geht es mit „Weiterspielen“ dort weiter. Der Spielstand liegt im Browser.

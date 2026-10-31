@@ -80,8 +80,10 @@ speed in the very middle. Around it is a ring of six sectors: Strength, Strength
 Dexterity · Intelligence, Intelligence, Intelligence · Strength. Every skill sits in the sector of the
 attributes that govern it: Axes and Wearing armour under Strength, Blades and Blocking under
 Strength · Dexterity, Knife throwing under Dexterity, Sneaking under Dexterity · Intelligence.
-Basic skills sit in the inner ring; specialisations that require a basic skill (`needs` in
-`Training.SKILLS`) go in the outer ring.
+Basic skills (levels 0 to 10) sit in the inner ring. Advanced skills build on a basic skill (`needs` in
+`Training.SKILLS`) and go in the outer ring. They have 15 levels: the first nine are learned in three ranks
+of three, Novice, Advanced and Master; levels 10 to 15 are still to be defined. Anything above that is
+special knowledge, only from quests and rewards.
 A **skill roll** succeeds if d100 ≤ (sum of the governing attributes / their number) × (skill level + 1).
 Example: Blades 2 with Strength 12 and Dexterity 10 gives (12 + 10) / 2 × 3 = 33 %. The page shows this
 chance next to every skill.

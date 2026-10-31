@@ -503,7 +503,7 @@ func attribute(id: String) -> int:
 func skill(id: String) -> int:
 	if not skill_enabled(id):
 		return 0
-	var level_now := Training.skill_level(xp.get(id, 0.0))
+	var level_now := Training.skill_level(xp.get(id, 0.0), id)
 	for slot in equipped:
 		level_now += int(Items.ALL[equipped[slot]].get("skills", {}).get(id, 0))
 	return level_now
@@ -513,10 +513,10 @@ func skill(id: String) -> int:
 func skill_enabled(id: String) -> bool:
 	if not can_use(Training.SKILLS[id].get("requires", {})):
 		return false
-	# A specialisation builds on basic skills.
+	# An advanced skill builds on basic skills.
 	var needs: Dictionary = Training.SKILLS[id].get("needs", {})
 	for basic in needs:
-		if Training.skill_level(xp.get(basic, 0.0)) < int(needs[basic]):
+		if Training.skill_level(xp.get(basic, 0.0), basic) < int(needs[basic]):
 			return false
 	match id:
 		"klingen", "aexte":
@@ -573,8 +573,8 @@ func train(id: String, amount: float) -> void:
 		return
 	var old_xp: float = xp.get(id, 0.0)
 	xp[id] = old_xp + amount
-	var before := Training.skill_level(old_xp) if is_skill else Training.attribute_value(id, old_xp)
-	var after := Training.skill_level(xp[id]) if is_skill else Training.attribute_value(id, xp[id])
+	var before := Training.skill_level(old_xp, id) if is_skill else Training.attribute_value(id, old_xp)
+	var after := Training.skill_level(xp[id], id) if is_skill else Training.attribute_value(id, xp[id])
 	if after == before:
 		return
 	var old_max := max_hp

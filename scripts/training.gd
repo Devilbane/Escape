@@ -64,7 +64,7 @@ const WISE_SHRINE := 12
 ## ("attributes"); that places it in one of the six SECTORS of the character
 ## page. A roll on a skill (skill_chance) uses their average.
 ## A basic skill sits in the inner ring, right around the attributes. A
-## specialisation has "needs" (basic skill id -> level): it sits in the outer
+## advanced skill has "needs" (basic skill id -> level): it sits in the outer
 ## ring and can only be used and learned once those levels are reached.
 const SKILLS := {
 	"klingen": {"name": "Klingen", "attributes": ["staerke", "geschick"]},
@@ -86,7 +86,17 @@ const SECTORS := [
 	["intelligenz"],
 	["intelligenz", "staerke"],
 ]
+## A basic skill is learned up to SKILL_MAX. An advanced skill (one with
+## "needs") has ADVANCED_MAX levels. The first nine come in three ranks of
+## RANK_SIZE: Novice, Advanced, Master; that is what training reaches for now
+## (ADVANCED_LEARNED). Levels 10 to 15 are still to be defined. Beyond them
+## lies special knowledge, only from quests and rewards (items with "skills").
 const SKILL_MAX := 10
+const ADVANCED_MAX := 15
+const ADVANCED_LEARNED := 9
+const RANK_SIZE := 3
+const RANKS := ["Novize", "Fortgeschritten", "Meister"]
+const SPECIAL_RANK := "Sonderwissen"
 const SKILL_FIRST := 8.0
 const SKILL_GROWTH := 1.45
 
@@ -129,12 +139,30 @@ static func attribute_progress(id: String, xp: float) -> float:
 	return progress(xp, a.first, ATTRIBUTE_GROWTH, attribute_cap(id))
 
 
-static func skill_level(xp: float) -> int:
-	return points(xp, SKILL_FIRST, SKILL_GROWTH, SKILL_MAX)
+## The most levels training can give a skill (all of them for an unknown id).
+static func skill_max(id: String) -> int:
+	return ADVANCED_LEARNED if SKILLS.has(id) and tier(id) == 2 else SKILL_MAX
 
 
-static func skill_progress(xp: float) -> float:
-	return progress(xp, SKILL_FIRST, SKILL_GROWTH, SKILL_MAX)
+static func skill_level(xp: float, id := "") -> int:
+	return points(xp, SKILL_FIRST, SKILL_GROWTH, skill_max(id))
+
+
+static func skill_progress(xp: float, id := "") -> float:
+	return progress(xp, SKILL_FIRST, SKILL_GROWTH, skill_max(id))
+
+
+## The rank of an advanced skill at a level: Novice, Advanced or Master up to
+## 9, "?" for the levels still to be defined, special knowledge above
+## ADVANCED_MAX. Empty for basic skills and level 0.
+static func rank(id: String, level: int) -> String:
+	if tier(id) != 2 or level <= 0:
+		return ""
+	if level > ADVANCED_MAX:
+		return SPECIAL_RANK
+	if level > ADVANCED_LEARNED:
+		return "?"
+	return RANKS[(level - 1) / RANK_SIZE]
 
 
 ## The chance in percent that a roll on a skill succeeds, d100 <= chance:
@@ -145,7 +173,7 @@ static func skill_chance(attribute_average: float, level: int) -> int:
 	return floori(attribute_average * (level + 1))
 
 
-## 1 for a basic skill (inner ring), 2 for a specialisation (outer ring).
+## 1 for a basic skill (inner ring), 2 for an advanced skill (outer ring).
 static func tier(id: String) -> int:
 	return 2 if SKILLS[id].has("needs") else 1
 

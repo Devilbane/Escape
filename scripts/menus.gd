@@ -194,7 +194,7 @@ func _skills_text() -> String:
 	var p: Player = game.player
 	var parts := []
 	for id in Training.SKILLS:
-		var text := "%s %d" % [Lang.t(Training.SKILLS[id].name), p.skill(id) if p.skill_enabled(id) else Training.skill_level(p.xp.get(id, 0.0))]
+		var text := "%s %d" % [Lang.t(Training.SKILLS[id].name), p.skill(id) if p.skill_enabled(id) else Training.skill_level(p.xp.get(id, 0.0), id)]
 		parts.append(text if p.skill_enabled(id) else "(%s)" % text)
 	return Lang.t("Fertigkeiten:") + " " + "   ".join(parts) + "\n" + Lang.t("In Klammern: braucht passende Ausrüstung")
 
@@ -220,7 +220,7 @@ func _build_character() -> void:
 		[Lang.t("Probe auf eine Fertigkeit:\nW100 ≤ (Summe der Eigenschaften / ihre Anzahl) × (Stufe + 1)"), game.GOLD],
 		[Lang.t("Beispiel: Klingen 2, Stärke 12, Geschick 10: (12 + 10) / 2 × 3 = 33 %"), BLUE],
 		[Lang.t("Ein Wuchttreffer (+1 Schaden) ist eine Probe auf die Waffen-Fertigkeit."), Color(0.85, 0.87, 0.92)],
-		[Lang.t("Innen: Grundfertigkeiten. Außen: Spezialisierungen, die eine Grundfertigkeit voraussetzen."), Color(0.85, 0.87, 0.92)],
+		[Lang.t("Innen: Grundfertigkeiten. Außen: fortgeschrittene Fertigkeiten, die auf einer Grundfertigkeit aufbauen (Novize, Fortgeschritten, Meister: je 3 Stufen)."), Color(0.85, 0.87, 0.92)],
 		[Lang.t("Gedimmt: braucht passende Ausrüstung"), Color(0.75, 0.75, 0.8)],
 	]:
 		var l: Label = game._make_label(game.TEXT_FONT, 16, entry[1])

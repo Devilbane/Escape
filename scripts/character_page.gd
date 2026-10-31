@@ -8,12 +8,12 @@ extends Control
 ## the sector of the attributes that govern it, with its level and the chance
 ## of a roll on it: d100 <= (sum of the attributes / their number) x (level + 1).
 ## Basic skills sit in the inner ring, right around the attributes;
-## specialisations, which need basic skills first, sit in the outer ring, with
+## advanced skills, which need basic skills first, sit in the outer ring, with
 ## a line to each basic skill they build on.
 
 const SIZE := 540.0
 const INNER := 114.0
-## Where the ring of basic skills ends and the ring of specialisations starts.
+## Where the ring of basic skills ends and the ring of advanced skills starts.
 const MIDDLE := 196.0
 const OUTER := 250.0
 ## Main attribute colours; a shared sector mixes the two.
@@ -118,7 +118,7 @@ func _draw_sector_title(c: Vector2, i: int) -> void:
 
 
 ## Where each skill is drawn: in its sector, in the inner ring if basic and
-## the outer ring if a specialisation, several one under the other.
+## the outer ring if an advanced skill, several one under the other.
 func _skill_places(c: Vector2) -> Dictionary:
 	var places := {}
 	for i in Training.SECTORS.size():
@@ -146,16 +146,23 @@ func _draw_skills(i: int, places: Dictionary) -> void:
 		var basic := Training.tier(id) == 1
 		has_basic = has_basic or basic
 		var enabled := player.skill_enabled(id)
-		var level := player.skill(id) if enabled else Training.skill_level(player.xp.get(id, 0.0))
+		var level := player.skill(id) if enabled else Training.skill_level(player.xp.get(id, 0.0), id)
 		var label := "%s %d" % [Lang.t(Training.SKILLS[id].name), level]
 		var at: Vector2 = places[id] + Vector2(0, -2 if enabled else 4)
 		var font_size := 12 if basic else 11
-		# A dark plate under the text keeps the lines to specialisations behind it.
-		var width := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + 10.0
+		var detail := ""
+		if enabled:
+			detail = "%d %%" % mini(player.skill_chance(id), 100)
+			var rank := Training.rank(id, level)
+			if rank != "":
+				detail = Lang.t(rank) + " · " + detail
+		# A dark plate under the text keeps the lines to advanced skills behind it.
+		var width := maxf(font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x,
+				font.get_string_size(detail, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x) + 10.0
 		draw_rect(Rect2(at.x - width / 2.0, at.y - 13.0, width, 30.0 if enabled else 18.0), Color(0.05, 0.035, 0.08, 0.8))
 		_text(at, label, font_size, Color.WHITE if enabled else DIM)
 		if enabled:
-			_text(at + Vector2(0, 13), "%d %%" % mini(player.skill_chance(id), 100), 11, GOLD)
+			_text(at + Vector2(0, 13), detail, 11, GOLD)
 	if not has_basic:
 		_text(c + _dir(sector_angle(i)) * (INNER + MIDDLE) / 2.0 + Vector2(0, 5), "—", 16, DIM)
 

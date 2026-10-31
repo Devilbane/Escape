@@ -273,7 +273,7 @@ func _village(lvl: Outdoor, player: Player) -> bool:
 var _moved := 0
 var _was_in_cellar := false
 func _in_building(lvl: Level, player: Player) -> bool:
-	if lvl.building != "b" or lvl.floor_name != "keller":
+	if lvl.building != "b" or lvl.floor_name != "cellar":
 		print("FAIL: the bank door led to ", lvl.level_name)
 		return true
 	if lvl._vault_slots.size() < 16:

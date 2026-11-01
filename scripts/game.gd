@@ -840,7 +840,7 @@ func save_info() -> Dictionary:
 	if not has_save():
 		return {}
 	var data := _read_save()
-	return {"name": data.get("name", Lang.t("Namenlos")), "level": int(data.level) + 1, "coins": int(data.coins)}
+	return {"name": data.get("name", Lang.t("Namenlos")), "level": int(data.level) + 1, "coins": int(data.coins), "escaped": bool(data.get("escaped", false))}
 
 
 func _read_save() -> Dictionary:
@@ -870,9 +870,14 @@ func _apply_save(data: Dictionary) -> void:
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
 	player.refresh_stats()
-	load_level(clampi(int(data.level), 0, level_files.size() - 1), false)
-	if level is Outdoor and home_given and level.home_spot != Vector3.ZERO:
-		# Up from the bed in the hero's own house.
+	var index := clampi(int(data.level), 0, level_files.size() - 1)
+	if escaped and _outdoor_index() >= 0:
+		# Out of the dungeon, the graveyard is the new starting point: every
+		# load begins in the open air, wherever the game was saved.
+		index = _outdoor_index()
+	load_level(index, false)
+	if level is Outdoor and home_given and data.get("spot", "") == "home" and level.home_spot != Vector3.ZERO:
+		# Up from the bed in the hero's own house, where they went to sleep.
 		player.global_position = level.home_spot
 	player.hp = clampi(int(data.hp), 1, player.max_hp)
 	player.cure()
@@ -895,6 +900,14 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_FILE)
 
 
+## The level index of the open air outside the crypt, or -1 without one.
+func _outdoor_index() -> int:
+	for i in level_files.size():
+		if Level.is_outdoor_file(level_files[i]):
+			return i
+	return -1
+
+
 ## Whether the elder has handed the hero the house, kept up to date while in
 ## the village.
 func _home_given_now() -> bool:
@@ -914,6 +927,9 @@ func save_game(going_away := false) -> bool:
 		"equipped": player.equipped, "wear": player.wear, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(),
 	}
+	if going_away and level is Outdoor:
+		# Asleep in the bed of the hero's own house: wake up there.
+		data.spot = "home"
 	if going_away:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
 	var file := FileAccess.open(SAVE_FILE, FileAccess.WRITE)
@@ -1326,8 +1342,11 @@ func _end_run(escaped: bool) -> void:
 			DirAccess.remove_absolute(SAVE_FILE)
 		_show_title(Lang.t("Frei!"), Lang.t("%s ist entkommen und hat %d Gold erbeutet.") % [hero_name, coins], Lang.t("Klicken für ein neues Spiel"))
 	elif has_save():
-		# A fallen hero may rise again in the safe room.
-		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], Lang.t("Klicken oder eine Taste: ab der Zuflucht weiterspielen.  N: neues Spiel"))
+		# A fallen hero may rise again in the safe room, or once out of the
+		# dungeon, on the graveyard.
+		var place := Lang.t("Klicken oder eine Taste: ab dem Friedhof weiterspielen.  N: neues Spiel") if save_info().escaped \
+				else Lang.t("Klicken oder eine Taste: ab der Zuflucht weiterspielen.  N: neues Spiel")
+		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], place)
 	else:
 		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], Lang.t("Klicken für ein neues Spiel"))
 	_title_text.add_theme_font_size_override("font_size", 90)
@@ -1395,6 +1414,15 @@ func _step_out_of_crypt() -> void:
 	state = State.TRANSITION
 	player.frozen = true
 	var start := level.cell_to_world(level.start_cell)
+	var first := not escaped
+	if first:
+		escaped = true
+		Ranking.add(hero_name, level_index + 1, level.level_name, coins, true)
+	var healed := player.max_hp - player.hp
+	player.hp = player.max_hp
+	# Saved at once, before the walk out: from now on every load starts here,
+	# on the graveyard in front of the crypt door.
+	var saved := save_game()
 	player.global_position = start + Vector3(0, 0, -3.2)
 	player.face(Vector3.BACK)
 	player.play("Walking_A")
@@ -1406,16 +1434,9 @@ func _step_out_of_crypt() -> void:
 		player.play("Idle")
 		state = State.PLAYING
 		_announce_level()
-		var first := not escaped
-		if first:
-			escaped = true
-			Ranking.add(hero_name, level_index + 1, level.level_name, coins, true)
-		var healed := player.max_hp - player.hp
 		if healed > 0:
-			player.hp = player.max_hp
 			_update_hud()
 			Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+%d" % healed, Color(0.5, 1.0, 0.5))
-		var saved := save_game()
 		var text := Lang.t("Frei! %s ist entkommen und hat %d Gold erbeutet.") % [hero_name, coins] if first else ""
 		text += ("\n" if text != "" else "") + (Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"))
 		get_tree().create_timer(4.8).timeout.connect(func():
@@ -1449,10 +1470,7 @@ func go_to_vaults() -> void:
 ## Up the stairs of a building floor and out of its door into the village.
 func _leave_building() -> void:
 	var building := level.building
-	for i in level_files.size():
-		if Level.is_outdoor_file(level_files[i]):
-			load_level(i, false)
-			break
+	load_level(_outdoor_index(), false)
 	if level is Outdoor and level.doors.has(building):
 		player.global_position = level.doors[building]
 		player.face(Vector3.BACK)

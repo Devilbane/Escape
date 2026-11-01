@@ -129,11 +129,13 @@ Searched barrels, crates, tables and chests can be recognised by coins and a tor
 ## Beyond the gate: freedom
 
 Whoever climbs the last stairs steps out of a **crypt** onto a graveyard under the evening sky. That counts
-as an escape: it goes into the ranking and the game is saved. But the game goes on. A long path leads
+as an escape: it goes into the ranking and the game is saved at once. From then on the **graveyard** is your
+new starting point: every load, and every new try after a fall, begins in front of the crypt door, wherever
+you saved last. But the game goes on. A long path leads
 through the autumn forest, past a pond and a woodcutter, to the village of **Lindenhain**. Run into anyone
 to hear what they have to say. The **village elder** gives you the empty house with the tiled roof, and a
-golden light shows the door. Inside are a **bed** (save and log out) and a **chest** (your storage). When you
-play on, you wake up in your own house.
+golden light shows the door. Inside are a **bed** (save and log out) and a **chest** (your storage). After a
+night in that bed, you wake up in your own house.
 
 In the middle of the village lies the paved **market square** with a fountain that heals, benches and
 lanterns. Around it stand the **smithy**, the **temple**, the **office of the crown**, the **post office**, the

@@ -59,6 +59,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/offline_schedule.gd | tee offline.log
           grep -q PASS offline.log
 
+      - name: Graveyard start after the escape test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/graveyard_start.gd | tee graveyard.log
+          grep -q PASS graveyard.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

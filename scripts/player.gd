@@ -7,6 +7,8 @@ extends CharacterBody3D
 signal hurt(amount: int)
 signal defeated
 signal ailments_changed
+## Life came back by itself (see _regenerate).
+signal regenerated
 ## Emitted when the hero runs into something solid, with a point just inside it.
 signal bumped(point: Vector3)
 ## Emitted when training raises an attribute or a skill, with its new value.
@@ -1087,6 +1089,29 @@ func cure(kind := "") -> bool:
 	return had
 
 
+## Life the hero gets back per second: Konstitution / REGEN_PER_CON_DIVISOR.
+const REGEN_PER_CON_DIVISOR := 10.0
+## Fractions of a life healed so far, until they add up to a whole one.
+var _regen := 0.0
+
+
+func life_regen() -> float:
+	return attribute("konstitution") / REGEN_PER_CON_DIVISOR
+
+
+## Heals the hero a little every second, faster with more Konstitution.
+func _regenerate(delta: float) -> void:
+	if dead or hp >= max_hp:
+		_regen = 0.0
+		return
+	_regen += life_regen() * delta
+	if _regen >= 1.0:
+		var whole := floori(_regen)
+		_regen -= whole
+		hp = mini(max_hp, hp + whole)
+		regenerated.emit()
+
+
 func _tick_ailments(delta: float) -> void:
 	if ailments.is_empty() or dead:
 		return
@@ -1508,6 +1533,7 @@ func _physics_process(delta: float) -> void:
 	_clock += delta
 	_get_up(delta)
 	_tick_ailments(delta)
+	_regenerate(delta)
 	_pursue(delta)
 	_auto_attack()
 	if _climb >= 0.0:

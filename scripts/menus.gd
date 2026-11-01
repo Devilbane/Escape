@@ -234,8 +234,8 @@ func _show_info(id: String) -> void:
 
 func _stats_text() -> String:
 	var p: Player = game.player
-	return Lang.t("Leben %d / %d    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Gold %d") % [
-		p.hp, p.max_hp, p.power, p.hardening, roundi(p.speed / Player.SPEED * 100.0), p.knives, game.coins]
+	return Lang.t("Leben %d / %d (+%.1f/s)    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Gold %d") % [
+		p.hp, p.max_hp, p.life_regen(), p.power, p.hardening, roundi(p.speed / Player.SPEED * 100.0), p.knives, game.coins]
 
 
 ## The hero's attributes, each with how far it is to the next point.

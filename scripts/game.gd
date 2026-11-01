@@ -1777,9 +1777,13 @@ func _guardian_intro() -> void:
 
 func _process(delta: float) -> void:
 	_eerie(delta)
-	# A skeleton on the hero's heels keeps the fight going.
+	# A skeleton on the hero's heels keeps the fight going, and a hero who
+	# has been spotted cannot stay hidden.
 	if state == State.PLAYING and level and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):
 		player.mark_fight()
+		if player.sneaking:
+			player.set_sneaking(false)
+			show_message(Lang.t("Entdeckt! Du kannst nicht mehr schleichen."), 1.6)
 	_guardian_intro()
 	var p := player.global_position
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y

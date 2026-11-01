@@ -8,8 +8,8 @@
 // by GearLook), so it stays on the surface while a part bends. Fine grain is
 // faded out where it would be smaller than a few pixels, so it never flickers.
 //
-// Define FADE before including this to get a version that can fade out, for a
-// sneaking hero.
+// Define FADE before including this to get a version that turns grey and can
+// fade out, for a sneaking hero.
 
 const int NONE = 0;
 const int CLOTH = 1;
@@ -157,6 +157,10 @@ void fragment() {
 	ROUGHNESS = roughness;
 	SPECULAR = specular;
 #ifdef FADE
+	// Sneaking: ash grey and see-through, the same as ghost.gdshader.
+	ALBEDO = vec3(0.22 + dot(albedo, vec3(0.3, 0.59, 0.11)) * 0.7) * vec3(0.93, 0.96, 1.0);
+	METALLIC = 0.0;
+	SPECULAR = 0.2;
 	ALPHA = 1.0 - fade;
 #endif
 }

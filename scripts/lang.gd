@@ -87,6 +87,7 @@ const EN := {
 	"Du gehst wieder normal.": "You walk normally again.",
 	"Zu spät zum Schleichen: Du wurdest entdeckt!": "Too late to sneak: you have been spotted!",
 	"Noch zu aufgewühlt vom Kampf, um zu schleichen.": "Still too worked up from the fight to sneak.",
+	"Entdeckt! Du kannst nicht mehr schleichen.": "Spotted! You can no longer sneak.",
 	"tapp": "tap",
 	"knurr": "growl",
 	"zisch": "hiss",

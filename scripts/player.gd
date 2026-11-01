@@ -42,6 +42,10 @@ const GRAVITY := 26.0
 ## playback (metres per second, measured from the foot bone).
 const RUN_ANIM_SPEED := 3.5
 const MAX_HP := 5
+## The spot the hero takes up: no skeleton may stand inside it (see
+## Level.push_apart).
+var radius := 0.55
+var tall := 2.4
 ## A running hero who loses more than this share of their life within
 ## KNOCKDOWN_WINDOW seconds is knocked to the ground and gets up again.
 const KNOCKDOWN_SHARE := 0.1
@@ -176,10 +180,10 @@ func _ready() -> void:
 	add_to_group("combatant")
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.55
-	capsule.height = 2.4
+	capsule.radius = radius
+	capsule.height = tall
 	shape.shape = capsule
-	shape.position.y = 1.2
+	shape.position.y = tall * 0.5
 	add_child(shape)
 
 	_model = preload("res://assets/characters/Rogue.glb").instantiate()
@@ -570,7 +574,9 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 	var best: Enemy = null
 	var best_d := max_distance
 	for e in level.enemies:
-		if not is_instance_valid(e) or e.dead:
+		# A skeleton standing inside the hero's spot cannot be fought until
+		# the two are pushed apart.
+		if not is_instance_valid(e) or e.dead or level.stacked(self, e):
 			continue
 		var d := global_position.distance_to(e.global_position)
 		if d < best_d and (not need_sight or level.has_line_of_sight(global_position, e.global_position)):
@@ -617,7 +623,7 @@ func melee() -> void:
 	var hits := 0
 	var weapon := weapon_skill()
 	for e in level.enemies:
-		if not is_instance_valid(e) or e.dead:
+		if not is_instance_valid(e) or e.dead or level.stacked(self, e):
 			continue
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0
@@ -687,7 +693,7 @@ func _auto_attack() -> void:
 	if not is_instance_valid(_target) or _target.dead:
 		_target = null
 		return
-	if not can_act() or _auto_cooldown > 0.0 or _attack_cooldown > 0.0:
+	if not can_act() or _auto_cooldown > 0.0 or _attack_cooldown > 0.0 or level.stacked(self, _target):
 		return
 	var d := global_position.distance_to(_target.global_position)
 	if d <= ENGAGE_RANGE:

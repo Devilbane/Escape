@@ -27,6 +27,8 @@ A jump from a run keeps its momentum: the faster you are, the farther you fly.
 Running has a risk: lose more than 10 % of your lives within 2 seconds while running (or right after) and you fall to the ground and get up again, which takes about 2.5 seconds. No blow lands while you are down.
 
 Run into a skeleton and you fight automatically: as long as you stand next to it, you keep striking.
+You and the skeletons each take up your own spot: nobody can stand inside or on top of anyone else.
+If you land on a skeleton's head, you are pushed apart, and no blow lands until you stand side by side again.
 Step back and you throw knives at the skeleton you attacked last, as long as you can see it
 and have knives.
 

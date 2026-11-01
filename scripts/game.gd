@@ -64,6 +64,9 @@ var met := {}
 ## The villagers' tasks: offered, running and finished (see Quests). Kept in
 ## the saved game, so every hero has their own.
 var quests := Quests.new(self)
+## Known recipes and the ingredient pouch (see Crafting). Kept in the saved
+## game, like the quests.
+var crafting := Crafting.new(self)
 ## Counts down to the next look at who has a task (see refresh_quest_marks).
 var _quest_mark_timer := 0.0
 ## Village buildings with floors of their own: building letter -> level index.
@@ -76,7 +79,7 @@ var iron := 0
 var fox_trust := 0
 var has_fox := false
 var pet: Pet = null
-const FOX_LEARN := "Füchse auf den Wiesen sind scheu, aber eine Wurst (bei der Krämerin) lockt sie an: Trägst du eine bei dir, kommt ein Fuchs neugierig näher und frisst sie dir aus der Hand. Nach drei Würsten folgt er dir überallhin, auch ins Verlies. Seine Nase findet Zutaten, die im Boden versteckt sind: Er läuft hin, gräbt sie aus und lässt sie für dich liegen."
+const FOX_LEARN := "Füchse auf den Wiesen sind scheu, aber eine Wurst (bei der Krämerin) lockt sie an: Trägst du eine bei dir, kommt ein Fuchs neugierig näher und frisst sie dir aus der Hand. Nach drei Würsten folgt er dir überallhin, auch ins Verlies. Seine Nase findet Zutaten, die im Boden versteckt sind: Er läuft hin, gräbt sie aus und lässt sie für dich liegen; aufgehoben kommen sie in deinen Zutatenbeutel."
 ## What the hero already took on each level, by level file: the ids of
 ## searched furniture and picked up coins (see Level.taken). Kept in the
 ## saved game, so looted chests stay empty.
@@ -662,7 +665,7 @@ func _use_station(s: Dictionary) -> void:
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not busy and not quests.talk(s.npc):
+		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building)
@@ -737,8 +740,16 @@ func _on_fox_fed(fox: Animal) -> void:
 ## The fox dug up a hidden ingredient: it lies there for the hero to take.
 func _on_fox_dug_up(id: String, pos: Vector3) -> void:
 	level.lay_find(id, pos)
-	Effects.float_text(level, pos + Vector3(0, 2.0, 0), Items.item_name(id), Color(0.75, 0.9, 1.0), true)
-	show_message(Lang.t("Dein Fuchs hat etwas ausgegraben: %s!") % Items.item_name(id), 3.0)
+	Effects.float_text(level, pos + Vector3(0, 2.0, 0), Crafting.ingredient_name(id), Color(0.75, 0.9, 1.0), true)
+	show_message(Lang.t("Dein Fuchs hat etwas ausgegraben: %s!") % Crafting.ingredient_name(id), 3.0)
+
+
+## A dug-up ingredient goes into the ingredient pouch, not the bag.
+func _on_ingredient_collected(id: String) -> void:
+	crafting.add(id)
+	Sfx.play(self, "key", -3.0)
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5), true)
+	show_message(Lang.t("%s kommt in deinen Zutatenbeutel. Das Rezeptbuch (H) zeigt, was du dabeihast.") % Crafting.ingredient_name(id), 3.5)
 
 
 ## The fountain: full life and every ailment gone, as often as you like.
@@ -1168,6 +1179,7 @@ func load_level(index: int, restock := true) -> void:
 	level.coins_collected.connect(_on_coins_collected)
 	level.item_collected.connect(_on_item_collected)
 	level.secret_found.connect(_on_secret_found)
+	level.ingredient_collected.connect(_on_ingredient_collected)
 	level.hide_ingredients()
 	_spawn_pet()
 	level.bag_full.connect(func(): show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0))
@@ -1371,6 +1383,7 @@ func _start_new_game() -> void:
 	builds.clear()
 	met.clear()
 	quests.clear()
+	crafting.clear()
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
@@ -1640,6 +1653,7 @@ func _apply_save(data: Dictionary) -> void:
 			if Villager.ROLES.has(str(role)):
 				met[str(role)] = true
 	quests.load_from(data.get("quests", {}))
+	crafting.load_from(data.get("crafting", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
@@ -1745,6 +1759,7 @@ func save_game(going_away := false) -> bool:
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
+		"crafting": crafting.for_save(),
 		"fox": {"trust": fox_trust, "tame": has_fox},
 		"hour": day_hour,
 	}
@@ -2080,7 +2095,8 @@ func refresh_quest_marks() -> void:
 		return
 	for v in level.villagers:
 		if is_instance_valid(v):
-			v.set_quest_mark(quests.mark(v.role))
+			var quest_mark := quests.mark(v.role)
+			v.set_quest_mark(quest_mark if quest_mark != "" else crafting.mark(v.role))
 
 
 ## Something in the bag changed because of a task.

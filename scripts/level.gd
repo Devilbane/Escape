@@ -53,6 +53,8 @@ signal exit_reached
 signal item_collected(id: String)
 signal bag_full
 signal secret_found(lever_pos: Vector3, wall_pos: Vector3)
+## The hero picked up an ingredient the fox dug up (see lay_find).
+signal ingredient_collected(id: String)
 ## How many of the level's pressure plates have a block on them changed.
 signal plates_changed(pressed: int, total: int)
 ## Every pressure plate is pressed: the iron gate at `pos` opens.
@@ -2145,7 +2147,9 @@ func _check_pickups() -> void:
 		if p.kind == "key":
 			key_collected.emit()
 		elif p.kind == "item":
-			item_collected.emit(p.get("id", p.get("item", "")))
+			item_collected.emit(p.id)
+		elif p.kind == "ingredient":
+			ingredient_collected.emit(p.ingredient)
 		else:
 			coins_collected.emit(1)
 
@@ -2449,15 +2453,29 @@ func hide_ingredients() -> void:
 	var count := HIDDEN_OUTDOORS if outdoor else HIDDEN_IN_DUNGEON
 	for i in mini(count, cells.size()):
 		var c: Vector2i = cells.pop_at(rng.randi() % cells.size())
-		hidden_finds.append({"cell": c, "id": Items.random_ingredient(rng, outdoor)})
+		hidden_finds.append({"cell": c, "id": Crafting.random_fox_find(rng, outdoor)})
 
 
-## Lays a dug-up ingredient on the ground. It is not marked as taken: the
-## ground holds new ones the next time round.
+## Lays a dug-up ingredient on the ground. Picked up, it goes into the
+## ingredient pouch (see Crafting), not the bag. It is not marked as taken:
+## the ground holds new ones the next time round.
 func lay_find(id: String, pos: Vector3) -> void:
-	_drop_item(id, pos)
-	_pickups[-1].erase("id")
-	_pickups[-1].item = id
+	var holder := Node3D.new()
+	var lump := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.25
+	mesh.height = 0.4
+	lump.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.55, 0.75, 0.35)
+	mat.emission_enabled = true
+	mat.emission = Color(0.4, 0.6, 0.25)
+	lump.material_override = mat
+	holder.add_child(lump)
+	holder.position = Vector3(pos.x, 0.8, pos.z)
+	add_child(holder)
+	holder.add_child(Effects.make_sparkles(Color(0.7, 0.95, 0.5)))
+	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6})
 
 
 func _drop_item(id: String, pos: Vector3) -> void:

@@ -74,6 +74,14 @@ const SKILLS := {
 	"ruestung": {"name": "Rüstung tragen", "attributes": ["staerke"]},
 	"schleichen": {"name": "Schleichen", "attributes": ["geschick", "intelligenz"]},
 }
+## The crafts (Handwerk): making things at a workbench, from recipes (see
+## Crafting). A craft is taught by a master in the village first and then
+## trains only by working at it; it is not worn gear that enables it. Crafts
+## level like basic skills (up to SKILL_MAX) and are kept with the skills,
+## but they are not part of the wheel of combat skills on the character page.
+const CRAFTS := {
+	"feinschmieden": {"name": "Feinschmieden", "attributes": ["geschick", "intelligenz"]},
+}
 ## The three main attributes, clockwise from the top of the character page.
 const MAIN_ATTRIBUTES := ["staerke", "geschick", "intelligenz"]
 ## The ring of skills around them, clockwise from the top, 60 degrees each:
@@ -207,7 +215,7 @@ static func load_hero(hero: String) -> Dictionary:
 	var stored = all.get(hero, {})
 	if stored is Dictionary:
 		for id in stored:
-			if ATTRIBUTES.has(id) or SKILLS.has(id):
+			if ATTRIBUTES.has(id) or SKILLS.has(id) or CRAFTS.has(id):
 				xp[id] = float(stored[id])
 	return xp
 

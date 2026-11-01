@@ -65,15 +65,16 @@ func _process(_delta: float) -> bool:
 			game.escaped = true
 			game.fox_trust = 0
 			game.has_fox = false
+			game.crafting.clear()
 			game.load_level(game._outdoor_index(), false)
 			game.state = game.State.PLAYING
 			lvl = game.level
 			check(game.pet == null, "no fox goes with a new hero")
 			check(lvl.hidden_finds.size() == Level.HIDDEN_OUTDOORS, "ingredients lie hidden in the open air (%d)" % lvl.hidden_finds.size())
 			for f in lvl.hidden_finds:
-				check(Items.is_ingredient(f.id) and Items.ALL[f.id].found == "outdoor", "%s grows in the open air" % f.id)
+				check(Crafting.INGREDIENTS.has(f.id) and Crafting.INGREDIENTS[f.id].region == "Wildnis", "%s grows in the open air" % f.id)
 				check(lvl.is_open(f.cell), "a hidden ingredient lies on open ground")
-				check(Lang.EN.has(Items.ALL[f.id].name), "%s has an English name" % f.id)
+				check(Lang.EN.has(Crafting.INGREDIENTS[f.id].name) and Lang.EN.has(Crafting.INGREDIENTS[f.id].where), "%s has English texts" % f.id)
 			check(Lang.EN.has(Items.ALL[Pet.FOOD].name) and Lang.EN.has(Items.ALL[Pet.FOOD].effect), "the sausage has an English text")
 			check(Lang.EN.has(game.FOX_LEARN), "the compendium entry has an English text")
 			# The shopkeeper always has sausages.
@@ -126,7 +127,9 @@ func _process(_delta: float) -> bool:
 		3:
 			if stage_frames < 30:
 				return false
-			check(game.player.bag.has("trueffel"), "the hero picked up the truffle")
+			check(game.crafting.have("trueffel") == 1, "the truffle went into the ingredient pouch")
+			check(not game.player.bag.has("trueffel"), "the truffle is not in the bag")
+			check(game.crafting.book_ingredients().has("trueffel"), "the ingredient book lists the truffle")
 			check(not lvl.taken.has("trueffel"), "dug-up ingredients are not marked as taken")
 			# The hero walks off: the fox follows.
 			_hero_near(lvl, game.player.global_position, 12.0)
@@ -149,6 +152,7 @@ func _process(_delta: float) -> bool:
 			if stage_frames < 10:
 				return false
 			check(game.has_fox and game.fox_trust == Pet.TRUST_NEEDED, "the saved game keeps the fox")
+			check(game.crafting.have("trueffel") == 1, "the saved game keeps the truffle in the pouch")
 			check(game.pet != null and is_instance_valid(game.pet), "the fox comes along after loading")
 			check(_foxes(game.level) == foxes_before - 1, "the tamed fox is not back on its meadow")
 			# Down in the dungeon the fox comes along, and finds hide there too.
@@ -163,7 +167,7 @@ func _process(_delta: float) -> bool:
 			check(Pet._flat(game.pet.global_position - game.player.global_position).length() < 6.0, "the fox stays close in the dungeon")
 			check(lvl.hidden_finds.size() == Level.HIDDEN_IN_DUNGEON, "ingredients lie hidden in the dungeon (%d)" % lvl.hidden_finds.size())
 			for f in lvl.hidden_finds:
-				check(Items.ALL[f.id].found == "dungeon", "%s grows in the dungeon" % f.id)
+				check(Crafting.INGREDIENTS[f.id].region == "Verlies", "%s grows in the dungeon" % f.id)
 			_finish()
 			return true
 	return false

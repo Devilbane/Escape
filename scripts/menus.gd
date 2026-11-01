@@ -284,7 +284,10 @@ func _build_inventory() -> void:
 		actions.alignment = BoxContainer.ALIGNMENT_CENTER
 		actions.add_theme_constant_override("separation", 8)
 		_box.add_child(actions)
-		actions.add_child(_item_button(Lang.t("Anlegen"), _equip_selected))
+		if Items.is_crate(id):
+			actions.add_child(_item_button(Lang.t("Abstellen"), _put_down_selected))
+		else:
+			actions.add_child(_item_button(Lang.t("Anlegen"), _equip_selected))
 		actions.add_child(_item_button(Lang.t("Wegwerfen"), _drop_selected))
 
 
@@ -340,6 +343,17 @@ func _equip_selected() -> void:
 		_note = Lang.t("In diesen Rucksack passt nicht alles aus deiner Tasche.")
 	_selected = -1
 	_rebuild()
+
+
+## Sets the selected crate down in front of the hero and goes back to the
+## game, so the crate can be seen where it went.
+func _put_down_selected() -> void:
+	_selected = -1
+	_note = ""
+	close()
+	var why: String = game.put_down_crate()
+	if why != "":
+		game.show_message(why, 1.6)
 
 
 func _drop_selected() -> void:

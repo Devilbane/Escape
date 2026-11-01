@@ -73,6 +73,9 @@ const ALL := {
 	"schildbuch": {"name": "Lehre vom Schild", "slot": "buch", "weight": 1, "teaches": "blocken", "price": 40},
 	"ruestbuch": {"name": "Vom Tragen der Rüstung", "slot": "buch", "weight": 1, "teaches": "ruestung", "price": 40},
 	"schleichbuch": {"name": "Die leisen Sohlen", "slot": "buch", "weight": 1, "teaches": "schleichen", "price": 45},
+	# A wooden crate (see Crate): carried in the bag, set down on the floor
+	# again, stacked and climbed. Never found as loot or sold in shops.
+	"kiste": {"name": "Holzkiste", "slot": "kiste", "weight": 3, "price": 2, "no_loot": true, "effect": "Abstellen (Taste Q), stapeln und daraufklettern"},
 }
 
 
@@ -98,6 +101,11 @@ static func bag_size(backpack: String) -> int:
 
 static func is_book(id: String) -> bool:
 	return ALL.has(id) and ALL[id].has("teaches")
+
+
+## Whether an item is a crate that can be set down again (see Crate).
+static func is_crate(id: String) -> bool:
+	return ALL.has(id) and ALL[id].slot == "kiste"
 
 
 static func item_name(id: String) -> String:
@@ -144,7 +152,7 @@ static func describe(id: String, worn := 0) -> String:
 ## Picks a random item; pricier items turn up less often.
 ## With a slot given, only items for that slot are picked.
 static func random_item(rng: RandomNumberGenerator, min_price := 0, slot := "") -> String:
-	var ids := ALL.keys().filter(func(id): return ALL[id].price >= min_price and (slot == "" or ALL[id].slot == slot))
+	var ids := ALL.keys().filter(func(id): return ALL[id].price >= min_price and (slot == "" or ALL[id].slot == slot) and not ALL[id].get("no_loot", false))
 	var total := 0.0
 	for id in ids:
 		total += 1.0 / ALL[id].price

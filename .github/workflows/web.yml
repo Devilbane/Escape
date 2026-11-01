@@ -104,6 +104,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/no_stacking.gd | tee stacking.log
           grep -q PASS stacking.log
 
+      - name: Crates and food basket test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/crates.gd | tee crates.log
+          grep -q PASS crates.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

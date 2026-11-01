@@ -191,6 +191,17 @@ var _falling := 0.0
 var _down := 0.0
 ## How often the hero has been knocked down this game.
 var knockdowns := 0
+## Walking into a crate (see Crate) whose top is at most this far above the
+## feet lifts the hero onto it, and so does jumping against one whose top
+## the hands reach: up to GRAB_REACH above the feet.
+const STEP_UP := Crate.SIZE + 0.15
+const GRAB_REACH := 0.7
+## Seconds a climb onto a crate takes.
+const CLIMB_TIME := 0.35
+var _climb := -1.0
+var _climb_from := Vector3.ZERO
+var _climb_to := Vector3.ZERO
+var _on_crate := false
 
 
 func _ready() -> void:
@@ -521,6 +532,8 @@ func revive(at: Vector3, heal := true) -> void:
 	_falling = 0.0
 	_down = 0.0
 	_run_hits.clear()
+	_climb = -1.0
+	_on_crate = false
 	set_asleep(false)
 	play("Idle")
 
@@ -591,7 +604,7 @@ func is_running() -> bool:
 ## A jump from a run keeps its momentum and flies further the faster the
 ## hero runs; a standing jump goes straight up.
 func jump() -> void:
-	if not controllable or frozen or dead or not is_on_floor():
+	if not controllable or frozen or dead or not is_on_floor() or is_climbing():
 		return
 	_air_momentum = Vector3.ZERO
 	var jump_boost := 1.0
@@ -1162,7 +1175,7 @@ func bag_size() -> int:
 ## and so does a smaller backpack that could not hold everything carried.
 ## Returns whether the item was put on.
 func equip(id: String) -> bool:
-	if Items.is_book(id) or not can_use(Items.ALL[id].get("requires", {})):
+	if Items.is_book(id) or Items.is_crate(id) or not can_use(Items.ALL[id].get("requires", {})):
 		return false
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":
@@ -1343,6 +1356,78 @@ func _train_legs(metres: float) -> void:
 		train("staerke", metres * carried_weight() * 0.0005)
 
 
+## Whether the hero stands on a crate (see Level.stacked: up there they
+## are never stacked with a skeleton below).
+func on_crate() -> bool:
+	return _on_crate and is_on_floor()
+
+
+## Whether the hero is climbing onto a crate right now.
+func is_climbing() -> bool:
+	return _climb >= 0.0
+
+
+## Starts climbing onto a crate the hero pushes against: walking into one
+## that is a step high, or jumping against one whose top the hands reach.
+func _try_climb(dir: Vector3) -> bool:
+	var push := dir
+	if push == Vector3.ZERO and not is_on_floor():
+		push = Vector3(_air_momentum.x, 0, _air_momentum.z)
+	if push.length() < 0.01:
+		return false
+	push = push.normalized()
+	for i in get_slide_collision_count():
+		var hit := get_slide_collision(i)
+		var crate := hit.get_collider() as Crate
+		if crate == null or absf(hit.get_normal().y) > 0.5 or push.dot(-hit.get_normal()) < 0.5:
+			continue
+		var top: Crate = level.stack_top(crate)
+		var rise := top.top() - global_position.y
+		if rise <= 0.05 or rise > (STEP_UP if is_on_floor() else GRAB_REACH):
+			continue
+		var target := Vector3(top.global_position.x, top.top() + 0.02, top.global_position.z)
+		if not _room_at(target):
+			continue
+		_climb_from = global_position
+		_climb_to = target
+		_climb = 0.0
+		_air_momentum = Vector3.ZERO
+		velocity = Vector3.ZERO
+		face(target - global_position)
+		_current_anim = ""
+		play("Jump_Idle", 0.1)
+		train("geschick", 0.5)
+		return true
+	return false
+
+
+## Whether the hero fits standing at `spot` (feet there): nothing in the way.
+func _room_at(spot: Vector3) -> bool:
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = radius - 0.05
+	capsule.height = tall - 0.1
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = Transform3D(Basis(), spot + Vector3(0, tall * 0.5 + 0.05, 0))
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+## One step of a climb: up first, then over the edge onto the top.
+func _climb_step(delta: float) -> void:
+	_climb = minf(1.0, _climb + delta / CLIMB_TIME)
+	var up := smoothstep(0.0, 0.65, _climb)
+	var over := smoothstep(0.3, 1.0, _climb)
+	var p := _climb_from.lerp(_climb_to, over)
+	p.y = lerpf(_climb_from.y, _climb_to.y + 0.1, up) if _climb < 1.0 else _climb_to.y
+	global_position = p
+	velocity = Vector3.ZERO
+	if _climb >= 1.0:
+		_climb = -1.0
+		_current_anim = ""
+		play("Idle")
+
+
 func _keyboard_direction() -> Vector3:
 	var x := 0.0
 	var z := 0.0
@@ -1371,6 +1456,9 @@ func _physics_process(delta: float) -> void:
 	_tick_ailments(delta)
 	_pursue(delta)
 	_auto_attack()
+	if _climb >= 0.0:
+		_climb_step(delta)
+		return
 	var dir := Vector3.ZERO
 	if controllable and not dead and _busy <= 0.0:
 		dir = _keyboard_direction()
@@ -1421,6 +1509,11 @@ func _physics_process(delta: float) -> void:
 			_sidestepped = false
 	if is_on_floor() and velocity.y < 0.0:
 		velocity.y = 0.0
+	_on_crate = false
+	for i in get_slide_collision_count():
+		var hit := get_slide_collision(i)
+		if hit.get_collider() is Crate and hit.get_normal().y > 0.7:
+			_on_crate = true
 	if dir != Vector3.ZERO:
 		for i in get_slide_collision_count():
 			var hit := get_slide_collision(i)
@@ -1428,8 +1521,10 @@ func _physics_process(delta: float) -> void:
 				var enemy := hit.get_collider() as Enemy
 				if enemy:
 					_engage(enemy)
-				else:
+				elif not hit.get_collider() is Crate:
 					bumped.emit(hit.get_position() - hit.get_normal() * 0.2)
+	if controllable and not dead and _busy <= 0.0 and _down <= 0.0 and _falling <= 0.0 and _try_climb(dir):
+		return
 	if dir != Vector3.ZERO and _anim_hold <= 0.0:
 		_model.rotation.y = lerp_angle(_model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-14.0 * delta))
 	# Blink while invulnerable after a hit.

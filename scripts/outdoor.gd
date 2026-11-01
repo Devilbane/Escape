@@ -29,9 +29,14 @@ extends Level
 ##   The robbers' pass east of the village: N tent   f campfire   C treasure chest
 ##   and the bandits who roam there and come back a while after they fall:
 ##   c cutthroat, A poacher (crossbow), X bruiser, Q bandit chief (see Enemy).
+##   v  a stone pedestal with a food basket on top, too high to reach from
+##      the ground or from one crate: stack two crates beside it. Three
+##      wooden crates lie close by (see Crate).
 
 ## A notice for the message line, e.g. when the house is handed over.
 signal notice(text: String, duration: float)
+## The hero has reached the food basket on the pedestal and eats.
+signal food_basket(heal: int)
 
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
@@ -86,6 +91,17 @@ const BANDIT_RESPAWN := 150.0
 const RESPAWN_FAR := 40.0
 ## The hero is warned about the pass when a bandit's spot is this close (metres).
 const WILD_WARNING_RANGE := 16.0
+## The pedestal with the food basket: how tall it is (metres), how far from
+## the basket the hero can reach it, how high their feet must stand for that
+## (on two stacked crates), the lives the food gives back, and the seconds
+## until the basket is full again.
+const PEDESTAL_HEIGHT := 3.2
+const BASKET_REACH := 2.4
+const BASKET_FEET := Crate.SIZE * 2.0 - 0.2
+const BASKET_HEAL := 3
+const BASKET_REFILL := 180.0
+## Where the pedestal's crates lie, from the middle of its tile.
+const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 1.6), Vector3(-1.4, 0, 3.0)]
 
 var villagers: Array = []
 ## Has the elder handed the house over yet? Saved games wake up at home.
@@ -119,6 +135,9 @@ var _herald_timer := randf_range(HERALD_FIRST_MIN, HERALD_FIRST_MAX)
 ## it is gone), seconds until the next one arrives, and how many came so far.
 var _wild: Array = []
 var _wild_warned := false
+## The food basket: where it stands, its food, whether it is full, the
+## seconds until it fills again, and whether the hero was told about it.
+var _basket := {}
 
 
 func build() -> void:
@@ -355,6 +374,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			spots.well.append(pos + Vector3(0, 0, 2.6))
 		"x":
 			_build_bench(c)
+		"v":
+			_build_pedestal(c)
 		"N":
 			_build_tent(pos)
 		"f":
@@ -368,6 +389,106 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 		_:
 			if Enemy.WILD_LETTERS.has(ch):
 				_wild.append({"cell": c, "kind": Enemy.WILD_LETTERS[ch], "enemy": null, "timer": 0.0, "wave": 0})
+
+
+## A tall stone pedestal with a basket of bread, cheese and apples on top,
+## and the crates to climb up to it lying close by.
+func _build_pedestal(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.66, 0.63, 0.58)
+	stone.roughness = 0.95
+	_add_mesh_box(pos + Vector3(0, 0.15, 0), Vector3(1.7, 0.3, 1.7), stone)
+	_add_mesh_box(pos + Vector3(0, PEDESTAL_HEIGHT * 0.5, 0), Vector3(1.25, PEDESTAL_HEIGHT - 0.5, 1.25), stone)
+	_add_mesh_box(pos + Vector3(0, PEDESTAL_HEIGHT - 0.12, 0), Vector3(1.7, 0.24, 1.7), stone)
+	_add_solid(pos, Vector3(1.7, PEDESTAL_HEIGHT, 1.7))
+	# The basket: an open crate, filled with food that glints.
+	var box := _aabb_of("crate_open")
+	var s := 1.0 / maxf(0.01, maxf(box.size.x, box.size.z))
+	var top := Vector3(pos.x, PEDESTAL_HEIGHT, pos.z)
+	_put("crate_open", top - Vector3(box.get_center().x, box.position.y, box.get_center().z) * s, 0.0, s)
+	var food := Node3D.new()
+	food.position = top + Vector3(0, box.size.y * s * 0.8, 0)
+	add_child(food)
+	_add_food(food)
+	food.add_child(Effects.make_sparkles(Color(1.0, 0.85, 0.45)))
+	_basket = {"pos": top, "food": food, "full": true, "timer": 0.0, "hinted": false}
+	for offset in PEDESTAL_CRATES:
+		add_crate(pos + offset)
+
+
+## A loaf, a wedge of cheese and a few apples, heaped in the basket.
+func _add_food(parent: Node3D) -> void:
+	var bread := StandardMaterial3D.new()
+	bread.albedo_color = Color(0.72, 0.45, 0.2)
+	var loaf := MeshInstance3D.new()
+	var loaf_mesh := CapsuleMesh.new()
+	loaf_mesh.radius = 0.16
+	loaf_mesh.height = 0.6
+	loaf.mesh = loaf_mesh
+	loaf.material_override = bread
+	loaf.rotation = Vector3(0, 0.5, PI * 0.5)
+	loaf.position = Vector3(-0.1, 0.05, 0.05)
+	parent.add_child(loaf)
+	var cheese_mat := StandardMaterial3D.new()
+	cheese_mat.albedo_color = Color(0.98, 0.8, 0.3)
+	var cheese := MeshInstance3D.new()
+	var wedge := CylinderMesh.new()
+	wedge.top_radius = 0.2
+	wedge.bottom_radius = 0.2
+	wedge.height = 0.14
+	wedge.radial_segments = 3
+	cheese.mesh = wedge
+	cheese.material_override = cheese_mat
+	cheese.position = Vector3(0.2, 0.05, -0.15)
+	parent.add_child(cheese)
+	var apple_mat := StandardMaterial3D.new()
+	apple_mat.albedo_color = Color(0.8, 0.1, 0.08)
+	for spot in [Vector3(0.22, 0.08, 0.2), Vector3(0.05, 0.1, -0.25), Vector3(-0.28, 0.06, -0.18)]:
+		var apple := MeshInstance3D.new()
+		var ball := SphereMesh.new()
+		ball.radius = 0.1
+		ball.height = 0.2
+		apple.mesh = ball
+		apple.material_override = apple_mat
+		apple.position = spot
+		parent.add_child(apple)
+
+
+func _add_mesh_box(pos: Vector3, size: Vector3, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.position = pos
+	add_child(mi)
+
+
+## The hero reaches the basket standing high enough beside it (on two
+## stacked crates, or on the pedestal itself) and eats; it fills again
+## after a while. Coming close on the ground tells them how to get up.
+func _check_basket(delta: float) -> void:
+	if _basket.is_empty() or not player is CharacterBody3D:
+		return
+	var food: Node3D = _basket.food
+	if not _basket.full:
+		_basket.timer -= delta
+		if _basket.timer <= 0.0:
+			_basket.full = true
+			food.visible = true
+		return
+	var d := _flat_distance(player.global_position, _basket.pos)
+	var hero := player as CharacterBody3D
+	var climbing: bool = hero.has_method("is_climbing") and hero.is_climbing()
+	if d <= BASKET_REACH and not climbing and hero.is_on_floor() and hero.global_position.y >= BASKET_FEET:
+		_basket.full = false
+		_basket.timer = BASKET_REFILL
+		food.visible = false
+		food_basket.emit(BASKET_HEAL)
+	elif d <= 6.0 and not _basket.hinted and hero.global_position.y < 0.5:
+		_basket.hinted = true
+		notice.emit(Lang.t("Ganz oben auf dem Sockel steht ein Korb voller Essen. Staple zwei Kisten daneben, um ihn zu erreichen (E: Kiste aufheben, Q: abstellen)."), 5.0)
 
 
 ## A bandit's tent, its opening turned to the south, the camp's size.
@@ -877,6 +998,7 @@ func _process(delta: float) -> void:
 			_marker.queue_free()
 			_marker = null
 	_mind_the_wild(delta)
+	_check_basket(delta)
 	_herald_timer -= delta
 	if _herald and _herald_timer <= 0.0:
 		_herald_timer = randf_range(HERALD_EVERY_MIN, HERALD_EVERY_MAX)

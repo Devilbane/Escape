@@ -1239,6 +1239,8 @@ const STACK_TOLERANCE := 0.15
 func stacked(a, b) -> bool:
 	if a == null or b == null or a == b:
 		return false
+	if _up_on_crate(a, b):
+		return false
 	var d: Vector3 = b.global_position - a.global_position
 	if absf(d.y) > maxf(a.tall, b.tall) + 0.5:
 		return false
@@ -1263,6 +1265,8 @@ func _push_apart(delta: float) -> void:
 		for j in range(i + 1, bodies.size()):
 			var a = bodies[i]
 			var b = bodies[j]
+			if _up_on_crate(a, b):
+				continue
 			var d: Vector3 = b.global_position - a.global_position
 			if absf(d.y) > maxf(a.tall, b.tall) + 0.5:
 				continue
@@ -1276,6 +1280,15 @@ func _push_apart(delta: float) -> void:
 			var step := minf(overlap, PUSH_APART_SPEED * delta)
 			_shove(a, b, -away * step * weight_b / (weight_a + weight_b))
 			_shove(b, a, away * step * weight_a / (weight_a + weight_b))
+
+
+## Whether the higher of two bodies stands on a crate. A hero up on a
+## crate stack may be right above a skeleton's head, but stands on the
+## crate, not on the skeleton: they are not stacked, are not pushed apart
+## (which would shove the hero off the crates), and may fight.
+func _up_on_crate(a, b) -> bool:
+	var upper = a if a.global_position.y > b.global_position.y else b
+	return upper.has_method("on_crate") and upper.on_crate()
 
 
 ## How hard a body is to push: bigger skeletons weigh more, and a hero
@@ -1304,6 +1317,158 @@ func _free_side(body: CharacterBody3D) -> Vector3:
 		if astar.is_in_boundsv(cell) and not astar.is_point_solid(cell):
 			return d
 	return Vector3.RIGHT
+
+# --- Crates -------------------------------------------------------------------
+
+## Crates lying about on this level (see Crate). Where they lie is not kept
+## in the saved game: a level built again has only the crates it starts with.
+var crates: Array = []
+## How far the hero reaches to pick up a crate (metres, from their middle).
+const CRATE_REACH := 2.4
+## How far in front of the hero's middle a crate is set down.
+const CRATE_AHEAD := 1.2
+## The hero can set a crate on a stack whose top is up to this far above
+## their feet.
+const CRATE_LIFT := 1.8
+
+
+func add_crate(pos: Vector3) -> Crate:
+	var crate := Crate.new()
+	crate.position = pos
+	add_child(crate)
+	crates.append(crate)
+	return crate
+
+
+## The crate sitting right on top of `crate`, if any.
+func crate_on(crate: Crate) -> Crate:
+	for other in crates:
+		if other != crate and is_instance_valid(other) and absf(other.global_position.y - crate.top()) < 0.1 and crate.covers(other.global_position, -0.1):
+			return other
+	return null
+
+
+## The topmost crate of the stack `crate` belongs to.
+func stack_top(crate: Crate) -> Crate:
+	var top := crate
+	for i in Crate.MAX_STACK + 2:
+		var above := crate_on(top)
+		if above == null:
+			break
+		top = above
+	return top
+
+
+## Whether the hero or a skeleton stands on top of `crate`.
+func _someone_on(crate: Crate) -> bool:
+	var bodies: Array = enemies.duplicate()
+	bodies.append(player)
+	for b in bodies:
+		if is_instance_valid(b) and b is Node3D and absf(b.global_position.y - crate.top()) < 0.3 and crate.covers(b.global_position, 0.5):
+			return true
+	return false
+
+
+## The crate the hero could pick up now: the nearest one in reach with
+## nothing on top and nobody standing on it, or null.
+func crate_in_reach(hero: Node3D, near := Vector3.INF) -> Crate:
+	var best: Crate = null
+	var best_d := INF
+	var feet := hero.global_position.y
+	for crate in crates:
+		if not is_instance_valid(crate):
+			continue
+		if crate.global_position.y > feet + 2.0 or crate.top() < feet - 1.2:
+			continue
+		var d := _flat_distance(hero.global_position, crate.global_position)
+		if d > CRATE_REACH:
+			continue
+		if near != Vector3.INF:
+			d = _flat_distance(near, crate.global_position) - crate.global_position.y * 0.01
+		if d < best_d and crate_on(crate) == null and not _someone_on(crate):
+			best = crate
+			best_d = d
+	return best
+
+
+## The crate whose footprint (give or take `margin`) a point on the floor
+## falls in: the top of its stack. Null when there is none.
+func crate_at(point: Vector3, margin := 0.5) -> Crate:
+	for crate in crates:
+		if is_instance_valid(crate) and crate.covers(point, margin):
+			return stack_top(crate)
+	return null
+
+
+## Lifts a crate off the level (into the hero's bag).
+func take_crate(crate: Crate) -> void:
+	crates.erase(crate)
+	crate.collision_layer = 0
+	var tween := create_tween()
+	tween.tween_property(crate.model, "position:y", 1.0, 0.25).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(crate.model, "scale", Vector3.ONE * 0.01, 0.25).set_ease(Tween.EASE_IN)
+	tween.tween_callback(crate.queue_free)
+
+
+## Where a crate set down by a hero facing `ahead` goes: on top of the
+## stack in front of them, else onto whatever is in front of them (the
+## floor, mostly). Vector3.INF when there is no room there.
+func crate_spot(hero: Node3D, ahead: Vector3) -> Vector3:
+	ahead.y = 0.0
+	ahead = ahead.normalized() if ahead.length() > 0.01 else Vector3.BACK
+	var feet := hero.global_position.y
+	var spot := hero.global_position + ahead * CRATE_AHEAD
+	# A stack right in front: the new crate goes on top of it.
+	var column: Array = crates.filter(func(c): return is_instance_valid(c) and c.covers(spot, 0.35) and c.top() > feet - Crate.SIZE * Crate.MAX_STACK - 0.1)
+	if not column.is_empty():
+		var top: Crate = column[0]
+		for c in column:
+			if c.top() > top.top():
+				top = c
+		var count := 1
+		var below := top
+		while count < Crate.MAX_STACK + 1:
+			var under: Crate = null
+			for c in column:
+				if c != below and absf(c.top() - below.global_position.y) < 0.1:
+					under = c
+			if under == null:
+				break
+			below = under
+			count += 1
+		if count >= Crate.MAX_STACK or top.top() > feet + CRATE_LIFT:
+			return Vector3.INF
+		spot = Vector3(top.global_position.x, top.top(), top.global_position.z)
+	else:
+		# Onto whatever lies in front: the floor, or a lower crate stack's
+		# side does not count (the room check below catches that).
+		var space := get_world_3d().direct_space_state
+		var ray := PhysicsRayQueryParameters3D.create(Vector3(spot.x, feet + 0.5, spot.z), Vector3(spot.x, -1.0, spot.z))
+		if hero is CollisionObject3D:
+			ray.exclude = [(hero as CollisionObject3D).get_rid()]
+		var hit := space.intersect_ray(ray)
+		spot.y = hit.position.y if not hit.is_empty() else 0.0
+	return spot if crate_fits(spot) else Vector3.INF
+
+
+## Whether a crate standing at `spot` (the middle of its bottom) would
+## touch nothing: no wall, furniture, hero, skeleton or other crate.
+func crate_fits(spot: Vector3) -> bool:
+	var box := BoxShape3D.new()
+	box.size = Vector3.ONE * (Crate.SIZE - 0.08)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = box
+	query.transform = Transform3D(Basis(), spot + Vector3(0, Crate.SIZE * 0.5, 0))
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+## Sets a crate down at a spot from crate_spot().
+func put_crate(spot: Vector3) -> Crate:
+	var crate := add_crate(spot)
+	crate.model.scale = Vector3.ONE * 0.4
+	create_tween().tween_property(crate.model, "scale", Vector3.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	return crate
+
 
 func _process(delta: float) -> void:
 	_time += delta

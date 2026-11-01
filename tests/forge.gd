@@ -2,7 +2,8 @@ extends SceneTree
 ## Headless test for the smith's forge in the village: Gorm stands at his
 ## forge, metal gear melts down into iron bars (cloth and leather do not),
 ## iron and gold forge new gear into the bag, worn armour is mended for gold,
-## iron bars can be bought, and the iron is kept in the saved game.
+## iron bars can be bought, Gorm sells his own better weapons (found nowhere
+## else, shown in the hero's hand), and the iron is kept in the saved game.
 ## Run with: godot --headless --fixed-fps 60 -s tests/forge.gd
 
 const HERO := "Forge test"
@@ -115,6 +116,48 @@ func _run() -> void:
 	check(not p.wear.has("ritterhelm") and game.coins == 50 - Forge.mend_price("ritterhelm"), "then the helmet is as good as new")
 	check(Forge.worn_down(p).is_empty(), "nothing left to mend")
 	game.menus.close()
+
+	# Gorm's own wares: sold only by him, never loot, held in the hand.
+	var wares := Forge.wares()
+	check(wares.size() == 6 and wares.has("langschwert") and wares.has("kriegshammer") and wares.has("drachenschild"), "Gorm sells his six own pieces")
+	check(not wares.has("schwert") and not wares.has("rabenklinge"), "but not the common or unique gear")
+	var rng := RandomNumberGenerator.new()
+	var found := {}
+	for i in 3000:
+		rng.seed = i
+		found[Items.random_item(rng)] = true
+		found[Items.random_item(rng, 0, "waffe")] = true
+	for id in wares:
+		var item: Dictionary = Items.ALL[id]
+		check(not found.has(id), "%s is never loot or merchant stock" % id)
+		check(Lang.EN.has(item.name), "%s has an English name" % id)
+		check(ResourceLoader.exists(item.model), "%s has its model" % id)
+		check(Forge.can_melt(id) and Forge.recipes().has(id), "%s melts down and can be forged" % id)
+		check(item.slot == "schild" or Training.SKILLS.has(item.uses), "%s trains a skill" % id)
+		check(item.price > Items.ALL["axt"].price, "%s is better and dearer than the common axe" % id)
+	p.bag.clear()
+	game.coins = Items.ALL["langschwert"].price - 1
+	game.menus.open("schmied")
+	check(game.menus._forge_tab == "waffen", "the smith's window opens on his wares")
+	game.menus._buy_ware("langschwert")
+	check(p.bag.is_empty() and game.coins == Items.ALL["langschwert"].price - 1, "without enough gold nothing is bought")
+	game.coins = 200
+	game.menus._buy_ware("langschwert")
+	check(Array(p.bag) == ["langschwert"] and game.coins == 200 - Items.ALL["langschwert"].price, "gold buys the longsword")
+	check(Forge.buy(game, "schwert") != "" and p.bag.size() == 1, "Gorm does not sell the merchant's sword")
+	game.menus._buy_ware("drachenschild")
+	check(p.bag.has("drachenschild"), "and the kite shield")
+	game.menus.close()
+	var power_before := p.power
+	check(p.equip("langschwert") and p.equip("drachenschild"), "both can be worn")
+	check(p.power == power_before + 2, "the longsword hits harder")
+	var held_r: Node = p._model.find_child("handslot_r", true, false).get_node_or_null("Held")
+	var held_l: Node = p._model.find_child("handslot_l", true, false).get_node_or_null("Held")
+	check(held_r != null and held_r.find_children("*", "MeshInstance3D", true, false).size() > 0, "the longsword shows in the hero's hand")
+	check(held_l != null, "the kite shield shows on the other arm")
+	check(not p._model.find_child("handslot_r", true, false).get_node("Knife").visible, "the hero's own knife is put away")
+	p.equipped.clear()
+	p.refresh_stats()
 
 	# The iron stays in the saved game.
 	game.iron = 7

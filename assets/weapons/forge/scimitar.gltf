@@ -1,0 +1,136 @@
+{
+ "asset": {
+  "generator": "tools/obj_to_gltf.py",
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "name": "Scene",
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "scimitar"
+  }
+ ],
+ "materials": [
+  {
+   "name": "scimitar",
+   "doubleSided": true,
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 0
+    },
+    "metallicFactor": 0.0,
+    "roughnessFactor": 1.0
+   }
+  }
+ ],
+ "textures": [
+  {
+   "source": 0,
+   "sampler": 0
+  }
+ ],
+ "samplers": [
+  {
+   "magFilter": 9729,
+   "minFilter": 9987
+  }
+ ],
+ "images": [
+  {
+   "uri": "scimitar_texture.png",
+   "name": "scimitar_texture"
+  }
+ ],
+ "meshes": [
+  {
+   "name": "scimitar",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 1562,
+   "type": "VEC3",
+   "min": [
+    -0.1336272,
+    -0.144,
+    -0.032232000000000004
+   ],
+   "max": [
+    0.1647376,
+    1.2054416000000001,
+    0.032232000000000004
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 1562,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 1562,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5125,
+   "count": 4734,
+   "type": "SCALAR"
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 18744,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 18744,
+   "byteLength": 18744,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 37488,
+   "byteLength": 12496,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 49984,
+   "byteLength": 18936,
+   "target": 34963
+  }
+ ],
+ "buffers": [
+  {
+   "uri": "scimitar.bin",
+   "byteLength": 68920
+  }
+ ]
+}

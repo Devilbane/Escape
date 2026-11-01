@@ -1,0 +1,136 @@
+{
+ "asset": {
+  "generator": "tools/obj_to_gltf.py",
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "name": "Scene",
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "battle_axe"
+  }
+ ],
+ "materials": [
+  {
+   "name": "battle_axe",
+   "doubleSided": true,
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 0
+    },
+    "metallicFactor": 0.0,
+    "roughnessFactor": 1.0
+   }
+  }
+ ],
+ "textures": [
+  {
+   "source": 0,
+   "sampler": 0
+  }
+ ],
+ "samplers": [
+  {
+   "magFilter": 9729,
+   "minFilter": 9987
+  }
+ ],
+ "images": [
+  {
+   "uri": "battle_axe_texture.png",
+   "name": "battle_axe_texture"
+  }
+ ],
+ "meshes": [
+  {
+   "name": "battle_axe",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 1214,
+   "type": "VEC3",
+   "min": [
+    -0.3385692,
+    -0.18000000000000002,
+    -0.058073400000000004
+   ],
+   "max": [
+    0.3385692,
+    1.0038006000000002,
+    0.058073400000000004
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 1214,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 1214,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5125,
+   "count": 3678,
+   "type": "SCALAR"
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 14568,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 14568,
+   "byteLength": 14568,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 29136,
+   "byteLength": 9712,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 38848,
+   "byteLength": 14712,
+   "target": 34963
+  }
+ ],
+ "buffers": [
+  {
+   "uri": "battle_axe.bin",
+   "byteLength": 53560
+  }
+ ]
+}

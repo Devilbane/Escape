@@ -13,6 +13,8 @@ var game: Node
 var current := ""
 var _panel: PanelContainer
 var _box: VBoxContainer
+## Width of the wrapped lines in the "Welcome back" window.
+const RETURN_TEXT_WIDTH := 700
 var _selected := -1
 var _note := ""
 ## The saved game whose delete button was clicked once; a second click deletes.
@@ -1284,7 +1286,10 @@ func _build_return() -> void:
 		lines = lines.duplicate()
 		lines.append(Lang.t("Dein Held hat in der Zwischenzeit nichts Besonderes getan."))
 	for i in lines.size():
-		_add_label(lines[i], 22 if i == 0 else 20, BLUE if i == 0 else Color.WHITE)
+		var l := _add_label(lines[i], 22 if i == 0 else 20, BLUE if i == 0 else Color.WHITE)
+		# A fixed width lets long lines wrap instead of stretching the window.
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size.x = RETURN_TEXT_WIDTH
 	var go: Button = game._make_button(Lang.t("Weiter"), close)
 	go.custom_minimum_size = Vector2(220, 60)
 	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER

@@ -113,6 +113,9 @@ var lore: Array = []
 var _knife_label: Label
 var _prompt: Label
 var _message: Label
+## Space kept free left and right of centred on-screen texts.
+const SCREEN_TEXT_MARGIN := 80
+const MESSAGE_FONT_SIZE := 30
 var _fade: ColorRect
 var _title: Control
 var _title_text: Label
@@ -489,19 +492,29 @@ func _setup_hud() -> void:
 	row.add_child(_coin_label)
 
 
+	# Centred texts span the screen width (minus a margin) and wrap onto
+	# further lines instead of running off both edges.
 	_prompt = _make_label(TEXT_FONT, 22, Color(1, 1, 1, 0.9))
-	_prompt.set_anchors_preset(Control.PRESET_CENTER)
-	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_prompt.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_prompt.set_anchors_preset(Control.PRESET_HCENTER_WIDE)
+	_prompt.anchor_top = 0.5
+	_prompt.anchor_bottom = 0.5
+	_prompt.offset_left = SCREEN_TEXT_MARGIN
+	_prompt.offset_right = -SCREEN_TEXT_MARGIN
 	_prompt.offset_top = 70
+	_prompt.offset_bottom = 70
+	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_prompt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hud.add_child(_prompt)
 
-	_message = _make_label(TEXT_FONT, 30)
-	_message.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_message.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_message.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_message = _make_label(TEXT_FONT, MESSAGE_FONT_SIZE)
+	_message.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_message.offset_left = SCREEN_TEXT_MARGIN
+	_message.offset_right = -SCREEN_TEXT_MARGIN
+	_message.offset_top = -175
 	_message.offset_bottom = -175
+	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_message.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_message.modulate.a = 0.0
 	_hud.add_child(_message)
 
@@ -552,6 +565,8 @@ func _setup_hud() -> void:
 
 	_title = VBoxContainer.new()
 	_title.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_title.offset_left = SCREEN_TEXT_MARGIN
+	_title.offset_right = -SCREEN_TEXT_MARGIN
 	_title.alignment = BoxContainer.ALIGNMENT_CENTER
 	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(_title)
@@ -1997,6 +2012,14 @@ func learn(entry: String) -> void:
 
 func show_message(text: String, duration := 2.2) -> void:
 	_message.text = text
+	# Very long messages get a smaller font so they stay at a few lines.
+	var size := MESSAGE_FONT_SIZE
+	if text.length() > 160:
+		size = MESSAGE_FONT_SIZE - 6
+	elif text.length() > 90:
+		size = MESSAGE_FONT_SIZE - 3
+	_message.add_theme_font_size_override("font_size", size)
+	_message.add_theme_constant_override("outline_size", maxi(4, size / 6))
 	if _message_tween:
 		_message_tween.kill()
 	_message_tween = create_tween()

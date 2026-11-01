@@ -89,6 +89,8 @@ const WALL_DECOR := [
 const STONE_TINT := Color(0.6, 0.56, 0.52)
 ## Colour of the iron spikes in spike traps.
 const SPIKE_IRON := Color(0.5, 0.5, 0.53)
+## The grey of the kit's floor tiles, for spike and grate tiles.
+const FLOOR_GREY := Color(0.74, 0.73, 0.71)
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
 const SOLID := "#bxotkCDHBLVF?f=U"
 ## Reach for searching: anything on a neighbouring tile.
@@ -128,6 +130,11 @@ const TORCH_TOUCH := 1.6
 var _spikes: Array = []
 var _pickups: Array = []
 var interactables: Array = []
+## What the hero already took here: ids of searched furniture and picked up
+## coins. The game hands in its own dictionary for this level, keeps it in
+## the saved game, and calls restore_taken() after build(), so nothing fills
+## up again after a reload, a night in bed or a walk out and back in.
+var taken := {}
 var enemies: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
@@ -423,7 +430,7 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 			elif mi.name == "wall_doorway_door":
 				mi.material_override = _tinted(mi.get_active_material(0))
 			else:
-				mi.material_override = _rough_stone(mi.get_active_material(0))
+				mi.material_override = _rough_stone(mi.get_active_material(0), piece in ["floor_tile_big_spikes", "floor_tile_big_grate"])
 	return node
 
 
@@ -463,16 +470,19 @@ func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
 
 ## The darkened cartoon stone, made rough and matt like the kit's walls, so
 ## spike and grate tiles, stairs and doorways do not look like plastic.
-func _rough_stone(mat: Material) -> Material:
-	if not _scenes.has("mat_rough_stone"):
+## grey: plain grey stone like the kit's floor tiles (for spike and grate tiles).
+func _rough_stone(mat: Material, grey := false) -> Material:
+	var key := "mat_rough_stone_grey" if grey else "mat_rough_stone"
+	if not _scenes.has(key):
 		var stone := ShaderMaterial.new()
 		stone.shader = STONE_SHADER
 		stone.set_shader_parameter("albedo_tex", (mat as StandardMaterial3D).albedo_texture)
-		stone.set_shader_parameter("albedo_color", STONE_TINT)
+		stone.set_shader_parameter("albedo_color", FLOOR_GREY if grey else STONE_TINT)
+		stone.set_shader_parameter("desaturate", 1.0 if grey else 0.0)
 		stone.set_shader_parameter("use_normal_map", false)
 		stone.set_shader_parameter("strength", 1.4)
-		_scenes["mat_rough_stone"] = stone
-	return _scenes["mat_rough_stone"]
+		_scenes[key] = stone
+	return _scenes[key]
 
 
 func _tinted(mat: Material) -> Material:
@@ -807,15 +817,16 @@ func _build_key(pos: Vector3) -> void:
 	_pickups.append({"node": holder, "kind": "key", "radius": 1.8})
 
 
-## A gold coin lying flat on the floor, picked up when the hero walks over it.
+## A small gold coin lying flat on the floor, picked up when the hero walks over it.
 func _build_coin(pos: Vector3) -> void:
 	var holder := Node3D.new()
 	holder.position = pos + Vector3(0, 0.03, 0)
 	holder.rotation.y = deg_to_rad(hash(Vector2(pos.x, pos.z)) % 360)
 	add_child(holder)
 	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
-	coin.scale = Vector3.ONE * 3.0
-	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5})
+	coin.scale = Vector3.ONE * 1.6
+	var c := world_to_cell(pos)
+	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "id": "coin:%d,%d" % [c.x, c.y]})
 
 
 func _build_chest(c: Vector2i) -> void:
@@ -1349,6 +1360,8 @@ func _check_pickups() -> void:
 				bag_full.emit()
 			continue
 		_pickups.erase(p)
+		if p.has("id"):
+			taken[p.id] = true
 		var tween := create_tween()
 		tween.tween_property(n, "position:y", n.position.y + 1.5, 0.35).set_ease(Tween.EASE_OUT)
 		tween.parallel().tween_property(n, "scale", Vector3.ONE * 0.01, 0.35).set_ease(Tween.EASE_IN)
@@ -1407,7 +1420,8 @@ func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector
 		loot = {"potion": 1}
 	else:
 		loot = {"item": Items.random_item(loot_rng)}
-	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null}
+	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null,
+			"id": "%s:%d,%d" % [label, c.x, c.y]}
 	interactables.append(obj)
 	return obj
 
@@ -1443,6 +1457,7 @@ func search(obj: Dictionary) -> Dictionary:
 	if obj.searched:
 		return {}
 	obj.searched = true
+	taken[obj.id] = true
 	if obj.lid:
 		create_tween().tween_property(obj.lid, "rotation:x", obj.lid.rotation.x - deg_to_rad(70), 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_scatter_debris(obj)
@@ -1451,6 +1466,22 @@ func search(obj: Dictionary) -> Dictionary:
 		burst.position = obj.icon_pos - Vector3(0, 1.0, 0)
 		add_child(burst)
 	return obj.loot
+
+
+## Leaves everything the hero already took as it was left: furniture
+## searched (chests with their lids up, debris in front) and coins gone.
+func restore_taken() -> void:
+	for obj in interactables:
+		if not taken.has(obj.id) or obj.searched:
+			continue
+		obj.searched = true
+		if obj.lid:
+			obj.lid.rotation.x -= deg_to_rad(70)
+		_scatter_debris(obj)
+	for p in _pickups.duplicate():
+		if p.has("id") and taken.has(p.id):
+			_pickups.erase(p)
+			p.node.queue_free()
 
 
 ## A coin or two and a torn page left on the floor in front of a searched

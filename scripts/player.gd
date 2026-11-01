@@ -90,6 +90,9 @@ var power := 1
 var hardening := 0
 ## How much each armour piece has worn down, by item id.
 var wear := {}
+## The hero's hair style, hair colour and head tattoo (see HairLook); the
+## barber in the village changes them.
+var hair := HairLook.DEFAULT.duplicate()
 ## Chance per hit that a worn armour piece loses a point of durability.
 const WEAR_CHANCE := 0.05
 ## Chance to stop a whole hit with the worn shield (from the shield's "block").
@@ -194,7 +197,7 @@ func _ready() -> void:
 	GearLook.dress(_model.find_child("handslot_r", true, false).get_node("Knife"), "mixed") # The hero's own knife.
 	for arm in ["Rogue_ArmLeft", "Rogue_ArmRight"]:
 		GearLook.apply(_model.find_child(arm, true, false) as MeshInstance3D, "outfit")
-	_matt_head()
+	set_hair(hair)
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle", SNEAK_ANIM]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -236,7 +239,8 @@ func is_noisy() -> bool:
 	return not sneaking and (Vector2(velocity.x, velocity.z).length() > 0.5 or not is_on_floor())
 
 
-## Fades the hero while sneaking, and further in the shadows.
+## Turns the hero ash grey and see-through while sneaking, more so in the
+## shadows.
 func _update_sneak_look() -> void:
 	var alpha := 0.0
 	if sneaking:
@@ -245,26 +249,73 @@ func _update_sneak_look() -> void:
 		return
 	_shown_alpha = alpha
 	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
-		if mesh.material_override is ShaderMaterial:
-			# A tinted part: swap in the shader that can fade.
+		if HairLook.is_hair(mesh.material_override):
+			# Hair, scalp and face: their own shader greys and fades them.
+			HairLook.fade(mesh.material_override as ShaderMaterial, alpha)
+			continue
+		if mesh.material_override is ShaderMaterial and (mesh.material_override as ShaderMaterial).shader in [TINT_SHADER, TINT_FADE_SHADER]:
+			# A tinted part: swap in the shader that greys and fades.
 			var tinted := mesh.material_override as ShaderMaterial
 			tinted.shader = TINT_FADE_SHADER if alpha > 0.0 else TINT_SHADER
 			tinted.set_shader_parameter("fade", alpha)
 			continue
+		if mesh.material_override != null:
+			_ghost_override(mesh, alpha)
+			continue
 		if mesh.mesh == null:
 			continue
 		for i in mesh.mesh.get_surface_count():
-			var mat := mesh.get_surface_override_material(i) as StandardMaterial3D
-			if mat == null:
-				if alpha <= 0.0:
-					continue # Never faded: nothing to undo.
-				var base := mesh.mesh.surface_get_material(i) as StandardMaterial3D
-				if base == null:
-					continue
-				mat = base.duplicate()
-				mesh.set_surface_override_material(i, mat)
-			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if alpha > 0.0 else BaseMaterial3D.TRANSPARENCY_DISABLED
-			mat.albedo_color.a = 1.0 - alpha
+			_ghost_surface(mesh, i, alpha)
+
+
+## Puts a grey see-through stand-in over one surface of a part, keeping the
+## material it had to bring back when the hero stops sneaking.
+func _ghost_surface(mesh: MeshInstance3D, i: int, alpha: float) -> void:
+	var key := "unghosted_%d" % i
+	var mat := mesh.get_surface_override_material(i)
+	if mat is ShaderMaterial and (mat as ShaderMaterial).shader == GHOST_SHADER:
+		if alpha > 0.0:
+			mat.set_shader_parameter("fade", alpha)
+		else:
+			mesh.set_surface_override_material(i, mesh.get_meta(key, null))
+			mesh.remove_meta(key)
+		return
+	if alpha <= 0.0:
+		return
+	var base := mat if mat != null else mesh.mesh.surface_get_material(i)
+	mesh.set_meta(key, mat)
+	mesh.set_surface_override_material(i, _ghost(base, alpha))
+
+
+## The same for a part drawn with one material over the whole of it.
+func _ghost_override(mesh: MeshInstance3D, alpha: float) -> void:
+	var mat := mesh.material_override
+	if mat is ShaderMaterial and (mat as ShaderMaterial).shader == GHOST_SHADER:
+		if alpha > 0.0:
+			mat.set_shader_parameter("fade", alpha)
+		else:
+			mesh.material_override = mesh.get_meta("unghosted", null)
+			mesh.remove_meta("unghosted")
+		return
+	if alpha <= 0.0 or not mat is BaseMaterial3D:
+		return
+	mesh.set_meta("unghosted", mat)
+	mesh.material_override = _ghost(mat, alpha)
+
+
+const GHOST_SHADER := preload("res://shaders/ghost.gdshader")
+
+
+func _ghost(base: Material, alpha: float) -> ShaderMaterial:
+	var ghost := ShaderMaterial.new()
+	ghost.shader = GHOST_SHADER
+	if base is BaseMaterial3D:
+		var std := base as BaseMaterial3D
+		ghost.set_shader_parameter("tex", std.albedo_texture)
+		ghost.set_shader_parameter("use_tex", std.albedo_texture != null)
+		ghost.set_shader_parameter("color", std.albedo_color)
+	ghost.set_shader_parameter("fade", alpha)
+	return ghost
 
 
 ## A golden cord along the edge of the cape, and a white feather at the head.
@@ -280,41 +331,31 @@ func _add_trim() -> void:
 		var cord := MeshInstance3D.new()
 		cord.mesh = Effects.cord_mesh(Effects.open_edges(cape.mesh), 0.075, gold)
 		cape.add_child(cord)
-	var head := _model.find_child("Rogue_Head", true, false) as MeshInstance3D
-	var skeleton := _model.find_child("Skeleton3D", true, false) as Skeleton3D
-	if head == null or skeleton == null:
+	# The feather hangs from the head bone, in the head mesh's space.
+	var attach := HairLook.head_slot(_model)
+	if attach == null:
 		return
-	# The head is skinned to the head bone: place the feather in that bone's space.
-	var bind := Transform3D.IDENTITY
-	for i in head.skin.get_bind_count():
-		if head.skin.get_bind_name(i) == "head":
-			bind = head.skin.get_bind_pose(i)
-	var attach := BoneAttachment3D.new()
-	attach.name = "HeadSlot"
-	attach.bone_name = "head"
-	skeleton.add_child(attach)
+	var bind: Transform3D = attach.get_meta("bind")
 	var feather := MeshInstance3D.new()
 	feather.name = "Feather"
 	feather.mesh = Effects.feather_mesh()
 	feather.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Tucked in on the left side of the head, sweeping up and back.
+	# Tucked into the hair on the left side of the head, or behind the left
+	# ear of a shaved head, sweeping up and back.
+	feather.set_meta("spots", [bind * Vector3(0.47, 1.66, -0.05), bind * Vector3(0.4, 1.68, -0.2)])
 	feather.transform = Transform3D(Basis.from_euler(Vector3(-0.75, 0.0, -0.45)).scaled(Vector3.ONE * 1.3), bind * Vector3(0.47, 1.66, -0.05))
 	attach.add_child(feather)
 
 
-## Hair and face are matt, so the hair does not shine like plastic in the
-## lantern light. Fading while sneaking reuses this material.
-func _matt_head() -> void:
-	var head := _model.find_child("Rogue_Head", true, false) as MeshInstance3D
-	if head == null or head.mesh == null:
-		return
-	var base := head.mesh.surface_get_material(0) as StandardMaterial3D
-	if base == null:
-		return
-	var matt := base.duplicate() as StandardMaterial3D
-	matt.roughness = 0.95
-	matt.metallic_specular = 0.12
-	head.set_surface_override_material(0, matt)
+## Gives the hero a new hair style, colour or tattoo (see HairLook).
+func set_hair(look: Dictionary) -> void:
+	hair = HairLook.checked(look)
+	if _model == null:
+		return # Not built yet: _ready puts it on.
+	HairLook.apply(_model, hair)
+	var feather := _model.find_child("Feather", true, false) as Node3D
+	if feather:
+		feather.position = feather.get_meta("spots")[0 if hair.style == "natural" else 1]
 
 
 ## The glowing devilbane emblem on the back of the cape.
@@ -870,7 +911,8 @@ func _ailments_changed() -> void:
 	ailments_changed.emit()
 
 
-## Puts the worn helmet or hat on the hero's head; the feather makes room for it.
+## Puts the worn helmet or hat on the hero's head; the mohawk and the feather
+## make room for it.
 func _show_headgear() -> void:
 	var slot := _model.find_child("HeadSlot", true, false)
 	if slot == null:
@@ -882,6 +924,7 @@ func _show_headgear() -> void:
 	var feather := slot.get_node_or_null("Feather") as Node3D
 	if feather:
 		feather.visible = not item.has("hat")
+	HairLook.cover(_model, item.has("hat"))
 	if not item.has("hat"):
 		return
 	# The hats sit on the head bone of their own character, which matches the hero's.

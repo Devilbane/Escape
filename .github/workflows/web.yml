@@ -64,15 +64,25 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/graveyard_start.gd | tee graveyard.log
           grep -q PASS graveyard.log
 
-      - name: Hero and skeletons cannot stack test
+      - name: Looted containers stay empty test
         run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/no_stacking.gd | tee stacking.log
-          grep -q PASS stacking.log
+          timeout 120 ~/godot/godot --headless -s tests/looted_containers.gd | tee looted.log
+          grep -q PASS looted.log
 
       - name: Several saved games test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log
           grep -q PASS slots.log
+
+      - name: Barber test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log
+          grep -q PASS barber.log
+
+      - name: Hero and skeletons cannot stack test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/no_stacking.gd | tee stacking.log
+          grep -q PASS stacking.log
 
       - name: Export the browser version
         run: |

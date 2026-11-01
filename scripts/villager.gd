@@ -13,8 +13,8 @@ const SAY_TIME := 4.0
 ## Waits this long for the hero to step aside before walking on.
 const MAKE_WAY := 1.4
 
-## name: shown above the head; model; show: extra parts; colors: body,
-## legs, hat/cape; plan: how they spend the day (see _next_task); work: the
+## name: shown above the head; model; show: extra parts; hair: a look for a
+## Rogue (see HairLook); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
 ## animation at their spot; lines: what they say, one after another.
 const ROLES := {
 	"0": {"name": "Dorfvorsteher Aldo", "model": "Mage", "show": ["Mage_Hat", "2H_Staff", "Mage_Cape"],
@@ -59,6 +59,9 @@ const ROLES := {
 	"M": {"name": "Postmeister Anselm", "model": "Rogue", "show": [],
 		"colors": [Color(0.95, 0.8, 0.3), Color(0.35, 0.35, 0.5), Color(1, 1, 1)], "plan": "carry", "work": "PickUp",
 		"lines": ["Ein Brief für dich? Noch nicht, aber bald bestimmt.", "Ich bringe die Post zu jedem Haus im Dorf.", "Die Postkutsche kommt jeden dritten Tag."]},
+	"Z": {"name": "Barbier Benno", "model": "Rogue", "show": [], "hair": {"style": "mohawk", "color": "fire"},
+		"colors": [Color(0.95, 0.95, 0.95), Color(0.25, 0.25, 0.3), Color(1, 1, 1)], "plan": "shop", "work": "Interact",
+		"lines": ["Haare schneiden, färben, tätowieren: Bei mir wirst du ein neuer Mensch!", "Ein Irokese steht dir bestimmt. Oder gleich in Flammen?", "Halt still, sonst wird die Tätowierung schief."]},
 	"Y": {"name": "Bankier Goldwin", "model": "Mage", "show": ["Mage_Hat"],
 		"colors": [Color(0.25, 0.45, 0.3), Color(0.25, 0.25, 0.28), Color(0.2, 0.35, 0.25)], "plan": "work", "work": "Interact",
 		"lines": ["Gold ist bei uns sicherer als in jeder Truhe.", "Die Bank der Krone öffnet bald ihre Schalter für Abenteurer.", "Zinsen? Nur für treue Kunden."]},
@@ -123,6 +126,8 @@ func _ready() -> void:
 	_model.scale = Vector3.ONE * _info.get("scale", 1.0)
 	add_child(_model)
 	_dress()
+	if _info.has("hair"):
+		HairLook.apply(_model, HairLook.checked(_info.hair))
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walking_A", "Walking_B", "Running_A", "Sit_Floor_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR

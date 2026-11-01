@@ -83,6 +83,15 @@ var quests := Quests.new(self)
 var crafting := Crafting.new(self)
 ## The line in the water, when the hero is fishing (see Fishing).
 var fishing := Fishing.new(self)
+## What each villager thinks of the hero (see Reputation): discounts,
+## gossip and secret recipes. Kept in the saved game.
+var reputation := Reputation.new(self)
+## The villager whose goods or services are open in a window right now
+## (role letter), "" for none: their discount applies (see trader_price).
+var trader_role := ""
+## Villagers who just came to think better of the hero, told together.
+var _reputation_news: Array[String] = []
+const REPUTATION_NEWS_DELAY := 4.6
 ## Counts down to the next look at who has a task (see refresh_quest_marks).
 var _quest_mark_timer := 0.0
 ## Village buildings with floors of their own: building letter -> level index.
@@ -687,7 +696,7 @@ func _use_station(s: Dictionary) -> void:
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc):
+		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building)
@@ -695,13 +704,14 @@ func _use_station(s: Dictionary) -> void:
 		# A villager who trades: a word, then the goods. A task handed out or
 		# finished comes first; the goods wait until the next time. While the
 		# last line still shows, the goods open without a new word.
-		if not busy and quests.talk(s.npc, true):
+		if not busy and (quests.talk(s.npc, true) or reputation.tell_secret(s.npc)):
 			player.face(s.pos - player.global_position)
 			player.play("Idle")
 			return
-		if not busy:
+		if not busy and not reputation.gossip(s.npc):
 			s.npc.talk(player)
 		player.face(s.pos - player.global_position)
+		trader_role = s.npc.role
 		menus.open(s.kind)
 	elif s.kind == "schrein":
 		_open_shrine(s)
@@ -1399,6 +1409,7 @@ func _start_new_game() -> void:
 	quests.clear()
 	crafting.clear()
 	fishing.stop()
+	reputation.clear()
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
@@ -1667,6 +1678,7 @@ func _apply_save(data: Dictionary) -> void:
 				met[str(role)] = true
 	quests.load_from(data.get("quests", {}))
 	crafting.load_from(data.get("crafting", {}))
+	reputation.load_from(data.get("reputation", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
@@ -1775,6 +1787,7 @@ func save_game(going_away := false) -> bool:
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
 		"crafting": crafting.for_save(),
+		"reputation": reputation.for_save(),
 		"hour": day_hour,
 		"weather": weather, "weather_hours": weather_hours,
 	}
@@ -1950,7 +1963,8 @@ func away_choices() -> Dictionary:
 	for id in owned:
 		if Items.is_book(id) and not id in books:
 			books.append(id)
-	return {"job": jobs, "train": train, "study": books, "craft": Offline.RECIPES.keys()}
+	var crafts := Offline.RECIPES.keys().filter(reputation.can_craft)
+	return {"job": jobs, "train": train, "study": books, "craft": crafts}
 
 
 ## Back after a sleep in the bed: the hero has lived the planned day for as
@@ -1994,6 +2008,13 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 	coins += int(result.gold)
 	player.knives += int(result.knives)
 	var repaired := _repair_gear(int(result.repairs))
+	# Cut stone blocks go into the storage chest, as many as it still holds.
+	var stones := 0
+	for i in int(result.get("stones", 0)):
+		if storage.size() >= Menus.STORAGE_SIZE:
+			break
+		storage.append(Menus.STONE)
+		stones += 1
 	if spent.job > 0.0:
 		lines.append(Lang.t("%s: %s, +%d Gold") % [Lang.t(Offline.JOBS[plan.job].name), Offline.duration_text(spent.job), result.gold])
 	if spent.train > 0.0:
@@ -2004,6 +2025,8 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 		var made := ""
 		if Offline.RECIPES[plan.craft].makes == "knife":
 			made = Lang.t("%d Wurfmesser") % result.knives
+		elif Offline.RECIPES[plan.craft].makes == "stone":
+			made = Lang.t("%d Steinblöcke (in der Truhe)") % stones
 		else:
 			made = Lang.t("%d Punkte Haltbarkeit") % repaired
 		lines.append(Lang.t("%s: %s, %s") % [Lang.t(Offline.RECIPES[plan.craft].name), Offline.duration_text(spent.craft), made])
@@ -2103,6 +2126,40 @@ func quest_reward(id: String) -> void:
 	else:
 		Sfx.play(self, "key", -3.0)
 	quest_news(Lang.t("Auftrag abgeschlossen: %s\nBelohnung: %s") % [Lang.t(q.title), Quests.reward_text(id)], GOLD, 4.5)
+	reputation.on_quest_done(id)
+
+
+## A villager thinks better of the hero now: friendly, trusted or honoured.
+## Several at once (word of mouth after a task) are told together, once the
+## reward has been read.
+func reputation_rose(role: String, new_level: int) -> void:
+	var line := "%s: %s" % [Quests.villager_name(role), Reputation.level_name(new_level)]
+	var off := roundi(Reputation.LEVELS[new_level].discount * 100.0)
+	if off > 0:
+		line += Lang.t(" (%d%% Rabatt)") % off
+	if level:
+		Effects.float_text(level, player.global_position + Vector3(0, 3.8, 0), line, Color(0.75, 0.6, 1.0), true)
+	_reputation_news.append(line)
+	if _reputation_news.size() == 1:
+		get_tree().create_timer(REPUTATION_NEWS_DELAY).timeout.connect(_show_reputation_news)
+
+
+func _show_reputation_news() -> void:
+	if _reputation_news.is_empty():
+		return
+	show_message(Lang.t("Dein Ruf im Dorf steigt:") + "\n" + "\n".join(_reputation_news), 5.0)
+	_reputation_news.clear()
+	learn(Reputation.HOW_TO)
+
+
+## A price in gold at the villager whose window is open (see trader_role).
+func trader_price(gold: int) -> int:
+	return reputation.price(trader_role, gold)
+
+
+## The hero bought something from the villager whose window is open.
+func traded() -> void:
+	reputation.on_trade(trader_role)
 
 
 ## The "!" and "?" over the villagers' heads. Looked at a few times a

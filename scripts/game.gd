@@ -48,6 +48,8 @@ var met := {}
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
 var coins := 0
+## Iron bars for the smith's forge (see Forge), counted like gold.
+var iron := 0
 ## What the hero already took on each level, by level file: the ids of
 ## searched furniture and picked up coins (see Level.taken). Kept in the
 ## saved game, so looted chests stay empty.
@@ -1113,6 +1115,7 @@ func _start_new_game() -> void:
 	_name_box.visible = false
 	_name_edit.release_focus()
 	coins = 0
+	iron = 0
 	escaped = false
 	secrets_found = 0
 	dry_levels = 0
@@ -1296,6 +1299,7 @@ func _read_save(path := "") -> Dictionary:
 func _apply_save(data: Dictionary) -> void:
 	hero_name = data.get("name", Lang.t("Namenlos"))
 	coins = int(data.coins)
+	iron = int(data.get("iron", 0))
 	secrets_found = int(data.get("secrets", 0))
 	dry_levels = int(data.get("dry", 0))
 	storage.assign(data.storage)
@@ -1430,7 +1434,7 @@ func _home_given_now() -> bool:
 func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp)
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(),
@@ -2249,6 +2253,7 @@ func _process(delta: float) -> void:
 			"eingang": Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
+			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
 		}[station.kind]
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")

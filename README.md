@@ -77,6 +77,14 @@ backpack, or swap it for a smaller one, while everything you carry still fits.
 Hard armour (knight's helmet, crest shield, chain mail, plate armour) has **hardening**: it takes a fixed amount off every
 hit (at least 1 damage always gets through). Every hit has a 5 % chance to wear off one point of
 **durability**; once that is used up, the piece breaks.
+At the **forge** beside the smithy in the village, Gorm the **smith** works your gear (walk into him):
+*melt down* metal gear from your bag (weapons, shields, knight's helmet, chain mail, plate armour, rings,
+bracelets, amulets) into **iron bars**, one bar per 8 gold of the piece's price (plate armour gives 6;
+cloth, leather, fur and bone do not melt); *forge* any metal weapon, shield or armour from iron and a
+little gold (plate armour: 8 iron and 16 gold), so you pick exactly the piece you want; and *mend* worn
+armour and shields, a few gold per point of durability. He also sells iron bars for 4 gold each, so
+forging from bought iron costs about what the merchant asks; iron from melted loot makes it cheaper.
+Iron is counted like gold, weighs nothing and stays in your saved game.
 **Shields** block: round shield 20 %, crest shield 25 %, spiked shield 30 %. A blocked blow or
 shot does no damage at all (spikes from below cannot be blocked). Shields have durability too:
 every block wears it with a 20 % chance, every hit with 5 % as with armour.

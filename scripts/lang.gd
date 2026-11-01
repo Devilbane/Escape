@@ -20,6 +20,8 @@ const EN := {
 	"Musik: aus": "Music: off",
 	"Musik": "Music",
 	"Lautstärke der Musik": "Music volume",
+	"Effekte": "Effects",
+	"Lautstärke der Geräusche": "Sound effects volume",
 	"Menü": "Menu",
 	"%d%% Tempo": "%d%% speed",
 	"Spiel beenden": "Quit game",

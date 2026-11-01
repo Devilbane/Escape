@@ -9,6 +9,11 @@ const SETTINGS_FILE := "user://einstellungen.cfg"
 const PITCH_SPREAD := 0.08
 
 static var muted := false
+## True while the game is in the background (alt-tabbed, other tab, minimised).
+static var _in_background := false
+## Kept alive so the browser can keep calling back into the game.
+static var _js_focus_callback = null
+static var _watching_focus := false
 static var _streams := {}
 
 
@@ -29,7 +34,42 @@ static func toggle_mute() -> void:
 
 
 static func _apply_mute() -> void:
-	AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"), muted)
+	AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"), muted or _in_background)
+
+
+## Silences all sound while the game is not the active window or tab, and
+## brings it back on return. Does not touch the player's own mute setting.
+static func watch_focus(tree_node: Node) -> void:
+	if _watching_focus:
+		return
+	_watching_focus = true
+	if OS.has_feature("web"):
+		# In the browser, ask the page itself: the tab can be hidden or the
+		# browser window can lose focus without Godot noticing in time.
+		_js_focus_callback = JavaScriptBridge.create_callback(func(_args): _check_page_focus())
+		var window = JavaScriptBridge.get_interface("window")
+		var document = JavaScriptBridge.get_interface("document")
+		window.addEventListener("blur", _js_focus_callback)
+		window.addEventListener("focus", _js_focus_callback)
+		window.addEventListener("pagehide", _js_focus_callback)
+		window.addEventListener("pageshow", _js_focus_callback)
+		document.addEventListener("visibilitychange", _js_focus_callback)
+		_check_page_focus()
+	else:
+		var win := tree_node.get_window()
+		win.focus_exited.connect(func(): _set_background(true))
+		win.focus_entered.connect(func(): _set_background(false))
+
+
+static func _check_page_focus() -> void:
+	_set_background(bool(JavaScriptBridge.eval("document.hidden || !document.hasFocus()", true)))
+
+
+static func _set_background(value: bool) -> void:
+	if value == _in_background:
+		return
+	_in_background = value
+	_apply_mute()
 
 
 static func _stream(sound: String) -> AudioStream:

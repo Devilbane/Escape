@@ -138,6 +138,7 @@ func _ready() -> void:
 	menus = Menus.new()
 	add_child(menus)
 	Sfx.load_settings()
+	Sfx.watch_focus(self)
 	_update_sound_button()
 	_ambience = Sfx.start_ambience(self)
 	menus.setup(self, _hud)

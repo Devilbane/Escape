@@ -14,7 +14,8 @@ const SAY_TIME := 4.0
 const MAKE_WAY := 1.4
 
 ## name: shown above the head; model; show: extra parts; hair: a look for a
-## Rogue (see HairLook); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
+## Rogue (see HairLook); sex: "female" for a woman built on the Rogue (see
+## BodyLook); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
 ## animation at their spot; lines: what they say, one after another.
 const ROLES := {
 	"0": {"name": "Dorfvorsteher Aldo", "model": "Mage", "show": ["Mage_Hat", "2H_Staff", "Mage_Cape"],
@@ -23,7 +24,7 @@ const ROLES := {
 	"1": {"name": "Schmied Gorm", "model": "Barbarian", "show": ["1H_Axe"],
 		"colors": [Color(0.55, 0.42, 0.32), Color(0.4, 0.36, 0.34), Color(1, 1, 1)], "plan": "work", "work": "1H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Brauchst du eine Klinge? Ich schmiede die besten im Tal.", "Heiß muss das Eisen sein, sonst bricht es.", "Aus der Gruft? Dann hast du Mut, das muss man dir lassen."]},
-	"2": {"name": "Bäuerin Lene", "model": "Rogue", "show": [],
+	"2": {"name": "Bäuerin Lene", "model": "Rogue", "show": [], "sex": "female",
 		"colors": [Color(0.9, 0.75, 0.45), Color(0.55, 0.45, 0.3), Color(0.85, 0.55, 0.3)], "plan": "work", "work": "PickUp",
 		"lines": ["Die Kürbisse sind dieses Jahr riesig!", "Das Korn muss rein, bevor der Frost kommt.", "Hast du Hunger? Im Wirtshaus gibt es Suppe."]},
 	"3": {"name": "Holzfäller Bruno", "model": "Barbarian", "show": ["2H_Axe", "Barbarian_Hat"],
@@ -35,7 +36,7 @@ const ROLES := {
 	"5": {"name": "Zecher Fritz", "model": "Barbarian", "show": ["Mug"],
 		"colors": [Color(0.4, 0.55, 0.4), Color(0.45, 0.35, 0.28), Color(1, 1, 1)], "plan": "sit", "work": "Sit_Floor_Idle",
 		"lines": ["Prost! Auf die Freiheit!", "Das Bier hier ist das beste diesseits der Berge.", "Setz dich doch, erzähl von da unten!"]},
-	"6": {"name": "Krämerin Mira", "model": "Rogue", "show": ["Rogue_Cape"],
+	"6": {"name": "Krämerin Mira", "model": "Rogue", "show": ["Rogue_Cape"], "sex": "female",
 		"colors": [Color(0.7, 0.35, 0.6), Color(0.35, 0.3, 0.45), Color(0.6, 0.3, 0.5)], "plan": "shop", "work": "Interact",
 		"lines": ["Brot, Käse, Seile, Fackeln: alles für den Alltag!", "Ich kaufe auch, was du aus dem Verlies mitbringst.", "Für einen Helden mache ich einen guten Preis."]},
 	"7": {"name": "Pip", "model": "Rogue", "show": [], "scale": 0.72,
@@ -123,9 +124,12 @@ func _ready() -> void:
 	shape.position.y = capsule.height * 0.5
 	add_child(shape)
 	_model = load("res://assets/characters/%s.glb" % _info.model).instantiate()
-	_model.scale = Vector3.ONE * _info.get("scale", 1.0)
+	_model.scale = Vector3.ONE * _info.get("scale", 1.0) * BodyLook.scale_of(_info.get("sex", BodyLook.DEFAULT))
 	add_child(_model)
 	_dress()
+	# A woman built on the Rogue model gets her own body (see BodyLook); the
+	# dyes stay on, they belong to the parts, not to the meshes.
+	BodyLook.apply(_model, _info.get("sex", BodyLook.DEFAULT))
 	if _info.has("hair"):
 		HairLook.apply(_model, HairLook.checked(_info.hair))
 	_anim = _model.find_child("AnimationPlayer", true, false)

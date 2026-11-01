@@ -99,6 +99,11 @@ After every 4 levels you reach a **safe room** without enemies, the refuge. It h
 that refills your life and cures poison and curses, a storage chest, a merchant who buys and sells for gold, and a bed. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero falls later, the saved game is kept: a click on the “Fallen” screen continues the game from the refuge, N starts a new one.
 On the next start you continue from there with a click or a key. The saved game is stored in the browser.
 
+**Hero or heroine:** a new game asks whether you play a hero or a heroine before it asks for your name.
+The heroine has a body and a face of her own, not just new colours: a narrower waist and jaw, larger eyes
+with lashes, a rosy mouth and hair that falls to her shoulders. Hair styles, hats, armour and the sleep in the
+bed work for both, and the choice is kept in the saved game.
+
 **Several saved games:** every hero has a saved game of their own, so you can play several heroes side by side.
 The **Load** window (key L, or “Load saved game” on the title screen) lists them all with level, gold and the time they were saved;
 pick one to load it, or delete it (click “Delete” twice). On the title screen a click continues with the game saved last.

@@ -65,9 +65,11 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 	var slot := head_slot(model)
 	if head == null or slot == null:
 		return
+	# The head the hair is cut from: a body look (BodyLook) may have set it.
 	var source: Mesh = head.get_meta("hair_source") if head.has_meta("hair_source") else head.mesh
 	if not head.has_meta("hair_source"):
 		head.set_meta("hair_source", source)
+	if not is_hair(head.material_override):
 		var mat := ShaderMaterial.new()
 		mat.shader = SHADER
 		var base := source.surface_get_material(0) as StandardMaterial3D

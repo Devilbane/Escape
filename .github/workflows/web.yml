@@ -89,6 +89,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log
           grep -q PASS barber.log
 
+      - name: Merchant trading window test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/merchant_window.gd | tee merchant_window.log
+          grep -q PASS merchant_window.log
+
       - name: Villager quests test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/quests.gd | tee quests.log

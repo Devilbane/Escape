@@ -316,6 +316,16 @@ longer loop: gather ingredients from all over the world, learn and train the cra
 lines, and finish the piece under the right influences (a calm mind, a goddess's favour, the right stars).
 Recipes and ingredients are defined in `scripts/crafting.gd`, the crafts in `Training.CRAFTS`.
 
+**Wishes and your fighting style.** The first time you run into **Ragna** at the adventurers' guild, she
+asks how you like to face monsters: with the sword, the axe, behind the shield, with throwing knives, from
+the shadows or in heavy armour. Once she thinks well of you (friendly standing), running into her opens her
+**wish window**: things she can help you make, each with a quest that fits it and a **recipe** as the
+reward. The wish that fits you best comes first, marked with a star: at first the style you named, later
+what you really train (a combat skill only trains while you use it, so its level shows how you fight).
+One wish runs at a time; when you hand it in, Ragna points you at the next one that fits. You can change
+your style in her wish window. Wishes are defined in `scripts/wishes.gd`, their quests in
+`scripts/quests.gd` (`"wish": true`).
+
 **Fishing.** Stand by the water and press **G** (or the **Fish** button in the pull-out menu) to cast a
 line. After a few seconds the float goes under and a **!** shows: press again quickly to strike, or the
 fish gets away. Pressing while you wait draws the line in; walking off, getting hit or opening a window

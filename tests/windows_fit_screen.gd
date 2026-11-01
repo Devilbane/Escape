@@ -14,7 +14,7 @@ var shots := OS.get_environment("SHOTS")
 
 const KINDS := ["inventar", "lager", "bank", "barbier", "steinmetz", "ausbau", "hauswerkbank",
 	"trophaeen", "aushang", "schmied", "werkbank", "tresor", "haendler", "wanderhaendler", "bett",
-	"laden", "kompendium", "charakter", "beenden", "plan", "rueckkehr", "hoehle", "karte"]
+	"laden", "kompendium", "charakter", "beenden", "plan", "rueckkehr", "hoehle", "karte", "kampfstil", "wunsch"]
 
 
 func check(ok: bool, what: String) -> void:
@@ -73,8 +73,12 @@ func _fill() -> void:
 	for i in 40:
 		game.lore.append("Ein langer Hinweis, der viel Platz braucht, damit die Liste voll ist. %d" % i)
 	for id in Quests.ALL:
-		game.quests.state[id] = {"state": "active", "count": 0}
+		# Wishes stay open, so the wish window lists all of them.
+		if not Quests.ALL[id].get("wish", false):
+			game.quests.state[id] = {"state": "active", "count": 0}
 	game.menus.bench = CraftingSquare.BENCHES.values()[0].craft
+	game.menus.wish_master = Wishes.STYLE_ASKER
+	game.wishes.style = "schleichen"
 
 
 func _test() -> void:

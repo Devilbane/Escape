@@ -57,6 +57,9 @@ const IRON := {"name": "Eisenbarren", "region": "Dorf", "when": "", "source": "S
 ## id or "eisen" for the smith's iron bars -> count). "lines" is the scroll:
 ## each has its text; a "hidden" line shows "faded" until it is read. A
 ## faded line with a "fish" is read the first time that fish is caught.
+## A recipe with an empty "giver" is not handed out by running into someone:
+## it is the reward of a wish (see Wishes), and "effect" says what the made
+## piece will do.
 const RECIPES := {
 	"mondsilberring": {"name": "Mondsilberring", "giver": "8",
 		"craft": "feinschmieden", "craft_level": 3,
@@ -85,6 +88,54 @@ const RECIPES := {
 				"text": "Ein Silberhecht aus dem Dorfteich, wenn der Tag kommt oder geht."},
 			{"id": "barsch", "text": "Drei Barsche: aus ihrer Haut kocht man den Leim, der die Schuppen hält."},
 			{"id": "hand", "text": "Eine geübte Hand: Feinschmieden, Stufe 2."},
+		]},
+	# The rewards of the wishes Guild Master Ragna helps with (see Wishes).
+	"klingenring": {"name": "Klingenring", "giver": "", "craft": "feinschmieden", "craft_level": 2,
+		"effect": "Klingen +1",
+		"ingredients": {"mondsilbererz": 1, "glimmermoos": 1, "eisen": 2},
+		"lines": [
+			{"id": "erz", "text": "Ein Brocken Mondsilber für den Reif."},
+			{"id": "moos", "text": "Glimmermoos aus dem Verlies, um ihn blank zu reiben."},
+			{"id": "eisen", "text": "Zwei Barren Eisen, damit er die Hand fest hält."},
+		]},
+	"axtreif": {"name": "Armreif der Axt", "giver": "", "craft": "feinschmieden", "craft_level": 2,
+		"effect": "Äxte +1",
+		"ingredients": {"hoehlenpilz": 2, "eisen": 3},
+		"lines": [
+			{"id": "eisen", "text": "Drei Barren Eisen, schwer wie ein Axtkopf."},
+			{"id": "pilz", "text": "Die Asche zweier Höhlenpilze, um das Eisen zu härten."},
+		]},
+	"schildamulett": {"name": "Amulett des Walls", "giver": "", "craft": "feinschmieden", "craft_level": 2,
+		"effect": "Blocken +1",
+		"ingredients": {"mondstein": 1, "barsch": 2, "eisen": 2},
+		"lines": [
+			{"id": "stein", "text": "Ein Mondstein als Mitte, rund wie ein Schild."},
+			{"id": "leim", "text": "Leim aus der Haut zweier Barsche, der ihn hält."},
+			{"id": "eisen", "text": "Zwei Barren Eisen für die Fassung."},
+		]},
+	"wurfring": {"name": "Wurfring", "giver": "", "craft": "feinschmieden", "craft_level": 2,
+		"effect": "Messerwurf +1",
+		"ingredients": {"silberhecht": 1, "mondsilbererz": 1, "eisen": 1},
+		"lines": [
+			{"id": "hecht", "text": "Die Schuppen eines Silberhechts, glatt wie eine Klinge im Flug."},
+			{"id": "erz", "text": "Ein Brocken Mondsilber für den Reif."},
+			{"id": "eisen", "text": "Ein Barren Eisen, damit er nicht verrutscht."},
+		]},
+	"schattenamulett": {"name": "Amulett der stillen Schritte", "giver": "", "craft": "feinschmieden", "craft_level": 2,
+		"effect": "Schleichen +1",
+		"ingredients": {"mondforelle": 1, "glimmermoos": 2, "mondsilbererz": 1},
+		"lines": [
+			{"id": "forelle", "text": "Die Schuppen einer Mondforelle, die nachts lautlos schwimmt."},
+			{"id": "moos", "text": "Zwei Büschel Glimmermoos, das jeden Klang schluckt."},
+			{"id": "erz", "text": "Ein Brocken Mondsilber für die Fassung."},
+		]},
+	"lastreif": {"name": "Armreif der leichten Last", "giver": "", "craft": "feinschmieden", "craft_level": 2,
+		"effect": "Rüstung tragen +1",
+		"ingredients": {"goldkarpfen": 1, "baerlauch": 2, "eisen": 2},
+		"lines": [
+			{"id": "karpfen", "text": "Die goldenen Schuppen eines Karpfens aus dem Dorfbrunnen."},
+			{"id": "lauch", "text": "Zwei Bund Bärlauch, um das Eisen geschmeidig zu kochen."},
+			{"id": "eisen", "text": "Zwei Barren Eisen für den Reif."},
 		]},
 }
 
@@ -283,6 +334,8 @@ func entries() -> Array:
 func describe(id: String) -> String:
 	var r: Dictionary = RECIPES[id]
 	var lines := []
+	if r.has("effect"):
+		lines.append(Lang.t("Wirkung: %s") % Lang.t(r.effect))
 	for line in r.lines:
 		lines.append(Lang.t("„%s“") % Lang.t(line.text if line_read(id, line) else line.faded))
 	var parts := []

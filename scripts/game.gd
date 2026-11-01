@@ -99,6 +99,9 @@ var bounties := Bounties.new(self)
 ## Known recipes and the ingredient pouch (see Crafting). Kept in the saved
 ## game, like the quests.
 var crafting := Crafting.new(self)
+## The fighting style the hero named and the masters' wishes (see Wishes).
+## Kept in the saved game.
+var wishes := Wishes.new(self)
 ## The line in the water, when the hero is fishing (see Fishing).
 var fishing := Fishing.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
@@ -760,7 +763,7 @@ func _use_station(s: Dictionary) -> void:
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc):
+		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not wishes.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building, s.get("house", 0))
@@ -1586,6 +1589,7 @@ func _start_new_game() -> void:
 	bounties.clear()
 	bounties.refresh(day)
 	crafting.clear()
+	wishes.clear()
 	Factions.clear()
 	fishing.stop()
 	reputation.clear()
@@ -1897,6 +1901,7 @@ func _apply_save(data: Dictionary) -> void:
 	bounties.load_from(data.get("bounties", {}))
 	bounties.refresh(day)
 	crafting.load_from(data.get("crafting", {}))
+	wishes.load_from(data.get("wishes", {}))
 	reputation.load_from(data.get("reputation", {}))
 	village_talk.load_from(data.get("ties", []))
 	Factions.load_from(data.get("factions", {}))
@@ -2028,6 +2033,7 @@ func save_game(going_away := false) -> bool:
 		"journal": journal.for_save(),
 		"day": day, "bounties": bounties.for_save(),
 		"crafting": crafting.for_save(),
+		"wishes": wishes.for_save(),
 		"reputation": reputation.for_save(),
 		"ties": village_talk.for_save(),
 		"factions": Factions.for_save(),
@@ -2420,7 +2426,11 @@ func refresh_quest_marks() -> void:
 	for v in level.villagers:
 		if is_instance_valid(v):
 			var quest_mark := quests.mark(v.role)
-			v.set_quest_mark(quest_mark if quest_mark != "" else crafting.mark(v.role))
+			if quest_mark == "":
+				quest_mark = crafting.mark(v.role)
+			if quest_mark == "":
+				quest_mark = wishes.mark(v.role)
+			v.set_quest_mark(quest_mark)
 	(level as Outdoor).set_board_mark(bounties.mark())
 
 

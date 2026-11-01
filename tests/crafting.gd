@@ -75,8 +75,13 @@ func _test() -> void:
 		check(when == "" or Lang.EN.has(when), "%s: the time has an English text" % id)
 	for id in Crafting.RECIPES:
 		var r: Dictionary = Crafting.RECIPES[id]
-		check(Lang.EN.has(r.name) and Lang.EN.has(r.offer), "%s has an English name and offer" % id)
-		check(Villager.ROLES.has(r.giver), "%s has a giver who exists" % id)
+		check(Lang.EN.has(r.name), "%s has an English name" % id)
+		# A recipe without a giver is a wish's reward (see Wishes).
+		if r.giver != "":
+			check(Lang.EN.has(r.offer), "%s has an English offer" % id)
+			check(Villager.ROLES.has(r.giver), "%s has a giver who exists" % id)
+		else:
+			check(r.has("effect") and Lang.EN.has(r.effect), "%s, a wish's reward, says what it does in both languages" % id)
 		check(Training.CRAFTS.has(r.craft) and Lang.EN.has(Training.CRAFTS[r.craft].name), "%s needs a craft that exists" % id)
 		for ingredient in r.ingredients:
 			check(ingredient == "eisen" or Crafting.INGREDIENTS.has(ingredient), "%s: %s is an ingredient" % [id, ingredient])

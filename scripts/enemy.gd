@@ -41,6 +41,10 @@ const KINDS := {
 	"magier": {"model": "Skeleton_Mage", "weapon": "Skeleton_Staff", "hp": 2, "speed": 3.4, "damage": 1, "reach": 20.0, "size": 1.0, "cooldown": 3.0, "ranged": true},
 	"wicht": {"model": "Skeleton_Minion", "weapon": "Skeleton_Blade", "hp": 1, "speed": 6.4, "damage": 1, "reach": 1.8, "size": 0.8, "cooldown": 1.0},
 	"koloss": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Axe", "shield": "Skeleton_Shield_Large_A", "hp": 7, "speed": 3.3, "damage": 2, "reach": 2.5, "size": 1.5, "cooldown": 2.0, "tint": Color(0.72, 0.42, 0.34)},
+	# Fog wraiths drift among the dead trees above ground, only in fog (see
+	# Weather): pale little dead that roam instead of standing guard.
+	"fog_wraith": {"model": "Skeleton_Minion", "weapon": "Skeleton_Blade", "hp": 2, "speed": 5.6, "damage": 1, "reach": 1.8, "size": 0.9, "cooldown": 1.1,
+		"tint": Color(0.78, 0.86, 0.95), "roam": true, "voice": ["voice_wicht", 0.75, "huuu"], "purse": [1, 3]},
 	"waechter": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Axe", "shield": "Skeleton_Shield_Large_A", "hp": 1, "speed": 3.0, "damage": 2, "reach": 2.3, "size": 1.25, "cooldown": 1.6, "tint": Color(0.46, 0.5, 0.58), "armored": true},
 	# The bandits of the open wild: "human" kinds use the adventurer models
 	# ("dir"), keep only the body parts in "parts", wear clothes in "colors"
@@ -309,6 +313,8 @@ func fall_text() -> String:
 			return Lang.t("Der Schleim zerfließt.")
 		"drache":
 			return Lang.t("Der Drache stürzt brüllend zu Boden!")
+		"fog_wraith":
+			return Lang.t("Der Nebelgeist verweht.")
 	return Lang.t("Der Räuber geht zu Boden.") if is_human() else Lang.t("Das Skelett zerfällt zu Staub.")
 
 

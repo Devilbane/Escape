@@ -119,6 +119,12 @@ func _rebuild() -> void:
 			_build_barber()
 		"steinmetz":
 			_build_stonemason()
+		"ausbau":
+			_build_upgrades()
+		"werkbank":
+			_build_workbench()
+		"trophaeen":
+			_build_trophies()
 		"schmied":
 			_build_smithy()
 		"tresor":
@@ -421,12 +427,13 @@ func _build_storage() -> void:
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 18, BLUE)
 	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
 	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6)
-	_add_label(Lang.t("Truhe (%d / %d)") % [game.storage.size(), STORAGE_SIZE], 20)
-	_add_item_grid(game.storage, STORAGE_SIZE, Items.item_name, _take, 6)
+	var size := HomeUpgrades.storage_size(game.home_upgrades)
+	_add_label(Lang.t("Truhe (%d / %d)") % [game.storage.size(), size], 20)
+	_add_item_grid(game.storage, maxi(size, game.storage.size()), Items.item_name, _take, 8 if size > STORAGE_SIZE else 6)
 
 
 func _store(index: int) -> void:
-	if game.storage.size() >= STORAGE_SIZE:
+	if game.storage.size() >= HomeUpgrades.storage_size(game.home_upgrades):
 		_note = Lang.t("Die Truhe ist voll.")
 	else:
 		game.storage.append(game.player.bag[index])
@@ -604,6 +611,8 @@ func _build_stonemason() -> void:
 	row.add_child(_item_button(Lang.t("1 Steinblock\n%d Gold") % price, _buy_stones.bind(1), room > 0 and game.coins >= price, STONE))
 	row.add_child(_item_button(Lang.t("%d Steinblöcke\n%d Gold") % [maxi(all, 1), maxi(all, 1) * price], _buy_stones.bind(all), all > 0, STONE))
 	row.add_child(_item_button(Lang.t("1 zurückgeben\n+%d Gold") % sell_price(STONE), _sell_stone, p.bag.has(STONE), STONE))
+	if Homes.house_of(game.hero_name) > 0:
+		_add_upgrade_button()
 
 
 func _buy_stones(count: int) -> void:
@@ -635,6 +644,110 @@ func _sell_stone() -> void:
 		_note = Lang.t("Verkauft: %s für %d Gold") % [Items.item_name(STONE), sell_price(STONE)]
 	game._update_hud()
 	_rebuild()
+
+
+# --- Home upgrades (see HomeUpgrades) ----------------------------------------
+
+func _add_upgrade_button() -> void:
+	var b: Button = game._make_button(Lang.t("Haus ausbauen"), open.bind("ausbau"))
+	b.custom_minimum_size = Vector2(300, 54)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(b)
+
+
+## Hagen builds onto the hero's house: stone blocks and gold for each upgrade.
+func _build_upgrades() -> void:
+	var p: Player = game.player
+	game.learn(HomeUpgrades.LEARN)
+	_add_label(Lang.t("Haus ausbauen"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Dein Gold: %d      Steinblöcke in Tasche und Truhe: %d") % [game.coins, HomeUpgrades.stones_owned(p.bag, game.storage)], 20, game.GOLD)
+	_add_label(Lang.t("Steinmetz Hagen baut dir an, was du bezahlst. Steinblöcke verkauft er auch."), 16, BLUE)
+	for id in HomeUpgrades.ALL:
+		var up: Dictionary = HomeUpgrades.ALL[id]
+		var row := HBoxContainer.new()
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		row.add_theme_constant_override("separation", 14)
+		_box.add_child(row)
+		var text: Label = game._make_label(game.TEXT_FONT, 16, Color.WHITE)
+		text.text = Lang.t(up.name) + "\n" + Lang.t(up.text)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.custom_minimum_size = Vector2(560, 0)
+		row.add_child(text)
+		var built := HomeUpgrades.has(game.home_upgrades, id)
+		var label := Lang.t("Gebaut") if built else Lang.t("Bauen\n%d Steine, %d Gold") % [up.stones, up.gold]
+		var ok := HomeUpgrades.why_not(id, game.home_upgrades, p.bag, game.storage, game.coins) == ""
+		var b := _item_button(label, _build_upgrade.bind(id), ok)
+		b.custom_minimum_size = Vector2(200, 58)
+		row.add_child(b)
+
+
+func _build_upgrade(id: String) -> void:
+	var why: String = game.build_home_upgrade(id)
+	if why == "":
+		_note = Lang.t("Gebaut: %s. Du findest es in deinem Haus.") % Lang.t(HomeUpgrades.ALL[id].name)
+		Sfx.play(game, "gear_soft_0", -2.0)
+	else:
+		_note = why
+	game._update_hud()
+	_rebuild()
+
+
+## The workbench at home: knives from iron, and mending for iron.
+func _build_workbench() -> void:
+	var p: Player = game.player
+	_add_label(Lang.t("Werkbank"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Eisenbarren: %d      Wurfmesser: %d") % [game.iron, p.knives], 20, game.GOLD)
+	_add_label(Lang.t("Eisenbarren gibt es bei Schmied Gorm, oder du schmilzt dort alte Ausrüstung ein."), 16, BLUE)
+	var make := _item_button(Lang.t("%d Wurfmesser schmieden\n%d Eisenbarren") % [HomeUpgrades.KNIVES_PER_IRON, 1], _make_knives, game.iron >= 1)
+	make.custom_minimum_size = Vector2(320, 58)
+	make.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(make)
+	var worn := Forge.worn_down(p)
+	if worn.is_empty():
+		_add_label(Lang.t("Nichts ist abgenutzt."), 18)
+		return
+	_add_label(Lang.t("Abgenutzte Ausrüstung flicken (je %d Eisenbarren):") % HomeUpgrades.MEND_IRON, 18)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	_box.add_child(row)
+	for id in worn:
+		row.add_child(_item_button(Items.item_name(id), _mend_at_home.bind(id), game.iron >= HomeUpgrades.MEND_IRON, id))
+
+
+func _make_knives() -> void:
+	if game.iron < 1:
+		_note = Lang.t("Dafür brauchst du einen Eisenbarren.")
+	else:
+		game.iron -= 1
+		game.player.knives += HomeUpgrades.KNIVES_PER_IRON
+		_note = Lang.t("Geschmiedet: %d Wurfmesser") % HomeUpgrades.KNIVES_PER_IRON
+		Sfx.play(game, "gear_metal_0", -2.0)
+	game._update_hud()
+	_rebuild()
+
+
+func _mend_at_home(id: String) -> void:
+	if game.iron < HomeUpgrades.MEND_IRON:
+		_note = Lang.t("Dafür brauchst du einen Eisenbarren.")
+	else:
+		game.iron -= HomeUpgrades.MEND_IRON
+		game.player.wear.erase(id)
+		_note = Lang.t("Geflickt: %s") % Items.item_name(id)
+		Sfx.play(game, "gear_soft_0", -2.0)
+	game._update_hud()
+	_rebuild()
+
+
+## The trophy wall: what the hero has felled, and what is still out there.
+func _build_trophies() -> void:
+	_add_label(Lang.t("Trophäenwand"), 38, game.GOLD, game.TITLE_FONT)
+	var won := HomeUpgrades.trophies_shown(game.trophies)
+	_add_label(Lang.t("Jede Trophäe gibt dir +%d Leben. Zusammen: +%d Leben.") % [HomeUpgrades.TROPHY_HP, HomeUpgrades.trophy_hp(game.home_upgrades, game.trophies)], 20, game.GOLD)
+	for kind in HomeUpgrades.TROPHIES:
+		var has_it: bool = won.has(kind)
+		_add_label(Lang.t(HomeUpgrades.TROPHIES[kind]) if has_it else Lang.t("Noch offen: %s") % Lang.t(HomeUpgrades.TROPHY_HINTS[kind]),
+				18, Color.WHITE if has_it else Color(1, 1, 1, 0.45))
 
 
 # --- Smith -------------------------------------------------------------------
@@ -1124,6 +1237,9 @@ func _build_bed() -> void:
 	plan_button.custom_minimum_size = Vector2(300, 56)
 	plan_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_box.add_child(plan_button)
+	# Only the hero's own town house can be built onto, not the refuge.
+	if game.level.is_home:
+		_add_upgrade_button()
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)

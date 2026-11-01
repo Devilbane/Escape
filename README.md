@@ -228,6 +228,16 @@ Walk onto the stairs to go up or down a storey. Chalked squares on the floorboar
 every storey. Sleep in your town house's bed and the next load wakes you up beside it. Who lives where is kept
 on this computer next to the bank's books, so every hero keeps their house.
 
+Your town house can be **upgraded**. Open the upgrade window from the bed in your town house or from Hagen the
+stonemason. You pay with stone blocks (from your bag first, then from your chest) and some gold, and Hagen
+builds each upgrade once, on the chalked furniture spots:
+
+| Upgrade | Cost | What it does |
+|---|---|---|
+| **Second chest** | 4 stone blocks, 10 gold | Stands beside the first chest on the ground floor. Your chests hold 32 things instead of 16. |
+| **Workshop** | 6 stone blocks, 30 gold | A workbench in the attic: 1 iron bar makes 3 throwing knives, 1 iron bar fully mends a worn piece of gear, and crafting while you are away takes a third less time. |
+| **Trophy wall** | 5 stone blocks, 20 gold | A shelf on the attic wall with a small statuette of each mighty foe you have defeated: the bandit chief, the dragon, the yeti, an orc, a wolf, a giant spider and a brute. Each trophy gives **+1 life** while the wall stands. Trophies count from your first kill, even before the wall is built. |
+
 In the middle of the village lies the paved **market square** with a fountain that heals, benches and
 lanterns. Around it stand the **smithy**, the **temple** (a small stone chapel with a spire and stained-glass
 windows), the **office of the crown**, the **post office**, the

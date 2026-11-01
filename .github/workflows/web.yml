@@ -179,6 +179,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/player_houses.gd | tee houses.log
           grep -q PASS houses.log
 
+      - name: Home upgrades test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/home_upgrades.gd | tee upgrades.log
+          grep -q PASS upgrades.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

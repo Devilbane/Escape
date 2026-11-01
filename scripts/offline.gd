@@ -133,7 +133,9 @@ static func normalized(plan: Dictionary, allowed: Dictionary) -> Dictionary:
 ##   xp: training id -> amount, before the hero's Weisheit bonus
 ##   study_xp: training id -> amount that needs no gear (from books)
 ##   knives, repairs: pieces crafted
-static func simulate(plan: Dictionary, hours: float) -> Dictionary:
+## With `workshop` (the workbench at home, see HomeUpgrades), every crafted
+## piece takes only HomeUpgrades.WORKSHOP_CRAFT of its hours.
+static func simulate(plan: Dictionary, hours: float, workshop := false) -> Dictionary:
 	var spent := {"job": 0.0, "train": 0.0, "study": 0.0, "craft": 0.0, "rest": 0.0, "free": 0.0}
 	var left := maxf(0.0, hours)
 	var day: Array = []
@@ -166,7 +168,8 @@ static func simulate(plan: Dictionary, hours: float) -> Dictionary:
 		_add(result.xp, "intelligenz", xp_per_hour("intelligenz", STUDY_MIND_RATE) * spent.study)
 	if plan.get("craft", "") != "" and RECIPES.has(plan.craft):
 		var recipe: Dictionary = RECIPES[plan.craft]
-		var pieces := floori(spent.craft / recipe.hours)
+		var piece_hours: float = recipe.hours * (HomeUpgrades.WORKSHOP_CRAFT if workshop else 1.0)
+		var pieces := floori(spent.craft / piece_hours + 0.0001)
 		if recipe.makes == "knife":
 			result.knives = pieces
 		elif recipe.makes == "repair":

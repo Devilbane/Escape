@@ -141,6 +141,8 @@ func _rebuild() -> void:
 			_build_vault()
 		"haendler":
 			_build_shop()
+		"wanderhaendler":
+			_build_wanderer()
 		"bett":
 			_build_bed()
 		"laden":
@@ -219,6 +221,8 @@ func _show_info(id: String) -> void:
 		return
 	if id == "":
 		_info.text = Lang.t(INFO_HINT)
+	elif not Items.ALL.has(id) and Crafting.INGREDIENTS.has(id):
+		_info.text = game.crafting.describe_ingredient(id)
 	else:
 		_info.text = "%s: %s" % [Items.item_name(id), Items.describe(id, game.player.wear.get(id, 0))]
 
@@ -707,6 +711,89 @@ func _sell(index: int) -> void:
 	game.player.bag.remove_at(index)
 	game.shop_stock.append(id)
 	_note = Lang.t("Verkauft: %s für %d Gold") % [Items.item_name(id), sell_price(id)]
+	_rebuild()
+
+
+# --- Wandering merchant -------------------------------------------------------
+
+const WANDERER_LEARN := "Wanderhändler Zarek kommt jede dritte Nacht mit seinem Karren ins Dorf und steht bis zum Morgengrauen am Markt. Er bringt Zutaten für Rezepte aus fernen Gegenden mit, dazu etwas einfache Ausrüstung, und jedes Mal andere Waren. Kaufen tut er nichts."
+
+
+## Zarek sells tonight's wares and buys nothing: ingredients go into the
+## pouch, gear into the bag. The window says when he comes back.
+func _build_wanderer() -> void:
+	game.learn(WANDERER_LEARN)
+	var wares: Array[String] = game.wanderer_wares()
+	_add_label(Lang.t("Wanderhändler"), 38, game.GOLD, game.TITLE_FONT)
+	var herbs := []
+	var gear := []
+	var goods := []
+	var listed := {}
+	for i in wares.size():
+		var id: String = wares[i]
+		if not Wanderer.is_ingredient(id):
+			var entry := _ware_entry("buy:%d" % i, id, Wanderer.price(id), _buy_from_wanderer.bind(i))
+			(goods if _is_consumable(id) else gear).append(entry)
+		elif not listed.has(id):
+			# One row per kind of ingredient, bought one piece at a time.
+			listed[id] = true
+			herbs.append(_ingredient_entry(id, wares.count(id), i))
+	var empty := Lang.t("Nichts im Angebot.")
+	var note := _wrapped_label(Lang.t("Zutaten aus fernen Gegenden, nur heute Nacht. Im Morgengrauen zieht Zarek weiter; in %d Nächten kommt er wieder.") % Wanderer.EVERY, 16, BLUE)
+	_trade(Lang.t("Dein Gold: %d") % game.coins, [
+		{"key": "herbs", "title": Lang.t("Zutaten"), "icon": "kind:ore", "entries": herbs, "empty": empty},
+		{"key": "gear", "title": Lang.t("Ausrüstung"), "icon": "kind:helmet", "entries": gear, "empty": empty},
+		{"key": "goods", "title": Lang.t("Verbrauchsgüter"), "icon": "kind:potion", "entries": goods, "empty": empty},
+	], note)
+
+
+## A row for one kind of Zarek's ingredients: how many pieces he has left,
+## what the ingredient book says about it, and how many are in the pouch.
+func _ingredient_entry(id: String, left: int, index: int) -> Dictionary:
+	var price := Wanderer.price(id)
+	var icon := "kind:ore" if id == "mondsilbererz" else ("kind:stone" if id == "mondstein" else "kind:bag")
+	var lines := []
+	for line in game.crafting.describe_ingredient(id).split("\n").slice(1):
+		lines.append([line, TradeWindow.BLUE])
+	return {"key": "herb:%s" % id, "id": id, "icon": icon, "name": Wanderer.ware_name(id),
+			"price": Lang.t("%d Gold") % price, "price_ok": game.coins >= price, "action": _buy_from_wanderer.bind(index),
+			"enabled": game.coins >= price,
+			"detail": {"subtitle": Lang.t("Zutat für Rezepte, noch %d da") % left, "lines": lines},
+			"compare": {"title": Lang.t("In deinem Zutatenbeutel"), "name": "%s: %d" % [Wanderer.ware_name(id), game.crafting.have(id)], "icon": icon}}
+
+
+## A centred label that wraps instead of widening the window.
+func _wrapped_label(text: String, size: int, color: Color) -> Label:
+	var l: Label = game._make_label(game.TEXT_FONT, size, color)
+	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size.x = 600
+	return l
+
+
+func _buy_from_wanderer(index: int) -> void:
+	var wares: Array[String] = game.wanderer_wares()
+	if index >= wares.size():
+		return
+	var id: String = wares[index]
+	var cost := Wanderer.price(id)
+	var ingredient := Wanderer.is_ingredient(id)
+	if game.coins < cost:
+		_note = Lang.t("Dafür reicht dein Gold nicht.")
+	elif not ingredient and game.player.bag.size() >= game.player.bag_size():
+		_note = Lang.t("Deine Tasche ist voll.")
+	else:
+		game.coins -= cost
+		wares.remove_at(index)
+		if ingredient:
+			game.crafting.add(id)
+			_note = Lang.t("Gekauft: %s. Es kommt in deinen Zutatenbeutel.") % Wanderer.ware_name(id)
+		else:
+			game.player.bag.append(id)
+			_note = Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
+		Sfx.play(game, "gear_soft_0", -2.0)
+	game._update_hud()
 	_rebuild()
 
 

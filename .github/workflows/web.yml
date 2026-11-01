@@ -149,6 +149,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/day_night.gd | tee daynight.log
           grep -q PASS daynight.log
 
+      - name: Village houses and chapel test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/village_buildings.gd | tee village.log
+          grep -q PASS village.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

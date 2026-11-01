@@ -206,9 +206,11 @@ you first step inside, the house is yours: the game saves, and from then on your
 the starting point. Every load, and every new try after a fall, begins next to your bed.
 
 In the middle of the village lies the paved **market square** with a fountain that heals, benches and
-lanterns. Around it stand the **smithy**, the **temple**, the **office of the crown**, the **post office**, the
+lanterns. Around it stand the **smithy**, the **temple** (a small stone chapel with a spire and stained-glass
+windows), the **office of the crown**, the **post office**, the
 **adventurers' guild**, the **general store** (Mira, the shopkeeper, buys and sells), the **tavern** and the
-**bank**. Sixteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
+**bank**. The villagers live in half-timbered houses with jutting upper floors, shuttered windows and tiled
+roofs, each one a little different. Sixteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
 makes the rounds, the postmaster carries letters, the priestess tends the temple. Every so often the
 **herald** rings the bell and calls out the news, and the whole village gathers on the square to listen.
 
@@ -378,6 +380,7 @@ entry there.
 - Graphics: KayKit Dungeon Remastered, Adventurers and Skeletons by Kay Lousberg (CC0)
 - Graveyard, crypt and autumn trees: KayKit Halloween Bits; village buildings, trees and rocks: KayKit Medieval Hexagon Pack, both by Kay Lousberg (CC0)
 - Wooden floor and roof tiles of the house: "Wood 062" and "Roofing Tiles 014 C" by ambientCG (CC0)
+- The temple's chapel, and the stone and roof tiles of the villagers' houses: Modular Cathedral Kit by SigilsVault (Kevin Barany) (CC0, see `assets/chapel/LICENSE.txt`)
 - Floors, walls, pillars and furniture: 3D Modular Dungeon Kit by Omie's Assets (CC0)
 - Wolves, orcs, yeti and spiders: Ultimate Animated Animals, Ultimate Monsters and Easy Animated Enemy Pack by Quaternius (CC0, see `assets/wild/LICENSE.txt`)
 - Sounds: made from scratch with `tools/make_sounds.py`; footsteps and door: recordings by Fantozzi, “Footsteps Leather, Cloth, Armor” and qubodup; creatures, skeleton voices and chains by rubberduck; crossbow shots from “Medieval sound effects - Weapon Textures” (CC0, see `assets/sounds/CREDITS.txt`)

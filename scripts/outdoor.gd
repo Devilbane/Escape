@@ -52,7 +52,7 @@ extends Level
 ##   v  a stone pedestal with a food basket on top, too high to reach from
 ##      the ground or from one crate: stack two crates beside it. Three
 ##      wooden crates lie close by (see Crate).
-##   %  the wandering merchant's pitch: an empty patch of grass, but on his
+##   !  the wandering merchant's pitch: an empty patch of grass, but on his
 ##      nights (see Wanderer) Zarek stands here from nightfall to dawn,
 ##      with his covered cart on the tile north of him.
 
@@ -70,7 +70,7 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&%"
+const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&!"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
@@ -472,7 +472,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 	match ch:
 		"P":
 			start_cell = c
-		"%":
+		"!":
 			_wanderer_cell = c
 		"g":
 			var grave: String = GRAVES[_rng.randi() % GRAVES.size()]

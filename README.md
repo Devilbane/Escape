@@ -409,13 +409,29 @@ In a clearing in the woods, north of the path from the graveyard to the village,
 stands over stairs that lead down into the dark. Run into the arch to climb down into the **dragon's lair**,
 a dungeon of its own: **bats** flutter about, quick but frail; green **slimes** creep along, tough and
 sometimes poisonous; skeleton warriors, archers, minions and a brute haunt the crypts; and in the great hall
-at the bottom the **dragon** guards its hoard. It hovers over its gold and spits **fire** from afar
-(an orange fireball that follows you like a mage's orb and burns for 2); step behind a statue or close in
-with the blade. Every monster of the lair carries some gold, and the dragon a heap of it and usually a piece
+at the bottom the **dragon** guards its hoard. Every monster of the lair carries some gold, and the dragon a heap of it and usually a piece
 of gear. Behind it waits the hoard's treasure chest among piles of coins.
 The halls are dressed with cobwebs, skulls, banners and a stone horse statue from the dungeon kit.
 The stairs you came down lead back out of the arch. The monsters stand ready again every time you come
 down, so there is always something to fight; searched chests and barrels stay empty.
+**Embermaw, the Hoard Dragon** is the boss of the lair. When it spots you, it wakes with a roar that shakes
+the lair, and its **health bar** shows at the top of the screen, with marks where its next phase begins.
+It hovers over its gold, spits **fireballs** from afar (they follow you like a mage's orb and burn for 2)
+and bites whoever comes close. A stab in the back of the sleeping dragon only hits three times as hard.
+Every few seconds it draws breath: **red rings** glow on the floor in a line towards you, and a moment
+later its **fire breath** sets them ablaze. These **fire fields** burn for 7 seconds; standing in one costs
+2 lives at first and 1 every second after, and sets you **burning** (1 life every 1.5 seconds for a few
+seconds, never the last one). Step aside, or jump over the flames. Dragons fly through them unharmed.
+After each breath the dragon sinks down, **winded**, for a moment: your blade hits twice as hard then.
+
+| Phase | When | What changes |
+|---|---|---|
+| 1 | full life | fireballs, bites, a line of fire breath |
+| 2 | below 60 % | furious: three lines of fire at once, and it breathes more often |
+| 3 | below 30 % | raging: quicker, and it **rains fire** around you every few seconds (rings first) |
+
+It guards its hoard and does not follow you far; leave it alone for 15 seconds and it is whole again.
+
 Slay the dragon and the lair is **complete**: a fanfare plays, a window says so, counts the monsters you
 have slain and offers to **leave the lair** at once (or stay and collect the loot). Where the dragon fell, a
 **golden way out** shines up on the floor: step into it and you stand in front of the stone arch again.

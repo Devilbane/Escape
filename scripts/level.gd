@@ -59,6 +59,8 @@ signal player_hurt
 signal enemy_killed(enemy: Enemy)
 ## The dragon of the lair has fallen: the lair is won (see _win_lair).
 signal lair_won
+## The dragon of the lair has spotted the hero for the first time this visit.
+signal dragon_awakened(dragon: Dragon)
 ## The hero stepped into the glowing way out that opens once the lair is won.
 signal lair_exit_taken
 signal exit_reached
@@ -186,6 +188,9 @@ var _vault_shows: Array = []
 var elite := false
 ## A dungeon of its own below a village building's door (see "lair: yes").
 var lair := false
+## The lair's dragon (see Dragon) and its health bar.
+var dragon: Dragon
+var dragon_bar: BossBar
 ## Whether the lair's dragon has fallen on this visit.
 var lair_cleared := false
 ## The glowing way out that opens in the lair once the dragon has fallen.
@@ -2438,7 +2443,8 @@ func _spawn_enemies() -> void:
 			var c := Vector2i(x, y)
 			var ch := cell_char(c)
 			if Enemy.LETTERS.has(ch):
-				var e := Enemy.new()
+				# The dragon is a boss of its own.
+				var e: Enemy = Dragon.new() if Enemy.LETTERS[ch] == "drache" else Enemy.new()
 				e.kind = Enemy.LETTERS[ch]
 				e.elite = elite and ch in "MA"
 				var gear_chance: float = Enemy.KINDS[e.kind].get("gear_chance", -1.0)
@@ -2448,6 +2454,11 @@ func _spawn_enemies() -> void:
 				e.global_position = cell_to_world(c)
 				if e.kind == "waechter":
 					e.watch(_guarded_spot())
+				if e is Dragon:
+					dragon = e as Dragon
+					dragon.awakened.connect(func(): dragon_awakened.emit(e))
+					dragon_bar = BossBar.new(e)
+					add_child(dragon_bar)
 				e.died.connect(func():
 					enemy_killed.emit(e)
 					_drop_gear(e, DROP_CHANCE if not e.is_beast() else BEAST_DROP_CHANCE)

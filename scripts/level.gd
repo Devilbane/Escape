@@ -128,6 +128,11 @@ const TORCH_TOUCH := 1.6
 var _spikes: Array = []
 var _pickups: Array = []
 var interactables: Array = []
+## What the hero already took here: ids of searched furniture and picked up
+## coins. The game hands in its own dictionary for this level, keeps it in
+## the saved game, and calls restore_taken() after build(), so nothing fills
+## up again after a reload, a night in bed or a walk out and back in.
+var taken := {}
 var enemies: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
@@ -812,7 +817,8 @@ func _build_coin(pos: Vector3) -> void:
 	add_child(holder)
 	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
 	coin.scale = Vector3.ONE * 3.0
-	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5})
+	var c := world_to_cell(pos)
+	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "id": "coin:%d,%d" % [c.x, c.y]})
 
 
 func _build_chest(c: Vector2i) -> void:
@@ -1264,6 +1270,8 @@ func _check_pickups() -> void:
 				bag_full.emit()
 			continue
 		_pickups.erase(p)
+		if p.has("id"):
+			taken[p.id] = true
 		var tween := create_tween()
 		tween.tween_property(n, "position:y", n.position.y + 1.5, 0.35).set_ease(Tween.EASE_OUT)
 		tween.parallel().tween_property(n, "scale", Vector3.ONE * 0.01, 0.35).set_ease(Tween.EASE_IN)
@@ -1322,7 +1330,8 @@ func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector
 		loot = {"potion": 1}
 	else:
 		loot = {"item": Items.random_item(loot_rng)}
-	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null}
+	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null,
+			"id": "%s:%d,%d" % [label, c.x, c.y]}
 	interactables.append(obj)
 	return obj
 
@@ -1358,6 +1367,7 @@ func search(obj: Dictionary) -> Dictionary:
 	if obj.searched:
 		return {}
 	obj.searched = true
+	taken[obj.id] = true
 	if obj.lid:
 		create_tween().tween_property(obj.lid, "rotation:x", obj.lid.rotation.x - deg_to_rad(70), 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_scatter_debris(obj)
@@ -1366,6 +1376,22 @@ func search(obj: Dictionary) -> Dictionary:
 		burst.position = obj.icon_pos - Vector3(0, 1.0, 0)
 		add_child(burst)
 	return obj.loot
+
+
+## Leaves everything the hero already took as it was left: furniture
+## searched (chests with their lids up, debris in front) and coins gone.
+func restore_taken() -> void:
+	for obj in interactables:
+		if not taken.has(obj.id) or obj.searched:
+			continue
+		obj.searched = true
+		if obj.lid:
+			obj.lid.rotation.x -= deg_to_rad(70)
+		_scatter_debris(obj)
+	for p in _pickups.duplicate():
+		if p.has("id") and taken.has(p.id):
+			_pickups.erase(p)
+			p.node.queue_free()
 
 
 ## A coin or two and a torn page left on the floor in front of a searched

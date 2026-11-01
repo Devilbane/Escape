@@ -629,8 +629,8 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 	var best_d := max_distance
 	for e in level.enemies:
 		# A skeleton standing inside the hero's spot cannot be fought until
-		# the two are pushed apart.
-		if not is_instance_valid(e) or e.dead or level.stacked(self, e):
+		# the two are pushed apart, and the hero's friends are not fought at all.
+		if not is_instance_valid(e) or e.dead or e.is_friend() or level.stacked(self, e):
 			continue
 		var d := global_position.distance_to(e.global_position)
 		if d < best_d and (not need_sight or level.has_line_of_sight(global_position, e.global_position)):
@@ -667,7 +667,7 @@ func _footsteps(ground_speed: float) -> void:
 func enemies_in_reach() -> Array[Enemy]:
 	var found: Array[Enemy] = []
 	for e in level.enemies:
-		if not is_instance_valid(e) or e.dead or level.stacked(self, e):
+		if not is_instance_valid(e) or e.dead or e.is_friend() or level.stacked(self, e):
 			continue
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0
@@ -772,7 +772,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 
 
 func _engage(enemy: Enemy) -> void:
-	if enemy.dead:
+	if enemy.dead or enemy.is_friend():
 		return
 	if _target != enemy:
 		_auto_cooldown = 0.0
@@ -782,7 +782,7 @@ func _engage(enemy: Enemy) -> void:
 ## Sent after an enemy with a click: the hero walks up to it and, once it
 ## is in reach, keeps striking it (see _pursue and _auto_attack).
 func charge(enemy: Enemy) -> void:
-	if enemy == null or enemy.dead or dead:
+	if enemy == null or enemy.dead or enemy.is_friend() or dead:
 		return
 	_engage(enemy)
 	_hunt = enemy
@@ -830,7 +830,7 @@ func defend_against(attacker: Node) -> void:
 func _auto_attack() -> void:
 	if _target == null:
 		return
-	if not is_instance_valid(_target) or _target.dead:
+	if not is_instance_valid(_target) or _target.dead or _target.is_friend():
 		_target = null
 		return
 	if not can_act() or _auto_cooldown > 0.0 or _attack_cooldown > 0.0 or level.stacked(self, _target):

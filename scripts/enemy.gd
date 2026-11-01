@@ -17,6 +17,11 @@ extends CharacterBody3D
 ## of the pass. They are animals and monsters with models of their own, so
 ## each kind maps the animation names this class plays onto its model's own
 ## ("anims"), and they hold no weapons and wear no clothes.
+##
+## Not all of them are on the same side (see Factions): when rivals meet,
+## say a wolf and a bandit, or a skeleton and a bat of the dragon's brood,
+## they fight each other ("foe"). A faction the hero has won over leaves the
+## hero alone and falls upon monsters that hunt the hero nearby.
 
 signal died
 
@@ -119,6 +124,14 @@ const BODY_PARTS := ["Body", "Head", "ArmLeft", "ArmRight", "LegLeft", "LegRight
 ## chase the hero (metres) before it gives up and strolls back.
 const ROAM_TILES := 4
 const LEASH_ROAM := 48.0
+## How far a monster spots a rival (metres, needs a clear line of sight),
+## how often it looks for one (seconds), and how far a befriended monster
+## comes to the hero's aid.
+const RIVAL_SIGHT := 14.0
+const RIVAL_SCAN := 0.5
+const HELP_RANGE := 16.0
+## Seconds a gift keeps a monster calm, even if its kind is not won over yet.
+const GIFT_CALM := 10.0
 ## A stab counts as from behind when it comes from outside this angle either
 ## side of where the skeleton looks.
 const BEHIND := deg_to_rad(100.0)
@@ -195,10 +208,20 @@ const TAUNTS := ["Her mit dem Gold!", "Den schnappen wir uns!", "Dein Beutel ode
 var _voice_timer := 0.0
 ## Where a roaming bandit is strolling to, and how long it lingers there.
 var _roam_pause := 0.0
+## The rival this one is fighting (see Factions): another monster, not the hero.
+var foe: Enemy = null
+## Seconds until it looks around for rivals again.
+var _scan := 0.0
+## Seconds a gift still keeps it calm (see calm).
+var _calmed := 0.0
+## Whether the blow that felled it came from another monster rather than
+## the hero: such a kill counts for no task.
+var slain_by_rival := false
 
 
 func _ready() -> void:
 	_stats = KINDS[kind].duplicate()
+	_scan = randf() * RIVAL_SCAN
 	if elite:
 		_stats.hp += 2
 		_stats.speed *= 1.15
@@ -313,6 +336,19 @@ func is_human() -> bool:
 ## Whether this is an animal or monster of the wild.
 func is_beast() -> bool:
 	return _stats.get("beast", false)
+
+
+## Whether this one's faction is the hero's friend (see Factions).
+func is_friend() -> bool:
+	return Factions.is_friendly(Factions.of(kind))
+
+
+## A gift calms it: it stops hunting the hero for a while.
+func calm() -> void:
+	_calmed = GIFT_CALM
+	_awake = false
+	_path.clear()
+	_repath = 0.0
 
 
 ## What the message line says when this one falls.
@@ -500,6 +536,7 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		return
 	hp -= damage
 	if wakes:
+		_calmed = 0.0
 		_wake(from)
 	var away := global_position - from
 	away.y = 0.0
@@ -518,6 +555,40 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	else:
 		Comic.pop(global_position, "big" if damage >= 2 else kind)
 		_play_once("Hit_A", 0.45)
+
+
+## A blow (or a shot) from a rival monster. It fights back; armour that
+## stops the hero's blade stops a rival's just as well.
+func hit_by_rival(damage: int, attacker: Enemy) -> void:
+	if dead:
+		return
+	if attacker != null and is_instance_valid(attacker) and not attacker.dead:
+		provoke(attacker)
+	if _stats.get("armored", false):
+		Comic.pop(global_position, "block")
+		return
+	var from: Vector3 = attacker.global_position if attacker != null and is_instance_valid(attacker) else global_position
+	slain_by_rival = true
+	take_hit(damage, from, "hit", false)
+	if not dead:
+		slain_by_rival = false
+
+
+## Attacked by a rival: it turns on the attacker, unless it is busy with
+## another rival already.
+func provoke(attacker: Enemy) -> void:
+	if attacker == self or dead:
+		return
+	if foe == null or not is_instance_valid(foe) or foe.dead:
+		_set_foe(attacker)
+
+
+func _set_foe(e: Enemy) -> void:
+	if foe == e:
+		return
+	foe = e
+	_path.clear()
+	_repath = 0.0
 
 
 ## Spikes hurt skeletons too, once per thrust.
@@ -591,7 +662,14 @@ func _physics_process(delta: float) -> void:
 	var sees := dist < SIGHT and level.has_line_of_sight(global_position, player.global_position)
 	# Under the open sky there is no fog of war: everything shows.
 	visible = level.fog == null or level.fog.is_cell_visible(level.world_to_cell(global_position))
-	if not player.dead and _notices(player, to_player, dist, sees):
+	var friendly := is_friend()
+	_calmed = maxf(0.0, _calmed - delta)
+	if (friendly or _calmed > 0.0) and _awake:
+		# A friend, or one just calmed by a gift, lets the hero be.
+		_awake = false
+		_path.clear()
+		_repath = 0.0
+	if not player.dead and not friendly and _calmed <= 0.0 and _notices(player, to_player, dist, sees):
 		if not _awake:
 			Effects.float_text(level, global_position + Vector3(0, 3.4 * _stats.size, 0), "!", Color(1.0, 0.3, 0.2))
 		_wake(player.global_position)
@@ -606,10 +684,23 @@ func _physics_process(delta: float) -> void:
 		_awake = false
 		_path.clear()
 		_repath = 0.0
+	_scan -= delta
+	if _scan <= 0.0:
+		_scan = RIVAL_SCAN
+		_look_for_foe(friendly, leash)
+	if foe != null and (not is_instance_valid(foe) or foe.dead):
+		foe = null
+		_path.clear()
+		_repath = 0.0
+	# A rival nearer than the hero is fought first.
+	var fights_foe := foe != null and (not _awake or player.dead or _flat_distance(foe) < dist)
 
 	var move := _step_out() if _busy <= 0.0 else Vector3.ZERO
 	if move != Vector3.ZERO:
 		pass # Out of the furniture first.
+	elif fights_foe:
+		if _busy <= 0.0:
+			move = _fight_foe()
 	elif _awake and not player.dead and _busy <= 0.0:
 		if level.stacked(self, player):
 			pass # Inside the hero's spot: no blow or shot until pushed apart.
@@ -664,6 +755,75 @@ func _physics_process(delta: float) -> void:
 	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
 	var run_anim: float = _stats.get("run_anim", Player.RUN_ANIM_SPEED)
 	_anim.speed_scale = clampf(ground_speed / (run_anim * float(_stats.size)), 0.5, 2.5) if _current_anim == "Running_A" else 1.0
+
+
+func _flat_distance(other: Node3D) -> float:
+	return Vector2(other.global_position.x - global_position.x, other.global_position.z - global_position.z).length()
+
+
+## Keeps up the fight with a rival while it is in reach, or finds a new one:
+## the nearest rival in sight, and for a friend of the hero also any monster
+## that hunts the hero nearby.
+func _look_for_foe(friendly: bool, leash: float) -> void:
+	if foe != null and (not is_instance_valid(foe) or foe.dead or _flat_distance(foe) > RIVAL_SIGHT * 1.5 \
+			or (_home != Vector3.INF and global_position.distance_to(_home) > leash)):
+		foe = null
+		_path.clear()
+		_repath = 0.0
+	if foe != null:
+		return
+	var best: Enemy = null
+	var best_d := HELP_RANGE if friendly else RIVAL_SIGHT
+	for e in level.enemies:
+		if not is_instance_valid(e) or e == self or e.dead:
+			continue
+		var d := _flat_distance(e)
+		# A friend of the hero leaves the hero's other friends alone.
+		if d >= best_d or (friendly and e.is_friend()):
+			continue
+		var rival: bool = d < RIVAL_SIGHT and Factions.kinds_are_rivals(kind, e.kind)
+		var helps: bool = friendly and e.is_hunting()
+		if (rival or helps) and level.has_line_of_sight(global_position, e.global_position):
+			best = e
+			best_d = d
+	if best != null:
+		_set_foe(best)
+
+
+## Goes for the rival: a blow or a shot once it is in reach, else closer.
+func _fight_foe() -> Vector3:
+	var to := foe.global_position - global_position
+	to.y = 0.0
+	var d := to.length()
+	if level.stacked(self, foe):
+		return Vector3.ZERO
+	if ranged:
+		if d < float(_stats.reach) and level.has_line_of_sight(global_position, foe.global_position):
+			_face(to)
+			if _cooldown <= 0.0:
+				_shoot(foe)
+			return Vector3.ZERO
+	elif d < float(_stats.reach) + foe.girth():
+		_face(to)
+		if _cooldown <= 0.0:
+			_strike(foe)
+		return Vector3.ZERO
+	if _repath <= 0.0 or _path.is_empty():
+		_repath = 0.5
+		_path.clear()
+		if level.has_line_of_sight(global_position, foe.global_position):
+			_path.append(foe.global_position)
+		else:
+			for c in level.grid_path(level.world_to_cell(global_position), level.world_to_cell(foe.global_position)).slice(1):
+				_path.append(level.cell_to_world(c))
+	if _path.is_empty():
+		return Vector3.ZERO
+	var step := _path[0] - global_position
+	step.y = 0.0
+	if step.length() < 0.4:
+		_path.remove_at(0)
+		return Vector3.ZERO
+	return step.normalized()
 
 
 ## A skeleton hidden in the dark can still be heard: footsteps and a faint
@@ -749,7 +909,8 @@ func _step_out() -> Vector3:
 
 ## Sets the skeleton on the hero at once, e.g. a cutthroat called by the chief.
 func alert(at: Vector3) -> void:
-	_wake(at)
+	if not is_friend():
+		_wake(at)
 
 
 ## Whether the skeleton has spotted the hero and is after them.
@@ -859,7 +1020,8 @@ func _face(dir: Vector3, delta := -1.0) -> void:
 		_model.rotation.y = lerp_angle(_model.rotation.y, target, 1.0 - exp(-12.0 * delta))
 
 
-func _strike(player: Player) -> void:
+## A blow at the hero, or at a rival monster.
+func _strike(target: Node3D) -> void:
 	_cooldown = _stats.cooldown
 	var slow: float = _stats.size
 	_play_once("1H_Melee_Attack_Chop", 0.9 * slow)
@@ -867,11 +1029,17 @@ func _strike(player: Player) -> void:
 	_anim.speed_scale = 1.0 / slow
 	await get_tree().create_timer(0.45 * slow).timeout
 	_anim.speed_scale = 1.0
-	if dead or not is_inside_tree():
+	if dead or not is_inside_tree() or not is_instance_valid(target):
 		return
-	var d := player.global_position - global_position
+	var d := target.global_position - global_position
 	d.y = 0.0
-	if d.length() < float(_stats.reach) + 0.6 and not level.stacked(self, player):
+	var rival := target as Enemy
+	if rival != null:
+		if not rival.dead and d.length() < float(_stats.reach) + 0.6 + rival.girth() and not level.stacked(self, rival):
+			rival.hit_by_rival(_stats.damage, self)
+		return
+	var player := target as Player
+	if player != null and d.length() < float(_stats.reach) + 0.6 and not level.stacked(self, player):
 		var before := player.hp
 		player.take_damage(_stats.damage, global_position, self)
 		# Minion blades and spider bites are sometimes poisoned.
@@ -879,17 +1047,21 @@ func _strike(player: Player) -> void:
 			player.afflict("gift")
 
 
-func _shoot(player: Player) -> void:
+## A bolt, an orb or fire at the hero, or at a rival monster.
+func _shoot(target: Node3D) -> void:
 	_cooldown = _stats.cooldown
 	var magic: bool = kind == "magier"
 	var fire: bool = _stats.get("fire", false)
 	_play_once("Spellcast_Shoot" if magic else "1H_Ranged_Shoot", 0.9 if magic or fire else 0.7)
 	await get_tree().create_timer(0.5 if magic or fire else 0.3).timeout
-	if dead or not is_inside_tree() or level.stacked(self, player):
+	if dead or not is_inside_tree() or not is_instance_valid(target) or level.stacked(self, target):
 		return
 	var origin := global_position + Vector3(0, 1.4 * (float(_stats.size) if fire else 1.0), 0)
-	var target := player.global_position + Vector3(0, 1.2, 0)
+	var aim := target.global_position + Vector3(0, 1.2, 0)
 	Sfx.play(self, "magic" if magic or fire else "bow_%d" % (randi() % 3), -2.0, global_position)
-	var shot := Projectile.spawn(level, origin, target - origin, false, magic or fire, fire)
+	var shot := Projectile.spawn(level, origin, aim - origin, false, magic or fire, fire)
 	shot.shooter = self
 	shot.damage = _stats.damage
+	if target is Enemy:
+		shot.foe = target as Enemy
+		shot.at_rival = true

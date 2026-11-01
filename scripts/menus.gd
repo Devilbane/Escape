@@ -7,6 +7,9 @@ const STORAGE_SIZE := 16
 const BLUE := Color(0.65, 0.85, 1.0)
 ## The colour of everything about the villagers' goodwill (see Reputation).
 const REPUTATION_COLOR := Color(0.78, 0.65, 1.0)
+## The quieter colour of what a villager wants and who they are tied to,
+## under their standing on the reputation page.
+const ABOUT_COLOR := Color(0.78, 0.8, 0.86)
 
 var game: Node
 ## The open window: "", "inventar", "lager", "haendler", "bett", "laden",
@@ -1876,7 +1879,7 @@ func _build_reputation_page() -> void:
 	var intro: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	intro.custom_minimum_size.x = 740
-	intro.text = Lang.t("Hilf den Leuten im Dorf, dann denken sie besser von dir. Freundlich: Rabatt und Neuigkeiten. Vertraut: mehr Rabatt, und wer ein Geheimrezept kennt, verrät es dir. Geehrt: der größte Rabatt.")
+	intro.text = Lang.t("Hilf den Leuten im Dorf, dann denken sie besser von dir. Freundlich: Rabatt und Neuigkeiten. Vertraut: mehr Rabatt, und wer ein Geheimrezept kennt, verrät es dir. Geehrt: der größte Rabatt.") + " " + Lang.t("Hör zu, wenn die Leute miteinander reden: Dann steht hier, wer mit wem verwandt, befreundet oder verfeindet ist.")
 	list.add_child(intro)
 	var roles: Array = game.met.keys()
 	roles.sort_custom(func(a, b): return rep.points(a) > rep.points(b))
@@ -1893,9 +1896,21 @@ func _build_reputation_page() -> void:
 		var next := rep.to_next(role)
 		if next > 0:
 			line += "  " + Lang.t("noch %d bis %s") % [next, Reputation.level_name(lvl + 1)]
+		# One villager's lines together: standing, then what they want and
+		# who they are tied to (once overheard, see VillageTalk).
+		var group := VBoxContainer.new()
+		group.add_theme_constant_override("separation", 2)
+		list.add_child(group)
 		var l: Label = game._make_label(game.TEXT_FONT, 18, REPUTATION_COLOR if lvl > 0 else Color.WHITE)
 		l.text = line
-		list.add_child(l)
+		group.add_child(l)
+		var about := _villager_about(role)
+		if about != "":
+			var d: Label = game._make_label(game.TEXT_FONT, 16, ABOUT_COLOR)
+			d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			d.custom_minimum_size.x = 740
+			d.text = about
+			group.add_child(d)
 	var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
 	title.text = Lang.t("Geheimrezepte")
 	list.add_child(title)
@@ -1909,6 +1924,17 @@ func _build_reputation_page() -> void:
 		var l: Label = game._make_label(game.TEXT_FONT, 17)
 		l.text = Lang.t("%s (von %s), im Tagesplan unter „Handwerk“") % [Lang.t(Offline.RECIPES[id].name), Quests.villager_name(Offline.RECIPES[id].secret)]
 		list.add_child(l)
+
+
+## What a villager wants and, for the ties the hero overheard, who they are
+## tied to: "Wants ...  ·  Friends: Hanna  ·  Rivals: Hagen".
+func _villager_about(role: String) -> String:
+	var parts := []
+	if VillageTalk.GOALS.has(role):
+		parts.append(Lang.t(VillageTalk.GOALS[role]))
+	for tie in game.village_talk.known_ties_of(role):
+		parts.append(Lang.t("%s: %s") % tie)
+	return "  ·  ".join(parts)
 
 
 func _build_quit() -> void:

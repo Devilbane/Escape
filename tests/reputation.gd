@@ -123,6 +123,11 @@ func _test() -> void:
 	check(rep.points("S") == Reputation.TRADE_CAP, "trading alone stops at the trade cap")
 	check(rep.level("S") == Reputation.TRUSTED, "a good customer is trusted")
 
+	# A friend of Hagen's first hears about his quarrel with Gorm (a task,
+	# see VillageTalk); after that he teaches his secret.
+	_bump("S")
+	check(game.quests.is_active("versoehnung"), "the stonemason first asks for help with his quarrel")
+
 	# A trusted villager teaches a secret recipe once, before the goods.
 	_bump("S")
 	check(rep.knows_recipe("steine_hagen"), "the stonemason teaches his secret")

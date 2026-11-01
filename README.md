@@ -208,6 +208,17 @@ on a shaved head. A mohawk
 hides under helmets and hats, unless you hide the helmet in the inventory: it still protects, but the
 haircut shows. Your look is saved with the game.
 
+**Quests.** Some villagers have work for you. Run into them and they hand out a task; run into them
+again when it is done to collect the reward. Ulrich the guard wants five bandits from the pass defeated,
+Gorm the smith three bruisers, Bruno the woodcutter two poachers, and once the pass is quieter Ragna at the
+adventurers' guild sends you after the bandit chief. Mira the shopkeeper wants back three **bandit daggers**
+that the cutthroats stole (they drop them while she is still missing some). Anselm the postmaster, Lene the
+farmer and Hanna the water carrier give you a letter, a pumpkin or a bucket to carry to another villager,
+who pays you when it arrives; lose it and the giver hands you another. Rewards are gold and sometimes gear
+(boots, chain mail, a shadow cloak). The **Quests** page of the compendium (key H) lists every task with
+who gave it, how far along it is and the reward. Quests are kept in each hero's saved game. The tasks are
+defined in `scripts/quests.gd`: adding one is a single entry there plus its English texts in `scripts/lang.gd`.
+
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.
 

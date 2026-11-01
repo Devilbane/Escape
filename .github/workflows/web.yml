@@ -79,6 +79,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log
           grep -q PASS barber.log
 
+      - name: Villager quests test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/quests.gd | tee quests.log
+          grep -q PASS quests.log
+
       - name: Villager names after a talk test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/npc_names.gd | tee names.log

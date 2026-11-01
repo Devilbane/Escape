@@ -82,6 +82,10 @@ const NEWS := [
 ]
 ## How long the village listens to the herald (seconds).
 const LISTEN_TIME := 13.0
+## Who stays up at night: the guard keeps watch, the drinker stays at the
+## tavern and the temple is open day and night. Everyone else goes home to
+## sleep at nightfall (see Outdoor.set_hour) and comes out in the morning.
+const NIGHT_OWLS := ["4", "5", "O"]
 
 var level: Outdoor
 var role := "7"
@@ -109,6 +113,11 @@ var _greeted := false
 ## Who the villager listens to while gathered on the square.
 var _listen_to := Vector3.INF
 var _news := 0
+## Night has fallen, and whether the villager is inside their house asleep
+## (hidden, and nobody to talk to or trade with until morning).
+var night := false
+var at_home := false
+var _layer := 1
 
 
 func setup(owner_level: Outdoor, role_char: String, cell: Vector2i) -> void:
@@ -219,11 +228,19 @@ func _start(task: String, time: float) -> void:
 	_task = task
 	_task_time = time
 	_work_pause = 0.0
+	if task == "home" and not at_home:
+		_hide_inside(true)
 
 
 ## What comes after the current task: mostly back to work, now and then a
 ## walk somewhere in the village.
 func _next_task() -> void:
+	if night and goes_to_bed():
+		if _task == "home":
+			_start("home", 10.0)
+		else:
+			_walk_to(_house_door(), WALK_SPEED * 1.15, "home")
+		return
 	match _info.plan:
 		"stay", "shop":
 			if level.world_to_cell(global_position) != home:
@@ -309,6 +326,8 @@ func _physics_process(delta: float) -> void:
 			play("Idle")
 		return
 	match _task:
+		"home":
+			pass
 		"walk":
 			_walk(delta, hero)
 		"work", "sit", "idle":
@@ -400,12 +419,69 @@ func _turn_to(direction: Vector3, delta: float) -> void:
 	rotation.y = lerp_angle(rotation.y, target, minf(1.0, delta * 8.0))
 
 
+# --- Night -------------------------------------------------------------------
+
+## Whether this villager sleeps at night (see NIGHT_OWLS).
+func goes_to_bed() -> bool:
+	return not role in NIGHT_OWLS
+
+
+## Night falls or the day breaks. At nightfall the villager walks to the
+## nearest house and goes in; in the morning they step out of the door and
+## go back to their day. `at_once` settles it on the spot (a game loaded at
+## night finds the village already asleep).
+func set_night(on: bool, at_once := false) -> void:
+	night = on
+	if not goes_to_bed():
+		return
+	if on:
+		_listen_to = Vector3.INF
+		_bubble_time = 0.0
+		if at_once:
+			global_position = _house_door()
+			_start("home", 10.0)
+		elif _task != "home":
+			_walk_to(_house_door(), WALK_SPEED * 1.15, "home")
+	elif at_home:
+		_hide_inside(false)
+		_start("idle", _rng.randf_range(0.5, 4.0))
+	elif _task == "walk" and get_meta("then", "") == "home":
+		_start("idle", 0.5)
+
+
+## The door of the house nearest to the villager's own spot.
+func _house_door() -> Vector3:
+	var houses: Array = level.spots.houses
+	var at := level.cell_to_world(home)
+	var best := at
+	var best_d := INF
+	for h: Vector3 in houses:
+		var d := at.distance_to(h)
+		if d < best_d:
+			best_d = d
+			best = h
+	return best
+
+
+## In through the door (gone from the street) or back out of it.
+func _hide_inside(inside: bool) -> void:
+	at_home = inside
+	visible = not inside
+	if inside:
+		_layer = collision_layer if collision_layer != 0 else _layer
+		collision_layer = 0
+	else:
+		collision_layer = _layer
+	if station:
+		station.used = inside
+
+
 # --- Gathering on the square -------------------------------------------------
 
 ## Who drops their work to hear the herald: not the shopkeeper at her
 ## stall, the elder or the woodcutter out in the woods.
 func comes_to_listen() -> bool:
-	return _info.plan in ["work", "sit", "patrol", "stroll", "wander", "carry"] and role != "3" and _task != "listen"
+	return not night and _info.plan in ["work", "sit", "patrol", "stroll", "wander", "carry"] and role != "3" and _task != "listen"
 
 
 func gather_at(spot: Vector3, speaker: Vector3) -> void:

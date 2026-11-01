@@ -96,6 +96,9 @@ var away_report: Array[String] = []
 var _name_edit: LineEdit
 var _ranking_slot: Control
 var _lang_row: Control
+## Set when the language is picked for the very first time; it survives the
+## scene reload so the fresh title can go straight on to the name entry.
+static var _ask_name_after_reload := false
 ## Holding the left mouse button this long turns a click into running.
 const HOLD_TO_RUN := 0.2
 ## How close to a clicked object's middle the hero walks before using it:
@@ -135,6 +138,11 @@ func _ready() -> void:
 	player.trained.connect(_on_player_trained)
 	load_level(_start_level())
 	_show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies"))
+	if _ask_name_after_reload:
+		# The language was just chosen on the very first start: no extra
+		# click, the hero's name comes next.
+		_ask_name_after_reload = false
+		new_game()
 
 
 ## Lets a link like .../Escape/?level=3 jump straight to a level.
@@ -680,6 +688,7 @@ func _setup_language_row() -> void:
 func _choose_language(code: String) -> void:
 	if state != State.TITLE or _name_box.visible:
 		return
+	_ask_name_after_reload = Lang.language == "" and not has_save()
 	Lang.choose(code)
 	get_tree().reload_current_scene()
 

@@ -101,7 +101,14 @@ const ALL := {
 	# Gorm melts it down into iron bars (see Forge) and the merchant pays well.
 	"donnererz": {"name": "Donnererz", "slot": "erz", "weight": 1, "price": 32, "no_loot": true, "material": "metal", "tint": Color(0.55, 0.75, 1.0), "effect": "Nur bei Gewitter zu finden. Gorm schmilzt es zu Eisenbarren"},
 	"wassereimer": {"name": "Wassereimer", "slot": "auftrag", "weight": 2, "price": 1, "no_loot": true, "model": "res://assets/village/bucket_water.gltf", "model_scale": 1.6, "effect": "Für Priesterin Elsbeth am Tempel"},
+	# Food for a fox (see Animal and Pet): the shopkeeper always has some.
+	"wurst": {"name": "Wurst", "slot": "futter", "weight": 0.3, "price": 2, "no_loot": true, "effect": "Füchse lieben sie: Füttere einen Fuchs auf den Wiesen dreimal, und er wird dein Freund"},
 }
+
+
+## Whether an item is food for a fox (see Pet).
+static func is_food(id: String) -> bool:
+	return ALL.has(id) and ALL[id].slot == "futter"
 
 
 ## Whether an item is carried for a villager's task (see Quests).

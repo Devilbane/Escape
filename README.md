@@ -66,6 +66,17 @@ holds a food basket out of reach of the ground and of a single crate. Three crat
 stack two next to the pedestal, climb up and eat (+3 lives and every ailment cured). The basket
 fills up again after a few minutes.
 
+**Foxes** on the meadows between the graveyard and the village are shy, but they love **sausages**.
+Mira the shopkeeper always has some (2 gold each). Carry a sausage and a fox no longer bolts: it
+comes up to you, curious, and eats it from your hand. After three sausages it trusts you and follows
+you everywhere, in the village and down in the dungeon. You only ever have one fox, and it stays
+yours in your saved game. It never fights and cannot be hurt.
+Its nose is what makes it useful: **ingredients** lie hidden in the ground that you cannot see
+(wild garlic, porcini and rare truffles in the open air; cave mushrooms and glowmoss in the
+dungeon). When one is in reach of its nose, the fox runs over, digs it up and leaves it lying there
+for you to pick up. They go into your **ingredient pouch** and show up in the ingredient book (key H),
+ready for recipes. The ground holds new ones each time you come back.
+
 **Stone blocks** let you build: walls, steps, towers, small enclosures. Hagen the **stonemason** sells them
 in the village, west of the pedestal, next to his stone yard (3 gold each, 1 gold back; 4 kg each). A block
 is twice as long as it is wide and high and sits on a build grid: set down from the bag (key B), it lies

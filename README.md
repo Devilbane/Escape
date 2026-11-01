@@ -324,6 +324,17 @@ The **Reputation** page of the compendium (key H) lists everyone you have met wi
 points still needed for the next level and the secret recipes you know. Standing is kept in each hero's
 saved game. The rules, gossip and secrets are in `scripts/reputation.gd`.
 
+**Bounty board.** On the north-east corner of the village square, under a lantern by the adventurers' guild,
+stands a wooden board with notices pinned to it. Every morning at dawn (5:00) the crown's clerk pins up
+**three fresh hunts**: wolves, spiders, orcs or the yeti in the wolf hollow, cutthroats, poachers or bruisers
+at the robbers' pass, or skeletons that rise from the graveyard at night. Run into the board to read them and
+take on the ones you like, then come back to the board to collect the bounty (12 to 25 gold). A hunt not done
+by the next dawn expires; one finished in time can still be collected later. Each notice pays once. A gold
+**!** over the board means a notice is open, a **?** means a bounty is waiting. Hunts you are on also show on
+the Quests page of the compendium. The day counter and the board are kept in each hero's saved game; sleeping
+through the night counts as a new day. The hunts are defined in `scripts/bounties.gd` (one entry each, with
+their English texts in `scripts/lang.gd`).
+
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.
 

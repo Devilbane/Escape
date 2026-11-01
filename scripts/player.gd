@@ -42,6 +42,16 @@ const GRAVITY := 26.0
 ## playback (metres per second, measured from the foot bone).
 const RUN_ANIM_SPEED := 3.5
 const MAX_HP := 5
+## A running hero who loses more than this share of their life within
+## KNOCKDOWN_WINDOW seconds is knocked to the ground and gets up again.
+const KNOCKDOWN_SHARE := 0.1
+const KNOCKDOWN_WINDOW := 2.0
+## The fall to the ground (Death_A, played to its end) and the climb back up
+## (Lie_StandUp, 2.33 s long, played a little faster).
+const FALL_TIME := 0.8
+const GET_UP_ANIM := "Lie_StandUp"
+const GET_UP_SPEED := 1.4
+const GET_UP_TIME := 2.33 / GET_UP_SPEED
 const MELEE_RANGE := 2.8
 ## Running into a skeleton starts a fight: the hero keeps swinging while
 ## standing next to it, and throws knives at it once the two are apart.
@@ -145,6 +155,18 @@ var _target: Enemy = null
 var _auto_cooldown := 0.0
 ## Time left on an animation that plays while the hero keeps moving.
 var _anim_hold := 0.0
+## Seconds since the hero last ran; hits within the knockdown window of a run
+## count towards being knocked down.
+var _since_run := INF
+## Recent hits taken while running, as [time, damage], and a clock for them.
+var _run_hits: Array = []
+var _clock := 0.0
+## Seconds of the fall left before getting up, and of the whole knockdown
+## (fall and getting up), during which the hero takes no more damage.
+var _falling := 0.0
+var _down := 0.0
+## How often the hero has been knocked down this game.
+var knockdowns := 0
 
 
 func _ready() -> void:
@@ -349,6 +371,9 @@ func revive(at: Vector3, heal := true) -> void:
 	global_position = at
 	_invulnerable = 1.5
 	_busy = 0.0
+	_falling = 0.0
+	_down = 0.0
+	_run_hits.clear()
 	play("Idle")
 
 
@@ -963,7 +988,7 @@ func _block(from: Vector3) -> void:
 ## Blows and shots can be blocked with a shield; spikes from below (blockable
 ## false) cannot.
 func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable := true) -> void:
-	if dead or _invulnerable > 0.0 or frozen:
+	if dead or _invulnerable > 0.0 or _down > 0.0 or frozen:
 		return
 	if blockable:
 		mark_fight() # A blow or a shot, blocked or not; spikes are no fight.
@@ -981,6 +1006,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	# Every life lost hardens the body a little.
 	train("konstitution", amount)
 	hp -= amount
+	var knocked := _note_run_hit(amount)
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
 		attacker.take_hit(1, global_position)
 	if hp <= 0 and has_special("phoenixfeder"):
@@ -1003,8 +1029,54 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 		dead = true
 		play_once("Death_A", 99.0)
 		defeated.emit()
+	elif knocked:
+		_knock_down()
 	else:
 		play_once("Hit_A", 0.35)
+
+
+## Remembers a hit taken during or right after a run, and tells whether the
+## hits of the last KNOCKDOWN_WINDOW seconds took more than KNOCKDOWN_SHARE of
+## the hero's life.
+func _note_run_hit(amount: int) -> bool:
+	if _since_run > KNOCKDOWN_WINDOW:
+		return false
+	while not _run_hits.is_empty() and _clock - _run_hits[0][0] > KNOCKDOWN_WINDOW:
+		_run_hits.pop_front()
+	_run_hits.append([_clock, amount])
+	var total := 0
+	for h in _run_hits:
+		total += int(h[1])
+	return total > max_hp * KNOCKDOWN_SHARE
+
+
+## Knocks the hero to the ground: they fall over backwards, lie a moment and
+## get up again. No blow lands while they are down.
+func _knock_down() -> void:
+	knockdowns += 1
+	_run_hits.clear()
+	_since_run = INF
+	run_boost = 1.0
+	_falling = FALL_TIME
+	_down = FALL_TIME + GET_UP_TIME
+	_invulnerable = 0.0
+	play_once("Death_A", _down)
+
+
+## Lets a knocked-down hero lie until the fall is over, then stand up.
+func _get_up(delta: float) -> void:
+	if _down <= 0.0:
+		return
+	_down = maxf(0.0, _down - delta)
+	if _falling > 0.0:
+		_falling -= delta
+		if _falling <= 0.0 and not dead:
+			_current_anim = ""
+			play(GET_UP_ANIM, 0.4)
+	if _down <= 0.0 and not dead:
+		# A short blink once back on the feet, so a waiting blade does not
+		# land the very moment the hero stands.
+		_invulnerable = 0.6
 
 
 ## Running trains speed, carrying a heavy load trains strength, sneaking
@@ -1042,6 +1114,8 @@ func _physics_process(delta: float) -> void:
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_auto_cooldown = maxf(0.0, _auto_cooldown - delta)
 	_anim_hold = maxf(0.0, _anim_hold - delta)
+	_clock += delta
+	_get_up(delta)
 	_tick_ailments(delta)
 	_auto_attack()
 	var dir := Vector3.ZERO
@@ -1061,6 +1135,7 @@ func _physics_process(delta: float) -> void:
 				to.y = 0.0
 				dir = to.normalized()
 	_breathe(delta, dir != Vector3.ZERO)
+	_since_run = 0.0 if run_boost > RUN_ANIM_FROM else _since_run + delta
 	var vy := velocity.y - GRAVITY * delta
 	var pace := speed * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else WALK_FACTOR * run_boost)
 	velocity = dir * pace + _knockback
@@ -1112,6 +1187,8 @@ func _physics_process(delta: float) -> void:
 		_anim.speed_scale = clampf(ground_speed / RUN_ANIM_SPEED, 0.5, 2.5)
 	elif _current_anim == WALK_ANIM:
 		_anim.speed_scale = clampf(ground_speed / WALK_ANIM_SPEED, 0.5, 2.5)
+	elif _current_anim == GET_UP_ANIM:
+		_anim.speed_scale = GET_UP_SPEED
 	else:
 		_anim.speed_scale = 1.0
 	_footsteps(ground_speed)

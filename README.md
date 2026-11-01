@@ -24,6 +24,7 @@ The game can be played in English or German; you choose the language on the titl
 | Zoom | + and − | mouse wheel (up close the camera tilts and you see the face) |
 
 A jump from a run keeps its momentum: the faster you are, the farther you fly.
+Running has a risk: lose more than 10 % of your lives within 2 seconds while running (or right after) and you fall to the ground and get up again, which takes about 2.5 seconds. No blow lands while you are down.
 
 Run into a skeleton and you fight automatically: as long as you stand next to it, you keep striking.
 Step back and you throw knives at the skeleton you attacked last, as long as you can see it

@@ -55,6 +55,11 @@ extends Level
 ##   %  gem cutter's wheel   *  alchemist's table   $  the hero's storage chest
 ##   E  the way down into the dragon's lair: a stone arch over stairs into
 ##      the dark (a block of tiles, see Level "lair: yes")
+##   (  a dark, creepy hole in the ground: run into it to climb down into a
+##      small, pitch-black cave of its own (see Level "dark: yes"), where a
+##      nameless horror may lurk (see Horrors). The holes are numbered from
+##      the top of the map down, west to east within a row; hole n leads to
+##      the floor with the line "building: loch<n>".
 ##   v  a stone pedestal with a food basket on top, too high to reach from
 ##      the ground or from one crate: stack two crates beside it. Three
 ##      wooden crates lie close by (see Crate).
@@ -94,6 +99,12 @@ const BUILDING_NAMES := {
 	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
 	"E": "die Drachenhöhle",
 }
+## The creepy holes in the ground, in map order (see "(").
+var holes: Array[Vector3] = []
+var _whisper_timer := 3.0
+## From how far the hero hears a hole whisper.
+const WHISPER_RANGE := 14.0
+const WHISPERS := ["...komm näher...", "...tiefer...", "...hier unten...", "...wir warten...", "...hungrig..."]
 ## The herald calls out news this often (seconds, picked at random between the
 ## two bounds each time); the first call comes sooner.
 const HERALD_EVERY_MIN := 160.0
@@ -531,6 +542,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_fence(c, false)
 		"a":
 			_build_fence(c, true)
+		"(":
+			_build_hole(c)
 		"~", ";":
 			_add_solid(pos, Vector3(TILE, 1, TILE))
 			fishing_waters.append({"water": "teich" if ch == "~" else "senke", "pos": pos,
@@ -1052,6 +1065,74 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	if interiors.has("E"):
 		stations.append({"kind": "eingang", "building": "E", "name": BUILDING_NAMES.E,
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.6), "used": false})
+
+
+## A dark, creepy hole in the ground: a ring of torn earth and rocks round a
+## pit so black no light gets in, a skull or two at its rim and a cold
+## breath of mist rising out of it. Run into it to climb down.
+func _build_hole(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	holes.append(pos)
+	var id := "loch%d" % holes.size()
+	var earth := MeshInstance3D.new()
+	var ring := CylinderMesh.new()
+	ring.top_radius = 1.9
+	ring.bottom_radius = 2.1
+	ring.height = 0.08
+	ring.radial_segments = 14
+	earth.mesh = ring
+	var soil := StandardMaterial3D.new()
+	soil.albedo_color = Color(0.17, 0.12, 0.09)
+	soil.roughness = 1.0
+	earth.material_override = soil
+	earth.position = pos + Vector3(0, 0.03, 0)
+	add_child(earth)
+	var pit := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = 1.35
+	disc.bottom_radius = 1.35
+	disc.height = 0.02
+	disc.radial_segments = 11
+	pit.mesh = disc
+	var black := StandardMaterial3D.new()
+	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	black.albedo_color = Color(0.0, 0.0, 0.0)
+	pit.material_override = black
+	pit.position = pos + Vector3(0, 0.08, 0)
+	pit.rotation.y = _rng.randf() * TAU
+	add_child(pit)
+	# Torn-up rocks round the rim, and what is left of those who went down.
+	for i in 6:
+		var angle: float = TAU * i / 6.0 + _rng.randf_range(-0.3, 0.3)
+		var rock: String = ["rock_single_A", "rock_single_C", "rock_single_E"][_rng.randi() % 3]
+		_put(rock, pos + Vector3(cos(angle), 0, sin(angle)) * _rng.randf_range(1.6, 1.9), _rng.randf() * TAU, _rng.randf_range(2.0, 3.4))
+	for i in 2:
+		var angle: float = _rng.randf() * TAU
+		_put("lair/Skull", pos + Vector3(cos(angle), 0, sin(angle)) * 2.3, _rng.randf() * TAU, 0.6)
+	var mist := Effects.make_sparkles(Color(0.45, 0.5, 0.62, 0.5))
+	mist.position = pos + Vector3(0, 0.4, 0)
+	add_child(mist)
+	_add_solid(pos, Vector3(2.8, 1.0, 2.8))
+	doors[id] = pos + Vector3(0, 0, TILE * 0.8)
+	if interiors.has(id):
+		stations.append({"kind": "eingang", "building": id, "name": "ein dunkles Loch",
+				"cell": c, "pos": pos, "reach": 2.6, "used": false})
+
+
+## The holes whisper to a hero who comes near: words out of the dark, and a
+## cold sound.
+func _whisper_from_holes(delta: float) -> void:
+	_whisper_timer -= delta
+	if _whisper_timer > 0.0:
+		return
+	_whisper_timer = randf_range(5.0, 9.0)
+	for pos in holes:
+		var d := _flat_distance(player.global_position, pos)
+		if d < WHISPER_RANGE:
+			var near := 1.0 - d / WHISPER_RANGE
+			Sfx.play(self, "eerie_%d" % (randi() % 6), lerpf(-20.0, -8.0, near), pos, 0.8)
+			Effects.float_text(self, pos + Vector3(0, 1.4, 0), Lang.t(WHISPERS[randi() % WHISPERS.size()]), Color(0.62, 0.64, 0.8, lerpf(0.4, 0.85, near)))
+			return
 
 
 ## The temple is a small stone chapel put together from the pieces of the
@@ -1738,6 +1819,7 @@ func _process(delta: float) -> void:
 			_marker.queue_free()
 			_marker = null
 	_mind_the_wild(delta)
+	_whisper_from_holes(delta)
 	_mind_the_night(delta)
 	_mind_the_weather(delta)
 	_check_basket(delta)

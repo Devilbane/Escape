@@ -1,0 +1,19 @@
+name: Das Spinnenloch
+hint: Ein Loch im Waldboden, tiefer als jeder Brunnen. Fäden kleben an den Wänden, und irgendwo in der Finsternis klickt etwas.
+building: loch2
+floor: cellar
+lair: yes
+dark: yes
+horror: hohle_mutter
+###################
+##E################
+##P..,..#....v....#
+##...,..#..,,,,...#
+###.,,,,,,,.##.,..#
+###..v..#...##.,.##
+#######.##.....,..#
+#k....#.....#####.#
+#..w..,,,,..#.....#
+#.....#..w..#..X..#
+##c..##.....#..C..#
+###################

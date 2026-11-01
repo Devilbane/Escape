@@ -1,0 +1,19 @@
+name: Das offene Grab
+hint: Unter dem Friedhof, wo die Toten nicht schlafen: stockfinster, feucht und voller Knochen. Etwas Großes regt sich hier unten.
+building: loch1
+floor: cellar
+lair: yes
+dark: yes
+horror: schlund
+#################
+##E##############
+##P....#.....b..#
+##.....#..w.....#
+#..,,..,,,..##..#
+#..w..##...,,,..#
+####,###.##..####
+#k...,,....#..s.#
+#.....##.....,..#
+#..s..##..X..k..#
+#c....##.....C..#
+#################

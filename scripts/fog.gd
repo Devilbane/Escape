@@ -61,6 +61,12 @@ func _recompute(origin: Vector3) -> void:
 			# Without a torch nearby a tile is dark: only the lantern shows it.
 			var spot := level.cell_to_world(c)
 			var reach := HOODED_REACH if level.player.sneaking else LANTERN_REACH
+			if level.pitch_dark:
+				# Pitch black (see HandTorch): the own tile, and only as far
+				# as the hand torch reaches, if one burns.
+				reach = level.player.torch.light_reach() if level.player.torch else HandTorch.DARK_REACH
+				if c == center:
+					reach = INF
 			if Vector2(spot.x - origin.x, spot.z - origin.z).length() > reach and not level.is_lit(spot):
 				continue
 			if level.has_line_of_sight(origin, spot):

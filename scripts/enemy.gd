@@ -111,7 +111,32 @@ const KINDS := {
 			"1H_Melee_Attack_Chop": "DragonArmature|Dragon_Attack", "1H_Ranged_Shoot": "DragonArmature|Dragon_Attack2",
 			"Hit_A": "DragonArmature|Dragon_Hit", "Death_A": "DragonArmature|Dragon_Death"},
 		"voice": ["voice_koloss", 0.6, "BRÜLL"], "purse": [12, 18], "gear_chance": 0.8},
+	# The horrors: rare, huge things nobody has a name for (see Horrors).
+	# They lurk in the creepy holes of the wild and, very rarely, deep in the
+	# dungeon. Each one is a beast model blown up far past its size and
+	# darkened ("tint" multiplies its colours), with a sickly glow under it
+	# ("glow"). They never roam, a stab in the back only hurts them three
+	# times as hard, and nobody knows what they are until one has fallen.
+	"hohle_mutter": {"model": "Spider", "dir": "wild", "hp": 26, "speed": 4.6, "damage": 2, "reach": 3.4, "size": 2.4, "cooldown": 1.5,
+		"beast": true, "horror": true, "model_scale": 0.6, "turn": 0.0, "run_anim": 3.0,
+		"anims": {"Idle": "HumanArmature|Spider_Idle", "Walking_A": "HumanArmature|Spider_Walk", "Running_A": "HumanArmature|Spider_Walk",
+			"1H_Melee_Attack_Chop": "HumanArmature|Spider_Attack", "Hit_A": "HumanArmature|Spider_Jump", "Death_A": "HumanArmature|Spider_Death"},
+		"tint": Color(0.42, 0.36, 0.48), "glow": Color(0.55, 0.9, 0.4),
+		"voice": ["voice_wicht", 0.55, "tsss"], "purse": [25, 40], "gear_chance": 1.0, "poison": 0.6},
+	"bleicher_waechter": {"model": "Yeti", "dir": "wild", "hp": 32, "speed": 3.9, "damage": 3, "reach": 3.6, "size": 2.1, "cooldown": 2.2,
+		"beast": true, "horror": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
+		"tint": Color(0.62, 0.66, 0.78), "glow": Color(0.5, 0.65, 1.0),
+		"voice": ["voice_koloss", 0.45, "hhhh"], "purse": [30, 45], "gear_chance": 1.0},
+	"schlund": {"model": "Slime", "dir": "lair", "ext": "fbx", "hp": 28, "speed": 3.0, "damage": 2, "reach": 3.4, "size": 2.6, "cooldown": 1.9,
+		"beast": true, "horror": true, "model_scale": 0.6, "turn": -PI * 0.5, "run_anim": 2.5,
+		"anims": {"Idle": "Armature|Slime_Idle", "Walking_A": "Armature|Slime_Walk", "Running_A": "Armature|Slime_Walk",
+			"1H_Melee_Attack_Chop": "Armature|Slime_Attack", "Hit_A": "Armature|Slime_Idle", "Death_A": "Armature|Slime_Death"},
+		"tint": Color(0.16, 0.12, 0.18), "glow": Color(0.9, 0.2, 0.25),
+		"voice": ["voice_koloss", 0.38, "gluck"], "purse": [25, 40], "gear_chance": 1.0, "poison": 0.5},
 }
+## Every horror there is (see Horrors).
+const HORRORS := ["hohle_mutter", "bleicher_waechter", "schlund"]
 ## Which map letter places which kind.
 const LETTERS := {"M": "krieger", "A": "schuetze", "Z": "magier", "w": "wicht", "G": "koloss", "W": "waechter",
 	"v": "fledermaus", "s": "schleim", "R": "drache"}
@@ -338,6 +363,16 @@ func is_beast() -> bool:
 	return _stats.get("beast", false)
 
 
+## Whether this is one of the nameless horrors (see Horrors).
+func is_horror() -> bool:
+	return _stats.get("horror", false)
+
+
+## Its full life, gear included.
+func max_hp() -> int:
+	return int(_stats.hp)
+
+
 ## Whether this one's faction is the hero's friend (see Factions).
 func is_friend() -> bool:
 	return Factions.is_friendly(Factions.of(kind))
@@ -370,12 +405,24 @@ func fall_text() -> String:
 			return Lang.t("Der Drache stürzt brüllend zu Boden!")
 		"fog_wraith":
 			return Lang.t("Der Nebelgeist verweht.")
+	if is_horror():
+		return Lang.t("Das Ungeheuer bricht zusammen. Die Stille danach ist fast schlimmer.")
 	return Lang.t("Der Räuber geht zu Boden.") if is_human() else Lang.t("Das Skelett zerfällt zu Staub.")
 
 
-## The rest of _ready for a beast: no weapon, no tint, its own animations.
+## The rest of _ready for a beast: no weapon, its own animations. Only a
+## horror is tinted, and glows from below.
 func _ready_beast() -> void:
 	_anim = _model.find_child("AnimationPlayer", true, false)
+	if _stats.has("tint"):
+		_darken(_stats.tint)
+	if _stats.has("glow"):
+		var glow := OmniLight3D.new()
+		glow.light_color = _stats.glow
+		glow.light_energy = 1.4
+		glow.omni_range = 2.2 * float(_stats.size)
+		glow.position = Vector3(0, 0.6 * float(_stats.size), 0.4 * float(_stats.size))
+		add_child(glow)
 	var anims: Dictionary = _stats.anims
 	for a in ["Idle", "Walking_A", "Running_A"]:
 		if _anim.has_animation(anims[a]):
@@ -454,6 +501,21 @@ func _tint(mesh: MeshInstance3D, color: Color, metal := 0.0) -> void:
 	mesh.material_override = mat
 
 
+## Multiplies every colour of a beast's model by `color`. Beast models come
+## with plain materials of their own, so each one is copied and darkened.
+func _darken(color: Color) -> void:
+	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+		if mesh.mesh == null:
+			continue
+		for i in mesh.mesh.get_surface_count():
+			var source := mesh.get_active_material(i) as BaseMaterial3D
+			if source == null:
+				continue
+			var mat := source.duplicate() as BaseMaterial3D
+			mat.albedo_color = source.albedo_color * color
+			mesh.set_surface_override_material(i, mat)
+
+
 func _glowing_eyes() -> void:
 	var eyes := _model.find_child("*_Eyes", true, false) as MeshInstance3D
 	if eyes == null:
@@ -526,7 +588,8 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	elif kind != "backstab":
 		damage = Player.soak(damage, hardening)
 	if kind == "backstab":
-		damage = hp
+		# A horror is too big to fall to one stab: it only hurts more.
+		damage = damage * 3 if is_horror() else hp
 	elif _stats.get("armored", false):
 		# Blades glance off the guardian's armour, and it turns to fight.
 		if wakes:

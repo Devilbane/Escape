@@ -139,6 +139,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_boss.gd | tee dragon.log
           grep -q PASS dragon.log
 
+      - name: Dark holes, torches and horrors test
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/horrors.gd | tee horrors.log
+          grep -q PASS horrors.log
+
       - name: Bandit chief boss fight test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/bandit_chief.gd | tee chief.log

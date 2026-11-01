@@ -105,6 +105,12 @@ your own lantern. Dark corners stay black; skeletons in them you only hear by th
 Areas you have already explored stay visible in grey. Some torches burn, some do not: run into
 the wall at a torch to light it or put it out.
 
+The dungeon has long been abandoned, but it is not empty: dust lies on the floor and gathers along
+the walls, cobwebs hang in the corners and on the furniture, and old bones, broken pots and loose
+stones lie about. Cockroaches and spiders crawl around and scurry off when you come close, spiders
+lower themselves from their webs, and here and there water drips from the ceiling into a small
+puddle (you hear it, too). All of this is decoration only: it never blocks your way.
+
 **Sneaking** (C or double click): 60 % slower, silent, half transparent, and the lantern is
 hooded. Skeletons look ahead (120°), but only see what stands in the light. They can hear you
 all around, unless you sneak or stand still. Very close they always notice you. If they lose

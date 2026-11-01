@@ -24,6 +24,7 @@ The game can be played in English or German; you choose the language on the titl
 | Inventory | I | “Inventory” button |
 | Compendium | H | “Compendium” button |
 | Character page | P | “Character” button |
+| Map and journal | N | “Map” button |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |
@@ -549,6 +550,25 @@ If you leave the blade lying there, it still waits for you after a reload.
 The **compendium** (key H) shows all keys and mouse commands and collects every hint and every
 explanation you have been given so far: the introduction of every level, the tips on sneaking and on the
 guardian, the secret lever. It is saved with the game.
+
+## Map and journal
+
+Your hero draws a **map** as they go. In the dungeon everything the fog of war has shown you goes on it,
+in the open air everything within about 24 m of you. Press **N** (or “Map” in the pull-out menu) to open it;
+the arrows above the map flip through every level you have a map of, and it zooms in on the part you have explored.
+Landmarks get a numbered mark once you have seen them, listed beside the map: the stairs, doors, shrines,
+fountains, merchants, beds and storage chests below ground, and the crypt, the graveyard, the dragon's lair,
+the village buildings, Weavers' Lane, the market fountain, the well, the ponds, the food basket, the bandit camp,
+the robbers' pass and the wolf hollow above. Opened secret rooms get a star. Every spot where you found something
+gets a small diamond (green for ingredients, blue for fish), and finds of the same thing close together count on one spot.
+Below the map you see how much of the level you have explored.
+
+The **journal** on the second page writes down, newest first, every level you arrive at, every landmark you
+discover, every secret room and every find, with the day of your journey and the hour. Map and journal are kept
+in each hero's saved game. The rules are in `scripts/journal.gd`, the drawing in `scripts/map_view.gd`.
+Other features put their finds on the map with `Game.note_find(kind, id, name, pos)`, e.g.
+`note_find("ingredient", "mondsilbererz", "Mondsilbererz", pos)` when an ingredient is picked; `Journal.spots_of(id)`
+lists every spot where something was found, so a recipe book can show where to look. Ingredients put into the pouch with `Crafting.add` and ore picked up (such as thunder ore) are marked by themselves.
 
 ## Time away (offline activities)
 

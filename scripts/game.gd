@@ -85,6 +85,8 @@ var met := {}
 ## The villagers' tasks: offered, running and finished (see Quests). Kept in
 ## the saved game, so every hero has their own.
 var quests := Quests.new(self)
+## The hero's map of every level and the exploration journal (see Journal).
+var journal := Journal.new(self)
 ## How many mornings have dawned in the world above ground since the game
 ## began. The bounty board pins up fresh hunts each morning (see Bounties).
 ## The day turns at dawn, so the night after day d's evening, past midnight
@@ -456,7 +458,7 @@ func _setup_drawer() -> void:
 	column.add_child(buttons)
 	# Buttons that open a window also push the menu away again; the others
 	# (actions and sound) leave it out so they can be clicked again.
-	var windows := [["Inventar", "inventar"], ["Charakter", "charakter"], ["Kompendium", "kompendium"], ["Laden", "laden"]]
+	var windows := [["Inventar", "inventar"], ["Charakter", "charakter"], ["Kompendium", "kompendium"], ["Karte", "karte"], ["Laden", "laden"]]
 	for w in windows:
 		buttons.add_child(_make_button(Lang.t(w[0]), _open_from_drawer.bind(w[1])))
 	buttons.add_child(_make_button(Lang.t("Springen"), func(): if state == State.PLAYING: player.jump()))
@@ -1573,6 +1575,7 @@ func _start_new_game() -> void:
 	builds.clear()
 	met.clear()
 	quests.clear()
+	journal.clear()
 	day = 0
 	bounties.clear()
 	bounties.refresh(day)
@@ -1882,6 +1885,7 @@ func _apply_save(data: Dictionary) -> void:
 			if Villager.ROLES.has(str(role)):
 				met[str(role)] = true
 	quests.load_from(data.get("quests", {}))
+	journal.load_from(data.get("journal", {}))
 	day = maxi(0, int(data.get("day", 0)))
 	bounties.load_from(data.get("bounties", {}))
 	bounties.refresh(day)
@@ -2013,6 +2017,7 @@ func save_game(going_away := false) -> bool:
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
+		"journal": journal.for_save(),
 		"day": day, "bounties": bounties.for_save(),
 		"crafting": crafting.for_save(),
 		"reputation": reputation.for_save(),
@@ -2413,6 +2418,27 @@ func update_after_quest() -> void:
 	_update_hud()
 
 
+## Explained once in the compendium, the first time a landmark goes on the map.
+const MAP_LEARN := "Deine Karte füllt sich, während du erkundest: Was du gesehen hast, steht darauf, dazu jeder Ort, den du entdeckt hast, und jede Stelle, an der du etwas gefunden hast. Das Tagebuch daneben hält fest, wann und wo. Beides öffnest du mit N (oder „Karte“ im Menü)."
+
+
+## New landmarks have come into view: a short note, unless something more
+## important is being said.
+func map_notice(names: Array[String]) -> void:
+	learn(MAP_LEARN)
+	if not _message_busy():
+		show_message(Lang.t("Neu auf deiner Karte: %s") % ", ".join(names), 2.4)
+
+
+## Records where the hero found something, for the map and the journal (see
+## Journal.note_find): kind is e.g. "ingredient" or "fish", id the item id and
+## name its German name. pos is where it was found in the current level.
+func note_find(kind: String, id: String, name: String, pos: Vector3) -> bool:
+	if level == null:
+		return false
+	return journal.note_find(kind, id, name, journal.current_file(), level.world_to_cell(pos))
+
+
 ## Remembers an explanation for the compendium, once.
 ## The wandering merchant's wares for tonight: a new visit brings new ones,
 ## and what was bought stays gone until then.
@@ -2479,6 +2505,7 @@ func _on_gate_opened(pos: Vector3) -> void:
 ## rumbling and shaking ground while the secret wall sinks.
 func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	secrets_found += 1
+	journal.note_secret(journal.current_file(), level.world_to_cell(wall_pos))
 	level.secret_bonus = secrets_found
 	player.train("weisheit", 5.0)
 	Comic.pop(lever_pos, "lever")
@@ -2502,6 +2529,9 @@ func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 ## A piece of gear a skeleton dropped.
 func _on_item_collected(id: String) -> void:
 	player.bag.append(id)
+	if Items.ALL.get(id, {}).get("slot", "") == "erz":
+		# Where ore turned up goes on the map (see Journal).
+		note_find("ore", id, Items.ALL[id].name, player.global_position)
 	Sfx.play(self, "key", -3.0)
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Color(0.75, 0.9, 1.0), true)
 	show_message(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)] + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
@@ -3026,6 +3056,11 @@ func _camera_offset() -> Vector3:
 	return Vector3(0, sin(pitch), cos(pitch)) * distance + Vector3(0, lerpf(1.0, 1.6, _zoom), 0)
 
 
+## True while the camera may zoom: in play, with no window or shrine open.
+func can_zoom() -> bool:
+	return state == State.PLAYING and not menus.is_open() and _shrine.is_empty()
+
+
 func zoom_by(steps: float) -> void:
 	# Steps below 0 look from further out (and a little more from above) than the normal view.
 	_zoom_target = clampf(_zoom_target + steps * ZOOM_STEP, -ZOOM_OUT_STEPS * ZOOM_STEP, 1.0)
@@ -3075,6 +3110,8 @@ func _process(delta: float) -> void:
 			player.set_sneaking(false)
 			show_message(Lang.t("Entdeckt! Du kannst nicht mehr schleichen."), 1.6)
 	_guardian_intro()
+	if state == State.PLAYING and level != null and not menus.is_open():
+		journal.update(delta)
 	_quest_mark_timer -= delta
 	if _quest_mark_timer <= 0.0:
 		_quest_mark_timer = 0.25
@@ -3216,12 +3253,14 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Mouse wheel or + and - zoom the camera.
-	if event is InputEventMouseButton and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
-		if event.pressed and state == State.PLAYING:
+	# Mouse wheel or + and - zoom the camera, but only while no window is open:
+	# a list that is already scrolled to its end lets the wheel fall through to
+	# here, and the camera behind the window must not move then.
+	if event is InputEventMouseButton and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]:
+		if event.pressed and can_zoom() and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 			zoom_by(event.factor if event.factor > 0.0 else 1.0) if event.button_index == MOUSE_BUTTON_WHEEL_UP else zoom_by(-(event.factor if event.factor > 0.0 else 1.0))
 		return
-	if event is InputEventKey and event.pressed and state == State.PLAYING and event.physical_keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD, KEY_MINUS, KEY_KP_SUBTRACT]:
+	if event is InputEventKey and event.pressed and can_zoom() and event.physical_keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD, KEY_MINUS, KEY_KP_SUBTRACT]:
 		zoom_by(2.0 if event.physical_keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD] else -2.0)
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -3258,7 +3297,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					_choose_gift(event.physical_keycode - KEY_1)
 				return
 			if menus.is_open():
-				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_P, KEY_ESCAPE]:
+				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_P, KEY_N, KEY_ESCAPE]:
 					menus.close()
 				return
 			if event is InputEventKey:
@@ -3281,6 +3320,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					KEY_P:
 						if player.can_act():
 							menus.open("charakter")
+					KEY_N:
+						if player.can_act():
+							menus.open("karte")
 					KEY_M:
 						_toggle_sound()
 					KEY_TAB:

@@ -14,7 +14,7 @@ var shots := OS.get_environment("SHOTS")
 
 const KINDS := ["inventar", "lager", "bank", "barbier", "steinmetz", "ausbau", "hauswerkbank",
 	"trophaeen", "aushang", "schmied", "werkbank", "tresor", "haendler", "wanderhaendler", "bett",
-	"laden", "kompendium", "charakter", "beenden", "plan", "rueckkehr", "hoehle"]
+	"laden", "kompendium", "charakter", "beenden", "plan", "rueckkehr", "hoehle", "karte"]
 
 
 func check(ok: bool, what: String) -> void:
@@ -114,6 +114,11 @@ func _check_window(kind: String, where: String) -> void:
 		await _check_rect("inventar/beutel", where)
 		check(menus._panel.size == bag_size, "the pouch tab keeps the inventory's size (%s): %s, bag %s" % [where, menus._panel.size, bag_size])
 		check(_has_text(menus._box, Crafting.ingredient_name("baerlauch") + "\n× 7"), "the pouch tab lists the wild garlic (%s)" % where)
+	elif kind == "karte":
+		for page in ["karte", "tagebuch"]:
+			menus.map_page = page
+			menus._rebuild()
+			await _check_rect("%s/%s" % [kind, page], where)
 	elif kind == "kompendium":
 		for page in ["wissen", "auftraege", "ruf", "rezepte"]:
 			menus.compendium_page = page

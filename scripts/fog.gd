@@ -42,6 +42,11 @@ func setup(owner_level: Level) -> void:
 	material_override = mat
 
 
+## Every tile, 1.0 once it has been seen (for the hero's map, see Journal).
+func explored_cells() -> PackedFloat32Array:
+	return _explored
+
+
 func is_cell_visible(c: Vector2i) -> bool:
 	if c.x < 0 or c.y < 0 or c.x >= level.width or c.y >= level.height:
 		return false

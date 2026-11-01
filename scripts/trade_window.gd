@@ -11,6 +11,12 @@ extends RefCounted
 ## The window keeps one size and one layout whatever happens in it: folding
 ## a category, pointing at or picking a row only changes what is inside the
 ## list and the panel, so the eye always finds things where they were.
+## Buying and selling do not move anything either: rows keep their order
+## from when the window opened, a row whose last piece is gone stays as a
+## dimmed "sold out" row until the window closes, a stack of the same
+## item is one row with a count, and the list keeps its scroll position.
+## For that, row keys must name the thing (e.g. "ware:schwert"), never its
+## place in a list.
 ##
 ## A section is {key, title, icon, entries, extra (optional Callable that
 ## returns a Control shown above the rows), empty (text when it has none)}.
@@ -47,6 +53,13 @@ var _selected_id := ""
 var _hovered := ""
 
 var _entries := {}
+## Every row key shown since the window (or tab) opened, by section, in the
+## order they first appeared; and the last look of each row, to show a
+## dimmed copy once it is gone.
+var _seen := {}
+var _last := {}
+## How far the list is scrolled down, kept over rebuilds.
+var _scroll := 0
 ## The two card places beside the list: the item's values, and how it
 ## compares with what the hero wears.
 var _detail_slot: Control
@@ -60,6 +73,34 @@ func reset() -> void:
 	selected = ""
 	_selected_id = ""
 	_hovered = ""
+	_seen.clear()
+	_last.clear()
+	_scroll = 0
+
+
+## The section's rows in a fixed order: the ones seen before keep their
+## places (gone ones as dimmed copies), new ones come at the end.
+func _steady(section: Dictionary) -> Array:
+	var order: Array = _seen.get(section.key, [])
+	var now := {}
+	for entry in section.entries:
+		now[entry.key] = entry
+	for entry in section.entries:
+		if not entry.key in order:
+			order.append(entry.key)
+	_seen[section.key] = order
+	var rows := []
+	for key in order:
+		if now.has(key):
+			_last[key] = now[key]
+			rows.append(now[key])
+		elif _last.has(key):
+			var gone: Dictionary = _last[key].duplicate()
+			gone.gone = section.get("gone", Lang.t("Ausverkauft"))
+			gone.enabled = false
+			gone.erase("count")
+			rows.append(gone)
+	return rows
 
 
 ## Builds the window into `box`: the gold line, `extra` (e.g. Gorm's tabs),
@@ -69,18 +110,26 @@ func reset() -> void:
 func build(box: VBoxContainer, gold_text: String, sections: Array, extra: Control = null, standing: Control = null, hint := "") -> void:
 	_hint = hint
 	_entries.clear()
+	var steady := []
 	for section in sections:
-		for entry in section.entries:
+		var shown: Dictionary = section.duplicate()
+		shown.entries = _steady(section)
+		steady.append(shown)
+		for entry in shown.entries:
 			_entries[entry.key] = entry
+	sections = steady
 	_keep_selection()
-	_hovered = ""
 	var gold := HBoxContainer.new()
 	gold.alignment = BoxContainer.ALIGNMENT_CENTER
 	gold.add_theme_constant_override("separation", 8)
 	gold.add_child(ItemIcon.make("kind:coin", 22, true))
-	gold.add_child(_label(gold_text, 22, game.GOLD))
+	# Room for the widest value, so a purchase does not shift the line.
+	var gold_label := _label(gold_text, 22, game.GOLD)
+	gold_label.custom_minimum_size.x = 300
+	gold.add_child(gold_label)
 	if standing:
 		gold.add_child(_label("·", 22, GREY))
+		standing.custom_minimum_size.x = 420
 		gold.add_child(standing)
 	box.add_child(gold)
 	if extra:
@@ -101,11 +150,16 @@ func build(box: VBoxContainer, gold_text: String, sections: Array, extra: Contro
 	for section in sections:
 		_add_section(list, section)
 	body.add_child(scroll)
+	# Back to where the list was scrolled before the rebuild, once it has
+	# its size (containers sort themselves first, at the end of the frame).
+	scroll.get_v_scroll_bar().value_changed.connect(func(v): _scroll = int(v))
+	scroll.set_deferred("scroll_vertical", _scroll)
 	_detail_slot = _slot()
 	body.add_child(_detail_slot)
 	_compare_slot = _slot()
 	body.add_child(_compare_slot)
-	_show_cards(selected)
+	# The row under the mouse stays shown: a purchase does not blank the cards.
+	_show_cards(_hovered if _entries.has(_hovered) else selected)
 
 
 ## A picked row stays picked while its thing is still on offer; when it was
@@ -191,16 +245,30 @@ func _row(entry: Dictionary) -> Control:
 	name_label.custom_minimum_size.x = 120
 	text.add_child(name_label)
 	if entry.get("price", "") != "":
-		text.add_child(_price_line(entry.price, entry.get("price_ok", true), 14))
+		var price := _price_line(entry.price, entry.get("price_ok", true), 14)
+		if entry.get("count", 1) > 1:
+			# A stack of the same thing: one row with how many there are.
+			price.add_child(_label("×%d" % entry.count, 14, GREY))
+		text.add_child(price)
 	row.add_child(text)
-	if entry.get("current", false):
+	if entry.has("gone"):
+		# Bought or sold out while the window is open: the row stays in its
+		# place, dimmed, until the window closes.
+		panel.modulate = Color(1, 1, 1, 0.45)
+		var gone := _label(entry.gone, 14, GREY)
+		gone.custom_minimum_size = Vector2(80, 0)
+		gone.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		gone.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		gone.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.add_child(gone)
+	elif entry.get("current", false):
 		var now := _label(Lang.t("Jetzt"), 15, GREEN)
 		now.custom_minimum_size = Vector2(80, 0)
 		now.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		now.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(now)
 	elif entry.has("action"):
-		var b := _button(entry.get("button", Lang.t("Kaufen")), entry.action, entry.get("enabled", true), Vector2(76, 36), 15)
+		var b := _button(entry.get("button", Lang.t("Kaufen")), entry.action, entry.get("enabled", true), Vector2(80, 36), 15)
 		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		b.mouse_entered.connect(_on_row_hover.bind(entry.key))
 		row.add_child(b)
@@ -328,7 +396,7 @@ func _detail_card(entry: Dictionary, upgrade := false) -> Control:
 			var cost := _price_line(Lang.t("Kosten: %s") % entry.price, entry.get("price_ok", true), 17)
 			cost.alignment = BoxContainer.ALIGNMENT_CENTER
 			box.add_child(cost)
-		var b := _button(entry.get("button", Lang.t("Kaufen")), entry.action, entry.get("enabled", true), Vector2(150, 42), 18)
+		var b := _button(entry.get("gone", entry.get("button", Lang.t("Kaufen"))), entry.action, entry.get("enabled", true), Vector2(150, 42), 18)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		box.add_child(b)
 	elif entry.get("current", false):

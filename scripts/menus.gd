@@ -34,6 +34,12 @@ var _delete_asked := ""
 var compendium_page := "wissen"
 ## The inventory's open tab: "tasche" (the bag) or "beutel" (the ingredient pouch).
 var inventory_tab := "tasche"
+## Which page of the map window shows: "karte" (the map) or "tagebuch" (the
+## journal), and which level's map.
+var map_page := "karte"
+var _map_file := ""
+## The fixed size of both pages of the map window.
+const MAP_PAGE_SIZE := Vector2(980, 450)
 ## How many saved games the load window shows before the list scrolls.
 const LOAD_ROWS_SHOWN := 5
 ## Shows the stats of the item under the mouse (or last tapped).
@@ -55,6 +61,7 @@ const SHORTCUTS := [
 	["Inventar", "I"],
 	["Kompendium", "H"],
 	["Charakter", "P"],
+	["Karte und Tagebuch", "N"],
 	["Spielstand laden", "L"],
 	["Ton an/aus", "M"],
 	["Steinblock abstellen", "B, oder „Abstellen“ im Inventar"],
@@ -170,6 +177,7 @@ func open(kind: String) -> void:
 	current = kind
 	_forge_tab = "waffen"
 	inventory_tab = "tasche"
+	_map_file = ""
 	_shop_page = "kaufen"
 	trade.reset()
 	_selected = -1
@@ -235,6 +243,8 @@ func _rebuild() -> void:
 			_build_load()
 		"kompendium":
 			_build_compendium()
+		"karte":
+			_build_map()
 		"charakter":
 			_build_character()
 		"beenden":
@@ -253,6 +263,11 @@ func _rebuild() -> void:
 		# make the window grow.
 		var note := _add_label(_note, 18, Color(1.0, 0.75, 0.5))
 		note.custom_minimum_size.y = 26
+		if current in TRADE_WINDOWS:
+			# One line at most, never wider than the window.
+			note.clip_text = true
+			note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			note.custom_minimum_size.x = TradeWindow.BODY_WIDTH
 	# The inventory has its own "Back to game" button at the top instead.
 	if not current in ["inventar", "bett", "laden", "beenden", "plan", "rueckkehr", "hoehle"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
@@ -808,22 +823,34 @@ func _build_shop() -> void:
 	_add_label(Lang.t("Händler"), 38, game.GOLD, game.TITLE_FONT)
 	var gear := []
 	var goods := []
+	# One row per kind of item, with how many there are: rows are keyed
+	# by the item, so buying or selling one never moves the others.
 	if _shop_page == "kaufen":
-		for i in game.shop_stock.size():
-			var id: String = game.shop_stock[i]
-			var entry := _ware_entry("buy:%d" % i, id, game.trader_price(Items.ALL[id].price), _buy.bind(i))
+		for id in _kinds(game.shop_stock):
+			var entry := _ware_entry("ware:" + id, id, game.trader_price(Items.ALL[id].price), _buy.bind(game.shop_stock.find(id)))
+			# Sausages never run out (see Pet), so they show no count.
+			entry.count = 1 if id == Pet.FOOD else game.shop_stock.count(id)
 			(goods if _is_consumable(id) else gear).append(entry)
 	else:
-		for i in p.bag.size():
-			var id: String = p.bag[i]
-			var entry := {"key": "sell:%d" % i, "id": id, "name": Items.item_name(id), "price": "+" + Lang.t("%d Gold") % sell_price(id),
-					"button": Lang.t("Verkaufen"), "action": _sell.bind(i)}
+		for id in _kinds(p.bag):
+			var entry := {"key": "sell:" + id, "id": id, "name": Items.item_name(id), "price": "+" + Lang.t("%d Gold") % sell_price(id),
+					"button": Lang.t("Verkaufen"), "action": _sell.bind(p.bag.find(id)), "count": p.bag.count(id)}
 			(goods if _is_consumable(id) else gear).append(entry)
+	var gone := Lang.t("Ausverkauft") if _shop_page == "kaufen" else Lang.t("Verkauft")
 	var empty := Lang.t("Nichts im Angebot.") if _shop_page == "kaufen" else Lang.t("Nichts davon in deiner Tasche.")
 	_trade(Lang.t("Dein Gold: %d") % game.coins, [
-		{"key": "gear", "title": Lang.t("Ausrüstung"), "icon": "kind:helmet", "entries": gear, "empty": empty},
-		{"key": "goods", "title": Lang.t("Verbrauchsgüter"), "icon": "kind:potion", "entries": goods, "empty": empty},
+		{"key": "gear", "title": Lang.t("Ausrüstung"), "icon": "kind:helmet", "entries": gear, "empty": empty, "gone": gone},
+		{"key": "goods", "title": Lang.t("Verbrauchsgüter"), "icon": "kind:potion", "entries": goods, "empty": empty, "gone": gone},
 	], _shop_pages(Lang.t("Verkaufen (%d / %d)") % [p.bag.size(), p.bag_size()]))
+
+
+## Each item of a list once, in the order it first appears.
+static func _kinds(items: Array) -> Array:
+	var out := []
+	for id in items:
+		if not id in out:
+			out.append(id)
+	return out
 
 
 ## Which page of a merchant's window shows: "kaufen" (his wares) or
@@ -876,7 +903,9 @@ func _buy(index: int) -> void:
 		game.coins -= price
 		game.traded()
 		game.player.bag.append(id)
-		game.shop_stock.remove_at(index)
+		# The shop never runs out of sausages: they stay in stock.
+		if id != Pet.FOOD:
+			game.shop_stock.remove_at(index)
 		_note = Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 	_rebuild()
 
@@ -908,7 +937,11 @@ func _build_wanderer() -> void:
 	for i in wares.size():
 		var id: String = wares[i]
 		if not Wanderer.is_ingredient(id):
-			var entry := _ware_entry("buy:%d" % i, id, Wanderer.price(id), _buy_from_wanderer.bind(i))
+			if listed.has(id):
+				continue
+			listed[id] = true
+			var entry := _ware_entry("ware:" + id, id, Wanderer.price(id), _buy_from_wanderer.bind(i))
+			entry.count = wares.count(id)
 			(goods if _is_consumable(id) else gear).append(entry)
 		elif not listed.has(id):
 			# One row per kind of ingredient, bought one piece at a time.
@@ -1261,13 +1294,12 @@ func _build_smithy() -> void:
 			]
 		"einschmelzen":
 			var melt := []
-			for i in p.bag.size():
-				var id: String = p.bag[i]
+			for id in _kinds(p.bag):
 				var can := Forge.can_melt(id)
-				melt.append({"key": "melt:%d" % i, "id": id, "name": Items.item_name(id), "price": Lang.t("+%d Eisen") % Forge.melt_yield(id) if can else Lang.t("Schmilzt nicht"), "price_ok": can,
-						"button": Lang.t("Einschmelzen"), "action": _melt.bind(i), "enabled": can})
+				melt.append({"key": "melt:" + id, "id": id, "name": Items.item_name(id), "price": Lang.t("+%d Eisen") % Forge.melt_yield(id) if can else Lang.t("Schmilzt nicht"), "price_ok": can,
+						"button": Lang.t("Einschmelzen"), "action": _melt.bind(p.bag.find(id)), "enabled": can, "count": p.bag.count(id)})
 			sections = [{"key": "melt", "title": Lang.t("Einschmelzen"), "icon": "kind:flame", "entries": melt,
-					"empty": Lang.t("Deine Tasche ist leer.")}]
+					"empty": Lang.t("Deine Tasche ist leer."), "gone": Lang.t("Eingeschmolzen")}]
 		"ausbessern":
 			var mend := []
 			for id in Forge.worn_down(p):
@@ -1276,7 +1308,7 @@ func _build_smithy() -> void:
 				mend.append({"key": id, "id": id, "name": "%s  %d / %d" % [Items.item_name(id), left, durability],
 						"price": Lang.t("%d Gold") % Forge.mend_cost(p, id, game), "price_ok": game.coins >= Forge.mend_price(id, game),
 						"button": Lang.t("Ausbessern"), "action": _mend.bind(id), "enabled": game.coins >= Forge.mend_price(id, game)})
-			sections = [{"key": "mend", "title": Lang.t("Ausbessern"), "icon": "kind:hammer_anvil", "entries": mend,
+			sections = [{"key": "mend", "title": Lang.t("Ausbessern"), "icon": "kind:hammer_anvil", "entries": mend, "gone": Lang.t("Wie neu"),
 					"empty": Lang.t("Deine Ausrüstung ist heil.")}]
 	_trade(Lang.t("Dein Gold: %d    Eisen: %d") % [game.coins, game.iron], sections, tabs, Lang.t(FORGE_ABOUT[_forge_tab]))
 
@@ -2059,3 +2091,181 @@ func _build_return() -> void:
 	go.custom_minimum_size = Vector2(220, 60)
 	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_box.add_child(go)
+
+
+# --- Map and journal --------------------------------------------------------
+
+## The hero's map of a level, with its landmarks and finds listed beside it,
+## and the journal on a second page (see Journal and MapView).
+func _build_map() -> void:
+	var journal: Journal = game.journal
+	_add_label(Lang.t("Karte und Tagebuch"), 38, game.GOLD, game.TITLE_FONT)
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 10)
+	_box.add_child(tabs)
+	for tab in [["karte", Lang.t("Karte")], ["tagebuch", Lang.t("Tagebuch (%d)") % journal.entries.size()]]:
+		var b := _item_button(tab[1], func():
+			map_page = tab[0]
+			_rebuild())
+		b.custom_minimum_size = Vector2(220, 44)
+		b.modulate = Color(1.0, 0.9, 0.6) if map_page == tab[0] else Color(0.75, 0.75, 0.8)
+		tabs.add_child(b)
+	# Both pages fill the same fixed frame, so switching tabs never
+	# reshapes the window.
+	var page := VBoxContainer.new()
+	page.custom_minimum_size = MAP_PAGE_SIZE
+	page.add_theme_constant_override("separation", 10)
+	_box.add_child(page)
+	var outer := _box
+	_box = page
+	if map_page == "tagebuch":
+		_build_journal()
+	else:
+		_build_map_page(journal)
+	_box = outer
+
+
+func _build_map_page(journal: Journal) -> void:
+	var files := journal.mapped_files()
+	if files.is_empty():
+		_add_label(Lang.t("Noch keine Karte. Sie füllt sich, während du erkundest."), 18)
+		return
+	var here := journal.current_file()
+	if not files.has(_map_file):
+		_map_file = here if files.has(here) else files[0]
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	_box.add_child(row)
+	var step := func(d: int):
+		_map_file = files[posmod(files.find(_map_file) + d, files.size())]
+		_rebuild()
+	var back := _item_button("<", step.bind(-1), files.size() > 1)
+	back.custom_minimum_size = Vector2(52, 44)
+	row.add_child(back)
+	var title: Label = game._make_label(game.TEXT_FONT, 22, game.GOLD)
+	title.text = journal.level_title(_map_file)
+	title.custom_minimum_size.x = 420
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	row.add_child(title)
+	var next := _item_button(">", step.bind(1), files.size() > 1)
+	next.custom_minimum_size = Vector2(52, 44)
+	row.add_child(next)
+
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 20)
+	_box.add_child(columns)
+	var view := MapView.new()
+	view.name = "MapView"
+	view.custom_minimum_size = Vector2(660, 360)
+	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if _map_file == here and game.player != null:
+		var p: Vector3 = game.player.global_position / Level.TILE
+		view.hero_at = Vector2(p.x, p.z)
+		var f: Vector3 = game.player.facing()
+		view.hero_facing = Vector2(f.x, f.z)
+	view.setup(journal, _map_file, game.TEXT_FONT)
+	columns.add_child(view)
+	view.resized.connect(view.queue_redraw)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(280, 360)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	columns.add_child(scroll)
+	var legend := VBoxContainer.new()
+	legend.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	legend.add_theme_constant_override("separation", 3)
+	scroll.add_child(legend)
+	var places := view.numbered_places()
+	_legend_title(legend, Lang.t("Orte"))
+	if places.is_empty():
+		_legend_line(legend, Color(0, 0, 0, 0), Lang.t("Noch keine entdeckt."))
+	for i in places.size():
+		_legend_line(legend, Journal.MARK_COLORS.get(places[i].kind, Color.WHITE), "%d  %s" % [i + 1, journal.place_name(places[i])])
+	if not journal.secrets.get(_map_file, []).is_empty():
+		_legend_line(legend, Journal.MARK_COLORS.secret, Lang.t("Geheimraum"))
+	var finds := journal.finds_on(_map_file)
+	if not finds.is_empty():
+		_legend_title(legend, Lang.t("Funde"))
+		# One line per thing, with how many spots and finds in all.
+		var by_name := {}
+		var kinds := {}
+		for f in finds:
+			if not by_name.has(f.name):
+				by_name[f.name] = [0, 0]
+				kinds[f.name] = f.kind
+			by_name[f.name][0] += 1
+			by_name[f.name][1] += int(f.count)
+		for n in by_name:
+			var text := Lang.t(n) + "  ×%d" % by_name[n][1]
+			if by_name[n][0] > 1:
+				text += "  " + Lang.t("(%d Stellen)") % by_name[n][0]
+			_legend_line(legend, Journal.find_color(kinds[n]), text)
+	_add_label(Lang.t("Erkundet: %d %%") % _explored_share(journal, _map_file), 17, BLUE)
+
+
+func _legend_title(box: VBoxContainer, text: String) -> void:
+	var l: Label = game._make_label(game.TEXT_FONT, 20, game.GOLD)
+	l.text = text
+	box.add_child(l)
+
+
+func _legend_line(box: VBoxContainer, color: Color, text: String) -> void:
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 8)
+	var dot := ColorRect.new()
+	dot.color = color
+	dot.custom_minimum_size = Vector2(12, 12)
+	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(dot)
+	var l: Label = game._make_label(game.TEXT_FONT, 16)
+	l.text = text
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size.x = 240
+	line.add_child(l)
+	box.add_child(line)
+
+
+## How much of the ground of a level (everything but walls and forest) the
+## hero has seen, in percent.
+func _explored_share(journal: Journal, file: String) -> int:
+	var info := journal.map_of(file)
+	var ground := 0
+	var seen := 0
+	for y in info.height:
+		for x in info.width:
+			var c := Vector2i(x, y)
+			if Journal.char_at(info, c) == "#":
+				continue
+			ground += 1
+			if journal.is_explored(file, c):
+				seen += 1
+	return 0 if ground == 0 else roundi(100.0 * seen / ground)
+
+
+## The journal: every new place, landmark and find, newest first.
+func _build_journal() -> void:
+	var journal: Journal = game.journal
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = MAP_PAGE_SIZE
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 8)
+	scroll.add_child(list)
+	if journal.entries.is_empty():
+		var none: Label = game._make_label(game.TEXT_FONT, 18)
+		none.text = Lang.t("Noch leer. Was du entdeckst und findest, schreibt dein Held hier auf.")
+		list.add_child(none)
+	for i in range(journal.entries.size() - 1, -1, -1):
+		var lines := journal.entry_text(journal.entries[i])
+		var when: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+		when.text = lines[0]
+		list.add_child(when)
+		var what: Label = game._make_label(game.TEXT_FONT, 18)
+		what.text = lines[1]
+		what.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		what.custom_minimum_size.x = MAP_PAGE_SIZE.x - 20
+		list.add_child(what)

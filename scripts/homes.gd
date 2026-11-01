@@ -70,6 +70,27 @@ static func claim(hero: String, number: int) -> bool:
 	return true
 
 
+## The lowest-numbered empty house of the `count` there are, or 0 if
+## every one is taken.
+static func first_free(count: int) -> int:
+	_load()
+	for n in range(1, count + 1):
+		if owner_of(n) == "":
+			return n
+	return 0
+
+
+## The hero's house, moving them into the first empty one of `count` if
+## they have none yet. 0 when every house is taken.
+static func house_for(hero: String, count: int) -> int:
+	var mine := house_of(hero)
+	if mine == 0:
+		mine = first_free(count)
+		if mine == 0 or not claim(hero, mine):
+			return 0
+	return mine
+
+
 ## Hands a house back (for tests, and for a hero who moves out).
 static func release(number: int) -> void:
 	_load()

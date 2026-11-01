@@ -28,6 +28,8 @@ func _process(_delta: float) -> bool:
 	if frames < 5:
 		return false
 	_test()
+	if Homes.house_of(game.hero_name) > 0:
+		Homes.release(Homes.house_of(game.hero_name))
 	game.delete_save(game.save_path(game.hero_name))
 	if failures == 0:
 		print("PASS: graveyard start")
@@ -93,9 +95,11 @@ func _test() -> void:
 	check(_at_home(), "a save in the village loads in the hero's house")
 	_save_and_load(outdoor, true)
 	check(_at_home(), "after sleeping in the bed the hero wakes at home")
-	check(game.level._entered_once, "a loaded house does not greet the hero as new again")
+	check(game.home_claimed, "a loaded house does not greet the hero as new again")
 
 
+## Beside the bed of the hero's own town house on Weavers' Lane.
 func _at_home() -> bool:
 	var lvl: Level = game.level
-	return lvl is Outdoor and lvl.home_spot != Vector3.ZERO and game.player.global_position.distance_to(lvl.home_spot) < 0.5
+	return lvl.is_home and lvl.house_number == Homes.house_of(game.hero_name) and lvl.house_number > 0 \
+			and lvl.bed_side != Vector3.ZERO and game.player.global_position.distance_to(lvl.bed_side) < 0.5

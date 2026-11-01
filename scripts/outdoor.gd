@@ -182,6 +182,9 @@ var _south_walls: Array = []
 var _inside := false
 var _entered_once := false
 var _marker: Node3D
+## The hero's town house on Weavers' Lane (see Homes), once the elder has
+## given it.
+var own_house := 0
 var _elder: Node3D
 var _aabbs := {}
 ## Buildings with floors of their own: building letter -> level index.
@@ -1189,10 +1192,17 @@ func _in_house(c: Vector2i) -> bool:
 
 ## A golden glow over the door of the hero's new house.
 func _show_house_marker() -> void:
-	if _door_cell.x < 0 or _marker != null:
+	if _marker != null:
+		return
+	var at := Vector3.INF
+	if own_house > 0 and doors.has("%" + str(own_house)):
+		at = doors["%" + str(own_house)] + Vector3(0, 0, -1.0)
+	elif _door_cell.x >= 0:
+		at = cell_to_world(_door_cell) + Vector3(0, 0, 1.0)
+	if at == Vector3.INF:
 		return
 	_marker = Node3D.new()
-	_marker.position = cell_to_world(_door_cell) + Vector3(0, 0, 1.0)
+	_marker.position = at
 	add_child(_marker)
 	var motes := Effects.make_sparkles(Color(1.0, 0.85, 0.4))
 	motes.position.y = 2.0
@@ -1585,8 +1595,16 @@ func _process(delta: float) -> void:
 	if not house_given and _elder and not _elder.at_home and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:
 		house_given = true
 		_elder.greet_newcomer(player)
+		if not town_houses.is_empty():
+			# The hero's home is a town house on Weavers' Lane.
+			own_house = Homes.house_for(hero, town_houses.size())
 		_show_house_marker()
-		notice.emit(Lang.t("Der Dorfvorsteher schenkt dir das leere Haus. Ein goldenes Licht zeigt dir die Tür."), 4.5)
+		if own_house > 0:
+			notice.emit(Lang.t("Der Dorfvorsteher schenkt dir Haus Nr. %d in der Weberzeile am Nordrand des Dorfes. Ein goldenes Licht zeigt dir die Tür.") % own_house, 5.0)
+		elif town_houses.is_empty():
+			notice.emit(Lang.t("Der Dorfvorsteher schenkt dir das leere Haus. Ein goldenes Licht zeigt dir die Tür."), 4.5)
+		else:
+			notice.emit(Lang.t("Der Dorfvorsteher seufzt: Jedes Haus in der Weberzeile ist bewohnt."), 4.5)
 
 
 ## The herald rings the news across the square, and everyone in the village

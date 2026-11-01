@@ -421,6 +421,8 @@ const EN := {
 	"Hier wohnt %s. Die Tür ist verschlossen.": "%s lives here. The door is locked.",
 	"Dieses Haus steht leer. Dein Haus ist Nr. %d.": "This house stands empty. Yours is no. %d.",
 	"Haus Nr. %d gehört jetzt dir! Unten steht die Truhe, oben das Bett, und auf jedem Stockwerk ist Platz für Möbel.": "House no. %d is yours now! The chest is downstairs, the bed upstairs, and every storey has room for furniture.",
+	"Der Dorfvorsteher schenkt dir Haus Nr. %d in der Weberzeile am Nordrand des Dorfes. Ein goldenes Licht zeigt dir die Tür.": "The village elder gives you house no. %d on Weavers' Lane, at the northern edge of the village. A golden light shows you the door.",
+	"Der Dorfvorsteher seufzt: Jedes Haus in der Weberzeile ist bewohnt.": "The village elder sighs: every house on Weavers' Lane is taken.",
 	"Erdgeschoss": "Ground floor",
 	"Obergeschoss": "Upper floor",
 	"Dachkammer": "Attic",

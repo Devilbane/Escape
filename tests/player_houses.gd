@@ -17,7 +17,11 @@ var game: Node
 var frames := 0
 var stage := 0
 var stage_frames := 0
-var saved_owners := {}
+## Empty houses picked at the start (other tests may have moved heroes in):
+## the hero's, the neighbour's and one more.
+var mine := 0
+var other := 0
+var third := 0
 
 
 func check(ok: bool, what: String) -> void:
@@ -33,8 +37,8 @@ func _initialize() -> void:
 
 
 func _finish() -> void:
-	for n in [1, 2]:
-		if Homes.owner_of(n) in [HERO, NEIGHBOUR]:
+	for n in [mine, other]:
+		if n > 0 and Homes.owner_of(n) in [HERO, NEIGHBOUR]:
 			Homes.release(n)
 	game.delete_save(game.save_path(HERO))
 	if failures == 0:
@@ -63,7 +67,7 @@ func _process(_delta: float) -> bool:
 		0:
 			_check_lane()
 		1:
-			# Walked in at the door of house 1.
+			# Walked in at the door of the hero's house.
 			if stage_frames < 70:
 				return false
 			_check_inside()
@@ -100,9 +104,9 @@ func _process(_delta: float) -> bool:
 				return false
 			check(game.level is Outdoor, "the front door leads out into the village")
 			if game.level is Outdoor:
-				var door: Vector3 = game.level.doors["%1"]
+				var door: Vector3 = game.level.doors["%" + str(mine)]
 				var p: Vector3 = game.player.global_position
-				check(Vector2(p.x - door.x, p.z - door.z).length() < 1.5, "the hero steps out in front of house 1")
+				check(Vector2(p.x - door.x, p.z - door.z).length() < 1.5, "the hero steps out in front of their own house")
 			check(game.inside_house == 0, "out in the lane, the hero is in no house")
 			_finish()
 	return false
@@ -114,7 +118,8 @@ func _next() -> void:
 
 
 func _check_lane() -> void:
-	for n in [1, 2]:
+	Homes.reload()
+	for n in range(1, 30):
 		if Homes.owner_of(n) in [HERO, NEIGHBOUR]:
 			Homes.release(n)
 	game.hero_name = HERO
@@ -144,26 +149,34 @@ func _check_lane() -> void:
 	var square: Array = lvl.astar.get_id_path(lvl.world_to_cell(lvl.doors["%1"]), lvl.world_to_cell(lvl.doors["s"]))
 	check(not square.is_empty(), "a way leads from the lane to the square")
 
-	# Ownership: a neighbour lives in house 2, house 1 is still free.
-	check(Homes.claim(NEIGHBOUR, 2), "a hero can move into an empty house")
-	check(not Homes.claim(HERO, 2), "a taken house cannot be claimed")
-	check(not game._may_enter_house(2), "the neighbour's door stays shut")
-	check(game._may_enter_house(1), "a hero without a house moves into an empty one")
-	check(Homes.house_of(HERO) == 1, "house 1 belongs to the hero now")
-	check(not game._may_enter_house(3), "a hero with a house cannot take a second one")
+	# Ownership: a neighbour moves into one empty house, the hero into another.
+	var free: Array = range(1, houses.size() + 1).filter(func(n): return Homes.owner_of(n) == "")
+	check(free.size() >= 3, "most town houses stand empty")
+	if free.size() < 3:
+		_finish()
+		return
+	mine = free[0]
+	other = free[1]
+	third = free[2]
+	check(Homes.claim(NEIGHBOUR, other), "a hero can move into an empty house")
+	check(not Homes.claim(HERO, other), "a taken house cannot be claimed")
+	check(not game._may_enter_house(other), "the neighbour's door stays shut")
+	check(game._may_enter_house(mine), "a hero without a house moves into an empty one")
+	check(Homes.house_of(HERO) == mine, "the house belongs to the hero now")
+	check(not game._may_enter_house(third), "a hero with a house cannot take a second one")
 	Homes.reload()
-	check(Homes.owner_of(1) == HERO and Homes.owner_of(2) == NEIGHBOUR, "the deeds are kept on disk")
-	Homes.release(2)
+	check(Homes.owner_of(mine) == HERO and Homes.owner_of(other) == NEIGHBOUR, "the deeds are kept on disk")
+	Homes.release(other)
 
-	game.player.global_position = lvl.doors["%1"]
-	game.go_inside("%", 1)
+	game.player.global_position = lvl.doors["%" + str(mine)]
+	game.go_inside("%", mine)
 	_next()
 
 
 func _check_inside() -> void:
 	var lvl: Level = game.level
 	check(lvl.building == "%" and lvl.is_home, "the door led into the hero's home")
-	check(lvl.house_number == 1, "the home knows it is house 1")
+	check(lvl.house_number == mine, "the home knows which house it is")
 	check(lvl.safe and lvl.enemies.is_empty(), "a home is a safe place")
 	check(lvl.storey_count() == 3, "the home has three storeys (%d)" % lvl.storey_count())
 	var beds := lvl.stations.filter(func(s): return s.kind == "bett")

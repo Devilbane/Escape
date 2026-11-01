@@ -256,11 +256,15 @@ func _village(lvl: Outdoor, player: Player) -> bool:
 		var elder: Node3D = lvl.villagers.filter(func(v): return v.role == "0")[0]
 		player.walk_to(elder.global_position, 3.0)
 		return false
-	var bed: Dictionary = lvl.stations.filter(func(s): return s.kind == "bett")[0]
-	if not _slept and player.global_position.distance_to(bed.pos) > Level.SEARCH_RANGE:
-		player.walk_to(bed.pos, 2.0)
+	# The elder gave a town house on Weavers' Lane: walk to its door.
+	if lvl.own_house <= 0:
+		print("FAIL: the elder gave no town house")
+		return true
+	var home: Vector3 = lvl.doors["%" + str(lvl.own_house)]
+	if not _slept and player.global_position.distance_to(home) > 3.0:
+		player.walk_to(home, 2.0)
 		if player.path.is_empty():
-			print("FAIL: no way to the bed in the hero's house")
+			print("FAIL: no way to the door of the hero's town house")
 			return true
 		return false
 	_slept = true

@@ -1585,8 +1585,10 @@ func _apply_save(data: Dictionary) -> void:
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
 	inside_house = 0
 	var own_house := Homes.house_of(hero_name)
-	if escaped and own_house > 0 and index == interiors.get("%", -1):
-		# Saved in the bed of the hero's own town house: wake up there.
+	if escaped and home_claimed and own_house > 0 and interiors.has("%"):
+		# The hero's own town house is the place to come back to: every
+		# load wakes up beside its bed, wherever the game was saved.
+		index = interiors["%"]
 		inside_house = own_house
 	elif escaped and _outdoor_index() >= 0:
 		# Out of the dungeon, every load begins in the open air, wherever the
@@ -2423,6 +2425,8 @@ func _step_out_of_crypt() -> void:
 ## The hero has walked into the house the elder gave and made it their own:
 ## it is the new place to come back to, saved at once.
 func _on_home_claimed() -> void:
+	if Homes.house_of(hero_name) == 0 and level is Outdoor and not level.town_houses.is_empty():
+		Homes.house_for(hero_name, level.town_houses.size())
 	home_claimed = true
 	home_given = true
 	var saved := save_game()
@@ -2452,7 +2456,13 @@ func go_inside(building: String, house := 0) -> void:
 		player.frozen = false
 		state = State.PLAYING
 		create_tween().tween_property(_fade, "color:a", 0.0, 0.6)
-		_announce_level())
+		_announce_level()
+		if level.is_home and not home_claimed:
+			# The first step into the hero's own house makes it home.
+			get_tree().create_timer(4.6).timeout.connect(func():
+				if state == State.PLAYING:
+					show_message(Lang.t("Dein neues Zuhause! Im Bett speicherst du, in der Truhe lagerst du deine Schätze."), 4.0))
+			_on_home_claimed())
 
 
 ## Whether the hero may go into town house `house`: their own, or an empty

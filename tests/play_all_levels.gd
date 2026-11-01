@@ -170,7 +170,7 @@ func _process(delta: float) -> bool:
 
 	# Search the nearest object that is still closed, then key, then exit.
 	# A full bag would block chests: try on everything, then throw the rest away.
-	if player.bag.size() >= Items.BAG_SIZE:
+	if player.bag.size() >= player.bag_size():
 		for id in player.bag.duplicate():
 			player.equip(id)
 		player.bag.clear()

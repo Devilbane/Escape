@@ -1258,7 +1258,7 @@ func _check_pickups() -> void:
 		if d.length() > p.radius:
 			p.erase("warned")
 			continue
-		if p.kind == "item" and player.bag.size() >= Items.BAG_SIZE:
+		if p.kind == "item" and player.bag.size() >= player.bag_size():
 			if not p.has("warned"):
 				p.warned = true
 				bag_full.emit()
@@ -1527,7 +1527,7 @@ func _item_model(id: String) -> Node3D:
 	var holder := Node3D.new()
 	if item.has("model"):
 		var model: Node3D = load(item.model).instantiate()
-		model.scale = Vector3.ONE * 1.6
+		model.scale = Vector3.ONE * float(item.get("model_scale", 1.6))
 		holder.add_child(model)
 	else:
 		var gem := MeshInstance3D.new()

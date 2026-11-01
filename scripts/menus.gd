@@ -258,8 +258,8 @@ func _build_inventory() -> void:
 		var id: String = p.equipped.get(slot, "")
 		var text: String = "%s\n%s" % [Lang.t(Items.SLOT_NAMES[slot]), Items.item_name(id) if id != "" else "-"]
 		row.add_child(_item_button(text, _unequip.bind(slot), id != "", id))
-	_add_label(Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), Items.BAG_SIZE, Items.weight_text(p.carried_weight())], 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _select)
+	_add_label(Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), p.bag_size(), Items.weight_text(p.carried_weight())], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, 4 if p.bag_size() <= 8 else 6)
 	if _selected >= 0 and _selected < p.bag.size():
 		var id: String = p.bag[_selected]
 		_add_label("%s: %s" % [Items.item_name(id), Items.describe(id, p.wear.get(id, 0))], 18, BLUE)
@@ -290,7 +290,8 @@ func _equip_selected() -> void:
 	if not p.can_use(requires):
 		var attr: String = requires.keys()[0]
 		_note = Lang.t("Dafür brauchst du %s %d.") % [Lang.t(Training.ATTRIBUTES[attr].name), requires[attr]]
-	p.equip(id)
+	elif not p.equip(id):
+		_note = Lang.t("In diesen Rucksack passt nicht alles aus deiner Tasche.")
 	_selected = -1
 	_rebuild()
 
@@ -315,8 +316,8 @@ func _build_storage() -> void:
 	var p: Player = game.player
 	_add_label(Lang.t("Lagertruhe"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 18, BLUE)
-	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), Items.BAG_SIZE], 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _store, 6)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6)
 	_add_label(Lang.t("Truhe (%d / %d)") % [game.storage.size(), STORAGE_SIZE], 20)
 	_add_item_grid(game.storage, STORAGE_SIZE, Items.item_name, _take, 6)
 
@@ -332,7 +333,7 @@ func _store(index: int) -> void:
 
 
 func _take(index: int) -> void:
-	if game.player.bag.size() >= Items.BAG_SIZE:
+	if game.player.bag.size() >= game.player.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.player.bag.append(game.storage[index])
@@ -407,8 +408,8 @@ func _build_vault() -> void:
 	var hero: String = game.hero_name
 	_add_label(Lang.t("Dein Schließfach"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 18, BLUE)
-	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), Items.BAG_SIZE], 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _to_vault, 6)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _to_vault, 6)
 	var items := Bank.vault_items(hero)
 	_add_label(Lang.t("Schließfach (%d / %d)") % [items.size(), Bank.VAULT_SIZE], 20)
 	_add_item_grid(items, Bank.VAULT_SIZE, Items.item_name, _from_vault, 6)
@@ -427,7 +428,7 @@ func _to_vault(index: int) -> void:
 
 
 func _from_vault(index: int) -> void:
-	if game.player.bag.size() >= Items.BAG_SIZE:
+	if game.player.bag.size() >= game.player.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.player.bag.append(Bank.take(game.hero_name, index))
@@ -451,14 +452,14 @@ func _build_shop() -> void:
 	_add_label(Lang.t("Kaufen"), 20)
 	_add_item_grid(game.shop_stock, maxi(4, game.shop_stock.size()), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), Items.ALL[id].price], _buy)
 	_add_label(Lang.t("Verkaufen"), 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), sell_price(id)], _sell)
+	_add_item_grid(p.bag, p.bag_size(), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), sell_price(id)], _sell)
 
 
 func _buy(index: int) -> void:
 	var id: String = game.shop_stock[index]
 	if game.coins < Items.ALL[id].price:
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
-	elif game.player.bag.size() >= Items.BAG_SIZE:
+	elif game.player.bag.size() >= game.player.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.coins -= Items.ALL[id].price

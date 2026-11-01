@@ -153,6 +153,11 @@ var taken := {}
 var enemies: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
+## Water the hero can fish in (see Fishing): which water ("brunnen", "teich"
+## or "senke"), its middle, how far it reaches from there (metres), whether
+## it is round (a fountain's basin) or a square tile (a pond), and the height
+## of its surface.
+var fishing_waters: Array = []
 var safe := false
 ## The world above ground after the last dungeon level: see Outdoor.
 var outdoor := false
@@ -1051,6 +1056,7 @@ func _build_fountain(c: Vector2i) -> void:
 	_add_solid(pos, Vector3(3.2, 2, 3.2))
 	_light_spots.append(pos)
 	stations.append({"kind": "brunnen", "cell": c, "pos": pos, "used": false})
+	fishing_waters.append({"water": "brunnen", "pos": pos, "reach": 1.3, "round": true, "surface": 0.92})
 
 
 ## A secret passage: a wall tile with a fake wall on each open side.
@@ -1242,6 +1248,28 @@ func nearest_station(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
 		if not s.used and Vector2(from.x - s.pos.x, from.z - s.pos.z).length() <= max_distance:
 			return s
 	return {}
+
+
+## The water closest to a spot, if the hero standing there can cast a line
+## into it: no more than `max_distance` metres from its edge. Else {}.
+func nearest_water(from: Vector3, max_distance: float) -> Dictionary:
+	var best := {}
+	var best_distance := max_distance
+	for w in fishing_waters:
+		var d := water_distance(w, from)
+		if d <= best_distance:
+			best = w
+			best_distance = d
+	return best
+
+
+## How far a spot is from the edge of a water (0 on or over the water).
+static func water_distance(w: Dictionary, from: Vector3) -> float:
+	var dx := absf(from.x - w.pos.x)
+	var dz := absf(from.z - w.pos.z)
+	if w.round:
+		return maxf(0.0, Vector2(dx, dz).length() - w.reach)
+	return Vector2(maxf(0.0, dx - w.reach), maxf(0.0, dz - w.reach)).length()
 
 
 ## A shrine gives only one gift: its crystal goes dark afterwards.

@@ -51,9 +51,11 @@ static func recipes() -> Array:
 	return ids
 
 
-## Gorm's own wares, cheapest first: only the smith sells them.
+## Gorm's own wares, cheapest first: only the smith sells them. The top tier
+## of each kind (the war hammer, the kite shield) he only forges, from the
+## hero's iron (see Items.merchant_sells).
 static func wares() -> Array:
-	var ids := Items.ALL.keys().filter(func(id): return Items.ALL[id].get("smith", false))
+	var ids := Items.ALL.keys().filter(func(id): return Items.ALL[id].get("smith", false) and Items.merchant_sells(id))
 	ids.sort_custom(func(a, b): return Items.ALL[a].price < Items.ALL[b].price)
 	return ids
 
@@ -77,7 +79,7 @@ static func iron_price(game: Node = null) -> int:
 ## Buys one of Gorm's wares into the bag. Returns "" on success, else why not.
 static func buy(game: Node, id: String) -> String:
 	var p: Player = game.player
-	if not Items.ALL.has(id) or not Items.ALL[id].get("smith", false):
+	if not wares().has(id):
 		return Lang.t("Das verkauft Gorm nicht.")
 	var price := ware_price(game, id)
 	if game.coins < price:

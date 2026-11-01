@@ -2,13 +2,19 @@ class_name Sfx
 extends RefCounted
 ## Sound effects (built by tools/make_sounds.py) and the cave ambience.
 ## Sounds far from the camera play quieter; M or the speaker button mutes all.
+## All effects play through their own "Effects" bus, so the effects volume
+## slider in the pull-out menu turns them up or down without the music.
 
 const DIR := "res://assets/sounds/"
 const SETTINGS_FILE := "user://einstellungen.cfg"
 ## Steps, swings and hits get a slightly different pitch each time.
 const PITCH_SPREAD := 0.08
+const BUS := "Effects"
+const DEFAULT_VOLUME := 1.0
 
 static var muted := false
+## The effects volume, from 0 (silent) to 1 (full).
+static var volume := DEFAULT_VOLUME
 ## True while the game is in the background (alt-tabbed, other tab, minimised).
 static var _in_background := false
 ## Kept alive so the browser can keep calling back into the game.
@@ -21,7 +27,36 @@ static func load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_FILE) == OK:
 		muted = cfg.get_value("ton", "stumm", false)
+		volume = clampf(float(cfg.get_value("ton", "lautstaerke", DEFAULT_VOLUME)), 0.0, 1.0)
 	_apply_mute()
+	_apply_volume()
+
+
+## The bus the effects play through. It is part of the bus layout in
+## res://default_bus_layout.tres and must not be added at runtime: in the
+## browser build (Godot 4.5), AudioServer.add_bus() puts the new bus in
+## front of Master on the web audio side, the two buses end up sending to
+## each other, and the browser silences that loop, so the whole game falls
+## quiet. Returns -1 if the bus is missing; players then fall back to Master.
+static func bus_index() -> int:
+	return AudioServer.get_bus_index(BUS)
+
+
+static func set_volume(value: float) -> void:
+	volume = clampf(value, 0.0, 1.0)
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_FILE)
+	cfg.set_value("ton", "lautstaerke", volume)
+	cfg.save(SETTINGS_FILE)
+	_apply_volume()
+
+
+static func _apply_volume() -> void:
+	var i := bus_index()
+	if i < 0:
+		return
+	AudioServer.set_bus_volume_db(i, linear_to_db(maxf(volume, 0.0001)))
+	AudioServer.set_bus_mute(i, volume < 0.01)
 
 
 static func toggle_mute() -> void:
@@ -96,6 +131,7 @@ static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null, pi
 				return
 	var p := AudioStreamPlayer.new()
 	p.stream = _stream(sound)
+	p.bus = BUS
 	p.volume_db = volume_db
 	p.pitch_scale = pitch + randf_range(-PITCH_SPREAD, PITCH_SPREAD)
 	p.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -158,6 +194,7 @@ static func start_loop(owner_node: Node, sound: String) -> AudioStreamPlayer:
 	stream.loop = true
 	var p := AudioStreamPlayer.new()
 	p.stream = stream
+	p.bus = BUS
 	p.volume_db = -80.0
 	p.process_mode = Node.PROCESS_MODE_ALWAYS
 	owner_node.add_child(p)
@@ -170,6 +207,7 @@ static func start_ambience(owner_node: Node) -> AudioStreamPlayer:
 	stream.loop = true
 	var p := AudioStreamPlayer.new()
 	p.stream = stream
+	p.bus = BUS
 	p.volume_db = -8.0
 	p.process_mode = Node.PROCESS_MODE_ALWAYS
 	owner_node.add_child(p)

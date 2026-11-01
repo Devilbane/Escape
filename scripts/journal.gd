@@ -72,9 +72,6 @@ var finds: Array = []
 var entries: Array = []
 ## Secret rooms opened per level file: list of [x, y].
 var secrets := {}
-## The day of the journey; it turns over whenever the clock passes midnight.
-var day := 1
-var _last_hour := -1.0
 var _timer := 0.0
 ## Map data read from the level files: file -> {"grid", "width", "height",
 ## "name", "outdoor", "building", "path"}.
@@ -93,8 +90,6 @@ func clear() -> void:
 	finds.clear()
 	entries.clear()
 	secrets.clear()
-	day = 1
-	_last_hour = -1.0
 
 
 # --- Reading the maps ---------------------------------------------------------
@@ -246,7 +241,6 @@ func _cells_of(file: String) -> PackedByteArray:
 ## Brings the map of the level the hero is on up to date. Called every frame
 ## by the game; does its work a few times a second.
 func update(delta: float) -> void:
-	_count_days()
 	_timer -= delta
 	if _timer > 0.0:
 		return
@@ -365,7 +359,7 @@ static func find_color(kind: String) -> Color:
 
 func write(text: String, args: Array, file: String) -> void:
 	var hour: float = game.day_hour if game != null else 8.0
-	entries.append({"day": day, "hour": hour, "file": file, "t": text, "a": args})
+	entries.append({"day": day(), "hour": hour, "file": file, "t": text, "a": args})
 	while entries.size() > MAX_LOG:
 		entries.pop_front()
 
@@ -384,13 +378,10 @@ func entry_text(e: Dictionary) -> Array[String]:
 	return [when + "  ·  " + level_title(str(e.file)), what]
 
 
-## The clock only runs forward; when it shows an earlier hour than before,
-## midnight has passed (or the hero slept through it).
-func _count_days() -> void:
-	var hour: float = game.day_hour
-	if _last_hour >= 0.0 and hour < _last_hour - 0.01:
-		day += 1
-	_last_hour = hour
+## The day of the journey, counted from 1: the game's own day, which turns at
+## dawn (see Game.day).
+func day() -> int:
+	return (int(game.day) if game != null else 0) + 1
 
 
 # --- Saved game -----------------------------------------------------------------
@@ -402,14 +393,13 @@ func for_save() -> Dictionary:
 	var known := {}
 	for file in seen:
 		known[file] = (seen[file] as Dictionary).keys()
-	return {"day": day, "maps": maps, "seen": known, "finds": finds, "log": entries, "secrets": secrets}
+	return {"maps": maps, "seen": known, "finds": finds, "log": entries, "secrets": secrets}
 
 
 func load_from(data) -> void:
 	clear()
 	if not data is Dictionary:
 		return
-	day = maxi(1, int(data.get("day", 1)))
 	var maps = data.get("maps", {})
 	if maps is Dictionary:
 		for file in maps:

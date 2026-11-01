@@ -75,6 +75,9 @@ func _run() -> void:
 
 	var bus := AudioServer.get_bus_index(Sfx.BUS)
 	check(bus >= 0, "there is an effects bus")
+	check(AudioServer.get_bus_index("Master") == 0, "Master stays the first bus")
+	check(AudioServer.bus_count == 2, "the effects bus comes from the bus layout, none is added at runtime")
+	check(AudioServer.get_bus_send(bus) == &"Master", "the effects bus sends to Master")
 	check(game._ambience.bus == Sfx.BUS, "the ambience plays through the effects bus")
 	check(game._rain_sound.bus == Sfx.BUS, "the rain plays through the effects bus")
 	Sfx.play(game, "step_0")

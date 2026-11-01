@@ -131,8 +131,9 @@ func _ready() -> void:
 	_bubble.font_size = 44
 	_bubble.pixel_size = 0.011
 	_bubble.outline_size = 12
-	_bubble.outline_modulate = Color(0.05, 0.03, 0.06)
+	_bubble.outline_modulate = Color(0.05, 0.03, 0.06, 0)
 	_bubble.modulate = Color(1, 0.95, 0.85, 0)
+	_bubble.visible = false
 	_bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_bubble.no_depth_test = true
 	_bubble.render_priority = 20
@@ -417,6 +418,12 @@ func say(text: String, look_at := Vector3.INF, time := SAY_TIME) -> void:
 func _update_bubble(delta: float) -> void:
 	_bubble_time = maxf(0.0, _bubble_time - delta)
 	var target := 1.0 if _bubble_time > 0.0 else 0.0
-	_bubble.modulate.a = move_toward(_bubble.modulate.a, target, delta * 4.0)
+	var alpha := move_toward(_bubble.modulate.a, target, delta * 4.0)
+	if alpha != _bubble.modulate.a:
+		# The outline has its own alpha that ignores `modulate`: fade both,
+		# or the dark outline stays behind as black text over the head.
+		_bubble.modulate.a = alpha
+		_bubble.outline_modulate.a = alpha
+	_bubble.visible = alpha > 0.0
 	if _bubble_time <= 0.0:
 		_look_at = Vector3.INF

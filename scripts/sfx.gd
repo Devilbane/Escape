@@ -48,8 +48,9 @@ static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null, pi
 	if at is Vector3:
 		var cam := tree_node.get_viewport().get_camera_3d()
 		if cam:
-			# The camera hovers about 27 m away; beyond that, sounds fade out.
-			var far := maxf(0.0, cam.global_position.distance_to(at) - 28.0)
+			# The camera hovers about 27 m away, up to 32 m fully zoomed out;
+			# beyond that, sounds fade out.
+			var far := maxf(0.0, cam.global_position.distance_to(at) - 33.0)
 			volume_db -= far * 0.9
 			if volume_db < -40.0:
 				return

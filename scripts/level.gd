@@ -250,6 +250,8 @@ func build() -> void:
 	fog.setup(self)
 	add_child(fog)
 	_spawn_enemies()
+	if not outdoor and building == "":
+		add_child(DungeonLife.new(self))
 	if not _vault_slots.is_empty():
 		refresh_vaults()
 
@@ -666,9 +668,10 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"H":
 			_build_shrine(c)
 		"B":
-			_place("bed_decorated", pos, _facing_room(c))
+			var bed_rot := _facing_room(c)
+			_place("bed_decorated", pos, bed_rot)
 			_add_solid(pos, Vector3(3.2, 1.5, 3.2))
-			stations.append({"kind": "bett", "cell": c, "pos": pos, "used": false})
+			stations.append({"kind": "bett", "cell": c, "pos": pos, "rot": bed_rot, "used": false})
 		"L":
 			_place("chest", pos, _facing_room(c))
 			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
@@ -1340,7 +1343,7 @@ func _check_pickups() -> void:
 		if d.length() > p.radius:
 			p.erase("warned")
 			continue
-		if p.kind == "item" and player.bag.size() >= Items.BAG_SIZE:
+		if p.kind == "item" and player.bag.size() >= player.bag_size():
 			if not p.has("warned"):
 				p.warned = true
 				bag_full.emit()
@@ -1609,7 +1612,7 @@ func _item_model(id: String) -> Node3D:
 	var holder := Node3D.new()
 	if item.has("model"):
 		var model: Node3D = load(item.model).instantiate()
-		model.scale = Vector3.ONE * 1.6
+		model.scale = Vector3.ONE * float(item.get("model_scale", 1.6))
 		holder.add_child(model)
 	else:
 		var gem := MeshInstance3D.new()

@@ -69,6 +69,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/no_stacking.gd | tee stacking.log
           grep -q PASS stacking.log
 
+      - name: Several saved games test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log
+          grep -q PASS slots.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

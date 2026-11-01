@@ -24,6 +24,7 @@ The game can be played in English or German; you choose the language on the titl
 | Zoom | + and − | mouse wheel (up close the camera tilts and you see the face) |
 
 A jump from a run keeps its momentum: the faster you are, the farther you fly.
+Running has a risk: lose more than 10 % of your lives within 2 seconds while running (or right after) and you fall to the ground and get up again, which takes about 2.5 seconds. No blow lands while you are down.
 
 Run into a skeleton and you fight automatically: as long as you stand next to it, you keep striking.
 You and the skeletons each take up your own spot: nobody can stand inside or on top of anyone else.
@@ -44,6 +45,9 @@ Gifts last until the end of the game.
 
 Sometimes you find **gear**: helmets and hats (bone helmet, wizard hat, knight's helmet, bear cap) sit visibly on your head, sword and axe give power, shields give life,
 amulets give speed, power or life. In the **inventory** (key I) you put them on or throw them away.
+Your bag holds 8 things. A **backpack** worn in its own slot makes room for more: canvas backpack 10,
+leather backpack 11, large backpack 12. The bigger the backpack, the rarer it is. You can only take off a
+backpack, or swap it for a smaller one, while everything you carry still fits.
 Hard armour (knight's helmet, crest shield, chain mail, plate armour) has **hardening**: it takes a fixed amount off every
 hit (at least 1 damage always gets through). Every hit has a 5 % chance to wear off one point of
 **durability**; once that is used up, the piece breaks.
@@ -95,6 +99,11 @@ After every 4 levels you reach a **safe room** without enemies, the refuge. It h
 that refills your life and cures poison and curses, a storage chest, a merchant who buys and sells for gold, and a bed. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero falls later, the saved game is kept: a click on the “Fallen” screen continues the game from the refuge, N starts a new one.
 On the next start you continue from there with a click or a key. The saved game is stored in the browser.
 
+**Several saved games:** every hero has a saved game of their own, so you can play several heroes side by side.
+The **Load** window (key L, or “Load saved game” on the title screen) lists them all with level, gold and the time they were saved;
+pick one to load it, or delete it (click “Delete” twice). On the title screen a click continues with the game saved last.
+Starting a new game with the name of a hero who already has a saved game replaces it the next time the game saves.
+
 Every level has a **secret room**. One of the torches near it is a lever, a different one in every
 run. The first time you walk past it, you may discover it with some luck (d100), and
 2.5 seconds later the wall sinks. The richer the room, the smaller the chance:
@@ -106,6 +115,12 @@ You only see what lies in your line of sight and has light: a burning torch near
 your own lantern. Dark corners stay black; skeletons in them you only hear by their footsteps.
 Areas you have already explored stay visible in grey. Some torches burn, some do not: run into
 the wall at a torch to light it or put it out.
+
+The dungeon has long been abandoned, but it is not empty: dust lies on the floor and gathers along
+the walls, cobwebs hang in the corners and on the furniture, and old bones, broken pots and loose
+stones lie about. Cockroaches and spiders crawl around and scurry off when you come close, spiders
+lower themselves from their webs, and here and there water drips from the ceiling into a small
+puddle (you hear it, too). All of this is decoration only: it never blocks your way.
 
 **Sneaking** (C or double click): 60 % slower, silent, half transparent, and the lantern is
 hooded. Skeletons look ahead (120°), but only see what stands in the light. They can hear you

@@ -16,6 +16,9 @@ extends Node3D
 ##   F  fountain: refills life and cures poison and curses
 ##   ?  secret wall: looks like a wall until its lever torch is found
 ##   =  iron bars           U  a vault behind the bars (the bank's cellar)
+##   _  pressure plate      Q  an old, heavy stone block (see StoneBlock.heavy)
+##   |  iron gate that sinks into the floor for good once a stone block lies
+##      on every pressure plate of the level (a block-pushing puzzle room)
 ##
 ## The line "secret: normal|uncommon|rare|epic|godborn" sets how rich the
 ## secret room is (the German ids ungewoehnlich, selten, episch, gottgeboren
@@ -42,6 +45,10 @@ signal exit_reached
 signal item_collected(id: String)
 signal bag_full
 signal secret_found(lever_pos: Vector3, wall_pos: Vector3)
+## How many of the level's pressure plates have a block on them changed.
+signal plates_changed(pressed: int, total: int)
+## Every pressure plate is pressed: the iron gate at `pos` opens.
+signal gate_opened(pos: Vector3)
 
 const TILE := 4.0
 const ASSET_DIR := "res://assets/dungeon/"
@@ -92,7 +99,7 @@ const SPIKE_IRON := Color(0.5, 0.5, 0.53)
 ## The grey of the kit's floor tiles, for spike and grate tiles.
 const FLOOR_GREY := Color(0.74, 0.73, 0.71)
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "#bxotkCDHBLVF?f=U"
+const SOLID := "#bxotkCDHBLVF?f=U|"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
@@ -250,6 +257,9 @@ func build() -> void:
 	_pick_levers()
 	_build_wall_collision()
 	_setup_astar()
+	for c in _heavy_starts:
+		add_stone(StoneBlock.cell_for(cell_to_world(c), true), true, 0, true)
+	refresh_stone_paths()
 	var floor_shape := CollisionShape3D.new()
 	floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(floor_shape)
@@ -690,6 +700,12 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_build_merchant(c)
 		"=":
 			_build_bars(c)
+		"_":
+			_build_plate(c)
+		"|":
+			_build_gate(c)
+		"Q":
+			_heavy_starts.append(c)
 		"U":
 			_vault_slots.append(c)
 		"F":
@@ -844,7 +860,38 @@ func _build_chest(c: Vector2i) -> void:
 		return
 	var loot_rng := RandomNumberGenerator.new()
 	loot_rng.seed = hash("%s:chest:%d:%d" % [level_name, c.x, c.y])
+	if _behind_gate(c):
+		# The reward of a block-pushing puzzle: as rich as a rare secret room.
+		var rare: Dictionary = TIERS["selten"]
+		obj.loot = {"gold": int(rare.gold), "item": Items.random_item(loot_rng, int(rare.min_price))}
+		return
 	obj.loot = {"gold": 5, "item": Items.random_item(loot_rng)}
+
+
+## The tiles reachable from the start without passing an iron gate (|).
+var _ungated := {}
+
+
+## Whether a tile lies behind an iron gate, shut off until its pressure
+## plates are pressed (and not in the secret room).
+func _behind_gate(c: Vector2i) -> bool:
+	if not _has_cell("|") or _in_secret_room(c):
+		return false
+	if _ungated.is_empty():
+		for y in height:
+			var x := grid[y].find("P")
+			if x >= 0:
+				_ungated[Vector2i(x, y)] = true
+		var todo: Array[Vector2i] = []
+		todo.assign(_ungated.keys())
+		while not todo.is_empty():
+			var at: Vector2i = todo.pop_back()
+			for d in DIRS:
+				var n := at + d
+				if not "#?|".contains(cell_char(n)) and not _ungated.has(n):
+					_ungated[n] = true
+					todo.append(n)
+	return not _ungated.has(c)
 
 
 ## Gold and gear for a chest in the secret room, as rich as its tier. A trunk
@@ -1487,8 +1534,9 @@ const STONE_DRAG_RANGE := 7.0
 const STONE_AHEAD := 1.6
 
 
-func add_stone(first: Vector2i, x_wise: bool, on_layer: int) -> StoneBlock:
+func add_stone(first: Vector2i, x_wise: bool, on_layer: int, is_heavy := false) -> StoneBlock:
 	var stone := StoneBlock.new()
+	stone.heavy = is_heavy
 	stone.place(first, x_wise, on_layer)
 	add_child(stone)
 	stones.append(stone)
@@ -1500,12 +1548,13 @@ func restore_stones() -> void:
 	for entry in built.duplicate():
 		if entry is Array and entry.size() >= 4:
 			add_stone(Vector2i(int(entry[0]), int(entry[1])), int(entry[3]) == 1, int(entry[2]))
+	refresh_stone_paths()
 
 
 func _sync_built() -> void:
 	built.clear()
 	for s in stones:
-		if is_instance_valid(s):
+		if is_instance_valid(s) and not s.heavy:
 			built.append([s.cell.x, s.cell.y, s.layer, 1 if s.along_x else 0])
 
 
@@ -1575,6 +1624,8 @@ func stone_spot_ahead(hero: Node3D, ahead: Vector3) -> Dictionary:
 ## Where a block dragged to `point` would land, lying along x or z. Empty
 ## when it is too far from the hero or there is no room.
 func stone_drop_spot(stone: StoneBlock, point: Vector3, x_wise: bool, hero: Node3D) -> Dictionary:
+	if stone.heavy:
+		return _slide_spot(stone, point, hero)
 	var first := StoneBlock.cell_for(point, x_wise)
 	var spot := StoneBlock.spot_of(first, x_wise, 0)
 	var on_layer := stone_layer_for(first, x_wise, stone)
@@ -1593,6 +1644,7 @@ func put_stone(first: Vector2i, x_wise: bool, on_layer: int) -> StoneBlock:
 	stone.model.scale = Vector3.ONE * 0.4
 	create_tween().tween_property(stone.model, "scale", Vector3.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_sync_built()
+	refresh_stone_paths()
 	return stone
 
 
@@ -1600,6 +1652,7 @@ func put_stone(first: Vector2i, x_wise: bool, on_layer: int) -> StoneBlock:
 func take_stone(stone: StoneBlock) -> void:
 	stones.erase(stone)
 	_sync_built()
+	refresh_stone_paths()
 	stone.collision_layer = 0
 	var tween := create_tween()
 	tween.tween_property(stone.model, "position:y", 1.0, 0.25).set_ease(Tween.EASE_OUT)
@@ -1639,11 +1692,13 @@ func move_stone(stone: StoneBlock, first: Vector2i, x_wise: bool, on_layer: int)
 	var from := stone.model.global_transform
 	stone.place(first, x_wise, on_layer)
 	_sync_built()
+	refresh_stone_paths()
 	var to := Transform3D(Basis() if x_wise else Basis(Vector3.UP, PI * 0.5), stone.global_position)
 	var model := stone.model
 	model.top_level = true
 	model.global_transform = from
-	var rise := 0.6 + 0.12 * from.origin.distance_to(to.origin)
+	# A heavy block grinds along the floor instead of flying.
+	var rise := 0.0 if stone.heavy else 0.6 + 0.12 * from.origin.distance_to(to.origin)
 	var fly := func(t: float) -> void:
 		if not is_instance_valid(model):
 			return
@@ -1663,6 +1718,308 @@ func move_stone(stone: StoneBlock, first: Vector2i, x_wise: bool, on_layer: int)
 ## no block there), for climbing onto blocks.
 func stone_surface(point: Vector3) -> float:
 	return stone_column(StoneBlock.grid_cell(point)) * StoneBlock.HEIGHT
+
+
+## A heavy block only slides: along the floor, in a straight line along x or
+## z from where it lies, as far towards `point` as it goes before it hits
+## something (and within the hero's reach). Never turned, never stacked.
+func _slide_spot(stone: StoneBlock, point: Vector3, hero: Node3D) -> Dictionary:
+	var result := {"cell": stone.cell, "along_x": stone.along_x, "layer": stone.layer, "ok": false}
+	if stone.layer != 0:
+		return result
+	var aim := StoneBlock.cell_for(point, stone.along_x) - stone.cell
+	if aim == Vector2i.ZERO:
+		return result
+	var dir := Vector2i(signi(aim.x), 0) if absi(aim.x) >= absi(aim.y) else Vector2i(0, signi(aim.y))
+	var reached := stone.cell
+	for i in maxi(absi(aim.x), absi(aim.y)):
+		var next := reached + dir
+		if _flat_distance(StoneBlock.spot_of(next, stone.along_x, 0), hero.global_position) > STONE_DRAG_RANGE:
+			break
+		if not _slides_onto(stone, next):
+			break
+		reached = next
+	result.cell = reached
+	result.ok = reached != stone.cell
+	return result
+
+
+func _slides_onto(stone: StoneBlock, first: Vector2i) -> bool:
+	return stone_layer_for(first, stone.along_x, stone) == 0 and stone_fits(first, stone.along_x, 0, stone)
+
+
+## Pushes a heavy block one grid cell on along `dir`. False when something
+## is in the way or something lies on it.
+func push_stone(stone: StoneBlock, dir: Vector2i) -> bool:
+	var next := stone.cell + dir
+	if stone.layer != 0 or not stone_free(stone) or not _slides_onto(stone, next):
+		return false
+	move_stone(stone, next, stone.along_x, 0)
+	return true
+
+
+# --- Stone blocks in the way of monsters ----------------------------------------
+
+## Tiles that stone blocks wall off: solid for the path finding of skeletons,
+## bandits, villagers and the hero's clicks until the blocks are gone again.
+## Skeletons and bandits cannot climb, so a wall one block high keeps them
+## out, while the hero steps over it.
+var _stone_cut := {}
+## How finely a tile is checked for a way past the blocks (samples per side,
+## 0.4 m each), how many samples wide a gap must be for a skeleton or bandit
+## to squeeze through (1.2 m: they are about that broad), and the smallest
+## patch of free floor that counts as a way through.
+const CUT_SAMPLES := 10
+const CUT_GAP := 3
+const CUT_PATCH := 4
+
+
+## Whether stone blocks wall off this tile (see _stone_cut).
+func stone_cut(c: Vector2i) -> bool:
+	return _stone_cut.has(c)
+
+
+## The way along the grid from one tile to another (as close as it gets),
+## for everyone who walks by the path finding. Someone standing on a tile
+## walled off by blocks can still set out from it.
+func grid_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+	var lift := _stone_cut.has(from)
+	if lift:
+		astar.set_point_solid(from, false)
+	var ids := astar.get_id_path(from, to, true)
+	if lift:
+		astar.set_point_solid(from, true)
+	return ids
+
+
+## Judges again which tiles the blocks wall off: those they stand on and
+## those they walled off before.
+func refresh_stone_paths() -> void:
+	if stones.is_empty() and _stone_cut.is_empty():
+		return
+	var covered := {}
+	var tiles := {}
+	for s in stones:
+		if not is_instance_valid(s):
+			continue
+		for c in s.cells():
+			covered[c] = true
+			for corner in [Vector2(0.05, 0.05), Vector2(0.75, 0.05), Vector2(0.05, 0.75), Vector2(0.75, 0.75)]:
+				tiles[world_to_cell(Vector3(c.x * StoneBlock.CELL + corner.x, 0.0, c.y * StoneBlock.CELL + corner.y))] = true
+	for t in _stone_cut.keys():
+		tiles[t] = true
+	for t in tiles:
+		if not astar.is_in_boundsv(t) or (astar.is_point_solid(t) and not _stone_cut.has(t)):
+			continue
+		var cut := _stone_cuts(t, covered)
+		if cut and not _stone_cut.has(t):
+			_stone_cut[t] = true
+			astar.set_point_solid(t, true)
+		elif not cut and _stone_cut.has(t):
+			_stone_cut.erase(t)
+			astar.set_point_solid(t, false)
+
+
+## Whether the blocks on a tile cut it: no single patch of floor wide enough
+## to walk joins all the sides it can be entered from. A tile split in two
+## counts as cut (better a detour than a skeleton stuck at a wall).
+func _stone_cuts(t: Vector2i, covered: Dictionary) -> bool:
+	var n := CUT_SAMPLES
+	var step := TILE / n
+	var corner := cell_to_world(t) - Vector3(TILE, 0.0, TILE) * 0.5
+	var floor_free := PackedByteArray()
+	floor_free.resize(n * n)
+	var any_covered := false
+	for j in n:
+		for i in n:
+			var f := not covered.has(StoneBlock.grid_cell(corner + Vector3((i + 0.5) * step, 0.0, (j + 0.5) * step)))
+			floor_free[j * n + i] = 1 if f else 0
+			if not f:
+				any_covered = true
+	if not any_covered:
+		return false
+	# The sides that lead on to floor, north, south, west, east (a tile the
+	# blocks wall off counts: the floor is there).
+	var open: Array[bool] = []
+	for d in DIRS_NSWE:
+		var nb: Vector2i = t + d
+		open.append(astar.is_in_boundsv(nb) and (not astar.is_point_solid(nb) or _stone_cut.has(nb)))
+	# Only wide enough floor counts: a run of CUT_GAP free samples through it
+	# along x and along z (running on past an open side).
+	var wide_x := PackedByteArray()
+	wide_x.resize(n * n)
+	var wide_z := PackedByteArray()
+	wide_z.resize(n * n)
+	for j in n:
+		_mark_wide(floor_free, wide_x, j * n, 1, open[2], open[3])
+	for i in n:
+		_mark_wide(floor_free, wide_z, i, n, open[0], open[1])
+	# Patches of walkable floor.
+	var comp := PackedInt32Array()
+	comp.resize(n * n)
+	comp.fill(-1)
+	var sizes: Array[int] = []
+	for k in n * n:
+		if wide_x[k] == 0 or wide_z[k] == 0 or comp[k] >= 0:
+			continue
+		var id := sizes.size()
+		var size := 0
+		comp[k] = id
+		var todo: Array[int] = [k]
+		while not todo.is_empty():
+			var q: int = todo.pop_back()
+			size += 1
+			var qi := q % n
+			var qj := (q - qi) / n
+			for nb in [q - 1 if qi > 0 else -1, q + 1 if qi < n - 1 else -1, q - n if qj > 0 else -1, q + n if qj < n - 1 else -1]:
+				if nb >= 0 and wide_x[nb] == 1 and wide_z[nb] == 1 and comp[nb] < 0:
+					comp[nb] = id
+					todo.append(nb)
+		sizes.append(size)
+	# Every open side reached by no patch is a way of its own (a dead end);
+	# every patch that reaches a side is one too. More than one: cut.
+	var reached := {}
+	var ways := 0
+	for side in 4:
+		if not open[side]:
+			continue
+		var touched := false
+		for m in n:
+			var k: int = [m, (n - 1) * n + m, m * n, m * n + n - 1][side]
+			if comp[k] >= 0 and sizes[comp[k]] >= CUT_PATCH:
+				touched = true
+				reached[comp[k]] = true
+		if not touched:
+			ways += 1
+	ways += reached.size()
+	return ways >= 2 or reached.is_empty()
+
+
+## Marks the samples of a line (n samples from `start`, `stride` apart) that
+## lie in a run of at least CUT_GAP free ones; a run that touches an open
+## end goes on beyond it.
+func _mark_wide(floor_free: PackedByteArray, out: PackedByteArray, start: int, stride: int, open_before: bool, open_after: bool) -> void:
+	var n := CUT_SAMPLES
+	var m := 0
+	while m < n:
+		if floor_free[start + m * stride] == 0:
+			m += 1
+			continue
+		var first := m
+		while m < n and floor_free[start + m * stride] == 1:
+			m += 1
+		var length := m - first
+		if first == 0 and open_before:
+			length += CUT_GAP
+		if m == n and open_after:
+			length += CUT_GAP
+		if length >= CUT_GAP:
+			for r in range(first, m):
+				out[start + r * stride] = 1
+
+
+# --- Pressure plates and the iron gate ------------------------------------------
+
+## Stone slabs in the floor that sink while a stone block lies on them, and
+## the iron gates that sink into the floor for good once all of them do.
+var _plates: Array = []
+var _gates: Array = []
+var _plates_pressed := 0
+## Where the level's heavy blocks lie when it starts (tiles marked Q).
+var _heavy_starts: Array[Vector2i] = []
+const DIRS_NSWE: Array[Vector2i] = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]
+## A plate fills the 2x2 build grid cells in the middle of its tile: a block
+## lying on any of them presses it.
+const PLATE_SIZE := StoneBlock.CELL * 2.0 - 0.1
+const PLATE_UP := 0.06
+
+
+func _build_plate(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var slab := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(PLATE_SIZE, 0.12, PLATE_SIZE)
+	slab.mesh = box
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.4, 0.38, 0.35)
+	mat.roughness = 0.95
+	mat.emission_enabled = true
+	mat.emission = Color(0.35, 0.95, 0.55)
+	mat.emission_energy_multiplier = 0.15
+	slab.material_override = mat
+	slab.position = pos + Vector3(0, PLATE_UP, 0)
+	add_child(slab)
+	var first := StoneBlock.grid_cell(pos - Vector3(StoneBlock.CELL, 0.0, StoneBlock.CELL) * 0.5)
+	var cells: Array[Vector2i] = [first, first + Vector2i(1, 0), first + Vector2i(0, 1), first + Vector2i(1, 1)]
+	_plates.append({"cell": c, "cells": cells, "node": slab, "mat": mat, "pressed": false})
+
+
+func _build_gate(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var across_x := cell_char(c + Vector2i(-1, 0)) == "#" and cell_char(c + Vector2i(1, 0)) == "#"
+	var rot := 0.0 if across_x else PI * 0.5
+	var bars := _place("wall_gated", pos, rot)
+	var body := StaticBody3D.new()
+	body.position = pos
+	body.rotation.y = rot
+	add_child(body)
+	_add_box(body, Vector3(0, 2, 0), Vector3(TILE, 4, 0.6))
+	_gates.append({"cell": c, "node": bars, "body": body, "open": false})
+
+
+func plate_count() -> int:
+	return _plates.size()
+
+
+func plates_pressed() -> int:
+	return _plates_pressed
+
+
+func gates_open() -> bool:
+	return _gates.all(func(g): return g.open)
+
+
+func _plate_pressed(plate: Dictionary) -> bool:
+	for s in stones:
+		if is_instance_valid(s) and s.layer == 0:
+			for c in s.cells():
+				if plate.cells.has(c):
+					return true
+	return false
+
+
+func _check_plates() -> void:
+	if _plates.is_empty():
+		return
+	var pressed := 0
+	for plate in _plates:
+		var down := _plate_pressed(plate)
+		if down != plate.pressed:
+			plate.pressed = down
+			create_tween().tween_property(plate.node, "position:y", 0.0 if down else PLATE_UP, 0.15)
+			plate.mat.emission_energy_multiplier = 1.4 if down else 0.15
+			Sfx.play(self, "lever" if down else "word_klack", -4.0, plate.node.global_position)
+		if down:
+			pressed += 1
+	if pressed == _plates_pressed:
+		return
+	_plates_pressed = pressed
+	plates_changed.emit(pressed, _plates.size())
+	if pressed == _plates.size():
+		_open_gates()
+
+
+## Every plate is pressed: the iron gates grind down into the floor and stay
+## there, so taking a block off a plate again shuts nobody in.
+func _open_gates() -> void:
+	for g in _gates:
+		if g.open:
+			continue
+		g.open = true
+		g.body.queue_free()
+		astar.set_point_solid(g.cell, false)
+		create_tween().tween_property(g.node, "position:y", -4.1, 2.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		gate_opened.emit(g.node.global_position)
 
 
 func _process(delta: float) -> void:
@@ -1690,6 +2047,7 @@ func _process(delta: float) -> void:
 	_check_pickups()
 	_check_doors()
 	_check_secrets()
+	_check_plates()
 	if exit_cell.x >= 0:
 		# The stairs fill the whole exit cell: climbing starts at the first step.
 		if world_to_cell(player.global_position) == exit_cell:

@@ -15,6 +15,10 @@ var _panel: PanelContainer
 var _box: VBoxContainer
 var _selected := -1
 var _note := ""
+## The saved game whose delete button was clicked once; a second click deletes.
+var _delete_asked := ""
+## How many saved games the load window shows before the list scrolls.
+const LOAD_ROWS_SHOWN := 5
 ## Shows the stats of the item under the mouse (or last tapped).
 var _info: Label
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
@@ -84,6 +88,8 @@ func close() -> void:
 	_panel.visible = false
 	game.set_world_paused(false)
 	game._update_hud()
+	if game.state == game.State.TITLE:
+		game.load_window_closed()
 
 
 func _rebuild() -> void:
@@ -517,31 +523,90 @@ func _sell(index: int) -> void:
 
 # --- Bed --------------------------------------------------------------------
 
-## Asks before loading the saved game in the middle of a run.
+## Every saved game, one per hero, the one saved last on top. In the middle
+## of a run it warns first that the run so far is lost. A saved game can be
+## deleted too, after a second click to make sure.
 func _build_load() -> void:
 	_add_label(Lang.t("Spielstand laden"), 38, game.GOLD, game.TITLE_FONT)
-	var info: Dictionary = game.save_info()
-	if info.is_empty():
+	var saves: Array = game.save_list()
+	var playing: bool = game.state == game.State.PLAYING
+	if saves.is_empty():
 		_add_label(Lang.t("Es gibt noch keinen Spielstand. Gespeichert wird beim Betreten der Zuflucht und in ihrem Bett."), 20)
-	else:
-		if info.escaped:
-			_add_label(Lang.t("%s auf dem Friedhof mit %d Gold.") % [info.name, info.coins], 22)
-		else:
-			_add_label(Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins], 22)
+	elif playing:
 		_add_label(Lang.t("Was du seitdem erlebt hast, geht verloren."), 20, Color(1.0, 0.75, 0.5))
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 12)
-	_box.add_child(row)
-	if not info.is_empty():
-		var load_button: Button = game._make_button(Lang.t("Laden"), func():
-			close()
-			game.load_saved_game())
-		load_button.custom_minimum_size = Vector2(220, 60)
-		row.add_child(load_button)
-	var cancel: Button = game._make_button(Lang.t("Abbrechen"), close)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 8)
+	for info in saves:
+		list.add_child(_save_row(info, playing))
+	if saves.size() > LOAD_ROWS_SHOWN:
+		# Many heroes: the list scrolls.
+		var scroll := ScrollContainer.new()
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.custom_minimum_size = Vector2(0, LOAD_ROWS_SHOWN * 70)
+		list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(list)
+		_box.add_child(scroll)
+	elif not saves.is_empty():
+		_box.add_child(list)
+	if _note != "":
+		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
+		_note = ""
+	var cancel: Button = game._make_button(Lang.t("Abbrechen"), func():
+		_delete_asked = ""
+		close())
 	cancel.custom_minimum_size = Vector2(220, 60)
-	row.add_child(cancel)
+	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(cancel)
+
+
+## One line of the load window: who, where, with how much gold and when,
+## then the buttons to load or delete it.
+func _save_row(info: Dictionary, playing: bool) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var text := VBoxContainer.new()
+	text.add_theme_constant_override("separation", 0)
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.custom_minimum_size = Vector2(420, 0)
+	row.add_child(text)
+	var where: Label = game._make_label(game.TEXT_FONT, 22)
+	where.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	if info.escaped:
+		where.text = Lang.t("%s auf dem Friedhof mit %d Gold.") % [info.name, info.coins]
+	else:
+		where.text = Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins]
+	if playing and info.name == game.hero_name:
+		where.add_theme_color_override("font_color", game.GOLD)
+	text.add_child(where)
+	var when: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	when.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	when.text = Lang.t("Gespeichert: %s") % game.save_time_text(info.time)
+	text.add_child(when)
+	var path: String = info.path
+	var load_button: Button = game._make_button(Lang.t("Laden"), func():
+		_delete_asked = ""
+		if playing:
+			close()
+			game.load_saved_game(path)
+		else:
+			# Leaving the title closes the window by itself.
+			game.continue_game(path))
+	load_button.custom_minimum_size = Vector2(150, 56)
+	row.add_child(load_button)
+	var asked := _delete_asked == path
+	var delete_button: Button = game._make_button(Lang.t("Wirklich?") if asked else Lang.t("Löschen"), func():
+		if _delete_asked == path:
+			_delete_asked = ""
+			game.delete_save(path)
+			_note = Lang.t("Spielstand von %s gelöscht.") % info.name
+		else:
+			_delete_asked = path
+		_rebuild())
+	delete_button.custom_minimum_size = Vector2(150, 56)
+	if asked:
+		delete_button.add_theme_color_override("font_color", Color(1.0, 0.5, 0.4))
+	row.add_child(delete_button)
+	return row
 
 
 ## Every control on one side, everything the hero has been told on the other.

@@ -64,6 +64,20 @@ func _window_size() -> Vector2:
 	return game.menus._panel.size
 
 
+## The list of rows (the first scroll container in the window).
+func _list_scroll() -> ScrollContainer:
+	return game.menus._box.find_children("*", "ScrollContainer", true, false)[0]
+
+
+## Where every row of the list is on screen.
+func _row_rects() -> Array:
+	var out := []
+	for grid in game.menus._box.find_children("*", "GridContainer", true, false):
+		for row in grid.get_children():
+			out.append((row as Control).get_global_rect())
+	return out
+
+
 ## The key of the first row showing an item.
 func _key_of(id: String) -> String:
 	for key in game.menus.trade._entries:
@@ -139,6 +153,54 @@ func _test() -> void:
 	var before: int = game.coins
 	menus._buy(game.shop_stock.find("schwert"))
 	check(game.coins == before - Items.ALL["schwert"].price and p.bag.has("schwert"), "buying takes the gold and gives the item")
+
+	# Buying keeps everything in place: rows keep their order, a sold-out
+	# row stays (dimmed), the pick, the scroll and every row's place stay.
+	menus.close()
+	game.shop_stock.assign(["schwert", "lederwams", "lederwams", "wappenschild", "stachelschild", "lederstiefel", "kupferring", "bronzearmreif", "wurfbuch", "schildbuch", "axtbuch"])
+	game.coins = 300
+	p.bag.clear()
+	menus.open("haendler")
+	await _window_size()
+	var order: Array = trade._entries.keys()
+	check(order.has("ware:wurst") and order.count("ware:lederwams") == 1, "sausages and a stack each have one row")
+	check(_has_text("×2"), "a stack shows how many there are")
+	trade.pick("ware:lederwams")
+	var list := _list_scroll()
+	await _window_size()
+	list.scroll_vertical = 60
+	var size_before := await _window_size()
+	var rects := _row_rects()
+	var scrolled := list.scroll_vertical
+	menus._buy(game.shop_stock.find("wurst"))
+	await _window_size()
+	check(game.shop_stock.count("wurst") == 2 and p.bag.has("wurst"), "sausages never run out")
+	check(trade._entries.keys() == order, "buying a sausage moves no row")
+	check(await _window_size() == size_before, "buying a sausage keeps the window's size")
+	check(_row_rects() == rects, "buying a sausage keeps every row in its place")
+	check(_list_scroll().scroll_vertical == scrolled and scrolled > 0, "buying keeps the list's scroll position")
+	menus._buy(game.shop_stock.find("lederwams"))
+	menus._buy(game.shop_stock.find("lederwams"))
+	check(not game.shop_stock.has("lederwams") and p.bag.count("lederwams") == 2, "the whole stack can be bought")
+	check(trade._entries.keys() == order, "a sold-out item keeps its row")
+	check(trade._entries["ware:lederwams"].has("gone") and _has_text("Sold out"), "the sold-out row says so")
+	check(trade.selected == "ware:lederwams", "the picked row stays picked")
+	check(await _window_size() == size_before and _row_rects() == rects, "selling out moves nothing")
+	await _shot("merchant_sold_out")
+
+	# Selling keeps its rows in place too.
+	menus._show_shop_page("verkaufen")
+	await _window_size()
+	var sell_order: Array = trade._entries.keys()
+	var sell_rects := _row_rects()
+	menus._sell(p.bag.find("lederwams"))
+	menus._sell(p.bag.find("lederwams"))
+	check(trade._entries.keys() == sell_order and trade._entries["sell:lederwams"].has("gone"), "a sold-off item keeps its row")
+	await _window_size()
+	check(_row_rects() == sell_rects, "selling moves no row")
+	menus.close()
+	p.bag.append("schwert")
+	menus.open("haendler")
 
 	# Selling is a page of its own: the bag, not the wares.
 	check(not _has_text("Sell") or not _key_of("schwert").begins_with("sell"), "the buy page shows no bag items")

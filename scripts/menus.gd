@@ -169,6 +169,11 @@ func _rebuild() -> void:
 		# make the window grow.
 		var note := _add_label(_note, 18, Color(1.0, 0.75, 0.5))
 		note.custom_minimum_size.y = 26
+		if current in TRADE_WINDOWS:
+			# One line at most, never wider than the window.
+			note.clip_text = true
+			note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			note.custom_minimum_size.x = TradeWindow.BODY_WIDTH
 	# The inventory has its own "Back to game" button at the top instead.
 	if not current in ["inventar", "bett", "laden", "beenden", "plan", "rueckkehr", "hoehle"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
@@ -637,22 +642,34 @@ func _build_shop() -> void:
 	_add_label(Lang.t("Händler"), 38, game.GOLD, game.TITLE_FONT)
 	var gear := []
 	var goods := []
+	# One row per kind of item, with how many there are: rows are keyed
+	# by the item, so buying or selling one never moves the others.
 	if _shop_page == "kaufen":
-		for i in game.shop_stock.size():
-			var id: String = game.shop_stock[i]
-			var entry := _ware_entry("buy:%d" % i, id, game.trader_price(Items.ALL[id].price), _buy.bind(i))
+		for id in _kinds(game.shop_stock):
+			var entry := _ware_entry("ware:" + id, id, game.trader_price(Items.ALL[id].price), _buy.bind(game.shop_stock.find(id)))
+			# Sausages never run out (see Pet), so they show no count.
+			entry.count = 1 if id == Pet.FOOD else game.shop_stock.count(id)
 			(goods if _is_consumable(id) else gear).append(entry)
 	else:
-		for i in p.bag.size():
-			var id: String = p.bag[i]
-			var entry := {"key": "sell:%d" % i, "id": id, "name": Items.item_name(id), "price": "+" + Lang.t("%d Gold") % sell_price(id),
-					"button": Lang.t("Verkaufen"), "action": _sell.bind(i)}
+		for id in _kinds(p.bag):
+			var entry := {"key": "sell:" + id, "id": id, "name": Items.item_name(id), "price": "+" + Lang.t("%d Gold") % sell_price(id),
+					"button": Lang.t("Verkaufen"), "action": _sell.bind(p.bag.find(id)), "count": p.bag.count(id)}
 			(goods if _is_consumable(id) else gear).append(entry)
+	var gone := Lang.t("Ausverkauft") if _shop_page == "kaufen" else Lang.t("Verkauft")
 	var empty := Lang.t("Nichts im Angebot.") if _shop_page == "kaufen" else Lang.t("Nichts davon in deiner Tasche.")
 	_trade(Lang.t("Dein Gold: %d") % game.coins, [
-		{"key": "gear", "title": Lang.t("Ausrüstung"), "icon": "kind:helmet", "entries": gear, "empty": empty},
-		{"key": "goods", "title": Lang.t("Verbrauchsgüter"), "icon": "kind:potion", "entries": goods, "empty": empty},
+		{"key": "gear", "title": Lang.t("Ausrüstung"), "icon": "kind:helmet", "entries": gear, "empty": empty, "gone": gone},
+		{"key": "goods", "title": Lang.t("Verbrauchsgüter"), "icon": "kind:potion", "entries": goods, "empty": empty, "gone": gone},
 	], _shop_pages(Lang.t("Verkaufen (%d / %d)") % [p.bag.size(), p.bag_size()]))
+
+
+## Each item of a list once, in the order it first appears.
+static func _kinds(items: Array) -> Array:
+	var out := []
+	for id in items:
+		if not id in out:
+			out.append(id)
+	return out
 
 
 ## Which page of a merchant's window shows: "kaufen" (his wares) or
@@ -705,7 +722,9 @@ func _buy(index: int) -> void:
 		game.coins -= price
 		game.traded()
 		game.player.bag.append(id)
-		game.shop_stock.remove_at(index)
+		# The shop never runs out of sausages: they stay in stock.
+		if id != Pet.FOOD:
+			game.shop_stock.remove_at(index)
 		_note = Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 	_rebuild()
 
@@ -737,7 +756,11 @@ func _build_wanderer() -> void:
 	for i in wares.size():
 		var id: String = wares[i]
 		if not Wanderer.is_ingredient(id):
-			var entry := _ware_entry("buy:%d" % i, id, Wanderer.price(id), _buy_from_wanderer.bind(i))
+			if listed.has(id):
+				continue
+			listed[id] = true
+			var entry := _ware_entry("ware:" + id, id, Wanderer.price(id), _buy_from_wanderer.bind(i))
+			entry.count = wares.count(id)
 			(goods if _is_consumable(id) else gear).append(entry)
 		elif not listed.has(id):
 			# One row per kind of ingredient, bought one piece at a time.
@@ -975,13 +998,12 @@ func _build_smithy() -> void:
 			]
 		"einschmelzen":
 			var melt := []
-			for i in p.bag.size():
-				var id: String = p.bag[i]
+			for id in _kinds(p.bag):
 				var can := Forge.can_melt(id)
-				melt.append({"key": "melt:%d" % i, "id": id, "name": Items.item_name(id), "price": Lang.t("+%d Eisen") % Forge.melt_yield(id) if can else Lang.t("Schmilzt nicht"), "price_ok": can,
-						"button": Lang.t("Einschmelzen"), "action": _melt.bind(i), "enabled": can})
+				melt.append({"key": "melt:" + id, "id": id, "name": Items.item_name(id), "price": Lang.t("+%d Eisen") % Forge.melt_yield(id) if can else Lang.t("Schmilzt nicht"), "price_ok": can,
+						"button": Lang.t("Einschmelzen"), "action": _melt.bind(p.bag.find(id)), "enabled": can, "count": p.bag.count(id)})
 			sections = [{"key": "melt", "title": Lang.t("Einschmelzen"), "icon": "kind:flame", "entries": melt,
-					"empty": Lang.t("Deine Tasche ist leer.")}]
+					"empty": Lang.t("Deine Tasche ist leer."), "gone": Lang.t("Eingeschmolzen")}]
 		"ausbessern":
 			var mend := []
 			for id in Forge.worn_down(p):
@@ -990,7 +1012,7 @@ func _build_smithy() -> void:
 				mend.append({"key": id, "id": id, "name": "%s  %d / %d" % [Items.item_name(id), left, durability],
 						"price": Lang.t("%d Gold") % Forge.mend_cost(p, id, game), "price_ok": game.coins >= Forge.mend_price(id, game),
 						"button": Lang.t("Ausbessern"), "action": _mend.bind(id), "enabled": game.coins >= Forge.mend_price(id, game)})
-			sections = [{"key": "mend", "title": Lang.t("Ausbessern"), "icon": "kind:hammer_anvil", "entries": mend,
+			sections = [{"key": "mend", "title": Lang.t("Ausbessern"), "icon": "kind:hammer_anvil", "entries": mend, "gone": Lang.t("Wie neu"),
 					"empty": Lang.t("Deine Ausrüstung ist heil.")}]
 	_trade(Lang.t("Dein Gold: %d    Eisen: %d") % [game.coins, game.iron], sections, tabs, Lang.t(FORGE_ABOUT[_forge_tab]))
 

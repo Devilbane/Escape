@@ -132,6 +132,9 @@ func _ready() -> void:
 	_add_cape_logo()
 	_add_trim()
 	GearLook.dress(_model.find_child("handslot_r", true, false).get_node("Knife"), "mixed") # The hero's own knife.
+	for arm in ["Rogue_ArmLeft", "Rogue_ArmRight"]:
+		GearLook.apply(_model.find_child(arm, true, false) as MeshInstance3D, "outfit")
+	_matt_head()
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle", SNEAK_ANIM]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -237,6 +240,21 @@ func _add_trim() -> void:
 	# Tucked in on the left side of the head, sweeping up and back.
 	feather.transform = Transform3D(Basis.from_euler(Vector3(-0.75, 0.0, -0.45)).scaled(Vector3.ONE * 1.3), bind * Vector3(0.47, 1.66, -0.05))
 	attach.add_child(feather)
+
+
+## Hair and face are matt, so the hair does not shine like plastic in the
+## lantern light. Fading while sneaking reuses this material.
+func _matt_head() -> void:
+	var head := _model.find_child("Rogue_Head", true, false) as MeshInstance3D
+	if head == null or head.mesh == null:
+		return
+	var base := head.mesh.surface_get_material(0) as StandardMaterial3D
+	if base == null:
+		return
+	var matt := base.duplicate() as StandardMaterial3D
+	matt.roughness = 0.95
+	matt.metallic_specular = 0.12
+	head.set_surface_override_material(0, matt)
 
 
 ## The glowing devilbane emblem on the back of the cape.

@@ -253,9 +253,6 @@ func _ready() -> void:
 	add_child(menus)
 	horrors = Horrors.new(self)
 	add_child(horrors)
-	player.torch.notice.connect(func(text: String, duration: float):
-		if state == State.PLAYING:
-			show_message(text, duration))
 	Sfx.load_settings()
 	Sfx.watch_focus(self)
 	_update_sound_button()
@@ -267,6 +264,10 @@ func _ready() -> void:
 	menus.setup(self, _hud)
 	player = Player.new()
 	add_child(player)
+	# The hand torch speaks through the message line (see HandTorch).
+	player.torch.notice.connect(func(text: String, duration: float):
+		if state == State.PLAYING:
+			show_message(text, duration))
 	player.hurt.connect(_on_player_hurt)
 	player.ailments_changed.connect(_update_hud)
 	player.defeated.connect(_on_player_defeated)

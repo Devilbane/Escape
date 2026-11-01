@@ -26,6 +26,9 @@ const KINDS := {
 	"halsabschneider": "bandits", "wilderer": "bandits", "schlaeger": "bandits", "hauptmann": "bandits",
 	"wolf": "wolves", "ork": "orcs", "spinne": "spiders", "yeti": "yeti",
 	"fledermaus": "brood", "schleim": "brood", "drache": "brood",
+	# The nameless horrors (see Horrors) belong to nobody and fight nobody
+	# but the hero.
+	"hohle_mutter": "horrors", "bleicher_waechter": "horrors", "schlund": "horrors",
 }
 
 ## The factions. "name" is shown in messages. A faction with a "gift" can be
@@ -43,6 +46,8 @@ const FACTIONS := {
 		"refuse": "Die Spinne starrt dich mit acht Augen an. Mit ihr ist kein Frieden zu machen."},
 	"brood": {"name": "Die Brut des Drachen",
 		"refuse": "Die Brut des Drachen lässt sich nicht zähmen."},
+	"horrors": {"name": "Die Namenlosen",
+		"refuse": "Es hat keinen Hunger auf Geschenke. Es hat Hunger auf dich."},
 	"wolves": {"name": "Die Wölfe", "gift": "barsch", "count": 1,
 		"wish": "Wölfe mögen Fisch. Ein Barsch beißt im Tümpel der Wolfssenke.",
 		"thanks": "Der Wolf schnappt sich den Barsch und wedelt mit dem Schwanz.",

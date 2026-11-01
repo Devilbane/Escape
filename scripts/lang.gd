@@ -1102,6 +1102,8 @@ const EN := {
 	"Mira verkauft nicht nur Kram. Sie weiß auch, wie man Leder pflegt. Frag sie, wenn sie dich gut kennt.": "Mira does not just sell odds and ends. She also knows how to care for leather. Ask her once she knows you well.",
 	# The nameless horrors, the creepy holes and the hand torch
 	"Fackel": "Torch",
+	"Die Namenlosen": "The nameless",
+	"Es hat keinen Hunger auf Geschenke. Es hat Hunger auf dich.": "It has no hunger for gifts. It hungers for you.",
 	"ein dunkles Loch": "a dark hole",
 	"Brennt in der Finsternis von selbst, drei Minuten lang. Ohne sie siehst du dort kaum die eigene Hand": "Lights itself in pitch darkness and burns for three minutes. Without one you can barely see your own hand down there",
 	"Du zündest eine Fackel an. Noch %d im Beutel.": "You light a torch. %d left in your bag.",

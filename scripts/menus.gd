@@ -328,8 +328,8 @@ func _build_inventory() -> void:
 			actions.add_child(_item_button(Lang.t("Abstellen"), _put_down_selected))
 		elif Items.is_stone(id):
 			actions.add_child(_item_button(Lang.t("Abstellen"), _place_stone_selected))
-		elif Items.is_quest(id) or Items.is_material(id):
-			pass # Carried for a task or to the smith, not worn.
+		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id):
+			pass # Carried for a task, to the smith or for a fox, not worn.
 		else:
 			actions.add_child(_item_button(Lang.t("Anlegen"), _equip_selected))
 		actions.add_child(_item_button(Lang.t("Wegwerfen"), _drop_selected))
@@ -605,6 +605,9 @@ static func sell_price(id: String) -> int:
 
 func _build_shop() -> void:
 	var p: Player = game.player
+	# There are always sausages for a fox (see Pet).
+	while game.shop_stock.count(Pet.FOOD) < 2:
+		game.shop_stock.push_front(Pet.FOOD)
 	_add_label(Lang.t("Händler"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
 	_add_standing()

@@ -108,6 +108,12 @@ var interiors := {}
 var coins := 0
 ## Iron bars for the smith's forge (see Forge), counted like gold.
 var iron := 0
+## The fox: how many sausages a wild fox has eaten from the hero's hand, and
+## whether one goes with the hero now (see Pet). Kept in the saved game.
+var fox_trust := 0
+var has_fox := false
+var pet: Pet = null
+const FOX_LEARN := "Füchse auf den Wiesen sind scheu, aber eine Wurst (bei der Krämerin) lockt sie an: Trägst du eine bei dir, kommt ein Fuchs neugierig näher und frisst sie dir aus der Hand. Nach drei Würsten folgt er dir überallhin, auch ins Verlies. Seine Nase findet Zutaten, die im Boden versteckt sind: Er läuft hin, gräbt sie aus und lässt sie für dich liegen; aufgehoben kommen sie in deinen Zutatenbeutel."
 ## What the hero already took on each level, by level file: the ids of
 ## searched furniture and picked up coins (see Level.taken). Kept in the
 ## saved game, so looted chests stay empty.
@@ -732,6 +738,68 @@ func _use_station(s: Dictionary) -> void:
 		menus.open(s.kind)
 
 
+# --- The fox -------------------------------------------------------------------
+
+## The hero's fox comes along to the new level (see Pet).
+func _spawn_pet(at := Vector3.INF) -> void:
+	pet = null
+	if not has_fox:
+		return
+	pet = Pet.new()
+	pet.setup(level)
+	level.add_child(pet)
+	if at != Vector3.INF:
+		pet.global_position = at
+		pet._placed = true
+	pet.dug_up.connect(_on_fox_dug_up)
+
+
+## A wild fox ate a sausage from the hero's hand. After the last one it
+## trusts the hero and follows them from now on.
+func _on_fox_fed(fox: Animal) -> void:
+	if has_fox or not player.bag.has(Pet.FOOD):
+		return
+	player.bag.erase(Pet.FOOD)
+	fox_trust += 1
+	learn(FOX_LEARN)
+	Sfx.play(self, "drink", -4.0)
+	Effects.float_text(level, fox.global_position + Vector3(0, 1.8, 0), Lang.t("Mampf!"), Color(1.0, 0.7, 0.4), true)
+	if fox_trust < Pet.TRUST_NEEDED:
+		show_message(Lang.t("Der Fuchs frisst dir die Wurst aus der Hand. Vertrauen: %d / %d") % [fox_trust, Pet.TRUST_NEEDED], 3.5)
+		_update_hud()
+		return
+	has_fox = true
+	if level is Outdoor:
+		level.fox_tamable = false
+		level.taken[fox.tame_key()] = true
+		level.animals.erase(fox)
+	var spot := fox.global_position
+	var turn := fox.rotation.y
+	fox.queue_free()
+	_spawn_pet(spot)
+	pet.rotation.y = turn
+	var hearts := Effects.make_sparkles(Color(1.0, 0.55, 0.6), true)
+	hearts.position = spot + Vector3(0, 1.0, 0)
+	level.add_child(hearts)
+	show_message(Lang.t("Der Fuchs vertraut dir und geht jetzt mit dir! Seine Nase findet versteckte Zutaten im Boden."), 5.0)
+	_update_hud()
+
+
+## The fox dug up a hidden ingredient: it lies there for the hero to take.
+func _on_fox_dug_up(id: String, pos: Vector3) -> void:
+	level.lay_find(id, pos)
+	Effects.float_text(level, pos + Vector3(0, 2.0, 0), Crafting.ingredient_name(id), Color(0.75, 0.9, 1.0), true)
+	show_message(Lang.t("Dein Fuchs hat etwas ausgegraben: %s!") % Crafting.ingredient_name(id), 3.0)
+
+
+## A dug-up ingredient goes into the ingredient pouch, not the bag.
+func _on_ingredient_collected(id: String) -> void:
+	crafting.add(id)
+	Sfx.play(self, "key", -3.0)
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5), true)
+	show_message(Lang.t("%s kommt in deinen Zutatenbeutel. Das Rezeptbuch (H) zeigt, was du dabeihast.") % Crafting.ingredient_name(id), 3.5)
+
+
 ## The fountain: full life and every ailment gone, as often as you like.
 func _drink(s: Dictionary) -> void:
 	player.face(s.pos - player.global_position)
@@ -1241,6 +1309,9 @@ func load_level(index: int, restock := true) -> void:
 	level.coins_collected.connect(_on_coins_collected)
 	level.item_collected.connect(_on_item_collected)
 	level.secret_found.connect(_on_secret_found)
+	level.ingredient_collected.connect(_on_ingredient_collected)
+	level.hide_ingredients()
+	_spawn_pet()
 	level.bag_full.connect(func(): show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0))
 	level.door_opened.connect(func():
 		Sfx.play(self, "door")
@@ -1257,6 +1328,8 @@ func load_level(index: int, restock := true) -> void:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
 		level.home_claimed.connect(_on_home_claimed)
 		level.food_basket.connect(_eat_from_basket)
+		level.fox_tamable = not has_fox
+		level.fox_fed.connect(_on_fox_fed)
 		level.lightning.connect(_on_lightning)
 	_pending_crate = null
 	_end_drag()
@@ -1432,6 +1505,8 @@ func _start_new_game() -> void:
 	_name_edit.release_focus()
 	coins = 0
 	iron = 0
+	fox_trust = 0
+	has_fox = false
 	escaped = false
 	home_given = false
 	home_claimed = false
@@ -1674,6 +1749,9 @@ func _apply_save(data: Dictionary) -> void:
 	hero_name = data.get("name", Lang.t("Namenlos"))
 	coins = int(data.coins)
 	iron = int(data.get("iron", 0))
+	var fox = data.get("fox", {})
+	fox_trust = int(fox.get("trust", 0)) if fox is Dictionary else 0
+	has_fox = bool(fox.get("tame", false)) if fox is Dictionary else false
 	secrets_found = int(data.get("secrets", 0))
 	dry_levels = int(data.get("dry", 0))
 	storage.assign(data.storage)
@@ -1838,6 +1916,7 @@ func save_game(going_away := false) -> bool:
 		"day": day, "bounties": bounties.for_save(),
 		"crafting": crafting.for_save(),
 		"reputation": reputation.for_save(),
+		"fox": {"trust": fox_trust, "tame": has_fox},
 		"hour": day_hour,
 		"weather": weather, "weather_hours": weather_hours,
 	}

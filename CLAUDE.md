@@ -18,7 +18,9 @@ tab, details card) must not reshape or condense the rest of the window.
 
 Write messages, code comments, PR descriptions and docs in English. Player-facing strings are
 written in German in the code and translated through `Lang` (`scripts/lang.gd`): every new string
-needs an English entry in `Lang.EN`.
+needs an English entry in its feature's file in `scripts/lang/` (a new feature gets a new file, listed in
+`Lang.PARTS`). They are merged into `Lang.EN`; run `tests/lang_keys.gd`, which fails when a German text is
+in two files or a file is not listed.
 
 ## Map letters
 

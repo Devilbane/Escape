@@ -63,8 +63,8 @@ const EN := {
 	"Gehen": "Walk",
 	"WASD / Pfeiltasten oder Klick auf den Boden": "WASD / arrow keys or click on the floor",
 	"Rennen": "Run",
-	"Maustaste auf dem Boden halten oder Umschalt: in 3 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück. Wer im Lauf binnen 2 Sekunden mehr als 10 % seiner Leben verliert, stürzt zu Boden und steht wieder auf":
-		"Hold the mouse button on the floor or Shift: speeds up to 250 % of walking in 3 seconds, for Constitution x 2 seconds, recovers by Constitution / 10 per second. Losing more than 10 % of your lives within 2 seconds while running knocks you to the ground; you get up again",
+	"Maustaste auf dem Boden halten oder Umschalt: in 3 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück; leer erst wieder ab halbvoll. Wer im Lauf binnen 2 Sekunden mehr als 10 % seiner Leben verliert, stürzt zu Boden und steht wieder auf":
+		"Hold the mouse button on the floor or Shift: speeds up to 250 % of walking in 3 seconds, for Constitution x 2 seconds, recovers by Constitution / 10 per second; once empty, only again from half full. Losing more than 10 % of your lives within 2 seconds while running knocks you to the ground; you get up again",
 	"Leertaste, Rechtsklick im Lauf": "Space, right click while running",
 	"Nahkampf": "Melee",
 	"F oder J, gegen das Skelett laufen oder es anklicken": "F or J, run into the skeleton or click it",
@@ -80,6 +80,7 @@ const EN := {
 	"Du schleichst. Im Dunkeln sieht dich keiner.": "You sneak. In the dark nobody sees you.",
 	"Du gehst wieder normal.": "You walk normally again.",
 	"Zu spät zum Schleichen: Du wurdest entdeckt!": "Too late to sneak: you have been spotted!",
+	"Noch zu aufgewühlt vom Kampf, um zu schleichen.": "Still too worked up from the fight to sneak.",
 	"tapp": "tap",
 	"knurr": "growl",
 	"zisch": "hiss",
@@ -172,6 +173,7 @@ const EN := {
 	"Deine Schritte werden leichter: +7% Tempo": "Your steps grow lighter: +7% speed",
 	# Windows
 	"Schließen": "Close",
+	"Zurück zum Spiel": "Back to game",
 	"Leben %d / %d    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Gold %d": "Life %d / %d    Power %d    Hardening %d    Speed %d%%    Knives %d    Gold %d",
 	"Angelegt (anklicken zum Ablegen)": "Worn (click to take off)",
 	"Tasche (%d / %d)": "Bag (%d / %d)",

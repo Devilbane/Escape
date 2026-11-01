@@ -9,6 +9,8 @@ const CAMERA_DISTANCE := 27.0
 const CLOSE_PITCH := 22.0
 const CLOSE_DISTANCE := 7.5
 const ZOOM_STEP := 0.12
+## How many zoom steps the camera can pull back beyond the normal view.
+const ZOOM_OUT_STEPS := 2
 const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const GOLD := Color(1.0, 0.82, 0.4)
@@ -661,6 +663,10 @@ func load_level(index: int, restock := true) -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
 		shop_stock.clear()
+		# Always at least one weapon, body armour, ring and amulet,
+		# then the usual random wares on top.
+		for slot in ["waffe", "ruestung", "ring", "amulett"]:
+			shop_stock.append(Items.random_item(rng, 0, slot))
 		for i in 4:
 			shop_stock.append(Items.random_item(rng))
 	_snap_camera()
@@ -1190,6 +1196,7 @@ func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	level.secret_bonus = secrets_found
 	player.train("weisheit", 5.0)
 	Comic.pop(lever_pos, "lever")
+	Sfx.play(self, "lever_pull", -2.0, lever_pos)
 	learn("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!")
 	show_message(Lang.t("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!"), 4.5)
 	_message.add_theme_color_override("font_color", GOLD)
@@ -1210,14 +1217,14 @@ func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 func _on_item_collected(id: String) -> void:
 	player.bag.append(id)
 	Sfx.play(self, "key", -3.0)
-	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Color(0.75, 0.9, 1.0))
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Color(0.75, 0.9, 1.0), true)
 	show_message(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)] + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
 	_update_hud()
 
 
 func _on_coins_collected(amount: int) -> void:
 	coins += _gold(amount)
-	Sfx.play(self, "coin")
+	Sfx.play_coins(self, _gold(amount))
 	_update_hud()
 
 
@@ -1273,6 +1280,9 @@ func _toggle_sneak() -> void:
 	if not player.sneaking and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):
 		show_message(Lang.t("Zu spät zum Schleichen: Du wurdest entdeckt!"), 1.6)
 		return
+	if not player.sneaking and player.fight_cooldown > 0.0:
+		show_message(Lang.t("Noch zu aufgewühlt vom Kampf, um zu schleichen."), 1.6)
+		return
 	player.set_sneaking(not player.sneaking)
 	if player.sneaking:
 		learn("Schleichen (C oder Doppelklick): langsamer, lautlos, Laterne abgeblendet. Im Dunkeln sieht dich keiner, und von hinten bemerkt dich ein Skelett auch ganz nah nicht.")
@@ -1303,26 +1313,34 @@ func _search(obj: Dictionary) -> void:
 	player.path.clear()
 	player.face(obj.pos - player.global_position)
 	if obj.searched:
-		Effects.float_text(level, obj.icon_pos, Lang.t("Schon durchsucht"), Color(0.8, 0.8, 0.8))
+		Effects.float_text(level, obj.icon_pos, Lang.t("Schon durchsucht"), Color(0.8, 0.8, 0.8), true)
 		return
 	if obj.loot.has("item") and player.bag.size() >= Items.BAG_SIZE:
 		if not _message_busy():
 			show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0)
 		return
 	player.play_once("Interact", 0.55)
-	Sfx.play(self, "chest" if obj.label == "Schatztruhe" else "rummage", -3.0)
+	# A chest creaks open, anything else gets rummaged through; what was in
+	# it sounds once the lid is up or the hands have found it.
+	var chest: bool = obj.label in ["Truhe", "Schatztruhe"]
+	if chest:
+		Sfx.play_chest(self)
+	else:
+		Sfx.play(self, "rummage", -3.0)
+	var found_after := 0.55 if chest else 0.2
 	var loot := level.search(obj)
 	# Searching every nook trains a feeling for where things hide.
 	player.train("intuition", 1.0)
 	var text := Lang.t("%s: leer") % Lang.t(obj.label)
 	var color := Color(0.8, 0.8, 0.85)
 	if loot.has("gold"):
-		Sfx.play(self, "coin")
+		Sfx.play_coins(self, _gold(loot.gold), found_after)
 		coins += _gold(loot.gold)
 		text = Lang.t("+%d Gold") % _gold(loot.gold)
 		color = GOLD
 	elif loot.has("knives"):
 		player.knives += loot.knives
+		Sfx.play_after(self, found_after, "gear_metal_%d" % (randi() % 3), -8.0)
 		text = Lang.t("+%d Wurfmesser") % loot.knives
 		color = Color(0.8, 0.9, 1.0)
 	elif loot.has("potion"):
@@ -1334,11 +1352,12 @@ func _search(obj: Dictionary) -> void:
 		color = Color(1.0, 0.5, 0.55)
 	if loot.has("item"):
 		player.bag.append(loot.item)
+		Sfx.play_gear(self, loot.item, found_after + (0.25 if loot.has("gold") else 0.0))
 		var found := Lang.t("Gefunden: %s (%s)") % [Items.item_name(loot.item), Items.describe(loot.item)]
 		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
 		color = Color(0.75, 0.9, 1.0)
 		show_message(found + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
-	Effects.float_text(level, obj.icon_pos, text, color)
+	Effects.float_text(level, obj.icon_pos, text, color, true)
 	if loot.is_empty():
 		show_message(Lang.t("Du durchsuchst %s... nichts.") % Lang.t(_with_article(obj.label)), 1.2)
 	_update_hud()
@@ -1417,6 +1436,8 @@ func _on_exit_reached() -> void:
 		tween.tween_property(player, "global_position:z", step.z, STEP_TIME)
 		tween.parallel().tween_property(player, "global_position:y", step.y, STEP_TIME * 0.6) \
 				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		# Each stair gets a footstep, just like walking.
+		tween.parallel().tween_callback(func(): Sfx.play(player, "step_%d" % (randi() % 6), -14.0))
 	tween.tween_callback(_next_level)
 	# Darken while the hero climbs the upper half of the stairs.
 	create_tween().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), STEP_TIME * 5.5) \
@@ -1543,8 +1564,8 @@ func _camera_offset() -> Vector3:
 
 
 func zoom_by(steps: float) -> void:
-	# One step below 0 looks from a little further out than the normal view.
-	_zoom_target = clampf(_zoom_target + steps * ZOOM_STEP, -ZOOM_STEP, 1.0)
+	# Steps below 0 look from further out (and a little more from above) than the normal view.
+	_zoom_target = clampf(_zoom_target + steps * ZOOM_STEP, -ZOOM_OUT_STEPS * ZOOM_STEP, 1.0)
 
 
 func _snap_camera() -> void:
@@ -1581,6 +1602,9 @@ func _guardian_intro() -> void:
 
 func _process(delta: float) -> void:
 	_eerie(delta)
+	# A skeleton on the hero's heels keeps the fight going.
+	if state == State.PLAYING and level and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):
+		player.mark_fight()
 	_guardian_intro()
 	var p := player.global_position
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y

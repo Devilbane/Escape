@@ -1,7 +1,7 @@
 """Builds the game's sound effects (and one sound per comic word) from scratch (noise, tones and envelopes),
 so there are no licences to worry about. Run: python3 tools/make_sounds.py
 The footsteps (step_*, sneak_*) and the door are real recordings instead, see
-assets/sounds/CREDITS.txt."""
+assets/sounds/CREDITS.txt; the loot sounds come from tools/make_loot_sounds.py."""
 import os, subprocess, wave
 import numpy as np
 
@@ -148,20 +148,6 @@ def rummage(seed=3):
         at = int(r.uniform(0.05, 0.45) * SR)
         k = knock(r.uniform(350, 700), 0.012) * r.uniform(0.3, 0.6)
         out[at:at + len(k)] += k[: len(out) - at]
-    return out
-
-
-def chest():
-    # A heavy lid: a short squeak of the hinge, then the rummaging.
-    tt = t(0.22)
-    f = 700 + 500 * tt / 0.22 + 25 * np.sin(2 * np.pi * 30 * tt)
-    squeak = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * tt / 0.22) * 0.25
-    lid = knock(180, 0.03) * 0.5
-    out = np.zeros(int(SR * 0.9))
-    out[: len(squeak)] += squeak
-    out[int(SR * 0.22): int(SR * 0.22) + len(lid)] += lid
-    r = rummage(5)
-    out[int(SR * 0.3): int(SR * 0.3) + len(r)] += r[: len(out) - int(SR * 0.3)]
     return out
 
 
@@ -409,6 +395,20 @@ def word_plong():
     return at(ring([(310, 0.9), (745, 0.4), (1190, 0.2)], 0.7, 0.18), knock(200, 0.02) * 0.5, 0)
 
 
+def drip():
+    # A drop of water falling into a puddle: the "plink" of the little air
+    # bubble, whose pitch rises, a soft splash and a faint echo off the stone.
+    tt = t(0.6)
+    f = 1100 * (1 + np.minimum(tt, 0.05) * 14)
+    plink = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(tt), 0.0015, 0.05)
+    splash = highpass(noise(0.6), 2500) * env(len(tt), 0.001, 0.012) * 0.25
+    x = plink + splash
+    echo = np.zeros(len(x))
+    at(echo, x * 0.22, 0.11)
+    at(echo, x * 0.1, 0.23)
+    return x + lowpass(echo, 1800)
+
+
 WORDS = ["zack", "klonk", "wumm", "krach", "boing", "wamm", "zing", "tschak", "knack",
          "klapper", "wusch", "klack", "klick", "rumms", "grumpel", "stich", "ratsch",
          "klong", "plong"]
@@ -423,7 +423,6 @@ if __name__ == "__main__":
     save("throw", throw(), 0.5)
     save("coin", coin(), 0.45)
     save("key", key(), 0.5)
-    save("chest", chest(), 0.6)
     save("rummage", rummage(), 0.5)
     save("lever", lever(), 0.8)
     save("rumble", rumble(), 0.9)
@@ -439,3 +438,4 @@ if __name__ == "__main__":
     os.remove(wav)
     for w in WORDS:
         save("word_" + w, globals()["word_" + w](), 0.7)
+    save("drip", drip(), 0.45)

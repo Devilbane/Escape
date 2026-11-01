@@ -32,8 +32,8 @@ const RUN_SECONDS_PER_CON := 2.0
 ## Seconds of running regained per second, per point of Konstitution: 10
 ## points bring one second back every second.
 const RUN_RECOVERY_PER_CON := 0.1
-## Out of breath, the hero walks until this many seconds have come back.
-const RUN_RESTART := 1.0
+## Out of breath, the hero walks until this share of the meter has come back.
+const RUN_RESTART := 0.5
 ## From this many times the walking pace on, the hero shows the run animation.
 const RUN_ANIM_FROM := 1.4
 const JUMP_VELOCITY := 9.0
@@ -116,7 +116,7 @@ var path: Array[Vector3] = []
 var wants_run := false
 ## Seconds of running left; filled up on the first frame.
 var stamina := -1.0
-## Ran dry: no running until RUN_RESTART seconds have come back.
+## Ran dry: no running until RUN_RESTART of the meter has come back.
 var winded := false
 ## Whether the hero is running (not walking) this frame.
 var sprinting := false
@@ -127,6 +127,10 @@ var run_boost := 1.0
 var sneaking := false
 ## Set by the level each frame: no light falls on the hero but the lantern.
 var in_shadow := false
+## Seconds left before the hero may start sneaking again after a fight:
+## every blow given or taken, and every skeleton hunting them, resets it.
+var fight_cooldown := 0.0
+const FIGHT_SNEAK_BLOCK := 2.0
 const SNEAK_SPEED := 0.4
 const SNEAK_ANIM := "Walking_C"
 var _lantern: OmniLight3D
@@ -134,6 +138,8 @@ var _shown_alpha := -1.0
 
 var _model: Node3D
 var _anim: AnimationPlayer
+## Straightens the run into an upright stride.
+var _upright: UprightStride
 ## Where in the run cycle each foot touches the ground (left, right).
 const FOOT_LANDINGS := [0.17, 0.67]
 ## The same for the sneaking walk, whose feet land later in its cycle.
@@ -182,9 +188,15 @@ func _ready() -> void:
 	_add_cape_logo()
 	_add_trim()
 	GearLook.dress(_model.find_child("handslot_r", true, false).get_node("Knife"), "mixed") # The hero's own knife.
+	for arm in ["Rogue_ArmLeft", "Rogue_ArmRight"]:
+		GearLook.apply(_model.find_child(arm, true, false) as MeshInstance3D, "outfit")
+	_matt_head()
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle", SNEAK_ANIM]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+	_upright = UprightStride.new()
+	(_model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D).add_child(_upright)
+	_upright.setup(_anim)
 	play("Idle")
 
 	# A warm lantern glow around the hero, so the way ahead is never pitch black.
@@ -194,6 +206,12 @@ func _ready() -> void:
 	_lantern.omni_range = 8.5
 	_lantern.position = Vector3(0, 3.2, 0.6)
 	add_child(_lantern)
+
+
+## Called while a fight goes on; sneaking stays barred until it has been
+## over for FIGHT_SNEAK_BLOCK seconds.
+func mark_fight() -> void:
+	fight_cooldown = FIGHT_SNEAK_BLOCK
 
 
 ## Switches between walking normally and sneaking.
@@ -280,6 +298,21 @@ func _add_trim() -> void:
 	attach.add_child(feather)
 
 
+## Hair and face are matt, so the hair does not shine like plastic in the
+## lantern light. Fading while sneaking reuses this material.
+func _matt_head() -> void:
+	var head := _model.find_child("Rogue_Head", true, false) as MeshInstance3D
+	if head == null or head.mesh == null:
+		return
+	var base := head.mesh.surface_get_material(0) as StandardMaterial3D
+	if base == null:
+		return
+	var matt := base.duplicate() as StandardMaterial3D
+	matt.roughness = 0.95
+	matt.metallic_specular = 0.12
+	head.set_surface_override_material(0, matt)
+
+
 ## The glowing devilbane emblem on the back of the cape.
 func _add_cape_logo() -> void:
 	var cape := _model.find_child("Rogue_Cape", true, false) as Node3D
@@ -307,6 +340,7 @@ func play(anim_name: String, blend := 0.2) -> void:
 		return
 	_current_anim = anim_name
 	_anim.play(anim_name, blend)
+	_upright.wanted = anim_name == "Running_A"
 
 
 ## Plays a one-off animation and pauses movement for its duration.
@@ -389,7 +423,7 @@ func _breathe(delta: float, moving: bool) -> void:
 			winded = true
 	else:
 		stamina = minf(full, stamina + stamina_recovery() * delta)
-		if winded and stamina >= minf(RUN_RESTART, full):
+		if winded and stamina >= RUN_RESTART * full:
 			winded = false
 	# Speeds up gradually while running, and eases back to walking when the
 	# run ends. Standing still or sneaking drops straight back to walking.
@@ -486,6 +520,7 @@ func melee() -> void:
 			else:
 				e.take_hit(power + heavy_hit(weapon), global_position)
 			hits += 1
+			mark_fight()
 			# Every blow that lands trains the hand and the arm; a kill a little more.
 			train(weapon, 1.0)
 			train("staerke", 3.0 if e.dead else 1.0)
@@ -955,6 +990,8 @@ func _block(from: Vector3) -> void:
 func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable := true) -> void:
 	if dead or _invulnerable > 0.0 or _down > 0.0 or frozen:
 		return
+	if blockable:
+		mark_fight() # A blow or a shot, blocked or not; spikes are no fight.
 	if blockable and block_chance > 0.0 and randf() < block_chance:
 		train("blocken", 2.0)
 		train("staerke", 1.0)
@@ -1073,6 +1110,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_busy = maxf(0.0, _busy - delta)
 	_invulnerable = maxf(0.0, _invulnerable - delta)
+	fight_cooldown = maxf(0.0, fight_cooldown - delta)
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_auto_cooldown = maxf(0.0, _auto_cooldown - delta)
 	_anim_hold = maxf(0.0, _anim_hold - delta)

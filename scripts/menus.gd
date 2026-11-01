@@ -21,7 +21,7 @@ const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## Every control, for the compendium: action and keys.
 const SHORTCUTS := [
 	["Gehen", "WASD / Pfeiltasten oder Klick auf den Boden"],
-	["Rennen", "Maustaste auf dem Boden halten oder Umschalt: in 3 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück. Wer im Lauf binnen 2 Sekunden mehr als 10 % seiner Leben verliert, stürzt zu Boden und steht wieder auf"],
+	["Rennen", "Maustaste auf dem Boden halten oder Umschalt: in 3 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück; leer erst wieder ab halbvoll. Wer im Lauf binnen 2 Sekunden mehr als 10 % seiner Leben verliert, stürzt zu Boden und steht wieder auf"],
 	["Springen", "Leertaste, Rechtsklick im Lauf"],
 	["Nahkampf", "F oder J, gegen das Skelett laufen oder es anklicken"],
 	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],
@@ -90,6 +90,8 @@ func _rebuild() -> void:
 	for child in _box.get_children():
 		_box.remove_child(child)
 		child.queue_free()
+	# The inventory holds the most, so its rows sit a little closer together.
+	_box.add_theme_constant_override("separation", 6 if current == "inventar" else 10)
 	match current:
 		"inventar":
 			_build_inventory()
@@ -120,7 +122,8 @@ func _rebuild() -> void:
 		_info.custom_minimum_size.y = 26
 	if _note != "":
 		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
-	if not current in ["bett", "laden", "beenden", "plan", "rueckkehr"]:
+	# The inventory has its own "Back to game" button at the top instead.
+	if not current in ["inventar", "bett", "laden", "beenden", "plan", "rueckkehr"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
 		close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		close_button.custom_minimum_size = Vector2(180, 52)
@@ -187,7 +190,8 @@ func _stats_text() -> String:
 
 
 ## The hero's attributes, each with how far it is to the next point.
-func _attributes_text() -> String:
+## `two_lines` splits them in half so the line is not wider than the screen.
+func _attributes_text(two_lines := false) -> String:
 	var p: Player = game.player
 	var parts := []
 	for id in Training.ATTRIBUTES:
@@ -196,6 +200,9 @@ func _attributes_text() -> String:
 		var at_cap: bool = value >= Training.ATTRIBUTES[id].max
 		parts.append("%s %s%s" % [Lang.t(Training.ATTRIBUTES[id].name), shown,
 				Lang.t(" (höchster Wert)") if at_cap else " (%d%%)" % floori(Training.attribute_progress(id, p.xp.get(id, 0.0)) * 100.0)])
+	if two_lines and parts.size() > 1:
+		var half := ceili(parts.size() / 2.0)
+		return "    ".join(parts.slice(0, half)) + "\n" + "    ".join(parts.slice(half))
 	return "    ".join(parts)
 
 
@@ -244,13 +251,14 @@ func _build_character() -> void:
 
 func _build_inventory() -> void:
 	var p: Player = game.player
-	_add_label(Lang.t("Inventar"), 38, game.GOLD, game.TITLE_FONT)
+	_add_inventory_header()
 	_add_label(_stats_text(), 18, BLUE)
-	_add_label(_attributes_text(), 18, game.GOLD)
+	_add_label(_attributes_text(true), 18, game.GOLD)
 	_add_label(_skills_text(), 16, Color(0.8, 0.85, 0.9))
 	_add_label(Lang.t("Angelegt (anklicken zum Ablegen)"), 20)
 	var row := GridContainer.new()
-	row.columns = 5
+	# Six across keeps all eleven slots in two rows, so the window fits the screen.
+	row.columns = 6
 	row.add_theme_constant_override("h_separation", 8)
 	row.add_theme_constant_override("v_separation", 8)
 	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -270,6 +278,35 @@ func _build_inventory() -> void:
 		_box.add_child(actions)
 		actions.add_child(_item_button(Lang.t("Anlegen"), _equip_selected))
 		actions.add_child(_item_button(Lang.t("Wegwerfen"), _drop_selected))
+
+
+## The title with a clearly visible "Back to game" button beside it. It sits
+## at the top so it stays on screen however tall the window gets.
+func _add_inventory_header() -> void:
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 12)
+	_box.add_child(header)
+	var back: Button = game._make_button(Lang.t("Zurück zum Spiel"), close)
+	back.custom_minimum_size = Vector2(190, 52)
+	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var style: StyleBoxFlat = back.get_theme_stylebox("normal").duplicate()
+	style.bg_color = Color(0.2, 0.42, 0.18, 0.9)
+	style.border_color = game.GOLD
+	style.set_border_width_all(3)
+	back.add_theme_stylebox_override("normal", style)
+	back.add_theme_stylebox_override("hover", style)
+	back.add_theme_color_override("font_color", Color.WHITE)
+	# An empty box as wide as the button keeps the title in the middle.
+	var balance := Control.new()
+	balance.custom_minimum_size.x = back.custom_minimum_size.x
+	balance.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header.add_child(balance)
+	var title: Label = game._make_label(game.TITLE_FONT, 38, game.GOLD)
+	title.text = Lang.t("Inventar")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	header.add_child(back)
 
 
 func _select(index: int) -> void:
@@ -554,7 +591,9 @@ func _build_compendium() -> void:
 		var none: Label = game._make_label(game.TEXT_FONT, 18)
 		none.text = Lang.t("Noch nichts. Hinweise und Erklärungen sammeln sich hier.")
 		list.add_child(none)
-	for entry in game.lore:
+	# Newest first: the latest hint or explanation sits at the top.
+	for i in range(game.lore.size() - 1, -1, -1):
+		var entry: String = game.lore[i]
 		var l: Label = game._make_label(game.TEXT_FONT, 17)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size.x = 410

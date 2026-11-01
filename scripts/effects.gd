@@ -113,7 +113,9 @@ static func make_dust() -> CPUParticles3D:
 
 
 ## Text that floats up from a point in the world and fades away.
-static func float_text(parent: Node, pos: Vector3, text: String, color: Color) -> void:
+## With `above_fog`, it is drawn even over walls and the fog of war, so
+## what you just looted can never hide behind a wall.
+static func float_text(parent: Node, pos: Vector3, text: String, color: Color, above_fog := false) -> void:
 	var label := Label3D.new()
 	label.text = text
 	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
@@ -124,13 +126,16 @@ static func float_text(parent: Node, pos: Vector3, text: String, color: Color) -
 	label.modulate = color
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
-	label.render_priority = 20
-	label.outline_render_priority = 19
+	# The fog of war draws at priority 100 and covers anything below it.
+	label.render_priority = 110 if above_fog else 20
+	label.outline_render_priority = label.render_priority - 1
 	parent.add_child(label)
 	label.global_position = pos
 	var tween := label.create_tween()
 	tween.tween_property(label, "global_position", pos + Vector3(0, 1.6, 0), 2.6).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(label, "modulate:a", 0.0, 1.2).set_delay(1.8)
+	# The outline ignores `modulate`, so it has to fade on its own.
+	tween.parallel().tween_property(label, "outline_modulate:a", 0.0, 1.2).set_delay(1.8)
 	tween.tween_callback(label.queue_free)
 
 

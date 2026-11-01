@@ -31,5 +31,16 @@ voice (angry), built by tools/make_voices.py. Voice data: Thorsten-Voice by
 Thorsten Müller, https://github.com/thorstenMueller/Thorsten-Voice
 License: CC0 (public domain).
 
+Loot sounds, built by tools/make_loot_sounds.py from CC0 recordings:
+coins (coins_small_*, coins_big_*), chest lids (chest_open_*) and gear
+falling to the floor (gear_*) and the lever torch (lever_pull), layered and trimmed from
+"50 RPG sound effects" by Kenney (www.kenney.nl),
+https://opengameart.org/content/50-rpg-sound-effects
+"RPG Sound Pack" by artisticdude,
+https://opengameart.org/content/rpg-sound-pack
+"80 CC0 RPG SFX" by rubberduck,
+https://opengameart.org/content/80-cc0-rpg-sfx
+License: CC0 (public domain).
+
 All other sounds, including the comic word noises (word_*), are made by
 tools/make_sounds.py.

@@ -87,6 +87,8 @@ const WALL_DECOR := [
 ## The bright cartoon stone of the pieces the kit has no match for is darkened
 ## to sit among the kit's stone.
 const STONE_TINT := Color(0.6, 0.56, 0.52)
+## Colour of the iron spikes in spike traps.
+const SPIKE_IRON := Color(0.5, 0.5, 0.53)
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
 const SOLID := "#bxotkCDHBLVF?f=U"
 ## Reach for searching: anything on a neighbouring tile.
@@ -248,6 +250,8 @@ func build() -> void:
 	fog.setup(self)
 	add_child(fog)
 	_spawn_enemies()
+	if not outdoor and building == "":
+		add_child(DungeonLife.new(self))
 	if not _vault_slots.is_empty():
 		refresh_vaults()
 
@@ -412,8 +416,14 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 	node.rotation.y = rot_y
 	parent.add_child(node)
 	if piece in TINTED_PIECES:
-		for mi in node.find_children("*", "MeshInstance3D", true, false):
-			mi.material_override = _tinted(mi.get_active_material(0))
+		for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+			if mi.name == "spikes":
+				# Dull, hammered iron spikes (they move, so the grain rides along).
+				GearLook.apply(mi, "metal", SPIKE_IRON, true, 0.35)
+			elif mi.name == "wall_doorway_door":
+				mi.material_override = _tinted(mi.get_active_material(0))
+			else:
+				mi.material_override = _rough_stone(mi.get_active_material(0))
 	return node
 
 
@@ -451,6 +461,20 @@ func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
 	return kit
 
 
+## The darkened cartoon stone, made rough and matt like the kit's walls, so
+## spike and grate tiles, stairs and doorways do not look like plastic.
+func _rough_stone(mat: Material) -> Material:
+	if not _scenes.has("mat_rough_stone"):
+		var stone := ShaderMaterial.new()
+		stone.shader = STONE_SHADER
+		stone.set_shader_parameter("albedo_tex", (mat as StandardMaterial3D).albedo_texture)
+		stone.set_shader_parameter("albedo_color", STONE_TINT)
+		stone.set_shader_parameter("use_normal_map", false)
+		stone.set_shader_parameter("strength", 1.4)
+		_scenes["mat_rough_stone"] = stone
+	return _scenes["mat_rough_stone"]
+
+
 func _tinted(mat: Material) -> Material:
 	# All KayKit pieces share one texture, so one darkened copy serves them all.
 	if not _scenes.has("mat_tinted"):
@@ -460,8 +484,18 @@ func _tinted(mat: Material) -> Material:
 	return _scenes["mat_tinted"]
 
 
-func _kit_material(set_name: String) -> StandardMaterial3D:
+const STONE_SHADER := preload("res://shaders/stone.gdshader")
+
+
+func _kit_material(set_name: String) -> Material:
 	var key := "mat_" + set_name
+	if not _scenes.has(key) and set_name == "walls":
+		# Walls get rough, stained stone instead of the kit's smooth brick faces.
+		var stone := ShaderMaterial.new()
+		stone.shader = STONE_SHADER
+		stone.set_shader_parameter("albedo_tex", load(KIT_DIR + "walls_albedo.png"))
+		stone.set_shader_parameter("normal_tex", load(KIT_DIR + "walls_normal.png"))
+		_scenes[key] = stone
 	if not _scenes.has(key):
 		var m := StandardMaterial3D.new()
 		m.albedo_texture = load(KIT_DIR + set_name + "_albedo.png")
@@ -772,13 +806,14 @@ func _build_key(pos: Vector3) -> void:
 	_pickups.append({"node": holder, "kind": "key", "radius": 1.8})
 
 
+## A gold coin lying flat on the floor, picked up when the hero walks over it.
 func _build_coin(pos: Vector3) -> void:
 	var holder := Node3D.new()
-	holder.position = pos + Vector3(0, 0.9, 0)
+	holder.position = pos + Vector3(0, 0.03, 0)
+	holder.rotation.y = deg_to_rad(hash(Vector2(pos.x, pos.z)) % 360)
 	add_child(holder)
 	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
 	coin.scale = Vector3.ONE * 3.0
-	coin.rotation.x = PI * 0.5
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5})
 
 
@@ -1159,7 +1194,8 @@ func _process(delta: float) -> void:
 		if not s.used:
 			s.orb.position.y = 2.3 + sin(_time * 2.0) * 0.15
 	for p in _pickups:
-		if is_instance_valid(p.node):
+		# Coins lie still on the floor; keys and dropped gear hover and turn.
+		if is_instance_valid(p.node) and p.kind != "coin":
 			p.node.rotation.y += delta * 2.0
 			p.node.position.y += sin(_time * 3.0) * delta * 0.25
 	_update_spikes(delta)
@@ -1463,9 +1499,13 @@ func _roll_gear(kind: String, c: Vector2i) -> Array[String]:
 
 func _drop_gear(e: Enemy) -> void:
 	var spot := e.global_position
+	var delay := 0.0
 	for id in e.gear:
 		if randf() < DROP_CHANCE:
 			_drop_item(id, spot)
+			# It clatters onto the floor, one piece after the other.
+			Sfx.play_gear(self, id, delay, spot)
+			delay += 0.3
 			spot += Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
 
 

@@ -1017,7 +1017,10 @@ const EN := {
 	"Der Fuchs frisst dir die Wurst aus der Hand. Vertrauen: %d / %d": "The fox eats the sausage from your hand. Trust: %d / %d",
 	"Der Fuchs vertraut dir und geht jetzt mit dir! Seine Nase findet versteckte Zutaten im Boden.": "The fox trusts you and comes along with you now! Its nose finds ingredients hidden in the ground.",
 	"Dein Fuchs hat etwas ausgegraben: %s!": "Your fox dug something up: %s!",
-	"%s kommt in deinen Zutatenbeutel. Das Rezeptbuch (H) zeigt, was du dabeihast.": "%s goes into your ingredient pouch. The recipe book (H) shows what you have.",
+	"%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.": "%s goes into your ingredient pouch. You find it as its own tab in the inventory (I).",
+	# The ingredient pouch as a tab of the inventory (see Menus)
+	"Zutatenbeutel (%d)": "Ingredient pouch (%d)",
+	"Der Zutatenbeutel ist leer. Zutaten findet dein Fuchs, du angelst sie oder kaufst sie beim Wanderhändler; das Rezeptbuch (H) sagt, wo.": "The ingredient pouch is empty. Your fox finds ingredients, you catch them by fishing or buy them from the wandering merchant; the recipe book (H) says where.",
 	"Dein Fuchs": "Your fox",
 	"Wächst versteckt auf den Wiesen. Nur ein Fuchs erschnüffelt ihn.": "Grows hidden on the meadows. Only a fox can sniff it out.",
 	"Steckt im Gras der Wiesen. Nur ein Fuchs erschnüffelt ihn.": "Hides in the grass of the meadows. Only a fox can sniff it out.",

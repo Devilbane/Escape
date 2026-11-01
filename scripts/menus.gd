@@ -13,8 +13,13 @@ var game: Node
 ## "kompendium", "charakter", "beenden", "plan" (the day planned for the
 ## time away) or "rueckkehr" (what the hero did while the player was away).
 var current := ""
+var _holder: Control
 var _panel: PanelContainer
+var _scroll: ScrollContainer
 var _box: VBoxContainer
+## Whether the next fit may choose a new scale (see _fit).
+var _rescale := true
+var _fit_queued := false
 ## Width of the wrapped lines in the "Welcome back" window.
 const RETURN_TEXT_WIDTH := 700
 var _selected := -1
@@ -27,6 +32,8 @@ var _delete_asked := ""
 ## learned), "auftraege" (the villagers' tasks), "ruf" (the villagers'
 ## opinion of the hero) or "rezepte" (the recipes found and the ingredient pouch).
 var compendium_page := "wissen"
+## The inventory's open tab: "tasche" (the bag) or "beutel" (the ingredient pouch).
+var inventory_tab := "tasche"
 ## How many saved games the load window shows before the list scrolls.
 const LOAD_ROWS_SHOWN := 5
 ## Shows the stats of the item under the mouse (or last tapped).
@@ -66,14 +73,33 @@ func setup(owner_game: Node, hud: CanvasLayer) -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(center)
+	# A plain holder between the two: a container would undo the window's
+	# scale (see _fit), the holder takes the scaled size so it stays centred.
+	_holder = Control.new()
+	_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_holder.visible = false
+	center.add_child(_holder)
 	_panel = PanelContainer.new()
 	_panel.add_theme_stylebox_override("panel", panel_style(Color(0.85, 0.66, 0.32, 0.7)))
-	_panel.visible = false
-	center.add_child(_panel)
+	_holder.add_child(_panel)
+	_panel.minimum_size_changed.connect(_place_panel)
+	# Everything in the window sits in a scroll region. It is exactly as big as
+	# the content while that fits the screen; on a smaller screen the window
+	# first shrinks a little, then scrolls, so nothing is ever off-screen.
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_panel.add_child(_scroll)
 	_box = VBoxContainer.new()
 	_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	_box.add_theme_constant_override("separation", 10)
-	_panel.add_child(_box)
+	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(_box)
+	_box.minimum_size_changed.connect(_queue_fit)
+	hud.get_viewport().size_changed.connect(func():
+		_rescale = true
+		_queue_fit())
 	trade.game = game
 	trade.rebuild = _rebuild
 
@@ -88,6 +114,54 @@ static func panel_style(border: Color) -> StyleBoxFlat:
 	return style
 
 
+## Gap between a window and the edge of the screen.
+const SCREEN_MARGIN := 12.0
+## A window too big for the screen is shrunk down to this much at most;
+## beyond that it scrolls instead, so its text stays readable.
+const MIN_SCALE := 0.8
+
+
+## Makes the open window fit the screen: shrinks it (not below MIN_SCALE)
+## when it is too big, and lets its content scroll when even that is not
+## enough. The scale is chosen when the window opens and when the screen
+## changes size, not on every click inside, so the window does not change
+## its size while the player works in it; content that grows later scrolls.
+func _fit() -> void:
+	_fit_queued = false
+	if current == "":
+		return
+	var screen: Vector2 = _panel.get_viewport_rect().size - Vector2.ONE * 2.0 * SCREEN_MARGIN
+	var frame: Vector2 = _panel.get_theme_stylebox("panel").get_minimum_size()
+	var content: Vector2 = _box.get_combined_minimum_size()
+	if _rescale:
+		_rescale = false
+		var need := content + frame
+		var s := minf(1.0, minf(screen.x / need.x, screen.y / need.y))
+		_panel.scale = Vector2.ONE * maxf(s, MIN_SCALE)
+	var room: Vector2 = screen / _panel.scale.x - frame
+	var view := content
+	if view.y > room.y:
+		view.y = room.y
+		view.x += _scroll.get_v_scroll_bar().get_combined_minimum_size().x
+	if view.x > room.x:
+		view.x = room.x
+		view.y = minf(view.y + _scroll.get_h_scroll_bar().get_combined_minimum_size().y, room.y)
+	_scroll.custom_minimum_size = view.floor()
+	_place_panel()
+
+
+## Sizes the window to its content and tells the holder its scaled size.
+func _place_panel() -> void:
+	_panel.reset_size()
+	_holder.custom_minimum_size = (_panel.size * _panel.scale.x).ceil()
+
+
+func _queue_fit() -> void:
+	if not _fit_queued:
+		_fit_queued = true
+		_fit.call_deferred()
+
+
 func is_open() -> bool:
 	return current != ""
 
@@ -95,12 +169,16 @@ func is_open() -> bool:
 func open(kind: String) -> void:
 	current = kind
 	_forge_tab = "waffen"
+	inventory_tab = "tasche"
 	_shop_page = "kaufen"
 	trade.reset()
 	_selected = -1
 	_note = ""
 	game.set_world_paused(true)
-	_panel.visible = true
+	_holder.visible = true
+	_rescale = true
+	_scroll.scroll_vertical = 0
+	_scroll.scroll_horizontal = 0
 	_rebuild()
 
 
@@ -109,7 +187,7 @@ func close() -> void:
 		return
 	current = ""
 	game.trader_role = ""
-	_panel.visible = false
+	_holder.visible = false
 	game.set_world_paused(false)
 	game._update_hud()
 	if game.state == game.State.TITLE:
@@ -181,6 +259,7 @@ func _rebuild() -> void:
 		close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		close_button.custom_minimum_size = Vector2(180, 44 if current in TRADE_WINDOWS else 52)
 		_box.add_child(close_button)
+	_queue_fit()
 
 
 # --- Building blocks ------------------------------------------------------
@@ -210,13 +289,13 @@ func _item_button(text: String, action: Callable, enabled := true, id := "") -> 
 
 
 ## A grid of item buttons; empty places up to `size` are shown as dashes.
-func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callable, columns := 4) -> void:
+func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callable, columns := 4, parent: Control = null) -> void:
 	var grid := GridContainer.new()
 	grid.columns = columns
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
 	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_box.add_child(grid)
+	(parent if parent else _box).add_child(grid)
 	for i in size:
 		if i < items.size():
 			var b := _item_button(label_of.call(items[i]), action.bind(i), true, items[i])
@@ -232,7 +311,7 @@ func _show_info(id: String) -> void:
 		return
 	if id == "":
 		_info.text = Lang.t(INFO_HINT)
-	elif not Items.ALL.has(id) and Crafting.INGREDIENTS.has(id):
+	elif not Items.ALL.has(id) and (Crafting.INGREDIENTS.has(id) or id == "eisen"):
 		_info.text = game.crafting.describe_ingredient(id)
 	else:
 		_info.text = "%s: %s" % [Items.item_name(id), Items.describe(id, game.player.wear.get(id, 0))]
@@ -338,15 +417,38 @@ func _build_inventory() -> void:
 		toggle.custom_minimum_size = Vector2(300, 46)
 		toggle.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		_box.add_child(toggle)
-	_add_label(Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), p.bag_size(), Items.weight_text(p.carried_weight())], 20)
-	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, 4 if p.bag_size() <= 8 else 6)
+	# Two tabs share the space below: the bag and the ingredient pouch.
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 10)
+	_box.add_child(tabs)
+	var bag_tab := Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), p.bag_size(), Items.weight_text(p.carried_weight())]
+	var pouch_tab := Lang.t("Zutatenbeutel (%d)") % _pouch_ids().size()
+	for tab in [["tasche", bag_tab], ["beutel", pouch_tab]]:
+		var b := _item_button(tab[1], _show_inventory_tab.bind(tab[0]))
+		b.custom_minimum_size = Vector2(300, 44)
+		b.modulate = Color(1.0, 0.9, 0.6) if inventory_tab == tab[0] else Color(0.75, 0.75, 0.8)
+		tabs.add_child(b)
+	var columns := 4 if p.bag_size() <= 8 else 6
+	# The bag's page is always built: it sets the size the pouch's page gets,
+	# so switching tabs does not resize the window.
+	var page := VBoxContainer.new()
+	page.add_theme_constant_override("separation", 6)
+	_box.add_child(page)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, columns, page)
+	# The picked item's line and its buttons keep their space when nothing is picked.
+	var picked := _add_label("", 18, BLUE)
+	picked.custom_minimum_size.y = 26
+	_box.remove_child(picked)
+	page.add_child(picked)
+	var actions := HBoxContainer.new()
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	actions.add_theme_constant_override("separation", 8)
+	actions.custom_minimum_size.y = 54
+	page.add_child(actions)
 	if _selected >= 0 and _selected < p.bag.size():
 		var id: String = p.bag[_selected]
-		_add_label("%s: %s" % [Items.item_name(id), Items.describe(id, p.wear.get(id, 0))], 18, BLUE)
-		var actions := HBoxContainer.new()
-		actions.alignment = BoxContainer.ALIGNMENT_CENTER
-		actions.add_theme_constant_override("separation", 8)
-		_box.add_child(actions)
+		picked.text = "%s: %s" % [Items.item_name(id), Items.describe(id, p.wear.get(id, 0))]
 		if Items.is_crate(id):
 			actions.add_child(_item_button(Lang.t("Abstellen"), _put_down_selected))
 		elif Items.is_stone(id):
@@ -356,6 +458,65 @@ func _build_inventory() -> void:
 		else:
 			actions.add_child(_item_button(Lang.t("Anlegen"), _equip_selected))
 		actions.add_child(_item_button(Lang.t("Wegwerfen"), _drop_selected))
+	if inventory_tab == "beutel":
+		var room := page.get_combined_minimum_size()
+		_box.remove_child(page)
+		page.queue_free()
+		_box.add_child(_pouch_page(room, columns))
+
+
+## The ingredients the hero carries, in the order of the ingredient book,
+## with the smith's iron bars last.
+func _pouch_ids() -> Array:
+	var ids := []
+	for id in Crafting.INGREDIENTS:
+		if game.crafting.have(id) > 0:
+			ids.append(id)
+	if game.crafting.have("eisen") > 0:
+		ids.append("eisen")
+	return ids
+
+
+## The ingredient pouch: every ingredient carried and how many, in a region
+## as big as the bag's page; it scrolls if it ever holds more.
+func _pouch_page(room: Vector2, columns: int) -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = room
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 6)
+	scroll.add_child(list)
+	var ids := _pouch_ids()
+	if ids.is_empty():
+		var empty: Label = game._make_label(game.TEXT_FONT, 18, Color(0.85, 0.87, 0.92))
+		empty.text = Lang.t("Der Zutatenbeutel ist leer. Zutaten findet dein Fuchs, du angelst sie oder kaufst sie beim Wanderhändler; das Rezeptbuch (H) sagt, wo.")
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.custom_minimum_size.x = room.x
+		list.add_child(empty)
+		return scroll
+	var grid := GridContainer.new()
+	grid.columns = columns
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	list.add_child(grid)
+	for id in ids:
+		# Ingredients are not worn or dropped: a click shows what the book says.
+		var b := _item_button("%s\n× %d" % [Crafting.ingredient_name(id), game.crafting.have(id)], _show_info.bind(id), true, id)
+		# Long names end in "…" rather than widen the page; the info line at
+		# the bottom shows the full name and what the book says.
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		grid.add_child(b)
+	return scroll
+
+
+func _show_inventory_tab(tab: String) -> void:
+	inventory_tab = tab
+	_selected = -1
+	_note = ""
+	_rebuild()
 
 
 ## The title with a clearly visible "Back to game" button beside it. It sits
@@ -1472,11 +1633,17 @@ func _build_compendium() -> void:
 	var keys_title: Label = game._make_label(game.TEXT_FONT, 24, game.GOLD)
 	keys_title.text = Lang.t("Steuerung")
 	keys.add_child(keys_title)
+	# The list of keys is longer than the screen is tall, so it scrolls in a
+	# region as high as the one for what was learned beside it.
+	var keys_scroll := ScrollContainer.new()
+	keys_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	keys_scroll.custom_minimum_size.y = 380
+	keys.add_child(keys_scroll)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 18)
 	grid.add_theme_constant_override("v_separation", 2)
-	keys.add_child(grid)
+	keys_scroll.add_child(grid)
 	for s in SHORTCUTS:
 		var what: Label = game._make_label(game.TEXT_FONT, 17, BLUE)
 		what.text = Lang.t(s[0])

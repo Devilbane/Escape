@@ -593,7 +593,8 @@ Use these helpers and values; do not re-create them.
 | What | Where | Notes |
 |---|---|---|
 | Window frame | `Menus.panel_style(border)` | Dark background (0.04, 0.03, 0.08, 0.9), 2 px border, radius 18, margin 26. |
-| Window host | `Menus.setup` | `CenterContainer` over the HUD, one `PanelContainer`, one `VBoxContainer` (`separation` 10, 6 in the inventory). |
+| Window host | `Menus.setup` | `CenterContainer` over the HUD, a holder `Control`, one `PanelContainer`, a `ScrollContainer`, one `VBoxContainer` (`separation` 10, 6 in the inventory). |
+| Fitting the screen | `Menus._fit` | Every window fits the screen: when it opens (and when the screen changes size) it shrinks to fit, down to `MIN_SCALE` 0.8, and beyond that its content scrolls. Still keep windows within 1280 × 720 at scale 1: long lists go into a fixed scroll region of their own. `tests/windows_fit_screen.gd` checks every window. |
 | Opening/closing | `Menus.open(kind)` / `Menus.close()` | Pauses and resumes the world, resets per-visit state. |
 | Labels | `game._make_label(font, size, color)` | Adds outline and shadow; mouse ignored. |
 | Buttons | `game._make_button(text, action)` | 118 × 64 default, `TEXT_FONT` 20, gold text, radius 14. Close buttons 180 × 52; dialog buttons 220 × 60. |

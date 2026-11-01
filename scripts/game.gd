@@ -841,7 +841,7 @@ func _on_ingredient_collected(id: String) -> void:
 	crafting.add(id)
 	Sfx.play(self, "key", -3.0)
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5), true)
-	show_message(Lang.t("%s kommt in deinen Zutatenbeutel. Das Rezeptbuch (H) zeigt, was du dabeihast.") % Crafting.ingredient_name(id), 3.5)
+	show_message(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Crafting.ingredient_name(id), 3.5)
 
 
 ## The fountain: full life and every ailment gone, as often as you like.

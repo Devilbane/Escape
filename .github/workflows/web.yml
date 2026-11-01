@@ -89,6 +89,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_bandits.gd | tee bandits.log
           grep -q PASS bandits.log
 
+      - name: Hero or heroine test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/heroine.gd | tee heroine.log
+          grep -q PASS heroine.log
+
       - name: Hero and skeletons cannot stack test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/no_stacking.gd | tee stacking.log

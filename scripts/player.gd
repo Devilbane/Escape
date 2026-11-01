@@ -93,6 +93,8 @@ var wear := {}
 ## The hero's hair style, hair colour and head tattoo (see HairLook); the
 ## barber in the village changes them.
 var hair := HairLook.DEFAULT.duplicate()
+## The hero's body, "male" or "female" (see BodyLook).
+var sex := BodyLook.DEFAULT
 ## Chance per hit that a worn armour piece loses a point of durability.
 const WEAR_CHANCE := 0.05
 ## Chance to stop a whole hit with the worn shield (from the shield's "block").
@@ -192,6 +194,9 @@ func _ready() -> void:
 		var node := _model.find_child(part, true, false)
 		if node:
 			node.visible = false
+	# The body comes first: everything else dresses whichever body it is.
+	BodyLook.apply(_model, sex)
+	_model.scale = Vector3.ONE * BodyLook.scale_of(sex)
 	_add_cape_logo()
 	_add_trim()
 	GearLook.dress(_model.find_child("handslot_r", true, false).get_node("Knife"), "mixed") # The hero's own knife.
@@ -360,6 +365,7 @@ func set_asleep(asleep: bool) -> void:
 		_build_eyelids()
 	if _eyelids:
 		_eyelids.visible = asleep
+	BodyLook.blink(_model, asleep)
 
 
 func _build_eyelids() -> void:
@@ -411,6 +417,20 @@ func _build_eyelids() -> void:
 		line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_eyelids.add_child(line)
 	_eyelids.visible = false
+
+
+## Makes the hero a man or a woman (see BodyLook). The hair, the worn gear
+## and the colours of the clothes are put back on the new body.
+func set_sex(id: String) -> void:
+	sex = BodyLook.checked(id)
+	if _model == null:
+		return # Not built yet: _ready shapes it.
+	BodyLook.apply(_model, sex)
+	_model.scale = Vector3.ONE * BodyLook.scale_of(sex)
+	for arm in ["Rogue_ArmLeft", "Rogue_ArmRight"]:
+		GearLook.apply(_model.find_child(arm, true, false) as MeshInstance3D, "outfit")
+	set_hair(hair)
+	refresh_stats()
 
 
 ## Gives the hero a new hair style, colour or tattoo (see HairLook).

@@ -104,6 +104,8 @@ var fishing := Fishing.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
 ## gossip and secret recipes. Kept in the saved game.
 var reputation := Reputation.new(self)
+## Who in the village is tied to whom, and their chats (see VillageTalk).
+var village_talk := VillageTalk.new(self)
 ## The villager whose goods or services are open in a window right now
 ## (role letter), "" for none: their discount applies (see trader_price).
 var trader_role := ""
@@ -174,7 +176,7 @@ var _prompt: Label
 var _message: Label
 ## Space kept free left and right of centred on-screen texts.
 const SCREEN_TEXT_MARGIN := 80
-const MESSAGE_FONT_SIZE := 30
+const MESSAGE_FONT_SIZE := 24
 var _fade: ColorRect
 var _title: Control
 var _title_text: Label
@@ -257,6 +259,7 @@ func _ready() -> void:
 	add_child(horrors)
 	Sfx.load_settings()
 	Sfx.watch_focus(self)
+	Sfx.click_on_buttons(get_tree())
 	_update_sound_button()
 	_ambience = Sfx.start_ambience(self)
 	_rain_sound = Sfx.start_loop(self, "rain")
@@ -392,7 +395,7 @@ func _make_button(text: String, action: Callable) -> Button:
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = Vector2(118, 64)
 	b.add_theme_font_override("font", TEXT_FONT)
-	b.add_theme_font_size_override("font_size", 20)
+	b.add_theme_font_size_override("font_size", 18)
 	b.add_theme_color_override("font_color", GOLD)
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = Color(0.08, 0.05, 0.1, 0.72)
@@ -597,7 +600,7 @@ func _setup_hud() -> void:
 
 	# Centred texts span the screen width (minus a margin) and wrap onto
 	# further lines instead of running off both edges.
-	_prompt = _make_label(TEXT_FONT, 22, Color(1, 1, 1, 0.9))
+	_prompt = _make_label(TEXT_FONT, 20, Color(1, 1, 1, 0.9))
 	_prompt.set_anchors_preset(Control.PRESET_HCENTER_WIDE)
 	_prompt.anchor_top = 0.5
 	_prompt.anchor_bottom = 0.5
@@ -1586,6 +1589,7 @@ func _start_new_game() -> void:
 	Factions.clear()
 	fishing.stop()
 	reputation.clear()
+	village_talk.clear()
 	storage.clear()
 	shop_stock.clear()
 	wanderer_stock.clear()
@@ -1894,6 +1898,7 @@ func _apply_save(data: Dictionary) -> void:
 	bounties.refresh(day)
 	crafting.load_from(data.get("crafting", {}))
 	reputation.load_from(data.get("reputation", {}))
+	village_talk.load_from(data.get("ties", []))
 	Factions.load_from(data.get("factions", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
@@ -2024,6 +2029,7 @@ func save_game(going_away := false) -> bool:
 		"day": day, "bounties": bounties.for_save(),
 		"crafting": crafting.for_save(),
 		"reputation": reputation.for_save(),
+		"ties": village_talk.for_save(),
 		"factions": Factions.for_save(),
 		"fox": {"trust": fox_trust, "tame": has_fox},
 		"hour": day_hour,
@@ -2467,9 +2473,9 @@ func show_message(text: String, duration := 2.2) -> void:
 	# Very long messages get a smaller font so they stay at a few lines.
 	var size := MESSAGE_FONT_SIZE
 	if text.length() > 160:
-		size = MESSAGE_FONT_SIZE - 6
+		size = MESSAGE_FONT_SIZE - 4
 	elif text.length() > 90:
-		size = MESSAGE_FONT_SIZE - 3
+		size = MESSAGE_FONT_SIZE - 2
 	_message.add_theme_font_size_override("font_size", size)
 	_message.add_theme_constant_override("outline_size", maxi(4, size / 6))
 	if _message_tween:
@@ -3146,6 +3152,9 @@ func _process(delta: float) -> void:
 	if _quest_mark_timer <= 0.0:
 		_quest_mark_timer = 0.25
 		refresh_quest_marks()
+	# The villagers chat with each other while the world runs.
+	if level is Outdoor and state == State.PLAYING and not menus.is_open() and level.process_mode != Node.PROCESS_MODE_DISABLED:
+		village_talk.update(delta, level)
 	var p := player.global_position
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
 	_zoom = move_toward(_zoom, _zoom_target, delta * 2.5)

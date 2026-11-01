@@ -19,6 +19,10 @@ const MIN_SAY_TIME := 2.5
 const MARK_COLOR := Color(1.0, 0.82, 0.3)
 ## Waits this long for the hero to step aside before walking on.
 const MAKE_WAY := 1.4
+## Two villagers chatting (see VillageTalk) stand this far apart, and the
+## one who stays put waits this long at most for the other to arrive.
+const CHAT_GAP := 1.6
+const CHAT_WAIT := 60.0
 ## How close (centre to centre, metres) anyone else may come to a villager
 ## who keeps to their spot (a shopkeeper, the elder, the herald). Without
 ## it the village kid Pip ran right into Mira and stood inside her, and a
@@ -148,6 +152,13 @@ var _news := 0
 var night := false
 var at_home := false
 var _layer := 1
+## The villager we are chatting with (see VillageTalk), or null.
+var chat_partner: Villager = null
+## Set when someone else (the hero, mostly) speaks to us during a chat: the
+## chat is over.
+var chat_broken := false
+## Whether we stay seated through the chat (the drinker on his bench).
+var _chat_sitting := false
 
 
 func setup(owner_level: Outdoor, role_char: String, cell: Vector2i) -> void:
@@ -412,7 +423,7 @@ func _physics_process(delta: float) -> void:
 	var hero: Node3D = level.player
 	if _bubble_time > 0.0 and _look_at != Vector3.INF:
 		_turn_to(_look_at - global_position, delta)
-		if _task != "sit":
+		if _task != "sit" and not _chat_sitting:
 			play("Idle")
 		return
 	match _task:
@@ -425,6 +436,10 @@ func _physics_process(delta: float) -> void:
 		"listen":
 			_turn_to(_listen_to - global_position, delta)
 			play("Idle")
+		"chat":
+			if chat_partner and is_instance_valid(chat_partner):
+				_turn_to(chat_partner.global_position - global_position, delta)
+			play(_info.work if _chat_sitting else "Idle")
 	_task_time -= delta
 	if _task != "walk" and _task_time <= 0.0:
 		if _task == "listen":
@@ -444,6 +459,8 @@ func _walk(delta: float, hero: Node3D) -> void:
 			time = _rng.randf_range(8.0, 16.0)
 		elif then == "listen":
 			time = LISTEN_TIME + _rng.randf_range(-2.0, 2.0)
+		elif then == "chat":
+			time = CHAT_WAIT
 		_start(then, time)
 		return
 	# A step that would end inside a shopkeeper is left out: the path goes
@@ -647,7 +664,11 @@ func quest_mark() -> String:
 	return _quest_mark.text if _quest_mark and _quest_mark.visible else ""
 
 
-func say(text: String, look_at := Vector3.INF, time := SAY_TIME) -> void:
+## `in_chat`: a line of a chat with another villager (see chat_say); any
+## other line breaks off a chat.
+func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := false) -> void:
+	if chat_partner != null and not in_chat:
+		chat_broken = true
 	_bubble.text = "%s:\n%s" % [display_name, text]
 	_bubble_time = time
 	_bubble_hold = minf(time, MIN_SAY_TIME)
@@ -686,3 +707,73 @@ func _update_bubble(delta: float) -> void:
 		_quest_mark.position.y = _mark_base + 0.08 * sin(_mark_time * 3.0)
 	if _bubble_time <= 0.0:
 		_look_at = Vector3.INF
+
+
+# --- Chatting with each other (see VillageTalk) ---------------------------------
+
+## Whether we are free for a chat: awake, out in the village, at work or
+## idling (not walking somewhere, listening to the herald or talking).
+func can_chat() -> bool:
+	if chat_partner != null or at_home or not visible or role == "%":
+		return false
+	if night and goes_to_bed():
+		return false
+	return _task in ["work", "idle", "sit"] and _bubble_time <= 0.0 and _listen_to == Vector3.INF
+
+
+## Starts a chat with `partner`. `walk`: we go over to them (and stop a step
+## short, on our side); otherwise we wait where we are. Returns false when
+## there is no way over.
+func join_chat(partner: Villager, walk: bool) -> bool:
+	if walk:
+		var at := partner.global_position
+		var cells := level.grid_path(level.world_to_cell(global_position), level.world_to_cell(at))
+		if cells.is_empty() and level.world_to_cell(global_position) != level.world_to_cell(at):
+			return false
+		_path.clear()
+		# Every tile on the way but our own and theirs, then a spot beside them.
+		for c in cells.slice(1, maxi(1, cells.size() - 1)):
+			_path.append(level.cell_to_world(c) + Vector3(_rng.randf_range(-0.6, 0.6), 0, _rng.randf_range(-0.6, 0.6)))
+		var last: Vector3 = _path.back() if not _path.is_empty() else global_position
+		var side := last - at
+		side.y = 0.0
+		if side.length() < 0.1:
+			side = Vector3(1, 0, 0)
+		_path.append(Vector3(at.x, 0, at.z) + side.normalized() * CHAT_GAP)
+		_speed = WALK_SPEED
+		_task = "walk"
+		set_meta("then", "chat")
+		_chat_sitting = false
+	else:
+		_chat_sitting = _task == "sit"
+		_start("chat", CHAT_WAIT)
+	chat_partner = partner
+	chat_broken = false
+	return true
+
+
+## Standing with the partner, ready to talk.
+func in_chat_place() -> bool:
+	return chat_partner != null and _task == "chat"
+
+
+## Still on the way to the partner.
+func heading_to_chat() -> bool:
+	return chat_partner != null and _task == "walk" and get_meta("then", "") == "chat"
+
+
+## A line of a chat, said to the partner.
+func chat_say(text: String, time: float) -> void:
+	var at := chat_partner.global_position if chat_partner and is_instance_valid(chat_partner) else Vector3.INF
+	say(text, at, time, true)
+
+
+## The chat is over: back to the day's plan.
+func leave_chat() -> void:
+	var waiting := _task == "chat" or heading_to_chat()
+	chat_partner = null
+	chat_broken = false
+	if waiting:
+		_path.clear()
+		_start("sit" if _chat_sitting else "idle", _rng.randf_range(1.0, 2.5))
+	_chat_sitting = false

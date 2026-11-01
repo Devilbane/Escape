@@ -7,6 +7,9 @@ const STORAGE_SIZE := 16
 const BLUE := Color(0.65, 0.85, 1.0)
 ## The colour of everything about the villagers' goodwill (see Reputation).
 const REPUTATION_COLOR := Color(0.78, 0.65, 1.0)
+## The quieter colour of what a villager wants and who they are tied to,
+## under their standing on the reputation page.
+const ABOUT_COLOR := Color(0.78, 0.8, 0.86)
 
 var game: Node
 ## The open window: "", "inventar", "lager", "haendler", "bett", "laden",
@@ -256,12 +259,12 @@ func _rebuild() -> void:
 		"hoehle":
 			_build_lair_won()
 	if current in ["inventar", "lager", "tresor"]:
-		_info = _add_label(Lang.t(INFO_HINT), 18, BLUE)
+		_info = _add_label(Lang.t(INFO_HINT), 16, BLUE)
 		_info.custom_minimum_size.y = 26
 	if _note != "" or current in TRADE_WINDOWS:
 		# The trading windows keep a line for the note, so a purchase does not
 		# make the window grow.
-		var note := _add_label(_note, 18, Color(1.0, 0.75, 0.5))
+		var note := _add_label(_note, 16, Color(1.0, 0.75, 0.5))
 		note.custom_minimum_size.y = 26
 		if current in TRADE_WINDOWS:
 			# One line at most, never wider than the window.
@@ -438,8 +441,8 @@ func _build_character() -> void:
 func _build_inventory() -> void:
 	var p: Player = game.player
 	_add_inventory_header()
-	_add_label(_stats_text(), 18, BLUE)
-	_add_label(_attributes_text(true), 18, game.GOLD)
+	_add_label(_stats_text(), 16, BLUE)
+	_add_label(_attributes_text(true), 16, game.GOLD)
 	_add_label(_skills_text(), 16, Color(0.8, 0.85, 0.9))
 	_add_label(Lang.t("Angelegt (anklicken zum Ablegen)"), 20)
 	var row := GridContainer.new()
@@ -480,7 +483,7 @@ func _build_inventory() -> void:
 	_box.add_child(page)
 	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, columns, page)
 	# The picked item's line and its buttons keep their space when nothing is picked.
-	var picked := _add_label("", 18, BLUE)
+	var picked := _add_label("", 16, BLUE)
 	picked.custom_minimum_size.y = 26
 	_box.remove_child(picked)
 	page.add_child(picked)
@@ -532,7 +535,7 @@ func _pouch_page(room: Vector2, columns: int) -> Control:
 	scroll.add_child(list)
 	var ids := _pouch_ids()
 	if ids.is_empty():
-		var empty: Label = game._make_label(game.TEXT_FONT, 18, Color(0.85, 0.87, 0.92))
+		var empty: Label = game._make_label(game.TEXT_FONT, 16, Color(0.85, 0.87, 0.92))
 		empty.text = Lang.t("Der Zutatenbeutel ist leer. Zutaten findet dein Fuchs, du angelst sie oder kaufst sie beim Wanderhändler; das Rezeptbuch (H) sagt, wo.")
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -664,7 +667,7 @@ func _unequip(slot: String) -> void:
 func _build_storage() -> void:
 	var p: Player = game.player
 	_add_label(Lang.t("Lagertruhe"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 18, BLUE)
+	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 16, BLUE)
 	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
 	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6)
 	var size := HomeUpgrades.storage_size(game.home_upgrades)
@@ -705,9 +708,9 @@ func _build_bench() -> void:
 		return
 	_add_label(Lang.t(info.name), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t(info.craft_line), 22)
-	_add_label(Lang.t(info.text), 18, BLUE)
-	_add_label(Lang.t("Hier stellst du her, was ein Rezept für dieses Handwerk verlangt."), 18)
-	_add_label(Lang.t("Du kennst noch kein Rezept für diese Werkbank. Rezepte findest du bei Gelehrten, in Truhen und als Belohnung."), 18, Color(1.0, 0.75, 0.5))
+	_add_label(Lang.t(info.text), 16, BLUE)
+	_add_label(Lang.t("Hier stellst du her, was ein Rezept für dieses Handwerk verlangt."), 16)
+	_add_label(Lang.t("Du kennst noch kein Rezept für diese Werkbank. Rezepte findest du bei Gelehrten, in Truhen und als Belohnung."), 16, Color(1.0, 0.75, 0.5))
 	_add_label(Lang.t("Deine Truhe und Gorms Esse stehen gleich nebenan."), 16, BLUE)
 
 
@@ -727,9 +730,9 @@ func _build_bank() -> void:
 			[Lang.t("Alles abheben"), func(): _pay_out(Bank.gold(hero)), Bank.gold(hero) > 0]]:
 		row.add_child(_item_button(b[0], b[1], b[2]))
 	if Bank.has_vault(hero):
-		_add_label(Lang.t("Dein Schließfach im Tresorkeller hat Platz für %d Schätze.") % Bank.VAULT_SIZE, 18, BLUE)
+		_add_label(Lang.t("Dein Schließfach im Tresorkeller hat Platz für %d Schätze.") % Bank.VAULT_SIZE, 16, BLUE)
 	else:
-		_add_label(Lang.t("Ein Schließfach im Tresorkeller kostet einmalig %d Gold (vom Bankkonto).") % Bank.VAULT_PRICE, 18, BLUE)
+		_add_label(Lang.t("Ein Schließfach im Tresorkeller kostet einmalig %d Gold (vom Bankkonto).") % Bank.VAULT_PRICE, 16, BLUE)
 		var rent := _item_button(Lang.t("Schließfach mieten"), _rent_vault, Bank.gold(hero) >= Bank.VAULT_PRICE)
 		rent.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		rent.custom_minimum_size = Vector2(300, 54)
@@ -776,7 +779,7 @@ func _build_vault() -> void:
 	var p: Player = game.player
 	var hero: String = game.hero_name
 	_add_label(Lang.t("Dein Schließfach"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 18, BLUE)
+	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 16, BLUE)
 	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
 	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _to_vault, 6)
 	var items := Bank.vault_items(hero)
@@ -822,7 +825,7 @@ func _add_standing() -> Label:
 	var off := roundi(Reputation.LEVELS[lvl].discount * 100.0)
 	if off > 0:
 		text += Lang.t(" (%d%% Rabatt)") % off
-	return _add_label(text, 17, REPUTATION_COLOR)
+	return _add_label(text, 16, REPUTATION_COLOR)
 
 
 ## Builds a merchant's trading window (see TradeWindow), with the
@@ -1158,7 +1161,7 @@ func _build_bounty_board() -> void:
 	b.refresh(game.day)
 	game.learn(Bounties.HOW_TO)
 	_add_label(Lang.t("Aushang: Kopfgelder"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Tag %d. Neue Aushänge gibt es jeden Morgen; was bis dahin nicht erledigt ist, verfällt.") % (game.day + 1), 18, BLUE)
+	_add_label(Lang.t("Tag %d. Neue Aushänge gibt es jeden Morgen; was bis dahin nicht erledigt ist, verfällt.") % (game.day + 1), 16, BLUE)
 	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 10)
@@ -1169,7 +1172,7 @@ func _build_bounty_board() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 16)
 		list.add_child(row)
-		var text: Label = game._make_label(game.TEXT_FONT, 17)
+		var text: Label = game._make_label(game.TEXT_FONT, 16)
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text.custom_minimum_size = Vector2(520, 0)
 		text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -1219,9 +1222,9 @@ func _build_workbench() -> void:
 	_box.add_child(make)
 	var worn := Forge.worn_down(p)
 	if worn.is_empty():
-		_add_label(Lang.t("Nichts ist abgenutzt."), 18)
+		_add_label(Lang.t("Nichts ist abgenutzt."), 16)
 		return
-	_add_label(Lang.t("Abgenutzte Ausrüstung flicken (je %d Eisenbarren):") % HomeUpgrades.MEND_IRON, 18)
+	_add_label(Lang.t("Abgenutzte Ausrüstung flicken (je %d Eisenbarren):") % HomeUpgrades.MEND_IRON, 16)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 10)
@@ -1594,7 +1597,7 @@ func _build_load() -> void:
 	elif not saves.is_empty():
 		_box.add_child(list)
 	if _note != "":
-		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
+		_add_label(_note, 16, Color(1.0, 0.75, 0.5))
 		_note = ""
 	var cancel: Button = game._make_button(Lang.t("Abbrechen"), func():
 		_delete_asked = ""
@@ -1716,14 +1719,17 @@ func _build_compendium() -> void:
 	grid.add_theme_constant_override("v_separation", 2)
 	keys_scroll.add_child(grid)
 	for s in SHORTCUTS:
-		var what: Label = game._make_label(game.TEXT_FONT, 17, BLUE)
+		var what: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
 		what.text = Lang.t(s[0])
 		what.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		# Long names wrap, so the explanations beside them get the room.
+		what.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		what.custom_minimum_size.x = 160
 		grid.add_child(what)
-		var how: Label = game._make_label(game.TEXT_FONT, 17)
+		var how: Label = game._make_label(game.TEXT_FONT, 16)
 		how.text = Lang.t(s[1])
 		how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		how.custom_minimum_size.x = 260
+		how.custom_minimum_size.x = 330
 		grid.add_child(how)
 
 	var learned := VBoxContainer.new()
@@ -1741,13 +1747,13 @@ func _build_compendium() -> void:
 	list.add_theme_constant_override("separation", 10)
 	scroll.add_child(list)
 	if game.lore.is_empty():
-		var none: Label = game._make_label(game.TEXT_FONT, 18)
+		var none: Label = game._make_label(game.TEXT_FONT, 16)
 		none.text = Lang.t("Noch nichts. Hinweise und Erklärungen sammeln sich hier.")
 		list.add_child(none)
 	# Newest first: the latest hint or explanation sits at the top.
 	for i in range(game.lore.size() - 1, -1, -1):
 		var entry: String = game.lore[i]
-		var l: Label = game._make_label(game.TEXT_FONT, 17)
+		var l: Label = game._make_label(game.TEXT_FONT, 16)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size.x = 410
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1774,14 +1780,14 @@ func _build_recipes() -> void:
 		var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
 		title.text = Lang.t(Crafting.RECIPES[id].name)
 		recipes.add_child(title)
-		var text: Label = game._make_label(game.TEXT_FONT, 17)
+		var text: Label = game._make_label(game.TEXT_FONT, 16)
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text.custom_minimum_size.x = BOOK_COLUMN - 20
 		text.text = game.crafting.describe(id)
 		recipes.add_child(text)
 	var ingredients := _book_column(columns, Lang.t("Zutaten"))
 	for ingredient in game.crafting.book_ingredients():
-		var entry: Label = game._make_label(game.TEXT_FONT, 17, BLUE)
+		var entry: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
 		entry.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		entry.custom_minimum_size.x = BOOK_COLUMN - 20
 		entry.text = game.crafting.describe_ingredient(ingredient)
@@ -1830,13 +1836,13 @@ func _build_quest_log() -> void:
 		var status: String = Lang.t("erledigt, am Aushang abholen") if game.bounties.is_ready(id) else game.bounties.progress(id)
 		title.text = Lang.t("Kopfgeld: %s") % Lang.t(hunt.title) + "  (%s)" % status
 		list.add_child(title)
-		var text: Label = game._make_label(game.TEXT_FONT, 17)
+		var text: Label = game._make_label(game.TEXT_FONT, 16)
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text.custom_minimum_size.x = 740
 		text.text = Lang.t(hunt.goal) + "\n" + Lang.t("Belohnung: %s") % (Lang.t("%d Gold") % hunt.gold)
 		list.add_child(text)
 	if entries.is_empty() and hunts.is_empty():
-		var none: Label = game._make_label(game.TEXT_FONT, 18)
+		var none: Label = game._make_label(game.TEXT_FONT, 16)
 		none.text = Lang.t("Noch keine Aufträge. Sprich mit den Leuten im Dorf: Manche haben Arbeit für dich.")
 		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		none.custom_minimum_size.x = 740
@@ -1848,13 +1854,13 @@ func _build_quest_log() -> void:
 		if done:
 			# Finished: struck through in green, and the word "done" as well.
 			list.add_child(_done_label(Lang.t(q.title), 21, TradeWindow.GREEN, 740, Lang.t("erledigt")))
-			list.add_child(_done_label(goal, 17, TradeWindow.GREEN.darkened(0.25), 740))
+			list.add_child(_done_label(goal, 16, TradeWindow.GREEN.darkened(0.25), 740))
 			continue
 		var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
 		var status: String = game.quests.progress(id)
 		title.text = Lang.t(q.title) + ("  (%s)" % status if status != "" else "")
 		list.add_child(title)
-		var text: Label = game._make_label(game.TEXT_FONT, 17, Color.WHITE)
+		var text: Label = game._make_label(game.TEXT_FONT, 16, Color.WHITE)
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text.custom_minimum_size.x = 740
 		text.text = goal
@@ -1876,12 +1882,12 @@ func _build_reputation_page() -> void:
 	var intro: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	intro.custom_minimum_size.x = 740
-	intro.text = Lang.t("Hilf den Leuten im Dorf, dann denken sie besser von dir. Freundlich: Rabatt und Neuigkeiten. Vertraut: mehr Rabatt, und wer ein Geheimrezept kennt, verrät es dir. Geehrt: der größte Rabatt.")
+	intro.text = Lang.t("Hilf den Leuten im Dorf, dann denken sie besser von dir. Freundlich: Rabatt und Neuigkeiten. Vertraut: mehr Rabatt, und wer ein Geheimrezept kennt, verrät es dir. Geehrt: der größte Rabatt.") + " " + Lang.t("Hör zu, wenn die Leute miteinander reden: Dann steht hier, wer mit wem verwandt, befreundet oder verfeindet ist.")
 	list.add_child(intro)
 	var roles: Array = game.met.keys()
 	roles.sort_custom(func(a, b): return rep.points(a) > rep.points(b))
 	if roles.is_empty():
-		var none: Label = game._make_label(game.TEXT_FONT, 18)
+		var none: Label = game._make_label(game.TEXT_FONT, 16)
 		none.text = Lang.t("Du kennst noch niemanden im Dorf.")
 		list.add_child(none)
 	for role in roles:
@@ -1893,22 +1899,45 @@ func _build_reputation_page() -> void:
 		var next := rep.to_next(role)
 		if next > 0:
 			line += "  " + Lang.t("noch %d bis %s") % [next, Reputation.level_name(lvl + 1)]
-		var l: Label = game._make_label(game.TEXT_FONT, 18, REPUTATION_COLOR if lvl > 0 else Color.WHITE)
+		# One villager's lines together: standing, then what they want and
+		# who they are tied to (once overheard, see VillageTalk).
+		var group := VBoxContainer.new()
+		group.add_theme_constant_override("separation", 2)
+		list.add_child(group)
+		var l: Label = game._make_label(game.TEXT_FONT, 16, REPUTATION_COLOR if lvl > 0 else Color.WHITE)
 		l.text = line
-		list.add_child(l)
+		group.add_child(l)
+		var about := _villager_about(role)
+		if about != "":
+			var d: Label = game._make_label(game.TEXT_FONT, 16, ABOUT_COLOR)
+			d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			d.custom_minimum_size.x = 740
+			d.text = about
+			group.add_child(d)
 	var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
 	title.text = Lang.t("Geheimrezepte")
 	list.add_child(title)
 	if rep.recipes.is_empty():
-		var none: Label = game._make_label(game.TEXT_FONT, 17, Color(0.7, 0.72, 0.76))
+		var none: Label = game._make_label(game.TEXT_FONT, 16, Color(0.7, 0.72, 0.76))
 		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		none.custom_minimum_size.x = 740
 		none.text = Lang.t("Noch keine. Manche Leute im Dorf kennen eines, verraten es aber nur, wem sie vertrauen.")
 		list.add_child(none)
 	for id in rep.recipes:
-		var l: Label = game._make_label(game.TEXT_FONT, 17)
+		var l: Label = game._make_label(game.TEXT_FONT, 16)
 		l.text = Lang.t("%s (von %s), im Tagesplan unter „Handwerk“") % [Lang.t(Offline.RECIPES[id].name), Quests.villager_name(Offline.RECIPES[id].secret)]
 		list.add_child(l)
+
+
+## What a villager wants and, for the ties the hero overheard, who they are
+## tied to: "Wants ...  ·  Friends: Hanna  ·  Rivals: Hagen".
+func _villager_about(role: String) -> String:
+	var parts := []
+	if VillageTalk.GOALS.has(role):
+		parts.append(Lang.t(VillageTalk.GOALS[role]))
+	for tie in game.village_talk.known_ties_of(role):
+		parts.append(Lang.t("%s: %s") % tie)
+	return "  ·  ".join(parts)
 
 
 func _build_quit() -> void:
@@ -1937,7 +1966,7 @@ func _build_lair_won() -> void:
 	var monsters: Array = game.level.enemies
 	var fallen := monsters.filter(func(e): return not is_instance_valid(e) or e.dead).size()
 	_add_label(Lang.t("Besiegte Monster: %d von %d") % [fallen, monsters.size()], 20, BLUE)
-	var hint := _add_label(Lang.t("Wo der Drache fiel, leuchtet jetzt ein goldener Ausgang. Tritt hinein, und du stehst wieder vor dem Steinbogen im Wald."), 18, Color(1.0, 0.85, 0.55))
+	var hint := _add_label(Lang.t("Wo der Drache fiel, leuchtet jetzt ein goldener Ausgang. Tritt hinein, und du stehst wieder vor dem Steinbogen im Wald."), 16, Color(1.0, 0.85, 0.55))
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size.x = RETURN_TEXT_WIDTH
 	var row := HBoxContainer.new()
@@ -1958,7 +1987,7 @@ func _build_bed() -> void:
 	_add_label(Lang.t("Ein weiches Bett"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Hier kannst du dich ausruhen. Dein Spiel wird gespeichert\nund du loggst dich aus. Später geht es genau hier weiter."), 20)
 	_add_label(Lang.t("Solange du weg bist, lebt dein Held nach seinem Tagesplan:"), 20, BLUE)
-	_add_label(_plan_summary(), 18, game.GOLD)
+	_add_label(_plan_summary(), 16, game.GOLD)
 	var plan_button: Button = game._make_button(Lang.t("Tagesplan ändern"), open.bind("plan"))
 	plan_button.custom_minimum_size = Vector2(300, 56)
 	plan_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -2020,7 +2049,7 @@ func _build_plan() -> void:
 	game.away_plan = Offline.normalized(game.away_plan, choices)
 	var plan: Dictionary = game.away_plan
 	_add_label(Lang.t("Tagesplan"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Je 10 Minuten, die du weg bist, ist für deinen Helden eine Stunde: ein Tag dauert 4 Stunden.\nDein Held lebt diesen Tag immer wieder, höchstens 8 Tage lang (32 Stunden)."), 18, BLUE)
+	_add_label(Lang.t("Je 10 Minuten, die du weg bist, ist für deinen Helden eine Stunde: ein Tag dauert 4 Stunden.\nDein Held lebt diesen Tag immer wieder, höchstens 8 Tage lang (32 Stunden)."), 16, BLUE)
 	var grid := GridContainer.new()
 	grid.columns = 5
 	grid.add_theme_constant_override("h_separation", 10)
@@ -2034,7 +2063,7 @@ func _build_plan() -> void:
 		heading.custom_minimum_size.x = 150
 		grid.add_child(heading)
 		if block == "rest":
-			var sleep_label: Label = game._make_label(game.TEXT_FONT, 18)
+			var sleep_label: Label = game._make_label(game.TEXT_FONT, 16)
 			sleep_label.text = Lang.t("Schlafen und heilen (mindestens 8 Std.)")
 			sleep_label.custom_minimum_size.x = 420
 			grid.add_child(sleep_label)
@@ -2058,7 +2087,7 @@ func _build_plan() -> void:
 		grid.add_child(plus)
 	_add_label(Lang.t("Freizeit: %d Std.    Arbeit höchstens %d Std. am Tag") % [Offline.free_hours(plan), Offline.JOB_MAX_HOURS], 20)
 	if _note != "":
-		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
+		_add_label(_note, 16, Color(1.0, 0.75, 0.5))
 		_note = ""
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -2174,7 +2203,7 @@ func _build_map() -> void:
 func _build_map_page(journal: Journal) -> void:
 	var files := journal.mapped_files()
 	if files.is_empty():
-		_add_label(Lang.t("Noch keine Karte. Sie füllt sich, während du erkundest."), 18)
+		_add_label(Lang.t("Noch keine Karte. Sie füllt sich, während du erkundest."), 16)
 		return
 	var here := journal.current_file()
 	if not files.has(_map_file):
@@ -2247,7 +2276,7 @@ func _build_map_page(journal: Journal) -> void:
 			if by_name[n][0] > 1:
 				text += "  " + Lang.t("(%d Stellen)") % by_name[n][0]
 			_legend_line(legend, Journal.find_color(kinds[n]), text)
-	_add_label(Lang.t("Erkundet: %d %%") % _explored_share(journal, _map_file), 17, BLUE)
+	_add_label(Lang.t("Erkundet: %d %%") % _explored_share(journal, _map_file), 16, BLUE)
 
 
 func _legend_title(box: VBoxContainer, text: String) -> void:
@@ -2301,7 +2330,7 @@ func _build_journal() -> void:
 	list.add_theme_constant_override("separation", 8)
 	scroll.add_child(list)
 	if journal.entries.is_empty():
-		var none: Label = game._make_label(game.TEXT_FONT, 18)
+		var none: Label = game._make_label(game.TEXT_FONT, 16)
 		none.text = Lang.t("Noch leer. Was du entdeckst und findest, schreibt dein Held hier auf.")
 		list.add_child(none)
 	for i in range(journal.entries.size() - 1, -1, -1):
@@ -2309,7 +2338,7 @@ func _build_journal() -> void:
 		var when: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
 		when.text = lines[0]
 		list.add_child(when)
-		var what: Label = game._make_label(game.TEXT_FONT, 18)
+		var what: Label = game._make_label(game.TEXT_FONT, 16)
 		what.text = lines[1]
 		what.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		what.custom_minimum_size.x = MAP_PAGE_SIZE.x - 20

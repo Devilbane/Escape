@@ -96,6 +96,7 @@ const ALL := {
 	"banditendolch": {"name": "Banditendolch", "slot": "auftrag", "weight": 0.5, "price": 2, "no_loot": true, "model": "res://assets/weapons/dagger.gltf", "material": "mixed", "effect": "Für Krämerin Miras Auftrag"},
 	"brief": {"name": "Brief aus der Hauptstadt", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Für Dorfvorsteher Aldo"},
 	"kuerbis": {"name": "Kürbis", "slot": "auftrag", "weight": 3, "price": 1, "no_loot": true, "effect": "Für Zecher Fritz im Wirtshaus"},
+	"wetzstein": {"name": "Wetzstein", "slot": "auftrag", "weight": 1, "price": 1, "no_loot": true, "effect": "Für Schmied Gorm an seiner Esse"},
 	# Thunder ore: lightning leaves it glowing beside the rocks in a storm, and
 	# it fades once the storm has passed (see Weather). Never found as loot;
 	# Gorm melts it down into iron bars (see Forge) and the merchant pays well.

@@ -1463,9 +1463,13 @@ func _roll_gear(kind: String, c: Vector2i) -> Array[String]:
 
 func _drop_gear(e: Enemy) -> void:
 	var spot := e.global_position
+	var delay := 0.0
 	for id in e.gear:
 		if randf() < DROP_CHANCE:
 			_drop_item(id, spot)
+			# It clatters onto the floor, one piece after the other.
+			Sfx.play_gear(self, id, delay, spot)
+			delay += 0.3
 			spot += Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
 
 

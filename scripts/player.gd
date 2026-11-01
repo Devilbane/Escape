@@ -32,8 +32,8 @@ const RUN_SECONDS_PER_CON := 2.0
 ## Seconds of running regained per second, per point of Konstitution: 10
 ## points bring one second back every second.
 const RUN_RECOVERY_PER_CON := 0.1
-## Out of breath, the hero walks until this many seconds have come back.
-const RUN_RESTART := 1.0
+## Out of breath, the hero walks until this share of the meter has come back.
+const RUN_RESTART := 0.5
 ## From this many times the walking pace on, the hero shows the run animation.
 const RUN_ANIM_FROM := 1.4
 const JUMP_VELOCITY := 9.0
@@ -106,7 +106,7 @@ var path: Array[Vector3] = []
 var wants_run := false
 ## Seconds of running left; filled up on the first frame.
 var stamina := -1.0
-## Ran dry: no running until RUN_RESTART seconds have come back.
+## Ran dry: no running until RUN_RESTART of the meter has come back.
 var winded := false
 ## Whether the hero is running (not walking) this frame.
 var sprinting := false
@@ -364,7 +364,7 @@ func _breathe(delta: float, moving: bool) -> void:
 			winded = true
 	else:
 		stamina = minf(full, stamina + stamina_recovery() * delta)
-		if winded and stamina >= minf(RUN_RESTART, full):
+		if winded and stamina >= RUN_RESTART * full:
 			winded = false
 	# Speeds up gradually while running, and eases back to walking when the
 	# run ends. Standing still or sneaking drops straight back to walking.

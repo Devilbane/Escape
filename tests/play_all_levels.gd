@@ -92,12 +92,8 @@ func _process(delta: float) -> bool:
 	if game.state != game.State.PLAYING or not player.can_act():
 		return false
 	var lvl: Level = game.level
-	if lvl.building != "":
-		return _in_building(lvl, player)
-	if lvl.outdoor:
-		return _back_outside(lvl, player) if _was_in_cellar else _village(lvl, player)
-
-	# Caught on a shrine or a table edge with somewhere to go: step aside.
+	# Caught on a shrine, a table edge or a villager who stopped to talk,
+	# with somewhere to go: step aside.
 	if player.global_position.distance_to(_last_spot) > 0.3:
 		_last_spot = player.global_position
 		_still = 0.0
@@ -108,6 +104,11 @@ func _process(delta: float) -> bool:
 			var side := Vector3.RIGHT.rotated(Vector3.UP, randf() * TAU) * 2.5
 			player.path.assign([player.global_position + side])
 			return false
+
+	if lvl.building != "":
+		return _in_building(lvl, player)
+	if lvl.outdoor:
+		return _back_outside(lvl, player) if _was_in_cellar else _village(lvl, player)
 
 	# Fight anything close by.
 	for e in lvl.enemies:

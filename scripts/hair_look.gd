@@ -252,6 +252,7 @@ static func _build_heads(source: Mesh) -> Array:
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var hair := _hair_vertices(verts, uvs, index)
+	var blend := _face_blend(verts, hair, index)
 	var flags := Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
 	if source is ArrayMesh and (source as ArrayMesh).surface_get_format(0) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS:
 		flags |= Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
@@ -270,6 +271,12 @@ static func _build_heads(source: Mesh) -> Array:
 				v2[v] = p
 				n2[v] = skull_normal(p)
 				uv2[v] = SCALP_UV
+			elif shaved and blend[v] > 0.0:
+				# The rim of the face grows into the skull, so the face is part
+				# of the head instead of a mask on the front of it.
+				p = p.lerp(on_skull(p), blend[v])
+				v2[v] = p
+				n2[v] = normals[v].lerp(skull_normal(p), blend[v]).normalized()
 			custom[v * 4] = p.x
 			custom[v * 4 + 1] = p.y
 			custom[v * 4 + 2] = p.z
@@ -282,6 +289,70 @@ static func _build_heads(source: Mesh) -> Array:
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, flags)
 		result.append(mesh)
+	return result
+
+
+## How far each face vertex is pulled onto the skull of a shaved head: fully
+## on the face's outer rim (which the hair used to cover), less and less
+## further in, and not at all from FACE_BLEND inwards, so eyes, nose and
+## mouth keep their shape.
+const FACE_BLEND := 0.1
+
+static func _face_blend(verts: PackedVector3Array, hair: Array[bool], index: PackedInt32Array) -> PackedFloat32Array:
+	var n := verts.size()
+	var keys: Array[Vector3i] = []
+	keys.resize(n)
+	for i in n:
+		keys[i] = Vector3i((verts[i] * 1000.0).round())
+	# Edges used by only one triangle of the face are its open edges.
+	var count := {}
+	for t in range(0, index.size(), 3):
+		if hair[index[t]] or hair[index[t + 1]] or hair[index[t + 2]]:
+			continue
+		for k in 3:
+			var a := keys[index[t + k]]
+			var b := keys[index[t + (k + 1) % 3]]
+			var edge := [a, b] if str(a) < str(b) else [b, a]
+			count[edge] = count.get(edge, 0) + 1
+	var links := {}
+	for edge in count:
+		if count[edge] != 1:
+			continue
+		for k in 2:
+			if not links.has(edge[k]):
+				links[edge[k]] = []
+			links[edge[k]].append(edge[1 - k])
+	# The outer rim is the longest run of open edges; the eyes, the nose
+	# and the ears have small rings of their own.
+	var seen := {}
+	var rim := []
+	for start in links:
+		if seen.has(start):
+			continue
+		var ring := []
+		var todo := [start]
+		while not todo.is_empty():
+			var key = todo.pop_back()
+			if seen.has(key):
+				continue
+			seen[key] = true
+			ring.append(key)
+			todo.append_array(links[key])
+		if ring.size() > rim.size():
+			rim = ring
+	var rim_points: Array[Vector3] = []
+	for key in rim:
+		rim_points.append(Vector3(key) / 1000.0)
+	var result := PackedFloat32Array()
+	result.resize(n)
+	for i in n:
+		if hair[i]:
+			continue
+		var nearest := INF
+		for q in rim_points:
+			nearest = minf(nearest, verts[i].distance_to(q))
+		if nearest < FACE_BLEND:
+			result[i] = smoothstep(FACE_BLEND, 0.0, nearest)
 	return result
 
 

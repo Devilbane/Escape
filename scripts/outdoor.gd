@@ -765,9 +765,9 @@ func _build_barber_shop(cell: Vector2i) -> void:
 	var pole := Effects.barber_pole()
 	pole.position = pos + Vector3(-2.0, 0, 1.9)
 	add_child(pole)
-	var sign := Effects.shop_sign(Lang.t("Barbier"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
-	sign.position = pos + Vector3(1.4, 0, 1.9)
-	add_child(sign)
+	var board := Effects.shop_sign(Lang.t("Barbier"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	board.position = pos + Vector3(1.4, 0, 1.9)
+	add_child(board)
 	_add_solid(pos + Vector3(-2.0, 0, 1.9), Vector3(0.5, 2.6, 0.5))
 	_add_solid(pos + Vector3(1.4, 0, 1.9), Vector3(0.5, 2.6, 0.5))
 

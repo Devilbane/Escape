@@ -295,27 +295,27 @@ static func barber_pole() -> Node3D:
 ## A hanging shop sign: a wooden board on a post with the shop's name and a
 ## pair of scissors above it, facing +Z. About 2.6 m high.
 static func shop_sign(text: String, font: Font) -> Node3D:
-	var sign := Node3D.new()
-	sign.name = "ShopSign"
+	var board_sign := Node3D.new()
+	board_sign.name = "ShopSign"
 	var wood := _paint(Color(0.3, 0.2, 0.12))
 	var board_wood := _paint(Color(0.55, 0.38, 0.2))
 	var post := CylinderMesh.new()
 	post.top_radius = 0.07
 	post.bottom_radius = 0.09
 	post.height = 2.6
-	sign.add_child(_part(post, wood, Vector3(0, 1.3, 0)))
+	board_sign.add_child(_part(post, wood, Vector3(0, 1.3, 0)))
 	var arm := BoxMesh.new()
 	arm.size = Vector3(1.2, 0.08, 0.08)
-	sign.add_child(_part(arm, wood, Vector3(0.5, 2.55, 0)))
+	board_sign.add_child(_part(arm, wood, Vector3(0.5, 2.55, 0)))
 	var board := BoxMesh.new()
 	board.size = Vector3(1.1, 0.7, 0.06)
-	sign.add_child(_part(board, board_wood, Vector3(0.55, 2.05, 0)))
+	board_sign.add_child(_part(board, board_wood, Vector3(0.55, 2.05, 0)))
 	for x in [0.15, 0.95]:
 		var chain := CylinderMesh.new()
 		chain.top_radius = 0.015
 		chain.bottom_radius = 0.015
 		chain.height = 0.16
-		sign.add_child(_part(chain, _paint(Color(0.5, 0.5, 0.55), 0.4, 0.8), Vector3(x, 2.47, 0)))
+		board_sign.add_child(_part(chain, _paint(Color(0.5, 0.5, 0.55), 0.4, 0.8), Vector3(x, 2.47, 0)))
 	var label := Label3D.new()
 	label.text = text
 	label.font = font
@@ -324,7 +324,7 @@ static func shop_sign(text: String, font: Font) -> Node3D:
 	label.modulate = Color(0.1, 0.06, 0.03)
 	label.position = Vector3(0.55, 1.9, 0.035)
 	label.no_depth_test = false
-	sign.add_child(label)
+	board_sign.add_child(label)
 	# Scissors: two crossed blades with a ring handle each, painted on the board.
 	var steel := _paint(Color(0.8, 0.82, 0.86), 0.3, 0.9)
 	var blade := BoxMesh.new()
@@ -335,7 +335,7 @@ static func shop_sign(text: String, font: Font) -> Node3D:
 	handle.rings = 16
 	handle.ring_segments = 6
 	for side in [-1.0, 1.0]:
-		var a := side * 0.35
-		sign.add_child(_part(blade, steel, Vector3(0.55 + sin(a) * 0.03, 2.24, 0.04), Vector3(0, 0, a)))
-		sign.add_child(_part(handle, steel, Vector3(0.55 - sin(a) * 0.17, 2.1, 0.04), Vector3(PI * 0.5, 0, 0)))
-	return sign
+		var a: float = side * 0.35
+		board_sign.add_child(_part(blade, steel, Vector3(0.55 + sin(a) * 0.03, 2.24, 0.04), Vector3(0, 0, a)))
+		board_sign.add_child(_part(handle, steel, Vector3(0.55 - sin(a) * 0.17, 2.1, 0.04), Vector3(PI * 0.5, 0, 0)))
+	return board_sign

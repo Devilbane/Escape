@@ -24,6 +24,7 @@ The game can be played in English or German; you choose the language on the titl
 | Inventory | I | “Inventory” button |
 | Compendium | H | “Compendium” button |
 | Character page | P | “Character” button |
+| Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Load saved game | L | “Load” button (also on the title screen) |
 | Quit game | Esc | “Quit” button, top right |
 | Sound on/off | M | “Sound” button, top right |
@@ -264,6 +265,18 @@ at night), what yields it (an ore vein, a creature's loot, the smith), and wheth
 longer loop: gather ingredients from all over the world, learn and train the craft, work out the faded
 lines, and finish the piece under the right influences (a calm mind, a goddess's favour, the right stars).
 Recipes and ingredients are defined in `scripts/crafting.gd`, the crafts in `Training.CRAFTS`.
+
+**Fishing.** Stand by the water and press **G** (or the **Fish** button in the pull-out menu) to cast a
+line. After a few seconds the float goes under and a **!** shows: press again quickly to strike, or the
+fish gets away. Pressing while you wait draws the line in; walking off, getting hit or opening a window
+does too. There are three waters: the **fountain** on the village square, the **village pond** by the path into
+the village and a small **pond in the wolf hollow** (mind the wolves). Most bites are a **perch**, and in the
+fountain often an old coin someone threw in for luck (+1 gold). Each water also has one **rare fish**:
+the **golden carp** in the fountain, the **silver pike** in the village pond, but only at dawn and dusk,
+and the **moon trout** in the wolf hollow, but only at night. Every fish goes into the ingredient pouch.
+Hanna the water carrier has a recipe that needs them: the **Amulet of the Deep** (all three rare fish and
+three perch). One of its lines is smudged until you catch a silver pike. What bites where is set in
+`Fishing.WATERS` (`scripts/fishing.gd`).
 
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.

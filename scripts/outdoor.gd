@@ -7,7 +7,7 @@ extends Level
 ##
 ## Map legend (one character per 4x4 m tile):
 ##   #  forest (trees, cannot be crossed)    .  grass         ,  dirt path
-##   P  start, in front of the crypt door    ~  pond
+##   P  start, in front of the crypt door    ~  pond (fish bite here, see Fishing)
 ##   R  the crypt (a block of tiles)         g  grave         d  dead tree
 ##   z  graveyard fence                      a  gate in the fence
 ##   l  lantern on a post                    p  pumpkins      r  rock
@@ -40,7 +40,8 @@ extends Level
 ##   a sneaking hero, and in a thunderstorm bats swarm around the rocks (r)
 ##   while lightning leaves glowing thunder ore beside them.
 ##   The wolf hollow north of the pass, where beasts roam and come back the
-##   same way: W wolf, H orc, J yeti, U spider.
+##   same way: W wolf, H orc, J yeti, U spider.   %  the hollow's pond,
+##   where the moon trout bites at night (see Fishing).
 ##   Peaceful animals that graze in the woods and bolt from the hero
 ##   (see Animal): D doe, V stag, & fox.
 ##   E  the way down into the dragon's lair: a stone arch over stairs into
@@ -312,7 +313,7 @@ func _build_ground() -> void:
 			if square.has_point(c) and not BLOCK_CHARS.contains(ch):
 				path = 1.0
 				soil = 1.0
-			var wet := 1.0 if ch == "~" else 0.0
+			var wet := 1.0 if "~%".contains(ch) else 0.0
 			var open := 0.0 if ch == "#" else 1.0
 			mask.set_pixel(x, y, Color(path, soil, wet, open))
 	# A smoother mask gives softer edges between the tiles.
@@ -494,8 +495,10 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_fence(c, false)
 		"a":
 			_build_fence(c, true)
-		"~":
+		"~", "%":
 			_add_solid(pos, Vector3(TILE, 1, TILE))
+			fishing_waters.append({"water": "teich" if ch == "~" else "senke", "pos": pos,
+					"reach": TILE * 0.5, "round": false, "surface": 0.04})
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.
 			for row in 2:

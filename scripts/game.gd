@@ -180,7 +180,10 @@ func _setup_world() -> void:
 	env.ambient_light_color = Color(0.42, 0.40, 0.37)
 	env.ambient_light_energy = 0.3
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.05
+	# A touch under neutral: the picture reads calmer and highlights keep
+	# their detail. Torch pools in the dungeon still stand out against the
+	# dark, as stealth only cares about the light geometry, not the exposure.
+	env.tonemap_exposure = 0.95
 	env.glow_enabled = true
 	env.glow_intensity = 0.7
 	env.glow_bloom = 0.05
@@ -217,13 +220,13 @@ func _setup_world() -> void:
 ## Dark dungeon air or a golden autumn evening in the open.
 func _set_atmosphere(outdoor: bool) -> void:
 	if outdoor:
-		_env.background_color = Color(0.55, 0.5, 0.62)
+		_env.background_color = Color(0.5, 0.46, 0.57)
 		_env.ambient_light_color = Color(0.7, 0.68, 0.78)
-		_env.ambient_light_energy = 0.6
+		_env.ambient_light_energy = 0.52
 		_env.adjustment_saturation = 0.95
 		_moon.rotation_degrees = Vector3(-38, -35, 0)
 		_moon.light_color = Color(1.0, 0.8, 0.6)
-		_moon.light_energy = 1.0
+		_moon.light_energy = 0.88
 	else:
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)

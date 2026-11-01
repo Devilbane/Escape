@@ -64,6 +64,12 @@ var met := {}
 ## The villagers' tasks: offered, running and finished (see Quests). Kept in
 ## the saved game, so every hero has their own.
 var quests := Quests.new(self)
+## How many mornings have dawned in the world above ground since the game
+## began. The bounty board pins up fresh hunts each morning (see Bounties).
+var day := 0
+## The hunts on the bounty board: posted, taken on and paid (see Bounties).
+## Kept in the saved game.
+var bounties := Bounties.new(self)
 ## Counts down to the next look at who has a task (see refresh_quest_marks).
 var _quest_mark_timer := 0.0
 ## Village buildings with floors of their own: building letter -> level index.
@@ -1057,13 +1063,38 @@ func _tick_clock(delta: float) -> void:
 	if level == null or not (level.outdoor or level.building != ""):
 		return
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
+		var before := day_hour
 		day_hour = DayNight.advance(day_hour, delta)
+		if _dawn_between(before, day_hour):
+			_new_day()
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
 		if level is Outdoor:
 			level.set_hour(day_hour)
 	if _clock_text() != _clock_shown:
 		_update_hud()
+
+
+## Whether the clock passed dawn (see Bounties.DAWN) going forward from one
+## hour to the other, at most one day later.
+static func _dawn_between(from: float, to: float) -> bool:
+	var dawn := Bounties.DAWN
+	if to >= from:
+		return from < dawn and to >= dawn
+	return from < dawn or to >= dawn
+
+
+## A new morning: fresh notices on the bounty board, and the hunts not
+## finished in time are over.
+func _new_day(quiet := false) -> void:
+	day += 1
+	var expired := bounties.refresh(day)
+	if quiet or not escaped:
+		return
+	var text := Lang.t("Ein neuer Morgen: frische Kopfgelder am Aushang.")
+	if expired > 0:
+		text += "\n" + Lang.t("Nicht erledigte Jagden vom Vortag sind verfallen: %d") % expired
+	quest_news(text, Color(1.0, 0.82, 0.4), 4.0)
 
 
 # --- Flow -------------------------------------------------------------------
@@ -1305,6 +1336,9 @@ func _start_new_game() -> void:
 	builds.clear()
 	met.clear()
 	quests.clear()
+	day = 0
+	bounties.clear()
+	bounties.refresh(day)
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
@@ -1571,6 +1605,9 @@ func _apply_save(data: Dictionary) -> void:
 			if Villager.ROLES.has(str(role)):
 				met[str(role)] = true
 	quests.load_from(data.get("quests", {}))
+	day = maxi(0, int(data.get("day", 0)))
+	bounties.load_from(data.get("bounties", {}))
+	bounties.refresh(day)
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
@@ -1676,6 +1713,7 @@ func save_game(going_away := false) -> bool:
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
+		"day": day, "bounties": bounties.for_save(),
 		"hour": day_hour,
 	}
 	if going_away:
@@ -1712,6 +1750,8 @@ func _looted_for_save() -> Dictionary:
 func sleep() -> void:
 	# A night in the bed: the hero wakes up the next morning.
 	if level.outdoor or level.building != "":
+		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
+			_new_day(true)
 		day_hour = DayNight.WAKE_HOUR
 	var saved := save_game(true)
 	# Say so at once, so nobody has to wonder whether the save went through.
@@ -2011,6 +2051,7 @@ func refresh_quest_marks() -> void:
 	for v in level.villagers:
 		if is_instance_valid(v):
 			v.set_quest_mark(quests.mark(v.role))
+	(level as Outdoor).set_board_mark(bounties.mark())
 
 
 ## Something in the bag changed because of a task.
@@ -2119,6 +2160,7 @@ func _gold(amount: int) -> int:
 func _on_enemy_killed(enemy: Enemy) -> void:
 	show_message(enemy.fall_text(), 2.5)
 	var drop := quests.on_kill(enemy.kind)
+	bounties.on_kill(enemy.kind)
 	if drop != "":
 		level._drop_item(drop, enemy.global_position + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
 	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:

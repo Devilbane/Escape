@@ -87,7 +87,7 @@ const KINDS := {
 	# assets/lair, FBX files: "ext"). Bats and the dragon only ever fly, so
 	# every move plays their flying loop; "lift" raises the model off the
 	# floor. The dragon spits fire from afar ("fire": orange orbs that
-	# burn instead of curse).
+	# burn instead of curse); it is a boss with a fight of its own (see Dragon).
 	"fledermaus": {"model": "Bat", "dir": "lair", "ext": "fbx", "hp": 1, "speed": 6.6, "damage": 1, "reach": 1.9, "size": 0.8, "cooldown": 1.0,
 		"beast": true, "roam": true, "model_scale": 0.62, "turn": 0.0, "run_anim": 6.0, "lift": 1.0,
 		"anims": {"Idle": "BatArmature|Bat_Flying", "Walking_A": "BatArmature|Bat_Flying", "Running_A": "BatArmature|Bat_Flying",
@@ -98,7 +98,7 @@ const KINDS := {
 		"anims": {"Idle": "Armature|Slime_Idle", "Walking_A": "Armature|Slime_Walk", "Running_A": "Armature|Slime_Walk",
 			"1H_Melee_Attack_Chop": "Armature|Slime_Attack", "Hit_A": "Armature|Slime_Idle", "Death_A": "Armature|Slime_Death"},
 		"voice": ["voice_koloss", 1.5, "blubb"], "purse": [1, 3], "gear_chance": 0.15, "poison": 0.35},
-	"drache": {"model": "Dragon", "dir": "lair", "ext": "fbx", "hp": 16, "speed": 3.4, "damage": 2, "reach": 14.0, "size": 1.6, "cooldown": 2.2,
+	"drache": {"model": "Dragon", "dir": "lair", "ext": "fbx", "hp": 36, "speed": 3.4, "damage": 2, "reach": 14.0, "size": 1.6, "cooldown": 2.2,
 		"beast": true, "ranged": true, "fire": true, "model_scale": 0.6, "turn": 0.0, "run_anim": 4.0, "lift": 1.0,
 		"anims": {"Idle": "DragonArmature|Dragon_Flying", "Walking_A": "DragonArmature|Dragon_Flying", "Running_A": "DragonArmature|Dragon_Flying",
 			"1H_Melee_Attack_Chop": "DragonArmature|Dragon_Attack", "1H_Ranged_Shoot": "DragonArmature|Dragon_Attack2",

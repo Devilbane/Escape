@@ -155,13 +155,15 @@ func _rebuild() -> void:
 			_build_plan()
 		"rueckkehr":
 			_build_return()
+		"hoehle":
+			_build_lair_won()
 	if current in ["inventar", "lager", "tresor"]:
 		_info = _add_label(Lang.t(INFO_HINT), 18, BLUE)
 		_info.custom_minimum_size.y = 26
 	if _note != "":
 		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
 	# The inventory has its own "Back to game" button at the top instead.
-	if not current in ["inventar", "bett", "laden", "beenden", "plan", "rueckkehr"]:
+	if not current in ["inventar", "bett", "laden", "beenden", "plan", "rueckkehr", "hoehle"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
 		close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		close_button.custom_minimum_size = Vector2(180, 52)
@@ -1478,6 +1480,32 @@ func _build_quit() -> void:
 	var cancel: Button = game._make_button(Lang.t("Abbrechen"), close)
 	cancel.custom_minimum_size = Vector2(220, 60)
 	row.add_child(cancel)
+
+
+## The dragon has fallen: the lair is won. Says so, counts the fallen
+## monsters, and offers the way out or a last look round for gold.
+func _build_lair_won() -> void:
+	_add_label(Lang.t("Höhle bezwungen!"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Der Drache ist tot, und sein Schatz gehört dir."), 22)
+	# A fallen monster sinks away and is gone: only the living still count.
+	var monsters: Array = game.level.enemies
+	var fallen := monsters.filter(func(e): return not is_instance_valid(e) or e.dead).size()
+	_add_label(Lang.t("Besiegte Monster: %d von %d") % [fallen, monsters.size()], 20, BLUE)
+	var hint := _add_label(Lang.t("Wo der Drache fiel, leuchtet jetzt ein goldener Ausgang. Tritt hinein, und du stehst wieder vor dem Steinbogen im Wald."), 18, Color(1.0, 0.85, 0.55))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size.x = RETURN_TEXT_WIDTH
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	_box.add_child(row)
+	var leave: Button = game._make_button(Lang.t("Höhle verlassen"), func():
+		close()
+		game.leave_lair())
+	leave.custom_minimum_size = Vector2(260, 60)
+	row.add_child(leave)
+	var stay: Button = game._make_button(Lang.t("Bleiben und Beute sammeln"), close)
+	stay.custom_minimum_size = Vector2(300, 60)
+	row.add_child(stay)
 
 
 func _build_bed() -> void:

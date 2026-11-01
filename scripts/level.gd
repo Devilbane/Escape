@@ -905,52 +905,83 @@ func _facing_room(c: Vector2i) -> float:
 	return 0.0
 
 
-## A round stone basin with a spout of glowing water.
+## Carved stone for pieces built in code (the fountain): the rough, matt stone
+## shader on a plain colour, so its stains, grain and pits give the stone its
+## look without a kit texture. Shared per colour.
+func _plain_stone(color: Color) -> Material:
+	var key := "mat_plain_stone_" + color.to_html()
+	if not _scenes.has(key):
+		if not _scenes.has("tex_white"):
+			var img := Image.create(4, 4, false, Image.FORMAT_RGB8)
+			img.fill(Color.WHITE)
+			_scenes["tex_white"] = ImageTexture.create_from_image(img)
+		var stone := ShaderMaterial.new()
+		stone.shader = STONE_SHADER
+		stone.set_shader_parameter("albedo_tex", _scenes["tex_white"])
+		stone.set_shader_parameter("albedo_color", color)
+		stone.set_shader_parameter("use_normal_map", false)
+		stone.set_shader_parameter("strength", 1.7)
+		_scenes[key] = stone
+	return _scenes[key]
+
+
+const WATER_SHADER := preload("res://shaders/water.gdshader")
+
+## The healing fountain: an eight-sided basin of matt carved stone on a low
+## step, a column with a small bowl on top, and a spout whose water falls
+## back into the basin. The water glows faintly and breathes, with a few
+## motes drifting over it, since it heals.
 func _build_fountain(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.4, 0.4, 0.48)
-	stone.roughness = 0.9
-	var water := StandardMaterial3D.new()
-	water.albedo_color = Color(0.25, 0.6, 1.0, 0.85)
-	water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	water.emission_enabled = true
-	water.emission = Color(0.2, 0.55, 1.0)
-	water.emission_energy_multiplier = 0.8
-	water.roughness = 0.1
-	# Basin wall, water surface, centre column and the bowl on top.
-	for part in [[1.5, 1.5, 0.8, 0.4, stone], [1.3, 1.3, 0.05, 0.75, water], [0.3, 0.4, 1.8, 0.9, stone], [0.7, 0.3, 0.3, 1.9, stone], [0.6, 0.6, 0.05, 2.04, water]]:
-		var mesh := CylinderMesh.new()
-		mesh.top_radius = part[0]
-		mesh.bottom_radius = part[1]
-		mesh.height = part[2]
-		mesh.radial_segments = 24
+	var stone := _plain_stone(Color(0.56, 0.54, 0.5))
+	# The inside of the basin stays wet and dark.
+	var wet := _plain_stone(Color(0.3, 0.31, 0.32))
+	var water := ShaderMaterial.new()
+	water.shader = WATER_SHADER
+	var still := ShaderMaterial.new()
+	still.shader = WATER_SHADER
+	still.set_shader_parameter("rings", 0.3)
+	still.set_shader_parameter("ring_spacing", 45.0)
+	# [inner radius, outer radius, bottom, top, sides, material]
+	var parts := [
+		[0.0, 1.85, 0.0, 0.22, 8, stone],  # the step
+		[1.3, 1.55, 0.22, 1.0, 8, stone],  # the basin's wall
+		[1.25, 1.68, 1.0, 1.14, 8, stone],  # its coping, a little wider
+		[0.0, 1.31, 0.22, 0.4, 8, wet],  # the basin's floor
+		[0.0, 1.3, 0.4, 0.92, 24, water],  # the water
+		[0.0, 0.46, 0.4, 0.62, 8, stone],  # the column's foot
+		[0.0, 0.3, 0.62, 1.94, 8, stone],  # the column
+		[0.0, 0.52, 1.94, 2.06, 8, stone],  # its capital
+		[0.5, 0.74, 2.06, 2.38, 8, stone],  # the bowl on top
+		[0.0, 0.51, 2.06, 2.14, 8, wet],  # the bowl's floor
+		[0.0, 0.5, 2.14, 2.3, 24, still],  # the bowl's water
+	]
+	for part in parts:
 		var node := MeshInstance3D.new()
-		node.mesh = mesh
-		node.material_override = part[4]
-		node.position = pos + Vector3(0, part[3], 0)
+		node.mesh = Effects.ring_mesh(part[0], part[1], part[2], part[3], part[4], part[5])
+		node.position = pos
+		if part[5] == water or part[5] == still:
+			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(node)
-	var spray := CPUParticles3D.new()
-	spray.amount = 40
-	spray.lifetime = 1.0
-	spray.mesh = SphereMesh.new()
-	(spray.mesh as SphereMesh).radius = 0.06
-	(spray.mesh as SphereMesh).height = 0.12
-	spray.material_override = water
-	spray.direction = Vector3.UP
-	spray.spread = 25.0
-	spray.initial_velocity_min = 2.5
-	spray.initial_velocity_max = 3.2
-	spray.gravity = Vector3(0, -9.0, 0)
-	spray.position = pos + Vector3(0, 2.1, 0)
+	var spray := Effects.make_spray(Color(0.75, 0.92, 0.95))
+	spray.position = pos + Vector3(0, 2.3, 0)
 	add_child(spray)
+	var motes := Effects.make_sparkles(Color(0.6, 0.9, 0.9))
+	motes.amount = 8
+	motes.emission_sphere_radius = 1.1
+	motes.position = pos + Vector3(0, 1.2, 0)
+	add_child(motes)
 	var glow := OmniLight3D.new()
-	glow.light_color = Color(0.4, 0.7, 1.0)
-	glow.light_energy = 1.5
-	glow.omni_range = 6.0
-	glow.position = pos + Vector3(0, 2.0, 0)
+	glow.light_color = Color(0.5, 0.85, 0.85)
+	glow.light_energy = 0.9
+	glow.omni_range = 6.5
+	glow.position = pos + Vector3(0, 1.8, 0)
 	add_child(glow)
-	_add_solid(pos, Vector3(3.0, 2, 3.0))
+	# The glow breathes slowly, like the water.
+	var tween := glow.create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(glow, "light_energy", 1.15, 2.4)
+	tween.tween_property(glow, "light_energy", 0.75, 2.4)
+	_add_solid(pos, Vector3(3.2, 2, 3.2))
 	_light_spots.append(pos)
 	stations.append({"kind": "brunnen", "cell": c, "pos": pos, "used": false})
 

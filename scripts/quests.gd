@@ -6,7 +6,8 @@ extends RefCounted
 ##   kill     defeat `count` enemies of the kinds in `targets`
 ##   fetch    bring `count` of the item `item` (taken from the bag)
 ##   deliver  carry the item `item`, handed over by the giver, to villager `to`
-## A task may need another one finished first (`after`). The reward is
+## A task may need another one finished first (`after`), or the giver to
+## think well of the hero first (`standing`, a Reputation level). The reward is
 ## `gold` and maybe an `item`. Every text is German and has an English entry
 ## in Lang; `remind` may hold one %d (how many are still missing).
 ## The state of every task is kept in the hero's saved game (see Game).
@@ -64,6 +65,13 @@ const ALL := {
 		"offer": "Die Wache sagt, du hast am Pass aufgeräumt. Jetzt der Hauptmann am Lagerfeuer! Besiege ihn, und die Gilde zahlt 40 Gold und einen Schattenumhang.",
 		"remind": "Der Hauptmann sitzt am Lagerfeuer im Räuberlager. Nimm Heiltränke mit.",
 		"done": "Der Hauptmann ist besiegt? Die Gilde ist stolz auf dich! Hier sind 40 Gold und ein Schattenumhang."},
+	# Gorm and Hagen have quarrelled for years (see VillageTalk): this ends it.
+	"versoehnung": {"giver": "S", "kind": "deliver", "item": "wetzstein", "to": "1", "gold": 12, "standing": 1,
+		"title": "Ein Stein für den Schmied",
+		"goal": "Bring Steinmetz Hagens Wetzstein zu Schmied Gorm an seiner Esse.",
+		"offer": "Gorm und ich streiten seit Jahren. Bring ihm diesen Wetzstein aus meinem Bruch. Vielleicht ist dann endlich Ruhe.",
+		"remind": "Der Wetzstein ist für Schmied Gorm an seiner Esse.",
+		"done": "Von Hagen? Ein Wetzstein aus seinem Bruch... Der ist gut. Sag ihm Danke von mir. Hier sind 12 Gold."},
 }
 
 ## Explained once in the compendium, the first time a villager hands out a task.
@@ -96,7 +104,10 @@ func is_available(id: String) -> bool:
 	if state.has(id):
 		return false
 	var after: String = ALL[id].get("after", "")
-	return after == "" or is_done(after)
+	if after != "" and not is_done(after):
+		return false
+	var standing := int(ALL[id].get("standing", 0))
+	return standing <= 0 or (game != null and game.reputation.level(ALL[id].giver) >= standing)
 
 
 ## What is kept in the saved game: only plain values.

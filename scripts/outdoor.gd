@@ -35,6 +35,8 @@ extends Level
 ##   windows of the houses glow at night, most villagers go home to sleep,
 ##   the dead rise from the graves and roam the graveyard until dawn, and
 ##   the bandits of the pass are bolder in the dark.
+##   The wolf hollow north of the pass, where beasts roam and come back the
+##   same way: W wolf, H orc, J yeti, U spider.
 ##   v  a stone pedestal with a food basket on top, too high to reach from
 ##      the ground or from one crate: stack two crates beside it. Three
 ##      wooden crates lie close by (see Crate).
@@ -50,7 +52,7 @@ signal food_basket(heal: int)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZScAXQ"
+const WALK := ".,Pai:0123456789KOGMYZScAXQWHJU"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
@@ -98,7 +100,8 @@ const CHIEF_DROP_CHANCE := 0.5
 ## away the hero must be for that to happen out of sight.
 const BANDIT_RESPAWN := 150.0
 const RESPAWN_FAR := 40.0
-## The hero is warned about the pass when a bandit's spot is this close (metres).
+## The hero is warned about the pass (or the wolf hollow) when a bandit's
+## (or a beast's) spot is this close (metres).
 const WILD_WARNING_RANGE := 16.0
 ## Remembered in the saved game once the bandit chief has fallen: he does
 ## not come back. His spot stays empty from then on.
@@ -151,6 +154,7 @@ var _herald_timer := randf_range(HERALD_FIRST_MIN, HERALD_FIRST_MAX)
 ## it is gone), seconds until the next one arrives, and how many came so far.
 var _wild: Array = []
 var _wild_warned := false
+var _beasts_warned := false
 ## The bandit chief while he stands, his health bar, and the cutthroats he
 ## called in to help (they do not come back once they fall).
 var chief: BanditChief
@@ -1099,13 +1103,18 @@ func chief_defeated() -> bool:
 	return taken.has(CHIEF_DEFEATED)
 
 
-## Puts a bandit on its spot. When it falls it leaves gold and maybe a piece
-## of its gear, and after a while another comes to take its place.
+## Puts a bandit (or a beast) on its spot. When it falls it leaves gold and
+## maybe a piece of its gear, and after a while another comes to take its
+## place. Beasts carry what their kind says (see "purse" and "gear_chance"
+## in Enemy.KINDS): a wolf hardly anything, an orc or the yeti more.
 func _spawn_bandit(s: Dictionary) -> void:
+	var stats: Dictionary = Enemy.KINDS[s.kind]
 	var is_chief: bool = s.kind == "hauptmann"
+	var gear_chance: float = stats.get("gear_chance", CHIEF_GEAR_CHANCE if is_chief else BANDIT_GEAR_CHANCE)
+	var purse: Array = stats.get("purse", [CHIEF_GOLD, CHIEF_GOLD] if is_chief else [1, 3])
 	var e: Enemy = BanditChief.new() if is_chief else Enemy.new()
 	e.kind = s.kind
-	e.gear = _roll_gear(e.kind, s.cell, CHIEF_GEAR_CHANCE if is_chief else BANDIT_GEAR_CHANCE, s.wave)
+	e.gear = _roll_gear(e.kind, s.cell, gear_chance, s.wave) if gear_chance > 0.0 else ([] as Array[String])
 	# Bandits who come out at night are tougher (see Enemy.night).
 	e.night = night
 	e.level = self
@@ -1114,7 +1123,7 @@ func _spawn_bandit(s: Dictionary) -> void:
 	e.died.connect(func():
 		enemy_killed.emit(e)
 		_drop_gear(e, CHIEF_DROP_CHANCE if is_chief else BANDIT_DROP_CHANCE)
-		_drop_coins(e.global_position, CHIEF_GOLD if is_chief else randi_range(1, 3))
+		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
 		s.enemy = null
 		s.timer = BANDIT_RESPAWN * (NIGHT_RESPAWN_FACTOR if night else 1.0)
 		if is_chief:
@@ -1192,19 +1201,32 @@ func _mind_the_wild(delta: float) -> void:
 		s.timer -= delta
 		if s.timer <= 0.0 and _flat_distance(player.global_position, cell_to_world(s.cell)) > RESPAWN_FAR:
 			_spawn_bandit(s)
-	if not _wild_warned:
-		for s in _wild:
-			if _flat_distance(player.global_position, cell_to_world(s.cell)) < WILD_WARNING_RANGE:
-				_wild_warned = true
-				notice.emit(Lang.t("Der Räuberpass! Hier lauern Räuber. Wer sie besiegt, nimmt ihre Beute."), 4.5)
-				break
+	for s in _wild:
+		var beast: bool = Enemy.KINDS[s.kind].get("beast", false)
+		if (_beasts_warned if beast else _wild_warned) or _flat_distance(player.global_position, cell_to_world(s.cell)) >= WILD_WARNING_RANGE:
+			continue
+		if beast:
+			_beasts_warned = true
+			notice.emit(Lang.t("Die Wolfssenke! Wölfe, Orks, Spinnen und ein Yeti streifen hier umher."), 4.5)
+		else:
+			_wild_warned = true
+			notice.emit(Lang.t("Der Räuberpass! Hier lauern Räuber. Wer sie besiegt, nimmt ihre Beute."), 4.5)
 
 
 ## How many bandits stand on the pass right now.
 func bandits_alive() -> int:
 	var n := 0
 	for s in _wild:
-		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
+		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead and s.enemy.is_human():
+			n += 1
+	return n
+
+
+## How many beasts roam the wolf hollow right now.
+func beasts_alive() -> int:
+	var n := 0
+	for s in _wild:
+		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead and s.enemy.is_beast():
 			n += 1
 	return n
 

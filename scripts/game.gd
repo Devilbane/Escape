@@ -2018,7 +2018,7 @@ func _gold(amount: int) -> int:
 
 
 func _on_enemy_killed(enemy: Enemy) -> void:
-	show_message(Lang.t("Der Räuber geht zu Boden.") if enemy.is_human() else Lang.t("Das Skelett zerfällt zu Staub."), 2.5)
+	show_message(enemy.fall_text(), 2.5)
 	var drop := quests.on_kill(enemy.kind)
 	if drop != "":
 		level._drop_item(drop, enemy.global_position + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))

@@ -1,0 +1,15 @@
+The beasts of the wild (wolf hollow north of the robbers' pass)
+
+Wolf.glb    "Wolf" from "Ultimate Animated Animals" (July 2021) by Quaternius
+Orc.glb     "Orc" from the "Big" set of "Ultimate Monsters" by Quaternius
+Yeti.glb    "Yeti" from the "Big" set of "Ultimate Monsters" by Quaternius
+Spider.glb  "Spider" from "Easy Animated Enemy Pack" (Jan 2019) by Quaternius
+*_Atlas_Monsters.png  the shared colour atlas of "Ultimate Monsters"
+
+https://quaternius.com
+License: Creative Commons Zero (CC0 1.0), public domain.
+http://creativecommons.org/publicdomain/zero/1.0/
+
+The models were converted to binary glTF (.glb) for the game and only the
+animations it plays were kept (idle, walk, run, attack, hit, death); the
+spider was converted from FBX. Nothing else was changed.

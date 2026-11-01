@@ -71,7 +71,7 @@ func _process(_delta: float) -> bool:
 			print("bandits on the pass: ", kinds)
 			check(lvl.bandits_alive() >= 5, "at least five bandits roam the pass")
 			check(kinds.has("hauptmann") and kinds.has("halsabschneider") and kinds.has("wilderer") and kinds.has("schlaeger"), "every kind of bandit is there")
-			check(lvl.enemies.all(func(e): return e.is_human()), "no skeletons in the open")
+			check(lvl.enemies.all(func(e): return e.is_human() or e.is_beast()), "no skeletons in the open")
 			# The village stays safe: the market square is far out of reach.
 			var square: Vector3 = lvl.spots.square[0]
 			for e in lvl.enemies:

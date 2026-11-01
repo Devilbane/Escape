@@ -12,6 +12,11 @@ extends CharacterBody3D
 ## people, not bones, in the adventurer models. They roam around their camp
 ## instead of standing guard, taunt the hero instead of groaning, and drop
 ## gold and gear when they fall (see Outdoor).
+##
+## Beasts live in the wild too: wolves, orcs, spiders and a yeti in the hollow north
+## of the pass. They are animals and monsters with models of their own, so
+## each kind maps the animation names this class plays onto its model's own
+## ("anims"), and they hold no weapons and wear no clothes.
 
 signal died
 
@@ -49,11 +54,37 @@ const KINDS := {
 	# The chief is the boss of the pass (see BanditChief).
 	"hauptmann": {"model": "Knight", "dir": "characters", "weapon": "sword_1handed", "shield": "shield_round", "hp": 20, "speed": 4.2, "damage": 2, "reach": 2.2, "size": 1.1, "cooldown": 1.4,
 		"human": true, "roam": true, "parts": ["Knight_Cape"], "colors": [Color(0.45, 0.14, 0.12), Color(0.22, 0.2, 0.2), Color(0.5, 0.1, 0.1)]},
+	# The beasts of the wild (Quaternius models in assets/wild): "beast"
+	# kinds bite or claw instead of holding a weapon. "anims" maps the
+	# animation names played here to the model's own, "model_scale" and
+	# "turn" fit the model to the hero's size and facing, "run_anim" is the
+	# ground speed (m/s) the run animation was made for, "voice" is a growl
+	# (sound, pitch, comic word), "purse" the gold a fallen one leaves and
+	# "gear_chance" how likely it carries a piece of gear.
+	"wolf": {"model": "Wolf", "dir": "wild", "hp": 2, "speed": 6.2, "damage": 1, "reach": 2.0, "size": 1.0, "cooldown": 1.2,
+		"beast": true, "roam": true, "model_scale": 0.65, "turn": 0.0, "run_anim": 6.0,
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Gallop", "1H_Melee_Attack_Chop": "Attack", "Hit_A": "Idle_HitReact1", "Death_A": "Death"},
+		"voice": ["voice_koloss", 1.6, "knurr"], "purse": [0, 1], "gear_chance": 0.0},
+	"ork": {"model": "Orc", "dir": "wild", "hp": 5, "speed": 4.0, "damage": 2, "reach": 2.2, "size": 1.1, "cooldown": 1.7,
+		"beast": true, "roam": true, "model_scale": 0.9, "turn": 0.0, "run_anim": 4.5,
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
+		"voice": ["voice_krieger", 0.7, "grunz"], "purse": [2, 5], "gear_chance": 0.5},
+	"yeti": {"model": "Yeti", "dir": "wild", "hp": 9, "speed": 3.6, "damage": 2, "reach": 2.6, "size": 1.4, "cooldown": 2.0,
+		"beast": true, "roam": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
+		"voice": ["voice_koloss", 0.75, "BRÜLL"], "purse": [4, 8], "gear_chance": 0.4},
+	# The spider's model has no flinch of its own: it hops back instead.
+	"spinne": {"model": "Spider", "dir": "wild", "hp": 3, "speed": 5.0, "damage": 1, "reach": 2.0, "size": 1.0, "cooldown": 1.3,
+		"beast": true, "roam": true, "model_scale": 0.6, "turn": 0.0, "run_anim": 3.0,
+		"anims": {"Idle": "HumanArmature|Spider_Idle", "Walking_A": "HumanArmature|Spider_Walk", "Running_A": "HumanArmature|Spider_Walk",
+			"1H_Melee_Attack_Chop": "HumanArmature|Spider_Attack", "Hit_A": "HumanArmature|Spider_Jump", "Death_A": "HumanArmature|Spider_Death"},
+		"voice": ["voice_wicht", 1.4, "zisch"], "purse": [0, 2], "gear_chance": 0.0, "poison": 0.3},
 }
 ## Which map letter places which kind.
 const LETTERS := {"M": "krieger", "A": "schuetze", "Z": "magier", "w": "wicht", "G": "koloss", "W": "waechter"}
 ## The letters of the open-air map that place bandits (see Outdoor).
-const WILD_LETTERS := {"c": "halsabschneider", "A": "wilderer", "X": "schlaeger", "Q": "hauptmann"}
+const WILD_LETTERS := {"c": "halsabschneider", "A": "wilderer", "X": "schlaeger", "Q": "hauptmann",
+	"W": "wolf", "H": "ork", "J": "yeti", "U": "spinne"}
 ## Body parts every adventurer model keeps; the rest shows only when a kind asks for it.
 const BODY_PARTS := ["Body", "Head", "ArmLeft", "ArmRight", "LegLeft", "LegRight"]
 ## How far from home a roaming bandit wanders (tiles), and how far it will
@@ -171,12 +202,24 @@ func _ready() -> void:
 	shape.position.y = 1.2 * size
 	add_child(shape)
 
-	_model = load("res://assets/%s/%s.glb" % [_stats.get("dir", "enemies"), _stats.model]).instantiate()
+	var body: Node3D = load("res://assets/%s/%s.glb" % [_stats.get("dir", "enemies"), _stats.model]).instantiate()
+	if is_beast():
+		# A pivot turns and scales the beast's model to fit; the class only
+		# ever turns the pivot.
+		_model = Node3D.new()
+		_model.add_child(body)
+		body.rotation.y = _stats.turn
+		body.scale = Vector3.ONE * _stats.model_scale
+	else:
+		_model = body
 	add_child(_model)
 	_model.rotation.y = PI
 	_model.scale = Vector3.ONE * size
 	if is_human():
 		_dress()
+	if is_beast():
+		_ready_beast()
+		return
 	var skeleton: Skeleton3D = _model.find_child("Skeleton3D", true, false)
 	var weapon := _worn("waffe")
 	if weapon.has("model") and not ranged:
@@ -219,6 +262,40 @@ func girth() -> float:
 ## Whether this is a person (a bandit) rather than a skeleton.
 func is_human() -> bool:
 	return _stats.get("human", false)
+
+
+## Whether this is an animal or monster of the wild.
+func is_beast() -> bool:
+	return _stats.get("beast", false)
+
+
+## What the message line says when this one falls.
+func fall_text() -> String:
+	match kind:
+		"wolf":
+			return Lang.t("Der Wolf bleibt liegen.")
+		"ork":
+			return Lang.t("Der Ork geht zu Boden.")
+		"yeti":
+			return Lang.t("Der Yeti stürzt um.")
+		"spinne":
+			return Lang.t("Die Spinne rollt sich zusammen.")
+	return Lang.t("Der Räuber geht zu Boden.") if is_human() else Lang.t("Das Skelett zerfällt zu Staub.")
+
+
+## The rest of _ready for a beast: no weapon, no tint, its own animations.
+func _ready_beast() -> void:
+	_anim = _model.find_child("AnimationPlayer", true, false)
+	var anims: Dictionary = _stats.anims
+	for a in ["Idle", "Walking_A", "Running_A"]:
+		if _anim.has_animation(anims[a]):
+			_anim.get_animation(anims[a]).loop_mode = Animation.LOOP_LINEAR
+	_play("Idle")
+	_cooldown = randf_range(0.5, 1.5)
+	_look_angle = randf() * TAU
+	_model.rotation.y = _look_angle
+	_look_timer = randf_range(2.0, 5.0)
+	_voice_timer = randf_range(2.0, 10.0)
 
 
 ## Bandits keep only their body and the parts their kind asks for, and
@@ -305,11 +382,13 @@ func _glowing_eyes() -> void:
 	add_child(glow)
 
 
+## `anim_name` is one of the skeleton models' animation names; a beast plays
+## its own animation for it (see "anims" in KINDS).
 func _play(anim_name: String, blend := 0.2) -> void:
 	if _current_anim == anim_name:
 		return
 	_current_anim = anim_name
-	_anim.play(anim_name, blend)
+	_anim.play(_stats.get("anims", {}).get(anim_name, anim_name), blend)
 
 
 func _play_once(anim_name: String, duration: float) -> void:
@@ -362,8 +441,8 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	Effects.float_text(level, global_position + Vector3(0, 2.2 * _stats.size, 0), "-%d" % damage, Color(1, 0.45, 0.35))
 	# The comic word below makes the sound of the blow.
 	if hp <= 0:
-		if is_human():
-			# No bones to rattle: a person goes down with a thud.
+		if is_human() or is_beast():
+			# No bones to rattle: a person or a beast goes down with a thud.
 			Comic.pop(global_position, "backstab" if kind == "backstab" else "big")
 			Sfx.play(self, "hit", -2.0, global_position)
 		else:
@@ -513,7 +592,8 @@ func _physics_process(delta: float) -> void:
 	_voice(delta, dist)
 	# Feet keep pace with the ground; bigger skeletons take longer strides.
 	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
-	_anim.speed_scale = clampf(ground_speed / (Player.RUN_ANIM_SPEED * float(_stats.size)), 0.5, 2.5) if _current_anim == "Running_A" else 1.0
+	var run_anim: float = _stats.get("run_anim", Player.RUN_ANIM_SPEED)
+	_anim.speed_scale = clampf(ground_speed / (run_anim * float(_stats.size)), 0.5, 2.5) if _current_anim == "Running_A" else 1.0
 
 
 ## A skeleton hidden in the dark can still be heard: footsteps and a faint
@@ -546,9 +626,14 @@ func _voice(delta: float, dist: float) -> void:
 			Effects.float_text(level, global_position + Vector3(0, 3.0 * _stats.size, 0), Lang.t(TAUNTS[randi() % TAUNTS.size()]), Color(1.0, 0.85, 0.6, 0.9))
 		return
 	var db := lerpf(-28.0, 2.0, pow(near, 1.4)) + (3.0 if _awake else 0.0)
-	Sfx.play(level, "voice_%s_%d" % [kind, randi() % 2], db, global_position, lerpf(0.9, 1.1, near))
+	# A beast growls with a skeleton's voice, pitched to its size.
+	var voice: Array = _stats.get("voice", ["voice_" + kind, 1.0, VOICE_WORDS.get(kind, "")])
+	Sfx.play(level, "%s_%d" % [voice[0], randi() % 2], db, global_position, lerpf(0.9, 1.1, near) * voice[1])
+	if is_beast() and _awake and near > 0.4:
+		# On the hunt it snarls where the hero can see it, too.
+		Effects.float_text(level, global_position + Vector3(0, 2.4 * _stats.size, 0), Lang.t(voice[2]).to_upper() + "!", Color(1.0, 0.7, 0.55, 0.9))
 	if not visible:
-		var word: String = Lang.t(VOICE_WORDS[kind])
+		var word: String = Lang.t(voice[2])
 		if near > 0.6:
 			word = word.to_upper() + "!"
 		Effects.float_text(level, global_position + Vector3(0, 1.6, 0), word, Color(0.75, 0.72, 0.8, lerpf(0.4, 0.9, near)))
@@ -719,8 +804,8 @@ func _strike(player: Player) -> void:
 	if d.length() < float(_stats.reach) + 0.6 and not level.stacked(self, player):
 		var before := player.hp
 		player.take_damage(_stats.damage, global_position, self)
-		# Minion blades are sometimes poisoned.
-		if kind == "wicht" and player.hp < before and randf() < POISON_CHANCE:
+		# Minion blades and spider bites are sometimes poisoned.
+		if player.hp < before and randf() < _stats.get("poison", POISON_CHANCE if kind == "wicht" else 0.0):
 			player.afflict("gift")
 
 

@@ -64,6 +64,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/reputation.gd | tee reputation.log
           grep -q PASS reputation.log
 
+      - name: Crafting square test
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/crafting_square.gd | tee crafting_square.log
+          grep -q PASS crafting_square.log
+
       - name: Graveyard start after the escape test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/graveyard_start.gd | tee graveyard.log

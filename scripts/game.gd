@@ -719,6 +719,7 @@ func _use_station(s: Dictionary) -> void:
 		_drink(s)
 	else:
 		player.face(s.pos - player.global_position)
+		menus.bench = s.get("craft", "")
 		menus.open(s.kind)
 
 
@@ -2738,6 +2739,7 @@ func _process(delta: float) -> void:
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
+			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
 		}[station.kind]
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")

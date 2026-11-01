@@ -44,6 +44,9 @@ extends Level
 ##   where the moon trout bites at night (see Fishing).
 ##   Peaceful animals that graze in the woods and bolt from the hero
 ##   (see Animal): D doe, V stag, & fox.
+##   The crafting square on the west side of the market square, beside
+##   Gorm's forge (see CraftingSquare): +  fine metalwork bench
+##   %  gem cutter's wheel   *  alchemist's table   $  the hero's storage chest
 ##   E  the way down into the dragon's lair: a stone arch over stairs into
 ##      the dark (a block of tiles, see Level "lair: yes")
 ##   v  a stone pedestal with a food basket on top, too high to reach from
@@ -526,7 +529,9 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			loot_rng.seed = hash("%s:hoard:%d:%d" % [level_name, c.x, c.y])
 			interactables[-1].loot = {"gold": 20, "item": Items.random_item(loot_rng, 20)}
 		_:
-			if Enemy.WILD_LETTERS.has(ch):
+			if CraftingSquare.LETTERS.contains(ch):
+				CraftingSquare.build(self, c, ch)
+			elif Enemy.WILD_LETTERS.has(ch):
 				_wild.append({"cell": c, "kind": Enemy.WILD_LETTERS[ch], "enemy": null, "timer": 0.0, "wave": 0})
 			elif Animal.LETTERS.has(ch):
 				_animal_spots.append({"cell": c, "kind": Animal.LETTERS[ch]})

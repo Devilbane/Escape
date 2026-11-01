@@ -92,6 +92,13 @@ const BANDIT_RESPAWN := 150.0
 const RESPAWN_FAR := 40.0
 ## The hero is warned about the pass when a bandit's spot is this close (metres).
 const WILD_WARNING_RANGE := 16.0
+## Remembered in the saved game once the bandit chief has fallen: he does
+## not come back. His spot stays empty from then on.
+const CHIEF_DEFEATED := "boss:bandit_chief"
+## Gold in the chief's purse, and how far from his post his cutthroats
+## come running when he calls them (tiles).
+const CHIEF_GOLD := 15
+const CALL_FROM_TILES := Vector2i(5, 9)
 ## The pedestal with the food basket: how tall it is (metres), how far from
 ## the basket the hero can reach it, how high their feet must stand for that
 ## (on two stacked crates), the lives the food gives back, and the seconds
@@ -136,6 +143,11 @@ var _herald_timer := randf_range(HERALD_FIRST_MIN, HERALD_FIRST_MAX)
 ## it is gone), seconds until the next one arrives, and how many came so far.
 var _wild: Array = []
 var _wild_warned := false
+## The bandit chief while he stands, his health bar, and the cutthroats he
+## called in to help (they do not come back once they fall).
+var chief: BanditChief
+var boss_bar: BossBar
+var _called: Array[Enemy] = []
 ## The food basket: where it stands, its food, whether it is full, the
 ## seconds until it fills again, and whether the hero was told about it.
 var _basket := {}
@@ -931,29 +943,101 @@ func _build_stone_yard(cell: Vector2i) -> void:
 ## The bandits of the pass take their spots when the world is built.
 func _spawn_wild() -> void:
 	for s in _wild:
+		if s.kind == "hauptmann" and chief_defeated():
+			# He fell in this game already. If his blade was left lying
+			# there, it still waits where he fell.
+			s.timer = INF
+			if not taken.has(BanditChief.TROPHY):
+				_drop_item(BanditChief.TROPHY, cell_to_world(s.cell))
+			continue
 		_spawn_bandit(s)
+
+
+## Whether the bandit chief has fallen in this saved game.
+func chief_defeated() -> bool:
+	return taken.has(CHIEF_DEFEATED)
 
 
 ## Puts a bandit on its spot. When it falls it leaves gold and maybe a piece
 ## of its gear, and after a while another comes to take its place.
 func _spawn_bandit(s: Dictionary) -> void:
-	var chief: bool = s.kind == "hauptmann"
-	var e := Enemy.new()
+	var is_chief: bool = s.kind == "hauptmann"
+	var e: Enemy = BanditChief.new() if is_chief else Enemy.new()
 	e.kind = s.kind
-	e.gear = _roll_gear(e.kind, s.cell, CHIEF_GEAR_CHANCE if chief else BANDIT_GEAR_CHANCE, s.wave)
+	e.gear = _roll_gear(e.kind, s.cell, CHIEF_GEAR_CHANCE if is_chief else BANDIT_GEAR_CHANCE, s.wave)
 	e.level = self
 	add_child(e)
 	e.global_position = cell_to_world(s.cell)
 	e.died.connect(func():
 		enemy_killed.emit(e)
-		_drop_gear(e, CHIEF_DROP_CHANCE if chief else BANDIT_DROP_CHANCE)
-		_drop_coins(e.global_position, randi_range(4, 8) if chief else randi_range(1, 3))
+		_drop_gear(e, CHIEF_DROP_CHANCE if is_chief else BANDIT_DROP_CHANCE)
+		_drop_coins(e.global_position, CHIEF_GOLD if is_chief else randi_range(1, 3))
 		s.enemy = null
-		s.timer = BANDIT_RESPAWN)
+		s.timer = BANDIT_RESPAWN
+		if is_chief:
+			_on_chief_fallen(e))
+	if is_chief:
+		chief = e
+		boss_bar = BossBar.new(e)
+		add_child(boss_bar)
 	s.enemy = e
 	s.wave += 1
 	enemies = enemies.filter(func(x): return is_instance_valid(x))
 	enemies.append(e)
+
+
+## The chief falls for good: remembered in the saved game, and his own
+## blade drops where he fell.
+func _on_chief_fallen(e: BanditChief) -> void:
+	taken[CHIEF_DEFEATED] = true
+	for s in _wild:
+		if s.kind == "hauptmann":
+			s.timer = INF
+	chief = null
+	_drop_item(BanditChief.TROPHY, e.global_position + Vector3(0.8, 0, 0.8))
+	Sfx.play_gear(self, BanditChief.TROPHY, 0.4, e.global_position)
+	notice.emit(Lang.t("Rabenherz ist besiegt! Seine Klinge gehört dir."), 5.0)
+
+
+## The chief calls his cutthroats: they come running from around the camp,
+## from the side away from the hero, and join the fight at once. No more
+## than `count` of them at a time.
+func call_reinforcements(from: Enemy, count: int) -> void:
+	_called = _called.filter(func(x): return is_instance_valid(x) and not x.dead)
+	var home := world_to_cell(from.global_position)
+	var hero := player.global_position if player else from.global_position
+	var cells: Array[Vector2i] = []
+	for y in range(-CALL_FROM_TILES.y, CALL_FROM_TILES.y + 1):
+		for x in range(-CALL_FROM_TILES.y, CALL_FROM_TILES.y + 1):
+			var c := home + Vector2i(x, y)
+			var r := Vector2(x, y).length()
+			if r < CALL_FROM_TILES.x or r > CALL_FROM_TILES.y or not astar.is_in_boundsv(c) or astar.is_point_solid(c):
+				continue
+			cells.append(c)
+	# Farthest from the hero first, so they come out of the camp.
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return cell_to_world(a).distance_squared_to(hero) > cell_to_world(b).distance_squared_to(hero))
+	var i := 0
+	while _called.size() < count and i < cells.size():
+		var e := Enemy.new()
+		e.kind = "halsabschneider"
+		e.level = self
+		add_child(e)
+		e.global_position = cell_to_world(cells[i])
+		e.alert(hero)
+		e.died.connect(func():
+			enemy_killed.emit(e)
+			_drop_coins(e.global_position, randi_range(0, 2)))
+		enemies = enemies.filter(func(x): return is_instance_valid(x))
+		enemies.append(e)
+		_called.append(e)
+		# Spread them out a little.
+		i += 3
+
+
+## How many of the chief's called cutthroats still stand.
+func called_alive() -> int:
+	return _called.filter(func(x): return is_instance_valid(x) and not x.dead).size()
 
 
 ## Fallen bandits are replaced once their time is up and the hero is not

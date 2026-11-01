@@ -5,6 +5,8 @@ extends SceneTree
 ## live. The monsters have every animation they need, a bat notices the hero
 ## and bites, a fallen monster leaves gold, the dragon spits fire, the stairs
 ## lead back out of the arch, and the monsters stand ready again next time.
+## The fallen dragon wins the lair: a window says so and offers the way out,
+## and a golden way out shines up where it fell.
 ## Run with: godot --headless --fixed-fps 60 -s tests/dragon_lair.gd
 
 var failures := 0
@@ -159,16 +161,34 @@ func _process(_delta: float) -> bool:
 			var after := lvl._pickups.filter(func(p): return p.kind == "coin").size()
 			check(after - before >= Enemy.KINDS.drache.purse[0], "the dragon leaves a heap of gold (%d coins)" % (after - before))
 			check(dragon.fall_text() == Lang.t("Der Drache stürzt brüllend zu Boden!"), "the message says the dragon fell")
-			# Up the stairs and out of the arch.
-			game._next_level()
+			check(lvl.lair_cleared, "the fallen dragon wins the lair")
+			stage = 6
+			stage_frames = 0
+		6:
+			# A window says the lair is won and offers the way out.
+			stage_frames += 1
+			if game.menus.current != "hoehle":
+				if stage_frames > 360:
+					check(false, "no lair-complete window within 6 seconds")
+					_finish()
+					return true
+				return false
+			var lvl: Level = game.level
+			check(is_instance_valid(lvl.lair_exit), "a golden way out shines where the dragon fell")
+			if is_instance_valid(lvl.lair_exit):
+				var dragon_spot := lvl.world_to_cell(lvl.lair_exit.global_position)
+				check(not lvl.astar.is_point_solid(dragon_spot), "the way out stands on free floor")
+			# "Leave the lair".
+			game.menus.close()
+			game.leave_lair()
 			stage = 4
 			stage_frames = 0
 		4:
 			stage_frames += 1
-			if stage_frames < 30:
+			if stage_frames < 90:
 				return false
 			var lvl: Level = game.level
-			check(lvl is Outdoor, "the lair's stairs lead back out into the woods")
+			check(lvl is Outdoor, "leaving the won lair leads back out into the woods")
 			if lvl is Outdoor:
 				check(game.player.global_position.distance_to(lvl.doors.E) < 3.0, "the hero comes out in front of the arch")
 			game.go_inside("E")
@@ -178,7 +198,57 @@ func _process(_delta: float) -> bool:
 			stage_frames += 1
 			if stage_frames < 60:
 				return false
-			check(_alive(game.level).size() == first_count, "the monsters stand ready again on the next visit")
+			var lvl: Level = game.level
+			check(_alive(lvl).size() == first_count, "the monsters stand ready again on the next visit")
+			check(not lvl.lair_cleared and lvl.lair_exit == null, "the lair waits to be won again")
+			# Win it again, then step into the golden way out.
+			var dragon: Enemy = _alive(lvl).filter(func(e): return e.kind == "drache")[0]
+			dragon.take_hit(99, game.player.global_position)
+			stage = 7
+			stage_frames = 0
+		7:
+			stage_frames += 1
+			var lvl: Level = game.level
+			if not is_instance_valid(lvl.lair_exit):
+				if stage_frames > 150:
+					check(false, "the way out did not open")
+					_finish()
+					return true
+				return false
+			game.player.global_position = lvl.lair_exit.global_position
+			game.player.velocity = Vector3.ZERO
+			stage = 8
+			stage_frames = 0
+		8:
+			stage_frames += 1
+			var lvl: Level = game.level
+			if not lvl is Outdoor:
+				if stage_frames > 150:
+					check(false, "the golden way out led nowhere")
+					_finish()
+					return true
+				return false
+			if stage_frames < 60:
+				return false
+			check(game.player.global_position.distance_to(lvl.doors.E) < 3.0, "the way out leads to the arch")
+			check(game.menus.current != "hoehle", "no lair window left open outside")
+			game.go_inside("E")
+			stage = 9
+			stage_frames = 0
+		9:
+			stage_frames += 1
+			if stage_frames < 60:
+				return false
+			# The stairs lead out too, won or not.
+			game._next_level()
+			stage = 10
+			stage_frames = 0
+		10:
+			stage_frames += 1
+			if stage_frames < 30:
+				return false
+			var lvl: Level = game.level
+			check(lvl is Outdoor, "the lair's stairs lead back out into the woods")
 			_finish()
 			return true
 	return false

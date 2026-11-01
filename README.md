@@ -416,6 +416,9 @@ of gear. Behind it waits the hoard's treasure chest among piles of coins.
 The halls are dressed with cobwebs, skulls, banners and a stone horse statue from the dungeon kit.
 The stairs you came down lead back out of the arch. The monsters stand ready again every time you come
 down, so there is always something to fight; searched chests and barrels stay empty.
+Slay the dragon and the lair is **complete**: a fanfare plays, a window says so, counts the monsters you
+have slain and offers to **leave the lair** at once (or stay and collect the loot). Where the dragon fell, a
+**golden way out** shines up on the floor: step into it and you stand in front of the stone arch again.
 
 By the campfire waits the boss of the pass: **Ravenheart, the bandit chief**. Once he takes up the fight, his
 **health bar** shows at the top of the screen, with marks where his next phase begins:

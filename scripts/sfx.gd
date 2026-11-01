@@ -63,6 +63,52 @@ static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null, pi
 	p.play()
 
 
+## Like play, but only after `seconds` (say, once a chest lid is up).
+static func play_after(tree_node: Node, seconds: float, sound: String, volume_db := 0.0, at = null) -> void:
+	if seconds <= 0.0:
+		play(tree_node, sound, volume_db, at)
+		return
+	if tree_node == null or not tree_node.is_inside_tree():
+		return
+	var timer := tree_node.get_tree().create_timer(seconds, true)
+	timer.timeout.connect(func():
+		if is_instance_valid(tree_node):
+			play(tree_node, sound, volume_db, at))
+
+
+## Coins clinking: a coin or two, or a whole handful of gold.
+static func play_coins(tree_node: Node, amount: int, delay := 0.0, at = null) -> void:
+	var sound := "coins_big_%d" % (randi() % 3) if amount >= 5 else "coins_small_%d" % (randi() % 3)
+	play_after(tree_node, delay, sound, 0.0, at)
+
+
+## A chest lid opening: latch, creaking hinges, the lid falling back.
+static func play_chest(tree_node: Node, at = null) -> void:
+	play(tree_node, "chest_open_%d" % (randi() % 3), -2.0, at)
+
+
+## A piece of gear clattering onto the floor, by what it is made of.
+static func play_gear(tree_node: Node, id: String, delay := 0.0, at = null) -> void:
+	var item: Dictionary = Items.ALL.get(id, {})
+	var sound := "gear_trinket"
+	match item.get("material", ""):
+		"metal", "mixed":
+			sound = "gear_metal_%d" % (randi() % 3)
+		"chain":
+			sound = "gear_chain_%d" % (randi() % 2)
+		"leather", "cloth", "fur":
+			sound = "gear_soft_%d" % (randi() % 2)
+		"bone":
+			sound = "gear_bone"
+		_:
+			if item.get("slot", "") == "buch":
+				sound = "gear_book"
+	# Plate armour lands with mail's rattle and weight.
+	if id == "plattenpanzer":
+		sound = "gear_chain_%d" % (randi() % 2)
+	play_after(tree_node, delay, sound, -2.0, at)
+
+
 ## The endless wind and dripping water in the background.
 static func start_ambience(owner_node: Node) -> AudioStreamPlayer:
 	var stream: AudioStreamOggVorbis = _stream("ambience")

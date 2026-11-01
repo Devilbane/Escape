@@ -2,7 +2,7 @@ class_name Wanderer
 extends RefCounted
 ## Zarek, the wandering merchant. He is not one of the village's own people:
 ## every few nights he rolls his covered cart into Lindenhain at nightfall,
-## sets up by the market on his pitch (map tile "!", see Outdoor) and is gone
+## sets up by the market on his pitch (map tile "@", see Outdoor) and is gone
 ## again at dawn. He sells rare things found nowhere else, and a few of the
 ## rarest finds of the dungeon, but buys nothing.
 ##

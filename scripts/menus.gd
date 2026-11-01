@@ -81,6 +81,7 @@ func is_open() -> bool:
 
 func open(kind: String) -> void:
 	current = kind
+	_forge_tab = "schmieden"
 	_selected = -1
 	_note = ""
 	game.set_world_paused(true)
@@ -116,6 +117,8 @@ func _rebuild() -> void:
 			_build_barber()
 		"steinmetz":
 			_build_stonemason()
+		"schmied":
+			_build_smithy()
 		"tresor":
 			_build_vault()
 		"haendler":
@@ -134,7 +137,7 @@ func _rebuild() -> void:
 			_build_plan()
 		"rueckkehr":
 			_build_return()
-	if current in ["inventar", "lager", "haendler", "tresor"]:
+	if current in ["inventar", "lager", "haendler", "tresor", "schmied"]:
 		_info = _add_label(Lang.t(INFO_HINT), 18, BLUE)
 		_info.custom_minimum_size.y = 26
 	if _note != "":
@@ -628,6 +631,120 @@ func _sell_stone() -> void:
 		p.bag.erase(STONE)
 		game.coins += sell_price(STONE)
 		_note = Lang.t("Verkauft: %s für %d Gold") % [Items.item_name(STONE), sell_price(STONE)]
+	game._update_hud()
+	_rebuild()
+
+
+# --- Smith -------------------------------------------------------------------
+
+## The smith's window shows one of three tabs: "schmieden" (forge new gear),
+## "einschmelzen" (melt gear down into iron) or "ausbessern" (mend worn gear).
+var _forge_tab := "schmieden"
+const FORGE_TABS := [["schmieden", "Schmieden"], ["einschmelzen", "Einschmelzen"], ["ausbessern", "Ausbessern"]]
+
+
+func _build_smithy() -> void:
+	var p: Player = game.player
+	game.learn(Forge.LEARN)
+	_add_label(Lang.t("Schmiede"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Dein Gold: %d    Eisen: %d") % [game.coins, game.iron], 20, game.GOLD)
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 10)
+	_box.add_child(tabs)
+	for tab in FORGE_TABS:
+		var b := _item_button(Lang.t(tab[1]), _show_forge_tab.bind(tab[0]))
+		if tab[0] == _forge_tab:
+			b.modulate = Color(0.7, 1.0, 0.7)
+		tabs.add_child(b)
+	match _forge_tab:
+		"schmieden":
+			_add_label(Lang.t("Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen."), 16, BLUE)
+			var grid := _forge_grid()
+			for id in Forge.recipes():
+				var cost := Forge.forge_cost(id)
+				var ok: bool = game.iron >= cost.iron and game.coins >= cost.gold and p.bag.size() < p.bag_size()
+				grid.add_child(_item_button(Lang.t("%s\n%d Eisen, %d Gold") % [Items.item_name(id), cost.iron, cost.gold], _forge.bind(id), ok, id))
+			var row := HBoxContainer.new()
+			row.alignment = BoxContainer.ALIGNMENT_CENTER
+			row.add_theme_constant_override("separation", 10)
+			_box.add_child(row)
+			row.add_child(_item_button(Lang.t("1 Eisenbarren\n%d Gold") % Forge.IRON_PRICE, _buy_iron.bind(1), game.coins >= Forge.IRON_PRICE))
+			row.add_child(_item_button(Lang.t("%d Eisenbarren\n%d Gold") % [5, 5 * Forge.IRON_PRICE], _buy_iron.bind(5), game.coins >= 5 * Forge.IRON_PRICE))
+		"einschmelzen":
+			_add_label(Lang.t("Metall aus deiner Tasche wird zu Eisenbarren. Stoff, Leder, Fell und Knochen schmelzen nicht."), 16, BLUE)
+			var grid := _forge_grid()
+			for i in p.bag_size():
+				if i < p.bag.size():
+					var id: String = p.bag[i]
+					var text := Lang.t("%s\n+%d Eisen") % [Items.item_name(id), Forge.melt_yield(id)] if Forge.can_melt(id) else Items.item_name(id)
+					grid.add_child(_item_button(text, _melt.bind(i), Forge.can_melt(id), id))
+				else:
+					grid.add_child(_item_button("-", func(): pass, false))
+		"ausbessern":
+			_add_label(Lang.t("Gorm hämmert Beulen aus: jeder Punkt Haltbarkeit kostet etwas Gold."), 16, BLUE)
+			var worn := Forge.worn_down(p)
+			if worn.is_empty():
+				_add_label(Lang.t("Deine Ausrüstung ist heil."), 20)
+			var grid := _forge_grid()
+			for id in worn:
+				var durability: int = Items.ALL[id].durability
+				var left: int = durability - int(p.wear[id])
+				grid.add_child(_item_button(Lang.t("%s %d / %d\n%d Gold") % [Items.item_name(id), left, durability, Forge.mend_cost(p, id)], _mend.bind(id), game.coins >= Forge.mend_price(id), id))
+
+
+func _forge_grid() -> GridContainer:
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(grid)
+	return grid
+
+
+func _show_forge_tab(tab: String) -> void:
+	_forge_tab = tab
+	_note = ""
+	_rebuild()
+
+
+func _forge(id: String) -> void:
+	var why := Forge.forge(game, id)
+	_note = why if why != "" else Lang.t("Geschmiedet: %s (%s)") % [Items.item_name(id), Items.describe(id)]
+	if why == "":
+		Sfx.play(game, "hit")
+	game._update_hud()
+	_rebuild()
+
+
+func _melt(index: int) -> void:
+	var id: String = game.player.bag[index]
+	var why := Forge.melt(game, index)
+	_note = why if why != "" else Lang.t("Eingeschmolzen: %s, +%d Eisen") % [Items.item_name(id), Forge.melt_yield(id)]
+	if why == "":
+		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
+	game.player.refresh_stats()
+	game._update_hud()
+	_rebuild()
+
+
+func _mend(id: String) -> void:
+	var why := Forge.mend(game, id)
+	var p: Player = game.player
+	var durability: int = Items.ALL[id].durability
+	_note = why if why != "" else Lang.t("Ausgebessert: %s, Haltbarkeit %d / %d") % [Items.item_name(id), durability - int(p.wear.get(id, 0)), durability]
+	if why == "":
+		Sfx.play(game, "hit")
+	game._update_hud()
+	_rebuild()
+
+
+func _buy_iron(count: int) -> void:
+	var why := Forge.buy_iron(game, count)
+	_note = why if why != "" else Lang.t("Gekauft: %d Eisenbarren") % count
+	if why == "":
+		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
 	game._update_hud()
 	_rebuild()
 

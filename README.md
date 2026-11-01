@@ -223,6 +223,12 @@ the same list as yours, and much more often than skeletons do; when one falls it
 drop a piece of its gear. A fallen bandit's spot is taken by another a few minutes later, once you have
 left, so there is always something to fight and loot. Whoever falls on the pass starts again on the graveyard.
 
+North of the pass, through a gap in the trees, lies the **wolf hollow**. No bandits here, but beasts:
+a pack of quick **wolves**, **spiders** whose bite can poison, two **orcs** that punch hard and a big
+**yeti**. They notice, chase, strike and give up just like the bandits, and come back the same way a
+while after they fall. A wolf or a spider leaves little more than a coin or two; orcs and the yeti carry
+more gold and sometimes a piece of gear.
+
 The **compendium** (key H) shows all keys and mouse commands and collects every hint and every
 explanation you have been given so far: the introduction of every level, the tips on sneaking and on the
 guardian, the secret lever. It is saved with the game.
@@ -279,7 +285,8 @@ It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `
 `d` dead tree, `z` graveyard fence, `a` gate in the fence, `l` lantern, `p` pumpkins, `r` rock, `T` tree,
 `t` tree stump, `e` barrels and crates, `q` well, `F` fountain, `x` bench, `y` pumpkin field, `N` tent,
 `f` campfire, `C` treasure chest. The bandits, who roam and come back a while after they fall: `c` cutthroat,
-`A` poacher, `X` bruiser, `Q` bandit chief. Buildings are a
+`A` poacher, `X` bruiser, `Q` bandit chief; the beasts of the wolf hollow, who do the same: `W` wolf,
+`H` orc, `J` yeti, `U` spider. Buildings are a
 rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general store, `u` windmill,
 `s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank. The hero's house:
 `I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The villagers: `0` elder,
@@ -308,6 +315,7 @@ entry there.
 - Graveyard, crypt and autumn trees: KayKit Halloween Bits; village buildings, trees and rocks: KayKit Medieval Hexagon Pack, both by Kay Lousberg (CC0)
 - Wooden floor and roof tiles of the house: "Wood 062" and "Roofing Tiles 014 C" by ambientCG (CC0)
 - Floors, walls, pillars and furniture: 3D Modular Dungeon Kit by Omie's Assets (CC0)
+- Wolves, orcs, yeti and spiders: Ultimate Animated Animals, Ultimate Monsters and Easy Animated Enemy Pack by Quaternius (CC0, see `assets/wild/LICENSE.txt`)
 - Sounds: made from scratch with `tools/make_sounds.py`; footsteps and door: recordings by Fantozzi, “Footsteps Leather, Cloth, Armor” and qubodup; creatures, skeleton voices and chains by rubberduck; crossbow shots from “Medieval sound effects - Weapon Textures” (CC0, see `assets/sounds/CREDITS.txt`)
 - Font: Cinzel and Cinzel Decorative (SIL Open Font License)
 - Comic font of the fight bubbles: Bangers by Vernon Adams (SIL Open Font License)

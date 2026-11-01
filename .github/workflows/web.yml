@@ -89,6 +89,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_bandits.gd | tee bandits.log
           grep -q PASS bandits.log
 
+      - name: Beasts of the wolf hollow test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_beasts.gd | tee beasts.log
+          grep -q PASS beasts.log
+
       - name: Strike, sweep and fighting back test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/splash_attack.gd | tee splash.log

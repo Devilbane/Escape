@@ -1,0 +1,3 @@
+Background music (abeth.mp3): "Abeth" by Audibert jd, from "Eleryan Tales
+volume 1" (2010), www.eleryantales.com.
+It loops for as long as the game runs; see scripts/music.gd.

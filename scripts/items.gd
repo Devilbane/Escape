@@ -79,7 +79,18 @@ const ALL := {
 	# A block of carved stone to build with (see StoneBlock): sold by the
 	# stonemason in the village, set down from the bag, moved by dragging.
 	"steinblock": {"name": "Steinblock", "slot": "stein", "weight": 4, "price": 3, "no_loot": true, "effect": "Zum Bauen: abstellen (Taste B), mit der Maus ziehen und stapeln"},
+	# Things carried for a villager's task (see Quests): never found as loot,
+	# never worn, worth next to nothing to the merchant.
+	"banditendolch": {"name": "Banditendolch", "slot": "auftrag", "weight": 0.5, "price": 2, "no_loot": true, "model": "res://assets/weapons/dagger.gltf", "material": "mixed", "effect": "Für Krämerin Miras Auftrag"},
+	"brief": {"name": "Brief aus der Hauptstadt", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Für Dorfvorsteher Aldo"},
+	"kuerbis": {"name": "Kürbis", "slot": "auftrag", "weight": 3, "price": 1, "no_loot": true, "effect": "Für Zecher Fritz im Wirtshaus"},
+	"wassereimer": {"name": "Wassereimer", "slot": "auftrag", "weight": 2, "price": 1, "no_loot": true, "model": "res://assets/village/bucket_water.gltf", "model_scale": 1.6, "effect": "Für Priesterin Elsbeth am Tempel"},
 }
+
+
+## Whether an item is carried for a villager's task (see Quests).
+static func is_quest(id: String) -> bool:
+	return ALL.has(id) and ALL[id].slot == "auftrag"
 
 
 static func weight(id: String) -> float:

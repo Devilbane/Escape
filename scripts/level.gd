@@ -177,6 +177,13 @@ var _door_hint_shown := false
 ## Hidden walls and the torches that open them. Each lever rolls once,
 ## the first time the hero walks past it.
 var _secrets: Array = []
+## Ingredients hidden in the ground that only the hero's fox can sniff out
+## (see Pet): each {"cell": Vector2i, "id": String}. Never saved: they grow
+## back whenever the hero comes to the level again.
+var hidden_finds: Array = []
+## How many ingredients lie hidden in a dungeon level and in the open air.
+const HIDDEN_IN_DUNGEON := 3
+const HIDDEN_OUTDOORS := 14
 ## The secret room's wealth: one of TIERS.
 var secret_tier := "normal"
 ## Extra chance in percent to notice a lever; the game adds 1 per room found.
@@ -2138,7 +2145,7 @@ func _check_pickups() -> void:
 		if p.kind == "key":
 			key_collected.emit()
 		elif p.kind == "item":
-			item_collected.emit(p.id)
+			item_collected.emit(p.get("id", p.get("item", "")))
 		else:
 			coins_collected.emit(1)
 
@@ -2419,6 +2426,40 @@ func _drop_coins(pos: Vector3, amount: int) -> void:
 
 
 ## A worn piece left on the floor, glowing until the hero walks over it.
+## Hides a few ingredients in the ground for the hero's fox to find: on the
+## grass of the open air, on plain floor the hero can reach in the dungeon.
+## Not in the safe rooms or inside the village buildings.
+func hide_ingredients() -> void:
+	hidden_finds.clear()
+	if (safe and not outdoor) or (building != "" and not lair):
+		return
+	var cells: Array[Vector2i] = []
+	if outdoor:
+		for y in height:
+			for x in width:
+				var c := Vector2i(x, y)
+				if cell_char(c) == "." and call("is_open", c):
+					cells.append(c)
+	else:
+		for c in _reachable():
+			if cell_char(c) in [".", ","] and not astar.is_point_solid(c) and c != start_cell:
+				cells.append(c)
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var count := HIDDEN_OUTDOORS if outdoor else HIDDEN_IN_DUNGEON
+	for i in mini(count, cells.size()):
+		var c: Vector2i = cells.pop_at(rng.randi() % cells.size())
+		hidden_finds.append({"cell": c, "id": Items.random_ingredient(rng, outdoor)})
+
+
+## Lays a dug-up ingredient on the ground. It is not marked as taken: the
+## ground holds new ones the next time round.
+func lay_find(id: String, pos: Vector3) -> void:
+	_drop_item(id, pos)
+	_pickups[-1].erase("id")
+	_pickups[-1].item = id
+
+
 func _drop_item(id: String, pos: Vector3) -> void:
 	var holder := _item_model(id)
 	holder.position = Vector3(pos.x, 1.0, pos.z)

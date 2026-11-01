@@ -97,7 +97,42 @@ const ALL := {
 	"brief": {"name": "Brief aus der Hauptstadt", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Für Dorfvorsteher Aldo"},
 	"kuerbis": {"name": "Kürbis", "slot": "auftrag", "weight": 3, "price": 1, "no_loot": true, "effect": "Für Zecher Fritz im Wirtshaus"},
 	"wassereimer": {"name": "Wassereimer", "slot": "auftrag", "weight": 2, "price": 1, "no_loot": true, "model": "res://assets/village/bucket_water.gltf", "model_scale": 1.6, "effect": "Für Priesterin Elsbeth am Tempel"},
+	# Food for a fox (see Animal and Pet): the shopkeeper always has some.
+	"wurst": {"name": "Wurst", "slot": "futter", "weight": 0.3, "price": 2, "no_loot": true, "effect": "Füchse lieben sie: Füttere einen Fuchs auf den Wiesen dreimal, und er wird dein Freund"},
+	# Ingredients ("zutat") lie hidden in the ground, and only the hero's fox
+	# can sniff them out (see Pet). "found" says where: in the open air or
+	# down in the dungeon. Nothing is made from them yet; merchants buy them.
+	"baerlauch": {"name": "Bärlauch", "slot": "zutat", "found": "outdoor", "weight": 0.2, "price": 6, "no_loot": true, "effect": "Zutat, von deinem Fuchs erschnüffelt"},
+	"steinpilz": {"name": "Steinpilz", "slot": "zutat", "found": "outdoor", "weight": 0.3, "price": 10, "no_loot": true, "effect": "Zutat, von deinem Fuchs erschnüffelt"},
+	"trueffel": {"name": "Trüffel", "slot": "zutat", "found": "outdoor", "weight": 0.2, "price": 30, "no_loot": true, "effect": "Seltene Zutat, von deinem Fuchs erschnüffelt"},
+	"hoehlenpilz": {"name": "Höhlenpilz", "slot": "zutat", "found": "dungeon", "weight": 0.2, "price": 8, "no_loot": true, "effect": "Zutat, von deinem Fuchs erschnüffelt"},
+	"glimmermoos": {"name": "Glimmermoos", "slot": "zutat", "found": "dungeon", "weight": 0.1, "price": 16, "no_loot": true, "effect": "Leuchtende Zutat, von deinem Fuchs erschnüffelt"},
 }
+
+
+## Whether an item is food for a fox (see Pet).
+static func is_food(id: String) -> bool:
+	return ALL.has(id) and ALL[id].slot == "futter"
+
+
+## Whether an item is an ingredient the hero's fox dug up (see Pet).
+static func is_ingredient(id: String) -> bool:
+	return ALL.has(id) and ALL[id].slot == "zutat"
+
+
+## A hidden ingredient for the open air or the dungeon: pricier ones are
+## rarer, like random_item.
+static func random_ingredient(rng: RandomNumberGenerator, outdoors: bool) -> String:
+	var ids := ALL.keys().filter(func(id): return is_ingredient(id) and ALL[id].found == ("outdoor" if outdoors else "dungeon"))
+	var total := 0.0
+	for id in ids:
+		total += 1.0 / ALL[id].price
+	var roll := rng.randf() * total
+	for id in ids:
+		roll -= 1.0 / ALL[id].price
+		if roll <= 0.0:
+			return id
+	return ids[-1]
 
 
 ## Whether an item is carried for a villager's task (see Quests).

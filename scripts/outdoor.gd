@@ -52,6 +52,8 @@ signal notice(text: String, duration: float)
 signal home_claimed
 ## The hero has reached the food basket on the pedestal and eats.
 signal food_basket(heal: int)
+## A fox eats a sausage from the hero's hand (see Animal and Pet).
+signal fox_fed(fox: Animal)
 
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
@@ -155,6 +157,8 @@ const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 
 var villagers: Array = []
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
+## Whether a fox can still be won over: the hero has none yet (set by the game).
+var fox_tamable := true
 var _animal_spots: Array = []
 ## Has the elder handed the house over yet? Saved games wake up at home.
 var house_given := false
@@ -1313,6 +1317,10 @@ func _spawn_animals() -> void:
 	for s in _animal_spots:
 		var a := Animal.new()
 		a.setup(self, s.kind, s.cell)
+		if taken.has(a.tame_key()):
+			# The hero's own fox: it goes with the hero now (see Pet).
+			a.free()
+			continue
 		add_child(a)
 		a.global_position = cell_to_world(s.cell)
 		animals.append(a)

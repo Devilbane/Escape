@@ -746,6 +746,22 @@ const EN := {
 	"Abend": "evening",
 	"Die Nacht bricht herein. Das Dorf geht schlafen, und auf dem Friedhof regen sich die Toten.": "Night falls. The village goes to sleep, and in the graveyard the dead stir.",
 	"Ein neuer Tag bricht an. Die Toten kehren in ihre Gräber zurück.": "A new day dawns. The dead return to their graves.",
+	# The fox
+	"Wurst": "Sausage",
+	"Füchse lieben sie: Füttere einen Fuchs auf den Wiesen dreimal, und er wird dein Freund": "Foxes love them: feed a fox on the meadows three times and it becomes your friend",
+	"Bärlauch": "Wild garlic",
+	"Steinpilz": "Porcini mushroom",
+	"Trüffel": "Truffle",
+	"Höhlenpilz": "Cave mushroom",
+	"Glimmermoos": "Glowmoss",
+	"Zutat, von deinem Fuchs erschnüffelt": "Ingredient, sniffed out by your fox",
+	"Seltene Zutat, von deinem Fuchs erschnüffelt": "Rare ingredient, sniffed out by your fox",
+	"Leuchtende Zutat, von deinem Fuchs erschnüffelt": "Glowing ingredient, sniffed out by your fox",
+	"Mampf!": "Munch!",
+	"Der Fuchs frisst dir die Wurst aus der Hand. Vertrauen: %d / %d": "The fox eats the sausage from your hand. Trust: %d / %d",
+	"Der Fuchs vertraut dir und geht jetzt mit dir! Seine Nase findet versteckte Zutaten im Boden.": "The fox trusts you and comes along with you now! Its nose finds ingredients hidden in the ground.",
+	"Dein Fuchs hat etwas ausgegraben: %s!": "Your fox dug something up: %s!",
+	"Füchse auf den Wiesen sind scheu, aber eine Wurst (bei der Krämerin) lockt sie an: Trägst du eine bei dir, kommt ein Fuchs neugierig näher und frisst sie dir aus der Hand. Nach drei Würsten folgt er dir überallhin, auch ins Verlies. Seine Nase findet Zutaten, die im Boden versteckt sind: Er läuft hin, gräbt sie aus und lässt sie für dich liegen.": "Foxes on the meadows are shy, but a sausage (from the shopkeeper) tempts them: carry one and a fox comes closer, curious, and eats it from your hand. After three sausages it follows you everywhere, even down into the dungeon. Its nose finds ingredients hidden in the ground: it runs over, digs them up and leaves them lying there for you.",
 }
 
 ## "de" or "en"; empty until the player has chosen.

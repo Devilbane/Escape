@@ -707,6 +707,11 @@ func _buy(index: int) -> void:
 		game.player.bag.append(id)
 		game.shop_stock.remove_at(index)
 		_note = Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
+		if id == Pet.FOOD and not game.has_fox:
+			# Where to take it, short enough for the one note line; the
+			# whole hint goes into the compendium.
+			_note = Lang.t("Gekauft: Wurst. Füchse leben am Waldteich westlich vom Dorf.")
+			game.learn(Pet.WHERE)
 	_rebuild()
 
 

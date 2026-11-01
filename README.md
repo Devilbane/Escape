@@ -67,8 +67,10 @@ holds a food basket out of reach of the ground and of a single crate. Three crat
 stack two next to the pedestal, climb up and eat (+3 lives and every ailment cured). The basket
 fills up again after a few minutes.
 
-**Foxes** on the meadows between the graveyard and the village are shy, but they love **sausages**.
-Mira the shopkeeper always has some (2 gold each). Carry a sausage and a fox no longer bolts: it
+**Foxes** live on the meadow by the woodland pond, west of the village, beside the path that comes down
+from the graveyard. They are shy, but they love **sausages**.
+Mira the shopkeeper always has some (2 gold each); when you buy one she tells you where the foxes
+live, and the hint stays in the compendium (key H). Carry a sausage and a fox no longer bolts: it
 comes up to you, curious, and eats it from your hand. After three sausages it trusts you and follows
 you everywhere, in the village and down in the dungeon. You only ever have one fox, and it stays
 yours in your saved game. It never fights and cannot be hurt.

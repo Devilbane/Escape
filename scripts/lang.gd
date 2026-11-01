@@ -1006,7 +1006,11 @@ const EN := {
 	"In deinem Zutatenbeutel": "In your ingredient pouch",
 	# The fox
 	"Wurst": "Sausage",
-	"Füchse lieben sie: Füttere einen Fuchs auf den Wiesen dreimal, und er wird dein Freund": "Foxes love them: feed a fox on the meadows three times and it becomes your friend",
+	"Füchse lieben sie. Sie leben auf der Wiese am Waldteich westlich vom Dorf: Füttere einen Fuchs dreimal, und er wird dein Freund": "Foxes love them. They live on the meadow by the woodland pond, west of the village: feed a fox three times and it becomes your friend",
+	"Füchse leben auf der Wiese am Waldteich westlich vom Dorf, am Weg, der vom Friedhof herunterkommt. Trag eine Wurst bei dir, dann kommt ein Fuchs zu dir.": "Foxes live on the meadow by the woodland pond, west of the village, beside the path that comes down from the graveyard. Carry a sausage and a fox will come to you.",
+	"Gekauft: Wurst. Füchse leben am Waldteich westlich vom Dorf.": "Bought: sausage. Foxes live by the woodland pond, west of the village.",
+	"Wurst für die Füchse? Die leben auf der Wiese am Waldteich, westlich vom Dorf.": "Sausages for the foxes? They live on the meadow by the woodland pond, west of the village.",
+	"Am Waldteich westlich vom Dorf schnüren oft Füchse durchs Gras.": "Foxes often trot through the grass by the woodland pond, west of the village.",
 	"Bärlauch": "Wild garlic",
 	"Steinpilz": "Porcini mushroom",
 	"Trüffel": "Truffle",

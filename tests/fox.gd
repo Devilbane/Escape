@@ -80,7 +80,33 @@ func _process(_delta: float) -> bool:
 			# The shopkeeper always has sausages.
 			game.menus.open("haendler")
 			check(game.shop_stock.count(Pet.FOOD) >= 2, "the merchant sells sausages")
+			# Buying one tells the hero where the foxes live, and the
+			# compendium keeps it.
+			game.lore.clear()
+			game.coins = 10
+			game.player.bag.clear()
+			game.menus._buy(game.shop_stock.find(Pet.FOOD))
+			check(game.player.bag.has(Pet.FOOD), "the hero bought a sausage")
+			check(game.menus._note == Lang.t("Gekauft: Wurst. Füchse leben am Waldteich westlich vom Dorf."), "buying a sausage says where the foxes live")
+			check(game.lore.has(Pet.WHERE), "the compendium says where the foxes live")
+			for text in [Pet.WHERE, "Gekauft: Wurst. Füchse leben am Waldteich westlich vom Dorf."]:
+				check(Lang.EN.has(text), "the fox hint has an English text")
 			game.menus.close()
+			# The hint must match the map: the foxes live west of the village
+			# square, next to the woodland pond.
+			var square := Vector3.ZERO
+			for p in lvl.spots.square:
+				square += p
+			square /= lvl.spots.square.size()
+			for s in lvl._animal_spots.filter(func(s): return s.kind == "fuchs"):
+				var fox_pos: Vector3 = lvl.cell_to_world(s.cell)
+				check(fox_pos.x < square.x - 40.0 and absf(fox_pos.z - square.z) < absf(fox_pos.x - square.x), "a fox meadow lies west of the village square")
+				var near_pond := false
+				for dy in range(-7, 8):
+					for dx in range(-7, 8):
+						if lvl.cell_char(s.cell + Vector2i(dx, dy)) == "~":
+							near_pond = true
+				check(near_pond, "a fox meadow lies by the woodland pond")
 			foxes_before = _foxes(lvl)
 			fox = lvl.animals.filter(func(a): return a.kind == "fuchs")[0]
 			game.player.bag.clear()

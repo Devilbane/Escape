@@ -15,6 +15,10 @@ extends Node3D
 ## The food that wins a fox over, and how many it must eat to trust the hero.
 const FOOD := "wurst"
 const TRUST_NEEDED := 3
+## Where the foxes live, for the hint on buying a sausage and the
+## compendium. tests/fox.gd checks that the map still agrees: the fox
+## meadow lies west of the village square, next to the woodland pond.
+const WHERE := "Füchse leben auf der Wiese am Waldteich westlich vom Dorf, am Weg, der vom Friedhof herunterkommt. Trag eine Wurst bei dir, dann kommt ein Fuchs zu dir."
 ## Gap (metres) the fox keeps to the hero, and from how far it runs instead
 ## of walking.
 const FOLLOW_GAP := 2.6

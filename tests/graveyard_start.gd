@@ -27,8 +27,7 @@ func _process(_delta: float) -> bool:
 	if frames < 5:
 		return false
 	_test()
-	if game.has_save():
-		DirAccess.remove_absolute(game.SAVE_FILE)
+	game.delete_save(game.save_path(game.hero_name))
 	if failures == 0:
 		print("PASS: graveyard start")
 	else:

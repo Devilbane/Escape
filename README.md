@@ -93,6 +93,11 @@ After every 4 levels you reach a **safe room** without enemies, the refuge. It h
 that refills your life and cures poison and curses, a storage chest, a merchant who buys and sells for gold, and a bed. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero falls later, the saved game is kept: a click on the “Fallen” screen continues the game from the refuge, N starts a new one.
 On the next start you continue from there with a click or a key. The saved game is stored in the browser.
 
+**Several saved games:** every hero has a saved game of their own, so you can play several heroes side by side.
+The **Load** window (key L, or “Load saved game” on the title screen) lists them all with level, gold and the time they were saved;
+pick one to load it, or delete it (click “Delete” twice). On the title screen a click continues with the game saved last.
+Starting a new game with the name of a hero who already has a saved game replaces it the next time the game saves.
+
 Every level has a **secret room**. One of the torches near it is a lever, a different one in every
 run. The first time you walk past it, you may discover it with some luck (d100), and
 2.5 seconds later the wall sinks. The richer the room, the smaller the chance:

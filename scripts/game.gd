@@ -17,7 +17,11 @@ const VERSION := "0.5"
 ## Filled in by GitHub with the number of each published build, so the
 ## version shown in the game changes with every update.
 const BUILD := ""
-const SAVE_FILE := "user://spielstand.json"
+## Every hero has a saved game of their own, in this folder, one file each.
+const SAVE_DIR := "user://spielstaende/"
+## Before there could be several saved games there was just this one file;
+## on the first start it moves into SAVE_DIR.
+const OLD_SAVE_FILE := "user://spielstand.json"
 
 enum State { TITLE, PLAYING, TRANSITION, WON, OVER }
 
@@ -84,6 +88,7 @@ var menus: Menus
 var storage: Array[String] = []
 var shop_stock: Array[String] = []
 var _title_buttons: Control
+var _name_note: Label
 ## The hero's name, asked for when a new game starts; it goes into the ranking.
 var hero_name := ""
 var _name_box: Control
@@ -110,6 +115,7 @@ var _mouse_held_time := 0.0
 
 func _ready() -> void:
 	Lang.setup()
+	_move_old_save()
 	for f in DirAccess.get_files_at(LEVEL_DIR):
 		if f.ends_with(".txt"):
 			level_files.append(LEVEL_DIR + f)
@@ -408,7 +414,7 @@ func _setup_hud() -> void:
 	title_row.add_theme_constant_override("separation", 20)
 	_title.add_child(title_row)
 	_title_buttons = title_row
-	for entry in [[Lang.t("Spielstand laden"), continue_game], [Lang.t("Neues Spiel"), new_game]]:
+	for entry in [[Lang.t("Spielstand laden"), open_load_window], [Lang.t("Neues Spiel"), new_game]]:
 		var b := _make_button(entry[0], entry[1])
 		b.custom_minimum_size = Vector2(240, 64)
 		title_row.add_child(b)
@@ -637,6 +643,7 @@ func _show_title(text: String, sub: String, prompt: String) -> void:
 	_name_box.visible = false
 	_lang_row.visible = false
 	_title_text.add_theme_font_size_override("font_size", 120)
+	_title.visible = true
 	_title_text.text = text
 	_title_sub.text = sub
 	_title_prompt.text = prompt
@@ -657,8 +664,11 @@ func _show_start_title(text: String, sub: String) -> void:
 		_title_buttons.visible = false
 		_lang_row.visible = true
 		return
-	if has_save():
-		_show_title(text, sub, Lang.t("Klicken oder eine Taste: weiterspielen.  N: neues Spiel"))
+	var saves := save_list()
+	if not saves.is_empty():
+		# A click carries on with the game saved last; the load window
+		# offers every other one.
+		_show_title(text, sub, Lang.t("Klicken oder eine Taste: als %s weiterspielen.  N: neues Spiel") % saves[0].name)
 		_title_buttons.visible = true
 	else:
 		_show_title(text, sub, Lang.t("Klicken oder eine Taste drücken"))
@@ -704,6 +714,15 @@ func new_game() -> void:
 	_name_edit.text = hero_name
 	_name_edit.grab_focus()
 	_name_edit.select_all()
+	_update_name_note(hero_name)
+
+
+## Warns when the name chosen already has a saved game: the new run takes
+## its place the next time it is saved.
+func _update_name_note(text: String) -> void:
+	var hero := text.strip_edges()
+	_name_note.text = Lang.t("%s hat schon einen Spielstand. Das neue Spiel ersetzt ihn beim nächsten Speichern.") % hero \
+			if hero != "" and has_save_of(hero) else ""
 
 
 func _setup_name_box() -> void:
@@ -728,7 +747,12 @@ func _setup_name_box() -> void:
 	_name_edit.add_theme_stylebox_override("normal", Menus.panel_style(Color(0.85, 0.66, 0.32, 0.8)))
 	_name_edit.add_theme_stylebox_override("focus", Menus.panel_style(GOLD))
 	_name_edit.text_submitted.connect(func(_t): _start_new_game())
+	_name_edit.text_changed.connect(_update_name_note)
 	box.add_child(_name_edit)
+	_name_note = _make_label(TEXT_FONT, 18, Color(1.0, 0.75, 0.5))
+	_name_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_name_note.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	box.add_child(_name_note)
 	var go := _make_button(Lang.t("Los geht's"), _start_new_game)
 	go.custom_minimum_size = Vector2(240, 64)
 	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -760,20 +784,56 @@ func _start_new_game() -> void:
 		load_level(_start_level()))
 
 
-func continue_game() -> void:
-	if (state != State.TITLE and state != State.OVER) or not has_save():
+## Carries on with a saved game from the title: the one at path, or else the
+## one to continue with (see _save_to_continue).
+func continue_game(path := "") -> void:
+	if (state != State.TITLE and state != State.OVER) or _name_box.visible:
 		return
-	var data := _read_save()
+	if path == "":
+		path = _save_to_continue()
+	if path == "" or not FileAccess.file_exists(path):
+		return
+	var data := _read_save(path)
 	_leave_title(func():
 		_apply_save(data)
 		_return_from_away(data))
+	# Closed only now, while leaving, so the title does not come back.
+	menus.close()
 
 
-## Loads the saved game in the middle of a run (from the "Laden" window).
-func load_saved_game() -> void:
-	if state != State.PLAYING or not has_save():
+## The saved game a click on the title continues: after a fall the fallen
+## hero's own, otherwise the one saved last.
+func _save_to_continue() -> String:
+	if state == State.OVER:
+		return save_path(hero_name) if has_save_of(hero_name) else ""
+	var saves := save_list()
+	return saves[0].path if not saves.is_empty() else ""
+
+
+## The "Spielstand laden" button on the title: with just one saved game it
+## carries on at once, with several the load window lets the player choose.
+func open_load_window() -> void:
+	if state != State.TITLE or _name_box.visible:
 		return
-	var data := _read_save()
+	if save_list().size() <= 1:
+		continue_game()
+		return
+	_title.visible = false
+	menus.open("laden")
+
+
+## The load window was closed on the title: the title comes back, up to
+## date in case a saved game was deleted.
+func load_window_closed() -> void:
+	_show_start_title(_title_text.text, _title_sub.text)
+
+
+## Loads a saved game, the one at path, in the middle of a run (from the
+## "Laden" window). Any hero's saved game can be loaded, not only this one's.
+func load_saved_game(path: String) -> void:
+	if state != State.PLAYING or not FileAccess.file_exists(path):
+		return
+	var data := _read_save(path)
 	state = State.TRANSITION
 	player.frozen = true
 	var tween := create_tween()
@@ -843,16 +903,43 @@ func quit_game() -> void:
 	tween.tween_callback(func(): _show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies")))
 
 
-## Name, level and gold of the saved game, or nothing when there is none.
-func save_info() -> Dictionary:
-	if not has_save():
+## Name, level, gold and time of a saved game (by default this hero's), or
+## nothing when there is none.
+func save_info(path := "") -> Dictionary:
+	if path == "":
+		path = save_path(hero_name)
+	if not FileAccess.file_exists(path):
 		return {}
-	var data := _read_save()
-	return {"name": data.get("name", Lang.t("Namenlos")), "level": int(data.level) + 1, "coins": int(data.coins), "escaped": bool(data.get("escaped", false))}
+	var data := _read_save(path)
+	if not data.has("level") or not data.has("coins"):
+		return {}
+	# Games saved before there were several have no time of their own.
+	var time := float(data.get("saved_at", FileAccess.get_modified_time(path)))
+	return {"path": path, "name": str(data.get("name", Lang.t("Namenlos"))), "level": int(data.level) + 1, "coins": int(data.coins),
+			"escaped": bool(data.get("escaped", false)), "time": time}
 
 
-func _read_save() -> Dictionary:
-	var data = JSON.parse_string(FileAccess.get_file_as_string(SAVE_FILE))
+## Every saved game there is, the one saved last first.
+func save_list() -> Array:
+	var saves := []
+	for f in DirAccess.get_files_at(SAVE_DIR):
+		if f.ends_with(".json"):
+			var info := save_info(SAVE_DIR + f)
+			if not info.is_empty():
+				saves.append(info)
+	saves.sort_custom(func(a, b): return a.time > b.time)
+	return saves
+
+
+## The time a game was saved, as the player's clock showed it.
+static func save_time_text(time: float) -> String:
+	var local := int(time) + int(Time.get_time_zone_from_system().get("bias", 0)) * 60
+	var d := Time.get_datetime_dict_from_unix_time(local)
+	return "%04d-%02d-%02d %02d:%02d" % [d.year, d.month, d.day, d.hour, d.minute]
+
+
+func _read_save(path := "") -> Dictionary:
+	var data = JSON.parse_string(FileAccess.get_file_as_string(path if path != "" else save_path(hero_name)))
 	return data if data is Dictionary else {}
 
 
@@ -904,8 +991,48 @@ func _leave_title(prepare: Callable) -> void:
 
 # --- Saving -----------------------------------------------------------------
 
+## Whether there is any saved game at all.
 func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_FILE)
+	return not save_list().is_empty()
+
+
+## The file of a hero's saved game. The name is hashed, so that any name
+## makes a valid file name.
+static func save_path(hero: String) -> String:
+	return SAVE_DIR + hero.md5_text() + ".json"
+
+
+func has_save_of(hero: String) -> bool:
+	return FileAccess.file_exists(save_path(hero))
+
+
+## Deletes a saved game from the load window.
+func delete_save(path: String) -> void:
+	if path.begins_with(SAVE_DIR) and FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+
+
+## The one saved game from before there could be several becomes the saved
+## game of its hero.
+func _move_old_save() -> void:
+	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
+	if not FileAccess.file_exists(OLD_SAVE_FILE):
+		return
+	var data = JSON.parse_string(FileAccess.get_file_as_string(OLD_SAVE_FILE))
+	if not (data is Dictionary):
+		return
+	var target := save_path(str(data.get("name", Lang.t("Namenlos"))))
+	if FileAccess.file_exists(target):
+		return
+	if not data.has("saved_at"):
+		data.saved_at = FileAccess.get_modified_time(OLD_SAVE_FILE)
+	var file := FileAccess.open(target, FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_string(JSON.stringify(data))
+	file.close()
+	if FileAccess.file_exists(target):
+		DirAccess.remove_absolute(OLD_SAVE_FILE)
 
 
 ## The level index of the open air outside the crypt, or -1 without one.
@@ -934,18 +1061,21 @@ func save_game(going_away := false) -> bool:
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(),
+		"saved_at": Time.get_unix_time_from_system(),
 	}
 	if going_away and level is Outdoor:
 		# Asleep in the bed of the hero's own house: wake up there.
 		data.spot = "home"
 	if going_away:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
-	var file := FileAccess.open(SAVE_FILE, FileAccess.WRITE)
+	var path := save_path(hero_name)
+	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
+	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return false
 	file.store_string(JSON.stringify(data))
 	file.close()
-	return FileAccess.file_exists(SAVE_FILE)
+	return FileAccess.file_exists(path)
 
 
 ## The hero lies down in the safe room's bed: save, then back to the title.
@@ -1358,11 +1488,12 @@ func _end_run(escaped: bool) -> void:
 	# What the hero trained stays with their name, fallen or free.
 	Training.save_hero(hero_name, player.xp)
 	if escaped:
-		# The run is over, so the saved game in the safe room is gone too.
-		if has_save():
-			DirAccess.remove_absolute(SAVE_FILE)
+		# The run is over, so this hero's saved game in the safe room is
+		# gone too. Other heroes keep theirs.
+		if has_save_of(hero_name):
+			DirAccess.remove_absolute(save_path(hero_name))
 		_show_title(Lang.t("Frei!"), Lang.t("%s ist entkommen und hat %d Gold erbeutet.") % [hero_name, coins], Lang.t("Klicken für ein neues Spiel"))
-	elif has_save():
+	elif has_save_of(hero_name):
 		# A fallen hero may rise again in the safe room, or once out of the
 		# dungeon, on the graveyard.
 		var place := Lang.t("Klicken oder eine Taste: ab dem Friedhof weiterspielen.  N: neues Spiel") if save_info().escaped \
@@ -1661,6 +1792,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.TITLE:
 			if _name_box.visible or Lang.language == "":
 				return
+			if menus.is_open():
+				# The load window's own buttons choose; Esc goes back.
+				if event is InputEventKey and event.physical_keycode == KEY_ESCAPE:
+					menus.close()
+				return
 			if has_save() and not (event is InputEventKey and event.physical_keycode == KEY_N):
 				continue_game()
 			else:
@@ -1668,7 +1804,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.WON:
 			new_game()
 		State.OVER:
-			if has_save() and not (event is InputEventKey and event.physical_keycode == KEY_N):
+			if has_save_of(hero_name) and not (event is InputEventKey and event.physical_keycode == KEY_N):
 				continue_game()
 			else:
 				new_game()

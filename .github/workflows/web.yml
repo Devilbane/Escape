@@ -64,6 +64,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/graveyard_start.gd | tee graveyard.log
           grep -q PASS graveyard.log
 
+      - name: Several saved games test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log
+          grep -q PASS slots.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

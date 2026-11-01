@@ -242,6 +242,21 @@ the same list as yours, and much more often than skeletons do; when one falls it
 drop a piece of its gear. A fallen bandit's spot is taken by another a few minutes later, once you have
 left, so there is always something to fight and loot. Whoever falls on the pass starts again on the graveyard.
 
+By the campfire waits the boss of the pass: **Ravenheart, the bandit chief**. Once he takes up the fight, his
+**health bar** shows at the top of the screen, with marks where his next phase begins:
+
+1. **Sword and shield.** Stand too close and now and then he rams you with his shield: it cannot be blocked
+   and knocks you to the ground.
+2. **"To me, lads!"** Below two thirds of his life he calls two cutthroats out of the camp. Now the sweep pays off.
+3. **Enraged.** Below one third he glows red, gets quicker and, from a distance, lowers his head and **charges**
+   in a straight line. Step aside or jump: a charge that misses leaves him **dazed** for a moment, and a dazed
+   chief takes double damage.
+
+A stab in the back does not bring him down at once, it only hits three times as hard. If you run away he binds
+his wounds after a while and starts again at full strength. He falls **only once per saved game**: he leaves
+plenty of gold and his unique blade, the **Ravenblade** (+3 power, +5% speed), and nobody takes his place.
+If you leave the blade lying there, it still waits for you after a reload.
+
 The **compendium** (key H) shows all keys and mouse commands and collects every hint and every
 explanation you have been given so far: the introduction of every level, the tips on sneaking and on the
 guardian, the secret lever. It is saved with the game.

@@ -78,6 +78,19 @@ jobs:
           cp build/web/index.pck build/web/index-$v.pck
           sed -i "s/\"executable\":\"index\"/\"executable\":\"index\",\"mainPack\":\"index-$v.pck\"/; s/\"index.pck\":/\"index-$v.pck\":/" build/web/index.html
           grep -q "\"mainPack\":\"index-$v.pck\"" build/web/index.html
+          # A page still cached from an older build would ask for a pck that
+          # is gone. version.txt names the live build; the page checks it
+          # without the cache and reloads itself when it is out of date.
+          echo "$v" > build/web/version.txt
+          python3 - "$v" <<'PY'
+          import sys
+          v = sys.argv[1]
+          guard = open("tools/web/version_check.html").read().replace("__BUILD__", v)
+          page = open("build/web/index.html").read()
+          assert "</head>" in page
+          open("build/web/index.html", "w").write(page.replace("</head>", guard + "</head>", 1))
+          PY
+          grep -q "var build = \"$v\"" build/web/index.html
 
       - uses: actions/upload-pages-artifact@v3
         with:

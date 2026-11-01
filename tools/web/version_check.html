@@ -1,0 +1,19 @@
+<script>
+// Stale page guard. Browsers may keep an old index.html in their cache,
+// and that page asks for a game data file (index-<build>.pck) that no
+// longer exists after a newer deploy. Ask the server which build is live,
+// bypassing the cache, and if it is newer, reload under a fresh URL.
+(function () {
+	var build = "__BUILD__";
+	fetch("version.txt?t=" + Date.now(), { cache: "no-store" })
+		.then(function (r) { return r.ok ? r.text() : ""; })
+		.then(function (live) {
+			live = live.trim();
+			if (!live || live === build) return;
+			var want = "v=" + encodeURIComponent(live);
+			if (location.search.indexOf(want) !== -1) return; // already tried once
+			location.replace(location.pathname + "?" + want + location.hash);
+		})
+		.catch(function () {});
+})();
+</script>

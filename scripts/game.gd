@@ -64,6 +64,8 @@ var met := {}
 ## The villagers' tasks: offered, running and finished (see Quests). Kept in
 ## the saved game, so every hero has their own.
 var quests := Quests.new(self)
+## Counts down to the next look at who has a task (see refresh_quest_marks).
+var _quest_mark_timer := 0.0
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
 var coins := 0
@@ -1981,6 +1983,16 @@ func quest_reward(id: String) -> void:
 	quest_news(Lang.t("Auftrag abgeschlossen: %s\nBelohnung: %s") % [Lang.t(q.title), Quests.reward_text(id)], GOLD, 4.5)
 
 
+## The "!" and "?" over the villagers' heads. Looked at a few times a
+## second, so kills, loot and a full or emptied bag show up on their own.
+func refresh_quest_marks() -> void:
+	if not (level is Outdoor):
+		return
+	for v in level.villagers:
+		if is_instance_valid(v):
+			v.set_quest_mark(quests.mark(v.role))
+
+
 ## Something in the bag changed because of a task.
 func update_after_quest() -> void:
 	Sfx.play(self, "key", -6.0)
@@ -2473,6 +2485,10 @@ func _process(delta: float) -> void:
 			player.set_sneaking(false)
 			show_message(Lang.t("Entdeckt! Du kannst nicht mehr schleichen."), 1.6)
 	_guardian_intro()
+	_quest_mark_timer -= delta
+	if _quest_mark_timer <= 0.0:
+		_quest_mark_timer = 0.25
+		refresh_quest_marks()
 	var p := player.global_position
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
 	_zoom = move_toward(_zoom, _zoom_target, delta * 2.5)

@@ -10,6 +10,8 @@ const RUN_SPEED := 3.6
 ## shown only when a role asks for it.
 const BODY_PARTS := ["Body", "Head", "ArmLeft", "ArmRight", "LegLeft", "LegRight"]
 const SAY_TIME := 4.0
+## The gold of the quest marks over the heads of villagers with a task.
+const MARK_COLOR := Color(1.0, 0.82, 0.3)
 ## Waits this long for the hero to step aside before walking on.
 const MAKE_WAY := 1.4
 
@@ -106,6 +108,11 @@ var _bubble: Label3D
 var _bubble_time := 0.0
 ## The name over the head, shown once the hero has talked to us.
 var _name_tag: Label3D
+## The quest mark over the head: "!" for a task to offer, "?" for one to
+## hand in (see Quests.mark), hidden when there is neither.
+var _quest_mark: Label3D
+var _mark_base := 0.0
+var _mark_time := 0.0
 var _line := 0
 var _current_anim := ""
 var _look_at := Vector3.INF
@@ -180,6 +187,21 @@ func _ready() -> void:
 	_name_tag.position.y = 2.5 * _info.get("scale", 1.0) + 0.25
 	_name_tag.visible = is_known()
 	add_child(_name_tag)
+	_quest_mark = Label3D.new()
+	_quest_mark.font = _bubble.font
+	_quest_mark.font_size = 140
+	_quest_mark.pixel_size = 0.011
+	_quest_mark.outline_size = 26
+	_quest_mark.outline_modulate = Color(0.05, 0.03, 0.06, 0.9)
+	_quest_mark.modulate = MARK_COLOR
+	_quest_mark.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_quest_mark.no_depth_test = true
+	_quest_mark.render_priority = 18
+	_quest_mark.outline_render_priority = 17
+	_mark_base = 2.5 * _info.get("scale", 1.0) + 1.1
+	_quest_mark.position.y = _mark_base
+	_quest_mark.visible = false
+	add_child(_quest_mark)
 	rotation.y = _rng.randf() * TAU
 	_start("sit" if _info.plan == "sit" else "work", _rng.randf_range(2.0, 6.0))
 
@@ -529,6 +551,19 @@ func greet_newcomer(hero: Node3D) -> void:
 	say(Lang.t("Willkommen, Fremder! Du kommst aus der alten Gruft? Das leere Haus mit dem Ziegeldach gehört jetzt dir."), hero.global_position, 6.5)
 
 
+## Shows "!" (a task to offer), "?" (a task to hand in) or nothing ("").
+func set_quest_mark(text: String) -> void:
+	if _quest_mark == null:
+		return
+	_quest_mark.text = text
+	_quest_mark.visible = text != ""
+
+
+## The mark over the head right now ("" when none shows).
+func quest_mark() -> String:
+	return _quest_mark.text if _quest_mark and _quest_mark.visible else ""
+
+
 func say(text: String, look_at := Vector3.INF, time := SAY_TIME) -> void:
 	_bubble.text = "%s:\n%s" % [display_name, text]
 	_bubble_time = time
@@ -552,5 +587,11 @@ func _update_bubble(delta: float) -> void:
 	if _name_tag and _name_tag.visible:
 		_name_tag.modulate.a = 1.0 - alpha
 		_name_tag.outline_modulate.a = 0.85 * (1.0 - alpha)
+	# The quest mark steps aside too, and bobs gently while it shows.
+	if _quest_mark and _quest_mark.visible:
+		_quest_mark.modulate.a = 1.0 - alpha
+		_quest_mark.outline_modulate.a = 0.9 * (1.0 - alpha)
+		_mark_time += delta
+		_quest_mark.position.y = _mark_base + 0.08 * sin(_mark_time * 3.0)
 	if _bubble_time <= 0.0:
 		_look_at = Vector3.INF

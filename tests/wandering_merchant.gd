@@ -65,11 +65,11 @@ func _items() -> void:
 		check(Crafting.INGREDIENTS.has(id), "%s is a known ingredient" % id)
 		check(not Crafting.INGREDIENTS[id].get("rare", false) and id != "trueffel", "%s is not one of the rarest finds" % id)
 	# Merchants sell nothing magic, special or top of its kind.
-	for id in ["vampirzahn", "phoenixfeder", "gluecksklee", "dornenrune", "amulett_kraft", "zauberhut", "fechtbuch",
-			"plattenpanzer", "axt", "eilstiefel", "rubinring", "grosser_rucksack", "langschwert", "rabenklinge", "schattenumhang"]:
-		check(not Items.is_basic(id), "%s is not basic, so no merchant sells it" % id)
-	for id in ["schwert", "rundschild", "lederwams", "lederstiefel", "wollumhang", "kupferring", "leinenrucksack"]:
-		check(Items.is_basic(id), "%s is basic gear" % id)
+	for id in ["vampirzahn", "phoenixfeder", "gluecksklee", "dornenrune", "amulett_kraft", "zauberhut",
+			"plattenpanzer", "eilstiefel", "rubinring", "grosser_rucksack", "langschwert", "rabenklinge", "schattenumhang"]:
+		check(not Wanderer.is_gear_for_sale(id), "%s is not for sale at his cart" % id)
+	for id in ["schwert", "rundschild", "lederwams", "lederstiefel", "wollumhang", "kupferring", "leinenrucksack", "fechtbuch"]:
+		check(Wanderer.is_gear_for_sale(id), "%s may be on his cart" % id)
 	for night in [1, 4, 7, 10]:
 		var wares := Wanderer.stock_for(night, HERO)
 		var ingredients := wares.filter(Wanderer.is_ingredient)
@@ -81,7 +81,7 @@ func _items() -> void:
 		check(ingredients.size() <= Wanderer.INGREDIENT_KINDS * Wanderer.MAX_EACH, "a few pieces of each on night %d" % night)
 		check(gear.size() == Wanderer.GEAR_COUNT, "two pieces of gear on night %d" % night)
 		for id in gear:
-			check(Items.is_basic(id), "%s on night %d is basic gear" % [id, night])
+			check(Wanderer.is_gear_for_sale(id), "%s on night %d is basic gear or a book" % [id, night])
 		check(wares == Wanderer.stock_for(night, HERO), "the same night brings the same wares")
 	check(Wanderer.stock_for(1, HERO) != Wanderer.stock_for(4, HERO) or Wanderer.stock_for(4, HERO) != Wanderer.stock_for(7, HERO), "another visit brings other wares")
 

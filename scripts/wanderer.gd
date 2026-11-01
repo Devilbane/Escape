@@ -17,8 +17,9 @@ const ROLE := "%"
 ## first night of a new game): nights 1, 4, 7, ...
 const EVERY := 3
 const FIRST := 1
-## Merchants sell only plain, basic gear (see Items.is_basic): nothing
-## magic, special or top of its kind, which stays for loot and crafting.
+## Merchants sell only plain, basic gear and books (see Items.merchant_sells):
+## nothing magic, special or top of its kind, which stays for loot and
+## crafting.
 ## What makes Zarek worth the wait are his ingredients from far away (see
 ## Crafting.INGREDIENTS), with what each piece costs. The rarest finds (the
 ## truffle, the rare fish) are not for sale: those the hero has to find.
@@ -56,7 +57,7 @@ static func nights_until(night: int) -> int:
 
 
 ## What he brings on a night: a few kinds of ingredient (one entry per
-## piece) and some basic gear. The same hero gets the same wares for the same
+## piece) and some basic gear or a book. The same hero gets the same wares for the same
 ## night, so loading a saved game does not shuffle them.
 static func stock_for(night: int, hero := "") -> Array[String]:
 	var rng := RandomNumberGenerator.new()
@@ -67,10 +68,16 @@ static func stock_for(night: int, hero := "") -> Array[String]:
 		var id: String = kinds.pop_at(rng.randi() % kinds.size())
 		for n in rng.randi_range(1, MAX_EACH):
 			out.append(id)
-	var gear: Array = Items.ALL.keys().filter(Items.is_basic)
+	var gear: Array = Items.ALL.keys().filter(is_gear_for_sale)
 	for i in mini(GEAR_COUNT, gear.size()):
 		out.append(gear.pop_at(rng.randi() % gear.size()))
 	return out
+
+
+## Whether he may bring an item: what any merchant may sell, but not the
+## smith's own work (only Gorm sells that).
+static func is_gear_for_sale(id: String) -> bool:
+	return Items.merchant_sells(id) and not Items.ALL[id].get("smith", false)
 
 
 ## Whether a ware is an ingredient (it goes into the pouch, not the bag).

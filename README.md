@@ -376,9 +376,10 @@ each. They go straight into your ingredient pouch:
 | Cave mushroom | 10 |
 
 The rarest finds (the truffle and the rare fish) are never for sale. He also brings two pieces of plain
-gear, at a fifth more than the shopkeeper asks. Like every merchant he sells only **basic** gear: nothing
-magic or special (specials, amulets, books, gear with a skill bonus or an attribute it needs), nothing of
-Gorm's own work, and never the best of its kind. Those you find as loot or craft yourself. He buys nothing.
+gear or books, at a fifth more than the shopkeeper asks. Like every merchant he sells only **basic** gear:
+nothing magic or special (specials, the amulets, the wizard's hat, the shadow cloak, the silver bracelet),
+nothing unique and never the best of its kind; Gorm's own work only Gorm sells. Those you find as loot or
+craft yourself. He buys nothing.
 Every visit brings different wares; what you buy is gone until his next visit. If you sleep through his
 night in the bed, you miss him. The herald announces his visits on the square.
 

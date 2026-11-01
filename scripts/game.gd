@@ -308,6 +308,11 @@ func _setup_world() -> void:
 	camera = Camera3D.new()
 	camera.fov = 38.0
 	camera.far = 200.0
+	# The camera never comes nearer than a few metres to anything it shows,
+	# so a near plane well off the lens leaves the depth buffer its precision
+	# out at the houses and walls (with the default 0.05 faces a few
+	# millimetres apart flickered through each other in the distance).
+	camera.near = 0.5
 	camera.rotation_degrees = Vector3(-CAMERA_PITCH, 0, 0)
 	add_child(camera)
 

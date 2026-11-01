@@ -499,34 +499,98 @@ func _crafts_text() -> String:
 	return Lang.t("Handwerk:") + " " + "   ".join(parts)
 
 
-## The wheel of attributes and skills, with how a roll on a skill works.
+## The width of the column beside the character wheel.
+const CHARACTER_SIDE := 340
+## The details card beside the wheel has a fixed height that fits the longest
+## details in both languages, so pointing at another entry moves nothing.
+const CHARACTER_CARD_HEIGHT := 262
+const CHARACTER_TEXT := Color(0.85, 0.87, 0.92)
+
+
+## The wheel of attributes and skills (see CharacterPage). Beside it: what
+## is not on the wheel (life and the attributes no skill depends on), and a
+## card with the details of the entry pointed at, or how a roll works.
 func _build_character() -> void:
+	var p: Player = game.player
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 24)
 	_box.add_child(row)
-	row.add_child(CharacterPage.new(game.player, game.TEXT_FONT))
+	var wheel := CharacterPage.new(p, game.TEXT_FONT)
+	row.add_child(wheel)
 	var side := VBoxContainer.new()
+	side.custom_minimum_size.x = CHARACTER_SIDE
 	side.alignment = BoxContainer.ALIGNMENT_CENTER
-	side.custom_minimum_size.x = 300
 	side.add_theme_constant_override("separation", 14)
 	row.add_child(side)
-	var title: Label = game._make_label(game.TITLE_FONT, 34, game.GOLD)
+	var title: Label = game._make_label(game.TITLE_FONT, 38, game.GOLD)
 	title.text = Lang.t("Charakter")
 	side.add_child(title)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 6)
+	side.add_child(grid)
+	_character_row(grid, wheel, "", Lang.t("Leben"), "%d / %d   %+.1f/s" % [p.hp, p.max_hp, p.life_regen()], Color(1.0, 0.55, 0.5))
+	for id in Training.ATTRIBUTES:
+		if not id in Training.MAIN_ATTRIBUTES:
+			_character_row(grid, wheel, id, Lang.t(Training.ATTRIBUTES[id].name),
+					("%d %%" % p.attribute(id)) if id == "tempo" else str(p.attribute(id)), Color.WHITE)
+	# The details card: what the wheel points at, else how a roll works.
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(CHARACTER_SIDE, CHARACTER_CARD_HEIGHT)
+	card.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.07, 0.05, 0.07, 0.97), TradeWindow.BORDER, 8, 12, 2))
+	side.add_child(card)
+	var lines := VBoxContainer.new()
+	lines.add_theme_constant_override("separation", 6)
+	card.add_child(lines)
+	var card_title: Label = game._make_label(game.TITLE_FONT, 20, game.GOLD)
+	var card_body: Label = game._make_label(game.TEXT_FONT, 16, CHARACTER_TEXT)
+	var card_note: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	for l in [card_title, card_body, card_note]:
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size.x = CHARACTER_SIDE - 28
+		l.add_theme_constant_override("line_spacing", 0)
+	for l in [card_title, card_body, card_note]:
+		lines.add_child(l)
+	var show := func(id: String) -> void:
+		var d: Dictionary = wheel.details(id)
+		card_title.text = d.title
+		card_body.text = "\n".join(d.lines)
+		card_note.text = d.note
+	show.call("")
+	wheel.shown_changed.connect(show)
 	for entry in [
-		[Lang.t("Jede Fertigkeit liegt im Feld der Eigenschaften, die sie bestimmen."), Color(0.85, 0.87, 0.92)],
-		[Lang.t("Probe auf eine Fertigkeit:\nW100 ≤ (Summe der Eigenschaften / ihre Anzahl) × (Stufe + 1)"), game.GOLD],
-		[Lang.t("Beispiel: Klingen 2, Stärke 12, Geschick 10: (12 + 10) / 2 × 3 = 33 %"), BLUE],
-		[Lang.t("Ein Wuchttreffer (+1 Schaden) ist eine Probe auf die Waffen-Fertigkeit."), Color(0.85, 0.87, 0.92)],
-		[Lang.t("Innen: Grundfertigkeiten. Außen: fortgeschrittene Fertigkeiten, die auf einer Grundfertigkeit aufbauen (Novize, Fortgeschritten, Meister: je 3 Stufen)."), Color(0.85, 0.87, 0.92)],
-		[Lang.t("Gedimmt: braucht passende Ausrüstung"), Color(0.75, 0.75, 0.8)],
+		[Lang.t("Innen: Grundfertigkeiten. Außen: fortgeschrittene Fertigkeiten."), CHARACTER_TEXT],
 		[_crafts_text(), game.GOLD],
 	]:
 		var l: Label = game._make_label(game.TEXT_FONT, 16, entry[1])
 		l.text = entry[0]
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.custom_minimum_size.x = 300
+		l.custom_minimum_size.x = CHARACTER_SIDE
 		side.add_child(l)
+
+
+## One line of the list beside the wheel: a name and its value. An attribute's
+## line (id not empty) shows its details in the card when pointed at or tapped.
+func _character_row(grid: GridContainer, wheel: CharacterPage, id: String, name: String, value: String, color: Color) -> void:
+	var name_label: Label = game._make_label(game.TEXT_FONT, 16, CHARACTER_TEXT)
+	name_label.text = name
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var value_label: Label = game._make_label(game.TEXT_FONT, 16, color)
+	value_label.text = value
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	for l in [name_label, value_label]:
+		grid.add_child(l)
+		if id == "":
+			continue
+		# Pass, so the mouse wheel still scrolls the window.
+		l.mouse_filter = Control.MOUSE_FILTER_PASS
+		l.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		l.mouse_entered.connect(wheel.point.bind(id))
+		l.mouse_exited.connect(wheel.point.bind(""))
+		l.gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+				wheel.pick(id))
 
 
 # --- Inventory --------------------------------------------------------------

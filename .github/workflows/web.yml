@@ -124,6 +124,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/window_buttons.gd | tee window_buttons.log
           grep -q PASS window_buttons.log
 
+      - name: Character page test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/character_page.gd | tee character_page.log
+          grep -q PASS character_page.log
+
       - name: Villager quests test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/quests.gd | tee quests.log

@@ -15,6 +15,8 @@ The game can be played in English or German; you choose the language on the titl
 | Melee | run into the enemy or F | click the enemy, “Strike” button |
 | Throwing knife | R | right click while standing, “Throw” button |
 | Use, search | run into it | click the object |
+| Pick up a crate | E | click the crate, “Crate” button |
+| Set a crate down | Q | “Crate” button, “Set down” in the inventory |
 | Inventory | I | “Inventory” button |
 | Compendium | H | “Compendium” button |
 | Character page | P | “Character” button |
@@ -45,6 +47,14 @@ Gifts last until the end of the game.
 
 Sometimes you find **gear**: helmets and hats (bone helmet, wizard hat, knight's helmet, bear cap) sit visibly on your head, sword and axe give power, shields give life,
 amulets give speed, power or life. In the **inventory** (key I) you put them on or throw them away.
+**Crates** go into your bag (3 kg each) and come out again in front of you; set one down
+facing another crate and it goes on top, up to three high. Walk into a crate and you climb on top
+of it. A stack two crates high is too tall to just walk up: jump against it and you pull yourself
+up, or set a third crate down as a step. In the village, south of the market, a stone **pedestal**
+holds a food basket out of reach of the ground and of a single crate. Three crates lie beside it:
+stack two next to the pedestal, climb up and eat (+3 lives and every ailment cured). The basket
+fills up again after a few minutes.
+
 Your bag holds 8 things. A **backpack** worn in its own slot makes room for more: canvas backpack 10,
 leather backpack 11, large backpack 12. The bigger the backpack, the rarer it is. You can only take off a
 backpack, or swap it for a smaller one, while everything you carry still fits.

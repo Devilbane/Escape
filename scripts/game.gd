@@ -96,6 +96,8 @@ var _title_sub: Label
 var _title_prompt: Label
 var _message_tween: Tween
 var _pending_search := {}
+## A crate the hero was sent to pick up with a click (see Crate).
+var _pending_crate: Crate = null
 var menus: Menus
 ## Items left in the safe room's storage chest, and what the merchant sells.
 var storage: Array[String] = []
@@ -416,6 +418,7 @@ func _setup_hud() -> void:
 	buttons.add_child(_make_button(Lang.t("Springen"), func(): if state == State.PLAYING: player.jump()))
 	buttons.add_child(_make_button(Lang.t("Werfen"), func(): if state == State.PLAYING: player.throw_knife()))
 	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
+	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
 
 	_setup_shrine_panel()
 
@@ -548,6 +551,76 @@ func _drink(s: Dictionary) -> void:
 	_update_hud()
 
 
+## The food basket on the village pedestal: bread, cheese and apples give
+## back some life and, like a healing potion, cure what ails the hero.
+func _eat_from_basket(heal: int) -> void:
+	player.hp = mini(player.max_hp, player.hp + heal)
+	var text := Lang.t("Essenskorb! +%d Leben") % heal
+	if player.cure():
+		text += "\n" + Lang.t("Dein Leiden ist geheilt.")
+	player.play_once("PickUp", 0.6)
+	Sfx.play(self, "drink")
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), text, Color(1.0, 0.5, 0.55), true)
+	show_message(Lang.t("Brot, Käse und Äpfel: du isst dich satt. Der Korb füllt sich mit der Zeit wieder."), 3.5)
+	learn("Kisten (Taste E: aufheben, Q: abstellen, oder der Knopf „Kiste“) kommen in deine Tasche und lassen sich wieder abstellen und stapeln. Läufst du gegen eine Kiste, kletterst du hinauf; eine höhere erreichst du mit einem Sprung. Der Essenskorb auf dem Sockel im Dorf ist nur von zwei gestapelten Kisten aus erreichbar.")
+	_update_hud()
+
+
+# --- Crates -------------------------------------------------------------------
+
+## Picks up the crate in reach (the one nearest `near`, if given) into the
+## bag. Returns "" on success, else why not.
+func pick_up_crate(near := Vector3.INF) -> String:
+	if not player.can_act() or player.is_climbing():
+		return Lang.t("Gerade nicht.")
+	var crate := level.crate_in_reach(player, near)
+	if crate == null:
+		return Lang.t("Keine Kiste in Reichweite.")
+	if player.bag.size() >= player.bag_size():
+		return Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.")
+	player.path.clear()
+	player.face(crate.global_position - player.global_position)
+	player.play_once("Interact", 0.3)
+	level.take_crate(crate)
+	player.bag.append("kiste")
+	Sfx.play(self, "gear_soft_%d" % (randi() % 2), -2.0)
+	learn("Kisten (Taste E: aufheben, Q: abstellen, oder der Knopf „Kiste“) kommen in deine Tasche und lassen sich wieder abstellen und stapeln. Läufst du gegen eine Kiste, kletterst du hinauf; eine höhere erreichst du mit einem Sprung. Der Essenskorb auf dem Sockel im Dorf ist nur von zwei gestapelten Kisten aus erreichbar.")
+	_update_hud()
+	return ""
+
+
+## Sets a crate from the bag down in front of the hero, on top of a crate
+## standing there if there is one. Returns "" on success, else why not.
+func put_down_crate() -> String:
+	if not player.can_act() or player.is_climbing() or not player.is_on_floor():
+		return Lang.t("Gerade nicht.")
+	if not player.bag.has("kiste"):
+		return Lang.t("Du trägst keine Kiste.")
+	var spot := level.crate_spot(player, player.facing())
+	if spot == Vector3.INF:
+		return Lang.t("Hier ist kein Platz für die Kiste.")
+	player.path.clear()
+	player.play_once("Interact", 0.3)
+	player.bag.erase("kiste")
+	level.put_crate(spot)
+	Sfx.play(self, "gear_book", -2.0, spot)
+	_update_hud()
+	return ""
+
+
+## The "Crate" button: picks up a crate in reach, else sets one down.
+func crate_action() -> void:
+	var why := ""
+	if level.crate_in_reach(player) != null and player.bag.size() < player.bag_size():
+		why = pick_up_crate()
+	elif player.bag.has("kiste"):
+		why = put_down_crate()
+	else:
+		why = pick_up_crate()
+	if why != "":
+		show_message(why, 1.6)
+
+
 func _open_shrine(s: Dictionary) -> void:
 	_shrine = s
 	_pending_station = {}
@@ -676,6 +749,8 @@ func load_level(index: int, restock := true) -> void:
 	level.exit_reached.connect(_on_exit_reached)
 	if level is Outdoor:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
+		level.food_basket.connect(_eat_from_basket)
+	_pending_crate = null
 	_set_atmosphere(level.outdoor)
 	_pending_search = {}
 	_pending_station = {}
@@ -1909,6 +1984,16 @@ func _process(delta: float) -> void:
 		if _reach(_pending_station.pos) <= Level.SEARCH_RANGE + 0.3:
 			_use_station(_pending_station)
 		_pending_station = {}
+	if _pending_crate != null and player.can_act():
+		if not is_instance_valid(_pending_crate) or not level.crates.has(_pending_crate):
+			_pending_crate = null
+		elif _arrived(_pending_crate.global_position) or _reach(_pending_crate.global_position) <= Level.CRATE_REACH:
+			var crate_pos := _pending_crate.global_position
+			_pending_crate = null
+			if _reach(crate_pos) <= Level.CRATE_REACH:
+				var why := pick_up_crate(crate_pos)
+				if why != "":
+					show_message(why, 1.6)
 	if not _pending_search.is_empty() and player.can_act() and _arrived(_pending_search.pos):
 		player.path.clear()
 		if _reach(_pending_search.pos) <= Level.SEARCH_RANGE + 0.3:
@@ -1931,6 +2016,8 @@ func _process(delta: float) -> void:
 			"eingang": Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 		}[station.kind]
+	elif _prompt.text == "" and level.crate_in_reach(player) != null:
+		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")
 
 
 func _reach(pos: Vector3) -> float:
@@ -2037,6 +2124,14 @@ func _unhandled_input(event: InputEvent) -> void:
 						_toggle_sound()
 					KEY_C:
 						_toggle_sneak()
+					KEY_E:
+						var why_not := pick_up_crate()
+						if why_not != "":
+							show_message(why_not, 1.6)
+					KEY_Q:
+						var no_room := put_down_crate()
+						if no_room != "":
+							show_message(no_room, 1.6)
 					KEY_ESCAPE:
 						if player.can_act():
 							menus.open("beenden")
@@ -2074,6 +2169,21 @@ func _click(point: Vector3) -> void:
 			else:
 				player.throw_knife(e.global_position)
 			return
+	# Clicking a crate picks it up: right away when it is in reach, else
+	# after walking up to it.
+	var crate := level.crate_at(point)
+	_pending_crate = null
+	if crate != null and crate == level.crate_in_reach(player, crate.global_position):
+		var why := pick_up_crate(crate.global_position)
+		if why != "":
+			show_message(why, 1.6)
+		return
+	if crate != null and level.crate_on(crate) == null and player.global_position.y < crate.top() - 0.3 and _reach(crate.global_position) > Level.CRATE_REACH:
+		_pending_crate = crate
+		_pending_search = {}
+		_pending_station = {}
+		player.walk_to(crate.global_position, WALK_UP_TO)
+		return
 	var station := level.nearest_station(point, 2.2)
 	if not station.is_empty():
 		_pending_station = station

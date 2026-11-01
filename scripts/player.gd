@@ -93,7 +93,8 @@ var bag: Array[String] = []
 # Values from gifts and worn items together; see refresh_stats().
 var max_hp := MAX_HP
 var power := 1
-## Taken off every hit by worn armour; a hit still costs at least 1 life.
+## Taken off every hit by worn armour; a hit still keeps at least half its
+## force (see soak), so armour softens blows but never shrugs them off.
 var hardening := 0
 ## How much each armour piece has worn down, by item id.
 var wear := {}
@@ -1270,6 +1271,23 @@ func _block(from: Vector3) -> void:
 	Comic.pop(global_position, "block")
 
 
+## What a hit of `amount` costs through `hardening`: the hardening is taken
+## off, but the hit keeps at least half its force (rounded up) and at least 1.
+## The same rule holds for the hero and for monsters.
+static func soak(amount: int, hardening: int) -> int:
+	if amount <= 0:
+		return 0
+	return maxi(ceili(amount / 2.0), amount - maxi(0, hardening))
+
+
+## Seconds the hero cannot be hurt again after a hit. Short enough that a
+## crowd of enemies is a real danger.
+const HURT_GRACE := 0.6
+## What the thorn rune deals back to a melee attacker; their hardening
+## takes it off in full.
+const THORNS_DAMAGE := 1
+
+
 ## Blows and shots can be blocked with a shield; spikes from below (blockable
 ## false) cannot.
 func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable := true) -> void:
@@ -1285,8 +1303,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 		return
 	if blockable:
 		train("blocken", 0.5)
-	if hardening > 0:
-		amount = maxi(1, amount - hardening)
+	amount = soak(amount, hardening)
 	train("ruestung", 1.0)
 	_wear_armor()
 	# Every life lost hardens the body a little.
@@ -1294,14 +1311,14 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	hp -= amount
 	var knocked := _note_run_hit(amount)
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
-		attacker.take_hit(1, global_position)
+		attacker.take_hit(THORNS_DAMAGE, global_position, "thorns")
 	if hp <= 0 and has_special("phoenixfeder"):
 		# The feather burns up and brings the hero back.
 		equipped.erase("spezial_1" if equipped.get("spezial_1", "") == "phoenixfeder" else "spezial_2")
 		refresh_stats()
 		hp = mini(3, max_hp)
 		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t("Phönixfeder!"), Color(1.0, 0.6, 0.2))
-	_invulnerable = 0.9
+	_invulnerable = HURT_GRACE
 	var away := global_position - from
 	away.y = 0.0
 	_knockback = away.normalized() * 10.0

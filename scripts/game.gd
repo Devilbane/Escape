@@ -127,7 +127,7 @@ var secrets_found := 0
 ## Levels left in a row without finding their secret room.
 var dry_levels := 0
 ## Lives the hero gets back for climbing to the next level.
-const STAIRS_HEAL := 5
+const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
 ## yet gets one for sure, and never more than this many levels pass without.
 const FIRST_SURE_SECRET := 2
@@ -2443,13 +2443,21 @@ func _gold(amount: int) -> int:
 	return amount * 2 if player.has_special("gluecksklee") else amount
 
 
+## The vampire tooth gives back 1 life for every VAMPIRE_KILLS enemies slain.
+const VAMPIRE_KILLS := 3
+var _vampire_kills := 0
+
+
 func _on_enemy_killed(enemy: Enemy) -> void:
 	show_message(enemy.fall_text(), 2.5)
 	var drop := quests.on_kill(enemy.kind)
 	bounties.on_kill(enemy.kind)
 	if drop != "":
 		level._drop_item(drop, enemy.global_position + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
-	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:
+	if player.has_special("vampirzahn"):
+		_vampire_kills = mini(_vampire_kills + 1, VAMPIRE_KILLS)
+	if player.has_special("vampirzahn") and _vampire_kills >= VAMPIRE_KILLS and player.hp < player.max_hp and not player.dead:
+		_vampire_kills = 0
 		player.hp += 1
 		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+1", Color(0.5, 1.0, 0.5))
 		_update_hud()

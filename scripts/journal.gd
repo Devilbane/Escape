@@ -10,7 +10,7 @@ extends RefCounted
 ## find. Everything is kept in the hero's saved game (see Game).
 ##
 ## Other features record their finds with Game.note_find(kind, id, name,
-## pos), e.g. note_find("ingredient", "mondkraut", "Mondkraut", pos) when an
+## pos), e.g. note_find("ingredient", "mondsilbererz", "Mondsilbererz", pos) when an
 ## ingredient is picked or note_find("fish", ...) when a fish is caught. The
 ## spots of one thing are listed by spots_of(id), so a recipe or ingredient
 ## book can show where it was found without keeping its own list.

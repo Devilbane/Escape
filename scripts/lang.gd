@@ -22,6 +22,8 @@ const EN := {
 	"Es gibt noch keinen Spielstand. Gespeichert wird beim Betreten der Zuflucht und in ihrem Bett.": "There is no saved game yet. The game saves when you enter the refuge and in its bed.",
 	"Klicken oder eine Taste: ab der Zuflucht weiterspielen.  N: neues Spiel": "Click or press a key to continue from the refuge.  N: new game",
 	"%s auf Ebene %d mit %d Gold.": "%s on level %d with %d gold.",
+	"%s auf dem Friedhof mit %d Gold.": "%s on the graveyard with %d gold.",
+	"Klicken oder eine Taste: ab dem Friedhof weiterspielen.  N: neues Spiel": "Click or press a key to continue from the graveyard.  N: new game",
 	"Was du seitdem erlebt hast, geht verloren.": "Everything since then will be lost.",
 	"Neues Spiel": "New game",
 	"Klicken oder eine Taste: weiterspielen.  N: neues Spiel": "Click or press a key to continue.  N: new game",

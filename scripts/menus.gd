@@ -486,7 +486,10 @@ func _build_load() -> void:
 	if info.is_empty():
 		_add_label(Lang.t("Es gibt noch keinen Spielstand. Gespeichert wird beim Betreten der Zuflucht und in ihrem Bett."), 20)
 	else:
-		_add_label(Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins], 22)
+		if info.escaped:
+			_add_label(Lang.t("%s auf dem Friedhof mit %d Gold.") % [info.name, info.coins], 22)
+		else:
+			_add_label(Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins], 22)
 		_add_label(Lang.t("Was du seitdem erlebt hast, geht verloren."), 20, Color(1.0, 0.75, 0.5))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER

@@ -389,10 +389,11 @@ entry there.
 - Wolves, orcs, yeti and spiders: Ultimate Animated Animals, Ultimate Monsters and Easy Animated Enemy Pack by Quaternius (CC0, see `assets/wild/LICENSE.txt`)
 - Does, stags and foxes: Ultimate Animated Animals by Quaternius (CC0, see `assets/animals/LICENSE.txt`)
 - Sounds: made from scratch with `tools/make_sounds.py`; footsteps and door: recordings by Fantozzi, “Footsteps Leather, Cloth, Armor” and qubodup; creatures, skeleton voices and chains by rubberduck; crossbow shots from “Medieval sound effects - Weapon Textures” (CC0, see `assets/sounds/CREDITS.txt`)
+- Music: “Abeth” by Audibert jd, from Eleryan Tales volume 1 (2010), www.eleryantales.com (see `assets/music/CREDITS.txt`)
 - Font: Cinzel and Cinzel Decorative (SIL Open Font License)
 - Comic font of the fight bubbles: Bangers by Vernon Adams (SIL Open Font License)
 - Every push to `main` plays through all levels automatically and publishes the browser version via GitHub Pages
 
 ## License
 
-© 2026 devilbane. All rights reserved, see [LICENSE](LICENSE). Graphics and fonts by others are under their own licenses (see above).
+© 2026 devilbane. All rights reserved, see [LICENSE](LICENSE). Graphics, music, sounds and fonts by others are under their own licenses (see above).

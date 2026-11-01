@@ -59,6 +59,9 @@ var home_claimed := false
 ## The villagers the hero has talked to, by role letter -> true. Once met,
 ## a villager wears their name over their head. Kept in the saved game.
 var met := {}
+## The villagers' tasks: offered, running and finished (see Quests). Kept in
+## the saved game, so every hero has their own.
+var quests := Quests.new(self)
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
 var coins := 0
@@ -620,11 +623,17 @@ func _use_station(s: Dictionary) -> void:
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		s.npc.talk(player)
+		if not quests.talk(s.npc):
+			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building)
 	elif s.has("npc"):
-		# A villager who trades: a word, then the goods.
+		# A villager who trades: a word, then the goods. A task handed out or
+		# finished comes first; the goods wait until the next time.
+		if quests.talk(s.npc, true):
+			player.face(s.pos - player.global_position)
+			player.play("Idle")
+			return
 		s.npc.talk(player)
 		player.face(s.pos - player.global_position)
 		menus.open(s.kind)
@@ -1236,6 +1245,7 @@ func _start_new_game() -> void:
 	looted.clear()
 	builds.clear()
 	met.clear()
+	quests.clear()
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
@@ -1454,6 +1464,7 @@ func _apply_save(data: Dictionary) -> void:
 		for role in saved_met:
 			if Villager.ROLES.has(str(role)):
 				met[str(role)] = true
+	quests.load_from(data.get("quests", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
@@ -1558,6 +1569,7 @@ func save_game(going_away := false) -> bool:
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
+		"quests": quests.for_save(),
 		"hour": day_hour,
 	}
 	if going_away:
@@ -1867,6 +1879,30 @@ func level_hint(index: int) -> Dictionary:
 	return info
 
 
+## News about a task (a new one, progress, done): a message and a word over
+## the hero's head.
+func quest_news(text: String, color: Color, duration := 4.0) -> void:
+	show_message(text, duration)
+	Effects.float_text(level, player.global_position + Vector3(0, 3.2, 0), text.get_slice("\n", 0), color, true)
+	_update_hud()
+
+
+## A task is done: the reward, with a jingle.
+func quest_reward(id: String) -> void:
+	var q: Dictionary = Quests.ALL[id]
+	if q.get("gold", 0) > 0:
+		Sfx.play_coins(self, q.gold)
+	else:
+		Sfx.play(self, "key", -3.0)
+	quest_news(Lang.t("Auftrag abgeschlossen: %s\nBelohnung: %s") % [Lang.t(q.title), Quests.reward_text(id)], GOLD, 4.5)
+
+
+## Something in the bag changed because of a task.
+func update_after_quest() -> void:
+	Sfx.play(self, "key", -6.0)
+	_update_hud()
+
+
 ## Remembers an explanation for the compendium, once.
 func learn(entry: String) -> void:
 	if not lore.has(entry):
@@ -1940,6 +1976,9 @@ func _gold(amount: int) -> int:
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	show_message(Lang.t("Der Räuber geht zu Boden.") if enemy.is_human() else Lang.t("Das Skelett zerfällt zu Staub."), 2.5)
+	var drop := quests.on_kill(enemy.kind)
+	if drop != "":
+		level._drop_item(drop, enemy.global_position + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
 	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:
 		player.hp += 1
 		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+1", Color(0.5, 1.0, 0.5))

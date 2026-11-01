@@ -17,6 +17,9 @@ var _selected := -1
 var _note := ""
 ## The saved game whose delete button was clicked once; a second click deletes.
 var _delete_asked := ""
+## Which page of the compendium shows: "wissen" (controls and everything
+## learned) or "auftraege" (the villagers' tasks).
+var compendium_page := "wissen"
 ## How many saved games the load window shows before the list scrolls.
 const LOAD_ROWS_SHOWN := 5
 ## Shows the stats of the item under the mouse (or last tapped).
@@ -303,6 +306,8 @@ func _build_inventory() -> void:
 			actions.add_child(_item_button(Lang.t("Abstellen"), _put_down_selected))
 		elif Items.is_stone(id):
 			actions.add_child(_item_button(Lang.t("Abstellen"), _place_stone_selected))
+		elif Items.is_quest(id):
+			pass # Carried for a task, not worn.
 		else:
 			actions.add_child(_item_button(Lang.t("Anlegen"), _equip_selected))
 		actions.add_child(_item_button(Lang.t("Wegwerfen"), _drop_selected))
@@ -956,9 +961,31 @@ func _save_row(info: Dictionary, playing: bool) -> Control:
 	return row
 
 
-## Every control on one side, everything the hero has been told on the other.
+## Every control on one side, everything the hero has been told on the
+## other; a second page holds the villagers' tasks (the quest log).
 func _build_compendium() -> void:
 	_add_label(Lang.t("Kompendium"), 38, game.GOLD, game.TITLE_FONT)
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 10)
+	_box.add_child(tabs)
+	var open_tasks := 0
+	for id in Quests.ALL:
+		if game.quests.is_active(id):
+			open_tasks += 1
+	for tab in [["wissen", Lang.t("Steuerung und Gelerntes")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks]]:
+		var b := _item_button(tab[1], func():
+			compendium_page = tab[0]
+			_rebuild())
+		b.custom_minimum_size = Vector2(270, 44)
+		if compendium_page == tab[0]:
+			b.modulate = Color(1.0, 0.9, 0.6)
+		else:
+			b.modulate = Color(0.75, 0.75, 0.8)
+		tabs.add_child(b)
+	if compendium_page == "auftraege":
+		_build_quest_log()
+		return
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 36)
 	_box.add_child(columns)
@@ -1018,6 +1045,38 @@ func _build_compendium() -> void:
 		else:
 			l.text = Lang.t(entry)
 		list.add_child(l)
+
+
+## The quest log: every task the hero took on, the open ones first, with who
+## gave it, what to do, how far along it is and the reward.
+func _build_quest_log() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(760, 420)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 12)
+	scroll.add_child(list)
+	var entries: Array = game.quests.log_entries()
+	if entries.is_empty():
+		var none: Label = game._make_label(game.TEXT_FONT, 18)
+		none.text = Lang.t("Noch keine Aufträge. Sprich mit den Leuten im Dorf: Manche haben Arbeit für dich.")
+		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		none.custom_minimum_size.x = 740
+		list.add_child(none)
+	for id in entries:
+		var q: Dictionary = Quests.ALL[id]
+		var done: bool = game.quests.is_done(id)
+		var title: Label = game._make_label(game.TEXT_FONT, 21, Color(0.6, 0.62, 0.66) if done else game.GOLD)
+		var status: String = Lang.t("erledigt") if done else game.quests.progress(id)
+		title.text = Lang.t(q.title) + ("  (%s)" % status if status != "" else "")
+		list.add_child(title)
+		var text: Label = game._make_label(game.TEXT_FONT, 17, Color(0.55, 0.57, 0.6) if done else Color.WHITE)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.custom_minimum_size.x = 740
+		text.text = Lang.t("Von %s: %s") % [Quests.villager_name(q.giver), Lang.t(q.goal)] + "\n" + Lang.t("Belohnung: %s") % Quests.reward_text(id)
+		list.add_child(text)
 
 
 func _build_quit() -> void:

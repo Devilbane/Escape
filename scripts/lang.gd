@@ -450,7 +450,7 @@ const EN := {
 	"Dachkammer": "Attic",
 	"Dein Haus": "Your house",
 	"Dein eigenes Haus in der Weberzeile: unten die Truhe, oben das Bett, unterm Dach viel Platz. Die Kreidefelder halten Raum für Möbel frei.": "Your own house on Weavers' Lane: the chest downstairs, the bed upstairs, plenty of room under the roof. The chalk squares keep space free for furniture.",
-	"Willkommen, Fremder! Du kommst aus der alten Gruft? Das leere Haus mit dem Ziegeldach gehört jetzt dir.": "Welcome, stranger! You came out of the old crypt? The empty house with the tiled roof is yours now.",
+	"Willkommen, Fremder! Du kommst aus der alten Gruft? In der Weberzeile steht ein Haus für dich bereit.": "Welcome, stranger! You came out of the old crypt? A house on Weavers' Lane is waiting for you.",
 	"Dorfvorsteher Aldo": "Aldo the Elder",
 	"Krämerin Mira": "Mira the Shopkeeper",
 	"Brot, Käse, Seile, Fackeln: alles für den Alltag!": "Bread, cheese, rope, torches: everything for every day!",

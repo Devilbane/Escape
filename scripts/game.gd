@@ -2572,7 +2572,7 @@ func go_inside(building: String, house := 0) -> void:
 ## one while they have none (it becomes theirs). Says why not, if not.
 func _may_enter_house(house: int) -> bool:
 	var resident := Homes.owner_of(house)
-	if resident == hero_name:
+	if resident == Homes.deed_name(hero_name):
 		return true
 	if resident != "":
 		show_message(Lang.t("Hier wohnt %s. Die Tür ist verschlossen.") % resident, 2.5)

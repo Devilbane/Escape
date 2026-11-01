@@ -39,6 +39,12 @@ static func reload() -> void:
 	_loaded = false
 
 
+## The name a hero is written into the deeds under: a hero without a name
+## lives there as "Namenlos", as the game calls them.
+static func deed_name(hero: String) -> String:
+	return hero if hero != "" else "Namenlos"
+
+
 ## Who lives in house `number`, or "" while it stands empty.
 static func owner_of(number: int) -> String:
 	_load()
@@ -48,6 +54,7 @@ static func owner_of(number: int) -> String:
 ## The number of the hero's house, or 0 if they have none yet.
 static func house_of(hero: String) -> int:
 	_load()
+	hero = deed_name(hero)
 	for key in _owners:
 		if _owners[key] == hero:
 			return int(key)
@@ -58,7 +65,8 @@ static func house_of(hero: String) -> int:
 ## the hero lives there now.
 static func claim(hero: String, number: int) -> bool:
 	_load()
-	if hero == "" or number <= 0:
+	hero = deed_name(hero)
+	if number <= 0:
 		return false
 	var mine := house_of(hero)
 	if mine != 0:

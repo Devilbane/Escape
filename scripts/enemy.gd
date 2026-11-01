@@ -750,8 +750,8 @@ func _look_for_foe(friendly: bool, leash: float) -> void:
 		# A friend of the hero leaves the hero's other friends alone.
 		if d >= best_d or (friendly and e.is_friend()):
 			continue
-		var rival := d < RIVAL_SIGHT and Factions.kinds_are_rivals(kind, e.kind)
-		var helps := friendly and e.is_hunting()
+		var rival: bool = d < RIVAL_SIGHT and Factions.kinds_are_rivals(kind, e.kind)
+		var helps: bool = friendly and e.is_hunting()
 		if (rival or helps) and level.has_line_of_sight(global_position, e.global_position):
 			best = e
 			best_d = d

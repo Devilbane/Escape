@@ -989,7 +989,6 @@ const EN := {
 	"Die Brut des Drachen": "The dragon's brood",
 	"Die Wölfe": "The wolves",
 	"Die Orks": "The orcs",
-	"Der Yeti": "The yeti",
 	"Die Toten wollen keine Geschenke. Sie wollen nur dich.": "The dead want no gifts. They only want you.",
 	"Räuber nehmen dein Gold lieber mit Gewalt.": "Bandits would rather take your gold by force.",
 	"Die Spinne starrt dich mit acht Augen an. Mit ihr ist kein Frieden zu machen.": "The spider stares at you with eight eyes. There is no making peace with it.",

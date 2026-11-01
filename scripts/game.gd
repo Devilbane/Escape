@@ -81,6 +81,9 @@ var met := {}
 var quests := Quests.new(self)
 ## How many mornings have dawned in the world above ground since the game
 ## began. The bounty board pins up fresh hunts each morning (see Bounties).
+## The day turns at dawn, so the night after day d's evening, past midnight
+## too, still counts as day d: that is when the wandering merchant comes
+## (see Wanderer).
 var day := 0
 ## The hunts on the bounty board: posted, taken on and paid (see Bounties).
 ## Kept in the saved game.
@@ -175,6 +178,10 @@ var menus: Menus
 ## Items left in the safe room's storage chest, and what the merchant sells.
 var storage: Array[String] = []
 var shop_stock: Array[String] = []
+## What the wandering merchant still has left, and the night he brought it
+## for (-1: not rolled yet). A new visit brings new wares (see Wanderer).
+var wanderer_stock: Array[String] = []
+var wanderer_night := -1
 var _title_buttons: Control
 var _name_note: Label
 ## The hero's name, asked for when a new game starts; it goes into the ranking.
@@ -1201,6 +1208,7 @@ func _tick_clock(delta: float) -> void:
 		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0)
 		Weather.apply(_env, _moon, _weather_look, flicker)
 		if level is Outdoor:
+			level.day = day
 			level.set_hour(day_hour)
 			level.set_weather(weather)
 	if _clock_text() != _clock_shown:
@@ -1347,6 +1355,7 @@ func load_level(index: int, restock := true) -> void:
 	_end_drag()
 	_set_atmosphere(level.outdoor)
 	if level is Outdoor:
+		level.day = day
 		level.set_hour(day_hour)
 		level.set_weather(weather)
 	_pending_search = {}
@@ -1536,6 +1545,8 @@ func _start_new_game() -> void:
 	reputation.clear()
 	storage.clear()
 	shop_stock.clear()
+	wanderer_stock.clear()
+	wanderer_night = -1
 	away_plan = Offline.empty_plan()
 	day_hour = DayNight.START_HOUR
 	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
@@ -1843,6 +1854,13 @@ func _apply_save(data: Dictionary) -> void:
 	player.refresh_stats()
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
+	wanderer_night = int(data.get("wanderer_night", -1))
+	wanderer_stock.clear()
+	var wares = data.get("wanderer", [])
+	if wares is Array:
+		for id in wares:
+			if Items.ALL.has(str(id)) or Wanderer.is_ingredient(str(id)):
+				wanderer_stock.append(str(id))
 	# Games saved before there was weather wake up to clear skies.
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
@@ -1958,6 +1976,7 @@ func save_game(going_away := false) -> bool:
 		"reputation": reputation.for_save(),
 		"fox": {"trust": fox_trust, "tame": has_fox},
 		"hour": day_hour,
+		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
 		"weather": weather, "weather_hours": weather_hours,
 	}
 	if going_away:
@@ -2352,6 +2371,15 @@ func update_after_quest() -> void:
 
 
 ## Remembers an explanation for the compendium, once.
+## The wandering merchant's wares for tonight: a new visit brings new ones,
+## and what was bought stays gone until then.
+func wanderer_wares() -> Array[String]:
+	if day != wanderer_night:
+		wanderer_night = day
+		wanderer_stock = Wanderer.stock_for(day, hero_name)
+	return wanderer_stock
+
+
 func learn(entry: String) -> void:
 	if not lore.has(entry):
 		lore.append(entry)
@@ -3044,6 +3072,7 @@ func _process(delta: float) -> void:
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
 			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
+			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
 		}.get(station.kind, "")
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")

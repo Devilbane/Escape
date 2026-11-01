@@ -61,6 +61,8 @@ signal exit_reached
 signal item_collected(id: String)
 signal bag_full
 signal secret_found(lever_pos: Vector3, wall_pos: Vector3)
+## The hero picked up an ingredient the fox dug up (see lay_find).
+signal ingredient_collected(id: String)
 ## How many of the level's pressure plates have a block on them changed.
 signal plates_changed(pressed: int, total: int)
 ## Every pressure plate is pressed: the iron gate at `pos` opens.
@@ -209,6 +211,13 @@ var _door_hint_shown := false
 ## Hidden walls and the torches that open them. Each lever rolls once,
 ## the first time the hero walks past it.
 var _secrets: Array = []
+## Ingredients hidden in the ground that only the hero's fox can sniff out
+## (see Pet): each {"cell": Vector2i, "id": String}. Never saved: they grow
+## back whenever the hero comes to the level again.
+var hidden_finds: Array = []
+## How many ingredients lie hidden in a dungeon level and in the open air.
+const HIDDEN_IN_DUNGEON := 3
+const HIDDEN_OUTDOORS := 14
 ## The secret room's wealth: one of TIERS.
 var secret_tier := "normal"
 ## Extra chance in percent to notice a lever; the game adds 1 per room found.
@@ -2223,6 +2232,8 @@ func _check_pickups() -> void:
 			key_collected.emit()
 		elif p.kind == "item":
 			item_collected.emit(p.id)
+		elif p.kind == "ingredient":
+			ingredient_collected.emit(p.ingredient)
 		else:
 			coins_collected.emit(1)
 
@@ -2503,6 +2514,54 @@ func _drop_coins(pos: Vector3, amount: int) -> void:
 
 
 ## A worn piece left on the floor, glowing until the hero walks over it.
+## Hides a few ingredients in the ground for the hero's fox to find: on the
+## grass of the open air, on plain floor the hero can reach in the dungeon.
+## Not in the safe rooms or inside the village buildings.
+func hide_ingredients() -> void:
+	hidden_finds.clear()
+	if (safe and not outdoor) or (building != "" and not lair):
+		return
+	var cells: Array[Vector2i] = []
+	if outdoor:
+		for y in height:
+			for x in width:
+				var c := Vector2i(x, y)
+				if cell_char(c) == "." and call("is_open", c):
+					cells.append(c)
+	else:
+		for c in _reachable():
+			if cell_char(c) in [".", ","] and not astar.is_point_solid(c) and c != start_cell:
+				cells.append(c)
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var count := HIDDEN_OUTDOORS if outdoor else HIDDEN_IN_DUNGEON
+	for i in mini(count, cells.size()):
+		var c: Vector2i = cells.pop_at(rng.randi() % cells.size())
+		hidden_finds.append({"cell": c, "id": Crafting.random_fox_find(rng, outdoor)})
+
+
+## Lays a dug-up ingredient on the ground. Picked up, it goes into the
+## ingredient pouch (see Crafting), not the bag. It is not marked as taken:
+## the ground holds new ones the next time round.
+func lay_find(id: String, pos: Vector3) -> void:
+	var holder := Node3D.new()
+	var lump := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.25
+	mesh.height = 0.4
+	lump.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.55, 0.75, 0.35)
+	mat.emission_enabled = true
+	mat.emission = Color(0.4, 0.6, 0.25)
+	lump.material_override = mat
+	holder.add_child(lump)
+	holder.position = Vector3(pos.x, 0.8, pos.z)
+	add_child(holder)
+	holder.add_child(Effects.make_sparkles(Color(0.7, 0.95, 0.5)))
+	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6})
+
+
 func _drop_item(id: String, pos: Vector3) -> void:
 	var holder := _item_model(id)
 	holder.position = Vector3(pos.x, 1.0, pos.z)

@@ -49,6 +49,7 @@ extends Level
 ##   where the moon trout bites at night (see Fishing).
 ##   Peaceful animals that graze in the woods and bolt from the hero
 ##   (see Animal): D doe, V stag, & fox.
+##   !  the bounty board: fresh hunts every morning (see Bounties)
 ##   The crafting square on the west side of the market square, beside
 ##   Gorm's forge (see CraftingSquare): +  fine metalwork bench
 ##   %  gem cutter's wheel   *  alchemist's table   $  the hero's storage chest
@@ -65,6 +66,8 @@ signal notice(text: String, duration: float)
 signal home_claimed
 ## The hero has reached the food basket on the pedestal and eats.
 signal food_basket(heal: int)
+## A fox eats a sausage from the hero's hand (see Animal and Pet).
+signal fox_fed(fox: Animal)
 ## Lightning strikes at a spot in a thunderstorm (see Weather): the sky
 ## flashes and thunder rolls.
 signal lightning(pos: Vector3)
@@ -171,6 +174,8 @@ const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 
 var villagers: Array = []
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
+## Whether a fox can still be won over: the hero has none yet (set by the game).
+var fox_tamable := true
 var _animal_spots: Array = []
 ## Has the elder handed the house over yet? Saved games wake up at home.
 var house_given := false
@@ -217,6 +222,8 @@ var _called: Array[Enemy] = []
 ## The food basket: where it stands, its food, whether it is full, the
 ## seconds until it fills again, and whether the hero was told about it.
 var _basket := {}
+## The "!" or "?" over the bounty board (see Bounties.mark).
+var _board_mark: Label3D
 
 ## Lanterns: how strongly they shine by day and at night, the glowing
 ## candle in each, and how far their light shows the hero to enemies.
@@ -528,6 +535,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_bench(c)
 		"v":
 			_build_pedestal(c)
+		"!":
+			_build_bounty_board(c)
 		"N":
 			_build_tent(pos)
 		"f":
@@ -571,6 +580,83 @@ func _build_pedestal(c: Vector2i) -> void:
 	_basket = {"pos": top, "food": food, "full": true, "timer": 0.0, "hinted": false}
 	for offset in PEDESTAL_CRATES:
 		add_crate(pos + offset)
+
+
+## The bounty board: two posts with a little roof over a plank wall, with
+## notices pinned to it, facing south. Run into it to read the hunts.
+func _build_bounty_board(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.42, 0.28, 0.17)
+	wood.roughness = 0.9
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color(0.3, 0.19, 0.12)
+	dark.roughness = 0.95
+	var paper := StandardMaterial3D.new()
+	paper.albedo_color = Color(0.93, 0.88, 0.74)
+	paper.roughness = 1.0
+	var seal := StandardMaterial3D.new()
+	seal.albedo_color = Color(0.7, 0.12, 0.1)
+	for side in [-1.0, 1.0]:
+		_add_mesh_box(pos + Vector3(side * 1.05, 1.35, 0), Vector3(0.18, 2.7, 0.18), dark)
+	_add_mesh_box(pos + Vector3(0, 1.65, 0), Vector3(2.1, 1.3, 0.1), wood)
+	_add_mesh_box(pos + Vector3(0, 2.36, 0), Vector3(2.3, 0.12, 0.2), dark)
+	_add_mesh_box(pos + Vector3(0, 0.96, 0), Vector3(2.3, 0.1, 0.2), dark)
+	# The little roof keeps the rain off the notices.
+	for side in [-1.0, 1.0]:
+		var roof := MeshInstance3D.new()
+		var plank := BoxMesh.new()
+		plank.size = Vector3(2.6, 0.08, 0.5)
+		roof.mesh = plank
+		roof.material_override = dark
+		roof.position = pos + Vector3(0, 2.83, side * 0.2)
+		roof.rotation.x = side * 0.6
+		add_child(roof)
+	# The notices, a little crooked, each with a red seal.
+	var notes := [[Vector3(-0.6, 1.75, 0.07), 0.08], [Vector3(0.05, 1.6, 0.07), -0.05], [Vector3(0.65, 1.78, 0.07), 0.12]]
+	for n in notes:
+		var sheet := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.5, 0.66, 0.02)
+		sheet.mesh = box
+		sheet.material_override = paper
+		sheet.position = pos + n[0]
+		sheet.rotation.z = n[1]
+		add_child(sheet)
+		_add_mesh_box(pos + n[0] + Vector3(0, 0.24, 0.02), Vector3(0.08, 0.08, 0.02), seal)
+	_add_solid(pos, Vector3(2.4, 2.6, 1.0))
+	stations.append({"kind": "aushang", "cell": c, "pos": pos, "used": false})
+	_board_mark = Label3D.new()
+	_board_mark.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	_board_mark.font_size = 140
+	_board_mark.pixel_size = 0.011
+	_board_mark.outline_size = 26
+	_board_mark.outline_modulate = Color(0.05, 0.03, 0.06, 0.9)
+	_board_mark.modulate = Villager.MARK_COLOR
+	_board_mark.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_board_mark.no_depth_test = true
+	_board_mark.render_priority = 18
+	_board_mark.outline_render_priority = 17
+	_board_mark.position = pos + Vector3(0, 3.7, 0)
+	_board_mark.visible = false
+	add_child(_board_mark)
+	# The mark bobs gently, like the villagers' marks.
+	var bob := _board_mark.create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	bob.tween_property(_board_mark, "position:y", pos.y + 3.8, 1.0)
+	bob.tween_property(_board_mark, "position:y", pos.y + 3.6, 1.0)
+
+
+## Shows "!" or "?" over the bounty board, or nothing (see Bounties.mark).
+func set_board_mark(text: String) -> void:
+	if _board_mark == null:
+		return
+	_board_mark.text = text
+	_board_mark.visible = text != ""
+
+
+## The mark over the bounty board right now, "" when none shows.
+func board_mark() -> String:
+	return _board_mark.text if _board_mark and _board_mark.visible else ""
 
 
 ## A loaf, a wedge of cheese and a few apples, heaped in the basket.
@@ -1411,6 +1497,10 @@ func _spawn_animals() -> void:
 	for s in _animal_spots:
 		var a := Animal.new()
 		a.setup(self, s.kind, s.cell)
+		if taken.has(a.tame_key()):
+			# The hero's own fox: it goes with the hero now (see Pet).
+			a.free()
+			continue
 		add_child(a)
 		a.global_position = cell_to_world(s.cell)
 		animals.append(a)

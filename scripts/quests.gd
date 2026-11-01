@@ -165,6 +165,25 @@ func _bag_free() -> int:
 	return game.player.bag_size() - game.player.bag.size()
 
 
+## The mark over a villager's head: "?" when the hero can hand something in
+## to them (a delivery for them, or their own task done), "!" when they have
+## a new task to offer, "" otherwise.
+func mark(role: String) -> String:
+	for id in ALL:
+		var q: Dictionary = ALL[id]
+		if not is_active(id):
+			continue
+		if q.kind == "deliver":
+			if q.to == role and game.player.bag.has(q.item):
+				return "?"
+		elif q.giver == role and missing(id) == 0:
+			return "?"
+	for id in ALL:
+		if ALL[id].giver == role and is_available(id):
+			return "!"
+	return ""
+
+
 # --- Talking ------------------------------------------------------------------
 
 ## The hero ran into a villager. If a task has something to say (a delivery

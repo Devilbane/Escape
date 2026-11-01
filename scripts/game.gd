@@ -36,6 +36,7 @@ var _effects_slider: HSlider
 ## clickable buttons, its handle, and how far it is pulled out (0 to 1).
 var _drawer: HBoxContainer
 var _drawer_handle: Button
+var _drawer_arrow: MenuArrow
 var _drawer_open := false
 var _drawer_t := 0.0
 var _drawer_tween: Tween
@@ -414,6 +415,10 @@ func _setup_drawer() -> void:
 		box.corner_radius_top_right = 0
 		box.corner_radius_bottom_right = 0
 		_drawer_handle.add_theme_stylebox_override(style, box)
+	_drawer_arrow = MenuArrow.new()
+	_drawer_arrow.color = GOLD
+	_drawer_handle.add_child(_drawer_arrow)
+	_drawer_handle.resized.connect(_place_drawer_arrow)
 	_drawer.add_child(_drawer_handle)
 
 	var panel := PanelContainer.new()
@@ -504,7 +509,17 @@ func _place_drawer(t: float) -> void:
 
 
 func _update_drawer_handle() -> void:
-	_drawer_handle.text = (">\n" if _drawer_open else "<\n") + Lang.t("Menü")
+	_drawer_handle.text = "\n" + Lang.t("Menü")
+	_drawer_arrow.pointing_left = not _drawer_open
+
+
+## Centres the arrow over the empty first line of the handle's text.
+func _place_drawer_arrow() -> void:
+	var font := _drawer_handle.get_theme_font("font")
+	var line := font.get_height(_drawer_handle.get_theme_font_size("font_size"))
+	var box := _drawer_arrow.custom_minimum_size
+	_drawer_arrow.size = box
+	_drawer_arrow.position = Vector2((_drawer_handle.size.x - box.x) / 2.0, (_drawer_handle.size.y - line) / 2.0 - box.y / 2.0)
 
 
 func _setup_hud() -> void:

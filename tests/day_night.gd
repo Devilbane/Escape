@@ -130,6 +130,11 @@ func _load_at_night() -> void:
 	check(game._env.background_color.v < 0.2, "the night sky is dark")
 	check(_lamp_energy() > 2.5, "lanterns burn bright at night")
 	check(_window_glow() > 1.0, "windows glow at night")
+	# Only the panes may shine: a textured window mask must multiply the
+	# glow colour, never add to it, or the whole building turns white.
+	for mat: StandardMaterial3D in game.level._window_mats.values():
+		if mat.emission_texture:
+			check(mat.emission_operator == BaseMaterial3D.EMISSION_OP_MULTIPLY, "only the window panes glow, not the whole building")
 	for v in game.level.villagers:
 		if v.goes_to_bed():
 			check(v.at_home and not v.visible, "%s is asleep at home in a game loaded at night" % v.display_name)

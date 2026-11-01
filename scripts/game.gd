@@ -176,7 +176,7 @@ var _prompt: Label
 var _message: Label
 ## Space kept free left and right of centred on-screen texts.
 const SCREEN_TEXT_MARGIN := 80
-const MESSAGE_FONT_SIZE := 30
+const MESSAGE_FONT_SIZE := 24
 var _fade: ColorRect
 var _title: Control
 var _title_text: Label
@@ -395,7 +395,7 @@ func _make_button(text: String, action: Callable) -> Button:
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = Vector2(118, 64)
 	b.add_theme_font_override("font", TEXT_FONT)
-	b.add_theme_font_size_override("font_size", 20)
+	b.add_theme_font_size_override("font_size", 18)
 	b.add_theme_color_override("font_color", GOLD)
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = Color(0.08, 0.05, 0.1, 0.72)
@@ -600,7 +600,7 @@ func _setup_hud() -> void:
 
 	# Centred texts span the screen width (minus a margin) and wrap onto
 	# further lines instead of running off both edges.
-	_prompt = _make_label(TEXT_FONT, 22, Color(1, 1, 1, 0.9))
+	_prompt = _make_label(TEXT_FONT, 20, Color(1, 1, 1, 0.9))
 	_prompt.set_anchors_preset(Control.PRESET_HCENTER_WIDE)
 	_prompt.anchor_top = 0.5
 	_prompt.anchor_bottom = 0.5
@@ -2467,9 +2467,9 @@ func show_message(text: String, duration := 2.2) -> void:
 	# Very long messages get a smaller font so they stay at a few lines.
 	var size := MESSAGE_FONT_SIZE
 	if text.length() > 160:
-		size = MESSAGE_FONT_SIZE - 6
+		size = MESSAGE_FONT_SIZE - 4
 	elif text.length() > 90:
-		size = MESSAGE_FONT_SIZE - 3
+		size = MESSAGE_FONT_SIZE - 2
 	_message.add_theme_font_size_override("font_size", size)
 	_message.add_theme_constant_override("outline_size", maxi(4, size / 6))
 	if _message_tween:

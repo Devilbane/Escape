@@ -395,6 +395,20 @@ def word_plong():
     return at(ring([(310, 0.9), (745, 0.4), (1190, 0.2)], 0.7, 0.18), knock(200, 0.02) * 0.5, 0)
 
 
+def drip():
+    # A drop of water falling into a puddle: the "plink" of the little air
+    # bubble, whose pitch rises, a soft splash and a faint echo off the stone.
+    tt = t(0.6)
+    f = 1100 * (1 + np.minimum(tt, 0.05) * 14)
+    plink = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(tt), 0.0015, 0.05)
+    splash = highpass(noise(0.6), 2500) * env(len(tt), 0.001, 0.012) * 0.25
+    x = plink + splash
+    echo = np.zeros(len(x))
+    at(echo, x * 0.22, 0.11)
+    at(echo, x * 0.1, 0.23)
+    return x + lowpass(echo, 1800)
+
+
 WORDS = ["zack", "klonk", "wumm", "krach", "boing", "wamm", "zing", "tschak", "knack",
          "klapper", "wusch", "klack", "klick", "rumms", "grumpel", "stich", "ratsch",
          "klong", "plong"]
@@ -424,3 +438,4 @@ if __name__ == "__main__":
     os.remove(wav)
     for w in WORDS:
         save("word_" + w, globals()["word_" + w](), 0.7)
+    save("drip", drip(), 0.45)

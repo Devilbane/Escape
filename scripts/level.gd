@@ -250,6 +250,8 @@ func build() -> void:
 	fog.setup(self)
 	add_child(fog)
 	_spawn_enemies()
+	if not outdoor and building == "":
+		add_child(DungeonLife.new(self))
 	if not _vault_slots.is_empty():
 		refresh_vaults()
 

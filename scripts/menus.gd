@@ -215,6 +215,8 @@ func _show_info(id: String) -> void:
 		return
 	if id == "":
 		_info.text = Lang.t(INFO_HINT)
+	elif not Items.ALL.has(id) and Crafting.INGREDIENTS.has(id):
+		_info.text = game.crafting.describe_ingredient(id)
 	else:
 		_info.text = "%s: %s" % [Items.item_name(id), Items.describe(id, game.player.wear.get(id, 0))]
 
@@ -648,18 +650,19 @@ func _sell(index: int) -> void:
 
 # --- Wandering merchant -------------------------------------------------------
 
-const WANDERER_LEARN := "Wanderhändler Zarek kommt jede dritte Nacht mit seinem Karren ins Dorf und steht bis zum Morgengrauen am Markt. Er verkauft seltene Dinge, die es sonst nirgends gibt, dazu die seltensten Funde aus dem Verlies, und bringt jedes Mal andere Waren mit. Kaufen tut er nichts."
+const WANDERER_LEARN := "Wanderhändler Zarek kommt jede dritte Nacht mit seinem Karren ins Dorf und steht bis zum Morgengrauen am Markt. Er bringt Zutaten für Rezepte aus fernen Gegenden mit, dazu etwas einfache Ausrüstung, und jedes Mal andere Waren. Kaufen tut er nichts."
 
 
-## Zarek sells tonight's wares, a little dearer than the shopkeeper, and
-## buys nothing. The window says when he comes back.
+## Zarek sells tonight's wares and buys nothing: ingredients go into the
+## pouch, gear into the bag. The window says when he comes back.
 func _build_wanderer() -> void:
 	game.learn(WANDERER_LEARN)
 	var wares: Array[String] = game.wanderer_wares()
 	_add_label(Lang.t("Wanderhändler"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
-	_add_label(Lang.t("Seltene Waren, nur heute Nacht. Im Morgengrauen zieht Zarek weiter; in %d Nächten kommt er wieder.") % Wanderer.EVERY, 16, BLUE)
-	_add_item_grid(wares, maxi(Wanderer.EXCLUSIVE_COUNT + 3, wares.size()), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), Wanderer.price(id)], _buy_from_wanderer, 5)
+	_add_label(Lang.t("Zutaten aus fernen Gegenden, nur heute Nacht. Im Morgengrauen zieht Zarek weiter; in %d Nächten kommt er wieder.") % Wanderer.EVERY, 16, BLUE)
+	var slots := Wanderer.INGREDIENT_KINDS * Wanderer.MAX_EACH + Wanderer.GEAR_COUNT
+	_add_item_grid(wares, maxi(slots, wares.size()), func(id): return Lang.t("%s\n%d Gold") % [Wanderer.ware_name(id), Wanderer.price(id)], _buy_from_wanderer, 4)
 
 
 func _buy_from_wanderer(index: int) -> void:
@@ -668,15 +671,20 @@ func _buy_from_wanderer(index: int) -> void:
 		return
 	var id: String = wares[index]
 	var cost := Wanderer.price(id)
+	var ingredient := Wanderer.is_ingredient(id)
 	if game.coins < cost:
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
-	elif game.player.bag.size() >= game.player.bag_size():
+	elif not ingredient and game.player.bag.size() >= game.player.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.coins -= cost
-		game.player.bag.append(id)
 		wares.remove_at(index)
-		_note = Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
+		if ingredient:
+			game.crafting.add(id)
+			_note = Lang.t("Gekauft: %s. Es kommt in deinen Zutatenbeutel.") % Wanderer.ware_name(id)
+		else:
+			game.player.bag.append(id)
+			_note = Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 		Sfx.play(game, "gear_soft_0", -2.0)
 	game._update_hud()
 	_rebuild()

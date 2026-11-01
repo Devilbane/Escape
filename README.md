@@ -361,21 +361,26 @@ saved game.
 
 Every **third night** (the second night after the escape, then the fifth, the eighth and so on) Zarek the
 **wandering merchant** rolls his covered cart into the village at nightfall. He stands just south-west of
-the market square, beside a lantern, until dawn, then moves on again. Walk into him to trade. He sells
-things found nowhere else, two of them each visit:
+the market square, beside a lantern, until dawn, then moves on again. Walk into him to trade.
 
-| Item | Price | Effect |
-|---|---|---|
-| Moonstone amulet | 84 | +1 life, +1 power, +5 % speed |
-| Star ring | 90 | +2 power, +5 % speed |
-| Midnight cloak | 96 | +2 life, +10 % speed, +3 Sneaking |
-| Seven-league boots | 102 | +22 % speed |
-| Will-o'-the-wisp bracelet | 72 | +1 life, +1 power, +1 Throwing |
+He brings **ingredients from far away** for your recipes: three kinds each visit, one or two pieces of
+each. They go straight into your ingredient pouch:
 
-On top of that he brings one of the rarest finds of the dungeon (vampire fang, lucky clover, thorn rune or
-phoenix feather), a book and one more piece of good gear. He asks a fifth more than the shopkeeper and buys
-nothing. Every visit brings different wares; what you buy is gone until his next visit. If you sleep
-through his night in the bed, you miss him. The herald announces his visits on the square.
+| Ingredient | Price |
+|---|---|
+| Moonsilver ore | 30 |
+| Moonstone | 35 |
+| Glowmoss | 18 |
+| Wild garlic | 8 |
+| Porcini mushroom | 10 |
+| Cave mushroom | 10 |
+
+The rarest finds (the truffle and the rare fish) are never for sale. He also brings two pieces of plain
+gear, at a fifth more than the shopkeeper asks. Like every merchant he sells only **basic** gear: nothing
+magic or special (specials, amulets, books, gear with a skill bonus or an attribute it needs), nothing of
+Gorm's own work, and never the best of its kind. Those you find as loot or craft yourself. He buys nothing.
+Every visit brings different wares; what you buy is gone until his next visit. If you sleep through his
+night in the bed, you miss him. The herald announces his visits on the square.
 
 ## Weather
 

@@ -1,9 +1,9 @@
 extends SceneTree
 ## Headless test for Zarek, the wandering merchant: he comes every third
 ## night only, sets up with his cart on his pitch by the market and is gone at
-## dawn; he sells tonight's rare wares (his own items are never found as
-## loot), buys nothing, and his wares, the day count and what was bought are
-## kept in the saved game. The world's clock counts the days.
+## dawn; he sells tonight's ingredients and plain, basic gear (nothing
+## magic, special or top of its kind), buys nothing, and his wares, the day
+## count and what was bought are kept in the saved game.
 ## Run with: godot --headless --fixed-fps 60 -s tests/wandering_merchant.gd
 
 var failures := 0
@@ -55,33 +55,33 @@ func _rules() -> void:
 	check(Wanderer.is_here(1, 22.0) and Wanderer.is_here(1, 4.5), "on his night he is there from nightfall to dawn (the day turns at dawn)")
 	check(not Wanderer.is_here(2, 6.0) and not Wanderer.is_here(1, 12.0), "by day he is not there")
 	check(Wanderer.nights_until(2) == 2 and Wanderer.nights_until(4) == 0, "the nights until his next visit")
-	check(Wanderer.price("mondsteinamulett") == 84 and Wanderer.price("schwert") == 15, "he asks a fifth more, rounded up")
+	check(Wanderer.price("schwert") == 15 and Wanderer.price("rundschild") == 12, "gear costs a fifth more, rounded up")
+	check(Wanderer.price("mondstein") == Wanderer.INGREDIENT_PRICES.mondstein, "an ingredient costs its own price")
 
 
-## His wares: always his own things, a rare special, a book and good gear.
+## His wares: ingredients from far away and plain, basic gear only.
 func _items() -> void:
-	for id in Wanderer.EXCLUSIVE:
-		check(Items.ALL.has(id) and Items.ALL[id].get("wanderer", false), "%s is one of his wares" % id)
-		check(Lang.EN.has(Items.ALL[id].name), "%s has an English name" % id)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 3
-	var found := false
-	for i in 3000:
-		if Items.ALL[Items.random_item(rng)].get("wanderer", false):
-			found = true
-	check(not found, "his own wares are never found as loot")
+	for id in Wanderer.INGREDIENT_PRICES:
+		check(Crafting.INGREDIENTS.has(id), "%s is a known ingredient" % id)
+		check(not Crafting.INGREDIENTS[id].get("rare", false) and id != "trueffel", "%s is not one of the rarest finds" % id)
+	# Merchants sell nothing magic, special or top of its kind.
+	for id in ["vampirzahn", "phoenixfeder", "gluecksklee", "dornenrune", "amulett_kraft", "zauberhut", "fechtbuch",
+			"plattenpanzer", "axt", "eilstiefel", "rubinring", "grosser_rucksack", "langschwert", "rabenklinge", "schattenumhang"]:
+		check(not Items.is_basic(id), "%s is not basic, so no merchant sells it" % id)
+	for id in ["schwert", "rundschild", "lederwams", "lederstiefel", "wollumhang", "kupferring", "leinenrucksack"]:
+		check(Items.is_basic(id), "%s is basic gear" % id)
 	for night in [1, 4, 7, 10]:
 		var wares := Wanderer.stock_for(night, HERO)
-		check(wares.size() == Wanderer.EXCLUSIVE_COUNT + 3, "he brings five things on night %d" % night)
-		var own := wares.filter(func(id): return id in Wanderer.EXCLUSIVE)
-		check(own.size() == Wanderer.EXCLUSIVE_COUNT, "two of his own wares on night %d" % night)
-		var unique := {}
-		for id in wares:
-			check(Items.ALL.has(id), "%s exists" % id)
-			unique[id] = true
-		check(unique.size() == wares.size(), "no ware twice on night %d" % night)
-		check(wares.any(func(id): return id in Wanderer.RARE_SPECIALS), "a rare special on night %d" % night)
-		check(wares.any(func(id): return Items.is_book(id)), "a book on night %d" % night)
+		var ingredients := wares.filter(Wanderer.is_ingredient)
+		var gear := wares.filter(func(id): return not Wanderer.is_ingredient(id))
+		var kinds := {}
+		for id in ingredients:
+			kinds[id] = true
+		check(kinds.size() == Wanderer.INGREDIENT_KINDS, "three kinds of ingredient on night %d" % night)
+		check(ingredients.size() <= Wanderer.INGREDIENT_KINDS * Wanderer.MAX_EACH, "a few pieces of each on night %d" % night)
+		check(gear.size() == Wanderer.GEAR_COUNT, "two pieces of gear on night %d" % night)
+		for id in gear:
+			check(Items.is_basic(id), "%s on night %d is basic gear" % [id, night])
 		check(wares == Wanderer.stock_for(night, HERO), "the same night brings the same wares")
 	check(Wanderer.stock_for(1, HERO) != Wanderer.stock_for(4, HERO) or Wanderer.stock_for(4, HERO) != Wanderer.stock_for(7, HERO), "another visit brings other wares")
 
@@ -146,12 +146,20 @@ func _trading() -> void:
 	game.menus.open("wanderhaendler")
 	check(game.menus.current == "wanderhaendler", "the trading window opens")
 	check(game.lore.has(Menus.WANDERER_LEARN), "the compendium learns about him")
-	var id: String = wares[0]
-	var price := Wanderer.price(id)
-	game.menus._buy_from_wanderer(0)
-	check(game.player.bag.has(id), "the bought item is in the bag")
-	check(game.coins == 1000 - price, "it cost his price")
-	check(game.wanderer_wares().size() == Wanderer.EXCLUSIVE_COUNT + 2 and not game.wanderer_wares().has(id), "it is gone from his wares")
+	# An ingredient goes into the pouch.
+	var size := wares.size()
+	var herb: String = wares.filter(Wanderer.is_ingredient)[0]
+	var had: int = game.crafting.have(herb)
+	game.menus._buy_from_wanderer(wares.find(herb))
+	check(game.crafting.have(herb) == had + 1, "a bought ingredient is in the pouch")
+	check(game.player.bag.is_empty(), "an ingredient does not take room in the bag")
+	check(game.coins == 1000 - Wanderer.price(herb), "it cost his price")
+	# Gear goes into the bag.
+	var gear: String = game.wanderer_wares().filter(func(w): return not Wanderer.is_ingredient(w))[0]
+	game.menus._buy_from_wanderer(game.wanderer_wares().find(gear))
+	check(game.player.bag.has(gear), "bought gear is in the bag")
+	check(game.coins == 1000 - Wanderer.price(herb) - Wanderer.price(gear), "the gear cost his price")
+	check(game.wanderer_wares().size() == size - 2 and not game.wanderer_wares().has(gear), "what was bought is gone from his wares")
 	game.coins = 0
 	var left: int = game.wanderer_wares().size()
 	game.menus._buy_from_wanderer(0)

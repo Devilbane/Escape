@@ -1851,7 +1851,7 @@ func _apply_save(data: Dictionary) -> void:
 	var wares = data.get("wanderer", [])
 	if wares is Array:
 		for id in wares:
-			if Items.ALL.has(str(id)):
+			if Items.ALL.has(str(id)) or Wanderer.is_ingredient(str(id)):
 				wanderer_stock.append(str(id))
 	# Games saved before there was weather wake up to clear skies.
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))

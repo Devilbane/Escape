@@ -81,7 +81,7 @@ const ROLES := {
 	# never from the map.
 	"%": {"name": "Wanderhändler Zarek", "model": "Mage", "show": ["Mage_Hat", "Mage_Cape"],
 		"colors": [Color(0.3, 0.22, 0.42), Color(0.22, 0.2, 0.26), Color(0.16, 0.2, 0.42)], "plan": "stay", "work": "Interact",
-		"lines": ["Psst! Waren aus fernen Ländern, nur heute Nacht!", "Wenn der Morgen graut, bin ich schon wieder auf der Straße.", "Was ich verkaufe, findest du in keinem Verlies und bei keinem Schmied.", "Jede dritte Nacht komme ich vorbei. Halt die Augen offen."]},
+		"lines": ["Psst! Waren aus fernen Ländern, nur heute Nacht!", "Wenn der Morgen graut, bin ich schon wieder auf der Straße.", "Mondsilber, Glimmermoos, Pilze aus fernen Wäldern: Zutaten für jedes Rezept!", "Jede dritte Nacht komme ich vorbei. Halt die Augen offen."]},
 }
 
 ## What the herald calls out on the square, one after another.

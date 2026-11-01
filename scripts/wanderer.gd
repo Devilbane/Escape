@@ -3,8 +3,8 @@ extends RefCounted
 ## Zarek, the wandering merchant. He is not one of the village's own people:
 ## every few nights he rolls his covered cart into Lindenhain at nightfall,
 ## sets up by the market on his pitch (map tile "@", see Outdoor) and is gone
-## again at dawn. He sells rare things found nowhere else, and a few of the
-## rarest finds of the dungeon, but buys nothing.
+## again at dawn. He sells crafting ingredients from far away and a little
+## plain gear, but buys nothing.
 ##
 ## Everything here is pure: which nights he comes and what he brings. The
 ## village puts him and his cart up (Outdoor), the game keeps his wares for
@@ -17,14 +17,20 @@ const ROLE := "%"
 ## first night of a new game): nights 1, 4, 7, ...
 const EVERY := 3
 const FIRST := 1
-## His own wares: only he sells them (Items "wanderer"). Each visit he brings
-## EXCLUSIVE_COUNT of them, picked at random.
-const EXCLUSIVE := ["mondsteinamulett", "sternenring", "mitternachtsumhang", "siebenmeilenstiefel", "irrlichtarmreif"]
-const EXCLUSIVE_COUNT := 2
-## The rarest finds of the dungeon: one of them each visit.
-const RARE_SPECIALS := ["vampirzahn", "gluecksklee", "dornenrune", "phoenixfeder"]
-## Plus one book and one more piece of good gear, at least this pricey.
-const GEAR_MIN_PRICE := 30
+## Merchants sell only plain, basic gear (see Items.is_basic): nothing
+## magic, special or top of its kind, which stays for loot and crafting.
+## What makes Zarek worth the wait are his ingredients from far away (see
+## Crafting.INGREDIENTS), with what each piece costs. The rarest finds (the
+## truffle, the rare fish) are not for sale: those the hero has to find.
+const INGREDIENT_PRICES := {
+	"mondsilbererz": 30, "mondstein": 35, "glimmermoos": 18,
+	"baerlauch": 8, "steinpilz": 10, "hoehlenpilz": 10,
+}
+## Each visit he brings this many kinds of ingredient, one to MAX_EACH pieces
+## of each, and this many pieces of basic gear.
+const INGREDIENT_KINDS := 3
+const MAX_EACH := 2
+const GEAR_COUNT := 2
 
 
 ## Nights are counted like days (see Game.day): a day begins at dawn, so the
@@ -49,28 +55,37 @@ static func nights_until(night: int) -> int:
 	return n
 
 
-## What he brings on a night: his own wares, a rare special, a book and a
-## piece of good gear. The same hero gets the same wares for the same night,
-## so loading a saved game does not shuffle them.
+## What he brings on a night: a few kinds of ingredient (one entry per
+## piece) and some basic gear. The same hero gets the same wares for the same
+## night, so loading a saved game does not shuffle them.
 static func stock_for(night: int, hero := "") -> Array[String]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("%s/%d" % [hero, night])
-	var own: Array = EXCLUSIVE.duplicate()
 	var out: Array[String] = []
-	for i in mini(EXCLUSIVE_COUNT, own.size()):
-		out.append(own.pop_at(rng.randi() % own.size()))
-	out.append(RARE_SPECIALS[rng.randi() % RARE_SPECIALS.size()])
-	out.append(Items.random_item(rng, 0, "buch"))
-	var gear := Items.random_item(rng, GEAR_MIN_PRICE)
-	for i in 8:
-		if not gear in out and not Items.is_book(gear):
-			break
-		gear = Items.random_item(rng, GEAR_MIN_PRICE)
-	out.append(gear)
+	var kinds: Array = INGREDIENT_PRICES.keys().filter(func(id): return Crafting.INGREDIENTS.has(id))
+	for i in mini(INGREDIENT_KINDS, kinds.size()):
+		var id: String = kinds.pop_at(rng.randi() % kinds.size())
+		for n in rng.randi_range(1, MAX_EACH):
+			out.append(id)
+	var gear: Array = Items.ALL.keys().filter(Items.is_basic)
+	for i in mini(GEAR_COUNT, gear.size()):
+		out.append(gear.pop_at(rng.randi() % gear.size()))
 	return out
 
 
-## What his goods cost: a fifth more than the shopkeeper asks
-## (rounded up).
+## Whether a ware is an ingredient (it goes into the pouch, not the bag).
+static func is_ingredient(id: String) -> bool:
+	return INGREDIENT_PRICES.has(id)
+
+
+## A ware's name, for an ingredient or an item.
+static func ware_name(id: String) -> String:
+	return Crafting.ingredient_name(id) if is_ingredient(id) else Items.item_name(id)
+
+
+## What his goods cost: an ingredient its own price; gear a fifth more than
+## the shopkeeper asks (rounded up), for the long road.
 static func price(id: String) -> int:
+	if is_ingredient(id):
+		return INGREDIENT_PRICES[id]
 	return (int(Items.ALL[id].price) * 6 + 4) / 5 if Items.ALL.has(id) else 0

@@ -71,13 +71,6 @@ const ALL := {
 	"gluecksklee": {"name": "Glücksklee", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Doppeltes Gold"},
 	"dornenrune": {"name": "Dornenrune", "slot": "spezial", "weight": 0.5, "price": 45, "effect": "Wer dich im Nahkampf trifft, erleidet 1 Schaden"},
 	"phoenixfeder": {"name": "Phönixfeder", "slot": "spezial", "weight": 0.1, "price": 60, "effect": "Rettet dich einmal vor dem Tod, dann verbrennt sie"},
-	# Zarek's wares ("wanderer"): only the wandering merchant sells them, on
-	# the nights he is in the village (see Wanderer). Never found as loot.
-	"mondsteinamulett": {"name": "Mondsteinamulett", "slot": "amulett", "weight": 0.3, "hp": 1, "power": 1, "speed": 0.05, "price": 70, "no_loot": true, "wanderer": true},
-	"sternenring": {"name": "Sternenring", "slot": "ring", "weight": 0.1, "power": 2, "speed": 0.05, "price": 75, "no_loot": true, "wanderer": true},
-	"mitternachtsumhang": {"name": "Mitternachtsumhang", "slot": "umhang", "weight": 1, "hp": 2, "speed": 0.1, "skills": {"schleichen": 3}, "price": 80, "no_loot": true, "wanderer": true, "tint": Color(0.1, 0.12, 0.32), "material": "cloth"},
-	"siebenmeilenstiefel": {"name": "Siebenmeilenstiefel", "slot": "schuhe", "weight": 1, "speed": 0.22, "price": 85, "no_loot": true, "wanderer": true, "tint": Color(0.38, 0.2, 0.46), "material": "leather"},
-	"irrlichtarmreif": {"name": "Irrlichtarmreif", "slot": "armreif", "weight": 0.3, "hp": 1, "power": 1, "skills": {"werfen": 1}, "price": 60, "no_loot": true, "wanderer": true},
 	# Backpacks: "bag" is how many items the hero can carry while wearing one.
 	# Bigger ones are pricier, so they turn up more rarely. Lying about, they
 	# show as a sack ("model_scale" sizes it).
@@ -202,6 +195,36 @@ static func describe(id: String, worn := 0) -> String:
 	if item.has("effect"):
 		parts.append(Lang.t(item.effect))
 	return ", ".join(parts)
+
+
+## The slots of plain gear a merchant may sell (see is_basic).
+const BASIC_SLOTS := ["kopf", "waffe", "schild", "umhang", "ruestung", "schuhe", "ring", "armreif", "rucksack"]
+
+
+## Whether an item is plain, basic gear, the only kind merchants sell:
+## nothing unique, magic or special (specials, amulets, books, anything with
+## an effect, a skill bonus or an attribute it needs), nothing of the smith's
+## own work, and not the best (priciest) of its slot. Those stay for loot
+## and the hero's own crafting.
+static func is_basic(id: String) -> bool:
+	if not ALL.has(id):
+		return false
+	var item: Dictionary = ALL[id]
+	if not item.slot in BASIC_SLOTS or item.get("no_loot", false) or item.get("smith", false) or item.get("unique", false):
+		return false
+	if item.has("effect") or item.has("skills") or item.has("requires") or item.has("teaches"):
+		return false
+	return item.price < _top_price(item.slot)
+
+
+## The highest price of any lootable item in a slot: the top of its kind.
+static func _top_price(slot: String) -> int:
+	var top := 0
+	for id in ALL:
+		var item: Dictionary = ALL[id]
+		if item.slot == slot and not item.get("no_loot", false) and not item.get("smith", false):
+			top = maxi(top, int(item.price))
+	return top
 
 
 ## Picks a random item; pricier items turn up less often.

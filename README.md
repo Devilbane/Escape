@@ -219,6 +219,17 @@ on a shaved head. A mohawk
 hides under helmets and hats, unless you hide the helmet in the inventory: it still protects, but the
 haircut shows. Your look is saved with the game.
 
+**Quests.** Some villagers have work for you. Run into them and they hand out a task; run into them
+again when it is done to collect the reward. Ulrich the guard wants five bandits from the pass defeated,
+Gorm the smith three bruisers, Bruno the woodcutter two poachers, and once the pass is quieter Ragna at the
+adventurers' guild sends you after the bandit chief. Mira the shopkeeper wants back three **bandit daggers**
+that the cutthroats stole (they drop them while she is still missing some). Anselm the postmaster, Lene the
+farmer and Hanna the water carrier give you a letter, a pumpkin or a bucket to carry to another villager,
+who pays you when it arrives; lose it and the giver hands you another. Rewards are gold and sometimes gear
+(boots, chain mail, a shadow cloak). The **Quests** page of the compendium (key H) lists every task with
+who gave it, how far along it is and the reward. Quests are kept in each hero's saved game. The tasks are
+defined in `scripts/quests.gd`: adding one is a single entry there plus its English texts in `scripts/lang.gd`.
+
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.
 
@@ -252,6 +263,21 @@ standing guard, and they chase you only so far from their camp before they give 
 the same list as yours, and much more often than skeletons do; when one falls it spills **gold** and may
 drop a piece of its gear. A fallen bandit's spot is taken by another a few minutes later, once you have
 left, so there is always something to fight and loot. Whoever falls on the pass starts again on the graveyard.
+
+By the campfire waits the boss of the pass: **Ravenheart, the bandit chief**. Once he takes up the fight, his
+**health bar** shows at the top of the screen, with marks where his next phase begins:
+
+1. **Sword and shield.** Stand too close and now and then he rams you with his shield: it cannot be blocked
+   and knocks you to the ground.
+2. **"To me, lads!"** Below two thirds of his life he calls two cutthroats out of the camp. Now the sweep pays off.
+3. **Enraged.** Below one third he glows red, gets quicker and, from a distance, lowers his head and **charges**
+   in a straight line. Step aside or jump: a charge that misses leaves him **dazed** for a moment, and a dazed
+   chief takes double damage.
+
+A stab in the back does not bring him down at once, it only hits three times as hard. If you run away he binds
+his wounds after a while and starts again at full strength. He falls **only once per saved game**: he leaves
+plenty of gold and his unique blade, the **Ravenblade** (+3 power, +5% speed), and nobody takes his place.
+If you leave the blade lying there, it still waits for you after a reload.
 
 The **compendium** (key H) shows all keys and mouse commands and collects every hint and every
 explanation you have been given so far: the introduction of every level, the tips on sneaking and on the

@@ -1156,6 +1156,8 @@ func _update_hud() -> void:
 		gifts.append(Lang.t("Vergiftet"))
 	if player.ailments.has("fluch"):
 		gifts.append(Lang.t("Verflucht"))
+	if player.ailments.has("brand"):
+		gifts.append(Lang.t("Brennt"))
 	_gift_label.text = "   ".join(gifts)
 	_coin_label.text = Lang.t("Gold: %d") % coins
 	_knife_label.text = Lang.t("Messer: %d") % player.knives
@@ -1326,6 +1328,7 @@ func load_level(index: int, restock := true) -> void:
 	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
 	level.lair_won.connect(_on_lair_won)
+	level.dragon_awakened.connect(_on_dragon_awakened)
 	level.lair_exit_taken.connect(leave_lair)
 	level.stairs_taken.connect(_take_stairs)
 	if level is Outdoor:
@@ -2470,6 +2473,19 @@ func _on_lair_won() -> void:
 			show_message(Lang.t("Höhle bezwungen! Der Drache ist tot."), 4.0)
 			return
 		menus.open("hoehle"))
+
+
+## The dragon wakes: the lair shakes, its name in gold, and a word on how
+## to fight it. Its health bar shows at the top (see BossBar).
+func _on_dragon_awakened(dragon: Dragon) -> void:
+	_shake = 1.4
+	learn(DRAGON_LEARN)
+	show_message(Lang.t("%s erwacht!") % Lang.t(dragon.boss_title()) + "\n" + Lang.t(DRAGON_LEARN), 5.0)
+	_message.add_theme_color_override("font_color", GOLD)
+	get_tree().create_timer(5.6).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
+
+
+const DRAGON_LEARN := "Rote Ringe am Boden zeigen, wo sein Feuer fällt: geh beiseite oder spring darüber. Nach dem Feueratem schnauft er, dann trifft deine Klinge doppelt."
 
 
 ## Out of the lair at once, through the glowing way out the fallen dragon

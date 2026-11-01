@@ -45,10 +45,12 @@ func _villager(role: String) -> Villager:
 	return null
 
 
-## Runs into a villager the way the game does it.
+## Runs into a villager the way the game does it. Each bump is a fresh
+## visit: the last line has had time to be read (see Villager.MIN_SAY_TIME).
 func _bump(role: String) -> void:
 	for s in game.level.stations:
 		if s.get("npc") == _villager(role):
+			s.npc._update_bubble(Villager.MIN_SAY_TIME)
 			game._use_station(s)
 			return
 	check(false, "villager %s has a station" % role)

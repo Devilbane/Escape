@@ -89,6 +89,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/npc_names.gd | tee names.log
           grep -q PASS names.log
 
+      - name: Villager speech cooldown test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/npc_speech_cooldown.gd | tee speech.log
+          grep -q PASS speech.log
+
       - name: Wild bandits on the robbers' pass test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_bandits.gd | tee bandits.log

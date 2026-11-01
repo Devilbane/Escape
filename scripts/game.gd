@@ -1325,6 +1325,8 @@ func load_level(index: int, restock := true) -> void:
 	level.player_hurt.connect(player.spring_trap)
 	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
+	level.lair_won.connect(_on_lair_won)
+	level.lair_exit_taken.connect(leave_lair)
 	level.stairs_taken.connect(_take_stairs)
 	if level is Outdoor:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
@@ -2448,6 +2450,44 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 		player.hp += 1
 		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+1", Color(0.5, 1.0, 0.5))
 		_update_hud()
+
+
+## The dragon has fallen: the lair is won. A fanfare and a golden line
+## first, then, once the dragon has hit the ground, a window that says so
+## and offers the way out (see Menus "hoehle").
+const LAIR_WON_DELAY := 3.0
+
+
+func _on_lair_won() -> void:
+	var here := level
+	Sfx.play(self, "level_done", -1.0)
+	player.train("weisheit", 10.0)
+	get_tree().create_timer(LAIR_WON_DELAY).timeout.connect(func():
+		if level != here or state != State.PLAYING or player.dead:
+			return
+		if menus.is_open():
+			# Busy in a window: the golden line alone tells the news.
+			show_message(Lang.t("Höhle bezwungen! Der Drache ist tot."), 4.0)
+			return
+		menus.open("hoehle"))
+
+
+## Out of the lair at once, through the glowing way out the fallen dragon
+## left behind (or the "Leave the lair" button): back in front of the arch.
+func leave_lair() -> void:
+	if state != State.PLAYING or not level.lair or player.dead:
+		return
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	Sfx.play(self, "magic", -2.0)
+	var tween := create_tween()
+	tween.tween_property(_fade, "color", Color(0.9, 0.75, 0.4, 1.0), 0.5)
+	tween.tween_callback(func():
+		_leave_building()
+		get_tree().create_timer(1.0).timeout.connect(func():
+			if state == State.PLAYING:
+				show_message(Lang.t("Du trittst mit dem Schatz des Drachen aus dem Steinbogen ins Freie."), 3.5)))
 
 
 ## Training raised an attribute or a skill: say so, the attributes louder.

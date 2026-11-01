@@ -14,12 +14,12 @@ extends Level
 ##   T  tree                                 t  tree stump with logs
 ##   e  barrels, crates and sacks            q  well
 ##   Buildings, each a rectangular block of the same letter:
-##   h  house   j  smithy   n  tavern   m  market   u  windmill
+##   h  house (half-timbered, see VillageHouse)   j  smithy   n  tavern   m  market   u  windmill
 ##   y  pumpkin field
 ##   The hero's house: I  stone wall   i  wooden floor (a gap in the
 ##   walls is the door)   B  bed (save and log out)   L  chest (storage)
 ##   :  paved square         F  fountain (heals)   x  bench
-##   More buildings: s  temple   k  office of the crown   o  post office
+##   More buildings: s  temple (a chapel)   k  office of the crown   o  post office
 ##   w  adventurers' guild   b  bank. A building turns its door to the square or path.
 ##   Villagers: 0 elder, 1 smith (melts, forges and mends gear at the forge
 ##   on the tile to his left, see Forge), 2 farmer, 3 woodcutter, 4 guard,
@@ -59,11 +59,10 @@ const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&"
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
 const BLOCK_CHARS := "Rhjnmuskowb"
-const HOMES := ["building_home_A_blue", "building_home_B_red", "building_home_A_yellow", "building_home_B_green"]
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
 	"m": "building_market_green", "u": "building_windmill_red",
-	"s": "building_church_yellow", "k": "building_castle_blue", "o": "building_home_A_yellow",
+	"k": "building_castle_blue", "o": "building_home_A_yellow",
 	"w": "building_barracks_red", "b": "building_tower_A_blue",
 }
 const BUILDING_NAMES := {
@@ -87,6 +86,32 @@ const FOREST_DEPTH := 4
 ## lanterns near it only, so many lanterns can burn at once.
 const GROUND_CHUNK := 12
 const TREE_SHADER := preload("res://shaders/tree.gdshader")
+## The temple: a chapel from the Modular Cathedral Kit (see _build_chapel).
+## Pieces in the kit's own metres, with the door looking south (+z): name,
+## where it stands and how far it is turned (degrees).
+const CHAPEL_DIR := "res://assets/chapel/"
+const CHAPEL_PARTS := [
+	["wall_01", Vector3(-12, 0, 11), 0.0], ["doorway_01", Vector3(-4, 0, 11), 0.0], ["wall_01", Vector3(4, 0, 11), 0.0],
+	["door_01", Vector3(-2, 0, 11.4), 0.0],
+	["wall_01", Vector3(12, 0, -11), 180.0], ["wall_rose_window_01", Vector3(4, 0, -11), 180.0], ["wall_01", Vector3(-4, 0, -11), 180.0],
+	["wall_window_01", Vector3(11, 0, 12), 90.0], ["wall_window_01", Vector3(11, 0, 4), 90.0], ["wall_window_01", Vector3(11, 0, -4), 90.0],
+	["wall_window_01", Vector3(-11, 0, -12), -90.0], ["wall_window_01", Vector3(-11, 0, -4), -90.0], ["wall_window_01", Vector3(-11, 0, 4), -90.0],
+	["rooftop_01", Vector3(0, 16, 8), 0.0], ["rooftop_01", Vector3(0, 16, 0), 0.0], ["rooftop_01", Vector3(0, 16, -8), 0.0],
+	["spire_01", Vector3(0, 16, 8), 0.0],
+]
+## Half the nave's width (x) and length (z), the height of its walls and of
+## the gables under the roof, all in kit metres.
+const CHAPEL_HALF := Vector2(12, 12)
+const CHAPEL_EAVES := 16.0
+const CHAPEL_GABLE_HEIGHT := 13.0
+## The ground the chapel covers, steps included (kit metres), and the middle
+## of it along z.
+const CHAPEL_FOOT := Vector2(24, 30)
+const CHAPEL_FOOT_MID := 3.0
+## Where the bricks sit on the kit's trim sheet (v from top to bottom of four
+## rows of bricks).
+const GABLE_BRICK_V := Vector2(0.6, 0.92)
+
 const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
 ## The elder calls the hero over from this far (metres).
@@ -720,19 +745,28 @@ func _build_blocks() -> void:
 
 
 func _build_block(ch: String, block: Rect2i) -> void:
-	var model: String = HOMES[_rng.randi() % HOMES.size()] if ch == "h" else BLOCK_MODELS[ch]
-	var box := _aabb_of(model)
 	var facing := _block_facing(block) if ch != "R" else Vector2i(0, 1)
 	var rot := atan2(float(facing.x), float(facing.y))
 	var turned := facing.x != 0
 	var room := Vector2(block.size) * TILE * 0.92
-	var model_size := Vector2(box.size.z, box.size.x) if turned else Vector2(box.size.x, box.size.z)
-	var s := minf(room.x / model_size.x, room.y / model_size.y)
 	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
-	var foot := (Vector3(box.position.x + box.size.x * 0.5, 0, box.position.z + box.size.z * 0.5) * s).rotated(Vector3.UP, rot)
-	var node := _put(model, center - foot, rot, s)
-	if ch != "R":
-		_light_windows(node)
+	var node: Node3D
+	if ch == "s":
+		node = _build_chapel(center, rot, room if not turned else Vector2(room.y, room.x))
+	elif ch == "h":
+		node = VillageHouse.build(room if not turned else Vector2(room.y, room.x), _rng, _house_glass())
+		node.position = center
+		node.rotation.y = rot
+		add_child(node)
+	else:
+		var model: String = BLOCK_MODELS[ch]
+		var box := _aabb_of(model)
+		var model_size := Vector2(box.size.z, box.size.x) if turned else Vector2(box.size.x, box.size.z)
+		var s := minf(room.x / model_size.x, room.y / model_size.y)
+		var foot := (Vector3(box.position.x + box.size.x * 0.5, 0, box.position.z + box.size.z * 0.5) * s).rotated(Vector3.UP, rot)
+		node = _put(model, center - foot, rot, s)
+		if ch != "R":
+			_light_windows(node)
 	var solid := Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86)
 	_add_solid(center, solid)
 	var reach := Vector2(block.size) * TILE * 0.5 + Vector2(2.0, 2.0)
@@ -773,6 +807,115 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		_put("crate_long_A", front + side - Vector3(facing.x, 0, facing.y) * 1.0, rot, PROP_SCALE)
 		_put("crate_open", front - side - Vector3(facing.x, 0, facing.y) * 1.0, rot + 0.3, PROP_SCALE)
 	node.set_meta("block", block)
+
+
+## The temple is a small stone chapel put together from the pieces of the
+## Modular Cathedral Kit: a nave with tall windows down both sides, a rose
+## window at the back, a pointed doorway with steps at the front, a tiled
+## roof and a spire over the door. Its stained glass glows at night.
+func _build_chapel(center: Vector3, rot: float, room: Vector2) -> Node3D:
+	var chapel := Node3D.new()
+	chapel.name = "Chapel"
+	for part: Array in CHAPEL_PARTS:
+		var piece: Node3D = load(CHAPEL_DIR + part[0] + ".fbx").instantiate()
+		piece.position = part[1]
+		piece.rotation.y = deg_to_rad(part[2])
+		chapel.add_child(piece)
+	for z in [CHAPEL_HALF.y - 1.0, -CHAPEL_HALF.y]:
+		var gable := MeshInstance3D.new()
+		gable.mesh = _chapel_gable()
+		gable.position = Vector3(0, CHAPEL_EAVES, z)
+		chapel.add_child(gable)
+	_skin_chapel(chapel)
+	# The kit is built to cathedral scale: shrink it to fit the block, and
+	# move it so that the steps in front of the door stay inside it too.
+	var s := minf(room.x / CHAPEL_FOOT.x, room.y / CHAPEL_FOOT.y)
+	chapel.scale = Vector3.ONE * s
+	chapel.rotation.y = rot
+	chapel.position = center - (Vector3(0, 0, CHAPEL_FOOT_MID) * s).rotated(Vector3.UP, rot)
+	add_child(chapel)
+	return chapel
+
+
+## Gives the chapel pieces the kit's textures: stone and bricks from the trim
+## sheet, stained glass that can glow, and the wooden door.
+func _skin_chapel(chapel: Node) -> void:
+	if not _scenes.has("mat_chapel_trim"):
+		var trim := StandardMaterial3D.new()
+		trim.albedo_texture = load(CHAPEL_DIR + "trim_sheet.png")
+		trim.roughness = 0.9
+		var glass := StandardMaterial3D.new()
+		glass.albedo_texture = load(CHAPEL_DIR + "window_diffuse.png")
+		glass.emission_enabled = true
+		# The stained glass itself glows, in its own colours.
+		glass.emission = Color(0.38, 0.34, 0.3)
+		glass.emission_texture = load(CHAPEL_DIR + "window_diffuse.png")
+		glass.emission_energy_multiplier = 0.0
+		var wood := StandardMaterial3D.new()
+		wood.albedo_texture = load(CHAPEL_DIR + "door_diffuse.png")
+		wood.roughness = 0.85
+		_scenes["mat_chapel_trim"] = trim
+		_scenes["mat_chapel_glass"] = glass
+		_scenes["mat_chapel_wood"] = wood
+		# The windows light up with the houses' at night (see set_hour).
+		_window_mats[glass] = glass
+	for mi: MeshInstance3D in chapel.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var mat := mi.mesh.surface_get_material(i)
+			var kind: String = mat.resource_name if mat else ""
+			var key := "mat_chapel_trim"
+			if kind.begins_with("window"):
+				key = "mat_chapel_glass"
+			elif kind == "door":
+				key = "mat_chapel_wood"
+			mi.set_surface_override_material(i, _scenes[key])
+
+
+## The window panes of the villagers' houses: dark by day, warm at night
+## (see set_hour).
+func _house_glass() -> StandardMaterial3D:
+	if not _scenes.has("mat_house_glass"):
+		var glass := StandardMaterial3D.new()
+		glass.albedo_color = Color(0.16, 0.18, 0.22)
+		glass.roughness = 0.25
+		glass.emission_enabled = true
+		glass.emission = WINDOW_LIGHT
+		glass.emission_energy_multiplier = 0.0
+		_scenes["mat_house_glass"] = glass
+		_window_mats[glass] = glass
+	return _scenes["mat_house_glass"]
+
+
+## The kit's roof is open at both ends: a brick gable closes each one. It is
+## built in strips so that each strip shows one band of the trim sheet's
+## bricks, like the walls below.
+func _chapel_gable() -> Mesh:
+	if _scenes.has("mesh_chapel_gable"):
+		return _scenes["mesh_chapel_gable"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var strips := 4
+	var strip := CHAPEL_GABLE_HEIGHT / strips
+	for i in strips:
+		var y0 := i * strip
+		var y1 := y0 + strip
+		var w0 := CHAPEL_HALF.x * (1.0 - y0 / CHAPEL_GABLE_HEIGHT)
+		var w1 := CHAPEL_HALF.x * (1.0 - y1 / CHAPEL_GABLE_HEIGHT)
+		var v0 := GABLE_BRICK_V.y
+		var v1 := GABLE_BRICK_V.y - (GABLE_BRICK_V.y - GABLE_BRICK_V.x) * strip / 4.0
+		for side in [1.0, 0.0]:
+			# Both faces of the gable, each turned outwards.
+			var n := Vector3(0, 0, 1.0 if side > 0.5 else -1.0)
+			var quad := [Vector3(-w0, y0, side), Vector3(w0, y0, side), Vector3(w1, y1, side), Vector3(-w1, y1, side)]
+			var uvs := [Vector2(-w0 / 8.0, v0), Vector2(w0 / 8.0, v0), Vector2(w1 / 8.0, v1), Vector2(-w1 / 8.0, v1)]
+			var order := [0, 1, 2, 0, 2, 3] if side > 0.5 else [0, 2, 1, 0, 3, 2]
+			for k in order:
+				st.set_normal(n)
+				st.set_uv(uvs[k])
+				st.add_vertex(quad[k])
+	var mesh := st.commit()
+	_scenes["mesh_chapel_gable"] = mesh
+	return mesh
 
 
 ## Gives a building windows that can glow: its kit material is swapped for

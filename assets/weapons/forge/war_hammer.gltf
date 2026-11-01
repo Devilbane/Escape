@@ -1,0 +1,136 @@
+{
+ "asset": {
+  "generator": "tools/obj_to_gltf.py",
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "name": "Scene",
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "war_hammer"
+  }
+ ],
+ "materials": [
+  {
+   "name": "war_hammer",
+   "doubleSided": true,
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 0
+    },
+    "metallicFactor": 0.0,
+    "roughnessFactor": 1.0
+   }
+  }
+ ],
+ "textures": [
+  {
+   "source": 0,
+   "sampler": 0
+  }
+ ],
+ "samplers": [
+  {
+   "magFilter": 9729,
+   "minFilter": 9987
+  }
+ ],
+ "images": [
+  {
+   "uri": "war_hammer_texture.png",
+   "name": "war_hammer_texture"
+  }
+ ],
+ "meshes": [
+  {
+   "name": "war_hammer",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 1590,
+   "type": "VEC3",
+   "min": [
+    -0.1659312,
+    -0.2240946,
+    -0.08338319999999999
+   ],
+   "max": [
+    0.2511918,
+    0.9594431999999999,
+    0.0833832
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 1590,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 1590,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5125,
+   "count": 4932,
+   "type": "SCALAR"
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 19080,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 19080,
+   "byteLength": 19080,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 38160,
+   "byteLength": 12720,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 50880,
+   "byteLength": 19728,
+   "target": 34963
+  }
+ ],
+ "buffers": [
+  {
+   "uri": "war_hammer.bin",
+   "byteLength": 70608
+  }
+ ]
+}

@@ -97,7 +97,20 @@ little gold (plate armour: 8 iron and 16 gold), so you pick exactly the piece yo
 armour and shields, a few gold per point of durability. He also sells iron bars for 4 gold each, so
 forging from bought iron costs about what the merchant asks; iron from melted loot makes it cheaper.
 Iron is counted like gold, weighs nothing and stays in your saved game.
-**Shields** block: round shield 20 %, crest shield 25 %, spiked shield 30 %. A blocked blow or
+Gorm also *sells his own work*, which is found nowhere else (not as loot, not at the merchant), and
+he can forge it from iron too. The window opens on this tab:
+
+| Piece | Skill | Gold | What it gives |
+|---|---|---|---|
+| Mace | Axes | 40 | +2 power, +1 life |
+| Longsword | Blades | 45 | +2 power, +1 Blades |
+| Scimitar | Blades | 50 | +2 power, +8 % speed, light |
+| Kite shield | Blocking | 55 | +3 life, armour 1, blocks 30 %, durability 9, +1 Blocking |
+| Battle axe | Axes | 60 | +3 power |
+| War hammer | Axes | 70 | +3 power, +1 Axes, heavy |
+
+Maces and hammers are swung like axes, so they train the Axes skill.
+**Shields** block: round shield 20 %, crest shield 25 %, spiked and kite shield 30 %. A blocked blow or
 shot does no damage at all (spikes from below cannot be blocked). Shields have durability too:
 every block wears it with a 20 % chance, every hit with 5 % as with armour.
 Every item has a **weight**. Everything you carry, worn or in your bag, slows you down:
@@ -207,9 +220,11 @@ you first step inside, the house is yours: the game saves, and from then on your
 the starting point. Every load, and every new try after a fall, begins next to your bed.
 
 In the middle of the village lies the paved **market square** with a fountain that heals, benches and
-lanterns. Around it stand the **smithy**, the **temple**, the **office of the crown**, the **post office**, the
+lanterns. Around it stand the **smithy**, the **temple** (a small stone chapel with a spire and stained-glass
+windows), the **office of the crown**, the **post office**, the
 **adventurers' guild**, the **general store** (Mira, the shopkeeper, buys and sells), the **tavern** and the
-**bank**. Sixteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
+**bank**. The villagers live in half-timbered houses with jutting upper floors, shuttered windows and tiled
+roofs, each one a little different. Sixteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
 makes the rounds, the postmaster carries letters, the priestess tends the temple. Every so often the
 **herald** rings the bell and calls out the news, and the whole village gathers on the square to listen.
 
@@ -385,7 +400,9 @@ entry there.
 - Graphics: KayKit Dungeon Remastered, Adventurers and Skeletons by Kay Lousberg (CC0)
 - Graveyard, crypt and autumn trees: KayKit Halloween Bits; village buildings, trees and rocks: KayKit Medieval Hexagon Pack, both by Kay Lousberg (CC0)
 - Wooden floor and roof tiles of the house: "Wood 062" and "Roofing Tiles 014 C" by ambientCG (CC0)
+- The temple's chapel, and the stone and roof tiles of the villagers' houses: Modular Cathedral Kit by SigilsVault (Kevin Barany) (CC0, see `assets/chapel/LICENSE.txt`)
 - Floors, walls, pillars and furniture: 3D Modular Dungeon Kit by Omie's Assets (CC0)
+- Gorm's own weapons and the kite shield: Medieval Weapon Pack by Omie's Assets (CC0, see `assets/weapons/forge/LICENSE.txt`)
 - Wolves, orcs, yeti and spiders: Ultimate Animated Animals, Ultimate Monsters and Easy Animated Enemy Pack by Quaternius (CC0, see `assets/wild/LICENSE.txt`)
 - Does, stags and foxes: Ultimate Animated Animals by Quaternius (CC0, see `assets/animals/LICENSE.txt`)
 - Sounds: made from scratch with `tools/make_sounds.py`; footsteps and door: recordings by Fantozzi, “Footsteps Leather, Cloth, Armor” and qubodup; creatures, skeleton voices and chains by rubberduck; crossbow shots from “Medieval sound effects - Weapon Textures” (CC0, see `assets/sounds/CREDITS.txt`)

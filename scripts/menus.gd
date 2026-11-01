@@ -15,12 +15,17 @@ var _panel: PanelContainer
 var _box: VBoxContainer
 var _selected := -1
 var _note := ""
+## The saved game whose delete button was clicked once; a second click deletes.
+var _delete_asked := ""
+## How many saved games the load window shows before the list scrolls.
+const LOAD_ROWS_SHOWN := 5
 ## Shows the stats of the item under the mouse (or last tapped).
 var _info: Label
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## Every control, for the compendium: action and keys.
 const SHORTCUTS := [
-	["Laufen", "WASD / Pfeiltasten, Klick oder Halten auf den Boden"],
+	["Gehen", "WASD / Pfeiltasten oder Klick auf den Boden"],
+	["Rennen", "Maustaste auf dem Boden halten oder Umschalt: in 3 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück; leer erst wieder ab halbvoll. Wer im Lauf binnen 2 Sekunden mehr als 10 % seiner Leben verliert, stürzt zu Boden und steht wieder auf"],
 	["Springen", "Leertaste, Rechtsklick im Lauf"],
 	["Nahkampf", "F oder J, gegen das Skelett laufen oder es anklicken"],
 	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],
@@ -83,12 +88,16 @@ func close() -> void:
 	_panel.visible = false
 	game.set_world_paused(false)
 	game._update_hud()
+	if game.state == game.State.TITLE:
+		game.load_window_closed()
 
 
 func _rebuild() -> void:
 	for child in _box.get_children():
 		_box.remove_child(child)
 		child.queue_free()
+	# The inventory holds the most, so its rows sit a little closer together.
+	_box.add_theme_constant_override("separation", 6 if current == "inventar" else 10)
 	match current:
 		"inventar":
 			_build_inventory()
@@ -119,7 +128,8 @@ func _rebuild() -> void:
 		_info.custom_minimum_size.y = 26
 	if _note != "":
 		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
-	if not current in ["bett", "laden", "beenden", "plan", "rueckkehr"]:
+	# The inventory has its own "Back to game" button at the top instead.
+	if not current in ["inventar", "bett", "laden", "beenden", "plan", "rueckkehr"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
 		close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		close_button.custom_minimum_size = Vector2(180, 52)
@@ -186,7 +196,8 @@ func _stats_text() -> String:
 
 
 ## The hero's attributes, each with how far it is to the next point.
-func _attributes_text() -> String:
+## `two_lines` splits them in half so the line is not wider than the screen.
+func _attributes_text(two_lines := false) -> String:
 	var p: Player = game.player
 	var parts := []
 	for id in Training.ATTRIBUTES:
@@ -195,6 +206,9 @@ func _attributes_text() -> String:
 		var at_cap: bool = value >= Training.ATTRIBUTES[id].max
 		parts.append("%s %s%s" % [Lang.t(Training.ATTRIBUTES[id].name), shown,
 				Lang.t(" (höchster Wert)") if at_cap else " (%d%%)" % floori(Training.attribute_progress(id, p.xp.get(id, 0.0)) * 100.0)])
+	if two_lines and parts.size() > 1:
+		var half := ceili(parts.size() / 2.0)
+		return "    ".join(parts.slice(0, half)) + "\n" + "    ".join(parts.slice(half))
 	return "    ".join(parts)
 
 
@@ -243,13 +257,14 @@ func _build_character() -> void:
 
 func _build_inventory() -> void:
 	var p: Player = game.player
-	_add_label(Lang.t("Inventar"), 38, game.GOLD, game.TITLE_FONT)
+	_add_inventory_header()
 	_add_label(_stats_text(), 18, BLUE)
-	_add_label(_attributes_text(), 18, game.GOLD)
+	_add_label(_attributes_text(true), 18, game.GOLD)
 	_add_label(_skills_text(), 16, Color(0.8, 0.85, 0.9))
 	_add_label(Lang.t("Angelegt (anklicken zum Ablegen)"), 20)
 	var row := GridContainer.new()
-	row.columns = 5
+	# Six across keeps all eleven slots in two rows, so the window fits the screen.
+	row.columns = 6
 	row.add_theme_constant_override("h_separation", 8)
 	row.add_theme_constant_override("v_separation", 8)
 	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -258,8 +273,8 @@ func _build_inventory() -> void:
 		var id: String = p.equipped.get(slot, "")
 		var text: String = "%s\n%s" % [Lang.t(Items.SLOT_NAMES[slot]), Items.item_name(id) if id != "" else "-"]
 		row.add_child(_item_button(text, _unequip.bind(slot), id != "", id))
-	_add_label(Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), Items.BAG_SIZE, Items.weight_text(p.carried_weight())], 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _select)
+	_add_label(Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), p.bag_size(), Items.weight_text(p.carried_weight())], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, 4 if p.bag_size() <= 8 else 6)
 	if _selected >= 0 and _selected < p.bag.size():
 		var id: String = p.bag[_selected]
 		_add_label("%s: %s" % [Items.item_name(id), Items.describe(id, p.wear.get(id, 0))], 18, BLUE)
@@ -269,6 +284,35 @@ func _build_inventory() -> void:
 		_box.add_child(actions)
 		actions.add_child(_item_button(Lang.t("Anlegen"), _equip_selected))
 		actions.add_child(_item_button(Lang.t("Wegwerfen"), _drop_selected))
+
+
+## The title with a clearly visible "Back to game" button beside it. It sits
+## at the top so it stays on screen however tall the window gets.
+func _add_inventory_header() -> void:
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 12)
+	_box.add_child(header)
+	var back: Button = game._make_button(Lang.t("Zurück zum Spiel"), close)
+	back.custom_minimum_size = Vector2(190, 52)
+	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var style: StyleBoxFlat = back.get_theme_stylebox("normal").duplicate()
+	style.bg_color = Color(0.2, 0.42, 0.18, 0.9)
+	style.border_color = game.GOLD
+	style.set_border_width_all(3)
+	back.add_theme_stylebox_override("normal", style)
+	back.add_theme_stylebox_override("hover", style)
+	back.add_theme_color_override("font_color", Color.WHITE)
+	# An empty box as wide as the button keeps the title in the middle.
+	var balance := Control.new()
+	balance.custom_minimum_size.x = back.custom_minimum_size.x
+	balance.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header.add_child(balance)
+	var title: Label = game._make_label(game.TITLE_FONT, 38, game.GOLD)
+	title.text = Lang.t("Inventar")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	header.add_child(back)
 
 
 func _select(index: int) -> void:
@@ -290,7 +334,8 @@ func _equip_selected() -> void:
 	if not p.can_use(requires):
 		var attr: String = requires.keys()[0]
 		_note = Lang.t("Dafür brauchst du %s %d.") % [Lang.t(Training.ATTRIBUTES[attr].name), requires[attr]]
-	p.equip(id)
+	elif not p.equip(id):
+		_note = Lang.t("In diesen Rucksack passt nicht alles aus deiner Tasche.")
 	_selected = -1
 	_rebuild()
 
@@ -315,8 +360,8 @@ func _build_storage() -> void:
 	var p: Player = game.player
 	_add_label(Lang.t("Lagertruhe"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 18, BLUE)
-	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), Items.BAG_SIZE], 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _store, 6)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6)
 	_add_label(Lang.t("Truhe (%d / %d)") % [game.storage.size(), STORAGE_SIZE], 20)
 	_add_item_grid(game.storage, STORAGE_SIZE, Items.item_name, _take, 6)
 
@@ -332,7 +377,7 @@ func _store(index: int) -> void:
 
 
 func _take(index: int) -> void:
-	if game.player.bag.size() >= Items.BAG_SIZE:
+	if game.player.bag.size() >= game.player.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.player.bag.append(game.storage[index])
@@ -407,8 +452,8 @@ func _build_vault() -> void:
 	var hero: String = game.hero_name
 	_add_label(Lang.t("Dein Schließfach"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 18, BLUE)
-	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), Items.BAG_SIZE], 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _to_vault, 6)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _to_vault, 6)
 	var items := Bank.vault_items(hero)
 	_add_label(Lang.t("Schließfach (%d / %d)") % [items.size(), Bank.VAULT_SIZE], 20)
 	_add_item_grid(items, Bank.VAULT_SIZE, Items.item_name, _from_vault, 6)
@@ -427,7 +472,7 @@ func _to_vault(index: int) -> void:
 
 
 func _from_vault(index: int) -> void:
-	if game.player.bag.size() >= Items.BAG_SIZE:
+	if game.player.bag.size() >= game.player.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.player.bag.append(Bank.take(game.hero_name, index))
@@ -451,14 +496,14 @@ func _build_shop() -> void:
 	_add_label(Lang.t("Kaufen"), 20)
 	_add_item_grid(game.shop_stock, maxi(4, game.shop_stock.size()), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), Items.ALL[id].price], _buy)
 	_add_label(Lang.t("Verkaufen"), 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), sell_price(id)], _sell)
+	_add_item_grid(p.bag, p.bag_size(), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), sell_price(id)], _sell)
 
 
 func _buy(index: int) -> void:
 	var id: String = game.shop_stock[index]
 	if game.coins < Items.ALL[id].price:
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
-	elif game.player.bag.size() >= Items.BAG_SIZE:
+	elif game.player.bag.size() >= game.player.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.coins -= Items.ALL[id].price
@@ -479,31 +524,90 @@ func _sell(index: int) -> void:
 
 # --- Bed --------------------------------------------------------------------
 
-## Asks before loading the saved game in the middle of a run.
+## Every saved game, one per hero, the one saved last on top. In the middle
+## of a run it warns first that the run so far is lost. A saved game can be
+## deleted too, after a second click to make sure.
 func _build_load() -> void:
 	_add_label(Lang.t("Spielstand laden"), 38, game.GOLD, game.TITLE_FONT)
-	var info: Dictionary = game.save_info()
-	if info.is_empty():
+	var saves: Array = game.save_list()
+	var playing: bool = game.state == game.State.PLAYING
+	if saves.is_empty():
 		_add_label(Lang.t("Es gibt noch keinen Spielstand. Gespeichert wird beim Betreten der Zuflucht und in ihrem Bett."), 20)
-	else:
-		if info.escaped:
-			_add_label(Lang.t("%s auf dem Friedhof mit %d Gold.") % [info.name, info.coins], 22)
-		else:
-			_add_label(Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins], 22)
+	elif playing:
 		_add_label(Lang.t("Was du seitdem erlebt hast, geht verloren."), 20, Color(1.0, 0.75, 0.5))
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 12)
-	_box.add_child(row)
-	if not info.is_empty():
-		var load_button: Button = game._make_button(Lang.t("Laden"), func():
-			close()
-			game.load_saved_game())
-		load_button.custom_minimum_size = Vector2(220, 60)
-		row.add_child(load_button)
-	var cancel: Button = game._make_button(Lang.t("Abbrechen"), close)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 8)
+	for info in saves:
+		list.add_child(_save_row(info, playing))
+	if saves.size() > LOAD_ROWS_SHOWN:
+		# Many heroes: the list scrolls.
+		var scroll := ScrollContainer.new()
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.custom_minimum_size = Vector2(0, LOAD_ROWS_SHOWN * 70)
+		list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(list)
+		_box.add_child(scroll)
+	elif not saves.is_empty():
+		_box.add_child(list)
+	if _note != "":
+		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
+		_note = ""
+	var cancel: Button = game._make_button(Lang.t("Abbrechen"), func():
+		_delete_asked = ""
+		close())
 	cancel.custom_minimum_size = Vector2(220, 60)
-	row.add_child(cancel)
+	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(cancel)
+
+
+## One line of the load window: who, where, with how much gold and when,
+## then the buttons to load or delete it.
+func _save_row(info: Dictionary, playing: bool) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var text := VBoxContainer.new()
+	text.add_theme_constant_override("separation", 0)
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.custom_minimum_size = Vector2(420, 0)
+	row.add_child(text)
+	var where: Label = game._make_label(game.TEXT_FONT, 22)
+	where.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	if info.escaped:
+		where.text = Lang.t("%s auf dem Friedhof mit %d Gold.") % [info.name, info.coins]
+	else:
+		where.text = Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins]
+	if playing and info.name == game.hero_name:
+		where.add_theme_color_override("font_color", game.GOLD)
+	text.add_child(where)
+	var when: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	when.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	when.text = Lang.t("Gespeichert: %s") % game.save_time_text(info.time)
+	text.add_child(when)
+	var path: String = info.path
+	var load_button: Button = game._make_button(Lang.t("Laden"), func():
+		_delete_asked = ""
+		if playing:
+			close()
+			game.load_saved_game(path)
+		else:
+			# Leaving the title closes the window by itself.
+			game.continue_game(path))
+	load_button.custom_minimum_size = Vector2(150, 56)
+	row.add_child(load_button)
+	var asked := _delete_asked == path
+	var delete_button: Button = game._make_button(Lang.t("Wirklich?") if asked else Lang.t("Löschen"), func():
+		if _delete_asked == path:
+			_delete_asked = ""
+			game.delete_save(path)
+			_note = Lang.t("Spielstand von %s gelöscht.") % info.name
+		else:
+			_delete_asked = path
+		_rebuild())
+	delete_button.custom_minimum_size = Vector2(150, 56)
+	if asked:
+		delete_button.add_theme_color_override("font_color", Color(1.0, 0.5, 0.4))
+	row.add_child(delete_button)
+	return row
 
 
 ## Every control on one side, everything the hero has been told on the other.
@@ -553,7 +657,9 @@ func _build_compendium() -> void:
 		var none: Label = game._make_label(game.TEXT_FONT, 18)
 		none.text = Lang.t("Noch nichts. Hinweise und Erklärungen sammeln sich hier.")
 		list.add_child(none)
-	for entry in game.lore:
+	# Newest first: the latest hint or explanation sits at the top.
+	for i in range(game.lore.size() - 1, -1, -1):
+		var entry: String = game.lore[i]
 		var l: Label = game._make_label(game.TEXT_FONT, 17)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size.x = 410

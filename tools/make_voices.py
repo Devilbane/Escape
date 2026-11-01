@@ -34,12 +34,12 @@ def say(model, text, name):
     raw = os.path.join(CACHE, name + "_raw.wav")
     subprocess.run(["python3", "-m", "piper", "-m", model, "-s", ANGRY, "--length-scale", "0.85",
                     "-f", raw], input=text.encode(), check=True, capture_output=True)
-    # Cut the silence, raise the voice a little (younger, more strained),
+    # Cut the silence, raise the voice a lot so it sounds like a scream,
     # give it a short dungeon echo and keep it short and loud.
     filters = ",".join([
         "silenceremove=start_periods=1:start_threshold=-45dB",
         "areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse",
-        "asetrate=22050*1.07,aresample=22050",
+        "asetrate=22050*1.35,aresample=22050,atempo=0.8",
         "highpass=f=120",
         "aecho=0.8:0.5:60|110:0.25|0.12",
         "apad=pad_dur=0.08",

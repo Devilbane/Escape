@@ -1,6 +1,7 @@
 class_name Player
 extends CharacterBody3D
-## The rogue. Moves with WASD / arrow keys or walks to a clicked spot,
+## The rogue. Walks with WASD / arrow keys or to a clicked spot, runs while
+## the mouse button (or Shift) is held for as long as their breath lasts,
 ## jumps, fights with a dagger up close and throws knives from afar.
 
 signal hurt(amount: int)
@@ -11,13 +12,46 @@ signal bumped(point: Vector3)
 ## Emitted when training raises an attribute or a skill, with its new value.
 signal trained(id: String, value: int)
 
+## The hero's reference speed in m/s (100 % Tempo); walking is a share of it.
 const SPEED := 4.0
+## Walking pace as a share of SPEED.
+const WALK_FACTOR := 0.5
+## Running speeds up to this many times the walking pace...
+const RUN_TOP := 2.5
+## ...over this many seconds of holding the run,
+const RUN_RAMP_UP := 3.0
+## and slows back down to walking within this many seconds once let go.
+const RUN_RAMP_DOWN := 1.0
+const WALK_ANIM := "Walking_A"
+## The ground speed at which the walk animation's feet keep pace (m/s).
+const WALK_ANIM_SPEED := 1.7
+## Where in the walk cycle each foot touches the ground (left, right).
+const WALK_LANDINGS := [0.02, 0.52]
+## Seconds of running per point of Konstitution: 10 points run for 20 seconds.
+const RUN_SECONDS_PER_CON := 2.0
+## Seconds of running regained per second, per point of Konstitution: 10
+## points bring one second back every second.
+const RUN_RECOVERY_PER_CON := 0.1
+## Out of breath, the hero walks until this share of the meter has come back.
+const RUN_RESTART := 0.5
+## From this many times the walking pace on, the hero shows the run animation.
+const RUN_ANIM_FROM := 1.4
 const JUMP_VELOCITY := 9.0
 const GRAVITY := 26.0
 ## How fast the feet travel over the ground in the run animation at normal
 ## playback (metres per second, measured from the foot bone).
 const RUN_ANIM_SPEED := 3.5
 const MAX_HP := 5
+## A running hero who loses more than this share of their life within
+## KNOCKDOWN_WINDOW seconds is knocked to the ground and gets up again.
+const KNOCKDOWN_SHARE := 0.1
+const KNOCKDOWN_WINDOW := 2.0
+## The fall to the ground (Death_A, played to its end) and the climb back up
+## (Lie_StandUp, 2.33 s long, played a little faster).
+const FALL_TIME := 0.8
+const GET_UP_ANIM := "Lie_StandUp"
+const GET_UP_SPEED := 1.4
+const GET_UP_TIME := 2.33 / GET_UP_SPEED
 const MELEE_RANGE := 2.8
 ## Running into a skeleton starts a fight: the hero keeps swinging while
 ## standing next to it, and throws knives at it once the two are apart.
@@ -78,6 +112,16 @@ var _sidestepped := false
 ## Speed carried through the air by a running jump.
 var _air_momentum := Vector3.ZERO
 var path: Array[Vector3] = []
+## Set every frame while the player asks to run (the mouse button held).
+var wants_run := false
+## Seconds of running left; filled up on the first frame.
+var stamina := -1.0
+## Ran dry: no running until RUN_RESTART of the meter has come back.
+var winded := false
+## Whether the hero is running (not walking) this frame.
+var sprinting := false
+## How many times the walking pace the hero moves at: 1 walking, up to RUN_TOP.
+var run_boost := 1.0
 ## Sneaking: much slower, but silent, with the lantern hooded, and see-through
 ## (more so in the dark). Skeletons cannot hear a sneaking hero.
 var sneaking := false
@@ -111,6 +155,18 @@ var _target: Enemy = null
 var _auto_cooldown := 0.0
 ## Time left on an animation that plays while the hero keeps moving.
 var _anim_hold := 0.0
+## Seconds since the hero last ran; hits within the knockdown window of a run
+## count towards being knocked down.
+var _since_run := INF
+## Recent hits taken while running, as [time, damage], and a clock for them.
+var _run_hits: Array = []
+var _clock := 0.0
+## Seconds of the fall left before getting up, and of the whole knockdown
+## (fall and getting up), during which the hero takes no more damage.
+var _falling := 0.0
+var _down := 0.0
+## How often the hero has been knocked down this game.
+var knockdowns := 0
 
 
 func _ready() -> void:
@@ -307,12 +363,17 @@ func revive(at: Vector3, heal := true) -> void:
 	dead = false
 	if heal or hp <= 0:
 		hp = max_hp
+	stamina = -1.0
+	winded = false
 	path.clear()
 	_target = null
 	velocity = Vector3.ZERO
 	global_position = at
 	_invulnerable = 1.5
 	_busy = 0.0
+	_falling = 0.0
+	_down = 0.0
+	_run_hits.clear()
 	play("Idle")
 
 
@@ -335,6 +396,43 @@ func walk_to(target: Vector3, stop_short := 0.0) -> void:
 
 func can_act() -> bool:
 	return controllable and not frozen and not dead and _busy <= 0.0
+
+
+## How many seconds the hero can run with full breath: Konstitution x 2.
+func max_stamina() -> float:
+	return RUN_SECONDS_PER_CON * attribute("konstitution")
+
+
+## Seconds of running that come back per second: Konstitution / 10.
+func stamina_recovery() -> float:
+	return RUN_RECOVERY_PER_CON * attribute("konstitution")
+
+
+## Spends breath while running and gets it back otherwise.
+func _breathe(delta: float, moving: bool) -> void:
+	var full := max_stamina()
+	if stamina < 0.0:
+		stamina = full
+	var run_key := Input.is_physical_key_pressed(KEY_SHIFT)
+	sprinting = (wants_run or run_key) and moving and not sneaking and not winded and stamina > 0.0
+	if sprinting:
+		stamina = maxf(0.0, stamina - delta)
+		# Running out of breath slowly hardens the body.
+		train("konstitution", delta * 0.1)
+		if stamina <= 0.0:
+			winded = true
+	else:
+		stamina = minf(full, stamina + stamina_recovery() * delta)
+		if winded and stamina >= RUN_RESTART * full:
+			winded = false
+	# Speeds up gradually while running, and eases back to walking when the
+	# run ends. Standing still or sneaking drops straight back to walking.
+	if not moving or sneaking:
+		run_boost = 1.0
+	elif sprinting:
+		run_boost = minf(RUN_TOP, run_boost + (RUN_TOP - 1.0) / RUN_RAMP_UP * delta)
+	else:
+		run_boost = maxf(1.0, run_boost - (RUN_TOP - 1.0) / RUN_RAMP_DOWN * delta)
 
 
 ## True while the hero is moving under its own steam.
@@ -377,12 +475,13 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 ## keeps the rhythm of the feet at any speed.
 func _footsteps(ground_speed: float) -> void:
 	var sneak := _current_anim == SNEAK_ANIM
-	if not (sneak or _current_anim == "Running_A") or not is_on_floor() or ground_speed < 0.3:
+	var walk := _current_anim == WALK_ANIM
+	if not (sneak or walk or _current_anim == "Running_A") or not is_on_floor() or ground_speed < 0.3:
 		_last_phase = -1.0
 		return
 	var phase := _anim.current_animation_position / _anim.current_animation_length
 	if _last_phase >= 0.0:
-		for landing: float in (SNEAK_LANDINGS if sneak else FOOT_LANDINGS):
+		for landing: float in (SNEAK_LANDINGS if sneak else (WALK_LANDINGS if walk else FOOT_LANDINGS)):
 			var crossed: bool = _last_phase < landing and phase >= landing
 			if phase < _last_phase:
 				crossed = _last_phase < landing or phase >= landing
@@ -391,7 +490,7 @@ func _footsteps(ground_speed: float) -> void:
 				if sneak:
 					Sfx.play(self, "sneak_%d" % (randi() % 4), -22.0)
 				else:
-					Sfx.play(self, "step_%d" % (randi() % 6), -14.0)
+					Sfx.play(self, "step_%d" % (randi() % 6), -17.0 if walk else -14.0)
 	_last_phase = phase
 
 
@@ -815,25 +914,38 @@ func can_use(requires: Dictionary) -> bool:
 	return true
 
 
+## How many items the bag holds: a worn backpack makes room for more.
+func bag_size() -> int:
+	return Items.bag_size(equipped.get("rucksack", ""))
+
+
 ## Moves a bag item into its slot; whatever was worn there goes into the bag.
-## Items the hero is not yet able to use stay in the bag, and so do books.
-func equip(id: String) -> void:
+## Items the hero is not yet able to use stay in the bag, and so do books,
+## and so does a smaller backpack that could not hold everything carried.
+## Returns whether the item was put on.
+func equip(id: String) -> bool:
 	if Items.is_book(id) or not can_use(Items.ALL[id].get("requires", {})):
-		return
+		return false
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":
 		# Two places for specials: take a free one, else swap out the first.
 		slot = "spezial_2" if equipped.has("spezial_1") and not equipped.has("spezial_2") else "spezial_1"
+	var after := bag.size() - 1 + (1 if equipped.has(slot) else 0)
+	if slot == "rucksack" and after > Items.bag_size(id):
+		return false
 	bag.erase(id)
 	if equipped.has(slot):
 		bag.append(equipped[slot])
 	equipped[slot] = id
 	refresh_stats()
+	return true
 
 
-## Takes off a worn item. False when the bag has no room for it.
+## Takes off a worn item. False when the bag has no room for it (without
+## the backpack, when that is what comes off).
 func unequip(slot: String) -> bool:
-	if not equipped.has(slot) or bag.size() >= Items.BAG_SIZE:
+	var room := Items.BAG_SIZE if slot == "rucksack" else bag_size()
+	if not equipped.has(slot) or bag.size() >= room:
 		return false
 	bag.append(equipped[slot])
 	equipped.erase(slot)
@@ -889,7 +1001,7 @@ func _block(from: Vector3) -> void:
 ## Blows and shots can be blocked with a shield; spikes from below (blockable
 ## false) cannot.
 func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable := true) -> void:
-	if dead or _invulnerable > 0.0 or frozen:
+	if dead or _invulnerable > 0.0 or _down > 0.0 or frozen:
 		return
 	if blockable:
 		mark_fight() # A blow or a shot, blocked or not; spikes are no fight.
@@ -907,6 +1019,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	# Every life lost hardens the body a little.
 	train("konstitution", amount)
 	hp -= amount
+	var knocked := _note_run_hit(amount)
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
 		attacker.take_hit(1, global_position)
 	if hp <= 0 and has_special("phoenixfeder"):
@@ -929,8 +1042,54 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 		dead = true
 		play_once("Death_A", 99.0)
 		defeated.emit()
+	elif knocked:
+		_knock_down()
 	else:
 		play_once("Hit_A", 0.35)
+
+
+## Remembers a hit taken during or right after a run, and tells whether the
+## hits of the last KNOCKDOWN_WINDOW seconds took more than KNOCKDOWN_SHARE of
+## the hero's life.
+func _note_run_hit(amount: int) -> bool:
+	if _since_run > KNOCKDOWN_WINDOW:
+		return false
+	while not _run_hits.is_empty() and _clock - _run_hits[0][0] > KNOCKDOWN_WINDOW:
+		_run_hits.pop_front()
+	_run_hits.append([_clock, amount])
+	var total := 0
+	for h in _run_hits:
+		total += int(h[1])
+	return total > max_hp * KNOCKDOWN_SHARE
+
+
+## Knocks the hero to the ground: they fall over backwards, lie a moment and
+## get up again. No blow lands while they are down.
+func _knock_down() -> void:
+	knockdowns += 1
+	_run_hits.clear()
+	_since_run = INF
+	run_boost = 1.0
+	_falling = FALL_TIME
+	_down = FALL_TIME + GET_UP_TIME
+	_invulnerable = 0.0
+	play_once("Death_A", _down)
+
+
+## Lets a knocked-down hero lie until the fall is over, then stand up.
+func _get_up(delta: float) -> void:
+	if _down <= 0.0:
+		return
+	_down = maxf(0.0, _down - delta)
+	if _falling > 0.0:
+		_falling -= delta
+		if _falling <= 0.0 and not dead:
+			_current_anim = ""
+			play(GET_UP_ANIM, 0.4)
+	if _down <= 0.0 and not dead:
+		# A short blink once back on the feet, so a waiting blade does not
+		# land the very moment the hero stands.
+		_invulnerable = 0.6
 
 
 ## Running trains speed, carrying a heavy load trains strength, sneaking
@@ -968,6 +1127,8 @@ func _physics_process(delta: float) -> void:
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_auto_cooldown = maxf(0.0, _auto_cooldown - delta)
 	_anim_hold = maxf(0.0, _anim_hold - delta)
+	_clock += delta
+	_get_up(delta)
 	_tick_ailments(delta)
 	_auto_attack()
 	var dir := Vector3.ZERO
@@ -986,8 +1147,10 @@ func _physics_process(delta: float) -> void:
 				to = path[0] - global_position
 				to.y = 0.0
 				dir = to.normalized()
+	_breathe(delta, dir != Vector3.ZERO)
+	_since_run = 0.0 if run_boost > RUN_ANIM_FROM else _since_run + delta
 	var vy := velocity.y - GRAVITY * delta
-	var pace := speed * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else 1.0)
+	var pace := speed * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else WALK_FACTOR * run_boost)
 	velocity = dir * pace + _knockback
 	if _air_momentum != Vector3.ZERO:
 		if is_on_floor() and vy <= 0.0:
@@ -1030,9 +1193,17 @@ func _physics_process(delta: float) -> void:
 		_model.rotation.y = lerp_angle(_model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-14.0 * delta))
 	# Blink while invulnerable after a hit.
 	_model.visible = dead or _invulnerable <= 0.0 or int(_invulnerable * 12.0) % 2 == 0
-	# Feet keep pace with the ground: the run plays faster or slower with the speed.
+	# Feet keep pace with the ground: the run and the walk play faster or
+	# slower with the speed.
 	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
-	_anim.speed_scale = clampf(ground_speed / RUN_ANIM_SPEED, 0.5, 2.5) if _current_anim == "Running_A" else 1.0
+	if _current_anim == "Running_A":
+		_anim.speed_scale = clampf(ground_speed / RUN_ANIM_SPEED, 0.5, 2.5)
+	elif _current_anim == WALK_ANIM:
+		_anim.speed_scale = clampf(ground_speed / WALK_ANIM_SPEED, 0.5, 2.5)
+	elif _current_anim == GET_UP_ANIM:
+		_anim.speed_scale = GET_UP_SPEED
+	else:
+		_anim.speed_scale = 1.0
 	_footsteps(ground_speed)
 	_update_sneak_look()
 	if _busy > 0.0 or _anim_hold > 0.0 or not controllable or dead:
@@ -1044,4 +1215,4 @@ func _physics_process(delta: float) -> void:
 	if dir == Vector3.ZERO:
 		play("Idle")
 	else:
-		play(SNEAK_ANIM if sneaking else "Running_A")
+		play(SNEAK_ANIM if sneaking else ("Running_A" if run_boost > RUN_ANIM_FROM else WALK_ANIM))

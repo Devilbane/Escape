@@ -54,8 +54,9 @@ const SNIFF_REST := 12.0
 const GIVE_UP := 10.0
 const SCALE := 0.4
 const RUN_ANIM := 5.0
-## Sitting and lying: extra bone turns (degrees about the bone's own x axis)
-## over Idle, and "drop" lowers the body (in the model's own units).
+## Sitting and lying: extra bone turns over Idle, in degrees about the bone's
+## own x axis (or a Vector3 of euler angles), and "drop" lowers the body (in
+## the model's own units).
 const POSES := {
 	"sit": {"drop": -0.9, "bones": {"Back": -38, "FrontShoulder.L": 55, "FrontShoulder.R": 55,
 		"BackUpperLeg.L": 85, "BackUpperLeg.R": 85, "BackLowerLeg.L": 60, "BackLowerLeg.R": 60,
@@ -63,7 +64,15 @@ const POSES := {
 	"lie": {"drop": -1.4, "bones": {"FrontShoulder.L": -70, "FrontShoulder.R": -70,
 		"BackUpperLeg.L": 90, "BackUpperLeg.R": 90, "BackLowerLeg.L": 70, "BackLowerLeg.R": 70,
 		"Neck1": 15, "Tail1": 25}},
+	# Asleep in its basket: lying, the head laid down on the paws.
+	"sleep": {"drop": -1.5, "bones": {"FrontShoulder.L": -70, "FrontShoulder.R": -70,
+		"BackUpperLeg.L": 90, "BackUpperLeg.R": 90, "BackLowerLeg.L": 70, "BackLowerLeg.R": 70,
+		"Neck1": Vector3(-15, 0, 45), "Neck2": Vector3(0, 0, 35), "Head": Vector3(-25, 0, 25), "Torso2": Vector3(0, 0, 22), "Torso3": Vector3(0, 0, 18), "Tail1": Vector3(25, 0, 55), "Tail3": Vector3(0, 0, 45), "Tail5": Vector3(0, 0, 40)}},
 }
+## The fox's basket beside the hero's bed: its size, and how high its
+## cushion lies, where the fox curls up while the hero sleeps.
+const BASKET_RADIUS := 0.85
+const BASKET_FLOOR := 0.24
 ## How fast a pose fades in or out (share per second).
 const POSE_SPEED := 2.2
 ## What it does while lounging, and how likely each is.
@@ -73,7 +82,8 @@ signal dug_up(id: String, pos: Vector3)
 
 var level: Level
 ## "follow", "lounge" (near the hero, see _act), "seek" (on the way to a
-## find), "dig", or "climb" (on the stairs behind the hero, see climb).
+## find), "dig", "climb" (on the stairs behind the hero, see climb), or
+## "bed" (off to its basket and asleep there while the hero sleeps).
 var state := "follow"
 ## While lounging: "stand", "sit", "lie", "wander", "circle" or "sniff".
 var _act := "stand"
@@ -88,9 +98,11 @@ var _target: Dictionary = {}
 var _current_anim := ""
 var _placed := false
 ## How far each pose is faded in (0..1), and how long the hero stood still.
-var _pose := {"sit": 0.0, "lie": 0.0}
+var _pose := {"sit": 0.0, "lie": 0.0, "sleep": 0.0}
 var _hero_still := 0.0
 var _climb: Tween = null
+## Where its basket stands, while it goes to bed.
+var _bed := Vector3.ZERO
 var _posed_bones: Array[int] = []
 var _rng := RandomNumberGenerator.new()
 
@@ -131,9 +143,28 @@ func _hero() -> Node3D:
 
 ## The pose it is in now: "sit", "lie" or "" (standing or moving).
 func pose() -> String:
+	if state == "bed" and _path.is_empty():
+		return "sleep"
 	if state == "lounge" and _path.is_empty() and _act in POSES:
 		return _act
 	return ""
+
+
+## Whether it lies asleep in its basket.
+func is_asleep() -> bool:
+	return pose() == "sleep"
+
+
+## The hero goes to bed: the fox trots to its basket at `spot` and curls up
+## there. Without a basket (Vector3.INF) it lies down where it is.
+func go_to_bed(spot: Vector3) -> void:
+	if _climb:
+		_climb.kill()
+	state = "bed"
+	_path.clear()
+	_bed = global_position if spot == Vector3.INF else spot
+	if spot != Vector3.INF and not _set_path(spot):
+		_path.append(Vector3(spot.x, 0.0, spot.z))
 
 
 ## How far a pose is faded in right now (0..1).
@@ -159,7 +190,9 @@ func _lay_pose(p: Dictionary, weight: float) -> void:
 	for bone in p.bones:
 		var i := _skeleton.find_bone(bone)
 		if i >= 0:
-			var turn := Quaternion(Vector3.RIGHT, deg_to_rad(p.bones[bone]) * weight)
+			var v = p.bones[bone]
+			var euler: Vector3 = v if v is Vector3 else Vector3(v, 0, 0)
+			var turn := Quaternion.from_euler(euler * deg_to_rad(1.0) * weight)
 			_skeleton.set_bone_pose_rotation(i, _skeleton.get_bone_pose_rotation(i) * turn)
 	var body := _skeleton.find_bone("Body")
 	if body >= 0:
@@ -169,6 +202,9 @@ func _lay_pose(p: Dictionary, weight: float) -> void:
 func _physics_process(delta: float) -> void:
 	var hero := _hero()
 	if hero == null or state == "climb":
+		return
+	if state == "bed":
+		_to_bed(delta)
 		return
 	var gap := _flat(hero.global_position - global_position).length()
 	if not _placed or gap > CATCH_UP:
@@ -332,6 +368,60 @@ func _go_to(p: Vector3) -> bool:
 	if _flat(p - global_position).length() < 0.3 or not _open(level.world_to_cell(p)):
 		return false
 	return _set_path(p)
+
+
+# --- Bedtime ---------------------------------------------------------------------
+
+## On its way to the basket, then in and curled up on the cushion.
+func _to_bed(delta: float) -> void:
+	if not _path.is_empty():
+		_walk(delta, RUN_SPEED if _flat(_bed - global_position).length() > 4.0 else WALK_SPEED, null)
+		if _path.is_empty():
+			# A little hop over the rim, onto the cushion.
+			create_tween().tween_property(self, "global_position", _bed + Vector3(0, BASKET_FLOOR, 0), 0.3)
+		return
+	_anim.speed_scale = 0.35
+	play("Idle")
+
+
+## A round wicker basket with a soft red cushion: the fox's bed.
+static func make_basket() -> Node3D:
+	var basket := Node3D.new()
+	basket.name = "FoxBasket"
+	var wicker := StandardMaterial3D.new()
+	wicker.albedo_color = Color(0.62, 0.45, 0.25)
+	wicker.roughness = 0.95
+	var base := MeshInstance3D.new()
+	var shell := CylinderMesh.new()
+	shell.top_radius = BASKET_RADIUS
+	shell.bottom_radius = BASKET_RADIUS * 0.88
+	shell.height = BASKET_FLOOR
+	base.mesh = shell
+	base.material_override = wicker
+	base.position.y = BASKET_FLOOR * 0.5
+	basket.add_child(base)
+	var rim := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = BASKET_RADIUS - 0.1
+	torus.outer_radius = BASKET_RADIUS + 0.03
+	rim.mesh = torus
+	rim.material_override = wicker
+	rim.scale.y = 1.6
+	rim.position.y = BASKET_FLOOR + 0.04
+	basket.add_child(rim)
+	var cushion := MeshInstance3D.new()
+	var pad := CylinderMesh.new()
+	pad.top_radius = BASKET_RADIUS - 0.1
+	pad.bottom_radius = BASKET_RADIUS - 0.1
+	pad.height = 0.05
+	cushion.mesh = pad
+	var cloth := StandardMaterial3D.new()
+	cloth.albedo_color = Color(0.68, 0.16, 0.14)
+	cloth.roughness = 1.0
+	cushion.material_override = cloth
+	cushion.position.y = BASKET_FLOOR + 0.01
+	basket.add_child(cushion)
+	return basket
 
 
 # --- Stairs ---------------------------------------------------------------------

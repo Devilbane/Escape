@@ -209,6 +209,10 @@ var chalk_marks := {}
 var stairs: Array = []
 ## Where the hero stands beside the bed of a home.
 var bed_side := Vector3.ZERO
+## Spots beside the beds for the basket of the hero's fox (see Pet), and the
+## baskets once they stand there (only for a hero who has a fox).
+var fox_beds: Array[Vector3] = []
+var _baskets: Array[Node3D] = []
 ## The storey of every walkable tile of a home (see storey_of).
 var _storeys := {}
 ## The stairs tile the hero last arrived on or stood on: taken again only
@@ -800,6 +804,7 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			stations.append({"kind": "bett", "cell": c, "pos": pos, "rot": bed_rot, "used": false})
 			if is_home:
 				bed_side = cell_to_world(_open_side(c))
+			_add_fox_bed(c)
 		"L":
 			_place("chest", pos, _facing_room(c))
 			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
@@ -2628,6 +2633,36 @@ func hide_ingredients() -> void:
 	for i in mini(count, cells.size()):
 		var c: Vector2i = cells.pop_at(rng.randi() % cells.size())
 		hidden_finds.append({"cell": c, "id": Crafting.random_fox_find(rng, outdoor)})
+
+
+## A spot for the fox's basket by the bed at c: on the floor tile in front
+## of the bed, near the bed and off to one side.
+func _add_fox_bed(c: Vector2i) -> void:
+	var o := _open_side(c)
+	if o == c:
+		return
+	var d := o - c
+	fox_beds.append(cell_to_world(o) - Vector3(d.x, 0, d.y) * 0.6 + Vector3(d.y, 0, -d.x) * 1.2)
+
+
+## Sets the fox's basket down beside every bed of the level (once).
+func place_fox_baskets() -> void:
+	if not _baskets.is_empty():
+		return
+	for spot in fox_beds:
+		var basket := Pet.make_basket()
+		basket.position = spot
+		add_child(basket)
+		_baskets.append(basket)
+
+
+## The fox's basket closest to `pos`, or Vector3.INF without one.
+func fox_bed_near(pos: Vector3) -> Vector3:
+	var best := Vector3.INF
+	for spot in fox_beds:
+		if best == Vector3.INF or _flat_distance(spot, pos) < _flat_distance(best, pos):
+			best = spot
+	return best
 
 
 ## Lays a dug-up ingredient on the ground. Picked up, it goes into the

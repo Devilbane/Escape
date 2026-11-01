@@ -4,7 +4,8 @@ extends SceneTree
 ## follows the hero, digs up a hidden ingredient for them, stays theirs in
 ## the saved game, lounges about (sits, lies down, strolls) while the hero
 ## stands still, follows once the hero walks off, comes along down into the
-## dungeon and climbs the stairs behind the hero.
+## dungeon, climbs the stairs behind the hero and sleeps in its basket
+## beside the bed when the hero goes to bed.
 ## Run with: godot --headless --fixed-fps 60 -s tests/fox.gd
 
 var failures := 0
@@ -21,6 +22,7 @@ var max_gap := 0.0
 var off_ground := 0
 var first_level: Node = null
 var climbed_y := 0.0
+var basket := Vector3.ZERO
 
 
 func check(ok: bool, what: String) -> void:
@@ -255,6 +257,35 @@ func _process(_delta: float) -> bool:
 			check(game.pet != null and is_instance_valid(game.pet) and game.pet.get_parent() == game.level, "the fox arrives on the next level")
 			check(Pet._flat(game.pet.global_position - game.player.global_position).length() < Pet.LEASH + 0.5, "the fox is at the hero's side on the next level")
 			check(game.pet.global_position.y < 0.1, "the fox stands on the floor of the next level")
+			# The refuge: a basket stands beside the bed, and when the hero
+			# goes to bed the fox curls up in it.
+			var refuge := -1
+			for i in game.level_files.size():
+				if "zuflucht" in game.level_files[i]:
+					refuge = i
+			game.load_level(refuge, false)
+			game.state = game.State.PLAYING
+			stage_frames = 0
+			stage = 10
+		10:
+			if stage_frames < 30:
+				return false
+			lvl = game.level
+			var bed: Dictionary = game._nearest_bed()
+			check(not bed.is_empty(), "the refuge has a bed")
+			check(lvl._baskets.size() == lvl.fox_beds.size() and not lvl.fox_beds.is_empty(), "a fox basket stands in the refuge")
+			basket = lvl.fox_bed_near(bed.pos)
+			check(lvl._flat_distance(basket, bed.pos) < 5.0, "the basket stands beside the bed")
+			check(lvl._walkable(lvl.world_to_cell(basket)) and not lvl.astar.is_point_solid(lvl.world_to_cell(basket)), "the basket stands on open floor")
+			game.player.global_position = bed.pos + Vector3(0, 0, 3.0)
+			game.sleep()
+			stage_frames = 0
+			stage = 11
+		11:
+			if not game.pet.is_asleep() and stage_frames < 360:
+				return false
+			check(game.pet.is_asleep(), "the fox is asleep when the hero goes to bed")
+			check(Pet._flat(game.pet.global_position - basket).length() < 0.3, "the fox sleeps in its basket")
 			_finish()
 			return true
 	return false

@@ -49,6 +49,20 @@ var _moon: DirectionalLight3D
 var day_hour := DayNight.START_HOUR
 ## The clock as the HUD shows it right now.
 var _clock_shown := ""
+## The weather above ground (see Weather) and how many hours of the day it
+## still lasts. Both are saved with the game.
+var weather := Weather.CLEAR
+var weather_hours := Weather.FIRST_HOURS
+var _weather_rng := RandomNumberGenerator.new()
+## The look of the sky as it moves towards the weather's own, and a stroke
+## of lightning as it fades (1 to 0).
+var _weather_look := Weather.look(Weather.CLEAR)
+var _flash := 0.0
+## The rain that falls and the mist that drifts around the hero, and the
+## patter of the rain.
+var _rain: CPUParticles3D
+var _mist: CPUParticles3D
+var _rain_sound: AudioStreamPlayer
 var _ambience: AudioStreamPlayer
 ## Set once the hero has stepped out of the crypt into the open air: the run
 ## is in the ranking as an escape, and goes on in the village.
@@ -69,6 +83,11 @@ var met := {}
 ## The villagers' tasks: offered, running and finished (see Quests). Kept in
 ## the saved game, so every hero has their own.
 var quests := Quests.new(self)
+## Known recipes and the ingredient pouch (see Crafting). Kept in the saved
+## game, like the quests.
+var crafting := Crafting.new(self)
+## The line in the water, when the hero is fishing (see Fishing).
+var fishing := Fishing.new(self)
 ## Counts down to the next look at who has a task (see refresh_quest_marks).
 var _quest_mark_timer := 0.0
 ## The town house on Weavers' Lane the hero is inside right now (see Homes),
@@ -204,6 +223,7 @@ func _ready() -> void:
 	Sfx.watch_focus(self)
 	_update_sound_button()
 	_ambience = Sfx.start_ambience(self)
+	_rain_sound = Sfx.start_loop(self, "rain")
 	Music.load_settings()
 	Music.start(self)
 	_update_music_controls()
@@ -278,13 +298,23 @@ func _setup_world() -> void:
 	dust.name = "Dust"
 	add_child(dust)
 
+	_weather_rng.randomize()
+	_rain = Weather.make_rain()
+	add_child(_rain)
+	_mist = Weather.make_mist()
+	add_child(_mist)
+
 
 ## Dark dungeon air, or in the open the sky of the hour (see DayNight:
 ## by day the warm autumn light, at night a cool blue moonlight).
 func _set_atmosphere(outdoor: bool) -> void:
 	if outdoor:
 		DayNight.apply(_env, _moon, day_hour)
+		# Out in the open the weather is there at once, without a fade.
+		_weather_look = Weather.look(weather)
+		Weather.apply(_env, _moon, _weather_look)
 	else:
+		Weather.clear_air(_env)
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
 		_env.ambient_light_energy = 0.3
@@ -386,6 +416,7 @@ func _setup_drawer() -> void:
 	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
 	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
 	buttons.add_child(_make_button(Lang.t("Stein"), func(): if state == State.PLAYING and not menus.is_open(): stone_action()))
+	buttons.add_child(_make_button(Lang.t("Angeln"), fish_action))
 	_sound_button = _make_button("", _toggle_sound)
 	buttons.add_child(_sound_button)
 	_update_sound_button()
@@ -664,7 +695,7 @@ func _use_station(s: Dictionary) -> void:
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not busy and not quests.talk(s.npc):
+		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building, s.get("house", 0))
@@ -686,6 +717,7 @@ func _use_station(s: Dictionary) -> void:
 		_drink(s)
 	else:
 		player.face(s.pos - player.global_position)
+		menus.bench = s.get("craft", "")
 		menus.open(s.kind)
 
 
@@ -1055,7 +1087,10 @@ func _update_hud() -> void:
 func _clock_text() -> String:
 	if level == null or not (level.outdoor or level.building != ""):
 		return ""
-	return "%s, %s" % [DayNight.clock_text(day_hour), Lang.t(DayNight.part_of_day(day_hour))]
+	var text := "%s, %s" % [DayNight.clock_text(day_hour), Lang.t(DayNight.part_of_day(day_hour))]
+	if weather != Weather.CLEAR:
+		text += ", " + Lang.t(Weather.word(weather))
+	return text
 
 
 ## The world's clock runs while the hero is above ground (in the open or in
@@ -1066,12 +1101,67 @@ func _tick_clock(delta: float) -> void:
 		return
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		day_hour = DayNight.advance(day_hour, delta)
+		_tick_weather(delta)
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
+		_weather_look = Weather.blend(_weather_look, Weather.look(weather), 1.0 - exp(-delta / Weather.FADE))
+		_flash = maxf(0.0, _flash - delta * 3.0)
+		# A stroke of lightning flickers: bright, a dip, bright again.
+		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0)
+		Weather.apply(_env, _moon, _weather_look, flicker)
 		if level is Outdoor:
 			level.set_hour(day_hour)
+			level.set_weather(weather)
 	if _clock_text() != _clock_shown:
 		_update_hud()
+
+
+## The weather runs on the clock: when its hours are up, the next weather
+## comes, picked for the hour (see Weather.roll).
+func _tick_weather(delta: float) -> void:
+	weather_hours -= delta * 24.0 / DayNight.DAY_LENGTH
+	if weather_hours <= 0.0:
+		set_weather(Weather.roll(day_hour, _weather_rng, weather))
+
+
+## Sets the weather for `hours` of the day (a random spell when not given).
+## The open air follows in _tick_clock.
+func set_weather(kind: String, hours := -1.0) -> void:
+	weather = kind if kind in Weather.KINDS else Weather.CLEAR
+	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng)
+
+
+## Rain and mist fall and drift around the hero in the open air only, and
+## the rain patters as hard as it falls.
+func _show_weather() -> void:
+	var outside: bool = level != null and level.outdoor and player != null
+	if not outside:
+		_rain.emitting = false
+		_rain.visible = false
+		_mist.emitting = false
+		_mist.visible = false
+		if _rain_sound and _rain_sound.playing:
+			_rain_sound.stop()
+		return
+	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
+	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
+	Weather.show_particles(_rain, _mist, _weather_look, 1.0 - DayNight.glow_at(day_hour))
+	if _rain_sound:
+		var r: float = _weather_look.rain
+		if r > 0.02:
+			_rain_sound.volume_db = linear_to_db(r) - 10.0
+			if not _rain_sound.playing:
+				_rain_sound.play()
+		elif _rain_sound.playing:
+			_rain_sound.stop()
+
+
+## Lightning struck (see Outdoor.strike): the sky flashes, and the thunder
+## follows, later and softer the farther away it was.
+func _on_lightning(at: Vector3) -> void:
+	_flash = 1.0
+	var far: float = level._flat_distance(player.global_position, at) if player else 0.0
+	Sfx.play_after(self, clampf(far / 40.0, 0.15, 1.5), "thunder", -1.0 - far * 0.08)
 
 
 # --- Flow -------------------------------------------------------------------
@@ -1133,6 +1223,7 @@ func load_level(index: int, restock := true) -> void:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
 		level.home_claimed.connect(_on_home_claimed)
 		level.food_basket.connect(_eat_from_basket)
+		level.lightning.connect(_on_lightning)
 	if level.is_home:
 		level.show_home_upgrades(home_upgrades, trophies)
 	_pending_crate = null
@@ -1140,6 +1231,7 @@ func load_level(index: int, restock := true) -> void:
 	_set_atmosphere(level.outdoor)
 	if level is Outdoor:
 		level.set_hour(day_hour)
+		level.set_weather(weather)
 	_pending_search = {}
 	_pending_station = {}
 	if level.safe and restock:
@@ -1319,10 +1411,13 @@ func _start_new_game() -> void:
 	builds.clear()
 	met.clear()
 	quests.clear()
+	crafting.clear()
+	fishing.stop()
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
 	day_hour = DayNight.START_HOUR
+	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
 	player.knives = 5
 	player.set_sex(_new_sex)
 	player.set_hair(HairLook.DEFAULT)
@@ -1587,6 +1682,7 @@ func _apply_save(data: Dictionary) -> void:
 			if Villager.ROLES.has(str(role)):
 				met[str(role)] = true
 	quests.load_from(data.get("quests", {}))
+	crafting.load_from(data.get("crafting", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
@@ -1594,11 +1690,15 @@ func _apply_save(data: Dictionary) -> void:
 	player.refresh_stats()
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
+	# Games saved before there was weather wake up to clear skies.
+	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
 	inside_house = 0
 	var own_house := Homes.house_of(hero_name)
-	if escaped and own_house > 0 and index == interiors.get("%", -1):
-		# Saved in the bed of the hero's own town house: wake up there.
+	if escaped and home_claimed and own_house > 0 and interiors.has("^"):
+		# The hero's own town house is the place to come back to: every
+		# load wakes up beside its bed, wherever the game was saved.
+		index = interiors["^"]
 		inside_house = own_house
 	elif escaped and _outdoor_index() >= 0:
 		# Out of the dungeon, every load begins in the open air, wherever the
@@ -1701,7 +1801,9 @@ func save_game(going_away := false) -> bool:
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
+		"crafting": crafting.for_save(),
 		"hour": day_hour,
+		"weather": weather, "weather_hours": weather_hours,
 	}
 	if going_away:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
@@ -1738,6 +1840,8 @@ func sleep() -> void:
 	# A night in the bed: the hero wakes up the next morning.
 	if level.outdoor or level.building != "":
 		day_hour = DayNight.WAKE_HOUR
+		# A new morning brings new weather.
+		set_weather(Weather.roll(day_hour, _weather_rng))
 	var saved := save_game(true)
 	# Say so at once, so nobody has to wonder whether the save went through.
 	show_message(Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"), 2.4)
@@ -2035,7 +2139,8 @@ func refresh_quest_marks() -> void:
 		return
 	for v in level.villagers:
 		if is_instance_valid(v):
-			v.set_quest_mark(quests.mark(v.role))
+			var quest_mark := quests.mark(v.role)
+			v.set_quest_mark(quest_mark if quest_mark != "" else crafting.mark(v.role))
 
 
 ## Something in the bag changed because of a task.
@@ -2437,6 +2542,8 @@ func _step_out_of_crypt() -> void:
 ## The hero has walked into the house the elder gave and made it their own:
 ## it is the new place to come back to, saved at once.
 func _on_home_claimed() -> void:
+	if Homes.house_of(hero_name) == 0 and level is Outdoor and not level.town_houses.is_empty():
+		Homes.house_for(hero_name, level.town_houses.size())
 	home_claimed = true
 	home_given = true
 	var saved := save_game()
@@ -2466,14 +2573,20 @@ func go_inside(building: String, house := 0) -> void:
 		player.frozen = false
 		state = State.PLAYING
 		create_tween().tween_property(_fade, "color:a", 0.0, 0.6)
-		_announce_level())
+		_announce_level()
+		if level.is_home and not home_claimed:
+			# The first step into the hero's own house makes it home.
+			get_tree().create_timer(4.6).timeout.connect(func():
+				if state == State.PLAYING:
+					show_message(Lang.t("Dein neues Zuhause! Im Bett speicherst du, in der Truhe lagerst du deine Schätze."), 4.0))
+			_on_home_claimed())
 
 
 ## Whether the hero may go into town house `house`: their own, or an empty
 ## one while they have none (it becomes theirs). Says why not, if not.
 func _may_enter_house(house: int) -> bool:
 	var resident := Homes.owner_of(house)
-	if resident == hero_name:
+	if resident == Homes.deed_name(hero_name):
 		return true
 	if resident != "":
 		show_message(Lang.t("Hier wohnt %s. Die Tür ist verschlossen.") % resident, 2.5)
@@ -2594,6 +2707,7 @@ func _guardian_intro() -> void:
 func _process(delta: float) -> void:
 	_eerie(delta)
 	_tick_clock(delta)
+	_show_weather()
 	# A skeleton on the hero's heels keeps the fight going, and a hero who
 	# has been spotted cannot stay hidden.
 	if state == State.PLAYING and level and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):
@@ -2622,6 +2736,10 @@ func _process(delta: float) -> void:
 	_steer_by_mouse(delta)
 	_update_drag(delta)
 	_update_run_meter()
+	if state == State.PLAYING:
+		fishing.tick(delta)
+	elif fishing.is_fishing():
+		fishing.stop()
 	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
 		_prompt.text = ""
 		return
@@ -2663,7 +2781,8 @@ func _process(delta: float) -> void:
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
-			"werkbank": Lang.t("Dagegenlaufen, um an der Werkbank zu arbeiten"),
+			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
+			"hauswerkbank": Lang.t("Dagegenlaufen, um an der Werkbank zu arbeiten"),
 			"trophaeen": Lang.t("Dagegenlaufen, um deine Trophäen anzusehen"),
 		}.get(station.kind, "")
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
@@ -2675,6 +2794,16 @@ func _process(delta: float) -> void:
 			_prompt.text = Lang.t("E oder Klick: Block schieben   Ziehen: rutschen lassen")
 		else:
 			_prompt.text = Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben")
+	# By the water the line can be cast, also next to the fountain.
+	var fish_prompt := ""
+	if fishing.state == Fishing.BITE:
+		fish_prompt = Lang.t("G: Anschlagen!")
+	elif fishing.is_fishing():
+		fish_prompt = Lang.t("G: Leine einholen")
+	elif not fishing.water_near().is_empty():
+		fish_prompt = Lang.t("G: Angeln")
+	if fish_prompt != "":
+		_prompt.text = fish_prompt if _prompt.text == "" else _prompt.text + "   " + fish_prompt
 
 
 func _reach(pos: Vector3) -> float:
@@ -2792,6 +2921,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						toggle_drawer()
 					KEY_C:
 						_toggle_sneak()
+					KEY_G:
+						fish_action()
 					KEY_E:
 						var why_not := ""
 						if level.crate_in_reach(player) == null and level.stone_in_reach(player) != null:
@@ -2832,6 +2963,16 @@ func _unhandled_input(event: InputEvent) -> void:
 						_toggle_sneak()
 					else:
 						_click(point)
+
+
+## Key G or the "Angeln" button: casts the line by the water, strikes when
+## a fish bites, or draws the line in (see Fishing).
+func fish_action() -> void:
+	if state != State.PLAYING or menus.is_open() or not _shrine.is_empty():
+		return
+	var why := fishing.press()
+	if why != "":
+		show_message(why, 1.6)
 
 
 func _mouse_to_floor(screen_pos: Vector2):

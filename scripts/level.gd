@@ -161,6 +161,11 @@ var taken := {}
 var enemies: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
+## Water the hero can fish in (see Fishing): which water ("brunnen", "teich"
+## or "senke"), its middle, how far it reaches from there (metres), whether
+## it is round (a fountain's basin) or a square tile (a pond), and the height
+## of its surface.
+var fishing_waters: Array = []
 var safe := false
 ## The world above ground after the last dungeon level: see Outdoor.
 var outdoor := false
@@ -300,6 +305,8 @@ func build() -> void:
 			_build_content(c, ch)
 	_build_corner_pillars()
 	furniture_slots.sort_custom(func(a, b): return a.storey < b.storey)
+	if is_home:
+		_light_storeys()
 	_pick_levers()
 	_build_wall_collision()
 	_setup_astar()
@@ -1103,6 +1110,7 @@ func _build_fountain(c: Vector2i) -> void:
 	_add_solid(pos, Vector3(3.2, 2, 3.2))
 	_light_spots.append(pos)
 	stations.append({"kind": "brunnen", "cell": c, "pos": pos, "used": false})
+	fishing_waters.append({"water": "brunnen", "pos": pos, "reach": 1.3, "round": true, "surface": 0.92})
 
 
 ## A secret passage: a wall tile with a fake wall on each open side.
@@ -1294,6 +1302,28 @@ func nearest_station(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
 		if not s.used and Vector2(from.x - s.pos.x, from.z - s.pos.z).length() <= max_distance:
 			return s
 	return {}
+
+
+## The water closest to a spot, if the hero standing there can cast a line
+## into it: no more than `max_distance` metres from its edge. Else {}.
+func nearest_water(from: Vector3, max_distance: float) -> Dictionary:
+	var best := {}
+	var best_distance := max_distance
+	for w in fishing_waters:
+		var d := water_distance(w, from)
+		if d <= best_distance:
+			best = w
+			best_distance = d
+	return best
+
+
+## How far a spot is from the edge of a water (0 on or over the water).
+static func water_distance(w: Dictionary, from: Vector3) -> float:
+	var dx := absf(from.x - w.pos.x)
+	var dz := absf(from.z - w.pos.z)
+	if w.round:
+		return maxf(0.0, Vector2(dx, dz).length() - w.reach)
+	return Vector2(maxf(0.0, dx - w.reach), maxf(0.0, dz - w.reach)).length()
 
 
 ## A shrine gives only one gift: its crystal goes dark afterwards.
@@ -2656,6 +2686,26 @@ func _check_stairs() -> void:
 	stairs_taken.emit(cell_to_world(_open_side(to)), cell_char(cell) == "<", storey_of(to))
 
 
+## A home is lit from within: a warm lamp over the middle of every storey,
+## so no room (the attic least of all) sits in the dark.
+func _light_storeys() -> void:
+	var sums := {}
+	for c in _storeys:
+		var k: int = _storeys[c]
+		if not sums.has(k):
+			sums[k] = [Vector3.ZERO, 0]
+		sums[k][0] += cell_to_world(c)
+		sums[k][1] += 1
+	for k in sums:
+		var lamp := OmniLight3D.new()
+		lamp.light_color = Color(1.0, 0.84, 0.62)
+		lamp.light_energy = 2.4
+		lamp.omni_range = 11.0
+		lamp.position = sums[k][0] / float(sums[k][1]) + Vector3(0, 3.6, 0)
+		add_child(lamp)
+		_light_spots.append(sums[k][0] / float(sums[k][1]))
+
+
 ## Wooden planks, as in the houses of the village. The stairs down leave a
 ## hole in the floor, and the tiles kept for furniture are marked with
 ## chalk on the boards.
@@ -2854,7 +2904,7 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 			_place("sword_shield", pos + Vector3(-sin(rot), 0, -cos(rot)) * 1.55, rot, root)
 			_add_solid(pos, Vector3(2.6, 1.2, 2.6))
 			astar.set_point_solid(c, true)
-			stations.append({"kind": "werkbank", "cell": c, "pos": pos, "used": false, "upgrade": true})
+			stations.append({"kind": "hauswerkbank", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"truhe":
 			_place("chest", pos, rot, root)
 			_add_solid(pos, Vector3(2.4, 1.5, 2.4))

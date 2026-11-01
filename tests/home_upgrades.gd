@@ -65,10 +65,10 @@ func _run() -> void:
 		house += 1
 	check(Homes.claim(HERO, house), "the hero moves into a town house")
 	game.inside_house = house
-	game.load_level(game.interiors["%"], false)
+	game.load_level(game.interiors["^"], false)
 	var lvl: Level = game.level
 	check(lvl.is_home, "the hero is in their town house")
-	check(_station(lvl, "werkbank").is_empty() and _station(lvl, "trophaeen").is_empty() and _station(lvl, "lager").size() == 1,
+	check(_station(lvl, "hauswerkbank").is_empty() and _station(lvl, "trophaeen").is_empty() and _station(lvl, "lager").size() == 1,
 			"a fresh house has only its bed and chest")
 
 	# Every text has its English.
@@ -127,7 +127,7 @@ func _run() -> void:
 	game.menus._build_upgrade("werkstatt")
 	game.menus._build_upgrade("trophaeen")
 	check(game.home_upgrades.has("werkstatt") and game.home_upgrades.has("trophaeen") and p.bag.is_empty(), "the workshop and the trophy wall are built")
-	check(_station(lvl, "werkbank").size() == 1 and _station(lvl, "trophaeen").size() == 1, "a workbench and a trophy wall stand in the house")
+	check(_station(lvl, "hauswerkbank").size() == 1 and _station(lvl, "trophaeen").size() == 1, "a workbench and a trophy wall stand in the house")
 
 	# All of it on the chalked furniture spots, each on its own, and the ways
 	# on every storey stay open: door, stairs, bed, chests and workbench.
@@ -165,8 +165,8 @@ func _run() -> void:
 	# The workbench.
 	game.iron = 2
 	var knives: int = p.knives
-	game.menus.open("werkbank")
-	check(game.menus.current == "werkbank", "the workbench window opens")
+	game.menus.open("hauswerkbank")
+	check(game.menus.current == "hauswerkbank", "the workbench window opens")
 	game.menus._make_knives()
 	check(game.iron == 1 and p.knives == knives + HomeUpgrades.KNIVES_PER_IRON, "an iron bar becomes throwing knives")
 	p.bag.assign(["ritterhelm"])
@@ -202,10 +202,10 @@ func _run() -> void:
 	game.trophies.clear()
 	game._apply_save(game._read_save())
 	game.inside_house = house
-	game.load_level(game.interiors["%"], false)
+	game.load_level(game.interiors["^"], false)
 	lvl = game.level
 	check(game.home_upgrades.size() == 3 and game.trophies.size() == 2, "the upgrades and trophies are loaded again")
-	check(_station(lvl, "werkbank").size() == 1 and _station(lvl, "trophaeen").size() == 1 and _station(lvl, "lager").size() == 2,
+	check(_station(lvl, "hauswerkbank").size() == 1 and _station(lvl, "trophaeen").size() == 1 and _station(lvl, "lager").size() == 2,
 			"a loaded game rebuilds the furniture")
 	check(p.max_hp == base_hp + 2, "the trophies' life is back after loading")
 

@@ -772,13 +772,14 @@ func _build_key(pos: Vector3) -> void:
 	_pickups.append({"node": holder, "kind": "key", "radius": 1.8})
 
 
+## A gold coin lying flat on the floor, picked up when the hero walks over it.
 func _build_coin(pos: Vector3) -> void:
 	var holder := Node3D.new()
-	holder.position = pos + Vector3(0, 0.9, 0)
+	holder.position = pos + Vector3(0, 0.03, 0)
+	holder.rotation.y = deg_to_rad(hash(Vector2(pos.x, pos.z)) % 360)
 	add_child(holder)
 	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
 	coin.scale = Vector3.ONE * 3.0
-	coin.rotation.x = PI * 0.5
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5})
 
 
@@ -1159,7 +1160,8 @@ func _process(delta: float) -> void:
 		if not s.used:
 			s.orb.position.y = 2.3 + sin(_time * 2.0) * 0.15
 	for p in _pickups:
-		if is_instance_valid(p.node):
+		# Coins lie still on the floor; keys and dropped gear hover and turn.
+		if is_instance_valid(p.node) and p.kind != "coin":
 			p.node.rotation.y += delta * 2.0
 			p.node.position.y += sin(_time * 3.0) * delta * 0.25
 	_update_spikes(delta)

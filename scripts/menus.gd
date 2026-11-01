@@ -20,7 +20,8 @@ var _note := ""
 ## The saved game whose delete button was clicked once; a second click deletes.
 var _delete_asked := ""
 ## Which page of the compendium shows: "wissen" (controls and everything
-## learned) or "auftraege" (the villagers' tasks).
+## learned), "auftraege" (the villagers' tasks) or "rezepte" (the recipes
+## found and the ingredient pouch).
 var compendium_page := "wissen"
 ## How many saved games the load window shows before the list scrolls.
 const LOAD_ROWS_SHOWN := 5
@@ -240,6 +241,14 @@ func _skills_text() -> String:
 
 # --- Character page -------------------------------------------------------
 
+## The crafts, each with its level, for the character page.
+func _crafts_text() -> String:
+	var parts := []
+	for id in Training.CRAFTS:
+		parts.append("%s %d" % [Lang.t(Training.CRAFTS[id].name), Training.skill_level(game.player.xp.get(id, 0.0), id)])
+	return Lang.t("Handwerk:") + " " + "   ".join(parts)
+
+
 ## The wheel of attributes and skills, with how a roll on a skill works.
 func _build_character() -> void:
 	var row := HBoxContainer.new()
@@ -261,6 +270,7 @@ func _build_character() -> void:
 		[Lang.t("Ein Wuchttreffer (+1 Schaden) ist eine Probe auf die Waffen-Fertigkeit."), Color(0.85, 0.87, 0.92)],
 		[Lang.t("Innen: Grundfertigkeiten. Außen: fortgeschrittene Fertigkeiten, die auf einer Grundfertigkeit aufbauen (Novize, Fortgeschritten, Meister: je 3 Stufen)."), Color(0.85, 0.87, 0.92)],
 		[Lang.t("Gedimmt: braucht passende Ausrüstung"), Color(0.75, 0.75, 0.8)],
+		[_crafts_text(), game.GOLD],
 	]:
 		var l: Label = game._make_label(game.TEXT_FONT, 16, entry[1])
 		l.text = entry[0]
@@ -992,7 +1002,13 @@ func _build_compendium() -> void:
 	for id in Quests.ALL:
 		if game.quests.is_active(id):
 			open_tasks += 1
-	for tab in [["wissen", Lang.t("Steuerung und Gelerntes")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks]]:
+	var tabs_shown := [["wissen", Lang.t("Steuerung und Gelerntes")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks]]
+	# The recipes get a page of their own once the first one is found.
+	if not game.crafting.entries().is_empty():
+		tabs_shown.append(["rezepte", Lang.t("Rezepte (%d)") % game.crafting.entries().size()])
+	elif compendium_page == "rezepte":
+		compendium_page = "wissen"
+	for tab in tabs_shown:
 		var b := _item_button(tab[1], func():
 			compendium_page = tab[0]
 			_rebuild())
@@ -1004,6 +1020,9 @@ func _build_compendium() -> void:
 		tabs.add_child(b)
 	if compendium_page == "auftraege":
 		_build_quest_log()
+		return
+	if compendium_page == "rezepte":
+		_build_recipes()
 		return
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 36)
@@ -1064,6 +1083,34 @@ func _build_compendium() -> void:
 		else:
 			l.text = Lang.t(entry)
 		list.add_child(l)
+
+
+## The recipe book: every recipe found, its scroll with the faded lines
+## still to find out, the ingredients gathered and the craft it needs, and
+## what is in the ingredient pouch.
+func _build_recipes() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(760, 420)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 12)
+	scroll.add_child(list)
+	var pouch: Label = game._make_label(game.TEXT_FONT, 18, BLUE)
+	pouch.text = game.crafting.pouch_text()
+	pouch.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pouch.custom_minimum_size.x = 740
+	list.add_child(pouch)
+	for id in game.crafting.entries():
+		var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
+		title.text = Lang.t(Crafting.RECIPES[id].name)
+		list.add_child(title)
+		var text: Label = game._make_label(game.TEXT_FONT, 17)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.custom_minimum_size.x = 740
+		text.text = game.crafting.describe(id)
+		list.add_child(text)
 
 
 ## The quest log: every task the hero took on, the open ones first, with who

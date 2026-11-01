@@ -62,6 +62,15 @@ func _init() -> void:
 	kind = "hauptmann"
 
 
+## His name and the shares of his life where his phases begin (see BossBar).
+func boss_title() -> String:
+	return TITLE
+
+
+func phase_marks() -> Array:
+	return PHASE_AT
+
+
 ## His full life, gear included.
 func max_hp() -> int:
 	return int(_stats.hp)

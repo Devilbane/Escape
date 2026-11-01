@@ -118,10 +118,13 @@ var speed: float:
 		return base_speed * Items.load_factor(load_weight())
 var knives := 5
 ## Ailments and the seconds each has left. Poison ("gift") takes a life every
-## few seconds but never the last one; a curse ("fluch") slows the hero.
+## few seconds but never the last one; a curse ("fluch") slows the hero;
+## burning ("brand", from the dragon's fire) takes a life every
+## BURN_TICK seconds for a few seconds, never the last one either.
 ## Both wear off soon; a fountain, a shrine or a healing potion cures them.
 var ailments := {}
 var _poison_tick := 0.0
+var _burn_tick := 0.0
 ## A direction to run in, set every frame while the mouse button is held.
 var steer := Vector3.ZERO
 var _stuck_time := 0.0
@@ -1051,18 +1054,24 @@ func _show_tint(slot: String, parts: Array) -> void:
 const AILMENT_TIME := 20.0
 const POISON_TICK := 8.0
 const CURSE_SLOW := 0.85
-const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0)}
+const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0), "brand": Color(1.0, 0.5, 0.15)}
+## Burning is short but fierce.
+const BURN_TIME := 4.5
+const BURN_TICK := 1.5
+const AILMENT_WORDS := {"gift": "Vergiftet!", "fluch": "Verflucht!", "brand": "Brennt!"}
 
 
 func afflict(kind: String) -> void:
 	if dead:
 		return
 	var fresh := not ailments.has(kind)
-	ailments[kind] = AILMENT_TIME
+	ailments[kind] = BURN_TIME if kind == "brand" else AILMENT_TIME
 	if fresh:
 		if kind == "gift":
 			_poison_tick = POISON_TICK
-		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t("Vergiftet!" if kind == "gift" else "Verflucht!"), AILMENT_COLORS[kind])
+		elif kind == "brand":
+			_burn_tick = BURN_TICK
+		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t(AILMENT_WORDS[kind]), AILMENT_COLORS[kind])
 		_ailments_changed()
 
 
@@ -1096,6 +1105,15 @@ func _tick_ailments(delta: float) -> void:
 				train("konstitution", 1.0)
 				Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-1", AILMENT_COLORS.gift)
 				hurt.emit(1)
+	if ailments.has("brand"):
+		_burn_tick -= delta
+		if _burn_tick <= 0.0:
+			_burn_tick = BURN_TICK
+			if hp > 1:
+				hp -= 1
+				train("konstitution", 1.0)
+				Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-1", AILMENT_COLORS.brand)
+				hurt.emit(1)
 	if changed:
 		_ailments_changed()
 
@@ -1106,7 +1124,7 @@ func _ailments_changed() -> void:
 	var old := get_node_or_null("AilmentHaze")
 	if old:
 		old.free()
-	for kind in ["gift", "fluch"]:
+	for kind in ["brand", "gift", "fluch"]:
 		if ailments.has(kind):
 			var haze := Effects.make_sparkles(AILMENT_COLORS[kind])
 			haze.name = "AilmentHaze"

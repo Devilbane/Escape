@@ -32,6 +32,8 @@ const LOAD_ROWS_SHOWN := 5
 ## Shows the stats of the item under the mouse (or last tapped).
 var _info: Label
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
+## The compact trading window of every merchant (see TradeWindow).
+var trade := TradeWindow.new()
 ## Every control, for the compendium: action and keys.
 const SHORTCUTS := [
 	["Gehen", "WASD / Pfeiltasten oder Klick auf den Boden"],
@@ -70,6 +72,8 @@ func setup(owner_game: Node, hud: CanvasLayer) -> void:
 	_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	_box.add_theme_constant_override("separation", 10)
 	_panel.add_child(_box)
+	trade.game = game
+	trade.rebuild = _rebuild
 
 
 static func panel_style(border: Color) -> StyleBoxFlat:
@@ -89,6 +93,8 @@ func is_open() -> bool:
 func open(kind: String) -> void:
 	current = kind
 	_forge_tab = "waffen"
+	_shop_page = "kaufen"
+	trade.reset()
 	_selected = -1
 	_note = ""
 	game.set_world_paused(true)
@@ -151,7 +157,7 @@ func _rebuild() -> void:
 			_build_return()
 		"hoehle":
 			_build_lair_won()
-	if current in ["inventar", "lager", "haendler", "tresor", "schmied"]:
+	if current in ["inventar", "lager", "tresor"]:
 		_info = _add_label(Lang.t(INFO_HINT), 18, BLUE)
 		_info.custom_minimum_size.y = 26
 	if _note != "":
@@ -586,17 +592,26 @@ func _from_vault(index: int) -> void:
 
 ## A line in a villager's window: how they think of the hero and the
 ## discount that gives (nothing for the refuge's merchant).
-func _add_standing() -> void:
+func _add_standing() -> Label:
 	var role: String = game.trader_role
 	if role == "":
-		return
+		return null
 	var rep: Reputation = game.reputation
 	var lvl := rep.level(role)
 	var text := Lang.t("Ruf bei %s: %s") % [Quests.villager_name(role), Reputation.level_name(lvl)]
 	var off := roundi(Reputation.LEVELS[lvl].discount * 100.0)
 	if off > 0:
 		text += Lang.t(" (%d%% Rabatt)") % off
-	_add_label(text, 17, REPUTATION_COLOR)
+	return _add_label(text, 17, REPUTATION_COLOR)
+
+
+## Builds a merchant's trading window (see TradeWindow), with the
+## villager's goodwill under the gold.
+func _trade(gold_text: String, sections: Array, extra: Control = null) -> void:
+	var standing := _add_standing()
+	if standing:
+		_box.remove_child(standing)
+	trade.build(_box, gold_text, sections, extra, standing)
 
 
 # --- Merchant ---------------------------------------------------------------
@@ -611,12 +626,63 @@ func _build_shop() -> void:
 	while game.shop_stock.count(Pet.FOOD) < 2:
 		game.shop_stock.push_front(Pet.FOOD)
 	_add_label(Lang.t("Händler"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
-	_add_standing()
-	_add_label(Lang.t("Kaufen"), 20)
-	_add_item_grid(game.shop_stock, maxi(4, game.shop_stock.size()), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), game.trader_price(Items.ALL[id].price)], _buy)
-	_add_label(Lang.t("Verkaufen"), 20)
-	_add_item_grid(p.bag, p.bag_size(), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), sell_price(id)], _sell)
+	var gear := []
+	var goods := []
+	if _shop_page == "kaufen":
+		for i in game.shop_stock.size():
+			var id: String = game.shop_stock[i]
+			var entry := _ware_entry("buy:%d" % i, id, game.trader_price(Items.ALL[id].price), _buy.bind(i))
+			(goods if _is_consumable(id) else gear).append(entry)
+	else:
+		for i in p.bag.size():
+			var id: String = p.bag[i]
+			var entry := {"key": "sell:%d" % i, "id": id, "name": Items.item_name(id), "price": "+" + Lang.t("%d Gold") % sell_price(id),
+					"button": Lang.t("Verkaufen"), "action": _sell.bind(i)}
+			(goods if _is_consumable(id) else gear).append(entry)
+	var empty := Lang.t("Nichts im Angebot.") if _shop_page == "kaufen" else Lang.t("Nichts davon in deiner Tasche.")
+	_trade(Lang.t("Dein Gold: %d") % game.coins, [
+		{"key": "gear", "title": Lang.t("Ausrüstung"), "icon": "kind:helmet", "entries": gear, "empty": empty},
+		{"key": "goods", "title": Lang.t("Verbrauchsgüter"), "icon": "kind:potion", "entries": goods, "empty": empty},
+	], _shop_pages(Lang.t("Verkaufen (%d / %d)") % [p.bag.size(), p.bag_size()]))
+
+
+## Which page of a merchant's window shows: "kaufen" (his wares) or
+## "verkaufen" (the hero's bag).
+var _shop_page := "kaufen"
+
+
+## The two page tabs, Buy and Sell, above a merchant's categories.
+func _shop_pages(sell_label := "") -> HBoxContainer:
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 10)
+	for page in [["kaufen", Lang.t("Kaufen")], ["verkaufen", sell_label if sell_label != "" else Lang.t("Verkaufen")]]:
+		var b := _item_button(page[1], _show_shop_page.bind(page[0]))
+		b.custom_minimum_size = Vector2(170, 40)
+		if page[0] == _shop_page:
+			b.modulate = Color(0.7, 1.0, 0.7)
+		tabs.add_child(b)
+	return tabs
+
+
+func _show_shop_page(page: String) -> void:
+	_shop_page = page
+	trade.reset()
+	_note = ""
+	_rebuild()
+
+
+## A row for something on sale: grey when the gold or the bag falls short.
+func _ware_entry(key: String, id: String, price: int, action: Callable) -> Dictionary:
+	var p: Player = game.player
+	return {"key": key, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Gold") % price, "price_ok": game.coins >= price,
+			"button": Lang.t("Kaufen"), "action": action, "enabled": game.coins >= price and p.bag.size() < p.bag_size()}
+
+
+## Books, stone, ore and the like: things that are not worn.
+static func _is_consumable(id: String) -> bool:
+	var slot: String = Items.ALL[id].slot
+	return not slot in Items.SLOTS and slot != "spezial"
 
 
 func _buy(index: int) -> void:
@@ -656,18 +722,23 @@ func _build_stonemason() -> void:
 	var price: int = game.trader_price(Items.ALL[STONE].price)
 	var room: int = p.bag_size() - p.bag.size()
 	_add_label(Lang.t("Steinmetz"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
-	_add_standing()
-	_add_label(Lang.t("Steinblöcke in deiner Tasche: %d    Platz für %d weitere") % [p.bag.count(STONE), room], 20)
-	_add_label(Lang.t("Behauene Steinblöcke zum Bauen: Mauern, Stufen, Türme. Abstellen mit B oder im Inventar, verschieben mit der Maus: greifen, ziehen, loslassen."), 16, BLUE)
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 10)
-	_box.add_child(row)
 	var all := mini(room, game.coins / price) if price > 0 else room
-	row.add_child(_item_button(Lang.t("1 Steinblock\n%d Gold") % price, _buy_stones.bind(1), room > 0 and game.coins >= price, STONE))
-	row.add_child(_item_button(Lang.t("%d Steinblöcke\n%d Gold") % [maxi(all, 1), maxi(all, 1) * price], _buy_stones.bind(all), all > 0, STONE))
-	row.add_child(_item_button(Lang.t("1 zurückgeben\n+%d Gold") % sell_price(STONE), _sell_stone, p.bag.has(STONE), STONE))
+	var have := p.bag.count(STONE)
+	var detail := {"subtitle": TradeWindow.subtitle(STONE), "lines": TradeWindow.stat_lines(STONE) + [
+			[Lang.t("Behauene Steinblöcke zum Bauen: Mauern, Stufen, Türme. Abstellen mit B oder im Inventar, verschieben mit der Maus: greifen, ziehen, loslassen."), TradeWindow.BLUE]]}
+	var compare := {"title": Lang.t("In deiner Tasche"), "name": Lang.t("Steinblöcke: %d") % have, "icon": STONE,
+			"subtitle": Lang.t("Platz für %d weitere") % room}
+	_trade(Lang.t("Dein Gold: %d") % game.coins, [
+		{"key": "stone", "title": Lang.t("Bausteine"), "icon": "kind:stone", "entries": [
+			{"key": "back", "id": STONE, "name": Lang.t("1 zurückgeben"), "price": "+" + Lang.t("%d Gold") % sell_price(STONE),
+					"button": Lang.t("Verkaufen"), "action": _sell_stone, "enabled": have > 0, "detail": detail, "compare": compare},
+		] if _shop_page == "verkaufen" else [
+			{"key": "one", "id": STONE, "name": Lang.t("1 Steinblock"), "price": Lang.t("%d Gold") % price, "price_ok": game.coins >= price,
+					"action": _buy_stones.bind(1), "enabled": room > 0 and game.coins >= price, "detail": detail, "compare": compare},
+			{"key": "all", "id": STONE, "name": Lang.t("%d Steinblöcke") % maxi(all, 1), "price": Lang.t("%d Gold") % (maxi(all, 1) * price),
+					"price_ok": all > 0, "action": _buy_stones.bind(all), "enabled": all > 0, "detail": detail, "compare": compare},
+		]},
+	], _shop_pages())
 
 
 func _buy_stones(count: int) -> void:
@@ -766,6 +837,12 @@ func _claim_bounty(id: String) -> void:
 ## weapons), "schmieden" (forge new gear),
 ## "einschmelzen" (melt gear down into iron) or "ausbessern" (mend worn gear).
 var _forge_tab := "waffen"
+const FORGE_ABOUT := {
+	"waffen": "Gorms eigene Arbeit: bessere Waffen, die es sonst nirgends gibt. Kriegshammer und Drachenschild schmiedet er nur aus deinem Eisen.",
+	"schmieden": "Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen.",
+	"einschmelzen": "Metall aus deiner Tasche wird zu Eisenbarren. Stoff, Leder, Fell und Knochen schmelzen nicht.",
+	"ausbessern": "Gorm hämmert Beulen aus: jeder Punkt Haltbarkeit kostet etwas Gold.",
+}
 const FORGE_TABS := [["waffen", "Waffen kaufen"], ["schmieden", "Schmieden"], ["einschmelzen", "Einschmelzen"], ["ausbessern", "Ausbessern"]]
 
 
@@ -773,73 +850,77 @@ func _build_smithy() -> void:
 	var p: Player = game.player
 	game.learn(Forge.LEARN)
 	_add_label(Lang.t("Schmiede"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Dein Gold: %d    Eisen: %d") % [game.coins, game.iron], 20, game.GOLD)
-	_add_standing()
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
 	tabs.add_theme_constant_override("separation", 10)
-	_box.add_child(tabs)
 	for tab in FORGE_TABS:
 		var b := _item_button(Lang.t(tab[1]), _show_forge_tab.bind(tab[0]))
+		b.custom_minimum_size = Vector2(150, 40)
 		if tab[0] == _forge_tab:
 			b.modulate = Color(0.7, 1.0, 0.7)
 		tabs.add_child(b)
+	var header := VBoxContainer.new()
+	header.add_theme_constant_override("separation", 6)
+	header.add_child(tabs)
+	var about := _add_label(Lang.t(FORGE_ABOUT[_forge_tab]), 16, BLUE)
+	_box.remove_child(about)
+	header.add_child(about)
+	var room: bool = p.bag.size() < p.bag_size()
+	var sections := []
 	match _forge_tab:
 		"waffen":
-			_add_label(Lang.t("Gorms eigene Arbeit: bessere Waffen und ein Drachenschild, die es sonst nirgends gibt."), 16, BLUE)
-			var grid := _forge_grid()
+			var weapons := []
+			var armour := []
 			for id in Forge.wares():
-				var price := Forge.ware_price(game, id)
-				var ok: bool = game.coins >= price and p.bag.size() < p.bag_size()
-				grid.add_child(_item_button(Lang.t("%s\n%d Gold") % [Items.item_name(id), price], _buy_ware.bind(id), ok, id))
+				var entry := _ware_entry(id, id, Forge.ware_price(game, id), _buy_ware.bind(id))
+				(weapons if Items.ALL[id].slot == "waffe" else armour).append(entry)
+			sections = [
+				{"key": "weapons", "title": Lang.t("Waffen"), "icon": "kind:sword", "entries": weapons},
+				{"key": "shields", "title": Lang.t("Schilde und Rüstung"), "icon": "kind:shield", "entries": armour},
+			]
 		"schmieden":
-			_add_label(Lang.t("Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen."), 16, BLUE)
-			var grid := _forge_grid()
+			var forged := []
 			for id in Forge.recipes():
 				var cost := Forge.forge_cost(id, game)
-				var ok: bool = game.iron >= cost.iron and game.coins >= cost.gold and p.bag.size() < p.bag_size()
-				grid.add_child(_item_button(Lang.t("%s\n%d Eisen, %d Gold") % [Items.item_name(id), cost.iron, cost.gold], _forge.bind(id), ok, id))
-			var row := HBoxContainer.new()
-			row.alignment = BoxContainer.ALIGNMENT_CENTER
-			row.add_theme_constant_override("separation", 10)
-			_box.add_child(row)
-			var iron_price := Forge.iron_price(game)
-			row.add_child(_item_button(Lang.t("1 Eisenbarren\n%d Gold") % iron_price, _buy_iron.bind(1), game.coins >= iron_price))
-			row.add_child(_item_button(Lang.t("%d Eisenbarren\n%d Gold") % [5, 5 * iron_price], _buy_iron.bind(5), game.coins >= 5 * iron_price))
+				var ok: bool = game.iron >= cost.iron and game.coins >= cost.gold
+				forged.append({"key": id, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Eisen, %d Gold") % [cost.iron, cost.gold],
+						"price_ok": ok, "button": Lang.t("Schmieden"), "action": _forge.bind(id), "enabled": ok and room})
+			var iron := []
+			for count in [1, 5]:
+				var price: int = count * Forge.iron_price(game)
+				iron.append({"key": "iron%d" % count, "icon": "kind:iron", "name": Lang.t("%d Eisenbarren") % count, "price": Lang.t("%d Gold") % price,
+						"price_ok": game.coins >= price, "action": _buy_iron.bind(count), "enabled": game.coins >= price,
+						"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t("Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen."), TradeWindow.BLUE]]},
+						"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("Eisen: %d") % game.iron, "icon": "kind:iron"}})
+			sections = [
+				{"key": "forge", "title": Lang.t("Schmieden"), "icon": "kind:hammer_anvil", "entries": forged},
+				{"key": "iron", "title": Lang.t("Eisenbarren"), "icon": "kind:iron", "entries": iron},
+			]
 		"einschmelzen":
-			_add_label(Lang.t("Metall aus deiner Tasche wird zu Eisenbarren. Stoff, Leder, Fell und Knochen schmelzen nicht."), 16, BLUE)
-			var grid := _forge_grid()
-			for i in p.bag_size():
-				if i < p.bag.size():
-					var id: String = p.bag[i]
-					var text := Lang.t("%s\n+%d Eisen") % [Items.item_name(id), Forge.melt_yield(id)] if Forge.can_melt(id) else Items.item_name(id)
-					grid.add_child(_item_button(text, _melt.bind(i), Forge.can_melt(id), id))
-				else:
-					grid.add_child(_item_button("-", func(): pass, false))
+			var melt := []
+			for i in p.bag.size():
+				var id: String = p.bag[i]
+				var can := Forge.can_melt(id)
+				melt.append({"key": "melt:%d" % i, "id": id, "name": Items.item_name(id), "price": Lang.t("+%d Eisen") % Forge.melt_yield(id) if can else Lang.t("Schmilzt nicht"), "price_ok": can,
+						"button": Lang.t("Einschmelzen"), "action": _melt.bind(i), "enabled": can})
+			sections = [{"key": "melt", "title": Lang.t("Einschmelzen"), "icon": "kind:flame", "entries": melt,
+					"empty": Lang.t("Deine Tasche ist leer.")}]
 		"ausbessern":
-			_add_label(Lang.t("Gorm hämmert Beulen aus: jeder Punkt Haltbarkeit kostet etwas Gold."), 16, BLUE)
-			var worn := Forge.worn_down(p)
-			if worn.is_empty():
-				_add_label(Lang.t("Deine Ausrüstung ist heil."), 20)
-			var grid := _forge_grid()
-			for id in worn:
+			var mend := []
+			for id in Forge.worn_down(p):
 				var durability: int = Items.ALL[id].durability
 				var left: int = durability - int(p.wear[id])
-				grid.add_child(_item_button(Lang.t("%s %d / %d\n%d Gold") % [Items.item_name(id), left, durability, Forge.mend_cost(p, id, game)], _mend.bind(id), game.coins >= Forge.mend_price(id, game), id))
-
-
-func _forge_grid() -> GridContainer:
-	var grid := GridContainer.new()
-	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 8)
-	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_box.add_child(grid)
-	return grid
+				mend.append({"key": id, "id": id, "name": "%s  %d / %d" % [Items.item_name(id), left, durability],
+						"price": Lang.t("%d Gold") % Forge.mend_cost(p, id, game), "price_ok": game.coins >= Forge.mend_price(id, game),
+						"button": Lang.t("Ausbessern"), "action": _mend.bind(id), "enabled": game.coins >= Forge.mend_price(id, game)})
+			sections = [{"key": "mend", "title": Lang.t("Ausbessern"), "icon": "kind:hammer_anvil", "entries": mend,
+					"empty": Lang.t("Deine Ausrüstung ist heil.")}]
+	_trade(Lang.t("Dein Gold: %d    Eisen: %d") % [game.coins, game.iron], sections, header)
 
 
 func _show_forge_tab(tab: String) -> void:
 	_forge_tab = tab
+	trade.reset()
 	_note = ""
 	_rebuild()
 
@@ -922,56 +1003,78 @@ func _build_barber() -> void:
 	if _tattoo_shape == "":
 		_tattoo_shape = p.hair.get("tattoo_shape", "straight")
 	_add_label(Lang.t("Barbier"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
-	_add_standing()
-	_add_label(Lang.t("Frisur"), 20)
-	_add_barber_row(BARBER_STYLES, "style")
-	_add_label(Lang.t("Farbe"), 20)
-	_add_barber_row(BARBER_COLORS.slice(0, 6), "color")
-	_add_barber_row(BARBER_COLORS.slice(6), "color")
-	_add_label(Lang.t("Tätowierung an der rechten Kopfseite (nur auf geschorenem Kopf zu sehen)"), 20)
+	var ink: int = game.trader_price(TATTOO_PRICE)
+	var remove: int = game.trader_price(TATTOO_REMOVE_PRICE)
+	var tattoo := Lang.t("Tätowierung: %s") % p.hair.tattoo if p.hair.tattoo != "" else Lang.t("Keine Tätowierung")
+	var ink_detail := {"subtitle": Lang.t("Tätowierung"), "lines": [
+			[Lang.t("Tätowierung an der rechten Kopfseite (nur auf geschorenem Kopf zu sehen)"), TradeWindow.BLUE],
+			[Lang.t("Wort: %s") % _tattoo_word, Color.WHITE]]}
+	var ink_compare := {"title": Lang.t("Derzeit"), "name": tattoo, "icon": "kind:needle", "subtitle": Lang.t("Tätowierung")}
+	_trade(Lang.t("Dein Gold: %d") % game.coins, [
+		{"key": "style", "title": Lang.t("Frisur"), "icon": "kind:scissors", "entries": _barber_entries(BARBER_STYLES, "style")},
+		{"key": "color", "title": Lang.t("Farbe"), "icon": "kind:hair:fire", "entries": _barber_entries(BARBER_COLORS, "color")},
+		{"key": "tattoo", "title": Lang.t("Tätowierung"), "icon": "kind:needle", "extra": _tattoo_editor, "entries": [
+			{"key": "ink", "icon": "kind:needle", "name": Lang.t("Stechen"), "price": Lang.t("%d Gold") % ink,
+					"price_ok": game.coins >= ink, "button": Lang.t("Stechen"), "action": _ink_tattoo,
+					"enabled": game.coins >= ink, "detail": ink_detail, "compare": ink_compare},
+			{"key": "remove", "icon": "kind:needle", "name": Lang.t("Entfernen"), "price": Lang.t("%d Gold") % remove,
+					"price_ok": game.coins >= remove, "button": Lang.t("Entfernen"), "action": _remove_tattoo,
+					"enabled": p.hair.tattoo != "" and game.coins >= remove,
+					"detail": {"subtitle": Lang.t("Tätowierung"), "lines": [[Lang.t("Die Tätowierung ist weg."), TradeWindow.BLUE]]}, "compare": ink_compare},
+		]},
+	])
+
+
+## The word to ink and its shape, above the tattoo rows.
+func _tattoo_editor() -> Control:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 12)
-	_box.add_child(row)
+	row.add_theme_constant_override("separation", 8)
 	var edit := LineEdit.new()
 	edit.max_length = HairLook.TATTOO_MAX
 	edit.text = _tattoo_word
 	edit.placeholder_text = Lang.t("Ein Wort")
 	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	edit.custom_minimum_size = Vector2(260, 54)
+	edit.custom_minimum_size = Vector2(220, 44)
 	edit.add_theme_font_override("font", game.TEXT_FONT)
-	edit.add_theme_font_size_override("font_size", 22)
+	edit.add_theme_font_size_override("font_size", 18)
 	edit.add_theme_stylebox_override("normal", panel_style(Color(0.85, 0.66, 0.32, 0.8)))
 	edit.add_theme_stylebox_override("focus", panel_style(game.GOLD))
+	for style in ["normal", "focus"]:
+		edit.get_theme_stylebox(style).set_content_margin_all(8)
 	edit.text_changed.connect(func(t): _tattoo_word = t)
 	edit.text_submitted.connect(func(_t): _ink_tattoo())
 	row.add_child(edit)
 	for shape in [["straight", "Gerade"], ["arch", "Im Halbkreis"]]:
 		var chosen: bool = _tattoo_shape == shape[0]
-		var b := _item_button(Lang.t("Jetzt: %s") % Lang.t(shape[1]) if chosen else Lang.t(shape[1]), _pick_tattoo_shape.bind(shape[0]), not chosen)
-		b.custom_minimum_size = Vector2(150, 54)
+		var b := _item_button(Lang.t(shape[1]), _pick_tattoo_shape.bind(shape[0]), not chosen)
+		b.custom_minimum_size = Vector2(130, 44)
+		if chosen:
+			b.modulate = Color(0.7, 1.0, 0.7)
 		row.add_child(b)
-	var ink: int = game.trader_price(TATTOO_PRICE)
-	var remove: int = game.trader_price(TATTOO_REMOVE_PRICE)
-	row.add_child(_item_button(Lang.t("Stechen\n%d Gold") % ink, _ink_tattoo, game.coins >= ink))
-	row.add_child(_item_button(Lang.t("Entfernen\n%d Gold") % remove, _remove_tattoo,
-			p.hair.tattoo != "" and game.coins >= remove))
+	return row
 
 
-## One row of choices; what the hero has now is marked and cannot be bought again.
-func _add_barber_row(choices: Array, field: String) -> void:
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 8)
-	_box.add_child(row)
+## One row per choice; what the hero has now is marked and cannot be bought again.
+func _barber_entries(choices: Array, field: String) -> Array:
+	var p: Player = game.player
+	var now := ""
 	for c in choices:
-		var current: bool = game.player.hair[field] == c[0]
+		if p.hair[field] == c[0]:
+			now = c[1]
+	var kind := Lang.t("Frisur") if field == "style" else Lang.t("Haarfarbe")
+	var compare := {"title": Lang.t("Derzeit"), "name": Lang.t(now), "subtitle": kind,
+			"icon": "kind:scissors" if field == "style" else "kind:hair:" + String(p.hair.color)}
+	var entries := []
+	for c in choices:
+		var current: bool = p.hair[field] == c[0]
 		var price: int = game.trader_price(c[2])
-		var text := Lang.t("Jetzt: %s") % Lang.t(c[1]) if current else Lang.t("%s\n%d Gold") % [Lang.t(c[1]), price]
-		var b := _item_button(text, _restyle.bind(field, c[0], price), not current and game.coins >= price)
-		b.custom_minimum_size = Vector2(150, 54)
-		row.add_child(b)
+		var line := Lang.t("Sieht man nur ohne Hut.") if field == "style" else Lang.t("Färbt dein Haar.")
+		entries.append({"key": field + ":" + c[0], "icon": "kind:scissors" if field == "style" else "kind:hair:" + String(c[0]), "name": Lang.t(c[1]),
+				"price": Lang.t("%d Gold") % price, "price_ok": game.coins >= price, "action": _restyle.bind(field, c[0], price),
+				"enabled": game.coins >= price, "current": current,
+				"detail": {"subtitle": kind, "lines": [[line, TradeWindow.BLUE]]}, "compare": compare})
+	return entries
 
 
 func _restyle(field: String, id: String, price: int) -> void:

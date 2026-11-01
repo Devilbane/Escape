@@ -3,6 +3,8 @@ extends CanvasLayer
 ## The health bar of a boss, at the top of the screen: his name, his life
 ## and marks where his next phases begin. It shows while he hunts the hero
 ## nearby (or is hurt and close), and fades away otherwise.
+## A boss (BanditChief, Dragon) has boss_title(), phase_marks(), max_hp(),
+## is_dazed() and a phase.
 
 const FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const WIDTH := 460.0
@@ -10,15 +12,15 @@ const WIDTH := 460.0
 const SHOW_RANGE := 34.0
 const FILL := [Color(0.78, 0.18, 0.14), Color(0.9, 0.42, 0.12), Color(1.0, 0.16, 0.1)]
 
-var boss: BanditChief
+var boss
 var bar: ProgressBar
 var _box: VBoxContainer
 var _name: Label
 var _fill: StyleBoxFlat
 
 
-func _init(chief: BanditChief) -> void:
-	boss = chief
+func _init(who: Node) -> void:
+	boss = who
 	layer = 2
 
 
@@ -34,7 +36,7 @@ func _ready() -> void:
 	_box.modulate.a = 0.0
 	add_child(_box)
 	_name = Label.new()
-	_name.text = Lang.t(BanditChief.TITLE)
+	_name.text = Lang.t(boss.boss_title())
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name.add_theme_font_override("font", FONT)
 	_name.add_theme_font_size_override("font_size", 22)
@@ -59,7 +61,7 @@ func _ready() -> void:
 	bar.add_theme_stylebox_override("fill", _fill)
 	_box.add_child(bar)
 	# Thin marks where phase 2 and phase 3 begin.
-	for share in BanditChief.PHASE_AT:
+	for share in boss.phase_marks():
 		var mark := ColorRect.new()
 		mark.color = Color(1.0, 0.9, 0.6, 0.8)
 		mark.size = Vector2(2, 18)
@@ -75,7 +77,7 @@ func wanted() -> bool:
 	var player: Player = boss.level.player
 	if player.dead:
 		return false
-	var dist := boss.global_position.distance_to(player.global_position)
+	var dist: float = boss.global_position.distance_to(player.global_position)
 	return dist < SHOW_RANGE and (boss.is_hunting() or boss.hp < boss.max_hp())
 
 

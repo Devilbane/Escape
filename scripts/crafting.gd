@@ -21,12 +21,23 @@ const INGREDIENTS := {
 		"where": "Eine Ader in der Wildnis, die nur bei Nacht schimmert."},
 	"mondstein": {"name": "Mondstein",
 		"where": "Knochenmagier im Verlies hüten ihn."},
+	# Fish, caught with the line (see Fishing). The perch bites everywhere;
+	# the other three are rare and bite in one water only.
+	"barsch": {"name": "Barsch",
+		"where": "Beißt im Dorfteich und im Tümpel der Wolfssenke."},
+	"goldkarpfen": {"name": "Goldkarpfen", "rare": true,
+		"where": "Ein seltener Fang im Brunnen auf dem Dorfplatz."},
+	"silberhecht": {"name": "Silberhecht", "rare": true,
+		"where": "Beißt im Dorfteich, aber nur in der Dämmerung."},
+	"mondforelle": {"name": "Mondforelle", "rare": true,
+		"where": "Beißt im Tümpel der Wolfssenke, aber nur bei Nacht."},
 }
 
 ## The recipes. "giver" is the villager who hands out the scroll, "craft" and
 ## "craft_level" the craft it needs, "ingredients" what goes in (ingredient
 ## id or "eisen" for the smith's iron bars -> count). "lines" is the scroll:
-## each has its text; a "hidden" line shows "faded" until it is read.
+## each has its text; a "hidden" line shows "faded" until it is read. A
+## faded line with a "fish" is read the first time that fish is caught.
 const RECIPES := {
 	"mondsilberring": {"name": "Mondsilberring", "giver": "8",
 		"craft": "feinschmieden", "craft_level": 3,
@@ -43,6 +54,18 @@ const RECIPES := {
 				"text": "Die Gunst der Mondgöttin, erbeten im Tempel."},
 			{"id": "sterne", "hidden": true, "faded": "Wenn der … am Himmel …",
 				"text": "Wenn der Silberne Hirsch am Himmel steht."},
+		]},
+	"tiefenamulett": {"name": "Amulett der Tiefe", "giver": "9",
+		"craft": "feinschmieden", "craft_level": 2,
+		"ingredients": {"mondforelle": 1, "goldkarpfen": 1, "silberhecht": 1, "barsch": 3},
+		"offer": "Mein Großvater angelte, wo immer es Wasser gab. Er hinterließ dieses Rezept für ein Amulett aus Fischschuppen; eine Zeile ist verwischt. Wirf die Angel aus (Taste G): im Brunnen, im Dorfteich und im Tümpel der Wolfssenke.",
+		"lines": [
+			{"id": "forelle", "text": "Die Schuppen einer Mondforelle, die nur nachts in der Wolfssenke beißt."},
+			{"id": "karpfen", "text": "Die goldenen Schuppen eines Karpfens aus dem Dorfbrunnen."},
+			{"id": "hecht", "hidden": true, "fish": "silberhecht", "faded": "Ein … Hecht, wenn …",
+				"text": "Ein Silberhecht aus dem Dorfteich, wenn der Tag kommt oder geht."},
+			{"id": "barsch", "text": "Drei Barsche: aus ihrer Haut kocht man den Leim, der die Schuppen hält."},
+			{"id": "hand", "text": "Eine geübte Hand: Feinschmieden, Stufe 2."},
 		]},
 }
 
@@ -115,6 +138,17 @@ func has_ingredients(id: String) -> bool:
 		if have(ingredient) < int(needs[ingredient]):
 			return false
 	return true
+
+
+## A fish was caught: faded lines that name it can be read now. Returns the
+## recipes whose scroll became clearer.
+func caught_fish(fish: String) -> Array:
+	var clearer := []
+	for id in entries():
+		for line in RECIPES[id].lines:
+			if line.get("fish", "") == fish and read_line(id, line.id):
+				clearer.append(id)
+	return clearer
 
 
 static func ingredient_name(ingredient: String) -> String:

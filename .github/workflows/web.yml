@@ -174,6 +174,16 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/village_buildings.gd | tee village.log
           grep -q PASS village.log
 
+      - name: Recipes and ingredient pouch test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/crafting.gd | tee crafting.log
+          grep -q PASS crafting.log
+
+      - name: Fishing test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/fishing.gd | tee fishing.log
+          grep -q PASS fishing.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

@@ -143,6 +143,19 @@ func _test() -> void:
 	check(menus._shop_page == "kaufen", "the window opens on the buy page")
 	menus.close()
 
+	# Merchants sell only plain gear: no specials, magic, unique or top tier.
+	for id in ["vampirzahn", "phoenixfeder", "rabenklinge", "zauberhut", "amulett_kraft", "schattenumhang", "plattenpanzer", "eilstiefel", "rubinring", "kriegshammer", "drachenschild"]:
+		check(not Items.merchant_sells(id), "%s is not sold by merchants" % id)
+	for id in ["schwert", "rundschild", "lederwams", "kettenhemd", "kupferring", "bronzearmreif", "wurfbuch"]:
+		check(Items.merchant_sells(id), "%s is sold by merchants" % id)
+	var rng := RandomNumberGenerator.new()
+	for i in 500:
+		rng.seed = i
+		check(Items.merchant_sells(Items.random_ware(rng)), "random stock is plain gear")
+	game.load_level(game._outdoor_index(), true)
+	if not game.shop_stock.is_empty():
+		check(game.shop_stock.all(func(id): return Items.merchant_sells(id)), "the restocked shop sells only plain gear")
+
 	# Gorm, Hagen and Benno use the same window.
 	for kind in ["schmied", "steinmetz", "barbier"]:
 		menus.open(kind)

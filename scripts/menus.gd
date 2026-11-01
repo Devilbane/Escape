@@ -836,7 +836,7 @@ func _claim_bounty(id: String) -> void:
 ## "einschmelzen" (melt gear down into iron) or "ausbessern" (mend worn gear).
 var _forge_tab := "waffen"
 const FORGE_ABOUT := {
-	"waffen": "Gorms eigene Arbeit: bessere Waffen und ein Drachenschild, die es sonst nirgends gibt.",
+	"waffen": "Gorms eigene Arbeit: bessere Waffen, die es sonst nirgends gibt. Kriegshammer und Drachenschild schmiedet er nur aus deinem Eisen.",
 	"schmieden": "Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen.",
 	"einschmelzen": "Metall aus deiner Tasche wird zu Eisenbarren. Stoff, Leder, Fell und Knochen schmelzen nicht.",
 	"ausbessern": "Gorm hämmert Beulen aus: jeder Punkt Haltbarkeit kostet etwas Gold.",

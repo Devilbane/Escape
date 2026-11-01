@@ -327,6 +327,7 @@ const EN := {
 	"Leben: %+d": "Life: %+d",
 	"Nichts angelegt": "No Item Equipped",
 	"Nichts im Angebot.": "Nothing on offer.",
+	"Gorms eigene Arbeit: bessere Waffen, die es sonst nirgends gibt. Kriegshammer und Drachenschild schmiedet er nur aus deinem Eisen.": "Gorm's own work: better weapons, found nowhere else. The war hammer and the kite shield he only forges from your iron.",
 	"Futter": "Food",
 	"Nichts davon in deiner Tasche.": "None of these in your bag.",
 	"Tasche: %d / %d": "Bag: %d / %d",

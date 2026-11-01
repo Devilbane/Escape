@@ -2095,13 +2095,15 @@ func _mouse_to_floor(screen_pos: Vector2):
 
 
 func _click(point: Vector3) -> void:
-	# Clicking an enemy attacks it, clicking an object searches it.
+	# Clicking an enemy attacks it: a strike when it is in reach, else the
+	# hero walks up to it and strikes. Clicking an object searches it.
+	player.stop_hunt()
 	for e in level.enemies:
 		if is_instance_valid(e) and not e.dead and e.visible and Vector2(e.global_position.x - point.x, e.global_position.z - point.z).length() < 1.6:
 			if player.global_position.distance_to(e.global_position) < Player.MELEE_RANGE + 1.0:
 				player.melee()
 			else:
-				player.throw_knife(e.global_position)
+				player.charge(e)
 			return
 	var station := level.nearest_station(point, 2.2)
 	if not station.is_empty():

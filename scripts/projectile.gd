@@ -9,6 +9,8 @@ const LIFETIME := 2.0
 var level: Level
 var direction := Vector3.FORWARD
 var from_player := true
+## The skeleton that shot or cast it; the hero fights back against it.
+var shooter: Node = null
 var damage := 1
 var magic := false
 var _age := 0.0
@@ -82,6 +84,7 @@ func _physics_process(delta: float) -> void:
 		if not player.dead and _hits(player.global_position) and player.global_position.y < 1.2:
 			var before := player.hp
 			player.take_damage(1, global_position - direction)
+			player.defend_against(shooter)
 			# A mage's orb sometimes curses whoever it hits.
 			if magic and player.hp < before and randf() < CURSE_CHANCE:
 				player.afflict("fluch")

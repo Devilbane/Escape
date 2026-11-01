@@ -24,25 +24,28 @@ const WEIGHT_SLOW := 0.01
 const MAX_WEIGHT_SLOW := 0.35
 
 ## Cloaks, armour and shoes also colour the hero ("tint"; "metal" makes it shine).
+## Everything the hero visibly wears names its "material" (see GearLook), which
+## gives it a faint grain: cloth, leather, metal, chain, fur, bone, or "mixed"
+## for weapons and shields (wood, with metal where the model is grey).
 ## Specials ("spezial") have an effect of their own instead of plain numbers.
 const ALL := {
-	"schwert": {"name": "Schwert", "slot": "waffe", "uses": "klingen", "weight": 3, "power": 1, "price": 12, "model": "res://assets/weapons/sword_1handed.gltf"},
-	"axt": {"name": "Axt", "slot": "waffe", "uses": "aexte", "weight": 4, "power": 2, "price": 25, "model": "res://assets/weapons/axe_1handed.gltf"},
-	"rundschild": {"name": "Rundschild", "slot": "schild", "weight": 3, "hp": 1, "block": 0.2, "durability": 5, "price": 10, "model": "res://assets/weapons/shield_round.gltf"},
-	"wappenschild": {"name": "Wappenschild", "slot": "schild", "weight": 5, "hp": 2, "armor": 1, "block": 0.25, "durability": 6, "skills": {"blocken": 1}, "price": 22, "model": "res://assets/weapons/shield_badge.gltf"},
-	"stachelschild": {"name": "Stachelschild", "slot": "schild", "weight": 6, "hp": 2, "power": 1, "block": 0.3, "durability": 7, "price": 35, "model": "res://assets/weapons/shield_spikes.gltf"},
-	"knochenhelm": {"name": "Knochenhelm", "slot": "kopf", "weight": 1, "power": 1, "price": 18, "hat": ["res://assets/enemies/Skeleton_Warrior.glb", "Skeleton_Warrior_Helmet"]},
-	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "requires": {"intelligenz": 11}, "weight": 0.5, "hp": 1, "speed": 0.07, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"]},
-	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 3, "hp": 2, "armor": 1, "durability": 4, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"]},
-	"baerenkappe": {"name": "Bärenkappe", "slot": "kopf", "weight": 1, "hp": 1, "power": 1, "price": 34, "hat": ["res://assets/characters/Barbarian.glb", "Barbarian_Hat"]},
-	"wollumhang": {"name": "Wollumhang", "slot": "umhang", "weight": 1, "hp": 1, "price": 12, "tint": Color(0.55, 0.4, 0.28)},
-	"schattenumhang": {"name": "Schattenumhang", "slot": "umhang", "weight": 1, "hp": 1, "speed": 0.1, "skills": {"schleichen": 2}, "price": 26, "tint": Color(0.16, 0.15, 0.24)},
-	"koenigsumhang": {"name": "Königsumhang", "slot": "umhang", "weight": 2, "hp": 2, "power": 1, "price": 42, "tint": Color(0.75, 0.08, 0.1)},
-	"lederwams": {"name": "Lederwams", "slot": "ruestung", "weight": 2, "hp": 1, "price": 14, "tint": Color(0.5, 0.3, 0.15)},
-	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "weight": 5, "hp": 2, "armor": 1, "durability": 5, "skills": {"ruestung": 1}, "price": 28, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4},
-	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "weight": 8, "hp": 3, "armor": 2, "durability": 6, "power": 1, "price": 48, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55},
-	"lederstiefel": {"name": "Lederstiefel", "slot": "schuhe", "weight": 1, "speed": 0.05, "price": 10, "tint": Color(0.45, 0.27, 0.13)},
-	"eilstiefel": {"name": "Eilstiefel", "slot": "schuhe", "weight": 1, "speed": 0.15, "price": 26, "tint": Color(0.25, 0.45, 0.95)},
+	"schwert": {"name": "Schwert", "slot": "waffe", "uses": "klingen", "weight": 3, "power": 1, "price": 12, "model": "res://assets/weapons/sword_1handed.gltf", "material": "mixed"},
+	"axt": {"name": "Axt", "slot": "waffe", "uses": "aexte", "weight": 4, "power": 2, "price": 25, "model": "res://assets/weapons/axe_1handed.gltf", "material": "mixed"},
+	"rundschild": {"name": "Rundschild", "slot": "schild", "weight": 3, "hp": 1, "block": 0.2, "durability": 5, "price": 10, "model": "res://assets/weapons/shield_round.gltf", "material": "mixed"},
+	"wappenschild": {"name": "Wappenschild", "slot": "schild", "weight": 5, "hp": 2, "armor": 1, "block": 0.25, "durability": 6, "skills": {"blocken": 1}, "price": 22, "model": "res://assets/weapons/shield_badge.gltf", "material": "mixed"},
+	"stachelschild": {"name": "Stachelschild", "slot": "schild", "weight": 6, "hp": 2, "power": 1, "block": 0.3, "durability": 7, "price": 35, "model": "res://assets/weapons/shield_spikes.gltf", "material": "mixed"},
+	"knochenhelm": {"name": "Knochenhelm", "slot": "kopf", "weight": 1, "power": 1, "price": 18, "hat": ["res://assets/enemies/Skeleton_Warrior.glb", "Skeleton_Warrior_Helmet"], "material": "bone"},
+	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "requires": {"intelligenz": 11}, "weight": 0.5, "hp": 1, "speed": 0.07, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"], "material": "cloth"},
+	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 3, "hp": 2, "armor": 1, "durability": 4, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "material": "metal"},
+	"baerenkappe": {"name": "Bärenkappe", "slot": "kopf", "weight": 1, "hp": 1, "power": 1, "price": 34, "hat": ["res://assets/characters/Barbarian.glb", "Barbarian_Hat"], "material": "fur"},
+	"wollumhang": {"name": "Wollumhang", "slot": "umhang", "weight": 1, "hp": 1, "price": 12, "tint": Color(0.55, 0.4, 0.28), "material": "cloth"},
+	"schattenumhang": {"name": "Schattenumhang", "slot": "umhang", "weight": 1, "hp": 1, "speed": 0.1, "skills": {"schleichen": 2}, "price": 26, "tint": Color(0.16, 0.15, 0.24), "material": "cloth"},
+	"koenigsumhang": {"name": "Königsumhang", "slot": "umhang", "weight": 2, "hp": 2, "power": 1, "price": 42, "tint": Color(0.75, 0.08, 0.1), "material": "cloth"},
+	"lederwams": {"name": "Lederwams", "slot": "ruestung", "weight": 2, "hp": 1, "price": 14, "tint": Color(0.5, 0.3, 0.15), "material": "leather"},
+	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "weight": 5, "hp": 2, "armor": 1, "durability": 5, "skills": {"ruestung": 1}, "price": 28, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4, "material": "chain"},
+	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "weight": 8, "hp": 3, "armor": 2, "durability": 6, "power": 1, "price": 48, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55, "material": "metal"},
+	"lederstiefel": {"name": "Lederstiefel", "slot": "schuhe", "weight": 1, "speed": 0.05, "price": 10, "tint": Color(0.45, 0.27, 0.13), "material": "leather"},
+	"eilstiefel": {"name": "Eilstiefel", "slot": "schuhe", "weight": 1, "speed": 0.15, "price": 26, "tint": Color(0.25, 0.45, 0.95), "material": "leather"},
 	"amulett_tempo": {"name": "Amulett der Eile", "slot": "amulett", "weight": 0.3, "speed": 0.1, "price": 15},
 	"amulett_kraft": {"name": "Amulett der Stärke", "slot": "amulett", "weight": 0.3, "power": 1, "price": 18},
 	"amulett_leben": {"name": "Amulett des Lebens", "slot": "amulett", "weight": 0.3, "hp": 1, "price": 15},

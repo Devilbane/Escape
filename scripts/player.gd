@@ -125,6 +125,7 @@ func _ready() -> void:
 			node.visible = false
 	_add_cape_logo()
 	_add_trim()
+	GearLook.dress(_model.find_child("handslot_r", true, false).get_node("Knife"), "mixed") # The hero's own knife.
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle", SNEAK_ANIM]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -649,20 +650,17 @@ const TINT_SHADER := preload("res://shaders/tint.gdshader")
 const TINT_FADE_SHADER := preload("res://shaders/tint_fade.gdshader")
 
 
-## Colours the hero's cloak, body or legs after the worn cloak, armour or shoes.
+## Colours the hero's cloak, body or legs after the worn cloak, armour or shoes,
+## and gives them the grain of what they are made of (see GearLook). With
+## nothing worn there, the hero's own clothes keep their colours.
 func _show_tint(slot: String, parts: Array) -> void:
 	var item: Dictionary = Items.ALL.get(equipped.get(slot, ""), {})
 	for part in parts:
 		var mesh := _model.find_child(part, true, false) as MeshInstance3D
-		if not item.has("tint"):
-			mesh.material_override = null
-			continue
-		var mat := ShaderMaterial.new()
-		mat.shader = TINT_SHADER
-		mat.set_shader_parameter("tex", (mesh.mesh.surface_get_material(0) as StandardMaterial3D).albedo_texture)
-		mat.set_shader_parameter("tint", item.tint)
-		mat.set_shader_parameter("metal", item.get("metal", 0.0))
-		mesh.material_override = mat
+		if item.has("tint"):
+			GearLook.apply(mesh, item.get("material", ""), item.tint, true, item.get("metal", -1.0))
+		else:
+			GearLook.apply(mesh, "outfit")
 
 
 const AILMENT_TIME := 20.0
@@ -752,6 +750,7 @@ func _show_headgear() -> void:
 	source.free()
 	hat.name = "Headgear"
 	slot.add_child(hat)
+	GearLook.dress(hat, item.get("material", ""))
 
 
 func has_special(id: String) -> bool:
@@ -770,6 +769,7 @@ func _show_held(slot: String, hand_name: String, default_part: String) -> void:
 		var model: Node3D = load(Items.ALL[id].model).instantiate()
 		model.name = "Held"
 		hand.add_child(model)
+		GearLook.dress(model, Items.ALL[id].get("material", ""))
 
 
 ## Whether the hero has what an item asks for ("requires"), e.g. Intelligenz.

@@ -48,13 +48,16 @@ const BLOCK_MODELS := {
 	"s": "building_church_yellow", "k": "building_castle_blue", "o": "building_home_A_yellow",
 	"w": "building_barracks_red", "b": "building_tower_A_blue",
 }
-## The herald calls out news this often (seconds); the first time sooner.
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
 	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
 }
-const HERALD_EVERY := 80.0
-const HERALD_FIRST := 25.0
+## The herald calls out news this often (seconds, picked at random between the
+## two bounds each time); the first call comes sooner.
+const HERALD_EVERY_MIN := 160.0
+const HERALD_EVERY_MAX := 240.0
+const HERALD_FIRST_MIN := 50.0
+const HERALD_FIRST_MAX := 75.0
 const GRAVES := ["grave_A", "grave_B", "gravestone", "gravemarker_A", "gravemarker_B", "grave_A_destroyed"]
 const PROPS := ["barrel", "crate_A_big", "sack", "wheelbarrow", "bucket_water", "resource_lumber", "resource_stone"]
 ## The village props come as table-top miniatures: this blows them up to
@@ -111,7 +114,7 @@ var interiors := {}
 ## Where each building's door is, by building letter.
 var doors := {}
 var _herald: Node3D
-var _herald_timer := HERALD_FIRST
+var _herald_timer := randf_range(HERALD_FIRST_MIN, HERALD_FIRST_MAX)
 ## The bandits' spots: cell, kind, the bandit standing there (or null while
 ## it is gone), seconds until the next one arrives, and how many came so far.
 var _wild: Array = []
@@ -876,7 +879,7 @@ func _process(delta: float) -> void:
 	_mind_the_wild(delta)
 	_herald_timer -= delta
 	if _herald and _herald_timer <= 0.0:
-		_herald_timer = HERALD_EVERY
+		_herald_timer = randf_range(HERALD_EVERY_MIN, HERALD_EVERY_MAX)
 		_call_the_village()
 	if not house_given and _elder and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:
 		house_given = true

@@ -29,6 +29,8 @@ enum State { TITLE, PLAYING, TRANSITION, WON, OVER }
 
 var state := State.TITLE
 var _sound_button: Button
+var _music_button: Button
+var _music_slider: HSlider
 ## The pull-out menu on the right edge of the screen that holds all the
 ## clickable buttons, its handle, and how far it is pulled out (0 to 1).
 var _drawer: HBoxContainer
@@ -189,6 +191,9 @@ func _ready() -> void:
 	Sfx.watch_focus(self)
 	_update_sound_button()
 	_ambience = Sfx.start_ambience(self)
+	Music.load_settings()
+	Music.start(self)
+	_update_music_controls()
 	menus.setup(self, _hud)
 	player = Player.new()
 	add_child(player)
@@ -350,11 +355,14 @@ func _setup_drawer() -> void:
 	back.set_content_margin_all(12)
 	panel.add_theme_stylebox_override("panel", back)
 	_drawer.add_child(panel)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	panel.add_child(column)
 	var buttons := GridContainer.new()
 	buttons.columns = 2
 	buttons.add_theme_constant_override("h_separation", 10)
 	buttons.add_theme_constant_override("v_separation", 10)
-	panel.add_child(buttons)
+	column.add_child(buttons)
 	# Buttons that open a window also push the menu away again; the others
 	# (actions and sound) leave it out so they can be clicked again.
 	var windows := [["Inventar", "inventar"], ["Charakter", "charakter"], ["Kompendium", "kompendium"], ["Laden", "laden"]]
@@ -368,12 +376,16 @@ func _setup_drawer() -> void:
 	_sound_button = _make_button("", _toggle_sound)
 	buttons.add_child(_sound_button)
 	_update_sound_button()
+	_music_button = _make_button("", _toggle_music)
+	buttons.add_child(_music_button)
 	buttons.add_child(_make_button(Lang.t("Beenden"), func():
 		set_drawer_open(false)
 		_on_quit_pressed()))
 	for b in buttons.get_children():
 		b.custom_minimum_size = Vector2(150, 58)
 		b.add_theme_font_size_override("font_size", 18)
+	column.add_child(_make_music_slider())
+	_update_music_controls()
 	_update_drawer_handle()
 	_place_drawer(0.0)
 	# Keeps the menu in place when a button's text changes its size.
@@ -1357,6 +1369,53 @@ func _toggle_sound() -> void:
 func _update_sound_button() -> void:
 	if _sound_button:
 		_sound_button.text = Lang.t("Ton: aus") if Sfx.muted else Lang.t("Ton: an")
+
+
+func _toggle_music() -> void:
+	Music.toggle_mute()
+	_update_music_controls()
+
+
+## A row with the music volume: a label and a slider from silent to full.
+func _make_music_slider() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var label := Label.new()
+	label.text = Lang.t("Musik")
+	label.add_theme_font_override("font", TEXT_FONT)
+	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_color_override("font_color", GOLD)
+	row.add_child(label)
+	_music_slider = HSlider.new()
+	_music_slider.min_value = 0.0
+	_music_slider.max_value = 1.0
+	_music_slider.step = 0.05
+	_music_slider.focus_mode = Control.FOCUS_NONE
+	_music_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_music_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_music_slider.custom_minimum_size = Vector2(0, 32)
+	_music_slider.tooltip_text = Lang.t("Lautstärke der Musik")
+	_music_slider.value = Music.volume
+	_music_slider.value_changed.connect(_on_music_volume_changed)
+	row.add_child(_music_slider)
+	return row
+
+
+func _on_music_volume_changed(value: float) -> void:
+	if is_equal_approx(value, Music.volume):
+		return
+	Music.set_volume(value)
+	# Moving the slider up switches the music back on.
+	if Music.muted and value >= Music.SILENT:
+		Music.toggle_mute()
+	_update_music_controls()
+
+
+func _update_music_controls() -> void:
+	if _music_button:
+		_music_button.text = Lang.t("Musik: aus") if Music.muted else Lang.t("Musik: an")
+	if _music_slider and not is_equal_approx(_music_slider.value, Music.volume):
+		_music_slider.set_value_no_signal(Music.volume)
 
 
 ## In the game the quit button asks first. On the title and while naming the
@@ -2518,6 +2577,12 @@ func _steer_by_mouse(delta: float) -> void:
 		player.wants_run = true
 		_pending_search = {}
 		_pending_station = {}
+
+
+## Sees every input before buttons or the game use it, so the first click
+## or key press anywhere can start the music.
+func _input(event: InputEvent) -> void:
+	Music.notice_input(event)
 
 
 func _unhandled_input(event: InputEvent) -> void:

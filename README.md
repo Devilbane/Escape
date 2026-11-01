@@ -292,6 +292,27 @@ Hanna the water carrier has a recipe that needs them: the **Amulet of the Deep**
 three perch). One of its lines is smudged until you catch a silver pike. What bites where is set in
 `Fishing.WATERS` (`scripts/fishing.gd`).
 
+**Reputation.** Every villager has their own opinion of you, and helping them improves it. A finished task
+counts the most: 25 points with whoever gave it, 15 with whoever received a delivery, and 5 with everyone
+else you have met, because word gets around. Buying from a villager who trades (Mira, Gorm, Hagen, Benno)
+gives 2 points per purchase, but only up to 30: buying alone makes a customer, not a friend.
+
+| Standing | Points | What it brings |
+|---|---|---|
+| Stranger | 0 | nothing yet |
+| Friendly | 10 | 5 % off their prices; every other chat they share some gossip: tips about the world and hints at who knows a secret recipe |
+| Trusted | 25 | 10 % off; a villager who knows a **secret recipe** teaches it the next time you talk to them |
+| Honoured | 45 | 20 % off |
+
+Discounts apply to Mira's goods, everything at Gorm's forge (his wares, forging, iron bars, mending),
+Hagen's stone blocks and Benno's haircuts and tattoos. Selling prices stay the same.
+The secret recipes are new **crafting** choices for the time away: Gorm's oil-quenched throwing knives
+(1 per 2 h instead of 3), Mira's leather grease (1 durability per hour instead of every 2 hours) and Hagen's
+way of cutting stone (1 stone block per 4 h, at most 20 per absence, delivered to the storage chest while it has room).
+The **Reputation** page of the compendium (key H) lists everyone you have met with their standing, the
+points still needed for the next level and the secret recipes you know. Standing is kept in each hero's
+saved game. The rules, gossip and secrets are in `scripts/reputation.gd`.
+
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.
 
@@ -405,7 +426,7 @@ When you come back, a "Welcome back" window shows what the hero did.
 | Job | 0 to 12 | City guard (3 gold/h, a little Konstitution and Stärke), smithy helper (needs Stärke 11, 2 gold/h, Stärke), scribe (needs Intelligenz 11, 2 gold/h, Intelligenz) |
 | Training | any | practise Stärke, Konstitution, Tempo or Geschick, or a skill whose gear is worn |
 | Study | any | read a book you carry or keep in the storage chest: it teaches its skill (no gear needed) and a little Intelligenz |
-| Crafting | any | forge throwing knives (1 per 3 h) or mend worn-down gear (1 durability per 2 h); both train Geschick a little |
+| Crafting | any | forge throwing knives (1 per 3 h) or mend worn-down gear (1 durability per 2 h); both train Geschick a little. Secret recipes from trusted villagers add faster knives, faster mending and stone cutting (see Reputation) |
 | Rest | at least 8 | heals an eighth of your life per hour; a full night also cures poison and curses |
 
 The blocks are lived in this order each day, so a short absence pays for the job and the training first.

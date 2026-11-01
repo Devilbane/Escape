@@ -25,6 +25,8 @@ const BEVEL := 0.06
 const JOINT := 0.02
 ## A few shades of grey-brown sandstone, so a wall does not look printed.
 const SHADES: Array[Color] = [Color(0.5, 0.48, 0.44), Color(0.46, 0.45, 0.42), Color(0.53, 0.5, 0.45), Color(0.43, 0.42, 0.4)]
+## The old, mossy blocks of the dungeon's puzzle rooms (see `heavy`).
+const HEAVY_SHADES: Array[Color] = [Color(0.36, 0.4, 0.34), Color(0.33, 0.37, 0.32)]
 const STONE_SHADER := preload("res://shaders/stone.gdshader")
 
 static var _mesh: ArrayMesh
@@ -35,6 +37,11 @@ var cell := Vector2i.ZERO
 ## Lying along x (covers cell and cell + (1, 0)) or along z (cell + (0, 1)).
 var along_x := true
 var layer := 0
+## An old block that belongs to the dungeon (a puzzle room's, see Level's
+## pressure plates): too heavy for the bag and never stacked. It only slides
+## along the floor in a straight line, pushed with E or dragged with the
+## mouse, and is not kept in the saved game.
+var heavy := false
 
 
 func _ready() -> void:
@@ -45,7 +52,8 @@ func _ready() -> void:
 	shape.shape = box
 	shape.position.y = HEIGHT * 0.5
 	add_child(shape)
-	model = make_model(SHADES[absi(cell.x * 7 + cell.y * 13 + layer * 5) % SHADES.size()])
+	var shades := HEAVY_SHADES if heavy else SHADES
+	model = make_model(shades[absi(cell.x * 7 + cell.y * 13 + layer * 5) % shades.size()])
 	add_child(model)
 	rotation.y = 0.0 if along_x else PI * 0.5
 

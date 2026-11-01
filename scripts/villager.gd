@@ -301,7 +301,7 @@ func _nearby(radius: int) -> Vector3:
 func _walk_to(target: Vector3, speed: float, then: String) -> void:
 	_path.clear()
 	var from := level.world_to_cell(global_position)
-	for c in level.astar.get_id_path(from, level.world_to_cell(target), true).slice(1):
+	for c in level.grid_path(from, level.world_to_cell(target)).slice(1):
 		_path.append(level.cell_to_world(c) + Vector3(_rng.randf_range(-0.6, 0.6), 0, _rng.randf_range(-0.6, 0.6)))
 	if _path.is_empty():
 		_start(then, 3.0)

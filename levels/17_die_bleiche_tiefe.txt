@@ -1,0 +1,18 @@
+name: Die bleiche Tiefe
+hint: Unter der Wolfssenke führt ein Schacht in eine kalte, stille Halle. Selbst die Wölfe meiden dieses Loch.
+building: loch3
+floor: cellar
+lair: yes
+dark: yes
+horror: bleicher_waechter
+####################
+##E#################
+##P...#.......A....#
+##....,,,.....##...#
+###..##.,..M..##.k.#
+###..##.,,,,,,,,...#
+#......####.####.###
+#..c...#.....#.....#
+#..G...,..X..,..c..#
+#......#.....#..C..#
+####################

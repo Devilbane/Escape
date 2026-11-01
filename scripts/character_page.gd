@@ -94,6 +94,7 @@ func _draw() -> void:
 		_text(at + Vector2(0, 14), str(player.attribute(id)), 17, Color(0.92, 0.92, 0.96))
 	_text(c + Vector2(0, -20), Lang.t("Leben"), 12, GOLD)
 	_text(c + Vector2(0, 4), "%d / %d" % [player.hp, player.max_hp], 22, Color(1.0, 0.55, 0.5))
+	_text(c + Vector2(0, -34), Lang.t("%+.1f Leben/s") % player.life_regen(), 10, Color(0.6, 1.0, 0.6))
 	_text(c + Vector2(0, 20), "%d%%" % player.attribute("tempo"), 11, Color(0.8, 0.82, 0.9))
 	_text(c + Vector2(0, 31), Lang.t("Tempo"), 9, Color(0.8, 0.82, 0.9))
 	for i in Training.SECTORS.size():

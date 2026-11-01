@@ -7,6 +7,8 @@ extends CharacterBody3D
 signal hurt(amount: int)
 signal defeated
 signal ailments_changed
+## Life came back by itself (see _regenerate).
+signal regenerated
 ## Emitted when the hero runs into something solid, with a point just inside it.
 signal bumped(point: Vector3)
 ## Emitted when training raises an attribute or a skill, with its new value.
@@ -156,6 +158,8 @@ const FIGHT_SNEAK_BLOCK := 2.0
 const SNEAK_SPEED := 0.4
 const SNEAK_ANIM := "Walking_C"
 var _lantern: OmniLight3D
+## The hand torch that burns in the pitch-black places (see HandTorch).
+var torch: HandTorch
 var _shown_alpha := -1.0
 
 var _model: Node3D
@@ -250,6 +254,9 @@ func _ready() -> void:
 	_lantern.omni_range = 8.5
 	_lantern.position = Vector3(0, 3.2, 0.6)
 	add_child(_lantern)
+	# A hand torch for the pitch-black places (see HandTorch).
+	torch = HandTorch.new(self)
+	add_child(torch)
 
 
 ## Called while a fight goes on; sneaking stays barred until it has been
@@ -268,6 +275,8 @@ func set_sneaking(on: bool) -> void:
 
 ## Whether skeletons could see the hero by some light, the lantern included.
 func is_lit() -> bool:
+	if torch and torch.lit:
+		return true # A burning torch cannot be hooded.
 	return not sneaking or not in_shadow
 
 
@@ -1090,6 +1099,29 @@ func cure(kind := "") -> bool:
 	return had
 
 
+## Life the hero gets back per second: Konstitution / REGEN_PER_CON_DIVISOR.
+const REGEN_PER_CON_DIVISOR := 10.0
+## Fractions of a life healed so far, until they add up to a whole one.
+var _regen := 0.0
+
+
+func life_regen() -> float:
+	return attribute("konstitution") / REGEN_PER_CON_DIVISOR
+
+
+## Heals the hero a little every second, faster with more Konstitution.
+func _regenerate(delta: float) -> void:
+	if dead or hp >= max_hp:
+		_regen = 0.0
+		return
+	_regen += life_regen() * delta
+	if _regen >= 1.0:
+		var whole := floori(_regen)
+		_regen -= whole
+		hp = mini(max_hp, hp + whole)
+		regenerated.emit()
+
+
 func _tick_ailments(delta: float) -> void:
 	if ailments.is_empty() or dead:
 		return
@@ -1511,6 +1543,7 @@ func _physics_process(delta: float) -> void:
 	_clock += delta
 	_get_up(delta)
 	_tick_ailments(delta)
+	_regenerate(delta)
 	_pursue(delta)
 	_auto_attack()
 	if _climb >= 0.0:

@@ -55,6 +55,11 @@ extends Level
 ##   %  gem cutter's wheel   *  alchemist's table   $  the hero's storage chest
 ##   E  the way down into the dragon's lair: a stone arch over stairs into
 ##      the dark (a block of tiles, see Level "lair: yes")
+##   (  a dark, creepy hole in the ground: run into it to climb down into a
+##      small, pitch-black cave of its own (see Level "dark: yes"), where a
+##      nameless horror may lurk (see Horrors). The holes are numbered from
+##      the top of the map down, west to east within a row; hole n leads to
+##      the floor with the line "building: loch<n>".
 ##   v  a stone pedestal with a food basket on top, too high to reach from
 ##      the ground or from one crate: stack two crates beside it. Three
 ##      wooden crates lie close by (see Crate).
@@ -94,6 +99,12 @@ const BUILDING_NAMES := {
 	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
 	"E": "die Drachenhöhle",
 }
+## The creepy holes in the ground, in map order (see "(").
+var holes: Array[Vector3] = []
+var _whisper_timer := 3.0
+## From how far the hero hears a hole whisper.
+const WHISPER_RANGE := 14.0
+const WHISPERS := ["...komm näher...", "...tiefer...", "...hier unten...", "...wir warten...", "...hungrig..."]
 ## The herald calls out news this often (seconds, picked at random between the
 ## two bounds each time); the first call comes sooner.
 const HERALD_EVERY_MIN := 160.0
@@ -531,6 +542,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_fence(c, false)
 		"a":
 			_build_fence(c, true)
+		"(":
+			_build_hole(c)
 		"~", ";":
 			_add_solid(pos, Vector3(TILE, 1, TILE))
 			fishing_waters.append({"water": "teich" if ch == "~" else "senke", "pos": pos,
@@ -1052,6 +1065,74 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	if interiors.has("E"):
 		stations.append({"kind": "eingang", "building": "E", "name": BUILDING_NAMES.E,
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.6), "used": false})
+
+
+## A dark, creepy hole in the ground: a ring of torn earth and rocks round a
+## pit so black no light gets in, a skull or two at its rim and a cold
+## breath of mist rising out of it. Run into it to climb down.
+func _build_hole(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	holes.append(pos)
+	var id := "loch%d" % holes.size()
+	var earth := MeshInstance3D.new()
+	var ring := CylinderMesh.new()
+	ring.top_radius = 1.9
+	ring.bottom_radius = 2.1
+	ring.height = 0.08
+	ring.radial_segments = 14
+	earth.mesh = ring
+	var soil := StandardMaterial3D.new()
+	soil.albedo_color = Color(0.17, 0.12, 0.09)
+	soil.roughness = 1.0
+	earth.material_override = soil
+	earth.position = pos + Vector3(0, 0.03, 0)
+	add_child(earth)
+	var pit := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = 1.35
+	disc.bottom_radius = 1.35
+	disc.height = 0.02
+	disc.radial_segments = 11
+	pit.mesh = disc
+	var black := StandardMaterial3D.new()
+	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	black.albedo_color = Color(0.0, 0.0, 0.0)
+	pit.material_override = black
+	pit.position = pos + Vector3(0, 0.08, 0)
+	pit.rotation.y = _rng.randf() * TAU
+	add_child(pit)
+	# Torn-up rocks round the rim, and what is left of those who went down.
+	for i in 6:
+		var angle: float = TAU * i / 6.0 + _rng.randf_range(-0.3, 0.3)
+		var rock: String = ["rock_single_A", "rock_single_C", "rock_single_E"][_rng.randi() % 3]
+		_put(rock, pos + Vector3(cos(angle), 0, sin(angle)) * _rng.randf_range(1.6, 1.9), _rng.randf() * TAU, _rng.randf_range(2.0, 3.4))
+	for i in 2:
+		var angle: float = _rng.randf() * TAU
+		_put("lair/Skull", pos + Vector3(cos(angle), 0, sin(angle)) * 2.3, _rng.randf() * TAU, 0.6)
+	var mist := Effects.make_sparkles(Color(0.45, 0.5, 0.62, 0.5))
+	mist.position = pos + Vector3(0, 0.4, 0)
+	add_child(mist)
+	_add_solid(pos, Vector3(2.8, 1.0, 2.8))
+	doors[id] = pos + Vector3(0, 0, TILE * 0.8)
+	if interiors.has(id):
+		stations.append({"kind": "eingang", "building": id, "name": "ein dunkles Loch",
+				"cell": c, "pos": pos, "reach": 2.6, "used": false})
+
+
+## The holes whisper to a hero who comes near: words out of the dark, and a
+## cold sound.
+func _whisper_from_holes(delta: float) -> void:
+	_whisper_timer -= delta
+	if _whisper_timer > 0.0:
+		return
+	_whisper_timer = randf_range(5.0, 9.0)
+	for pos in holes:
+		var d := _flat_distance(player.global_position, pos)
+		if d < WHISPER_RANGE:
+			var near := 1.0 - d / WHISPER_RANGE
+			Sfx.play(self, "eerie_%d" % (randi() % 6), lerpf(-20.0, -8.0, near), pos, 0.8)
+			Effects.float_text(self, pos + Vector3(0, 1.4, 0), Lang.t(WHISPERS[randi() % WHISPERS.size()]), Color(0.62, 0.64, 0.8, lerpf(0.4, 0.85, near)))
+			return
 
 
 ## The temple is a small stone chapel put together from the pieces of the
@@ -1654,17 +1735,27 @@ func beasts_alive() -> int:
 	return n
 
 
+## How much nearer a trader counts than a villager who only talks, when a
+## bump or click could mean either (see _npc_station_near).
+const TRADER_FIRST := 0.6
+
+
+## Everyone walking about the village: the villagers and, on the nights he
+## comes, the wandering merchant.
+func people() -> Array:
+	return villagers + [wanderer] if wanderer != null else villagers
+
+
 ## Bumping into a villager: they walk around, so their tile is not enough.
 ## A door is hit anywhere along the front of its building.
 func station_at(point: Vector3) -> Dictionary:
+	var npc := _npc_station_near(point, 1.6)
+	if not npc.is_empty():
+		return npc
 	# Doors of the town houses stand close together: the nearest one counts.
 	var door := {}
 	var door_distance := INF
 	for s in stations:
-		if s.has("npc") and s.npc.at_home:
-			continue
-		if s.has("npc") and _flat_distance(point, s.pos) < 1.6:
-			return s
 		if s.kind == "eingang":
 			var d := _flat_distance(point, s.pos)
 			if d < s.get("reach", 2.4) and d < door_distance:
@@ -1673,6 +1764,38 @@ func station_at(point: Vector3) -> Dictionary:
 	if not door.is_empty():
 		return door
 	return super(point)
+
+
+## The villager within reach of a point: the nearest, but a trader counts
+## TRADER_FIRST metres nearer than anyone who only talks, so a child playing
+## by the stall does not stand between the hero and the goods. {} when
+## nobody is that close.
+func _npc_station_near(point: Vector3, reach: float) -> Dictionary:
+	var best := {}
+	var best_score := INF
+	for s in stations:
+		if not s.has("npc") or s.npc.at_home:
+			continue
+		var d := _flat_distance(point, s.pos)
+		if d >= reach:
+			continue
+		var score := d - (TRADER_FIRST if s.kind != "npc" else 0.0)
+		if score < best_score:
+			best = s
+			best_score = score
+	return best
+
+
+## A click near a villager walks up to the trader among them first, like a
+## bump (see _npc_station_near); anything else as anywhere.
+func nearest_station(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
+	var npc := _npc_station_near(from, max_distance)
+	if not npc.is_empty() and npc.kind != "npc":
+		return npc
+	var other := super(from, max_distance)
+	if other.is_empty() or (not npc.is_empty() and other.has("npc")):
+		return npc
+	return other
 
 
 # --- Rules of the open air ----------------------------------------------------
@@ -1738,6 +1861,7 @@ func _process(delta: float) -> void:
 			_marker.queue_free()
 			_marker = null
 	_mind_the_wild(delta)
+	_whisper_from_holes(delta)
 	_mind_the_night(delta)
 	_mind_the_weather(delta)
 	_check_basket(delta)

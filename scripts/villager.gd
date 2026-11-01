@@ -19,6 +19,14 @@ const MIN_SAY_TIME := 2.5
 const MARK_COLOR := Color(1.0, 0.82, 0.3)
 ## Waits this long for the hero to step aside before walking on.
 const MAKE_WAY := 1.4
+## How close (centre to centre, metres) anyone else may come to a villager
+## who keeps to their spot (a shopkeeper, the elder, the herald). Without
+## it the village kid Pip ran right into Mira and stood inside her, and a
+## bump hit him instead of her shop. Small enough for a path past a stall,
+## big enough that the two bodies never overlap.
+const PERSONAL_SPACE := 1.3
+## Villagers who walk about keep at least this far from one another.
+const PASSING_SPACE := 0.8
 
 ## name: shown above the head; model; show: extra parts; hair: a look for a
 ## Rogue (see HairLook); sex: "female" for a woman built on the Rogue (see
@@ -326,13 +334,57 @@ func _errand() -> Vector3:
 	return places[_rng.randi() % places.size()]
 
 
-## A free tile within a few tiles of home.
+## A free tile within a few tiles of home, never right at the spot of
+## someone who keeps to it (see keeps_spot).
 func _nearby(radius: int) -> Vector3:
 	for i in 20:
 		var c := home + Vector2i(_rng.randi_range(-radius, radius), _rng.randi_range(-radius, radius))
-		if level.is_open(c):
+		if level.is_open(c) and not _spot_taken(c):
 			return level.cell_to_world(c)
 	return level.cell_to_world(home)
+
+
+## Whether this villager stands their ground: a shopkeeper, the elder, the
+## herald. Others walk round them and are pushed off their spot, never the
+## other way round, so their shop or word is always there to bump into.
+func keeps_spot() -> bool:
+	return _info.plan in ["shop", "stay"]
+
+
+## Whether a tile is next to the spot of someone else who keeps to it.
+func _spot_taken(c: Vector2i) -> bool:
+	for o: Villager in level.people():
+		if o != self and o.keeps_spot() and maxi(absi(o.home.x - c.x), absi(o.home.y - c.y)) <= 1:
+			return true
+	return false
+
+
+## How much room this villager leaves the other one.
+func _space_for(o: Villager) -> float:
+	return PERSONAL_SPACE if o.keeps_spot() else PASSING_SPACE
+
+
+## Steps out of the way of everyone this villager has to make room for: all
+## who keep their spot, and, a little, anyone else walking about. One who
+## keeps their own spot never steps aside. Asleep at home, nobody is in the
+## way.
+func _keep_apart() -> void:
+	if at_home or keeps_spot():
+		return
+	for o: Villager in level.people():
+		if o == self or o.at_home:
+			continue
+		var away := global_position - o.global_position
+		away.y = 0.0
+		var room := _space_for(o)
+		if away.length() >= room:
+			continue
+		if away.length() < 0.01:
+			away = Vector3(cos(rotation.y), 0, sin(rotation.y))
+		# Two walking about share the step; from a shopkeeper the walker
+		# steps away all by himself.
+		var share := 1.0 if o.keeps_spot() else 0.5
+		global_position += away.normalized() * (room - away.length()) * share
 
 
 func _walk_to(target: Vector3, speed: float, then: String) -> void:
@@ -353,6 +405,7 @@ func _walk_to(target: Vector3, speed: float, then: String) -> void:
 func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
+	_keep_apart()
 	station.pos = global_position
 	station.cell = level.world_to_cell(global_position)
 	_update_bubble(delta)
@@ -393,6 +446,13 @@ func _walk(delta: float, hero: Node3D) -> void:
 			time = LISTEN_TIME + _rng.randf_range(-2.0, 2.0)
 		_start(then, time)
 		return
+	# A step that would end inside a shopkeeper is left out: the path goes
+	# on from the next one, round them.
+	while _path.size() > 1 and _crowds_spot(_path[0]):
+		_path.pop_front()
+	if _path.size() == 1 and _crowds_spot(_path[0]):
+		_path.clear()
+		return
 	var to := _path[0] - global_position
 	to.y = 0.0
 	# Polite: wait when the hero stands in the way.
@@ -416,6 +476,14 @@ func _walk(delta: float, hero: Node3D) -> void:
 		global_position += to.normalized() * step
 	_turn_to(to, delta)
 	play("Running_A" if _speed >= RUN_SPEED else ("Walking_B" if _speed < WALK_SPEED else "Walking_A"))
+
+
+## Whether a point is too close to someone else who keeps their spot.
+func _crowds_spot(point: Vector3) -> bool:
+	for o: Villager in level.people():
+		if o != self and o.keeps_spot() and not o.at_home and Vector2(point.x - o.global_position.x, point.z - o.global_position.z).length() < PERSONAL_SPACE:
+			return true
+	return false
 
 
 func _do(task: String, delta: float) -> void:

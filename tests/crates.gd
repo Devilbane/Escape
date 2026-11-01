@@ -138,7 +138,7 @@ func _run() -> void:
 	print("hero at %s, hp %d" % [p.global_position, p.hp])
 	check(climbed and was_on_step, "walking into the step crate climbs it")
 	check(p.global_position.y > Crate.SIZE * 2.0 - 0.1, "from the step the hero climbs onto the stack")
-	check(not lvl._basket.full and p.hp == mini(p.max_hp, 1 + Outdoor.BASKET_HEAL), "up on the stack the hero eats from the basket")
+	check(not lvl._basket.full and p.hp >= mini(p.max_hp, 1 + Outdoor.BASKET_HEAL), "up on the stack the hero eats from the basket")
 	await _wait(10)
 	check(p.on_crate(), "the hero stands on the crates")
 

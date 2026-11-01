@@ -409,6 +409,25 @@ func set_asleep(asleep: bool) -> void:
 	BodyLook.blink(_model, asleep)
 
 
+## A game saved in bed is loaded: the hero lies on their back, asleep, the
+## way Lie_Down left them, breathing slowly (Lie_Idle, over and over).
+func lie_asleep() -> void:
+	_anim.get_animation("Lie_Idle").loop_mode = Animation.LOOP_LINEAR
+	_anim.speed_scale = 1.0
+	_current_anim = ""
+	play("Lie_Idle", 0.0)
+	set_asleep(true)
+
+
+## Opens the eyes and gets up from lying on the back, the way a knocked-down
+## hero does (GET_UP_ANIM, GET_UP_TIME seconds).
+func get_up_from_bed() -> void:
+	set_asleep(false)
+	_current_anim = ""
+	play(GET_UP_ANIM, 0.3)
+	_anim.speed_scale = GET_UP_SPEED
+
+
 func _build_eyelids() -> void:
 	var head := _model.find_child("Rogue_Head", true, false) as MeshInstance3D
 	var slot := _model.find_child("HeadSlot", true, false) as Node3D

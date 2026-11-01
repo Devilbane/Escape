@@ -14,6 +14,8 @@ const ZOOM_OUT_STEPS := 2
 const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const GOLD := Color(1.0, 0.82, 0.4)
+## Button text while the pointer is over the button: a lighter gold.
+const BUTTON_HOVER_TEXT := Color(1.0, 0.92, 0.66)
 ## Raised by hand for every bigger update. The build number comes from GitHub.
 const VERSION := "0.5"
 ## Filled in by GitHub with the number of each published build, so the
@@ -392,25 +394,59 @@ func _make_label(font: Font, size: int, color := Color.WHITE) -> Label:
 	return l
 
 
-func _make_button(text: String, action: Callable) -> Button:
+## Every button of the game, in one look. A button acts when the pointer is
+## let go over it, so a click can still be called off by dragging off the
+## button; `on_press` makes it act the moment the pointer goes down instead,
+## which only the pull-out menu's game actions use (a jump or a strike must
+## not trail behind the click).
+## The states look different: hover lifts the border to bright gold, a press
+## darkens the button, a disabled one is dimmed, and the keyboard focus (see
+## Menus) draws a white outline around it. Focus stays off here; a window
+## turns it on for its own buttons once the player uses the keys.
+func _make_button(text: String, action: Callable, on_press := false) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	b.custom_minimum_size = Vector2(118, 64)
 	b.add_theme_font_override("font", TEXT_FONT)
 	b.add_theme_font_size_override("font_size", 18)
 	b.add_theme_color_override("font_color", GOLD)
+	b.add_theme_color_override("font_hover_color", BUTTON_HOVER_TEXT)
+	b.add_theme_color_override("font_pressed_color", GOLD)
+	b.add_theme_color_override("font_hover_pressed_color", GOLD)
+	b.add_theme_color_override("font_focus_color", BUTTON_HOVER_TEXT)
+	b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.35))
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = Color(0.08, 0.05, 0.1, 0.72)
 	normal.border_color = Color(0.85, 0.66, 0.32, 0.8)
 	normal.set_border_width_all(2)
 	normal.set_corner_radius_all(14)
+	var hover := normal.duplicate()
+	hover.bg_color = Color(0.17, 0.11, 0.12, 0.85)
+	hover.border_color = GOLD
 	var pressed := normal.duplicate()
 	pressed.bg_color = Color(0.3, 0.2, 0.1, 0.85)
+	pressed.border_color = GOLD
+	var disabled := normal.duplicate()
+	disabled.bg_color = Color(0.06, 0.05, 0.07, 0.5)
+	disabled.border_color = Color(0.85, 0.66, 0.32, 0.3)
+	var focus := StyleBoxFlat.new()
+	focus.draw_center = false
+	focus.border_color = Color(1, 1, 1, 0.95)
+	focus.set_border_width_all(3)
+	focus.set_corner_radius_all(16)
+	focus.set_expand_margin_all(4)
 	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", normal)
+	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", pressed)
-	b.button_down.connect(action)
+	b.add_theme_stylebox_override("hover_pressed", pressed)
+	b.add_theme_stylebox_override("disabled", disabled)
+	b.add_theme_stylebox_override("focus", focus)
+	if on_press:
+		b.button_down.connect(action)
+	else:
+		b.pressed.connect(action)
 	return b
 
 
@@ -428,11 +464,11 @@ func _setup_drawer() -> void:
 	_drawer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(_drawer)
 
-	_drawer_handle = _make_button("", toggle_drawer)
+	_drawer_handle = _make_button("", toggle_drawer, true)
 	_drawer_handle.custom_minimum_size = Vector2(70, 120)
 	_drawer_handle.add_theme_font_size_override("font_size", 16)
 	_drawer_handle.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	for style in ["normal", "hover", "pressed"]:
+	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
 		var box: StyleBoxFlat = _drawer_handle.get_theme_stylebox(style).duplicate()
 		box.corner_radius_top_right = 0
 		box.corner_radius_bottom_right = 0
@@ -466,22 +502,29 @@ func _setup_drawer() -> void:
 	# (actions and sound) leave it out so they can be clicked again.
 	var windows := [["Inventar", "inventar"], ["Charakter", "charakter"], ["Kompendium", "kompendium"], ["Karte", "karte"], ["Laden", "laden"]]
 	for w in windows:
-		buttons.add_child(_make_button(Lang.t(w[0]), _open_from_drawer.bind(w[1])))
-	buttons.add_child(_make_button(Lang.t("Springen"), func(): if state == State.PLAYING: player.jump()))
-	buttons.add_child(_make_button(Lang.t("Werfen"), func(): if state == State.PLAYING: player.throw_knife()))
-	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
-	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
-	buttons.add_child(_make_button(Lang.t("Stein"), func(): if state == State.PLAYING and not menus.is_open(): stone_action()))
-	buttons.add_child(_make_button(Lang.t("Angeln"), fish_action))
-	buttons.add_child(_make_button(Lang.t("Schenken"), gift_action))
-	_sound_button = _make_button("", _toggle_sound)
+		buttons.add_child(_make_button(Lang.t(w[0]), _open_from_drawer.bind(w[1]), true))
+	# The game actions act the moment the pointer goes down (see _make_button).
+	var do_jump := func(): if state == State.PLAYING: player.jump()
+	var do_throw := func(): if state == State.PLAYING: player.throw_knife()
+	var do_strike := func(): if state == State.PLAYING: player.melee()
+	var do_crate := func(): if state == State.PLAYING and not menus.is_open(): crate_action()
+	var do_stone := func(): if state == State.PLAYING and not menus.is_open(): stone_action()
+	var do_quit := func():
+		set_drawer_open(false)
+		_on_quit_pressed()
+	buttons.add_child(_make_button(Lang.t("Springen"), do_jump, true))
+	buttons.add_child(_make_button(Lang.t("Werfen"), do_throw, true))
+	buttons.add_child(_make_button(Lang.t("Schlagen"), do_strike, true))
+	buttons.add_child(_make_button(Lang.t("Kiste"), do_crate, true))
+	buttons.add_child(_make_button(Lang.t("Stein"), do_stone, true))
+	buttons.add_child(_make_button(Lang.t("Angeln"), fish_action, true))
+	buttons.add_child(_make_button(Lang.t("Schenken"), gift_action, true))
+	_sound_button = _make_button("", _toggle_sound, true)
 	buttons.add_child(_sound_button)
 	_update_sound_button()
-	_music_button = _make_button("", _toggle_music)
+	_music_button = _make_button("", _toggle_music, true)
 	buttons.add_child(_music_button)
-	buttons.add_child(_make_button(Lang.t("Beenden"), func():
-		set_drawer_open(false)
-		_on_quit_pressed()))
+	buttons.add_child(_make_button(Lang.t("Beenden"), do_quit, true))
 	for b in buttons.get_children():
 		b.custom_minimum_size = Vector2(150, 58)
 		b.add_theme_font_size_override("font_size", 18)
@@ -627,7 +670,7 @@ func _setup_hud() -> void:
 	_message.modulate.a = 0.0
 	_hud.add_child(_message)
 
-	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
+	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.8))
 	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -1625,7 +1668,7 @@ func continue_game(path := "") -> void:
 	var data := _read_save(path)
 	_leave_title(func():
 		_apply_save(data)
-		_return_from_away(data))
+		_after_load(data))
 	# Closed only now, while leaving, so the title does not come back.
 	menus.close()
 
@@ -1671,8 +1714,8 @@ func load_saved_game(path: String) -> void:
 	tween.tween_callback(func():
 		player.frozen = false
 		_apply_save(data)
-		_start_playing()
-		_return_from_away(data))
+		_after_load(data)
+		_start_playing())
 
 
 func _toggle_sound() -> void:
@@ -2198,6 +2241,122 @@ func _climb_into_bed(tween: Tween, bed: Dictionary) -> void:
 		player.play("Lie_Down", 0.15))
 
 
+# --- Waking up -----------------------------------------------------------------
+
+## True while a hero loaded from a bed save wakes up and gets out of bed.
+var _waking := false
+## The wake-up after a bed save, in seconds: asleep while the night fades,
+## eyes open, a yawn, the fox wakes, the hero gets up, then hops down.
+const WAKE_SLEEP := 2.2
+const WAKE_YAWN := 0.5
+const WAKE_STRETCH := 0.4
+const WAKE_FOX := 0.5
+const WAKE_HOP := 0.45
+
+
+## Right after a saved game is loaded: a game saved in bed wakes up there
+## (see _wake_in_bed); otherwise, or once out of bed, the welcome-back
+## window tells what the hero did while the player was away.
+func _after_load(data: Dictionary) -> void:
+	if not _wake_in_bed(data, _return_from_away.bind(data)):
+		_return_from_away(data)
+
+
+## Whether the save was made by lying down in a bed (see sleep).
+static func saved_in_bed(data: Dictionary) -> bool:
+	var away = data.get("away", {})
+	return away is Dictionary and not away.is_empty()
+
+
+## A game saved in bed starts in bed: the hero lies there asleep, with the
+## fox curled up in its basket, while the night fades. Then the hero opens
+## their eyes and yawns, the fox wakes and hops out of its basket, and the
+## hero gets up on the mattress and hops down beside the bed. `done` runs
+## once the hero stands on the floor and can be moved again. Returns false
+## (and does nothing) if the save was not made in bed or the level has no
+## bed to wake up in.
+func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
+	if not saved_in_bed(data):
+		return false
+	var bed := _nearest_bed()
+	if bed.is_empty():
+		return false
+	# In the open air a load starts beside the hero's own house bed; a bed
+	# anywhere else on the map is not the one the game was saved in.
+	if level is Outdoor and _flat_gap(player.global_position, bed.pos) > Level.TILE * 2.0:
+		return false
+	_waking = true
+	state = State.TRANSITION
+	var rot: float = bed.get("rot", 0.0)
+	var foot := Vector3(sin(rot), 0.0, cos(rot))
+	var lie: Vector3 = bed.pos + foot * BED_LIE_OFFSET + Vector3(0, BED_MATTRESS_HEIGHT, 0)
+	var floor_spot := _bedside(bed, foot)
+	player.frozen = true
+	player.path.clear()
+	player.velocity = Vector3.ZERO
+	player.global_position = lie
+	player.face(foot)
+	player.lie_asleep()
+	var fox_wakes := false
+	if is_instance_valid(pet):
+		var basket := level.fox_bed_near(bed.pos)
+		if basket != Vector3.INF:
+			pet.sleep_in_basket(basket)
+			fox_wakes = true
+	_fall_asleep()
+	var tween := create_tween()
+	tween.tween_interval(WAKE_SLEEP)
+	tween.tween_callback(func():
+		_stop_snoozing()
+		player.set_asleep(false))
+	# A moment later, once the last Z has drifted off, a big yawn.
+	tween.tween_interval(WAKE_YAWN)
+	tween.tween_callback(func():
+		var slot := player.find_child("HeadSlot", true, false) as Node3D
+		var head := slot.global_position if slot else player.global_position
+		Effects.float_text(level, head + Vector3(0, 0.8, 0), Lang.t("Gähn!"), Color(0.85, 0.9, 1.0), true))
+	tween.tween_interval(WAKE_STRETCH)
+	if fox_wakes:
+		tween.tween_callback(func():
+			if is_instance_valid(pet):
+				pet.wake_up(floor_spot))
+		tween.tween_interval(WAKE_FOX)
+	tween.tween_callback(player.get_up_from_bed)
+	tween.tween_interval(Player.GET_UP_TIME)
+	# Standing on the mattress: turn towards the floor and hop down.
+	tween.tween_callback(func():
+		player.face(floor_spot - player.global_position)
+		player.play("Jump_Idle", 0.1))
+	tween.tween_method(func(t: float):
+		player.global_position = lie.lerp(floor_spot, t) + Vector3(0, sin(t * PI) * 0.5, 0), 0.0, 1.0, WAKE_HOP)
+	tween.tween_callback(func():
+		player.global_position = floor_spot
+		player.play("Idle", 0.2)
+		player.frozen = false
+		_waking = false
+		state = State.PLAYING
+		done.call())
+	return true
+
+
+static func _flat_gap(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
+## Where the hero stands after getting out of `bed`: the open floor beside
+## it (the same spot a load in the hero's own house starts on), or else in
+## front of its foot.
+func _bedside(bed: Dictionary, foot: Vector3) -> Vector3:
+	if level is Outdoor and level.home_spot != Vector3.ZERO:
+		return level.home_spot
+	var cell: Vector2i = bed.get("cell", Vector2i(-1, -1))
+	if cell != Vector2i(-1, -1):
+		var side := level._open_side(cell)
+		if side != cell:
+			return level.cell_to_world(side)
+	return bed.pos + foot * 2.2
+
+
 # --- Time away ----------------------------------------------------------------
 
 ## What the hero can do while the player is away, right now: block -> ids.
@@ -2333,7 +2492,8 @@ func _real_time_text(seconds: float) -> String:
 
 
 func _start_playing() -> void:
-	state = State.PLAYING
+	# A hero waking up in bed is still busy getting up (see _wake_in_bed).
+	state = State.TRANSITION if _waking else State.PLAYING
 	var tween := create_tween()
 	tween.tween_property(_title, "modulate:a", 0.0, 0.5)
 	tween.parallel().tween_property(_fade, "color:a", 0.0, 0.8)

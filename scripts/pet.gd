@@ -83,7 +83,8 @@ signal dug_up(id: String, pos: Vector3)
 var level: Level
 ## "follow", "lounge" (near the hero, see _act), "seek" (on the way to a
 ## find), "dig", "climb" (on the stairs behind the hero, see climb), or
-## "bed" (off to its basket and asleep there while the hero sleeps).
+## "bed" (off to its basket and asleep there while the hero sleeps), or
+## "wake" (getting up and hopping out of the basket, see wake_up).
 var state := "follow"
 ## While lounging: "stand", "sit", "lie", "wander", "circle" or "sniff".
 var _act := "stand"
@@ -201,7 +202,7 @@ func _lay_pose(p: Dictionary, weight: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	var hero := _hero()
-	if hero == null or state == "climb":
+	if hero == null or state == "climb" or state == "wake":
 		return
 	if state == "bed":
 		_to_bed(delta)
@@ -382,6 +383,51 @@ func _to_bed(delta: float) -> void:
 		return
 	_anim.speed_scale = 0.35
 	play("Idle")
+
+
+## A game saved in bed is loaded: the fox lies curled up asleep in its
+## basket at `spot` from the first frame on, until wake_up.
+func sleep_in_basket(spot: Vector3) -> void:
+	if _climb:
+		_climb.kill()
+	state = "bed"
+	_path.clear()
+	_bed = spot
+	_placed = true
+	global_position = spot + Vector3(0, BASKET_FLOOR, 0)
+	_pose.sleep = 1.0
+	_anim.speed_scale = 0.35
+	play("Idle")
+
+
+## How long the fox takes to lift its head and stand up in the basket, and
+## how long its hop over the rim takes.
+const WAKE_STAND := 0.7
+const WAKE_HOP := 0.4
+
+
+## Wakes up in the basket: lifts its head, stands up (the sleeping pose
+## fades out), turns towards `toward` and hops out over the rim on that
+## side. Then it follows the hero again.
+func wake_up(toward: Vector3) -> void:
+	if state != "bed":
+		return
+	state = "wake"
+	_path.clear()
+	_anim.speed_scale = 1.0
+	play("Idle")
+	var dir := _flat(toward - global_position)
+	dir = dir.normalized() if dir.length() > 0.01 else Vector3.BACK
+	var from := global_position
+	var land := Vector3(_bed.x, 0.0, _bed.z) + dir * (BASKET_RADIUS + 0.5)
+	var tween := create_tween()
+	tween.tween_interval(WAKE_STAND)
+	tween.tween_callback(func(): rotation.y = atan2(dir.x, dir.z))
+	tween.tween_method(func(t: float):
+		global_position = from.lerp(land, t) + Vector3(0, sin(t * PI) * 0.45, 0), 0.0, 1.0, WAKE_HOP)
+	tween.tween_callback(func():
+		state = "follow"
+		_path.clear())
 
 
 ## A round wicker basket with a soft red cushion: the fox's bed.

@@ -245,32 +245,34 @@ func _row(entry: Dictionary) -> Control:
 	name_label.custom_minimum_size.x = 120
 	text.add_child(name_label)
 	if entry.get("price", "") != "":
-		var price := _price_line(entry.price, entry.get("price_ok", true), 14)
+		var price := _price_line(entry.price, entry.get("price_ok", true), 16)
 		if entry.get("count", 1) > 1:
 			# A stack of the same thing: one row with how many there are.
-			price.add_child(_label("×%d" % entry.count, 14, GREY))
+			price.add_child(_label("×%d" % entry.count, 16, GREY))
 		text.add_child(price)
 	row.add_child(text)
 	if entry.has("gone"):
 		# Bought or sold out while the window is open: the row stays in its
 		# place, dimmed, until the window closes.
 		panel.modulate = Color(1, 1, 1, 0.45)
-		var gone := _label(entry.gone, 14, GREY)
+		var gone := _label(entry.gone, 15, GREY)
 		gone.custom_minimum_size = Vector2(80, 0)
 		gone.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		gone.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		gone.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		row.add_child(gone)
 	elif entry.get("current", false):
-		var now := _label(Lang.t("Jetzt"), 15, GREEN)
+		var now := _label(Lang.t("Jetzt"), 16, GREEN)
 		now.custom_minimum_size = Vector2(80, 0)
 		now.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		now.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(now)
 	elif entry.has("action"):
-		var b := _button(entry.get("button", Lang.t("Kaufen")), entry.action, entry.get("enabled", true), Vector2(80, 36), 15)
+		var b := _button(entry.get("button", Lang.t("Kaufen")), entry.action, entry.get("enabled", true), Vector2(80, 36), 16)
 		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		b.mouse_entered.connect(_on_row_hover.bind(entry.key))
+		# With the keys, the focus on a row's button shows that row's cards.
+		b.focus_entered.connect(_on_row_hover.bind(entry.key))
 		row.add_child(b)
 	return panel
 
@@ -367,7 +369,7 @@ func _detail_card(entry: Dictionary, upgrade := false) -> Control:
 	var title := _label(entry.name, 18, game.GOLD)
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	names.add_child(title)
-	names.add_child(_label(detail.get("subtitle", subtitle(id)), 15, ORANGE))
+	names.add_child(_label(detail.get("subtitle", subtitle(id)), 16, ORANGE))
 	head.add_child(names)
 	box.add_child(head)
 	if upgrade:
@@ -377,13 +379,13 @@ func _detail_card(entry: Dictionary, upgrade := false) -> Control:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		row.add_child(ItemIcon.make("kind:up", 12, true))
-		row.add_child(_label(Lang.t("Besser"), 15, GREEN))
+		row.add_child(_label(Lang.t("Besser"), 16, GREEN))
 		badge.add_child(row)
 		box.add_child(badge)
 	box.add_child(HSeparator.new())
 	var lines: Array = detail.get("lines", stat_lines(id, game.player.wear.get(id, 0) if game.player.equipped.values().has(id) else 0))
 	for line in lines:
-		box.add_child(_wrapped(line[0], 15, line[1]))
+		box.add_child(_wrapped(line[0], 16, line[1]))
 	if lines.is_empty():
 		box.add_child(_wrapped(Lang.t("Keine besonderen Werte."), 15, GREY))
 	# The price and the button sit at the bottom of the card, always there.
@@ -401,7 +403,7 @@ func _detail_card(entry: Dictionary, upgrade := false) -> Control:
 		box.add_child(b)
 	elif entry.get("current", false):
 		box.add_child(HSeparator.new())
-		box.add_child(_wrapped(Lang.t("Das hast du schon."), 15, GREEN))
+		box.add_child(_wrapped(Lang.t("Das hast du schon."), 16, GREEN))
 	return card
 
 
@@ -430,7 +432,7 @@ func _compare_card(compare: Dictionary) -> Control:
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	names.add_child(name_label)
 	if compare.get("subtitle", "") != "":
-		names.add_child(_label(compare.subtitle, 14, GREY))
+		names.add_child(_label(compare.subtitle, 15, GREY))
 	head.add_child(names)
 	box.add_child(head)
 	# With a comparison the differences say it all; the worn item's own
@@ -439,7 +441,7 @@ func _compare_card(compare: Dictionary) -> Control:
 	if not lines.is_empty():
 		box.add_child(HSeparator.new())
 		for line in lines:
-			box.add_child(_wrapped(line[0], 15, line[1]))
+			box.add_child(_wrapped(line[0], 16, line[1]))
 	if compare.has("diffs"):
 		var heading := _label(Lang.t("Vergleich"), 16, game.GOLD)
 		heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -453,7 +455,7 @@ func _compare_card(compare: Dictionary) -> Control:
 			var arrow := ItemIcon.make("kind:up" if diff[0] else "kind:down", 13, true)
 			arrow.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			row.add_child(arrow)
-			row.add_child(_label(diff[1], 15, GREEN if diff[0] else RED))
+			row.add_child(_label(diff[1], 16, GREEN if diff[0] else RED))
 			box.add_child(row)
 	return card
 
@@ -637,9 +639,6 @@ func _button(text: String, action: Callable, enabled: bool, min_size: Vector2, f
 	b.custom_minimum_size = min_size
 	b.add_theme_font_size_override("font_size", font_size)
 	b.disabled = not enabled
-	if not enabled:
-		b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.3))
-		b.add_theme_stylebox_override("disabled", b.get_theme_stylebox("normal"))
 	return b
 
 

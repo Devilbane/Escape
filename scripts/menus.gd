@@ -27,6 +27,8 @@ var _fit_queued := false
 const RETURN_TEXT_WIDTH := 700
 var _selected := -1
 var _note := ""
+## True while the player moves through the window with the keys (see _input).
+var _keys := false
 ## The craft of the workbench whose window is open (see CraftingSquare).
 var bench := ""
 ## The master whose wish window is open (see Wishes), by role letter.
@@ -77,6 +79,7 @@ const SHORTCUTS := [
 	["Schwere Steinblöcke schieben", "E neben dem Block, oder ihn kurz anklicken; ziehen lässt ihn geradeaus rutschen"],
 	["Zoom", "+ und −, Mausrad"],
 	["Spiel beenden", "Esc"],
+	["In Fenstern wählen", "Pfeiltasten oder Tab, Eingabe drückt den Knopf, Esc schließt"],
 ]
 
 
@@ -189,6 +192,7 @@ func open(kind: String) -> void:
 	trade.reset()
 	_selected = -1
 	_note = ""
+	_use_keys(false)
 	game.set_world_paused(true)
 	_holder.visible = true
 	_rescale = true
@@ -210,6 +214,7 @@ func close() -> void:
 
 
 func _rebuild() -> void:
+	var focused := _focus_index()
 	for child in _box.get_children():
 		_box.remove_child(child)
 		child.queue_free()
@@ -285,7 +290,90 @@ func _rebuild() -> void:
 		close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		close_button.custom_minimum_size = Vector2(180, 44 if current in TRADE_WINDOWS else 52)
 		_box.add_child(close_button)
+	if _keys:
+		_set_focusable(true)
+		if focused >= 0:
+			_focus_at(focused)
 	_queue_fit()
+
+
+# --- Keyboard and controller ------------------------------------------------
+#
+# The arrow keys (or the pad's cross, or Tab) move a focus over the open
+# window's buttons, and Enter (or the pad's A button) presses the focused one.
+# The focus shows only once the player uses those keys: the first arrow key
+# in a window puts it on the first button, and a mouse click takes it away
+# again, so a player with the mouse never sees a stray outline. A window
+# never opens with a button already focused: Space is also the jump key, and
+# a jump by habit must not buy or sell anything.
+
+## Keys that show the focus when no button has it yet.
+const FOCUS_KEYS := ["ui_up", "ui_down", "ui_left", "ui_right", "ui_focus_next", "ui_focus_prev"]
+
+
+func _input(event: InputEvent) -> void:
+	if current == "":
+		return
+	if event is InputEventMouseButton:
+		# A click (not the wheel, which only scrolls) hides the focus.
+		if event.pressed and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE]:
+			_use_keys(false)
+		return
+	if not (event is InputEventKey or event is InputEventJoypadButton or event is InputEventJoypadMotion or event is InputEventAction):
+		return
+	if _focus_index() >= 0 or not FOCUS_KEYS.any(func(a): return event.is_action_pressed(a)):
+		return
+	var focus_owner := _box.get_viewport().gui_get_focus_owner()
+	if focus_owner != null and focus_owner.is_visible_in_tree() and not (focus_owner is BaseButton):
+		return # a text field keeps its arrow keys
+	_use_keys(true)
+	_focus_at(0)
+	_box.get_viewport().set_input_as_handled()
+
+
+func _use_keys(on: bool) -> void:
+	if _keys == on:
+		return
+	_keys = on
+	_set_focusable(on)
+
+
+## The window's buttons in reading order, the ones that can be pressed.
+func _focusables() -> Array:
+	var out := []
+	for b in _box.find_children("*", "BaseButton", true, false):
+		if b.is_visible_in_tree() and not b.disabled:
+			out.append(b)
+	return out
+
+
+func _set_focusable(on: bool) -> void:
+	for b in _box.find_children("*", "BaseButton", true, false):
+		if on and b.is_visible_in_tree() and not b.disabled:
+			b.focus_mode = Control.FOCUS_ALL
+		else:
+			if b.has_focus():
+				b.release_focus()
+			b.focus_mode = Control.FOCUS_NONE
+
+
+## Where the focus is among the window's buttons, or -1.
+func _focus_index() -> int:
+	if _box == null:
+		return -1
+	var focus_owner := _box.get_viewport().gui_get_focus_owner()
+	if focus_owner == null or not _box.is_ancestor_of(focus_owner):
+		return -1
+	return _focusables().find(focus_owner)
+
+
+func _focus_at(index: int) -> void:
+	var list := _focusables()
+	if list.is_empty():
+		return
+	var b: Control = list[clampi(index, 0, list.size() - 1)]
+	b.focus_mode = Control.FOCUS_ALL
+	b.grab_focus()
 
 
 # --- Building blocks ------------------------------------------------------
@@ -336,9 +424,6 @@ func _item_button(text: String, action: Callable, enabled := true, id := "") -> 
 	b.custom_minimum_size = Vector2(160, 54)
 	b.add_theme_font_size_override("font_size", 16)
 	b.disabled = not enabled
-	if not enabled:
-		b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.3))
-		b.add_theme_stylebox_override("disabled", b.get_theme_stylebox("normal"))
 	return b
 
 

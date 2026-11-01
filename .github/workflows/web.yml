@@ -84,6 +84,11 @@ jobs:
           timeout 400 ~/godot/godot --headless --fixed-fps 60 -s tests/fox.gd | tee fox.log
           grep -q PASS fox.log
 
+      - name: Waking up in bed after loading test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wake_up.gd | tee wake.log
+          grep -q PASS wake.log
+
       - name: Graveyard start after the escape test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/graveyard_start.gd | tee graveyard.log
@@ -108,6 +113,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/merchant_window.gd | tee merchant_window.log
           grep -q PASS merchant_window.log
+
+      - name: Window buttons, hover and keyboard focus test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/window_buttons.gd | tee window_buttons.log
+          grep -q PASS window_buttons.log
 
       - name: Villager quests test
         run: |

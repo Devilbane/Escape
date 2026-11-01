@@ -31,6 +31,7 @@ The game can be played in English or German; you choose the language on the titl
 | Quit game | Esc | “Quit” button, top right |
 | Sound on/off | M | “Sound” button, top right |
 | Music on/off, music volume | | “Music” button and the volume slider in the pull-out menu (Tab) |
+| Choose in a window | arrow keys or Tab, then Enter; Esc closes | click the button |
 | Zoom | + and − | mouse wheel (up close the camera tilts and you see the face) |
 
 A jump from a run keeps its momentum: the faster you are, the farther you fly.

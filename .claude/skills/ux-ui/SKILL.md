@@ -421,7 +421,7 @@ Based on WCAG 2.2 and the Game Accessibility Guidelines (gameaccessibilityguidel
 
 - No action requires precise timing in a menu. Hold-to-confirm or double-click are never the only
   way.
-- All windows can be used with the mouse alone and (goal, see Known gaps) with the keyboard alone.
+- All windows can be used with the mouse alone and with the keyboard alone (see section 11).
 - Key bindings listed in the compendium; avoid chords that need two hands on the mouse and keyboard
   at once for menu work.
 
@@ -560,9 +560,12 @@ The merchant window is the reference pattern for every list-with-details screen.
   (`mouse_default_cursor_shape = CURSOR_POINTING_HAND`), the wheel scrolls lists.
 - **Touch (browser version):** no hover; targets 44 px+; no right click or double click as the only
   way; enough space between targets (8 px+).
-- **Keyboard:** Esc closes, Enter/Space activates, Tab or arrow keys move focus in windows. The
-  standard actions `ui_accept`, `ui_cancel`, `ui_up` / `ui_down` / `ui_left` / `ui_right` should
-  work in every window (see Known gaps).
+- **Keyboard:** Esc closes, Enter activates, Tab or arrow keys move focus in windows. `Menus`
+  does this for every window: the first arrow key (or Tab, or the pad's cross) puts a white focus
+  outline on the window's first button, a mouse click takes it away again, and a rebuild keeps it on
+  the same button. A window never opens with a button already focused, because Space is also the
+  jump key and a jump by habit must not buy anything. New windows get this for free as long as their
+  buttons come from `_make_button` and sit in `Menus._box`.
 - **Controller:** if added, everything that works with the keyboard must work with the pad; focus
   moves predictably in a grid (set `focus_neighbor_*` where Godot guesses wrong); the first useful
   element gets focus when a window opens (`grab_focus()`); show the pad's button glyphs instead of
@@ -597,7 +600,8 @@ Use these helpers and values; do not re-create them.
 | Fitting the screen | `Menus._fit` | Every window fits the screen: when it opens (and when the screen changes size) it shrinks to fit, down to `MIN_SCALE` 0.8, and beyond that its content scrolls. Still keep windows within 1280 × 720 at scale 1: long lists go into a fixed scroll region of their own. `tests/windows_fit_screen.gd` checks every window. |
 | Opening/closing | `Menus.open(kind)` / `Menus.close()` | Pauses and resumes the world, resets per-visit state. |
 | Labels | `game._make_label(font, size, color)` | Adds outline and shadow; mouse ignored. |
-| Buttons | `game._make_button(text, action)` | 118 × 64 default, `TEXT_FONT` 20, gold text, radius 14. Close buttons 180 × 52; dialog buttons 220 × 60. |
+| Buttons | `game._make_button(text, action, on_press = false)` | 118 × 64 default, `TEXT_FONT` 18, gold text, radius 14. Close buttons 180 × 52; dialog buttons 220 × 60. Hover: bright gold border, lighter background and text, hand cursor. Pressed: dark amber. Disabled: dimmed. Focus: white outline outside the border. Acts on release; `on_press = true` only for the drawer's game actions. Do not override these states per button. |
+| Keyboard focus | `Menus._input`, `_focusables`, `_focus_at` | Arrow keys or Tab show the focus in the open window, a click hides it, `_rebuild` keeps it. Buttons stay `FOCUS_NONE` outside windows, so a key never presses a HUD button. |
 | Merchant / list-with-details | `TradeWindow` (`scripts/trade_window.gd`) | Sections, rows 350 × 60, cards 290 wide, list height 400. |
 | Book pages | `Menus._book_column`, `BOOK_COLUMN` = 470 | Compendium, recipes, quest log, reputation. |
 | Item pictures | `ItemIcon.make(id_or_kind, size, flat)` | Use `kind:*` icons (coin, chev_up, chev_down, up, …) for UI symbols. |
@@ -669,24 +673,24 @@ Copy this into the pull request description for UI work and tick what applies.
 An honest list of where the game today does not yet meet this guide, so they are not copied into
 new work and can be fixed over time. Fix them when touching that code, in their own commit.
 
-Items 1 and 2 are fixed by PR #143 (fixed two-column frame, cards always in place); remove them
-from this list once it is merged, and do not fix them again.
+Fixed so far (do not fix again): the trade window's fixed list height and two-column list
+(PR #143); the hover, pressed, disabled and focus states of `_make_button`, keyboard focus in
+windows, window buttons acting on release, and 16 px for prices and comparisons in the trade window
+(the "window buttons" PR, tested by `tests/window_buttons.gd`).
 
-1. **Trade window list height follows its content.** `TradeWindow.build` sets the scroll height to
-   `minf(height, LIST_HEIGHT)`, so folding categories shrinks the window and unfolding grows it.
-   Rule 5.1.1 says the region should keep a fixed height while the window is open.
-2. **Picking a trade row changes the list from two columns to one.** The rows move under the
-   pointer. Rule 5.1.4 prefers reserving the card space (or showing the cards over the right column)
-   so the list keeps its columns.
-3. **No hover state on standard buttons.** `game._make_button` uses the same style for "normal" and
-   "hover". Section 6 asks for a visible hover state.
-4. **No keyboard or controller focus in windows.** Buttons and sliders set
-   `focus_mode = FOCUS_NONE`. Section 11 asks for focus navigation with a visible focus outline.
-5. **Small text in places.** Counts, fine print and the version label use 14 to 15 px, some at low
-   alpha; check that nothing needed for a decision is among them.
-6. **Buttons fire on `button_down`.** Activating on press, not release, means a click cannot be
-   cancelled by dragging off the button. Fine for game actions in the drawer; for window buttons
-   that change things (Buy, Sell, Delete) prefer `pressed`.
+1. **The character wheel draws small text.** `CharacterPage` draws attribute names, skill levels
+   and roll chances at 9 to 12 px so they fit inside the wheel (540 px across). That is below the
+   14 px minimum. Fixing it needs a visual pass on the wheel's layout (a bigger wheel, fewer words
+   per sector, or details on hover and tap), checked in screenshots, not just bigger numbers.
+2. **Trade rows and folding headers take no keyboard focus.** With the keys, the player reaches
+   each row's button (which shows that row's cards) but cannot pick a row or fold a category.
+   Categories always open unfolded, so nothing is out of reach, but a focusable row and header
+   would match the mouse.
+3. **Fine print stays at 14 to 15 px.** Counts in category headers, the "sold out" note on a
+   dimmed row, the worn item's subtitle and the version label. None of them is needed for a
+   decision; keep it that way.
+4. **Rows' in-row buttons are 36 px high.** Below the 44 px touch target. They sit inside a row
+   that is itself clickable (60 px), so a tap still lands, but a taller row would be safer on touch.
 
 ---
 

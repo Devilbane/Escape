@@ -37,7 +37,7 @@ signal coins_collected(amount: int)
 signal door_opened
 signal door_locked
 signal player_hurt
-signal enemy_killed
+signal enemy_killed(enemy: Enemy)
 signal exit_reached
 signal item_collected(id: String)
 signal bag_full
@@ -1567,7 +1567,7 @@ func _spawn_enemies() -> void:
 				if e.kind == "waechter":
 					e.watch(_guarded_spot())
 				e.died.connect(func():
-					enemy_killed.emit()
+					enemy_killed.emit(e)
 					_drop_gear(e)
 					# A guardian on a level without a key carries it.
 					if e.kind == "waechter" and not has_key and not _has_cell("K"):
@@ -1594,12 +1594,15 @@ func _guarded_spot() -> Vector3:
 	return Vector3.ZERO
 
 
-func _roll_gear(kind: String, c: Vector2i) -> Array[String]:
+## `chance` overrides the usual odds per piece, and `salt` tells one roll
+## from the next on the same tile (a bandit that comes back after a fall).
+func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[String]:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("%s:gear:%d:%d" % [level_name, c.x, c.y])
+	rng.seed = hash("%s:gear:%d:%d:%d" % [level_name, c.x, c.y, salt]) if salt > 0 else hash("%s:gear:%d:%d" % [level_name, c.x, c.y])
 	var gear: Array[String] = []
-	var chance := GEAR_CHANCE + GEAR_CHANCE_PER_LEVEL * depth
-	for i in (3 if kind == "koloss" else 2):
+	if chance < 0.0:
+		chance = GEAR_CHANCE + GEAR_CHANCE_PER_LEVEL * depth
+	for i in (3 if kind in ["koloss", "hauptmann"] else 2):
 		if rng.randf() >= chance:
 			continue
 		for attempt in 6:
@@ -1611,16 +1614,33 @@ func _roll_gear(kind: String, c: Vector2i) -> Array[String]:
 	return gear
 
 
-func _drop_gear(e: Enemy) -> void:
+func _drop_gear(e: Enemy, chance := DROP_CHANCE) -> void:
 	var spot := e.global_position
 	var delay := 0.0
 	for id in e.gear:
-		if randf() < DROP_CHANCE:
+		if randf() < chance:
 			_drop_item(id, spot)
 			# It clatters onto the floor, one piece after the other.
 			Sfx.play_gear(self, id, delay, spot)
 			delay += 0.3
 			spot += Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
+
+
+## Gold coins spilt from a fallen bandit's purse, scattered around the spot.
+## Unlike the coins placed by the map they have no id: once picked up they
+## are simply gone, and a reload does not bring them back.
+func _drop_coins(pos: Vector3, amount: int) -> void:
+	for i in amount:
+		var holder := Node3D.new()
+		var angle := randf() * TAU
+		holder.position = Vector3(pos.x, 0.03, pos.z) + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.5, 1.4)
+		holder.rotation.y = randf() * TAU
+		add_child(holder)
+		var coin := _place("coin", Vector3.ZERO, 0.0, holder)
+		coin.scale = Vector3.ONE * 1.6
+		_pickups.append({"node": holder, "kind": "coin", "radius": 1.5})
+	if amount > 0:
+		Sfx.play_coins(self, amount, 0.3, pos)
 
 
 ## A worn piece left on the floor, glowing until the hero walks over it.

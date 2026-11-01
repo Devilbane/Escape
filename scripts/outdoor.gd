@@ -16,6 +16,11 @@ extends Level
 ##   Buildings, each a rectangular block of the same letter:
 ##   h  house (half-timbered, see VillageHouse)   j  smithy   n  tavern   m  market   u  windmill
 ##   y  pumpkin field
+##   %  Weavers' Lane: a row of narrow three-storey town houses, one per
+##      tile across the front (see VillageHouse.build_narrow), numbered from
+##      west to east. Every one is a home for a hero (see Homes), entered by
+##      its own door; inside, all of them share the building floor with the
+##      line "building: %" (bed, chest, stairs and room for furniture).
 ##   The hero's house: I  stone wall   i  wooden floor (a gap in the
 ##   walls is the door)   B  bed (save and log out)   L  chest (storage)
 ##   :  paved square         F  fountain (heals)   x  bench
@@ -60,7 +65,7 @@ const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
-const BLOCK_CHARS := "RhjnmuskowbE"
+const BLOCK_CHARS := "RhjnmuskowbE%"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
 	"m": "building_market_green", "u": "building_windmill_red",
@@ -166,6 +171,8 @@ var met := {}
 var home_spot := Vector3.ZERO
 ## Fronts of the village buildings: where villagers walk to.
 var spots := {"houses": [], "square": [], "well": []}
+## The narrow town houses of Weavers' Lane, by number - 1 (see _build_terrace).
+var town_houses: Array[Node3D] = []
 
 var _plants := {}
 var _house_rect := Rect2i()
@@ -753,6 +760,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch == "E":
 		_build_lair_entrance(block)
 		return
+	if ch == "%":
+		_build_terrace(block)
+		return
 	var facing := _block_facing(block) if ch != "R" else Vector2i(0, 1)
 	var rot := atan2(float(facing.x), float(facing.y))
 	var turned := facing.x != 0
@@ -815,6 +825,38 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		_put("crate_long_A", front + side - Vector3(facing.x, 0, facing.y) * 1.0, rot, PROP_SCALE)
 		_put("crate_open", front - side - Vector3(facing.x, 0, facing.y) * 1.0, rot + 0.3, PROP_SCALE)
 	node.set_meta("block", block)
+
+
+## Weavers' Lane: the block is split into one narrow town house per tile
+## along its front, wall to wall, each with its own number, door and colours.
+## Every door leads into the hero homes' building floor (see Homes).
+func _build_terrace(block: Rect2i) -> void:
+	var facing := _block_facing(block)
+	var rot := atan2(float(facing.x), float(facing.y))
+	var across := Vector2i(absi(facing.y), absi(facing.x))
+	var count := block.size.x if across.x != 0 else block.size.y
+	var deep := block.size.y if across.x != 0 else block.size.x
+	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
+	# Numbered from west to east (or north to south).
+	var step := Vector3(across.x, 0, across.y) * TILE
+	var first := center - step * (count - 1) * 0.5
+	var out := Vector3(facing.x, 0, facing.y)
+	for i in count:
+		var number := i + 1
+		var at := first + step * i
+		var house := VillageHouse.build_narrow(Vector2(TILE, deep * TILE * 0.92), number, _rng, _house_glass())
+		house.position = at
+		house.rotation.y = rot
+		house.set_meta("block", block)
+		add_child(house)
+		town_houses.append(house)
+		var door := at + Vector3(float(house.get_meta("door_x")), 0, 0).rotated(Vector3.UP, rot) + out * deep * TILE * 0.5
+		doors["%" + str(number)] = door + out * 2.0
+		if interiors.has("%"):
+			stations.append({"kind": "eingang", "building": "%", "house": number, "reach": 1.6,
+					"name": Lang.t("das Haus Nr. %d") % number,
+					"cell": world_to_cell(door - out * 0.5), "pos": door, "used": false})
+	_add_solid(center, Vector3(block.size.x * TILE, 4, block.size.y * TILE) * Vector3(1.0 if across.x != 0 else 0.86, 1, 1.0 if across.y != 0 else 0.86))
 
 
 ## The way down into the dragon's lair: an old stone arch from Quaternius'
@@ -1453,13 +1495,21 @@ func beasts_alive() -> int:
 ## Bumping into a villager: they walk around, so their tile is not enough.
 ## A door is hit anywhere along the front of its building.
 func station_at(point: Vector3) -> Dictionary:
+	# Doors of the town houses stand close together: the nearest one counts.
+	var door := {}
+	var door_distance := INF
 	for s in stations:
 		if s.has("npc") and s.npc.at_home:
 			continue
 		if s.has("npc") and _flat_distance(point, s.pos) < 1.6:
 			return s
-		if s.kind == "eingang" and _flat_distance(point, s.pos) < 2.4:
-			return s
+		if s.kind == "eingang":
+			var d := _flat_distance(point, s.pos)
+			if d < s.get("reach", 2.4) and d < door_distance:
+				door = s
+				door_distance = d
+	if not door.is_empty():
+		return door
 	return super(point)
 
 

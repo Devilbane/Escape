@@ -914,25 +914,38 @@ func can_use(requires: Dictionary) -> bool:
 	return true
 
 
+## How many items the bag holds: a worn backpack makes room for more.
+func bag_size() -> int:
+	return Items.bag_size(equipped.get("rucksack", ""))
+
+
 ## Moves a bag item into its slot; whatever was worn there goes into the bag.
-## Items the hero is not yet able to use stay in the bag, and so do books.
-func equip(id: String) -> void:
+## Items the hero is not yet able to use stay in the bag, and so do books,
+## and so does a smaller backpack that could not hold everything carried.
+## Returns whether the item was put on.
+func equip(id: String) -> bool:
 	if Items.is_book(id) or not can_use(Items.ALL[id].get("requires", {})):
-		return
+		return false
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":
 		# Two places for specials: take a free one, else swap out the first.
 		slot = "spezial_2" if equipped.has("spezial_1") and not equipped.has("spezial_2") else "spezial_1"
+	var after := bag.size() - 1 + (1 if equipped.has(slot) else 0)
+	if slot == "rucksack" and after > Items.bag_size(id):
+		return false
 	bag.erase(id)
 	if equipped.has(slot):
 		bag.append(equipped[slot])
 	equipped[slot] = id
 	refresh_stats()
+	return true
 
 
-## Takes off a worn item. False when the bag has no room for it.
+## Takes off a worn item. False when the bag has no room for it (without
+## the backpack, when that is what comes off).
 func unequip(slot: String) -> bool:
-	if not equipped.has(slot) or bag.size() >= Items.BAG_SIZE:
+	var room := Items.BAG_SIZE if slot == "rucksack" else bag_size()
+	if not equipped.has(slot) or bag.size() >= room:
 		return false
 	bag.append(equipped[slot])
 	equipped.erase(slot)

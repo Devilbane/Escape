@@ -43,6 +43,9 @@ Gifts last until the end of the game.
 
 Sometimes you find **gear**: helmets and hats (bone helmet, wizard hat, knight's helmet, bear cap) sit visibly on your head, sword and axe give power, shields give life,
 amulets give speed, power or life. In the **inventory** (key I) you put them on or throw them away.
+Your bag holds 8 things. A **backpack** worn in its own slot makes room for more: canvas backpack 10,
+leather backpack 11, large backpack 12. The bigger the backpack, the rarer it is. You can only take off a
+backpack, or swap it for a smaller one, while everything you carry still fits.
 Hard armour (knight's helmet, crest shield, chain mail, plate armour) has **hardening**: it takes a fixed amount off every
 hit (at least 1 damage always gets through). Every hit has a 5 % chance to wear off one point of
 **durability**; once that is used up, the piece breaks.

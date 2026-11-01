@@ -159,6 +159,8 @@ var _clock := 0.0
 ## (fall and getting up), during which the hero takes no more damage.
 var _falling := 0.0
 var _down := 0.0
+## How often the hero has been knocked down this game.
+var knockdowns := 0
 
 
 func _ready() -> void:
@@ -1014,6 +1016,7 @@ func _note_run_hit(amount: int) -> bool:
 ## Knocks the hero to the ground: they fall over backwards, lie a moment and
 ## get up again. No blow lands while they are down.
 func _knock_down() -> void:
+	knockdowns += 1
 	_run_hits.clear()
 	_since_run = INF
 	run_boost = 1.0

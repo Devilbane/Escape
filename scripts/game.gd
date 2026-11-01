@@ -36,12 +36,19 @@ var player: Player
 var camera: Camera3D
 var _env: Environment
 var _moon: DirectionalLight3D
+## The time of day above ground, in hours (see DayNight). Saved with the game.
+var day_hour := DayNight.START_HOUR
+## The clock as the HUD shows it right now.
+var _clock_shown := ""
 var _ambience: AudioStreamPlayer
 ## Set once the hero has stepped out of the crypt into the open air: the run
 ## is in the ranking as an escape, and goes on in the village.
 var escaped := false
 ## Whether the village elder has given the hero a house.
 var home_given := false
+## Set once the hero has walked into that house and made it their own: from
+## then on it is where every saved game starts.
+var home_claimed := false
 ## The villagers the hero has talked to, by role letter -> true. Once met,
 ## a villager wears their name over their head. Kept in the saved game.
 var met := {}
@@ -244,16 +251,11 @@ func _setup_world() -> void:
 	add_child(dust)
 
 
-## Dark dungeon air or a golden autumn evening in the open.
+## Dark dungeon air, or in the open the sky of the hour (see DayNight:
+## by day the warm autumn light, at night a cool blue moonlight).
 func _set_atmosphere(outdoor: bool) -> void:
 	if outdoor:
-		_env.background_color = Color(0.5, 0.46, 0.57)
-		_env.ambient_light_color = Color(0.7, 0.68, 0.78)
-		_env.ambient_light_energy = 0.52
-		_env.adjustment_saturation = 0.95
-		_moon.rotation_degrees = Vector3(-38, -35, 0)
-		_moon.light_color = Color(1.0, 0.8, 0.6)
-		_moon.light_energy = 0.88
+		DayNight.apply(_env, _moon, day_hour)
 	else:
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
@@ -880,6 +882,9 @@ func _update_run_meter() -> void:
 
 func _update_hud() -> void:
 	_level_label.text = Lang.t(level.level_name) if level.outdoor or level.building != "" else Lang.t("Ebene %d: %s") % [level_index + 1, Lang.t(level.level_name)]
+	_clock_shown = _clock_text()
+	if _clock_shown != "":
+		_level_label.text += "    " + _clock_shown
 	_hp_label.text = Lang.t("Leben: %d / %d") % [maxi(0, player.hp), player.max_hp]
 	if player.hardening > 0:
 		_hp_label.text += "    " + Lang.t("Härtung %d") % player.hardening
@@ -900,6 +905,29 @@ func _update_hud() -> void:
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
 
 
+## The time of day for the HUD, e.g. "21:30, night", above ground only.
+func _clock_text() -> String:
+	if level == null or not (level.outdoor or level.building != ""):
+		return ""
+	return "%s, %s" % [DayNight.clock_text(day_hour), Lang.t(DayNight.part_of_day(day_hour))]
+
+
+## The world's clock runs while the hero is above ground (in the open or in
+## a village building) and the world is not paused; the open air is lit for
+## the hour. Down in the dungeon time stands still.
+func _tick_clock(delta: float) -> void:
+	if level == null or not (level.outdoor or level.building != ""):
+		return
+	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
+		day_hour = DayNight.advance(day_hour, delta)
+	if level.outdoor:
+		DayNight.apply(_env, _moon, day_hour)
+		if level is Outdoor:
+			level.set_hour(day_hour)
+	if _clock_text() != _clock_shown:
+		_update_hud()
+
+
 # --- Flow -------------------------------------------------------------------
 
 func load_level(index: int, restock := true) -> void:
@@ -918,9 +946,11 @@ func load_level(index: int, restock := true) -> void:
 	level.built = builds[file]
 	level.hero = hero_name
 	if level is Outdoor:
+		# Bandits who take their spots at night are tougher (see Outdoor.set_hour).
+		level.night = DayNight.is_night(day_hour)
 		level.interiors = interiors
 		level.house_given = home_given
-		level._entered_once = home_given
+		level._entered_once = home_claimed
 		level.met = met
 	level.secret_bonus = secrets_found
 	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
@@ -951,10 +981,13 @@ func load_level(index: int, restock := true) -> void:
 	level.exit_reached.connect(_on_exit_reached)
 	if level is Outdoor:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
+		level.home_claimed.connect(_on_home_claimed)
 		level.food_basket.connect(_eat_from_basket)
 	_pending_crate = null
 	_end_drag()
 	_set_atmosphere(level.outdoor)
+	if level is Outdoor:
+		level.set_hour(day_hour)
 	_pending_search = {}
 	_pending_station = {}
 	if level.safe and restock:
@@ -1123,6 +1156,8 @@ func _start_new_game() -> void:
 	_name_edit.release_focus()
 	coins = 0
 	escaped = false
+	home_given = false
+	home_claimed = false
 	secrets_found = 0
 	dry_levels = 0
 	looted.clear()
@@ -1132,6 +1167,7 @@ func _start_new_game() -> void:
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
+	day_hour = DayNight.START_HOUR
 	player.knives = 5
 	player.set_sex(_new_sex)
 	player.set_hair(HairLook.DEFAULT)
@@ -1276,7 +1312,7 @@ func save_info(path := "") -> Dictionary:
 	# Games saved before there were several have no time of their own.
 	var time := float(data.get("saved_at", FileAccess.get_modified_time(path)))
 	return {"path": path, "name": str(data.get("name", Lang.t("Namenlos"))), "level": int(data.level) + 1, "coins": int(data.coins),
-			"escaped": bool(data.get("escaped", false)), "time": time}
+			"escaped": bool(data.get("escaped", false)), "home": bool(data.get("claimed", false)), "time": time}
 
 
 ## Every saved game there is, the one saved last first.
@@ -1338,6 +1374,7 @@ func _apply_save(data: Dictionary) -> void:
 				builds[str(file)] = (saved_builds[file] as Array).filter(func(e): return e is Array and e.size() >= 4)
 	escaped = bool(data.get("escaped", false))
 	home_given = bool(data.get("home", false))
+	home_claimed = home_given and bool(data.get("claimed", false))
 	met.clear()
 	var saved_met = data.get("met", [])
 	if saved_met is Array:
@@ -1349,14 +1386,16 @@ func _apply_save(data: Dictionary) -> void:
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
 	player.refresh_stats()
+	# Games saved before there was a clock wake up in the morning.
+	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
 	if escaped and _outdoor_index() >= 0:
-		# Out of the dungeon, the graveyard is the new starting point: every
-		# load begins in the open air, wherever the game was saved.
+		# Out of the dungeon, every load begins in the open air, wherever the
+		# game was saved: on the graveyard, or in the hero's own house.
 		index = _outdoor_index()
 	load_level(index, false)
-	if level is Outdoor and home_given and data.get("spot", "") == "home" and level.home_spot != Vector3.ZERO:
-		# Up from the bed in the hero's own house, where they went to sleep.
+	if level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
+		# The hero's own house is the place to come back to: next to the bed.
 		player.global_position = level.home_spot
 	player.hp = clampi(int(data.hp), 1, player.max_hp)
 	player.cure()
@@ -1444,14 +1483,12 @@ func save_game(going_away := false) -> bool:
 		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
-		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(),
+		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
+		"hour": day_hour,
 	}
-	if going_away and level is Outdoor:
-		# Asleep in the bed of the hero's own house: wake up there.
-		data.spot = "home"
 	if going_away:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
 	var path := save_path(hero_name)
@@ -1484,6 +1521,9 @@ func _looted_for_save() -> Dictionary:
 
 ## The hero lies down in the safe room's bed: save, then back to the title.
 func sleep() -> void:
+	# A night in the bed: the hero wakes up the next morning.
+	if level.outdoor or level.building != "":
+		day_hour = DayNight.WAKE_HOUR
 	var saved := save_game(true)
 	# Say so at once, so nobody has to wonder whether the save went through.
 	show_message(Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"), 2.4)
@@ -2028,8 +2068,10 @@ func _end_run(escaped: bool) -> void:
 		_show_title(Lang.t("Frei!"), Lang.t("%s ist entkommen und hat %d Gold erbeutet.") % [hero_name, coins], Lang.t("Klicken für ein neues Spiel"))
 	elif has_save_of(hero_name):
 		# A fallen hero may rise again in the safe room, or once out of the
-		# dungeon, on the graveyard.
-		var place := Lang.t("Klicken oder eine Taste: ab dem Friedhof weiterspielen.  N: neues Spiel") if save_info().escaped \
+		# dungeon, on the graveyard or in their own house.
+		var info := save_info()
+		var place := Lang.t("Klicken oder eine Taste: in deinem Haus weiterspielen.  N: neues Spiel") if info.home \
+				else Lang.t("Klicken oder eine Taste: ab dem Friedhof weiterspielen.  N: neues Spiel") if info.escaped \
 				else Lang.t("Klicken oder eine Taste: ab der Zuflucht weiterspielen.  N: neues Spiel")
 		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], place)
 	else:
@@ -2108,7 +2150,8 @@ func _step_out_of_crypt() -> void:
 	var healed := player.max_hp - player.hp
 	player.hp = player.max_hp
 	# Saved at once, before the walk out: from now on every load starts here,
-	# on the graveyard in front of the crypt door.
+	# on the graveyard in front of the crypt door (or in the hero's house,
+	# once they have one).
 	var saved := save_game()
 	player.global_position = start + Vector3(0, 0, -3.2)
 	player.face(Vector3.BACK)
@@ -2129,6 +2172,18 @@ func _step_out_of_crypt() -> void:
 		get_tree().create_timer(4.8).timeout.connect(func():
 			if state == State.PLAYING:
 				show_message(text, 3.5)))
+
+
+## The hero has walked into the house the elder gave and made it their own:
+## it is the new place to come back to, saved at once.
+func _on_home_claimed() -> void:
+	home_claimed = true
+	home_given = true
+	var saved := save_game()
+	var text := Lang.t("Dein Haus ist jetzt dein Startpunkt. Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")
+	get_tree().create_timer(4.2).timeout.connect(func():
+		if state == State.PLAYING:
+			show_message(text, 3.0))
 
 
 ## Walks in at a village building's door, to its own floor.
@@ -2224,6 +2279,7 @@ func _guardian_intro() -> void:
 
 func _process(delta: float) -> void:
 	_eerie(delta)
+	_tick_clock(delta)
 	# A skeleton on the hero's heels keeps the fight going, and a hero who
 	# has been spotted cannot stay hidden.
 	if state == State.PLAYING and level and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):

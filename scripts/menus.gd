@@ -804,7 +804,9 @@ func _save_row(info: Dictionary, playing: bool) -> Control:
 	row.add_child(text)
 	var where: Label = game._make_label(game.TEXT_FONT, 22)
 	where.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	if info.escaped:
+	if info.home:
+		where.text = Lang.t("%s zu Hause mit %d Gold.") % [info.name, info.coins]
+	elif info.escaped:
 		where.text = Lang.t("%s auf dem Friedhof mit %d Gold.") % [info.name, info.coins]
 	else:
 		where.text = Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins]

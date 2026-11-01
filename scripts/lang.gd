@@ -23,6 +23,9 @@ const EN := {
 	"Klicken oder eine Taste: ab der Zuflucht weiterspielen.  N: neues Spiel": "Click or press a key to continue from the refuge.  N: new game",
 	"%s auf Ebene %d mit %d Gold.": "%s on level %d with %d gold.",
 	"%s auf dem Friedhof mit %d Gold.": "%s on the graveyard with %d gold.",
+	"%s zu Hause mit %d Gold.": "%s at home with %d gold.",
+	"Klicken oder eine Taste: in deinem Haus weiterspielen.  N: neues Spiel": "Click or press a key to continue in your house.  N: new game",
+	"Dein Haus ist jetzt dein Startpunkt. Spiel gespeichert.": "Your house is your starting point now. Game saved.",
 	"Klicken oder eine Taste: ab dem Friedhof weiterspielen.  N: neues Spiel": "Click or press a key to continue from the graveyard.  N: new game",
 	"Was du seitdem erlebt hast, geht verloren.": "Everything since then will be lost.",
 	"Neues Spiel": "New game",
@@ -662,6 +665,14 @@ const EN := {
 	"Für Zecher Fritz im Wirtshaus": "For Fritz the drinker at the tavern",
 	"Wassereimer": "Bucket of water",
 	"Für Priesterin Elsbeth am Tempel": "For Elsbeth the priestess at the temple",
+	# Day and night
+	"Nacht": "night",
+	"Morgengrauen": "dawn",
+	"Morgen": "morning",
+	"Tag": "day",
+	"Abend": "evening",
+	"Die Nacht bricht herein. Das Dorf geht schlafen, und auf dem Friedhof regen sich die Toten.": "Night falls. The village goes to sleep, and in the graveyard the dead stir.",
+	"Ein neuer Tag bricht an. Die Toten kehren in ihre Gräber zurück.": "A new day dawns. The dead return to their graves.",
 }
 
 ## "de" or "en"; empty until the player has chosen.

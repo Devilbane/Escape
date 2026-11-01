@@ -278,6 +278,12 @@ a pack of quick **wolves**, **spiders** whose bite can poison, two **orcs** that
 while after they fall. A wolf or a spider leaves little more than a coin or two; orcs and the yeti carry
 more gold and sometimes a piece of gear.
 
+The woods between the graveyard and the village are home to peaceful animals: **does**, **stags** and
+**foxes** graze and stroll on the meadows by the path. They never fight and cannot be hurt, and they
+never stand in your way, but they are shy: come within about ten metres and they bolt, galloping off
+across their meadow. **Sneak** and you get much closer before they notice. Once you are gone they
+calm down and go back to grazing.
+
 By the campfire waits the boss of the pass: **Ravenheart, the bandit chief**. Once he takes up the fight, his
 **health bar** shows at the top of the screen, with marks where his next phase begins:
 
@@ -350,7 +356,7 @@ It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `
 `t` tree stump, `e` barrels and crates, `q` well, `F` fountain, `x` bench, `y` pumpkin field, `N` tent,
 `f` campfire, `C` treasure chest. The bandits, who roam and come back a while after they fall: `c` cutthroat,
 `A` poacher, `X` bruiser, `Q` bandit chief; the beasts of the wolf hollow, who do the same: `W` wolf,
-`H` orc, `J` yeti, `U` spider. Buildings are a
+`H` orc, `J` yeti, `U` spider; the peaceful animals of the woods: `D` doe, `V` stag, `&` fox. Buildings are a
 rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general store, `u` windmill,
 `s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank. The hero's house:
 `I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The villagers: `0` elder,
@@ -380,6 +386,7 @@ entry there.
 - Wooden floor and roof tiles of the house: "Wood 062" and "Roofing Tiles 014 C" by ambientCG (CC0)
 - Floors, walls, pillars and furniture: 3D Modular Dungeon Kit by Omie's Assets (CC0)
 - Wolves, orcs, yeti and spiders: Ultimate Animated Animals, Ultimate Monsters and Easy Animated Enemy Pack by Quaternius (CC0, see `assets/wild/LICENSE.txt`)
+- Does, stags and foxes: Ultimate Animated Animals by Quaternius (CC0, see `assets/animals/LICENSE.txt`)
 - Sounds: made from scratch with `tools/make_sounds.py`; footsteps and door: recordings by Fantozzi, “Footsteps Leather, Cloth, Armor” and qubodup; creatures, skeleton voices and chains by rubberduck; crossbow shots from “Medieval sound effects - Weapon Textures” (CC0, see `assets/sounds/CREDITS.txt`)
 - Font: Cinzel and Cinzel Decorative (SIL Open Font License)
 - Comic font of the fight bubbles: Bangers by Vernon Adams (SIL Open Font License)

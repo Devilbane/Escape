@@ -330,7 +330,7 @@ func _build_ground() -> void:
 			if square.has_point(c) and not BLOCK_CHARS.contains(ch):
 				path = 1.0
 				soil = 1.0
-			var wet := 1.0 if "~%".contains(ch) else 0.0
+			var wet := 1.0 if "~;".contains(ch) else 0.0
 			var open := 0.0 if ch == "#" else 1.0
 			mask.set_pixel(x, y, Color(path, soil, wet, open))
 	# A smoother mask gives softer edges between the tiles.
@@ -514,7 +514,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_fence(c, false)
 		"a":
 			_build_fence(c, true)
-		"~", "%":
+		"~", ";":
 			_add_solid(pos, Vector3(TILE, 1, TILE))
 			fishing_waters.append({"water": "teich" if ch == "~" else "senke", "pos": pos,
 					"reach": TILE * 0.5, "round": false, "surface": 0.04})

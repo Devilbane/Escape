@@ -259,6 +259,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/wishes.gd | tee wishes.log
           grep -q PASS wishes.log
 
+      - name: Workbench crafting test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/workbench_crafting.gd | tee workbench.log
+          grep -q PASS workbench.log
+
       - name: Fishing test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/fishing.gd | tee fishing.log

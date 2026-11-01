@@ -2810,6 +2810,11 @@ func leave_lair() -> void:
 
 
 ## Training raised an attribute or a skill: say so, the attributes louder.
+## The German name of a combat skill or a craft (see Training).
+static func _skill_or_craft_name(id: String) -> String:
+	return Training.SKILLS[id].name if Training.SKILLS.has(id) else Training.CRAFTS[id].name
+
+
 func _on_player_trained(id: String, value: int) -> void:
 	var text := ""
 	match id:
@@ -2830,9 +2835,9 @@ func _on_player_trained(id: String, value: int) -> void:
 			if value == Training.WISE_SHRINE:
 				text += "\n" + Lang.t("Die Schreine zeigen dir nun eine vierte Gabe.")
 		_:
-			text = Lang.t("Du wirst geübter: %s, Stufe %d") % [Lang.t(Training.SKILLS[id].name), value]
+			text = Lang.t("Du wirst geübter: %s, Stufe %d") % [Lang.t(_skill_or_craft_name(id)), value]
 	var attribute := Training.ATTRIBUTES.has(id)
-	Effects.float_text(level, player.global_position + Vector3(0, 3.4, 0), text.get_slice(":", 1).strip_edges() if attribute else Lang.t(Training.SKILLS[id].name) + " %d" % value,
+	Effects.float_text(level, player.global_position + Vector3(0, 3.4, 0), text.get_slice(":", 1).strip_edges() if attribute else Lang.t(_skill_or_craft_name(id)) + " %d" % value,
 			GOLD if attribute else Color(0.65, 0.85, 1.0))
 	if attribute:
 		Sfx.play(self, "secret", -6.0)

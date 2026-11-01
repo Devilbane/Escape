@@ -64,6 +64,13 @@ const ALL := {
 	"kupferring": {"name": "Kupferring", "slot": "ring", "weight": 0.1, "power": 1, "price": 16},
 	"rubinring": {"name": "Rubinring", "slot": "ring", "weight": 0.1, "hp": 1, "power": 1, "price": 32},
 	"bronzearmreif": {"name": "Bronzearmreif", "slot": "armreif", "weight": 0.4, "hp": 1, "price": 12},
+	# Made at the fine metalwork bench from the wish recipes (see Crafting).
+	"klingenring": {"name": "Klingenring", "slot": "ring", "weight": 0.1, "power": 1, "skills": {"klingen": 1}, "magic": true, "price": 34, "no_loot": true, "crafted": true},
+	"axtreif": {"name": "Armreif der Axt", "slot": "armreif", "weight": 0.5, "power": 1, "skills": {"aexte": 1}, "magic": true, "price": 34, "no_loot": true, "crafted": true},
+	"schildamulett": {"name": "Amulett des Walls", "slot": "amulett", "weight": 0.3, "hp": 1, "skills": {"blocken": 1}, "magic": true, "price": 34, "no_loot": true, "crafted": true},
+	"wurfring": {"name": "Wurfring", "slot": "ring", "weight": 0.1, "speed": 0.05, "skills": {"werfen": 1}, "magic": true, "price": 34, "no_loot": true, "crafted": true},
+	"schattenamulett": {"name": "Amulett der stillen Schritte", "slot": "amulett", "weight": 0.3, "speed": 0.05, "skills": {"schleichen": 1}, "magic": true, "price": 34, "no_loot": true, "crafted": true},
+	"lastreif": {"name": "Armreif der leichten Last", "slot": "armreif", "weight": 0.3, "hp": 1, "skills": {"ruestung": 1}, "magic": true, "price": 34, "no_loot": true, "crafted": true},
 	"silberarmreif": {"name": "Silberarmreif", "slot": "armreif", "weight": 0.3, "power": 1, "speed": 0.05, "skills": {"werfen": 1}, "magic": true, "price": 27},
 	# Unique: only the bandit chief carries it, once per game (see BanditChief).
 	"rabenklinge": {"name": "Rabenklinge", "slot": "waffe", "uses": "klingen", "weight": 2.5, "power": 3, "speed": 0.05, "price": 95, "no_loot": true, "unique": true, "model": "res://assets/weapons/sword_1handed.gltf", "material": "mixed", "effect": "Einzigartig: die Klinge von Rabenherz, dem Räuberhauptmann"},
@@ -220,13 +227,13 @@ static func merchant_sells(id: String) -> bool:
 	return is_book(id) or not is_top_tier(id)
 
 
-## Whether nothing of the same slot is dearer (unique items and the
-## wandering merchant's wares left aside).
+## Whether nothing of the same slot is dearer (unique items, the wandering
+## merchant's wares and pieces made from recipes left aside).
 static func is_top_tier(id: String) -> bool:
 	var slot: String = ALL[id].slot
 	for other in ALL:
 		var item: Dictionary = ALL[other]
-		if other != id and item.slot == slot and item.price > ALL[id].price and not item.get("unique", false) and not item.get("wanderer", false):
+		if other != id and item.slot == slot and item.price > ALL[id].price and not item.get("unique", false) and not item.get("wanderer", false) and not item.get("crafted", false):
 			return false
 	return true
 

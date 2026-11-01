@@ -24,6 +24,13 @@ var _still := 0.0
 
 func _initialize() -> void:
 	seed(int(OS.get_environment("TEST_SEED")) if OS.has_environment("TEST_SEED") else 1)
+	# The bot keeps Shift held: it runs while its breath lasts and walks
+	# while it recovers, like a player who keeps the mouse button down.
+	var shift := InputEventKey.new()
+	shift.physical_keycode = KEY_SHIFT
+	shift.keycode = KEY_SHIFT
+	shift.pressed = true
+	Input.parse_input_event(shift)
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 

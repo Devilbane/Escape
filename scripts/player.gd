@@ -1,6 +1,7 @@
 class_name Player
 extends CharacterBody3D
-## The rogue. Moves with WASD / arrow keys or walks to a clicked spot,
+## The rogue. Walks with WASD / arrow keys or to a clicked spot, runs while
+## the mouse button (or Shift) is held for as long as their breath lasts,
 ## jumps, fights with a dagger up close and throws knives from afar.
 
 signal hurt(amount: int)
@@ -11,7 +12,22 @@ signal bumped(point: Vector3)
 ## Emitted when training raises an attribute or a skill, with its new value.
 signal trained(id: String, value: int)
 
+## Full running speed in m/s; walking is a share of it (WALK_FACTOR).
 const SPEED := 4.0
+## Walking pace as a share of the running speed.
+const WALK_FACTOR := 0.5
+const WALK_ANIM := "Walking_A"
+## The ground speed at which the walk animation's feet keep pace (m/s).
+const WALK_ANIM_SPEED := 1.7
+## Where in the walk cycle each foot touches the ground (left, right).
+const WALK_LANDINGS := [0.02, 0.52]
+## Seconds of running per point of Konstitution: 10 points run for 20 seconds.
+const RUN_SECONDS_PER_CON := 2.0
+## Seconds of running regained per second, per point of Konstitution: 10
+## points bring one second back every second.
+const RUN_RECOVERY_PER_CON := 0.1
+## Out of breath, the hero walks until this many seconds have come back.
+const RUN_RESTART := 1.0
 const JUMP_VELOCITY := 9.0
 const GRAVITY := 26.0
 ## How fast the feet travel over the ground in the run animation at normal
@@ -78,6 +94,14 @@ var _sidestepped := false
 ## Speed carried through the air by a running jump.
 var _air_momentum := Vector3.ZERO
 var path: Array[Vector3] = []
+## Set every frame while the player asks to run (the mouse button held).
+var wants_run := false
+## Seconds of running left; filled up on the first frame.
+var stamina := -1.0
+## Ran dry: no running until RUN_RESTART seconds have come back.
+var winded := false
+## Whether the hero is running (not walking) this frame.
+var sprinting := false
 ## Sneaking: much slower, but silent, with the lantern hooded, and see-through
 ## (more so in the dark). Skeletons cannot hear a sneaking hero.
 var sneaking := false
@@ -273,6 +297,8 @@ func revive(at: Vector3, heal := true) -> void:
 	dead = false
 	if heal or hp <= 0:
 		hp = max_hp
+	stamina = -1.0
+	winded = false
 	path.clear()
 	_target = null
 	velocity = Vector3.ZERO
@@ -301,6 +327,35 @@ func walk_to(target: Vector3, stop_short := 0.0) -> void:
 
 func can_act() -> bool:
 	return controllable and not frozen and not dead and _busy <= 0.0
+
+
+## How many seconds the hero can run with full breath: Konstitution x 2.
+func max_stamina() -> float:
+	return RUN_SECONDS_PER_CON * attribute("konstitution")
+
+
+## Seconds of running that come back per second: Konstitution / 10.
+func stamina_recovery() -> float:
+	return RUN_RECOVERY_PER_CON * attribute("konstitution")
+
+
+## Spends breath while running and gets it back otherwise.
+func _breathe(delta: float, moving: bool) -> void:
+	var full := max_stamina()
+	if stamina < 0.0:
+		stamina = full
+	var run_key := Input.is_physical_key_pressed(KEY_SHIFT)
+	sprinting = (wants_run or run_key) and moving and not sneaking and not winded and stamina > 0.0
+	if sprinting:
+		stamina = maxf(0.0, stamina - delta)
+		# Running out of breath slowly hardens the body.
+		train("konstitution", delta * 0.1)
+		if stamina <= 0.0:
+			winded = true
+	else:
+		stamina = minf(full, stamina + stamina_recovery() * delta)
+		if winded and stamina >= minf(RUN_RESTART, full):
+			winded = false
 
 
 ## True while the hero is moving under its own steam.
@@ -343,12 +398,13 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 ## keeps the rhythm of the feet at any speed.
 func _footsteps(ground_speed: float) -> void:
 	var sneak := _current_anim == SNEAK_ANIM
-	if not (sneak or _current_anim == "Running_A") or not is_on_floor() or ground_speed < 0.3:
+	var walk := _current_anim == WALK_ANIM
+	if not (sneak or walk or _current_anim == "Running_A") or not is_on_floor() or ground_speed < 0.3:
 		_last_phase = -1.0
 		return
 	var phase := _anim.current_animation_position / _anim.current_animation_length
 	if _last_phase >= 0.0:
-		for landing: float in (SNEAK_LANDINGS if sneak else FOOT_LANDINGS):
+		for landing: float in (SNEAK_LANDINGS if sneak else (WALK_LANDINGS if walk else FOOT_LANDINGS)):
 			var crossed: bool = _last_phase < landing and phase >= landing
 			if phase < _last_phase:
 				crossed = _last_phase < landing or phase >= landing
@@ -357,7 +413,7 @@ func _footsteps(ground_speed: float) -> void:
 				if sneak:
 					Sfx.play(self, "sneak_%d" % (randi() % 4), -22.0)
 				else:
-					Sfx.play(self, "step_%d" % (randi() % 6), -14.0)
+					Sfx.play(self, "step_%d" % (randi() % 6), -17.0 if walk else -14.0)
 	_last_phase = phase
 
 
@@ -948,8 +1004,9 @@ func _physics_process(delta: float) -> void:
 				to = path[0] - global_position
 				to.y = 0.0
 				dir = to.normalized()
+	_breathe(delta, dir != Vector3.ZERO)
 	var vy := velocity.y - GRAVITY * delta
-	var pace := speed * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else 1.0)
+	var pace := speed * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else (1.0 if sprinting else WALK_FACTOR))
 	velocity = dir * pace + _knockback
 	if _air_momentum != Vector3.ZERO:
 		if is_on_floor() and vy <= 0.0:
@@ -992,9 +1049,15 @@ func _physics_process(delta: float) -> void:
 		_model.rotation.y = lerp_angle(_model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-14.0 * delta))
 	# Blink while invulnerable after a hit.
 	_model.visible = dead or _invulnerable <= 0.0 or int(_invulnerable * 12.0) % 2 == 0
-	# Feet keep pace with the ground: the run plays faster or slower with the speed.
+	# Feet keep pace with the ground: the run and the walk play faster or
+	# slower with the speed.
 	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
-	_anim.speed_scale = clampf(ground_speed / RUN_ANIM_SPEED, 0.5, 2.5) if _current_anim == "Running_A" else 1.0
+	if _current_anim == "Running_A":
+		_anim.speed_scale = clampf(ground_speed / RUN_ANIM_SPEED, 0.5, 2.5)
+	elif _current_anim == WALK_ANIM:
+		_anim.speed_scale = clampf(ground_speed / WALK_ANIM_SPEED, 0.5, 2.5)
+	else:
+		_anim.speed_scale = 1.0
 	_footsteps(ground_speed)
 	_update_sneak_look()
 	if _busy > 0.0 or _anim_hold > 0.0 or not controllable or dead:
@@ -1006,4 +1069,4 @@ func _physics_process(delta: float) -> void:
 	if dir == Vector3.ZERO:
 		play("Idle")
 	else:
-		play(SNEAK_ANIM if sneaking else "Running_A")
+		play(SNEAK_ANIM if sneaking else ("Running_A" if sprinting else WALK_ANIM))

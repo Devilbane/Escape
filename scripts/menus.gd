@@ -20,7 +20,8 @@ var _info: Label
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## Every control, for the compendium: action and keys.
 const SHORTCUTS := [
-	["Laufen", "WASD / Pfeiltasten, Klick oder Halten auf den Boden"],
+	["Gehen", "WASD / Pfeiltasten oder Klick auf den Boden"],
+	["Rennen", "Maustaste auf dem Boden halten oder Umschalt: so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück"],
 	["Springen", "Leertaste, Rechtsklick im Lauf"],
 	["Nahkampf", "F oder J, gegen das Skelett laufen oder es anklicken"],
 	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],

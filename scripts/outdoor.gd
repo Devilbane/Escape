@@ -7,7 +7,7 @@ extends Level
 ##
 ## Map legend (one character per 4x4 m tile):
 ##   #  forest (trees, cannot be crossed)    .  grass         ,  dirt path
-##   P  start, in front of the crypt door    ~  pond
+##   P  start, in front of the crypt door    ~  pond (fish bite here, see Fishing)
 ##   R  the crypt (a block of tiles)         g  grave         d  dead tree
 ##   z  graveyard fence                      a  gate in the fence
 ##   l  lantern on a post                    p  pumpkins      r  rock
@@ -40,9 +40,13 @@ extends Level
 ##   a sneaking hero, and in a thunderstorm bats swarm around the rocks (r)
 ##   while lightning leaves glowing thunder ore beside them.
 ##   The wolf hollow north of the pass, where beasts roam and come back the
-##   same way: W wolf, H orc, J yeti, U spider.
+##   same way: W wolf, H orc, J yeti, U spider.   %  the hollow's pond,
+##   where the moon trout bites at night (see Fishing).
 ##   Peaceful animals that graze in the woods and bolt from the hero
 ##   (see Animal): D doe, V stag, & fox.
+##   The crafting square on the west side of the market square, beside
+##   Gorm's forge (see CraftingSquare): +  fine metalwork bench
+##   %  gem cutter's wheel   *  alchemist's table   $  the hero's storage chest
 ##   E  the way down into the dragon's lair: a stone arch over stairs into
 ##      the dark (a block of tiles, see Level "lair: yes")
 ##   v  a stone pedestal with a food basket on top, too high to reach from
@@ -326,7 +330,7 @@ func _build_ground() -> void:
 			if square.has_point(c) and not BLOCK_CHARS.contains(ch):
 				path = 1.0
 				soil = 1.0
-			var wet := 1.0 if ch == "~" else 0.0
+			var wet := 1.0 if "~%".contains(ch) else 0.0
 			var open := 0.0 if ch == "#" else 1.0
 			mask.set_pixel(x, y, Color(path, soil, wet, open))
 	# A smoother mask gives softer edges between the tiles.
@@ -510,8 +514,10 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_fence(c, false)
 		"a":
 			_build_fence(c, true)
-		"~":
+		"~", "%":
 			_add_solid(pos, Vector3(TILE, 1, TILE))
+			fishing_waters.append({"water": "teich" if ch == "~" else "senke", "pos": pos,
+					"reach": TILE * 0.5, "round": false, "surface": 0.04})
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.
 			for row in 2:
@@ -539,7 +545,9 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			loot_rng.seed = hash("%s:hoard:%d:%d" % [level_name, c.x, c.y])
 			interactables[-1].loot = {"gold": 20, "item": Items.random_item(loot_rng, 20)}
 		_:
-			if Enemy.WILD_LETTERS.has(ch):
+			if CraftingSquare.LETTERS.contains(ch):
+				CraftingSquare.build(self, c, ch)
+			elif Enemy.WILD_LETTERS.has(ch):
 				_wild.append({"cell": c, "kind": Enemy.WILD_LETTERS[ch], "enemy": null, "timer": 0.0, "wave": 0})
 			elif Animal.LETTERS.has(ch):
 				_animal_spots.append({"cell": c, "kind": Animal.LETTERS[ch]})

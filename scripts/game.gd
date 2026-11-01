@@ -85,6 +85,8 @@ var quests := Quests.new(self)
 ## Known recipes and the ingredient pouch (see Crafting). Kept in the saved
 ## game, like the quests.
 var crafting := Crafting.new(self)
+## The line in the water, when the hero is fishing (see Fishing).
+var fishing := Fishing.new(self)
 ## Counts down to the next look at who has a task (see refresh_quest_marks).
 var _quest_mark_timer := 0.0
 ## Village buildings with floors of their own: building letter -> level index.
@@ -414,6 +416,7 @@ func _setup_drawer() -> void:
 	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
 	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
 	buttons.add_child(_make_button(Lang.t("Stein"), func(): if state == State.PLAYING and not menus.is_open(): stone_action()))
+	buttons.add_child(_make_button(Lang.t("Angeln"), fish_action))
 	_sound_button = _make_button("", _toggle_sound)
 	buttons.add_child(_sound_button)
 	_update_sound_button()
@@ -714,6 +717,7 @@ func _use_station(s: Dictionary) -> void:
 		_drink(s)
 	else:
 		player.face(s.pos - player.global_position)
+		menus.bench = s.get("craft", "")
 		menus.open(s.kind)
 
 
@@ -1407,6 +1411,7 @@ func _start_new_game() -> void:
 	met.clear()
 	quests.clear()
 	crafting.clear()
+	fishing.stop()
 	storage.clear()
 	shop_stock.clear()
 	wanderer_stock.clear()
@@ -2669,6 +2674,10 @@ func _process(delta: float) -> void:
 	_steer_by_mouse(delta)
 	_update_drag(delta)
 	_update_run_meter()
+	if state == State.PLAYING:
+		fishing.tick(delta)
+	elif fishing.is_fishing():
+		fishing.stop()
 	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
 		_prompt.text = ""
 		return
@@ -2710,6 +2719,7 @@ func _process(delta: float) -> void:
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
+			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
 			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
 		}[station.kind]
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
@@ -2721,6 +2731,16 @@ func _process(delta: float) -> void:
 			_prompt.text = Lang.t("E oder Klick: Block schieben   Ziehen: rutschen lassen")
 		else:
 			_prompt.text = Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben")
+	# By the water the line can be cast, also next to the fountain.
+	var fish_prompt := ""
+	if fishing.state == Fishing.BITE:
+		fish_prompt = Lang.t("G: Anschlagen!")
+	elif fishing.is_fishing():
+		fish_prompt = Lang.t("G: Leine einholen")
+	elif not fishing.water_near().is_empty():
+		fish_prompt = Lang.t("G: Angeln")
+	if fish_prompt != "":
+		_prompt.text = fish_prompt if _prompt.text == "" else _prompt.text + "   " + fish_prompt
 
 
 func _reach(pos: Vector3) -> float:
@@ -2838,6 +2858,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						toggle_drawer()
 					KEY_C:
 						_toggle_sneak()
+					KEY_G:
+						fish_action()
 					KEY_E:
 						var why_not := ""
 						if level.crate_in_reach(player) == null and level.stone_in_reach(player) != null:
@@ -2878,6 +2900,16 @@ func _unhandled_input(event: InputEvent) -> void:
 						_toggle_sneak()
 					else:
 						_click(point)
+
+
+## Key G or the "Angeln" button: casts the line by the water, strikes when
+## a fish bites, or draws the line in (see Fishing).
+func fish_action() -> void:
+	if state != State.PLAYING or menus.is_open() or not _shrine.is_empty():
+		return
+	var why := fishing.press()
+	if why != "":
+		show_message(why, 1.6)
 
 
 func _mouse_to_floor(screen_pos: Vector2):

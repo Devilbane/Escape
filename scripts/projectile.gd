@@ -12,6 +12,7 @@ var direction := Vector3.FORWARD
 var from_player := true
 ## The skeleton that shot or cast it; the hero fights back against it.
 var shooter: Node = null
+## What the shot costs whoever it hits: the hero's knife or the shooter's own damage.
 var damage := 1
 var magic := false
 var fire := false
@@ -86,7 +87,7 @@ func _physics_process(delta: float) -> void:
 		var player: Player = level.player
 		if not player.dead and _hits(player.global_position) and player.global_position.y < 1.2:
 			var before := player.hp
-			player.take_damage(2 if fire else 1, global_position - direction)
+			player.take_damage(2 if fire else damage, global_position - direction)
 			player.defend_against(shooter)
 			# A mage's orb sometimes curses whoever it hits.
 			if magic and not fire and player.hp < before and randf() < CURSE_CHANCE:

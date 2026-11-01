@@ -95,7 +95,8 @@ var bag: Array[String] = []
 # Values from gifts and worn items together; see refresh_stats().
 var max_hp := MAX_HP
 var power := 1
-## Taken off every hit by worn armour; a hit still costs at least 1 life.
+## Taken off every hit by worn armour; a hit still keeps at least half its
+## force (see soak), so armour softens blows but never shrugs them off.
 var hardening := 0
 ## How much each armour piece has worn down, by item id.
 var wear := {}
@@ -119,10 +120,13 @@ var speed: float:
 		return base_speed * Items.load_factor(load_weight())
 var knives := 5
 ## Ailments and the seconds each has left. Poison ("gift") takes a life every
-## few seconds but never the last one; a curse ("fluch") slows the hero.
+## few seconds but never the last one; a curse ("fluch") slows the hero;
+## burning ("brand", from the dragon's fire) takes a life every
+## BURN_TICK seconds for a few seconds, never the last one either.
 ## Both wear off soon; a fountain, a shrine or a healing potion cures them.
 var ailments := {}
 var _poison_tick := 0.0
+var _burn_tick := 0.0
 ## A direction to run in, set every frame while the mouse button is held.
 var steer := Vector3.ZERO
 var _stuck_time := 0.0
@@ -1053,18 +1057,24 @@ func _show_tint(slot: String, parts: Array) -> void:
 const AILMENT_TIME := 20.0
 const POISON_TICK := 8.0
 const CURSE_SLOW := 0.85
-const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0)}
+const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0), "brand": Color(1.0, 0.5, 0.15)}
+## Burning is short but fierce.
+const BURN_TIME := 4.5
+const BURN_TICK := 1.5
+const AILMENT_WORDS := {"gift": "Vergiftet!", "fluch": "Verflucht!", "brand": "Brennt!"}
 
 
 func afflict(kind: String) -> void:
 	if dead:
 		return
 	var fresh := not ailments.has(kind)
-	ailments[kind] = AILMENT_TIME
+	ailments[kind] = BURN_TIME if kind == "brand" else AILMENT_TIME
 	if fresh:
 		if kind == "gift":
 			_poison_tick = POISON_TICK
-		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t("Vergiftet!" if kind == "gift" else "Verflucht!"), AILMENT_COLORS[kind])
+		elif kind == "brand":
+			_burn_tick = BURN_TICK
+		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t(AILMENT_WORDS[kind]), AILMENT_COLORS[kind])
 		_ailments_changed()
 
 
@@ -1098,6 +1108,15 @@ func _tick_ailments(delta: float) -> void:
 				train("konstitution", 1.0)
 				Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-1", AILMENT_COLORS.gift)
 				hurt.emit(1)
+	if ailments.has("brand"):
+		_burn_tick -= delta
+		if _burn_tick <= 0.0:
+			_burn_tick = BURN_TICK
+			if hp > 1:
+				hp -= 1
+				train("konstitution", 1.0)
+				Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-1", AILMENT_COLORS.brand)
+				hurt.emit(1)
 	if changed:
 		_ailments_changed()
 
@@ -1108,7 +1127,7 @@ func _ailments_changed() -> void:
 	var old := get_node_or_null("AilmentHaze")
 	if old:
 		old.free()
-	for kind in ["gift", "fluch"]:
+	for kind in ["brand", "gift", "fluch"]:
 		if ailments.has(kind):
 			var haze := Effects.make_sparkles(AILMENT_COLORS[kind])
 			haze.name = "AilmentHaze"
@@ -1255,6 +1274,23 @@ func _block(from: Vector3) -> void:
 	Comic.pop(global_position, "block")
 
 
+## What a hit of `amount` costs through `hardening`: the hardening is taken
+## off, but the hit keeps at least half its force (rounded up) and at least 1.
+## The same rule holds for the hero and for monsters.
+static func soak(amount: int, hardening: int) -> int:
+	if amount <= 0:
+		return 0
+	return maxi(ceili(amount / 2.0), amount - maxi(0, hardening))
+
+
+## Seconds the hero cannot be hurt again after a hit. Short enough that a
+## crowd of enemies is a real danger.
+const HURT_GRACE := 0.6
+## What the thorn rune deals back to a melee attacker; their hardening
+## takes it off in full.
+const THORNS_DAMAGE := 1
+
+
 ## Blows and shots can be blocked with a shield; spikes from below (blockable
 ## false) cannot.
 func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable := true) -> void:
@@ -1270,8 +1306,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 		return
 	if blockable:
 		train("blocken", 0.5)
-	if hardening > 0:
-		amount = maxi(1, amount - hardening)
+	amount = soak(amount, hardening)
 	train("ruestung", 1.0)
 	_wear_armor()
 	# Every life lost hardens the body a little.
@@ -1279,14 +1314,14 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	hp -= amount
 	var knocked := _note_run_hit(amount)
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
-		attacker.take_hit(1, global_position)
+		attacker.take_hit(THORNS_DAMAGE, global_position, "thorns")
 	if hp <= 0 and has_special("phoenixfeder"):
 		# The feather burns up and brings the hero back.
 		equipped.erase("spezial_1" if equipped.get("spezial_1", "") == "phoenixfeder" else "spezial_2")
 		refresh_stats()
 		hp = mini(3, max_hp)
 		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t("Phönixfeder!"), Color(1.0, 0.6, 0.2))
-	_invulnerable = 0.9
+	_invulnerable = HURT_GRACE
 	var away := global_position - from
 	away.y = 0.0
 	_knockback = away.normalized() * 10.0

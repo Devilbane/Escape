@@ -8,6 +8,11 @@ extends Node3D
 ## A sneaking hero gets much closer before they notice. Once the hero is far
 ## enough away again they calm down and go back to grazing.
 ##
+## A fox can be won over: while the hero carries a sausage (Pet.FOOD) a fox
+## does not bolt but comes trotting up, curious, and eats one from the
+## hero's hand. After Pet.TRUST_NEEDED sausages it goes with the hero as
+## their companion (see Pet). The hero only ever has one fox.
+##
 ## Models: "Ultimate Animated Animals" by Quaternius (CC0, see
 ## assets/animals/LICENSE.txt).
 
@@ -28,11 +33,17 @@ const SNEAK_FACTOR := 0.45
 ## the hero must be before it settles down again (times its shy distance).
 const FLEE_ROAM := 7
 const CALM_FACTOR := 1.5
+## From how far a fox smells the hero's sausage and comes over, how close it
+## comes to eat, and how long it chews.
+const CURIOUS_RANGE := 14.0
+const FEED_REACH := 1.8
+const EAT_TIME := 2.5
 
 var level: Level
 var kind := "reh"
 var home := Vector2i.ZERO
-## "graze", "idle", "stroll" or "flee".
+## "graze", "idle", "stroll" or "flee"; a fox also "approach" (coming
+## for the hero's sausage) and "eat".
 var state := "idle"
 var _stats: Dictionary
 var _model: Node3D
@@ -42,6 +53,7 @@ var _path: Array[Vector3] = []
 var _speed := 0.0
 var _timer := 0.0
 var _current_anim := ""
+var _repath := 0.0
 
 
 func setup(owner_level: Level, animal_kind: String, cell: Vector2i) -> void:
@@ -75,6 +87,19 @@ func is_fleeing() -> bool:
 	return state == "flee"
 
 
+## The key in the level's taken list that marks this fox as the hero's.
+func tame_key() -> String:
+	return "fuchs_zahm:%d,%d" % [home.x, home.y]
+
+
+## Whether this is a fox that would come for the hero's sausage right now.
+func is_curious() -> bool:
+	if kind != "fuchs" or not level.get("fox_tamable") or level.player.get("dead"):
+		return false
+	var bag = level.player.get("bag")
+	return bag is Array and bag.has(Pet.FOOD)
+
+
 ## Plays one of the model's animations (Idle, Walk, Gallop, Eating).
 func play(anim_name: String) -> void:
 	if _current_anim == anim_name:
@@ -100,7 +125,18 @@ func _physics_process(delta: float) -> void:
 	var hero: Node3D = level.player
 	var away := global_position - hero.global_position
 	away.y = 0.0
-	var hero_near: bool = away.length() < shy_distance() and not hero.get("dead")
+	if state == "eat":
+		_timer -= delta
+		if _timer <= 0.0:
+			_begin("idle", 1.5)
+		return
+	var curious := is_curious()
+	if curious and away.length() < CURIOUS_RANGE:
+		_come_for_food(hero, delta)
+		return
+	if state == "approach":
+		_begin("idle", 1.0)
+	var hero_near: bool = away.length() < shy_distance() and not hero.get("dead") and not curious
 	if hero_near and state != "flee":
 		_flee_from(hero.global_position)
 	match state:
@@ -120,6 +156,39 @@ func _physics_process(delta: float) -> void:
 					_flee_from(hero.global_position)
 				else:
 					_begin("idle", _rng.randf_range(1.0, 3.0))
+
+
+## A fox trots up to a hero who carries a sausage and eats it from their
+## hand (the game takes it from the bag, see Outdoor.fox_fed).
+func _come_for_food(hero: Node3D, delta: float) -> void:
+	var to := _flat(hero.global_position - global_position)
+	if to.length() <= FEED_REACH:
+		_path.clear()
+		_turn_to(to, 1.0)
+		state = "eat"
+		_timer = EAT_TIME
+		_anim.speed_scale = 1.0
+		play("Eating")
+		level.emit_signal("fox_fed", self)
+		return
+	if state != "approach":
+		state = "approach"
+		_speed = _stats.walk * 1.4
+		_repath = 0.0
+	_repath -= delta
+	if _repath <= 0.0:
+		_repath = 0.5
+		_path.clear()
+		var cells: Array[Vector2i] = level.grid_path(level.world_to_cell(global_position), level.world_to_cell(hero.global_position))
+		for c in cells.slice(1, cells.size() - 1):
+			_path.append(level.cell_to_world(c))
+	if _path.is_empty():
+		# Same tile or the next one: straight to the hero.
+		global_position += to.normalized() * minf(_speed * delta, to.length() - FEED_REACH * 0.9)
+		_turn_to(to, delta)
+		play("Walk")
+	else:
+		_walk(delta)
 
 
 ## Calm again: graze a while, look around, or stroll to another spot.

@@ -31,10 +31,12 @@ var state := State.TITLE
 var _sound_button: Button
 var _music_button: Button
 var _music_slider: HSlider
+var _effects_slider: HSlider
 ## The pull-out menu on the right edge of the screen that holds all the
 ## clickable buttons, its handle, and how far it is pulled out (0 to 1).
 var _drawer: HBoxContainer
 var _drawer_handle: Button
+var _drawer_arrow: MenuArrow
 var _drawer_open := false
 var _drawer_t := 0.0
 var _drawer_tween: Tween
@@ -83,6 +85,15 @@ var met := {}
 ## The villagers' tasks: offered, running and finished (see Quests). Kept in
 ## the saved game, so every hero has their own.
 var quests := Quests.new(self)
+## How many mornings have dawned in the world above ground since the game
+## began. The bounty board pins up fresh hunts each morning (see Bounties).
+## The day turns at dawn, so the night after day d's evening, past midnight
+## too, still counts as day d: that is when the wandering merchant comes
+## (see Wanderer).
+var day := 0
+## The hunts on the bounty board: posted, taken on and paid (see Bounties).
+## Kept in the saved game.
+var bounties := Bounties.new(self)
 ## Known recipes and the ingredient pouch (see Crafting). Kept in the saved
 ## game, like the quests.
 var crafting := Crafting.new(self)
@@ -107,6 +118,12 @@ var interiors := {}
 var coins := 0
 ## Iron bars for the smith's forge (see Forge), counted like gold.
 var iron := 0
+## The fox: how many sausages a wild fox has eaten from the hero's hand, and
+## whether one goes with the hero now (see Pet). Kept in the saved game.
+var fox_trust := 0
+var has_fox := false
+var pet: Pet = null
+const FOX_LEARN := "Füchse auf den Wiesen sind scheu, aber eine Wurst (bei der Krämerin) lockt sie an: Trägst du eine bei dir, kommt ein Fuchs neugierig näher und frisst sie dir aus der Hand. Nach drei Würsten folgt er dir überallhin, auch ins Verlies. Seine Nase findet Zutaten, die im Boden versteckt sind: Er läuft hin, gräbt sie aus und lässt sie für dich liegen; aufgehoben kommen sie in deinen Zutatenbeutel."
 ## What the hero already took on each level, by level file: the ids of
 ## searched furniture and picked up coins (see Level.taken). Kept in the
 ## saved game, so looted chests stay empty.
@@ -119,7 +136,7 @@ var secrets_found := 0
 ## Levels left in a row without finding their secret room.
 var dry_levels := 0
 ## Lives the hero gets back for climbing to the next level.
-const STAIRS_HEAL := 5
+const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
 ## yet gets one for sure, and never more than this many levels pass without.
 const FIRST_SURE_SECRET := 2
@@ -167,6 +184,10 @@ var menus: Menus
 ## Items left in the safe room's storage chest, and what the merchant sells.
 var storage: Array[String] = []
 var shop_stock: Array[String] = []
+## What the wandering merchant still has left, and the night he brought it
+## for (-1: not rolled yet). A new visit brings new wares (see Wanderer).
+var wanderer_stock: Array[String] = []
+var wanderer_night := -1
 var _title_buttons: Control
 var _name_note: Label
 ## The hero's name, asked for when a new game starts; it goes into the ranking.
@@ -300,6 +321,11 @@ func _setup_world() -> void:
 	camera = Camera3D.new()
 	camera.fov = 38.0
 	camera.far = 200.0
+	# The camera never comes nearer than a few metres to anything it shows,
+	# so a near plane well off the lens leaves the depth buffer its precision
+	# out at the houses and walls (with the default 0.05 faces a few
+	# millimetres apart flickered through each other in the distance).
+	camera.near = 0.5
 	camera.rotation_degrees = Vector3(-CAMERA_PITCH, 0, 0)
 	add_child(camera)
 
@@ -394,6 +420,10 @@ func _setup_drawer() -> void:
 		box.corner_radius_top_right = 0
 		box.corner_radius_bottom_right = 0
 		_drawer_handle.add_theme_stylebox_override(style, box)
+	_drawer_arrow = MenuArrow.new()
+	_drawer_arrow.color = GOLD
+	_drawer_handle.add_child(_drawer_arrow)
+	_drawer_handle.resized.connect(_place_drawer_arrow)
 	_drawer.add_child(_drawer_handle)
 
 	var panel := PanelContainer.new()
@@ -438,6 +468,7 @@ func _setup_drawer() -> void:
 		b.custom_minimum_size = Vector2(150, 58)
 		b.add_theme_font_size_override("font_size", 18)
 	column.add_child(_make_music_slider())
+	column.add_child(_make_effects_slider())
 	_update_music_controls()
 	_update_drawer_handle()
 	_place_drawer(0.0)
@@ -483,7 +514,17 @@ func _place_drawer(t: float) -> void:
 
 
 func _update_drawer_handle() -> void:
-	_drawer_handle.text = (">\n" if _drawer_open else "<\n") + Lang.t("Menü")
+	_drawer_handle.text = "\n" + Lang.t("Menü")
+	_drawer_arrow.pointing_left = not _drawer_open
+
+
+## Centres the arrow over the empty first line of the handle's text.
+func _place_drawer_arrow() -> void:
+	var font := _drawer_handle.get_theme_font("font")
+	var line := font.get_height(_drawer_handle.get_theme_font_size("font_size"))
+	var box := _drawer_arrow.custom_minimum_size
+	_drawer_arrow.size = box
+	_drawer_arrow.position = Vector2((_drawer_handle.size.x - box.x) / 2.0, (_drawer_handle.size.y - line) / 2.0 - box.y / 2.0)
 
 
 func _setup_hud() -> void:
@@ -729,6 +770,68 @@ func _use_station(s: Dictionary) -> void:
 		player.face(s.pos - player.global_position)
 		menus.bench = s.get("craft", "")
 		menus.open(s.kind)
+
+
+# --- The fox -------------------------------------------------------------------
+
+## The hero's fox comes along to the new level (see Pet).
+func _spawn_pet(at := Vector3.INF) -> void:
+	pet = null
+	if not has_fox:
+		return
+	pet = Pet.new()
+	pet.setup(level)
+	level.add_child(pet)
+	if at != Vector3.INF:
+		pet.global_position = at
+		pet._placed = true
+	pet.dug_up.connect(_on_fox_dug_up)
+
+
+## A wild fox ate a sausage from the hero's hand. After the last one it
+## trusts the hero and follows them from now on.
+func _on_fox_fed(fox: Animal) -> void:
+	if has_fox or not player.bag.has(Pet.FOOD):
+		return
+	player.bag.erase(Pet.FOOD)
+	fox_trust += 1
+	learn(FOX_LEARN)
+	Sfx.play(self, "drink", -4.0)
+	Effects.float_text(level, fox.global_position + Vector3(0, 1.8, 0), Lang.t("Mampf!"), Color(1.0, 0.7, 0.4), true)
+	if fox_trust < Pet.TRUST_NEEDED:
+		show_message(Lang.t("Der Fuchs frisst dir die Wurst aus der Hand. Vertrauen: %d / %d") % [fox_trust, Pet.TRUST_NEEDED], 3.5)
+		_update_hud()
+		return
+	has_fox = true
+	if level is Outdoor:
+		level.fox_tamable = false
+		level.taken[fox.tame_key()] = true
+		level.animals.erase(fox)
+	var spot := fox.global_position
+	var turn := fox.rotation.y
+	fox.queue_free()
+	_spawn_pet(spot)
+	pet.rotation.y = turn
+	var hearts := Effects.make_sparkles(Color(1.0, 0.55, 0.6), true)
+	hearts.position = spot + Vector3(0, 1.0, 0)
+	level.add_child(hearts)
+	show_message(Lang.t("Der Fuchs vertraut dir und geht jetzt mit dir! Seine Nase findet versteckte Zutaten im Boden."), 5.0)
+	_update_hud()
+
+
+## The fox dug up a hidden ingredient: it lies there for the hero to take.
+func _on_fox_dug_up(id: String, pos: Vector3) -> void:
+	level.lay_find(id, pos)
+	Effects.float_text(level, pos + Vector3(0, 2.0, 0), Crafting.ingredient_name(id), Color(0.75, 0.9, 1.0), true)
+	show_message(Lang.t("Dein Fuchs hat etwas ausgegraben: %s!") % Crafting.ingredient_name(id), 3.0)
+
+
+## A dug-up ingredient goes into the ingredient pouch, not the bag.
+func _on_ingredient_collected(id: String) -> void:
+	crafting.add(id)
+	Sfx.play(self, "key", -3.0)
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5), true)
+	show_message(Lang.t("%s kommt in deinen Zutatenbeutel. Das Rezeptbuch (H) zeigt, was du dabeihast.") % Crafting.ingredient_name(id), 3.5)
 
 
 ## The fountain: full life and every ailment gone, as often as you like.
@@ -1085,6 +1188,8 @@ func _update_hud() -> void:
 		gifts.append(Lang.t("Vergiftet"))
 	if player.ailments.has("fluch"):
 		gifts.append(Lang.t("Verflucht"))
+	if player.ailments.has("brand"):
+		gifts.append(Lang.t("Brennt"))
 	_gift_label.text = "   ".join(gifts)
 	_coin_label.text = Lang.t("Gold: %d") % coins
 	_knife_label.text = Lang.t("Messer: %d") % player.knives
@@ -1110,7 +1215,10 @@ func _tick_clock(delta: float) -> void:
 	if level == null or not (level.outdoor or level.building != ""):
 		return
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
+		var before := day_hour
 		day_hour = DayNight.advance(day_hour, delta)
+		if _dawn_between(before, day_hour):
+			_new_day()
 		_tick_weather(delta)
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
@@ -1120,12 +1228,33 @@ func _tick_clock(delta: float) -> void:
 		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0)
 		Weather.apply(_env, _moon, _weather_look, flicker)
 		if level is Outdoor:
+			level.day = day
 			level.set_hour(day_hour)
 			level.set_weather(weather)
 	if _clock_text() != _clock_shown:
 		_update_hud()
 
 
+## Whether the clock passed dawn (see Bounties.DAWN) going forward from one
+## hour to the other, at most one day later.
+static func _dawn_between(from: float, to: float) -> bool:
+	var dawn := Bounties.DAWN
+	if to >= from:
+		return from < dawn and to >= dawn
+	return from < dawn or to >= dawn
+
+
+## A new morning: fresh notices on the bounty board, and the hunts not
+## finished in time are over.
+func _new_day(quiet := false) -> void:
+	day += 1
+	var expired := bounties.refresh(day)
+	if quiet or not escaped:
+		return
+	var text := Lang.t("Ein neuer Morgen: frische Kopfgelder am Aushang.")
+	if expired > 0:
+		text += "\n" + Lang.t("Nicht erledigte Jagden vom Vortag sind verfallen: %d") % expired
+	quest_news(text, Color(1.0, 0.82, 0.4), 4.0)
 ## The weather runs on the clock: when its hours are up, the next weather
 ## comes, picked for the hour (see Weather.roll).
 func _tick_weather(delta: float) -> void:
@@ -1217,6 +1346,9 @@ func load_level(index: int, restock := true) -> void:
 	level.coins_collected.connect(_on_coins_collected)
 	level.item_collected.connect(_on_item_collected)
 	level.secret_found.connect(_on_secret_found)
+	level.ingredient_collected.connect(_on_ingredient_collected)
+	level.hide_ingredients()
+	_spawn_pet()
 	level.bag_full.connect(func(): show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0))
 	level.door_opened.connect(func():
 		Sfx.play(self, "door")
@@ -1228,11 +1360,16 @@ func load_level(index: int, restock := true) -> void:
 	level.player_hurt.connect(player.spring_trap)
 	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
+	level.lair_won.connect(_on_lair_won)
+	level.dragon_awakened.connect(_on_dragon_awakened)
+	level.lair_exit_taken.connect(leave_lair)
 	level.stairs_taken.connect(_take_stairs)
 	if level is Outdoor:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
 		level.home_claimed.connect(_on_home_claimed)
 		level.food_basket.connect(_eat_from_basket)
+		level.fox_tamable = not has_fox
+		level.fox_fed.connect(_on_fox_fed)
 		level.lightning.connect(_on_lightning)
 	if level.is_home:
 		level.show_home_upgrades(home_upgrades, trophies)
@@ -1240,6 +1377,7 @@ func load_level(index: int, restock := true) -> void:
 	_end_drag()
 	_set_atmosphere(level.outdoor)
 	if level is Outdoor:
+		level.day = day
 		level.set_hour(day_hour)
 		level.set_weather(weather)
 	_pending_search = {}
@@ -1248,12 +1386,12 @@ func load_level(index: int, restock := true) -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
 		shop_stock.clear()
-		# Always at least one weapon, body armour, ring and amulet,
-		# then the usual random wares on top.
-		for slot in ["waffe", "ruestung", "ring", "amulett"]:
-			shop_stock.append(Items.random_item(rng, 0, slot))
+		# Always at least one weapon, shield, body armour and ring, then
+		# the usual random wares on top: only plain gear (Items.merchant_sells).
+		for slot in ["waffe", "schild", "ruestung", "ring"]:
+			shop_stock.append(Items.random_ware(rng, slot))
 		for i in 4:
-			shop_stock.append(Items.random_item(rng))
+			shop_stock.append(Items.random_ware(rng))
 	_snap_camera()
 	_update_hud()
 
@@ -1410,6 +1548,8 @@ func _start_new_game() -> void:
 	_name_edit.release_focus()
 	coins = 0
 	iron = 0
+	fox_trust = 0
+	has_fox = false
 	escaped = false
 	home_given = false
 	home_claimed = false
@@ -1421,11 +1561,16 @@ func _start_new_game() -> void:
 	builds.clear()
 	met.clear()
 	quests.clear()
+	day = 0
+	bounties.clear()
+	bounties.refresh(day)
 	crafting.clear()
 	fishing.stop()
 	reputation.clear()
 	storage.clear()
 	shop_stock.clear()
+	wanderer_stock.clear()
+	wanderer_night = -1
 	away_plan = Offline.empty_plan()
 	day_hour = DayNight.START_HOUR
 	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
@@ -1511,6 +1656,8 @@ func _toggle_sound() -> void:
 func _update_sound_button() -> void:
 	if _sound_button:
 		_sound_button.text = Lang.t("Ton: aus") if Sfx.muted else Lang.t("Ton: an")
+	if _effects_slider and not is_equal_approx(_effects_slider.value, Sfx.volume):
+		_effects_slider.set_value_no_signal(Sfx.volume)
 
 
 func _toggle_music() -> void:
@@ -1518,29 +1665,55 @@ func _toggle_music() -> void:
 	_update_music_controls()
 
 
-## A row with the music volume: a label and a slider from silent to full.
-func _make_music_slider() -> Control:
+## A row with a volume: a label and a slider from silent to full.
+func _make_volume_row(title: String, tooltip: String, value: float, on_change: Callable) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	var label := Label.new()
-	label.text = Lang.t("Musik")
+	label.text = Lang.t(title)
 	label.add_theme_font_override("font", TEXT_FONT)
 	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", GOLD)
+	# Both rows' labels take the same width, so the sliders line up.
+	label.custom_minimum_size = Vector2(90, 0)
 	row.add_child(label)
-	_music_slider = HSlider.new()
-	_music_slider.min_value = 0.0
-	_music_slider.max_value = 1.0
-	_music_slider.step = 0.05
-	_music_slider.focus_mode = Control.FOCUS_NONE
-	_music_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_music_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_music_slider.custom_minimum_size = Vector2(0, 32)
-	_music_slider.tooltip_text = Lang.t("Lautstärke der Musik")
-	_music_slider.value = Music.volume
-	_music_slider.value_changed.connect(_on_music_volume_changed)
-	row.add_child(_music_slider)
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.focus_mode = Control.FOCUS_NONE
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	slider.custom_minimum_size = Vector2(0, 32)
+	slider.tooltip_text = Lang.t(tooltip)
+	slider.value = value
+	slider.value_changed.connect(on_change)
+	row.add_child(slider)
 	return row
+
+
+## The music volume row.
+func _make_music_slider() -> Control:
+	var row := _make_volume_row("Musik", "Lautstärke der Musik", Music.volume, _on_music_volume_changed)
+	_music_slider = row.get_child(1)
+	return row
+
+
+## The sound effects volume row.
+func _make_effects_slider() -> Control:
+	var row := _make_volume_row("Effekte", "Lautstärke der Geräusche", Sfx.volume, _on_effects_volume_changed)
+	_effects_slider = row.get_child(1)
+	return row
+
+
+func _on_effects_volume_changed(value: float) -> void:
+	if is_equal_approx(value, Sfx.volume):
+		return
+	Sfx.set_volume(value)
+	# Moving the slider up with the sound off (M) switches the sound back on.
+	if Sfx.muted and value >= 0.01:
+		Sfx.toggle_mute()
+	_update_sound_button()
 
 
 func _on_music_volume_changed(value: float) -> void:
@@ -1651,6 +1824,9 @@ func _apply_save(data: Dictionary) -> void:
 	hero_name = data.get("name", Lang.t("Namenlos"))
 	coins = int(data.coins)
 	iron = int(data.get("iron", 0))
+	var fox = data.get("fox", {})
+	fox_trust = int(fox.get("trust", 0)) if fox is Dictionary else 0
+	has_fox = bool(fox.get("tame", false)) if fox is Dictionary else false
 	secrets_found = int(data.get("secrets", 0))
 	dry_levels = int(data.get("dry", 0))
 	storage.assign(data.storage)
@@ -1693,6 +1869,9 @@ func _apply_save(data: Dictionary) -> void:
 			if Villager.ROLES.has(str(role)):
 				met[str(role)] = true
 	quests.load_from(data.get("quests", {}))
+	day = maxi(0, int(data.get("day", 0)))
+	bounties.load_from(data.get("bounties", {}))
+	bounties.refresh(day)
 	crafting.load_from(data.get("crafting", {}))
 	reputation.load_from(data.get("reputation", {}))
 	var plan = data.get("plan", {})
@@ -1702,6 +1881,13 @@ func _apply_save(data: Dictionary) -> void:
 	player.refresh_stats()
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
+	wanderer_night = int(data.get("wanderer_night", -1))
+	wanderer_stock.clear()
+	var wares = data.get("wanderer", [])
+	if wares is Array:
+		for id in wares:
+			if Items.ALL.has(str(id)) or Wanderer.is_ingredient(str(id)):
+				wanderer_stock.append(str(id))
 	# Games saved before there was weather wake up to clear skies.
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
@@ -1813,9 +1999,12 @@ func save_game(going_away := false) -> bool:
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
+		"day": day, "bounties": bounties.for_save(),
 		"crafting": crafting.for_save(),
 		"reputation": reputation.for_save(),
+		"fox": {"trust": fox_trust, "tame": has_fox},
 		"hour": day_hour,
+		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
 		"weather": weather, "weather_hours": weather_hours,
 	}
 	if going_away:
@@ -1852,6 +2041,8 @@ func _looted_for_save() -> Dictionary:
 func sleep() -> void:
 	# A night in the bed: the hero wakes up the next morning.
 	if level.outdoor or level.building != "":
+		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
+			_new_day(true)
 		day_hour = DayNight.WAKE_HOUR
 		# A new morning brings new weather.
 		set_weather(Weather.roll(day_hour, _weather_rng))
@@ -2038,7 +2229,7 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 	# Cut stone blocks go into the storage chest, as many as it still holds.
 	var stones := 0
 	for i in int(result.get("stones", 0)):
-		if storage.size() >= Menus.STORAGE_SIZE:
+		if storage.size() >= HomeUpgrades.storage_size(home_upgrades):
 			break
 		storage.append(Menus.STONE)
 		stones += 1
@@ -2198,6 +2389,7 @@ func refresh_quest_marks() -> void:
 		if is_instance_valid(v):
 			var quest_mark := quests.mark(v.role)
 			v.set_quest_mark(quest_mark if quest_mark != "" else crafting.mark(v.role))
+	(level as Outdoor).set_board_mark(bounties.mark())
 
 
 ## Something in the bag changed because of a task.
@@ -2207,6 +2399,15 @@ func update_after_quest() -> void:
 
 
 ## Remembers an explanation for the compendium, once.
+## The wandering merchant's wares for tonight: a new visit brings new ones,
+## and what was bought stays gone until then.
+func wanderer_wares() -> Array[String]:
+	if day != wanderer_night:
+		wanderer_night = day
+		wanderer_stock = Wanderer.stock_for(day, hero_name)
+	return wanderer_stock
+
+
 func learn(entry: String) -> void:
 	if not lore.has(entry):
 		lore.append(entry)
@@ -2303,16 +2504,76 @@ func _gold(amount: int) -> int:
 	return amount * 2 if player.has_special("gluecksklee") else amount
 
 
+## The vampire tooth gives back 1 life for every VAMPIRE_KILLS enemies slain.
+const VAMPIRE_KILLS := 3
+var _vampire_kills := 0
+
+
 func _on_enemy_killed(enemy: Enemy) -> void:
 	show_message(enemy.fall_text(), 2.5)
 	_win_trophy(enemy.kind)
 	var drop := quests.on_kill(enemy.kind)
+	bounties.on_kill(enemy.kind)
 	if drop != "":
 		level._drop_item(drop, enemy.global_position + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
-	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:
+	if player.has_special("vampirzahn"):
+		_vampire_kills = mini(_vampire_kills + 1, VAMPIRE_KILLS)
+	if player.has_special("vampirzahn") and _vampire_kills >= VAMPIRE_KILLS and player.hp < player.max_hp and not player.dead:
+		_vampire_kills = 0
 		player.hp += 1
 		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+1", Color(0.5, 1.0, 0.5))
 		_update_hud()
+
+
+## The dragon has fallen: the lair is won. A fanfare and a golden line
+## first, then, once the dragon has hit the ground, a window that says so
+## and offers the way out (see Menus "hoehle").
+const LAIR_WON_DELAY := 3.0
+
+
+func _on_lair_won() -> void:
+	var here := level
+	Sfx.play(self, "level_done", -1.0)
+	player.train("weisheit", 10.0)
+	get_tree().create_timer(LAIR_WON_DELAY).timeout.connect(func():
+		if level != here or state != State.PLAYING or player.dead:
+			return
+		if menus.is_open():
+			# Busy in a window: the golden line alone tells the news.
+			show_message(Lang.t("Höhle bezwungen! Der Drache ist tot."), 4.0)
+			return
+		menus.open("hoehle"))
+
+
+## The dragon wakes: the lair shakes, its name in gold, and a word on how
+## to fight it. Its health bar shows at the top (see BossBar).
+func _on_dragon_awakened(dragon: Dragon) -> void:
+	_shake = 1.4
+	learn(DRAGON_LEARN)
+	show_message(Lang.t("%s erwacht!") % Lang.t(dragon.boss_title()) + "\n" + Lang.t(DRAGON_LEARN), 5.0)
+	_message.add_theme_color_override("font_color", GOLD)
+	get_tree().create_timer(5.6).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
+
+
+const DRAGON_LEARN := "Rote Ringe am Boden zeigen, wo sein Feuer fällt: geh beiseite oder spring darüber. Nach dem Feueratem schnauft er, dann trifft deine Klinge doppelt."
+
+
+## Out of the lair at once, through the glowing way out the fallen dragon
+## left behind (or the "Leave the lair" button): back in front of the arch.
+func leave_lair() -> void:
+	if state != State.PLAYING or not level.lair or player.dead:
+		return
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	Sfx.play(self, "magic", -2.0)
+	var tween := create_tween()
+	tween.tween_property(_fade, "color", Color(0.9, 0.75, 0.4, 1.0), 0.5)
+	tween.tween_callback(func():
+		_leave_building()
+		get_tree().create_timer(1.0).timeout.connect(func():
+			if state == State.PLAYING:
+				show_message(Lang.t("Du trittst mit dem Schatz des Drachen aus dem Steinbogen ins Freie."), 3.5)))
 
 
 ## Training raised an attribute or a skill: say so, the attributes louder.
@@ -2836,9 +3097,11 @@ func _process(delta: float) -> void:
 			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
 			"eingang": Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
+			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
 			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
+			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
 			"hauswerkbank": Lang.t("Dagegenlaufen, um an der Werkbank zu arbeiten"),
 			"trophaeen": Lang.t("Dagegenlaufen, um deine Trophäen anzusehen"),
 		}.get(station.kind, "")

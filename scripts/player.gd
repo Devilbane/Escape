@@ -134,7 +134,7 @@ func _ready() -> void:
 	GearLook.dress(_model.find_child("handslot_r", true, false).get_node("Knife"), "mixed") # The hero's own knife.
 	for arm in ["Rogue_ArmLeft", "Rogue_ArmRight"]:
 		GearLook.apply(_model.find_child(arm, true, false) as MeshInstance3D, "outfit")
-	_matt_head()
+	HairLook.shave(_model.find_child("Rogue_Head", true, false) as MeshInstance3D)
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle", SNEAK_ANIM]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -185,6 +185,9 @@ func _update_sneak_look() -> void:
 		return
 	_shown_alpha = alpha
 	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+		if HairLook.is_hair(mesh.material_override):
+			HairLook.fade(mesh.material_override as ShaderMaterial, alpha)
+			continue
 		if mesh.material_override is ShaderMaterial:
 			# A tinted part: swap in the shader that can fade.
 			var tinted := mesh.material_override as ShaderMaterial
@@ -207,7 +210,8 @@ func _update_sneak_look() -> void:
 			mat.albedo_color.a = 1.0 - alpha
 
 
-## A golden cord along the edge of the cape, and a white feather at the head.
+## A golden cord along the edge of the cape, the mohawk, and a white feather
+## tucked behind the ear.
 func _add_trim() -> void:
 	var gold := StandardMaterial3D.new()
 	gold.albedo_color = Color(1.0, 0.76, 0.28)
@@ -224,7 +228,8 @@ func _add_trim() -> void:
 	var skeleton := _model.find_child("Skeleton3D", true, false) as Skeleton3D
 	if head == null or skeleton == null:
 		return
-	# The head is skinned to the head bone: place the feather in that bone's space.
+	# The head is skinned to the head bone: place the mohawk and the feather in
+	# that bone's space.
 	var bind := Transform3D.IDENTITY
 	for i in head.skin.get_bind_count():
 		if head.skin.get_bind_name(i) == "head":
@@ -233,28 +238,16 @@ func _add_trim() -> void:
 	attach.name = "HeadSlot"
 	attach.bone_name = "head"
 	skeleton.add_child(attach)
+	var crest := HairLook.crest()
+	crest.transform = bind
+	attach.add_child(crest)
 	var feather := MeshInstance3D.new()
 	feather.name = "Feather"
 	feather.mesh = Effects.feather_mesh()
 	feather.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Tucked in on the left side of the head, sweeping up and back.
-	feather.transform = Transform3D(Basis.from_euler(Vector3(-0.75, 0.0, -0.45)).scaled(Vector3.ONE * 1.3), bind * Vector3(0.47, 1.66, -0.05))
+	# Tucked in behind the left ear, sweeping up and back.
+	feather.transform = Transform3D(Basis.from_euler(Vector3(-0.75, 0.0, -0.45)).scaled(Vector3.ONE * 1.3), bind * Vector3(0.4, 1.68, -0.2))
 	attach.add_child(feather)
-
-
-## Hair and face are matt, so the hair does not shine like plastic in the
-## lantern light. Fading while sneaking reuses this material.
-func _matt_head() -> void:
-	var head := _model.find_child("Rogue_Head", true, false) as MeshInstance3D
-	if head == null or head.mesh == null:
-		return
-	var base := head.mesh.surface_get_material(0) as StandardMaterial3D
-	if base == null:
-		return
-	var matt := base.duplicate() as StandardMaterial3D
-	matt.roughness = 0.95
-	matt.metallic_specular = 0.12
-	head.set_surface_override_material(0, matt)
 
 
 ## The glowing devilbane emblem on the back of the cape.
@@ -765,7 +758,8 @@ func _ailments_changed() -> void:
 	ailments_changed.emit()
 
 
-## Puts the worn helmet or hat on the hero's head; the feather makes room for it.
+## Puts the worn helmet or hat on the hero's head; the mohawk and the feather
+## make room for it.
 func _show_headgear() -> void:
 	var slot := _model.find_child("HeadSlot", true, false)
 	if slot == null:
@@ -777,6 +771,9 @@ func _show_headgear() -> void:
 	var feather := slot.get_node_or_null("Feather") as Node3D
 	if feather:
 		feather.visible = not item.has("hat")
+	var crest := slot.get_node_or_null("Crest") as Node3D
+	if crest:
+		crest.visible = not item.has("hat")
 	if not item.has("hat"):
 		return
 	# The hats sit on the head bone of their own character, which matches the hero's.

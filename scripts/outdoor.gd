@@ -899,9 +899,11 @@ func _skin_chapel(chapel: Node) -> void:
 		var glass := StandardMaterial3D.new()
 		glass.albedo_texture = load(CHAPEL_DIR + "window_diffuse.png")
 		glass.emission_enabled = true
-		# The stained glass itself glows, in its own colours.
-		glass.emission = Color(0.38, 0.34, 0.3)
+		# The stained glass itself glows, in its own colours (multiplied,
+		# so the tint does not wash the panes out to white).
+		glass.emission = Color(1.0, 0.92, 0.8)
 		glass.emission_texture = load(CHAPEL_DIR + "window_diffuse.png")
+		glass.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
 		glass.emission_energy_multiplier = 0.0
 		var wood := StandardMaterial3D.new()
 		wood.albedo_texture = load(CHAPEL_DIR + "door_diffuse.png")
@@ -988,6 +990,10 @@ func _light_windows(node: Node) -> void:
 			lit.emission_enabled = true
 			lit.emission = WINDOW_LIGHT
 			lit.emission_texture = _window_mask
+			# Multiply, not the default add: with "add" the emission colour
+			# shines over the whole building and the mask only adds to it,
+			# so every house glowed white at night.
+			lit.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
 			lit.emission_energy_multiplier = 0.0
 			_window_mats[mat] = lit
 		mi.material_override = _window_mats[mat]

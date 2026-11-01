@@ -37,7 +37,9 @@ extends Level
 ##   the bandits of the pass are bolder in the dark.
 ##   The wolf hollow north of the pass, where beasts roam and come back the
 ##   same way: W wolf, H orc, J yeti, U spider.
-##   D  the way down into the dragon's lair: a stone arch over stairs into
+##   Peaceful animals that graze in the woods and bolt from the hero
+##   (see Animal): D doe, V stag, & fox.
+##   E  the way down into the dragon's lair: a stone arch over stairs into
 ##      the dark (a block of tiles, see Level "lair: yes")
 ##   v  a stone pedestal with a food basket on top, too high to reach from
 ##      the ground or from one crate: stack two crates beside it. Three
@@ -54,11 +56,11 @@ signal food_basket(heal: int)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZScAXQWHJU"
+const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
-const BLOCK_CHARS := "RhjnmuskowbD"
+const BLOCK_CHARS := "RhjnmuskowbE"
 const HOMES := ["building_home_A_blue", "building_home_B_red", "building_home_A_yellow", "building_home_B_green"]
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -69,7 +71,7 @@ const BLOCK_MODELS := {
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
 	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
-	"D": "die Drachenhöhle",
+	"E": "die Drachenhöhle",
 }
 ## The herald calls out news this often (seconds, picked at random between the
 ## two bounds each time); the first call comes sooner.
@@ -126,6 +128,9 @@ const BASKET_REFILL := 180.0
 const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 1.6), Vector3(-1.4, 0, 3.0)]
 
 var villagers: Array = []
+## The peaceful animals of the woods (see Animal).
+var animals: Array[Animal] = []
+var _animal_spots: Array = []
 ## Has the elder handed the house over yet? Saved games wake up at home.
 var house_given := false
 ## The villagers the hero has talked to, by role letter (see Villager.ROLES):
@@ -223,6 +228,7 @@ func build() -> void:
 	_walls_body.add_child(floor_shape)
 	_spawn_villagers()
 	_spawn_wild()
+	_spawn_animals()
 
 
 # --- Ground -------------------------------------------------------------------
@@ -456,6 +462,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 		_:
 			if Enemy.WILD_LETTERS.has(ch):
 				_wild.append({"cell": c, "kind": Enemy.WILD_LETTERS[ch], "enemy": null, "timer": 0.0, "wave": 0})
+			elif Animal.LETTERS.has(ch):
+				_animal_spots.append({"cell": c, "kind": Animal.LETTERS[ch]})
 
 
 ## A tall stone pedestal with a basket of bread, cheese and apples on top,
@@ -717,7 +725,7 @@ func _build_blocks() -> void:
 
 
 func _build_block(ch: String, block: Rect2i) -> void:
-	if ch == "D":
+	if ch == "E":
 		_build_lair_entrance(block)
 		return
 	var model: String = HOMES[_rng.randi() % HOMES.size()] if ch == "h" else BLOCK_MODELS[ch]
@@ -813,9 +821,9 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	add_child(glow)
 	_add_solid(center, Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86))
 	arch.set_meta("block", block)
-	doors["D"] = front + Vector3(0, 0, 2.0)
-	if interiors.has("D"):
-		stations.append({"kind": "eingang", "building": "D", "name": BUILDING_NAMES.D,
+	doors["E"] = front + Vector3(0, 0, 2.0)
+	if interiors.has("E"):
+		stations.append({"kind": "eingang", "building": "E", "name": BUILDING_NAMES.E,
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.6), "used": false})
 
 
@@ -1151,6 +1159,16 @@ func _spawn_wild() -> void:
 
 
 ## Whether the bandit chief has fallen in this saved game.
+## Lets the does, stags and foxes out onto their meadows.
+func _spawn_animals() -> void:
+	for s in _animal_spots:
+		var a := Animal.new()
+		a.setup(self, s.kind, s.cell)
+		add_child(a)
+		a.global_position = cell_to_world(s.cell)
+		animals.append(a)
+
+
 func chief_defeated() -> bool:
 	return taken.has(CHIEF_DEFEATED)
 

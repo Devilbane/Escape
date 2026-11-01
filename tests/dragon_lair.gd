@@ -56,22 +56,22 @@ func _process(_delta: float) -> bool:
 			game.load_level(game._outdoor_index(), false)
 			game.state = game.State.PLAYING
 			var lvl: Outdoor = game.level
-			check(game.interiors.has("D"), "the lair is a floor below the arch D")
-			check(lvl.doors.has("D"), "the arch stands in the woods")
-			var door := lvl.stations.filter(func(s): return s.kind == "eingang" and s.building == "D")
+			check(game.interiors.has("E"), "the lair is a floor below the arch E")
+			check(lvl.doors.has("E"), "the arch stands in the woods")
+			var door := lvl.stations.filter(func(s): return s.kind == "eingang" and s.building == "E")
 			check(door.size() == 1, "running into the arch leads down")
 			# The arch can be reached on foot from the graveyard path.
-			var way: Array = lvl.astar.get_id_path(lvl.start_cell, lvl.world_to_cell(lvl.doors.D))
+			var way: Array = lvl.astar.get_id_path(lvl.start_cell, lvl.world_to_cell(lvl.doors.E))
 			check(not way.is_empty(), "a way leads from the graveyard to the arch")
-			game.player.global_position = lvl.doors.D
-			game.go_inside("D")
+			game.player.global_position = lvl.doors.E
+			game.go_inside("E")
 			stage = 1
 		1:
 			stage_frames += 1
 			if stage_frames < 60:
 				return false
 			var lvl: Level = game.level
-			check(lvl.building == "D" and lvl.lair, "the arch led into the dragon's lair (%s)" % lvl.level_name)
+			check(lvl.building == "E" and lvl.lair, "the arch led into the dragon's lair (%s)" % lvl.level_name)
 			check(not lvl.safe, "the lair is no safe room")
 			var kinds := {}
 			for e in _alive(lvl):
@@ -170,8 +170,8 @@ func _process(_delta: float) -> bool:
 			var lvl: Level = game.level
 			check(lvl is Outdoor, "the lair's stairs lead back out into the woods")
 			if lvl is Outdoor:
-				check(game.player.global_position.distance_to(lvl.doors.D) < 3.0, "the hero comes out in front of the arch")
-			game.go_inside("D")
+				check(game.player.global_position.distance_to(lvl.doors.E) < 3.0, "the hero comes out in front of the arch")
+			game.go_inside("E")
 			stage = 5
 			stage_frames = 0
 		5:

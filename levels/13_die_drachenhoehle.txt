@@ -1,6 +1,6 @@
 name: Die Drachenhöhle
 hint: Unter dem alten Steinbogen im Wald: Fledermäuse, Schleime und Skelette hausen hier, und ganz unten schläft ein Drache auf seinem Gold.
-building: D
+building: E
 floor: cellar
 lair: yes
 ##############################

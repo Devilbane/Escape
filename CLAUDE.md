@@ -28,3 +28,11 @@ Every letter a map in `levels/` uses is listed in `scripts/tiles.gd` (`Tiles.DUN
 built by `Level`, `Tiles.OUTDOOR` for the open-air map). Before using a new letter, claim it there,
 then run `tests/tile_letters.gd`: it fails when a map uses an unlisted letter or when two things in
 the code (a match arm, `Enemy.WILD_LETTERS`, `Animal.LETTERS`, ...) share one letter.
+
+## Event bus
+
+Features report what happened on the event bus, `Events.bus()` (`scripts/events.gd`), instead of
+calling `game.gd` or each other: `Events.tell(text, colour)` for news, `Events.teach(entry)` for the
+compendium, and signals such as `enemy_slain`, `quest_done` and `traded`. Who listens to what is
+listed in one place, `Game._bus_links()`. A new cross-feature call should be a signal there.
+`tests/events.gd` checks the wiring.

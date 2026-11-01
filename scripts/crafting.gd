@@ -317,8 +317,8 @@ func talk(v: Villager) -> bool:
 	learn_recipe(id)
 	v.meet()
 	v.say(Lang.t(RECIPES[id].offer), game.player.global_position, 6.5)
-	game.learn(HOW_TO)
-	game.quest_news(Lang.t("Neues Rezept: %s") % Lang.t(RECIPES[id].name) + "\n" + Lang.t("Steht im Kompendium (H) im „Rezeptbuch“."), Color(0.75, 0.85, 1.0))
+	Events.teach(HOW_TO)
+	Events.tell(Lang.t("Neues Rezept: %s") % Lang.t(RECIPES[id].name) + "\n" + Lang.t("Steht im Kompendium (H) im „Rezeptbuch“."), Color(0.75, 0.85, 1.0))
 	return true
 
 

@@ -242,6 +242,41 @@ const HEAVY_LEARN := "Alte, schwere Steinblöcke liegen in manchen Kammern des V
 const STONE_LEARN := "Steinblöcke kauft man beim Steinmetz im Dorf. Abstellen mit B (oder „Abstellen“ im Inventar): der Block legt sich quer vor dich, auf den Boden oder auf andere Blöcke. Mit der linken Maustaste greifst du einen Block, ziehst ihn auf ein anderes Feld in der Nähe und lässt los; ein Rechtsklick dabei dreht ihn. E nimmt einen Block wieder in die Tasche. Auf einen Block steigst du einfach hinauf, auf zwei mit einem Sprung. Skelette und Räuber können nicht klettern: Eine Mauer aus Blöcken hält sie fern, und sie müssen außen herum."
 
 
+# --- The event bus -------------------------------------------------------------
+
+## Who listens to what on the event bus (see Events): the features report
+## there, and the game and the other features react, so they do not call
+## each other. Listed in the order they hear it.
+func _bus_links() -> Array:
+	var bus := Events.bus()
+	return [
+		[bus.news_told, quest_news],
+		[bus.lore_learned, learn],
+		[bus.enemy_slain, Callable(Factions, "on_hero_kill")],
+		[bus.enemy_slain, bounties.on_kill],
+		[bus.quest_done, quest_reward],
+		[bus.quest_done, reputation.on_quest_done],
+		[bus.quest_item_given, update_after_quest],
+		[bus.reputation_rose, reputation_rose],
+		[bus.traded, reputation.on_trade],
+		[bus.map_grew, map_notice],
+	]
+
+
+func _enter_tree() -> void:
+	for link in _bus_links():
+		var heard: Signal = link[0]
+		if not heard.is_connected(link[1]):
+			heard.connect(link[1])
+
+
+func _exit_tree() -> void:
+	for link in _bus_links():
+		var heard: Signal = link[0]
+		if heard.is_connected(link[1]):
+			heard.disconnect(link[1])
+
+
 func _ready() -> void:
 	Lang.setup()
 	_move_old_save()
@@ -2542,7 +2577,6 @@ func quest_reward(id: String) -> void:
 	else:
 		Sfx.play(self, "key", -3.0)
 	quest_news(Lang.t("Auftrag abgeschlossen: %s\nBelohnung: %s") % [Lang.t(q.title), Quests.reward_text(id)], GOLD, 4.5)
-	reputation.on_quest_done(id)
 
 
 ## A villager thinks better of the hero now: friendly, trusted or honoured.
@@ -2571,11 +2605,6 @@ func _show_reputation_news() -> void:
 ## A price in gold at the villager whose window is open (see trader_role).
 func trader_price(gold: int) -> int:
 	return reputation.price(trader_role, gold)
-
-
-## The hero bought something from the villager whose window is open.
-func traded() -> void:
-	reputation.on_trade(trader_role)
 
 
 ## The "!" and "?" over the villagers' heads. Looked at a few times a
@@ -2744,9 +2773,9 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 		return
 	show_message(enemy.fall_text(), 2.5)
 	_win_trophy(enemy.kind)
-	Factions.on_hero_kill(enemy.kind)
 	var drop := quests.on_kill(enemy.kind)
-	bounties.on_kill(enemy.kind)
+	# Factions and bounties count it (see _bus_links).
+	Events.bus().enemy_slain.emit(enemy.kind)
 	if drop != "":
 		level._drop_item(drop, enemy.global_position + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
 	if player.has_special("vampirzahn"):

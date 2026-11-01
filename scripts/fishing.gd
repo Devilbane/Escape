@@ -101,7 +101,7 @@ func cast(w: Dictionary) -> void:
 	_float = _make_float()
 	_float.position = _float_rest
 	_level.add_child(_float)
-	game.learn(HOW_TO)
+	Events.teach(HOW_TO)
 	game.show_message(Lang.t("Du wirfst die Leine aus und wartest …"), 2.0)
 
 
@@ -206,7 +206,7 @@ func take(caught: String, pos: Vector3, on: Node) -> void:
 			var burst := Effects.make_sparkles(Color(0.6, 0.85, 1.0), true)
 			burst.position = pos + Vector3(0, 0.5, 0)
 			on.add_child(burst)
-			game.quest_news(Lang.t("Ein seltener Fang: %s!") % fish + "\n" + Lang.t("Der Fang kommt in deinen Zutatenbeutel."), Color(0.6, 0.85, 1.0))
+			Events.tell(Lang.t("Ein seltener Fang: %s!") % fish + "\n" + Lang.t("Der Fang kommt in deinen Zutatenbeutel."), Color(0.6, 0.85, 1.0))
 		else:
 			Sfx.play(game, "drip")
 			Effects.float_text(on, pos + Vector3(0, 1.4, 0), fish, Color(0.75, 0.9, 1.0), true)

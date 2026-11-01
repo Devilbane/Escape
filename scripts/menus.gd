@@ -17,6 +17,8 @@ var _box: VBoxContainer
 const RETURN_TEXT_WIDTH := 700
 var _selected := -1
 var _note := ""
+## The craft of the workbench whose window is open (see CraftingSquare).
+var bench := ""
 ## The saved game whose delete button was clicked once; a second click deletes.
 var _delete_asked := ""
 ## Which page of the compendium shows: "wissen" (controls and everything
@@ -121,6 +123,8 @@ func _rebuild() -> void:
 			_build_stonemason()
 		"schmied":
 			_build_smithy()
+		"werkbank":
+			_build_bench()
 		"tresor":
 			_build_vault()
 		"haendler":
@@ -443,6 +447,25 @@ func _take(index: int) -> void:
 		game.storage.remove_at(index)
 		_note = ""
 	_rebuild()
+
+
+# --- Workbenches on the crafting square ------------------------------------
+
+## A workbench of the crafting square: what is made there, and the recipes
+## the hero knows for its craft. Until the hero knows one, it says how to
+## find recipes; the storage chest and Gorm's forge are right beside it.
+func _build_bench() -> void:
+	game.learn(CraftingSquare.LEARN)
+	var info := CraftingSquare.bench_of(bench)
+	if info.is_empty():
+		_add_label(Lang.t("Werkbank"), 38, game.GOLD, game.TITLE_FONT)
+		return
+	_add_label(Lang.t(info.name), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t(info.craft_line), 22)
+	_add_label(Lang.t(info.text), 18, BLUE)
+	_add_label(Lang.t("Hier stellst du her, was ein Rezept für dieses Handwerk verlangt."), 18)
+	_add_label(Lang.t("Du kennst noch kein Rezept für diese Werkbank. Rezepte findest du bei Gelehrten, in Truhen und als Belohnung."), 18, Color(1.0, 0.75, 0.5))
+	_add_label(Lang.t("Deine Truhe und Gorms Esse stehen gleich nebenan."), 16, BLUE)
 
 
 # --- Bank -------------------------------------------------------------------

@@ -228,6 +228,14 @@ roofs, each one a little different. Sixteen villagers go about their day: the sm
 makes the rounds, the postmaster carries letters, the priestess tends the temple. Every so often the
 **herald** rings the bell and calls out the news, and the whole village gathers on the square to listen.
 
+On the west side of the market square, right beside Gorm's forge, lies the **crafting square**, the place
+where heroes meet to make things. Every workbench stands there in a row: a **fine metalwork bench** (rings,
+chains, settings and wire), a **gem cutter's wheel** and an **alchemist's table** with a cauldron bubbling
+green over a small fire. Between them stands **your chest**: it opens the same storage as the chest in
+your house, so you can fetch ingredients and put away what you made without walking home. Each bench
+belongs to one craft, and a recipe made with that craft is made at its bench. Until you know such a
+recipe, a bench tells you what is done there. The benches are built in `scripts/crafting_square.gd`.
+
 At the **bank** the banker keeps your gold safe (deposit and withdraw) and rents you a **vault** for
 50 gold. The vaults are in the **cellar**: small cells behind iron bars, each with its holder's name, their
 gold and their treasures. You can walk down and look at what every other hero keeps there; your own cell
@@ -393,7 +401,8 @@ It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `
 `H` orc, `J` yeti, `U` spider; the peaceful animals of the woods: `D` doe, `V` stag, `&` fox. `E` is the stone arch over the stairs down into the dragon's lair. Buildings are a
 rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general store, `u` windmill,
 `s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank. The hero's house:
-`I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The villagers: `0` elder,
+`I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The crafting square:
+`+` fine metalwork bench, `%` gem cutter's wheel, `*` alchemist's table, `$` your storage chest. The villagers: `0` elder,
 `1` smith, `2` farmer, `3` woodcutter, `4` guard, `5` drinker, `6` shopkeeper, `7` child, `8` scholar,
 `9` water carrier, `K` herald, `O` priestess, `G` guild master, `M` postmaster, `Y` banker, `Z` barber.
 

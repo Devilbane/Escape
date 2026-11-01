@@ -59,7 +59,9 @@ const IRON := {"name": "Eisenbarren", "region": "Dorf", "when": "", "source": "S
 ## faded line with a "fish" is read the first time that fish is caught.
 ## A recipe with an empty "giver" is not handed out by running into someone:
 ## it is the reward of a wish (see Wishes), and "effect" says what the made
-## piece will do.
+## piece will do. A recipe with a "result" (an item in Items.ALL) can be made
+## at the bench of its craft on the crafting square (see make); one without
+## is not complete yet.
 const RECIPES := {
 	"mondsilberring": {"name": "Mondsilberring", "giver": "8",
 		"craft": "feinschmieden", "craft_level": 3,
@@ -90,7 +92,7 @@ const RECIPES := {
 			{"id": "hand", "text": "Eine geübte Hand: Feinschmieden, Stufe 2."},
 		]},
 	# The rewards of the wishes Guild Master Ragna helps with (see Wishes).
-	"klingenring": {"name": "Klingenring", "giver": "", "craft": "feinschmieden", "craft_level": 2,
+	"klingenring": {"name": "Klingenring", "giver": "", "craft": "feinschmieden", "craft_level": 0, "result": "klingenring",
 		"effect": "Klingen +1",
 		"ingredients": {"mondsilbererz": 1, "glimmermoos": 1, "eisen": 2},
 		"lines": [
@@ -98,14 +100,14 @@ const RECIPES := {
 			{"id": "moos", "text": "Glimmermoos aus dem Verlies, um ihn blank zu reiben."},
 			{"id": "eisen", "text": "Zwei Barren Eisen, damit er die Hand fest hält."},
 		]},
-	"axtreif": {"name": "Armreif der Axt", "giver": "", "craft": "feinschmieden", "craft_level": 2,
+	"axtreif": {"name": "Armreif der Axt", "giver": "", "craft": "feinschmieden", "craft_level": 0, "result": "axtreif",
 		"effect": "Äxte +1",
 		"ingredients": {"hoehlenpilz": 2, "eisen": 3},
 		"lines": [
 			{"id": "eisen", "text": "Drei Barren Eisen, schwer wie ein Axtkopf."},
 			{"id": "pilz", "text": "Die Asche zweier Höhlenpilze, um das Eisen zu härten."},
 		]},
-	"schildamulett": {"name": "Amulett des Walls", "giver": "", "craft": "feinschmieden", "craft_level": 2,
+	"schildamulett": {"name": "Amulett des Walls", "giver": "", "craft": "feinschmieden", "craft_level": 0, "result": "schildamulett",
 		"effect": "Blocken +1",
 		"ingredients": {"mondstein": 1, "barsch": 2, "eisen": 2},
 		"lines": [
@@ -113,7 +115,7 @@ const RECIPES := {
 			{"id": "leim", "text": "Leim aus der Haut zweier Barsche, der ihn hält."},
 			{"id": "eisen", "text": "Zwei Barren Eisen für die Fassung."},
 		]},
-	"wurfring": {"name": "Wurfring", "giver": "", "craft": "feinschmieden", "craft_level": 2,
+	"wurfring": {"name": "Wurfring", "giver": "", "craft": "feinschmieden", "craft_level": 0, "result": "wurfring",
 		"effect": "Messerwurf +1",
 		"ingredients": {"silberhecht": 1, "mondsilbererz": 1, "eisen": 1},
 		"lines": [
@@ -121,7 +123,7 @@ const RECIPES := {
 			{"id": "erz", "text": "Ein Brocken Mondsilber für den Reif."},
 			{"id": "eisen", "text": "Ein Barren Eisen, damit er nicht verrutscht."},
 		]},
-	"schattenamulett": {"name": "Amulett der stillen Schritte", "giver": "", "craft": "feinschmieden", "craft_level": 2,
+	"schattenamulett": {"name": "Amulett der stillen Schritte", "giver": "", "craft": "feinschmieden", "craft_level": 0, "result": "schattenamulett",
 		"effect": "Schleichen +1",
 		"ingredients": {"mondforelle": 1, "glimmermoos": 2, "mondsilbererz": 1},
 		"lines": [
@@ -129,7 +131,7 @@ const RECIPES := {
 			{"id": "moos", "text": "Zwei Büschel Glimmermoos, das jeden Klang schluckt."},
 			{"id": "erz", "text": "Ein Brocken Mondsilber für die Fassung."},
 		]},
-	"lastreif": {"name": "Armreif der leichten Last", "giver": "", "craft": "feinschmieden", "craft_level": 2,
+	"lastreif": {"name": "Armreif der leichten Last", "giver": "", "craft": "feinschmieden", "craft_level": 0, "result": "lastreif",
 		"effect": "Rüstung tragen +1",
 		"ingredients": {"goldkarpfen": 1, "baerlauch": 2, "eisen": 2},
 		"lines": [
@@ -320,6 +322,70 @@ func talk(v: Villager) -> bool:
 	Events.teach(HOW_TO)
 	Events.tell(Lang.t("Neues Rezept: %s") % Lang.t(RECIPES[id].name) + "\n" + Lang.t("Steht im Kompendium (H) im „Rezeptbuch“."), Color(0.75, 0.85, 1.0))
 	return true
+
+
+# --- Making ---------------------------------------------------------------------
+
+## Training a craft gets each time the hero makes something with it.
+const CRAFT_XP := 10.0
+
+
+## The hero's level in a craft.
+func craft_level(craft: String) -> int:
+	if game == null or game.player == null:
+		return 0
+	return Training.skill_level(float(game.player.xp.get(craft, 0.0)), craft)
+
+
+## The known recipes of a craft, in the order of RECIPES: what its bench lists.
+func recipes_for(craft: String) -> Array:
+	return entries().filter(func(id): return RECIPES[id].craft == craft)
+
+
+## Why a recipe cannot be made right now, or "" when it can.
+func why_not(id: String) -> String:
+	var r: Dictionary = RECIPES[id]
+	if not knows(id):
+		return Lang.t("Dieses Rezept kennst du nicht.")
+	if not r.has("result"):
+		return Lang.t("Das Rezept ist noch nicht vollständig.")
+	if craft_level(r.craft) < int(r.craft_level):
+		return Lang.t("Dafür brauchst du %s Stufe %d.") % [Lang.t(Training.CRAFTS[r.craft].name), r.craft_level]
+	var missing := []
+	for ingredient in r.ingredients:
+		var short := int(r.ingredients[ingredient]) - have(ingredient)
+		if short > 0:
+			missing.append("%d %s" % [short, ingredient_name(ingredient)])
+	if not missing.is_empty():
+		return Lang.t("Es fehlt: %s") % ", ".join(missing)
+	return ""
+
+
+## Makes a recipe: takes its ingredients, puts the piece into the bag (or
+## the storage chest when the bag is full) and trains the craft. Returns ""
+## on success, else why not.
+func make(id: String) -> String:
+	if not RECIPES.has(id):
+		return Lang.t("Dieses Rezept kennst du nicht.")
+	var why := why_not(id)
+	if why != "":
+		return why
+	var r: Dictionary = RECIPES[id]
+	for ingredient in r.ingredients:
+		var count := int(r.ingredients[ingredient])
+		if ingredient == "eisen":
+			game.iron -= count
+		else:
+			pouch[ingredient] = have(ingredient) - count
+			if pouch[ingredient] <= 0:
+				pouch.erase(ingredient)
+	var p: Player = game.player
+	if p.bag.size() < p.bag_size():
+		p.bag.append(r.result)
+	else:
+		game.storage.append(r.result)
+	p.train(r.craft, CRAFT_XP, false)
+	return ""
 
 
 # --- Compendium -----------------------------------------------------------------

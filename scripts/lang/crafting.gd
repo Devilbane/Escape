@@ -43,4 +43,16 @@ const EN := {
 	"Handwerk:": "Crafts:",
 	"Feinschmieden": "Fine metalwork",
 	"„%s“": "“%s”",
+	# Making things at the workbenches
+	"Dieses Rezept kennst du nicht.": "You do not know this recipe.",
+	"Das Rezept ist noch nicht vollständig.": "The recipe is not complete yet.",
+	"Dafür brauchst du %s Stufe %d.": "You need %s level %d for this.",
+	"Es fehlt: %s": "Missing: %s",
+	"Dein Handwerk: %s, Stufe %d": "Your craft: %s, level %d",
+	"Alles da: du kannst es herstellen.": "Everything is here: you can make it.",
+	"Herstellen": "Make",
+	"in deiner Tasche": "in your bag",
+	"in deiner Truhe, die Tasche ist voll": "in your chest, the bag is full",
+	"Hergestellt: %s, %s.": "Made: %s, %s.",
+	"An den Werkbänken auf dem Handwerkerplatz stellst du her, was deine Rezepte verlangen: Lauf gegen die Werkbank des Handwerks, und wenn alle Zutaten im Beutel sind, drück „Herstellen“. Das Stück kommt in deine Tasche, und jedes Mal wirst du in dem Handwerk geübter.": "At the workbenches on the crafting square you make what your recipes call for: run into the bench of the craft, and when every ingredient is in your pouch, press \"Make\". The piece goes into your bag, and each time you get more practised at the craft.",
 }

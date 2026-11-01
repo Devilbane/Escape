@@ -988,8 +988,9 @@ func train(id: String, amount: float, need_gear := true) -> void:
 		return
 	if id != "weisheit":
 		amount *= 1.0 + Training.LEARNING_PER_WISDOM * (attribute("weisheit") - Training.ATTRIBUTES.weisheit.start)
-	var is_skill := Training.is_skill(id)
-	if is_skill and need_gear and not skill_enabled(id):
+	var is_craft := Training.CRAFTS.has(id)
+	var is_skill := Training.is_skill(id) or is_craft
+	if is_skill and need_gear and not is_craft and not skill_enabled(id):
 		return
 	var old_xp: float = xp.get(id, 0.0)
 	xp[id] = old_xp + amount

@@ -25,7 +25,7 @@ const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## Every control, for the compendium: action and keys.
 const SHORTCUTS := [
 	["Gehen", "WASD / Pfeiltasten oder Klick auf den Boden"],
-	["Rennen", "Maustaste auf dem Boden halten oder Umschalt: in 3 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück; leer erst wieder ab halbvoll. Wer im Lauf binnen 2 Sekunden mehr als 10 % seiner Leben verliert, stürzt zu Boden und steht wieder auf"],
+	["Rennen", "Maustaste auf dem Boden halten oder Umschalt: in 2 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück; leer erst wieder ab halbvoll. Wer im Lauf binnen 2 Sekunden mehr als 10 % seiner Leben verliert, stürzt zu Boden und steht wieder auf"],
 	["Springen", "Leertaste, Rechtsklick im Lauf"],
 	["Nahkampf", "F oder J, gegen das Skelett laufen oder es anklicken"],
 	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],
@@ -916,7 +916,9 @@ func _save_row(info: Dictionary, playing: bool) -> Control:
 	row.add_child(text)
 	var where: Label = game._make_label(game.TEXT_FONT, 22)
 	where.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	if info.escaped:
+	if info.home:
+		where.text = Lang.t("%s zu Hause mit %d Gold.") % [info.name, info.coins]
+	elif info.escaped:
 		where.text = Lang.t("%s auf dem Friedhof mit %d Gold.") % [info.name, info.coins]
 	else:
 		where.text = Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins]

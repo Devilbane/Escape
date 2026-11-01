@@ -1,8 +1,9 @@
 extends SceneTree
 ## Headless test for the saved game out of the dungeon: once the hero has
 ## escaped, every load starts on the graveyard in front of the crypt door,
-## wherever the game was saved; only a night in the house bed wakes the hero
-## at home. Inside the dungeon a load still starts where the game was saved.
+## wherever the game was saved, until the hero steps into the house the elder
+## gave: from then on every load starts in that house. Inside the dungeon a
+## load still starts where the game was saved.
 ## Run with: godot --headless -s tests/graveyard_start.gd
 
 var failures := 0
@@ -73,18 +74,28 @@ func _test() -> void:
 	check(game.escaped, "the escape is kept in the saved game")
 	check(game.level_index == outdoor and _at_graveyard(), "a save in the vault cellar loads on the graveyard")
 
-	# Saved in the village with a house: still the graveyard.
+	# The elder has given the house, but the hero has not been inside yet:
+	# still the graveyard.
 	game.home_given = true
 	_save_and_load(outdoor)
-	check(_at_graveyard(), "a save in the village loads on the graveyard, even with a house")
-	check(game.save_info().escaped, "the load window knows the save is on the graveyard")
+	check(_at_graveyard(), "a house not yet entered leaves the start on the graveyard")
+	check(game.save_info().escaped and not game.save_info().home, "the load window knows the save is on the graveyard")
 
-	# A night in the house bed wakes the hero at home.
-	game.level.house_given = true
-	_save_and_load(outdoor, true)
-	check(game.level is Outdoor and game.level.home_spot != Vector3.ZERO \
-			and game.player.global_position.distance_to(game.level.home_spot) < 0.5, "after sleeping in the house bed the hero wakes at home")
-
-	# After waking, the next save is an ordinary one again: back to the graveyard.
+	# Walking into the house makes it the hero's own: saved at once, and
+	# every load from then on starts next to the bed, wherever it was saved.
+	game.level.home_claimed.emit()
+	check(game.home_claimed and game.save_info().home, "stepping into the house saves it as the new starting point")
+	game._apply_save(game._read_save())
+	check(_at_home(), "the save made on claiming the house loads in the house")
+	_save_and_load(vaults)
+	check(_at_home(), "a save in the vault cellar loads in the hero's house")
 	_save_and_load(outdoor)
-	check(_at_graveyard(), "the save after waking up loads on the graveyard again")
+	check(_at_home(), "a save in the village loads in the hero's house")
+	_save_and_load(outdoor, true)
+	check(_at_home(), "after sleeping in the bed the hero wakes at home")
+	check(game.level._entered_once, "a loaded house does not greet the hero as new again")
+
+
+func _at_home() -> bool:
+	var lvl: Level = game.level
+	return lvl is Outdoor and lvl.home_spot != Vector3.ZERO and game.player.global_position.distance_to(lvl.home_spot) < 0.5

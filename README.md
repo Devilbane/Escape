@@ -190,8 +190,9 @@ new starting point: every load, and every new try after a fall, begins in front 
 you saved last. But the game goes on. A long path leads
 through the autumn forest, past a pond and a woodcutter, to the village of **Lindenhain**. Run into anyone
 to hear what they have to say. The **village elder** gives you the empty house with the tiled roof, and a
-golden light shows the door. Inside are a **bed** (save and log out) and a **chest** (your storage). After a
-night in that bed, you wake up in your own house.
+golden light shows the door. Inside are a **bed** (save and log out) and a **chest** (your storage). The moment
+you first step inside, the house is yours: the game saves, and from then on your house replaces the graveyard as
+the starting point. Every load, and every new try after a fall, begins next to your bed.
 
 In the middle of the village lies the paved **market square** with a fountain that heals, benches and
 lanterns. Around it stand the **smithy**, the **temple**, the **office of the crown**, the **post office**, the

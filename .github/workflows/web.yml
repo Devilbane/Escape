@@ -79,6 +79,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log
           grep -q PASS barber.log
 
+      - name: Villager names after a talk test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/npc_names.gd | tee names.log
+          grep -q PASS names.log
+
       - name: Wild bandits on the robbers' pass test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_bandits.gd | tee bandits.log
@@ -88,6 +93,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/splash_attack.gd | tee splash.log
           grep -q PASS splash.log
+
+      - name: Hero or heroine test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/heroine.gd | tee heroine.log
+          grep -q PASS heroine.log
 
       - name: Hero and skeletons cannot stack test
         run: |

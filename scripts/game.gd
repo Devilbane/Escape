@@ -42,6 +42,9 @@ var _ambience: AudioStreamPlayer
 var escaped := false
 ## Whether the village elder has given the hero a house.
 var home_given := false
+## The villagers the hero has talked to, by role letter -> true. Once met,
+## a villager wears their name over their head. Kept in the saved game.
+var met := {}
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
 var coins := 0
@@ -109,6 +112,10 @@ var away_plan := Offline.empty_plan()
 ## welcome-back window.
 var away_report: Array[String] = []
 var _name_edit: LineEdit
+## The body chosen for the new hero, and the buttons to pick it (see BodyLook).
+var _new_sex := BodyLook.DEFAULT
+var _sex_buttons := {}
+var _name_ask: Label
 var _ranking_slot: Control
 var _lang_row: Control
 ## Engine flag set when a language is picked: it survives the scene reload,
@@ -180,7 +187,10 @@ func _setup_world() -> void:
 	env.ambient_light_color = Color(0.42, 0.40, 0.37)
 	env.ambient_light_energy = 0.3
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.05
+	# A touch under neutral: the picture reads calmer and highlights keep
+	# their detail. Torch pools in the dungeon still stand out against the
+	# dark, as stealth only cares about the light geometry, not the exposure.
+	env.tonemap_exposure = 0.95
 	env.glow_enabled = true
 	env.glow_intensity = 0.7
 	env.glow_bloom = 0.05
@@ -217,13 +227,13 @@ func _setup_world() -> void:
 ## Dark dungeon air or a golden autumn evening in the open.
 func _set_atmosphere(outdoor: bool) -> void:
 	if outdoor:
-		_env.background_color = Color(0.55, 0.5, 0.62)
+		_env.background_color = Color(0.5, 0.46, 0.57)
 		_env.ambient_light_color = Color(0.7, 0.68, 0.78)
-		_env.ambient_light_energy = 0.6
+		_env.ambient_light_energy = 0.52
 		_env.adjustment_saturation = 0.95
 		_moon.rotation_degrees = Vector3(-38, -35, 0)
 		_moon.light_color = Color(1.0, 0.8, 0.6)
-		_moon.light_energy = 1.0
+		_moon.light_energy = 0.88
 	else:
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
@@ -644,6 +654,7 @@ func load_level(index: int, restock := true) -> void:
 		level.interiors = interiors
 		level.house_given = home_given
 		level._entered_once = home_given
+		level.met = met
 	level.secret_bonus = secrets_found
 	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
 	add_child(level)
@@ -763,10 +774,20 @@ func new_game() -> void:
 	_lang_row.visible = false
 	_title_prompt.text = ""
 	_name_box.visible = true
+	_choose_sex(player.sex)
 	_name_edit.text = hero_name
 	_name_edit.grab_focus()
 	_name_edit.select_all()
 	_update_name_note(hero_name)
+
+
+## Picks the body of the new hero: the chosen button stays bright, and the
+## question asks for a hero's or a heroine's name.
+func _choose_sex(id: String) -> void:
+	_new_sex = BodyLook.checked(id)
+	for sex in _sex_buttons:
+		_sex_buttons[sex].modulate = Color.WHITE if sex == _new_sex else Color(1, 1, 1, 0.5)
+	_name_ask.text = Lang.t("Wie heißt deine Heldin?" if _new_sex == "female" else "Wie heißt dein Held?")
 
 
 ## Warns when the name chosen already has a saved game: the new run takes
@@ -784,10 +805,20 @@ func _setup_name_box() -> void:
 	box.visible = false
 	_title.add_child(box)
 	_name_box = box
-	var ask := _make_label(TEXT_FONT, 30, GOLD)
-	ask.text = Lang.t("Wie heißt dein Held?")
-	ask.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(ask)
+	# Hero or heroine: two buttons, the chosen one bright.
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	box.add_child(row)
+	for entry in [["Held", "male"], ["Heldin", "female"]]:
+		var b := _make_button(Lang.t(entry[0]), _choose_sex.bind(entry[1]))
+		b.custom_minimum_size = Vector2(180, 56)
+		row.add_child(b)
+		_sex_buttons[entry[1]] = b
+	_name_ask = _make_label(TEXT_FONT, 30, GOLD)
+	_name_ask.text = Lang.t("Wie heißt dein Held?")
+	_name_ask.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_name_ask)
 	_name_edit = LineEdit.new()
 	_name_edit.max_length = 16
 	_name_edit.placeholder_text = Lang.t("Dein Name")
@@ -824,10 +855,12 @@ func _start_new_game() -> void:
 	secrets_found = 0
 	dry_levels = 0
 	looted.clear()
+	met.clear()
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
 	player.knives = 5
+	player.set_sex(_new_sex)
 	player.set_hair(HairLook.DEFAULT)
 	player.reset_gifts()
 	# The hero keeps what they trained in earlier runs under this name.
@@ -1011,6 +1044,7 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_armor = int(data.get("gift_armor", 0))
 	player.equipped = data.equipped
 	player.wear = data.get("wear", {})
+	player.set_sex(str(data.get("sex", BodyLook.DEFAULT))) # Games saved before there were heroines have a hero.
 	player.set_hair(data.get("hair", {}))
 	player.xp = Training.load_hero(hero_name)
 	lore.assign(data.get("lore", []))
@@ -1025,6 +1059,12 @@ func _apply_save(data: Dictionary) -> void:
 			looted[file] = ids
 	escaped = bool(data.get("escaped", false))
 	home_given = bool(data.get("home", false))
+	met.clear()
+	var saved_met = data.get("met", [])
+	if saved_met is Array:
+		for role in saved_met:
+			if Villager.ROLES.has(str(role)):
+				met[str(role)] = true
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
@@ -1121,12 +1161,12 @@ func _home_given_now() -> bool:
 func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp)
 	var data := {
-		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(),
 		"saved_at": Time.get_unix_time_from_system(),
-		"looted": _looted_for_save(),
+		"looted": _looted_for_save(), "met": met.keys(),
 	}
 	if going_away and level is Outdoor:
 		# Asleep in the bed of the hero's own house: wake up there.

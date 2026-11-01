@@ -22,6 +22,8 @@ extends Node3D
 ##   v  bat   s  slime   R  dragon (spits fire from afar): the monsters of
 ##      the dragon's lair (see Enemy)
 ##   y  stone horse statue (the dragon's lair)
+##   <  stairs up to the next storey   >  stairs down to the storey below
+##   +  free floor kept for furniture (a hero home, see "home: yes")
 ##
 ## The line "secret: normal|uncommon|rare|epic|godborn" sets how rich the
 ## secret room is (the German ids ungewoehnlich, selten, episch, gottgeboren
@@ -33,6 +35,12 @@ extends Node3D
 ## Outdoor, with its own map legend. The lines "building: b" and
 ## "floor: cellar" (or "upstairs") make a level a floor inside the village
 ## building with that letter: entered by its door, left by its stairs.
+## A building floor with the line "home: yes" is a hero's own house (the
+## town houses of Weavers' Lane, see Homes): wooden floors, and several
+## storeys drawn side by side as rooms of their own, sealed off by walls and
+## linked only by their stairs. The rooms count as storeys from west to east:
+## the "<" stairs of a storey lead up to the ">" stairs of the next, and back.
+## Its exit "E" is the front door in the south wall instead of stairs.
 ## A level with the line "elite: yes" has stronger skeletons with dark bones
 ## and glowing red eyes.
 ## A building floor with the line "lair: yes" is no safe room but a dungeon
@@ -49,10 +57,16 @@ signal door_opened
 signal door_locked
 signal player_hurt
 signal enemy_killed(enemy: Enemy)
+## The dragon of the lair has fallen: the lair is won (see _win_lair).
+signal lair_won
+## The hero stepped into the glowing way out that opens once the lair is won.
+signal lair_exit_taken
 signal exit_reached
 signal item_collected(id: String)
 signal bag_full
 signal secret_found(lever_pos: Vector3, wall_pos: Vector3)
+## The hero picked up an ingredient the fox dug up (see lay_find).
+signal ingredient_collected(id: String)
 ## How many of the level's pressure plates have a block on them changed.
 signal plates_changed(pressed: int, total: int)
 ## Every pressure plate is pressed: the iron gate at `pos` opens.
@@ -172,6 +186,31 @@ var _vault_shows: Array = []
 var elite := false
 ## A dungeon of its own below a village building's door (see "lair: yes").
 var lair := false
+## Whether the lair's dragon has fallen on this visit.
+var lair_cleared := false
+## The glowing way out that opens in the lair once the dragon has fallen.
+var lair_exit: Node3D
+## Whether the hero still stands in the way out (it leads out once per step).
+var _in_lair_exit := false
+## A hero's own house with several storeys (see "home: yes").
+var is_home := false
+## The town house on Weavers' Lane this home is (set by the game).
+var house_number := 0
+## Free spots kept for furniture: {"cell", "pos", "storey"}, from the "+"
+## tiles of a home, lowest storey first.
+var furniture_slots: Array = []
+## Every stairs tile of a home: {"cell", "up", "storey"}.
+var stairs: Array = []
+## Where the hero stands beside the bed of a home.
+var bed_side := Vector3.ZERO
+## The storey of every walkable tile of a home (see storey_of).
+var _storeys := {}
+## The stairs tile the hero last arrived on or stood on: taken again only
+## after stepping off it.
+var _stair_cell := Vector2i(-1, -1)
+## The hero walked onto the stairs of a home: up or down to the tile `to`
+## on the storey `storey`.
+signal stairs_taken(to: Vector3, up: bool, storey: int)
 ## How deep the level lies (0 for the first); deeper skeletons wear more gear.
 var depth := 0
 var fog: Fog
@@ -182,6 +221,13 @@ var _door_hint_shown := false
 ## Hidden walls and the torches that open them. Each lever rolls once,
 ## the first time the hero walks past it.
 var _secrets: Array = []
+## Ingredients hidden in the ground that only the hero's fox can sniff out
+## (see Pet): each {"cell": Vector2i, "id": String}. Never saved: they grow
+## back whenever the hero comes to the level again.
+var hidden_finds: Array = []
+## How many ingredients lie hidden in a dungeon level and in the open air.
+const HIDDEN_IN_DUNGEON := 3
+const HIDDEN_OUTDOORS := 14
 ## The secret room's wealth: one of TIERS.
 var secret_tier := "normal"
 ## Extra chance in percent to notice a lever; the game adds 1 per room found.
@@ -239,6 +285,8 @@ func load_from_file(path: String) -> void:
 			safe = true
 		elif line.begins_with("lair:"):
 			lair = true
+		elif line.begins_with("home:"):
+			is_home = true
 		elif line.begins_with("floor:"):
 			floor_name = line.substr(6).strip_edges()
 		elif line.begins_with("outdoor:"):
@@ -262,6 +310,7 @@ func load_from_file(path: String) -> void:
 
 func build() -> void:
 	_rng.seed = hash(level_name)
+	_find_storeys()
 	_clear_passages()
 	add_child(_walls_body)
 	for y in height:
@@ -274,6 +323,9 @@ func build() -> void:
 			_build_walls(c)
 			_build_content(c, ch)
 	_build_corner_pillars()
+	furniture_slots.sort_custom(func(a, b): return a.storey < b.storey)
+	if is_home:
+		_light_storeys()
 	_pick_levers()
 	_build_wall_collision()
 	_setup_astar()
@@ -341,7 +393,7 @@ func _crowds_passage(c: Vector2i) -> bool:
 		return true
 	for d in DIRS:
 		var n := c + d
-		if "DEP?".contains(cell_char(n)) or (_walkable(n) and _is_narrow(n)):
+		if "DEP?<>".contains(cell_char(n)) or (_walkable(n) and _is_narrow(n)):
 			return true
 	return false
 
@@ -368,8 +420,15 @@ func _reachable() -> Dictionary:
 	var todo: Array[Vector2i] = [start]
 	while not todo.is_empty():
 		var c: Vector2i = todo.pop_back()
+		var next: Array[Vector2i] = []
 		for d in DIRS:
-			var n := c + d
+			next.append(c + d)
+		if "<>".contains(cell_char(c)):
+			# The stairs of a home lead on to the next storey.
+			var to := stair_target(c)
+			if to.x >= 0:
+				next.append(to)
+		for n in next:
 			if _walkable(n) and not seen.has(n):
 				seen[n] = true
 				todo.append(n)
@@ -554,6 +613,9 @@ func _random_quarter_turn() -> float:
 
 func _build_floor(c: Vector2i, ch: String) -> void:
 	var pos := cell_to_world(c)
+	if is_home:
+		_build_home_floor(c, ch)
+		return
 	if ch == "S":
 		var tile := _place("floor_tile_big_spikes", pos)
 		var spikes: Node3D = tile.find_child("spikes", true, false)
@@ -579,8 +641,10 @@ func _build_walls(c: Vector2i) -> void:
 			continue
 		if cell_char(n) != "#":
 			continue
-		if d == Vector2i(0, -1) and cell_char(c) == "E":
+		if d == Vector2i(0, -1) and cell_char(c) == "E" and not is_home:
 			continue # The stairs lead out through the north wall.
+		if d == Vector2i(0, 1) and cell_char(c) == "E" and is_home:
+			continue # The front door (see _build_home_door).
 		var pos := cell_to_world(c) + Vector3(d.x, 0, d.y) * TILE * 0.5
 		# Each wall piece faces into the room.
 		var rot := atan2(-float(d.x), -float(d.y))
@@ -678,7 +742,14 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			start_cell = c
 		"E":
 			exit_cell = c
-			_build_exit(c)
+			if is_home:
+				_build_home_door(c)
+			else:
+				_build_exit(c)
+		"<", ">":
+			_build_stairs(c, ch == "<")
+		"+":
+			furniture_slots.append({"cell": c, "pos": pos, "storey": storey_of(c)})
 		"K":
 			_build_key(pos)
 		"f":
@@ -717,6 +788,8 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_place("bed_decorated", pos, bed_rot)
 			_add_solid(pos, Vector3(3.2, 1.5, 3.2))
 			stations.append({"kind": "bett", "cell": c, "pos": pos, "rot": bed_rot, "used": false})
+			if is_home:
+				bed_side = cell_to_world(_open_side(c))
 		"L":
 			_place("chest", pos, _facing_room(c))
 			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
@@ -2096,11 +2169,20 @@ func _process(delta: float) -> void:
 	_check_doors()
 	_check_secrets()
 	_check_plates()
+	if is_home:
+		_check_stairs()
 	if exit_cell.x >= 0:
 		# The stairs fill the whole exit cell: climbing starts at the first step.
 		if world_to_cell(player.global_position) == exit_cell:
 			finished = true
 			exit_reached.emit()
+	if is_instance_valid(lair_exit):
+		var d := Vector2(player.global_position.x - lair_exit.global_position.x, player.global_position.z - lair_exit.global_position.z)
+		var inside := d.length() < LAIR_EXIT_RADIUS
+		if inside and not _in_lair_exit:
+			lair_exit_taken.emit()
+		_in_lair_exit = inside
+		lair_exit.rotation.y += delta * 0.8
 
 
 func _spike_is_up(s: Dictionary) -> bool:
@@ -2167,6 +2249,8 @@ func _check_pickups() -> void:
 			key_collected.emit()
 		elif p.kind == "item":
 			item_collected.emit(p.id)
+		elif p.kind == "ingredient":
+			ingredient_collected.emit(p.ingredient)
 		else:
 			coins_collected.emit(1)
 
@@ -2370,6 +2454,9 @@ func _spawn_enemies() -> void:
 					# A monster of the lair leaves a little gold, the dragon a heap.
 					var purse: Array = Enemy.KINDS[e.kind].get("purse", [0, 0])
 					_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
+					# The dragon guards the lair: once it falls, the lair is won.
+					if lair and e.kind == "drache":
+						_win_lair(e.global_position)
 					# A guardian on a level without a key carries it.
 					if e.kind == "waechter" and not has_key and not _has_cell("K"):
 						_build_key(Vector3(e.global_position.x, 0, e.global_position.z)))
@@ -2447,6 +2534,54 @@ func _drop_coins(pos: Vector3, amount: int) -> void:
 
 
 ## A worn piece left on the floor, glowing until the hero walks over it.
+## Hides a few ingredients in the ground for the hero's fox to find: on the
+## grass of the open air, on plain floor the hero can reach in the dungeon.
+## Not in the safe rooms or inside the village buildings.
+func hide_ingredients() -> void:
+	hidden_finds.clear()
+	if (safe and not outdoor) or (building != "" and not lair):
+		return
+	var cells: Array[Vector2i] = []
+	if outdoor:
+		for y in height:
+			for x in width:
+				var c := Vector2i(x, y)
+				if cell_char(c) == "." and call("is_open", c):
+					cells.append(c)
+	else:
+		for c in _reachable():
+			if cell_char(c) in [".", ","] and not astar.is_point_solid(c) and c != start_cell:
+				cells.append(c)
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var count := HIDDEN_OUTDOORS if outdoor else HIDDEN_IN_DUNGEON
+	for i in mini(count, cells.size()):
+		var c: Vector2i = cells.pop_at(rng.randi() % cells.size())
+		hidden_finds.append({"cell": c, "id": Crafting.random_fox_find(rng, outdoor)})
+
+
+## Lays a dug-up ingredient on the ground. Picked up, it goes into the
+## ingredient pouch (see Crafting), not the bag. It is not marked as taken:
+## the ground holds new ones the next time round.
+func lay_find(id: String, pos: Vector3) -> void:
+	var holder := Node3D.new()
+	var lump := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.25
+	mesh.height = 0.4
+	lump.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.55, 0.75, 0.35)
+	mat.emission_enabled = true
+	mat.emission = Color(0.4, 0.6, 0.25)
+	lump.material_override = mat
+	holder.add_child(lump)
+	holder.position = Vector3(pos.x, 0.8, pos.z)
+	add_child(holder)
+	holder.add_child(Effects.make_sparkles(Color(0.7, 0.95, 0.5)))
+	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6})
+
+
 func _drop_item(id: String, pos: Vector3) -> void:
 	var holder := _item_model(id)
 	holder.position = Vector3(pos.x, 1.0, pos.z)
@@ -2532,6 +2667,308 @@ func _decorate_lair() -> void:
 				for i in 4:
 					var angle := TAU * i / 4.0 + _rng.randf_range(-0.4, 0.4)
 					_place_lair("Coin_Pile", pos + Vector3(cos(angle), 0, sin(angle)) * 2.0, _rng.randf() * TAU, _rng.randf_range(7.0, 11.0))
+
+
+## How close (metres) the hero must step to the way out's middle to leave.
+const LAIR_EXIT_RADIUS := 1.3
+## The way out shines up this long after the dragon fell.
+const LAIR_EXIT_DELAY := 1.5
+const LAIR_EXIT_COLOR := Color(1.0, 0.8, 0.35)
+
+
+## The dragon has fallen where it hovered: the lair is won. A glowing way
+## out opens on a free tile next to where it fell (not on it, so picking up
+## its gold does not whisk the hero away).
+func _win_lair(at: Vector3) -> void:
+	if lair_cleared:
+		return
+	lair_cleared = true
+	lair_won.emit()
+	var spot := _lair_exit_spot(world_to_cell(at))
+	await get_tree().create_timer(LAIR_EXIT_DELAY).timeout
+	if not is_inside_tree():
+		return
+	lair_exit = _build_lair_exit(spot)
+
+
+## A free floor tile beside `c` for the way out (or `c` itself, if none).
+func _lair_exit_spot(c: Vector2i) -> Vector3:
+	var best := c
+	var best_dist := INF
+	for d in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
+		var n: Vector2i = c + d
+		if not astar.is_in_boundsv(n) or astar.is_point_solid(n) or cell_char(n) != ".":
+			continue
+		# The one nearest the stairs the hero came down, as a reminder of
+		# the way they came.
+		var dist := Vector2(n - start_cell).length()
+		if dist < best_dist:
+			best_dist = dist
+			best = n
+	return cell_to_world(best)
+
+
+## A ring of golden light on the floor with a glow and sparkles rising from it.
+func _build_lair_exit(pos: Vector3) -> Node3D:
+	var holder := Node3D.new()
+	holder.name = "LairExit"
+	add_child(holder)
+	holder.global_position = Vector3(pos.x, 0.05, pos.z)
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 1.0
+	torus.outer_radius = 1.3
+	ring.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = LAIR_EXIT_COLOR
+	ring.material_override = mat
+	holder.add_child(ring)
+	var disc := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 1.0
+	cyl.bottom_radius = 1.0
+	cyl.height = 0.02
+	disc.mesh = cyl
+	var glow_mat := StandardMaterial3D.new()
+	glow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glow_mat.albedo_color = Color(LAIR_EXIT_COLOR, 0.45)
+	disc.material_override = glow_mat
+	holder.add_child(disc)
+	var light := OmniLight3D.new()
+	light.light_color = LAIR_EXIT_COLOR
+	light.light_energy = 2.5
+	light.omni_range = 6.0
+	light.position.y = 1.2
+	holder.add_child(light)
+	holder.add_child(Effects.make_sparkles(LAIR_EXIT_COLOR))
+	holder.scale = Vector3.ONE * 0.01
+	create_tween().tween_property(holder, "scale", Vector3.ONE, 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	Sfx.play(self, "magic", -4.0, pos)
+	return holder
+
+
+# --- A hero's home -------------------------------------------------------------
+
+## The names of a home's storeys, from the ground up.
+const STOREY_NAMES := ["Erdgeschoss", "Obergeschoss", "Dachkammer"]
+
+
+## Splits a home into its storeys: every room sealed off by walls is one,
+## counted from west to east.
+func _find_storeys() -> void:
+	_storeys.clear()
+	if not is_home:
+		return
+	var rooms: Array = []
+	var seen := {}
+	for x in width:
+		for y in height:
+			var c := Vector2i(x, y)
+			if cell_char(c) == "#" or seen.has(c):
+				continue
+			var room: Array[Vector2i] = [c]
+			seen[c] = true
+			var i := 0
+			while i < room.size():
+				for d in DIRS:
+					var n := room[i] + d
+					if cell_char(n) != "#" and not seen.has(n):
+						seen[n] = true
+						room.append(n)
+				i += 1
+			rooms.append(room)
+	for k in rooms.size():
+		for c in rooms[k]:
+			_storeys[c] = k
+
+
+## Which storey of a home a tile is on (0 is the ground floor).
+func storey_of(c: Vector2i) -> int:
+	return _storeys.get(c, 0)
+
+
+func storey_count() -> int:
+	var top := -1
+	for c in _storeys:
+		top = maxi(top, _storeys[c])
+	return top + 1
+
+
+## The name of a storey of a home, in the chosen language.
+func storey_name(storey: int) -> String:
+	if storey <= 0:
+		return Lang.t(STOREY_NAMES[0])
+	if storey >= storey_count() - 1 and storey_count() >= 3:
+		return Lang.t(STOREY_NAMES[2])
+	return Lang.t(STOREY_NAMES[1])
+
+
+## The stairs at the other end of the stairs on `c`: "<" leads to the ">"
+## of the storey above, ">" to the "<" of the storey below.
+func stair_target(c: Vector2i) -> Vector2i:
+	var ch := cell_char(c)
+	if not is_home or not "<>".contains(ch):
+		return Vector2i(-1, -1)
+	var storey := storey_of(c) + (1 if ch == "<" else -1)
+	var want := ">" if ch == "<" else "<"
+	for y in height:
+		for x in width:
+			var n := Vector2i(x, y)
+			if cell_char(n) == want and storey_of(n) == storey:
+				return n
+	return Vector2i(-1, -1)
+
+
+## A free tile beside `c` to stand on: plain floor first, the way south first.
+func _open_side(c: Vector2i) -> Vector2i:
+	for plain in [".P", ".P+"]:
+		for d: Vector2i in [Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1)]:
+			if plain.contains(cell_char(c + d)):
+				return c + d
+	return c
+
+
+## Walking onto the stairs of a home takes the hero to the next storey.
+func _check_stairs() -> void:
+	var cell := world_to_cell(player.global_position)
+	if not "<>".contains(cell_char(cell)):
+		_stair_cell = Vector2i(-1, -1)
+		return
+	if cell == _stair_cell:
+		return
+	_stair_cell = cell
+	var to := stair_target(cell)
+	if to.x < 0:
+		return
+	stairs_taken.emit(cell_to_world(_open_side(to)), cell_char(cell) == "<", storey_of(to))
+
+
+## A home is lit from within: a warm lamp over the middle of every storey,
+## so no room (the attic least of all) sits in the dark.
+func _light_storeys() -> void:
+	var sums := {}
+	for c in _storeys:
+		var k: int = _storeys[c]
+		if not sums.has(k):
+			sums[k] = [Vector3.ZERO, 0]
+		sums[k][0] += cell_to_world(c)
+		sums[k][1] += 1
+	for k in sums:
+		var lamp := OmniLight3D.new()
+		lamp.light_color = Color(1.0, 0.84, 0.62)
+		lamp.light_energy = 2.4
+		lamp.omni_range = 11.0
+		lamp.position = sums[k][0] / float(sums[k][1]) + Vector3(0, 3.6, 0)
+		add_child(lamp)
+		_light_spots.append(sums[k][0] / float(sums[k][1]))
+
+
+## Wooden planks, as in the houses of the village. The stairs down leave a
+## hole in the floor, and the tiles kept for furniture are marked with
+## chalk on the boards.
+func _build_home_floor(c: Vector2i, ch: String) -> void:
+	if ch == ">":
+		return
+	if not _scenes.has("mat_home_wood"):
+		var wood := StandardMaterial3D.new()
+		wood.albedo_texture = load("res://assets/house/wood_floor.jpg")
+		wood.uv1_scale = Vector3(2, 2, 2)
+		wood.roughness = 0.85
+		_scenes["mat_home_wood"] = wood
+		var plank := PlaneMesh.new()
+		plank.size = Vector2(TILE, TILE)
+		_scenes["mesh_home_plank"] = plank
+		var chalk := StandardMaterial3D.new()
+		chalk.albedo_color = Color(0.92, 0.88, 0.78, 0.55)
+		chalk.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		chalk.roughness = 1.0
+		_scenes["mat_home_chalk"] = chalk
+	var floor_piece := MeshInstance3D.new()
+	floor_piece.mesh = _scenes["mesh_home_plank"]
+	floor_piece.material_override = _scenes["mat_home_wood"]
+	floor_piece.position = cell_to_world(c) + Vector3(0, 0.02, 0)
+	add_child(floor_piece)
+	if ch != "+":
+		return
+	# A chalked frame: room for a piece of furniture.
+	var inner := TILE * 0.62
+	for side in 4:
+		var strip := MeshInstance3D.new()
+		var quad := PlaneMesh.new()
+		quad.size = Vector2(inner, 0.07) if side < 2 else Vector2(0.07, inner)
+		strip.mesh = quad
+		strip.material_override = _scenes["mat_home_chalk"]
+		var off := inner * 0.5 * (1.0 if side % 2 == 0 else -1.0)
+		strip.position = cell_to_world(c) + (Vector3(0, 0.04, off) if side < 2 else Vector3(off, 0.04, 0))
+		add_child(strip)
+
+
+## Stairs up rise against the north wall, stairs down sink into a dark
+## shaft through the floor.
+func _build_stairs(c: Vector2i, up: bool) -> void:
+	var pos := cell_to_world(c)
+	stairs.append({"cell": c, "up": up, "storey": storey_of(c)})
+	if up:
+		_place("stairs", pos + Vector3(0, 0, -TILE * 0.5))
+		return
+	_place("stairs", pos + Vector3(0, -WALL_DEPTH, -TILE * 0.5))
+	var shaft := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(TILE, WALL_DEPTH, TILE)
+	shaft.mesh = box
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color(0.08, 0.06, 0.05)
+	dark.cull_mode = BaseMaterial3D.CULL_FRONT
+	dark.roughness = 1.0
+	shaft.material_override = dark
+	shaft.position = pos + Vector3(0, -WALL_DEPTH * 0.5, 0)
+	add_child(shaft)
+	# A rim of planks round the hole.
+	var rim := StandardMaterial3D.new()
+	rim.albedo_color = Color(0.36, 0.25, 0.17)
+	rim.roughness = 0.9
+	for side: Vector3 in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1)]:
+		var beam := MeshInstance3D.new()
+		var b := BoxMesh.new()
+		b.size = Vector3(0.2, 0.12, TILE) if side.x != 0.0 else Vector3(TILE, 0.12, 0.2)
+		beam.mesh = b
+		beam.material_override = rim
+		beam.position = pos + side * (TILE * 0.5 - 0.1) + Vector3(0, 0.06, 0)
+		add_child(beam)
+
+
+## How deep the stairs down of a home reach below the floor.
+const WALL_DEPTH := 4.0
+
+
+## The front door of a home: a doorway in the low south wall with the
+## daylight of the lane outside, and a mat to wipe your feet on.
+func _build_home_door(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var doorway := _place("wall_doorway", pos + Vector3(0, 0, TILE * 0.5), 0.0)
+	doorway.scale.y = LOW_WALL_SCALE
+	var leaf: Node3D = doorway.find_child("wall_doorway_door", true, false)
+	if leaf:
+		leaf.visible = false
+	var mat := MeshInstance3D.new()
+	var rug := BoxMesh.new()
+	rug.size = Vector3(1.6, 0.03, 1.0)
+	mat.mesh = rug
+	var weave := StandardMaterial3D.new()
+	weave.albedo_color = Color(0.45, 0.28, 0.2)
+	weave.roughness = 1.0
+	mat.material_override = weave
+	mat.position = pos + Vector3(0, 0.05, 0.9)
+	add_child(mat)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.9, 0.7)
+	light.light_energy = 2.2
+	light.omni_range = 9.0
+	light.position = pos + Vector3(0, 3.5, 2.0)
+	add_child(light)
+	_light_spots.append(pos)
 
 
 # --- The bank's vault cellar ----------------------------------------------------

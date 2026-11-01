@@ -16,6 +16,11 @@ extends Level
 ##   Buildings, each a rectangular block of the same letter:
 ##   h  house (half-timbered, see VillageHouse)   j  smithy   n  tavern   m  market   u  windmill
 ##   y  pumpkin field
+##   ^  Weavers' Lane: a row of narrow three-storey town houses, one per
+##      tile across the front (see VillageHouse.build_narrow), numbered from
+##      west to east. Every one is a home for a hero (see Homes), entered by
+##      its own door; inside, all of them share the building floor with the
+##      line "building: ^" (bed, chest, stairs and room for furniture).
 ##   The hero's house: I  stone wall   i  wooden floor (a gap in the
 ##   walls is the door)   B  bed (save and log out)   L  chest (storage)
 ##   :  paved square         F  fountain (heals)   x  bench
@@ -44,6 +49,7 @@ extends Level
 ##   where the moon trout bites at night (see Fishing).
 ##   Peaceful animals that graze in the woods and bolt from the hero
 ##   (see Animal): D doe, V stag, & fox.
+##   !  the bounty board: fresh hunts every morning (see Bounties)
 ##   The crafting square on the west side of the market square, beside
 ##   Gorm's forge (see CraftingSquare): +  fine metalwork bench
 ##   %  gem cutter's wheel   *  alchemist's table   $  the hero's storage chest
@@ -63,6 +69,8 @@ signal notice(text: String, duration: float)
 signal home_claimed
 ## The hero has reached the food basket on the pedestal and eats.
 signal food_basket(heal: int)
+## A fox eats a sausage from the hero's hand (see Animal and Pet).
+signal fox_fed(fox: Animal)
 ## Lightning strikes at a spot in a thunderstorm (see Weather): the sky
 ## flashes and thunder rolls.
 signal lightning(pos: Vector3)
@@ -74,7 +82,7 @@ const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
-const BLOCK_CHARS := "RhjnmuskowbE"
+const BLOCK_CHARS := "RhjnmuskowbE^"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
 	"m": "building_market_green", "u": "building_windmill_red",
@@ -169,6 +177,8 @@ const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 
 var villagers: Array = []
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
+## Whether a fox can still be won over: the hero has none yet (set by the game).
+var fox_tamable := true
 var _animal_spots: Array = []
 ## Has the elder handed the house over yet? Saved games wake up at home.
 var house_given := false
@@ -180,6 +190,8 @@ var met := {}
 var home_spot := Vector3.ZERO
 ## Fronts of the village buildings: where villagers walk to.
 var spots := {"houses": [], "square": [], "well": []}
+## The narrow town houses of Weavers' Lane, by number - 1 (see _build_terrace).
+var town_houses: Array[Node3D] = []
 
 var _plants := {}
 var _house_rect := Rect2i()
@@ -189,6 +201,9 @@ var _south_walls: Array = []
 var _inside := false
 var _entered_once := false
 var _marker: Node3D
+## The hero's town house on Weavers' Lane (see Homes), once the elder has
+## given it.
+var own_house := 0
 var _elder: Node3D
 var _aabbs := {}
 ## Buildings with floors of their own: building letter -> level index.
@@ -210,6 +225,8 @@ var _called: Array[Enemy] = []
 ## The food basket: where it stands, its food, whether it is full, the
 ## seconds until it fills again, and whether the hero was told about it.
 var _basket := {}
+## The "!" or "?" over the bounty board (see Bounties.mark).
+var _board_mark: Label3D
 
 ## Lanterns: how strongly they shine by day and at night, the glowing
 ## candle in each, and how far their light shows the hero to enemies.
@@ -534,6 +551,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_bench(c)
 		"v":
 			_build_pedestal(c)
+		"!":
+			_build_bounty_board(c)
 		"N":
 			_build_tent(pos)
 		"f":
@@ -577,6 +596,83 @@ func _build_pedestal(c: Vector2i) -> void:
 	_basket = {"pos": top, "food": food, "full": true, "timer": 0.0, "hinted": false}
 	for offset in PEDESTAL_CRATES:
 		add_crate(pos + offset)
+
+
+## The bounty board: two posts with a little roof over a plank wall, with
+## notices pinned to it, facing south. Run into it to read the hunts.
+func _build_bounty_board(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.42, 0.28, 0.17)
+	wood.roughness = 0.9
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color(0.3, 0.19, 0.12)
+	dark.roughness = 0.95
+	var paper := StandardMaterial3D.new()
+	paper.albedo_color = Color(0.93, 0.88, 0.74)
+	paper.roughness = 1.0
+	var seal := StandardMaterial3D.new()
+	seal.albedo_color = Color(0.7, 0.12, 0.1)
+	for side in [-1.0, 1.0]:
+		_add_mesh_box(pos + Vector3(side * 1.05, 1.35, 0), Vector3(0.18, 2.7, 0.18), dark)
+	_add_mesh_box(pos + Vector3(0, 1.65, 0), Vector3(2.1, 1.3, 0.1), wood)
+	_add_mesh_box(pos + Vector3(0, 2.36, 0), Vector3(2.3, 0.12, 0.2), dark)
+	_add_mesh_box(pos + Vector3(0, 0.96, 0), Vector3(2.3, 0.1, 0.2), dark)
+	# The little roof keeps the rain off the notices.
+	for side in [-1.0, 1.0]:
+		var roof := MeshInstance3D.new()
+		var plank := BoxMesh.new()
+		plank.size = Vector3(2.6, 0.08, 0.5)
+		roof.mesh = plank
+		roof.material_override = dark
+		roof.position = pos + Vector3(0, 2.83, side * 0.2)
+		roof.rotation.x = side * 0.6
+		add_child(roof)
+	# The notices, a little crooked, each with a red seal.
+	var notes := [[Vector3(-0.6, 1.75, 0.07), 0.08], [Vector3(0.05, 1.6, 0.07), -0.05], [Vector3(0.65, 1.78, 0.07), 0.12]]
+	for n in notes:
+		var sheet := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.5, 0.66, 0.02)
+		sheet.mesh = box
+		sheet.material_override = paper
+		sheet.position = pos + n[0]
+		sheet.rotation.z = n[1]
+		add_child(sheet)
+		_add_mesh_box(pos + n[0] + Vector3(0, 0.24, 0.02), Vector3(0.08, 0.08, 0.02), seal)
+	_add_solid(pos, Vector3(2.4, 2.6, 1.0))
+	stations.append({"kind": "aushang", "cell": c, "pos": pos, "used": false})
+	_board_mark = Label3D.new()
+	_board_mark.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	_board_mark.font_size = 140
+	_board_mark.pixel_size = 0.011
+	_board_mark.outline_size = 26
+	_board_mark.outline_modulate = Color(0.05, 0.03, 0.06, 0.9)
+	_board_mark.modulate = Villager.MARK_COLOR
+	_board_mark.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_board_mark.no_depth_test = true
+	_board_mark.render_priority = 18
+	_board_mark.outline_render_priority = 17
+	_board_mark.position = pos + Vector3(0, 3.7, 0)
+	_board_mark.visible = false
+	add_child(_board_mark)
+	# The mark bobs gently, like the villagers' marks.
+	var bob := _board_mark.create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	bob.tween_property(_board_mark, "position:y", pos.y + 3.8, 1.0)
+	bob.tween_property(_board_mark, "position:y", pos.y + 3.6, 1.0)
+
+
+## Shows "!" or "?" over the bounty board, or nothing (see Bounties.mark).
+func set_board_mark(text: String) -> void:
+	if _board_mark == null:
+		return
+	_board_mark.text = text
+	_board_mark.visible = text != ""
+
+
+## The mark over the bounty board right now, "" when none shows.
+func board_mark() -> String:
+	return _board_mark.text if _board_mark and _board_mark.visible else ""
 
 
 ## A loaf, a wedge of cheese and a few apples, heaped in the basket.
@@ -815,6 +911,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch == "E":
 		_build_lair_entrance(block)
 		return
+	if ch == "^":
+		_build_terrace(block)
+		return
 	var facing := _block_facing(block) if ch != "R" else Vector2i(0, 1)
 	var rot := atan2(float(facing.x), float(facing.y))
 	var turned := facing.x != 0
@@ -877,6 +976,38 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		_put("crate_long_A", front + side - Vector3(facing.x, 0, facing.y) * 1.0, rot, PROP_SCALE)
 		_put("crate_open", front - side - Vector3(facing.x, 0, facing.y) * 1.0, rot + 0.3, PROP_SCALE)
 	node.set_meta("block", block)
+
+
+## Weavers' Lane: the block is split into one narrow town house per tile
+## along its front, wall to wall, each with its own number, door and colours.
+## Every door leads into the hero homes' building floor (see Homes).
+func _build_terrace(block: Rect2i) -> void:
+	var facing := _block_facing(block)
+	var rot := atan2(float(facing.x), float(facing.y))
+	var across := Vector2i(absi(facing.y), absi(facing.x))
+	var count := block.size.x if across.x != 0 else block.size.y
+	var deep := block.size.y if across.x != 0 else block.size.x
+	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
+	# Numbered from west to east (or north to south).
+	var step := Vector3(across.x, 0, across.y) * TILE
+	var first := center - step * (count - 1) * 0.5
+	var out := Vector3(facing.x, 0, facing.y)
+	for i in count:
+		var number := i + 1
+		var at := first + step * i
+		var house := VillageHouse.build_narrow(Vector2(TILE, deep * TILE * 0.92), number, _rng, _house_glass())
+		house.position = at
+		house.rotation.y = rot
+		house.set_meta("block", block)
+		add_child(house)
+		town_houses.append(house)
+		var door := at + Vector3(float(house.get_meta("door_x")), 0, 0).rotated(Vector3.UP, rot) + out * deep * TILE * 0.5
+		doors["^" + str(number)] = door + out * 2.0
+		if interiors.has("^"):
+			stations.append({"kind": "eingang", "building": "^", "house": number, "reach": 1.6,
+					"name": Lang.t("das Haus Nr. %d") % number,
+					"cell": world_to_cell(door - out * 0.5), "pos": door, "used": false})
+	_add_solid(center, Vector3(block.size.x * TILE, 4, block.size.y * TILE) * Vector3(1.0 if across.x != 0 else 0.86, 1, 1.0 if across.y != 0 else 0.86))
 
 
 ## The way down into the dragon's lair: an old stone arch from Quaternius'
@@ -1209,10 +1340,17 @@ func _in_house(c: Vector2i) -> bool:
 
 ## A golden glow over the door of the hero's new house.
 func _show_house_marker() -> void:
-	if _door_cell.x < 0 or _marker != null:
+	if _marker != null:
+		return
+	var at := Vector3.INF
+	if own_house > 0 and doors.has("^" + str(own_house)):
+		at = doors["^" + str(own_house)] + Vector3(0, 0, -1.0)
+	elif _door_cell.x >= 0:
+		at = cell_to_world(_door_cell) + Vector3(0, 0, 1.0)
+	if at == Vector3.INF:
 		return
 	_marker = Node3D.new()
-	_marker.position = cell_to_world(_door_cell) + Vector3(0, 0, 1.0)
+	_marker.position = at
 	add_child(_marker)
 	var motes := Effects.make_sparkles(Color(1.0, 0.85, 0.4))
 	motes.position.y = 2.0
@@ -1375,6 +1513,10 @@ func _spawn_animals() -> void:
 	for s in _animal_spots:
 		var a := Animal.new()
 		a.setup(self, s.kind, s.cell)
+		if taken.has(a.tame_key()):
+			# The hero's own fox: it goes with the hero now (see Pet).
+			a.free()
+			continue
 		add_child(a)
 		a.global_position = cell_to_world(s.cell)
 		animals.append(a)
@@ -1515,13 +1657,21 @@ func beasts_alive() -> int:
 ## Bumping into a villager: they walk around, so their tile is not enough.
 ## A door is hit anywhere along the front of its building.
 func station_at(point: Vector3) -> Dictionary:
+	# Doors of the town houses stand close together: the nearest one counts.
+	var door := {}
+	var door_distance := INF
 	for s in stations:
 		if s.has("npc") and s.npc.at_home:
 			continue
 		if s.has("npc") and _flat_distance(point, s.pos) < 1.6:
 			return s
-		if s.kind == "eingang" and _flat_distance(point, s.pos) < 2.4:
-			return s
+		if s.kind == "eingang":
+			var d := _flat_distance(point, s.pos)
+			if d < s.get("reach", 2.4) and d < door_distance:
+				door = s
+				door_distance = d
+	if not door.is_empty():
+		return door
 	return super(point)
 
 
@@ -1598,8 +1748,16 @@ func _process(delta: float) -> void:
 	if not house_given and _elder and not _elder.at_home and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:
 		house_given = true
 		_elder.greet_newcomer(player)
+		if not town_houses.is_empty():
+			# The hero's home is a town house on Weavers' Lane.
+			own_house = Homes.house_for(hero, town_houses.size())
 		_show_house_marker()
-		notice.emit(Lang.t("Der Dorfvorsteher schenkt dir das leere Haus. Ein goldenes Licht zeigt dir die Tür."), 4.5)
+		if own_house > 0:
+			notice.emit(Lang.t("Der Dorfvorsteher schenkt dir Haus Nr. %d in der Weberzeile am Nordrand des Dorfes. Ein goldenes Licht zeigt dir die Tür.") % own_house, 5.0)
+		elif town_houses.is_empty():
+			notice.emit(Lang.t("Der Dorfvorsteher schenkt dir das leere Haus. Ein goldenes Licht zeigt dir die Tür."), 4.5)
+		else:
+			notice.emit(Lang.t("Der Dorfvorsteher seufzt: Jedes Haus in der Weberzeile ist bewohnt."), 4.5)
 
 
 ## The herald rings the news across the square, and everyone in the village

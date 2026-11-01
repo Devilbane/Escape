@@ -31,6 +31,7 @@ var state := State.TITLE
 var _sound_button: Button
 var _music_button: Button
 var _music_slider: HSlider
+var _effects_slider: HSlider
 ## The pull-out menu on the right edge of the screen that holds all the
 ## clickable buttons, its handle, and how far it is pulled out (0 to 1).
 var _drawer: HBoxContainer
@@ -47,11 +48,6 @@ var _env: Environment
 var _moon: DirectionalLight3D
 ## The time of day above ground, in hours (see DayNight). Saved with the game.
 var day_hour := DayNight.START_HOUR
-## How many mornings have dawned in the world above ground since the game
-## began. A day starts at dawn (DayNight.NIGHT_UNTIL), so the night after
-## day d's evening, past midnight too, still counts as day d (see Wanderer).
-## Saved with the game.
-var day := 0
 ## The clock as the HUD shows it right now.
 var _clock_shown := ""
 ## The weather above ground (see Weather) and how many hours of the day it
@@ -83,18 +79,45 @@ var met := {}
 ## The villagers' tasks: offered, running and finished (see Quests). Kept in
 ## the saved game, so every hero has their own.
 var quests := Quests.new(self)
+## How many mornings have dawned in the world above ground since the game
+## began. The bounty board pins up fresh hunts each morning (see Bounties).
+## The day turns at dawn, so the night after day d's evening, past midnight
+## too, still counts as day d: that is when the wandering merchant comes
+## (see Wanderer).
+var day := 0
+## The hunts on the bounty board: posted, taken on and paid (see Bounties).
+## Kept in the saved game.
+var bounties := Bounties.new(self)
 ## Known recipes and the ingredient pouch (see Crafting). Kept in the saved
 ## game, like the quests.
 var crafting := Crafting.new(self)
 ## The line in the water, when the hero is fishing (see Fishing).
 var fishing := Fishing.new(self)
+## What each villager thinks of the hero (see Reputation): discounts,
+## gossip and secret recipes. Kept in the saved game.
+var reputation := Reputation.new(self)
+## The villager whose goods or services are open in a window right now
+## (role letter), "" for none: their discount applies (see trader_price).
+var trader_role := ""
+## Villagers who just came to think better of the hero, told together.
+var _reputation_news: Array[String] = []
+const REPUTATION_NEWS_DELAY := 4.6
 ## Counts down to the next look at who has a task (see refresh_quest_marks).
 var _quest_mark_timer := 0.0
+## The town house on Weavers' Lane the hero is inside right now (see Homes),
+## or 0 when they are not in one.
+var inside_house := 0
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
 var coins := 0
 ## Iron bars for the smith's forge (see Forge), counted like gold.
 var iron := 0
+## The fox: how many sausages a wild fox has eaten from the hero's hand, and
+## whether one goes with the hero now (see Pet). Kept in the saved game.
+var fox_trust := 0
+var has_fox := false
+var pet: Pet = null
+const FOX_LEARN := "Füchse auf den Wiesen sind scheu, aber eine Wurst (bei der Krämerin) lockt sie an: Trägst du eine bei dir, kommt ein Fuchs neugierig näher und frisst sie dir aus der Hand. Nach drei Würsten folgt er dir überallhin, auch ins Verlies. Seine Nase findet Zutaten, die im Boden versteckt sind: Er läuft hin, gräbt sie aus und lässt sie für dich liegen; aufgehoben kommen sie in deinen Zutatenbeutel."
 ## What the hero already took on each level, by level file: the ids of
 ## searched furniture and picked up coins (see Level.taken). Kept in the
 ## saved game, so looted chests stay empty.
@@ -430,6 +453,7 @@ func _setup_drawer() -> void:
 		b.custom_minimum_size = Vector2(150, 58)
 		b.add_theme_font_size_override("font_size", 18)
 	column.add_child(_make_music_slider())
+	column.add_child(_make_effects_slider())
 	_update_music_controls()
 	_update_drawer_handle()
 	_place_drawer(0.0)
@@ -696,21 +720,22 @@ func _use_station(s: Dictionary) -> void:
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc):
+		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
-		go_inside(s.building)
+		go_inside(s.building, s.get("house", 0))
 	elif s.has("npc"):
 		# A villager who trades: a word, then the goods. A task handed out or
 		# finished comes first; the goods wait until the next time. While the
 		# last line still shows, the goods open without a new word.
-		if not busy and quests.talk(s.npc, true):
+		if not busy and (quests.talk(s.npc, true) or reputation.tell_secret(s.npc)):
 			player.face(s.pos - player.global_position)
 			player.play("Idle")
 			return
-		if not busy:
+		if not busy and not reputation.gossip(s.npc):
 			s.npc.talk(player)
 		player.face(s.pos - player.global_position)
+		trader_role = s.npc.role
 		menus.open(s.kind)
 	elif s.kind == "schrein":
 		_open_shrine(s)
@@ -720,6 +745,68 @@ func _use_station(s: Dictionary) -> void:
 		player.face(s.pos - player.global_position)
 		menus.bench = s.get("craft", "")
 		menus.open(s.kind)
+
+
+# --- The fox -------------------------------------------------------------------
+
+## The hero's fox comes along to the new level (see Pet).
+func _spawn_pet(at := Vector3.INF) -> void:
+	pet = null
+	if not has_fox:
+		return
+	pet = Pet.new()
+	pet.setup(level)
+	level.add_child(pet)
+	if at != Vector3.INF:
+		pet.global_position = at
+		pet._placed = true
+	pet.dug_up.connect(_on_fox_dug_up)
+
+
+## A wild fox ate a sausage from the hero's hand. After the last one it
+## trusts the hero and follows them from now on.
+func _on_fox_fed(fox: Animal) -> void:
+	if has_fox or not player.bag.has(Pet.FOOD):
+		return
+	player.bag.erase(Pet.FOOD)
+	fox_trust += 1
+	learn(FOX_LEARN)
+	Sfx.play(self, "drink", -4.0)
+	Effects.float_text(level, fox.global_position + Vector3(0, 1.8, 0), Lang.t("Mampf!"), Color(1.0, 0.7, 0.4), true)
+	if fox_trust < Pet.TRUST_NEEDED:
+		show_message(Lang.t("Der Fuchs frisst dir die Wurst aus der Hand. Vertrauen: %d / %d") % [fox_trust, Pet.TRUST_NEEDED], 3.5)
+		_update_hud()
+		return
+	has_fox = true
+	if level is Outdoor:
+		level.fox_tamable = false
+		level.taken[fox.tame_key()] = true
+		level.animals.erase(fox)
+	var spot := fox.global_position
+	var turn := fox.rotation.y
+	fox.queue_free()
+	_spawn_pet(spot)
+	pet.rotation.y = turn
+	var hearts := Effects.make_sparkles(Color(1.0, 0.55, 0.6), true)
+	hearts.position = spot + Vector3(0, 1.0, 0)
+	level.add_child(hearts)
+	show_message(Lang.t("Der Fuchs vertraut dir und geht jetzt mit dir! Seine Nase findet versteckte Zutaten im Boden."), 5.0)
+	_update_hud()
+
+
+## The fox dug up a hidden ingredient: it lies there for the hero to take.
+func _on_fox_dug_up(id: String, pos: Vector3) -> void:
+	level.lay_find(id, pos)
+	Effects.float_text(level, pos + Vector3(0, 2.0, 0), Crafting.ingredient_name(id), Color(0.75, 0.9, 1.0), true)
+	show_message(Lang.t("Dein Fuchs hat etwas ausgegraben: %s!") % Crafting.ingredient_name(id), 3.0)
+
+
+## A dug-up ingredient goes into the ingredient pouch, not the bag.
+func _on_ingredient_collected(id: String) -> void:
+	crafting.add(id)
+	Sfx.play(self, "key", -3.0)
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5), true)
+	show_message(Lang.t("%s kommt in deinen Zutatenbeutel. Das Rezeptbuch (H) zeigt, was du dabeihast.") % Crafting.ingredient_name(id), 3.5)
 
 
 ## The fountain: full life and every ailment gone, as often as you like.
@@ -1104,7 +1191,7 @@ func _tick_clock(delta: float) -> void:
 		var before := day_hour
 		day_hour = DayNight.advance(day_hour, delta)
 		if _dawn_between(before, day_hour):
-			day += 1
+			_new_day()
 		_tick_weather(delta)
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
@@ -1121,6 +1208,26 @@ func _tick_clock(delta: float) -> void:
 		_update_hud()
 
 
+## Whether the clock passed dawn (see Bounties.DAWN) going forward from one
+## hour to the other, at most one day later.
+static func _dawn_between(from: float, to: float) -> bool:
+	var dawn := Bounties.DAWN
+	if to >= from:
+		return from < dawn and to >= dawn
+	return from < dawn or to >= dawn
+
+
+## A new morning: fresh notices on the bounty board, and the hunts not
+## finished in time are over.
+func _new_day(quiet := false) -> void:
+	day += 1
+	var expired := bounties.refresh(day)
+	if quiet or not escaped:
+		return
+	var text := Lang.t("Ein neuer Morgen: frische Kopfgelder am Aushang.")
+	if expired > 0:
+		text += "\n" + Lang.t("Nicht erledigte Jagden vom Vortag sind verfallen: %d") % expired
+	quest_news(text, Color(1.0, 0.82, 0.4), 4.0)
 ## The weather runs on the clock: when its hours are up, the next weather
 ## comes, picked for the hour (see Weather.roll).
 func _tick_weather(delta: float) -> void:
@@ -1169,15 +1276,6 @@ func _on_lightning(at: Vector3) -> void:
 	Sfx.play_after(self, clampf(far / 40.0, 0.15, 1.5), "thunder", -1.0 - far * 0.08)
 
 
-## Whether the clock passed dawn going forward from one hour to the other,
-## at most one day later: that starts a new day.
-static func _dawn_between(from: float, to: float) -> bool:
-	var dawn := DayNight.NIGHT_UNTIL
-	if to >= from:
-		return from < dawn and to >= dawn
-	return from < dawn or to >= dawn
-
-
 # --- Flow -------------------------------------------------------------------
 
 func load_level(index: int, restock := true) -> void:
@@ -1195,6 +1293,7 @@ func load_level(index: int, restock := true) -> void:
 		builds[file] = []
 	level.built = builds[file]
 	level.hero = hero_name
+	level.house_number = inside_house if level.is_home else 0
 	if level is Outdoor:
 		# Bandits who take their spots at night are tougher (see Outdoor.set_hour).
 		level.night = DayNight.is_night(day_hour)
@@ -1220,6 +1319,9 @@ func load_level(index: int, restock := true) -> void:
 	level.coins_collected.connect(_on_coins_collected)
 	level.item_collected.connect(_on_item_collected)
 	level.secret_found.connect(_on_secret_found)
+	level.ingredient_collected.connect(_on_ingredient_collected)
+	level.hide_ingredients()
+	_spawn_pet()
 	level.bag_full.connect(func(): show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0))
 	level.door_opened.connect(func():
 		Sfx.play(self, "door")
@@ -1231,10 +1333,15 @@ func load_level(index: int, restock := true) -> void:
 	level.player_hurt.connect(player.spring_trap)
 	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
+	level.lair_won.connect(_on_lair_won)
+	level.lair_exit_taken.connect(leave_lair)
+	level.stairs_taken.connect(_take_stairs)
 	if level is Outdoor:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
 		level.home_claimed.connect(_on_home_claimed)
 		level.food_basket.connect(_eat_from_basket)
+		level.fox_tamable = not has_fox
+		level.fox_fed.connect(_on_fox_fed)
 		level.lightning.connect(_on_lightning)
 	_pending_crate = null
 	_end_drag()
@@ -1411,6 +1518,8 @@ func _start_new_game() -> void:
 	_name_edit.release_focus()
 	coins = 0
 	iron = 0
+	fox_trust = 0
+	has_fox = false
 	escaped = false
 	home_given = false
 	home_claimed = false
@@ -1420,15 +1529,18 @@ func _start_new_game() -> void:
 	builds.clear()
 	met.clear()
 	quests.clear()
+	day = 0
+	bounties.clear()
+	bounties.refresh(day)
 	crafting.clear()
 	fishing.stop()
+	reputation.clear()
 	storage.clear()
 	shop_stock.clear()
 	wanderer_stock.clear()
 	wanderer_night = -1
 	away_plan = Offline.empty_plan()
 	day_hour = DayNight.START_HOUR
-	day = 0
 	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
 	player.knives = 5
 	player.set_sex(_new_sex)
@@ -1512,6 +1624,8 @@ func _toggle_sound() -> void:
 func _update_sound_button() -> void:
 	if _sound_button:
 		_sound_button.text = Lang.t("Ton: aus") if Sfx.muted else Lang.t("Ton: an")
+	if _effects_slider and not is_equal_approx(_effects_slider.value, Sfx.volume):
+		_effects_slider.set_value_no_signal(Sfx.volume)
 
 
 func _toggle_music() -> void:
@@ -1519,29 +1633,55 @@ func _toggle_music() -> void:
 	_update_music_controls()
 
 
-## A row with the music volume: a label and a slider from silent to full.
-func _make_music_slider() -> Control:
+## A row with a volume: a label and a slider from silent to full.
+func _make_volume_row(title: String, tooltip: String, value: float, on_change: Callable) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	var label := Label.new()
-	label.text = Lang.t("Musik")
+	label.text = Lang.t(title)
 	label.add_theme_font_override("font", TEXT_FONT)
 	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", GOLD)
+	# Both rows' labels take the same width, so the sliders line up.
+	label.custom_minimum_size = Vector2(90, 0)
 	row.add_child(label)
-	_music_slider = HSlider.new()
-	_music_slider.min_value = 0.0
-	_music_slider.max_value = 1.0
-	_music_slider.step = 0.05
-	_music_slider.focus_mode = Control.FOCUS_NONE
-	_music_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_music_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_music_slider.custom_minimum_size = Vector2(0, 32)
-	_music_slider.tooltip_text = Lang.t("Lautstärke der Musik")
-	_music_slider.value = Music.volume
-	_music_slider.value_changed.connect(_on_music_volume_changed)
-	row.add_child(_music_slider)
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.focus_mode = Control.FOCUS_NONE
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	slider.custom_minimum_size = Vector2(0, 32)
+	slider.tooltip_text = Lang.t(tooltip)
+	slider.value = value
+	slider.value_changed.connect(on_change)
+	row.add_child(slider)
 	return row
+
+
+## The music volume row.
+func _make_music_slider() -> Control:
+	var row := _make_volume_row("Musik", "Lautstärke der Musik", Music.volume, _on_music_volume_changed)
+	_music_slider = row.get_child(1)
+	return row
+
+
+## The sound effects volume row.
+func _make_effects_slider() -> Control:
+	var row := _make_volume_row("Effekte", "Lautstärke der Geräusche", Sfx.volume, _on_effects_volume_changed)
+	_effects_slider = row.get_child(1)
+	return row
+
+
+func _on_effects_volume_changed(value: float) -> void:
+	if is_equal_approx(value, Sfx.volume):
+		return
+	Sfx.set_volume(value)
+	# Moving the slider up with the sound off (M) switches the sound back on.
+	if Sfx.muted and value >= 0.01:
+		Sfx.toggle_mute()
+	_update_sound_button()
 
 
 func _on_music_volume_changed(value: float) -> void:
@@ -1652,6 +1792,9 @@ func _apply_save(data: Dictionary) -> void:
 	hero_name = data.get("name", Lang.t("Namenlos"))
 	coins = int(data.coins)
 	iron = int(data.get("iron", 0))
+	var fox = data.get("fox", {})
+	fox_trust = int(fox.get("trust", 0)) if fox is Dictionary else 0
+	has_fox = bool(fox.get("tame", false)) if fox is Dictionary else false
 	secrets_found = int(data.get("secrets", 0))
 	dry_levels = int(data.get("dry", 0))
 	storage.assign(data.storage)
@@ -1692,14 +1835,17 @@ func _apply_save(data: Dictionary) -> void:
 			if Villager.ROLES.has(str(role)):
 				met[str(role)] = true
 	quests.load_from(data.get("quests", {}))
+	day = maxi(0, int(data.get("day", 0)))
+	bounties.load_from(data.get("bounties", {}))
+	bounties.refresh(day)
 	crafting.load_from(data.get("crafting", {}))
+	reputation.load_from(data.get("reputation", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
 	player.refresh_stats()
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
-	day = maxi(0, int(data.get("day", 0)))
 	wanderer_night = int(data.get("wanderer_night", -1))
 	wanderer_stock.clear()
 	var wares = data.get("wanderer", [])
@@ -1710,12 +1856,21 @@ func _apply_save(data: Dictionary) -> void:
 	# Games saved before there was weather wake up to clear skies.
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
-	if escaped and _outdoor_index() >= 0:
+	inside_house = 0
+	var own_house := Homes.house_of(hero_name)
+	if escaped and home_claimed and own_house > 0 and interiors.has("^"):
+		# The hero's own town house is the place to come back to: every
+		# load wakes up beside its bed, wherever the game was saved.
+		index = interiors["^"]
+		inside_house = own_house
+	elif escaped and _outdoor_index() >= 0:
 		# Out of the dungeon, every load begins in the open air, wherever the
 		# game was saved: on the graveyard, or in the hero's own house.
 		index = _outdoor_index()
 	load_level(index, false)
-	if level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
+	if level.is_home and level.bed_side != Vector3.ZERO:
+		player.global_position = level.bed_side
+	elif level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
 		# The hero's own house is the place to come back to: next to the bed.
 		player.global_position = level.home_spot
 	player.hp = clampi(int(data.hp), 1, player.max_hp)
@@ -1808,9 +1963,12 @@ func save_game(going_away := false) -> bool:
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
-		"hour": day_hour, "day": day,
-		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
+		"day": day, "bounties": bounties.for_save(),
 		"crafting": crafting.for_save(),
+		"reputation": reputation.for_save(),
+		"fox": {"trust": fox_trust, "tame": has_fox},
+		"hour": day_hour,
+		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
 		"weather": weather, "weather_hours": weather_hours,
 	}
 	if going_away:
@@ -1848,7 +2006,7 @@ func sleep() -> void:
 	# A night in the bed: the hero wakes up the next morning.
 	if level.outdoor or level.building != "":
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
-			day += 1
+			_new_day(true)
 		day_hour = DayNight.WAKE_HOUR
 		# A new morning brings new weather.
 		set_weather(Weather.roll(day_hour, _weather_rng))
@@ -1987,7 +2145,8 @@ func away_choices() -> Dictionary:
 	for id in owned:
 		if Items.is_book(id) and not id in books:
 			books.append(id)
-	return {"job": jobs, "train": train, "study": books, "craft": Offline.RECIPES.keys()}
+	var crafts := Offline.RECIPES.keys().filter(reputation.can_craft)
+	return {"job": jobs, "train": train, "study": books, "craft": crafts}
 
 
 ## Back after a sleep in the bed: the hero has lived the planned day for as
@@ -2031,6 +2190,13 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 	coins += int(result.gold)
 	player.knives += int(result.knives)
 	var repaired := _repair_gear(int(result.repairs))
+	# Cut stone blocks go into the storage chest, as many as it still holds.
+	var stones := 0
+	for i in int(result.get("stones", 0)):
+		if storage.size() >= Menus.STORAGE_SIZE:
+			break
+		storage.append(Menus.STONE)
+		stones += 1
 	if spent.job > 0.0:
 		lines.append(Lang.t("%s: %s, +%d Gold") % [Lang.t(Offline.JOBS[plan.job].name), Offline.duration_text(spent.job), result.gold])
 	if spent.train > 0.0:
@@ -2041,6 +2207,8 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 		var made := ""
 		if Offline.RECIPES[plan.craft].makes == "knife":
 			made = Lang.t("%d Wurfmesser") % result.knives
+		elif Offline.RECIPES[plan.craft].makes == "stone":
+			made = Lang.t("%d Steinblöcke (in der Truhe)") % stones
 		else:
 			made = Lang.t("%d Punkte Haltbarkeit") % repaired
 		lines.append(Lang.t("%s: %s, %s") % [Lang.t(Offline.RECIPES[plan.craft].name), Offline.duration_text(spent.craft), made])
@@ -2140,6 +2308,40 @@ func quest_reward(id: String) -> void:
 	else:
 		Sfx.play(self, "key", -3.0)
 	quest_news(Lang.t("Auftrag abgeschlossen: %s\nBelohnung: %s") % [Lang.t(q.title), Quests.reward_text(id)], GOLD, 4.5)
+	reputation.on_quest_done(id)
+
+
+## A villager thinks better of the hero now: friendly, trusted or honoured.
+## Several at once (word of mouth after a task) are told together, once the
+## reward has been read.
+func reputation_rose(role: String, new_level: int) -> void:
+	var line := "%s: %s" % [Quests.villager_name(role), Reputation.level_name(new_level)]
+	var off := roundi(Reputation.LEVELS[new_level].discount * 100.0)
+	if off > 0:
+		line += Lang.t(" (%d%% Rabatt)") % off
+	if level:
+		Effects.float_text(level, player.global_position + Vector3(0, 3.8, 0), line, Color(0.75, 0.6, 1.0), true)
+	_reputation_news.append(line)
+	if _reputation_news.size() == 1:
+		get_tree().create_timer(REPUTATION_NEWS_DELAY).timeout.connect(_show_reputation_news)
+
+
+func _show_reputation_news() -> void:
+	if _reputation_news.is_empty():
+		return
+	show_message(Lang.t("Dein Ruf im Dorf steigt:") + "\n" + "\n".join(_reputation_news), 5.0)
+	_reputation_news.clear()
+	learn(Reputation.HOW_TO)
+
+
+## A price in gold at the villager whose window is open (see trader_role).
+func trader_price(gold: int) -> int:
+	return reputation.price(trader_role, gold)
+
+
+## The hero bought something from the villager whose window is open.
+func traded() -> void:
+	reputation.on_trade(trader_role)
 
 
 ## The "!" and "?" over the villagers' heads. Looked at a few times a
@@ -2151,6 +2353,7 @@ func refresh_quest_marks() -> void:
 		if is_instance_valid(v):
 			var quest_mark := quests.mark(v.role)
 			v.set_quest_mark(quest_mark if quest_mark != "" else crafting.mark(v.role))
+	(level as Outdoor).set_board_mark(bounties.mark())
 
 
 ## Something in the bag changed because of a task.
@@ -2268,12 +2471,51 @@ func _gold(amount: int) -> int:
 func _on_enemy_killed(enemy: Enemy) -> void:
 	show_message(enemy.fall_text(), 2.5)
 	var drop := quests.on_kill(enemy.kind)
+	bounties.on_kill(enemy.kind)
 	if drop != "":
 		level._drop_item(drop, enemy.global_position + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
 	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:
 		player.hp += 1
 		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+1", Color(0.5, 1.0, 0.5))
 		_update_hud()
+
+
+## The dragon has fallen: the lair is won. A fanfare and a golden line
+## first, then, once the dragon has hit the ground, a window that says so
+## and offers the way out (see Menus "hoehle").
+const LAIR_WON_DELAY := 3.0
+
+
+func _on_lair_won() -> void:
+	var here := level
+	Sfx.play(self, "level_done", -1.0)
+	player.train("weisheit", 10.0)
+	get_tree().create_timer(LAIR_WON_DELAY).timeout.connect(func():
+		if level != here or state != State.PLAYING or player.dead:
+			return
+		if menus.is_open():
+			# Busy in a window: the golden line alone tells the news.
+			show_message(Lang.t("Höhle bezwungen! Der Drache ist tot."), 4.0)
+			return
+		menus.open("hoehle"))
+
+
+## Out of the lair at once, through the glowing way out the fallen dragon
+## left behind (or the "Leave the lair" button): back in front of the arch.
+func leave_lair() -> void:
+	if state != State.PLAYING or not level.lair or player.dead:
+		return
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	Sfx.play(self, "magic", -2.0)
+	var tween := create_tween()
+	tween.tween_property(_fade, "color", Color(0.9, 0.75, 0.4, 1.0), 0.5)
+	tween.tween_callback(func():
+		_leave_building()
+		get_tree().create_timer(1.0).timeout.connect(func():
+			if state == State.PLAYING:
+				show_message(Lang.t("Du trittst mit dem Schatz des Drachen aus dem Steinbogen ins Freie."), 3.5)))
 
 
 ## Training raised an attribute or a skill: say so, the attributes louder.
@@ -2462,6 +2704,15 @@ func _on_exit_reached() -> void:
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
+	if level.is_home:
+		# Out of the front door of the hero's own house, into the lane.
+		player.face(Vector3.BACK)
+		player.play("Walking_A")
+		var out := create_tween()
+		out.tween_property(player, "global_position", level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.6), 0.5)
+		out.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.5)
+		out.tween_callback(_next_level)
+		return
 	player.face(Vector3.FORWARD)
 	player.play("Walking_A")
 	# The stairs rise northwards across the exit cell in 8 steps of half a metre:
@@ -2551,6 +2802,8 @@ func _step_out_of_crypt() -> void:
 ## The hero has walked into the house the elder gave and made it their own:
 ## it is the new place to come back to, saved at once.
 func _on_home_claimed() -> void:
+	if Homes.house_of(hero_name) == 0 and level is Outdoor and not level.town_houses.is_empty():
+		Homes.house_for(hero_name, level.town_houses.size())
 	home_claimed = true
 	home_given = true
 	var saved := save_game()
@@ -2560,10 +2813,15 @@ func _on_home_claimed() -> void:
 			show_message(text, 3.0))
 
 
-## Walks in at a village building's door, to its own floor.
-func go_inside(building: String) -> void:
+## Walks in at a village building's door, to its own floor. A town house
+## on Weavers' Lane (`house` is its number) only lets in the hero who lives
+## there; a hero without a house moves into the first empty one.
+func go_inside(building: String, house := 0) -> void:
 	if state != State.PLAYING or not interiors.has(building):
 		return
+	if house > 0 and not _may_enter_house(house):
+		return
+	inside_house = house
 	_home_given_now()
 	state = State.TRANSITION
 	player.frozen = true
@@ -2575,7 +2833,59 @@ func go_inside(building: String) -> void:
 		player.frozen = false
 		state = State.PLAYING
 		create_tween().tween_property(_fade, "color:a", 0.0, 0.6)
-		_announce_level())
+		_announce_level()
+		if level.is_home and not home_claimed:
+			# The first step into the hero's own house makes it home.
+			get_tree().create_timer(4.6).timeout.connect(func():
+				if state == State.PLAYING:
+					show_message(Lang.t("Dein neues Zuhause! Im Bett speicherst du, in der Truhe lagerst du deine Schätze."), 4.0))
+			_on_home_claimed())
+
+
+## Whether the hero may go into town house `house`: their own, or an empty
+## one while they have none (it becomes theirs). Says why not, if not.
+func _may_enter_house(house: int) -> bool:
+	var resident := Homes.owner_of(house)
+	if resident == Homes.deed_name(hero_name):
+		return true
+	if resident != "":
+		show_message(Lang.t("Hier wohnt %s. Die Tür ist verschlossen.") % resident, 2.5)
+		return false
+	var mine := Homes.house_of(hero_name)
+	if mine > 0:
+		show_message(Lang.t("Dieses Haus steht leer. Dein Haus ist Nr. %d.") % mine, 2.5)
+		return false
+	if not Homes.claim(hero_name, house):
+		return false
+	get_tree().create_timer(1.6).timeout.connect(func():
+		if state == State.PLAYING:
+			show_message(Lang.t("Haus Nr. %d gehört jetzt dir! Unten steht die Truhe, oben das Bett, und auf jedem Stockwerk ist Platz für Möbel.") % house, 5.0))
+	return true
+
+
+## The hero walked onto the stairs of their home: up or down a storey.
+func _take_stairs(to: Vector3, up: bool, storey: int) -> void:
+	if state != State.PLAYING:
+		return
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	player.face(Vector3.FORWARD if up else Vector3.BACK)
+	player.play("Walking_A")
+	var tween := create_tween()
+	tween.tween_property(player, "global_position", player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4), 0.45)
+	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
+	tween.parallel().tween_callback(func(): Sfx.play(player, "step_%d" % (randi() % 6), -14.0))
+	tween.tween_callback(func():
+		player.global_position = to
+		player.velocity = Vector3.ZERO
+		player.face(Vector3.BACK)
+		player.play("Idle")
+		_snap_camera()
+		player.frozen = false
+		state = State.PLAYING
+		show_message("%s · %s" % [Lang.t("Haus Nr. %d") % level.house_number, level.storey_name(storey)], 2.0))
+	tween.tween_property(_fade, "color:a", 0.0, 0.45)
 
 
 ## The banker shows the hero down into the vault cellar.
@@ -2585,7 +2895,10 @@ func go_to_vaults() -> void:
 
 ## Up the stairs of a building floor and out of its door into the village.
 func _leave_building() -> void:
-	var building := level.building
+	var building: String = level.building
+	if inside_house > 0:
+		building += str(inside_house)
+	inside_house = 0
 	load_level(_outdoor_index(), false)
 	if level is Outdoor and level.doors.has(building):
 		player.global_position = level.doors[building]

@@ -66,6 +66,17 @@ holds a food basket out of reach of the ground and of a single crate. Three crat
 stack two next to the pedestal, climb up and eat (+3 lives and every ailment cured). The basket
 fills up again after a few minutes.
 
+**Foxes** on the meadows between the graveyard and the village are shy, but they love **sausages**.
+Mira the shopkeeper always has some (2 gold each). Carry a sausage and a fox no longer bolts: it
+comes up to you, curious, and eats it from your hand. After three sausages it trusts you and follows
+you everywhere, in the village and down in the dungeon. You only ever have one fox, and it stays
+yours in your saved game. It never fights and cannot be hurt.
+Its nose is what makes it useful: **ingredients** lie hidden in the ground that you cannot see
+(wild garlic, porcini and rare truffles in the open air; cave mushrooms and glowmoss in the
+dungeon). When one is in reach of its nose, the fox runs over, digs it up and leaves it lying there
+for you to pick up. They go into your **ingredient pouch** and show up in the ingredient book (key H),
+ready for recipes. The ground holds new ones each time you come back.
+
 **Stone blocks** let you build: walls, steps, towers, small enclosures. Hagen the **stonemason** sells them
 in the village, west of the pedestal, next to his stone yard (3 gold each, 1 gold back; 4 kg each). A block
 is twice as long as it is wide and high and sits on a build grid: set down from the bag (key B), it lies
@@ -215,10 +226,16 @@ as an escape: it goes into the ranking and the game is saved at once. From then 
 new starting point: every load, and every new try after a fall, begins in front of the crypt door, wherever
 you saved last. But the game goes on. A long path leads
 through the autumn forest, past a pond and a woodcutter, to the village of **Lindenhain**. Run into anyone
-to hear what they have to say. The **village elder** gives you the empty house with the tiled roof, and a
-golden light shows the door. Inside are a **bed** (save and log out) and a **chest** (your storage). The moment
-you first step inside, the house is yours: the game saves, and from then on your house replaces the graveyard as
-the starting point. Every load, and every new try after a fall, begins next to your bed.
+to hear what they have to say. The **village elder** gives you your own house on **Weavers' Lane**, and a golden
+light shows the door. Weavers' Lane runs along the northern edge of the village: a row of twenty narrow,
+three-storey town houses wall to wall, each with its own colours and a number over the door, so the village has
+a home for many heroes. Inside, the **ground floor** has the **chest** (your storage), the **upper floor** the
+**bed** (save and log out), and the **attic** is free. Walk onto the stairs to go up or down a storey. Chalked
+squares on the floorboards keep room for furniture on every storey. The moment you first step inside, the house
+is yours: the game saves, and from then on your house replaces the graveyard as the starting point. Every load,
+and every new try after a fall, begins next to your bed. The doors of the houses other heroes live in stay
+shut, and an empty one tells you which number is yours. Who lives where is kept on this computer next to the
+bank's books, so every hero keeps their house.
 
 In the middle of the village lies the paved **market square** with a fountain that heals, benches and
 lanterns. Around it stand the **smithy**, the **temple** (a small stone chapel with a spire and stained-glass
@@ -285,6 +302,38 @@ and the **moon trout** in the wolf hollow, but only at night. Every fish goes in
 Hanna the water carrier has a recipe that needs them: the **Amulet of the Deep** (all three rare fish and
 three perch). One of its lines is smudged until you catch a silver pike. What bites where is set in
 `Fishing.WATERS` (`scripts/fishing.gd`).
+
+**Reputation.** Every villager has their own opinion of you, and helping them improves it. A finished task
+counts the most: 25 points with whoever gave it, 15 with whoever received a delivery, and 5 with everyone
+else you have met, because word gets around. Buying from a villager who trades (Mira, Gorm, Hagen, Benno)
+gives 2 points per purchase, but only up to 30: buying alone makes a customer, not a friend.
+
+| Standing | Points | What it brings |
+|---|---|---|
+| Stranger | 0 | nothing yet |
+| Friendly | 10 | 5 % off their prices; every other chat they share some gossip: tips about the world and hints at who knows a secret recipe |
+| Trusted | 25 | 10 % off; a villager who knows a **secret recipe** teaches it the next time you talk to them |
+| Honoured | 45 | 20 % off |
+
+Discounts apply to Mira's goods, everything at Gorm's forge (his wares, forging, iron bars, mending),
+Hagen's stone blocks and Benno's haircuts and tattoos. Selling prices stay the same.
+The secret recipes are new **crafting** choices for the time away: Gorm's oil-quenched throwing knives
+(1 per 2 h instead of 3), Mira's leather grease (1 durability per hour instead of every 2 hours) and Hagen's
+way of cutting stone (1 stone block per 4 h, at most 20 per absence, delivered to the storage chest while it has room).
+The **Reputation** page of the compendium (key H) lists everyone you have met with their standing, the
+points still needed for the next level and the secret recipes you know. Standing is kept in each hero's
+saved game. The rules, gossip and secrets are in `scripts/reputation.gd`.
+
+**Bounty board.** On the north-east corner of the village square, under a lantern by the adventurers' guild,
+stands a wooden board with notices pinned to it. Every morning at dawn (5:00) the crown's clerk pins up
+**three fresh hunts**: wolves, spiders, orcs or the yeti in the wolf hollow, cutthroats, poachers or bruisers
+at the robbers' pass, or skeletons that rise from the graveyard at night. Run into the board to read them and
+take on the ones you like, then come back to the board to collect the bounty (12 to 25 gold). A hunt not done
+by the next dawn expires; one finished in time can still be collected later. Each notice pays once. A gold
+**!** over the board means a notice is open, a **?** means a bounty is waiting. Hunts you are on also show on
+the Quests page of the compendium. The day counter and the board are kept in each hero's saved game; sleeping
+through the night counts as a new day. The hunts are defined in `scripts/bounties.gd` (one entry each, with
+their English texts in `scripts/lang.gd`).
 
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.
@@ -387,6 +436,9 @@ of gear. Behind it waits the hoard's treasure chest among piles of coins.
 The halls are dressed with cobwebs, skulls, banners and a stone horse statue from the dungeon kit.
 The stairs you came down lead back out of the arch. The monsters stand ready again every time you come
 down, so there is always something to fight; searched chests and barrels stay empty.
+Slay the dragon and the lair is **complete**: a fanfare plays, a window says so, counts the monsters you
+have slain and offers to **leave the lair** at once (or stay and collect the loot). Where the dragon fell, a
+**golden way out** shines up on the floor: step into it and you stand in front of the stone arch again.
 
 By the campfire waits the boss of the pass: **Ravenheart, the bandit chief**. Once he takes up the fight, his
 **health bar** shows at the top of the screen, with marks where his next phase begins:
@@ -419,7 +471,7 @@ When you come back, a "Welcome back" window shows what the hero did.
 | Job | 0 to 12 | City guard (3 gold/h, a little Konstitution and Stärke), smithy helper (needs Stärke 11, 2 gold/h, Stärke), scribe (needs Intelligenz 11, 2 gold/h, Intelligenz) |
 | Training | any | practise Stärke, Konstitution, Tempo or Geschick, or a skill whose gear is worn |
 | Study | any | read a book you carry or keep in the storage chest: it teaches its skill (no gear needed) and a little Intelligenz |
-| Crafting | any | forge throwing knives (1 per 3 h) or mend worn-down gear (1 durability per 2 h); both train Geschick a little |
+| Crafting | any | forge throwing knives (1 per 3 h) or mend worn-down gear (1 durability per 2 h); both train Geschick a little. Secret recipes from trusted villagers add faster knives, faster mending and stone cutting (see Reputation) |
 | Rest | at least 8 | heals an eighth of your life per hour; a full night also cures poison and curses |
 
 The blocks are lived in this order each day, so a short absence pays for the job and the training first.
@@ -466,8 +518,9 @@ It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `
 `A` poacher, `X` bruiser, `Q` bandit chief; the beasts of the wolf hollow, who do the same: `W` wolf,
 `H` orc, `J` yeti, `U` spider; the peaceful animals of the woods: `D` doe, `V` stag, `&` fox. `E` is the stone arch over the stairs down into the dragon's lair. Buildings are a
 rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general store, `u` windmill,
-`s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank. The hero's house:
-`I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The crafting square:
+`s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank, `^` a row of narrow town
+houses (one per tile along its front, numbered from west to east, all sharing the floor with `building: ^`). A single
+hero's house (not on the map any more): `I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The crafting square:
 `+` fine metalwork bench, `%` gem cutter's wheel, `*` alchemist's table, `$` your storage chest. The villagers: `0` elder,
 `1` smith, `2` farmer, `3` woodcutter, `4` guard, `5` drinker, `6` shopkeeper, `7` child, `8` scholar,
 `9` water carrier, `K` herald, `O` priestess, `G` guild master, `M` postmaster, `Y` banker, `Z` barber.
@@ -477,6 +530,11 @@ rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general 
 building's door leads there, and its stairs `E` lead back out of the door. Such floors are never part of
 the run through the dungeon. Inside, `=` is a wall of iron bars and `U` a vault cell (see
 `levels/12_der_tresorkeller.txt`, the bank's vault cellar).
+A building floor with the line `home: yes` is a hero's own home (see `levels/14_das_wohnhaus.txt`, the
+town houses): wooden floorboards, and several storeys drawn side by side, each a room sealed off by walls and
+counted from west to east. `<` are stairs up to the `>` of the next storey and back, `+` is free floor kept
+for furniture (the game lists these spots per storey in `Level.furniture_slots`), and the exit `E` is the
+front door in the south wall.
 
 The exit `E` needs a wall to the north (top) and is entered from the south.
 A door `D` stands in a passage one tile wide.

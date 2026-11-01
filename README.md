@@ -403,6 +403,28 @@ never stand in your way, but they are shy: come within about ten metres and they
 across their meadow. **Sneak** and you get much closer before they notice. Once you are gone they
 calm down and go back to grazing.
 
+## Dark holes and nameless horrors
+
+Three **dark holes** gape in the ground of the wild: one among the graves, one in a quiet meadow south-west of
+the village, and one in the wolf hollow. A ring of torn earth and rocks, a pit so black no light gets in, skulls
+at the rim and a cold mist rising out of it. Come close and the holes **whisper** ("...come closer...").
+Run into one to climb down into a small cave of its own: **The Open Grave**, **The Spider Hole** and **The Pale Deep**.
+
+Down there it is **pitch black**. No torch burns on the walls, and without a light of your own you see hardly
+more than the tile you stand on. **Torches** are sold by the shopkeeper (3 gold, she always has some): in the
+dark one lights itself from your bag and burns for three minutes, then the next one is lit, and when the last
+one gutters out the darkness closes in again. Even a torch only lights a few steps around you, and a burning
+torch cannot be hooded: every monster down there sees you coming. Back in the open the torch goes out and keeps
+what is left of it for next time.
+
+Somewhere in each cave lies a **den**, and every other time you come down something lives in it: a **horror**,
+a huge monster nobody has a name for. At first you only hear it breathing in the dark. The moment you see it,
+time stalls for a heartbeat, the ground shakes and the edges of the screen run red, and a bar at the top shows
+its life under **???**. Horrors hit hard, some of them poison, and a stab in the back only hurts them three times
+as much instead of killing them. Only once one has fallen is it **discovered**: its name is spelled out across the
+screen, it goes into the compendium, and from then on its bar shows its name. Each one leaves a heap of gold and
+the gear it swallowed. Very rarely a horror also lurks in the far end of a level deep in the dungeon (from level 4).
+
 ## The dragon's lair
 
 In a clearing in the woods, north of the path from the graveyard to the village, an old **stone arch**
@@ -482,11 +504,14 @@ played in the order of their file names. One character stands for one tile:
 | `?`       | secret wall       | `f`       | brazier           |
 | `v`       | bat               | `s`       | slime             |
 | `R`       | dragon            | `y`       | horse statue      |
+| `X`       | a horror's den    |           |                   |
 
 The lines `name:` and `hint:` give the level's name and the introduction shown when it starts.
 A line `lair: yes` on a building floor makes it a dungeon of its own instead of a safe room, with monsters,
 dressed with pieces of the dungeon kit (see `levels/13_die_drachenhoehle.txt`, the dragon's lair).
 A line `safe: yes` makes a level a safe room, and `elite: yes` gives it stronger skeletons.
+A line `dark: yes` makes a level pitch black (no wall torches; the hero needs a hand torch), and `horror: <kind>`
+names the horror whose den `X` it is (`hohle_mutter`, `bleicher_waechter` or `schlund`; see the dark holes).
 A line like `secret: epic` sets how rich the secret room behind the wall `?` is: `normal`, `uncommon`, `rare`, `epic`
 or `godborn` (the older German ids `ungewoehnlich`, `selten`, `episch` and `gottgeboren` still work).
 
@@ -496,7 +521,7 @@ It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `
 `t` tree stump, `e` barrels and crates, `q` well, `F` fountain, `x` bench, `y` pumpkin field, `N` tent,
 `f` campfire, `C` treasure chest. The bandits, who roam and come back a while after they fall: `c` cutthroat,
 `A` poacher, `X` bruiser, `Q` bandit chief; the beasts of the wolf hollow, who do the same: `W` wolf,
-`H` orc, `J` yeti, `U` spider; the peaceful animals of the woods: `D` doe, `V` stag, `&` fox. `E` is the stone arch over the stairs down into the dragon's lair. Buildings are a
+`H` orc, `J` yeti, `U` spider; the peaceful animals of the woods: `D` doe, `V` stag, `&` fox. `E` is the stone arch over the stairs down into the dragon's lair. `(` is a dark hole: the holes are numbered from the top of the map down (west to east in a row), and hole n leads to the floor with `building: loch<n>`. Buildings are a
 rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general store, `u` windmill,
 `s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank, `^` a row of narrow town
 houses (one per tile along its front, numbered from west to east, all sharing the floor with `building: ^`). A single

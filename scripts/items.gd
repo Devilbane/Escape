@@ -103,12 +103,20 @@ const ALL := {
 	"wassereimer": {"name": "Wassereimer", "slot": "auftrag", "weight": 2, "price": 1, "no_loot": true, "model": "res://assets/village/bucket_water.gltf", "model_scale": 1.6, "effect": "Für Priesterin Elsbeth am Tempel"},
 	# Food for a fox (see Animal and Pet): the shopkeeper always has some.
 	"wurst": {"name": "Wurst", "slot": "futter", "weight": 0.3, "price": 2, "no_loot": true, "effect": "Füchse lieben sie: Füttere einen Fuchs auf den Wiesen dreimal, und er wird dein Freund"},
+	# A hand torch for the pitch-black places (see HandTorch): the shopkeeper
+	# always has some. Carried in the bag, lit by itself in the dark.
+	"fackel": {"name": "Fackel", "slot": "licht", "weight": 0.5, "price": 3, "no_loot": true, "effect": "Brennt in der Finsternis von selbst, drei Minuten lang. Ohne sie siehst du dort kaum die eigene Hand"},
 }
 
 
 ## Whether an item is food for a fox (see Pet).
 static func is_food(id: String) -> bool:
 	return ALL.has(id) and ALL[id].slot == "futter"
+
+
+## Whether an item is a hand torch (see HandTorch): carried, never worn.
+static func is_light(id: String) -> bool:
+	return ALL.has(id) and ALL[id].slot == "licht"
 
 
 ## Whether an item is carried for a villager's task (see Quests).

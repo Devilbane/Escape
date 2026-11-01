@@ -24,6 +24,8 @@ extends Node3D
 ##   y  stone horse statue (the dragon's lair)
 ##   <  stairs up to the next storey   >  stairs down to the storey below
 ##   +  free floor kept for furniture (a hero home, see "home: yes")
+##   X  a horror's den: one of the nameless horrors (see Horrors) may lurk
+##      here, a new roll each time the hero comes down
 ##
 ## The line "secret: normal|uncommon|rare|epic|godborn" sets how rich the
 ## secret room is (the German ids ungewoehnlich, selten, episch, gottgeboren
@@ -48,6 +50,13 @@ extends Node3D
 ## ready again every time the hero comes down, they carry gold, and the
 ## halls are dressed with cobwebs, skulls, banners and heaps of coins from
 ## Quaternius' Modular Dungeon kit.
+##
+## A level with the line "dark: yes" is pitch black: no torches burn on its
+## walls, and the hero sees little more than the tile they stand on unless a
+## hand torch burns (see HandTorch). The line "horror: <kind>" names the
+## horror whose den ("X") it is; without it a den gets one at random.
+## Deep in the dungeon (from HORROR_FROM_DEPTH on) a level with enemies has
+## a small chance (DUNGEON_HORROR_CHANCE) that a horror lurks in its far end.
 ##
 ## Barrels, crates, tables, trunks, chests and wall shelves can be searched.
 
@@ -186,6 +195,17 @@ var _vault_shows: Array = []
 var elite := false
 ## A dungeon of its own below a village building's door (see "lair: yes").
 var lair := false
+## Pitch black (see "dark: yes").
+var pitch_dark := false
+## The horror whose den this is (see "horror:"), "" for any.
+var horror_kind := ""
+## The chance that a den ("X") holds its horror on a visit.
+const DEN_HORROR_CHANCE := 0.5
+## Deep in the dungeon a horror lurks now and then in a far corner.
+const DUNGEON_HORROR_CHANCE := 0.06
+const HORROR_FROM_DEPTH := 3
+## A horror in the dungeon keeps at least this many steps from the start.
+const HORROR_MIN_STEPS := 10
 ## Whether the lair's dragon has fallen on this visit.
 var lair_cleared := false
 ## The glowing way out that opens in the lair once the dragon has fallen.
@@ -285,6 +305,10 @@ func load_from_file(path: String) -> void:
 			safe = true
 		elif line.begins_with("lair:"):
 			lair = true
+		elif line.begins_with("dark:"):
+			pitch_dark = true
+		elif line.begins_with("horror:"):
+			horror_kind = line.substr(7).strip_edges()
 		elif line.begins_with("home:"):
 			is_home = true
 		elif line.begins_with("floor:"):
@@ -853,6 +877,8 @@ func _build_fire_bowl(pos: Vector3) -> void:
 
 
 func _maybe_add_torch(wall_pos: Vector3, rot: float, forced := false) -> Node3D:
+	if pitch_dark and not forced:
+		return null # Nobody has hung a torch down here.
 	for spot in _torch_spots:
 		if spot.distance_to(wall_pos) < TILE * 2.2 and not forced:
 			return null
@@ -2438,29 +2464,81 @@ func _spawn_enemies() -> void:
 			var c := Vector2i(x, y)
 			var ch := cell_char(c)
 			if Enemy.LETTERS.has(ch):
-				var e := Enemy.new()
-				e.kind = Enemy.LETTERS[ch]
-				e.elite = elite and ch in "MA"
-				var gear_chance: float = Enemy.KINDS[e.kind].get("gear_chance", -1.0)
-				e.gear = _roll_gear(e.kind, c, gear_chance) if gear_chance != 0.0 else ([] as Array[String])
-				e.level = self
-				add_child(e)
-				e.global_position = cell_to_world(c)
-				if e.kind == "waechter":
-					e.watch(_guarded_spot())
-				e.died.connect(func():
-					enemy_killed.emit(e)
-					_drop_gear(e, DROP_CHANCE if not e.is_beast() else BEAST_DROP_CHANCE)
-					# A monster of the lair leaves a little gold, the dragon a heap.
-					var purse: Array = Enemy.KINDS[e.kind].get("purse", [0, 0])
-					_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
-					# The dragon guards the lair: once it falls, the lair is won.
-					if lair and e.kind == "drache":
-						_win_lair(e.global_position)
-					# A guardian on a level without a key carries it.
-					if e.kind == "waechter" and not has_key and not _has_cell("K"):
-						_build_key(Vector3(e.global_position.x, 0, e.global_position.z)))
-				enemies.append(e)
+				_spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")
+	_spawn_horror()
+
+
+func _spawn_enemy(kind: String, c: Vector2i, is_elite := false) -> Enemy:
+	var e := Enemy.new()
+	e.kind = kind
+	e.elite = is_elite
+	var gear_chance: float = Enemy.KINDS[e.kind].get("gear_chance", -1.0)
+	e.gear = _roll_gear(e.kind, c, gear_chance) if gear_chance != 0.0 else ([] as Array[String])
+	e.level = self
+	add_child(e)
+	e.global_position = cell_to_world(c)
+	if e.kind == "waechter":
+		e.watch(_guarded_spot())
+	e.died.connect(func():
+		enemy_killed.emit(e)
+		_drop_gear(e, DROP_CHANCE if not e.is_beast() else BEAST_DROP_CHANCE)
+		# A monster of the lair leaves a little gold, the dragon a heap.
+		var purse: Array = Enemy.KINDS[e.kind].get("purse", [0, 0])
+		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
+		# The dragon guards the lair: once it falls, the lair is won.
+		if lair and e.kind == "drache":
+			_win_lair(e.global_position)
+		# A guardian on a level without a key carries it.
+		if e.kind == "waechter" and not has_key and not _has_cell("K"):
+			_build_key(Vector3(e.global_position.x, 0, e.global_position.z)))
+	enemies.append(e)
+	return e
+
+
+## Maybe one of the horrors (see Horrors): in its den ("X") every other
+## visit, or, rarely, in the far end of a level deep in the dungeon. A new
+## roll every time the level is built.
+func _spawn_horror() -> void:
+	var cell := Vector2i(-1, -1)
+	for y in height:
+		var x := grid[y].find("X")
+		if x >= 0:
+			cell = Vector2i(x, y)
+			break
+	if cell.x >= 0:
+		if randf() >= DEN_HORROR_CHANCE:
+			return
+	elif not safe and not outdoor and building == "" and depth >= HORROR_FROM_DEPTH \
+			and not enemies.is_empty() and randf() < DUNGEON_HORROR_CHANCE:
+		cell = _far_corner()
+	if cell.x < 0:
+		return
+	var kind := horror_kind if Enemy.HORRORS.has(horror_kind) else String(Enemy.HORRORS[randi() % Enemy.HORRORS.size()])
+	_spawn_enemy(kind, cell)
+
+
+## A plain floor tile far from the start (in steps), away from the stairs:
+## one of the farthest few, picked at random. None if the level is small.
+func _far_corner() -> Vector2i:
+	var start := start_cell
+	var steps := {start: 0}
+	var todo: Array[Vector2i] = [start]
+	while not todo.is_empty():
+		var c: Vector2i = todo.pop_front()
+		for d in DIRS:
+			var n: Vector2i = c + d
+			if not steps.has(n) and _walkable(n):
+				steps[n] = steps[c] + 1
+				todo.append(n)
+	var spots: Array[Vector2i] = []
+	for c: Vector2i in steps:
+		if steps[c] >= HORROR_MIN_STEPS and cell_char(c) in ".," and not _is_narrow(c) \
+				and (exit_cell.x < 0 or (c - exit_cell).length() > 3.0):
+			spots.append(c)
+	if spots.is_empty():
+		return Vector2i(-1, -1)
+	spots.sort_custom(func(a, b): return steps[a] > steps[b])
+	return spots[randi() % maxi(1, spots.size() / 4)]
 
 
 ## Chance for each piece of gear a skeleton may wear: higher the deeper it lies.

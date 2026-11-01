@@ -114,6 +114,8 @@ var iron := 0
 var fox_trust := 0
 var has_fox := false
 var pet: Pet = null
+## The nameless horrors: their reveal, their bar and their discovery.
+var horrors: Horrors
 const FOX_LEARN := "Füchse auf den Wiesen sind scheu, aber eine Wurst (bei der Krämerin) lockt sie an: Trägst du eine bei dir, kommt ein Fuchs neugierig näher und frisst sie dir aus der Hand. Nach drei Würsten folgt er dir überallhin, auch ins Verlies. Seine Nase findet Zutaten, die im Boden versteckt sind: Er läuft hin, gräbt sie aus und lässt sie für dich liegen; aufgehoben kommen sie in deinen Zutatenbeutel."
 ## What the hero already took on each level, by level file: the ids of
 ## searched furniture and picked up coins (see Level.taken). Kept in the
@@ -236,6 +238,11 @@ func _ready() -> void:
 	add_child(comic)
 	menus = Menus.new()
 	add_child(menus)
+	horrors = Horrors.new(self)
+	add_child(horrors)
+	player.torch.notice.connect(func(text: String, duration: float):
+		if state == State.PLAYING:
+			show_message(text, duration))
 	Sfx.load_settings()
 	Sfx.watch_focus(self)
 	_update_sound_button()
@@ -1328,6 +1335,8 @@ func load_level(index: int, restock := true) -> void:
 	level.lair_won.connect(_on_lair_won)
 	level.lair_exit_taken.connect(leave_lair)
 	level.stairs_taken.connect(_take_stairs)
+	if horrors:
+		horrors.watch(level)
 	if level is Outdoor:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
 		level.home_claimed.connect(_on_home_claimed)
@@ -2806,12 +2815,32 @@ func go_inside(building: String, house := 0) -> void:
 		state = State.PLAYING
 		create_tween().tween_property(_fade, "color:a", 0.0, 0.6)
 		_announce_level()
+		if level.pitch_dark:
+			_warn_of_darkness()
 		if level.is_home and not home_claimed:
 			# The first step into the hero's own house makes it home.
 			get_tree().create_timer(4.6).timeout.connect(func():
 				if state == State.PLAYING:
 					show_message(Lang.t("Dein neues Zuhause! Im Bett speicherst du, in der Truhe lagerst du deine Schätze."), 4.0))
 			_on_home_claimed())
+
+
+const DARK_LEARN := "In manchen Löchern und Höhlen ist es stockfinster: Ohne Fackel siehst du kaum die eigene Hand, und auch mit einer nur wenige Schritte weit. Fackeln gibt es bei der Krämerin. Im Dunkeln brennt eine von selbst, drei Minuten lang, dann die nächste. Eine brennende Fackel sieht jedes Ungeheuer."
+
+
+## Down in a pitch-black place: a word on the darkness, and on torches if
+## the hero has none.
+func _warn_of_darkness() -> void:
+	var here := level
+	learn(DARK_LEARN)
+	var none: bool = player.torch.left <= 0.0 and player.torch.spare() == 0
+	get_tree().create_timer(4.8).timeout.connect(func():
+		if level != here or state != State.PLAYING:
+			return
+		if none:
+			show_message(Lang.t("Stockfinster! Ohne Fackel siehst du kaum die eigene Hand. (Die Krämerin verkauft Fackeln.)"), 4.0)
+		else:
+			show_message(Lang.t("Stockfinster. Deine Fackel wirft nur einen kleinen Lichtkreis."), 3.0))
 
 
 ## Whether the hero may go into town house `house`: their own, or an empty
@@ -3009,7 +3038,7 @@ func _process(delta: float) -> void:
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"bank": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
-			"eingang": Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
+			"eingang": Lang.t("Dagegenlaufen, um in das dunkle Loch hinabzusteigen") if String(station.get("building", "")).begins_with("loch") else Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",

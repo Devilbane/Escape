@@ -150,6 +150,8 @@ const FIGHT_SNEAK_BLOCK := 2.0
 const SNEAK_SPEED := 0.4
 const SNEAK_ANIM := "Walking_C"
 var _lantern: OmniLight3D
+## The hand torch that burns in the pitch-black places (see HandTorch).
+var torch: HandTorch
 var _shown_alpha := -1.0
 
 var _model: Node3D
@@ -244,6 +246,9 @@ func _ready() -> void:
 	_lantern.omni_range = 8.5
 	_lantern.position = Vector3(0, 3.2, 0.6)
 	add_child(_lantern)
+	# A hand torch for the pitch-black places (see HandTorch).
+	torch = HandTorch.new(self)
+	add_child(torch)
 
 
 ## Called while a fight goes on; sneaking stays barred until it has been
@@ -262,6 +267,8 @@ func set_sneaking(on: bool) -> void:
 
 ## Whether skeletons could see the hero by some light, the lantern included.
 func is_lit() -> bool:
+	if torch and torch.lit:
+		return true # A burning torch cannot be hooded.
 	return not sneaking or not in_shadow
 
 

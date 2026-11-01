@@ -312,8 +312,8 @@ func _something_to_sniff(hero: Node3D) -> Vector3:
 				things.append(pos)
 	if not things.is_empty() and _rng.randf() < 0.7:
 		var thing: Vector3 = things[_rng.randi() % things.size()]
-		# Up to it, not into it.
-		return thing + _flat(global_position - thing).normalized() * 1.1
+		# Up to it, not into it, and not into a villager's personal space.
+		return thing + _flat(global_position - thing).normalized() * 1.6
 	return _spot_near(global_position, 1.0, 2.5)
 
 

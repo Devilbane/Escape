@@ -62,6 +62,10 @@ var _level_label: Label
 var _coin_label: Label
 var _key_label: Label
 var _hp_label: Label
+## The run meter: seconds of running left, as a bar and in numbers.
+var _run_bar: ProgressBar
+var _run_label: Label
+var _run_fill: StyleBoxFlat
 var _gift_label: Label
 var _shrine_panel: Control
 ## The fourth shrine gift, offered only to a wise hero.
@@ -278,6 +282,27 @@ func _setup_hud() -> void:
 	left.add_child(_level_label)
 	_hp_label = _make_label(TEXT_FONT, 24, Color(1.0, 0.45, 0.42))
 	left.add_child(_hp_label)
+	var run_row := HBoxContainer.new()
+	run_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	run_row.add_theme_constant_override("separation", 10)
+	left.add_child(run_row)
+	_run_bar = ProgressBar.new()
+	_run_bar.show_percentage = false
+	_run_bar.custom_minimum_size = Vector2(170, 14)
+	_run_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_run_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(0.08, 0.05, 0.1, 0.72)
+	back.border_color = Color(0.85, 0.66, 0.32, 0.8)
+	back.set_border_width_all(2)
+	back.set_corner_radius_all(6)
+	_run_fill = StyleBoxFlat.new()
+	_run_fill.set_corner_radius_all(6)
+	_run_bar.add_theme_stylebox_override("background", back)
+	_run_bar.add_theme_stylebox_override("fill", _run_fill)
+	run_row.add_child(_run_bar)
+	_run_label = _make_label(TEXT_FONT, 18, Color(0.75, 0.95, 0.6))
+	run_row.add_child(_run_label)
 	_gift_label = _make_label(TEXT_FONT, 18, Color(0.65, 0.85, 1.0))
 	left.add_child(_gift_label)
 	var spacer := Control.new()
@@ -326,7 +351,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -555,6 +580,17 @@ func _choose_gift(index: int) -> void:
 
 func _version_text() -> String:
 	return "Version " + VERSION + ("." + BUILD if BUILD != "" else "") + " · © 2026 devilbane · " + Lang.t("Alle Rechte vorbehalten")
+
+
+## Shows how many seconds the hero can still run. Turns red while out of
+## breath, until enough has come back to run again.
+func _update_run_meter() -> void:
+	var full := player.max_stamina()
+	var left := full if player.stamina < 0.0 else player.stamina
+	_run_bar.max_value = full
+	_run_bar.value = left
+	_run_fill.bg_color = Color(0.85, 0.3, 0.25) if player.winded else Color(0.55, 0.85, 0.4)
+	_run_label.text = Lang.t("Rennen: %d s") % ceili(left)
 
 
 func _update_hud() -> void:
@@ -1580,6 +1616,7 @@ func _process(delta: float) -> void:
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)
+	_update_run_meter()
 	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
 		_prompt.text = ""
 		return
@@ -1625,6 +1662,7 @@ func _arrived(pos: Vector3) -> bool:
 ## running towards the cursor. A short click still walks, attacks or searches.
 func _steer_by_mouse(delta: float) -> void:
 	player.steer = Vector3.ZERO
+	player.wants_run = false
 	if not _mouse_held or not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		_mouse_held = false
 		_mouse_held_time = 0.0
@@ -1641,6 +1679,8 @@ func _steer_by_mouse(delta: float) -> void:
 	to.y = 0.0
 	if to.length() > 0.6:
 		player.steer = to.normalized()
+		# Holding the button runs, for as long as the hero's breath lasts.
+		player.wants_run = true
 		_pending_search = {}
 		_pending_station = {}
 

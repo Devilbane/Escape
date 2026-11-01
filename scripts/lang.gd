@@ -51,16 +51,20 @@ const EN := {
 	"Entkommen": "Escaped",
 	"Alle Rechte vorbehalten": "All rights reserved",
 	# HUD and help
-	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick/halten laufen, Rechtsklick: Messer (im Lauf: Sprung)":
-		"WASD: walk   Space: jump   F: strike   R: knife   M: sound\nI: inventory   H: compendium   P: character   L: load   C/double click: sneak   Run into things: use\nMouse: click/hold to walk, right click: knife (running: jump)",
+	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)":
+		"WASD: walk   Space: jump   F: strike   R: knife   M: sound\nI: inventory   H: compendium   P: character   L: load   C/double click: sneak   Run into things: use\nMouse: click to walk, hold to run (Shift), right click: knife (running: jump)",
+	"Rennen: %d s": "Run: %d s",
 	# Compendium
 	"Kompendium": "Compendium",
 	"Steuerung": "Controls",
 	"Zoom": "Zoom",
 	"Gelerntes": "Learned",
 	"Noch nichts. Hinweise und Erklärungen sammeln sich hier.": "Nothing yet. Hints and explanations collect here.",
-	"Laufen": "Walk",
-	"WASD / Pfeiltasten, Klick oder Halten auf den Boden": "WASD / arrow keys, click or hold on the floor",
+	"Gehen": "Walk",
+	"WASD / Pfeiltasten oder Klick auf den Boden": "WASD / arrow keys or click on the floor",
+	"Rennen": "Run",
+	"Maustaste auf dem Boden halten oder Umschalt: in 3 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück; leer erst wieder ab halbvoll":
+		"Hold the mouse button on the floor or Shift: speeds up to 250 % of walking in 3 seconds, for Constitution x 2 seconds, recovers by Constitution / 10 per second; once empty, only again from half full",
 	"Leertaste, Rechtsklick im Lauf": "Space, right click while running",
 	"Nahkampf": "Melee",
 	"F oder J, gegen das Skelett laufen oder es anklicken": "F or J, run into the skeleton or click it",

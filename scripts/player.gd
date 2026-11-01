@@ -19,7 +19,7 @@ const WALK_FACTOR := 0.5
 ## Running speeds up to this many times the walking pace...
 const RUN_TOP := 2.5
 ## ...over this many seconds of holding the run,
-const RUN_RAMP_UP := 3.0
+const RUN_RAMP_UP := 2.0
 ## and slows back down to walking within this many seconds once let go.
 const RUN_RAMP_DOWN := 1.0
 const WALK_ANIM := "Walking_A"
@@ -42,6 +42,10 @@ const GRAVITY := 26.0
 ## playback (metres per second, measured from the foot bone).
 const RUN_ANIM_SPEED := 3.5
 const MAX_HP := 5
+## The spot the hero takes up: no skeleton may stand inside it (see
+## Level.push_apart).
+var radius := 0.55
+var tall := 2.4
 ## A running hero who loses more than this share of their life within
 ## KNOCKDOWN_WINDOW seconds is knocked to the ground and gets up again.
 const KNOCKDOWN_SHARE := 0.1
@@ -53,6 +57,13 @@ const GET_UP_ANIM := "Lie_StandUp"
 const GET_UP_SPEED := 1.4
 const GET_UP_TIME := 2.33 / GET_UP_SPEED
 const MELEE_RANGE := 2.8
+## One enemy in reach gets a single strike at full power. With two or more in
+## reach the hero sweeps the blade round instead: up to SPLASH_TARGETS of them
+## are hit, each for SPLASH_SHARE of the damage (never less than 1).
+const SPLASH_TARGETS := 3
+const SPLASH_SHARE := 0.5
+const STRIKE_ANIM := "1H_Melee_Attack_Slice_Horizontal"
+const SPLASH_ANIM := "2H_Melee_Attack_Spinning"
 ## Running into a skeleton starts a fight: the hero keeps swinging while
 ## standing next to it, and throws knives at it once the two are apart.
 const ENGAGE_RANGE := MELEE_RANGE
@@ -86,6 +97,11 @@ var power := 1
 var hardening := 0
 ## How much each armour piece has worn down, by item id.
 var wear := {}
+## The hero's hair style, hair colour and head tattoo (see HairLook); the
+## barber in the village changes them.
+var hair := HairLook.DEFAULT.duplicate()
+## The hero's body, "male" or "female" (see BodyLook).
+var sex := BodyLook.DEFAULT
 ## Chance per hit that a worn armour piece loses a point of durability.
 const WEAR_CHANCE := 0.05
 ## Chance to stop a whole hit with the worn shield (from the shield's "block").
@@ -152,6 +168,14 @@ var _attack_cooldown := 0.0
 var _knockback := Vector3.ZERO
 ## The skeleton last fought up close, kept under fire from afar.
 var _target: Enemy = null
+## The enemy the hero was sent after with a click: walk up to it and strike
+## it, no knives on the way. Cleared once it is in reach, dies, or the hero is
+## sent elsewhere.
+var _hunt: Enemy = null
+var _hunt_repath := 0.0
+## How far from the enemy's middle the hunt stops: side by side, in reach.
+const HUNT_STOP := 1.6
+const HUNT_REPATH := 0.4
 var _auto_cooldown := 0.0
 ## Time left on an animation that plays while the hero keeps moving.
 var _anim_hold := 0.0
@@ -167,16 +191,27 @@ var _falling := 0.0
 var _down := 0.0
 ## How often the hero has been knocked down this game.
 var knockdowns := 0
+## Walking into a crate (see Crate) whose top is at most this far above the
+## feet lifts the hero onto it, and so does jumping against one whose top
+## the hands reach: up to GRAB_REACH above the feet.
+const STEP_UP := Crate.SIZE + 0.15
+const GRAB_REACH := 0.7
+## Seconds a climb onto a crate takes.
+const CLIMB_TIME := 0.35
+var _climb := -1.0
+var _climb_from := Vector3.ZERO
+var _climb_to := Vector3.ZERO
+var _on_crate := false
 
 
 func _ready() -> void:
 	add_to_group("combatant")
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.55
-	capsule.height = 2.4
+	capsule.radius = radius
+	capsule.height = tall
 	shape.shape = capsule
-	shape.position.y = 1.2
+	shape.position.y = tall * 0.5
 	add_child(shape)
 
 	_model = preload("res://assets/characters/Rogue.glb").instantiate()
@@ -185,12 +220,15 @@ func _ready() -> void:
 		var node := _model.find_child(part, true, false)
 		if node:
 			node.visible = false
+	# The body comes first: everything else dresses whichever body it is.
+	BodyLook.apply(_model, sex)
+	_model.scale = Vector3.ONE * BodyLook.scale_of(sex)
 	_add_cape_logo()
 	_add_trim()
 	GearLook.dress(_model.find_child("handslot_r", true, false).get_node("Knife"), "mixed") # The hero's own knife.
 	for arm in ["Rogue_ArmLeft", "Rogue_ArmRight"]:
 		GearLook.apply(_model.find_child(arm, true, false) as MeshInstance3D, "outfit")
-	_matt_head()
+	set_hair(hair)
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle", SNEAK_ANIM]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -232,7 +270,8 @@ func is_noisy() -> bool:
 	return not sneaking and (Vector2(velocity.x, velocity.z).length() > 0.5 or not is_on_floor())
 
 
-## Fades the hero while sneaking, and further in the shadows.
+## Turns the hero ash grey and see-through while sneaking, more so in the
+## shadows.
 func _update_sneak_look() -> void:
 	var alpha := 0.0
 	if sneaking:
@@ -241,26 +280,73 @@ func _update_sneak_look() -> void:
 		return
 	_shown_alpha = alpha
 	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
-		if mesh.material_override is ShaderMaterial:
-			# A tinted part: swap in the shader that can fade.
+		if HairLook.is_hair(mesh.material_override):
+			# Hair, scalp and face: their own shader greys and fades them.
+			HairLook.fade(mesh.material_override as ShaderMaterial, alpha)
+			continue
+		if mesh.material_override is ShaderMaterial and (mesh.material_override as ShaderMaterial).shader in [TINT_SHADER, TINT_FADE_SHADER]:
+			# A tinted part: swap in the shader that greys and fades.
 			var tinted := mesh.material_override as ShaderMaterial
 			tinted.shader = TINT_FADE_SHADER if alpha > 0.0 else TINT_SHADER
 			tinted.set_shader_parameter("fade", alpha)
 			continue
+		if mesh.material_override != null:
+			_ghost_override(mesh, alpha)
+			continue
 		if mesh.mesh == null:
 			continue
 		for i in mesh.mesh.get_surface_count():
-			var mat := mesh.get_surface_override_material(i) as StandardMaterial3D
-			if mat == null:
-				if alpha <= 0.0:
-					continue # Never faded: nothing to undo.
-				var base := mesh.mesh.surface_get_material(i) as StandardMaterial3D
-				if base == null:
-					continue
-				mat = base.duplicate()
-				mesh.set_surface_override_material(i, mat)
-			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if alpha > 0.0 else BaseMaterial3D.TRANSPARENCY_DISABLED
-			mat.albedo_color.a = 1.0 - alpha
+			_ghost_surface(mesh, i, alpha)
+
+
+## Puts a grey see-through stand-in over one surface of a part, keeping the
+## material it had to bring back when the hero stops sneaking.
+func _ghost_surface(mesh: MeshInstance3D, i: int, alpha: float) -> void:
+	var key := "unghosted_%d" % i
+	var mat := mesh.get_surface_override_material(i)
+	if mat is ShaderMaterial and (mat as ShaderMaterial).shader == GHOST_SHADER:
+		if alpha > 0.0:
+			mat.set_shader_parameter("fade", alpha)
+		else:
+			mesh.set_surface_override_material(i, mesh.get_meta(key, null))
+			mesh.remove_meta(key)
+		return
+	if alpha <= 0.0:
+		return
+	var base := mat if mat != null else mesh.mesh.surface_get_material(i)
+	mesh.set_meta(key, mat)
+	mesh.set_surface_override_material(i, _ghost(base, alpha))
+
+
+## The same for a part drawn with one material over the whole of it.
+func _ghost_override(mesh: MeshInstance3D, alpha: float) -> void:
+	var mat := mesh.material_override
+	if mat is ShaderMaterial and (mat as ShaderMaterial).shader == GHOST_SHADER:
+		if alpha > 0.0:
+			mat.set_shader_parameter("fade", alpha)
+		else:
+			mesh.material_override = mesh.get_meta("unghosted", null)
+			mesh.remove_meta("unghosted")
+		return
+	if alpha <= 0.0 or not mat is BaseMaterial3D:
+		return
+	mesh.set_meta("unghosted", mat)
+	mesh.material_override = _ghost(mat, alpha)
+
+
+const GHOST_SHADER := preload("res://shaders/ghost.gdshader")
+
+
+func _ghost(base: Material, alpha: float) -> ShaderMaterial:
+	var ghost := ShaderMaterial.new()
+	ghost.shader = GHOST_SHADER
+	if base is BaseMaterial3D:
+		var std := base as BaseMaterial3D
+		ghost.set_shader_parameter("tex", std.albedo_texture)
+		ghost.set_shader_parameter("use_tex", std.albedo_texture != null)
+		ghost.set_shader_parameter("color", std.albedo_color)
+	ghost.set_shader_parameter("fade", alpha)
+	return ghost
 
 
 ## A golden cord along the edge of the cape, and a white feather at the head.
@@ -276,41 +362,113 @@ func _add_trim() -> void:
 		var cord := MeshInstance3D.new()
 		cord.mesh = Effects.cord_mesh(Effects.open_edges(cape.mesh), 0.075, gold)
 		cape.add_child(cord)
-	var head := _model.find_child("Rogue_Head", true, false) as MeshInstance3D
-	var skeleton := _model.find_child("Skeleton3D", true, false) as Skeleton3D
-	if head == null or skeleton == null:
+	# The feather hangs from the head bone, in the head mesh's space.
+	var attach := HairLook.head_slot(_model)
+	if attach == null:
 		return
-	# The head is skinned to the head bone: place the feather in that bone's space.
-	var bind := Transform3D.IDENTITY
-	for i in head.skin.get_bind_count():
-		if head.skin.get_bind_name(i) == "head":
-			bind = head.skin.get_bind_pose(i)
-	var attach := BoneAttachment3D.new()
-	attach.name = "HeadSlot"
-	attach.bone_name = "head"
-	skeleton.add_child(attach)
+	var bind: Transform3D = attach.get_meta("bind")
 	var feather := MeshInstance3D.new()
 	feather.name = "Feather"
 	feather.mesh = Effects.feather_mesh()
 	feather.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Tucked in on the left side of the head, sweeping up and back.
+	# Tucked into the hair on the left side of the head, or behind the left
+	# ear of a shaved head, sweeping up and back.
+	feather.set_meta("spots", [bind * Vector3(0.47, 1.66, -0.05), bind * Vector3(0.4, 1.68, -0.2)])
 	feather.transform = Transform3D(Basis.from_euler(Vector3(-0.75, 0.0, -0.45)).scaled(Vector3.ONE * 1.3), bind * Vector3(0.47, 1.66, -0.05))
 	attach.add_child(feather)
 
 
-## Hair and face are matt, so the hair does not shine like plastic in the
-## lantern light. Fading while sneaking reuses this material.
-func _matt_head() -> void:
+## Closed eyes for sleeping: a skin-coloured lid over each eye with a dark,
+## gently curved lash line, built the first time the hero falls asleep.
+var _eyelids: Node3D = null
+## A lid is a squashed ball, a little taller than the eye and deep enough
+## to cover the pupil.
+const LID_SCALE := Vector3(1.0, 1.15, 0.75)
+
+
+func set_asleep(asleep: bool) -> void:
+	if asleep and _eyelids == null:
+		_build_eyelids()
+	if _eyelids:
+		_eyelids.visible = asleep
+	BodyLook.blink(_model, asleep)
+
+
+func _build_eyelids() -> void:
 	var head := _model.find_child("Rogue_Head", true, false) as MeshInstance3D
-	if head == null or head.mesh == null:
+	var slot := _model.find_child("HeadSlot", true, false) as Node3D
+	if head == null or slot == null:
 		return
-	var base := head.mesh.surface_get_material(0) as StandardMaterial3D
-	if base == null:
-		return
-	var matt := base.duplicate() as StandardMaterial3D
-	matt.roughness = 0.95
-	matt.metallic_specular = 0.12
-	head.set_surface_override_material(0, matt)
+	# The eyes are part of the head mesh, skinned to the head bone: work in
+	# mesh space and carry it over into that bone's space.
+	var bind := Transform3D.IDENTITY
+	for i in head.skin.get_bind_count():
+		if head.skin.get_bind_name(i) == "head":
+			bind = head.skin.get_bind_pose(i)
+	_eyelids = Node3D.new()
+	_eyelids.name = "Eyelids"
+	_eyelids.transform = bind
+	slot.add_child(_eyelids)
+	var skin := StandardMaterial3D.new()
+	skin.albedo_color = Color8(246, 192, 156)
+	skin.roughness = 0.95
+	var lash := StandardMaterial3D.new()
+	lash.albedo_color = Color(0.16, 0.08, 0.06)
+	lash.roughness = 1.0
+	var lid_mesh := SphereMesh.new()
+	lid_mesh.radius = 0.08
+	lid_mesh.height = 0.16
+	for side in [-1.0, 1.0]:
+		var centre := Vector3(side * 0.207, 1.607, 0.41)
+		var lid := MeshInstance3D.new()
+		lid.mesh = lid_mesh
+		lid.material_override = skin
+		lid.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		lid.position = centre
+		lid.scale = LID_SCALE
+		_eyelids.add_child(lid)
+		# A thin dark arc across the lid, curving down like a smile: the
+		# closed eye. It follows the lid's rounded surface.
+		var points := []
+		for k in 9:
+			var a := lerpf(PI * 1.12, PI * 1.88, k / 8.0)
+			var p := Vector2(cos(a) * 0.062, sin(a) * 0.024 + 0.012)
+			var r := clampf(Vector2(p.x / LID_SCALE.x, p.y / LID_SCALE.y).length() / lid_mesh.radius, 0.0, 1.0)
+			points.append(centre + Vector3(p.x, p.y, lid_mesh.radius * LID_SCALE.z * sqrt(1.0 - r * r) + 0.004))
+		var segments := []
+		for k in points.size() - 1:
+			segments.append([points[k], points[k + 1]])
+		var line := MeshInstance3D.new()
+		line.mesh = Effects.cord_mesh(segments, 0.016, lash)
+		line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_eyelids.add_child(line)
+	_eyelids.visible = false
+
+
+## Makes the hero a man or a woman (see BodyLook). The hair, the worn gear
+## and the colours of the clothes are put back on the new body.
+func set_sex(id: String) -> void:
+	sex = BodyLook.checked(id)
+	if _model == null:
+		return # Not built yet: _ready shapes it.
+	BodyLook.apply(_model, sex)
+	_model.scale = Vector3.ONE * BodyLook.scale_of(sex)
+	for arm in ["Rogue_ArmLeft", "Rogue_ArmRight"]:
+		GearLook.apply(_model.find_child(arm, true, false) as MeshInstance3D, "outfit")
+	set_hair(hair)
+	refresh_stats()
+
+
+## Gives the hero a new hair style, colour or tattoo (see HairLook).
+func set_hair(look: Dictionary) -> void:
+	hair = HairLook.checked(look)
+	if _model == null:
+		return # Not built yet: _ready puts it on.
+	HairLook.apply(_model, hair)
+	var feather := _model.find_child("Feather", true, false) as Node3D
+	if feather:
+		feather.position = feather.get_meta("spots")[0 if hair.style == "natural" else 1]
+	_show_headgear()
 
 
 ## The glowing devilbane emblem on the back of the cape.
@@ -367,6 +525,7 @@ func revive(at: Vector3, heal := true) -> void:
 	winded = false
 	path.clear()
 	_target = null
+	_hunt = null
 	velocity = Vector3.ZERO
 	global_position = at
 	_invulnerable = 1.5
@@ -374,6 +533,9 @@ func revive(at: Vector3, heal := true) -> void:
 	_falling = 0.0
 	_down = 0.0
 	_run_hits.clear()
+	_climb = -1.0
+	_on_crate = false
+	set_asleep(false)
 	play("Idle")
 
 
@@ -443,7 +605,7 @@ func is_running() -> bool:
 ## A jump from a run keeps its momentum and flies further the faster the
 ## hero runs; a standing jump goes straight up.
 func jump() -> void:
-	if not controllable or frozen or dead or not is_on_floor():
+	if not controllable or frozen or dead or not is_on_floor() or is_climbing():
 		return
 	_air_momentum = Vector3.ZERO
 	var jump_boost := 1.0
@@ -462,7 +624,9 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 	var best: Enemy = null
 	var best_d := max_distance
 	for e in level.enemies:
-		if not is_instance_valid(e) or e.dead:
+		# A skeleton standing inside the hero's spot cannot be fought until
+		# the two are pushed apart.
+		if not is_instance_valid(e) or e.dead or level.stacked(self, e):
 			continue
 		var d := global_position.distance_to(e.global_position)
 		if d < best_d and (not need_sight or level.has_line_of_sight(global_position, e.global_position)):
@@ -494,6 +658,33 @@ func _footsteps(ground_speed: float) -> void:
 	_last_phase = phase
 
 
+## The living enemies the blade can reach right now: close by, and in front
+## of the hero unless they stand right next to them. Nearest first.
+func enemies_in_reach() -> Array[Enemy]:
+	var found: Array[Enemy] = []
+	for e in level.enemies:
+		if not is_instance_valid(e) or e.dead or level.stacked(self, e):
+			continue
+		var to: Vector3 = e.global_position - global_position
+		to.y = 0.0
+		if to.length() < MELEE_RANGE + e.girth() and (to.length() < 1.2 + e.girth() or facing().dot(to.normalized()) > 0.25):
+			found.append(e)
+	var here := global_position
+	found.sort_custom(func(a: Enemy, b: Enemy) -> bool:
+		return here.distance_squared_to(a.global_position) < here.distance_squared_to(b.global_position))
+	return found
+
+
+## Whether the next blow would be a sweep: two or more enemies in reach.
+func would_splash() -> bool:
+	return enemies_in_reach().size() >= 2
+
+
+## A blow with the blade. Facing one enemy the hero strikes it alone for full
+## damage. Facing a crowd the hero sweeps instead (see SPLASH_TARGETS): a wider
+## swing with its own spin and a deeper swish, half the damage per enemy. The
+## kind of blow is chosen as the swing starts and kept even if the crowd
+## shifts before the blade lands.
 func melee() -> void:
 	if not can_act() or _attack_cooldown > 0.0:
 		return
@@ -503,29 +694,41 @@ func melee() -> void:
 		_target = target
 		face(target.global_position - global_position)
 	_attack_cooldown = 0.5
-	play_once("1H_Melee_Attack_Slice_Horizontal", 0.45)
-	Sfx.play(self, "swing")
-	await get_tree().create_timer(0.18).timeout
-	var hits := 0
+	var splash := would_splash()
+	if splash:
+		play_once(SPLASH_ANIM, 0.55)
+		Sfx.play(self, "swing", 0.0, null, 0.8)
+	else:
+		play_once(STRIKE_ANIM, 0.45)
+		Sfx.play(self, "swing")
+	await get_tree().create_timer(0.25 if splash else 0.18).timeout
 	var weapon := weapon_skill()
-	for e in level.enemies:
-		if not is_instance_valid(e) or e.dead:
-			continue
-		var to: Vector3 = e.global_position - global_position
-		to.y = 0.0
-		if to.length() < MELEE_RANGE + e.girth() and (to.length() < 1.2 + e.girth() or facing().dot(to.normalized()) > 0.25):
-			if e.open_to_backstab(global_position):
-				e.take_hit(power, global_position, "backstab")
-				train("schleichen", 4.0)
-			else:
-				e.take_hit(power + heavy_hit(weapon), global_position)
-			hits += 1
-			mark_fight()
-			# Every blow that lands trains the hand and the arm; a kill a little more.
-			train(weapon, 1.0)
-			train("staerke", 3.0 if e.dead else 1.0)
-			if e.dead and e.kind == "magier":
-				train("intelligenz", 4.0)
+	# One roll for a heavy hit per swing; a sweep shares it out.
+	var full := power + heavy_hit(weapon)
+	var damage := maxi(1, roundi(full * SPLASH_SHARE)) if splash else full
+	var victims := enemies_in_reach()
+	if splash:
+		victims.resize(mini(victims.size(), SPLASH_TARGETS))
+	elif not victims.is_empty():
+		# The strike goes to the enemy the hero is fighting, else the nearest.
+		if _target in victims:
+			victims.erase(_target)
+			victims.push_front(_target)
+		victims.resize(1)
+	var hits := 0
+	for e in victims:
+		if e.open_to_backstab(global_position):
+			e.take_hit(power, global_position, "backstab")
+			train("schleichen", 4.0)
+		else:
+			e.take_hit(damage, global_position)
+		hits += 1
+		mark_fight()
+		# Every blow that lands trains the hand and the arm; a kill a little more.
+		train(weapon, 1.0)
+		train("staerke", 3.0 if e.dead else 1.0)
+		if e.dead and e.kind == "magier":
+			train("intelligenz", 4.0)
 	if hits == 0 and target:
 		Comic.pop(global_position + facing() * 1.5, "miss")
 
@@ -572,6 +775,53 @@ func _engage(enemy: Enemy) -> void:
 	_target = enemy
 
 
+## Sent after an enemy with a click: the hero walks up to it and, once it
+## is in reach, keeps striking it (see _pursue and _auto_attack).
+func charge(enemy: Enemy) -> void:
+	if enemy == null or enemy.dead or dead:
+		return
+	_engage(enemy)
+	_hunt = enemy
+	_hunt_repath = 0.0
+
+
+## Gives up a hunt, when the hero is sent somewhere else.
+func stop_hunt() -> void:
+	_hunt = null
+
+
+## Keeps the hunt's path on the enemy while it moves, and ends it in reach.
+func _pursue(delta: float) -> void:
+	if _hunt == null:
+		return
+	if not is_instance_valid(_hunt) or _hunt.dead or _target != _hunt:
+		_hunt = null
+		return
+	if not can_act():
+		return # Mid-swing or getting up: the hunt goes on afterwards.
+	var to := _hunt.global_position - global_position
+	to.y = 0.0
+	if to.length() <= ENGAGE_RANGE:
+		path.clear()
+		_hunt = null
+		return
+	_hunt_repath -= delta
+	if _hunt_repath <= 0.0:
+		_hunt_repath = HUNT_REPATH
+		walk_to(_hunt.global_position, HUNT_STOP)
+
+
+## Attacked without a command, the hero fights back on their own: the
+## attacker becomes the target, and _auto_attack strikes it up close or throws
+## knives at it from afar. An enemy the hero is already fighting is kept.
+func defend_against(attacker: Node) -> void:
+	var enemy := attacker as Enemy
+	if enemy == null or enemy.dead or dead:
+		return
+	if _target == null or not is_instance_valid(_target) or _target.dead:
+		_engage(enemy)
+
+
 ## Keeps fighting the current target: blade while next to it, knives from afar.
 func _auto_attack() -> void:
 	if _target == null:
@@ -579,13 +829,13 @@ func _auto_attack() -> void:
 	if not is_instance_valid(_target) or _target.dead:
 		_target = null
 		return
-	if not can_act() or _auto_cooldown > 0.0 or _attack_cooldown > 0.0:
+	if not can_act() or _auto_cooldown > 0.0 or _attack_cooldown > 0.0 or level.stacked(self, _target):
 		return
 	var d := global_position.distance_to(_target.global_position)
 	if d <= ENGAGE_RANGE:
 		_auto_cooldown = AUTO_MELEE_INTERVAL
 		melee()
-	elif d <= AUTO_THROW_RANGE and knives > 0 and level.has_line_of_sight(global_position, _target.global_position):
+	elif _hunt == null and d <= AUTO_THROW_RANGE and knives > 0 and level.has_line_of_sight(global_position, _target.global_position):
 		_auto_cooldown = AUTO_THROW_INTERVAL
 		throw_knife(_target.global_position, true)
 
@@ -864,7 +1114,8 @@ func _ailments_changed() -> void:
 	ailments_changed.emit()
 
 
-## Puts the worn helmet or hat on the hero's head; the feather makes room for it.
+## Puts the worn helmet or hat on the hero's head, unless the hero chose to
+## hide it; the mohawk and the feather make room for it.
 func _show_headgear() -> void:
 	var slot := _model.find_child("HeadSlot", true, false)
 	if slot == null:
@@ -873,10 +1124,13 @@ func _show_headgear() -> void:
 	if old:
 		old.free()
 	var item: Dictionary = Items.ALL.get(equipped.get("kopf", ""), {})
+	# A hidden helmet still protects, it just does not cover the haircut.
+	var shown: bool = item.has("hat") and hair.get("show_helmet", true)
 	var feather := slot.get_node_or_null("Feather") as Node3D
 	if feather:
-		feather.visible = not item.has("hat")
-	if not item.has("hat"):
+		feather.visible = not shown
+	HairLook.cover(_model, shown)
+	if not shown:
 		return
 	# The hats sit on the head bone of their own character, which matches the hero's.
 	var source: Node = load(item.hat[0]).instantiate()
@@ -914,25 +1168,38 @@ func can_use(requires: Dictionary) -> bool:
 	return true
 
 
+## How many items the bag holds: a worn backpack makes room for more.
+func bag_size() -> int:
+	return Items.bag_size(equipped.get("rucksack", ""))
+
+
 ## Moves a bag item into its slot; whatever was worn there goes into the bag.
-## Items the hero is not yet able to use stay in the bag, and so do books.
-func equip(id: String) -> void:
-	if Items.is_book(id) or not can_use(Items.ALL[id].get("requires", {})):
-		return
+## Items the hero is not yet able to use stay in the bag, and so do books,
+## and so does a smaller backpack that could not hold everything carried.
+## Returns whether the item was put on.
+func equip(id: String) -> bool:
+	if Items.is_book(id) or Items.is_crate(id) or Items.is_stone(id) or not can_use(Items.ALL[id].get("requires", {})):
+		return false
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":
 		# Two places for specials: take a free one, else swap out the first.
 		slot = "spezial_2" if equipped.has("spezial_1") and not equipped.has("spezial_2") else "spezial_1"
+	var after := bag.size() - 1 + (1 if equipped.has(slot) else 0)
+	if slot == "rucksack" and after > Items.bag_size(id):
+		return false
 	bag.erase(id)
 	if equipped.has(slot):
 		bag.append(equipped[slot])
 	equipped[slot] = id
 	refresh_stats()
+	return true
 
 
-## Takes off a worn item. False when the bag has no room for it.
+## Takes off a worn item. False when the bag has no room for it (without
+## the backpack, when that is what comes off).
 func unequip(slot: String) -> bool:
-	if not equipped.has(slot) or bag.size() >= Items.BAG_SIZE:
+	var room := Items.BAG_SIZE if slot == "rucksack" else bag_size()
+	if not equipped.has(slot) or bag.size() >= room:
 		return false
 	bag.append(equipped[slot])
 	equipped.erase(slot)
@@ -992,6 +1259,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 		return
 	if blockable:
 		mark_fight() # A blow or a shot, blocked or not; spikes are no fight.
+		defend_against(attacker)
 	if blockable and block_chance > 0.0 and randf() < block_chance:
 		train("blocken", 2.0)
 		train("staerke", 1.0)
@@ -1091,6 +1359,86 @@ func _train_legs(metres: float) -> void:
 		train("staerke", metres * carried_weight() * 0.0005)
 
 
+## Whether the hero stands on a crate (see Level.stacked: up there they
+## are never stacked with a skeleton below).
+func on_crate() -> bool:
+	return _on_crate and is_on_floor()
+
+
+## Whether the hero is climbing onto a crate right now.
+func is_climbing() -> bool:
+	return _climb >= 0.0
+
+
+## Starts climbing onto a crate the hero pushes against: walking into one
+## that is a step high, or jumping against one whose top the hands reach.
+func _try_climb(dir: Vector3) -> bool:
+	var push := dir
+	if push == Vector3.ZERO and not is_on_floor():
+		push = Vector3(_air_momentum.x, 0, _air_momentum.z)
+	if push.length() < 0.01:
+		return false
+	push = push.normalized()
+	for i in get_slide_collision_count():
+		var hit := get_slide_collision(i)
+		var crate := hit.get_collider() as Crate
+		if crate == null or absf(hit.get_normal().y) > 0.5 or push.dot(-hit.get_normal()) < 0.5:
+			continue
+		var target: Vector3
+		if crate is StoneBlock:
+			# Onto the top of the blocks on the grid cell just past the edge
+			# the hero pushes against.
+			var into := hit.get_position() - hit.get_normal() * StoneBlock.CELL * 0.5
+			var c := StoneBlock.grid_cell(into)
+			target = Vector3((c.x + 0.5) * StoneBlock.CELL, level.stone_surface(into) + 0.02, (c.y + 0.5) * StoneBlock.CELL)
+		else:
+			var top: Crate = level.stack_top(crate)
+			target = Vector3(top.global_position.x, top.top() + 0.02, top.global_position.z)
+		var rise := target.y - 0.02 - global_position.y
+		if rise <= 0.05 or rise > (STEP_UP if is_on_floor() else GRAB_REACH):
+			continue
+		if not _room_at(target):
+			continue
+		_climb_from = global_position
+		_climb_to = target
+		_climb = 0.0
+		_air_momentum = Vector3.ZERO
+		velocity = Vector3.ZERO
+		face(target - global_position)
+		_current_anim = ""
+		play("Jump_Idle", 0.1)
+		train("geschick", 0.5)
+		return true
+	return false
+
+
+## Whether the hero fits standing at `spot` (feet there): nothing in the way.
+func _room_at(spot: Vector3) -> bool:
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = radius - 0.05
+	capsule.height = tall - 0.1
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = Transform3D(Basis(), spot + Vector3(0, tall * 0.5 + 0.05, 0))
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+## One step of a climb: up first, then over the edge onto the top.
+func _climb_step(delta: float) -> void:
+	_climb = minf(1.0, _climb + delta / CLIMB_TIME)
+	var up := smoothstep(0.0, 0.65, _climb)
+	var over := smoothstep(0.3, 1.0, _climb)
+	var p := _climb_from.lerp(_climb_to, over)
+	p.y = lerpf(_climb_from.y, _climb_to.y + 0.1, up) if _climb < 1.0 else _climb_to.y
+	global_position = p
+	velocity = Vector3.ZERO
+	if _climb >= 1.0:
+		_climb = -1.0
+		_current_anim = ""
+		play("Idle")
+
+
 func _keyboard_direction() -> Vector3:
 	var x := 0.0
 	var z := 0.0
@@ -1117,7 +1465,11 @@ func _physics_process(delta: float) -> void:
 	_clock += delta
 	_get_up(delta)
 	_tick_ailments(delta)
+	_pursue(delta)
 	_auto_attack()
+	if _climb >= 0.0:
+		_climb_step(delta)
+		return
 	var dir := Vector3.ZERO
 	if controllable and not dead and _busy <= 0.0:
 		dir = _keyboard_direction()
@@ -1125,6 +1477,7 @@ func _physics_process(delta: float) -> void:
 			dir = steer
 		if dir != Vector3.ZERO:
 			path.clear()
+			_hunt = null
 		elif not path.is_empty():
 			var to := path[0] - global_position
 			to.y = 0.0
@@ -1167,6 +1520,11 @@ func _physics_process(delta: float) -> void:
 			_sidestepped = false
 	if is_on_floor() and velocity.y < 0.0:
 		velocity.y = 0.0
+	_on_crate = false
+	for i in get_slide_collision_count():
+		var hit := get_slide_collision(i)
+		if hit.get_collider() is Crate and hit.get_normal().y > 0.7:
+			_on_crate = true
 	if dir != Vector3.ZERO:
 		for i in get_slide_collision_count():
 			var hit := get_slide_collision(i)
@@ -1174,8 +1532,10 @@ func _physics_process(delta: float) -> void:
 				var enemy := hit.get_collider() as Enemy
 				if enemy:
 					_engage(enemy)
-				else:
+				elif not hit.get_collider() is Crate:
 					bumped.emit(hit.get_position() - hit.get_normal() * 0.2)
+	if controllable and not dead and _busy <= 0.0 and _down <= 0.0 and _falling <= 0.0 and _try_climb(dir):
+		return
 	if dir != Vector3.ZERO and _anim_hold <= 0.0:
 		_model.rotation.y = lerp_angle(_model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-14.0 * delta))
 	# Blink while invulnerable after a hit.

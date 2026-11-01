@@ -14,6 +14,8 @@ uniform vec3 albedo_color : source_color = vec3(1.0);
 // normal map and need a little more grain to match the kit's carved stone.
 uniform bool use_normal_map = true;
 uniform float strength = 1.0;
+// 1 turns the texture grey (keeping its light and dark) before albedo_color.
+uniform float desaturate = 0.0;
 
 varying vec3 world_pos;
 
@@ -30,7 +32,9 @@ void fragment() {
 	float pits = smoothstep(0.62, 0.8, vnoise(p * 16.0)) * band(16.0, px);
 	float sand = (vnoise(p * 40.0) - 0.5) * band(40.0, px);
 	float shade = 1.0 + strength * (0.24 * (stains - 0.5) + 0.16 * (grit - 0.5) - 0.14 * pits + 0.08 * sand);
-	ALBEDO = texture(albedo_tex, UV).rgb * albedo_color * shade;
+	vec3 c = texture(albedo_tex, UV).rgb;
+	c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))), desaturate);
+	ALBEDO = c * albedo_color * shade;
 	float h = strength * (grit * 0.02 * band(5.0, px) - pits * 0.004 + sand * 0.0015);
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
 	if (use_normal_map) {

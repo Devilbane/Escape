@@ -24,20 +24,31 @@ extends Level
 ##   Villagers: 0 elder, 1 smith, 2 farmer, 3 woodcutter, 4 guard,
 ##   5 tavern guest, 6 shopkeeper (buys and sells), 7 child, 8 scholar,
 ##   9 water carrier, K herald of the crown, O priestess, G guild master,
-##   M postmaster, Y banker. Now and then the herald calls out news on the square,
+##   M postmaster, Y banker, S stonemason (sells stone blocks to build with,
+##   his stone yard is on the tile behind him). Now and then the herald calls out news on the square,
 ##   and the villagers come over to listen.
+##   The robbers' pass east of the village: N tent   f campfire   C treasure chest
+##   and the bandits who roam there and come back a while after they fall:
+##   c cutthroat, A poacher (crossbow), X bruiser, Q bandit chief (see Enemy).
+##   v  a stone pedestal with a food basket on top, too high to reach from
+##      the ground or from one crate: stack two crates beside it. Three
+##      wooden crates lie close by (see Crate).
 
 ## A notice for the message line, e.g. when the house is handed over.
 signal notice(text: String, duration: float)
 ## The hero walked into the house the elder gave for the first time: it is
 ## theirs now, and the place every saved game starts from.
 signal home_claimed
+## The hero has reached the food basket on the pedestal and eats.
+signal food_basket(heal: int)
 
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMY"
-const VILLAGERS := "0123456789KOGMY"
+const WALK := ".,Pai:0123456789KOGMYZScAXQ"
+## Tiles of the robbers' camp: bare, trodden earth.
+const CAMP := "NfC"
+const VILLAGERS := "0123456789KOGMYZS"
 const BLOCK_CHARS := "Rhjnmuskowb"
 const HOMES := ["building_home_A_blue", "building_home_B_red", "building_home_A_yellow", "building_home_B_green"]
 const BLOCK_MODELS := {
@@ -46,13 +57,16 @@ const BLOCK_MODELS := {
 	"s": "building_church_yellow", "k": "building_castle_blue", "o": "building_home_A_yellow",
 	"w": "building_barracks_red", "b": "building_tower_A_blue",
 }
-## The herald calls out news this often (seconds); the first time sooner.
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
 	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
 }
-const HERALD_EVERY := 80.0
-const HERALD_FIRST := 25.0
+## The herald calls out news this often (seconds, picked at random between the
+## two bounds each time); the first call comes sooner.
+const HERALD_EVERY_MIN := 160.0
+const HERALD_EVERY_MAX := 240.0
+const HERALD_FIRST_MIN := 50.0
+const HERALD_FIRST_MAX := 75.0
 const GRAVES := ["grave_A", "grave_B", "gravestone", "gravemarker_A", "gravemarker_B", "grave_A_destroyed"]
 const PROPS := ["barrel", "crate_A_big", "sack", "wheelbarrow", "bucket_water", "resource_lumber", "resource_stone"]
 ## The village props come as table-top miniatures: this blows them up to
@@ -63,14 +77,43 @@ const FOREST_DEPTH := 4
 ## Ground pieces are this many tiles across. Each piece is lit by the
 ## lanterns near it only, so many lanterns can burn at once.
 const GROUND_CHUNK := 12
+const TREE_SHADER := preload("res://shaders/tree.gdshader")
 const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
 ## The elder calls the hero over from this far (metres).
 const GREET_RANGE := 11.0
+## Bandits: how likely each piece of gear is on them, how likely a worn
+## piece drops when they fall, and the gold in their purse. The chief has
+## more of everything.
+const BANDIT_GEAR_CHANCE := 0.45
+const BANDIT_DROP_CHANCE := 0.35
+const CHIEF_GEAR_CHANCE := 0.6
+const CHIEF_DROP_CHANCE := 0.5
+## Seconds after a bandit falls until another takes its place, and how far
+## away the hero must be for that to happen out of sight.
+const BANDIT_RESPAWN := 150.0
+const RESPAWN_FAR := 40.0
+## The hero is warned about the pass when a bandit's spot is this close (metres).
+const WILD_WARNING_RANGE := 16.0
+## The pedestal with the food basket: how tall it is (metres), how far from
+## the basket the hero can reach it, how high their feet must stand for that
+## (on two stacked crates), the lives the food gives back, and the seconds
+## until the basket is full again.
+const PEDESTAL_HEIGHT := 3.2
+const BASKET_REACH := 2.4
+const BASKET_FEET := Crate.SIZE * 2.0 - 0.2
+const BASKET_HEAL := 3
+const BASKET_REFILL := 180.0
+## Where the pedestal's crates lie, from the middle of its tile.
+const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 1.6), Vector3(-1.4, 0, 3.0)]
 
 var villagers: Array = []
 ## Has the elder handed the house over yet? Saved games wake up at home.
 var house_given := false
+## The villagers the hero has talked to, by role letter (see Villager.ROLES):
+## their names stay over their heads. Shared with Game.met, so it is kept in
+## the saved game.
+var met := {}
 ## Where the hero wakes up in the house: next to the bed.
 var home_spot := Vector3.ZERO
 ## Fronts of the village buildings: where villagers walk to.
@@ -91,7 +134,14 @@ var interiors := {}
 ## Where each building's door is, by building letter.
 var doors := {}
 var _herald: Node3D
-var _herald_timer := HERALD_FIRST
+var _herald_timer := randf_range(HERALD_FIRST_MIN, HERALD_FIRST_MAX)
+## The bandits' spots: cell, kind, the bandit standing there (or null while
+## it is gone), seconds until the next one arrives, and how many came so far.
+var _wild: Array = []
+var _wild_warned := false
+## The food basket: where it stands, its food, whether it is full, the
+## seconds until it fills again, and whether the hero was told about it.
+var _basket := {}
 
 
 func build() -> void:
@@ -112,6 +162,7 @@ func build() -> void:
 	floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(floor_shape)
 	_spawn_villagers()
+	_spawn_wild()
 
 
 # --- Ground -------------------------------------------------------------------
@@ -127,7 +178,7 @@ func _build_ground() -> void:
 			var c := Vector2i(x, y)
 			var ch := cell_char(c)
 			var path := 1.0 if ",aP".contains(ch) else 0.0
-			var soil := 1.0 if (fence.has_point(c) and not ",aP".contains(ch)) or ch == "y" else 0.0
+			var soil := 1.0 if (fence.has_point(c) and not ",aP".contains(ch)) or ch == "y" or CAMP.contains(ch) else 0.0
 			# Paving stones: path and soil together mean the square.
 			if square.has_point(c) and not BLOCK_CHARS.contains(ch):
 				path = 1.0
@@ -185,8 +236,27 @@ func _put(name: String, pos: Vector3, rot := 0.0, s := 1.0, parent: Node = self)
 	node.position = pos
 	node.rotation.y = rot
 	node.scale = Vector3.ONE * s
+	if name.begins_with("tree"):
+		for mi in node.find_children("*", "MeshInstance3D", true, false):
+			mi.material_override = _tree_material(mi.get_active_material(0), not name.ends_with("_cut"))
 	parent.add_child(node)
 	return node
+
+
+## The kit's trees are flat, even colours with a glossy shine: plastic. This
+## gives their leaves clusters, speckle and a sway, and their bark a grain
+## (see tree.gdshader), keeping the kit's palette texture. One material per
+## palette, cached.
+func _tree_material(mat: Material, wind := true) -> Material:
+	var tex: Texture2D = (mat as StandardMaterial3D).albedo_texture if mat is StandardMaterial3D else null
+	var key := "mat_tree_%d_%d" % [tex.get_instance_id() if tex else 0, int(wind)]
+	if not _scenes.has(key):
+		var bark := ShaderMaterial.new()
+		bark.shader = TREE_SHADER
+		bark.set_shader_parameter("albedo_tex", tex)
+		bark.set_shader_parameter("wind", 1.0 if wind else 0.0)
+		_scenes[key] = bark
+	return _scenes[key]
 
 
 ## Many copies of one model (trees) are drawn together in one go.
@@ -208,6 +278,8 @@ func _flush_plants() -> void:
 				mm.set_instance_transform(i, _plants[name][i] * part[1])
 			var mmi := MultiMeshInstance3D.new()
 			mmi.multimesh = mm
+			if name.begins_with("tree"):
+				mmi.material_override = _tree_material((part[0] as Mesh).surface_get_material(0))
 			add_child(mmi)
 		scene.free()
 
@@ -306,6 +378,150 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			spots.well.append(pos + Vector3(0, 0, 2.6))
 		"x":
 			_build_bench(c)
+		"v":
+			_build_pedestal(c)
+		"N":
+			_build_tent(pos)
+		"f":
+			_build_campfire(pos)
+		"C":
+			_build_chest(c)
+			# The robbers' hoard: richer than a chest in the dungeon.
+			var loot_rng := RandomNumberGenerator.new()
+			loot_rng.seed = hash("%s:hoard:%d:%d" % [level_name, c.x, c.y])
+			interactables[-1].loot = {"gold": 20, "item": Items.random_item(loot_rng, 20)}
+		_:
+			if Enemy.WILD_LETTERS.has(ch):
+				_wild.append({"cell": c, "kind": Enemy.WILD_LETTERS[ch], "enemy": null, "timer": 0.0, "wave": 0})
+
+
+## A tall stone pedestal with a basket of bread, cheese and apples on top,
+## and the crates to climb up to it lying close by.
+func _build_pedestal(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.66, 0.63, 0.58)
+	stone.roughness = 0.95
+	_add_mesh_box(pos + Vector3(0, 0.15, 0), Vector3(1.7, 0.3, 1.7), stone)
+	_add_mesh_box(pos + Vector3(0, PEDESTAL_HEIGHT * 0.5, 0), Vector3(1.25, PEDESTAL_HEIGHT - 0.5, 1.25), stone)
+	_add_mesh_box(pos + Vector3(0, PEDESTAL_HEIGHT - 0.12, 0), Vector3(1.7, 0.24, 1.7), stone)
+	_add_solid(pos, Vector3(1.7, PEDESTAL_HEIGHT, 1.7))
+	# The basket: an open crate, filled with food that glints.
+	var box := _aabb_of("crate_open")
+	var s := 1.0 / maxf(0.01, maxf(box.size.x, box.size.z))
+	var top := Vector3(pos.x, PEDESTAL_HEIGHT, pos.z)
+	_put("crate_open", top - Vector3(box.get_center().x, box.position.y, box.get_center().z) * s, 0.0, s)
+	var food := Node3D.new()
+	food.position = top + Vector3(0, box.size.y * s * 0.8, 0)
+	add_child(food)
+	_add_food(food)
+	food.add_child(Effects.make_sparkles(Color(1.0, 0.85, 0.45)))
+	_basket = {"pos": top, "food": food, "full": true, "timer": 0.0, "hinted": false}
+	for offset in PEDESTAL_CRATES:
+		add_crate(pos + offset)
+
+
+## A loaf, a wedge of cheese and a few apples, heaped in the basket.
+func _add_food(parent: Node3D) -> void:
+	var bread := StandardMaterial3D.new()
+	bread.albedo_color = Color(0.72, 0.45, 0.2)
+	var loaf := MeshInstance3D.new()
+	var loaf_mesh := CapsuleMesh.new()
+	loaf_mesh.radius = 0.16
+	loaf_mesh.height = 0.6
+	loaf.mesh = loaf_mesh
+	loaf.material_override = bread
+	loaf.rotation = Vector3(0, 0.5, PI * 0.5)
+	loaf.position = Vector3(-0.1, 0.05, 0.05)
+	parent.add_child(loaf)
+	var cheese_mat := StandardMaterial3D.new()
+	cheese_mat.albedo_color = Color(0.98, 0.8, 0.3)
+	var cheese := MeshInstance3D.new()
+	var wedge := CylinderMesh.new()
+	wedge.top_radius = 0.2
+	wedge.bottom_radius = 0.2
+	wedge.height = 0.14
+	wedge.radial_segments = 3
+	cheese.mesh = wedge
+	cheese.material_override = cheese_mat
+	cheese.position = Vector3(0.2, 0.05, -0.15)
+	parent.add_child(cheese)
+	var apple_mat := StandardMaterial3D.new()
+	apple_mat.albedo_color = Color(0.8, 0.1, 0.08)
+	for spot in [Vector3(0.22, 0.08, 0.2), Vector3(0.05, 0.1, -0.25), Vector3(-0.28, 0.06, -0.18)]:
+		var apple := MeshInstance3D.new()
+		var ball := SphereMesh.new()
+		ball.radius = 0.1
+		ball.height = 0.2
+		apple.mesh = ball
+		apple.material_override = apple_mat
+		apple.position = spot
+		parent.add_child(apple)
+
+
+func _add_mesh_box(pos: Vector3, size: Vector3, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.position = pos
+	add_child(mi)
+
+
+## The hero reaches the basket standing high enough beside it (on two
+## stacked crates, or on the pedestal itself) and eats; it fills again
+## after a while. Coming close on the ground tells them how to get up.
+func _check_basket(delta: float) -> void:
+	if _basket.is_empty() or not player is CharacterBody3D:
+		return
+	var food: Node3D = _basket.food
+	if not _basket.full:
+		_basket.timer -= delta
+		if _basket.timer <= 0.0:
+			_basket.full = true
+			food.visible = true
+		return
+	var d := _flat_distance(player.global_position, _basket.pos)
+	var hero := player as CharacterBody3D
+	var climbing: bool = hero.has_method("is_climbing") and hero.is_climbing()
+	if d <= BASKET_REACH and not climbing and hero.is_on_floor() and hero.global_position.y >= BASKET_FEET:
+		_basket.full = false
+		_basket.timer = BASKET_REFILL
+		food.visible = false
+		food_basket.emit(BASKET_HEAL)
+	elif d <= 6.0 and not _basket.hinted and hero.global_position.y < 0.5:
+		_basket.hinted = true
+		notice.emit(Lang.t("Ganz oben auf dem Sockel steht ein Korb voller Essen. Staple zwei Kisten daneben, um ihn zu erreichen (E: Kiste aufheben, Q: abstellen)."), 5.0)
+
+
+## A bandit's tent, its opening turned to the south, the camp's size.
+func _build_tent(pos: Vector3) -> void:
+	var box := _aabb_of("tent")
+	var s := 3.4 / maxf(box.size.x, box.size.z)
+	_put("tent", pos + _jitter(0.2), _rng.randf_range(-0.2, 0.2), s)
+	_add_solid(pos, Vector3(3.2, 2.5, 3.2))
+
+
+## Logs burning in a ring of stones, with a warm light over the camp.
+func _build_campfire(pos: Vector3) -> void:
+	_put("resource_lumber", pos + Vector3(0, 0, 0), 0.4, PROP_SCALE * 0.55)
+	_put("resource_lumber", pos + Vector3(0, 0.25, 0), 1.9, PROP_SCALE * 0.55)
+	for i in 6:
+		var angle := i * TAU / 6.0 + _rng.randf_range(-0.2, 0.2)
+		_put(["rock_single_A", "rock_single_C", "rock_single_E"][_rng.randi() % 3], pos + Vector3(cos(angle), 0, sin(angle)) * 1.3, _rng.randf() * TAU, _rng.randf_range(1.8, 2.4))
+	var flame := Effects.make_flame()
+	flame.position = pos + Vector3(0, 0.5, 0)
+	flame.scale = Vector3.ONE * 2.6
+	add_child(flame)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.6, 0.28)
+	light.light_energy = 3.5
+	light.omni_range = 12.0
+	light.omni_attenuation = 1.4
+	light.position = pos + Vector3(0, 2.0, 0)
+	add_child(light)
+	_add_solid(pos, Vector3(2.2, 1.5, 2.2))
 
 
 ## A bench on the square, its seat turned to the fountain.
@@ -655,8 +871,9 @@ func _spawn_villagers() -> void:
 			add_child(v)
 			v.global_position = cell_to_world(c)
 			villagers.append(v)
-			# The shopkeeper trades like the merchant in the refuge.
-			var kind: String = {"6": "haendler", "Y": "bank"}.get(ch, "npc")
+			# The shopkeeper trades like the merchant in the refuge; the
+			# banker and the barber open their own menus.
+			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "S": "steinmetz"}.get(ch, "npc")
 			var station := {"kind": kind, "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)
@@ -664,6 +881,108 @@ func _spawn_villagers() -> void:
 				_elder = v
 			elif ch == "K":
 				_herald = v
+			elif ch == "Z":
+				_build_barber_shop(c + Vector2i(0, -1))
+			elif ch == "S":
+				_build_stone_yard(c + Vector2i(0, -1))
+
+
+## The barber's stall on the tile behind him: a market tent with a striped
+## barber's pole and a hanging sign with scissors at its front, so the shop
+## is easy to spot on the square.
+func _build_barber_shop(cell: Vector2i) -> void:
+	var pos := cell_to_world(cell)
+	var box := _aabb_of("tent")
+	_put("tent", pos, 0.0, 3.6 / maxf(box.size.x, box.size.z))
+	_add_solid(pos, Vector3(3.4, 2.6, 3.4))
+	astar.set_point_solid(cell, true)
+	var pole := Effects.barber_pole()
+	pole.position = pos + Vector3(-2.0, 0, 1.9)
+	add_child(pole)
+	var board := Effects.shop_sign(Lang.t("Barbier"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	board.position = pos + Vector3(1.4, 0, 1.9)
+	add_child(board)
+	_add_solid(pos + Vector3(-2.0, 0, 1.9), Vector3(0.5, 2.6, 0.5))
+	_add_solid(pos + Vector3(1.4, 0, 1.9), Vector3(0.5, 2.6, 0.5))
+
+
+## The stonemason's yard on the tile behind him: blocks of carved stone
+## stacked up for sale, a rough block on the trestle and a sign.
+func _build_stone_yard(cell: Vector2i) -> void:
+	var pos := cell_to_world(cell)
+	# [offset of the block's bottom middle, turned to lie along z, shade]
+	var heap := [
+		[Vector3(-0.9, 0, -0.6), false, 0], [Vector3(0.75, 0, -0.6), false, 1],
+		[Vector3(-0.05, StoneBlock.HEIGHT, -0.6), false, 2], [Vector3(-0.9, 0, 0.6), false, 3],
+		[Vector3(0.75, 0, 0.6), false, 0],
+	]
+	for part in heap:
+		var block := StoneBlock.make_model(StoneBlock.SHADES[part[2]])
+		block.position = pos + part[0]
+		block.rotation.y = PI * 0.5 if part[1] else _rng.randf_range(-0.05, 0.05)
+		add_child(block)
+	_add_solid(pos + Vector3(0.2, 0, 0), Vector3(3.4, StoneBlock.HEIGHT * 2.0, 2.6))
+	astar.set_point_solid(cell, true)
+	var board := Effects.shop_sign(Lang.t("Steinmetz"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	board.position = pos + Vector3(-1.6, 0, 1.9)
+	add_child(board)
+	_add_solid(pos + Vector3(-1.6, 0, 1.9), Vector3(0.5, 2.6, 0.5))
+
+
+# --- Bandits ------------------------------------------------------------------
+
+## The bandits of the pass take their spots when the world is built.
+func _spawn_wild() -> void:
+	for s in _wild:
+		_spawn_bandit(s)
+
+
+## Puts a bandit on its spot. When it falls it leaves gold and maybe a piece
+## of its gear, and after a while another comes to take its place.
+func _spawn_bandit(s: Dictionary) -> void:
+	var chief: bool = s.kind == "hauptmann"
+	var e := Enemy.new()
+	e.kind = s.kind
+	e.gear = _roll_gear(e.kind, s.cell, CHIEF_GEAR_CHANCE if chief else BANDIT_GEAR_CHANCE, s.wave)
+	e.level = self
+	add_child(e)
+	e.global_position = cell_to_world(s.cell)
+	e.died.connect(func():
+		enemy_killed.emit(e)
+		_drop_gear(e, CHIEF_DROP_CHANCE if chief else BANDIT_DROP_CHANCE)
+		_drop_coins(e.global_position, randi_range(4, 8) if chief else randi_range(1, 3))
+		s.enemy = null
+		s.timer = BANDIT_RESPAWN)
+	s.enemy = e
+	s.wave += 1
+	enemies = enemies.filter(func(x): return is_instance_valid(x))
+	enemies.append(e)
+
+
+## Fallen bandits are replaced once their time is up and the hero is not
+## looking; the first time the hero comes near the pass, a warning.
+func _mind_the_wild(delta: float) -> void:
+	for s in _wild:
+		if s.enemy != null:
+			continue
+		s.timer -= delta
+		if s.timer <= 0.0 and _flat_distance(player.global_position, cell_to_world(s.cell)) > RESPAWN_FAR:
+			_spawn_bandit(s)
+	if not _wild_warned:
+		for s in _wild:
+			if _flat_distance(player.global_position, cell_to_world(s.cell)) < WILD_WARNING_RANGE:
+				_wild_warned = true
+				notice.emit(Lang.t("Der Räuberpass! Hier lauern Räuber. Wer sie besiegt, nimmt ihre Beute."), 4.5)
+				break
+
+
+## How many bandits stand on the pass right now.
+func bandits_alive() -> int:
+	var n := 0
+	for s in _wild:
+		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
+			n += 1
+	return n
 
 
 ## Bumping into a villager: they walk around, so their tile is not enough.
@@ -729,9 +1048,11 @@ func _process(delta: float) -> void:
 		if inside and _marker:
 			_marker.queue_free()
 			_marker = null
+	_mind_the_wild(delta)
+	_check_basket(delta)
 	_herald_timer -= delta
 	if _herald and _herald_timer <= 0.0:
-		_herald_timer = HERALD_EVERY
+		_herald_timer = randf_range(HERALD_EVERY_MIN, HERALD_EVERY_MAX)
 		_call_the_village()
 	if not house_given and _elder and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:
 		house_given = true

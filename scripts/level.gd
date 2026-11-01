@@ -37,7 +37,7 @@ signal coins_collected(amount: int)
 signal door_opened
 signal door_locked
 signal player_hurt
-signal enemy_killed
+signal enemy_killed(enemy: Enemy)
 signal exit_reached
 signal item_collected(id: String)
 signal bag_full
@@ -89,6 +89,8 @@ const WALL_DECOR := [
 const STONE_TINT := Color(0.6, 0.56, 0.52)
 ## Colour of the iron spikes in spike traps.
 const SPIKE_IRON := Color(0.5, 0.5, 0.53)
+## The grey of the kit's floor tiles, for spike and grate tiles.
+const FLOOR_GREY := Color(0.74, 0.73, 0.71)
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
 const SOLID := "#bxotkCDHBLVF?f=U"
 ## Reach for searching: anything on a neighbouring tile.
@@ -128,6 +130,11 @@ const TORCH_TOUCH := 1.6
 var _spikes: Array = []
 var _pickups: Array = []
 var interactables: Array = []
+## What the hero already took here: ids of searched furniture and picked up
+## coins. The game hands in its own dictionary for this level, keeps it in
+## the saved game, and calls restore_taken() after build(), so nothing fills
+## up again after a reload, a night in bed or a walk out and back in.
+var taken := {}
 var enemies: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
@@ -423,7 +430,7 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 			elif mi.name == "wall_doorway_door":
 				mi.material_override = _tinted(mi.get_active_material(0))
 			else:
-				mi.material_override = _rough_stone(mi.get_active_material(0))
+				mi.material_override = _rough_stone(mi.get_active_material(0), piece in ["floor_tile_big_spikes", "floor_tile_big_grate"])
 	return node
 
 
@@ -463,16 +470,19 @@ func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
 
 ## The darkened cartoon stone, made rough and matt like the kit's walls, so
 ## spike and grate tiles, stairs and doorways do not look like plastic.
-func _rough_stone(mat: Material) -> Material:
-	if not _scenes.has("mat_rough_stone"):
+## grey: plain grey stone like the kit's floor tiles (for spike and grate tiles).
+func _rough_stone(mat: Material, grey := false) -> Material:
+	var key := "mat_rough_stone_grey" if grey else "mat_rough_stone"
+	if not _scenes.has(key):
 		var stone := ShaderMaterial.new()
 		stone.shader = STONE_SHADER
 		stone.set_shader_parameter("albedo_tex", (mat as StandardMaterial3D).albedo_texture)
-		stone.set_shader_parameter("albedo_color", STONE_TINT)
+		stone.set_shader_parameter("albedo_color", FLOOR_GREY if grey else STONE_TINT)
+		stone.set_shader_parameter("desaturate", 1.0 if grey else 0.0)
 		stone.set_shader_parameter("use_normal_map", false)
 		stone.set_shader_parameter("strength", 1.4)
-		_scenes["mat_rough_stone"] = stone
-	return _scenes["mat_rough_stone"]
+		_scenes[key] = stone
+	return _scenes[key]
 
 
 func _tinted(mat: Material) -> Material:
@@ -807,15 +817,16 @@ func _build_key(pos: Vector3) -> void:
 	_pickups.append({"node": holder, "kind": "key", "radius": 1.8})
 
 
-## A gold coin lying flat on the floor, picked up when the hero walks over it.
+## A small gold coin lying flat on the floor, picked up when the hero walks over it.
 func _build_coin(pos: Vector3) -> void:
 	var holder := Node3D.new()
 	holder.position = pos + Vector3(0, 0.03, 0)
 	holder.rotation.y = deg_to_rad(hash(Vector2(pos.x, pos.z)) % 360)
 	add_child(holder)
 	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
-	coin.scale = Vector3.ONE * 3.0
-	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5})
+	coin.scale = Vector3.ONE * 1.6
+	var c := world_to_cell(pos)
+	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "id": "coin:%d,%d" % [c.x, c.y]})
 
 
 func _build_chest(c: Vector2i) -> void:
@@ -894,52 +905,83 @@ func _facing_room(c: Vector2i) -> float:
 	return 0.0
 
 
-## A round stone basin with a spout of glowing water.
+## Carved stone for pieces built in code (the fountain): the rough, matt stone
+## shader on a plain colour, so its stains, grain and pits give the stone its
+## look without a kit texture. Shared per colour.
+func _plain_stone(color: Color) -> Material:
+	var key := "mat_plain_stone_" + color.to_html()
+	if not _scenes.has(key):
+		if not _scenes.has("tex_white"):
+			var img := Image.create(4, 4, false, Image.FORMAT_RGB8)
+			img.fill(Color.WHITE)
+			_scenes["tex_white"] = ImageTexture.create_from_image(img)
+		var stone := ShaderMaterial.new()
+		stone.shader = STONE_SHADER
+		stone.set_shader_parameter("albedo_tex", _scenes["tex_white"])
+		stone.set_shader_parameter("albedo_color", color)
+		stone.set_shader_parameter("use_normal_map", false)
+		stone.set_shader_parameter("strength", 1.7)
+		_scenes[key] = stone
+	return _scenes[key]
+
+
+const WATER_SHADER := preload("res://shaders/water.gdshader")
+
+## The healing fountain: an eight-sided basin of matt carved stone on a low
+## step, a column with a small bowl on top, and a spout whose water falls
+## back into the basin. The water glows faintly and breathes, with a few
+## motes drifting over it, since it heals.
 func _build_fountain(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.4, 0.4, 0.48)
-	stone.roughness = 0.9
-	var water := StandardMaterial3D.new()
-	water.albedo_color = Color(0.25, 0.6, 1.0, 0.85)
-	water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	water.emission_enabled = true
-	water.emission = Color(0.2, 0.55, 1.0)
-	water.emission_energy_multiplier = 0.8
-	water.roughness = 0.1
-	# Basin wall, water surface, centre column and the bowl on top.
-	for part in [[1.5, 1.5, 0.8, 0.4, stone], [1.3, 1.3, 0.05, 0.75, water], [0.3, 0.4, 1.8, 0.9, stone], [0.7, 0.3, 0.3, 1.9, stone], [0.6, 0.6, 0.05, 2.04, water]]:
-		var mesh := CylinderMesh.new()
-		mesh.top_radius = part[0]
-		mesh.bottom_radius = part[1]
-		mesh.height = part[2]
-		mesh.radial_segments = 24
+	var stone := _plain_stone(Color(0.56, 0.54, 0.5))
+	# The inside of the basin stays wet and dark.
+	var wet := _plain_stone(Color(0.3, 0.31, 0.32))
+	var water := ShaderMaterial.new()
+	water.shader = WATER_SHADER
+	var still := ShaderMaterial.new()
+	still.shader = WATER_SHADER
+	still.set_shader_parameter("rings", 0.3)
+	still.set_shader_parameter("ring_spacing", 45.0)
+	# [inner radius, outer radius, bottom, top, sides, material]
+	var parts := [
+		[0.0, 1.85, 0.0, 0.22, 8, stone],  # the step
+		[1.3, 1.55, 0.22, 1.0, 8, stone],  # the basin's wall
+		[1.25, 1.68, 1.0, 1.14, 8, stone],  # its coping, a little wider
+		[0.0, 1.31, 0.22, 0.4, 8, wet],  # the basin's floor
+		[0.0, 1.3, 0.4, 0.92, 24, water],  # the water
+		[0.0, 0.46, 0.4, 0.62, 8, stone],  # the column's foot
+		[0.0, 0.3, 0.62, 1.94, 8, stone],  # the column
+		[0.0, 0.52, 1.94, 2.06, 8, stone],  # its capital
+		[0.5, 0.74, 2.06, 2.38, 8, stone],  # the bowl on top
+		[0.0, 0.51, 2.06, 2.14, 8, wet],  # the bowl's floor
+		[0.0, 0.5, 2.14, 2.3, 24, still],  # the bowl's water
+	]
+	for part in parts:
 		var node := MeshInstance3D.new()
-		node.mesh = mesh
-		node.material_override = part[4]
-		node.position = pos + Vector3(0, part[3], 0)
+		node.mesh = Effects.ring_mesh(part[0], part[1], part[2], part[3], part[4], part[5])
+		node.position = pos
+		if part[5] == water or part[5] == still:
+			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(node)
-	var spray := CPUParticles3D.new()
-	spray.amount = 40
-	spray.lifetime = 1.0
-	spray.mesh = SphereMesh.new()
-	(spray.mesh as SphereMesh).radius = 0.06
-	(spray.mesh as SphereMesh).height = 0.12
-	spray.material_override = water
-	spray.direction = Vector3.UP
-	spray.spread = 25.0
-	spray.initial_velocity_min = 2.5
-	spray.initial_velocity_max = 3.2
-	spray.gravity = Vector3(0, -9.0, 0)
-	spray.position = pos + Vector3(0, 2.1, 0)
+	var spray := Effects.make_spray(Color(0.75, 0.92, 0.95))
+	spray.position = pos + Vector3(0, 2.3, 0)
 	add_child(spray)
+	var motes := Effects.make_sparkles(Color(0.6, 0.9, 0.9))
+	motes.amount = 8
+	motes.emission_sphere_radius = 1.1
+	motes.position = pos + Vector3(0, 1.2, 0)
+	add_child(motes)
 	var glow := OmniLight3D.new()
-	glow.light_color = Color(0.4, 0.7, 1.0)
-	glow.light_energy = 1.5
-	glow.omni_range = 6.0
-	glow.position = pos + Vector3(0, 2.0, 0)
+	glow.light_color = Color(0.5, 0.85, 0.85)
+	glow.light_energy = 0.9
+	glow.omni_range = 6.5
+	glow.position = pos + Vector3(0, 1.8, 0)
 	add_child(glow)
-	_add_solid(pos, Vector3(3.0, 2, 3.0))
+	# The glow breathes slowly, like the water.
+	var tween := glow.create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(glow, "light_energy", 1.15, 2.4)
+	tween.tween_property(glow, "light_energy", 0.75, 2.4)
+	_add_solid(pos, Vector3(3.2, 2, 3.2))
 	_light_spots.append(pos)
 	stations.append({"kind": "brunnen", "cell": c, "pos": pos, "used": false})
 
@@ -1181,6 +1223,448 @@ func _build_exit(c: Vector2i) -> void:
 
 # --- Runtime ----------------------------------------------------------------
 
+## Heroes and skeletons each take up the spot they stand on. Their bodies
+## already block each other, but a jump onto a skull, a knockback or a spawn
+## can still leave two of them inside each other. Such a pair is pushed apart
+## at this speed (metres per second), and neither can strike the other until
+## they stand side by side again.
+const PUSH_APART_SPEED := 6.0
+## How far two bodies may sink into each other before they count as stacked
+## (bodies that merely touch must still be able to fight).
+const STACK_TOLERANCE := 0.15
+
+
+## Whether `a` and `b` (the hero or skeletons) stand inside each other or on
+## top of each other.
+func stacked(a, b) -> bool:
+	if a == null or b == null or a == b:
+		return false
+	if _up_on_crate(a, b):
+		return false
+	var d: Vector3 = b.global_position - a.global_position
+	if absf(d.y) > maxf(a.tall, b.tall) + 0.5:
+		return false
+	d.y = 0.0
+	return d.length() < a.radius + b.radius - STACK_TOLERANCE
+
+
+func _physics_process(delta: float) -> void:
+	_push_apart(delta)
+
+
+## Pushes overlapping hero and skeletons apart; the lighter one moves more,
+## and nobody is pushed through a wall.
+func _push_apart(delta: float) -> void:
+	var bodies: Array[CharacterBody3D] = []
+	if player is Player and not player.dead:
+		bodies.append(player)
+	for e in enemies:
+		if is_instance_valid(e) and not e.dead and e.is_inside_tree():
+			bodies.append(e)
+	for i in bodies.size():
+		for j in range(i + 1, bodies.size()):
+			var a = bodies[i]
+			var b = bodies[j]
+			if _up_on_crate(a, b):
+				continue
+			var d: Vector3 = b.global_position - a.global_position
+			if absf(d.y) > maxf(a.tall, b.tall) + 0.5:
+				continue
+			d.y = 0.0
+			var overlap: float = a.radius + b.radius - d.length()
+			if overlap <= 0.02:
+				continue
+			var away: Vector3 = d.normalized() if d.length() > 0.05 else _free_side(b)
+			var weight_a := _push_weight(a)
+			var weight_b := _push_weight(b)
+			var step := minf(overlap, PUSH_APART_SPEED * delta)
+			_shove(a, b, -away * step * weight_b / (weight_a + weight_b))
+			_shove(b, a, away * step * weight_a / (weight_a + weight_b))
+
+
+## Whether the higher of two bodies stands on a crate. A hero up on a
+## crate stack may be right above a skeleton's head, but stands on the
+## crate, not on the skeleton: they are not stacked, are not pushed apart
+## (which would shove the hero off the crates), and may fight.
+func _up_on_crate(a, b) -> bool:
+	var upper = a if a.global_position.y > b.global_position.y else b
+	return upper.has_method("on_crate") and upper.on_crate()
+
+
+## How hard a body is to push: bigger skeletons weigh more, and a hero
+## being moved by the game (up the stairs) does not budge.
+func _push_weight(body) -> float:
+	if body is Player:
+		return 1000.0 if body.frozen else 1.0
+	return pow(float(body.tall) / 2.4, 2.0)
+
+
+## Moves `body` by `motion`, ignoring `other` (they overlap already) but
+## stopping at walls, furniture and everyone else.
+func _shove(body: CharacterBody3D, other: CharacterBody3D, motion: Vector3) -> void:
+	if motion.length() < 0.0001:
+		return
+	body.add_collision_exception_with(other)
+	body.move_and_collide(motion)
+	body.remove_collision_exception_with(other)
+
+
+## A direction to step out of a body standing right on top of another:
+## the first side with room, else any.
+func _free_side(body: CharacterBody3D) -> Vector3:
+	for d in [Vector3.RIGHT, Vector3.LEFT, Vector3.FORWARD, Vector3.BACK]:
+		var cell := world_to_cell(body.global_position + d * TILE)
+		if astar.is_in_boundsv(cell) and not astar.is_point_solid(cell):
+			return d
+	return Vector3.RIGHT
+
+# --- Crates -------------------------------------------------------------------
+
+## Crates lying about on this level (see Crate). Where they lie is not kept
+## in the saved game: a level built again has only the crates it starts with.
+var crates: Array = []
+## How far the hero reaches to pick up a crate (metres, from their middle).
+const CRATE_REACH := 2.4
+## How far in front of the hero's middle a crate is set down.
+const CRATE_AHEAD := 1.2
+## The hero can set a crate on a stack whose top is up to this far above
+## their feet.
+const CRATE_LIFT := 1.8
+
+
+func add_crate(pos: Vector3) -> Crate:
+	var crate := Crate.new()
+	crate.position = pos
+	add_child(crate)
+	crates.append(crate)
+	return crate
+
+
+## The crate sitting right on top of `crate`, if any.
+func crate_on(crate: Crate) -> Crate:
+	for other in crates:
+		if other != crate and is_instance_valid(other) and absf(other.global_position.y - crate.top()) < 0.1 and crate.covers(other.global_position, -0.1):
+			return other
+	return null
+
+
+## The topmost crate of the stack `crate` belongs to.
+func stack_top(crate: Crate) -> Crate:
+	var top := crate
+	for i in Crate.MAX_STACK + 2:
+		var above := crate_on(top)
+		if above == null:
+			break
+		top = above
+	return top
+
+
+## Whether the hero or a skeleton stands on top of `crate`.
+func _someone_on(crate: Crate) -> bool:
+	var bodies: Array = enemies.duplicate()
+	bodies.append(player)
+	for b in bodies:
+		if is_instance_valid(b) and b is Node3D and absf(b.global_position.y - crate.top()) < 0.3 and crate.covers(b.global_position, 0.5):
+			return true
+	return false
+
+
+## The crate the hero could pick up now: the nearest one in reach with
+## nothing on top and nobody standing on it, or null.
+func crate_in_reach(hero: Node3D, near := Vector3.INF) -> Crate:
+	var best: Crate = null
+	var best_d := INF
+	var feet := hero.global_position.y
+	for crate in crates:
+		if not is_instance_valid(crate):
+			continue
+		if crate.global_position.y > feet + 2.0 or crate.top() < feet - 1.2:
+			continue
+		var d := _flat_distance(hero.global_position, crate.global_position)
+		if d > CRATE_REACH:
+			continue
+		if near != Vector3.INF:
+			d = _flat_distance(near, crate.global_position) - crate.global_position.y * 0.01
+		if d < best_d and crate_on(crate) == null and not _someone_on(crate):
+			best = crate
+			best_d = d
+	return best
+
+
+## The crate whose footprint (give or take `margin`) a point on the floor
+## falls in: the top of its stack. Null when there is none.
+func crate_at(point: Vector3, margin := 0.5) -> Crate:
+	for crate in crates:
+		if is_instance_valid(crate) and crate.covers(point, margin):
+			return stack_top(crate)
+	return null
+
+
+## Lifts a crate off the level (into the hero's bag).
+func take_crate(crate: Crate) -> void:
+	crates.erase(crate)
+	crate.collision_layer = 0
+	var tween := create_tween()
+	tween.tween_property(crate.model, "position:y", 1.0, 0.25).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(crate.model, "scale", Vector3.ONE * 0.01, 0.25).set_ease(Tween.EASE_IN)
+	tween.tween_callback(crate.queue_free)
+
+
+## Where a crate set down by a hero facing `ahead` goes: on top of the
+## stack in front of them, else onto whatever is in front of them (the
+## floor, mostly). Vector3.INF when there is no room there.
+func crate_spot(hero: Node3D, ahead: Vector3) -> Vector3:
+	ahead.y = 0.0
+	ahead = ahead.normalized() if ahead.length() > 0.01 else Vector3.BACK
+	var feet := hero.global_position.y
+	var spot := hero.global_position + ahead * CRATE_AHEAD
+	# A stack right in front: the new crate goes on top of it.
+	var column: Array = crates.filter(func(c): return is_instance_valid(c) and c.covers(spot, 0.35) and c.top() > feet - Crate.SIZE * Crate.MAX_STACK - 0.1)
+	if not column.is_empty():
+		var top: Crate = column[0]
+		for c in column:
+			if c.top() > top.top():
+				top = c
+		var count := 1
+		var below := top
+		while count < Crate.MAX_STACK + 1:
+			var under: Crate = null
+			for c in column:
+				if c != below and absf(c.top() - below.global_position.y) < 0.1:
+					under = c
+			if under == null:
+				break
+			below = under
+			count += 1
+		if count >= Crate.MAX_STACK or top.top() > feet + CRATE_LIFT:
+			return Vector3.INF
+		spot = Vector3(top.global_position.x, top.top(), top.global_position.z)
+	else:
+		# Onto whatever lies in front: the floor, or a lower crate stack's
+		# side does not count (the room check below catches that).
+		var space := get_world_3d().direct_space_state
+		var ray := PhysicsRayQueryParameters3D.create(Vector3(spot.x, feet + 0.5, spot.z), Vector3(spot.x, -1.0, spot.z))
+		if hero is CollisionObject3D:
+			ray.exclude = [(hero as CollisionObject3D).get_rid()]
+		var hit := space.intersect_ray(ray)
+		spot.y = hit.position.y if not hit.is_empty() else 0.0
+	return spot if crate_fits(spot) else Vector3.INF
+
+
+## Whether a crate standing at `spot` (the middle of its bottom) would
+## touch nothing: no wall, furniture, hero, skeleton or other crate.
+func crate_fits(spot: Vector3) -> bool:
+	var box := BoxShape3D.new()
+	box.size = Vector3.ONE * (Crate.SIZE - 0.08)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = box
+	query.transform = Transform3D(Basis(), spot + Vector3(0, Crate.SIZE * 0.5, 0))
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+## Sets a crate down at a spot from crate_spot().
+func put_crate(spot: Vector3) -> Crate:
+	var crate := add_crate(spot)
+	crate.model.scale = Vector3.ONE * 0.4
+	create_tween().tween_property(crate.model, "scale", Vector3.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	return crate
+
+
+# --- Stone blocks ---------------------------------------------------------------
+
+## Stone blocks the hero built with on this level (see StoneBlock).
+var stones: Array = []
+## Where the blocks stand, as [x, z, layer, along x (1) or z (0)] per block.
+## The game hands in its own list for this level and keeps it in the saved
+## game; restore_stones() builds them again after build().
+var built: Array = []
+## How far the hero reaches to take a block back into the bag (metres from
+## their middle to the block's middle), how far from them a block can be
+## grabbed with the mouse and dragged to, and how far ahead a block from the
+## bag is set down.
+const STONE_REACH := 2.6
+const STONE_DRAG_RANGE := 7.0
+const STONE_AHEAD := 1.6
+
+
+func add_stone(first: Vector2i, x_wise: bool, on_layer: int) -> StoneBlock:
+	var stone := StoneBlock.new()
+	stone.place(first, x_wise, on_layer)
+	add_child(stone)
+	stones.append(stone)
+	return stone
+
+
+## Builds the blocks of the saved game again (once, after build()).
+func restore_stones() -> void:
+	for entry in built.duplicate():
+		if entry is Array and entry.size() >= 4:
+			add_stone(Vector2i(int(entry[0]), int(entry[1])), int(entry[3]) == 1, int(entry[2]))
+
+
+func _sync_built() -> void:
+	built.clear()
+	for s in stones:
+		if is_instance_valid(s):
+			built.append([s.cell.x, s.cell.y, s.layer, 1 if s.along_x else 0])
+
+
+## How many layers of blocks stand on a grid cell: the layer a new block
+## there would lie on. `except` is left out (the block being moved).
+func stone_column(c: Vector2i, except: StoneBlock = null) -> int:
+	var h := 0
+	for s in stones:
+		if s != except and is_instance_valid(s) and s.cells().has(c):
+			h = maxi(h, s.layer + 1)
+	return h
+
+
+## The layer a block on these cells would land on: on the highest block
+## under either of its two cells, else on the floor.
+func stone_layer_for(first: Vector2i, x_wise: bool, except: StoneBlock = null) -> int:
+	var h := 0
+	for c in StoneBlock.cells_of(first, x_wise):
+		h = maxi(h, stone_column(c, except))
+	return h
+
+
+## Whether a block can be taken or moved: nothing lies on it and nobody
+## stands on it.
+func stone_free(stone: StoneBlock) -> bool:
+	for s in stones:
+		if s != stone and is_instance_valid(s) and s.layer == stone.layer + 1:
+			for c in s.cells():
+				if stone.cells().has(c):
+					return false
+	return not _someone_on(stone)
+
+
+## Whether a block would fit there: not too high, and touching no wall,
+## furniture, crate, hero, skeleton or other block.
+func stone_fits(first: Vector2i, x_wise: bool, on_layer: int, except: StoneBlock = null) -> bool:
+	if on_layer >= StoneBlock.MAX_LAYERS:
+		return false
+	var box := BoxShape3D.new()
+	box.size = Vector3(StoneBlock.CELL * 2.0, StoneBlock.HEIGHT, StoneBlock.CELL) - Vector3.ONE * 0.1
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = box
+	var basis := Basis() if x_wise else Basis(Vector3.UP, PI * 0.5)
+	query.transform = Transform3D(basis, StoneBlock.spot_of(first, x_wise, on_layer) + Vector3(0, StoneBlock.HEIGHT * 0.5, 0))
+	if except != null:
+		query.exclude = [except.get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+## Where a block from the bag goes when the hero facing `ahead` sets it
+## down: on the grid in front of them, lying across their way (a wall in
+## front), on the floor or on top of the blocks there. Empty when there is
+## no room or it would lie too high to lift there.
+func stone_spot_ahead(hero: Node3D, ahead: Vector3) -> Dictionary:
+	ahead.y = 0.0
+	ahead = ahead.normalized() if ahead.length() > 0.01 else Vector3.BACK
+	var x_wise := absf(ahead.z) >= absf(ahead.x)
+	var first := StoneBlock.cell_for(hero.global_position + ahead * STONE_AHEAD, x_wise)
+	var on_layer := stone_layer_for(first, x_wise)
+	if on_layer * StoneBlock.HEIGHT > hero.global_position.y + CRATE_LIFT:
+		return {}
+	if not stone_fits(first, x_wise, on_layer):
+		return {}
+	return {"cell": first, "along_x": x_wise, "layer": on_layer}
+
+
+## Where a block dragged to `point` would land, lying along x or z. Empty
+## when it is too far from the hero or there is no room.
+func stone_drop_spot(stone: StoneBlock, point: Vector3, x_wise: bool, hero: Node3D) -> Dictionary:
+	var first := StoneBlock.cell_for(point, x_wise)
+	var spot := StoneBlock.spot_of(first, x_wise, 0)
+	var on_layer := stone_layer_for(first, x_wise, stone)
+	var result := {"cell": first, "along_x": x_wise, "layer": on_layer, "ok": false}
+	if _flat_distance(spot, hero.global_position) > STONE_DRAG_RANGE:
+		return result
+	if first == stone.cell and x_wise == stone.along_x and on_layer == stone.layer:
+		return result
+	result.ok = stone_fits(first, x_wise, on_layer, stone)
+	return result
+
+
+## Sets a block down (from the bag) at a spot from stone_spot_ahead().
+func put_stone(first: Vector2i, x_wise: bool, on_layer: int) -> StoneBlock:
+	var stone := add_stone(first, x_wise, on_layer)
+	stone.model.scale = Vector3.ONE * 0.4
+	create_tween().tween_property(stone.model, "scale", Vector3.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_sync_built()
+	return stone
+
+
+## Lifts a block off the level (into the hero's bag).
+func take_stone(stone: StoneBlock) -> void:
+	stones.erase(stone)
+	_sync_built()
+	stone.collision_layer = 0
+	var tween := create_tween()
+	tween.tween_property(stone.model, "position:y", 1.0, 0.25).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(stone.model, "scale", Vector3.ONE * 0.01, 0.25).set_ease(Tween.EASE_IN)
+	tween.tween_callback(stone.queue_free)
+
+
+## The topmost free block whose footprint a point falls in, give or take
+## `margin`, or null.
+func stone_at(point: Vector3, margin := 0.3) -> StoneBlock:
+	var best: StoneBlock = null
+	for s in stones:
+		if is_instance_valid(s) and s.covers(point, margin) and (best == null or s.layer > best.layer):
+			best = s
+	return best
+
+
+## The block the hero could take back into the bag: the nearest free one in
+## reach, within lifting height. Null when there is none.
+func stone_in_reach(hero: Node3D) -> StoneBlock:
+	var best: StoneBlock = null
+	var best_d := INF
+	var feet := hero.global_position.y
+	for s in stones:
+		if not is_instance_valid(s) or s.global_position.y > feet + 2.0 or s.top() < feet - 1.2:
+			continue
+		var d := _flat_distance(hero.global_position, s.global_position)
+		if d <= STONE_REACH and d < best_d and stone_free(s):
+			best = s
+			best_d = d
+	return best
+
+
+## Pushes or throws a block onto another spot: it flies there in an arc,
+## while its collision is there at once.
+func move_stone(stone: StoneBlock, first: Vector2i, x_wise: bool, on_layer: int) -> void:
+	var from := stone.model.global_transform
+	stone.place(first, x_wise, on_layer)
+	_sync_built()
+	var to := Transform3D(Basis() if x_wise else Basis(Vector3.UP, PI * 0.5), stone.global_position)
+	var model := stone.model
+	model.top_level = true
+	model.global_transform = from
+	var rise := 0.6 + 0.12 * from.origin.distance_to(to.origin)
+	var fly := func(t: float) -> void:
+		if not is_instance_valid(model):
+			return
+		var q := from.basis.get_rotation_quaternion().slerp(to.basis.get_rotation_quaternion(), t)
+		var p := from.origin.lerp(to.origin, t)
+		p.y += rise * 4.0 * t * (1.0 - t)
+		model.global_transform = Transform3D(Basis(q), p)
+	var tween := create_tween()
+	tween.tween_method(fly, 0.0, 1.0, 0.35 + 0.03 * from.origin.distance_to(to.origin))
+	tween.tween_callback(func():
+		if is_instance_valid(model):
+			model.top_level = false
+			model.transform = Transform3D())
+
+
+## The height of the stone surface on the grid cell a point lies in (0 with
+## no block there), for climbing onto blocks.
+func stone_surface(point: Vector3) -> float:
+	return stone_column(StoneBlock.grid_cell(point)) * StoneBlock.HEIGHT
+
+
 func _process(delta: float) -> void:
 	_time += delta
 	for t in _torches:
@@ -1261,12 +1745,14 @@ func _check_pickups() -> void:
 		if d.length() > p.radius:
 			p.erase("warned")
 			continue
-		if p.kind == "item" and player.bag.size() >= Items.BAG_SIZE:
+		if p.kind == "item" and player.bag.size() >= player.bag_size():
 			if not p.has("warned"):
 				p.warned = true
 				bag_full.emit()
 			continue
 		_pickups.erase(p)
+		if p.has("id"):
+			taken[p.id] = true
 		var tween := create_tween()
 		tween.tween_property(n, "position:y", n.position.y + 1.5, 0.35).set_ease(Tween.EASE_OUT)
 		tween.parallel().tween_property(n, "scale", Vector3.ONE * 0.01, 0.35).set_ease(Tween.EASE_IN)
@@ -1325,7 +1811,8 @@ func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector
 		loot = {"potion": 1}
 	else:
 		loot = {"item": Items.random_item(loot_rng)}
-	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null}
+	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null,
+			"id": "%s:%d,%d" % [label, c.x, c.y]}
 	interactables.append(obj)
 	return obj
 
@@ -1361,6 +1848,7 @@ func search(obj: Dictionary) -> Dictionary:
 	if obj.searched:
 		return {}
 	obj.searched = true
+	taken[obj.id] = true
 	if obj.lid:
 		create_tween().tween_property(obj.lid, "rotation:x", obj.lid.rotation.x - deg_to_rad(70), 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_scatter_debris(obj)
@@ -1369,6 +1857,22 @@ func search(obj: Dictionary) -> Dictionary:
 		burst.position = obj.icon_pos - Vector3(0, 1.0, 0)
 		add_child(burst)
 	return obj.loot
+
+
+## Leaves everything the hero already took as it was left: furniture
+## searched (chests with their lids up, debris in front) and coins gone.
+func restore_taken() -> void:
+	for obj in interactables:
+		if not taken.has(obj.id) or obj.searched:
+			continue
+		obj.searched = true
+		if obj.lid:
+			obj.lid.rotation.x -= deg_to_rad(70)
+		_scatter_debris(obj)
+	for p in _pickups.duplicate():
+		if p.has("id") and taken.has(p.id):
+			_pickups.erase(p)
+			p.node.queue_free()
 
 
 ## A coin or two and a torn page left on the floor in front of a searched
@@ -1454,7 +1958,7 @@ func _spawn_enemies() -> void:
 				if e.kind == "waechter":
 					e.watch(_guarded_spot())
 				e.died.connect(func():
-					enemy_killed.emit()
+					enemy_killed.emit(e)
 					_drop_gear(e)
 					# A guardian on a level without a key carries it.
 					if e.kind == "waechter" and not has_key and not _has_cell("K"):
@@ -1481,12 +1985,15 @@ func _guarded_spot() -> Vector3:
 	return Vector3.ZERO
 
 
-func _roll_gear(kind: String, c: Vector2i) -> Array[String]:
+## `chance` overrides the usual odds per piece, and `salt` tells one roll
+## from the next on the same tile (a bandit that comes back after a fall).
+func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[String]:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("%s:gear:%d:%d" % [level_name, c.x, c.y])
+	rng.seed = hash("%s:gear:%d:%d:%d" % [level_name, c.x, c.y, salt]) if salt > 0 else hash("%s:gear:%d:%d" % [level_name, c.x, c.y])
 	var gear: Array[String] = []
-	var chance := GEAR_CHANCE + GEAR_CHANCE_PER_LEVEL * depth
-	for i in (3 if kind == "koloss" else 2):
+	if chance < 0.0:
+		chance = GEAR_CHANCE + GEAR_CHANCE_PER_LEVEL * depth
+	for i in (3 if kind in ["koloss", "hauptmann"] else 2):
 		if rng.randf() >= chance:
 			continue
 		for attempt in 6:
@@ -1498,16 +2005,33 @@ func _roll_gear(kind: String, c: Vector2i) -> Array[String]:
 	return gear
 
 
-func _drop_gear(e: Enemy) -> void:
+func _drop_gear(e: Enemy, chance := DROP_CHANCE) -> void:
 	var spot := e.global_position
 	var delay := 0.0
 	for id in e.gear:
-		if randf() < DROP_CHANCE:
+		if randf() < chance:
 			_drop_item(id, spot)
 			# It clatters onto the floor, one piece after the other.
 			Sfx.play_gear(self, id, delay, spot)
 			delay += 0.3
 			spot += Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
+
+
+## Gold coins spilt from a fallen bandit's purse, scattered around the spot.
+## Unlike the coins placed by the map they have no id: once picked up they
+## are simply gone, and a reload does not bring them back.
+func _drop_coins(pos: Vector3, amount: int) -> void:
+	for i in amount:
+		var holder := Node3D.new()
+		var angle := randf() * TAU
+		holder.position = Vector3(pos.x, 0.03, pos.z) + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.5, 1.4)
+		holder.rotation.y = randf() * TAU
+		add_child(holder)
+		var coin := _place("coin", Vector3.ZERO, 0.0, holder)
+		coin.scale = Vector3.ONE * 1.6
+		_pickups.append({"node": holder, "kind": "coin", "radius": 1.5})
+	if amount > 0:
+		Sfx.play_coins(self, amount, 0.3, pos)
 
 
 ## A worn piece left on the floor, glowing until the hero walks over it.
@@ -1530,7 +2054,7 @@ func _item_model(id: String) -> Node3D:
 	var holder := Node3D.new()
 	if item.has("model"):
 		var model: Node3D = load(item.model).instantiate()
-		model.scale = Vector3.ONE * 1.6
+		model.scale = Vector3.ONE * float(item.get("model_scale", 1.6))
 		holder.add_child(model)
 	else:
 		var gem := MeshInstance3D.new()

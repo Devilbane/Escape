@@ -12,9 +12,14 @@ The game can be played in English or German; you choose the language on the titl
 |---|---|---|
 | Walk | WASD or arrow keys | click/tap the floor |
 | Jump | Space | right click while walking (left button held), “Jump” button |
-| Melee | run into the enemy or F | click the enemy, “Strike” button |
+| Melee | run into the enemy or F | click the enemy (the hero walks up to it), “Strike” button |
 | Throwing knife | R | right click while standing, “Throw” button |
 | Use, search | run into it | click the object |
+| Pick up a crate | E | click the crate, “Crate” button |
+| Set a crate down | Q | “Crate” button, “Set down” in the inventory |
+| Set a stone block down | B | “Stone” button, “Set down” in the inventory |
+| Move a stone block | | grab it with the left mouse button, drag, let go (right click while dragging turns it) |
+| Pick up a stone block | E | click it briefly, “Stone” button |
 | Inventory | I | “Inventory” button |
 | Compendium | H | “Compendium” button |
 | Character page | P | “Character” button |
@@ -27,6 +32,13 @@ A jump from a run keeps its momentum: the faster you are, the farther you fly.
 Running has a risk: lose more than 10 % of your lives within 2 seconds while running (or right after) and you fall to the ground and get up again, which takes about 2.5 seconds. No blow lands while you are down.
 
 Run into a skeleton and you fight automatically: as long as you stand next to it, you keep striking.
+Click a skeleton and the hero walks up to it and strikes it. Facing a single enemy the hero **strikes**
+it for full damage. With two or more enemies in reach the hero **sweeps** the blade round instead:
+up to 3 of them are hit at once, each for half the damage (at least 1).
+A hero who is attacked fights back on their own, even without a command: with the blade when the attacker
+is close, with throwing knives when it stands further off (as long as there are knives and a clear line of sight).
+You and the skeletons each take up your own spot: nobody can stand inside or on top of anyone else.
+If you land on a skeleton's head, you are pushed apart, and no blow lands until you stand side by side again.
 Step back and you throw knives at the skeleton you attacked last, as long as you can see it
 and have knives.
 
@@ -43,6 +55,25 @@ Gifts last until the end of the game.
 
 Sometimes you find **gear**: helmets and hats (bone helmet, wizard hat, knight's helmet, bear cap) sit visibly on your head, sword and axe give power, shields give life,
 amulets give speed, power or life. In the **inventory** (key I) you put them on or throw them away.
+**Crates** go into your bag (3 kg each) and come out again in front of you; set one down
+facing another crate and it goes on top, up to three high. Walk into a crate and you climb on top
+of it. A stack two crates high is too tall to just walk up: jump against it and you pull yourself
+up, or set a third crate down as a step. In the village, south of the market, a stone **pedestal**
+holds a food basket out of reach of the ground and of a single crate. Three crates lie beside it:
+stack two next to the pedestal, climb up and eat (+3 lives and every ailment cured). The basket
+fills up again after a few minutes.
+
+**Stone blocks** let you build: walls, steps, towers, small enclosures. Hagen the **stonemason** sells them
+in the village, west of the pedestal, next to his stone yard (3 gold each, 1 gold back; 4 kg each). A block
+is twice as long as it is wide and high and sits on a build grid: set down from the bag (key B), it lies
+across your way in front of you, on the floor or on top of the blocks already there, up to five high.
+Grab a block lying free with the left mouse button and drag it: a see-through block shows where it will
+land (green: it fits, red: no room), let go and it flies there, within 7 m of you. Blocks are climbed like
+crates. What you build stays standing in your saved game.
+
+Your bag holds 8 things. A **backpack** worn in its own slot makes room for more: canvas backpack 10,
+leather backpack 11, large backpack 12. The bigger the backpack, the rarer it is. You can only take off a
+backpack, or swap it for a smaller one, while everything you carry still fits.
 Hard armour (knight's helmet, crest shield, chain mail, plate armour) has **hardening**: it takes a fixed amount off every
 hit (at least 1 damage always gets through). Every hit has a 5 % chance to wear off one point of
 **durability**; once that is used up, the piece breaks.
@@ -93,6 +124,11 @@ chance next to every skill.
 After every 4 levels you reach a **safe room** without enemies, the refuge. It has a **fountain**
 that refills your life and cures poison and curses, a storage chest, a merchant who buys and sells for gold, and a bed. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero falls later, the saved game is kept: a click on the “Fallen” screen continues the game from the refuge, N starts a new one.
 On the next start you continue from there with a click or a key. The saved game is stored in the browser.
+
+**Hero or heroine:** a new game asks whether you play a hero or a heroine before it asks for your name.
+The heroine has a body and a face of her own, not just new colours: a narrower waist and jaw, larger eyes
+with lashes, a rosy mouth and hair that falls to her shoulders. Hair styles, hats, armour and the sleep in the
+bed work for both, and the choice is kept in the saved game.
 
 **Several saved games:** every hero has a saved game of their own, so you can play several heroes side by side.
 The **Load** window (key L, or “Load saved game” on the title screen) lists them all with level, gold and the time they were saved;
@@ -153,7 +189,7 @@ the starting point. Every load, and every new try after a fall, begins next to y
 In the middle of the village lies the paved **market square** with a fountain that heals, benches and
 lanterns. Around it stand the **smithy**, the **temple**, the **office of the crown**, the **post office**, the
 **adventurers' guild**, the **general store** (Mira, the shopkeeper, buys and sells), the **tavern** and the
-**bank**. Fifteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
+**bank**. Sixteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
 makes the rounds, the postmaster carries letters, the priestess tends the temple. Every so often the
 **herald** rings the bell and calls out the news, and the whole village gathers on the square to listen.
 
@@ -162,8 +198,30 @@ At the **bank** the banker keeps your gold safe (deposit and withdraw) and rents
 gold and their treasures. You can walk down and look at what every other hero keeps there; your own cell
 opens for you. Until there is a server, the bank keeps one account per hero name on this computer.
 
+**Benno the barber** keeps a small stall with a striped barber's pole and a scissors sign at the south-east
+corner of the market square, under his own burning mohawk. He gives
+you a new **hair style** (natural, mohawk or shaved, 5 to 15 gold) and a new **hair colour** (natural,
+black, blond, silver, red, green, blue, pink or purple for 10 gold, an animated **rainbow** for 25, or
+flickering **fire** that glows in the dark for 30). He also inks a **tattoo**: any word of up to 12 letters
+on the right side of your head, straight or arched in a half circle (20 gold, removing it costs 10). It only shows
+on a shaved head. A mohawk
+hides under helmets and hats, unless you hide the helmet in the inventory: it still protects, but the
+haircut shows. Your look is saved with the game.
+
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.
+
+## The robbers' pass
+
+A road leaves the market square to the east and climbs into the **robbers' pass**: rocky heath, dead trees and
+a bandit camp with tents, a campfire and the robbers' hoard in a **treasure chest**. **Bandits** roam the
+clearings: quick **cutthroats** with daggers, **poachers** who shoot crossbow bolts from afar, heavy
+**bruisers** with axes, and the **bandit chief** by the fire with sword and shield. They fight like the
+skeletons do (run into them, or click them), but they are people: they shout, they stroll instead of
+standing guard, and they chase you only so far from their camp before they give up. Bandits wear gear from
+the same list as yours, and much more often than skeletons do; when one falls it spills **gold** and may
+drop a piece of its gear. A fallen bandit's spot is taken by another a few minutes later, once you have
+left, so there is always something to fight and loot. Whoever falls on the pass starts again on the graveyard.
 
 The **compendium** (key H) shows all keys and mouse commands and collects every hint and every
 explanation you have been given so far: the introduction of every level, the tips on sneaking and on the
@@ -219,12 +277,14 @@ or `godborn` (the older German ids `ungewoehnlich`, `selten`, `episch` and `gott
 A line `outdoor: yes` turns a level into the world under the open sky (see `levels/11_die_freiheit.txt`).
 It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `~` pond, `R` crypt, `g` grave,
 `d` dead tree, `z` graveyard fence, `a` gate in the fence, `l` lantern, `p` pumpkins, `r` rock, `T` tree,
-`t` tree stump, `e` barrels and crates, `q` well, `F` fountain, `x` bench, `y` pumpkin field. Buildings are a
+`t` tree stump, `e` barrels and crates, `q` well, `F` fountain, `x` bench, `y` pumpkin field, `N` tent,
+`f` campfire, `C` treasure chest. The bandits, who roam and come back a while after they fall: `c` cutthroat,
+`A` poacher, `X` bruiser, `Q` bandit chief. Buildings are a
 rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general store, `u` windmill,
 `s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank. The hero's house:
 `I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The villagers: `0` elder,
 `1` smith, `2` farmer, `3` woodcutter, `4` guard, `5` drinker, `6` shopkeeper, `7` child, `8` scholar,
-`9` water carrier, `K` herald, `O` priestess, `G` guild master, `M` postmaster, `Y` banker.
+`9` water carrier, `K` herald, `O` priestess, `G` guild master, `M` postmaster, `Y` banker, `Z` barber.
 
 **Floors of buildings.** A level file with the lines `building: b` and `floor: cellar` or
 `floor: upstairs` is a floor of the village building with that character: walking in at the

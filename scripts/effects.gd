@@ -165,6 +165,74 @@ static func cord_mesh(segments: Array, radius: float, material: Material) -> Arr
 	return st.commit()
 
 
+## A ring of flat-faced stone, like a carved basin or a block with `sides`
+## faces, standing between the heights y0 and y1: outer wall, top, bottom and
+## (if inner is above 0) the inner wall, with the normals of each face flat
+## so the facets catch the light like cut stone. UVs run in metres along the
+## circumference and up the height. The mesh's origin is the ring's centre at
+## the floor.
+static func ring_mesh(inner: float, outer: float, y0: float, y1: float, sides: int, material: Material) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in sides:
+		var a0 := TAU * i / sides
+		var a1 := TAU * (i + 1) / sides
+		var d0 := Vector3(cos(a0), 0, sin(a0))
+		var d1 := Vector3(cos(a1), 0, sin(a1))
+		var u0 := outer * a0
+		var u1 := outer * a1
+		var lo := Vector3(0, y0, 0)
+		var hi := Vector3(0, y1, 0)
+		# Outer wall, facing out.
+		_face(st, [d0 * outer + lo, d0 * outer + hi, d1 * outer + hi, d1 * outer + lo],
+				(d0 + d1).normalized(), [Vector2(u0, y0), Vector2(u0, y1), Vector2(u1, y1), Vector2(u1, y0)])
+		# Top and bottom, each an octagon or a ring.
+		var top := [d1 * inner + hi, d1 * outer + hi, d0 * outer + hi, d0 * inner + hi]
+		var bottom := [d0 * inner + lo, d0 * outer + lo, d1 * outer + lo, d1 * inner + lo]
+		var uv_top := top.map(func(v: Vector3): return Vector2(v.x, v.z))
+		var uv_bottom := bottom.map(func(v: Vector3): return Vector2(v.x, v.z))
+		_face(st, top, Vector3.UP, uv_top)
+		_face(st, bottom, Vector3.DOWN, uv_bottom)
+		if inner > 0.0:
+			# Inner wall, facing the middle.
+			_face(st, [d1 * inner + lo, d1 * inner + hi, d0 * inner + hi, d0 * inner + lo],
+					-(d0 + d1).normalized(), [Vector2(u1, y0), Vector2(u1, y1), Vector2(u0, y1), Vector2(u0, y0)])
+	st.set_material(material)
+	return st.commit()
+
+
+## One flat face of four corners (counter-clockwise seen from outside) as two triangles.
+static func _face(st: SurfaceTool, corners: Array, normal: Vector3, uvs: Array) -> void:
+	for i in [0, 2, 1, 0, 3, 2]:
+		st.set_normal(normal)
+		st.set_uv(uvs[i])
+		st.add_vertex(corners[i])
+
+
+## Drops of water thrown up by a fountain's spout: soft, pale glints that rise
+## a little and fall back into the basin.
+static func make_spray(color: Color) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = 48
+	p.lifetime = 1.1
+	p.mesh = _quad(0.13, Color(1, 1, 1))
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.06
+	p.direction = Vector3.UP
+	p.spread = 22.0
+	p.gravity = Vector3(0, -9.0, 0)
+	p.initial_velocity_min = 2.4
+	p.initial_velocity_max = 3.3
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.2
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(color, 0.9))
+	ramp.add_point(0.7, Color(color, 0.7))
+	ramp.set_color(ramp.get_point_count() - 1, Color(color, 0.0))
+	p.color_ramp = ramp
+	return p
+
+
 ## The open edges of a mesh: edges that belong to only one triangle.
 static func open_edges(mesh: Mesh) -> Array:
 	var arrays := mesh.surface_get_arrays(0)
@@ -233,3 +301,109 @@ static func feather_mesh() -> ArrayMesh:
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, quill_mesh.surface_get_arrays(0))
 	mesh.surface_set_material(1, quill)
 	return mesh
+
+
+## A plain coloured, slightly matt material for built props.
+static func _paint(color: Color, roughness := 0.7, metallic := 0.0) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = roughness
+	mat.metallic = metallic
+	return mat
+
+
+static func _part(mesh: Mesh, material: Material, pos: Vector3, rot := Vector3.ZERO) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = material
+	mi.position = pos
+	mi.rotation = rot
+	return mi
+
+
+## A barber's pole: a slim post with a spiral of red, white and blue
+## stripes under a gold knob, about 2.6 m high, standing on the ground.
+static func barber_pole() -> Node3D:
+	var pole := Node3D.new()
+	pole.name = "BarberPole"
+	var wood := _paint(Color(0.3, 0.2, 0.12))
+	var post := CylinderMesh.new()
+	post.top_radius = 0.07
+	post.bottom_radius = 0.09
+	post.height = 2.6
+	pole.add_child(_part(post, wood, Vector3(0, 1.3, 0)))
+	var colors := [Color(0.85, 0.1, 0.1), Color(0.95, 0.95, 0.95), Color(0.15, 0.25, 0.8)]
+	var mats := [_paint(colors[0], 0.5), _paint(colors[1], 0.5), _paint(colors[2], 0.5)]
+	# The stripes: short slanted rings stacked up the post, each turned a
+	# little further round, so they wind up it like a ribbon.
+	const RINGS := 18
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.12
+	ring.outer_radius = 0.2
+	ring.rings = 24
+	ring.ring_segments = 8
+	for i in RINGS:
+		var y := 1.45 + i * 0.07
+		var tilt := Vector3(0.45, i * 0.7, 0.0)
+		pole.add_child(_part(ring, mats[i % 3], Vector3(0, y, 0), tilt))
+	var cap := CylinderMesh.new()
+	cap.top_radius = 0.2
+	cap.bottom_radius = 0.2
+	cap.height = 0.06
+	var gold := _paint(Color(1.0, 0.78, 0.3), 0.35, 0.7)
+	pole.add_child(_part(cap, gold, Vector3(0, 1.42, 0)))
+	pole.add_child(_part(cap, gold, Vector3(0, 2.72, 0)))
+	var knob := SphereMesh.new()
+	knob.radius = 0.17
+	knob.height = 0.34
+	pole.add_child(_part(knob, gold, Vector3(0, 2.88, 0)))
+	return pole
+
+
+## A hanging shop sign: a wooden board on a post with the shop's name and a
+## pair of scissors above it, facing +Z. About 2.6 m high.
+static func shop_sign(text: String, font: Font) -> Node3D:
+	var board_sign := Node3D.new()
+	board_sign.name = "ShopSign"
+	var wood := _paint(Color(0.3, 0.2, 0.12))
+	var board_wood := _paint(Color(0.55, 0.38, 0.2))
+	var post := CylinderMesh.new()
+	post.top_radius = 0.07
+	post.bottom_radius = 0.09
+	post.height = 2.6
+	board_sign.add_child(_part(post, wood, Vector3(0, 1.3, 0)))
+	var arm := BoxMesh.new()
+	arm.size = Vector3(1.2, 0.08, 0.08)
+	board_sign.add_child(_part(arm, wood, Vector3(0.5, 2.55, 0)))
+	var board := BoxMesh.new()
+	board.size = Vector3(1.1, 0.7, 0.06)
+	board_sign.add_child(_part(board, board_wood, Vector3(0.55, 2.05, 0)))
+	for x in [0.15, 0.95]:
+		var chain := CylinderMesh.new()
+		chain.top_radius = 0.015
+		chain.bottom_radius = 0.015
+		chain.height = 0.16
+		board_sign.add_child(_part(chain, _paint(Color(0.5, 0.5, 0.55), 0.4, 0.8), Vector3(x, 2.47, 0)))
+	var label := Label3D.new()
+	label.text = text
+	label.font = font
+	label.font_size = 56
+	label.pixel_size = 0.004
+	label.modulate = Color(0.1, 0.06, 0.03)
+	label.position = Vector3(0.55, 1.9, 0.035)
+	label.no_depth_test = false
+	board_sign.add_child(label)
+	# Scissors: two crossed blades with a ring handle each, painted on the board.
+	var steel := _paint(Color(0.8, 0.82, 0.86), 0.3, 0.9)
+	var blade := BoxMesh.new()
+	blade.size = Vector3(0.05, 0.3, 0.02)
+	var handle := TorusMesh.new()
+	handle.inner_radius = 0.04
+	handle.outer_radius = 0.07
+	handle.rings = 16
+	handle.ring_segments = 6
+	for side in [-1.0, 1.0]:
+		var a: float = side * 0.35
+		board_sign.add_child(_part(blade, steel, Vector3(0.55 + sin(a) * 0.03, 2.24, 0.04), Vector3(0, 0, a)))
+		board_sign.add_child(_part(handle, steel, Vector3(0.55 - sin(a) * 0.17, 2.1, 0.04), Vector3(PI * 0.5, 0, 0)))
+	return board_sign

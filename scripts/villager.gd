@@ -13,8 +13,9 @@ const SAY_TIME := 4.0
 ## Waits this long for the hero to step aside before walking on.
 const MAKE_WAY := 1.4
 
-## name: shown above the head; model; show: extra parts; colors: body,
-## legs, hat/cape; plan: how they spend the day (see _next_task); work: the
+## name: shown above the head; model; show: extra parts; hair: a look for a
+## Rogue (see HairLook); sex: "female" for a woman built on the Rogue (see
+## BodyLook); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
 ## animation at their spot; lines: what they say, one after another.
 const ROLES := {
 	"0": {"name": "Dorfvorsteher Aldo", "model": "Mage", "show": ["Mage_Hat", "2H_Staff", "Mage_Cape"],
@@ -23,7 +24,7 @@ const ROLES := {
 	"1": {"name": "Schmied Gorm", "model": "Barbarian", "show": ["1H_Axe"],
 		"colors": [Color(0.55, 0.42, 0.32), Color(0.4, 0.36, 0.34), Color(1, 1, 1)], "plan": "work", "work": "1H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Brauchst du eine Klinge? Ich schmiede die besten im Tal.", "Heiß muss das Eisen sein, sonst bricht es.", "Aus der Gruft? Dann hast du Mut, das muss man dir lassen."]},
-	"2": {"name": "Bäuerin Lene", "model": "Rogue", "show": [],
+	"2": {"name": "Bäuerin Lene", "model": "Rogue", "show": [], "sex": "female",
 		"colors": [Color(0.9, 0.75, 0.45), Color(0.55, 0.45, 0.3), Color(0.85, 0.55, 0.3)], "plan": "work", "work": "PickUp",
 		"lines": ["Die Kürbisse sind dieses Jahr riesig!", "Das Korn muss rein, bevor der Frost kommt.", "Hast du Hunger? Im Wirtshaus gibt es Suppe."]},
 	"3": {"name": "Holzfäller Bruno", "model": "Barbarian", "show": ["2H_Axe", "Barbarian_Hat"],
@@ -35,7 +36,7 @@ const ROLES := {
 	"5": {"name": "Zecher Fritz", "model": "Barbarian", "show": ["Mug"],
 		"colors": [Color(0.4, 0.55, 0.4), Color(0.45, 0.35, 0.28), Color(1, 1, 1)], "plan": "sit", "work": "Sit_Floor_Idle",
 		"lines": ["Prost! Auf die Freiheit!", "Das Bier hier ist das beste diesseits der Berge.", "Setz dich doch, erzähl von da unten!"]},
-	"6": {"name": "Krämerin Mira", "model": "Rogue", "show": ["Rogue_Cape"],
+	"6": {"name": "Krämerin Mira", "model": "Rogue", "show": ["Rogue_Cape"], "sex": "female",
 		"colors": [Color(0.7, 0.35, 0.6), Color(0.35, 0.3, 0.45), Color(0.6, 0.3, 0.5)], "plan": "shop", "work": "Interact",
 		"lines": ["Brot, Käse, Seile, Fackeln: alles für den Alltag!", "Ich kaufe auch, was du aus dem Verlies mitbringst.", "Für einen Helden mache ich einen guten Preis."]},
 	"7": {"name": "Pip", "model": "Rogue", "show": [], "scale": 0.72,
@@ -59,9 +60,15 @@ const ROLES := {
 	"M": {"name": "Postmeister Anselm", "model": "Rogue", "show": [],
 		"colors": [Color(0.95, 0.8, 0.3), Color(0.35, 0.35, 0.5), Color(1, 1, 1)], "plan": "carry", "work": "PickUp",
 		"lines": ["Ein Brief für dich? Noch nicht, aber bald bestimmt.", "Ich bringe die Post zu jedem Haus im Dorf.", "Die Postkutsche kommt jeden dritten Tag."]},
+	"Z": {"name": "Barbier Benno", "model": "Rogue", "show": [], "hair": {"style": "mohawk", "color": "fire"},
+		"colors": [Color(0.95, 0.95, 0.95), Color(0.25, 0.25, 0.3), Color(1, 1, 1)], "plan": "shop", "work": "Interact",
+		"lines": ["Haare schneiden, färben, tätowieren: Bei mir wirst du ein neuer Mensch!", "Ein Irokese steht dir bestimmt. Oder gleich in Flammen?", "Halt still, sonst wird die Tätowierung schief."]},
 	"Y": {"name": "Bankier Goldwin", "model": "Mage", "show": ["Mage_Hat"],
 		"colors": [Color(0.25, 0.45, 0.3), Color(0.25, 0.25, 0.28), Color(0.2, 0.35, 0.25)], "plan": "work", "work": "Interact",
 		"lines": ["Gold ist bei uns sicherer als in jeder Truhe.", "Die Bank der Krone öffnet bald ihre Schalter für Abenteurer.", "Zinsen? Nur für treue Kunden."]},
+	"S": {"name": "Steinmetz Hagen", "model": "Barbarian", "show": ["1H_Axe"],
+		"colors": [Color(0.6, 0.58, 0.55), Color(0.4, 0.38, 0.36), Color(0.7, 0.68, 0.64)], "plan": "shop", "work": "1H_Melee_Attack_Chop", "sound": "hit",
+		"lines": ["Steinblöcke, sauber behauen! Bau dir, was du willst.", "Eine Mauer hält länger als jeder Zaun.", "Stapel sie versetzt, dann hält die Mauer besser."]},
 }
 
 ## What the herald calls out on the square, one after another.
@@ -76,7 +83,7 @@ const NEWS := [
 ## How long the village listens to the herald (seconds).
 const LISTEN_TIME := 13.0
 
-var level: Level
+var level: Outdoor
 var role := "7"
 var home := Vector2i.ZERO
 var station: Dictionary = {}
@@ -93,6 +100,8 @@ var _speed := WALK_SPEED
 var _waiting := 0.0
 var _bubble: Label3D
 var _bubble_time := 0.0
+## The name over the head, shown once the hero has talked to us.
+var _name_tag: Label3D
 var _line := 0
 var _current_anim := ""
 var _look_at := Vector3.INF
@@ -102,7 +111,7 @@ var _listen_to := Vector3.INF
 var _news := 0
 
 
-func setup(owner_level: Level, role_char: String, cell: Vector2i) -> void:
+func setup(owner_level: Outdoor, role_char: String, cell: Vector2i) -> void:
 	level = owner_level
 	role = role_char
 	home = cell
@@ -120,9 +129,14 @@ func _ready() -> void:
 	shape.position.y = capsule.height * 0.5
 	add_child(shape)
 	_model = load("res://assets/characters/%s.glb" % _info.model).instantiate()
-	_model.scale = Vector3.ONE * _info.get("scale", 1.0)
+	_model.scale = Vector3.ONE * _info.get("scale", 1.0) * BodyLook.scale_of(_info.get("sex", BodyLook.DEFAULT))
 	add_child(_model)
 	_dress()
+	# A woman built on the Rogue model gets her own body (see BodyLook); the
+	# dyes stay on, they belong to the parts, not to the meshes.
+	BodyLook.apply(_model, _info.get("sex", BodyLook.DEFAULT))
+	if _info.has("hair"):
+		HairLook.apply(_model, HairLook.checked(_info.hair))
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walking_A", "Walking_B", "Running_A", "Sit_Floor_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -142,6 +156,21 @@ func _ready() -> void:
 	_bubble.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_bubble.position.y = 3.3 * _info.get("scale", 1.0) + 0.4
 	add_child(_bubble)
+	_name_tag = Label3D.new()
+	_name_tag.text = display_name
+	_name_tag.font = _bubble.font
+	_name_tag.font_size = 30
+	_name_tag.pixel_size = 0.011
+	_name_tag.outline_size = 10
+	_name_tag.outline_modulate = Color(0.05, 0.03, 0.06, 0.85)
+	_name_tag.modulate = Color(1, 0.95, 0.85, 1)
+	_name_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_name_tag.no_depth_test = true
+	_name_tag.render_priority = 18
+	_name_tag.outline_render_priority = 17
+	_name_tag.position.y = 2.5 * _info.get("scale", 1.0) + 0.25
+	_name_tag.visible = is_known()
+	add_child(_name_tag)
 	rotation.y = _rng.randf() * TAU
 	_start("sit" if _info.plan == "sit" else "work", _rng.randf_range(2.0, 6.0))
 
@@ -397,13 +426,30 @@ func proclaim() -> void:
 ## The hero ran into us: say the next line.
 func talk(hero: Node3D) -> void:
 	var lines: Array = _info.lines
+	meet()
 	say(Lang.t(lines[_line % lines.size()]), hero.global_position)
 	_line += 1
+
+
+## Whether the hero has talked to this villager before (also in an earlier
+## session: the village remembers, see Outdoor.met).
+func is_known() -> bool:
+	return level != null and level.met.has(role)
+
+
+## The hero and this villager have spoken: from now on the name stays over
+## the head, so the people of the village can be told apart.
+func meet() -> void:
+	if level:
+		level.met[role] = true
+	if _name_tag:
+		_name_tag.visible = true
 
 
 ## The elder sees the newcomer and hands over the house.
 func greet_newcomer(hero: Node3D) -> void:
 	_line = 1
+	meet()
 	say(Lang.t("Willkommen, Fremder! Du kommst aus der alten Gruft? Das leere Haus mit dem Ziegeldach gehört jetzt dir."), hero.global_position, 6.5)
 
 
@@ -425,5 +471,10 @@ func _update_bubble(delta: float) -> void:
 		_bubble.modulate.a = alpha
 		_bubble.outline_modulate.a = alpha
 	_bubble.visible = alpha > 0.0
+	# The speech bubble already starts with the name: the plain name tag
+	# steps aside while it shows, and comes back when the talk is over.
+	if _name_tag and _name_tag.visible:
+		_name_tag.modulate.a = 1.0 - alpha
+		_name_tag.outline_modulate.a = 0.85 * (1.0 - alpha)
 	if _bubble_time <= 0.0:
 		_look_at = Vector3.INF

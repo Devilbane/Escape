@@ -45,9 +45,19 @@ var home_given := false
 ## Set once the hero has walked into that house and made it their own: from
 ## then on it is where every saved game starts.
 var home_claimed := false
+## The villagers the hero has talked to, by role letter -> true. Once met,
+## a villager wears their name over their head. Kept in the saved game.
+var met := {}
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
 var coins := 0
+## What the hero already took on each level, by level file: the ids of
+## searched furniture and picked up coins (see Level.taken). Kept in the
+## saved game, so looted chests stay empty.
+var looted := {}
+## The stone blocks the hero built with on each level, by level file (see
+## Level.built). Kept in the saved game, so buildings stay standing.
+var builds := {}
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
 ## Levels left in a row without finding their secret room.
@@ -92,6 +102,8 @@ var _title_sub: Label
 var _title_prompt: Label
 var _message_tween: Tween
 var _pending_search := {}
+## A crate the hero was sent to pick up with a click (see Crate).
+var _pending_crate: Crate = null
 var menus: Menus
 ## Items left in the safe room's storage chest, and what the merchant sells.
 var storage: Array[String] = []
@@ -108,6 +120,10 @@ var away_plan := Offline.empty_plan()
 ## welcome-back window.
 var away_report: Array[String] = []
 var _name_edit: LineEdit
+## The body chosen for the new hero, and the buttons to pick it (see BodyLook).
+var _new_sex := BodyLook.DEFAULT
+var _sex_buttons := {}
+var _name_ask: Label
 var _ranking_slot: Control
 var _lang_row: Control
 ## Engine flag set when a language is picked: it survives the scene reload,
@@ -120,6 +136,18 @@ const HOLD_TO_RUN := 0.2
 const WALK_UP_TO := 2.0
 var _mouse_held := false
 var _mouse_held_time := 0.0
+## A stone block grabbed with the left mouse button and being dragged (see
+## StoneBlock): the block, the see-through block showing where it would
+## land, which way it lies there, where it lands, and how long it is held.
+var _drag_stone: StoneBlock = null
+var _drag_ghost: MeshInstance3D = null
+var _drag_along_x := true
+var _drag_spot := {}
+var _drag_time := 0.0
+var _drag_press := Vector2.ZERO
+## A press shorter than this, without moving the block, is a click on it.
+const DRAG_CLICK := 0.25
+const STONE_LEARN := "Steinblöcke kauft man beim Steinmetz im Dorf. Abstellen mit B (oder „Abstellen“ im Inventar): der Block legt sich quer vor dich, auf den Boden oder auf andere Blöcke. Mit der linken Maustaste greifst du einen Block, ziehst ihn auf ein anderes Feld in der Nähe und lässt los; ein Rechtsklick dabei dreht ihn. E nimmt einen Block wieder in die Tasche. Auf einen Block steigst du einfach hinauf, auf zwei mit einem Sprung."
 
 
 func _ready() -> void:
@@ -141,6 +169,7 @@ func _ready() -> void:
 	menus = Menus.new()
 	add_child(menus)
 	Sfx.load_settings()
+	Sfx.watch_focus(self)
 	_update_sound_button()
 	_ambience = Sfx.start_ambience(self)
 	menus.setup(self, _hud)
@@ -178,7 +207,10 @@ func _setup_world() -> void:
 	env.ambient_light_color = Color(0.42, 0.40, 0.37)
 	env.ambient_light_energy = 0.3
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.05
+	# A touch under neutral: the picture reads calmer and highlights keep
+	# their detail. Torch pools in the dungeon still stand out against the
+	# dark, as stealth only cares about the light geometry, not the exposure.
+	env.tonemap_exposure = 0.95
 	env.glow_enabled = true
 	env.glow_intensity = 0.7
 	env.glow_bloom = 0.05
@@ -215,13 +247,13 @@ func _setup_world() -> void:
 ## Dark dungeon air or a golden autumn evening in the open.
 func _set_atmosphere(outdoor: bool) -> void:
 	if outdoor:
-		_env.background_color = Color(0.55, 0.5, 0.62)
+		_env.background_color = Color(0.5, 0.46, 0.57)
 		_env.ambient_light_color = Color(0.7, 0.68, 0.78)
-		_env.ambient_light_energy = 0.6
+		_env.ambient_light_energy = 0.52
 		_env.adjustment_saturation = 0.95
 		_moon.rotation_degrees = Vector3(-38, -35, 0)
 		_moon.light_color = Color(1.0, 0.8, 0.6)
-		_moon.light_energy = 1.0
+		_moon.light_energy = 0.88
 	else:
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
@@ -411,6 +443,8 @@ func _setup_hud() -> void:
 	buttons.add_child(_make_button(Lang.t("Springen"), func(): if state == State.PLAYING: player.jump()))
 	buttons.add_child(_make_button(Lang.t("Werfen"), func(): if state == State.PLAYING: player.throw_knife()))
 	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
+	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
+	buttons.add_child(_make_button(Lang.t("Stein"), func(): if state == State.PLAYING and not menus.is_open(): stone_action()))
 
 	_setup_shrine_panel()
 
@@ -543,6 +577,242 @@ func _drink(s: Dictionary) -> void:
 	_update_hud()
 
 
+## The food basket on the village pedestal: bread, cheese and apples give
+## back some life and, like a healing potion, cure what ails the hero.
+func _eat_from_basket(heal: int) -> void:
+	player.hp = mini(player.max_hp, player.hp + heal)
+	var text := Lang.t("Essenskorb! +%d Leben") % heal
+	if player.cure():
+		text += "\n" + Lang.t("Dein Leiden ist geheilt.")
+	player.play_once("PickUp", 0.6)
+	Sfx.play(self, "drink")
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), text, Color(1.0, 0.5, 0.55), true)
+	show_message(Lang.t("Brot, Käse und Äpfel: du isst dich satt. Der Korb füllt sich mit der Zeit wieder."), 3.5)
+	learn("Kisten (Taste E: aufheben, Q: abstellen, oder der Knopf „Kiste“) kommen in deine Tasche und lassen sich wieder abstellen und stapeln. Läufst du gegen eine Kiste, kletterst du hinauf; eine höhere erreichst du mit einem Sprung. Der Essenskorb auf dem Sockel im Dorf ist nur von zwei gestapelten Kisten aus erreichbar.")
+	_update_hud()
+
+
+# --- Crates -------------------------------------------------------------------
+
+## Picks up the crate in reach (the one nearest `near`, if given) into the
+## bag. Returns "" on success, else why not.
+func pick_up_crate(near := Vector3.INF) -> String:
+	if not player.can_act() or player.is_climbing():
+		return Lang.t("Gerade nicht.")
+	var crate := level.crate_in_reach(player, near)
+	if crate == null:
+		return Lang.t("Keine Kiste in Reichweite.")
+	if player.bag.size() >= player.bag_size():
+		return Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.")
+	player.path.clear()
+	player.face(crate.global_position - player.global_position)
+	player.play_once("Interact", 0.3)
+	level.take_crate(crate)
+	player.bag.append("kiste")
+	Sfx.play(self, "gear_soft_%d" % (randi() % 2), -2.0)
+	learn("Kisten (Taste E: aufheben, Q: abstellen, oder der Knopf „Kiste“) kommen in deine Tasche und lassen sich wieder abstellen und stapeln. Läufst du gegen eine Kiste, kletterst du hinauf; eine höhere erreichst du mit einem Sprung. Der Essenskorb auf dem Sockel im Dorf ist nur von zwei gestapelten Kisten aus erreichbar.")
+	_update_hud()
+	return ""
+
+
+## Sets a crate from the bag down in front of the hero, on top of a crate
+## standing there if there is one. Returns "" on success, else why not.
+func put_down_crate() -> String:
+	if not player.can_act() or player.is_climbing() or not player.is_on_floor():
+		return Lang.t("Gerade nicht.")
+	if not player.bag.has("kiste"):
+		return Lang.t("Du trägst keine Kiste.")
+	var spot := level.crate_spot(player, player.facing())
+	if spot == Vector3.INF:
+		return Lang.t("Hier ist kein Platz für die Kiste.")
+	player.path.clear()
+	player.play_once("Interact", 0.3)
+	player.bag.erase("kiste")
+	level.put_crate(spot)
+	Sfx.play(self, "gear_book", -2.0, spot)
+	_update_hud()
+	return ""
+
+
+# --- Stone blocks -------------------------------------------------------------
+
+## Sets a stone block from the bag down in front of the hero, lying across
+## their way, on the floor or on the blocks there. Returns "" on success,
+## else why not.
+func place_stone() -> String:
+	if not player.can_act() or player.is_climbing() or not player.is_on_floor():
+		return Lang.t("Gerade nicht.")
+	if not player.bag.has(Menus.STONE):
+		return Lang.t("Du trägst keinen Steinblock. Der Steinmetz im Dorf verkauft welche.")
+	var spot := level.stone_spot_ahead(player, player.facing())
+	if spot.is_empty():
+		return Lang.t("Hier ist kein Platz für den Steinblock.")
+	player.path.clear()
+	player.play_once("Interact", 0.3)
+	player.bag.erase(Menus.STONE)
+	var stone := level.put_stone(spot.cell, spot.along_x, spot.layer)
+	Sfx.play(self, "gear_book", -1.0, stone.global_position)
+	learn(STONE_LEARN)
+	_update_hud()
+	return ""
+
+
+## Takes the stone block in reach (or `stone`, if given and in reach) back
+## into the bag. Returns "" on success, else why not.
+func take_stone(stone: StoneBlock = null) -> String:
+	if not player.can_act() or player.is_climbing():
+		return Lang.t("Gerade nicht.")
+	if stone == null:
+		stone = level.stone_in_reach(player)
+	elif level._flat_distance(player.global_position, stone.global_position) > Level.STONE_REACH or absf(stone.global_position.y - player.global_position.y) > 2.0 or not level.stone_free(stone):
+		stone = null
+	if stone == null:
+		return Lang.t("Kein freier Steinblock in Reichweite.")
+	if player.bag.size() >= player.bag_size():
+		return Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.")
+	player.path.clear()
+	player.face(stone.global_position - player.global_position)
+	player.play_once("Interact", 0.3)
+	level.take_stone(stone)
+	player.bag.append(Menus.STONE)
+	Sfx.play(self, "gear_soft_%d" % (randi() % 2), -2.0)
+	_update_hud()
+	return ""
+
+
+## The "Stone" button: sets a block down while carrying one, else takes the
+## one in reach.
+func stone_action() -> void:
+	var why := ""
+	if player.bag.has(Menus.STONE):
+		why = place_stone()
+	else:
+		why = take_stone()
+	if why != "":
+		show_message(why, 1.6)
+
+
+## The stone block under the mouse, or null.
+func _stone_under(screen_pos: Vector2) -> StoneBlock:
+	var hit := _ray_from_camera(screen_pos, [player.get_rid()])
+	return hit.get("collider") as StoneBlock if not hit.is_empty() else null
+
+
+func _ray_from_camera(screen_pos: Vector2, exclude: Array[RID]) -> Dictionary:
+	var origin := camera.project_ray_origin(screen_pos)
+	var ray := PhysicsRayQueryParameters3D.create(origin, origin + camera.project_ray_normal(screen_pos) * 200.0)
+	ray.exclude = exclude
+	return get_world_3d().direct_space_state.intersect_ray(ray)
+
+
+## Grabs a stone block with the mouse, if the hero can: it lies free and
+## close enough. Returns whether a drag started.
+func _grab_stone(screen_pos: Vector2) -> bool:
+	if level == null or level.stones.is_empty() or not player.can_act() or player.is_climbing():
+		return false
+	var stone := _stone_under(screen_pos)
+	if stone == null:
+		return false
+	if level._flat_distance(player.global_position, stone.global_position) > Level.STONE_DRAG_RANGE:
+		show_message(Lang.t("Der Steinblock ist zu weit weg."), 1.4)
+		return true
+	if not level.stone_free(stone):
+		show_message(Lang.t("Auf dem Steinblock liegt etwas oder steht jemand."), 1.4)
+		return true
+	_drag_stone = stone
+	_drag_along_x = stone.along_x
+	_drag_spot = {}
+	_drag_time = 0.0
+	_drag_press = screen_pos
+	player.path.clear()
+	_pending_search = {}
+	_pending_station = {}
+	_pending_crate = null
+	_drag_ghost = MeshInstance3D.new()
+	_drag_ghost.mesh = StoneBlock.block_mesh()
+	_drag_ghost.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_drag_ghost.material_override = mat
+	_drag_ghost.visible = false
+	level.add_child(_drag_ghost)
+	return true
+
+
+## Where the dragged block would land: the stone or floor under the mouse.
+func _update_drag(delta: float) -> void:
+	if _drag_stone == null:
+		return
+	if not is_instance_valid(_drag_stone) or not level.stones.has(_drag_stone) or state != State.PLAYING or menus.is_open():
+		_end_drag()
+		return
+	_drag_time += delta
+	var mouse := get_viewport().get_mouse_position()
+	var hit := _ray_from_camera(mouse, [player.get_rid(), _drag_stone.get_rid()])
+	var point = null
+	if not hit.is_empty() and hit.normal.y > 0.7:
+		point = hit.position
+	else:
+		point = _mouse_to_floor(mouse)
+	if point == null:
+		_drag_ghost.visible = false
+		_drag_spot = {}
+		return
+	_drag_spot = level.stone_drop_spot(_drag_stone, point, _drag_along_x, player)
+	var unmoved: bool = _drag_spot.cell == _drag_stone.cell and _drag_spot.along_x == _drag_stone.along_x and _drag_spot.layer == _drag_stone.layer
+	_drag_ghost.visible = not unmoved
+	var spot := StoneBlock.spot_of(_drag_spot.cell, _drag_spot.along_x, _drag_spot.layer)
+	_drag_ghost.global_transform = Transform3D(Basis() if _drag_spot.along_x else Basis(Vector3.UP, PI * 0.5), spot)
+	(_drag_ghost.material_override as StandardMaterial3D).albedo_color = Color(0.55, 1.0, 0.6, 0.4) if _drag_spot.ok else Color(1.0, 0.35, 0.3, 0.4)
+	player.face(spot - player.global_position)
+
+
+## Lets go of the dragged block: it flies onto the spot under the mouse,
+## or, after a short click on it, goes into the bag when it is in reach.
+func _drop_stone() -> void:
+	if _drag_stone == null:
+		return
+	var stone := _drag_stone
+	var spot := _drag_spot
+	var quick := _drag_time < DRAG_CLICK and get_viewport().get_mouse_position().distance_to(_drag_press) < 12.0
+	_end_drag()
+	if not is_instance_valid(stone):
+		return
+	if spot.get("ok", false) and not quick:
+		player.play_once("Throw", 0.45)
+		level.move_stone(stone, spot.cell, spot.along_x, spot.layer)
+		Sfx.play(self, "gear_book", -1.0, stone.global_position)
+		learn(STONE_LEARN)
+	elif quick:
+		var why := take_stone(stone)
+		if why != "":
+			show_message(why, 1.6)
+	elif not spot.is_empty() and not (spot.cell == stone.cell and spot.along_x == stone.along_x and spot.layer == stone.layer):
+		show_message(Lang.t("Dort ist kein Platz für den Steinblock.") if level._flat_distance(StoneBlock.spot_of(spot.cell, spot.along_x, 0), player.global_position) <= Level.STONE_DRAG_RANGE else Lang.t("So weit reicht dein Wurf nicht."), 1.4)
+
+
+func _end_drag() -> void:
+	_drag_stone = null
+	_drag_spot = {}
+	if _drag_ghost != null and is_instance_valid(_drag_ghost):
+		_drag_ghost.queue_free()
+	_drag_ghost = null
+
+
+## The "Crate" button: picks up a crate in reach, else sets one down.
+func crate_action() -> void:
+	var why := ""
+	if level.crate_in_reach(player) != null and player.bag.size() < player.bag_size():
+		why = pick_up_crate()
+	elif player.bag.has("kiste"):
+		why = put_down_crate()
+	else:
+		why = pick_up_crate()
+	if why != "":
+		show_message(why, 1.6)
+
+
 func _open_shrine(s: Dictionary) -> void:
 	_shrine = s
 	_pending_station = {}
@@ -633,11 +903,19 @@ func load_level(index: int, restock := true) -> void:
 	level = Outdoor.new() if Level.is_outdoor_file(level_files[index]) else Level.new()
 	level.load_from_file(level_files[index])
 	level.depth = index
+	var file := level_files[index].get_file()
+	if not looted.has(file):
+		looted[file] = {}
+	level.taken = looted[file]
+	if not builds.has(file):
+		builds[file] = []
+	level.built = builds[file]
 	level.hero = hero_name
 	if level is Outdoor:
 		level.interiors = interiors
 		level.house_given = home_given
 		level._entered_once = home_claimed
+		level.met = met
 	level.secret_bonus = secrets_found
 	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
 	add_child(level)
@@ -650,6 +928,8 @@ func load_level(index: int, restock := true) -> void:
 	# STAIRS_HEAL (see _next_level) and the fountain heals fully.
 	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
+	level.restore_taken()
+	level.restore_stones()
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
 	level.item_collected.connect(_on_item_collected)
@@ -666,6 +946,9 @@ func load_level(index: int, restock := true) -> void:
 	if level is Outdoor:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
 		level.home_claimed.connect(_on_home_claimed)
+		level.food_basket.connect(_eat_from_basket)
+	_pending_crate = null
+	_end_drag()
 	_set_atmosphere(level.outdoor)
 	_pending_search = {}
 	_pending_station = {}
@@ -757,10 +1040,20 @@ func new_game() -> void:
 	_lang_row.visible = false
 	_title_prompt.text = ""
 	_name_box.visible = true
+	_choose_sex(player.sex)
 	_name_edit.text = hero_name
 	_name_edit.grab_focus()
 	_name_edit.select_all()
 	_update_name_note(hero_name)
+
+
+## Picks the body of the new hero: the chosen button stays bright, and the
+## question asks for a hero's or a heroine's name.
+func _choose_sex(id: String) -> void:
+	_new_sex = BodyLook.checked(id)
+	for sex in _sex_buttons:
+		_sex_buttons[sex].modulate = Color.WHITE if sex == _new_sex else Color(1, 1, 1, 0.5)
+	_name_ask.text = Lang.t("Wie heißt deine Heldin?" if _new_sex == "female" else "Wie heißt dein Held?")
 
 
 ## Warns when the name chosen already has a saved game: the new run takes
@@ -778,10 +1071,20 @@ func _setup_name_box() -> void:
 	box.visible = false
 	_title.add_child(box)
 	_name_box = box
-	var ask := _make_label(TEXT_FONT, 30, GOLD)
-	ask.text = Lang.t("Wie heißt dein Held?")
-	ask.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(ask)
+	# Hero or heroine: two buttons, the chosen one bright.
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	box.add_child(row)
+	for entry in [["Held", "male"], ["Heldin", "female"]]:
+		var b := _make_button(Lang.t(entry[0]), _choose_sex.bind(entry[1]))
+		b.custom_minimum_size = Vector2(180, 56)
+		row.add_child(b)
+		_sex_buttons[entry[1]] = b
+	_name_ask = _make_label(TEXT_FONT, 30, GOLD)
+	_name_ask.text = Lang.t("Wie heißt dein Held?")
+	_name_ask.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_name_ask)
 	_name_edit = LineEdit.new()
 	_name_edit.max_length = 16
 	_name_edit.placeholder_text = Lang.t("Dein Name")
@@ -819,10 +1122,15 @@ func _start_new_game() -> void:
 	home_claimed = false
 	secrets_found = 0
 	dry_levels = 0
+	looted.clear()
+	builds.clear()
+	met.clear()
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
 	player.knives = 5
+	player.set_sex(_new_sex)
+	player.set_hair(HairLook.DEFAULT)
 	player.reset_gifts()
 	# The hero keeps what they trained in earlier runs under this name.
 	player.xp = Training.load_hero(hero_name)
@@ -1005,11 +1313,34 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_armor = int(data.get("gift_armor", 0))
 	player.equipped = data.equipped
 	player.wear = data.get("wear", {})
+	player.set_sex(str(data.get("sex", BodyLook.DEFAULT))) # Games saved before there were heroines have a hero.
+	player.set_hair(data.get("hair", {}))
 	player.xp = Training.load_hero(hero_name)
 	lore.assign(data.get("lore", []))
+	looted.clear()
+	var saved_loot = data.get("looted", {})
+	if saved_loot is Dictionary:
+		for file in saved_loot:
+			var ids := {}
+			if saved_loot[file] is Array:
+				for id in saved_loot[file]:
+					ids[str(id)] = true
+			looted[file] = ids
+	builds.clear()
+	var saved_builds = data.get("builds", {})
+	if saved_builds is Dictionary:
+		for file in saved_builds:
+			if saved_builds[file] is Array:
+				builds[str(file)] = (saved_builds[file] as Array).filter(func(e): return e is Array and e.size() >= 4)
 	escaped = bool(data.get("escaped", false))
 	home_given = bool(data.get("home", false))
 	home_claimed = home_given and bool(data.get("claimed", false))
+	met.clear()
+	var saved_met = data.get("met", [])
+	if saved_met is Array:
+		for role in saved_met:
+			if Villager.ROLES.has(str(role)):
+				met[str(role)] = true
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
@@ -1106,11 +1437,12 @@ func _home_given_now() -> bool:
 func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp)
 	var data := {
-		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
-		"equipped": player.equipped, "wear": player.wear, "bag": player.bag, "storage": storage, "shop": shop_stock,
+		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
 		"saved_at": Time.get_unix_time_from_system(),
+		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 	}
 	if going_away:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
@@ -1122,6 +1454,24 @@ func save_game(going_away := false) -> bool:
 	file.store_string(JSON.stringify(data))
 	file.close()
 	return FileAccess.file_exists(path)
+
+
+## The stone blocks per level file, levels without any left out.
+func _builds_for_save() -> Dictionary:
+	var out := {}
+	for file in builds:
+		if not builds[file].is_empty():
+			out[file] = builds[file]
+	return out
+
+
+## The looted ids per level file as plain lists, levels with none left out.
+func _looted_for_save() -> Dictionary:
+	var out := {}
+	for file in looted:
+		if not looted[file].is_empty():
+			out[file] = looted[file].keys()
+	return out
 
 
 ## The hero lies down in the safe room's bed: save, then back to the title.
@@ -1138,9 +1488,67 @@ func sleep() -> void:
 		player.play("Lie_Down", 0.2)
 	else:
 		_climb_into_bed(tween, bed)
-	tween.tween_interval(1.2)
-	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
-	tween.tween_callback(func(): _show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")))
+	# Settled on the back, the hero closes their eyes and drifts off: a few
+	# floating Z's and some soft snoring before the night falls.
+	tween.tween_interval(1.9)
+	tween.tween_callback(_fall_asleep)
+	tween.tween_interval(2.6)
+	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.6)
+	tween.tween_callback(func():
+		_stop_snoozing()
+		_show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")))
+
+
+## The letters drifting up from a sleeping hero, one after the other.
+const SNOOZE_LETTERS := ["Z", "Z", "Z", "z", "z", "z"]
+const SNOOZE_GAP := 0.5
+var _snooze: Tween = null
+
+
+func _fall_asleep() -> void:
+	player.set_asleep(true)
+	_stop_snoozing()
+	_snooze = create_tween().set_loops()
+	# One snore per breath, and a "ZZZzzz" rising with it.
+	_snooze.tween_callback(func(): Sfx.play(self, "snore", -3.0, player.global_position, 1.0))
+	for i in SNOOZE_LETTERS.size():
+		_snooze.tween_callback(_float_snooze_letter.bind(i))
+		_snooze.tween_interval(SNOOZE_GAP)
+
+
+func _stop_snoozing() -> void:
+	if _snooze:
+		_snooze.kill()
+		_snooze = null
+
+
+## A Z rising from the sleeper's head, swaying a little as it fades away.
+## The first ones are big, the later ones small, like "ZZZzzz".
+func _float_snooze_letter(i: int) -> void:
+	var slot := player.find_child("HeadSlot", true, false) as Node3D
+	var from := (slot.global_position if slot else player.global_position) + Vector3(0.3, 0.9, 0)
+	var label := Label3D.new()
+	label.text = SNOOZE_LETTERS[i]
+	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	label.font_size = 72 - i * 7
+	label.pixel_size = 0.012
+	label.outline_size = 12
+	label.outline_modulate = Color(0.05, 0.03, 0.12, 0.9)
+	label.modulate = Color(0.85, 0.9, 1.0, 0.0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.render_priority = 20
+	label.outline_render_priority = 19
+	level.add_child(label)
+	label.global_position = from
+	var drift := Vector3(0.5 + 0.1 * i, 1.8, -0.2)
+	var tween := label.create_tween()
+	tween.tween_method(func(t: float):
+		label.global_position = from + drift * t + Vector3(sin(t * TAU * 1.2) * 0.25, 0, 0), 0.0, 1.0, 2.4)
+	tween.parallel().tween_property(label, "modulate:a", 1.0, 0.4)
+	tween.parallel().tween_property(label, "modulate:a", 0.0, 1.0).set_delay(1.4)
+	tween.parallel().tween_property(label, "outline_modulate:a", 0.0, 1.0).set_delay(1.4)
+	tween.tween_callback(label.queue_free)
 
 
 ## How high the mattress of the bed lies, and how far from the bed's middle
@@ -1411,8 +1819,8 @@ func _gold(amount: int) -> int:
 	return amount * 2 if player.has_special("gluecksklee") else amount
 
 
-func _on_enemy_killed() -> void:
-	show_message(Lang.t("Das Skelett zerfällt zu Staub."), 2.5)
+func _on_enemy_killed(enemy: Enemy) -> void:
+	show_message(Lang.t("Der Räuber geht zu Boden.") if enemy.is_human() else Lang.t("Das Skelett zerfällt zu Staub."), 2.5)
 	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:
 		player.hp += 1
 		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+1", Color(0.5, 1.0, 0.5))
@@ -1493,7 +1901,7 @@ func _search(obj: Dictionary) -> void:
 	if obj.searched:
 		Effects.float_text(level, obj.icon_pos, Lang.t("Schon durchsucht"), Color(0.8, 0.8, 0.8), true)
 		return
-	if obj.loot.has("item") and player.bag.size() >= Items.BAG_SIZE:
+	if obj.loot.has("item") and player.bag.size() >= player.bag_size():
 		if not _message_busy():
 			show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0)
 		return
@@ -1796,9 +2204,13 @@ func _guardian_intro() -> void:
 
 func _process(delta: float) -> void:
 	_eerie(delta)
-	# A skeleton on the hero's heels keeps the fight going.
+	# A skeleton on the hero's heels keeps the fight going, and a hero who
+	# has been spotted cannot stay hidden.
 	if state == State.PLAYING and level and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):
 		player.mark_fight()
+		if player.sneaking:
+			player.set_sneaking(false)
+			show_message(Lang.t("Entdeckt! Du kannst nicht mehr schleichen."), 1.6)
 	_guardian_intro()
 	var p := player.global_position
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
@@ -1814,6 +2226,7 @@ func _process(delta: float) -> void:
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)
+	_update_drag(delta)
 	_update_run_meter()
 	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
 		_prompt.text = ""
@@ -1823,6 +2236,16 @@ func _process(delta: float) -> void:
 		if _reach(_pending_station.pos) <= Level.SEARCH_RANGE + 0.3:
 			_use_station(_pending_station)
 		_pending_station = {}
+	if _pending_crate != null and player.can_act():
+		if not is_instance_valid(_pending_crate) or not level.crates.has(_pending_crate):
+			_pending_crate = null
+		elif _arrived(_pending_crate.global_position) or _reach(_pending_crate.global_position) <= Level.CRATE_REACH:
+			var crate_pos := _pending_crate.global_position
+			_pending_crate = null
+			if _reach(crate_pos) <= Level.CRATE_REACH:
+				var why := pick_up_crate(crate_pos)
+				if why != "":
+					show_message(why, 1.6)
 	if not _pending_search.is_empty() and player.can_act() and _arrived(_pending_search.pos):
 		player.path.clear()
 		if _reach(_pending_search.pos) <= Level.SEARCH_RANGE + 0.3:
@@ -1841,9 +2264,17 @@ func _process(delta: float) -> void:
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"bank": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
+			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
 			"eingang": Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
+			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 		}[station.kind]
+	elif _prompt.text == "" and level.crate_in_reach(player) != null:
+		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")
+	elif _prompt.text == "" and _drag_stone != null:
+		_prompt.text = Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen")
+	elif _prompt.text == "" and level.stone_in_reach(player) != null:
+		_prompt.text = Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben")
 
 
 func _reach(pos: Vector3) -> float:
@@ -1894,6 +2325,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_mouse_held = event.pressed
+		if not event.pressed and _drag_stone != null:
+			_drop_stone()
+			return
 	var pressed: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed and not event.echo)
 	if not pressed:
 		return
@@ -1950,12 +2384,32 @@ func _unhandled_input(event: InputEvent) -> void:
 						_toggle_sound()
 					KEY_C:
 						_toggle_sneak()
+					KEY_E:
+						var why_not := ""
+						if level.crate_in_reach(player) == null and level.stone_in_reach(player) != null:
+							why_not = take_stone()
+						else:
+							why_not = pick_up_crate()
+						if why_not != "":
+							show_message(why_not, 1.6)
+					KEY_B:
+						var no_place := place_stone()
+						if no_place != "":
+							show_message(no_place, 1.6)
+					KEY_Q:
+						var no_room := put_down_crate()
+						if no_room != "":
+							show_message(no_room, 1.6)
 					KEY_ESCAPE:
 						if player.can_act():
 							menus.open("beenden")
 			elif event is InputEventMouseButton:
 				var point = _mouse_to_floor(event.position)
 				if point == null:
+					return
+				if event.button_index == MOUSE_BUTTON_RIGHT and _drag_stone != null:
+					# Turns the dragged block a quarter round.
+					_drag_along_x = not _drag_along_x
 					return
 				if event.button_index == MOUSE_BUTTON_RIGHT:
 					# While running with the left button held, right click jumps.
@@ -1964,7 +2418,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					else:
 						player.throw_knife(point)
 				elif event.button_index == MOUSE_BUTTON_LEFT:
-					if event.double_click:
+					if _grab_stone(event.position):
+						_mouse_held = false
+					elif event.double_click:
 						_toggle_sneak()
 					else:
 						_click(point)
@@ -1979,14 +2435,31 @@ func _mouse_to_floor(screen_pos: Vector2):
 
 
 func _click(point: Vector3) -> void:
-	# Clicking an enemy attacks it, clicking an object searches it.
+	# Clicking an enemy attacks it: a strike when it is in reach, else the
+	# hero walks up to it and strikes. Clicking an object searches it.
+	player.stop_hunt()
 	for e in level.enemies:
 		if is_instance_valid(e) and not e.dead and e.visible and Vector2(e.global_position.x - point.x, e.global_position.z - point.z).length() < 1.6:
 			if player.global_position.distance_to(e.global_position) < Player.MELEE_RANGE + 1.0:
 				player.melee()
 			else:
-				player.throw_knife(e.global_position)
+				player.charge(e)
 			return
+	# Clicking a crate picks it up: right away when it is in reach, else
+	# after walking up to it.
+	var crate := level.crate_at(point)
+	_pending_crate = null
+	if crate != null and crate == level.crate_in_reach(player, crate.global_position):
+		var why := pick_up_crate(crate.global_position)
+		if why != "":
+			show_message(why, 1.6)
+		return
+	if crate != null and level.crate_on(crate) == null and player.global_position.y < crate.top() - 0.3 and _reach(crate.global_position) > Level.CRATE_REACH:
+		_pending_crate = crate
+		_pending_search = {}
+		_pending_station = {}
+		player.walk_to(crate.global_position, WALK_UP_TO)
+		return
 	var station := level.nearest_station(point, 2.2)
 	if not station.is_empty():
 		_pending_station = station

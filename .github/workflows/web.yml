@@ -189,6 +189,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/village_buildings.gd | tee village.log
           grep -q PASS village.log
 
+      - name: Town houses for many heroes test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/player_houses.gd | tee houses.log
+          grep -q PASS houses.log
+
       - name: Recipes and ingredient pouch test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/crafting.gd | tee crafting.log

@@ -14,14 +14,21 @@ extends RefCounted
 ## How well the hero handles a craft is trained like a skill (Training.CRAFTS)
 ## and stays with the hero's name.
 
-## Everything that goes into a recipe. "where" tells the compendium where
-## to look for it.
+## Everything that goes into a recipe, as the ingredient book shows it:
+## "region" where it is found, "when" the condition under which it can be
+## had ("" for any time), "source" what yields it (a vein, a plant, a
+## creature's loot, a quest), and "where" a sentence on how to find it.
+## The book lists an ingredient once a known recipe names it; its place is
+## marked as found once the hero gathered it there.
 const INGREDIENTS := {
-	"mondsilbererz": {"name": "Mondsilbererz",
+	"mondsilbererz": {"name": "Mondsilbererz", "region": "Wildnis", "when": "nur nachts", "source": "Erzader",
 		"where": "Eine Ader in der Wildnis, die nur bei Nacht schimmert."},
-	"mondstein": {"name": "Mondstein",
+	"mondstein": {"name": "Mondstein", "region": "Verlies", "when": "", "source": "Beute der Knochenmagier",
 		"where": "Knochenmagier im Verlies hüten ihn."},
 }
+## The smith's iron bars in the ingredient book.
+const IRON := {"name": "Eisenbarren", "region": "Dorf", "when": "", "source": "Schmied Gorm",
+	"where": "Gorm verkauft Eisenbarren und schmilzt Metall aus deiner Tasche zu neuen ein."}
 
 ## The recipes. "giver" is the villager who hands out the scroll, "craft" and
 ## "craft_level" the craft it needs, "ingredients" what goes in (ingredient
@@ -47,13 +54,16 @@ const RECIPES := {
 }
 
 ## Explained once in the compendium, when the first recipe is found.
-const HOW_TO := "Rezepte stehen im Kompendium (Taste H) unter „Rezepte“: was hineingehört, welches Handwerk es braucht, und verblasste Zeilen (…), die du noch herausfinden musst. Zutaten kommen in deinen Zutatenbeutel, nicht in die Tasche."
+const HOW_TO := "Rezepte stehen im Kompendium (Taste H) im „Rezeptbuch“: was hineingehört, welches Handwerk es braucht, und verblasste Zeilen (…), die du noch herausfinden musst. Darunter stehen die Zutaten: wo und wann man sie findet und woher sie kommen. Zutaten kommen in deinen Zutatenbeutel, nicht in die Tasche."
 
 var game: Node
 ## Known recipes: recipe id -> {"read": [ids of faded lines already read]}.
 var known := {}
 ## The ingredient pouch: ingredient id -> count.
 var pouch := {}
+## Ingredients the hero gathered at least once: their place is marked as
+## found in the ingredient book.
+var found := []
 
 
 func _init(owner_game: Node = null) -> void:
@@ -63,6 +73,7 @@ func _init(owner_game: Node = null) -> void:
 func clear() -> void:
 	known.clear()
 	pouch.clear()
+	found.clear()
 
 
 func knows(id: String) -> bool:
@@ -106,6 +117,8 @@ func add(ingredient: String, count := 1) -> void:
 		game.iron += count
 	elif INGREDIENTS.has(ingredient):
 		pouch[ingredient] = have(ingredient) + count
+		if not found.has(ingredient):
+			found.append(ingredient)
 
 
 ## Whether every ingredient of a recipe is in the pouch.
@@ -125,7 +138,7 @@ static func ingredient_name(ingredient: String) -> String:
 
 ## What is kept in the saved game: only plain values.
 func for_save() -> Dictionary:
-	return {"known": known.duplicate(true), "pouch": pouch.duplicate()}
+	return {"known": known.duplicate(true), "pouch": pouch.duplicate(), "found": found.duplicate()}
 
 
 ## Back from the saved game; unknown recipes, ingredients and lines are left
@@ -155,6 +168,11 @@ func load_from(saved) -> void:
 			var count := int(saved_pouch[ingredient])
 			if INGREDIENTS.has(str(ingredient)) and count > 0:
 				pouch[str(ingredient)] = count
+	var saved_found = saved.get("found", [])
+	if saved_found is Array:
+		for ingredient in saved_found:
+			if INGREDIENTS.has(str(ingredient)) and not found.has(str(ingredient)):
+				found.append(str(ingredient))
 
 
 # --- Villagers ------------------------------------------------------------------
@@ -182,7 +200,7 @@ func talk(v: Villager) -> bool:
 	v.meet()
 	v.say(Lang.t(RECIPES[id].offer), game.player.global_position, 6.5)
 	game.learn(HOW_TO)
-	game.quest_news(Lang.t("Neues Rezept: %s") % Lang.t(RECIPES[id].name) + "\n" + Lang.t("Steht im Kompendium (H) unter „Rezepte“."), Color(0.75, 0.85, 1.0))
+	game.quest_news(Lang.t("Neues Rezept: %s") % Lang.t(RECIPES[id].name) + "\n" + Lang.t("Steht im Kompendium (H) im „Rezeptbuch“."), Color(0.75, 0.85, 1.0))
 	return true
 
 
@@ -209,12 +227,30 @@ func describe(id: String) -> String:
 	return "\n".join(lines)
 
 
-## The ingredient pouch in words, for the compendium.
-func pouch_text() -> String:
-	var parts := []
-	for ingredient in INGREDIENTS:
-		if have(ingredient) > 0:
-			parts.append("%s %d" % [ingredient_name(ingredient), have(ingredient)])
-	if parts.is_empty():
-		return Lang.t("Dein Zutatenbeutel ist leer.")
-	return Lang.t("Im Zutatenbeutel: %s") % ", ".join(parts)
+## The ingredients for the ingredient book: every one a known recipe names,
+## in the order the recipes name them, and anything else in the pouch.
+func book_ingredients() -> Array:
+	var ids := []
+	for id in entries():
+		for ingredient in RECIPES[id].ingredients:
+			if not ids.has(ingredient):
+				ids.append(ingredient)
+	for ingredient in pouch:
+		if not ids.has(ingredient):
+			ids.append(ingredient)
+	return ids
+
+
+## An ingredient as the ingredient book shows it: how many are in the
+## pouch, where and when it is found and what yields it, how to find it,
+## and whether the hero found the place yet.
+func describe_ingredient(ingredient: String) -> String:
+	var info: Dictionary = IRON if ingredient == "eisen" else INGREDIENTS[ingredient]
+	var place := Lang.t("Ort: %s") % Lang.t(info.region)
+	if info.when != "":
+		place += "  ·  " + Lang.t("Zeit: %s") % Lang.t(info.when)
+	place += "  ·  " + Lang.t("Quelle: %s") % Lang.t(info.source)
+	var lines := ["%s  (%s)" % [ingredient_name(ingredient), Lang.t("%d dabei") % have(ingredient)], place, Lang.t(info.where)]
+	if ingredient != "eisen":
+		lines.append(Lang.t("Fundort entdeckt.") if found.has(ingredient) else Lang.t("Fundort noch nicht selbst entdeckt."))
+	return "\n".join(lines)

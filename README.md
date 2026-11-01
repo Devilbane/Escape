@@ -257,9 +257,10 @@ defined in `scripts/quests.gd`: adding one is a single entry there plus its Engl
 **Recipes and crafts.** Odo the Scholar has an old scroll for you: the recipe for a **Moonsilver Ring**.
 A recipe names its ingredients and the craft it needs, but some of its lines have faded (they show only a
 fragment like "A still … without …") until you find out what they say. Ingredients go into an
-**ingredient pouch**, not the bag, so gathering them never fills it up. The **Recipes** page of the
+**ingredient pouch**, not the bag, so gathering them never fills it up. The **Recipe book** page of the
 compendium (key H) shows every recipe you found, what you have of each ingredient, and how far your craft
-has come; the crafts (for now **fine metalwork**) are listed on the character page. This is the start of a
+has come. Below the recipes it lists each ingredient they name: where it is found, when (for example only
+at night), what yields it (an ore vein, a creature's loot, the smith), and whether you found the place yourself; the crafts (for now **fine metalwork**) are listed on the character page. This is the start of a
 longer loop: gather ingredients from all over the world, learn and train the craft, work out the faded
 lines, and finish the piece under the right influences (a calm mind, a goddess's favour, the right stars).
 Recipes and ingredients are defined in `scripts/crafting.gd`, the crafts in `Training.CRAFTS`.

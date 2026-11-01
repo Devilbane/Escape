@@ -9,6 +9,8 @@ extends SceneTree
 var failures := 0
 var game: Node
 var frames := 0
+## Set at the very end of _test: a script error stops the test early.
+var finished := false
 const HERO := "Crafting test"
 
 
@@ -29,6 +31,7 @@ func _process(_delta: float) -> bool:
 	if frames < 5:
 		return false
 	_test()
+	check(finished, "the whole test ran through")
 	game.delete_save(game.save_path(HERO))
 	if failures == 0:
 		print("PASS: crafting")
@@ -66,8 +69,10 @@ func _test() -> void:
 
 	# Every text has its English.
 	for id in Crafting.INGREDIENTS:
-		for key in ["name", "where"]:
+		for key in ["name", "where", "region", "source"]:
 			check(Lang.EN.has(Crafting.INGREDIENTS[id][key]), "%s: the %s has an English text" % [id, key])
+		var when: String = Crafting.INGREDIENTS[id].when
+		check(when == "" or Lang.EN.has(when), "%s: the time has an English text" % id)
 	for id in Crafting.RECIPES:
 		var r: Dictionary = Crafting.RECIPES[id]
 		check(Lang.EN.has(r.name) and Lang.EN.has(r.offer), "%s has an English name and offer" % id)
@@ -79,6 +84,8 @@ func _test() -> void:
 			check(Lang.EN.has(line.text), "%s: line %s has an English text" % [id, line.id])
 			if line.get("hidden", false):
 				check(Lang.EN.has(line.faded), "%s: faded line %s has an English fragment" % [id, line.id])
+	for key in ["name", "where", "region", "source"]:
+		check(Lang.EN.has(Crafting.IRON[key]), "iron bars: the %s has an English text" % key)
 	check(Lang.EN.has(Crafting.HOW_TO), "the how-to has an English text")
 
 	# Odo hands out the recipe, once.
@@ -103,12 +110,20 @@ func _test() -> void:
 	check(not game.crafting.read_line("mondsilberring", "gemuet"), "a line is read only once")
 	check(game.crafting.describe("mondsilberring").contains("Ein stilles Gemüt"), "a read line shows in full")
 
+	# The ingredient book lists what the recipe names, where and when.
+	check(game.crafting.book_ingredients() == ["mondsilbererz", "mondstein", "eisen"], "the book lists the recipe's ingredients")
+	var ore: String = game.crafting.describe_ingredient("mondsilbererz")
+	check(ore.contains("Ort: Wildnis") and ore.contains("Zeit: nur nachts") and ore.contains("Quelle: Erzader"), "the book says where and when the ore is found")
+	check(ore.contains("0 dabei") and ore.contains("noch nicht selbst entdeckt"), "the place is not found before gathering")
+	check(not game.crafting.describe_ingredient("mondstein").contains("Zeit:"), "an ingredient for any time shows no time")
+	check(game.crafting.describe_ingredient("eisen").contains("Schmied Gorm"), "iron bars come from the smith")
+
 	# The pouch, with the smith's iron bars counted in.
-	check(game.crafting.pouch_text() == "Dein Zutatenbeutel ist leer.", "the pouch starts empty")
 	game.crafting.add("mondsilbererz", 2)
 	game.crafting.add("mondstein")
 	game.crafting.add("unbekannt")
 	check(game.crafting.have("mondsilbererz") == 2 and game.crafting.have("unbekannt") == 0, "known ingredients go into the pouch")
+	check(game.crafting.describe_ingredient("mondsilbererz").contains("2 dabei") and game.crafting.describe_ingredient("mondsilbererz").contains("Fundort entdeckt."), "gathering marks the place as found")
 	check(not game.crafting.has_ingredients("mondsilberring"), "an iron bar is still missing")
 	game.iron = 1
 	check(game.crafting.has_ingredients("mondsilberring"), "with an iron bar everything is there")
@@ -135,10 +150,11 @@ func _test() -> void:
 	game._apply_save(data)
 	check(game.crafting.entries().is_empty(), "an older saved game starts without recipes")
 	game.crafting.load_from({"known": {"mondsilberring": {"read": ["gemuet", "nonsense"]}, "unknown": {}},
-			"pouch": {"mondstein": 2, "sand": 4, "mondsilbererz": -1}})
+			"pouch": {"mondstein": 2, "sand": 4, "mondsilbererz": -1}, "found": ["mondstein", "sand", "mondstein"]})
 	check(game.crafting.entries() == ["mondsilberring"], "unknown recipes are left out")
 	check(game.crafting.known.mondsilberring.read == ["gemuet"], "unknown lines are left out")
 	check(game.crafting.pouch == {"mondstein": 2}, "unknown or empty ingredients are left out")
+	check(game.crafting.found == ["mondstein"], "unknown or doubled found places are left out")
 
 	# A new recipe page falls back when there are no recipes.
 	game.crafting.clear()
@@ -146,3 +162,4 @@ func _test() -> void:
 	game.menus.open("kompendium")
 	check(game.menus.compendium_page == "wissen", "without recipes the compendium shows what was learned")
 	game.menus.close()
+	finished = true

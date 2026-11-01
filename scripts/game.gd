@@ -42,6 +42,9 @@ var _ambience: AudioStreamPlayer
 var escaped := false
 ## Whether the village elder has given the hero a house.
 var home_given := false
+## The villagers the hero has talked to, by role letter -> true. Once met,
+## a villager wears their name over their head. Kept in the saved game.
+var met := {}
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
 var coins := 0
@@ -644,6 +647,7 @@ func load_level(index: int, restock := true) -> void:
 		level.interiors = interiors
 		level.house_given = home_given
 		level._entered_once = home_given
+		level.met = met
 	level.secret_bonus = secrets_found
 	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
 	add_child(level)
@@ -824,6 +828,7 @@ func _start_new_game() -> void:
 	secrets_found = 0
 	dry_levels = 0
 	looted.clear()
+	met.clear()
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
@@ -1025,6 +1030,12 @@ func _apply_save(data: Dictionary) -> void:
 			looted[file] = ids
 	escaped = bool(data.get("escaped", false))
 	home_given = bool(data.get("home", false))
+	met.clear()
+	var saved_met = data.get("met", [])
+	if saved_met is Array:
+		for role in saved_met:
+			if Villager.ROLES.has(str(role)):
+				met[str(role)] = true
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
@@ -1126,7 +1137,7 @@ func save_game(going_away := false) -> bool:
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(),
 		"saved_at": Time.get_unix_time_from_system(),
-		"looted": _looted_for_save(),
+		"looted": _looted_for_save(), "met": met.keys(),
 	}
 	if going_away and level is Outdoor:
 		# Asleep in the bed of the hero's own house: wake up there.

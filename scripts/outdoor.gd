@@ -87,6 +87,10 @@ const WILD_WARNING_RANGE := 16.0
 var villagers: Array = []
 ## Has the elder handed the house over yet? Saved games wake up at home.
 var house_given := false
+## The villagers the hero has talked to, by role letter (see Villager.ROLES):
+## their names stay over their heads. Shared with Game.met, so it is kept in
+## the saved game.
+var met := {}
 ## Where the hero wakes up in the house: next to the bed.
 var home_spot := Vector3.ZERO
 ## Fronts of the village buildings: where villagers walk to.

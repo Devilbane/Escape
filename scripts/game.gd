@@ -1166,9 +1166,67 @@ func sleep() -> void:
 		player.play("Lie_Down", 0.2)
 	else:
 		_climb_into_bed(tween, bed)
-	tween.tween_interval(1.2)
-	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
-	tween.tween_callback(func(): _show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")))
+	# Settled on the back, the hero closes their eyes and drifts off: a few
+	# floating Z's and some soft snoring before the night falls.
+	tween.tween_interval(1.9)
+	tween.tween_callback(_fall_asleep)
+	tween.tween_interval(2.6)
+	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.6)
+	tween.tween_callback(func():
+		_stop_snoozing()
+		_show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")))
+
+
+## The letters drifting up from a sleeping hero, one after the other.
+const SNOOZE_LETTERS := ["Z", "Z", "Z", "z", "z", "z"]
+const SNOOZE_GAP := 0.5
+var _snooze: Tween = null
+
+
+func _fall_asleep() -> void:
+	player.set_asleep(true)
+	_stop_snoozing()
+	_snooze = create_tween().set_loops()
+	# One snore per breath, and a "ZZZzzz" rising with it.
+	_snooze.tween_callback(func(): Sfx.play(self, "snore", -3.0, player.global_position, 1.0))
+	for i in SNOOZE_LETTERS.size():
+		_snooze.tween_callback(_float_snooze_letter.bind(i))
+		_snooze.tween_interval(SNOOZE_GAP)
+
+
+func _stop_snoozing() -> void:
+	if _snooze:
+		_snooze.kill()
+		_snooze = null
+
+
+## A Z rising from the sleeper's head, swaying a little as it fades away.
+## The first ones are big, the later ones small, like "ZZZzzz".
+func _float_snooze_letter(i: int) -> void:
+	var slot := player.find_child("HeadSlot", true, false) as Node3D
+	var from := (slot.global_position if slot else player.global_position) + Vector3(0.3, 0.9, 0)
+	var label := Label3D.new()
+	label.text = SNOOZE_LETTERS[i]
+	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	label.font_size = 72 - i * 7
+	label.pixel_size = 0.012
+	label.outline_size = 12
+	label.outline_modulate = Color(0.05, 0.03, 0.12, 0.9)
+	label.modulate = Color(0.85, 0.9, 1.0, 0.0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.render_priority = 20
+	label.outline_render_priority = 19
+	level.add_child(label)
+	label.global_position = from
+	var drift := Vector3(0.5 + 0.1 * i, 1.8, -0.2)
+	var tween := label.create_tween()
+	tween.tween_method(func(t: float):
+		label.global_position = from + drift * t + Vector3(sin(t * TAU * 1.2) * 0.25, 0, 0), 0.0, 1.0, 2.4)
+	tween.parallel().tween_property(label, "modulate:a", 1.0, 0.4)
+	tween.parallel().tween_property(label, "modulate:a", 0.0, 1.0).set_delay(1.4)
+	tween.parallel().tween_property(label, "outline_modulate:a", 0.0, 1.0).set_delay(1.4)
+	tween.tween_callback(label.queue_free)
 
 
 ## How high the mattress of the bed lies, and how far from the bed's middle

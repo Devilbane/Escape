@@ -36,6 +36,10 @@ var player: Player
 var camera: Camera3D
 var _env: Environment
 var _moon: DirectionalLight3D
+## The time of day above ground, in hours (see DayNight). Saved with the game.
+var day_hour := DayNight.START_HOUR
+## The clock as the HUD shows it right now.
+var _clock_shown := ""
 var _ambience: AudioStreamPlayer
 ## Set once the hero has stepped out of the crypt into the open air: the run
 ## is in the ranking as an escape, and goes on in the village.
@@ -241,16 +245,11 @@ func _setup_world() -> void:
 	add_child(dust)
 
 
-## Dark dungeon air or a golden autumn evening in the open.
+## Dark dungeon air, or in the open the sky of the hour (see DayNight:
+## by day the warm autumn light, at night a cool blue moonlight).
 func _set_atmosphere(outdoor: bool) -> void:
 	if outdoor:
-		_env.background_color = Color(0.5, 0.46, 0.57)
-		_env.ambient_light_color = Color(0.7, 0.68, 0.78)
-		_env.ambient_light_energy = 0.52
-		_env.adjustment_saturation = 0.95
-		_moon.rotation_degrees = Vector3(-38, -35, 0)
-		_moon.light_color = Color(1.0, 0.8, 0.6)
-		_moon.light_energy = 0.88
+		DayNight.apply(_env, _moon, day_hour)
 	else:
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
@@ -871,6 +870,9 @@ func _update_run_meter() -> void:
 
 func _update_hud() -> void:
 	_level_label.text = Lang.t(level.level_name) if level.outdoor or level.building != "" else Lang.t("Ebene %d: %s") % [level_index + 1, Lang.t(level.level_name)]
+	_clock_shown = _clock_text()
+	if _clock_shown != "":
+		_level_label.text += "    " + _clock_shown
 	_hp_label.text = Lang.t("Leben: %d / %d") % [maxi(0, player.hp), player.max_hp]
 	if player.hardening > 0:
 		_hp_label.text += "    " + Lang.t("Härtung %d") % player.hardening
@@ -891,6 +893,29 @@ func _update_hud() -> void:
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
 
 
+## The time of day for the HUD, e.g. "21:30, night", above ground only.
+func _clock_text() -> String:
+	if level == null or not (level.outdoor or level.building != ""):
+		return ""
+	return "%s, %s" % [DayNight.clock_text(day_hour), Lang.t(DayNight.part_of_day(day_hour))]
+
+
+## The world's clock runs while the hero is above ground (in the open or in
+## a village building) and the world is not paused; the open air is lit for
+## the hour. Down in the dungeon time stands still.
+func _tick_clock(delta: float) -> void:
+	if level == null or not (level.outdoor or level.building != ""):
+		return
+	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
+		day_hour = DayNight.advance(day_hour, delta)
+	if level.outdoor:
+		DayNight.apply(_env, _moon, day_hour)
+		if level is Outdoor:
+			level.set_hour(day_hour)
+	if _clock_text() != _clock_shown:
+		_update_hud()
+
+
 # --- Flow -------------------------------------------------------------------
 
 func load_level(index: int, restock := true) -> void:
@@ -909,6 +934,8 @@ func load_level(index: int, restock := true) -> void:
 	level.built = builds[file]
 	level.hero = hero_name
 	if level is Outdoor:
+		# Bandits who take their spots at night are tougher (see Outdoor.set_hour).
+		level.night = DayNight.is_night(day_hour)
 		level.interiors = interiors
 		level.house_given = home_given
 		level._entered_once = home_given
@@ -946,6 +973,8 @@ func load_level(index: int, restock := true) -> void:
 	_pending_crate = null
 	_end_drag()
 	_set_atmosphere(level.outdoor)
+	if level is Outdoor:
+		level.set_hour(day_hour)
 	_pending_search = {}
 	_pending_station = {}
 	if level.safe and restock:
@@ -1122,6 +1151,7 @@ func _start_new_game() -> void:
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
+	day_hour = DayNight.START_HOUR
 	player.knives = 5
 	player.set_sex(_new_sex)
 	player.set_hair(HairLook.DEFAULT)
@@ -1338,6 +1368,8 @@ func _apply_save(data: Dictionary) -> void:
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
 	player.refresh_stats()
+	# Games saved before there was a clock wake up in the morning.
+	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
 	if escaped and _outdoor_index() >= 0:
 		# Out of the dungeon, the graveyard is the new starting point: every
@@ -1436,6 +1468,7 @@ func save_game(going_away := false) -> bool:
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(),
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
+		"hour": day_hour,
 	}
 	if going_away and level is Outdoor:
 		# Asleep in the bed of the hero's own house: wake up there.
@@ -1472,6 +1505,9 @@ func _looted_for_save() -> Dictionary:
 
 ## The hero lies down in the safe room's bed: save, then back to the title.
 func sleep() -> void:
+	# A night in the bed: the hero wakes up the next morning.
+	if level.outdoor or level.building != "":
+		day_hour = DayNight.WAKE_HOUR
 	var saved := save_game(true)
 	# Say so at once, so nobody has to wonder whether the save went through.
 	show_message(Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"), 2.4)
@@ -2185,6 +2221,7 @@ func _guardian_intro() -> void:
 
 func _process(delta: float) -> void:
 	_eerie(delta)
+	_tick_clock(delta)
 	# A skeleton on the hero's heels keeps the fight going, and a hero who
 	# has been spotted cannot stay hidden.
 	if state == State.PLAYING and level and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):

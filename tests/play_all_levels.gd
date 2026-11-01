@@ -50,7 +50,9 @@ func _process(delta: float) -> bool:
 	# Every knockdown of a running hero costs about 2.5 s on the floor, and
 	# the bot runs (and gets hit while running) all the time.
 	if total > 3000.0:
-		print("FAIL: timeout at level ", game.level_index + 1, " after ", game.player.knockdowns, " knockdowns")
+		var p: Player = game.player
+		print("FAIL: timeout at level ", game.level_index + 1, " after ", p.knockdowns, " knockdowns")
+		print("  state=%d cell=%s hp=%d path=%d can_act=%s controllable=%s frozen=%s dead=%s busy=%.1f down=%.1f anim=%s menus=%s" % [game.state, game.level.world_to_cell(p.global_position), p.hp, p.path.size(), p.can_act(), p.controllable, p.frozen, p.dead, p._busy, p._down, p._current_anim, game.menus.is_open()])
 		return true
 	if game.state == game.State.TITLE:
 		game._start_playing()

@@ -4,7 +4,8 @@ extends SceneTree
 ## follows the hero, digs up a hidden ingredient for them, stays theirs in
 ## the saved game, lounges about (sits, lies down, strolls) while the hero
 ## stands still, follows once the hero walks off, comes along down into the
-## dungeon and climbs the stairs behind the hero.
+## dungeon, climbs the stairs behind the hero and sleeps in its basket
+## beside the bed when the hero goes to bed.
 ## Run with: godot --headless --fixed-fps 60 -s tests/fox.gd
 
 var failures := 0
@@ -12,6 +13,9 @@ var game: Node
 var frames := 0
 var stage := 0
 var stage_frames := 0
+var stage_clock := 0.0
+## Checks made once per stage at a set time (see _once).
+var _done_once := {}
 var fox: Animal
 var foxes_before := 0
 var find_cell := Vector2i.ZERO
@@ -21,6 +25,7 @@ var max_gap := 0.0
 var off_ground := 0
 var first_level: Node = null
 var climbed_y := 0.0
+var basket := Vector3.ZERO
 
 
 func check(ok: bool, what: String) -> void:
@@ -61,12 +66,30 @@ func _foxes(lvl: Outdoor) -> int:
 	return lvl.animals.filter(func(a): return a.kind == "fuchs").size()
 
 
-func _process(_delta: float) -> bool:
+## Starts the clock of the next stage.
+func _next_stage() -> void:
+	stage_frames = 0
+	stage_clock = 0.0
+	_done_once.clear()
+
+
+## True the first time the stage clock passes `frame`.
+func _once(frame: int) -> bool:
+	if stage_frames < frame or _done_once.has(frame):
+		return false
+	_done_once[frame] = true
+	return true
+
+
+func _process(delta: float) -> bool:
 	frames += 1
 	if frames < 5:
 		return false
 	var lvl = game.level
-	stage_frames += 1
+	# Counted in game time (60 per second), so the test behaves the same
+	# with or without --fixed-fps.
+	stage_clock += delta
+	stage_frames = floori(stage_clock * 60.0)
 	match stage:
 		0:
 			game.hero_name = "Fox test"
@@ -122,13 +145,13 @@ func _process(_delta: float) -> bool:
 				game.player.bag.append(Pet.FOOD)
 			check(fox.is_curious(), "a fox is curious about a hero with a sausage")
 			_hero_near(lvl, fox.global_position, 6.0)
-			stage_frames = 0
+			_next_stage()
 			stage = 1
 		1:
 			# The fox comes for the sausages instead of bolting.
 			if is_instance_valid(fox):
 				check(not fox.is_fleeing(), "the fox does not bolt from a hero with a sausage")
-			if stage_frames == 60 and is_instance_valid(fox):
+			if _once(60) and is_instance_valid(fox):
 				check(fox.state in ["approach", "eat"], "the fox comes up to the hero (%s)" % fox.state)
 			if not game.has_fox and stage_frames < 1200:
 				return false
@@ -148,7 +171,7 @@ func _process(_delta: float) -> bool:
 			lvl.hidden_finds.clear()
 			lvl.hidden_finds.append({"cell": find_cell, "id": "trueffel"})
 			game.pet._rest = 0.0
-			stage_frames = 0
+			_next_stage()
 			stage = 2
 		2:
 			if not lvl.hidden_finds.is_empty() and stage_frames < 900:
@@ -156,7 +179,7 @@ func _process(_delta: float) -> bool:
 			check(lvl.hidden_finds.is_empty(), "the fox dug the truffle up")
 			# The hero walks over and picks it up.
 			game.player.global_position = lvl.cell_to_world(find_cell)
-			stage_frames = 0
+			_next_stage()
 			stage = 3
 		3:
 			if stage_frames < 30:
@@ -167,7 +190,7 @@ func _process(_delta: float) -> bool:
 			check(not lvl.taken.has("trueffel"), "dug-up ingredients are not marked as taken")
 			# The hero walks off: the fox follows.
 			_hero_near(lvl, game.player.global_position, 12.0)
-			stage_frames = 0
+			_next_stage()
 			stage = 4
 		4:
 			if stage_frames < 240:
@@ -179,7 +202,7 @@ func _process(_delta: float) -> bool:
 			lvl.hidden_finds.clear()
 			acts.clear()
 			max_gap = 0.0
-			stage_frames = 0
+			_next_stage()
 			stage = 7
 		7:
 			var pet: Pet = game.pet
@@ -201,10 +224,10 @@ func _process(_delta: float) -> bool:
 			check(off_ground == 0, "the lounging fox stays on open ground")
 			# The hero walks off: up it gets and follows.
 			_hero_near(lvl, game.player.global_position, 14.0)
-			stage_frames = 0
+			_next_stage()
 			stage = 8
 		8:
-			if stage_frames == 30:
+			if _once(30):
 				check(game.pet.state in ["follow", "seek"], "the fox gets up and follows when the hero walks off (%s)" % game.pet.state)
 			if stage_frames < 300:
 				return false
@@ -214,7 +237,7 @@ func _process(_delta: float) -> bool:
 			game.has_fox = false
 			game.fox_trust = 0
 			game._apply_save(game._read_save())
-			stage_frames = 0
+			_next_stage()
 			stage = 5
 		5:
 			if stage_frames < 10:
@@ -225,7 +248,7 @@ func _process(_delta: float) -> bool:
 			check(_foxes(game.level) == foxes_before - 1, "the tamed fox is not back on its meadow")
 			# Down in the dungeon the fox comes along, and finds hide there too.
 			game.load_level(0, false)
-			stage_frames = 0
+			_next_stage()
 			stage = 6
 		6:
 			if stage_frames < 30:
@@ -241,20 +264,53 @@ func _process(_delta: float) -> bool:
 			first_level = game.level
 			climbed_y = 0.0
 			game._on_exit_reached()
-			stage_frames = 0
+			_next_stage()
 			stage = 9
 		9:
 			if game.level == first_level and is_instance_valid(game.pet):
-				if stage_frames == 30:
+				if _once(30):
 					check(game.pet.state == "climb", "the fox takes the stairs behind the hero (%s)" % game.pet.state)
 				climbed_y = maxf(climbed_y, game.pet.global_position.y)
 				return false
-			if stage_frames < 200:
+			if stage_frames < 200 or game.state != game.State.PLAYING:
 				return false
+			print("after the stairs: ", game.level.level_name)
 			check(climbed_y > 1.0, "the fox went up the steps (%.1f m)" % climbed_y)
 			check(game.pet != null and is_instance_valid(game.pet) and game.pet.get_parent() == game.level, "the fox arrives on the next level")
 			check(Pet._flat(game.pet.global_position - game.player.global_position).length() < Pet.LEASH + 0.5, "the fox is at the hero's side on the next level")
 			check(game.pet.global_position.y < 0.1, "the fox stands on the floor of the next level")
+			# The refuge: a basket stands beside the bed, and when the hero
+			# goes to bed the fox curls up in it.
+			var refuge := -1
+			for i in game.level_files.size():
+				if "zuflucht" in game.level_files[i]:
+					refuge = i
+			game.load_level(refuge, false)
+			game.state = game.State.PLAYING
+			_next_stage()
+			stage = 10
+		10:
+			if stage_frames < 30:
+				return false
+			lvl = game.level
+			var bed: Dictionary = game._nearest_bed()
+			check(not bed.is_empty(), "the refuge has a bed (on %s)" % lvl.level_name)
+			check(lvl._baskets.size() == lvl.fox_beds.size() and not lvl.fox_beds.is_empty(), "a fox basket stands in the refuge")
+			if bed.is_empty() or lvl.fox_beds.is_empty():
+				_finish()
+				return true
+			basket = lvl.fox_bed_near(bed.pos)
+			check(lvl._flat_distance(basket, bed.pos) < 5.0, "the basket stands beside the bed")
+			check(lvl._walkable(lvl.world_to_cell(basket)) and not lvl.astar.is_point_solid(lvl.world_to_cell(basket)), "the basket stands on open floor")
+			game.player.global_position = bed.pos + Vector3(0, 0, 3.0)
+			game.sleep()
+			_next_stage()
+			stage = 11
+		11:
+			if not game.pet.is_asleep() and stage_frames < 360:
+				return false
+			check(game.pet.is_asleep(), "the fox is asleep when the hero goes to bed")
+			check(Pet._flat(game.pet.global_position - basket).length() < 0.3, "the fox sleeps in its basket")
 			_finish()
 			return true
 	return false

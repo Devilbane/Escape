@@ -827,6 +827,7 @@ func _on_fox_fed(fox: Animal) -> void:
 	fox.queue_free()
 	_spawn_pet(spot)
 	pet.rotation.y = turn
+	level.place_fox_baskets()
 	var hearts := Effects.make_sparkles(Color(1.0, 0.55, 0.6), true)
 	hearts.position = spot + Vector3(0, 1.0, 0)
 	level.add_child(hearts)
@@ -1364,6 +1365,8 @@ func load_level(index: int, restock := true) -> void:
 	level.ingredient_collected.connect(_on_ingredient_collected)
 	level.hide_ingredients()
 	_spawn_pet()
+	if has_fox:
+		level.place_fox_baskets()
 	level.bag_full.connect(func(): show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0))
 	level.door_opened.connect(func():
 		Sfx.play(self, "door")
@@ -2084,6 +2087,9 @@ func sleep() -> void:
 		player.play("Lie_Down", 0.2)
 	else:
 		_climb_into_bed(tween, bed)
+	if is_instance_valid(pet):
+		# The fox goes to bed too: into its basket beside the hero's bed.
+		pet.go_to_bed(level.fox_bed_near(bed.pos if not bed.is_empty() else player.global_position))
 	# Settled on the back, the hero closes their eyes and drifts off: a few
 	# floating Z's and some soft snoring before the night falls.
 	tween.tween_interval(1.9)

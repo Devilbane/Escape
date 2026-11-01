@@ -81,10 +81,12 @@ func take_hit(damage: int, from: Vector3, hit_kind := "hit", wakes := true) -> v
 	if hit_kind == "backstab":
 		# Not one stab ends the chief, but it hurts.
 		damage *= BACKSTAB_FACTOR
-		hit_kind = "hit"
+		hit_kind = "pierce"
 		Comic.pop(global_position, "backstab")
 	if _dazed > 0.0:
+		# Dazed, the chief's armour does not help him either.
 		damage *= 2
+		hit_kind = "pierce"
 	super.take_hit(damage, from, hit_kind, wakes)
 	if dead:
 		_windup = 0.0

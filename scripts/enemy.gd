@@ -35,12 +35,14 @@ const GIVE_UP := 5.0
 const LEASH := 14.0
 const POISON_CHANCE := 0.25
 ## Model, weapon, life, speed, damage, reach, scale and pause between attacks.
+## "armor" is the kind's own hardening (thick bones, hide or leather), on top
+## of what its worn gear adds.
 const KINDS := {
 	"krieger": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Blade", "hp": 3, "speed": 4.8, "damage": 1, "reach": 2.0, "size": 1.0, "cooldown": 1.4},
 	"schuetze": {"model": "Skeleton_Rogue", "weapon": "Skeleton_Crossbow", "hp": 2, "speed": 3.6, "damage": 1, "reach": 22.0, "size": 1.0, "cooldown": 2.4, "ranged": true},
 	"magier": {"model": "Skeleton_Mage", "weapon": "Skeleton_Staff", "hp": 2, "speed": 3.4, "damage": 1, "reach": 20.0, "size": 1.0, "cooldown": 3.0, "ranged": true},
 	"wicht": {"model": "Skeleton_Minion", "weapon": "Skeleton_Blade", "hp": 1, "speed": 6.4, "damage": 1, "reach": 1.8, "size": 0.8, "cooldown": 1.0},
-	"koloss": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Axe", "shield": "Skeleton_Shield_Large_A", "hp": 7, "speed": 3.3, "damage": 2, "reach": 2.5, "size": 1.5, "cooldown": 2.0, "tint": Color(0.72, 0.42, 0.34)},
+	"koloss": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Axe", "shield": "Skeleton_Shield_Large_A", "hp": 7, "speed": 3.3, "damage": 2, "reach": 2.5, "size": 1.5, "cooldown": 2.0, "armor": 1, "tint": Color(0.72, 0.42, 0.34)},
 	# Fog wraiths drift among the dead trees above ground, only in fog (see
 	# Weather): pale little dead that roam instead of standing guard.
 	"fog_wraith": {"model": "Skeleton_Minion", "weapon": "Skeleton_Blade", "hp": 2, "speed": 5.6, "damage": 1, "reach": 1.8, "size": 0.9, "cooldown": 1.1,
@@ -53,7 +55,7 @@ const KINDS := {
 		"human": true, "roam": true, "parts": ["Rogue_Cape"], "colors": [Color(0.32, 0.3, 0.28), Color(0.28, 0.24, 0.2), Color(0.22, 0.2, 0.18)]},
 	"wilderer": {"model": "Rogue", "dir": "characters", "weapon": "Skeleton_Crossbow", "hp": 2, "speed": 4.0, "damage": 1, "reach": 20.0, "size": 1.0, "cooldown": 2.6, "ranged": true,
 		"human": true, "roam": true, "parts": [], "colors": [Color(0.3, 0.42, 0.26), Color(0.36, 0.3, 0.22), Color(1, 1, 1)]},
-	"schlaeger": {"model": "Barbarian", "dir": "characters", "weapon": "axe_1handed", "hp": 6, "speed": 3.8, "damage": 2, "reach": 2.3, "size": 1.15, "cooldown": 1.8,
+	"schlaeger": {"model": "Barbarian", "dir": "characters", "weapon": "axe_1handed", "hp": 6, "speed": 3.8, "damage": 2, "reach": 2.3, "size": 1.15, "cooldown": 1.8, "armor": 1,
 		"human": true, "roam": true, "parts": ["Barbarian_Hat"], "colors": [Color(0.5, 0.36, 0.28), Color(0.3, 0.26, 0.22), Color(0.4, 0.3, 0.22)]},
 	# The chief is the boss of the pass (see BanditChief).
 	"hauptmann": {"model": "Knight", "dir": "characters", "weapon": "sword_1handed", "shield": "shield_round", "hp": 20, "speed": 4.2, "damage": 2, "reach": 2.2, "size": 1.1, "cooldown": 1.4,
@@ -69,11 +71,11 @@ const KINDS := {
 		"beast": true, "roam": true, "model_scale": 0.65, "turn": 0.0, "run_anim": 6.0,
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Gallop", "1H_Melee_Attack_Chop": "Attack", "Hit_A": "Idle_HitReact1", "Death_A": "Death"},
 		"voice": ["voice_koloss", 1.6, "knurr"], "purse": [0, 1], "gear_chance": 0.0},
-	"ork": {"model": "Orc", "dir": "wild", "hp": 5, "speed": 4.0, "damage": 2, "reach": 2.2, "size": 1.1, "cooldown": 1.7,
+	"ork": {"model": "Orc", "dir": "wild", "hp": 5, "speed": 4.0, "damage": 2, "reach": 2.2, "size": 1.1, "cooldown": 1.7, "armor": 1,
 		"beast": true, "roam": true, "model_scale": 0.9, "turn": 0.0, "run_anim": 4.5,
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
 		"voice": ["voice_krieger", 0.7, "grunz"], "purse": [2, 5], "gear_chance": 0.5},
-	"yeti": {"model": "Yeti", "dir": "wild", "hp": 9, "speed": 3.6, "damage": 2, "reach": 2.6, "size": 1.4, "cooldown": 2.0,
+	"yeti": {"model": "Yeti", "dir": "wild", "hp": 9, "speed": 3.6, "damage": 2, "reach": 2.6, "size": 1.4, "cooldown": 2.0, "armor": 1,
 		"beast": true, "roam": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
 		"voice": ["voice_koloss", 0.75, "BRÜLL"], "purse": [4, 8], "gear_chance": 0.4},
@@ -120,6 +122,12 @@ const LEASH_ROAM := 48.0
 ## A stab counts as from behind when it comes from outside this angle either
 ## side of where the skeleton looks.
 const BEHIND := deg_to_rad(100.0)
+## Depth scaling (see _ready): +1 life every HP_EVERY_LEVELS levels down and
+## +1 damage every DAMAGE_EVERY_LEVELS, counted up to DEEPEST (the open wild
+## lies past the dungeon and gets the full bonus).
+const HP_EVERY_LEVELS := 3
+const DAMAGE_EVERY_LEVELS := 4
+const DEEPEST := 9
 
 var level: Level
 var kind := "krieger"
@@ -136,6 +144,10 @@ var _dawn := false
 ## Items the skeleton wears, from the same list as the hero's. Each one
 ## makes it stronger and may drop when it falls.
 var gear: Array[String] = []
+## Taken off every hit, like the hero's: the kind's own "armor" plus the
+## "armor" of its worn gear. A hit still keeps at least half its force (see
+## Player.soak), and a stab in the back goes through it.
+var hardening := 0
 var ranged := false
 var hp := 3
 var dead := false
@@ -199,20 +211,27 @@ func _ready() -> void:
 		_stats.speed *= 1.08
 	elif night:
 		_stats.roam = true
+	# Deeper down the dead are tougher and hit harder. The bosses keep their
+	# own numbers.
+	if level and kind not in ["drache", "hauptmann"]:
+		var deep := clampi(level.depth, 0, DEEPEST)
+		_stats.hp += deep / HP_EVERY_LEVELS
+		_stats.damage += deep / DAMAGE_EVERY_LEVELS
+	hardening = _stats.get("armor", 0)
 	var power := 0
 	var gear_weight := 0.0
 	for id in gear:
 		var item: Dictionary = Items.ALL[id]
 		_stats.hp += item.get("hp", 0)
+		hardening += item.get("armor", 0)
 		power += item.get("power", 0)
 		_stats.speed *= 1.0 + item.get("speed", 0.0)
 		gear_weight += Items.weight(id)
 	# Skeletons carry their gear's weight just like the hero.
 	_stats.speed *= Items.load_factor(gear_weight)
-	# Strength makes blows come faster; a lot of it makes them hit harder too.
+	# Strength makes blows come faster and, every two points, harder too.
 	_stats.cooldown /= 1.0 + 0.2 * power
-	if power >= 3:
-		_stats.damage += 1
+	_stats.damage += power / 2
 	ranged = _stats.get("ranged", false)
 	hp = _stats.hp
 	add_to_group("combatant")
@@ -453,11 +472,23 @@ func open_to_backstab(from: Vector3) -> bool:
 	return not _awake and not dead and ahead().angle_to(to) > BEHIND
 
 
-## Kind is "hit" for a blade, "knife" for a thrown knife or "backstab" for a
-## stab in the back; it picks the comic word.
+## Kind is "hit" for a blade, "knife" for a thrown knife, "backstab" for a
+## stab in the back or "thorns" for the hero's thorn rune; it picks the comic
+## word. Hardening softens every hit but a stab in the back, and swallows
+## thorns whole. "pierce" is a plain hit that goes through the hardening
+## (a boss caught off guard, see BanditChief).
 func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	if dead:
 		return
+	if kind == "thorns":
+		damage -= hardening
+		if damage <= 0 or _stats.get("armored", false):
+			return
+		kind = "hit"
+	elif kind == "pierce":
+		kind = "hit"
+	elif kind != "backstab":
+		damage = Player.soak(damage, hardening)
 	if kind == "backstab":
 		damage = hp
 	elif _stats.get("armored", false):
@@ -859,4 +890,6 @@ func _shoot(player: Player) -> void:
 	var origin := global_position + Vector3(0, 1.4 * (float(_stats.size) if fire else 1.0), 0)
 	var target := player.global_position + Vector3(0, 1.2, 0)
 	Sfx.play(self, "magic" if magic or fire else "bow_%d" % (randi() % 3), -2.0, global_position)
-	Projectile.spawn(level, origin, target - origin, false, magic or fire, fire).shooter = self
+	var shot := Projectile.spawn(level, origin, target - origin, false, magic or fire, fire)
+	shot.shooter = self
+	shot.damage = _stats.damage

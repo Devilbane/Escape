@@ -127,8 +127,9 @@ static func describe(id: String, worn := 0) -> String:
 
 
 ## Picks a random item; pricier items turn up less often.
-static func random_item(rng: RandomNumberGenerator, min_price := 0) -> String:
-	var ids := ALL.keys().filter(func(id): return ALL[id].price >= min_price)
+## With a slot given, only items for that slot are picked.
+static func random_item(rng: RandomNumberGenerator, min_price := 0, slot := "") -> String:
+	var ids := ALL.keys().filter(func(id): return ALL[id].price >= min_price and (slot == "" or ALL[id].slot == slot))
 	var total := 0.0
 	for id in ids:
 		total += 1.0 / ALL[id].price

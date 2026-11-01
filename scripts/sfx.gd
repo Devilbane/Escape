@@ -21,6 +21,9 @@ static var _in_background := false
 static var _js_focus_callback = null
 static var _watching_focus := false
 static var _streams := {}
+static var _clicking_buttons := false
+## How loud the button click is: only a hint of a sound.
+const CLICK_DB := -14.0
 
 
 static func load_settings() -> void:
@@ -94,6 +97,34 @@ static func watch_focus(tree_node: Node) -> void:
 		var win := tree_node.get_window()
 		win.focus_exited.connect(func(): _set_background(true))
 		win.focus_entered.connect(func(): _set_background(false))
+
+
+## Gives every button in the game (menus, merchant windows, tabs, the HUD) a
+## soft click when pressed. Hooked in once for the whole scene tree, so
+## buttons made later pick it up on their own. Plays on the Effects bus, so
+## the effects volume slider and M turn it down or off too.
+static func click_on_buttons(tree: SceneTree) -> void:
+	if _clicking_buttons:
+		return
+	_clicking_buttons = true
+	tree.node_added.connect(_add_click)
+	for node in tree.root.find_children("*", "BaseButton", true, false):
+		_add_click(node)
+
+
+static func _add_click(node: Node) -> void:
+	# On button_down, the moment the pointer goes down: the drawer's action
+	# buttons fire there too, and a click on release would trail behind.
+	if node is BaseButton and not node.button_down.is_connected(_play_click):
+		node.button_down.connect(_play_click)
+
+
+static func _play_click() -> void:
+	# Played from the tree's root, not the button: many buttons close their
+	# own window on press and may already be out of the tree by now.
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree:
+		play(tree.root, "ui_click", CLICK_DB)
 
 
 static func _check_page_focus() -> void:

@@ -49,6 +49,11 @@ jobs:
       - name: Import the project
         run: ~/godot/godot --headless --import
 
+      - name: Map letters (no two things share a letter)
+        run: |
+          timeout 60 ~/godot/godot --headless -s tests/tile_letters.gd | tee tiles.log
+          grep -q PASS tiles.log
+
       - name: Play through all levels automatically
         run: |
           timeout 600 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log

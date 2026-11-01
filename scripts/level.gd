@@ -2,30 +2,8 @@ class_name Level
 extends Node3D
 ## Builds a dungeon level from a text map and runs its traps and pickups.
 ##
-## Map legend (one character per 4x4 m tile):
-##   #  wall          .  floor           ,  dirt floor
-##   P  player start  E  exit stairs     K  key
-##   D  locked door   S  spike trap      c  coin
-##   C  treasure chest  k  small trunk
-##   b  barrel        x  crates          o  pillar        t  table
-##   M  skeleton warrior (melee)          A  skeleton archer (ranged)
-##   Z  skeleton mage (magic orbs)        w  skeleton minion (small, quick)
-##   G  skeleton brute (big, slow, hits hard)
-##   H  shrine: grants one gift (more life, strength or speed)
-##   B  bed (save and log out)  L  storage chest  V  merchant
-##   F  fountain: refills life and cures poison and curses
-##   ?  secret wall: looks like a wall until its lever torch is found
-##   =  iron bars           U  a vault behind the bars (the bank's cellar)
-##   _  pressure plate      Q  an old, heavy stone block (see StoneBlock.heavy)
-##   |  iron gate that sinks into the floor for good once a stone block lies
-##      on every pressure plate of the level (a block-pushing puzzle room)
-##   v  bat   s  slime   R  dragon (spits fire from afar): the monsters of
-##      the dragon's lair (see Enemy)
-##   y  stone horse statue (the dragon's lair)
-##   <  stairs up to the next storey   >  stairs down to the storey below
-##   +  free floor kept for furniture (a hero home, see "home: yes")
-##   X  a horror's den: one of the nameless horrors (see Horrors) may lurk
-##      here, a new roll each time the hero comes down
+## Map legend (one character per 4x4 m tile): see Tiles.DUNGEON, the one
+## list of the letters. Claim a new letter there first.
 ##
 ## The line "secret: normal|uncommon|rare|epic|godborn" sets how rich the
 ## secret room is (the German ids ungewoehnlich, selten, episch, gottgeboren

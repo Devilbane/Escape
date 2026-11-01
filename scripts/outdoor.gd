@@ -5,7 +5,8 @@ extends Level
 ## woods and comes to a village. Villagers go about their work there, and
 ## the village elder gives the hero an empty house with a bed and a chest.
 ##
-## Map legend (one character per 4x4 m tile):
+## Map legend (one character per 4x4 m tile). The one list of the letters
+## is Tiles.OUTDOOR: claim a new letter there first. In short:
 ##   #  forest (trees, cannot be crossed)    .  grass         ,  dirt path
 ##   P  start, in front of the crypt door    ~  pond (fish bite here, see Fishing)
 ##   R  the crypt (a block of tiles)         g  grave         d  dead tree
@@ -30,7 +31,7 @@ extends Level
 ##   on the tile to his left, see Forge), 2 farmer, 3 woodcutter, 4 guard,
 ##   5 tavern guest, 6 shopkeeper (buys and sells), 7 child, 8 scholar,
 ##   9 water carrier, K herald of the crown, O priestess, G guild master,
-##   M postmaster, Y banker, S stonemason (sells stone blocks to build with,
+##   M postmaster, Y banker, Z barber, S stonemason (sells stone blocks to build with,
 ##   his stone yard is on the tile behind him). Now and then the herald calls out news on the square,
 ##   and the villagers come over to listen.
 ##   The robbers' pass east of the village: N tent   f campfire   C treasure chest
@@ -45,7 +46,7 @@ extends Level
 ##   a sneaking hero, and in a thunderstorm bats swarm around the rocks (r)
 ##   while lightning leaves glowing thunder ore beside them.
 ##   The wolf hollow north of the pass, where beasts roam and come back the
-##   same way: W wolf, H orc, J yeti, U spider.   %  the hollow's pond,
+##   same way: W wolf, H orc, J yeti, U spider.   ;  the hollow's pond,
 ##   where the moon trout bites at night (see Fishing).
 ##   Peaceful animals that graze in the woods and bolt from the hero
 ##   (see Animal): D doe, V stag, & fox.

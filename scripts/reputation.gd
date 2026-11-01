@@ -5,7 +5,9 @@ extends RefCounted
 ##   a finished task       QUEST_GIVER with the villager who gave it,
 ##                         QUEST_RECEIVER with the one a delivery was for,
 ##                         and WORD_OF_MOUTH with everyone else the hero has
-##                         met (word gets around in a small village);
+##                         met (word gets around in a small village):
+##                         family and friends of the giver are glad to hear
+##                         it (VillageTalk.CLOSE_WORD), rivals do not care;
 ##   trading               TRADE per purchase with a villager who trades
 ##                         (shopkeeper, smith, stonemason, barber), but only
 ##                         up to TRADE_CAP points: buying alone makes a
@@ -195,7 +197,20 @@ func on_quest_done(id: String) -> void:
 	if game:
 		for role in game.met:
 			if role != q.giver and role != receiver:
-				gain(role, WORD_OF_MOUTH)
+				gain(role, word_of_mouth(q.giver, role))
+
+
+## What `role` thinks of the hero helping `helped`: more for family and
+## friends, nothing for rivals (see VillageTalk).
+func word_of_mouth(helped: String, role: String) -> int:
+	if game == null or not ("village_talk" in game):
+		return WORD_OF_MOUTH
+	match game.village_talk.bond(helped, role):
+		"close":
+			return VillageTalk.CLOSE_WORD
+		"rival":
+			return 0
+	return WORD_OF_MOUTH
 
 
 ## The hero bought something from a villager who trades.

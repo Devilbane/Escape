@@ -37,7 +37,11 @@ func _process(_delta: float) -> bool:
 	if frames < 400:
 		if frames % 40 == 0:
 			pip._walk_to(mira.global_position, Villager.RUN_SPEED, "idle")
-		closest = minf(closest, _gap())
+		# Pip starts inside Mira; he is pushed out on his first physics step,
+		# which may come after this frame (with --fixed-fps it does), so the
+		# gap only counts once that step has surely run.
+		if frames > 10:
+			closest = minf(closest, _gap())
 		return false
 	check(closest >= Villager.PERSONAL_SPACE - 0.05, "Pip keeps out of Mira while running at her (closest %.2f m)" % closest)
 	check(mira.global_position.distance_to(mira_start) < 0.01, "Mira is not pushed off her spot")

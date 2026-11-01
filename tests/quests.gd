@@ -164,6 +164,13 @@ func _test() -> void:
 	game.menus.compendium_page = "auftraege"
 	game.menus.open("kompendium")
 	check(game.menus.current == "kompendium", "the compendium opens on the quest log")
+	var struck := []
+	for l in game.menus._box.find_children("*", "RichTextLabel", true, false):
+		if (l as RichTextLabel).text.contains("[s]"):
+			struck.append((l as RichTextLabel).get_parsed_text())
+	check(struck.any(func(t): return t.contains(Lang.t(Quests.ALL.brief.title)) and t.contains(Lang.t("erledigt"))),
+			"a finished quest is struck through and marked done")
+	check(not struck.any(func(t): return t.contains(Lang.t(Quests.ALL.hauptmann.title))), "an open quest is not struck through")
 	game.menus.close()
 	game.menus.compendium_page = "wissen"
 	var entries: Array = game.quests.log_entries()

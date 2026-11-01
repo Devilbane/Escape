@@ -224,6 +224,9 @@ var house_number := 0
 ## Free spots kept for furniture: {"cell", "pos", "storey"}, from the "+"
 ## tiles of a home, lowest storey first.
 var furniture_slots: Array = []
+## The chalked frame on each furniture spot (cell -> its node), wiped away
+## once a piece of furniture stands there (see _build_upgrade).
+var chalk_marks := {}
 ## Every stairs tile of a home: {"cell", "up", "storey"}.
 var stairs: Array = []
 ## Where the hero stands beside the bed of a home.
@@ -2982,6 +2985,10 @@ func _build_home_floor(c: Vector2i, ch: String) -> void:
 	if ch != "+":
 		return
 	# A chalked frame: room for a piece of furniture.
+	var frame := Node3D.new()
+	frame.name = "Chalk_%d_%d" % [c.x, c.y]
+	add_child(frame)
+	chalk_marks[c] = frame
 	var inner := TILE * 0.62
 	for side in 4:
 		var strip := MeshInstance3D.new()
@@ -2991,7 +2998,7 @@ func _build_home_floor(c: Vector2i, ch: String) -> void:
 		strip.material_override = _scenes["mat_home_chalk"]
 		var off := inner * 0.5 * (1.0 if side % 2 == 0 else -1.0)
 		strip.position = cell_to_world(c) + (Vector3(0, 0.04, off) if side < 2 else Vector3(off, 0.04, 0))
-		add_child(strip)
+		frame.add_child(strip)
 
 
 ## Stairs up rise against the north wall, stairs down sink into a dark
@@ -3138,6 +3145,10 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 	root.name = "Upgrade_" + id
 	add_child(root)
 	_upgrade_nodes[id] = root
+	# The spot is taken now: the chalk frame is wiped away.
+	if chalk_marks.has(c):
+		chalk_marks[c].queue_free()
+		chalk_marks.erase(c)
 	var pos := cell_to_world(c)
 	# Furniture beside a side wall turns its back to that wall.
 	var rot := 0.0

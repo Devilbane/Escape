@@ -279,6 +279,34 @@ func _rebuild() -> void:
 
 # --- Building blocks ------------------------------------------------------
 
+## Text for something finished (a quest done, a trophy won): struck through
+## in `color`, styled like game._make_label, wrapped at `width`. `tag` (like
+## "done") follows in brackets, not struck through, so the state reads
+## without the colour too.
+func _done_label(text: String, size: int, color: Color, width: float, tag := "", center := false) -> RichTextLabel:
+	var l := RichTextLabel.new()
+	l.bbcode_enabled = true
+	l.fit_content = true
+	l.scroll_active = false
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size.x = width
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.add_theme_font_override("normal_font", game.TEXT_FONT)
+	l.add_theme_font_size_override("normal_font_size", size)
+	l.add_theme_color_override("default_color", color)
+	l.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
+	l.add_theme_constant_override("outline_size", maxi(4, size / 6))
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+	l.add_theme_constant_override("shadow_offset_y", 3)
+	var lines := []
+	for line in text.split("\n"):
+		lines.append("[s]%s[/s]" % line.replace("[", "[lb]"))
+	l.text = "\n".join(lines) + ("  (%s)" % tag.replace("[", "[lb]") if tag != "" else "")
+	if center:
+		l.text = "[center]%s[/center]" % l.text
+	return l
+
+
 func _add_label(text: String, size: int, color := Color.WHITE, font: Font = null) -> Label:
 	var l: Label = game._make_label(font if font else game.TEXT_FONT, size, color)
 	l.text = text
@@ -1231,10 +1259,16 @@ func _build_trophies() -> void:
 	_add_label(Lang.t("Trophäenwand"), 38, game.GOLD, game.TITLE_FONT)
 	var won := HomeUpgrades.trophies_shown(game.trophies)
 	_add_label(Lang.t("Jede Trophäe gibt dir +%d Leben. Zusammen: +%d Leben.") % [HomeUpgrades.TROPHY_HP, HomeUpgrades.trophy_hp(game.home_upgrades, game.trophies)], 20, game.GOLD)
+	# Every trophy names what wins it; the ones won are struck through in
+	# green with the word "won", so colour is never the only cue.
 	for kind in HomeUpgrades.TROPHIES:
-		var has_it: bool = won.has(kind)
-		_add_label(Lang.t(HomeUpgrades.TROPHIES[kind]) if has_it else Lang.t("Noch offen: %s") % Lang.t(HomeUpgrades.TROPHY_HINTS[kind]),
-				18, Color.WHITE if has_it else Color(1, 1, 1, 0.45))
+		var line := Lang.t("%s: %s") % [Lang.t(HomeUpgrades.TROPHIES[kind]), Lang.t(HomeUpgrades.TROPHY_HINTS[kind])]
+		if won.has(kind):
+			var row := _done_label(line, 18, TradeWindow.GREEN, 700, Lang.t("erbeutet"), true)
+			row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			_box.add_child(row)
+		else:
+			_add_label(line, 18)
 
 
 # --- Smith -------------------------------------------------------------------
@@ -1810,14 +1844,20 @@ func _build_quest_log() -> void:
 	for id in entries:
 		var q: Dictionary = Quests.ALL[id]
 		var done: bool = game.quests.is_done(id)
-		var title: Label = game._make_label(game.TEXT_FONT, 21, Color(0.6, 0.62, 0.66) if done else game.GOLD)
-		var status: String = Lang.t("erledigt") if done else game.quests.progress(id)
+		var goal := Lang.t("Von %s: %s") % [Quests.villager_name(q.giver), Lang.t(q.goal)] + "\n" + Lang.t("Belohnung: %s") % Quests.reward_text(id)
+		if done:
+			# Finished: struck through in green, and the word "done" as well.
+			list.add_child(_done_label(Lang.t(q.title), 21, TradeWindow.GREEN, 740, Lang.t("erledigt")))
+			list.add_child(_done_label(goal, 17, TradeWindow.GREEN.darkened(0.25), 740))
+			continue
+		var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
+		var status: String = game.quests.progress(id)
 		title.text = Lang.t(q.title) + ("  (%s)" % status if status != "" else "")
 		list.add_child(title)
-		var text: Label = game._make_label(game.TEXT_FONT, 17, Color(0.55, 0.57, 0.6) if done else Color.WHITE)
+		var text: Label = game._make_label(game.TEXT_FONT, 17, Color.WHITE)
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text.custom_minimum_size.x = 740
-		text.text = Lang.t("Von %s: %s") % [Quests.villager_name(q.giver), Lang.t(q.goal)] + "\n" + Lang.t("Belohnung: %s") % Quests.reward_text(id)
+		text.text = goal
 		list.add_child(text)
 
 

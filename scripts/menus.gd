@@ -1005,7 +1005,7 @@ func _build_compendium() -> void:
 	var tabs_shown := [["wissen", Lang.t("Steuerung und Gelerntes")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks]]
 	# The recipes get a page of their own once the first one is found.
 	if not game.crafting.entries().is_empty():
-		tabs_shown.append(["rezepte", Lang.t("Rezepte (%d)") % game.crafting.entries().size()])
+		tabs_shown.append(["rezepte", Lang.t("Rezeptbuch (%d)") % game.crafting.entries().size()])
 	elif compendium_page == "rezepte":
 		compendium_page = "wissen"
 	for tab in tabs_shown:
@@ -1085,32 +1085,54 @@ func _build_compendium() -> void:
 		list.add_child(l)
 
 
-## The recipe book: every recipe found, its scroll with the faded lines
-## still to find out, the ingredients gathered and the craft it needs, and
-## what is in the ingredient pouch.
+## The recipe and ingredient book: every recipe found, its scroll with the
+## faded lines still to find out, the ingredients gathered and the craft it
+## needs; then every ingredient those recipes name, with where and when it
+## is found, what yields it and how many are in the pouch.
 func _build_recipes() -> void:
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 30)
+	_box.add_child(columns)
+	var recipes := _book_column(columns, Lang.t("Rezepte"))
+	for id in game.crafting.entries():
+		var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
+		title.text = Lang.t(Crafting.RECIPES[id].name)
+		recipes.add_child(title)
+		var text: Label = game._make_label(game.TEXT_FONT, 17)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.custom_minimum_size.x = BOOK_COLUMN - 20
+		text.text = game.crafting.describe(id)
+		recipes.add_child(text)
+	var ingredients := _book_column(columns, Lang.t("Zutaten"))
+	for ingredient in game.crafting.book_ingredients():
+		var entry: Label = game._make_label(game.TEXT_FONT, 17, BLUE)
+		entry.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		entry.custom_minimum_size.x = BOOK_COLUMN - 20
+		entry.text = game.crafting.describe_ingredient(ingredient)
+		ingredients.add_child(entry)
+
+
+## Width of each of the recipe book's two columns.
+const BOOK_COLUMN := 470
+
+
+## One column of the recipe book: a title over a list that scrolls.
+func _book_column(columns: HBoxContainer, title_text: String) -> VBoxContainer:
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 6)
+	columns.add_child(column)
+	var title: Label = game._make_label(game.TEXT_FONT, 24, game.GOLD)
+	title.text = title_text
+	column.add_child(title)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(760, 420)
+	scroll.custom_minimum_size = Vector2(BOOK_COLUMN, 400)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_box.add_child(scroll)
+	column.add_child(scroll)
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 12)
 	scroll.add_child(list)
-	var pouch: Label = game._make_label(game.TEXT_FONT, 18, BLUE)
-	pouch.text = game.crafting.pouch_text()
-	pouch.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	pouch.custom_minimum_size.x = 740
-	list.add_child(pouch)
-	for id in game.crafting.entries():
-		var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
-		title.text = Lang.t(Crafting.RECIPES[id].name)
-		list.add_child(title)
-		var text: Label = game._make_label(game.TEXT_FONT, 17)
-		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		text.custom_minimum_size.x = 740
-		text.text = game.crafting.describe(id)
-		list.add_child(text)
+	return list
 
 
 ## The quest log: every task the hero took on, the open ones first, with who

@@ -1127,11 +1127,55 @@ func sleep() -> void:
 	show_message(Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"), 2.4)
 	state = State.TRANSITION
 	player.frozen = true
-	player.play("Lie_Down", 0.2)
+	player.path.clear()
 	var tween := create_tween()
+	var bed := _nearest_bed()
+	if bed.is_empty():
+		player.play("Lie_Down", 0.2)
+	else:
+		_climb_into_bed(tween, bed)
 	tween.tween_interval(1.2)
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
 	tween.tween_callback(func(): _show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")))
+
+
+## How high the mattress of the bed lies, and how far from the bed's middle
+## towards its foot the hero stands before lying down. Lying down falls
+## backwards, so this puts the body in the middle of the bed.
+const BED_MATTRESS_HEIGHT := 0.83
+const BED_LIE_OFFSET := 0.65
+
+
+## The bed the hero just ran into: the closest one in the level.
+func _nearest_bed() -> Dictionary:
+	var best := {}
+	var best_dist := INF
+	for s in level.stations:
+		if s.kind != "bett":
+			continue
+		var dist: float = player.global_position.distance_to(s.pos)
+		if dist < best_dist:
+			best_dist = dist
+			best = s
+	return best
+
+
+## A little hop up onto the mattress, then the hero lies down on their back
+## with the head on the pillow and the feet towards the foot of the bed.
+func _climb_into_bed(tween: Tween, bed: Dictionary) -> void:
+	var rot: float = bed.get("rot", 0.0)
+	var foot := Vector3(sin(rot), 0.0, cos(rot))
+	var spot: Vector3 = bed.pos + foot * BED_LIE_OFFSET + Vector3(0, BED_MATTRESS_HEIGHT, 0)
+	var from := player.global_position
+	player.velocity = Vector3.ZERO
+	player.face(spot - from)
+	player.play("Jump_Idle", 0.1)
+	tween.tween_method(func(t: float):
+		player.global_position = from.lerp(spot, t) + Vector3(0, sin(t * PI) * 0.6, 0), 0.0, 1.0, 0.45)
+	tween.tween_callback(func():
+		# Lying down falls backwards, so face the foot of the bed.
+		player.face(foot)
+		player.play("Lie_Down", 0.15))
 
 
 # --- Time away ----------------------------------------------------------------

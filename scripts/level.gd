@@ -668,9 +668,10 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"H":
 			_build_shrine(c)
 		"B":
-			_place("bed_decorated", pos, _facing_room(c))
+			var bed_rot := _facing_room(c)
+			_place("bed_decorated", pos, bed_rot)
 			_add_solid(pos, Vector3(3.2, 1.5, 3.2))
-			stations.append({"kind": "bett", "cell": c, "pos": pos, "used": false})
+			stations.append({"kind": "bett", "cell": c, "pos": pos, "rot": bed_rot, "used": false})
 		"L":
 			_place("chest", pos, _facing_room(c))
 			_add_solid(pos, Vector3(2.4, 1.5, 2.4))

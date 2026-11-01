@@ -59,6 +59,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/offline_schedule.gd | tee offline.log
           grep -q PASS offline.log
 
+      - name: Villager reputation test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/reputation.gd | tee reputation.log
+          grep -q PASS reputation.log
+
       - name: Crafting square test
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/crafting_square.gd | tee crafting_square.log

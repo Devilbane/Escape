@@ -5,6 +5,8 @@ extends Node
 
 const STORAGE_SIZE := 16
 const BLUE := Color(0.65, 0.85, 1.0)
+## The colour of everything about the villagers' goodwill (see Reputation).
+const REPUTATION_COLOR := Color(0.78, 0.65, 1.0)
 
 var game: Node
 ## The open window: "", "inventar", "lager", "haendler", "bett", "laden",
@@ -22,8 +24,8 @@ var bench := ""
 ## The saved game whose delete button was clicked once; a second click deletes.
 var _delete_asked := ""
 ## Which page of the compendium shows: "wissen" (controls and everything
-## learned), "auftraege" (the villagers' tasks) or "rezepte" (the recipes
-## found and the ingredient pouch).
+## learned), "auftraege" (the villagers' tasks), "ruf" (the villagers'
+## opinion of the hero) or "rezepte" (the recipes found and the ingredient pouch).
 var compendium_page := "wissen"
 ## How many saved games the load window shows before the list scrolls.
 const LOAD_ROWS_SHOWN := 5
@@ -98,6 +100,7 @@ func close() -> void:
 	if current == "":
 		return
 	current = ""
+	game.trader_role = ""
 	_panel.visible = false
 	game.set_world_paused(false)
 	game._update_hud()
@@ -577,6 +580,23 @@ func _from_vault(index: int) -> void:
 	_rebuild()
 
 
+# --- Reputation -------------------------------------------------------------
+
+## A line in a villager's window: how they think of the hero and the
+## discount that gives (nothing for the refuge's merchant).
+func _add_standing() -> void:
+	var role: String = game.trader_role
+	if role == "":
+		return
+	var rep: Reputation = game.reputation
+	var lvl := rep.level(role)
+	var text := Lang.t("Ruf bei %s: %s") % [Quests.villager_name(role), Reputation.level_name(lvl)]
+	var off := roundi(Reputation.LEVELS[lvl].discount * 100.0)
+	if off > 0:
+		text += Lang.t(" (%d%% Rabatt)") % off
+	_add_label(text, 17, REPUTATION_COLOR)
+
+
 # --- Merchant ---------------------------------------------------------------
 
 static func sell_price(id: String) -> int:
@@ -587,20 +607,23 @@ func _build_shop() -> void:
 	var p: Player = game.player
 	_add_label(Lang.t("Händler"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
+	_add_standing()
 	_add_label(Lang.t("Kaufen"), 20)
-	_add_item_grid(game.shop_stock, maxi(4, game.shop_stock.size()), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), Items.ALL[id].price], _buy)
+	_add_item_grid(game.shop_stock, maxi(4, game.shop_stock.size()), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), game.trader_price(Items.ALL[id].price)], _buy)
 	_add_label(Lang.t("Verkaufen"), 20)
 	_add_item_grid(p.bag, p.bag_size(), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), sell_price(id)], _sell)
 
 
 func _buy(index: int) -> void:
 	var id: String = game.shop_stock[index]
-	if game.coins < Items.ALL[id].price:
+	var price: int = game.trader_price(Items.ALL[id].price)
+	if game.coins < price:
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
 	elif game.player.bag.size() >= game.player.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
-		game.coins -= Items.ALL[id].price
+		game.coins -= price
+		game.traded()
 		game.player.bag.append(id)
 		game.shop_stock.remove_at(index)
 		_note = Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
@@ -625,10 +648,11 @@ const STONE := "steinblock"
 ## them back for half the price.
 func _build_stonemason() -> void:
 	var p: Player = game.player
-	var price: int = Items.ALL[STONE].price
+	var price: int = game.trader_price(Items.ALL[STONE].price)
 	var room: int = p.bag_size() - p.bag.size()
 	_add_label(Lang.t("Steinmetz"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
+	_add_standing()
 	_add_label(Lang.t("Steinblöcke in deiner Tasche: %d    Platz für %d weitere") % [p.bag.count(STONE), room], 20)
 	_add_label(Lang.t("Behauene Steinblöcke zum Bauen: Mauern, Stufen, Türme. Abstellen mit B oder im Inventar, verschieben mit der Maus: greifen, ziehen, loslassen."), 16, BLUE)
 	var row := HBoxContainer.new()
@@ -643,7 +667,7 @@ func _build_stonemason() -> void:
 
 func _buy_stones(count: int) -> void:
 	var p: Player = game.player
-	var price: int = Items.ALL[STONE].price
+	var price: int = game.trader_price(Items.ALL[STONE].price)
 	var bought := 0
 	for i in count:
 		if game.coins < price or p.bag.size() >= p.bag_size():
@@ -652,6 +676,7 @@ func _buy_stones(count: int) -> void:
 		p.bag.append(STONE)
 		bought += 1
 	if bought > 0:
+		game.traded()
 		_note = Lang.t("Gekauft: %d Steinblöcke") % bought
 		Sfx.play(game, "gear_soft_0", -2.0)
 	elif p.bag.size() >= p.bag_size():
@@ -744,6 +769,7 @@ func _build_smithy() -> void:
 	game.learn(Forge.LEARN)
 	_add_label(Lang.t("Schmiede"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Dein Gold: %d    Eisen: %d") % [game.coins, game.iron], 20, game.GOLD)
+	_add_standing()
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
 	tabs.add_theme_constant_override("separation", 10)
@@ -758,21 +784,23 @@ func _build_smithy() -> void:
 			_add_label(Lang.t("Gorms eigene Arbeit: bessere Waffen und ein Drachenschild, die es sonst nirgends gibt."), 16, BLUE)
 			var grid := _forge_grid()
 			for id in Forge.wares():
-				var ok: bool = game.coins >= Items.ALL[id].price and p.bag.size() < p.bag_size()
-				grid.add_child(_item_button(Lang.t("%s\n%d Gold") % [Items.item_name(id), Items.ALL[id].price], _buy_ware.bind(id), ok, id))
+				var price := Forge.ware_price(game, id)
+				var ok: bool = game.coins >= price and p.bag.size() < p.bag_size()
+				grid.add_child(_item_button(Lang.t("%s\n%d Gold") % [Items.item_name(id), price], _buy_ware.bind(id), ok, id))
 		"schmieden":
 			_add_label(Lang.t("Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen."), 16, BLUE)
 			var grid := _forge_grid()
 			for id in Forge.recipes():
-				var cost := Forge.forge_cost(id)
+				var cost := Forge.forge_cost(id, game)
 				var ok: bool = game.iron >= cost.iron and game.coins >= cost.gold and p.bag.size() < p.bag_size()
 				grid.add_child(_item_button(Lang.t("%s\n%d Eisen, %d Gold") % [Items.item_name(id), cost.iron, cost.gold], _forge.bind(id), ok, id))
 			var row := HBoxContainer.new()
 			row.alignment = BoxContainer.ALIGNMENT_CENTER
 			row.add_theme_constant_override("separation", 10)
 			_box.add_child(row)
-			row.add_child(_item_button(Lang.t("1 Eisenbarren\n%d Gold") % Forge.IRON_PRICE, _buy_iron.bind(1), game.coins >= Forge.IRON_PRICE))
-			row.add_child(_item_button(Lang.t("%d Eisenbarren\n%d Gold") % [5, 5 * Forge.IRON_PRICE], _buy_iron.bind(5), game.coins >= 5 * Forge.IRON_PRICE))
+			var iron_price := Forge.iron_price(game)
+			row.add_child(_item_button(Lang.t("1 Eisenbarren\n%d Gold") % iron_price, _buy_iron.bind(1), game.coins >= iron_price))
+			row.add_child(_item_button(Lang.t("%d Eisenbarren\n%d Gold") % [5, 5 * iron_price], _buy_iron.bind(5), game.coins >= 5 * iron_price))
 		"einschmelzen":
 			_add_label(Lang.t("Metall aus deiner Tasche wird zu Eisenbarren. Stoff, Leder, Fell und Knochen schmelzen nicht."), 16, BLUE)
 			var grid := _forge_grid()
@@ -792,7 +820,7 @@ func _build_smithy() -> void:
 			for id in worn:
 				var durability: int = Items.ALL[id].durability
 				var left: int = durability - int(p.wear[id])
-				grid.add_child(_item_button(Lang.t("%s %d / %d\n%d Gold") % [Items.item_name(id), left, durability, Forge.mend_cost(p, id)], _mend.bind(id), game.coins >= Forge.mend_price(id), id))
+				grid.add_child(_item_button(Lang.t("%s %d / %d\n%d Gold") % [Items.item_name(id), left, durability, Forge.mend_cost(p, id, game)], _mend.bind(id), game.coins >= Forge.mend_price(id, game), id))
 
 
 func _forge_grid() -> GridContainer:
@@ -815,6 +843,7 @@ func _forge(id: String) -> void:
 	var why := Forge.forge(game, id)
 	_note = why if why != "" else Lang.t("Geschmiedet: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 	if why == "":
+		game.traded()
 		Sfx.play(game, "hit")
 	game._update_hud()
 	_rebuild()
@@ -833,6 +862,8 @@ func _melt(index: int) -> void:
 
 func _mend(id: String) -> void:
 	var why := Forge.mend(game, id)
+	if why == "":
+		game.traded()
 	var p: Player = game.player
 	var durability: int = Items.ALL[id].durability
 	_note = why if why != "" else Lang.t("Ausgebessert: %s, Haltbarkeit %d / %d") % [Items.item_name(id), durability - int(p.wear.get(id, 0)), durability]
@@ -844,6 +875,8 @@ func _mend(id: String) -> void:
 
 func _buy_ware(id: String) -> void:
 	var why := Forge.buy(game, id)
+	if why == "":
+		game.traded()
 	_note = why if why != "" else Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 	if why == "":
 		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
@@ -853,6 +886,8 @@ func _buy_ware(id: String) -> void:
 
 func _buy_iron(count: int) -> void:
 	var why := Forge.buy_iron(game, count)
+	if why == "":
+		game.traded()
 	_note = why if why != "" else Lang.t("Gekauft: %d Eisenbarren") % count
 	if why == "":
 		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
@@ -883,6 +918,7 @@ func _build_barber() -> void:
 		_tattoo_shape = p.hair.get("tattoo_shape", "straight")
 	_add_label(Lang.t("Barbier"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
+	_add_standing()
 	_add_label(Lang.t("Frisur"), 20)
 	_add_barber_row(BARBER_STYLES, "style")
 	_add_label(Lang.t("Farbe"), 20)
@@ -911,9 +947,11 @@ func _build_barber() -> void:
 		var b := _item_button(Lang.t("Jetzt: %s") % Lang.t(shape[1]) if chosen else Lang.t(shape[1]), _pick_tattoo_shape.bind(shape[0]), not chosen)
 		b.custom_minimum_size = Vector2(150, 54)
 		row.add_child(b)
-	row.add_child(_item_button(Lang.t("Stechen\n%d Gold") % TATTOO_PRICE, _ink_tattoo, game.coins >= TATTOO_PRICE))
-	row.add_child(_item_button(Lang.t("Entfernen\n%d Gold") % TATTOO_REMOVE_PRICE, _remove_tattoo,
-			p.hair.tattoo != "" and game.coins >= TATTOO_REMOVE_PRICE))
+	var ink: int = game.trader_price(TATTOO_PRICE)
+	var remove: int = game.trader_price(TATTOO_REMOVE_PRICE)
+	row.add_child(_item_button(Lang.t("Stechen\n%d Gold") % ink, _ink_tattoo, game.coins >= ink))
+	row.add_child(_item_button(Lang.t("Entfernen\n%d Gold") % remove, _remove_tattoo,
+			p.hair.tattoo != "" and game.coins >= remove))
 
 
 ## One row of choices; what the hero has now is marked and cannot be bought again.
@@ -924,8 +962,9 @@ func _add_barber_row(choices: Array, field: String) -> void:
 	_box.add_child(row)
 	for c in choices:
 		var current: bool = game.player.hair[field] == c[0]
-		var text := Lang.t("Jetzt: %s") % Lang.t(c[1]) if current else Lang.t("%s\n%d Gold") % [Lang.t(c[1]), c[2]]
-		var b := _item_button(text, _restyle.bind(field, c[0], c[2]), not current and game.coins >= c[2])
+		var price: int = game.trader_price(c[2])
+		var text := Lang.t("Jetzt: %s") % Lang.t(c[1]) if current else Lang.t("%s\n%d Gold") % [Lang.t(c[1]), price]
+		var b := _item_button(text, _restyle.bind(field, c[0], price), not current and game.coins >= price)
 		b.custom_minimum_size = Vector2(150, 54)
 		row.add_child(b)
 
@@ -936,6 +975,7 @@ func _restyle(field: String, id: String, price: int) -> void:
 		_rebuild()
 		return
 	game.coins -= price
+	game.traded()
 	var look: Dictionary = game.player.hair.duplicate()
 	look[field] = id
 	game.player.set_hair(look)
@@ -956,10 +996,11 @@ func _ink_tattoo() -> void:
 	var word := _tattoo_word.strip_edges()
 	if word == "":
 		_note = Lang.t("Sag mir erst, welches Wort ich stechen soll.")
-	elif game.coins < TATTOO_PRICE:
+	elif game.coins < game.trader_price(TATTOO_PRICE):
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
 	else:
-		game.coins -= TATTOO_PRICE
+		game.coins -= game.trader_price(TATTOO_PRICE)
+		game.traded()
 		var look: Dictionary = game.player.hair.duplicate()
 		look.tattoo = word
 		look.tattoo_shape = _tattoo_shape
@@ -972,10 +1013,10 @@ func _ink_tattoo() -> void:
 
 
 func _remove_tattoo() -> void:
-	if game.coins < TATTOO_REMOVE_PRICE:
+	if game.coins < game.trader_price(TATTOO_REMOVE_PRICE):
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
 	else:
-		game.coins -= TATTOO_REMOVE_PRICE
+		game.coins -= game.trader_price(TATTOO_REMOVE_PRICE)
 		var look: Dictionary = game.player.hair.duplicate()
 		look.tattoo = ""
 		game.player.set_hair(look)
@@ -1086,7 +1127,7 @@ func _build_compendium() -> void:
 		if game.quests.is_active(id):
 			open_tasks += 1
 	open_tasks += game.bounties.taken.size()
-	var tabs_shown := [["wissen", Lang.t("Steuerung und Gelerntes")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks]]
+	var tabs_shown := [["wissen", Lang.t("Steuerung und Gelerntes")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks], ["ruf", Lang.t("Ruf")]]
 	# The recipes get a page of their own once the first one is found.
 	if not game.crafting.entries().is_empty():
 		tabs_shown.append(["rezepte", Lang.t("Rezeptbuch (%d)") % game.crafting.entries().size()])
@@ -1096,7 +1137,7 @@ func _build_compendium() -> void:
 		var b := _item_button(tab[1], func():
 			compendium_page = tab[0]
 			_rebuild())
-		b.custom_minimum_size = Vector2(270, 44)
+		b.custom_minimum_size = Vector2(240, 44)
 		if compendium_page == tab[0]:
 			b.modulate = Color(1.0, 0.9, 0.6)
 		else:
@@ -1107,6 +1148,9 @@ func _build_compendium() -> void:
 		return
 	if compendium_page == "rezepte":
 		_build_recipes()
+		return
+	if compendium_page == "ruf":
+		_build_reputation_page()
 		return
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 36)
@@ -1261,6 +1305,56 @@ func _build_quest_log() -> void:
 		text.custom_minimum_size.x = 740
 		text.text = Lang.t("Von %s: %s") % [Quests.villager_name(q.giver), Lang.t(q.goal)] + "\n" + Lang.t("Belohnung: %s") % Quests.reward_text(id)
 		list.add_child(text)
+
+
+## The villagers' goodwill: everyone the hero has met, with their standing,
+## how far to the next level, the discount, and the secret recipes learned.
+func _build_reputation_page() -> void:
+	var rep: Reputation = game.reputation
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(760, 420)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 6)
+	scroll.add_child(list)
+	var intro: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intro.custom_minimum_size.x = 740
+	intro.text = Lang.t("Hilf den Leuten im Dorf, dann denken sie besser von dir. Freundlich: Rabatt und Neuigkeiten. Vertraut: mehr Rabatt, und wer ein Geheimrezept kennt, verrät es dir. Geehrt: der größte Rabatt.")
+	list.add_child(intro)
+	var roles: Array = game.met.keys()
+	roles.sort_custom(func(a, b): return rep.points(a) > rep.points(b))
+	if roles.is_empty():
+		var none: Label = game._make_label(game.TEXT_FONT, 18)
+		none.text = Lang.t("Du kennst noch niemanden im Dorf.")
+		list.add_child(none)
+	for role in roles:
+		var lvl := rep.level(role)
+		var line := Lang.t("%s: %s") % [Quests.villager_name(role), Reputation.level_name(lvl)]
+		var off := roundi(Reputation.LEVELS[lvl].discount * 100.0)
+		if off > 0:
+			line += Lang.t(" (%d%% Rabatt)") % off
+		var next := rep.to_next(role)
+		if next > 0:
+			line += "  " + Lang.t("noch %d bis %s") % [next, Reputation.level_name(lvl + 1)]
+		var l: Label = game._make_label(game.TEXT_FONT, 18, REPUTATION_COLOR if lvl > 0 else Color.WHITE)
+		l.text = line
+		list.add_child(l)
+	var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
+	title.text = Lang.t("Geheimrezepte")
+	list.add_child(title)
+	if rep.recipes.is_empty():
+		var none: Label = game._make_label(game.TEXT_FONT, 17, Color(0.7, 0.72, 0.76))
+		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		none.custom_minimum_size.x = 740
+		none.text = Lang.t("Noch keine. Manche Leute im Dorf kennen eines, verraten es aber nur, wem sie vertrauen.")
+		list.add_child(none)
+	for id in rep.recipes:
+		var l: Label = game._make_label(game.TEXT_FONT, 17)
+		l.text = Lang.t("%s (von %s), im Tagesplan unter „Handwerk“") % [Lang.t(Offline.RECIPES[id].name), Quests.villager_name(Offline.RECIPES[id].secret)]
+		list.add_child(l)
 
 
 func _build_quit() -> void:

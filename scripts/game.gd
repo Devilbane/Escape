@@ -967,10 +967,11 @@ func sleep() -> void:
 	tween.tween_callback(func(): _show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")))
 
 
-## How high the mattress of the bed lies, and how far towards the head end
-## the hero lies down so their head rests on the pillow.
+## How high the mattress of the bed lies, and how far from the bed's middle
+## towards its foot the hero stands before lying down. Lying down falls
+## backwards, so this puts the body in the middle of the bed.
 const BED_MATTRESS_HEIGHT := 0.83
-const BED_LIE_OFFSET := -0.25
+const BED_LIE_OFFSET := 0.65
 
 
 ## The bed the hero just ran into: the closest one in the level.

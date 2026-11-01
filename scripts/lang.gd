@@ -169,6 +169,7 @@ const EN := {
 	"Deine Schritte werden leichter: +7% Tempo": "Your steps grow lighter: +7% speed",
 	# Windows
 	"Schließen": "Close",
+	"Zurück zum Spiel": "Back to game",
 	"Leben %d / %d    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Gold %d": "Life %d / %d    Power %d    Hardening %d    Speed %d%%    Knives %d    Gold %d",
 	"Angelegt (anklicken zum Ablegen)": "Worn (click to take off)",
 	"Tasche (%d / %d)": "Bag (%d / %d)",

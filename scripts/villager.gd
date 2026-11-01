@@ -365,13 +365,14 @@ func _space_for(o: Villager) -> float:
 
 
 ## Steps out of the way of everyone this villager has to make room for: all
-## who keep their spot (unless this one keeps theirs too), and, a little,
-## anyone else walking about. Asleep at home, nobody is in the way.
+## who keep their spot, and, a little, anyone else walking about. One who
+## keeps their own spot never steps aside. Asleep at home, nobody is in the
+## way.
 func _keep_apart() -> void:
-	if at_home:
+	if at_home or keeps_spot():
 		return
 	for o: Villager in level.people():
-		if o == self or o.at_home or (keeps_spot() and not o.keeps_spot()):
+		if o == self or o.at_home:
 			continue
 		var away := global_position - o.global_position
 		away.y = 0.0
@@ -380,8 +381,9 @@ func _keep_apart() -> void:
 			continue
 		if away.length() < 0.01:
 			away = Vector3(cos(rotation.y), 0, sin(rotation.y))
-		# Two of a kind share the step; a wanderer gives way all by himself.
-		var share := 0.5 if keeps_spot() == o.keeps_spot() else 1.0
+		# Two walking about share the step; from a shopkeeper the walker
+		# steps away all by himself.
+		var share := 1.0 if o.keeps_spot() else 0.5
 		global_position += away.normalized() * (room - away.length()) * share
 
 

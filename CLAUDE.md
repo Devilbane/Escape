@@ -19,3 +19,10 @@ tab, details card) must not reshape or condense the rest of the window.
 Write messages, code comments, PR descriptions and docs in English. Player-facing strings are
 written in German in the code and translated through `Lang` (`scripts/lang.gd`): every new string
 needs an English entry in `Lang.EN`.
+
+## Map letters
+
+Every letter a map in `levels/` uses is listed in `scripts/tiles.gd` (`Tiles.DUNGEON` for maps
+built by `Level`, `Tiles.OUTDOOR` for the open-air map). Before using a new letter, claim it there,
+then run `tests/tile_letters.gd`: it fails when a map uses an unlisted letter or when two things in
+the code (a match arm, `Enemy.WILD_LETTERS`, `Animal.LETTERS`, ...) share one letter.

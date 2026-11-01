@@ -13,7 +13,9 @@ var target: Enemy
 var hero_hp := 0
 var pickups_before := 0
 var kills := 0
-var killed_kind := ""
+var killed_kinds: Array[String] = []
+## Whether the bandit has landed a blow on the hero yet.
+var struck := false
 
 
 func check(ok: bool, what: String) -> void:
@@ -61,7 +63,7 @@ func _process(_delta: float) -> bool:
 			game.state = game.State.PLAYING
 			game.level.enemy_killed.connect(func(e: Enemy):
 				kills += 1
-				killed_kind = e.kind)
+				killed_kinds.append(e.kind))
 			var lvl: Outdoor = game.level
 			var kinds := {}
 			for e in lvl.enemies:
@@ -88,7 +90,8 @@ func _process(_delta: float) -> bool:
 			if target == null:
 				_finish()
 				return true
-			player.global_position = target.global_position + Vector3(2.5, 0, 0.5)
+			# Right in front of its nose, so it cannot miss the hero.
+			player.global_position = target.global_position + target.ahead() * 1.8
 			player.velocity = Vector3.ZERO
 			player.hp = player.max_hp
 			hero_hp = player.hp
@@ -99,11 +102,15 @@ func _process(_delta: float) -> bool:
 			stage_frames += 1
 			var lvl: Outdoor = game.level
 			var player: Player = game.player
+			if player.hp < hero_hp or player.knockdowns > 0 or player.xp.get("blocken", 0.0) > 0.0:
+				struck = true
 			if player.hp <= 2:
 				player.hp = player.max_hp
 			if is_instance_valid(target) and not target.dead:
-				if stage_frames > 30:
-					# Keep the fight going, blade first, knives from afar.
+				# The hero lets the bandit strike once (so the test does not
+				# hang on the dice of one run), then keeps the fight going,
+				# blade first, knives from afar.
+				if stage_frames > 30 and struck:
 					if player.global_position.distance_to(target.global_position) < Player.MELEE_RANGE + target.girth():
 						player.melee()
 					else:
@@ -115,14 +122,15 @@ func _process(_delta: float) -> bool:
 					_finish()
 					return true
 				return false
-			check(kills >= 1 and killed_kind == target.kind, "the fallen bandit counts as a kill")
-			check(player.hp < hero_hp or player.knockdowns > 0 or player.xp.get("blocken", 0.0) > 0.0, "the bandit struck back")
+			# Another bandit may have joined the fight and fallen too.
+			check(kills >= 1 and killed_kinds.has(target.kind), "the fallen bandit counts as a kill")
+			check(struck, "the bandit struck back")
 			# Loot: coins or gear lie where it fell.
 			var dropped: int = lvl._pickups.size() - pickups_before
 			print("the %s fell after %d frames and dropped %d things" % [target.kind, stage_frames, dropped])
 			check(dropped >= 1, "a fallen bandit drops gold or gear")
-			var spot: Dictionary = lvl._wild.filter(func(s): return s.kind == target.kind and s.enemy == null)[0]
-			check(spot.timer > 0.0, "the fallen bandit's spot waits for the next one")
+			var empty: Array = lvl._wild.filter(func(s): return s.enemy == null)
+			check(empty.any(func(s): return s.kind == target.kind) and empty.all(func(s): return s.timer > 0.0), "the fallen bandit's spot waits for the next one")
 			# Picked up: the gold counts.
 			var gold_before: int = game.coins
 			var coins_dropped: int = lvl._pickups.slice(pickups_before).filter(func(p): return p.kind == "coin").size()
@@ -132,7 +140,8 @@ func _process(_delta: float) -> bool:
 					lvl._check_pickups()
 			check(game.coins == gold_before + coins_dropped, "the dropped gold (%d coins) is picked up" % coins_dropped)
 			# Respawn: once the time is up and the hero is away, another comes.
-			spot.timer = 0.1
+			for s in empty:
+				s.timer = 0.1
 			player.global_position = lvl.cell_to_world(lvl.start_cell)
 			stage_frames = 0
 			stage = 3

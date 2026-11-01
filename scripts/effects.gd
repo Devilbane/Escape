@@ -165,6 +165,74 @@ static func cord_mesh(segments: Array, radius: float, material: Material) -> Arr
 	return st.commit()
 
 
+## A ring of flat-faced stone, like a carved basin or a block with `sides`
+## faces, standing between the heights y0 and y1: outer wall, top, bottom and
+## (if inner is above 0) the inner wall, with the normals of each face flat
+## so the facets catch the light like cut stone. UVs run in metres along the
+## circumference and up the height. The mesh's origin is the ring's centre at
+## the floor.
+static func ring_mesh(inner: float, outer: float, y0: float, y1: float, sides: int, material: Material) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in sides:
+		var a0 := TAU * i / sides
+		var a1 := TAU * (i + 1) / sides
+		var d0 := Vector3(cos(a0), 0, sin(a0))
+		var d1 := Vector3(cos(a1), 0, sin(a1))
+		var u0 := outer * a0
+		var u1 := outer * a1
+		var lo := Vector3(0, y0, 0)
+		var hi := Vector3(0, y1, 0)
+		# Outer wall, facing out.
+		_face(st, [d0 * outer + lo, d0 * outer + hi, d1 * outer + hi, d1 * outer + lo],
+				(d0 + d1).normalized(), [Vector2(u0, y0), Vector2(u0, y1), Vector2(u1, y1), Vector2(u1, y0)])
+		# Top and bottom, each an octagon or a ring.
+		var top := [d1 * inner + hi, d1 * outer + hi, d0 * outer + hi, d0 * inner + hi]
+		var bottom := [d0 * inner + lo, d0 * outer + lo, d1 * outer + lo, d1 * inner + lo]
+		var uv_top := top.map(func(v: Vector3): return Vector2(v.x, v.z))
+		var uv_bottom := bottom.map(func(v: Vector3): return Vector2(v.x, v.z))
+		_face(st, top, Vector3.UP, uv_top)
+		_face(st, bottom, Vector3.DOWN, uv_bottom)
+		if inner > 0.0:
+			# Inner wall, facing the middle.
+			_face(st, [d1 * inner + lo, d1 * inner + hi, d0 * inner + hi, d0 * inner + lo],
+					-(d0 + d1).normalized(), [Vector2(u1, y0), Vector2(u1, y1), Vector2(u0, y1), Vector2(u0, y0)])
+	st.set_material(material)
+	return st.commit()
+
+
+## One flat face of four corners (counter-clockwise seen from outside) as two triangles.
+static func _face(st: SurfaceTool, corners: Array, normal: Vector3, uvs: Array) -> void:
+	for i in [0, 2, 1, 0, 3, 2]:
+		st.set_normal(normal)
+		st.set_uv(uvs[i])
+		st.add_vertex(corners[i])
+
+
+## Drops of water thrown up by a fountain's spout: soft, pale glints that rise
+## a little and fall back into the basin.
+static func make_spray(color: Color) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = 48
+	p.lifetime = 1.1
+	p.mesh = _quad(0.13, Color(1, 1, 1))
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.06
+	p.direction = Vector3.UP
+	p.spread = 22.0
+	p.gravity = Vector3(0, -9.0, 0)
+	p.initial_velocity_min = 2.4
+	p.initial_velocity_max = 3.3
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.2
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(color, 0.9))
+	ramp.add_point(0.7, Color(color, 0.7))
+	ramp.set_color(ramp.get_point_count() - 1, Color(color, 0.0))
+	p.color_ramp = ramp
+	return p
+
+
 ## The open edges of a mesh: edges that belong to only one triangle.
 static func open_edges(mesh: Mesh) -> Array:
 	var arrays := mesh.surface_get_arrays(0)

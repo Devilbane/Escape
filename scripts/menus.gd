@@ -32,6 +32,8 @@ const LOAD_ROWS_SHOWN := 5
 ## Shows the stats of the item under the mouse (or last tapped).
 var _info: Label
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
+## The windows built as a TradeWindow.
+const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "barbier"]
 ## The compact trading window of every merchant (see TradeWindow).
 var trade := TradeWindow.new()
 ## Every control, for the compendium: action and keys.
@@ -119,7 +121,7 @@ func _rebuild() -> void:
 		_box.remove_child(child)
 		child.queue_free()
 	# The inventory holds the most, so its rows sit a little closer together.
-	_box.add_theme_constant_override("separation", 6 if current == "inventar" else 10)
+	_box.add_theme_constant_override("separation", 6 if current == "inventar" or current in TRADE_WINDOWS else 10)
 	match current:
 		"inventar":
 			_build_inventory()
@@ -162,13 +164,16 @@ func _rebuild() -> void:
 	if current in ["inventar", "lager", "tresor"]:
 		_info = _add_label(Lang.t(INFO_HINT), 18, BLUE)
 		_info.custom_minimum_size.y = 26
-	if _note != "":
-		_add_label(_note, 18, Color(1.0, 0.75, 0.5))
+	if _note != "" or current in TRADE_WINDOWS:
+		# The trading windows keep a line for the note, so a purchase does not
+		# make the window grow.
+		var note := _add_label(_note, 18, Color(1.0, 0.75, 0.5))
+		note.custom_minimum_size.y = 26
 	# The inventory has its own "Back to game" button at the top instead.
 	if not current in ["inventar", "bett", "laden", "beenden", "plan", "rueckkehr", "hoehle"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
 		close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		close_button.custom_minimum_size = Vector2(180, 52)
+		close_button.custom_minimum_size = Vector2(180, 44 if current in TRADE_WINDOWS else 52)
 		_box.add_child(close_button)
 
 
@@ -611,11 +616,11 @@ func _add_standing() -> Label:
 
 ## Builds a merchant's trading window (see TradeWindow), with the
 ## villager's goodwill under the gold.
-func _trade(gold_text: String, sections: Array, extra: Control = null) -> void:
+func _trade(gold_text: String, sections: Array, extra: Control = null, hint := "") -> void:
 	var standing := _add_standing()
 	if standing:
 		_box.remove_child(standing)
-	trade.build(_box, gold_text, sections, extra, standing)
+	trade.build(_box, gold_text, sections, extra, standing, hint)
 
 
 # --- Merchant ---------------------------------------------------------------
@@ -739,12 +744,12 @@ func _build_wanderer() -> void:
 			listed[id] = true
 			herbs.append(_ingredient_entry(id, wares.count(id), i))
 	var empty := Lang.t("Nichts im Angebot.")
-	var note := _wrapped_label(Lang.t("Zutaten aus fernen Gegenden, nur heute Nacht. Im Morgengrauen zieht Zarek weiter; in %d Nächten kommt er wieder.") % Wanderer.EVERY, 16, BLUE)
+	var note := Lang.t("Zutaten aus fernen Gegenden, nur heute Nacht. Im Morgengrauen zieht Zarek weiter; in %d Nächten kommt er wieder.") % Wanderer.EVERY
 	_trade(Lang.t("Dein Gold: %d") % game.coins, [
 		{"key": "herbs", "title": Lang.t("Zutaten"), "icon": "kind:ore", "entries": herbs, "empty": empty},
 		{"key": "gear", "title": Lang.t("Ausrüstung"), "icon": "kind:helmet", "entries": gear, "empty": empty},
 		{"key": "goods", "title": Lang.t("Verbrauchsgüter"), "icon": "kind:potion", "entries": goods, "empty": empty},
-	], note)
+	], null, note)
 
 
 ## A row for one kind of Zarek's ingredients: how many pieces he has left,
@@ -760,16 +765,6 @@ func _ingredient_entry(id: String, left: int, index: int) -> Dictionary:
 			"enabled": game.coins >= price,
 			"detail": {"subtitle": Lang.t("Zutat für Rezepte, noch %d da") % left, "lines": lines},
 			"compare": {"title": Lang.t("In deinem Zutatenbeutel"), "name": "%s: %d" % [Wanderer.ware_name(id), game.crafting.have(id)], "icon": icon}}
-
-
-## A centred label that wraps instead of widening the window.
-func _wrapped_label(text: String, size: int, color: Color) -> Label:
-	var l: Label = game._make_label(game.TEXT_FONT, size, color)
-	l.text = text
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size.x = 600
-	return l
 
 
 func _buy_from_wanderer(index: int) -> void:
@@ -946,12 +941,6 @@ func _build_smithy() -> void:
 		if tab[0] == _forge_tab:
 			b.modulate = Color(0.7, 1.0, 0.7)
 		tabs.add_child(b)
-	var header := VBoxContainer.new()
-	header.add_theme_constant_override("separation", 6)
-	header.add_child(tabs)
-	var about := _add_label(Lang.t(FORGE_ABOUT[_forge_tab]), 16, BLUE)
-	_box.remove_child(about)
-	header.add_child(about)
 	var room: bool = p.bag.size() < p.bag_size()
 	var sections := []
 	match _forge_tab:
@@ -961,10 +950,11 @@ func _build_smithy() -> void:
 			for id in Forge.wares():
 				var entry := _ware_entry(id, id, Forge.ware_price(game, id), _buy_ware.bind(id))
 				(weapons if Items.ALL[id].slot == "waffe" else armour).append(entry)
-			sections = [
-				{"key": "weapons", "title": Lang.t("Waffen"), "icon": "kind:sword", "entries": weapons},
-				{"key": "shields", "title": Lang.t("Schilde und Rüstung"), "icon": "kind:shield", "entries": armour},
-			]
+			sections = [{"key": "weapons", "title": Lang.t("Waffen"), "icon": "kind:sword", "entries": weapons}]
+			# Gorm sells no shield or armour of his own at the moment: then
+			# the category is left out rather than shown empty.
+			if not armour.is_empty():
+				sections.append({"key": "shields", "title": Lang.t("Schilde und Rüstung"), "icon": "kind:shield", "entries": armour})
 		"schmieden":
 			var forged := []
 			for id in Forge.recipes():
@@ -1002,7 +992,7 @@ func _build_smithy() -> void:
 						"button": Lang.t("Ausbessern"), "action": _mend.bind(id), "enabled": game.coins >= Forge.mend_price(id, game)})
 			sections = [{"key": "mend", "title": Lang.t("Ausbessern"), "icon": "kind:hammer_anvil", "entries": mend,
 					"empty": Lang.t("Deine Ausrüstung ist heil.")}]
-	_trade(Lang.t("Dein Gold: %d    Eisen: %d") % [game.coins, game.iron], sections, header)
+	_trade(Lang.t("Dein Gold: %d    Eisen: %d") % [game.coins, game.iron], sections, tabs, Lang.t(FORGE_ABOUT[_forge_tab]))
 
 
 func _show_forge_tab(tab: String) -> void:

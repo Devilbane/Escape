@@ -57,6 +57,13 @@ func _has_text(text: String) -> bool:
 	return false
 
 
+## The window's size once it has laid itself out.
+func _window_size() -> Vector2:
+	await process_frame
+	await process_frame
+	return game.menus._panel.size
+
+
 ## The key of the first row showing an item.
 func _key_of(id: String) -> String:
 	for key in game.menus.trade._entries:
@@ -93,7 +100,8 @@ func _test() -> void:
 	menus.open("haendler")
 	check(_has_text("Your gold: 379"), "the gold is shown at the top")
 	check(_has_text("Equipment") and _has_text("Consumables"), "the categories are shown")
-	check(trade._detail_box == null, "no cards before a row is picked")
+	check(_has_text("Point at an item"), "the panel shows a hint before a row is picked")
+	var start_size := await _window_size()
 	await _shot("merchant_grid")
 
 	# Picking the crest shield compares it with the worn round shield.
@@ -104,6 +112,7 @@ func _test() -> void:
 	check(diffs.any(func(d): return d[0] and d[1].contains("Block chance")), "more block chance is better")
 	check(TradeWindow.is_upgrade(TradeWindow.compare_with_worn(p, "wappenschild")), "the crest shield is an upgrade")
 	check(_has_text("Upgrade"), "the upgrade badge shows")
+	check(await _window_size() == start_size, "picking a row keeps the window's size")
 	await _shot("merchant_compare_shield")
 
 	# Boots: nothing worn on the feet yet.
@@ -123,6 +132,7 @@ func _test() -> void:
 	trade.collapsed["gear"] = true
 	menus._rebuild()
 	check(not _has_text("Swift Boots"), "a folded category hides its rows")
+	check(await _window_size() == start_size, "folding a category keeps the window's size")
 	trade.collapsed["gear"] = false
 
 	# Buying from the card still works.

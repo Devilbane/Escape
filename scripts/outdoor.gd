@@ -26,6 +26,9 @@ extends Level
 ##   9 water carrier, K herald of the crown, O priestess, G guild master,
 ##   M postmaster, Y banker. Now and then the herald calls out news on the square,
 ##   and the villagers come over to listen.
+##   The robbers' pass east of the village: N tent   f campfire   C treasure chest
+##   and the bandits who roam there and come back a while after they fall:
+##   c cutthroat, A poacher (crossbow), X bruiser, Q bandit chief (see Enemy).
 
 ## A notice for the message line, e.g. when the house is handed over.
 signal notice(text: String, duration: float)
@@ -33,7 +36,9 @@ signal notice(text: String, duration: float)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZ"
+const WALK := ".,Pai:0123456789KOGMYZcAXQ"
+## Tiles of the robbers' camp: bare, trodden earth.
+const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZ"
 const BLOCK_CHARS := "Rhjnmuskowb"
 const HOMES := ["building_home_A_blue", "building_home_B_red", "building_home_A_yellow", "building_home_B_green"]
@@ -65,6 +70,19 @@ const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
 ## The elder calls the hero over from this far (metres).
 const GREET_RANGE := 11.0
+## Bandits: how likely each piece of gear is on them, how likely a worn
+## piece drops when they fall, and the gold in their purse. The chief has
+## more of everything.
+const BANDIT_GEAR_CHANCE := 0.45
+const BANDIT_DROP_CHANCE := 0.35
+const CHIEF_GEAR_CHANCE := 0.6
+const CHIEF_DROP_CHANCE := 0.5
+## Seconds after a bandit falls until another takes its place, and how far
+## away the hero must be for that to happen out of sight.
+const BANDIT_RESPAWN := 150.0
+const RESPAWN_FAR := 40.0
+## The hero is warned about the pass when a bandit's spot is this close (metres).
+const WILD_WARNING_RANGE := 16.0
 
 var villagers: Array = []
 ## Has the elder handed the house over yet? Saved games wake up at home.
@@ -90,6 +108,10 @@ var interiors := {}
 var doors := {}
 var _herald: Node3D
 var _herald_timer := HERALD_FIRST
+## The bandits' spots: cell, kind, the bandit standing there (or null while
+## it is gone), seconds until the next one arrives, and how many came so far.
+var _wild: Array = []
+var _wild_warned := false
 
 
 func build() -> void:
@@ -110,6 +132,7 @@ func build() -> void:
 	floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(floor_shape)
 	_spawn_villagers()
+	_spawn_wild()
 
 
 # --- Ground -------------------------------------------------------------------
@@ -125,7 +148,7 @@ func _build_ground() -> void:
 			var c := Vector2i(x, y)
 			var ch := cell_char(c)
 			var path := 1.0 if ",aP".contains(ch) else 0.0
-			var soil := 1.0 if (fence.has_point(c) and not ",aP".contains(ch)) or ch == "y" else 0.0
+			var soil := 1.0 if (fence.has_point(c) and not ",aP".contains(ch)) or ch == "y" or CAMP.contains(ch) else 0.0
 			# Paving stones: path and soil together mean the square.
 			if square.has_point(c) and not BLOCK_CHARS.contains(ch):
 				path = 1.0
@@ -325,6 +348,48 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			spots.well.append(pos + Vector3(0, 0, 2.6))
 		"x":
 			_build_bench(c)
+		"N":
+			_build_tent(pos)
+		"f":
+			_build_campfire(pos)
+		"C":
+			_build_chest(c)
+			# The robbers' hoard: richer than a chest in the dungeon.
+			var loot_rng := RandomNumberGenerator.new()
+			loot_rng.seed = hash("%s:hoard:%d:%d" % [level_name, c.x, c.y])
+			interactables[-1].loot = {"gold": 20, "item": Items.random_item(loot_rng, 20)}
+		_:
+			if Enemy.WILD_LETTERS.has(ch):
+				_wild.append({"cell": c, "kind": Enemy.WILD_LETTERS[ch], "enemy": null, "timer": 0.0, "wave": 0})
+
+
+## A bandit's tent, its opening turned to the south, the camp's size.
+func _build_tent(pos: Vector3) -> void:
+	var box := _aabb_of("tent")
+	var s := 3.4 / maxf(box.size.x, box.size.z)
+	_put("tent", pos + _jitter(0.2), _rng.randf_range(-0.2, 0.2), s)
+	_add_solid(pos, Vector3(3.2, 2.5, 3.2))
+
+
+## Logs burning in a ring of stones, with a warm light over the camp.
+func _build_campfire(pos: Vector3) -> void:
+	_put("resource_lumber", pos + Vector3(0, 0, 0), 0.4, PROP_SCALE * 0.55)
+	_put("resource_lumber", pos + Vector3(0, 0.25, 0), 1.9, PROP_SCALE * 0.55)
+	for i in 6:
+		var angle := i * TAU / 6.0 + _rng.randf_range(-0.2, 0.2)
+		_put(["rock_single_A", "rock_single_C", "rock_single_E"][_rng.randi() % 3], pos + Vector3(cos(angle), 0, sin(angle)) * 1.3, _rng.randf() * TAU, _rng.randf_range(1.8, 2.4))
+	var flame := Effects.make_flame()
+	flame.position = pos + Vector3(0, 0.5, 0)
+	flame.scale = Vector3.ONE * 2.6
+	add_child(flame)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.6, 0.28)
+	light.light_energy = 3.5
+	light.omni_range = 12.0
+	light.omni_attenuation = 1.4
+	light.position = pos + Vector3(0, 2.0, 0)
+	add_child(light)
+	_add_solid(pos, Vector3(2.2, 1.5, 2.2))
 
 
 ## A bench on the square, its seat turned to the fountain.
@@ -686,6 +751,62 @@ func _spawn_villagers() -> void:
 				_herald = v
 
 
+# --- Bandits ------------------------------------------------------------------
+
+## The bandits of the pass take their spots when the world is built.
+func _spawn_wild() -> void:
+	for s in _wild:
+		_spawn_bandit(s)
+
+
+## Puts a bandit on its spot. When it falls it leaves gold and maybe a piece
+## of its gear, and after a while another comes to take its place.
+func _spawn_bandit(s: Dictionary) -> void:
+	var chief: bool = s.kind == "hauptmann"
+	var e := Enemy.new()
+	e.kind = s.kind
+	e.gear = _roll_gear(e.kind, s.cell, CHIEF_GEAR_CHANCE if chief else BANDIT_GEAR_CHANCE, s.wave)
+	e.level = self
+	add_child(e)
+	e.global_position = cell_to_world(s.cell)
+	e.died.connect(func():
+		enemy_killed.emit(e)
+		_drop_gear(e, CHIEF_DROP_CHANCE if chief else BANDIT_DROP_CHANCE)
+		_drop_coins(e.global_position, randi_range(4, 8) if chief else randi_range(1, 3))
+		s.enemy = null
+		s.timer = BANDIT_RESPAWN)
+	s.enemy = e
+	s.wave += 1
+	enemies = enemies.filter(func(x): return is_instance_valid(x))
+	enemies.append(e)
+
+
+## Fallen bandits are replaced once their time is up and the hero is not
+## looking; the first time the hero comes near the pass, a warning.
+func _mind_the_wild(delta: float) -> void:
+	for s in _wild:
+		if s.enemy != null:
+			continue
+		s.timer -= delta
+		if s.timer <= 0.0 and _flat_distance(player.global_position, cell_to_world(s.cell)) > RESPAWN_FAR:
+			_spawn_bandit(s)
+	if not _wild_warned:
+		for s in _wild:
+			if _flat_distance(player.global_position, cell_to_world(s.cell)) < WILD_WARNING_RANGE:
+				_wild_warned = true
+				notice.emit(Lang.t("Der Räuberpass! Hier lauern Räuber. Wer sie besiegt, nimmt ihre Beute."), 4.5)
+				break
+
+
+## How many bandits stand on the pass right now.
+func bandits_alive() -> int:
+	var n := 0
+	for s in _wild:
+		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
+			n += 1
+	return n
+
+
 ## Bumping into a villager: they walk around, so their tile is not enough.
 ## A door is hit anywhere along the front of its building.
 func station_at(point: Vector3) -> Dictionary:
@@ -748,6 +869,7 @@ func _process(delta: float) -> void:
 		if inside and _marker:
 			_marker.queue_free()
 			_marker = null
+	_mind_the_wild(delta)
 	_herald_timer -= delta
 	if _herald and _herald_timer <= 0.0:
 		_herald_timer = HERALD_EVERY

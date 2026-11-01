@@ -7,6 +7,11 @@ extends CharacterBody3D
 ## blade gets through: only a stab in the back, before it has noticed the
 ## hero, brings it down. It stands still and watches what it guards.
 ## Any skeleton that has not noticed the hero falls to such a stab at once.
+##
+## Out in the open the same class runs the bandits of the robbers' pass:
+## people, not bones, in the adventurer models. They roam around their camp
+## instead of standing guard, taunt the hero instead of groaning, and drop
+## gold and gear when they fall (see Outdoor).
 
 signal died
 
@@ -32,9 +37,28 @@ const KINDS := {
 	"wicht": {"model": "Skeleton_Minion", "weapon": "Skeleton_Blade", "hp": 1, "speed": 6.4, "damage": 1, "reach": 1.8, "size": 0.8, "cooldown": 1.0},
 	"koloss": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Axe", "shield": "Skeleton_Shield_Large_A", "hp": 7, "speed": 3.3, "damage": 2, "reach": 2.5, "size": 1.5, "cooldown": 2.0, "tint": Color(0.72, 0.42, 0.34)},
 	"waechter": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Axe", "shield": "Skeleton_Shield_Large_A", "hp": 1, "speed": 3.0, "damage": 2, "reach": 2.3, "size": 1.25, "cooldown": 1.6, "tint": Color(0.46, 0.5, 0.58), "armored": true},
+	# The bandits of the open wild: "human" kinds use the adventurer models
+	# ("dir"), keep only the body parts in "parts", wear clothes in "colors"
+	# (body, legs, hat or cape) and "roam" around where they were placed.
+	"halsabschneider": {"model": "Rogue", "dir": "characters", "weapon": "dagger", "hp": 3, "speed": 5.2, "damage": 1, "reach": 1.9, "size": 1.0, "cooldown": 1.1,
+		"human": true, "roam": true, "parts": ["Rogue_Cape"], "colors": [Color(0.32, 0.3, 0.28), Color(0.28, 0.24, 0.2), Color(0.22, 0.2, 0.18)]},
+	"wilderer": {"model": "Rogue", "dir": "characters", "weapon": "Skeleton_Crossbow", "hp": 2, "speed": 4.0, "damage": 1, "reach": 20.0, "size": 1.0, "cooldown": 2.6, "ranged": true,
+		"human": true, "roam": true, "parts": [], "colors": [Color(0.3, 0.42, 0.26), Color(0.36, 0.3, 0.22), Color(1, 1, 1)]},
+	"schlaeger": {"model": "Barbarian", "dir": "characters", "weapon": "axe_1handed", "hp": 6, "speed": 3.8, "damage": 2, "reach": 2.3, "size": 1.15, "cooldown": 1.8,
+		"human": true, "roam": true, "parts": ["Barbarian_Hat"], "colors": [Color(0.5, 0.36, 0.28), Color(0.3, 0.26, 0.22), Color(0.4, 0.3, 0.22)]},
+	"hauptmann": {"model": "Knight", "dir": "characters", "weapon": "sword_1handed", "shield": "shield_round", "hp": 9, "speed": 4.2, "damage": 2, "reach": 2.2, "size": 1.1, "cooldown": 1.4,
+		"human": true, "roam": true, "parts": ["Knight_Cape"], "colors": [Color(0.45, 0.14, 0.12), Color(0.22, 0.2, 0.2), Color(0.5, 0.1, 0.1)]},
 }
 ## Which map letter places which kind.
 const LETTERS := {"M": "krieger", "A": "schuetze", "Z": "magier", "w": "wicht", "G": "koloss", "W": "waechter"}
+## The letters of the open-air map that place bandits (see Outdoor).
+const WILD_LETTERS := {"c": "halsabschneider", "A": "wilderer", "X": "schlaeger", "Q": "hauptmann"}
+## Body parts every adventurer model keeps; the rest shows only when a kind asks for it.
+const BODY_PARTS := ["Body", "Head", "ArmLeft", "ArmRight", "LegLeft", "LegRight"]
+## How far from home a roaming bandit wanders (tiles), and how far it will
+## chase the hero (metres) before it gives up and strolls back.
+const ROAM_TILES := 4
+const LEASH_ROAM := 48.0
 ## A stab counts as from behind when it comes from outside this angle either
 ## side of where the skeleton looks.
 const BEHIND := deg_to_rad(100.0)
@@ -89,7 +113,11 @@ const HEARD_FROM := 16.0
 const VOICE_RANGE := 18.0
 const VOICE_WORDS := {"krieger": "knurr", "schuetze": "zisch", "magier": "murmel",
 	"wicht": "kicher", "koloss": "GROLL", "waechter": "klirr"}
+## What a bandit shouts while it hunts the hero.
+const TAUNTS := ["Her mit dem Gold!", "Den schnappen wir uns!", "Dein Beutel oder dein Leben!", "Keiner kommt hier durch!"]
 var _voice_timer := 0.0
+## Where a roaming bandit is strolling to, and how long it lingers there.
+var _roam_pause := 0.0
 
 
 func _ready() -> void:
@@ -129,10 +157,12 @@ func _ready() -> void:
 	shape.position.y = 1.2 * size
 	add_child(shape)
 
-	_model = load("res://assets/enemies/%s.glb" % _stats.model).instantiate()
+	_model = load("res://assets/%s/%s.glb" % [_stats.get("dir", "enemies"), _stats.model]).instantiate()
 	add_child(_model)
 	_model.rotation.y = PI
 	_model.scale = Vector3.ONE * size
+	if is_human():
+		_dress()
 	var skeleton: Skeleton3D = _model.find_child("Skeleton3D", true, false)
 	var weapon := _worn("waffe")
 	if weapon.has("model") and not ranged:
@@ -156,8 +186,9 @@ func _ready() -> void:
 	if elite or kind == "koloss" or kind == "waechter":
 		_glowing_eyes()
 	_anim = _model.find_child("AnimationPlayer", true, false)
-	for a in ["Idle", "Running_A", "Walking_D_Skeletons", "Skeleton_Inactive_Standing_Pose"]:
-		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+	for a in ["Idle", "Running_A", "Walking_A", "Walking_D_Skeletons", "Skeleton_Inactive_Standing_Pose"]:
+		if _anim.has_animation(a):
+			_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	_play("Idle")
 	_cooldown = randf_range(0.5, 1.5)
 	_look_angle = randf() * TAU
@@ -169,6 +200,46 @@ func _ready() -> void:
 ## How much wider than a normal skeleton this one is, so blades reach it.
 func girth() -> float:
 	return 0.6 * (float(_stats.size) - 1.0)
+
+
+## Whether this is a person (a bandit) rather than a skeleton.
+func is_human() -> bool:
+	return _stats.get("human", false)
+
+
+## Bandits keep only their body and the parts their kind asks for, and
+## wear clothes in their kind's colours (body, legs, hat or cape). A worn
+## cloak from the gear shows as the model's own cape.
+func _dress() -> void:
+	var parts: Array = _stats.get("parts", [])
+	var colors: Array = _stats.get("colors", [])
+	if _worn("umhang").has("tint"):
+		for mi: MeshInstance3D in _model.find_children("*_Cape", "MeshInstance3D", true, false):
+			parts = parts + [String(mi.name)]
+	for mi: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+		var part := String(mi.name)
+		var base := ""
+		for b in BODY_PARTS:
+			if part.ends_with("_" + b):
+				base = b
+		if base == "" and not part in parts:
+			mi.visible = false
+			continue
+		var color := Color.WHITE
+		if base == "Body":
+			color = colors[0]
+		elif base.begins_with("Leg"):
+			color = colors[1]
+		elif base.begins_with("Arm"):
+			color = Color.WHITE.lerp(colors[0], 0.5)
+		elif base == "":
+			color = colors[2]
+		if color != Color.WHITE:
+			var mat := mi.get_active_material(0)
+			if mat is StandardMaterial3D:
+				var dyed: StandardMaterial3D = mat.duplicate()
+				dyed.albedo_color = color
+				mi.material_override = dyed
 
 
 ## The worn item for a slot, or an empty one.
@@ -277,8 +348,13 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	Effects.float_text(level, global_position + Vector3(0, 2.2 * _stats.size, 0), "-%d" % damage, Color(1, 0.45, 0.35))
 	# The comic word below makes the sound of the blow.
 	if hp <= 0:
-		Comic.pop(global_position, "backstab" if kind == "backstab" else "break")
-		Sfx.play(self, "bones", 0.0, global_position)
+		if is_human():
+			# No bones to rattle: a person goes down with a thud.
+			Comic.pop(global_position, "backstab" if kind == "backstab" else "big")
+			Sfx.play(self, "hit", -2.0, global_position)
+		else:
+			Comic.pop(global_position, "backstab" if kind == "backstab" else "break")
+			Sfx.play(self, "bones", 0.0, global_position)
 		_die()
 	else:
 		Comic.pop(global_position, "big" if damage >= 2 else kind)
@@ -331,7 +407,8 @@ func _physics_process(delta: float) -> void:
 	to_player.y = 0.0
 	var dist := to_player.length()
 	var sees := dist < SIGHT and level.has_line_of_sight(global_position, player.global_position)
-	visible = level.fog.is_cell_visible(level.world_to_cell(global_position))
+	# Under the open sky there is no fog of war: everything shows.
+	visible = level.fog == null or level.fog.is_cell_visible(level.world_to_cell(global_position))
 	if not player.dead and _notices(player, to_player, dist, sees):
 		if not _awake:
 			Effects.float_text(level, global_position + Vector3(0, 3.4 * _stats.size, 0), "!", Color(1.0, 0.3, 0.2))
@@ -342,7 +419,8 @@ func _physics_process(delta: float) -> void:
 			_awake = false
 			_path.clear()
 			_repath = 0.0
-	if _awake and _watch != Vector3.INF and _home != Vector3.INF and global_position.distance_to(_home) > LEASH:
+	var leash := LEASH if _watch != Vector3.INF else LEASH_ROAM if _stats.get("roam", false) else INF
+	if _awake and _home != Vector3.INF and global_position.distance_to(_home) > leash:
 		_awake = false
 		_path.clear()
 		_repath = 0.0
@@ -380,7 +458,7 @@ func _physics_process(delta: float) -> void:
 			elif _lost > 0.0:
 				_look_around(delta)
 	elif not _awake and not dead:
-		move = _rest(delta)
+		move = _roam(delta) if _stats.get("roam", false) else _rest(delta)
 	if _detour_time > 0.0 and move != Vector3.ZERO:
 		_detour_time -= delta
 		move = (move * 0.3 + _detour).normalized()
@@ -394,7 +472,9 @@ func _physics_process(delta: float) -> void:
 	_check_stuck(delta, move)
 	if _busy > 0.0:
 		return
-	_play("Running_A" if move != Vector3.ZERO else "Idle")
+	# Off the hunt, a bandit strolls; skeletons shuffle back to their post.
+	var strolling := move != Vector3.ZERO and move.length() < 0.7 and is_human()
+	_play("Walking_A" if strolling else "Running_A" if move != Vector3.ZERO else "Idle")
 	_footfalls(delta, move != Vector3.ZERO, dist)
 	_voice(delta, dist)
 	# Feet keep pace with the ground; bigger skeletons take longer strides.
@@ -425,6 +505,11 @@ func _voice(delta: float, dist: float) -> void:
 	if _awake:
 		_voice_timer *= 0.5
 	if near <= 0.0:
+		return
+	if is_human():
+		# A bandit has no groan of its own: it shouts while it hunts.
+		if _awake:
+			Effects.float_text(level, global_position + Vector3(0, 3.0 * _stats.size, 0), Lang.t(TAUNTS[randi() % TAUNTS.size()]), Color(1.0, 0.85, 0.6, 0.9))
 		return
 	var db := lerpf(-28.0, 2.0, pow(near, 1.4)) + (3.0 if _awake else 0.0)
 	Sfx.play(level, "voice_%s_%d" % [kind, randi() % 2], db, global_position, lerpf(0.9, 1.1, near))
@@ -497,6 +582,10 @@ func ahead_angle(to: Vector3) -> float:
 
 ## Starts or keeps up the hunt, heading for where the hero was noticed.
 func _wake(at: Vector3) -> void:
+	if not _awake:
+		# A stroll's path is no use on the hunt.
+		_path.clear()
+		_repath = 0.0
 	_awake = true
 	_lost = 0.0
 	_last_known = at
@@ -526,6 +615,37 @@ func _rest(delta: float) -> Vector3:
 		_path.remove_at(0)
 		return Vector3.ZERO
 	return to.normalized() * 0.6
+
+
+## A bandit off the hunt strolls from one spot near its home to the next,
+## lingers a while, looks around and moves on.
+func _roam(delta: float) -> Vector3:
+	if _roam_pause > 0.0:
+		_roam_pause -= delta
+		_look_around(delta)
+		return Vector3.ZERO
+	if _path.is_empty():
+		var home_cell := level.world_to_cell(_home)
+		var here := level.world_to_cell(global_position)
+		for attempt in 8:
+			var c := home_cell + Vector2i(randi_range(-ROAM_TILES, ROAM_TILES), randi_range(-ROAM_TILES, ROAM_TILES))
+			if c == here or not level.astar.is_in_boundsv(c) or level.astar.is_point_solid(c):
+				continue
+			for p in level.astar.get_id_path(here, c, true).slice(1):
+				_path.append(level.cell_to_world(p) + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
+			if not _path.is_empty():
+				break
+		if _path.is_empty():
+			_roam_pause = 2.0
+			return Vector3.ZERO
+	var to := _path[0] - global_position
+	to.y = 0.0
+	if to.length() < 0.5:
+		_path.remove_at(0)
+		if _path.is_empty():
+			_roam_pause = randf_range(2.0, 7.0)
+		return Vector3.ZERO
+	return to.normalized() * 0.45
 
 
 func _look_around(delta: float) -> void:

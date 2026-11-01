@@ -58,6 +58,9 @@ extends Level
 ##   v  a stone pedestal with a food basket on top, too high to reach from
 ##      the ground or from one crate: stack two crates beside it. Three
 ##      wooden crates lie close by (see Crate).
+##   @  the wandering merchant's pitch: an empty patch of grass, but on his
+##      nights (see Wanderer) Zarek stands here from nightfall to dawn,
+##      with his covered cart on the tile north of him.
 
 ## A notice for the message line, e.g. when the house is handed over.
 signal notice(text: String, duration: float)
@@ -66,6 +69,8 @@ signal notice(text: String, duration: float)
 signal home_claimed
 ## The hero has reached the food basket on the pedestal and eats.
 signal food_basket(heal: int)
+## A fox eats a sausage from the hero's hand (see Animal and Pet).
+signal fox_fed(fox: Animal)
 ## Lightning strikes at a spot in a thunderstorm (see Weather): the sky
 ## flashes and thunder rolls.
 signal lightning(pos: Vector3)
@@ -73,7 +78,7 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&"
+const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
@@ -172,6 +177,8 @@ const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 
 var villagers: Array = []
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
+## Whether a fox can still be won over: the hero has none yet (set by the game).
+var fox_tamable := true
 var _animal_spots: Array = []
 ## Has the elder handed the house over yet? Saved games wake up at home.
 var house_given := false
@@ -256,6 +263,17 @@ const NIGHT_DEAD_FAR := 14.0
 const NIGHT_RESPAWN_FACTOR := 0.5
 var _graves: Array[Vector2i] = []
 var _risen: Array = []
+## The day the world's clock is on (see Game.day): with the hour it tells
+## which night it is, and whether the wandering merchant is in the village.
+var day := 0
+## Zarek, the wandering merchant, while he is in the village (else null),
+## his pitch, and his cart with its lantern and its solid shapes.
+var wanderer: Villager
+var _wanderer_cell := Vector2i(-1, -1)
+var _cart: Node3D
+var _cart_shapes: Array[CollisionShape3D] = []
+## Where his cart stands, from his pitch: behind him, as he faces the hero.
+const CART_OFFSET := Vector2i(0, -1)
 ## The weather the world was last set to (see Weather and set_weather).
 var weather := ""
 ## What comes out in which weather, how many at most, the map letter they
@@ -471,6 +489,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 	match ch:
 		"P":
 			start_cell = c
+		"@":
+			_wanderer_cell = c
 		"g":
 			var grave: String = GRAVES[_rng.randi() % GRAVES.size()]
 			_put(grave, pos + Vector3(0, 0, -0.6) + _jitter(0.3), _rng.randf_range(-0.15, 0.15))
@@ -1493,6 +1513,10 @@ func _spawn_animals() -> void:
 	for s in _animal_spots:
 		var a := Animal.new()
 		a.setup(self, s.kind, s.cell)
+		if taken.has(a.tame_key()):
+			# The hero's own fox: it goes with the hero now (see Pet).
+			a.free()
+			continue
 		add_child(a)
 		a.global_position = cell_to_world(s.cell)
 		animals.append(a)
@@ -1780,6 +1804,7 @@ func set_hour(new_hour: float) -> void:
 	for mat in _window_mats.values():
 		mat.emission_energy_multiplier = WINDOW_GLOW * glow
 	var dark := DayNight.is_night(hour)
+	var came := _mind_the_wanderer()
 	if dark == night and not first:
 		return
 	night = dark
@@ -1790,8 +1815,140 @@ func set_hour(new_hour: float) -> void:
 	else:
 		_lay_the_dead_to_rest()
 	if not first:
-		notice.emit(Lang.t("Die Nacht bricht herein. Das Dorf geht schlafen, und auf dem Friedhof regen sich die Toten.") if night
-				else Lang.t("Ein neuer Tag bricht an. Die Toten kehren in ihre Gräber zurück."), 4.5)
+		var text := Lang.t("Die Nacht bricht herein. Das Dorf geht schlafen, und auf dem Friedhof regen sich die Toten.") if night \
+				else Lang.t("Ein neuer Tag bricht an. Die Toten kehren in ihre Gräber zurück.")
+		if came:
+			text += "\n" + Lang.t("Am Markt schwingt eine Laterne: Wanderhändler Zarek hat seinen Karren für die Nacht aufgestellt.")
+		notice.emit(text, 6.0 if came else 4.5)
+
+
+# --- The wandering merchant ---------------------------------------------------
+
+## Puts Zarek and his cart up on his pitch when his night has come, and
+## packs them away again when it is over (see Wanderer). True when he has
+## just arrived.
+func _mind_the_wanderer() -> bool:
+	if _wanderer_cell.x < 0:
+		return false
+	var due := Wanderer.is_here(day, hour)
+	if due == (wanderer != null):
+		return false
+	if due:
+		_wanderer_arrives()
+		return true
+	_wanderer_leaves()
+	return false
+
+
+func _wanderer_arrives() -> void:
+	_build_cart(_wanderer_cell + CART_OFFSET)
+	var v := Villager.new()
+	v.setup(self, Wanderer.ROLE, _wanderer_cell)
+	add_child(v)
+	# A little to the side of his cart, so its wheel and lantern show.
+	v.global_position = cell_to_world(_wanderer_cell) + Vector3(1.3, 0, 0)
+	# He faces the way up from the south, his back to the cart.
+	v.rotation.y = 0.0
+	var station := {"kind": "wanderhaendler", "cell": _wanderer_cell, "pos": v.global_position, "used": false, "npc": v}
+	v.station = station
+	stations.append(station)
+	wanderer = v
+
+
+func _wanderer_leaves() -> void:
+	if wanderer:
+		stations.erase(wanderer.station)
+		wanderer.queue_free()
+		wanderer = null
+	if _cart:
+		_cart.queue_free()
+		_cart = null
+	for shape in _cart_shapes:
+		shape.queue_free()
+	_cart_shapes.clear()
+	var cart_cell := _wanderer_cell + CART_OFFSET
+	astar.set_point_solid(cart_cell, not WALK.contains(cell_char(cart_cell)))
+
+
+## Zarek's covered cart: a wooden box on two big wheels under a hooped
+## canvas cover in his colours, its shaft resting on the ground, a lantern on
+## a pole, and a few crates and sacks unloaded beside it.
+func _build_cart(cell: Vector2i) -> void:
+	var pos := cell_to_world(cell)
+	_cart = Node3D.new()
+	_cart.position = pos
+	add_child(_cart)
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.42, 0.28, 0.16)
+	wood.roughness = 0.9
+	var canvas := StandardMaterial3D.new()
+	canvas.albedo_color = Color(0.5, 0.3, 0.66)
+	canvas.roughness = 1.0
+	canvas.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var iron := StandardMaterial3D.new()
+	iron.albedo_color = Color(0.18, 0.18, 0.2)
+	iron.metallic = 0.6
+	iron.roughness = 0.5
+	var body := _cart_part(BoxMesh.new(), wood, Vector3(0, 1.15, 0))
+	(body.mesh as BoxMesh).size = Vector3(3.0, 0.7, 1.7)
+	# The canvas: half a cylinder lying along the cart.
+	var cover := _cart_part(CylinderMesh.new(), canvas, Vector3(0, 1.5, 0))
+	var tube: CylinderMesh = cover.mesh
+	tube.top_radius = 0.9
+	tube.bottom_radius = 0.9
+	tube.height = 2.9
+	tube.radial_segments = 20
+	# Lying along the cart: only its upper half shows above the box.
+	cover.rotation.z = PI * 0.5
+	for side in [-1.0, 1.0]:
+		var wheel := _cart_part(CylinderMesh.new(), wood, Vector3(0.4, 0.62, side * 0.95))
+		var disc: CylinderMesh = wheel.mesh
+		disc.top_radius = 0.62
+		disc.bottom_radius = 0.62
+		disc.height = 0.14
+		disc.radial_segments = 16
+		wheel.rotation.x = PI * 0.5
+		var rim := _cart_part(TorusMesh.new(), iron, Vector3(0.4, 0.62, side * 1.03))
+		var ring: TorusMesh = rim.mesh
+		ring.inner_radius = 0.56
+		ring.outer_radius = 0.66
+		rim.rotation.x = PI * 0.5
+	var shaft := _cart_part(BoxMesh.new(), wood, Vector3(-2.2, 0.6, 0))
+	(shaft.mesh as BoxMesh).size = Vector3(1.8, 0.12, 0.9)
+	shaft.rotation.z = -0.45
+	# A lantern on a pole at the front corner, with a warm, slightly violet glow.
+	var pole := _cart_part(BoxMesh.new(), wood, Vector3(-1.3, 1.6, 1.0))
+	(pole.mesh as BoxMesh).size = Vector3(0.1, 3.2, 0.1)
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(1.0, 0.8, 0.55)
+	glass.emission_enabled = true
+	glass.emission = Color(1.0, 0.7, 0.45)
+	glass.emission_energy_multiplier = 4.0
+	var lamp := _cart_part(BoxMesh.new(), glass, Vector3(-1.3, 3.0, 1.0))
+	(lamp.mesh as BoxMesh).size = Vector3(0.3, 0.4, 0.3)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.72, 0.62)
+	light.light_energy = 2.4
+	light.omni_range = 9.0
+	light.position = Vector3(-1.3, 2.9, 1.4)
+	_cart.add_child(light)
+	var sparkle := Effects.make_sparkles(Color(0.8, 0.6, 1.0))
+	sparkle.position = Vector3(0, 2.6, 0)
+	_cart.add_child(sparkle)
+	for i in 2:
+		var prop: String = ["crate_A_big", "sack"][i]
+		_put(prop, Vector3(1.9, 0, -0.4 + i * 0.9), _rng.randf() * TAU, PROP_SCALE, _cart)
+	_cart_shapes.append(_add_box(_walls_body, pos + Vector3(0, 1.0, 0), Vector3(3.9, 2.0, 2.2)))
+	astar.set_point_solid(cell, true)
+
+
+func _cart_part(mesh: Mesh, mat: Material, at: Vector3) -> MeshInstance3D:
+	var part := MeshInstance3D.new()
+	part.mesh = mesh
+	part.material_override = mat
+	part.position = at
+	_cart.add_child(part)
+	return part
 
 
 ## Nightfall: the dead get their spots on the paths beside the graves.

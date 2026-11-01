@@ -25,6 +25,18 @@ const INGREDIENTS := {
 		"where": "Eine Ader in der Wildnis, die nur bei Nacht schimmert."},
 	"mondstein": {"name": "Mondstein", "region": "Verlies", "when": "", "source": "Beute der Knochenmagier",
 		"where": "Knochenmagier im Verlies hüten ihn."},
+	# Hidden in the ground: only the hero's fox sniffs them out (see Pet).
+	# "fox" weighs how often the fox finds one: rarer ones less often.
+	"baerlauch": {"name": "Bärlauch", "region": "Wildnis", "when": "", "source": "Dein Fuchs", "fox": 6,
+		"where": "Wächst versteckt auf den Wiesen. Nur ein Fuchs erschnüffelt ihn."},
+	"steinpilz": {"name": "Steinpilz", "region": "Wildnis", "when": "", "source": "Dein Fuchs", "fox": 4,
+		"where": "Steckt im Gras der Wiesen. Nur ein Fuchs erschnüffelt ihn."},
+	"trueffel": {"name": "Trüffel", "region": "Wildnis", "when": "", "source": "Dein Fuchs", "fox": 1,
+		"where": "Selten und tief in der Erde der Wiesen. Nur ein Fuchs erschnüffelt sie."},
+	"hoehlenpilz": {"name": "Höhlenpilz", "region": "Verlies", "when": "", "source": "Dein Fuchs", "fox": 4,
+		"where": "Wächst unter dem Staub der Verliesböden. Nur ein Fuchs erschnüffelt ihn."},
+	"glimmermoos": {"name": "Glimmermoos", "region": "Verlies", "when": "", "source": "Dein Fuchs", "fox": 2,
+		"where": "Leuchtet schwach unter den Steinen des Verlieses. Nur ein Fuchs erschnüffelt es."},
 	# Fish, caught with the line (see Fishing). The perch bites everywhere;
 	# the other three are rare and bite in one water only.
 	"barsch": {"name": "Barsch", "region": "Dorf und Wolfssenke", "when": "", "source": "Angeln in den Teichen",
@@ -153,6 +165,20 @@ func has_ingredients(id: String) -> bool:
 	return true
 
 
+## An ingredient hidden in the ground for the hero's fox to dig up (see
+## Pet), in the open air ("Wildnis") or in the dungeon ("Verlies").
+static func random_fox_find(rng: RandomNumberGenerator, outdoors: bool) -> String:
+	var region := "Wildnis" if outdoors else "Verlies"
+	var ids := INGREDIENTS.keys().filter(func(id): return INGREDIENTS[id].has("fox") and INGREDIENTS[id].region == region)
+	var total := 0
+	for id in ids:
+		total += int(INGREDIENTS[id].fox)
+	var roll := rng.randi_range(1, total)
+	for id in ids:
+		roll -= int(INGREDIENTS[id].fox)
+		if roll <= 0:
+			return id
+	return ids[-1]
 ## A fish was caught: faded lines that name it can be read now. Returns the
 ## recipes whose scroll became clearer.
 func caught_fish(fish: String) -> Array:

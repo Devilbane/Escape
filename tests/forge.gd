@@ -119,7 +119,9 @@ func _run() -> void:
 
 	# Gorm's own wares: sold only by him, never loot, held in the hand.
 	var wares := Forge.wares()
-	check(wares.size() == 6 and wares.has("langschwert") and wares.has("kriegshammer") and wares.has("drachenschild"), "Gorm sells his six own pieces")
+	check(wares.size() == 4 and wares.has("langschwert") and wares.has("streitaxt"), "Gorm sells four of his own pieces")
+	check(not wares.has("kriegshammer") and not wares.has("drachenschild"), "the top tier he only forges")
+	check(Forge.recipes().has("kriegshammer") and Forge.recipes().has("drachenschild"), "the hero can still have them forged")
 	check(not wares.has("schwert") and not wares.has("rabenklinge"), "but not the common or unique gear")
 	var rng := RandomNumberGenerator.new()
 	var found := {}
@@ -127,7 +129,7 @@ func _run() -> void:
 		rng.seed = i
 		found[Items.random_item(rng)] = true
 		found[Items.random_item(rng, 0, "waffe")] = true
-	for id in wares:
+	for id in wares + ["kriegshammer", "drachenschild"]:
 		var item: Dictionary = Items.ALL[id]
 		check(not found.has(id), "%s is never loot or merchant stock" % id)
 		check(Lang.EN.has(item.name), "%s has an English name" % id)
@@ -146,7 +148,8 @@ func _run() -> void:
 	check(Array(p.bag) == ["langschwert"] and game.coins == 200 - Items.ALL["langschwert"].price, "gold buys the longsword")
 	check(Forge.buy(game, "schwert") != "" and p.bag.size() == 1, "Gorm does not sell the merchant's sword")
 	game.menus._buy_ware("drachenschild")
-	check(p.bag.has("drachenschild"), "and the kite shield")
+	check(not p.bag.has("drachenschild"), "but not the kite shield")
+	p.bag.append("drachenschild")
 	game.menus.close()
 	var power_before := p.power
 	check(p.equip("langschwert") and p.equip("drachenschild"), "both can be worn")

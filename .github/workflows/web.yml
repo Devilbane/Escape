@@ -89,6 +89,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log
           grep -q PASS barber.log
 
+      - name: Merchant trading window test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/merchant_window.gd | tee merchant_window.log
+          grep -q PASS merchant_window.log
+
       - name: Villager quests test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/quests.gd | tee quests.log
@@ -128,6 +133,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_lair.gd | tee lair.log
           grep -q PASS lair.log
+
+      - name: Dragon boss fight test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_boss.gd | tee dragon.log
+          grep -q PASS dragon.log
 
       - name: Bandit chief boss fight test
         run: |
@@ -183,6 +193,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/day_night.gd | tee daynight.log
           grep -q PASS daynight.log
+
+      - name: Wandering merchant test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wandering_merchant.gd | tee wanderer.log
+          grep -q PASS wanderer.log
 
       - name: Weather test
         run: |

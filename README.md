@@ -67,6 +67,17 @@ holds a food basket out of reach of the ground and of a single crate. Three crat
 stack two next to the pedestal, climb up and eat (+3 lives and every ailment cured). The basket
 fills up again after a few minutes.
 
+**Foxes** on the meadows between the graveyard and the village are shy, but they love **sausages**.
+Mira the shopkeeper always has some (2 gold each). Carry a sausage and a fox no longer bolts: it
+comes up to you, curious, and eats it from your hand. After three sausages it trusts you and follows
+you everywhere, in the village and down in the dungeon. You only ever have one fox, and it stays
+yours in your saved game. It never fights and cannot be hurt.
+Its nose is what makes it useful: **ingredients** lie hidden in the ground that you cannot see
+(wild garlic, porcini and rare truffles in the open air; cave mushrooms and glowmoss in the
+dungeon). When one is in reach of its nose, the fox runs over, digs it up and leaves it lying there
+for you to pick up. They go into your **ingredient pouch** and show up in the ingredient book (key H),
+ready for recipes. The ground holds new ones each time you come back.
+
 **Stone blocks** let you build: walls, steps, towers, small enclosures. Hagen the **stonemason** sells them
 in the village, west of the pedestal, next to his stone yard (3 gold each, 1 gold back; 4 kg each). A block
 is twice as long as it is wide and high and sits on a build grid: set down from the bag (key B), it lies
@@ -100,7 +111,8 @@ armour and shields, a few gold per point of durability. He also sells iron bars 
 forging from bought iron costs about what the merchant asks; iron from melted loot makes it cheaper.
 Iron is counted like gold, weighs nothing and stays in your saved game.
 Gorm also *sells his own work*, which is found nowhere else (not as loot, not at the merchant), and
-he can forge it from iron too. The window opens on this tab:
+he can forge it from iron too. The kite shield and the war hammer, the top of their kinds, he does not
+sell: you have him forge them from your iron. The window opens on this tab:
 
 | Piece | Skill | Gold | What it gives |
 |---|---|---|---|
@@ -157,7 +169,12 @@ Example: Blades 2 with Strength 12 and Dexterity 10 gives (12 + 10) / 2 × 3 = 3
 chance next to every skill.
 
 After every 4 levels you reach a **safe room** without enemies, the refuge. It has a **fountain**
-that refills your life and cures poison and curses, a storage chest, a merchant who buys and sells for gold, and a bed. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero falls later, the saved game is kept: a click on the “Fallen” screen continues the game from the refuge, N starts a new one.
+that refills your life and cures poison and curses, a storage chest, a merchant who buys and sells for gold, and a bed.
+Merchants sell only plain, basic gear: no specials, no unique or magic items (wizard's hat, shadow cloak,
+amulets, silver bracelet) and not the top tier of any kind (plate armour, swift boots, ruby ring, bear cap,
+royal cloak, big backpack, war hammer, kite shield). Those come only from loot and your own crafting.
+Their windows have a Buy and a Sell page, categories that fold, and cards that compare an item with what
+you wear. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero falls later, the saved game is kept: a click on the “Fallen” screen continues the game from the refuge, N starts a new one.
 On the next start you continue from there with a click or a key. The saved game is stored in the browser.
 
 **Hero or heroine:** a new game asks whether you play a hero or a heroine before it asks for your name.
@@ -347,6 +364,32 @@ sink back into their graves.
 A night in your **bed** skips to the next morning: you wake up at 07:00. The time of day is kept in the
 saved game.
 
+### The wandering merchant
+
+Every **third night** (the second night after the escape, then the fifth, the eighth and so on) Zarek the
+**wandering merchant** rolls his covered cart into the village at nightfall. He stands just south-west of
+the market square, beside a lantern, until dawn, then moves on again. Walk into him to trade.
+
+He brings **ingredients from far away** for your recipes: three kinds each visit, one or two pieces of
+each. They go straight into your ingredient pouch:
+
+| Ingredient | Price |
+|---|---|
+| Moonsilver ore | 30 |
+| Moonstone | 35 |
+| Glowmoss | 18 |
+| Wild garlic | 8 |
+| Porcini mushroom | 10 |
+| Cave mushroom | 10 |
+
+The rarest finds (the truffle and the rare fish) are never for sale. He also brings two pieces of plain
+gear or books, at a fifth more than the shopkeeper asks. Like every merchant he sells only **basic** gear:
+nothing magic or special (specials, the amulets, the wizard's hat, the shadow cloak, the silver bracelet),
+nothing unique and never the best of its kind; Gorm's own work only Gorm sells. Those you find as loot or
+craft yourself. He buys nothing.
+Every visit brings different wares; what you buy is gone until his next visit. If you sleep through his
+night in the bed, you miss him. The herald announces his visits on the square.
+
 ## Weather
 
 Above ground the sky does not stay clear: **rain**, **fog** and **thunderstorms** come and go on the same
@@ -428,13 +471,32 @@ In a clearing in the woods, north of the path from the graveyard to the village,
 stands over stairs that lead down into the dark. Run into the arch to climb down into the **dragon's lair**,
 a dungeon of its own: **bats** flutter about, quick but frail; green **slimes** creep along, tough and
 sometimes poisonous; skeleton warriors, archers, minions and a brute haunt the crypts; and in the great hall
-at the bottom the **dragon** guards its hoard. It hovers over its gold and spits **fire** from afar
-(an orange fireball that follows you like a mage's orb and burns for 2); step behind a statue or close in
-with the blade. Every monster of the lair carries some gold, and the dragon a heap of it and usually a piece
+at the bottom the **dragon** guards its hoard. Every monster of the lair carries some gold, and the dragon a heap of it and usually a piece
 of gear. Behind it waits the hoard's treasure chest among piles of coins.
 The halls are dressed with cobwebs, skulls, banners and a stone horse statue from the dungeon kit.
 The stairs you came down lead back out of the arch. The monsters stand ready again every time you come
 down, so there is always something to fight; searched chests and barrels stay empty.
+**Embermaw, the Hoard Dragon** is the boss of the lair. When it spots you, it wakes with a roar that shakes
+the lair, and its **health bar** shows at the top of the screen, with marks where its next phase begins.
+It hovers over its gold, spits **fireballs** from afar (they follow you like a mage's orb and burn for 2)
+and bites whoever comes close. A stab in the back of the sleeping dragon only hits three times as hard.
+Every few seconds it draws breath: **red rings** glow on the floor in a line towards you, and a moment
+later its **fire breath** sets them ablaze. These **fire fields** burn for 7 seconds; standing in one costs
+2 lives at first and 1 every second after, and sets you **burning** (1 life every 1.5 seconds for a few
+seconds, never the last one). Step aside, or jump over the flames. Dragons fly through them unharmed.
+After each breath the dragon sinks down, **winded**, for a moment: your blade hits twice as hard then.
+
+| Phase | When | What changes |
+|---|---|---|
+| 1 | full life | fireballs, bites, a line of fire breath |
+| 2 | below 60 % | furious: three lines of fire at once, and it breathes more often |
+| 3 | below 30 % | raging: quicker, and it **rains fire** around you every few seconds (rings first) |
+
+It guards its hoard and does not follow you far; leave it alone for 15 seconds and it is whole again.
+
+Slay the dragon and the lair is **complete**: a fanfare plays, a window says so, counts the monsters you
+have slain and offers to **leave the lair** at once (or stay and collect the loot). Where the dragon fell, a
+**golden way out** shines up on the floor: step into it and you stand in front of the stone arch again.
 
 By the campfire waits the boss of the pass: **Ravenheart, the bandit chief**. Once he takes up the fight, his
 **health bar** shows at the top of the screen, with marks where his next phase begins:

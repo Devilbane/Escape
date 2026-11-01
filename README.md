@@ -254,6 +254,17 @@ who pays you when it arrives; lose it and the giver hands you another. Rewards a
 who gave it, how far along it is and the reward. Quests are kept in each hero's saved game. The tasks are
 defined in `scripts/quests.gd`: adding one is a single entry there plus its English texts in `scripts/lang.gd`.
 
+**Recipes and crafts.** Odo the Scholar has an old scroll for you: the recipe for a **Moonsilver Ring**.
+A recipe names its ingredients and the craft it needs, but some of its lines have faded (they show only a
+fragment like "A still … without …") until you find out what they say. Ingredients go into an
+**ingredient pouch**, not the bag, so gathering them never fills it up. The **Recipe book** page of the
+compendium (key H) shows every recipe you found, what you have of each ingredient, and how far your craft
+has come. Below the recipes it lists each ingredient they name: where it is found, when (for example only
+at night), what yields it (an ore vein, a creature's loot, the smith), and whether you found the place yourself; the crafts (for now **fine metalwork**) are listed on the character page. This is the start of a
+longer loop: gather ingredients from all over the world, learn and train the craft, work out the faded
+lines, and finish the piece under the right influences (a calm mind, a goddess's favour, the right stars).
+Recipes and ingredients are defined in `scripts/crafting.gd`, the crafts in `Training.CRAFTS`.
+
 **Reputation.** Every villager has their own opinion of you, and helping them improves it. A finished task
 counts the most: 25 points with whoever gave it, 15 with whoever received a delivery, and 5 with everyone
 else you have met, because word gets around. Buying from a villager who trades (Mira, Gorm, Hagen, Benno)

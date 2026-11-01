@@ -64,6 +64,9 @@ var met := {}
 ## The villagers' tasks: offered, running and finished (see Quests). Kept in
 ## the saved game, so every hero has their own.
 var quests := Quests.new(self)
+## Known recipes and the ingredient pouch (see Crafting). Kept in the saved
+## game, like the quests.
+var crafting := Crafting.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
 ## gossip and secret recipes. Kept in the saved game.
 var reputation := Reputation.new(self)
@@ -665,7 +668,7 @@ func _use_station(s: Dictionary) -> void:
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not busy and not quests.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc):
+		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building)
@@ -1315,6 +1318,7 @@ func _start_new_game() -> void:
 	builds.clear()
 	met.clear()
 	quests.clear()
+	crafting.clear()
 	reputation.clear()
 	storage.clear()
 	shop_stock.clear()
@@ -1582,6 +1586,7 @@ func _apply_save(data: Dictionary) -> void:
 			if Villager.ROLES.has(str(role)):
 				met[str(role)] = true
 	quests.load_from(data.get("quests", {}))
+	crafting.load_from(data.get("crafting", {}))
 	reputation.load_from(data.get("reputation", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
@@ -1688,6 +1693,7 @@ func save_game(going_away := false) -> bool:
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
+		"crafting": crafting.for_save(),
 		"reputation": reputation.for_save(),
 		"hour": day_hour,
 	}
@@ -2067,7 +2073,8 @@ func refresh_quest_marks() -> void:
 		return
 	for v in level.villagers:
 		if is_instance_valid(v):
-			v.set_quest_mark(quests.mark(v.role))
+			var quest_mark := quests.mark(v.role)
+			v.set_quest_mark(quest_mark if quest_mark != "" else crafting.mark(v.role))
 
 
 ## Something in the bag changed because of a task.

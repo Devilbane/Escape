@@ -84,6 +84,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_bandits.gd | tee bandits.log
           grep -q PASS bandits.log
 
+      - name: Strike, sweep and fighting back test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/splash_attack.gd | tee splash.log
+          grep -q PASS splash.log
+
       - name: Hero and skeletons cannot stack test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/no_stacking.gd | tee stacking.log

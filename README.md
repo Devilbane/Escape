@@ -12,7 +12,7 @@ The game can be played in English or German; you choose the language on the titl
 |---|---|---|
 | Walk | WASD or arrow keys | click/tap the floor |
 | Jump | Space | right click while walking (left button held), “Jump” button |
-| Melee | run into the enemy or F | click the enemy, “Strike” button |
+| Melee | run into the enemy or F | click the enemy (the hero walks up to it), “Strike” button |
 | Throwing knife | R | right click while standing, “Throw” button |
 | Use, search | run into it | click the object |
 | Inventory | I | “Inventory” button |
@@ -27,6 +27,11 @@ A jump from a run keeps its momentum: the faster you are, the farther you fly.
 Running has a risk: lose more than 10 % of your lives within 2 seconds while running (or right after) and you fall to the ground and get up again, which takes about 2.5 seconds. No blow lands while you are down.
 
 Run into a skeleton and you fight automatically: as long as you stand next to it, you keep striking.
+Click a skeleton and the hero walks up to it and strikes it. Facing a single enemy the hero **strikes**
+it for full damage. With two or more enemies in reach the hero **sweeps** the blade round instead:
+up to 3 of them are hit at once, each for half the damage (at least 1).
+A hero who is attacked fights back on their own, even without a command: with the blade when the attacker
+is close, with throwing knives when it stands further off (as long as there are knives and a clear line of sight).
 You and the skeletons each take up your own spot: nobody can stand inside or on top of anyone else.
 If you land on a skeleton's head, you are pushed apart, and no blow lands until you stand side by side again.
 Step back and you throw knives at the skeleton you attacked last, as long as you can see it

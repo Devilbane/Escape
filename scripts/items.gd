@@ -76,6 +76,9 @@ const ALL := {
 	# A wooden crate (see Crate): carried in the bag, set down on the floor
 	# again, stacked and climbed. Never found as loot or sold in shops.
 	"kiste": {"name": "Holzkiste", "slot": "kiste", "weight": 3, "price": 2, "no_loot": true, "effect": "Abstellen (Taste Q), stapeln und daraufklettern"},
+	# A block of carved stone to build with (see StoneBlock): sold by the
+	# stonemason in the village, set down from the bag, moved by dragging.
+	"steinblock": {"name": "Steinblock", "slot": "stein", "weight": 4, "price": 3, "no_loot": true, "effect": "Zum Bauen: abstellen (Taste B), mit der Maus ziehen und stapeln"},
 }
 
 
@@ -106,6 +109,11 @@ static func is_book(id: String) -> bool:
 ## Whether an item is a crate that can be set down again (see Crate).
 static func is_crate(id: String) -> bool:
 	return ALL.has(id) and ALL[id].slot == "kiste"
+
+
+## Whether an item is a stone block to build with (see StoneBlock).
+static func is_stone(id: String) -> bool:
+	return ALL.has(id) and ALL[id].slot == "stein"
 
 
 static func item_name(id: String) -> String:

@@ -1470,6 +1470,201 @@ func put_crate(spot: Vector3) -> Crate:
 	return crate
 
 
+# --- Stone blocks ---------------------------------------------------------------
+
+## Stone blocks the hero built with on this level (see StoneBlock).
+var stones: Array = []
+## Where the blocks stand, as [x, z, layer, along x (1) or z (0)] per block.
+## The game hands in its own list for this level and keeps it in the saved
+## game; restore_stones() builds them again after build().
+var built: Array = []
+## How far the hero reaches to take a block back into the bag (metres from
+## their middle to the block's middle), how far from them a block can be
+## grabbed with the mouse and dragged to, and how far ahead a block from the
+## bag is set down.
+const STONE_REACH := 2.6
+const STONE_DRAG_RANGE := 7.0
+const STONE_AHEAD := 1.6
+
+
+func add_stone(first: Vector2i, x_wise: bool, on_layer: int) -> StoneBlock:
+	var stone := StoneBlock.new()
+	stone.place(first, x_wise, on_layer)
+	add_child(stone)
+	stones.append(stone)
+	return stone
+
+
+## Builds the blocks of the saved game again (once, after build()).
+func restore_stones() -> void:
+	for entry in built.duplicate():
+		if entry is Array and entry.size() >= 4:
+			add_stone(Vector2i(int(entry[0]), int(entry[1])), int(entry[3]) == 1, int(entry[2]))
+
+
+func _sync_built() -> void:
+	built.clear()
+	for s in stones:
+		if is_instance_valid(s):
+			built.append([s.cell.x, s.cell.y, s.layer, 1 if s.along_x else 0])
+
+
+## How many layers of blocks stand on a grid cell: the layer a new block
+## there would lie on. `except` is left out (the block being moved).
+func stone_column(c: Vector2i, except: StoneBlock = null) -> int:
+	var h := 0
+	for s in stones:
+		if s != except and is_instance_valid(s) and s.cells().has(c):
+			h = maxi(h, s.layer + 1)
+	return h
+
+
+## The layer a block on these cells would land on: on the highest block
+## under either of its two cells, else on the floor.
+func stone_layer_for(first: Vector2i, x_wise: bool, except: StoneBlock = null) -> int:
+	var h := 0
+	for c in StoneBlock.cells_of(first, x_wise):
+		h = maxi(h, stone_column(c, except))
+	return h
+
+
+## Whether a block can be taken or moved: nothing lies on it and nobody
+## stands on it.
+func stone_free(stone: StoneBlock) -> bool:
+	for s in stones:
+		if s != stone and is_instance_valid(s) and s.layer == stone.layer + 1:
+			for c in s.cells():
+				if stone.cells().has(c):
+					return false
+	return not _someone_on(stone)
+
+
+## Whether a block would fit there: not too high, and touching no wall,
+## furniture, crate, hero, skeleton or other block.
+func stone_fits(first: Vector2i, x_wise: bool, on_layer: int, except: StoneBlock = null) -> bool:
+	if on_layer >= StoneBlock.MAX_LAYERS:
+		return false
+	var box := BoxShape3D.new()
+	box.size = Vector3(StoneBlock.CELL * 2.0, StoneBlock.HEIGHT, StoneBlock.CELL) - Vector3.ONE * 0.1
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = box
+	var basis := Basis() if x_wise else Basis(Vector3.UP, PI * 0.5)
+	query.transform = Transform3D(basis, StoneBlock.spot_of(first, x_wise, on_layer) + Vector3(0, StoneBlock.HEIGHT * 0.5, 0))
+	if except != null:
+		query.exclude = [except.get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+## Where a block from the bag goes when the hero facing `ahead` sets it
+## down: on the grid in front of them, lying across their way (a wall in
+## front), on the floor or on top of the blocks there. Empty when there is
+## no room or it would lie too high to lift there.
+func stone_spot_ahead(hero: Node3D, ahead: Vector3) -> Dictionary:
+	ahead.y = 0.0
+	ahead = ahead.normalized() if ahead.length() > 0.01 else Vector3.BACK
+	var x_wise := absf(ahead.z) >= absf(ahead.x)
+	var first := StoneBlock.cell_for(hero.global_position + ahead * STONE_AHEAD, x_wise)
+	var on_layer := stone_layer_for(first, x_wise)
+	if on_layer * StoneBlock.HEIGHT > hero.global_position.y + CRATE_LIFT:
+		return {}
+	if not stone_fits(first, x_wise, on_layer):
+		return {}
+	return {"cell": first, "along_x": x_wise, "layer": on_layer}
+
+
+## Where a block dragged to `point` would land, lying along x or z. Empty
+## when it is too far from the hero or there is no room.
+func stone_drop_spot(stone: StoneBlock, point: Vector3, x_wise: bool, hero: Node3D) -> Dictionary:
+	var first := StoneBlock.cell_for(point, x_wise)
+	var spot := StoneBlock.spot_of(first, x_wise, 0)
+	var on_layer := stone_layer_for(first, x_wise, stone)
+	var result := {"cell": first, "along_x": x_wise, "layer": on_layer, "ok": false}
+	if _flat_distance(spot, hero.global_position) > STONE_DRAG_RANGE:
+		return result
+	if first == stone.cell and x_wise == stone.along_x and on_layer == stone.layer:
+		return result
+	result.ok = stone_fits(first, x_wise, on_layer, stone)
+	return result
+
+
+## Sets a block down (from the bag) at a spot from stone_spot_ahead().
+func put_stone(first: Vector2i, x_wise: bool, on_layer: int) -> StoneBlock:
+	var stone := add_stone(first, x_wise, on_layer)
+	stone.model.scale = Vector3.ONE * 0.4
+	create_tween().tween_property(stone.model, "scale", Vector3.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_sync_built()
+	return stone
+
+
+## Lifts a block off the level (into the hero's bag).
+func take_stone(stone: StoneBlock) -> void:
+	stones.erase(stone)
+	_sync_built()
+	stone.collision_layer = 0
+	var tween := create_tween()
+	tween.tween_property(stone.model, "position:y", 1.0, 0.25).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(stone.model, "scale", Vector3.ONE * 0.01, 0.25).set_ease(Tween.EASE_IN)
+	tween.tween_callback(stone.queue_free)
+
+
+## The topmost free block whose footprint a point falls in, give or take
+## `margin`, or null.
+func stone_at(point: Vector3, margin := 0.3) -> StoneBlock:
+	var best: StoneBlock = null
+	for s in stones:
+		if is_instance_valid(s) and s.covers(point, margin) and (best == null or s.layer > best.layer):
+			best = s
+	return best
+
+
+## The block the hero could take back into the bag: the nearest free one in
+## reach, within lifting height. Null when there is none.
+func stone_in_reach(hero: Node3D) -> StoneBlock:
+	var best: StoneBlock = null
+	var best_d := INF
+	var feet := hero.global_position.y
+	for s in stones:
+		if not is_instance_valid(s) or s.global_position.y > feet + 2.0 or s.top() < feet - 1.2:
+			continue
+		var d := _flat_distance(hero.global_position, s.global_position)
+		if d <= STONE_REACH and d < best_d and stone_free(s):
+			best = s
+			best_d = d
+	return best
+
+
+## Pushes or throws a block onto another spot: it flies there in an arc,
+## while its collision is there at once.
+func move_stone(stone: StoneBlock, first: Vector2i, x_wise: bool, on_layer: int) -> void:
+	var from := stone.model.global_transform
+	stone.place(first, x_wise, on_layer)
+	_sync_built()
+	var to := Transform3D(Basis() if x_wise else Basis(Vector3.UP, PI * 0.5), stone.global_position)
+	var model := stone.model
+	model.top_level = true
+	model.global_transform = from
+	var rise := 0.6 + 0.12 * from.origin.distance_to(to.origin)
+	var fly := func(t: float) -> void:
+		if not is_instance_valid(model):
+			return
+		var q := from.basis.get_rotation_quaternion().slerp(to.basis.get_rotation_quaternion(), t)
+		var p := from.origin.lerp(to.origin, t)
+		p.y += rise * 4.0 * t * (1.0 - t)
+		model.global_transform = Transform3D(Basis(q), p)
+	var tween := create_tween()
+	tween.tween_method(fly, 0.0, 1.0, 0.35 + 0.03 * from.origin.distance_to(to.origin))
+	tween.tween_callback(func():
+		if is_instance_valid(model):
+			model.top_level = false
+			model.transform = Transform3D())
+
+
+## The height of the stone surface on the grid cell a point lies in (0 with
+## no block there), for climbing onto blocks.
+func stone_surface(point: Vector3) -> float:
+	return stone_column(StoneBlock.grid_cell(point)) * StoneBlock.HEIGHT
+
+
 func _process(delta: float) -> void:
 	_time += delta
 	for t in _torches:

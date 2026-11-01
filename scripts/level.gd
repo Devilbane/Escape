@@ -1178,6 +1178,88 @@ func _build_exit(c: Vector2i) -> void:
 
 # --- Runtime ----------------------------------------------------------------
 
+## Heroes and skeletons each take up the spot they stand on. Their bodies
+## already block each other, but a jump onto a skull, a knockback or a spawn
+## can still leave two of them inside each other. Such a pair is pushed apart
+## at this speed (metres per second), and neither can strike the other until
+## they stand side by side again.
+const PUSH_APART_SPEED := 6.0
+## How far two bodies may sink into each other before they count as stacked
+## (bodies that merely touch must still be able to fight).
+const STACK_TOLERANCE := 0.15
+
+
+## Whether `a` and `b` (the hero or skeletons) stand inside each other or on
+## top of each other.
+func stacked(a, b) -> bool:
+	if a == null or b == null or a == b:
+		return false
+	var d: Vector3 = b.global_position - a.global_position
+	if absf(d.y) > maxf(a.tall, b.tall) + 0.5:
+		return false
+	d.y = 0.0
+	return d.length() < a.radius + b.radius - STACK_TOLERANCE
+
+
+func _physics_process(delta: float) -> void:
+	_push_apart(delta)
+
+
+## Pushes overlapping hero and skeletons apart; the lighter one moves more,
+## and nobody is pushed through a wall.
+func _push_apart(delta: float) -> void:
+	var bodies: Array[CharacterBody3D] = []
+	if player is Player and not player.dead:
+		bodies.append(player)
+	for e in enemies:
+		if is_instance_valid(e) and not e.dead and e.is_inside_tree():
+			bodies.append(e)
+	for i in bodies.size():
+		for j in range(i + 1, bodies.size()):
+			var a = bodies[i]
+			var b = bodies[j]
+			var d: Vector3 = b.global_position - a.global_position
+			if absf(d.y) > maxf(a.tall, b.tall) + 0.5:
+				continue
+			d.y = 0.0
+			var overlap: float = a.radius + b.radius - d.length()
+			if overlap <= 0.02:
+				continue
+			var away: Vector3 = d.normalized() if d.length() > 0.05 else _free_side(b)
+			var weight_a := _push_weight(a)
+			var weight_b := _push_weight(b)
+			var step := minf(overlap, PUSH_APART_SPEED * delta)
+			_shove(a, b, -away * step * weight_b / (weight_a + weight_b))
+			_shove(b, a, away * step * weight_a / (weight_a + weight_b))
+
+
+## How hard a body is to push: bigger skeletons weigh more, and a hero
+## being moved by the game (up the stairs) does not budge.
+func _push_weight(body) -> float:
+	if body is Player:
+		return 1000.0 if body.frozen else 1.0
+	return pow(float(body.tall) / 2.4, 2.0)
+
+
+## Moves `body` by `motion`, ignoring `other` (they overlap already) but
+## stopping at walls, furniture and everyone else.
+func _shove(body: CharacterBody3D, other: CharacterBody3D, motion: Vector3) -> void:
+	if motion.length() < 0.0001:
+		return
+	body.add_collision_exception_with(other)
+	body.move_and_collide(motion)
+	body.remove_collision_exception_with(other)
+
+
+## A direction to step out of a body standing right on top of another:
+## the first side with room, else any.
+func _free_side(body: CharacterBody3D) -> Vector3:
+	for d in [Vector3.RIGHT, Vector3.LEFT, Vector3.FORWARD, Vector3.BACK]:
+		var cell := world_to_cell(body.global_position + d * TILE)
+		if astar.is_in_boundsv(cell) and not astar.is_point_solid(cell):
+			return d
+	return Vector3.RIGHT
+
 func _process(delta: float) -> void:
 	_time += delta
 	for t in _torches:

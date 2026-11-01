@@ -64,6 +64,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/graveyard_start.gd | tee graveyard.log
           grep -q PASS graveyard.log
 
+      - name: Hero and skeletons cannot stack test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/no_stacking.gd | tee stacking.log
+          grep -q PASS stacking.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

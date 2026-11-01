@@ -51,6 +51,9 @@ var ranged := false
 var hp := 3
 var dead := false
 var _stats: Dictionary
+## The spot the skeleton takes up (see Level.push_apart).
+var radius := 0.6
+var tall := 2.4
 
 var _model: Node3D
 var _anim: AnimationPlayer
@@ -118,8 +121,10 @@ func _ready() -> void:
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	# The colossus is a touch slimmer than it looks, so it fits through doors.
-	capsule.radius = 0.6 * minf(size, 1.25)
-	capsule.height = 2.4 * size
+	radius = 0.6 * minf(size, 1.25)
+	tall = 2.4 * size
+	capsule.radius = radius
+	capsule.height = tall
 	shape.shape = capsule
 	shape.position.y = 1.2 * size
 	add_child(shape)
@@ -346,7 +351,9 @@ func _physics_process(delta: float) -> void:
 	if move != Vector3.ZERO:
 		pass # Out of the furniture first.
 	elif _awake and not player.dead and _busy <= 0.0:
-		if ranged and sees and _lost <= 0.0 and dist < _stats.reach:
+		if level.stacked(self, player):
+			pass # Inside the hero's spot: no blow or shot until pushed apart.
+		elif ranged and sees and _lost <= 0.0 and dist < _stats.reach:
 			_face(to_player)
 			if _cooldown <= 0.0:
 				_shoot(player)
@@ -549,7 +556,7 @@ func _strike(player: Player) -> void:
 		return
 	var d := player.global_position - global_position
 	d.y = 0.0
-	if d.length() < float(_stats.reach) + 0.6:
+	if d.length() < float(_stats.reach) + 0.6 and not level.stacked(self, player):
 		var before := player.hp
 		player.take_damage(_stats.damage, global_position, self)
 		# Minion blades are sometimes poisoned.
@@ -562,7 +569,7 @@ func _shoot(player: Player) -> void:
 	var magic: bool = kind == "magier"
 	_play_once("Spellcast_Shoot" if magic else "1H_Ranged_Shoot", 0.9 if magic else 0.7)
 	await get_tree().create_timer(0.5 if magic else 0.3).timeout
-	if dead or not is_inside_tree():
+	if dead or not is_inside_tree() or level.stacked(self, player):
 		return
 	var origin := global_position + Vector3(0, 1.4, 0)
 	var target := player.global_position + Vector3(0, 1.2, 0)

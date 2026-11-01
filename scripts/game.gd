@@ -633,21 +633,26 @@ func set_world_paused(paused: bool) -> void:
 ## Running into a shrine, the bed, the storage chest or the merchant.
 func _use_station(s: Dictionary) -> void:
 	_pending_station = {}
+	# Still saying the last line: a new bump does not start a new one yet, or
+	# the text flickers while the hero keeps pushing against the villager.
+	var busy: bool = s.has("npc") and s.npc.is_busy_talking()
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not quests.talk(s.npc):
+		if not busy and not quests.talk(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building)
 	elif s.has("npc"):
 		# A villager who trades: a word, then the goods. A task handed out or
-		# finished comes first; the goods wait until the next time.
-		if quests.talk(s.npc, true):
+		# finished comes first; the goods wait until the next time. While the
+		# last line still shows, the goods open without a new word.
+		if not busy and quests.talk(s.npc, true):
 			player.face(s.pos - player.global_position)
 			player.play("Idle")
 			return
-		s.npc.talk(player)
+		if not busy:
+			s.npc.talk(player)
 		player.face(s.pos - player.global_position)
 		menus.open(s.kind)
 	elif s.kind == "schrein":

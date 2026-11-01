@@ -10,6 +10,11 @@ const RUN_SPEED := 3.6
 ## shown only when a role asks for it.
 const BODY_PARTS := ["Body", "Head", "ArmLeft", "ArmRight", "LegLeft", "LegRight"]
 const SAY_TIME := 4.0
+## A line stays at least this long before the hero can get a new one by
+## running into the villager again (or the whole line, if it is shorter).
+## Without it, pushing against a villager swaps the text every bump and the
+## bubble flickers.
+const MIN_SAY_TIME := 2.5
 ## Waits this long for the hero to step aside before walking on.
 const MAKE_WAY := 1.4
 
@@ -104,6 +109,8 @@ var _speed := WALK_SPEED
 var _waiting := 0.0
 var _bubble: Label3D
 var _bubble_time := 0.0
+## How long the current line still holds before a new bump may replace it.
+var _bubble_hold := 0.0
 ## The name over the head, shown once the hero has talked to us.
 var _name_tag: Label3D
 var _line := 0
@@ -532,13 +539,21 @@ func greet_newcomer(hero: Node3D) -> void:
 func say(text: String, look_at := Vector3.INF, time := SAY_TIME) -> void:
 	_bubble.text = "%s:\n%s" % [display_name, text]
 	_bubble_time = time
+	_bubble_hold = minf(time, MIN_SAY_TIME)
 	_look_at = look_at
 	if _task == "walk":
 		_start("idle", 0.5)
 
 
+## Whether the current line has not been shown long enough to be read: the
+## hero running into us again gets no new line yet.
+func is_busy_talking() -> bool:
+	return _bubble_hold > 0.0 and _bubble_time > 0.0
+
+
 func _update_bubble(delta: float) -> void:
 	_bubble_time = maxf(0.0, _bubble_time - delta)
+	_bubble_hold = maxf(0.0, _bubble_hold - delta)
 	var target := 1.0 if _bubble_time > 0.0 else 0.0
 	var alpha := move_toward(_bubble.modulate.a, target, delta * 4.0)
 	if alpha != _bubble.modulate.a:

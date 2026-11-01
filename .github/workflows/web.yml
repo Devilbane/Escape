@@ -104,6 +104,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/merchant_window.gd | tee merchant_window.log
           grep -q PASS merchant_window.log
 
+      - name: Window buttons, hover and keyboard focus test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/window_buttons.gd | tee window_buttons.log
+          grep -q PASS window_buttons.log
+
       - name: Villager quests test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/quests.gd | tee quests.log

@@ -87,6 +87,8 @@ const WALL_DECOR := [
 ## The bright cartoon stone of the pieces the kit has no match for is darkened
 ## to sit among the kit's stone.
 const STONE_TINT := Color(0.6, 0.56, 0.52)
+## Colour of the iron spikes in spike traps.
+const SPIKE_IRON := Color(0.5, 0.5, 0.53)
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
 const SOLID := "#bxotkCDHBLVF?f=U"
 ## Reach for searching: anything on a neighbouring tile.
@@ -412,8 +414,14 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 	node.rotation.y = rot_y
 	parent.add_child(node)
 	if piece in TINTED_PIECES:
-		for mi in node.find_children("*", "MeshInstance3D", true, false):
-			mi.material_override = _tinted(mi.get_active_material(0))
+		for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+			if mi.name == "spikes":
+				# Dull, hammered iron spikes (they move, so the grain rides along).
+				GearLook.apply(mi, "metal", SPIKE_IRON, true, 0.35)
+			elif mi.name == "wall_doorway_door":
+				mi.material_override = _tinted(mi.get_active_material(0))
+			else:
+				mi.material_override = _rough_stone(mi.get_active_material(0))
 	return node
 
 
@@ -449,6 +457,20 @@ func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
 			mi = plain
 		mi.material_override = mat
 	return kit
+
+
+## The darkened cartoon stone, made rough and matt like the kit's walls, so
+## spike and grate tiles, stairs and doorways do not look like plastic.
+func _rough_stone(mat: Material) -> Material:
+	if not _scenes.has("mat_rough_stone"):
+		var stone := ShaderMaterial.new()
+		stone.shader = STONE_SHADER
+		stone.set_shader_parameter("albedo_tex", (mat as StandardMaterial3D).albedo_texture)
+		stone.set_shader_parameter("albedo_color", STONE_TINT)
+		stone.set_shader_parameter("use_normal_map", false)
+		stone.set_shader_parameter("strength", 1.4)
+		_scenes["mat_rough_stone"] = stone
+	return _scenes["mat_rough_stone"]
 
 
 func _tinted(mat: Material) -> Material:

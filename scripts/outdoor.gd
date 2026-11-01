@@ -36,6 +36,9 @@ extends Level
 
 ## A notice for the message line, e.g. when the house is handed over.
 signal notice(text: String, duration: float)
+## The hero walked into the house the elder gave for the first time: it is
+## theirs now, and the place every saved game starts from.
+signal home_claimed
 ## The hero has reached the food basket on the pedestal and eats.
 signal food_basket(heal: int)
 
@@ -1125,6 +1128,7 @@ func _process(delta: float) -> void:
 		if inside and house_given and not _entered_once:
 			_entered_once = true
 			notice.emit(Lang.t("Dein neues Zuhause! Im Bett speicherst du, in der Truhe lagerst du deine Schätze."), 4.0)
+			home_claimed.emit()
 		if inside and _marker:
 			_marker.queue_free()
 			_marker = null

@@ -755,10 +755,10 @@ func _ingredient_entry(id: String, left: int, index: int) -> Dictionary:
 	var lines := []
 	for line in game.crafting.describe_ingredient(id).split("\n").slice(1):
 		lines.append([line, TradeWindow.BLUE])
-	return {"key": "herb:%s" % id, "id": id, "icon": icon, "name": Lang.t("%s (noch %d)") % [Wanderer.ware_name(id), left],
+	return {"key": "herb:%s" % id, "id": id, "icon": icon, "name": Wanderer.ware_name(id),
 			"price": Lang.t("%d Gold") % price, "price_ok": game.coins >= price, "action": _buy_from_wanderer.bind(index),
 			"enabled": game.coins >= price,
-			"detail": {"subtitle": Lang.t("Zutat für Rezepte"), "lines": lines},
+			"detail": {"subtitle": Lang.t("Zutat für Rezepte, noch %d da") % left, "lines": lines},
 			"compare": {"title": Lang.t("In deinem Zutatenbeutel"), "name": "%s: %d" % [Wanderer.ware_name(id), game.crafting.have(id)], "icon": icon}}
 
 

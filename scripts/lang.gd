@@ -998,8 +998,7 @@ const EN := {
 	"Wanderhändler Zarek kommt jede dritte Nacht mit seinem Karren ins Dorf und steht bis zum Morgengrauen am Markt. Er bringt Zutaten für Rezepte aus fernen Gegenden mit, dazu etwas einfache Ausrüstung, und jedes Mal andere Waren. Kaufen tut er nichts.": "Zarek the wandering merchant brings his cart to the village every third night and stands by the market until dawn. He brings recipe ingredients from faraway lands and a little plain gear, with different wares every time. He buys nothing.",
 	"Zutaten aus fernen Gegenden, nur heute Nacht. Im Morgengrauen zieht Zarek weiter; in %d Nächten kommt er wieder.": "Ingredients from faraway lands, tonight only. At dawn Zarek moves on; he comes back in %d nights.",
 	"Gekauft: %s. Es kommt in deinen Zutatenbeutel.": "Bought: %s. It goes into your ingredient pouch.",
-	"%s (noch %d)": "%s (%d left)",
-	"Zutat für Rezepte": "Ingredient for recipes",
+	"Zutat für Rezepte, noch %d da": "Ingredient for recipes, %d left",
 	"In deinem Zutatenbeutel": "In your ingredient pouch",
 	# The fox
 	"Wurst": "Sausage",

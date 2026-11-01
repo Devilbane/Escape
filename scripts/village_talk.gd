@@ -356,7 +356,7 @@ func start_chat(village: Outdoor, only := "") -> bool:
 	# If both stay put, the second one comes.
 	var walker: Villager = null
 	if _flat(a.global_position, b.global_position) > CHAT_NEAR:
-		walker = a if b.stays_put() and not a.stays_put() else b
+		walker = a if b.keeps_spot() and not a.keeps_spot() else b
 	var host: Villager = a if walker == b else b
 	if walker != null and not walker.join_chat(host, true):
 		return false

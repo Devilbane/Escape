@@ -721,12 +721,6 @@ func can_chat() -> bool:
 	return _task in ["work", "idle", "sit"] and _bubble_time <= 0.0 and _listen_to == Vector3.INF
 
 
-## Whether we keep a stall or a post and do not walk over to others when
-## someone else can come instead.
-func stays_put() -> bool:
-	return _info.plan in ["stay", "shop"]
-
-
 ## Starts a chat with `partner`. `walk`: we go over to them (and stop a step
 ## short, on our side); otherwise we wait where we are. Returns false when
 ## there is no way over.

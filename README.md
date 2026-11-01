@@ -25,6 +25,7 @@ The game can be played in English or German; you choose the language on the titl
 | Compendium | H | “Compendium” button |
 | Character page | P | “Character” button |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
+| Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |
 | Quit game | Esc | “Quit” button, top right |
 | Sound on/off | M | “Sound” button, top right |
@@ -438,6 +439,35 @@ a pack of quick **wolves**, **spiders** whose bite can poison, two **orcs** that
 **yeti**. They notice, chase, strike and give up just like the bandits, and come back the same way a
 while after they fall. A wolf or a spider leaves little more than a coin or two; orcs and the yeti carry
 more gold and sometimes a piece of gear.
+
+### Rivals and friends
+
+Not all monsters are on the same side. Every kind belongs to a **faction**, and some factions hate each
+other: when rivals meet, they fight, and whoever wins leaves the loser's loot lying for you.
+
+- **The dead** (skeletons, fog wraiths) hate everything that lives.
+- **The bandits** of the pass and **the beasts of the wolf hollow** (wolves, orcs, spiders, the yeti)
+  are at war. Lure a wolf onto the pass, or let it find a bandit on its own, and watch them go at it.
+  The beasts share their hollow in peace.
+- **The dragon's brood** (bats, slimes, the dragon) wants the skeletons out of its cave.
+
+A monster that sees a rival within about 14 metres goes for it. A monster that hunts you still goes for a
+rival first when the rival is closer than you. A kill by a rival counts for no task and does not feed the
+vampire tooth.
+
+Some factions can be **befriended**. Stand next to one of them and press **T** (or “Give gift”):
+
+| Faction | Gift | Gifts to become friends |
+|---|---|---|
+| Wolves | 1 perch | 3 |
+| Orcs | 6 gold | 3 |
+| The yeti | 2 perch | 3 |
+
+Each gift calms that one monster for ten seconds, even mid-hunt, and earns the faction's **favour**. Once a
+faction is your friend, none of them attacks you any more, your blade, sweeps and knives pass them by, and
+they fall upon any monster that hunts you within about 16 metres. Slaying one of them costs favour; slaying
+their rivals earns a little (a quarter per kill), but never the last step: that one takes a gift. The favour
+is kept in the saved game. Spiders, bandits, the dead and the dragon's brood cannot be won over.
 
 The woods between the graveyard and the village are home to peaceful animals: **does**, **stags** and
 **foxes** graze and stroll on the meadows by the path. They never fight and cannot be hurt, and they

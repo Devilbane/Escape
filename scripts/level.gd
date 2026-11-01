@@ -460,8 +460,18 @@ func _tinted(mat: Material) -> Material:
 	return _scenes["mat_tinted"]
 
 
-func _kit_material(set_name: String) -> StandardMaterial3D:
+const STONE_SHADER := preload("res://shaders/stone.gdshader")
+
+
+func _kit_material(set_name: String) -> Material:
 	var key := "mat_" + set_name
+	if not _scenes.has(key) and set_name == "walls":
+		# Walls get rough, stained stone instead of the kit's smooth brick faces.
+		var stone := ShaderMaterial.new()
+		stone.shader = STONE_SHADER
+		stone.set_shader_parameter("albedo_tex", load(KIT_DIR + "walls_albedo.png"))
+		stone.set_shader_parameter("normal_tex", load(KIT_DIR + "walls_normal.png"))
+		_scenes[key] = stone
 	if not _scenes.has(key):
 		var m := StandardMaterial3D.new()
 		m.albedo_texture = load(KIT_DIR + set_name + "_albedo.png")

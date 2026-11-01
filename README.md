@@ -110,7 +110,8 @@ armour and shields, a few gold per point of durability. He also sells iron bars 
 forging from bought iron costs about what the merchant asks; iron from melted loot makes it cheaper.
 Iron is counted like gold, weighs nothing and stays in your saved game.
 Gorm also *sells his own work*, which is found nowhere else (not as loot, not at the merchant), and
-he can forge it from iron too. The window opens on this tab:
+he can forge it from iron too. The kite shield and the war hammer, the top of their kinds, he does not
+sell: you have him forge them from your iron. The window opens on this tab:
 
 | Piece | Skill | Gold | What it gives |
 |---|---|---|---|
@@ -167,7 +168,12 @@ Example: Blades 2 with Strength 12 and Dexterity 10 gives (12 + 10) / 2 × 3 = 3
 chance next to every skill.
 
 After every 4 levels you reach a **safe room** without enemies, the refuge. It has a **fountain**
-that refills your life and cures poison and curses, a storage chest, a merchant who buys and sells for gold, and a bed. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero falls later, the saved game is kept: a click on the “Fallen” screen continues the game from the refuge, N starts a new one.
+that refills your life and cures poison and curses, a storage chest, a merchant who buys and sells for gold, and a bed.
+Merchants sell only plain, basic gear: no specials, no unique or magic items (wizard's hat, shadow cloak,
+amulets, silver bracelet) and not the top tier of any kind (plate armour, swift boots, ruby ring, bear cap,
+royal cloak, big backpack, war hammer, kite shield). Those come only from loot and your own crafting.
+Their windows have a Buy and a Sell page, categories that fold, and cards that compare an item with what
+you wear. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero falls later, the saved game is kept: a click on the “Fallen” screen continues the game from the refuge, N starts a new one.
 On the next start you continue from there with a click or a key. The saved game is stored in the browser.
 
 **Hero or heroine:** a new game asks whether you play a hero or a heroine before it asks for your name.

@@ -1359,12 +1359,12 @@ func load_level(index: int, restock := true) -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
 		shop_stock.clear()
-		# Always at least one weapon, body armour, ring and amulet,
-		# then the usual random wares on top.
-		for slot in ["waffe", "ruestung", "ring", "amulett"]:
-			shop_stock.append(Items.random_item(rng, 0, slot))
+		# Always at least one weapon, shield, body armour and ring, then
+		# the usual random wares on top: only plain gear (Items.merchant_sells).
+		for slot in ["waffe", "schild", "ruestung", "ring"]:
+			shop_stock.append(Items.random_ware(rng, slot))
 		for i in 4:
-			shop_stock.append(Items.random_item(rng))
+			shop_stock.append(Items.random_ware(rng))
 	_snap_camera()
 	_update_hud()
 

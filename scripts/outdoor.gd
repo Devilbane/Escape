@@ -21,7 +21,8 @@ extends Level
 ##   :  paved square         F  fountain (heals)   x  bench
 ##   More buildings: s  temple   k  office of the crown   o  post office
 ##   w  adventurers' guild   b  bank. A building turns its door to the square or path.
-##   Villagers: 0 elder, 1 smith, 2 farmer, 3 woodcutter, 4 guard,
+##   Villagers: 0 elder, 1 smith (melts, forges and mends gear at the forge
+##   on the tile to his left, see Forge), 2 farmer, 3 woodcutter, 4 guard,
 ##   5 tavern guest, 6 shopkeeper (buys and sells), 7 child, 8 scholar,
 ##   9 water carrier, K herald of the crown, O priestess, G guild master,
 ##   M postmaster, Y banker, S stonemason (sells stone blocks to build with,
@@ -975,7 +976,7 @@ func _spawn_villagers() -> void:
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "S": "steinmetz"}.get(ch, "npc")
+			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "S": "steinmetz", "1": "schmied"}.get(ch, "npc")
 			var station := {"kind": kind, "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)
@@ -987,6 +988,8 @@ func _spawn_villagers() -> void:
 				_build_barber_shop(c + Vector2i(0, -1))
 			elif ch == "S":
 				_build_stone_yard(c + Vector2i(0, -1))
+			elif ch == "1":
+				_build_forge(c + Vector2i(-1, 0))
 
 
 ## The barber's stall on the tile behind him: a market tent with a striped
@@ -1029,6 +1032,55 @@ func _build_stone_yard(cell: Vector2i) -> void:
 	board.position = pos + Vector3(-1.6, 0, 1.9)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.6, 0, 1.9), Vector3(0.5, 2.6, 0.5))
+
+
+## The smith's forge on the tile beside him: a stone hearth with glowing
+## coals and a warm light, an anvil on a tree stump, and a sign.
+func _build_forge(cell: Vector2i) -> void:
+	var pos := cell_to_world(cell)
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.42, 0.4, 0.38)
+	stone.roughness = 0.95
+	var iron := StandardMaterial3D.new()
+	iron.albedo_color = Color(0.2, 0.2, 0.22)
+	iron.metallic = 0.7
+	iron.roughness = 0.45
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.4, 0.27, 0.16)
+	wood.roughness = 0.9
+	var coals := StandardMaterial3D.new()
+	coals.albedo_color = Color(0.3, 0.06, 0.02)
+	coals.emission_enabled = true
+	coals.emission = Color(1.0, 0.35, 0.08)
+	coals.emission_energy_multiplier = 1.5
+	# The hearth: a low stone block with glowing coals on top and a chimney.
+	var hearth := pos + Vector3(-0.5, 0, -0.7)
+	_add_mesh_box(hearth + Vector3(0, 0.45, 0), Vector3(2.0, 0.9, 1.5), stone)
+	_add_mesh_box(hearth + Vector3(0, 0.93, 0), Vector3(1.5, 0.08, 1.0), coals)
+	_add_mesh_box(hearth + Vector3(0, 2.0, -0.55), Vector3(0.8, 2.2, 0.5), stone)
+	var flame := Effects.make_flame()
+	flame.position = hearth + Vector3(0, 1.0, 0)
+	flame.scale = Vector3.ONE * 2.0
+	add_child(flame)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.55, 0.25)
+	light.light_energy = 3.0
+	light.omni_range = 9.0
+	light.omni_attenuation = 1.4
+	light.position = hearth + Vector3(0, 1.8, 0.4)
+	add_child(light)
+	# The anvil on its stump, in front of the hearth.
+	var anvil := pos + Vector3(0.8, 0, 0.8)
+	_add_mesh_box(anvil + Vector3(0, 0.3, 0), Vector3(0.6, 0.6, 0.6), wood)
+	_add_mesh_box(anvil + Vector3(0, 0.68, 0), Vector3(0.3, 0.16, 0.28), iron)
+	_add_mesh_box(anvil + Vector3(0, 0.85, 0), Vector3(0.85, 0.2, 0.36), iron)
+	_add_mesh_box(anvil + Vector3(0.52, 0.88, 0), Vector3(0.22, 0.12, 0.2), iron)
+	_add_solid(pos, Vector3(3.2, 1.2, 3.0))
+	astar.set_point_solid(cell, true)
+	var board := Effects.shop_sign(Lang.t("Schmiede"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	board.position = pos + Vector3(-1.5, 0, 1.6)
+	add_child(board)
+	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))
 
 
 # --- Bandits ------------------------------------------------------------------

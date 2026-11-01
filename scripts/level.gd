@@ -89,7 +89,7 @@ const WALL_DECOR := [
 const STONE_TINT := Color(0.6, 0.56, 0.52)
 ## Colour of the iron spikes in spike traps.
 const SPIKE_IRON := Color(0.5, 0.5, 0.53)
-## The grey of the kit's floor tiles, for the floor of spike traps.
+## The grey of the kit's floor tiles, for spike and grate tiles.
 const FLOOR_GREY := Color(0.74, 0.73, 0.71)
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
 const SOLID := "#bxotkCDHBLVF?f=U"
@@ -423,7 +423,7 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 			elif mi.name == "wall_doorway_door":
 				mi.material_override = _tinted(mi.get_active_material(0))
 			else:
-				mi.material_override = _rough_stone(mi.get_active_material(0), piece == "floor_tile_big_spikes")
+				mi.material_override = _rough_stone(mi.get_active_material(0), piece in ["floor_tile_big_spikes", "floor_tile_big_grate"])
 	return node
 
 
@@ -463,7 +463,7 @@ func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
 
 ## The darkened cartoon stone, made rough and matt like the kit's walls, so
 ## spike and grate tiles, stairs and doorways do not look like plastic.
-## grey: plain grey stone like the kit's floor tiles (for spike trap floors).
+## grey: plain grey stone like the kit's floor tiles (for spike and grate tiles).
 func _rough_stone(mat: Material, grey := false) -> Material:
 	var key := "mat_rough_stone_grey" if grey else "mat_rough_stone"
 	if not _scenes.has(key):

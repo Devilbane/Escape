@@ -1,0 +1,136 @@
+{
+ "asset": {
+  "generator": "tools/obj_to_gltf.py",
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "name": "Scene",
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "long_sword"
+  }
+ ],
+ "materials": [
+  {
+   "name": "long_sword",
+   "doubleSided": true,
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 0
+    },
+    "metallicFactor": 0.0,
+    "roughnessFactor": 1.0
+   }
+  }
+ ],
+ "textures": [
+  {
+   "source": 0,
+   "sampler": 0
+  }
+ ],
+ "samplers": [
+  {
+   "magFilter": 9729,
+   "minFilter": 9987
+  }
+ ],
+ "images": [
+  {
+   "uri": "long_sword_texture.png",
+   "name": "long_sword_texture"
+  }
+ ],
+ "meshes": [
+  {
+   "name": "long_sword",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 1632,
+   "type": "VEC3",
+   "min": [
+    -0.30937440000000005,
+    -0.22400000000000003,
+    -0.0466896
+   ],
+   "max": [
+    0.30937440000000005,
+    1.7741360000000002,
+    0.0466896
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 1632,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 1632,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5125,
+   "count": 4512,
+   "type": "SCALAR"
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 19584,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 19584,
+   "byteLength": 19584,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 39168,
+   "byteLength": 13056,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 52224,
+   "byteLength": 18048,
+   "target": 34963
+  }
+ ],
+ "buffers": [
+  {
+   "uri": "long_sword.bin",
+   "byteLength": 70272
+  }
+ ]
+}

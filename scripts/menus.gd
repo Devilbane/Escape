@@ -81,7 +81,7 @@ func is_open() -> bool:
 
 func open(kind: String) -> void:
 	current = kind
-	_forge_tab = "schmieden"
+	_forge_tab = "waffen"
 	_selected = -1
 	_note = ""
 	game.set_world_paused(true)
@@ -637,10 +637,11 @@ func _sell_stone() -> void:
 
 # --- Smith -------------------------------------------------------------------
 
-## The smith's window shows one of three tabs: "schmieden" (forge new gear),
+## The smith's window shows one of four tabs: "waffen" (buy Gorm's own
+## weapons), "schmieden" (forge new gear),
 ## "einschmelzen" (melt gear down into iron) or "ausbessern" (mend worn gear).
-var _forge_tab := "schmieden"
-const FORGE_TABS := [["schmieden", "Schmieden"], ["einschmelzen", "Einschmelzen"], ["ausbessern", "Ausbessern"]]
+var _forge_tab := "waffen"
+const FORGE_TABS := [["waffen", "Waffen kaufen"], ["schmieden", "Schmieden"], ["einschmelzen", "Einschmelzen"], ["ausbessern", "Ausbessern"]]
 
 
 func _build_smithy() -> void:
@@ -658,6 +659,12 @@ func _build_smithy() -> void:
 			b.modulate = Color(0.7, 1.0, 0.7)
 		tabs.add_child(b)
 	match _forge_tab:
+		"waffen":
+			_add_label(Lang.t("Gorms eigene Arbeit: bessere Waffen und ein Drachenschild, die es sonst nirgends gibt."), 16, BLUE)
+			var grid := _forge_grid()
+			for id in Forge.wares():
+				var ok: bool = game.coins >= Items.ALL[id].price and p.bag.size() < p.bag_size()
+				grid.add_child(_item_button(Lang.t("%s\n%d Gold") % [Items.item_name(id), Items.ALL[id].price], _buy_ware.bind(id), ok, id))
 		"schmieden":
 			_add_label(Lang.t("Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen."), 16, BLUE)
 			var grid := _forge_grid()
@@ -736,6 +743,15 @@ func _mend(id: String) -> void:
 	_note = why if why != "" else Lang.t("Ausgebessert: %s, Haltbarkeit %d / %d") % [Items.item_name(id), durability - int(p.wear.get(id, 0)), durability]
 	if why == "":
 		Sfx.play(game, "hit")
+	game._update_hud()
+	_rebuild()
+
+
+func _buy_ware(id: String) -> void:
+	var why := Forge.buy(game, id)
+	_note = why if why != "" else Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
+	if why == "":
+		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
 	game._update_hud()
 	_rebuild()
 

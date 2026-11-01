@@ -1,0 +1,136 @@
+{
+ "asset": {
+  "generator": "tools/obj_to_gltf.py",
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "name": "Scene",
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "kite_shield"
+  }
+ ],
+ "materials": [
+  {
+   "name": "kite_shield",
+   "doubleSided": true,
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 0
+    },
+    "metallicFactor": 0.0,
+    "roughnessFactor": 1.0
+   }
+  }
+ ],
+ "textures": [
+  {
+   "source": 0,
+   "sampler": 0
+  }
+ ],
+ "samplers": [
+  {
+   "magFilter": 9729,
+   "minFilter": 9987
+  }
+ ],
+ "images": [
+  {
+   "uri": "kite_shield_texture.png",
+   "name": "kite_shield_texture"
+  }
+ ],
+ "meshes": [
+  {
+   "name": "kite_shield",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 866,
+   "type": "VEC3",
+   "min": [
+    -0.4548335,
+    -0.5147175,
+    -0.011044000000000002
+   ],
+   "max": [
+    0.4548324000000001,
+    0.5147175,
+    0.1235421
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 866,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 866,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5125,
+   "count": 2592,
+   "type": "SCALAR"
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 10392,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 10392,
+   "byteLength": 10392,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 20784,
+   "byteLength": 6928,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 27712,
+   "byteLength": 10368,
+   "target": 34963
+  }
+ ],
+ "buffers": [
+  {
+   "uri": "kite_shield.bin",
+   "byteLength": 38080
+  }
+ ]
+}

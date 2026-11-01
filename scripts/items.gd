@@ -36,6 +36,16 @@ const ALL := {
 	"rundschild": {"name": "Rundschild", "slot": "schild", "weight": 3, "hp": 1, "block": 0.2, "durability": 5, "price": 10, "model": "res://assets/weapons/shield_round.gltf", "material": "mixed"},
 	"wappenschild": {"name": "Wappenschild", "slot": "schild", "weight": 5, "hp": 2, "armor": 1, "block": 0.25, "durability": 6, "skills": {"blocken": 1}, "price": 22, "model": "res://assets/weapons/shield_badge.gltf", "material": "mixed"},
 	"stachelschild": {"name": "Stachelschild", "slot": "schild", "weight": 6, "hp": 2, "power": 1, "block": 0.3, "durability": 7, "price": 35, "model": "res://assets/weapons/shield_spikes.gltf", "material": "mixed"},
+	# Gorm's own fine work ("smith"): only the smith sells and forges these,
+	# they are never found as loot or sold by the merchant (see Forge).
+	# Models from the Medieval Weapon Pack by Omie's Assets (CC0).
+	# Maces and hammers are swung like axes, so they train Äxte.
+	"langschwert": {"name": "Langschwert", "slot": "waffe", "uses": "klingen", "weight": 3.5, "power": 2, "skills": {"klingen": 1}, "price": 45, "smith": true, "model": "res://assets/weapons/forge/long_sword.gltf", "material": "mixed"},
+	"krummsaebel": {"name": "Krummsäbel", "slot": "waffe", "uses": "klingen", "weight": 2, "power": 2, "speed": 0.08, "price": 50, "smith": true, "model": "res://assets/weapons/forge/scimitar.gltf", "material": "mixed"},
+	"streitkolben": {"name": "Streitkolben", "slot": "waffe", "uses": "aexte", "weight": 4.5, "hp": 1, "power": 2, "price": 40, "smith": true, "model": "res://assets/weapons/forge/mace.gltf", "material": "mixed"},
+	"streitaxt": {"name": "Streitaxt", "slot": "waffe", "uses": "aexte", "weight": 5, "power": 3, "price": 60, "smith": true, "model": "res://assets/weapons/forge/battle_axe.gltf", "material": "mixed"},
+	"kriegshammer": {"name": "Kriegshammer", "slot": "waffe", "uses": "aexte", "weight": 6, "power": 3, "skills": {"aexte": 1}, "price": 70, "smith": true, "model": "res://assets/weapons/forge/war_hammer.gltf", "material": "mixed"},
+	"drachenschild": {"name": "Drachenschild", "slot": "schild", "weight": 6, "hp": 3, "armor": 1, "block": 0.3, "durability": 9, "skills": {"blocken": 1}, "price": 55, "smith": true, "model": "res://assets/weapons/forge/kite_shield.gltf", "material": "mixed"},
 	"knochenhelm": {"name": "Knochenhelm", "slot": "kopf", "weight": 1, "power": 1, "price": 18, "hat": ["res://assets/enemies/Skeleton_Warrior.glb", "Skeleton_Warrior_Helmet"], "material": "bone"},
 	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "requires": {"intelligenz": 11}, "weight": 0.5, "hp": 1, "speed": 0.07, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"], "material": "cloth"},
 	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 3, "hp": 2, "armor": 1, "durability": 4, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "material": "metal"},
@@ -171,9 +181,10 @@ static func describe(id: String, worn := 0) -> String:
 
 
 ## Picks a random item; pricier items turn up less often.
-## With a slot given, only items for that slot are picked.
+## With a slot given, only items for that slot are picked. The smith's own
+## wares are never picked: only Gorm sells them.
 static func random_item(rng: RandomNumberGenerator, min_price := 0, slot := "") -> String:
-	var ids := ALL.keys().filter(func(id): return ALL[id].price >= min_price and (slot == "" or ALL[id].slot == slot) and not ALL[id].get("no_loot", false))
+	var ids := ALL.keys().filter(func(id): return ALL[id].price >= min_price and (slot == "" or ALL[id].slot == slot) and not ALL[id].get("no_loot", false) and not ALL[id].get("smith", false))
 	var total := 0.0
 	for id in ids:
 		total += 1.0 / ALL[id].price

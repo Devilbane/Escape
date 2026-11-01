@@ -79,7 +79,7 @@ const NEWS := [
 ## How long the village listens to the herald (seconds).
 const LISTEN_TIME := 13.0
 
-var level: Level
+var level: Outdoor
 var role := "7"
 var home := Vector2i.ZERO
 var station: Dictionary = {}
@@ -96,6 +96,8 @@ var _speed := WALK_SPEED
 var _waiting := 0.0
 var _bubble: Label3D
 var _bubble_time := 0.0
+## The name over the head, shown once the hero has talked to us.
+var _name_tag: Label3D
 var _line := 0
 var _current_anim := ""
 var _look_at := Vector3.INF
@@ -105,7 +107,7 @@ var _listen_to := Vector3.INF
 var _news := 0
 
 
-func setup(owner_level: Level, role_char: String, cell: Vector2i) -> void:
+func setup(owner_level: Outdoor, role_char: String, cell: Vector2i) -> void:
 	level = owner_level
 	role = role_char
 	home = cell
@@ -147,6 +149,21 @@ func _ready() -> void:
 	_bubble.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_bubble.position.y = 3.3 * _info.get("scale", 1.0) + 0.4
 	add_child(_bubble)
+	_name_tag = Label3D.new()
+	_name_tag.text = display_name
+	_name_tag.font = _bubble.font
+	_name_tag.font_size = 30
+	_name_tag.pixel_size = 0.011
+	_name_tag.outline_size = 10
+	_name_tag.outline_modulate = Color(0.05, 0.03, 0.06, 0.85)
+	_name_tag.modulate = Color(1, 0.95, 0.85, 1)
+	_name_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_name_tag.no_depth_test = true
+	_name_tag.render_priority = 18
+	_name_tag.outline_render_priority = 17
+	_name_tag.position.y = 2.5 * _info.get("scale", 1.0) + 0.25
+	_name_tag.visible = is_known()
+	add_child(_name_tag)
 	rotation.y = _rng.randf() * TAU
 	_start("sit" if _info.plan == "sit" else "work", _rng.randf_range(2.0, 6.0))
 
@@ -402,13 +419,30 @@ func proclaim() -> void:
 ## The hero ran into us: say the next line.
 func talk(hero: Node3D) -> void:
 	var lines: Array = _info.lines
+	meet()
 	say(Lang.t(lines[_line % lines.size()]), hero.global_position)
 	_line += 1
+
+
+## Whether the hero has talked to this villager before (also in an earlier
+## session: the village remembers, see Outdoor.met).
+func is_known() -> bool:
+	return level != null and level.met.has(role)
+
+
+## The hero and this villager have spoken: from now on the name stays over
+## the head, so the people of the village can be told apart.
+func meet() -> void:
+	if level:
+		level.met[role] = true
+	if _name_tag:
+		_name_tag.visible = true
 
 
 ## The elder sees the newcomer and hands over the house.
 func greet_newcomer(hero: Node3D) -> void:
 	_line = 1
+	meet()
 	say(Lang.t("Willkommen, Fremder! Du kommst aus der alten Gruft? Das leere Haus mit dem Ziegeldach gehört jetzt dir."), hero.global_position, 6.5)
 
 
@@ -430,5 +464,10 @@ func _update_bubble(delta: float) -> void:
 		_bubble.modulate.a = alpha
 		_bubble.outline_modulate.a = alpha
 	_bubble.visible = alpha > 0.0
+	# The speech bubble already starts with the name: the plain name tag
+	# steps aside while it shows, and comes back when the talk is over.
+	if _name_tag and _name_tag.visible:
+		_name_tag.modulate.a = 1.0 - alpha
+		_name_tag.outline_modulate.a = 0.85 * (1.0 - alpha)
 	if _bubble_time <= 0.0:
 		_look_at = Vector3.INF

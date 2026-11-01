@@ -147,13 +147,20 @@ func have(ingredient: String) -> int:
 	return int(pouch.get(ingredient, 0))
 
 
-func add(ingredient: String, count := 1) -> void:
+## Puts ingredients into the pouch. found_here: the hero gathered them where
+## they stand (not, say, as a reward), so the spot goes on their map (see
+## Journal.note_find).
+func add(ingredient: String, count := 1, found_here := true) -> void:
 	if ingredient == "eisen":
 		game.iron += count
 	elif INGREDIENTS.has(ingredient):
 		pouch[ingredient] = have(ingredient) + count
 		if not found.has(ingredient):
 			found.append(ingredient)
+		if found_here and game != null and game.level != null and game.player != null:
+			# Fish (caught with the line) get a mark of their own colour.
+			var kind := "fish" if str(INGREDIENTS[ingredient].source).begins_with("Angeln") else "ingredient"
+			game.note_find(kind, ingredient, INGREDIENTS[ingredient].name, game.player.global_position)
 
 
 ## Whether every ingredient of a recipe is in the pouch.

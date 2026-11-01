@@ -24,6 +24,7 @@ The game can be played in English or German; you choose the language on the titl
 | Inventory | I | “Inventory” button |
 | Compendium | H | “Compendium” button |
 | Character page | P | “Character” button |
+| Map and journal | N | “Map” button |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |
@@ -67,10 +68,14 @@ holds a food basket out of reach of the ground and of a single crate. Three crat
 stack two next to the pedestal, climb up and eat (+3 lives and every ailment cured). The basket
 fills up again after a few minutes.
 
-**Foxes** on the meadows between the graveyard and the village are shy, but they love **sausages**.
-Mira the shopkeeper always has some (2 gold each). Carry a sausage and a fox no longer bolts: it
+**Foxes** live on the meadow by the woodland pond, west of the village, beside the path that comes down
+from the graveyard. They are shy, but they love **sausages**.
+Mira the shopkeeper always has some (2 gold each); when you buy one she tells you where the foxes
+live, and the hint stays in the compendium (key H). Carry a sausage and a fox no longer bolts: it
 comes up to you, curious, and eats it from your hand. After three sausages it trusts you and follows
-you everywhere, in the village and down in the dungeon. You only ever have one fox, and it stays
+you everywhere, in the village and down in the dungeon. It does not cling to your heels: while you stay close it
+lounges about, sits, lies down when you rest, strolls around, trots in a circle round you and noses at
+barrels and benches nearby. Walk off and it gets up and follows; it climbs the stairs right behind you. You only ever have one fox, and it stays
 yours in your saved game. It never fights and cannot be hurt.
 Its nose is what makes it useful: **ingredients** lie hidden in the ground that you cannot see
 (wild garlic, porcini and rare truffles in the open air; cave mushrooms and glowmoss in the
@@ -300,7 +305,8 @@ defined in `scripts/quests.gd`: adding one is a single entry there plus its Engl
 **Recipes and crafts.** Odo the Scholar has an old scroll for you: the recipe for a **Moonsilver Ring**.
 A recipe names its ingredients and the craft it needs, but some of its lines have faded (they show only a
 fragment like "A still … without …") until you find out what they say. Ingredients go into an
-**ingredient pouch**, not the bag, so gathering them never fills it up. The **Recipe book** page of the
+**ingredient pouch**, not the bag, so gathering them never fills it up. The pouch has its own tab in
+the inventory (key I), beside the bag, showing every ingredient you carry and how many. The **Recipe book** page of the
 compendium (key H) shows every recipe you found, what you have of each ingredient, and how far your craft
 has come. Below the recipes it lists each ingredient they name: where it is found, when (for example only
 at night), what yields it (an ore vein, a creature's loot, the smith), and whether you found the place yourself; the crafts (for now **fine metalwork**) are listed on the character page. This is the start of a
@@ -548,6 +554,25 @@ If you leave the blade lying there, it still waits for you after a reload.
 The **compendium** (key H) shows all keys and mouse commands and collects every hint and every
 explanation you have been given so far: the introduction of every level, the tips on sneaking and on the
 guardian, the secret lever. It is saved with the game.
+
+## Map and journal
+
+Your hero draws a **map** as they go. In the dungeon everything the fog of war has shown you goes on it,
+in the open air everything within about 24 m of you. Press **N** (or “Map” in the pull-out menu) to open it;
+the arrows above the map flip through every level you have a map of, and it zooms in on the part you have explored.
+Landmarks get a numbered mark once you have seen them, listed beside the map: the stairs, doors, shrines,
+fountains, merchants, beds and storage chests below ground, and the crypt, the graveyard, the dragon's lair,
+the village buildings, Weavers' Lane, the market fountain, the well, the ponds, the food basket, the bandit camp,
+the robbers' pass and the wolf hollow above. Opened secret rooms get a star. Every spot where you found something
+gets a small diamond (green for ingredients, blue for fish), and finds of the same thing close together count on one spot.
+Below the map you see how much of the level you have explored.
+
+The **journal** on the second page writes down, newest first, every level you arrive at, every landmark you
+discover, every secret room and every find, with the day of your journey and the hour. Map and journal are kept
+in each hero's saved game. The rules are in `scripts/journal.gd`, the drawing in `scripts/map_view.gd`.
+Other features put their finds on the map with `Game.note_find(kind, id, name, pos)`, e.g.
+`note_find("ingredient", "mondsilbererz", "Mondsilbererz", pos)` when an ingredient is picked; `Journal.spots_of(id)`
+lists every spot where something was found, so a recipe book can show where to look. Ingredients put into the pouch with `Crafting.add` and ore picked up (such as thunder ore) are marked by themselves.
 
 ## Time away (offline activities)
 

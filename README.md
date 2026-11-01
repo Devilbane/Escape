@@ -302,7 +302,7 @@ farmer and Hanna the water carrier give you a letter, a pumpkin or a bucket to c
 who pays you when it arrives; lose it and the giver hands you another. Rewards are gold and sometimes gear
 (boots, chain mail, a shadow cloak). The **Quests** page of the compendium (key H) lists every task with
 who gave it, how far along it is and the reward. Quests are kept in each hero's saved game. The tasks are
-defined in `scripts/quests.gd`: adding one is a single entry there plus its English texts in `scripts/lang.gd`.
+defined in `scripts/quests.gd`: adding one is a single entry there plus its English texts in `scripts/lang/quests.gd`.
 
 **Recipes and crafts.** Odo the Scholar has an old scroll for you: the recipe for a **Moonsilver Ring**.
 A recipe names its ingredients and the craft it needs, but some of its lines have faded (they show only a
@@ -368,7 +368,7 @@ by the next dawn expires; one finished in time can still be collected later. Eac
 **!** over the board means a notice is open, a **?** means a bounty is waiting. Hunts you are on also show on
 the Quests page of the compendium. The day counter and the board are kept in each hero's saved game; sleeping
 through the night counts as a new day. The hunts are defined in `scripts/bounties.gd` (one entry each, with
-their English texts in `scripts/lang.gd`).
+their English texts in `scripts/lang/bounties.gd`).
 
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.
@@ -671,9 +671,12 @@ A door `D` stands in a passage one tile wide.
 
 ## Languages
 
-Texts in the code are written in German and translated to English in `scripts/lang.gd`. Labels and
-buttons translate themselves; composed texts go through `Lang.t()`. Every new text needs an English
-entry there.
+Texts in the code are written in German and translated to English in `scripts/lang/`, one file per
+feature (`quests.gd`, `forge.gd`, `village_talk.gd`, ...). `scripts/lang.gd` lists those files in
+`Lang.PARTS` and merges them into one table, `Lang.EN`. Labels and buttons translate themselves; composed
+texts go through `Lang.t()`. Every new text needs an English entry in its feature's file; a new feature
+gets a new file, listed in `Lang.PARTS`. `tests/lang_keys.gd` fails when a German text is in two files
+or a file is not listed.
 
 ## Technology
 

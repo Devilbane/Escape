@@ -449,8 +449,8 @@ Based on WCAG 2.2 and the Game Accessibility Guidelines (gameaccessibilityguidel
 
 - **Language rule:** code comments, docs and new strings for review are written in English (project
   instruction). In-game strings in the code are currently written in German and translated through
-  `Lang` (`scripts/lang.gd`): every new player-facing string needs an entry in `Lang.EN`, and
-  composed text goes through `Lang.t()`. Check both languages fit the space; German words are often
+  `Lang` (`scripts/lang.gd`): every new player-facing string needs an entry in `Lang.EN` (written in
+  its feature's file in `scripts/lang/`), and composed text goes through `Lang.t()`. Check both languages fit the space; German words are often
   30 % longer.
 - **Verbs on buttons:** "Buy", "Sell", "Mend", "Close", not "OK" or "Yes". The button says what
   happens.

@@ -24,6 +24,9 @@ const EN := {
 	"Klicken oder eine Taste: ab der Zuflucht weiterspielen.  N: neues Spiel": "Click or press a key to continue from the refuge.  N: new game",
 	"%s auf Ebene %d mit %d Gold.": "%s on level %d with %d gold.",
 	"%s auf dem Friedhof mit %d Gold.": "%s on the graveyard with %d gold.",
+	"%s zu Hause mit %d Gold.": "%s at home with %d gold.",
+	"Klicken oder eine Taste: in deinem Haus weiterspielen.  N: neues Spiel": "Click or press a key to continue in your house.  N: new game",
+	"Dein Haus ist jetzt dein Startpunkt. Spiel gespeichert.": "Your house is your starting point now. Game saved.",
 	"Klicken oder eine Taste: ab dem Friedhof weiterspielen.  N: neues Spiel": "Click or press a key to continue from the graveyard.  N: new game",
 	"Was du seitdem erlebt hast, geht verloren.": "Everything since then will be lost.",
 	"Neues Spiel": "New game",
@@ -73,8 +76,8 @@ const EN := {
 	"Gehen": "Walk",
 	"WASD / Pfeiltasten oder Klick auf den Boden": "WASD / arrow keys or click on the floor",
 	"Rennen": "Run",
-	"Maustaste auf dem Boden halten oder Umschalt: in 3 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück; leer erst wieder ab halbvoll. Wer im Lauf binnen 2 Sekunden mehr als 10 % seiner Leben verliert, stürzt zu Boden und steht wieder auf":
-		"Hold the mouse button on the floor or Shift: speeds up to 250 % of walking in 3 seconds, for Constitution x 2 seconds, recovers by Constitution / 10 per second; once empty, only again from half full. Losing more than 10 % of your lives within 2 seconds while running knocks you to the ground; you get up again",
+	"Maustaste auf dem Boden halten oder Umschalt: in 2 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück; leer erst wieder ab halbvoll. Wer im Lauf binnen 2 Sekunden mehr als 10 % seiner Leben verliert, stürzt zu Boden und steht wieder auf":
+		"Hold the mouse button on the floor or Shift: speeds up to 250 % of walking in 2 seconds, for Constitution x 2 seconds, recovers by Constitution / 10 per second; once empty, only again from half full. Losing more than 10 % of your lives within 2 seconds while running knocks you to the ground; you get up again",
 	"Leertaste, Rechtsklick im Lauf": "Space, right click while running",
 	"Nahkampf": "Melee",
 	"F oder J, gegen das Skelett laufen oder es anklicken": "F or J, run into the skeleton or click it",
@@ -600,6 +603,14 @@ const EN := {
 	"Loslassen: Steinblock dorthin   Rechtsklick: drehen": "Let go: stone block goes there   Right click: turn it",
 	"E oder Klick: Steinblock aufheben   Ziehen: verschieben": "E or click: pick up the stone block   Drag: move it",
 	"Steinblöcke kauft man beim Steinmetz im Dorf. Abstellen mit B (oder „Abstellen“ im Inventar): der Block legt sich quer vor dich, auf den Boden oder auf andere Blöcke. Mit der linken Maustaste greifst du einen Block, ziehst ihn auf ein anderes Feld in der Nähe und lässt los; ein Rechtsklick dabei dreht ihn. E nimmt einen Block wieder in die Tasche. Auf einen Block steigst du einfach hinauf, auf zwei mit einem Sprung.": "You buy stone blocks from the stonemason in the village. Set one down with B (or “Set down” in the inventory): the block lies across in front of you, on the floor or on other blocks. With the left mouse button you grab a block, drag it onto another spot nearby and let go; a right click meanwhile turns it. E puts a block back into your bag. You simply step up onto one block, onto two with a jump.",
+	# Day and night
+	"Nacht": "night",
+	"Morgengrauen": "dawn",
+	"Morgen": "morning",
+	"Tag": "day",
+	"Abend": "evening",
+	"Die Nacht bricht herein. Das Dorf geht schlafen, und auf dem Friedhof regen sich die Toten.": "Night falls. The village goes to sleep, and in the graveyard the dead stir.",
+	"Ein neuer Tag bricht an. Die Toten kehren in ihre Gräber zurück.": "A new day dawns. The dead return to their graves.",
 }
 
 ## "de" or "en"; empty until the player has chosen.

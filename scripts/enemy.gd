@@ -443,7 +443,7 @@ func _physics_process(delta: float) -> void:
 			if _repath <= 0.0 or _path.is_empty():
 				_repath = 0.5
 				_path.clear()
-				for c in level.astar.get_id_path(level.world_to_cell(global_position), level.world_to_cell(_last_known), true).slice(1):
+				for c in level.grid_path(level.world_to_cell(global_position), level.world_to_cell(_last_known)).slice(1):
 					_path.append(level.cell_to_world(c))
 				if _lost <= 0.0 and sees and _path.size() <= 1:
 					_path.clear()
@@ -547,7 +547,8 @@ func _check_stuck(delta: float, move: Vector3) -> void:
 ## the hero's blade reach well: walk out to the nearest free tile.
 func _step_out() -> Vector3:
 	var cell := level.world_to_cell(global_position)
-	if not level.astar.is_in_boundsv(cell) or not level.astar.is_point_solid(cell):
+	# A tile walled off by stone blocks still has floor to stand on.
+	if not level.astar.is_in_boundsv(cell) or not level.astar.is_point_solid(cell) or level.stone_cut(cell):
 		return Vector3.ZERO
 	for d in Level.DIRS:
 		if level.astar.is_in_boundsv(cell + d) and not level.astar.is_point_solid(cell + d):
@@ -606,7 +607,7 @@ func _rest(delta: float) -> Vector3:
 	if _repath <= 0.0 or _path.is_empty():
 		_repath = 1.0
 		_path.clear()
-		for c in level.astar.get_id_path(level.world_to_cell(global_position), level.world_to_cell(_home), true).slice(1):
+		for c in level.grid_path(level.world_to_cell(global_position), level.world_to_cell(_home)).slice(1):
 			_path.append(level.cell_to_world(c))
 		_path.append(_home)
 	var to := _path[0] - global_position
@@ -631,7 +632,7 @@ func _roam(delta: float) -> Vector3:
 			var c := home_cell + Vector2i(randi_range(-ROAM_TILES, ROAM_TILES), randi_range(-ROAM_TILES, ROAM_TILES))
 			if c == here or not level.astar.is_in_boundsv(c) or level.astar.is_point_solid(c):
 				continue
-			for p in level.astar.get_id_path(here, c, true).slice(1):
+			for p in level.grid_path(here, c).slice(1):
 				_path.append(level.cell_to_world(p) + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
 			if not _path.is_empty():
 				break

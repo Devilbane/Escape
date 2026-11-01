@@ -546,7 +546,7 @@ func walk_to(target: Vector3, stop_short := 0.0) -> void:
 	var from := level.world_to_cell(global_position)
 	var to := level.world_to_cell(target)
 	path.clear()
-	for c in level.astar.get_id_path(from, to, true).slice(1):
+	for c in level.grid_path(from, to).slice(1):
 		path.append(level.cell_to_world(c))
 	if stop_short > 0.0:
 		var last: Vector3 = path[-1] if not path.is_empty() else global_position

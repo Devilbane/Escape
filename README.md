@@ -276,6 +276,26 @@ sink back into their graves.
 A night in your **bed** skips to the next morning: you wake up at 07:00. The time of day is kept in the
 saved game.
 
+### The wandering merchant
+
+Every **third night** (the second night after the escape, then the fifth, the eighth and so on) Zarek the
+**wandering merchant** rolls his covered cart into the village at nightfall. He stands just south-west of
+the market square, beside a lantern, until dawn, then moves on again. Walk into him to trade. He sells
+things found nowhere else, two of them each visit:
+
+| Item | Price | Effect |
+|---|---|---|
+| Moonstone amulet | 84 | +1 life, +1 power, +5 % speed |
+| Star ring | 90 | +2 power, +5 % speed |
+| Midnight cloak | 96 | +2 life, +10 % speed, +3 Sneaking |
+| Seven-league boots | 102 | +22 % speed |
+| Will-o'-the-wisp bracelet | 72 | +1 life, +1 power, +1 Throwing |
+
+On top of that he brings one of the rarest finds of the dungeon (vampire fang, lucky clover, thorn rune or
+phoenix feather), a book and one more piece of good gear. He asks a fifth more than the shopkeeper and buys
+nothing. Every visit brings different wares; what you buy is gone until his next visit. If you sleep
+through his night in the bed, you miss him. The herald announces his visits on the square.
+
 ## The robbers' pass
 
 A road leaves the market square to the east and climbs into the **robbers' pass**: rocky heath, dead trees and

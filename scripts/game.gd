@@ -47,6 +47,10 @@ var _env: Environment
 var _moon: DirectionalLight3D
 ## The time of day above ground, in hours (see DayNight). Saved with the game.
 var day_hour := DayNight.START_HOUR
+## How many midnights the world above ground has seen since the escape
+## (day 0 is the first day). Saved with the game; it tells which night it
+## is, and so when the wandering merchant comes (see Wanderer).
+var day := 0
 ## The clock as the HUD shows it right now.
 var _clock_shown := ""
 var _ambience: AudioStreamPlayer
@@ -131,6 +135,10 @@ var menus: Menus
 ## Items left in the safe room's storage chest, and what the merchant sells.
 var storage: Array[String] = []
 var shop_stock: Array[String] = []
+## What the wandering merchant still has left, and the night he brought it
+## for (-1: not rolled yet). A new visit brings new wares (see Wanderer).
+var wanderer_stock: Array[String] = []
+var wanderer_night := -1
 var _title_buttons: Control
 var _name_note: Label
 ## The hero's name, asked for when a new game starts; it goes into the ranking.
@@ -1057,10 +1065,14 @@ func _tick_clock(delta: float) -> void:
 	if level == null or not (level.outdoor or level.building != ""):
 		return
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
+		var before := day_hour
 		day_hour = DayNight.advance(day_hour, delta)
+		if day_hour < before:
+			day += 1
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
 		if level is Outdoor:
+			level.day = day
 			level.set_hour(day_hour)
 	if _clock_text() != _clock_shown:
 		_update_hud()
@@ -1127,6 +1139,7 @@ func load_level(index: int, restock := true) -> void:
 	_end_drag()
 	_set_atmosphere(level.outdoor)
 	if level is Outdoor:
+		level.day = day
 		level.set_hour(day_hour)
 	_pending_search = {}
 	_pending_station = {}
@@ -1307,8 +1320,11 @@ func _start_new_game() -> void:
 	quests.clear()
 	storage.clear()
 	shop_stock.clear()
+	wanderer_stock.clear()
+	wanderer_night = -1
 	away_plan = Offline.empty_plan()
 	day_hour = DayNight.START_HOUR
+	day = 0
 	player.knives = 5
 	player.set_sex(_new_sex)
 	player.set_hair(HairLook.DEFAULT)
@@ -1577,6 +1593,14 @@ func _apply_save(data: Dictionary) -> void:
 	player.refresh_stats()
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
+	day = maxi(0, int(data.get("day", 0)))
+	wanderer_night = int(data.get("wanderer_night", -1))
+	wanderer_stock.clear()
+	var wares = data.get("wanderer", [])
+	if wares is Array:
+		for id in wares:
+			if Items.ALL.has(str(id)):
+				wanderer_stock.append(str(id))
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
 	if escaped and _outdoor_index() >= 0:
 		# Out of the dungeon, every load begins in the open air, wherever the
@@ -1676,7 +1700,8 @@ func save_game(going_away := false) -> bool:
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
-		"hour": day_hour,
+		"hour": day_hour, "day": day,
+		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
 	}
 	if going_away:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
@@ -1712,6 +1737,8 @@ func _looted_for_save() -> Dictionary:
 func sleep() -> void:
 	# A night in the bed: the hero wakes up the next morning.
 	if level.outdoor or level.building != "":
+		if day_hour > DayNight.WAKE_HOUR:
+			day += 1
 		day_hour = DayNight.WAKE_HOUR
 	var saved := save_game(true)
 	# Say so at once, so nobody has to wonder whether the save went through.
@@ -2020,6 +2047,16 @@ func update_after_quest() -> void:
 
 
 ## Remembers an explanation for the compendium, once.
+## The wandering merchant's wares for tonight: a new visit brings new ones,
+## and what was bought stays gone until then.
+func wanderer_wares() -> Array[String]:
+	var night := Wanderer.night_of(day, day_hour)
+	if night != wanderer_night:
+		wanderer_night = night
+		wanderer_stock = Wanderer.stock_for(night, hero_name)
+	return wanderer_stock
+
+
 func learn(entry: String) -> void:
 	if not lore.has(entry):
 		lore.append(entry)
@@ -2574,6 +2611,7 @@ func _process(delta: float) -> void:
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
+			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
 		}[station.kind]
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")

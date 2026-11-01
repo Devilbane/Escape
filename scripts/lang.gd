@@ -746,6 +746,22 @@ const EN := {
 	"Abend": "evening",
 	"Die Nacht bricht herein. Das Dorf geht schlafen, und auf dem Friedhof regen sich die Toten.": "Night falls. The village goes to sleep, and in the graveyard the dead stir.",
 	"Ein neuer Tag bricht an. Die Toten kehren in ihre Gräber zurück.": "A new day dawns. The dead return to their graves.",
+	# The wandering merchant
+	"Wanderhändler Zarek": "Zarek the Wandering Merchant",
+	"Wanderhändler": "Wandering Merchant",
+	"Psst! Waren aus fernen Ländern, nur heute Nacht!": "Psst! Wares from faraway lands, tonight only!",
+	"Wenn der Morgen graut, bin ich schon wieder auf der Straße.": "By the time dawn breaks, I will be back on the road.",
+	"Was ich verkaufe, findest du in keinem Verlies und bei keinem Schmied.": "What I sell you will find in no dungeon and at no smith's.",
+	"Jede dritte Nacht komme ich vorbei. Halt die Augen offen.": "I come by every third night. Keep your eyes open.",
+	"Hört, hört! Jede dritte Nacht kommt der Wanderhändler Zarek mit seinem Karren ins Dorf!": "Hear ye! Every third night, Zarek the wandering merchant brings his cart to the village!",
+	"Am Markt schwingt eine Laterne: Wanderhändler Zarek hat seinen Karren für die Nacht aufgestellt.": "A lantern swings by the market: Zarek the wandering merchant has set up his cart for the night.",
+	"Wanderhändler Zarek kommt jede dritte Nacht mit seinem Karren ins Dorf und steht bis zum Morgengrauen am Markt. Er verkauft seltene Dinge, die es sonst nirgends gibt, dazu die seltensten Funde aus dem Verlies, und bringt jedes Mal andere Waren mit. Kaufen tut er nichts.": "Zarek the wandering merchant brings his cart to the village every third night and stands by the market until dawn. He sells rare things found nowhere else, along with the rarest finds of the dungeon, and brings different wares every time. He buys nothing.",
+	"Seltene Waren, nur heute Nacht. Im Morgengrauen zieht Zarek weiter; in %d Nächten kommt er wieder.": "Rare wares, tonight only. At dawn Zarek moves on; he comes back in %d nights.",
+	"Mondsteinamulett": "Moonstone amulet",
+	"Sternenring": "Star ring",
+	"Mitternachtsumhang": "Midnight cloak",
+	"Siebenmeilenstiefel": "Seven-league boots",
+	"Irrlichtarmreif": "Will-o'-the-wisp bracelet",
 }
 
 ## "de" or "en"; empty until the player has chosen.

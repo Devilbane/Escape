@@ -71,6 +71,13 @@ const ALL := {
 	"gluecksklee": {"name": "Glücksklee", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Doppeltes Gold"},
 	"dornenrune": {"name": "Dornenrune", "slot": "spezial", "weight": 0.5, "price": 45, "effect": "Wer dich im Nahkampf trifft, erleidet 1 Schaden"},
 	"phoenixfeder": {"name": "Phönixfeder", "slot": "spezial", "weight": 0.1, "price": 60, "effect": "Rettet dich einmal vor dem Tod, dann verbrennt sie"},
+	# Zarek's wares ("wanderer"): only the wandering merchant sells them, on
+	# the nights he is in the village (see Wanderer). Never found as loot.
+	"mondsteinamulett": {"name": "Mondsteinamulett", "slot": "amulett", "weight": 0.3, "hp": 1, "power": 1, "speed": 0.05, "price": 70, "no_loot": true, "wanderer": true},
+	"sternenring": {"name": "Sternenring", "slot": "ring", "weight": 0.1, "power": 2, "speed": 0.05, "price": 75, "no_loot": true, "wanderer": true},
+	"mitternachtsumhang": {"name": "Mitternachtsumhang", "slot": "umhang", "weight": 1, "hp": 2, "speed": 0.1, "skills": {"schleichen": 3}, "price": 80, "no_loot": true, "wanderer": true, "tint": Color(0.1, 0.12, 0.32), "material": "cloth"},
+	"siebenmeilenstiefel": {"name": "Siebenmeilenstiefel", "slot": "schuhe", "weight": 1, "speed": 0.22, "price": 85, "no_loot": true, "wanderer": true, "tint": Color(0.38, 0.2, 0.46), "material": "leather"},
+	"irrlichtarmreif": {"name": "Irrlichtarmreif", "slot": "armreif", "weight": 0.3, "hp": 1, "power": 1, "skills": {"werfen": 1}, "price": 60, "no_loot": true, "wanderer": true},
 	# Backpacks: "bag" is how many items the hero can carry while wearing one.
 	# Bigger ones are pricier, so they turn up more rarely. Lying about, they
 	# show as a sack ("model_scale" sizes it).

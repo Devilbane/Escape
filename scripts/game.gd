@@ -29,6 +29,13 @@ enum State { TITLE, PLAYING, TRANSITION, WON, OVER }
 
 var state := State.TITLE
 var _sound_button: Button
+## The pull-out menu on the right edge of the screen that holds all the
+## clickable buttons, its handle, and how far it is pulled out (0 to 1).
+var _drawer: HBoxContainer
+var _drawer_handle: Button
+var _drawer_open := false
+var _drawer_t := 0.0
+var _drawer_tween: Tween
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
@@ -299,6 +306,113 @@ func _make_button(text: String, action: Callable) -> Button:
 	return b
 
 
+## All clickable buttons live in a menu that is pulled out from the right
+## edge of the screen: click the handle (or press Tab) to slide it in, and
+## again to slide it away. Only the handle shows while it is closed.
+func _setup_drawer() -> void:
+	_drawer = HBoxContainer.new()
+	_drawer.add_theme_constant_override("separation", 0)
+	_drawer.anchor_left = 1.0
+	_drawer.anchor_right = 1.0
+	_drawer.anchor_top = 0.5
+	_drawer.anchor_bottom = 0.5
+	_drawer.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_drawer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud.add_child(_drawer)
+
+	_drawer_handle = _make_button("", toggle_drawer)
+	_drawer_handle.custom_minimum_size = Vector2(70, 120)
+	_drawer_handle.add_theme_font_size_override("font_size", 16)
+	_drawer_handle.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	for style in ["normal", "hover", "pressed"]:
+		var box: StyleBoxFlat = _drawer_handle.get_theme_stylebox(style).duplicate()
+		box.corner_radius_top_right = 0
+		box.corner_radius_bottom_right = 0
+		_drawer_handle.add_theme_stylebox_override(style, box)
+	_drawer.add_child(_drawer_handle)
+
+	var panel := PanelContainer.new()
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(0.05, 0.03, 0.07, 0.85)
+	back.border_color = Color(0.85, 0.66, 0.32, 0.8)
+	back.set_border_width_all(2)
+	back.border_width_right = 0
+	back.corner_radius_bottom_left = 14
+	back.corner_radius_top_left = 14
+	back.set_content_margin_all(12)
+	panel.add_theme_stylebox_override("panel", back)
+	_drawer.add_child(panel)
+	var buttons := GridContainer.new()
+	buttons.columns = 2
+	buttons.add_theme_constant_override("h_separation", 10)
+	buttons.add_theme_constant_override("v_separation", 10)
+	panel.add_child(buttons)
+	# Buttons that open a window also push the menu away again; the others
+	# (actions and sound) leave it out so they can be clicked again.
+	var windows := [["Inventar", "inventar"], ["Charakter", "charakter"], ["Kompendium", "kompendium"], ["Laden", "laden"]]
+	for w in windows:
+		buttons.add_child(_make_button(Lang.t(w[0]), _open_from_drawer.bind(w[1])))
+	buttons.add_child(_make_button(Lang.t("Springen"), func(): if state == State.PLAYING: player.jump()))
+	buttons.add_child(_make_button(Lang.t("Werfen"), func(): if state == State.PLAYING: player.throw_knife()))
+	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
+	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
+	buttons.add_child(_make_button(Lang.t("Stein"), func(): if state == State.PLAYING and not menus.is_open(): stone_action()))
+	_sound_button = _make_button("", _toggle_sound)
+	buttons.add_child(_sound_button)
+	_update_sound_button()
+	buttons.add_child(_make_button(Lang.t("Beenden"), func():
+		set_drawer_open(false)
+		_on_quit_pressed()))
+	for b in buttons.get_children():
+		b.custom_minimum_size = Vector2(150, 58)
+		b.add_theme_font_size_override("font_size", 18)
+	_update_drawer_handle()
+	_place_drawer(0.0)
+	# Keeps the menu in place when a button's text changes its size.
+	_drawer.minimum_size_changed.connect(func(): _place_drawer(_drawer_t))
+
+
+func _open_from_drawer(menu: String) -> void:
+	if state == State.PLAYING and player.can_act() and not menus.is_open():
+		set_drawer_open(false)
+		menus.open(menu)
+
+
+func toggle_drawer() -> void:
+	set_drawer_open(not _drawer_open)
+
+
+func is_drawer_open() -> bool:
+	return _drawer_open
+
+
+## Slides the pull-out menu in or out.
+func set_drawer_open(open: bool) -> void:
+	if _drawer == null or open == _drawer_open:
+		return
+	_drawer_open = open
+	_update_drawer_handle()
+	if _drawer_tween:
+		_drawer_tween.kill()
+	_drawer_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_drawer_tween.tween_method(_place_drawer, _drawer_t, 1.0 if open else 0.0, 0.25)
+
+
+## Puts the menu `t` of the way out: 0 shows only the handle, 1 all of it.
+func _place_drawer(t: float) -> void:
+	_drawer_t = t
+	var size := _drawer.get_combined_minimum_size()
+	var hidden := size.x - _drawer_handle.get_combined_minimum_size().x
+	_drawer.offset_left = -size.x + hidden * (1.0 - t)
+	_drawer.offset_right = _drawer.offset_left + size.x
+	_drawer.offset_top = -size.y / 2.0
+	_drawer.offset_bottom = size.y / 2.0
+
+
+func _update_drawer_handle() -> void:
+	_drawer_handle.text = (">\n" if _drawer_open else "<\n") + Lang.t("Menü")
+
+
 func _setup_hud() -> void:
 	_hud = CanvasLayer.new()
 	add_child(_hud)
@@ -354,23 +468,6 @@ func _setup_hud() -> void:
 	_coin_label = _make_label(TEXT_FONT, 22, GOLD)
 	row.add_child(_coin_label)
 
-	var quit := _make_button(Lang.t("Beenden"), _on_quit_pressed)
-	quit.custom_minimum_size = Vector2(130, 44)
-	quit.add_theme_font_size_override("font_size", 17)
-	quit.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	quit.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	quit.offset_right = -24
-	quit.offset_top = 104
-	_hud.add_child(quit)
-	_sound_button = _make_button("", _toggle_sound)
-	_sound_button.custom_minimum_size = Vector2(130, 44)
-	_sound_button.add_theme_font_size_override("font_size", 17)
-	_sound_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_sound_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_sound_button.offset_right = -24
-	_sound_button.offset_top = 156
-	_hud.add_child(_sound_button)
-	_update_sound_button()
 
 	_prompt = _make_label(TEXT_FONT, 22, Color(1, 1, 1, 0.9))
 	_prompt.set_anchors_preset(Control.PRESET_CENTER)
@@ -389,7 +486,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -405,8 +502,8 @@ func _setup_hud() -> void:
 	version.offset_bottom = -4
 	_hud.add_child(version)
 
-	# The "db" of the devilbane logo as a faint watermark in the corner,
-	# above the buttons (the "HARDCORE" lettering below it is cut off).
+	# The "db" of the devilbane logo as a faint watermark in the corner
+	# (the "HARDCORE" lettering below it is cut off).
 	var mark := TextureRect.new()
 	var db := AtlasTexture.new()
 	db.atlas = preload("res://assets/logo/devilbane_logo.png")
@@ -416,32 +513,14 @@ func _setup_hud() -> void:
 	mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	mark.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	mark.offset_left = -116
-	mark.offset_top = -190
+	mark.offset_top = -108
 	mark.offset_right = -20
-	mark.offset_bottom = -102
+	mark.offset_bottom = -20
 	mark.modulate = Color(1, 1, 1, 0.35)
 	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(mark)
 
-	var buttons := GridContainer.new()
-	buttons.columns = 4
-	buttons.add_theme_constant_override("h_separation", 10)
-	buttons.add_theme_constant_override("v_separation", 10)
-	buttons.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	buttons.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	buttons.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	buttons.offset_right = -20
-	buttons.offset_bottom = -20
-	_hud.add_child(buttons)
-	buttons.add_child(_make_button(Lang.t("Kompendium"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("kompendium")))
-	buttons.add_child(_make_button(Lang.t("Laden"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("laden")))
-	buttons.add_child(_make_button(Lang.t("Inventar"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("inventar")))
-	buttons.add_child(_make_button(Lang.t("Charakter"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("charakter")))
-	buttons.add_child(_make_button(Lang.t("Springen"), func(): if state == State.PLAYING: player.jump()))
-	buttons.add_child(_make_button(Lang.t("Werfen"), func(): if state == State.PLAYING: player.throw_knife()))
-	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
-	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
-	buttons.add_child(_make_button(Lang.t("Stein"), func(): if state == State.PLAYING and not menus.is_open(): stone_action()))
+	_setup_drawer()
 
 	_setup_shrine_panel()
 
@@ -2363,6 +2442,8 @@ func _unhandled_input(event: InputEvent) -> void:
 							menus.open("charakter")
 					KEY_M:
 						_toggle_sound()
+					KEY_TAB:
+						toggle_drawer()
 					KEY_C:
 						_toggle_sneak()
 					KEY_E:

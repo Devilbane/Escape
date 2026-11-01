@@ -211,6 +211,25 @@ haircut shows. Your look is saved with the game.
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.
 
+## Day and night
+
+Above ground the world keeps the **time of day**: one full day takes **20 real minutes**, about 13 of them
+daylight and 7 of them night (21:00 to 05:00). The clock in the top left shows the hour. It runs in the open
+and inside the village buildings; down in the dungeon time stands still. A new hero steps out at 08:00.
+
+The light follows the hour: a pink dawn, the warm autumn daylight, a golden-red dusk and a cool blue
+moonlit night. At night the **lanterns** burn bright and the **windows** of the houses glow. Most villagers
+walk home and go to sleep; only the guard, the drinker at the tavern and the priestess stay up. Shops and
+the bank are closed until morning, and the herald keeps quiet.
+
+The night is dangerous: the **dead rise** from the graves and roam the graveyard until dawn (they come back
+a while after they fall), and the **bandits** of the pass are tougher (more life, quicker blows) and come
+back twice as fast. In the dark, away from the lanterns, a sneaking hero cannot be seen. At dawn the dead
+sink back into their graves.
+
+A night in your **bed** skips to the next morning: you wake up at 07:00. The time of day is kept in the
+saved game.
+
 ## The robbers' pass
 
 A road leaves the market square to the east and climbs into the **robbers' pass**: rocky heath, dead trees and

@@ -602,6 +602,14 @@ const EN := {
 	"Loslassen: Steinblock dorthin   Rechtsklick: drehen": "Let go: stone block goes there   Right click: turn it",
 	"E oder Klick: Steinblock aufheben   Ziehen: verschieben": "E or click: pick up the stone block   Drag: move it",
 	"Steinblöcke kauft man beim Steinmetz im Dorf. Abstellen mit B (oder „Abstellen“ im Inventar): der Block legt sich quer vor dich, auf den Boden oder auf andere Blöcke. Mit der linken Maustaste greifst du einen Block, ziehst ihn auf ein anderes Feld in der Nähe und lässt los; ein Rechtsklick dabei dreht ihn. E nimmt einen Block wieder in die Tasche. Auf einen Block steigst du einfach hinauf, auf zwei mit einem Sprung.": "You buy stone blocks from the stonemason in the village. Set one down with B (or “Set down” in the inventory): the block lies across in front of you, on the floor or on other blocks. With the left mouse button you grab a block, drag it onto another spot nearby and let go; a right click meanwhile turns it. E puts a block back into your bag. You simply step up onto one block, onto two with a jump.",
+	# Day and night
+	"Nacht": "night",
+	"Morgengrauen": "dawn",
+	"Morgen": "morning",
+	"Tag": "day",
+	"Abend": "evening",
+	"Die Nacht bricht herein. Das Dorf geht schlafen, und auf dem Friedhof regen sich die Toten.": "Night falls. The village goes to sleep, and in the graveyard the dead stir.",
+	"Ein neuer Tag bricht an. Die Toten kehren in ihre Gräber zurück.": "A new day dawns. The dead return to their graves.",
 }
 
 ## "de" or "en"; empty until the player has chosen.

@@ -104,7 +104,7 @@ func _process(_delta: float) -> bool:
 				return false
 			check(game.level is Outdoor, "the front door leads out into the village")
 			if game.level is Outdoor:
-				var door: Vector3 = game.level.doors["%" + str(mine)]
+				var door: Vector3 = game.level.doors["^" + str(mine)]
 				var p: Vector3 = game.player.global_position
 				check(Vector2(p.x - door.x, p.z - door.z).length() < 1.5, "the hero steps out in front of their own house")
 			check(game.inside_house == 0, "out in the lane, the hero is in no house")
@@ -127,26 +127,26 @@ func _check_lane() -> void:
 	game.load_level(game._outdoor_index(), false)
 	game.state = game.State.PLAYING
 	var lvl: Outdoor = game.level
-	check(game.interiors.has("%"), "the town houses have a building floor (\"building: %\")")
+	check(game.interiors.has("^"), "the town houses have a building floor (\"building: ^\")")
 	var houses: Array[Node3D] = lvl.town_houses
 	check(houses.size() >= 12, "Weavers' Lane has room for many heroes (%d houses)" % houses.size())
-	var doors := lvl.stations.filter(func(s): return s.kind == "eingang" and s.building == "%")
+	var doors := lvl.stations.filter(func(s): return s.kind == "eingang" and s.building == "^")
 	check(doors.size() == houses.size(), "every town house has a door to run into")
 	var numbers := {}
 	for house in houses:
 		var number: int = house.get_meta("town_house")
 		numbers[number] = true
-		check(lvl.doors.has("%" + str(number)), "house %d has a spot in front of its door" % number)
+		check(lvl.doors.has("^" + str(number)), "house %d has a spot in front of its door" % number)
 		var box := _bounds(house)
 		check(box.size.x < Level.TILE + 0.5, "house %d is narrow (%.1f m wide)" % [number, box.size.x])
 		check(box.size.y > 9.0 and box.size.y < 16.0, "house %d has three storeys and a roof (%.1f m high)" % [number, box.size.y])
 		var plate: Label3D = house.find_child("Number", true, false)
 		check(plate != null and plate.text == str(number), "house %d shows its number over the door" % number)
 		check(lvl.astar.is_point_solid(lvl.world_to_cell(house.position)), "house %d is solid" % number)
-		var way: Array = lvl.astar.get_id_path(lvl.world_to_cell(lvl.doors["%1"]), lvl.world_to_cell(lvl.doors["%" + str(number)]))
+		var way: Array = lvl.astar.get_id_path(lvl.world_to_cell(lvl.doors["^1"]), lvl.world_to_cell(lvl.doors["^" + str(number)]))
 		check(not way.is_empty(), "the lane leads from door to door (house %d)" % number)
 	check(numbers.size() == houses.size(), "every town house has its own number")
-	var square: Array = lvl.astar.get_id_path(lvl.world_to_cell(lvl.doors["%1"]), lvl.world_to_cell(lvl.doors["s"]))
+	var square: Array = lvl.astar.get_id_path(lvl.world_to_cell(lvl.doors["^1"]), lvl.world_to_cell(lvl.doors["s"]))
 	check(not square.is_empty(), "a way leads from the lane to the square")
 
 	# Ownership: a neighbour moves into one empty house, the hero into another.
@@ -168,14 +168,14 @@ func _check_lane() -> void:
 	check(Homes.owner_of(mine) == HERO and Homes.owner_of(other) == NEIGHBOUR, "the deeds are kept on disk")
 	Homes.release(other)
 
-	game.player.global_position = lvl.doors["%" + str(mine)]
-	game.go_inside("%", mine)
+	game.player.global_position = lvl.doors["^" + str(mine)]
+	game.go_inside("^", mine)
 	_next()
 
 
 func _check_inside() -> void:
 	var lvl: Level = game.level
-	check(lvl.building == "%" and lvl.is_home, "the door led into the hero's home")
+	check(lvl.building == "^" and lvl.is_home, "the door led into the hero's home")
 	check(lvl.house_number == mine, "the home knows which house it is")
 	check(lvl.safe and lvl.enemies.is_empty(), "a home is a safe place")
 	check(lvl.storey_count() == 3, "the home has three storeys (%d)" % lvl.storey_count())

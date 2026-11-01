@@ -24,6 +24,7 @@ The game can be played in English or German; you choose the language on the titl
 | Inventory | I | “Inventory” button |
 | Compendium | H | “Compendium” button |
 | Character page | P | “Character” button |
+| Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Load saved game | L | “Load” button (also on the title screen) |
 | Quit game | Esc | “Quit” button, top right |
 | Sound on/off | M | “Sound” button, top right |
@@ -234,6 +235,14 @@ roofs, each one a little different. Sixteen villagers go about their day: the sm
 makes the rounds, the postmaster carries letters, the priestess tends the temple. Every so often the
 **herald** rings the bell and calls out the news, and the whole village gathers on the square to listen.
 
+On the west side of the market square, right beside Gorm's forge, lies the **crafting square**, the place
+where heroes meet to make things. Every workbench stands there in a row: a **fine metalwork bench** (rings,
+chains, settings and wire), a **gem cutter's wheel** and an **alchemist's table** with a cauldron bubbling
+green over a small fire. Between them stands **your chest**: it opens the same storage as the chest in
+your house, so you can fetch ingredients and put away what you made without walking home. Each bench
+belongs to one craft, and a recipe made with that craft is made at its bench. Until you know such a
+recipe, a bench tells you what is done there. The benches are built in `scripts/crafting_square.gd`.
+
 At the **bank** the banker keeps your gold safe (deposit and withdraw) and rents you a **vault** for
 50 gold. The vaults are in the **cellar**: small cells behind iron bars, each with its holder's name, their
 gold and their treasures. You can walk down and look at what every other hero keeps there; your own cell
@@ -260,6 +269,29 @@ who pays you when it arrives; lose it and the giver hands you another. Rewards a
 who gave it, how far along it is and the reward. Quests are kept in each hero's saved game. The tasks are
 defined in `scripts/quests.gd`: adding one is a single entry there plus its English texts in `scripts/lang.gd`.
 
+**Recipes and crafts.** Odo the Scholar has an old scroll for you: the recipe for a **Moonsilver Ring**.
+A recipe names its ingredients and the craft it needs, but some of its lines have faded (they show only a
+fragment like "A still … without …") until you find out what they say. Ingredients go into an
+**ingredient pouch**, not the bag, so gathering them never fills it up. The **Recipe book** page of the
+compendium (key H) shows every recipe you found, what you have of each ingredient, and how far your craft
+has come. Below the recipes it lists each ingredient they name: where it is found, when (for example only
+at night), what yields it (an ore vein, a creature's loot, the smith), and whether you found the place yourself; the crafts (for now **fine metalwork**) are listed on the character page. This is the start of a
+longer loop: gather ingredients from all over the world, learn and train the craft, work out the faded
+lines, and finish the piece under the right influences (a calm mind, a goddess's favour, the right stars).
+Recipes and ingredients are defined in `scripts/crafting.gd`, the crafts in `Training.CRAFTS`.
+
+**Fishing.** Stand by the water and press **G** (or the **Fish** button in the pull-out menu) to cast a
+line. After a few seconds the float goes under and a **!** shows: press again quickly to strike, or the
+fish gets away. Pressing while you wait draws the line in; walking off, getting hit or opening a window
+does too. There are three waters: the **fountain** on the village square, the **village pond** by the path into
+the village and a small **pond in the wolf hollow** (mind the wolves). Most bites are a **perch**, and in the
+fountain often an old coin someone threw in for luck (+1 gold). Each water also has one **rare fish**:
+the **golden carp** in the fountain, the **silver pike** in the village pond, but only at dawn and dusk,
+and the **moon trout** in the wolf hollow, but only at night. Every fish goes into the ingredient pouch.
+Hanna the water carrier has a recipe that needs them: the **Amulet of the Deep** (all three rare fish and
+three perch). One of its lines is smudged until you catch a silver pike. What bites where is set in
+`Fishing.WATERS` (`scripts/fishing.gd`).
+
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.
 
@@ -281,6 +313,28 @@ sink back into their graves.
 
 A night in your **bed** skips to the next morning: you wake up at 07:00. The time of day is kept in the
 saved game.
+
+## Weather
+
+Above ground the sky does not stay clear: **rain**, **fog** and **thunderstorms** come and go on the same
+clock as day and night. A spell of weather lasts 2 to 5 hours of the day (about 2 to 4 real minutes), and
+which weather comes next depends on the hour: fog gathers at night and in the early morning, storms brew in
+the evening and at night, and by day the sky is mostly clear. The clock in the top left names the weather
+when it is not clear. A new hero steps out under a clear sky, every morning after a night in the bed brings
+new weather, and the weather is kept in the saved game. Down in the dungeon there is no weather.
+
+Each weather brings its own creatures, which come back a while after they fall for as long as it lasts and
+leave again when it changes:
+
+| Weather | What it looks like | What comes out |
+|---|---|---|
+| Rain | grey sky, rain falls and patters | **slimes** crawl out of the pond in the western woods |
+| Fog | washed-out colours, mist drifts over the ground | **fog wraiths**, pale little dead, drift among the dead trees; away from the lanterns a sneaking hero cannot be seen, even by day |
+| Thunderstorm | dark sky, pouring rain, lightning and thunder | **bats** swarm around the rocks; where lightning strikes a rock, a lump of glowing **thunder ore** may be left beside it |
+
+**Thunder ore** is only ever found in a thunderstorm, and only until the storm passes: whatever is left
+lying fades away. Pick it up and take it to Gorm the smith, who melts each lump into 4 iron bars, or sell it
+to the merchant.
 
 ## The robbers' pass
 
@@ -398,9 +452,10 @@ It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `
 `A` poacher, `X` bruiser, `Q` bandit chief; the beasts of the wolf hollow, who do the same: `W` wolf,
 `H` orc, `J` yeti, `U` spider; the peaceful animals of the woods: `D` doe, `V` stag, `&` fox. `E` is the stone arch over the stairs down into the dragon's lair. Buildings are a
 rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general store, `u` windmill,
-`s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank, `%` a row of narrow town
-houses (one per tile along its front, numbered from west to east, all sharing the floor with `building: %`). A single
-hero's house (not on the map any more): `I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The villagers: `0` elder,
+`s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank, `^` a row of narrow town
+houses (one per tile along its front, numbered from west to east, all sharing the floor with `building: ^`). A single
+hero's house (not on the map any more): `I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The crafting square:
+`+` fine metalwork bench, `%` gem cutter's wheel, `*` alchemist's table, `$` your storage chest. The villagers: `0` elder,
 `1` smith, `2` farmer, `3` woodcutter, `4` guard, `5` drinker, `6` shopkeeper, `7` child, `8` scholar,
 `9` water carrier, `K` herald, `O` priestess, `G` guild master, `M` postmaster, `Y` banker, `Z` barber.
 

@@ -260,7 +260,7 @@ func _village(lvl: Outdoor, player: Player) -> bool:
 	if lvl.own_house <= 0:
 		print("FAIL: the elder gave no town house")
 		return true
-	var home: Vector3 = lvl.doors["%" + str(lvl.own_house)]
+	var home: Vector3 = lvl.doors["^" + str(lvl.own_house)]
 	if not _slept and player.global_position.distance_to(home) > 3.0:
 		player.walk_to(home, 2.0)
 		if player.path.is_empty():

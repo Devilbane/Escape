@@ -11,7 +11,9 @@ extends RefCounted
 ## is a word written in ink on the right side of a shaved head.
 ##
 ## A look is a Dictionary: {"style": one of STYLES, "color": a key of
-## COLORS, "tattoo": the word, "" for none}.
+## COLORS, "tattoo": the word, "" for none, "tattoo_shape": one of
+## TATTOO_SHAPES, "show_helmet": false to leave a worn helmet or hat
+## invisible, so the haircut shows (it still protects)}.
 
 const SHADER := preload("res://shaders/hair.gdshader")
 const FADE_SHADER := preload("res://shaders/hair_fade.gdshader")
@@ -36,7 +38,9 @@ const COLORS := {
 ## Colours the shader draws itself: a rainbow running along the crest, and
 ## flickering flames that glow in the dark.
 const MODES := {"rainbow": 1, "fire": 2}
-const DEFAULT := {"style": "natural", "color": "natural", "tattoo": ""}
+## The writing runs straight, or arches over the ear in a half circle.
+const TATTOO_SHAPES := ["straight", "arch"]
+const DEFAULT := {"style": "natural", "color": "natural", "tattoo": "", "tattoo_shape": "straight", "show_helmet": true}
 const TATTOO_MAX := 12
 
 ## The bald skull the shaved hair is pulled onto, in the head mesh's space.
@@ -53,9 +57,8 @@ const SEGMENTS := 6
 const CREST_FRONT := -0.95
 const CREST_BACK := 1.5
 
-## The natural and the shaved head mesh, by source mesh: built once.
+## The natural and the shaved head mesh and the crest, by source mesh: built once.
 static var _heads := {}
-static var _crest_mesh: ArrayMesh
 
 
 ## Gives a Rogue model a look. The first call sets everything up; later calls
@@ -86,9 +89,6 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 	if crest == null:
 		crest = MeshInstance3D.new()
 		crest.name = "Crest"
-		if _crest_mesh == null:
-			_crest_mesh = crest_mesh()
-		crest.mesh = _crest_mesh
 		crest.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var mat := ShaderMaterial.new()
 		mat.shader = SHADER
@@ -96,6 +96,7 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 		crest.material_override = mat
 		crest.transform = slot.get_meta("bind")
 		slot.add_child(crest)
+	crest.mesh = _heads[source][2]
 	crest.set_meta("wanted", style == "mohawk")
 	crest.visible = style == "mohawk" and not slot.get_meta("covered", false)
 	var color: String = look.get("color", "natural")
@@ -106,7 +107,7 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 	var word: String = look.get("tattoo", "")
 	head_mat.set_shader_parameter("show_tattoo", shaved and word != "")
 	if word != "":
-		head_mat.set_shader_parameter("tattoo", _ink(head, word))
+		head_mat.set_shader_parameter("tattoo", _ink(head, word, look.get("tattoo_shape", "straight") == "arch"))
 
 
 ## A helmet or hat hides the crest (it would poke through).
@@ -161,6 +162,9 @@ static func checked(look) -> Dictionary:
 		if COLORS.has(look.get("color", "")):
 			result.color = look.color
 		result.tattoo = str(look.get("tattoo", "")).strip_edges().left(TATTOO_MAX)
+		if look.get("tattoo_shape", "") in TATTOO_SHAPES:
+			result.tattoo_shape = look.tattoo_shape
+		result.show_helmet = bool(look.get("show_helmet", true))
 	return result
 
 
@@ -179,29 +183,61 @@ static func _set_color(mat: ShaderMaterial, color: String) -> void:
 
 
 ## Writes the tattoo into a small texture: a hidden viewport with the word,
-## drawn once. The shader lays it onto the side of the head.
-static func _ink(head: MeshInstance3D, word: String) -> Texture2D:
+## drawn once, letter by letter, in a straight line or along a half circle.
+## The shader lays it onto the side of the head.
+const INK_SIZE := Vector2(512, 390)
+
+static func _ink(head: MeshInstance3D, word: String, arch: bool) -> Texture2D:
 	var view := head.get_node_or_null("TattooInk") as SubViewport
 	if view == null:
 		view = SubViewport.new()
 		view.name = "TattooInk"
-		view.size = Vector2i(512, 192)
+		view.size = Vector2i(INK_SIZE)
 		view.transparent_bg = true
 		view.disable_3d = true
-		var label := Label.new()
-		label.name = "Word"
-		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		label.size = Vector2(512, 192)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.add_theme_font_override("font", TATTOO_FONT)
-		label.add_theme_color_override("font_color", Color.WHITE)
-		view.add_child(label)
+		var word_node := Node2D.new()
+		word_node.name = "Word"
+		view.add_child(word_node)
 		head.add_child(view)
-	var word_label := view.get_node("Word") as Label
-	word_label.text = word
+	var word_node := view.get_node("Word") as Node2D
+	for old in word_node.get_children():
+		old.free()
 	# Short words big, long words smaller, so every word fits.
-	word_label.add_theme_font_size_override("font_size", clampi(int(640.0 / maxf(word.length(), 3.0)), 40, 150))
+	var font_size := clampi(int(640.0 / maxf(word.length(), 3.0)), 40, 150)
+	var widths: Array[float] = []
+	var total := 0.0
+	for ch in word:
+		var w := TATTOO_FONT.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		widths.append(w)
+		total += w
+	# A half circle at most; a short word takes only part of it, so its
+	# letters stay close together and easy to read.
+	const RADIUS := 180.0
+	var span := clampf(total * 1.15 / RADIUS, 0.0, PI * 0.9) if arch else 0.0
+	var centre := Vector2(INK_SIZE.x * 0.5, INK_SIZE.y * 0.5 + (RADIUS * 0.45 if arch else 0.0))
+	var x := -total * 0.5
+	var angle := -span * 0.5
+	for i in word.length():
+		var label := Label.new()
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		label.text = word[i]
+		label.add_theme_font_override("font", TATTOO_FONT)
+		label.add_theme_font_size_override("font_size", font_size)
+		label.add_theme_color_override("font_color", Color.WHITE)
+		label.size = Vector2(widths[i], font_size * 1.3)
+		label.pivot_offset = label.size * 0.5
+		var mid: Vector2
+		if arch:
+			# The letter's middle sits on the circle, turned to follow it.
+			var a := angle + widths[i] * 0.5 / total * span
+			mid = centre + Vector2(sin(a), -cos(a)) * RADIUS
+			label.rotation = a
+			angle += widths[i] / total * span
+		else:
+			mid = centre + Vector2(x + widths[i] * 0.5, 0.0)
+			x += widths[i]
+		label.position = mid - label.size * 0.5
+		word_node.add_child(label)
 	view.render_target_update_mode = SubViewport.UPDATE_ONCE
 	return view.get_texture()
 
@@ -215,6 +251,9 @@ static func _build_heads(source: Mesh) -> Array:
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var hair := _hair_vertices(verts, uvs, index)
+	var rim := _face_rim(verts, hair, index)
+	var shape := _skull_shape(rim)
+	var blend := _face_blend(verts, hair, rim)
 	var flags := Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
 	if source is ArrayMesh and (source as ArrayMesh).surface_get_format(0) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS:
 		flags |= Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
@@ -229,10 +268,17 @@ static func _build_heads(source: Mesh) -> Array:
 		for v in verts.size():
 			var p := verts[v]
 			if hair[v] and shaved:
-				p = on_skull(p)
+				var top := skull_point(p, shape)
+				n2[v] = skull_point_normal(p, shape)
+				p = top
 				v2[v] = p
-				n2[v] = skull_normal(p)
 				uv2[v] = SCALP_UV
+			elif shaved and blend[v] > 0.0:
+				# The rim of the face grows into the skull, so the face is part
+				# of the head instead of a mask on the front of it.
+				n2[v] = normals[v].lerp(skull_point_normal(p, shape), blend[v]).normalized()
+				p = p.lerp(skull_point(p, shape), blend[v])
+				v2[v] = p
 			custom[v * 4] = p.x
 			custom[v * 4 + 1] = p.y
 			custom[v * 4 + 2] = p.z
@@ -245,7 +291,129 @@ static func _build_heads(source: Mesh) -> Array:
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, flags)
 		result.append(mesh)
+	# The mohawk grows from this head's skull.
+	result.append(crest_mesh(shape))
 	return result
+
+
+## How far each face vertex is pulled onto the skull of a shaved head: fully
+## on the face's outer rim (which the hair used to cover), less and less
+## further in, and not at all from FACE_BLEND inwards, so eyes, nose and
+## mouth keep their shape.
+const FACE_BLEND := 0.1
+
+## The face's outer rim, the edge the hair used to cover: the longest run of
+## open edges of the face (the eyes, the nose and the ears have small rings
+## of their own).
+static func _face_rim(verts: PackedVector3Array, hair: Array[bool], index: PackedInt32Array) -> Array[Vector3]:
+	var n := verts.size()
+	var keys: Array[Vector3i] = []
+	keys.resize(n)
+	for i in n:
+		keys[i] = Vector3i((verts[i] * 1000.0).round())
+	# Edges used by only one triangle of the face are its open edges.
+	var count := {}
+	for t in range(0, index.size(), 3):
+		if hair[index[t]] or hair[index[t + 1]] or hair[index[t + 2]]:
+			continue
+		for k in 3:
+			var a := keys[index[t + k]]
+			var b := keys[index[t + (k + 1) % 3]]
+			var edge := [a, b] if str(a) < str(b) else [b, a]
+			count[edge] = count.get(edge, 0) + 1
+	var links := {}
+	for edge in count:
+		if count[edge] != 1:
+			continue
+		for k in 2:
+			if not links.has(edge[k]):
+				links[edge[k]] = []
+			links[edge[k]].append(edge[1 - k])
+	var seen := {}
+	var rim := []
+	for start in links:
+		if seen.has(start):
+			continue
+		var ring := []
+		var todo := [start]
+		while not todo.is_empty():
+			var key = todo.pop_back()
+			if seen.has(key):
+				continue
+			seen[key] = true
+			ring.append(key)
+			todo.append_array(links[key])
+		if ring.size() > rim.size():
+			rim = ring
+	var rim_points: Array[Vector3] = []
+	for key in rim:
+		rim_points.append(Vector3(key) / 1000.0)
+	return rim_points
+
+
+static func _face_blend(verts: PackedVector3Array, hair: Array[bool], rim_points: Array[Vector3]) -> PackedFloat32Array:
+	var n := verts.size()
+	var result := PackedFloat32Array()
+	result.resize(n)
+	for i in n:
+		if hair[i]:
+			continue
+		var nearest := INF
+		for q in rim_points:
+			nearest = minf(nearest, verts[i].distance_to(q))
+		if nearest < FACE_BLEND:
+			result[i] = smoothstep(FACE_BLEND, 0.0, nearest)
+	return result
+
+
+## How far round the skull (in radians) the face's rim still shapes it.
+const SKULL_SPREAD := 0.35
+
+## The skull of a shaved head: the ellipsoid, swollen (or shrunk) towards the
+## face so that it meets the face's rim at the rim's own height, and the skin
+## runs on from the face without a step. Returns the directions of the rim
+## points from the skull's centre and how far out each one lies (1 = on the
+## ellipsoid).
+static func _skull_shape(rim: Array[Vector3]) -> Array:
+	var dirs := PackedVector3Array()
+	var reach := PackedFloat32Array()
+	for q in rim:
+		var d := (q - SKULL_CENTER) / SKULL_RADII
+		dirs.append(d.normalized())
+		reach.append(d.length())
+	return [dirs, reach]
+
+
+## The point of the shaped skull straight out from its centre through p.
+static func skull_point(p: Vector3, shape: Array) -> Vector3:
+	var u := ((p - SKULL_CENTER) / SKULL_RADII).normalized()
+	if u == Vector3.ZERO:
+		u = Vector3.UP
+	var dirs: PackedVector3Array = shape[0]
+	var reach: PackedFloat32Array = shape[1]
+	var total := 0.0
+	var swell := 0.0
+	var nearest := 0.0
+	for i in dirs.size():
+		var angle := acos(clampf(dirs[i].dot(u), -1.0, 1.0))
+		var w := exp(-pow(angle / SKULL_SPREAD, 2.0))
+		total += w
+		swell += w * (reach[i] - 1.0)
+		nearest = maxf(nearest, w)
+	var s := 1.0 + (swell / total * nearest if total > 0.000001 else 0.0)
+	return SKULL_CENTER + u * SKULL_RADII * s
+
+
+## The outward normal of the shaped skull at its point through p.
+static func skull_point_normal(p: Vector3, shape: Array) -> Vector3:
+	var n := skull_normal(on_skull(p))
+	var t1 := n.cross(Vector3.UP if absf(n.y) < 0.9 else Vector3.RIGHT).normalized()
+	var t2 := n.cross(t1)
+	const STEP := 0.01
+	var a := skull_point(p + t1 * STEP, shape) - skull_point(p - t1 * STEP, shape)
+	var b := skull_point(p + t2 * STEP, shape) - skull_point(p - t2 * STEP, shape)
+	var result := a.cross(b).normalized()
+	return result if result.dot(n) > 0.0 else -result
 
 
 ## Pulls a point straight in or out from the skull's centre onto the skull.
@@ -266,7 +434,7 @@ static func skull_normal(p: Vector3) -> Vector3:
 ## tapering ribbon: UV.x runs across it, UV.y from the root (0) to the tip (1);
 ## COLOR.r is a random number per lock, COLOR.g its shade and COLOR.b where
 ## it grows, from the forehead (0) to the nape (1).
-static func crest_mesh() -> ArrayMesh:
+static func crest_mesh(shape: Array) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var st := SurfaceTool.new()
@@ -275,8 +443,8 @@ static func crest_mesh() -> ArrayMesh:
 		var t := (i + rng.randf()) / LOCKS
 		var theta := lerpf(CREST_FRONT, CREST_BACK, t)
 		var x := clampf(rng.randfn(0.0, 0.035), -0.09, 0.09)
-		var root := SKULL_CENTER + Vector3(x / SKULL_RADII.x, cos(theta), -sin(theta)).normalized() * SKULL_RADII
-		var normal := skull_normal(root)
+		var root := skull_point(SKULL_CENTER + Vector3(x / SKULL_RADII.x, cos(theta), -sin(theta)).normalized() * SKULL_RADII, shape)
+		var normal := skull_point_normal(root, shape)
 		# Backwards along the middle of the skull.
 		var back := Vector3(0.0, -sin(theta) * SKULL_RADII.y, -cos(theta) * SKULL_RADII.z).normalized()
 		var lock_length := (0.12 + 0.32 * pow(sin(PI * clampf(t * 0.9 + 0.08, 0.0, 1.0)), 0.7)) * (0.8 + 0.35 * rng.randf())

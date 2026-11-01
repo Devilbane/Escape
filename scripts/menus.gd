@@ -275,6 +275,13 @@ func _build_inventory() -> void:
 		var id: String = p.equipped.get(slot, "")
 		var text: String = "%s\n%s" % [Lang.t(Items.SLOT_NAMES[slot]), Items.item_name(id) if id != "" else "-"]
 		row.add_child(_item_button(text, _unequip.bind(slot), id != "", id))
+	if Items.ALL.get(p.equipped.get("kopf", ""), {}).has("hat"):
+		# A helmet can stay invisible, so the haircut shows; it protects all the same.
+		var shown: bool = p.hair.get("show_helmet", true)
+		var toggle := _item_button(Lang.t("Helm verstecken (schützt trotzdem)") if shown else Lang.t("Helm zeigen"), _toggle_helmet)
+		toggle.custom_minimum_size = Vector2(300, 46)
+		toggle.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_box.add_child(toggle)
 	_add_label(Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), p.bag_size(), Items.weight_text(p.carried_weight())], 20)
 	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, 4 if p.bag_size() <= 8 else 6)
 	if _selected >= 0 and _selected < p.bag.size():
@@ -361,6 +368,14 @@ func _drop_selected() -> void:
 	_note = Lang.t("%s weggeworfen.") % Items.item_name(p.bag[_selected])
 	p.bag.remove_at(_selected)
 	_selected = -1
+	_rebuild()
+
+
+func _toggle_helmet() -> void:
+	var look: Dictionary = game.player.hair.duplicate()
+	look.show_helmet = not look.get("show_helmet", true)
+	game.player.set_hair(look)
+	_note = ""
 	_rebuild()
 
 
@@ -547,14 +562,18 @@ const BARBER_COLORS := [["natural", "Naturfarbe", 5], ["black", "Schwarz", 10], 
 		["pink", "Pink", 10], ["purple", "Lila", 10], ["rainbow", "Regenbogen", 25], ["fire", "Feuer", 30]]
 const TATTOO_PRICE := 20
 const TATTOO_REMOVE_PRICE := 10
-## The word the player is typing for a tattoo, kept while the menu rebuilds.
+## The word the player is typing for a tattoo and its shape, kept while the
+## menu rebuilds.
 var _tattoo_word := ""
+var _tattoo_shape := ""
 
 
 func _build_barber() -> void:
 	var p: Player = game.player
 	if _tattoo_word == "":
 		_tattoo_word = p.hair.tattoo if p.hair.tattoo != "" else "Pig!"
+	if _tattoo_shape == "":
+		_tattoo_shape = p.hair.get("tattoo_shape", "straight")
 	_add_label(Lang.t("Barbier"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
 	_add_label(Lang.t("Frisur"), 20)
@@ -580,6 +599,11 @@ func _build_barber() -> void:
 	edit.text_changed.connect(func(t): _tattoo_word = t)
 	edit.text_submitted.connect(func(_t): _ink_tattoo())
 	row.add_child(edit)
+	for shape in [["straight", "Gerade"], ["arch", "Im Halbkreis"]]:
+		var chosen: bool = _tattoo_shape == shape[0]
+		var b := _item_button(Lang.t("Jetzt: %s") % Lang.t(shape[1]) if chosen else Lang.t(shape[1]), _pick_tattoo_shape.bind(shape[0]), not chosen)
+		b.custom_minimum_size = Vector2(150, 54)
+		row.add_child(b)
 	row.add_child(_item_button(Lang.t("Stechen\n%d Gold") % TATTOO_PRICE, _ink_tattoo, game.coins >= TATTOO_PRICE))
 	row.add_child(_item_button(Lang.t("Entfernen\n%d Gold") % TATTOO_REMOVE_PRICE, _remove_tattoo,
 			p.hair.tattoo != "" and game.coins >= TATTOO_REMOVE_PRICE))
@@ -615,6 +639,12 @@ func _restyle(field: String, id: String, price: int) -> void:
 	_rebuild()
 
 
+func _pick_tattoo_shape(shape: String) -> void:
+	_tattoo_shape = shape
+	_note = ""
+	_rebuild()
+
+
 func _ink_tattoo() -> void:
 	var word := _tattoo_word.strip_edges()
 	if word == "":
@@ -625,6 +655,7 @@ func _ink_tattoo() -> void:
 		game.coins -= TATTOO_PRICE
 		var look: Dictionary = game.player.hair.duplicate()
 		look.tattoo = word
+		look.tattoo_shape = _tattoo_shape
 		game.player.set_hair(look)
 		Sfx.play(game, "coin")
 		_note = Lang.t("Gestochen: %s") % word

@@ -468,6 +468,7 @@ func set_hair(look: Dictionary) -> void:
 	var feather := _model.find_child("Feather", true, false) as Node3D
 	if feather:
 		feather.position = feather.get_meta("spots")[0 if hair.style == "natural" else 1]
+	_show_headgear()
 
 
 ## The glowing devilbane emblem on the back of the cape.
@@ -1113,8 +1114,8 @@ func _ailments_changed() -> void:
 	ailments_changed.emit()
 
 
-## Puts the worn helmet or hat on the hero's head; the mohawk and the feather
-## make room for it.
+## Puts the worn helmet or hat on the hero's head, unless the hero chose to
+## hide it; the mohawk and the feather make room for it.
 func _show_headgear() -> void:
 	var slot := _model.find_child("HeadSlot", true, false)
 	if slot == null:
@@ -1123,11 +1124,13 @@ func _show_headgear() -> void:
 	if old:
 		old.free()
 	var item: Dictionary = Items.ALL.get(equipped.get("kopf", ""), {})
+	# A hidden helmet still protects, it just does not cover the haircut.
+	var shown: bool = item.has("hat") and hair.get("show_helmet", true)
 	var feather := slot.get_node_or_null("Feather") as Node3D
 	if feather:
-		feather.visible = not item.has("hat")
-	HairLook.cover(_model, item.has("hat"))
-	if not item.has("hat"):
+		feather.visible = not shown
+	HairLook.cover(_model, shown)
+	if not shown:
 		return
 	# The hats sit on the head bone of their own character, which matches the hero's.
 	var source: Node = load(item.hat[0]).instantiate()

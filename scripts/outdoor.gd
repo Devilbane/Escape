@@ -877,6 +877,27 @@ func _spawn_villagers() -> void:
 				_elder = v
 			elif ch == "K":
 				_herald = v
+			elif ch == "Z":
+				_build_barber_shop(c + Vector2i(0, -1))
+
+
+## The barber's stall on the tile behind him: a market tent with a striped
+## barber's pole and a hanging sign with scissors at its front, so the shop
+## is easy to spot on the square.
+func _build_barber_shop(cell: Vector2i) -> void:
+	var pos := cell_to_world(cell)
+	var box := _aabb_of("tent")
+	_put("tent", pos, 0.0, 3.6 / maxf(box.size.x, box.size.z))
+	_add_solid(pos, Vector3(3.4, 2.6, 3.4))
+	astar.set_point_solid(cell, true)
+	var pole := Effects.barber_pole()
+	pole.position = pos + Vector3(-2.0, 0, 1.9)
+	add_child(pole)
+	var board := Effects.shop_sign(Lang.t("Barbier"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	board.position = pos + Vector3(1.4, 0, 1.9)
+	add_child(board)
+	_add_solid(pos + Vector3(-2.0, 0, 1.9), Vector3(0.5, 2.6, 0.5))
+	_add_solid(pos + Vector3(1.4, 0, 1.9), Vector3(0.5, 2.6, 0.5))
 
 
 # --- Bandits ------------------------------------------------------------------

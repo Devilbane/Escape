@@ -70,6 +70,7 @@ func _run() -> void:
 	check(lvl.is_home, "the hero is in their town house")
 	check(_station(lvl, "hauswerkbank").is_empty() and _station(lvl, "trophaeen").is_empty() and _station(lvl, "lager").size() == 1,
 			"a fresh house has only its bed and chest")
+	check(lvl.chalk_marks.size() == lvl.furniture_slots.size(), "every free furniture spot is chalked on the floor")
 
 	# Every text has its English.
 	for id in HomeUpgrades.ALL:
@@ -194,7 +195,12 @@ func _run() -> void:
 	check(lvl._trophy_shelf.get_child_count() == 2, "both trophies stand on the shelf")
 	game.menus.open("trophaeen")
 	check(game.menus.current == "trophaeen", "the trophy wall's window opens")
+	var struck := _struck_texts(game.menus._box)
+	check(struck.size() == 2, "the two trophies won are struck through (%d)" % struck.size())
+	check(struck.any(func(t): return t.contains(Lang.t("Wolfspelz"))) and struck.all(func(t): return t.contains(Lang.t("erbeutet"))),
+			"each says which trophy it is and that it is won")
 	game.menus.close()
+	check(Lang.EN.has("Trophäenwand: Dagegenlaufen, um zu sehen, welche Trophäen du hast und welche noch fehlen (je +1 Leben)"), "the trophy wall's hint says what it is for")
 
 	# Kept in the saved game: loaded again, everything is still there.
 	check(game.save_game(), "the game saves")
@@ -208,12 +214,24 @@ func _run() -> void:
 	check(_station(lvl, "hauswerkbank").size() == 1 and _station(lvl, "trophaeen").size() == 1 and _station(lvl, "lager").size() == 2,
 			"a loaded game rebuilds the furniture")
 	check(p.max_hp == base_hp + 2, "the trophies' life is back after loading")
+	for id in lvl._upgrade_cells:
+		check(not lvl.chalk_marks.has(lvl._upgrade_cells[id]), "no chalk square is left under the %s" % id)
+	check(lvl.chalk_marks.size() == lvl.furniture_slots.size() - 3, "the free spots keep their chalk squares")
 
 	# A trophy won before the wall stands gives no life until it is built.
 	game.home_upgrades.erase("trophaeen")
 	game.apply_home_bonus()
 	check(p.max_hp == base_hp, "without the wall the trophies give no life")
 	_finish()
+
+
+## The texts of the struck-through (finished) lines in a window.
+func _struck_texts(node: Node) -> Array:
+	var out := []
+	for l in node.find_children("*", "RichTextLabel", true, false):
+		if (l as RichTextLabel).text.contains("[s]"):
+			out.append((l as RichTextLabel).get_parsed_text())
+	return out
 
 
 func _has_button(node: Node, text: String) -> bool:

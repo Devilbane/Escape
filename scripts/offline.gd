@@ -63,7 +63,14 @@ const JOBS := {
 const RECIPES := {
 	"messer": {"name": "Wurfmesser schmieden", "hours": 3.0, "makes": "knife", "train": {"geschick": 0.004}},
 	"flicken": {"name": "Ausrüstung ausbessern", "hours": 2.0, "makes": "repair", "train": {"geschick": 0.003}},
+	# Secret recipes: a villager teaches them once they trust the hero (see
+	# Reputation.SECRETS). Until then they cannot be chosen.
+	"messer_gorm": {"name": "Wurfmesser nach Gorms Art", "hours": 2.0, "makes": "knife", "train": {"geschick": 0.004}, "secret": "1"},
+	"pflege_mira": {"name": "Ausrüstung mit Miras Lederfett pflegen", "hours": 1.0, "makes": "repair", "train": {"geschick": 0.003}, "secret": "6"},
+	"steine_hagen": {"name": "Steinblöcke nach Hagens Art behauen", "hours": 4.0, "makes": "stone", "train": {"staerke": 0.004}, "secret": "S"},
 }
+## Stone blocks cut in one absence, at most (they wait in the storage chest).
+const MAX_STONES := 20
 
 const BLOCKS := ["job", "train", "study", "craft", "rest"]
 
@@ -132,7 +139,7 @@ static func normalized(plan: Dictionary, allowed: Dictionary) -> Dictionary:
 ##   gold: earned by the job
 ##   xp: training id -> amount, before the hero's Weisheit bonus
 ##   study_xp: training id -> amount that needs no gear (from books)
-##   knives, repairs: pieces crafted
+##   knives, repairs, stones: pieces crafted
 ## With `workshop` (the workbench at home, see HomeUpgrades), every crafted
 ## piece takes only HomeUpgrades.WORKSHOP_CRAFT of its hours.
 static func simulate(plan: Dictionary, hours: float, workshop := false) -> Dictionary:
@@ -151,7 +158,7 @@ static func simulate(plan: Dictionary, hours: float, workshop := false) -> Dicti
 				break
 	var result := {
 		"hours": hours, "days": floori(hours / DAY_HOURS), "spent": spent,
-		"gold": 0, "xp": {}, "study_xp": {}, "knives": 0, "repairs": 0,
+		"gold": 0, "xp": {}, "study_xp": {}, "knives": 0, "repairs": 0, "stones": 0,
 	}
 	if plan.get("job", "") != "" and JOBS.has(plan.job):
 		var job: Dictionary = JOBS[plan.job]
@@ -174,6 +181,8 @@ static func simulate(plan: Dictionary, hours: float, workshop := false) -> Dicti
 			result.knives = pieces
 		elif recipe.makes == "repair":
 			result.repairs = pieces
+		elif recipe.makes == "stone":
+			result.stones = mini(pieces, MAX_STONES)
 		_add_rates(result.xp, recipe.get("train", {}), spent.craft)
 	return result
 

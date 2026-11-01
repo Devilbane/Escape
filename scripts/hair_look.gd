@@ -57,9 +57,8 @@ const SEGMENTS := 6
 const CREST_FRONT := -0.95
 const CREST_BACK := 1.5
 
-## The natural and the shaved head mesh, by source mesh: built once.
+## The natural and the shaved head mesh and the crest, by source mesh: built once.
 static var _heads := {}
-static var _crest_mesh: ArrayMesh
 
 
 ## Gives a Rogue model a look. The first call sets everything up; later calls
@@ -88,9 +87,6 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 	if crest == null:
 		crest = MeshInstance3D.new()
 		crest.name = "Crest"
-		if _crest_mesh == null:
-			_crest_mesh = crest_mesh()
-		crest.mesh = _crest_mesh
 		crest.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var mat := ShaderMaterial.new()
 		mat.shader = SHADER
@@ -98,6 +94,7 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 		crest.material_override = mat
 		crest.transform = slot.get_meta("bind")
 		slot.add_child(crest)
+	crest.mesh = _heads[source][2]
 	crest.set_meta("wanted", style == "mohawk")
 	crest.visible = style == "mohawk" and not slot.get_meta("covered", false)
 	var color: String = look.get("color", "natural")
@@ -252,7 +249,9 @@ static func _build_heads(source: Mesh) -> Array:
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var hair := _hair_vertices(verts, uvs, index)
-	var blend := _face_blend(verts, hair, index)
+	var rim := _face_rim(verts, hair, index)
+	var shape := _skull_shape(rim)
+	var blend := _face_blend(verts, hair, rim)
 	var flags := Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
 	if source is ArrayMesh and (source as ArrayMesh).surface_get_format(0) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS:
 		flags |= Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
@@ -267,16 +266,17 @@ static func _build_heads(source: Mesh) -> Array:
 		for v in verts.size():
 			var p := verts[v]
 			if hair[v] and shaved:
-				p = on_skull(p)
+				var top := skull_point(p, shape)
+				n2[v] = skull_point_normal(p, shape)
+				p = top
 				v2[v] = p
-				n2[v] = skull_normal(p)
 				uv2[v] = SCALP_UV
 			elif shaved and blend[v] > 0.0:
 				# The rim of the face grows into the skull, so the face is part
 				# of the head instead of a mask on the front of it.
-				p = p.lerp(on_skull(p), blend[v])
+				n2[v] = normals[v].lerp(skull_point_normal(p, shape), blend[v]).normalized()
+				p = p.lerp(skull_point(p, shape), blend[v])
 				v2[v] = p
-				n2[v] = normals[v].lerp(skull_normal(p), blend[v]).normalized()
 			custom[v * 4] = p.x
 			custom[v * 4 + 1] = p.y
 			custom[v * 4 + 2] = p.z
@@ -289,6 +289,8 @@ static func _build_heads(source: Mesh) -> Array:
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, flags)
 		result.append(mesh)
+	# The mohawk grows from this head's skull.
+	result.append(crest_mesh(shape))
 	return result
 
 
@@ -298,7 +300,10 @@ static func _build_heads(source: Mesh) -> Array:
 ## mouth keep their shape.
 const FACE_BLEND := 0.1
 
-static func _face_blend(verts: PackedVector3Array, hair: Array[bool], index: PackedInt32Array) -> PackedFloat32Array:
+## The face's outer rim, the edge the hair used to cover: the longest run of
+## open edges of the face (the eyes, the nose and the ears have small rings
+## of their own).
+static func _face_rim(verts: PackedVector3Array, hair: Array[bool], index: PackedInt32Array) -> Array[Vector3]:
 	var n := verts.size()
 	var keys: Array[Vector3i] = []
 	keys.resize(n)
@@ -322,8 +327,6 @@ static func _face_blend(verts: PackedVector3Array, hair: Array[bool], index: Pac
 			if not links.has(edge[k]):
 				links[edge[k]] = []
 			links[edge[k]].append(edge[1 - k])
-	# The outer rim is the longest run of open edges; the eyes, the nose
-	# and the ears have small rings of their own.
 	var seen := {}
 	var rim := []
 	for start in links:
@@ -343,6 +346,11 @@ static func _face_blend(verts: PackedVector3Array, hair: Array[bool], index: Pac
 	var rim_points: Array[Vector3] = []
 	for key in rim:
 		rim_points.append(Vector3(key) / 1000.0)
+	return rim_points
+
+
+static func _face_blend(verts: PackedVector3Array, hair: Array[bool], rim_points: Array[Vector3]) -> PackedFloat32Array:
+	var n := verts.size()
 	var result := PackedFloat32Array()
 	result.resize(n)
 	for i in n:
@@ -354,6 +362,56 @@ static func _face_blend(verts: PackedVector3Array, hair: Array[bool], index: Pac
 		if nearest < FACE_BLEND:
 			result[i] = smoothstep(FACE_BLEND, 0.0, nearest)
 	return result
+
+
+## How far round the skull (in radians) the face's rim still shapes it.
+const SKULL_SPREAD := 0.35
+
+## The skull of a shaved head: the ellipsoid, swollen (or shrunk) towards the
+## face so that it meets the face's rim at the rim's own height, and the skin
+## runs on from the face without a step. Returns the directions of the rim
+## points from the skull's centre and how far out each one lies (1 = on the
+## ellipsoid).
+static func _skull_shape(rim: Array[Vector3]) -> Array:
+	var dirs := PackedVector3Array()
+	var reach := PackedFloat32Array()
+	for q in rim:
+		var d := (q - SKULL_CENTER) / SKULL_RADII
+		dirs.append(d.normalized())
+		reach.append(d.length())
+	return [dirs, reach]
+
+
+## The point of the shaped skull straight out from its centre through p.
+static func skull_point(p: Vector3, shape: Array) -> Vector3:
+	var u := ((p - SKULL_CENTER) / SKULL_RADII).normalized()
+	if u == Vector3.ZERO:
+		u = Vector3.UP
+	var dirs: PackedVector3Array = shape[0]
+	var reach: PackedFloat32Array = shape[1]
+	var total := 0.0
+	var swell := 0.0
+	var nearest := 0.0
+	for i in dirs.size():
+		var angle := acos(clampf(dirs[i].dot(u), -1.0, 1.0))
+		var w := exp(-pow(angle / SKULL_SPREAD, 2.0))
+		total += w
+		swell += w * (reach[i] - 1.0)
+		nearest = maxf(nearest, w)
+	var s := 1.0 + (swell / total * nearest if total > 0.000001 else 0.0)
+	return SKULL_CENTER + u * SKULL_RADII * s
+
+
+## The outward normal of the shaped skull at its point through p.
+static func skull_point_normal(p: Vector3, shape: Array) -> Vector3:
+	var n := skull_normal(on_skull(p))
+	var t1 := n.cross(Vector3.UP if absf(n.y) < 0.9 else Vector3.RIGHT).normalized()
+	var t2 := n.cross(t1)
+	const STEP := 0.01
+	var a := skull_point(p + t1 * STEP, shape) - skull_point(p - t1 * STEP, shape)
+	var b := skull_point(p + t2 * STEP, shape) - skull_point(p - t2 * STEP, shape)
+	var result := a.cross(b).normalized()
+	return result if result.dot(n) > 0.0 else -result
 
 
 ## Pulls a point straight in or out from the skull's centre onto the skull.
@@ -374,7 +432,7 @@ static func skull_normal(p: Vector3) -> Vector3:
 ## tapering ribbon: UV.x runs across it, UV.y from the root (0) to the tip (1);
 ## COLOR.r is a random number per lock, COLOR.g its shade and COLOR.b where
 ## it grows, from the forehead (0) to the nape (1).
-static func crest_mesh() -> ArrayMesh:
+static func crest_mesh(shape: Array) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var st := SurfaceTool.new()
@@ -383,8 +441,8 @@ static func crest_mesh() -> ArrayMesh:
 		var t := (i + rng.randf()) / LOCKS
 		var theta := lerpf(CREST_FRONT, CREST_BACK, t)
 		var x := clampf(rng.randfn(0.0, 0.035), -0.09, 0.09)
-		var root := SKULL_CENTER + Vector3(x / SKULL_RADII.x, cos(theta), -sin(theta)).normalized() * SKULL_RADII
-		var normal := skull_normal(root)
+		var root := skull_point(SKULL_CENTER + Vector3(x / SKULL_RADII.x, cos(theta), -sin(theta)).normalized() * SKULL_RADII, shape)
+		var normal := skull_point_normal(root, shape)
 		# Backwards along the middle of the skull.
 		var back := Vector3(0.0, -sin(theta) * SKULL_RADII.y, -cos(theta) * SKULL_RADII.z).normalized()
 		var lock_length := (0.12 + 0.32 * pow(sin(PI * clampf(t * 0.9 + 0.08, 0.0, 1.0)), 0.7)) * (0.8 + 0.35 * rng.randf())

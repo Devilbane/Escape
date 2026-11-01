@@ -1103,11 +1103,11 @@ func _build_hole(c: Vector2i) -> void:
 	add_child(pit)
 	# Torn-up rocks round the rim, and what is left of those who went down.
 	for i in 6:
-		var angle := TAU * i / 6.0 + _rng.randf_range(-0.3, 0.3)
+		var angle: float = TAU * i / 6.0 + _rng.randf_range(-0.3, 0.3)
 		var rock: String = ["rock_single_A", "rock_single_C", "rock_single_E"][_rng.randi() % 3]
 		_put(rock, pos + Vector3(cos(angle), 0, sin(angle)) * _rng.randf_range(1.6, 1.9), _rng.randf() * TAU, _rng.randf_range(2.0, 3.4))
 	for i in 2:
-		var angle := _rng.randf() * TAU
+		var angle: float = _rng.randf() * TAU
 		_put("lair/Skull", pos + Vector3(cos(angle), 0, sin(angle)) * 2.3, _rng.randf() * TAU, 0.6)
 	var mist := Effects.make_sparkles(Color(0.45, 0.5, 0.62, 0.5))
 	mist.position = pos + Vector3(0, 0.4, 0)

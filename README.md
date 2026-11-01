@@ -25,6 +25,7 @@ The game can be played in English or German; you choose the language on the titl
 | Compendium | H | “Compendium” button |
 | Character page | P | “Character” button |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
+| Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |
 | Quit game | Esc | “Quit” button, top right |
 | Sound on/off | M | “Sound” button, top right |
@@ -243,6 +244,16 @@ and every new try after a fall, begins next to your bed. The doors of the houses
 shut, and an empty one tells you which number is yours. Who lives where is kept on this computer next to the
 bank's books, so every hero keeps their house.
 
+Your town house can be **upgraded**. Open the upgrade window from the bed in your town house or from Hagen the
+stonemason. You pay with stone blocks (from your bag first, then from your chest) and some gold, and Hagen
+builds each upgrade once, on the chalked furniture spots:
+
+| Upgrade | Cost | What it does |
+|---|---|---|
+| **Second chest** | 4 stone blocks, 10 gold | Stands beside the first chest on the ground floor. Your chests hold 32 things instead of 16. |
+| **Workshop** | 6 stone blocks, 30 gold | A workbench in the attic: 1 iron bar makes 3 throwing knives, 1 iron bar fully mends a worn piece of gear, and crafting while you are away takes a third less time. |
+| **Trophy wall** | 5 stone blocks, 20 gold | A shelf on the attic wall with a small statuette of each mighty foe you have defeated: the bandit chief, the dragon, the yeti, an orc, a wolf, a giant spider and a brute. Each trophy gives **+1 life** while the wall stands. Trophies count from your first kill, even before the wall is built. |
+
 In the middle of the village lies the paved **market square** with a fountain that heals, benches and
 lanterns. Around it stand the **smithy**, the **temple** (a small stone chapel with a spire and stained-glass
 windows), the **office of the crown**, the **post office**, the
@@ -428,6 +439,35 @@ a pack of quick **wolves**, **spiders** whose bite can poison, two **orcs** that
 **yeti**. They notice, chase, strike and give up just like the bandits, and come back the same way a
 while after they fall. A wolf or a spider leaves little more than a coin or two; orcs and the yeti carry
 more gold and sometimes a piece of gear.
+
+### Rivals and friends
+
+Not all monsters are on the same side. Every kind belongs to a **faction**, and some factions hate each
+other: when rivals meet, they fight, and whoever wins leaves the loser's loot lying for you.
+
+- **The dead** (skeletons, fog wraiths) hate everything that lives.
+- **The bandits** of the pass and **the beasts of the wolf hollow** (wolves, orcs, spiders, the yeti)
+  are at war. Lure a wolf onto the pass, or let it find a bandit on its own, and watch them go at it.
+  The beasts share their hollow in peace.
+- **The dragon's brood** (bats, slimes, the dragon) wants the skeletons out of its cave.
+
+A monster that sees a rival within about 14 metres goes for it. A monster that hunts you still goes for a
+rival first when the rival is closer than you. A kill by a rival counts for no task and does not feed the
+vampire tooth.
+
+Some factions can be **befriended**. Stand next to one of them and press **T** (or “Give gift”):
+
+| Faction | Gift | Gifts to become friends |
+|---|---|---|
+| Wolves | 1 perch | 3 |
+| Orcs | 6 gold | 3 |
+| The yeti | 2 perch | 3 |
+
+Each gift calms that one monster for ten seconds, even mid-hunt, and earns the faction's **favour**. Once a
+faction is your friend, none of them attacks you any more, your blade, sweeps and knives pass them by, and
+they fall upon any monster that hunts you within about 16 metres. Slaying one of them costs favour; slaying
+their rivals earns a little (a quarter per kill), but never the last step: that one takes a gift. The favour
+is kept in the saved game. Spiders, bandits, the dead and the dragon's brood cannot be won over.
 
 The woods between the graveyard and the village are home to peaceful animals: **does**, **stags** and
 **foxes** graze and stroll on the meadows by the path. They never fight and cannot be hurt, and they

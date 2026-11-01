@@ -74,6 +74,11 @@ var home_given := false
 ## Set once the hero has walked into that house and made it their own: from
 ## then on it is where every saved game starts.
 var home_claimed := false
+## What has been built onto the hero's house (upgrade id -> true, see
+## HomeUpgrades), and the trophies won: enemy kind -> true for the first
+## foe of each kind in HomeUpgrades.TROPHIES.
+var home_upgrades := {}
+var trophies := {}
 ## The villagers the hero has talked to, by role letter -> true. Once met,
 ## a villager wears their name over their head. Kept in the saved game.
 var met := {}
@@ -458,6 +463,7 @@ func _setup_drawer() -> void:
 	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
 	buttons.add_child(_make_button(Lang.t("Stein"), func(): if state == State.PLAYING and not menus.is_open(): stone_action()))
 	buttons.add_child(_make_button(Lang.t("Angeln"), fish_action))
+	buttons.add_child(_make_button(Lang.t("Schenken"), gift_action))
 	_sound_button = _make_button("", _toggle_sound)
 	buttons.add_child(_sound_button)
 	_update_sound_button()
@@ -1375,6 +1381,8 @@ func load_level(index: int, restock := true) -> void:
 		level.fox_tamable = not has_fox
 		level.fox_fed.connect(_on_fox_fed)
 		level.lightning.connect(_on_lightning)
+	if level.is_home:
+		level.show_home_upgrades(home_upgrades, trophies)
 	_pending_crate = null
 	_end_drag()
 	_set_atmosphere(level.outdoor)
@@ -1555,6 +1563,8 @@ func _start_new_game() -> void:
 	escaped = false
 	home_given = false
 	home_claimed = false
+	home_upgrades.clear()
+	trophies.clear()
 	secrets_found = 0
 	dry_levels = 0
 	looted.clear()
@@ -1565,6 +1575,7 @@ func _start_new_game() -> void:
 	bounties.clear()
 	bounties.refresh(day)
 	crafting.clear()
+	Factions.clear()
 	fishing.stop()
 	reputation.clear()
 	storage.clear()
@@ -1858,6 +1869,8 @@ func _apply_save(data: Dictionary) -> void:
 			if saved_builds[file] is Array:
 				builds[str(file)] = (saved_builds[file] as Array).filter(func(e): return e is Array and e.size() >= 4)
 	escaped = bool(data.get("escaped", false))
+	home_upgrades = _known_keys(data.get("upgrades", []), HomeUpgrades.ALL)
+	trophies = _known_keys(data.get("trophies", []), HomeUpgrades.TROPHIES)
 	home_given = bool(data.get("home", false))
 	home_claimed = home_given and bool(data.get("claimed", false))
 	met.clear()
@@ -1872,9 +1885,11 @@ func _apply_save(data: Dictionary) -> void:
 	bounties.refresh(day)
 	crafting.load_from(data.get("crafting", {}))
 	reputation.load_from(data.get("reputation", {}))
+	Factions.load_from(data.get("factions", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
+	player.home_hp = HomeUpgrades.trophy_hp(home_upgrades, trophies)
 	player.refresh_stats()
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
@@ -1992,12 +2007,14 @@ func save_game(going_away := false) -> bool:
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
+		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(),
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
 		"day": day, "bounties": bounties.for_save(),
 		"crafting": crafting.for_save(),
 		"reputation": reputation.for_save(),
+		"factions": Factions.for_save(),
 		"fox": {"trust": fox_trust, "tame": has_fox},
 		"hour": day_hour,
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
@@ -2191,7 +2208,7 @@ func _return_from_away(data: Dictionary) -> void:
 	var real_seconds := maxf(0.0, Time.get_unix_time_from_system() - float(away.get("since", 0.0)))
 	var plan := Offline.normalized(away.get("plan", {}), away_choices())
 	var hours := Offline.game_hours(real_seconds)
-	var result := Offline.simulate(plan, hours)
+	var result := Offline.simulate(plan, hours, HomeUpgrades.has(home_upgrades, "werkstatt"))
 	away_report = _apply_away(plan, result)
 	away_report.push_front(Lang.t("Du warst %s weg, für %s vergingen %s.") % [
 			_real_time_text(real_seconds), hero_name, Offline.duration_text(hours)])
@@ -2225,7 +2242,7 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 	# Cut stone blocks go into the storage chest, as many as it still holds.
 	var stones := 0
 	for i in int(result.get("stones", 0)):
-		if storage.size() >= Menus.STORAGE_SIZE:
+		if storage.size() >= HomeUpgrades.storage_size(home_upgrades):
 			break
 		storage.append(Menus.STONE)
 		stones += 1
@@ -2506,7 +2523,14 @@ var _vampire_kills := 0
 
 
 func _on_enemy_killed(enemy: Enemy) -> void:
+	if enemy.slain_by_rival:
+		# Felled by a rival monster (see Factions): it counts for no task.
+		if _reach(enemy.global_position) < RIVAL_KILL_HEARD:
+			show_message(enemy.fall_text(), 2.5)
+		return
 	show_message(enemy.fall_text(), 2.5)
+	_win_trophy(enemy.kind)
+	Factions.on_hero_kill(enemy.kind)
 	var drop := quests.on_kill(enemy.kind)
 	bounties.on_kill(enemy.kind)
 	if drop != "":
@@ -3117,6 +3141,8 @@ func _process(delta: float) -> void:
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
 			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
 			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
+			"hauswerkbank": Lang.t("Dagegenlaufen, um an der Werkbank zu arbeiten"),
+			"trophaeen": Lang.t("Dagegenlaufen, um deine Trophäen anzusehen"),
 		}.get(station.kind, "")
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")
@@ -3137,6 +3163,11 @@ func _process(delta: float) -> void:
 		fish_prompt = Lang.t("G: Angeln")
 	if fish_prompt != "":
 		_prompt.text = fish_prompt if _prompt.text == "" else _prompt.text + "   " + fish_prompt
+	# Next to a monster that can be won over, a gift can be offered.
+	var tame := gift_target()
+	if tame != null and Factions.can_befriend(Factions.of(tame.kind)) and not tame.is_friend():
+		var gift_prompt := Lang.t("T: Geschenk anbieten")
+		_prompt.text = gift_prompt if _prompt.text == "" else _prompt.text + "   " + gift_prompt
 
 
 func _reach(pos: Vector3) -> float:
@@ -3256,6 +3287,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						_toggle_sneak()
 					KEY_G:
 						fish_action()
+					KEY_T:
+						gift_action()
 					KEY_E:
 						var why_not := ""
 						if level.crate_in_reach(player) == null and level.stone_in_reach(player) != null:
@@ -3308,6 +3341,75 @@ func fish_action() -> void:
 		show_message(why, 1.6)
 
 
+## How close the hero must be to a monster to offer it a gift (metres).
+const GIFT_RANGE := 5.0
+## A monster felled by a rival this close to the hero is reported (metres).
+const RIVAL_KILL_HEARD := 30.0
+
+
+## The nearest living monster close enough for a gift, or null.
+func gift_target() -> Enemy:
+	if level == null or player == null:
+		return null
+	var best: Enemy = null
+	var best_d := GIFT_RANGE
+	for e in level.enemies:
+		if not is_instance_valid(e) or e.dead or not e.visible:
+			continue
+		var d := _reach(e.global_position)
+		if d < best_d:
+			best = e
+			best_d = d
+	return best
+
+
+## Key T or the "Schenken" button: offers the nearest monster what its kind
+## likes (see Factions). Each gift calms it for a while and earns its
+## faction's favour; enough favour makes the whole faction the hero's friend.
+func gift_action() -> void:
+	if state != State.PLAYING or menus.is_open() or not _shrine.is_empty() or not player.can_act():
+		return
+	var e := gift_target()
+	if e == null:
+		show_message(Lang.t("Hier ist niemand, dem du etwas schenken könntest."), 1.6)
+		return
+	var faction := Factions.of(e.kind)
+	var info: Dictionary = Factions.FACTIONS.get(faction, {})
+	if not Factions.can_befriend(faction):
+		show_message(Lang.t(info.get("refuse", "Damit ist kein Frieden zu machen.")), 2.2)
+		return
+	if e.is_friend():
+		show_message(Lang.t(info.friend), 1.6)
+		return
+	var count := int(info.count)
+	if info.gift == "gold":
+		if coins < count:
+			show_message(Lang.t(info.wish), 2.6)
+			return
+		coins -= count
+		Sfx.play_coins(self, count)
+	else:
+		if crafting.have(info.gift) < count:
+			show_message(Lang.t(info.wish), 2.6)
+			return
+		crafting.add(info.gift, -count)
+		Sfx.play(self, "swing", -8.0)
+	player.face(e.global_position - player.global_position)
+	e.calm()
+	var won := Factions.give(faction)
+	Effects.float_text(level, e.global_position + Vector3(0, 2.6, 0), Lang.t("Freund!") if won else Lang.t("Danke!"), Color(1.0, 0.6, 0.75))
+	if won:
+		for other in level.enemies:
+			if is_instance_valid(other) and not other.dead and Factions.of(other.kind) == faction:
+				other.calm()
+		Sfx.play(self, "secret", -6.0)
+		learn(Factions.HOW_TO)
+		quest_news(Lang.t(info.won), Color(1.0, 0.6, 0.75), 5.0)
+	else:
+		show_message(Lang.t(info.thanks) + "\n" + Lang.t("Gunst: %d von %d") % [floori(Factions.favour_of(faction)), int(Factions.FRIENDLY)], 3.0)
+	_update_hud()
+
+
 func _mouse_to_floor(screen_pos: Vector2):
 	var origin := camera.project_ray_origin(screen_pos)
 	var dir := camera.project_ray_normal(screen_pos)
@@ -3322,6 +3424,10 @@ func _click(point: Vector3) -> void:
 	player.stop_hunt()
 	for e in level.enemies:
 		if is_instance_valid(e) and not e.dead and e.visible and Vector2(e.global_position.x - point.x, e.global_position.z - point.z).length() < 1.6:
+			if e.is_friend():
+				# The hero's friends are not attacked (see Factions).
+				show_message(Lang.t(Factions.FACTIONS[Factions.of(e.kind)].friend), 1.6)
+				return
 			if player.global_position.distance_to(e.global_position) < Player.MELEE_RANGE + 1.0:
 				player.melee()
 			else:
@@ -3376,3 +3482,54 @@ func _eerie(delta: float) -> void:
 		return
 	_eerie_timer = randf_range(25.0, 70.0)
 	Sfx.play(self, "eerie_%d" % (randi() % EERIE_SOUNDS), randf_range(-14.0, -8.0))
+
+
+# --- Home upgrades (see HomeUpgrades) --------------------------------------
+
+## The ids of a saved list that are still known, as a set.
+static func _known_keys(saved, known: Dictionary) -> Dictionary:
+	var out := {}
+	if saved is Array:
+		for id in saved:
+			if known.has(str(id)):
+				out[str(id)] = true
+	return out
+
+
+## The first foe of a mighty kind gives a trophy for the wall at home.
+func _win_trophy(kind: String) -> void:
+	if not HomeUpgrades.TROPHIES.has(kind) or trophies.has(kind):
+		return
+	trophies[kind] = true
+	var text := Lang.t("Trophäe: %s") % Lang.t(HomeUpgrades.TROPHIES[kind])
+	if HomeUpgrades.has(home_upgrades, "trophaeen"):
+		text += "\n" + Lang.t("Sie kommt an die Trophäenwand in deinem Haus: +1 Leben.")
+	get_tree().create_timer(2.6).timeout.connect(func():
+		if state == State.PLAYING:
+			show_message(text, 3.0))
+	apply_home_bonus()
+	if level.is_home:
+		level.show_home_upgrades(home_upgrades, trophies)
+
+
+## The life the trophy wall gives goes into the hero's stats.
+func apply_home_bonus() -> void:
+	player.home_hp = HomeUpgrades.trophy_hp(home_upgrades, trophies)
+	player.refresh_stats()
+	_update_hud()
+
+
+## Hagen builds an upgrade onto the house: "" when done, else why not.
+func build_home_upgrade(id: String) -> String:
+	var why := HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, coins)
+	if why != "":
+		return why
+	HomeUpgrades.pay_stones(id, player.bag, storage)
+	coins -= int(HomeUpgrades.ALL[id].gold)
+	home_upgrades[id] = true
+	learn(HomeUpgrades.LEARN)
+	apply_home_bonus()
+	if level.is_home:
+		level.show_home_upgrades(home_upgrades, trophies)
+	save_game()
+	return ""

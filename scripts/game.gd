@@ -94,6 +94,9 @@ var _reputation_news: Array[String] = []
 const REPUTATION_NEWS_DELAY := 4.6
 ## Counts down to the next look at who has a task (see refresh_quest_marks).
 var _quest_mark_timer := 0.0
+## The town house on Weavers' Lane the hero is inside right now (see Homes),
+## or 0 when they are not in one.
+var inside_house := 0
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
 var coins := 0
@@ -705,7 +708,7 @@ func _use_station(s: Dictionary) -> void:
 		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
-		go_inside(s.building)
+		go_inside(s.building, s.get("house", 0))
 	elif s.has("npc"):
 		# A villager who trades: a word, then the goods. A task handed out or
 		# finished comes first; the goods wait until the next time. While the
@@ -1251,6 +1254,7 @@ func load_level(index: int, restock := true) -> void:
 		builds[file] = []
 	level.built = builds[file]
 	level.hero = hero_name
+	level.house_number = inside_house if level.is_home else 0
 	if level is Outdoor:
 		# Bandits who take their spots at night are tougher (see Outdoor.set_hour).
 		level.night = DayNight.is_night(day_hour)
@@ -1290,6 +1294,7 @@ func load_level(index: int, restock := true) -> void:
 	level.player_hurt.connect(player.spring_trap)
 	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
+	level.stairs_taken.connect(_take_stairs)
 	if level is Outdoor:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
 		level.home_claimed.connect(_on_home_claimed)
@@ -1766,12 +1771,21 @@ func _apply_save(data: Dictionary) -> void:
 	# Games saved before there was weather wake up to clear skies.
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
-	if escaped and _outdoor_index() >= 0:
+	inside_house = 0
+	var own_house := Homes.house_of(hero_name)
+	if escaped and home_claimed and own_house > 0 and interiors.has("^"):
+		# The hero's own town house is the place to come back to: every
+		# load wakes up beside its bed, wherever the game was saved.
+		index = interiors["^"]
+		inside_house = own_house
+	elif escaped and _outdoor_index() >= 0:
 		# Out of the dungeon, every load begins in the open air, wherever the
 		# game was saved: on the graveyard, or in the hero's own house.
 		index = _outdoor_index()
 	load_level(index, false)
-	if level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
+	if level.is_home and level.bed_side != Vector3.ZERO:
+		player.global_position = level.bed_side
+	elif level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
 		# The hero's own house is the place to come back to: next to the bed.
 		player.global_position = level.home_spot
 	player.hp = clampi(int(data.hp), 1, player.max_hp)
@@ -2552,6 +2566,15 @@ func _on_exit_reached() -> void:
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
+	if level.is_home:
+		# Out of the front door of the hero's own house, into the lane.
+		player.face(Vector3.BACK)
+		player.play("Walking_A")
+		var out := create_tween()
+		out.tween_property(player, "global_position", level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.6), 0.5)
+		out.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.5)
+		out.tween_callback(_next_level)
+		return
 	player.face(Vector3.FORWARD)
 	player.play("Walking_A")
 	# The stairs rise northwards across the exit cell in 8 steps of half a metre:
@@ -2641,6 +2664,8 @@ func _step_out_of_crypt() -> void:
 ## The hero has walked into the house the elder gave and made it their own:
 ## it is the new place to come back to, saved at once.
 func _on_home_claimed() -> void:
+	if Homes.house_of(hero_name) == 0 and level is Outdoor and not level.town_houses.is_empty():
+		Homes.house_for(hero_name, level.town_houses.size())
 	home_claimed = true
 	home_given = true
 	var saved := save_game()
@@ -2650,10 +2675,15 @@ func _on_home_claimed() -> void:
 			show_message(text, 3.0))
 
 
-## Walks in at a village building's door, to its own floor.
-func go_inside(building: String) -> void:
+## Walks in at a village building's door, to its own floor. A town house
+## on Weavers' Lane (`house` is its number) only lets in the hero who lives
+## there; a hero without a house moves into the first empty one.
+func go_inside(building: String, house := 0) -> void:
 	if state != State.PLAYING or not interiors.has(building):
 		return
+	if house > 0 and not _may_enter_house(house):
+		return
+	inside_house = house
 	_home_given_now()
 	state = State.TRANSITION
 	player.frozen = true
@@ -2665,7 +2695,59 @@ func go_inside(building: String) -> void:
 		player.frozen = false
 		state = State.PLAYING
 		create_tween().tween_property(_fade, "color:a", 0.0, 0.6)
-		_announce_level())
+		_announce_level()
+		if level.is_home and not home_claimed:
+			# The first step into the hero's own house makes it home.
+			get_tree().create_timer(4.6).timeout.connect(func():
+				if state == State.PLAYING:
+					show_message(Lang.t("Dein neues Zuhause! Im Bett speicherst du, in der Truhe lagerst du deine Schätze."), 4.0))
+			_on_home_claimed())
+
+
+## Whether the hero may go into town house `house`: their own, or an empty
+## one while they have none (it becomes theirs). Says why not, if not.
+func _may_enter_house(house: int) -> bool:
+	var resident := Homes.owner_of(house)
+	if resident == Homes.deed_name(hero_name):
+		return true
+	if resident != "":
+		show_message(Lang.t("Hier wohnt %s. Die Tür ist verschlossen.") % resident, 2.5)
+		return false
+	var mine := Homes.house_of(hero_name)
+	if mine > 0:
+		show_message(Lang.t("Dieses Haus steht leer. Dein Haus ist Nr. %d.") % mine, 2.5)
+		return false
+	if not Homes.claim(hero_name, house):
+		return false
+	get_tree().create_timer(1.6).timeout.connect(func():
+		if state == State.PLAYING:
+			show_message(Lang.t("Haus Nr. %d gehört jetzt dir! Unten steht die Truhe, oben das Bett, und auf jedem Stockwerk ist Platz für Möbel.") % house, 5.0))
+	return true
+
+
+## The hero walked onto the stairs of their home: up or down a storey.
+func _take_stairs(to: Vector3, up: bool, storey: int) -> void:
+	if state != State.PLAYING:
+		return
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	player.face(Vector3.FORWARD if up else Vector3.BACK)
+	player.play("Walking_A")
+	var tween := create_tween()
+	tween.tween_property(player, "global_position", player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4), 0.45)
+	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
+	tween.parallel().tween_callback(func(): Sfx.play(player, "step_%d" % (randi() % 6), -14.0))
+	tween.tween_callback(func():
+		player.global_position = to
+		player.velocity = Vector3.ZERO
+		player.face(Vector3.BACK)
+		player.play("Idle")
+		_snap_camera()
+		player.frozen = false
+		state = State.PLAYING
+		show_message("%s · %s" % [Lang.t("Haus Nr. %d") % level.house_number, level.storey_name(storey)], 2.0))
+	tween.tween_property(_fade, "color:a", 0.0, 0.45)
 
 
 ## The banker shows the hero down into the vault cellar.
@@ -2675,7 +2757,10 @@ func go_to_vaults() -> void:
 
 ## Up the stairs of a building floor and out of its door into the village.
 func _leave_building() -> void:
-	var building := level.building
+	var building: String = level.building
+	if inside_house > 0:
+		building += str(inside_house)
+	inside_house = 0
 	load_level(_outdoor_index(), false)
 	if level is Outdoor and level.doors.has(building):
 		player.global_position = level.doors[building]

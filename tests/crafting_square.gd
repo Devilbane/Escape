@@ -51,12 +51,13 @@ func _run() -> void:
 			check(lvl.astar.is_point_solid(b.cell), "the %s bench blocks its tile" % craft)
 			check(b.cell.distance_to(smith.cell) <= 6.0, "the %s bench is close to Gorm's forge" % craft)
 			check(lvl.station_at(b.pos) == b, "running into the %s bench finds it" % craft)
-	# One chest in the house, one on the square.
+	# The hero's own chest stands in their town house (a floor of its own);
+	# out here, one is on the square.
 	var square_chest := {}
 	for s in chests:
 		if lvl.cell_char(s.cell) == CraftingSquare.CHEST:
 			square_chest = s
-	check(chests.size() == 2 and not square_chest.is_empty(), "the hero's chest is on the square too")
+	check(not square_chest.is_empty(), "the hero's chest is on the square too")
 	if not square_chest.is_empty():
 		check(square_chest.cell.distance_to(smith.cell) <= 6.0, "the chest is close to the forge")
 		# Every bench and the chest can be walked up to from the square.
@@ -68,9 +69,9 @@ func _run() -> void:
 		for s in benches.values() + [square_chest]:
 			var stand: Vector2i = s.cell + Vector2i(1, 0)
 			check(not lvl.astar.is_point_solid(stand) and lvl.astar.get_id_path(fountain, stand).size() > 0, "the %s can be reached from the square" % s.get("craft", "chest"))
-		# The way from the house door onto the square is still open.
-		var door: Vector2i = lvl._door_cell + Vector2i(0, 1)
-		check(lvl.astar.get_id_path(door, fountain).size() > 0, "the house is still reachable from the square")
+		# The way from the town houses on Weavers' Lane onto the square is still open.
+		var door: Vector2i = lvl.world_to_cell(lvl.doors["^1"])
+		check(lvl.astar.get_id_path(door, fountain).size() > 0, "the town houses are still reachable from the square")
 
 	# The windows.
 	game.lore.clear()

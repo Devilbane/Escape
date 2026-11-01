@@ -1,0 +1,57 @@
+class_name Events
+extends RefCounted
+
+## The event bus: features report what happened here, and whoever cares
+## listens, so quests, bounties, reputation and the rest do not have to call
+## the game (or each other) directly.
+##
+## There is one bus for the whole game, reached with Events.bus(). It is a
+## plain static instance, not an autoload, so it works the same in the game
+## and in the headless tests started with `godot -s`.
+##
+## Emitting a signal calls its listeners right away, in the order they
+## connected, so moving a call onto the bus does not change when it happens.
+##
+## A listener that is an object method is dropped on its own when that object
+## is freed. The game connects in _enter_tree and lets go in _exit_tree.
+
+## Something the hero should read about a task, a hunt, a recipe or a catch:
+## a message and a word over the hero's head (see Game.quest_news).
+## Use Events.tell.
+signal news_told(text: String, color: Color, duration: float)
+## The hero understood something new: it goes into the compendium, once
+## (see Game.learn). Use Events.teach.
+signal lore_learned(entry: String)
+## The hero slew an enemy of this kind (a rival monster's kill does not
+## count). Factions and bounties count it.
+signal enemy_slain(kind: String)
+## A villager's task is done and its reward handed over (see Quests).
+signal quest_done(id: String)
+## Something went into or out of the bag because of a task.
+signal quest_item_given()
+## A villager thinks better of the hero now (see Reputation.LEVELS).
+signal reputation_rose(role: String, new_level: int)
+## The hero bought something from the villager with this role letter.
+signal traded(role: String)
+## New landmarks came into view and went onto the map (see Journal).
+signal map_grew(names: Array)
+
+
+static var _bus: Events = null
+
+
+## The one bus of the game.
+static func bus() -> Events:
+	if _bus == null:
+		_bus = Events.new()
+	return _bus
+
+
+## News for the hero to read (see news_told).
+static func tell(text: String, color: Color, duration := 4.0) -> void:
+	bus().news_told.emit(text, color, duration)
+
+
+## Something new for the compendium (see lore_learned).
+static func teach(entry: String) -> void:
+	bus().lore_learned.emit(entry)

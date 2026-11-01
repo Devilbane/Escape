@@ -211,7 +211,7 @@ func _test() -> void:
 	game.met["4"] = true
 	game.met["G"] = true
 	game.quests.state["raeuberplage"] = {"state": "done", "count": 5}
-	game.quest_reward("raeuberplage")
+	Events.bus().quest_done.emit("raeuberplage")
 	check(rep.points("G") == 0, "the guard's rival does not care")
 	check(rep.points("9") == 0, "Hanna is not met, so she heard nothing")
 

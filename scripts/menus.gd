@@ -794,7 +794,7 @@ func _take(index: int) -> void:
 ## the hero knows for its craft. Until the hero knows one, it says how to
 ## find recipes; the storage chest and Gorm's forge are right beside it.
 func _build_bench() -> void:
-	game.learn(CraftingSquare.LEARN)
+	Events.teach(CraftingSquare.LEARN)
 	var info := CraftingSquare.bench_of(bench)
 	if info.is_empty():
 		_add_label(Lang.t("Werkbank"), 38, game.GOLD, game.TITLE_FONT)
@@ -1025,7 +1025,7 @@ func _buy(index: int) -> void:
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.coins -= price
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 		game.player.bag.append(id)
 		# The shop never runs out of sausages: they stay in stock.
 		if id != Pet.FOOD:
@@ -1035,7 +1035,7 @@ func _buy(index: int) -> void:
 			# Where to take it, short enough for the one note line; the
 			# whole hint goes into the compendium.
 			_note = Lang.t("Gekauft: Wurst. Füchse leben am Waldteich westlich vom Dorf.")
-			game.learn(Pet.WHERE)
+			Events.teach(Pet.WHERE)
 	_rebuild()
 
 
@@ -1056,7 +1056,7 @@ const WANDERER_LEARN := "Wanderhändler Zarek kommt jede dritte Nacht mit seinem
 ## Zarek sells tonight's wares and buys nothing: ingredients go into the
 ## pouch, gear into the bag. The window says when he comes back.
 func _build_wanderer() -> void:
-	game.learn(WANDERER_LEARN)
+	Events.teach(WANDERER_LEARN)
 	var wares: Array[String] = game.wanderer_wares()
 	_add_label(Lang.t("Wanderhändler"), 38, game.GOLD, game.TITLE_FONT)
 	var herbs := []
@@ -1167,7 +1167,7 @@ func _buy_stones(count: int) -> void:
 		p.bag.append(STONE)
 		bought += 1
 	if bought > 0:
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 		_note = Lang.t("Gekauft: %d Steinblöcke") % bought
 		Sfx.play(game, "gear_soft_0", -2.0)
 	elif p.bag.size() >= p.bag_size():
@@ -1211,7 +1211,7 @@ func _add_upgrade_button() -> void:
 ## Hagen builds onto the hero's house: stone blocks and gold for each upgrade.
 func _build_upgrades() -> void:
 	var p: Player = game.player
-	game.learn(HomeUpgrades.LEARN)
+	Events.teach(HomeUpgrades.LEARN)
 	_add_label(Lang.t("Haus ausbauen"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Dein Gold: %d      Steinblöcke in Tasche und Truhe: %d") % [game.coins, HomeUpgrades.stones_owned(p.bag, game.storage)], 20, game.GOLD)
 	_add_label(Lang.t("Steinmetz Hagen baut dir an, was du bezahlst. Steinblöcke verkauft er auch."), 16, BLUE)
@@ -1252,7 +1252,7 @@ func _build_upgrade(id: String) -> void:
 func _build_bounty_board() -> void:
 	var b: Bounties = game.bounties
 	b.refresh(game.day)
-	game.learn(Bounties.HOW_TO)
+	Events.teach(Bounties.HOW_TO)
 	_add_label(Lang.t("Aushang: Kopfgelder"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Tag %d. Neue Aushänge gibt es jeden Morgen; was bis dahin nicht erledigt ist, verfällt.") % (game.day + 1), 16, BLUE)
 	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
@@ -1519,7 +1519,7 @@ const FORGE_TABS := [["waffen", "Waffen kaufen"], ["schmieden", "Schmieden"], ["
 
 func _build_smithy() -> void:
 	var p: Player = game.player
-	game.learn(Forge.LEARN)
+	Events.teach(Forge.LEARN)
 	_add_label(Lang.t("Schmiede"), 38, game.GOLD, game.TITLE_FONT)
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1594,7 +1594,7 @@ func _forge(id: String) -> void:
 	var why := Forge.forge(game, id)
 	_note = why if why != "" else Lang.t("Geschmiedet: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 	if why == "":
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 		Sfx.play(game, "hit")
 	game._update_hud()
 	_rebuild()
@@ -1614,7 +1614,7 @@ func _melt(index: int) -> void:
 func _mend(id: String) -> void:
 	var why := Forge.mend(game, id)
 	if why == "":
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 	var p: Player = game.player
 	var durability: int = Items.ALL[id].durability
 	_note = why if why != "" else Lang.t("Ausgebessert: %s, Haltbarkeit %d / %d") % [Items.item_name(id), durability - int(p.wear.get(id, 0)), durability]
@@ -1627,7 +1627,7 @@ func _mend(id: String) -> void:
 func _buy_ware(id: String) -> void:
 	var why := Forge.buy(game, id)
 	if why == "":
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 	_note = why if why != "" else Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 	if why == "":
 		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
@@ -1638,7 +1638,7 @@ func _buy_ware(id: String) -> void:
 func _buy_iron(count: int) -> void:
 	var why := Forge.buy_iron(game, count)
 	if why == "":
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 	_note = why if why != "" else Lang.t("Gekauft: %d Eisenbarren") % count
 	if why == "":
 		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
@@ -1748,7 +1748,7 @@ func _restyle(field: String, id: String, price: int) -> void:
 		_rebuild()
 		return
 	game.coins -= price
-	game.traded()
+	Events.bus().traded.emit(game.trader_role)
 	var look: Dictionary = game.player.hair.duplicate()
 	look[field] = id
 	game.player.set_hair(look)
@@ -1773,7 +1773,7 @@ func _ink_tattoo() -> void:
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
 	else:
 		game.coins -= game.trader_price(TATTOO_PRICE)
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 		var look: Dictionary = game.player.hair.duplicate()
 		look.tattoo = word
 		look.tattoo_shape = _tattoo_shape

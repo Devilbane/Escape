@@ -224,7 +224,7 @@ func _on_killed(e: Enemy) -> void:
 	Sfx.play(level, "rumble", 0.0, e.global_position)
 	if known(e.kind):
 		return
-	game.learn(INFO[e.kind].lore)
+	Events.teach(INFO[e.kind].lore)
 	game.player.train("weisheit", 10.0)
 	Sfx.play(game, "level_done", -1.0)
 	_title.text = Lang.t(INFO[e.kind].name)

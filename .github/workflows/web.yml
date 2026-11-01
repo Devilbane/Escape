@@ -74,6 +74,11 @@ jobs:
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/crafting_square.gd | tee crafting_square.log
           grep -q PASS crafting_square.log
 
+      - name: Fox companion test
+        run: |
+          timeout 400 ~/godot/godot --headless --fixed-fps 60 -s tests/fox.gd | tee fox.log
+          grep -q PASS fox.log
+
       - name: Graveyard start after the escape test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/graveyard_start.gd | tee graveyard.log

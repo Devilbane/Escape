@@ -3,11 +3,14 @@ extends RefCounted
 ## The compact trading window every merchant uses (Mira, Gorm, Hagen, Benno
 ## and Zarek): the gold at the top, categories that fold open and shut, and
 ## in each a grid of small rows (picture, name, price, button) that scrolls
-## when it holds more than fits. Clicking a row picks it: the list narrows to
-## one column and two cards appear beside it, one with the picked thing's
-## values and its price, one with what the hero wears in that place now and
-## how the two compare (green is better, red is worse). Pointing at another
-## row while the cards are open shows that one instead.
+## when it holds more than fits. Beside the list, always in the same place,
+## a panel shows the row under the mouse (or the picked one, after a click):
+## its values and price, and what the hero wears in that place now and how
+## the two compare (green is better, red is worse).
+##
+## The window keeps one size and one layout whatever happens in it: folding
+## a category, pointing at or picking a row only changes what is inside the
+## list and the panel, so the eye always finds things where they were.
 ##
 ## A section is {key, title, icon, entries, extra (optional Callable that
 ## returns a Control shown above the rows), empty (text when it has none)}.
@@ -18,10 +21,14 @@ extends RefCounted
 ## diffs [better, text] pairs (a third value false leaves a diff out of
 ## the "better" badge).
 
-const LIST_HEIGHT := 400.0
-const ROW_WIDTH := 350.0
+const LIST_HEIGHT := 380.0
+const ROW_WIDTH := 300.0
+## The list: two columns of rows and room for the scroll bar.
+const LIST_WIDTH := ROW_WIDTH * 2 + 8.0 + 14.0
 const ROW_HEIGHT := 60.0
-const CARD_WIDTH := 290.0
+const CARD_WIDTH := 255.0
+## Everything under the gold line: the list and the two cards beside it.
+const BODY_WIDTH := LIST_WIDTH + 2.0 * (CARD_WIDTH + 12.0)
 const BORDER := Color(0.85, 0.66, 0.32, 0.55)
 const BLUE := Color(0.55, 0.75, 1.0)
 const ORANGE := Color(1.0, 0.6, 0.25)
@@ -40,9 +47,12 @@ var _selected_id := ""
 var _hovered := ""
 
 var _entries := {}
-var _detail_box: VBoxContainer
-var _compare_box: VBoxContainer
-var _badge_box: Control
+## The two card places beside the list: the item's values, and how it
+## compares with what the hero wears.
+var _detail_slot: Control
+var _compare_slot: Control
+## What the empty item card says (e.g. what one of Gorm's tabs is for).
+var _hint := ""
 
 
 func reset() -> void:
@@ -54,7 +64,10 @@ func reset() -> void:
 
 ## Builds the window into `box`: the gold line, `extra` (e.g. Gorm's tabs),
 ## then the categories and, with a row picked, its cards.
-func build(box: VBoxContainer, gold_text: String, sections: Array, extra: Control = null, under_gold: Control = null) -> void:
+## `standing` (the villager's goodwill) goes on the gold line; `hint` is
+## what the item card says while no row is pointed at or picked.
+func build(box: VBoxContainer, gold_text: String, sections: Array, extra: Control = null, standing: Control = null, hint := "") -> void:
+	_hint = hint
 	_entries.clear()
 	for section in sections:
 		for entry in section.entries:
@@ -66,50 +79,33 @@ func build(box: VBoxContainer, gold_text: String, sections: Array, extra: Contro
 	gold.add_theme_constant_override("separation", 8)
 	gold.add_child(ItemIcon.make("kind:coin", 22, true))
 	gold.add_child(_label(gold_text, 22, game.GOLD))
+	if standing:
+		gold.add_child(_label("·", 22, GREY))
+		gold.add_child(standing)
 	box.add_child(gold)
-	if under_gold:
-		box.add_child(under_gold)
 	if extra:
 		box.add_child(extra)
-	var picked := selected != ""
 	var body := HBoxContainer.new()
 	body.alignment = BoxContainer.ALIGNMENT_CENTER
 	body.add_theme_constant_override("separation", 12)
 	box.add_child(body)
-	var columns := 1 if picked else 2
+	# The list and the panel always keep the same size, so nothing jumps
+	# when a category folds or a row is picked.
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(LIST_WIDTH, LIST_HEIGHT)
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 6)
+	list.custom_minimum_size.x = LIST_WIDTH - 14.0
 	scroll.add_child(list)
-	var height := 0.0
 	for section in sections:
-		height += _add_section(list, section, columns)
-	var width := ROW_WIDTH * columns + 8.0 * (columns - 1) + 14.0
-	scroll.custom_minimum_size = Vector2(width, minf(height, LIST_HEIGHT))
+		_add_section(list, section)
 	body.add_child(scroll)
-	if picked:
-		var middle := VBoxContainer.new()
-		middle.add_theme_constant_override("separation", 4)
-		_badge_box = Control.new()
-		_badge_box.custom_minimum_size = Vector2(CARD_WIDTH, 26)
-		middle.add_child(_badge_box)
-		_detail_box = VBoxContainer.new()
-		middle.add_child(_detail_box)
-		body.add_child(middle)
-		var right := VBoxContainer.new()
-		right.add_theme_constant_override("separation", 4)
-		var spacer := Control.new()
-		spacer.custom_minimum_size = Vector2(CARD_WIDTH, 26)
-		right.add_child(spacer)
-		_compare_box = VBoxContainer.new()
-		right.add_child(_compare_box)
-		body.add_child(right)
-		_show_cards(selected)
-	else:
-		_detail_box = null
-		_compare_box = null
-		_badge_box = null
+	_detail_slot = _slot()
+	body.add_child(_detail_slot)
+	_compare_slot = _slot()
+	body.add_child(_compare_slot)
+	_show_cards(selected)
 
 
 ## A picked row stays picked while its thing is still on offer; when it was
@@ -127,8 +123,8 @@ func _keep_selection() -> void:
 	_selected_id = ""
 
 
-## One category: its header (click to fold) and its rows. Returns its height.
-func _add_section(list: VBoxContainer, section: Dictionary, columns: int) -> float:
+## One category: its header (click to fold) and its rows in two columns.
+func _add_section(list: VBoxContainer, section: Dictionary) -> void:
 	var folded: bool = collapsed.get(section.key, false)
 	var header := PanelContainer.new()
 	header.add_theme_stylebox_override("panel", _style(Color(0.1, 0.08, 0.1, 0.95), BORDER, 8, 6))
@@ -146,25 +142,28 @@ func _add_section(list: VBoxContainer, section: Dictionary, columns: int) -> flo
 	row.add_child(ItemIcon.make("kind:chev_down" if folded else "kind:chev_up", 18, true))
 	header.add_child(row)
 	list.add_child(header)
-	var height := 46.0
 	if folded:
-		return height
+		return
 	if section.has("extra"):
-		var extra: Control = section.extra.call()
-		list.add_child(extra)
-		height += extra.get_combined_minimum_size().y + 6.0
+		list.add_child(section.extra.call())
 	if section.entries.is_empty():
-		list.add_child(_label(section.get("empty", Lang.t("Nichts im Angebot.")), 16, GREY))
-		return height + 30.0
+		# An empty category keeps the shape of a row, so it lines up with the rest.
+		var empty := PanelContainer.new()
+		empty.custom_minimum_size = Vector2(0, ROW_HEIGHT * 0.7)
+		empty.add_theme_stylebox_override("panel", _style(Color(0.07, 0.06, 0.08, 0.6), Color(0.85, 0.66, 0.32, 0.15), 8, 6))
+		var text := _label(section.get("empty", Lang.t("Nichts im Angebot.")), 15, GREY)
+		text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		empty.add_child(text)
+		list.add_child(empty)
+		return
 	var grid := GridContainer.new()
-	grid.columns = columns
+	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 6)
 	for entry in section.entries:
 		grid.add_child(_row(entry))
 	list.add_child(grid)
-	var rows := ceili(section.entries.size() / float(columns))
-	return height + rows * (ROW_HEIGHT + 6.0) + 6.0
 
 
 func _row(entry: Dictionary) -> Control:
@@ -189,7 +188,7 @@ func _row(entry: Dictionary) -> Control:
 	var name_label := _label(entry.name, 16, Color.WHITE)
 	name_label.clip_text = true
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	name_label.custom_minimum_size.x = 150
+	name_label.custom_minimum_size.x = 120
 	text.add_child(name_label)
 	if entry.get("price", "") != "":
 		text.add_child(_price_line(entry.price, entry.get("price_ok", true), 14))
@@ -231,7 +230,7 @@ func pick(key: String) -> void:
 
 
 func _on_row_hover(key: String) -> void:
-	if _detail_box == null or not is_instance_valid(_detail_box):
+	if _detail_slot == null or not is_instance_valid(_detail_slot):
 		return
 	_hovered = key
 	_show_cards(key if key != "" else selected)
@@ -239,66 +238,102 @@ func _on_row_hover(key: String) -> void:
 
 # --- The two cards --------------------------------------------------------
 
+## A fixed place for a card beside the list: always there, always the same
+## size, so only what it shows changes.
+func _slot() -> Control:
+	var slot := ScrollContainer.new()
+	slot.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	slot.custom_minimum_size = Vector2(CARD_WIDTH, LIST_HEIGHT)
+	return slot
+
+
+func _fill(slot: Control, card: Control) -> void:
+	for child in slot.get_children():
+		slot.remove_child(child)
+		child.queue_free()
+	slot.add_child(card)
+
+
+## Fills the two card places with a row's cards, or with quiet empty cards
+## while no row is pointed at or picked.
 func _show_cards(key: String) -> void:
 	if not _entries.has(key):
 		key = selected
 	if not _entries.has(key):
+		var text := (_hint + "\n\n" if _hint != "" else "") + Lang.t("Zeig auf einen Gegenstand, um seine Werte zu sehen. Ein Klick hält ihn hier fest.")
+		_fill(_detail_slot, _empty_card(Lang.t("Gegenstand"), text))
+		_fill(_compare_slot, _empty_card(Lang.t("Vergleich"), Lang.t("Hier steht, was du an dieser Stelle trägst, und was besser oder schlechter wäre.")))
 		return
 	var entry: Dictionary = _entries[key]
-	for b in [_detail_box, _compare_box, _badge_box]:
-		for child in b.get_children():
-			b.remove_child(child)
-			child.queue_free()
 	var compare: Dictionary = entry.get("compare", compare_with_worn(game.player, entry.get("id", "")))
-	_detail_box.add_child(_detail_card(entry))
-	_compare_box.add_child(_compare_card(compare))
-	if is_upgrade(compare):
-		var badge := PanelContainer.new()
-		badge.add_theme_stylebox_override("panel", _style(Color(0.05, 0.2, 0.06, 0.95), GREEN, 8, 3))
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
-		row.add_child(ItemIcon.make("kind:up", 12, true))
-		row.add_child(_label(Lang.t("Besser"), 15, GREEN))
-		badge.add_child(row)
-		badge.position = Vector2(CARD_WIDTH - 110, 0)
-		_badge_box.add_child(badge)
+	_fill(_detail_slot, _detail_card(entry, is_upgrade(compare)))
+	_fill(_compare_slot, _compare_card(compare))
 
 
-func _detail_card(entry: Dictionary) -> Control:
+func _empty_card(title: String, text: String) -> Control:
+	var card := _card(false)
+	var box: VBoxContainer = card.get_child(0)
+	var head := _label(title, 16, game.GOLD)
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(head)
+	box.add_child(HSeparator.new())
+	var hint := _wrapped(text, 15, GREY)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	box.add_child(hint)
+	return card
+
+
+func _detail_card(entry: Dictionary, upgrade := false) -> Control:
 	var id: String = entry.get("id", "")
 	var detail: Dictionary = entry.get("detail", {})
 	var card := _card(true)
 	var box: VBoxContainer = card.get_child(0)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 12)
-	head.add_child(ItemIcon.make(entry.get("icon", id), 58))
+	head.add_child(ItemIcon.make(entry.get("icon", id), 50))
 	var names := VBoxContainer.new()
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var title := _label(entry.name, 20, game.GOLD)
+	var title := _label(entry.name, 18, game.GOLD)
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	names.add_child(title)
 	names.add_child(_label(detail.get("subtitle", subtitle(id)), 15, ORANGE))
 	head.add_child(names)
 	box.add_child(head)
+	if upgrade:
+		var badge := PanelContainer.new()
+		badge.add_theme_stylebox_override("panel", _style(Color(0.05, 0.2, 0.06, 0.95), GREEN, 8, 3))
+		badge.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		row.add_child(ItemIcon.make("kind:up", 12, true))
+		row.add_child(_label(Lang.t("Besser"), 15, GREEN))
+		badge.add_child(row)
+		box.add_child(badge)
 	box.add_child(HSeparator.new())
 	var lines: Array = detail.get("lines", stat_lines(id, game.player.wear.get(id, 0) if game.player.equipped.values().has(id) else 0))
 	for line in lines:
-		box.add_child(_wrapped(line[0], 16, line[1]))
+		box.add_child(_wrapped(line[0], 15, line[1]))
 	if lines.is_empty():
-		box.add_child(_wrapped(Lang.t("Keine besonderen Werte."), 16, GREY))
+		box.add_child(_wrapped(Lang.t("Keine besonderen Werte."), 15, GREY))
+	# The price and the button sit at the bottom of the card, always there.
+	var push := Control.new()
+	push.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(push)
 	if entry.has("action") and not entry.get("current", false):
 		box.add_child(HSeparator.new())
 		if entry.get("price", "") != "":
 			var cost := _price_line(Lang.t("Kosten: %s") % entry.price, entry.get("price_ok", true), 17)
 			cost.alignment = BoxContainer.ALIGNMENT_CENTER
 			box.add_child(cost)
-		var b := _button(entry.get("button", Lang.t("Kaufen")), entry.action, entry.get("enabled", true), Vector2(170, 46), 20)
+		var b := _button(entry.get("button", Lang.t("Kaufen")), entry.action, entry.get("enabled", true), Vector2(150, 42), 18)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		box.add_child(b)
 	elif entry.get("current", false):
 		box.add_child(HSeparator.new())
-		box.add_child(_wrapped(Lang.t("Das hast du schon."), 16, GREEN))
+		box.add_child(_wrapped(Lang.t("Das hast du schon."), 15, GREEN))
 	return card
 
 
@@ -313,7 +348,7 @@ func _compare_card(compare: Dictionary) -> Control:
 		var plus := ItemIcon.make("kind:plus", 70)
 		plus.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		box.add_child(plus)
-		var text := _wrapped(compare.empty, 16, GREY)
+		var text := _wrapped(compare.empty, 15, GREY)
 		text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(text)
 		return card
@@ -330,7 +365,9 @@ func _compare_card(compare: Dictionary) -> Control:
 		names.add_child(_label(compare.subtitle, 14, GREY))
 	head.add_child(names)
 	box.add_child(head)
-	var lines: Array = compare.get("lines", [])
+	# With a comparison the differences say it all; the worn item's own
+	# values would only make the panel longer.
+	var lines: Array = [] if compare.has("diffs") else compare.get("lines", [])
 	if not lines.is_empty():
 		box.add_child(HSeparator.new())
 		for line in lines:
@@ -513,7 +550,7 @@ func _label(text: String, size: int, color: Color, font: Font = null) -> Label:
 func _wrapped(text: String, size: int, color: Color) -> Label:
 	var l := _label(text, size, color)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size.x = CARD_WIDTH - 40
+	l.custom_minimum_size.x = CARD_WIDTH - 36
 	return l
 
 
@@ -540,14 +577,14 @@ func _button(text: String, action: Callable, enabled: bool, min_size: Vector2, f
 
 func _card(glow: bool) -> PanelContainer:
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(CARD_WIDTH, 0)
-	var style := _style(Color(0.07, 0.05, 0.07, 0.97), game.GOLD if glow else BORDER, 10, 16, 2)
+	card.custom_minimum_size = Vector2(CARD_WIDTH, LIST_HEIGHT)
+	var style := _style(Color(0.07, 0.05, 0.07, 0.97), game.GOLD if glow else BORDER, 10, 12, 2)
 	if glow:
 		style.shadow_color = Color(1.0, 0.7, 0.25, 0.35)
 		style.shadow_size = 10
 	card.add_theme_stylebox_override("panel", style)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", 4)
 	card.add_child(box)
 	return card
 

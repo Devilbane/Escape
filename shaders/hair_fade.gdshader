@@ -1,6 +1,6 @@
 shader_type spatial;
 render_mode cull_disabled;
-// The same as hair.gdshader, but it can fade, for a sneaking hero.
+// The same as hair.gdshader, but it turns grey and can fade, for a sneaking hero.
 // See hair.gdshaderinc.
 
 #define FADE

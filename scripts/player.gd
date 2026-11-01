@@ -235,7 +235,8 @@ func is_noisy() -> bool:
 	return not sneaking and (Vector2(velocity.x, velocity.z).length() > 0.5 or not is_on_floor())
 
 
-## Fades the hero while sneaking, and further in the shadows.
+## Turns the hero ash grey and see-through while sneaking, more so in the
+## shadows.
 func _update_sneak_look() -> void:
 	var alpha := 0.0
 	if sneaking:
@@ -245,28 +246,72 @@ func _update_sneak_look() -> void:
 	_shown_alpha = alpha
 	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
 		if HairLook.is_hair(mesh.material_override):
+			# Hair, scalp and face: their own shader greys and fades them.
 			HairLook.fade(mesh.material_override as ShaderMaterial, alpha)
 			continue
-		if mesh.material_override is ShaderMaterial:
-			# A tinted part: swap in the shader that can fade.
+		if mesh.material_override is ShaderMaterial and (mesh.material_override as ShaderMaterial).shader in [TINT_SHADER, TINT_FADE_SHADER]:
+			# A tinted part: swap in the shader that greys and fades.
 			var tinted := mesh.material_override as ShaderMaterial
 			tinted.shader = TINT_FADE_SHADER if alpha > 0.0 else TINT_SHADER
 			tinted.set_shader_parameter("fade", alpha)
 			continue
+		if mesh.material_override != null:
+			_ghost_override(mesh, alpha)
+			continue
 		if mesh.mesh == null:
 			continue
 		for i in mesh.mesh.get_surface_count():
-			var mat := mesh.get_surface_override_material(i) as StandardMaterial3D
-			if mat == null:
-				if alpha <= 0.0:
-					continue # Never faded: nothing to undo.
-				var base := mesh.mesh.surface_get_material(i) as StandardMaterial3D
-				if base == null:
-					continue
-				mat = base.duplicate()
-				mesh.set_surface_override_material(i, mat)
-			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if alpha > 0.0 else BaseMaterial3D.TRANSPARENCY_DISABLED
-			mat.albedo_color.a = 1.0 - alpha
+			_ghost_surface(mesh, i, alpha)
+
+
+## Puts a grey see-through stand-in over one surface of a part, keeping the
+## material it had to bring back when the hero stops sneaking.
+func _ghost_surface(mesh: MeshInstance3D, i: int, alpha: float) -> void:
+	var key := "unghosted_%d" % i
+	var mat := mesh.get_surface_override_material(i)
+	if mat is ShaderMaterial and (mat as ShaderMaterial).shader == GHOST_SHADER:
+		if alpha > 0.0:
+			mat.set_shader_parameter("fade", alpha)
+		else:
+			mesh.set_surface_override_material(i, mesh.get_meta(key, null))
+			mesh.remove_meta(key)
+		return
+	if alpha <= 0.0:
+		return
+	var base := mat if mat != null else mesh.mesh.surface_get_material(i)
+	mesh.set_meta(key, mat)
+	mesh.set_surface_override_material(i, _ghost(base, alpha))
+
+
+## The same for a part drawn with one material over the whole of it.
+func _ghost_override(mesh: MeshInstance3D, alpha: float) -> void:
+	var mat := mesh.material_override
+	if mat is ShaderMaterial and (mat as ShaderMaterial).shader == GHOST_SHADER:
+		if alpha > 0.0:
+			mat.set_shader_parameter("fade", alpha)
+		else:
+			mesh.material_override = mesh.get_meta("unghosted", null)
+			mesh.remove_meta("unghosted")
+		return
+	if alpha <= 0.0 or not mat is BaseMaterial3D:
+		return
+	mesh.set_meta("unghosted", mat)
+	mesh.material_override = _ghost(mat, alpha)
+
+
+const GHOST_SHADER := preload("res://shaders/ghost.gdshader")
+
+
+func _ghost(base: Material, alpha: float) -> ShaderMaterial:
+	var ghost := ShaderMaterial.new()
+	ghost.shader = GHOST_SHADER
+	if base is BaseMaterial3D:
+		var std := base as BaseMaterial3D
+		ghost.set_shader_parameter("tex", std.albedo_texture)
+		ghost.set_shader_parameter("use_tex", std.albedo_texture != null)
+		ghost.set_shader_parameter("color", std.albedo_color)
+	ghost.set_shader_parameter("fade", alpha)
+	return ghost
 
 
 ## A golden cord along the edge of the cape, and a white feather at the head.

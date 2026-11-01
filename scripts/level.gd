@@ -89,6 +89,8 @@ const WALL_DECOR := [
 const STONE_TINT := Color(0.6, 0.56, 0.52)
 ## Colour of the iron spikes in spike traps.
 const SPIKE_IRON := Color(0.5, 0.5, 0.53)
+## The grey of the kit's floor tiles, for spike and grate tiles.
+const FLOOR_GREY := Color(0.74, 0.73, 0.71)
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
 const SOLID := "#bxotkCDHBLVF?f=U"
 ## Reach for searching: anything on a neighbouring tile.
@@ -423,7 +425,7 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 			elif mi.name == "wall_doorway_door":
 				mi.material_override = _tinted(mi.get_active_material(0))
 			else:
-				mi.material_override = _rough_stone(mi.get_active_material(0))
+				mi.material_override = _rough_stone(mi.get_active_material(0), piece in ["floor_tile_big_spikes", "floor_tile_big_grate"])
 	return node
 
 
@@ -463,16 +465,19 @@ func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
 
 ## The darkened cartoon stone, made rough and matt like the kit's walls, so
 ## spike and grate tiles, stairs and doorways do not look like plastic.
-func _rough_stone(mat: Material) -> Material:
-	if not _scenes.has("mat_rough_stone"):
+## grey: plain grey stone like the kit's floor tiles (for spike and grate tiles).
+func _rough_stone(mat: Material, grey := false) -> Material:
+	var key := "mat_rough_stone_grey" if grey else "mat_rough_stone"
+	if not _scenes.has(key):
 		var stone := ShaderMaterial.new()
 		stone.shader = STONE_SHADER
 		stone.set_shader_parameter("albedo_tex", (mat as StandardMaterial3D).albedo_texture)
-		stone.set_shader_parameter("albedo_color", STONE_TINT)
+		stone.set_shader_parameter("albedo_color", FLOOR_GREY if grey else STONE_TINT)
+		stone.set_shader_parameter("desaturate", 1.0 if grey else 0.0)
 		stone.set_shader_parameter("use_normal_map", false)
 		stone.set_shader_parameter("strength", 1.4)
-		_scenes["mat_rough_stone"] = stone
-	return _scenes["mat_rough_stone"]
+		_scenes[key] = stone
+	return _scenes[key]
 
 
 func _tinted(mat: Material) -> Material:
@@ -807,14 +812,14 @@ func _build_key(pos: Vector3) -> void:
 	_pickups.append({"node": holder, "kind": "key", "radius": 1.8})
 
 
-## A gold coin lying flat on the floor, picked up when the hero walks over it.
+## A small gold coin lying flat on the floor, picked up when the hero walks over it.
 func _build_coin(pos: Vector3) -> void:
 	var holder := Node3D.new()
 	holder.position = pos + Vector3(0, 0.03, 0)
 	holder.rotation.y = deg_to_rad(hash(Vector2(pos.x, pos.z)) % 360)
 	add_child(holder)
 	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
-	coin.scale = Vector3.ONE * 3.0
+	coin.scale = Vector3.ONE * 1.6
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5})
 
 

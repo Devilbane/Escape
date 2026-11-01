@@ -31,6 +31,10 @@ var _note := ""
 var _keys := false
 ## The craft of the workbench whose window is open (see CraftingSquare).
 var bench := ""
+## The master whose wish window is open (see Wishes), by role letter.
+var wish_master := ""
+## The style window was opened from the wish window: choosing goes back there.
+var _style_from_wishes := false
 ## The saved game whose delete button was clicked once; a second click deletes.
 var _delete_asked := ""
 ## Which page of the compendium shows: "wissen" (controls and everything
@@ -239,6 +243,10 @@ func _rebuild() -> void:
 			_build_smithy()
 		"werkbank":
 			_build_bench()
+		"kampfstil":
+			_build_style()
+		"wunsch":
+			_build_wishes()
 		"tresor":
 			_build_vault()
 		"haendler":
@@ -1276,6 +1284,141 @@ func _build_bounty_board() -> void:
 			button = _item_button(Lang.t("Jagd annehmen"), _take_bounty.bind(id))
 		button.custom_minimum_size = Vector2(190, 54)
 		row.add_child(button)
+
+
+# --- Wishes and fighting style (see Wishes) ---------------------------------
+
+## The villager with this role letter on the current level, or null.
+func _villager_of(role: String) -> Villager:
+	if game.level == null or not ("villagers" in game.level):
+		return null
+	for v in game.level.villagers:
+		if is_instance_valid(v) and v.role == role:
+			return v
+	return null
+
+
+## Ragna asks how the hero likes to face monsters: one button per style.
+func _build_style() -> void:
+	var w: Wishes = game.wishes
+	_add_label(Lang.t("Wie kämpfst du am liebsten?"), 38, game.GOLD, game.TITLE_FONT)
+	var about := _add_label(Lang.t("%s will wissen, wie du dich den Monstern stellst. Danach richtet sie ihre Ratschläge.") % Quests.villager_name(Wishes.STYLE_ASKER), 16, BLUE)
+	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	about.custom_minimum_size.x = 700
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 12)
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(grid)
+	for id in Wishes.STYLES:
+		var b: Button = game._make_button(Lang.t(Wishes.STYLES[id].name), _choose_style.bind(id))
+		b.custom_minimum_size = Vector2(220, 60)
+		b.add_theme_font_size_override("font_size", 18)
+		if id == w.style:
+			# The style named before: marked by a word too, not only by colour.
+			b.text = Lang.t(Wishes.STYLES[id].name) + "  ✓"
+			b.modulate = Color(1.0, 0.9, 0.6)
+		grid.add_child(b)
+	var later := _add_label(Lang.t("Du kannst es dir später bei ihr anders überlegen."), 16, Color(0.75, 0.72, 0.68))
+	later.custom_minimum_size.y = 26
+
+
+func _choose_style(id: String) -> void:
+	if not game.wishes.choose_style(id):
+		return
+	Sfx.play(game, "key", -6.0)
+	var v := _villager_of(Wishes.STYLE_ASKER)
+	if v != null:
+		v.say(Lang.t(Wishes.STYLES[id].say), game.player.global_position)
+	game.refresh_quest_marks()
+	if _style_from_wishes:
+		_style_from_wishes = false
+		wish_master = Wishes.STYLE_ASKER
+		open("wunsch")
+	else:
+		close()
+
+
+## The fixed size of the list of wishes in a master's wish window.
+const WISH_LIST_SIZE := Vector2(760, 330)
+
+
+## A master's wish window: what they offer to help with, best fit first, and
+## (at the master who asks it) the hero's fighting style.
+func _build_wishes() -> void:
+	var w: Wishes = game.wishes
+	var role := wish_master
+	_add_label(Lang.t("Wünsche"), 38, game.GOLD, game.TITLE_FONT)
+	var master := _add_label(Quests.villager_name(role) + ": " + Lang.t("„%s“") % Lang.t(Wishes.MASTERS.get(role, {}).get("ask", "")), 16, BLUE)
+	master.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	master.custom_minimum_size.x = 720
+	if role == Wishes.STYLE_ASKER:
+		var style_row := HBoxContainer.new()
+		style_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		style_row.add_theme_constant_override("separation", 12)
+		_box.add_child(style_row)
+		var style_label: Label = game._make_label(game.TEXT_FONT, 18, game.GOLD)
+		style_label.text = Lang.t("Dein Kampfstil: %s") % (Lang.t(Wishes.STYLES[w.style].name) if w.style != "" else Lang.t("noch nicht genannt"))
+		style_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		style_row.add_child(style_label)
+		var change := _item_button(Lang.t("Ändern"), func():
+			_style_from_wishes = true
+			open("kampfstil"))
+		change.custom_minimum_size = Vector2(120, 44)
+		style_row.add_child(change)
+	# The wishes scroll in a region of fixed size, so the window keeps its
+	# frame however many there are.
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = WISH_LIST_SIZE
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 14)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	var open_wishes: Array = w.open_wishes(role)
+	if open_wishes.is_empty():
+		var none: Label = game._make_label(game.TEXT_FONT, 16, Color(0.75, 0.72, 0.68))
+		none.text = Lang.t("Im Moment weiß sie nichts mehr für dich.")
+		list.add_child(none)
+	for id in open_wishes:
+		var wish: Dictionary = Wishes.ALL[id]
+		var quest: Dictionary = Quests.ALL[wish.quest]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 16)
+		list.add_child(row)
+		var text: Label = game._make_label(game.TEXT_FONT, 16)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.custom_minimum_size = Vector2(540, 0)
+		text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var first := Lang.t(wish.wish)
+		if w.is_best_fit(id):
+			# Marked by words and a star, not by colour alone.
+			first = "★ " + first + "  ·  " + Lang.t("passt zu deinem Stil")
+			text.add_theme_color_override("font_color", game.GOLD)
+		text.text = first + "\n" + Lang.t(quest.goal) + "\n" + Lang.t("Belohnung: %s") % Quests.reward_text(wish.quest)
+		row.add_child(text)
+		var button := _item_button(Lang.t("Darum bitten"), _ask_wish.bind(id))
+		button.custom_minimum_size = Vector2(170, 54)
+		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(button)
+
+
+func _ask_wish(id: String) -> void:
+	var v := _villager_of(Wishes.ALL[id].master)
+	if v == null:
+		return
+	var why: String = game.wishes.ask(id, v)
+	if why != "":
+		_note = why
+		_rebuild()
+		return
+	Sfx.play(game, "key", -6.0)
+	game.refresh_quest_marks()
+	close()
 
 
 func _take_bounty(id: String) -> void:

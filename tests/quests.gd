@@ -60,6 +60,10 @@ func _test() -> void:
 	game.hero_name = HEROES[0]
 	game.met.clear()
 	game.quests.clear()
+	# Ragna also asks the fighting style (see Wishes); named already here,
+	# so her mark shows only her own task.
+	game.wishes.clear()
+	game.wishes.style = "klingen"
 	game.coins = 0
 	game.player.bag.clear()
 	game.load_level(game._outdoor_index(), false)

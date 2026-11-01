@@ -8,7 +8,9 @@ extends RefCounted
 ##   deliver  carry the item `item`, handed over by the giver, to villager `to`
 ## A task may need another one finished first (`after`), or the giver to
 ## think well of the hero first (`standing`, a Reputation level). The reward is
-## `gold` and maybe an `item`. Every text is German and has an English entry
+## `gold` and maybe an `item`, or a `recipe` (see Crafting). A task with
+## "wish": true is never offered by running into its giver: it starts when
+## the hero picks that wish in the master's wish window (see Wishes). Every text is German and has an English entry
 ## in Lang; `remind` may hold one %d (how many are still missing).
 ## The state of every task is kept in the hero's saved game (see Game).
 
@@ -72,6 +74,43 @@ const ALL := {
 		"offer": "Gorm und ich streiten seit Jahren. Bring ihm diesen Wetzstein aus meinem Bruch. Vielleicht ist dann endlich Ruhe.",
 		"remind": "Der Wetzstein ist für Schmied Gorm an seiner Esse.",
 		"done": "Von Hagen? Ein Wetzstein aus seinem Bruch... Der ist gut. Sag ihm Danke von mir. Hier sind 12 Gold."},
+	# Wishes Guild Master Ragna helps with (see Wishes): each earns a recipe.
+	"wunsch_klingen": {"giver": "G", "wish": true, "kind": "kill", "targets": ["krieger"], "count": 5, "gold": 5, "recipe": "klingenring",
+		"title": "Ein Ring für die Klinge",
+		"goal": "Besiege 5 Skelettkrieger im Verlies. Ragna will sehen, wie du die Klinge führst.",
+		"offer": "Zeig mir erst, wie du die Klinge führst: Besiege fünf Skelettkrieger im Verlies. Dann verrate ich dir, wie man den Ring macht.",
+		"remind": "Noch %d Skelettkrieger. Ich will sehen, wie du die Klinge führst.",
+		"done": "So führt man eine Klinge! Hier ist das Rezept für den Klingenring."},
+	"wunsch_aexte": {"giver": "G", "wish": true, "kind": "kill", "targets": ["schlaeger"], "count": 3, "gold": 5, "recipe": "axtreif",
+		"title": "Ein Armreif für die Axt",
+		"goal": "Besiege 3 Schläger am Räuberpass. Sie tragen Äxte wie du.",
+		"offer": "Die Schläger am Pass schwingen Äxte. Besiege drei von ihnen, dann zeige ich dir, wie man den Armreif schmiedet.",
+		"remind": "Noch %d Schläger am Pass.",
+		"done": "Axt gegen Axt, und du stehst noch. Hier ist das Rezept für den Armreif der Axt."},
+	"wunsch_blocken": {"giver": "G", "wish": true, "kind": "kill", "targets": ["schuetze"], "count": 4, "gold": 5, "recipe": "schildamulett",
+		"title": "Ein Amulett für den Schild",
+		"goal": "Besiege 4 Skelettschützen im Verlies. Fang ihre Bolzen mit dem Schild ab.",
+		"offer": "Ein Schild zeigt sich gegen Bolzen. Besiege vier Skelettschützen im Verlies, dann bekommst du das Rezept.",
+		"remind": "Noch %d Skelettschützen. Halt den Schild hoch!",
+		"done": "Kein Bolzen kam durch, sehr gut. Hier ist das Rezept für das Amulett des Walls."},
+	"wunsch_werfen": {"giver": "G", "wish": true, "kind": "kill", "targets": ["wilderer"], "count": 3, "gold": 5, "recipe": "wurfring",
+		"title": "Ein Ring für den Wurf",
+		"goal": "Besiege 3 Wilderer am Räuberpass. Sie schießen aus der Ferne, wie du.",
+		"offer": "Die Wilderer am Pass kämpfen aus der Ferne. Besiege drei von ihnen, dann zeige ich dir den Ring für einen ruhigen Wurf.",
+		"remind": "Noch %d Wilderer am Pass.",
+		"done": "Ferne gegen Ferne, und du warst schneller. Hier ist das Rezept für den Wurfring."},
+	"wunsch_schleichen": {"giver": "G", "wish": true, "kind": "kill", "targets": ["halsabschneider"], "count": 3, "gold": 5, "recipe": "schattenamulett",
+		"title": "Ein Amulett für die Schatten",
+		"goal": "Besiege 3 Halsabschneider am Räuberpass. Sie lauern im Schatten wie du.",
+		"offer": "Die Halsabschneider am Pass lauern im Schatten. Besiege drei von ihnen, dann erzähle ich dir vom Amulett der stillen Schritte.",
+		"remind": "Noch %d Halsabschneider am Pass.",
+		"done": "Leise und schnell. Hier ist das Rezept für das Amulett der stillen Schritte."},
+	"wunsch_ruestung": {"giver": "G", "wish": true, "kind": "kill", "targets": ["koloss"], "count": 2, "gold": 5, "recipe": "lastreif",
+		"title": "Ein Armreif für schwere Rüstung",
+		"goal": "Besiege 2 Kolosse im Verlies. Ihre Schläge prüfen deine Rüstung.",
+		"offer": "Zeig mir, dass deine Rüstung hält: Besiege zwei Kolosse im Verlies. Dann bekommst du das Rezept für den Armreif der leichten Last.",
+		"remind": "Noch %d Kolosse im Verlies.",
+		"done": "Deine Rüstung hat gehalten. Hier ist das Rezept für den Armreif der leichten Last."},
 }
 
 ## Explained once in the compendium, the first time a villager hands out a task.
@@ -101,7 +140,7 @@ func is_done(id: String) -> bool:
 
 ## Whether a villager has this task for the hero right now.
 func is_available(id: String) -> bool:
-	if state.has(id):
+	if state.has(id) or ALL[id].get("wish", false):
 		return false
 	var after: String = ALL[id].get("after", "")
 	if after != "" and not is_done(after):
@@ -165,6 +204,8 @@ static func reward_text(id: String) -> String:
 		parts.append(Lang.t("%d Gold") % q.gold)
 	if q.has("reward"):
 		parts.append(Items.item_name(q.reward))
+	if q.has("recipe"):
+		parts.append(Lang.t("Rezept: %s") % Lang.t(Crafting.RECIPES[q.recipe].name))
 	return ", ".join(parts)
 
 
@@ -253,6 +294,19 @@ func talk(v: Villager, trader := false) -> bool:
 	return false
 
 
+## A wish's task starts: the hero picked it in the master's wish window
+## (see Wishes). False if it was taken already.
+func start_wish(id: String, v: Villager) -> bool:
+	if state.has(id) or not ALL[id].get("wish", false):
+		return false
+	state[id] = {"state": "active", "count": 0}
+	v.meet()
+	v.say(Lang.t(ALL[id].offer), game.player.global_position, 6.5)
+	game.learn(HOW_TO)
+	game.quest_news(Lang.t("Neuer Auftrag: %s") % Lang.t(ALL[id].title) + "\n" + Lang.t(ALL[id].goal), Color(1.0, 0.82, 0.4))
+	return true
+
+
 func _offer(id: String, v: Villager) -> bool:
 	var q: Dictionary = ALL[id]
 	v.meet()
@@ -277,7 +331,16 @@ func _finish(id: String, v: Villager) -> void:
 	var q: Dictionary = ALL[id]
 	state[id] = {"state": "done", "count": q.get("count", 1)}
 	v.meet()
-	v.say(Lang.t(q.done), game.player.global_position, 5.5)
+	var said := Lang.t(q.done)
+	if q.has("recipe"):
+		game.crafting.learn_recipe(q.recipe)
+		game.learn(Crafting.HOW_TO)
+	if q.get("wish", false):
+		# The master points at the next wish that fits the hero best.
+		var hint: String = game.wishes.next_hint(q.giver)
+		if hint != "":
+			said += " " + hint
+	v.say(said, game.player.global_position, 7.0 if said != Lang.t(q.done) else 5.5)
 	game.coins += int(q.get("gold", 0))
 	if q.has("reward"):
 		if _bag_free() > 0:

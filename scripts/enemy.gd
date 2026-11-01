@@ -79,9 +79,31 @@ const KINDS := {
 		"anims": {"Idle": "HumanArmature|Spider_Idle", "Walking_A": "HumanArmature|Spider_Walk", "Running_A": "HumanArmature|Spider_Walk",
 			"1H_Melee_Attack_Chop": "HumanArmature|Spider_Attack", "Hit_A": "HumanArmature|Spider_Jump", "Death_A": "HumanArmature|Spider_Death"},
 		"voice": ["voice_wicht", 1.4, "zisch"], "purse": [0, 2], "gear_chance": 0.0, "poison": 0.3},
+	# The monsters of the dragon's lair (Quaternius Monster Pack in
+	# assets/lair, FBX files: "ext"). Bats and the dragon only ever fly, so
+	# every move plays their flying loop; "lift" raises the model off the
+	# floor. The dragon spits fire from afar ("fire": orange orbs that
+	# burn instead of curse).
+	"fledermaus": {"model": "Bat", "dir": "lair", "ext": "fbx", "hp": 1, "speed": 6.6, "damage": 1, "reach": 1.9, "size": 0.8, "cooldown": 1.0,
+		"beast": true, "roam": true, "model_scale": 0.62, "turn": 0.0, "run_anim": 6.0, "lift": 1.0,
+		"anims": {"Idle": "BatArmature|Bat_Flying", "Walking_A": "BatArmature|Bat_Flying", "Running_A": "BatArmature|Bat_Flying",
+			"1H_Melee_Attack_Chop": "BatArmature|Bat_Attack", "Hit_A": "BatArmature|Bat_Hit", "Death_A": "BatArmature|Bat_Death"},
+		"voice": ["voice_wicht", 1.9, "fiep"], "purse": [0, 1], "gear_chance": 0.0},
+	"schleim": {"model": "Slime", "dir": "lair", "ext": "fbx", "hp": 4, "speed": 2.6, "damage": 1, "reach": 1.9, "size": 1.0, "cooldown": 1.8,
+		"beast": true, "roam": true, "model_scale": 0.6, "turn": -PI * 0.5, "run_anim": 2.5,
+		"anims": {"Idle": "Armature|Slime_Idle", "Walking_A": "Armature|Slime_Walk", "Running_A": "Armature|Slime_Walk",
+			"1H_Melee_Attack_Chop": "Armature|Slime_Attack", "Hit_A": "Armature|Slime_Idle", "Death_A": "Armature|Slime_Death"},
+		"voice": ["voice_koloss", 1.5, "blubb"], "purse": [1, 3], "gear_chance": 0.15, "poison": 0.35},
+	"drache": {"model": "Dragon", "dir": "lair", "ext": "fbx", "hp": 16, "speed": 3.4, "damage": 2, "reach": 14.0, "size": 1.6, "cooldown": 2.2,
+		"beast": true, "ranged": true, "fire": true, "model_scale": 0.6, "turn": 0.0, "run_anim": 4.0, "lift": 1.0,
+		"anims": {"Idle": "DragonArmature|Dragon_Flying", "Walking_A": "DragonArmature|Dragon_Flying", "Running_A": "DragonArmature|Dragon_Flying",
+			"1H_Melee_Attack_Chop": "DragonArmature|Dragon_Attack", "1H_Ranged_Shoot": "DragonArmature|Dragon_Attack2",
+			"Hit_A": "DragonArmature|Dragon_Hit", "Death_A": "DragonArmature|Dragon_Death"},
+		"voice": ["voice_koloss", 0.6, "BRÜLL"], "purse": [12, 18], "gear_chance": 0.8},
 }
 ## Which map letter places which kind.
-const LETTERS := {"M": "krieger", "A": "schuetze", "Z": "magier", "w": "wicht", "G": "koloss", "W": "waechter"}
+const LETTERS := {"M": "krieger", "A": "schuetze", "Z": "magier", "w": "wicht", "G": "koloss", "W": "waechter",
+	"v": "fledermaus", "s": "schleim", "R": "drache"}
 ## The letters of the open-air map that place bandits (see Outdoor).
 const WILD_LETTERS := {"c": "halsabschneider", "A": "wilderer", "X": "schlaeger", "Q": "hauptmann",
 	"W": "wolf", "H": "ork", "J": "yeti", "U": "spinne"}
@@ -202,7 +224,7 @@ func _ready() -> void:
 	shape.position.y = 1.2 * size
 	add_child(shape)
 
-	var body: Node3D = load("res://assets/%s/%s.glb" % [_stats.get("dir", "enemies"), _stats.model]).instantiate()
+	var body: Node3D = load("res://assets/%s/%s.%s" % [_stats.get("dir", "enemies"), _stats.model, _stats.get("ext", "glb")]).instantiate()
 	if is_beast():
 		# A pivot turns and scales the beast's model to fit; the class only
 		# ever turns the pivot.
@@ -210,6 +232,7 @@ func _ready() -> void:
 		_model.add_child(body)
 		body.rotation.y = _stats.turn
 		body.scale = Vector3.ONE * _stats.model_scale
+		body.position.y = _stats.get("lift", 0.0)
 	else:
 		_model = body
 	add_child(_model)
@@ -280,6 +303,12 @@ func fall_text() -> String:
 			return Lang.t("Der Yeti stürzt um.")
 		"spinne":
 			return Lang.t("Die Spinne rollt sich zusammen.")
+		"fledermaus":
+			return Lang.t("Die Fledermaus fällt zu Boden.")
+		"schleim":
+			return Lang.t("Der Schleim zerfließt.")
+		"drache":
+			return Lang.t("Der Drache stürzt brüllend zu Boden!")
 	return Lang.t("Der Räuber geht zu Boden.") if is_human() else Lang.t("Das Skelett zerfällt zu Staub.")
 
 
@@ -495,6 +524,10 @@ func _die() -> void:
 	collision_layer = 0
 	collision_mask = 0
 	_play_once("Death_A", 99.0)
+	if _stats.get("lift", 0.0) > 0.0:
+		# A flyer drops out of the air.
+		create_tween().tween_property(_model.get_child(0), "position:y", 0.0, 0.5) \
+				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	died.emit()
 	var tween := create_tween()
 	tween.tween_interval(3.0)
@@ -812,11 +845,12 @@ func _strike(player: Player) -> void:
 func _shoot(player: Player) -> void:
 	_cooldown = _stats.cooldown
 	var magic: bool = kind == "magier"
-	_play_once("Spellcast_Shoot" if magic else "1H_Ranged_Shoot", 0.9 if magic else 0.7)
-	await get_tree().create_timer(0.5 if magic else 0.3).timeout
+	var fire: bool = _stats.get("fire", false)
+	_play_once("Spellcast_Shoot" if magic else "1H_Ranged_Shoot", 0.9 if magic or fire else 0.7)
+	await get_tree().create_timer(0.5 if magic or fire else 0.3).timeout
 	if dead or not is_inside_tree() or level.stacked(self, player):
 		return
-	var origin := global_position + Vector3(0, 1.4, 0)
+	var origin := global_position + Vector3(0, 1.4 * (float(_stats.size) if fire else 1.0), 0)
 	var target := player.global_position + Vector3(0, 1.2, 0)
-	Sfx.play(self, "magic" if magic else "bow_%d" % (randi() % 3), -2.0, global_position)
-	Projectile.spawn(level, origin, target - origin, false, magic).shooter = self
+	Sfx.play(self, "magic" if magic or fire else "bow_%d" % (randi() % 3), -2.0, global_position)
+	Projectile.spawn(level, origin, target - origin, false, magic or fire, fire).shooter = self

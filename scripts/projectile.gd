@@ -1,7 +1,8 @@
 class_name Projectile
 extends Node3D
 ## A thrown dagger (from the hero), a crossbow bolt or a magic orb (from a
-## skeleton). Orbs fly slower but curve after the hero.
+## skeleton). Orbs fly slower but curve after the hero. The dragon's fire
+## flies like an orb, burns for two and never curses.
 
 const SPEED := 20.0
 const LIFETIME := 2.0
@@ -13,6 +14,7 @@ var from_player := true
 var shooter: Node = null
 var damage := 1
 var magic := false
+var fire := false
 var _age := 0.0
 
 const MAGIC_SPEED := 5.5
@@ -20,11 +22,12 @@ const MAGIC_TURN := 0.8
 const CURSE_CHANCE := 0.35
 
 
-static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: bool, is_magic := false) -> Projectile:
+static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: bool, is_magic := false, is_fire := false) -> Projectile:
 	var p := Projectile.new()
 	p.level = owner_level
 	p.from_player = by_player
 	p.magic = is_magic
+	p.fire = is_fire
 	dir.y = 0.0
 	p.direction = dir.normalized()
 	owner_level.add_child(p)
@@ -38,15 +41,15 @@ static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: 
 		orb.mesh = sphere
 		var mat := StandardMaterial3D.new()
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.albedo_color = Color(0.75, 0.35, 1.0)
+		mat.albedo_color = Color(1.0, 0.55, 0.15) if is_fire else Color(0.75, 0.35, 1.0)
 		orb.material_override = mat
 		p.add_child(orb)
 		var glow := OmniLight3D.new()
-		glow.light_color = Color(0.7, 0.3, 1.0)
+		glow.light_color = Color(1.0, 0.5, 0.15) if is_fire else Color(0.7, 0.3, 1.0)
 		glow.light_energy = 2.0
 		glow.omni_range = 4.0
 		p.add_child(glow)
-		p.add_child(Effects.make_sparkles(Color(0.8, 0.4, 1.0)))
+		p.add_child(Effects.make_sparkles(Color(1.0, 0.6, 0.2) if is_fire else Color(0.8, 0.4, 1.0)))
 		return p
 	var model: Node3D = load("res://assets/weapons/dagger.gltf" if by_player else "res://assets/weapons/Skeleton_Arrow.gltf").instantiate()
 	model.rotation.x = -PI * 0.5
@@ -83,10 +86,10 @@ func _physics_process(delta: float) -> void:
 		var player: Player = level.player
 		if not player.dead and _hits(player.global_position) and player.global_position.y < 1.2:
 			var before := player.hp
-			player.take_damage(1, global_position - direction)
+			player.take_damage(2 if fire else 1, global_position - direction)
 			player.defend_against(shooter)
 			# A mage's orb sometimes curses whoever it hits.
-			if magic and player.hp < before and randf() < CURSE_CHANCE:
+			if magic and not fire and player.hp < before and randf() < CURSE_CHANCE:
 				player.afflict("fluch")
 			queue_free()
 

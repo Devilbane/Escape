@@ -300,5 +300,5 @@ func _back_outside(lvl: Outdoor, player: Player) -> bool:
 	if player.global_position.distance_to(lvl.doors["b"]) > 3.0:
 		print("FAIL: leaving the cellar did not lead out of the bank door")
 		return true
-	print("PASS: all ", game.level_files.size() - 2, " levels finished and home in the village after ", int(_village_time), " s, gold ", game.coins, ", searched ", searched, ", shrine gifts ", gifts, ", bag emptied ", equips, ", worn ", game.player.equipped.values(), ", rescued ", rescues, "x, backstabs ", backstabs, ", villagers away from their spot ", _moved, ", visited the vault cellar, knocked down ", game.player.knockdowns, "x, game time ", int(total), " s")
+	print("PASS: all ", game.level_files.size() - game.interiors.size() - 1, " levels finished and home in the village after ", int(_village_time), " s, gold ", game.coins, ", searched ", searched, ", shrine gifts ", gifts, ", bag emptied ", equips, ", worn ", game.player.equipped.values(), ", rescued ", rescues, "x, backstabs ", backstabs, ", villagers away from their spot ", _moved, ", visited the vault cellar, knocked down ", game.player.knockdowns, "x, game time ", int(total), " s")
 	return true

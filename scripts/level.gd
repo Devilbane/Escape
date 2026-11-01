@@ -19,6 +19,9 @@ extends Node3D
 ##   _  pressure plate      Q  an old, heavy stone block (see StoneBlock.heavy)
 ##   |  iron gate that sinks into the floor for good once a stone block lies
 ##      on every pressure plate of the level (a block-pushing puzzle room)
+##   v  bat   s  slime   R  dragon (spits fire from afar): the monsters of
+##      the dragon's lair (see Enemy)
+##   y  stone horse statue (the dragon's lair)
 ##
 ## The line "secret: normal|uncommon|rare|epic|godborn" sets how rich the
 ## secret room is (the German ids ungewoehnlich, selten, episch, gottgeboren
@@ -32,6 +35,11 @@ extends Node3D
 ## building with that letter: entered by its door, left by its stairs.
 ## A level with the line "elite: yes" has stronger skeletons with dark bones
 ## and glowing red eyes.
+## A building floor with the line "lair: yes" is no safe room but a dungeon
+## of its own beneath the wild (the dragon's lair): its monsters stand
+## ready again every time the hero comes down, they carry gold, and the
+## halls are dressed with cobwebs, skulls, banners and heaps of coins from
+## Quaternius' Modular Dungeon kit.
 ##
 ## Barrels, crates, tables, trunks, chests and wall shelves can be searched.
 
@@ -157,6 +165,8 @@ var hero := ""
 var _vault_slots: Array[Vector2i] = []
 var _vault_shows: Array = []
 var elite := false
+## A dungeon of its own below a village building's door (see "lair: yes").
+var lair := false
 ## How deep the level lies (0 for the first); deeper skeletons wear more gear.
 var depth := 0
 var fog: Fog
@@ -222,6 +232,8 @@ func load_from_file(path: String) -> void:
 			# stairs lead back out of the building's door.
 			building = line.substr(9).strip_edges()
 			safe = true
+		elif line.begins_with("lair:"):
+			lair = true
 		elif line.begins_with("floor:"):
 			floor_name = line.substr(6).strip_edges()
 		elif line.begins_with("outdoor:"):
@@ -238,6 +250,9 @@ func load_from_file(path: String) -> void:
 			grid.append(line)
 			width = maxi(width, line.length())
 	height = grid.size()
+	if lair:
+		# Monsters live down there: not a safe room, even below a building.
+		safe = false
 
 
 func build() -> void:
@@ -267,7 +282,9 @@ func build() -> void:
 	fog.setup(self)
 	add_child(fog)
 	_spawn_enemies()
-	if not outdoor and building == "":
+	if lair:
+		_decorate_lair()
+	if not outdoor and (building == "" or lair):
 		add_child(DungeonLife.new(self))
 	if not _vault_slots.is_empty():
 		refresh_vaults()
@@ -276,7 +293,7 @@ func build() -> void:
 # --- Keeping the way free ---------------------------------------------------
 
 ## Furniture that stands on a whole tile and cannot be walked through.
-const FURNITURE := "bxotkCHBLVFf"
+const FURNITURE := "bxotkCHBLVFfy"
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 
@@ -685,6 +702,9 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"o":
 			_place("pillar_decorated", pos)
 			_add_solid(pos, Vector3(1.6, 4, 1.6))
+		"y":
+			_place_lair("Statue_Horse", pos, _random_quarter_turn(), 0.62)
+			_add_solid(pos, Vector3(2.6, 4, 2.6))
 		"H":
 			_build_shrine(c)
 		"B":
@@ -2309,7 +2329,8 @@ func _spawn_enemies() -> void:
 				var e := Enemy.new()
 				e.kind = Enemy.LETTERS[ch]
 				e.elite = elite and ch in "MA"
-				e.gear = _roll_gear(e.kind, c)
+				var gear_chance: float = Enemy.KINDS[e.kind].get("gear_chance", -1.0)
+				e.gear = _roll_gear(e.kind, c, gear_chance) if gear_chance != 0.0 else ([] as Array[String])
 				e.level = self
 				add_child(e)
 				e.global_position = cell_to_world(c)
@@ -2317,7 +2338,10 @@ func _spawn_enemies() -> void:
 					e.watch(_guarded_spot())
 				e.died.connect(func():
 					enemy_killed.emit(e)
-					_drop_gear(e)
+					_drop_gear(e, DROP_CHANCE if not e.is_beast() else BEAST_DROP_CHANCE)
+					# A monster of the lair leaves a little gold, the dragon a heap.
+					var purse: Array = Enemy.KINDS[e.kind].get("purse", [0, 0])
+					_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
 					# A guardian on a level without a key carries it.
 					if e.kind == "waechter" and not has_key and not _has_cell("K"):
 						_build_key(Vector3(e.global_position.x, 0, e.global_position.z)))
@@ -2327,8 +2351,10 @@ func _spawn_enemies() -> void:
 ## Chance for each piece of gear a skeleton may wear: higher the deeper it lies.
 const GEAR_CHANCE := 0.1
 const GEAR_CHANCE_PER_LEVEL := 0.05
-## Chance that a worn piece drops when its skeleton falls.
+## Chance that a worn piece drops when its skeleton falls; a monster of the
+## lair carries its piece in its belly, so it always drops.
 const DROP_CHANCE := 0.1
+const BEAST_DROP_CHANCE := 1.0
 
 
 ## The items a skeleton wears: up to two (three for a brute), no specials,
@@ -2431,6 +2457,53 @@ func _item_model(id: String) -> Node3D:
 		gem.material_override = mat
 		holder.add_child(gem)
 	return holder
+
+
+# --- The dragon's lair ---------------------------------------------------------
+
+## Pieces of Quaternius' Modular Dungeon kit (CC0): cobwebs, skulls, banners,
+## heaps of coins and a horse statue for the dragon's lair.
+const LAIR_DIR := "res://assets/lair/"
+
+
+func _place_lair(piece: String, pos: Vector3, rot_y := 0.0, s := 1.0) -> Node3D:
+	if not _scenes.has("lair/" + piece):
+		_scenes["lair/" + piece] = load(LAIR_DIR + piece + ".fbx")
+	var node: Node3D = _scenes["lair/" + piece].instantiate()
+	node.position = pos
+	node.rotation.y = rot_y
+	node.scale = Vector3.ONE * s
+	add_child(node)
+	return node
+
+
+## Dresses the lair: cobwebs in the back corners, tattered banners on the back
+## walls, skulls on the floor and heaps of gold around the dragon's hoard.
+## None of it is in the way. Fixed per level, like the walls.
+func _decorate_lair() -> void:
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			var ch := cell_char(c)
+			if ch == "#" or ch == "E":
+				continue
+			var pos := cell_to_world(c)
+			var north := cell_char(c + Vector2i(0, -1)) == "#"
+			var west := cell_char(c + Vector2i(-1, 0)) == "#"
+			var east := cell_char(c + Vector2i(1, 0)) == "#"
+			if north and (west or east) and _rng.randf() < 0.8:
+				var side := -1.0 if west else 1.0
+				_place_lair("Cobweb" if _rng.randf() < 0.5 else "Cobweb2",
+						pos + Vector3(side * (TILE * 0.5 - 0.35), 2.9, -TILE * 0.5 + 0.35), PI * 0.25 * side + PI, 1.4)
+			elif north and ch in ".," and _rng.randf() < 0.18:
+				_place_lair("Banner", pos + Vector3(0, 0, -TILE * 0.5 + 0.35), 0.0, 0.85)
+			if ch in ".," and not north and _rng.randf() < 0.14:
+				_place_lair("Skull", pos + Vector3(_rng.randf_range(-1.3, 1.3), 0, _rng.randf_range(-1.3, 1.3)), _rng.randf() * TAU, 0.8)
+			if ch == "C":
+				# The hoard: gold heaped up around the chest.
+				for i in 4:
+					var angle := TAU * i / 4.0 + _rng.randf_range(-0.4, 0.4)
+					_place_lair("Coin_Pile", pos + Vector3(cos(angle), 0, sin(angle)) * 2.0, _rng.randf() * TAU, _rng.randf_range(7.0, 11.0))
 
 
 # --- The bank's vault cellar ----------------------------------------------------

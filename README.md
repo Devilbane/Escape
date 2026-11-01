@@ -278,6 +278,20 @@ a pack of quick **wolves**, **spiders** whose bite can poison, two **orcs** that
 while after they fall. A wolf or a spider leaves little more than a coin or two; orcs and the yeti carry
 more gold and sometimes a piece of gear.
 
+## The dragon's lair
+
+In a clearing in the woods, north of the path from the graveyard to the village, an old **stone arch**
+stands over stairs that lead down into the dark. Run into the arch to climb down into the **dragon's lair**,
+a dungeon of its own: **bats** flutter about, quick but frail; green **slimes** creep along, tough and
+sometimes poisonous; skeleton warriors, archers, minions and a brute haunt the crypts; and in the great hall
+at the bottom the **dragon** guards its hoard. It hovers over its gold and spits **fire** from afar
+(an orange fireball that follows you like a mage's orb and burns for 2); step behind a statue or close in
+with the blade. Every monster of the lair carries some gold, and the dragon a heap of it and usually a piece
+of gear. Behind it waits the hoard's treasure chest among piles of coins.
+The halls are dressed with cobwebs, skulls, banners and a stone horse statue from the dungeon kit.
+The stairs you came down lead back out of the arch. The monsters stand ready again every time you come
+down, so there is always something to fight; searched chests and barrels stay empty.
+
 By the campfire waits the boss of the pass: **Ravenheart, the bandit chief**. Once he takes up the fight, his
 **health bar** shows at the top of the screen, with marks where his next phase begins:
 
@@ -338,8 +352,12 @@ played in the order of their file names. One character stands for one tile:
 | `B`       | bed (save)        | `L`       | storage chest     |
 | `V`       | merchant          | `F`       | fountain          |
 | `?`       | secret wall       | `f`       | brazier           |
+| `v`       | bat               | `s`       | slime             |
+| `R`       | dragon            | `y`       | horse statue      |
 
 The lines `name:` and `hint:` give the level's name and the introduction shown when it starts.
+A line `lair: yes` on a building floor makes it a dungeon of its own instead of a safe room, with monsters,
+dressed with pieces of the dungeon kit (see `levels/13_die_drachenhoehle.txt`, the dragon's lair).
 A line `safe: yes` makes a level a safe room, and `elite: yes` gives it stronger skeletons.
 A line like `secret: epic` sets how rich the secret room behind the wall `?` is: `normal`, `uncommon`, `rare`, `epic`
 or `godborn` (the older German ids `ungewoehnlich`, `selten`, `episch` and `gottgeboren` still work).
@@ -350,7 +368,7 @@ It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `
 `t` tree stump, `e` barrels and crates, `q` well, `F` fountain, `x` bench, `y` pumpkin field, `N` tent,
 `f` campfire, `C` treasure chest. The bandits, who roam and come back a while after they fall: `c` cutthroat,
 `A` poacher, `X` bruiser, `Q` bandit chief; the beasts of the wolf hollow, who do the same: `W` wolf,
-`H` orc, `J` yeti, `U` spider. Buildings are a
+`H` orc, `J` yeti, `U` spider. `D` is the stone arch over the stairs down into the dragon's lair. Buildings are a
 rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general store, `u` windmill,
 `s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank. The hero's house:
 `I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The villagers: `0` elder,
@@ -380,6 +398,7 @@ entry there.
 - Wooden floor and roof tiles of the house: "Wood 062" and "Roofing Tiles 014 C" by ambientCG (CC0)
 - Floors, walls, pillars and furniture: 3D Modular Dungeon Kit by Omie's Assets (CC0)
 - Wolves, orcs, yeti and spiders: Ultimate Animated Animals, Ultimate Monsters and Easy Animated Enemy Pack by Quaternius (CC0, see `assets/wild/LICENSE.txt`)
+- Bats, slimes and the dragon: Animated Monster Pack; arch, stairs, cobwebs, skulls, banners, coin piles and the horse statue of the dragon's lair: Modular Dungeon kit (May 2019), both by Quaternius (CC0, see `assets/lair/LICENSE.txt`)
 - Sounds: made from scratch with `tools/make_sounds.py`; footsteps and door: recordings by Fantozzi, “Footsteps Leather, Cloth, Armor” and qubodup; creatures, skeleton voices and chains by rubberduck; crossbow shots from “Medieval sound effects - Weapon Textures” (CC0, see `assets/sounds/CREDITS.txt`)
 - Font: Cinzel and Cinzel Decorative (SIL Open Font License)
 - Comic font of the fight bubbles: Bangers by Vernon Adams (SIL Open Font License)

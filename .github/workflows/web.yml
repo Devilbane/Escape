@@ -129,6 +129,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_lair.gd | tee lair.log
           grep -q PASS lair.log
 
+      - name: Dragon boss fight test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_boss.gd | tee dragon.log
+          grep -q PASS dragon.log
+
       - name: Bandit chief boss fight test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/bandit_chief.gd | tee chief.log

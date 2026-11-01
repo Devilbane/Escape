@@ -78,6 +78,12 @@ var met := {}
 ## The villagers' tasks: offered, running and finished (see Quests). Kept in
 ## the saved game, so every hero has their own.
 var quests := Quests.new(self)
+## How many mornings have dawned in the world above ground since the game
+## began. The bounty board pins up fresh hunts each morning (see Bounties).
+var day := 0
+## The hunts on the bounty board: posted, taken on and paid (see Bounties).
+## Kept in the saved game.
+var bounties := Bounties.new(self)
 ## Known recipes and the ingredient pouch (see Crafting). Kept in the saved
 ## game, like the quests.
 var crafting := Crafting.new(self)
@@ -1105,7 +1111,10 @@ func _tick_clock(delta: float) -> void:
 	if level == null or not (level.outdoor or level.building != ""):
 		return
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
+		var before := day_hour
 		day_hour = DayNight.advance(day_hour, delta)
+		if _dawn_between(before, day_hour):
+			_new_day()
 		_tick_weather(delta)
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
@@ -1121,6 +1130,26 @@ func _tick_clock(delta: float) -> void:
 		_update_hud()
 
 
+## Whether the clock passed dawn (see Bounties.DAWN) going forward from one
+## hour to the other, at most one day later.
+static func _dawn_between(from: float, to: float) -> bool:
+	var dawn := Bounties.DAWN
+	if to >= from:
+		return from < dawn and to >= dawn
+	return from < dawn or to >= dawn
+
+
+## A new morning: fresh notices on the bounty board, and the hunts not
+## finished in time are over.
+func _new_day(quiet := false) -> void:
+	day += 1
+	var expired := bounties.refresh(day)
+	if quiet or not escaped:
+		return
+	var text := Lang.t("Ein neuer Morgen: frische Kopfgelder am Aushang.")
+	if expired > 0:
+		text += "\n" + Lang.t("Nicht erledigte Jagden vom Vortag sind verfallen: %d") % expired
+	quest_news(text, Color(1.0, 0.82, 0.4), 4.0)
 ## The weather runs on the clock: when its hours are up, the next weather
 ## comes, picked for the hour (see Weather.roll).
 func _tick_weather(delta: float) -> void:
@@ -1412,6 +1441,9 @@ func _start_new_game() -> void:
 	builds.clear()
 	met.clear()
 	quests.clear()
+	day = 0
+	bounties.clear()
+	bounties.refresh(day)
 	crafting.clear()
 	fishing.stop()
 	reputation.clear()
@@ -1682,6 +1714,9 @@ func _apply_save(data: Dictionary) -> void:
 			if Villager.ROLES.has(str(role)):
 				met[str(role)] = true
 	quests.load_from(data.get("quests", {}))
+	day = maxi(0, int(data.get("day", 0)))
+	bounties.load_from(data.get("bounties", {}))
+	bounties.refresh(day)
 	crafting.load_from(data.get("crafting", {}))
 	reputation.load_from(data.get("reputation", {}))
 	var plan = data.get("plan", {})
@@ -1800,6 +1835,7 @@ func save_game(going_away := false) -> bool:
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
+		"day": day, "bounties": bounties.for_save(),
 		"crafting": crafting.for_save(),
 		"reputation": reputation.for_save(),
 		"hour": day_hour,
@@ -1839,6 +1875,8 @@ func _looted_for_save() -> Dictionary:
 func sleep() -> void:
 	# A night in the bed: the hero wakes up the next morning.
 	if level.outdoor or level.building != "":
+		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
+			_new_day(true)
 		day_hour = DayNight.WAKE_HOUR
 		# A new morning brings new weather.
 		set_weather(Weather.roll(day_hour, _weather_rng))
@@ -2185,6 +2223,7 @@ func refresh_quest_marks() -> void:
 		if is_instance_valid(v):
 			var quest_mark := quests.mark(v.role)
 			v.set_quest_mark(quest_mark if quest_mark != "" else crafting.mark(v.role))
+	(level as Outdoor).set_board_mark(bounties.mark())
 
 
 ## Something in the bag changed because of a task.
@@ -2293,6 +2332,7 @@ func _gold(amount: int) -> int:
 func _on_enemy_killed(enemy: Enemy) -> void:
 	show_message(enemy.fall_text(), 2.5)
 	var drop := quests.on_kill(enemy.kind)
+	bounties.on_kill(enemy.kind)
 	if drop != "":
 		level._drop_item(drop, enemy.global_position + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
 	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:

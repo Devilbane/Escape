@@ -105,6 +105,8 @@ func _rebuild() -> void:
 			_build_storage()
 		"bank":
 			_build_bank()
+		"barbier":
+			_build_barber()
 		"tresor":
 			_build_vault()
 		"haendler":
@@ -519,6 +521,113 @@ func _sell(index: int) -> void:
 	game.player.bag.remove_at(index)
 	game.shop_stock.append(id)
 	_note = Lang.t("Verkauft: %s für %d Gold") % [Items.item_name(id), sell_price(id)]
+	_rebuild()
+
+
+# --- Barber -----------------------------------------------------------------
+
+## What the barber offers: id, name, price in gold (see HairLook).
+const BARBER_STYLES := [["natural", "Natürlich", 5], ["mohawk", "Irokese", 15], ["bald", "Glatze", 10]]
+const BARBER_COLORS := [["natural", "Naturfarbe", 5], ["black", "Schwarz", 10], ["blond", "Blond", 10],
+		["silver", "Silber", 10], ["red", "Rot", 10], ["green", "Grün", 10], ["blue", "Blau", 10],
+		["pink", "Pink", 10], ["purple", "Lila", 10], ["rainbow", "Regenbogen", 25], ["fire", "Feuer", 30]]
+const TATTOO_PRICE := 20
+const TATTOO_REMOVE_PRICE := 10
+## The word the player is typing for a tattoo, kept while the menu rebuilds.
+var _tattoo_word := ""
+
+
+func _build_barber() -> void:
+	var p: Player = game.player
+	if _tattoo_word == "":
+		_tattoo_word = p.hair.tattoo if p.hair.tattoo != "" else "Pig!"
+	_add_label(Lang.t("Barbier"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
+	_add_label(Lang.t("Frisur"), 20)
+	_add_barber_row(BARBER_STYLES, "style")
+	_add_label(Lang.t("Farbe"), 20)
+	_add_barber_row(BARBER_COLORS.slice(0, 6), "color")
+	_add_barber_row(BARBER_COLORS.slice(6), "color")
+	_add_label(Lang.t("Tätowierung an der rechten Kopfseite (nur auf geschorenem Kopf zu sehen)"), 20)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	_box.add_child(row)
+	var edit := LineEdit.new()
+	edit.max_length = HairLook.TATTOO_MAX
+	edit.text = _tattoo_word
+	edit.placeholder_text = Lang.t("Ein Wort")
+	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	edit.custom_minimum_size = Vector2(260, 54)
+	edit.add_theme_font_override("font", game.TEXT_FONT)
+	edit.add_theme_font_size_override("font_size", 22)
+	edit.add_theme_stylebox_override("normal", panel_style(Color(0.85, 0.66, 0.32, 0.8)))
+	edit.add_theme_stylebox_override("focus", panel_style(game.GOLD))
+	edit.text_changed.connect(func(t): _tattoo_word = t)
+	edit.text_submitted.connect(func(_t): _ink_tattoo())
+	row.add_child(edit)
+	row.add_child(_item_button(Lang.t("Stechen\n%d Gold") % TATTOO_PRICE, _ink_tattoo, game.coins >= TATTOO_PRICE))
+	row.add_child(_item_button(Lang.t("Entfernen\n%d Gold") % TATTOO_REMOVE_PRICE, _remove_tattoo,
+			p.hair.tattoo != "" and game.coins >= TATTOO_REMOVE_PRICE))
+
+
+## One row of choices; what the hero has now is marked and cannot be bought again.
+func _add_barber_row(choices: Array, field: String) -> void:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	_box.add_child(row)
+	for c in choices:
+		var current: bool = game.player.hair[field] == c[0]
+		var text := Lang.t("Jetzt: %s") % Lang.t(c[1]) if current else Lang.t("%s\n%d Gold") % [Lang.t(c[1]), c[2]]
+		var b := _item_button(text, _restyle.bind(field, c[0], c[2]), not current and game.coins >= c[2])
+		b.custom_minimum_size = Vector2(150, 54)
+		row.add_child(b)
+
+
+func _restyle(field: String, id: String, price: int) -> void:
+	if game.coins < price:
+		_note = Lang.t("Dafür reicht dein Gold nicht.")
+		_rebuild()
+		return
+	game.coins -= price
+	var look: Dictionary = game.player.hair.duplicate()
+	look[field] = id
+	game.player.set_hair(look)
+	Sfx.play(game, "coin")
+	_note = Lang.t("Schnipp, schnapp! Steht dir gut.")
+	if field == "style" and id != "natural" and look.tattoo != "":
+		_note = Lang.t("Schnipp, schnapp! Jetzt sieht man auch deine Tätowierung.")
+	_rebuild()
+
+
+func _ink_tattoo() -> void:
+	var word := _tattoo_word.strip_edges()
+	if word == "":
+		_note = Lang.t("Sag mir erst, welches Wort ich stechen soll.")
+	elif game.coins < TATTOO_PRICE:
+		_note = Lang.t("Dafür reicht dein Gold nicht.")
+	else:
+		game.coins -= TATTOO_PRICE
+		var look: Dictionary = game.player.hair.duplicate()
+		look.tattoo = word
+		game.player.set_hair(look)
+		Sfx.play(game, "coin")
+		_note = Lang.t("Gestochen: %s") % word
+		if look.style == "natural":
+			_note += " " + Lang.t("Unter deinen Haaren sieht man sie erst, wenn du dir den Kopf scheren lässt.")
+	_rebuild()
+
+
+func _remove_tattoo() -> void:
+	if game.coins < TATTOO_REMOVE_PRICE:
+		_note = Lang.t("Dafür reicht dein Gold nicht.")
+	else:
+		game.coins -= TATTOO_REMOVE_PRICE
+		var look: Dictionary = game.player.hair.duplicate()
+		look.tattoo = ""
+		game.player.set_hair(look)
+		_note = Lang.t("Die Tätowierung ist weg.")
 	_rebuild()
 
 

@@ -155,7 +155,7 @@ night in that bed, you wake up in your own house.
 In the middle of the village lies the paved **market square** with a fountain that heals, benches and
 lanterns. Around it stand the **smithy**, the **temple**, the **office of the crown**, the **post office**, the
 **adventurers' guild**, the **general store** (Mira, the shopkeeper, buys and sells), the **tavern** and the
-**bank**. Fifteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
+**bank**. Sixteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
 makes the rounds, the postmaster carries letters, the priestess tends the temple. Every so often the
 **herald** rings the bell and calls out the news, and the whole village gathers on the square to listen.
 
@@ -163,6 +163,13 @@ At the **bank** the banker keeps your gold safe (deposit and withdraw) and rents
 50 gold. The vaults are in the **cellar**: small cells behind iron bars, each with its holder's name, their
 gold and their treasures. You can walk down and look at what every other hero keeps there; your own cell
 opens for you. Until there is a server, the bank keeps one account per hero name on this computer.
+
+**Benno the barber** stands on the east side of the market square, under his own burning mohawk. He gives
+you a new **hair style** (natural, mohawk or shaved, 5 to 15 gold) and a new **hair colour** (natural,
+black, blond, silver, red, green, blue, pink or purple for 10 gold, an animated **rainbow** for 25, or
+flickering **fire** that glows in the dark for 30). He also inks a **tattoo**: any word of up to 12 letters
+on the right side of your head (20 gold, removing it costs 10). It only shows on a shaved head. A mohawk
+hides under helmets and hats. Your look is saved with the game.
 
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.
@@ -226,7 +233,7 @@ rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general 
 `s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank. The hero's house:
 `I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The villagers: `0` elder,
 `1` smith, `2` farmer, `3` woodcutter, `4` guard, `5` drinker, `6` shopkeeper, `7` child, `8` scholar,
-`9` water carrier, `K` herald, `O` priestess, `G` guild master, `M` postmaster, `Y` banker.
+`9` water carrier, `K` herald, `O` priestess, `G` guild master, `M` postmaster, `Y` banker, `Z` barber.
 
 **Floors of buildings.** A level file with the lines `building: b` and `floor: cellar` or
 `floor: upstairs` is a floor of the village building with that character: walking in at the

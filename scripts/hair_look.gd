@@ -11,7 +11,8 @@ extends RefCounted
 ## is a word written in ink on the right side of a shaved head.
 ##
 ## A look is a Dictionary: {"style": one of STYLES, "color": a key of
-## COLORS, "tattoo": the word, "" for none}.
+## COLORS, "tattoo": the word, "" for none, "show_helmet": false to leave a
+## worn helmet or hat invisible, so the haircut shows (it still protects)}.
 
 const SHADER := preload("res://shaders/hair.gdshader")
 const FADE_SHADER := preload("res://shaders/hair_fade.gdshader")
@@ -36,7 +37,7 @@ const COLORS := {
 ## Colours the shader draws itself: a rainbow running along the crest, and
 ## flickering flames that glow in the dark.
 const MODES := {"rainbow": 1, "fire": 2}
-const DEFAULT := {"style": "natural", "color": "natural", "tattoo": ""}
+const DEFAULT := {"style": "natural", "color": "natural", "tattoo": "", "show_helmet": true}
 const TATTOO_MAX := 12
 
 ## The bald skull the shaved hair is pulled onto, in the head mesh's space.
@@ -159,6 +160,7 @@ static func checked(look) -> Dictionary:
 		if COLORS.has(look.get("color", "")):
 			result.color = look.color
 		result.tattoo = str(look.get("tattoo", "")).strip_edges().left(TATTOO_MAX)
+		result.show_helmet = bool(look.get("show_helmet", true))
 	return result
 
 

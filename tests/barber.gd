@@ -61,6 +61,7 @@ func _test() -> void:
 	check(not barber.is_empty(), "the barber has a station in the village")
 	if not barber.is_empty():
 		check(barber.npc.find_child("Crest", true, false) != null, "the barber wears a mohawk")
+		check(game.level.find_child("BarberPole", true, false) != null and game.level.find_child("ShopSign", true, false) != null, "the barber has a stall with a pole and a sign")
 		game.menus.open("barbier")
 		check(game.menus.is_open(), "the barber's menu opens")
 		game.menus.close()
@@ -73,6 +74,11 @@ func _test() -> void:
 
 	p.equip("knochenhelm")
 	check(not _crest_shown(), "a helmet hides the mohawk")
+	p.set_hair({"style": "mohawk", "color": "fire", "tattoo": "Pig!", "show_helmet": false})
+	check(_crest_shown() and p.find_child("Headgear", true, false) == null, "a hidden helmet shows the mohawk")
+	check(p.hardening > 0 or p.power > 1, "a hidden helmet still counts")
+	p.set_hair({"style": "mohawk", "color": "fire", "tattoo": "Pig!"})
+	check(not _crest_shown() and p.find_child("Headgear", true, false) != null, "the helmet can be shown again")
 	p.unequip("kopf")
 	check(_crest_shown(), "the mohawk is back without the helmet")
 

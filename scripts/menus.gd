@@ -275,6 +275,13 @@ func _build_inventory() -> void:
 		var id: String = p.equipped.get(slot, "")
 		var text: String = "%s\n%s" % [Lang.t(Items.SLOT_NAMES[slot]), Items.item_name(id) if id != "" else "-"]
 		row.add_child(_item_button(text, _unequip.bind(slot), id != "", id))
+	if Items.ALL.get(p.equipped.get("kopf", ""), {}).has("hat"):
+		# A helmet can stay invisible, so the haircut shows; it protects all the same.
+		var shown: bool = p.hair.get("show_helmet", true)
+		var toggle := _item_button(Lang.t("Helm verstecken (schützt trotzdem)") if shown else Lang.t("Helm zeigen"), _toggle_helmet)
+		toggle.custom_minimum_size = Vector2(300, 46)
+		toggle.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_box.add_child(toggle)
 	_add_label(Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), p.bag_size(), Items.weight_text(p.carried_weight())], 20)
 	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, 4 if p.bag_size() <= 8 else 6)
 	if _selected >= 0 and _selected < p.bag.size():
@@ -347,6 +354,14 @@ func _drop_selected() -> void:
 	_note = Lang.t("%s weggeworfen.") % Items.item_name(p.bag[_selected])
 	p.bag.remove_at(_selected)
 	_selected = -1
+	_rebuild()
+
+
+func _toggle_helmet() -> void:
+	var look: Dictionary = game.player.hair.duplicate()
+	look.show_helmet = not look.get("show_helmet", true)
+	game.player.set_hair(look)
+	_note = ""
 	_rebuild()
 
 

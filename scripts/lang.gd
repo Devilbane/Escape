@@ -191,6 +191,8 @@ const EN := {
 	"Angelegt (anklicken zum Ablegen)": "Worn (click to take off)",
 	"Tasche (%d / %d)": "Bag (%d / %d)",
 	"Anlegen": "Wear",
+	"Helm verstecken (schützt trotzdem)": "Hide helmet (it still protects)",
+	"Helm zeigen": "Show helmet",
 	"Wegwerfen": "Drop",
 	"%s weggeworfen.": "%s dropped.",
 	"Deine Tasche ist voll.": "Your bag is full.",

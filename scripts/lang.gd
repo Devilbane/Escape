@@ -746,6 +746,21 @@ const EN := {
 	"Abend": "evening",
 	"Die Nacht bricht herein. Das Dorf geht schlafen, und auf dem Friedhof regen sich die Toten.": "Night falls. The village goes to sleep, and in the graveyard the dead stir.",
 	"Ein neuer Tag bricht an. Die Toten kehren in ihre Gräber zurück.": "A new day dawns. The dead return to their graves.",
+	# Weather
+	"klar": "clear",
+	"Regen": "rain",
+	"Nebel": "fog",
+	"Gewitter": "thunderstorm",
+	"Es fängt an zu regnen. Am Teich im Wald kriechen Schleime aus dem Wasser.": "It starts to rain. Slimes crawl out of the pond in the woods.",
+	"Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, und wer schleicht, bleibt ungesehen.": "Fog rolls in. Fog wraiths drift among the dead trees, and whoever sneaks stays unseen.",
+	"Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, und wo der Blitz einschlägt, glimmt Donnererz.": "A thunderstorm is coming! Bats swarm around the rocks, and where lightning strikes, thunder ore glows.",
+	"Das Gewitter zieht ab. Liegengebliebenes Donnererz verglimmt.": "The storm moves on. Any thunder ore left lying fades away.",
+	"Der Himmel klart auf.": "The sky clears up.",
+	"Der Blitz schlägt in einen Felsen ein! Daneben glimmt Donnererz.": "Lightning strikes a rock! Thunder ore glows beside it.",
+	"Der Nebelgeist verweht.": "The fog wraith drifts apart.",
+	"huuu": "whooo",
+	"Donnererz": "Thunder ore",
+	"Nur bei Gewitter zu finden. Gorm schmilzt es zu Eisenbarren": "Only found in thunderstorms. Gorm melts it into iron bars",
 }
 
 ## "de" or "en"; empty until the player has chosen.

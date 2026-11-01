@@ -309,8 +309,8 @@ func _build_inventory() -> void:
 			actions.add_child(_item_button(Lang.t("Abstellen"), _put_down_selected))
 		elif Items.is_stone(id):
 			actions.add_child(_item_button(Lang.t("Abstellen"), _place_stone_selected))
-		elif Items.is_quest(id):
-			pass # Carried for a task, not worn.
+		elif Items.is_quest(id) or Items.is_material(id):
+			pass # Carried for a task or to the smith, not worn.
 		else:
 			actions.add_child(_item_button(Lang.t("Anlegen"), _equip_selected))
 		actions.add_child(_item_button(Lang.t("Wegwerfen"), _drop_selected))

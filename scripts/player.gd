@@ -1178,7 +1178,7 @@ func bag_size() -> int:
 ## and so does a smaller backpack that could not hold everything carried.
 ## Returns whether the item was put on.
 func equip(id: String) -> bool:
-	if Items.is_book(id) or Items.is_crate(id) or Items.is_stone(id) or not can_use(Items.ALL[id].get("requires", {})):
+	if Items.is_book(id) or Items.is_crate(id) or Items.is_stone(id) or Items.is_material(id) or not can_use(Items.ALL[id].get("requires", {})):
 		return false
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":

@@ -10,6 +10,8 @@ extends RefCounted
 ##   Items.ALL), which are found nowhere else.
 ## Iron bars are counted like gold (game.iron), not carried in the bag, and
 ## are kept in the saved game.
+## Gold prices drop when Gorm thinks well of the hero (see Reputation): the
+## functions that take `game` give the price at the smith's window right now.
 ## Forging from bought iron costs about what the merchant asks for the piece;
 ## iron from melted loot makes it cheaper, and you choose what you get.
 
@@ -56,29 +58,46 @@ static func wares() -> Array:
 	return ids
 
 
+## A gold price after the discount at the smith's window (unchanged without
+## a game, or when the window was not opened at Gorm).
+static func _discounted(game: Node, gold: int) -> int:
+	return game.trader_price(gold) if game else gold
+
+
+## What one of Gorm's wares costs the hero.
+static func ware_price(game: Node, id: String) -> int:
+	return _discounted(game, Items.ALL[id].price)
+
+
+## What one iron bar costs the hero.
+static func iron_price(game: Node = null) -> int:
+	return _discounted(game, IRON_PRICE)
+
+
 ## Buys one of Gorm's wares into the bag. Returns "" on success, else why not.
 static func buy(game: Node, id: String) -> String:
 	var p: Player = game.player
 	if not Items.ALL.has(id) or not Items.ALL[id].get("smith", false):
 		return Lang.t("Das verkauft Gorm nicht.")
-	if game.coins < Items.ALL[id].price:
+	var price := ware_price(game, id)
+	if game.coins < price:
 		return Lang.t("Dafür reicht dein Gold nicht.")
 	if p.bag.size() >= p.bag_size():
 		return Lang.t("Deine Tasche ist voll.")
-	game.coins -= Items.ALL[id].price
+	game.coins -= price
 	p.bag.append(id)
 	return ""
 
 
 ## What forging a piece costs: {"iron": bars, "gold": coins}.
-static func forge_cost(id: String) -> Dictionary:
+static func forge_cost(id: String, game: Node = null) -> Dictionary:
 	var price: int = Items.ALL[id].price
-	return {"iron": ceili(price / 6.0), "gold": price / 3}
+	return {"iron": ceili(price / 6.0), "gold": _discounted(game, price / 3)}
 
 
 ## Gold for mending one point of durability of a piece.
-static func mend_price(id: String) -> int:
-	return maxi(MIN_MEND_PRICE, int(Items.ALL[id].price) / 10)
+static func mend_price(id: String, game: Node = null) -> int:
+	return _discounted(game, maxi(MIN_MEND_PRICE, int(Items.ALL[id].price) / 10))
 
 
 ## Every worn-down piece the hero has, worn first, then in the bag, each once.
@@ -93,8 +112,8 @@ static func worn_down(p: Player) -> Array:
 
 
 ## Gold to mend a piece completely.
-static func mend_cost(p: Player, id: String) -> int:
-	return int(p.wear.get(id, 0)) * mend_price(id)
+static func mend_cost(p: Player, id: String, game: Node = null) -> int:
+	return int(p.wear.get(id, 0)) * mend_price(id, game)
 
 
 ## Melts the bag item at `index` down. Returns "" on success, else why not.
@@ -115,7 +134,7 @@ static func melt(game: Node, index: int) -> String:
 ## Forges a new piece into the bag. Returns "" on success, else why not.
 static func forge(game: Node, id: String) -> String:
 	var p: Player = game.player
-	var cost := forge_cost(id)
+	var cost := forge_cost(id, game)
 	if game.iron < cost.iron:
 		return Lang.t("Dafür hast du zu wenig Eisen.")
 	if game.coins < cost.gold:
@@ -133,7 +152,7 @@ static func mend(game: Node, id: String) -> String:
 	var p: Player = game.player
 	if int(p.wear.get(id, 0)) <= 0:
 		return Lang.t("%s ist wie neu.") % Items.item_name(id)
-	var price := mend_price(id)
+	var price := mend_price(id, game)
 	if game.coins < price:
 		return Lang.t("Dafür reicht dein Gold nicht.")
 	while int(p.wear.get(id, 0)) > 0 and game.coins >= price:
@@ -146,8 +165,9 @@ static func mend(game: Node, id: String) -> String:
 
 ## Buys iron bars. Returns "" on success, else why not.
 static func buy_iron(game: Node, count: int) -> String:
-	if count <= 0 or game.coins < IRON_PRICE * count:
+	var price := iron_price(game)
+	if count <= 0 or game.coins < price * count:
 		return Lang.t("Dafür reicht dein Gold nicht.")
-	game.coins -= IRON_PRICE * count
+	game.coins -= price * count
 	game.iron += count
 	return ""

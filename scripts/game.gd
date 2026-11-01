@@ -83,8 +83,22 @@ var journal := Journal.new(self)
 ## Known recipes and the ingredient pouch (see Crafting). Kept in the saved
 ## game, like the quests.
 var crafting := Crafting.new(self)
+## The line in the water, when the hero is fishing (see Fishing).
+var fishing := Fishing.new(self)
+## What each villager thinks of the hero (see Reputation): discounts,
+## gossip and secret recipes. Kept in the saved game.
+var reputation := Reputation.new(self)
+## The villager whose goods or services are open in a window right now
+## (role letter), "" for none: their discount applies (see trader_price).
+var trader_role := ""
+## Villagers who just came to think better of the hero, told together.
+var _reputation_news: Array[String] = []
+const REPUTATION_NEWS_DELAY := 4.6
 ## Counts down to the next look at who has a task (see refresh_quest_marks).
 var _quest_mark_timer := 0.0
+## The town house on Weavers' Lane the hero is inside right now (see Homes),
+## or 0 when they are not in one.
+var inside_house := 0
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
 var coins := 0
@@ -408,6 +422,7 @@ func _setup_drawer() -> void:
 	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
 	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
 	buttons.add_child(_make_button(Lang.t("Stein"), func(): if state == State.PLAYING and not menus.is_open(): stone_action()))
+	buttons.add_child(_make_button(Lang.t("Angeln"), fish_action))
 	_sound_button = _make_button("", _toggle_sound)
 	buttons.add_child(_sound_button)
 	_update_sound_button()
@@ -686,21 +701,22 @@ func _use_station(s: Dictionary) -> void:
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc):
+		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
-		go_inside(s.building)
+		go_inside(s.building, s.get("house", 0))
 	elif s.has("npc"):
 		# A villager who trades: a word, then the goods. A task handed out or
 		# finished comes first; the goods wait until the next time. While the
 		# last line still shows, the goods open without a new word.
-		if not busy and quests.talk(s.npc, true):
+		if not busy and (quests.talk(s.npc, true) or reputation.tell_secret(s.npc)):
 			player.face(s.pos - player.global_position)
 			player.play("Idle")
 			return
-		if not busy:
+		if not busy and not reputation.gossip(s.npc):
 			s.npc.talk(player)
 		player.face(s.pos - player.global_position)
+		trader_role = s.npc.role
 		menus.open(s.kind)
 	elif s.kind == "schrein":
 		_open_shrine(s)
@@ -708,6 +724,7 @@ func _use_station(s: Dictionary) -> void:
 		_drink(s)
 	else:
 		player.face(s.pos - player.global_position)
+		menus.bench = s.get("craft", "")
 		menus.open(s.kind)
 
 
@@ -1171,6 +1188,7 @@ func load_level(index: int, restock := true) -> void:
 		builds[file] = []
 	level.built = builds[file]
 	level.hero = hero_name
+	level.house_number = inside_house if level.is_home else 0
 	if level is Outdoor:
 		# Bandits who take their spots at night are tougher (see Outdoor.set_hour).
 		level.night = DayNight.is_night(day_hour)
@@ -1207,6 +1225,7 @@ func load_level(index: int, restock := true) -> void:
 	level.player_hurt.connect(player.spring_trap)
 	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
+	level.stairs_taken.connect(_take_stairs)
 	if level is Outdoor:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
 		level.home_claimed.connect(_on_home_claimed)
@@ -1397,6 +1416,8 @@ func _start_new_game() -> void:
 	quests.clear()
 	journal.clear()
 	crafting.clear()
+	fishing.stop()
+	reputation.clear()
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
@@ -1666,6 +1687,7 @@ func _apply_save(data: Dictionary) -> void:
 	quests.load_from(data.get("quests", {}))
 	journal.load_from(data.get("journal", {}))
 	crafting.load_from(data.get("crafting", {}))
+	reputation.load_from(data.get("reputation", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
@@ -1675,12 +1697,21 @@ func _apply_save(data: Dictionary) -> void:
 	# Games saved before there was weather wake up to clear skies.
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
-	if escaped and _outdoor_index() >= 0:
+	inside_house = 0
+	var own_house := Homes.house_of(hero_name)
+	if escaped and home_claimed and own_house > 0 and interiors.has("^"):
+		# The hero's own town house is the place to come back to: every
+		# load wakes up beside its bed, wherever the game was saved.
+		index = interiors["^"]
+		inside_house = own_house
+	elif escaped and _outdoor_index() >= 0:
 		# Out of the dungeon, every load begins in the open air, wherever the
 		# game was saved: on the graveyard, or in the hero's own house.
 		index = _outdoor_index()
 	load_level(index, false)
-	if level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
+	if level.is_home and level.bed_side != Vector3.ZERO:
+		player.global_position = level.bed_side
+	elif level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
 		# The hero's own house is the place to come back to: next to the bed.
 		player.global_position = level.home_spot
 	player.hp = clampi(int(data.hp), 1, player.max_hp)
@@ -1775,6 +1806,7 @@ func save_game(going_away := false) -> bool:
 		"quests": quests.for_save(),
 		"journal": journal.for_save(),
 		"crafting": crafting.for_save(),
+		"reputation": reputation.for_save(),
 		"hour": day_hour,
 		"weather": weather, "weather_hours": weather_hours,
 	}
@@ -1950,7 +1982,8 @@ func away_choices() -> Dictionary:
 	for id in owned:
 		if Items.is_book(id) and not id in books:
 			books.append(id)
-	return {"job": jobs, "train": train, "study": books, "craft": Offline.RECIPES.keys()}
+	var crafts := Offline.RECIPES.keys().filter(reputation.can_craft)
+	return {"job": jobs, "train": train, "study": books, "craft": crafts}
 
 
 ## Back after a sleep in the bed: the hero has lived the planned day for as
@@ -1994,6 +2027,13 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 	coins += int(result.gold)
 	player.knives += int(result.knives)
 	var repaired := _repair_gear(int(result.repairs))
+	# Cut stone blocks go into the storage chest, as many as it still holds.
+	var stones := 0
+	for i in int(result.get("stones", 0)):
+		if storage.size() >= Menus.STORAGE_SIZE:
+			break
+		storage.append(Menus.STONE)
+		stones += 1
 	if spent.job > 0.0:
 		lines.append(Lang.t("%s: %s, +%d Gold") % [Lang.t(Offline.JOBS[plan.job].name), Offline.duration_text(spent.job), result.gold])
 	if spent.train > 0.0:
@@ -2004,6 +2044,8 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 		var made := ""
 		if Offline.RECIPES[plan.craft].makes == "knife":
 			made = Lang.t("%d Wurfmesser") % result.knives
+		elif Offline.RECIPES[plan.craft].makes == "stone":
+			made = Lang.t("%d Steinblöcke (in der Truhe)") % stones
 		else:
 			made = Lang.t("%d Punkte Haltbarkeit") % repaired
 		lines.append(Lang.t("%s: %s, %s") % [Lang.t(Offline.RECIPES[plan.craft].name), Offline.duration_text(spent.craft), made])
@@ -2103,6 +2145,40 @@ func quest_reward(id: String) -> void:
 	else:
 		Sfx.play(self, "key", -3.0)
 	quest_news(Lang.t("Auftrag abgeschlossen: %s\nBelohnung: %s") % [Lang.t(q.title), Quests.reward_text(id)], GOLD, 4.5)
+	reputation.on_quest_done(id)
+
+
+## A villager thinks better of the hero now: friendly, trusted or honoured.
+## Several at once (word of mouth after a task) are told together, once the
+## reward has been read.
+func reputation_rose(role: String, new_level: int) -> void:
+	var line := "%s: %s" % [Quests.villager_name(role), Reputation.level_name(new_level)]
+	var off := roundi(Reputation.LEVELS[new_level].discount * 100.0)
+	if off > 0:
+		line += Lang.t(" (%d%% Rabatt)") % off
+	if level:
+		Effects.float_text(level, player.global_position + Vector3(0, 3.8, 0), line, Color(0.75, 0.6, 1.0), true)
+	_reputation_news.append(line)
+	if _reputation_news.size() == 1:
+		get_tree().create_timer(REPUTATION_NEWS_DELAY).timeout.connect(_show_reputation_news)
+
+
+func _show_reputation_news() -> void:
+	if _reputation_news.is_empty():
+		return
+	show_message(Lang.t("Dein Ruf im Dorf steigt:") + "\n" + "\n".join(_reputation_news), 5.0)
+	_reputation_news.clear()
+	learn(Reputation.HOW_TO)
+
+
+## A price in gold at the villager whose window is open (see trader_role).
+func trader_price(gold: int) -> int:
+	return reputation.price(trader_role, gold)
+
+
+## The hero bought something from the villager whose window is open.
+func traded() -> void:
+	reputation.on_trade(trader_role)
 
 
 ## The "!" and "?" over the villagers' heads. Looked at a few times a
@@ -2441,6 +2517,15 @@ func _on_exit_reached() -> void:
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
+	if level.is_home:
+		# Out of the front door of the hero's own house, into the lane.
+		player.face(Vector3.BACK)
+		player.play("Walking_A")
+		var out := create_tween()
+		out.tween_property(player, "global_position", level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.6), 0.5)
+		out.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.5)
+		out.tween_callback(_next_level)
+		return
 	player.face(Vector3.FORWARD)
 	player.play("Walking_A")
 	# The stairs rise northwards across the exit cell in 8 steps of half a metre:
@@ -2530,6 +2615,8 @@ func _step_out_of_crypt() -> void:
 ## The hero has walked into the house the elder gave and made it their own:
 ## it is the new place to come back to, saved at once.
 func _on_home_claimed() -> void:
+	if Homes.house_of(hero_name) == 0 and level is Outdoor and not level.town_houses.is_empty():
+		Homes.house_for(hero_name, level.town_houses.size())
 	home_claimed = true
 	home_given = true
 	var saved := save_game()
@@ -2539,10 +2626,15 @@ func _on_home_claimed() -> void:
 			show_message(text, 3.0))
 
 
-## Walks in at a village building's door, to its own floor.
-func go_inside(building: String) -> void:
+## Walks in at a village building's door, to its own floor. A town house
+## on Weavers' Lane (`house` is its number) only lets in the hero who lives
+## there; a hero without a house moves into the first empty one.
+func go_inside(building: String, house := 0) -> void:
 	if state != State.PLAYING or not interiors.has(building):
 		return
+	if house > 0 and not _may_enter_house(house):
+		return
+	inside_house = house
 	_home_given_now()
 	state = State.TRANSITION
 	player.frozen = true
@@ -2554,7 +2646,59 @@ func go_inside(building: String) -> void:
 		player.frozen = false
 		state = State.PLAYING
 		create_tween().tween_property(_fade, "color:a", 0.0, 0.6)
-		_announce_level())
+		_announce_level()
+		if level.is_home and not home_claimed:
+			# The first step into the hero's own house makes it home.
+			get_tree().create_timer(4.6).timeout.connect(func():
+				if state == State.PLAYING:
+					show_message(Lang.t("Dein neues Zuhause! Im Bett speicherst du, in der Truhe lagerst du deine Schätze."), 4.0))
+			_on_home_claimed())
+
+
+## Whether the hero may go into town house `house`: their own, or an empty
+## one while they have none (it becomes theirs). Says why not, if not.
+func _may_enter_house(house: int) -> bool:
+	var resident := Homes.owner_of(house)
+	if resident == Homes.deed_name(hero_name):
+		return true
+	if resident != "":
+		show_message(Lang.t("Hier wohnt %s. Die Tür ist verschlossen.") % resident, 2.5)
+		return false
+	var mine := Homes.house_of(hero_name)
+	if mine > 0:
+		show_message(Lang.t("Dieses Haus steht leer. Dein Haus ist Nr. %d.") % mine, 2.5)
+		return false
+	if not Homes.claim(hero_name, house):
+		return false
+	get_tree().create_timer(1.6).timeout.connect(func():
+		if state == State.PLAYING:
+			show_message(Lang.t("Haus Nr. %d gehört jetzt dir! Unten steht die Truhe, oben das Bett, und auf jedem Stockwerk ist Platz für Möbel.") % house, 5.0))
+	return true
+
+
+## The hero walked onto the stairs of their home: up or down a storey.
+func _take_stairs(to: Vector3, up: bool, storey: int) -> void:
+	if state != State.PLAYING:
+		return
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	player.face(Vector3.FORWARD if up else Vector3.BACK)
+	player.play("Walking_A")
+	var tween := create_tween()
+	tween.tween_property(player, "global_position", player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4), 0.45)
+	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
+	tween.parallel().tween_callback(func(): Sfx.play(player, "step_%d" % (randi() % 6), -14.0))
+	tween.tween_callback(func():
+		player.global_position = to
+		player.velocity = Vector3.ZERO
+		player.face(Vector3.BACK)
+		player.play("Idle")
+		_snap_camera()
+		player.frozen = false
+		state = State.PLAYING
+		show_message("%s · %s" % [Lang.t("Haus Nr. %d") % level.house_number, level.storey_name(storey)], 2.0))
+	tween.tween_property(_fade, "color:a", 0.0, 0.45)
 
 
 ## The banker shows the hero down into the vault cellar.
@@ -2564,7 +2708,10 @@ func go_to_vaults() -> void:
 
 ## Up the stairs of a building floor and out of its door into the village.
 func _leave_building() -> void:
-	var building := level.building
+	var building: String = level.building
+	if inside_house > 0:
+		building += str(inside_house)
+	inside_house = 0
 	load_level(_outdoor_index(), false)
 	if level is Outdoor and level.doors.has(building):
 		player.global_position = level.doors[building]
@@ -2664,6 +2811,10 @@ func _process(delta: float) -> void:
 	_steer_by_mouse(delta)
 	_update_drag(delta)
 	_update_run_meter()
+	if state == State.PLAYING:
+		fishing.tick(delta)
+	elif fishing.is_fishing():
+		fishing.stop()
 	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
 		_prompt.text = ""
 		return
@@ -2705,6 +2856,7 @@ func _process(delta: float) -> void:
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
+			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
 		}[station.kind]
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")
@@ -2715,6 +2867,16 @@ func _process(delta: float) -> void:
 			_prompt.text = Lang.t("E oder Klick: Block schieben   Ziehen: rutschen lassen")
 		else:
 			_prompt.text = Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben")
+	# By the water the line can be cast, also next to the fountain.
+	var fish_prompt := ""
+	if fishing.state == Fishing.BITE:
+		fish_prompt = Lang.t("G: Anschlagen!")
+	elif fishing.is_fishing():
+		fish_prompt = Lang.t("G: Leine einholen")
+	elif not fishing.water_near().is_empty():
+		fish_prompt = Lang.t("G: Angeln")
+	if fish_prompt != "":
+		_prompt.text = fish_prompt if _prompt.text == "" else _prompt.text + "   " + fish_prompt
 
 
 func _reach(pos: Vector3) -> float:
@@ -2835,6 +2997,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						toggle_drawer()
 					KEY_C:
 						_toggle_sneak()
+					KEY_G:
+						fish_action()
 					KEY_E:
 						var why_not := ""
 						if level.crate_in_reach(player) == null and level.stone_in_reach(player) != null:
@@ -2875,6 +3039,16 @@ func _unhandled_input(event: InputEvent) -> void:
 						_toggle_sneak()
 					else:
 						_click(point)
+
+
+## Key G or the "Angeln" button: casts the line by the water, strikes when
+## a fish bites, or draws the line in (see Fishing).
+func fish_action() -> void:
+	if state != State.PLAYING or menus.is_open() or not _shrine.is_empty():
+		return
+	var why := fishing.press()
+	if why != "":
+		show_message(why, 1.6)
 
 
 func _mouse_to_floor(screen_pos: Vector2):

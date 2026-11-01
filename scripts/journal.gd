@@ -38,7 +38,7 @@ const OUTDOOR_MARKS := {
 	"j": ["building", "Schmiede"], "n": ["building", "Wirtshaus"], "m": ["building", "Kramladen"],
 	"u": ["building", "Windmühle"], "s": ["building", "Tempel"], "k": ["building", "Amt der Krone"],
 	"o": ["building", "Post"], "w": ["building", "Abenteurergilde"], "b": ["building", "Bank der Krone"],
-	"B": ["home", "Leeres Haus"], "F": ["fountain", "Marktbrunnen"], "q": ["fountain", "Ziehbrunnen"],
+	"^": ["home", "Weberzeile"], ";": ["water", "Teich"], "F": ["fountain", "Marktbrunnen"], "q": ["fountain", "Ziehbrunnen"],
 	"~": ["water", "Teich"], "f": ["camp", "Räuberlager"], "v": ["food", "Futterkorb"],
 	"S": ["building", "Steinmetz"],
 }
@@ -202,11 +202,8 @@ func _place(id: String, kind: String, name: String, cells: Array[Vector2i]) -> D
 	return {"id": id, "kind": kind, "name": name, "cells": cells, "x": mid.x, "y": mid.y}
 
 
-## The name of a landmark as it is shown now (the empty house becomes the
-## hero's own once it is theirs).
+## The name of a landmark in the chosen language.
 func place_name(place: Dictionary) -> String:
-	if place.kind == "home" and game != null and game.home_given:
-		return Lang.t("Dein Haus")
 	return Lang.t(place.name)
 
 

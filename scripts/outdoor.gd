@@ -7,7 +7,7 @@ extends Level
 ##
 ## Map legend (one character per 4x4 m tile):
 ##   #  forest (trees, cannot be crossed)    .  grass         ,  dirt path
-##   P  start, in front of the crypt door    ~  pond
+##   P  start, in front of the crypt door    ~  pond (fish bite here, see Fishing)
 ##   R  the crypt (a block of tiles)         g  grave         d  dead tree
 ##   z  graveyard fence                      a  gate in the fence
 ##   l  lantern on a post                    p  pumpkins      r  rock
@@ -16,6 +16,11 @@ extends Level
 ##   Buildings, each a rectangular block of the same letter:
 ##   h  house (half-timbered, see VillageHouse)   j  smithy   n  tavern   m  market   u  windmill
 ##   y  pumpkin field
+##   ^  Weavers' Lane: a row of narrow three-storey town houses, one per
+##      tile across the front (see VillageHouse.build_narrow), numbered from
+##      west to east. Every one is a home for a hero (see Homes), entered by
+##      its own door; inside, all of them share the building floor with the
+##      line "building: ^" (bed, chest, stairs and room for furniture).
 ##   The hero's house: I  stone wall   i  wooden floor (a gap in the
 ##   walls is the door)   B  bed (save and log out)   L  chest (storage)
 ##   :  paved square         F  fountain (heals)   x  bench
@@ -40,9 +45,13 @@ extends Level
 ##   a sneaking hero, and in a thunderstorm bats swarm around the rocks (r)
 ##   while lightning leaves glowing thunder ore beside them.
 ##   The wolf hollow north of the pass, where beasts roam and come back the
-##   same way: W wolf, H orc, J yeti, U spider.
+##   same way: W wolf, H orc, J yeti, U spider.   %  the hollow's pond,
+##   where the moon trout bites at night (see Fishing).
 ##   Peaceful animals that graze in the woods and bolt from the hero
 ##   (see Animal): D doe, V stag, & fox.
+##   The crafting square on the west side of the market square, beside
+##   Gorm's forge (see CraftingSquare): +  fine metalwork bench
+##   %  gem cutter's wheel   *  alchemist's table   $  the hero's storage chest
 ##   E  the way down into the dragon's lair: a stone arch over stairs into
 ##      the dark (a block of tiles, see Level "lair: yes")
 ##   v  a stone pedestal with a food basket on top, too high to reach from
@@ -67,7 +76,7 @@ const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
-const BLOCK_CHARS := "RhjnmuskowbE"
+const BLOCK_CHARS := "RhjnmuskowbE^"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
 	"m": "building_market_green", "u": "building_windmill_red",
@@ -173,6 +182,8 @@ var met := {}
 var home_spot := Vector3.ZERO
 ## Fronts of the village buildings: where villagers walk to.
 var spots := {"houses": [], "square": [], "well": []}
+## The narrow town houses of Weavers' Lane, by number - 1 (see _build_terrace).
+var town_houses: Array[Node3D] = []
 
 var _plants := {}
 var _house_rect := Rect2i()
@@ -182,6 +193,9 @@ var _south_walls: Array = []
 var _inside := false
 var _entered_once := false
 var _marker: Node3D
+## The hero's town house on Weavers' Lane (see Homes), once the elder has
+## given it.
+var own_house := 0
 var _elder: Node3D
 var _aabbs := {}
 ## Buildings with floors of their own: building letter -> level index.
@@ -312,7 +326,7 @@ func _build_ground() -> void:
 			if square.has_point(c) and not BLOCK_CHARS.contains(ch):
 				path = 1.0
 				soil = 1.0
-			var wet := 1.0 if ch == "~" else 0.0
+			var wet := 1.0 if "~;".contains(ch) else 0.0
 			var open := 0.0 if ch == "#" else 1.0
 			mask.set_pixel(x, y, Color(path, soil, wet, open))
 	# A smoother mask gives softer edges between the tiles.
@@ -494,8 +508,10 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_fence(c, false)
 		"a":
 			_build_fence(c, true)
-		"~":
+		"~", ";":
 			_add_solid(pos, Vector3(TILE, 1, TILE))
+			fishing_waters.append({"water": "teich" if ch == "~" else "senke", "pos": pos,
+					"reach": TILE * 0.5, "round": false, "surface": 0.04})
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.
 			for row in 2:
@@ -523,7 +539,9 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			loot_rng.seed = hash("%s:hoard:%d:%d" % [level_name, c.x, c.y])
 			interactables[-1].loot = {"gold": 20, "item": Items.random_item(loot_rng, 20)}
 		_:
-			if Enemy.WILD_LETTERS.has(ch):
+			if CraftingSquare.LETTERS.contains(ch):
+				CraftingSquare.build(self, c, ch)
+			elif Enemy.WILD_LETTERS.has(ch):
 				_wild.append({"cell": c, "kind": Enemy.WILD_LETTERS[ch], "enemy": null, "timer": 0.0, "wave": 0})
 			elif Animal.LETTERS.has(ch):
 				_animal_spots.append({"cell": c, "kind": Animal.LETTERS[ch]})
@@ -791,6 +809,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch == "E":
 		_build_lair_entrance(block)
 		return
+	if ch == "^":
+		_build_terrace(block)
+		return
 	var facing := _block_facing(block) if ch != "R" else Vector2i(0, 1)
 	var rot := atan2(float(facing.x), float(facing.y))
 	var turned := facing.x != 0
@@ -853,6 +874,38 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		_put("crate_long_A", front + side - Vector3(facing.x, 0, facing.y) * 1.0, rot, PROP_SCALE)
 		_put("crate_open", front - side - Vector3(facing.x, 0, facing.y) * 1.0, rot + 0.3, PROP_SCALE)
 	node.set_meta("block", block)
+
+
+## Weavers' Lane: the block is split into one narrow town house per tile
+## along its front, wall to wall, each with its own number, door and colours.
+## Every door leads into the hero homes' building floor (see Homes).
+func _build_terrace(block: Rect2i) -> void:
+	var facing := _block_facing(block)
+	var rot := atan2(float(facing.x), float(facing.y))
+	var across := Vector2i(absi(facing.y), absi(facing.x))
+	var count := block.size.x if across.x != 0 else block.size.y
+	var deep := block.size.y if across.x != 0 else block.size.x
+	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
+	# Numbered from west to east (or north to south).
+	var step := Vector3(across.x, 0, across.y) * TILE
+	var first := center - step * (count - 1) * 0.5
+	var out := Vector3(facing.x, 0, facing.y)
+	for i in count:
+		var number := i + 1
+		var at := first + step * i
+		var house := VillageHouse.build_narrow(Vector2(TILE, deep * TILE * 0.92), number, _rng, _house_glass())
+		house.position = at
+		house.rotation.y = rot
+		house.set_meta("block", block)
+		add_child(house)
+		town_houses.append(house)
+		var door := at + Vector3(float(house.get_meta("door_x")), 0, 0).rotated(Vector3.UP, rot) + out * deep * TILE * 0.5
+		doors["^" + str(number)] = door + out * 2.0
+		if interiors.has("^"):
+			stations.append({"kind": "eingang", "building": "^", "house": number, "reach": 1.6,
+					"name": Lang.t("das Haus Nr. %d") % number,
+					"cell": world_to_cell(door - out * 0.5), "pos": door, "used": false})
+	_add_solid(center, Vector3(block.size.x * TILE, 4, block.size.y * TILE) * Vector3(1.0 if across.x != 0 else 0.86, 1, 1.0 if across.y != 0 else 0.86))
 
 
 ## The way down into the dragon's lair: an old stone arch from Quaternius'
@@ -1185,10 +1238,17 @@ func _in_house(c: Vector2i) -> bool:
 
 ## A golden glow over the door of the hero's new house.
 func _show_house_marker() -> void:
-	if _door_cell.x < 0 or _marker != null:
+	if _marker != null:
+		return
+	var at := Vector3.INF
+	if own_house > 0 and doors.has("^" + str(own_house)):
+		at = doors["^" + str(own_house)] + Vector3(0, 0, -1.0)
+	elif _door_cell.x >= 0:
+		at = cell_to_world(_door_cell) + Vector3(0, 0, 1.0)
+	if at == Vector3.INF:
 		return
 	_marker = Node3D.new()
-	_marker.position = cell_to_world(_door_cell) + Vector3(0, 0, 1.0)
+	_marker.position = at
 	add_child(_marker)
 	var motes := Effects.make_sparkles(Color(1.0, 0.85, 0.4))
 	motes.position.y = 2.0
@@ -1491,13 +1551,21 @@ func beasts_alive() -> int:
 ## Bumping into a villager: they walk around, so their tile is not enough.
 ## A door is hit anywhere along the front of its building.
 func station_at(point: Vector3) -> Dictionary:
+	# Doors of the town houses stand close together: the nearest one counts.
+	var door := {}
+	var door_distance := INF
 	for s in stations:
 		if s.has("npc") and s.npc.at_home:
 			continue
 		if s.has("npc") and _flat_distance(point, s.pos) < 1.6:
 			return s
-		if s.kind == "eingang" and _flat_distance(point, s.pos) < 2.4:
-			return s
+		if s.kind == "eingang":
+			var d := _flat_distance(point, s.pos)
+			if d < s.get("reach", 2.4) and d < door_distance:
+				door = s
+				door_distance = d
+	if not door.is_empty():
+		return door
 	return super(point)
 
 
@@ -1574,8 +1642,16 @@ func _process(delta: float) -> void:
 	if not house_given and _elder and not _elder.at_home and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:
 		house_given = true
 		_elder.greet_newcomer(player)
+		if not town_houses.is_empty():
+			# The hero's home is a town house on Weavers' Lane.
+			own_house = Homes.house_for(hero, town_houses.size())
 		_show_house_marker()
-		notice.emit(Lang.t("Der Dorfvorsteher schenkt dir das leere Haus. Ein goldenes Licht zeigt dir die Tür."), 4.5)
+		if own_house > 0:
+			notice.emit(Lang.t("Der Dorfvorsteher schenkt dir Haus Nr. %d in der Weberzeile am Nordrand des Dorfes. Ein goldenes Licht zeigt dir die Tür.") % own_house, 5.0)
+		elif town_houses.is_empty():
+			notice.emit(Lang.t("Der Dorfvorsteher schenkt dir das leere Haus. Ein goldenes Licht zeigt dir die Tür."), 4.5)
+		else:
+			notice.emit(Lang.t("Der Dorfvorsteher seufzt: Jedes Haus in der Weberzeile ist bewohnt."), 4.5)
 
 
 ## The herald rings the news across the square, and everyone in the village

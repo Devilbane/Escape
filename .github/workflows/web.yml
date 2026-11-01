@@ -59,6 +59,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/offline_schedule.gd | tee offline.log
           grep -q PASS offline.log
 
+      - name: Crafting square test
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/crafting_square.gd | tee crafting_square.log
+          grep -q PASS crafting_square.log
+
       - name: Graveyard start after the escape test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/graveyard_start.gd | tee graveyard.log
@@ -169,10 +174,25 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/day_night.gd | tee daynight.log
           grep -q PASS daynight.log
 
+      - name: Weather test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/weather.gd | tee weather.log
+          grep -q PASS weather.log
+
       - name: Village houses and chapel test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/village_buildings.gd | tee village.log
           grep -q PASS village.log
+
+      - name: Recipes and ingredient pouch test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/crafting.gd | tee crafting.log
+          grep -q PASS crafting.log
+
+      - name: Fishing test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/fishing.gd | tee fishing.log
+          grep -q PASS fishing.log
 
       - name: Export the browser version
         run: |

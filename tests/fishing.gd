@@ -181,7 +181,10 @@ func _test() -> void:
 	fishing.take("barsch", player.global_position, game.level)
 	fishing.take("mondforelle", player.global_position, game.level)
 	check(game.crafting.have("barsch") == 1 and game.crafting.have("mondforelle") == 1, "fish go into the ingredient pouch")
-	check(game.crafting.pouch_text().contains("Mondforelle 1"), "the pouch lists the moon trout")
+	check(game.crafting.book_ingredients().has("mondforelle"), "the ingredient book lists the moon trout")
+	var trout: String = game.crafting.describe_ingredient("mondforelle")
+	check(trout.contains("1 dabei") and trout.contains("Ort: Wolfssenke") and trout.contains("Zeit: nur nachts"), "the book says where and when the moon trout bites")
+	check(trout.contains("Fundort entdeckt."), "catching the moon trout marks its place as found")
 	fishing.take("", player.global_position, game.level)
 	check(game.crafting.pouch.size() == 2, "weed is not kept")
 

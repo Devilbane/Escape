@@ -27,13 +27,13 @@ const INGREDIENTS := {
 		"where": "Knochenmagier im Verlies hüten ihn."},
 	# Fish, caught with the line (see Fishing). The perch bites everywhere;
 	# the other three are rare and bite in one water only.
-	"barsch": {"name": "Barsch",
+	"barsch": {"name": "Barsch", "region": "Dorf und Wolfssenke", "when": "", "source": "Angeln in den Teichen",
 		"where": "Beißt im Dorfteich und im Tümpel der Wolfssenke."},
-	"goldkarpfen": {"name": "Goldkarpfen", "rare": true,
+	"goldkarpfen": {"name": "Goldkarpfen", "rare": true, "region": "Dorf", "when": "", "source": "Angeln im Brunnen",
 		"where": "Ein seltener Fang im Brunnen auf dem Dorfplatz."},
-	"silberhecht": {"name": "Silberhecht", "rare": true,
+	"silberhecht": {"name": "Silberhecht", "rare": true, "region": "Dorf", "when": "in der Dämmerung", "source": "Angeln im Dorfteich",
 		"where": "Beißt im Dorfteich, aber nur in der Dämmerung."},
-	"mondforelle": {"name": "Mondforelle", "rare": true,
+	"mondforelle": {"name": "Mondforelle", "rare": true, "region": "Wolfssenke", "when": "nur nachts", "source": "Angeln im Tümpel",
 		"where": "Beißt im Tümpel der Wolfssenke, aber nur bei Nacht."},
 }
 ## The smith's iron bars in the ingredient book.

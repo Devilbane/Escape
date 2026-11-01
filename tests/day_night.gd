@@ -165,6 +165,8 @@ func _at_night() -> void:
 	game.level.set_hour(12.0)
 	var mira := _villager("6")
 	check(mira != null and mira.visible and not mira.at_home, "the shopkeeper is back by day")
+	# Back at her stall first: she woke up at the door she went in by.
+	mira.global_position = game.level.cell_to_world(mira.home)
 	game.level.set_hour(22.0)
 	check(mira.visible and mira._task == "walk", "at nightfall the shopkeeper walks home")
 	game.level.set_hour(23.0)

@@ -93,6 +93,13 @@ func _test() -> void:
 	game.refresh_quest_marks()
 	check(game.level.board_mark() == "!", "the board shows a ! while hunts are open")
 
+	# Standing at the board, the hint line says what running into it does.
+	game.state = game.State.PLAYING
+	game.player.global_position = board.pos + Vector3(0, 0, 1.6)
+	game._process(0.016)
+	check(game._prompt.text == Lang.t("Dagegenlaufen, um den Aushang zu lesen"), "the hint line names the board, not <null>: %s" % game._prompt.text)
+	check(Lang.EN.has("Dagegenlaufen, um den Aushang zu lesen"), "the board's hint has an English text")
+
 	# Reading the board opens its window and explains it once.
 	game._use_station(board)
 	check(game.menus.current == "aushang", "running into the board opens it")

@@ -966,6 +966,7 @@ const EN := {
 	"Schicke 5 Skelette zurück in ihre Gräber. Nachts steigen sie auf dem Friedhof aus der Erde.": "Send 5 skeletons back to their graves. At night they rise from the earth in the graveyard.",
 	"Am Aushang auf dem Dorfplatz hängen jeden Morgen neue Kopfgelder. Lauf gegen das Brett, nimm eine Jagd an, und hol dir das Kopfgeld dort ab, wenn sie erledigt ist. Was bis zum nächsten Morgen nicht erledigt ist, verfällt.": "Every morning new bounties are pinned to the board on the village square. Walk into the board, take on a hunt, and collect the bounty there once it is done. Whatever is not done by the next morning expires.",
 	"Aushang: Kopfgelder": "Bounty board",
+	"Dagegenlaufen, um den Aushang zu lesen": "Run into the board to read the bounties",
 	"Tag %d. Neue Aushänge gibt es jeden Morgen; was bis dahin nicht erledigt ist, verfällt.": "Day %d. New notices go up every morning; whatever is not done by then expires.",
 	"Abgeholt": "Collected",
 	"Kopfgeld abholen\n+%d Gold": "Collect bounty\n+%d gold",

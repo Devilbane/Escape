@@ -76,6 +76,12 @@ const ROLES := {
 	"S": {"name": "Steinmetz Hagen", "model": "Barbarian", "show": ["1H_Axe"],
 		"colors": [Color(0.6, 0.58, 0.55), Color(0.4, 0.38, 0.36), Color(0.7, 0.68, 0.64)], "plan": "shop", "work": "1H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Steinblöcke, sauber behauen! Bau dir, was du willst.", "Eine Mauer hält länger als jeder Zaun.", "Stapel sie versetzt, dann hält die Mauer besser."]},
+	# Not one of the village's own: the wandering merchant who comes on
+	# certain nights only (see Wanderer). He is put up by Outdoor himself,
+	# never from the map.
+	"%": {"name": "Wanderhändler Zarek", "model": "Mage", "show": ["Mage_Hat", "Mage_Cape"],
+		"colors": [Color(0.3, 0.22, 0.42), Color(0.22, 0.2, 0.26), Color(0.16, 0.2, 0.42)], "plan": "stay", "work": "Interact",
+		"lines": ["Psst! Waren aus fernen Ländern, nur heute Nacht!", "Wenn der Morgen graut, bin ich schon wieder auf der Straße.", "Mondsilber, Glimmermoos, Pilze aus fernen Wäldern: Zutaten für jedes Rezept!", "Jede dritte Nacht komme ich vorbei. Halt die Augen offen."]},
 }
 
 ## What the herald calls out on the square, one after another.
@@ -86,13 +92,15 @@ const NEWS := [
 	"Hört, hört! Briefe aus der Hauptstadt liegen auf der Post bereit.",
 	"Hört, hört! Die Bank der Krone verwahrt euer Gold sicher.",
 	"Hört, hört! Heute Abend gibt es Segen im Tempel für alle!",
+	"Hört, hört! Jede dritte Nacht kommt der Wanderhändler Zarek mit seinem Karren ins Dorf!",
 ]
 ## How long the village listens to the herald (seconds).
 const LISTEN_TIME := 13.0
 ## Who stays up at night: the guard keeps watch, the drinker stays at the
-## tavern and the temple is open day and night. Everyone else goes home to
-## sleep at nightfall (see Outdoor.set_hour) and comes out in the morning.
-const NIGHT_OWLS := ["4", "5", "O"]
+## tavern, the temple is open day and night and the wandering merchant only
+## comes at night. Everyone else goes home to sleep at nightfall (see
+## Outdoor.set_hour) and comes out in the morning.
+const NIGHT_OWLS := ["4", "5", "O", "%"]
 
 var level: Outdoor
 var role := "7"

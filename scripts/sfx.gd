@@ -32,15 +32,14 @@ static func load_settings() -> void:
 	_apply_volume()
 
 
-## The bus the effects play through, made on first use.
+## The bus the effects play through. It is part of the bus layout in
+## res://default_bus_layout.tres and must not be added at runtime: in the
+## browser build (Godot 4.5), AudioServer.add_bus() puts the new bus in
+## front of Master on the web audio side, the two buses end up sending to
+## each other, and the browser silences that loop, so the whole game falls
+## quiet. Returns -1 if the bus is missing; players then fall back to Master.
 static func bus_index() -> int:
-	var i := AudioServer.get_bus_index(BUS)
-	if i < 0:
-		AudioServer.add_bus()
-		i = AudioServer.bus_count - 1
-		AudioServer.set_bus_name(i, BUS)
-		AudioServer.set_bus_send(i, "Master")
-	return i
+	return AudioServer.get_bus_index(BUS)
 
 
 static func set_volume(value: float) -> void:
@@ -54,6 +53,8 @@ static func set_volume(value: float) -> void:
 
 static func _apply_volume() -> void:
 	var i := bus_index()
+	if i < 0:
+		return
 	AudioServer.set_bus_volume_db(i, linear_to_db(maxf(volume, 0.0001)))
 	AudioServer.set_bus_mute(i, volume < 0.01)
 
@@ -131,7 +132,6 @@ static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null, pi
 	var p := AudioStreamPlayer.new()
 	p.stream = _stream(sound)
 	p.bus = BUS
-	bus_index()
 	p.volume_db = volume_db
 	p.pitch_scale = pitch + randf_range(-PITCH_SPREAD, PITCH_SPREAD)
 	p.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -195,7 +195,6 @@ static func start_loop(owner_node: Node, sound: String) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()
 	p.stream = stream
 	p.bus = BUS
-	bus_index()
 	p.volume_db = -80.0
 	p.process_mode = Node.PROCESS_MODE_ALWAYS
 	owner_node.add_child(p)
@@ -209,7 +208,6 @@ static func start_ambience(owner_node: Node) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()
 	p.stream = stream
 	p.bus = BUS
-	bus_index()
 	p.volume_db = -8.0
 	p.process_mode = Node.PROCESS_MODE_ALWAYS
 	owner_node.add_child(p)

@@ -36,6 +36,7 @@ var _effects_slider: HSlider
 ## clickable buttons, its handle, and how far it is pulled out (0 to 1).
 var _drawer: HBoxContainer
 var _drawer_handle: Button
+var _drawer_arrow: MenuArrow
 var _drawer_open := false
 var _drawer_t := 0.0
 var _drawer_tween: Tween
@@ -81,6 +82,9 @@ var met := {}
 var quests := Quests.new(self)
 ## How many mornings have dawned in the world above ground since the game
 ## began. The bounty board pins up fresh hunts each morning (see Bounties).
+## The day turns at dawn, so the night after day d's evening, past midnight
+## too, still counts as day d: that is when the wandering merchant comes
+## (see Wanderer).
 var day := 0
 ## The hunts on the bounty board: posted, taken on and paid (see Bounties).
 ## Kept in the saved game.
@@ -129,7 +133,7 @@ var secrets_found := 0
 ## Levels left in a row without finding their secret room.
 var dry_levels := 0
 ## Lives the hero gets back for climbing to the next level.
-const STAIRS_HEAL := 5
+const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
 ## yet gets one for sure, and never more than this many levels pass without.
 const FIRST_SURE_SECRET := 2
@@ -177,6 +181,10 @@ var menus: Menus
 ## Items left in the safe room's storage chest, and what the merchant sells.
 var storage: Array[String] = []
 var shop_stock: Array[String] = []
+## What the wandering merchant still has left, and the night he brought it
+## for (-1: not rolled yet). A new visit brings new wares (see Wanderer).
+var wanderer_stock: Array[String] = []
+var wanderer_night := -1
 var _title_buttons: Control
 var _name_note: Label
 ## The hero's name, asked for when a new game starts; it goes into the ranking.
@@ -315,6 +323,11 @@ func _setup_world() -> void:
 	camera = Camera3D.new()
 	camera.fov = 38.0
 	camera.far = 200.0
+	# The camera never comes nearer than a few metres to anything it shows,
+	# so a near plane well off the lens leaves the depth buffer its precision
+	# out at the houses and walls (with the default 0.05 faces a few
+	# millimetres apart flickered through each other in the distance).
+	camera.near = 0.5
 	camera.rotation_degrees = Vector3(-CAMERA_PITCH, 0, 0)
 	add_child(camera)
 
@@ -409,6 +422,10 @@ func _setup_drawer() -> void:
 		box.corner_radius_top_right = 0
 		box.corner_radius_bottom_right = 0
 		_drawer_handle.add_theme_stylebox_override(style, box)
+	_drawer_arrow = MenuArrow.new()
+	_drawer_arrow.color = GOLD
+	_drawer_handle.add_child(_drawer_arrow)
+	_drawer_handle.resized.connect(_place_drawer_arrow)
 	_drawer.add_child(_drawer_handle)
 
 	var panel := PanelContainer.new()
@@ -499,7 +516,17 @@ func _place_drawer(t: float) -> void:
 
 
 func _update_drawer_handle() -> void:
-	_drawer_handle.text = (">\n" if _drawer_open else "<\n") + Lang.t("Menü")
+	_drawer_handle.text = "\n" + Lang.t("Menü")
+	_drawer_arrow.pointing_left = not _drawer_open
+
+
+## Centres the arrow over the empty first line of the handle's text.
+func _place_drawer_arrow() -> void:
+	var font := _drawer_handle.get_theme_font("font")
+	var line := font.get_height(_drawer_handle.get_theme_font_size("font_size"))
+	var box := _drawer_arrow.custom_minimum_size
+	_drawer_arrow.size = box
+	_drawer_arrow.position = Vector2((_drawer_handle.size.x - box.x) / 2.0, (_drawer_handle.size.y - line) / 2.0 - box.y / 2.0)
 
 
 func _setup_hud() -> void:
@@ -1163,6 +1190,8 @@ func _update_hud() -> void:
 		gifts.append(Lang.t("Vergiftet"))
 	if player.ailments.has("fluch"):
 		gifts.append(Lang.t("Verflucht"))
+	if player.ailments.has("brand"):
+		gifts.append(Lang.t("Brennt"))
 	_gift_label.text = "   ".join(gifts)
 	_coin_label.text = Lang.t("Gold: %d") % coins
 	_knife_label.text = Lang.t("Messer: %d") % player.knives
@@ -1201,6 +1230,7 @@ func _tick_clock(delta: float) -> void:
 		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0)
 		Weather.apply(_env, _moon, _weather_look, flicker)
 		if level is Outdoor:
+			level.day = day
 			level.set_hour(day_hour)
 			level.set_weather(weather)
 	if _clock_text() != _clock_shown:
@@ -1333,6 +1363,7 @@ func load_level(index: int, restock := true) -> void:
 	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
 	level.lair_won.connect(_on_lair_won)
+	level.dragon_awakened.connect(_on_dragon_awakened)
 	level.lair_exit_taken.connect(leave_lair)
 	level.stairs_taken.connect(_take_stairs)
 	if horrors:
@@ -1348,6 +1379,7 @@ func load_level(index: int, restock := true) -> void:
 	_end_drag()
 	_set_atmosphere(level.outdoor)
 	if level is Outdoor:
+		level.day = day
 		level.set_hour(day_hour)
 		level.set_weather(weather)
 	_pending_search = {}
@@ -1356,12 +1388,12 @@ func load_level(index: int, restock := true) -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
 		shop_stock.clear()
-		# Always at least one weapon, body armour, ring and amulet,
-		# then the usual random wares on top.
-		for slot in ["waffe", "ruestung", "ring", "amulett"]:
-			shop_stock.append(Items.random_item(rng, 0, slot))
+		# Always at least one weapon, shield, body armour and ring, then
+		# the usual random wares on top: only plain gear (Items.merchant_sells).
+		for slot in ["waffe", "schild", "ruestung", "ring"]:
+			shop_stock.append(Items.random_ware(rng, slot))
 		for i in 4:
-			shop_stock.append(Items.random_item(rng))
+			shop_stock.append(Items.random_ware(rng))
 	_snap_camera()
 	_update_hud()
 
@@ -1537,6 +1569,8 @@ func _start_new_game() -> void:
 	reputation.clear()
 	storage.clear()
 	shop_stock.clear()
+	wanderer_stock.clear()
+	wanderer_night = -1
 	away_plan = Offline.empty_plan()
 	day_hour = DayNight.START_HOUR
 	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
@@ -1844,6 +1878,13 @@ func _apply_save(data: Dictionary) -> void:
 	player.refresh_stats()
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
+	wanderer_night = int(data.get("wanderer_night", -1))
+	wanderer_stock.clear()
+	var wares = data.get("wanderer", [])
+	if wares is Array:
+		for id in wares:
+			if Items.ALL.has(str(id)) or Wanderer.is_ingredient(str(id)):
+				wanderer_stock.append(str(id))
 	# Games saved before there was weather wake up to clear skies.
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
@@ -1959,6 +2000,7 @@ func save_game(going_away := false) -> bool:
 		"reputation": reputation.for_save(),
 		"fox": {"trust": fox_trust, "tame": has_fox},
 		"hour": day_hour,
+		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
 		"weather": weather, "weather_hours": weather_hours,
 	}
 	if going_away:
@@ -2353,6 +2395,15 @@ func update_after_quest() -> void:
 
 
 ## Remembers an explanation for the compendium, once.
+## The wandering merchant's wares for tonight: a new visit brings new ones,
+## and what was bought stays gone until then.
+func wanderer_wares() -> Array[String]:
+	if day != wanderer_night:
+		wanderer_night = day
+		wanderer_stock = Wanderer.stock_for(day, hero_name)
+	return wanderer_stock
+
+
 func learn(entry: String) -> void:
 	if not lore.has(entry):
 		lore.append(entry)
@@ -2449,13 +2500,21 @@ func _gold(amount: int) -> int:
 	return amount * 2 if player.has_special("gluecksklee") else amount
 
 
+## The vampire tooth gives back 1 life for every VAMPIRE_KILLS enemies slain.
+const VAMPIRE_KILLS := 3
+var _vampire_kills := 0
+
+
 func _on_enemy_killed(enemy: Enemy) -> void:
 	show_message(enemy.fall_text(), 2.5)
 	var drop := quests.on_kill(enemy.kind)
 	bounties.on_kill(enemy.kind)
 	if drop != "":
 		level._drop_item(drop, enemy.global_position + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
-	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:
+	if player.has_special("vampirzahn"):
+		_vampire_kills = mini(_vampire_kills + 1, VAMPIRE_KILLS)
+	if player.has_special("vampirzahn") and _vampire_kills >= VAMPIRE_KILLS and player.hp < player.max_hp and not player.dead:
+		_vampire_kills = 0
 		player.hp += 1
 		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+1", Color(0.5, 1.0, 0.5))
 		_update_hud()
@@ -2479,6 +2538,19 @@ func _on_lair_won() -> void:
 			show_message(Lang.t("Höhle bezwungen! Der Drache ist tot."), 4.0)
 			return
 		menus.open("hoehle"))
+
+
+## The dragon wakes: the lair shakes, its name in gold, and a word on how
+## to fight it. Its health bar shows at the top (see BossBar).
+func _on_dragon_awakened(dragon: Dragon) -> void:
+	_shake = 1.4
+	learn(DRAGON_LEARN)
+	show_message(Lang.t("%s erwacht!") % Lang.t(dragon.boss_title()) + "\n" + Lang.t(DRAGON_LEARN), 5.0)
+	_message.add_theme_color_override("font_color", GOLD)
+	get_tree().create_timer(5.6).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
+
+
+const DRAGON_LEARN := "Rote Ringe am Boden zeigen, wo sein Feuer fällt: geh beiseite oder spring darüber. Nach dem Feueratem schnauft er, dann trifft deine Klinge doppelt."
 
 
 ## Out of the lair at once, through the glowing way out the fallen dragon
@@ -3040,10 +3112,12 @@ func _process(delta: float) -> void:
 			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
 			"eingang": Lang.t("Dagegenlaufen, um in das dunkle Loch hinabzusteigen") if String(station.get("building", "")).begins_with("loch") else Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
+			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
 			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
-		}[station.kind]
+			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
+		}.get(station.kind, "")
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")
 	elif _prompt.text == "" and _drag_stone != null:

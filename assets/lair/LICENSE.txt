@@ -1,0 +1,14 @@
+The dragon's lair (the stone arch in the woods and the dungeon below it)
+
+Bat.fbx, Slime.fbx, Dragon.fbx
+    "Bat", "Slime" and "Dragon" from the "Animated Monster Pack"
+    (Bat, Dragon, Skeleton, Slime) by Quaternius
+Arch.fbx, Arch_Door.fbx, Stairs_Modular.fbx, Column2.fbx, Cobweb.fbx,
+Cobweb2.fbx, Skull.fbx, Banner.fbx, Coin_Pile.fbx, Statue_Horse.fbx
+    from the "Modular Dungeon" kit (updated May 2019) by Quaternius
+
+https://quaternius.com
+License: Creative Commons Zero (CC0 1.0), public domain.
+http://creativecommons.org/publicdomain/zero/1.0/
+
+The FBX files are used as they come; only the pieces the game uses were copied.

@@ -39,6 +39,8 @@ extends Level
 ##   same way: W wolf, H orc, J yeti, U spider.
 ##   Peaceful animals that graze in the woods and bolt from the hero
 ##   (see Animal): D doe, V stag, & fox.
+##   E  the way down into the dragon's lair: a stone arch over stairs into
+##      the dark (a block of tiles, see Level "lair: yes")
 ##   v  a stone pedestal with a food basket on top, too high to reach from
 ##      the ground or from one crate: stack two crates beside it. Three
 ##      wooden crates lie close by (see Crate).
@@ -58,7 +60,7 @@ const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
-const BLOCK_CHARS := "Rhjnmuskowb"
+const BLOCK_CHARS := "RhjnmuskowbE"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
 	"m": "building_market_green", "u": "building_windmill_red",
@@ -68,6 +70,7 @@ const BLOCK_MODELS := {
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
 	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
+	"E": "die Drachenhöhle",
 }
 ## The herald calls out news this often (seconds, picked at random between the
 ## two bounds each time); the first call comes sooner.
@@ -313,6 +316,8 @@ func _bounds_of(ch: String) -> Rect2i:
 # --- Models -------------------------------------------------------------------
 
 func _model_path(name: String) -> String:
+	if name.begins_with("lair/"):
+		return Level.LAIR_DIR + name.substr(5) + ".fbx"
 	var path := GRAVEYARD_DIR + name + ".gltf"
 	return path if ResourceLoader.exists(path) else VILLAGE_DIR + name + ".gltf"
 
@@ -745,6 +750,9 @@ func _build_blocks() -> void:
 
 
 func _build_block(ch: String, block: Rect2i) -> void:
+	if ch == "E":
+		_build_lair_entrance(block)
+		return
 	var facing := _block_facing(block) if ch != "R" else Vector2i(0, 1)
 	var rot := atan2(float(facing.x), float(facing.y))
 	var turned := facing.x != 0
@@ -807,6 +815,50 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		_put("crate_long_A", front + side - Vector3(facing.x, 0, facing.y) * 1.0, rot, PROP_SCALE)
 		_put("crate_open", front - side - Vector3(facing.x, 0, facing.y) * 1.0, rot + 0.3, PROP_SCALE)
 	node.set_meta("block", block)
+
+
+## The way down into the dragon's lair: an old stone arch from Quaternius'
+## dungeon kit with its door hanging open, a black hole and stairs going down
+## behind it, columns either side, skulls in the grass and a red glow from
+## below. Run into the arch to go down.
+func _build_lair_entrance(block: Rect2i) -> void:
+	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
+	var depth := block.size.y * TILE * 0.5
+	var front := center + Vector3(0, 0, depth - 0.6)
+	var arch := _put("lair/Arch", front, 0.0, 1.0)
+	# The door swung open against the arch's side.
+	_put("lair/Arch_Door", front + Vector3(-1.2, 0, 0.2), -PI * 0.55, 1.0)
+	# Darkness in the opening, and the top steps sinking into it.
+	var hole := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(3.0, 3.3)
+	hole.mesh = quad
+	var black := StandardMaterial3D.new()
+	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	black.albedo_color = Color(0.02, 0.01, 0.015)
+	hole.material_override = black
+	hole.position = front + Vector3(0, 1.65, -0.35)
+	add_child(hole)
+	for i in 2:
+		_put("lair/Stairs_Modular", front + Vector3(0, -0.55 - i * 0.9, 0.55 - i * 0.9), PI, 1.3)
+	for side in [-1.0, 1.0]:
+		_put("lair/Column2", front + Vector3(side * 2.9, 0, -0.1), 0.0, 0.9)
+		_put("lair/Skull", front + Vector3(side * 2.2 + _rng.randf_range(-0.4, 0.4), 0, 1.6 + _rng.randf_range(0.0, 0.8)), _rng.randf() * TAU, 0.8)
+	# A heap of rubble and earth over the vault behind the arch.
+	_put("rock_single_A", center + Vector3(-2.2, 0, -1.0), 0.6, 3.0)
+	_put("rock_single_C", center + Vector3(2.4, 0, -1.4), 2.2, 3.0)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.35, 0.15)
+	glow.light_energy = 1.8
+	glow.omni_range = 7.0
+	glow.position = front + Vector3(0, 1.2, -0.8)
+	add_child(glow)
+	_add_solid(center, Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86))
+	arch.set_meta("block", block)
+	doors["E"] = front + Vector3(0, 0, 2.0)
+	if interiors.has("E"):
+		stations.append({"kind": "eingang", "building": "E", "name": BUILDING_NAMES.E,
+				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.6), "used": false})
 
 
 ## The temple is a small stone chapel put together from the pieces of the

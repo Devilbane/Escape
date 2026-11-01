@@ -106,9 +106,9 @@ The eye follows lines and alignments. Elements on one line are read as a sequenc
 
 - Align edges. Columns of rows, cards and buttons share a left edge (or a centre line when the
   window is centred). A card that starts 3 px lower than its neighbour looks like a mistake.
-- Where something sits above one column but not the other (the "Better" badge above the detail
-  card), put an equal spacer above the other column so the cards still start on one line, as
-  `TradeWindow.build` does.
+- Where something sits above one column but not the other (a badge above one card), put an equal
+  spacer above the other column so the cards still start on one line, or move the extra element
+  inside its card.
 - Reading order is left to right, top to bottom. Put the thing to look at first top left (or top
   centre in a centred window), and the final action (Buy, Close) at the end of that path.
 
@@ -312,8 +312,8 @@ and the feeling that the game is unstable.
    folded section stay exactly where they were; the header that was clicked stays under the pointer.
 3. **Reserve space for things that come and go.** A badge, an error note, a hint line or a details
    card that can appear gets its space reserved from the start (e.g. the info line under the
-   inventory has `custom_minimum_size.y = 26`; the badge row above the trade cards is 26 px even when
-   empty). Show placeholder text ("Point at an item to see its values") instead of collapsing to zero.
+   inventory has `custom_minimum_size.y = 26`; the trade window reserves a line for the purchase
+   note). Show placeholder text ("Point at an item to see its values") instead of collapsing to zero.
 4. **Picking must not reflow the list.** Selecting a row should open the details in space that was
    already there (a side panel reserved from the start, or an overlay), not change the number of
    columns of the list the pointer is in.
@@ -667,6 +667,9 @@ Copy this into the pull request description for UI work and tick what applies.
 
 An honest list of where the game today does not yet meet this guide, so they are not copied into
 new work and can be fixed over time. Fix them when touching that code, in their own commit.
+
+Items 1 and 2 are fixed by PR #143 (fixed two-column frame, cards always in place); remove them
+from this list once it is merged, and do not fix them again.
 
 1. **Trade window list height follows its content.** `TradeWindow.build` sets the scroll height to
    `minf(height, LIST_HEIGHT)`, so folding categories shrinks the window and unfolding grows it.

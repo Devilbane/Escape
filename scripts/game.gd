@@ -2766,6 +2766,8 @@ func _on_exit_reached() -> void:
 		out.tween_property(player, "global_position", level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.6), 0.5)
 		out.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.5)
 		out.tween_callback(_next_level)
+		if is_instance_valid(pet):
+			pet.climb([level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.3)], 0.5, 0.1)
 		return
 	player.face(Vector3.FORWARD)
 	player.play("Walking_A")
@@ -2782,6 +2784,15 @@ func _on_exit_reached() -> void:
 		# Each stair gets a footstep, just like walking.
 		tween.parallel().tween_callback(func(): Sfx.play(player, "step_%d" % (randi() % 6), -14.0))
 	tween.tween_callback(_next_level)
+	# The fox comes up the stairs right behind the hero.
+	if is_instance_valid(pet):
+		var steps: Array = [foot + Vector3(0, 0, 0.1)]
+		for k in range(1, 9):
+			steps.append(foot + Vector3(0, 0.5 * k, -0.5 * k + 0.25))
+		# Quick on its feet: it gains on the hero, so it is well up the
+		# stairs before the next level.
+		var dash := clampf(Pet._flat(steps[0] - pet.global_position).length() / Pet.RUN_SPEED, 0.15, 0.6)
+		pet.climb(steps, STEP_TIME * 0.75, 0.2, false, dash)
 	# Darken while the hero climbs the upper half of the stairs.
 	create_tween().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), STEP_TIME * 5.5) \
 			.set_delay(0.15 + STEP_TIME * 3)
@@ -2838,6 +2849,11 @@ func _step_out_of_crypt() -> void:
 	var tween := create_tween()
 	tween.tween_property(_fade, "color:a", 0.0, 1.2)
 	tween.parallel().tween_property(player, "global_position", start, 1.6)
+	if is_instance_valid(pet):
+		# Out of the crypt door behind the hero.
+		pet.global_position = start + Vector3(0, 0, -3.2)
+		pet._placed = true
+		pet.climb([start + Vector3(0.8, 0, -1.4)], 0.0, 0.5, true, 1.3)
 	tween.tween_callback(func():
 		player.frozen = false
 		player.play("Idle")
@@ -2880,6 +2896,9 @@ func go_inside(building: String, house := 0) -> void:
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
+	if is_instance_valid(pet):
+		# Through the door at the hero's heels.
+		pet.climb([player.global_position], 0.0, 0.0)
 	var tween := create_tween()
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.5)
 	tween.tween_callback(func():
@@ -2926,6 +2945,9 @@ func _take_stairs(to: Vector3, up: bool, storey: int) -> void:
 	player.path.clear()
 	player.face(Vector3.FORWARD if up else Vector3.BACK)
 	player.play("Walking_A")
+	if is_instance_valid(pet):
+		# Onto the stairs behind the hero.
+		pet.climb([player.global_position, player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4)], 0.35, 0.1)
 	var tween := create_tween()
 	tween.tween_property(player, "global_position", player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4), 0.45)
 	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
@@ -2935,6 +2957,8 @@ func _take_stairs(to: Vector3, up: bool, storey: int) -> void:
 		player.velocity = Vector3.ZERO
 		player.face(Vector3.BACK)
 		player.play("Idle")
+		if is_instance_valid(pet):
+			pet.arrive()
 		_snap_camera()
 		player.frozen = false
 		state = State.PLAYING

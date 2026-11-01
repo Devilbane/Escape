@@ -72,7 +72,9 @@ from the graveyard. They are shy, but they love **sausages**.
 Mira the shopkeeper always has some (2 gold each); when you buy one she tells you where the foxes
 live, and the hint stays in the compendium (key H). Carry a sausage and a fox no longer bolts: it
 comes up to you, curious, and eats it from your hand. After three sausages it trusts you and follows
-you everywhere, in the village and down in the dungeon. You only ever have one fox, and it stays
+you everywhere, in the village and down in the dungeon. It does not cling to your heels: while you stay close it
+lounges about, sits, lies down when you rest, strolls around, trots in a circle round you and noses at
+barrels and benches nearby. Walk off and it gets up and follows; it climbs the stairs right behind you. You only ever have one fox, and it stays
 yours in your saved game. It never fights and cannot be hurt.
 Its nose is what makes it useful: **ingredients** lie hidden in the ground that you cannot see
 (wild garlic, porcini and rare truffles in the open air; cave mushrooms and glowmoss in the

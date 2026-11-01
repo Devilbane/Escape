@@ -7,7 +7,7 @@ extends Level
 ##
 ## Map legend (one character per 4x4 m tile):
 ##   #  forest (trees, cannot be crossed)    .  grass         ,  dirt path
-##   P  start, in front of the crypt door    ~  pond
+##   P  start, in front of the crypt door    ~  pond (fish bite here, see Fishing)
 ##   R  the crypt (a block of tiles)         g  grave         d  dead tree
 ##   z  graveyard fence                      a  gate in the fence
 ##   l  lantern on a post                    p  pumpkins      r  rock
@@ -35,11 +35,19 @@ extends Level
 ##   windows of the houses glow at night, most villagers go home to sleep,
 ##   the dead rise from the graves and roam the graveyard until dawn, and
 ##   the bandits of the pass are bolder in the dark.
+##   The world has weather too (see Weather): rain brings slimes out of the
+##   pond, fog sends fog wraiths drifting among the dead trees (d) and hides
+##   a sneaking hero, and in a thunderstorm bats swarm around the rocks (r)
+##   while lightning leaves glowing thunder ore beside them.
 ##   The wolf hollow north of the pass, where beasts roam and come back the
-##   same way: W wolf, H orc, J yeti, U spider.
+##   same way: W wolf, H orc, J yeti, U spider.   %  the hollow's pond,
+##   where the moon trout bites at night (see Fishing).
 ##   Peaceful animals that graze in the woods and bolt from the hero
 ##   (see Animal): D doe, V stag, & fox.
 ##   !  the bounty board: fresh hunts every morning (see Bounties)
+##   The crafting square on the west side of the market square, beside
+##   Gorm's forge (see CraftingSquare): +  fine metalwork bench
+##   %  gem cutter's wheel   *  alchemist's table   $  the hero's storage chest
 ##   E  the way down into the dragon's lair: a stone arch over stairs into
 ##      the dark (a block of tiles, see Level "lair: yes")
 ##   v  a stone pedestal with a food basket on top, too high to reach from
@@ -53,6 +61,9 @@ signal notice(text: String, duration: float)
 signal home_claimed
 ## The hero has reached the food basket on the pedestal and eats.
 signal food_basket(heal: int)
+## Lightning strikes at a spot in a thunderstorm (see Weather): the sky
+## flashes and thunder rolls.
+signal lightning(pos: Vector3)
 
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
@@ -235,6 +246,33 @@ const NIGHT_DEAD_FAR := 14.0
 const NIGHT_RESPAWN_FACTOR := 0.5
 var _graves: Array[Vector2i] = []
 var _risen: Array = []
+## The weather the world was last set to (see Weather and set_weather).
+var weather := ""
+## What comes out in which weather, how many at most, the map letter they
+## gather around, how long until a fallen one is replaced, and how far from
+## the hero they appear (never within sight).
+const WEATHER_FOES := {
+	Weather.RAIN: {"kind": "schleim", "count": 4, "near": "~"},
+	Weather.FOG: {"kind": "fog_wraith", "count": 6, "near": "d"},
+	Weather.STORM: {"kind": "fledermaus", "count": 5, "near": "r"},
+}
+const WEATHER_RESPAWN := 80.0
+const WEATHER_FAR := 14.0
+## In a thunderstorm lightning strikes every so often (seconds, picked at
+## random between the two bounds), and a strike on a rock leaves thunder
+## ore beside it this often, as long as fewer than MAX_ORE lumps lie about.
+const STRIKE_EVERY_MIN := 6.0
+const STRIKE_EVERY_MAX := 15.0
+const ORE_CHANCE := 0.6
+const MAX_ORE := 3
+const ORE := "donnererz"
+## The hero is told where the ore came from when a strike is this close.
+const ORE_NOTICE_RANGE := 36.0
+## The weather's creatures on their spots: cell, kind, the creature (or
+## null while it is gone) and the seconds until the next one comes.
+var _weather_foes: Array = []
+var _strike_timer := 0.0
+var _rock_cells: Array[Vector2i] = []
 
 
 func build() -> void:
@@ -257,6 +295,10 @@ func build() -> void:
 	_spawn_villagers()
 	_spawn_wild()
 	_spawn_animals()
+	for y in height:
+		for x in width:
+			if cell_char(Vector2i(x, y)) == "r":
+				_rock_cells.append(Vector2i(x, y))
 
 
 # --- Ground -------------------------------------------------------------------
@@ -277,7 +319,7 @@ func _build_ground() -> void:
 			if square.has_point(c) and not BLOCK_CHARS.contains(ch):
 				path = 1.0
 				soil = 1.0
-			var wet := 1.0 if ch == "~" else 0.0
+			var wet := 1.0 if "~%".contains(ch) else 0.0
 			var open := 0.0 if ch == "#" else 1.0
 			mask.set_pixel(x, y, Color(path, soil, wet, open))
 	# A smoother mask gives softer edges between the tiles.
@@ -459,8 +501,10 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_fence(c, false)
 		"a":
 			_build_fence(c, true)
-		"~":
+		"~", "%":
 			_add_solid(pos, Vector3(TILE, 1, TILE))
+			fishing_waters.append({"water": "teich" if ch == "~" else "senke", "pos": pos,
+					"reach": TILE * 0.5, "round": false, "surface": 0.04})
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.
 			for row in 2:
@@ -490,7 +534,9 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			loot_rng.seed = hash("%s:hoard:%d:%d" % [level_name, c.x, c.y])
 			interactables[-1].loot = {"gold": 20, "item": Items.random_item(loot_rng, 20)}
 		_:
-			if Enemy.WILD_LETTERS.has(ch):
+			if CraftingSquare.LETTERS.contains(ch):
+				CraftingSquare.build(self, c, ch)
+			elif Enemy.WILD_LETTERS.has(ch):
 				_wild.append({"cell": c, "kind": Enemy.WILD_LETTERS[ch], "enemy": null, "timer": 0.0, "wave": 0})
 			elif Animal.LETTERS.has(ch):
 				_animal_spots.append({"cell": c, "kind": Animal.LETTERS[ch]})
@@ -1564,11 +1610,11 @@ func _setup_astar() -> void:
 				astar.set_point_weight_scale(c, 1.6)
 
 
-## By day everything is lit. At night only the lanterns and the campfire
-## show the hero to the eyes of enemies: a sneaking hero in the dark stays
-## unseen.
+## By day everything is lit. At night, and in fog, only the lanterns and
+## the campfire show the hero to the eyes of enemies: a sneaking hero in the
+## dark or the fog stays unseen.
 func is_lit(pos: Vector3) -> bool:
-	if not night:
+	if not night and weather != Weather.FOG:
 		return true
 	for lamp in _lamps:
 		if _flat_distance(pos, lamp.global_position) < LAMP_REACH:
@@ -1609,6 +1655,7 @@ func _process(delta: float) -> void:
 			_marker = null
 	_mind_the_wild(delta)
 	_mind_the_night(delta)
+	_mind_the_weather(delta)
 	_check_basket(delta)
 	_herald_timer -= delta
 	if _herald and _herald_timer <= 0.0 and not night:
@@ -1747,3 +1794,187 @@ func risen_alive() -> int:
 		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
 			n += 1
 	return n
+
+
+# --- Weather ------------------------------------------------------------------
+
+## Sets the weather (see Weather). When it changes, the creatures of the old
+## weather go back where they came from (as soon as they are off the hunt),
+## thunder ore left from a storm fades, and the new weather's creatures get
+## their spots. The first call after the world is built settles everything
+## without a word.
+func set_weather(kind: String) -> void:
+	if kind == weather:
+		return
+	var first := weather == ""
+	var was := weather
+	weather = kind
+	for s in _weather_foes:
+		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
+			s.enemy.sink_at_dawn()
+	_weather_foes.clear()
+	if kind != Weather.STORM:
+		_fade_ore()
+	if WEATHER_FOES.has(kind):
+		_place_weather_foes(WEATHER_FOES[kind])
+	_strike_timer = randf_range(2.0, STRIKE_EVERY_MIN)
+	if first:
+		return
+	if kind == Weather.RAIN:
+		notice.emit(Lang.t("Es fängt an zu regnen. Am Teich im Wald kriechen Schleime aus dem Wasser."), 4.5)
+	elif kind == Weather.FOG:
+		notice.emit(Lang.t("Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, und wer schleicht, bleibt ungesehen."), 4.5)
+	elif kind == Weather.STORM:
+		notice.emit(Lang.t("Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, und wo der Blitz einschlägt, glimmt Donnererz."), 5.0)
+	else:
+		notice.emit(Lang.t("Das Gewitter zieht ab. Liegengebliebenes Donnererz verglimmt.") if was == Weather.STORM
+				else Lang.t("Der Himmel klart auf."), 4.0)
+
+
+## Spots for the creatures of a weather: open ground right next to the map
+## letter they gather around, spread out so they do not come in a heap.
+func _place_weather_foes(foes: Dictionary) -> void:
+	var near: String = foes.near
+	var cells: Array[Vector2i] = []
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if not is_open(c) or cells.has(c):
+				continue
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					if cell_char(c + Vector2i(dx, dy)) == near and not cells.has(c):
+						cells.append(c)
+	cells.shuffle()
+	var picked: Array[Vector2i] = []
+	for c in cells:
+		if picked.size() >= int(foes.count):
+			break
+		if picked.any(func(p: Vector2i) -> bool: return maxi(absi(p.x - c.x), absi(p.y - c.y)) < 2):
+			continue
+		picked.append(c)
+	for c in picked:
+		_weather_foes.append({"cell": c, "kind": foes.kind, "enemy": null, "timer": randf_range(0.0, 6.0)})
+
+
+## The weather's creatures come (and come again a while after they fall)
+## as long as the weather lasts and the hero is not too close; in a storm,
+## lightning strikes now and then.
+func _mind_the_weather(delta: float) -> void:
+	for s in _weather_foes:
+		if s.enemy != null:
+			continue
+		s.timer -= delta
+		if s.timer <= 0.0 and _flat_distance(player.global_position, cell_to_world(s.cell)) > WEATHER_FAR:
+			_spawn_weather_foe(s)
+	if weather == Weather.STORM:
+		_strike_timer -= delta
+		if _strike_timer <= 0.0:
+			_strike_timer = randf_range(STRIKE_EVERY_MIN, STRIKE_EVERY_MAX)
+			strike()
+
+
+func _spawn_weather_foe(s: Dictionary) -> void:
+	var e := Enemy.new()
+	e.kind = s.kind
+	e.night = night
+	e.level = self
+	add_child(e)
+	e.global_position = cell_to_world(s.cell)
+	var mist := Effects.make_sparkles(Color(0.7, 0.78, 0.86), true)
+	mist.position = e.global_position + Vector3(0, 0.6, 0)
+	add_child(mist)
+	var purse: Array = Enemy.KINDS[s.kind].get("purse", [0, 2])
+	e.died.connect(func():
+		enemy_killed.emit(e)
+		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
+		s.enemy = null
+		s.timer = WEATHER_RESPAWN)
+	s.enemy = e
+	enemies = enemies.filter(func(x): return is_instance_valid(x))
+	enemies.append(e)
+
+
+## How many of the weather's creatures are about right now.
+func weather_foes_alive() -> int:
+	var n := 0
+	for s in _weather_foes:
+		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
+			n += 1
+	return n
+
+
+## A stroke of lightning. Mostly it hits one of the rocks, and may leave a
+## lump of thunder ore glowing beside it; otherwise it strikes somewhere in
+## the woods near the hero. Returns where it struck.
+func strike() -> Vector3:
+	var at: Vector3 = (player.global_position if player else Vector3.ZERO) + Vector3(randf_range(-30, 30), 0, randf_range(-24, 24))
+	var ore_spot := Vector2i(-1, -1)
+	if not _rock_cells.is_empty() and randf() < 0.75:
+		var rock: Vector2i = _rock_cells.pick_random()
+		at = cell_to_world(rock)
+		if randf() < ORE_CHANCE and ore_lying() < MAX_ORE:
+			for d: Vector2i in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+				if is_open(rock + d):
+					ore_spot = rock + d
+					break
+	at.y = 0.0
+	_show_bolt(at)
+	lightning.emit(at)
+	if ore_spot.x >= 0:
+		var pos := cell_to_world(ore_spot).lerp(at, 0.35)
+		_drop_item(ORE, pos)
+		_pickups[-1]["weather"] = true
+		if player and _flat_distance(player.global_position, pos) < ORE_NOTICE_RANGE:
+			notice.emit(Lang.t("Der Blitz schlägt in einen Felsen ein! Daneben glimmt Donnererz."), 3.5)
+	return at
+
+
+## A bright bolt from the sky down to where lightning struck, gone in a blink.
+func _show_bolt(at: Vector3) -> void:
+	var bolt := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.25
+	mesh.bottom_radius = 0.08
+	mesh.height = 40.0
+	bolt.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.9, 0.94, 1.0)
+	mat.emission_enabled = true
+	mat.emission = Color(0.8, 0.88, 1.0)
+	mat.emission_energy_multiplier = 4.0
+	bolt.material_override = mat
+	bolt.position = at + Vector3(0, 20.0, 0)
+	add_child(bolt)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(0.8, 0.88, 1.0)
+	glow.light_energy = 6.0
+	glow.omni_range = 14.0
+	glow.position = at + Vector3(0, 2.0, 0)
+	add_child(glow)
+	var sparks := Effects.make_sparkles(Color(0.8, 0.9, 1.0), true)
+	sparks.position = at + Vector3(0, 0.5, 0)
+	add_child(sparks)
+	var tween := create_tween()
+	tween.tween_interval(0.18)
+	tween.tween_callback(bolt.queue_free)
+	tween.tween_property(glow, "light_energy", 0.0, 0.4)
+	tween.tween_callback(glow.queue_free)
+
+
+## How many lumps of thunder ore lie about right now.
+func ore_lying() -> int:
+	return _pickups.filter(func(p): return p.get("weather", false)).size()
+
+
+## The storm has passed: thunder ore nobody picked up fades away.
+func _fade_ore() -> void:
+	for p in _pickups.duplicate():
+		if p.get("weather", false):
+			_pickups.erase(p)
+			var n: Node3D = p.node
+			if is_instance_valid(n):
+				var tween := create_tween()
+				tween.tween_property(n, "scale", Vector3.ONE * 0.01, 1.2)
+				tween.tween_callback(n.queue_free)

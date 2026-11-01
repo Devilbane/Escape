@@ -17,10 +17,13 @@ var _box: VBoxContainer
 const RETURN_TEXT_WIDTH := 700
 var _selected := -1
 var _note := ""
+## The craft of the workbench whose window is open (see CraftingSquare).
+var bench := ""
 ## The saved game whose delete button was clicked once; a second click deletes.
 var _delete_asked := ""
 ## Which page of the compendium shows: "wissen" (controls and everything
-## learned) or "auftraege" (the villagers' tasks).
+## learned), "auftraege" (the villagers' tasks) or "rezepte" (the recipes
+## found and the ingredient pouch).
 var compendium_page := "wissen"
 ## How many saved games the load window shows before the list scrolls.
 const LOAD_ROWS_SHOWN := 5
@@ -123,6 +126,8 @@ func _rebuild() -> void:
 			_build_bounty_board()
 		"schmied":
 			_build_smithy()
+		"werkbank":
+			_build_bench()
 		"tresor":
 			_build_vault()
 		"haendler":
@@ -242,6 +247,14 @@ func _skills_text() -> String:
 
 # --- Character page -------------------------------------------------------
 
+## The crafts, each with its level, for the character page.
+func _crafts_text() -> String:
+	var parts := []
+	for id in Training.CRAFTS:
+		parts.append("%s %d" % [Lang.t(Training.CRAFTS[id].name), Training.skill_level(game.player.xp.get(id, 0.0), id)])
+	return Lang.t("Handwerk:") + " " + "   ".join(parts)
+
+
 ## The wheel of attributes and skills, with how a roll on a skill works.
 func _build_character() -> void:
 	var row := HBoxContainer.new()
@@ -263,6 +276,7 @@ func _build_character() -> void:
 		[Lang.t("Ein Wuchttreffer (+1 Schaden) ist eine Probe auf die Waffen-Fertigkeit."), Color(0.85, 0.87, 0.92)],
 		[Lang.t("Innen: Grundfertigkeiten. Außen: fortgeschrittene Fertigkeiten, die auf einer Grundfertigkeit aufbauen (Novize, Fortgeschritten, Meister: je 3 Stufen)."), Color(0.85, 0.87, 0.92)],
 		[Lang.t("Gedimmt: braucht passende Ausrüstung"), Color(0.75, 0.75, 0.8)],
+		[_crafts_text(), game.GOLD],
 	]:
 		var l: Label = game._make_label(game.TEXT_FONT, 16, entry[1])
 		l.text = entry[0]
@@ -311,8 +325,8 @@ func _build_inventory() -> void:
 			actions.add_child(_item_button(Lang.t("Abstellen"), _put_down_selected))
 		elif Items.is_stone(id):
 			actions.add_child(_item_button(Lang.t("Abstellen"), _place_stone_selected))
-		elif Items.is_quest(id):
-			pass # Carried for a task, not worn.
+		elif Items.is_quest(id) or Items.is_material(id):
+			pass # Carried for a task or to the smith, not worn.
 		else:
 			actions.add_child(_item_button(Lang.t("Anlegen"), _equip_selected))
 		actions.add_child(_item_button(Lang.t("Wegwerfen"), _drop_selected))
@@ -445,6 +459,25 @@ func _take(index: int) -> void:
 		game.storage.remove_at(index)
 		_note = ""
 	_rebuild()
+
+
+# --- Workbenches on the crafting square ------------------------------------
+
+## A workbench of the crafting square: what is made there, and the recipes
+## the hero knows for its craft. Until the hero knows one, it says how to
+## find recipes; the storage chest and Gorm's forge are right beside it.
+func _build_bench() -> void:
+	game.learn(CraftingSquare.LEARN)
+	var info := CraftingSquare.bench_of(bench)
+	if info.is_empty():
+		_add_label(Lang.t("Werkbank"), 38, game.GOLD, game.TITLE_FONT)
+		return
+	_add_label(Lang.t(info.name), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t(info.craft_line), 22)
+	_add_label(Lang.t(info.text), 18, BLUE)
+	_add_label(Lang.t("Hier stellst du her, was ein Rezept für dieses Handwerk verlangt."), 18)
+	_add_label(Lang.t("Du kennst noch kein Rezept für diese Werkbank. Rezepte findest du bei Gelehrten, in Truhen und als Belohnung."), 18, Color(1.0, 0.75, 0.5))
+	_add_label(Lang.t("Deine Truhe und Gorms Esse stehen gleich nebenan."), 16, BLUE)
 
 
 # --- Bank -------------------------------------------------------------------
@@ -1053,7 +1086,13 @@ func _build_compendium() -> void:
 		if game.quests.is_active(id):
 			open_tasks += 1
 	open_tasks += game.bounties.taken.size()
-	for tab in [["wissen", Lang.t("Steuerung und Gelerntes")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks]]:
+	var tabs_shown := [["wissen", Lang.t("Steuerung und Gelerntes")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks]]
+	# The recipes get a page of their own once the first one is found.
+	if not game.crafting.entries().is_empty():
+		tabs_shown.append(["rezepte", Lang.t("Rezeptbuch (%d)") % game.crafting.entries().size()])
+	elif compendium_page == "rezepte":
+		compendium_page = "wissen"
+	for tab in tabs_shown:
 		var b := _item_button(tab[1], func():
 			compendium_page = tab[0]
 			_rebuild())
@@ -1065,6 +1104,9 @@ func _build_compendium() -> void:
 		tabs.add_child(b)
 	if compendium_page == "auftraege":
 		_build_quest_log()
+		return
+	if compendium_page == "rezepte":
+		_build_recipes()
 		return
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 36)
@@ -1125,6 +1167,56 @@ func _build_compendium() -> void:
 		else:
 			l.text = Lang.t(entry)
 		list.add_child(l)
+
+
+## The recipe and ingredient book: every recipe found, its scroll with the
+## faded lines still to find out, the ingredients gathered and the craft it
+## needs; then every ingredient those recipes name, with where and when it
+## is found, what yields it and how many are in the pouch.
+func _build_recipes() -> void:
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 30)
+	_box.add_child(columns)
+	var recipes := _book_column(columns, Lang.t("Rezepte"))
+	for id in game.crafting.entries():
+		var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
+		title.text = Lang.t(Crafting.RECIPES[id].name)
+		recipes.add_child(title)
+		var text: Label = game._make_label(game.TEXT_FONT, 17)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.custom_minimum_size.x = BOOK_COLUMN - 20
+		text.text = game.crafting.describe(id)
+		recipes.add_child(text)
+	var ingredients := _book_column(columns, Lang.t("Zutaten"))
+	for ingredient in game.crafting.book_ingredients():
+		var entry: Label = game._make_label(game.TEXT_FONT, 17, BLUE)
+		entry.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		entry.custom_minimum_size.x = BOOK_COLUMN - 20
+		entry.text = game.crafting.describe_ingredient(ingredient)
+		ingredients.add_child(entry)
+
+
+## Width of each of the recipe book's two columns.
+const BOOK_COLUMN := 470
+
+
+## One column of the recipe book: a title over a list that scrolls.
+func _book_column(columns: HBoxContainer, title_text: String) -> VBoxContainer:
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 6)
+	columns.add_child(column)
+	var title: Label = game._make_label(game.TEXT_FONT, 24, game.GOLD)
+	title.text = title_text
+	column.add_child(title)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(BOOK_COLUMN, 400)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 12)
+	scroll.add_child(list)
+	return list
 
 
 ## The quest log: every task the hero took on, the open ones first, with who

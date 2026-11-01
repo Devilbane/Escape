@@ -99,6 +99,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_beasts.gd | tee beasts.log
           grep -q PASS beasts.log
 
+      - name: Peaceful animals of the woods test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/animals.gd | tee animals.log
+          grep -q PASS animals.log
+
       - name: Bandit chief boss fight test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/bandit_chief.gd | tee chief.log

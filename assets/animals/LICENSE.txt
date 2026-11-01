@@ -1,0 +1,13 @@
+The peaceful animals of the woods (between the graveyard and the village)
+
+Deer.glb    "Deer" from "Ultimate Animated Animals" (July 2021) by Quaternius
+Stag.glb    "Stag" from "Ultimate Animated Animals" (July 2021) by Quaternius
+Fox.glb     "Fox" from "Ultimate Animated Animals" (July 2021) by Quaternius
+
+https://quaternius.com
+License: Creative Commons Zero (CC0 1.0), public domain.
+http://creativecommons.org/publicdomain/zero/1.0/
+
+The models were converted from glTF to binary glTF (.glb) for the game and
+only the animations it plays were kept (Idle, Walk, Gallop, Eating).
+Nothing else was changed.

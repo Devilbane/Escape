@@ -409,6 +409,28 @@ def drip():
     return x + lowpass(echo, 1800)
 
 
+def snore():
+    # One slow breath of a sleeping hero: a soft, rattling snore in, a short
+    # pause, then a gentle "pfff" out. Its own noise, so the other sounds
+    # stay as they are.
+    r = np.random.default_rng(11)
+    inhale_t = t(1.3)
+    swell = np.sin(np.pi * inhale_t / 1.3) ** 1.5
+    # The soft palate flutters about 30 times a second, a little unevenly.
+    flutter = 0.55 + 0.45 * np.sin(2 * np.pi * np.cumsum(28 + 4 * np.sin(2 * np.pi * 0.8 * inhale_t)) / SR)
+    rattle = lowpass(r.uniform(-1, 1, len(inhale_t)), 380) * flutter * swell
+    hum = np.sin(2 * np.pi * np.cumsum(95 + 10 * inhale_t) / SR) * flutter * swell * 0.08
+    inhale = rattle + hum
+    exhale_t = t(1.1)
+    breath = r.uniform(-1, 1, len(exhale_t))
+    breath = lowpass(breath, 900) - lowpass(breath, 180)
+    exhale = breath * np.sin(np.pi * exhale_t / 1.1) ** 2 * 0.55
+    out = np.zeros(int(SR * 3.1))
+    at(out, inhale, 0.0)
+    at(out, exhale, 1.6)
+    return out
+
+
 WORDS = ["zack", "klonk", "wumm", "krach", "boing", "wamm", "zing", "tschak", "knack",
          "klapper", "wusch", "klack", "klick", "rumms", "grumpel", "stich", "ratsch",
          "klong", "plong"]
@@ -439,3 +461,4 @@ if __name__ == "__main__":
     for w in WORDS:
         save("word_" + w, globals()["word_" + w](), 0.7)
     save("drip", drip(), 0.45)
+    save("snore", snore(), 0.5)

@@ -176,7 +176,7 @@ func _process(delta: float) -> void:
 	var strength := maxf(dread, _flash)
 	(_vignette.material as ShaderMaterial).set_shader_parameter("strength", strength)
 	_shown = closest if closest != null and _seen.has(closest) and near < BAR_RANGE else null
-	var want := 1.0 if _shown != null and not game.menus.is_open() else 0.0
+	var want: float = 1.0 if _shown != null and not game.menus.is_open() else 0.0
 	_box.modulate.a = move_toward(_box.modulate.a, want, delta * 3.0)
 	if _shown != null:
 		_name.text = title_of(_shown.kind)

@@ -61,7 +61,7 @@ func spare() -> int:
 
 
 func _process(delta: float) -> void:
-	var dark := in_dark() and not player.dead
+	var dark: bool = in_dark() and not player.dead
 	if dark and not lit:
 		if left <= 0.0 and player.bag.has(ITEM):
 			player.bag.erase(ITEM)

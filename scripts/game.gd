@@ -45,6 +45,10 @@ var home_given := false
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
 var coins := 0
+## What the hero already took on each level, by level file: the ids of
+## searched furniture and picked up coins (see Level.taken). Kept in the
+## saved game, so looted chests stay empty.
+var looted := {}
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
 ## Levels left in a row without finding their secret room.
@@ -630,6 +634,10 @@ func load_level(index: int, restock := true) -> void:
 	level = Outdoor.new() if Level.is_outdoor_file(level_files[index]) else Level.new()
 	level.load_from_file(level_files[index])
 	level.depth = index
+	var file := level_files[index].get_file()
+	if not looted.has(file):
+		looted[file] = {}
+	level.taken = looted[file]
 	level.hero = hero_name
 	if level is Outdoor:
 		level.interiors = interiors
@@ -647,6 +655,7 @@ func load_level(index: int, restock := true) -> void:
 	# STAIRS_HEAL (see _next_level) and the fountain heals fully.
 	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
+	level.restore_taken()
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
 	level.item_collected.connect(_on_item_collected)
@@ -813,6 +822,7 @@ func _start_new_game() -> void:
 	escaped = false
 	secrets_found = 0
 	dry_levels = 0
+	looted.clear()
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
@@ -1003,6 +1013,15 @@ func _apply_save(data: Dictionary) -> void:
 	player.set_hair(data.get("hair", {}))
 	player.xp = Training.load_hero(hero_name)
 	lore.assign(data.get("lore", []))
+	looted.clear()
+	var saved_loot = data.get("looted", {})
+	if saved_loot is Dictionary:
+		for file in saved_loot:
+			var ids := {}
+			if saved_loot[file] is Array:
+				for id in saved_loot[file]:
+					ids[str(id)] = true
+			looted[file] = ids
 	escaped = bool(data.get("escaped", false))
 	home_given = bool(data.get("home", false))
 	var plan = data.get("plan", {})
@@ -1106,6 +1125,7 @@ func save_game(going_away := false) -> bool:
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(),
 		"saved_at": Time.get_unix_time_from_system(),
+		"looted": _looted_for_save(),
 	}
 	if going_away and level is Outdoor:
 		# Asleep in the bed of the hero's own house: wake up there.
@@ -1120,6 +1140,15 @@ func save_game(going_away := false) -> bool:
 	file.store_string(JSON.stringify(data))
 	file.close()
 	return FileAccess.file_exists(path)
+
+
+## The looted ids per level file as plain lists, levels with none left out.
+func _looted_for_save() -> Dictionary:
+	var out := {}
+	for file in looted:
+		if not looted[file].is_empty():
+			out[file] = looted[file].keys()
+	return out
 
 
 ## The hero lies down in the safe room's bed: save, then back to the title.

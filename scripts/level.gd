@@ -807,14 +807,14 @@ func _build_key(pos: Vector3) -> void:
 	_pickups.append({"node": holder, "kind": "key", "radius": 1.8})
 
 
-## A gold coin lying flat on the floor, picked up when the hero walks over it.
+## A small gold coin lying flat on the floor, picked up when the hero walks over it.
 func _build_coin(pos: Vector3) -> void:
 	var holder := Node3D.new()
 	holder.position = pos + Vector3(0, 0.03, 0)
 	holder.rotation.y = deg_to_rad(hash(Vector2(pos.x, pos.z)) % 360)
 	add_child(holder)
 	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
-	coin.scale = Vector3.ONE * 3.0
+	coin.scale = Vector3.ONE * 1.6
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5})
 
 

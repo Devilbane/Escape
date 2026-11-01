@@ -450,7 +450,7 @@ A line like `secret: epic` sets how rich the secret room behind the wall `?` is:
 or `godborn` (the older German ids `ungewoehnlich`, `selten`, `episch` and `gottgeboren` still work).
 
 A line `outdoor: yes` turns a level into the world under the open sky (see `levels/11_die_freiheit.txt`).
-It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `~` pond, `R` crypt, `g` grave,
+It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `~` pond, `;` the pond in the wolf hollow, `R` crypt, `g` grave,
 `d` dead tree, `z` graveyard fence, `a` gate in the fence, `l` lantern, `p` pumpkins, `r` rock, `T` tree,
 `t` tree stump, `e` barrels and crates, `q` well, `F` fountain, `x` bench, `y` pumpkin field, `N` tent,
 `f` campfire, `C` treasure chest. The bandits, who roam and come back a while after they fall: `c` cutthroat,

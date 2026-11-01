@@ -19,7 +19,7 @@ const WALK_FACTOR := 0.5
 ## Running speeds up to this many times the walking pace...
 const RUN_TOP := 2.5
 ## ...over this many seconds of holding the run,
-const RUN_RAMP_UP := 3.0
+const RUN_RAMP_UP := 2.0
 ## and slows back down to walking within this many seconds once let go.
 const RUN_RAMP_DOWN := 1.0
 const WALK_ANIM := "Walking_A"

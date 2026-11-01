@@ -23,6 +23,9 @@ const EN := {
 	"Klicken oder eine Taste: ab der Zuflucht weiterspielen.  N: neues Spiel": "Click or press a key to continue from the refuge.  N: new game",
 	"%s auf Ebene %d mit %d Gold.": "%s on level %d with %d gold.",
 	"%s auf dem Friedhof mit %d Gold.": "%s on the graveyard with %d gold.",
+	"%s zu Hause mit %d Gold.": "%s at home with %d gold.",
+	"Klicken oder eine Taste: in deinem Haus weiterspielen.  N: neues Spiel": "Click or press a key to continue in your house.  N: new game",
+	"Dein Haus ist jetzt dein Startpunkt. Spiel gespeichert.": "Your house is your starting point now. Game saved.",
 	"Klicken oder eine Taste: ab dem Friedhof weiterspielen.  N: neues Spiel": "Click or press a key to continue from the graveyard.  N: new game",
 	"Was du seitdem erlebt hast, geht verloren.": "Everything since then will be lost.",
 	"Neues Spiel": "New game",
@@ -72,8 +75,8 @@ const EN := {
 	"Gehen": "Walk",
 	"WASD / Pfeiltasten oder Klick auf den Boden": "WASD / arrow keys or click on the floor",
 	"Rennen": "Run",
-	"Maustaste auf dem Boden halten oder Umschalt: in 3 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück; leer erst wieder ab halbvoll. Wer im Lauf binnen 2 Sekunden mehr als 10 % seiner Leben verliert, stürzt zu Boden und steht wieder auf":
-		"Hold the mouse button on the floor or Shift: speeds up to 250 % of walking in 3 seconds, for Constitution x 2 seconds, recovers by Constitution / 10 per second; once empty, only again from half full. Losing more than 10 % of your lives within 2 seconds while running knocks you to the ground; you get up again",
+	"Maustaste auf dem Boden halten oder Umschalt: in 2 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück; leer erst wieder ab halbvoll. Wer im Lauf binnen 2 Sekunden mehr als 10 % seiner Leben verliert, stürzt zu Boden und steht wieder auf":
+		"Hold the mouse button on the floor or Shift: speeds up to 250 % of walking in 2 seconds, for Constitution x 2 seconds, recovers by Constitution / 10 per second; once empty, only again from half full. Losing more than 10 % of your lives within 2 seconds while running knocks you to the ground; you get up again",
 	"Leertaste, Rechtsklick im Lauf": "Space, right click while running",
 	"Nahkampf": "Melee",
 	"F oder J, gegen das Skelett laufen oder es anklicken": "F or J, run into the skeleton or click it",

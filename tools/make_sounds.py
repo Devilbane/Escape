@@ -340,6 +340,14 @@ def click(freq, sec=0.08):
     return at(out, knock(freq, 0.006), 0)
 
 
+def ui_click():
+    # A soft, short tick for UI buttons: just a hint of a sound. A tiny
+    # wooden knock under a breath of filtered noise, gone in ~25 ms.
+    sec = 0.04
+    n = lowpass(highpass(noise(sec), 1500), 6000) * env(int(SR * sec), 0.0005, 0.003)
+    return at(n * 0.6, knock(1700, 0.005), 0)
+
+
 def word_klack():
     out = np.zeros(int(SR * 0.3))
     at(out, click(1200), 0)
@@ -462,3 +470,4 @@ if __name__ == "__main__":
         save("word_" + w, globals()["word_" + w](), 0.7)
     save("drip", drip(), 0.45)
     save("snore", snore(), 0.5)
+    save("ui_click", ui_click(), 0.35)

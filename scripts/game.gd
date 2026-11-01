@@ -257,6 +257,7 @@ func _ready() -> void:
 	add_child(horrors)
 	Sfx.load_settings()
 	Sfx.watch_focus(self)
+	Sfx.click_on_buttons(get_tree())
 	_update_sound_button()
 	_ambience = Sfx.start_ambience(self)
 	_rain_sound = Sfx.start_loop(self, "rain")

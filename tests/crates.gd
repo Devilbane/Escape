@@ -148,7 +148,9 @@ func _run() -> void:
 		if is_instance_valid(e) and not e.dead:
 			foe = e
 	if foe:
-		foe.process_mode = Node.PROCESS_MODE_DISABLED
+		# Frozen in place, but still a body the push apart looks at.
+		foe.set_physics_process(false)
+		foe.set_process(false)
 		foe.collision_layer = 0
 		foe.collision_mask = 0
 		var hero_spot := p.global_position

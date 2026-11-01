@@ -480,7 +480,8 @@ func _check_basket(delta: float) -> void:
 		return
 	var d := _flat_distance(player.global_position, _basket.pos)
 	var hero := player as CharacterBody3D
-	if d <= BASKET_REACH and hero.is_on_floor() and hero.global_position.y >= BASKET_FEET:
+	var climbing: bool = hero.has_method("is_climbing") and hero.is_climbing()
+	if d <= BASKET_REACH and not climbing and hero.is_on_floor() and hero.global_position.y >= BASKET_FEET:
 		_basket.full = false
 		_basket.timer = BASKET_REFILL
 		food.visible = false

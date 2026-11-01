@@ -86,6 +86,9 @@ var power := 1
 var hardening := 0
 ## How much each armour piece has worn down, by item id.
 var wear := {}
+## The hero's hair style, hair colour and head tattoo (see HairLook); the
+## barber in the village changes them.
+var hair := HairLook.DEFAULT.duplicate()
 ## Chance per hit that a worn armour piece loses a point of durability.
 const WEAR_CHANCE := 0.05
 ## Chance to stop a whole hit with the worn shield (from the shield's "block").
@@ -190,7 +193,7 @@ func _ready() -> void:
 	GearLook.dress(_model.find_child("handslot_r", true, false).get_node("Knife"), "mixed") # The hero's own knife.
 	for arm in ["Rogue_ArmLeft", "Rogue_ArmRight"]:
 		GearLook.apply(_model.find_child(arm, true, false) as MeshInstance3D, "outfit")
-	HairLook.shave(_model.find_child("Rogue_Head", true, false) as MeshInstance3D)
+	set_hair(hair)
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle", SNEAK_ANIM]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -266,8 +269,7 @@ func _update_sneak_look() -> void:
 			mat.albedo_color.a = 1.0 - alpha
 
 
-## A golden cord along the edge of the cape, the mohawk, and a white feather
-## tucked behind the ear.
+## A golden cord along the edge of the cape, and a white feather at the head.
 func _add_trim() -> void:
 	var gold := StandardMaterial3D.new()
 	gold.albedo_color = Color(1.0, 0.76, 0.28)
@@ -280,30 +282,31 @@ func _add_trim() -> void:
 		var cord := MeshInstance3D.new()
 		cord.mesh = Effects.cord_mesh(Effects.open_edges(cape.mesh), 0.075, gold)
 		cape.add_child(cord)
-	var head := _model.find_child("Rogue_Head", true, false) as MeshInstance3D
-	var skeleton := _model.find_child("Skeleton3D", true, false) as Skeleton3D
-	if head == null or skeleton == null:
+	# The feather hangs from the head bone, in the head mesh's space.
+	var attach := HairLook.head_slot(_model)
+	if attach == null:
 		return
-	# The head is skinned to the head bone: place the mohawk and the feather in
-	# that bone's space.
-	var bind := Transform3D.IDENTITY
-	for i in head.skin.get_bind_count():
-		if head.skin.get_bind_name(i) == "head":
-			bind = head.skin.get_bind_pose(i)
-	var attach := BoneAttachment3D.new()
-	attach.name = "HeadSlot"
-	attach.bone_name = "head"
-	skeleton.add_child(attach)
-	var crest := HairLook.crest()
-	crest.transform = bind
-	attach.add_child(crest)
+	var bind: Transform3D = attach.get_meta("bind")
 	var feather := MeshInstance3D.new()
 	feather.name = "Feather"
 	feather.mesh = Effects.feather_mesh()
 	feather.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Tucked in behind the left ear, sweeping up and back.
-	feather.transform = Transform3D(Basis.from_euler(Vector3(-0.75, 0.0, -0.45)).scaled(Vector3.ONE * 1.3), bind * Vector3(0.4, 1.68, -0.2))
+	# Tucked into the hair on the left side of the head, or behind the left
+	# ear of a shaved head, sweeping up and back.
+	feather.set_meta("spots", [bind * Vector3(0.47, 1.66, -0.05), bind * Vector3(0.4, 1.68, -0.2)])
+	feather.transform = Transform3D(Basis.from_euler(Vector3(-0.75, 0.0, -0.45)).scaled(Vector3.ONE * 1.3), bind * Vector3(0.47, 1.66, -0.05))
 	attach.add_child(feather)
+
+
+## Gives the hero a new hair style, colour or tattoo (see HairLook).
+func set_hair(look: Dictionary) -> void:
+	hair = HairLook.checked(look)
+	if _model == null:
+		return # Not built yet: _ready puts it on.
+	HairLook.apply(_model, hair)
+	var feather := _model.find_child("Feather", true, false) as Node3D
+	if feather:
+		feather.position = feather.get_meta("spots")[0 if hair.style == "natural" else 1]
 
 
 ## The glowing devilbane emblem on the back of the cape.
@@ -870,9 +873,7 @@ func _show_headgear() -> void:
 	var feather := slot.get_node_or_null("Feather") as Node3D
 	if feather:
 		feather.visible = not item.has("hat")
-	var crest := slot.get_node_or_null("Crest") as Node3D
-	if crest:
-		crest.visible = not item.has("hat")
+	HairLook.cover(_model, item.has("hat"))
 	if not item.has("hat"):
 		return
 	# The hats sit on the head bone of their own character, which matches the hero's.

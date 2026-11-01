@@ -817,6 +817,7 @@ func _start_new_game() -> void:
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
 	player.knives = 5
+	player.set_hair(HairLook.DEFAULT)
 	player.reset_gifts()
 	# The hero keeps what they trained in earlier runs under this name.
 	player.xp = Training.load_hero(hero_name)
@@ -999,6 +1000,7 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_armor = int(data.get("gift_armor", 0))
 	player.equipped = data.equipped
 	player.wear = data.get("wear", {})
+	player.set_hair(data.get("hair", {}))
 	player.xp = Training.load_hero(hero_name)
 	lore.assign(data.get("lore", []))
 	escaped = bool(data.get("escaped", false))
@@ -1101,7 +1103,7 @@ func save_game(going_away := false) -> bool:
 	var data := {
 		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
-		"equipped": player.equipped, "wear": player.wear, "bag": player.bag, "storage": storage, "shop": shop_stock,
+		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(),
 		"saved_at": Time.get_unix_time_from_system(),
 	}
@@ -1822,6 +1824,7 @@ func _process(delta: float) -> void:
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"bank": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
+			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
 			"eingang": Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 		}[station.kind]

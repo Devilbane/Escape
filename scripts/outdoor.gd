@@ -33,8 +33,8 @@ signal notice(text: String, duration: float)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMY"
-const VILLAGERS := "0123456789KOGMY"
+const WALK := ".,Pai:0123456789KOGMYZ"
+const VILLAGERS := "0123456789KOGMYZ"
 const BLOCK_CHARS := "Rhjnmuskowb"
 const HOMES := ["building_home_A_blue", "building_home_B_red", "building_home_A_yellow", "building_home_B_green"]
 const BLOCK_MODELS := {
@@ -652,8 +652,9 @@ func _spawn_villagers() -> void:
 			add_child(v)
 			v.global_position = cell_to_world(c)
 			villagers.append(v)
-			# The shopkeeper trades like the merchant in the refuge.
-			var kind: String = {"6": "haendler", "Y": "bank"}.get(ch, "npc")
+			# The shopkeeper trades like the merchant in the refuge; the
+			# banker and the barber open their own menus.
+			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier"}.get(ch, "npc")
 			var station := {"kind": kind, "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)

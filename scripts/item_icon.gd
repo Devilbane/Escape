@@ -69,6 +69,8 @@ static func kind_of(id: String) -> String:
 			return "ore"
 		"kiste":
 			return "crate"
+		"futter":
+			return "sausage"
 	return "scroll"
 
 
@@ -192,6 +194,10 @@ func _draw() -> void:
 			# what is "kind:hair:<colour>" for a hair colour swatch.
 			draw_circle(p.call(0.5, 0.55), u * 0.32, Color(0.85, 0.7, 0.55))
 			draw_arc(p.call(0.5, 0.55), u * 0.36, PI, TAU, 24, _hair_color(), u * 0.18)
+		"sausage":
+			draw_line(p.call(0.2, 0.7), p.call(0.8, 0.3), Color(0.65, 0.3, 0.2), u * 0.26)
+			draw_circle(p.call(0.2, 0.7), u * 0.13, Color(0.65, 0.3, 0.2))
+			draw_circle(p.call(0.8, 0.3), u * 0.13, Color(0.65, 0.3, 0.2))
 		"potion":
 			draw_circle(p.call(0.5, 0.65), u * 0.28, Color(0.4, 0.75, 0.4, 0.8))
 			draw_rect(Rect2(p.call(0.42, 0.12), Vector2(u * 0.16, u * 0.28)), GOLDEN)

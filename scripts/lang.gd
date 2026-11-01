@@ -327,6 +327,8 @@ const EN := {
 	"Leben: %+d": "Life: %+d",
 	"Nichts angelegt": "No Item Equipped",
 	"Nichts im Angebot.": "Nothing on offer.",
+	"Futter": "Food",
+	"Nichts davon in deiner Tasche.": "None of these in your bag.",
 	"Tasche: %d / %d": "Bag: %d / %d",
 	"Vergleich": "Comparison",
 	"Von weit her: %s": "From afar: %s",

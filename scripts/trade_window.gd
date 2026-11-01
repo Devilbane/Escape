@@ -374,6 +374,8 @@ static func subtitle(id: String) -> String:
 			kind = Lang.t("Kiste")
 		"auftrag":
 			kind = Lang.t("Für einen Auftrag")
+		"futter":
+			kind = Lang.t("Futter")
 	if item.get("unique", false):
 		return Lang.t("Einzigartig: %s") % kind
 	if item.get("smith", false):

@@ -93,6 +93,7 @@ func is_open() -> bool:
 func open(kind: String) -> void:
 	current = kind
 	_forge_tab = "waffen"
+	_shop_page = "kaufen"
 	trade.reset()
 	_selected = -1
 	_note = ""
@@ -625,21 +626,48 @@ func _build_shop() -> void:
 	_add_label(Lang.t("Händler"), 38, game.GOLD, game.TITLE_FONT)
 	var gear := []
 	var goods := []
-	for i in game.shop_stock.size():
-		var id: String = game.shop_stock[i]
-		var entry := _ware_entry("buy:%d" % i, id, game.trader_price(Items.ALL[id].price), _buy.bind(i))
-		(goods if _is_consumable(id) else gear).append(entry)
-	var selling := []
-	for i in p.bag.size():
-		var id: String = p.bag[i]
-		selling.append({"key": "sell:%d" % i, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Gold") % sell_price(id),
-				"button": Lang.t("Verkaufen"), "action": _sell.bind(i)})
+	if _shop_page == "kaufen":
+		for i in game.shop_stock.size():
+			var id: String = game.shop_stock[i]
+			var entry := _ware_entry("buy:%d" % i, id, game.trader_price(Items.ALL[id].price), _buy.bind(i))
+			(goods if _is_consumable(id) else gear).append(entry)
+	else:
+		for i in p.bag.size():
+			var id: String = p.bag[i]
+			var entry := {"key": "sell:%d" % i, "id": id, "name": Items.item_name(id), "price": "+" + Lang.t("%d Gold") % sell_price(id),
+					"button": Lang.t("Verkaufen"), "action": _sell.bind(i)}
+			(goods if _is_consumable(id) else gear).append(entry)
+	var empty := Lang.t("Nichts im Angebot.") if _shop_page == "kaufen" else Lang.t("Nichts davon in deiner Tasche.")
 	_trade(Lang.t("Dein Gold: %d") % game.coins, [
-		{"key": "gear", "title": Lang.t("Ausrüstung"), "icon": "kind:helmet", "entries": gear},
-		{"key": "goods", "title": Lang.t("Verbrauchsgüter"), "icon": "kind:potion", "entries": goods},
-		{"key": "sell", "title": Lang.t("Verkaufen (%d / %d)") % [p.bag.size(), p.bag_size()], "icon": "kind:coin", "entries": selling,
-				"empty": Lang.t("Deine Tasche ist leer.")},
-	])
+		{"key": "gear", "title": Lang.t("Ausrüstung"), "icon": "kind:helmet", "entries": gear, "empty": empty},
+		{"key": "goods", "title": Lang.t("Verbrauchsgüter"), "icon": "kind:potion", "entries": goods, "empty": empty},
+	], _shop_pages(Lang.t("Verkaufen (%d / %d)") % [p.bag.size(), p.bag_size()]))
+
+
+## Which page of a merchant's window shows: "kaufen" (his wares) or
+## "verkaufen" (the hero's bag).
+var _shop_page := "kaufen"
+
+
+## The two page tabs, Buy and Sell, above a merchant's categories.
+func _shop_pages(sell_label := "") -> HBoxContainer:
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 10)
+	for page in [["kaufen", Lang.t("Kaufen")], ["verkaufen", sell_label if sell_label != "" else Lang.t("Verkaufen")]]:
+		var b := _item_button(page[1], _show_shop_page.bind(page[0]))
+		b.custom_minimum_size = Vector2(170, 40)
+		if page[0] == _shop_page:
+			b.modulate = Color(0.7, 1.0, 0.7)
+		tabs.add_child(b)
+	return tabs
+
+
+func _show_shop_page(page: String) -> void:
+	_shop_page = page
+	trade.reset()
+	_note = ""
+	_rebuild()
 
 
 ## A row for something on sale: grey when the gold or the bag falls short.
@@ -700,14 +728,15 @@ func _build_stonemason() -> void:
 			"subtitle": Lang.t("Platz für %d weitere") % room}
 	_trade(Lang.t("Dein Gold: %d") % game.coins, [
 		{"key": "stone", "title": Lang.t("Bausteine"), "icon": "kind:stone", "entries": [
+			{"key": "back", "id": STONE, "name": Lang.t("1 zurückgeben"), "price": "+" + Lang.t("%d Gold") % sell_price(STONE),
+					"button": Lang.t("Verkaufen"), "action": _sell_stone, "enabled": have > 0, "detail": detail, "compare": compare},
+		] if _shop_page == "verkaufen" else [
 			{"key": "one", "id": STONE, "name": Lang.t("1 Steinblock"), "price": Lang.t("%d Gold") % price, "price_ok": game.coins >= price,
 					"action": _buy_stones.bind(1), "enabled": room > 0 and game.coins >= price, "detail": detail, "compare": compare},
 			{"key": "all", "id": STONE, "name": Lang.t("%d Steinblöcke") % maxi(all, 1), "price": Lang.t("%d Gold") % (maxi(all, 1) * price),
 					"price_ok": all > 0, "action": _buy_stones.bind(all), "enabled": all > 0, "detail": detail, "compare": compare},
-			{"key": "back", "id": STONE, "name": Lang.t("1 zurückgeben"), "price": "+" + Lang.t("%d Gold") % sell_price(STONE),
-					"button": Lang.t("Verkaufen"), "action": _sell_stone, "enabled": have > 0, "detail": detail, "compare": compare},
 		]},
-	])
+	], _shop_pages())
 
 
 func _buy_stones(count: int) -> void:

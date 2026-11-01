@@ -57,6 +57,14 @@ func _has_text(text: String) -> bool:
 	return false
 
 
+## The key of the first row showing an item.
+func _key_of(id: String) -> String:
+	for key in game.menus.trade._entries:
+		if game.menus.trade._entries[key].get("id", "") == id:
+			return key
+	return ""
+
+
 func _shot(name: String) -> void:
 	if shots == "":
 		return
@@ -89,7 +97,7 @@ func _test() -> void:
 	await _shot("merchant_grid")
 
 	# Picking the crest shield compares it with the worn round shield.
-	trade.pick("buy:1")
+	trade.pick(_key_of("wappenschild"))
 	check(_has_text("Crest Shield") or _has_text(Items.item_name("wappenschild")), "the picked item has a card")
 	check(_has_text("Currently Equipped") and _has_text("Comparison"), "the worn shield is compared")
 	var diffs := TradeWindow.diffs("wappenschild", "rundschild")
@@ -99,14 +107,14 @@ func _test() -> void:
 	await _shot("merchant_compare_shield")
 
 	# Boots: nothing worn on the feet yet.
-	trade.pick("buy:3")
+	trade.pick(_key_of("lederstiefel"))
 	check(_has_text("No Item Equipped") and _has_text("new item"), "an empty place says it is new")
 	await _shot("merchant_new_item")
 
 	# A worse item shows red arrows and no badge.
 	p.bag.append("plattenpanzer")
 	p.equip("plattenpanzer")
-	trade.pick("buy:7")
+	trade.pick(_key_of("lederwams"))
 	check(not TradeWindow.is_upgrade(TradeWindow.compare_with_worn(p, "lederwams")), "a leather jerkin is no upgrade on plate")
 	check(not _has_text("Upgrade"), "no badge for a worse item")
 	await _shot("merchant_compare_worse")
@@ -119,8 +127,20 @@ func _test() -> void:
 
 	# Buying from the card still works.
 	var before: int = game.coins
-	menus._buy(0)
+	menus._buy(game.shop_stock.find("schwert"))
 	check(game.coins == before - Items.ALL["schwert"].price and p.bag.has("schwert"), "buying takes the gold and gives the item")
+
+	# Selling is a page of its own: the bag, not the wares.
+	check(not _has_text("Sell") or not _key_of("schwert").begins_with("sell"), "the buy page shows no bag items")
+	menus._show_shop_page("verkaufen")
+	check(_key_of("schwert").begins_with("sell:") and not _has_text(Items.item_name("lederwams")), "the sell page shows the bag only")
+	await _shot("merchant_sell")
+	before = game.coins
+	menus._sell(p.bag.find("schwert"))
+	check(game.coins == before + Menus.sell_price("schwert") and not p.bag.has("schwert"), "selling gives gold for the item")
+	menus.close()
+	menus.open("haendler")
+	check(menus._shop_page == "kaufen", "the window opens on the buy page")
 	menus.close()
 
 	# Gorm, Hagen and Benno use the same window.

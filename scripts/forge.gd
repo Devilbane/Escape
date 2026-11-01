@@ -5,14 +5,16 @@ extends RefCounted
 ##   rings, bracelets and amulets) becomes iron bars, more for pricier pieces;
 ## - forging: iron bars and some gold become a new piece of metal gear;
 ## - mending: worn armour and shields get their durability back for gold;
-## - iron bars can also be bought from the smith.
+## - iron bars can also be bought from the smith;
+## - buying: Gorm sells his own fine weapons and a kite shield ("smith" in
+##   Items.ALL), which are found nowhere else.
 ## Iron bars are counted like gold (game.iron), not carried in the bag, and
 ## are kept in the saved game.
 ## Forging from bought iron costs about what the merchant asks for the piece;
 ## iron from melted loot makes it cheaper, and you choose what you get.
 
 ## What the compendium says about the forge, once the hero has been there.
-const LEARN := "Schmied Gorm im Dorf arbeitet an seiner Esse: Er schmilzt Waffen, Schilde, Metallrüstungen und Schmuck zu Eisenbarren ein, schmiedet aus Eisen und etwas Gold neue Waffen, Schilde und Rüstungen, und bessert abgenutzte Rüstungen und Schilde gegen Gold aus. Eisenbarren verkauft er auch."
+const LEARN := "Schmied Gorm im Dorf arbeitet an seiner Esse: Er verkauft seine eigenen, besseren Waffen, die es sonst nirgends gibt, schmilzt Waffen, Schilde, Metallrüstungen und Schmuck zu Eisenbarren ein, schmiedet aus Eisen und etwas Gold neue Waffen, Schilde und Rüstungen, und bessert abgenutzte Rüstungen und Schilde gegen Gold aus. Eisenbarren verkauft er auch."
 ## What one iron bar costs at the smith.
 const IRON_PRICE := 4
 ## Materials of gear that melts down into iron (see Items, "material").
@@ -45,6 +47,27 @@ static func recipes() -> Array:
 			ids.append(id)
 	ids.sort_custom(func(a, b): return Items.ALL[a].price < Items.ALL[b].price)
 	return ids
+
+
+## Gorm's own wares, cheapest first: only the smith sells them.
+static func wares() -> Array:
+	var ids := Items.ALL.keys().filter(func(id): return Items.ALL[id].get("smith", false))
+	ids.sort_custom(func(a, b): return Items.ALL[a].price < Items.ALL[b].price)
+	return ids
+
+
+## Buys one of Gorm's wares into the bag. Returns "" on success, else why not.
+static func buy(game: Node, id: String) -> String:
+	var p: Player = game.player
+	if not Items.ALL.has(id) or not Items.ALL[id].get("smith", false):
+		return Lang.t("Das verkauft Gorm nicht.")
+	if game.coins < Items.ALL[id].price:
+		return Lang.t("Dafür reicht dein Gold nicht.")
+	if p.bag.size() >= p.bag_size():
+		return Lang.t("Deine Tasche ist voll.")
+	game.coins -= Items.ALL[id].price
+	p.bag.append(id)
+	return ""
 
 
 ## What forging a piece costs: {"iron": bars, "gold": coins}.

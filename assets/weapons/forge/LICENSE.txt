@@ -1,0 +1,7 @@
+Medieval Weapon Pack by Omie's Assets
+https://linktr.ee/Omies_Assets
+Licence: CC0, as the user's copy of the pack was provided (no licence file came with it).
+
+Used here: Long Sword, Scimitar, Mace, Battle Axe, War Hammer and Shield Kite.
+Converted with tools/obj_to_gltf.py: turned to match the KayKit hand slots,
+scaled, and only the colour texture kept, shrunk to 256 px.

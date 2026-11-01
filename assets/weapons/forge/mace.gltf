@@ -1,0 +1,136 @@
+{
+ "asset": {
+  "generator": "tools/obj_to_gltf.py",
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "name": "Scene",
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "mace"
+  }
+ ],
+ "materials": [
+  {
+   "name": "mace",
+   "doubleSided": true,
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 0
+    },
+    "metallicFactor": 0.0,
+    "roughnessFactor": 1.0
+   }
+  }
+ ],
+ "textures": [
+  {
+   "source": 0,
+   "sampler": 0
+  }
+ ],
+ "samplers": [
+  {
+   "magFilter": 9729,
+   "minFilter": 9987
+  }
+ ],
+ "images": [
+  {
+   "uri": "mace_texture.png",
+   "name": "mace_texture"
+  }
+ ],
+ "meshes": [
+  {
+   "name": "mace",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 831,
+   "type": "VEC3",
+   "min": [
+    -0.19348020000000002,
+    -0.216,
+    -0.1934784
+   ],
+   "max": [
+    0.1934766,
+    1.026459,
+    0.1934784
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 831,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 831,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5125,
+   "count": 2856,
+   "type": "SCALAR"
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 9972,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 9972,
+   "byteLength": 9972,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 19944,
+   "byteLength": 6648,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 26592,
+   "byteLength": 11424,
+   "target": 34963
+  }
+ ],
+ "buffers": [
+  {
+   "uri": "mace.bin",
+   "byteLength": 38016
+  }
+ ]
+}

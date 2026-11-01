@@ -37,6 +37,8 @@ extends Level
 ##   the bandits of the pass are bolder in the dark.
 ##   The wolf hollow north of the pass, where beasts roam and come back the
 ##   same way: W wolf, H orc, J yeti, U spider.
+##   Peaceful animals that graze in the woods and bolt from the hero
+##   (see Animal): D doe, V stag, & fox.
 ##   v  a stone pedestal with a food basket on top, too high to reach from
 ##      the ground or from one crate: stack two crates beside it. Three
 ##      wooden crates lie close by (see Crate).
@@ -52,7 +54,7 @@ signal food_basket(heal: int)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZScAXQWHJU"
+const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
@@ -148,6 +150,9 @@ const BASKET_REFILL := 180.0
 const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 1.6), Vector3(-1.4, 0, 3.0)]
 
 var villagers: Array = []
+## The peaceful animals of the woods (see Animal).
+var animals: Array[Animal] = []
+var _animal_spots: Array = []
 ## Has the elder handed the house over yet? Saved games wake up at home.
 var house_given := false
 ## The villagers the hero has talked to, by role letter (see Villager.ROLES):
@@ -245,6 +250,7 @@ func build() -> void:
 	_walls_body.add_child(floor_shape)
 	_spawn_villagers()
 	_spawn_wild()
+	_spawn_animals()
 
 
 # --- Ground -------------------------------------------------------------------
@@ -476,6 +482,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 		_:
 			if Enemy.WILD_LETTERS.has(ch):
 				_wild.append({"cell": c, "kind": Enemy.WILD_LETTERS[ch], "enemy": null, "timer": 0.0, "wave": 0})
+			elif Animal.LETTERS.has(ch):
+				_animal_spots.append({"cell": c, "kind": Animal.LETTERS[ch]})
 
 
 ## A tall stone pedestal with a basket of bread, cheese and apples on top,
@@ -1242,6 +1250,16 @@ func _spawn_wild() -> void:
 
 
 ## Whether the bandit chief has fallen in this saved game.
+## Lets the does, stags and foxes out onto their meadows.
+func _spawn_animals() -> void:
+	for s in _animal_spots:
+		var a := Animal.new()
+		a.setup(self, s.kind, s.cell)
+		add_child(a)
+		a.global_position = cell_to_world(s.cell)
+		animals.append(a)
+
+
 func chief_defeated() -> bool:
 	return taken.has(CHIEF_DEFEATED)
 

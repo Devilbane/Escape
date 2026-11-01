@@ -47,8 +47,12 @@ func _cell_of(ch: String) -> Vector3:
 func _process(delta: float) -> bool:
 	total += delta
 	timer += delta
-	if total > 2400.0:
-		print("FAIL: timeout at level ", game.level_index + 1)
+	# Every knockdown of a running hero costs about 2.5 s on the floor, and
+	# the bot runs (and gets hit while running) all the time.
+	if total > 3000.0:
+		var p: Player = game.player
+		print("FAIL: timeout at level ", game.level_index + 1, " after ", p.knockdowns, " knockdowns")
+		print("  state=%d cell=%s hp=%d path=%d can_act=%s controllable=%s frozen=%s dead=%s busy=%.1f down=%.1f anim=%s menus=%s" % [game.state, game.level.world_to_cell(p.global_position), p.hp, p.path.size(), p.can_act(), p.controllable, p.frozen, p.dead, p._busy, p._down, p._current_anim, game.menus.is_open()])
 		return true
 	if game.state == game.State.TITLE:
 		game._start_playing()
@@ -178,7 +182,7 @@ func _process(delta: float) -> bool:
 
 	# Search the nearest object that is still closed, then key, then exit.
 	# A full bag would block chests: try on everything, then throw the rest away.
-	if player.bag.size() >= Items.BAG_SIZE:
+	if player.bag.size() >= player.bag_size():
 		for id in player.bag.duplicate():
 			player.equip(id)
 		player.bag.clear()
@@ -296,5 +300,5 @@ func _back_outside(lvl: Outdoor, player: Player) -> bool:
 	if player.global_position.distance_to(lvl.doors["b"]) > 3.0:
 		print("FAIL: leaving the cellar did not lead out of the bank door")
 		return true
-	print("PASS: all ", game.level_files.size() - 2, " levels finished and home in the village after ", int(_village_time), " s, gold ", game.coins, ", searched ", searched, ", shrine gifts ", gifts, ", bag emptied ", equips, ", worn ", game.player.equipped.values(), ", rescued ", rescues, "x, backstabs ", backstabs, ", villagers away from their spot ", _moved, ", visited the vault cellar")
+	print("PASS: all ", game.level_files.size() - 2, " levels finished and home in the village after ", int(_village_time), " s, gold ", game.coins, ", searched ", searched, ", shrine gifts ", gifts, ", bag emptied ", equips, ", worn ", game.player.equipped.values(), ", rescued ", rescues, "x, backstabs ", backstabs, ", villagers away from their spot ", _moved, ", visited the vault cellar, knocked down ", game.player.knockdowns, "x, game time ", int(total), " s")
 	return true

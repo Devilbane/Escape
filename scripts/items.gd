@@ -13,12 +13,14 @@ extends RefCounted
 ## hat asks for some Intelligenz.
 ## Books ("teaches") are carried, not worn: they are read while the player is
 ## away (see Offline).
+## A worn backpack ("bag") holds more than the plain bag's BAG_SIZE items.
 
 const SLOTS := ["kopf", "waffe", "schild", "umhang", "ruestung", "schuhe",
-		"amulett", "ring", "armreif", "spezial_1", "spezial_2"]
+		"amulett", "ring", "armreif", "spezial_1", "spezial_2", "rucksack"]
 const SLOT_NAMES := {"kopf": "Kopf", "waffe": "Waffe", "schild": "Schild", "umhang": "Umhang",
 		"ruestung": "Rüstung", "schuhe": "Schuhe", "amulett": "Amulett", "ring": "Ring",
-		"armreif": "Armreif", "spezial_1": "Spezial 1", "spezial_2": "Spezial 2"}
+		"armreif": "Armreif", "spezial_1": "Spezial 1", "spezial_2": "Spezial 2",
+		"rucksack": "Rucksack"}
 const BAG_SIZE := 8
 const WEIGHT_SLOW := 0.01
 const MAX_WEIGHT_SLOW := 0.35
@@ -57,6 +59,12 @@ const ALL := {
 	"gluecksklee": {"name": "Glücksklee", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Doppeltes Gold"},
 	"dornenrune": {"name": "Dornenrune", "slot": "spezial", "weight": 0.5, "price": 45, "effect": "Wer dich im Nahkampf trifft, erleidet 1 Schaden"},
 	"phoenixfeder": {"name": "Phönixfeder", "slot": "spezial", "weight": 0.1, "price": 60, "effect": "Rettet dich einmal vor dem Tod, dann verbrennt sie"},
+	# Backpacks: "bag" is how many items the hero can carry while wearing one.
+	# Bigger ones are pricier, so they turn up more rarely. Lying about, they
+	# show as a sack ("model_scale" sizes it).
+	"leinenrucksack": {"name": "Leinenrucksack", "slot": "rucksack", "bag": 10, "weight": 1, "price": 22, "model": "res://assets/village/sack.gltf", "model_scale": 5.0, "material": "cloth"},
+	"lederrucksack": {"name": "Lederrucksack", "slot": "rucksack", "bag": 11, "weight": 1.5, "price": 36, "model": "res://assets/village/sack.gltf", "model_scale": 6.0, "material": "leather"},
+	"grosser_rucksack": {"name": "Großer Rucksack", "slot": "rucksack", "bag": 12, "weight": 2, "price": 60, "model": "res://assets/village/sack.gltf", "model_scale": 7.0, "material": "leather"},
 	# Books are not worn. The hero reads them while the player is away
 	# (Offline, "study"): each "teaches" one skill.
 	"fechtbuch": {"name": "Buch der Klingen", "slot": "buch", "weight": 1, "teaches": "klingen", "price": 40},
@@ -81,6 +89,11 @@ static func load_factor(total_weight: float) -> float:
 static func weight_text(kg: float) -> String:
 	var text := ("%d" % roundi(kg)) if is_equal_approx(kg, roundf(kg)) else ("%.1f" % kg)
 	return (text if Lang.language == "en" else text.replace(".", ",")) + " kg"
+
+
+## How many items the bag holds with this backpack worn ("" for none).
+static func bag_size(backpack: String) -> int:
+	return maxi(BAG_SIZE, int(ALL.get(backpack, {}).get("bag", 0)))
 
 
 static func is_book(id: String) -> bool:
@@ -113,6 +126,8 @@ static func describe(id: String, worn := 0) -> String:
 		parts.append(Lang.t("%d%% Tempo") % roundi(item.speed * 100.0))
 	for attr in item.get("requires", {}):
 		parts.append(Lang.t("braucht %s %d") % [Lang.t(Training.ATTRIBUTES[attr].name), item.requires[attr]])
+	if item.has("bag"):
+		parts.append(Lang.t("Platz für %d Dinge") % item.bag)
 	if item.has("teaches"):
 		parts.append(Lang.t("lehrt %s (beim Lernen im Bett planen)") % Lang.t(Training.SKILLS[item.teaches].name))
 	if item.has("uses"):

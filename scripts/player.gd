@@ -42,6 +42,16 @@ const GRAVITY := 26.0
 ## playback (metres per second, measured from the foot bone).
 const RUN_ANIM_SPEED := 3.5
 const MAX_HP := 5
+## A running hero who loses more than this share of their life within
+## KNOCKDOWN_WINDOW seconds is knocked to the ground and gets up again.
+const KNOCKDOWN_SHARE := 0.1
+const KNOCKDOWN_WINDOW := 2.0
+## The fall to the ground (Death_A, played to its end) and the climb back up
+## (Lie_StandUp, 2.33 s long, played a little faster).
+const FALL_TIME := 0.8
+const GET_UP_ANIM := "Lie_StandUp"
+const GET_UP_SPEED := 1.4
+const GET_UP_TIME := 2.33 / GET_UP_SPEED
 const MELEE_RANGE := 2.8
 ## Running into a skeleton starts a fight: the hero keeps swinging while
 ## standing next to it, and throws knives at it once the two are apart.
@@ -76,6 +86,9 @@ var power := 1
 var hardening := 0
 ## How much each armour piece has worn down, by item id.
 var wear := {}
+## The hero's hair style, hair colour and head tattoo (see HairLook); the
+## barber in the village changes them.
+var hair := HairLook.DEFAULT.duplicate()
 ## Chance per hit that a worn armour piece loses a point of durability.
 const WEAR_CHANCE := 0.05
 ## Chance to stop a whole hit with the worn shield (from the shield's "block").
@@ -145,6 +158,18 @@ var _target: Enemy = null
 var _auto_cooldown := 0.0
 ## Time left on an animation that plays while the hero keeps moving.
 var _anim_hold := 0.0
+## Seconds since the hero last ran; hits within the knockdown window of a run
+## count towards being knocked down.
+var _since_run := INF
+## Recent hits taken while running, as [time, damage], and a clock for them.
+var _run_hits: Array = []
+var _clock := 0.0
+## Seconds of the fall left before getting up, and of the whole knockdown
+## (fall and getting up), during which the hero takes no more damage.
+var _falling := 0.0
+var _down := 0.0
+## How often the hero has been knocked down this game.
+var knockdowns := 0
 
 
 func _ready() -> void:
@@ -168,7 +193,7 @@ func _ready() -> void:
 	GearLook.dress(_model.find_child("handslot_r", true, false).get_node("Knife"), "mixed") # The hero's own knife.
 	for arm in ["Rogue_ArmLeft", "Rogue_ArmRight"]:
 		GearLook.apply(_model.find_child(arm, true, false) as MeshInstance3D, "outfit")
-	_matt_head()
+	set_hair(hair)
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle", SNEAK_ANIM]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -210,7 +235,8 @@ func is_noisy() -> bool:
 	return not sneaking and (Vector2(velocity.x, velocity.z).length() > 0.5 or not is_on_floor())
 
 
-## Fades the hero while sneaking, and further in the shadows.
+## Turns the hero ash grey and see-through while sneaking, more so in the
+## shadows.
 func _update_sneak_look() -> void:
 	var alpha := 0.0
 	if sneaking:
@@ -219,26 +245,73 @@ func _update_sneak_look() -> void:
 		return
 	_shown_alpha = alpha
 	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
-		if mesh.material_override is ShaderMaterial:
-			# A tinted part: swap in the shader that can fade.
+		if HairLook.is_hair(mesh.material_override):
+			# Hair, scalp and face: their own shader greys and fades them.
+			HairLook.fade(mesh.material_override as ShaderMaterial, alpha)
+			continue
+		if mesh.material_override is ShaderMaterial and (mesh.material_override as ShaderMaterial).shader in [TINT_SHADER, TINT_FADE_SHADER]:
+			# A tinted part: swap in the shader that greys and fades.
 			var tinted := mesh.material_override as ShaderMaterial
 			tinted.shader = TINT_FADE_SHADER if alpha > 0.0 else TINT_SHADER
 			tinted.set_shader_parameter("fade", alpha)
 			continue
+		if mesh.material_override != null:
+			_ghost_override(mesh, alpha)
+			continue
 		if mesh.mesh == null:
 			continue
 		for i in mesh.mesh.get_surface_count():
-			var mat := mesh.get_surface_override_material(i) as StandardMaterial3D
-			if mat == null:
-				if alpha <= 0.0:
-					continue # Never faded: nothing to undo.
-				var base := mesh.mesh.surface_get_material(i) as StandardMaterial3D
-				if base == null:
-					continue
-				mat = base.duplicate()
-				mesh.set_surface_override_material(i, mat)
-			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if alpha > 0.0 else BaseMaterial3D.TRANSPARENCY_DISABLED
-			mat.albedo_color.a = 1.0 - alpha
+			_ghost_surface(mesh, i, alpha)
+
+
+## Puts a grey see-through stand-in over one surface of a part, keeping the
+## material it had to bring back when the hero stops sneaking.
+func _ghost_surface(mesh: MeshInstance3D, i: int, alpha: float) -> void:
+	var key := "unghosted_%d" % i
+	var mat := mesh.get_surface_override_material(i)
+	if mat is ShaderMaterial and (mat as ShaderMaterial).shader == GHOST_SHADER:
+		if alpha > 0.0:
+			mat.set_shader_parameter("fade", alpha)
+		else:
+			mesh.set_surface_override_material(i, mesh.get_meta(key, null))
+			mesh.remove_meta(key)
+		return
+	if alpha <= 0.0:
+		return
+	var base := mat if mat != null else mesh.mesh.surface_get_material(i)
+	mesh.set_meta(key, mat)
+	mesh.set_surface_override_material(i, _ghost(base, alpha))
+
+
+## The same for a part drawn with one material over the whole of it.
+func _ghost_override(mesh: MeshInstance3D, alpha: float) -> void:
+	var mat := mesh.material_override
+	if mat is ShaderMaterial and (mat as ShaderMaterial).shader == GHOST_SHADER:
+		if alpha > 0.0:
+			mat.set_shader_parameter("fade", alpha)
+		else:
+			mesh.material_override = mesh.get_meta("unghosted", null)
+			mesh.remove_meta("unghosted")
+		return
+	if alpha <= 0.0 or not mat is BaseMaterial3D:
+		return
+	mesh.set_meta("unghosted", mat)
+	mesh.material_override = _ghost(mat, alpha)
+
+
+const GHOST_SHADER := preload("res://shaders/ghost.gdshader")
+
+
+func _ghost(base: Material, alpha: float) -> ShaderMaterial:
+	var ghost := ShaderMaterial.new()
+	ghost.shader = GHOST_SHADER
+	if base is BaseMaterial3D:
+		var std := base as BaseMaterial3D
+		ghost.set_shader_parameter("tex", std.albedo_texture)
+		ghost.set_shader_parameter("use_tex", std.albedo_texture != null)
+		ghost.set_shader_parameter("color", std.albedo_color)
+	ghost.set_shader_parameter("fade", alpha)
+	return ghost
 
 
 ## A golden cord along the edge of the cape, and a white feather at the head.
@@ -254,24 +327,18 @@ func _add_trim() -> void:
 		var cord := MeshInstance3D.new()
 		cord.mesh = Effects.cord_mesh(Effects.open_edges(cape.mesh), 0.075, gold)
 		cape.add_child(cord)
-	var head := _model.find_child("Rogue_Head", true, false) as MeshInstance3D
-	var skeleton := _model.find_child("Skeleton3D", true, false) as Skeleton3D
-	if head == null or skeleton == null:
+	# The feather hangs from the head bone, in the head mesh's space.
+	var attach := HairLook.head_slot(_model)
+	if attach == null:
 		return
-	# The head is skinned to the head bone: place the feather in that bone's space.
-	var bind := Transform3D.IDENTITY
-	for i in head.skin.get_bind_count():
-		if head.skin.get_bind_name(i) == "head":
-			bind = head.skin.get_bind_pose(i)
-	var attach := BoneAttachment3D.new()
-	attach.name = "HeadSlot"
-	attach.bone_name = "head"
-	skeleton.add_child(attach)
+	var bind: Transform3D = attach.get_meta("bind")
 	var feather := MeshInstance3D.new()
 	feather.name = "Feather"
 	feather.mesh = Effects.feather_mesh()
 	feather.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Tucked in on the left side of the head, sweeping up and back.
+	# Tucked into the hair on the left side of the head, or behind the left
+	# ear of a shaved head, sweeping up and back.
+	feather.set_meta("spots", [bind * Vector3(0.47, 1.66, -0.05), bind * Vector3(0.4, 1.68, -0.2)])
 	feather.transform = Transform3D(Basis.from_euler(Vector3(-0.75, 0.0, -0.45)).scaled(Vector3.ONE * 1.3), bind * Vector3(0.47, 1.66, -0.05))
 	attach.add_child(feather)
 
@@ -342,19 +409,15 @@ func _build_eyelids() -> void:
 	_eyelids.visible = false
 
 
-## Hair and face are matt, so the hair does not shine like plastic in the
-## lantern light. Fading while sneaking reuses this material.
-func _matt_head() -> void:
-	var head := _model.find_child("Rogue_Head", true, false) as MeshInstance3D
-	if head == null or head.mesh == null:
-		return
-	var base := head.mesh.surface_get_material(0) as StandardMaterial3D
-	if base == null:
-		return
-	var matt := base.duplicate() as StandardMaterial3D
-	matt.roughness = 0.95
-	matt.metallic_specular = 0.12
-	head.set_surface_override_material(0, matt)
+## Gives the hero a new hair style, colour or tattoo (see HairLook).
+func set_hair(look: Dictionary) -> void:
+	hair = HairLook.checked(look)
+	if _model == null:
+		return # Not built yet: _ready puts it on.
+	HairLook.apply(_model, hair)
+	var feather := _model.find_child("Feather", true, false) as Node3D
+	if feather:
+		feather.position = feather.get_meta("spots")[0 if hair.style == "natural" else 1]
 
 
 ## The glowing devilbane emblem on the back of the cape.
@@ -415,6 +478,9 @@ func revive(at: Vector3, heal := true) -> void:
 	global_position = at
 	_invulnerable = 1.5
 	_busy = 0.0
+	_falling = 0.0
+	_down = 0.0
+	_run_hits.clear()
 	set_asleep(false)
 	play("Idle")
 
@@ -906,7 +972,8 @@ func _ailments_changed() -> void:
 	ailments_changed.emit()
 
 
-## Puts the worn helmet or hat on the hero's head; the feather makes room for it.
+## Puts the worn helmet or hat on the hero's head; the mohawk and the feather
+## make room for it.
 func _show_headgear() -> void:
 	var slot := _model.find_child("HeadSlot", true, false)
 	if slot == null:
@@ -918,6 +985,7 @@ func _show_headgear() -> void:
 	var feather := slot.get_node_or_null("Feather") as Node3D
 	if feather:
 		feather.visible = not item.has("hat")
+	HairLook.cover(_model, item.has("hat"))
 	if not item.has("hat"):
 		return
 	# The hats sit on the head bone of their own character, which matches the hero's.
@@ -956,25 +1024,38 @@ func can_use(requires: Dictionary) -> bool:
 	return true
 
 
+## How many items the bag holds: a worn backpack makes room for more.
+func bag_size() -> int:
+	return Items.bag_size(equipped.get("rucksack", ""))
+
+
 ## Moves a bag item into its slot; whatever was worn there goes into the bag.
-## Items the hero is not yet able to use stay in the bag, and so do books.
-func equip(id: String) -> void:
+## Items the hero is not yet able to use stay in the bag, and so do books,
+## and so does a smaller backpack that could not hold everything carried.
+## Returns whether the item was put on.
+func equip(id: String) -> bool:
 	if Items.is_book(id) or not can_use(Items.ALL[id].get("requires", {})):
-		return
+		return false
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":
 		# Two places for specials: take a free one, else swap out the first.
 		slot = "spezial_2" if equipped.has("spezial_1") and not equipped.has("spezial_2") else "spezial_1"
+	var after := bag.size() - 1 + (1 if equipped.has(slot) else 0)
+	if slot == "rucksack" and after > Items.bag_size(id):
+		return false
 	bag.erase(id)
 	if equipped.has(slot):
 		bag.append(equipped[slot])
 	equipped[slot] = id
 	refresh_stats()
+	return true
 
 
-## Takes off a worn item. False when the bag has no room for it.
+## Takes off a worn item. False when the bag has no room for it (without
+## the backpack, when that is what comes off).
 func unequip(slot: String) -> bool:
-	if not equipped.has(slot) or bag.size() >= Items.BAG_SIZE:
+	var room := Items.BAG_SIZE if slot == "rucksack" else bag_size()
+	if not equipped.has(slot) or bag.size() >= room:
 		return false
 	bag.append(equipped[slot])
 	equipped.erase(slot)
@@ -1030,7 +1111,7 @@ func _block(from: Vector3) -> void:
 ## Blows and shots can be blocked with a shield; spikes from below (blockable
 ## false) cannot.
 func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable := true) -> void:
-	if dead or _invulnerable > 0.0 or frozen:
+	if dead or _invulnerable > 0.0 or _down > 0.0 or frozen:
 		return
 	if blockable:
 		mark_fight() # A blow or a shot, blocked or not; spikes are no fight.
@@ -1048,6 +1129,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	# Every life lost hardens the body a little.
 	train("konstitution", amount)
 	hp -= amount
+	var knocked := _note_run_hit(amount)
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
 		attacker.take_hit(1, global_position)
 	if hp <= 0 and has_special("phoenixfeder"):
@@ -1070,8 +1152,54 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 		dead = true
 		play_once("Death_A", 99.0)
 		defeated.emit()
+	elif knocked:
+		_knock_down()
 	else:
 		play_once("Hit_A", 0.35)
+
+
+## Remembers a hit taken during or right after a run, and tells whether the
+## hits of the last KNOCKDOWN_WINDOW seconds took more than KNOCKDOWN_SHARE of
+## the hero's life.
+func _note_run_hit(amount: int) -> bool:
+	if _since_run > KNOCKDOWN_WINDOW:
+		return false
+	while not _run_hits.is_empty() and _clock - _run_hits[0][0] > KNOCKDOWN_WINDOW:
+		_run_hits.pop_front()
+	_run_hits.append([_clock, amount])
+	var total := 0
+	for h in _run_hits:
+		total += int(h[1])
+	return total > max_hp * KNOCKDOWN_SHARE
+
+
+## Knocks the hero to the ground: they fall over backwards, lie a moment and
+## get up again. No blow lands while they are down.
+func _knock_down() -> void:
+	knockdowns += 1
+	_run_hits.clear()
+	_since_run = INF
+	run_boost = 1.0
+	_falling = FALL_TIME
+	_down = FALL_TIME + GET_UP_TIME
+	_invulnerable = 0.0
+	play_once("Death_A", _down)
+
+
+## Lets a knocked-down hero lie until the fall is over, then stand up.
+func _get_up(delta: float) -> void:
+	if _down <= 0.0:
+		return
+	_down = maxf(0.0, _down - delta)
+	if _falling > 0.0:
+		_falling -= delta
+		if _falling <= 0.0 and not dead:
+			_current_anim = ""
+			play(GET_UP_ANIM, 0.4)
+	if _down <= 0.0 and not dead:
+		# A short blink once back on the feet, so a waiting blade does not
+		# land the very moment the hero stands.
+		_invulnerable = 0.6
 
 
 ## Running trains speed, carrying a heavy load trains strength, sneaking
@@ -1109,6 +1237,8 @@ func _physics_process(delta: float) -> void:
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_auto_cooldown = maxf(0.0, _auto_cooldown - delta)
 	_anim_hold = maxf(0.0, _anim_hold - delta)
+	_clock += delta
+	_get_up(delta)
 	_tick_ailments(delta)
 	_auto_attack()
 	var dir := Vector3.ZERO
@@ -1128,6 +1258,7 @@ func _physics_process(delta: float) -> void:
 				to.y = 0.0
 				dir = to.normalized()
 	_breathe(delta, dir != Vector3.ZERO)
+	_since_run = 0.0 if run_boost > RUN_ANIM_FROM else _since_run + delta
 	var vy := velocity.y - GRAVITY * delta
 	var pace := speed * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else WALK_FACTOR * run_boost)
 	velocity = dir * pace + _knockback
@@ -1179,6 +1310,8 @@ func _physics_process(delta: float) -> void:
 		_anim.speed_scale = clampf(ground_speed / RUN_ANIM_SPEED, 0.5, 2.5)
 	elif _current_anim == WALK_ANIM:
 		_anim.speed_scale = clampf(ground_speed / WALK_ANIM_SPEED, 0.5, 2.5)
+	elif _current_anim == GET_UP_ANIM:
+		_anim.speed_scale = GET_UP_SPEED
 	else:
 		_anim.speed_scale = 1.0
 	_footsteps(ground_speed)

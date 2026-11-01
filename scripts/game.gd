@@ -817,6 +817,7 @@ func _start_new_game() -> void:
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
 	player.knives = 5
+	player.set_hair(HairLook.DEFAULT)
 	player.reset_gifts()
 	# The hero keeps what they trained in earlier runs under this name.
 	player.xp = Training.load_hero(hero_name)
@@ -999,6 +1000,7 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_armor = int(data.get("gift_armor", 0))
 	player.equipped = data.equipped
 	player.wear = data.get("wear", {})
+	player.set_hair(data.get("hair", {}))
 	player.xp = Training.load_hero(hero_name)
 	lore.assign(data.get("lore", []))
 	escaped = bool(data.get("escaped", false))
@@ -1101,7 +1103,7 @@ func save_game(going_away := false) -> bool:
 	var data := {
 		"version": 1, "name": hero_name, "level": level_index, "coins": coins, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
-		"equipped": player.equipped, "wear": player.wear, "bag": player.bag, "storage": storage, "shop": shop_stock,
+		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(),
 		"saved_at": Time.get_unix_time_from_system(),
 	}
@@ -1547,7 +1549,7 @@ func _search(obj: Dictionary) -> void:
 	if obj.searched:
 		Effects.float_text(level, obj.icon_pos, Lang.t("Schon durchsucht"), Color(0.8, 0.8, 0.8), true)
 		return
-	if obj.loot.has("item") and player.bag.size() >= Items.BAG_SIZE:
+	if obj.loot.has("item") and player.bag.size() >= player.bag_size():
 		if not _message_busy():
 			show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0)
 		return
@@ -1835,9 +1837,13 @@ func _guardian_intro() -> void:
 
 func _process(delta: float) -> void:
 	_eerie(delta)
-	# A skeleton on the hero's heels keeps the fight going.
+	# A skeleton on the hero's heels keeps the fight going, and a hero who
+	# has been spotted cannot stay hidden.
 	if state == State.PLAYING and level and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):
 		player.mark_fight()
+		if player.sneaking:
+			player.set_sneaking(false)
+			show_message(Lang.t("Entdeckt! Du kannst nicht mehr schleichen."), 1.6)
 	_guardian_intro()
 	var p := player.global_position
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
@@ -1880,6 +1886,7 @@ func _process(delta: float) -> void:
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"bank": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
+			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
 			"eingang": Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 		}[station.kind]

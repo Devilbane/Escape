@@ -25,7 +25,7 @@ const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## Every control, for the compendium: action and keys.
 const SHORTCUTS := [
 	["Gehen", "WASD / Pfeiltasten oder Klick auf den Boden"],
-	["Rennen", "Maustaste auf dem Boden halten oder Umschalt: in 3 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück; leer erst wieder ab halbvoll"],
+	["Rennen", "Maustaste auf dem Boden halten oder Umschalt: in 3 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück; leer erst wieder ab halbvoll. Wer im Lauf binnen 2 Sekunden mehr als 10 % seiner Leben verliert, stürzt zu Boden und steht wieder auf"],
 	["Springen", "Leertaste, Rechtsklick im Lauf"],
 	["Nahkampf", "F oder J, gegen das Skelett laufen oder es anklicken"],
 	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],
@@ -105,6 +105,8 @@ func _rebuild() -> void:
 			_build_storage()
 		"bank":
 			_build_bank()
+		"barbier":
+			_build_barber()
 		"tresor":
 			_build_vault()
 		"haendler":
@@ -273,8 +275,8 @@ func _build_inventory() -> void:
 		var id: String = p.equipped.get(slot, "")
 		var text: String = "%s\n%s" % [Lang.t(Items.SLOT_NAMES[slot]), Items.item_name(id) if id != "" else "-"]
 		row.add_child(_item_button(text, _unequip.bind(slot), id != "", id))
-	_add_label(Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), Items.BAG_SIZE, Items.weight_text(p.carried_weight())], 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _select)
+	_add_label(Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), p.bag_size(), Items.weight_text(p.carried_weight())], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, 4 if p.bag_size() <= 8 else 6)
 	if _selected >= 0 and _selected < p.bag.size():
 		var id: String = p.bag[_selected]
 		_add_label("%s: %s" % [Items.item_name(id), Items.describe(id, p.wear.get(id, 0))], 18, BLUE)
@@ -334,7 +336,8 @@ func _equip_selected() -> void:
 	if not p.can_use(requires):
 		var attr: String = requires.keys()[0]
 		_note = Lang.t("Dafür brauchst du %s %d.") % [Lang.t(Training.ATTRIBUTES[attr].name), requires[attr]]
-	p.equip(id)
+	elif not p.equip(id):
+		_note = Lang.t("In diesen Rucksack passt nicht alles aus deiner Tasche.")
 	_selected = -1
 	_rebuild()
 
@@ -359,8 +362,8 @@ func _build_storage() -> void:
 	var p: Player = game.player
 	_add_label(Lang.t("Lagertruhe"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 18, BLUE)
-	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), Items.BAG_SIZE], 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _store, 6)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6)
 	_add_label(Lang.t("Truhe (%d / %d)") % [game.storage.size(), STORAGE_SIZE], 20)
 	_add_item_grid(game.storage, STORAGE_SIZE, Items.item_name, _take, 6)
 
@@ -376,7 +379,7 @@ func _store(index: int) -> void:
 
 
 func _take(index: int) -> void:
-	if game.player.bag.size() >= Items.BAG_SIZE:
+	if game.player.bag.size() >= game.player.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.player.bag.append(game.storage[index])
@@ -451,8 +454,8 @@ func _build_vault() -> void:
 	var hero: String = game.hero_name
 	_add_label(Lang.t("Dein Schließfach"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 18, BLUE)
-	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), Items.BAG_SIZE], 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, Items.item_name, _to_vault, 6)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _to_vault, 6)
 	var items := Bank.vault_items(hero)
 	_add_label(Lang.t("Schließfach (%d / %d)") % [items.size(), Bank.VAULT_SIZE], 20)
 	_add_item_grid(items, Bank.VAULT_SIZE, Items.item_name, _from_vault, 6)
@@ -471,7 +474,7 @@ func _to_vault(index: int) -> void:
 
 
 func _from_vault(index: int) -> void:
-	if game.player.bag.size() >= Items.BAG_SIZE:
+	if game.player.bag.size() >= game.player.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.player.bag.append(Bank.take(game.hero_name, index))
@@ -495,14 +498,14 @@ func _build_shop() -> void:
 	_add_label(Lang.t("Kaufen"), 20)
 	_add_item_grid(game.shop_stock, maxi(4, game.shop_stock.size()), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), Items.ALL[id].price], _buy)
 	_add_label(Lang.t("Verkaufen"), 20)
-	_add_item_grid(p.bag, Items.BAG_SIZE, func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), sell_price(id)], _sell)
+	_add_item_grid(p.bag, p.bag_size(), func(id): return Lang.t("%s\n%d Gold") % [Items.item_name(id), sell_price(id)], _sell)
 
 
 func _buy(index: int) -> void:
 	var id: String = game.shop_stock[index]
 	if game.coins < Items.ALL[id].price:
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
-	elif game.player.bag.size() >= Items.BAG_SIZE:
+	elif game.player.bag.size() >= game.player.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.coins -= Items.ALL[id].price
@@ -518,6 +521,113 @@ func _sell(index: int) -> void:
 	game.player.bag.remove_at(index)
 	game.shop_stock.append(id)
 	_note = Lang.t("Verkauft: %s für %d Gold") % [Items.item_name(id), sell_price(id)]
+	_rebuild()
+
+
+# --- Barber -----------------------------------------------------------------
+
+## What the barber offers: id, name, price in gold (see HairLook).
+const BARBER_STYLES := [["natural", "Natürlich", 5], ["mohawk", "Irokese", 15], ["bald", "Glatze", 10]]
+const BARBER_COLORS := [["natural", "Naturfarbe", 5], ["black", "Schwarz", 10], ["blond", "Blond", 10],
+		["silver", "Silber", 10], ["red", "Rot", 10], ["green", "Grün", 10], ["blue", "Blau", 10],
+		["pink", "Pink", 10], ["purple", "Lila", 10], ["rainbow", "Regenbogen", 25], ["fire", "Feuer", 30]]
+const TATTOO_PRICE := 20
+const TATTOO_REMOVE_PRICE := 10
+## The word the player is typing for a tattoo, kept while the menu rebuilds.
+var _tattoo_word := ""
+
+
+func _build_barber() -> void:
+	var p: Player = game.player
+	if _tattoo_word == "":
+		_tattoo_word = p.hair.tattoo if p.hair.tattoo != "" else "Pig!"
+	_add_label(Lang.t("Barbier"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
+	_add_label(Lang.t("Frisur"), 20)
+	_add_barber_row(BARBER_STYLES, "style")
+	_add_label(Lang.t("Farbe"), 20)
+	_add_barber_row(BARBER_COLORS.slice(0, 6), "color")
+	_add_barber_row(BARBER_COLORS.slice(6), "color")
+	_add_label(Lang.t("Tätowierung an der rechten Kopfseite (nur auf geschorenem Kopf zu sehen)"), 20)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	_box.add_child(row)
+	var edit := LineEdit.new()
+	edit.max_length = HairLook.TATTOO_MAX
+	edit.text = _tattoo_word
+	edit.placeholder_text = Lang.t("Ein Wort")
+	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	edit.custom_minimum_size = Vector2(260, 54)
+	edit.add_theme_font_override("font", game.TEXT_FONT)
+	edit.add_theme_font_size_override("font_size", 22)
+	edit.add_theme_stylebox_override("normal", panel_style(Color(0.85, 0.66, 0.32, 0.8)))
+	edit.add_theme_stylebox_override("focus", panel_style(game.GOLD))
+	edit.text_changed.connect(func(t): _tattoo_word = t)
+	edit.text_submitted.connect(func(_t): _ink_tattoo())
+	row.add_child(edit)
+	row.add_child(_item_button(Lang.t("Stechen\n%d Gold") % TATTOO_PRICE, _ink_tattoo, game.coins >= TATTOO_PRICE))
+	row.add_child(_item_button(Lang.t("Entfernen\n%d Gold") % TATTOO_REMOVE_PRICE, _remove_tattoo,
+			p.hair.tattoo != "" and game.coins >= TATTOO_REMOVE_PRICE))
+
+
+## One row of choices; what the hero has now is marked and cannot be bought again.
+func _add_barber_row(choices: Array, field: String) -> void:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	_box.add_child(row)
+	for c in choices:
+		var current: bool = game.player.hair[field] == c[0]
+		var text := Lang.t("Jetzt: %s") % Lang.t(c[1]) if current else Lang.t("%s\n%d Gold") % [Lang.t(c[1]), c[2]]
+		var b := _item_button(text, _restyle.bind(field, c[0], c[2]), not current and game.coins >= c[2])
+		b.custom_minimum_size = Vector2(150, 54)
+		row.add_child(b)
+
+
+func _restyle(field: String, id: String, price: int) -> void:
+	if game.coins < price:
+		_note = Lang.t("Dafür reicht dein Gold nicht.")
+		_rebuild()
+		return
+	game.coins -= price
+	var look: Dictionary = game.player.hair.duplicate()
+	look[field] = id
+	game.player.set_hair(look)
+	Sfx.play(game, "coin")
+	_note = Lang.t("Schnipp, schnapp! Steht dir gut.")
+	if field == "style" and id != "natural" and look.tattoo != "":
+		_note = Lang.t("Schnipp, schnapp! Jetzt sieht man auch deine Tätowierung.")
+	_rebuild()
+
+
+func _ink_tattoo() -> void:
+	var word := _tattoo_word.strip_edges()
+	if word == "":
+		_note = Lang.t("Sag mir erst, welches Wort ich stechen soll.")
+	elif game.coins < TATTOO_PRICE:
+		_note = Lang.t("Dafür reicht dein Gold nicht.")
+	else:
+		game.coins -= TATTOO_PRICE
+		var look: Dictionary = game.player.hair.duplicate()
+		look.tattoo = word
+		game.player.set_hair(look)
+		Sfx.play(game, "coin")
+		_note = Lang.t("Gestochen: %s") % word
+		if look.style == "natural":
+			_note += " " + Lang.t("Unter deinen Haaren sieht man sie erst, wenn du dir den Kopf scheren lässt.")
+	_rebuild()
+
+
+func _remove_tattoo() -> void:
+	if game.coins < TATTOO_REMOVE_PRICE:
+		_note = Lang.t("Dafür reicht dein Gold nicht.")
+	else:
+		game.coins -= TATTOO_REMOVE_PRICE
+		var look: Dictionary = game.player.hair.duplicate()
+		look.tattoo = ""
+		game.player.set_hair(look)
+		_note = Lang.t("Die Tätowierung ist weg.")
 	_rebuild()
 
 

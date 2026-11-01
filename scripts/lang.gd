@@ -63,8 +63,8 @@ const EN := {
 	"Gehen": "Walk",
 	"WASD / Pfeiltasten oder Klick auf den Boden": "WASD / arrow keys or click on the floor",
 	"Rennen": "Run",
-	"Maustaste auf dem Boden halten oder Umschalt: so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück":
-		"Hold the mouse button on the floor or Shift: for Constitution x 2 seconds, recovers by Constitution / 10 per second",
+	"Maustaste auf dem Boden halten oder Umschalt: in 3 Sekunden bis 250 % so schnell wie Gehen, so viele Sekunden wie Konstitution x 2, kommt mit Konstitution / 10 pro Sekunde zurück":
+		"Hold the mouse button on the floor or Shift: speeds up to 250 % of walking in 3 seconds, for Constitution x 2 seconds, recovers by Constitution / 10 per second",
 	"Leertaste, Rechtsklick im Lauf": "Space, right click while running",
 	"Nahkampf": "Melee",
 	"F oder J, gegen das Skelett laufen oder es anklicken": "F or J, run into the skeleton or click it",

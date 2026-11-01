@@ -12,10 +12,16 @@ signal bumped(point: Vector3)
 ## Emitted when training raises an attribute or a skill, with its new value.
 signal trained(id: String, value: int)
 
-## Full running speed in m/s; walking is a share of it (WALK_FACTOR).
+## The hero's reference speed in m/s (100 % Tempo); walking is a share of it.
 const SPEED := 4.0
-## Walking pace as a share of the running speed.
+## Walking pace as a share of SPEED.
 const WALK_FACTOR := 0.5
+## Running speeds up to this many times the walking pace...
+const RUN_TOP := 2.5
+## ...over this many seconds of holding the run,
+const RUN_RAMP_UP := 3.0
+## and slows back down to walking within this many seconds once let go.
+const RUN_RAMP_DOWN := 1.0
 const WALK_ANIM := "Walking_A"
 ## The ground speed at which the walk animation's feet keep pace (m/s).
 const WALK_ANIM_SPEED := 1.7
@@ -28,6 +34,8 @@ const RUN_SECONDS_PER_CON := 2.0
 const RUN_RECOVERY_PER_CON := 0.1
 ## Out of breath, the hero walks until this many seconds have come back.
 const RUN_RESTART := 1.0
+## From this many times the walking pace on, the hero shows the run animation.
+const RUN_ANIM_FROM := 1.4
 const JUMP_VELOCITY := 9.0
 const GRAVITY := 26.0
 ## How fast the feet travel over the ground in the run animation at normal
@@ -102,6 +110,8 @@ var stamina := -1.0
 var winded := false
 ## Whether the hero is running (not walking) this frame.
 var sprinting := false
+## How many times the walking pace the hero moves at: 1 walking, up to RUN_TOP.
+var run_boost := 1.0
 ## Sneaking: much slower, but silent, with the lantern hooded, and see-through
 ## (more so in the dark). Skeletons cannot hear a sneaking hero.
 var sneaking := false
@@ -356,6 +366,14 @@ func _breathe(delta: float, moving: bool) -> void:
 		stamina = minf(full, stamina + stamina_recovery() * delta)
 		if winded and stamina >= minf(RUN_RESTART, full):
 			winded = false
+	# Speeds up gradually while running, and eases back to walking when the
+	# run ends. Standing still or sneaking drops straight back to walking.
+	if not moving or sneaking:
+		run_boost = 1.0
+	elif sprinting:
+		run_boost = minf(RUN_TOP, run_boost + (RUN_TOP - 1.0) / RUN_RAMP_UP * delta)
+	else:
+		run_boost = maxf(1.0, run_boost - (RUN_TOP - 1.0) / RUN_RAMP_DOWN * delta)
 
 
 ## True while the hero is moving under its own steam.
@@ -1006,7 +1024,7 @@ func _physics_process(delta: float) -> void:
 				dir = to.normalized()
 	_breathe(delta, dir != Vector3.ZERO)
 	var vy := velocity.y - GRAVITY * delta
-	var pace := speed * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else (1.0 if sprinting else WALK_FACTOR))
+	var pace := speed * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else WALK_FACTOR * run_boost)
 	velocity = dir * pace + _knockback
 	if _air_momentum != Vector3.ZERO:
 		if is_on_floor() and vy <= 0.0:
@@ -1069,4 +1087,4 @@ func _physics_process(delta: float) -> void:
 	if dir == Vector3.ZERO:
 		play("Idle")
 	else:
-		play(SNEAK_ANIM if sneaking else ("Running_A" if sprinting else WALK_ANIM))
+		play(SNEAK_ANIM if sneaking else ("Running_A" if run_boost > RUN_ANIM_FROM else WALK_ANIM))

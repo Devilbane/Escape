@@ -17,6 +17,9 @@ The game can be played in English or German; you choose the language on the titl
 | Use, search | run into it | click the object |
 | Pick up a crate | E | click the crate, “Crate” button |
 | Set a crate down | Q | “Crate” button, “Set down” in the inventory |
+| Set a stone block down | B | “Stone” button, “Set down” in the inventory |
+| Move a stone block | | grab it with the left mouse button, drag, let go (right click while dragging turns it) |
+| Pick up a stone block | E | click it briefly, “Stone” button |
 | Inventory | I | “Inventory” button |
 | Compendium | H | “Compendium” button |
 | Character page | P | “Character” button |
@@ -59,6 +62,14 @@ up, or set a third crate down as a step. In the village, south of the market, a 
 holds a food basket out of reach of the ground and of a single crate. Three crates lie beside it:
 stack two next to the pedestal, climb up and eat (+3 lives and every ailment cured). The basket
 fills up again after a few minutes.
+
+**Stone blocks** let you build: walls, steps, towers, small enclosures. Hagen the **stonemason** sells them
+in the village, west of the pedestal, next to his stone yard (3 gold each, 1 gold back; 4 kg each). A block
+is twice as long as it is wide and high and sits on a build grid: set down from the bag (key B), it lies
+across your way in front of you, on the floor or on top of the blocks already there, up to five high.
+Grab a block lying free with the left mouse button and drag it: a see-through block shows where it will
+land (green: it fits, red: no room), let go and it flies there, within 7 m of you. Blocks are climbed like
+crates. What you build stays standing in your saved game.
 
 Your bag holds 8 things. A **backpack** worn in its own slot makes room for more: canvas backpack 10,
 leather backpack 11, large backpack 12. The bigger the backpack, the rarer it is. You can only take off a

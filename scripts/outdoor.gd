@@ -24,7 +24,8 @@ extends Level
 ##   Villagers: 0 elder, 1 smith, 2 farmer, 3 woodcutter, 4 guard,
 ##   5 tavern guest, 6 shopkeeper (buys and sells), 7 child, 8 scholar,
 ##   9 water carrier, K herald of the crown, O priestess, G guild master,
-##   M postmaster, Y banker. Now and then the herald calls out news on the square,
+##   M postmaster, Y banker, S stonemason (sells stone blocks to build with,
+##   his stone yard is on the tile behind him). Now and then the herald calls out news on the square,
 ##   and the villagers come over to listen.
 ##   The robbers' pass east of the village: N tent   f campfire   C treasure chest
 ##   and the bandits who roam there and come back a while after they fall:
@@ -41,10 +42,10 @@ signal food_basket(heal: int)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZcAXQ"
+const WALK := ".,Pai:0123456789KOGMYZScAXQ"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
-const VILLAGERS := "0123456789KOGMYZ"
+const VILLAGERS := "0123456789KOGMYZS"
 const BLOCK_CHARS := "Rhjnmuskowb"
 const HOMES := ["building_home_A_blue", "building_home_B_red", "building_home_A_yellow", "building_home_B_green"]
 const BLOCK_MODELS := {
@@ -869,7 +870,7 @@ func _spawn_villagers() -> void:
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier"}.get(ch, "npc")
+			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "S": "steinmetz"}.get(ch, "npc")
 			var station := {"kind": kind, "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)
@@ -879,6 +880,8 @@ func _spawn_villagers() -> void:
 				_herald = v
 			elif ch == "Z":
 				_build_barber_shop(c + Vector2i(0, -1))
+			elif ch == "S":
+				_build_stone_yard(c + Vector2i(0, -1))
 
 
 ## The barber's stall on the tile behind him: a market tent with a striped
@@ -898,6 +901,29 @@ func _build_barber_shop(cell: Vector2i) -> void:
 	add_child(board)
 	_add_solid(pos + Vector3(-2.0, 0, 1.9), Vector3(0.5, 2.6, 0.5))
 	_add_solid(pos + Vector3(1.4, 0, 1.9), Vector3(0.5, 2.6, 0.5))
+
+
+## The stonemason's yard on the tile behind him: blocks of carved stone
+## stacked up for sale, a rough block on the trestle and a sign.
+func _build_stone_yard(cell: Vector2i) -> void:
+	var pos := cell_to_world(cell)
+	# [offset of the block's bottom middle, turned to lie along z, shade]
+	var heap := [
+		[Vector3(-0.9, 0, -0.6), false, 0], [Vector3(0.75, 0, -0.6), false, 1],
+		[Vector3(-0.05, StoneBlock.HEIGHT, -0.6), false, 2], [Vector3(-0.9, 0, 0.6), false, 3],
+		[Vector3(0.75, 0, 0.6), false, 0],
+	]
+	for part in heap:
+		var block := StoneBlock.make_model(StoneBlock.SHADES[part[2]])
+		block.position = pos + part[0]
+		block.rotation.y = PI * 0.5 if part[1] else _rng.randf_range(-0.05, 0.05)
+		add_child(block)
+	_add_solid(pos + Vector3(0.2, 0, 0), Vector3(3.4, StoneBlock.HEIGHT * 2.0, 2.6))
+	astar.set_point_solid(cell, true)
+	var board := Effects.shop_sign(Lang.t("Steinmetz"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	board.position = pos + Vector3(-1.6, 0, 1.9)
+	add_child(board)
+	_add_solid(pos + Vector3(-1.6, 0, 1.9), Vector3(0.5, 2.6, 0.5))
 
 
 # --- Bandits ------------------------------------------------------------------

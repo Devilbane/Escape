@@ -52,6 +52,9 @@ var coins := 0
 ## searched furniture and picked up coins (see Level.taken). Kept in the
 ## saved game, so looted chests stay empty.
 var looted := {}
+## The stone blocks the hero built with on each level, by level file (see
+## Level.built). Kept in the saved game, so buildings stay standing.
+var builds := {}
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
 ## Levels left in a row without finding their secret room.
@@ -130,6 +133,18 @@ const HOLD_TO_RUN := 0.2
 const WALK_UP_TO := 2.0
 var _mouse_held := false
 var _mouse_held_time := 0.0
+## A stone block grabbed with the left mouse button and being dragged (see
+## StoneBlock): the block, the see-through block showing where it would
+## land, which way it lies there, where it lands, and how long it is held.
+var _drag_stone: StoneBlock = null
+var _drag_ghost: MeshInstance3D = null
+var _drag_along_x := true
+var _drag_spot := {}
+var _drag_time := 0.0
+var _drag_press := Vector2.ZERO
+## A press shorter than this, without moving the block, is a click on it.
+const DRAG_CLICK := 0.25
+const STONE_LEARN := "Steinblöcke kauft man beim Steinmetz im Dorf. Abstellen mit B (oder „Abstellen“ im Inventar): der Block legt sich quer vor dich, auf den Boden oder auf andere Blöcke. Mit der linken Maustaste greifst du einen Block, ziehst ihn auf ein anderes Feld in der Nähe und lässt los; ein Rechtsklick dabei dreht ihn. E nimmt einen Block wieder in die Tasche. Auf einen Block steigst du einfach hinauf, auf zwei mit einem Sprung."
 
 
 func _ready() -> void:
@@ -426,6 +441,7 @@ func _setup_hud() -> void:
 	buttons.add_child(_make_button(Lang.t("Werfen"), func(): if state == State.PLAYING: player.throw_knife()))
 	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
 	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
+	buttons.add_child(_make_button(Lang.t("Stein"), func(): if state == State.PLAYING and not menus.is_open(): stone_action()))
 
 	_setup_shrine_panel()
 
@@ -615,6 +631,172 @@ func put_down_crate() -> String:
 	return ""
 
 
+# --- Stone blocks -------------------------------------------------------------
+
+## Sets a stone block from the bag down in front of the hero, lying across
+## their way, on the floor or on the blocks there. Returns "" on success,
+## else why not.
+func place_stone() -> String:
+	if not player.can_act() or player.is_climbing() or not player.is_on_floor():
+		return Lang.t("Gerade nicht.")
+	if not player.bag.has(Menus.STONE):
+		return Lang.t("Du trägst keinen Steinblock. Der Steinmetz im Dorf verkauft welche.")
+	var spot := level.stone_spot_ahead(player, player.facing())
+	if spot.is_empty():
+		return Lang.t("Hier ist kein Platz für den Steinblock.")
+	player.path.clear()
+	player.play_once("Interact", 0.3)
+	player.bag.erase(Menus.STONE)
+	var stone := level.put_stone(spot.cell, spot.along_x, spot.layer)
+	Sfx.play(self, "gear_book", -1.0, stone.global_position)
+	learn(STONE_LEARN)
+	_update_hud()
+	return ""
+
+
+## Takes the stone block in reach (or `stone`, if given and in reach) back
+## into the bag. Returns "" on success, else why not.
+func take_stone(stone: StoneBlock = null) -> String:
+	if not player.can_act() or player.is_climbing():
+		return Lang.t("Gerade nicht.")
+	if stone == null:
+		stone = level.stone_in_reach(player)
+	elif level._flat_distance(player.global_position, stone.global_position) > Level.STONE_REACH or absf(stone.global_position.y - player.global_position.y) > 2.0 or not level.stone_free(stone):
+		stone = null
+	if stone == null:
+		return Lang.t("Kein freier Steinblock in Reichweite.")
+	if player.bag.size() >= player.bag_size():
+		return Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.")
+	player.path.clear()
+	player.face(stone.global_position - player.global_position)
+	player.play_once("Interact", 0.3)
+	level.take_stone(stone)
+	player.bag.append(Menus.STONE)
+	Sfx.play(self, "gear_soft_%d" % (randi() % 2), -2.0)
+	_update_hud()
+	return ""
+
+
+## The "Stone" button: sets a block down while carrying one, else takes the
+## one in reach.
+func stone_action() -> void:
+	var why := ""
+	if player.bag.has(Menus.STONE):
+		why = place_stone()
+	else:
+		why = take_stone()
+	if why != "":
+		show_message(why, 1.6)
+
+
+## The stone block under the mouse, or null.
+func _stone_under(screen_pos: Vector2) -> StoneBlock:
+	var hit := _ray_from_camera(screen_pos, [player.get_rid()])
+	return hit.get("collider") as StoneBlock if not hit.is_empty() else null
+
+
+func _ray_from_camera(screen_pos: Vector2, exclude: Array[RID]) -> Dictionary:
+	var origin := camera.project_ray_origin(screen_pos)
+	var ray := PhysicsRayQueryParameters3D.create(origin, origin + camera.project_ray_normal(screen_pos) * 200.0)
+	ray.exclude = exclude
+	return get_world_3d().direct_space_state.intersect_ray(ray)
+
+
+## Grabs a stone block with the mouse, if the hero can: it lies free and
+## close enough. Returns whether a drag started.
+func _grab_stone(screen_pos: Vector2) -> bool:
+	if level == null or level.stones.is_empty() or not player.can_act() or player.is_climbing():
+		return false
+	var stone := _stone_under(screen_pos)
+	if stone == null:
+		return false
+	if level._flat_distance(player.global_position, stone.global_position) > Level.STONE_DRAG_RANGE:
+		show_message(Lang.t("Der Steinblock ist zu weit weg."), 1.4)
+		return true
+	if not level.stone_free(stone):
+		show_message(Lang.t("Auf dem Steinblock liegt etwas oder steht jemand."), 1.4)
+		return true
+	_drag_stone = stone
+	_drag_along_x = stone.along_x
+	_drag_spot = {}
+	_drag_time = 0.0
+	_drag_press = screen_pos
+	player.path.clear()
+	_pending_search = {}
+	_pending_station = {}
+	_pending_crate = null
+	_drag_ghost = MeshInstance3D.new()
+	_drag_ghost.mesh = StoneBlock.block_mesh()
+	_drag_ghost.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_drag_ghost.material_override = mat
+	_drag_ghost.visible = false
+	level.add_child(_drag_ghost)
+	return true
+
+
+## Where the dragged block would land: the stone or floor under the mouse.
+func _update_drag(delta: float) -> void:
+	if _drag_stone == null:
+		return
+	if not is_instance_valid(_drag_stone) or not level.stones.has(_drag_stone) or state != State.PLAYING or menus.is_open():
+		_end_drag()
+		return
+	_drag_time += delta
+	var mouse := get_viewport().get_mouse_position()
+	var hit := _ray_from_camera(mouse, [player.get_rid(), _drag_stone.get_rid()])
+	var point = null
+	if not hit.is_empty() and hit.normal.y > 0.7:
+		point = hit.position
+	else:
+		point = _mouse_to_floor(mouse)
+	if point == null:
+		_drag_ghost.visible = false
+		_drag_spot = {}
+		return
+	_drag_spot = level.stone_drop_spot(_drag_stone, point, _drag_along_x, player)
+	var unmoved: bool = _drag_spot.cell == _drag_stone.cell and _drag_spot.along_x == _drag_stone.along_x and _drag_spot.layer == _drag_stone.layer
+	_drag_ghost.visible = not unmoved
+	var spot := StoneBlock.spot_of(_drag_spot.cell, _drag_spot.along_x, _drag_spot.layer)
+	_drag_ghost.global_transform = Transform3D(Basis() if _drag_spot.along_x else Basis(Vector3.UP, PI * 0.5), spot)
+	(_drag_ghost.material_override as StandardMaterial3D).albedo_color = Color(0.55, 1.0, 0.6, 0.4) if _drag_spot.ok else Color(1.0, 0.35, 0.3, 0.4)
+	player.face(spot - player.global_position)
+
+
+## Lets go of the dragged block: it flies onto the spot under the mouse,
+## or, after a short click on it, goes into the bag when it is in reach.
+func _drop_stone() -> void:
+	if _drag_stone == null:
+		return
+	var stone := _drag_stone
+	var spot := _drag_spot
+	var quick := _drag_time < DRAG_CLICK and get_viewport().get_mouse_position().distance_to(_drag_press) < 12.0
+	_end_drag()
+	if not is_instance_valid(stone):
+		return
+	if spot.get("ok", false) and not quick:
+		player.play_once("Throw", 0.45)
+		level.move_stone(stone, spot.cell, spot.along_x, spot.layer)
+		Sfx.play(self, "gear_book", -1.0, stone.global_position)
+		learn(STONE_LEARN)
+	elif quick:
+		var why := take_stone(stone)
+		if why != "":
+			show_message(why, 1.6)
+	elif not spot.is_empty() and not (spot.cell == stone.cell and spot.along_x == stone.along_x and spot.layer == stone.layer):
+		show_message(Lang.t("Dort ist kein Platz für den Steinblock.") if level._flat_distance(StoneBlock.spot_of(spot.cell, spot.along_x, 0), player.global_position) <= Level.STONE_DRAG_RANGE else Lang.t("So weit reicht dein Wurf nicht."), 1.4)
+
+
+func _end_drag() -> void:
+	_drag_stone = null
+	_drag_spot = {}
+	if _drag_ghost != null and is_instance_valid(_drag_ghost):
+		_drag_ghost.queue_free()
+	_drag_ghost = null
+
+
 ## The "Crate" button: picks up a crate in reach, else sets one down.
 func crate_action() -> void:
 	var why := ""
@@ -722,6 +904,9 @@ func load_level(index: int, restock := true) -> void:
 	if not looted.has(file):
 		looted[file] = {}
 	level.taken = looted[file]
+	if not builds.has(file):
+		builds[file] = []
+	level.built = builds[file]
 	level.hero = hero_name
 	if level is Outdoor:
 		level.interiors = interiors
@@ -741,6 +926,7 @@ func load_level(index: int, restock := true) -> void:
 	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
 	level.restore_taken()
+	level.restore_stones()
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
 	level.item_collected.connect(_on_item_collected)
@@ -758,6 +944,7 @@ func load_level(index: int, restock := true) -> void:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
 		level.food_basket.connect(_eat_from_basket)
 	_pending_crate = null
+	_end_drag()
 	_set_atmosphere(level.outdoor)
 	_pending_search = {}
 	_pending_station = {}
@@ -930,6 +1117,7 @@ func _start_new_game() -> void:
 	secrets_found = 0
 	dry_levels = 0
 	looted.clear()
+	builds.clear()
 	met.clear()
 	storage.clear()
 	shop_stock.clear()
@@ -1132,6 +1320,12 @@ func _apply_save(data: Dictionary) -> void:
 				for id in saved_loot[file]:
 					ids[str(id)] = true
 			looted[file] = ids
+	builds.clear()
+	var saved_builds = data.get("builds", {})
+	if saved_builds is Dictionary:
+		for file in saved_builds:
+			if saved_builds[file] is Array:
+				builds[str(file)] = (saved_builds[file] as Array).filter(func(e): return e is Array and e.size() >= 4)
 	escaped = bool(data.get("escaped", false))
 	home_given = bool(data.get("home", false))
 	met.clear()
@@ -1241,7 +1435,7 @@ func save_game(going_away := false) -> bool:
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(),
 		"saved_at": Time.get_unix_time_from_system(),
-		"looted": _looted_for_save(), "met": met.keys(),
+		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 	}
 	if going_away and level is Outdoor:
 		# Asleep in the bed of the hero's own house: wake up there.
@@ -1256,6 +1450,15 @@ func save_game(going_away := false) -> bool:
 	file.store_string(JSON.stringify(data))
 	file.close()
 	return FileAccess.file_exists(path)
+
+
+## The stone blocks per level file, levels without any left out.
+func _builds_for_save() -> Dictionary:
+	var out := {}
+	for file in builds:
+		if not builds[file].is_empty():
+			out[file] = builds[file]
+	return out
 
 
 ## The looted ids per level file as plain lists, levels with none left out.
@@ -2004,6 +2207,7 @@ func _process(delta: float) -> void:
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)
+	_update_drag(delta)
 	_update_run_meter()
 	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
 		_prompt.text = ""
@@ -2044,9 +2248,14 @@ func _process(delta: float) -> void:
 			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
 			"eingang": Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
+			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 		}[station.kind]
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")
+	elif _prompt.text == "" and _drag_stone != null:
+		_prompt.text = Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen")
+	elif _prompt.text == "" and level.stone_in_reach(player) != null:
+		_prompt.text = Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben")
 
 
 func _reach(pos: Vector3) -> float:
@@ -2097,6 +2306,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_mouse_held = event.pressed
+		if not event.pressed and _drag_stone != null:
+			_drop_stone()
+			return
 	var pressed: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed and not event.echo)
 	if not pressed:
 		return
@@ -2154,9 +2366,17 @@ func _unhandled_input(event: InputEvent) -> void:
 					KEY_C:
 						_toggle_sneak()
 					KEY_E:
-						var why_not := pick_up_crate()
+						var why_not := ""
+						if level.crate_in_reach(player) == null and level.stone_in_reach(player) != null:
+							why_not = take_stone()
+						else:
+							why_not = pick_up_crate()
 						if why_not != "":
 							show_message(why_not, 1.6)
+					KEY_B:
+						var no_place := place_stone()
+						if no_place != "":
+							show_message(no_place, 1.6)
 					KEY_Q:
 						var no_room := put_down_crate()
 						if no_room != "":
@@ -2168,6 +2388,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				var point = _mouse_to_floor(event.position)
 				if point == null:
 					return
+				if event.button_index == MOUSE_BUTTON_RIGHT and _drag_stone != null:
+					# Turns the dragged block a quarter round.
+					_drag_along_x = not _drag_along_x
+					return
 				if event.button_index == MOUSE_BUTTON_RIGHT:
 					# While running with the left button held, right click jumps.
 					if _mouse_held and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and player.is_running():
@@ -2175,7 +2399,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					else:
 						player.throw_knife(point)
 				elif event.button_index == MOUSE_BUTTON_LEFT:
-					if event.double_click:
+					if _grab_stone(event.position):
+						_mouse_held = false
+					elif event.double_click:
 						_toggle_sneak()
 					else:
 						_click(point)

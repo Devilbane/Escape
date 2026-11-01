@@ -36,6 +36,9 @@ const SHORTCUTS := [
 	["Charakter", "P"],
 	["Spielstand laden", "L"],
 	["Ton an/aus", "M"],
+	["Steinblock abstellen", "B, oder „Abstellen“ im Inventar"],
+	["Steinblock verschieben", "Block mit der linken Maustaste greifen, ziehen und loslassen (Rechtsklick dabei dreht ihn)"],
+	["Steinblock aufheben", "E neben dem Block, oder ihn kurz anklicken"],
 	["Zoom", "+ und −, Mausrad"],
 	["Spiel beenden", "Esc"],
 ]
@@ -107,6 +110,8 @@ func _rebuild() -> void:
 			_build_bank()
 		"barbier":
 			_build_barber()
+		"steinmetz":
+			_build_stonemason()
 		"tresor":
 			_build_vault()
 		"haendler":
@@ -293,6 +298,8 @@ func _build_inventory() -> void:
 		_box.add_child(actions)
 		if Items.is_crate(id):
 			actions.add_child(_item_button(Lang.t("Abstellen"), _put_down_selected))
+		elif Items.is_stone(id):
+			actions.add_child(_item_button(Lang.t("Abstellen"), _place_stone_selected))
 		else:
 			actions.add_child(_item_button(Lang.t("Anlegen"), _equip_selected))
 		actions.add_child(_item_button(Lang.t("Wegwerfen"), _drop_selected))
@@ -359,6 +366,16 @@ func _put_down_selected() -> void:
 	_note = ""
 	close()
 	var why: String = game.put_down_crate()
+	if why != "":
+		game.show_message(why, 1.6)
+
+
+## Sets a stone block down in front of the hero and goes back to the game.
+func _place_stone_selected() -> void:
+	_selected = -1
+	_note = ""
+	close()
+	var why: String = game.place_stone()
 	if why != "":
 		game.show_message(why, 1.6)
 
@@ -550,6 +567,62 @@ func _sell(index: int) -> void:
 	game.player.bag.remove_at(index)
 	game.shop_stock.append(id)
 	_note = Lang.t("Verkauft: %s für %d Gold") % [Items.item_name(id), sell_price(id)]
+	_rebuild()
+
+
+# --- Stonemason --------------------------------------------------------------
+
+const STONE := "steinblock"
+
+
+## The stonemason sells stone blocks, as many as the bag holds, and takes
+## them back for half the price.
+func _build_stonemason() -> void:
+	var p: Player = game.player
+	var price: int = Items.ALL[STONE].price
+	var room: int = p.bag_size() - p.bag.size()
+	_add_label(Lang.t("Steinmetz"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
+	_add_label(Lang.t("Steinblöcke in deiner Tasche: %d    Platz für %d weitere") % [p.bag.count(STONE), room], 20)
+	_add_label(Lang.t("Behauene Steinblöcke zum Bauen: Mauern, Stufen, Türme. Abstellen mit B oder im Inventar, verschieben mit der Maus: greifen, ziehen, loslassen."), 16, BLUE)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	_box.add_child(row)
+	var all := mini(room, game.coins / price) if price > 0 else room
+	row.add_child(_item_button(Lang.t("1 Steinblock\n%d Gold") % price, _buy_stones.bind(1), room > 0 and game.coins >= price, STONE))
+	row.add_child(_item_button(Lang.t("%d Steinblöcke\n%d Gold") % [maxi(all, 1), maxi(all, 1) * price], _buy_stones.bind(all), all > 0, STONE))
+	row.add_child(_item_button(Lang.t("1 zurückgeben\n+%d Gold") % sell_price(STONE), _sell_stone, p.bag.has(STONE), STONE))
+
+
+func _buy_stones(count: int) -> void:
+	var p: Player = game.player
+	var price: int = Items.ALL[STONE].price
+	var bought := 0
+	for i in count:
+		if game.coins < price or p.bag.size() >= p.bag_size():
+			break
+		game.coins -= price
+		p.bag.append(STONE)
+		bought += 1
+	if bought > 0:
+		_note = Lang.t("Gekauft: %d Steinblöcke") % bought
+		Sfx.play(game, "gear_soft_0", -2.0)
+	elif p.bag.size() >= p.bag_size():
+		_note = Lang.t("Deine Tasche ist voll.")
+	else:
+		_note = Lang.t("Dafür reicht dein Gold nicht.")
+	game._update_hud()
+	_rebuild()
+
+
+func _sell_stone() -> void:
+	var p: Player = game.player
+	if p.bag.has(STONE):
+		p.bag.erase(STONE)
+		game.coins += sell_price(STONE)
+		_note = Lang.t("Verkauft: %s für %d Gold") % [Items.item_name(STONE), sell_price(STONE)]
+	game._update_hud()
 	_rebuild()
 
 

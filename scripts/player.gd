@@ -1178,7 +1178,7 @@ func bag_size() -> int:
 ## and so does a smaller backpack that could not hold everything carried.
 ## Returns whether the item was put on.
 func equip(id: String) -> bool:
-	if Items.is_book(id) or Items.is_crate(id) or not can_use(Items.ALL[id].get("requires", {})):
+	if Items.is_book(id) or Items.is_crate(id) or Items.is_stone(id) or not can_use(Items.ALL[id].get("requires", {})):
 		return false
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":
@@ -1384,11 +1384,19 @@ func _try_climb(dir: Vector3) -> bool:
 		var crate := hit.get_collider() as Crate
 		if crate == null or absf(hit.get_normal().y) > 0.5 or push.dot(-hit.get_normal()) < 0.5:
 			continue
-		var top: Crate = level.stack_top(crate)
-		var rise := top.top() - global_position.y
+		var target: Vector3
+		if crate is StoneBlock:
+			# Onto the top of the blocks on the grid cell just past the edge
+			# the hero pushes against.
+			var into := hit.get_position() - hit.get_normal() * StoneBlock.CELL * 0.5
+			var c := StoneBlock.grid_cell(into)
+			target = Vector3((c.x + 0.5) * StoneBlock.CELL, level.stone_surface(into) + 0.02, (c.y + 0.5) * StoneBlock.CELL)
+		else:
+			var top: Crate = level.stack_top(crate)
+			target = Vector3(top.global_position.x, top.top() + 0.02, top.global_position.z)
+		var rise := target.y - 0.02 - global_position.y
 		if rise <= 0.05 or rise > (STEP_UP if is_on_floor() else GRAB_REACH):
 			continue
-		var target := Vector3(top.global_position.x, top.top() + 0.02, top.global_position.z)
 		if not _room_at(target):
 			continue
 		_climb_from = global_position

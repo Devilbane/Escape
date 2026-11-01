@@ -79,6 +79,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log
           grep -q PASS barber.log
 
+      - name: Villager quests test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/quests.gd | tee quests.log
+          grep -q PASS quests.log
+
       - name: Villager names after a talk test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/npc_names.gd | tee names.log
@@ -93,6 +98,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_beasts.gd | tee beasts.log
           grep -q PASS beasts.log
+
+      - name: Bandit chief boss fight test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/bandit_chief.gd | tee chief.log
+          grep -q PASS chief.log
 
       - name: Strike, sweep and fighting back test
         run: |
@@ -118,6 +128,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/stones.gd | tee stones.log
           grep -q PASS stones.log
+
+      - name: Pull-out button menu test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_drawer.gd | tee drawer.log
+          grep -q PASS drawer.log
 
       - name: Day and night test
         run: |

@@ -264,7 +264,8 @@ const EN := {
 	# Windows
 	"Schließen": "Close",
 	"Zurück zum Spiel": "Back to game",
-	"Leben %d / %d    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Gold %d": "Life %d / %d    Power %d    Hardening %d    Speed %d%%    Knives %d    Gold %d",
+	"Leben %d / %d (+%.1f/s)    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Gold %d": "Life %d / %d (+%.1f/s)    Power %d    Hardening %d    Speed %d%%    Knives %d    Gold %d",
+	"%+.1f Leben/s": "%+.1f life/s",
 	"Angelegt (anklicken zum Ablegen)": "Worn (click to take off)",
 	"Tasche (%d / %d)": "Bag (%d / %d)",
 	"Anlegen": "Wear",

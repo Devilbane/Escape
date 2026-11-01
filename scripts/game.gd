@@ -270,6 +270,7 @@ func _ready() -> void:
 			show_message(text, duration))
 	player.hurt.connect(_on_player_hurt)
 	player.ailments_changed.connect(_update_hud)
+	player.regenerated.connect(_update_hud)
 	player.defeated.connect(_on_player_defeated)
 	player.bumped.connect(_on_player_bumped)
 	player.trained.connect(_on_player_trained)

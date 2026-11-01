@@ -11,8 +11,9 @@ extends RefCounted
 ## is a word written in ink on the right side of a shaved head.
 ##
 ## A look is a Dictionary: {"style": one of STYLES, "color": a key of
-## COLORS, "tattoo": the word, "" for none, "show_helmet": false to leave a
-## worn helmet or hat invisible, so the haircut shows (it still protects)}.
+## COLORS, "tattoo": the word, "" for none, "tattoo_shape": one of
+## TATTOO_SHAPES, "show_helmet": false to leave a worn helmet or hat
+## invisible, so the haircut shows (it still protects)}.
 
 const SHADER := preload("res://shaders/hair.gdshader")
 const FADE_SHADER := preload("res://shaders/hair_fade.gdshader")
@@ -37,7 +38,9 @@ const COLORS := {
 ## Colours the shader draws itself: a rainbow running along the crest, and
 ## flickering flames that glow in the dark.
 const MODES := {"rainbow": 1, "fire": 2}
-const DEFAULT := {"style": "natural", "color": "natural", "tattoo": "", "show_helmet": true}
+## The writing runs straight, or arches over the ear in a half circle.
+const TATTOO_SHAPES := ["straight", "arch"]
+const DEFAULT := {"style": "natural", "color": "natural", "tattoo": "", "tattoo_shape": "straight", "show_helmet": true}
 const TATTOO_MAX := 12
 
 ## The bald skull the shaved hair is pulled onto, in the head mesh's space.
@@ -105,7 +108,7 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 	var word: String = look.get("tattoo", "")
 	head_mat.set_shader_parameter("show_tattoo", shaved and word != "")
 	if word != "":
-		head_mat.set_shader_parameter("tattoo", _ink(head, word))
+		head_mat.set_shader_parameter("tattoo", _ink(head, word, look.get("tattoo_shape", "straight") == "arch"))
 
 
 ## A helmet or hat hides the crest (it would poke through).
@@ -160,6 +163,8 @@ static func checked(look) -> Dictionary:
 		if COLORS.has(look.get("color", "")):
 			result.color = look.color
 		result.tattoo = str(look.get("tattoo", "")).strip_edges().left(TATTOO_MAX)
+		if look.get("tattoo_shape", "") in TATTOO_SHAPES:
+			result.tattoo_shape = look.tattoo_shape
 		result.show_helmet = bool(look.get("show_helmet", true))
 	return result
 
@@ -179,29 +184,61 @@ static func _set_color(mat: ShaderMaterial, color: String) -> void:
 
 
 ## Writes the tattoo into a small texture: a hidden viewport with the word,
-## drawn once. The shader lays it onto the side of the head.
-static func _ink(head: MeshInstance3D, word: String) -> Texture2D:
+## drawn once, letter by letter, in a straight line or along a half circle.
+## The shader lays it onto the side of the head.
+const INK_SIZE := Vector2(512, 390)
+
+static func _ink(head: MeshInstance3D, word: String, arch: bool) -> Texture2D:
 	var view := head.get_node_or_null("TattooInk") as SubViewport
 	if view == null:
 		view = SubViewport.new()
 		view.name = "TattooInk"
-		view.size = Vector2i(512, 192)
+		view.size = Vector2i(INK_SIZE)
 		view.transparent_bg = true
 		view.disable_3d = true
-		var label := Label.new()
-		label.name = "Word"
-		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		label.size = Vector2(512, 192)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.add_theme_font_override("font", TATTOO_FONT)
-		label.add_theme_color_override("font_color", Color.WHITE)
-		view.add_child(label)
+		var word_node := Node2D.new()
+		word_node.name = "Word"
+		view.add_child(word_node)
 		head.add_child(view)
-	var word_label := view.get_node("Word") as Label
-	word_label.text = word
+	var word_node := view.get_node("Word") as Node2D
+	for old in word_node.get_children():
+		old.free()
 	# Short words big, long words smaller, so every word fits.
-	word_label.add_theme_font_size_override("font_size", clampi(int(640.0 / maxf(word.length(), 3.0)), 40, 150))
+	var font_size := clampi(int(640.0 / maxf(word.length(), 3.0)), 40, 150)
+	var widths: Array[float] = []
+	var total := 0.0
+	for ch in word:
+		var w := TATTOO_FONT.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		widths.append(w)
+		total += w
+	# A half circle at most; a short word takes only part of it, so its
+	# letters stay close together and easy to read.
+	const RADIUS := 180.0
+	var span := clampf(total * 1.15 / RADIUS, 0.0, PI * 0.9) if arch else 0.0
+	var centre := Vector2(INK_SIZE.x * 0.5, INK_SIZE.y * 0.5 + (RADIUS * 0.45 if arch else 0.0))
+	var x := -total * 0.5
+	var angle := -span * 0.5
+	for i in word.length():
+		var label := Label.new()
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		label.text = word[i]
+		label.add_theme_font_override("font", TATTOO_FONT)
+		label.add_theme_font_size_override("font_size", font_size)
+		label.add_theme_color_override("font_color", Color.WHITE)
+		label.size = Vector2(widths[i], font_size * 1.3)
+		label.pivot_offset = label.size * 0.5
+		var mid: Vector2
+		if arch:
+			# The letter's middle sits on the circle, turned to follow it.
+			var a := angle + widths[i] * 0.5 / total * span
+			mid = centre + Vector2(sin(a), -cos(a)) * RADIUS
+			label.rotation = a
+			angle += widths[i] / total * span
+		else:
+			mid = centre + Vector2(x + widths[i] * 0.5, 0.0)
+			x += widths[i]
+		label.position = mid - label.size * 0.5
+		word_node.add_child(label)
 	view.render_target_update_mode = SubViewport.UPDATE_ONCE
 	return view.get_texture()
 

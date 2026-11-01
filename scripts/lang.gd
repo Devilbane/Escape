@@ -429,6 +429,8 @@ const EN := {
 	"Jetzt: %s": "Now: %s",
 	"Tätowierung an der rechten Kopfseite (nur auf geschorenem Kopf zu sehen)": "Tattoo on the right side of the head (only shows on a shaved head)",
 	"Ein Wort": "A word",
+	"Gerade": "Straight",
+	"Im Halbkreis": "Half circle",
 	"Stechen\n%d Gold": "Ink it\n%d gold",
 	"Entfernen\n%d Gold": "Remove\n%d gold",
 	"Schnipp, schnapp! Steht dir gut.": "Snip, snip! Looks good on you.",

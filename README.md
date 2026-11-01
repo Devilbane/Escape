@@ -171,7 +171,8 @@ corner of the market square, under his own burning mohawk. He gives
 you a new **hair style** (natural, mohawk or shaved, 5 to 15 gold) and a new **hair colour** (natural,
 black, blond, silver, red, green, blue, pink or purple for 10 gold, an animated **rainbow** for 25, or
 flickering **fire** that glows in the dark for 30). He also inks a **tattoo**: any word of up to 12 letters
-on the right side of your head (20 gold, removing it costs 10). It only shows on a shaved head. A mohawk
+on the right side of your head, straight or arched in a half circle (20 gold, removing it costs 10). It only shows
+on a shaved head. A mohawk
 hides under helmets and hats, unless you hide the helmet in the inventory: it still protects, but the
 haircut shows. Your look is saved with the game.
 

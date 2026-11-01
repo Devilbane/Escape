@@ -47,9 +47,10 @@ var _env: Environment
 var _moon: DirectionalLight3D
 ## The time of day above ground, in hours (see DayNight). Saved with the game.
 var day_hour := DayNight.START_HOUR
-## How many midnights the world above ground has seen since the escape
-## (day 0 is the first day). Saved with the game; it tells which night it
-## is, and so when the wandering merchant comes (see Wanderer).
+## How many mornings have dawned in the world above ground since the game
+## began. A day starts at dawn (DayNight.NIGHT_UNTIL), so the night after
+## day d's evening, past midnight too, still counts as day d (see Wanderer).
+## Saved with the game.
 var day := 0
 ## The clock as the HUD shows it right now.
 var _clock_shown := ""
@@ -1098,7 +1099,7 @@ func _tick_clock(delta: float) -> void:
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		var before := day_hour
 		day_hour = DayNight.advance(day_hour, delta)
-		if day_hour < before:
+		if _dawn_between(before, day_hour):
 			day += 1
 		_tick_weather(delta)
 	if level.outdoor:
@@ -1162,6 +1163,15 @@ func _on_lightning(at: Vector3) -> void:
 	_flash = 1.0
 	var far: float = level._flat_distance(player.global_position, at) if player else 0.0
 	Sfx.play_after(self, clampf(far / 40.0, 0.15, 1.5), "thunder", -1.0 - far * 0.08)
+
+
+## Whether the clock passed dawn going forward from one hour to the other,
+## at most one day later: that starts a new day.
+static func _dawn_between(from: float, to: float) -> bool:
+	var dawn := DayNight.NIGHT_UNTIL
+	if to >= from:
+		return from < dawn and to >= dawn
+	return from < dawn or to >= dawn
 
 
 # --- Flow -------------------------------------------------------------------
@@ -1832,7 +1842,7 @@ func _looted_for_save() -> Dictionary:
 func sleep() -> void:
 	# A night in the bed: the hero wakes up the next morning.
 	if level.outdoor or level.building != "":
-		if day_hour > DayNight.WAKE_HOUR:
+		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			day += 1
 		day_hour = DayNight.WAKE_HOUR
 		# A new morning brings new weather.
@@ -2148,10 +2158,9 @@ func update_after_quest() -> void:
 ## The wandering merchant's wares for tonight: a new visit brings new ones,
 ## and what was bought stays gone until then.
 func wanderer_wares() -> Array[String]:
-	var night := Wanderer.night_of(day, day_hour)
-	if night != wanderer_night:
-		wanderer_night = night
-		wanderer_stock = Wanderer.stock_for(night, hero_name)
+	if day != wanderer_night:
+		wanderer_night = day
+		wanderer_stock = Wanderer.stock_for(day, hero_name)
 	return wanderer_stock
 
 

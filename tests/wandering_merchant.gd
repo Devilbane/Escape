@@ -52,9 +52,7 @@ func _rules() -> void:
 	check(not Wanderer.visits(0), "he does not come on the very first night")
 	check(Wanderer.visits(1) and Wanderer.visits(4) and Wanderer.visits(7), "he comes every third night")
 	check(not Wanderer.visits(2) and not Wanderer.visits(3), "he stays away in between")
-	check(Wanderer.night_of(1, 22.0) == 1 and Wanderer.night_of(2, 3.0) == 1, "the hours after midnight belong to the night before")
-	check(Wanderer.night_of(2, 12.0) == 2, "by day it is the coming night")
-	check(Wanderer.is_here(1, 22.0) and Wanderer.is_here(2, 4.5), "on his night he is there from nightfall to dawn")
+	check(Wanderer.is_here(1, 22.0) and Wanderer.is_here(1, 4.5), "on his night he is there from nightfall to dawn (the day turns at dawn)")
 	check(not Wanderer.is_here(2, 6.0) and not Wanderer.is_here(1, 12.0), "by day he is not there")
 	check(Wanderer.nights_until(2) == 2 and Wanderer.nights_until(4) == 0, "the nights until his next visit")
 	check(Wanderer.price("mondsteinamulett") == 84 and Wanderer.price("schwert") == 15, "he asks a fifth more, rounded up")
@@ -121,8 +119,7 @@ func _in_the_village() -> void:
 	var square: Vector2i = level.world_to_cell(level.spots.square[0])
 	check(level.grid_path(square, level._wanderer_cell).size() > 1, "the way from the square to him is open")
 	check(not level.wanderer.goes_to_bed(), "he does not go to bed")
-	# Past midnight he is still there.
-	level.day = 2
+	# Past midnight he is still there: the day only turns at dawn.
 	level.set_hour(2.0)
 	check(level.wanderer != null, "after midnight he is still there")
 	# Dawn: he packs up.
@@ -130,6 +127,7 @@ func _in_the_village() -> void:
 	check(level.wanderer == null and _station().is_empty(), "at dawn he is gone")
 	check(level._cart == null and not level.astar.is_point_solid(_cart_cell()), "at dawn his cart is gone")
 	# The next night is not his.
+	level.day = 2
 	level.set_hour(22.0)
 	check(level.wanderer == null, "on the following night he stays away")
 	# A game loaded on his night finds him there at once.
@@ -180,7 +178,7 @@ func _saving() -> void:
 	check(game.day == 0 and game.wanderer_night == -1, "an older saved game starts on day 0")
 
 
-## The clock counts the days: past midnight and through a night in the bed.
+## The clock counts the days: at dawn and through a night in the bed.
 func _counting_days() -> void:
 	game.day = 3
 	game.load_level(game._outdoor_index(), false)
@@ -188,9 +186,12 @@ func _counting_days() -> void:
 	game.state = game.State.PLAYING
 	game.day_hour = 23.9
 	game._tick_clock(30.0)
-	check(game.day == 4, "midnight starts a new day")
+	check(game.day == 3, "midnight does not start a new day")
+	game.day_hour = 4.8
 	game._tick_clock(30.0)
-	check(game.day == 4, "only midnight starts a new day")
+	check(game.day == 4, "dawn starts a new day")
+	game._tick_clock(30.0)
+	check(game.day == 4, "only dawn starts a new day")
 	game.state = before_state
 	game.day_hour = 23.0
 	game.sleep()

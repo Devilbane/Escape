@@ -27,12 +27,8 @@ const RARE_SPECIALS := ["vampirzahn", "gluecksklee", "dornenrune", "phoenixfeder
 const GEAR_MIN_PRICE := 30
 
 
-## The number of the night an hour of a day belongs to. Night d begins at
-## nightfall on day d and lasts until the morning of day d + 1. By day this
-## is the night that is coming.
-static func night_of(day: int, hour: float) -> int:
-	return day - 1 if hour < DayNight.NIGHT_UNTIL else day
-
+## Nights are counted like days (see Game.day): a day begins at dawn, so the
+## night after day d's evening, past midnight too, is night d.
 
 ## Whether the merchant comes on a night.
 static func visits(night: int) -> bool:
@@ -42,7 +38,7 @@ static func visits(night: int) -> bool:
 ## Whether the merchant is in the village at a day and hour: only at night,
 ## and only on his nights.
 static func is_here(day: int, hour: float) -> bool:
-	return DayNight.is_night(hour) and visits(night_of(day, hour))
+	return DayNight.is_night(hour) and visits(day)
 
 
 ## How many nights from `night` until his next visit (0: he comes that night).

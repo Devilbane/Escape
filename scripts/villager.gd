@@ -555,7 +555,7 @@ func meet() -> void:
 func greet_newcomer(hero: Node3D) -> void:
 	_line = 1
 	meet()
-	say(Lang.t("Willkommen, Fremder! Du kommst aus der alten Gruft? Das leere Haus mit dem Ziegeldach gehört jetzt dir."), hero.global_position, 6.5)
+	say(Lang.t("Willkommen, Fremder! Du kommst aus der alten Gruft? In der Weberzeile steht ein Haus für dich bereit."), hero.global_position, 6.5)
 
 
 ## Shows "!" (a task to offer), "?" (a task to hand in) or nothing ("").

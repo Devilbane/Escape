@@ -215,10 +215,16 @@ as an escape: it goes into the ranking and the game is saved at once. From then 
 new starting point: every load, and every new try after a fall, begins in front of the crypt door, wherever
 you saved last. But the game goes on. A long path leads
 through the autumn forest, past a pond and a woodcutter, to the village of **Lindenhain**. Run into anyone
-to hear what they have to say. The **village elder** gives you the empty house with the tiled roof, and a
-golden light shows the door. Inside are a **bed** (save and log out) and a **chest** (your storage). The moment
-you first step inside, the house is yours: the game saves, and from then on your house replaces the graveyard as
-the starting point. Every load, and every new try after a fall, begins next to your bed.
+to hear what they have to say. The **village elder** gives you your own house on **Weavers' Lane**, and a golden
+light shows the door. Weavers' Lane runs along the northern edge of the village: a row of twenty narrow,
+three-storey town houses wall to wall, each with its own colours and a number over the door, so the village has
+a home for many heroes. Inside, the **ground floor** has the **chest** (your storage), the **upper floor** the
+**bed** (save and log out), and the **attic** is free. Walk onto the stairs to go up or down a storey. Chalked
+squares on the floorboards keep room for furniture on every storey. The moment you first step inside, the house
+is yours: the game saves, and from then on your house replaces the graveyard as the starting point. Every load,
+and every new try after a fall, begins next to your bed. The doors of the houses other heroes live in stay
+shut, and an empty one tells you which number is yours. Who lives where is kept on this computer next to the
+bank's books, so every hero keeps their house.
 
 In the middle of the village lies the paved **market square** with a fountain that heals, benches and
 lanterns. Around it stand the **smithy**, the **temple** (a small stone chapel with a spire and stained-glass
@@ -478,8 +484,9 @@ It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `
 `A` poacher, `X` bruiser, `Q` bandit chief; the beasts of the wolf hollow, who do the same: `W` wolf,
 `H` orc, `J` yeti, `U` spider; the peaceful animals of the woods: `D` doe, `V` stag, `&` fox. `E` is the stone arch over the stairs down into the dragon's lair. Buildings are a
 rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general store, `u` windmill,
-`s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank. The hero's house:
-`I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The crafting square:
+`s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank, `^` a row of narrow town
+houses (one per tile along its front, numbered from west to east, all sharing the floor with `building: ^`). A single
+hero's house (not on the map any more): `I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The crafting square:
 `+` fine metalwork bench, `%` gem cutter's wheel, `*` alchemist's table, `$` your storage chest. The villagers: `0` elder,
 `1` smith, `2` farmer, `3` woodcutter, `4` guard, `5` drinker, `6` shopkeeper, `7` child, `8` scholar,
 `9` water carrier, `K` herald, `O` priestess, `G` guild master, `M` postmaster, `Y` banker, `Z` barber.
@@ -489,6 +496,11 @@ rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general 
 building's door leads there, and its stairs `E` lead back out of the door. Such floors are never part of
 the run through the dungeon. Inside, `=` is a wall of iron bars and `U` a vault cell (see
 `levels/12_der_tresorkeller.txt`, the bank's vault cellar).
+A building floor with the line `home: yes` is a hero's own home (see `levels/14_das_wohnhaus.txt`, the
+town houses): wooden floorboards, and several storeys drawn side by side, each a room sealed off by walls and
+counted from west to east. `<` are stairs up to the `>` of the next storey and back, `+` is free floor kept
+for furniture (the game lists these spots per storey in `Level.furniture_slots`), and the exit `E` is the
+front door in the south wall.
 
 The exit `E` needs a wall to the north (top) and is entered from the south.
 A door `D` stands in a passage one tile wide.

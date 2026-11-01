@@ -85,8 +85,85 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMate
 	var house := Node3D.new()
 	house.name = "House"
 	house.set_meta("village_house", true)
-	var mesh := ArrayMesh.new()
-	var mats := {
+	house.add_child(_mesh_of(parts, _materials(rng, glass)))
+	return house
+
+
+## A narrow town house for a row of them along a lane (see
+## Outdoor._build_terrace): `room.x` across the front, so neighbours almost
+## touch, and three storeys, each jutting out a little further over the
+## street than the one below. The gable faces the lane, the roof slopes down
+## to the neighbours on either side, and a small sign over the door carries
+## the house number. Built facing south (+z) like `build`.
+static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator, glass: StandardMaterial3D) -> Node3D:
+	var w := room.x - 0.06
+	var d := clampf(room.y - 1.6 - JETTY * 2.0, 4.0, 6.0) - rng.randf_range(0.0, 0.3)
+	var ridge := w * rng.randf_range(0.62, 0.8)
+	var door_x: float = [-1.0, 1.0][rng.randi() % 2] * (w * 0.5 - 1.0)
+	var parts := {}
+	_box(parts, "stone", Vector3(0, PLINTH * 0.5, 0), Vector3(w, PLINTH, d + 0.1))
+	_box(parts, "plaster", Vector3(0, PLINTH + GROUND * 0.5, 0), Vector3(w - 0.04, GROUND, d))
+	_frame(parts, w - 0.04, d, PLINTH, GROUND, door_x)
+	_door(parts, Vector3(door_x, PLINTH, d * 0.5))
+	_window(parts, Vector3(-door_x, PLINTH + 1.6, d * 0.5), 0.0)
+	_window(parts, Vector3(w * 0.25, PLINTH + 1.6, -d * 0.5), PI)
+	# Two upper storeys, each jutting out over the lane a little more.
+	var y0 := PLINTH + GROUND
+	for k in range(1, NARROW_STOREYS):
+		var sd := d + JETTY * k
+		var z0 := JETTY * k * 0.5
+		_box(parts, "plaster", Vector3(0, y0 + UPPER * 0.5, z0), Vector3(w - 0.04, UPPER, sd))
+		_frame(parts, w - 0.04, sd, y0, UPPER, INF, z0)
+		for x: float in [-w * 0.22, w * 0.22]:
+			_box(parts, "timber", Vector3(x, y0 - 0.12, d * 0.5 + JETTY * (k - 0.5) + 0.02), Vector3(0.18, 0.18, JETTY + 0.1))
+		for x: float in [-w * 0.25, w * 0.25]:
+			_window(parts, Vector3(x, y0 + 1.3, z0 + sd * 0.5), 0.0)
+		_window(parts, Vector3(-w * 0.25, y0 + 1.3, z0 - sd * 0.5), PI)
+		y0 += UPPER
+	# The roof: its ridge runs from the lane to the back, so it is built
+	# turned a quarter round, in a surface of its own.
+	var top_d := d + JETTY * (NARROW_STOREYS - 1)
+	var top_z := JETTY * (NARROW_STOREYS - 1) * 0.5
+	var roof_parts := {}
+	_gables(roof_parts, top_d, w - 0.04, y0, ridge)
+	_roof(roof_parts, top_d + ROOF_OVERHANG * 2.0, w + 0.16, y0, ridge, w)
+	var cx := (-1.0 if door_x > 0.0 else 1.0) * w * 0.22
+	_box(parts, "stone", Vector3(cx, y0 + ridge * 0.55, top_z - top_d * 0.25), Vector3(0.6, ridge * 1.1 + 0.8, 0.6))
+	_box(parts, "timber", Vector3(cx, y0 + ridge * 1.1 + 0.45, top_z - top_d * 0.25), Vector3(0.75, 0.12, 0.75))
+	# The house sign: a board on a bracket over the door.
+	_box(parts, "timber", Vector3(door_x, PLINTH + 2.75, d * 0.5 + 0.3), Vector3(0.08, 0.08, 0.6))
+	_box(parts, "door", Vector3(door_x, PLINTH + 2.55, d * 0.5 + 0.55), Vector3(0.62, 0.42, 0.06))
+
+	var house := Node3D.new()
+	house.name = "TownHouse%d" % number
+	house.set_meta("town_house", number)
+	house.set_meta("door_x", door_x)
+	var mats := _materials(rng, glass)
+	house.add_child(_mesh_of(parts, mats))
+	var roof := _mesh_of(roof_parts, mats)
+	roof.name = "Roof"
+	roof.rotation.y = PI * 0.5
+	roof.position.z = top_z
+	house.add_child(roof)
+	var plate := Label3D.new()
+	plate.name = "Number"
+	plate.text = str(number)
+	plate.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	plate.font_size = 64
+	plate.pixel_size = 0.006
+	plate.outline_size = 8
+	plate.modulate = Color(1.0, 0.86, 0.5)
+	plate.position = Vector3(door_x, PLINTH + 2.55, d * 0.5 + 0.6)
+	house.add_child(plate)
+	return house
+
+
+## How many storeys a narrow town house has: ground floor and two above.
+const NARROW_STOREYS := 3
+
+
+static func _materials(rng: RandomNumberGenerator, glass: StandardMaterial3D) -> Dictionary:
+	return {
 		"plaster": _plaster(PLASTERS[rng.randi() % PLASTERS.size()]),
 		"timber": _textured("timber", WOOD_TEX, TIMBER),
 		"roof": _textured("roof_%d" % (rng.randi() % ROOFS.size()), STONE_TEX, Color.WHITE),
@@ -94,14 +171,18 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMate
 		"door": _textured("door", DOOR_TEX, Color.WHITE),
 		"glass": glass,
 	}
+
+
+## One mesh with a surface per material from the parts' surface tools.
+static func _mesh_of(parts: Dictionary, mats: Dictionary) -> MeshInstance3D:
+	var mesh := ArrayMesh.new()
 	for key: String in parts:
 		var st: SurfaceTool = parts[key]
 		st.commit(mesh)
 		mesh.surface_set_material(mesh.get_surface_count() - 1, mats[key])
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
-	house.add_child(mi)
-	return house
+	return mi
 
 
 static func _window_spots(width: float, door_x: float) -> Array:
@@ -114,15 +195,15 @@ static func _window_spots(width: float, door_x: float) -> Array:
 
 ## Posts at the corners and between, sill and rail beams, braces on the
 ## front and back. No post stands in front of the door.
-static func _frame(parts: Dictionary, w: float, d: float, y0: float, h: float, door_x: float) -> void:
+static func _frame(parts: Dictionary, w: float, d: float, y0: float, h: float, door_x: float, z0 := 0.0) -> void:
 	var hb := BEAM * 0.5
 	for side: float in [-1.0, 1.0]:
-		var z := side * (d * 0.5 + 0.02)
+		var z := side * (d * 0.5 + 0.02) + z0
 		var x := side * (w * 0.5 + 0.02)
 		# Sill and head beams all round.
 		for y: float in [y0 + hb, y0 + h - hb]:
 			_box(parts, "timber", Vector3(0, y, z), Vector3(w + 0.1, BEAM, BEAM))
-			_box(parts, "timber", Vector3(x, y, 0), Vector3(BEAM, BEAM, d + 0.1))
+			_box(parts, "timber", Vector3(x, y, z0), Vector3(BEAM, BEAM, d + 0.1))
 		# A rail under the windows.
 		_box(parts, "timber", Vector3(0, y0 + h * 0.42, z), Vector3(w, BEAM * 0.8, BEAM * 0.9))
 		# Corner posts.
@@ -144,7 +225,7 @@ static func _frame(parts: Dictionary, w: float, d: float, y0: float, h: float, d
 			var b := Basis(Vector3(0, 0, 1), tilt)
 			_box(parts, "timber", Vector3(end * (w * 0.5 - bay * 0.5), y0 + h * 0.5, z), Vector3(len, BEAM * 0.8, BEAM * 0.8), b)
 		# A post in the middle of the gable walls.
-		_box(parts, "timber", Vector3(x, y0 + h * 0.5, 0), Vector3(BEAM * 0.9, h, BEAM * 0.9))
+		_box(parts, "timber", Vector3(x, y0 + h * 0.5, z0), Vector3(BEAM * 0.9, h, BEAM * 0.9))
 
 
 ## A plank door under a beam, with a step of stone before it.

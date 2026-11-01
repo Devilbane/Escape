@@ -31,6 +31,7 @@ var state := State.TITLE
 var _sound_button: Button
 var _music_button: Button
 var _music_slider: HSlider
+var _effects_slider: HSlider
 ## The pull-out menu on the right edge of the screen that holds all the
 ## clickable buttons, its handle, and how far it is pulled out (0 to 1).
 var _drawer: HBoxContainer
@@ -445,6 +446,7 @@ func _setup_drawer() -> void:
 		b.custom_minimum_size = Vector2(150, 58)
 		b.add_theme_font_size_override("font_size", 18)
 	column.add_child(_make_music_slider())
+	column.add_child(_make_effects_slider())
 	_update_music_controls()
 	_update_drawer_handle()
 	_place_drawer(0.0)
@@ -1609,6 +1611,8 @@ func _toggle_sound() -> void:
 func _update_sound_button() -> void:
 	if _sound_button:
 		_sound_button.text = Lang.t("Ton: aus") if Sfx.muted else Lang.t("Ton: an")
+	if _effects_slider and not is_equal_approx(_effects_slider.value, Sfx.volume):
+		_effects_slider.set_value_no_signal(Sfx.volume)
 
 
 func _toggle_music() -> void:
@@ -1616,29 +1620,55 @@ func _toggle_music() -> void:
 	_update_music_controls()
 
 
-## A row with the music volume: a label and a slider from silent to full.
-func _make_music_slider() -> Control:
+## A row with a volume: a label and a slider from silent to full.
+func _make_volume_row(title: String, tooltip: String, value: float, on_change: Callable) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	var label := Label.new()
-	label.text = Lang.t("Musik")
+	label.text = Lang.t(title)
 	label.add_theme_font_override("font", TEXT_FONT)
 	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", GOLD)
+	# Both rows' labels take the same width, so the sliders line up.
+	label.custom_minimum_size = Vector2(90, 0)
 	row.add_child(label)
-	_music_slider = HSlider.new()
-	_music_slider.min_value = 0.0
-	_music_slider.max_value = 1.0
-	_music_slider.step = 0.05
-	_music_slider.focus_mode = Control.FOCUS_NONE
-	_music_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_music_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_music_slider.custom_minimum_size = Vector2(0, 32)
-	_music_slider.tooltip_text = Lang.t("Lautstärke der Musik")
-	_music_slider.value = Music.volume
-	_music_slider.value_changed.connect(_on_music_volume_changed)
-	row.add_child(_music_slider)
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.focus_mode = Control.FOCUS_NONE
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	slider.custom_minimum_size = Vector2(0, 32)
+	slider.tooltip_text = Lang.t(tooltip)
+	slider.value = value
+	slider.value_changed.connect(on_change)
+	row.add_child(slider)
 	return row
+
+
+## The music volume row.
+func _make_music_slider() -> Control:
+	var row := _make_volume_row("Musik", "Lautstärke der Musik", Music.volume, _on_music_volume_changed)
+	_music_slider = row.get_child(1)
+	return row
+
+
+## The sound effects volume row.
+func _make_effects_slider() -> Control:
+	var row := _make_volume_row("Effekte", "Lautstärke der Geräusche", Sfx.volume, _on_effects_volume_changed)
+	_effects_slider = row.get_child(1)
+	return row
+
+
+func _on_effects_volume_changed(value: float) -> void:
+	if is_equal_approx(value, Sfx.volume):
+		return
+	Sfx.set_volume(value)
+	# Moving the slider up with the sound off (M) switches the sound back on.
+	if Sfx.muted and value >= 0.01:
+		Sfx.toggle_mute()
+	_update_sound_button()
 
 
 func _on_music_volume_changed(value: float) -> void:

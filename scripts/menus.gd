@@ -125,6 +125,8 @@ func _rebuild() -> void:
 			_build_barber()
 		"steinmetz":
 			_build_stonemason()
+		"aushang":
+			_build_bounty_board()
 		"schmied":
 			_build_smithy()
 		"werkbank":
@@ -695,6 +697,64 @@ func _sell_stone() -> void:
 	_rebuild()
 
 
+# --- Bounty board ------------------------------------------------------------
+
+## The bounty board on the village square: today's hunts, each with a
+## button to take it on, how far along it is, or to collect the bounty.
+func _build_bounty_board() -> void:
+	var b: Bounties = game.bounties
+	b.refresh(game.day)
+	game.learn(Bounties.HOW_TO)
+	_add_label(Lang.t("Aushang: Kopfgelder"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Tag %d. Neue Aushänge gibt es jeden Morgen; was bis dahin nicht erledigt ist, verfällt.") % (game.day + 1), 18, BLUE)
+	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 10)
+	list.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(list)
+	for id in b.board_entries():
+		var hunt: Dictionary = Bounties.POOL[id]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 16)
+		list.add_child(row)
+		var text: Label = game._make_label(game.TEXT_FONT, 17)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.custom_minimum_size = Vector2(520, 0)
+		text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		text.text = Lang.t(hunt.title) + "  ·  " + Lang.t("%d Gold") % hunt.gold + "\n" + Lang.t(hunt.goal)
+		row.add_child(text)
+		var button: Button
+		if b.is_paid(id):
+			text.add_theme_color_override("font_color", Color(0.55, 0.57, 0.6))
+			button = _item_button(Lang.t("Abgeholt"), func(): pass, false)
+		elif b.is_ready(id):
+			text.add_theme_color_override("font_color", Color(0.6, 1.0, 0.6))
+			button = _item_button(Lang.t("Kopfgeld abholen\n+%d Gold") % hunt.gold, _claim_bounty.bind(id))
+		elif b.is_taken(id):
+			button = _item_button(Lang.t("Auf der Jagd\n%s") % b.progress(id), func(): pass, false)
+		else:
+			button = _item_button(Lang.t("Jagd annehmen"), _take_bounty.bind(id))
+		button.custom_minimum_size = Vector2(190, 54)
+		row.add_child(button)
+
+
+func _take_bounty(id: String) -> void:
+	if game.bounties.take(id):
+		_note = Lang.t("Neue Jagd: %s") % Lang.t(Bounties.POOL[id].title)
+		Sfx.play(game, "key", -6.0)
+	_rebuild()
+
+
+func _claim_bounty(id: String) -> void:
+	var gold: int = game.bounties.claim(id)
+	if gold > 0:
+		game.coins += gold
+		Sfx.play_coins(game, gold)
+		_note = Lang.t("Kopfgeld erhalten: %d Gold") % gold
+	game._update_hud()
+	_rebuild()
+
+
 # --- Smith -------------------------------------------------------------------
 
 ## The smith's window shows one of four tabs: "waffen" (buy Gorm's own
@@ -1066,6 +1126,7 @@ func _build_compendium() -> void:
 	for id in Quests.ALL:
 		if game.quests.is_active(id):
 			open_tasks += 1
+	open_tasks += game.bounties.taken.size()
 	var tabs_shown := [["wissen", Lang.t("Steuerung und Gelerntes")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks], ["ruf", Lang.t("Ruf")]]
 	# The recipes get a page of their own once the first one is found.
 	if not game.crafting.entries().is_empty():
@@ -1214,7 +1275,19 @@ func _build_quest_log() -> void:
 	list.add_theme_constant_override("separation", 12)
 	scroll.add_child(list)
 	var entries: Array = game.quests.log_entries()
-	if entries.is_empty():
+	var hunts: Array = game.bounties.taken.keys()
+	for id in hunts:
+		var hunt: Dictionary = Bounties.POOL[id]
+		var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
+		var status: String = Lang.t("erledigt, am Aushang abholen") if game.bounties.is_ready(id) else game.bounties.progress(id)
+		title.text = Lang.t("Kopfgeld: %s") % Lang.t(hunt.title) + "  (%s)" % status
+		list.add_child(title)
+		var text: Label = game._make_label(game.TEXT_FONT, 17)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.custom_minimum_size.x = 740
+		text.text = Lang.t(hunt.goal) + "\n" + Lang.t("Belohnung: %s") % (Lang.t("%d Gold") % hunt.gold)
+		list.add_child(text)
+	if entries.is_empty() and hunts.is_empty():
 		var none: Label = game._make_label(game.TEXT_FONT, 18)
 		none.text = Lang.t("Noch keine Aufträge. Sprich mit den Leuten im Dorf: Manche haben Arbeit für dich.")
 		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

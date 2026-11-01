@@ -153,7 +153,8 @@ static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator,
 	plate.pixel_size = 0.006
 	plate.outline_size = 8
 	plate.modulate = Color(1.0, 0.86, 0.5)
-	plate.position = Vector3(door_x, PLINTH + 2.55, d * 0.5 + 0.6)
+	# Clear of the board (its face is at +0.58), so the two never fight.
+	plate.position = Vector3(door_x, PLINTH + 2.55, d * 0.5 + 0.63)
 	house.add_child(plate)
 	return house
 
@@ -204,8 +205,18 @@ static func _frame(parts: Dictionary, w: float, d: float, y0: float, h: float, d
 		for y: float in [y0 + hb, y0 + h - hb]:
 			_box(parts, "timber", Vector3(0, y, z), Vector3(w + 0.1, BEAM, BEAM))
 			_box(parts, "timber", Vector3(x, y, z0), Vector3(BEAM, BEAM, d + 0.1))
-		# A rail under the windows.
-		_box(parts, "timber", Vector3(0, y0 + h * 0.42, z), Vector3(w, BEAM * 0.8, BEAM * 0.9))
+		# A rail under the windows. On the door side it stops at the door
+		# posts: run across the doorway, its face lay a few millimetres in
+		# front of the door's and the two flickered through each other.
+		var rail_y := y0 + h * 0.42
+		var rail := Vector3(0, BEAM * 0.8, BEAM * 0.9)
+		if side > 0.0 and absf(door_x) < w * 0.5:
+			var gap := DOOR_REACH - 0.04
+			for piece: Vector2 in [Vector2(-w * 0.5, door_x - gap), Vector2(door_x + gap, w * 0.5)]:
+				if piece.y - piece.x > 0.01:
+					_box(parts, "timber", Vector3((piece.x + piece.y) * 0.5, rail_y, z), rail + Vector3(piece.y - piece.x, 0, 0))
+		else:
+			_box(parts, "timber", Vector3(0, rail_y, z), rail + Vector3(w, 0, 0))
 		# Corner posts.
 		for s2: float in [-1.0, 1.0]:
 			_box(parts, "timber", Vector3(s2 * (w * 0.5 + 0.02), y0 + h * 0.5, z), Vector3(BEAM, h, BEAM))
@@ -228,12 +239,17 @@ static func _frame(parts: Dictionary, w: float, d: float, y0: float, h: float, d
 		_box(parts, "timber", Vector3(x, y0 + h * 0.5, z0), Vector3(BEAM * 0.9, h, BEAM * 0.9))
 
 
+## How far the door posts reach out from the middle of the door (metres).
+const DOOR_POST := 0.66
+const DOOR_REACH := DOOR_POST + BEAM * 0.5
+
+
 ## A plank door under a beam, with a step of stone before it.
 static func _door(parts: Dictionary, at: Vector3) -> void:
 	_box(parts, "door", at + Vector3(0, 1.05, 0.06), Vector3(1.1, 2.1, 0.1))
 	_box(parts, "timber", at + Vector3(0, 2.2, 0.08), Vector3(1.5, BEAM, BEAM))
 	for s: float in [-1.0, 1.0]:
-		_box(parts, "timber", at + Vector3(s * 0.66, 1.1, 0.08), Vector3(BEAM, 2.2, BEAM))
+		_box(parts, "timber", at + Vector3(s * DOOR_POST, 1.1, 0.08), Vector3(BEAM, 2.2, BEAM))
 	_box(parts, "stone", Vector3(at.x, 0.1, at.z + 0.4), Vector3(1.5, 0.2, 0.7))
 
 

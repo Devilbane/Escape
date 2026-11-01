@@ -1237,6 +1237,9 @@ func _toggle_sneak() -> void:
 	if not player.sneaking and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):
 		show_message(Lang.t("Zu spät zum Schleichen: Du wurdest entdeckt!"), 1.6)
 		return
+	if not player.sneaking and player.fight_cooldown > 0.0:
+		show_message(Lang.t("Noch zu aufgewühlt vom Kampf, um zu schleichen."), 1.6)
+		return
 	player.set_sneaking(not player.sneaking)
 	if player.sneaking:
 		learn("Schleichen (C oder Doppelklick): langsamer, lautlos, Laterne abgeblendet. Im Dunkeln sieht dich keiner, und von hinten bemerkt dich ein Skelett auch ganz nah nicht.")
@@ -1545,6 +1548,9 @@ func _guardian_intro() -> void:
 
 func _process(delta: float) -> void:
 	_eerie(delta)
+	# A skeleton on the hero's heels keeps the fight going.
+	if state == State.PLAYING and level and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):
+		player.mark_fight()
 	_guardian_intro()
 	var p := player.global_position
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y

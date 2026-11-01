@@ -76,6 +76,7 @@ const EN := {
 	"Du schleichst. Im Dunkeln sieht dich keiner.": "You sneak. In the dark nobody sees you.",
 	"Du gehst wieder normal.": "You walk normally again.",
 	"Zu spät zum Schleichen: Du wurdest entdeckt!": "Too late to sneak: you have been spotted!",
+	"Noch zu aufgewühlt vom Kampf, um zu schleichen.": "Still too worked up from the fight to sneak.",
 	"tapp": "tap",
 	"knurr": "growl",
 	"zisch": "hiss",

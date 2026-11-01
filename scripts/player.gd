@@ -83,6 +83,10 @@ var path: Array[Vector3] = []
 var sneaking := false
 ## Set by the level each frame: no light falls on the hero but the lantern.
 var in_shadow := false
+## Seconds left before the hero may start sneaking again after a fight:
+## every blow given or taken, and every skeleton hunting them, resets it.
+var fight_cooldown := 0.0
+const FIGHT_SNEAK_BLOCK := 2.0
 const SNEAK_SPEED := 0.4
 const SNEAK_ANIM := "Walking_C"
 var _lantern: OmniLight3D
@@ -138,6 +142,12 @@ func _ready() -> void:
 	_lantern.omni_range = 8.5
 	_lantern.position = Vector3(0, 3.2, 0.6)
 	add_child(_lantern)
+
+
+## Called while a fight goes on; sneaking stays barred until it has been
+## over for FIGHT_SNEAK_BLOCK seconds.
+func mark_fight() -> void:
+	fight_cooldown = FIGHT_SNEAK_BLOCK
 
 
 ## Switches between walking normally and sneaking.
@@ -387,6 +397,7 @@ func melee() -> void:
 			else:
 				e.take_hit(power + heavy_hit(weapon), global_position)
 			hits += 1
+			mark_fight()
 			# Every blow that lands trains the hand and the arm; a kill a little more.
 			train(weapon, 1.0)
 			train("staerke", 3.0 if e.dead else 1.0)
@@ -856,6 +867,8 @@ func _block(from: Vector3) -> void:
 func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable := true) -> void:
 	if dead or _invulnerable > 0.0 or frozen:
 		return
+	if blockable:
+		mark_fight() # A blow or a shot, blocked or not; spikes are no fight.
 	if blockable and block_chance > 0.0 and randf() < block_chance:
 		train("blocken", 2.0)
 		train("staerke", 1.0)
@@ -927,6 +940,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_busy = maxf(0.0, _busy - delta)
 	_invulnerable = maxf(0.0, _invulnerable - delta)
+	fight_cooldown = maxf(0.0, fight_cooldown - delta)
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_auto_cooldown = maxf(0.0, _auto_cooldown - delta)
 	_anim_hold = maxf(0.0, _anim_hold - delta)

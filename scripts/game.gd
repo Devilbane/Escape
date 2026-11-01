@@ -1621,7 +1621,7 @@ func continue_game(path := "") -> void:
 	var data := _read_save(path)
 	_leave_title(func():
 		_apply_save(data)
-		_return_from_away(data))
+		_after_load(data))
 	# Closed only now, while leaving, so the title does not come back.
 	menus.close()
 
@@ -1667,8 +1667,8 @@ func load_saved_game(path: String) -> void:
 	tween.tween_callback(func():
 		player.frozen = false
 		_apply_save(data)
-		_start_playing()
-		_return_from_away(data))
+		_after_load(data)
+		_start_playing())
 
 
 func _toggle_sound() -> void:
@@ -2192,6 +2192,122 @@ func _climb_into_bed(tween: Tween, bed: Dictionary) -> void:
 		player.play("Lie_Down", 0.15))
 
 
+# --- Waking up -----------------------------------------------------------------
+
+## True while a hero loaded from a bed save wakes up and gets out of bed.
+var _waking := false
+## The wake-up after a bed save, in seconds: asleep while the night fades,
+## eyes open, a yawn, the fox wakes, the hero gets up, then hops down.
+const WAKE_SLEEP := 2.2
+const WAKE_YAWN := 0.5
+const WAKE_STRETCH := 0.4
+const WAKE_FOX := 0.5
+const WAKE_HOP := 0.45
+
+
+## Right after a saved game is loaded: a game saved in bed wakes up there
+## (see _wake_in_bed); otherwise, or once out of bed, the welcome-back
+## window tells what the hero did while the player was away.
+func _after_load(data: Dictionary) -> void:
+	if not _wake_in_bed(data, _return_from_away.bind(data)):
+		_return_from_away(data)
+
+
+## Whether the save was made by lying down in a bed (see sleep).
+static func saved_in_bed(data: Dictionary) -> bool:
+	var away = data.get("away", {})
+	return away is Dictionary and not away.is_empty()
+
+
+## A game saved in bed starts in bed: the hero lies there asleep, with the
+## fox curled up in its basket, while the night fades. Then the hero opens
+## their eyes and yawns, the fox wakes and hops out of its basket, and the
+## hero gets up on the mattress and hops down beside the bed. `done` runs
+## once the hero stands on the floor and can be moved again. Returns false
+## (and does nothing) if the save was not made in bed or the level has no
+## bed to wake up in.
+func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
+	if not saved_in_bed(data):
+		return false
+	var bed := _nearest_bed()
+	if bed.is_empty():
+		return false
+	# In the open air a load starts beside the hero's own house bed; a bed
+	# anywhere else on the map is not the one the game was saved in.
+	if level is Outdoor and _flat_gap(player.global_position, bed.pos) > Level.TILE * 2.0:
+		return false
+	_waking = true
+	state = State.TRANSITION
+	var rot: float = bed.get("rot", 0.0)
+	var foot := Vector3(sin(rot), 0.0, cos(rot))
+	var lie: Vector3 = bed.pos + foot * BED_LIE_OFFSET + Vector3(0, BED_MATTRESS_HEIGHT, 0)
+	var floor_spot := _bedside(bed, foot)
+	player.frozen = true
+	player.path.clear()
+	player.velocity = Vector3.ZERO
+	player.global_position = lie
+	player.face(foot)
+	player.lie_asleep()
+	var fox_wakes := false
+	if is_instance_valid(pet):
+		var basket := level.fox_bed_near(bed.pos)
+		if basket != Vector3.INF:
+			pet.sleep_in_basket(basket)
+			fox_wakes = true
+	_fall_asleep()
+	var tween := create_tween()
+	tween.tween_interval(WAKE_SLEEP)
+	tween.tween_callback(func():
+		_stop_snoozing()
+		player.set_asleep(false))
+	# A moment later, once the last Z has drifted off, a big yawn.
+	tween.tween_interval(WAKE_YAWN)
+	tween.tween_callback(func():
+		var slot := player.find_child("HeadSlot", true, false) as Node3D
+		var head := slot.global_position if slot else player.global_position
+		Effects.float_text(level, head + Vector3(0, 0.8, 0), Lang.t("Gähn!"), Color(0.85, 0.9, 1.0), true))
+	tween.tween_interval(WAKE_STRETCH)
+	if fox_wakes:
+		tween.tween_callback(func():
+			if is_instance_valid(pet):
+				pet.wake_up(floor_spot))
+		tween.tween_interval(WAKE_FOX)
+	tween.tween_callback(player.get_up_from_bed)
+	tween.tween_interval(Player.GET_UP_TIME)
+	# Standing on the mattress: turn towards the floor and hop down.
+	tween.tween_callback(func():
+		player.face(floor_spot - player.global_position)
+		player.play("Jump_Idle", 0.1))
+	tween.tween_method(func(t: float):
+		player.global_position = lie.lerp(floor_spot, t) + Vector3(0, sin(t * PI) * 0.5, 0), 0.0, 1.0, WAKE_HOP)
+	tween.tween_callback(func():
+		player.global_position = floor_spot
+		player.play("Idle", 0.2)
+		player.frozen = false
+		_waking = false
+		state = State.PLAYING
+		done.call())
+	return true
+
+
+static func _flat_gap(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
+## Where the hero stands after getting out of `bed`: the open floor beside
+## it (the same spot a load in the hero's own house starts on), or else in
+## front of its foot.
+func _bedside(bed: Dictionary, foot: Vector3) -> Vector3:
+	if level is Outdoor and level.home_spot != Vector3.ZERO:
+		return level.home_spot
+	var cell: Vector2i = bed.get("cell", Vector2i(-1, -1))
+	if cell != Vector2i(-1, -1):
+		var side := level._open_side(cell)
+		if side != cell:
+			return level.cell_to_world(side)
+	return bed.pos + foot * 2.2
+
+
 # --- Time away ----------------------------------------------------------------
 
 ## What the hero can do while the player is away, right now: block -> ids.
@@ -2327,7 +2443,8 @@ func _real_time_text(seconds: float) -> String:
 
 
 func _start_playing() -> void:
-	state = State.PLAYING
+	# A hero waking up in bed is still busy getting up (see _wake_in_bed).
+	state = State.TRANSITION if _waking else State.PLAYING
 	var tween := create_tween()
 	tween.tween_property(_title, "modulate:a", 0.0, 0.5)
 	tween.parallel().tween_property(_fade, "color:a", 0.0, 0.8)

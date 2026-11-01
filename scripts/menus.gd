@@ -590,7 +590,9 @@ func _build_compendium() -> void:
 		var none: Label = game._make_label(game.TEXT_FONT, 18)
 		none.text = Lang.t("Noch nichts. Hinweise und Erklärungen sammeln sich hier.")
 		list.add_child(none)
-	for entry in game.lore:
+	# Newest first: the latest hint or explanation sits at the top.
+	for i in range(game.lore.size() - 1, -1, -1):
+		var entry: String = game.lore[i]
 		var l: Label = game._make_label(game.TEXT_FONT, 17)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size.x = 410

@@ -52,6 +52,7 @@ const EN := {
 	"Los geht's": "Let's go",
 	"Namenlos": "Nameless",
 	"Gute Nacht": "Good night",
+	"Gähn!": "Yawn!",
 	"Dein Spiel ist gespeichert.": "Your game has been saved.",
 	"Spiel gespeichert.": "Game saved.",
 	"Speichern fehlgeschlagen!": "Saving failed!",

@@ -9,6 +9,8 @@ const CAMERA_DISTANCE := 27.0
 const CLOSE_PITCH := 22.0
 const CLOSE_DISTANCE := 7.5
 const ZOOM_STEP := 0.12
+## How many zoom steps the camera can pull back beyond the normal view.
+const ZOOM_OUT_STEPS := 2
 const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const GOLD := Color(1.0, 0.82, 0.4)
@@ -1522,8 +1524,8 @@ func _camera_offset() -> Vector3:
 
 
 func zoom_by(steps: float) -> void:
-	# One step below 0 looks from a little further out than the normal view.
-	_zoom_target = clampf(_zoom_target + steps * ZOOM_STEP, -ZOOM_STEP, 1.0)
+	# Steps below 0 look from further out (and a little more from above) than the normal view.
+	_zoom_target = clampf(_zoom_target + steps * ZOOM_STEP, -ZOOM_OUT_STEPS * ZOOM_STEP, 1.0)
 
 
 func _snap_camera() -> void:

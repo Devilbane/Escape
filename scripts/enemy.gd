@@ -46,7 +46,8 @@ const KINDS := {
 		"human": true, "roam": true, "parts": [], "colors": [Color(0.3, 0.42, 0.26), Color(0.36, 0.3, 0.22), Color(1, 1, 1)]},
 	"schlaeger": {"model": "Barbarian", "dir": "characters", "weapon": "axe_1handed", "hp": 6, "speed": 3.8, "damage": 2, "reach": 2.3, "size": 1.15, "cooldown": 1.8,
 		"human": true, "roam": true, "parts": ["Barbarian_Hat"], "colors": [Color(0.5, 0.36, 0.28), Color(0.3, 0.26, 0.22), Color(0.4, 0.3, 0.22)]},
-	"hauptmann": {"model": "Knight", "dir": "characters", "weapon": "sword_1handed", "shield": "shield_round", "hp": 9, "speed": 4.2, "damage": 2, "reach": 2.2, "size": 1.1, "cooldown": 1.4,
+	# The chief is the boss of the pass (see BanditChief).
+	"hauptmann": {"model": "Knight", "dir": "characters", "weapon": "sword_1handed", "shield": "shield_round", "hp": 20, "speed": 4.2, "damage": 2, "reach": 2.2, "size": 1.1, "cooldown": 1.4,
 		"human": true, "roam": true, "parts": ["Knight_Cape"], "colors": [Color(0.45, 0.14, 0.12), Color(0.22, 0.2, 0.2), Color(0.5, 0.1, 0.1)]},
 }
 ## Which map letter places which kind.
@@ -68,6 +69,13 @@ var kind := "krieger"
 ## Elite skeletons have two more life, move and strike faster, and show it
 ## with dark bones and glowing red eyes.
 var elite := false
+## Out at night (see Outdoor): a bandit is bolder, with two more life and
+## quicker blows; a skeleton risen from its grave roams the graveyard
+## instead of standing guard.
+var night := false
+## A risen skeleton caught by the dawn sinks back into its grave as soon as
+## it is off the hunt.
+var _dawn := false
 ## Items the skeleton wears, from the same list as the hero's. Each one
 ## makes it stronger and may drop when it falls.
 var gear: Array[String] = []
@@ -128,6 +136,12 @@ func _ready() -> void:
 		_stats.cooldown *= 0.8
 		if not _stats.has("tint"):
 			_stats.tint = Color(0.42, 0.38, 0.46)
+	if night and is_human():
+		_stats.hp += 2
+		_stats.cooldown *= 0.85
+		_stats.speed *= 1.08
+	elif night:
+		_stats.roam = true
 	var power := 0
 	var gear_weight := 0.0
 	for id in gear:
@@ -381,6 +395,22 @@ func _mind_spikes(move: Vector3) -> Vector3:
 	return move
 
 
+## Dawn has come: back into the grave, now or once the hunt is over.
+func sink_at_dawn() -> void:
+	_dawn = true
+
+
+## Sinks into the earth and is gone: no fall, no loot.
+func _sink() -> void:
+	dead = true
+	collision_layer = 0
+	collision_mask = 0
+	_play("Idle")
+	var tween := create_tween()
+	tween.tween_property(self, "position:y", -2.8, 2.2)
+	tween.tween_callback(queue_free)
+
+
 func _die() -> void:
 	dead = true
 	collision_layer = 0
@@ -395,6 +425,9 @@ func _die() -> void:
 
 func _physics_process(delta: float) -> void:
 	if dead or level == null or level.player == null:
+		return
+	if _dawn and not _awake:
+		_sink()
 		return
 	if _home == Vector3.INF:
 		_home = global_position
@@ -473,8 +506,9 @@ func _physics_process(delta: float) -> void:
 	if _busy > 0.0:
 		return
 	# Off the hunt, a bandit strolls; skeletons shuffle back to their post.
-	var strolling := move != Vector3.ZERO and move.length() < 0.7 and is_human()
-	_play("Walking_A" if strolling else "Running_A" if move != Vector3.ZERO else "Idle")
+	var strolling: bool = move != Vector3.ZERO and move.length() < 0.7 and (is_human() or _stats.get("roam", false))
+	var walk: String = "Walking_D_Skeletons" if not is_human() and _anim.has_animation("Walking_D_Skeletons") else "Walking_A"
+	_play(walk if strolling else "Running_A" if move != Vector3.ZERO else "Idle")
 	_footfalls(delta, move != Vector3.ZERO, dist)
 	_voice(delta, dist)
 	# Feet keep pace with the ground; bigger skeletons take longer strides.
@@ -555,6 +589,11 @@ func _step_out() -> Vector3:
 			to.y = 0.0
 			return to.normalized()
 	return Vector3.ZERO
+
+
+## Sets the skeleton on the hero at once, e.g. a cutthroat called by the chief.
+func alert(at: Vector3) -> void:
+	_wake(at)
 
 
 ## Whether the skeleton has spotted the hero and is after them.

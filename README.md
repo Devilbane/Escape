@@ -219,6 +219,25 @@ haircut shows. Your look is saved with the game.
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.
 
+## Day and night
+
+Above ground the world keeps the **time of day**: one full day takes **20 real minutes**, about 13 of them
+daylight and 7 of them night (21:00 to 05:00). The clock in the top left shows the hour. It runs in the open
+and inside the village buildings; down in the dungeon time stands still. A new hero steps out at 08:00.
+
+The light follows the hour: a pink dawn, the warm autumn daylight, a golden-red dusk and a cool blue
+moonlit night. At night the **lanterns** burn bright and the **windows** of the houses glow. Most villagers
+walk home and go to sleep; only the guard, the drinker at the tavern and the priestess stay up. Shops and
+the bank are closed until morning, and the herald keeps quiet.
+
+The night is dangerous: the **dead rise** from the graves and roam the graveyard until dawn (they come back
+a while after they fall), and the **bandits** of the pass are tougher (more life, quicker blows) and come
+back twice as fast. In the dark, away from the lanterns, a sneaking hero cannot be seen. At dawn the dead
+sink back into their graves.
+
+A night in your **bed** skips to the next morning: you wake up at 07:00. The time of day is kept in the
+saved game.
+
 ## The robbers' pass
 
 A road leaves the market square to the east and climbs into the **robbers' pass**: rocky heath, dead trees and
@@ -230,6 +249,21 @@ standing guard, and they chase you only so far from their camp before they give 
 the same list as yours, and much more often than skeletons do; when one falls it spills **gold** and may
 drop a piece of its gear. A fallen bandit's spot is taken by another a few minutes later, once you have
 left, so there is always something to fight and loot. Whoever falls on the pass starts again on the graveyard.
+
+By the campfire waits the boss of the pass: **Ravenheart, the bandit chief**. Once he takes up the fight, his
+**health bar** shows at the top of the screen, with marks where his next phase begins:
+
+1. **Sword and shield.** Stand too close and now and then he rams you with his shield: it cannot be blocked
+   and knocks you to the ground.
+2. **"To me, lads!"** Below two thirds of his life he calls two cutthroats out of the camp. Now the sweep pays off.
+3. **Enraged.** Below one third he glows red, gets quicker and, from a distance, lowers his head and **charges**
+   in a straight line. Step aside or jump: a charge that misses leaves him **dazed** for a moment, and a dazed
+   chief takes double damage.
+
+A stab in the back does not bring him down at once, it only hits three times as hard. If you run away he binds
+his wounds after a while and starts again at full strength. He falls **only once per saved game**: he leaves
+plenty of gold and his unique blade, the **Ravenblade** (+3 power, +5% speed), and nobody takes his place.
+If you leave the blade lying there, it still waits for you after a reload.
 
 The **compendium** (key H) shows all keys and mouse commands and collects every hint and every
 explanation you have been given so far: the introduction of every level, the tips on sneaking and on the

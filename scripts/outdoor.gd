@@ -31,6 +31,10 @@ extends Level
 ##   The robbers' pass east of the village: N tent   f campfire   C treasure chest
 ##   and the bandits who roam there and come back a while after they fall:
 ##   c cutthroat, A poacher (crossbow), X bruiser, Q bandit chief (see Enemy).
+##   The world keeps the time of day (see DayNight): lanterns and the
+##   windows of the houses glow at night, most villagers go home to sleep,
+##   the dead rise from the graves and roam the graveyard until dawn, and
+##   the bandits of the pass are bolder in the dark.
 ##   v  a stone pedestal with a food basket on top, too high to reach from
 ##      the ground or from one crate: stack two crates beside it. Three
 ##      wooden crates lie close by (see Crate).
@@ -96,6 +100,13 @@ const BANDIT_RESPAWN := 150.0
 const RESPAWN_FAR := 40.0
 ## The hero is warned about the pass when a bandit's spot is this close (metres).
 const WILD_WARNING_RANGE := 16.0
+## Remembered in the saved game once the bandit chief has fallen: he does
+## not come back. His spot stays empty from then on.
+const CHIEF_DEFEATED := "boss:bandit_chief"
+## Gold in the chief's purse, and how far from his post his cutthroats
+## come running when he calls them (tiles).
+const CHIEF_GOLD := 15
+const CALL_FROM_TILES := Vector2i(5, 9)
 ## The pedestal with the food basket: how tall it is (metres), how far from
 ## the basket the hero can reach it, how high their feet must stand for that
 ## (on two stacked crates), the lives the food gives back, and the seconds
@@ -140,9 +151,50 @@ var _herald_timer := randf_range(HERALD_FIRST_MIN, HERALD_FIRST_MAX)
 ## it is gone), seconds until the next one arrives, and how many came so far.
 var _wild: Array = []
 var _wild_warned := false
+## The bandit chief while he stands, his health bar, and the cutthroats he
+## called in to help (they do not come back once they fall).
+var chief: BanditChief
+var boss_bar: BossBar
+var _called: Array[Enemy] = []
 ## The food basket: where it stands, its food, whether it is full, the
 ## seconds until it fills again, and whether the hero was told about it.
 var _basket := {}
+
+## Lanterns: how strongly they shine by day and at night, the glowing
+## candle in each, and how far their light shows the hero to enemies.
+const LAMP_DAY := 0.5
+const LAMP_NIGHT := 3.2
+const LAMP_REACH := 8.0
+const CANDLE_GLOW := 5.0
+var _lamps: Array[OmniLight3D] = []
+## The bandits' campfires light up their camp at night too.
+var _fires: Array[Vector3] = []
+var _candles: Array[MeshInstance3D] = []
+var _candle_mat: StandardMaterial3D
+## Where the window panes of the village houses sit in the kit's palette
+## texture: one small patch colours every pane. A mask over that patch lets
+## the windows glow without touching walls or roofs.
+const WINDOW_UV := Vector2(0.816, 0.292)
+const WINDOW_LIGHT := Color(1.0, 0.7, 0.36)
+const WINDOW_GLOW := 2.6
+## The kit's material -> its copy with glowing windows.
+var _window_mats := {}
+var _window_mask: ImageTexture
+## The hour the world was last lit for, and whether it is night.
+var hour := -1.0
+var night := false
+## The dead of the graveyard: they rise from these graves at nightfall
+## (kinds in turn), come back a while after they fall as long as it is
+## night, and sink back into the earth at dawn. They never rise within
+## sight of the hero.
+const NIGHT_DEAD := 5
+const NIGHT_DEAD_KINDS := ["krieger", "wicht", "krieger", "schuetze", "wicht"]
+const NIGHT_DEAD_RESPAWN := 90.0
+const NIGHT_DEAD_FAR := 14.0
+## At night fallen bandits are replaced this much sooner.
+const NIGHT_RESPAWN_FACTOR := 0.5
+var _graves: Array[Vector2i] = []
+var _risen: Array = []
 
 
 func build() -> void:
@@ -327,6 +379,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 		"g":
 			var grave: String = GRAVES[_rng.randi() % GRAVES.size()]
 			_put(grave, pos + Vector3(0, 0, -0.6) + _jitter(0.3), _rng.randf_range(-0.15, 0.15))
+			_graves.append(c)
 			_add_solid(pos + Vector3(0, 0, -0.6), Vector3(2.0, 1.6, 1.0))
 		"d":
 			var tree: String = ["tree_dead_large", "tree_dead_medium", "tree_dead_small"][_rng.randi() % 3]
@@ -522,6 +575,7 @@ func _build_campfire(pos: Vector3) -> void:
 	light.omni_attenuation = 1.4
 	light.position = pos + Vector3(0, 2.0, 0)
 	add_child(light)
+	_fires.append(pos)
 	_add_solid(pos, Vector3(2.2, 1.5, 2.2))
 
 
@@ -547,6 +601,25 @@ func _build_lantern(pos: Vector3) -> void:
 	light.omni_range = 11.0
 	light.position = pos + Vector3(0, 2.6, 1.1)
 	add_child(light)
+	_lamps.append(light)
+	# A candle in the lantern that glows once the light fades.
+	if _candle_mat == null:
+		_candle_mat = StandardMaterial3D.new()
+		_candle_mat.albedo_color = Color(1.0, 0.8, 0.5)
+		_candle_mat.emission_enabled = true
+		_candle_mat.emission = Color(1.0, 0.7, 0.35)
+		_candle_mat.emission_energy_multiplier = 0.0
+	var candle := MeshInstance3D.new()
+	var ball := SphereMesh.new()
+	ball.radius = 0.15
+	ball.height = 0.3
+	candle.mesh = ball
+	candle.material_override = _candle_mat
+	candle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	candle.position = pos + Vector3(0, 2.05, 1.0)
+	candle.visible = false
+	add_child(candle)
+	_candles.append(candle)
 	_add_solid(pos, Vector3(0.7, 3, 0.7))
 
 
@@ -646,6 +719,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
 	var foot := (Vector3(box.position.x + box.size.x * 0.5, 0, box.position.z + box.size.z * 0.5) * s).rotated(Vector3.UP, rot)
 	var node := _put(model, center - foot, rot, s)
+	if ch != "R":
+		_light_windows(node)
 	var solid := Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86)
 	_add_solid(center, solid)
 	var reach := Vector2(block.size) * TILE * 0.5 + Vector2(2.0, 2.0)
@@ -686,6 +761,29 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		_put("crate_long_A", front + side - Vector3(facing.x, 0, facing.y) * 1.0, rot, PROP_SCALE)
 		_put("crate_open", front - side - Vector3(facing.x, 0, facing.y) * 1.0, rot + 0.3, PROP_SCALE)
 	node.set_meta("block", block)
+
+
+## Gives a building windows that can glow: its kit material is swapped for
+## a copy with an emission mask over the window panes (dark by day).
+func _light_windows(node: Node) -> void:
+	if _window_mask == null:
+		# Image.create starts black: only the window patch shines.
+		var img := Image.create(256, 256, false, Image.FORMAT_RGB8)
+		var at := Vector2i(WINDOW_UV * 256.0)
+		img.fill_rect(Rect2i(at - Vector2i(3, 3), Vector2i(7, 7)), Color.WHITE)
+		_window_mask = ImageTexture.create_from_image(img)
+	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		var mat := mi.get_active_material(0)
+		if not mat is StandardMaterial3D:
+			continue
+		if not _window_mats.has(mat):
+			var lit: StandardMaterial3D = mat.duplicate()
+			lit.emission_enabled = true
+			lit.emission = WINDOW_LIGHT
+			lit.emission_texture = _window_mask
+			lit.emission_energy_multiplier = 0.0
+			_window_mats[mat] = lit
+		mi.material_override = _window_mats[mat]
 
 
 ## Which way a building's door looks: towards the square if it borders it,
@@ -986,29 +1084,103 @@ func _build_forge(cell: Vector2i) -> void:
 ## The bandits of the pass take their spots when the world is built.
 func _spawn_wild() -> void:
 	for s in _wild:
+		if s.kind == "hauptmann" and chief_defeated():
+			# He fell in this game already. If his blade was left lying
+			# there, it still waits where he fell.
+			s.timer = INF
+			if not taken.has(BanditChief.TROPHY):
+				_drop_item(BanditChief.TROPHY, cell_to_world(s.cell))
+			continue
 		_spawn_bandit(s)
+
+
+## Whether the bandit chief has fallen in this saved game.
+func chief_defeated() -> bool:
+	return taken.has(CHIEF_DEFEATED)
 
 
 ## Puts a bandit on its spot. When it falls it leaves gold and maybe a piece
 ## of its gear, and after a while another comes to take its place.
 func _spawn_bandit(s: Dictionary) -> void:
-	var chief: bool = s.kind == "hauptmann"
-	var e := Enemy.new()
+	var is_chief: bool = s.kind == "hauptmann"
+	var e: Enemy = BanditChief.new() if is_chief else Enemy.new()
 	e.kind = s.kind
-	e.gear = _roll_gear(e.kind, s.cell, CHIEF_GEAR_CHANCE if chief else BANDIT_GEAR_CHANCE, s.wave)
+	e.gear = _roll_gear(e.kind, s.cell, CHIEF_GEAR_CHANCE if is_chief else BANDIT_GEAR_CHANCE, s.wave)
+	# Bandits who come out at night are tougher (see Enemy.night).
+	e.night = night
 	e.level = self
 	add_child(e)
 	e.global_position = cell_to_world(s.cell)
 	e.died.connect(func():
 		enemy_killed.emit(e)
-		_drop_gear(e, CHIEF_DROP_CHANCE if chief else BANDIT_DROP_CHANCE)
-		_drop_coins(e.global_position, randi_range(4, 8) if chief else randi_range(1, 3))
+		_drop_gear(e, CHIEF_DROP_CHANCE if is_chief else BANDIT_DROP_CHANCE)
+		_drop_coins(e.global_position, CHIEF_GOLD if is_chief else randi_range(1, 3))
 		s.enemy = null
-		s.timer = BANDIT_RESPAWN)
+		s.timer = BANDIT_RESPAWN * (NIGHT_RESPAWN_FACTOR if night else 1.0)
+		if is_chief:
+			_on_chief_fallen(e))
+	if is_chief:
+		chief = e
+		boss_bar = BossBar.new(e)
+		add_child(boss_bar)
 	s.enemy = e
 	s.wave += 1
 	enemies = enemies.filter(func(x): return is_instance_valid(x))
 	enemies.append(e)
+
+
+## The chief falls for good: remembered in the saved game, and his own
+## blade drops where he fell.
+func _on_chief_fallen(e: BanditChief) -> void:
+	taken[CHIEF_DEFEATED] = true
+	for s in _wild:
+		if s.kind == "hauptmann":
+			s.timer = INF
+	chief = null
+	_drop_item(BanditChief.TROPHY, e.global_position + Vector3(0.8, 0, 0.8))
+	Sfx.play_gear(self, BanditChief.TROPHY, 0.4, e.global_position)
+	notice.emit(Lang.t("Rabenherz ist besiegt! Seine Klinge gehört dir."), 5.0)
+
+
+## The chief calls his cutthroats: they come running from around the camp,
+## from the side away from the hero, and join the fight at once. No more
+## than `count` of them at a time.
+func call_reinforcements(from: Enemy, count: int) -> void:
+	_called = _called.filter(func(x): return is_instance_valid(x) and not x.dead)
+	var home := world_to_cell(from.global_position)
+	var hero := player.global_position if player else from.global_position
+	var cells: Array[Vector2i] = []
+	for y in range(-CALL_FROM_TILES.y, CALL_FROM_TILES.y + 1):
+		for x in range(-CALL_FROM_TILES.y, CALL_FROM_TILES.y + 1):
+			var c := home + Vector2i(x, y)
+			var r := Vector2(x, y).length()
+			if r < CALL_FROM_TILES.x or r > CALL_FROM_TILES.y or not astar.is_in_boundsv(c) or astar.is_point_solid(c):
+				continue
+			cells.append(c)
+	# Farthest from the hero first, so they come out of the camp.
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return cell_to_world(a).distance_squared_to(hero) > cell_to_world(b).distance_squared_to(hero))
+	var i := 0
+	while _called.size() < count and i < cells.size():
+		var e := Enemy.new()
+		e.kind = "halsabschneider"
+		e.level = self
+		add_child(e)
+		e.global_position = cell_to_world(cells[i])
+		e.alert(hero)
+		e.died.connect(func():
+			enemy_killed.emit(e)
+			_drop_coins(e.global_position, randi_range(0, 2)))
+		enemies = enemies.filter(func(x): return is_instance_valid(x))
+		enemies.append(e)
+		_called.append(e)
+		# Spread them out a little.
+		i += 3
+
+
+## How many of the chief's called cutthroats still stand.
+func called_alive() -> int:
+	return _called.filter(func(x): return is_instance_valid(x) and not x.dead).size()
 
 
 ## Fallen bandits are replaced once their time is up and the hero is not
@@ -1041,6 +1213,8 @@ func bandits_alive() -> int:
 ## A door is hit anywhere along the front of its building.
 func station_at(point: Vector3) -> Dictionary:
 	for s in stations:
+		if s.has("npc") and s.npc.at_home:
+			continue
 		if s.has("npc") and _flat_distance(point, s.pos) < 1.6:
 			return s
 		if s.kind == "eingang" and _flat_distance(point, s.pos) < 2.4:
@@ -1067,9 +1241,19 @@ func _setup_astar() -> void:
 				astar.set_point_weight_scale(c, 1.6)
 
 
-## Under the open evening sky everything is lit.
-func is_lit(_pos: Vector3) -> bool:
-	return true
+## By day everything is lit. At night only the lanterns and the campfire
+## show the hero to the eyes of enemies: a sneaking hero in the dark stays
+## unseen.
+func is_lit(pos: Vector3) -> bool:
+	if not night:
+		return true
+	for lamp in _lamps:
+		if _flat_distance(pos, lamp.global_position) < LAMP_REACH:
+			return true
+	for fire in _fires:
+		if _flat_distance(pos, fire) < LAMP_REACH:
+			return true
+	return false
 
 
 func is_opaque(c: Vector2i) -> bool:
@@ -1101,12 +1285,13 @@ func _process(delta: float) -> void:
 			_marker.queue_free()
 			_marker = null
 	_mind_the_wild(delta)
+	_mind_the_night(delta)
 	_check_basket(delta)
 	_herald_timer -= delta
-	if _herald and _herald_timer <= 0.0:
+	if _herald and _herald_timer <= 0.0 and not night:
 		_herald_timer = randf_range(HERALD_EVERY_MIN, HERALD_EVERY_MAX)
 		_call_the_village()
-	if not house_given and _elder and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:
+	if not house_given and _elder and not _elder.at_home and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:
 		house_given = true
 		_elder.greet_newcomer(player)
 		_show_house_marker()
@@ -1136,3 +1321,106 @@ func _call_the_village() -> void:
 		i += 1
 	if player and _flat_distance(player.global_position, stand) < 30.0:
 		notice.emit(Lang.t("Der Herold ruft auf dem Marktplatz aus. Das Dorf kommt zusammen."), 3.0)
+
+
+# --- Day and night ------------------------------------------------------------
+
+## Lights the village for an hour of the day (see DayNight) and, when night
+## falls or the day breaks, sends the village to bed or wakes it, and calls
+## the dead out of their graves or back into them. The first call after the
+## world is built settles everything at once, without a word.
+func set_hour(new_hour: float) -> void:
+	var first := hour < 0.0
+	hour = new_hour
+	var glow := DayNight.glow_at(hour)
+	for lamp in _lamps:
+		lamp.light_energy = lerpf(LAMP_DAY, LAMP_NIGHT, glow)
+	if _candle_mat:
+		_candle_mat.emission_energy_multiplier = CANDLE_GLOW * glow
+	for candle in _candles:
+		candle.visible = glow > 0.02
+	for mat in _window_mats.values():
+		mat.emission_energy_multiplier = WINDOW_GLOW * glow
+	var dark := DayNight.is_night(hour)
+	if dark == night and not first:
+		return
+	night = dark
+	for v in villagers:
+		v.set_night(night, first)
+	if night:
+		_raise_dead()
+	else:
+		_lay_the_dead_to_rest()
+	if not first:
+		notice.emit(Lang.t("Die Nacht bricht herein. Das Dorf geht schlafen, und auf dem Friedhof regen sich die Toten.") if night
+				else Lang.t("Ein neuer Tag bricht an. Die Toten kehren in ihre Gräber zurück."), 4.5)
+
+
+## Nightfall: the dead get their spots on the paths beside the graves.
+## They rise one by one in _mind_the_night, never where the hero can see.
+func _raise_dead() -> void:
+	if not _risen.is_empty():
+		return
+	var spots: Array[Vector2i] = []
+	for g in _graves:
+		var c := g + Vector2i(0, 1)
+		if WALK.contains(cell_char(c)) and not spots.has(c):
+			spots.append(c)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level_name) + int(hour * 60.0)
+	for i in range(spots.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var swap := spots[i]
+		spots[i] = spots[j]
+		spots[j] = swap
+	for i in mini(NIGHT_DEAD, spots.size()):
+		_risen.append({"cell": spots[i], "kind": NIGHT_DEAD_KINDS[i % NIGHT_DEAD_KINDS.size()], "enemy": null, "timer": 0.0})
+
+
+## Dawn: the dead who are not fighting the hero sink back into the earth;
+## the ones on the hero's heels follow as soon as they give up.
+func _lay_the_dead_to_rest() -> void:
+	for s in _risen:
+		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
+			s.enemy.sink_at_dawn()
+	_risen.clear()
+
+
+## The dead rise in the graveyard (and rise again a while after they fall)
+## as long as it is night and the hero is not too close.
+func _mind_the_night(delta: float) -> void:
+	for s in _risen:
+		if s.enemy != null:
+			continue
+		s.timer -= delta
+		if s.timer <= 0.0 and _flat_distance(player.global_position, cell_to_world(s.cell)) > NIGHT_DEAD_FAR:
+			_spawn_risen(s)
+
+
+func _spawn_risen(s: Dictionary) -> void:
+	var e := Enemy.new()
+	e.kind = s.kind
+	e.night = true
+	e.level = self
+	add_child(e)
+	e.global_position = cell_to_world(s.cell)
+	var dust := Effects.make_sparkles(Color(0.55, 0.8, 0.6), true)
+	dust.position = e.global_position + Vector3(0, 0.6, 0)
+	add_child(dust)
+	e.died.connect(func():
+		enemy_killed.emit(e)
+		_drop_coins(e.global_position, randi_range(0, 2))
+		s.enemy = null
+		s.timer = NIGHT_DEAD_RESPAWN)
+	s.enemy = e
+	enemies = enemies.filter(func(x): return is_instance_valid(x))
+	enemies.append(e)
+
+
+## How many of the dead walk the graveyard right now.
+func risen_alive() -> int:
+	var n := 0
+	for s in _risen:
+		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
+			n += 1
+	return n

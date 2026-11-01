@@ -29,6 +29,13 @@ enum State { TITLE, PLAYING, TRANSITION, WON, OVER }
 
 var state := State.TITLE
 var _sound_button: Button
+## The pull-out menu on the right edge of the screen that holds all the
+## clickable buttons, its handle, and how far it is pulled out (0 to 1).
+var _drawer: HBoxContainer
+var _drawer_handle: Button
+var _drawer_open := false
+var _drawer_t := 0.0
+var _drawer_tween: Tween
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
@@ -36,6 +43,10 @@ var player: Player
 var camera: Camera3D
 var _env: Environment
 var _moon: DirectionalLight3D
+## The time of day above ground, in hours (see DayNight). Saved with the game.
+var day_hour := DayNight.START_HOUR
+## The clock as the HUD shows it right now.
+var _clock_shown := ""
 var _ambience: AudioStreamPlayer
 ## Set once the hero has stepped out of the crypt into the open air: the run
 ## is in the ranking as an escape, and goes on in the village.
@@ -246,16 +257,11 @@ func _setup_world() -> void:
 	add_child(dust)
 
 
-## Dark dungeon air or a golden autumn evening in the open.
+## Dark dungeon air, or in the open the sky of the hour (see DayNight:
+## by day the warm autumn light, at night a cool blue moonlight).
 func _set_atmosphere(outdoor: bool) -> void:
 	if outdoor:
-		_env.background_color = Color(0.5, 0.46, 0.57)
-		_env.ambient_light_color = Color(0.7, 0.68, 0.78)
-		_env.ambient_light_energy = 0.52
-		_env.adjustment_saturation = 0.95
-		_moon.rotation_degrees = Vector3(-38, -35, 0)
-		_moon.light_color = Color(1.0, 0.8, 0.6)
-		_moon.light_energy = 0.88
+		DayNight.apply(_env, _moon, day_hour)
 	else:
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
@@ -302,6 +308,113 @@ func _make_button(text: String, action: Callable) -> Button:
 	b.add_theme_stylebox_override("pressed", pressed)
 	b.button_down.connect(action)
 	return b
+
+
+## All clickable buttons live in a menu that is pulled out from the right
+## edge of the screen: click the handle (or press Tab) to slide it in, and
+## again to slide it away. Only the handle shows while it is closed.
+func _setup_drawer() -> void:
+	_drawer = HBoxContainer.new()
+	_drawer.add_theme_constant_override("separation", 0)
+	_drawer.anchor_left = 1.0
+	_drawer.anchor_right = 1.0
+	_drawer.anchor_top = 0.5
+	_drawer.anchor_bottom = 0.5
+	_drawer.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_drawer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud.add_child(_drawer)
+
+	_drawer_handle = _make_button("", toggle_drawer)
+	_drawer_handle.custom_minimum_size = Vector2(70, 120)
+	_drawer_handle.add_theme_font_size_override("font_size", 16)
+	_drawer_handle.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	for style in ["normal", "hover", "pressed"]:
+		var box: StyleBoxFlat = _drawer_handle.get_theme_stylebox(style).duplicate()
+		box.corner_radius_top_right = 0
+		box.corner_radius_bottom_right = 0
+		_drawer_handle.add_theme_stylebox_override(style, box)
+	_drawer.add_child(_drawer_handle)
+
+	var panel := PanelContainer.new()
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(0.05, 0.03, 0.07, 0.85)
+	back.border_color = Color(0.85, 0.66, 0.32, 0.8)
+	back.set_border_width_all(2)
+	back.border_width_right = 0
+	back.corner_radius_bottom_left = 14
+	back.corner_radius_top_left = 14
+	back.set_content_margin_all(12)
+	panel.add_theme_stylebox_override("panel", back)
+	_drawer.add_child(panel)
+	var buttons := GridContainer.new()
+	buttons.columns = 2
+	buttons.add_theme_constant_override("h_separation", 10)
+	buttons.add_theme_constant_override("v_separation", 10)
+	panel.add_child(buttons)
+	# Buttons that open a window also push the menu away again; the others
+	# (actions and sound) leave it out so they can be clicked again.
+	var windows := [["Inventar", "inventar"], ["Charakter", "charakter"], ["Kompendium", "kompendium"], ["Laden", "laden"]]
+	for w in windows:
+		buttons.add_child(_make_button(Lang.t(w[0]), _open_from_drawer.bind(w[1])))
+	buttons.add_child(_make_button(Lang.t("Springen"), func(): if state == State.PLAYING: player.jump()))
+	buttons.add_child(_make_button(Lang.t("Werfen"), func(): if state == State.PLAYING: player.throw_knife()))
+	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
+	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
+	buttons.add_child(_make_button(Lang.t("Stein"), func(): if state == State.PLAYING and not menus.is_open(): stone_action()))
+	_sound_button = _make_button("", _toggle_sound)
+	buttons.add_child(_sound_button)
+	_update_sound_button()
+	buttons.add_child(_make_button(Lang.t("Beenden"), func():
+		set_drawer_open(false)
+		_on_quit_pressed()))
+	for b in buttons.get_children():
+		b.custom_minimum_size = Vector2(150, 58)
+		b.add_theme_font_size_override("font_size", 18)
+	_update_drawer_handle()
+	_place_drawer(0.0)
+	# Keeps the menu in place when a button's text changes its size.
+	_drawer.minimum_size_changed.connect(func(): _place_drawer(_drawer_t))
+
+
+func _open_from_drawer(menu: String) -> void:
+	if state == State.PLAYING and player.can_act() and not menus.is_open():
+		set_drawer_open(false)
+		menus.open(menu)
+
+
+func toggle_drawer() -> void:
+	set_drawer_open(not _drawer_open)
+
+
+func is_drawer_open() -> bool:
+	return _drawer_open
+
+
+## Slides the pull-out menu in or out.
+func set_drawer_open(open: bool) -> void:
+	if _drawer == null or open == _drawer_open:
+		return
+	_drawer_open = open
+	_update_drawer_handle()
+	if _drawer_tween:
+		_drawer_tween.kill()
+	_drawer_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_drawer_tween.tween_method(_place_drawer, _drawer_t, 1.0 if open else 0.0, 0.25)
+
+
+## Puts the menu `t` of the way out: 0 shows only the handle, 1 all of it.
+func _place_drawer(t: float) -> void:
+	_drawer_t = t
+	var size := _drawer.get_combined_minimum_size()
+	var hidden := size.x - _drawer_handle.get_combined_minimum_size().x
+	_drawer.offset_left = -size.x + hidden * (1.0 - t)
+	_drawer.offset_right = _drawer.offset_left + size.x
+	_drawer.offset_top = -size.y / 2.0
+	_drawer.offset_bottom = size.y / 2.0
+
+
+func _update_drawer_handle() -> void:
+	_drawer_handle.text = (">\n" if _drawer_open else "<\n") + Lang.t("Menü")
 
 
 func _setup_hud() -> void:
@@ -359,23 +472,6 @@ func _setup_hud() -> void:
 	_coin_label = _make_label(TEXT_FONT, 22, GOLD)
 	row.add_child(_coin_label)
 
-	var quit := _make_button(Lang.t("Beenden"), _on_quit_pressed)
-	quit.custom_minimum_size = Vector2(130, 44)
-	quit.add_theme_font_size_override("font_size", 17)
-	quit.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	quit.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	quit.offset_right = -24
-	quit.offset_top = 104
-	_hud.add_child(quit)
-	_sound_button = _make_button("", _toggle_sound)
-	_sound_button.custom_minimum_size = Vector2(130, 44)
-	_sound_button.add_theme_font_size_override("font_size", 17)
-	_sound_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_sound_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_sound_button.offset_right = -24
-	_sound_button.offset_top = 156
-	_hud.add_child(_sound_button)
-	_update_sound_button()
 
 	_prompt = _make_label(TEXT_FONT, 22, Color(1, 1, 1, 0.9))
 	_prompt.set_anchors_preset(Control.PRESET_CENTER)
@@ -394,7 +490,7 @@ func _setup_hud() -> void:
 	_hud.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.55))
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -410,8 +506,8 @@ func _setup_hud() -> void:
 	version.offset_bottom = -4
 	_hud.add_child(version)
 
-	# The "db" of the devilbane logo as a faint watermark in the corner,
-	# above the buttons (the "HARDCORE" lettering below it is cut off).
+	# The "db" of the devilbane logo as a faint watermark in the corner
+	# (the "HARDCORE" lettering below it is cut off).
 	var mark := TextureRect.new()
 	var db := AtlasTexture.new()
 	db.atlas = preload("res://assets/logo/devilbane_logo.png")
@@ -421,32 +517,14 @@ func _setup_hud() -> void:
 	mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	mark.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	mark.offset_left = -116
-	mark.offset_top = -190
+	mark.offset_top = -108
 	mark.offset_right = -20
-	mark.offset_bottom = -102
+	mark.offset_bottom = -20
 	mark.modulate = Color(1, 1, 1, 0.35)
 	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(mark)
 
-	var buttons := GridContainer.new()
-	buttons.columns = 4
-	buttons.add_theme_constant_override("h_separation", 10)
-	buttons.add_theme_constant_override("v_separation", 10)
-	buttons.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	buttons.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	buttons.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	buttons.offset_right = -20
-	buttons.offset_bottom = -20
-	_hud.add_child(buttons)
-	buttons.add_child(_make_button(Lang.t("Kompendium"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("kompendium")))
-	buttons.add_child(_make_button(Lang.t("Laden"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("laden")))
-	buttons.add_child(_make_button(Lang.t("Inventar"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("inventar")))
-	buttons.add_child(_make_button(Lang.t("Charakter"), func(): if state == State.PLAYING and player.can_act() and not menus.is_open(): menus.open("charakter")))
-	buttons.add_child(_make_button(Lang.t("Springen"), func(): if state == State.PLAYING: player.jump()))
-	buttons.add_child(_make_button(Lang.t("Werfen"), func(): if state == State.PLAYING: player.throw_knife()))
-	buttons.add_child(_make_button(Lang.t("Schlagen"), func(): if state == State.PLAYING: player.melee()))
-	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
-	buttons.add_child(_make_button(Lang.t("Stein"), func(): if state == State.PLAYING and not menus.is_open(): stone_action()))
+	_setup_drawer()
 
 	_setup_shrine_panel()
 
@@ -876,6 +954,9 @@ func _update_run_meter() -> void:
 
 func _update_hud() -> void:
 	_level_label.text = Lang.t(level.level_name) if level.outdoor or level.building != "" else Lang.t("Ebene %d: %s") % [level_index + 1, Lang.t(level.level_name)]
+	_clock_shown = _clock_text()
+	if _clock_shown != "":
+		_level_label.text += "    " + _clock_shown
 	_hp_label.text = Lang.t("Leben: %d / %d") % [maxi(0, player.hp), player.max_hp]
 	if player.hardening > 0:
 		_hp_label.text += "    " + Lang.t("Härtung %d") % player.hardening
@@ -896,6 +977,29 @@ func _update_hud() -> void:
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
 
 
+## The time of day for the HUD, e.g. "21:30, night", above ground only.
+func _clock_text() -> String:
+	if level == null or not (level.outdoor or level.building != ""):
+		return ""
+	return "%s, %s" % [DayNight.clock_text(day_hour), Lang.t(DayNight.part_of_day(day_hour))]
+
+
+## The world's clock runs while the hero is above ground (in the open or in
+## a village building) and the world is not paused; the open air is lit for
+## the hour. Down in the dungeon time stands still.
+func _tick_clock(delta: float) -> void:
+	if level == null or not (level.outdoor or level.building != ""):
+		return
+	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
+		day_hour = DayNight.advance(day_hour, delta)
+	if level.outdoor:
+		DayNight.apply(_env, _moon, day_hour)
+		if level is Outdoor:
+			level.set_hour(day_hour)
+	if _clock_text() != _clock_shown:
+		_update_hud()
+
+
 # --- Flow -------------------------------------------------------------------
 
 func load_level(index: int, restock := true) -> void:
@@ -914,6 +1018,8 @@ func load_level(index: int, restock := true) -> void:
 	level.built = builds[file]
 	level.hero = hero_name
 	if level is Outdoor:
+		# Bandits who take their spots at night are tougher (see Outdoor.set_hour).
+		level.night = DayNight.is_night(day_hour)
 		level.interiors = interiors
 		level.house_given = home_given
 		level._entered_once = home_claimed
@@ -952,6 +1058,8 @@ func load_level(index: int, restock := true) -> void:
 	_pending_crate = null
 	_end_drag()
 	_set_atmosphere(level.outdoor)
+	if level is Outdoor:
+		level.set_hour(day_hour)
 	_pending_search = {}
 	_pending_station = {}
 	if level.safe and restock:
@@ -1131,6 +1239,7 @@ func _start_new_game() -> void:
 	storage.clear()
 	shop_stock.clear()
 	away_plan = Offline.empty_plan()
+	day_hour = DayNight.START_HOUR
 	player.knives = 5
 	player.set_sex(_new_sex)
 	player.set_hair(HairLook.DEFAULT)
@@ -1349,6 +1458,8 @@ func _apply_save(data: Dictionary) -> void:
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
 	player.refresh_stats()
+	# Games saved before there was a clock wake up in the morning.
+	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
 	if escaped and _outdoor_index() >= 0:
 		# Out of the dungeon, every load begins in the open air, wherever the
@@ -1447,6 +1558,7 @@ func save_game(going_away := false) -> bool:
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
+		"hour": day_hour,
 	}
 	if going_away:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
@@ -1480,6 +1592,9 @@ func _looted_for_save() -> Dictionary:
 
 ## The hero lies down in the safe room's bed: save, then back to the title.
 func sleep() -> void:
+	# A night in the bed: the hero wakes up the next morning.
+	if level.outdoor or level.building != "":
+		day_hour = DayNight.WAKE_HOUR
 	var saved := save_game(true)
 	# Say so at once, so nobody has to wonder whether the save went through.
 	show_message(Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"), 2.4)
@@ -2208,6 +2323,7 @@ func _guardian_intro() -> void:
 
 func _process(delta: float) -> void:
 	_eerie(delta)
+	_tick_clock(delta)
 	# A skeleton on the hero's heels keeps the fight going, and a hero who
 	# has been spotted cannot stay hidden.
 	if state == State.PLAYING and level and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):
@@ -2387,6 +2503,8 @@ func _unhandled_input(event: InputEvent) -> void:
 							menus.open("charakter")
 					KEY_M:
 						_toggle_sound()
+					KEY_TAB:
+						toggle_drawer()
 					KEY_C:
 						_toggle_sneak()
 					KEY_E:

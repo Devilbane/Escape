@@ -1318,6 +1318,14 @@ func _note_run_hit(amount: int) -> bool:
 	return total > max_hp * KNOCKDOWN_SHARE
 
 
+## Knocks the hero down from outside, e.g. the bandit chief's shield bash.
+## Already lying on the ground, nothing more happens.
+func knock_down() -> void:
+	if dead or _down > 0.0:
+		return
+	_knock_down()
+
+
 ## Knocks the hero to the ground: they fall over backwards, lie a moment and
 ## get up again. No blow lands while they are down.
 func _knock_down() -> void:

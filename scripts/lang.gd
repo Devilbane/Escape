@@ -16,6 +16,7 @@ const EN := {
 	"Beenden": "Quit",
 	"Ton: an": "Sound: on",
 	"Ton: aus": "Sound: off",
+	"Menü": "Menu",
 	"%d%% Tempo": "%d%% speed",
 	"Spiel beenden": "Quit game",
 	"Was seit dem letzten Schlaf im Bett geschah, geht verloren.": "Whatever happened since you last slept in the bed is lost.",
@@ -63,8 +64,8 @@ const EN := {
 	"Entkommen": "Escaped",
 	"Alle Rechte vorbehalten": "All rights reserved",
 	# HUD and help
-	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)":
-		"WASD: walk   Space: jump   F: strike   R: knife   M: sound\nI: inventory   H: compendium   P: character   L: load   C/double click: sneak   Run into things: use\nMouse: click to walk, hold to run (Shift), right click: knife (running: jump)",
+	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)":
+		"WASD: walk   Space: jump   F: strike   R: knife   M: sound\nI: inventory   H: compendium   P: character   L: load   C/double click: sneak   Run into things: use   Tab: menu\nMouse: click to walk, hold to run (Shift), right click: knife (running: jump)",
 	"Rennen: %d s": "Run: %d s",
 	# Compendium
 	"Kompendium": "Compendium",
@@ -154,6 +155,13 @@ const EN := {
 	"Den schnappen wir uns!": "Let's get them!",
 	"Dein Beutel oder dein Leben!": "Your purse or your life!",
 	"Keiner kommt hier durch!": "Nobody gets through here!",
+	"Rabenherz, der Räuberhauptmann": "Ravenheart, the bandit chief",
+	"Zu mir, Jungs!": "To me, lads!",
+	"Genug gespielt!": "Enough games!",
+	"Benommen!": "Dazed!",
+	"Rabenherz ist besiegt! Seine Klinge gehört dir.": "Ravenheart is beaten! His blade is yours.",
+	"Rabenklinge": "Ravenblade",
+	"Einzigartig: die Klinge von Rabenherz, dem Räuberhauptmann": "Unique: the blade of Ravenheart, the bandit chief",
 	"Schon durchsucht": "Already searched",
 	"Bis bald! Du kannst diesen Tab jetzt schließen.": "See you soon! You can close this tab now.",
 	"Nochmal spielen": "Play again",
@@ -629,6 +637,14 @@ const EN := {
 	"Bring mir altes Eisen, ich schmelze es ein und mache dir etwas Neues daraus.": "Bring me old iron, and I'll melt it down and make you something new.",
 	"Verbeulte Rüstung? Leg sie auf den Amboss.": "Dented armour? Put it on the anvil.",
 	"Schmied Gorm im Dorf arbeitet an seiner Esse: Er schmilzt Waffen, Schilde, Metallrüstungen und Schmuck zu Eisenbarren ein, schmiedet aus Eisen und etwas Gold neue Waffen, Schilde und Rüstungen, und bessert abgenutzte Rüstungen und Schilde gegen Gold aus. Eisenbarren verkauft er auch.": "Gorm the smith works at his forge in the village: he melts weapons, shields, metal armour and jewellery down into iron bars, forges new weapons, shields and armour from iron and a little gold, and mends worn armour and shields for gold. He sells iron bars too.",
+	# Day and night
+	"Nacht": "night",
+	"Morgengrauen": "dawn",
+	"Morgen": "morning",
+	"Tag": "day",
+	"Abend": "evening",
+	"Die Nacht bricht herein. Das Dorf geht schlafen, und auf dem Friedhof regen sich die Toten.": "Night falls. The village goes to sleep, and in the graveyard the dead stir.",
+	"Ein neuer Tag bricht an. Die Toten kehren in ihre Gräber zurück.": "A new day dawns. The dead return to their graves.",
 }
 
 ## "de" or "en"; empty until the player has chosen.

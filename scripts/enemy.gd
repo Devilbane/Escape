@@ -505,8 +505,8 @@ func _physics_process(delta: float) -> void:
 	if _busy > 0.0:
 		return
 	# Off the hunt, a bandit strolls; skeletons shuffle back to their post.
-	var strolling := move != Vector3.ZERO and move.length() < 0.7 and (is_human() or _stats.get("roam", false))
-	var walk := "Walking_D_Skeletons" if not is_human() and _anim.has_animation("Walking_D_Skeletons") else "Walking_A"
+	var strolling: bool = move != Vector3.ZERO and move.length() < 0.7 and (is_human() or _stats.get("roam", false))
+	var walk: String = "Walking_D_Skeletons" if not is_human() and _anim.has_animation("Walking_D_Skeletons") else "Walking_A"
 	_play(walk if strolling else "Running_A" if move != Vector3.ZERO else "Idle")
 	_footfalls(delta, move != Vector3.ZERO, dist)
 	_voice(delta, dist)

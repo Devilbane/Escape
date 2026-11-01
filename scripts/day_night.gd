@@ -63,7 +63,7 @@ static func sky_at(hour: float) -> Dictionary:
 		var a: Dictionary = KEYS[i]
 		var b: Dictionary = KEYS[i + 1]
 		if hour >= a.hour and hour <= b.hour:
-			var t := 0.0 if b.hour <= a.hour else smoothstep(0.0, 1.0, (hour - a.hour) / (b.hour - a.hour))
+			var t: float = 0.0 if b.hour <= a.hour else smoothstep(0.0, 1.0, (hour - a.hour) / (b.hour - a.hour))
 			var out := {}
 			for key in a:
 				out[key] = lerp(a[key], b[key], t)

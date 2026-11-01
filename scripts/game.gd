@@ -364,6 +364,7 @@ func _setup_world() -> void:
 func _set_atmosphere(outdoor: bool) -> void:
 	if outdoor:
 		DayNight.apply(_env, _moon, day_hour)
+		_moonlight()
 		# Out in the open the weather is there at once, without a fade.
 		_weather_look = Weather.look(weather)
 		Weather.apply(_env, _moon, _weather_look)
@@ -1260,13 +1261,17 @@ func _update_hud() -> void:
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
 
 
-## The time of day for the HUD, e.g. "21:30, night", above ground only.
+## The time of day for the HUD, e.g. "21:30, night, full moon", above
+## ground only.
 func _clock_text() -> String:
 	if level == null or not (level.outdoor or level.building != ""):
 		return ""
 	var text := "%s, %s" % [DayNight.clock_text(day_hour), Lang.t(DayNight.part_of_day(day_hour))]
 	if weather != Weather.CLEAR:
 		text += ", " + Lang.t(Weather.word(weather))
+	# At night the clock names tonight's moon (see Moon).
+	if DayNight.is_night(day_hour):
+		text += ", " + Lang.t(Moon.word(day))
 	return text
 
 
@@ -1284,6 +1289,7 @@ func _tick_clock(delta: float) -> void:
 		_tick_weather(delta)
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
+		_moonlight()
 		_weather_look = Weather.blend(_weather_look, Weather.look(weather), 1.0 - exp(-delta / Weather.FADE))
 		_flash = maxf(0.0, _flash - delta * 3.0)
 		# A stroke of lightning flickers: bright, a dip, bright again.
@@ -1293,8 +1299,22 @@ func _tick_clock(delta: float) -> void:
 			level.day = day
 			level.set_hour(day_hour)
 			level.set_weather(weather)
+			if level.moon_night >= 0 and (Moon.is_full(level.moon_night) or Moon.is_new(level.moon_night)):
+				learn(Moon.LORE)
 	if _clock_text() != _clock_shown:
 		_update_hud()
+
+
+## The night is as bright as tonight's moon: pale and clear at full moon,
+## nearly black at new moon (see Moon). Only the night's own light changes,
+## so the day looks the same whatever the moon.
+func _moonlight() -> void:
+	var night := DayNight.glow_at(day_hour)
+	if night <= 0.0:
+		return
+	var bright := lerpf(1.0, Moon.light(day), night)
+	_moon.light_energy *= bright
+	_env.ambient_light_energy *= lerpf(1.0, bright, 0.6)
 
 
 ## Whether the clock passed dawn (see Bounties.DAWN) going forward from one

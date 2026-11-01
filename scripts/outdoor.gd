@@ -313,6 +313,29 @@ const ORE_NOTICE_RANGE := 36.0
 var _weather_foes: Array = []
 var _strike_timer := 0.0
 var _rock_cells: Array[Vector2i] = []
+## The moon (see Moon). At full moon a wolf pack hunts through the hollow:
+## a leader and the rest of the pack, set out around the hollow's pond (map
+## letter PACK_NEAR), and the moon flowers open on the pond's bank. At new
+## moon a horror crawls out of the hole nearest the village and lurks this
+## far along the way from the hole to the village square (0 at the hole,
+## 1 on the square), but at least HORROR_OUT tiles out of its hole. The
+## holes breathe that night, and whisper from further away.
+const PACK_SIZE := 4
+const PACK_NEAR := ";"
+const FLOWERS := 3
+const FLOWER := "mondblume"
+const HORROR_WAY := 0.4
+const HORROR_OUT := 6
+## Nobody comes out of the dark within this distance of the hero.
+const MOON_FAR := 22.0
+const BREATH_WHISPER := 2.4
+## The night the moon's events were last set up for (see Game.day), -1 for
+## none; the pack's spots, the open flowers (pickups), the horror's spot (or
+## empty) and the breath rising out of each hole.
+var moon_night := -1
+var _pack: Array = []
+var _moon_horror := {}
+var _breaths: Array[CPUParticles3D] = []
 
 
 func build() -> void:
@@ -1113,6 +1136,20 @@ func _build_hole(c: Vector2i) -> void:
 	var mist := Effects.make_sparkles(Color(0.45, 0.5, 0.62, 0.5))
 	mist.position = pos + Vector3(0, 0.4, 0)
 	add_child(mist)
+	# At new moon the hole breathes: a cold, dark plume rises out of it.
+	var breath := Effects.make_sparkles(Color(0.16, 0.17, 0.24, 0.75))
+	breath.amount = 34
+	breath.lifetime = 2.6
+	breath.mesh = Effects._quad(0.55, Color(1, 1, 1))
+	breath.emission_sphere_radius = 1.1
+	breath.gravity = Vector3(0, 1.3, 0)
+	breath.initial_velocity_min = 0.4
+	breath.initial_velocity_max = 1.2
+	breath.position = pos + Vector3(0, 0.3, 0)
+	breath.emitting = false
+	breath.visible = false
+	add_child(breath)
+	_breaths.append(breath)
 	_add_solid(pos, Vector3(2.8, 1.0, 2.8))
 	doors[id] = pos + Vector3(0, 0, TILE * 0.8)
 	if interiors.has(id):
@@ -1126,11 +1163,13 @@ func _whisper_from_holes(delta: float) -> void:
 	_whisper_timer -= delta
 	if _whisper_timer > 0.0:
 		return
-	_whisper_timer = randf_range(5.0, 9.0)
+	var breathing := holes_breathe()
+	_whisper_timer = randf_range(3.0, 5.0) if breathing else randf_range(5.0, 9.0)
+	var reach := WHISPER_RANGE * (BREATH_WHISPER if breathing else 1.0)
 	for pos in holes:
 		var d := _flat_distance(player.global_position, pos)
-		if d < WHISPER_RANGE:
-			var near := 1.0 - d / WHISPER_RANGE
+		if d < reach:
+			var near := 1.0 - d / reach
 			Sfx.play(self, "eerie_%d" % (randi() % 6), lerpf(-20.0, -8.0, near), pos, 0.8)
 			Effects.float_text(self, pos + Vector3(0, 1.4, 0), Lang.t(WHISPERS[randi() % WHISPERS.size()]), Color(0.62, 0.64, 0.8, lerpf(0.4, 0.85, near)))
 			return
@@ -1866,6 +1905,7 @@ func _process(delta: float) -> void:
 	_whisper_from_holes(delta)
 	_mind_the_night(delta)
 	_mind_the_weather(delta)
+	_mind_the_moon(delta)
 	_check_basket(delta)
 	_herald_timer -= delta
 	if _herald and _herald_timer <= 0.0 and not night:
@@ -1940,12 +1980,21 @@ func set_hour(new_hour: float) -> void:
 		_raise_dead()
 	else:
 		_lay_the_dead_to_rest()
+	set_moon(day if night else -1)
 	if not first:
 		var text := Lang.t("Die Nacht bricht herein. Das Dorf geht schlafen, und auf dem Friedhof regen sich die Toten.") if night \
 				else Lang.t("Ein neuer Tag bricht an. Die Toten kehren in ihre Gräber zurück.")
+		var lines := 1
 		if came:
 			text += "\n" + Lang.t("Am Markt schwingt eine Laterne: Wanderhändler Zarek hat seinen Karren für die Nacht aufgestellt.")
-		notice.emit(text, 6.0 if came else 4.5)
+			lines += 1
+		if night and Moon.is_full(day):
+			text += "\n" + Lang.t("Vollmond! In der Wolfssenke heult ein Rudel, und am Tümpel öffnet sich die Mondblume.")
+			lines += 1
+		elif night and Moon.is_new(day):
+			text += "\n" + Lang.t("Neumond. Die dunklen Löcher atmen, und etwas Großes kriecht näher ans Dorf.")
+			lines += 1
+		notice.emit(text, 4.5 + 1.5 * (lines - 1))
 
 
 # --- The wandering merchant ---------------------------------------------------
@@ -2145,6 +2194,271 @@ func risen_alive() -> int:
 		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
 			n += 1
 	return n
+
+
+# --- The moon -----------------------------------------------------------------
+
+## Sets up the moon's events for a night (see Moon), or ends them (-1, at
+## dawn): the full moon's wolf pack and flowers, the new moon's breathing
+## holes and its horror. Whatever is out when the night ends goes back where
+## it came from, as soon as it is off the hunt; flowers nobody picked close.
+func set_moon(night_of: int) -> void:
+	if night_of == moon_night:
+		return
+	moon_night = night_of
+	for s in _pack:
+		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
+			s.enemy.sink_at_dawn()
+	_pack.clear()
+	if not _moon_horror.is_empty() and _moon_horror.enemy != null and is_instance_valid(_moon_horror.enemy) and not _moon_horror.enemy.dead:
+		_moon_horror.enemy.sink_at_dawn()
+	_moon_horror = {}
+	_close_flowers()
+	var breathing := night_of >= 0 and Moon.is_new(night_of)
+	for b in _breaths:
+		b.visible = breathing
+		b.emitting = breathing
+	if night_of < 0:
+		return
+	if Moon.is_full(night_of):
+		_place_pack()
+		_open_flowers(night_of)
+	elif breathing:
+		_place_moon_horror(night_of)
+
+
+## Whether the holes breathe tonight: a new-moon night.
+func holes_breathe() -> bool:
+	return moon_night >= 0 and Moon.is_new(moon_night)
+
+
+## Open ground right beside a map letter, in map order.
+func _cells_beside(letter: String) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if not is_open(c):
+				continue
+			var beside := false
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					beside = beside or cell_char(c + Vector2i(dx, dy)) == letter
+			if beside:
+				cells.append(c)
+	return cells
+
+
+## The full moon's pack: its leader (an elite wolf) and the others close
+## around it on the far side of the pond from the hero's way in.
+func _place_pack() -> void:
+	var cells := _cells_beside(PACK_NEAR)
+	if cells.is_empty():
+		return
+	var den: Vector2i = cells[cells.size() / 2]
+	var spots: Array[Vector2i] = [den]
+	for r in range(1, 4):
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				var c := den + Vector2i(dx, dy)
+				if spots.size() < PACK_SIZE and not spots.has(c) and is_open(c) and (absi(dx) + absi(dy)) % 2 == 0:
+					spots.append(c)
+	for i in spots.size():
+		_pack.append({"cell": spots[i], "kind": "wolf", "leader": i == 0, "enemy": null, "timer": randf_range(0.0, 3.0)})
+
+
+## The moon flowers open on the pond's bank: FLOWERS of them, spread out,
+## but not the ones the hero picked this night already.
+func _open_flowers(night_of: int) -> void:
+	for key in taken.keys():
+		if str(key).begins_with(FLOWER + ":") and not str(key).begins_with("%s:%d:" % [FLOWER, night_of]):
+			taken.erase(key)
+	var cells := _cells_beside(PACK_NEAR)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%s/%d" % [level_name, night_of])
+	var picked: Array[Vector2i] = []
+	var tries := 0
+	while picked.size() < FLOWERS and not cells.is_empty() and tries < 200:
+		tries += 1
+		var c: Vector2i = cells[rng.randi() % cells.size()]
+		if picked.any(func(p: Vector2i) -> bool: return maxi(absi(p.x - c.x), absi(p.y - c.y)) < 2):
+			continue
+		picked.append(c)
+	for i in picked.size():
+		var id := "%s:%d:%d" % [FLOWER, night_of, i]
+		if not taken.has(id):
+			_grow_flower(cell_to_world(picked[i]), id)
+
+
+## A pale moon flower: a thin stem with a glowing, silvery bloom, a soft
+## light and a few motes over it. Walk into it to pick it: it goes into the
+## ingredient pouch (see Crafting).
+func _grow_flower(pos: Vector3, id: String) -> void:
+	var holder := Node3D.new()
+	var green := StandardMaterial3D.new()
+	green.albedo_color = Color(0.3, 0.45, 0.32)
+	var stem := MeshInstance3D.new()
+	var rod := CylinderMesh.new()
+	rod.top_radius = 0.03
+	rod.bottom_radius = 0.05
+	rod.height = 0.7
+	stem.mesh = rod
+	stem.material_override = green
+	stem.position = Vector3(0, -0.45, 0)
+	holder.add_child(stem)
+	var pale := StandardMaterial3D.new()
+	pale.albedo_color = Color(0.86, 0.9, 1.0)
+	pale.emission_enabled = true
+	pale.emission = Color(0.62, 0.72, 1.0)
+	pale.emission_energy_multiplier = 1.6
+	for i in 5:
+		var petal := MeshInstance3D.new()
+		var leaf := SphereMesh.new()
+		leaf.radius = 0.16
+		leaf.height = 0.1
+		petal.mesh = leaf
+		petal.material_override = pale
+		var angle := TAU * i / 5.0
+		petal.position = Vector3(cos(angle) * 0.15, 0, sin(angle) * 0.15)
+		holder.add_child(petal)
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.7, 0.8, 1.0)
+	light.light_energy = 1.2
+	light.omni_range = 3.0
+	holder.add_child(light)
+	holder.add_child(Effects.make_sparkles(Color(0.75, 0.85, 1.0)))
+	holder.position = Vector3(pos.x, 0.8, pos.z)
+	add_child(holder)
+	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": FLOWER, "id": id, "radius": 1.6, "moon": true})
+
+
+## How many moon flowers are open right now.
+func flowers_open() -> int:
+	return _pickups.filter(func(p): return p.get("moon", false)).size()
+
+
+## Dawn: the moon flowers nobody picked close and are gone.
+func _close_flowers() -> void:
+	for p in _pickups.duplicate():
+		if p.get("moon", false):
+			_pickups.erase(p)
+			var n: Node3D = p.node
+			if is_instance_valid(n):
+				var tween := create_tween()
+				tween.tween_property(n, "scale", Vector3.ONE * 0.01, 1.2)
+				tween.tween_callback(n.queue_free)
+
+
+## Where the village square is: the middle of its paving (":").
+func village_middle() -> Vector2:
+	var sum := Vector2.ZERO
+	var n := 0
+	for y in height:
+		for x in width:
+			if cell_char(Vector2i(x, y)) == ":":
+				sum += Vector2(x, y)
+				n += 1
+	return sum / n if n > 0 else Vector2(start_cell)
+
+
+## The new moon's horror: it crawls out of the hole nearest the village and
+## lurks part of the way towards the square. A horror slain this night does
+## not come back before the next new moon.
+func _place_moon_horror(night_of: int) -> void:
+	if holes.is_empty() or taken.has("neumond:%d" % night_of):
+		return
+	var middle := village_middle()
+	var hole := world_to_cell(holes[0])
+	for pos in holes:
+		var c := world_to_cell(pos)
+		if Vector2(c).distance_to(middle) < Vector2(hole).distance_to(middle):
+			hole = c
+	var way := middle - Vector2(hole)
+	var out := maxf(way.length() * HORROR_WAY, HORROR_OUT)
+	var aim := Vector2(hole) + way.normalized() * minf(out, way.length())
+	var best := Vector2i(-1, -1)
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if is_open(c) and cell_char(c) != ":" and (best.x < 0 or Vector2(c).distance_to(aim) < Vector2(best).distance_to(aim)):
+				best = c
+	if best.x < 0:
+		return
+	var kind: String = Enemy.HORRORS[(night_of / Moon.CYCLE) % Enemy.HORRORS.size()]
+	_moon_horror = {"cell": best, "hole": hole, "kind": kind, "night": night_of, "enemy": null, "timer": randf_range(2.0, 6.0)}
+
+
+## The moon's creatures come out once their time has come and the hero is
+## not looking. The pack hunts together: once one of them is after the
+## hero, the rest of the pack comes running too.
+func _mind_the_moon(delta: float) -> void:
+	var hunting := false
+	for s in _pack:
+		if s.enemy == null:
+			s.timer -= delta
+			if s.timer <= 0.0 and _flat_distance(player.global_position, cell_to_world(s.cell)) > MOON_FAR:
+				_spawn_pack_wolf(s)
+		elif is_instance_valid(s.enemy) and s.enemy.is_hunting():
+			hunting = true
+	if hunting:
+		for s in _pack:
+			if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead and not s.enemy.is_hunting():
+				s.enemy.alert(player.global_position)
+	if not _moon_horror.is_empty() and _moon_horror.enemy == null:
+		_moon_horror.timer -= delta
+		if _moon_horror.timer <= 0.0 and _flat_distance(player.global_position, cell_to_world(_moon_horror.cell)) > MOON_FAR:
+			_spawn_moon_horror()
+
+
+func _spawn_pack_wolf(s: Dictionary) -> void:
+	var e := Enemy.new()
+	e.kind = s.kind
+	e.elite = s.leader
+	e.night = true
+	e.level = self
+	add_child(e)
+	e.global_position = cell_to_world(s.cell)
+	var purse: Array = Enemy.KINDS[s.kind].get("purse", [0, 1])
+	e.died.connect(func():
+		enemy_killed.emit(e)
+		_drop_coins(e.global_position, randi_range(purse[0], purse[1]) + (3 if s.leader else 0))
+		s.timer = INF)
+	s.enemy = e
+	enemies = enemies.filter(func(x): return is_instance_valid(x))
+	enemies.append(e)
+
+
+func _spawn_moon_horror() -> void:
+	var s := _moon_horror
+	var e := Enemy.new()
+	e.kind = s.kind
+	e.night = true
+	e.level = self
+	add_child(e)
+	e.global_position = cell_to_world(s.cell)
+	var dust := Effects.make_sparkles(Color(0.2, 0.2, 0.3), true)
+	dust.position = e.global_position + Vector3(0, 0.6, 0)
+	add_child(dust)
+	e.died.connect(func():
+		enemy_killed.emit(e)
+		taken["neumond:%d" % int(s.night)] = true
+		_drop_coins(e.global_position, randi_range(8, 14))
+		s.timer = INF)
+	s.enemy = e
+	enemies = enemies.filter(func(x): return is_instance_valid(x))
+	enemies.append(e)
+
+
+## How many of the full moon's pack are about right now.
+func pack_alive() -> int:
+	return _pack.filter(func(s): return s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead).size()
+
+
+## The new moon's horror while it is out, else null.
+func moon_horror() -> Enemy:
+	if _moon_horror.is_empty() or _moon_horror.enemy == null or not is_instance_valid(_moon_horror.enemy) or _moon_horror.enemy.dead:
+		return null
+	return _moon_horror.enemy
 
 
 # --- Weather ------------------------------------------------------------------

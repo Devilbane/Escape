@@ -74,6 +74,11 @@ var home_given := false
 ## Set once the hero has walked into that house and made it their own: from
 ## then on it is where every saved game starts.
 var home_claimed := false
+## What has been built onto the hero's house (upgrade id -> true, see
+## HomeUpgrades), and the trophies won: enemy kind -> true for the first
+## foe of each kind in HomeUpgrades.TROPHIES.
+var home_upgrades := {}
+var trophies := {}
 ## The villagers the hero has talked to, by role letter -> true. Once met,
 ## a villager wears their name over their head. Kept in the saved game.
 var met := {}
@@ -1367,6 +1372,8 @@ func load_level(index: int, restock := true) -> void:
 		level.fox_tamable = not has_fox
 		level.fox_fed.connect(_on_fox_fed)
 		level.lightning.connect(_on_lightning)
+	if level.is_home:
+		level.show_home_upgrades(home_upgrades, trophies)
 	_pending_crate = null
 	_end_drag()
 	_set_atmosphere(level.outdoor)
@@ -1547,6 +1554,8 @@ func _start_new_game() -> void:
 	escaped = false
 	home_given = false
 	home_claimed = false
+	home_upgrades.clear()
+	trophies.clear()
 	secrets_found = 0
 	dry_levels = 0
 	looted.clear()
@@ -1851,6 +1860,8 @@ func _apply_save(data: Dictionary) -> void:
 			if saved_builds[file] is Array:
 				builds[str(file)] = (saved_builds[file] as Array).filter(func(e): return e is Array and e.size() >= 4)
 	escaped = bool(data.get("escaped", false))
+	home_upgrades = _known_keys(data.get("upgrades", []), HomeUpgrades.ALL)
+	trophies = _known_keys(data.get("trophies", []), HomeUpgrades.TROPHIES)
 	home_given = bool(data.get("home", false))
 	home_claimed = home_given and bool(data.get("claimed", false))
 	met.clear()
@@ -1869,6 +1880,7 @@ func _apply_save(data: Dictionary) -> void:
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
+	player.home_hp = HomeUpgrades.trophy_hp(home_upgrades, trophies)
 	player.refresh_stats()
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
@@ -1986,6 +1998,7 @@ func save_game(going_away := false) -> bool:
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
+		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(),
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
@@ -2186,7 +2199,7 @@ func _return_from_away(data: Dictionary) -> void:
 	var real_seconds := maxf(0.0, Time.get_unix_time_from_system() - float(away.get("since", 0.0)))
 	var plan := Offline.normalized(away.get("plan", {}), away_choices())
 	var hours := Offline.game_hours(real_seconds)
-	var result := Offline.simulate(plan, hours)
+	var result := Offline.simulate(plan, hours, HomeUpgrades.has(home_upgrades, "werkstatt"))
 	away_report = _apply_away(plan, result)
 	away_report.push_front(Lang.t("Du warst %s weg, für %s vergingen %s.") % [
 			_real_time_text(real_seconds), hero_name, Offline.duration_text(hours)])
@@ -2220,7 +2233,7 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 	# Cut stone blocks go into the storage chest, as many as it still holds.
 	var stones := 0
 	for i in int(result.get("stones", 0)):
-		if storage.size() >= Menus.STORAGE_SIZE:
+		if storage.size() >= HomeUpgrades.storage_size(home_upgrades):
 			break
 		storage.append(Menus.STONE)
 		stones += 1
@@ -2507,6 +2520,7 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 			show_message(enemy.fall_text(), 2.5)
 		return
 	show_message(enemy.fall_text(), 2.5)
+	_win_trophy(enemy.kind)
 	Factions.on_hero_kill(enemy.kind)
 	var drop := quests.on_kill(enemy.kind)
 	bounties.on_kill(enemy.kind)
@@ -3122,6 +3136,8 @@ func _process(delta: float) -> void:
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
 			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
 			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
+			"hauswerkbank": Lang.t("Dagegenlaufen, um an der Werkbank zu arbeiten"),
+			"trophaeen": Lang.t("Dagegenlaufen, um deine Trophäen anzusehen"),
 		}.get(station.kind, "")
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")
@@ -3461,3 +3477,54 @@ func _eerie(delta: float) -> void:
 		return
 	_eerie_timer = randf_range(25.0, 70.0)
 	Sfx.play(self, "eerie_%d" % (randi() % EERIE_SOUNDS), randf_range(-14.0, -8.0))
+
+
+# --- Home upgrades (see HomeUpgrades) --------------------------------------
+
+## The ids of a saved list that are still known, as a set.
+static func _known_keys(saved, known: Dictionary) -> Dictionary:
+	var out := {}
+	if saved is Array:
+		for id in saved:
+			if known.has(str(id)):
+				out[str(id)] = true
+	return out
+
+
+## The first foe of a mighty kind gives a trophy for the wall at home.
+func _win_trophy(kind: String) -> void:
+	if not HomeUpgrades.TROPHIES.has(kind) or trophies.has(kind):
+		return
+	trophies[kind] = true
+	var text := Lang.t("Trophäe: %s") % Lang.t(HomeUpgrades.TROPHIES[kind])
+	if HomeUpgrades.has(home_upgrades, "trophaeen"):
+		text += "\n" + Lang.t("Sie kommt an die Trophäenwand in deinem Haus: +1 Leben.")
+	get_tree().create_timer(2.6).timeout.connect(func():
+		if state == State.PLAYING:
+			show_message(text, 3.0))
+	apply_home_bonus()
+	if level.is_home:
+		level.show_home_upgrades(home_upgrades, trophies)
+
+
+## The life the trophy wall gives goes into the hero's stats.
+func apply_home_bonus() -> void:
+	player.home_hp = HomeUpgrades.trophy_hp(home_upgrades, trophies)
+	player.refresh_stats()
+	_update_hud()
+
+
+## Hagen builds an upgrade onto the house: "" when done, else why not.
+func build_home_upgrade(id: String) -> String:
+	var why := HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, coins)
+	if why != "":
+		return why
+	HomeUpgrades.pay_stones(id, player.bag, storage)
+	coins -= int(HomeUpgrades.ALL[id].gold)
+	home_upgrades[id] = true
+	learn(HomeUpgrades.LEARN)
+	apply_home_bonus()
+	if level.is_home:
+		level.show_home_upgrades(home_upgrades, trophies)
+	save_game()
+	return ""

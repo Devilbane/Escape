@@ -181,6 +181,18 @@ hides under helmets and hats. Your look is saved with the game.
 The villagers follow a fixed daily routine (small scripts, no AI on the network): that costs no noticeable
 computing time and nothing to run.
 
+## The robbers' pass
+
+A road leaves the market square to the east and climbs into the **robbers' pass**: rocky heath, dead trees and
+a bandit camp with tents, a campfire and the robbers' hoard in a **treasure chest**. **Bandits** roam the
+clearings: quick **cutthroats** with daggers, **poachers** who shoot crossbow bolts from afar, heavy
+**bruisers** with axes, and the **bandit chief** by the fire with sword and shield. They fight like the
+skeletons do (run into them, or click them), but they are people: they shout, they stroll instead of
+standing guard, and they chase you only so far from their camp before they give up. Bandits wear gear from
+the same list as yours, and much more often than skeletons do; when one falls it spills **gold** and may
+drop a piece of its gear. A fallen bandit's spot is taken by another a few minutes later, once you have
+left, so there is always something to fight and loot. Whoever falls on the pass starts again on the graveyard.
+
 The **compendium** (key H) shows all keys and mouse commands and collects every hint and every
 explanation you have been given so far: the introduction of every level, the tips on sneaking and on the
 guardian, the secret lever. It is saved with the game.
@@ -235,7 +247,9 @@ or `godborn` (the older German ids `ungewoehnlich`, `selten`, `episch` and `gott
 A line `outdoor: yes` turns a level into the world under the open sky (see `levels/11_die_freiheit.txt`).
 It has its own characters: `#` forest, `.` meadow, `,` path, `:` paved square, `~` pond, `R` crypt, `g` grave,
 `d` dead tree, `z` graveyard fence, `a` gate in the fence, `l` lantern, `p` pumpkins, `r` rock, `T` tree,
-`t` tree stump, `e` barrels and crates, `q` well, `F` fountain, `x` bench, `y` pumpkin field. Buildings are a
+`t` tree stump, `e` barrels and crates, `q` well, `F` fountain, `x` bench, `y` pumpkin field, `N` tent,
+`f` campfire, `C` treasure chest. The bandits, who roam and come back a while after they fall: `c` cutthroat,
+`A` poacher, `X` bruiser, `Q` bandit chief. Buildings are a
 rectangle of the same character: `h` house, `j` smithy, `n` tavern, `m` general store, `u` windmill,
 `s` temple, `k` office of the crown, `o` post office, `w` adventurers' guild, `b` bank. The hero's house:
 `I` wall, `i` wooden floor (a gap in the wall is the door), `B` bed, `L` chest. The villagers: `0` elder,

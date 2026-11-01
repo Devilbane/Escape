@@ -1523,8 +1523,8 @@ func _gold(amount: int) -> int:
 	return amount * 2 if player.has_special("gluecksklee") else amount
 
 
-func _on_enemy_killed() -> void:
-	show_message(Lang.t("Das Skelett zerfällt zu Staub."), 2.5)
+func _on_enemy_killed(enemy: Enemy) -> void:
+	show_message(Lang.t("Der Räuber geht zu Boden.") if enemy.is_human() else Lang.t("Das Skelett zerfällt zu Staub."), 2.5)
 	if player.has_special("vampirzahn") and player.hp < player.max_hp and not player.dead:
 		player.hp += 1
 		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+1", Color(0.5, 1.0, 0.5))

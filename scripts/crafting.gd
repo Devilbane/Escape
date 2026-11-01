@@ -199,7 +199,7 @@ func describe(id: String) -> String:
 	var r: Dictionary = RECIPES[id]
 	var lines := []
 	for line in r.lines:
-		lines.append(("„%s“" % Lang.t(line.text)) if line_read(id, line) else ("„%s“" % Lang.t(line.faded)))
+		lines.append(Lang.t("„%s“") % Lang.t(line.text if line_read(id, line) else line.faded))
 	var parts := []
 	for ingredient in r.ingredients:
 		parts.append("%s %d / %d" % [ingredient_name(ingredient), mini(have(ingredient), r.ingredients[ingredient]), r.ingredients[ingredient]])

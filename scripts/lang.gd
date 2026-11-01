@@ -758,6 +758,7 @@ const EN := {
 	"Rezepte (%d)": "Recipes (%d)",
 	"Handwerk:": "Crafts:",
 	"Feinschmieden": "Fine metalwork",
+	"„%s“": "“%s”",
 	"Banditendolch": "Bandit dagger",
 	"Für Krämerin Miras Auftrag": "For Mira the shopkeeper's quest",
 	"Brief aus der Hauptstadt": "Letter from the capital",

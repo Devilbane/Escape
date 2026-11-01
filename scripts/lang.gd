@@ -16,6 +16,7 @@ const EN := {
 	"Beenden": "Quit",
 	"Ton: an": "Sound: on",
 	"Ton: aus": "Sound: off",
+	"Menü": "Menu",
 	"%d%% Tempo": "%d%% speed",
 	"Spiel beenden": "Quit game",
 	"Was seit dem letzten Schlaf im Bett geschah, geht verloren.": "Whatever happened since you last slept in the bed is lost.",
@@ -63,8 +64,8 @@ const EN := {
 	"Entkommen": "Escaped",
 	"Alle Rechte vorbehalten": "All rights reserved",
 	# HUD and help
-	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)":
-		"WASD: walk   Space: jump   F: strike   R: knife   M: sound\nI: inventory   H: compendium   P: character   L: load   C/double click: sneak   Run into things: use\nMouse: click to walk, hold to run (Shift), right click: knife (running: jump)",
+	"WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)":
+		"WASD: walk   Space: jump   F: strike   R: knife   M: sound\nI: inventory   H: compendium   P: character   L: load   C/double click: sneak   Run into things: use   Tab: menu\nMouse: click to walk, hold to run (Shift), right click: knife (running: jump)",
 	"Rennen: %d s": "Run: %d s",
 	# Compendium
 	"Kompendium": "Compendium",

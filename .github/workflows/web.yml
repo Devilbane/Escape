@@ -114,6 +114,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/stones.gd | tee stones.log
           grep -q PASS stones.log
 
+      - name: Pull-out button menu test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_drawer.gd | tee drawer.log
+          grep -q PASS drawer.log
+
       - name: Day and night test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/day_night.gd | tee daynight.log

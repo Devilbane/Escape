@@ -57,6 +57,10 @@ signal door_opened
 signal door_locked
 signal player_hurt
 signal enemy_killed(enemy: Enemy)
+## The dragon of the lair has fallen: the lair is won (see _win_lair).
+signal lair_won
+## The hero stepped into the glowing way out that opens once the lair is won.
+signal lair_exit_taken
 signal exit_reached
 signal item_collected(id: String)
 signal bag_full
@@ -182,6 +186,12 @@ var _vault_shows: Array = []
 var elite := false
 ## A dungeon of its own below a village building's door (see "lair: yes").
 var lair := false
+## Whether the lair's dragon has fallen on this visit.
+var lair_cleared := false
+## The glowing way out that opens in the lair once the dragon has fallen.
+var lair_exit: Node3D
+## Whether the hero still stands in the way out (it leads out once per step).
+var _in_lair_exit := false
 ## A hero's own house with several storeys (see "home: yes").
 var is_home := false
 ## The town house on Weavers' Lane this home is (set by the game).
@@ -2166,6 +2176,13 @@ func _process(delta: float) -> void:
 		if world_to_cell(player.global_position) == exit_cell:
 			finished = true
 			exit_reached.emit()
+	if is_instance_valid(lair_exit):
+		var d := Vector2(player.global_position.x - lair_exit.global_position.x, player.global_position.z - lair_exit.global_position.z)
+		var inside := d.length() < LAIR_EXIT_RADIUS
+		if inside and not _in_lair_exit:
+			lair_exit_taken.emit()
+		_in_lair_exit = inside
+		lair_exit.rotation.y += delta * 0.8
 
 
 func _spike_is_up(s: Dictionary) -> bool:
@@ -2437,6 +2454,9 @@ func _spawn_enemies() -> void:
 					# A monster of the lair leaves a little gold, the dragon a heap.
 					var purse: Array = Enemy.KINDS[e.kind].get("purse", [0, 0])
 					_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
+					# The dragon guards the lair: once it falls, the lair is won.
+					if lair and e.kind == "drache":
+						_win_lair(e.global_position)
 					# A guardian on a level without a key carries it.
 					if e.kind == "waechter" and not has_key and not _has_cell("K"):
 						_build_key(Vector3(e.global_position.x, 0, e.global_position.z)))
@@ -2647,6 +2667,86 @@ func _decorate_lair() -> void:
 				for i in 4:
 					var angle := TAU * i / 4.0 + _rng.randf_range(-0.4, 0.4)
 					_place_lair("Coin_Pile", pos + Vector3(cos(angle), 0, sin(angle)) * 2.0, _rng.randf() * TAU, _rng.randf_range(7.0, 11.0))
+
+
+## How close (metres) the hero must step to the way out's middle to leave.
+const LAIR_EXIT_RADIUS := 1.3
+## The way out shines up this long after the dragon fell.
+const LAIR_EXIT_DELAY := 1.5
+const LAIR_EXIT_COLOR := Color(1.0, 0.8, 0.35)
+
+
+## The dragon has fallen where it hovered: the lair is won. A glowing way
+## out opens on a free tile next to where it fell (not on it, so picking up
+## its gold does not whisk the hero away).
+func _win_lair(at: Vector3) -> void:
+	if lair_cleared:
+		return
+	lair_cleared = true
+	lair_won.emit()
+	var spot := _lair_exit_spot(world_to_cell(at))
+	await get_tree().create_timer(LAIR_EXIT_DELAY).timeout
+	if not is_inside_tree():
+		return
+	lair_exit = _build_lair_exit(spot)
+
+
+## A free floor tile beside `c` for the way out (or `c` itself, if none).
+func _lair_exit_spot(c: Vector2i) -> Vector3:
+	var best := c
+	var best_dist := INF
+	for d in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
+		var n: Vector2i = c + d
+		if not astar.is_in_boundsv(n) or astar.is_point_solid(n) or cell_char(n) != ".":
+			continue
+		# The one nearest the stairs the hero came down, as a reminder of
+		# the way they came.
+		var dist := Vector2(n - start_cell).length()
+		if dist < best_dist:
+			best_dist = dist
+			best = n
+	return cell_to_world(best)
+
+
+## A ring of golden light on the floor with a glow and sparkles rising from it.
+func _build_lair_exit(pos: Vector3) -> Node3D:
+	var holder := Node3D.new()
+	holder.name = "LairExit"
+	add_child(holder)
+	holder.global_position = Vector3(pos.x, 0.05, pos.z)
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 1.0
+	torus.outer_radius = 1.3
+	ring.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = LAIR_EXIT_COLOR
+	ring.material_override = mat
+	holder.add_child(ring)
+	var disc := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 1.0
+	cyl.bottom_radius = 1.0
+	cyl.height = 0.02
+	disc.mesh = cyl
+	var glow_mat := StandardMaterial3D.new()
+	glow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glow_mat.albedo_color = Color(LAIR_EXIT_COLOR, 0.45)
+	disc.material_override = glow_mat
+	holder.add_child(disc)
+	var light := OmniLight3D.new()
+	light.light_color = LAIR_EXIT_COLOR
+	light.light_energy = 2.5
+	light.omni_range = 6.0
+	light.position.y = 1.2
+	holder.add_child(light)
+	holder.add_child(Effects.make_sparkles(LAIR_EXIT_COLOR))
+	holder.scale = Vector3.ONE * 0.01
+	create_tween().tween_property(holder, "scale", Vector3.ONE, 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	Sfx.play(self, "magic", -4.0, pos)
+	return holder
 
 
 # --- A hero's home -------------------------------------------------------------

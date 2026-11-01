@@ -287,6 +287,28 @@ sink back into their graves.
 A night in your **bed** skips to the next morning: you wake up at 07:00. The time of day is kept in the
 saved game.
 
+## Weather
+
+Above ground the sky does not stay clear: **rain**, **fog** and **thunderstorms** come and go on the same
+clock as day and night. A spell of weather lasts 2 to 5 hours of the day (about 2 to 4 real minutes), and
+which weather comes next depends on the hour: fog gathers at night and in the early morning, storms brew in
+the evening and at night, and by day the sky is mostly clear. The clock in the top left names the weather
+when it is not clear. A new hero steps out under a clear sky, every morning after a night in the bed brings
+new weather, and the weather is kept in the saved game. Down in the dungeon there is no weather.
+
+Each weather brings its own creatures, which come back a while after they fall for as long as it lasts and
+leave again when it changes:
+
+| Weather | What it looks like | What comes out |
+|---|---|---|
+| Rain | grey sky, rain falls and patters | **slimes** crawl out of the pond in the western woods |
+| Fog | washed-out colours, mist drifts over the ground | **fog wraiths**, pale little dead, drift among the dead trees; away from the lanterns a sneaking hero cannot be seen, even by day |
+| Thunderstorm | dark sky, pouring rain, lightning and thunder | **bats** swarm around the rocks; where lightning strikes a rock, a lump of glowing **thunder ore** may be left beside it |
+
+**Thunder ore** is only ever found in a thunderstorm, and only until the storm passes: whatever is left
+lying fades away. Pick it up and take it to Gorm the smith, who melts each lump into 4 iron bars, or sell it
+to the merchant.
+
 ## The robbers' pass
 
 A road leaves the market square to the east and climbs into the **robbers' pass**: rocky heath, dead trees and

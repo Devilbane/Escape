@@ -150,6 +150,20 @@ static func play_gear(tree_node: Node, id: String, delay := 0.0, at = null) -> v
 	play_after(tree_node, delay, sound, -2.0, at)
 
 
+## A sound that loops for as long as it plays (an .ogg file), e.g. the
+## rain. It starts silent and stopped: the caller sets the volume and
+## plays it when the time comes.
+static func start_loop(owner_node: Node, sound: String) -> AudioStreamPlayer:
+	var stream: AudioStreamOggVorbis = _stream(sound)
+	stream.loop = true
+	var p := AudioStreamPlayer.new()
+	p.stream = stream
+	p.volume_db = -80.0
+	p.process_mode = Node.PROCESS_MODE_ALWAYS
+	owner_node.add_child(p)
+	return p
+
+
 ## The endless wind and dripping water in the background.
 static func start_ambience(owner_node: Node) -> AudioStreamPlayer:
 	var stream: AudioStreamOggVorbis = _stream("ambience")

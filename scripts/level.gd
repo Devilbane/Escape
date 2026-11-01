@@ -2982,6 +2982,210 @@ func _build_home_door(c: Vector2i) -> void:
 	_light_spots.append(pos)
 
 
+# --- Home upgrades (see HomeUpgrades) -------------------------------------------
+
+## Where each built upgrade of a home stands (upgrade id -> cell), its
+## furniture, and the shelf of the trophy wall.
+var _upgrade_cells := {}
+var _upgrade_nodes := {}
+var _trophy_shelf: Node3D
+## Height of a trophy statuette on the shelf (metres).
+const TROPHY_STATUE := 0.9
+
+
+## Builds the furniture of every upgrade built so far on the chalked spots of
+## a home (each only once), and puts the trophies won on the trophy wall.
+func show_home_upgrades(built: Dictionary, won: Dictionary) -> void:
+	if not is_home:
+		return
+	for id in HomeUpgrades.ALL:
+		if not HomeUpgrades.has(built, id) or _upgrade_nodes.has(id):
+			continue
+		var slot := _upgrade_slot(id)
+		if slot.is_empty():
+			continue
+		_upgrade_cells[id] = slot.cell
+		_build_upgrade(id, slot.cell)
+	if _upgrade_nodes.has("trophaeen"):
+		_show_trophies(won)
+
+
+## The home's own storage chest, or (-1, -1).
+func _home_chest_cell() -> Vector2i:
+	for s in stations:
+		if s.kind == "lager" and not s.get("upgrade", false):
+			return s.cell
+	return Vector2i(-1, -1)
+
+
+## Whether a tile has a wall right behind it (to the north).
+func _against_back_wall(c: Vector2i) -> bool:
+	return cell_char(c + Vector2i(0, -1)) == "#"
+
+
+## Whether a tile has a wall at its side (west or east).
+func _against_side_wall(c: Vector2i) -> bool:
+	return cell_char(c + Vector2i(-1, 0)) == "#" or cell_char(c + Vector2i(1, 0)) == "#"
+
+
+## The furniture spot for an upgrade, or {} when every spot is taken. The
+## second chest goes next to the first; the trophy wall hangs on a back wall,
+## high up in the house; the workbench stands against a side wall up there.
+func _upgrade_slot(id: String) -> Dictionary:
+	var taken: Array = _upgrade_cells.values()
+	var chest := _home_chest_cell()
+	var best := {}
+	var best_score := -INF
+	for slot in furniture_slots:
+		var c: Vector2i = slot.cell
+		if taken.has(c):
+			continue
+		var storey: int = slot.storey
+		var score := 0.0
+		match id:
+			"truhe":
+				score = -Vector2(c - chest).length() if chest.x >= 0 and storey_of(chest) == storey else -100.0 - storey
+			"trophaeen":
+				score = storey * 10.0 + (5.0 if _against_back_wall(c) else 0.0) + c.x * 0.01
+			_:
+				score = storey * 10.0 + (3.0 if _against_side_wall(c) else 0.0) - (4.0 if _against_back_wall(c) else 0.0) - c.y * 0.1
+		if score > best_score:
+			best_score = score
+			best = slot
+	return best
+
+
+func _build_upgrade(id: String, c: Vector2i) -> void:
+	var root := Node3D.new()
+	root.name = "Upgrade_" + id
+	add_child(root)
+	_upgrade_nodes[id] = root
+	var pos := cell_to_world(c)
+	# Furniture beside a side wall turns its back to that wall.
+	var rot := 0.0
+	if cell_char(c + Vector2i(-1, 0)) == "#":
+		rot = PI * 0.5
+	elif cell_char(c + Vector2i(1, 0)) == "#":
+		rot = -PI * 0.5
+	match id:
+		"werkstatt":
+			_place("table_medium_decorated_A", pos, rot, root)
+			_place("stool", pos + Vector3(sin(rot), 0, cos(rot)) * 1.3, rot, root)
+			_place("sword_shield", pos + Vector3(-sin(rot), 0, -cos(rot)) * 1.55, rot, root)
+			_add_solid(pos, Vector3(2.6, 1.2, 2.6))
+			astar.set_point_solid(c, true)
+			stations.append({"kind": "hauswerkbank", "cell": c, "pos": pos, "used": false, "upgrade": true})
+		"truhe":
+			_place("chest", pos, rot, root)
+			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
+			astar.set_point_solid(c, true)
+			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false, "upgrade": true})
+		"trophaeen":
+			_build_trophy_wall(root, pos)
+			stations.append({"kind": "trophaeen", "cell": c, "pos": pos + Vector3(0, 0, -TILE * 0.5 + 0.6), "used": false, "upgrade": true})
+
+
+## A dark oak board on the back wall with a long shelf in front of it: the
+## statuettes of the trophies stand on the shelf, two shields hang beside
+## them. The shelf is solid, so the hero runs into it to look at the
+## trophies, but shallow enough to leave the rest of the tile free to walk.
+func _build_trophy_wall(root: Node3D, pos: Vector3) -> void:
+	var oak := StandardMaterial3D.new()
+	oak.albedo_texture = load("res://assets/house/wood_floor.jpg")
+	oak.albedo_color = Color(0.55, 0.38, 0.26)
+	oak.roughness = 0.8
+	var back := pos.z - TILE * 0.5 + 0.12
+	var board := MeshInstance3D.new()
+	var board_mesh := BoxMesh.new()
+	board_mesh.size = Vector3(TILE - 0.6, 2.4, 0.1)
+	board.mesh = board_mesh
+	board.material_override = oak
+	board.position = Vector3(pos.x, 2.1, back)
+	root.add_child(board)
+	var shelf := MeshInstance3D.new()
+	var shelf_mesh := BoxMesh.new()
+	shelf_mesh.size = Vector3(TILE - 0.8, 0.9, 0.7)
+	shelf.mesh = shelf_mesh
+	shelf.material_override = oak
+	shelf.position = Vector3(pos.x, 0.45, back + 0.4)
+	root.add_child(shelf)
+	_add_solid(Vector3(pos.x, 0, back + 0.4), Vector3(TILE - 0.8, 0.9, 0.8))
+	for side in [-1.0, 1.0]:
+		var banner := _place("banner_shield_brown", Vector3(pos.x + side * 1.25, 1.2, back + 0.1), 0.0, root)
+		banner.scale = Vector3.ONE * 0.6
+	_trophy_shelf = Node3D.new()
+	_trophy_shelf.position = Vector3(pos.x, 0.9, back + 0.4)
+	root.add_child(_trophy_shelf)
+
+
+## One small statuette of each foe felled, side by side on the shelf.
+func _show_trophies(won: Dictionary) -> void:
+	if _trophy_shelf == null:
+		return
+	for child in _trophy_shelf.get_children():
+		_trophy_shelf.remove_child(child)
+		child.queue_free()
+	var shown := HomeUpgrades.trophies_shown(won)
+	var span := TILE - 1.2
+	for i in shown.size():
+		var kind: String = shown[i]
+		var statue := _trophy_statue(kind)
+		if statue == null:
+			continue
+		statue.position.x = -span * 0.5 + span * (i + 0.5) / shown.size()
+		_trophy_shelf.add_child(statue)
+
+
+## A foe's own model, shrunk to a statuette on a little metal plinth and
+## frozen in its idle pose.
+func _trophy_statue(kind: String) -> Node3D:
+	var stats: Dictionary = Enemy.KINDS.get(kind, {})
+	if stats.is_empty():
+		return null
+	var path := "res://assets/%s/%s.%s" % [stats.get("dir", "enemies"), stats.model, stats.get("ext", "glb")]
+	if not ResourceLoader.exists(path):
+		return null
+	var pivot := Node3D.new()
+	var body: Node3D = load(path).instantiate()
+	pivot.add_child(body)
+	body.rotation.y = float(stats.get("turn", 0.0))
+	var anim: AnimationPlayer = body.find_child("AnimationPlayer", true, false)
+	var idle := String(stats.get("anims", {}).get("Idle", "Idle"))
+	if anim and anim.has_animation(idle):
+		anim.play(idle)
+		anim.seek(0.0, true)
+		anim.pause()
+	var box := AABB()
+	var first := true
+	for mesh: MeshInstance3D in body.find_children("*", "MeshInstance3D", true, false):
+		var to_body := Transform3D.IDENTITY
+		var n: Node = mesh
+		while n != body and n is Node3D:
+			to_body = (n as Node3D).transform * to_body
+			n = n.get_parent()
+		var b := to_body * mesh.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	var fit := minf(TROPHY_STATUE / maxf(box.size.y, 0.01), 0.55 / maxf(maxf(box.size.x, box.size.z), 0.01))
+	pivot.scale = Vector3.ONE * fit
+	pivot.position.y = -box.position.y * fit + 0.04
+	var plinth := MeshInstance3D.new()
+	var plinth_mesh := CylinderMesh.new()
+	plinth_mesh.top_radius = 0.26
+	plinth_mesh.bottom_radius = 0.3
+	plinth_mesh.height = 0.08
+	plinth.mesh = plinth_mesh
+	var plinth_mat := StandardMaterial3D.new()
+	plinth_mat.albedo_color = HomeUpgrades.TROPHY_COLORS.get(kind, Color.WHITE).darkened(0.3)
+	plinth_mat.metallic = 0.6
+	plinth_mat.roughness = 0.4
+	plinth.material_override = plinth_mat
+	var holder := Node3D.new()
+	holder.name = "Trophy_" + kind
+	holder.add_child(plinth)
+	holder.add_child(pivot)
+	return holder
+
 # --- The bank's vault cellar ----------------------------------------------------
 
 ## Iron bars across a one tile gap: solid, but you can see through.

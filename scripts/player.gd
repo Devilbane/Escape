@@ -80,6 +80,8 @@ var dead := false
 var hp := MAX_HP
 # Gifts from shrines, kept for the whole run.
 var gift_hp := 0
+## Life from the trophy wall at home (see HomeUpgrades), set by the game.
+var home_hp := 0
 var gift_power := 0
 var gift_speed := 0.0
 ## From the fourth shrine gift, which only a wise hero is offered.
@@ -993,6 +995,7 @@ func load_weight() -> float:
 ## A fresh hero for a new game: no gifts, no items.
 func reset_gifts() -> void:
 	gift_hp = 0
+	home_hp = 0
 	gift_power = 0
 	gift_speed = 0.0
 	gift_armor = 0
@@ -1005,7 +1008,7 @@ func reset_gifts() -> void:
 ## Recomputes life, strength and speed from gifts and worn items,
 ## and shows the worn weapon and shield in the hero's hands.
 func refresh_stats() -> void:
-	var hp_bonus := gift_hp
+	var hp_bonus := gift_hp + home_hp
 	var power_bonus := gift_power
 	var speed_bonus := gift_speed
 	hardening = gift_armor

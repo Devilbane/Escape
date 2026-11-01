@@ -60,6 +60,7 @@ const FOREST_DEPTH := 4
 ## Ground pieces are this many tiles across. Each piece is lit by the
 ## lanterns near it only, so many lanterns can burn at once.
 const GROUND_CHUNK := 12
+const TREE_SHADER := preload("res://shaders/tree.gdshader")
 const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
 ## The elder calls the hero over from this far (metres).
@@ -182,8 +183,27 @@ func _put(name: String, pos: Vector3, rot := 0.0, s := 1.0, parent: Node = self)
 	node.position = pos
 	node.rotation.y = rot
 	node.scale = Vector3.ONE * s
+	if name.begins_with("tree"):
+		for mi in node.find_children("*", "MeshInstance3D", true, false):
+			mi.material_override = _tree_material(mi.get_active_material(0), not name.ends_with("_cut"))
 	parent.add_child(node)
 	return node
+
+
+## The kit's trees are flat, even colours with a glossy shine: plastic. This
+## gives their leaves clusters, speckle and a sway, and their bark a grain
+## (see tree.gdshader), keeping the kit's palette texture. One material per
+## palette, cached.
+func _tree_material(mat: Material, wind := true) -> Material:
+	var tex: Texture2D = (mat as StandardMaterial3D).albedo_texture if mat is StandardMaterial3D else null
+	var key := "mat_tree_%d_%d" % [tex.get_instance_id() if tex else 0, int(wind)]
+	if not _scenes.has(key):
+		var bark := ShaderMaterial.new()
+		bark.shader = TREE_SHADER
+		bark.set_shader_parameter("albedo_tex", tex)
+		bark.set_shader_parameter("wind", 1.0 if wind else 0.0)
+		_scenes[key] = bark
+	return _scenes[key]
 
 
 ## Many copies of one model (trees) are drawn together in one go.
@@ -205,6 +225,8 @@ func _flush_plants() -> void:
 				mm.set_instance_transform(i, _plants[name][i] * part[1])
 			var mmi := MultiMeshInstance3D.new()
 			mmi.multimesh = mm
+			if name.begins_with("tree"):
+				mmi.material_override = _tree_material((part[0] as Mesh).surface_get_material(0))
 			add_child(mmi)
 		scene.free()
 

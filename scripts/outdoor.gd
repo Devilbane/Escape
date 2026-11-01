@@ -1735,17 +1735,27 @@ func beasts_alive() -> int:
 	return n
 
 
+## How much nearer a trader counts than a villager who only talks, when a
+## bump or click could mean either (see _npc_station_near).
+const TRADER_FIRST := 0.6
+
+
+## Everyone walking about the village: the villagers and, on the nights he
+## comes, the wandering merchant.
+func people() -> Array:
+	return villagers + [wanderer] if wanderer != null else villagers
+
+
 ## Bumping into a villager: they walk around, so their tile is not enough.
 ## A door is hit anywhere along the front of its building.
 func station_at(point: Vector3) -> Dictionary:
+	var npc := _npc_station_near(point, 1.6)
+	if not npc.is_empty():
+		return npc
 	# Doors of the town houses stand close together: the nearest one counts.
 	var door := {}
 	var door_distance := INF
 	for s in stations:
-		if s.has("npc") and s.npc.at_home:
-			continue
-		if s.has("npc") and _flat_distance(point, s.pos) < 1.6:
-			return s
 		if s.kind == "eingang":
 			var d := _flat_distance(point, s.pos)
 			if d < s.get("reach", 2.4) and d < door_distance:
@@ -1754,6 +1764,38 @@ func station_at(point: Vector3) -> Dictionary:
 	if not door.is_empty():
 		return door
 	return super(point)
+
+
+## The villager within reach of a point: the nearest, but a trader counts
+## TRADER_FIRST metres nearer than anyone who only talks, so a child playing
+## by the stall does not stand between the hero and the goods. {} when
+## nobody is that close.
+func _npc_station_near(point: Vector3, reach: float) -> Dictionary:
+	var best := {}
+	var best_score := INF
+	for s in stations:
+		if not s.has("npc") or s.npc.at_home:
+			continue
+		var d := _flat_distance(point, s.pos)
+		if d >= reach:
+			continue
+		var score := d - (TRADER_FIRST if s.kind != "npc" else 0.0)
+		if score < best_score:
+			best = s
+			best_score = score
+	return best
+
+
+## A click near a villager walks up to the trader among them first, like a
+## bump (see _npc_station_near); anything else as anywhere.
+func nearest_station(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
+	var npc := _npc_station_near(from, max_distance)
+	if not npc.is_empty() and npc.kind != "npc":
+		return npc
+	var other := super(from, max_distance)
+	if other.is_empty() or (not npc.is_empty() and other.has("npc")):
+		return npc
+	return other
 
 
 # --- Rules of the open air ----------------------------------------------------

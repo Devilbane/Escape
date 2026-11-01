@@ -20,6 +20,7 @@ The game can be played in English or German; you choose the language on the titl
 | Set a stone block down | B | “Stone” button, “Set down” in the inventory |
 | Move a stone block | | grab it with the left mouse button, drag, let go (right click while dragging turns it) |
 | Pick up a stone block | E | click it briefly, “Stone” button |
+| Push a heavy stone block | E | click it briefly; drag it and it slides straight on |
 | Inventory | I | “Inventory” button |
 | Compendium | H | “Compendium” button |
 | Character page | P | “Character” button |
@@ -70,6 +71,16 @@ across your way in front of you, on the floor or on top of the blocks already th
 Grab a block lying free with the left mouse button and drag it: a see-through block shows where it will
 land (green: it fits, red: no room), let go and it flies there, within 7 m of you. Blocks are climbed like
 crates. What you build stays standing in your saved game.
+Skeletons and bandits cannot climb: a wall of blocks across a corridor or around your camp keeps them
+out, and they look for a way round it instead (a gap narrower than about 1.2 m is too tight for them).
+You step over a wall one block high.
+
+Deep in the **Labyrinth** (level 3) lies a **stone chamber** with three old, heavy, mossy blocks, three
+**pressure plates** and an iron gate in front of a treasure chest. Heavy blocks do not fit in your bag and
+cannot be stacked: E (or a click) pushes one a little away from you, and dragged with the mouse it slides
+straight on until it hits something. Pillars stand in the way. Once a block lies on every plate, the
+gate sinks into the floor for good, and the chest behind it is as rich as a rare secret room.
+Your own blocks from the stonemason press the plates too.
 
 Your bag holds 8 things. A **backpack** worn in its own slot makes room for more: canvas backpack 10,
 leather backpack 11, large backpack 12. The bigger the backpack, the rarer it is. You can only take off a

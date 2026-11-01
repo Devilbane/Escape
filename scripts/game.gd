@@ -163,7 +163,8 @@ var _drag_time := 0.0
 var _drag_press := Vector2.ZERO
 ## A press shorter than this, without moving the block, is a click on it.
 const DRAG_CLICK := 0.25
-const STONE_LEARN := "Steinblöcke kauft man beim Steinmetz im Dorf. Abstellen mit B (oder „Abstellen“ im Inventar): der Block legt sich quer vor dich, auf den Boden oder auf andere Blöcke. Mit der linken Maustaste greifst du einen Block, ziehst ihn auf ein anderes Feld in der Nähe und lässt los; ein Rechtsklick dabei dreht ihn. E nimmt einen Block wieder in die Tasche. Auf einen Block steigst du einfach hinauf, auf zwei mit einem Sprung."
+const HEAVY_LEARN := "Alte, schwere Steinblöcke liegen in manchen Kammern des Verlieses. In die Tasche passen sie nicht, aber sie rutschen über den Boden: E (oder ein Klick) schiebt einen ein Stück von dir weg, mit der Maus ziehst du ihn geradeaus, bis er anstößt. Liegt auf jeder Druckplatte einer Kammer ein Block, öffnet sich ihr Eisengitter."
+const STONE_LEARN := "Steinblöcke kauft man beim Steinmetz im Dorf. Abstellen mit B (oder „Abstellen“ im Inventar): der Block legt sich quer vor dich, auf den Boden oder auf andere Blöcke. Mit der linken Maustaste greifst du einen Block, ziehst ihn auf ein anderes Feld in der Nähe und lässt los; ein Rechtsklick dabei dreht ihn. E nimmt einen Block wieder in die Tasche. Auf einen Block steigst du einfach hinauf, auf zwei mit einem Sprung. Skelette und Räuber können nicht klettern: Eine Mauer aus Blöcken hält sie fern, und sie müssen außen herum."
 
 
 func _ready() -> void:
@@ -757,6 +758,8 @@ func take_stone(stone: StoneBlock = null) -> String:
 		stone = null
 	if stone == null:
 		return Lang.t("Kein freier Steinblock in Reichweite.")
+	if stone.heavy:
+		return push_stone(stone)
 	if player.bag.size() >= player.bag_size():
 		return Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.")
 	player.path.clear()
@@ -766,6 +769,22 @@ func take_stone(stone: StoneBlock = null) -> String:
 	player.bag.append(Menus.STONE)
 	Sfx.play(self, "gear_soft_%d" % (randi() % 2), -2.0)
 	_update_hud()
+	return ""
+
+
+## Pushes a heavy block (see StoneBlock.heavy) one grid cell away from the
+## hero, along x or z, whichever way they face it most. Returns "" on
+## success, else why not.
+func push_stone(stone: StoneBlock) -> String:
+	var away := stone.global_position - player.global_position
+	var dir := Vector2i(1 if away.x > 0.0 else -1, 0) if absf(away.x) >= absf(away.z) else Vector2i(0, 1 if away.z > 0.0 else -1)
+	player.path.clear()
+	player.face(away)
+	player.play_once("Interact", 0.3)
+	learn(HEAVY_LEARN)
+	if not level.push_stone(stone, dir):
+		return Lang.t("Der Block rührt sich nicht: Etwas ist im Weg.")
+	Sfx.play(self, "rumble", -14.0, stone.global_position)
 	return ""
 
 
@@ -871,8 +890,12 @@ func _drop_stone() -> void:
 	if spot.get("ok", false) and not quick:
 		player.play_once("Throw", 0.45)
 		level.move_stone(stone, spot.cell, spot.along_x, spot.layer)
-		Sfx.play(self, "gear_book", -1.0, stone.global_position)
-		learn(STONE_LEARN)
+		if stone.heavy:
+			Sfx.play(self, "rumble", -12.0, stone.global_position)
+			learn(HEAVY_LEARN)
+		else:
+			Sfx.play(self, "gear_book", -1.0, stone.global_position)
+			learn(STONE_LEARN)
 	elif quick:
 		var why := take_stone(stone)
 		if why != "":
@@ -1057,6 +1080,8 @@ func load_level(index: int, restock := true) -> void:
 		Sfx.play(self, "chain", -6.0)
 		show_message(Lang.t("Die Tür öffnet sich knarrend...")))
 	level.door_locked.connect(func(): show_message(Lang.t("Verschlossen. Finde den Schlüssel!")))
+	level.plates_changed.connect(_on_plates_changed)
+	level.gate_opened.connect(_on_gate_opened)
 	level.player_hurt.connect(player.spring_trap)
 	level.enemy_killed.connect(_on_enemy_killed)
 	level.exit_reached.connect(_on_exit_reached)
@@ -1930,6 +1955,24 @@ func _on_key_collected() -> void:
 	_update_hud()
 
 
+## A block came onto or off a pressure plate.
+func _on_plates_changed(pressed: int, total: int) -> void:
+	if pressed < total:
+		show_message(Lang.t("Druckplatten: %d von %d") % [pressed, total], 1.8)
+		learn(HEAVY_LEARN)
+
+
+## Every pressure plate is pressed: the iron gate sinks into the floor.
+func _on_gate_opened(pos: Vector3) -> void:
+	_shake = 1.0
+	Comic.pop(pos, "rumble")
+	Sfx.play(self, "rumble", 0.0, pos)
+	Sfx.play(self, "chain", -4.0, pos)
+	show_message(Lang.t("Alle Druckplatten sind belegt: Das Eisengitter versinkt im Boden!"), 3.5)
+	_message.add_theme_color_override("font_color", GOLD)
+	get_tree().create_timer(3.8).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
+
+
 ## A lever torch found: a click and a golden message, then, a moment later,
 ## rumbling and shaking ground while the secret wall sinks.
 func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
@@ -2432,9 +2475,12 @@ func _process(delta: float) -> void:
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")
 	elif _prompt.text == "" and _drag_stone != null:
-		_prompt.text = Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen")
+		_prompt.text = Lang.t("Loslassen: Block rutscht dorthin") if _drag_stone.heavy else Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen")
 	elif _prompt.text == "" and level.stone_in_reach(player) != null:
-		_prompt.text = Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben")
+		if level.stone_in_reach(player).heavy:
+			_prompt.text = Lang.t("E oder Klick: Block schieben   Ziehen: rutschen lassen")
+		else:
+			_prompt.text = Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben")
 
 
 func _reach(pos: Vector3) -> float:

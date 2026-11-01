@@ -129,6 +129,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/forge.gd | tee forge.log
           grep -q PASS forge.log
 
+      - name: Stone walls and the block-pushing puzzle test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/stone_puzzle.gd | tee puzzle.log
+          grep -q PASS puzzle.log
+
       - name: Pull-out button menu test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_drawer.gd | tee drawer.log

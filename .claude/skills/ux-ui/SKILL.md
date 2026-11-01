@@ -676,21 +676,23 @@ new work and can be fixed over time. Fix them when touching that code, in their 
 Fixed so far (do not fix again): the trade window's fixed list height and two-column list
 (PR #143); the hover, pressed, disabled and focus states of `_make_button`, keyboard focus in
 windows, window buttons acting on release, and 16 px for prices and comparisons in the trade window
-(the "window buttons" PR, tested by `tests/window_buttons.gd`).
+(the "window buttons" PR, tested by `tests/window_buttons.gd`); the character wheel's small text:
+the wheel is 580 px across with all its text at 16 px or more, long skill names break over two
+lines, and the details (how a roll is made up, what an attribute does, why a skill is dimmed) show
+in a card of fixed size beside it on hover or tap (tested by `tests/character_page.gd`).
 
-1. **The character wheel draws small text.** `CharacterPage` draws attribute names, skill levels
-   and roll chances at 9 to 12 px so they fit inside the wheel (540 px across). That is below the
-   14 px minimum. Fixing it needs a visual pass on the wheel's layout (a bigger wheel, fewer words
-   per sector, or details on hover and tap), checked in screenshots, not just bigger numbers.
-2. **Trade rows and folding headers take no keyboard focus.** With the keys, the player reaches
+1. **Trade rows and folding headers take no keyboard focus.** With the keys, the player reaches
    each row's button (which shows that row's cards) but cannot pick a row or fold a category.
    Categories always open unfolded, so nothing is out of reach, but a focusable row and header
    would match the mouse.
-3. **Fine print stays at 14 to 15 px.** Counts in category headers, the "sold out" note on a
+2. **Fine print stays at 14 to 15 px.** Counts in category headers, the "sold out" note on a
    dimmed row, the worn item's subtitle and the version label. None of them is needed for a
    decision; keep it that way.
-4. **Rows' in-row buttons are 36 px high.** Below the 44 px touch target. They sit inside a row
+3. **Rows' in-row buttons are 36 px high.** Below the 44 px touch target. They sit inside a row
    that is itself clickable (60 px), so a tap still lands, but a taller row would be safer on touch.
+4. **The character wheel's details card needs a pointer.** Its entries are drawn, not buttons, so
+   the keys cannot point at a skill to show its details. Everything needed (levels, chances, which
+   skills are dimmed) is on the wheel itself; only the explanations are out of reach.
 
 ---
 

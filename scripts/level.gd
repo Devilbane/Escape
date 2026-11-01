@@ -305,6 +305,8 @@ func build() -> void:
 			_build_content(c, ch)
 	_build_corner_pillars()
 	furniture_slots.sort_custom(func(a, b): return a.storey < b.storey)
+	if is_home:
+		_light_storeys()
 	_pick_levers()
 	_build_wall_collision()
 	_setup_astar()
@@ -2682,6 +2684,26 @@ func _check_stairs() -> void:
 	if to.x < 0:
 		return
 	stairs_taken.emit(cell_to_world(_open_side(to)), cell_char(cell) == "<", storey_of(to))
+
+
+## A home is lit from within: a warm lamp over the middle of every storey,
+## so no room (the attic least of all) sits in the dark.
+func _light_storeys() -> void:
+	var sums := {}
+	for c in _storeys:
+		var k: int = _storeys[c]
+		if not sums.has(k):
+			sums[k] = [Vector3.ZERO, 0]
+		sums[k][0] += cell_to_world(c)
+		sums[k][1] += 1
+	for k in sums:
+		var lamp := OmniLight3D.new()
+		lamp.light_color = Color(1.0, 0.84, 0.62)
+		lamp.light_energy = 2.4
+		lamp.omni_range = 11.0
+		lamp.position = sums[k][0] / float(sums[k][1]) + Vector3(0, 3.6, 0)
+		add_child(lamp)
+		_light_spots.append(sums[k][0] / float(sums[k][1]))
 
 
 ## Wooden planks, as in the houses of the village. The stairs down leave a

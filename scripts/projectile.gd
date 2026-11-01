@@ -12,6 +12,10 @@ var direction := Vector3.FORWARD
 var from_player := true
 ## The skeleton that shot or cast it; the hero fights back against it.
 var shooter: Node = null
+## The rival monster it was aimed at (see Factions), or null when it flies
+## at the hero. Aimed at a rival ("at_rival"), it hits only that one.
+var foe: Enemy = null
+var at_rival := false
 var damage := 1
 var magic := false
 var fire := false
@@ -62,8 +66,14 @@ static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: 
 
 func _physics_process(delta: float) -> void:
 	_age += delta
-	if magic and not level.player.dead:
-		var want := level.player.global_position - global_position
+	var homing := Vector3.INF
+	if at_rival:
+		if is_instance_valid(foe) and not foe.dead:
+			homing = foe.global_position
+	elif not level.player.dead:
+		homing = level.player.global_position
+	if magic and homing != Vector3.INF:
+		var want := homing - global_position
 		want.y = 0.0
 		var turn := clampf(direction.signed_angle_to(want.normalized(), Vector3.UP), -MAGIC_TURN * delta, MAGIC_TURN * delta)
 		direction = direction.rotated(Vector3.UP, turn)
@@ -74,7 +84,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if from_player:
 		for e in level.enemies:
-			if is_instance_valid(e) and not e.dead and _hits(e.global_position):
+			# Knives fly past the hero's friends (see Factions).
+			if is_instance_valid(e) and not e.dead and not e.is_friend() and _hits(e.global_position):
 				e.take_hit(damage, global_position - direction, "knife")
 				level.player.mark_fight()
 				level.player.train("werfen", 1.0)
@@ -82,6 +93,10 @@ func _physics_process(delta: float) -> void:
 					level.player.train("intelligenz", 4.0)
 				queue_free()
 				return
+	elif at_rival:
+		if is_instance_valid(foe) and not foe.dead and _hits(foe.global_position):
+			foe.hit_by_rival(2 if fire else damage, shooter as Enemy if is_instance_valid(shooter) else null)
+			queue_free()
 	else:
 		var player: Player = level.player
 		if not player.dead and _hits(player.global_position) and player.global_position.y < 1.2:

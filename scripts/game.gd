@@ -421,6 +421,7 @@ func _setup_drawer() -> void:
 	buttons.add_child(_make_button(Lang.t("Kiste"), func(): if state == State.PLAYING and not menus.is_open(): crate_action()))
 	buttons.add_child(_make_button(Lang.t("Stein"), func(): if state == State.PLAYING and not menus.is_open(): stone_action()))
 	buttons.add_child(_make_button(Lang.t("Angeln"), fish_action))
+	buttons.add_child(_make_button(Lang.t("Schenken"), gift_action))
 	_sound_button = _make_button("", _toggle_sound)
 	buttons.add_child(_sound_button)
 	_update_sound_button()
@@ -1413,6 +1414,7 @@ func _start_new_game() -> void:
 	met.clear()
 	quests.clear()
 	crafting.clear()
+	Factions.clear()
 	fishing.stop()
 	reputation.clear()
 	storage.clear()
@@ -1684,6 +1686,7 @@ func _apply_save(data: Dictionary) -> void:
 	quests.load_from(data.get("quests", {}))
 	crafting.load_from(data.get("crafting", {}))
 	reputation.load_from(data.get("reputation", {}))
+	Factions.load_from(data.get("factions", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
@@ -1802,6 +1805,7 @@ func save_game(going_away := false) -> bool:
 		"quests": quests.for_save(),
 		"crafting": crafting.for_save(),
 		"reputation": reputation.for_save(),
+		"factions": Factions.for_save(),
 		"hour": day_hour,
 		"weather": weather, "weather_hours": weather_hours,
 	}
@@ -2291,7 +2295,13 @@ func _gold(amount: int) -> int:
 
 
 func _on_enemy_killed(enemy: Enemy) -> void:
+	if enemy.slain_by_rival:
+		# Felled by a rival monster (see Factions): it counts for no task.
+		if _reach(enemy.global_position) < RIVAL_KILL_HEARD:
+			show_message(enemy.fall_text(), 2.5)
+		return
 	show_message(enemy.fall_text(), 2.5)
+	Factions.on_hero_kill(enemy.kind)
 	var drop := quests.on_kill(enemy.kind)
 	if drop != "":
 		level._drop_item(drop, enemy.global_position + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
@@ -2845,6 +2855,11 @@ func _process(delta: float) -> void:
 		fish_prompt = Lang.t("G: Angeln")
 	if fish_prompt != "":
 		_prompt.text = fish_prompt if _prompt.text == "" else _prompt.text + "   " + fish_prompt
+	# Next to a monster that can be won over, a gift can be offered.
+	var tame := gift_target()
+	if tame != null and Factions.can_befriend(Factions.of(tame.kind)) and not tame.is_friend():
+		var gift_prompt := Lang.t("T: Geschenk anbieten")
+		_prompt.text = gift_prompt if _prompt.text == "" else _prompt.text + "   " + gift_prompt
 
 
 func _reach(pos: Vector3) -> float:
@@ -2964,6 +2979,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						_toggle_sneak()
 					KEY_G:
 						fish_action()
+					KEY_T:
+						gift_action()
 					KEY_E:
 						var why_not := ""
 						if level.crate_in_reach(player) == null and level.stone_in_reach(player) != null:
@@ -3016,6 +3033,75 @@ func fish_action() -> void:
 		show_message(why, 1.6)
 
 
+## How close the hero must be to a monster to offer it a gift (metres).
+const GIFT_RANGE := 5.0
+## A monster felled by a rival this close to the hero is reported (metres).
+const RIVAL_KILL_HEARD := 30.0
+
+
+## The nearest living monster close enough for a gift, or null.
+func gift_target() -> Enemy:
+	if level == null or player == null:
+		return null
+	var best: Enemy = null
+	var best_d := GIFT_RANGE
+	for e in level.enemies:
+		if not is_instance_valid(e) or e.dead or not e.visible:
+			continue
+		var d := _reach(e.global_position)
+		if d < best_d:
+			best = e
+			best_d = d
+	return best
+
+
+## Key T or the "Schenken" button: offers the nearest monster what its kind
+## likes (see Factions). Each gift calms it for a while and earns its
+## faction's favour; enough favour makes the whole faction the hero's friend.
+func gift_action() -> void:
+	if state != State.PLAYING or menus.is_open() or not _shrine.is_empty() or not player.can_act():
+		return
+	var e := gift_target()
+	if e == null:
+		show_message(Lang.t("Hier ist niemand, dem du etwas schenken könntest."), 1.6)
+		return
+	var faction := Factions.of(e.kind)
+	var info: Dictionary = Factions.FACTIONS.get(faction, {})
+	if not Factions.can_befriend(faction):
+		show_message(Lang.t(info.get("refuse", "Damit ist kein Frieden zu machen.")), 2.2)
+		return
+	if e.is_friend():
+		show_message(Lang.t(info.friend), 1.6)
+		return
+	var count := int(info.count)
+	if info.gift == "gold":
+		if coins < count:
+			show_message(Lang.t(info.wish), 2.6)
+			return
+		coins -= count
+		Sfx.play_coins(self, count)
+	else:
+		if crafting.have(info.gift) < count:
+			show_message(Lang.t(info.wish), 2.6)
+			return
+		crafting.add(info.gift, -count)
+		Sfx.play(self, "swing", -8.0)
+	player.face(e.global_position - player.global_position)
+	e.calm()
+	var won := Factions.give(faction)
+	Effects.float_text(level, e.global_position + Vector3(0, 2.6, 0), Lang.t("Freund!") if won else Lang.t("Danke!"), Color(1.0, 0.6, 0.75))
+	if won:
+		for other in level.enemies:
+			if is_instance_valid(other) and not other.dead and Factions.of(other.kind) == faction:
+				other.calm()
+		Sfx.play(self, "secret", -6.0)
+		learn(Factions.HOW_TO)
+		quest_news(Lang.t(info.won), Color(1.0, 0.6, 0.75), 5.0)
+	else:
+		show_message(Lang.t(info.thanks) + "\n" + Lang.t("Gunst: %d von %d") % [floori(Factions.favour_of(faction)), int(Factions.FRIENDLY)], 3.0)
+	_update_hud()
+
+
 func _mouse_to_floor(screen_pos: Vector2):
 	var origin := camera.project_ray_origin(screen_pos)
 	var dir := camera.project_ray_normal(screen_pos)
@@ -3030,6 +3116,10 @@ func _click(point: Vector3) -> void:
 	player.stop_hunt()
 	for e in level.enemies:
 		if is_instance_valid(e) and not e.dead and e.visible and Vector2(e.global_position.x - point.x, e.global_position.z - point.z).length() < 1.6:
+			if e.is_friend():
+				# The hero's friends are not attacked (see Factions).
+				show_message(Lang.t(Factions.FACTIONS[Factions.of(e.kind)].friend), 1.6)
+				return
 			if player.global_position.distance_to(e.global_position) < Player.MELEE_RANGE + 1.0:
 				player.melee()
 			else:

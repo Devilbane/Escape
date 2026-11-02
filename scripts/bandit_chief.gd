@@ -195,7 +195,8 @@ func _halt() -> void:
 	move_and_slide()
 
 
-## He rams the hero with his shield: unblockable, and it knocks them down.
+## He rams the hero with his shield: unblockable, and it knocks a running
+## hero down.
 func _shield_bash(player: Player) -> void:
 	_bash_timer = BASH_EVERY * randf_range(0.8, 1.2)
 	_cooldown = maxf(_cooldown, float(_stats.cooldown))
@@ -208,8 +209,8 @@ func _shield_bash(player: Player) -> void:
 	var d := player.global_position - global_position
 	d.y = 0.0
 	if d.length() < BASH_RANGE + 0.6 and not level.stacked(self, player):
-		# The shield sends the hero sprawling even when the blow itself
-		# finds them still reeling from the last one.
+		# The shield sends a running hero sprawling even when the blow
+		# itself finds them still reeling from the last one.
 		player.take_damage(BASH_DAMAGE, global_position, self, false)
 		Comic.pop(player.global_position, "big")
 		if not player.dead:

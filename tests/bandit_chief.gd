@@ -99,15 +99,30 @@ func _process(_delta: float) -> bool:
 				chief._bash_timer = 0.0
 				chief._cooldown = 0.0
 				knockdowns_before = player.knockdowns
+				hero_hp = player.max_hp
 				stage = 2
 				stage_frames = 0
 		2:
+			# The hero stands still: the bash hurts but does not knock them down.
+			hero_hp = mini(hero_hp, player.hp)
 			if player.hp <= 2:
 				_heal()
 			if player.knockdowns > knockdowns_before:
+				check(false, "the chief's shield bash does not knock a standing hero down")
+				stage = 99
+			elif stage_frames > 240:
+				check(hero_hp < player.max_hp, "the chief's shield bash hurts the hero")
+				# A running hero who is hit stumbles to the ground.
+				_heal()
+				player._invulnerable = 0.0
+				player.run_boost = Player.RUN_TOP
+				player.take_damage(BanditChief.BASH_DAMAGE, chief.global_position, chief, false)
+				player.knock_down()
+				check(player.knockdowns == knockdowns_before + 1, "a hit while running knocks the hero down (once)")
 				# Phase 3: enraged, he charges from afar.
 				player._down = 0.0
 				player._falling = 0.0
+				player.run_boost = 1.0
 				_heal()
 				chief.take_hit(chief.hp - int(chief.max_hp() * 0.3), player.global_position)
 				check(chief.phase == 3, "below one third of his life the chief is enraged (phase 3)")
@@ -116,9 +131,6 @@ func _process(_delta: float) -> bool:
 				chief._bash_timer = 99.0
 				stage = 3
 				stage_frames = 0
-			elif stage_frames > 300:
-				check(false, "the chief's shield bash knocks the hero down")
-				stage = 99
 		3:
 			_heal()
 			player._invulnerable = 1.0

@@ -99,8 +99,14 @@ func _test() -> void:
 	check(t._title.text == Lang.t("Rennen"), "it is titled running")
 	_tick(Tutorial.MAX_SHOW - 1.0)
 	check(t.step == 1, "a card stays a good while")
-	_tick(1.1)
+	# Ticks one tenth at a time until the card goes, so the pause is
+	# measured from that moment on.
+	var waited := 0.0
+	while t.step != -1 and waited < 2.0:
+		t.update(0.1)
+		waited += 0.1
 	check(t.step == -1, "a card nobody acts on goes after a while")
+	check(waited > 0.5, "the card stayed about MAX_SHOW seconds: %.1f s more" % waited)
 	check(int(game.hints_shown.get("tut_run", 0)) == 1, "running was shown once, not learned")
 	_tick(Tutorial.GAP - 0.3)
 	check(t.step == -1, "there is a pause between cards")

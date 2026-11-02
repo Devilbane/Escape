@@ -94,8 +94,9 @@ func _process(delta: float) -> bool:
 		0:
 			game.hero_name = "Fox test"
 			game.escaped = true
-			game.fox_trust = 0
-			game.has_fox = false
+			game.companions = []
+			game.following = -1
+			game.trust = {}
 			game.crafting.clear()
 			game.load_level(game._outdoor_index(), false)
 			game.state = game.State.PLAYING
@@ -155,11 +156,19 @@ func _process(delta: float) -> bool:
 				check(fox.state in ["approach", "eat"], "the fox comes up to the hero (%s)" % fox.state)
 			if not game.has_fox and stage_frames < 1200:
 				return false
-			check(game.fox_trust == Pet.TRUST_NEEDED, "the fox ate three sausages (%d)" % game.fox_trust)
+			check(game.trust.get("fuchs", 0) == Pet.TRUST_NEEDED, "the fox ate three sausages (%d)" % game.trust.get("fuchs", 0))
 			check(not game.player.bag.has(Pet.FOOD), "the sausages are gone from the bag")
 			check(game.has_fox and game.pet != null and is_instance_valid(game.pet), "the fox now goes with the hero")
 			check(_foxes(lvl) == foxes_before - 1, "the tamed fox left its meadow")
-			check(not lvl.fox_tamable, "no second fox can be won over")
+			check(lvl.owned_companions.has("fuchs"), "no second fox can be won over")
+			# The hero names the new friend.
+			check(game.menus.current == "gefaehrte_name", "the hero is asked to name the fox")
+			check(game.companions[0].name == Companions.SPECIES.fuchs.default, "the fox has a name to start with")
+			game.menus._name_text = "  Flinn  "
+			game.menus._give_name()
+			check(not game.menus.is_open(), "naming closes the window")
+			check(game.companions[0].name == "Flinn" and game.pet.given_name == "Flinn", "the fox is called Flinn")
+			check(game.player.skill("erkunden") >= 1 if Training.SKILLS.has("erkunden") else game.player.companion_perks.get("skills", {}).get("erkunden", 0) == 1, "the fox gives +1 Erkunden")
 			# A hidden ingredient a few tiles away: the fox sniffs it out.
 			var here: Vector2i = lvl.world_to_cell(game.player.global_position)
 			find_cell = Vector2i(-1, -1)
@@ -234,15 +243,17 @@ func _process(delta: float) -> bool:
 			check(Pet._flat(game.pet.global_position - game.player.global_position).length() < Pet.LEASH + 0.5, "the fox caught up")
 			# Saved and loaded again: the fox is still the hero's.
 			check(game.save_game(), "the game is saved")
-			game.has_fox = false
-			game.fox_trust = 0
+			game.companions = []
+			game.following = -1
+			game.trust = {}
 			game._apply_save(game._read_save())
 			_next_stage()
 			stage = 5
 		5:
 			if stage_frames < 10:
 				return false
-			check(game.has_fox and game.fox_trust == Pet.TRUST_NEEDED, "the saved game keeps the fox")
+			check(game.has_fox and game.trust.get("fuchs", 0) == Pet.TRUST_NEEDED, "the saved game keeps the fox")
+			check(game.companions[0].name == "Flinn" and game.following == 0, "the saved game keeps the fox's name and that it comes along")
 			check(game.crafting.have("trueffel") == 1, "the saved game keeps the truffle in the pouch")
 			check(game.pet != null and is_instance_valid(game.pet), "the fox comes along after loading")
 			check(_foxes(game.level) == foxes_before - 1, "the tamed fox is not back on its meadow")

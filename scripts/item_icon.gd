@@ -70,7 +70,7 @@ static func kind_of(id: String) -> String:
 		"kiste":
 			return "crate"
 		"futter":
-			return "sausage"
+			return item.get("icon", "sausage")
 	return "scroll"
 
 
@@ -198,6 +198,22 @@ func _draw() -> void:
 			draw_line(p.call(0.2, 0.7), p.call(0.8, 0.3), Color(0.65, 0.3, 0.2), u * 0.26)
 			draw_circle(p.call(0.2, 0.7), u * 0.13, Color(0.65, 0.3, 0.2))
 			draw_circle(p.call(0.8, 0.3), u * 0.13, Color(0.65, 0.3, 0.2))
+		"apple":
+			draw_circle(p.call(0.5, 0.58), u * 0.3, Color(0.8, 0.18, 0.15))
+			draw_circle(p.call(0.4, 0.5), u * 0.08, Color(0.95, 0.5, 0.45))
+			draw_line(p.call(0.5, 0.3), p.call(0.55, 0.14), WOOD, u * 0.06)
+			draw_colored_polygon(PackedVector2Array([p.call(0.55, 0.22), p.call(0.78, 0.12), p.call(0.66, 0.3)]), Color(0.35, 0.7, 0.3))
+		"salt":
+			draw_colored_polygon(PackedVector2Array([p.call(0.15, 0.75), p.call(0.3, 0.35), p.call(0.7, 0.3), p.call(0.88, 0.72), p.call(0.5, 0.85)]), Color(0.9, 0.88, 0.84))
+			draw_line(p.call(0.3, 0.35), p.call(0.5, 0.85), Color(0.7, 0.68, 0.66), u * 0.04)
+			draw_line(p.call(0.5, 0.42), p.call(0.66, 0.5), Color(0.98, 0.98, 1.0), u * 0.05)
+		"paw":
+			# "kind:paw:fuchs": in the colour of that kind of companion.
+			var parts := what.split(":")
+			var paw: Color = Companions.SPECIES[parts[2]].colour if parts.size() > 2 and Companions.SPECIES.has(parts[2]) else GOLDEN
+			draw_circle(p.call(0.5, 0.64), u * 0.2, paw)
+			for toe in [Vector2(0.24, 0.4), Vector2(0.4, 0.24), Vector2(0.6, 0.24), Vector2(0.76, 0.4)]:
+				draw_circle(p.call(toe.x, toe.y), u * 0.09, paw)
 		"potion":
 			draw_circle(p.call(0.5, 0.65), u * 0.28, Color(0.4, 0.75, 0.4, 0.8))
 			draw_rect(Rect2(p.call(0.42, 0.12), Vector2(u * 0.16, u * 0.28)), GOLDEN)

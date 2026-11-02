@@ -275,19 +275,19 @@ func _rebuild() -> void:
 			_build_return()
 		"hoehle":
 			_build_lair_won()
-	if current in ["inventar", "lager", "tresor"]:
+	if current in ["lager", "tresor"]:
 		_info = _add_label(Lang.t(INFO_HINT), 16, BLUE)
 		_info.custom_minimum_size.y = 26
-	if _note != "" or current in TRADE_WINDOWS or current == "werkbank":
-		# The trading windows keep a line for the note, so a purchase does not
-		# make the window grow.
+	if _note != "" or current in TRADE_WINDOWS or current in ["werkbank", "inventar"]:
+		# The trading windows and the inventory keep a line for the note, so a
+		# purchase or a dropped item does not make the window grow.
 		var note := _add_label(_note, 16, Color(1.0, 0.75, 0.5))
 		note.custom_minimum_size.y = 26
-		if current in TRADE_WINDOWS:
+		if current in TRADE_WINDOWS or current == "inventar":
 			# One line at most, never wider than the window.
 			note.clip_text = true
 			note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-			note.custom_minimum_size.x = TradeWindow.BODY_WIDTH
+			note.custom_minimum_size.x = INVENTORY_WIDTH if current == "inventar" else TradeWindow.BODY_WIDTH
 	# The inventory has its own "Back to game" button at the top instead.
 	if not current in ["inventar", "bett", "laden", "beenden", "plan", "rueckkehr", "hoehle"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
@@ -444,14 +444,18 @@ func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callabl
 			var b := _item_button(label_of.call(items[i]), action.bind(i), true, items[i])
 			if current == "inventar" and i == _selected:
 				b.modulate = Color(0.7, 1.0, 0.7)
-			grid.add_child(b)
+			grid.add_child(_inventory_cell(b) if current == "inventar" else b)
 		else:
-			grid.add_child(_item_button("-", func(): pass, false))
+			var empty := _item_button("-", func(): pass, false)
+			grid.add_child(_inventory_cell(empty) if current == "inventar" else empty)
 
 
 func _show_info(id: String) -> void:
 	if _info == null or not is_instance_valid(_info):
 		return
+	if id == "" and current == "inventar" and _selected >= 0 and _selected < game.player.bag.size():
+		# Off an item, the inventory shows the picked one again.
+		id = game.player.bag[_selected]
 	if id == "":
 		_info.text = Lang.t(INFO_HINT)
 	elif not Items.ALL.has(id) and (Crafting.INGREDIENTS.has(id) or id == "eisen"):
@@ -599,13 +603,24 @@ func _character_row(grid: GridContainer, wheel: CharacterPage, id: String, name:
 
 # --- Inventory --------------------------------------------------------------
 
+## The inventory's fixed width: six item cells and the gaps between them.
+## Every line and region of the window is this wide, so nothing the player
+## picks or points at can make the window wider or narrower.
+const INVENTORY_CELL := Vector2(150, 48)
+const INVENTORY_WIDTH := 6 * 150 + 5 * 8
+## The details of the picked item or the one under the pointer: lines of
+## text kept for them, and the font size. Longer texts scroll in that box.
+const INVENTORY_DETAIL_LINES := 4
+const INVENTORY_TEXT := 15
+
+
 func _build_inventory() -> void:
 	var p: Player = game.player
 	_add_inventory_header()
-	_add_label(_stats_text(), 16, BLUE)
-	_add_label(_attributes_text(true), 16, game.GOLD)
-	_add_label(_skills_text(), 16, Color(0.8, 0.85, 0.9))
-	_add_label(Lang.t("Angelegt (anklicken zum Ablegen)"), 20)
+	_add_inventory_line(_stats_text(), BLUE)
+	_add_inventory_line(_attributes_text(true), game.GOLD)
+	_add_inventory_line(_skills_text(), Color(0.8, 0.85, 0.9))
+	_add_worn_heading(p)
 	var row := GridContainer.new()
 	# Six across keeps all eleven slots in two rows, so the window fits the screen.
 	row.columns = 6
@@ -616,60 +631,133 @@ func _build_inventory() -> void:
 	for slot in Items.SLOTS:
 		var id: String = p.equipped.get(slot, "")
 		var text: String = "%s\n%s" % [Lang.t(Items.SLOT_NAMES[slot]), Items.item_name(id) if id != "" else "-"]
-		row.add_child(_item_button(text, _unequip.bind(slot), id != "", id))
-	if Items.ALL.get(p.equipped.get("kopf", ""), {}).has("hat"):
-		# A helmet can stay invisible, so the haircut shows; it protects all the same.
-		var shown: bool = p.hair.get("show_helmet", true)
-		var toggle := _item_button(Lang.t("Helm verstecken (schützt trotzdem)") if shown else Lang.t("Helm zeigen"), _toggle_helmet)
-		toggle.custom_minimum_size = Vector2(300, 46)
-		toggle.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		_box.add_child(toggle)
+		row.add_child(_inventory_cell(_item_button(text, _unequip.bind(slot), id != "", id)))
 	# Two tabs share the space below: the bag and the ingredient pouch.
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
-	tabs.add_theme_constant_override("separation", 10)
+	tabs.add_theme_constant_override("separation", 8)
 	_box.add_child(tabs)
 	var bag_tab := Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), p.bag_size(), Items.weight_text(p.carried_weight())]
 	var pouch_tab := Lang.t("Zutatenbeutel (%d)") % _pouch_ids().size()
 	for tab in [["tasche", bag_tab], ["beutel", pouch_tab]]:
 		var b := _item_button(tab[1], _show_inventory_tab.bind(tab[0]))
-		b.custom_minimum_size = Vector2(300, 44)
+		b.custom_minimum_size = Vector2(3 * INVENTORY_CELL.x + 2 * 8, 44)
 		b.modulate = Color(1.0, 0.9, 0.6) if inventory_tab == tab[0] else Color(0.75, 0.75, 0.8)
 		tabs.add_child(b)
-	var columns := 4 if p.bag_size() <= 8 else 6
 	# The bag's page is always built: it sets the size the pouch's page gets,
 	# so switching tabs does not resize the window.
 	var page := VBoxContainer.new()
 	page.add_theme_constant_override("separation", 6)
 	_box.add_child(page)
-	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, columns, page)
-	# The picked item's line and its buttons keep their space when nothing is picked.
-	var picked := _add_label("", 16, BLUE)
-	picked.custom_minimum_size.y = 26
-	_box.remove_child(picked)
-	page.add_child(picked)
-	var actions := HBoxContainer.new()
-	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	actions.add_theme_constant_override("separation", 8)
-	actions.custom_minimum_size.y = 54
-	page.add_child(actions)
-	if _selected >= 0 and _selected < p.bag.size():
-		var id: String = p.bag[_selected]
-		picked.text = "%s: %s" % [Items.item_name(id), Items.describe(id, p.wear.get(id, 0))]
-		if Items.is_crate(id):
-			actions.add_child(_item_button(Lang.t("Abstellen"), _put_down_selected))
-		elif Items.is_stone(id):
-			actions.add_child(_item_button(Lang.t("Abstellen"), _place_stone_selected))
-		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id) or Items.is_light(id):
-			pass # Carried for a task, to the smith, for a fox or for the dark, not worn.
-		else:
-			actions.add_child(_item_button(Lang.t("Anlegen"), _equip_selected))
-		actions.add_child(_item_button(Lang.t("Wegwerfen"), _drop_selected))
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, 6, page)
 	if inventory_tab == "beutel":
 		var room := page.get_combined_minimum_size()
 		_box.remove_child(page)
 		page.queue_free()
-		_box.add_child(_pouch_page(room, columns))
+		_box.add_child(_pouch_page(room, 6))
+	_box.add_child(_inventory_details())
+
+
+## A line of the hero's values at the top of the inventory: wrapped at the
+## window's width, so a longer value never widens the window.
+func _add_inventory_line(text: String, color: Color) -> Label:
+	var l := _add_label(text, INVENTORY_TEXT, color)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size.x = INVENTORY_WIDTH
+	return l
+
+
+## Makes an item button one cell of the inventory's grid: always the same
+## size. A long name breaks over two lines, and what does not fit even then
+## ends in "…" (the details box shows it in full).
+func _inventory_cell(b: Button) -> Button:
+	b.custom_minimum_size = INVENTORY_CELL
+	if not "\n" in b.text:
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	b.clip_text = true
+	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	b.add_theme_font_size_override("font_size", INVENTORY_TEXT)
+	return b
+
+
+## "Worn" with the helmet's show/hide button beside it. The button's place is
+## kept when no helmet is worn, so putting one on does not move anything.
+func _add_worn_heading(p: Player) -> void:
+	var heading := HBoxContainer.new()
+	heading.add_theme_constant_override("separation", 8)
+	heading.custom_minimum_size = Vector2(INVENTORY_WIDTH, 44)
+	_box.add_child(heading)
+	const SIDE := 2 * 150 + 8
+	var balance := Control.new()
+	balance.custom_minimum_size.x = SIDE
+	balance.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	heading.add_child(balance)
+	var title: Label = game._make_label(game.TEXT_FONT, 16)
+	title.text = Lang.t("Angelegt (anklicken zum Ablegen)")
+	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heading.add_child(title)
+	if Items.ALL.get(p.equipped.get("kopf", ""), {}).has("hat"):
+		# A helmet can stay invisible, so the haircut shows; it protects all the same.
+		var shown: bool = p.hair.get("show_helmet", true)
+		var toggle := _item_button(Lang.t("Helm verstecken (schützt trotzdem)") if shown else Lang.t("Helm zeigen"), _toggle_helmet)
+		toggle.custom_minimum_size = Vector2(SIDE, 44)
+		toggle.clip_text = true
+		toggle.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		toggle.add_theme_font_size_override("font_size", INVENTORY_TEXT)
+		heading.add_child(toggle)
+	else:
+		var keep := Control.new()
+		keep.custom_minimum_size.x = SIDE
+		keep.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		heading.add_child(keep)
+
+
+## Under the bag: a box of fixed size for the details of the item under the
+## pointer (or else the picked one), with the picked item's buttons beside
+## it. A long description wraps and scrolls inside the box; the box, the
+## buttons and the window keep their size whatever is picked.
+func _inventory_details() -> Control:
+	var p: Player = game.player
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var actions := VBoxContainer.new()
+	actions.add_theme_constant_override("separation", 4)
+	actions.custom_minimum_size = Vector2(INVENTORY_CELL.x, 0)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_info = game._make_label(game.TEXT_FONT, 16, BLUE)
+	_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Pass, so the mouse wheel scrolls a long description.
+	_info.mouse_filter = Control.MOUSE_FILTER_PASS
+	scroll.add_child(_info)
+	var lines := float(INVENTORY_DETAIL_LINES)
+	scroll.custom_minimum_size = Vector2(INVENTORY_WIDTH - INVENTORY_CELL.x - 10,
+			ceilf(_info.get_line_height() * lines + _info.get_theme_constant("line_spacing") * (lines - 1.0)))
+	row.add_child(scroll)
+	row.add_child(actions)
+	_show_info("")
+	if _selected >= 0 and _selected < p.bag.size():
+		var id: String = p.bag[_selected]
+		var buttons := []
+		if Items.is_crate(id):
+			buttons.append(_item_button(Lang.t("Abstellen"), _put_down_selected))
+		elif Items.is_stone(id):
+			buttons.append(_item_button(Lang.t("Abstellen"), _place_stone_selected))
+		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id) or Items.is_light(id):
+			pass # Carried for a task, to the smith, for a fox or for the dark, not worn.
+		else:
+			buttons.append(_item_button(Lang.t("Anlegen"), _equip_selected))
+		buttons.append(_item_button(Lang.t("Wegwerfen"), _drop_selected))
+		for b in buttons:
+			b.custom_minimum_size = Vector2(INVENTORY_CELL.x, 44)
+			actions.add_child(b)
+	return row
 
 
 ## The ingredients the hero carries, in the order of the ingredient book,
@@ -712,10 +800,9 @@ func _pouch_page(room: Vector2, columns: int) -> Control:
 	for id in ids:
 		# Ingredients are not worn or dropped: a click shows what the book says.
 		var b := _item_button("%s\n× %d" % [Crafting.ingredient_name(id), game.crafting.have(id)], _show_info.bind(id), true, id)
-		# Long names end in "…" rather than widen the page; the info line at
-		# the bottom shows the full name and what the book says.
-		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		grid.add_child(b)
+		# Long names end in "…" rather than widen the page; the details box
+		# under it shows the full name and what the book says.
+		grid.add_child(_inventory_cell(b))
 	return scroll
 
 
@@ -733,7 +820,8 @@ func _add_inventory_header() -> void:
 	header.add_theme_constant_override("separation", 12)
 	_box.add_child(header)
 	var back: Button = game._make_button(Lang.t("Zurück zum Spiel"), close)
-	back.custom_minimum_size = Vector2(190, 52)
+	back.custom_minimum_size = Vector2(190, 44)
+	back.add_theme_font_size_override("font_size", 16)
 	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var style: StyleBoxFlat = back.get_theme_stylebox("normal").duplicate()
 	style.bg_color = Color(0.2, 0.42, 0.18, 0.9)
@@ -747,7 +835,8 @@ func _add_inventory_header() -> void:
 	balance.custom_minimum_size.x = back.custom_minimum_size.x
 	balance.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header.add_child(balance)
-	var title: Label = game._make_label(game.TITLE_FONT, 38, game.GOLD)
+	# A little smaller than other windows' titles: the inventory holds the most.
+	var title: Label = game._make_label(game.TITLE_FONT, 32, game.GOLD)
 	title.text = Lang.t("Inventar")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL

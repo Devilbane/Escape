@@ -311,9 +311,9 @@ and the feeling that the game is unstable.
 2. **Folding affects only what is below, and only inside the scroll region.** Headers above the
    folded section stay exactly where they were; the header that was clicked stays under the pointer.
 3. **Reserve space for things that come and go.** A badge, an error note, a hint line or a details
-   card that can appear gets its space reserved from the start (e.g. the info line under the
-   inventory has `custom_minimum_size.y = 26`; the trade window reserves a line for the purchase
-   note). Show placeholder text ("Point at an item to see its values") instead of collapsing to zero.
+   card that can appear gets its space reserved from the start (e.g. the inventory's details box
+   has a fixed size of four lines and scrolls a longer description, and the place of its helmet
+   button is kept when no helmet is worn; the trade window reserves a line for the purchase note). Show placeholder text ("Point at an item to see its values") instead of collapsing to zero.
 4. **Picking must not reflow the list.** Selecting a row should open the details in space that was
    already there (a side panel reserved from the start, or an overlay), not change the number of
    columns of the list the pointer is in.

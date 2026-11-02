@@ -1,7 +1,8 @@
 extends SceneTree
 ## Headless test for the pull-out menu on the right edge: it starts closed
 ## with only its handle on screen, slides fully into view when the handle is
-## clicked or Tab is pressed, holds every clickable button, and a button that
+## clicked or Tab is pressed, holds every clickable button (the windows with a
+## quick icon only as that icon on its rail), and a button that
 ## opens a window pushes the menu away again.
 ## Run with: godot --headless --fixed-fps 60 -s tests/hud_drawer.gd
 
@@ -78,7 +79,7 @@ func _run() -> void:
 	check(absf(rect.position.x + game._drawer_handle.size.x - w) < 2.0,
 		"only the handle shows while closed (left %.0f, screen %.0f)" % [rect.position.x, w])
 
-	for label in ["Inventar", "Charakter", "Kompendium", "Laden", "Springen", "Werfen", "Schlagen", "Kiste", "Stein", "Beenden"]:
+	for label in ["Laden", "Springen", "Werfen", "Schlagen", "Kiste", "Stein", "Beenden"]:
 		check(_button(Lang.t(label)) != null, "the menu holds the %s button" % label)
 	check(drawer.is_ancestor_of(game._sound_button), "the sound button is in the menu")
 
@@ -99,9 +100,9 @@ func _run() -> void:
 	await _wait(40)
 	check(game.is_drawer_open(), "Tab opens the menu")
 
-	_press(_button(Lang.t("Inventar")))
+	_press(_button(Lang.t("Laden")))
 	await _wait(5)
-	check(game.menus.is_open(), "the Inventory button opens the inventory")
+	check(game.menus.is_open(), "the Load button opens the load window")
 	check(not game.is_drawer_open(), "opening a window pushes the menu away")
 	game.menus.close()
 	await _wait(5)
@@ -115,4 +116,9 @@ func _run() -> void:
 	_tab()
 	await _wait(40)
 	check(not game.is_drawer_open(), "Tab closes the menu again")
+	# Windows with a quick icon on the rail are not repeated on the board.
+	for name in ["Inventar", "Charakter", "Kompendium", "Karte", "Aufträge"]:
+		check(_button(Lang.t(name)) == null, "the menu board has no %s button (it has an icon)" % name)
+	for kind in game._quick_buttons:
+		check(drawer.is_ancestor_of(game._quick_buttons[kind]), "the %s icon is on the menu's rail" % kind)
 	_finish()

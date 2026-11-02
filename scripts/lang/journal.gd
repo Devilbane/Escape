@@ -19,7 +19,7 @@ const EN := {
 	"Geheimraum entdeckt": "Found a secret room.",
 	"Tag %d, %s": "Day %d, %s",
 	"Neu auf deiner Karte: %s": "New on your map: %s",
-	"Deine Karte füllt sich, während du erkundest: Was du gesehen hast, steht darauf, dazu jeder Ort, den du entdeckt hast, und jede Stelle, an der du etwas gefunden hast. Das Tagebuch daneben hält fest, wann und wo. Beides öffnest du mit N (oder „Karte“ im Menü).": "Your map fills in as you explore: everything you have seen is on it, along with every place you have discovered and every spot where you found something. The journal beside it records when and where. Open both with N (or “Map” in the menu).",
+	"Deine Karte füllt sich, während du erkundest: Was du gesehen hast, steht darauf, dazu jeder Ort, den du entdeckt hast, und jede Stelle, an der du etwas gefunden hast. Das Tagebuch daneben hält fest, wann und wo. Beides öffnest du mit N (oder mit dem Kartenbild am rechten Rand).": "Your map fills in as you explore: everything you have seen is on it, along with every place you have discovered and every spot where you found something. The journal beside it records when and where. Open both with N (or the map icon on the right edge).",
 	"Treppe": "Stairs",
 	"Tür": "Door",
 	"Schrein": "Shrine",

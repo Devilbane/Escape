@@ -598,7 +598,9 @@ func _setup_drawer() -> void:
 	column.add_child(buttons)
 	# Buttons that open a window also push the menu away again; the others
 	# (actions and sound) leave it out so they can be clicked again.
-	var windows := [["Inventar", "inventar"], ["Charakter", "charakter"], ["Kompendium", "kompendium"], ["Karte", "karte"], ["Laden", "laden"]]
+	# Map, compendium, inventory, character and quests have their own icons
+	# on the menu's rail (QUICK_WINDOWS), so they are not repeated here.
+	var windows := [["Laden", "laden"]]
 	for w in windows:
 		buttons.add_child(_make_button(Lang.t(w[0]), _open_from_drawer.bind(w[1]), true))
 	# The game actions act the moment the pointer goes down (see _make_button).
@@ -3121,7 +3123,7 @@ func update_after_quest() -> void:
 
 
 ## Explained once in the compendium, the first time a landmark goes on the map.
-const MAP_LEARN := "Deine Karte füllt sich, während du erkundest: Was du gesehen hast, steht darauf, dazu jeder Ort, den du entdeckt hast, und jede Stelle, an der du etwas gefunden hast. Das Tagebuch daneben hält fest, wann und wo. Beides öffnest du mit N (oder „Karte“ im Menü)."
+const MAP_LEARN := "Deine Karte füllt sich, während du erkundest: Was du gesehen hast, steht darauf, dazu jeder Ort, den du entdeckt hast, und jede Stelle, an der du etwas gefunden hast. Das Tagebuch daneben hält fest, wann und wo. Beides öffnest du mit N (oder mit dem Kartenbild am rechten Rand)."
 
 
 ## New landmarks have come into view: a short note, unless something more

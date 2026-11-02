@@ -15,6 +15,10 @@ const SAY_TIME := 4.0
 ## Without it, pushing against a villager swaps the text every bump and the
 ## bubble flickers.
 const MIN_SAY_TIME := 2.5
+## Two speech bubbles closer than this (metres, on the ground) lie over each
+## other on screen: the bubble is about six metres wide. Only one of them
+## shows at a time (see say and talker_near).
+const BUBBLE_ROOM := 7.0
 ## The gold of the quest marks over the heads of villagers with a task.
 const MARK_COLOR := Color(1.0, 0.82, 0.3)
 ## Waits this long for the hero to step aside before walking on.
@@ -669,6 +673,10 @@ func quest_mark() -> String:
 func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := false) -> void:
 	if chat_partner != null and not in_chat:
 		chat_broken = true
+	# Whoever else is talking right beside us stops, or both bubbles would
+	# cover each other and neither could be read.
+	for other in _neighbours():
+		other.hush()
 	_bubble.text = "%s:\n%s" % [display_name, text]
 	_bubble_time = time
 	_bubble_hold = minf(time, MIN_SAY_TIME)
@@ -681,6 +689,50 @@ func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := fals
 ## hero running into us again gets no new line yet.
 func is_busy_talking() -> bool:
 	return _bubble_hold > 0.0 and _bubble_time > 0.0
+
+
+## Whether a line shows over our head right now.
+func is_talking() -> bool:
+	return _bubble_time > 0.0
+
+
+## Breaks off the line we are saying: the bubble goes at once, without a fade,
+## so it never shows behind the next one.
+func hush() -> void:
+	_bubble_time = 0.0
+	_bubble_hold = 0.0
+	_bubble.modulate.a = 0.0
+	_bubble.outline_modulate.a = 0.0
+	_bubble.visible = false
+	_look_at = Vector3.INF
+
+
+## Someone else close enough that their bubble would cover ours who is
+## talking right now (or null). Chats and other lines that can wait hold
+## back until they are done, so the lines come one after another.
+func talker_near(ignore: Villager = null) -> Villager:
+	for other in _neighbours():
+		if other != ignore and other.is_talking():
+			return other
+	return null
+
+
+## The other villagers whose bubbles would lie over ours.
+func _neighbours() -> Array:
+	var near := []
+	if level == null:
+		return near
+	var everyone: Array = level.villagers.duplicate()
+	if level.wanderer and not everyone.has(level.wanderer):
+		everyone.append(level.wanderer)
+	for other in everyone:
+		if other == self or not is_instance_valid(other) or not other.visible:
+			continue
+		var d: Vector3 = other.global_position - global_position
+		d.y = 0.0
+		if d.length() < BUBBLE_ROOM:
+			near.append(other)
+	return near
 
 
 func _update_bubble(delta: float) -> void:

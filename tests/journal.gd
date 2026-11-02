@@ -27,7 +27,7 @@ func _process(_delta: float) -> bool:
 	if frames < 5:
 		return false
 	_test()
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: journal")
 	else:
@@ -153,7 +153,7 @@ func _test() -> void:
 	var log_before := j.entries.size()
 	check(game.save_game(), "the game saves")
 	j.clear()
-	game._apply_save(game._read_save(game.save_path(HERO)))
+	game._apply_save(game._read_save(game.save_path()))
 	check(j.explored.has(cell) and j.explored[cell] == explored_before, "the map of the cell is kept")
 	check(j.is_seen(outside, bank), "the bank stays on the map")
 	check(j.entries.size() == log_before, "the journal is kept")

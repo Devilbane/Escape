@@ -13,7 +13,8 @@ const ABOUT_COLOR := Color(0.78, 0.8, 0.86)
 
 var game: Node
 ## The open window: "", "inventar", "lager", "haendler", "bett", "laden",
-## "kompendium", "charakter", "beenden", "plan" (the day planned for the
+## "ueberschreiben" (asks before a new game overwrites a slot), "kompendium",
+## "charakter", "beenden", "plan" (the day planned for the
 ## time away) or "rueckkehr" (what the hero did while the player was away).
 var current := ""
 var _holder: Control
@@ -75,6 +76,7 @@ const SHORTCUTS := [
 	["Kompendium", "H"],
 	["Charakter", "P"],
 	["Karte und Tagebuch", "N"],
+	["Aufträge", "O"],
 	["Spielstand laden", "L"],
 	["Ton an/aus", "M"],
 	["Steinblock abstellen", "B, oder „Abstellen“ im Inventar"],
@@ -268,10 +270,14 @@ func _rebuild() -> void:
 			_build_bed()
 		"laden":
 			_build_load()
+		"ueberschreiben":
+			_build_overwrite()
 		"kompendium":
 			_build_compendium()
 		"karte":
 			_build_map()
+		"auftraege":
+			_build_quests()
 		"charakter":
 			_build_character()
 		"beenden":
@@ -304,7 +310,7 @@ func _rebuild() -> void:
 			note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			note.custom_minimum_size.x = INVENTORY_WIDTH if current == "inventar" else TradeWindow.BODY_WIDTH
 	# The inventory has its own "Back to game" button at the top instead.
-	if not current in ["inventar", "bett", "laden", "beenden", "plan", "rueckkehr", "hoehle", "gefaehrte_name"]:
+	if not current in ["inventar", "bett", "laden", "ueberschreiben", "beenden", "plan", "rueckkehr", "hoehle", "gefaehrte_name"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
 		close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		close_button.custom_minimum_size = Vector2(180, 44 if current in TRADE_WINDOWS else 52)
@@ -2280,7 +2286,7 @@ func _remove_tattoo() -> void:
 
 # --- Bed --------------------------------------------------------------------
 
-## Every saved game, one per hero, the one saved last on top. In the middle
+## Every saved game, one per slot, the one saved last on top. In the middle
 ## of a run it warns first that the run so far is lost. A saved game can be
 ## deleted too, after a second click to make sure.
 func _build_load() -> void:
@@ -2328,18 +2334,13 @@ func _save_row(info: Dictionary, playing: bool) -> Control:
 	row.add_child(text)
 	var where: Label = game._make_label(game.TEXT_FONT, 22)
 	where.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	if info.home:
-		where.text = Lang.t("%s zu Hause mit %d Gold.") % [info.name, info.coins]
-	elif info.escaped:
-		where.text = Lang.t("%s auf dem Friedhof mit %d Gold.") % [info.name, info.coins]
-	else:
-		where.text = Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins]
-	if playing and info.name == game.hero_name:
+	where.text = game.save_summary(info)
+	if playing and info.slot == game.save_slot:
 		where.add_theme_color_override("font_color", game.GOLD)
 	text.add_child(where)
 	var when: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
 	when.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	when.text = Lang.t("Gespeichert: %s") % game.save_time_text(info.time)
+	when.text = Lang.t("Platz %d · gespeichert: %s") % [info.slot, game.save_time_text(info.time)]
 	text.add_child(when)
 	var path: String = info.path
 	var load_button: Button = game._make_button(Lang.t("Laden"), func():
@@ -2366,6 +2367,40 @@ func _save_row(info: Dictionary, playing: bool) -> Control:
 		delete_button.add_theme_color_override("font_color", Color(1.0, 0.5, 0.4))
 	row.add_child(delete_button)
 	return row
+
+
+## A new game is about to take a slot whose hero has come further: says who
+## would be lost, and asks before the slot is overwritten. Going back keeps
+## the name box as it was, so another slot can be picked.
+func _build_overwrite() -> void:
+	_add_label(Lang.t("Spielstand überschreiben?"), 38, game.GOLD, game.TITLE_FONT)
+	var info: Dictionary = game.save_info(game.save_path(game._new_slot))
+	if info.is_empty():
+		# The slot was emptied meanwhile: nothing to lose.
+		close()
+		game.begin_new_game()
+		return
+	var lead := _add_label(Lang.t("Auf Platz %d ist eine Figur, die weiter gekommen ist als ein neues Spiel:") % info.slot, 20)
+	lead.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lead.custom_minimum_size.x = RETURN_TEXT_WIDTH
+	var who := _add_label(game.save_summary(info), 22, game.GOLD)
+	who.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	var when := _add_label(Lang.t("Gespeichert: %s") % game.save_time_text(info.time), 16, BLUE)
+	when.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_add_label(Lang.t("Wenn du überschreibst, ist dieser Spielstand für immer verloren."), 20, Color(1.0, 0.75, 0.5))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	_box.add_child(row)
+	var overwrite: Button = game._make_button(Lang.t("Überschreiben"), func():
+		close()
+		game.begin_new_game())
+	overwrite.custom_minimum_size = Vector2(220, 60)
+	overwrite.add_theme_color_override("font_color", Color(1.0, 0.5, 0.4))
+	row.add_child(overwrite)
+	var back: Button = game._make_button(Lang.t("Anderen Platz wählen"), close)
+	back.custom_minimum_size = Vector2(300, 60)
+	row.add_child(back)
 
 
 ## Every control on one side, everything the hero has been told on the
@@ -2537,6 +2572,21 @@ func _build_quest_log() -> void:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 12)
 	scroll.add_child(list)
+	var worth: Label = game._make_label(game.TITLE_FONT, 21, game.GOLD)
+	worth.text = Lang.t("Was sich jetzt lohnt")
+	list.add_child(worth)
+	var hints := VBoxContainer.new()
+	hints.add_theme_constant_override("separation", 4)
+	list.add_child(hints)
+	for hint in quest_hints():
+		var line: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		line.custom_minimum_size.x = 740
+		line.text = "• " + hint
+		hints.add_child(line)
+	var tasks: Label = game._make_label(game.TITLE_FONT, 21, game.GOLD)
+	tasks.text = Lang.t("Deine Aufträge")
+	list.add_child(tasks)
 	var entries: Array = game.quests.log_entries()
 	var hunts: Array = game.bounties.taken.keys()
 	for id in hunts:
@@ -2574,6 +2624,61 @@ func _build_quest_log() -> void:
 		text.custom_minimum_size.x = 740
 		text.text = goal
 		list.add_child(text)
+
+
+## The quests window (O, or the scroll icon on the right edge): what is
+## worth doing next, then every task taken on, as in the compendium.
+func _build_quests() -> void:
+	_add_label(Lang.t("Aufträge"), 38, game.GOLD, game.TITLE_FONT)
+	_build_quest_log()
+
+
+## Short hints on what is worth doing next, most pressing first: tasks ready
+## to hand in, villagers with work, new bounties, places not fully explored,
+## and what tonight's moon brings.
+func quest_hints() -> Array[String]:
+	var hints: Array[String] = []
+	var quests: Quests = game.quests
+	for id in Quests.ALL:
+		if not quests.is_active(id):
+			continue
+		var q: Dictionary = Quests.ALL[id]
+		if q.kind == "deliver":
+			if game.player.bag.has(q.item):
+				hints.append(Lang.t("Bring es zu %s: %s") % [Quests.villager_name(q.to), Lang.t(q.title)])
+		elif quests.missing(id) == 0:
+			hints.append(Lang.t("Geschafft, melde dich bei %s: %s") % [Quests.villager_name(q.giver), Lang.t(q.title)])
+	for id in game.bounties.taken:
+		if game.bounties.is_ready(id):
+			hints.append(Lang.t("Hol dein Kopfgeld am Aushang ab: %s") % Lang.t(Bounties.POOL[id].title))
+	var askers: Array[String] = []
+	for role in Villager.ROLES:
+		if quests.mark(role) == "!" or game.crafting.mark(role) == "!" or game.wishes.mark(role) == "!":
+			var who := Quests.villager_name(role)
+			if who != "" and not who in askers:
+				askers.append(who)
+	if not askers.is_empty():
+		hints.append(Lang.t("Im Dorf hat jemand etwas für dich (achte auf das „!“): %s") % ", ".join(askers))
+	for id in game.bounties.posted:
+		if game.bounties.is_open(id):
+			hints.append(Lang.t("Am Aushang im Dorf hängen Kopfgelder, die noch niemand jagt."))
+			break
+	var journal: Journal = game.journal
+	var unexplored := []
+	for file in journal.mapped_files():
+		if journal.is_full(file):
+			continue
+		var share := floori(100.0 * journal.explored_share(file))
+		if share < 100:
+			unexplored.append([share, file])
+	unexplored.sort_custom(func(a, b): return a[0] < b[0])
+	for entry in unexplored.slice(0, 3):
+		hints.append(Lang.t("%s ist erst zu %d %% erkundet: Dort gibt es noch mehr zu finden.") % [journal.level_title(entry[1]), entry[0]])
+	if Moon.is_full(game.day) or Moon.is_new(game.day):
+		hints.append(Lang.t("Heute Nacht: %s") % Moon.forecast(game.day))
+	if hints.is_empty():
+		hints.append(Lang.t("Gerade wartet nichts Bestimmtes. Erkunde neue Ebenen oder sprich mit den Leuten im Dorf."))
+	return hints
 
 
 ## The villagers' goodwill: everyone the hero has met, with their standing,

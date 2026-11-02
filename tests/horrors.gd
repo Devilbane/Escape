@@ -30,7 +30,7 @@ func _initialize() -> void:
 
 func _finish() -> void:
 	Engine.time_scale = 1.0
-	game.delete_save(game.save_path(game.hero_name))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: holes, torch and horrors")
 	else:

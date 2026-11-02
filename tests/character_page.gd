@@ -187,7 +187,7 @@ func _test() -> void:
 			menus.close()
 			await _wait()
 
-	game.delete_save(game.save_path(game.hero_name))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: character page")
 	else:

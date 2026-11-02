@@ -228,6 +228,24 @@ func _draw() -> void:
 			draw_polyline(PackedVector2Array([p.call(0.15, 0.7), p.call(0.5, 0.3), p.call(0.85, 0.7)]), GOLDEN, u * 0.12)
 		"chev_down":
 			draw_polyline(PackedVector2Array([p.call(0.15, 0.3), p.call(0.5, 0.7), p.call(0.85, 0.3)]), GOLDEN, u * 0.12)
+		"map":
+			# A map folded in three, with a red route to a cross.
+			var paper := Color(0.9, 0.82, 0.62)
+			draw_colored_polygon(PackedVector2Array([p.call(0.06, 0.2), p.call(0.36, 0.1), p.call(0.36, 0.8), p.call(0.06, 0.9)]), paper)
+			draw_colored_polygon(PackedVector2Array([p.call(0.36, 0.1), p.call(0.64, 0.2), p.call(0.64, 0.9), p.call(0.36, 0.8)]), paper.darkened(0.2))
+			draw_colored_polygon(PackedVector2Array([p.call(0.64, 0.2), p.call(0.94, 0.1), p.call(0.94, 0.8), p.call(0.64, 0.9)]), paper)
+			var route := Color(0.8, 0.2, 0.15)
+			draw_polyline(PackedVector2Array([p.call(0.16, 0.72), p.call(0.32, 0.52), p.call(0.5, 0.62), p.call(0.7, 0.42)]), route, u * 0.05)
+			draw_line(p.call(0.72, 0.24), p.call(0.86, 0.38), route, u * 0.07)
+			draw_line(p.call(0.86, 0.24), p.call(0.72, 0.38), route, u * 0.07)
+		"hero":
+			# Head and shoulders.
+			draw_circle(p.call(0.5, 0.28), u * 0.18, GOLDEN)
+			var body := PackedVector2Array()
+			for i in 17:
+				var a := PI + PI * i / 16.0
+				body.append(p.call(0.5 + cos(a) * 0.36, 0.92 + sin(a) * 0.4))
+			draw_colored_polygon(body, GOLDEN)
 		"coin":
 			draw_circle(p.call(0.5, 0.5), u * 0.42, GOLDEN.darkened(0.25))
 			draw_circle(p.call(0.5, 0.5), u * 0.32, GOLDEN)

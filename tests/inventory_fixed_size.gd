@@ -62,7 +62,7 @@ func _test() -> void:
 		Lang.language = lang
 		Lang._apply()
 		await _run(lang)
-	game.delete_save(game.save_path(game.hero_name))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: the inventory keeps its size")
 	else:

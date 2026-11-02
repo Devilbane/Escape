@@ -21,10 +21,11 @@ The game can be played in English or German; you choose the language on the titl
 | Move a stone block | | grab it with the left mouse button, drag, let go (right click while dragging turns it) |
 | Pick up a stone block | E | click it briefly, “Stone” button |
 | Push a heavy stone block | E | click it briefly; drag it and it slides straight on |
-| Inventory | I | “Inventory” button |
-| Compendium | H | “Compendium” button |
-| Character page | P | “Character” button |
-| Map and journal | N | “Map” button |
+| Inventory | I | “Inventory” button, bag icon on the right edge |
+| Compendium | H | “Compendium” button, book icon on the right edge |
+| Character page | P | “Character” button, figure icon on the right edge |
+| Map and journal | N | “Map” button, map icon on the right edge |
+| Quests and what is worth doing | O | scroll icon on the right edge |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |
@@ -213,10 +214,14 @@ The heroine has a body and a face of her own, not just new colours: a narrower w
 with lashes, a rosy mouth and hair that falls to her shoulders. Hair styles, hats, armour and the sleep in the
 bed work for both, and the choice is kept in the saved game.
 
-**Several saved games:** every hero has a saved game of their own, so you can play several heroes side by side.
-The **Load** window (key L, or “Load saved game” on the title screen) lists them all with level, gold and the time they were saved;
-pick one to load it, or delete it (click “Delete” twice). On the title screen a click continues with the game saved last.
-Starting a new game with the name of a hero who already has a saved game replaces it the next time the game saves.
+**Save slots:** there are five slots, each holding one saved game, so you can play several heroes side by side (even two
+of the same name). A new game asks for the slot below the name: each slot's button shows its hero or “free”, the first free
+one is picked, and the line below says what is in the chosen slot. If that slot holds a hero who has come further than a
+new game (a deeper level, more gold, out of the dungeon or at home), a warning names that hero and asks before the slot is
+overwritten (“Overwrite” or “Choose another slot”). Saved games from older versions move into free slots by themselves.
+The **Load** window (key L, or “Load saved game” on the title screen) lists them all with level, gold, slot and the time they
+were saved; pick one to load it, or delete it (click “Delete” twice). A loaded game keeps saving into its own slot. On the
+title screen a click continues with the game saved last.
 
 Every level has a **secret room**. One of the torches near it is a lever, a different one in every
 run. The first time you walk past it, you may discover it with some luck (d100), and

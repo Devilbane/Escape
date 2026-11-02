@@ -37,7 +37,7 @@ func _process(_delta: float) -> bool:
 
 
 func _finish() -> void:
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if Homes.house_of(HERO) > 0:
 		Homes.release(Homes.house_of(HERO))
 	if failures == 0:

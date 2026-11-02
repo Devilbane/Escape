@@ -27,7 +27,7 @@ func _initialize() -> void:
 
 
 func _finish() -> void:
-	game.delete_save(game.save_path(game.hero_name))
+	game.delete_save(game.save_path())
 	print("PASS: mountains, tavern and mines" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
 

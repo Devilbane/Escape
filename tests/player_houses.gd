@@ -40,7 +40,7 @@ func _finish() -> void:
 	for n in [mine, other]:
 		if n > 0 and Homes.owner_of(n) in [HERO, NEIGHBOUR]:
 			Homes.release(n)
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: player houses")
 	else:

@@ -30,7 +30,7 @@ func _process(_delta: float) -> bool:
 	_test()
 	if Homes.house_of(game.hero_name) > 0:
 		Homes.release(Homes.house_of(game.hero_name))
-	game.delete_save(game.save_path(game.hero_name))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: graveyard start")
 	else:

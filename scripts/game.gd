@@ -21,10 +21,20 @@ const VERSION := "0.5"
 ## Filled in by GitHub with the number of each published build, so the
 ## version shown in the game changes with every update.
 const BUILD := ""
-## Every hero has a saved game of their own, in this folder, one file each.
+## The saved games live in this folder, one file per slot ("platz_1.json",
+## "platz_2.json", ...). The player picks the slot when a new game starts.
 const SAVE_DIR := "user://spielstaende/"
+## Test runs save into a folder of their own, so they never touch the
+## player's saved games (see _ready).
+const TEST_SAVE_DIR := "user://test_spielstaende/"
+## How many slots the new game offers. Older versions could leave more saved
+## games behind; those keep slots of their own above these.
+const SAVE_SLOTS := 5
+## The width of the note under the slot buttons.
+const SLOT_NOTE_WIDTH := 1100
 ## Before there could be several saved games there was just this one file;
-## on the first start it moves into SAVE_DIR.
+## on the first start it moves into a slot. Saved games of the versions with
+## one file per hero name move into slots the same way.
 const OLD_SAVE_FILE := "user://spielstand.json"
 
 enum State { TITLE, PLAYING, TRANSITION, WON, OVER }
@@ -42,6 +52,10 @@ var _drawer_arrow: MenuArrow
 var _drawer_open := false
 var _drawer_t := 0.0
 var _drawer_tween: Tween
+## The column on the menu's edge that holds the quick window icons above the
+## handle, and those icons by the window they open (see _setup_quick_bar).
+var _drawer_rail: VBoxContainer
+var _quick_buttons := {}
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
@@ -159,6 +173,13 @@ var dry_levels := 0
 ## The hero has run into a villager once: from then on the hint that running
 ## into people talks to them is left out. Kept in the saved game.
 var bumped_person := false
+## How often each kind of explanatory hint came up, by kind (see _hint).
+## Kept in the saved game: after HINT_SHOWINGS times a kind is left out.
+var hints_shown := {}
+const HINT_SHOWINGS := 2
+## The hint kinds on screen this frame and the frame before.
+var _hints_now := {}
+var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
 const PERSON_STATIONS := ["npc", "bank", "barbier", "haendler", "steinmetz", "schmied", "wanderhaendler"]
 ## Lives the hero gets back for climbing to the next level.
@@ -219,6 +240,14 @@ var _name_note: Label
 ## The hero's name, asked for when a new game starts; it goes into the ranking.
 var hero_name := ""
 var _name_box: Control
+## The folder of the saved games: SAVE_DIR, or TEST_SAVE_DIR in a test run.
+var save_dir := SAVE_DIR
+var old_save_file := OLD_SAVE_FILE
+## The slot this hero's game is saved into.
+var save_slot := 1
+## The slot chosen in the name box for the new game, and its buttons.
+var _new_slot := 1
+var _slot_buttons := {}
 ## The day the hero lives over and over while the player is away (see
 ## Offline), planned at the refuge's bed and kept in the saved game.
 var away_plan := Offline.empty_plan()
@@ -296,7 +325,11 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	Lang.setup()
-	_move_old_save()
+	if get_tree().get_script() != null:
+		# A headless test runs as a script of its own: its saves stay apart.
+		save_dir = TEST_SAVE_DIR
+		old_save_file = "user://test_spielstand.json"
+	_move_old_saves()
 	for f in DirAccess.get_files_at(LEVEL_DIR):
 		if f.ends_with(".txt"):
 			level_files.append(LEVEL_DIR + f)
@@ -530,7 +563,19 @@ func _setup_drawer() -> void:
 	_drawer_arrow.color = GOLD
 	_drawer_handle.add_child(_drawer_arrow)
 	_drawer_handle.resized.connect(_place_drawer_arrow)
-	_drawer.add_child(_drawer_handle)
+	# The handle sits at the foot of a rail on the menu's edge; the quick
+	# window icons stand above it, so all of it slides as one.
+	_drawer_rail = VBoxContainer.new()
+	_drawer_rail.add_theme_constant_override("separation", QUICK_GAP)
+	_drawer_rail.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_drawer_rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drawer.add_child(_drawer_rail)
+	_setup_quick_bar()
+	var gap := Control.new()
+	gap.custom_minimum_size.y = QUICK_HANDLE_GAP - QUICK_GAP * 2
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drawer_rail.add_child(gap)
+	_drawer_rail.add_child(_drawer_handle)
 
 	var panel := PanelContainer.new()
 	var back := StyleBoxFlat.new()
@@ -590,6 +635,96 @@ func _setup_drawer() -> void:
 	_drawer.minimum_size_changed.connect(func(): _place_drawer(_drawer_t))
 
 
+## The windows opened most often, as small picture buttons on the right edge
+## above the menu handle: window, German name, key and picture.
+const QUICK_WINDOWS := [
+	["karte", "Karte", "N", "kind:map"],
+	["kompendium", "Kompendium", "H", "kind:book"],
+	["inventar", "Inventar", "I", "kind:bag"],
+	["charakter", "Charakter", "P", "kind:hero"],
+	["auftraege", "Aufträge", "O", "kind:scroll"],
+]
+const QUICK_SIZE := Vector2(70, 48)
+const QUICK_ICON := 30.0
+## Between two icons, and between the last icon and the handle.
+const QUICK_GAP := 8
+const QUICK_HANDLE_GAP := 20
+
+
+## One icon per window in QUICK_WINDOWS, each with a tooltip that names the
+## window and its key. The icon of the open window stays pressed; a click on
+## it closes the window again, a click on another switches to that one.
+func _setup_quick_bar() -> void:
+	_drawer_rail.theme = _tooltip_theme()
+	for w in QUICK_WINDOWS:
+		var b := _make_button("", _toggle_window.bind(w[0]))
+		b.toggle_mode = true
+		b.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
+		b.custom_minimum_size = QUICK_SIZE
+		b.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t(w[1]), w[2]]
+		for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+			var box: StyleBoxFlat = b.get_theme_stylebox(style).duplicate()
+			box.corner_radius_top_right = 0
+			box.corner_radius_bottom_right = 0
+			b.add_theme_stylebox_override(style, box)
+		var icon := ItemIcon.make(w[3], QUICK_ICON, true)
+		icon.set_anchors_preset(Control.PRESET_CENTER)
+		icon.offset_left = -QUICK_ICON / 2.0
+		icon.offset_top = -QUICK_ICON / 2.0
+		icon.offset_right = QUICK_ICON / 2.0
+		icon.offset_bottom = QUICK_ICON / 2.0
+		b.add_child(icon)
+		_drawer_rail.add_child(b)
+		_quick_buttons[w[0]] = b
+
+
+## Tooltips in the house style: a dark panel with a golden border, gold text.
+func _tooltip_theme() -> Theme:
+	var theme := Theme.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.04, 0.03, 0.08, 0.95)
+	box.border_color = Color(0.85, 0.66, 0.32, 0.8)
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(8)
+	box.content_margin_left = 10
+	box.content_margin_right = 10
+	box.content_margin_top = 6
+	box.content_margin_bottom = 6
+	theme.set_stylebox("panel", "TooltipPanel", box)
+	theme.set_font("font", "TooltipLabel", TEXT_FONT)
+	theme.set_font_size("font_size", "TooltipLabel", 16)
+	theme.set_color("font_color", "TooltipLabel", GOLD)
+	theme.set_color("font_outline_color", "TooltipLabel", Color.BLACK)
+	theme.set_constant("outline_size", "TooltipLabel", 4)
+	return theme
+
+
+## A quick icon was clicked: closes its window if it is open, else opens it
+## (closing any other window first).
+func _toggle_window(menu: String) -> void:
+	if state == State.PLAYING and _shrine.is_empty():
+		if menus.current == menu:
+			menus.close()
+		else:
+			if menus.is_open():
+				menus.close()
+			if player.can_act():
+				set_drawer_open(false)
+				menus.open(menu)
+	_update_quick_bar()
+
+
+## Keeps the icon of the open window pressed and all others raised.
+func _update_quick_bar() -> void:
+	if menus == null:
+		return
+	for menu in _quick_buttons:
+		var b: Button = _quick_buttons[menu]
+		var open: bool = menus.current == menu
+		if b.button_pressed != open:
+			b.set_pressed_no_signal(open)
+
+
 func _open_from_drawer(menu: String) -> void:
 	if state == State.PLAYING and player.can_act() and not menus.is_open():
 		set_drawer_open(false)
@@ -620,7 +755,7 @@ func set_drawer_open(open: bool) -> void:
 func _place_drawer(t: float) -> void:
 	_drawer_t = t
 	var size := _drawer.get_combined_minimum_size()
-	var hidden := size.x - _drawer_handle.get_combined_minimum_size().x
+	var hidden := size.x - _drawer_rail.get_combined_minimum_size().x
 	_drawer.offset_left = -size.x + hidden * (1.0 - t)
 	_drawer.offset_right = _drawer.offset_left + size.x
 	_drawer.offset_top = -size.y / 2.0
@@ -1650,6 +1785,8 @@ func _show_title(text: String, sub: String, prompt: String) -> void:
 	_title_text.text = text
 	_title_sub.text = sub
 	_title_prompt.text = prompt
+	_title_prompt.visible = true
+	_title_sub.visible = true
 	_title.modulate.a = 0.0
 	_fade.color.a = 0.55
 	create_tween().tween_property(_title, "modulate:a", 1.0, 1.2)
@@ -1713,12 +1850,17 @@ func new_game() -> void:
 	_title_buttons.visible = false
 	_lang_row.visible = false
 	_title_prompt.text = ""
+	# The empty prompt line and the subtitle give their room to the name box
+	# and its save slots, and the headline steps back a little.
+	_title_prompt.visible = false
+	_title_sub.visible = false
+	_title_text.add_theme_font_size_override("font_size", 90)
 	_name_box.visible = true
 	_choose_sex(player.sex)
 	_name_edit.text = hero_name
 	_name_edit.grab_focus()
 	_name_edit.select_all()
-	_update_name_note(hero_name)
+	_choose_slot(_free_slot())
 
 
 ## Picks the body of the new hero: the chosen button stays bright, and the
@@ -1730,18 +1872,41 @@ func _choose_sex(id: String) -> void:
 	_name_ask.text = Lang.t("Wie heißt deine Heldin?" if _new_sex == "female" else "Wie heißt dein Held?")
 
 
-## Warns when the name chosen already has a saved game: the new run takes
-## its place the next time it is saved.
-func _update_name_note(text: String) -> void:
-	var hero := text.strip_edges()
-	_name_note.text = Lang.t("%s hat schon einen Spielstand. Das neue Spiel ersetzt ihn beim nächsten Speichern.") % hero \
-			if hero != "" and has_save_of(hero) else ""
+## The slot a new game takes unless the player picks another: the first free
+## one, or else the one whose hero has come the least far.
+func _free_slot() -> int:
+	var weakest := 1
+	for slot in range(1, SAVE_SLOTS + 1):
+		var info := save_info(save_path(slot))
+		if info.is_empty():
+			return slot
+		if is_stronger(save_info(save_path(weakest)), info):
+			weakest = slot
+	return weakest
+
+
+## Picks the slot of the new game: its button stays bright, like the chosen
+## body, and the line below says what is in it now.
+func _choose_slot(slot: int) -> void:
+	_new_slot = slot
+	for s in _slot_buttons:
+		var b: Button = _slot_buttons[s]
+		var info := save_info(save_path(s))
+		b.text = "%d · %s" % [s, info.name if not info.is_empty() else Lang.t("frei")]
+		b.modulate = Color.WHITE if s == slot else Color(1, 1, 1, 0.5)
+	var info := save_info(save_path(slot))
+	if info.is_empty():
+		_name_note.text = Lang.t("Platz %d ist frei.") % slot
+		_name_note.add_theme_color_override("font_color", Menus.BLUE)
+	else:
+		_name_note.text = Lang.t("Platz %d: %s Das neue Spiel ersetzt diesen Spielstand.") % [slot, save_summary(info)]
+		_name_note.add_theme_color_override("font_color", Color(1.0, 0.75, 0.5))
 
 
 func _setup_name_box() -> void:
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 14)
+	box.add_theme_constant_override("separation", 10)
 	box.visible = false
 	_title.add_child(box)
 	_name_box = box
@@ -1770,11 +1935,33 @@ func _setup_name_box() -> void:
 	_name_edit.add_theme_stylebox_override("normal", Menus.panel_style(Color(0.85, 0.66, 0.32, 0.8)))
 	_name_edit.add_theme_stylebox_override("focus", Menus.panel_style(GOLD))
 	_name_edit.text_submitted.connect(func(_t): _start_new_game())
-	_name_edit.text_changed.connect(_update_name_note)
 	box.add_child(_name_edit)
+	# The slot the game is saved into: one button per slot, with the name of
+	# the hero in it or "free", after a caption in the same row.
+	var slots := HBoxContainer.new()
+	slots.alignment = BoxContainer.ALIGNMENT_CENTER
+	slots.add_theme_constant_override("separation", 10)
+	box.add_child(slots)
+	var slot_ask := _make_label(TEXT_FONT, 20, GOLD)
+	slot_ask.text = Lang.t("Speichern auf Platz:")
+	slots.add_child(slot_ask)
+	for slot in range(1, SAVE_SLOTS + 1):
+		var b := _make_button("%d" % slot, _choose_slot.bind(slot))
+		b.custom_minimum_size = Vector2(156, 48)
+		b.clip_text = true
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		slots.add_child(b)
+		_slot_buttons[slot] = b
+	# The note's line is kept from the start, one line of fixed width, so
+	# choosing another slot never moves the button below.
 	_name_note = _make_label(TEXT_FONT, 18, Color(1.0, 0.75, 0.5))
 	_name_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name_note.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_name_note.clip_text = true
+	_name_note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_name_note.custom_minimum_size = Vector2(SLOT_NOTE_WIDTH, 28)
+	_name_note.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(_name_note)
 	var go := _make_button(Lang.t("Los geht's"), _start_new_game)
 	go.custom_minimum_size = Vector2(240, 64)
@@ -1782,12 +1969,35 @@ func _setup_name_box() -> void:
 	box.add_child(go)
 
 
+## "Los geht's": a slot holding a hero who has come further than a new one
+## asks first (the "ueberschreiben" window); any other slot starts at once.
 func _start_new_game() -> void:
+	if not _name_box.visible or menus.is_open():
+		return
+	if is_stronger(save_info(save_path(_new_slot)), fresh_info()):
+		_name_edit.release_focus()
+		_title.visible = false
+		menus.open("ueberschreiben")
+		return
+	begin_new_game()
+
+
+## What a new game would look like in the load window, to compare it with
+## the saved game it replaces.
+func fresh_info() -> Dictionary:
+	return {"level": _start_level() + 1, "coins": 0, "escaped": false, "home": false}
+
+
+## The chosen slot was confirmed: its old saved game is gone, and the new
+## hero sets out.
+func begin_new_game() -> void:
 	if not _name_box.visible:
 		return
 	hero_name = _name_edit.text.strip_edges()
 	if hero_name == "":
 		hero_name = Lang.t("Namenlos")
+	save_slot = _new_slot
+	delete_save(save_path(save_slot))
 	_name_box.visible = false
 	_name_edit.release_focus()
 	coins = 0
@@ -1803,6 +2013,8 @@ func _start_new_game() -> void:
 	secrets_found = 0
 	dry_levels = 0
 	bumped_person = false
+	hints_shown.clear()
+	_hints_last.clear()
 	looted.clear()
 	builds.clear()
 	met.clear()
@@ -1846,6 +2058,7 @@ func continue_game(path := "") -> void:
 	if path == "" or not FileAccess.file_exists(path):
 		return
 	var data := _read_save(path)
+	save_slot = slot_of(path)
 	_leave_title(func():
 		_apply_save(data)
 		_after_load(data))
@@ -1857,7 +2070,7 @@ func continue_game(path := "") -> void:
 ## hero's own, otherwise the one saved last.
 func _save_to_continue() -> String:
 	if state == State.OVER:
-		return save_path(hero_name) if has_save_of(hero_name) else ""
+		return save_path() if has_slot_save() else ""
 	var saves := save_list()
 	return saves[0].path if not saves.is_empty() else ""
 
@@ -1877,6 +2090,11 @@ func open_load_window() -> void:
 ## The load window was closed on the title: the title comes back, up to
 ## date in case a saved game was deleted.
 func load_window_closed() -> void:
+	if _name_box.visible:
+		# The overwrite question went back: the name box is still there.
+		_title.visible = true
+		_name_edit.grab_focus()
+		return
 	_show_start_title(_title_text.text, _title_sub.text)
 
 
@@ -1886,6 +2104,7 @@ func load_saved_game(path: String) -> void:
 	if state != State.PLAYING or not FileAccess.file_exists(path):
 		return
 	var data := _read_save(path)
+	save_slot = slot_of(path)
 	state = State.TRANSITION
 	player.frozen = true
 	var tween := create_tween()
@@ -2030,11 +2249,11 @@ func quit_game() -> void:
 	tween.tween_callback(func(): _show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies")))
 
 
-## Name, level, gold and time of a saved game (by default this hero's), or
-## nothing when there is none.
+## Name, level, gold, slot and time of a saved game (by default this hero's),
+## or nothing when there is none.
 func save_info(path := "") -> Dictionary:
 	if path == "":
-		path = save_path(hero_name)
+		path = save_path()
 	if not FileAccess.file_exists(path):
 		return {}
 	var data := _read_save(path)
@@ -2042,20 +2261,47 @@ func save_info(path := "") -> Dictionary:
 		return {}
 	# Games saved before there were several have no time of their own.
 	var time := float(data.get("saved_at", FileAccess.get_modified_time(path)))
-	return {"path": path, "name": str(data.get("name", Lang.t("Namenlos"))), "level": int(data.level) + 1, "coins": int(data.coins),
+	return {"path": path, "slot": slot_of(path), "name": str(data.get("name", Lang.t("Namenlos"))), "level": int(data.level) + 1, "coins": int(data.coins),
 			"escaped": bool(data.get("escaped", false)), "home": bool(data.get("claimed", false)), "time": time}
 
 
 ## Every saved game there is, the one saved last first.
 func save_list() -> Array:
 	var saves := []
-	for f in DirAccess.get_files_at(SAVE_DIR):
-		if f.ends_with(".json"):
-			var info := save_info(SAVE_DIR + f)
+	for f in DirAccess.get_files_at(save_dir):
+		if slot_of(save_dir + f) > 0:
+			var info := save_info(save_dir + f)
 			if not info.is_empty():
 				saves.append(info)
 	saves.sort_custom(func(a, b): return a.time > b.time)
 	return saves
+
+
+## Where a saved game's hero is, in one sentence: "Ada auf Ebene 3 mit 40
+## Gold.", at home, or on the graveyard.
+static func save_summary(info: Dictionary) -> String:
+	if info.home:
+		return Lang.t("%s zu Hause mit %d Gold.") % [info.name, info.coins]
+	if info.escaped:
+		return Lang.t("%s auf dem Friedhof mit %d Gold.") % [info.name, info.coins]
+	return Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins]
+
+
+## Whether the hero of saved game a has come further than the one of b: their
+## own house beats the graveyard, the graveyard beats the dungeon, a deeper
+## level beats a higher one, and more gold settles the rest. Nothing (an
+## empty slot) is never stronger.
+static func is_stronger(a: Dictionary, b: Dictionary) -> bool:
+	if a.is_empty():
+		return false
+	if b.is_empty():
+		return true
+	for key in ["home", "escaped", "level", "coins"]:
+		var x := int(a[key])
+		var y := int(b[key])
+		if x != y:
+			return x > y
+	return false
 
 
 ## The time a game was saved, as the player's clock showed it.
@@ -2066,7 +2312,7 @@ static func save_time_text(time: float) -> String:
 
 
 func _read_save(path := "") -> Dictionary:
-	var data = JSON.parse_string(FileAccess.get_file_as_string(path if path != "" else save_path(hero_name)))
+	var data = JSON.parse_string(FileAccess.get_file_as_string(path if path != "" else save_path()))
 	return data if data is Dictionary else {}
 
 
@@ -2081,6 +2327,12 @@ func _apply_save(data: Dictionary) -> void:
 	secrets_found = int(data.get("secrets", 0))
 	dry_levels = int(data.get("dry", 0))
 	bumped_person = bool(data.get("bumped_person", false))
+	hints_shown.clear()
+	_hints_last.clear()
+	var saved_hints = data.get("hints", {})
+	if saved_hints is Dictionary:
+		for key in saved_hints:
+			hints_shown[str(key)] = int(saved_hints[key])
 	storage.assign(data.storage)
 	shop_stock.assign(data.shop)
 	player.knives = int(data.knives)
@@ -2191,43 +2443,62 @@ func has_save() -> bool:
 	return not save_list().is_empty()
 
 
-## The file of a hero's saved game. The name is hashed, so that any name
-## makes a valid file name.
-static func save_path(hero: String) -> String:
-	return SAVE_DIR + hero.md5_text() + ".json"
+## The file of a slot's saved game, by default the slot of this hero.
+func save_path(slot := 0) -> String:
+	return save_dir + "platz_%d.json" % (slot if slot > 0 else save_slot)
 
 
-func has_save_of(hero: String) -> bool:
-	return FileAccess.file_exists(save_path(hero))
+## The slot of a saved game's file, or 0 when the file is not a slot.
+static func slot_of(path: String) -> int:
+	var file := path.get_file()
+	if not (file.begins_with("platz_") and file.ends_with(".json")):
+		return 0
+	var number := file.trim_prefix("platz_").trim_suffix(".json")
+	return int(number) if number.is_valid_int() and int(number) > 0 else 0
 
 
-## Deletes a saved game from the load window.
+## Whether a slot holds a saved game, by default the slot of this hero.
+func has_slot_save(slot := 0) -> bool:
+	return FileAccess.file_exists(save_path(slot))
+
+
+## Deletes a saved game (from the load window, or a slot a new game takes).
 func delete_save(path: String) -> void:
-	if path.begins_with(SAVE_DIR) and FileAccess.file_exists(path):
+	if path.begins_with(save_dir) and FileAccess.file_exists(path):
 		DirAccess.remove_absolute(path)
 
 
-## The one saved game from before there could be several becomes the saved
-## game of its hero.
-func _move_old_save() -> void:
-	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
-	if not FileAccess.file_exists(OLD_SAVE_FILE):
-		return
-	var data = JSON.parse_string(FileAccess.get_file_as_string(OLD_SAVE_FILE))
-	if not (data is Dictionary):
-		return
-	var target := save_path(str(data.get("name", Lang.t("Namenlos"))))
-	if FileAccess.file_exists(target):
-		return
-	if not data.has("saved_at"):
-		data.saved_at = FileAccess.get_modified_time(OLD_SAVE_FILE)
-	var file := FileAccess.open(target, FileAccess.WRITE)
-	if file == null:
-		return
-	file.store_string(JSON.stringify(data))
-	file.close()
-	if FileAccess.file_exists(target):
-		DirAccess.remove_absolute(OLD_SAVE_FILE)
+## Saved games from older versions move into free slots, the one saved last
+## first: the single file from before there could be several, and the files
+## named after their hero from before there were slots. Each keeps its time.
+func _move_old_saves() -> void:
+	DirAccess.make_dir_recursive_absolute(save_dir)
+	var old := []
+	if FileAccess.file_exists(old_save_file):
+		old.append(old_save_file)
+	for f in DirAccess.get_files_at(save_dir):
+		if f.ends_with(".json") and slot_of(save_dir + f) == 0:
+			old.append(save_dir + f)
+	var moving := []
+	for path in old:
+		var data = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if not (data is Dictionary):
+			continue
+		if not data.has("saved_at"):
+			data.saved_at = FileAccess.get_modified_time(path)
+		moving.append([path, data])
+	moving.sort_custom(func(a, b): return float(a[1].saved_at) > float(b[1].saved_at))
+	var slot := 1
+	for entry in moving:
+		while has_slot_save(slot):
+			slot += 1
+		var file := FileAccess.open(save_path(slot), FileAccess.WRITE)
+		if file == null:
+			return
+		file.store_string(JSON.stringify(entry[1]))
+		file.close()
+		if has_slot_save(slot):
+			DirAccess.remove_absolute(entry[0])
 
 
 ## The level index of the open air outside the crypt, or -1 without one.
@@ -2252,7 +2523,7 @@ func _home_given_now() -> bool:
 func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp)
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
@@ -2275,8 +2546,8 @@ func save_game(going_away := false) -> bool:
 	}
 	if going_away:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
-	var path := save_path(hero_name)
-	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
+	var path := save_path()
+	DirAccess.make_dir_recursive_absolute(save_dir)
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return false
@@ -2771,8 +3042,22 @@ func level_hint(index: int) -> Dictionary:
 ## the hero's head.
 func quest_news(text: String, color: Color, duration := 4.0) -> void:
 	show_message(text, duration)
-	Effects.float_text(level, player.global_position + Vector3(0, 3.2, 0), text.get_slice("\n", 0), color, true)
+	# The words floating up from the hero would cover the villager's speech
+	# bubble right beside them: the message at the bottom says it already.
+	if not _villager_talking_near_hero():
+		Effects.float_text(level, player.global_position + Vector3(0, 3.2, 0), text.get_slice("\n", 0), color, true)
 	_update_hud()
+
+
+## Whether a villager whose speech bubble would lie over the hero's head is
+## talking right now (see Villager.BUBBLE_ROOM).
+func _villager_talking_near_hero() -> bool:
+	if not level is Outdoor or player == null:
+		return false
+	for v in level.villagers:
+		if is_instance_valid(v) and v.visible and v.is_talking() and Vector2(v.global_position.x - player.global_position.x, v.global_position.z - player.global_position.z).length() < Villager.BUBBLE_ROOM:
+			return true
+	return false
 
 
 ## A task is done: the reward, with a jingle.
@@ -2793,7 +3078,7 @@ func reputation_rose(role: String, new_level: int) -> void:
 	var off := roundi(Reputation.LEVELS[new_level].discount * 100.0)
 	if off > 0:
 		line += Lang.t(" (%d%% Rabatt)") % off
-	if level:
+	if level and not _villager_talking_near_hero():
 		Effects.float_text(level, player.global_position + Vector3(0, 3.8, 0), line, Color(0.75, 0.6, 1.0), true)
 	_reputation_news.append(line)
 	if _reputation_news.size() == 1:
@@ -3256,11 +3541,10 @@ func _end_run(escaped: bool) -> void:
 	Training.save_hero(hero_name, player.xp)
 	if escaped:
 		# The run is over, so this hero's saved game in the safe room is
-		# gone too. Other heroes keep theirs.
-		if has_save_of(hero_name):
-			DirAccess.remove_absolute(save_path(hero_name))
+		# gone too. The other slots keep theirs.
+		delete_save(save_path())
 		_show_title(Lang.t("Frei!"), Lang.t("%s ist entkommen und hat %d Gold erbeutet.") % [hero_name, coins], Lang.t("Klicken für ein neues Spiel"))
-	elif has_save_of(hero_name):
+	elif has_slot_save():
 		# A fallen hero may rise again in the safe room, or once out of the
 		# dungeon, on the graveyard or in their own house.
 		var info := save_info()
@@ -3641,6 +3925,7 @@ func _guardian_intro() -> void:
 
 
 func _process(delta: float) -> void:
+	_update_quick_bar()
 	_eerie(delta)
 	_tick_clock(delta)
 	_show_weather()
@@ -3705,14 +3990,18 @@ func _process(delta: float) -> void:
 			_search(_pending_search)
 		_pending_search = {}
 	var near := level.nearest_interactable(player.global_position)
-	# Only the first levels explain how to search; after that players know.
-	_prompt.text = Lang.t("Dagegenlaufen, um %s zu untersuchen") % Lang.t(_with_article(near.label)) if level_index < 2 and not near.is_empty() and not near.searched else ""
+	_hints_now.clear()
 	var station := level.nearest_station(player.global_position)
-	if not station.is_empty() and bumped_person and PERSON_STATIONS.has(station.kind):
+	var at_station: bool = not station.is_empty() and (level_index < 2 or station.kind != "schrein")
+	# Only the first levels explain how to search; after that players know.
+	_prompt.text = ""
+	if not at_station and level_index < 2 and not near.is_empty() and not near.searched:
+		_prompt.text = _hint("search", Lang.t("Dagegenlaufen, um %s zu untersuchen") % Lang.t(_with_article(near.label)))
+	if at_station and bumped_person and PERSON_STATIONS.has(station.kind):
 		# The hero knows by now that running into people talks to them.
 		_prompt.text = ""
-	elif not station.is_empty() and (level_index < 2 or station.kind != "schrein"):
-		_prompt.text = {
+	elif at_station:
+		_prompt.text = _hint(station.kind, {
 			"schrein": Lang.t("Dagegenlaufen, um den Schrein zu berühren"),
 			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
@@ -3733,16 +4022,16 @@ func _process(delta: float) -> void:
 			"gefaehrten": Lang.t("Dagegenlaufen, um nach deinen Gefährten zu sehen"),
 			"schacht": Lang.t("Dagegenlaufen, um in die Tiefe hinabzusteigen"),
 			"tafel": Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
-		}.get(station.kind, "")
+		}.get(station.kind, ""))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
-		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")
+		_prompt.text = _hint("crate", Lang.t("E oder Klick: Kiste aufheben"))
 	elif _prompt.text == "" and _drag_stone != null:
-		_prompt.text = Lang.t("Loslassen: Block rutscht dorthin") if _drag_stone.heavy else Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen")
+		_prompt.text = _hint("drag_heavy", Lang.t("Loslassen: Block rutscht dorthin")) if _drag_stone.heavy else _hint("drag", Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen"))
 	elif _prompt.text == "" and level.stone_in_reach(player) != null:
 		if level.stone_in_reach(player).heavy:
-			_prompt.text = Lang.t("E oder Klick: Block schieben   Ziehen: rutschen lassen")
+			_prompt.text = _hint("stone_heavy", Lang.t("E oder Klick: Block schieben   Ziehen: rutschen lassen"))
 		else:
-			_prompt.text = Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben")
+			_prompt.text = _hint("stone", Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben"))
 	# By the water the line can be cast, also next to the fountain.
 	var fish_prompt := ""
 	if fishing.state == Fishing.BITE:
@@ -3750,14 +4039,36 @@ func _process(delta: float) -> void:
 	elif fishing.is_fishing():
 		fish_prompt = Lang.t("G: Leine einholen")
 	elif not fishing.water_near().is_empty():
-		fish_prompt = Lang.t("G: Angeln")
+		fish_prompt = _hint("fish", Lang.t("G: Angeln"))
 	if fish_prompt != "":
 		_prompt.text = fish_prompt if _prompt.text == "" else _prompt.text + "   " + fish_prompt
 	# Next to a monster that can be won over, a gift can be offered.
 	var tame := gift_target()
 	if tame != null and Factions.can_befriend(Factions.of(tame.kind)) and not tame.is_friend():
-		var gift_prompt := Lang.t("T: Geschenk anbieten")
-		_prompt.text = gift_prompt if _prompt.text == "" else _prompt.text + "   " + gift_prompt
+		var gift_prompt := _hint("gift", Lang.t("T: Geschenk anbieten"))
+		if gift_prompt != "":
+			_prompt.text = gift_prompt if _prompt.text == "" else _prompt.text + "   " + gift_prompt
+	_count_hints()
+
+
+## An explanatory hint of one kind ("bett", "search", "fish", ...): shown the
+## first HINT_SHOWINGS times the hero comes near such a thing, then left out.
+## A hint already on screen stays until the hero walks away.
+func _hint(key: String, text: String) -> String:
+	if text == "":
+		return ""
+	if not _hints_last.has(key) and int(hints_shown.get(key, 0)) >= HINT_SHOWINGS:
+		return ""
+	_hints_now[key] = true
+	return text
+
+
+## Counts each hint that came up this frame and was not on screen before.
+func _count_hints() -> void:
+	for key in _hints_now:
+		if not _hints_last.has(key):
+			hints_shown[key] = int(hints_shown.get(key, 0)) + 1
+	_hints_last = _hints_now.duplicate()
 
 
 func _reach(pos: Vector3) -> float:
@@ -3824,12 +4135,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	match state:
 		State.TITLE:
-			if _name_box.visible or Lang.language == "":
-				return
 			if menus.is_open():
-				# The load window's own buttons choose; Esc goes back.
+				# The load window's (or the overwrite question's) own buttons
+				# choose; Esc goes back.
 				if event is InputEventKey and event.physical_keycode == KEY_ESCAPE:
 					menus.close()
+				return
+			if _name_box.visible or Lang.language == "":
 				return
 			if has_save() and not (event is InputEventKey and event.physical_keycode == KEY_N):
 				continue_game()
@@ -3838,7 +4150,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.WON:
 			new_game()
 		State.OVER:
-			if has_save_of(hero_name) and not (event is InputEventKey and event.physical_keycode == KEY_N):
+			if has_slot_save() and not (event is InputEventKey and event.physical_keycode == KEY_N):
 				continue_game()
 			else:
 				new_game()
@@ -3848,7 +4160,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					_choose_gift(event.physical_keycode - KEY_1)
 				return
 			if menus.is_open():
-				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_P, KEY_N, KEY_ESCAPE]:
+				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_P, KEY_N, KEY_O, KEY_ESCAPE]:
 					menus.close()
 				return
 			if event is InputEventKey:
@@ -3874,6 +4186,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					KEY_N:
 						if player.can_act():
 							menus.open("karte")
+					KEY_O:
+						if player.can_act():
+							menus.open("auftraege")
 					KEY_M:
 						_toggle_sound()
 					KEY_TAB:

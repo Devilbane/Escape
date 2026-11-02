@@ -28,7 +28,7 @@ func _process(_delta: float) -> bool:
 	if frames < 5:
 		return false
 	_test()
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: bounties")
 	else:
@@ -158,12 +158,12 @@ func _test() -> void:
 	var saved: Dictionary = game.bounties.for_save()
 	game.bounties.clear()
 	game.day = 0
-	game._apply_save(game._read_save(game.save_path(HERO)))
+	game._apply_save(game._read_save(game.save_path()))
 	check(game.day == 1, "the day is kept")
 	check(game.bounties.for_save() == saved, "the board comes back as it was")
 
 	# Saved games from before the board load fine.
-	var data: Dictionary = game._read_save(game.save_path(HERO))
+	var data: Dictionary = game._read_save(game.save_path())
 	data.erase("bounties")
 	data.erase("day")
 	game._apply_save(data)

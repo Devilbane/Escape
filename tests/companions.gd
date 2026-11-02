@@ -55,7 +55,7 @@ func _shot(name: String) -> void:
 
 
 func _finish() -> void:
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if Homes.house_of(HERO) > 0:
 		Homes.release(Homes.house_of(HERO))
 	print("PASS: companions" if failures == 0 else "FAILED: %d" % failures)

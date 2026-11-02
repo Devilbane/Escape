@@ -57,8 +57,9 @@ func _process(delta: float) -> bool:
 		0:
 			game.hero_name = "Wake test"
 			game.escaped = false
-			game.has_fox = true
-			game.fox_trust = Pet.TRUST_NEEDED
+			game.companions = [Companions.make("fuchs", "Rufus")]
+			game.following = 0
+			game.trust = {"fuchs": Pet.TRUST_NEEDED}
 			var refuge := -1
 			for i in game.level_files.size():
 				if "zuflucht" in game.level_files[i]:

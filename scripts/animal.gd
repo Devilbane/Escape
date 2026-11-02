@@ -8,10 +8,11 @@ extends Node3D
 ## A sneaking hero gets much closer before they notice. Once the hero is far
 ## enough away again they calm down and go back to grazing.
 ##
-## A fox can be won over: while the hero carries a sausage (Pet.FOOD) a fox
-## does not bolt but comes trotting up, curious, and eats one from the
-## hero's hand. After Pet.TRUST_NEEDED sausages it goes with the hero as
-## their companion (see Pet). The hero only ever has one fox.
+## A fox, a doe or a stag can be won over: while the hero carries its
+## favourite food (a sausage, an apple, a salt lick; see Companions) it does
+## not bolt but comes up, curious, and eats from the hero's hand. After
+## Companions.TRUST_NEEDED gifts it becomes the hero's companion (see Pet).
+## The hero has at most one of each kind.
 ##
 ## Models: "Ultimate Animated Animals" by Quaternius (CC0, see
 ## assets/animals/LICENSE.txt).
@@ -33,17 +34,16 @@ const SNEAK_FACTOR := 0.45
 ## the hero must be before it settles down again (times its shy distance).
 const FLEE_ROAM := 7
 const CALM_FACTOR := 1.5
-## From how far a fox smells the hero's sausage and comes over, how close it
-## comes to eat, and how long it chews.
+## From how far an animal smells its food on the hero and comes over, and
+## how long it chews (how close it comes: Companions.SPECIES "reach").
 const CURIOUS_RANGE := 14.0
-const FEED_REACH := 1.8
 const EAT_TIME := 2.5
 
 var level: Level
 var kind := "reh"
 var home := Vector2i.ZERO
-## "graze", "idle", "stroll" or "flee"; a fox also "approach" (coming
-## for the hero's sausage) and "eat".
+## "graze", "idle", "stroll" or "flee"; also "approach" (coming for the
+## food the hero carries) and "eat".
 var state := "idle"
 var _stats: Dictionary
 var _model: Node3D
@@ -87,17 +87,24 @@ func is_fleeing() -> bool:
 	return state == "flee"
 
 
-## The key in the level's taken list that marks this fox as the hero's.
+## The key in the level's taken list that marks this animal as the hero's.
 func tame_key() -> String:
-	return "fuchs_zahm:%d,%d" % [home.x, home.y]
+	return "%s_zahm:%d,%d" % [kind, home.x, home.y]
 
 
-## Whether this is a fox that would come for the hero's sausage right now.
+## The food that wins this animal over, or "" if it cannot be won over.
+func food() -> String:
+	return Companions.SPECIES[kind].food if Companions.is_species(kind) else ""
+
+
+## Whether this animal would come for food the hero carries right now: one
+## that can be won over, of a kind the hero has no companion of yet.
 func is_curious() -> bool:
-	if kind != "fuchs" or not level.get("fox_tamable") or level.player.get("dead"):
+	var owned = level.get("owned_companions")
+	if food() == "" or not owned is Array or owned.has(kind) or level.player.get("dead"):
 		return false
 	var bag = level.player.get("bag")
-	return bag is Array and bag.has(Pet.FOOD)
+	return bag is Array and bag.has(food())
 
 
 ## Plays one of the model's animations (Idle, Walk, Gallop, Eating).
@@ -158,18 +165,19 @@ func _physics_process(delta: float) -> void:
 					_begin("idle", _rng.randf_range(1.0, 3.0))
 
 
-## A fox trots up to a hero who carries a sausage and eats it from their
-## hand (the game takes it from the bag, see Outdoor.fox_fed).
+## An animal comes up to a hero who carries its food and eats it from their
+## hand (the game takes it from the bag, see Outdoor.animal_fed).
 func _come_for_food(hero: Node3D, delta: float) -> void:
 	var to := _flat(hero.global_position - global_position)
-	if to.length() <= FEED_REACH:
+	var reach: float = Companions.SPECIES[kind].reach
+	if to.length() <= reach:
 		_path.clear()
 		_turn_to(to, 1.0)
 		state = "eat"
 		_timer = EAT_TIME
 		_anim.speed_scale = 1.0
 		play("Eating")
-		level.emit_signal("fox_fed", self)
+		level.emit_signal("animal_fed", self)
 		return
 	if state != "approach":
 		state = "approach"
@@ -184,7 +192,7 @@ func _come_for_food(hero: Node3D, delta: float) -> void:
 			_path.append(level.cell_to_world(c))
 	if _path.is_empty():
 		# Same tile or the next one: straight to the hero.
-		global_position += to.normalized() * minf(_speed * delta, to.length() - FEED_REACH * 0.9)
+		global_position += to.normalized() * minf(_speed * delta, to.length() - reach * 0.9)
 		_turn_to(to, delta)
 		play("Walk")
 	else:

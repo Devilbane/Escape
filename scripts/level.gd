@@ -110,7 +110,7 @@ const SPIKE_IRON := Color(0.5, 0.5, 0.53)
 ## The grey of the kit's floor tiles, for spike and grate tiles.
 const FLOOR_GREY := Color(0.74, 0.73, 0.71)
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "#bxotkCDHBLVF?f=U|"
+const SOLID := "#bxotkCDHBLVF?f=U|N"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
@@ -212,6 +212,10 @@ var bed_side := Vector3.ZERO
 ## Spots beside the beds for the basket of the hero's fox (see Pet), and the
 ## baskets once they stand there (only for a hero who has a fox).
 var fox_beds: Array[Vector3] = []
+## In the hero's house: the spots on the straw in the corner by the door
+## ("N") where the companions who stay at home rest ({"pos", "rot"}), see
+## Companions and Game._spawn_home_pets.
+var companion_spots: Array = []
 var _baskets: Array[Node3D] = []
 ## The storey of every walkable tile of a home (see storey_of).
 var _storeys := {}
@@ -805,6 +809,8 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			if is_home:
 				bed_side = cell_to_world(_open_side(c))
 			_add_fox_bed(c)
+		"N":
+			_build_companion_corner(c)
 		"L":
 			_place("chest", pos, _facing_room(c))
 			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
@@ -2633,6 +2639,73 @@ func hide_ingredients() -> void:
 	for i in mini(count, cells.size()):
 		var c: Vector2i = cells.pop_at(rng.randi() % cells.size())
 		hidden_finds.append({"cell": c, "id": Crafting.random_fox_find(rng, outdoor)})
+
+
+## The companions' corner in the hero's house: a bed of straw with a water
+## bowl, where the companions who stay at home rest. Running into it opens
+## the companions window (station "gefaehrten").
+func _build_companion_corner(c: Vector2i) -> void:
+	var pos := cell_to_world(c)
+	var straw := StandardMaterial3D.new()
+	straw.albedo_color = Color(0.6, 0.48, 0.26)
+	straw.roughness = 1.0
+	var bed := MeshInstance3D.new()
+	var mound := CylinderMesh.new()
+	mound.top_radius = 1.45
+	mound.bottom_radius = 1.6
+	mound.height = 0.16
+	bed.mesh = mound
+	bed.material_override = straw
+	bed.position = pos + Vector3(0, 0.08, 0)
+	bed.scale = Vector3(1.0, 1.0, 0.85)
+	add_child(bed)
+	# Loose straws on top, so it reads as straw and not as a rug.
+	var stalk := BoxMesh.new()
+	stalk.size = Vector3(0.5, 0.025, 0.035)
+	var pale := straw.duplicate() as StandardMaterial3D
+	pale.albedo_color = Color(0.74, 0.62, 0.36)
+	for i in 26:
+		var bit := MeshInstance3D.new()
+		bit.mesh = stalk
+		bit.material_override = pale if i % 2 == 0 else straw
+		var angle := _rng.randf() * TAU
+		var r := sqrt(_rng.randf()) * 1.3
+		bit.position = pos + Vector3(sin(angle) * r, 0.17, cos(angle) * r * 0.85)
+		bit.rotation.y = _rng.randf() * TAU
+		add_child(bit)
+	# A wooden water bowl at the edge.
+	var turn := _facing_room(c)
+	var front := Vector3(sin(turn), 0, cos(turn))
+	var side := Vector3(front.z, 0, -front.x)
+	var bowl := MeshInstance3D.new()
+	var tub := CylinderMesh.new()
+	tub.top_radius = 0.3
+	tub.bottom_radius = 0.24
+	tub.height = 0.16
+	bowl.mesh = tub
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.45, 0.28, 0.14)
+	wood.roughness = 0.9
+	bowl.material_override = wood
+	bowl.position = pos + front * 1.5 + side * 1.2 + Vector3(0, 0.08, 0)
+	add_child(bowl)
+	var water := MeshInstance3D.new()
+	var face := CylinderMesh.new()
+	face.top_radius = 0.26
+	face.bottom_radius = 0.26
+	face.height = 0.01
+	water.mesh = face
+	var blue := StandardMaterial3D.new()
+	blue.albedo_color = Color(0.3, 0.5, 0.65)
+	blue.roughness = 0.1
+	water.material_override = blue
+	water.position = bowl.position + Vector3(0, 0.07, 0)
+	add_child(water)
+	_add_solid(pos, Vector3(3.0, 1.2, 3.0))
+	stations.append({"kind": "gefaehrten", "cell": c, "pos": pos, "used": false})
+	# Three places on the straw, each animal facing into the room.
+	for offset in [-side * 0.85 - front * 0.5, side * 0.85 - front * 0.5, front * 0.55]:
+		companion_spots.append({"pos": pos + offset + Vector3(0, 0.16, 0), "rot": turn + _rng.randf_range(-0.5, 0.5)})
 
 
 ## A spot for the fox's basket by the bed at c: on the floor tile in front

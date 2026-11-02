@@ -86,6 +86,23 @@ dungeon). When one is in reach of its nose, the fox runs over, digs it up and le
 for you to pick up. They go into your **ingredient pouch** and show up in the ingredient book (key H),
 ready for recipes. The ground holds new ones each time you come back.
 
+**Companions.** The fox is one of three animals that can become your friend. A **doe** loves **apples**
+and a **stag** loves a **salt lick**; both graze in the clearings of the wood between the graveyard and
+the village, and Mira always has their food too. Three gifts from your hand win each one over, and
+then you **name** it (up to 14 letters; Enter or "Done" keeps the name). You can have one of each.
+One companion goes with you and gives you its **perk**, one plain number you already know from the HUD:
+
+| Companion | Food | Perk while it is at your side |
+|---|---|---|
+| Fox | Sausage | +1 Exploring, and its nose digs up hidden ingredients |
+| Doe | Apple | +10 % speed |
+| Stag | Salt lick | +1 power |
+
+A newly won companion comes along at once, and the one at your side so far runs home to your house on
+Weavers' Lane. There the others rest on a bed of **straw** in the corner by the door. Run into the straw
+to open the **companions** window: take another one along, leave them all at home, or rename them.
+A companion at home gives no perk.
+
 **Stone blocks** let you build: walls, steps, towers, small enclosures. Hagen the **stonemason** sells them
 in the village, west of the pedestal, next to his stone yard (3 gold each, 1 gold back; 4 kg each). A block
 is twice as long as it is wide and high and sits on a build grid: set down from the bag (key B), it lies

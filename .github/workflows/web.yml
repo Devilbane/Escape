@@ -104,6 +104,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/looted_containers.gd | tee looted.log
           grep -q PASS looted.log
 
+      - name: Floor items test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/floor_items.gd | tee floor_items.log
+          grep -q PASS floor_items.log
+
       - name: Several saved games test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log

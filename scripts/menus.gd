@@ -965,8 +965,10 @@ func _place_stone_selected() -> void:
 
 func _drop_selected() -> void:
 	var p: Player = game.player
-	_note = Lang.t("%s weggeworfen.") % Items.item_name(p.bag[_selected])
+	var id: String = p.bag[_selected]
+	_note = Lang.t("%s abgelegt.") % Items.item_name(id)
 	p.bag.remove_at(_selected)
+	game.drop_on_floor(id)
 	_selected = -1
 	_rebuild()
 

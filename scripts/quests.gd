@@ -316,10 +316,41 @@ func _offer(id: String, v: Villager) -> bool:
 			return true
 		game.player.bag.append(q.item)
 	state[id] = {"state": "active", "count": 0}
+	if catch_up(id) and _room_for_reward(id):
+		# The boss fell before the task was given (e.g. the chief, felled
+		# while clearing the pass for the guard): it is done at once.
+		Events.teach(HOW_TO)
+		_finish(id, v)
+		return true
 	v.say(Lang.t(q.offer), game.player.global_position, 6.5)
 	Events.teach(HOW_TO)
 	Events.tell(Lang.t("Neuer Auftrag: %s") % Lang.t(q.title) + "\n" + Lang.t(q.goal), Color(1.0, 0.82, 0.4))
 	return true
+
+
+## Kinds that fall only once per saved game and never come back (see
+## Outdoor.chief_defeated). A kill task for one of them can never be counted
+## once it has fallen, so it counts as done.
+const ONCE_ONLY := ["hauptmann"]
+
+
+## Marks open kill tasks for a once-only boss as done when the boss has
+## fallen already: felled before the task was taken, or in a game saved
+## before this rule. `only` limits it to one task. True if any task changed.
+func catch_up(only := "") -> bool:
+	if game == null or not game.has_method("boss_fallen"):
+		return false
+	var changed := false
+	for id in ALL:
+		var q: Dictionary = ALL[id]
+		if (only != "" and id != only) or q.kind != "kill" or not is_active(id) or missing(id) == 0:
+			continue
+		var bosses: Array = q.targets.filter(func(t): return t in ONCE_ONLY)
+		if bosses.size() != q.targets.size() or not bosses.all(func(t): return game.boss_fallen(t)):
+			continue
+		state[id].count = q.count
+		changed = true
+	return changed
 
 
 ## Whether the bag can take the reward once `freed` items are handed over.

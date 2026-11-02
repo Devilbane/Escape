@@ -202,3 +202,48 @@ func _test() -> void:
 	check(game.quests.log_entries().is_empty(), "an older saved game starts without quests")
 	game.quests.load_from({"unknown": {"state": "done"}, "brief": "broken", "wasser": {"state": "active", "count": 0}})
 	check(game.quests.log_entries() == ["wasser"], "broken or unknown entries are left out")
+
+	# The chief falls only once. Felled before his task was taken (he counts
+	# for the guard's five bandits too), the task is done when it is given.
+	game.quests.load_from({"raeuberplage": {"state": "done", "count": 5}})
+	game.looted.clear()
+	game.player.bag.clear()
+	game.coins = 0
+	check(not game.boss_fallen("hauptmann"), "the chief stands in a fresh game")
+	game.looted["11_die_freiheit.txt"] = {Outdoor.CHIEF_DEFEATED: true}
+	check(game.boss_fallen("hauptmann"), "a fallen chief is remembered")
+	_bump("G")
+	check(game.quests.is_done("hauptmann"), "the chief's task is done at once when he fell before it was given")
+	check(game.coins == 40 and game.player.bag.has("schattenumhang"), "the guild master pays for a chief felled earlier")
+
+	# A game saved with the task open and the chief already gone is mended
+	# when it loads.
+	game.quests.load_from({"raeuberplage": {"state": "done", "count": 5}, "hauptmann": {"state": "active", "count": 0}})
+	check(game.save_game(), "a game with the chief's task open is saved")
+	var stuck: Dictionary = game._read_save(game.save_path(1))
+	stuck["looted"] = {"11_die_freiheit.txt": [Outdoor.CHIEF_DEFEATED]}
+	stuck["quests"] = {"raeuberplage": {"state": "done", "count": 5}, "hauptmann": {"state": "active", "count": 0}}
+	game._apply_save(stuck)
+	check(game.quests.is_active("hauptmann") and game.quests.missing("hauptmann") == 0, "loading counts a chief who fell already")
+	game.refresh_quest_marks()
+	check(_villager("G").quest_mark() == "?", "the guild master waits with the reward")
+	# While the chief still stands, the task stays open.
+	stuck["looted"] = {}
+	game._apply_save(stuck)
+	check(game.quests.missing("hauptmann") == 1, "a standing chief still has to be beaten")
+
+	# A wolf landing the last blow on the chief does not cost the hero the task.
+	var chief := BanditChief.new()
+	game.level.add_child(chief)
+	chief.slain_by_rival = true
+	game._on_enemy_killed(chief)
+	check(game.quests.missing("hauptmann") == 0, "a chief felled by a rival still counts for the hero")
+	var cutthroat := Enemy.new()
+	cutthroat.kind = "halsabschneider"
+	game.level.add_child(cutthroat)
+	cutthroat.slain_by_rival = true
+	game.quests.load_from({"raeuberplage": {"state": "active", "count": 0}})
+	game._on_enemy_killed(cutthroat)
+	check(game.quests.progress("raeuberplage") == "0 / 5", "other bandits felled by rivals still do not count")
+	chief.free()
+	cutthroat.free()

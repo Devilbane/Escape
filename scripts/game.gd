@@ -146,6 +146,11 @@ var builds := {}
 var secrets_found := 0
 ## Levels left in a row without finding their secret room.
 var dry_levels := 0
+## The hero has run into a villager once: from then on the hint that running
+## into people talks to them is left out. Kept in the saved game.
+var bumped_person := false
+## Stations that are a person; their hint goes once the hero bumped one.
+const PERSON_STATIONS := ["npc", "bank", "barbier", "haendler", "steinmetz", "schmied", "wanderhaendler"]
 ## Lives the hero gets back for climbing to the next level.
 const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
@@ -1678,6 +1683,7 @@ func _start_new_game() -> void:
 	trophies.clear()
 	secrets_found = 0
 	dry_levels = 0
+	bumped_person = false
 	looted.clear()
 	builds.clear()
 	met.clear()
@@ -1954,6 +1960,7 @@ func _apply_save(data: Dictionary) -> void:
 	has_fox = bool(fox.get("tame", false)) if fox is Dictionary else false
 	secrets_found = int(data.get("secrets", 0))
 	dry_levels = int(data.get("dry", 0))
+	bumped_person = bool(data.get("bumped_person", false))
 	storage.assign(data.storage)
 	shop_stock.assign(data.shop)
 	player.knives = int(data.knives)
@@ -2120,7 +2127,7 @@ func _home_given_now() -> bool:
 func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp)
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
@@ -2923,6 +2930,8 @@ func _on_player_bumped(point: Vector3) -> void:
 		return
 	var station := level.station_at(point)
 	if not station.is_empty():
+		if station.has("npc") or PERSON_STATIONS.has(station.kind):
+			bumped_person = true
 		_use_station(station)
 		return
 	var obj := level.unsearched_at(point)
@@ -3426,7 +3435,10 @@ func _process(delta: float) -> void:
 	# Only the first levels explain how to search; after that players know.
 	_prompt.text = Lang.t("Dagegenlaufen, um %s zu untersuchen") % Lang.t(_with_article(near.label)) if level_index < 2 and not near.is_empty() and not near.searched else ""
 	var station := level.nearest_station(player.global_position)
-	if not station.is_empty() and (level_index < 2 or station.kind != "schrein"):
+	if not station.is_empty() and bumped_person and PERSON_STATIONS.has(station.kind):
+		# The hero knows by now that running into people talks to them.
+		_prompt.text = ""
+	elif not station.is_empty() and (level_index < 2 or station.kind != "schrein"):
 		_prompt.text = {
 			"schrein": Lang.t("Dagegenlaufen, um den Schrein zu berühren"),
 			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),

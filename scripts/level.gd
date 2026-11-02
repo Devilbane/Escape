@@ -111,6 +111,11 @@ const STONE_TINT := Color(0.6, 0.56, 0.52)
 const SPIKE_IRON := Color(0.5, 0.5, 0.53)
 ## The grey of the kit's floor tiles, for spike and grate tiles.
 const FLOOR_GREY := Color(0.74, 0.73, 0.71)
+## Cartoon furniture that gets the worn, dusty look (see WornLook).
+const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_shield", "banner_shield_brown"]
+## Kit texture sets that get the worn look: barrels, crates, tables,
+## shelves, chests and the wall decorations.
+const WORN_SETS := ["props", "chests", "wallprops"]
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
 const SOLID := "#bxotkCDHBLVF?f=U|N%~T^"
 ## Reach for searching: anything on a neighbouring tile.
@@ -277,18 +282,20 @@ const LEVER_STEPS := 10
 ## depth, on a plain wall somewhere. It stays hidden until the hero notices
 ## it while walking past in view (see _check_writing): one roll per visit,
 ## WRITING_CHANCE % plus what the Erkunden skill adds. Each is the word
-## carved into the stone and what it says (German, for Lang).
+## carved into the stone and what it says (German, for Lang). The carved word
+## is in the player's language too, so it reads as a hint: a Latin word such
+## as CAVE ("beware") read as the English "cave" and meant nothing.
 const WRITINGS := [
-	["SPES", "Jemand hat in die Wand geritzt: „Gib nicht auf. Ich bin hier auch hinausgekommen.“"],
-	["CAVE", "In die Wand geritzt: „Nicht jede Fackel ist nur eine Fackel.“"],
-	["XII", "Striche in der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt."],
-	["LVX", "In die Wand geritzt: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“"],
-	["AVRVM", "In die Wand geritzt: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“"],
-	["SILENTIVM", "In die Wand geritzt: „Die Toten hören schlecht. Wer leise geht, kommt weit.“"],
-	["MEMENTO", "In die Wand geritzt: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“"],
-	["AQVA", "In die Wand geritzt: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“"],
-	["FERRVM", "In die Wand geritzt: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“"],
-	["LIBERTAS", "In die Wand geritzt: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“"],
+	["HOFFNUNG", "Jemand hat in die Wand geritzt: „Gib nicht auf. Ich bin hier auch hinausgekommen.“"],
+	["FACKELN", "In die Wand geritzt: „Nicht jede Fackel ist nur eine Fackel.“"],
+	["IIII IIII IIII", "Striche in der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt."],
+	["LICHT", "In die Wand geritzt: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“"],
+	["GOLD", "In die Wand geritzt: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“"],
+	["LEISE", "In die Wand geritzt: „Die Toten hören schlecht. Wer leise geht, kommt weit.“"],
+	["SUCHE", "In die Wand geritzt: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“"],
+	["WASSER", "In die Wand geritzt: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“"],
+	["EISEN", "In die Wand geritzt: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“"],
+	["FREIHEIT", "In die Wand geritzt: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“"],
 ]
 const WRITING_CHANCE := 25
 ## How close the hero must come to a writing to have a chance to notice it.
@@ -593,13 +600,16 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 	node.position = pos
 	node.rotation.y = rot_y
 	parent.add_child(node)
+	if piece in WORN_PIECES:
+		WornLook.wear(node, _wear(), piece.begins_with("banner"))
 	if piece in TINTED_PIECES:
 		for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
 			if mi.name == "spikes":
 				# Dull, hammered iron spikes (they move, so the grain rides along).
 				GearLook.apply(mi, "metal", SPIKE_IRON, true, 0.35)
 			elif mi.name == "wall_doorway_door":
-				mi.material_override = _tinted(mi.get_active_material(0))
+				# An old wooden door with rusty fittings.
+				WornLook.wear_mesh(mi, _wear(), false, STONE_TINT)
 			else:
 				mi.material_override = _rough_stone(mi.get_active_material(0), piece in ["floor_tile_big_spikes", "floor_tile_big_grate"])
 	return node
@@ -625,18 +635,76 @@ func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
 	kit.rotation.y = part[4]
 	parent.add_child(kit)
 	var mat := _kit_material(part[1])
+	if model.ends_with("Flag"):
+		mat = WornLook.material(load(KIT_DIR + part[1] + "_albedo.png"), load(KIT_DIR + part[1] + "_normal.png"), _wear(), true)
 	for mi: MeshInstance3D in kit.find_children("*", "MeshInstance3D", true, false):
 		var skeleton := mi.get_parent() as Skeleton3D
 		if skeleton:
 			# The chests come rigged, and the rig shows only the lid, tipped
-			# on its back: use the plain mesh, standing upright, instead.
-			var plain := MeshInstance3D.new()
-			plain.mesh = mi.mesh
-			kit.add_child(plain)
+			# on its back: use the plain mesh, standing upright, instead. It
+			# is modelled with the lid up, so the lid is cut off onto a hinge
+			# of its own and shut (search() opens it like the gold chest's).
+			var halves := _chest_halves(mi.mesh)
+			var body := MeshInstance3D.new()
+			body.mesh = halves[0]
+			body.material_override = mat
+			kit.add_child(body)
+			var hinge := Node3D.new()
+			hinge.name = "Lid"
+			hinge.position = CHEST_HINGE
+			# Turned round, so that tipping it back (rotation.x down) opens it.
+			hinge.rotation = Vector3(CHEST_SHUT, PI, 0.0)
+			kit.add_child(hinge)
+			var lid := MeshInstance3D.new()
+			lid.mesh = halves[1]
+			lid.material_override = mat
+			lid.transform = Transform3D(Basis(Vector3.UP, PI), CHEST_HINGE).affine_inverse()
+			hinge.add_child(lid)
 			skeleton.get_parent().queue_free()
-			mi = plain
+			continue
 		mi.material_override = mat
 	return kit
+
+
+## Where the kit chests' lid is hinged (in the model's own units), and how
+## far it turns from the way it is modelled (standing up) to shut.
+const CHEST_HINGE := Vector3(0, 0.3208, 0.2669)
+const CHEST_SHUT := deg_to_rad(97.0)
+## How far a searched chest's lid opens (unless it says "lid_open" itself).
+const LID_OPEN := deg_to_rad(70.0)
+
+
+## A rigged kit chest cut into its body and its lid (the triangles that
+## move with the lid bone), as two plain meshes without the rig.
+func _chest_halves(mesh: Mesh) -> Array:
+	var key := "halves_%d" % mesh.get_instance_id()
+	if _scenes.has(key):
+		return _scenes[key]
+	var arrays := mesh.surface_get_arrays(0)
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var per := bones.size() / (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var parts := [PackedInt32Array(), PackedInt32Array()]
+	for t in range(0, indices.size(), 3):
+		var v := indices[t]
+		var on_lid := 0.0
+		for k in per:
+			if bones[v * per + k] == 1:
+				on_lid += weights[v * per + k]
+		var part: PackedInt32Array = parts[1 if on_lid > 0.5 else 0]
+		part.append_array([indices[t], indices[t + 1], indices[t + 2]])
+		parts[1 if on_lid > 0.5 else 0] = part
+	arrays[Mesh.ARRAY_BONES] = null
+	arrays[Mesh.ARRAY_WEIGHTS] = null
+	var halves := []
+	for part in parts:
+		arrays[Mesh.ARRAY_INDEX] = part
+		var half := ArrayMesh.new()
+		half.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		halves.append(half)
+	_scenes[key] = halves
+	return halves
 
 
 ## The darkened cartoon stone, made rough and matt like the kit's walls, so
@@ -677,6 +745,8 @@ func _kit_material(set_name: String) -> Material:
 		stone.set_shader_parameter("albedo_tex", load(KIT_DIR + "walls_albedo.png"))
 		stone.set_shader_parameter("normal_tex", load(KIT_DIR + "walls_normal.png"))
 		_scenes[key] = stone
+	if not _scenes.has(key) and set_name in WORN_SETS:
+		_scenes[key] = WornLook.material(load(KIT_DIR + set_name + "_albedo.png"), load(KIT_DIR + set_name + "_normal.png"), _wear())
 	if not _scenes.has(key):
 		var m := StandardMaterial3D.new()
 		m.albedo_texture = load(KIT_DIR + set_name + "_albedo.png")
@@ -685,6 +755,12 @@ func _kit_material(set_name: String) -> Material:
 		m.roughness = 0.9
 		_scenes[key] = m
 	return _scenes[key]
+
+
+## How worn the furniture looks here: fully in the dungeon, a little in the
+## hero's home and out in the open, where people use and look after things.
+func _wear() -> float:
+	return WornLook.HOME if is_home or outdoor else WornLook.DUNGEON
 
 
 func _random_quarter_turn() -> float:
@@ -850,9 +926,12 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_add_solid(pos, Vector3(3.0, 2, 3.0))
 			_add_interactable("Kiste", pos, pos + Vector3(0, 3.6, 0), c)
 		"k":
-			_place("trunk_large_A", pos, _random_quarter_turn())
+			var trunk_model := _place("trunk_large_A", pos, _random_quarter_turn())
 			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
 			var trunk := _add_interactable("Truhe", pos, pos + Vector3(0, 2.4, 0), c)
+			trunk.lid = trunk_model.find_child("Lid", true, false)
+			# All the way up, as the trunk is modelled, so it shows it is empty.
+			trunk.lid_open = CHEST_SHUT
 			if _in_secret_room(c):
 				trunk.loot = _secret_loot(c, 0.5)
 		"o":
@@ -1365,7 +1444,9 @@ func _place_writing() -> void:
 	var wall: Dictionary = walls[rng.randi() % walls.size()]
 	var entry: Array = WRITINGS[depth % WRITINGS.size()]
 	var label := Label3D.new()
-	label.text = entry[0]
+	label.text = Lang.t(entry[0])
+	# Lang.t already chose the language; do not translate the label again.
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
 	label.font_size = 72
 	label.pixel_size = 0.01
@@ -2519,7 +2600,7 @@ func search(obj: Dictionary) -> Dictionary:
 	obj.searched = true
 	taken[obj.id] = true
 	if obj.lid:
-		create_tween().tween_property(obj.lid, "rotation:x", obj.lid.rotation.x - deg_to_rad(70), 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		create_tween().tween_property(obj.lid, "rotation:x", obj.lid.rotation.x - obj.get("lid_open", LID_OPEN), 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_scatter_debris(obj)
 	if not obj.loot.is_empty():
 		var burst := Effects.make_sparkles(Color(1.0, 0.85, 0.3), true)
@@ -2536,7 +2617,7 @@ func restore_taken() -> void:
 			continue
 		obj.searched = true
 		if obj.lid:
-			obj.lid.rotation.x -= deg_to_rad(70)
+			obj.lid.rotation.x -= obj.get("lid_open", LID_OPEN)
 		_scatter_debris(obj)
 	for p in _pickups.duplicate():
 		if p.has("id") and taken.has(p.id):

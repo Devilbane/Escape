@@ -25,4 +25,15 @@ const EN := {
 	"In die Wand geritzt: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“": "Scratched into the wall: \"The water of the fountains heals. Drink before you go on.\"",
 	"In die Wand geritzt: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“": "Scratched into the wall: \"The skeletons wear what they took from us prisoners.\"",
 	"In die Wand geritzt: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“": "Scratched into the wall: \"Beyond the gate lies freedom. I have smelled it.\"",
+	# The words carved into the walls (Level.WRITINGS).
+	"HOFFNUNG": "HOPE",
+	"FACKELN": "TORCHES",
+	"IIII IIII IIII": "IIII IIII IIII",
+	"LICHT": "LIGHT",
+	"GOLD": "GOLD",
+	"LEISE": "QUIET",
+	"SUCHE": "SEEK",
+	"WASSER": "WATER",
+	"EISEN": "IRON",
+	"FREIHEIT": "FREEDOM",
 }

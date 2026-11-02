@@ -51,6 +51,10 @@ signal map_explored(file: String)
 ## "falltuer", see Traps) at a place of this level. It trains Erkunden and
 ## earns a little experience.
 signal trap_spotted(kind: String, place_level: int)
+
+## The hero struck with the blade ("melee"), threw a knife ("throw") or
+## jumped ("jump"). The first steps' cards listen (see Tutorial).
+signal hero_acted(action: String)
 ## The hero noticed a writing on a wall (see Level, WallWritings): its
 ## German text, for the compendium and the journal.
 signal writing_found(text: String)

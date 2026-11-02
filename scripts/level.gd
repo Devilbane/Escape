@@ -255,7 +255,7 @@ var _torch_spots: Array[Vector3] = []
 var _walls_body := StaticBody3D.new()
 var _door_hint_shown := false
 ## Hidden walls and the torches that open them. Each lever rolls once,
-## the first time the hero walks past it.
+## the first time the hero comes up close to it.
 var _secrets: Array = []
 ## Ingredients hidden in the ground that only the hero's fox can sniff out
 ## (see Pet): each {"cell": Vector2i, "id": String}. Never saved: they grow
@@ -271,7 +271,9 @@ var secret_bonus := 0
 ## Set by the game when the run is overdue a secret room: the lever is
 ## noticed for sure.
 var secret_sure := false
-const LEVER_RANGE := 7.0
+## How close the hero must come to a lever torch for it to work: the same
+## reach as searching, so a lever never tips while the hero is across the room.
+const LEVER_RANGE := SEARCH_RANGE
 ## How many steps from the secret wall a torch may be to serve as its lever.
 const LEVER_STEPS := 10
 ## Writings on the walls: each level of the dungeon has one, chosen by its
@@ -1402,7 +1404,8 @@ func explore_cells() -> Array[Vector2i]:
 	return out
 
 
-## Rolls each lever once, the first time the hero walks past it in view.
+## Rolls each lever once, the first time the hero stands next to it in view
+## (within LEVER_RANGE). From further away nothing happens and nothing is rolled.
 func _check_secrets() -> void:
 	for s in _secrets:
 		if s.rolled or s.lever == null:

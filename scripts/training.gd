@@ -9,8 +9,8 @@ extends RefCounted
 ##   Stärke (strength) 10..30: +1 Kampfkraft per point, and loads weigh less.
 ##   Konstitution (constitution) 10..30: +1 Leben per point.
 ##   Tempo (speed) 100 %..150 %, in steps of 5 %.
-##   Intuition 10..30: a feeling for how things work. Searching and walking
-##     past secret levers train it; each point is +2 % to notice a lever.
+##   Intuition 10..30: a feeling for how things work. Searching and coming
+##     close to secret levers train it; each point is +2 % to notice a lever.
 ##     Traps to find and liars to see through can ask it later too.
 ##   Geschick (dexterity) 10..30: jumping, throwing and spike traps train it;
 ##     each point makes running jumps 2 % longer and is 4 % chance to slip

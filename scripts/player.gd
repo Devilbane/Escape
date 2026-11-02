@@ -13,6 +13,8 @@ signal regenerated
 signal bumped(point: Vector3)
 ## Emitted when training raises an attribute or a skill, with its new value.
 signal trained(id: String, value: int)
+## The hero reached a new level (see HeroLevel).
+signal leveled_up(level: int)
 
 ## The hero's reference speed in m/s (100 % Tempo); walking is a share of it.
 const SPEED := 4.0
@@ -94,6 +96,10 @@ var companion_perks: Dictionary = {}
 ## Training so far, by attribute and skill id (see Training). It belongs to
 ## the hero's name and is kept from one run to the next.
 var xp := {}
+## Experience in all (see HeroLevel) and the level points put into Stärke,
+## Geschick or Intelligenz (attribute id -> points). Kept with the training.
+var hero_xp := 0
+var level_points := {}
 ## Worn items by slot ("waffe", "schild", "amulett") and the bag of carried ones.
 var equipped := {}
 var bag: Array[String] = []
@@ -916,8 +922,69 @@ func explore_bonus(per_level: int) -> int:
 
 
 ## An attribute's value now: Stärke and Konstitution 10..30, Tempo 100..150 (%).
+## Level points and the Konstitution of levels come on top of training, up
+## to the attribute's highest value.
 func attribute(id: String) -> int:
-	return Training.attribute_value(id, xp.get(id, 0.0))
+	var value := Training.attribute_value(id, xp.get(id, 0.0))
+	var bonus: int = int(level_points.get(id, 0))
+	if id == "konstitution":
+		bonus += HeroLevel.constitution_bonus(hero_level())
+	if bonus == 0:
+		return value
+	return mini(value + bonus * Training.ATTRIBUTES[id].step, Training.ATTRIBUTES[id].max)
+
+
+## The hero's level, from the experience earned (see HeroLevel).
+func hero_level() -> int:
+	return HeroLevel.level_for(hero_xp)
+
+
+## Level points not yet put into an attribute.
+func free_points() -> int:
+	var spent := 0
+	for id in level_points:
+		spent += int(level_points[id])
+	return maxi(0, HeroLevel.points_earned(hero_level()) - spent)
+
+
+## Puts a free level point into Stärke, Geschick or Intelligenz.
+func spend_point(id: String) -> bool:
+	if free_points() <= 0 or not id in HeroLevel.POINT_ATTRIBUTES:
+		return false
+	level_points[id] = int(level_points.get(id, 0)) + 1
+	refresh_stats()
+	return true
+
+
+## Earns experience; tells of every level reached. Returns the levels gained.
+func gain_xp(amount: int) -> int:
+	if amount <= 0:
+		return 0
+	var before := hero_level()
+	hero_xp += amount
+	var after := hero_level()
+	if after > before:
+		refresh_stats()
+		# The new life of each level comes filled.
+		hp = mini(hp + HeroLevel.life_bonus(after) - HeroLevel.life_bonus(before), max_hp)
+		for level_now in range(before + 1, after + 1):
+			leveled_up.emit(level_now)
+	return after - before
+
+
+## Level and experience as they are kept with the training.
+func level_data() -> Dictionary:
+	return {"xp": hero_xp, "points": level_points.duplicate()}
+
+
+func set_level_data(data: Dictionary) -> void:
+	hero_xp = int(data.get("xp", 0))
+	level_points = {}
+	var points = data.get("points", {})
+	if points is Dictionary:
+		for id in points:
+			if id in HeroLevel.POINT_ATTRIBUTES:
+				level_points[id] = int(points[id])
 
 
 ## A skill's level: what was trained plus what worn items add. 0 while the
@@ -1056,6 +1123,9 @@ func refresh_stats() -> void:
 		block_chance += item.get("block", 0.0)
 	if equipped.has("schild"):
 		block_chance += BLOCK_PER_LEVEL * skill("blocken")
+	var hero := hero_level()
+	hp_bonus += HeroLevel.life_bonus(hero)
+	speed_bonus += HeroLevel.speed_bonus(hero)
 	max_hp = MAX_HP + hp_bonus + attribute("konstitution") - Training.ATTRIBUTES.konstitution.start
 	power = 1 + power_bonus + attribute("staerke") - Training.ATTRIBUTES.staerke.start
 	base_speed = SPEED * (1.0 + speed_bonus) * attribute("tempo") / 100.0

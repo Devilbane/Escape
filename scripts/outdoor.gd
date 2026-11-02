@@ -615,7 +615,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			# The robbers' hoard: richer than a chest in the dungeon.
 			var loot_rng := RandomNumberGenerator.new()
 			loot_rng.seed = hash("%s:hoard:%d:%d" % [level_name, c.x, c.y])
-			interactables[-1].loot = {"gold": 20, "item": Items.random_item(loot_rng, 20)}
+			interactables[-1].loot = {"gold": 20, "item": Items.random_item(loot_rng, 20, "", HeroLevel.AREAS.pass.max)}
 		_:
 			if CraftingSquare.LETTERS.contains(ch):
 				CraftingSquare.build(self, c, ch)

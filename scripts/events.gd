@@ -25,6 +25,15 @@ signal lore_learned(entry: String)
 ## The hero slew an enemy of this kind (a rival monster's kill does not
 ## count). Factions and bounties count it.
 signal enemy_slain(kind: String)
+## The hero felled a monster rated at this hero level (see HeroLevel and
+## Enemy.rated_level); bosses are worth more. It earns experience.
+signal enemy_felled(level: int, boss: bool)
+## A bounty from the board was paid out (see Bounties.claim).
+signal bounty_paid(id: String)
+## The hero solved a riddle: "puzzle" (block-pushing), "secret" (a secret
+## room), "writing" (a wall writing) or "rune" (a dwarves' rune tablet), at a
+## place of this level (see HeroLevel.RIDDLES). It earns experience.
+signal riddle_solved(kind: String, place_level: int)
 ## A villager's task is done and its reward handed over (see Quests).
 signal quest_done(id: String)
 ## Something went into or out of the bag because of a task.

@@ -304,6 +304,11 @@ jobs:
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/mountains.gd | tee mountains.log
           grep -q PASS mountains.log
 
+      - name: Hero level and experience test
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/hero_level.gd | tee hero_level.log
+          grep -q PASS hero_level.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

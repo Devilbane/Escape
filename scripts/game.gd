@@ -1391,7 +1391,7 @@ func _tick_weather(delta: float) -> void:
 ## The open air follows in _tick_clock.
 func set_weather(kind: String, hours := -1.0) -> void:
 	weather = kind if kind in Weather.KINDS else Weather.CLEAR
-	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng)
+	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng, weather)
 
 
 ## Rain and mist fall and drift around the hero in the open air only, and

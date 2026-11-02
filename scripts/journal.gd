@@ -307,8 +307,8 @@ func _discover(file: String) -> void:
 			if place.kind != "door":
 				write("Entdeckt: %s", [place.name], file)
 				fresh.append(place_name(place))
-	if not fresh.is_empty() and game.has_method("map_notice"):
-		game.map_notice(fresh)
+	if not fresh.is_empty():
+		Events.bus().map_grew.emit(fresh)
 
 
 func is_seen(file: String, place: Dictionary) -> bool:

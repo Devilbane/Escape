@@ -278,7 +278,7 @@ func _rebuild() -> void:
 	if current in ["inventar", "lager", "tresor"]:
 		_info = _add_label(Lang.t(INFO_HINT), 16, BLUE)
 		_info.custom_minimum_size.y = 26
-	if _note != "" or current in TRADE_WINDOWS:
+	if _note != "" or current in TRADE_WINDOWS or current == "werkbank":
 		# The trading windows keep a line for the note, so a purchase does not
 		# make the window grow.
 		var note := _add_label(_note, 16, Color(1.0, 0.75, 0.5))
@@ -798,17 +798,102 @@ func _take(index: int) -> void:
 ## the hero knows for its craft. Until the hero knows one, it says how to
 ## find recipes; the storage chest and Gorm's forge are right beside it.
 func _build_bench() -> void:
-	game.learn(CraftingSquare.LEARN)
+	Events.teach(CraftingSquare.LEARN)
 	var info := CraftingSquare.bench_of(bench)
 	if info.is_empty():
 		_add_label(Lang.t("Werkbank"), 38, game.GOLD, game.TITLE_FONT)
 		return
+	var c: Crafting = game.crafting
 	_add_label(Lang.t(info.name), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t(info.craft_line), 22)
+	var craft_name := Lang.t(Training.CRAFTS[bench].name) if Training.CRAFTS.has(bench) else ""
+	if craft_name != "":
+		_add_label(Lang.t("Dein Handwerk: %s, Stufe %d") % [craft_name, c.craft_level(bench)], 22, game.GOLD)
+	else:
+		_add_label(Lang.t(info.craft_line), 22)
 	_add_label(Lang.t(info.text), 16, BLUE)
-	_add_label(Lang.t("Hier stellst du her, was ein Rezept für dieses Handwerk verlangt."), 16)
-	_add_label(Lang.t("Du kennst noch kein Rezept für diese Werkbank. Rezepte findest du bei Gelehrten, in Truhen und als Belohnung."), 16, Color(1.0, 0.75, 0.5))
+	# The recipes scroll in a region of fixed size, so making something (and
+	# the note it leaves) never changes the window's frame.
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = BENCH_LIST_SIZE
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 14)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	var recipes: Array = c.recipes_for(bench)
+	if recipes.is_empty():
+		var none: Label = game._make_label(game.TEXT_FONT, 16, Color(1.0, 0.75, 0.5))
+		none.text = Lang.t("Du kennst noch kein Rezept für diese Werkbank. Rezepte findest du bei Gelehrten, in Truhen und als Belohnung.")
+		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		none.custom_minimum_size.x = BENCH_LIST_SIZE.x - 20
+		list.add_child(none)
+	for id in recipes:
+		list.add_child(_bench_row(id))
 	_add_label(Lang.t("Deine Truhe und Gorms Esse stehen gleich nebenan."), 16, BLUE)
+
+
+## The fixed size of the list of recipes at a workbench.
+const BENCH_LIST_SIZE := Vector2(780, 300)
+
+
+## One recipe at a workbench: what it makes and does, each ingredient as
+## have / need (with a tick or a cross, not only colour), why it cannot be
+## made yet, and the button that makes it.
+func _bench_row(id: String) -> Control:
+	var c: Crafting = game.crafting
+	var r: Dictionary = Crafting.RECIPES[id]
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	var text := VBoxContainer.new()
+	text.add_theme_constant_override("separation", 2)
+	text.custom_minimum_size.x = 560
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(text)
+	var title: Label = game._make_label(game.TEXT_FONT, 20, game.GOLD)
+	title.text = Lang.t(r.name) + (("  ·  " + Lang.t(r.effect)) if r.has("effect") else "")
+	text.add_child(title)
+	var parts := []
+	for ingredient in r.ingredients:
+		var need := int(r.ingredients[ingredient])
+		var has := c.have(ingredient)
+		parts.append("%s %s %d / %d" % ["✓" if has >= need else "✗", Crafting.ingredient_name(ingredient), mini(has, need), need])
+	var needs: Label = game._make_label(game.TEXT_FONT, 16)
+	needs.text = "   ".join(parts)
+	needs.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	needs.custom_minimum_size.x = 560
+	text.add_child(needs)
+	var why: String = c.why_not(id)
+	var state: Label = game._make_label(game.TEXT_FONT, 16, Color(1.0, 0.75, 0.5) if why != "" else Color(0.4, 0.92, 0.4))
+	state.text = why if why != "" else Lang.t("Alles da: du kannst es herstellen.")
+	state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	state.custom_minimum_size.x = 560
+	text.add_child(state)
+	var button := _item_button(Lang.t("Herstellen"), _make_recipe.bind(id), why == "")
+	button.custom_minimum_size = Vector2(170, 54)
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(button)
+	return row
+
+
+func _make_recipe(id: String) -> void:
+	var why: String = game.crafting.make(id)
+	if why != "":
+		_note = why
+	else:
+		var item: String = Crafting.RECIPES[id].result
+		var p: Player = game.player
+		var where := Lang.t("in deiner Tasche") if p.bag.has(item) else Lang.t("in deiner Truhe, die Tasche ist voll")
+		_note = Lang.t("Hergestellt: %s, %s.") % [Items.item_name(item), where]
+		Sfx.play(game, "key", -3.0)
+		game.learn(MADE_LEARN)
+		game._update_hud()
+	_rebuild()
+
+
+## Explained once in the compendium, the first time the hero makes something.
+const MADE_LEARN := "An den Werkbänken auf dem Handwerkerplatz stellst du her, was deine Rezepte verlangen: Lauf gegen die Werkbank des Handwerks, und wenn alle Zutaten im Beutel sind, drück „Herstellen“. Das Stück kommt in deine Tasche, und jedes Mal wirst du in dem Handwerk geübter."
 
 
 # --- Bank -------------------------------------------------------------------
@@ -1029,7 +1114,7 @@ func _buy(index: int) -> void:
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.coins -= price
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 		game.player.bag.append(id)
 		# The shop never runs out of sausages: they stay in stock.
 		if id != Pet.FOOD:
@@ -1039,7 +1124,7 @@ func _buy(index: int) -> void:
 			# Where to take it, short enough for the one note line; the
 			# whole hint goes into the compendium.
 			_note = Lang.t("Gekauft: Wurst. Füchse leben am Waldteich westlich vom Dorf.")
-			game.learn(Pet.WHERE)
+			Events.teach(Pet.WHERE)
 	_rebuild()
 
 
@@ -1060,7 +1145,7 @@ const WANDERER_LEARN := "Wanderhändler Zarek kommt jede dritte Nacht mit seinem
 ## Zarek sells tonight's wares and buys nothing: ingredients go into the
 ## pouch, gear into the bag. The window says when he comes back.
 func _build_wanderer() -> void:
-	game.learn(WANDERER_LEARN)
+	Events.teach(WANDERER_LEARN)
 	var wares: Array[String] = game.wanderer_wares()
 	_add_label(Lang.t("Wanderhändler"), 38, game.GOLD, game.TITLE_FONT)
 	var herbs := []
@@ -1171,7 +1256,7 @@ func _buy_stones(count: int) -> void:
 		p.bag.append(STONE)
 		bought += 1
 	if bought > 0:
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 		_note = Lang.t("Gekauft: %d Steinblöcke") % bought
 		Sfx.play(game, "gear_soft_0", -2.0)
 	elif p.bag.size() >= p.bag_size():
@@ -1215,7 +1300,7 @@ func _add_upgrade_button() -> void:
 ## Hagen builds onto the hero's house: stone blocks and gold for each upgrade.
 func _build_upgrades() -> void:
 	var p: Player = game.player
-	game.learn(HomeUpgrades.LEARN)
+	Events.teach(HomeUpgrades.LEARN)
 	_add_label(Lang.t("Haus ausbauen"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Dein Gold: %d      Steinblöcke in Tasche und Truhe: %d") % [game.coins, HomeUpgrades.stones_owned(p.bag, game.storage)], 20, game.GOLD)
 	_add_label(Lang.t("Steinmetz Hagen baut dir an, was du bezahlst. Steinblöcke verkauft er auch."), 16, BLUE)
@@ -1256,7 +1341,7 @@ func _build_upgrade(id: String) -> void:
 func _build_bounty_board() -> void:
 	var b: Bounties = game.bounties
 	b.refresh(game.day)
-	game.learn(Bounties.HOW_TO)
+	Events.teach(Bounties.HOW_TO)
 	_add_label(Lang.t("Aushang: Kopfgelder"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Tag %d. Neue Aushänge gibt es jeden Morgen; was bis dahin nicht erledigt ist, verfällt.") % (game.day + 1), 16, BLUE)
 	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
@@ -1523,7 +1608,7 @@ const FORGE_TABS := [["waffen", "Waffen kaufen"], ["schmieden", "Schmieden"], ["
 
 func _build_smithy() -> void:
 	var p: Player = game.player
-	game.learn(Forge.LEARN)
+	Events.teach(Forge.LEARN)
 	_add_label(Lang.t("Schmiede"), 38, game.GOLD, game.TITLE_FONT)
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1598,7 +1683,7 @@ func _forge(id: String) -> void:
 	var why := Forge.forge(game, id)
 	_note = why if why != "" else Lang.t("Geschmiedet: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 	if why == "":
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 		Sfx.play(game, "hit")
 	game._update_hud()
 	_rebuild()
@@ -1618,7 +1703,7 @@ func _melt(index: int) -> void:
 func _mend(id: String) -> void:
 	var why := Forge.mend(game, id)
 	if why == "":
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 	var p: Player = game.player
 	var durability: int = Items.ALL[id].durability
 	_note = why if why != "" else Lang.t("Ausgebessert: %s, Haltbarkeit %d / %d") % [Items.item_name(id), durability - int(p.wear.get(id, 0)), durability]
@@ -1631,7 +1716,7 @@ func _mend(id: String) -> void:
 func _buy_ware(id: String) -> void:
 	var why := Forge.buy(game, id)
 	if why == "":
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 	_note = why if why != "" else Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 	if why == "":
 		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
@@ -1642,7 +1727,7 @@ func _buy_ware(id: String) -> void:
 func _buy_iron(count: int) -> void:
 	var why := Forge.buy_iron(game, count)
 	if why == "":
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 	_note = why if why != "" else Lang.t("Gekauft: %d Eisenbarren") % count
 	if why == "":
 		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
@@ -1752,7 +1837,7 @@ func _restyle(field: String, id: String, price: int) -> void:
 		_rebuild()
 		return
 	game.coins -= price
-	game.traded()
+	Events.bus().traded.emit(game.trader_role)
 	var look: Dictionary = game.player.hair.duplicate()
 	look[field] = id
 	game.player.set_hair(look)
@@ -1777,7 +1862,7 @@ func _ink_tattoo() -> void:
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
 	else:
 		game.coins -= game.trader_price(TATTOO_PRICE)
-		game.traded()
+		Events.bus().traded.emit(game.trader_role)
 		var look: Dictionary = game.player.hair.duplicate()
 		look.tattoo = word
 		look.tattoo_shape = _tattoo_shape

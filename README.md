@@ -327,6 +327,14 @@ One wish runs at a time; when you hand it in, Ragna points you at the next one t
 your style in her wish window. Wishes are defined in `scripts/wishes.gd`, their quests in
 `scripts/quests.gd` (`"wish": true`).
 
+**Making things.** On the crafting square beside Gorm's forge, run into the bench of a recipe's craft
+(for Ragna's wish recipes: the fine metalwork bench). It lists every recipe you know for that craft, each
+ingredient as have / need with a tick or a cross, and what is still missing. When everything is in your
+pouch (and the iron bars at hand), press **Make**: the ingredients are used up, the piece goes into your
+bag (or your chest, if the bag is full) and you get more practised at the craft. The six wish pieces are
+rings, bracelets and amulets that each add a level to one combat skill. Recipes that are not complete yet
+(the Moonsilver Ring still has faded lines) cannot be made yet.
+
 **Fishing.** Stand by the water and press **G** (or the **Fish** button in the pull-out menu) to cast a
 line. After a few seconds the float goes under and a **!** shows: press again quickly to strike, or the
 fish gets away. Pressing while you wait draws the line in; walking off, getting hit or opening a window

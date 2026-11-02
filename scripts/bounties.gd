@@ -184,9 +184,9 @@ func on_kill(kind: String) -> void:
 		if game == null:
 			continue
 		if is_ready(id):
-			game.quest_news(Lang.t("Kopfgeld verdient: %s\nHol es dir am Aushang auf dem Dorfplatz.") % Lang.t(b.title), Color(0.6, 1.0, 0.6))
+			Events.tell(Lang.t("Kopfgeld verdient: %s\nHol es dir am Aushang auf dem Dorfplatz.") % Lang.t(b.title), Color(0.6, 1.0, 0.6))
 		else:
-			game.quest_news(Lang.t("%s: %d / %d") % [Lang.t(b.title), int(taken[id]), int(b.count)], Color(0.85, 0.87, 0.92), 2.0)
+			Events.tell(Lang.t("%s: %d / %d") % [Lang.t(b.title), int(taken[id]), int(b.count)], Color(0.85, 0.87, 0.92), 2.0)
 
 
 ## What is kept in the saved game: only plain values.

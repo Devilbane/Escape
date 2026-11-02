@@ -415,7 +415,7 @@ func _overheard(key: String) -> void:
 	if known.has(key):
 		return
 	known[key] = true
-	game.learn(HOW_TO)
+	Events.teach(HOW_TO)
 
 
 ## Ends the chat going on: both go back to their day.

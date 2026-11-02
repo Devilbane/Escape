@@ -182,8 +182,8 @@ func gain(role: String, amount: int, from_trade := false) -> void:
 		s.points = int(s.get("points", 0)) + amount
 	standing[role] = s
 	var now := level(role)
-	if now > before and game:
-		game.reputation_rose(role, now)
+	if now > before:
+		Events.bus().reputation_rose.emit(role, now)
 
 
 ## A task is done: the giver, the one who got the delivery and, by word of
@@ -231,8 +231,8 @@ func tell_secret(v: Villager) -> bool:
 	recipes.append(secret.recipe)
 	v.meet()
 	v.say(Lang.t(secret.say), game.player.global_position, 7.0)
-	game.learn(secret.learn)
-	game.quest_news(Lang.t("Geheimes Rezept gelernt: %s") % Lang.t(Offline.RECIPES[secret.recipe].name), Color(0.75, 0.6, 1.0), 4.5)
+	Events.teach(secret.learn)
+	Events.tell(Lang.t("Geheimes Rezept gelernt: %s") % Lang.t(Offline.RECIPES[secret.recipe].name), Color(0.75, 0.6, 1.0), 4.5)
 	return true
 
 

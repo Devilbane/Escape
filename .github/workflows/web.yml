@@ -64,6 +64,11 @@ jobs:
           timeout 600 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log
           grep -q PASS test.log
 
+      - name: Event bus test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log
+          grep -q PASS events.log
+
       - name: Time away (offline activities) test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/offline_schedule.gd | tee offline.log
@@ -258,6 +263,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/wishes.gd | tee wishes.log
           grep -q PASS wishes.log
+
+      - name: Workbench crafting test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/workbench_crafting.gd | tee workbench.log
+          grep -q PASS workbench.log
 
       - name: Fishing test
         run: |

@@ -280,7 +280,7 @@ func talk(v: Villager, trader := false) -> bool:
 					game.player.bag.append(q.item)
 					v.meet()
 					v.say(Lang.t("Du hast ihn nicht mehr? Hier, nimm noch einen. %s") % Lang.t(q.remind), game.player.global_position, 5.5)
-					game.update_after_quest()
+					Events.bus().quest_item_given.emit()
 					return true
 				if trader:
 					continue
@@ -302,8 +302,8 @@ func start_wish(id: String, v: Villager) -> bool:
 	state[id] = {"state": "active", "count": 0}
 	v.meet()
 	v.say(Lang.t(ALL[id].offer), game.player.global_position, 6.5)
-	game.learn(HOW_TO)
-	game.quest_news(Lang.t("Neuer Auftrag: %s") % Lang.t(ALL[id].title) + "\n" + Lang.t(ALL[id].goal), Color(1.0, 0.82, 0.4))
+	Events.teach(HOW_TO)
+	Events.tell(Lang.t("Neuer Auftrag: %s") % Lang.t(ALL[id].title) + "\n" + Lang.t(ALL[id].goal), Color(1.0, 0.82, 0.4))
 	return true
 
 
@@ -317,8 +317,8 @@ func _offer(id: String, v: Villager) -> bool:
 		game.player.bag.append(q.item)
 	state[id] = {"state": "active", "count": 0}
 	v.say(Lang.t(q.offer), game.player.global_position, 6.5)
-	game.learn(HOW_TO)
-	game.quest_news(Lang.t("Neuer Auftrag: %s") % Lang.t(q.title) + "\n" + Lang.t(q.goal), Color(1.0, 0.82, 0.4))
+	Events.teach(HOW_TO)
+	Events.tell(Lang.t("Neuer Auftrag: %s") % Lang.t(q.title) + "\n" + Lang.t(q.goal), Color(1.0, 0.82, 0.4))
 	return true
 
 
@@ -334,7 +334,7 @@ func _finish(id: String, v: Villager) -> void:
 	var said := Lang.t(q.done)
 	if q.has("recipe"):
 		game.crafting.learn_recipe(q.recipe)
-		game.learn(Crafting.HOW_TO)
+		Events.teach(Crafting.HOW_TO)
 	if q.get("wish", false):
 		# The master points at the next wish that fits the hero best.
 		var hint: String = game.wishes.next_hint(q.giver)
@@ -348,7 +348,7 @@ func _finish(id: String, v: Villager) -> void:
 		else:
 			# No room (a delivery fills the bag again): it waits in the chest.
 			game.storage.append(q.reward)
-	game.quest_reward(id)
+	Events.bus().quest_done.emit(id)
 
 
 # --- Fighting -----------------------------------------------------------------
@@ -363,9 +363,9 @@ func on_kill(kind: String) -> String:
 		var count := int(state[id].count) + 1
 		state[id].count = count
 		if count == q.count:
-			game.quest_news(Lang.t("Auftrag erfüllt: %s\nGeh zurück zu %s.") % [Lang.t(q.title), villager_name(q.giver)], Color(0.6, 1.0, 0.6))
+			Events.tell(Lang.t("Auftrag erfüllt: %s\nGeh zurück zu %s.") % [Lang.t(q.title), villager_name(q.giver)], Color(0.6, 1.0, 0.6))
 		elif count < q.count:
-			game.quest_news(Lang.t("%s: %d / %d") % [Lang.t(q.title), count, q.count], Color(0.85, 0.87, 0.92), 2.0)
+			Events.tell(Lang.t("%s: %d / %d") % [Lang.t(q.title), count, q.count], Color(0.85, 0.87, 0.92), 2.0)
 	if kind == "halsabschneider" and is_active("dolche") and missing("dolche") > 0 and randf() < DAGGER_DROP:
 		return "banditendolch"
 	return ""

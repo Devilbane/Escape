@@ -58,6 +58,7 @@ const DUNGEON := {
 	"<": "stairs up to the next storey",
 	">": "stairs down to the storey below",
 	"+": "free floor kept for furniture (homes)",
+	"N": "the companions' corner: straw where the companions who stay home rest (homes)",
 	"X": "a horror's den (see Horrors)",
 }
 

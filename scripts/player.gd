@@ -88,6 +88,9 @@ var gift_power := 0
 var gift_speed := 0.0
 ## From the fourth shrine gift, which only a wise hero is offered.
 var gift_armor := 0
+## What the companion at the hero's side gives (Companions.SPECIES of its
+## kind: "speed", "power", "skills"); {} without one. Set by the game.
+var companion_perks: Dictionary = {}
 ## Training so far, by attribute and skill id (see Training). It belongs to
 ## the hero's name and is kept from one run to the next.
 var xp := {}
@@ -912,6 +915,12 @@ func intuition_bonus() -> int:
 	return SECRET_PER_INTUITION * (attribute("intuition") - Training.ATTRIBUTES.intuition.start)
 
 
+## What the Erkunden skill adds to a chance, in percent: `per_level` for each
+## level (one of Training.EXPLORE_SECRET, EXPLORE_TORCH, EXPLORE_WRITING).
+func explore_bonus(per_level: int) -> int:
+	return per_level * skill("erkunden")
+
+
 ## An attribute's value now: Stärke and Konstitution 10..30, Tempo 100..150 (%).
 func attribute(id: String) -> int:
 	return Training.attribute_value(id, xp.get(id, 0.0))
@@ -925,6 +934,7 @@ func skill(id: String) -> int:
 	var level_now := Training.skill_level(xp.get(id, 0.0), id)
 	for slot in equipped:
 		level_now += int(Items.ALL[equipped[slot]].get("skills", {}).get(id, 0))
+	level_now += int(companion_perks.get("skills", {}).get(id, 0))
 	return level_now
 
 
@@ -1028,6 +1038,7 @@ func reset_gifts() -> void:
 	gift_power = 0
 	gift_speed = 0.0
 	gift_armor = 0
+	companion_perks = {}
 	equipped = {}
 	wear.clear()
 	bag.clear()
@@ -1038,8 +1049,8 @@ func reset_gifts() -> void:
 ## and shows the worn weapon and shield in the hero's hands.
 func refresh_stats() -> void:
 	var hp_bonus := gift_hp + home_hp
-	var power_bonus := gift_power
-	var speed_bonus := gift_speed
+	var power_bonus: int = gift_power + int(companion_perks.get("power", 0))
+	var speed_bonus: float = gift_speed + float(companion_perks.get("speed", 0.0))
 	hardening = gift_armor
 	block_chance = 0.0
 	for slot in equipped:

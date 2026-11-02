@@ -111,13 +111,16 @@ const ALL := {
 	"wassereimer": {"name": "Wassereimer", "slot": "auftrag", "weight": 2, "price": 1, "no_loot": true, "model": "res://assets/village/bucket_water.gltf", "model_scale": 1.6, "effect": "Für Priesterin Elsbeth am Tempel"},
 	# Food for a fox (see Animal and Pet): the shopkeeper always has some.
 	"wurst": {"name": "Wurst", "slot": "futter", "weight": 0.3, "price": 2, "no_loot": true, "effect": "Füchse lieben sie. Sie leben auf der Wiese am Waldteich westlich vom Dorf: Füttere einen Fuchs dreimal, und er wird dein Freund"},
+	# Food for a doe and a stag (see Companions): the shopkeeper always has some too.
+	"apfel": {"name": "Apfel", "slot": "futter", "icon": "apple", "weight": 0.2, "price": 2, "no_loot": true, "effect": "Rehe lieben ihn. Sie äsen auf den Lichtungen zwischen Friedhof und Dorf: Füttere ein Reh dreimal, und es wird dein Freund"},
+	"salzleckstein": {"name": "Salzleckstein", "slot": "futter", "icon": "salt", "weight": 0.5, "price": 3, "no_loot": true, "effect": "Hirsche lieben ihn. Sie äsen auf den Lichtungen zwischen Friedhof und Dorf: Lass einen Hirsch dreimal lecken, und er wird dein Freund"},
 	# A hand torch for the pitch-black places (see HandTorch): the shopkeeper
 	# always has some. Carried in the bag, lit by itself in the dark.
 	"fackel": {"name": "Fackel", "slot": "licht", "weight": 0.5, "price": 3, "no_loot": true, "effect": "Brennt in der Finsternis von selbst, drei Minuten lang. Ohne sie siehst du dort kaum die eigene Hand"},
 }
 
 
-## Whether an item is food for a fox (see Pet).
+## Whether an item is food for a companion (see Companions).
 static func is_food(id: String) -> bool:
 	return ALL.has(id) and ALL[id].slot == "futter"
 

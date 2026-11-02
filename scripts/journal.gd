@@ -23,6 +23,11 @@ const UPDATE_EVERY := 0.25
 const MAX_LOG := 300
 ## Two finds of the same thing closer than this (tiles) share one spot.
 const SAME_SPOT := 1.5
+## A map counts as fully explored once this share of the tiles that count
+## (see Level.explore_cells) has been seen. A few dark corners may stay.
+const FULL_SHARE := 0.95
+## How many map updates pass between two checks of how much has been seen.
+const FULL_CHECK_EVERY := 8
 
 ## Landmarks in the dungeon and on the floors of buildings, by map character:
 ## [kind, German name].
@@ -72,7 +77,11 @@ var finds: Array = []
 var entries: Array = []
 ## Secret rooms opened per level file: list of [x, y].
 var secrets := {}
+## The level files the hero has explored fully: file -> true. Each one
+## trains the Erkunden skill once (see note_full_map).
+var full := {}
 var _timer := 0.0
+var _full_check := 0
 ## Map data read from the level files: file -> {"grid", "width", "height",
 ## "name", "outdoor", "building", "path"}.
 var _maps := {}
@@ -90,6 +99,7 @@ func clear() -> void:
 	finds.clear()
 	entries.clear()
 	secrets.clear()
+	full.clear()
 
 
 # --- Reading the maps ---------------------------------------------------------
@@ -109,7 +119,7 @@ func map_of(file: String) -> Dictionary:
 	if not l.outdoor:
 		l._clear_passages()
 	var info := {"grid": l.grid.duplicate(), "width": l.width, "height": l.height, "name": l.level_name,
-		"outdoor": l.outdoor, "building": l.building, "path": path}
+		"outdoor": l.outdoor, "building": l.building, "path": path, "cells": l.explore_cells()}
 	l._walls_body.free()
 	l.free()
 	_maps[file] = info
@@ -255,6 +265,10 @@ func update(delta: float) -> void:
 		write("Betreten: %s", ["@" + file], file)
 	reveal(file, level)
 	_discover(file)
+	_full_check += 1
+	if _full_check >= FULL_CHECK_EVERY:
+		_full_check = 0
+		note_full_map(file)
 
 
 func current_file() -> String:
@@ -313,6 +327,36 @@ func _discover(file: String) -> void:
 
 func is_seen(file: String, place: Dictionary) -> bool:
 	return seen.has(file) and (seen[file] as Dictionary).has(place.id)
+
+
+## How much of a level the hero has seen, 0..1: the share of the tiles that
+## count (see Level.explore_cells), the ground one can stand on.
+func explored_share(file: String) -> float:
+	var info := map_of(file)
+	if info.is_empty() or info.cells.is_empty():
+		return 0.0
+	var cells: Array = info.cells
+	var bytes := _cells_of(file)
+	var w: int = info.width
+	var seen_count := 0
+	for c in cells:
+		if bytes[c.y * w + c.x] != 0:
+			seen_count += 1
+	return float(seen_count) / cells.size()
+
+
+## Once the hero has seen (nearly) all of a map, it goes into the journal and
+## the game hears of it on the bus (map_explored), once per map.
+func note_full_map(file: String) -> void:
+	if full.has(file) or explored_share(file) < FULL_SHARE:
+		return
+	full[file] = true
+	write("Vollständig erkundet", [], file)
+	Events.bus().map_explored.emit(file)
+
+
+func is_full(file: String) -> bool:
+	return full.has(file)
 
 
 ## A secret room was opened: marked on the map behind its wall.
@@ -393,7 +437,7 @@ func for_save() -> Dictionary:
 	var known := {}
 	for file in seen:
 		known[file] = (seen[file] as Dictionary).keys()
-	return {"maps": maps, "seen": known, "finds": finds, "log": entries, "secrets": secrets}
+	return {"maps": maps, "seen": known, "finds": finds, "log": entries, "secrets": secrets, "full": full.keys()}
 
 
 func load_from(data) -> void:
@@ -434,6 +478,10 @@ func load_from(data) -> void:
 		for file in saved_secrets:
 			if saved_secrets[file] is Array:
 				secrets[str(file)] = (saved_secrets[file] as Array).filter(func(s): return s is Array and s.size() == 2)
+	var saved_full = data.get("full", [])
+	if saved_full is Array:
+		for file in saved_full:
+			full[str(file)] = true
 
 
 ## Eight tiles to a byte, as text.

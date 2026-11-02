@@ -14,7 +14,8 @@ var shots := OS.get_environment("SHOTS")
 
 const KINDS := ["inventar", "lager", "bank", "barbier", "steinmetz", "ausbau", "hauswerkbank",
 	"trophaeen", "aushang", "schmied", "werkbank", "tresor", "haendler", "wanderhaendler", "bett",
-	"laden", "kompendium", "charakter", "beenden", "plan", "rueckkehr", "hoehle", "karte", "kampfstil", "wunsch", "auftraege"]
+	"laden", "kompendium", "charakter", "beenden", "plan", "rueckkehr", "hoehle", "karte", "kampfstil", "wunsch",
+	"gefaehrten", "gefaehrte_name", "auftraege"]
 
 
 func check(ok: bool, what: String) -> void:
@@ -78,6 +79,9 @@ func _fill() -> void:
 			game.quests.state[id] = {"state": "active", "count": 0}
 	game.menus.bench = CraftingSquare.BENCHES.values()[0].craft
 	game.menus.wish_master = Wishes.STYLE_ASKER
+	# Every kind of companion, each with the longest name it can have.
+	game.companions = Companions.ORDER.map(func(k): return Companions.make(k, "Wwwwwwwwwwwwwwwwww"))
+	game.following = 0
 	game.wishes.style = "schleichen"
 
 
@@ -109,6 +113,8 @@ func _test() -> void:
 
 func _check_window(kind: String, where: String) -> void:
 	var menus: Menus = game.menus
+	if kind == "gefaehrte_name":
+		menus.naming = 0
 	menus.open(kind)
 	if kind == "inventar":
 		menus._select(0)

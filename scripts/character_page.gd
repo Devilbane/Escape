@@ -397,6 +397,10 @@ const ATTRIBUTE_GROWTH := {
 	"weisheit": "Wächst durch alles, was du durchstehst.",
 	"intelligenz": "Wächst, wenn du Neues verstehst.",
 }
+## What a skill does, for skills whose use is not plain from their name.
+const SKILL_EFFECTS := {
+	"erkunden": "Je Stufe: +3 % Geheimräume, +4 % Fackeln beim Durchsuchen, +8 % Inschriften. Wächst mit jeder ganz erkundeten Karte.",
+}
 ## Why a skill is dimmed: the gear it needs.
 const GEAR_HINTS := {
 	"klingen": "Gedimmt: braucht eine Klinge in der Hand.",
@@ -459,6 +463,8 @@ func _skill_details(id: String) -> Dictionary:
 		names.append(Lang.t(Training.ATTRIBUTES[a].name))
 		values.append(str(player.attribute(a)))
 	lines.append(Lang.t("Bestimmt von: %s") % ", ".join(names))
+	if SKILL_EFFECTS.has(id):
+		lines.append(Lang.t(SKILL_EFFECTS[id]))
 	if Training.skill_level(xp, id) < Training.skill_max(id):
 		lines.append(Lang.t("Noch %d %% Übung bis zur nächsten Stufe.") % (100 - floori(Training.skill_progress(xp, id) * 100.0)))
 	var note := ""

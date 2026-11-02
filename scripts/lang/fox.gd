@@ -16,6 +16,5 @@ const EN := {
 	"Mampf!": "Munch!",
 	"Der Fuchs frisst dir die Wurst aus der Hand. Vertrauen: %d / %d": "The fox eats the sausage from your hand. Trust: %d / %d",
 	"Der Fuchs vertraut dir und geht jetzt mit dir! Seine Nase findet versteckte Zutaten im Boden.": "The fox trusts you and comes along with you now! Its nose finds ingredients hidden in the ground.",
-	"Dein Fuchs hat etwas ausgegraben: %s!": "Your fox dug something up: %s!",
 	"%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.": "%s goes into your ingredient pouch. You find it as its own tab in the inventory (I).",
 }

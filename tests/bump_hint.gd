@@ -1,7 +1,8 @@
 extends SceneTree
-## Headless test for the hint over villagers: "Run into X to talk" shows until
-## the hero has run into a person once. After that it is left out for every
-## person, also after saving and loading, while the hints for things stay.
+## Headless test for the explanatory hints: "Run into X to talk" shows until
+## the hero has run into a person once; after that it is left out for every
+## person. Every kind of hint (bed, fountain, board, ...) shows only the first
+## two times the hero comes near such a thing. Both are kept in the saved game.
 ## Run with: godot --headless -s tests/bump_hint.gd
 
 var failures := 0
@@ -37,6 +38,12 @@ func _process(_delta: float) -> bool:
 	return true
 
 
+## Stands the hero far from everything, so no hint shows.
+func _walk_away() -> void:
+	game.player.global_position = Vector3(-500, 0, -500)
+	game._process(0.016)
+
+
 ## Stands the hero right next to a station and lets the game write its hint.
 func _hint_at(station: Dictionary) -> String:
 	game.player.global_position = station.pos + Vector3(0.6, 0, 0)
@@ -69,14 +76,40 @@ func _test() -> void:
 	check(_hint_at(talker) == "", "after the bump the villager's hint is gone")
 	check(_hint_at(trader) == "", "the hint is gone for the trader too")
 
+	# A thing's hint shows the first two times only, and stays on screen
+	# while the hero stands there.
+	var thing: Dictionary = {}
+	for s in game.level.stations:
+		if s.kind == "brunnen":
+			thing = s
+	check(not thing.is_empty(), "a fountain is there")
+	if thing.is_empty():
+		return
+	var drink := Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken")
+	_walk_away()
+	check(_hint_at(thing).begins_with(drink), "the fountain's hint shows the first time")
+	check(_hint_at(thing).begins_with(drink), "it stays while the hero stands there")
+	check(game.hints_shown.get("brunnen", 0) == 1, "standing there counts once")
+	_walk_away()
+	check(_hint_at(thing).begins_with(drink), "the fountain's hint shows the second time")
+	_walk_away()
+	check(not _hint_at(thing).contains(drink), "the third time it is left out")
+	check(game.hints_shown.get("brunnen", 0) == 2, "it was counted twice")
+	# By the fountain the line can be cast too; that hint went the same way.
+	check(not _hint_at(thing).contains(Lang.t("G: Angeln")), "the fishing hint is left out after two times too")
+
 	# Kept in the saved game.
 	check(game.save_game(), "the game saves")
 	game.bumped_person = false
+	game.hints_shown.clear()
 	game._apply_save(game._read_save(game.save_path(HERO)))
 	check(game.bumped_person, "the bump is still known after loading")
+	_walk_away()
+	check(not _hint_at(thing).contains(drink), "after loading the fountain's hint stays away")
 
 	# A new game starts without it.
 	game._name_box.visible = true
 	game._name_edit.text = HERO
 	game._start_new_game()
 	check(not game.bumped_person, "a new game shows the hint again")
+	check(game.hints_shown.is_empty(), "a new game counts the hints from the start")

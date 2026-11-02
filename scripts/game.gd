@@ -1700,6 +1700,8 @@ func load_level(index: int, restock := true) -> void:
 	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
 	add_child(level)
 	level.build()
+	# The fog of war remembers what the hero saw here before (see Journal).
+	journal.restore_fog(level)
 	level.player = player
 	player.level = level
 	player.frozen = false
@@ -2538,6 +2540,7 @@ func _home_given_now() -> bool:
 ## plan for the time away and when the player left.
 func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp)
+	journal.catch_up()
 	var data := {
 		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,

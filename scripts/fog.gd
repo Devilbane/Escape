@@ -47,6 +47,17 @@ func explored_cells() -> PackedFloat32Array:
 	return _explored
 
 
+## Greys in the tiles the hero saw on an earlier visit (one byte per tile,
+## non-zero = seen, see Journal.explored), so the fog of war of a level the
+## hero comes back to, or loads from a saved game, starts where it was left.
+func remember(seen: PackedByteArray) -> void:
+	for i in mini(seen.size(), _explored.size()):
+		if seen[i] != 0:
+			_explored[i] = 1.0
+			_image.set_pixel(i % level.width, i / level.width, Color(_visible[i], 1.0, 0, 1))
+	_texture.update(_image)
+
+
 func is_cell_visible(c: Vector2i) -> bool:
 	if c.x < 0 or c.y < 0 or c.x >= level.width or c.y >= level.height:
 		return false

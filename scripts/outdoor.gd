@@ -313,6 +313,9 @@ const ORE_NOTICE_RANGE := 36.0
 var _weather_foes: Array = []
 var _strike_timer := 0.0
 var _rock_cells: Array[Vector2i] = []
+## Where the mountain over the dragon's lair stands (the foot of the arch),
+## so no forest grows out of it; INF while there is none.
+var _lair_mountain_at := Vector3.INF
 ## The moon (see Moon). At full moon a wolf pack hunts through the hollow:
 ## a leader and the rest of the pack, set out around the hollow's pond (map
 ## letter PACK_NEAR), and the moon flowers open on the pond's bank. At new
@@ -884,6 +887,10 @@ func _build_forest() -> void:
 			var c := Vector2i(x, y)
 			if cell_char(c) != "#":
 				continue
+			if _lair_mountain_at != Vector3.INF:
+				var rel := cell_to_world(c) - _lair_mountain_at
+				if LairMountain.covers(rel.x, rel.z):
+					continue
 			var depth := _forest_depth(c)
 			if depth > FOREST_DEPTH:
 				continue
@@ -1048,9 +1055,10 @@ func _build_terrace(block: Rect2i) -> void:
 
 
 ## The way down into the dragon's lair: an old stone arch from Quaternius'
-## dungeon kit with its door hanging open, a black hole and stairs going down
-## behind it, columns either side, skulls in the grass and a red glow from
-## below. Run into the arch to go down.
+## dungeon kit set into the foot of a rocky mountain (see LairMountain) with
+## its door hanging open, a black hole and stairs going down behind it,
+## columns either side, skulls in the grass and a red glow from below. Run
+## into the arch to go down.
 func _build_lair_entrance(block: Rect2i) -> void:
 	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
 	var depth := block.size.y * TILE * 0.5
@@ -1074,9 +1082,15 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	for side in [-1.0, 1.0]:
 		_put("lair/Column2", front + Vector3(side * 2.9, 0, -0.1), 0.0, 0.9)
 		_put("lair/Skull", front + Vector3(side * 2.2 + _rng.randf_range(-0.4, 0.4), 0, 1.6 + _rng.randf_range(0.0, 0.8)), _rng.randf() * TAU, 0.8)
-	# A heap of rubble and earth over the vault behind the arch.
-	_put("rock_single_A", center + Vector3(-2.2, 0, -1.0), 0.6, 3.0)
-	_put("rock_single_C", center + Vector3(2.4, 0, -1.4), 2.2, 3.0)
+	# The mountain the lair is dug into, rising behind the arch, and a few
+	# boulders fallen from it at its foot either side.
+	var mountain := LairMountain.build(hash(level_name + "berg"))
+	mountain.position = front
+	add_child(mountain)
+	_lair_mountain_at = front
+	for side in [-1.0, 1.0]:
+		_put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0)
+		_put("rock_single_C", front + Vector3(side * 3.6, 0, -1.9), side * 2.1, 3.5)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(1.0, 0.35, 0.15)
 	glow.light_energy = 1.8

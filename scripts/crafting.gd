@@ -47,6 +47,9 @@ const INGREDIENTS := {
 		"where": "Beißt im Dorfteich, aber nur in der Dämmerung."},
 	"mondforelle": {"name": "Mondforelle", "rare": true, "region": "Wolfssenke", "when": "nur nachts", "source": "Angeln im Tümpel",
 		"where": "Beißt im Tümpel der Wolfssenke, aber nur bei Nacht."},
+	# Opens only on full-moon nights beside the hollow's pond (see Moon).
+	"mondblume": {"name": "Mondblume", "rare": true, "region": "Wolfssenke", "when": "nur bei Vollmond", "source": "Blüte am Tümpel",
+		"where": "Öffnet sich nur in Vollmondnächten am Tümpel der Wolfssenke, wo dann das Wolfsrudel jagt."},
 }
 ## The smith's iron bars in the ingredient book.
 const IRON := {"name": "Eisenbarren", "region": "Dorf", "when": "", "source": "Schmied Gorm",

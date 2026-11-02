@@ -49,6 +49,10 @@ var map_page := "karte"
 var _map_file := ""
 ## The fixed size of both pages of the map window.
 const MAP_PAGE_SIZE := Vector2(980, 450)
+## The moon line at the top of the journal: its colour and the height kept
+## for it (two lines of text).
+const MOON_COLOR := Color(0.78, 0.84, 1.0)
+const MOON_LINE_HEIGHT := 52.0
 ## How many saved games the load window shows before the list scrolls.
 const LOAD_ROWS_SHOWN := 5
 ## Shows the stats of the item under the mouse (or last tapped).
@@ -2695,11 +2699,19 @@ func _explored_share(journal: Journal, file: String) -> int:
 	return 0 if ground == 0 else roundi(100.0 * seen / ground)
 
 
-## The journal: every new place, landmark and find, newest first.
+## The journal: tonight's moon at the top (see Moon), then every new place,
+## landmark and find, newest first.
 func _build_journal() -> void:
 	var journal: Journal = game.journal
+	var moon: Label = game._make_label(game.TEXT_FONT, 18, MOON_COLOR)
+	moon.text = Lang.t("Mond heute Nacht: %s. %s") % [Lang.t(Moon.word(game.day)), Moon.forecast(game.day)]
+	moon.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Two lines are kept for it in both languages, so the list below
+	# always starts at the same height.
+	moon.custom_minimum_size = Vector2(MAP_PAGE_SIZE.x - 20, MOON_LINE_HEIGHT)
+	_box.add_child(moon)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = MAP_PAGE_SIZE
+	scroll.custom_minimum_size = MAP_PAGE_SIZE - Vector2(0, MOON_LINE_HEIGHT + 10)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_box.add_child(scroll)
 	var list := VBoxContainer.new()

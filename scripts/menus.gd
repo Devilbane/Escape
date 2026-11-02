@@ -75,6 +75,7 @@ const SHORTCUTS := [
 	["Kompendium", "H"],
 	["Charakter", "P"],
 	["Karte und Tagebuch", "N"],
+	["Aufträge", "O"],
 	["Spielstand laden", "L"],
 	["Ton an/aus", "M"],
 	["Steinblock abstellen", "B, oder „Abstellen“ im Inventar"],
@@ -265,6 +266,8 @@ func _rebuild() -> void:
 			_build_compendium()
 		"karte":
 			_build_map()
+		"auftraege":
+			_build_quests()
 		"charakter":
 			_build_character()
 		"beenden":
@@ -2298,6 +2301,21 @@ func _build_quest_log() -> void:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 12)
 	scroll.add_child(list)
+	var worth: Label = game._make_label(game.TITLE_FONT, 21, game.GOLD)
+	worth.text = Lang.t("Was sich jetzt lohnt")
+	list.add_child(worth)
+	var hints := VBoxContainer.new()
+	hints.add_theme_constant_override("separation", 4)
+	list.add_child(hints)
+	for hint in quest_hints():
+		var line: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		line.custom_minimum_size.x = 740
+		line.text = "• " + hint
+		hints.add_child(line)
+	var tasks: Label = game._make_label(game.TITLE_FONT, 21, game.GOLD)
+	tasks.text = Lang.t("Deine Aufträge")
+	list.add_child(tasks)
 	var entries: Array = game.quests.log_entries()
 	var hunts: Array = game.bounties.taken.keys()
 	for id in hunts:
@@ -2335,6 +2353,59 @@ func _build_quest_log() -> void:
 		text.custom_minimum_size.x = 740
 		text.text = goal
 		list.add_child(text)
+
+
+## The quests window (O, or the scroll icon on the right edge): what is
+## worth doing next, then every task taken on, as in the compendium.
+func _build_quests() -> void:
+	_add_label(Lang.t("Aufträge"), 38, game.GOLD, game.TITLE_FONT)
+	_build_quest_log()
+
+
+## Short hints on what is worth doing next, most pressing first: tasks ready
+## to hand in, villagers with work, new bounties, places not fully explored,
+## and what tonight's moon brings.
+func quest_hints() -> Array[String]:
+	var hints: Array[String] = []
+	var quests: Quests = game.quests
+	for id in Quests.ALL:
+		if not quests.is_active(id):
+			continue
+		var q: Dictionary = Quests.ALL[id]
+		if q.kind == "deliver":
+			if game.player.bag.has(q.item):
+				hints.append(Lang.t("Bring es zu %s: %s") % [Quests.villager_name(q.to), Lang.t(q.title)])
+		elif quests.missing(id) == 0:
+			hints.append(Lang.t("Geschafft, melde dich bei %s: %s") % [Quests.villager_name(q.giver), Lang.t(q.title)])
+	for id in game.bounties.taken:
+		if game.bounties.is_ready(id):
+			hints.append(Lang.t("Hol dein Kopfgeld am Aushang ab: %s") % Lang.t(Bounties.POOL[id].title))
+	var askers: Array[String] = []
+	for role in Villager.ROLES:
+		if quests.mark(role) == "!" or game.crafting.mark(role) == "!" or game.wishes.mark(role) == "!":
+			var who := Quests.villager_name(role)
+			if who != "" and not who in askers:
+				askers.append(who)
+	if not askers.is_empty():
+		hints.append(Lang.t("Im Dorf hat jemand etwas für dich (achte auf das „!“): %s") % ", ".join(askers))
+	for id in game.bounties.posted:
+		if game.bounties.is_open(id):
+			hints.append(Lang.t("Am Aushang im Dorf hängen Kopfgelder, die noch niemand jagt."))
+			break
+	var journal: Journal = game.journal
+	var unexplored := []
+	for file in journal.mapped_files():
+		var share := _explored_share(journal, file)
+		if share < 100:
+			unexplored.append([share, file])
+	unexplored.sort_custom(func(a, b): return a[0] < b[0])
+	for entry in unexplored.slice(0, 3):
+		hints.append(Lang.t("%s ist erst zu %d %% erkundet: Dort gibt es noch mehr zu finden.") % [journal.level_title(entry[1]), entry[0]])
+	if Moon.is_full(game.day) or Moon.is_new(game.day):
+		hints.append(Lang.t("Heute Nacht: %s") % Moon.forecast(game.day))
+	if hints.is_empty():
+		hints.append(Lang.t("Gerade wartet nichts Bestimmtes. Erkunde neue Ebenen oder sprich mit den Leuten im Dorf."))
+	return hints
 
 
 ## The villagers' goodwill: everyone the hero has met, with their standing,

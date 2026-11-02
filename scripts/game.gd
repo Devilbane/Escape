@@ -42,6 +42,10 @@ var _drawer_arrow: MenuArrow
 var _drawer_open := false
 var _drawer_t := 0.0
 var _drawer_tween: Tween
+## The column on the menu's edge that holds the quick window icons above the
+## handle, and those icons by the window they open (see _setup_quick_bar).
+var _drawer_rail: VBoxContainer
+var _quick_buttons := {}
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
@@ -518,7 +522,19 @@ func _setup_drawer() -> void:
 	_drawer_arrow.color = GOLD
 	_drawer_handle.add_child(_drawer_arrow)
 	_drawer_handle.resized.connect(_place_drawer_arrow)
-	_drawer.add_child(_drawer_handle)
+	# The handle sits at the foot of a rail on the menu's edge; the quick
+	# window icons stand above it, so all of it slides as one.
+	_drawer_rail = VBoxContainer.new()
+	_drawer_rail.add_theme_constant_override("separation", QUICK_GAP)
+	_drawer_rail.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_drawer_rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drawer.add_child(_drawer_rail)
+	_setup_quick_bar()
+	var gap := Control.new()
+	gap.custom_minimum_size.y = QUICK_HANDLE_GAP - QUICK_GAP * 2
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drawer_rail.add_child(gap)
+	_drawer_rail.add_child(_drawer_handle)
 
 	var panel := PanelContainer.new()
 	var back := StyleBoxFlat.new()
@@ -578,6 +594,96 @@ func _setup_drawer() -> void:
 	_drawer.minimum_size_changed.connect(func(): _place_drawer(_drawer_t))
 
 
+## The windows opened most often, as small picture buttons on the right edge
+## above the menu handle: window, German name, key and picture.
+const QUICK_WINDOWS := [
+	["karte", "Karte", "N", "kind:map"],
+	["kompendium", "Kompendium", "H", "kind:book"],
+	["inventar", "Inventar", "I", "kind:bag"],
+	["charakter", "Charakter", "P", "kind:hero"],
+	["auftraege", "Aufträge", "O", "kind:scroll"],
+]
+const QUICK_SIZE := Vector2(70, 48)
+const QUICK_ICON := 30.0
+## Between two icons, and between the last icon and the handle.
+const QUICK_GAP := 8
+const QUICK_HANDLE_GAP := 20
+
+
+## One icon per window in QUICK_WINDOWS, each with a tooltip that names the
+## window and its key. The icon of the open window stays pressed; a click on
+## it closes the window again, a click on another switches to that one.
+func _setup_quick_bar() -> void:
+	_drawer_rail.theme = _tooltip_theme()
+	for w in QUICK_WINDOWS:
+		var b := _make_button("", _toggle_window.bind(w[0]))
+		b.toggle_mode = true
+		b.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
+		b.custom_minimum_size = QUICK_SIZE
+		b.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t(w[1]), w[2]]
+		for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+			var box: StyleBoxFlat = b.get_theme_stylebox(style).duplicate()
+			box.corner_radius_top_right = 0
+			box.corner_radius_bottom_right = 0
+			b.add_theme_stylebox_override(style, box)
+		var icon := ItemIcon.make(w[3], QUICK_ICON, true)
+		icon.set_anchors_preset(Control.PRESET_CENTER)
+		icon.offset_left = -QUICK_ICON / 2.0
+		icon.offset_top = -QUICK_ICON / 2.0
+		icon.offset_right = QUICK_ICON / 2.0
+		icon.offset_bottom = QUICK_ICON / 2.0
+		b.add_child(icon)
+		_drawer_rail.add_child(b)
+		_quick_buttons[w[0]] = b
+
+
+## Tooltips in the house style: a dark panel with a golden border, gold text.
+func _tooltip_theme() -> Theme:
+	var theme := Theme.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.04, 0.03, 0.08, 0.95)
+	box.border_color = Color(0.85, 0.66, 0.32, 0.8)
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(8)
+	box.content_margin_left = 10
+	box.content_margin_right = 10
+	box.content_margin_top = 6
+	box.content_margin_bottom = 6
+	theme.set_stylebox("panel", "TooltipPanel", box)
+	theme.set_font("font", "TooltipLabel", TEXT_FONT)
+	theme.set_font_size("font_size", "TooltipLabel", 16)
+	theme.set_color("font_color", "TooltipLabel", GOLD)
+	theme.set_color("font_outline_color", "TooltipLabel", Color.BLACK)
+	theme.set_constant("outline_size", "TooltipLabel", 4)
+	return theme
+
+
+## A quick icon was clicked: closes its window if it is open, else opens it
+## (closing any other window first).
+func _toggle_window(menu: String) -> void:
+	if state == State.PLAYING and _shrine.is_empty():
+		if menus.current == menu:
+			menus.close()
+		else:
+			if menus.is_open():
+				menus.close()
+			if player.can_act():
+				set_drawer_open(false)
+				menus.open(menu)
+	_update_quick_bar()
+
+
+## Keeps the icon of the open window pressed and all others raised.
+func _update_quick_bar() -> void:
+	if menus == null:
+		return
+	for menu in _quick_buttons:
+		var b: Button = _quick_buttons[menu]
+		var open: bool = menus.current == menu
+		if b.button_pressed != open:
+			b.set_pressed_no_signal(open)
+
+
 func _open_from_drawer(menu: String) -> void:
 	if state == State.PLAYING and player.can_act() and not menus.is_open():
 		set_drawer_open(false)
@@ -608,7 +714,7 @@ func set_drawer_open(open: bool) -> void:
 func _place_drawer(t: float) -> void:
 	_drawer_t = t
 	var size := _drawer.get_combined_minimum_size()
-	var hidden := size.x - _drawer_handle.get_combined_minimum_size().x
+	var hidden := size.x - _drawer_rail.get_combined_minimum_size().x
 	_drawer.offset_left = -size.x + hidden * (1.0 - t)
 	_drawer.offset_right = _drawer.offset_left + size.x
 	_drawer.offset_top = -size.y / 2.0
@@ -3368,6 +3474,7 @@ func _guardian_intro() -> void:
 
 
 func _process(delta: float) -> void:
+	_update_quick_bar()
 	_eerie(delta)
 	_tick_clock(delta)
 	_show_weather()
@@ -3572,7 +3679,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					_choose_gift(event.physical_keycode - KEY_1)
 				return
 			if menus.is_open():
-				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_P, KEY_N, KEY_ESCAPE]:
+				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_P, KEY_N, KEY_O, KEY_ESCAPE]:
 					menus.close()
 				return
 			if event is InputEventKey:
@@ -3598,6 +3705,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					KEY_N:
 						if player.can_act():
 							menus.open("karte")
+					KEY_O:
+						if player.can_act():
+							menus.open("auftraege")
 					KEY_M:
 						_toggle_sound()
 					KEY_TAB:

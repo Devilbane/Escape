@@ -609,6 +609,7 @@ Use these helpers and values; do not re-create them.
 | Colours | `game.GOLD`, `TradeWindow.GREEN/RED/GREY/BLUE/ORANGE`, `Menus.BLUE`, `Menus.REPUTATION_COLOR` | See section 7. |
 | Translations | `Lang.t()`, `Lang.EN` | Every new player-facing string. |
 | Pull-out menu | `game._setup_drawer()` | Right edge, Tab toggles; window buttons push it away. |
+| Quick window icons | `game._setup_quick_bar()`, `QUICK_WINDOWS` | Map, compendium, inventory, character and quests as 70 × 48 picture buttons on the drawer's rail above its handle (8 apart, 20 to the handle); tooltip "Name (key X)" in `_tooltip_theme()`; the open window's icon stays pressed. Add a window there rather than a second icon row. |
 | Shortcut list | `Menus.SHORTCUTS` | Add every new key. |
 
 Spacing scale (keep to these steps): **4, 6, 8, 10, 12, 14, 24, 26, 28**. Within a row 8 to 10;

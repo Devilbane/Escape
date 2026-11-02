@@ -14,7 +14,7 @@ var shots := OS.get_environment("SHOTS")
 
 const KINDS := ["inventar", "lager", "bank", "barbier", "steinmetz", "ausbau", "hauswerkbank",
 	"trophaeen", "aushang", "schmied", "werkbank", "tresor", "haendler", "wanderhaendler", "bett",
-	"laden", "kompendium", "charakter", "beenden", "plan", "rueckkehr", "hoehle", "karte", "kampfstil", "wunsch"]
+	"laden", "kompendium", "charakter", "beenden", "plan", "rueckkehr", "hoehle", "karte", "kampfstil", "wunsch", "auftraege"]
 
 
 func check(ok: bool, what: String) -> void:

@@ -139,6 +139,12 @@ static func float_text(parent: Node, pos: Vector3, text: String, color: Color, a
 	tween.tween_callback(label.queue_free)
 
 
+## A damage number or a short word over `target`'s head. Unlike float_text it
+## follows the head, and numbers over one head stack without overlapping.
+static func head_text(parent: Node, target: Node3D, height: float, text: String, color: Color) -> void:
+	DamageNumber.show_over(parent, target, Vector3(0, height, 0), text, color)
+
+
 ## A round cord following a list of line segments ([from, to] pairs).
 static func cord_mesh(segments: Array, radius: float, material: Material) -> ArrayMesh:
 	const SIDES := 6

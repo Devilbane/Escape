@@ -904,7 +904,7 @@ func spring_trap() -> void:
 	if randf() < DODGE_PER_DEXTERITY * dexterity_points():
 		train("geschick", 4.0)
 		_invulnerable = 0.6
-		Effects.float_text(level, global_position + Vector3(0, 2.2, 0), Lang.t("Ausgewichen!"), Color(0.72, 0.9, 0.78))
+		Effects.head_text(level, self, 2.2, Lang.t("Ausgewichen!"), Color(0.72, 0.9, 0.78))
 		return
 	train("geschick", 2.0)
 	take_damage(1, global_position - facing(), null, false)
@@ -1243,7 +1243,7 @@ func _tick_ailments(delta: float) -> void:
 			if hp > 1:
 				hp -= 1
 				train("konstitution", 1.0)
-				Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-1", AILMENT_COLORS.gift)
+				Effects.head_text(level, self, 2.2, "-1", AILMENT_COLORS.gift)
 				hurt.emit(1)
 	if ailments.has("brand"):
 		_burn_tick -= delta
@@ -1252,7 +1252,7 @@ func _tick_ailments(delta: float) -> void:
 			if hp > 1:
 				hp -= 1
 				train("konstitution", 1.0)
-				Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-1", AILMENT_COLORS.brand)
+				Effects.head_text(level, self, 2.2, "-1", AILMENT_COLORS.brand)
 				hurt.emit(1)
 	if changed:
 		_ailments_changed()
@@ -1407,7 +1407,7 @@ func _block(from: Vector3) -> void:
 	var away := global_position - from
 	away.y = 0.0
 	_knockback = away.normalized() * 4.0
-	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), Lang.t("Geblockt!"), Color(0.72, 0.78, 0.88))
+	Effects.head_text(level, self, 2.2, Lang.t("Geblockt!"), Color(0.72, 0.78, 0.88))
 	Comic.pop(global_position, "block")
 
 
@@ -1463,7 +1463,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	away.y = 0.0
 	_knockback = away.normalized() * 10.0
 	path.clear()
-	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-%d" % amount, Color(1, 0.3, 0.3))
+	Effects.head_text(level, self, 2.2, "-%d" % amount, Color(1, 0.3, 0.3))
 	# The blow lands; the comic word's cry ("AUA!") comes with the bubble.
 	Comic.pop(global_position, "hurt")
 	Sfx.play(self, "hit", -3.0)

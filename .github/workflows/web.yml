@@ -209,6 +209,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/heroine.gd | tee heroine.log
           grep -q PASS heroine.log
 
+      - name: Damage numbers over the head test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/damage_numbers.gd | tee damage_numbers.log
+          grep -q PASS damage_numbers.log
+
       - name: Hero and skeletons cannot stack test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/no_stacking.gd | tee stacking.log

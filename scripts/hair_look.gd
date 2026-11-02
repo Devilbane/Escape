@@ -3,12 +3,15 @@ extends RefCounted
 ## Hair styles, hair colours and a head tattoo for characters built on the
 ## Rogue model (the hero, and the barber who sets them up).
 ##
-## The model's hair is one smooth shape baked into the head mesh. For a
-## shaved style its vertices are pulled onto a bald skull and coloured like
-## the forehead, with a dark stubble from the shader. A mohawk adds a crest of
-## hair locks along the middle of the skull; the shader cuts each lock into
-## single strands of different lengths (shaders/hair.gdshaderinc). A tattoo
-## is a word written in ink on the right side of a shaved head.
+## The model's hair is one smooth shape baked into the head mesh. The shader
+## combs it into strands that grow from a crown at the back of the head, part
+## on the left and fall in layered locks (shaders/hair.gdshaderinc). A short
+## crop pulls that shape most of the way onto the skull. For a shaved style
+## its vertices are pulled onto a bald skull and coloured like the forehead,
+## with a dark stubble from the shader. A mohawk adds a crest of hair locks
+## along the middle of the skull; spikes stand up all over a short crop;
+## the shader cuts each lock into single strands of different lengths. A
+## tattoo is a word written in ink on the right side of a shaved head.
 ##
 ## A look is a Dictionary: {"style": one of STYLES, "color": a key of
 ## COLORS, "tattoo": the word, "" for none, "tattoo_shape": one of
@@ -19,7 +22,11 @@ const SHADER := preload("res://shaders/hair.gdshader")
 const FADE_SHADER := preload("res://shaders/hair_fade.gdshader")
 const TATTOO_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 
-const STYLES := ["natural", "mohawk", "bald"]
+const STYLES := ["natural", "short", "spiky", "mohawk", "bald"]
+## The styles whose sides are shaved, so the stubble and a tattoo show.
+const SHAVED := ["mohawk", "bald"]
+## How far a short crop pulls the hair onto the skull (1 would shave it).
+const SHORT_CUT := 0.8
 ## Root, middle and tip colour of each hair colour. Rainbow and fire are
 ## drawn by the shader (MODES) and only use these for the stubble.
 const COLORS := {
@@ -57,7 +64,13 @@ const SEGMENTS := 6
 const CREST_FRONT := -0.95
 const CREST_BACK := 1.5
 
-## The natural and the shaved head mesh and the crest, by source mesh: built once.
+## Spikes: how many locks, and how high up the skull they start (the y of a
+## direction from the skull's centre: 0 is ear height, 1 the top).
+const SPIKES := 220
+const SPIKES_FROM := 0.3
+
+## The head meshes (natural, short, shaved) and the locks (mohawk, spiky), by
+## source mesh: built once.
 static var _heads := {}
 
 
@@ -83,8 +96,10 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 	var style: String = look.get("style", "natural")
 	if not style in STYLES:
 		style = "natural"
-	var shaved := style != "natural"
-	head.mesh = _heads[source][1 if shaved else 0]
+	var shaved := shows_scalp(style)
+	var heads: Dictionary = _heads[source]
+	# Spikes stand on a short crop.
+	head.mesh = heads.shaved if shaved else heads.short if style in ["short", "spiky"] else heads.natural
 	var crest := slot.get_node_or_null("Crest") as MeshInstance3D
 	if crest == null:
 		crest = MeshInstance3D.new()
@@ -96,21 +111,31 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 		crest.material_override = mat
 		crest.transform = slot.get_meta("bind")
 		slot.add_child(crest)
-	crest.mesh = _heads[source][2]
-	crest.set_meta("wanted", style == "mohawk")
-	crest.visible = style == "mohawk" and not slot.get_meta("covered", false)
+	var locks := style in ["mohawk", "spiky"]
+	if locks:
+		crest.mesh = heads[style]
+		# Spikes are chunkier: fewer, thicker strands to a lock.
+		(crest.material_override as ShaderMaterial).set_shader_parameter("strands", 3.0 if style == "spiky" else 6.0)
+	crest.set_meta("wanted", locks)
+	crest.visible = locks and not slot.get_meta("covered", false)
 	var color: String = look.get("color", "natural")
 	for mat: ShaderMaterial in [head.material_override, crest.material_override]:
 		_set_color(mat, color)
 	var head_mat := head.material_override as ShaderMaterial
 	head_mat.set_shader_parameter("shaved", shaved)
+	head_mat.set_shader_parameter("short_hair", style in ["short", "spiky"])
 	var word: String = look.get("tattoo", "")
 	head_mat.set_shader_parameter("show_tattoo", shaved and word != "")
 	if word != "":
 		head_mat.set_shader_parameter("tattoo", _ink(head, word, look.get("tattoo_shape", "straight") == "arch"))
 
 
-## A helmet or hat hides the crest (it would poke through).
+## Whether a style shaves the sides of the head, so a tattoo shows.
+static func shows_scalp(style: String) -> bool:
+	return style in SHAVED
+
+
+## A helmet or hat hides the crest and the spikes (they would poke through).
 static func cover(model: Node3D, covered: bool) -> void:
 	var slot := head_slot(model)
 	if slot == null:
@@ -242,9 +267,10 @@ static func _ink(head: MeshInstance3D, word: String, arch: bool) -> Texture2D:
 	return view.get_texture()
 
 
-## The head mesh twice: with its natural hair, and shaved. Both carry in
-## CUSTOM0 the position (for stubble and tattoo) and whether a vertex is hair.
-static func _build_heads(source: Mesh) -> Array:
+## The head mesh three times: with its natural hair, cut short, and shaved,
+## and the locks of the mohawk and the spikes. Every head carries in CUSTOM0
+## the position (for strands, stubble and tattoo) and whether a vertex is hair.
+static func _build_heads(source: Mesh) -> Dictionary:
 	var arrays := source.surface_get_arrays(0)
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
@@ -257,8 +283,9 @@ static func _build_heads(source: Mesh) -> Array:
 	var flags := Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
 	if source is ArrayMesh and (source as ArrayMesh).surface_get_format(0) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS:
 		flags |= Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
-	var result := []
-	for shaved in [false, true]:
+	var result := {}
+	for cut in ["natural", "short", "shaved"]:
+		var shaved: bool = cut == "shaved"
 		var a := arrays.duplicate()
 		var v2: PackedVector3Array = verts.duplicate()
 		var n2: PackedVector3Array = normals.duplicate()
@@ -273,6 +300,11 @@ static func _build_heads(source: Mesh) -> Array:
 				p = top
 				v2[v] = p
 				uv2[v] = SCALP_UV
+			elif hair[v] and cut == "short":
+				var top := skull_point(p, shape)
+				n2[v] = normals[v].lerp(skull_point_normal(p, shape), SHORT_CUT).normalized()
+				p = p.lerp(top, SHORT_CUT)
+				v2[v] = p
 			elif shaved and blend[v] > 0.0:
 				# The rim of the face grows into the skull, so the face is part
 				# of the head instead of a mask on the front of it.
@@ -290,9 +322,10 @@ static func _build_heads(source: Mesh) -> Array:
 		a[Mesh.ARRAY_CUSTOM0] = custom
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, flags)
-		result.append(mesh)
-	# The mohawk grows from this head's skull.
-	result.append(crest_mesh(shape))
+		result[cut] = mesh
+	# The mohawk and the spikes grow from this head's skull.
+	result.mohawk = crest_mesh(shape)
+	result.spiky = spikes_mesh(shape)
 	return result
 
 
@@ -456,33 +489,67 @@ static func crest_mesh(shape: Array) -> ArrayMesh:
 		across = (across - dir * across.dot(dir)).normalized()
 		var width := 0.05 + 0.02 * rng.randf()
 		var color := Color(rng.randf(), rng.randf(), t)
-		var points: Array[Vector3] = []
-		var dirs: Array[Vector3] = []
-		var p := root - normal * 0.01 # Rooted just under the skin.
-		for s in SEGMENTS + 1:
-			points.append(p)
-			dirs.append(dir)
-			# Bend back and down a little, with a slight wave.
-			var wobble := Vector3(rng.randfn(0.0, 0.03), rng.randfn(0.0, 0.03), rng.randfn(0.0, 0.03))
-			dir = (dir + back * 0.05 + Vector3(0.0, -0.02, 0.0) + wobble).normalized()
-			p += dir * lock_length / SEGMENTS
-		for s in SEGMENTS:
-			var v0 := float(s) / SEGMENTS
-			var v1 := float(s + 1) / SEGMENTS
-			var w0 := width * (1.0 - 0.85 * v0)
-			var w1 := width * (1.0 - 0.85 * v1)
-			var a0 := points[s] - across * w0
-			var a1 := points[s] + across * w0
-			var b0 := points[s + 1] - across * w1
-			var b1 := points[s + 1] + across * w1
-			var n0 := across.cross(dirs[s]).normalized()
-			var n1 := across.cross(dirs[s + 1]).normalized()
-			for corner in [[a0, 0.0, v0, n0], [a1, 1.0, v0, n0], [b1, 1.0, v1, n1], [a0, 0.0, v0, n0], [b1, 1.0, v1, n1], [b0, 0.0, v1, n1]]:
-				st.set_color(color)
-				st.set_uv(Vector2(corner[1], corner[2]))
-				st.set_normal(corner[3])
-				st.add_vertex(corner[0])
+		# Rooted just under the skin, bending back and down a little.
+		_lock(st, root - normal * 0.01, dir, across, lock_length, width, color, rng, back * 0.05 + Vector3(0.0, -0.02, 0.0), 0.03)
 	return st.commit()
+
+
+## Short locks standing up all over the top of a short crop:
+## the same ribbons as the crest (see crest_mesh), each pointing out of the
+## skull and up, a little shorter towards the edge. COLOR.b runs from the
+## forehead (0) to the back of the head (1).
+static func spikes_mesh(shape: Array) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var placed := 0
+	while placed < SPIKES:
+		var u := Vector3(rng.randfn(0.0, 1.0), rng.randfn(0.0, 1.0), rng.randfn(0.0, 1.0)).normalized()
+		# Over the top only, and not down onto the forehead.
+		if u.y < SPIKES_FROM or u.z > 0.62:
+			continue
+		placed += 1
+		var root := skull_point(SKULL_CENTER + u * SKULL_RADII, shape)
+		var normal := skull_point_normal(root, shape)
+		var edge := smoothstep(SPIKES_FROM, 0.8, u.y)
+		var lock_length := (0.09 + 0.12 * edge) * (0.8 + 0.4 * rng.randf())
+		var dir := (normal + Vector3.UP * 0.6 + Vector3(0.0, 0.0, -0.15)).normalized()
+		var across := dir.cross(Vector3(rng.randfn(0.0, 1.0), rng.randfn(0.0, 1.0), rng.randfn(0.0, 1.0))).normalized()
+		_lock(st, root - normal * 0.01, dir, across, lock_length, 0.06 + 0.025 * rng.randf(),
+				Color(rng.randf(), rng.randf(), clampf(0.5 - u.z * 0.6, 0.0, 1.0)), rng, Vector3.ZERO, 0.03)
+	return st.commit()
+
+
+## One tapering ribbon of hair from root along dir, bending by bend at every
+## segment (and a little at random, with a slight wave).
+static func _lock(st: SurfaceTool, root: Vector3, dir: Vector3, across: Vector3, lock_length: float, width: float,
+		color: Color, rng: RandomNumberGenerator, bend: Vector3, wobble: float) -> void:
+	var points: Array[Vector3] = []
+	var dirs: Array[Vector3] = []
+	var p := root
+	for s in SEGMENTS + 1:
+		points.append(p)
+		dirs.append(dir)
+		var wob := Vector3(rng.randfn(0.0, wobble), rng.randfn(0.0, wobble), rng.randfn(0.0, wobble))
+		dir = (dir + bend + wob).normalized()
+		p += dir * lock_length / SEGMENTS
+	for s in SEGMENTS:
+		var v0 := float(s) / SEGMENTS
+		var v1 := float(s + 1) / SEGMENTS
+		var w0 := width * (1.0 - 0.85 * v0)
+		var w1 := width * (1.0 - 0.85 * v1)
+		var a0 := points[s] - across * w0
+		var a1 := points[s] + across * w0
+		var b0 := points[s + 1] - across * w1
+		var b1 := points[s + 1] + across * w1
+		var n0 := across.cross(dirs[s]).normalized()
+		var n1 := across.cross(dirs[s + 1]).normalized()
+		for corner in [[a0, 0.0, v0, n0], [a1, 1.0, v0, n0], [b1, 1.0, v1, n1], [a0, 0.0, v0, n0], [b1, 1.0, v1, n1], [b0, 0.0, v1, n1]]:
+			st.set_color(color)
+			st.set_uv(Vector2(corner[1], corner[2]))
+			st.set_normal(corner[3])
+			st.add_vertex(corner[0])
 
 
 ## The vertices of the hair: the biggest connected piece painted with the

@@ -84,7 +84,7 @@ static func buy(game: Node, id: String) -> String:
 	var price := ware_price(game, id)
 	if game.coins < price:
 		return Lang.t("Dafür reicht dein Gold nicht.")
-	if p.bag.size() >= p.bag_size():
+	if p.bag_used() >= p.bag_size():
 		return Lang.t("Deine Tasche ist voll.")
 	game.coins -= price
 	p.bag.append(id)
@@ -141,7 +141,7 @@ static func forge(game: Node, id: String) -> String:
 		return Lang.t("Dafür hast du zu wenig Eisen.")
 	if game.coins < cost.gold:
 		return Lang.t("Dafür reicht dein Gold nicht.")
-	if p.bag.size() >= p.bag_size():
+	if p.bag_used() >= p.bag_size():
 		return Lang.t("Deine Tasche ist voll.")
 	game.iron -= cost.iron
 	game.coins -= cost.gold

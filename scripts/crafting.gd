@@ -383,7 +383,7 @@ func make(id: String) -> String:
 			if pouch[ingredient] <= 0:
 				pouch.erase(ingredient)
 	var p: Player = game.player
-	if p.bag.size() < p.bag_size():
+	if p.bag_fits(r.result):
 		p.bag.append(r.result)
 	else:
 		game.storage.append(r.result)

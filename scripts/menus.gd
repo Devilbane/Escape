@@ -463,17 +463,29 @@ func _item_button(text: String, action: Callable, enabled := true, id := "") -> 
 
 
 ## A grid of item buttons; empty places up to `size` are shown as dashes.
-func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callable, columns := 4, parent: Control = null) -> void:
+## With `bundle` (the hero's bag) items that bundle (Items.STACK, torches)
+## share one cell that shows how many, like the ingredient pouch; a click
+## acts on one of them.
+func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callable, columns := 4, parent: Control = null, bundle := false) -> void:
 	var grid := GridContainer.new()
 	grid.columns = columns
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
 	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	(parent if parent else _box).add_child(grid)
+	var cells: Array = Items.stacks(items) if bundle else []
+	if not bundle:
+		for i in items.size():
+			cells.append({"id": items[i], "count": 1, "indices": [i]})
 	for i in size:
-		if i < items.size():
-			var b := _item_button(label_of.call(items[i]), action.bind(i), true, items[i])
-			if current == "inventar" and i == _selected:
+		if i < cells.size():
+			var cell: Dictionary = cells[i]
+			var text: String = label_of.call(cell.id)
+			if bundle and Items.stack_size(cell.id) > 1:
+				text += "\n× %d" % cell.count
+			# The last of a bundle is the one taken, so the others keep their places.
+			var b := _item_button(text, action.bind(cell.indices.back()), true, cell.id)
+			if current == "inventar" and _selected in cell.indices:
 				b.modulate = Color(0.7, 1.0, 0.7)
 			grid.add_child(_inventory_cell(b) if current == "inventar" else b)
 		else:
@@ -710,7 +722,7 @@ func _build_inventory() -> void:
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
 	tabs.add_theme_constant_override("separation", 8)
 	_box.add_child(tabs)
-	var bag_tab := Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), p.bag_size(), Items.weight_text(p.carried_weight())]
+	var bag_tab := Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag_used(), p.bag_size(), Items.weight_text(p.carried_weight())]
 	var pouch_tab := Lang.t("Zutatenbeutel (%d)") % _pouch_ids().size()
 	for tab in [["tasche", bag_tab], ["beutel", pouch_tab]]:
 		var b := _item_button(tab[1], _show_inventory_tab.bind(tab[0]))
@@ -722,7 +734,7 @@ func _build_inventory() -> void:
 	var page := VBoxContainer.new()
 	page.add_theme_constant_override("separation", 6)
 	_box.add_child(page)
-	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, 6, page)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, 6, page, true)
 	if inventory_tab == "beutel":
 		var room := page.get_combined_minimum_size()
 		_box.remove_child(page)
@@ -970,6 +982,12 @@ func _drop_selected() -> void:
 	p.bag.remove_at(_selected)
 	game.drop_on_floor(id)
 	_selected = -1
+	# From a bundle (torches) one is dropped and the rest stays picked, so
+	# "Drop" can be pressed again for the next.
+	for cell in Items.stacks(p.bag):
+		if cell.id == id and Items.stack_size(id) > 1:
+			_selected = cell.indices.back()
+			break
 	_rebuild()
 
 
@@ -993,8 +1011,8 @@ func _build_storage() -> void:
 	var p: Player = game.player
 	_add_label(Lang.t("Lagertruhe"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 16, BLUE)
-	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
-	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag_used(), p.bag_size()], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6, null, true)
 	var size := HomeUpgrades.storage_size(game.home_upgrades)
 	_add_label(Lang.t("Truhe (%d / %d)") % [game.storage.size(), size], 20)
 	_add_item_grid(game.storage, maxi(size, game.storage.size()), Items.item_name, _take, 8 if size > STORAGE_SIZE else 6)
@@ -1011,7 +1029,7 @@ func _store(index: int) -> void:
 
 
 func _take(index: int) -> void:
-	if game.player.bag.size() >= game.player.bag_size():
+	if not game.player.bag_fits(game.storage[index]):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.player.bag.append(game.storage[index])
@@ -1190,8 +1208,8 @@ func _build_vault() -> void:
 	var hero: String = game.hero_name
 	_add_label(Lang.t("Dein Schließfach"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 16, BLUE)
-	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
-	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _to_vault, 6)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag_used(), p.bag_size()], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _to_vault, 6, null, true)
 	var items := Bank.vault_items(hero)
 	_add_label(Lang.t("Schließfach (%d / %d)") % [items.size(), Bank.VAULT_SIZE], 20)
 	_add_item_grid(items, Bank.VAULT_SIZE, Items.item_name, _from_vault, 6)
@@ -1210,7 +1228,7 @@ func _to_vault(index: int) -> void:
 
 
 func _from_vault(index: int) -> void:
-	if game.player.bag.size() >= game.player.bag_size():
+	if not game.player.bag_fits(Bank.vault_items(game.hero_name)[index]):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.player.bag.append(Bank.take(game.hero_name, index))
@@ -1285,7 +1303,7 @@ func _build_shop() -> void:
 	_trade(Lang.t("Dein Gold: %d") % game.coins, [
 		{"key": "gear", "title": Lang.t("Ausrüstung"), "icon": "kind:helmet", "entries": gear, "empty": empty, "gone": gone},
 		{"key": "goods", "title": Lang.t("Verbrauchsgüter"), "icon": "kind:potion", "entries": goods, "empty": empty, "gone": gone},
-	], _shop_pages(Lang.t("Verkaufen (%d / %d)") % [p.bag.size(), p.bag_size()]))
+	], _shop_pages(Lang.t("Verkaufen (%d / %d)") % [p.bag_used(), p.bag_size()]))
 
 
 ## Each item of a list once, in the order it first appears.
@@ -1327,7 +1345,7 @@ func _show_shop_page(page: String) -> void:
 func _ware_entry(key: String, id: String, price: int, action: Callable) -> Dictionary:
 	var p: Player = game.player
 	return {"key": key, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Gold") % price, "price_ok": game.coins >= price,
-			"button": Lang.t("Kaufen"), "action": action, "enabled": game.coins >= price and p.bag.size() < p.bag_size()}
+			"button": Lang.t("Kaufen"), "action": action, "enabled": game.coins >= price and p.bag_fits(id)}
 
 
 ## Books, stone, ore and the like: things that are not worn.
@@ -1341,7 +1359,7 @@ func _buy(index: int) -> void:
 	var price: int = game.trader_price(Items.ALL[id].price)
 	if game.coins < price:
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
-	elif game.player.bag.size() >= game.player.bag_size():
+	elif not game.player.bag_fits(id):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.coins -= price
@@ -1434,7 +1452,7 @@ func _buy_from_wanderer(index: int) -> void:
 	var ingredient := Wanderer.is_ingredient(id)
 	if game.coins < cost:
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
-	elif not ingredient and game.player.bag.size() >= game.player.bag_size():
+	elif not ingredient and not game.player.bag_fits(id):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.coins -= cost
@@ -1460,7 +1478,7 @@ const STONE := "steinblock"
 func _build_stonemason() -> void:
 	var p: Player = game.player
 	var price: int = game.trader_price(Items.ALL[STONE].price)
-	var room: int = p.bag_size() - p.bag.size()
+	var room: int = p.bag_size() - p.bag_used()
 	_add_label(Lang.t("Steinmetz"), 38, game.GOLD, game.TITLE_FONT)
 	var all := mini(room, game.coins / price) if price > 0 else room
 	var have := p.bag.count(STONE)
@@ -1486,7 +1504,7 @@ func _buy_stones(count: int) -> void:
 	var price: int = game.trader_price(Items.ALL[STONE].price)
 	var bought := 0
 	for i in count:
-		if game.coins < price or p.bag.size() >= p.bag_size():
+		if game.coins < price or p.bag_used() >= p.bag_size():
 			break
 		game.coins -= price
 		p.bag.append(STONE)
@@ -1495,7 +1513,7 @@ func _buy_stones(count: int) -> void:
 		Events.bus().traded.emit(game.trader_role)
 		_note = Lang.t("Gekauft: %d Steinblöcke") % bought
 		Sfx.play(game, "gear_soft_0", -2.0)
-	elif p.bag.size() >= p.bag_size():
+	elif p.bag_used() >= p.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
@@ -2071,7 +2089,7 @@ func _build_smithy() -> void:
 		if tab[0] == _forge_tab:
 			b.modulate = Color(0.7, 1.0, 0.7)
 		tabs.add_child(b)
-	var room: bool = p.bag.size() < p.bag_size()
+	var room: bool = p.bag_used() < p.bag_size()
 	var sections := []
 	match _forge_tab:
 		"waffen":

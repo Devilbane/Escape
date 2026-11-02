@@ -553,7 +553,7 @@ static func compare_with_worn(p: Player, id: String) -> Dictionary:
 		var have := p.bag.count(id)
 		return {"title": Lang.t("In deiner Tasche"), "name": Items.item_name(id), "icon": id,
 				"subtitle": Lang.t("%d Stück") % have,
-				"lines": [[Lang.t("Tasche: %d / %d") % [p.bag.size(), p.bag_size()], GREY]]}
+				"lines": [[Lang.t("Tasche: %d / %d") % [p.bag_used(), p.bag_size()], GREY]]}
 	var worn_slot := slot
 	if slot == "spezial":
 		# A free place for a special makes it a new thing; else it would take

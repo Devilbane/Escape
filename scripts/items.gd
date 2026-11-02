@@ -22,6 +22,11 @@ const SLOT_NAMES := {"kopf": "Kopf", "waffe": "Waffe", "schild": "Schild", "umha
 		"armreif": "Armreif", "spezial_1": "Spezial 1", "spezial_2": "Spezial 2",
 		"rucksack": "Rucksack"}
 const BAG_SIZE := 8
+## Items that bundle in one bag slot, and how many fit in one bundle. The bag
+## stays a plain list of ids (one entry per item), so saving, dropping and
+## lighting a torch take one from a bundle; only the count of slots and the
+## inventory's grid see bundles (see slots_used and stacks).
+const STACK := {"fackel": 5}
 const WEIGHT_SLOW := 0.01
 const MAX_WEIGHT_SLOW := 0.35
 
@@ -150,6 +155,55 @@ static func load_factor(total_weight: float) -> float:
 static func weight_text(kg: float) -> String:
 	var text := ("%d" % roundi(kg)) if is_equal_approx(kg, roundf(kg)) else ("%.1f" % kg)
 	return (text if Lang.language == "en" else text.replace(".", ",")) + " kg"
+
+
+## How many of an item share one bag slot (1 for most).
+static func stack_size(id: String) -> int:
+	return int(STACK.get(id, 1))
+
+
+## The bag's slots, in the order the items lie in it: each a dictionary
+## {"id", "count", "indices"}, where "indices" are the list positions of the
+## items in that slot. A bundling item fills its first slot before the next
+## one is opened, so 7 torches are one slot of 5 and one of 2.
+static func stacks(items: Array) -> Array:
+	var out := []
+	var open := {}
+	for i in items.size():
+		var id: String = items[i]
+		var most := stack_size(id)
+		if most > 1 and open.has(id) and open[id].count < most:
+			open[id].count += 1
+			open[id].indices.append(i)
+			continue
+		var slot := {"id": id, "count": 1, "indices": [i]}
+		out.append(slot)
+		if most > 1:
+			open[id] = slot
+	return out
+
+
+## How many bag slots these items take: bundled items share one.
+static func slots_used(items: Array) -> int:
+	var used := 0
+	var counted := {}
+	for id in items:
+		var most := stack_size(id)
+		if most <= 1:
+			used += 1
+		elif not counted.has(id):
+			counted[id] = true
+			used += ceili(items.count(id) / float(most))
+	return used
+
+
+## Whether one more of `id` fits in a bag of `size` slots holding `items`:
+## always when a bundle of it has room, else when a slot is free.
+static func fits(items: Array, size: int, id: String) -> bool:
+	var most := stack_size(id)
+	if most > 1 and items.count(id) % most != 0:
+		return true
+	return slots_used(items) < size
 
 
 ## How many items the bag holds with this backpack worn ("" for none).

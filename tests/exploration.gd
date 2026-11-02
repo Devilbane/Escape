@@ -66,6 +66,7 @@ func _test() -> void:
 		check(Lang.EN.has(text), "has English: " + text)
 	for w in Level.WRITINGS:
 		check(Lang.EN.has(w[1]), "the writing has English: " + w[1])
+		check(Lang.EN.has(w[0]), "the carved word has English: " + w[0])
 
 	# The tiles that count for a full map: ground in the part around the start.
 	game.load_level(0)

@@ -171,8 +171,23 @@ func _rolls() -> void:
 			seen[next] = true
 	check(seen.size() == Weather.KINDS.size(), "every weather comes now and then")
 	for i in 50:
-		var h := Weather.spell(rng)
-		check(h >= Weather.MIN_HOURS and h <= Weather.MAX_HOURS, "a spell of weather lasts a few hours")
+		var h := Weather.spell(rng, Weather.RAIN)
+		check(h >= Weather.MIN_HOURS and h <= Weather.MAX_HOURS, "a spell of bad weather lasts a few hours")
+		var c := Weather.spell(rng, Weather.CLEAR)
+		check(c >= Weather.CLEAR_MIN_HOURS and c <= Weather.CLEAR_MAX_HOURS, "clear skies last longer")
+	# Over many days, clear skies hold most of the time.
+	var hour := 8.0
+	var kind: String = Weather.CLEAR
+	var clear := 0.0
+	var total := 0.0
+	for i in 4000:
+		var h := Weather.spell(rng, kind)
+		total += h
+		if kind == Weather.CLEAR:
+			clear += h
+		hour = fmod(hour + h, 24.0)
+		kind = Weather.roll(hour, rng, kind)
+	check(clear / total > 0.55, "clear skies hold most of the time (%.0f%%)" % (100.0 * clear / total))
 
 
 func _clock_and_saving() -> void:

@@ -43,6 +43,7 @@ const PARTS := [
 	preload("res://scripts/lang/journal.gd"),
 	preload("res://scripts/lang/wandering_merchant.gd"),
 	preload("res://scripts/lang/fox.gd"),
+	preload("res://scripts/lang/companions.gd"),
 	preload("res://scripts/lang/pouch.gd"),
 	preload("res://scripts/lang/weather.gd"),
 	preload("res://scripts/lang/moon.gd"),
@@ -52,6 +53,7 @@ const PARTS := [
 	preload("res://scripts/lang/factions.gd"),
 	preload("res://scripts/lang/village_talk.gd"),
 	preload("res://scripts/lang/wishes.gd"),
+	preload("res://scripts/lang/exploration.gd"),
 	preload("res://scripts/lang/save_slots.gd"),
 ]
 

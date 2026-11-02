@@ -209,6 +209,13 @@ func open(kind: String) -> void:
 func close() -> void:
 	if current == "":
 		return
+	if current == "gefaehrte_name":
+		naming = -1
+		_naming_back = ""
+		_name_edit = null
+		if naming_message != "":
+			game.show_message.call_deferred(naming_message, 6.0)
+			naming_message = ""
 	current = ""
 	game.trader_role = ""
 	_holder.visible = false
@@ -278,21 +285,29 @@ func _rebuild() -> void:
 			_build_return()
 		"hoehle":
 			_build_lair_won()
+		"gefaehrten":
+			_build_companions()
+		"gefaehrte_name":
+			_build_naming()
 	if current in ["lager", "tresor"]:
 		_info = _add_label(Lang.t(INFO_HINT), 16, BLUE)
 		_info.custom_minimum_size.y = 26
-	if _note != "" or current in TRADE_WINDOWS or current in ["werkbank", "inventar"]:
+	if _note != "" or current in TRADE_WINDOWS or current in ["werkbank", "inventar", "gefaehrten"]:
 		# The trading windows and the inventory keep a line for the note, so a
 		# purchase or a dropped item does not make the window grow.
 		var note := _add_label(_note, 16, Color(1.0, 0.75, 0.5))
 		note.custom_minimum_size.y = 26
+		if current == "gefaehrten":
+			note.clip_text = true
+			note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			note.custom_minimum_size.x = COMPANION_ROW.x
 		if current in TRADE_WINDOWS or current == "inventar":
 			# One line at most, never wider than the window.
 			note.clip_text = true
 			note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			note.custom_minimum_size.x = INVENTORY_WIDTH if current == "inventar" else TradeWindow.BODY_WIDTH
 	# The inventory has its own "Back to game" button at the top instead.
-	if not current in ["inventar", "bett", "laden", "ueberschreiben", "beenden", "plan", "rueckkehr", "hoehle"]:
+	if not current in ["inventar", "bett", "laden", "ueberschreiben", "beenden", "plan", "rueckkehr", "hoehle", "gefaehrte_name"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
 		close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		close_button.custom_minimum_size = Vector2(180, 44 if current in TRADE_WINDOWS else 52)
@@ -1183,9 +1198,12 @@ static func sell_price(id: String) -> int:
 
 func _build_shop() -> void:
 	var p: Player = game.player
-	# There are always sausages for a fox (see Pet).
-	while game.shop_stock.count(Pet.FOOD) < 2:
-		game.shop_stock.push_front(Pet.FOOD)
+	# There is always food for the animals that can be won over: sausages,
+	# apples and salt licks (see Companions).
+	for kind in Companions.ORDER:
+		var food: String = Companions.SPECIES[kind].food
+		while game.shop_stock.count(food) < 2:
+			game.shop_stock.push_front(food)
 	# And torches for the pitch-black holes in the wild (see HandTorch).
 	while game.shop_stock.count(HandTorch.ITEM) < 3:
 		game.shop_stock.push_front(HandTorch.ITEM)
@@ -1197,8 +1215,8 @@ func _build_shop() -> void:
 	if _shop_page == "kaufen":
 		for id in _kinds(game.shop_stock):
 			var entry := _ware_entry("ware:" + id, id, game.trader_price(Items.ALL[id].price), _buy.bind(game.shop_stock.find(id)))
-			# Sausages never run out (see Pet), so they show no count.
-			entry.count = 1 if id == Pet.FOOD else game.shop_stock.count(id)
+			# Animal food never runs out (see Companions), so it shows no count.
+			entry.count = 1 if Items.is_food(id) else game.shop_stock.count(id)
 			(goods if _is_consumable(id) else gear).append(entry)
 	else:
 		for id in _kinds(p.bag):
@@ -1272,15 +1290,20 @@ func _buy(index: int) -> void:
 		game.coins -= price
 		Events.bus().traded.emit(game.trader_role)
 		game.player.bag.append(id)
-		# The shop never runs out of sausages: they stay in stock.
-		if id != Pet.FOOD:
+		# The shop never runs out of animal food: it stays in stock.
+		if not Items.is_food(id):
 			game.shop_stock.remove_at(index)
 		_note = Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
-		if id == Pet.FOOD and not game.has_fox:
+		var eater := Companions.eater_of(id)
+		if eater != "" and not game.owns_companion(eater):
 			# Where to take it, short enough for the one note line; the
 			# whole hint goes into the compendium.
-			_note = Lang.t("Gekauft: Wurst. Füchse leben am Waldteich westlich vom Dorf.")
-			Events.teach(Pet.WHERE)
+			if eater == "fuchs":
+				_note = Lang.t("Gekauft: Wurst. Füchse leben am Waldteich westlich vom Dorf.")
+				Events.teach(Pet.WHERE)
+			else:
+				_note = Lang.t("Gekauft: %s. %s äsen auf den Lichtungen zwischen Friedhof und Dorf.") % [Items.item_name(id), Lang.t(Companions.SPECIES[eater].plural)]
+				Events.teach(Companions.WHERE_DEER)
 	_rebuild()
 
 
@@ -1745,6 +1768,222 @@ func _build_trophies() -> void:
 			_box.add_child(row)
 		else:
 			_add_label(line, 18)
+
+
+# --- Companions (see Companions) -------------------------------------------------
+
+## The companion being named (index into game.companions), and the window to
+## go back to when the name is given ("" closes).
+var naming := -1
+var _naming_back := ""
+## Told once the name is given (or the naming cancelled), back in the game.
+var naming_message := ""
+var _name_text := ""
+var _name_edit: LineEdit = null
+## Sizes of the companions window's rows, so a row never changes size with
+## its state or the language.
+const COMPANION_ROW := Vector2(900, 92)
+const COMPANION_NAME_WIDTH := 250
+const COMPANION_PERK_WIDTH := 290
+const COMPANION_BUTTON := Vector2(150, 52)
+
+
+## The companions window, at the straw in the hero's house: one row for
+## each kind (fox, doe, stag), with who goes along and who waits here.
+## A kind not won over yet says how to win it over, so the window keeps
+## its three rows and its size.
+func _build_companions() -> void:
+	_add_label(Lang.t("Gefährten"), 38, game.GOLD, game.TITLE_FONT)
+	var intro := _add_label(Lang.t("Einer geht mit dir und schenkt dir seine Gabe. Die anderen warten hier auf dem Stroh."), 18, ABOUT_COLOR)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intro.custom_minimum_size.x = COMPANION_ROW.x
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 6)
+	rows.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(rows)
+	for kind in Companions.ORDER:
+		rows.add_child(_companion_row(kind))
+	if game.companions.size() > 1 or game.following < 0:
+		var nobody: Button = game._make_button(Lang.t("Alle hierlassen"), _take_companion.bind(-1))
+		nobody.custom_minimum_size = Vector2(220, 52)
+		nobody.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		nobody.disabled = game.following < 0
+		_box.add_child(nobody)
+
+
+func _companion_row(kind: String) -> Control:
+	var index := -1
+	for i in game.companions.size():
+		if game.companions[i].kind == kind:
+			index = i
+	var tame := index >= 0
+	var at_side: bool = tame and index == game.following
+	var row := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.1, 0.16, 0.9) if tame else Color(0.08, 0.07, 0.1, 0.7)
+	style.border_color = game.GOLD if at_side else Color(0.4, 0.34, 0.25, 0.6)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(10)
+	row.add_theme_stylebox_override("panel", style)
+	row.custom_minimum_size = COMPANION_ROW
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 12)
+	line.alignment = BoxContainer.ALIGNMENT_BEGIN
+	row.add_child(line)
+	var icon := ItemIcon.make("kind:paw:" + kind, 56)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.modulate = Color.WHITE if tame else Color(1, 1, 1, 0.45)
+	line.add_child(icon)
+	# Who it is: its name, then its kind and where it is.
+	var who := VBoxContainer.new()
+	who.add_theme_constant_override("separation", 4)
+	who.alignment = BoxContainer.ALIGNMENT_CENTER
+	who.custom_minimum_size.x = COMPANION_NAME_WIDTH
+	line.add_child(who)
+	var name_label: Label = game._make_label(game.TEXT_FONT, 22, game.GOLD if tame else TradeWindow.GREY)
+	name_label.text = game.companions[index].name if tame else Companions.species_name(kind)
+	name_label.clip_text = true
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.custom_minimum_size.x = COMPANION_NAME_WIDTH
+	who.add_child(name_label)
+	var where: Label = game._make_label(game.TEXT_FONT, 16, Color.WHITE if at_side else ABOUT_COLOR)
+	if at_side:
+		where.text = Lang.t("%s · geht mit dir") % Companions.species_name(kind)
+	elif tame:
+		where.text = Lang.t("%s · wartet hier") % Companions.species_name(kind)
+	else:
+		where.text = Lang.t("Noch nicht gezähmt")
+	who.add_child(where)
+	# What it gives, and for one not won over yet: how.
+	var what := VBoxContainer.new()
+	what.add_theme_constant_override("separation", 4)
+	what.alignment = BoxContainer.ALIGNMENT_CENTER
+	what.custom_minimum_size.x = COMPANION_PERK_WIDTH
+	line.add_child(what)
+	var perk: Label = game._make_label(game.TEXT_FONT, 16, BLUE if tame else TradeWindow.GREY)
+	perk.text = Lang.t("Gabe: %s") % Companions.perk_text(kind)
+	perk.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	perk.custom_minimum_size.x = COMPANION_PERK_WIDTH
+	what.add_child(perk)
+	if not tame:
+		var how: Label = game._make_label(game.TEXT_FONT, 16, Color(1.0, 0.85, 0.55))
+		how.text = Lang.t("Zähmen mit: %s (%d / %d)") % [Items.item_name(Companions.SPECIES[kind].food), int(game.trust.get(kind, 0)), Companions.TRUST_NEEDED]
+		how.custom_minimum_size.x = COMPANION_PERK_WIDTH
+		what.add_child(how)
+	# Its buttons, or the same room left empty.
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 8)
+	buttons.alignment = BoxContainer.ALIGNMENT_END
+	buttons.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.add_child(buttons)
+	if tame:
+		var take: Button = game._make_button(Lang.t("Hierlassen") if at_side else Lang.t("Mitnehmen"), _take_companion.bind(-1 if at_side else index))
+		take.custom_minimum_size = COMPANION_BUTTON
+		take.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		buttons.add_child(take)
+		var rename: Button = game._make_button(Lang.t("Umbenennen"), _rename_companion.bind(index))
+		rename.custom_minimum_size = COMPANION_BUTTON
+		rename.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		buttons.add_child(rename)
+	else:
+		var room := Control.new()
+		room.custom_minimum_size = Vector2(COMPANION_BUTTON.x * 2 + 8, COMPANION_BUTTON.y)
+		room.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		buttons.add_child(room)
+	return row
+
+
+func _take_companion(index: int) -> void:
+	var before: Dictionary = game.companion()
+	game.take_companion(index)
+	var now: Dictionary = game.companion()
+	if now.is_empty():
+		_note = Lang.t("%s bleibt hier auf dem Stroh.") % before.name if not before.is_empty() else ""
+	else:
+		_note = Lang.t("%s geht jetzt mit dir: %s") % [now.name, Companions.perk_text(now.kind)]
+	_rebuild()
+
+
+func _rename_companion(index: int) -> void:
+	naming = index
+	_naming_back = "gefaehrten"
+	naming_message = ""
+	open("gefaehrte_name")
+
+
+## Names a companion: just won over, or renamed at home. The name field is
+## ready for typing; Enter or "Fertig" keeps the name, Esc keeps the old one.
+func _build_naming() -> void:
+	if naming < 0 or naming >= game.companions.size():
+		close()
+		return
+	var c: Dictionary = game.companions[naming]
+	if _name_edit == null or not is_instance_valid(_name_edit) or _name_edit.get_meta("for", -1) != naming:
+		_name_text = c.name
+	_add_label(Lang.t(Companions.SPECIES[c.kind].ask), 32, game.GOLD, game.TITLE_FONT)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	_box.add_child(row)
+	row.add_child(ItemIcon.make("kind:paw:" + c.kind, 56))
+	var perk: Label = game._make_label(game.TEXT_FONT, 18, BLUE)
+	perk.text = Lang.t("Gabe: %s") % Companions.perk_text(c.kind)
+	row.add_child(perk)
+	var edit := LineEdit.new()
+	edit.max_length = Companions.NAME_MAX
+	edit.text = _name_text
+	edit.placeholder_text = Companions.species_name(c.kind)
+	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	edit.custom_minimum_size = Vector2(320, 52)
+	edit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	edit.add_theme_font_override("font", game.TEXT_FONT)
+	edit.add_theme_font_size_override("font_size", 22)
+	edit.add_theme_stylebox_override("normal", panel_style(Color(0.85, 0.66, 0.32, 0.8)))
+	edit.add_theme_stylebox_override("focus", panel_style(game.GOLD))
+	for style in ["normal", "focus"]:
+		edit.get_theme_stylebox(style).set_content_margin_all(8)
+	edit.set_meta("for", naming)
+	edit.text_changed.connect(func(t): _name_text = t)
+	edit.text_submitted.connect(func(_t): _give_name())
+	_box.add_child(edit)
+	_name_edit = edit
+	var hint := _add_label(Lang.t("Bis zu %d Zeichen. Umbenennen kannst du später zu Hause am Stroh.") % Companions.NAME_MAX, 16, ABOUT_COLOR)
+	hint.custom_minimum_size.y = 24
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 12)
+	_box.add_child(buttons)
+	var done: Button = game._make_button(Lang.t("Fertig"), _give_name)
+	done.custom_minimum_size = Vector2(220, 60)
+	buttons.add_child(done)
+	var cancel: Button = game._make_button(Lang.t("Abbrechen"), _end_naming)
+	cancel.custom_minimum_size = Vector2(220, 60)
+	buttons.add_child(cancel)
+	# Ready to type at once (a text field, not a button: Space only types).
+	edit.call_deferred("grab_focus")
+	edit.call_deferred("select_all")
+
+
+func _give_name() -> void:
+	var old: String = game.companions[naming].name
+	game.rename_companion(naming, _name_text)
+	var now: String = game.companions[naming].name
+	_end_naming(Lang.t("%s heißt jetzt %s.") % [old, now] if now != old else "")
+
+
+## Back to the companions window (renaming at home), or back to the game.
+func _end_naming(note := "") -> void:
+	var back := _naming_back
+	if back == "":
+		close()
+		return
+	naming = -1
+	_naming_back = ""
+	_name_edit = null
+	open(back)
+	_note = note
+	_rebuild()
 
 
 # --- Smith -------------------------------------------------------------------
@@ -2778,7 +3017,12 @@ func _build_map_page(journal: Journal) -> void:
 			if by_name[n][0] > 1:
 				text += "  " + Lang.t("(%d Stellen)") % by_name[n][0]
 			_legend_line(legend, Journal.find_color(kinds[n]), text)
-	_add_label(Lang.t("Erkundet: %d %%") % _explored_share(journal, _map_file), 16, BLUE)
+	# How much is seen, by the same measure that makes a map fully explored
+	# (see Journal.note_full_map): rounded down, so 95 % is really reached.
+	var explored := Lang.t("Erkundet: %d %%") % floori(100.0 * journal.explored_share(_map_file))
+	if journal.is_full(_map_file):
+		explored += " " + Lang.t("(vollständig)")
+	_add_label(explored, 16, BLUE)
 
 
 func _legend_title(box: VBoxContainer, text: String) -> void:
@@ -2801,23 +3045,6 @@ func _legend_line(box: VBoxContainer, color: Color, text: String) -> void:
 	l.custom_minimum_size.x = 240
 	line.add_child(l)
 	box.add_child(line)
-
-
-## How much of the ground of a level (everything but walls and forest) the
-## hero has seen, in percent.
-func _explored_share(journal: Journal, file: String) -> int:
-	var info := journal.map_of(file)
-	var ground := 0
-	var seen := 0
-	for y in info.height:
-		for x in info.width:
-			var c := Vector2i(x, y)
-			if Journal.char_at(info, c) == "#":
-				continue
-			ground += 1
-			if journal.is_explored(file, c):
-				seen += 1
-	return 0 if ground == 0 else roundi(100.0 * seen / ground)
 
 
 ## The journal: tonight's moon at the top (see Moon), then every new place,

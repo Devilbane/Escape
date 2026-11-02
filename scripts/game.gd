@@ -137,11 +137,21 @@ var interiors := {}
 var coins := 0
 ## Iron bars for the smith's forge (see Forge), counted like gold.
 var iron := 0
-## The fox: how many sausages a wild fox has eaten from the hero's hand, and
-## whether one goes with the hero now (see Pet). Kept in the saved game.
-var fox_trust := 0
-var has_fox := false
+## The hero's companions (see Companions): {"kind", "name"} for each, the
+## index of the one that goes with the hero (-1: none, they all wait at
+## home), and how many gifts each kind of wild animal has eaten from the
+## hero's hand so far. Kept in the saved game.
+var companions: Array = []
+var following := -1
+var trust := {}
+## The companion at the hero's side, and those waiting at home while the
+## hero is in their house.
 var pet: Pet = null
+var home_pets: Array[Pet] = []
+## Whether the hero has won a fox over (it may be at home).
+var has_fox: bool:
+	get:
+		return owns_companion("fuchs")
 ## The nameless horrors: their reveal, their bar and their discovery.
 var horrors: Horrors
 const FOX_LEARN := "Füchse auf den Wiesen sind scheu, aber eine Wurst (bei der Krämerin) lockt sie an: Trägst du eine bei dir, kommt ein Fuchs neugierig näher und frisst sie dir aus der Hand. Nach drei Würsten folgt er dir überallhin, auch ins Verlies. Seine Nase findet Zutaten, die im Boden versteckt sind: Er läuft hin, gräbt sie aus und lässt sie für dich liegen; aufgehoben kommen sie in deinen Zutatenbeutel."
@@ -159,6 +169,13 @@ var dry_levels := 0
 ## The hero has run into a villager once: from then on the hint that running
 ## into people talks to them is left out. Kept in the saved game.
 var bumped_person := false
+## How often each kind of explanatory hint came up, by kind (see _hint).
+## Kept in the saved game: after HINT_SHOWINGS times a kind is left out.
+var hints_shown := {}
+const HINT_SHOWINGS := 2
+## The hint kinds on screen this frame and the frame before.
+var _hints_now := {}
+var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
 const PERSON_STATIONS := ["npc", "bank", "barbier", "haendler", "steinmetz", "schmied", "wanderhaendler"]
 ## Lives the hero gets back for climbing to the next level.
@@ -283,6 +300,8 @@ func _bus_links() -> Array:
 		[bus.reputation_rose, reputation_rose],
 		[bus.traded, reputation.on_trade],
 		[bus.map_grew, map_notice],
+		[bus.map_explored, map_explored],
+		[bus.writing_found, writing_found],
 	]
 
 
@@ -896,59 +915,149 @@ func _use_station(s: Dictionary) -> void:
 		menus.open(s.kind)
 
 
-# --- The fox -------------------------------------------------------------------
+# --- Companions -----------------------------------------------------------------
 
-## The hero's fox comes along to the new level (see Pet).
+## Whether the hero has a companion of this kind (at their side or at home).
+func owns_companion(kind: String) -> bool:
+	return companions.any(func(c): return c.kind == kind)
+
+
+## The companion at the hero's side, or {}.
+func companion() -> Dictionary:
+	return companions[following] if following >= 0 and following < companions.size() else {}
+
+
+## The perk of the companion at the hero's side goes into the hero's stats
+## (see Companions); one at home gives nothing.
+func apply_companion_perk() -> void:
+	var c := companion()
+	player.companion_perks = Companions.SPECIES[c.kind] if not c.is_empty() else {}
+	player.refresh_stats()
+	_update_hud()
+
+
+## The hero's companion comes along to the new level (see Pet); in the
+## hero's house the others wait in their corner.
 func _spawn_pet(at := Vector3.INF) -> void:
+	if is_instance_valid(pet):
+		pet.queue_free()
 	pet = null
-	if not has_fox:
-		return
-	pet = Pet.new()
-	pet.setup(level)
-	level.add_child(pet)
-	if at != Vector3.INF:
-		pet.global_position = at
-		pet._placed = true
-	pet.dug_up.connect(_on_fox_dug_up)
+	var c := companion()
+	if not c.is_empty():
+		pet = Pet.new()
+		pet.setup(level, c.kind, c.name)
+		level.add_child(pet)
+		if at != Vector3.INF:
+			pet.global_position = at
+			pet._placed = true
+		pet.dug_up.connect(_on_fox_dug_up)
+	_spawn_home_pets()
 
 
-## A wild fox ate a sausage from the hero's hand. After the last one it
-## trusts the hero and follows them from now on.
-func _on_fox_fed(fox: Animal) -> void:
-	if has_fox or not player.bag.has(Pet.FOOD):
+## In the hero's house: the companions who stay at home rest on the straw
+## in the corner by the door (see Level.companion_spots).
+func _spawn_home_pets() -> void:
+	for p in home_pets:
+		if is_instance_valid(p):
+			p.queue_free()
+	home_pets.clear()
+	if not level.is_home:
 		return
-	player.bag.erase(Pet.FOOD)
-	fox_trust += 1
-	learn(FOX_LEARN)
+	var spots: Array = level.companion_spots
+	var k := 0
+	for i in companions.size():
+		if i == following or k >= spots.size():
+			continue
+		var p := Pet.new()
+		p.setup(level, companions[i].kind, companions[i].name)
+		level.add_child(p)
+		p.rest_at(spots[k].pos, spots[k].rot)
+		home_pets.append(p)
+		k += 1
+
+
+## Takes companion `index` along (or none with -1): the one at the hero's
+## side so far stays at home. Only in the hero's house (see the companions
+## window).
+func take_companion(index: int) -> void:
+	if index == following or index >= companions.size():
+		return
+	var from := Vector3.INF
+	var i := 0
+	for c in companions.size():
+		if c == following:
+			continue
+		if c == index and i < home_pets.size() and is_instance_valid(home_pets[i]):
+			from = home_pets[i].global_position
+		i += 1
+	following = index
+	_spawn_pet(from)
+	apply_companion_perk()
+
+
+## Gives companion `index` a new name.
+func rename_companion(index: int, text: String) -> void:
+	if index < 0 or index >= companions.size():
+		return
+	companions[index].name = Companions.clean_name(text, companions[index].kind)
+	for p in home_pets + [pet]:
+		if is_instance_valid(p) and p.kind == companions[index].kind:
+			p.given_name = companions[index].name
+
+
+## A wild animal ate its food from the hero's hand. After the last gift it
+## trusts the hero, comes along from now on and is given a name; the
+## companion at the hero's side so far goes home to the hero's house.
+func _on_animal_fed(animal: Animal) -> void:
+	var kind := animal.kind
+	var food := animal.food()
+	if food == "" or owns_companion(kind) or not player.bag.has(food):
+		return
+	var species: Dictionary = Companions.SPECIES[kind]
+	player.bag.erase(food)
+	trust[kind] = int(trust.get(kind, 0)) + 1
+	if kind == "fuchs":
+		learn(FOX_LEARN)
+	learn(Companions.LEARN)
 	Sfx.play(self, "drink", -4.0)
-	Effects.float_text(level, fox.global_position + Vector3(0, 1.8, 0), Lang.t("Mampf!"), Color(1.0, 0.7, 0.4), true)
-	if fox_trust < Pet.TRUST_NEEDED:
-		show_message(Lang.t("Der Fuchs frisst dir die Wurst aus der Hand. Vertrauen: %d / %d") % [fox_trust, Pet.TRUST_NEEDED], 3.5)
+	Effects.float_text(level, animal.global_position + Vector3(0, 1.8 if kind == "fuchs" else 2.6, 0), Lang.t("Mampf!"), Color(1.0, 0.7, 0.4), true)
+	if trust[kind] < Companions.TRUST_NEEDED:
+		show_message(Lang.t(species.fed) % [trust[kind], Companions.TRUST_NEEDED], 3.5)
 		_update_hud()
 		return
-	has_fox = true
+	var before := companion()
+	companions.append(Companions.make(kind, species.default))
+	following = companions.size() - 1
 	if level is Outdoor:
-		level.fox_tamable = false
-		level.taken[fox.tame_key()] = true
-		level.animals.erase(fox)
-	var spot := fox.global_position
-	var turn := fox.rotation.y
-	fox.queue_free()
+		level.owned_companions.append(kind)
+		level.taken[animal.tame_key()] = true
+		level.animals.erase(animal)
+	var spot := animal.global_position
+	var turn := animal.rotation.y
+	animal.queue_free()
 	_spawn_pet(spot)
 	pet.rotation.y = turn
-	level.place_fox_baskets()
+	if kind == "fuchs":
+		level.place_fox_baskets()
+	apply_companion_perk()
 	var hearts := Effects.make_sparkles(Color(1.0, 0.55, 0.6), true)
 	hearts.position = spot + Vector3(0, 1.0, 0)
 	level.add_child(hearts)
-	show_message(Lang.t("Der Fuchs vertraut dir und geht jetzt mit dir! Seine Nase findet versteckte Zutaten im Boden."), 5.0)
-	_update_hud()
+	var text := Lang.t(species.tamed)
+	if not before.is_empty():
+		text += "\n" + Lang.t("%s läuft nach Hause und wartet dort auf dich.") % before.name
+	# A friend needs a name; what it brings is told once it has one.
+	menus.naming = following
+	menus.naming_message = text
+	menus.open("gefaehrte_name")
 
 
 ## The fox dug up a hidden ingredient: it lies there for the hero to take.
 func _on_fox_dug_up(id: String, pos: Vector3) -> void:
 	level.lay_find(id, pos)
 	Effects.float_text(level, pos + Vector3(0, 2.0, 0), Crafting.ingredient_name(id), Color(0.75, 0.9, 1.0), true)
-	show_message(Lang.t("Dein Fuchs hat etwas ausgegraben: %s!") % Crafting.ingredient_name(id), 3.0)
+	var fox_name: String = pet.given_name if is_instance_valid(pet) and pet.given_name != "" else Lang.t("Dein Fuchs")
+	show_message(Lang.t("%s hat etwas ausgegraben: %s!") % [fox_name, Crafting.ingredient_name(id)], 3.0)
 
 
 ## A dug-up ingredient goes into the ingredient pouch, not the bag.
@@ -1411,7 +1520,7 @@ func _tick_weather(delta: float) -> void:
 ## The open air follows in _tick_clock.
 func set_weather(kind: String, hours := -1.0) -> void:
 	weather = kind if kind in Weather.KINDS else Weather.CLEAR
-	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng)
+	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng, weather)
 
 
 ## Rain and mist fall and drift around the hero in the open air only, and
@@ -1495,6 +1604,7 @@ func load_level(index: int, restock := true) -> void:
 	_spawn_pet()
 	if has_fox:
 		level.place_fox_baskets()
+	apply_companion_perk()
 	level.bag_full.connect(func(): show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0))
 	level.door_opened.connect(func():
 		Sfx.play(self, "door")
@@ -1516,8 +1626,8 @@ func load_level(index: int, restock := true) -> void:
 		level.notice.connect(func(text: String, duration: float): show_message(text, duration))
 		level.home_claimed.connect(_on_home_claimed)
 		level.food_basket.connect(_eat_from_basket)
-		level.fox_tamable = not has_fox
-		level.fox_fed.connect(_on_fox_fed)
+		level.owned_companions = companions.map(func(c): return c.kind)
+		level.animal_fed.connect(_on_animal_fed)
 		level.lightning.connect(_on_lightning)
 	if level.is_home:
 		level.show_home_upgrades(home_upgrades, trophies)
@@ -1771,8 +1881,9 @@ func begin_new_game() -> void:
 	_name_edit.release_focus()
 	coins = 0
 	iron = 0
-	fox_trust = 0
-	has_fox = false
+	companions = []
+	following = -1
+	trust = {}
 	escaped = false
 	home_given = false
 	home_claimed = false
@@ -1781,6 +1892,8 @@ func begin_new_game() -> void:
 	secrets_found = 0
 	dry_levels = 0
 	bumped_person = false
+	hints_shown.clear()
+	_hints_last.clear()
 	looted.clear()
 	builds.clear()
 	met.clear()
@@ -2086,12 +2199,19 @@ func _apply_save(data: Dictionary) -> void:
 	hero_name = data.get("name", Lang.t("Namenlos"))
 	coins = int(data.coins)
 	iron = int(data.get("iron", 0))
-	var fox = data.get("fox", {})
-	fox_trust = int(fox.get("trust", 0)) if fox is Dictionary else 0
-	has_fox = bool(fox.get("tame", false)) if fox is Dictionary else false
+	var friends := Companions.from_save(data)
+	companions = friends.list
+	following = friends.following
+	trust = friends.trust
 	secrets_found = int(data.get("secrets", 0))
 	dry_levels = int(data.get("dry", 0))
 	bumped_person = bool(data.get("bumped_person", false))
+	hints_shown.clear()
+	_hints_last.clear()
+	var saved_hints = data.get("hints", {})
+	if saved_hints is Dictionary:
+		for key in saved_hints:
+			hints_shown[str(key)] = int(saved_hints[key])
 	storage.assign(data.storage)
 	shop_stock.assign(data.shop)
 	player.knives = int(data.knives)
@@ -2277,7 +2397,7 @@ func _home_given_now() -> bool:
 func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp)
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
@@ -2292,7 +2412,7 @@ func save_game(going_away := false) -> bool:
 		"reputation": reputation.for_save(),
 		"ties": village_talk.for_save(),
 		"factions": Factions.for_save(),
-		"fox": {"trust": fox_trust, "tame": has_fox},
+		"companions": {"list": companions, "following": following, "trust": trust},
 		"hour": day_hour,
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
 		"weather": weather, "weather_hours": weather_hours,
@@ -2349,8 +2469,9 @@ func sleep() -> void:
 	else:
 		_climb_into_bed(tween, bed)
 	if is_instance_valid(pet):
-		# The fox goes to bed too: into its basket beside the hero's bed.
-		pet.go_to_bed(level.fox_bed_near(bed.pos if not bed.is_empty() else player.global_position))
+		# The fox goes to bed too: into its basket beside the hero's bed. A
+		# doe or a stag lies down where it is.
+		pet.go_to_bed(level.fox_bed_near(bed.pos if not bed.is_empty() else player.global_position) if pet.kind == "fuchs" else Vector3.INF)
 	# Settled on the back, the hero closes their eyes and drifts off: a few
 	# floating Z's and some soft snoring before the night falls.
 	tween.tween_interval(1.9)
@@ -2510,7 +2631,7 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 	player.face(foot)
 	player.lie_asleep()
 	var fox_wakes := false
-	if is_instance_valid(pet):
+	if is_instance_valid(pet) and pet.kind == "fuchs":
 		var basket := level.fox_bed_near(bed.pos)
 		if basket != Vector3.INF:
 			pet.sleep_in_basket(basket)
@@ -2818,6 +2939,30 @@ func map_notice(names: Array[String]) -> void:
 		show_message(Lang.t("Neu auf deiner Karte: %s") % ", ".join(names), 2.4)
 
 
+## How the Erkunden skill grows and what it is good for (for the compendium).
+const EXPLORE_LEARN := "Erkunden ist eine Fertigkeit ohne Ausrüstung. Sie wächst, wenn du eine Karte ganz erkundest (95 % ihres Bodens gesehen, siehe Karte), und ein wenig mit jedem Geheimraum und jeder Inschrift. Jede Stufe gibt +3 %, einen Geheimraum zu entdecken, +4 %, beim Durchsuchen eine Fackel zu finden, und +8 %, eine Inschrift an der Wand zu bemerken."
+
+
+## The hero has seen the whole of a map (see Journal.note_full_map).
+func map_explored(file: String) -> void:
+	player.train("erkunden", Training.EXPLORE_FULL_MAP)
+	learn(EXPLORE_LEARN)
+	Sfx.play(self, "secret", -6.0)
+	show_message(Lang.t("Ganz erkundet: %s\nDein Blick für Verborgenes wird schärfer (Erkunden).") % journal.level_title(file), 4.0)
+
+
+## The hero noticed a writing on a wall (see Level.reveal_writing): it goes
+## into the compendium and the journal; a new one trains Erkunden a little.
+func writing_found(text: String) -> void:
+	if not lore.has(text):
+		player.train("erkunden", Training.EXPLORE_WRITING_FOUND)
+		journal.write("Inschrift entdeckt", [], journal.current_file())
+	learn(text)
+	learn(EXPLORE_LEARN)
+	Sfx.play(self, "secret", -8.0)
+	show_message(Lang.t(text), 6.0)
+
+
 ## Records where the hero found something, for the map and the journal (see
 ## Journal.note_find): kind is e.g. "ingredient" or "fish", id the item id and
 ## name its German name. pos is where it was found in the current level.
@@ -2896,6 +3041,7 @@ func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	journal.note_secret(journal.current_file(), level.world_to_cell(wall_pos))
 	level.secret_bonus = secrets_found
 	player.train("weisheit", 5.0)
+	player.train("erkunden", Training.EXPLORE_SECRET_FOUND)
 	Comic.pop(lever_pos, "lever")
 	Sfx.play(self, "lever_pull", -2.0, lever_pos)
 	learn("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!")
@@ -3138,8 +3284,18 @@ func _search(obj: Dictionary) -> void:
 		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
 		color = Color(0.75, 0.9, 1.0)
 		show_message(found + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
+	# An eye trained in exploring (Erkunden) finds a torch tucked away.
+	var torch := player.bag.size() < player.bag_size() and randi_range(1, 100) <= player.explore_bonus(Training.EXPLORE_TORCH)
+	if torch:
+		player.bag.append(HandTorch.ITEM)
+		if loot.is_empty():
+			color = Color(1.0, 0.75, 0.4)
+		Sfx.play_gear(self, HandTorch.ITEM, found_after + 0.25)
+		text = Items.item_name(HandTorch.ITEM) if text.ends_with("leer") else text + "  +" + Items.item_name(HandTorch.ITEM)
+		if not loot.has("item"):
+			show_message(Lang.t("Dein geübtes Auge findet eine Fackel, die hier versteckt lag."), 2.4)
 	Effects.float_text(level, obj.icon_pos, text, color, true)
-	if loot.is_empty():
+	if loot.is_empty() and not torch:
 		show_message(Lang.t("Du durchsuchst %s... nichts.") % Lang.t(_with_article(obj.label)), 1.2)
 	_update_hud()
 
@@ -3581,14 +3737,18 @@ func _process(delta: float) -> void:
 			_search(_pending_search)
 		_pending_search = {}
 	var near := level.nearest_interactable(player.global_position)
-	# Only the first levels explain how to search; after that players know.
-	_prompt.text = Lang.t("Dagegenlaufen, um %s zu untersuchen") % Lang.t(_with_article(near.label)) if level_index < 2 and not near.is_empty() and not near.searched else ""
+	_hints_now.clear()
 	var station := level.nearest_station(player.global_position)
-	if not station.is_empty() and bumped_person and PERSON_STATIONS.has(station.kind):
+	var at_station: bool = not station.is_empty() and (level_index < 2 or station.kind != "schrein")
+	# Only the first levels explain how to search; after that players know.
+	_prompt.text = ""
+	if not at_station and level_index < 2 and not near.is_empty() and not near.searched:
+		_prompt.text = _hint("search", Lang.t("Dagegenlaufen, um %s zu untersuchen") % Lang.t(_with_article(near.label)))
+	if at_station and bumped_person and PERSON_STATIONS.has(station.kind):
 		# The hero knows by now that running into people talks to them.
 		_prompt.text = ""
-	elif not station.is_empty() and (level_index < 2 or station.kind != "schrein"):
-		_prompt.text = {
+	elif at_station:
+		_prompt.text = _hint(station.kind, {
 			"schrein": Lang.t("Dagegenlaufen, um den Schrein zu berühren"),
 			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
@@ -3606,16 +3766,17 @@ func _process(delta: float) -> void:
 			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
 			"hauswerkbank": Lang.t("Werkbank: Dagegenlaufen, um Wurfmesser zu schmieden oder Ausrüstung zu flicken"),
 			"trophaeen": Lang.t("Trophäenwand: Dagegenlaufen, um zu sehen, welche Trophäen du hast und welche noch fehlen (je +1 Leben)"),
-		}.get(station.kind, "")
+			"gefaehrten": Lang.t("Dagegenlaufen, um nach deinen Gefährten zu sehen"),
+		}.get(station.kind, ""))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
-		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")
+		_prompt.text = _hint("crate", Lang.t("E oder Klick: Kiste aufheben"))
 	elif _prompt.text == "" and _drag_stone != null:
-		_prompt.text = Lang.t("Loslassen: Block rutscht dorthin") if _drag_stone.heavy else Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen")
+		_prompt.text = _hint("drag_heavy", Lang.t("Loslassen: Block rutscht dorthin")) if _drag_stone.heavy else _hint("drag", Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen"))
 	elif _prompt.text == "" and level.stone_in_reach(player) != null:
 		if level.stone_in_reach(player).heavy:
-			_prompt.text = Lang.t("E oder Klick: Block schieben   Ziehen: rutschen lassen")
+			_prompt.text = _hint("stone_heavy", Lang.t("E oder Klick: Block schieben   Ziehen: rutschen lassen"))
 		else:
-			_prompt.text = Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben")
+			_prompt.text = _hint("stone", Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben"))
 	# By the water the line can be cast, also next to the fountain.
 	var fish_prompt := ""
 	if fishing.state == Fishing.BITE:
@@ -3623,14 +3784,36 @@ func _process(delta: float) -> void:
 	elif fishing.is_fishing():
 		fish_prompt = Lang.t("G: Leine einholen")
 	elif not fishing.water_near().is_empty():
-		fish_prompt = Lang.t("G: Angeln")
+		fish_prompt = _hint("fish", Lang.t("G: Angeln"))
 	if fish_prompt != "":
 		_prompt.text = fish_prompt if _prompt.text == "" else _prompt.text + "   " + fish_prompt
 	# Next to a monster that can be won over, a gift can be offered.
 	var tame := gift_target()
 	if tame != null and Factions.can_befriend(Factions.of(tame.kind)) and not tame.is_friend():
-		var gift_prompt := Lang.t("T: Geschenk anbieten")
-		_prompt.text = gift_prompt if _prompt.text == "" else _prompt.text + "   " + gift_prompt
+		var gift_prompt := _hint("gift", Lang.t("T: Geschenk anbieten"))
+		if gift_prompt != "":
+			_prompt.text = gift_prompt if _prompt.text == "" else _prompt.text + "   " + gift_prompt
+	_count_hints()
+
+
+## An explanatory hint of one kind ("bett", "search", "fish", ...): shown the
+## first HINT_SHOWINGS times the hero comes near such a thing, then left out.
+## A hint already on screen stays until the hero walks away.
+func _hint(key: String, text: String) -> String:
+	if text == "":
+		return ""
+	if not _hints_last.has(key) and int(hints_shown.get(key, 0)) >= HINT_SHOWINGS:
+		return ""
+	_hints_now[key] = true
+	return text
+
+
+## Counts each hint that came up this frame and was not on screen before.
+func _count_hints() -> void:
+	for key in _hints_now:
+		if not _hints_last.has(key):
+			hints_shown[key] = int(hints_shown.get(key, 0)) + 1
+	_hints_last = _hints_now.duplicate()
 
 
 func _reach(pos: Vector3) -> float:

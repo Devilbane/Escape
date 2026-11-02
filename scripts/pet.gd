@@ -1,9 +1,15 @@
 class_name Pet
 extends Node3D
-## The hero's fox: a wild fox of the meadows that the hero has won over with
-## sausages (see Animal, "curious"). From then on it goes with the hero
-## everywhere, in the open air, in the village and down in the dungeon, and
-## climbs the stairs right behind them.
+## The hero's companion: a fox, a doe or a stag of the woods that the hero
+## has won over with its favourite food (see Animal, "curious", and
+## Companions). The one that goes with the hero goes everywhere, in the open
+## air, in the village and down in the dungeon, and climbs the stairs right
+## behind them. The others wait at the hero's house (state "home", see
+## rest_at), where they stand, sit, lie and nibble in their corner.
+##
+## Most of what follows says "the fox", the first companion there was; the
+## doe and the stag behave the same, only without the fox's nose and its
+## basket (they lie down beside the bed instead).
 ##
 ## It does not cling to the hero's heels. While the hero stays within its
 ## leash (LEASH metres) it lounges about: it stands and looks around, sits,
@@ -22,9 +28,10 @@ extends Node3D
 ## The model only has Idle, Walk, Gallop and Eating, so sitting and lying
 ## down are poses laid over Idle bone by bone (POSES), faded in and out.
 
-## The food that wins a fox over, and how many it must eat to trust the hero.
+## The food that wins a fox over, and how many it must eat to trust the hero
+## (see Companions for every kind).
 const FOOD := "wurst"
-const TRUST_NEEDED := 3
+const TRUST_NEEDED := Companions.TRUST_NEEDED
 ## Where the foxes live, for the hint on buying a sausage and the
 ## compendium. tests/fox.gd checks that the map still agrees: the fox
 ## meadow lies west of the village square, next to the woodland pond.
@@ -81,10 +88,14 @@ const ACTS := {"stand": 2.0, "sit": 3.0, "lie": 2.5, "wander": 2.0, "circle": 1.
 signal dug_up(id: String, pos: Vector3)
 
 var level: Level
+## What kind of animal it is (see Companions.SPECIES), and its name.
+var kind := "fuchs"
+var given_name := ""
 ## "follow", "lounge" (near the hero, see _act), "seek" (on the way to a
 ## find), "dig", "climb" (on the stairs behind the hero, see climb), or
 ## "bed" (off to its basket and asleep there while the hero sleeps), or
-## "wake" (getting up and hopping out of the basket, see wake_up).
+## "wake" (getting up and hopping out of the basket, see wake_up), or
+## "home" (waiting at the hero's house, see rest_at).
 var state := "follow"
 ## While lounging: "stand", "sit", "lie", "wander", "circle" or "sniff".
 var _act := "stand"
@@ -108,14 +119,22 @@ var _posed_bones: Array[int] = []
 var _rng := RandomNumberGenerator.new()
 
 
-func setup(owner_level: Level) -> void:
+func setup(owner_level: Level, animal_kind := "fuchs", animal_name := "") -> void:
 	level = owner_level
+	kind = animal_kind if Companions.is_species(animal_kind) else "fuchs"
+	given_name = animal_name
 	_rng.randomize()
 
 
+## Whether its nose finds the ingredients hidden in the ground (the fox's).
+func has_nose() -> bool:
+	return Companions.SPECIES[kind].get("nose", false)
+
+
 func _ready() -> void:
-	_model = load("res://assets/animals/Fox.glb").instantiate()
-	_model.scale = Vector3.ONE * SCALE
+	var species: Dictionary = Companions.SPECIES[kind]
+	_model = load("res://assets/animals/%s.glb" % species.model).instantiate()
+	_model.scale = Vector3.ONE * float(species.scale)
 	add_child(_model)
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	_skeleton = _model.find_child("Skeleton3D", true, false)
@@ -146,7 +165,7 @@ func _hero() -> Node3D:
 func pose() -> String:
 	if state == "bed" and _path.is_empty():
 		return "sleep"
-	if state == "lounge" and _path.is_empty() and _act in POSES:
+	if state in ["lounge", "home"] and _path.is_empty() and _act in POSES:
 		return _act
 	return ""
 
@@ -206,6 +225,9 @@ func _physics_process(delta: float) -> void:
 		return
 	if state == "bed":
 		_to_bed(delta)
+		return
+	if state == "home":
+		_rest_at_home(delta)
 		return
 	var gap := _flat(hero.global_position - global_position).length()
 	if not _placed or gap > CATCH_UP:
@@ -290,6 +312,9 @@ func _lounge(delta: float, hero: Node3D) -> void:
 ## Picks what to do next, by the weights in ACTS.
 func _next_act(hero: Node3D) -> void:
 	var weights := ACTS.duplicate()
+	if kind != "fuchs":
+		# A doe or a stag does not sit like a dog: it stands or lies down.
+		weights.erase("sit")
 	if _hero_still < LIE_AFTER:
 		weights.erase("lie")
 	weights.erase(_act)
@@ -369,6 +394,58 @@ func _go_to(p: Vector3) -> bool:
 	if _flat(p - global_position).length() < 0.3 or not _open(level.world_to_cell(p)):
 		return false
 	return _set_path(p)
+
+
+# --- At home ---------------------------------------------------------------------
+
+## What it does while waiting at the hero's house, and how likely each is:
+## it stays on its spot.
+const HOME_ACTS := {"stand": 2.0, "sit": 3.0, "lie": 4.0, "nibble": 2.0}
+
+
+## Waits at the hero's house on `spot`, facing `turn`, until the hero takes
+## it along (see Game.take_companion).
+func rest_at(spot: Vector3, turn: float) -> void:
+	if _climb:
+		_climb.kill()
+	state = "home"
+	_path.clear()
+	_placed = true
+	global_position = spot
+	rotation.y = turn
+	_act = ["sit", "lie"][_rng.randi() % 2] if kind == "fuchs" else "lie"
+	_pose[_act] = 1.0
+	_timer = _rng.randf_range(4.0, 12.0)
+
+
+func _rest_at_home(delta: float) -> void:
+	_timer -= delta
+	match _act:
+		"stand":
+			_anim.speed_scale = 1.0
+			play("Idle")
+		"sit", "lie":
+			_anim.speed_scale = 0.5
+			play("Idle")
+		"nibble":
+			_anim.speed_scale = 0.8
+			play("Eating")
+	if _timer > 0.0:
+		return
+	var acts := HOME_ACTS.duplicate()
+	acts.erase(_act)
+	if kind != "fuchs":
+		acts.erase("sit")
+	var total := 0.0
+	for a in acts:
+		total += acts[a]
+	var roll := _rng.randf() * total
+	for a in acts:
+		roll -= acts[a]
+		if roll <= 0.0:
+			_act = a
+			break
+	_timer = {"stand": 3.0, "sit": 7.0, "lie": 12.0, "nibble": 3.5}[_act] * _rng.randf_range(0.7, 1.4)
 
 
 # --- Bedtime ---------------------------------------------------------------------
@@ -532,6 +609,9 @@ func _beside_hero(hero: Node3D) -> void:
 ## Looks for a hidden ingredient in nose range. True when it found one and
 ## is on its way.
 func _sniff() -> bool:
+	if not has_nose():
+		_rest = SNIFF_REST
+		return false
 	var best: Dictionary = {}
 	var best_d := NOSE_RANGE
 	for f in level.hidden_finds:

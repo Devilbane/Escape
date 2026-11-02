@@ -3,9 +3,10 @@ extends RefCounted
 ## The weather of the world above ground: clear skies, rain, fog or a
 ## thunderstorm. It runs on the clock of day and night (see DayNight): a
 ## spell of weather lasts a few hours of the day, and which weather comes
-## next depends on the hour. Fog gathers at night and in the early morning,
-## storms brew in the evening and at night, and by day the sky is mostly
-## clear. Like the clock, the weather stands still down in the dungeon.
+## next depends on the hour. Most of the time the sky is clear: a clear
+## spell lasts longer than a bad one, and when bad weather passes, the sky
+## nearly always clears. Fog gathers at night and in the early morning, and
+## storms brew in the evening and at night. Like the clock, the weather stands still down in the dungeon.
 ##
 ## The weather changes what is about (see Outdoor.set_weather):
 ##   rain   slimes crawl out of the pond in the woods;
@@ -27,20 +28,26 @@ const FOG := "fog"
 const STORM := "storm"
 const KINDS := [CLEAR, RAIN, FOG, STORM]
 
-## How many hours of the day one spell of weather lasts, at least and at
-## most (one hour is 50 real seconds, see DayNight.DAY_LENGTH).
-const MIN_HOURS := 2.0
-const MAX_HOURS := 5.0
+## How many hours of the day one spell of rain, fog or storm lasts, at
+## least and at most (one hour is 50 real seconds, see DayNight.DAY_LENGTH).
+const MIN_HOURS := 1.5
+const MAX_HOURS := 3.5
+## Clear skies last longer, so they make up about two thirds of the time.
+const CLEAR_MIN_HOURS := 4.0
+const CLEAR_MAX_HOURS := 8.0
 ## A new game, or a saved game from before there was weather, starts with
 ## clear skies for this many hours.
 const FIRST_HOURS := 4.0
 
-## How likely each weather is to come next, by part of the day.
+## How likely each weather is to come next, by part of the day. The
+## weather never repeats (see roll), so after clear skies these weights only
+## pick which bad weather comes; after bad weather, clear skies win most
+## rolls.
 const CHANCES := {
-	"night": {CLEAR: 4.0, RAIN: 2.0, FOG: 3.0, STORM: 2.0},
-	"morning": {CLEAR: 4.0, RAIN: 1.5, FOG: 4.0, STORM: 0.5},
-	"day": {CLEAR: 7.0, RAIN: 3.0, FOG: 1.0, STORM: 1.0},
-	"evening": {CLEAR: 4.0, RAIN: 2.5, FOG: 1.0, STORM: 3.0},
+	"night": {CLEAR: 8.0, RAIN: 1.0, FOG: 2.0, STORM: 1.0},
+	"morning": {CLEAR: 8.0, RAIN: 0.75, FOG: 2.5, STORM: 0.25},
+	"day": {CLEAR: 14.0, RAIN: 1.5, FOG: 0.5, STORM: 0.5},
+	"evening": {CLEAR: 8.0, RAIN: 1.25, FOG: 0.5, STORM: 1.5},
 }
 
 ## The look of each weather, laid over the light of the hour: how much of
@@ -97,8 +104,11 @@ static func roll(hour: float, rng: RandomNumberGenerator, before := "") -> Strin
 	return CLEAR if before != CLEAR else RAIN
 
 
-## How many hours a new spell of weather lasts.
-static func spell(rng: RandomNumberGenerator) -> float:
+## How many hours a new spell of weather lasts: clear skies stay longer
+## than rain, fog or a storm.
+static func spell(rng: RandomNumberGenerator, kind := RAIN) -> float:
+	if kind == CLEAR:
+		return rng.randf_range(CLEAR_MIN_HOURS, CLEAR_MAX_HOURS)
 	return rng.randf_range(MIN_HOURS, MAX_HOURS)
 
 

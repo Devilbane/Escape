@@ -75,8 +75,8 @@ signal notice(text: String, duration: float)
 signal home_claimed
 ## The hero has reached the food basket on the pedestal and eats.
 signal food_basket(heal: int)
-## A fox eats a sausage from the hero's hand (see Animal and Pet).
-signal fox_fed(fox: Animal)
+## An animal eats its food from the hero's hand (see Animal and Companions).
+signal animal_fed(animal: Animal)
 ## Lightning strikes at a spot in a thunderstorm (see Weather): the sky
 ## flashes and thunder rolls.
 signal lightning(pos: Vector3)
@@ -189,8 +189,9 @@ const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 
 var villagers: Array = []
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
-## Whether a fox can still be won over: the hero has none yet (set by the game).
-var fox_tamable := true
+## The kinds of animal the hero has a companion of already: no second one
+## of them can be won over (set by the game, see Companions).
+var owned_companions: Array = []
 var _animal_spots: Array = []
 ## Has the elder handed the house over yet? Saved games wake up at home.
 var house_given := false
@@ -1636,7 +1637,7 @@ func _spawn_animals() -> void:
 		var a := Animal.new()
 		a.setup(self, s.kind, s.cell)
 		if taken.has(a.tame_key()):
-			# The hero's own fox: it goes with the hero now (see Pet).
+			# The hero's own companion: it lives with the hero now (see Pet).
 			a.free()
 			continue
 		add_child(a)

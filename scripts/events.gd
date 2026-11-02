@@ -35,6 +35,12 @@ signal reputation_rose(role: String, new_level: int)
 signal traded(role: String)
 ## New landmarks came into view and went onto the map (see Journal).
 signal map_grew(names: Array)
+## The hero has seen the whole of a map, the level file named (see
+## Journal.note_full_map). It trains the Erkunden skill.
+signal map_explored(file: String)
+## The hero noticed a writing on a wall (see Level, WallWritings): its
+## German text, for the compendium and the journal.
+signal writing_found(text: String)
 
 
 static var _bus: Events = null

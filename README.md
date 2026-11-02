@@ -86,6 +86,23 @@ dungeon). When one is in reach of its nose, the fox runs over, digs it up and le
 for you to pick up. They go into your **ingredient pouch** and show up in the ingredient book (key H),
 ready for recipes. The ground holds new ones each time you come back.
 
+**Companions.** The fox is one of three animals that can become your friend. A **doe** loves **apples**
+and a **stag** loves a **salt lick**; both graze in the clearings of the wood between the graveyard and
+the village, and Mira always has their food too. Three gifts from your hand win each one over, and
+then you **name** it (up to 14 letters; Enter or "Done" keeps the name). You can have one of each.
+One companion goes with you and gives you its **perk**, one plain number you already know from the HUD:
+
+| Companion | Food | Perk while it is at your side |
+|---|---|---|
+| Fox | Sausage | +1 Exploring, and its nose digs up hidden ingredients |
+| Doe | Apple | +10 % speed |
+| Stag | Salt lick | +1 power |
+
+A newly won companion comes along at once, and the one at your side so far runs home to your house on
+Weavers' Lane. There the others rest on a bed of **straw** in the corner by the door. Run into the straw
+to open the **companions** window: take another one along, leave them all at home, or rename them.
+A companion at home gives no perk.
+
 **Stone blocks** let you build: walls, steps, towers, small enclosures. Hagen the **stonemason** sells them
 in the village, west of the pedestal, next to his stone yard (3 gold each, 1 gold back; 4 kg each). A block
 is twice as long as it is wide and high and sits on a build grid: set down from the bag (key B), it lies
@@ -155,9 +172,14 @@ needs a quarter more practice than the one before:
 
 On top of that come **skills** (level 0 to 10). They grow much faster, but only with the gear
 they need: **Blades** with a dagger or sword, **Axes** with the axe, **Blocking** with a shield,
-**Wearing armour** with hard armour; **Knife throwing** and **Sneaking** always work.
+**Wearing armour** with hard armour; **Knife throwing**, **Sneaking** and **Exploring** always work.
 With Blades, Axes and Knife throwing, every heavy hit (+1 damage) is a skill roll (see the character page below).
 Each level of Blocking adds 2 % block chance, Wearing armour makes hard armour 6 % lighter, Sneaking makes you 3 % faster.
+**Exploring** grows when you explore a map fully (95 % of the ground you can stand on, see the map), and a little
+with every secret room and wall writing you find. Each level adds 3 % to notice a secret lever, 4 % to find a
+torch when you search a chest, barrel, crate, shelf or table, and 8 % to notice the writing on a wall.
+Every level of the dungeon has one writing scratched into a plain wall: you get one chance to notice it each
+time you walk past it (25 % plus Exploring). Found writings go into the compendium and the journal.
 Some items add levels themselves (shadow cloak +2 Sneaking, crest shield +1 Blocking,
 chain mail +1 Wearing armour, silver bracelet +1 Knife throwing). Everything is shown in the inventory, with the progress
 towards the next point. What your hero has learned stays saved with their name, even across new games.
@@ -167,7 +189,8 @@ Strength, Dexterity and Intelligence, with Constitution, Wisdom and Intuition be
 speed in the very middle. Around it is a ring of six sectors: Strength, Strength · Dexterity, Dexterity,
 Dexterity · Intelligence, Intelligence, Intelligence · Strength. Every skill sits in the sector of the
 attributes that govern it: Axes and Wearing armour under Strength, Blades and Blocking under
-Strength · Dexterity, Knife throwing under Dexterity, Sneaking under Dexterity · Intelligence.
+Strength · Dexterity, Knife throwing under Dexterity, Sneaking under Dexterity · Intelligence, Exploring under
+Intelligence.
 Basic skills (levels 0 to 10) sit in the inner ring. Advanced skills build on a basic skill (`needs` in
 `Training.SKILLS`) and go in the outer ring. They have 15 levels: the first nine are learned in three ranks
 of three, Novice, Advanced and Master; levels 10 to 15 are still to be defined. Anything above that is
@@ -590,7 +613,9 @@ fountains, merchants, beds and storage chests below ground, and the crypt, the g
 the village buildings, Weavers' Lane, the market fountain, the well, the ponds, the food basket, the bandit camp,
 the robbers' pass and the wolf hollow above. Opened secret rooms get a star. Every spot where you found something
 gets a small diamond (green for ingredients, blue for fish), and finds of the same thing close together count on one spot.
-Below the map you see how much of the level you have explored.
+Below the map you see how much of the level you have explored: the share of the ground you can stand on in the
+part you can reach without a secret wall (rooms behind locked doors and gates count). From 95 % the map counts
+as fully explored, once, which trains the **Exploring** skill.
 
 The **journal** on the second page writes down, newest first, every level you arrive at, every landmark you
 discover, every secret room and every find, with the day of your journey and the hour. Map and journal are kept

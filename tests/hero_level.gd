@@ -44,6 +44,7 @@ func _run() -> void:
 	game.player.level_points = {}
 	_curve()
 	_rewards()
+	_attribute_effects()
 	await _dungeon()
 	await _areas()
 	await _sources()
@@ -107,6 +108,42 @@ func _rewards() -> void:
 	check(p.spend_point("intelligenz") and p.free_points() == 0, "the second point is spent")
 	check(not p.spend_point("geschick"), "no third point")
 	p.hero_xp = 0
+	p.level_points = {}
+	p.refresh_stats()
+
+
+## What a level point in each main attribute gives (see Player): Stärke
+## melee damage, Geschick knife damage and dodging, Intelligenz quicker
+## skills and more experience. The character page shows these numbers.
+func _attribute_effects() -> void:
+	var p: Player = game.player
+	var keep_xp: Dictionary = p.xp.duplicate()
+	p.xp = {}
+	p.hero_xp = 0
+	p.level_points = {}
+	p.refresh_stats()
+	var power := p.power
+	check(p.throw_power() == power and p.dodge_chance() == 0.0, "a fresh hero throws as hard as they strike and does not dodge")
+	check(p.clever_xp(100) == 100, "a fresh hero gets plain experience")
+	p.level_points = {"staerke": 2}
+	p.refresh_stats()
+	check(p.power == power + 2 and p.throw_power() == power, "Stärke adds to blows, not to knives: %d, %d" % [p.power, p.throw_power()])
+	p.level_points = {"geschick": 3}
+	p.refresh_stats()
+	check(p.power == power and p.throw_power() == power + 3, "Geschick adds to knives, not to blows: %d, %d" % [p.power, p.throw_power()])
+	check(is_equal_approx(p.dodge_chance(), 0.12), "Geschick 13 dodges 12 %%: %s" % p.dodge_chance())
+	p.level_points = {"geschick": 20}
+	check(is_equal_approx(p.dodge_chance(), Player.DODGE_MAX), "dodging stops at %s" % Player.DODGE_MAX)
+	p.level_points = {"intelligenz": 2}
+	p.refresh_stats()
+	check(p.clever_xp(100) == 106, "Intelligenz 12 earns 6 %% more experience: %d" % p.clever_xp(100))
+	p.equipped["waffe"] = "schwert"
+	p.train("klingen", 1.0)
+	check(is_equal_approx(p.xp.get("klingen", 0.0), 1.2), "Intelligenz 12 trains skills 20 %% quicker: %s" % p.xp.get("klingen", 0.0))
+	p.train("staerke", 1.0)
+	check(is_equal_approx(p.xp.get("staerke", 0.0), 1.0), "but not attributes: %s" % p.xp.get("staerke", 0.0))
+	p.equipped.erase("waffe")
+	p.xp = keep_xp
 	p.level_points = {}
 	p.refresh_stats()
 

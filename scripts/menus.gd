@@ -539,7 +539,7 @@ func _crafts_text() -> String:
 
 
 ## The width of the column beside the character wheel.
-const CHARACTER_SIDE := 340
+const CHARACTER_SIDE := 420
 ## The details card beside the wheel has a fixed height that fits the longest
 ## details in both languages, so pointing at another entry moves nothing.
 const CHARACTER_CARD_HEIGHT := 262

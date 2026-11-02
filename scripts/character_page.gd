@@ -378,15 +378,13 @@ func _text(at: Vector2, text: String, font_size: int, color: Color) -> void:
 # --- The details card ---------------------------------------------------------
 
 ## What each attribute does, and what makes it grow (see Player and the
-## compendium's text on attributes).
+## compendium's text on attributes). The three main attributes show their
+## real numbers instead (live_effects).
 const ATTRIBUTE_EFFECTS := {
-	"staerke": "+1 Kampfkraft je Punkt; Lasten wiegen weniger.",
 	"konstitution": "+1 Leben je Punkt; länger rennen und schneller heilen.",
 	"tempo": "Wie schnell du gehst und rennst.",
 	"intuition": "+2 % je Punkt, einen Geheimraum zu entdecken.",
-	"geschick": "Weiter springen; +4 % je Punkt, Stacheln auszuweichen.",
 	"weisheit": "5 % schneller lernen je Punkt; ab 12 bieten Schreine eine vierte Gabe.",
-	"intelligenz": "Manche Dinge, wie der Zauberhut, brauchen sie.",
 }
 const ATTRIBUTE_GROWTH := {
 	"staerke": "Wächst durch Kämpfen.",
@@ -431,7 +429,9 @@ func _attribute_details(id: String) -> Dictionary:
 	var a: Dictionary = Training.ATTRIBUTES[id]
 	var value := player.attribute(id)
 	var unit := "%" if id == "tempo" else ""
-	var lines := [Lang.t("Wert %d%s, höchstens %d%s") % [value, unit, a.max, unit], Lang.t(ATTRIBUTE_EFFECTS[id])]
+	var lines := [Lang.t("Wert %d%s, höchstens %d%s") % [value, unit, a.max, unit]]
+	var live := live_effects(id)
+	lines.append_array(live if not live.is_empty() else [Lang.t(ATTRIBUTE_EFFECTS.get(id, ""))])
 	var governs := []
 	for skill in Training.SKILLS:
 		if Training.SKILLS[skill].attributes.has(id):
@@ -442,6 +442,25 @@ func _attribute_details(id: String) -> Dictionary:
 	if value < a.max:
 		note += " " + Lang.t("Noch %d %% bis zum nächsten Punkt.") % (100 - floori(Training.attribute_progress(id, player.xp.get(id, 0.0)) * 100.0))
 	return {"title": Lang.t(a.name), "lines": lines, "note": note}
+
+
+## What a main attribute does for the hero right now, with the real numbers
+## and what one more point adds (see Player); empty for the others.
+func live_effects(id: String) -> Array:
+	match id:
+		"staerke":
+			return [Lang.t("Nahkampf: +%d Schaden, Hieb %d (+1 je Punkt)") % [player.strength_points(), player.power],
+				Lang.t("Lasten wiegen für dich nur %d %%") % roundi(100.0 * Training.ATTRIBUTES.staerke.start / player.attribute("staerke"))]
+		"geschick":
+			var dodge := roundi(player.dodge_chance() * 100.0)
+			var per := roundi(Player.DODGE_PER_DEXTERITY * 100.0)
+			return [Lang.t("Messerwurf: +%d Schaden, Wurf %d (+1 je Punkt)") % [player.dexterity_points(), player.throw_power()],
+				Lang.t("Ausweichen: %d %% (+%d %% je Punkt, bis %d %%)") % [dodge, per, roundi(Player.DODGE_MAX * 100.0)],
+				Lang.t("Stacheln: %d %% ausweichen; Sprünge +%d %%") % [mini(100, per * player.dexterity_points()), roundi(Player.JUMP_PER_DEXTERITY * 100.0 * player.dexterity_points())]]
+		"intelligenz":
+			return [Lang.t("Fertigkeiten lernen +%d %% schneller (+%d %% je Punkt)") % [roundi(player.skill_learning_bonus() * 100.0), roundi(Player.SKILL_LEARNING_PER_INTELLIGENCE * 100.0)],
+				Lang.t("Erfahrung, auch aus Rätseln: +%d %% (+%d %% je Punkt)") % [roundi(Player.XP_PER_INTELLIGENCE * 100.0 * player.intelligence_points()), roundi(Player.XP_PER_INTELLIGENCE * 100.0)]]
+	return []
 
 
 func _skill_details(id: String) -> Dictionary:

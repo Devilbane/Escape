@@ -6,15 +6,18 @@ extends RefCounted
 ## stronger, taking blows makes them tougher, running makes them faster. They
 ## grow very slowly: a whole run through the dungeon earns about one point,
 ## and every point costs ATTRIBUTE_GROWTH times as much as the one before.
-##   Stärke (strength) 10..30: +1 Kampfkraft per point, and loads weigh less.
+##   Stärke (strength) 10..30: +1 damage in close combat per point, and
+##     loads weigh less.
 ##   Konstitution (constitution) 10..30: +1 Leben per point.
 ##   Tempo (speed) 100 %..150 %, in steps of 5 %.
 ##   Intuition 10..30: a feeling for how things work. Searching and walking
 ##     past secret levers train it; each point is +2 % to notice a lever.
 ##     Traps to find and liars to see through can ask it later too.
 ##   Geschick (dexterity) 10..30: jumping, throwing and spike traps train it;
-##     each point makes running jumps 2 % longer and is 4 % chance to slip
-##     past spikes. Locks and disarming traps can ask it later too.
+##     each point is +1 damage with thrown knives (in place of Stärke), 4 %
+##     chance to dodge a blow or a shot (up to Player.DODGE_MAX) and to slip
+##     past spikes, and makes running jumps 2 % longer. Locks and disarming
+##     traps can ask it later too.
 ##   Weisheit (wisdom) 10..30: grows from going through things, whatever
 ##     the outcome: finishing a level, finding the key or a secret, choosing
 ##     at a shrine, and the end of every run, fallen or free. Each point makes
@@ -22,6 +25,8 @@ extends RefCounted
 ##     offer a fourth gift.
 ##   Intelligenz (intelligence) 10..30: grows from understanding things
 ##     (every new entry in the compendium) and from beating skeleton mages.
+##     Each point makes skills and crafts train 10 % quicker and adds 3 % to
+##     all experience (EP), riddles included.
 ##     Items of the mind (hats, later scrolls and wands) need some of it:
 ##     "requires" in Items.ALL, and a skill in SKILLS can ask for it too.
 ##

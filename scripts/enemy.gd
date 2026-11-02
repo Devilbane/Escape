@@ -134,15 +134,61 @@ const KINDS := {
 			"1H_Melee_Attack_Chop": "Armature|Slime_Attack", "Hit_A": "Armature|Slime_Idle", "Death_A": "Armature|Slime_Death"},
 		"tint": Color(0.16, 0.12, 0.18), "glow": Color(0.9, 0.2, 0.25),
 		"voice": ["voice_koloss", 0.38, "gluck"], "purse": [25, 40], "gear_chance": 1.0, "poison": 0.5},
+	# The mountains far to the east (see Mountains): the road there, the
+	# high valley and the three mines. They are meant for a hero who has
+	# trained hard and wears the best gear (see Mines.BENCHMARK), so they hit
+	# hard and take many blows, but each kind has one clear trick: the
+	# troll's slow, heavy blows, the orc's armour, the wolves' numbers, the
+	# archer's bolts from afar, the slimes' poison or burn.
+	"eiswolf": {"model": "Wolf", "dir": "wild", "hp": 9, "speed": 7.0, "damage": 2, "reach": 2.0, "size": 1.05, "cooldown": 1.0,
+		"beast": true, "roam": true, "mountain": true, "model_scale": 0.7, "turn": 0.0, "run_anim": 6.0,
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Gallop", "1H_Melee_Attack_Chop": "Attack", "Hit_A": "Idle_HitReact1", "Death_A": "Death"},
+		"tint": Color(0.78, 0.86, 1.0),
+		"voice": ["voice_koloss", 1.4, "knurr"], "purse": [1, 3], "gear_chance": 0.0},
+	"bergork": {"model": "Orc", "dir": "wild", "hp": 17, "speed": 4.6, "damage": 3, "reach": 2.3, "size": 1.25, "cooldown": 1.4, "armor": 2,
+		"beast": true, "roam": true, "mountain": true, "model_scale": 1.0, "turn": 0.0, "run_anim": 4.5,
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
+		"tint": Color(0.62, 0.6, 0.72),
+		"voice": ["voice_krieger", 0.6, "grunz"], "purse": [4, 9], "gear_chance": 0.6},
+	"felstroll": {"model": "Yeti", "dir": "wild", "hp": 34, "speed": 3.4, "damage": 5, "reach": 3.0, "size": 1.8, "cooldown": 2.4, "armor": 3,
+		"beast": true, "roam": true, "mountain": true, "big": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
+		"tint": Color(0.5, 0.46, 0.42),
+		"voice": ["voice_koloss", 0.55, "GRRUMM"], "purse": [8, 15], "gear_chance": 0.7},
+	"klippenschuetze": {"model": "Rogue", "dir": "characters", "weapon": "Skeleton_Crossbow", "hp": 11, "speed": 4.2, "damage": 3, "reach": 24.0, "size": 1.0, "cooldown": 2.2, "armor": 1, "ranged": true,
+		"human": true, "roam": true, "mountain": true, "parts": ["Rogue_Cape"], "colors": [Color(0.42, 0.44, 0.48), Color(0.3, 0.3, 0.32), Color(0.62, 0.64, 0.7)],
+		"purse": [3, 7], "gear_chance": 0.5},
+	"kristallschleim": {"model": "Slime", "dir": "lair", "ext": "fbx", "hp": 16, "speed": 3.0, "damage": 3, "reach": 2.1, "size": 1.3, "cooldown": 1.7, "armor": 2,
+		"beast": true, "roam": true, "mountain": true, "model_scale": 0.75, "turn": -PI * 0.5, "run_anim": 2.5,
+		"anims": {"Idle": "Armature|Slime_Idle", "Walking_A": "Armature|Slime_Walk", "Running_A": "Armature|Slime_Walk",
+			"1H_Melee_Attack_Chop": "Armature|Slime_Attack", "Hit_A": "Armature|Slime_Idle", "Death_A": "Armature|Slime_Death"},
+		"tint": Color(0.55, 0.85, 1.0), "glow": Color(0.4, 0.8, 1.0),
+		"voice": ["voice_koloss", 1.3, "klirr"], "purse": [3, 7], "gear_chance": 0.25, "poison": 0.4},
+	"glutschleim": {"model": "Slime", "dir": "lair", "ext": "fbx", "hp": 18, "speed": 3.2, "damage": 4, "reach": 2.1, "size": 1.3, "cooldown": 1.8, "armor": 1,
+		"beast": true, "roam": true, "mountain": true, "model_scale": 0.75, "turn": -PI * 0.5, "run_anim": 2.5,
+		"anims": {"Idle": "Armature|Slime_Idle", "Walking_A": "Armature|Slime_Walk", "Running_A": "Armature|Slime_Walk",
+			"1H_Melee_Attack_Chop": "Armature|Slime_Attack", "Hit_A": "Armature|Slime_Idle", "Death_A": "Armature|Slime_Death"},
+		"tint": Color(1.0, 0.45, 0.2), "glow": Color(1.0, 0.45, 0.15),
+		"voice": ["voice_koloss", 1.1, "zisch"], "purse": [4, 8], "gear_chance": 0.25},
+	# The boss deep down in the third mine (see Mines): a rock troll grown
+	# huge on the mountain's heat. A plain fight, but a long one: big, slow
+	# blows to step away from, and a health bar at the top.
+	"bergkoenig": {"model": "Yeti", "dir": "wild", "hp": 150, "speed": 3.6, "damage": 8, "reach": 4.0, "size": 2.6, "cooldown": 2.6, "armor": 3,
+		"beast": true, "mountain": true, "boss": true, "big": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
+		"tint": Color(0.36, 0.28, 0.26), "glow": Color(1.0, 0.4, 0.12),
+		"voice": ["voice_koloss", 0.4, "GRROOOM"], "purse": [60, 90], "gear_chance": 1.0},
 }
 ## Every horror there is (see Horrors).
 const HORRORS := ["hohle_mutter", "bleicher_waechter", "schlund"]
 ## Which map letter places which kind.
 const LETTERS := {"M": "krieger", "A": "schuetze", "Z": "magier", "w": "wicht", "G": "koloss", "W": "waechter",
-	"v": "fledermaus", "s": "schleim", "R": "drache"}
+	"v": "fledermaus", "s": "schleim", "R": "drache",
+	"J": "felstroll", "O": "bergork", "e": "eiswolf", "i": "kristallschleim", "g": "glutschleim", "Y": "bergkoenig"}
 ## The letters of the open-air map that place bandits (see Outdoor).
 const WILD_LETTERS := {"c": "halsabschneider", "A": "wilderer", "X": "schlaeger", "Q": "hauptmann",
-	"W": "wolf", "H": "ork", "J": "yeti", "U": "spinne"}
+	"W": "wolf", "H": "ork", "J": "yeti", "U": "spinne",
+	"{": "felstroll", "}": "bergork", "-": "eiswolf", "/": "klippenschuetze"}
 ## Body parts every adventurer model keeps; the rest shows only when a kind asks for it.
 const BODY_PARTS := ["Body", "Head", "ArmLeft", "ArmRight", "LegLeft", "LegRight"]
 ## How far from home a roaming bandit wanders (tiles), and how far it will
@@ -261,7 +307,7 @@ func _ready() -> void:
 		_stats.roam = true
 	# Deeper down the dead are tougher and hit harder. The bosses keep their
 	# own numbers.
-	if level and kind not in ["drache", "hauptmann"]:
+	if level and kind not in ["drache", "hauptmann", "bergkoenig"]:
 		var deep := clampi(level.depth, 0, DEEPEST)
 		_stats.hp += deep / HP_EVERY_LEVELS
 		_stats.damage += deep / DAMAGE_EVERY_LEVELS
@@ -405,6 +451,18 @@ func fall_text() -> String:
 			return Lang.t("Der Drache stürzt brüllend zu Boden!")
 		"fog_wraith":
 			return Lang.t("Der Nebelgeist verweht.")
+		"eiswolf":
+			return Lang.t("Der Eiswolf bleibt liegen.")
+		"bergork":
+			return Lang.t("Der Bergork kracht zu Boden.")
+		"felstroll":
+			return Lang.t("Der Felstroll stürzt wie ein Felsbrocken um.")
+		"klippenschuetze":
+			return Lang.t("Der Klippenschütze fällt.")
+		"kristallschleim", "glutschleim":
+			return Lang.t("Der Schleim zerfließt.")
+		"bergkoenig":
+			return Lang.t("Der Bergkönig stürzt! Der ganze Berg erbebt.")
 	if is_horror():
 		return Lang.t("Das Ungeheuer bricht zusammen. Die Stille danach ist fast schlimmer.")
 	return Lang.t("Der Räuber geht zu Boden.") if is_human() else Lang.t("Das Skelett zerfällt zu Staub.")
@@ -588,8 +646,9 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	elif kind != "backstab":
 		damage = Player.soak(damage, hardening)
 	if kind == "backstab":
-		# A horror is too big to fall to one stab: it only hurts more.
-		damage = damage * 3 if is_horror() else hp
+		# A horror, a rock troll or a boss is too big to fall to one stab:
+		# it only hurts more.
+		damage = damage * 3 if is_horror() or _stats.get("big", false) else hp
 	elif _stats.get("armored", false):
 		# Blades glance off the guardian's armour, and it turns to fight.
 		if wakes:

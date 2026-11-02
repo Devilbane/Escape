@@ -1,0 +1,16 @@
+name: Das Herz des Berges
+hint: Ganz unten, wo die Glut am hellsten ist, thront der Bergkönig auf dem Gold der Zwerge. Weich seinen schweren Schlägen aus.
+building: mine3c
+lair: ja
+theme: glut
+up: mine3b
+##########################
+##E#######################
+##P.,,,,~~,,,,,,~~,,,,,f##
+##.,,,,,,,,,,,,,,,,,,,,,##
+##,,g,,,,,,,,,,,,,,,,,g,##
+##~,,,,,,,,,,Y,,,,,,,,,~##
+##~~,,,,,,,,,,,,,,,,,,~~##
+##,,,,,,,,,,,,,,,,,,,,,,##
+##f,,,g,,,,C,,C,,,,g,,,f##
+##########################

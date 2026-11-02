@@ -2799,7 +2799,18 @@ func _build_lair_won() -> void:
 
 func _build_bed() -> void:
 	_add_label(Lang.t("Ein weiches Bett"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Hier kannst du dich ausruhen. Dein Spiel wird gespeichert\nund du loggst dich aus. Später geht es genau hier weiter."), 20)
+	if game.level.inn:
+		# An inn on the way: rest till morning and carry on, or log out here.
+		_add_label(Lang.t("Ruh dich bis zum Morgen aus: Danach hast du volles Leben,\nGift und Flüche sind fort, und dein Spiel ist gespeichert."), 20)
+		var rest: Button = game._make_button(Lang.t("Bis zum Morgen ausruhen"), func():
+			close()
+			game.rest_at_inn())
+		rest.custom_minimum_size = Vector2(300, 60)
+		rest.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_box.add_child(rest)
+		_add_label(Lang.t("Oder schlaf hier und logg dich aus. Beim nächsten Mal\nwachst du in diesem Bett auf, ausgeruht."), 20)
+	else:
+		_add_label(Lang.t("Hier kannst du dich ausruhen. Dein Spiel wird gespeichert\nund du loggst dich aus. Später geht es genau hier weiter."), 20)
 	_add_label(Lang.t("Solange du weg bist, lebt dein Held nach seinem Tagesplan:"), 20, BLUE)
 	_add_label(_plan_summary(), 16, game.GOLD)
 	var plan_button: Button = game._make_button(Lang.t("Tagesplan ändern"), open.bind("plan"))

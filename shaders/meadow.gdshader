@@ -14,6 +14,9 @@ shader_type spatial;
 #include "res://shaders/detail.gdshaderinc"
 
 uniform sampler2D ground_mask : filter_linear, repeat_disable;
+// Scree in the mountains (see Mountains): one pixel per tile, red 1 where
+// the ground is stony. Black (no scree) everywhere else by default.
+uniform sampler2D stone_mask : filter_linear, repeat_disable, hint_default_black;
 uniform vec2 grid_size = vec2(16.0, 16.0);
 uniform float tile = 4.0;
 uniform vec3 grass_a : source_color = vec3(0.22, 0.33, 0.14);
@@ -197,6 +200,27 @@ vec3 cobbles(vec2 p, float px, out float h) {
 }
 
 // Leaf litter and needles over dark soil under the trees.
+// Mountain scree: angular grey stones of every size on pale grit, a little
+// dry grass between them.
+vec3 scree(vec2 p, float px, out float h) {
+	// Pale grit with darker, damp patches and a little dry grass.
+	vec3 col = vec3(0.45, 0.44, 0.42) * (0.86 + 0.26 * fbm2(p * 0.6 + 61.0));
+	col = mix(col, vec3(0.37, 0.38, 0.24), smoothstep(0.64, 0.82, fbm2(p * 0.45 + 19.0)) * 0.55);
+	col *= 1.0 + (noise(p * 30.0) - 0.5) * 0.2 * band(30.0, px);
+	// Loose stones, scattered rather than packed: most cells stay grit.
+	vec4 s = cells(p * 1.6, 1.0);
+	float r = 0.18 + 0.16 * s.w;
+	float rock = step(0.62, s.z) * (1.0 - smoothstep(r - 0.06, r, s.x)) * band(1.6, px);
+	vec3 stone = mix(vec3(0.55, 0.54, 0.52), vec3(0.4, 0.39, 0.38), s.w) * (0.78 + 0.35 * (1.0 - s.x / r));
+	col = mix(col * (1.0 - 0.22 * step(0.62, s.z) * smoothstep(r + 0.1, r, s.x) * band(1.6, px)), stone, rock);
+	vec4 s2 = cells(p * 7.0 + 3.0, 1.0);
+	float r2 = 0.15 + 0.15 * s2.w;
+	float pebble = step(0.7, s2.z) * (1.0 - smoothstep(r2 - 0.05, r2, s2.x)) * band(7.0, px);
+	col = mix(col, vec3(0.52, 0.51, 0.49) * (0.75 + 0.4 * s2.w), pebble * 0.8);
+	h = 0.02 * rock * sqrt(max(0.0, 1.0 - s.x / r)) + 0.004 * pebble;
+	return col;
+}
+
 vec3 forest_floor(vec2 p, float px, float n, out float h) {
 	vec3 col = forest * (0.8 + 0.4 * fbm2(p * 0.8 + 3.0));
 	float needles = noise(vec2(p.x * 40.0 + p.y * 12.0, p.y * 6.0)) * noise(vec2(p.y * 40.0 - p.x * 12.0, p.x * 6.0) + 2.0);
@@ -256,6 +280,13 @@ void fragment() {
 		float bare = smoothstep(0.55, 0.75, fbm2(p * 0.5 + 33.0));
 		vec3 ground = grave_soil * vec3(1.25, 1.0, 0.85) * (0.8 + 0.4 * noise(p * 12.0));
 		col = mix(col, mix(turf, ground, bare * 0.7), soil);
+	}
+	float stony = smoothstep(0.4, 0.62, texture(stone_mask, uv).r + (n - 0.5) * 0.3 + fray * 0.2);
+	if (stony > 0.001) {
+		float hs;
+		vec3 sc = scree(p, px, hs);
+		col = mix(col, sc, stony);
+		h = mix(h, hs, stony);
 	}
 	if (path > 0.001) {
 		float he;

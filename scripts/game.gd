@@ -998,6 +998,13 @@ func _use_station(s: Dictionary) -> void:
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building, s.get("house", 0))
+	elif s.kind == "schacht":
+		_go_down_shaft(s)
+	elif s.kind == "tafel":
+		player.face(s.pos - player.global_position)
+		player.play("Idle")
+		Events.bus().writing_found.emit(s.text)
+		_refresh_seals()
 	elif s.has("npc"):
 		# A villager who trades: a word, then the goods. A task handed out or
 		# finished comes first; the goods wait until the next time. While the
@@ -1726,6 +1733,8 @@ func load_level(index: int, restock := true) -> void:
 	level.dragon_awakened.connect(_on_dragon_awakened)
 	level.lair_exit_taken.connect(leave_lair)
 	level.stairs_taken.connect(_take_stairs)
+	level.boss_won.connect(_on_mine_boss_won)
+	_refresh_seals()
 	if horrors:
 		horrors.watch(level)
 	if level is Outdoor:
@@ -1740,6 +1749,12 @@ func load_level(index: int, restock := true) -> void:
 	_pending_crate = null
 	_end_drag()
 	_set_atmosphere(level.outdoor)
+	var mood := Mines.mood(level.theme)
+	if not mood.is_empty():
+		# A mine has a light of its own (see Mines.MOODS).
+		_env.ambient_light_color = mood.ambient
+		_env.ambient_light_energy = mood.energy
+		_moon.light_color = mood.light
 	if level is Outdoor:
 		level.day = day
 		level.set_hour(day_hour)
@@ -2386,7 +2401,12 @@ func _apply_save(data: Dictionary) -> void:
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
 	inside_house = 0
 	var own_house := Homes.house_of(hero_name)
-	if escaped and home_claimed and own_house > 0 and interiors.has("^"):
+	var at_inn: bool = data.get("inn", false) and _is_inn_file(index)
+	if at_inn:
+		# Saved in the bed of an inn on the way: the hero wakes up there,
+		# not back home, so the long road need not be walked again.
+		pass
+	elif escaped and home_claimed and own_house > 0 and interiors.has("^"):
 		# The hero's own town house is the place to come back to: every
 		# load wakes up beside its bed, wherever the game was saved.
 		index = interiors["^"]
@@ -2396,7 +2416,7 @@ func _apply_save(data: Dictionary) -> void:
 		# game was saved: on the graveyard, or in the hero's own house.
 		index = _outdoor_index()
 	load_level(index, false)
-	if level.is_home and level.bed_side != Vector3.ZERO:
+	if (level.is_home or level.inn) and level.bed_side != Vector3.ZERO:
 		player.global_position = level.bed_side
 	elif level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
 		# The hero's own house is the place to come back to: next to the bed.
@@ -2522,6 +2542,7 @@ func save_game(going_away := false) -> bool:
 		"hour": day_hour,
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
 		"weather": weather, "weather_hours": weather_hours,
+		"inn": level.inn,
 	}
 	if going_away:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
@@ -2554,6 +2575,54 @@ func _looted_for_save() -> Dictionary:
 
 
 ## The hero lies down in the safe room's bed: save, then back to the title.
+## Whether a level file is an inn on the way (the line "inn:").
+func _is_inn_file(index: int) -> bool:
+	if index < 0 or index >= level_files.size():
+		return false
+	for line in FileAccess.get_file_as_string(level_files[index]).split("\n"):
+		if line.begins_with("inn:"):
+			return true
+	return false
+
+
+## Rests in the bed of an inn till the next morning without logging out:
+## life full, poison and curses gone, and the game saved right there.
+func rest_at_inn() -> void:
+	if state != State.PLAYING or not level.inn:
+		return
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	var tween := create_tween()
+	var bed := _nearest_bed()
+	if bed.is_empty():
+		player.play("Lie_Down", 0.2)
+	else:
+		_climb_into_bed(tween, bed)
+	tween.tween_interval(1.4)
+	tween.tween_callback(_fall_asleep)
+	tween.tween_interval(1.6)
+	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
+	tween.tween_callback(func():
+		_stop_snoozing()
+		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
+			_new_day(true)
+		day_hour = DayNight.WAKE_HOUR
+		set_weather(Weather.roll(day_hour, _weather_rng))
+		player.hp = player.max_hp
+		player.cure()
+		player.global_position = level.bed_side if level.bed_side != Vector3.ZERO else player.global_position
+		player.face(Vector3.BACK)
+		player.play("Idle")
+		_snap_camera()
+		_update_hud()
+		var saved := save_game()
+		player.frozen = false
+		state = State.PLAYING
+		show_message(Lang.t("Ausgeruht! Ein neuer Morgen in den Bergen.") + "\n" + (Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")), 3.5))
+	tween.tween_property(_fade, "color:a", 0.0, 1.0)
+
+
 func sleep() -> void:
 	# A night in the bed: the hero wakes up the next morning.
 	if level.outdoor or level.building != "":
@@ -2562,6 +2631,10 @@ func sleep() -> void:
 		day_hour = DayNight.WAKE_HOUR
 		# A new morning brings new weather.
 		set_weather(Weather.roll(day_hour, _weather_rng))
+	if level.inn:
+		# A night in an inn's bed: the hero gets up rested.
+		player.hp = player.max_hp
+		player.cure()
 	var saved := save_game(true)
 	# Say so at once, so nobody has to wonder whether the save went through.
 	show_message(Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"), 2.4)
@@ -3236,6 +3309,16 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 const LAIR_WON_DELAY := 3.0
 
 
+## The Mountain King has fallen deep in the third mine.
+func _on_mine_boss_won() -> void:
+	Sfx.play(self, "level_done", -1.0)
+	player.train("weisheit", 10.0)
+	_shake = 1.2
+	show_message(Lang.t("Der Bergkönig ist besiegt! Das Herz des Berges gehört dir."), 5.0)
+	_message.add_theme_color_override("font_color", GOLD)
+	get_tree().create_timer(5.6).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
+
+
 func _on_lair_won() -> void:
 	var here := level
 	Sfx.play(self, "level_done", -1.0)
@@ -3716,8 +3799,57 @@ func go_to_vaults() -> void:
 	go_inside("b")
 
 
+## Down the way in the floor of a mine to its next floor (see Mines). A
+## sealed one opens only for a hero who knows both runes.
+func _go_down_shaft(s: Dictionary) -> void:
+	if not Mines.show_runes(s, lore):
+		player.face(s.pos - player.global_position)
+		Sfx.play(self, "door", -8.0)
+		show_message(Lang.t(Mines.seal_text(lore)), 6.0)
+		return
+	if s.has("opened"):
+		go_inside(s.building)
+		return
+	s.opened = true
+	if level.seal != "" and not taken_here(MINES_SEAL_OPEN):
+		# The first time: the slab grinds aside.
+		level.taken[MINES_SEAL_OPEN] = true
+		_shake = 0.8
+		Sfx.play(self, "secret", -2.0)
+		show_message(Lang.t("Beide Runen glühen auf, und die Steinplatte schiebt sich knirschend zur Seite. Der Weg in die Tiefe ist frei!"), 5.0)
+		return
+	go_inside(s.building)
+
+
+const MINES_SEAL_OPEN := "mines:seal_open"
+
+
+## Whether something is marked as done on this level (see Level.taken).
+func taken_here(key: String) -> bool:
+	return level != null and level.taken.has(key)
+
+
+## Lights the runes the hero knows on every sealed way down of this floor.
+func _refresh_seals() -> void:
+	for st in level.stations:
+		if st.kind == "schacht":
+			Mines.show_runes(st, lore)
+
+
 ## Up the stairs of a building floor and out of its door into the village.
+## A deeper floor of a mine leads up to the floor above instead, beside the
+## way down the hero came by.
 func _leave_building() -> void:
+	if level.up_to != "" and interiors.has(level.up_to):
+		load_level(interiors[level.up_to], false)
+		if level.shaft_side != Vector3.ZERO:
+			player.global_position = level.shaft_side
+			player.face(Vector3.BACK)
+		_snap_camera()
+		state = State.PLAYING
+		create_tween().tween_property(_fade, "color:a", 0.0, 0.8)
+		_announce_level()
+		return
 	var building: String = level.building
 	if inside_house > 0:
 		building += str(inside_house)
@@ -3888,6 +4020,8 @@ func _process(delta: float) -> void:
 			"hauswerkbank": Lang.t("Werkbank: Dagegenlaufen, um Wurfmesser zu schmieden oder Ausrüstung zu flicken"),
 			"trophaeen": Lang.t("Trophäenwand: Dagegenlaufen, um zu sehen, welche Trophäen du hast und welche noch fehlen (je +1 Leben)"),
 			"gefaehrten": Lang.t("Dagegenlaufen, um nach deinen Gefährten zu sehen"),
+			"schacht": Lang.t("Dagegenlaufen, um in die Tiefe hinabzusteigen"),
+			"tafel": Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
 		}.get(station.kind, ""))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = _hint("crate", Lang.t("E oder Klick: Kiste aufheben"))

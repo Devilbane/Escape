@@ -29,6 +29,10 @@ const KINDS := {
 	# The nameless horrors (see Horrors) belong to nobody and fight nobody
 	# but the hero.
 	"hohle_mutter": "horrors", "bleicher_waechter": "horrors", "schlund": "horrors",
+	# The beasts of the far mountains and their mines keep to themselves
+	# and cannot be won over.
+	"eiswolf": "mountain", "bergork": "mountain", "felstroll": "mountain", "klippenschuetze": "mountain",
+	"kristallschleim": "mountain", "glutschleim": "mountain", "bergkoenig": "mountain",
 }
 
 ## The factions. "name" is shown in messages. A faction with a "gift" can be
@@ -46,6 +50,8 @@ const FACTIONS := {
 		"refuse": "Die Spinne starrt dich mit acht Augen an. Mit ihr ist kein Frieden zu machen."},
 	"brood": {"name": "Die Brut des Drachen",
 		"refuse": "Die Brut des Drachen lässt sich nicht zähmen."},
+	"mountain": {"name": "Die Bergbrut",
+		"refuse": "In den Bergen gilt nur das Recht des Stärkeren. Geschenke bringen hier nichts."},
 	"horrors": {"name": "Die Namenlosen",
 		"refuse": "Es hat keinen Hunger auf Geschenke. Es hat Hunger auf dich."},
 	"wolves": {"name": "Die Wölfe", "gift": "barsch", "count": 1,

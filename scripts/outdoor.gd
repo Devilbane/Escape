@@ -1136,20 +1136,6 @@ func _build_hole(c: Vector2i) -> void:
 	var mist := Effects.make_sparkles(Color(0.45, 0.5, 0.62, 0.5))
 	mist.position = pos + Vector3(0, 0.4, 0)
 	add_child(mist)
-	# At new moon the hole breathes: a cold, dark plume rises out of it.
-	var breath := Effects.make_sparkles(Color(0.16, 0.17, 0.24, 0.75))
-	breath.amount = 34
-	breath.lifetime = 2.6
-	breath.mesh = Effects._quad(0.55, Color(1, 1, 1))
-	breath.emission_sphere_radius = 1.1
-	breath.gravity = Vector3(0, 1.3, 0)
-	breath.initial_velocity_min = 0.4
-	breath.initial_velocity_max = 1.2
-	breath.position = pos + Vector3(0, 0.3, 0)
-	breath.emitting = false
-	breath.visible = false
-	add_child(breath)
-	_breaths.append(breath)
 	_add_solid(pos, Vector3(2.8, 1.0, 2.8))
 	doors[id] = pos + Vector3(0, 0, TILE * 0.8)
 	if interiors.has(id):
@@ -2215,6 +2201,8 @@ func set_moon(night_of: int) -> void:
 	_moon_horror = {}
 	_close_flowers()
 	var breathing := night_of >= 0 and Moon.is_new(night_of)
+	if breathing and _breaths.is_empty():
+		_build_breaths()
 	for b in _breaths:
 		b.visible = breathing
 		b.emitting = breathing
@@ -2225,6 +2213,23 @@ func set_moon(night_of: int) -> void:
 		_open_flowers(night_of)
 	elif breathing:
 		_place_moon_horror(night_of)
+
+
+## At new moon each hole breathes: a cold, dark plume rises out of it. Made
+## the first new moon the hero sees here, and only hidden by day after.
+func _build_breaths() -> void:
+	for pos in holes:
+		var breath := Effects.make_sparkles(Color(0.16, 0.17, 0.24, 0.75))
+		breath.amount = 34
+		breath.lifetime = 2.6
+		breath.mesh = Effects._quad(0.55, Color(1, 1, 1))
+		breath.emission_sphere_radius = 1.1
+		breath.gravity = Vector3(0, 1.3, 0)
+		breath.initial_velocity_min = 0.4
+		breath.initial_velocity_max = 1.2
+		breath.position = pos + Vector3(0, 0.3, 0)
+		add_child(breath)
+		_breaths.append(breath)
 
 
 ## Whether the holes breathe tonight: a new-moon night.

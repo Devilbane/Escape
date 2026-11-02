@@ -309,6 +309,11 @@ jobs:
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/hero_level.gd | tee hero_level.log
           grep -q PASS hero_level.log
 
+      - name: Shrine gifts test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/shrine.gd | tee shrine.log
+          grep -q PASS shrine.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

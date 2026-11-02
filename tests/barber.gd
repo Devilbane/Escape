@@ -82,6 +82,24 @@ func _test() -> void:
 	p.unequip("kopf")
 	check(_crest_shown(), "the mohawk is back without the helmet")
 
+	# A short crop is the natural hair cut close; spikes stand on it.
+	p.set_hair({"style": "short", "color": "black"})
+	var short_head := _head_mesh()
+	check(short_head != natural_head and not _crest_shown(), "a short crop cuts the hair without a crest")
+	p.set_hair({"style": "spiky", "color": "blond"})
+	check(_head_mesh() == short_head and _crest_shown(), "spikes stand on a short crop")
+	p.equip("knochenhelm")
+	check(not _crest_shown(), "a helmet hides the spikes")
+	p.unequip("kopf")
+	check(not HairLook.shows_scalp("short") and not HairLook.shows_scalp("spiky") and HairLook.shows_scalp("mohawk"), "only shaved sides show a tattoo")
+	var styles: Array = game.menus.BARBER_STYLES.map(func(c): return c[0])
+	check(styles == HairLook.STYLES, "the barber offers every hair style")
+	var pip_hair := {}
+	for v in game.level.find_children("*", "Villager", true, false):
+		if v.role == "7":
+			pip_hair = v._info.get("hair", {})
+	check(pip_hair.get("style", "") == "spiky", "Pip wears spikes")
+
 	p.set_hair({"style": "punk", "color": "plaid", "tattoo": "A word much too long"})
 	check(p.hair.style == "natural" and p.hair.color == "natural" and p.hair.tattoo.length() <= HairLook.TATTOO_MAX, "unknown looks fall back to natural")
 

@@ -503,7 +503,7 @@ func set_hair(look: Dictionary) -> void:
 	HairLook.apply(_model, hair)
 	var feather := _model.find_child("Feather", true, false) as Node3D
 	if feather:
-		feather.position = feather.get_meta("spots")[0 if hair.style == "natural" else 1]
+		feather.position = feather.get_meta("spots")[0 if hair.style == "natural" else 1] # Behind the ear of a cut head.
 	_show_headgear()
 
 

@@ -9,6 +9,11 @@
 // Strands thinner than about a pixel melt into a solid lock, so they never
 // flicker.
 //
+// The head's own hair is one smooth shape; it is combed into strands here:
+// they grow from a crown at the back of the head, part on the left, and lie
+// in locks of a few strands each, in layers whose ends shade the lock below.
+// The same strands, finer and without layers, make a short crop.
+//
 // Colours: root, middle and tip colour, or (mode) a rainbow running along
 // the crest, or flickering flames that glow in the dark.
 //
@@ -20,6 +25,8 @@ uniform sampler2D tex : source_color, filter_linear_mipmap;
 uniform bool crest = false;
 // Head: the hair is shaved off (the mesh is too; this switches the look).
 uniform bool shaved = false;
+// Head: the hair is cut short (the mesh is too; this makes the strands finer).
+uniform bool short_hair = false;
 // Head with natural hair: dye it (false keeps the texture's own colour).
 uniform bool recolor = false;
 // 0: the colours below, 1: rainbow, 2: fire.
@@ -46,6 +53,15 @@ const float TATTOO_BOTTOM = 1.61;
 const vec3 INK = vec3(0.02, 0.03, 0.07);
 // How bright the natural hair is in the texture, to dye it evenly.
 const float NATURAL_LIGHT = 0.16;
+// The combed hair, in the skull's space (see HairLook.SKULL_CENTER and
+// SKULL_RADII): the crown the strands grow from, the parting running from it
+// to the forehead, and how many strands and locks go once round the crown.
+const vec3 SKULL_CENTER = vec3(0.0, 1.64, -0.06);
+const vec3 SKULL_RADII = vec3(0.425, 0.53, 0.45);
+const vec3 CROWN = vec3(0.1, 0.7, -0.72);
+const vec3 PARTING = vec3(0.3, 0.45, 0.84);
+const float STRANDS_ROUND = 110.0;
+const float LOCKS_ROUND = 26.0;
 
 // Head: xyz the position (for stubble and tattoo), w = 1 on the hair.
 varying vec4 rest;
@@ -83,6 +99,47 @@ vec3 hair_tone(float along, float pos, float flick, float time, out float glow) 
 	}
 	vec3 c = mix(hair_color, tip_color, smoothstep(0.35, 1.0, along));
 	return mix(root_color, c, smoothstep(0.0, 0.3, along));
+}
+
+// The combed look of the head's hair at p (head mesh space): how light it is
+// (around 1), and a height for the bump of round strands.
+float combed(vec3 p, out float height) {
+	vec3 u = normalize((p - SKULL_CENTER) / SKULL_RADII);
+	vec3 w = normalize(CROWN);
+	vec3 a = normalize(PARTING - w * dot(PARTING, w));
+	vec3 b = cross(w, a);
+	// Away from the crown (0 there, about 2.5 at the chin), and round it
+	// (0 along the parting).
+	float away = acos(clamp(dot(u, w), -1.0, 1.0));
+	float round = atan(dot(u, b), dot(u, a)) / TAU;
+	// Combed away from the parting on both sides, more the further out.
+	float side = sign(round + 1e-4);
+	float part = smoothstep(0.0, 0.012, abs(round));
+	float bend = side * 0.05 * smoothstep(0.1, 1.3, away);
+	float s = (round + bend) * STRANDS_ROUND * (short_hair ? 1.6 : 1.0);
+	float l = (round + bend * 1.2) * LOCKS_ROUND + 0.6 * sin(away * 3.0 + round * 9.0);
+	float lock_id = floor(l);
+	float r = hash1(lock_id * 7.13 + 1.7);
+	float px = max(fwidth(s), 1e-4);
+	// Fine detail fades out where it would flicker, and round the crown,
+	// where all the strands meet.
+	float whorl = smoothstep(0.08, 0.35, away);
+	float fine = (1.0 - smoothstep(0.15, 0.4, px)) * whorl;
+	float coarse = (1.0 - smoothstep(0.15, 0.45, fwidth(l))) * whorl;
+	// Single strands: round, each a little lighter or darker.
+	float f = fract(s) * 2.0 - 1.0;
+	float curve = sqrt(max(0.0, 1.0 - f * f));
+	float strand = mix(1.0, 0.86 + 0.14 * curve, fine) * mix(1.0, 0.94 + 0.12 * hash1(floor(s)), fine);
+	// Locks: a darker gap between two, each its own shade.
+	float edge = abs(fract(l) * 2.0 - 1.0);
+	float lock_shade = mix(1.0, (1.0 - 0.28 * edge * edge - 0.12 * smoothstep(0.8, 1.0, edge)) * (0.9 + 0.24 * r), coarse);
+	// Layers: lower down, the end of a lock above shades the one below it.
+	float layer = fract(away * 1.6 + r * 0.9 + 0.15 * sin(round * 40.0));
+	float layered = short_hair ? 1.0 : mix(1.0, 0.86 + 0.14 * smoothstep(0.0, 0.2, layer), coarse * smoothstep(0.7, 1.1, away));
+	// The parting shows a thin line of darker roots, up to the forehead.
+	float parting = mix(1.0, mix(0.55, 1.0, part), 1.0 - smoothstep(0.75, 0.95, away));
+	height = (curve * fine * 0.0025 + (1.0 - edge * edge) * coarse * 0.006) * part;
+	return strand * lock_shade * layered * parting;
 }
 
 void vertex() {
@@ -149,7 +206,17 @@ void fragment() {
 				float ink = texture(tattoo, clamp(t, 0.0, 1.0)).a * inside * side * hair;
 				albedo = mix(albedo, INK, ink * 0.88);
 			}
-		} else if (recolor || mode != 0) {
+		} else {
+			// Combed into strands, locks and layers, with a little shine.
+			float h;
+			float comb = combed(p, h);
+			NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h * hair), dFdy(h * hair));
+			c *= mix(1.0, comb, hair);
+			albedo = c;
+			roughness = mix(0.95, 0.6, hair);
+			specular = mix(0.12, 0.3, hair);
+		}
+		if (!shaved && (recolor || mode != 0)) {
 			// Dyed natural hair: the texture's light and dark in the new colour.
 			float light = clamp(dot(c, vec3(0.3, 0.59, 0.11)) / NATURAL_LIGHT, 0.4, 1.6);
 			float along = clamp((2.2 - p.y) / 1.0, 0.0, 1.0);

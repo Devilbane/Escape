@@ -2594,8 +2594,22 @@ func level_hint(index: int) -> Dictionary:
 ## the hero's head.
 func quest_news(text: String, color: Color, duration := 4.0) -> void:
 	show_message(text, duration)
-	Effects.float_text(level, player.global_position + Vector3(0, 3.2, 0), text.get_slice("\n", 0), color, true)
+	# The words floating up from the hero would cover the villager's speech
+	# bubble right beside them: the message at the bottom says it already.
+	if not _villager_talking_near_hero():
+		Effects.float_text(level, player.global_position + Vector3(0, 3.2, 0), text.get_slice("\n", 0), color, true)
 	_update_hud()
+
+
+## Whether a villager whose speech bubble would lie over the hero's head is
+## talking right now (see Villager.BUBBLE_ROOM).
+func _villager_talking_near_hero() -> bool:
+	if not level is Outdoor or player == null:
+		return false
+	for v in level.villagers:
+		if is_instance_valid(v) and v.visible and v.is_talking() and Vector2(v.global_position.x - player.global_position.x, v.global_position.z - player.global_position.z).length() < Villager.BUBBLE_ROOM:
+			return true
+	return false
 
 
 ## A task is done: the reward, with a jingle.
@@ -2616,7 +2630,7 @@ func reputation_rose(role: String, new_level: int) -> void:
 	var off := roundi(Reputation.LEVELS[new_level].discount * 100.0)
 	if off > 0:
 		line += Lang.t(" (%d%% Rabatt)") % off
-	if level:
+	if level and not _villager_talking_near_hero():
 		Effects.float_text(level, player.global_position + Vector3(0, 3.8, 0), line, Color(0.75, 0.6, 1.0), true)
 	_reputation_news.append(line)
 	if _reputation_news.size() == 1:

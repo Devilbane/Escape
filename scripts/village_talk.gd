@@ -398,6 +398,10 @@ func _run_chat(delta: float) -> void:
 	# cut short: the bubbles take turns and never flicker.
 	if speaker.is_busy_talking() or other._bubble_time > 0.0:
 		return
+	# Someone close by is talking (to the hero, say): the line waits its turn
+	# instead of covering theirs.
+	if speaker.talker_near(other) != null:
+		return
 	var text: String = lines.pop_front()[1]
 	var time := line_time(text)
 	speaker.chat_say(text, time)

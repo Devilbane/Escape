@@ -144,6 +144,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/npc_speech_cooldown.gd | tee speech.log
           grep -q PASS speech.log
 
+      - name: Villager speech overlap test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/npc_speech_overlap.gd | tee overlap.log
+          grep -q PASS overlap.log
+
       - name: Wild bandits on the robbers' pass test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_bandits.gd | tee bandits.log

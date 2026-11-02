@@ -275,6 +275,28 @@ func current_file() -> String:
 	return game.level_files[game.level_index].get_file()
 
 
+## Brings the map of the current level up to date at once, e.g. just before
+## the game is saved, so nothing seen in the last moment is lost.
+func catch_up() -> void:
+	if game == null or game.level == null or game.player == null:
+		return
+	var file := current_file()
+	if not map_of(file).is_empty():
+		reveal(file, game.level)
+
+
+## Gives the fog of war of a freshly built level what the hero has already
+## seen of it (on an earlier visit or in the saved game), so explored tiles
+## stay grey instead of turning black again.
+func restore_fog(level: Level) -> void:
+	if level == null or level.fog == null:
+		return
+	var file := current_file()
+	if map_of(file).is_empty() or not explored.has(file):
+		return
+	level.fog.remember(_cells_of(file))
+
+
 ## Marks what the hero sees now as explored.
 func reveal(file: String, level: Level) -> void:
 	var info := map_of(file)

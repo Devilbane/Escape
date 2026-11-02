@@ -155,6 +155,21 @@ func _test() -> void:
 	j.clear()
 	game._apply_save(game._read_save(game.save_path()))
 	check(j.explored.has(cell) and j.explored[cell] == explored_before, "the map of the cell is kept")
+	# Back in the cell, the fog of war still shows what was seen before:
+	# grey, not black, before the hero has even looked around.
+	game.load_level(0)
+	var fog: Fog = game.level.fog
+	var w: int = game.level.width
+	var start: Vector2i = game.level.start_cell
+	var unseen := explored_before.find(0)
+	check(fog.explored_cells()[start.y * w + start.x] > 0.5, "the fog remembers the explored start of the cell")
+	check(fog._image.get_pixel(start.x, start.y).g > 0.5, "the explored start is drawn grey")
+	check(unseen >= 0 and fog.explored_cells()[unseen] < 0.5, "the fog stays black where the hero has not been")
+	var seen_in_fog := 0
+	for i in explored_before.size():
+		if explored_before[i] != 0 and fog.explored_cells()[i] > 0.5:
+			seen_in_fog += 1
+	check(seen_in_fog == explored_before.count(1), "every explored tile of the cell is grey in the fog again")
 	check(j.is_seen(outside, bank), "the bank stays on the map")
 	check(j.entries.size() == log_before, "the journal is kept")
 	check(j.spots_of("testkraut").size() == 2 and j.finds.size() == 5, "the finds are kept")

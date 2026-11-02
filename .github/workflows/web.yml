@@ -139,6 +139,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/npc_names.gd | tee names.log
           grep -q PASS names.log
 
+      - name: Explanatory hints shown only twice test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/bump_hint.gd | tee hints.log
+          grep -q PASS hints.log
+
       - name: Villager speech cooldown test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/npc_speech_cooldown.gd | tee speech.log

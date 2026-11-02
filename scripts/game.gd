@@ -159,6 +159,13 @@ var dry_levels := 0
 ## The hero has run into a villager once: from then on the hint that running
 ## into people talks to them is left out. Kept in the saved game.
 var bumped_person := false
+## How often each kind of explanatory hint came up, by kind (see _hint).
+## Kept in the saved game: after HINT_SHOWINGS times a kind is left out.
+var hints_shown := {}
+const HINT_SHOWINGS := 2
+## The hint kinds on screen this frame and the frame before.
+var _hints_now := {}
+var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
 const PERSON_STATIONS := ["npc", "bank", "barbier", "haendler", "steinmetz", "schmied", "wanderhaendler"]
 ## Lives the hero gets back for climbing to the next level.
@@ -1788,6 +1795,8 @@ func _start_new_game() -> void:
 	secrets_found = 0
 	dry_levels = 0
 	bumped_person = false
+	hints_shown.clear()
+	_hints_last.clear()
 	looted.clear()
 	builds.clear()
 	met.clear()
@@ -2066,6 +2075,12 @@ func _apply_save(data: Dictionary) -> void:
 	secrets_found = int(data.get("secrets", 0))
 	dry_levels = int(data.get("dry", 0))
 	bumped_person = bool(data.get("bumped_person", false))
+	hints_shown.clear()
+	_hints_last.clear()
+	var saved_hints = data.get("hints", {})
+	if saved_hints is Dictionary:
+		for key in saved_hints:
+			hints_shown[str(key)] = int(saved_hints[key])
 	storage.assign(data.storage)
 	shop_stock.assign(data.shop)
 	player.knives = int(data.knives)
@@ -2232,7 +2247,7 @@ func _home_given_now() -> bool:
 func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp)
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
@@ -3573,14 +3588,18 @@ func _process(delta: float) -> void:
 			_search(_pending_search)
 		_pending_search = {}
 	var near := level.nearest_interactable(player.global_position)
-	# Only the first levels explain how to search; after that players know.
-	_prompt.text = Lang.t("Dagegenlaufen, um %s zu untersuchen") % Lang.t(_with_article(near.label)) if level_index < 2 and not near.is_empty() and not near.searched else ""
+	_hints_now.clear()
 	var station := level.nearest_station(player.global_position)
-	if not station.is_empty() and bumped_person and PERSON_STATIONS.has(station.kind):
+	var at_station: bool = not station.is_empty() and (level_index < 2 or station.kind != "schrein")
+	# Only the first levels explain how to search; after that players know.
+	_prompt.text = ""
+	if not at_station and level_index < 2 and not near.is_empty() and not near.searched:
+		_prompt.text = _hint("search", Lang.t("Dagegenlaufen, um %s zu untersuchen") % Lang.t(_with_article(near.label)))
+	if at_station and bumped_person and PERSON_STATIONS.has(station.kind):
 		# The hero knows by now that running into people talks to them.
 		_prompt.text = ""
-	elif not station.is_empty() and (level_index < 2 or station.kind != "schrein"):
-		_prompt.text = {
+	elif at_station:
+		_prompt.text = _hint(station.kind, {
 			"schrein": Lang.t("Dagegenlaufen, um den Schrein zu berühren"),
 			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
@@ -3599,16 +3618,16 @@ func _process(delta: float) -> void:
 			"hauswerkbank": Lang.t("Werkbank: Dagegenlaufen, um Wurfmesser zu schmieden oder Ausrüstung zu flicken"),
 			"trophaeen": Lang.t("Trophäenwand: Dagegenlaufen, um zu sehen, welche Trophäen du hast und welche noch fehlen (je +1 Leben)"),
 			"gefaehrten": Lang.t("Dagegenlaufen, um nach deinen Gefährten zu sehen"),
-		}.get(station.kind, "")
+		}.get(station.kind, ""))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
-		_prompt.text = Lang.t("E oder Klick: Kiste aufheben")
+		_prompt.text = _hint("crate", Lang.t("E oder Klick: Kiste aufheben"))
 	elif _prompt.text == "" and _drag_stone != null:
-		_prompt.text = Lang.t("Loslassen: Block rutscht dorthin") if _drag_stone.heavy else Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen")
+		_prompt.text = _hint("drag_heavy", Lang.t("Loslassen: Block rutscht dorthin")) if _drag_stone.heavy else _hint("drag", Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen"))
 	elif _prompt.text == "" and level.stone_in_reach(player) != null:
 		if level.stone_in_reach(player).heavy:
-			_prompt.text = Lang.t("E oder Klick: Block schieben   Ziehen: rutschen lassen")
+			_prompt.text = _hint("stone_heavy", Lang.t("E oder Klick: Block schieben   Ziehen: rutschen lassen"))
 		else:
-			_prompt.text = Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben")
+			_prompt.text = _hint("stone", Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben"))
 	# By the water the line can be cast, also next to the fountain.
 	var fish_prompt := ""
 	if fishing.state == Fishing.BITE:
@@ -3616,14 +3635,36 @@ func _process(delta: float) -> void:
 	elif fishing.is_fishing():
 		fish_prompt = Lang.t("G: Leine einholen")
 	elif not fishing.water_near().is_empty():
-		fish_prompt = Lang.t("G: Angeln")
+		fish_prompt = _hint("fish", Lang.t("G: Angeln"))
 	if fish_prompt != "":
 		_prompt.text = fish_prompt if _prompt.text == "" else _prompt.text + "   " + fish_prompt
 	# Next to a monster that can be won over, a gift can be offered.
 	var tame := gift_target()
 	if tame != null and Factions.can_befriend(Factions.of(tame.kind)) and not tame.is_friend():
-		var gift_prompt := Lang.t("T: Geschenk anbieten")
-		_prompt.text = gift_prompt if _prompt.text == "" else _prompt.text + "   " + gift_prompt
+		var gift_prompt := _hint("gift", Lang.t("T: Geschenk anbieten"))
+		if gift_prompt != "":
+			_prompt.text = gift_prompt if _prompt.text == "" else _prompt.text + "   " + gift_prompt
+	_count_hints()
+
+
+## An explanatory hint of one kind ("bett", "search", "fish", ...): shown the
+## first HINT_SHOWINGS times the hero comes near such a thing, then left out.
+## A hint already on screen stays until the hero walks away.
+func _hint(key: String, text: String) -> String:
+	if text == "":
+		return ""
+	if not _hints_last.has(key) and int(hints_shown.get(key, 0)) >= HINT_SHOWINGS:
+		return ""
+	_hints_now[key] = true
+	return text
+
+
+## Counts each hint that came up this frame and was not on screen before.
+func _count_hints() -> void:
+	for key in _hints_now:
+		if not _hints_last.has(key):
+			hints_shown[key] = int(hints_shown.get(key, 0)) + 1
+	_hints_last = _hints_now.duplicate()
 
 
 func _reach(pos: Vector3) -> float:

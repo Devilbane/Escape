@@ -1119,22 +1119,31 @@ func cure(kind := "") -> bool:
 	return had
 
 
-## Life the hero gets back per second: Konstitution / REGEN_PER_CON_DIVISOR.
+## Life the hero gets back: Konstitution / REGEN_PER_CON_DIVISOR every REGEN_INTERVAL seconds.
 const REGEN_PER_CON_DIVISOR := 10.0
+const REGEN_INTERVAL := 5.0
 ## Fractions of a life healed so far, until they add up to a whole one.
 var _regen := 0.0
+## Seconds since the last heal pulse.
+var _regen_clock := 0.0
 
 
+## Life per second, averaged over the interval (shown in the HUD and character page).
 func life_regen() -> float:
-	return attribute("konstitution") / REGEN_PER_CON_DIVISOR
+	return attribute("konstitution") / REGEN_PER_CON_DIVISOR / REGEN_INTERVAL
 
 
-## Heals the hero a little every second, faster with more Konstitution.
+## Heals the hero once every REGEN_INTERVAL seconds, more with more Konstitution.
 func _regenerate(delta: float) -> void:
 	if dead or hp >= max_hp:
 		_regen = 0.0
+		_regen_clock = 0.0
 		return
-	_regen += life_regen() * delta
+	_regen_clock += delta
+	if _regen_clock < REGEN_INTERVAL:
+		return
+	_regen_clock -= REGEN_INTERVAL
+	_regen += attribute("konstitution") / REGEN_PER_CON_DIVISOR
 	if _regen >= 1.0:
 		var whole := floori(_regen)
 		_regen -= whole

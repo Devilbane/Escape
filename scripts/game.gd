@@ -598,7 +598,9 @@ func _setup_drawer() -> void:
 	column.add_child(buttons)
 	# Buttons that open a window also push the menu away again; the others
 	# (actions and sound) leave it out so they can be clicked again.
-	var windows := [["Inventar", "inventar"], ["Charakter", "charakter"], ["Kompendium", "kompendium"], ["Karte", "karte"], ["Laden", "laden"]]
+	# Map, compendium, inventory, character and quests have their own icons
+	# on the menu's rail (QUICK_WINDOWS), so they are not repeated here.
+	var windows := [["Laden", "laden"]]
 	for w in windows:
 		buttons.add_child(_make_button(Lang.t(w[0]), _open_from_drawer.bind(w[1]), true))
 	# The game actions act the moment the pointer goes down (see _make_button).
@@ -2373,6 +2375,8 @@ func _apply_save(data: Dictionary) -> void:
 			if Villager.ROLES.has(str(role)):
 				met[str(role)] = true
 	quests.load_from(data.get("quests", {}))
+	# The chief may have fallen before his task was taken: it counts.
+	quests.catch_up()
 	journal.load_from(data.get("journal", {}))
 	day = maxi(0, int(data.get("day", 0)))
 	bounties.load_from(data.get("bounties", {}))
@@ -2502,6 +2506,18 @@ func _move_old_saves() -> void:
 
 
 ## The level index of the open air outside the crypt, or -1 without one.
+## Whether a boss that falls only once per saved game has fallen already
+## (see Quests.ONCE_ONLY). The chief is remembered in the looted ids of the
+## open-air map (see Outdoor.CHIEF_DEFEATED).
+func boss_fallen(kind: String) -> bool:
+	if kind != "hauptmann":
+		return false
+	for file in looted:
+		if looted[file].has(Outdoor.CHIEF_DEFEATED):
+			return true
+	return false
+
+
 func _outdoor_index() -> int:
 	for i in level_files.size():
 		if Level.is_outdoor_file(level_files[i]):
@@ -3121,7 +3137,7 @@ func update_after_quest() -> void:
 
 
 ## Explained once in the compendium, the first time a landmark goes on the map.
-const MAP_LEARN := "Deine Karte füllt sich, während du erkundest: Was du gesehen hast, steht darauf, dazu jeder Ort, den du entdeckt hast, und jede Stelle, an der du etwas gefunden hast. Das Tagebuch daneben hält fest, wann und wo. Beides öffnest du mit N (oder „Karte“ im Menü)."
+const MAP_LEARN := "Deine Karte füllt sich, während du erkundest: Was du gesehen hast, steht darauf, dazu jeder Ort, den du entdeckt hast, und jede Stelle, an der du etwas gefunden hast. Das Tagebuch daneben hält fest, wann und wo. Beides öffnest du mit N (oder mit dem Kartenbild am rechten Rand)."
 
 
 ## New landmarks have come into view: a short note, unless something more
@@ -3282,7 +3298,9 @@ var _vampire_kills := 0
 
 
 func _on_enemy_killed(enemy: Enemy) -> void:
-	if enemy.slain_by_rival:
+	# A boss falls only once: if a rival lands the last blow in the hero's
+	# fight, it still counts for the hero, or the task could never be done.
+	if enemy.slain_by_rival and not (enemy is BanditChief):
 		# Felled by a rival monster (see Factions): it counts for no task.
 		if _reach(enemy.global_position) < RIVAL_KILL_HEARD:
 			show_message(enemy.fall_text(), 2.5)

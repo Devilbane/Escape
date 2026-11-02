@@ -21,10 +21,10 @@ The game can be played in English or German; you choose the language on the titl
 | Move a stone block | | grab it with the left mouse button, drag, let go (right click while dragging turns it) |
 | Pick up a stone block | E | click it briefly, “Stone” button |
 | Push a heavy stone block | E | click it briefly; drag it and it slides straight on |
-| Inventory | I | “Inventory” button, bag icon on the right edge |
-| Compendium | H | “Compendium” button, book icon on the right edge |
-| Character page | P | “Character” button, figure icon on the right edge |
-| Map and journal | N | “Map” button, map icon on the right edge |
+| Inventory | I | bag icon on the right edge |
+| Compendium | H | book icon on the right edge |
+| Character page | P | figure icon on the right edge |
+| Map and journal | N | map icon on the right edge |
 | Quests and what is worth doing | O | scroll icon on the right edge |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Offer a monster a gift | T, next to it | “Give gift” button |
@@ -607,7 +607,7 @@ guardian, the secret lever. It is saved with the game.
 ## Map and journal
 
 Your hero draws a **map** as they go. In the dungeon everything the fog of war has shown you goes on it,
-in the open air everything within about 24 m of you. Press **N** (or “Map” in the pull-out menu) to open it;
+in the open air everything within about 24 m of you. Press **N** (or the map icon on the right edge) to open it;
 the arrows above the map flip through every level you have a map of, and it zooms in on the part you have explored.
 Landmarks get a numbered mark once you have seen them, listed beside the map: the stairs, doors, shrines,
 fountains, merchants, beds and storage chests below ground, and the crypt, the graveyard, the dragon's lair,

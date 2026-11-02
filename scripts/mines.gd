@@ -26,12 +26,13 @@ class_name Mines
 ## in the best gear there is, BENCHMARK below. The monsters' numbers are in
 ## Enemy.KINDS (the kinds marked "mountain").
 
-## The hero these places are made for: a hero who has trained for a long
-## time and wears the best of everything (Kriegshammer, Drachenschild,
-## Plattenpanzer, Ritterhelm, Königsumhang, rings and amulets of strength and
-## life). Life, strength (the damage of a blow), hardening (taken off every
-## hit) and the chance to block with the shield.
-const BENCHMARK := {"life": 30, "power": 14, "hardening": 4, "block": 0.45}
+## The hero these places are made for: the owner's own seasoned character
+## (Rabenklinge, Wappenschild, Plattenpanzer, Ritterhelm, Königsumhang,
+## Flinke Stiefel, Amulett der Eile, two phoenix feathers; Klingen 4,
+## Blocken 5). Life, power (the damage of a blow), hardening (taken off every
+## hit) and the chance to block with the shield. Every mountain monster takes
+## at least two of their blows, and none fells them in fewer than four.
+const BENCHMARK := {"life": 18, "power": 12, "hardening": 4, "block": 0.66}
 
 ## The two tablets: the German text of each, as it goes into the compendium.
 const RUNE_ORE := "Eine Steintafel der alten Zwerge: »Die Tiefe der dritten Grube verschlossen wir mit zwei Runen. Die erste ist die Rune des Erzes: ein Hammer über einem Berg. Wer beide kennt, öffnet das Siegel.« Die zweite Rune, so heißt es, ist in der Kristallgrotte, der zweiten Mine, in Eis geritzt."

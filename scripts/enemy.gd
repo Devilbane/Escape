@@ -140,7 +140,7 @@ const KINDS := {
 	# hard and take many blows, but each kind has one clear trick: the
 	# troll's slow, heavy blows, the orc's armour, the wolves' numbers, the
 	# archer's bolts from afar, the slimes' poison or burn.
-	"eiswolf": {"model": "Wolf", "dir": "wild", "hp": 9, "speed": 7.0, "damage": 2, "reach": 2.0, "size": 1.05, "cooldown": 1.0,
+	"eiswolf": {"model": "Wolf", "dir": "wild", "hp": 11, "speed": 7.0, "damage": 2, "reach": 2.0, "size": 1.05, "cooldown": 1.0,
 		"beast": true, "roam": true, "mountain": true, "model_scale": 0.7, "turn": 0.0, "run_anim": 6.0,
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Gallop", "1H_Melee_Attack_Chop": "Attack", "Hit_A": "Idle_HitReact1", "Death_A": "Death"},
 		"tint": Color(0.78, 0.86, 1.0),
@@ -173,7 +173,7 @@ const KINDS := {
 	# The boss deep down in the third mine (see Mines): a rock troll grown
 	# huge on the mountain's heat. A plain fight, but a long one: big, slow
 	# blows to step away from, and a health bar at the top.
-	"bergkoenig": {"model": "Yeti", "dir": "wild", "hp": 150, "speed": 3.6, "damage": 8, "reach": 4.0, "size": 2.6, "cooldown": 2.6, "armor": 3,
+	"bergkoenig": {"model": "Yeti", "dir": "wild", "hp": 150, "speed": 3.6, "damage": 9, "reach": 4.0, "size": 2.6, "cooldown": 2.6, "armor": 3,
 		"beast": true, "mountain": true, "boss": true, "big": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
 		"tint": Color(0.36, 0.28, 0.26), "glow": Color(1.0, 0.4, 0.12),

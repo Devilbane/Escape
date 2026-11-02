@@ -169,12 +169,24 @@ func _check_open_air() -> void:
 			rock = Vector2i(x, 1)
 			break
 	check(rock.x >= 0 and lvl.astar.is_point_solid(rock) and lvl.is_opaque(rock), "mountain rock cannot be crossed or seen through")
-	# Hard monsters for a hero in the best gear (see Mines.BENCHMARK).
+	# Hard monsters for the hero they are made for (see Mines.BENCHMARK): every
+	# mountain kind takes at least two blows, none fells the hero in fewer
+	# than four, and the rock troll and the Mountain King take a real fight.
+	for kind in Enemy.KINDS:
+		var stats: Dictionary = Enemy.KINDS[kind]
+		if not stats.get("mountain", false):
+			continue
+		var deep := 0 if kind == "bergkoenig" else Enemy.DEEPEST
+		var life: int = stats.hp + deep / Enemy.HP_EVERY_LEVELS
+		var hits := ceili(float(life) / Player.soak(Mines.BENCHMARK.power, stats.get("armor", 0)))
+		var blow := Player.soak(stats.damage + deep / Enemy.DAMAGE_EVERY_LEVELS, Mines.BENCHMARK.hardening)
+		var downs := ceili(float(Mines.BENCHMARK.life) / blow)
+		print("%s: %d blows to fell, hits for %d, fells the hero in %d" % [kind, hits, blow, downs])
+		check(hits >= 2, "%s takes more than one blow from the benchmark hero (%d)" % [kind, hits])
+		check(blow >= 2 and downs >= 4, "%s hurts the benchmark hero but needs at least four hits (%d)" % [kind, downs])
 	var troll: Dictionary = Enemy.KINDS.felstroll
-	var hits := ceili(float(troll.hp + Enemy.DEEPEST / Enemy.HP_EVERY_LEVELS) / Player.soak(Mines.BENCHMARK.power, troll.armor))
-	check(hits >= 3, "a rock troll takes several blows even from the benchmark hero (%d)" % hits)
-	var blow := Player.soak(troll.damage + Enemy.DEEPEST / Enemy.DAMAGE_EVERY_LEVELS, Mines.BENCHMARK.hardening)
-	check(blow >= 3 and Mines.BENCHMARK.life / blow >= 5, "a troll's blow hurts the benchmark hero but does not end them at once (%d)" % blow)
+	check(ceili(float(troll.hp + Enemy.DEEPEST / Enemy.HP_EVERY_LEVELS) / Player.soak(Mines.BENCHMARK.power, troll.armor)) >= 4, "a rock troll takes several blows")
+	check(Enemy.KINDS.bergkoenig.hp / Player.soak(Mines.BENCHMARK.power, Enemy.KINDS.bergkoenig.armor) >= 12, "the Mountain King takes a long fight")
 
 
 func _check_tavern() -> void:

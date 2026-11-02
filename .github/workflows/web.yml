@@ -229,6 +229,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_drawer.gd | tee drawer.log
           grep -q PASS drawer.log
 
+      - name: Quick window icons and quests window test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/quick_bar.gd | tee quick_bar.log
+          grep -q PASS quick_bar.log
+
       - name: Background music test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/music.gd | tee music.log

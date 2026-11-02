@@ -190,8 +190,9 @@ func update(delta: float) -> void:
 		_done = true
 		_clock = 0.0
 		game.hints_shown["tut_" + STEPS[step].id] = game.HINT_SHOWINGS
+		# No sound of its own: Sfx.play draws from the shared random numbers,
+		# and the tutorial must not change how the rest of a run plays out.
 		_done_label.text = Lang.t("Geschafft!")
-		Sfx.play(game, "click", -8.0)
 	elif _clock >= MAX_SHOW:
 		_finish()
 

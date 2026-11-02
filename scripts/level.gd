@@ -273,18 +273,20 @@ const LEVER_STEPS := 10
 ## depth, on a plain wall somewhere. It stays hidden until the hero notices
 ## it while walking past in view (see _check_writing): one roll per visit,
 ## WRITING_CHANCE % plus what the Erkunden skill adds. Each is the word
-## carved into the stone and what it says (German, for Lang).
+## carved into the stone and what it says (German, for Lang). The carved word
+## is in the player's language too, so it reads as a hint: a Latin word such
+## as CAVE ("beware") read as the English "cave" and meant nothing.
 const WRITINGS := [
-	["SPES", "Jemand hat in die Wand geritzt: „Gib nicht auf. Ich bin hier auch hinausgekommen.“"],
-	["CAVE", "In die Wand geritzt: „Nicht jede Fackel ist nur eine Fackel.“"],
-	["XII", "Striche in der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt."],
-	["LVX", "In die Wand geritzt: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“"],
-	["AVRVM", "In die Wand geritzt: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“"],
-	["SILENTIVM", "In die Wand geritzt: „Die Toten hören schlecht. Wer leise geht, kommt weit.“"],
-	["MEMENTO", "In die Wand geritzt: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“"],
-	["AQVA", "In die Wand geritzt: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“"],
-	["FERRVM", "In die Wand geritzt: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“"],
-	["LIBERTAS", "In die Wand geritzt: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“"],
+	["HOFFNUNG", "Jemand hat in die Wand geritzt: „Gib nicht auf. Ich bin hier auch hinausgekommen.“"],
+	["FACKELN", "In die Wand geritzt: „Nicht jede Fackel ist nur eine Fackel.“"],
+	["IIII IIII IIII", "Striche in der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt."],
+	["LICHT", "In die Wand geritzt: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“"],
+	["GOLD", "In die Wand geritzt: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“"],
+	["LEISE", "In die Wand geritzt: „Die Toten hören schlecht. Wer leise geht, kommt weit.“"],
+	["SUCHE", "In die Wand geritzt: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“"],
+	["WASSER", "In die Wand geritzt: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“"],
+	["EISEN", "In die Wand geritzt: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“"],
+	["FREIHEIT", "In die Wand geritzt: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“"],
 ]
 const WRITING_CHANCE := 25
 ## How close the hero must come to a writing to have a chance to notice it.
@@ -1357,7 +1359,9 @@ func _place_writing() -> void:
 	var wall: Dictionary = walls[rng.randi() % walls.size()]
 	var entry: Array = WRITINGS[depth % WRITINGS.size()]
 	var label := Label3D.new()
-	label.text = entry[0]
+	label.text = Lang.t(entry[0])
+	# Lang.t already chose the language; do not translate the label again.
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
 	label.font_size = 72
 	label.pixel_size = 0.01

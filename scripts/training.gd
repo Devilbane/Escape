@@ -59,6 +59,11 @@ const WISE_SHRINE := 12
 ##   Klingen, Äxte, Messerwurf: a heavy hit (+1 damage) is a skill roll.
 ##   Blocken: +2 % block chance per level.  Rüstung tragen: hard armour
 ##   weighs 6 % less per level.  Schleichen: sneaking 3 % faster per level.
+##   Erkunden (exploring): needs no gear. It grows when the hero has seen a
+##   whole map (see Journal.note_full_map), and a little from every secret
+##   room and wall writing found. Each level is +EXPLORE_SECRET % to notice a
+##   secret lever, +EXPLORE_TORCH % to find a torch in a searched chest,
+##   barrel or crate, and +EXPLORE_WRITING % to notice a writing on a wall.
 ##
 ## Every skill is governed by one or two of the three main attributes
 ## ("attributes"); that places it in one of the six SECTORS of the character
@@ -73,7 +78,17 @@ const SKILLS := {
 	"blocken": {"name": "Blocken", "attributes": ["staerke", "geschick"]},
 	"ruestung": {"name": "Rüstung tragen", "attributes": ["staerke"]},
 	"schleichen": {"name": "Schleichen", "attributes": ["geschick", "intelligenz"]},
+	"erkunden": {"name": "Erkunden", "attributes": ["intelligenz"]},
 }
+## What a level of Erkunden is worth, in percent (see SKILLS).
+const EXPLORE_SECRET := 3
+const EXPLORE_TORCH := 4
+const EXPLORE_WRITING := 8
+## Training for Erkunden: a whole map seen, a secret room, a wall writing.
+## A run that sees every map fully earns about nine levels.
+const EXPLORE_FULL_MAP := 30.0
+const EXPLORE_SECRET_FOUND := 4.0
+const EXPLORE_WRITING_FOUND := 3.0
 ## The crafts (Handwerk): making things at a workbench, from recipes (see
 ## Crafting). A craft is taught by a master in the village first and then
 ## trains only by working at it; it is not worn gear that enables it. Crafts

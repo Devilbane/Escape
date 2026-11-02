@@ -265,6 +265,8 @@ func _bus_links() -> Array:
 		[bus.reputation_rose, reputation_rose],
 		[bus.traded, reputation.on_trade],
 		[bus.map_grew, map_notice],
+		[bus.map_explored, map_explored],
+		[bus.writing_found, writing_found],
 	]
 
 
@@ -2668,6 +2670,30 @@ func map_notice(names: Array[String]) -> void:
 		show_message(Lang.t("Neu auf deiner Karte: %s") % ", ".join(names), 2.4)
 
 
+## How the Erkunden skill grows and what it is good for (for the compendium).
+const EXPLORE_LEARN := "Erkunden ist eine Fertigkeit ohne Ausrüstung. Sie wächst, wenn du eine Karte ganz erkundest (95 % ihres Bodens gesehen, siehe Karte), und ein wenig mit jedem Geheimraum und jeder Inschrift. Jede Stufe gibt +3 %, einen Geheimraum zu entdecken, +4 %, beim Durchsuchen eine Fackel zu finden, und +8 %, eine Inschrift an der Wand zu bemerken."
+
+
+## The hero has seen the whole of a map (see Journal.note_full_map).
+func map_explored(file: String) -> void:
+	player.train("erkunden", Training.EXPLORE_FULL_MAP)
+	learn(EXPLORE_LEARN)
+	Sfx.play(self, "secret", -6.0)
+	show_message(Lang.t("Ganz erkundet: %s\nDein Blick für Verborgenes wird schärfer (Erkunden).") % journal.level_title(file), 4.0)
+
+
+## The hero noticed a writing on a wall (see Level.reveal_writing): it goes
+## into the compendium and the journal; a new one trains Erkunden a little.
+func writing_found(text: String) -> void:
+	if not lore.has(text):
+		player.train("erkunden", Training.EXPLORE_WRITING_FOUND)
+		journal.write("Inschrift entdeckt", [], journal.current_file())
+	learn(text)
+	learn(EXPLORE_LEARN)
+	Sfx.play(self, "secret", -8.0)
+	show_message(Lang.t(text), 6.0)
+
+
 ## Records where the hero found something, for the map and the journal (see
 ## Journal.note_find): kind is e.g. "ingredient" or "fish", id the item id and
 ## name its German name. pos is where it was found in the current level.
@@ -2746,6 +2772,7 @@ func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	journal.note_secret(journal.current_file(), level.world_to_cell(wall_pos))
 	level.secret_bonus = secrets_found
 	player.train("weisheit", 5.0)
+	player.train("erkunden", Training.EXPLORE_SECRET_FOUND)
 	Comic.pop(lever_pos, "lever")
 	Sfx.play(self, "lever_pull", -2.0, lever_pos)
 	learn("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!")
@@ -2988,8 +3015,18 @@ func _search(obj: Dictionary) -> void:
 		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
 		color = Color(0.75, 0.9, 1.0)
 		show_message(found + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
+	# An eye trained in exploring (Erkunden) finds a torch tucked away.
+	var torch := player.bag.size() < player.bag_size() and randi_range(1, 100) <= player.explore_bonus(Training.EXPLORE_TORCH)
+	if torch:
+		player.bag.append(HandTorch.ITEM)
+		if loot.is_empty():
+			color = Color(1.0, 0.75, 0.4)
+		Sfx.play_gear(self, HandTorch.ITEM, found_after + 0.25)
+		text = Items.item_name(HandTorch.ITEM) if text.ends_with("leer") else text + "  +" + Items.item_name(HandTorch.ITEM)
+		if not loot.has("item"):
+			show_message(Lang.t("Dein geübtes Auge findet eine Fackel, die hier versteckt lag."), 2.4)
 	Effects.float_text(level, obj.icon_pos, text, color, true)
-	if loot.is_empty():
+	if loot.is_empty() and not torch:
 		show_message(Lang.t("Du durchsuchst %s... nichts.") % Lang.t(_with_article(obj.label)), 1.2)
 	_update_hud()
 

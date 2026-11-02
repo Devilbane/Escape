@@ -912,6 +912,12 @@ func intuition_bonus() -> int:
 	return SECRET_PER_INTUITION * (attribute("intuition") - Training.ATTRIBUTES.intuition.start)
 
 
+## What the Erkunden skill adds to a chance, in percent: `per_level` for each
+## level (one of Training.EXPLORE_SECRET, EXPLORE_TORCH, EXPLORE_WRITING).
+func explore_bonus(per_level: int) -> int:
+	return per_level * skill("erkunden")
+
+
 ## An attribute's value now: Stärke and Konstitution 10..30, Tempo 100..150 (%).
 func attribute(id: String) -> int:
 	return Training.attribute_value(id, xp.get(id, 0.0))

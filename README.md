@@ -21,10 +21,11 @@ The game can be played in English or German; you choose the language on the titl
 | Move a stone block | | grab it with the left mouse button, drag, let go (right click while dragging turns it) |
 | Pick up a stone block | E | click it briefly, “Stone” button |
 | Push a heavy stone block | E | click it briefly; drag it and it slides straight on |
-| Inventory | I | “Inventory” button |
-| Compendium | H | “Compendium” button |
-| Character page | P | “Character” button |
-| Map and journal | N | “Map” button |
+| Inventory | I | “Inventory” button, bag icon on the right edge |
+| Compendium | H | “Compendium” button, book icon on the right edge |
+| Character page | P | “Character” button, figure icon on the right edge |
+| Map and journal | N | “Map” button, map icon on the right edge |
+| Quests and what is worth doing | O | scroll icon on the right edge |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |

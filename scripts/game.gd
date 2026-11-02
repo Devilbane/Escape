@@ -158,6 +158,8 @@ var has_fox: bool:
 		return owns_companion("fuchs")
 ## The nameless horrors: their reveal, their bar and their discovery.
 var horrors: Horrors
+## Drips, creaks, whispers and the like in the dark of the dungeon.
+var dungeon_sounds: DungeonSounds
 const FOX_LEARN := "Füchse auf den Wiesen sind scheu, aber eine Wurst (bei der Krämerin) lockt sie an: Trägst du eine bei dir, kommt ein Fuchs neugierig näher und frisst sie dir aus der Hand. Nach drei Würsten folgt er dir überallhin, auch ins Verlies. Seine Nase findet Zutaten, die im Boden versteckt sind: Er läuft hin, gräbt sie aus und lässt sie für dich liegen; aufgehoben kommen sie in deinen Zutatenbeutel."
 ## What the hero already took on each level, by level file: the ids of
 ## searched furniture and picked up coins (see Level.taken). Kept in the
@@ -353,6 +355,8 @@ func _ready() -> void:
 	add_child(menus)
 	horrors = Horrors.new(self)
 	add_child(horrors)
+	dungeon_sounds = DungeonSounds.new(self)
+	add_child(dungeon_sounds)
 	Sfx.load_settings()
 	Sfx.watch_focus(self)
 	Sfx.click_on_buttons(get_tree())

@@ -244,6 +244,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/music.gd | tee music.log
           grep -q PASS music.log
 
+      - name: Eerie dungeon sounds test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dungeon_sounds.gd | tee dungeon_sounds.log
+          grep -q PASS dungeon_sounds.log
+
       - name: Day and night test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/day_night.gd | tee daynight.log

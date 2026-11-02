@@ -649,6 +649,7 @@ func jump() -> void:
 		jump_boost = clampf(run.length() / SPEED, 0.6, 1.6)
 		_air_momentum = run * (1.0 + 0.15 * jump_boost) * (1.0 + JUMP_PER_DEXTERITY * dexterity_points())
 	velocity.y = JUMP_VELOCITY * (0.85 + 0.15 * jump_boost)
+	Events.bus().hero_acted.emit("jump")
 	train("tempo", 3.0)
 	train("geschick", 2.0)
 	_current_anim = ""
@@ -729,6 +730,7 @@ func melee() -> void:
 		_target = target
 		face(target.global_position - global_position)
 	_attack_cooldown = 0.5
+	Events.bus().hero_acted.emit("melee")
 	var splash := would_splash()
 	if splash:
 		play_once(SPLASH_ANIM, 0.55)
@@ -790,6 +792,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 	face(dir)
 	knives -= 1
 	train("geschick", 0.5)
+	Events.bus().hero_acted.emit("throw")
 	_attack_cooldown = 0.6
 	if on_the_move:
 		_current_anim = ""

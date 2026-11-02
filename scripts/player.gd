@@ -48,9 +48,10 @@ const MAX_HP := 5
 ## Level.push_apart).
 var radius := 0.55
 var tall := 2.4
-## A running hero who loses more than this share of their life within
-## KNOCKDOWN_WINDOW seconds is knocked to the ground and gets up again.
-const KNOCKDOWN_SHARE := 0.1
+## A hero who loses more than this share of their life to hits taken while
+## running, within KNOCKDOWN_WINDOW seconds, stumbles to the ground and gets
+## up again. Hits taken while walking, standing or sneaking never count.
+const KNOCKDOWN_SHARE := 0.15
 const KNOCKDOWN_WINDOW := 2.0
 ## The fall to the ground (Death_A, played to its end) and the climb back up
 ## (Lie_StandUp, 2.33 s long, played a little faster).
@@ -190,9 +191,6 @@ const HUNT_REPATH := 0.4
 var _auto_cooldown := 0.0
 ## Time left on an animation that plays while the hero keeps moving.
 var _anim_hold := 0.0
-## Seconds since the hero last ran; hits within the knockdown window of a run
-## count towards being knocked down.
-var _since_run := INF
 ## Recent hits taken while running, as [time, damage], and a clock for them.
 var _run_hits: Array = []
 var _clock := 0.0
@@ -1407,14 +1405,20 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 		play_once("Hit_A", 0.35)
 
 
-## Remembers a hit taken during or right after a run, and tells whether the
-## hits of the last KNOCKDOWN_WINDOW seconds took more than KNOCKDOWN_SHARE of
-## the hero's life.
+## Whether the hero is really running right now (fast enough for the run
+## animation), not just walking.
+func in_full_run() -> bool:
+	return run_boost > RUN_ANIM_FROM and not sneaking
+
+
+## Remembers a hit taken while running, and tells whether the running hits of
+## the last KNOCKDOWN_WINDOW seconds took more than KNOCKDOWN_SHARE of the
+## hero's life. A hit taken while not running never makes the hero stumble.
 func _note_run_hit(amount: int) -> bool:
-	if _since_run > KNOCKDOWN_WINDOW:
-		return false
 	while not _run_hits.is_empty() and _clock - _run_hits[0][0] > KNOCKDOWN_WINDOW:
 		_run_hits.pop_front()
+	if not in_full_run():
+		return false
 	_run_hits.append([_clock, amount])
 	var total := 0
 	for h in _run_hits:
@@ -1423,9 +1427,10 @@ func _note_run_hit(amount: int) -> bool:
 
 
 ## Knocks the hero down from outside, e.g. the bandit chief's shield bash.
-## Already lying on the ground, nothing more happens.
+## Like any stumble, it only happens to a running hero; already lying on the
+## ground, nothing more happens.
 func knock_down() -> void:
-	if dead or _down > 0.0:
+	if dead or _down > 0.0 or not in_full_run():
 		return
 	_knock_down()
 
@@ -1435,7 +1440,6 @@ func knock_down() -> void:
 func _knock_down() -> void:
 	knockdowns += 1
 	_run_hits.clear()
-	_since_run = INF
 	run_boost = 1.0
 	_falling = FALL_TIME
 	_down = FALL_TIME + GET_UP_TIME
@@ -1601,7 +1605,6 @@ func _physics_process(delta: float) -> void:
 				to.y = 0.0
 				dir = to.normalized()
 	_breathe(delta, dir != Vector3.ZERO)
-	_since_run = 0.0 if run_boost > RUN_ANIM_FROM else _since_run + delta
 	var vy := velocity.y - GRAVITY * delta
 	var pace := speed * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else WALK_FACTOR * run_boost)
 	velocity = dir * pace + _knockback

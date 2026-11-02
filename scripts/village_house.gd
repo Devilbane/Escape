@@ -339,7 +339,10 @@ static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3,
 		var corners := [c - u * su * 0.5 - v * sv * 0.5, c + u * su * 0.5 - v * sv * 0.5,
 				c + u * su * 0.5 + v * sv * 0.5, c - u * su * 0.5 + v * sv * 0.5]
 		var uvs := [Vector2(0, 0), Vector2(su, 0), Vector2(su, sv), Vector2(0, sv)]
-		for k in [0, 1, 2, 0, 2, 3]:
+		# Clockwise seen from outside, which Godot draws as the front. Wound
+		# the other way the camera saw the far insides of every box, dark and
+		# flickering through each other (tests/house_faces.gd).
+		for k in [0, 2, 1, 0, 3, 2]:
 			st.set_normal(basis * n)
 			st.set_uv(_uv(key, uvs[k], center, tile))
 			st.add_vertex(center + basis * corners[k])

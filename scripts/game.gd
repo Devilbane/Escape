@@ -168,6 +168,10 @@ var looted := {}
 ## The stone blocks the hero built with on each level, by level file (see
 ## Level.built). Kept in the saved game, so buildings stay standing.
 var builds := {}
+## What lies on the floor of each level, by level file (a town house adds its
+## number: "haus.txt#2"), see Level.floor_items. Kept in the saved game, so
+## dropped gear and unclaimed loot stay where they fell.
+var floors := {}
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
 ## Levels left in a row without finding their secret room.
@@ -1732,6 +1736,10 @@ func load_level(index: int, restock := true) -> void:
 	level.built = builds[file]
 	level.hero = hero_name
 	level.house_number = inside_house if level.is_home else 0
+	var floor_key := file if level.house_number == 0 else "%s#%d" % [file, level.house_number]
+	if not floors.has(floor_key):
+		floors[floor_key] = []
+	level.floor_items = floors[floor_key]
 	if level is Outdoor:
 		# Bandits who take their spots at night are tougher (see Outdoor.set_hour).
 		level.night = DayNight.is_night(day_hour)
@@ -1754,6 +1762,7 @@ func load_level(index: int, restock := true) -> void:
 	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
 	level.restore_taken()
+	level.restore_floor()
 	level.restore_stones()
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
@@ -2064,6 +2073,7 @@ func begin_new_game() -> void:
 	_hints_last.clear()
 	looted.clear()
 	builds.clear()
+	floors.clear()
 	met.clear()
 	quests.clear()
 	journal.clear()
@@ -2410,6 +2420,12 @@ func _apply_save(data: Dictionary) -> void:
 		for file in saved_builds:
 			if saved_builds[file] is Array:
 				builds[str(file)] = (saved_builds[file] as Array).filter(func(e): return e is Array and e.size() >= 4)
+	floors.clear()
+	var saved_floors = data.get("floors", {})
+	if saved_floors is Dictionary:
+		for key in saved_floors:
+			if saved_floors[key] is Array:
+				floors[str(key)] = (saved_floors[key] as Array).filter(func(e): return e is Array and e.size() >= 4)
 	escaped = bool(data.get("escaped", false))
 	home_upgrades = _known_keys(data.get("upgrades", []), HomeUpgrades.ALL)
 	trophies = _known_keys(data.get("trophies", []), HomeUpgrades.TROPHIES)
@@ -2593,7 +2609,7 @@ func save_game(going_away := false) -> bool:
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
 		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(),
 		"saved_at": Time.get_unix_time_from_system(),
-		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
+		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(), "floors": _floors_for_save(),
 		"quests": quests.for_save(),
 		"journal": journal.for_save(),
 		"day": day, "bounties": bounties.for_save(),
@@ -2627,6 +2643,27 @@ func _builds_for_save() -> Dictionary:
 		if not builds[file].is_empty():
 			out[file] = builds[file]
 	return out
+
+
+## What lies on each level's floor, levels with nothing left out.
+func _floors_for_save() -> Dictionary:
+	var out := {}
+	for key in floors:
+		if not floors[key].is_empty():
+			out[key] = floors[key]
+	return out
+
+
+## Sets an item from the bag down at the hero's feet, on this level's floor
+## (see Level.put_on_floor). It stays there until picked up again.
+func drop_on_floor(id: String) -> void:
+	if level == null or player == null:
+		return
+	var ahead := -player.global_transform.basis.z
+	ahead.y = 0.0
+	var spot := player.global_position + (ahead.normalized() * 0.6 if ahead.length() > 0.01 else Vector3.ZERO)
+	level.put_on_floor(id, spot)
+	Sfx.play_gear(level, id, 0.0, spot)
 
 
 ## The looted ids per level file as plain lists, levels with none left out.

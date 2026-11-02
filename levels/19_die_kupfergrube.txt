@@ -1,0 +1,18 @@
+name: Die Kupfergrube
+hint: Die erste Mine: alte Kupferstollen, von Balken gestützt. Bergorks schürfen hier, und die toten Bergleute gehen noch um. Ganz hinten steht eine Tafel der Zwerge.
+building: mine1
+lair: ja
+elite: ja
+theme: kupfer
+##############################
+##E###########################
+##P..,j,,,,f##########,,,,,f##
+##.,,,j,,,,,,,,,,,,,,,,,J,.T##
+##,,,###,,,,###########,,,,,##
+###,####,,,,#######,,,j,######
+###,####,,O,,,,,M,,,,,,,,,C###
+###j####,,,,###########,,,,,##
+##,,,,,,,,,,###########,,O,,##
+##x,M,,,,,,j,,,,,,A,,,,,,,,b##
+##,,,,,b,,,,###########,,,,,##
+##############################

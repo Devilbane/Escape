@@ -1,0 +1,52 @@
+extends RefCounted
+## English texts: the mountains far to the east, the mountain tavern and the
+## three mines (see Mountains and Mines). Merged into Lang.EN (see Lang.PARTS).
+
+const EN := {
+	# The pass and its monsters.
+	"Der Schartenpass! Eiswölfe, Bergorks, Klippenschützen und Felstrolle lauern hier. Nur wer gut gerüstet ist, kommt durch.": "The Notch Pass! Ice wolves, mountain orcs, cliff archers and rock trolls lie in wait here. Only the well equipped get through.",
+	"Schartenpass": "Notch Pass",
+	"Der Eiswolf bleibt liegen.": "The ice wolf stays down.",
+	"Der Bergork kracht zu Boden.": "The mountain orc crashes to the ground.",
+	"Der Felstroll stürzt wie ein Felsbrocken um.": "The rock troll topples like a boulder.",
+	"Der Klippenschütze fällt.": "The cliff archer falls.",
+	"Der Bergkönig stürzt! Der ganze Berg erbebt.": "The Mountain King falls! The whole mountain shakes.",
+	"Die Bergbrut": "The mountain brood",
+	"In den Bergen gilt nur das Recht des Stärkeren. Geschenke bringen hier nichts.": "In the mountains only the law of the strongest holds. Gifts get you nowhere here.",
+	# The tavern.
+	"Bergschenke": "Mountain Tavern",
+	"die Bergschenke": "the mountain tavern",
+	"Die Bergschenke": "The Mountain Tavern",
+	"Die letzte Schenke vor den Minen, mitten im Schartenpass. Am Feuer ist es warm, im Bett ruhst du dich bis zum Morgen aus, und der Wirt hat, was ein Wanderer braucht.": "The last tavern before the mines, right in the Notch Pass. It is warm by the fire, in the bed you rest till morning, and the landlord has what a traveller needs.",
+	"Ruh dich bis zum Morgen aus: Danach hast du volles Leben,\nGift und Flüche sind fort, und dein Spiel ist gespeichert.": "Rest till morning: afterwards your life is full,\npoison and curses are gone, and your game is saved.",
+	"Bis zum Morgen ausruhen": "Rest till morning",
+	"Oder schlaf hier und logg dich aus. Beim nächsten Mal\nwachst du in diesem Bett auf, ausgeruht.": "Or sleep here and log out. Next time\nyou wake up in this bed, rested.",
+	"Ausgeruht! Ein neuer Morgen in den Bergen.": "Rested! A new morning in the mountains.",
+	# The mines.
+	"Mine": "Mine",
+	"Mine %d": "Mine %d",
+	"Die Kupfergrube": "The Copper Pit",
+	"Die erste Mine: alte Kupferstollen, von Balken gestützt. Bergorks schürfen hier, und die toten Bergleute gehen noch um. Ganz hinten steht eine Tafel der Zwerge.": "The first mine: old copper tunnels, propped up with beams. Mountain orcs dig here, and the dead miners still walk. At the very back stands a tablet of the dwarves.",
+	"Kupfergrube": "Copper Pit",
+	"Die Kristallgrotte": "The Crystal Grotto",
+	"Die zweite Mine: kalte Höhlen voller leuchtender Kristalle. Kristallschleime, Eiswölfe und Fledermäuse hausen hier. Tief drinnen glänzt eine Tafel aus Eis.": "The second mine: cold caves full of glowing crystals. Crystal slimes, ice wolves and bats live here. Deep inside gleams a tablet of ice.",
+	"Die Zwergenbinge": "The Dwarven Workings",
+	"Die dritte Mine: die alten Hallen der Zwerge. Bergorks und Felstrolle haben sie besetzt, und untote Schützen halten die Galerien. Ein Siegel mit zwei Runen verschließt den Schacht in die Tiefe.": "The third mine: the old halls of the dwarves. Mountain orcs and rock trolls have taken them, and undead archers hold the galleries. A seal with two runes closes the shaft into the deep.",
+	"Die Glutstollen": "The Ember Tunnels",
+	"Unter dem Siegel: Stollen voller Glut, wo der Berg selbst brennt. Halte dich von den glühenden Spalten fern.": "Below the seal: tunnels full of embers, where the mountain itself burns. Keep away from the glowing cracks.",
+	"Das Herz des Berges": "The Heart of the Mountain",
+	"Ganz unten, wo die Glut am hellsten ist, thront der Bergkönig auf dem Gold der Zwerge. Weich seinen schweren Schlägen aus.": "At the very bottom, where the embers burn brightest, the Mountain King sits on the dwarves' gold. Dodge his heavy blows.",
+	"Eine Steintafel der alten Zwerge: »Die Tiefe der dritten Grube verschlossen wir mit zwei Runen. Die erste ist die Rune des Erzes: ein Hammer über einem Berg. Wer beide kennt, öffnet das Siegel.« Die zweite Rune, so heißt es, ist in der Kristallgrotte, der zweiten Mine, in Eis geritzt.": "A stone tablet of the old dwarves: “We locked the depths of the third pit with two runes. The first is the rune of ore: a hammer above a mountain. Whoever knows both opens the seal.” The second rune, they say, is carved in ice in the Crystal Grotto, the second mine.",
+	"Eine Tafel aus klarem Eis: »Die zweite Rune ist die Rune des Eises: drei Spitzen, die nach oben zeigen. Wer sie und die Rune des Erzes kennt, dem öffnet sich das Siegel in der dritten Grube, und der Weg hinab zum Herzen des Berges ist frei.« Die erste Rune ist in der Kupfergrube, der ersten Mine, in Stein gehauen.": "A tablet of clear ice: “The second rune is the rune of ice: three points facing upwards. Whoever knows it and the rune of ore will find the seal in the third pit open, and the way down to the heart of the mountain free.” The first rune is cut in stone in the Copper Pit, the first mine.",
+	"Ein Siegel aus Stein verschließt den Schacht in die Tiefe. Zwei Runen fehlen darauf. Die alten Zwerge haben sie in der Kupfergrube und in der Kristallgrotte hinterlassen.": "A stone seal closes the shaft into the deep. Two runes are missing from it. The old dwarves left them in the Copper Pit and in the Crystal Grotto.",
+	"Du ritzt die Rune des Erzes in das Siegel, und sie glimmt auf. Die zweite fehlt noch: Sie steht in der Kristallgrotte, der zweiten Mine.": "You carve the rune of ore into the seal, and it glows. The second is still missing: it is in the Crystal Grotto, the second mine.",
+	"Du ritzt die Rune des Eises in das Siegel, und sie glimmt auf. Die erste fehlt noch: Sie steht in der Kupfergrube, der ersten Mine.": "You carve the rune of ice into the seal, and it glows. The first is still missing: it is in the Copper Pit, the first mine.",
+	"Beide Runen glühen auf, und die Steinplatte schiebt sich knirschend zur Seite. Der Weg in die Tiefe ist frei!": "Both runes flare up, and the stone slab grinds aside. The way into the deep is open!",
+	"Dagegenlaufen, um in die Tiefe hinabzusteigen": "Walk into it to climb down into the deep",
+	"Dagegenlaufen, um die Inschrift zu lesen": "Walk into it to read the inscription",
+	"Der Bergkönig": "The Mountain King",
+	"Der Bergkönig tobt!": "The Mountain King rages!",
+	"Der Bergkönig ist besiegt! Das Herz des Berges gehört dir.": "The Mountain King is defeated! The heart of the mountain is yours.",
+	"Runenhammer des Bergkönigs": "The Mountain King's Rune Hammer",
+	"Einzigartig: der Hammer des Bergkönigs aus dem Herzen des Berges": "Unique: the Mountain King's hammer from the heart of the mountain",
+}

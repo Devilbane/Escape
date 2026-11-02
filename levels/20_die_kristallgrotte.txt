@@ -1,0 +1,17 @@
+name: Die Kristallgrotte
+hint: Die zweite Mine: kalte Höhlen voller leuchtender Kristalle. Kristallschleime, Eiswölfe und Fledermäuse hausen hier. Tief drinnen glänzt eine Tafel aus Eis.
+building: mine2
+lair: ja
+theme: kristall
+################################
+##E#############################
+##P.,,%,,,,,,###,,,,,%,,,,,,,,##
+##.,,,,,,,v,,###,,i,,,,,,,e,,,##
+##,,i,,,,,,,,,,,,,,,,,,###,,,,##
+####,,,,###,,,,,,%#####,##,,%,##
+####,,%,###,e,,,,,#####,,,,,,,##
+##,,,,,,###,,,,,,,,,,,,,,v,,,,##
+##,e,,,,,,,,,,i,,###,,,,,##,,,##
+##,,,%,,,,,,,,,,,###,,%,,##,J.T#
+##,,,,,,,,v,,,,C,###,,,,,,,,,,##
+################################

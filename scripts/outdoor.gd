@@ -84,22 +84,26 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@"
+const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@'{}-/"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
-const BLOCK_CHARS := "RhjnmuskowbE^"
+const BLOCK_CHARS := "RhjnmuskowbE^[]"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
 	"m": "building_market_green", "u": "building_windmill_red",
 	"k": "building_castle_blue", "o": "building_home_A_yellow",
 	"w": "building_barracks_red", "b": "building_tower_A_blue",
+	"[": "building_tavern_blue",
 }
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
 	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
-	"E": "die Drachenhöhle",
+	"E": "die Drachenhöhle", "[": "die Bergschenke",
 }
+## The mine entrances in the mountains (see "]" and Mines), west to east:
+## the floor of mine n has the line "building: mine<n>".
+var mines: Array[Vector3] = []
 ## The creepy holes in the ground, in map order (see "(").
 var holes: Array[Vector3] = []
 var _whisper_timer := 3.0
@@ -230,6 +234,7 @@ var _herald_timer := randf_range(HERALD_FIRST_MIN, HERALD_FIRST_MAX)
 var _wild: Array = []
 var _wild_warned := false
 var _beasts_warned := false
+var _pass_warned := false
 ## The bandit chief while he stands, his health bar, and the cutthroats he
 ## called in to help (they do not come back once they fall).
 var chief: BanditChief
@@ -351,9 +356,11 @@ func build() -> void:
 			var c := Vector2i(x, y)
 			_build_outdoor_cell(c, cell_char(c))
 	_build_blocks()
+	Mountains.build(self, hash(level_name + "berge"))
 	_build_forest()
 	_build_house()
 	_build_wall_collision()
+	_build_rock_collision()
 	_setup_astar()
 	_flush_plants()
 	var floor_shape := CollisionShape3D.new()
@@ -374,6 +381,7 @@ func build() -> void:
 ## paved square, blue water, alpha open ground (the forest floor is darker).
 func _build_ground() -> void:
 	var mask := Image.create(width, height, false, Image.FORMAT_RGBA8)
+	var stones := Image.create(width, height, false, Image.FORMAT_RGBA8)
 	var fence := _bounds_of("z")
 	var square := _bounds_of(":")
 	for y in height:
@@ -389,11 +397,15 @@ func _build_ground() -> void:
 			var wet := 1.0 if "~;".contains(ch) else 0.0
 			var open := 0.0 if ch == "#" else 1.0
 			mask.set_pixel(x, y, Color(path, soil, wet, open))
+			# Scree on the mountain ground, and at the foot of the rock.
+			stones.set_pixel(x, y, Color(1.0 if "'=]{}-/".contains(ch) else 0.0, 0, 0, 1))
 	# A smoother mask gives softer edges between the tiles.
 	mask.resize(width * 4, height * 4, Image.INTERPOLATE_BILINEAR)
+	stones.resize(width * 4, height * 4, Image.INTERPOLATE_BILINEAR)
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/meadow.gdshader")
 	mat.set_shader_parameter("ground_mask", ImageTexture.create_from_image(mask))
+	mat.set_shader_parameter("stone_mask", ImageTexture.create_from_image(stones))
 	mat.set_shader_parameter("grid_size", Vector2(width, height))
 	mat.set_shader_parameter("tile", TILE)
 	var margin := 10
@@ -904,7 +916,7 @@ func _forest_depth(c: Vector2i) -> int:
 	for r in range(1, FOREST_DEPTH + 1):
 		for dy in range(-r, r + 1):
 			for dx in range(-r, r + 1):
-				if maxi(absi(dx), absi(dy)) == r and cell_char(c + Vector2i(dx, dy)) != "#" \
+				if maxi(absi(dx), absi(dy)) == r and not "#=]".contains(cell_char(c + Vector2i(dx, dy))) \
 						and c.x + dx >= 0 and c.y + dy >= 0 and c.x + dx < width and c.y + dy < height:
 					return r
 	return FOREST_DEPTH + 1
@@ -958,6 +970,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		return
 	if ch == "^":
 		_build_terrace(block)
+		return
+	if ch == "]":
+		_build_mine_entrance(block)
 		return
 	var facing := _block_facing(block) if ch != "R" else Vector2i(0, 1)
 	var rot := atan2(float(facing.x), float(facing.y))
@@ -1104,6 +1119,79 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	if interiors.has("E"):
 		stations.append({"kind": "eingang", "building": "E", "name": BUILDING_NAMES.E,
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.6), "used": false})
+
+
+## A mine entrance in the mountains (see Mines): a timber frame set into
+## the foot of the rock face, black inside, with its number carved on the
+## lintel, a lantern beside it and a heap of ore and a barrow out front. The
+## mines are numbered from west to east. Run into it to go down.
+func _build_mine_entrance(block: Rect2i) -> void:
+	var number := 1
+	for y in height:
+		for x in range(0, block.position.x):
+			var c := Vector2i(x, y)
+			if cell_char(c) == "]" and cell_char(c + Vector2i(-1, 0)) != "]" and cell_char(c + Vector2i(0, -1)) != "]":
+				number += 1
+	var id := "mine%d" % number
+	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
+	var front := center + Vector3(0, 0, block.size.y * TILE * 0.5 - 0.4)
+	mines.append(front)
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.34, 0.23, 0.14)
+	wood.roughness = 0.9
+	var black := StandardMaterial3D.new()
+	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	black.albedo_color = Color(0.02, 0.015, 0.015)
+	# The black mouth at the back of the notch, against the rock face.
+	_add_mesh_box(front + Vector3(0, 1.7, -2.9), Vector3(3.4, 3.4, 1.6), black)
+	# Timber walls along the notch, so its sides show planks, not bare rock.
+	for side in [-1.0, 1.0]:
+		_add_mesh_box(front + Vector3(side * 1.95, 1.9, -1.7), Vector3(0.18, 3.8, 3.2), wood)
+	# Two posts, a lintel and a beam across the top.
+	for side in [-1.0, 1.0]:
+		_add_mesh_box(front + Vector3(side * 1.85, 1.9, 0), Vector3(0.45, 3.8, 0.45), wood)
+		_add_mesh_box(front + Vector3(side * 1.85, 1.9, -0.9), Vector3(0.4, 3.8, 0.4), wood)
+	_add_mesh_box(front + Vector3(0, 3.95, 0), Vector3(4.6, 0.5, 0.55), wood)
+	_add_mesh_box(front + Vector3(0, 3.95, -0.9), Vector3(4.4, 0.45, 0.45), wood)
+	var sign := Label3D.new()
+	sign.text = ["I", "II", "III", "IV", "V"][mini(number, 5) - 1]
+	sign.font = preload("res://assets/fonts/CinzelDecorative-Black.woff2")
+	sign.font_size = 96
+	sign.pixel_size = 0.012
+	sign.modulate = Color(0.95, 0.82, 0.5)
+	sign.outline_size = 10
+	sign.outline_modulate = Color(0.1, 0.06, 0.03)
+	sign.position = front + Vector3(0, 3.95, 0.3)
+	add_child(sign)
+	_build_lantern(front + Vector3(3.1, 0, 0.9))
+	_put("resource_stone", front + Vector3(-3.0, 0, 1.4), _rng.randf() * TAU, PROP_SCALE)
+	_put("wheelbarrow", front + Vector3(-2.6, 0, 3.0), 0.6 + _rng.randf_range(-0.3, 0.3), PROP_SCALE)
+	var glow := OmniLight3D.new()
+	glow.light_color = [Color(1.0, 0.6, 0.3), Color(0.45, 0.75, 1.0), Color(1.0, 0.35, 0.15)][(number - 1) % 3]
+	glow.light_energy = 1.2
+	glow.omni_range = 5.0
+	glow.position = front + Vector3(0, 1.0, -0.6)
+	add_child(glow)
+	_add_solid(center, Vector3(block.size.x * TILE * 0.9, 4, block.size.y * TILE * 0.9))
+	sign.set_meta("block", block)
+	doors[id] = front + Vector3(0, 0, 2.2)
+	if interiors.has(id):
+		stations.append({"kind": "eingang", "building": id, "name": Lang.t("Mine %d") % number,
+				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.5), "used": false})
+
+
+## The mountain rock is as solid as the forest: a wall along every rock
+## tile that borders walkable ground.
+func _build_rock_collision() -> void:
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if cell_char(c) != "=":
+				continue
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]:
+				if not "#=]".contains(cell_char(c + d)):
+					_add_box(_walls_body, cell_to_world(c) + Vector3(0, 2, 0), Vector3(TILE, 4, TILE))
+					break
 
 
 ## A dark, creepy hole in the ground: a ring of torn earth and rocks round a
@@ -1749,6 +1837,11 @@ func _mind_the_wild(delta: float) -> void:
 			_spawn_bandit(s)
 	for s in _wild:
 		var beast: bool = Enemy.KINDS[s.kind].get("beast", false)
+		if Enemy.KINDS[s.kind].get("mountain", false):
+			if not _pass_warned and _flat_distance(player.global_position, cell_to_world(s.cell)) < WILD_WARNING_RANGE:
+				_pass_warned = true
+				notice.emit(Lang.t("Der Schartenpass! Eiswölfe, Bergorks, Klippenschützen und Felstrolle lauern hier. Nur wer gut gerüstet ist, kommt durch."), 5.0)
+			continue
 		if (_beasts_warned if beast else _wild_warned) or _flat_distance(player.global_position, cell_to_world(s.cell)) >= WILD_WARNING_RANGE:
 			continue
 		if beast:
@@ -1763,7 +1856,7 @@ func _mind_the_wild(delta: float) -> void:
 func bandits_alive() -> int:
 	var n := 0
 	for s in _wild:
-		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead and s.enemy.is_human():
+		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead and s.enemy.is_human() and not Enemy.KINDS[s.kind].get("mountain", false):
 			n += 1
 	return n
 
@@ -1772,7 +1865,7 @@ func bandits_alive() -> int:
 func beasts_alive() -> int:
 	var n := 0
 	for s in _wild:
-		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead and s.enemy.is_beast():
+		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead and s.enemy.is_beast() and not Enemy.KINDS[s.kind].get("mountain", false):
 			n += 1
 	return n
 
@@ -1876,7 +1969,7 @@ func is_lit(pos: Vector3) -> bool:
 
 func is_opaque(c: Vector2i) -> bool:
 	var ch := cell_char(c)
-	return ch == "#" or ch == "I" or BLOCK_CHARS.contains(ch)
+	return ch == "#" or ch == "=" or ch == "I" or BLOCK_CHARS.contains(ch)
 
 
 ## Whether a tile is walkable ground (for villagers picking where to go).

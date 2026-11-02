@@ -51,6 +51,8 @@ signal dragon_awakened(dragon: Dragon)
 ## The hero stepped into the glowing way out that opens once the lair is won.
 signal lair_exit_taken
 signal exit_reached
+## The boss of a mine floor has fallen (see Mines).
+signal boss_won
 signal item_collected(id: String)
 signal bag_full
 signal secret_found(lever_pos: Vector3, wall_pos: Vector3)
@@ -110,7 +112,7 @@ const SPIKE_IRON := Color(0.5, 0.5, 0.53)
 ## The grey of the kit's floor tiles, for spike and grate tiles.
 const FLOOR_GREY := Color(0.74, 0.73, 0.71)
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "#bxotkCDHBLVF?f=U|N"
+const SOLID := "#bxotkCDHBLVF?f=U|N%~T^"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
@@ -209,6 +211,21 @@ var chalk_marks := {}
 var stairs: Array = []
 ## Where the hero stands beside the bed of a home.
 var bed_side := Vector3.ZERO
+## An inn on the way, with a bed to rest in (header "inn:").
+var inn := false
+## The setting of a mine floor (header "theme:", see Mines): its light and
+## look. "" for every other level.
+var theme := ""
+## Where a mine floor's way down ("^") and its stairs lead (headers "down:"
+## and "up:"), and whether the way down is sealed ("seal:").
+var down_to := ""
+var up_to := ""
+var seal := ""
+## Where the hero stands after coming up the way down ("^") from below.
+var shaft_side := Vector3.ZERO
+## The boss of a mine floor and its health bar (see Mines).
+var mine_boss: Enemy = null
+var mine_boss_bar: BossBar = null
 ## Spots beside the beds for the basket of the hero's fox (see Pet), and the
 ## baskets once they stand there (only for a hero who has a fox).
 var fox_beds: Array[Vector3] = []
@@ -329,6 +346,18 @@ func load_from_file(path: String) -> void:
 			horror_kind = line.substr(7).strip_edges()
 		elif line.begins_with("home:"):
 			is_home = true
+		elif line.begins_with("theme:"):
+			theme = line.substr(6).strip_edges()
+		elif line.begins_with("down:"):
+			down_to = line.substr(5).strip_edges()
+		elif line.begins_with("up:"):
+			up_to = line.substr(3).strip_edges()
+		elif line.begins_with("seal:"):
+			seal = line.substr(5).strip_edges()
+		elif line.begins_with("inn:"):
+			# An inn on the way (see the mountain tavern): its bed lets the
+			# hero rest till morning, and a game saved there wakes up there.
+			inn = true
 		elif line.begins_with("floor:"):
 			floor_name = line.substr(6).strip_edges()
 		elif line.begins_with("outdoor:"):
@@ -382,7 +411,7 @@ func build() -> void:
 	fog.setup(self)
 	add_child(fog)
 	_spawn_enemies()
-	if lair:
+	if lair and theme == "":
 		_decorate_lair()
 	if not outdoor and (building == "" or lair):
 		add_child(DungeonLife.new(self))
@@ -831,7 +860,7 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_place("bed_decorated", pos, bed_rot)
 			_add_solid(pos, Vector3(3.2, 1.5, 3.2))
 			stations.append({"kind": "bett", "cell": c, "pos": pos, "rot": bed_rot, "used": false})
-			if is_home:
+			if is_home or inn:
 				bed_side = cell_to_world(_open_side(c))
 			_add_fox_bed(c)
 		"N":
@@ -860,6 +889,8 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_place("table_medium_decorated_A", pos, _random_quarter_turn())
 			_add_solid(pos, Vector3(3.0, 2, 2.2))
 			_add_interactable("Tisch", pos, pos + Vector3(0, 2.8, 0), c)
+		"j", "%", "~", "T", "^":
+			Mines.build_cell(self, c, ch)
 
 
 func _has_cell(ch: String) -> bool:
@@ -2584,7 +2615,7 @@ func _spawn_enemies() -> void:
 
 func _spawn_enemy(kind: String, c: Vector2i, is_elite := false) -> Enemy:
 	# The dragon is a boss of its own.
-	var e: Enemy = Dragon.new() if kind == "drache" else Enemy.new()
+	var e: Enemy = Dragon.new() if kind == "drache" else (MountainKing.new() if kind == "bergkoenig" else Enemy.new())
 	e.kind = kind
 	e.elite = is_elite
 	var gear_chance: float = Enemy.KINDS[e.kind].get("gear_chance", -1.0)
@@ -2594,6 +2625,18 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false) -> Enemy:
 	e.global_position = cell_to_world(c)
 	if e.kind == "waechter":
 		e.watch(_guarded_spot())
+	if Enemy.KINDS[kind].get("boss", false):
+		# The Mountain King (see Mines): a health bar at the top, and his
+		# hammer the first time he falls.
+		mine_boss = e
+		mine_boss_bar = BossBar.new(e)
+		add_child(mine_boss_bar)
+		e.died.connect(func():
+			if not taken.has(Mines.KING_DEFEATED):
+				taken[Mines.KING_DEFEATED] = true
+				_drop_item(Mines.TROPHY, e.global_position + Vector3(0.8, 0, 0.8))
+				Sfx.play_gear(self, Mines.TROPHY, 0.4, e.global_position)
+			boss_won.emit())
 	if e is Dragon:
 		dragon = e as Dragon
 		dragon.awakened.connect(func(): dragon_awakened.emit(e))

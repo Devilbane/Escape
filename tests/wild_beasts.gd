@@ -51,7 +51,9 @@ func _process(_delta: float) -> bool:
 			var lvl: Outdoor = game.level
 			var kinds := {}
 			for e in lvl.enemies:
-				if e.is_beast():
+				# The monsters of the mountain pass further east are not the
+				# hollow's (see tests/mountains.gd).
+				if e.is_beast() and not Enemy.KINDS[e.kind].get("mountain", false):
 					kinds[e.kind] = kinds.get(e.kind, 0) + 1
 			print("beasts in the hollow: ", kinds)
 			check(kinds.get("wolf", 0) >= 3, "a pack of wolves roams the hollow")

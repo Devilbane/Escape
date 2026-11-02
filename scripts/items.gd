@@ -74,6 +74,8 @@ const ALL := {
 	"silberarmreif": {"name": "Silberarmreif", "slot": "armreif", "weight": 0.3, "power": 1, "speed": 0.05, "skills": {"werfen": 1}, "magic": true, "price": 27},
 	# Unique: only the bandit chief carries it, once per game (see BanditChief).
 	"rabenklinge": {"name": "Rabenklinge", "slot": "waffe", "uses": "klingen", "weight": 2.5, "power": 3, "speed": 0.05, "price": 95, "no_loot": true, "unique": true, "model": "res://assets/weapons/sword_1handed.gltf", "material": "mixed", "effect": "Einzigartig: die Klinge von Rabenherz, dem Räuberhauptmann"},
+	# Unique: the Mountain King's hammer, deep in the third mine (see Mines).
+	"runenhammer": {"name": "Runenhammer des Bergkönigs", "slot": "waffe", "uses": "aexte", "weight": 6, "hp": 2, "power": 4, "skills": {"aexte": 1}, "price": 160, "no_loot": true, "unique": true, "model": "res://assets/weapons/forge/war_hammer.gltf", "material": "mixed", "effect": "Einzigartig: der Hammer des Bergkönigs aus dem Herzen des Berges"},
 	"vampirzahn": {"name": "Vampirzahn", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Jeder dritte besiegte Gegner gibt dir 1 Leben"},
 	"gluecksklee": {"name": "Glücksklee", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Doppeltes Gold"},
 	"dornenrune": {"name": "Dornenrune", "slot": "spezial", "weight": 0.5, "price": 45, "effect": "Wer dich im Nahkampf trifft, erleidet 1 Schaden, wenn er nicht gehärtet ist"},

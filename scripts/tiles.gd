@@ -60,6 +60,18 @@ const DUNGEON := {
 	"+": "free floor kept for furniture (homes)",
 	"N": "the companions' corner: straw where the companions who stay home rest (homes)",
 	"X": "a horror's den (see Horrors)",
+	# The mountain mines (see Mines).
+	"J": "rock troll (big, slow, hits very hard), see Enemy.LETTERS",
+	"O": "mountain orc (armoured)",
+	"e": "ice wolf (quick, hunts in packs)",
+	"i": "crystal slime (poisons)",
+	"g": "ember slime (burns)",
+	"Y": "the Mountain King (the boss deep in the third mine)",
+	"j": "pit prop: a timber frame against the wall (mines)",
+	"%": "a glowing crystal cluster (mines)",
+	"~": "a crack of glowing embers in the floor (mines, cannot be crossed)",
+	"T": "a stone tablet with an old inscription (a hint, see Mines)",
+	"^": "the way down to the next floor of a mine (see the header \"down:\")",
 }
 
 ## Letters of the open-air map built by Outdoor.
@@ -147,4 +159,13 @@ const OUTDOOR := {
 	"%": "gem cutter's wheel",
 	"*": "alchemist's table",
 	"$": "the hero's storage chest",
+	# The mountains far to the east (see Mountains and Mines).
+	"=": "mountain rock (cannot be crossed, see Mountains)",
+	"'": "scree: stony mountain ground",
+	"[": "the mountain tavern (a block of tiles, see the floor \"building: [\")",
+	"]": "a mine entrance (a block of tiles); numbered west to east, mine n leads to \"building: mine<n>\"",
+	"{": "rock troll",
+	"}": "mountain orc",
+	"-": "ice wolf",
+	"/": "cliff archer (crossbow)",
 }

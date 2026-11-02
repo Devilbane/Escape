@@ -93,7 +93,7 @@ func _process(_delta: float) -> bool:
 				check(chief.phase == 2, "below two thirds of his life the chief enters phase 2")
 				check(lvl.called_alive() == BanditChief.CALL_COUNT, "he calls %d cutthroats (%d came)" % [BanditChief.CALL_COUNT, lvl.called_alive()])
 				check(lvl._called.all(func(e): return e.is_hunting()), "the called cutthroats join the fight at once")
-				check(lvl.bandits_alive() + lvl.beasts_alive() == lvl._wild.size(), "called cutthroats do not take any bandit's spot")
+				check(lvl.bandits_alive() + lvl.beasts_alive() == lvl._wild.filter(func(s): return not Enemy.KINDS[s.kind].get("mountain", false)).size(), "called cutthroats do not take any bandit's spot")
 				# Shield bash next: the hero stands right in front of him.
 				_face_chief(1.8)
 				chief._bash_timer = 0.0

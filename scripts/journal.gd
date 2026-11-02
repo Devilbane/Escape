@@ -45,11 +45,11 @@ const OUTDOOR_MARKS := {
 	"o": ["building", "Post"], "w": ["building", "Abenteurergilde"], "b": ["building", "Bank der Krone"],
 	"^": ["home", "Weberzeile"], ";": ["water", "Teich"], "F": ["fountain", "Marktbrunnen"], "q": ["fountain", "Ziehbrunnen"],
 	"~": ["water", "Teich"], "f": ["camp", "Räuberlager"], "v": ["food", "Futterkorb"],
-	"S": ["building", "Steinmetz"],
+	"S": ["building", "Steinmetz"], "[": ["building", "Bergschenke"], "]": ["lair", "Mine"],
 }
 ## Whole areas of the open air, marked in the middle of all their tiles:
 ## [characters, German name].
-const OUTDOOR_AREAS := [["g", "Friedhof"], ["WHJU", "Wolfssenke"], ["cAX", "Räuberpass"]]
+const OUTDOOR_AREAS := [["g", "Friedhof"], ["WHJU", "Wolfssenke"], ["cAX", "Räuberpass"], ["{}-/", "Schartenpass"]]
 ## Colours of the marks by kind of landmark, and of the finds by kind.
 const MARK_COLORS := {
 	"stairs": Color(1.0, 0.82, 0.4), "door": Color(0.75, 0.55, 0.35), "shrine": Color(0.75, 0.6, 1.0),

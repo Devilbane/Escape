@@ -153,7 +153,7 @@ func _test() -> void:
 	check(dimmed, "an unaffordable buy button looks disabled")
 	menus.close()
 
-	game.delete_save(game.save_path(game.hero_name))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: window buttons")
 	else:

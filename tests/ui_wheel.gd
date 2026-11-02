@@ -80,7 +80,7 @@ func _test() -> void:
 	await _wheel(MOUSE_BUTTON_WHEEL_DOWN)
 	check(game._zoom_target < closed, "the wheel zooms again once the window is closed")
 
-	game.delete_save(game.save_path(game.hero_name))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: ui wheel")
 	else:

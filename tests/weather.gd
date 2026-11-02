@@ -26,7 +26,7 @@ func _initialize() -> void:
 
 
 func _finish() -> void:
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: weather")
 	else:
@@ -188,7 +188,7 @@ func _clock_and_saving() -> void:
 	# The weather goes into the saved game and comes back from it.
 	game.set_weather(Weather.FOG, 3.5)
 	check(game.save_game(), "the game is saved")
-	var data: Dictionary = game._read_save(game.save_path(HERO))
+	var data: Dictionary = game._read_save(game.save_path())
 	check(data.get("weather", "") == Weather.FOG, "the saved game holds the weather")
 	game.set_weather(Weather.CLEAR, 2.0)
 	game._apply_save(data)

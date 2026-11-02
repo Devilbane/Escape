@@ -28,8 +28,8 @@ func _process(_delta: float) -> bool:
 	if frames < 5:
 		return false
 	_test()
-	for hero in HEROES:
-		game.delete_save(game.save_path(hero))
+	for i in HEROES.size():
+		game.delete_save(game.save_path(i + 1))
 	if failures == 0:
 		print("PASS: quests")
 	else:
@@ -58,6 +58,7 @@ func _bump(role: String) -> void:
 
 func _test() -> void:
 	game.hero_name = HEROES[0]
+	game.save_slot = 1
 	game.met.clear()
 	game.quests.clear()
 	# Ragna also asks the fighting style (see Wishes); named already here,
@@ -185,16 +186,17 @@ func _test() -> void:
 	check(game.save_game(), "the game is saved")
 	var saved: Dictionary = game.quests.for_save()
 	game.hero_name = HEROES[1]
+	game.save_slot = 2
 	game.quests.clear()
 	check(game.save_game(), "another hero's game is saved")
-	game._apply_save(game._read_save(game.save_path(HEROES[1])))
+	game._apply_save(game._read_save(game.save_path(2)))
 	check(game.quests.log_entries().is_empty(), "the other hero has no quests")
-	game._apply_save(game._read_save(game.save_path(HEROES[0])))
+	game._apply_save(game._read_save(game.save_path(1)))
 	check(game.quests.for_save() == saved, "the saved game brings the quests back")
 	check(game.quests.is_active("hauptmann") and game.quests.is_done("brief"), "open and finished quests are kept apart")
 
 	# Saved games from before quests load fine.
-	var data: Dictionary = game._read_save(game.save_path(HEROES[0]))
+	var data: Dictionary = game._read_save(game.save_path(1))
 	data.erase("quests")
 	game._apply_save(data)
 	check(game.quests.log_entries().is_empty(), "an older saved game starts without quests")

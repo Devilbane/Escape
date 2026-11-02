@@ -34,7 +34,7 @@ func _process(_delta: float) -> bool:
 
 
 func _finish() -> void:
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: stones")
 	else:
@@ -154,7 +154,7 @@ func _run() -> void:
 	_place(p, field + Vector3(0, 0, -3.0))
 	await _wait(10)
 	check(game.save_game(), "the game saves")
-	var data: Dictionary = game._read_save(game.save_path(HERO))
+	var data: Dictionary = game._read_save(game.save_path())
 	var file: String = game.level_files[game.level_index].get_file()
 	check(data.has("builds") and data.builds.has(file) and data.builds[file].size() == 2, "the saved game holds the blocks")
 	var spots := lvl.stones.map(func(s): return [s.cell, s.along_x, s.layer])

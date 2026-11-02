@@ -30,7 +30,7 @@ func _process(_delta: float) -> bool:
 	if frames < 5:
 		return false
 	_test()
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: fishing")
 	else:
@@ -208,7 +208,7 @@ func _test() -> void:
 	check(game.save_game(), "the game is saved")
 	var saved: Dictionary = game.crafting.for_save()
 	game.crafting.clear()
-	game._apply_save(game._read_save(game.save_path(HERO)))
+	game._apply_save(game._read_save(game.save_path()))
 	check(game.crafting.for_save() == saved, "the saved game brings the fish back")
 
 	# The button in the pull-out menu.

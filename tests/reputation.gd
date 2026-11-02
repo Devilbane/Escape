@@ -28,8 +28,8 @@ func _process(_delta: float) -> bool:
 	if frames < 5:
 		return false
 	_test()
-	for hero in HEROES:
-		game.delete_save(game.save_path(hero))
+	for i in HEROES.size():
+		game.delete_save(game.save_path(i + 1))
 	if failures == 0:
 		print("PASS: reputation")
 	else:
@@ -71,6 +71,7 @@ func _test() -> void:
 	check(Lang.EN.has(Reputation.HOW_TO), "the explanation has an English text")
 
 	game.hero_name = HEROES[0]
+	game.save_slot = 1
 	game.met.clear()
 	game.quests.clear()
 	rep.clear()
@@ -174,16 +175,17 @@ func _test() -> void:
 	check(game.save_game(), "the game is saved")
 	var saved: Dictionary = rep.for_save()
 	game.hero_name = HEROES[1]
+	game.save_slot = 2
 	rep.clear()
 	check(game.save_game(), "another hero's game is saved")
-	game._apply_save(game._read_save(game.save_path(HEROES[1])))
+	game._apply_save(game._read_save(game.save_path(2)))
 	check(rep.points("4") == 0 and rep.recipes.is_empty(), "the other hero is a stranger")
-	game._apply_save(game._read_save(game.save_path(HEROES[0])))
+	game._apply_save(game._read_save(game.save_path(1)))
 	check(rep.for_save() == saved, "the saved game brings the standing back")
 	check(rep.knows_recipe("steine_hagen"), "and the secret recipes")
 
 	# Saved games from before reputation load fine; broken entries are left out.
-	var data: Dictionary = game._read_save(game.save_path(HEROES[0]))
+	var data: Dictionary = game._read_save(game.save_path(1))
 	data.erase("reputation")
 	game._apply_save(data)
 	check(rep.standing.is_empty() and rep.recipes.is_empty(), "an older saved game starts as a stranger")

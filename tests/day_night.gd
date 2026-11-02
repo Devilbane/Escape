@@ -29,7 +29,7 @@ func _initialize() -> void:
 
 
 func _finish() -> void:
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: day and night")
 	else:
@@ -205,7 +205,7 @@ func _clock_and_saving() -> void:
 	# The hour goes into the saved game and comes back from it.
 	game.day_hour = 22.5
 	check(game.save_game(), "the game is saved")
-	var data: Dictionary = game._read_save(game.save_path(HERO))
+	var data: Dictionary = game._read_save(game.save_path())
 	check(is_equal_approx(float(data.get("hour", -1.0)), 22.5), "the saved game holds the hour")
 	game.day_hour = 3.0
 	game._apply_save(data)
@@ -219,7 +219,7 @@ func _clock_and_saving() -> void:
 	game.day_hour = 23.5
 	game.sleep()
 	check(is_equal_approx(game.day_hour, DayNight.WAKE_HOUR), "sleeping in the bed skips to the morning")
-	data = game._read_save(game.save_path(HERO))
+	data = game._read_save(game.save_path())
 	check(is_equal_approx(float(data.get("hour", -1.0)), DayNight.WAKE_HOUR), "the hero wakes up in the morning after loading")
 
 	# The sky blends smoothly and the parts of the day have names.

@@ -30,7 +30,7 @@ func _initialize() -> void:
 
 
 func _finish() -> void:
-	game.delete_save(game.save_path(game.hero_name))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: bandit chief")
 	else:
@@ -159,7 +159,7 @@ func _process(_delta: float) -> bool:
 				# Save, load the save, and come back to the pass: no chief,
 				# but his blade still lies there, since nobody picked it up.
 				check(game.save_game(), "the game saves")
-				game._apply_save(game._read_save(game.save_path(game.hero_name)))
+				game._apply_save(game._read_save(game.save_path()))
 				game.load_level(game._outdoor_index(), false)
 				game.state = game.State.PLAYING
 				stage = 6

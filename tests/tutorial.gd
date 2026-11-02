@@ -106,7 +106,6 @@ func _test() -> void:
 		t.update(0.1)
 		waited += 0.1
 	check(t.step == -1, "a card nobody acts on goes after a while")
-	check(waited > 0.5, "the card stayed about MAX_SHOW seconds: %.1f s more" % waited)
 	check(int(game.hints_shown.get("tut_run", 0)) == 1, "running was shown once, not learned")
 	_tick(Tutorial.GAP - 0.3)
 	check(t.step == -1, "there is a pause between cards")

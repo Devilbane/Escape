@@ -167,8 +167,6 @@ var _shown_alpha := -1.0
 
 var _model: Node3D
 var _anim: AnimationPlayer
-## Straightens the run into an upright stride.
-var _upright: UprightStride
 ## Where in the run cycle each foot touches the ground (left, right).
 const FOOT_LANDINGS := [0.17, 0.67]
 ## The same for the sneaking walk, whose feet land later in its cycle.
@@ -245,9 +243,6 @@ func _ready() -> void:
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle", SNEAK_ANIM]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
-	_upright = UprightStride.new()
-	(_model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D).add_child(_upright)
-	_upright.setup(_anim)
 	play("Idle")
 
 	# A warm lantern glow around the hero, so the way ahead is never pitch black.
@@ -535,7 +530,6 @@ func play(anim_name: String, blend := 0.2) -> void:
 		return
 	_current_anim = anim_name
 	_anim.play(anim_name, blend)
-	_upright.wanted = anim_name == "Running_A"
 
 
 ## Plays a one-off animation and pauses movement for its duration.

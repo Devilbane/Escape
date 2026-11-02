@@ -47,6 +47,9 @@ signal map_grew(names: Array)
 ## The hero has seen the whole of a map, the level file named (see
 ## Journal.note_full_map). It trains the Erkunden skill.
 signal map_explored(file: String)
+## The hero struck with the blade ("melee"), threw a knife ("throw") or
+## jumped ("jump"). The first steps' cards listen (see Tutorial).
+signal hero_acted(action: String)
 ## The hero noticed a writing on a wall (see Level, WallWritings): its
 ## German text, for the compendium and the journal.
 signal writing_found(text: String)

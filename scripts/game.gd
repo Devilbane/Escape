@@ -103,6 +103,8 @@ var met := {}
 var quests := Quests.new(self)
 ## The hero's map of every level and the exploration journal (see Journal).
 var journal := Journal.new(self)
+## The first steps in the cell, one card at a time (see Tutorial).
+var tutorial := Tutorial.new(self)
 ## How many mornings have dawned in the world above ground since the game
 ## began. The bounty board pins up fresh hunts each morning (see Bounties).
 ## The day turns at dawn, so the night after day d's evening, past midnight
@@ -312,6 +314,7 @@ func _bus_links() -> Array:
 		[bus.quest_done, xp_for_task],
 		[bus.bounty_paid, xp_for_bounty],
 		[bus.riddle_solved, xp_for_riddle],
+		[bus.hero_acted, tutorial.on_hero_acted],
 	]
 
 
@@ -346,6 +349,7 @@ func _ready() -> void:
 				interiors[line.substr(9).strip_edges()] = i
 	_setup_world()
 	_setup_hud()
+	tutorial.setup(_hud)
 	var comic := Comic.new()
 	comic.camera = camera
 	add_child(comic)
@@ -1715,6 +1719,7 @@ func load_level(index: int, restock := true) -> void:
 	if level:
 		level.queue_free()
 	level_index = index
+	tutorial.restart()
 	level = Outdoor.new() if Level.is_outdoor_file(level_files[index]) else Level.new()
 	level.load_from_file(level_files[index])
 	level.depth = index
@@ -4093,6 +4098,7 @@ func _process(delta: float) -> void:
 	_steer_by_mouse(delta)
 	_update_drag(delta)
 	_update_run_meter()
+	tutorial.update(delta)
 	if state == State.PLAYING:
 		fishing.tick(delta)
 	elif fishing.is_fishing():

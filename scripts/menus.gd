@@ -2746,7 +2746,12 @@ func _build_map_page(journal: Journal) -> void:
 			if by_name[n][0] > 1:
 				text += "  " + Lang.t("(%d Stellen)") % by_name[n][0]
 			_legend_line(legend, Journal.find_color(kinds[n]), text)
-	_add_label(Lang.t("Erkundet: %d %%") % _explored_share(journal, _map_file), 16, BLUE)
+	# How much is seen, by the same measure that makes a map fully explored
+	# (see Journal.note_full_map): rounded down, so 95 % is really reached.
+	var explored := Lang.t("Erkundet: %d %%") % floori(100.0 * journal.explored_share(_map_file))
+	if journal.is_full(_map_file):
+		explored += " " + Lang.t("(vollständig)")
+	_add_label(explored, 16, BLUE)
 
 
 func _legend_title(box: VBoxContainer, text: String) -> void:
@@ -2769,23 +2774,6 @@ func _legend_line(box: VBoxContainer, color: Color, text: String) -> void:
 	l.custom_minimum_size.x = 240
 	line.add_child(l)
 	box.add_child(line)
-
-
-## How much of the ground of a level (everything but walls and forest) the
-## hero has seen, in percent.
-func _explored_share(journal: Journal, file: String) -> int:
-	var info := journal.map_of(file)
-	var ground := 0
-	var seen := 0
-	for y in info.height:
-		for x in info.width:
-			var c := Vector2i(x, y)
-			if Journal.char_at(info, c) == "#":
-				continue
-			ground += 1
-			if journal.is_explored(file, c):
-				seen += 1
-	return 0 if ground == 0 else roundi(100.0 * seen / ground)
 
 
 ## The journal: tonight's moon at the top (see Moon), then every new place,

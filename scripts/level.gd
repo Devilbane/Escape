@@ -248,6 +248,30 @@ var secret_sure := false
 const LEVER_RANGE := 7.0
 ## How many steps from the secret wall a torch may be to serve as its lever.
 const LEVER_STEPS := 10
+## Writings on the walls: each level of the dungeon has one, chosen by its
+## depth, on a plain wall somewhere. It stays hidden until the hero notices
+## it while walking past in view (see _check_writing): one roll per visit,
+## WRITING_CHANCE % plus what the Erkunden skill adds. Each is the word
+## carved into the stone and what it says (German, for Lang).
+const WRITINGS := [
+	["SPES", "Jemand hat in die Wand geritzt: „Gib nicht auf. Ich bin hier auch hinausgekommen.“"],
+	["CAVE", "In die Wand geritzt: „Nicht jede Fackel ist nur eine Fackel.“"],
+	["XII", "Striche in der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt."],
+	["LVX", "In die Wand geritzt: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“"],
+	["AVRVM", "In die Wand geritzt: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“"],
+	["SILENTIVM", "In die Wand geritzt: „Die Toten hören schlecht. Wer leise geht, kommt weit.“"],
+	["MEMENTO", "In die Wand geritzt: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“"],
+	["AQVA", "In die Wand geritzt: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“"],
+	["FERRVM", "In die Wand geritzt: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“"],
+	["LIBERTAS", "In die Wand geritzt: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“"],
+]
+const WRITING_CHANCE := 25
+## How close the hero must come to a writing to have a chance to notice it.
+const WRITING_RANGE := 8.0
+## This level's writing: {"cell", "label" (the carved word, hidden until
+## found), "text", "rolled", "found"}. Empty in the open air, in buildings
+## and at home.
+var _writing := {}
 ## Seconds between pulling the lever and the stone starting to move.
 const SECRET_DELAY := 2.5
 ## Per wealth: chance in percent to notice the lever, gold in each chest,
@@ -341,6 +365,7 @@ func build() -> void:
 	if is_home:
 		_light_storeys()
 	_pick_levers()
+	_place_writing()
 	_build_wall_collision()
 	_setup_astar()
 	for c in _heavy_starts:
@@ -1246,6 +1271,21 @@ func _outer_side() -> Dictionary:
 	return _outer
 
 
+## The tiles that count when the hero explores the whole map (see
+## Journal.note_full_map): every tile one can stand on in the part reachable
+## from the start without a secret wall. Locked doors and gates count, so the
+## rooms behind them have to be seen as well.
+## Needs only the map read from its file, not the level built.
+func explore_cells() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for c in _outer_side():
+		var ch := cell_char(c)
+		var ground := Outdoor.WALK.contains(ch) if outdoor else (not SOLID.contains(ch) or "D|".contains(ch))
+		if ground:
+			out.append(c)
+	return out
+
+
 ## Rolls each lever once, the first time the hero walks past it in view.
 func _check_secrets() -> void:
 	for s in _secrets:
@@ -1263,9 +1303,85 @@ func _check_secrets() -> void:
 			_open_secret(s)
 
 
+## Carves this level's writing into a plain wall in the part of the level
+## the hero starts in, the same wall every visit. Only a north wall, the one
+## that faces the camera, so the writing can be read.
+func _place_writing() -> void:
+	if outdoor or building != "" or is_home:
+		return
+	var outer := _outer_side()
+	var free_wall := func(w: Dictionary) -> bool:
+		return outer.has(w.cell) and absf(w.rot) < 0.1 and not _torch_spots.any(func(spot): return spot.distance_to(w.pos) < TILE)
+	var walls := _bare_walls.filter(free_wall)
+	if walls.is_empty():
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%s:writing" % level_name)
+	var wall: Dictionary = walls[rng.randi() % walls.size()]
+	var entry: Array = WRITINGS[depth % WRITINGS.size()]
+	var label := Label3D.new()
+	label.text = entry[0]
+	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	label.font_size = 72
+	label.pixel_size = 0.01
+	label.outline_size = 6
+	# Pale scratches in the dark stone.
+	label.modulate = Color(0.9, 0.86, 0.74)
+	label.outline_modulate = Color(0.12, 0.1, 0.08)
+	label.double_sided = false
+	# Flat on the wall, facing into the room, at eye height.
+	var facing := Vector3(sin(wall.rot), 0, cos(wall.rot))
+	label.position = wall.pos + facing * 0.45 + Vector3(0, 2.4, 0)
+	label.rotation.y = wall.rot
+	label.visible = false
+	add_child(label)
+	_writing = {"cell": wall.cell, "label": label, "text": entry[1], "rolled": false, "found": false}
+
+
+## This level's writing (see _writing), for the tests.
+func writing() -> Dictionary:
+	return _writing
+
+
+## Chance in percent to notice this level's writing.
+func writing_chance() -> int:
+	return WRITING_CHANCE + player.explore_bonus(Training.EXPLORE_WRITING)
+
+
+## Rolls once per visit, the first time the hero comes near the writing in view.
+func _check_writing() -> void:
+	if _writing.is_empty() or _writing.rolled:
+		return
+	var spot := cell_to_world(_writing.cell)
+	if Vector2(player.global_position.x - spot.x, player.global_position.z - spot.z).length() > WRITING_RANGE:
+		return
+	if not has_line_of_sight(player.global_position, spot):
+		return
+	_writing.rolled = true
+	if randi_range(1, 100) <= writing_chance():
+		reveal_writing()
+
+
+## The hero noticed the writing: it shows on the wall, and the game hears of it.
+func reveal_writing() -> void:
+	if _writing.is_empty() or _writing.found:
+		return
+	_writing.found = true
+	_writing.rolled = true
+	var label: Label3D = _writing.label
+	label.visible = true
+	label.modulate.a = 0.0
+	label.outline_modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(label, "modulate:a", 1.0, 1.2)
+	tween.parallel().tween_property(label, "outline_modulate:a", 1.0, 1.2)
+	Effects.float_text(self, label.global_position + Vector3(0, 0.8, 0), Lang.t("Eine Inschrift!"), Color(0.9, 0.86, 0.74))
+	Events.bus().writing_found.emit(_writing.text)
+
+
 ## Chance in percent to notice this level's lever.
 func secret_chance() -> int:
-	return 100 if secret_sure else TIERS[secret_tier].chance + secret_bonus + player.intuition_bonus()
+	return 100 if secret_sure else TIERS[secret_tier].chance + secret_bonus + player.intuition_bonus() + player.explore_bonus(Training.EXPLORE_SECRET)
 
 
 ## Whether the hero found this level's secret room.
@@ -2185,6 +2301,7 @@ func _process(delta: float) -> void:
 	_check_pickups()
 	_check_doors()
 	_check_secrets()
+	_check_writing()
 	_check_plates()
 	if is_home:
 		_check_stairs()

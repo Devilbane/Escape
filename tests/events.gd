@@ -26,7 +26,7 @@ func _process(_delta: float) -> bool:
 	if frames < 5:
 		return false
 	_test()
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: events")
 	else:

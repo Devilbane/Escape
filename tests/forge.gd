@@ -34,7 +34,7 @@ func _process(_delta: float) -> bool:
 
 
 func _finish() -> void:
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: forge")
 	else:
@@ -166,7 +166,7 @@ func _run() -> void:
 	game.iron = 7
 	await _wait(5)
 	check(game.save_game(), "the game saves")
-	var data: Dictionary = game._read_save(game.save_path(HERO))
+	var data: Dictionary = game._read_save(game.save_path())
 	check(int(data.get("iron", -1)) == 7, "the saved game holds the iron")
 	game.iron = 0
 	game._apply_save(data)

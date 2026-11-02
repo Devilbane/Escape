@@ -27,9 +27,9 @@ func _process(_delta: float) -> bool:
 	frames += 1
 	if frames < 5:
 		return false
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	_test()
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: bump hint")
 	else:
@@ -102,7 +102,7 @@ func _test() -> void:
 	check(game.save_game(), "the game saves")
 	game.bumped_person = false
 	game.hints_shown.clear()
-	game._apply_save(game._read_save(game.save_path(HERO)))
+	game._apply_save(game._read_save(game.save_path()))
 	check(game.bumped_person, "the bump is still known after loading")
 	_walk_away()
 	check(not _hint_at(thing).contains(drink), "after loading the fountain's hint stays away")
@@ -110,6 +110,6 @@ func _test() -> void:
 	# A new game starts without it.
 	game._name_box.visible = true
 	game._name_edit.text = HERO
-	game._start_new_game()
+	game.begin_new_game()
 	check(not game.bumped_person, "a new game shows the hint again")
 	check(game.hints_shown.is_empty(), "a new game counts the hints from the start")

@@ -54,6 +54,7 @@ const PARTS := [
 	preload("res://scripts/lang/village_talk.gd"),
 	preload("res://scripts/lang/wishes.gd"),
 	preload("res://scripts/lang/exploration.gd"),
+	preload("res://scripts/lang/save_slots.gd"),
 ]
 
 ## German text -> English text, all features together. Read it, never write it.

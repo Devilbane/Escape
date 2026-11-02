@@ -28,8 +28,8 @@ func _process(_delta: float) -> bool:
 	if frames < 5:
 		return false
 	_test()
-	for hero in HEROES:
-		game.delete_save(game.save_path(hero))
+	for i in HEROES.size():
+		game.delete_save(game.save_path(i + 1))
 	if failures == 0:
 		print("PASS: npc names")
 	else:
@@ -51,6 +51,7 @@ func _tag(v: Villager) -> Label3D:
 
 func _test() -> void:
 	game.hero_name = HEROES[0]
+	game.save_slot = 1
 	game.met.clear()
 	game.load_level(game._outdoor_index(), false)
 	check(game.level is Outdoor and not game.level.villagers.is_empty(), "the village has villagers")
@@ -85,20 +86,21 @@ func _test() -> void:
 	# The met villagers come back from the hero's own saved game.
 	check(game.save_game(), "the game is saved")
 	game.hero_name = HEROES[1]
+	game.save_slot = 2
 	game.met.clear()
 	check(game.save_game(), "another hero's game is saved")
-	game._apply_save(game._read_save(game.save_path(HEROES[1])))
+	game._apply_save(game._read_save(game.save_path(2)))
 	check(game.met.is_empty(), "the other hero has met nobody")
 	for v in game.level.villagers:
 		check(not _tag(v).visible, "%s is a stranger to the other hero" % v.display_name)
-	game._apply_save(game._read_save(game.save_path(HEROES[0])))
+	game._apply_save(game._read_save(game.save_path(1)))
 	check(game.met.has("Z") and game.met.has("0") and not game.met.has("6"), "the saved game brings back who was met")
 	check(_tag(_villager("Z")).visible and _tag(_villager("0")).visible, "the met villagers wear their names after loading")
 	check(not _tag(_villager("6")).visible, "the unmet shopkeeper still shows no name")
 	check(game.level.met == game.met, "the village and the game share the same list of met villagers")
 
 	# Saved games from before this feature load fine.
-	var data: Dictionary = game._read_save(game.save_path(HEROES[0]))
+	var data: Dictionary = game._read_save(game.save_path(1))
 	data.erase("met")
 	game._apply_save(data)
 	check(game.met.is_empty(), "an older saved game without the list starts with nobody met")

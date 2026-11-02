@@ -29,8 +29,8 @@ func _process(_delta: float) -> bool:
 	if frames < 5:
 		return false
 	_test()
-	for hero in HEROES:
-		game.delete_save(game.save_path(hero))
+	for i in HEROES.size():
+		game.delete_save(game.save_path(i + 1))
 	if failures == 0:
 		print("PASS: village talk")
 	else:
@@ -113,6 +113,7 @@ func _test() -> void:
 
 	# A fresh hero in the village by day.
 	game.hero_name = HEROES[0]
+	game.save_slot = 1
 	game.met.clear()
 	game.quests.clear()
 	game.reputation.clear()
@@ -260,5 +261,5 @@ func _test() -> void:
 	talk.load_from(saved + ["x-y"])
 	check(talk.known.has("2-7") and not talk.known.has("x-y"), "known ties come back, unknown ones are left out")
 	check(game.save_game(), "the game saves")
-	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(game.save_path(HEROES[0])))
+	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(game.save_path(1)))
 	check(data.get("ties", []).has("2-7"), "the saved game keeps the overheard ties")

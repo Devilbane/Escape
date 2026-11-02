@@ -33,7 +33,7 @@ func _initialize() -> void:
 
 func _finish() -> void:
 	Factions.clear()
-	game.delete_save(game.save_path(game.hero_name))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: factions")
 	else:

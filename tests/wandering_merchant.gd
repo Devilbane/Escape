@@ -25,7 +25,7 @@ func _initialize() -> void:
 
 
 func _finish() -> void:
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: wandering merchant")
 	else:
@@ -171,7 +171,7 @@ func _trading() -> void:
 func _saving() -> void:
 	var wares: Array = game.wanderer_wares().duplicate()
 	check(game.save_game(), "the game is saved")
-	var data: Dictionary = game._read_save(game.save_path(HERO))
+	var data: Dictionary = game._read_save(game.save_path())
 	check(int(data.get("day", -1)) == 4, "the saved game holds the day")
 	game.day = 0
 	game.wanderer_stock.clear()
@@ -204,7 +204,7 @@ func _counting_days() -> void:
 	game.day_hour = 23.0
 	game.sleep()
 	check(game.day == 5, "a night in the bed ends on the next day")
-	var data: Dictionary = game._read_save(game.save_path(HERO))
+	var data: Dictionary = game._read_save(game.save_path())
 	check(int(data.get("day", -1)) == 5, "the next day is saved")
 	# On his night the next morning's wares are new ones.
 	game.day = 7

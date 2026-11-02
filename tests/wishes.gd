@@ -33,7 +33,7 @@ func _process(_delta: float) -> bool:
 		return false
 	_test()
 	check(finished, "the whole test ran through")
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: wishes")
 	else:
@@ -171,9 +171,9 @@ func _test() -> void:
 	check(game.save_game(), "the game is saved")
 	var saved: Dictionary = game.wishes.for_save()
 	game.wishes.clear()
-	game._apply_save(game._read_save(game.save_path(HERO)))
+	game._apply_save(game._read_save(game.save_path()))
 	check(game.wishes.for_save() == saved and game.wishes.style == "aexte", "the saved game brings the style and seen masters back")
-	var data: Dictionary = game._read_save(game.save_path(HERO))
+	var data: Dictionary = game._read_save(game.save_path())
 	data.erase("wishes")
 	game._apply_save(data)
 	check(game.wishes.style == "" and game.wishes.seen.is_empty(), "an older saved game starts without a style")

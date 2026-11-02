@@ -39,7 +39,7 @@ func _process(_delta: float) -> bool:
 
 
 func _finish() -> void:
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: stone puzzle")
 	else:

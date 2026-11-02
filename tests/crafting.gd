@@ -32,7 +32,7 @@ func _process(_delta: float) -> bool:
 		return false
 	_test()
 	check(finished, "the whole test ran through")
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: crafting")
 	else:
@@ -148,9 +148,9 @@ func _test() -> void:
 	check(game.save_game(), "the game is saved")
 	var saved: Dictionary = game.crafting.for_save()
 	game.crafting.clear()
-	game._apply_save(game._read_save(game.save_path(HERO)))
+	game._apply_save(game._read_save(game.save_path()))
 	check(game.crafting.for_save() == saved, "the saved game brings recipes and pouch back")
-	var data: Dictionary = game._read_save(game.save_path(HERO))
+	var data: Dictionary = game._read_save(game.save_path())
 	data.erase("crafting")
 	game._apply_save(data)
 	check(game.crafting.entries().is_empty(), "an older saved game starts without recipes")

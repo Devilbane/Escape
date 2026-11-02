@@ -21,10 +21,20 @@ const VERSION := "0.5"
 ## Filled in by GitHub with the number of each published build, so the
 ## version shown in the game changes with every update.
 const BUILD := ""
-## Every hero has a saved game of their own, in this folder, one file each.
+## The saved games live in this folder, one file per slot ("platz_1.json",
+## "platz_2.json", ...). The player picks the slot when a new game starts.
 const SAVE_DIR := "user://spielstaende/"
+## Test runs save into a folder of their own, so they never touch the
+## player's saved games (see _ready).
+const TEST_SAVE_DIR := "user://test_spielstaende/"
+## How many slots the new game offers. Older versions could leave more saved
+## games behind; those keep slots of their own above these.
+const SAVE_SLOTS := 5
+## The width of the note under the slot buttons.
+const SLOT_NOTE_WIDTH := 1100
 ## Before there could be several saved games there was just this one file;
-## on the first start it moves into SAVE_DIR.
+## on the first start it moves into a slot. Saved games of the versions with
+## one file per hero name move into slots the same way.
 const OLD_SAVE_FILE := "user://spielstand.json"
 
 enum State { TITLE, PLAYING, TRANSITION, WON, OVER }
@@ -226,6 +236,14 @@ var _name_note: Label
 ## The hero's name, asked for when a new game starts; it goes into the ranking.
 var hero_name := ""
 var _name_box: Control
+## The folder of the saved games: SAVE_DIR, or TEST_SAVE_DIR in a test run.
+var save_dir := SAVE_DIR
+var old_save_file := OLD_SAVE_FILE
+## The slot this hero's game is saved into.
+var save_slot := 1
+## The slot chosen in the name box for the new game, and its buttons.
+var _new_slot := 1
+var _slot_buttons := {}
 ## The day the hero lives over and over while the player is away (see
 ## Offline), planned at the refuge's bed and kept in the saved game.
 var away_plan := Offline.empty_plan()
@@ -303,7 +321,11 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	Lang.setup()
-	_move_old_save()
+	if get_tree().get_script() != null:
+		# A headless test runs as a script of its own: its saves stay apart.
+		save_dir = TEST_SAVE_DIR
+		old_save_file = "user://test_spielstand.json"
+	_move_old_saves()
 	for f in DirAccess.get_files_at(LEVEL_DIR):
 		if f.ends_with(".txt"):
 			level_files.append(LEVEL_DIR + f)
@@ -1642,6 +1664,8 @@ func _show_title(text: String, sub: String, prompt: String) -> void:
 	_title_text.text = text
 	_title_sub.text = sub
 	_title_prompt.text = prompt
+	_title_prompt.visible = true
+	_title_sub.visible = true
 	_title.modulate.a = 0.0
 	_fade.color.a = 0.55
 	create_tween().tween_property(_title, "modulate:a", 1.0, 1.2)
@@ -1705,12 +1729,17 @@ func new_game() -> void:
 	_title_buttons.visible = false
 	_lang_row.visible = false
 	_title_prompt.text = ""
+	# The empty prompt line and the subtitle give their room to the name box
+	# and its save slots, and the headline steps back a little.
+	_title_prompt.visible = false
+	_title_sub.visible = false
+	_title_text.add_theme_font_size_override("font_size", 90)
 	_name_box.visible = true
 	_choose_sex(player.sex)
 	_name_edit.text = hero_name
 	_name_edit.grab_focus()
 	_name_edit.select_all()
-	_update_name_note(hero_name)
+	_choose_slot(_free_slot())
 
 
 ## Picks the body of the new hero: the chosen button stays bright, and the
@@ -1722,18 +1751,41 @@ func _choose_sex(id: String) -> void:
 	_name_ask.text = Lang.t("Wie heißt deine Heldin?" if _new_sex == "female" else "Wie heißt dein Held?")
 
 
-## Warns when the name chosen already has a saved game: the new run takes
-## its place the next time it is saved.
-func _update_name_note(text: String) -> void:
-	var hero := text.strip_edges()
-	_name_note.text = Lang.t("%s hat schon einen Spielstand. Das neue Spiel ersetzt ihn beim nächsten Speichern.") % hero \
-			if hero != "" and has_save_of(hero) else ""
+## The slot a new game takes unless the player picks another: the first free
+## one, or else the one whose hero has come the least far.
+func _free_slot() -> int:
+	var weakest := 1
+	for slot in range(1, SAVE_SLOTS + 1):
+		var info := save_info(save_path(slot))
+		if info.is_empty():
+			return slot
+		if is_stronger(save_info(save_path(weakest)), info):
+			weakest = slot
+	return weakest
+
+
+## Picks the slot of the new game: its button stays bright, like the chosen
+## body, and the line below says what is in it now.
+func _choose_slot(slot: int) -> void:
+	_new_slot = slot
+	for s in _slot_buttons:
+		var b: Button = _slot_buttons[s]
+		var info := save_info(save_path(s))
+		b.text = "%d · %s" % [s, info.name if not info.is_empty() else Lang.t("frei")]
+		b.modulate = Color.WHITE if s == slot else Color(1, 1, 1, 0.5)
+	var info := save_info(save_path(slot))
+	if info.is_empty():
+		_name_note.text = Lang.t("Platz %d ist frei.") % slot
+		_name_note.add_theme_color_override("font_color", Menus.BLUE)
+	else:
+		_name_note.text = Lang.t("Platz %d: %s Das neue Spiel ersetzt diesen Spielstand.") % [slot, save_summary(info)]
+		_name_note.add_theme_color_override("font_color", Color(1.0, 0.75, 0.5))
 
 
 func _setup_name_box() -> void:
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 14)
+	box.add_theme_constant_override("separation", 10)
 	box.visible = false
 	_title.add_child(box)
 	_name_box = box
@@ -1762,11 +1814,33 @@ func _setup_name_box() -> void:
 	_name_edit.add_theme_stylebox_override("normal", Menus.panel_style(Color(0.85, 0.66, 0.32, 0.8)))
 	_name_edit.add_theme_stylebox_override("focus", Menus.panel_style(GOLD))
 	_name_edit.text_submitted.connect(func(_t): _start_new_game())
-	_name_edit.text_changed.connect(_update_name_note)
 	box.add_child(_name_edit)
+	# The slot the game is saved into: one button per slot, with the name of
+	# the hero in it or "free", after a caption in the same row.
+	var slots := HBoxContainer.new()
+	slots.alignment = BoxContainer.ALIGNMENT_CENTER
+	slots.add_theme_constant_override("separation", 10)
+	box.add_child(slots)
+	var slot_ask := _make_label(TEXT_FONT, 20, GOLD)
+	slot_ask.text = Lang.t("Speichern auf Platz:")
+	slots.add_child(slot_ask)
+	for slot in range(1, SAVE_SLOTS + 1):
+		var b := _make_button("%d" % slot, _choose_slot.bind(slot))
+		b.custom_minimum_size = Vector2(156, 48)
+		b.clip_text = true
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		slots.add_child(b)
+		_slot_buttons[slot] = b
+	# The note's line is kept from the start, one line of fixed width, so
+	# choosing another slot never moves the button below.
 	_name_note = _make_label(TEXT_FONT, 18, Color(1.0, 0.75, 0.5))
 	_name_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name_note.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_name_note.clip_text = true
+	_name_note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_name_note.custom_minimum_size = Vector2(SLOT_NOTE_WIDTH, 28)
+	_name_note.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(_name_note)
 	var go := _make_button(Lang.t("Los geht's"), _start_new_game)
 	go.custom_minimum_size = Vector2(240, 64)
@@ -1774,12 +1848,35 @@ func _setup_name_box() -> void:
 	box.add_child(go)
 
 
+## "Los geht's": a slot holding a hero who has come further than a new one
+## asks first (the "ueberschreiben" window); any other slot starts at once.
 func _start_new_game() -> void:
+	if not _name_box.visible or menus.is_open():
+		return
+	if is_stronger(save_info(save_path(_new_slot)), fresh_info()):
+		_name_edit.release_focus()
+		_title.visible = false
+		menus.open("ueberschreiben")
+		return
+	begin_new_game()
+
+
+## What a new game would look like in the load window, to compare it with
+## the saved game it replaces.
+func fresh_info() -> Dictionary:
+	return {"level": _start_level() + 1, "coins": 0, "escaped": false, "home": false}
+
+
+## The chosen slot was confirmed: its old saved game is gone, and the new
+## hero sets out.
+func begin_new_game() -> void:
 	if not _name_box.visible:
 		return
 	hero_name = _name_edit.text.strip_edges()
 	if hero_name == "":
 		hero_name = Lang.t("Namenlos")
+	save_slot = _new_slot
+	delete_save(save_path(save_slot))
 	_name_box.visible = false
 	_name_edit.release_focus()
 	coins = 0
@@ -1840,6 +1937,7 @@ func continue_game(path := "") -> void:
 	if path == "" or not FileAccess.file_exists(path):
 		return
 	var data := _read_save(path)
+	save_slot = slot_of(path)
 	_leave_title(func():
 		_apply_save(data)
 		_after_load(data))
@@ -1851,7 +1949,7 @@ func continue_game(path := "") -> void:
 ## hero's own, otherwise the one saved last.
 func _save_to_continue() -> String:
 	if state == State.OVER:
-		return save_path(hero_name) if has_save_of(hero_name) else ""
+		return save_path() if has_slot_save() else ""
 	var saves := save_list()
 	return saves[0].path if not saves.is_empty() else ""
 
@@ -1871,6 +1969,11 @@ func open_load_window() -> void:
 ## The load window was closed on the title: the title comes back, up to
 ## date in case a saved game was deleted.
 func load_window_closed() -> void:
+	if _name_box.visible:
+		# The overwrite question went back: the name box is still there.
+		_title.visible = true
+		_name_edit.grab_focus()
+		return
 	_show_start_title(_title_text.text, _title_sub.text)
 
 
@@ -1880,6 +1983,7 @@ func load_saved_game(path: String) -> void:
 	if state != State.PLAYING or not FileAccess.file_exists(path):
 		return
 	var data := _read_save(path)
+	save_slot = slot_of(path)
 	state = State.TRANSITION
 	player.frozen = true
 	var tween := create_tween()
@@ -2024,11 +2128,11 @@ func quit_game() -> void:
 	tween.tween_callback(func(): _show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies")))
 
 
-## Name, level, gold and time of a saved game (by default this hero's), or
-## nothing when there is none.
+## Name, level, gold, slot and time of a saved game (by default this hero's),
+## or nothing when there is none.
 func save_info(path := "") -> Dictionary:
 	if path == "":
-		path = save_path(hero_name)
+		path = save_path()
 	if not FileAccess.file_exists(path):
 		return {}
 	var data := _read_save(path)
@@ -2036,20 +2140,47 @@ func save_info(path := "") -> Dictionary:
 		return {}
 	# Games saved before there were several have no time of their own.
 	var time := float(data.get("saved_at", FileAccess.get_modified_time(path)))
-	return {"path": path, "name": str(data.get("name", Lang.t("Namenlos"))), "level": int(data.level) + 1, "coins": int(data.coins),
+	return {"path": path, "slot": slot_of(path), "name": str(data.get("name", Lang.t("Namenlos"))), "level": int(data.level) + 1, "coins": int(data.coins),
 			"escaped": bool(data.get("escaped", false)), "home": bool(data.get("claimed", false)), "time": time}
 
 
 ## Every saved game there is, the one saved last first.
 func save_list() -> Array:
 	var saves := []
-	for f in DirAccess.get_files_at(SAVE_DIR):
-		if f.ends_with(".json"):
-			var info := save_info(SAVE_DIR + f)
+	for f in DirAccess.get_files_at(save_dir):
+		if slot_of(save_dir + f) > 0:
+			var info := save_info(save_dir + f)
 			if not info.is_empty():
 				saves.append(info)
 	saves.sort_custom(func(a, b): return a.time > b.time)
 	return saves
+
+
+## Where a saved game's hero is, in one sentence: "Ada auf Ebene 3 mit 40
+## Gold.", at home, or on the graveyard.
+static func save_summary(info: Dictionary) -> String:
+	if info.home:
+		return Lang.t("%s zu Hause mit %d Gold.") % [info.name, info.coins]
+	if info.escaped:
+		return Lang.t("%s auf dem Friedhof mit %d Gold.") % [info.name, info.coins]
+	return Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins]
+
+
+## Whether the hero of saved game a has come further than the one of b: their
+## own house beats the graveyard, the graveyard beats the dungeon, a deeper
+## level beats a higher one, and more gold settles the rest. Nothing (an
+## empty slot) is never stronger.
+static func is_stronger(a: Dictionary, b: Dictionary) -> bool:
+	if a.is_empty():
+		return false
+	if b.is_empty():
+		return true
+	for key in ["home", "escaped", "level", "coins"]:
+		var x := int(a[key])
+		var y := int(b[key])
+		if x != y:
+			return x > y
+	return false
 
 
 ## The time a game was saved, as the player's clock showed it.
@@ -2060,7 +2191,7 @@ static func save_time_text(time: float) -> String:
 
 
 func _read_save(path := "") -> Dictionary:
-	var data = JSON.parse_string(FileAccess.get_file_as_string(path if path != "" else save_path(hero_name)))
+	var data = JSON.parse_string(FileAccess.get_file_as_string(path if path != "" else save_path()))
 	return data if data is Dictionary else {}
 
 
@@ -2186,43 +2317,62 @@ func has_save() -> bool:
 	return not save_list().is_empty()
 
 
-## The file of a hero's saved game. The name is hashed, so that any name
-## makes a valid file name.
-static func save_path(hero: String) -> String:
-	return SAVE_DIR + hero.md5_text() + ".json"
+## The file of a slot's saved game, by default the slot of this hero.
+func save_path(slot := 0) -> String:
+	return save_dir + "platz_%d.json" % (slot if slot > 0 else save_slot)
 
 
-func has_save_of(hero: String) -> bool:
-	return FileAccess.file_exists(save_path(hero))
+## The slot of a saved game's file, or 0 when the file is not a slot.
+static func slot_of(path: String) -> int:
+	var file := path.get_file()
+	if not (file.begins_with("platz_") and file.ends_with(".json")):
+		return 0
+	var number := file.trim_prefix("platz_").trim_suffix(".json")
+	return int(number) if number.is_valid_int() and int(number) > 0 else 0
 
 
-## Deletes a saved game from the load window.
+## Whether a slot holds a saved game, by default the slot of this hero.
+func has_slot_save(slot := 0) -> bool:
+	return FileAccess.file_exists(save_path(slot))
+
+
+## Deletes a saved game (from the load window, or a slot a new game takes).
 func delete_save(path: String) -> void:
-	if path.begins_with(SAVE_DIR) and FileAccess.file_exists(path):
+	if path.begins_with(save_dir) and FileAccess.file_exists(path):
 		DirAccess.remove_absolute(path)
 
 
-## The one saved game from before there could be several becomes the saved
-## game of its hero.
-func _move_old_save() -> void:
-	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
-	if not FileAccess.file_exists(OLD_SAVE_FILE):
-		return
-	var data = JSON.parse_string(FileAccess.get_file_as_string(OLD_SAVE_FILE))
-	if not (data is Dictionary):
-		return
-	var target := save_path(str(data.get("name", Lang.t("Namenlos"))))
-	if FileAccess.file_exists(target):
-		return
-	if not data.has("saved_at"):
-		data.saved_at = FileAccess.get_modified_time(OLD_SAVE_FILE)
-	var file := FileAccess.open(target, FileAccess.WRITE)
-	if file == null:
-		return
-	file.store_string(JSON.stringify(data))
-	file.close()
-	if FileAccess.file_exists(target):
-		DirAccess.remove_absolute(OLD_SAVE_FILE)
+## Saved games from older versions move into free slots, the one saved last
+## first: the single file from before there could be several, and the files
+## named after their hero from before there were slots. Each keeps its time.
+func _move_old_saves() -> void:
+	DirAccess.make_dir_recursive_absolute(save_dir)
+	var old := []
+	if FileAccess.file_exists(old_save_file):
+		old.append(old_save_file)
+	for f in DirAccess.get_files_at(save_dir):
+		if f.ends_with(".json") and slot_of(save_dir + f) == 0:
+			old.append(save_dir + f)
+	var moving := []
+	for path in old:
+		var data = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if not (data is Dictionary):
+			continue
+		if not data.has("saved_at"):
+			data.saved_at = FileAccess.get_modified_time(path)
+		moving.append([path, data])
+	moving.sort_custom(func(a, b): return float(a[1].saved_at) > float(b[1].saved_at))
+	var slot := 1
+	for entry in moving:
+		while has_slot_save(slot):
+			slot += 1
+		var file := FileAccess.open(save_path(slot), FileAccess.WRITE)
+		if file == null:
+			return
+		file.store_string(JSON.stringify(entry[1]))
+		file.close()
+		if has_slot_save(slot):
+			DirAccess.remove_absolute(entry[0])
 
 
 ## The level index of the open air outside the crypt, or -1 without one.
@@ -2269,8 +2419,8 @@ func save_game(going_away := false) -> bool:
 	}
 	if going_away:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
-	var path := save_path(hero_name)
-	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
+	var path := save_path()
+	DirAccess.make_dir_recursive_absolute(save_dir)
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return false
@@ -3188,11 +3338,10 @@ func _end_run(escaped: bool) -> void:
 	Training.save_hero(hero_name, player.xp)
 	if escaped:
 		# The run is over, so this hero's saved game in the safe room is
-		# gone too. Other heroes keep theirs.
-		if has_save_of(hero_name):
-			DirAccess.remove_absolute(save_path(hero_name))
+		# gone too. The other slots keep theirs.
+		delete_save(save_path())
 		_show_title(Lang.t("Frei!"), Lang.t("%s ist entkommen und hat %d Gold erbeutet.") % [hero_name, coins], Lang.t("Klicken für ein neues Spiel"))
-	elif has_save_of(hero_name):
+	elif has_slot_save():
 		# A fallen hero may rise again in the safe room, or once out of the
 		# dungeon, on the graveyard or in their own house.
 		var info := save_info()
@@ -3731,12 +3880,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	match state:
 		State.TITLE:
-			if _name_box.visible or Lang.language == "":
-				return
 			if menus.is_open():
-				# The load window's own buttons choose; Esc goes back.
+				# The load window's (or the overwrite question's) own buttons
+				# choose; Esc goes back.
 				if event is InputEventKey and event.physical_keycode == KEY_ESCAPE:
 					menus.close()
+				return
+			if _name_box.visible or Lang.language == "":
 				return
 			if has_save() and not (event is InputEventKey and event.physical_keycode == KEY_N):
 				continue_game()
@@ -3745,7 +3895,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.WON:
 			new_game()
 		State.OVER:
-			if has_save_of(hero_name) and not (event is InputEventKey and event.physical_keycode == KEY_N):
+			if has_slot_save() and not (event is InputEventKey and event.physical_keycode == KEY_N):
 				continue_game()
 			else:
 				new_game()

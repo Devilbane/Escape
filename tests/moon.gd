@@ -28,7 +28,7 @@ func _initialize() -> void:
 
 
 func _finish() -> void:
-	game.delete_save(game.save_path(HERO))
+	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: moon")
 	else:

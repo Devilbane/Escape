@@ -32,7 +32,6 @@ const EN := {
 	"Neues Spiel": "New game",
 	"Klicken oder eine Taste: weiterspielen.  N: neues Spiel": "Click or press a key to continue.  N: new game",
 	"Klicken oder eine Taste: als %s weiterspielen.  N: neues Spiel": "Click or press a key to continue as %s.  N: new game",
-	"%s hat schon einen Spielstand. Das neue Spiel ersetzt ihn beim nächsten Speichern.": "%s already has a saved game. The new game replaces it the next time it is saved.",
 	"Gespeichert: %s": "Saved: %s",
 	"Löschen": "Delete",
 	"Wirklich?": "Really?",

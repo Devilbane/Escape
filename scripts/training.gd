@@ -63,7 +63,8 @@ const WISE_SHRINE := 12
 ##   whole map (see Journal.note_full_map), and a little from every secret
 ##   room and wall writing found. Each level is +EXPLORE_SECRET % to notice a
 ##   secret lever, +EXPLORE_TORCH % to find a torch in a searched chest,
-##   barrel or crate, and +EXPLORE_WRITING % to notice a writing on a wall.
+##   barrel or crate, +EXPLORE_WRITING % to notice a writing on a wall and
+##   +EXPLORE_TRAP % to spot a hidden trap (see Traps).
 ##
 ## Every skill is governed by one or two of the three main attributes
 ## ("attributes"); that places it in one of the six SECTORS of the character
@@ -84,11 +85,14 @@ const SKILLS := {
 const EXPLORE_SECRET := 3
 const EXPLORE_TORCH := 4
 const EXPLORE_WRITING := 8
+const EXPLORE_TRAP := 5
 ## Training for Erkunden: a whole map seen, a secret room, a wall writing.
 ## A run that sees every map fully earns about nine levels.
 const EXPLORE_FULL_MAP := 30.0
 const EXPLORE_SECRET_FOUND := 4.0
 const EXPLORE_WRITING_FOUND := 3.0
+## Training for Erkunden from a hidden trap spotted (see Traps).
+const EXPLORE_TRAP_FOUND := 2.0
 ## The crafts (Handwerk): making things at a workbench, from recipes (see
 ## Crafting). A craft is taught by a master in the village first and then
 ## trains only by working at it; it is not worn gear that enables it. Crafts

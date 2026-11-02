@@ -47,6 +47,10 @@ signal map_grew(names: Array)
 ## The hero has seen the whole of a map, the level file named (see
 ## Journal.note_full_map). It trains the Erkunden skill.
 signal map_explored(file: String)
+## The hero spotted a hidden trap of this kind ("stacheln", "teleport" or
+## "falltuer", see Traps) at a place of this level. It trains Erkunden and
+## earns a little experience.
+signal trap_spotted(kind: String, place_level: int)
 ## The hero noticed a writing on a wall (see Level, WallWritings): its
 ## German text, for the compendium and the journal.
 signal writing_found(text: String)

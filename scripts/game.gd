@@ -308,6 +308,7 @@ func _bus_links() -> Array:
 		[bus.map_grew, map_notice],
 		[bus.map_explored, map_explored],
 		[bus.writing_found, writing_found],
+		[bus.trap_spotted, trap_spotted],
 		[bus.enemy_felled, xp_for_kill],
 		[bus.quest_done, xp_for_task],
 		[bus.bounty_paid, xp_for_bounty],
@@ -1775,6 +1776,9 @@ func load_level(index: int, restock := true) -> void:
 	level.dragon_awakened.connect(_on_dragon_awakened)
 	level.lair_exit_taken.connect(leave_lair)
 	level.stairs_taken.connect(_take_stairs)
+	if level.traps:
+		level.traps.teleported.connect(_on_trap_teleport)
+		level.traps.fell.connect(_fall_through_trapdoor)
 	level.boss_won.connect(_on_mine_boss_won)
 	_refresh_seals()
 	if horrors:
@@ -3219,6 +3223,71 @@ func writing_found(text: String) -> void:
 	learn(EXPLORE_LEARN)
 	Sfx.play(self, "secret", -8.0)
 	show_message(Lang.t(text), 6.0)
+
+
+## The hero spotted a hidden trap (see Traps): it trains Erkunden and earns
+## a little experience, and the compendium explains traps.
+func trap_spotted(kind: String, place_level: int) -> void:
+	player.train("erkunden", Training.EXPLORE_TRAP_FOUND)
+	learn(Traps.LEARN)
+	earn_xp(HeroLevel.time_xp(HeroLevel.TRAP_MINUTES, place_level, player.hero_level()))
+	show_message(Lang.t(Traps.KINDS[kind].spotted), 3.5)
+
+
+## A teleporter trap flung the hero across the level (see Traps).
+func _on_trap_teleport(_to: Vector3) -> void:
+	learn(Traps.LEARN)
+	_snap_camera()
+	if is_instance_valid(pet):
+		pet.arrive()
+	show_message(Lang.t("Eine Teleportfalle! Sie hat dich an einen anderen Ort geschleudert."), 3.0)
+
+
+## The floor gave way under the hero (a trapdoor, see Traps): they fall to
+## the level below, land somewhere near its start and take `damage`.
+func _fall_through_trapdoor(damage: int) -> void:
+	if state != State.PLAYING:
+		return
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	player.velocity = Vector3.ZERO
+	learn(Traps.LEARN)
+	var tween := create_tween()
+	tween.tween_property(player, "global_position:y", player.global_position.y - 3.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
+	tween.tween_callback(_land_below.bind(damage))
+
+
+func _land_below(damage: int) -> void:
+	if level.building == "":
+		# Down to the next floor of the dungeon: it counts as leaving this one.
+		Training.save_hero(hero_name, player.xp, player.level_data())
+		dry_levels = 0 if level.secret_opened() else dry_levels + 1
+		load_level(level_index + 1)
+	else:
+		load_level(interiors[level.down_to], false)
+	player.global_position = level.cell_to_world(Traps.landing_cell(level))
+	player.velocity = Vector3.ZERO
+	player.face(Vector3.BACK)
+	if is_instance_valid(pet):
+		pet.arrive()
+	_snap_camera()
+	player.frozen = false
+	state = State.PLAYING
+	create_tween().tween_property(_fade, "color:a", 0.0, 0.8)
+	_announce_level()
+	Sfx.play(self, "rumble", -4.0)
+	_shake = 0.5
+	# The landing hurts, even though arriving on a level gives a moment's grace.
+	player._invulnerable = 0.0
+	player.take_damage(damage, player.global_position + Vector3(0, 0, 1), null, false)
+	var here := level
+	get_tree().create_timer(3.8).timeout.connect(func():
+		if level == here and state == State.PLAYING:
+			show_message(Lang.t("Eine Falltür! Du bist eine Ebene tiefer gestürzt."), 3.0))
+	if level.safe:
+		_autosave()
 
 
 ## Records where the hero found something, for the map and the journal (see

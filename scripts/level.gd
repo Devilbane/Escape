@@ -124,6 +124,8 @@ const SPIKE_DOWN_Y := -1.95
 const SPIKE_DETOUR := 6.0
 
 var level_name := ""
+## The map's file name, e.g. "03_das_labyrinth.txt".
+var file := ""
 var hint := ""
 var grid: Array[String] = []
 var width := 0
@@ -148,6 +150,8 @@ const LIGHT_REACH := 8.0
 ## How close to a torch's wall the hero must run to reach it.
 const TORCH_TOUCH := 1.6
 var _spikes: Array = []
+## The hidden traps of this level (see Traps), or null.
+var traps: Traps = null
 var _pickups: Array = []
 var interactables: Array = []
 ## What the hero already took here: ids of searched furniture and picked up
@@ -322,6 +326,7 @@ static func is_outdoor_file(path: String) -> bool:
 
 
 func load_from_file(path: String) -> void:
+	file = path.get_file()
 	var text := FileAccess.get_file_as_string(path)
 	for line in text.split("\n"):
 		line = line.strip_edges(false, true)
@@ -417,6 +422,9 @@ func build() -> void:
 		add_child(DungeonLife.new(self))
 	if not _vault_slots.is_empty():
 		refresh_vaults()
+	traps = Traps.make(self)
+	if traps:
+		add_child(traps)
 
 
 # --- Keeping the way free ---------------------------------------------------

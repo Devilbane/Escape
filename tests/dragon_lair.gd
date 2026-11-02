@@ -54,6 +54,8 @@ func _process(_delta: float) -> bool:
 	match stage:
 		0:
 			game.hero_name = "Lair test"
+			# A hero of the level the place is made for, in its reference gear (see HeroLevel).
+			HeroLevel.dress(game.player, 10)
 			game.escaped = true
 			game.load_level(game._outdoor_index(), false)
 			game.state = game.State.PLAYING

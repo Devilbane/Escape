@@ -235,9 +235,29 @@ static func load_hero(hero: String) -> Dictionary:
 	return xp
 
 
-static func save_hero(hero: String, xp: Dictionary) -> void:
+## The hero's level and experience (see Player.level_data), kept beside the
+## training under LEVEL_KEY.
+const LEVEL_KEY := "_heldenstufe"
+
+
+static func load_level(hero: String) -> Dictionary:
+	var stored = _load_all().get(hero, {})
+	if stored is Dictionary and stored.get(LEVEL_KEY) is Dictionary:
+		return stored[LEVEL_KEY]
+	return {}
+
+
+## Saves the training, and the level with it. Without `level` the level kept
+## so far stays as it is.
+static func save_hero(hero: String, xp: Dictionary, level = null) -> void:
 	var all := _load_all()
-	all[hero] = xp
+	var old = all.get(hero, {})
+	var entry := xp.duplicate()
+	if level is Dictionary:
+		entry[LEVEL_KEY] = level
+	elif old is Dictionary and old.has(LEVEL_KEY):
+		entry[LEVEL_KEY] = old[LEVEL_KEY]
+	all[hero] = entry
 	var file := FileAccess.open(FILE, FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(all))

@@ -250,11 +250,49 @@ static func random_ware(rng: RandomNumberGenerator, slot := "") -> String:
 	return _weighted(rng, ids)
 
 
+## The hero level each piece of gear suits (see HeroLevel): found as loot
+## in places of about that level, and part of what a hero of that level is
+## expected to wear. Anything not listed suits level 1.
+const LEVELS := {
+	"schwert": 1, "rundschild": 1, "lederwams": 1, "lederstiefel": 1, "wollumhang": 1,
+	"bronzearmreif": 2, "amulett_leben": 2, "amulett_tempo": 2,
+	"axt": 3, "kupferring": 3, "amulett_kraft": 3, "knochenhelm": 3, "leinenrucksack": 3,
+	"eilstiefel": 4, "zauberhut": 4, "silberarmreif": 4,
+	"kettenhemd": 5, "wappenschild": 5, "schattenumhang": 5,
+	"fechtbuch": 5, "axtbuch": 5, "wurfbuch": 5, "schildbuch": 5, "ruestbuch": 5, "schleichbuch": 6,
+	"ritterhelm": 6, "rubinring": 6, "baerenkappe": 6, "lederrucksack": 6,
+	"klingenring": 6, "axtreif": 6, "schildamulett": 6, "wurfring": 6, "schattenamulett": 6, "lastreif": 6,
+	"stachelschild": 7, "streitkolben": 7, "langschwert": 7,
+	"koenigsumhang": 8, "krummsaebel": 8, "vampirzahn": 8, "gluecksklee": 8,
+	"dornenrune": 9, "plattenpanzer": 10, "drachenschild": 10, "streitaxt": 10,
+	"phoenixfeder": 11, "grosser_rucksack": 11, "rabenklinge": 12, "kriegshammer": 12,
+	"runenhammer": 16,
+}
+## Loot for a place of level L is gear of level L - LOOT_BELOW to L + LOOT_ABOVE.
+const LOOT_BELOW := 4
+const LOOT_ABOVE := 1
+
+
+static func item_level(id: String) -> int:
+	return int(LEVELS.get(id, 1))
+
+
 ## Picks a random item; pricier items turn up less often.
 ## With a slot given, only items for that slot are picked. The smith's own
-## wares are never picked: only Gorm sells them.
-static func random_item(rng: RandomNumberGenerator, min_price := 0, slot := "") -> String:
+## wares are never picked: only Gorm sells them. With `area` (a place's
+## level, see HeroLevel.place_level) only gear that suits it is picked, so
+## deeper and harder places hold better things; the best gear of all still
+## turns up in the hardest places, which have nothing above them.
+static func random_item(rng: RandomNumberGenerator, min_price := 0, slot := "", area := 0) -> String:
 	var ids := ALL.keys().filter(func(id): return ALL[id].price >= min_price and (slot == "" or ALL[id].slot == slot) and not ALL[id].get("no_loot", false) and not ALL[id].get("smith", false))
+	if area > 0:
+		var top := 0
+		for id in ids:
+			top = maxi(top, item_level(id))
+		var low := mini(area - LOOT_BELOW, top - LOOT_BELOW)
+		var fitting := ids.filter(func(id): return item_level(id) >= low and item_level(id) <= area + LOOT_ABOVE)
+		if not fitting.is_empty():
+			ids = fitting
 	return _weighted(rng, ids)
 
 

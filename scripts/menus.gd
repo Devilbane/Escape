@@ -314,7 +314,17 @@ func _rebuild() -> void:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
 		close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		close_button.custom_minimum_size = Vector2(180, 44 if current in TRADE_WINDOWS else 52)
-		_box.add_child(close_button)
+		if current == "charakter" and _character_spend != null:
+			# The character page's level point button shares the bottom row.
+			var bottom := HBoxContainer.new()
+			bottom.alignment = BoxContainer.ALIGNMENT_CENTER
+			bottom.add_theme_constant_override("separation", 14)
+			bottom.add_child(_character_level)
+			bottom.add_child(_character_spend)
+			bottom.add_child(close_button)
+			_box.add_child(bottom)
+		else:
+			_box.add_child(close_button)
 	if _keys:
 		_set_focusable(true)
 		if focused >= 0:
@@ -534,6 +544,13 @@ const CHARACTER_SIDE := 340
 ## details in both languages, so pointing at another entry moves nothing.
 const CHARACTER_CARD_HEIGHT := 262
 const CHARACTER_TEXT := Color(0.85, 0.87, 0.92)
+## The button that puts a free level point into the picked main attribute
+## (for tests).
+var _character_spend: Button = null
+var _character_keep := ""
+var _character_level: Label = null
+## The width kept for the hero level and experience in the bottom row.
+const CHARACTER_LEVEL_WIDTH := 200
 
 
 ## The wheel of attributes and skills (see CharacterPage). Beside it: what
@@ -541,10 +558,14 @@ const CHARACTER_TEXT := Color(0.85, 0.87, 0.92)
 ## card with the details of the entry pointed at, or how a roll works.
 func _build_character() -> void:
 	var p: Player = game.player
+	_character_spend = null
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 24)
 	_box.add_child(row)
 	var wheel := CharacterPage.new(p, game.TEXT_FONT)
+	# A rebuild after spending a point keeps the attribute picked.
+	wheel.picked = _character_keep
+	_character_keep = ""
 	row.add_child(wheel)
 	var side := VBoxContainer.new()
 	side.custom_minimum_size.x = CHARACTER_SIDE
@@ -586,8 +607,39 @@ func _build_character() -> void:
 		card_title.text = d.title
 		card_body.text = "\n".join(d.lines)
 		card_note.text = d.note
-	show.call("")
+	show.call(wheel.shown())
 	wheel.shown_changed.connect(show)
+	# A free level point goes to the main attribute picked in the wheel. The
+	# button is always there, beside the close button (see _rebuild), so the
+	# window never changes its shape.
+	var spend: Button = game._make_button("", func() -> void:
+		if p.spend_point(wheel.picked):
+			_character_keep = wheel.picked
+			Sfx.play(game, "secret", -6.0)
+			game._update_hud()
+			_rebuild())
+	spend.custom_minimum_size = Vector2(CHARACTER_SIDE + 40, 52)
+	spend.add_theme_font_size_override("font_size", 16)
+	var label_spend := func(_id: String) -> void:
+		var free := p.free_points()
+		var id: String = wheel.picked
+		if free <= 0:
+			spend.text = Lang.t("Kein Punkt frei (jede 3. Heldenstufe)")
+		elif id in HeroLevel.POINT_ATTRIBUTES:
+			spend.text = Lang.t("+1 %s (%d frei)") % [Lang.t(Training.ATTRIBUTES[id].name), free]
+		else:
+			spend.text = Lang.t("Punkt frei: wähle Stärke, Geschick oder Intelligenz")
+		spend.disabled = free <= 0 or not id in HeroLevel.POINT_ATTRIBUTES
+	label_spend.call("")
+	wheel.shown_changed.connect(label_spend)
+	# The hero's level and experience sit right before it, in the bottom row.
+	var step := HeroLevel.progress(p.hero_xp)
+	_character_level = game._make_label(game.TEXT_FONT, 18, game.XP_COLOR)
+	_character_level.text = Lang.t("Heldenstufe %d") % p.hero_level() + "\n" + \
+			((Lang.t("%d / %d EP") % [step.x, step.y]) if step.y > 0 else Lang.t("höchste Stufe"))
+	_character_level.custom_minimum_size.x = CHARACTER_LEVEL_WIDTH
+	_character_level.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_character_spend = spend
 	for entry in [
 		[Lang.t("Innen: Grundfertigkeiten. Außen: fortgeschrittene Fertigkeiten."), CHARACTER_TEXT],
 		[_crafts_text(), game.GOLD],

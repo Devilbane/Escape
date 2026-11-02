@@ -201,6 +201,8 @@ var _key_label: Label
 var _hp_label: Label
 ## The run meter: seconds of running left, as a bar and in numbers.
 var _run_bar: ProgressBar
+var _xp_bar: ProgressBar
+var _xp_label: Label
 var _run_label: Label
 var _run_fill: StyleBoxFlat
 var _gift_label: Label
@@ -306,6 +308,10 @@ func _bus_links() -> Array:
 		[bus.map_grew, map_notice],
 		[bus.map_explored, map_explored],
 		[bus.writing_found, writing_found],
+		[bus.enemy_felled, xp_for_kill],
+		[bus.quest_done, xp_for_task],
+		[bus.bounty_paid, xp_for_bounty],
+		[bus.riddle_solved, xp_for_riddle],
 	]
 
 
@@ -364,6 +370,7 @@ func _ready() -> void:
 		if state == State.PLAYING:
 			show_message(text, duration))
 	player.hurt.connect(_on_player_hurt)
+	player.leveled_up.connect(_on_leveled_up)
 	player.ailments_changed.connect(_update_hud)
 	player.regenerated.connect(_update_hud)
 	player.defeated.connect(_on_player_defeated)
@@ -820,6 +827,25 @@ func _setup_hud() -> void:
 	run_row.add_child(_run_bar)
 	_run_label = _make_label(TEXT_FONT, 18, Color(0.75, 0.95, 0.6))
 	run_row.add_child(_run_label)
+	# The hero's level beside a bar of the experience towards the next one,
+	# built like the run bar above it.
+	var xp_row := HBoxContainer.new()
+	xp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	xp_row.add_theme_constant_override("separation", 10)
+	left.add_child(xp_row)
+	_xp_bar = ProgressBar.new()
+	_xp_bar.show_percentage = false
+	_xp_bar.custom_minimum_size = Vector2(170, 14)
+	_xp_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_xp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var xp_fill := StyleBoxFlat.new()
+	xp_fill.bg_color = XP_COLOR
+	xp_fill.set_corner_radius_all(6)
+	_xp_bar.add_theme_stylebox_override("background", back.duplicate())
+	_xp_bar.add_theme_stylebox_override("fill", xp_fill)
+	xp_row.add_child(_xp_bar)
+	_xp_label = _make_label(TEXT_FONT, 18, XP_COLOR)
+	xp_row.add_child(_xp_label)
 	_gift_label = _make_label(TEXT_FONT, 18, Color(0.65, 0.85, 1.0))
 	left.add_child(_gift_label)
 	var spacer := Control.new()
@@ -1540,11 +1566,23 @@ func _update_hud() -> void:
 	if player.ailments.has("brand"):
 		gifts.append(Lang.t("Brennt"))
 	_gift_label.text = "   ".join(gifts)
+	_show_hero_level()
 	_coin_label.text = Lang.t("Gold: %d") % coins
 	_knife_label.text = Lang.t("Messer: %d") % player.knives
 	_key_label.text = Lang.t("Schlüssel gefunden") if level.has_key else Lang.t("Kein Schlüssel")
 	_key_label.visible = not level.outdoor and level.building == ""
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
+
+
+## The hero's level and the experience towards the next one on the HUD.
+## A free level point is told there too, until it is spent.
+func _show_hero_level() -> void:
+	var step := HeroLevel.progress(player.hero_xp)
+	_xp_bar.max_value = maxi(1, step.y)
+	_xp_bar.value = step.x if step.y > 0 else 1
+	_xp_label.text = Lang.t("Heldenstufe %d") % player.hero_level()
+	if player.free_points() > 0:
+		_xp_label.text += "   " + Lang.t("Punkt frei (P)")
 
 
 ## The time of day for the HUD, e.g. "21:30, night, full moon", above
@@ -2046,6 +2084,7 @@ func begin_new_game() -> void:
 	player.reset_gifts()
 	# The hero keeps what they trained in earlier runs under this name.
 	player.xp = Training.load_hero(hero_name)
+	player.set_level_data(Training.load_level(hero_name))
 	player.refresh_stats()
 	_leave_title(func():
 		player.hp = player.max_hp
@@ -2349,6 +2388,7 @@ func _apply_save(data: Dictionary) -> void:
 	player.set_sex(str(data.get("sex", BodyLook.DEFAULT))) # Games saved before there were heroines have a hero.
 	player.set_hair(data.get("hair", {}))
 	player.xp = Training.load_hero(hero_name)
+	player.set_level_data(Training.load_level(hero_name))
 	lore.assign(data.get("lore", []))
 	looted.clear()
 	var saved_loot = data.get("looted", {})
@@ -2539,7 +2579,7 @@ func _home_given_now() -> bool:
 ## the file is really there afterwards. Going away also writes the hero's
 ## plan for the time away and when the player left.
 func save_game(going_away := false) -> bool:
-	Training.save_hero(hero_name, player.xp)
+	Training.save_hero(hero_name, player.xp, player.level_data())
 	journal.catch_up()
 	var data := {
 		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
@@ -3168,6 +3208,12 @@ func map_explored(file: String) -> void:
 func writing_found(text: String) -> void:
 	if not lore.has(text):
 		player.train("erkunden", Training.EXPLORE_WRITING_FOUND)
+		# A rune tablet of the dwarves is a riddle of its own (see Mines).
+		var rune: Variant = Mines.TABLETS.find_key(text)
+		if rune != null:
+			Events.bus().riddle_solved.emit("rune", HeroLevel.rune_level(rune))
+		else:
+			Events.bus().riddle_solved.emit("writing", HeroLevel.place_level(level))
 		journal.write("Inschrift entdeckt", [], journal.current_file())
 	learn(text)
 	learn(EXPLORE_LEARN)
@@ -3242,6 +3288,7 @@ func _on_gate_opened(pos: Vector3) -> void:
 	Sfx.play(self, "rumble", 0.0, pos)
 	Sfx.play(self, "chain", -4.0, pos)
 	show_message(Lang.t("Alle Druckplatten sind belegt: Das Eisengitter versinkt im Boden!"), 3.5)
+	Events.bus().riddle_solved.emit("puzzle", HeroLevel.place_level(level))
 	_message.add_theme_color_override("font_color", GOLD)
 	get_tree().create_timer(3.8).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
 
@@ -3250,6 +3297,7 @@ func _on_gate_opened(pos: Vector3) -> void:
 ## rumbling and shaking ground while the secret wall sinks.
 func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	secrets_found += 1
+	Events.bus().riddle_solved.emit("secret", HeroLevel.place_level(level))
 	journal.note_secret(journal.current_file(), level.world_to_cell(wall_pos))
 	level.secret_bonus = secrets_found
 	player.train("weisheit", 5.0)
@@ -3311,8 +3359,9 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	show_message(enemy.fall_text(), 2.5)
 	_win_trophy(enemy.kind)
 	var drop := quests.on_kill(enemy.kind)
-	# Factions and bounties count it (see _bus_links).
+	# Factions and bounties count it, and it is worth experience (see _bus_links).
 	Events.bus().enemy_slain.emit(enemy.kind)
+	Events.bus().enemy_felled.emit(enemy.rated_level, enemy.is_level_boss())
 	if drop != "":
 		level._drop_item(drop, enemy.global_position + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
 	if player.has_special("vampirzahn"):
@@ -3389,6 +3438,67 @@ func leave_lair() -> void:
 ## The German name of a combat skill or a craft (see Training).
 static func _skill_or_craft_name(id: String) -> String:
 	return Training.SKILLS[id].name if Training.SKILLS.has(id) else Training.CRAFTS[id].name
+
+
+# --- Hero level -----------------------------------------------------------
+
+## Experience for a felled monster (see HeroLevel.kill_xp).
+func xp_for_kill(monster_level: int, boss: bool) -> void:
+	earn_xp(HeroLevel.kill_xp(monster_level, player.hero_level(), boss))
+
+
+## Experience for a villager's task or a wish (see HeroLevel.TASKS).
+func xp_for_task(id: String) -> void:
+	earn_xp(HeroLevel.task_xp(id, player.hero_level()), true)
+
+
+func xp_for_bounty(id: String) -> void:
+	earn_xp(HeroLevel.task_xp("bounty:" + id, player.hero_level()), true)
+
+
+func xp_for_riddle(kind: String, place_level: int) -> void:
+	earn_xp(HeroLevel.time_xp(HeroLevel.RIDDLES.get(kind, 1), place_level, player.hero_level()), true)
+
+
+## Gives the hero experience and shows it over their head; a big amount
+## (a task, a riddle) shows a little longer and higher.
+func earn_xp(amount: int, big := false) -> void:
+	if amount <= 0 or player == null:
+		return
+	if level != null and player.is_inside_tree():
+		Effects.float_text(level, player.global_position + Vector3(0, 2.8 if big else 2.4, 0), Lang.t("+%d EP") % amount, XP_COLOR)
+	player.gain_xp(amount)
+	Training.save_hero(hero_name, player.xp, player.level_data())
+	_update_hud()
+
+
+## The colour of experience on the HUD and in floating numbers.
+const XP_COLOR := Color(0.72, 0.62, 1.0)
+
+
+func _on_leveled_up(new_level: int) -> void:
+	var text := Lang.t("Heldenstufe %d! +1 Leben") % new_level
+	if new_level % HeroLevel.CON_EVERY == 0:
+		text += ", " + Lang.t("+1 Konstitution")
+	if new_level % HeroLevel.SPEED_EVERY == 0:
+		text += ", " + Lang.t("+1 % Tempo")
+	if new_level % HeroLevel.POINT_EVERY == 0:
+		text += "\n" + Lang.t("Ein Punkt für Stärke, Geschick oder Intelligenz: Taste P öffnet den Charakter.")
+	if level != null and player.is_inside_tree():
+		Effects.float_text(level, player.global_position + Vector3(0, 3.6, 0), Lang.t("Heldenstufe %d") % new_level, GOLD, true)
+	Sfx.play(self, "level_done", -4.0)
+	learn(LEVEL_LEARN)
+	_update_hud()
+	# A reward or a find told just now stays readable first.
+	if _message_tween and _message_tween.is_running():
+		await get_tree().create_timer(LEVEL_MESSAGE_WAIT).timeout
+	show_message(text, 5.0)
+
+
+## Seconds the level-up waits for a message already on screen.
+const LEVEL_MESSAGE_WAIT := 3.0
+## Explained once in the compendium, at the first level-up.
+const LEVEL_LEARN := "Erfahrung (EP) bekommst du für besiegte Gegner, erfüllte Aufträge, Kopfgelder und gelöste Rätsel. Gegner weit unter deiner Heldenstufe bringen wenig. Jede Stufe gibt +1 Leben, jede 2. Stufe +1 % Tempo, jede 3. Stufe einen Punkt für Stärke, Geschick oder Intelligenz (im Charakter, Taste P) und jede 5. Stufe +1 Konstitution."
 
 
 func _on_player_trained(id: String, value: int) -> void:
@@ -3559,7 +3669,7 @@ func _end_run(escaped: bool) -> void:
 	# Whatever the outcome, a whole run is a lesson.
 	player.train("weisheit", 15.0)
 	# What the hero trained stays with their name, fallen or free.
-	Training.save_hero(hero_name, player.xp)
+	Training.save_hero(hero_name, player.xp, player.level_data())
 	if escaped:
 		# The run is over, so this hero's saved game in the safe room is
 		# gone too. The other slots keep theirs.
@@ -3633,7 +3743,7 @@ func _next_level() -> void:
 		return
 	Sfx.play(self, "level_done", -2.0)
 	player.train("weisheit", 10.0)
-	Training.save_hero(hero_name, player.xp)
+	Training.save_hero(hero_name, player.xp, player.level_data())
 	dry_levels = 0 if level.secret_opened() else dry_levels + 1
 	if level_index + 1 >= level_files.size():
 		_end_run(true)

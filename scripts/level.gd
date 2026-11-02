@@ -1040,9 +1040,9 @@ func _build_chest(c: Vector2i) -> void:
 	if _behind_gate(c):
 		# The reward of a block-pushing puzzle: as rich as a rare secret room.
 		var rare: Dictionary = TIERS["selten"]
-		obj.loot = {"gold": int(rare.gold), "item": Items.random_item(loot_rng, int(rare.min_price))}
+		obj.loot = {"gold": int(rare.gold), "item": Items.random_item(loot_rng, int(rare.min_price), "", HeroLevel.place_level(self) + 1)}
 		return
-	obj.loot = {"gold": 5, "item": Items.random_item(loot_rng)}
+	obj.loot = {"gold": 5, "item": Items.random_item(loot_rng, 0, "", HeroLevel.place_level(self))}
 
 
 ## The tiles reachable from the start without passing an iron gate (|).
@@ -1079,7 +1079,7 @@ func _secret_loot(c: Vector2i, share: float) -> Dictionary:
 	loot_rng.seed = hash("%s:secret:%d:%d" % [level_name, c.x, c.y])
 	var loot := {"gold": int(round(tier.gold * share * loot_rng.randf_range(0.8, 1.2)))}
 	if share >= 1.0 or tier.min_price >= 34:
-		loot.item = Items.random_item(loot_rng, tier.min_price)
+		loot.item = Items.random_item(loot_rng, tier.min_price, "", HeroLevel.place_level(self) + 1)
 	return loot
 
 
@@ -2471,7 +2471,7 @@ func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector
 	elif roll < 0.87:
 		loot = {"potion": 1}
 	else:
-		loot = {"item": Items.random_item(loot_rng)}
+		loot = {"item": Items.random_item(loot_rng, 0, "", HeroLevel.place_level(self))}
 	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null,
 			"id": "%s:%d,%d" % [label, c.x, c.y]}
 	interactables.append(obj)
@@ -2737,7 +2737,8 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 		if rng.randf() >= chance:
 			continue
 		for attempt in 6:
-			var id := Items.random_item(rng)
+			# Gear that suits the place; the bosses' own fights stay as they were made.
+			var id := Items.random_item(rng, 0, "", 0 if HeroLevel.FIXED.has(kind) else HeroLevel.place_level(self))
 			var slot: String = Items.ALL[id].slot
 			if slot != "spezial" and slot != "buch" and not gear.any(func(g): return Items.ALL[g].slot == slot):
 				gear.append(id)

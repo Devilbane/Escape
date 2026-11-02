@@ -288,6 +288,48 @@ var _calmed := 0.0
 ## Whether the blow that felled it came from another monster rather than
 ## the hero: such a kill counts for no task.
 var slain_by_rival := false
+## The hero level this one is a fair fight for (see HeroLevel), set when it
+## is ready; what felling it is worth goes by it.
+var rated_level := 1
+
+
+## Balances a monster to the area it lives in (see HeroLevel.AREAS): a
+## weaker one gets more life first and, every other step, a harder blow until
+## it is a fair fight for its place in the area's levels; a stronger one than
+## the area's top loses blow strength first, then life. Then notes the level
+## it is rated at.
+func _fit_area() -> void:
+	rated_level = _rating()
+	var area := HeroLevel.area_of(level, kind) if level else ""
+	if area == "" or HeroLevel.FIXED.has(kind):
+		return
+	var target := HeroLevel.area_target(area, rated_level)
+	var top: int = HeroLevel.AREAS[area].max
+	var step := 0
+	while rated_level < target and step < 80:
+		if step % 2 == 0:
+			_stats.hp = int(_stats.hp) + maxi(1, int(_stats.hp) / 8)
+		else:
+			_stats.damage = int(_stats.damage) + 1
+		step += 1
+		rated_level = _rating()
+	step = 0
+	while rated_level > top and step < 80:
+		if step % 2 == 0 and int(_stats.damage) > 1:
+			_stats.damage = int(_stats.damage) - 1
+		elif int(_stats.hp) > 1:
+			_stats.hp = int(_stats.hp) - maxi(1, int(_stats.hp) / 10)
+		step += 1
+		rated_level = _rating()
+
+
+func _rating() -> int:
+	return HeroLevel.rate(kind, int(_stats.hp), int(_stats.damage), hardening, float(_stats.cooldown))
+
+
+## Whether felling this one is a boss's worth of experience.
+func is_level_boss() -> bool:
+	return kind in HeroLevel.BOSSES
 
 
 func _ready() -> void:
@@ -326,6 +368,7 @@ func _ready() -> void:
 	# Strength makes blows come faster and, every two points, harder too.
 	_stats.cooldown /= 1.0 + 0.2 * power
 	_stats.damage += power / 2
+	_fit_area()
 	ranged = _stats.get("ranged", false)
 	hp = _stats.hp
 	add_to_group("combatant")

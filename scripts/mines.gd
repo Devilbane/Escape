@@ -24,7 +24,9 @@ class_name Mines
 ##
 ## Difficulty: the mines and the road there are made for an experienced hero
 ## in the best gear there is, BENCHMARK below. The monsters' numbers are in
-## Enemy.KINDS (the kinds marked "mountain").
+## Enemy.KINDS (the kinds marked "mountain"). On top of that every mine
+## lifts its monsters to the hero levels it is made for (HeroLevel.AREAS):
+## mine 1 for 11 to 13, mine 2 for 13 to 15, mine 3 for 16 to 20.
 
 ## The hero these places are made for: the owner's own seasoned character
 ## (Rabenklinge, Wappenschild, Plattenpanzer, Ritterhelm, Königsumhang,

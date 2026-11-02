@@ -134,6 +134,7 @@ func claim(id: String) -> int:
 		return 0
 	taken.erase(id)
 	paid[id] = true
+	Events.bus().bounty_paid.emit(id)
 	return int(POOL[id].gold)
 
 

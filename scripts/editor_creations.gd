@@ -8,6 +8,9 @@ extends RefCounted
 ## anew when its shape changes (a new type, base or body), so the field being
 ## typed in keeps the focus.
 
+## The height kept for the note under the base kind (three lines).
+const HINT_HEIGHT := 72.0
+
 var editor: Node
 var slot := "1"
 var _box: VBoxContainer
@@ -135,15 +138,24 @@ func _name_field(spec: Dictionary) -> void:
 
 func _build_monster(spec: Dictionary) -> void:
 	_name_field(spec)
-	var bases := Creations.MONSTER_BASES.map(func(b): return [b, Lang.t(Creations.MONSTER_NAMES[b])])
+	var bases := []
+	for family in Creations.MONSTER_FAMILIES:
+		bases.append(["", Lang.t(family[0])])
+		for b in family[1]:
+			bases.append([b, Lang.t(Creations.MONSTER_NAMES[b])])
 	_box.add_child(EditorUi.row(Lang.t("Grundart"), EditorUi.choice(bases, spec.base, func(b):
 		var s: Dictionary = editor.map.creations()[slot]
 		s.base = b
 		_fill_monster_stats(s)
 		_store(s)
 		rebuild())))
-	var hint := EditorUi.label(Lang.t("Kämpft wie seine Grundart. Eine neue Grundart setzt deren Werte."), 16, EditorUi.DIM)
+	var boss: bool = spec.base in Creations.MONSTER_BOSSES
+	var hint := EditorUi.label(Lang.t("Ein Endgegner: kämpft mit allen Angriffen seiner Grundart und zeigt oben seine Lebensleiste mit diesem Namen.") if boss
+			else Lang.t("Kämpft wie seine Grundart. Eine neue Grundart setzt deren Werte."), 16, EditorUi.DIM)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Room for the longer boss note either way, so the numbers below stay
+	# put when the base changes.
+	hint.custom_minimum_size.y = HINT_HEIGHT
 	_box.add_child(hint)
 	for s in Creations.MONSTER_STATS:
 		_box.add_child(EditorUi.row(Lang.t(s[1]), EditorUi.spin(float(spec.get(s[0], s[2])), s[2], s[3], s[4], func(v): _change(s[0], v))))

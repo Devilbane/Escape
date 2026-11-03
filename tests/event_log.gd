@@ -122,6 +122,22 @@ func _check_layout() -> void:
 	game._place_hp_bar(ground, settled)
 	check(game._hp_bar.position == steady, "the life bar stays put while the camera shakes")
 	game.camera.global_position = settled
+	# Running: the camera trails behind the hero, so the hero is off the
+	# screen's middle. The bar still keeps below everything the hero's legs,
+	# arms and blade can reach, seen through the trailing camera.
+	for lag in [Vector3(0, 0, -1.5), Vector3(0, 0, 1.5), Vector3(1.5, 0, 0), Vector3(-1.5, 0, 0)]:
+		game.camera.global_position = settled + lag
+		game._place_hp_bar(ground, game.camera.global_position)
+		var top: float = game._hp_bar.get_global_rect().position.y
+		var clear := true
+		for i in 16:
+			var dir := Vector3(cos(TAU * i / 16.0), 0.0, sin(TAU * i / 16.0))
+			for height in [0.0, 1.2, 2.2]:
+				var tip: Vector2 = game.camera.unproject_position(ground + dir * game.HP_BAR_REACH + Vector3(0, height, 0))
+				if tip.y >= top:
+					clear = false
+		check(clear, "running with the camera trailing %s, nothing of the hero touches the bar" % lag)
+	game.camera.global_position = settled
 	# Conditions show as little icons in a row under the bar.
 	hero.ailments["gift"] = 5.0
 	var hardening_before: int = hero.hardening

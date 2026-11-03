@@ -217,10 +217,10 @@ var _notice_row: HBoxContainer
 ## The life bar under the hero: its size, its gap below the feet on screen,
 ## and its colours (brighter when low).
 const HP_BAR_SIZE := Vector2(96, 8)
-const HP_BAR_GAP := 16.0
+const HP_BAR_GAP := 18.0
 ## How far the hero's arms and blade reach out from the feet, in metres
 ## (the bar keeps below all of it, see _place_hp_bar).
-const HP_BAR_REACH := 1.5
+const HP_BAR_REACH := 1.8
 const HP_COLOR := Color(0.78, 0.2, 0.2)
 const HP_LOW_COLOR := Color(1.0, 0.35, 0.25)
 const HP_POISON_COLOR := Color(0.35, 0.75, 0.25)
@@ -3409,9 +3409,10 @@ func _fill_icon_row(row: HBoxContainer, wanted: Array) -> void:
 
 
 ## Keeps the life bar at one steady spot under the hero on screen. It is
-## placed as seen from where the camera settles (`cam_at`) for the hero
-## standing at `ground` (feet, not lifted by a jump), so it neither jitters
-## with the camera catching up or shaking nor bobs with jumps.
+## placed as seen from the camera without its shake (`cam_at`), for the hero
+## standing at `ground` (feet, not lifted by a jump): it stays under a
+## running hero while the camera trails behind, and neither trembles with
+## a shake nor bobs with jumps.
 func _place_hp_bar(ground: Vector3, cam_at: Vector3) -> void:
 	var on_screen := state == State.PLAYING and player != null and player.is_inside_tree() and not player.dead \
 			and camera != null
@@ -4584,12 +4585,16 @@ func _process(delta: float) -> void:
 	camera.rotation_degrees.x = -lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom)
 	var target := p + _camera_offset()
 	camera.global_position = camera.global_position.lerp(target, 1.0 - exp(-5.0 * delta))
+	# Where the camera really is, before any shake: the life bar is placed as
+	# seen from here, so it stays under the hero while the camera trails a
+	# running hero, but does not tremble with the ground.
+	var followed := camera.global_position
 	if _shake > 0.0:
 		# The ground trembles while a secret wall sinks.
 		_shake = maxf(0.0, _shake - delta)
 		var strength := 0.25 * minf(1.0, _shake)
 		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
-	_place_hp_bar(p, target)
+	_place_hp_bar(p, followed)
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)

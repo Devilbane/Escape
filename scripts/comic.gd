@@ -116,8 +116,20 @@ func _pop(world_pos: Vector3, kind: String) -> void:
 	tween.tween_property(root, "scale", Vector2(1.45, 1.3), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_callback(_burst.bind(root, fill, size))
 	var anchor := world_pos + Vector3(0, 1.0, 0)
-	var pop := {"node": root, "pos": anchor, "offset": _free_spot(anchor, root.size * GROWN)}
+	# The spot is chosen at the end of the frame, once the words of the same
+	# blow ("Blocked!", the damage number) float over the heads, so the
+	# bubble keeps off them.
+	var pop := {"node": root, "pos": anchor, "offset": Vector2.ZERO, "settled": false}
+	root.visible = false
 	_pops.append(pop)
+	_settle.call_deferred(pop)
+
+
+func _settle(pop: Dictionary) -> void:
+	if not is_instance_valid(pop.node) or camera == null:
+		return
+	pop.offset = _free_spot(pop.pos, pop.node.size * GROWN)
+	pop.settled = true
 	_place(pop)
 
 
@@ -164,6 +176,8 @@ func _burst(root: Control, fill: Color, size: float) -> void:
 
 ## Keeps a bubble at its spot beside the fight, even when the camera moves.
 func _place(p: Dictionary) -> void:
+	if not p.settled:
+		return
 	p.node.visible = not camera.is_position_behind(p.pos)
 	p.node.position = camera.unproject_position(p.pos) + p.offset - p.node.size * 0.5
 
@@ -178,10 +192,11 @@ func _free_spot(anchor: Vector3, extent: Vector2) -> Vector2:
 		if body and body.is_visible_in_tree() and not camera.is_position_behind(body.global_position):
 			blocked.append(_body_rect(body).grow(GAP))
 	for p in _pops:
-		if is_instance_valid(p.node):
+		if is_instance_valid(p.node) and p.settled:
 			var other: Vector2 = camera.unproject_position(p.pos) + p.offset
 			var other_extent: Vector2 = p.node.size * GROWN
 			blocked.append(Rect2(other - other_extent * 0.5, other_extent).grow(GAP))
+	blocked.append_array(text_columns(camera))
 	# Keep clear of the status line at the top and the buttons at the bottom.
 	var screen := get_viewport().get_visible_rect().grow_individual(-16, -100, -16, -110)
 	var best := Vector2.ZERO
@@ -205,6 +220,16 @@ func _free_spot(anchor: Vector3, extent: Vector2) -> Vector2:
 				best_overlap = overlap
 				best = offset
 	return best
+
+
+## The screen boxes of the words floating over heads and at spots (damage
+## numbers, "Blocked!", a level-up, loot, see DamageNumber.columns), with
+## the room above each stack that its words still rise into.
+static func text_columns(cam: Camera3D) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for column in DamageNumber.columns(cam):
+		out.append((column.rect as Rect2).grow(GAP))
+	return out
 
 
 ## The screen box around a fighter, from feet to the top of the head.

@@ -189,7 +189,7 @@ func land() -> void:
 ## What was on the hook comes in: weed (""), an old coin ("muenze") or a fish
 ## for the ingredient pouch. `pos` is where the float was, on level `on`.
 func take(caught: String, pos: Vector3, on: Node) -> void:
-	game.player.play_once("PickUp", 0.6)
+	game.player.play_flourish("PickUp", 0.6)
 	if caught == "":
 		Sfx.play(game, "drip", -4.0)
 		game.show_message(Lang.t("Nur Wasserkraut am Haken."), 1.8)

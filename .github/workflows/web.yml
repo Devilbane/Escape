@@ -74,10 +74,20 @@ jobs:
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/cobwebs.gd | tee cobwebs.log
           grep -q PASS cobwebs.log
 
+      - name: Level warm-up (no hitch when a level starts)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/level_warmup.gd | tee warmup.log
+          grep -q PASS warmup.log
+
       - name: Play through all levels automatically
         run: |
           timeout 600 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log
           grep -q PASS test.log
+
+      - name: Inventory keeps its size (picking, tabs, equipping; both languages)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/inventory_fixed_size.gd | tee inventory.log
+          grep -q PASS inventory.log
 
       - name: Event bus test
         run: |
@@ -88,6 +98,11 @@ jobs:
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/grate_tentacles.gd | tee tentacles.log
           grep -q PASS tentacles.log
+
+      - name: Locked doors (no getting stuck, no blows through them) test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/door_safety.gd | tee doors.log
+          grep -q PASS doors.log
 
       - name: Time away (offline activities) test
         run: |
@@ -114,6 +129,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wake_up.gd | tee wake.log
           grep -q PASS wake.log
 
+      - name: Shrine gifts hand control straight back test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/shrine.gd | tee shrine.log
+          grep -q PASS shrine.log
+
       - name: Graveyard start after the escape test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/graveyard_start.gd | tee graveyard.log
@@ -123,6 +143,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/looted_containers.gd | tee looted.log
           grep -q PASS looted.log
+
+      - name: Rare loot does not repeat on a level test
+        run: |
+          timeout 300 ~/godot/godot --headless -s tests/rare_loot.gd | tee rare_loot.log
+          grep -q PASS rare_loot.log
 
       - name: Floor items test
         run: |
@@ -258,6 +283,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/damage_numbers.gd | tee damage_numbers.log
           grep -q PASS damage_numbers.log
+
+      - name: Messages never cover each other test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/message_overlap.gd | tee message_overlap.log
+          grep -q PASS message_overlap.log
 
       - name: Hero and skeletons cannot stack test
         run: |

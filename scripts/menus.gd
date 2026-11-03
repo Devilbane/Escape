@@ -757,12 +757,28 @@ func _add_inventory_line(text: String, color: Color) -> Label:
 ## ends in "…" (the details box shows it in full).
 func _inventory_cell(b: Button) -> Button:
 	b.custom_minimum_size = INVENTORY_CELL
-	if not "\n" in b.text:
-		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	b.clip_text = true
 	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	b.add_theme_font_size_override("font_size", INVENTORY_TEXT)
+	if not "\n" in b.text:
+		b.text = _two_lines(b)
 	return b
+
+
+## A button's text broken by hand into at most two lines that fit its cell.
+## A wrapping button grows taller for a third line (a name like "Rune hammer
+## of the Mountain King"), which would make the window jump; with the break
+## put in by hand, the second line ends in "…" instead.
+func _two_lines(b: Button) -> String:
+	var width := INVENTORY_CELL.x - b.get_theme_stylebox("normal").get_minimum_size().x
+	var para := TextParagraph.new()
+	para.add_string(b.text, b.get_theme_font("font"), INVENTORY_TEXT)
+	para.width = width
+	para.break_flags = TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+	if para.get_line_count() <= 1:
+		return b.text
+	var first := para.get_line_range(0)
+	return b.text.substr(first.x, first.y - first.x).strip_edges() + "\n" + b.text.substr(first.y).strip_edges()
 
 
 ## "Worn" with the helmet's show/hide button beside it. The button's place is

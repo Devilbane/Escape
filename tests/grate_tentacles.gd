@@ -3,7 +3,8 @@ extends SceneTree
 ## GrateTentacles): where they live, that the hero near a grate gets one roll
 ## every ROLL_EVERY seconds, that a warning comes before the blow, that
 ## staying on the grate hurts and stepping off in time does not, that the
-## grate rests afterwards and only one tentacle stirs at a time.
+## grate rests afterwards and only one tentacle stirs at a time. The blow
+## reaches two tiles and can poison.
 ## Run with: godot --headless --fixed-fps 60 -s tests/grate_tentacles.gd
 
 var failures := 0
@@ -89,7 +90,7 @@ func _run() -> void:
 			check(t.grates.size() == lvl.grates.size(), "%s: a tentacle under every grate" % file)
 			var spikes := 1 + t.place_level / Traps.SPIKE_LEVELS
 			check(t.damage() >= 1 and t.damage() <= spikes, "%s: the blow hurts no more than a spike trap (%d)" % [file, t.damage()])
-			if found == "" and lvl.grates.size() >= 2:
+			if found == "" and lvl.grates.size() >= 2 and lvl.grates.keys().any(func(c): return _open_dir(c, 2) != Vector2i.ZERO):
 				found = file
 	check(found != "", "some level has tentacles under two grates or more")
 	if found == "":
@@ -99,6 +100,8 @@ func _run() -> void:
 	game.state = game.State.PLAYING
 	var t := _tentacles()
 	var cells: Array = t.grates.map(func(g): return g.cell)
+	# A grate with plain floor two tiles to one side, for the reach.
+	cells.sort_custom(func(x, y): return _open_dir(x, 2) != Vector2i.ZERO and _open_dir(y, 2) == Vector2i.ZERO)
 	var a: Vector2i = cells[0]
 	var b: Vector2i = cells[1]
 	# Away from every grate: nothing happens, no rolls.
@@ -119,9 +122,10 @@ func _run() -> void:
 	check(t.rolls == 3, "then one roll every %.0f seconds (%d)" % [GrateTentacles.ROLL_EVERY, t.rolls])
 	check(not t.busy(), "a failed roll stirs nothing")
 
-	# The roll succeeds and the hero stays: warning, then a blow.
+	# The roll succeeds and the hero stays: warning, then a blow that poisons.
 	_fresh()
-	var hits: Array = []
+	p.cure()
+	t.poison_chance = 1.0
 	t.struck.connect(func(hit): hits.append(hit))
 	_put(game.level.start_cell)
 	await _wait(0.1)
@@ -139,6 +143,7 @@ func _run() -> void:
 	check(hits == [true], "staying on the grate gets the hero hit (%s)" % [hits])
 	check(p.hp == p.max_hp - t.damage(), "the blow deals %d (%d of %d left)" % [t.damage(), p.hp, p.max_hp])
 	check(other.state == "idle", "only one tentacle stirs at a time")
+	check(p.ailments.has("gift"), "the blow can poison the hero")
 	await _wait(GrateTentacles.HOLD_TIME + GrateTentacles.SINK_TIME + 0.2)
 	check(g.state == "idle" and not g.node.visible, "the tentacle sinks back")
 	check(g.rest > 0.0, "the grate rests after a strike")
@@ -148,19 +153,66 @@ func _run() -> void:
 	await _wait(2.5)
 	check(g.state == "idle" and p.hp == p.max_hp, "a resting grate stays quiet")
 
-	# The hero steps off during the warning: the blow misses.
+	# The hero backs off one and a half tiles: the tentacle stretches and
+	# still hits, this time without poison.
+	t.chance = 0.0
+	await _wait(GrateTentacles.REST)
+	p.cure()
+	t.poison_chance = 0.0
+	var d := _open_dir(a, 2)
+	check(d != Vector2i.ZERO, "the grate at %s has open floor two tiles to one side" % a)
+	var hit_at := await _strike_at(t, a, Vector3(d.x, 0, d.y) * Level.TILE * 1.5)
+	check(hits == [true] and hit_at > Level.TILE and hit_at <= GrateTentacles.HIT_REACH,
+			"one and a half tiles away is still hit (%s at %.1f m)" % [hits, hit_at])
+	check(t.grate_at(a).stretch > 1.5, "the tentacle stretches to reach (%.2f)" % t.grate_at(a).stretch)
+	check(not p.ailments.has("gift"), "no poison when the roll says no")
+
+	# More than two tiles away when it lands: the blow misses.
+	t.chance = 0.0
+	await _wait(GrateTentacles.HOLD_TIME + GrateTentacles.SINK_TIME + GrateTentacles.REST)
+	var miss_at := await _strike_at(t, a, Vector3(d.x, 0, d.y) * (GrateTentacles.HIT_REACH + 0.6))
+	check(hits == [false] and miss_at > GrateTentacles.HIT_REACH, "more than two tiles away it misses (%s at %.1f m)" % [hits, miss_at])
+	check(p.hp == p.max_hp, "a miss does not hurt (%d of %d, %s)" % [p.hp, p.max_hp, p.ailments])
+	done = true
+
+
+## A side of tile `c` with plain floor (no spikes, no trap) for `tiles`
+## tiles, or ZERO.
+func _open_dir(c: Vector2i, tiles: int) -> Vector2i:
+	for d: Vector2i in Level.DIRS:
+		var open := true
+		for i in range(1, tiles + 1):
+			var n: Vector2i = c + d * i
+			if not ".,".contains(game.level.cell_char(n)) or game.level.astar.is_point_solid(n):
+				open = false
+			elif game.level.traps and not game.level.traps.trap_at(n).is_empty():
+				open = false
+		if open:
+			return d
+	return Vector2i.ZERO
+
+
+## Wakes the tentacle under `cell` with the hero on it, moves the hero by
+## `offset` during the warning, and returns how far from the grate they
+## stood when the blow came down (the hits are in `hits`).
+var hits: Array = []
+func _strike_at(t: GrateTentacles, cell: Vector2i, offset: Vector3) -> float:
+	var p: Player = game.player
 	hits.clear()
 	_fresh()
-	g.rest = 0.0
+	t.chance = 1.0
 	_put(game.level.start_cell)
 	await _wait(0.1)
-	_put(a)
-	await _wait(0.3)
-	check(g.state == "tell", "it stirs again once rested")
-	var off: Vector3 = game.level.cell_to_world(a) + Vector3(GrateTentacles.HIT_REACH + 0.5, 0, 0)
+	_put(cell)
+	await _wait(0.2)
+	var g: Dictionary = t.grate_at(cell)
+	check(g.state == "tell", "it stirs again once rested (%s)" % g.state)
 	p.path.clear()
-	p.global_position = off
-	await _wait(GrateTentacles.TELL_TIME + GrateTentacles.RISE_TIME + GrateTentacles.LASH_TIME)
-	check(hits == [false], "stepping off in time makes it miss (%s)" % [hits])
-	check(p.hp == p.max_hp, "a miss does not hurt")
-	done = true
+	p.global_position = game.level.cell_to_world(cell) + offset
+	# No other grate wakes where the hero now stands.
+	t.chance = 0.0
+	var at := 0.0
+	while g.state != "hold":
+		at = t._flat(p.global_position, g)
+		await process_frame
+	return at

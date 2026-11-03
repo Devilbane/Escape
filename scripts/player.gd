@@ -302,7 +302,14 @@ func _update_sneak_look() -> void:
 	if is_equal_approx(alpha, _shown_alpha):
 		return
 	_shown_alpha = alpha
-	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+	look_sneaky(_model, alpha)
+
+
+## Greys and fades a model of the hero (alpha 0 brings the plain look back).
+## WorldPreload uses it on a copy, so the see-through shaders are built
+## before the first sneak.
+func look_sneaky(model: Node3D, alpha: float) -> void:
+	for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		if HairLook.is_hair(mesh.material_override):
 			# Hair, scalp and face: their own shader greys and fades them.
 			HairLook.fade(mesh.material_override as ShaderMaterial, alpha)

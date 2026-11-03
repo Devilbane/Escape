@@ -562,8 +562,9 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_lantern(pos)
 		"r":
 			var rock: String = ["rock_single_A", "rock_single_C", "rock_single_E"][_rng.randi() % 3]
-			_put(rock, pos + _jitter(0.4), _rng.randf() * TAU, _rng.randf_range(7.0, 9.0))
-			_add_solid(pos, Vector3(2.8, 1.6, 2.8))
+			# Blocked where the boulder is drawn: some reach well past the
+			# middle of their tile, and the hero must not squeeze in between.
+			_add_turned_solid(_put(rock, pos + _jitter(0.4), _rng.randf() * TAU, _rng.randf_range(7.0, 9.0)), 1.6)
 		"T":
 			_build_tree(pos, true)
 			_add_solid(pos, Vector3(1.8, 4, 1.8))

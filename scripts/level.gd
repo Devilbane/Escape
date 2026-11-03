@@ -1100,6 +1100,26 @@ func _add_round_solid(model: Node3D, height: float) -> void:
 	_walls_body.add_child(shape)
 
 
+## Blocks an irregular piece (a boulder) where it is drawn: a box round its
+## own footprint, scaled and turned with it, a little inside its outline
+## (`inset`), as the piece is rounder than its box. It is not cut to its
+## tile: a boulder that reaches over into the next tile blocks there too,
+## or the hero could walk into the drawn rock from that side.
+func _add_turned_solid(model: Node3D, height: float, inset := 0.9) -> void:
+	var own := footprint(model, model)
+	if own.size.x < 0.05 or own.size.z < 0.05:
+		_add_solid(model.position, Vector3(2.8, height, 2.8))
+		return
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(own.size.x * model.scale.x * inset, height, own.size.z * model.scale.z * inset)
+	shape.shape = box
+	var middle := model.transform * own.get_center()
+	shape.position = Vector3(middle.x, height * 0.5, middle.z)
+	shape.rotation.y = model.rotation.y
+	_walls_body.add_child(shape)
+
+
 ## The bounds of a model's visible meshes in the space of `space` (an
 ## ancestor of it), from the floor up; flat bits lying on the floor (a rug,
 ## a shadow) do not count. An empty AABB when there are none.
@@ -2248,15 +2268,18 @@ func set_out_cell(pos: Vector3) -> Vector2i:
 	var c := world_to_cell(pos)
 	if not astar.is_in_boundsv(c) or not astar.is_point_solid(c) or _stone_cut.has(c):
 		return c
+	# The nearest free tile, also past a corner or a second piece (in among
+	# boulders lying side by side).
 	var best := c
 	var best_distance := INF
-	for d in DIRS:
-		var n := c + d
-		if astar.is_in_boundsv(n) and not astar.is_point_solid(n):
-			var distance := Vector2(pos.x, pos.z).distance_to(Vector2(cell_to_world(n).x, cell_to_world(n).z))
-			if distance < best_distance:
-				best = n
-				best_distance = distance
+	for dy in range(-2, 3):
+		for dx in range(-2, 3):
+			var n := c + Vector2i(dx, dy)
+			if astar.is_in_boundsv(n) and not astar.is_point_solid(n):
+				var distance := Vector2(pos.x, pos.z).distance_to(Vector2(cell_to_world(n).x, cell_to_world(n).z))
+				if distance < best_distance:
+					best = n
+					best_distance = distance
 	return best
 
 

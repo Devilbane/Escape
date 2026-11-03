@@ -51,6 +51,7 @@ func _run() -> void:
 	await _check_maps()
 	await _check_walk_off()
 	await _check_no_shove()
+	await _check_boulders()
 	print("PASS" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
 
@@ -203,3 +204,39 @@ func _check_no_shove() -> void:
 	p.take_damage(1, at - toward * 2.0, null, false)
 	await _wait(40)
 	check(lv.world_to_cell(p.global_position) == spot.free, "a blow threw the hero onto the table's tile")
+
+
+## Out in the open the boulders (r) are drawn up to about 4 m wide: their
+## collision follows that shape, so the hero cannot squeeze in between two
+## of them into the drawn rock. And from a boulder's tile a click still finds
+## a free tile to set out from.
+func _check_boulders() -> void:
+	game.load_level(game._outdoor_index(), false)
+	await _wait(3)
+	var lv: Level = game.level
+	var p: Player = game.player
+	var space := p.get_world_3d().direct_space_state
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = p.radius
+	capsule.height = p.tall
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.exclude = [p.get_rid()]
+	var boulders := 0
+	for node in lv.get_children():
+		if not node is Node3D or not String(node.scene_file_path).contains("rock_single") or node.scale.x < 5.0:
+			continue
+		boulders += 1
+		var own := Level.footprint(node, node)
+		for side in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)]:
+			# Well inside the drawn rock, towards each side of it.
+			var local: Vector3 = own.get_center() + side * own.size * 0.4
+			var spot: Vector3 = node.transform * local
+			query.transform = Transform3D(Basis(), Vector3(spot.x, p.tall * 0.5 + 0.1, spot.z))
+			check(not space.intersect_shape(query, 1).is_empty(),
+					"the hero fits inside the boulder at %s (%s)" % [lv.world_to_cell(node.position), spot])
+		var c := lv.world_to_cell(node.position)
+		var out := lv.set_out_cell(lv.cell_to_world(c))
+		check(lv.astar.is_in_boundsv(out) and not lv.astar.is_point_solid(out),
+				"no free tile to set out from beside the boulder at %s" % c)
+	check(boulders > 5, "the open-air map has boulders (%d)" % boulders)

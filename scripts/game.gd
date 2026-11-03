@@ -252,6 +252,9 @@ var _message_box: VBoxContainer
 var _message_duration := 0.0
 ## Space kept free left and right of centred on-screen texts.
 const SCREEN_TEXT_MARGIN := 80
+## Space kept free left and right of the message lines: past the event log
+## and the first-steps card at the left edge (see EventLog, Tutorial).
+const MESSAGE_MARGIN := EventLog.LEFT + Tutorial.CARD_WIDTH + 16.0
 const MESSAGE_FONT_SIZE := 24
 ## How far above the bottom of the screen the messages sit (their lower edge).
 const MESSAGE_BOTTOM := 175.0
@@ -997,8 +1000,10 @@ func _setup_hud() -> void:
 	# grows upwards, so no line can ever cover another.
 	_message_box = VBoxContainer.new()
 	_message_box.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	_message_box.offset_left = SCREEN_TEXT_MARGIN
-	_message_box.offset_right = -SCREEN_TEXT_MARGIN
+	# The column stays clear of the event log and the first-steps card at the
+	# left, and keeps centred.
+	_message_box.offset_left = MESSAGE_MARGIN
+	_message_box.offset_right = -MESSAGE_MARGIN
 	_message_box.offset_top = -MESSAGE_BOTTOM
 	_message_box.offset_bottom = -MESSAGE_BOTTOM
 	_message_box.grow_vertical = Control.GROW_DIRECTION_BEGIN

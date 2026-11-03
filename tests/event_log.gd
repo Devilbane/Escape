@@ -93,6 +93,14 @@ func _fill() -> void:
 
 func _check_layout() -> void:
 	var elog: EventLog = game.event_log
+	# The first-steps card sits right under the log, on its left edge, clear
+	# of the message lines and the list of keys at the bottom.
+	var card: Control = game.tutorial.card
+	var card_rect := Rect2(card.position, card.get_combined_minimum_size())
+	var log_rect := elog.get_global_rect()
+	check(card_rect.position.y >= log_rect.end.y and is_equal_approx(card_rect.position.x, log_rect.position.x), "the first-steps card sits under the log: %s vs %s" % [card_rect, log_rect])
+	check(card_rect.end.x < game._message_box.get_global_rect().position.x, "the card keeps clear of the message lines: %s vs %s" % [card_rect, game._message_box.get_global_rect()])
+	check(card_rect.end.y < game._help.get_global_rect().position.y, "the card keeps clear of the list of keys: %s vs %s" % [card_rect, game._help.get_global_rect()])
 	# Scrolling back: within the lines there are, and back to the newest.
 	elog.scroll_to(1e9)
 	check(elog.scrolled() > 0.0, "the log scrolls back to older lines")

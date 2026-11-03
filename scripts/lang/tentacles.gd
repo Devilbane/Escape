@@ -4,6 +4,6 @@ extends RefCounted
 
 const EN := {
 	"Blubb...": "Blub...",
-	"Tentakel unter den Gittern: Unter manchen Bodengittern lauert etwas im dunklen Wasser. Gurgelt es und steigen Blasen auf, tritt schnell vom Gitter herunter, sonst schlägt ein Tentakel zu.":
-		"Tentacles under the grates: something lurks in the dark water under some floor grates. When it gurgles and bubbles rise, step off the grate quickly, or a tentacle strikes.",
+	"Tentakel unter den Gittern: Unter manchen Bodengittern lauert etwas im dunklen Wasser. Gurgelt es und steigen Blasen auf, bring schnell zwei Felder Abstand zwischen dich und das Gitter, sonst schlägt ein Tentakel zu. Sein Schlag kann dich vergiften.":
+		"Tentacles under the grates: something lurks in the dark water under some floor grates. When it gurgles and bubbles rise, quickly put two tiles between you and the grate, or a tentacle strikes. Its blow can poison you.",
 }

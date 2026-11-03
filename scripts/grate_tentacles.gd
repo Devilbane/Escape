@@ -10,10 +10,12 @@ extends Node3D
 ##      So most passes go by quietly.
 ##   2. The tell (TELL_TIME): the water gurgles, bubbles rise through the
 ##      bars, "Blubb..." floats up and the tip of the tentacle shows below
-##      them. Step off the grate now and the blow misses.
-##   3. The strike: the tentacle shoots up and lashes down. If the hero is
-##      still within HIT_REACH, it hits for damage() and knocks them back,
-##      away from the grate. Like a blow, it can be blocked or dodged.
+##      them. Get two tiles away now and the blow misses.
+##   3. The strike: the tentacle shoots up, stretching as far as it must to
+##      reach the hero, and lashes down. If the hero is still within
+##      HIT_REACH (two tiles), it hits for damage() and knocks them back,
+##      away from the grate; one blow in POISON_CHANCE also poisons them
+##      (Player.afflict("gift")). Like a blow, it can be blocked or dodged.
 ##   4. The retreat: it sways a moment, then sinks back into the pit, and
 ##      that grate rests for REST seconds.
 ##
@@ -30,9 +32,11 @@ const NEAR := 2.4
 const CHANCE := 0.25
 const ROLL_EVERY := 2.0
 ## The warning before the blow (seconds), and how close the hero must still
-## be when it lands to be hit. A step or two off the grate is enough.
+## be when it lands to be hit: two tiles from the grate's middle.
 const TELL_TIME := 1.2
-const HIT_REACH := 2.7
+const HIT_REACH := 2.0 * Level.TILE
+## How often a blow that lands also poisons the hero.
+const POISON_CHANCE := 0.3
 ## Seconds a grate stays quiet after its tentacle sank back.
 const REST := 12.0
 ## Damage: 1 + place level / DAMAGE_LEVELS, like a spike trap.
@@ -43,10 +47,17 @@ const LASH_TIME := 0.18
 const HOLD_TIME := 0.7
 const SINK_TIME := 0.9
 ## The tentacle: SEGMENTS pieces, LENGTH metres in all, thick at the root.
+## To strike a hero further away it stretches, up to MAX_STRETCH times.
 const SEGMENTS := 10
 const LENGTH := 3.0
 const ROOT_RADIUS := 0.3
 const TIP_RADIUS := 0.05
+## How far the tip lands from the root, for each metre of tentacle, once it
+## has lashed down (the curl of the lash, see _pose).
+const LASH_REACH := 0.72
+const MAX_STRETCH := HIT_REACH / (LASH_REACH * LENGTH)
+## The bend of each piece at the end of the lash.
+const LASH_BEND := 0.22
 ## Where the tentacle grows from: the floor of the pit (GratePits.PIT_BOTTOM).
 ## Whatever of it is not out yet hides below that floor.
 const ROOT_Y := -1.0
@@ -60,20 +71,22 @@ const GLOW := Color(0.45, 0.85, 0.35)
 ## The colour of the warning word over the grate.
 const TELL_COLOR := Color(0.62, 0.86, 0.55)
 ## What the compendium says about them.
-const LEARN := "Tentakel unter den Gittern: Unter manchen Bodengittern lauert etwas im dunklen Wasser. Gurgelt es und steigen Blasen auf, tritt schnell vom Gitter herunter, sonst schlägt ein Tentakel zu."
+const LEARN := "Tentakel unter den Gittern: Unter manchen Bodengittern lauert etwas im dunklen Wasser. Gurgelt es und steigen Blasen auf, bring schnell zwei Felder Abstand zwischen dich und das Gitter, sonst schlägt ein Tentakel zu. Sein Schlag kann dich vergiften."
 
 signal struck(hit: bool)
 
 var level: Level
 ## Each grate: {"cell", "state" ("idle", "tell", "rise", "lash", "hold",
 ## "sink"), "time" (in this state), "rest", "roll" (seconds to the next
-## roll), "near", "node", "joints", "bubbles", "glow", "out" (0..1),
-## "bend"}.
+## roll), "near", "node", "joints", "parts" (each joint's [body, sucker]),
+## "bubbles", "glow", "out" (0..1), "bend", "stretch", "aim" (the stretch
+## it grows to while it rises)}.
 var grates: Array = []
 ## The place's level, for the damage (HeroLevel.place_level).
 var place_level := 1
 ## Overridden by the tests to make the roll certain or impossible.
 var chance := CHANCE
+var poison_chance := POISON_CHANCE
 ## How many rolls were made (for the tests).
 var rolls := 0
 var _time := 0.0
@@ -93,7 +106,7 @@ static func make(owner_level: Level) -> GrateTentacles:
 	g.place_level = HeroLevel.place_level(owner_level)
 	for c: Vector2i in owner_level.grates:
 		g.grates.append({"cell": c, "state": "idle", "time": 0.0, "rest": 0.0, "roll": 0.0,
-				"near": false, "out": 0.0, "bend": 0.0})
+				"near": false, "out": 0.0, "bend": 0.0, "stretch": 1.0, "aim": 1.0})
 	return g
 
 
@@ -178,32 +191,37 @@ func _advance(g: Dictionary, delta: float, hero: Player) -> void:
 			_glow(g, smoothstep(0.0, 0.4, g.time) * (0.75 + 0.25 * sin(_time * 14.0)))
 			if g.time >= TELL_TIME:
 				_next(g, "rise")
+				# Long enough to reach the hero where they stand now.
+				var d := _flat(hero.global_position, g) if hero else 0.0
+				g.aim = clampf(d / (LASH_REACH * LENGTH), 1.0, MAX_STRETCH)
 				g.bubbles.emitting = false
 				Sfx.play(level, "word_wusch", -2.0, spot)
 		"rise":
 			var k := clampf(g.time / RISE_TIME, 0.0, 1.0)
 			g.out = lerpf(PEEK, 1.0, k * (2.0 - k))
 			g.bend = lerpf(0.05, -0.06, k)
+			g.stretch = lerpf(1.0, g.aim, k)
 			_glow(g, 1.0 - k)
 			if g.time >= RISE_TIME:
 				_next(g, "lash")
 		"lash":
 			var k := clampf(g.time / LASH_TIME, 0.0, 1.0)
-			g.bend = lerpf(-0.06, 0.15, k * k)
+			g.bend = lerpf(-0.06, LASH_BEND, k * k)
 			if g.time >= LASH_TIME:
 				_next(g, "hold")
 				_strike(g, hero)
 		"hold":
-			g.bend = 0.15 - 0.05 * smoothstep(0.0, HOLD_TIME, g.time)
+			g.bend = LASH_BEND - 0.1 * smoothstep(0.0, HOLD_TIME, g.time)
 			if g.time >= HOLD_TIME:
 				_next(g, "sink")
 		"sink":
 			var k := clampf(g.time / SINK_TIME, 0.0, 1.0)
 			g.out = 1.0 - k * k
-			g.bend = lerpf(0.1, 0.0, k)
+			g.bend = lerpf(LASH_BEND - 0.1, 0.0, k)
 			if g.time >= SINK_TIME:
 				_next(g, "idle")
 				g.out = 0.0
+				g.stretch = 1.0
 				g.rest = REST
 				g.roll = ROLL_EVERY
 				g.node.visible = false
@@ -227,7 +245,11 @@ func _strike(g: Dictionary, hero: Player) -> void:
 	var spot := level.cell_to_world(g.cell)
 	var hit: bool = hero != null and not hero.dead and _flat(hero.global_position, g) <= HIT_REACH
 	if hit:
+		var before := hero.hp
 		hero.take_damage(damage(), spot, null, true)
+		# Only a blow that got through (not blocked or dodged) can poison.
+		if hero.hp < before and not hero.dead and randf() < poison_chance:
+			hero.afflict("gift")
 	else:
 		# It slaps the empty floor.
 		Sfx.play(level, "word_wamm", -6.0, spot)
@@ -243,9 +265,20 @@ func _flat(p: Vector3, g: Dictionary) -> float:
 ## piece bends towards the hero (g.bend), with a slow, living sway on top.
 func _pose(g: Dictionary) -> void:
 	var root: Node3D = g.joints[0]
-	root.position.y = ROOT_Y - LENGTH * (1.0 - g.out)
+	var stretch: float = g.stretch
+	root.position.y = ROOT_Y - LENGTH * stretch * (1.0 - g.out)
+	var piece := LENGTH / SEGMENTS * stretch
+	# A stretched tentacle thickens a little, so it does not turn to string.
+	var wide := 1.0 + (stretch - 1.0) * 0.15
 	for i in g.joints.size():
 		var j: Node3D = g.joints[i]
+		if i > 0:
+			j.position.y = piece
+		var body: Node3D = g.parts[i][0]
+		body.scale = Vector3(wide, stretch, wide)
+		body.position.y = piece * 0.5
+		if g.parts[i][1]:
+			g.parts[i][1].position.y = piece * 0.5
 		var share := float(i) / SEGMENTS
 		var sway := sin(_time * 3.1 + i * 0.7) * 0.07 * (0.4 + share)
 		# The tip curls more than the root.
@@ -266,6 +299,7 @@ func _build(g: Dictionary) -> void:
 	var sucker := _material(SUCKER, 0.5)
 	var piece := LENGTH / SEGMENTS
 	var joints: Array = []
+	var parts: Array = []
 	var parent: Node3D = node
 	for i in SEGMENTS:
 		var r0 := lerpf(ROOT_RADIUS, TIP_RADIUS, float(i) / SEGMENTS)
@@ -296,6 +330,7 @@ func _build(g: Dictionary) -> void:
 		knot.material_override = skin
 		j.add_child(knot)
 		# Suckers on the inside of the curl (towards the hero).
+		parts.append([body, null])
 		if i > 0:
 			var s := MeshInstance3D.new()
 			var cup := SphereMesh.new()
@@ -308,8 +343,10 @@ func _build(g: Dictionary) -> void:
 			s.position = Vector3(0, piece * 0.5, r0 * 0.92)
 			s.rotation.x = PI * 0.5
 			j.add_child(s)
+			parts[i][1] = s
 		parent = j
 	g.joints = joints
+	g.parts = parts
 	# Bubbles rising from the water through the bars.
 	var bubbles := CPUParticles3D.new()
 	bubbles.emitting = false

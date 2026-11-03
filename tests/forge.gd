@@ -2,7 +2,9 @@ extends SceneTree
 ## Headless test for the smith's forge in the village: Gorm stands at his
 ## forge, metal gear melts down into iron bars (cloth and leather do not),
 ## iron and gold forge new gear into the bag, worn armour is mended for gold,
-## iron bars can be bought, Gorm sells his own better weapons (found nowhere
+## iron bars can be bought, fine pieces and jewellery melt into bronze,
+## silver and gold by one table with the dragon's hoard, Gorm buys the fine
+## bars back, Gorm sells his own better weapons (found nowhere
 ## else, shown in the hero's hand), and the iron is kept in the saved game.
 ## Run with: godot --headless --fixed-fps 60 -s tests/forge.gd
 
@@ -55,6 +57,16 @@ func _run() -> void:
 	check(Forge.can_melt("plattenpanzer") and Forge.can_melt("schwert") and Forge.can_melt("kupferring"), "metal gear and jewellery melt")
 	check(not Forge.can_melt("lederwams") and not Forge.can_melt("wollumhang") and not Forge.can_melt("fechtbuch") and not Forge.can_melt("steinblock"), "leather, cloth, books and stone do not")
 	check(Forge.melt_yield("plattenpanzer") == 6 and Forge.melt_yield("schwert") == 2, "pricier pieces give more iron")
+	# One table by kind and rarity: plain gear iron, fine gear fittings of a
+	# finer metal, jewellery the metal of its rarity, magic moon silver.
+	check(Forge.melt_into("schwert") == {"eisen": 2}, "a plain sword is iron: %s" % str(Forge.melt_into("schwert")))
+	check(Forge.melt_into("kettenhemd") == {"eisen": 4, "bronze": 1}, "chain mail has bronze fittings: %s" % str(Forge.melt_into("kettenhemd")))
+	check(Forge.melt_into("streitaxt").get("gold", 0) == 1, "a god-born battle axe has gold fittings")
+	check(Forge.melt_into("bronzearmreif") == {"bronze": 2}, "a bronze bracelet is bronze: %s" % str(Forge.melt_into("bronzearmreif")))
+	check(Forge.melt_into("rubinring") == {"silber": 2}, "a ruby ring is silver: %s" % str(Forge.melt_into("rubinring")))
+	check(Forge.melt_into("klingenring") == {"gold": 1, "mondsilbererz": 1}, "a magic epic ring is gold and moon silver: %s" % str(Forge.melt_into("klingenring")))
+	check(Forge.melt_into("lederwams").is_empty() and Forge.melt_into("knochenhelm").is_empty(), "leather and bone do not melt at the forge")
+	check(DragonHoard.melt("kettenhemd") == Forge.melt_into("kettenhemd"), "the dragon melts by the same table")
 	var recipes := Forge.recipes()
 	check(recipes.has("schwert") and recipes.has("plattenpanzer") and recipes.has("ritterhelm") and not recipes.has("lederwams") and not recipes.has("vampirzahn"), "the smith forges metal gear only")
 	for id in recipes:
@@ -75,6 +87,7 @@ func _run() -> void:
 	p.bag.clear()
 	p.bag.append_array(["plattenpanzer", "lederwams", "kupferring"])
 	game.iron = 0
+	game.bars = {}
 	game.coins = 100
 	game.menus.open("schmied")
 	check(game.menus.current == "schmied", "the smith's window opens")
@@ -84,14 +97,16 @@ func _run() -> void:
 	check(p.bag.size() == 3 and game.iron == 0, "leather does not melt")
 	game.menus._melt(0)
 	check(Array(p.bag) == ["lederwams", "kupferring"] and game.iron == 6, "the plate armour melts into 6 iron bars")
+	check(int(game.bars.get("gold", 0)) == 1, "and its fine fittings into a gold bar (%s)" % str(game.bars))
 	game.menus._melt(1)
-	check(Array(p.bag) == ["lederwams"] and game.iron == 8, "the copper ring into 2 more")
+	check(Array(p.bag) == ["lederwams"] and game.iron == 6 and int(game.bars.get("bronze", 0)) == 3, "the copper ring into 3 bronze bars (%s)" % str(game.bars))
+
 
 	# Forging.
 	game.menus._show_forge_tab("schmieden")
 	var cost := Forge.forge_cost("ritterhelm")
 	game.menus._forge("ritterhelm")
-	check(p.bag.has("ritterhelm") and game.iron == 8 - cost.iron and game.coins == 100 - cost.gold, "iron and gold become a knight's helmet")
+	check(p.bag.has("ritterhelm") and game.iron == 6 - cost.iron and game.coins == 100 - cost.gold, "iron and gold become a knight's helmet (%d iron, %d gold)" % [game.iron, game.coins])
 	game.iron = 0
 	game.menus._forge("schwert")
 	check(not p.bag.has("schwert") and game.coins == 100 - cost.gold, "without iron nothing is forged")
@@ -162,6 +177,15 @@ func _run() -> void:
 	p.equipped.clear()
 	p.refresh_stats()
 
+	# Gorm buys the fine bars back, one at a time.
+	game.menus.open("schmied")
+	game.menus._show_forge_tab("einschmelzen")
+	var coins_now: int = game.coins
+	game.menus._sell_bar("bronze")
+	check(int(game.bars.get("bronze", 0)) == 2 and game.coins == coins_now + Forge.METALS.bronze.worth, "a bronze bar sold to Gorm")
+	game.menus._sell_bar("silber")
+	check(game.coins == coins_now + Forge.METALS.bronze.worth and game.menus._note != "", "no silver bar, nothing sold")
+
 	# The iron stays in the saved game.
 	game.iron = 7
 	await _wait(5)
@@ -169,7 +193,14 @@ func _run() -> void:
 	var data: Dictionary = game._read_save(game.save_path())
 	check(int(data.get("iron", -1)) == 7, "the saved game holds the iron")
 	game.iron = 0
+	var bars_had: Dictionary = game.bars.duplicate()
+	game.bars = {}
 	game._apply_save(data)
 	await _wait(5)
 	check(game.iron == 7, "after loading the iron is back")
+	check(game.bars == bars_had and not bars_had.is_empty(), "and the fine bars too (%s)" % str(game.bars))
+	data.erase("bars")
+	game._apply_save(data)
+	await _wait(5)
+	check(game.bars.is_empty(), "a game saved before the fine bars has none")
 	_finish()

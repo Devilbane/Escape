@@ -115,6 +115,10 @@ var writing_card := WritingCard.new(self)
 ## too, still counts as day d: that is when the wandering merchant comes
 ## (see Wanderer).
 var day := 0
+## The gold the old dragon's helpers heaped up in its lair, from the loot
+## they gather on the open ground at night (see DragonHoard). Kept in the
+## saved game.
+var hoard := DragonHoard.new()
 ## The hunts on the bounty board: posted, taken on and paid (see Bounties).
 ## Kept in the saved game.
 var bounties := Bounties.new(self)
@@ -144,6 +148,10 @@ var interiors := {}
 var coins := 0
 ## Iron bars for the smith's forge (see Forge), counted like gold.
 var iron := 0
+## The fine bars the hero has, by metal ("bronze", "silber", "gold"): melted
+## at the forge or taken from the dragon's hoard, bought back by the smith
+## (see Forge). Kept in the saved game.
+var bars := {}
 ## The hero's companions (see Companions): {"kind", "name"} for each, the
 ## index of the one that goes with the hero (-1: none, they all wait at
 ## home), and how many gifts each kind of wild animal has eaten from the
@@ -359,6 +367,7 @@ func _bus_links() -> Array:
 		[bus.hero_acted, tutorial.on_hero_acted],
 		[bus.loot_found, event_log.add_loot],
 		[bus.speech_said, heard],
+		[bus.loot_carried_off, _on_loot_carried_off],
 	]
 
 
@@ -1811,6 +1820,7 @@ static func _dawn_between(from: float, to: float) -> bool:
 ## finished in time are over.
 func _new_day(quiet := false) -> void:
 	day += 1
+	_dragon_morning(quiet)
 	var expired := bounties.refresh(day)
 	if quiet or not escaped:
 		return
@@ -1818,6 +1828,63 @@ func _new_day(quiet := false) -> void:
 	if expired > 0:
 		text += "\n" + Lang.t("Nicht erledigte Jagden vom Vortag sind verfallen: %d") % expired
 	quest_news(text, Color(1.0, 0.82, 0.4), 4.0)
+
+
+# --- The dragon's helpers ------------------------------------------------------
+
+## A helper carried something off the open ground before the hero's eyes
+## (see DragonHelpers): into the hoard. The first of a night gets a line in
+## the event log, and the compendium learns of them.
+func _on_loot_carried_off(kind: String, id: String) -> void:
+	var first := int(hoard.tonight.things) == 0
+	hoard.gather(kind, id)
+	if first:
+		Events.found(Lang.t("Kleine Drachlinge schwärmen aus dem Berg und tragen fort, was am Boden liegt."), DragonHoard.COLOR)
+		learn(DragonHoard.LORE)
+
+
+## The morning after a night: what still lay about in the open air, where
+## the hero did not watch the helpers at work (in a building, below ground,
+## asleep), they took unseen. Then the event log tells what the night brought.
+func _dragon_morning(asleep := false) -> void:
+	var outdoor := _outdoor_index()
+	if outdoor >= 0:
+		var key := level_files[outdoor].get_file()
+		var watched: bool = not asleep and level is Outdoor and level.file == key
+		if floors.has(key) and not watched:
+			if level is Outdoor and level.file == key:
+				# Asleep in the open: the things vanish from the ground too.
+				for p in level.floor_pickups():
+					var node: Node3D = level.take_from_floor(p)
+					if node:
+						node.queue_free()
+					hoard.gather(str(p.floor[0]), str(p.floor[1]))
+			hoard.sweep(floors[key])
+	var text := hoard.morning_report()
+	if text != "":
+		Events.found(text, DragonHoard.COLOR)
+		learn(DragonHoard.LORE)
+
+
+## The hero took the dragon's hoard in its lair: the coins into the purse,
+## the bars into the hero's stores (see Forge.store): iron for the smith's
+## forge, moon silver into the pouch, the fine bars for Gorm to buy.
+func _on_hoard_taken() -> void:
+	var had := hoard.take_all()
+	var amount := int(had.get("coins", 0))
+	had.erase("coins")
+	var text := Forge.metals_text(had)
+	if text != "":
+		Events.found(Lang.t("Der Hort des Drachen: %s") % text, GOLD)
+		Forge.store(self, had)
+		Sfx.play_gear(level, "schwert", 0.0, player.global_position)
+	if amount > 0:
+		coins += amount
+		Events.found(Lang.t("+%d Gold") % amount, GOLD)
+		Sfx.play_coins(self, amount)
+	_update_hud()
+
+
 ## The weather runs on the clock: when its hours are up, the next weather
 ## comes, picked for the hour (see Weather.roll).
 func _tick_weather(delta: float) -> void:
@@ -1893,6 +1960,8 @@ func load_level(index: int, restock := true) -> void:
 	if not floors.has(floor_key):
 		floors[floor_key] = []
 	level.floor_items = floors[floor_key]
+	if level.lair:
+		level.hoard = hoard.contents()
 	if level is Outdoor:
 		# Bandits who take their spots at night are tougher (see Outdoor.set_hour).
 		level.night = DayNight.is_night(day_hour)
@@ -1941,6 +2010,8 @@ func load_level(index: int, restock := true) -> void:
 	level.lair_won.connect(_on_lair_won)
 	level.dragon_awakened.connect(_on_dragon_awakened)
 	level.lair_exit_taken.connect(leave_lair)
+	level.hoard_taken.connect(_on_hoard_taken)
+	level.hoard_guarded.connect(func(): show_message(Lang.t("Glutschlund wacht über seinen Hort. Besiege den Drachen, dann gehört der Hort dir."), 3.0))
 	level.stairs_taken.connect(_take_stairs)
 	if level.traps:
 		level.traps.teleported.connect(_on_trap_teleport)
@@ -2217,6 +2288,7 @@ func begin_new_game() -> void:
 	_name_edit.release_focus()
 	coins = 0
 	iron = 0
+	bars = {}
 	companions = []
 	following = -1
 	trust = {}
@@ -2249,6 +2321,7 @@ func begin_new_game() -> void:
 	shop_stock.clear()
 	wanderer_stock.clear()
 	wanderer_night = -1
+	hoard.clear()
 	away_plan = Offline.empty_plan()
 	day_hour = DayNight.START_HOUR
 	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
@@ -2553,6 +2626,12 @@ func _apply_save(data: Dictionary) -> void:
 	hero_name = data.get("name", Lang.t("Namenlos"))
 	coins = int(data.coins)
 	iron = int(data.get("iron", 0))
+	bars = {}
+	var saved_bars = data.get("bars", {})
+	if saved_bars is Dictionary:
+		for metal in saved_bars:
+			if str(metal) in Forge.FINE and int(saved_bars[metal]) > 0:
+				bars[str(metal)] = int(saved_bars[metal])
 	var friends := Companions.from_save(data)
 	companions = friends.list
 	following = friends.following
@@ -2635,6 +2714,7 @@ func _apply_save(data: Dictionary) -> void:
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
 	wanderer_night = int(data.get("wanderer_night", -1))
+	hoard.load_from(data.get("hoard", {}))
 	wanderer_stock.clear()
 	var wares = data.get("wanderer", [])
 	if wares is Array:
@@ -2786,7 +2866,7 @@ func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	journal.catch_up()
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "iron": iron, "bars": bars, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
@@ -2804,6 +2884,7 @@ func save_game(going_away := false) -> bool:
 		"companions": {"list": companions, "following": following, "trust": trust},
 		"hour": day_hour,
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
+		"hoard": hoard.for_save(),
 		"weather": weather, "weather_hours": weather_hours,
 		"inn": level.inn,
 	}

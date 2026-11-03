@@ -50,6 +50,10 @@ signal lair_won
 signal dragon_awakened(dragon: Dragon)
 ## The hero stepped into the glowing way out that opens once the lair is won.
 signal lair_exit_taken
+## The hero took the dragon's hoard (see DragonHoard).
+signal hoard_taken
+## The hero stepped onto the hoard while its dragon still lives.
+signal hoard_guarded
 signal exit_reached
 ## The boss of a mine floor has fallen (see Mines).
 signal boss_won
@@ -231,6 +235,10 @@ const HORROR_FROM_DEPTH := 3
 const HORROR_MIN_STEPS := 10
 ## Whether the lair's dragon has fallen on this visit.
 var lair_cleared := false
+## What the dragon's helpers heaped up in the lair, "coins" and bars by
+## metal (see DragonHoard.contents), handed in by the game before build().
+## It lies beside the hoard chest.
+var hoard := {}
 ## The glowing way out that opens in the lair once the dragon has fallen.
 var lair_exit: Node3D
 ## Whether the hero still stands in the way out (it leads out once per step).
@@ -3259,6 +3267,12 @@ func _check_pickups() -> void:
 			# Just dropped at the hero's feet: it stays until they step away
 			# and come back for it.
 			continue
+		if p.kind == "hoard" and not lair_cleared:
+			# The dragon sleeps on its gold: it is the hero's once it fell.
+			if not p.has("warned"):
+				p.warned = true
+				hoard_guarded.emit()
+			continue
 		if p.kind == "item" and not player.bag_fits(p.id):
 			if not p.has("warned"):
 				p.warned = true
@@ -3279,6 +3293,9 @@ func _check_pickups() -> void:
 			item_collected.emit(p.id)
 		elif p.kind == "ingredient":
 			ingredient_collected.emit(p.ingredient)
+		elif p.kind == "hoard":
+			hoard = {}
+			hoard_taken.emit()
 		else:
 			coins_collected.emit(1)
 
@@ -3917,6 +3934,24 @@ func lies_on_floor(id: String) -> bool:
 	return floor_items.any(func(e): return e is Array and e.size() >= 2 and e[0] == "item" and e[1] == id)
 
 
+## Takes a pickup lying on the floor list off the floor (the dragon's
+## helpers carry it away, see DragonHelpers): no longer a pickup, gone from
+## floor_items. Returns its node, which the caller frees, or null when it
+## was taken already.
+func take_from_floor(p: Dictionary) -> Node3D:
+	if not _pickups.has(p):
+		return null
+	_pickups.erase(p)
+	if p.has("floor"):
+		floor_items.erase(p.floor)
+	return p.node if is_instance_valid(p.node) else null
+
+
+## The pickups the dragon's helpers may take: what lies on the floor list.
+func floor_pickups() -> Array:
+	return _pickups.filter(func(p): return p.has("floor") and is_instance_valid(p.node) and DragonHoard.takes(p.floor))
+
+
 ## Sets an item from the bag down at the hero's feet. It stays there (also
 ## after leaving and coming back, or a reload) until picked up again, which
 ## needs a step away first.
@@ -4016,6 +4051,73 @@ func _decorate_lair() -> void:
 				for i in 4:
 					var angle := TAU * i / 4.0 + _rng.randf_range(-0.4, 0.4)
 					_place_lair("Coin_Pile", pos + Vector3(cos(angle), 0, sin(angle)) * 2.0, _rng.randf() * TAU, _rng.randf_range(7.0, 11.0))
+				if hoard.values().any(func(n): return int(n) > 0) and _hoard == null:
+					_hoard = _build_hoard(c)
+
+
+## The hoard the dragon's helpers brought in (see DragonHoard), on the free
+## tile beside the hoard chest: a heap of coins, bigger the more it is worth,
+## with little stacks of bars around it, one stack per metal in its own
+## colour, and a warm glow. Walked over once the dragon has fallen, it is
+## the hero's.
+var _hoard: Node3D
+const HOARD_SCALE := Vector2(7.0, 18.0)
+
+
+func _build_hoard(chest: Vector2i) -> Node3D:
+	var spot := _lair_exit_spot(chest)
+	if spot.is_equal_approx(cell_to_world(chest)):
+		spot += Vector3(0, 0, TILE * 0.5)
+	var holder := Node3D.new()
+	holder.position = spot
+	add_child(holder)
+	var worth := DragonHoard.coin_worth(int(hoard.get("coins", 0)), hoard)
+	var size := clampf(HOARD_SCALE.x + worth / 25.0, HOARD_SCALE.x, HOARD_SCALE.y)
+	_place_lair("Coin_Pile", Vector3.ZERO, randf() * TAU, size).reparent(holder, false)
+	var stacks: Array = Forge.METALS.keys().filter(func(m): return int(hoard.get(m, 0)) > 0)
+	for i in stacks.size():
+		var angle := PI * 0.75 + TAU * i / 5.0
+		_build_bar_stack(holder, Vector3(cos(angle), 0, sin(angle)) * 1.1, angle, stacks[i], int(hoard[stacks[i]]))
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.78, 0.35)
+	glow.light_energy = 1.3
+	glow.omni_range = 4.0
+	glow.position = Vector3(0, 1.2, 0)
+	holder.add_child(glow)
+	holder.add_child(Effects.make_sparkles(Color(1.0, 0.85, 0.4)))
+	_pickups.append({"node": holder, "kind": "hoard", "radius": 1.8})
+	return holder
+
+
+## A small stack of bars of one metal: a bar for each, up to BAR_STACK_MAX,
+## in rows of three laid crosswise.
+const BAR_STACK_MAX := 9
+const BAR_SIZE := Vector3(0.42, 0.14, 0.2)
+
+
+func _build_bar_stack(holder: Node3D, at: Vector3, rot: float, metal: String, count: int) -> void:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Forge.METALS[metal].color
+	mat.metallic = 0.8
+	mat.roughness = 0.35
+	var mesh := BoxMesh.new()
+	mesh.size = BAR_SIZE
+	mesh.material = mat
+	var stack := Node3D.new()
+	stack.name = "Barren_" + metal
+	stack.position = at
+	stack.rotation.y = rot
+	holder.add_child(stack)
+	for i in mini(count, BAR_STACK_MAX):
+		var layer := i / 3
+		var bar := MeshInstance3D.new()
+		bar.mesh = mesh
+		var across := (i % 3 - 1) * (BAR_SIZE.z + 0.03)
+		bar.position = Vector3(0, BAR_SIZE.y * (layer + 0.5), across)
+		if layer % 2 == 1:
+			bar.position = Vector3(across, BAR_SIZE.y * (layer + 0.5), 0)
+			bar.rotation.y = PI * 0.5
+		stack.add_child(bar)
 
 
 ## How close (metres) the hero must step to the way out's middle to leave.

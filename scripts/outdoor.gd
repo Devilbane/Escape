@@ -371,6 +371,9 @@ func build() -> void:
 	_spawn_villagers()
 	_spawn_wild()
 	_spawn_animals()
+	# The old dragon's little helpers, who gather the loot at night.
+	if doors.has("E"):
+		add_child(DragonHelpers.new(self, doors.E))
 	for y in height:
 		for x in width:
 			if cell_char(Vector2i(x, y)) == "r":

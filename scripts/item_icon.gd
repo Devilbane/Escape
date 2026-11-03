@@ -172,9 +172,11 @@ func _draw() -> void:
 		"crate":
 			draw_rect(Rect2(p.call(0.15, 0.15), Vector2(u * 0.7, u * 0.7)), WOOD)
 			draw_line(p.call(0.15, 0.15), p.call(0.85, 0.85), WOOD.darkened(0.4), u * 0.06)
-		"iron":
-			draw_colored_polygon(PackedVector2Array([p.call(0.1, 0.75), p.call(0.25, 0.45), p.call(0.9, 0.45), p.call(0.75, 0.75)]), STEEL.darkened(0.2))
-			draw_colored_polygon(PackedVector2Array([p.call(0.25, 0.45), p.call(0.32, 0.32), p.call(0.82, 0.32), p.call(0.9, 0.45)]), STEEL)
+		"iron", "bar_bronze", "bar_silber", "bar_gold":
+			# A bar of metal; the fine ones in their own colour (see Forge.METALS).
+			var metal: Color = STEEL if kind_of(what) == "iron" else Forge.METALS[kind_of(what).substr(4)].color
+			draw_colored_polygon(PackedVector2Array([p.call(0.1, 0.75), p.call(0.25, 0.45), p.call(0.9, 0.45), p.call(0.75, 0.75)]), metal.darkened(0.2))
+			draw_colored_polygon(PackedVector2Array([p.call(0.25, 0.45), p.call(0.32, 0.32), p.call(0.82, 0.32), p.call(0.9, 0.45)]), metal)
 		"hammer_anvil":
 			draw_colored_polygon(PackedVector2Array([p.call(0.1, 0.45), p.call(0.9, 0.45), p.call(0.7, 0.62), p.call(0.66, 0.85), p.call(0.34, 0.85), p.call(0.3, 0.62)]), STEEL.darkened(0.3))
 			draw_line(p.call(0.55, 0.38), p.call(0.85, 0.08), WOOD, u * 0.07)

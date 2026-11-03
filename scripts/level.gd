@@ -174,6 +174,10 @@ var floor_items: Array = []
 ## where many fall does not fill the saved game without end.
 const FLOOR_MAX := 80
 var enemies: Array = []
+## Fallen monsters still lying here, oldest first, and the stains and bones
+## left by the ones that rotted away (see Corpse).
+var corpses: Array = []
+var remnants: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
 ## Water the hero can fish in (see Fishing): which water ("brunnen", "teich"
@@ -1810,7 +1814,8 @@ func _someone_on(crate: Crate) -> bool:
 	var bodies: Array = enemies.duplicate()
 	bodies.append(player)
 	for b in bodies:
-		if is_instance_valid(b) and b is Node3D and absf(b.global_position.y - crate.top()) < 0.3 and crate.covers(b.global_position, 0.5):
+		# A corpse (see Corpse) lying on a crate does not hold it down.
+		if is_instance_valid(b) and b is Node3D and not (b is Enemy and b.dead) and absf(b.global_position.y - crate.top()) < 0.3 and crate.covers(b.global_position, 0.5):
 			return true
 	return false
 

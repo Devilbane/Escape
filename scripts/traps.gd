@@ -308,7 +308,7 @@ static func landing_cell(below: Level) -> Vector2i:
 			if below.traps and not below.traps.trap_at(n).is_empty():
 				continue
 			var spot := below.cell_to_world(n)
-			if below.enemies.any(func(e): return is_instance_valid(e) and Vector2(e.global_position.x - spot.x, e.global_position.z - spot.z).length() < Level.TILE * 2.5):
+			if below.enemies.any(func(e): return is_instance_valid(e) and not e.dead and Vector2(e.global_position.x - spot.x, e.global_position.z - spot.z).length() < Level.TILE * 2.5):
 				continue
 			spots.append(n)
 	if spots.is_empty():

@@ -1,8 +1,11 @@
 extends SceneTree
-## Headless test for the village buildings: every house block gets a
-## half-timbered house (see VillageHouse) and the temple a chapel from the
-## Modular Cathedral Kit. Each building stays inside its block, keeps its
-## door in front for the villagers, and its windows glow at night only.
+## Headless test for the village buildings: every house block gets a stone
+## house (see VillageHouse) and the temple a chapel from the Modular
+## Cathedral Kit. Each building stays inside its block, keeps its door in
+## front for the villagers, and its windows glow at night only. All of them
+## share the temple's old stone look (see AgedStone): the KayKit buildings
+## wear the aged stone, ivy climbs the walls (never over a door), birds live
+## in nests up on the roofs, and every door has a way paved like the square.
 ## Run with: godot --headless --fixed-fps 60 -s tests/village_buildings.gd
 
 var failures := 0
@@ -54,6 +57,13 @@ func _bounds(node: Node3D) -> AABB:
 	return box
 
 
+## A material shows a texture: its own, or the old stone's (see AgedStone).
+func _textured(mat: Material) -> bool:
+	if mat is ShaderMaterial:
+		return mat.get_shader_parameter("trim") != null
+	return mat is StandardMaterial3D and (mat as StandardMaterial3D).albedo_texture != null
+
+
 ## The block of tiles (in metres) a building stands on.
 func _block_area(lvl: Outdoor, block: Rect2i) -> Rect2:
 	var half := Level.TILE * 0.5
@@ -101,7 +111,7 @@ func _run() -> void:
 		for i in mesh.get_surface_count():
 			if mesh.surface_get_material(i) == lvl._house_glass():
 				glass = true
-			elif (mesh.surface_get_material(i) as StandardMaterial3D).albedo_texture == null:
+			elif not _textured(mesh.surface_get_material(i)):
 				check(false, "every part of a house is textured")
 		check(glass, "a house has windows")
 		looks["%.2f" % box.size.x + "/%.2f" % box.size.y] = true
@@ -140,4 +150,81 @@ func _run() -> void:
 	for house in houses:
 		var mid := lvl.world_to_cell(house.position)
 		check(lvl.astar.is_point_solid(mid), "a house is solid")
+
+	_check_aged(lvl)
 	_finish()
+
+
+func _check_aged(lvl: Outdoor) -> void:
+	# The KayKit buildings wear the old stone, and their windows still glow.
+	var kit := 0
+	for child in lvl.get_children():
+		if not child is Node3D or not child.has_meta("block"):
+			continue
+		var letter := lvl.cell_char((child.get_meta("block") as Rect2i).position)
+		if letter == "R" or not Outdoor.BLOCK_MODELS.has(letter):
+			continue
+		for mi: MeshInstance3D in child.find_children("*", "MeshInstance3D", true, false):
+			kit += 1
+			var mat := mi.material_override as ShaderMaterial
+			check(mat != null and mat.shader == AgedStone.SHADER, "%s is built of the old stone" % child.name)
+	check(kit > 5, "the smithy, tavern, shop and the rest are there (%d)" % kit)
+	lvl.set_hour(23.0)
+	var lit := false
+	for mat in lvl._window_mats.values():
+		if mat is ShaderMaterial and float(mat.get_shader_parameter("glow")) > 1.0:
+			lit = true
+	check(lit, "the stone buildings' windows glow at night")
+	lvl.set_hour(12.0)
+
+	# Ivy: plenty of it, all of it close to a wall and low down, none in
+	# front of a door.
+	var ivy: MultiMeshInstance3D = lvl.get_node_or_null("Ivy")
+	check(ivy != null and ivy.multimesh.instance_count > 1000, "ivy climbs the walls")
+	if ivy:
+		check(ivy.multimesh.instance_count < 60000, "the ivy and shrubs stay cheap (%d leaves)" % ivy.multimesh.instance_count)
+		var near_door := 0
+		for i in ivy.multimesh.instance_count:
+			var at := ivy.multimesh.get_instance_transform(i).origin
+			if at.y > AgedStone.IVY_HEIGHT.y + 0.5 or at.y < 0.0:
+				check(false, "a leaf grows from the ground up (%.1f m)" % at.y)
+				break
+			for e: Dictionary in lvl._entrances:
+				var door: Vector3 = e.door
+				if Vector2(at.x - door.x, at.z - door.z).length() < 1.0 and at.y < 2.4:
+					near_door += 1
+		check(near_door == 0, "no ivy grows over a door (%d leaves)" % near_door)
+
+	# Nests up high, two birds to each, sitting in them at night.
+	check(lvl.nests.size() >= 4 and lvl.nests.size() <= Outdoor.MAX_NESTS, "there are bird nests on the roofs (%d)" % lvl.nests.size())
+	for nest in lvl.nests:
+		check(nest.y > AgedStone.NEST_HEIGHT, "a nest sits up high (%.1f m)" % nest.y)
+	var birds: VillageBirds = lvl.birds
+	check(birds != null and birds.birds.size() == lvl.nests.size() * VillageBirds.PER_NEST, "two birds live in each nest")
+	if birds:
+		lvl.player = game.player
+		game.player.global_position = lvl.nests[0] - Vector3(0, lvl.nests[0].y, 0)
+		var flew := false
+		for i in 600:
+			birds._process(1.0 / 60.0)
+			if birds.birds.any(func(b): return b.state == "fly"):
+				flew = true
+				break
+		check(flew, "by day the birds fly out")
+		lvl.night = true
+		for i in 60 * 30:
+			birds._process(1.0 / 20.0)
+		check(birds.birds.all(func(b): return b.state == "sit" and b.at == b.home), "at night the birds are home in their nests")
+		lvl.night = false
+
+	# A paved way to every door, and the way in front of it is free.
+	check(lvl._entrances.size() >= 20, "the doors are known (%d)" % lvl._entrances.size())
+	for e: Dictionary in lvl._entrances:
+		var at: Vector3 = e.door + (e.out as Vector3) * 1.0
+		var px := Vector2i(roundi((at.x / Level.TILE + 0.5) * 4.0 - 0.5), roundi((at.z / Level.TILE + 0.5) * 4.0 - 0.5))
+		var m := lvl._ground_img.get_pixelv(px)
+		check(m.r > 0.9 and m.g > 0.9, "the way to the door at %s is paved" % at)
+	# (Not the smithy's: Gorm's forge stands in front of it, see Outdoor._build_forge.)
+	for ch in ["n", "m", "s", "k", "o", "w", "b"]:
+		if lvl.doors.has(ch):
+			check(not lvl.astar.is_point_solid(lvl.world_to_cell(lvl.doors[ch])), "the way in front of %s is free" % ch)

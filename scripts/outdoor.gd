@@ -1766,6 +1766,7 @@ func _spawn_bandit(s: Dictionary) -> void:
 	e.died.connect(func():
 		enemy_killed.emit(e)
 		_drop_gear(e, CHIEF_DROP_CHANCE if is_chief else BANDIT_DROP_CHANCE)
+		_drop_boss_loot(e)
 		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
 		s.enemy = null
 		s.timer = BANDIT_RESPAWN * (NIGHT_RESPAWN_FACTOR if night else 1.0)

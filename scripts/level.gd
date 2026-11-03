@@ -3540,6 +3540,7 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}) ->
 	e.died.connect(func():
 		enemy_killed.emit(e)
 		_drop_gear(e, DROP_CHANCE if not e.is_beast() else BEAST_DROP_CHANCE)
+		_drop_boss_loot(e)
 		# A monster of the lair leaves a little gold, the dragon a heap.
 		var purse: Array = e.custom.get("purse", Enemy.KINDS[e.kind].get("purse", [0, 0]))
 		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
@@ -3651,6 +3652,57 @@ func _drop_gear(e: Enemy, chance := DROP_CHANCE) -> void:
 			Sfx.play_gear(self, id, delay, spot)
 			delay += 0.3
 			spot += Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
+
+
+## Named bosses (the bandit chief, the dragon, the Mountain King, and any
+## monster given a name in the map workshop) hold this small chance, on top
+## of their usual loot, to drop one extra piece of gear that is rare or
+## better (see roll_boss_loot).
+const BOSS_RARE_CHANCE := 0.1
+
+
+## Whether a fallen enemy is a named boss (see BOSS_RARE_CHANCE).
+static func is_named_boss(e: Enemy) -> bool:
+	return e.is_level_boss() or str(e.custom.get("title", "")) != ""
+
+
+## The finest of TIERS whose cheapest gear a piece of gear reaches by price.
+static func tier_of(id: String) -> String:
+	var best := "normal"
+	if not Items.ALL.has(id):
+		return best
+	for t in TIERS:
+		if int(Items.ALL[id].price) >= int(TIERS[t].min_price) and int(TIERS[t].min_price) >= int(TIERS[best].min_price):
+			best = t
+	return best
+
+
+## A named boss's rare loot, or "" when the roll misses (`roll` in 0..1;
+## random when left out). The piece is rare or better, suits the place, and
+## like all finer loot never repeats on this level (see loot_item).
+func roll_boss_loot(e: Enemy, roll := -1.0) -> String:
+	if not is_named_boss(e):
+		return ""
+	if roll < 0.0:
+		roll = randf()
+	if roll >= BOSS_RARE_CHANCE:
+		return ""
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	return loot_item(rng, int(TIERS["selten"].min_price), HeroLevel.place_level(self))
+
+
+## Drops a named boss's rare loot, if the roll hits, beside where it fell,
+## and tells the event log.
+func _drop_boss_loot(e: Enemy) -> void:
+	var id := roll_boss_loot(e)
+	if id == "":
+		return
+	var spot := e.global_position + Vector3(-0.8, 0, 0.8)
+	_drop_item(id, spot)
+	Sfx.play_gear(self, id, 0.6, spot)
+	var tier: Dictionary = TIERS[tier_of(id)]
+	Events.found(Lang.t("Seltene Beute: %s (%s)") % [Items.item_name(id), Lang.t(tier.name)], tier.color)
 
 
 ## Gold coins spilt from a fallen bandit's purse, scattered around the spot.

@@ -64,6 +64,13 @@ func _test() -> void:
 			"(vollständig)", "Eine Inschrift!", "Dein geübtes Auge findet eine Fackel, die hier versteckt lag.",
 			"Ganz erkundet: %s\nDein Blick für Verborgenes wird schärfer (Erkunden)."]:
 		check(Lang.EN.has(text), "has English: " + text)
+	# Every carved word fits on its wall piece, in both languages.
+	var font: Font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	for w in Level.WRITINGS:
+		for word in [w[0], Lang.EN.get(w[0], w[0])]:
+			var size := Level.writing_font_size(font, word, 0.01)
+			var width := font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x * 0.01
+			check(width <= Level.WRITING_MAX_WIDTH, "%s fits on the wall: %.2f m at %d" % [word, width, size])
 	for w in Level.WRITINGS:
 		check(Lang.EN.has(w[1]), "the writing has English: " + w[1])
 		check(Lang.EN.has(w[0]), "the carved word has English: " + w[0])
@@ -116,9 +123,8 @@ func _test() -> void:
 	check(game.lore.has(writing.text), "the writing goes into the compendium")
 	check(p.xp.get("erkunden", 0.0) > before, "a new writing trains Erkunden")
 	check(j.entries.any(func(e): return e.t == "Inschrift entdeckt"), "the journal notes the writing")
-	# A noticed writing stands out: an amber frame round it, a card with its
-	# word and clue, and running into the wall reads it again.
-	check(writing.frame.visible, "a noticed writing gets a frame")
+	# A noticed writing stands out: a card with its word and clue, and
+	# running into the wall reads it again.
 	check(game.level.stations.has(writing.station) and writing.station.kind == "tafel", "a noticed writing can be read again")
 	check(game.writing_card.showing(), "a noticed writing pops up on a card")
 	check(game.writing_card._word.text == Lang.t(writing.word), "the card shows the carved word: %s" % game.writing_card._word.text)
@@ -130,7 +136,7 @@ func _test() -> void:
 	var here: int = game.level_index
 	game.load_level(here, false)
 	var again: Dictionary = game.level.writing()
-	check(again.found and again.label.visible and again.frame.visible, "a noticed writing stays known on the next visit")
+	check(again.found and again.label.visible, "a noticed writing stays known on the next visit")
 	check(game.level.stations.has(again.station), "and can still be read there")
 	check(not game.writing_card.showing(), "a new visit does not pop the card up again")
 	# Walking right up to a writing always notices it, even after a failed roll.
@@ -142,7 +148,7 @@ func _test() -> void:
 	near.rolled = true
 	p.global_position = game.level.cell_to_world(near.cell)
 	game.level._check_writing()
-	check(near.found and near.frame.visible, "walking right up to a writing notices it for sure")
+	check(near.found and near.label.visible, "walking right up to a writing notices it for sure")
 	var texts := {}
 	for i in 10:
 		texts[Level.WRITINGS[i % Level.WRITINGS.size()][1]] = true

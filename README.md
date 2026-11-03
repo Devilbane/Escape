@@ -20,7 +20,7 @@ The game can be played in English or German; you choose the language on the titl
 | Set a stone block down | B | “Stone” button, “Set down” in the inventory |
 | Move a stone block | | grab it with the left mouse button, drag, let go (right click while dragging turns it) |
 | Pick up a stone block | E | click it briefly, “Stone” button |
-| Push a heavy stone block | E | click it briefly; drag it and it slides straight on |
+| Push a heavy stone block | E | click it briefly; drag it onto any free spot nearby (right click turns it), up to 5 tiles from where it lay |
 | Inventory | I | bag icon on the right edge |
 | Compendium | H | book icon on the right edge |
 | Character page | P | figure icon on the right edge |
@@ -117,8 +117,10 @@ You step over a wall one block high.
 
 Deep in the **Labyrinth** (level 3) lies a **stone chamber** with three old, heavy, mossy blocks, three
 **pressure plates** and an iron gate in front of a treasure chest. Heavy blocks do not fit in your bag and
-cannot be stacked: E (or a click) pushes one a little away from you, and dragged with the mouse it slides
-straight on until it hits something. Pillars stand in the way. Once a block lies on every plate, the
+cannot be stacked: E (or a click) pushes one a little away from you, and with the mouse you drag it onto
+any free spot of floor nearby, turned either way with a right click. No block moves more than 5 tiles from
+where it lay when you entered (a pale ring on the floor shows the limit while you drag), never through a
+wall or the gate, so none can be lost. Pillars stand in the way. Once a block lies on every plate, the
 gate sinks into the floor for good, and the chest behind it is as rich as a rare secret room.
 Your own blocks from the stonemason press the plates too.
 
@@ -182,8 +184,8 @@ torch when you search a chest, barrel, crate, shelf or table, 8 % to notice the 
 spot a hidden trap.
 Every level of the dungeon has one writing scratched into a plain wall: you get one chance to notice it from a
 distance each time you walk past it (50 % plus Exploring), and you always notice it when you walk right up to it.
-A noticed writing gets an amber frame and pops up on a card with its word and what it says; run into the wall to
-read it again. Found writings stay framed on later visits and go into the compendium and the journal.
+A noticed writing pops up on a card with its word and what it says; run into the wall to read it again.
+Found writings stay visible on later visits and go into the compendium and the journal.
 Some items add levels themselves (shadow cloak +2 Sneaking, crest shield +1 Blocking,
 chain mail +1 Wearing armour, silver bracelet +1 Knife throwing). Everything is shown in the inventory, with the progress
 towards the next point. What your hero has learned stays saved with their name, even across new games.

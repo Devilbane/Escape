@@ -82,7 +82,7 @@ const SHORTCUTS := [
 	["Steinblock abstellen", "B, oder „Abstellen“ im Inventar"],
 	["Steinblock verschieben", "Block mit der linken Maustaste greifen, ziehen und loslassen (Rechtsklick dabei dreht ihn)"],
 	["Steinblock aufheben", "E neben dem Block, oder ihn kurz anklicken"],
-	["Schwere Steinblöcke schieben", "E neben dem Block, oder ihn kurz anklicken; ziehen lässt ihn geradeaus rutschen"],
+	["Schwere Steinblöcke schieben", "E neben dem Block, oder ihn kurz anklicken; ziehen setzt ihn ab, bis zu 5 Felder von seinem Platz"],
 	["Zoom", "+ und −, Mausrad"],
 	["Spiel beenden", "Esc"],
 	["In Fenstern wählen", "Pfeiltasten oder Tab, Eingabe drückt den Knopf, Esc schließt"],

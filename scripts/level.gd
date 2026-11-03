@@ -312,7 +312,7 @@ const LEVER_STEPS := 10
 ## it while walking past in view (see _check_writing): one roll per visit,
 ## WRITING_CHANCE % plus what the Erkunden skill adds, from WRITING_RANGE;
 ## a hero who walks right up to it (WRITING_SURE_RANGE) always notices it.
-## A noticed writing gets an amber frame, like a spotted trap, stays known
+## A noticed writing pops up on a card (see WritingCard), stays known
 ## on later visits (in taken) and can be read again by running into the
 ## wall (a "tafel" station). Each is the word
 ## carved into the stone and what it says (German, for Lang). The carved word
@@ -335,12 +335,19 @@ const WRITING_CHANCE := 50
 const WRITING_RANGE := 8.0
 ## Within this many metres, in view, the hero notices a writing for sure.
 const WRITING_SURE_RANGE := 5.0
-## The frame round a noticed writing: the same amber as a spotted trap's.
-const WRITING_FRAME_COLOR := Color(1.0, 0.62, 0.25)
+## The colour of the card that shows a noticed writing (see WritingCard):
+## the same amber as a spotted trap's frame.
+const WRITING_COLOR := Color(1.0, 0.62, 0.25)
+## The carved word's largest font size, and the smallest it shrinks to.
+const WRITING_FONT_SIZE := 64
+const WRITING_FONT_MIN := 28
+## How wide the carved word may be at most: a wall piece is one TILE wide,
+## and the pillars at its ends take a little of it.
+const WRITING_MAX_WIDTH := 3.2
 ## Kept in taken once the hero has noticed this level's writing.
 const WRITING_KEY := "writing:found"
 ## This level's writing: {"cell", "label" (the carved word, hidden until
-## found), "frame", "word", "text", "rolled", "found", "station"}. Empty in
+## found), "word", "text", "rolled", "found", "station"}. Empty in
 ## the open air, in buildings and at home.
 var _writing := {}
 ## Seconds between pulling the lever and the stone starting to move.
@@ -359,6 +366,13 @@ const TIER_ALIASES := {"common": "normal", "uncommon": "ungewoehnlich", "rare": 
 ## Every wall torch, with the tile it lights, and the plain walls without one.
 var _wall_torches: Array = []
 var _bare_walls: Array = []
+## Where the bookcases and the wall decorations stand, so that no two of one
+## kind end up side by side (see WALL_GAP): {"kind", "pos"}.
+var _wall_pieces: Array = []
+## Two bookcases, or two wall decorations of one kind, are at least this far
+## apart (metres): three tiles, so a room does not show the same thing twice
+## in one spot.
+const WALL_GAP := TILE * 3.0 - 0.1
 ## A secret wall's lever is picked from at least this many torches.
 const LEVER_CHOICES := 3
 
@@ -466,7 +480,8 @@ func build() -> void:
 	_build_wall_collision()
 	_setup_astar()
 	for c in _heavy_starts:
-		add_stone(StoneBlock.cell_for(cell_to_world(c), true), true, 0, true)
+		var heavy := add_stone(StoneBlock.cell_for(cell_to_world(c), true), true, 0, true)
+		heavy.home = heavy.global_position
 	refresh_stone_paths()
 	var floor_shape := CollisionShape3D.new()
 	floor_shape.shape = WorldBoundaryShape3D.new()
@@ -481,6 +496,9 @@ func build() -> void:
 		add_child(DungeonLife.new(self))
 	if not grates.is_empty():
 		add_child(GratePits.new(self))
+		var tentacles := GrateTentacles.make(self)
+		if tentacles:
+			add_child(tentacles)
 	if not _vault_slots.is_empty():
 		refresh_vaults()
 	traps = Traps.make(self)
@@ -494,11 +512,12 @@ func build() -> void:
 const FURNITURE := "bxotkCHBLVFfy"
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 ## Furniture that looks alike, by group: chests (treasure chest, trunk,
-## storage chest) and boards (tables, the timber frames in the mines). Two
+## storage chest), boards (tables, the timber frames in the mines), barrels
+## and crates. Two
 ## pieces of one group never stand on touching tiles, not even corner to
 ## corner, so a room does not show the same thing twice side by side.
 ## tests/furniture_spacing.gd checks the maps.
-const LOOKALIKES := ["CkL", "t", "j"]
+const LOOKALIKES := ["CkL", "t", "j", "b", "x"]
 
 
 ## Moves furniture out of the way: nothing may stand in a narrow passage, next
@@ -919,7 +938,11 @@ func _build_walls(c: Vector2i) -> void:
 				piece = "wall_cracked"
 		elif not low and roll < 0.2:
 			piece = "wall_cracked"
-		var wall := _place("wall" if by_stairs else piece, pos, rot)
+		# A bookcase right beside another one is left out: a plain wall
+		# instead. The piece stays as rolled, so the rolls after it, and the
+		# rest of the map, stay as they were.
+		var shelves := piece == "wall_shelves" and not by_stairs and not _wall_piece_near("shelves", pos)
+		var wall := _place("wall" if by_stairs or (piece == "wall_shelves" and not shelves) else piece, pos, rot)
 		if (c.x + c.y + d.x + d.y) % 2 != 0:
 			wall.position.y += 0.02
 		if cell_char(c) == "?":
@@ -927,7 +950,8 @@ func _build_walls(c: Vector2i) -> void:
 			wall.visible = false
 			_secret_at(c).inner.append(wall)
 			continue
-		if piece == "wall_shelves" and not by_stairs:
+		if shelves:
+			_wall_pieces.append({"kind": "shelves", "pos": pos})
 			var facing := Vector3(sin(rot), 0, cos(rot))
 			var shelf := _add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
 			shelf.touch_cell = n
@@ -943,11 +967,23 @@ func _build_walls(c: Vector2i) -> void:
 		if torch != null:
 			_wall_torches.append({"holder": torch, "cell": c, "pos": pos, "rot": rot})
 		elif piece == "wall" and _rng.randf() < 0.18:
-			var decor: Array = WALL_DECOR[_rng.randi() % WALL_DECOR.size()]
+			var pick := _rng.randi() % WALL_DECOR.size()
 			if not by_stairs:
-				_add_kit_part(decor, wall)
+				# The same banner or sword close by: another one, or none.
+				for i in WALL_DECOR.size():
+					var k := (pick + i) % WALL_DECOR.size()
+					if not _wall_piece_near("decor%d" % k, pos):
+						_add_kit_part(WALL_DECOR[k], wall)
+						_wall_pieces.append({"kind": "decor%d" % k, "pos": pos})
+						break
 		elif piece == "wall" and cell_char(c) != "?" and not FURNITURE.contains(cell_char(c)) and not by_stairs:
 			_bare_walls.append({"cell": c, "pos": pos, "rot": rot})
+
+
+## Whether a bookcase or wall decoration of this kind already hangs within
+## WALL_GAP of a wall at pos.
+func _wall_piece_near(kind: String, pos: Vector3) -> bool:
+	return _wall_pieces.any(func(w): return w.kind == kind and w.pos.distance_to(pos) < WALL_GAP)
 
 
 func _build_corner_pillars() -> void:
@@ -1023,7 +1059,9 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_build_door(c)
 		"b":
 			_place("barrel_large", pos + Vector3(_rng.randf_range(-0.4, 0.4), 0, _rng.randf_range(-0.4, 0.4)), _rng.randf() * TAU)
-			_place("barrel_small", pos + Vector3(1.2, 0, 1.1), _rng.randf() * TAU)
+			# One barrel to a tile, not a pile. The roll for the small one that
+			# stood beside it stays, so the rest of the map is built as before.
+			_rng.randf()
 			_add_solid(pos, Vector3(2.4, 2, 2.4))
 			_add_interactable("Fass", pos, pos + Vector3(0, 2.8, 0), c)
 		"x":
@@ -1648,8 +1686,8 @@ func _place_writing() -> void:
 	# Lang.t already chose the language; do not translate the label again.
 	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
-	label.font_size = 72
 	label.pixel_size = 0.01
+	label.font_size = writing_font_size(label.font, label.text, label.pixel_size)
 	label.outline_size = 6
 	# Pale scratches in the dark stone.
 	label.modulate = Color(0.9, 0.86, 0.74)
@@ -1661,47 +1699,28 @@ func _place_writing() -> void:
 	label.rotation.y = wall.rot
 	label.visible = false
 	add_child(label)
-	var frame := _writing_frame(label)
 	# Run into the wall to read a noticed writing again.
 	var station := {"kind": "tafel", "cell": wall.cell + Vector2i(0, -1), "pos": wall.pos + facing * 0.5,
 			"used": false, "text": entry[1]}
-	_writing = {"cell": wall.cell, "label": label, "frame": frame, "word": entry[0], "text": entry[1],
+	_writing = {"cell": wall.cell, "label": label, "word": entry[0], "text": entry[1],
 			"rolled": false, "found": false, "station": station}
 	if taken.has(WRITING_KEY):
 		# Noticed on an earlier visit: it shows at once, without news.
 		_writing.found = true
 		_writing.rolled = true
 		label.visible = true
-		frame.visible = true
 		stations.append(station)
 
 
-## An amber frame round a carved word, a little away from the stone, so a
-## noticed writing stands out as "something" from across the room.
-func _writing_frame(label: Label3D) -> Node3D:
-	var size := label.font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, label.font_size) * label.pixel_size
-	var w := size.x + 0.9
-	var h := size.y + 0.5
-	var frame := Node3D.new()
-	frame.position = label.position + Vector3(sin(label.rotation.y), 0, cos(label.rotation.y)) * -0.02
-	frame.rotation.y = label.rotation.y
-	frame.visible = false
-	var glow := StandardMaterial3D.new()
-	glow.albedo_color = WRITING_FRAME_COLOR
-	glow.emission_enabled = true
-	glow.emission = WRITING_FRAME_COLOR
-	glow.emission_energy_multiplier = 0.9
-	for bar in [[Vector3(0, h / 2, 0), Vector3(w + 0.12, 0.12, 0.04)], [Vector3(0, -h / 2, 0), Vector3(w + 0.12, 0.12, 0.04)],
-			[Vector3(w / 2, 0, 0), Vector3(0.12, h, 0.04)], [Vector3(-w / 2, 0, 0), Vector3(0.12, h, 0.04)]]:
-		var mesh := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = bar[1]
-		mesh.mesh = box
-		mesh.material_override = glow
-		mesh.position = bar[0]
-		frame.add_child(mesh)
-	add_child(frame)
-	return frame
+## The largest font size, up to WRITING_FONT_SIZE, at which a carved word
+## fits on one wall piece (WRITING_MAX_WIDTH) in either
+## language: a long word such as FREIHEIT is carved smaller.
+static func writing_font_size(font: Font, text: String, pixel_size: float) -> int:
+	var room := WRITING_MAX_WIDTH
+	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, WRITING_FONT_SIZE).x * pixel_size
+	if width <= room:
+		return WRITING_FONT_SIZE
+	return maxi(WRITING_FONT_MIN, floori(WRITING_FONT_SIZE * room / width))
 
 
 ## This level's writing (see _writing), for the tests.
@@ -1748,10 +1767,6 @@ func reveal_writing() -> void:
 	var tween := create_tween()
 	tween.tween_property(label, "modulate:a", 1.0, 1.2)
 	tween.parallel().tween_property(label, "outline_modulate:a", 1.0, 1.2)
-	var frame: Node3D = _writing.frame
-	frame.visible = true
-	frame.scale = Vector3(1.25, 1.25, 1.0)
-	create_tween().tween_property(frame, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_BACK)
 	taken[WRITING_KEY] = true
 	if not stations.has(_writing.station):
 		stations.append(_writing.station)
@@ -2260,7 +2275,7 @@ func stone_spot_ahead(hero: Node3D, ahead: Vector3) -> Dictionary:
 ## when it is too far from the hero or there is no room.
 func stone_drop_spot(stone: StoneBlock, point: Vector3, x_wise: bool, hero: Node3D) -> Dictionary:
 	if stone.heavy:
-		return _slide_spot(stone, point, hero)
+		return _heavy_spot(stone, point, x_wise, hero)
 	var first := StoneBlock.cell_for(point, x_wise)
 	var spot := StoneBlock.spot_of(first, x_wise, 0)
 	var on_layer := stone_layer_for(first, x_wise, stone)
@@ -2355,39 +2370,65 @@ func stone_surface(point: Vector3) -> float:
 	return stone_column(StoneBlock.grid_cell(point)) * StoneBlock.HEIGHT
 
 
-## A heavy block only slides: along the floor, in a straight line along x or
-## z from where it lies, as far towards `point` as it goes before it hits
-## something (and within the hero's reach). Never turned, never stacked.
-func _slide_spot(stone: StoneBlock, point: Vector3, hero: Node3D) -> Dictionary:
-	var result := {"cell": stone.cell, "along_x": stone.along_x, "layer": stone.layer, "ok": false}
+## How far a heavy block may move from where it lay when the level began:
+## five tiles, measured from middle to middle. Within that it goes anywhere
+## on the floor, so it can be neither lost nor wedged out of a puzzle's reach.
+const HEAVY_RANGE := 5.0 * TILE
+
+
+## Whether a heavy block lying on these cells would still be within
+## HEAVY_RANGE of where it started. Always true for the hero's own blocks.
+func heavy_in_range(stone: StoneBlock, first: Vector2i, x_wise: bool) -> bool:
+	return not stone.heavy or _flat_distance(StoneBlock.spot_of(first, x_wise, 0), stone.home) <= HEAVY_RANGE
+
+
+## A heavy block moves freely: anywhere on the floor towards `point`, lying
+## along x or z, within the hero's reach and within HEAVY_RANGE of where it
+## started. It is never stacked and never passes through a wall or a shut
+## gate (the way from its tile to the new one must be open floor). A point
+## beyond the range is pulled back onto its edge, and "edge" says so.
+func _heavy_spot(stone: StoneBlock, point: Vector3, x_wise: bool, hero: Node3D) -> Dictionary:
+	var result := {"cell": stone.cell, "along_x": stone.along_x, "layer": stone.layer, "ok": false, "edge": false}
 	if stone.layer != 0:
 		return result
-	var aim := StoneBlock.cell_for(point, stone.along_x) - stone.cell
-	if aim == Vector2i.ZERO:
+	var off := Vector3(point.x - stone.home.x, 0.0, point.z - stone.home.z)
+	if off.length() > HEAVY_RANGE:
+		# A little inside the edge, so the snap to the grid stays within it.
+		point = stone.home + off.normalized() * (HEAVY_RANGE - StoneBlock.CELL)
+		result.edge = true
+	var first := StoneBlock.cell_for(point, x_wise)
+	result.cell = first
+	result.along_x = x_wise
+	result.layer = 0
+	if first == stone.cell and x_wise == stone.along_x:
 		return result
-	var dir := Vector2i(signi(aim.x), 0) if absi(aim.x) >= absi(aim.y) else Vector2i(0, signi(aim.y))
-	var reached := stone.cell
-	for i in maxi(absi(aim.x), absi(aim.y)):
-		var next := reached + dir
-		if _flat_distance(StoneBlock.spot_of(next, stone.along_x, 0), hero.global_position) > STONE_DRAG_RANGE:
-			break
-		if not _slides_onto(stone, next):
-			break
-		reached = next
-	result.cell = reached
-	result.ok = reached != stone.cell
+	var spot := StoneBlock.spot_of(first, x_wise, 0)
+	if _flat_distance(spot, hero.global_position) > STONE_DRAG_RANGE or not heavy_in_range(stone, first, x_wise):
+		return result
+	result.ok = _slides_onto(stone, first, x_wise) and _floor_way(stone.global_position, spot)
 	return result
 
 
-func _slides_onto(stone: StoneBlock, first: Vector2i) -> bool:
-	return stone_layer_for(first, stone.along_x, stone) == 0 and stone_fits(first, stone.along_x, 0, stone)
+func _slides_onto(stone: StoneBlock, first: Vector2i, x_wise: bool) -> bool:
+	return stone_layer_for(first, x_wise, stone) == 0 and stone_fits(first, x_wise, 0, stone)
+
+
+## Whether open floor leads from one spot to another: no wall, pillar or
+## shut gate between their tiles.
+func _floor_way(from: Vector3, to: Vector3) -> bool:
+	var a := world_to_cell(from)
+	var b := world_to_cell(to)
+	if a == b:
+		return true
+	var way := grid_path(a, b)
+	return not way.is_empty() and way[-1] == b
 
 
 ## Pushes a heavy block one grid cell on along `dir`. False when something
-## is in the way or something lies on it.
+## is in the way, something lies on it or it would leave HEAVY_RANGE.
 func push_stone(stone: StoneBlock, dir: Vector2i) -> bool:
 	var next := stone.cell + dir
-	if stone.layer != 0 or not stone_free(stone) or not _slides_onto(stone, next):
+	if stone.layer != 0 or not stone_free(stone) or not heavy_in_range(stone, next, stone.along_x) or not _slides_onto(stone, next, stone.along_x):
 		return false
 	move_stone(stone, next, stone.along_x, 0)
 	return true

@@ -41,7 +41,7 @@ const NOTES := {
 	"K": "Öffnet die verschlossene Tür (D).",
 	"?": "Öffnet sich mit einer Fackel in der Nähe als Hebel.",
 	"_": "Jede Platte braucht einen schweren Steinblock (Q).",
-	"Q": "Der Held schiebt ihn auf eine Druckplatte (_).",
+	"Q": "Der Held schiebt ihn auf eine Druckplatte (_), höchstens 5 Felder weit.",
 	"|": "Senkt sich, wenn alle Druckplatten belegt sind.",
 	"W": "Trägt den Schlüssel, wenn keiner auf der Karte liegt.",
 	"H": "Der Held wählt hier eine Gabe.",

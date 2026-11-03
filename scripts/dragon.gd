@@ -335,7 +335,7 @@ func _bite(player: Player) -> void:
 		return
 	var d := player.global_position - global_position
 	d.y = 0.0
-	if d.length() < BITE_RANGE + girth() + 0.6 and not level.stacked(self, player):
+	if d.length() < BITE_RANGE + girth() + 0.6 and not level.stacked(self, player) and not level.door_between(global_position, player.global_position):
 		player.take_damage(BITE_DAMAGE, global_position, self)
 
 

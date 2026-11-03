@@ -94,6 +94,11 @@ jobs:
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/grate_tentacles.gd | tee tentacles.log
           grep -q PASS tentacles.log
 
+      - name: Locked doors (no getting stuck, no blows through them) test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/door_safety.gd | tee doors.log
+          grep -q PASS doors.log
+
       - name: Time away (offline activities) test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/offline_schedule.gd | tee offline.log

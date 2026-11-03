@@ -169,6 +169,10 @@ func _dungeon() -> void:
 		var place := HeroLevel.place_level(game.level)
 		xp += HeroLevel.time_xp(HeroLevel.RIDDLES.writing, place, hero) + HeroLevel.time_xp(HeroLevel.RIDDLES.secret, place, hero)
 		for e in game.level.enemies:
+			# A horror may lurk on any deep floor by chance (Level._spawn_horror):
+			# it is meant to be far above the hero and is left out, as in _floor_xp.
+			if e.kind in Enemy.HORRORS:
+				continue
 			check(e.rated_level <= 7, "dungeon monsters stay low: %s on floor %d is %d" % [e.kind, i + 1, e.rated_level])
 			if report:
 				print("floor %d  %s  %d" % [i + 1, e.kind, e.rated_level])

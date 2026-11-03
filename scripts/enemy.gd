@@ -896,7 +896,7 @@ func _physics_process(delta: float) -> void:
 			_face(to_player)
 			if _cooldown <= 0.0:
 				_shoot(player)
-		elif not ranged and dist < _stats.reach:
+		elif not ranged and dist < _stats.reach and not level.door_between(global_position, player.global_position):
 			_face(to_player)
 			if _cooldown <= 0.0:
 				_strike(player)
@@ -1227,7 +1227,8 @@ func _strike(target: Node3D) -> void:
 			rival.hit_by_rival(_stats.damage, self)
 		return
 	var player := target as Player
-	if player != null and d.length() < float(_stats.reach) + 0.6 and not level.stacked(self, player):
+	if player != null and d.length() < float(_stats.reach) + 0.6 and not level.stacked(self, player) \
+			and not level.door_between(global_position, player.global_position):
 		var before := player.hp
 		player.take_damage(_stats.damage, global_position, self)
 		# Minion blades and spider bites are sometimes poisoned.

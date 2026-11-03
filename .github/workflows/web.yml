@@ -79,6 +79,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/level_warmup.gd | tee warmup.log
           grep -q PASS warmup.log
 
+      - name: Village preload (ready behind the title screen)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/world_preload.gd | tee preload.log
+          grep -q PASS preload.log
+
       - name: Play through all levels automatically
         run: |
           timeout 600 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log

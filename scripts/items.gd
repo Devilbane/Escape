@@ -28,7 +28,7 @@ const BAG_SIZE := 8
 ## stays a plain list of ids (one entry per item), so saving, dropping and
 ## lighting a torch take one from a bundle; only the count of slots and the
 ## inventory's grid see bundles (see slots_used and stacks).
-const STACK := {"fackel": 5}
+const STACK := {"fackel": 5, "donnererz": 5}
 ## Small things bundle by their slot too: jewellery (rings, amulets, bracelets)
 ## and animal food. Only identical items share a slot: an item is one id with
 ## fixed values, so two Kupferringe are alike, a Kupferring and a Rubinring
@@ -60,6 +60,13 @@ static var ALL := {
 	"streitaxt": {"name": "Streitaxt", "slot": "waffe", "uses": "aexte", "weight": 5, "power": 3, "price": 60, "smith": true, "model": "res://assets/weapons/forge/battle_axe.gltf", "material": "mixed"},
 	"kriegshammer": {"name": "Kriegshammer", "slot": "waffe", "uses": "aexte", "weight": 6, "power": 3, "skills": {"aexte": 1}, "price": 70, "smith": true, "model": "res://assets/weapons/forge/war_hammer.gltf", "material": "mixed"},
 	"drachenschild": {"name": "Drachenschild", "slot": "schild", "weight": 6, "hp": 3, "armor": 1, "block": 0.3, "durability": 9, "skills": {"blocken": 1}, "price": 55, "smith": true, "model": "res://assets/weapons/forge/kite_shield.gltf", "material": "mixed"},
+	# Thunder weapons: Gorm forges them from iron, gold and the thunder ore a
+	# storm leaves ("thunder": lumps of ore it takes, see Forge). A blow that
+	# lands may "shock" the enemy: a lightning crack stuns it for a moment
+	# (see Enemy.shock). Never found as loot or sold; "crafted" keeps them
+	# from counting as the top of their kind for the shops.
+	"donnerklinge": {"name": "Donnerklinge", "slot": "waffe", "uses": "klingen", "weight": 3, "power": 2, "skills": {"klingen": 1}, "shock": 0.2, "thunder": 2, "price": 65, "no_loot": true, "crafted": true, "model": "res://assets/weapons/forge/long_sword.gltf", "material": "mixed"},
+	"donnerhammer": {"name": "Donnerhammer", "slot": "waffe", "uses": "aexte", "weight": 6, "power": 3, "skills": {"aexte": 1}, "shock": 0.25, "thunder": 3, "price": 80, "no_loot": true, "crafted": true, "model": "res://assets/weapons/forge/war_hammer.gltf", "material": "mixed"},
 	"knochenhelm": {"name": "Knochenhelm", "slot": "kopf", "weight": 1, "power": 1, "price": 18, "hat": ["res://assets/enemies/Skeleton_Warrior.glb", "Skeleton_Warrior_Helmet"], "material": "bone"},
 	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "requires": {"intelligenz": 11}, "weight": 0.5, "hp": 1, "speed": 0.07, "magic": true, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"], "brim": 0.4, "material": "cloth"},
 	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 3, "hp": 2, "armor": 1, "durability": 4, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "material": "metal"},
@@ -124,9 +131,10 @@ static var ALL := {
 	"kuerbis": {"name": "Kürbis", "slot": "auftrag", "weight": 3, "price": 1, "no_loot": true, "effect": "Für Zecher Fritz im Wirtshaus"},
 	"wetzstein": {"name": "Wetzstein", "slot": "auftrag", "weight": 1, "price": 1, "no_loot": true, "effect": "Für Schmied Gorm an seiner Esse"},
 	# Thunder ore: lightning leaves it glowing beside the rocks in a storm, and
-	# it fades once the storm has passed (see Weather). Never found as loot;
-	# Gorm melts it down into iron bars (see Forge) and the merchant pays well.
-	"donnererz": {"name": "Donnererz", "slot": "erz", "weight": 1, "price": 32, "no_loot": true, "material": "metal", "tint": Color(0.55, 0.75, 1.0), "effect": "Nur bei Gewitter zu finden. Gorm schmilzt es zu Eisenbarren"},
+	# it fades once the storm has passed (see Weather). Never found as loot.
+	# Gorm forges it into the thunder weapons (see Forge, "thunder"), or melts
+	# it down into iron bars, and the merchant pays well for it.
+	"donnererz": {"name": "Donnererz", "slot": "erz", "weight": 1, "price": 32, "no_loot": true, "material": "metal", "tint": Color(0.55, 0.75, 1.0), "effect": "Nur bei Gewitter zu finden. Gorm schmiedet daraus Donnerwaffen"},
 	"wassereimer": {"name": "Wassereimer", "slot": "auftrag", "weight": 2, "price": 1, "no_loot": true, "model": "res://assets/village/bucket_water.gltf", "model_scale": 1.6, "effect": "Für Priesterin Elsbeth am Tempel"},
 	# Food for a fox (see Animal and Pet): the shopkeeper always has some.
 	"wurst": {"name": "Wurst", "slot": "futter", "weight": 0.3, "price": 2, "no_loot": true, "effect": "Füchse lieben sie. Sie leben auf der Wiese am Waldteich westlich vom Dorf: Füttere einen Fuchs dreimal, und er wird dein Freund"},
@@ -287,6 +295,8 @@ static func describe(id: String, worn := 0) -> String:
 		parts.append(Lang.t("lehrt %s (beim Lernen im Bett planen)") % Lang.t(Training.SKILLS[item.teaches].name))
 	if item.has("uses"):
 		parts.append(Lang.t("Fertigkeit: %s") % Lang.t(Training.SKILLS[item.uses].name))
+	if item.get("shock", 0.0) > 0.0:
+		parts.append(Lang.t("%d%% Blitzschlag: betäubt den Gegner kurz") % roundi(item.shock * 100.0))
 	for skill_id in item.get("skills", {}):
 		parts.append(Lang.t("+%d %s") % [item.skills[skill_id], Lang.t(Training.SKILLS[skill_id].name)])
 	if item.get("weight", 0.0) > 0.0:

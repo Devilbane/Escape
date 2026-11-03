@@ -770,6 +770,32 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		_play_once("Hit_A", 0.45)
 
 
+## How long a lightning crack from a thunder weapon stuns (see shock).
+const SHOCK_TIME := 1.5
+const SHOCK_COLOR := Color(0.55, 0.8, 1.0)
+
+
+## Whether a thunder weapon's crack can stun it: a horror, a big brute or a
+## boss shrugs it off.
+func can_be_stunned() -> bool:
+	return not dead and not is_horror() and not _stats.get("big", false) and not _stats.get("armored", false)
+
+
+## A thunder weapon's blow cracked with lightning (see Player.melee): it
+## stands stunned for SHOCK_TIME, neither moving nor striking, with blue
+## sparks and a word over its head. Returns whether it was stunned.
+func shock() -> bool:
+	if not can_be_stunned():
+		return false
+	_play_once("Hit_A", SHOCK_TIME)
+	Effects.head_text(level, self, 2.7 * _stats.size, Lang.t("Betäubt!"), SHOCK_COLOR)
+	var sparks := Effects.make_sparkles(SHOCK_COLOR, true)
+	sparks.position = Vector3(0, 1.4 * _stats.size, 0)
+	add_child(sparks)
+	Sfx.play(self, "thunder", -12.0, global_position, 2.2)
+	return true
+
+
 ## A blow (or a shot) from a rival monster. It fights back; armour that
 ## stops the hero's blade stops a rival's just as well.
 func hit_by_rival(damage: int, attacker: Enemy) -> void:

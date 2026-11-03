@@ -227,7 +227,7 @@ static func item_of(spec: Dictionary) -> Dictionary:
 		item.tint = Color.html(spec.tint)
 	if item.has("block") and not item.has("durability"):
 		item.durability = 5
-	for k in ["unique", "smith", "wanderer", "crafted", "effect"]:
+	for k in ["unique", "smith", "wanderer", "crafted", "effect", "thunder"]:
 		item.erase(k)
 	item.no_loot = true
 	item.custom = true

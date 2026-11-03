@@ -41,3 +41,8 @@ func take_hit(damage: int, from: Vector3, hit_kind := "hit", wakes := true) -> v
 		Effects.float_text(level, global_position + Vector3(0, 2.4 * _stats.size, 0), Lang.t("Der Bergkönig tobt!"), Color(1.0, 0.45, 0.2))
 		for light in find_children("*", "OmniLight3D", false, false):
 			light.light_energy *= 2.5
+
+
+## A boss shrugs off a thunder weapon's crack (see Enemy.shock).
+func can_be_stunned() -> bool:
+	return false

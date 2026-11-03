@@ -38,7 +38,7 @@ static func kind_of(id: String) -> String:
 	var item: Dictionary = Items.ALL[id]
 	match item.slot:
 		"waffe":
-			if id == "streitkolben" or id == "kriegshammer":
+			if id in ["streitkolben", "kriegshammer", "donnerhammer"]:
 				return "hammer"
 			return "axe" if item.get("uses", "") == "aexte" else "sword"
 		"schild":

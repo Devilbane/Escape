@@ -928,6 +928,8 @@ func melee() -> void:
 			train("schleichen", 4.0)
 		else:
 			e.take_hit(damage, global_position)
+			if not e.dead and randf() < shock_chance():
+				e.shock()
 		hits += 1
 		mark_fight()
 		# Every blow that lands trains the hand and the arm; a kill a little more.
@@ -937,6 +939,12 @@ func melee() -> void:
 			train("intelligenz", 4.0)
 	if hits == 0 and target:
 		Comic.pop(global_position + facing() * 1.5, "miss")
+
+
+## The chance that a blow of the held weapon cracks with lightning and stuns
+## (a thunder weapon, see Items "shock" and Enemy.shock), else 0.
+func shock_chance() -> float:
+	return float(Items.ALL.get(equipped.get("waffe", ""), {}).get("shock", 0.0))
 
 
 ## Throws a knife at `aim` (a world position), or at the closest enemy in sight.
@@ -1566,6 +1574,13 @@ func _show_held(slot: String, hand_name: String, default_part: String) -> void:
 		model.name = "Held"
 		hand.add_child(model)
 		GearLook.dress(model, Items.ALL[id].get("material", ""))
+		if Items.ALL[id].get("shock", 0.0) > 0.0:
+			# A thunder weapon crackles with small blue sparks.
+			var sparks := Effects.make_sparkles(Enemy.SHOCK_COLOR)
+			sparks.emission_sphere_radius = 0.35
+			sparks.amount = 8
+			sparks.position = Vector3(0, 0.6, 0)
+			model.add_child(sparks)
 
 
 ## Whether the hero has what an item asks for ("requires"), e.g. Intelligenz.

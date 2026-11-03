@@ -29,6 +29,11 @@ const BAG_SIZE := 8
 ## lighting a torch take one from a bundle; only the count of slots and the
 ## inventory's grid see bundles (see slots_used and stacks).
 const STACK := {"fackel": 5}
+## Small things bundle by their slot too: jewellery (rings, amulets, bracelets)
+## and animal food. Only identical items share a slot: an item is one id with
+## fixed values, so two Kupferringe are alike, a Kupferring and a Rubinring
+## are not.
+const STACK_SLOTS := {"ring": 5, "amulett": 5, "armreif": 5, "futter": 5}
 const WEIGHT_SLOW := 0.01
 const MAX_WEIGHT_SLOW := 0.35
 
@@ -95,6 +100,9 @@ static var ALL := {
 	"leinenrucksack": {"name": "Leinenrucksack", "slot": "rucksack", "bag": 10, "weight": 1, "price": 22, "model": "res://assets/village/sack.gltf", "model_scale": 5.0, "material": "cloth"},
 	"lederrucksack": {"name": "Lederrucksack", "slot": "rucksack", "bag": 11, "weight": 1.5, "price": 36, "model": "res://assets/village/sack.gltf", "model_scale": 6.0, "material": "leather"},
 	"grosser_rucksack": {"name": "Großer Rucksack", "slot": "rucksack", "bag": 12, "weight": 2, "price": 60, "model": "res://assets/village/sack.gltf", "model_scale": 7.0, "material": "leather"},
+	# The biggest: 20 places, found only deep down (the merchant never sells
+	# the top of a kind, see merchant_sells).
+	"reiserucksack": {"name": "Reiserucksack", "slot": "rucksack", "bag": 20, "weight": 2.5, "price": 95, "model": "res://assets/village/sack.gltf", "model_scale": 8.0, "material": "leather"},
 	# Books are not worn. The hero reads them while the player is away
 	# (Offline, "study"): each "teaches" one skill.
 	"fechtbuch": {"name": "Buch der Klingen", "slot": "buch", "weight": 1, "teaches": "klingen", "price": 40},
@@ -163,7 +171,9 @@ static func weight_text(kg: float) -> String:
 
 ## How many of an item share one bag slot (1 for most).
 static func stack_size(id: String) -> int:
-	return int(STACK.get(id, 1))
+	if STACK.has(id):
+		return int(STACK[id])
+	return int(STACK_SLOTS.get(ALL.get(id, {}).get("slot", ""), 1))
 
 
 ## The bag's slots, in the order the items lie in it: each a dictionary
@@ -271,6 +281,8 @@ static func describe(id: String, worn := 0) -> String:
 		parts.append(Lang.t("braucht %s %d") % [Lang.t(Training.ATTRIBUTES[attr].name), item.requires[attr]])
 	if item.has("bag"):
 		parts.append(Lang.t("Platz für %d Dinge") % item.bag)
+	if stack_size(id) > 1:
+		parts.append(Lang.t("stapelbar: %d gleiche in einem Platz") % stack_size(id))
 	if item.has("teaches"):
 		parts.append(Lang.t("lehrt %s (beim Lernen im Bett planen)") % Lang.t(Training.SKILLS[item.teaches].name))
 	if item.has("uses"):
@@ -332,6 +344,7 @@ const LEVELS := {
 	"koenigsumhang": 8, "krummsaebel": 8, "vampirzahn": 8, "gluecksklee": 8,
 	"dornenrune": 9, "plattenpanzer": 10, "drachenschild": 10, "streitaxt": 10,
 	"phoenixfeder": 11, "grosser_rucksack": 11, "rabenklinge": 12, "kriegshammer": 12,
+	"reiserucksack": 14,
 	"runenhammer": 16,
 }
 ## Loot for a place of level L is gear of level L - LOOT_BELOW to L + LOOT_ABOVE.

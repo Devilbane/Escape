@@ -22,6 +22,8 @@ const EN := {
 	"Lederrucksack": "Leather backpack",
 	"Großer Rucksack": "Large backpack",
 	"Platz für %d Dinge": "Room for %d things",
+	"Reiserucksack": "Traveller's backpack",
+	"stapelbar: %d gleiche in einem Platz": "stacks: %d alike in one slot",
 	"In diesen Rucksack passt nicht alles aus deiner Tasche.": "Not everything in your bag fits into this backpack.",
 	"Schwert": "Sword",
 	"Axt": "Axe",

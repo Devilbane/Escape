@@ -75,7 +75,7 @@ func _run(lang: String) -> void:
 	var menus: Menus = game.menus
 	p.bag.clear()
 	p.equipped.clear()
-	p.equipped["rucksack"] = "grosser_rucksack"
+	p.equipped["rucksack"] = "reiserucksack"
 	var ids := _by_description()
 	# The longest descriptions and the longest names, then the shortest.
 	var names := Items.ALL.keys()

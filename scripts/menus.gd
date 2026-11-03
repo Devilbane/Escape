@@ -470,7 +470,7 @@ func _item_button(text: String, action: Callable, enabled := true, id := "") -> 
 
 
 ## A grid of item buttons; empty places up to `size` are shown as dashes.
-## With `bundle` (the hero's bag) items that bundle (Items.STACK, torches)
+## With `bundle` (the hero's bag) items that bundle (Items.stack_size: torches, jewellery, food)
 ## share one cell that shows how many, like the ingredient pouch; a click
 ## acts on one of them.
 func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callable, columns := 4, parent: Control = null, bundle := false) -> void:
@@ -972,7 +972,7 @@ func _equip_selected() -> void:
 		var attr: String = requires.keys()[0]
 		_note = Lang.t("Dafür brauchst du %s %d.") % [Lang.t(Training.ATTRIBUTES[attr].name), requires[attr]]
 	elif not p.equip(id):
-		_note = Lang.t("In diesen Rucksack passt nicht alles aus deiner Tasche.")
+		_note = Lang.t("In diesen Rucksack passt nicht alles aus deiner Tasche.") if Items.ALL[id].slot == "rucksack" else Lang.t("Deine Tasche ist voll.")
 	_selected = -1
 	_rebuild()
 

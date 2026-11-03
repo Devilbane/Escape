@@ -62,6 +62,7 @@ const PARTS := [
 	preload("res://scripts/lang/tutorial.gd"),
 	preload("res://scripts/lang/editor.gd"),
 	preload("res://scripts/lang/tentacles.gd"),
+	preload("res://scripts/lang/event_log.gd"),
 	preload("res://scripts/lang/seats.gd"),
 ]
 

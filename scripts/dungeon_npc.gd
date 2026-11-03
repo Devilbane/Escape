@@ -80,7 +80,9 @@ func talk(hero: Node3D) -> void:
 	var lines: Array = spec.get("lines", [])
 	if lines.is_empty():
 		return
-	_bubble.text = "%s:\n%s" % [display_name, Lang.t(lines[_line % lines.size()])]
+	var said := Lang.t(lines[_line % lines.size()])
+	_bubble.text = "%s:\n%s" % [display_name, said]
+	Events.say(display_name, said, global_position)
 	_line += 1
 	_bubble_time = Villager.SAY_TIME
 	_bubble_hold = Villager.MIN_SAY_TIME
@@ -94,12 +96,11 @@ func is_talking() -> bool:
 func _process(delta: float) -> void:
 	_bubble_time = maxf(0.0, _bubble_time - delta)
 	_bubble_hold = maxf(0.0, _bubble_hold - delta)
-	var alpha := move_toward(_bubble.modulate.a, 1.0 if _bubble_time > 0.0 else 0.0, delta * 4.0)
-	_bubble.modulate.a = alpha
-	_bubble.outline_modulate.a = alpha
-	_bubble.visible = alpha > 0.0
-	_name_tag.modulate.a = 1.0 - alpha
-	_name_tag.outline_modulate.a = 0.85 * (1.0 - alpha)
+	# What is said goes into the event log (see Events.say), not over the
+	# head: the bubble only keeps the line and stays hidden.
+	_bubble.visible = false
+	_name_tag.modulate.a = 1.0
+	_name_tag.outline_modulate.a = 0.85
 	if _turn_to != Vector3.INF:
 		var d := _turn_to - global_position
 		d.y = 0.0

@@ -112,11 +112,13 @@ func _enter_phase(next: int) -> void:
 	var head := global_position + Vector3(0, 3.6 * _stats.size, 0)
 	if phase == 2:
 		Effects.float_text(level, head, Lang.t("Zu mir, Jungs!"), Color(1.0, 0.75, 0.4))
+		Events.say(Lang.t(boss_title()), Lang.t("Zu mir, Jungs!"), global_position)
 		_play_once("Cheer", 1.0)
 		if level.has_method("call_reinforcements"):
 			level.call_reinforcements(self, CALL_COUNT)
 	elif phase == 3:
 		Effects.float_text(level, head, Lang.t("Genug gespielt!"), Color(1.0, 0.35, 0.25))
+		Events.say(Lang.t(boss_title()), Lang.t("Genug gespielt!"), global_position)
 		_stats.speed *= RAGE_SPEED
 		_stats.cooldown *= RAGE_COOLDOWN
 		_charge_timer = 1.0

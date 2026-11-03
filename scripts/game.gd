@@ -105,6 +105,8 @@ var quests := Quests.new(self)
 var journal := Journal.new(self)
 ## The first steps in the cell, one card at a time (see Tutorial).
 var tutorial := Tutorial.new(self)
+## Loot and speech at the left edge of the screen (see EventLog).
+var event_log := EventLog.new()
 ## The card that shows a wall writing the hero noticed (see WritingCard).
 var writing_card := WritingCard.new(self)
 ## How many mornings have dawned in the world above ground since the game
@@ -132,9 +134,6 @@ var village_talk := VillageTalk.new(self)
 ## The villager whose goods or services are open in a window right now
 ## (role letter), "" for none: their discount applies (see trader_price).
 var trader_role := ""
-## Villagers who just came to think better of the hero, told together.
-var _reputation_news: Array[String] = []
-const REPUTATION_NEWS_DELAY := 4.6
 ## Counts down to the next look at who has a task (see refresh_quest_marks).
 var _quest_mark_timer := 0.0
 ## The town house on Weavers' Lane the hero is inside right now (see Homes),
@@ -209,13 +208,26 @@ var _level_label: Label
 var _coin_label: Label
 var _key_label: Label
 var _hp_label: Label
+var _hp_bar: ProgressBar
+var _hp_fill: StyleBoxFlat
+## The hero's conditions as icons under the life bar (see StatusIcon).
+var _status_row: HBoxContainer
+## The life bar under the hero: its size, its gap below the feet on screen,
+## and its colours (brighter when low).
+const HP_BAR_SIZE := Vector2(110, 20)
+const HP_BAR_GAP := 6.0
+## How far the hero's arms and blade reach out from the feet, in metres
+## (the bar keeps below all of it, see _place_hp_bar).
+const HP_BAR_REACH := 1.5
+const HP_COLOR := Color(0.78, 0.2, 0.2)
+const HP_LOW_COLOR := Color(1.0, 0.35, 0.25)
+const HP_POISON_COLOR := Color(0.35, 0.75, 0.25)
 ## The run meter: seconds of running left, as a bar and in numbers.
 var _run_bar: ProgressBar
 var _xp_bar: ProgressBar
 var _xp_label: Label
 var _run_label: Label
 var _run_fill: StyleBoxFlat
-var _gift_label: Label
 var _shrine_panel: Control
 ## The fourth shrine gift, offered only to a wise hero.
 var _wise_gift: Button
@@ -227,6 +239,8 @@ var lore: Array = []
 var _knife_label: Label
 var _prompt: Label
 var _message: Label
+## The list of keys at the bottom left (see _setup_hud).
+var _help: Label
 ## Messages that came before the newest one, oldest first, kept above it
 ## while they are still being read (see show_message), so a new message
 ## never covers an unread one.
@@ -343,6 +357,8 @@ func _bus_links() -> Array:
 		[bus.bounty_paid, xp_for_bounty],
 		[bus.riddle_solved, xp_for_riddle],
 		[bus.hero_acted, tutorial.on_hero_acted],
+		[bus.loot_found, event_log.add_loot],
+		[bus.speech_said, heard],
 	]
 
 
@@ -872,8 +888,40 @@ func _setup_hud() -> void:
 	row.add_child(left)
 	_level_label = _make_label(TEXT_FONT, 26, GOLD)
 	left.add_child(_level_label)
-	_hp_label = _make_label(TEXT_FONT, 24, Color(1.0, 0.45, 0.42))
-	left.add_child(_hp_label)
+	# Life as a small bar with its numbers on it, under the hero's feet,
+	# MMO-style. It has one fixed size, so nothing moves as life changes.
+	_hp_bar = ProgressBar.new()
+	_hp_bar.show_percentage = false
+	_hp_bar.custom_minimum_size = HP_BAR_SIZE
+	_hp_bar.size = HP_BAR_SIZE
+	_hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hp_back := StyleBoxFlat.new()
+	hp_back.bg_color = Color(0.08, 0.05, 0.1, 0.72)
+	hp_back.border_color = Color(0.05, 0.02, 0.06, 0.9)
+	hp_back.set_border_width_all(2)
+	hp_back.set_corner_radius_all(5)
+	_hp_fill = StyleBoxFlat.new()
+	_hp_fill.bg_color = HP_COLOR
+	_hp_fill.set_corner_radius_all(5)
+	_hp_bar.add_theme_stylebox_override("background", hp_back)
+	_hp_bar.add_theme_stylebox_override("fill", _hp_fill)
+	_hp_bar.visible = false
+	_hud.add_child(_hp_bar)
+	_hp_label = _make_label(TEXT_FONT, 14)
+	_hp_label.add_theme_constant_override("outline_size", 4)
+	_hp_label.add_theme_constant_override("shadow_offset_y", 1)
+	_hp_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_hp_bar.add_child(_hp_label)
+	# The hero's conditions (poison, a curse, burning, stronger blows, speed,
+	# hardening) as little red-framed icons in a row under the bar, in a
+	# fixed order from its left edge, so an icon coming or going never
+	# moves the others before it.
+	_status_row = HBoxContainer.new()
+	_status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_row.add_theme_constant_override("separation", 4)
+	_hud.add_child(_status_row)
 	var run_row := HBoxContainer.new()
 	run_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	run_row.add_theme_constant_override("separation", 10)
@@ -914,8 +962,6 @@ func _setup_hud() -> void:
 	xp_row.add_child(_xp_bar)
 	_xp_label = _make_label(TEXT_FONT, 18, XP_COLOR)
 	xp_row.add_child(_xp_label)
-	_gift_label = _make_label(TEXT_FONT, 18, Color(0.65, 0.85, 1.0))
-	left.add_child(_gift_label)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -958,13 +1004,19 @@ func _setup_hud() -> void:
 	_message = _message_line()
 	_message_box.add_child(_message)
 
+	# The keys at the bottom left help while the first steps are learned;
+	# after that they go, to keep the screen clear (all keys are in the
+	# compendium, H).
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.8))
+	_help = help
 	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
 	help.offset_bottom = -26
 	_hud.add_child(help)
+
+	_hud.add_child(event_log)
 
 	var version := _make_label(TEXT_FONT, 14, Color(1, 1, 1, 0.4))
 	version.text = _version_text()
@@ -1278,7 +1330,7 @@ func _on_fox_dug_up(id: String, pos: Vector3) -> void:
 	level.lay_find(id, pos)
 	Effects.float_text(level, pos + Vector3(0, 2.0, 0), Crafting.ingredient_name(id), Color(0.75, 0.9, 1.0), true)
 	var fox_name: String = pet.given_name if is_instance_valid(pet) and pet.given_name != "" else Lang.t("Dein Fuchs")
-	show_message(Lang.t("%s hat etwas ausgegraben: %s!") % [fox_name, Crafting.ingredient_name(id)], 3.0)
+	Events.found(Lang.t("%s hat etwas ausgegraben: %s!") % [fox_name, Crafting.ingredient_name(id)])
 
 
 ## A dug-up ingredient goes into the ingredient pouch, not the bag.
@@ -1286,7 +1338,7 @@ func _on_ingredient_collected(id: String) -> void:
 	crafting.add(id)
 	Sfx.play(self, "key", -3.0)
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5), true)
-	show_message(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Crafting.ingredient_name(id), 3.5)
+	Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5))
 
 
 ## The fountain: full life and every ailment gone, as often as you like.
@@ -1660,21 +1712,15 @@ func _update_hud() -> void:
 	_clock_shown = _clock_text()
 	if _clock_shown != "":
 		_level_label.text += "    " + _clock_shown
-	_hp_label.text = Lang.t("Leben: %d / %d") % [maxi(0, player.hp), player.max_hp]
-	if player.hardening > 0:
-		_hp_label.text += "    " + Lang.t("Härtung %d") % player.hardening
-	var gifts := []
-	if player.power > 1:
-		gifts.append(Lang.t("Kampfkraft %d") % player.power)
-	if absf(player.speed - Player.SPEED) > 0.01:
-		gifts.append(Lang.t("Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0))
+	_hp_bar.max_value = maxi(1, player.max_hp)
+	_hp_bar.value = clampi(player.hp, 0, player.max_hp)
+	_hp_label.text = "%d / %d" % [maxi(0, player.hp), player.max_hp]
+	# Poison turns the bar green; low life a brighter warning red.
 	if player.ailments.has("gift"):
-		gifts.append(Lang.t("Vergiftet"))
-	if player.ailments.has("fluch"):
-		gifts.append(Lang.t("Verflucht"))
-	if player.ailments.has("brand"):
-		gifts.append(Lang.t("Brennt"))
-	_gift_label.text = "   ".join(gifts)
+		_hp_fill.bg_color = HP_POISON_COLOR
+	else:
+		_hp_fill.bg_color = HP_LOW_COLOR if player.hp * 4 <= player.max_hp else HP_COLOR
+	_update_status_icons()
 	_show_hero_level()
 	_coin_label.text = Lang.t("Gold: %d") % coins
 	_knife_label.text = Lang.t("Messer: %d") % player.knives
@@ -3274,6 +3320,84 @@ func level_hint(index: int) -> Dictionary:
 	return info
 
 
+## How far from the hero a spoken line is still heard and written into the
+## event log, in metres.
+const HEAR_RANGE := 14.0
+
+
+## A line someone said (see Events.say): into the event log when the hero is
+## near enough to hear it.
+func heard(speaker: String, text: String, pos: Vector3) -> void:
+	if player == null or not player.is_inside_tree():
+		return
+	var d := pos - player.global_position
+	d.y = 0.0
+	if d.length() <= HEAR_RANGE:
+		event_log.add_speech(speaker, text)
+
+
+## The conditions the hero is in, as [kind, number] pairs in their fixed
+## order (see StatusIcon).
+func hero_conditions() -> Array:
+	var out := []
+	for kind in ["gift", "fluch", "brand"]:
+		if player.ailments.has(kind):
+			out.append([kind, ""])
+	if player.power > 1:
+		out.append(["power", str(player.power)])
+	# Faster from gifts, level or Tempo; slower only from a heavy load (the
+	# curse that slows has its own icon, and a little gear is normal).
+	var unslowed := player.base_speed / (Player.CURSE_SLOW if player.ailments.has("fluch") else 1.0)
+	if unslowed > Player.SPEED + 0.01:
+		out.append(["fast", ""])
+	elif Items.load_factor(player.load_weight()) <= 1.0 - Items.MAX_WEIGHT_SLOW * 0.5:
+		out.append(["slow", ""])
+	if player.hardening > 0:
+		out.append(["hardening", str(player.hardening)])
+	return out
+
+
+func _update_status_icons() -> void:
+	var now := hero_conditions()
+	var shown := []
+	for icon in _status_row.get_children():
+		shown.append([icon.kind, icon.value])
+	if shown == now:
+		return
+	for icon in _status_row.get_children():
+		_status_row.remove_child(icon)
+		icon.queue_free()
+	for c in now:
+		_status_row.add_child(StatusIcon.make(c[0], c[1]))
+
+
+## Keeps the life bar at one steady spot under the hero on screen. It is
+## placed as seen from where the camera settles (`cam_at`) for the hero
+## standing at `ground` (feet, not lifted by a jump), so it neither jitters
+## with the camera catching up or shaking nor bobs with jumps.
+func _place_hp_bar(ground: Vector3, cam_at: Vector3) -> void:
+	var on_screen := state == State.PLAYING and player != null and player.is_inside_tree() and not player.dead \
+			and camera != null
+	_hp_bar.visible = on_screen
+	_status_row.visible = on_screen
+	if not on_screen:
+		return
+	var real := camera.global_position
+	camera.global_position = cam_at
+	# The bar starts below everything the hero can reach on screen: a ring
+	# of HP_BAR_REACH round the feet, on the ground and at blade height,
+	# whichever way the hero faces or swings.
+	var lowest := camera.unproject_position(ground).y
+	for i in 16:
+		var ring := Vector3(cos(TAU * i / 16.0), 0.0, sin(TAU * i / 16.0)) * HP_BAR_REACH
+		for height in [0.0, 1.2]:
+			lowest = maxf(lowest, camera.unproject_position(ground + ring + Vector3(0, height, 0)).y)
+	var x := camera.unproject_position(ground).x
+	camera.global_position = real
+	_hp_bar.position = Vector2(x - HP_BAR_SIZE.x / 2.0, lowest + HP_BAR_GAP).round()
+	_status_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 4)
+
+
 ## News about a task (a new one, progress, done): a message and a word over
 ## the hero's head.
 func quest_news(text: String, color: Color, duration := 4.0) -> void:
@@ -3310,22 +3434,13 @@ func quest_reward(id: String) -> void:
 ## Several at once (word of mouth after a task) are told together, once the
 ## reward has been read.
 func reputation_rose(role: String, new_level: int) -> void:
-	var line := "%s: %s" % [Quests.villager_name(role), Reputation.level_name(new_level)]
+	# Only what changed, as one line in the event log: the whole list of
+	# villagers is in the compendium (H, "Ruf") for whoever wants to look.
+	var line := Lang.t("Ansehen bei %s: %s") % [Quests.villager_name(role), Reputation.level_name(new_level)]
 	var off := roundi(Reputation.LEVELS[new_level].discount * 100.0)
 	if off > 0:
 		line += Lang.t(" (%d%% Rabatt)") % off
-	if level and not _villager_talking_near_hero():
-		Effects.float_text(level, player.global_position + Vector3(0, 3.8, 0), line, Color(0.75, 0.6, 1.0), true)
-	_reputation_news.append(line)
-	if _reputation_news.size() == 1:
-		get_tree().create_timer(REPUTATION_NEWS_DELAY).timeout.connect(_show_reputation_news)
-
-
-func _show_reputation_news() -> void:
-	if _reputation_news.is_empty():
-		return
-	show_message(Lang.t("Dein Ruf im Dorf steigt:") + "\n" + "\n".join(_reputation_news), 5.0)
-	_reputation_news.clear()
+	Events.found(line, Menus.REPUTATION_COLOR)
 	learn(Reputation.HOW_TO)
 
 
@@ -3602,6 +3717,7 @@ func _on_key_collected() -> void:
 	player.play_flourish("PickUp", 0.6)
 	Sfx.play(self, "key")
 	show_message(Lang.t("Du hast den Schlüssel gefunden!"))
+	Events.found(Lang.t("Du hast den Schlüssel gefunden!"), GOLD)
 	player.train("weisheit", 3.0)
 	_update_hud()
 
@@ -3656,12 +3772,13 @@ func _on_item_collected(id: String) -> void:
 		note_find("ore", id, Items.ALL[id].name, player.global_position)
 	Sfx.play(self, "key", -3.0)
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Color(0.75, 0.9, 1.0), true)
-	show_message(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)] + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
+	Events.found(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)])
 	_update_hud()
 
 
 func _on_coins_collected(amount: int) -> void:
 	coins += _gold(amount)
+	Events.found(Lang.t("+%d Gold") % _gold(amount), GOLD)
 	Sfx.play_coins(self, _gold(amount))
 	_update_hud()
 
@@ -3849,11 +3966,15 @@ func _on_player_trained(id: String, value: int) -> void:
 		_:
 			text = Lang.t("Du wirst geübter: %s, Stufe %d") % [Lang.t(_skill_or_craft_name(id)), value]
 	var attribute := Training.ATTRIBUTES.has(id)
-	Effects.float_text(level, player.global_position + Vector3(0, 3.4, 0), text.get_slice(":", 1).strip_edges() if attribute else Lang.t(_skill_or_craft_name(id)) + " %d" % value,
-			GOLD if attribute else Color(0.65, 0.85, 1.0))
 	if attribute:
+		# A stronger body is rare and big: a word over the hero and a message.
+		Effects.float_text(level, player.global_position + Vector3(0, 3.4, 0), text.get_slice(":", 1).strip_edges(), GOLD)
 		Sfx.play(self, "secret", -6.0)
-	show_message(text, 3.5 if attribute else 2.4)
+		show_message(text, 3.5)
+	else:
+		# A skill grows often: one quiet line in the event log keeps the
+		# screen clear for the game.
+		Events.found(text, Color(0.65, 0.85, 1.0))
 	learn("Eigenschaften wachsen sehr langsam durch Tun: Kämpfen macht stärker (Stärke: +1 Schaden im Nahkampf je Punkt, Lasten wiegen weniger), Treffer einstecken macht zäher (Konstitution, +1 Leben je Punkt), Laufen und Springen machen schneller (Tempo bis 150 %), Springen, Werfen und Fallen machen geschickter (Geschick: +1 Schaden mit Wurfmessern und +4 % Ausweichen je Punkt, weiter springen), Durchsuchen und Geheimnisse schärfen das Gespür (Intuition, +2 % je Punkt, Geheimräume zu entdecken), und alles, was du durchstehst, macht dich weiser (Weisheit: du lernst 5 % schneller je Punkt, ab 12 bieten Schreine eine vierte Gabe), und Neues zu verstehen macht klüger (Intelligenz: Fertigkeiten lernen 10 % schneller und 3 % mehr Erfahrung je Punkt; manche Dinge wie der Zauberhut brauchen sie). Fertigkeiten wachsen schneller, aber nur mit der passenden Ausrüstung. Alles bleibt deinem Helden über alle Läufe.")
 	_update_hud()
 
@@ -3927,11 +4048,13 @@ func _search(obj: Dictionary) -> void:
 		coins += _gold(loot.gold)
 		text = Lang.t("+%d Gold") % _gold(loot.gold)
 		color = GOLD
+		Events.found(text, GOLD)
 	elif loot.has("knives"):
 		player.knives += loot.knives
 		Sfx.play_after(self, found_after, "gear_metal_%d" % (randi() % 3), -8.0)
 		text = Lang.t("+%d Wurfmesser") % loot.knives
 		color = Color(0.8, 0.9, 1.0)
+		Events.found(text, color)
 	elif loot.has("potion"):
 		Sfx.play(self, "drink")
 		player.hp = mini(player.max_hp, player.hp + 2)
@@ -3939,13 +4062,14 @@ func _search(obj: Dictionary) -> void:
 		if player.cure():
 			text += "\n" + Lang.t("Dein Leiden ist geheilt.")
 		color = Color(1.0, 0.5, 0.55)
+		Events.found(text, color)
 	if loot.has("item"):
 		player.bag.append(loot.item)
 		Sfx.play_gear(self, loot.item, found_after + (0.25 if loot.has("gold") else 0.0))
 		var found := Lang.t("Gefunden: %s (%s)") % [Items.item_name(loot.item), Items.describe(loot.item)]
 		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
 		color = Color(0.75, 0.9, 1.0)
-		show_message(found + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
+		Events.found(found)
 	# An eye trained in exploring (Erkunden) finds a torch tucked away.
 	var torch := player.bag_fits(HandTorch.ITEM) and randi_range(1, 100) <= player.explore_bonus(Training.EXPLORE_TORCH)
 	if torch:
@@ -3955,10 +4079,12 @@ func _search(obj: Dictionary) -> void:
 		Sfx.play_gear(self, HandTorch.ITEM, found_after + 0.25)
 		text = Items.item_name(HandTorch.ITEM) if text.ends_with("leer") else text + "  +" + Items.item_name(HandTorch.ITEM)
 		if not loot.has("item"):
-			show_message(Lang.t("Dein geübtes Auge findet eine Fackel, die hier versteckt lag."), 2.4)
+			Events.found(Lang.t("Dein geübtes Auge findet eine Fackel, die hier versteckt lag."), Color(1.0, 0.75, 0.4))
+		else:
+			Events.found(Lang.t("Gefunden: %s") % Items.item_name(HandTorch.ITEM), Color(1.0, 0.75, 0.4))
 	Effects.float_text(level, obj.icon_pos, text, color, true)
 	if loot.is_empty() and not torch:
-		show_message(Lang.t("Du durchsuchst %s... nichts.") % Lang.t(_with_article(obj.label)), 1.2)
+		Events.found(Lang.t("Du durchsuchst %s... nichts.") % Lang.t(_with_article(obj.label)), Color(0.8, 0.8, 0.85))
 	_update_hud()
 
 
@@ -4426,12 +4552,14 @@ func _process(delta: float) -> void:
 		_shake = maxf(0.0, _shake - delta)
 		var strength := 0.25 * minf(1.0, _shake)
 		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
+	_place_hp_bar(p, target)
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)
 	_update_drag(delta)
 	_update_run_meter()
 	tutorial.update(delta)
+	_help.visible = tutorial.pending()
 	if state == State.PLAYING:
 		fishing.tick(delta)
 	elif fishing.is_fishing():

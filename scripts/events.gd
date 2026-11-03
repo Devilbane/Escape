@@ -55,6 +55,13 @@ signal trap_spotted(text: String, place_level: int)
 ## The hero struck with the blade ("melee"), threw a knife ("throw") or
 ## jumped ("jump"). The first steps' cards listen (see Tutorial).
 signal hero_acted(action: String)
+## The hero found something (loot): the line for the event log at the left
+## edge of the screen, already translated (see EventLog). Use Events.found.
+signal loot_found(text: String, color: Color)
+## Someone said a line out loud at `pos` (a villager, a dungeon dweller, a
+## boss); the event log writes it down when the hero is near enough to hear
+## it. Text and name are already translated. Use Events.say.
+signal speech_said(speaker: String, text: String, pos: Vector3)
 ## The hero noticed a writing on a wall (see Level, WallWritings): its
 ## German text, for the compendium and the journal.
 signal writing_found(text: String)
@@ -73,6 +80,16 @@ static func bus() -> Events:
 ## News for the hero to read (see news_told).
 static func tell(text: String, color: Color, duration := 4.0) -> void:
 	bus().news_told.emit(text, color, duration)
+
+
+## Loot for the event log (see loot_found).
+static func found(text: String, color := EventLog.LOOT_COLOR) -> void:
+	bus().loot_found.emit(text, color)
+
+
+## A spoken line for the event log (see speech_said).
+static func say(speaker: String, text: String, pos: Vector3) -> void:
+	bus().speech_said.emit(speaker, text, pos)
 
 
 ## Something new for the compendium (see lore_learned).

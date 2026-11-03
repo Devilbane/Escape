@@ -86,12 +86,19 @@ func _fill() -> void:
 	for i in EventLog.KEEP + 15:
 		Events.found("Gefunden: ein sehr langer Name für einen Gegenstand Nummer %d, der umbricht" % i)
 	check(elog.entries().size() <= EventLog.KEEP, "old lines are let go (%d kept)" % elog.entries().size())
+	check(EventLog.KEEP >= 50, "at least the last 50 lines can be scrolled back to")
 	# A long message on the message line, for the layout check.
 	game.show_message("Eine lange Nachricht, die über mehrere Zeilen geht. ".repeat(4), 4.0)
 
 
 func _check_layout() -> void:
 	var elog: EventLog = game.event_log
+	# Scrolling back: within the lines there are, and back to the newest.
+	elog.scroll_to(1e9)
+	check(elog.scrolled() > 0.0, "the log scrolls back to older lines")
+	check(elog.scrolled() <= elog._lines.get_combined_minimum_size().y, "but not past the oldest")
+	elog.scroll_to(-50.0)
+	check(is_zero_approx(elog.scrolled()), "and back down to the newest")
 	var box := elog.get_global_rect()
 	check(box.is_equal_approx(rect_before), "the box keeps its size and place: %s vs %s" % [box, rect_before])
 	check(box.size.is_equal_approx(Vector2(EventLog.WIDTH, EventLog.HEIGHT)), "the box has its fixed size: %s" % box.size)

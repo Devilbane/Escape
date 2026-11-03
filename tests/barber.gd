@@ -105,7 +105,9 @@ func _test() -> void:
 			pip_hair = v._info.get("hair", {})
 	check(pip_hair.get("style", "") == "spiky", "Pip wears spikes")
 	var spikes := game.player.find_child("Crest", true, false) as MeshInstance3D
-	check(spikes.mesh.get_aabb().position.y < HairLook.SKULL_CENTER.y - 0.2, "the spikes cover the sides and the back too")
+	var box := spikes.mesh.get_aabb()
+	check(box.size.x > HairLook.SKULL_RADII.x * 1.5 and box.size.z > HairLook.SKULL_RADII.z * 1.5, "the spikes cover the whole top of the head")
+	check(box.position.y > HairLook.SKULL_CENTER.y, "the spikes stay clear of the ears and the collar")
 
 	# A woman ties her natural hair in a knot at the back; a hat or a cut hides it.
 	p.set_sex("female")

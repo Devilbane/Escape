@@ -36,8 +36,12 @@ const PERSONAL_SPACE := 1.3
 ## Villagers who walk about keep at least this far from one another.
 const PASSING_SPACE := 0.8
 
+## A rosier face for a Rogue (see HairLook.tint_skin): the model's own skin
+## turns pale yellow in the midday sun.
+const SKIN_ROSY := Color(0.97, 0.85, 0.88)
+
 ## name: shown above the head; model; show: extra parts; hair: a look for a
-## Rogue (see HairLook); sex: "female" for a woman built on the Rogue (see
+## Rogue (see HairLook); skin: a tint for a Rogue's face; sex: "female" for a woman built on the Rogue (see
 ## BodyLook); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
 ## animation at their spot; lines: what they say, one after another.
 const ROLES := {
@@ -62,7 +66,7 @@ const ROLES := {
 	"6": {"name": "Krämerin Mira", "model": "Rogue", "show": ["Rogue_Cape"], "sex": "female",
 		"colors": [Color(0.7, 0.35, 0.6), Color(0.35, 0.3, 0.45), Color(0.6, 0.3, 0.5)], "plan": "shop", "work": "Interact",
 		"lines": ["Brot, Käse, Seile, Fackeln: alles für den Alltag!", "Ich kaufe auch, was du aus dem Verlies mitbringst.", "Für einen Helden mache ich einen guten Preis.", "Wurst für die Füchse? Die leben auf der Wiese am Waldteich, westlich vom Dorf."]},
-	"7": {"name": "Pip", "model": "Rogue", "show": [], "scale": 0.72, "hair": {"style": "spiky", "color": "blond"},
+	"7": {"name": "Pip", "model": "Rogue", "show": [], "scale": 0.72, "hair": {"style": "spiky", "color": "blond"}, "skin": SKIN_ROSY,
 		"colors": [Color(0.45, 0.6, 0.9), Color(0.6, 0.45, 0.3), Color(0.9, 0.8, 0.3)], "plan": "wander", "work": "Cheer",
 		"lines": ["Fang mich doch!", "Bist du ein echter Abenteurer?", "Mama sagt, in der Gruft spukt es!"]},
 	"8": {"name": "Gelehrter Odo", "model": "Mage", "show": ["Mage_Hat", "Spellbook_open"],
@@ -192,6 +196,8 @@ func _ready() -> void:
 	# Everyone on the Rogue model has combed hair, some a haircut of their own.
 	if _info.has("hair") or _info.model == "Rogue":
 		HairLook.apply(_model, HairLook.checked(_info.get("hair", HairLook.DEFAULT)))
+		if _info.has("skin"):
+			HairLook.tint_skin(_model, _info.skin)
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walking_A", "Walking_B", "Running_A", "Sit_Floor_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR

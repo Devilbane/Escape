@@ -37,8 +37,14 @@ uniform int mode = 0;
 uniform vec3 root_color : source_color = vec3(0.32, 0.14, 0.09);
 uniform vec3 hair_color : source_color = vec3(0.62, 0.33, 0.22);
 uniform vec3 tip_color : source_color = vec3(0.84, 0.52, 0.34);
+// Head: the skin is multiplied by this (white keeps the texture's own), so
+// one character can have a rosier or a darker face than the model's.
+uniform vec3 skin_tint : source_color = vec3(1.0);
 // Strands across one lock.
 uniform float strands = 6.0;
+// The crest is made of solid tufts (spiky hair): cones, UV.x round each one,
+// that are grooved into strands but never cut open.
+uniform bool tufts = false;
 // The tattoo: a word in white on a clear background, laid onto the right
 // side of a shaved head.
 uniform sampler2D tattoo : filter_linear;
@@ -187,7 +193,7 @@ void fragment() {
 		float strand = 1.0 - smoothstep(thick - 0.2, thick, abs(f));
 		// Near the root a lock is solid; further out the gaps open up.
 		float cover = max(mix(strand, 1.0, blur), 1.0 - smoothstep(0.15, 0.3, along));
-		cut = along > ends || cover < 0.5;
+		cut = !tufts && (along > ends || cover < 0.5);
 
 		float glow;
 		vec3 c = hair_tone(along, COLOR.b, flick, TIME, glow);
@@ -195,10 +201,16 @@ void fragment() {
 		// Darker where a strand curves away, between the strands.
 		float curve = sqrt(max(0.0, 1.0 - f * f));
 		vary *= mix(1.0, 0.7 + 0.3 * curve, 1.0 - blur);
+		if (tufts) {
+			// A tuft is a clump: soft grooves instead of loose strands, the
+			// roots in its own shadow, the shading even all round it.
+			vary = mix(1.0, 0.93 + 0.07 * curve, 1.0 - blur) * (0.9 + 0.2 * COLOR.g);
+			vary *= mix(0.62, 1.0, smoothstep(0.0, 0.45, along));
+		}
 		albedo = c * vary;
 		emission = c * glow * vary;
 		// Round strands: tilt the normal across each one.
-		float h = curve * (1.0 - blur) * 0.004;
+		float h = tufts ? 0.0 : curve * (1.0 - blur) * 0.004;
 		NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
 		roughness = 0.45;
 		specular = 0.4;
@@ -245,9 +257,16 @@ void fragment() {
 			float flick = mode == 2 ? vnoise(vec3(p.x * 6.0, p.y * 5.0 + TIME * 2.5, p.z * 6.0)) : 0.5;
 			float glow;
 			vec3 dyed = hair_tone(along, around, flick, TIME, glow) * light;
+			if (short_hair && mode == 0) {
+				// A short crop is the hair's dense base: the roots' shade
+				// a third of the way to the middle colour, never pale like skin.
+				dyed = mix(root_color, hair_color, 0.35) * clamp(light, 0.75, 1.1);
+			}
 			albedo = mix(c, dyed, hair);
 			emission = dyed * glow * hair * 0.5;
 		}
+		// The skin: the face, the ears and a shaved scalp.
+		albedo *= mix(skin_tint, vec3(1.0), shaved ? 0.0 : hair);
 	}
 	ALBEDO = albedo;
 	EMISSION = emission;

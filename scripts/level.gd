@@ -493,6 +493,9 @@ func build() -> void:
 		add_child(DungeonLife.new(self))
 	if not grates.is_empty():
 		add_child(GratePits.new(self))
+		var tentacles := GrateTentacles.make(self)
+		if tentacles:
+			add_child(tentacles)
 	if not _vault_slots.is_empty():
 		refresh_vaults()
 	traps = Traps.make(self)

@@ -81,8 +81,8 @@ func _test() -> void:
 	var gift_before: float = p.gift_speed
 	var speed_before: float = p.base_speed
 	game._choose_gift(2)
-	check(is_equal_approx(p.gift_speed - gift_before, 0.03), "+3 % speed adds 0.03 (%.3f)" % (p.gift_speed - gift_before))
-	check(p.base_speed > speed_before, "+3 % speed makes the hero faster (%.3f -> %.3f)" % [speed_before, p.base_speed])
+	check(is_equal_approx(p.gift_speed - gift_before, 0.03), "+3 %% speed adds 0.03 (%.3f)" % (p.gift_speed - gift_before))
+	check(p.base_speed > speed_before, "+3 %% speed makes the hero faster (%.3f -> %.3f)" % [speed_before, p.base_speed])
 	_finish()
 
 

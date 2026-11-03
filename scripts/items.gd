@@ -11,6 +11,8 @@ extends RefCounted
 ## fighting, and only while holding it. "skills" are levels an item adds.
 ## "requires" names attributes the hero needs to use an item, e.g. the wizard's
 ## hat asks for some Intelligenz.
+## A hat with "brim" has its brim narrowed to that share of its width when the
+## hero wears it (GearLook.narrow_brim), so the face stays visible.
 ## Books ("teaches") are carried, not worn: they are read while the player is
 ## away (see Offline).
 ## A worn backpack ("bag") holds more than the plain bag's BAG_SIZE items.
@@ -54,7 +56,7 @@ static var ALL := {
 	"kriegshammer": {"name": "Kriegshammer", "slot": "waffe", "uses": "aexte", "weight": 6, "power": 3, "skills": {"aexte": 1}, "price": 70, "smith": true, "model": "res://assets/weapons/forge/war_hammer.gltf", "material": "mixed"},
 	"drachenschild": {"name": "Drachenschild", "slot": "schild", "weight": 6, "hp": 3, "armor": 1, "block": 0.3, "durability": 9, "skills": {"blocken": 1}, "price": 55, "smith": true, "model": "res://assets/weapons/forge/kite_shield.gltf", "material": "mixed"},
 	"knochenhelm": {"name": "Knochenhelm", "slot": "kopf", "weight": 1, "power": 1, "price": 18, "hat": ["res://assets/enemies/Skeleton_Warrior.glb", "Skeleton_Warrior_Helmet"], "material": "bone"},
-	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "requires": {"intelligenz": 11}, "weight": 0.5, "hp": 1, "speed": 0.07, "magic": true, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"], "material": "cloth"},
+	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "requires": {"intelligenz": 11}, "weight": 0.5, "hp": 1, "speed": 0.07, "magic": true, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"], "brim": 0.4, "material": "cloth"},
 	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 3, "hp": 2, "armor": 1, "durability": 4, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "material": "metal"},
 	"baerenkappe": {"name": "Bärenkappe", "slot": "kopf", "weight": 1, "hp": 1, "power": 1, "price": 34, "hat": ["res://assets/characters/Barbarian.glb", "Barbarian_Hat"], "material": "fur"},
 	"wollumhang": {"name": "Wollumhang", "slot": "umhang", "weight": 1, "hp": 1, "price": 12, "tint": Color(0.55, 0.4, 0.28), "material": "cloth"},

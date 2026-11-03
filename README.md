@@ -313,8 +313,11 @@ In the middle of the village lies the paved **market square** with a fountain th
 lanterns. Around it stand the **smithy**, the **temple** (a small stone chapel with a spire and stained-glass
 windows), the **office of the crown**, the **post office**, the
 **adventurers' guild**, the **general store** (Mira, the shopkeeper, buys and sells), the **tavern** and the
-**bank**. The villagers live in half-timbered houses with jutting upper floors, shuttered windows and tiled
-roofs, each one a little different. Sixteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
+**bank**. The villagers live in stone houses with jutting upper floors, shuttered windows and tiled
+roofs, each one a little different. Every building in the village is built of the same old, weathered stone as
+the temple: grime at the foot of the walls, rain streaks, moss, faded roofs and ivy climbing up the walls. Birds
+nest on the chimneys and towers and fly back and forth between their nests, the roofs and the square by day,
+and a way paved like the market square leads to every door. Sixteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
 makes the rounds, the postmaster carries letters, the priestess tends the temple. Every so often the
 **herald** rings the bell and calls out the news, and the whole village gathers on the square to listen.
 

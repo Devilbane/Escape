@@ -266,6 +266,27 @@ const WINDOW_GLOW := 2.6
 ## The kit's material -> its copy with glowing windows.
 var _window_mats := {}
 var _window_mask: ImageTexture
+## The old stone look (see AgedStone): the leaves of all the ivy, the nests
+## on the roofs, the doors (and the way they look out) that get a paved way,
+## and the ground's mask, which those ways are painted into.
+var _ivy := {"xforms": [], "colours": []}
+var nests: Array[Vector3] = []
+var birds: VillageBirds
+var _entrances: Array = []
+var _ground_img: Image
+var _ground_tex: ImageTexture
+## What the dressing found for each building (see _dress_building), kept
+## for the session.
+static var _dressed := {}
+## Nests at most, and how likely one of Weavers' Lane's town houses gets ivy
+## and a nest (the other buildings all have ivy, and most of them a nest).
+const MAX_NESTS := 10
+const LANE_IVY := 0.35
+const LANE_NEST := 0.15
+## The paved ways to the doors: how wide (in quarter tiles, the ground
+## mask's pixels) and how far they look for the square or a path (tiles).
+const WAY_WIDTH := 1.4
+const WAY_SEARCH := 14
 ## The hour the world was last lit for, and whether it is night.
 var hour := -1.0
 var night := false
@@ -356,6 +377,14 @@ func build() -> void:
 			var c := Vector2i(x, y)
 			_build_outdoor_cell(c, cell_char(c))
 	_build_blocks()
+	_pave_entrances()
+	if not _ivy.xforms.is_empty():
+		add_child(AgedStone.ivy_node(_ivy))
+	if not nests.is_empty():
+		var pecking: Array[Vector3] = []
+		pecking.assign(spots.square)
+		birds = VillageBirds.new(self, nests, pecking, hash(level_name + "voegel"))
+		add_child(birds)
 	Mountains.build(self, hash(level_name + "berge"))
 	_build_forest()
 	_build_house()
@@ -407,9 +436,11 @@ func _build_ground() -> void:
 	# A smoother mask gives softer edges between the tiles.
 	mask.resize(width * 4, height * 4, Image.INTERPOLATE_BILINEAR)
 	stones.resize(width * 4, height * 4, Image.INTERPOLATE_BILINEAR)
+	_ground_img = mask
+	_ground_tex = ImageTexture.create_from_image(mask)
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/meadow.gdshader")
-	mat.set_shader_parameter("ground_mask", ImageTexture.create_from_image(mask))
+	mat.set_shader_parameter("ground_mask", _ground_tex)
 	mat.set_shader_parameter("stone_mask", ImageTexture.create_from_image(stones))
 	mat.set_shader_parameter("grid_size", Vector2(width, height))
 	mat.set_shader_parameter("tile", TILE)
@@ -999,6 +1030,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		node.position = center
 		node.rotation.y = rot
 		add_child(node)
+		var door: Vector3 = node.transform * (node.get_meta("door") as Vector3)
+		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
+		_dress_building(node, center, [door])
 	else:
 		var model: String = BLOCK_MODELS[ch]
 		var box := _aabb_of(model)
@@ -1007,12 +1041,16 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		var foot := (Vector3(box.position.x + box.size.x * 0.5, 0, box.position.z + box.size.z * 0.5) * s).rotated(Vector3.UP, rot)
 		node = _put(model, center - foot, rot, s)
 		if ch != "R":
-			_light_windows(node)
+			_age_kit_building(node)
 	var solid := Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86)
 	_add_solid(center, solid)
 	var reach := Vector2(block.size) * TILE * 0.5 + Vector2(2.0, 2.0)
 	var front := center + Vector3(facing.x * reach.x, 0, facing.y * reach.y)
 	doors[ch] = front
+	if ch != "R" and ch != "h":
+		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
+		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
+		_dress_building(node, center, [door])
 	if interiors.has(ch):
 		# Run into the door to go in.
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
@@ -1075,6 +1113,9 @@ func _build_terrace(block: Rect2i) -> void:
 		town_houses.append(house)
 		var door := at + Vector3(float(house.get_meta("door_x")), 0, 0).rotated(Vector3.UP, rot) + out * deep * TILE * 0.5
 		doors["^" + str(number)] = door + out * 2.0
+		_entrances.append({"door": door, "out": out})
+		if hash("%s|lane|%d" % [level_name, number]) % 1000 < LANE_IVY * 1000.0:
+			_dress_building(house, at, [door], LANE_NEST)
 		if interiors.has("^"):
 			stations.append({"kind": "eingang", "building": "^", "house": number, "reach": 1.6,
 					"name": Lang.t("das Haus Nr. %d") % number,
@@ -1387,31 +1428,177 @@ func _chapel_gable() -> Mesh:
 	return mesh
 
 
-## Gives a building windows that can glow: its kit material is swapped for
-## a copy with an emission mask over the window panes (dark by day).
-func _light_windows(node: Node) -> void:
+## The mask over the window panes on the KayKit palette.
+func _window_mask_texture() -> void:
 	if _window_mask == null:
 		# Image.create starts black: only the window patch shines.
 		var img := Image.create(256, 256, false, Image.FORMAT_RGB8)
 		var at := Vector2i(WINDOW_UV * 256.0)
 		img.fill_rect(Rect2i(at - Vector2i(3, 3), Vector2i(7, 7)), Color.WHITE)
 		_window_mask = ImageTexture.create_from_image(img)
+
+
+## Builds a KayKit building of the temple's old stone instead of its toy
+## colours (see AgedStone): its light walls become stone blocks, its roofs
+## faded tiles, and its windows still glow at night.
+func _age_kit_building(node: Node) -> void:
+	_window_mask_texture()
 	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
 		var mat := mi.get_active_material(0)
 		if not mat is StandardMaterial3D:
 			continue
 		if not _window_mats.has(mat):
-			var lit: StandardMaterial3D = mat.duplicate()
-			lit.emission_enabled = true
-			lit.emission = WINDOW_LIGHT
-			lit.emission_texture = _window_mask
-			# Multiply, not the default add: with "add" the emission colour
-			# shines over the whole building and the mask only adds to it,
-			# so every house glowed white at night.
-			lit.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
-			lit.emission_energy_multiplier = 0.0
-			_window_mats[mat] = lit
+			_window_mats[mat] = AgedStone.kit_material((mat as StandardMaterial3D).albedo_texture, _window_mask)
 		mi.material_override = _window_mats[mat]
+
+
+## Ivy up the walls of a building, and maybe a nest up on it (see AgedStone).
+## `middle` is the middle of its foot, `door_spots` where its doors are.
+## Each building has its own random numbers, so it is dressed the same every
+## time; and what was found is kept, so when the hero steps out of the crypt
+## the village built behind the title screen (see WorldPreload) has already
+## done the work.
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75) -> void:
+	var key := "%s|%s|%s" % [level_name, middle, _bounds_in(node)]
+	if not _dressed.has(key):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash(key)
+		# The meshes are read in world space (a copy of the village is built
+		# far below, see WorldPreload); the ivy and the nest are kept in the
+		# village's own.
+		var offset := global_position
+		var tris := AgedStone.triangles(node)
+		var ground := node.global_position.y
+		var doors_at := door_spots.map(func(d: Vector3): return d + offset)
+		var leaves := {"xforms": [], "colours": []}
+		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves)
+		for i in leaves.xforms.size():
+			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
+		var spot := Vector3.INF
+		if rng.randf() < nest_chance:
+			spot = AgedStone.nest_spot(tris, ground)
+		_dressed[key] = {"leaves": leaves, "nest": spot - offset if spot != Vector3.INF else spot, "turn": rng.randf() * TAU}
+	var done: Dictionary = _dressed[key]
+	_ivy.xforms.append_array(done.leaves.xforms)
+	_ivy.colours.append_array(done.leaves.colours)
+	if done.nest == Vector3.INF or nests.size() >= MAX_NESTS:
+		return
+	var nest := MeshInstance3D.new()
+	nest.name = "Nest"
+	nest.mesh = AgedStone.nest_mesh()
+	nest.rotation.y = done.turn
+	nest.position = done.nest
+	add_child(nest)
+	nests.append(done.nest)
+
+
+## The box round a building's meshes, as it stands in the village.
+func _bounds_in(node: Node3D) -> AABB:
+	var box := AABB()
+	var first := true
+	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		var b: AABB = (global_transform.affine_inverse() * mi.global_transform) * mi.mesh.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return box
+
+
+## A way paved like the market square from each door to the square or the
+## nearest path (only drawn into the ground: the tiles stay as they are).
+func _pave_entrances() -> void:
+	if _ground_img == null:
+		return
+	for e: Dictionary in _entrances:
+		var door: Vector3 = e.door
+		var out: Vector3 = e.out
+		var start := world_to_cell(door + out * 2.0)
+		var route := _way_to_road(start)
+		var points: Array[Vector3] = [door - out * 0.3, door + out * 1.4]
+		for c in route:
+			points.append(cell_to_world(c))
+		for i in points.size() - 1:
+			_pave_line(points[i], points[i + 1])
+	_ground_tex.update(_ground_img)
+
+
+## The shortest way over open ground from a tile to the square or a path:
+## the tiles in between, string-pulled into as few straight runs as can be.
+func _way_to_road(start: Vector2i) -> Array[Vector2i]:
+	var none: Array[Vector2i] = []
+	if not _open_ground(start):
+		return none
+	var came := {start: start}
+	var queue: Array[Vector2i] = [start]
+	var goal := Vector2i(-1, -1)
+	while not queue.is_empty():
+		var c: Vector2i = queue.pop_front()
+		if ":,".contains(cell_char(c)):
+			goal = c
+			break
+		if absi(c.x - start.x) + absi(c.y - start.y) >= WAY_SEARCH:
+			continue
+		for d: Vector2i in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+			var n := c + d
+			if not came.has(n) and _open_ground(n):
+				came[n] = c
+				queue.append(n)
+	if goal.x < 0:
+		return none
+	var path: Array[Vector2i] = [goal]
+	while path[-1] != start:
+		path.append(came[path[-1]])
+	path.reverse()
+	# Straight on wherever the way between stays on open ground.
+	var pulled: Array[Vector2i] = [path[0]]
+	var i := 0
+	while i < path.size() - 1:
+		var j := path.size() - 1
+		while j > i + 1 and not _clear_between(path[i], path[j]):
+			j -= 1
+		pulled.append(path[j])
+		i = j
+	return pulled
+
+
+func _open_ground(c: Vector2i) -> bool:
+	if c.x < 0 or c.y < 0 or c.x >= width or c.y >= height:
+		return false
+	var ch := cell_char(c)
+	return ".,:'".contains(ch) or (WALK.contains(ch) and not BLOCK_CHARS.contains(ch) and ch != "a")
+
+
+func _clear_between(a: Vector2i, b: Vector2i) -> bool:
+	var steps := maxi(absi(b.x - a.x), absi(b.y - a.y)) * 3
+	for k in steps + 1:
+		var p := Vector2(a).lerp(Vector2(b), float(k) / maxf(steps, 1))
+		if not _open_ground(Vector2i(roundi(p.x), roundi(p.y))):
+			return false
+	return true
+
+
+## Paints a straight run of paving into the ground's mask (red and green
+## together are the square's stones, see _build_ground).
+func _pave_line(from: Vector3, to: Vector3) -> void:
+	var a := Vector2(from.x / TILE + 0.5, from.z / TILE + 0.5) * 4.0
+	var b := Vector2(to.x / TILE + 0.5, to.z / TILE + 0.5) * 4.0
+	var steps := maxi(1, ceili(a.distance_to(b) * 2.0))
+	var r := WAY_WIDTH
+	for k in steps + 1:
+		var p := a.lerp(b, float(k) / steps)
+		for y in range(floori(p.y - r - 1.0), ceili(p.y + r + 1.0)):
+			for x in range(floori(p.x - r - 1.0), ceili(p.x + r + 1.0)):
+				if x < 0 or y < 0 or x >= _ground_img.get_width() or y >= _ground_img.get_height():
+					continue
+				var dist := Vector2(x + 0.5, y + 0.5).distance_to(p)
+				var paved := clampf(r + 0.5 - dist, 0.0, 1.0)
+				if paved <= 0.0:
+					continue
+				var m := _ground_img.get_pixel(x, y)
+				m.r = maxf(m.r, paved)
+				m.g = maxf(m.g, paved)
+				_ground_img.set_pixel(x, y, m)
 
 
 ## Which way a building's door looks: towards the square if it borders it,
@@ -2076,7 +2263,10 @@ func set_hour(new_hour: float) -> void:
 	for candle in _candles:
 		candle.visible = glow > 0.02
 	for mat in _window_mats.values():
-		mat.emission_energy_multiplier = WINDOW_GLOW * glow
+		if mat is ShaderMaterial:
+			mat.set_shader_parameter("glow", WINDOW_GLOW * glow)
+		else:
+			mat.emission_energy_multiplier = WINDOW_GLOW * glow
 	var dark := DayNight.is_night(hour)
 	var came := _mind_the_wanderer()
 	if dark == night and not first:

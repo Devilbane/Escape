@@ -215,6 +215,14 @@ static func bag_size(backpack: String) -> int:
 	return maxi(BAG_SIZE, int(ALL.get(backpack, {}).get("bag", 0)))
 
 
+## Whether an item is plain, common stuff (cheaper than an uncommon secret
+## room's cheapest gear, see Level.TIERS). Only common things may turn up in
+## more than one container of a level; anything finer, books included, is
+## found there once at most (see Level.loot_item).
+static func is_common(id: String) -> bool:
+	return ALL.has(id) and ALL[id].price < int(Level.TIERS["ungewoehnlich"].min_price)
+
+
 static func is_book(id: String) -> bool:
 	return ALL.has(id) and ALL[id].has("teaches")
 
@@ -341,7 +349,9 @@ static func item_level(id: String) -> int:
 ## level, see HeroLevel.place_level) only gear that suits it is picked, so
 ## deeper and harder places hold better things; the best gear of all still
 ## turns up in the hardest places, which have nothing above them.
-static func random_item(rng: RandomNumberGenerator, min_price := 0, slot := "", area := 0) -> String:
+## Items in `exclude` (a set of ids) are left out while anything else fits;
+## only when every fitting item is excluded may one of them turn up again.
+static func random_item(rng: RandomNumberGenerator, min_price := 0, slot := "", area := 0, exclude := {}) -> String:
 	var ids := ALL.keys().filter(func(id): return ALL[id].price >= min_price and (slot == "" or ALL[id].slot == slot) and not ALL[id].get("no_loot", false) and not ALL[id].get("smith", false))
 	if area > 0:
 		var top := 0
@@ -351,6 +361,10 @@ static func random_item(rng: RandomNumberGenerator, min_price := 0, slot := "", 
 		var fitting := ids.filter(func(id): return item_level(id) >= low and item_level(id) <= area + LOOT_ABOVE)
 		if not fitting.is_empty():
 			ids = fitting
+	if not exclude.is_empty():
+		var fresh := ids.filter(func(id): return not exclude.has(id))
+		if not fresh.is_empty():
+			ids = fresh
 	return _weighted(rng, ids)
 
 

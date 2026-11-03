@@ -1418,7 +1418,7 @@ func _on_fox_dug_up(id: String, pos: Vector3) -> void:
 	level.lay_find(id, pos)
 	Effects.float_text(level, pos + Vector3(0, 2.0, 0), Crafting.ingredient_name(id), Color(0.75, 0.9, 1.0), true)
 	var fox_name: String = pet.given_name if is_instance_valid(pet) and pet.given_name != "" else Lang.t("Dein Fuchs")
-	Events.found(Lang.t("%s hat etwas ausgegraben: %s!") % [fox_name, Crafting.ingredient_name(id)])
+	Events.found(Lang.t("%s hat etwas ausgegraben: %s!") % [fox_name, Rarity.marked(id)])
 
 
 ## A dug-up ingredient goes into the ingredient pouch, not the bag.
@@ -1426,7 +1426,7 @@ func _on_ingredient_collected(id: String) -> void:
 	crafting.add(id)
 	Sfx.play(self, "key", -3.0)
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5), true)
-	Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5))
+	Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
 
 
 ## The fountain: full life and every ailment gone, as often as you like.
@@ -3996,8 +3996,8 @@ func _on_item_collected(id: String) -> void:
 		# Where ore turned up goes on the map (see Journal).
 		note_find("ore", id, Items.ALL[id].name, player.global_position)
 	Sfx.play(self, "key", -3.0)
-	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Color(0.75, 0.9, 1.0), true)
-	Events.found(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)])
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Rarity.color(id), true)
+	Events.found(Lang.t("Gefunden: %s (%s)") % [Rarity.marked(id), Items.describe(id)])
 	_update_hud()
 
 
@@ -4291,9 +4291,10 @@ func _search(obj: Dictionary) -> void:
 	if loot.has("item"):
 		player.bag.append(loot.item)
 		Sfx.play_find(self, loot.item, found_after + (0.25 if loot.has("gold") else 0.0))
-		var found := Lang.t("Gefunden: %s (%s)") % [Items.item_name(loot.item), Items.describe(loot.item)]
+		var found := Lang.t("Gefunden: %s (%s)") % [Rarity.marked(loot.item), Items.describe(loot.item)]
 		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
-		color = Color(0.75, 0.9, 1.0)
+		# The words over the chest take the colour of the piece found.
+		color = Rarity.color(loot.item)
 		Events.found(found)
 	# An eye trained in exploring (Erkunden) finds a torch tucked away.
 	var torch := player.bag_fits(HandTorch.ITEM) and randi_range(1, 100) <= player.explore_bonus(Training.EXPLORE_TORCH)

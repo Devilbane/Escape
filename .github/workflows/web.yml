@@ -99,6 +99,11 @@ jobs:
           timeout 60 ~/godot/godot --headless -s tests/loot_fanfare.gd | tee fanfare.log
           grep -q PASS fanfare.log
 
+      - name: Rarity colours (item names in the colour of their tier)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/rarity_colours.gd | tee rarity.log
+          grep -q PASS rarity.log
+
       - name: Event bus test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log

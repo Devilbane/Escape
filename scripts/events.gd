@@ -56,7 +56,9 @@ signal trap_spotted(text: String, place_level: int)
 ## jumped ("jump"). The first steps' cards listen (see Tutorial).
 signal hero_acted(action: String)
 ## The hero found something (loot): the line for the event log at the left
-## edge of the screen, already translated (see EventLog). Use Events.found.
+## edge of the screen, already translated (see EventLog). Item names in it
+## may be marked with Rarity.marked, to show in their rarity's colour.
+## Use Events.found.
 signal loot_found(text: String, color: Color)
 ## Someone said a line out loud at `pos` (a villager, a dungeon dweller, a
 ## boss); the event log writes it down when the hero is near enough to hear

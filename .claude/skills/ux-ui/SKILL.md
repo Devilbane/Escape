@@ -378,6 +378,7 @@ Further rules:
   | Note / warning | (1.0, 0.75, 0.5) | Notes after an action, quit warning |
   | Secondary | `GREY` (0.75, 0.72, 0.68) | Counts, empty states, fine print |
   | Lives | (1.0, 0.45, 0.42) | HP in the HUD |
+  | Item rarity | `Rarity.color(id)`: common (0.92, 0.92, 0.9), uncommon (0.35, 0.9, 0.35), rare (0.25, 0.55, 1.0), epic (0.75, 0.42, 1.0), god-born (1.0, 0.5, 0.1), self-crafted (0.25, 0.9, 0.85) | Every item name: inventory, chest, vault, trade rows and cards, event log, words over a find |
 
 - **Never colour alone.** About 8 % of men and 0.5 % of women have a colour vision deficiency; red
   and green are the most commonly confused. Pair every colour meaning with a second cue: an icon
@@ -607,6 +608,7 @@ Use these helpers and values; do not re-create them.
 | Item pictures | `ItemIcon.make(id_or_kind, size, flat)` | Use `kind:*` icons (coin, chev_up, chev_down, up, …) for UI symbols. |
 | Fonts | `game.TITLE_FONT` (Cinzel Decorative Black), `game.TEXT_FONT` (Cinzel Bold) | Titles vs everything else. |
 | Colours | `game.GOLD`, `TradeWindow.GREEN/RED/GREY/BLUE/ORANGE`, `Menus.BLUE`, `Menus.REPUTATION_COLOR` | See section 7. |
+| Item names | `Rarity` (`scripts/rarity.gd`) | An item's name is always in its rarity colour: `_item_button(…, id)` and `TradeWindow.name_color` do it for buttons and rows, `Rarity.bbcode(id)` for a RichTextLabel, `Rarity.marked(id)` inside an `Events.found` text. Where there is room, name the tier in words too (`Rarity.label(id)`). |
 | Translations | `Lang.t()`, `Lang.EN` | Every new player-facing string. |
 | Pull-out menu | `game._setup_drawer()` | Right edge, Tab toggles; window buttons push it away. |
 | Quick window icons | `game._setup_quick_bar()`, `QUICK_WINDOWS` | Map, compendium, inventory, character and quests as 70 × 48 picture buttons on the drawer's rail above its handle (8 apart, 20 to the handle); tooltip "Name (key X)" in `_tooltip_theme()`; the open window's icon stays pressed. Add a window there rather than a second icon row. |

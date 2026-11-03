@@ -102,7 +102,8 @@ func _add(speaker: String, text: String, color: Color) -> void:
 	line.add_theme_color_override("default_color", color)
 	line.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
 	line.add_theme_constant_override("outline_size", 3)
-	var body := _escape(text)
+	# Item names marked by Rarity.marked show in the colour of their rarity.
+	var body := Rarity.to_bbcode(_escape(text))
 	if speaker != "":
 		body = "[color=#%s]%s:[/color] %s" % [NAME_COLOR.to_html(false), _escape(speaker), body]
 	line.text = body

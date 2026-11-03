@@ -306,28 +306,51 @@ func _fit_area() -> void:
 	var area := HeroLevel.area_of(level, kind) if level else ""
 	if area == "" or HeroLevel.FIXED.has(kind):
 		return
-	var target := HeroLevel.area_target(area, rated_level)
-	var top: int = HeroLevel.AREAS[area].max
-	var step := 0
-	while rated_level < target and step < 80:
-		if step % 2 == 0:
-			_stats.hp = int(_stats.hp) + maxi(1, int(_stats.hp) / 8)
-		else:
-			_stats.damage = int(_stats.damage) + 1
-		step += 1
-		rated_level = _rating()
-	step = 0
-	while rated_level > top and step < 80:
-		if step % 2 == 0 and int(_stats.damage) > 1:
-			_stats.damage = int(_stats.damage) - 1
-		elif int(_stats.hp) > 1:
-			_stats.hp = int(_stats.hp) - maxi(1, int(_stats.hp) / 10)
-		step += 1
-		rated_level = _rating()
+	rated_level = fit_level(kind, _stats, hardening, HeroLevel.area_target(area, rated_level), HeroLevel.AREAS[area].max)
 
 
 func _rating() -> int:
 	return HeroLevel.rate(kind, int(_stats.hp), int(_stats.damage), hardening, float(_stats.cooldown))
+
+
+## Lifts a monster's numbers ("hp", "damage" in `stats`, changed in place)
+## until it rates at least `target`, then tones them down to at most `top`
+## (see _fit_area). Returns the level it rates at in the end.
+static func fit_level(kind_id: String, stats: Dictionary, armour: int, target: int, top: int) -> int:
+	var rate := func() -> int:
+		return HeroLevel.rate(kind_id, int(stats.hp), int(stats.damage), armour, float(stats.cooldown))
+	var rated: int = rate.call()
+	var step := 0
+	while rated < target and step < 80:
+		if step % 2 == 0:
+			stats.hp = int(stats.hp) + maxi(1, int(stats.hp) / 8)
+		else:
+			stats.damage = int(stats.damage) + 1
+		step += 1
+		rated = rate.call()
+	step = 0
+	while rated > top and step < 80:
+		if step % 2 == 0 and int(stats.damage) > 1:
+			stats.damage = int(stats.damage) - 1
+		elif int(stats.hp) > 1:
+			stats.hp = int(stats.hp) - maxi(1, int(stats.hp) / 10)
+		step += 1
+		rated = rate.call()
+	return rated
+
+
+## The yardstick for the hero's odds on the character page: a plain bandit
+## of the pass, a person who fights with a blade.
+const REFERENCE_KIND := "halsabschneider"
+
+
+## What a REFERENCE_KIND (no gear, by day) has when it is balanced to be a
+## fair fight for a hero of `hero_level`: "hp", "damage", "armor", "level".
+static func reference_foe(hero_level: int) -> Dictionary:
+	var stats: Dictionary = KINDS[REFERENCE_KIND].duplicate()
+	var armour: int = stats.get("armor", 0)
+	var rated := fit_level(REFERENCE_KIND, stats, armour, hero_level, hero_level)
+	return {"hp": int(stats.hp), "damage": int(stats.damage), "armor": armour, "level": rated}
 
 
 ## The name of a monster made in the map workshop, over its head in red.

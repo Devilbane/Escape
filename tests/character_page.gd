@@ -4,7 +4,9 @@ extends SceneTree
 ## not overlap each other or the middle circle, the window fits 1280 × 720
 ## without shrinking, pointing at an entry (on the wheel or in the list beside
 ## it) shows its details in the card, a click keeps them, and none of this
-## moves or resizes anything in the window, in both languages.
+## moves or resizes anything in the window, in both languages. Beside the
+## list, the hit and block chances against a person of the hero's level show,
+## and pointing at them explains them in the card.
 ## Run with: godot --headless -s tests/character_page.gd
 ## With SHOTS=<folder> and a display it also saves screenshots there.
 
@@ -100,11 +102,19 @@ func _test() -> void:
 	# The values the player reads on the wheel are 16 px or more.
 	check(CharacterPage.TEXT_SIZE >= 16, "the wheel's text is 16 px or more (%d)" % CharacterPage.TEXT_SIZE)
 
+	# The yardstick for the odds is a person balanced to the hero's level,
+	# the way the game balances monsters to an area (see Enemy._fit_area).
+	for l in range(1, HeroLevel.MAX + 1):
+		var foe := Enemy.reference_foe(l)
+		check(absi(int(foe.level) - l) <= 1 and Enemy.KINDS[Enemy.REFERENCE_KIND].get("human", false),
+				"the reference person fits hero level %d: %s" % [l, foe])
+
 	for setup in ["dagger", "sword and shield", "level points"]:
 		if setup == "sword and shield":
 			p.equipped["waffe"] = "schwert"
 			p.equipped["schild"] = "wappenschild"
 			p.xp["klingen"] = 200.0
+			p.refresh_stats()
 		if setup == "level points":
 			# Two-digit numbers everywhere still fit the card.
 			p.hero_xp = HeroLevel.total_for(HeroLevel.MAX)
@@ -179,6 +189,31 @@ func _test() -> void:
 				await _wait(2)
 				check(_has_text(card, Lang.t(Training.ATTRIBUTES[id].name)) and _rect(card) == card_before,
 						"the card shows %s in its own space (%s)" % [id, where])
+			# Beside the list: hit and block chances against a person of the
+			# hero's own level, from the real fight numbers. Pointing at them
+			# explains them in the card, in its own space.
+			var odds := p.odds_against(Enemy.reference_foe(p.hero_level()))
+			check(_has_text(menus._box, Lang.t("Gegen Menschen deiner Stufe:")), "the odds say whom they are against (%s)" % where)
+			var hit_value: Label = null
+			for l in _labels(menus._box, []):
+				if l.text == Lang.t("Treffer"):
+					hit_value = l.get_parent().get_child(l.get_index() + 1)
+			check(hit_value != null and hit_value.text == CharacterPage.percent(odds.hit), "the hit chance shows (%s)" % where)
+			check(_has_text(menus._box, CharacterPage.percent(odds.block)), "the block chance shows (%s)" % where)
+			check(is_equal_approx(odds.block, p.block_chance if p.equipped.has("schild") else 0.0),
+					"the block chance is the shield's (%s): %s" % [where, odds.block])
+			if hit_value != null:
+				hit_value.mouse_entered.emit()
+				await _wait(2)
+				check(wheel.shown() == CharacterPage.ODDS and _has_text(card, Lang.t("Treffer und Block")),
+						"pointing at the odds explains them (%s)" % where)
+				check(_has_text(card, Lang.t("Ausweichen: %s der übrigen Hiebe.") % CharacterPage.percent(odds.dodge)),
+						"the card shows the dodge chance (%s)" % where)
+				check(_rect(card) == card_before and _rect(menus._panel) == panel_before, "the odds' card keeps its size (%s)" % where)
+				if setup == "sword and shield":
+					await _shot("character_odds_" + lang)
+				hit_value.mouse_exited.emit()
+				await _wait(2)
 			# A click keeps an entry; the pointer leaving brings it back.
 			var blocking: Vector2 = wheel._hits["blocken"].get_center()
 			_click(wheel, blocking)

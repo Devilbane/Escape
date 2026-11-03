@@ -563,6 +563,8 @@ const CHARACTER_SIDE := 420
 ## details in both languages, so pointing at another entry moves nothing.
 const CHARACTER_CARD_HEIGHT := 262
 const CHARACTER_TEXT := Color(0.85, 0.87, 0.92)
+## The column for the hit and block chances, beside the list of attributes.
+const CHARACTER_ODDS_WIDTH := 160
 ## The button that puts a free level point into the picked main attribute
 ## (for tests).
 var _character_spend: Button = null
@@ -594,16 +596,41 @@ func _build_character() -> void:
 	var title: Label = game._make_label(game.TITLE_FONT, 38, game.GOLD)
 	title.text = Lang.t("Charakter")
 	side.add_child(title)
+	# The list of what is not on the wheel, and beside it the hero's odds
+	# against a person of the same level, as the fight rolls them; pointing
+	# at the odds explains them in the card below.
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 14)
+	side.add_child(top)
 	var grid := GridContainer.new()
 	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.add_theme_constant_override("h_separation", 14)
 	grid.add_theme_constant_override("v_separation", 6)
-	side.add_child(grid)
+	top.add_child(grid)
 	_character_row(grid, wheel, "", Lang.t("Leben"), "%d / %d   %+.1f/s" % [p.hp, p.max_hp, p.life_regen()], Color(1.0, 0.55, 0.5))
 	for id in Training.ATTRIBUTES:
 		if not id in Training.MAIN_ATTRIBUTES:
 			_character_row(grid, wheel, id, Lang.t(Training.ATTRIBUTES[id].name),
 					("%d %%" % p.attribute(id)) if id == "tempo" else str(p.attribute(id)), Color.WHITE)
+	var odds: Dictionary = wheel.odds()
+	var odds_box := VBoxContainer.new()
+	odds_box.custom_minimum_size.x = CHARACTER_ODDS_WIDTH
+	odds_box.add_theme_constant_override("separation", 6)
+	top.add_child(odds_box)
+	var odds_title: Label = game._make_label(game.TEXT_FONT, 16, game.GOLD)
+	odds_title.text = Lang.t("Gegen Menschen deiner Stufe:")
+	odds_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	odds_title.custom_minimum_size.x = CHARACTER_ODDS_WIDTH
+	_character_point(odds_title, wheel, CharacterPage.ODDS)
+	odds_box.add_child(odds_title)
+	var odds_grid := GridContainer.new()
+	odds_grid.columns = 2
+	odds_grid.add_theme_constant_override("h_separation", 14)
+	odds_grid.add_theme_constant_override("v_separation", 6)
+	odds_box.add_child(odds_grid)
+	_character_row(odds_grid, wheel, CharacterPage.ODDS, Lang.t("Treffer"), CharacterPage.percent(odds.hit), Color.WHITE)
+	_character_row(odds_grid, wheel, CharacterPage.ODDS, Lang.t("Block"), CharacterPage.percent(odds.block), Color.WHITE)
 	# The details card: what the wheel points at, else how a roll works.
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(CHARACTER_SIDE, CHARACTER_CARD_HEIGHT)
@@ -681,16 +708,21 @@ func _character_row(grid: GridContainer, wheel: CharacterPage, id: String, name:
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	for l in [name_label, value_label]:
 		grid.add_child(l)
-		if id == "":
-			continue
-		# Pass, so the mouse wheel still scrolls the window.
-		l.mouse_filter = Control.MOUSE_FILTER_PASS
-		l.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		l.mouse_entered.connect(wheel.point.bind(id))
-		l.mouse_exited.connect(wheel.point.bind(""))
-		l.gui_input.connect(func(event: InputEvent) -> void:
-			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-				wheel.pick(id))
+		if id != "":
+			_character_point(l, wheel, id)
+
+
+## Makes a label beside the wheel show `id` in the details card when pointed
+## at, and keep it there when clicked or tapped.
+func _character_point(l: Label, wheel: CharacterPage, id: String) -> void:
+	# Pass, so the mouse wheel still scrolls the window.
+	l.mouse_filter = Control.MOUSE_FILTER_PASS
+	l.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	l.mouse_entered.connect(wheel.point.bind(id))
+	l.mouse_exited.connect(wheel.point.bind(""))
+	l.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			wheel.pick(id))
 
 
 # --- Inventory --------------------------------------------------------------

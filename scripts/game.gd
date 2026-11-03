@@ -210,7 +210,8 @@ var _key_label: Label
 var _hp_label: Label
 var _hp_bar: ProgressBar
 var _hp_fill: StyleBoxFlat
-var _hardening_label: Label
+## The hero's conditions as icons under the life bar (see StatusIcon).
+var _status_row: HBoxContainer
 ## The life bar under the hero: its size, its gap below the feet on screen,
 ## and its colours (brighter when low).
 const HP_BAR_SIZE := Vector2(110, 20)
@@ -227,7 +228,6 @@ var _xp_bar: ProgressBar
 var _xp_label: Label
 var _run_label: Label
 var _run_fill: StyleBoxFlat
-var _gift_label: Label
 var _shrine_panel: Control
 ## The fourth shrine gift, offered only to a wise hero.
 var _wise_gift: Button
@@ -888,10 +888,6 @@ func _setup_hud() -> void:
 	row.add_child(left)
 	_level_label = _make_label(TEXT_FONT, 26, GOLD)
 	left.add_child(_level_label)
-	# The hardening stays up here; life itself is a bar under the hero
-	# (see _place_hp_bar).
-	_hardening_label = _make_label(TEXT_FONT, 18, Color(0.8, 0.85, 0.95))
-	left.add_child(_hardening_label)
 	# Life as a small bar with its numbers on it, under the hero's feet,
 	# MMO-style. It has one fixed size, so nothing moves as life changes.
 	_hp_bar = ProgressBar.new()
@@ -918,6 +914,14 @@ func _setup_hud() -> void:
 	_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_hp_bar.add_child(_hp_label)
+	# The hero's conditions (poison, a curse, burning, stronger blows, speed,
+	# hardening) as little red-framed icons in a row under the bar, in a
+	# fixed order from its left edge, so an icon coming or going never
+	# moves the others before it.
+	_status_row = HBoxContainer.new()
+	_status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_row.add_theme_constant_override("separation", 4)
+	_hud.add_child(_status_row)
 	var run_row := HBoxContainer.new()
 	run_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	run_row.add_theme_constant_override("separation", 10)
@@ -958,8 +962,6 @@ func _setup_hud() -> void:
 	xp_row.add_child(_xp_bar)
 	_xp_label = _make_label(TEXT_FONT, 18, XP_COLOR)
 	xp_row.add_child(_xp_label)
-	_gift_label = _make_label(TEXT_FONT, 18, Color(0.65, 0.85, 1.0))
-	left.add_child(_gift_label)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1716,19 +1718,7 @@ func _update_hud() -> void:
 		_hp_fill.bg_color = HP_POISON_COLOR
 	else:
 		_hp_fill.bg_color = HP_LOW_COLOR if player.hp * 4 <= player.max_hp else HP_COLOR
-	_hardening_label.text = Lang.t("Härtung %d") % player.hardening if player.hardening > 0 else ""
-	var gifts := []
-	if player.power > 1:
-		gifts.append(Lang.t("Kampfkraft %d") % player.power)
-	if absf(player.speed - Player.SPEED) > 0.01:
-		gifts.append(Lang.t("Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0))
-	if player.ailments.has("gift"):
-		gifts.append(Lang.t("Vergiftet"))
-	if player.ailments.has("fluch"):
-		gifts.append(Lang.t("Verflucht"))
-	if player.ailments.has("brand"):
-		gifts.append(Lang.t("Brennt"))
-	_gift_label.text = "   ".join(gifts)
+	_update_status_icons()
 	_show_hero_level()
 	_coin_label.text = Lang.t("Gold: %d") % coins
 	_knife_label.text = Lang.t("Messer: %d") % player.knives
@@ -3344,6 +3334,38 @@ func heard(speaker: String, text: String, pos: Vector3) -> void:
 		event_log.add_speech(speaker, text)
 
 
+## The conditions the hero is in, as [kind, number] pairs in their fixed
+## order (see StatusIcon).
+func hero_conditions() -> Array:
+	var out := []
+	for kind in ["gift", "fluch", "brand"]:
+		if player.ailments.has(kind):
+			out.append([kind, ""])
+	if player.power > 1:
+		out.append(["power", str(player.power)])
+	if player.speed > Player.SPEED + 0.01:
+		out.append(["fast", ""])
+	elif player.speed < Player.SPEED - 0.01:
+		out.append(["slow", ""])
+	if player.hardening > 0:
+		out.append(["hardening", str(player.hardening)])
+	return out
+
+
+func _update_status_icons() -> void:
+	var now := hero_conditions()
+	var shown := []
+	for icon in _status_row.get_children():
+		shown.append([icon.kind, icon.value])
+	if shown == now:
+		return
+	for icon in _status_row.get_children():
+		_status_row.remove_child(icon)
+		icon.queue_free()
+	for c in now:
+		_status_row.add_child(StatusIcon.make(c[0], c[1]))
+
+
 ## Keeps the life bar at one steady spot under the hero on screen. It is
 ## placed as seen from where the camera settles (`cam_at`) for the hero
 ## standing at `ground` (feet, not lifted by a jump), so it neither jitters
@@ -3352,6 +3374,7 @@ func _place_hp_bar(ground: Vector3, cam_at: Vector3) -> void:
 	var on_screen := state == State.PLAYING and player != null and player.is_inside_tree() and not player.dead \
 			and camera != null
 	_hp_bar.visible = on_screen
+	_status_row.visible = on_screen
 	if not on_screen:
 		return
 	var real := camera.global_position
@@ -3367,6 +3390,7 @@ func _place_hp_bar(ground: Vector3, cam_at: Vector3) -> void:
 	var x := camera.unproject_position(ground).x
 	camera.global_position = real
 	_hp_bar.position = Vector2(x - HP_BAR_SIZE.x / 2.0, lowest + HP_BAR_GAP).round()
+	_status_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 4)
 
 
 ## News about a task (a new one, progress, done): a message and a word over

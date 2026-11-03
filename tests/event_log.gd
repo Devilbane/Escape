@@ -122,6 +122,22 @@ func _check_layout() -> void:
 	game._place_hp_bar(ground, settled)
 	check(game._hp_bar.position == steady, "the life bar stays put while the camera shakes")
 	game.camera.global_position = settled
+	# Conditions show as little icons in a row under the bar.
+	hero.ailments["gift"] = 5.0
+	var hardening_before: int = hero.hardening
+	hero.hardening = 2
+	game._update_hud()
+	game._place_hp_bar(ground, settled)
+	var kinds := []
+	for icon in game._status_row.get_children():
+		kinds.append(icon.kind)
+	check(kinds == ["gift", "hardening"], "poison and hardening show as icons, in order: %s" % [kinds])
+	var row: Rect2 = game._status_row.get_global_rect()
+	var bar_now: Rect2 = game._hp_bar.get_global_rect()
+	check(row.position.y >= bar_now.end.y and is_equal_approx(row.position.x, bar_now.position.x), "the icons sit under the bar, from its left edge: %s vs %s" % [row, bar_now])
+	hero.ailments.erase("gift")
+	hero.hardening = hardening_before
+	game._update_hud()
 	check(game._hp_bar.visible, "the life bar shows while playing")
 	var feet: Vector2 = game.camera.unproject_position(hero.global_position)
 	var bar: Rect2 = game._hp_bar.get_global_rect()

@@ -149,13 +149,14 @@ static func parse_header(text: String) -> Dictionary:
 const MAX_HEADER_TRAPS := 8
 
 
-## Whether a trapdoor on this level has a level below to fall to: the next
-## floor of the dungeon, or the floor under a mine once its way down is open.
+## Whether a trapdoor on this level has a level below to fall to: the
+## previous floor of the dungeon (the hero climbs it upwards, so that one lies
+## below), or the floor under a mine once its way down is open.
 static func can_drop(owner_level: Level) -> bool:
 	if owner_level.playtest:
 		return false
 	if owner_level.building == "":
-		return true
+		return owner_level.depth > 0
 	return owner_level.down_to != "" and (owner_level.seal == "" or owner_level.taken.has("mines:seal_open"))
 
 
@@ -183,7 +184,7 @@ func _place(count: int, kinds: Array) -> void:
 ## Open floor, well away from the start and the exit, with open floor all
 ## around.
 func _fits(c: Vector2i) -> bool:
-	if not ".,".contains(level.cell_char(c)):
+	if not ".,".contains(level.cell_char(c)) or level.grates.has(c):
 		return false
 	if _apart(c, level.start_cell) < KEEP_AWAY + 1:
 		return false

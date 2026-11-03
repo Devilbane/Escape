@@ -64,6 +64,9 @@ func _test() -> void:
 			"(vollständig)", "Eine Inschrift!", "Dein geübtes Auge findet eine Fackel, die hier versteckt lag.",
 			"Ganz erkundet: %s\nDein Blick für Verborgenes wird schärfer (Erkunden)."]:
 		check(Lang.EN.has(text), "has English: " + text)
+	# Writings found before they were written in blood map to today's texts.
+	var texts_now: Array = Level.WRITINGS.map(func(w): return w[1])
+	check(Level.OLD_WRITINGS.size() == Level.WRITINGS.size() and Level.OLD_WRITINGS.values().all(func(t): return t in texts_now), "every old writing text maps to its new one")
 	# Every carved word fits on its wall piece, in both languages.
 	var font: Font = preload("res://assets/fonts/Cinzel-Bold.woff2")
 	for w in Level.WRITINGS:
@@ -116,6 +119,16 @@ func _test() -> void:
 	var writing: Dictionary = game.level.writing()
 	check(not writing.is_empty(), "the cell has a writing on a wall")
 	check(not writing.label.visible, "the writing is hidden at first")
+	# Written in blood: trickles under the letters, and stains on the floor
+	# in front that form an arrow pointing at it, there from the start.
+	check(writing.drips.size() >= 3, "blood runs down from the letters: %d trickles" % writing.drips.size())
+	check(writing.drips.all(func(d): return d.get_parent() == writing.label), "the trickles show with the writing")
+	var arrow: Node3D = game.level.get_node_or_null("BloodArrow")
+	check(arrow != null and arrow.visible and arrow.get_child_count() > 8, "bloodstains on the floor point at the writing")
+	if arrow:
+		var front: Vector3 = game.level.cell_to_world(writing.cell)
+		check(arrow.get_children().all(func(st): return absf(st.position.x - front.x) < Level.TILE / 2 and absf(st.position.z - front.z) < Level.TILE / 2),
+				"the stains stay on the tile in front of the wall")
 	check(game.level.writing_chance() == Level.WRITING_CHANCE + 3 * Training.EXPLORE_WRITING, "Erkunden adds to the writing chance")
 	var before: float = p.xp.get("erkunden", 0.0)
 	game.level.reveal_writing()

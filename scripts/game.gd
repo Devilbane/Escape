@@ -2503,6 +2503,9 @@ func _apply_save(data: Dictionary) -> void:
 	player.xp = Training.load_hero(hero_name)
 	player.set_level_data(Training.load_level(hero_name))
 	lore.assign(data.get("lore", []))
+	# Wall writings saved before they were written in blood.
+	for i in lore.size():
+		lore[i] = Level.OLD_WRITINGS.get(lore[i], lore[i])
 	looted.clear()
 	var saved_loot = data.get("looted", {})
 	if saved_loot is Dictionary:

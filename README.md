@@ -182,7 +182,8 @@ Each level of Blocking adds 2 % block chance, Wearing armour makes hard armour 6
 with every secret room and wall writing you find. Each level adds 3 % to notice a secret lever, 4 % to find a
 torch when you search a chest, barrel, crate, shelf or table, 8 % to notice the writing on a wall and 3 % to
 spot a hidden trap.
-Every level of the dungeon has one writing scratched into a plain wall: you get one chance to notice it from a
+Every level of the dungeon has one writing smeared in blood on a plain wall, with blood running down from its
+letters; bloodstains on the floor in front of it form an arrow that points at it. You get one chance to notice it from a
 distance each time you walk past it (50 % plus Exploring), and you always notice it when you walk right up to it.
 A noticed writing pops up on a card with its word and what it says; run into the wall to read it again.
 Found writings stay visible on later visits and go into the compendium and the journal.

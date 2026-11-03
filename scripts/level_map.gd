@@ -205,6 +205,33 @@ func find_all(ch: String) -> Array[Vector2i]:
 	return out
 
 
+## The pressure plates that get no heavy block of their own: each block
+## (Q) can reach the plates within 5 tiles of it (middle to middle), and
+## one block serves one plate. Empty when every plate can be pressed.
+func plates_out_of_reach() -> Array[Vector2i]:
+	var plates := find_all("_")
+	var blocks := find_all("Q")
+	var holder := {}
+	var out: Array[Vector2i] = []
+	for p in plates:
+		if not _give_block(p, plates, blocks, holder, {}):
+			out.append(p)
+	return out
+
+
+## Finds a block for plate `p`, moving another plate onto a different block
+## where that frees one (a matching by augmenting paths).
+func _give_block(p: Vector2i, plates: Array[Vector2i], blocks: Array[Vector2i], holder: Dictionary, seen: Dictionary) -> bool:
+	for b in blocks:
+		if seen.has(b) or Vector2(p - b).length() > 5.0:
+			continue
+		seen[b] = true
+		if not holder.has(b) or _give_block(holder[b], plates, blocks, holder, seen):
+			holder[b] = p
+			return true
+	return false
+
+
 func count(ch: String) -> int:
 	return find_all(ch).size()
 
@@ -276,6 +303,12 @@ func validate() -> Array:
 		add.call(false, "Druckplatten (_), aber kein Gitter (|), das sie öffnen.", find_all("_")[0])
 	if plates > count("Q"):
 		add.call(true, "%d Druckplatten, aber nur %d Steinblöcke (Q).", find_all("_")[0], [plates, count("Q")])
+	elif plates > 0:
+		# A heavy block moves at most 5 tiles from where it lies (see
+		# Level.HEAVY_RANGE): every plate needs a block of its own in range.
+		var lonely := plates_out_of_reach()
+		if not lonely.is_empty():
+			add.call(true, "Keine Druckplatte darf weiter als 5 Felder von einem eigenen Steinblock (Q) liegen.", lonely[0])
 	for letter in made:
 		if count(letter) == 0:
 			add.call(false, "„%s“ (%s) steht nirgends auf der Karte.", Vector2i(-1, -1), [Creations.label_of(made[letter]), letter])

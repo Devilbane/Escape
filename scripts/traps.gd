@@ -150,6 +150,8 @@ var place_level := 1
 var _time := 0.0
 ## Set once the hero fell through a trapdoor: nothing more happens here.
 var _gone := false
+## For the tests: the next spot roll (1..100) instead of a random one; 0 rolls.
+var next_roll := 0
 
 static var _materials := {}
 
@@ -351,7 +353,8 @@ func _process(delta: float) -> void:
 		if not t.rolled and flat.length() <= SPOT_RANGE and level.has_line_of_sight(hero.global_position, spot):
 			t.rolled = true
 			var chance := spot_chance(t)
-			var roll := randi_range(1, 100)
+			var roll := next_roll if next_roll > 0 else randi_range(1, 100)
+			next_roll = 0
 			if roll <= chance:
 				spot_trap(t, chance - roll)
 		if t.rest <= 0.0 and absf(flat.x) < REACH and absf(flat.y) < REACH and hero.global_position.y < 0.6:

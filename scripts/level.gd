@@ -2715,6 +2715,12 @@ const DIRS_NSWE: Array[Vector2i] = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1
 ## lying on any of them presses it.
 const PLATE_SIZE := StoneBlock.CELL * 2.0 - 0.1
 const PLATE_UP := 0.06
+const PLATE_SHADER := preload("res://shaders/pressure_plate.gdshader")
+## The worn stone frame the plate sinks into: how wide its sides are and how
+## far its top stands above the floor (a little above a pressed plate's top,
+## so a pressed plate reads as pushed in).
+const PLATE_FRAME := 0.16
+const PLATE_FRAME_TOP := 0.075
 
 
 func _build_plate(c: Vector2i) -> void:
@@ -2723,18 +2729,46 @@ func _build_plate(c: Vector2i) -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3(PLATE_SIZE, 0.12, PLATE_SIZE)
 	slab.mesh = box
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.4, 0.38, 0.35)
-	mat.roughness = 0.95
-	mat.emission_enabled = true
-	mat.emission = Color(0.35, 0.95, 0.55)
-	mat.emission_energy_multiplier = 0.15
+	var mat := ShaderMaterial.new()
+	mat.shader = PLATE_SHADER
+	mat.set_shader_parameter("plate_size", PLATE_SIZE)
+	mat.set_shader_parameter("glow", 0.0)
 	slab.material_override = mat
 	slab.position = pos + Vector3(0, PLATE_UP, 0)
+	# A quarter turn of its own, so the runes do not all face one way.
+	slab.rotation.y = PI * 0.5 * (absi(c.x * 3 + c.y * 5) % 4)
 	add_child(slab)
+	_build_plate_frame(pos)
 	var first := StoneBlock.grid_cell(pos - Vector3(StoneBlock.CELL, 0.0, StoneBlock.CELL) * 0.5)
 	var cells: Array[Vector2i] = [first, first + Vector2i(1, 0), first + Vector2i(0, 1), first + Vector2i(1, 1)]
 	_plates.append({"cell": c, "cells": cells, "node": slab, "mat": mat, "pressed": false})
+
+
+## The low, old stone kerb around a plate, set into the floor: four sides of
+## the fountain's decayed stone, a shade darker than the plate.
+func _build_plate_frame(pos: Vector3) -> void:
+	var stone := _decayed_stone(Color(0.4, 0.38, 0.34), 1.0, true)
+	var gap := 0.012
+	var inner := PLATE_SIZE * 0.5 + gap
+	var height := PLATE_FRAME_TOP + 0.05
+	var y := PLATE_FRAME_TOP - height * 0.5
+	var long := PLATE_SIZE + (gap + PLATE_FRAME) * 2.0
+	# [middle, size]: the north and south sides run the full length, the east
+	# and west ones fit between them.
+	var sides := [
+		[Vector3(0, y, -inner - PLATE_FRAME * 0.5), Vector3(long, height, PLATE_FRAME)],
+		[Vector3(0, y, inner + PLATE_FRAME * 0.5), Vector3(long, height, PLATE_FRAME)],
+		[Vector3(-inner - PLATE_FRAME * 0.5, y, 0), Vector3(PLATE_FRAME, height, inner * 2.0)],
+		[Vector3(inner + PLATE_FRAME * 0.5, y, 0), Vector3(PLATE_FRAME, height, inner * 2.0)],
+	]
+	for side in sides:
+		var piece := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = side[1]
+		piece.mesh = mesh
+		piece.material_override = stone
+		piece.position = pos + side[0]
+		add_child(piece)
 
 
 func _build_gate(c: Vector2i) -> void:
@@ -2780,7 +2814,10 @@ func _check_plates() -> void:
 		if down != plate.pressed:
 			plate.pressed = down
 			create_tween().tween_property(plate.node, "position:y", 0.0 if down else PLATE_UP, 0.15)
-			plate.mat.emission_energy_multiplier = 1.4 if down else 0.15
+			# The carving glows up while a block weighs the plate down.
+			var mat: ShaderMaterial = plate.mat
+			create_tween().tween_method(func(g: float): mat.set_shader_parameter("glow", g),
+					mat.get_shader_parameter("glow"), 1.0 if down else 0.0, 0.3)
 			Sfx.play(self, "lever" if down else "word_klack", -4.0, plate.node.global_position)
 		if down:
 			pressed += 1

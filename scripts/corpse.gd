@@ -2,11 +2,12 @@ class_name Corpse
 extends Node
 ## A fallen monster stays where it fell and rots away, instead of sinking
 ## into the floor. This node sits on the dead Enemy and drives its decay:
-##   flesh (bandits, beasts, horrors): darkens, sags flat and shrinks, then
-##     leaves a dark stain with a few bones;
-##   bones (skeletons): grey and slump, then crumble into a pile of bones
-##     (no dust or sound: both would draw on the shared random numbers, and
-##     the level runs in tests/play_all_levels.gd depend on that stream);
+##   flesh (bandits, beasts, horrors): darkens and sags flat, then sinks
+##     away into a dark stain with a few bones lying where its bones were;
+##   bones (skeletons): grey and slump, then fall apart into their bones,
+##     each one lying where it was in the body (no dust or sound: both would
+##     draw on the shared random numbers, and the level runs in
+##     tests/play_all_levels.gd depend on that stream);
 ##   melt (slimes): run out flat at once into a puddle that dries to a stain;
 ##   wisp (fog wraiths): blow away in a moment and leave nothing.
 ## For the web build only a few corpses lie about at once (MAX_CORPSES): a
@@ -23,15 +24,24 @@ const FOG_CHECK := 0.25
 
 ## Per style: when the darkening is full and how dark ("dark", "black"),
 ## when the body starts and stops sagging and to what shape ("sag", "flat",
-## "wide"), and when it ends ("end", over "gone" seconds).
+## "wide"), and when it ends ("end", over "gone" seconds). Over its end the
+## body goes flat and black while the stain beneath it shows: the bones
+## left behind keep the body's size and outline, nothing shrinks.
 const STYLES := {
-	"flesh": {"dark": 80.0, "black": 0.7, "sag": [6.0, 90.0], "flat": 0.3, "wide": 0.88, "end": 100.0, "gone": 6.0},
-	"bones": {"dark": 40.0, "black": 0.5, "sag": [20.0, 45.0], "flat": 0.6, "wide": 1.0, "end": 50.0, "gone": 1.2},
+	"flesh": {"dark": 80.0, "black": 0.7, "sag": [6.0, 90.0], "flat": 0.3, "wide": 1.0, "end": 100.0, "gone": 8.0},
+	"bones": {"dark": 40.0, "black": 0.5, "sag": [20.0, 45.0], "flat": 0.6, "wide": 1.0, "end": 50.0, "gone": 6.0},
 	"melt": {"dark": 40.0, "black": 0.5, "sag": [0.0, 2.5], "flat": 0.14, "wide": 1.35, "end": 45.0, "gone": 5.0},
 	"wisp": {"dark": 2.0, "black": 0.2, "sag": [0.0, 2.0], "flat": 0.6, "wide": 0.0, "end": 0.0, "gone": 2.0},
 }
 const ROT := Color(0.09, 0.07, 0.05)
-const BONE := Color(0.8, 0.76, 0.66)
+## How dark the body is when it has gone flat at its very end.
+const LAST_BLACK := 0.92
+## Bones of the model that are no bones of the body: slots for weapons,
+## the root at the feet and helpers for the animations.
+const NOT_BONES := ["slot", "root", "ik", "target", "pole", "control", "ctrl"]
+## A remnant shows at most this many bones.
+const MAX_BONES := 40
+const BONE := Color(0.64, 0.58, 0.47)
 ## A plain slime has no tint of its own: its puddle is slime green.
 const SLIME := Color(0.36, 0.78, 0.26)
 
@@ -49,6 +59,10 @@ var _overlay: StandardMaterial3D
 var _scale0 := Vector3.ONE
 var _fog_timer := 0.0
 var _done := false
+## What it leaves behind, laid out as its end begins, and its stain's look.
+var _remnant: Node3D
+var _stain_mat: StandardMaterial3D
+var _stain_alpha := 0.0
 
 
 ## Lays `who` down to rot where it fell, and makes room if too many lie about.
@@ -121,7 +135,17 @@ func _process(delta: float) -> void:
 	var end := float(_rule.end)
 	if age >= end:
 		var gone := clampf((age - end) / float(_rule.gone), 0.0, 1.0)
-		shape *= 1.0 - gone
+		if style == "wisp":
+			shape *= 1.0 - gone
+		else:
+			# No shrinking: the body sinks flat and black into its stain, and
+			# the bones beneath, laid out as it lies, are what stays.
+			_leave_remnant()
+			var g := smoothstep(0.0, 1.0, gone)
+			shape.y *= lerpf(1.0, 0.04, g)
+			_overlay.albedo_color.a = lerpf(_overlay.albedo_color.a, LAST_BLACK, g)
+			if _stain_mat != null:
+				_stain_mat.albedo_color.a = _stain_alpha * g
 		if gone >= 1.0:
 			_finish()
 			return
@@ -130,35 +154,134 @@ func _process(delta: float) -> void:
 
 ## Comes to its end: what is left stays on the floor, the body goes.
 func _finish() -> void:
+	_leave_remnant()
 	_done = true
+	if _stain_mat != null:
+		_stain_mat.albedo_color.a = _stain_alpha
 	var level: Level = enemy.level
-	if level != null and is_instance_valid(level) and style != "wisp":
-		var bit := remnant(style, enemy.global_position, float(enemy._stats.size), enemy._stats.get("tint", SLIME))
-		level.add_child(bit)
-		bit.global_position = enemy.global_position
-		level.remnants = level.remnants.filter(func(x): return is_instance_valid(x))
-		level.remnants.append(bit)
-		while level.remnants.size() > MAX_REMNANTS:
-			level.remnants.pop_front().queue_free()
+	if level != null and is_instance_valid(level):
 		level.corpses.erase(self)
 	enemy.queue_free()
 
 
-## What is left of a corpse of `style` and `size`: a dark stain (a slime's
-## in its own colour), with a few bones for flesh and a heap for bones.
+## Lays out what is left (once, as its end begins): bones where the body's
+## bones lie right now, and a stain under them, still see-through.
+func _leave_remnant() -> void:
+	if _remnant != null or style == "wisp":
+		return
+	var level: Level = enemy.level
+	if level == null or not is_instance_valid(level):
+		return
+	var size := float(enemy._stats.size)
+	var layout := bone_layout() if style != "melt" else {}
+	if layout.is_empty():
+		_remnant = remnant(style, enemy.global_position, size, enemy._stats.get("tint", SLIME))
+	else:
+		_remnant = shaped_remnant(style, layout, size)
+	level.add_child(_remnant)
+	_remnant.global_position = enemy.global_position
+	_stain_mat = (_remnant.get_child(0) as MeshInstance3D).material_override
+	_stain_alpha = _stain_mat.albedo_color.a
+	_stain_mat.albedo_color.a = 0.0
+	level.remnants = level.remnants.filter(func(x): return is_instance_valid(x))
+	level.remnants.append(_remnant)
+	while level.remnants.size() > MAX_REMNANTS:
+		level.remnants.pop_front().queue_free()
+
+
+## The body's bones as it lies, flat on the floor and measured from its
+## feet: "bones" are pairs of ends, "head" is where the skull goes (or
+## Vector3.INF). Empty when the model has no skeleton to go by.
+func bone_layout() -> Dictionary:
+	var skel := enemy._model.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skel == null:
+		return {}
+	var size := float(enemy._stats.size)
+	var at := enemy.global_position
+	var flat: Array[Vector3] = []
+	var real: Array[bool] = []
+	var head := Vector3.INF
+	for i in skel.get_bone_count():
+		var p := (skel.global_transform * skel.get_bone_global_pose(i)).origin - at
+		flat.append(Vector3(p.x, 0.0, p.z))
+		var bone_name := skel.get_bone_name(i).to_lower()
+		real.append(not NOT_BONES.any(func(w): return bone_name.contains(w)))
+		if head == Vector3.INF and bone_name.contains("head") and real[i]:
+			head = flat[i]
+	var bones: Array = []
+	for i in skel.get_bone_count():
+		var parent := skel.get_bone_parent(i)
+		if parent < 0 or not real[i] or not real[parent]:
+			continue
+		var length := flat[i].distance_to(flat[parent])
+		if length < 0.12 * size or length > 2.5 * size:
+			continue
+		bones.append([flat[parent], flat[i]])
+	if bones.size() < 3:
+		return {}
+	if bones.size() > MAX_BONES:
+		bones.resize(MAX_BONES)
+	return {"bones": bones, "head": head}
+
+
+## A stain the size of the body and its bones, each lying where it lay in
+## the body. Rotted flesh keeps only its bigger bones.
+static func shaped_remnant(kind_style: String, layout: Dictionary, size: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Remnant"
+	var bones: Array = layout.bones
+	var low := Vector3(INF, 0, INF)
+	var high := Vector3(-INF, 0, -INF)
+	for b in bones:
+		for p: Vector3 in b:
+			low = Vector3(minf(low.x, p.x), 0, minf(low.z, p.z))
+			high = Vector3(maxf(high.x, p.x), 0, maxf(high.z, p.z))
+	var stain := _stain_node(kind_style, Color.WHITE)
+	var reach := (high - low) + Vector3.ONE * 0.9 * size
+	stain.position = (low + high) * 0.5 + Vector3(0, 0.03, 0)
+	stain.scale = Vector3(reach.x / 1.8, 1.0, reach.z / 1.8)
+	root.add_child(stain)
+	_bones()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var radius := 0.07 * size
+	for pair in bones:
+		var a: Vector3 = pair[0]
+		var b: Vector3 = pair[1]
+		var along := b - a
+		if kind_style == "flesh" and along.length() < 0.22 * size:
+			continue
+		var cap := CapsuleMesh.new()
+		cap.radius = radius
+		cap.height = along.length() + radius * 2.0
+		cap.radial_segments = 6
+		cap.rings = 1
+		var y := along.normalized()
+		var x := y.cross(Vector3.UP).normalized()
+		var basis := Basis(x, y, x.cross(y))
+		st.append_from(cap, 0, Transform3D(basis, (a + b) * 0.5 + Vector3(0, radius, 0)))
+	var head: Vector3 = layout.head
+	if head != Vector3.INF:
+		var skull := SphereMesh.new()
+		skull.radius = 0.19 * size
+		skull.height = 0.3 * size
+		skull.radial_segments = 8
+		skull.rings = 4
+		st.append_from(skull, 0, Transform3D(Basis(), head + Vector3(0, 0.12 * size, 0)))
+	var mesh := MeshInstance3D.new()
+	mesh.mesh = st.commit()
+	mesh.material_override = _bone_mat
+	root.add_child(mesh)
+	return root
+
+## What is left of a corpse of `style` and `size` when its model has no
+## skeleton to go by: a dark stain (a slime's in its own colour), with a few
+## bones for flesh and a heap for bones.
 static func remnant(kind_style: String, at: Vector3, size: float, tint: Color) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Remnant"
 	root.rotation.y = absf(at.x * 7.3 + at.z * 3.1)
-	var stain := MeshInstance3D.new()
-	stain.mesh = _stain()
-	stain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_texture = _stain_tex
-	mat.albedo_color = Color(tint.darkened(0.45), 0.6) if kind_style == "melt" else Color(0.05, 0.035, 0.025, 0.7 if kind_style == "flesh" else 0.45)
-	stain.material_override = mat
+	var stain := _stain_node(kind_style, tint)
 	stain.position.y = 0.03
 	stain.scale = Vector3(1.0, 1.0, 0.75) * size * (1.3 if kind_style == "melt" else 1.0)
 	root.add_child(stain)
@@ -169,6 +292,20 @@ static func remnant(kind_style: String, at: Vector3, size: float, tint: Color) -
 		bones.scale = Vector3.ONE * size * (1.0 if kind_style == "bones" else 0.6)
 		root.add_child(bones)
 	return root
+
+
+## A stain of its own colour (a slime's in `tint`), so it can fade in alone.
+static func _stain_node(kind_style: String, tint: Color) -> MeshInstance3D:
+	var stain := MeshInstance3D.new()
+	stain.mesh = _stain()
+	stain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_texture = _stain_tex
+	mat.albedo_color = Color(tint.darkened(0.45), 0.6) if kind_style == "melt" else Color(0.05, 0.035, 0.025, 0.7 if kind_style == "flesh" else 0.45)
+	stain.material_override = mat
+	return stain
 
 
 ## A soft round stain: a flat square with a round fading spot on it.

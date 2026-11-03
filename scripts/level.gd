@@ -816,6 +816,11 @@ func _build_walls(c: Vector2i) -> void:
 		# Each wall piece faces into the room.
 		var rot := atan2(-float(d.x), -float(d.y))
 		var low := _is_low_wall(n)
+		# The stairs of a home fill their whole tile and reach into the walls
+		# beside them: nothing hangs on those walls, or it would stick out of
+		# the steps. The rolls below still run, so the rest of the house keeps
+		# the same shelves, windows, torches and banners.
+		var by_stairs := is_home and "<>".contains(cell_char(c))
 		var piece := "wall"
 		var roll := _rng.randf()
 		if not low and d == Vector2i(0, -1):
@@ -827,7 +832,7 @@ func _build_walls(c: Vector2i) -> void:
 				piece = "wall_cracked"
 		elif not low and roll < 0.2:
 			piece = "wall_cracked"
-		var wall := _place(piece, pos, rot)
+		var wall := _place("wall" if by_stairs else piece, pos, rot)
 		if (c.x + c.y + d.x + d.y) % 2 != 0:
 			wall.position.y += 0.02
 		if cell_char(c) == "?":
@@ -835,7 +840,7 @@ func _build_walls(c: Vector2i) -> void:
 			wall.visible = false
 			_secret_at(c).inner.append(wall)
 			continue
-		if piece == "wall_shelves":
+		if piece == "wall_shelves" and not by_stairs:
 			var facing := Vector3(sin(rot), 0, cos(rot))
 			var shelf := _add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
 			shelf.touch_cell = n
@@ -846,13 +851,15 @@ func _build_walls(c: Vector2i) -> void:
 		var torch: Node3D = null
 		# A guardian's hall has no wall torches: only its fire bowl lights
 		# the middle, and the rim stays dark for the hero to creep along.
-		if not FURNITURE.contains(cell_char(c)) and not _near_guardian(c):
+		if not FURNITURE.contains(cell_char(c)) and not _near_guardian(c) and not by_stairs:
 			torch = _maybe_add_torch(pos, rot)
 		if torch != null:
 			_wall_torches.append({"holder": torch, "cell": c, "pos": pos, "rot": rot})
 		elif piece == "wall" and _rng.randf() < 0.18:
-			_add_kit_part(WALL_DECOR[_rng.randi() % WALL_DECOR.size()], wall)
-		elif piece == "wall" and cell_char(c) != "?" and not FURNITURE.contains(cell_char(c)):
+			var decor: Array = WALL_DECOR[_rng.randi() % WALL_DECOR.size()]
+			if not by_stairs:
+				_add_kit_part(decor, wall)
+		elif piece == "wall" and cell_char(c) != "?" and not FURNITURE.contains(cell_char(c)) and not by_stairs:
 			_bare_walls.append({"cell": c, "pos": pos, "rot": rot})
 
 

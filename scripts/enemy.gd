@@ -306,28 +306,51 @@ func _fit_area() -> void:
 	var area := HeroLevel.area_of(level, kind) if level else ""
 	if area == "" or HeroLevel.FIXED.has(kind):
 		return
-	var target := HeroLevel.area_target(area, rated_level)
-	var top: int = HeroLevel.AREAS[area].max
-	var step := 0
-	while rated_level < target and step < 80:
-		if step % 2 == 0:
-			_stats.hp = int(_stats.hp) + maxi(1, int(_stats.hp) / 8)
-		else:
-			_stats.damage = int(_stats.damage) + 1
-		step += 1
-		rated_level = _rating()
-	step = 0
-	while rated_level > top and step < 80:
-		if step % 2 == 0 and int(_stats.damage) > 1:
-			_stats.damage = int(_stats.damage) - 1
-		elif int(_stats.hp) > 1:
-			_stats.hp = int(_stats.hp) - maxi(1, int(_stats.hp) / 10)
-		step += 1
-		rated_level = _rating()
+	rated_level = fit_level(kind, _stats, hardening, HeroLevel.area_target(area, rated_level), HeroLevel.AREAS[area].max)
 
 
 func _rating() -> int:
 	return HeroLevel.rate(kind, int(_stats.hp), int(_stats.damage), hardening, float(_stats.cooldown))
+
+
+## Lifts a monster's numbers ("hp", "damage" in `stats`, changed in place)
+## until it rates at least `target`, then tones them down to at most `top`
+## (see _fit_area). Returns the level it rates at in the end.
+static func fit_level(kind_id: String, stats: Dictionary, armour: int, target: int, top: int) -> int:
+	var rate := func() -> int:
+		return HeroLevel.rate(kind_id, int(stats.hp), int(stats.damage), armour, float(stats.cooldown))
+	var rated: int = rate.call()
+	var step := 0
+	while rated < target and step < 80:
+		if step % 2 == 0:
+			stats.hp = int(stats.hp) + maxi(1, int(stats.hp) / 8)
+		else:
+			stats.damage = int(stats.damage) + 1
+		step += 1
+		rated = rate.call()
+	step = 0
+	while rated > top and step < 80:
+		if step % 2 == 0 and int(stats.damage) > 1:
+			stats.damage = int(stats.damage) - 1
+		elif int(stats.hp) > 1:
+			stats.hp = int(stats.hp) - maxi(1, int(stats.hp) / 10)
+		step += 1
+		rated = rate.call()
+	return rated
+
+
+## The yardstick for the hero's odds on the character page: a plain bandit
+## of the pass, a person who fights with a blade.
+const REFERENCE_KIND := "halsabschneider"
+
+
+## What a REFERENCE_KIND (no gear, by day) has when it is balanced to be a
+## fair fight for a hero of `hero_level`: "hp", "damage", "armor", "level".
+static func reference_foe(hero_level: int) -> Dictionary:
+	var stats: Dictionary = KINDS[REFERENCE_KIND].duplicate()
+	var armour: int = stats.get("armor", 0)
+	var rated := fit_level(REFERENCE_KIND, stats, armour, hero_level, hero_level)
+	return {"hp": int(stats.hp), "damage": int(stats.damage), "armor": armour, "level": rated}
 
 
 ## The name of a monster made in the map workshop, over its head in red.
@@ -747,6 +770,32 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		_play_once("Hit_A", 0.45)
 
 
+## How long a lightning crack from a thunder weapon stuns (see shock).
+const SHOCK_TIME := 1.5
+const SHOCK_COLOR := Color(0.55, 0.8, 1.0)
+
+
+## Whether a thunder weapon's crack can stun it: a horror, a big brute or a
+## boss shrugs it off.
+func can_be_stunned() -> bool:
+	return not dead and not is_horror() and not _stats.get("big", false) and not _stats.get("armored", false)
+
+
+## A thunder weapon's blow cracked with lightning (see Player.melee): it
+## stands stunned for SHOCK_TIME, neither moving nor striking, with blue
+## sparks and a word over its head. Returns whether it was stunned.
+func shock() -> bool:
+	if not can_be_stunned():
+		return false
+	_play_once("Hit_A", SHOCK_TIME)
+	Effects.head_text(level, self, 2.7 * _stats.size, Lang.t("Betäubt!"), SHOCK_COLOR)
+	var sparks := Effects.make_sparkles(SHOCK_COLOR, true)
+	sparks.position = Vector3(0, 1.4 * _stats.size, 0)
+	add_child(sparks)
+	Sfx.play(self, "thunder", -12.0, global_position, 2.2)
+	return true
+
+
 ## A blow (or a shot) from a rival monster. It fights back; armour that
 ## stops the hero's blade stops a rival's just as well.
 func hit_by_rival(damage: int, attacker: Enemy) -> void:
@@ -892,7 +941,9 @@ func _physics_process(delta: float) -> void:
 	elif _awake and not player.dead and _busy <= 0.0:
 		if level.stacked(self, player):
 			pass # Inside the hero's spot: no blow or shot until pushed apart.
-		elif ranged and sees and _lost <= 0.0 and dist < _stats.reach:
+		# With a pillar in the way an archer or mage walks round it first.
+		elif ranged and sees and _lost <= 0.0 and dist < _stats.reach \
+				and level.has_clear_shot(global_position, player.global_position):
 			_face(to_player)
 			if _cooldown <= 0.0:
 				_shoot(player)
@@ -986,7 +1037,7 @@ func _fight_foe() -> Vector3:
 	if level.stacked(self, foe):
 		return Vector3.ZERO
 	if ranged:
-		if d < float(_stats.reach) and level.has_line_of_sight(global_position, foe.global_position):
+		if d < float(_stats.reach) and level.has_clear_shot(global_position, foe.global_position):
 			_face(to)
 			if _cooldown <= 0.0:
 				_shoot(foe)

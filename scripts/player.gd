@@ -50,6 +50,11 @@ const MAX_HP := 5
 ## Level.push_apart).
 var radius := 0.55
 var tall := 2.4
+## The name over the head (see _build_name_tag), and its height above the feet:
+## just clear of a helmet or a tall haircut seen from the tilted camera.
+var name_tag: Label3D
+const NAME_TAG_HEIGHT := 3.0
+var _display_name := ""
 ## A hero who loses more than this share of their life to hits taken while
 ## running, within KNOCKDOWN_WINDOW seconds, stumbles to the ground and gets
 ## up again. Hits taken while walking, standing or sneaking never count.
@@ -265,6 +270,38 @@ func _ready() -> void:
 	# A hand torch for the pitch-black places (see HandTorch).
 	torch = HandTorch.new(self)
 	add_child(torch)
+	_build_name_tag()
+
+
+## The hero's name over the head, in the same look as the name tags of the
+## townsfolk and dungeon folk (Villager, DungeonNpc): Cinzel Bold 30, warm
+## white with a dark outline, always facing the camera. The life bar sits under
+## the feet (Game._place_hp_bar), so the two never meet.
+func _build_name_tag() -> void:
+	name_tag = Label3D.new()
+	name_tag.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	name_tag.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	name_tag.font_size = 30
+	name_tag.pixel_size = 0.011
+	name_tag.outline_size = 10
+	name_tag.outline_modulate = Color(0.05, 0.03, 0.06, 0.85)
+	name_tag.modulate = Color(1, 0.95, 0.85, 1)
+	name_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	name_tag.no_depth_test = true
+	name_tag.render_priority = 18
+	name_tag.outline_render_priority = 17
+	name_tag.position.y = NAME_TAG_HEIGHT
+	name_tag.text = _display_name
+	name_tag.visible = _display_name != ""
+	add_child(name_tag)
+
+
+## Sets the name shown over the hero's head ("" hides it).
+func set_display_name(text: String) -> void:
+	_display_name = text
+	if name_tag:
+		name_tag.text = text
+		name_tag.visible = text != ""
 
 
 ## Called while a fight goes on; sneaking stays barred until it has been
@@ -674,6 +711,7 @@ func facing() -> Vector3:
 ## Puts the hero at a level's start; `heal` fills up life again.
 func revive(at: Vector3, heal := true) -> void:
 	dead = false
+	DeadEyes.take_off(_model)
 	if heal or hp <= 0:
 		hp = max_hp
 	stamina = -1.0
@@ -891,6 +929,8 @@ func melee() -> void:
 			train("schleichen", 4.0)
 		else:
 			e.take_hit(damage, global_position)
+			if not e.dead and randf() < shock_chance():
+				e.shock()
 		hits += 1
 		mark_fight()
 		# Every blow that lands trains the hand and the arm; a kill a little more.
@@ -900,6 +940,12 @@ func melee() -> void:
 			train("intelligenz", 4.0)
 	if hits == 0 and target:
 		Comic.pop(global_position + facing() * 1.5, "miss")
+
+
+## The chance that a blow of the held weapon cracks with lightning and stuns
+## (a thunder weapon, see Items "shock" and Enemy.shock), else 0.
+func shock_chance() -> float:
+	return float(Items.ALL.get(equipped.get("waffe", ""), {}).get("shock", 0.0))
 
 
 ## Throws a knife at `aim` (a world position), or at the closest enemy in sight.
@@ -1007,7 +1053,7 @@ func _auto_attack() -> void:
 	if d <= ENGAGE_RANGE:
 		_auto_cooldown = AUTO_MELEE_INTERVAL
 		melee()
-	elif _hunt == null and d <= AUTO_THROW_RANGE and knives > 0 and level.has_line_of_sight(global_position, _target.global_position):
+	elif _hunt == null and d <= AUTO_THROW_RANGE and knives > 0 and level.has_clear_shot(global_position, _target.global_position):
 		_auto_cooldown = AUTO_THROW_INTERVAL
 		throw_knife(_target.global_position, true)
 
@@ -1045,6 +1091,30 @@ func throw_power() -> int:
 ## The chance to dodge a blow or a shot, 0..DODGE_MAX.
 func dodge_chance() -> float:
 	return clampf(DODGE_PER_DEXTERITY * dexterity_points(), 0.0, DODGE_MAX)
+
+
+## The hero's odds against a foe's blows and hide, as the fight rolls them,
+## with the gear and attributes of now. `foe` has "hp", "damage" and "armor"
+## (see Enemy.reference_foe). A blow in reach always lands: there is no roll to
+## hit, only one for a heavy hit (+1 damage) on the weapon's skill. A foe's
+## blow is first blocked by the shield (block_chance), else maybe dodged
+## (dodge_chance). Chances are 0..1.
+func odds_against(foe: Dictionary) -> Dictionary:
+	var weapon := weapon_skill()
+	var block := clampf(block_chance, 0.0, 1.0)
+	var dodge := dodge_chance()
+	var blow := soak(power, int(foe.armor))
+	return {
+		"hit": 1.0,
+		"heavy": clampf(skill_chance(weapon) / 100.0, 0.0, 1.0),
+		"weapon": weapon,
+		"block": block,
+		"dodge": dodge,
+		"unharmed": block + (1.0 - block) * dodge,
+		"blow": blow,
+		"blows": ceili(float(foe.hp) / maxi(1, blow)),
+		"taken": soak(int(foe.damage), hardening),
+	}
 
 
 ## Points of Intelligenz above the start.
@@ -1379,6 +1449,10 @@ const REGEN_INTERVAL := 5.0
 var _regen := 0.0
 ## Seconds since the last heal pulse.
 var _regen_clock := 0.0
+## Healing rests this long after every blow that costs life.
+const REGEN_PAUSE_AFTER_HIT := 1.5
+## Seconds left before healing goes on after the last blow.
+var _regen_pause := 0.0
 
 
 ## Life per second, averaged over the interval (shown in the HUD and character page).
@@ -1391,6 +1465,11 @@ func _regenerate(delta: float) -> void:
 	if dead or hp >= max_hp:
 		_regen = 0.0
 		_regen_clock = 0.0
+		_regen_pause = 0.0
+		return
+	# Freshly hurt: healing waits, then picks up where it left off.
+	if _regen_pause > 0.0:
+		_regen_pause = maxf(0.0, _regen_pause - delta)
 		return
 	_regen_clock += delta
 	if _regen_clock < REGEN_INTERVAL:
@@ -1496,6 +1575,13 @@ func _show_held(slot: String, hand_name: String, default_part: String) -> void:
 		model.name = "Held"
 		hand.add_child(model)
 		GearLook.dress(model, Items.ALL[id].get("material", ""))
+		if Items.ALL[id].get("shock", 0.0) > 0.0:
+			# A thunder weapon crackles with small blue sparks.
+			var sparks := Effects.make_sparkles(Enemy.SHOCK_COLOR)
+			sparks.emission_sphere_radius = 0.35
+			sparks.amount = 8
+			sparks.position = Vector3(0, 0.6, 0)
+			model.add_child(sparks)
 
 
 ## Whether the hero has what an item asks for ("requires"), e.g. Intelligenz.
@@ -1523,7 +1609,8 @@ func bag_fits(id: String) -> bool:
 
 ## Moves a bag item into its slot; whatever was worn there goes into the bag.
 ## Items the hero is not yet able to use stay in the bag, and so do books,
-## and so does a smaller backpack that could not hold everything carried.
+## and so does a smaller backpack that could not hold everything carried,
+## and so does an item whose swap would leave the bag with too few slots.
 ## Returns whether the item was put on.
 func equip(id: String) -> bool:
 	if Items.is_book(id) or Items.is_crate(id) or Items.is_stone(id) or Items.is_material(id) or not can_use(Items.ALL[id].get("requires", {})):
@@ -1537,6 +1624,10 @@ func equip(id: String) -> bool:
 	if equipped.has(slot):
 		after.append(equipped[slot])
 	if slot == "rucksack" and Items.slots_used(after) > Items.bag_size(id):
+		return false
+	# Taking one ring off a bundle and putting the worn one back can need one
+	# more slot than before; with none free, nothing is swapped.
+	if slot != "rucksack" and Items.slots_used(after) > maxi(bag_size(), bag_used()):
 		return false
 	bag.erase(id)
 	if equipped.has(slot):
@@ -1649,6 +1740,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	# Every life lost hardens the body a little.
 	train("konstitution", amount)
 	hp -= amount
+	_regen_pause = REGEN_PAUSE_AFTER_HIT
 	var knocked := _note_run_hit(amount)
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
 		attacker.take_hit(THORNS_DAMAGE, global_position, "thorns")
@@ -1671,6 +1763,8 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	if hp <= 0:
 		dead = true
 		play_once("Death_A", 99.0)
+		# A fallen hero's eyes are crossed out in black, until they rise.
+		DeadEyes.put_on(_model)
 		defeated.emit()
 	elif knocked:
 		_knock_down()

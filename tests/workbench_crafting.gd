@@ -103,7 +103,7 @@ func _test() -> void:
 
 	# A full bag: the piece waits in the chest.
 	while game.player.bag.size() < game.player.bag_size():
-		game.player.bag.append("kupferring")
+		game.player.bag.append("schwert")
 	c.learn_recipe("axtreif")
 	c.add("hoehlenpilz", 2, false)
 	game.iron = 3

@@ -79,8 +79,11 @@ func _physics_process(delta: float) -> void:
 		var turn := clampf(direction.signed_angle_to(want.normalized(), Vector3.UP), -MAGIC_TURN * delta, MAGIC_TURN * delta)
 		direction = direction.rotated(Vector3.UP, turn)
 	var step := direction * (MAGIC_SPEED if magic else SPEED) * delta
+	var was := global_position
 	global_position += step
-	if _age > (LIFETIME * 2.0 if magic else LIFETIME) or level.is_opaque(level.world_to_cell(global_position)):
+	# A wall, a closed door or a pillar (statue, crate stack) stops it.
+	if _age > (LIFETIME * 2.0 if magic else LIFETIME) or level.is_opaque(level.world_to_cell(global_position)) \
+			or level.shot_blocked(was, global_position):
 		queue_free()
 		return
 	if from_player:

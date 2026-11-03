@@ -73,7 +73,8 @@ func _init() -> void:
 
 ## Its name and the shares of its life where its phases begin (see BossBar).
 func boss_title() -> String:
-	return TITLE
+	# One made in the map workshop goes by the name it was given there.
+	return str(custom.get("title", TITLE))
 
 
 func phase_marks() -> Array:
@@ -352,3 +353,8 @@ func _fire_rain(player: Player) -> void:
 	for pos in spots:
 		if not level.is_opaque(level.world_to_cell(pos)):
 			FireField.spawn(level, pos, RAIN_WARN)
+
+
+## A boss shrugs off a thunder weapon's crack (see Enemy.shock).
+func can_be_stunned() -> bool:
+	return false

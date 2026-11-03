@@ -99,10 +99,20 @@ jobs:
           timeout 60 ~/godot/godot --headless -s tests/loot_fanfare.gd | tee fanfare.log
           grep -q PASS fanfare.log
 
+      - name: Rarity colours (item names in the colour of their tier)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/rarity_colours.gd | tee rarity.log
+          grep -q PASS rarity.log
+
       - name: Event bus test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log
           grep -q PASS events.log
+
+      - name: Healing pause test (no regeneration right after a blow)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/regen_pause.gd | tee regen.log
+          grep -q PASS regen.log
 
       - name: Grate tentacles test
         run: |
@@ -113,6 +123,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/door_safety.gd | tee doors.log
           grep -q PASS doors.log
+
+      - name: Pillars stop shots test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/pillar_shots.gd | tee pillar_shots.log
+          grep -q PASS pillar_shots.log && ! grep -q FAIL pillar_shots.log
 
       - name: Time away (offline activities) test
         run: |
@@ -288,6 +303,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/corpses.gd | tee corpses.log
           grep -q PASS corpses.log
+
+      - name: Crossed-out eyes of the dead test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dead_eyes.gd | tee dead_eyes.log
+          grep -q PASS dead_eyes.log
 
       - name: Dark holes, torches and horrors test
         run: |

@@ -207,11 +207,11 @@ func take(caught: String, pos: Vector3, on: Node) -> void:
 			burst.position = pos + Vector3(0, 0.5, 0)
 			on.add_child(burst)
 			Events.tell(Lang.t("Ein seltener Fang: %s!") % fish + "\n" + Lang.t("Der Fang kommt in deinen Zutatenbeutel."), Color(0.6, 0.85, 1.0))
-			Events.found(Lang.t("Ein seltener Fang: %s!") % fish, Color(0.6, 0.85, 1.0))
+			Events.found(Lang.t("Ein seltener Fang: %s!") % Rarity.marked(caught), Color(0.6, 0.85, 1.0))
 		else:
 			Sfx.play(game, "drip")
 			Effects.float_text(on, pos + Vector3(0, 1.4, 0), fish, Color(0.75, 0.9, 1.0), true)
-			Events.found(Lang.t("Gefangen: %s! Ab in den Zutatenbeutel.") % fish)
+			Events.found(Lang.t("Gefangen: %s! Ab in den Zutatenbeutel.") % Rarity.marked(caught))
 		for id in game.crafting.caught_fish(caught):
 			game.show_message(Lang.t("Jetzt verstehst du eine verwischte Zeile im Rezept „%s“.") % Lang.t(Crafting.RECIPES[id].name), 3.5)
 	game._update_hud()

@@ -292,6 +292,11 @@ signal stairs_taken(to: Vector3, up: bool, storey: int)
 var depth := 0
 var fog: Fog
 var _doors: Array = []
+## The footprints (on the ground, x and z) of the tall pieces that stop a
+## bolt, a thrown knife or an orb: pillars, statues and stacked crates. Each
+## is grown by SHOT_RADIUS, the half width of a shot. See shot_blocked.
+var shot_blockers: Array[Rect2] = []
+const SHOT_RADIUS := 0.2
 ## The monsters placed from the map, with the cell each started on, so a
 ## floor the hero leaves can remember who fell (see note_left).
 var _map_enemies: Array = []
@@ -395,13 +400,14 @@ var _writing := {}
 ## Seconds between pulling the lever and the stone starting to move.
 const SECRET_DELAY := 2.5
 ## Per wealth: chance in percent to notice the lever, gold in each chest,
-## the cheapest gear a chest may hold, and the colour of its name.
+## the cheapest gear a chest may hold, and the colour of its name (the
+## item rarity colours, see Rarity).
 const TIERS := {
-	"normal": {"name": "Gewöhnlich", "chance": 55, "gold": 10, "min_price": 0, "color": Color(0.85, 0.85, 0.85)},
-	"ungewoehnlich": {"name": "Ungewöhnlich", "chance": 40, "gold": 18, "min_price": 15, "color": Color(0.45, 0.9, 0.4)},
-	"selten": {"name": "Selten", "chance": 28, "gold": 30, "min_price": 25, "color": Color(0.35, 0.6, 1.0)},
-	"episch": {"name": "Episch", "chance": 18, "gold": 45, "min_price": 34, "color": Color(0.75, 0.4, 1.0)},
-	"gottgeboren": {"name": "Gottgeboren", "chance": 10, "gold": 70, "min_price": 42, "color": Color(1.0, 0.6, 0.15)},
+	"normal": {"name": "Gewöhnlich", "chance": 55, "gold": 10, "min_price": 0, "color": Rarity.COMMON},
+	"ungewoehnlich": {"name": "Ungewöhnlich", "chance": 40, "gold": 18, "min_price": 15, "color": Rarity.UNCOMMON},
+	"selten": {"name": "Selten", "chance": 28, "gold": 30, "min_price": 25, "color": Rarity.RARE},
+	"episch": {"name": "Episch", "chance": 18, "gold": 45, "min_price": 34, "color": Rarity.EPIC},
+	"gottgeboren": {"name": "Gottgeboren", "chance": 10, "gold": 70, "min_price": 42, "color": Rarity.GODBORN},
 }
 ## English names for the secret tiers, accepted in level files.
 const TIER_ALIASES := {"common": "normal", "uncommon": "ungewoehnlich", "rare": "selten", "epic": "episch", "godborn": "gottgeboren"}
@@ -1083,15 +1089,22 @@ func _add_solid(pos: Vector3, size: Vector3) -> void:
 ## would stand out past a narrow piece (a trunk, a table turned on its side)
 ## and stop the hero in mid air, or leave a corner of the piece open for the
 ## hero to sink into. Without meshes the box is `fallback` around `pos`.
-func _add_fitted_solid(model: Node3D, pos: Vector3, height: float, fallback := Vector2(2.4, 2.4)) -> void:
+func _add_fitted_solid(model: Node3D, pos: Vector3, height: float, fallback := Vector2(2.4, 2.4)) -> Rect2:
 	var foot := footprint(model, self)
 	var tile := AABB(Vector3(pos.x - TILE * 0.5, 0.0, pos.z - TILE * 0.5), Vector3(TILE, height, TILE))
 	if foot.size.x < 0.05 or foot.size.z < 0.05:
 		_add_solid(pos, Vector3(fallback.x, height, fallback.y))
-		return
+		return Rect2(pos.x - fallback.x * 0.5, pos.z - fallback.y * 0.5, fallback.x, fallback.y)
 	var box := foot.intersection(tile.grow(-0.05))
 	var middle := box.get_center()
 	_add_solid(Vector3(middle.x, 0.0, middle.z), Vector3(box.size.x, height, box.size.z))
+	return Rect2(box.position.x, box.position.z, box.size.x, box.size.z)
+
+
+## A piece taller than a shot flies (a pillar, a statue, a stack of crates)
+## stops bolts, knives and orbs where it stands, as well as the people.
+func _block_shots(foot: Rect2) -> void:
+	shot_blockers.append(foot.grow(SHOT_RADIUS))
 
 
 ## Blocks a round piece of furniture (a barrel) where it is drawn: an upright
@@ -1192,7 +1205,7 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_add_interactable("Fass", pos, pos + Vector3(0, 2.8, 0), c)
 		"x":
 			var stack := _place("crates_stacked", pos, _random_quarter_turn())
-			_add_fitted_solid(stack, pos, 2.0, Vector2(3.0, 3.0))
+			_block_shots(_add_fitted_solid(stack, pos, 2.0, Vector2(3.0, 3.0)))
 			_add_interactable("Kiste", pos, pos + Vector3(0, 3.6, 0), c)
 		"k":
 			var trunk_model := _place("trunk_large_A", pos, _random_quarter_turn())
@@ -1204,9 +1217,9 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			if _in_secret_room(c):
 				trunk.loot = _secret_loot(c, 0.5)
 		"o":
-			_add_fitted_solid(_place("pillar_decorated", pos), pos, 4.0, Vector2(1.6, 1.6))
+			_block_shots(_add_fitted_solid(_place("pillar_decorated", pos), pos, 4.0, Vector2(1.6, 1.6)))
 		"y":
-			_add_fitted_solid(_place_lair("Statue_Horse", pos, _random_quarter_turn(), 0.62), pos, 4.0, Vector2(2.6, 2.6))
+			_block_shots(_add_fitted_solid(_place_lair("Statue_Horse", pos, _random_quarter_turn(), 0.62), pos, 4.0, Vector2(2.6, 2.6)))
 		"H":
 			_build_shrine(c)
 		"B":
@@ -2116,6 +2129,15 @@ static func door_key(c: Vector2i) -> String:
 
 ## Set in `taken` once the hero took this floor's key (held or used).
 const KEY_GONE := "key_gone"
+## Set in `taken` once every pressure plate was pressed and the iron gates
+## sank into the floor.
+const GATES_OPEN := "gates_open"
+
+
+## The key in `taken` for where a heavy block that started on grid cell
+## `first` was left: [x, z, along x (1) or z (0)] of its first cell.
+static func heavy_key(first: Vector2i) -> String:
+	return "heavy:%d:%d" % [first.x, first.y]
 
 
 ## The hero leaves this dungeon floor (up the stairs or down a trapdoor):
@@ -2135,12 +2157,20 @@ func note_left() -> void:
 			any_open = true
 	if has_key or any_open:
 		taken[KEY_GONE] = true
+	# Heavy blocks stay where the hero pushed them, and a puzzle once solved
+	# stays solved, so a fall through a trapdoor costs no progress.
+	for st in stones:
+		if is_instance_valid(st) and st.heavy:
+			taken[heavy_key(StoneBlock.cell_for(st.home, true))] = [st.cell.x, st.cell.y, 1 if st.along_x else 0]
+	if not _gates.is_empty() and gates_open():
+		taken[GATES_OPEN] = true
 
 
 ## Puts back what note_left remembered: open doors stay open, a key that was
 ## taken stays gone (and is still in the hero's hand if no door used it), and
 ## a guardian who fell before the key was picked up leaves it where he stood.
 func _restore_left() -> void:
+	_restore_heavy()
 	var any_open := false
 	for d in _doors:
 		if not taken.has(door_key(d.cell)):
@@ -2164,6 +2194,38 @@ func _restore_left() -> void:
 				if Enemy.LETTERS.get(cell_char(c), "") == "waechter" and taken.has(slain_key(c)):
 					_build_key(cell_to_world(c))
 					return
+
+
+## Puts the heavy blocks back where note_left found them, sinks the iron
+## gates of a solved puzzle at once and settles the plates under the blocks
+## quietly, without the clack and the count of a block just pushed on.
+func _restore_heavy() -> void:
+	var moved := false
+	for st in stones:
+		if not st.heavy:
+			continue
+		var at = taken.get(heavy_key(StoneBlock.cell_for(st.home, true)))
+		if at is Array and at.size() >= 3:
+			st.place(Vector2i(int(at[0]), int(at[1])), int(at[2]) == 1, 0)
+			moved = true
+	if moved:
+		refresh_stone_paths()
+	if taken.has(GATES_OPEN):
+		for g in _gates:
+			if g.open:
+				continue
+			g.open = true
+			g.body.queue_free()
+			astar.set_point_solid(g.cell, false)
+			g.node.position.y = GATE_SUNK
+	var pressed := 0
+	for plate in _plates:
+		plate.pressed = _plate_pressed(plate)
+		if plate.pressed:
+			pressed += 1
+			plate.node.position.y = 0.0
+			plate.mat.set_shader_parameter("glow", 1.0)
+	_plates_pressed = pressed
 
 
 func _build_door(c: Vector2i) -> void:
@@ -3050,6 +3112,8 @@ const DIRS_NSWE: Array[Vector2i] = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1
 ## lying on any of them presses it.
 const PLATE_SIZE := StoneBlock.CELL * 2.0 - 0.1
 const PLATE_UP := 0.06
+## How deep an open iron gate has sunk into the floor (its bars' height).
+const GATE_SUNK := -4.1
 const PLATE_SHADER := preload("res://shaders/pressure_plate.gdshader")
 ## The worn stone frame the plate sinks into: how wide its sides are and how
 ## far its top stands above the floor (a little above a pressed plate's top,
@@ -3173,7 +3237,7 @@ func _open_gates() -> void:
 		g.open = true
 		g.body.queue_free()
 		astar.set_point_solid(g.cell, false)
-		create_tween().tween_property(g.node, "position:y", -4.1, 2.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		create_tween().tween_property(g.node, "position:y", GATE_SUNK, 2.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		gate_opened.emit(g.node.global_position)
 
 
@@ -3542,14 +3606,26 @@ func _spawn_enemies() -> void:
 			if Enemy.LETTERS.has(ch):
 				e = _spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")
 			else:
-				e = _spawn_enemy(creations[ch].base, c, elite, Creations.monster_stats(creations[ch]))
+				e = _spawn_enemy(creations[ch].base, c, elite, Creations.monster_stats(creations[ch]), true)
 			_map_enemies.append({"enemy": e, "cell": c})
 	_spawn_horror()
 
 
-func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}) -> Enemy:
-	# The dragon is a boss of its own.
-	var e: Enemy = Dragon.new() if kind == "drache" else (MountainKing.new() if kind == "bergkoenig" else Enemy.new())
+## A monster of a kind on a cell. "made" is a monster made in the map
+## workshop (see Creations): a boss made there fights like the real one and
+## shows its health bar, but none of the real one's rewards come with it.
+func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, made := false) -> Enemy:
+	# The bosses each fight with a script of their own.
+	var e: Enemy
+	match kind:
+		"drache":
+			e = Dragon.new()
+		"bergkoenig":
+			e = MountainKing.new()
+		"hauptmann":
+			e = BanditChief.new()
+		_:
+			e = Enemy.new()
 	e.kind = kind
 	e.custom = custom
 	e.elite = is_elite
@@ -3560,7 +3636,9 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}) ->
 	e.global_position = cell_to_world(c)
 	if e.kind == "waechter":
 		e.watch(_guarded_spot())
-	if Enemy.KINDS[kind].get("boss", false):
+	if made and (e is MountainKing or e is BanditChief):
+		add_child(BossBar.new(e))
+	elif Enemy.KINDS[kind].get("boss", false):
 		# The Mountain King (see Mines): a health bar at the top, and his
 		# hammer the first time he falls.
 		mine_boss = e
@@ -3746,7 +3824,7 @@ func _drop_boss_loot(e: Enemy) -> void:
 	_drop_item(id, spot)
 	Sfx.play_find(self, id, 0.6, spot)
 	var tier: Dictionary = TIERS[tier_of(id)]
-	Events.found(Lang.t("Seltene Beute: %s (%s)") % [Items.item_name(id), Lang.t(tier.name)], tier.color)
+	Events.found(Lang.t("Seltene Beute: %s (%s)") % [Rarity.marked(id), Rarity.label(id)], tier.color)
 
 
 ## Gold coins spilt from a fallen bandit's purse, scattered around the spot.
@@ -4765,6 +4843,45 @@ func door_between(a: Vector3, b: Vector3) -> bool:
 		if absf(along) <= TILE * 0.5:
 			return true
 	return false
+
+
+## True when a shot from `a` to `b` gets there: nothing blocks the view (see
+## has_line_of_sight) and no pillar, statue or crate stack stands in the way.
+## Shooters (the hero's knives, archers, mages) only let fly when it is.
+func has_clear_shot(a: Vector3, b: Vector3) -> bool:
+	return has_line_of_sight(a, b) and not shot_blocked(a, b)
+
+
+## Whether a shot flying from `a` to `b` runs into a pillar, a statue or a
+## stack of crates on the way (see shot_blockers).
+func shot_blocked(a: Vector3, b: Vector3) -> bool:
+	var from := Vector2(a.x, a.z)
+	var to := Vector2(b.x, b.z)
+	for foot in shot_blockers:
+		if segment_hits_rect(from, to, foot):
+			return true
+	return false
+
+
+## Whether the straight line from `a` to `b` touches the rectangle `r`.
+static func segment_hits_rect(a: Vector2, b: Vector2, r: Rect2) -> bool:
+	var d := b - a
+	var t0 := 0.0
+	var t1 := 1.0
+	for axis in 2:
+		var lo: float = r.position[axis]
+		var hi: float = r.end[axis]
+		if absf(d[axis]) < 0.00001:
+			if a[axis] < lo or a[axis] > hi:
+				return false
+			continue
+		var ta: float = (lo - a[axis]) / d[axis]
+		var tb: float = (hi - a[axis]) / d[axis]
+		t0 = maxf(t0, minf(ta, tb))
+		t1 = minf(t1, maxf(ta, tb))
+		if t0 > t1:
+			return false
+	return true
 
 
 func is_opaque(c: Vector2i) -> bool:

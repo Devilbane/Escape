@@ -64,7 +64,8 @@ func _init() -> void:
 
 ## His name and the shares of his life where his phases begin (see BossBar).
 func boss_title() -> String:
-	return TITLE
+	# One made in the map workshop goes by the name it was given there.
+	return str(custom.get("title", TITLE))
 
 
 func phase_marks() -> Array:
@@ -271,3 +272,8 @@ func _daze() -> void:
 	_play_once("Hit_B", DAZED_TIME)
 	Effects.float_text(level, global_position + Vector3(0, 3.0 * _stats.size, 0), Lang.t("Benommen!"), Color(1.0, 0.95, 0.5))
 	Comic.pop(global_position, "rumble")
+
+
+## A boss shrugs off a thunder weapon's crack (see Enemy.shock).
+func can_be_stunned() -> bool:
+	return false

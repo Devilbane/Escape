@@ -116,7 +116,7 @@ static func spin(value: float, low: float, high: float, step: float, changed: Ca
 	return s
 
 
-## A list to choose from: [[id, label], ...].
+## A list to choose from: [[id, label], ...]; an id of "" is a heading.
 static func choice(options: Array, current: String, chosen: Callable) -> OptionButton:
 	var o := OptionButton.new()
 	o.custom_minimum_size = Vector2(0, 44)
@@ -131,10 +131,19 @@ static func choice(options: Array, current: String, chosen: Callable) -> OptionB
 	var popup := o.get_popup()
 	popup.add_theme_font_override("font", FONT)
 	popup.add_theme_font_size_override("font_size", 16)
-	for i in options.size():
-		o.add_item(options[i][1], i)
-		o.set_item_metadata(i, options[i][0])
-		if options[i][0] == current:
+	popup.add_theme_font_override("font_separator", FONT)
+	popup.add_theme_font_size_override("font_separator_size", 16)
+	popup.add_theme_color_override("font_separator_color", GOLD)
+	# An option with an empty key is a heading: a separator with its name,
+	# so a long list falls into groups.
+	for option in options:
+		if option[0] == "":
+			o.add_separator(option[1])
+			continue
+		o.add_item(option[1])
+		var i := o.item_count - 1
+		o.set_item_metadata(i, option[0])
+		if option[0] == current:
 			o.select(i)
 	o.item_selected.connect(func(i): chosen.call(o.get_item_metadata(i)))
 	return o

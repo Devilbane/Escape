@@ -55,6 +55,8 @@ func _process(_delta: float) -> bool:
 	frames += 1
 	if frames == 2:
 		_check_level_build()
+	if frames == 3:
+		_check_boss_build()
 	if frames == 4:
 		editor = load("res://scenes/editor.tscn").instantiate()
 		root.add_child(editor)
@@ -143,8 +145,25 @@ func _check_creations() -> void:
 	var again := LevelMap.parse(m.to_text()).creations()
 	check(again == made, "creations change when written back")
 	# Values are kept in bounds.
-	var wild := Creations.checked({"type": "monster", "base": "drache", "hp": 9999, "speed": -3})
-	check(wild.base == "krieger" and wild.hp == 60 and wild.speed == 1.0, "a monster's values are not kept in bounds: %s" % wild)
+	var wild := Creations.checked({"type": "monster", "base": "einhorn", "hp": 9999, "speed": -3})
+	check(wild.base == "krieger" and wild.hp == 200 and wild.speed == 1.0, "a monster's values are not kept in bounds: %s" % wild)
+	# Every kind that fights is a base, the bosses too, listed once by family
+	# and named in both languages.
+	var listed := []
+	for family in Creations.MONSTER_FAMILIES:
+		check(Lang.EN.has(family[0]), "no English for the family \"%s\"" % family[0])
+		listed += family[1]
+	check(listed == Creations.MONSTER_BASES, "the families and MONSTER_BASES disagree: %s" % [listed])
+	for kind in Enemy.KINDS:
+		check(kind in Creations.MONSTER_BASES, "the kind %s cannot be a base in the workshop" % kind)
+	for kind in Creations.MONSTER_BASES:
+		check(Enemy.KINDS.has(kind), "the base %s is no kind of Enemy" % kind)
+		check(Creations.MONSTER_NAMES.has(kind) and Lang.EN.has(Creations.MONSTER_NAMES.get(kind, "")), "the base %s has no name in both languages" % kind)
+		check(Creations.checked({"type": "monster", "base": kind}).base == kind, "the base %s is not kept" % kind)
+	for kind in Creations.MONSTER_BOSSES:
+		check(kind in HeroLevel.BOSSES, "%s is no boss" % kind)
+	# The biggest base's own numbers fit the form.
+	check(Enemy.KINDS.bergkoenig.hp <= 200 and Enemy.KINDS.bergkoenig.damage <= 10, "the Mountain King's numbers do not fit the form")
 	var npc := Creations.checked({"type": "npc", "model": "Knight", "sex": "female", "show": ["Mage_Hat", "Knight_Helmet"], "colors": ["nix"]})
 	check(npc.sex == "male" and npc.show == ["Knight_Helmet"] and npc.colors.size() == 3, "a person's look is not checked: %s" % npc)
 	check(Creations.item_id("Große Krone!") == "eigen_grosse_krone", "item ids: %s" % Creations.item_id("Große Krone!"))
@@ -190,6 +209,64 @@ func _check_level_build() -> void:
 	check(level.traps != null and level.traps.traps.size() == 2, "the header's traps are not laid")
 	check(level._writing.get("word", "") == "MUT", "the header's wall writing is not used")
 	check(not Traps.can_drop(level), "a tested map has a level below")
+	level.queue_free()
+	DirAccess.remove_absolute(path)
+
+
+## The bosses and horrors made in the workshop come to life as what they
+## are: the boss's own fight, its health bar under the creation's name, and
+## none of the real one's rewards.
+const BOSS_MAP := """name: Bossprobe
+hint: Eine Probe.
+custom: 1 {"type": "monster", "base": "drache", "name": "Aschenschwinge", "hp": 40}
+custom: 2 {"type": "monster", "base": "hauptmann", "name": "Graubart"}
+custom: 3 {"type": "monster", "base": "bergkoenig", "name": "Der Kleine König", "hp": 120, "damage": 6}
+custom: 4 {"type": "monster", "base": "schlund"}
+custom: 5 {"type": "monster", "base": "fog_wraith"}
+custom: 6 {"type": "monster", "base": "klippenschuetze"}
+##########################
+###########E##############
+#........................#
+#..1.....2.....3.........#
+#........................#
+#..4.....5.....6.........#
+#........................#
+#...........P............#
+##########################
+"""
+
+
+func _check_boss_build() -> void:
+	check(_errors_of(BOSS_MAP).is_empty(), "the boss map has errors: %s" % [_errors_of(BOSS_MAP)])
+	var made := LevelMap.parse(BOSS_MAP).creations()
+	check(made.size() == 6 and made["1"].base == "drache" and made["3"].hp == 120, "the boss map reads as %s" % [made])
+	check(LevelMap.parse(LevelMap.parse(BOSS_MAP).to_text()).creations() == made, "the bosses change when written back")
+	var path := "user://karten/_test_bosses.txt"
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(BOSS_MAP)
+	f.close()
+	var level := Level.new()
+	level.load_from_file(path)
+	level.playtest = true
+	root.add_child(level)
+	level.build()
+	var kinds := {}
+	for e in level.enemies:
+		kinds[e.kind] = e
+	for kind in ["drache", "hauptmann", "bergkoenig", "schlund", "fog_wraith", "klippenschuetze"]:
+		check(kinds.has(kind), "no %s on the boss map" % kind)
+	if kinds.has("drache"):
+		check(kinds.drache is Dragon and kinds.drache.boss_title() == "Aschenschwinge" and kinds.drache.hp >= 40, "the made dragon is no dragon of its own")
+		check(level.dragon == kinds.drache and level.dragon_bar != null, "the made dragon has no health bar")
+	if kinds.has("hauptmann"):
+		check(kinds.hauptmann is BanditChief and kinds.hauptmann.boss_title() == "Graubart", "the made chief is no chief of his own")
+	if kinds.has("bergkoenig"):
+		check(kinds.bergkoenig is MountainKing and kinds.bergkoenig.boss_title() == "Der Kleine König", "the made king is no king of his own")
+		check(level.mine_boss == null, "the made king counts as the mine's boss")
+	if kinds.has("schlund"):
+		check(kinds.schlund.is_horror(), "the made horror is no horror")
+	var bars := level.get_children().filter(func(c): return c is BossBar)
+	check(bars.size() == 3, "%d health bars, not 3 (dragon, chief, king)" % bars.size())
 	level.queue_free()
 	DirAccess.remove_absolute(path)
 
@@ -251,6 +328,33 @@ func _check_editor() -> void:
 		await _shot("editor_" + type)
 		editor.creations_page.pick(str(editor.creations_page.slot.to_int() % 9 + 1))
 	check(editor.map.creations().size() == 3, "the forms made %d creations, not 3" % editor.map.creations().size())
+	# The dragon as the base of the monster: the list shows every kind by family.
+	editor.creations_page.pick("1")
+	var dragon: Dictionary = editor.map.creations()["1"]
+	dragon.base = "drache"
+	dragon.name = "Aschenschwinge"
+	editor.creations_page._fill_monster_stats(dragon)
+	editor.creations_page._store(dragon)
+	editor.creations_page.rebuild()
+	await process_frame
+	await process_frame
+	check(editor.map.creations()["1"].base == "drache" and editor.map.creations()["1"].hp == Enemy.KINDS.drache.hp, "the dragon base did not take its numbers")
+	check(_rect(side) == side_rect, "the dragon form resizes the side panel")
+	var lists := editor._page_boxes[1].find_children("*", "OptionButton", true, false)
+	check(not lists.is_empty() and lists[0].get_selected_metadata() == "drache", "the base list does not show the dragon")
+	if not lists.is_empty():
+		var list: OptionButton = lists[0]
+		var count := 0
+		for i in list.item_count:
+			if not list.is_item_separator(i):
+				count += 1
+		check(count == Creations.MONSTER_BASES.size(), "the base list has %d kinds, not %d" % [count, Creations.MONSTER_BASES.size()])
+		list.show_popup()
+		await process_frame
+		await process_frame
+		await _shot("editor_monster_bases")
+		list.get_popup().hide()
+	await _shot("editor_monster_dragon")
 	# Saving and opening again.
 	editor.map.set_header("name", "Werkstattprobe")
 	check(editor.save_as(SAVE_FILE), "saving fails")

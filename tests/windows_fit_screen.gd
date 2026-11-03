@@ -56,7 +56,7 @@ func _fill() -> void:
 	game.coins = 99999
 	p.bag.clear()
 	p.equipped.clear()
-	p.equipped["rucksack"] = "grosser_rucksack"
+	p.equipped["rucksack"] = "reiserucksack"
 	for slot in Items.SLOTS:
 		if p.equipped.has(slot):
 			continue

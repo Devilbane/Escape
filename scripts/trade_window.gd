@@ -239,7 +239,7 @@ func _row(entry: Dictionary) -> Control:
 	text.add_theme_constant_override("separation", 0)
 	text.alignment = BoxContainer.ALIGNMENT_CENTER
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var name_label := _label(entry.name, 16, Color.WHITE)
+	var name_label := _label(entry.name, 16, name_color(entry.get("id", ""), Color.WHITE))
 	name_label.clip_text = true
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.custom_minimum_size.x = 120
@@ -366,10 +366,16 @@ func _detail_card(entry: Dictionary, upgrade := false) -> Control:
 	var names := VBoxContainer.new()
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var title := _label(entry.name, 18, game.GOLD)
+	var title := _label(entry.name, 18, name_color(id, game.GOLD))
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	names.add_child(title)
-	names.add_child(_label(detail.get("subtitle", subtitle(id)), 16, ORANGE))
+	# Under the name, the rarity in words beside the kind of thing ("Rare ·
+	# Shield"), in the rarity's colour, so the colour is never the only cue.
+	var kind: String = detail.get("subtitle", subtitle(id))
+	if Items.ALL.has(id) and not detail.has("subtitle"):
+		names.add_child(_label("%s · %s" % [Rarity.label(id), kind], 16, Rarity.color(id)))
+	else:
+		names.add_child(_label(kind, 16, ORANGE))
 	head.add_child(names)
 	box.add_child(head)
 	if upgrade:
@@ -428,7 +434,7 @@ func _compare_card(compare: Dictionary) -> Control:
 	var names := VBoxContainer.new()
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var name_label := _label(compare.get("name", ""), 17, Color.WHITE)
+	var name_label := _label(compare.get("name", ""), 17, name_color(compare.get("icon", ""), Color.WHITE))
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	names.add_child(name_label)
 	if compare.get("subtitle", "") != "":
@@ -461,6 +467,15 @@ func _compare_card(compare: Dictionary) -> Control:
 
 
 # --- What items say ----------------------------------------------------------
+
+## The colour of a thing's name: an item's or an ingredient's is the colour
+## of its rarity (see Rarity); anything else (a service, a hair style, iron
+## bars) keeps `other`.
+static func name_color(id: String, other: Color) -> Color:
+	if Items.ALL.has(id) or Crafting.INGREDIENTS.has(id):
+		return Rarity.color(id)
+	return other
+
 
 ## What kind of thing an item is, e.g. "Shield" or "Gorm's work: weapon".
 static func subtitle(id: String) -> String:
@@ -516,6 +531,8 @@ static func stat_lines(id: String, worn := 0) -> Array:
 		lines.append([Lang.t("Platz für %d Dinge") % item.bag, BLUE])
 	if item.has("uses"):
 		lines.append([Lang.t("Fertigkeit: %s") % Lang.t(Training.SKILLS[item.uses].name), BLUE])
+	if item.get("shock", 0.0) > 0.0:
+		lines.append([Lang.t("%d%% Blitzschlag: betäubt den Gegner kurz") % roundi(item.shock * 100.0), BLUE])
 	for skill_id in item.get("skills", {}):
 		lines.append([Lang.t("+%d %s") % [item.skills[skill_id], Lang.t(Training.SKILLS[skill_id].name)], BLUE])
 	if item.has("teaches"):
@@ -536,6 +553,7 @@ const COMPARED := [
 	["hp", "Leben", 1.0, "", true],
 	["armor", "Härtung", 1.0, "", true],
 	["block", "Blockchance", 100.0, "%", true],
+	["shock", "Blitzschlag", 100.0, "%", true],
 	["speed", "Tempo", 100.0, "%", true],
 	["durability", "Haltbarkeit", 1.0, "", true],
 	["bag", "Taschenplätze", 1.0, "", true],

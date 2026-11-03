@@ -161,7 +161,7 @@ func _place(count: int, kinds: Array) -> void:
 ## Open floor, well away from the start and the exit, with open floor all
 ## around.
 func _fits(c: Vector2i) -> bool:
-	if not ".,".contains(level.cell_char(c)):
+	if not ".,".contains(level.cell_char(c)) or level.grates.has(c):
 		return false
 	if _apart(c, level.start_cell) < KEEP_AWAY + 1:
 		return false

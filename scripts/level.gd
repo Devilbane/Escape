@@ -364,6 +364,13 @@ const TIER_ALIASES := {"common": "normal", "uncommon": "ungewoehnlich", "rare": 
 ## Every wall torch, with the tile it lights, and the plain walls without one.
 var _wall_torches: Array = []
 var _bare_walls: Array = []
+## Where the bookcases and the wall decorations stand, so that no two of one
+## kind end up side by side (see WALL_GAP): {"kind", "pos"}.
+var _wall_pieces: Array = []
+## Two bookcases, or two wall decorations of one kind, are at least this far
+## apart (metres): three tiles, so a room does not show the same thing twice
+## in one spot.
+const WALL_GAP := TILE * 3.0 - 0.1
 ## A secret wall's lever is picked from at least this many torches.
 const LEVER_CHOICES := 3
 
@@ -499,11 +506,12 @@ func build() -> void:
 const FURNITURE := "bxotkCHBLVFfy"
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 ## Furniture that looks alike, by group: chests (treasure chest, trunk,
-## storage chest) and boards (tables, the timber frames in the mines). Two
+## storage chest), boards (tables, the timber frames in the mines), barrels
+## and crates. Two
 ## pieces of one group never stand on touching tiles, not even corner to
 ## corner, so a room does not show the same thing twice side by side.
 ## tests/furniture_spacing.gd checks the maps.
-const LOOKALIKES := ["CkL", "t", "j"]
+const LOOKALIKES := ["CkL", "t", "j", "b", "x"]
 
 
 ## Moves furniture out of the way: nothing may stand in a narrow passage, next
@@ -924,7 +932,11 @@ func _build_walls(c: Vector2i) -> void:
 				piece = "wall_cracked"
 		elif not low and roll < 0.2:
 			piece = "wall_cracked"
-		var wall := _place("wall" if by_stairs else piece, pos, rot)
+		# A bookcase right beside another one is left out: a plain wall
+		# instead. The piece stays as rolled, so the rolls after it, and the
+		# rest of the map, stay as they were.
+		var shelves := piece == "wall_shelves" and not by_stairs and not _wall_piece_near("shelves", pos)
+		var wall := _place("wall" if by_stairs or (piece == "wall_shelves" and not shelves) else piece, pos, rot)
 		if (c.x + c.y + d.x + d.y) % 2 != 0:
 			wall.position.y += 0.02
 		if cell_char(c) == "?":
@@ -932,7 +944,8 @@ func _build_walls(c: Vector2i) -> void:
 			wall.visible = false
 			_secret_at(c).inner.append(wall)
 			continue
-		if piece == "wall_shelves" and not by_stairs:
+		if shelves:
+			_wall_pieces.append({"kind": "shelves", "pos": pos})
 			var facing := Vector3(sin(rot), 0, cos(rot))
 			var shelf := _add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
 			shelf.touch_cell = n
@@ -948,11 +961,23 @@ func _build_walls(c: Vector2i) -> void:
 		if torch != null:
 			_wall_torches.append({"holder": torch, "cell": c, "pos": pos, "rot": rot})
 		elif piece == "wall" and _rng.randf() < 0.18:
-			var decor: Array = WALL_DECOR[_rng.randi() % WALL_DECOR.size()]
+			var pick := _rng.randi() % WALL_DECOR.size()
 			if not by_stairs:
-				_add_kit_part(decor, wall)
+				# The same banner or sword close by: another one, or none.
+				for i in WALL_DECOR.size():
+					var k := (pick + i) % WALL_DECOR.size()
+					if not _wall_piece_near("decor%d" % k, pos):
+						_add_kit_part(WALL_DECOR[k], wall)
+						_wall_pieces.append({"kind": "decor%d" % k, "pos": pos})
+						break
 		elif piece == "wall" and cell_char(c) != "?" and not FURNITURE.contains(cell_char(c)) and not by_stairs:
 			_bare_walls.append({"cell": c, "pos": pos, "rot": rot})
+
+
+## Whether a bookcase or wall decoration of this kind already hangs within
+## WALL_GAP of a wall at pos.
+func _wall_piece_near(kind: String, pos: Vector3) -> bool:
+	return _wall_pieces.any(func(w): return w.kind == kind and w.pos.distance_to(pos) < WALL_GAP)
 
 
 func _build_corner_pillars() -> void:
@@ -1028,7 +1053,9 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_build_door(c)
 		"b":
 			_place("barrel_large", pos + Vector3(_rng.randf_range(-0.4, 0.4), 0, _rng.randf_range(-0.4, 0.4)), _rng.randf() * TAU)
-			_place("barrel_small", pos + Vector3(1.2, 0, 1.1), _rng.randf() * TAU)
+			# One barrel to a tile, not a pile. The roll for the small one that
+			# stood beside it stays, so the rest of the map is built as before.
+			_rng.randf()
 			_add_solid(pos, Vector3(2.4, 2, 2.4))
 			_add_interactable("Fass", pos, pos + Vector3(0, 2.8, 0), c)
 		"x":

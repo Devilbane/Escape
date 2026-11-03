@@ -18,6 +18,7 @@ func _initialize() -> void:
 	_check_groups()
 	_check_maps()
 	_check_moved_furniture()
+	await _check_wall_pieces()
 	print("PASS" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
 
@@ -96,3 +97,36 @@ func _check_moved_furniture() -> void:
 	check(chest.x >= 0, "the chest was set down again")
 	_check_grid(lv, "moved chest")
 	lv.free()
+
+
+## Bookcases and wall decorations of one kind hang at least Level.WALL_GAP
+## apart, on every dungeon map as built.
+func _check_wall_pieces() -> void:
+	await process_frame
+	var dir := DirAccess.open("res://levels")
+	var shelves_seen := 0
+	for file in dir.get_files():
+		var path: String = "res://levels/" + file
+		if not file.ends_with(".txt") or Level.is_outdoor_file(path):
+			continue
+		var lv := Level.new()
+		lv.load_from_file(path)
+		root.add_child(lv)
+		lv.build()
+		var pieces: Array = lv._wall_pieces
+		for obj in lv.interactables:
+			if obj.label == "Regal":
+				shelves_seen += 1
+		check(lv.interactables.filter(func(o): return o.label == "Regal").size()
+				== pieces.filter(func(w): return w.kind == "shelves").size(),
+				"%s: every searchable bookcase is a counted one" % file)
+		for i in pieces.size():
+			for j in range(i + 1, pieces.size()):
+				var a: Dictionary = pieces[i]
+				var b: Dictionary = pieces[j]
+				if a.kind == b.kind:
+					check(a.pos.distance_to(b.pos) >= Level.WALL_GAP, "%s: two %s at %s and %s"
+							% [file, a.kind, a.pos, b.pos])
+		lv.queue_free()
+		await process_frame
+	check(shelves_seen > 10, "the dungeon still has bookcases (%d)" % shelves_seen)

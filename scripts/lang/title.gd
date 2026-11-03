@@ -22,6 +22,7 @@ const EN := {
 	"Was seit dem letzten Schlaf im Bett geschah, geht verloren.": "Whatever happened since you last slept in the bed is lost.",
 	"Es gibt noch keinen Spielstand. Gespeichert wird beim Betreten der Zuflucht und in ihrem Bett.": "There is no saved game yet. The game saves when you enter the refuge and in its bed.",
 	"Klicken oder eine Taste: ab der Zuflucht weiterspielen.  N: neues Spiel": "Click or press a key to continue from the refuge.  N: new game",
+	"%s, Heldenstufe %d,": "%s, hero level %d,",
 	"%s auf Ebene %d mit %d Gold.": "%s on level %d with %d gold.",
 	"%s auf dem Friedhof mit %d Gold.": "%s on the graveyard with %d gold.",
 	"%s zu Hause mit %d Gold.": "%s at home with %d gold.",

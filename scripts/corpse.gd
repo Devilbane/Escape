@@ -3,11 +3,12 @@ extends Node
 ## A fallen monster stays where it fell and rots away, instead of sinking
 ## into the floor. This node sits on the dead Enemy and drives its decay:
 ##   flesh (bandits, beasts, horrors): darkens and sags flat, then sinks
-##     away into a dark stain with a few bones lying where its bones were;
-##   bones (skeletons): grey and slump, then fall apart into their bones,
-##     each one lying where it was in the body (no dust or sound: both would
-##     draw on the shared random numbers, and the level runs in
-##     tests/play_all_levels.gd depend on that stream);
+##     away into a dark stain, and a real skeleton (see Remains) lies where
+##     the body lay;
+##   bones (skeletons): grey and slump, then fall apart into the same kind
+##     of skeleton (no dust or sound: both would draw on the shared random
+##     numbers, and the level runs in tests/play_all_levels.gd depend on
+##     that stream);
 ##   melt (slimes): run out flat at once into a puddle that dries to a stain;
 ##   wisp (fog wraiths): blow away in a moment and leave nothing.
 ## For the web build only a few corpses lie about at once (MAX_CORPSES): a
@@ -36,11 +37,6 @@ const STYLES := {
 const ROT := Color(0.09, 0.07, 0.05)
 ## How dark the body is when it has gone flat at its very end.
 const LAST_BLACK := 0.92
-## Bones of the model that are no bones of the body: slots for weapons,
-## the root at the feet and helpers for the animations.
-const NOT_BONES := ["slot", "root", "ik", "target", "pole", "control", "ctrl"]
-## A remnant shows at most this many bones.
-const MAX_BONES := 40
 const BONE := Color(0.64, 0.58, 0.47)
 ## A plain slime has no tint of its own: its puddle is slime green.
 const SLIME := Color(0.36, 0.78, 0.26)
@@ -177,7 +173,9 @@ func _leave_remnant() -> void:
 	if layout.is_empty():
 		_remnant = remnant(style, enemy.global_position, size, enemy._stats.get("tint", SLIME))
 	else:
-		_remnant = shaped_remnant(style, layout, size)
+		var model := String(enemy._stats.model)
+		var humanlike := model in ["Orc", "Yeti"] or not enemy.is_beast()
+		_remnant = shaped_remnant(style, layout, not humanlike, model == "Spider")
 	level.add_child(_remnant)
 	_remnant.global_position = enemy.global_position
 	_stain_mat = (_remnant.get_child(0) as MeshInstance3D).material_override
@@ -189,90 +187,36 @@ func _leave_remnant() -> void:
 		level.remnants.pop_front().queue_free()
 
 
-## The body's bones as it lies, flat on the floor and measured from its
-## feet: "bones" are pairs of ends, "head" is where the skull goes (or
-## Vector3.INF). Empty when the model has no skeleton to go by.
+## The body's rig as it lies (see Remains.read_rig), or empty when the
+## model has no skeleton with a head to go by.
 func bone_layout() -> Dictionary:
-	var skel := enemy._model.find_child("Skeleton3D", true, false) as Skeleton3D
-	if skel == null:
-		return {}
-	var size := float(enemy._stats.size)
-	var at := enemy.global_position
-	var flat: Array[Vector3] = []
-	var real: Array[bool] = []
-	var head := Vector3.INF
-	for i in skel.get_bone_count():
-		var p := (skel.global_transform * skel.get_bone_global_pose(i)).origin - at
-		flat.append(Vector3(p.x, 0.0, p.z))
-		var bone_name := skel.get_bone_name(i).to_lower()
-		real.append(not NOT_BONES.any(func(w): return bone_name.contains(w)))
-		if head == Vector3.INF and bone_name.contains("head") and real[i]:
-			head = flat[i]
-	var bones: Array = []
-	for i in skel.get_bone_count():
-		var parent := skel.get_bone_parent(i)
-		if parent < 0 or not real[i] or not real[parent]:
-			continue
-		var length := flat[i].distance_to(flat[parent])
-		if length < 0.12 * size or length > 2.5 * size:
-			continue
-		bones.append([flat[parent], flat[i]])
-	if bones.size() < 3:
-		return {}
-	if bones.size() > MAX_BONES:
-		bones.resize(MAX_BONES)
-	return {"bones": bones, "head": head}
+	return Remains.read_rig(enemy._model.find_child("Skeleton3D", true, false) as Skeleton3D, enemy.global_position)
 
 
-## A stain the size of the body and its bones, each lying where it lay in
-## the body. Rotted flesh keeps only its bigger bones.
-static func shaped_remnant(kind_style: String, layout: Dictionary, size: float) -> Node3D:
+## A stain the size of the body, and a real skeleton laid out along its rig
+## (see Remains): skull, spine, ribcage, pelvis and jointed limbs. A spider
+## leaves its husk and legs; a beast's skull has a snout.
+static func shaped_remnant(kind_style: String, rig: Dictionary, beast: bool, husk: bool) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Remnant"
-	var bones: Array = layout.bones
 	var low := Vector3(INF, 0, INF)
 	var high := Vector3(-INF, 0, -INF)
-	for b in bones:
-		for p: Vector3 in b:
-			low = Vector3(minf(low.x, p.x), 0, minf(low.z, p.z))
-			high = Vector3(maxf(high.x, p.x), 0, maxf(high.z, p.z))
+	var pos: Array = rig.pos
+	var parent: Array = rig.parent
+	for i in pos.size():
+		if parent[i] == -2:
+			continue
+		var p: Vector3 = pos[i]
+		low = Vector3(minf(low.x, p.x), 0, minf(low.z, p.z))
+		high = Vector3(maxf(high.x, p.x), 0, maxf(high.z, p.z))
 	var stain := _stain_node(kind_style, Color.WHITE)
-	var reach := (high - low) + Vector3.ONE * 0.9 * size
+	var reach := (high - low) + Vector3.ONE * 0.9
 	stain.position = (low + high) * 0.5 + Vector3(0, 0.03, 0)
 	stain.scale = Vector3(reach.x / 1.8, 1.0, reach.z / 1.8)
 	root.add_child(stain)
-	_bones()
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var radius := 0.07 * size
-	for pair in bones:
-		var a: Vector3 = pair[0]
-		var b: Vector3 = pair[1]
-		var along := b - a
-		if kind_style == "flesh" and along.length() < 0.22 * size:
-			continue
-		var cap := CapsuleMesh.new()
-		cap.radius = radius
-		cap.height = along.length() + radius * 2.0
-		cap.radial_segments = 6
-		cap.rings = 1
-		var y := along.normalized()
-		var x := y.cross(Vector3.UP).normalized()
-		var basis := Basis(x, y, x.cross(y))
-		st.append_from(cap, 0, Transform3D(basis, (a + b) * 0.5 + Vector3(0, radius, 0)))
-	var head: Vector3 = layout.head
-	if head != Vector3.INF:
-		var skull := SphereMesh.new()
-		skull.radius = 0.19 * size
-		skull.height = 0.3 * size
-		skull.radial_segments = 8
-		skull.rings = 4
-		st.append_from(skull, 0, Transform3D(Basis(), head + Vector3(0, 0.12 * size, 0)))
-	var mesh := MeshInstance3D.new()
-	mesh.mesh = st.commit()
-	mesh.material_override = _bone_mat
-	root.add_child(mesh)
+	root.add_child(Remains.build(rig, beast, husk))
 	return root
+
 
 ## What is left of a corpse of `style` and `size` when its model has no
 ## skeleton to go by: a dark stain (a slime's in its own colour), with a few

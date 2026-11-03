@@ -116,7 +116,7 @@ const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_sh
 ## Kit texture sets that get the worn look: barrels, crates, tables,
 ## shelves, chests and the wall decorations.
 const WORN_SETS := ["props", "chests", "wallprops"]
-const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
+const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
 const SOLID := "#bxotkCDHBLVF?f=U|N%~T^"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
@@ -838,10 +838,11 @@ func _build_walls(c: Vector2i) -> void:
 		var piece := "wall"
 		var roll := _rng.randf()
 		if not low and d == Vector2i(0, -1):
+			# The barred window that once hung here showed only rock behind
+			# it, so its share of the roll is a solid wall now. The roll
+			# stays the same, so the rest of every map is built as before.
 			if roll < 0.12:
 				piece = "wall_shelves"
-			elif roll < 0.22:
-				piece = "wall_archedwindow_gated"
 			elif roll < 0.32:
 				piece = "wall_cracked"
 		elif not low and roll < 0.2:
@@ -2386,6 +2387,64 @@ func _mark_wide(floor_free: PackedByteArray, out: PackedByteArray, start: int, s
 				out[start + r * stride] = 1
 
 
+# --- Iron gates ------------------------------------------------------------------
+
+## An iron grating across a one tile gap, in the stone of the walls around it:
+## a stone beam on top (a kit pillar laid on its side, like the corner pillars
+## beside it) and dark iron bars below it. Returns the bars, which are their
+## own node so a gate can sink them into the floor and leave the beam standing.
+const GATE_BAR_COUNT := 7
+const GATE_BAR_TOP := 3.35
+const GATE_IRON := Color(0.2, 0.19, 0.18)
+
+
+func _build_iron_gate(pos: Vector3, rot: float) -> Node3D:
+	var gate := Node3D.new()
+	gate.position = pos
+	gate.rotation.y = rot
+	add_child(gate)
+	# The beam reaches from corner pillar to corner pillar, its top level with
+	# the top of the walls.
+	var beam := _add_kit_part(["SM_Pillar", "floor", Vector3(-2.0, 3.6, 0), Vector3(1.4, 4.0 / 2.59, 1.4), 0.0], gate)
+	beam.rotation.z = -PI * 0.5
+	var bars := Node3D.new()
+	bars.name = "Bars"
+	gate.add_child(bars)
+	var iron := _gate_iron()
+	var rod := CylinderMesh.new()
+	rod.top_radius = 0.06
+	rod.bottom_radius = 0.06
+	rod.height = GATE_BAR_TOP
+	rod.radial_segments = 8
+	for i in GATE_BAR_COUNT:
+		var bar := MeshInstance3D.new()
+		bar.mesh = rod
+		bar.material_override = iron
+		bar.position = Vector3(lerpf(-1.35, 1.35, i / float(GATE_BAR_COUNT - 1)), GATE_BAR_TOP * 0.5, 0)
+		bars.add_child(bar)
+	# Two flat bands hold the bars together.
+	var band := BoxMesh.new()
+	band.size = Vector3(3.0, 0.12, 0.08)
+	for y in [0.9, 2.5]:
+		var cross := MeshInstance3D.new()
+		cross.mesh = band
+		cross.material_override = iron
+		cross.position = Vector3(0, y, 0)
+		bars.add_child(cross)
+	return bars
+
+
+## Dark, slightly rusty iron for the bars of the gates.
+func _gate_iron() -> Material:
+	if not _scenes.has("mat_gate_iron"):
+		var m := StandardMaterial3D.new()
+		m.albedo_color = GATE_IRON
+		m.metallic = 0.75
+		m.roughness = 0.55
+		_scenes["mat_gate_iron"] = m
+	return _scenes["mat_gate_iron"]
+
+
 # --- Pressure plates and the iron gate ------------------------------------------
 
 ## Stone slabs in the floor that sink while a stone block lies on them, and
@@ -2426,7 +2485,7 @@ func _build_gate(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	var across_x := cell_char(c + Vector2i(-1, 0)) == "#" and cell_char(c + Vector2i(1, 0)) == "#"
 	var rot := 0.0 if across_x else PI * 0.5
-	var bars := _place("wall_gated", pos, rot)
+	var bars := _build_iron_gate(pos, rot)
 	var body := StaticBody3D.new()
 	body.position = pos
 	body.rotation.y = rot
@@ -3774,7 +3833,7 @@ func _trophy_statue(kind: String) -> Node3D:
 ## Iron bars across a one tile gap: solid, but you can see through.
 func _build_bars(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	_place("wall_gated", pos, 0.0)
+	_build_iron_gate(pos, 0.0)
 	_add_solid(pos, Vector3(TILE, 4, 0.6))
 
 

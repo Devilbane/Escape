@@ -602,28 +602,7 @@ func _build_spikes(t: Dictionary, mark: Node3D) -> void:
 func _splatter(t: Dictionary) -> void:
 	if t.blood != null:
 		return
-	var blood := Node3D.new()
-	t.node.add_child(blood)
-	t.blood = blood
-	var stain := StandardMaterial3D.new()
-	stain.albedo_color = Color(0.36, 0.02, 0.02)
-	stain.roughness = 0.3
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(t.cell) + 7
-	for i in 7:
-		var drop := MeshInstance3D.new()
-		var disc := CylinderMesh.new()
-		var r := rng.randf_range(0.12, 0.38)
-		disc.top_radius = r
-		disc.bottom_radius = r
-		disc.height = 0.01
-		disc.radial_segments = 9
-		drop.mesh = disc
-		drop.material_override = stain
-		drop.scale = Vector3(rng.randf_range(0.7, 1.6), 1.0, rng.randf_range(0.6, 1.0))
-		drop.rotation.y = rng.randf() * TAU
-		drop.position = Vector3(rng.randf_range(-1.3, 1.3), MARK_Y + 0.005 + i * 0.001, rng.randf_range(-1.3, 1.3))
-		blood.add_child(drop)
+	t.blood = BloodStains.lay(t.node, Vector3(0, MARK_Y + 0.02, 0), hash(t.cell) + 7, 3, 24, 1.4)
 
 
 ## A faint ring of runes that turns slowly.

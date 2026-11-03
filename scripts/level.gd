@@ -2517,7 +2517,7 @@ func _check_pickups() -> void:
 			# Just dropped at the hero's feet: it stays until they step away
 			# and come back for it.
 			continue
-		if p.kind == "item" and player.bag.size() >= player.bag_size():
+		if p.kind == "item" and not player.bag_fits(p.id):
 			if not p.has("warned"):
 				p.warned = true
 				bag_full.emit()

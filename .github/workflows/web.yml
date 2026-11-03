@@ -109,6 +109,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/floor_items.gd | tee floor_items.log
           grep -q PASS floor_items.log
 
+      - name: Torch stacks test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/torch_stacks.gd | tee torch_stacks.log
+          grep -q PASS torch_stacks.log
+
       - name: Several saved games test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log

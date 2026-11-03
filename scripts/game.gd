@@ -1267,7 +1267,7 @@ func pick_up_crate(near := Vector3.INF) -> String:
 	var crate := level.crate_in_reach(player, near)
 	if crate == null:
 		return Lang.t("Keine Kiste in Reichweite.")
-	if player.bag.size() >= player.bag_size():
+	if player.bag_used() >= player.bag_size():
 		return Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.")
 	player.path.clear()
 	player.face(crate.global_position - player.global_position)
@@ -1335,7 +1335,7 @@ func take_stone(stone: StoneBlock = null) -> String:
 		return Lang.t("Kein freier Steinblock in Reichweite.")
 	if stone.heavy:
 		return push_stone(stone)
-	if player.bag.size() >= player.bag_size():
+	if player.bag_used() >= player.bag_size():
 		return Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.")
 	player.path.clear()
 	player.face(stone.global_position - player.global_position)
@@ -1490,7 +1490,7 @@ func _end_drag() -> void:
 ## The "Crate" button: picks up a crate in reach, else sets one down.
 func crate_action() -> void:
 	var why := ""
-	if level.crate_in_reach(player) != null and player.bag.size() < player.bag_size():
+	if level.crate_in_reach(player) != null and player.bag_used() < player.bag_size():
 		why = pick_up_crate()
 	elif player.bag.has("kiste"):
 		why = put_down_crate()
@@ -3693,7 +3693,7 @@ func _search(obj: Dictionary) -> void:
 	if obj.searched:
 		Effects.float_text(level, obj.icon_pos, Lang.t("Schon durchsucht"), Color(0.8, 0.8, 0.8), true)
 		return
-	if obj.loot.has("item") and player.bag.size() >= player.bag_size():
+	if obj.loot.has("item") and not player.bag_fits(obj.loot.item):
 		if not _message_busy():
 			show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0)
 		return
@@ -3736,7 +3736,7 @@ func _search(obj: Dictionary) -> void:
 		color = Color(0.75, 0.9, 1.0)
 		show_message(found + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
 	# An eye trained in exploring (Erkunden) finds a torch tucked away.
-	var torch := player.bag.size() < player.bag_size() and randi_range(1, 100) <= player.explore_bonus(Training.EXPLORE_TORCH)
+	var torch := player.bag_fits(HandTorch.ITEM) and randi_range(1, 100) <= player.explore_bonus(Training.EXPLORE_TORCH)
 	if torch:
 		player.bag.append(HandTorch.ITEM)
 		if loot.is_empty():

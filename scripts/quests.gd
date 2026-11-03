@@ -214,7 +214,7 @@ func _carried(item: String) -> int:
 
 
 func _bag_free() -> int:
-	return game.player.bag_size() - game.player.bag.size()
+	return game.player.bag_size() - game.player.bag_used()
 
 
 ## The mark over a villager's head: "?" when the hero can hand something in

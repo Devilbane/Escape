@@ -1379,6 +1379,16 @@ func bag_size() -> int:
 	return Items.bag_size(equipped.get("rucksack", ""))
 
 
+## How many bag slots are taken: bundled items (torches) share one.
+func bag_used() -> int:
+	return Items.slots_used(bag)
+
+
+## Whether one more of `id` fits in the bag (on a bundle of it, or a free slot).
+func bag_fits(id: String) -> bool:
+	return Items.fits(bag, bag_size(), id)
+
+
 ## Moves a bag item into its slot; whatever was worn there goes into the bag.
 ## Items the hero is not yet able to use stay in the bag, and so do books,
 ## and so does a smaller backpack that could not hold everything carried.
@@ -1390,8 +1400,11 @@ func equip(id: String) -> bool:
 	if slot == "spezial":
 		# Two places for specials: take a free one, else swap out the first.
 		slot = "spezial_2" if equipped.has("spezial_1") and not equipped.has("spezial_2") else "spezial_1"
-	var after := bag.size() - 1 + (1 if equipped.has(slot) else 0)
-	if slot == "rucksack" and after > Items.bag_size(id):
+	var after := bag.duplicate()
+	after.erase(id)
+	if equipped.has(slot):
+		after.append(equipped[slot])
+	if slot == "rucksack" and Items.slots_used(after) > Items.bag_size(id):
 		return false
 	bag.erase(id)
 	if equipped.has(slot):
@@ -1405,7 +1418,7 @@ func equip(id: String) -> bool:
 ## the backpack, when that is what comes off).
 func unequip(slot: String) -> bool:
 	var room := Items.BAG_SIZE if slot == "rucksack" else bag_size()
-	if not equipped.has(slot) or bag.size() >= room:
+	if not equipped.has(slot) or not Items.fits(bag, room, equipped[slot]):
 		return false
 	bag.append(equipped[slot])
 	equipped.erase(slot)

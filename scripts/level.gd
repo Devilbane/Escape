@@ -662,6 +662,11 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 			if mi.name == "spikes":
 				# Dull, hammered iron spikes (they move, so the grain rides along).
 				GearLook.apply(mi, "metal", SPIKE_IRON, true, 0.35)
+			elif piece == "floor_tile_big_grate":
+				# Grey floor stone round the hole, dark iron bars across it.
+				mi.mesh = _grate_mesh(mi.mesh)
+				mi.set_surface_override_material(0, _kit_material("floor"))
+				mi.set_surface_override_material(1, _gate_iron())
 			elif mi.name == "wall_doorway_door":
 				# An old wooden door with rusty fittings.
 				WornLook.wear_mesh(mi, _wear(), false, STONE_TINT)
@@ -2425,7 +2430,7 @@ func _mark_wide(floor_free: PackedByteArray, out: PackedByteArray, start: int, s
 ## own node so a gate can sink them into the floor and leave the beam standing.
 const GATE_BAR_COUNT := 7
 const GATE_BAR_TOP := 3.35
-const GATE_IRON := Color(0.2, 0.19, 0.18)
+const GATE_IRON := Color(0.13, 0.13, 0.14)
 
 
 func _build_iron_gate(pos: Vector3, rot: float) -> Node3D:
@@ -2464,13 +2469,64 @@ func _build_iron_gate(pos: Vector3, rot: float) -> Node3D:
 	return bars
 
 
-## Dark, slightly rusty iron for the bars of the gates.
+## Where the kit's floor texture keeps the plain ground between its cobbles:
+## one floor tile maps onto this square of the texture.
+const FLOOR_GROUND_UV := Rect2(0.3547, 0.4906, 0.1568, 0.1568)
+
+
+## The floor grate's model in two surfaces: its stone frame (0) and its bars
+## (1). The model is one mesh on the KayKit colour atlas, where the bars use
+## the left half of the texture and the stone the right half. The frame is
+## mapped onto the kit's floor texture instead, laid on like a floor tile, so
+## the rim round the hole is the same ground as the tiles beside it.
+func _grate_mesh(source: Mesh) -> Mesh:
+	if not _scenes.has("grate_mesh"):
+		var arrays := source.surface_get_arrays(0)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		if index.is_empty():
+			index.resize(verts.size())
+			for i in verts.size():
+				index[i] = i
+		var parts := [SurfaceTool.new(), SurfaceTool.new()]
+		for st: SurfaceTool in parts:
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for t in range(0, index.size(), 3):
+			var bar := uvs[index[t]].x < 0.5
+			var st: SurfaceTool = parts[1 if bar else 0]
+			for k in 3:
+				var i := index[t + k]
+				var v := verts[i]
+				var uv := uvs[i]
+				if not bar:
+					# From above for the rim, from the side for the pit's walls.
+					var n := normals[index[t]]
+					var flat := Vector2(v.x, v.z)
+					if absf(n.y) < 0.5:
+						flat = Vector2(v.z if absf(n.x) > absf(n.z) else v.x, -v.y)
+					uv = FLOOR_GROUND_UV.position + (flat + Vector2(2, 2)) / 4.0 * FLOOR_GROUND_UV.size
+				st.set_normal(normals[i])
+				st.set_uv(uv)
+				st.add_vertex(v)
+		var mesh := ArrayMesh.new()
+		for st: SurfaceTool in parts:
+			st.generate_tangents()
+			st.commit(mesh)
+		mesh.surface_set_material(0, source.surface_get_material(0))
+		mesh.surface_set_material(1, source.surface_get_material(0))
+		_scenes["grate_mesh"] = mesh
+	return _scenes["grate_mesh"]
+
+
+## Dark, slightly rusty iron for the bars of the gates and floor grates.
 func _gate_iron() -> Material:
 	if not _scenes.has("mat_gate_iron"):
 		var m := StandardMaterial3D.new()
 		m.albedo_color = GATE_IRON
-		m.metallic = 0.75
-		m.roughness = 0.55
+		m.metallic = 0.35
+		m.roughness = 0.75
 		_scenes["mat_gate_iron"] = m
 	return _scenes["mat_gate_iron"]
 

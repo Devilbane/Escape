@@ -109,6 +109,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/door_safety.gd | tee doors.log
           grep -q PASS doors.log
 
+      - name: Pillars stop shots test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/pillar_shots.gd | tee pillar_shots.log
+          grep -q PASS pillar_shots.log && ! grep -q FAIL pillar_shots.log
+
       - name: Time away (offline activities) test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/offline_schedule.gd | tee offline.log

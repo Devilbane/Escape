@@ -1007,7 +1007,7 @@ func _auto_attack() -> void:
 	if d <= ENGAGE_RANGE:
 		_auto_cooldown = AUTO_MELEE_INTERVAL
 		melee()
-	elif _hunt == null and d <= AUTO_THROW_RANGE and knives > 0 and level.has_line_of_sight(global_position, _target.global_position):
+	elif _hunt == null and d <= AUTO_THROW_RANGE and knives > 0 and level.has_clear_shot(global_position, _target.global_position):
 		_auto_cooldown = AUTO_THROW_INTERVAL
 		throw_knife(_target.global_position, true)
 

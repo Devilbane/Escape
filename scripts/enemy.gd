@@ -892,7 +892,9 @@ func _physics_process(delta: float) -> void:
 	elif _awake and not player.dead and _busy <= 0.0:
 		if level.stacked(self, player):
 			pass # Inside the hero's spot: no blow or shot until pushed apart.
-		elif ranged and sees and _lost <= 0.0 and dist < _stats.reach:
+		# With a pillar in the way an archer or mage walks round it first.
+		elif ranged and sees and _lost <= 0.0 and dist < _stats.reach \
+				and level.has_clear_shot(global_position, player.global_position):
 			_face(to_player)
 			if _cooldown <= 0.0:
 				_shoot(player)
@@ -986,7 +988,7 @@ func _fight_foe() -> Vector3:
 	if level.stacked(self, foe):
 		return Vector3.ZERO
 	if ranged:
-		if d < float(_stats.reach) and level.has_line_of_sight(global_position, foe.global_position):
+		if d < float(_stats.reach) and level.has_clear_shot(global_position, foe.global_position):
 			_face(to)
 			if _cooldown <= 0.0:
 				_shoot(foe)

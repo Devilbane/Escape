@@ -18,6 +18,10 @@ func check(ok: bool, what: String) -> void:
 
 
 func _initialize() -> void:
+	# Spotting is a roll, and even a sharp eye has only Traps.SPOT_MAX (95 %):
+	# a fixed seed keeps the test from failing about one run in twenty.
+	# TEST_SEED tries another one.
+	seed(int(OS.get_environment("TEST_SEED")) if OS.has_environment("TEST_SEED") else 1)
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 

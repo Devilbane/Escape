@@ -4,4 +4,5 @@ extends RefCounted
 
 const EN := {
 	"Ansehen bei %s: %s": "Standing with %s: %s",
+	"Seltene Beute: %s (%s)": "Rare loot: %s (%s)",
 }

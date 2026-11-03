@@ -660,6 +660,39 @@ Training follows the same slow growth as in the dungeon: eight days of eight hou
 attribute up by one point and most of a second, and every further point costs a quarter more.
 Six books (one per skill) can turn up in chests and at the merchant. The rules are in `scripts/offline.gd`.
 
+## The map workshop
+
+Click **Map workshop** on the title screen to build maps of your own with the game's tiles, monsters and
+rules. The workshop reads and writes the very files in `levels/`, so a map made there plays in the game as it is.
+
+- **Tiles** (left): every tile of the dungeon in groups (floor and walls, ways, traps and puzzles, treasure,
+  furnishings, monsters, your creations). Paint with the left mouse button; the right button paints wall.
+  Tools: **Brush**, **Area** (drag a rectangle) and **Fill** (fills the patch of the same tile).
+  The mouse wheel zooms, the middle button (or Space and the left button) or the arrow keys move the map.
+- **Map** (right): name, hint, size, how rich the secret room is, elite skeletons, pitch dark, safe room,
+  hidden traps (how many, which kinds) and a wall writing of your own.
+- **Creations**: each digit `1` to `9` and `0` on a map is a creation of that map: a **monster** (a base kind
+  with your own name, life, damage, hardening, speed, pace, size, gold and colour), a **person** (body, clothes,
+  colours, pose and up to six lines they say when the hero runs into them) or **gear** (looks and is worn like an
+  existing piece, with your own name and values; never sold or found as loot).
+- **Checks**: after every change the workshop checks the map: exactly one start, an exit, the exit reachable
+  from the start (with the key in front of its door, or a guardian who carries it), enough stone blocks for the
+  pressure plates, no unknown letters, every digit set up as a creation. Click a line to see its tile.
+- **Test** (F5) plays the map at once with a new hero; nothing is saved. The stairs (or Esc) lead back to the workshop.
+- **The open air**: the workshop also opens the world under the open sky (`levels/11_die_freiheit.txt`, a map with
+  `outdoor: yes`, up to 240 × 120 tiles). The palette then shows its own tiles (terrain, nature, ways and entrances,
+  buildings, village and camp, villagers, wild foes, animals); its digits are villagers, not creations. Its checks
+  look for one start and unknown letters, and testing it starts the hero in front of the crypt.
+- **Save** puts the map into *My maps* (`user://karten/`); run from the Godot editor, it can also save straight
+  into `levels/`. On the web, where there is no folder, *To the clipboard* and *From the clipboard* move a map as text.
+
+| Workshop key | Action |
+|---|---|
+| Ctrl+Z / Ctrl+Y | undo / redo a stroke |
+| Ctrl+S / Ctrl+O | save / open |
+| F5 | test the map |
+| Esc | close a window, or back to the title screen |
+
 ## Building new levels
 
 Every level is a simple text file in the `levels/` folder. The levels are
@@ -719,6 +752,16 @@ town houses): wooden floorboards, and several storeys drawn side by side, each a
 counted from west to east. `<` are stairs up to the `>` of the next storey and back, `+` is free floor kept
 for furniture (the game lists these spots per storey in `Level.furniture_slots`), and the exit `E` is the
 front door in the south wall.
+
+Maps made in the map workshop may also use these lines (the game's own maps can too):
+`traps: 3 stacheln, teleport, falltuer` lays that many hidden traps of those kinds, `writing: WORD | text` is the
+level's wall writing, and `custom: <digit> {...}` sets up a creation for that digit (see `scripts/creations.gd`):
+
+```
+custom: 1 {"type": "monster", "base": "krieger", "name": "Bone Lord", "hp": 9, "damage": 2, "tint": "#aa3322"}
+custom: 2 {"type": "npc", "name": "Brother Anselm", "model": "Mage", "show": ["Mage_Hat"], "lines": ["Peace be with you."]}
+custom: 3 {"type": "item", "id": "eigen_bone_crown", "base": "knochenhelm", "name": "Bone Crown", "power": 2}
+```
 
 The exit `E` needs a wall to the north (top) and is entered from the south.
 A door `D` stands in a passage one tile wide.

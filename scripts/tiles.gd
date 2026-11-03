@@ -72,6 +72,18 @@ const DUNGEON := {
 	"~": "a crack of glowing embers in the floor (mines, cannot be crossed)",
 	"T": "a stone tablet with an old inscription (a hint, see Mines)",
 	"^": "the way down to the next floor of a mine (see the header \"down:\")",
+	# Made in the map workshop: what each digit places is written in the
+	# map's own header (see Creations).
+	"1": "your own creation (header \"custom: 1 {...}\", see Creations)",
+	"2": "your own creation",
+	"3": "your own creation",
+	"4": "your own creation",
+	"5": "your own creation",
+	"6": "your own creation",
+	"7": "your own creation",
+	"8": "your own creation",
+	"9": "your own creation",
+	"0": "your own creation",
 }
 
 ## Letters of the open-air map built by Outdoor.

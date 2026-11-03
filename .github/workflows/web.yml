@@ -134,6 +134,16 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/merchant_window.gd | tee merchant_window.log
           grep -q PASS merchant_window.log
 
+      - name: Map workshop test
+        run: |
+          timeout 180 ~/godot/godot --headless -s tests/level_editor.gd | tee level_editor.log
+          grep -q PASS level_editor.log
+
+      - name: Testing a map from the workshop
+        run: |
+          timeout 180 ~/godot/godot --headless -s tests/playtest_map.gd | tee playtest_map.log
+          grep -q PASS playtest_map.log
+
       - name: Window buttons, hover and keyboard focus test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/window_buttons.gd | tee window_buttons.log

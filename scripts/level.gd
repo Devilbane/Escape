@@ -129,6 +129,17 @@ const SPIKE_DETOUR := 6.0
 var level_name := ""
 ## The map's file name, e.g. "03_das_labyrinth.txt".
 var file := ""
+## The monsters, people and gear made in the map workshop for this map:
+## letter -> spec (header "custom:", see Creations).
+var creations := {}
+## Hidden traps from the header "traps: <count> <kind>, <kind>" (see Traps);
+## the game's own maps list theirs in Traps.PLACES.
+var trap_place := {}
+## The wall writing from the header "writing: WORD | text"; empty for the
+## writing chosen by the depth (see WRITINGS).
+var custom_writing: Array = []
+## Played from the map workshop (see LevelEditor): no level below to fall to.
+var playtest := false
 var hint := ""
 var grid: Array[String] = []
 var width := 0
@@ -402,6 +413,17 @@ func load_from_file(path: String) -> void:
 			# Out in the open (see Outdoor): no enemies, like a safe room.
 			outdoor = true
 			safe = true
+		elif line.begins_with(Creations.HEADER):
+			var c := Creations.parse_line(line)
+			if not c.is_empty():
+				creations[c.letter] = c.spec
+				Creations.register(c.spec)
+		elif line.begins_with("traps:"):
+			trap_place = Traps.parse_header(line.substr(6))
+		elif line.begins_with("writing:"):
+			var parts := line.substr(8).split("|", true, 1)
+			if parts.size() == 2 and parts[0].strip_edges() != "" and parts[1].strip_edges() != "":
+				custom_writing = [parts[0].strip_edges(), parts[1].strip_edges()]
 		elif line.begins_with("secret:"):
 			secret_tier = line.substr(7).strip_edges()
 			secret_tier = TIER_ALIASES.get(secret_tier, secret_tier)
@@ -431,6 +453,8 @@ func build() -> void:
 			_build_floor(c, ch)
 			_build_walls(c)
 			_build_content(c, ch)
+			if creations.has(ch):
+				_build_creation(c, creations[ch])
 	_build_corner_pillars()
 	furniture_slots.sort_custom(func(a, b): return a.storey < b.storey)
 	if is_home:
@@ -527,7 +551,7 @@ func _is_narrow(c: Vector2i) -> bool:
 
 func _walkable(c: Vector2i) -> bool:
 	var ch := cell_char(c)
-	return ch != "#" and not FURNITURE.contains(ch)
+	return ch != "#" and not FURNITURE.contains(ch) and not (creations.has(ch) and creations[ch].type == "npc")
 
 
 ## Every tile the hero can reach from the start, walking through doors.
@@ -1582,6 +1606,25 @@ func _check_secrets() -> void:
 			_open_secret(s)
 
 
+## A person or a piece of gear made in the map workshop (monsters come with
+## the others, see _spawn_enemies). Gear lies on the floor once: picked up
+## or not, it is remembered from then on (taken, then floor_items).
+func _build_creation(c: Vector2i, spec: Dictionary) -> void:
+	var pos := cell_to_world(c)
+	match spec.type:
+		"npc":
+			var npc := DungeonNpc.new()
+			npc.setup(spec)
+			add_child(npc)
+			npc.global_position = pos
+			stations.append({"kind": "figur", "cell": c, "pos": pos, "used": false, "figure": npc})
+		"item":
+			var key := "custom:%d:%d" % [c.x, c.y]
+			if Items.ALL.has(spec.id) and not taken.has(key):
+				taken[key] = true
+				_drop_item(spec.id, pos)
+
+
 ## Carves this level's writing into a plain wall in the part of the level
 ## the hero starts in, the same wall every visit. Only a north wall, the one
 ## that faces the camera, so the writing can be read.
@@ -1597,7 +1640,7 @@ func _place_writing() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("%s:writing" % level_name)
 	var wall: Dictionary = walls[rng.randi() % walls.size()]
-	var entry: Array = WRITINGS[depth % WRITINGS.size()]
+	var entry: Array = custom_writing if not custom_writing.is_empty() else WRITINGS[depth % WRITINGS.size()]
 	var label := Label3D.new()
 	label.text = Lang.t(entry[0])
 	# Lang.t already chose the language; do not translate the label again.
@@ -3025,13 +3068,16 @@ func _spawn_enemies() -> void:
 			var ch := cell_char(c)
 			if Enemy.LETTERS.has(ch):
 				_spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")
+			elif creations.has(ch) and creations[ch].type == "monster" and not safe:
+				_spawn_enemy(creations[ch].base, c, elite, Creations.monster_stats(creations[ch]))
 	_spawn_horror()
 
 
-func _spawn_enemy(kind: String, c: Vector2i, is_elite := false) -> Enemy:
+func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}) -> Enemy:
 	# The dragon is a boss of its own.
 	var e: Enemy = Dragon.new() if kind == "drache" else (MountainKing.new() if kind == "bergkoenig" else Enemy.new())
 	e.kind = kind
+	e.custom = custom
 	e.elite = is_elite
 	var gear_chance: float = Enemy.KINDS[e.kind].get("gear_chance", -1.0)
 	e.gear = _roll_gear(e.kind, c, gear_chance) if gear_chance != 0.0 else ([] as Array[String])
@@ -3061,7 +3107,7 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false) -> Enemy:
 		enemy_killed.emit(e)
 		_drop_gear(e, DROP_CHANCE if not e.is_beast() else BEAST_DROP_CHANCE)
 		# A monster of the lair leaves a little gold, the dragon a heap.
-		var purse: Array = Enemy.KINDS[e.kind].get("purse", [0, 0])
+		var purse: Array = e.custom.get("purse", Enemy.KINDS[e.kind].get("purse", [0, 0]))
 		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
 		# The dragon guards the lair: once it falls, the lair is won.
 		if lair and e.kind == "drache":

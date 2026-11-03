@@ -247,8 +247,15 @@ func _ready() -> void:
 
 ## Hats, capes and tools for the role, and clothes in the role's colours.
 func _dress() -> void:
-	var show: Array = _info.show
-	for mi: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+	dress_model(_model, _info)
+
+
+## Shows the parts in info.show (and the body), hides the rest and dyes the
+## clothes in info.colors (body, legs, hat or cape). Also used for the people
+## made in the map workshop (see DungeonNpc).
+static func dress_model(model: Node3D, info: Dictionary) -> void:
+	var show: Array = info.show
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		var part := String(mi.name)
 		var base := part.get_slice("_", part.get_slice_count("_") - 1)
 		var is_body := false
@@ -261,13 +268,13 @@ func _dress() -> void:
 			continue
 		var color := Color.WHITE
 		if base == "Body":
-			color = _info.colors[0]
+			color = info.colors[0]
 		elif base.begins_with("Leg"):
-			color = _info.colors[1]
+			color = info.colors[1]
 		elif base.begins_with("Arm"):
-			color = Color.WHITE.lerp(_info.colors[0], 0.5)
+			color = Color.WHITE.lerp(info.colors[0], 0.5)
 		elif part.ends_with("Hat") or part.ends_with("Cape") or part.ends_with("Helmet"):
-			color = _info.colors[2]
+			color = info.colors[2]
 		if color != Color.WHITE:
 			var mat := mi.get_active_material(0)
 			if mat is StandardMaterial3D:

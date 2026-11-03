@@ -35,7 +35,9 @@ const MAX_WEIGHT_SLOW := 0.35
 ## gives it a faint grain: cloth, leather, metal, chain, fur, bone, or "mixed"
 ## for weapons and shields (wood, with metal where the model is grey).
 ## Specials ("spezial") have an effect of their own instead of plain numbers.
-const ALL := {
+## Not a constant: gear made in the map workshop joins it ("custom", see
+## Creations), and is never sold or found as loot.
+static var ALL := {
 	"schwert": {"name": "Schwert", "slot": "waffe", "uses": "klingen", "weight": 3, "power": 1, "price": 12, "model": "res://assets/weapons/sword_1handed.gltf", "material": "mixed"},
 	"axt": {"name": "Axt", "slot": "waffe", "uses": "aexte", "weight": 4, "power": 2, "price": 25, "model": "res://assets/weapons/axe_1handed.gltf", "material": "mixed"},
 	"rundschild": {"name": "Rundschild", "slot": "schild", "weight": 3, "hp": 1, "block": 0.2, "durability": 5, "price": 10, "model": "res://assets/weapons/shield_round.gltf", "material": "mixed"},
@@ -292,7 +294,7 @@ static func is_top_tier(id: String) -> bool:
 	var slot: String = ALL[id].slot
 	for other in ALL:
 		var item: Dictionary = ALL[other]
-		if other != id and item.slot == slot and item.price > ALL[id].price and not item.get("unique", false) and not item.get("wanderer", false) and not item.get("crafted", false):
+		if other != id and item.slot == slot and item.price > ALL[id].price and not item.get("unique", false) and not item.get("wanderer", false) and not item.get("crafted", false) and not item.get("custom", false):
 			return false
 	return true
 

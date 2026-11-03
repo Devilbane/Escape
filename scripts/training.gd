@@ -258,7 +258,14 @@ static func load_level(hero: String) -> Dictionary:
 
 ## Saves the training, and the level with it. Without `level` the level kept
 ## so far stays as it is.
+## Off while a map is tested in the workshop (see Game.playtest_file): what
+## the test hero learns is not kept.
+static var keep := true
+
+
 static func save_hero(hero: String, xp: Dictionary, level = null) -> void:
+	if not keep:
+		return
 	var all := _load_all()
 	var old = all.get(hero, {})
 	var entry := xp.duplicate()

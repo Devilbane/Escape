@@ -36,3 +36,11 @@ calling `game.gd` or each other: `Events.tell(text, colour)` for news, `Events.t
 compendium, and signals such as `enemy_slain`, `quest_done` and `traded`. Who listens to what is
 listed in one place, `Game._bus_links()`. A new cross-feature call should be a signal there.
 `tests/events.gd` checks the wiring.
+
+## Map workshop
+
+The map editor is its own scene, `scenes/editor.tscn` (`scripts/level_editor.gd`, with `editor_*.gd` and
+`level_map.gd`). It edits `levels/*.txt` through `LevelMap`, whose `validate()` must pass for every shipped
+map (`tests/level_editor.gd`). A new tile letter also needs a group, a German name and an English entry in
+`EditorPalette` (the test checks it). The digits are each map's own creations (`Creations`, header `custom:`).
+

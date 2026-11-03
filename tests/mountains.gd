@@ -194,6 +194,19 @@ func _check_tavern() -> void:
 	check(lvl.building == "[" and lvl.inn and lvl.safe, "the tavern is a safe inn (%s)" % lvl.level_name)
 	check(not _station(lvl, "bett").is_empty() and lvl.bed_side != Vector3.ZERO, "the tavern has a bed")
 	check(not _station(lvl, "haendler").is_empty(), "the landlord trades")
+	# The hero's storage chest stands in the tavern too, out in the room where
+	# the hero can walk up to it and open it.
+	var chest := _station(lvl, "lager")
+	check(not chest.is_empty(), "the tavern has a storage chest")
+	if not chest.is_empty():
+		var reach := lvl._reachable()
+		var beside := false
+		for d in Level.DIRS:
+			beside = beside or reach.has(chest.cell + d)
+		check(beside, "the tavern's chest can be walked up to (%s)" % chest.cell)
+		game._use_station(chest)
+		check(game.menus.current == "lager", "bumping the tavern's chest opens the storage (%s)" % game.menus.current)
+		game.menus.close()
 	game.player.hp = 1
 	game.player.global_position = lvl.bed_side
 	game.rest_at_inn()

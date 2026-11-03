@@ -64,6 +64,13 @@ func _test() -> void:
 			"(vollständig)", "Eine Inschrift!", "Dein geübtes Auge findet eine Fackel, die hier versteckt lag.",
 			"Ganz erkundet: %s\nDein Blick für Verborgenes wird schärfer (Erkunden)."]:
 		check(Lang.EN.has(text), "has English: " + text)
+	# Every carved word fits on its wall piece, frame and all, in both languages.
+	var font: Font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	for w in Level.WRITINGS:
+		for word in [w[0], Lang.EN.get(w[0], w[0])]:
+			var size := Level.writing_font_size(font, word, 0.01)
+			var width := font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x * 0.01 + Level.WRITING_FRAME_PAD.x * 2.0 + 0.12
+			check(width <= Level.WRITING_MAX_WIDTH, "%s fits on the wall: %.2f m at %d" % [word, width, size])
 	for w in Level.WRITINGS:
 		check(Lang.EN.has(w[1]), "the writing has English: " + w[1])
 		check(Lang.EN.has(w[0]), "the carved word has English: " + w[0])

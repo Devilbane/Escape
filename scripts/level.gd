@@ -326,6 +326,15 @@ const WRITING_RANGE := 8.0
 const WRITING_SURE_RANGE := 5.0
 ## The frame round a noticed writing: the same amber as a spotted trap's.
 const WRITING_FRAME_COLOR := Color(1.0, 0.62, 0.25)
+## The carved word's largest font size, and the smallest it shrinks to.
+const WRITING_FONT_SIZE := 64
+const WRITING_FONT_MIN := 28
+## Space between the carved word and its frame, left/right and top/bottom
+## (metres).
+const WRITING_FRAME_PAD := Vector2(0.3, 0.22)
+## How wide the word and its frame may be at most: a wall piece is one TILE
+## wide, and the pillars at its ends take a little of it.
+const WRITING_MAX_WIDTH := 3.2
 ## Kept in taken once the hero has noticed this level's writing.
 const WRITING_KEY := "writing:found"
 ## This level's writing: {"cell", "label" (the carved word, hidden until
@@ -1602,8 +1611,8 @@ func _place_writing() -> void:
 	# Lang.t already chose the language; do not translate the label again.
 	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
-	label.font_size = 72
 	label.pixel_size = 0.01
+	label.font_size = writing_font_size(label.font, label.text, label.pixel_size)
 	label.outline_size = 6
 	# Pale scratches in the dark stone.
 	label.modulate = Color(0.9, 0.86, 0.74)
@@ -1630,12 +1639,23 @@ func _place_writing() -> void:
 		stations.append(station)
 
 
+## The largest font size, up to WRITING_FONT_SIZE, at which a carved word
+## and its frame fit on one wall piece (WRITING_MAX_WIDTH) in either
+## language: a long word such as FREIHEIT is carved smaller.
+static func writing_font_size(font: Font, text: String, pixel_size: float) -> int:
+	var room := WRITING_MAX_WIDTH - WRITING_FRAME_PAD.x * 2.0 - 0.12
+	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, WRITING_FONT_SIZE).x * pixel_size
+	if width <= room:
+		return WRITING_FONT_SIZE
+	return maxi(WRITING_FONT_MIN, floori(WRITING_FONT_SIZE * room / width))
+
+
 ## An amber frame round a carved word, a little away from the stone, so a
 ## noticed writing stands out as "something" from across the room.
 func _writing_frame(label: Label3D) -> Node3D:
 	var size := label.font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, label.font_size) * label.pixel_size
-	var w := size.x + 0.9
-	var h := size.y + 0.5
+	var w := size.x + WRITING_FRAME_PAD.x * 2.0
+	var h := size.y + WRITING_FRAME_PAD.y * 2.0
 	var frame := Node3D.new()
 	frame.position = label.position + Vector3(sin(label.rotation.y), 0, cos(label.rotation.y)) * -0.02
 	frame.rotation.y = label.rotation.y

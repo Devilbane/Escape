@@ -189,6 +189,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_boss.gd | tee dragon.log
           grep -q PASS dragon.log
 
+      - name: Corpses stay and rot away test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/corpses.gd | tee corpses.log
+          grep -q PASS corpses.log
+
       - name: Dark holes, torches and horrors test
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/horrors.gd | tee horrors.log

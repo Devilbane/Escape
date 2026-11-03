@@ -161,6 +161,10 @@ var interactables: Array = []
 ## up again after a reload, a night in bed or a walk out and back in.
 var taken := {}
 var enemies: Array = []
+## Fallen monsters still lying here, oldest first, and the stains and bones
+## left by the ones that rotted away (see Corpse).
+var corpses: Array = []
+var remnants: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
 ## Water the hero can fish in (see Fishing): which water ("brunnen", "teich"

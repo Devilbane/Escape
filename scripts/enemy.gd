@@ -802,10 +802,8 @@ func _die() -> void:
 		create_tween().tween_property(_model.get_child(0), "position:y", 0.0, 0.5) \
 				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	died.emit()
-	var tween := create_tween()
-	tween.tween_interval(3.0)
-	tween.tween_property(self, "position:y", -2.5, 2.0)
-	tween.tween_callback(queue_free)
+	# The body stays where it fell and rots away (see Corpse).
+	Corpse.lay(self)
 
 
 func _physics_process(delta: float) -> void:

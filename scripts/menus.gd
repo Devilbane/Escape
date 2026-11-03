@@ -2828,7 +2828,7 @@ func _build_quit() -> void:
 func _build_lair_won() -> void:
 	_add_label(Lang.t("Höhle bezwungen!"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Der Drache ist tot, und sein Schatz gehört dir."), 22)
-	# A fallen monster sinks away and is gone: only the living still count.
+	# A fallen monster may already have rotted away: only the living still count.
 	var monsters: Array = game.level.enemies
 	var fallen := monsters.filter(func(e): return not is_instance_valid(e) or e.dead).size()
 	_add_label(Lang.t("Besiegte Monster: %d von %d") % [fallen, monsters.size()], 20, BLUE)

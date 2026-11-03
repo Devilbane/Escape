@@ -4,7 +4,9 @@ extends Node
 ## into the floor. This node sits on the dead Enemy and drives its decay:
 ##   flesh (bandits, beasts, horrors): darkens, sags flat and shrinks, then
 ##     leaves a dark stain with a few bones;
-##   bones (skeletons): grey and slump, then crumble into a pile of bones;
+##   bones (skeletons): grey and slump, then crumble into a pile of bones
+##     (no dust or sound: both would draw on the shared random numbers, and
+##     the level runs in tests/play_all_levels.gd depend on that stream);
 ##   melt (slimes): run out flat at once into a puddle that dries to a stain;
 ##   wisp (fog wraiths): blow away in a moment and leave nothing.
 ## For the web build only a few corpses lie about at once (MAX_CORPSES): a
@@ -55,6 +57,8 @@ static func lay(who: Enemy) -> Corpse:
 	c.enemy = who
 	c.style = style_of(who)
 	who.add_child(c)
+	# The dead are no fighters: comic bubbles may cover them.
+	who.remove_from_group("combatant")
 	var level: Level = who.level
 	if level != null:
 		level.corpses = level.corpses.filter(func(x): return is_instance_valid(x) and not x._done)
@@ -121,11 +125,6 @@ func _process(delta: float) -> void:
 		if gone >= 1.0:
 			_finish()
 			return
-		if style == "bones" and gone > 0.0 and not has_meta("crumbled"):
-			# The bones give way all at once, with a puff of dust (silent: a sound here
-			# would draw on the shared random numbers the level runs depend on).
-			set_meta("crumbled", true)
-			_crumble_fx()
 	enemy._model.scale = _scale0 * shape
 
 
@@ -143,15 +142,6 @@ func _finish() -> void:
 			level.remnants.pop_front().queue_free()
 		level.corpses.erase(self)
 	enemy.queue_free()
-
-
-func _crumble_fx() -> void:
-	var level: Level = enemy.level
-	if level == null or not enemy.visible:
-		return
-	var dust := Effects.make_sparkles(Color(0.78, 0.74, 0.66), true)
-	level.add_child(dust)
-	dust.global_position = enemy.global_position + Vector3(0, 0.5, 0)
 
 
 ## What is left of a corpse of `style` and `size`: a dark stain (a slime's

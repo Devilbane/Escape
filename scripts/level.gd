@@ -1807,7 +1807,8 @@ func _someone_on(crate: Crate) -> bool:
 	var bodies: Array = enemies.duplicate()
 	bodies.append(player)
 	for b in bodies:
-		if is_instance_valid(b) and b is Node3D and absf(b.global_position.y - crate.top()) < 0.3 and crate.covers(b.global_position, 0.5):
+		# A corpse (see Corpse) lying on a crate does not hold it down.
+		if is_instance_valid(b) and b is Node3D and not (b is Enemy and b.dead) and absf(b.global_position.y - crate.top()) < 0.3 and crate.covers(b.global_position, 0.5):
 			return true
 	return false
 

@@ -1,10 +1,10 @@
 name: Die Bergschenke
-hint: Die letzte Schenke vor den Minen, mitten im Schartenpass. Am Feuer ist es warm, im Bett ruhst du dich bis zum Morgen aus, und der Wirt hat, was ein Wanderer braucht.
+hint: Die letzte Schenke vor den Minen, mitten im Schartenpass. Am Feuer ist es warm, im Bett ruhst du dich bis zum Morgen aus, in der Truhe wartet, was du eingelagert hast, und der Wirt hat, was ein Wanderer braucht.
 building: [
 inn: ja
 ###################
 ##E################
-##P...t....t..##B##
+##P...t....t.L##B##
 ##f...........##.##
 ##..t...o...t.....#
 ##...............b#

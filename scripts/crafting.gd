@@ -50,10 +50,17 @@ const INGREDIENTS := {
 	# Opens only on full-moon nights beside the hollow's pond (see Moon).
 	"mondblume": {"name": "Mondblume", "rare": true, "region": "Wolfssenke", "when": "nur bei Vollmond", "source": "Blüte am Tümpel",
 		"where": "Öffnet sich nur in Vollmondnächten am Tümpel der Wolfssenke, wo dann das Wolfsrudel jagt."},
+	# Mined from the crystal clusters of the mines (see Mines).
+	"grottenkristall": {"name": "Grottenkristall", "region": "Kristallgrotte", "when": "", "source": "Kristallbüschel abbauen",
+		"where": "Wächst in leuchtenden Büscheln in der Kristallgrotte, der zweiten Mine. Lauf dagegen, um zwei abzuschlagen; bis zum nächsten Morgen wächst das Büschel nach."},
 }
 ## The smith's iron bars in the ingredient book.
 const IRON := {"name": "Eisenbarren", "region": "Dorf", "when": "", "source": "Schmied Gorm",
 	"where": "Gorm verkauft Eisenbarren und schmilzt Metall aus deiner Tasche zu neuen ein."}
+## The fine bars from Gorm's forge (Forge.FINE, kept in game.bars) in the
+## ingredient book: a recipe names them by their metal, e.g. "silber".
+const FINE_BARS := {"region": "Dorf", "when": "", "source": "Schmied Gorm",
+	"where": "Gorm schmilzt Schmuck und feine Waffen und Rüstungen an seiner Esse zu Barren ein."}
 
 ## The recipes. "giver" is the villager who hands out the scroll, "craft" and
 ## "craft_level" the craft it needs, "ingredients" what goes in (ingredient
@@ -62,7 +69,9 @@ const IRON := {"name": "Eisenbarren", "region": "Dorf", "when": "", "source": "S
 ## faded line with a "fish" is read the first time that fish is caught.
 ## A recipe with an empty "giver" is not handed out by running into someone:
 ## it is the reward of a wish (see Wishes), and "effect" says what the made
-## piece will do. A recipe with a "result" (an item in Items.ALL) can be made
+## piece will do. A recipe with "found" is learned the first time the hero
+## gathers that ingredient (see learn_from_find). "bench" is the bench it is
+## made at when that is not the one of its craft. A recipe with a "result" (an item in Items.ALL) can be made
 ## at the bench of its craft on the crafting square (see make); one without
 ## is not complete yet.
 const RECIPES := {
@@ -142,6 +151,25 @@ const RECIPES := {
 			{"id": "lauch", "text": "Zwei Bund Bärlauch, um das Eisen geschmeidig zu kochen."},
 			{"id": "eisen", "text": "Zwei Barren Eisen für den Reif."},
 		]},
+	# Learned with the first grotto crystals (see Mines), cut at the gem
+	# cutter's wheel and set in a fine bar from melting at Gorm's forge. The
+	# setting is fine metalwork, so that is the craft they train.
+	"kristallring": {"name": "Kristallring", "giver": "", "found": "grottenkristall",
+		"craft": "feinschmieden", "bench": "edelsteinschleifen", "craft_level": 0, "result": "kristallring",
+		"effect": "+2 Leben, +1 Kampfkraft",
+		"ingredients": {"grottenkristall": 3, "silber": 1},
+		"lines": [
+			{"id": "kristall", "text": "Drei Grottenkristalle, klar geschliffen."},
+			{"id": "silber", "text": "Ein Silberbarren für die Fassung."},
+		]},
+	"kristallamulett": {"name": "Kristallamulett", "giver": "", "found": "grottenkristall",
+		"craft": "feinschmieden", "bench": "edelsteinschleifen", "craft_level": 0, "result": "kristallamulett",
+		"effect": "+3 Leben, +1 Kampfkraft",
+		"ingredients": {"grottenkristall": 5, "gold": 1},
+		"lines": [
+			{"id": "kristall", "text": "Fünf Grottenkristalle, zu einem Stern geschliffen."},
+			{"id": "gold", "text": "Ein Goldbarren für Kette und Fassung."},
+		]},
 }
 
 ## Explained once in the compendium, when the first recipe is found.
@@ -196,10 +224,13 @@ func read_line(id: String, line_id: String) -> bool:
 	return true
 
 
-## How many of an ingredient the hero has; "eisen" is the smith's iron bars.
+## How many of an ingredient the hero has; "eisen" is the smith's iron bars,
+## "bronze", "silber" and "gold" the fine bars (see Forge).
 func have(ingredient: String) -> int:
 	if ingredient == "eisen":
 		return game.iron if game else 0
+	if ingredient in Forge.FINE:
+		return int(game.bars.get(ingredient, 0)) if game else 0
 	return int(pouch.get(ingredient, 0))
 
 
@@ -217,6 +248,18 @@ func add(ingredient: String, count := 1, found_here := true) -> void:
 			# Fish (caught with the line) get a mark of their own colour.
 			var kind := "fish" if str(INGREDIENTS[ingredient].source).begins_with("Angeln") else "ingredient"
 			game.note_find(kind, ingredient, INGREDIENTS[ingredient].name, game.player.global_position)
+
+
+## The recipes the hero learns on gathering `ingredient` (those with it as
+## "found") and did not know yet. Returns their ids.
+func learn_from_find(ingredient: String) -> Array:
+	var learned := []
+	for id in RECIPES:
+		if RECIPES[id].get("found", "") == ingredient and learn_recipe(id):
+			learned.append(id)
+	if not learned.is_empty():
+		Events.teach(HOW_TO)
+	return learned
 
 
 ## Whether every ingredient of a recipe is in the pouch.
@@ -256,6 +299,8 @@ func caught_fish(fish: String) -> Array:
 static func ingredient_name(ingredient: String) -> String:
 	if ingredient == "eisen":
 		return Lang.t("Eisenbarren")
+	if ingredient in Forge.FINE:
+		return Lang.t(Forge.METALS[ingredient].name)
 	return Lang.t(INGREDIENTS[ingredient].name) if INGREDIENTS.has(ingredient) else ingredient
 
 
@@ -340,9 +385,10 @@ func craft_level(craft: String) -> int:
 	return Training.skill_level(float(game.player.xp.get(craft, 0.0)), craft)
 
 
-## The known recipes of a craft, in the order of RECIPES: what its bench lists.
+## The known recipes made at the bench of a craft, in the order of RECIPES:
+## what that bench lists (see "bench").
 func recipes_for(craft: String) -> Array:
-	return entries().filter(func(id): return RECIPES[id].craft == craft)
+	return entries().filter(func(id): return RECIPES[id].get("bench", RECIPES[id].craft) == craft)
 
 
 ## Why a recipe cannot be made right now, or "" when it can.
@@ -378,6 +424,10 @@ func make(id: String) -> String:
 		var count := int(r.ingredients[ingredient])
 		if ingredient == "eisen":
 			game.iron -= count
+		elif ingredient in Forge.FINE:
+			game.bars[ingredient] = have(ingredient) - count
+			if int(game.bars[ingredient]) <= 0:
+				game.bars.erase(ingredient)
 		else:
 			pouch[ingredient] = have(ingredient) - count
 			if pouch[ingredient] <= 0:
@@ -434,12 +484,12 @@ func book_ingredients() -> Array:
 ## pouch, where and when it is found and what yields it, how to find it,
 ## and whether the hero found the place yet.
 func describe_ingredient(ingredient: String) -> String:
-	var info: Dictionary = IRON if ingredient == "eisen" else INGREDIENTS[ingredient]
+	var info: Dictionary = IRON if ingredient == "eisen" else (FINE_BARS if ingredient in Forge.FINE else INGREDIENTS[ingredient])
 	var place := Lang.t("Ort: %s") % Lang.t(info.region)
 	if info.when != "":
 		place += "  ·  " + Lang.t("Zeit: %s") % Lang.t(info.when)
 	place += "  ·  " + Lang.t("Quelle: %s") % Lang.t(info.source)
 	var lines := ["%s  (%s)" % [ingredient_name(ingredient), Lang.t("%d dabei") % have(ingredient)], place, Lang.t(info.where)]
-	if ingredient != "eisen":
+	if INGREDIENTS.has(ingredient):
 		lines.append(Lang.t("Fundort entdeckt.") if found.has(ingredient) else Lang.t("Fundort noch nicht selbst entdeckt."))
 	return "\n".join(lines)

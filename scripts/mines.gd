@@ -22,6 +22,13 @@ class_name Mines
 ##   up: <building>     where its stairs ("E") lead, instead of outside
 ##   seal: runen        its "^" needs both runes
 ##
+## The glowing crystal clusters ("%") can be mined: run into one and the
+## hero knocks CRYSTAL_YIELD grotto crystals off it into the ingredient pouch
+## (see Crafting). A mined cluster stays dull until the next morning, then it
+## has grown back (kept in Level.taken as crystal_key plus the day it was
+## mined). The crystals are cut into jewellery at the gem cutter's wheel on
+## the crafting square; the recipes come with the first crystals.
+##
 ## Difficulty: the mines and the road there are made for an experienced hero
 ## in the best gear there is, BENCHMARK below. The monsters' numbers are in
 ## Enemy.KINDS (the kinds marked "mountain"). On top of that every mine
@@ -54,6 +61,17 @@ const MOODS := {
 const WOOD := Color(0.36, 0.24, 0.14)
 const CRYSTAL := Color(0.45, 0.85, 1.0)
 const EMBER := Color(1.0, 0.42, 0.12)
+
+## What a crystal cluster yields, and the ingredient it is (see Crafting).
+const CRYSTAL_ID := "grottenkristall"
+const CRYSTAL_YIELD := 2
+## How bright a mined cluster still glows, and how tall its stubs are.
+const SPENT_GLOW := 0.15
+const SPENT_HEIGHT := 0.3
+## The station kind of a crystal cluster.
+const CLUSTER := "kristalle"
+## What the compendium says about mining, the first time.
+const CRYSTAL_LEARN := "In den Minen wachsen leuchtende Kristalle. Lauf gegen ein Kristallbüschel, um zwei Grottenkristalle abzuschlagen; bis zum nächsten Morgen wächst es nach. Am Schleifrad auf dem Handwerkerplatz im Dorf schleifst du daraus Schmuck."
 
 ## The Mountain King's own hammer: he drops it the first time he falls.
 const TROPHY := "runenhammer"
@@ -93,7 +111,7 @@ static func build_cell(level: Level, c: Vector2i, ch: String) -> bool:
 		"j":
 			_build_prop(level, c, pos)
 		"%":
-			_build_crystals(level, pos)
+			_build_crystals(level, c, pos)
 		"~":
 			_build_embers(level, pos)
 		"T":
@@ -128,7 +146,7 @@ static func _material(colour: Color, glow := 0.0) -> StandardMaterial3D:
 	return mat
 
 
-static func _light(level: Level, pos: Vector3, colour: Color, energy: float, reach: float) -> void:
+static func _light(level: Level, pos: Vector3, colour: Color, energy: float, reach: float) -> OmniLight3D:
 	var light := OmniLight3D.new()
 	light.light_color = colour
 	light.light_energy = energy
@@ -136,6 +154,7 @@ static func _light(level: Level, pos: Vector3, colour: Color, energy: float, rea
 	light.omni_attenuation = 1.4
 	light.position = pos
 	level.add_child(light)
+	return light
 
 
 ## A timber frame over the tunnel: two posts against the walls and a beam
@@ -151,13 +170,14 @@ static func _build_prop(level: Level, c: Vector2i, pos: Vector3) -> void:
 
 
 ## A cluster of glowing crystals growing out of the floor, lighting the cave
-## around them in cold blue.
-static func _build_crystals(level: Level, pos: Vector3) -> void:
+## around them in cold blue. The hero can mine it (a CLUSTER station).
+static func _build_crystals(level: Level, c: Vector2i, pos: Vector3) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(pos)
 	var mat := _material(CRYSTAL, 1.6)
 	mat.albedo_color.a = 0.85
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var spikes := []
 	for i in 6:
 		var mi := MeshInstance3D.new()
 		var prism := CylinderMesh.new()
@@ -170,11 +190,83 @@ static func _build_crystals(level: Level, pos: Vector3) -> void:
 		mi.material_override = mat
 		var angle := TAU * i / 6.0 + rng.randf_range(-0.3, 0.3)
 		var out := 0.0 if i == 0 else rng.randf_range(0.35, 0.9)
-		mi.position = pos + Vector3(cos(angle) * out, prism.height * 0.4, sin(angle) * out)
-		mi.rotation = Vector3(rng.randf_range(-0.35, 0.35), rng.randf() * TAU, rng.randf_range(-0.35, 0.35))
-		level.add_child(mi)
-	_light(level, pos + Vector3(0, 1.6, 0), CRYSTAL, 2.6, 9.0)
+		# Grown from a point on the floor, so a mined cluster shrinks to
+		# stubs there (see set_cluster).
+		var root := Node3D.new()
+		root.position = pos + Vector3(cos(angle) * out, 0.0, sin(angle) * out)
+		root.rotation = Vector3(rng.randf_range(-0.35, 0.35), rng.randf() * TAU, rng.randf_range(-0.35, 0.35))
+		mi.position = Vector3(0, prism.height * 0.4, 0)
+		root.add_child(mi)
+		level.add_child(root)
+		spikes.append(root)
+	var light := _light(level, pos + Vector3(0, 1.6, 0), CRYSTAL, 2.6, 9.0)
 	level._add_solid(pos, Vector3(2.2, 2.4, 2.2))
+	level.stations.append({"kind": CLUSTER, "cell": c, "pos": pos, "used": false, "spent": false,
+			"spikes": spikes, "mat": mat, "light": light, "energy": light.light_energy})
+
+
+## The key in Level.taken for a crystal cluster at cell `c` mined on `day`.
+static func crystal_key(c: Vector2i, day: int) -> String:
+	return "crystal:%d:%d@%d" % [c.x, c.y, day]
+
+
+## The day the cluster at `c` was last mined, from Level.taken, or -1.
+static func mined_on(taken: Dictionary, c: Vector2i) -> int:
+	var prefix := "crystal:%d:%d@" % [c.x, c.y]
+	for key in taken:
+		if str(key).begins_with(prefix):
+			return int(str(key).substr(prefix.length()))
+	return -1
+
+
+## Shows a cluster full grown or mined down to dull stubs.
+static func set_cluster(station: Dictionary, spent: bool, animate := false) -> void:
+	station.spent = spent
+	var height := SPENT_HEIGHT if spent else 1.0
+	var glow := 1.6 * (SPENT_GLOW if spent else 1.0)
+	var energy: float = station.energy * (SPENT_GLOW if spent else 1.0)
+	var light: OmniLight3D = station.light
+	var mat: StandardMaterial3D = station.mat
+	if not animate or not light.is_inside_tree():
+		for root in station.spikes:
+			root.scale = Vector3(1.0, height, 1.0)
+		mat.emission_energy_multiplier = glow
+		light.light_energy = energy
+		return
+	var tween := light.create_tween().set_parallel(true)
+	for root in station.spikes:
+		tween.tween_property(root, "scale", Vector3(1.0, height, 1.0), 0.6 if spent else 1.6)
+	tween.tween_property(mat, "emission_energy_multiplier", glow, 0.6 if spent else 1.6)
+	tween.tween_property(light, "light_energy", energy, 0.6 if spent else 1.6)
+
+
+## The clusters of `level` as the hero left them: one mined before `day`
+## has grown back (its mark is gone), one mined today is still dull.
+## `animate`: grows back before the hero's eyes (a new morning).
+static func refresh_crystals(level: Level, day: int, animate := false) -> void:
+	for st in level.stations:
+		if st.kind != CLUSTER:
+			continue
+		var mined := mined_on(level.taken, st.cell)
+		if mined >= 0 and mined < day:
+			level.taken.erase(crystal_key(st.cell, mined))
+			mined = -1
+		var spent := mined >= 0
+		if spent != st.spent or not animate:
+			set_cluster(st, spent, animate)
+
+
+## Mines a cluster on `day`: marks it as mined and dims it. Returns the
+## crystals it gives, 0 when it was mined already.
+static func mine(level: Level, station: Dictionary, day: int) -> int:
+	if station.spent:
+		return 0
+	level.taken[crystal_key(station.cell, day)] = true
+	set_cluster(station, true, true)
+	var burst := Effects.make_sparkles(CRYSTAL, true)
+	burst.position = station.pos + Vector3(0, 1.2, 0)
+	level.add_child(burst)
+	return CRYSTAL_YIELD
 
 
 ## A crack in the floor full of glowing embers: too hot to step over.

@@ -92,6 +92,9 @@ static var ALL := {
 	"wurfring": {"name": "Wurfring", "slot": "ring", "weight": 0.1, "speed": 0.05, "skills": {"werfen": 1}, "magic": true, "price": 34, "no_loot": true, "crafted": true},
 	"schattenamulett": {"name": "Amulett der stillen Schritte", "slot": "amulett", "weight": 0.3, "speed": 0.05, "skills": {"schleichen": 1}, "magic": true, "price": 34, "no_loot": true, "crafted": true},
 	"lastreif": {"name": "Armreif der leichten Last", "slot": "armreif", "weight": 0.3, "hp": 1, "skills": {"ruestung": 1}, "magic": true, "price": 34, "no_loot": true, "crafted": true},
+	# Cut from grotto crystals at the gem cutter's wheel (see Crafting, Mines).
+	"kristallring": {"name": "Kristallring", "slot": "ring", "weight": 0.1, "hp": 2, "power": 1, "magic": true, "price": 48, "no_loot": true, "crafted": true},
+	"kristallamulett": {"name": "Kristallamulett", "slot": "amulett", "weight": 0.3, "hp": 3, "power": 1, "magic": true, "price": 60, "no_loot": true, "crafted": true},
 	"silberarmreif": {"name": "Silberarmreif", "slot": "armreif", "weight": 0.3, "power": 1, "speed": 0.05, "skills": {"werfen": 1}, "magic": true, "price": 27},
 	# Unique: only the bandit chief carries it, once per game (see BanditChief).
 	"rabenklinge": {"name": "Rabenklinge", "slot": "waffe", "uses": "klingen", "weight": 2.5, "power": 3, "speed": 0.05, "price": 95, "no_loot": true, "unique": true, "model": "res://assets/weapons/sword_1handed.gltf", "material": "mixed", "effect": "Einzigartig: die Klinge von Rabenherz, dem Räuberhauptmann"},
@@ -354,6 +357,7 @@ const LEVELS := {
 	"koenigsumhang": 8, "krummsaebel": 8, "vampirzahn": 8, "gluecksklee": 8,
 	"dornenrune": 9, "plattenpanzer": 10, "drachenschild": 10, "streitaxt": 10,
 	"phoenixfeder": 11, "grosser_rucksack": 11, "rabenklinge": 12, "kriegshammer": 12,
+	"kristallring": 13, "kristallamulett": 13,
 	"reiserucksack": 14,
 	"runenhammer": 16,
 }

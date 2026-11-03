@@ -149,6 +149,13 @@ func _check_layout() -> void:
 		kinds.append(icon.kind)
 	check(kinds.has("gift") and kinds.has("hardening") and kinds.find("gift") < kinds.find("hardening"), "poison and hardening show as icons, in order: %s" % [kinds])
 	check(kinds == game.hero_conditions().map(func(c): return c[0]), "one icon per condition: %s" % [kinds])
+	for icon in game._status_row.get_children():
+		check(icon.tooltip_text != "" and icon.mouse_filter == Control.MOUSE_FILTER_PASS, "the %s icon explains itself under the pointer" % icon.kind)
+	var told := false
+	for line in elog.entries():
+		if line == game.icon_text("gift", ""):
+			told = true
+	check(told, "a new condition is explained once in the event log")
 	check(not kinds.has("slow") or Items.load_factor(hero.load_weight()) < 1.0 - Items.MAX_WEIGHT_SLOW * 0.5 + 0.001, "no slow icon for a light load: %s" % [kinds])
 	var row: Rect2 = game._status_row.get_global_rect()
 	var bar_now: Rect2 = game._hp_bar.get_global_rect()

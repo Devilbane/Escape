@@ -3373,6 +3373,23 @@ func _update_status_icons() -> void:
 	_fill_icon_row(_notice_row, hero_notices())
 
 
+## What a condition or notice icon means, in a sentence: shown when the
+## pointer rests on the icon, and written into the event log when it first
+## appears (touch has no pointer to rest).
+func icon_text(kind: String, number: String) -> String:
+	match kind:
+		"gift": return Lang.t("Vergiftet: Du verlierst alle paar Sekunden ein Leben, nie das letzte. Ein Brunnen, ein Schrein oder ein Heiltrank heilt es.")
+		"fluch": return Lang.t("Verflucht: Du bist langsamer. Es vergeht bald; ein Brunnen, ein Schrein oder ein Heiltrank heilt es sofort.")
+		"brand": return Lang.t("Du brennst: Ein paar Sekunden lang verlierst du Leben, nie das letzte.")
+		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
+		"fast": return Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
+		"slow": return Lang.t("Schwer beladen: Du läufst langsamer. Leg im Inventar (I) etwas ab.")
+		"hardening": return Lang.t("Härtung %s: Jeder Treffer gegen dich wird um so viel schwächer, bleibt aber mindestens halb so stark.") % number
+		"repair": return Lang.t("Abgenutzt: %s Teil(e) deiner Ausrüstung. Plane beim Schlafen „Ausrüstung ausbessern“ ein, sonst zerbrechen sie.") % number
+		"upgrade": return Lang.t("Hagen der Steinmetz kann jetzt einen Ausbau für dein Haus bauen.")
+	return ""
+
+
 ## Things waiting for the hero, as [kind, number] pairs (see StatusIcon):
 ## worn gear to mend (half its durability or more used up) and a home
 ## upgrade Hagen could build right now. (A free level point is told beside
@@ -3401,11 +3418,17 @@ func _fill_icon_row(row: HBoxContainer, wanted: Array) -> void:
 		shown.append([icon.kind, icon.value])
 	if shown == wanted:
 		return
+	var had := []
 	for icon in row.get_children():
+		had.append(icon.kind)
 		row.remove_child(icon)
 		icon.queue_free()
 	for c in wanted:
-		row.add_child(StatusIcon.make(c[0], c[1]))
+		var text := icon_text(c[0], c[1])
+		row.add_child(StatusIcon.make(c[0], c[1], text))
+		# A new icon is explained once in the event log as well.
+		if not had.has(c[0]) and text != "" and state == State.PLAYING:
+			Events.found(text, StatusIcon.NOTICE_FRAME if c[0] in StatusIcon.NOTICES else Color(1.0, 0.6, 0.55))
 
 
 ## Keeps the life bar at one steady spot under the hero on screen. It is

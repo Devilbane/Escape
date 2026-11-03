@@ -27,13 +27,16 @@ var kind := ""
 var value := ""
 
 
-static func make(what: String, number := "") -> StatusIcon:
+## `tip` is the short explanation shown when the pointer rests on the icon
+## (already translated); the icon then takes the pointer but lets clicks pass.
+static func make(what: String, number := "", tip := "") -> StatusIcon:
 	var icon := StatusIcon.new()
 	icon.kind = what
 	icon.value = number
 	icon.custom_minimum_size = Vector2(SIZE, SIZE)
 	icon.size = icon.custom_minimum_size
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.tooltip_text = tip
+	icon.mouse_filter = Control.MOUSE_FILTER_PASS if tip != "" else Control.MOUSE_FILTER_IGNORE
 	var picture := ""
 	match what:
 		"brand": picture = "kind:flame"

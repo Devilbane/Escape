@@ -363,6 +363,8 @@ func build() -> void:
 	_build_rock_collision()
 	_setup_astar()
 	_flush_plants()
+	# Leaves, twigs, rubble and little crawling creatures on the ground.
+	add_child(SurfaceLife.new(self))
 	var floor_shape := CollisionShape3D.new()
 	floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(floor_shape)

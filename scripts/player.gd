@@ -1379,6 +1379,10 @@ const REGEN_INTERVAL := 5.0
 var _regen := 0.0
 ## Seconds since the last heal pulse.
 var _regen_clock := 0.0
+## Healing rests this long after every blow that costs life.
+const REGEN_PAUSE_AFTER_HIT := 1.5
+## Seconds left before healing goes on after the last blow.
+var _regen_pause := 0.0
 
 
 ## Life per second, averaged over the interval (shown in the HUD and character page).
@@ -1391,6 +1395,11 @@ func _regenerate(delta: float) -> void:
 	if dead or hp >= max_hp:
 		_regen = 0.0
 		_regen_clock = 0.0
+		_regen_pause = 0.0
+		return
+	# Freshly hurt: healing waits, then picks up where it left off.
+	if _regen_pause > 0.0:
+		_regen_pause = maxf(0.0, _regen_pause - delta)
 		return
 	_regen_clock += delta
 	if _regen_clock < REGEN_INTERVAL:
@@ -1649,6 +1658,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	# Every life lost hardens the body a little.
 	train("konstitution", amount)
 	hp -= amount
+	_regen_pause = REGEN_PAUSE_AFTER_HIT
 	var knocked := _note_run_hit(amount)
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
 		attacker.take_hit(THORNS_DAMAGE, global_position, "thorns")

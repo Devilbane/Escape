@@ -99,6 +99,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log
           grep -q PASS events.log
 
+      - name: Healing pause test (no regeneration right after a blow)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/regen_pause.gd | tee regen.log
+          grep -q PASS regen.log
+
       - name: Grate tentacles test
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/grate_tentacles.gd | tee tentacles.log

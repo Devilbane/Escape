@@ -171,6 +171,8 @@ func _new_moon() -> void:
 	_go_out(dark, 23.0)
 	var out: Outdoor = game.level
 	check(game._moon.light_energy < bright, "the new moon night is darker than the full moon night")
+	check(game._moon.light_energy < bright * 0.15, "a new moon night is nearly black: the moon is the night's only light")
+	check(game._env.ambient_light_energy < 0.03, "and the new moon leaves hardly any ambient light")
 	check(game._clock_text().contains(Lang.t("Neumond")), "the HUD clock names the new moon")
 	check(out.holes_breathe(), "the holes breathe at new moon")
 	check(out._breaths.size() == out.holes.size() and out._breaths.all(func(b): return b.emitting), "a dark breath rises out of every hole")

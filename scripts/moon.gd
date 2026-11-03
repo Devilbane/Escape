@@ -34,9 +34,11 @@ const LORE := "Der Mond: Alle acht Nächte wird er einmal voll und einmal dunkel
 ## so the first full moon comes on night 3 and the first new moon on night 7.
 const FIRST_PHASE := 1
 ## How bright the moonlight is at night, new moon to full moon (a factor on
-## the night sky's own light, see DayNight).
-const DARKEST := 0.45
-const BRIGHTEST := 1.3
+## the night sky's own light, see DayNight: its night is the full moon's).
+## The moon is the only light of the night, so a new moon leaves the open
+## air nearly black: only lanterns, windows, fires and torches light it.
+const DARKEST := 0.1
+const BRIGHTEST := 1.0
 
 
 ## The phase of a night, 0 (new moon) to CYCLE - 1.

@@ -289,6 +289,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/corpses.gd | tee corpses.log
           grep -q PASS corpses.log
 
+      - name: Red crosses on dead eyes test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dead_eyes.gd | tee dead_eyes.log
+          grep -q PASS dead_eyes.log
+
       - name: Dark holes, torches and horrors test
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/horrors.gd | tee horrors.log

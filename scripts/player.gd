@@ -674,6 +674,7 @@ func facing() -> Vector3:
 ## Puts the hero at a level's start; `heal` fills up life again.
 func revive(at: Vector3, heal := true) -> void:
 	dead = false
+	DeadEyes.take_off(_model)
 	if heal or hp <= 0:
 		hp = max_hp
 	stamina = -1.0
@@ -1671,6 +1672,8 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	if hp <= 0:
 		dead = true
 		play_once("Death_A", 99.0)
+		# A fallen hero's eyes shut under two red crosses, until they rise.
+		DeadEyes.put_on(_model)
 		defeated.emit()
 	elif knocked:
 		_knock_down()

@@ -2,7 +2,8 @@ class_name Corpse
 extends Node
 ## A fallen monster stays where it fell and rots away, instead of sinking
 ## into the floor. This node sits on the dead Enemy and drives its decay:
-##   flesh (bandits, beasts, horrors): darkens and sags flat, then sinks
+##   flesh (bandits, beasts, horrors): darkens and sags flat (a bandit with
+##     red crosses on shut eyes, see DeadEyes), then sinks
 ##     away into a dark stain, and a real skeleton (see Remains) lies where
 ##     the body lay;
 ##   bones (skeletons): grey and slump, then fall apart into the same kind
@@ -100,6 +101,10 @@ func _ready() -> void:
 	_overlay.albedo_color = Color(ROT, 0.0)
 	for mesh: MeshInstance3D in enemy._model.find_children("*", "MeshInstance3D", true, false):
 		mesh.material_overlay = _overlay
+	# A dead person's eyes shut, each marked with a red cross (see DeadEyes);
+	# the lids rot with the face, the crosses stay red until it is gone.
+	if enemy.is_human():
+		DeadEyes.put_on(enemy._model, _overlay)
 	# The dead give no light: glowing eyes and a horror's glow go out.
 	for light in enemy.find_children("*", "Light3D", true, false):
 		var fade := light.create_tween()
@@ -140,6 +145,7 @@ func _process(delta: float) -> void:
 			var g := smoothstep(0.0, 1.0, gone)
 			shape.y *= lerpf(1.0, 0.04, g)
 			_overlay.albedo_color.a = lerpf(_overlay.albedo_color.a, LAST_BLACK, g)
+			DeadEyes.fade(enemy._model, 1.0 - g)
 			if _stain_mat != null:
 				_stain_mat.albedo_color.a = _stain_alpha * g
 		if gone >= 1.0:

@@ -208,6 +208,13 @@ var _level_label: Label
 var _coin_label: Label
 var _key_label: Label
 var _hp_label: Label
+var _hp_bar: ProgressBar
+var _hp_fill: StyleBoxFlat
+var _hardening_label: Label
+## The life bar at the top left: its width and colours (bright when low).
+const HP_BAR_WIDTH := 260.0
+const HP_COLOR := Color(0.78, 0.2, 0.2)
+const HP_LOW_COLOR := Color(1.0, 0.35, 0.25)
 ## The run meter: seconds of running left, as a bar and in numbers.
 var _run_bar: ProgressBar
 var _xp_bar: ProgressBar
@@ -875,8 +882,35 @@ func _setup_hud() -> void:
 	row.add_child(left)
 	_level_label = _make_label(TEXT_FONT, 26, GOLD)
 	left.add_child(_level_label)
-	_hp_label = _make_label(TEXT_FONT, 24, Color(1.0, 0.45, 0.42))
-	left.add_child(_hp_label)
+	# Life as a bar with its numbers on it, MMO-style; the hardening sits
+	# beside it. The bar has one fixed size, so nothing moves as life changes.
+	var hp_row := HBoxContainer.new()
+	hp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_row.add_theme_constant_override("separation", 12)
+	left.add_child(hp_row)
+	_hp_bar = ProgressBar.new()
+	_hp_bar.show_percentage = false
+	_hp_bar.custom_minimum_size = Vector2(HP_BAR_WIDTH, 26)
+	_hp_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hp_back := StyleBoxFlat.new()
+	hp_back.bg_color = Color(0.08, 0.05, 0.1, 0.72)
+	hp_back.border_color = Color(0.85, 0.66, 0.32, 0.8)
+	hp_back.set_border_width_all(2)
+	hp_back.set_corner_radius_all(6)
+	_hp_fill = StyleBoxFlat.new()
+	_hp_fill.bg_color = HP_COLOR
+	_hp_fill.set_corner_radius_all(6)
+	_hp_bar.add_theme_stylebox_override("background", hp_back)
+	_hp_bar.add_theme_stylebox_override("fill", _hp_fill)
+	hp_row.add_child(_hp_bar)
+	_hp_label = _make_label(TEXT_FONT, 16)
+	_hp_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_hp_bar.add_child(_hp_label)
+	_hardening_label = _make_label(TEXT_FONT, 18, Color(0.8, 0.85, 0.95))
+	hp_row.add_child(_hardening_label)
 	var run_row := HBoxContainer.new()
 	run_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	run_row.add_theme_constant_override("separation", 10)
@@ -1667,9 +1701,12 @@ func _update_hud() -> void:
 	_clock_shown = _clock_text()
 	if _clock_shown != "":
 		_level_label.text += "    " + _clock_shown
+	_hp_bar.max_value = maxi(1, player.max_hp)
+	_hp_bar.value = clampi(player.hp, 0, player.max_hp)
 	_hp_label.text = Lang.t("Leben: %d / %d") % [maxi(0, player.hp), player.max_hp]
-	if player.hardening > 0:
-		_hp_label.text += "    " + Lang.t("Härtung %d") % player.hardening
+	# Low life turns the bar a brighter warning red.
+	_hp_fill.bg_color = HP_LOW_COLOR if player.hp * 4 <= player.max_hp else HP_COLOR
+	_hardening_label.text = Lang.t("Härtung %d") % player.hardening if player.hardening > 0 else ""
 	var gifts := []
 	if player.power > 1:
 		gifts.append(Lang.t("Kampfkraft %d") % player.power)

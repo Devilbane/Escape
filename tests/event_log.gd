@@ -4,6 +4,7 @@ extends SceneTree
 ## line is only written down when the hero is near enough to hear it, a
 ## reputation change is one short line, and the box keeps one size and place
 ## however many lines come, clear of the status block and the message line.
+## Life shows as a bar with its numbers, above the log.
 ## Run with: godot --headless -s tests/event_log.gd
 
 var failures := 0
@@ -98,6 +99,13 @@ func _check_layout() -> void:
 	var status: Control = game._level_label.get_parent()
 	check(not box.intersects(status.get_global_rect()), "the box keeps clear of the status block: %s vs %s" % [box, status.get_global_rect()])
 	check(not box.intersects(game._message_box.get_global_rect()), "the box keeps clear of the message line: %s vs %s" % [box, game._message_box.get_global_rect()])
+	# Life is a bar with its numbers on it, above the log.
+	var hero: Player = game.player
+	hero.hp = maxi(1, hero.max_hp / 2)
+	game._update_hud()
+	check(is_equal_approx(game._hp_bar.value, hero.hp) and is_equal_approx(game._hp_bar.max_value, hero.max_hp), "the life bar shows the hero's life")
+	check(game._hp_label.text.contains("%d / %d" % [hero.hp, hero.max_hp]), "with the numbers on it: %s" % game._hp_label.text)
+	check(game._hp_bar.get_global_rect().end.y < box.position.y, "the life bar sits above the log")
 	for line in elog._lines.get_children():
 		check((line as RichTextLabel).get_theme_font_size("normal_font_size") == EventLog.FONT_SIZE, "small type")
 		break

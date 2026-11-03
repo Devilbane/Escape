@@ -86,12 +86,27 @@ func _fill() -> void:
 	for i in EventLog.KEEP + 15:
 		Events.found("Gefunden: ein sehr langer Name für einen Gegenstand Nummer %d, der umbricht" % i)
 	check(elog.entries().size() <= EventLog.KEEP, "old lines are let go (%d kept)" % elog.entries().size())
+	check(EventLog.KEEP >= 50, "at least the last 50 lines can be scrolled back to")
 	# A long message on the message line, for the layout check.
 	game.show_message("Eine lange Nachricht, die über mehrere Zeilen geht. ".repeat(4), 4.0)
 
 
 func _check_layout() -> void:
 	var elog: EventLog = game.event_log
+	# The first-steps card sits right under the log, on its left edge, clear
+	# of the message lines and the list of keys at the bottom.
+	var card: Control = game.tutorial.card
+	var card_rect := Rect2(card.position, card.get_combined_minimum_size())
+	var log_rect := elog.get_global_rect()
+	check(card_rect.position.y >= log_rect.end.y and is_equal_approx(card_rect.position.x, log_rect.position.x), "the first-steps card sits under the log: %s vs %s" % [card_rect, log_rect])
+	check(card_rect.end.x < game._message_box.get_global_rect().position.x, "the card keeps clear of the message lines: %s vs %s" % [card_rect, game._message_box.get_global_rect()])
+	check(card_rect.end.y < game._help.get_global_rect().position.y, "the card keeps clear of the list of keys: %s vs %s" % [card_rect, game._help.get_global_rect()])
+	# Scrolling back: within the lines there are, and back to the newest.
+	elog.scroll_to(1e9)
+	check(elog.scrolled() > 0.0, "the log scrolls back to older lines")
+	check(elog.scrolled() <= elog._lines.get_combined_minimum_size().y, "but not past the oldest")
+	elog.scroll_to(-50.0)
+	check(is_zero_approx(elog.scrolled()), "and back down to the newest")
 	var box := elog.get_global_rect()
 	check(box.is_equal_approx(rect_before), "the box keeps its size and place: %s vs %s" % [box, rect_before])
 	check(box.size.is_equal_approx(Vector2(EventLog.WIDTH, EventLog.HEIGHT)), "the box has its fixed size: %s" % box.size)
@@ -99,12 +114,12 @@ func _check_layout() -> void:
 	var status: Control = game._level_label.get_parent()
 	check(not box.intersects(status.get_global_rect()), "the box keeps clear of the status block: %s vs %s" % [box, status.get_global_rect()])
 	check(not box.intersects(game._message_box.get_global_rect()), "the box keeps clear of the message line: %s vs %s" % [box, game._message_box.get_global_rect()])
-	# Life is a small bar with its numbers on it, under the hero.
+	# Life is a slim bar under the hero, its fill the share of life left.
 	var hero: Player = game.player
 	hero.hp = maxi(1, hero.max_hp / 2)
 	game._update_hud()
 	check(is_equal_approx(game._hp_bar.value, hero.hp) and is_equal_approx(game._hp_bar.max_value, hero.max_hp), "the life bar shows the hero's life")
-	check(game._hp_label.text == "%d / %d" % [hero.hp, hero.max_hp], "with the numbers on it: %s" % game._hp_label.text)
+	check(game.HP_BAR_SIZE.y <= 10.0, "the life bar is slim")
 	# Poison turns it green.
 	hero.ailments["gift"] = 5.0
 	game._update_hud()
@@ -122,6 +137,22 @@ func _check_layout() -> void:
 	game._place_hp_bar(ground, settled)
 	check(game._hp_bar.position == steady, "the life bar stays put while the camera shakes")
 	game.camera.global_position = settled
+	# Running: the camera trails behind the hero, so the hero is off the
+	# screen's middle. The bar still keeps below everything the hero's legs,
+	# arms and blade can reach, seen through the trailing camera.
+	for lag in [Vector3(0, 0, -1.5), Vector3(0, 0, 1.5), Vector3(1.5, 0, 0), Vector3(-1.5, 0, 0)]:
+		game.camera.global_position = settled + lag
+		game._place_hp_bar(ground, game.camera.global_position)
+		var top: float = game._hp_bar.get_global_rect().position.y
+		var clear := true
+		for i in 16:
+			var dir := Vector3(cos(TAU * i / 16.0), 0.0, sin(TAU * i / 16.0))
+			for height in [0.0, 1.2, 2.2]:
+				var tip: Vector2 = game.camera.unproject_position(ground + dir * game.HP_BAR_REACH + Vector3(0, height, 0))
+				if tip.y >= top:
+					clear = false
+		check(clear, "running with the camera trailing %s, nothing of the hero touches the bar" % lag)
+	game.camera.global_position = settled
 	# Conditions show as little icons in a row under the bar.
 	hero.ailments["gift"] = 5.0
 	var hardening_before: int = hero.hardening
@@ -133,6 +164,13 @@ func _check_layout() -> void:
 		kinds.append(icon.kind)
 	check(kinds.has("gift") and kinds.has("hardening") and kinds.find("gift") < kinds.find("hardening"), "poison and hardening show as icons, in order: %s" % [kinds])
 	check(kinds == game.hero_conditions().map(func(c): return c[0]), "one icon per condition: %s" % [kinds])
+	for icon in game._status_row.get_children():
+		check(icon.tooltip_text != "" and icon.mouse_filter == Control.MOUSE_FILTER_PASS, "the %s icon explains itself under the pointer" % icon.kind)
+	var told := false
+	for line in elog.entries():
+		if line == game.icon_text("gift", ""):
+			told = true
+	check(told, "a new condition is explained once in the event log")
 	check(not kinds.has("slow") or Items.load_factor(hero.load_weight()) < 1.0 - Items.MAX_WEIGHT_SLOW * 0.5 + 0.001, "no slow icon for a light load: %s" % [kinds])
 	var row: Rect2 = game._status_row.get_global_rect()
 	var bar_now: Rect2 = game._hp_bar.get_global_rect()
@@ -140,6 +178,24 @@ func _check_layout() -> void:
 	hero.ailments.erase("gift")
 	hero.hardening = hardening_before
 	game._update_hud()
+	# Worn gear shows as a gold-framed repair icon under the hero level.
+	var shield_before: String = hero.equipped.get("schild", "")
+	hero.equipped["schild"] = "rundschild"
+	hero.wear["rundschild"] = 3
+	game._update_hud()
+	var notices := []
+	for icon in game._notice_row.get_children():
+		notices.append(icon.kind)
+	check(notices.has("repair"), "a worn shield shows a repair icon: %s" % [notices])
+	check(game._notice_row.get_parent() == game._xp_label.get_parent().get_parent(), "the notices sit in the status block under the hero level")
+	hero.wear.erase("rundschild")
+	if shield_before == "":
+		hero.equipped.erase("schild")
+	else:
+		hero.equipped["schild"] = shield_before
+	game._update_hud()
+	notices = game.hero_notices().map(func(n): return n[0])
+	check(not notices.has("repair"), "and it goes once the gear is mended: %s" % [notices])
 	check(game._hp_bar.visible, "the life bar shows while playing")
 	var feet: Vector2 = game.camera.unproject_position(hero.global_position)
 	var bar: Rect2 = game._hp_bar.get_global_rect()

@@ -5,7 +5,8 @@ extends PanelContainer
 ## The box has one fixed size and place, so a new line never moves or
 ## resizes anything else on screen: older lines slide up and out at its top.
 ## It dims when nothing new came for a while and lights up again with the
-## next line. It stays hidden until the first line comes.
+## next line. It stays hidden until the first line comes. The mouse wheel or
+## a drag over the box scrolls back through the last KEEP lines.
 
 ## Where the box sits: below the status block at the top left, and well
 ## above the message line at the bottom (see Game.MESSAGE_BOTTOM).
@@ -18,8 +19,11 @@ const HEIGHT := 200.0
 const FONT_SIZE := 15
 ## Space between two lines, in pixels.
 const GAP := 4
-## Lines kept; older ones are long gone above the top edge anyway.
-const KEEP := 40
+## Lines kept to scroll back through (the mouse wheel or a drag over the
+## box); a hundred short labels cost next to nothing.
+const KEEP := 100
+## Pixels one turn of the mouse wheel scrolls.
+const WHEEL_STEP := 40.0
 ## Seconds without a new line before the box dims, and how far.
 const DIM_AFTER := 10.0
 const DIM := 0.55
@@ -33,12 +37,17 @@ const NAME_COLOR := Color(1.0, 0.82, 0.4)
 const FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 
 var _lines: VBoxContainer
+var _clip: Control
 var _idle := 0.0
+## How far the player scrolled back up, in pixels (0: the newest line at
+## the bottom shows).
+var _scroll := 0.0
 var _last := ""
 
 
 func _init() -> void:
-	mouse_filter = MOUSE_FILTER_IGNORE
+	# The box takes the wheel and drags to scroll; nothing else.
+	mouse_filter = MOUSE_FILTER_STOP
 	position = Vector2(LEFT, TOP)
 	custom_minimum_size = Vector2(WIDTH, HEIGHT)
 	size = custom_minimum_size
@@ -54,6 +63,7 @@ func _init() -> void:
 	clip.clip_contents = true
 	clip.mouse_filter = MOUSE_FILTER_IGNORE
 	add_child(clip)
+	_clip = clip
 	_lines = VBoxContainer.new()
 	_lines.mouse_filter = MOUSE_FILTER_IGNORE
 	_lines.add_theme_constant_override("separation", GAP)
@@ -101,9 +111,47 @@ func _add(speaker: String, text: String, color: Color) -> void:
 		var old := _lines.get_child(0)
 		_lines.remove_child(old)
 		old.queue_free()
+	# Scrolled back to read: the new line must not push the text away under
+	# the reader's eyes, so the view moves up with it.
+	if _scroll > 0.0:
+		_keep_view.call_deferred(line)
 	visible = true
 	_idle = 0.0
 	modulate.a = 1.0
+
+
+func _keep_view(line: Control) -> void:
+	if is_instance_valid(line):
+		scroll_to(_scroll + line.size.y + GAP)
+
+
+## Scrolls back `pixels` from the newest line, within what there is.
+func scroll_to(pixels: float) -> void:
+	var most := maxf(0.0, _lines.get_combined_minimum_size().y - _clip.size.y)
+	_scroll = clampf(pixels, 0.0, most)
+	_lines.offset_top = _scroll
+	_lines.offset_bottom = _scroll
+
+
+## How far back the log is scrolled, in pixels (for tests).
+func scrolled() -> float:
+	return _scroll
+
+
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			scroll_to(_scroll + WHEEL_STEP)
+			accept_event()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			scroll_to(_scroll - WHEEL_STEP)
+			accept_event()
+	elif event is InputEventScreenDrag or (event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT):
+		# Dragging the text down shows older lines, as on a phone.
+		scroll_to(_scroll + event.relative.y)
+		accept_event()
+	if event is InputEventMouse or event is InputEventScreenDrag:
+		_idle = 0.0
 
 
 static func _escape(text: String) -> String:

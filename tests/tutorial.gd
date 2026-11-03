@@ -207,11 +207,11 @@ func _check_card_size() -> void:
 	for s in Tutorial.STEPS:
 		for title in [s.title, Lang.EN.get(s.title, "")]:
 			check(title != "", "\"%s\" has an English title" % s.title)
-			check(font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x <= width, "\"%s\" fits on one line" % title)
+			check(font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, Tutorial.TITLE_SIZE).x <= width, "\"%s\" fits on one line" % title)
 		for text in [s.text, Lang.EN.get(s.text, "")]:
 			check(text != "", "\"%s\" has an English text" % s.text)
 			var size := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, width, Tutorial.TEXT_SIZE)
 			var lines := roundi(size.y / line)
 			check(lines <= Tutorial.TEXT_LINES, "\"%s\" fits in %d lines: %d" % [text, Tutorial.TEXT_LINES, lines])
 	var counter := Lang.t("Erste Schritte %d / %d") % [7, 7]
-	check(font.get_string_size(counter + "   " + Lang.t("Geschafft!"), HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x <= width, "the top line fits")
+	check(font.get_string_size(counter + "   " + Lang.t("Geschafft!"), HORIZONTAL_ALIGNMENT_LEFT, -1, Tutorial.TOP_SIZE).x <= width, "the top line fits")

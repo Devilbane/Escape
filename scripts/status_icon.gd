@@ -10,10 +10,16 @@ extends Control
 ##   "fast"     faster: boots with an arrow up
 ##   "slow"     slower: boots with an arrow down
 ##   "hardening" hardened: a shield, with the hardening
+## and, with a golden frame, things waiting for the hero (Game.hero_notices):
+##   "repair"   worn gear to mend: hammer and anvil, with how many pieces
+##   "upgrade"  a home upgrade Hagen can build now: a stone block, arrow up
 
 ## The tile's side, in pixels; every icon has the same size.
 const SIZE := 26.0
 const FRAME := Color(0.9, 0.22, 0.2)
+const NOTICE_FRAME := Color(0.95, 0.75, 0.3)
+## The kinds that are notices (golden frame) rather than conditions.
+const NOTICES := ["repair", "upgrade"]
 const TILE := Color(0.07, 0.05, 0.07, 0.9)
 const FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 
@@ -21,19 +27,24 @@ var kind := ""
 var value := ""
 
 
-static func make(what: String, number := "") -> StatusIcon:
+## `tip` is the short explanation shown when the pointer rests on the icon
+## (already translated); the icon then takes the pointer but lets clicks pass.
+static func make(what: String, number := "", tip := "") -> StatusIcon:
 	var icon := StatusIcon.new()
 	icon.kind = what
 	icon.value = number
 	icon.custom_minimum_size = Vector2(SIZE, SIZE)
 	icon.size = icon.custom_minimum_size
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.tooltip_text = tip
+	icon.mouse_filter = Control.MOUSE_FILTER_PASS if tip != "" else Control.MOUSE_FILTER_IGNORE
 	var picture := ""
 	match what:
 		"brand": picture = "kind:flame"
 		"power": picture = "kind:sword"
 		"fast", "slow": picture = "kind:boots"
 		"hardening": picture = "kind:shield"
+		"repair": picture = "kind:hammer_anvil"
+		"upgrade": picture = "kind:stone"
 	if picture != "":
 		var drawn := ItemIcon.make(picture, SIZE - 8.0, true)
 		drawn.position = Vector2(4, 4)
@@ -57,7 +68,7 @@ static func make(what: String, number := "") -> StatusIcon:
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
 	draw_rect(r, TILE)
-	draw_rect(r.grow(-1), FRAME, false, 2.0)
+	draw_rect(r.grow(-1), NOTICE_FRAME if kind in NOTICES else FRAME, false, 2.0)
 	var c := size / 2.0
 	match kind:
 		"gift":
@@ -69,8 +80,8 @@ func _draw() -> void:
 			# An evil eye.
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-9, 0), c + Vector2(0, -6), c + Vector2(9, 0), c + Vector2(0, 6)]), Color(0.75, 0.55, 1.0))
 			draw_circle(c, 3.2, Color(0.15, 0.05, 0.2))
-	if kind in ["fast", "slow"]:
-		var up := kind == "fast"
+	if kind in ["fast", "slow", "upgrade"]:
+		var up := kind != "slow"
 		var tip := Vector2(size.x - 6, 6 if up else 13)
 		var col := Color(0.35, 0.9, 0.35) if up else Color(0.95, 0.3, 0.25)
 		draw_colored_polygon(PackedVector2Array([tip, tip + Vector2(-4, 6 if up else -6), tip + Vector2(4, 6 if up else -6)]), col)

@@ -15,9 +15,9 @@ extends RefCounted
 ## up to Game.HINT_SHOWINGS times. A new game clears the hints, so a new hero
 ## gets the whole tutorial.
 ##
-## The card has one fixed size for every step and language, at the top
-## centre, out of the way of the HUD, the prompts in the middle and the
-## messages at the bottom.
+## The card has one fixed size for every step and language, at the lower
+## left under the event log, out of the way of the HUD, the hero, the prompts
+## in the middle and the messages at the bottom.
 
 ## The steps in order: id, title and text (German, translated with Lang.t),
 ## and how the hero shows it is understood.
@@ -49,9 +49,16 @@ const MOVE_DISTANCE := 2.5
 const RUN_TIME := 0.6
 ## The card's fixed width; its text has room for TEXT_LINES lines, enough
 ## for every step in both languages.
-const CARD_WIDTH := 540.0
-const TEXT_LINES := 4
-const TEXT_SIZE := 18
+## On the event log's left edge, a little wider than the log so the
+## longest step still fits in a few lines.
+const CARD_WIDTH := 360.0
+const TEXT_LINES := 5
+const TEXT_SIZE := 16
+## The step's title and the top line ("First steps 3 / 7", "Done!").
+const TITLE_SIZE := 18
+const TOP_SIZE := 15
+## Space between the event log and the card below it.
+const CARD_GAP := 8.0
 const DONE_COLOR := Color(0.55, 0.95, 0.5)
 
 var game: Node
@@ -91,18 +98,14 @@ func _init(owner_game: Node) -> void:
 func setup(hud: CanvasLayer) -> void:
 	card = PanelContainer.new()
 	var style := Menus.panel_style(game.GOLD)
-	style.set_content_margin_all(14)
-	style.content_margin_left = 24
-	style.content_margin_right = 24
+	style.set_content_margin_all(12)
+	style.content_margin_left = 16
+	style.content_margin_right = 16
 	card.add_theme_stylebox_override("panel", style)
-	card.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	# At the lower left, right under the event log and on its left edge,
+	# clear of the messages in the middle and the hero.
 	card.custom_minimum_size = Vector2(CARD_WIDTH, 0)
-	card.offset_left = -CARD_WIDTH / 2.0
-	card.offset_right = CARD_WIDTH / 2.0
-	# Below the key, knives and gold at the top right, between them and the
-	# lives and bars at the top left.
-	card.offset_top = 72
-	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	card.position = Vector2(EventLog.LEFT, EventLog.TOP + EventLog.HEIGHT + CARD_GAP)
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.modulate.a = 0.0
 	card.visible = false
@@ -116,20 +119,20 @@ func setup(hud: CanvasLayer) -> void:
 	var top := HBoxContainer.new()
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(top)
-	_counter = game._make_label(game.TEXT_FONT, 16, Color(1, 1, 1, 0.7))
+	_counter = game._make_label(game.TEXT_FONT, TOP_SIZE, Color(1, 1, 1, 0.7))
 	_counter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(_counter)
-	_done_label = game._make_label(game.TEXT_FONT, 16, DONE_COLOR)
+	_done_label = game._make_label(game.TEXT_FONT, TOP_SIZE, DONE_COLOR)
 	_done_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top.add_child(_done_label)
-	_title = game._make_label(game.TEXT_FONT, 22, game.GOLD)
+	_title = game._make_label(game.TEXT_FONT, TITLE_SIZE, game.GOLD)
 	box.add_child(_title)
 	_text = game._make_label(game.TEXT_FONT, TEXT_SIZE)
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	# Room for TEXT_LINES lines from the start, so a shorter text does not
 	# make the card smaller.
 	var line: float = game.TEXT_FONT.get_height(TEXT_SIZE) + _text.get_theme_constant("line_spacing")
-	_text.custom_minimum_size = Vector2(CARD_WIDTH - 48, ceilf(line * TEXT_LINES))
+	_text.custom_minimum_size = Vector2(CARD_WIDTH - 32, ceilf(line * TEXT_LINES))
 	_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	box.add_child(_text)
 

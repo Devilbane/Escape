@@ -219,18 +219,20 @@ var _hud: CanvasLayer
 var _level_label: Label
 var _coin_label: Label
 var _key_label: Label
-var _hp_label: Label
 var _hp_bar: ProgressBar
 var _hp_fill: StyleBoxFlat
 ## The hero's conditions as icons under the life bar (see StatusIcon).
 var _status_row: HBoxContainer
+## Gear to mend, points to spend, upgrades to build: icons under the hero
+## level (see hero_notices).
+var _notice_row: HBoxContainer
 ## The life bar under the hero: its size, its gap below the feet on screen,
 ## and its colours (brighter when low).
-const HP_BAR_SIZE := Vector2(110, 20)
-const HP_BAR_GAP := 6.0
+const HP_BAR_SIZE := Vector2(96, 8)
+const HP_BAR_GAP := 18.0
 ## How far the hero's arms and blade reach out from the feet, in metres
 ## (the bar keeps below all of it, see _place_hp_bar).
-const HP_BAR_REACH := 1.5
+const HP_BAR_REACH := 1.8
 const HP_COLOR := Color(0.78, 0.2, 0.2)
 const HP_LOW_COLOR := Color(1.0, 0.35, 0.25)
 const HP_POISON_COLOR := Color(0.35, 0.75, 0.25)
@@ -262,6 +264,9 @@ var _message_box: VBoxContainer
 var _message_duration := 0.0
 ## Space kept free left and right of centred on-screen texts.
 const SCREEN_TEXT_MARGIN := 80
+## Space kept free left and right of the message lines: past the event log
+## and the first-steps card at the left edge (see EventLog, Tutorial).
+const MESSAGE_MARGIN := EventLog.LEFT + Tutorial.CARD_WIDTH + 16.0
 const MESSAGE_FONT_SIZE := 24
 ## How far above the bottom of the screen the messages sit (their lower edge).
 const MESSAGE_BOTTOM := 175.0
@@ -963,7 +968,7 @@ func _setup_hud() -> void:
 	row.add_child(left)
 	_level_label = _make_label(TEXT_FONT, 26, GOLD)
 	left.add_child(_level_label)
-	# Life as a small bar with its numbers on it, under the hero's feet,
+	# Life as a slim bar under the hero's feet, its fill the share of life left,
 	# MMO-style. It has one fixed size, so nothing moves as life changes.
 	_hp_bar = ProgressBar.new()
 	_hp_bar.show_percentage = false
@@ -971,24 +976,17 @@ func _setup_hud() -> void:
 	_hp_bar.size = HP_BAR_SIZE
 	_hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var hp_back := StyleBoxFlat.new()
-	hp_back.bg_color = Color(0.08, 0.05, 0.1, 0.72)
-	hp_back.border_color = Color(0.05, 0.02, 0.06, 0.9)
-	hp_back.set_border_width_all(2)
-	hp_back.set_corner_radius_all(5)
+	hp_back.bg_color = Color(0.06, 0.04, 0.08, 0.55)
+	hp_back.border_color = Color(0.05, 0.02, 0.06, 0.6)
+	hp_back.set_border_width_all(1)
+	hp_back.set_corner_radius_all(3)
 	_hp_fill = StyleBoxFlat.new()
 	_hp_fill.bg_color = HP_COLOR
-	_hp_fill.set_corner_radius_all(5)
+	_hp_fill.set_corner_radius_all(3)
 	_hp_bar.add_theme_stylebox_override("background", hp_back)
 	_hp_bar.add_theme_stylebox_override("fill", _hp_fill)
 	_hp_bar.visible = false
 	_hud.add_child(_hp_bar)
-	_hp_label = _make_label(TEXT_FONT, 14)
-	_hp_label.add_theme_constant_override("outline_size", 4)
-	_hp_label.add_theme_constant_override("shadow_offset_y", 1)
-	_hp_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_hp_bar.add_child(_hp_label)
 	# The hero's conditions (poison, a curse, burning, stronger blows, speed,
 	# hardening) as little red-framed icons in a row under the bar, in a
 	# fixed order from its left edge, so an icon coming or going never
@@ -1037,6 +1035,13 @@ func _setup_hud() -> void:
 	xp_row.add_child(_xp_bar)
 	_xp_label = _make_label(TEXT_FONT, 18, XP_COLOR)
 	xp_row.add_child(_xp_label)
+	# Things waiting for the hero (gear to mend, an upgrade to build) as little gold-framed icons under the hero level. The row
+	# always keeps one icon's height, so the status block never grows.
+	_notice_row = HBoxContainer.new()
+	_notice_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_notice_row.add_theme_constant_override("separation", 4)
+	_notice_row.custom_minimum_size = Vector2(0, StatusIcon.SIZE)
+	left.add_child(_notice_row)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1068,8 +1073,10 @@ func _setup_hud() -> void:
 	# grows upwards, so no line can ever cover another.
 	_message_box = VBoxContainer.new()
 	_message_box.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	_message_box.offset_left = SCREEN_TEXT_MARGIN
-	_message_box.offset_right = -SCREEN_TEXT_MARGIN
+	# The column stays clear of the event log and the first-steps card at the
+	# left, and keeps centred.
+	_message_box.offset_left = MESSAGE_MARGIN
+	_message_box.offset_right = -MESSAGE_MARGIN
 	_message_box.offset_top = -MESSAGE_BOTTOM
 	_message_box.offset_bottom = -MESSAGE_BOTTOM
 	_message_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -1789,7 +1796,6 @@ func _update_hud() -> void:
 		_level_label.text += "    " + _clock_shown
 	_hp_bar.max_value = maxi(1, player.max_hp)
 	_hp_bar.value = clampi(player.hp, 0, player.max_hp)
-	_hp_label.text = "%d / %d" % [maxi(0, player.hp), player.max_hp]
 	# Poison turns the bar green; low life a brighter warning red.
 	if player.ailments.has("gift"):
 		_hp_fill.bg_color = HP_POISON_COLOR
@@ -3521,23 +3527,73 @@ func hero_conditions() -> Array:
 
 
 func _update_status_icons() -> void:
-	var now := hero_conditions()
+	_fill_icon_row(_status_row, hero_conditions())
+	_fill_icon_row(_notice_row, hero_notices())
+
+
+## What a condition or notice icon means, in a sentence: shown when the
+## pointer rests on the icon, and written into the event log when it first
+## appears (touch has no pointer to rest).
+func icon_text(kind: String, number: String) -> String:
+	match kind:
+		"gift": return Lang.t("Vergiftet: Du verlierst alle paar Sekunden ein Leben, nie das letzte. Ein Brunnen, ein Schrein oder ein Heiltrank heilt es.")
+		"fluch": return Lang.t("Verflucht: Du bist langsamer. Es vergeht bald; ein Brunnen, ein Schrein oder ein Heiltrank heilt es sofort.")
+		"brand": return Lang.t("Du brennst: Ein paar Sekunden lang verlierst du Leben, nie das letzte.")
+		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
+		"fast": return Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
+		"slow": return Lang.t("Schwer beladen: Du läufst langsamer. Leg im Inventar (I) etwas ab.")
+		"hardening": return Lang.t("Härtung %s: Jeder Treffer gegen dich wird um so viel schwächer, bleibt aber mindestens halb so stark.") % number
+		"repair": return Lang.t("Abgenutzt: %s Teil(e) deiner Ausrüstung. Plane beim Schlafen „Ausrüstung ausbessern“ ein, sonst zerbrechen sie.") % number
+		"upgrade": return Lang.t("Hagen der Steinmetz kann jetzt einen Ausbau für dein Haus bauen.")
+	return ""
+
+
+## Things waiting for the hero, as [kind, number] pairs (see StatusIcon):
+## worn gear to mend (half its durability or more used up) and a home
+## upgrade Hagen could build right now. (A free level point is told beside
+## the hero level, with its key.)
+func hero_notices() -> Array:
+	var out := []
+	var worn := 0
+	for id in player.equipped.values():
+		var durability: int = Items.ALL.get(id, {}).get("durability", 0)
+		if durability > 0 and player.wear.get(id, 0) * 2 >= durability:
+			worn += 1
+	if worn > 0:
+		out.append(["repair", str(worn)])
+	for id in HomeUpgrades.ALL:
+		if HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, coins) == "":
+			out.append(["upgrade", ""])
+			break
+	return out
+
+
+## Shows `wanted` ([kind, number] pairs) as icons in `row`, rebuilt only
+## when something changed.
+func _fill_icon_row(row: HBoxContainer, wanted: Array) -> void:
 	var shown := []
-	for icon in _status_row.get_children():
+	for icon in row.get_children():
 		shown.append([icon.kind, icon.value])
-	if shown == now:
+	if shown == wanted:
 		return
-	for icon in _status_row.get_children():
-		_status_row.remove_child(icon)
+	var had := []
+	for icon in row.get_children():
+		had.append(icon.kind)
+		row.remove_child(icon)
 		icon.queue_free()
-	for c in now:
-		_status_row.add_child(StatusIcon.make(c[0], c[1]))
+	for c in wanted:
+		var text := icon_text(c[0], c[1])
+		row.add_child(StatusIcon.make(c[0], c[1], text))
+		# A new icon is explained once in the event log as well.
+		if not had.has(c[0]) and text != "" and state == State.PLAYING:
+			Events.found(text, StatusIcon.NOTICE_FRAME if c[0] in StatusIcon.NOTICES else Color(1.0, 0.6, 0.55))
 
 
 ## Keeps the life bar at one steady spot under the hero on screen. It is
-## placed as seen from where the camera settles (`cam_at`) for the hero
-## standing at `ground` (feet, not lifted by a jump), so it neither jitters
-## with the camera catching up or shaking nor bobs with jumps.
+## placed as seen from the camera without its shake (`cam_at`), for the hero
+## standing at `ground` (feet, not lifted by a jump): it stays under a
+## running hero while the camera trails behind, and neither trembles with
+## a shake nor bobs with jumps.
 func _place_hp_bar(ground: Vector3, cam_at: Vector3) -> void:
 	var on_screen := state == State.PLAYING and player != null and player.is_inside_tree() and not player.dead \
 			and camera != null
@@ -3558,7 +3614,7 @@ func _place_hp_bar(ground: Vector3, cam_at: Vector3) -> void:
 	var x := camera.unproject_position(ground).x
 	camera.global_position = real
 	_hp_bar.position = Vector2(x - HP_BAR_SIZE.x / 2.0, lowest + HP_BAR_GAP).round()
-	_status_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 4)
+	_status_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 5)
 
 
 ## News about a task (a new one, progress, done): a message and a word over
@@ -4711,12 +4767,16 @@ func _process(delta: float) -> void:
 	camera.rotation_degrees.x = -lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom)
 	var target := p + _camera_offset()
 	camera.global_position = camera.global_position.lerp(target, 1.0 - exp(-5.0 * delta))
+	# Where the camera really is, before any shake: the life bar is placed as
+	# seen from here, so it stays under the hero while the camera trails a
+	# running hero, but does not tremble with the ground.
+	var followed := camera.global_position
 	if _shake > 0.0:
 		# The ground trembles while a secret wall sinks.
 		_shake = maxf(0.0, _shake - delta)
 		var strength := 0.25 * minf(1.0, _shake)
 		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
-	_place_hp_bar(p, target)
+	_place_hp_bar(p, followed)
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)

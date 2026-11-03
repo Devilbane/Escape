@@ -1069,6 +1069,67 @@ func _add_solid(pos: Vector3, size: Vector3) -> void:
 	_add_box(_walls_body, pos + Vector3(0, size.y * 0.5, 0), size)
 
 
+## Blocks a placed piece of furniture where it is drawn and nowhere else: a
+## box round the footprint of its meshes, turned and moved with it, kept
+## within its tile and `height` high. A fixed box the size of a tile part
+## would stand out past a narrow piece (a trunk, a table turned on its side)
+## and stop the hero in mid air, or leave a corner of the piece open for the
+## hero to sink into. Without meshes the box is `fallback` around `pos`.
+func _add_fitted_solid(model: Node3D, pos: Vector3, height: float, fallback := Vector2(2.4, 2.4)) -> void:
+	var foot := footprint(model, self)
+	var tile := AABB(Vector3(pos.x - TILE * 0.5, 0.0, pos.z - TILE * 0.5), Vector3(TILE, height, TILE))
+	if foot.size.x < 0.05 or foot.size.z < 0.05:
+		_add_solid(pos, Vector3(fallback.x, height, fallback.y))
+		return
+	var box := foot.intersection(tile.grow(-0.05))
+	var middle := box.get_center()
+	_add_solid(Vector3(middle.x, 0.0, middle.z), Vector3(box.size.x, height, box.size.z))
+
+
+## Blocks a round piece of furniture (a barrel) where it is drawn: an upright
+## cylinder as wide as the piece itself, however it is turned.
+func _add_round_solid(model: Node3D, height: float) -> void:
+	var own := footprint(model, model)
+	var shape := CollisionShape3D.new()
+	var cylinder := CylinderShape3D.new()
+	cylinder.radius = maxf(own.size.x, own.size.z) * 0.5 if own.size.x > 0.05 else 1.2
+	cylinder.height = height
+	shape.shape = cylinder
+	var middle := model.transform * own.get_center() if own.size.x > 0.05 else model.position
+	shape.position = Vector3(middle.x, height * 0.5, middle.z)
+	_walls_body.add_child(shape)
+
+
+## The bounds of a model's visible meshes in the space of `space` (an
+## ancestor of it), from the floor up; flat bits lying on the floor (a rug,
+## a shadow) do not count. An empty AABB when there are none.
+static func footprint(model: Node3D, space: Node) -> AABB:
+	var bounds := AABB()
+	var found := false
+	var meshes: Array = model.find_children("*", "MeshInstance3D", true, false)
+	if model is MeshInstance3D:
+		meshes.append(model)
+	for mi: MeshInstance3D in meshes:
+		if mi.mesh == null:
+			continue
+		var xf := Transform3D.IDENTITY
+		var shown := true
+		var n: Node = mi
+		while n != null and n != space:
+			if n is Node3D:
+				xf = (n as Node3D).transform * xf
+				shown = shown and (n as Node3D).visible
+			n = n.get_parent()
+		if not shown:
+			continue
+		var box: AABB = xf * mi.get_aabb()
+		if box.end.y < 0.1:
+			continue
+		bounds = bounds.merge(box) if found else box
+		found = true
+	return bounds
+
+
 func _build_content(c: Vector2i, ch: String) -> void:
 	var pos := cell_to_world(c)
 	match ch:
@@ -1095,19 +1156,19 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"D":
 			_build_door(c)
 		"b":
-			_place("barrel_large", pos + Vector3(_rng.randf_range(-0.4, 0.4), 0, _rng.randf_range(-0.4, 0.4)), _rng.randf() * TAU)
+			var barrel := _place("barrel_large", pos + Vector3(_rng.randf_range(-0.4, 0.4), 0, _rng.randf_range(-0.4, 0.4)), _rng.randf() * TAU)
 			# One barrel to a tile, not a pile. The roll for the small one that
 			# stood beside it stays, so the rest of the map is built as before.
 			_rng.randf()
-			_add_solid(pos, Vector3(2.4, 2, 2.4))
+			_add_round_solid(barrel, 2.0)
 			_add_interactable("Fass", pos, pos + Vector3(0, 2.8, 0), c)
 		"x":
-			_place("crates_stacked", pos, _random_quarter_turn())
-			_add_solid(pos, Vector3(3.0, 2, 3.0))
+			var stack := _place("crates_stacked", pos, _random_quarter_turn())
+			_add_fitted_solid(stack, pos, 2.0, Vector2(3.0, 3.0))
 			_add_interactable("Kiste", pos, pos + Vector3(0, 3.6, 0), c)
 		"k":
 			var trunk_model := _place("trunk_large_A", pos, _random_quarter_turn())
-			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
+			_add_fitted_solid(trunk_model, pos, 1.5)
 			var trunk := _add_interactable("Truhe", pos, pos + Vector3(0, 2.4, 0), c, not _in_secret_room(c))
 			trunk.lid = trunk_model.find_child("Lid", true, false)
 			# All the way up, as the trunk is modelled, so it shows it is empty.
@@ -1115,17 +1176,14 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			if _in_secret_room(c):
 				trunk.loot = _secret_loot(c, 0.5)
 		"o":
-			_place("pillar_decorated", pos)
-			_add_solid(pos, Vector3(1.6, 4, 1.6))
+			_add_fitted_solid(_place("pillar_decorated", pos), pos, 4.0, Vector2(1.6, 1.6))
 		"y":
-			_place_lair("Statue_Horse", pos, _random_quarter_turn(), 0.62)
-			_add_solid(pos, Vector3(2.6, 4, 2.6))
+			_add_fitted_solid(_place_lair("Statue_Horse", pos, _random_quarter_turn(), 0.62), pos, 4.0, Vector2(2.6, 2.6))
 		"H":
 			_build_shrine(c)
 		"B":
 			var bed_rot := _facing_room(c)
-			_place("bed_decorated", pos, bed_rot)
-			_add_solid(pos, Vector3(3.2, 1.5, 3.2))
+			_add_fitted_solid(_place("bed_decorated", pos, bed_rot), pos, 1.5, Vector2(3.2, 3.2))
 			stations.append({"kind": "bett", "cell": c, "pos": pos, "rot": bed_rot, "used": false})
 			if is_home or inn:
 				bed_side = cell_to_world(_open_side(c))
@@ -1133,8 +1191,7 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"N":
 			_build_companion_corner(c)
 		"L":
-			_place("chest", pos, _facing_room(c))
-			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
+			_add_fitted_solid(_place("chest", pos, _facing_room(c)), pos, 1.5)
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
 		"V":
 			_build_merchant(c)
@@ -1153,8 +1210,7 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"?":
 			_secret_at(c)
 		"t":
-			_place("table_medium_decorated_A", pos, _random_quarter_turn())
-			_add_solid(pos, Vector3(3.0, 2, 2.2))
+			_add_fitted_solid(_place("table_medium_decorated_A", pos, _random_quarter_turn()), pos, 2.0, Vector2(3.0, 2.2))
 			_add_interactable("Tisch", pos, pos + Vector3(0, 2.8, 0), c)
 		"j", "%", "~", "T", "^":
 			Mines.build_cell(self, c, ch)
@@ -1296,7 +1352,7 @@ func _build_chest(c: Vector2i) -> void:
 	if cell_char(c + Vector2i(0, 1)) == "#":
 		rot = PI
 	var chest := _place("chest_gold", pos, rot)
-	_add_solid(pos, Vector3(2.0, 1.5, 2.0))
+	_add_fitted_solid(chest, pos, 1.5, Vector2(2.0, 2.0))
 	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c, false)
 	obj.lid = chest.find_child("chest_gold_lid", true, false)
 	if _in_secret_room(c):
@@ -2170,8 +2226,57 @@ func _push_apart(delta: float) -> void:
 			var weight_a := _push_weight(a)
 			var weight_b := _push_weight(b)
 			var step := minf(overlap, PUSH_APART_SPEED * delta)
-			_shove(a, b, -away * step * weight_b / (weight_a + weight_b))
-			_shove(b, a, away * step * weight_a / (weight_a + weight_b))
+			var move_a: Vector3 = -away * step * weight_b / (weight_a + weight_b)
+			var move_b: Vector3 = away * step * weight_a / (weight_a + weight_b)
+			# The hero is never shoved onto a tile with furniture: the
+			# skeleton makes all the room instead.
+			if a is Player and shoves_onto_furniture(a, move_a):
+				move_b = away * step
+				move_a = Vector3.ZERO
+			elif b is Player and shoves_onto_furniture(b, move_b):
+				move_a = -away * step
+				move_b = Vector3.ZERO
+			_shove(a, b, move_a)
+			_shove(b, a, move_b)
+
+
+## The tile to set out from for someone standing at `pos`: their own, or,
+## when they stand on the free edge of a tile with furniture (only the piece
+## itself is solid, see _add_fitted_solid), the free tile beside it on the
+## side they stand on, so the way leads round the piece and not through it.
+func set_out_cell(pos: Vector3) -> Vector2i:
+	var c := world_to_cell(pos)
+	if not astar.is_in_boundsv(c) or not astar.is_point_solid(c) or _stone_cut.has(c):
+		return c
+	var best := c
+	var best_distance := INF
+	for d in DIRS:
+		var n := c + d
+		if astar.is_in_boundsv(n) and not astar.is_point_solid(n):
+			var distance := Vector2(pos.x, pos.z).distance_to(Vector2(cell_to_world(n).x, cell_to_world(n).z))
+			if distance < best_distance:
+				best = n
+				best_distance = distance
+	return best
+
+
+## Whether moving `body` by `motion` carries it off its tile onto a tile
+## that is not free to walk: one with furniture, a closed door, blocks. With
+## `from` the body has moved already, from there to where it is now. Monsters
+## and blows never push the hero there (see Player._keep_off_furniture), so
+## the hero is never squeezed in beside a piece of furniture.
+func shoves_onto_furniture(body: Node3D, motion: Vector3, from = null) -> bool:
+	var start: Vector3 = body.global_position if from == null else from
+	var end: Vector3 = body.global_position + motion
+	var flat := Vector3(end.x - start.x, 0.0, end.z - start.z)
+	if flat.length() < 0.0001:
+		return false
+	var here := world_to_cell(start)
+	var there := world_to_cell(end)
+	if from == null:
+		# Ahead by the body's width: the shove would press it in there.
+		there = world_to_cell(end + flat.normalized() * body.radius)
+	return there != here and astar.is_in_boundsv(there) and astar.is_point_solid(there)
 
 
 ## Whether the higher of two bodies stands on a crate. A hero up on a
@@ -4258,15 +4363,16 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 		rot = -PI * 0.5
 	match id:
 		"werkstatt":
-			_place("table_medium_decorated_A", pos, rot, root)
-			_place("stool", pos + Vector3(sin(rot), 0, cos(rot)) * 1.3, rot, root)
-			_place("sword_shield", pos + Vector3(-sin(rot), 0, -cos(rot)) * 1.55, rot, root)
-			_add_solid(pos, Vector3(2.6, 1.2, 2.6))
+			var bench := Node3D.new()
+			root.add_child(bench)
+			_place("table_medium_decorated_A", pos, rot, bench)
+			_place("stool", pos + Vector3(sin(rot), 0, cos(rot)) * 1.3, rot, bench)
+			_place("sword_shield", pos + Vector3(-sin(rot), 0, -cos(rot)) * 1.55, rot, bench)
+			_add_fitted_solid(bench, pos, 1.2, Vector2(2.6, 2.6))
 			astar.set_point_solid(c, true)
 			stations.append({"kind": "hauswerkbank", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"truhe":
-			_place("chest", pos, rot, root)
-			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
+			_add_fitted_solid(_place("chest", pos, rot, root), pos, 1.5)
 			astar.set_point_solid(c, true)
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"trophaeen":

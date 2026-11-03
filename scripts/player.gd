@@ -694,10 +694,14 @@ func revive(at: Vector3, heal := true) -> void:
 ## that far from its middle, instead of waiting a whole tile away.
 func walk_to(target: Vector3, stop_short := 0.0) -> void:
 	stand_up()
-	var from := level.world_to_cell(global_position)
+	var from := level.set_out_cell(global_position)
 	var to := level.world_to_cell(target)
 	path.clear()
-	for c in level.grid_path(from, to).slice(1):
+	# Standing beside a piece of furniture on its tile: first step off it.
+	var steps := level.grid_path(from, to)
+	if from == level.world_to_cell(global_position) or steps.is_empty():
+		steps = steps.slice(1)
+	for c in steps:
 		path.append(level.cell_to_world(c))
 	if stop_short > 0.0:
 		var last: Vector3 = path[-1] if not path.is_empty() else global_position
@@ -1817,6 +1821,24 @@ func _climb_step(delta: float) -> void:
 		play("Idle")
 
 
+## Nothing but the hero's own steps takes them onto a tile with furniture: a
+## skeleton pressing in, or a blow throwing them back, would wedge them in
+## beside it. Such a move is taken back (the skeleton is pushed aside
+## instead, see Level._push_apart); walking there on purpose is fine.
+func _keep_off_furniture(before: Vector3, dir: Vector3) -> void:
+	if level == null:
+		return
+	var moved := global_position - before
+	moved.y = 0.0
+	if moved.length() < 0.0001:
+		return
+	var on_purpose := dir != Vector3.ZERO and dir.dot(moved) > 0.0 and _knockback.length() < 1.0
+	if on_purpose or not level.shoves_onto_furniture(self, Vector3.ZERO, before):
+		return
+	global_position = Vector3(before.x, global_position.y, before.z)
+	_knockback = Vector3.ZERO
+
+
 func _keyboard_direction() -> Vector3:
 	var x := 0.0
 	var z := 0.0
@@ -1883,6 +1905,7 @@ func _physics_process(delta: float) -> void:
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 45.0)
 	var before := global_position
 	move_and_slide()
+	_keep_off_furniture(before, dir)
 	_train_legs(Vector2(global_position.x - before.x, global_position.z - before.z).length())
 	# Walking a path but pressed against something, like a door frame: first
 	# step back to the middle of the tile, and give the path up if that fails.

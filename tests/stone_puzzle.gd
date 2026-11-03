@@ -189,6 +189,27 @@ func _run() -> void:
 	await _wait(10)
 	check(lvl.plates_pressed() == 2 and lvl.gates_open(), "taking a block off a plate leaves the gate open")
 
+	# Leaving the floor (up the stairs, or falling back into it through a
+	# trapdoor from the floor above) keeps the blocks where they were pushed
+	# and the solved puzzle solved.
+	var left_at := {}
+	for s in heavy:
+		left_at[StoneBlock.cell_for(s.home, true)] = [s.cell, s.along_x]
+	lvl.note_left()
+	game.load_level(index, false)
+	await _wait(10)
+	lvl = game.level
+	heavy = lvl.stones.filter(func(s): return s.heavy)
+	check(heavy.size() == 3, "back on the floor, still three heavy blocks (%d)" % heavy.size())
+	for s in heavy:
+		var was: Array = left_at.get(StoneBlock.cell_for(s.home, true), [])
+		check(not was.is_empty() and s.cell == was[0] and s.along_x == was[1], "a heavy block lies where it was left (%s, was %s)" % [str(s.cell), str(was)])
+	check(lvl.plates_pressed() == 2, "the two plates under blocks are still pressed (%d)" % lvl.plates_pressed())
+	check(lvl.gates_open() and not lvl.astar.is_point_solid(GATE), "the gate is still open")
+	check(lvl.built.is_empty(), "heavy blocks are still not kept as built blocks")
+	_place(p, lvl.cell_to_world(lvl.start_cell))
+	await _wait(5)
+
 	# Every shipped map keeps its plates within reach of a block of their own.
 	for file in game.level_files:
 		var map := LevelMap.load_file(file)

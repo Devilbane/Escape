@@ -2128,6 +2128,15 @@ static func door_key(c: Vector2i) -> String:
 
 ## Set in `taken` once the hero took this floor's key (held or used).
 const KEY_GONE := "key_gone"
+## Set in `taken` once every pressure plate was pressed and the iron gates
+## sank into the floor.
+const GATES_OPEN := "gates_open"
+
+
+## The key in `taken` for where a heavy block that started on grid cell
+## `first` was left: [x, z, along x (1) or z (0)] of its first cell.
+static func heavy_key(first: Vector2i) -> String:
+	return "heavy:%d:%d" % [first.x, first.y]
 
 
 ## The hero leaves this dungeon floor (up the stairs or down a trapdoor):
@@ -2147,12 +2156,20 @@ func note_left() -> void:
 			any_open = true
 	if has_key or any_open:
 		taken[KEY_GONE] = true
+	# Heavy blocks stay where the hero pushed them, and a puzzle once solved
+	# stays solved, so a fall through a trapdoor costs no progress.
+	for st in stones:
+		if is_instance_valid(st) and st.heavy:
+			taken[heavy_key(StoneBlock.cell_for(st.home, true))] = [st.cell.x, st.cell.y, 1 if st.along_x else 0]
+	if not _gates.is_empty() and gates_open():
+		taken[GATES_OPEN] = true
 
 
 ## Puts back what note_left remembered: open doors stay open, a key that was
 ## taken stays gone (and is still in the hero's hand if no door used it), and
 ## a guardian who fell before the key was picked up leaves it where he stood.
 func _restore_left() -> void:
+	_restore_heavy()
 	var any_open := false
 	for d in _doors:
 		if not taken.has(door_key(d.cell)):
@@ -2176,6 +2193,38 @@ func _restore_left() -> void:
 				if Enemy.LETTERS.get(cell_char(c), "") == "waechter" and taken.has(slain_key(c)):
 					_build_key(cell_to_world(c))
 					return
+
+
+## Puts the heavy blocks back where note_left found them, sinks the iron
+## gates of a solved puzzle at once and settles the plates under the blocks
+## quietly, without the clack and the count of a block just pushed on.
+func _restore_heavy() -> void:
+	var moved := false
+	for st in stones:
+		if not st.heavy:
+			continue
+		var at = taken.get(heavy_key(StoneBlock.cell_for(st.home, true)))
+		if at is Array and at.size() >= 3:
+			st.place(Vector2i(int(at[0]), int(at[1])), int(at[2]) == 1, 0)
+			moved = true
+	if moved:
+		refresh_stone_paths()
+	if taken.has(GATES_OPEN):
+		for g in _gates:
+			if g.open:
+				continue
+			g.open = true
+			g.body.queue_free()
+			astar.set_point_solid(g.cell, false)
+			g.node.position.y = GATE_SUNK
+	var pressed := 0
+	for plate in _plates:
+		plate.pressed = _plate_pressed(plate)
+		if plate.pressed:
+			pressed += 1
+			plate.node.position.y = 0.0
+			plate.mat.set_shader_parameter("glow", 1.0)
+	_plates_pressed = pressed
 
 
 func _build_door(c: Vector2i) -> void:
@@ -3062,6 +3111,8 @@ const DIRS_NSWE: Array[Vector2i] = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1
 ## lying on any of them presses it.
 const PLATE_SIZE := StoneBlock.CELL * 2.0 - 0.1
 const PLATE_UP := 0.06
+## How deep an open iron gate has sunk into the floor (its bars' height).
+const GATE_SUNK := -4.1
 const PLATE_SHADER := preload("res://shaders/pressure_plate.gdshader")
 ## The worn stone frame the plate sinks into: how wide its sides are and how
 ## far its top stands above the floor (a little above a pressed plate's top,
@@ -3185,7 +3236,7 @@ func _open_gates() -> void:
 		g.open = true
 		g.body.queue_free()
 		astar.set_point_solid(g.cell, false)
-		create_tween().tween_property(g.node, "position:y", -4.1, 2.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		create_tween().tween_property(g.node, "position:y", GATE_SUNK, 2.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		gate_opened.emit(g.node.global_position)
 
 

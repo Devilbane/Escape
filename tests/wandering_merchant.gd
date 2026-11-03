@@ -66,7 +66,7 @@ func _items() -> void:
 		check(not Crafting.INGREDIENTS[id].get("rare", false) and id != "trueffel", "%s is not one of the rarest finds" % id)
 	# Merchants sell nothing magic, special or top of its kind.
 	for id in ["vampirzahn", "phoenixfeder", "gluecksklee", "dornenrune", "amulett_kraft", "zauberhut",
-			"plattenpanzer", "eilstiefel", "rubinring", "grosser_rucksack", "langschwert", "rabenklinge", "schattenumhang"]:
+			"plattenpanzer", "eilstiefel", "rubinring", "reiserucksack", "langschwert", "rabenklinge", "schattenumhang"]:
 		check(not Wanderer.is_gear_for_sale(id), "%s is not for sale at his cart" % id)
 	for id in ["schwert", "rundschild", "lederwams", "lederstiefel", "wollumhang", "kupferring", "leinenrucksack", "fechtbuch"]:
 		check(Wanderer.is_gear_for_sale(id), "%s may be on his cart" % id)

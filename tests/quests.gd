@@ -158,10 +158,10 @@ func _test() -> void:
 	for i in 3:
 		game.quests.on_kill("schlaeger")
 	while game.player.bag.size() < game.player.bag_size():
-		game.player.bag.append("kupferring")
+		game.player.bag.append("schwert")
 	_bump("1")
 	check(game.quests.is_active("schlaeger"), "a full bag keeps the reward back")
-	game.player.bag.erase("kupferring")
+	game.player.bag.erase("schwert")
 	_bump("1")
 	check(game.quests.is_done("schlaeger") and game.player.bag.has("kettenhemd"), "with room the smith hands over the chain mail")
 

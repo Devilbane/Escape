@@ -1523,7 +1523,8 @@ func bag_fits(id: String) -> bool:
 
 ## Moves a bag item into its slot; whatever was worn there goes into the bag.
 ## Items the hero is not yet able to use stay in the bag, and so do books,
-## and so does a smaller backpack that could not hold everything carried.
+## and so does a smaller backpack that could not hold everything carried,
+## and so does an item whose swap would leave the bag with too few slots.
 ## Returns whether the item was put on.
 func equip(id: String) -> bool:
 	if Items.is_book(id) or Items.is_crate(id) or Items.is_stone(id) or Items.is_material(id) or not can_use(Items.ALL[id].get("requires", {})):
@@ -1537,6 +1538,10 @@ func equip(id: String) -> bool:
 	if equipped.has(slot):
 		after.append(equipped[slot])
 	if slot == "rucksack" and Items.slots_used(after) > Items.bag_size(id):
+		return false
+	# Taking one ring off a bundle and putting the worn one back can need one
+	# more slot than before; with none free, nothing is swapped.
+	if slot != "rucksack" and Items.slots_used(after) > maxi(bag_size(), bag_used()):
 		return false
 	bag.erase(id)
 	if equipped.has(slot):

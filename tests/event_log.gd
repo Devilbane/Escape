@@ -99,12 +99,12 @@ func _check_layout() -> void:
 	var status: Control = game._level_label.get_parent()
 	check(not box.intersects(status.get_global_rect()), "the box keeps clear of the status block: %s vs %s" % [box, status.get_global_rect()])
 	check(not box.intersects(game._message_box.get_global_rect()), "the box keeps clear of the message line: %s vs %s" % [box, game._message_box.get_global_rect()])
-	# Life is a small bar with its numbers on it, under the hero.
+	# Life is a slim bar under the hero, its fill the share of life left.
 	var hero: Player = game.player
 	hero.hp = maxi(1, hero.max_hp / 2)
 	game._update_hud()
 	check(is_equal_approx(game._hp_bar.value, hero.hp) and is_equal_approx(game._hp_bar.max_value, hero.max_hp), "the life bar shows the hero's life")
-	check(game._hp_label.text == "%d / %d" % [hero.hp, hero.max_hp], "with the numbers on it: %s" % game._hp_label.text)
+	check(game.HP_BAR_SIZE.y <= 10.0, "the life bar is slim")
 	# Poison turns it green.
 	hero.ailments["gift"] = 5.0
 	game._update_hud()
@@ -140,6 +140,24 @@ func _check_layout() -> void:
 	hero.ailments.erase("gift")
 	hero.hardening = hardening_before
 	game._update_hud()
+	# Worn gear shows as a gold-framed repair icon under the hero level.
+	var shield_before: String = hero.equipped.get("schild", "")
+	hero.equipped["schild"] = "rundschild"
+	hero.wear["rundschild"] = 3
+	game._update_hud()
+	var notices := []
+	for icon in game._notice_row.get_children():
+		notices.append(icon.kind)
+	check(notices.has("repair"), "a worn shield shows a repair icon: %s" % [notices])
+	check(game._notice_row.get_parent() == game._xp_label.get_parent().get_parent(), "the notices sit in the status block under the hero level")
+	hero.wear.erase("rundschild")
+	if shield_before == "":
+		hero.equipped.erase("schild")
+	else:
+		hero.equipped["schild"] = shield_before
+	game._update_hud()
+	notices = game.hero_notices().map(func(n): return n[0])
+	check(not notices.has("repair"), "and it goes once the gear is mended: %s" % [notices])
 	check(game._hp_bar.visible, "the life bar shows while playing")
 	var feet: Vector2 = game.camera.unproject_position(hero.global_position)
 	var bar: Rect2 = game._hp_bar.get_global_rect()

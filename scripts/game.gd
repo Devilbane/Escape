@@ -214,7 +214,10 @@ var _hardening_label: Label
 ## The life bar under the hero: its size, its gap below the feet on screen,
 ## and its colours (brighter when low).
 const HP_BAR_SIZE := Vector2(110, 20)
-const HP_BAR_GAP := 10.0
+const HP_BAR_GAP := 6.0
+## How far the hero's arms and blade reach out from the feet, in metres
+## (the bar keeps below all of it, see _place_hp_bar).
+const HP_BAR_REACH := 1.5
 const HP_COLOR := Color(0.78, 0.2, 0.2)
 const HP_LOW_COLOR := Color(1.0, 0.35, 0.25)
 ## The run meter: seconds of running left, as a bar and in numbers.
@@ -3343,8 +3346,17 @@ func _place_hp_bar() -> void:
 			and camera != null and not camera.is_position_behind(player.global_position)
 	_hp_bar.visible = on_screen
 	if on_screen:
-		var feet := camera.unproject_position(player.global_position)
-		_hp_bar.position = (feet + Vector2(-HP_BAR_SIZE.x / 2.0, HP_BAR_GAP)).round()
+		var feet := player.global_position
+		# The bar starts below everything the hero can reach on screen: a
+		# ring of HP_BAR_REACH round the feet, on the ground and at blade
+		# height, whichever way the hero faces or swings.
+		var lowest := camera.unproject_position(feet).y
+		for i in 16:
+			var ring := Vector3(cos(TAU * i / 16.0), 0.0, sin(TAU * i / 16.0)) * HP_BAR_REACH
+			for height in [0.0, 1.2]:
+				lowest = maxf(lowest, camera.unproject_position(feet + ring + Vector3(0, height, 0)).y)
+		var x := camera.unproject_position(feet).x
+		_hp_bar.position = Vector2(x - HP_BAR_SIZE.x / 2.0, lowest + HP_BAR_GAP).round()
 
 
 ## News about a task (a new one, progress, done): a message and a word over

@@ -111,6 +111,12 @@ func _check_layout() -> void:
 	var feet: Vector2 = game.camera.unproject_position(hero.global_position)
 	var bar: Rect2 = game._hp_bar.get_global_rect()
 	check(bar.position.y > feet.y and absf(bar.get_center().x - feet.x) <= 1.0, "the life bar sits under the hero: %s, feet %s" % [bar, feet])
+	# Below the blade's reach, whichever way the hero turns.
+	for i in 8:
+		var dir := Vector3(cos(TAU * i / 8.0), 0.0, sin(TAU * i / 8.0))
+		for height in [0.0, 0.6, 1.2]:
+			var tip: Vector2 = game.camera.unproject_position(hero.global_position + dir * game.HP_BAR_REACH + Vector3(0, height, 0))
+			check(tip.y < bar.position.y, "the blade at %s does not touch the bar" % dir)
 	check(bar.size.is_equal_approx(game.HP_BAR_SIZE), "the life bar keeps its size: %s" % bar.size)
 	for line in elog._lines.get_children():
 		check((line as RichTextLabel).get_theme_font_size("normal_font_size") == EventLog.FONT_SIZE, "small type")

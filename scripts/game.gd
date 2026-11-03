@@ -2419,8 +2419,8 @@ func quit_game() -> void:
 	tween.tween_callback(func(): _show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies")))
 
 
-## Name, level, gold, slot and time of a saved game (by default this hero's),
-## or nothing when there is none.
+## Name, hero level, map level, gold, slot and time of a saved game (by
+## default this hero's), or nothing when there is none.
 func save_info(path := "") -> Dictionary:
 	if path == "":
 		path = save_path()
@@ -2431,8 +2431,19 @@ func save_info(path := "") -> Dictionary:
 		return {}
 	# Games saved before there were several have no time of their own.
 	var time := float(data.get("saved_at", FileAccess.get_modified_time(path)))
-	return {"path": path, "slot": slot_of(path), "name": str(data.get("name", Lang.t("Namenlos"))), "level": int(data.level) + 1, "coins": int(data.coins),
+	var hero := str(data.get("name", Lang.t("Namenlos")))
+	return {"path": path, "slot": slot_of(path), "name": hero, "hero_level": saved_hero_level(data, hero), "level": int(data.level) + 1, "coins": int(data.coins),
 			"escaped": bool(data.get("escaped", false)), "home": bool(data.get("claimed", false)), "time": time}
+
+
+## The hero level of a saved game. Games saved before the save kept the
+## experience ("xp") take it from the hero's training (see Training.load_level),
+## where it has always been kept by name; a hero with neither is on level 1.
+static func saved_hero_level(data: Dictionary, hero: String) -> int:
+	var xp = data.get("xp")
+	if xp == null:
+		xp = Training.load_level(hero).get("xp", 0)
+	return HeroLevel.level_for(int(xp))
 
 
 ## Every saved game there is, the one saved last first.
@@ -2447,14 +2458,16 @@ func save_list() -> Array:
 	return saves
 
 
-## Where a saved game's hero is, in one sentence: "Ada auf Ebene 3 mit 40
-## Gold.", at home, or on the graveyard.
+## Who a saved game's hero is and where, in one sentence: "Ada, Heldenstufe 7,
+## auf Ebene 3 mit 40 Gold.", at home, or on the graveyard. The hero level
+## sits beside the name, as it belongs to the hero, not to the place.
 static func save_summary(info: Dictionary) -> String:
+	var who := Lang.t("%s, Heldenstufe %d,") % [info.name, int(info.get("hero_level", 1))]
 	if info.home:
-		return Lang.t("%s zu Hause mit %d Gold.") % [info.name, info.coins]
+		return Lang.t("%s zu Hause mit %d Gold.") % [who, info.coins]
 	if info.escaped:
-		return Lang.t("%s auf dem Friedhof mit %d Gold.") % [info.name, info.coins]
-	return Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins]
+		return Lang.t("%s auf dem Friedhof mit %d Gold.") % [who, info.coins]
+	return Lang.t("%s auf Ebene %d mit %d Gold.") % [who, info.level, info.coins]
 
 
 ## Whether the hero of saved game a has come further than the one of b: their
@@ -2723,7 +2736,7 @@ func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	journal.catch_up()
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,

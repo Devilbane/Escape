@@ -399,6 +399,11 @@ const ATTRIBUTE_GROWTH := {
 const SKILL_EFFECTS := {
 	"erkunden": "Je Stufe: +3 % Geheimräume, +3 % Fallen, +4 % Fackeln, +8 % Inschriften. Wächst mit jeder ganz erkundeten Karte.",
 }
+## The entry for the hit and block chances beside the wheel (see
+## Menus._build_character): against a person of the hero's own level.
+const ODDS := "odds"
+
+
 ## Why a skill is dimmed: the gear it needs.
 const GEAR_HINTS := {
 	"klingen": "Gedimmt: braucht eine Klinge in der Hand.",
@@ -412,6 +417,8 @@ const GEAR_HINTS := {
 ## (in another colour) for how a roll works or why a skill is dimmed. With no
 ## entry, how a roll on a skill works.
 func details(id: String) -> Dictionary:
+	if id == ODDS:
+		return odds_details()
 	if Training.ATTRIBUTES.has(id):
 		return _attribute_details(id)
 	if Training.SKILLS.has(id):
@@ -508,3 +515,37 @@ func _dimmed_reason(id: String) -> String:
 		if Training.skill_level(player.xp.get(basic, 0.0), basic) < int(needs[basic]):
 			return Lang.t("Gedimmt: braucht erst %s %d.") % [Lang.t(Training.SKILLS[basic].name), int(needs[basic])]
 	return Lang.t(GEAR_HINTS.get(id, "Gedimmt: braucht passende Ausrüstung"))
+
+
+## The hero's odds against a person of the hero's own level (see
+## Enemy.reference_foe and Player.odds_against).
+func odds() -> Dictionary:
+	var foe := Enemy.reference_foe(player.hero_level())
+	var o := player.odds_against(foe)
+	o.foe = foe
+	return o
+
+
+static func percent(chance: float) -> String:
+	return "%d %%" % roundi(chance * 100.0)
+
+
+## The details card for the hit and block chances: what the reference foe
+## has, and how each chance is made up.
+func odds_details() -> Dictionary:
+	var o := odds()
+	var foe: Dictionary = o.foe
+	var lines := [
+		Lang.t("Halsabschneider, Stufe %d: %d Leben, %d Schaden je Hieb.") % [foe.level, foe.hp, foe.damage],
+		Lang.t("Treffer: %s, in Reichweite immer.") % percent(o.hit),
+		Lang.t("Wuchttreffer (+1): %s, Probe auf %s.") % [percent(o.heavy), Lang.t(Training.SKILLS[o.weapon].name)],
+		(Lang.t("Block: %s mit deinem Schild.") % percent(o.block)) if player.equipped.has("schild")
+				else Lang.t("Block: 0 %, du trägst keinen Schild."),
+		Lang.t("Ausweichen: %s der übrigen Hiebe.") % percent(o.dodge),
+	]
+	return {
+		"title": Lang.t("Treffer und Block"),
+		"lines": lines,
+		"note": (Lang.t("Er trifft dich bei %s seiner Hiebe nicht. Du fällst ihn mit einem Hieb.") % percent(o.unharmed)) if o.blows <= 1
+				else Lang.t("Er trifft dich bei %s seiner Hiebe nicht. Du fällst ihn in höchstens %d Hieben.") % [percent(o.unharmed), o.blows],
+	}

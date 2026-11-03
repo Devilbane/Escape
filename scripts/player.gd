@@ -1084,6 +1084,30 @@ func dodge_chance() -> float:
 	return clampf(DODGE_PER_DEXTERITY * dexterity_points(), 0.0, DODGE_MAX)
 
 
+## The hero's odds against a foe's blows and hide, as the fight rolls them,
+## with the gear and attributes of now. `foe` has "hp", "damage" and "armor"
+## (see Enemy.reference_foe). A blow in reach always lands: there is no roll to
+## hit, only one for a heavy hit (+1 damage) on the weapon's skill. A foe's
+## blow is first blocked by the shield (block_chance), else maybe dodged
+## (dodge_chance). Chances are 0..1.
+func odds_against(foe: Dictionary) -> Dictionary:
+	var weapon := weapon_skill()
+	var block := clampf(block_chance, 0.0, 1.0)
+	var dodge := dodge_chance()
+	var blow := soak(power, int(foe.armor))
+	return {
+		"hit": 1.0,
+		"heavy": clampf(skill_chance(weapon) / 100.0, 0.0, 1.0),
+		"weapon": weapon,
+		"block": block,
+		"dodge": dodge,
+		"unharmed": block + (1.0 - block) * dodge,
+		"blow": blow,
+		"blows": ceili(float(foe.hp) / maxi(1, blow)),
+		"taken": soak(int(foe.damage), hardening),
+	}
+
+
 ## Points of Intelligenz above the start.
 func intelligence_points() -> int:
 	return attribute("intelligenz") - Training.ATTRIBUTES.intelligenz.start

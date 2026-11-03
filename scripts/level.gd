@@ -1108,7 +1108,7 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"k":
 			var trunk_model := _place("trunk_large_A", pos, _random_quarter_turn())
 			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
-			var trunk := _add_interactable("Truhe", pos, pos + Vector3(0, 2.4, 0), c)
+			var trunk := _add_interactable("Truhe", pos, pos + Vector3(0, 2.4, 0), c, not _in_secret_room(c))
 			trunk.lid = trunk_model.find_child("Lid", true, false)
 			# All the way up, as the trunk is modelled, so it shows it is empty.
 			trunk.lid_open = CHEST_SHUT
@@ -1297,7 +1297,7 @@ func _build_chest(c: Vector2i) -> void:
 		rot = PI
 	var chest := _place("chest_gold", pos, rot)
 	_add_solid(pos, Vector3(2.0, 1.5, 2.0))
-	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c)
+	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c, false)
 	obj.lid = chest.find_child("chest_gold_lid", true, false)
 	if _in_secret_room(c):
 		obj.loot = _secret_loot(c, 1.0)
@@ -1307,9 +1307,9 @@ func _build_chest(c: Vector2i) -> void:
 	if _behind_gate(c):
 		# The reward of a block-pushing puzzle: as rich as a rare secret room.
 		var rare: Dictionary = TIERS["selten"]
-		obj.loot = {"gold": int(rare.gold), "item": Items.random_item(loot_rng, int(rare.min_price), "", HeroLevel.place_level(self) + 1)}
+		obj.loot = {"gold": int(rare.gold), "item": loot_item(loot_rng, int(rare.min_price), HeroLevel.place_level(self) + 1)}
 		return
-	obj.loot = {"gold": 5, "item": Items.random_item(loot_rng, 0, "", HeroLevel.place_level(self))}
+	obj.loot = {"gold": 5, "item": loot_item(loot_rng, 0, HeroLevel.place_level(self))}
 
 
 ## The tiles reachable from the start without passing an iron gate (|).
@@ -1346,7 +1346,7 @@ func _secret_loot(c: Vector2i, share: float) -> Dictionary:
 	loot_rng.seed = hash("%s:secret:%d:%d" % [level_name, c.x, c.y])
 	var loot := {"gold": int(round(tier.gold * share * loot_rng.randf_range(0.8, 1.2)))}
 	if share >= 1.0 or tier.min_price >= 34:
-		loot.item = Items.random_item(loot_rng, tier.min_price, "", HeroLevel.place_level(self) + 1)
+		loot.item = loot_item(loot_rng, tier.min_price, HeroLevel.place_level(self) + 1)
 	return loot
 
 
@@ -3208,12 +3208,40 @@ func _check_doors() -> void:
 
 # --- Searching --------------------------------------------------------------
 
-func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector2i) -> Dictionary:
+## Gear finer than common already lying in this level's containers, counted
+## by id (see loot_item).
+var _rare_loot := {}
+
+
+## A random piece of gear for a container on this level. Common things may
+## turn up again and again, but anything finer (uncommon and up, books too)
+## only once a level, so a secret room never holds the same book twice.
+func loot_item(rng: RandomNumberGenerator, min_price: int, area: int) -> String:
+	var id := Items.random_item(rng, min_price, "", area, _rare_loot)
+	if not Items.is_common(id):
+		_rare_loot[id] = int(_rare_loot.get(id, 0)) + 1
+	return id
+
+
+## Empties a container's loot before new loot is put in, so the gear it held
+## is free to turn up elsewhere on the level.
+func clear_loot(obj: Dictionary) -> void:
+	var id: String = obj.loot.get("item", "")
+	if _rare_loot.has(id):
+		_rare_loot[id] -= 1
+		if _rare_loot[id] <= 0:
+			_rare_loot.erase(id)
+	obj.loot = {}
+
+
+## Something to search. With `roll_loot` false it starts empty, for a container
+## that gets loot of its own right after.
+func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector2i, roll_loot := true) -> Dictionary:
 	var loot_rng := RandomNumberGenerator.new()
 	loot_rng.seed = hash("%s:%d:%d:%d" % [level_name, c.x, c.y, interactables.size()])
 	var roll := loot_rng.randf()
 	var loot := {}
-	if roll < 0.3:
+	if roll < 0.3 or not roll_loot:
 		loot = {}
 	elif roll < 0.62:
 		loot = {"gold": loot_rng.randi_range(1, 3)}
@@ -3222,7 +3250,7 @@ func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector
 	elif roll < 0.87:
 		loot = {"potion": 1}
 	else:
-		loot = {"item": Items.random_item(loot_rng, 0, "", HeroLevel.place_level(self))}
+		loot = {"item": loot_item(loot_rng, 0, HeroLevel.place_level(self))}
 	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null,
 			"id": "%s:%d,%d" % [label, c.x, c.y]}
 	interactables.append(obj)

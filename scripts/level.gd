@@ -471,7 +471,8 @@ func build() -> void:
 	_build_wall_collision()
 	_setup_astar()
 	for c in _heavy_starts:
-		add_stone(StoneBlock.cell_for(cell_to_world(c), true), true, 0, true)
+		var heavy := add_stone(StoneBlock.cell_for(cell_to_world(c), true), true, 0, true)
+		heavy.home = heavy.global_position
 	refresh_stone_paths()
 	var floor_shape := CollisionShape3D.new()
 	floor_shape.shape = WorldBoundaryShape3D.new()
@@ -2242,7 +2243,7 @@ func stone_spot_ahead(hero: Node3D, ahead: Vector3) -> Dictionary:
 ## when it is too far from the hero or there is no room.
 func stone_drop_spot(stone: StoneBlock, point: Vector3, x_wise: bool, hero: Node3D) -> Dictionary:
 	if stone.heavy:
-		return _slide_spot(stone, point, hero)
+		return _heavy_spot(stone, point, x_wise, hero)
 	var first := StoneBlock.cell_for(point, x_wise)
 	var spot := StoneBlock.spot_of(first, x_wise, 0)
 	var on_layer := stone_layer_for(first, x_wise, stone)
@@ -2337,39 +2338,65 @@ func stone_surface(point: Vector3) -> float:
 	return stone_column(StoneBlock.grid_cell(point)) * StoneBlock.HEIGHT
 
 
-## A heavy block only slides: along the floor, in a straight line along x or
-## z from where it lies, as far towards `point` as it goes before it hits
-## something (and within the hero's reach). Never turned, never stacked.
-func _slide_spot(stone: StoneBlock, point: Vector3, hero: Node3D) -> Dictionary:
-	var result := {"cell": stone.cell, "along_x": stone.along_x, "layer": stone.layer, "ok": false}
+## How far a heavy block may move from where it lay when the level began:
+## five tiles, measured from middle to middle. Within that it goes anywhere
+## on the floor, so it can be neither lost nor wedged out of a puzzle's reach.
+const HEAVY_RANGE := 5.0 * TILE
+
+
+## Whether a heavy block lying on these cells would still be within
+## HEAVY_RANGE of where it started. Always true for the hero's own blocks.
+func heavy_in_range(stone: StoneBlock, first: Vector2i, x_wise: bool) -> bool:
+	return not stone.heavy or _flat_distance(StoneBlock.spot_of(first, x_wise, 0), stone.home) <= HEAVY_RANGE
+
+
+## A heavy block moves freely: anywhere on the floor towards `point`, lying
+## along x or z, within the hero's reach and within HEAVY_RANGE of where it
+## started. It is never stacked and never passes through a wall or a shut
+## gate (the way from its tile to the new one must be open floor). A point
+## beyond the range is pulled back onto its edge, and "edge" says so.
+func _heavy_spot(stone: StoneBlock, point: Vector3, x_wise: bool, hero: Node3D) -> Dictionary:
+	var result := {"cell": stone.cell, "along_x": stone.along_x, "layer": stone.layer, "ok": false, "edge": false}
 	if stone.layer != 0:
 		return result
-	var aim := StoneBlock.cell_for(point, stone.along_x) - stone.cell
-	if aim == Vector2i.ZERO:
+	var off := Vector3(point.x - stone.home.x, 0.0, point.z - stone.home.z)
+	if off.length() > HEAVY_RANGE:
+		# A little inside the edge, so the snap to the grid stays within it.
+		point = stone.home + off.normalized() * (HEAVY_RANGE - StoneBlock.CELL)
+		result.edge = true
+	var first := StoneBlock.cell_for(point, x_wise)
+	result.cell = first
+	result.along_x = x_wise
+	result.layer = 0
+	if first == stone.cell and x_wise == stone.along_x:
 		return result
-	var dir := Vector2i(signi(aim.x), 0) if absi(aim.x) >= absi(aim.y) else Vector2i(0, signi(aim.y))
-	var reached := stone.cell
-	for i in maxi(absi(aim.x), absi(aim.y)):
-		var next := reached + dir
-		if _flat_distance(StoneBlock.spot_of(next, stone.along_x, 0), hero.global_position) > STONE_DRAG_RANGE:
-			break
-		if not _slides_onto(stone, next):
-			break
-		reached = next
-	result.cell = reached
-	result.ok = reached != stone.cell
+	var spot := StoneBlock.spot_of(first, x_wise, 0)
+	if _flat_distance(spot, hero.global_position) > STONE_DRAG_RANGE or not heavy_in_range(stone, first, x_wise):
+		return result
+	result.ok = _slides_onto(stone, first, x_wise) and _floor_way(stone.global_position, spot)
 	return result
 
 
-func _slides_onto(stone: StoneBlock, first: Vector2i) -> bool:
-	return stone_layer_for(first, stone.along_x, stone) == 0 and stone_fits(first, stone.along_x, 0, stone)
+func _slides_onto(stone: StoneBlock, first: Vector2i, x_wise: bool) -> bool:
+	return stone_layer_for(first, x_wise, stone) == 0 and stone_fits(first, x_wise, 0, stone)
+
+
+## Whether open floor leads from one spot to another: no wall, pillar or
+## shut gate between their tiles.
+func _floor_way(from: Vector3, to: Vector3) -> bool:
+	var a := world_to_cell(from)
+	var b := world_to_cell(to)
+	if a == b:
+		return true
+	var way := grid_path(a, b)
+	return not way.is_empty() and way[-1] == b
 
 
 ## Pushes a heavy block one grid cell on along `dir`. False when something
-## is in the way or something lies on it.
+## is in the way, something lies on it or it would leave HEAVY_RANGE.
 func push_stone(stone: StoneBlock, dir: Vector2i) -> bool:
 	var next := stone.cell + dir
-	if stone.layer != 0 or not stone_free(stone) or not _slides_onto(stone, next):
+	if stone.layer != 0 or not stone_free(stone) or not heavy_in_range(stone, next, stone.along_x) or not _slides_onto(stone, next, stone.along_x):
 		return false
 	move_stone(stone, next, stone.along_x, 0)
 	return true

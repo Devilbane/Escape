@@ -20,7 +20,7 @@ The game can be played in English or German; you choose the language on the titl
 | Set a stone block down | B | “Stone” button, “Set down” in the inventory |
 | Move a stone block | | grab it with the left mouse button, drag, let go (right click while dragging turns it) |
 | Pick up a stone block | E | click it briefly, “Stone” button |
-| Push a heavy stone block | E | click it briefly; drag it and it slides straight on |
+| Push a heavy stone block | E | click it briefly; drag it onto any free spot nearby (right click turns it), up to 5 tiles from where it lay |
 | Inventory | I | bag icon on the right edge |
 | Compendium | H | book icon on the right edge |
 | Character page | P | figure icon on the right edge |
@@ -117,8 +117,10 @@ You step over a wall one block high.
 
 Deep in the **Labyrinth** (level 3) lies a **stone chamber** with three old, heavy, mossy blocks, three
 **pressure plates** and an iron gate in front of a treasure chest. Heavy blocks do not fit in your bag and
-cannot be stacked: E (or a click) pushes one a little away from you, and dragged with the mouse it slides
-straight on until it hits something. Pillars stand in the way. Once a block lies on every plate, the
+cannot be stacked: E (or a click) pushes one a little away from you, and with the mouse you drag it onto
+any free spot of floor nearby, turned either way with a right click. No block moves more than 5 tiles from
+where it lay when you entered (a pale ring on the floor shows the limit while you drag), never through a
+wall or the gate, so none can be lost. Pillars stand in the way. Once a block lies on every plate, the
 gate sinks into the floor for good, and the chest behind it is as rich as a rare secret room.
 Your own blocks from the stonemason press the plates too.
 

@@ -297,13 +297,16 @@ var _mouse_held_time := 0.0
 ## land, which way it lies there, where it lands, and how long it is held.
 var _drag_stone: StoneBlock = null
 var _drag_ghost: MeshInstance3D = null
+## While a heavy block is dragged: a faint ring on the floor around where it
+## started, as far as it may go (Level.HEAVY_RANGE).
+var _drag_ring: MeshInstance3D = null
 var _drag_along_x := true
 var _drag_spot := {}
 var _drag_time := 0.0
 var _drag_press := Vector2.ZERO
 ## A press shorter than this, without moving the block, is a click on it.
 const DRAG_CLICK := 0.25
-const HEAVY_LEARN := "Alte, schwere Steinblöcke liegen in manchen Kammern des Verlieses. In die Tasche passen sie nicht, aber sie rutschen über den Boden: E (oder ein Klick) schiebt einen ein Stück von dir weg, mit der Maus ziehst du ihn geradeaus, bis er anstößt. Liegt auf jeder Druckplatte einer Kammer ein Block, öffnet sich ihr Eisengitter."
+const HEAVY_LEARN := "Alte, schwere Steinblöcke liegen in manchen Kammern des Verlieses. In die Tasche passen sie nicht, aber sie rutschen über den Boden: E (oder ein Klick) schiebt einen ein Stück von dir weg, mit der Maus ziehst du ihn auf ein freies Feld in der Nähe, und ein Rechtsklick dabei dreht ihn. Weiter als 5 Felder von seinem alten Platz rückt kein Block; der helle Kreis beim Ziehen zeigt, wie weit. Liegt auf jeder Druckplatte einer Kammer ein Block, öffnet sich ihr Eisengitter."
 const STONE_LEARN := "Steinblöcke kauft man beim Steinmetz im Dorf. Abstellen mit B (oder „Abstellen“ im Inventar): der Block legt sich quer vor dich, auf den Boden oder auf andere Blöcke. Mit der linken Maustaste greifst du einen Block, ziehst ihn auf ein anderes Feld in der Nähe und lässt los; ein Rechtsklick dabei dreht ihn. E nimmt einen Block wieder in die Tasche. Auf einen Block steigst du einfach hinauf, auf zwei mit einem Sprung. Skelette und Räuber können nicht klettern: Eine Mauer aus Blöcken hält sie fern, und sie müssen außen herum."
 
 
@@ -1408,6 +1411,8 @@ func push_stone(stone: StoneBlock) -> String:
 	player.face(away)
 	player.play_once("Interact", 0.3)
 	learn(HEAVY_LEARN)
+	if not level.heavy_in_range(stone, stone.cell + dir, stone.along_x):
+		return Lang.t("Weiter als 5 Felder von seinem Platz rückt der Block nicht.")
 	if not level.push_stone(stone, dir):
 		return Lang.t("Der Block rührt sich nicht: Etwas ist im Weg.")
 	Sfx.play(self, "rumble", -14.0, stone.global_position)
@@ -1471,7 +1476,29 @@ func _grab_stone(screen_pos: Vector2) -> bool:
 	_drag_ghost.material_override = mat
 	_drag_ghost.visible = false
 	level.add_child(_drag_ghost)
+	if stone.heavy:
+		_drag_ring = _range_ring(stone.home, Level.HEAVY_RANGE)
+		level.add_child(_drag_ring)
 	return true
+
+
+## A thin, pale ring lying on the floor around `middle`.
+func _range_ring(middle: Vector3, radius: float) -> MeshInstance3D:
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = radius - 0.07
+	torus.outer_radius = radius + 0.07
+	torus.rings = 96
+	ring.mesh = torus
+	ring.scale = Vector3(1.0, 0.3, 1.0)
+	ring.position = Vector3(middle.x, 0.04, middle.z)
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(1.0, 0.92, 0.65, 0.55)
+	ring.material_override = mat
+	return ring
 
 
 ## Where the dragged block would land: the stone or floor under the mouse.
@@ -1526,6 +1553,8 @@ func _drop_stone() -> void:
 		var why := take_stone(stone)
 		if why != "":
 			show_message(why, 1.6)
+	elif spot.get("edge", false):
+		show_message(Lang.t("Weiter als 5 Felder von seinem Platz rückt der Block nicht."), 1.6)
 	elif not spot.is_empty() and not (spot.cell == stone.cell and spot.along_x == stone.along_x and spot.layer == stone.layer):
 		show_message(Lang.t("Dort ist kein Platz für den Steinblock.") if level._flat_distance(StoneBlock.spot_of(spot.cell, spot.along_x, 0), player.global_position) <= Level.STONE_DRAG_RANGE else Lang.t("So weit reicht dein Wurf nicht."), 1.4)
 
@@ -1536,6 +1565,9 @@ func _end_drag() -> void:
 	if _drag_ghost != null and is_instance_valid(_drag_ghost):
 		_drag_ghost.queue_free()
 	_drag_ghost = null
+	if _drag_ring != null and is_instance_valid(_drag_ring):
+		_drag_ring.queue_free()
+	_drag_ring = null
 
 
 ## The "Crate" button: picks up a crate in reach, else sets one down.
@@ -4361,10 +4393,16 @@ func _process(delta: float) -> void:
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = _hint("crate", Lang.t("E oder Klick: Kiste aufheben"))
 	elif _prompt.text == "" and _drag_stone != null:
-		_prompt.text = _hint("drag_heavy", Lang.t("Loslassen: Block rutscht dorthin")) if _drag_stone.heavy else _hint("drag", Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen"))
+		if _drag_stone.heavy and _drag_spot.get("edge", false):
+			# Not a tutorial hint but the reason the block stops: always shown.
+			_prompt.text = Lang.t("Weiter geht es nicht: höchstens 5 Felder von seinem Platz")
+		elif _drag_stone.heavy:
+			_prompt.text = _hint("drag_heavy", Lang.t("Loslassen: Block dorthin   Rechtsklick: drehen"))
+		else:
+			_prompt.text = _hint("drag", Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen"))
 	elif _prompt.text == "" and level.stone_in_reach(player) != null:
 		if level.stone_in_reach(player).heavy:
-			_prompt.text = _hint("stone_heavy", Lang.t("E oder Klick: Block schieben   Ziehen: rutschen lassen"))
+			_prompt.text = _hint("stone_heavy", Lang.t("E oder Klick: Block schieben   Ziehen: verschieben"))
 		else:
 			_prompt.text = _hint("stone", Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben"))
 	# By the water the line can be cast, also next to the fountain.

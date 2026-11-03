@@ -374,7 +374,7 @@ func _finish(id: String, v: Villager) -> void:
 	v.say(said, game.player.global_position, 7.0 if said != Lang.t(q.done) else 5.5)
 	game.coins += int(q.get("gold", 0))
 	if q.has("reward"):
-		if _bag_free() > 0:
+		if game.player.bag_fits(q.reward):
 			game.player.bag.append(q.reward)
 		else:
 			# No room (a delivery fills the bag again): it waits in the chest.

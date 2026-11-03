@@ -3174,7 +3174,7 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 	# Cut stone blocks go into the storage chest, as many as it still holds.
 	var stones := 0
 	for i in int(result.get("stones", 0)):
-		if storage.size() >= HomeUpgrades.storage_size(home_upgrades):
+		if not HomeUpgrades.storage_fits(home_upgrades, storage, Menus.STONE):
 			break
 		storage.append(Menus.STONE)
 		stones += 1

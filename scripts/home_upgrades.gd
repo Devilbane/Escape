@@ -87,6 +87,19 @@ static func storage_size(built: Dictionary) -> int:
 	return STORAGE_SIZE + (SECOND_CHEST if has(built, "truhe") else 0)
 
 
+## How many of the storage chest's slots these items take: torches bundle
+## there just as in the bag (see Items.stacks), so the chest stays a plain
+## list of ids and older saves with loose torches bundle on their own.
+static func storage_used(storage: Array) -> int:
+	return Items.slots_used(storage)
+
+
+## Whether one more of `id` fits in the storage chest: on a bundle of it
+## with room, or in a free slot.
+static func storage_fits(built: Dictionary, storage: Array, id: String) -> bool:
+	return Items.fits(storage, storage_size(built), id)
+
+
 ## Stone blocks the hero can pay with: in the bag and in the storage chest.
 static func stones_owned(bag: Array, storage: Array) -> int:
 	return bag.count(STONE) + storage.count(STONE)

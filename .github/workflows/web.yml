@@ -64,6 +64,11 @@ jobs:
           timeout 60 ~/godot/godot --headless -s tests/lang_keys.gd | tee lang.log
           grep -q PASS lang.log
 
+      - name: Cobwebs (spread out, off grates, doors and corridor floors)
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/cobwebs.gd | tee cobwebs.log
+          grep -q PASS cobwebs.log
+
       - name: Play through all levels automatically
         run: |
           timeout 600 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log

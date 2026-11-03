@@ -289,8 +289,13 @@ var wanderer_stock: Array[String] = []
 var wanderer_night := -1
 var _title_buttons: Control
 var _name_note: Label
-## The hero's name, asked for when a new game starts; it goes into the ranking.
-var hero_name := ""
+## The hero's name, asked for when a new game starts; it goes into the ranking
+## and stands over the hero's head like the townsfolk's names (Player.set_display_name).
+var hero_name := "":
+	set(value):
+		hero_name = value
+		if player:
+			player.set_display_name(value)
 ## The map being tested from the workshop ("" while playing the game).
 var playtest_file := ""
 var _name_box: Control
@@ -442,6 +447,7 @@ func _ready() -> void:
 	menus.setup(self, _hud)
 	player = Player.new()
 	add_child(player)
+	player.set_display_name(hero_name)
 	# The hand torch speaks through the message line (see HandTorch).
 	player.torch.notice.connect(func(text: String, duration: float):
 		if state == State.PLAYING:

@@ -50,6 +50,11 @@ const MAX_HP := 5
 ## Level.push_apart).
 var radius := 0.55
 var tall := 2.4
+## The name over the head (see _build_name_tag), and its height above the feet:
+## just clear of a helmet or a tall haircut seen from the tilted camera.
+var name_tag: Label3D
+const NAME_TAG_HEIGHT := 3.0
+var _display_name := ""
 ## A hero who loses more than this share of their life to hits taken while
 ## running, within KNOCKDOWN_WINDOW seconds, stumbles to the ground and gets
 ## up again. Hits taken while walking, standing or sneaking never count.
@@ -265,6 +270,38 @@ func _ready() -> void:
 	# A hand torch for the pitch-black places (see HandTorch).
 	torch = HandTorch.new(self)
 	add_child(torch)
+	_build_name_tag()
+
+
+## The hero's name over the head, in the same look as the name tags of the
+## townsfolk and dungeon folk (Villager, DungeonNpc): Cinzel Bold 30, warm
+## white with a dark outline, always facing the camera. The life bar sits under
+## the feet (Game._place_hp_bar), so the two never meet.
+func _build_name_tag() -> void:
+	name_tag = Label3D.new()
+	name_tag.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	name_tag.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	name_tag.font_size = 30
+	name_tag.pixel_size = 0.011
+	name_tag.outline_size = 10
+	name_tag.outline_modulate = Color(0.05, 0.03, 0.06, 0.85)
+	name_tag.modulate = Color(1, 0.95, 0.85, 1)
+	name_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	name_tag.no_depth_test = true
+	name_tag.render_priority = 18
+	name_tag.outline_render_priority = 17
+	name_tag.position.y = NAME_TAG_HEIGHT
+	name_tag.text = _display_name
+	name_tag.visible = _display_name != ""
+	add_child(name_tag)
+
+
+## Sets the name shown over the hero's head ("" hides it).
+func set_display_name(text: String) -> void:
+	_display_name = text
+	if name_tag:
+		name_tag.text = text
+		name_tag.visible = text != ""
 
 
 ## Called while a fight goes on; sneaking stays barred until it has been

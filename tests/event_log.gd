@@ -131,7 +131,9 @@ func _check_layout() -> void:
 	var kinds := []
 	for icon in game._status_row.get_children():
 		kinds.append(icon.kind)
-	check(kinds == ["gift", "hardening"], "poison and hardening show as icons, in order: %s" % [kinds])
+	check(kinds.has("gift") and kinds.has("hardening") and kinds.find("gift") < kinds.find("hardening"), "poison and hardening show as icons, in order: %s" % [kinds])
+	check(kinds == game.hero_conditions().map(func(c): return c[0]), "one icon per condition: %s" % [kinds])
+	check(not kinds.has("slow") or Items.load_factor(hero.load_weight()) < 1.0 - Items.MAX_WEIGHT_SLOW * 0.5 + 0.001, "no slow icon for a light load: %s" % [kinds])
 	var row: Rect2 = game._status_row.get_global_rect()
 	var bar_now: Rect2 = game._hp_bar.get_global_rect()
 	check(row.position.y >= bar_now.end.y and is_equal_approx(row.position.x, bar_now.position.x), "the icons sit under the bar, from its left edge: %s vs %s" % [row, bar_now])

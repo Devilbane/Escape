@@ -3343,9 +3343,12 @@ func hero_conditions() -> Array:
 			out.append([kind, ""])
 	if player.power > 1:
 		out.append(["power", str(player.power)])
-	if player.speed > Player.SPEED + 0.01:
+	# Faster from gifts, level or Tempo; slower only from a heavy load (the
+	# curse that slows has its own icon, and a little gear is normal).
+	var unslowed := player.base_speed / (Player.CURSE_SLOW if player.ailments.has("fluch") else 1.0)
+	if unslowed > Player.SPEED + 0.01:
 		out.append(["fast", ""])
-	elif player.speed < Player.SPEED - 0.01:
+	elif Items.load_factor(player.load_weight()) <= 1.0 - Items.MAX_WEIGHT_SLOW * 0.5:
 		out.append(["slow", ""])
 	if player.hardening > 0:
 		out.append(["hardening", str(player.hardening)])

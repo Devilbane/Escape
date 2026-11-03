@@ -897,8 +897,9 @@ func dexterity_points() -> int:
 
 
 ## Spikes shoot up under the hero: a deft hero may jump aside in time.
-## Either way the trap teaches a little.
-func spring_trap() -> void:
+## Either way the trap teaches a little. Hidden spike traps (see Traps) hurt
+## more in deeper places.
+func spring_trap(damage := 1) -> void:
 	if dead or _invulnerable > 0.0 or frozen:
 		return
 	if randf() < DODGE_PER_DEXTERITY * dexterity_points():
@@ -907,17 +908,18 @@ func spring_trap() -> void:
 		Effects.head_text(level, self, 2.2, Lang.t("Ausgewichen!"), Color(0.72, 0.9, 0.78))
 		return
 	train("geschick", 2.0)
-	take_damage(1, global_position - facing(), null, false)
+	take_damage(damage, global_position - facing(), null, false)
 
 
 ## Intuition sharpens the hero's gut feeling: +2 percent per point above 10
-## to notice a lever to a secret room.
+## to notice a lever to a secret room or a hidden trap (see Traps).
 func intuition_bonus() -> int:
 	return SECRET_PER_INTUITION * (attribute("intuition") - Training.ATTRIBUTES.intuition.start)
 
 
 ## What the Erkunden skill adds to a chance, in percent: `per_level` for each
-## level (one of Training.EXPLORE_SECRET, EXPLORE_TORCH, EXPLORE_WRITING).
+## level (one of Training.EXPLORE_SECRET, EXPLORE_TORCH, EXPLORE_WRITING,
+## EXPLORE_TRAP).
 func explore_bonus(per_level: int) -> int:
 	return per_level * skill("erkunden")
 

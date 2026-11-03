@@ -399,7 +399,7 @@ const ATTRIBUTE_GROWTH := {
 }
 ## What a skill does, for skills whose use is not plain from their name.
 const SKILL_EFFECTS := {
-	"erkunden": "Je Stufe: +3 % Geheimräume, +4 % Fackeln beim Durchsuchen, +8 % Inschriften. Wächst mit jeder ganz erkundeten Karte.",
+	"erkunden": "Je Stufe: +3 % Geheimräume, +5 % Fallen, +4 % Fackeln, +8 % Inschriften. Wächst mit jeder ganz erkundeten Karte.",
 }
 ## Why a skill is dimmed: the gear it needs.
 const GEAR_HINTS := {

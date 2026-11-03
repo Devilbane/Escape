@@ -69,6 +69,11 @@ jobs:
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/cobwebs.gd | tee cobwebs.log
           grep -q PASS cobwebs.log
 
+      - name: Level warm-up (no hitch when a level starts)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/level_warmup.gd | tee warmup.log
+          grep -q PASS warmup.log
+
       - name: Play through all levels automatically
         run: |
           timeout 600 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log

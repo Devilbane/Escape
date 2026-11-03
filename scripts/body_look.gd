@@ -83,6 +83,7 @@ static func apply(model: Node3D, sex: String) -> void:
 		if part == "Rogue_Head":
 			# The hair is cut from whichever head is worn (see HairLook).
 			mi.set_meta("hair_source", mi.mesh)
+	model.set_meta("sex", sex) # HairLook ties her hair in a knot.
 	_face(model, sex == "female")
 
 

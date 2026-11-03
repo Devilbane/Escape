@@ -1344,6 +1344,8 @@ func _show_headgear() -> void:
 	source.free()
 	hat.name = "Headgear"
 	slot.add_child(hat)
+	if item.has("brim"):
+		GearLook.narrow_brim(hat, item.brim)
 	GearLook.dress(hat, item.get("material", ""))
 
 

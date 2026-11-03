@@ -17,6 +17,12 @@ const DEFAULT_METAL := {"metal": 0.45, "chain": 0.4}
 
 ## Meshes that already carry their rest positions, by source mesh.
 static var _baked := {}
+## Hats with a narrowed brim, by source mesh and how much brim is kept.
+static var _narrowed := {}
+## How wide a hat's crown is where the brim begins, and how high the brim
+## reaches (in the hat's own units, as the models of assets/characters have them).
+const CROWN_RADIUS := 0.55
+const BRIM_TOP := 0.2
 
 
 ## Puts the material look on every mesh of a node (a held weapon, a hat).
@@ -26,6 +32,44 @@ static func dress(node: Node, material: String) -> void:
 		meshes.append(node)
 	for mesh: MeshInstance3D in meshes:
 		apply(mesh, material)
+
+
+## Pulls a hat's brim in towards the crown, so it no longer hides the face:
+## `keep` is how much of the brim's width is left (0.4 keeps 40 %). The crown
+## and the tip stay as they are. Used on the hero's wizard hat ("brim" in
+## Items.ALL); villagers wearing the same hat keep the wide brim.
+static func narrow_brim(node: Node, keep: float) -> void:
+	var meshes := node.find_children("*", "MeshInstance3D", true, false)
+	if node is MeshInstance3D:
+		meshes.append(node)
+	for mesh: MeshInstance3D in meshes:
+		if mesh.mesh == null:
+			continue
+		var key := [mesh.mesh, keep]
+		if not _narrowed.has(key):
+			_narrowed[key] = _narrowed_mesh(mesh.mesh, keep)
+		mesh.mesh = _narrowed[key]
+
+
+static func _narrowed_mesh(mesh: Mesh, keep: float) -> Mesh:
+	var narrow := ArrayMesh.new()
+	for i in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(i)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for v in verts.size():
+			var p := verts[v]
+			var flat := Vector2(p.x, p.z)
+			var r := flat.length()
+			if p.y < BRIM_TOP and r > CROWN_RADIUS:
+				flat *= (CROWN_RADIUS + (r - CROWN_RADIUS) * keep) / r
+				verts[v] = Vector3(flat.x, p.y, flat.y)
+		arrays[Mesh.ARRAY_VERTEX] = verts
+		var flags := 0
+		if mesh is ArrayMesh and (mesh as ArrayMesh).surface_get_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS:
+			flags |= Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
+		narrow.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, flags)
+		narrow.surface_set_material(i, mesh.surface_get_material(i))
+	return narrow
 
 
 ## Gives one mesh the look of a material; with a tint it is also recoloured

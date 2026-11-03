@@ -27,6 +27,7 @@ const WEBBED := "bxtkoCBL"
 const ACTIVE_RANGE := 30.0
 ## Critters scurry off when the hero comes this close.
 const FLEE_RANGE := 3.2
+const BONE_SHADER := preload("res://shaders/bone.gdshader")
 
 var level: Level
 var _rng := RandomNumberGenerator.new()
@@ -302,8 +303,14 @@ func _build_clutter() -> void:
 			pebbles(self, _edge_spot(c), _rng)
 
 
-static func _bone_material() -> StandardMaterial3D:
-	return _material("bone", Color(0.74, 0.69, 0.57), 0.75)
+## Old, dirty bone: yellowed, stained, with earth on the side it lies on
+## (shaders/bone.gdshader). One material, shared by every bone and skull.
+static func _bone_material() -> Material:
+	if not _materials.has("bone"):
+		var m := ShaderMaterial.new()
+		m.shader = BONE_SHADER
+		_materials["bone"] = m
+	return _materials["bone"]
 
 
 static func bone(length: float) -> Node3D:

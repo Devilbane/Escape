@@ -254,6 +254,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/damage_numbers.gd | tee damage_numbers.log
           grep -q PASS damage_numbers.log
 
+      - name: Messages never cover each other test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/message_overlap.gd | tee message_overlap.log
+          grep -q PASS message_overlap.log
+
       - name: Hero and skeletons cannot stack test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/no_stacking.gd | tee stacking.log

@@ -182,7 +182,7 @@ func _check_aged(lvl: Outdoor) -> void:
 	var ivy: MultiMeshInstance3D = lvl.get_node_or_null("Ivy")
 	check(ivy != null and ivy.multimesh.instance_count > 1000, "ivy climbs the walls")
 	if ivy:
-		check(ivy.multimesh.instance_count < 30000, "the ivy stays cheap (%d leaves)" % ivy.multimesh.instance_count)
+		check(ivy.multimesh.instance_count < 60000, "the ivy and shrubs stay cheap (%d leaves)" % ivy.multimesh.instance_count)
 		var near_door := 0
 		for i in ivy.multimesh.instance_count:
 			var at := ivy.multimesh.get_instance_transform(i).origin

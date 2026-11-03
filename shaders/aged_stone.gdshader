@@ -4,7 +4,7 @@ shader_type spatial;
 // weathered by years of rain and sun (see AgedStone). It adds:
 // - stone blocks from the kit's trim sheet, laid out in world space so a
 //   block is the same size on every building, with a little relief,
-// - grime: dark, earthy stains thickest at the foot of the walls,
+// - grime: light, earthy stains at the very foot of the walls,
 // - streaks: dark runs of rain water down from the eaves and windowsills,
 // - moss: green patches low on the walls and on what faces up,
 // - faded colours: paint and roof tiles bleached and greyed by the weather.
@@ -109,18 +109,18 @@ void fragment() {
 	vec3 p = wpos * 0.5;
 	float cloud = fbm(p * 1.3);
 	// Grime, thickest at the foot of the walls.
-	float low = 1.0 - smoothstep(0.0, 1.4 + cloud, h);
-	col *= mix(1.0, mix(0.8, 1.0, cloud), age);
-	col = mix(col, col * vec3(0.5, 0.46, 0.4), low * 0.6 * age);
+	float low = 1.0 - smoothstep(0.0, 0.9 + cloud * 0.6, h);
+	col *= mix(1.0, mix(0.9, 1.0, cloud), age);
+	col = mix(col, col * vec3(0.62, 0.58, 0.5), low * 0.3 * age);
 	// Rain streaks running down the walls.
 	float streak = vnoise(vec3(along.x * 2.2, along.y * 0.18, 1.7)) * vnoise(vec3(along.x * 5.1, along.y * 0.4, 4.2));
 	streak = smoothstep(0.32, 0.6, streak) * (1.0 - abs(n.y)) * band(5.0, px);
-	col *= 1.0 - streak * 0.35 * age;
+	col *= 1.0 - streak * 0.16 * age;
 	// Moss: in patches low on the walls, and on what faces up (roofs, ledges).
 	float moss_place = max(low * 0.8, smoothstep(0.5, 0.95, n.y) * 0.5);
-	float moss = smoothstep(0.6, 0.78, fbm(p * 2.4 + 5.0) + moss_place * 0.25) * smoothstep(0.05, 0.4, moss_place);
+	float moss = smoothstep(0.66, 0.82, fbm(p * 2.4 + 5.0) + moss_place * 0.25) * smoothstep(0.05, 0.4, moss_place);
 	vec3 moss_col = mix(vec3(0.05, 0.08, 0.02), vec3(0.11, 0.14, 0.04), vnoise(wpos * 4.0));
-	col = mix(col, moss_col, moss * 0.75 * age * (1.0 - window));
+	col = mix(col, moss_col, moss * 0.5 * age * (1.0 - window));
 
 	ALBEDO = col;
 	ROUGHNESS = mix(0.95, 0.82, moss);

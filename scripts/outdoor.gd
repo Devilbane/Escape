@@ -275,14 +275,22 @@ var birds: VillageBirds
 var _entrances: Array = []
 var _ground_img: Image
 var _ground_tex: ImageTexture
+var _village_near := {}
 ## What the dressing found for each building (see _dress_building), kept
 ## for the session.
 static var _dressed := {}
 ## Nests at most, and how likely one of Weavers' Lane's town houses gets ivy
 ## and a nest (the other buildings all have ivy, and most of them a nest).
 const MAX_NESTS := 10
-const LANE_IVY := 0.35
 const LANE_NEST := 0.15
+## Ivy patches on each town house of Weavers' Lane (narrow, many of them).
+const LANE_PATCHES := 2
+## Dirt paths this close to a village building (tiles) are cobbled like the
+## square, and shrubs grow on the grass beside the buildings.
+const VILLAGE_REACH := 6
+const VILLAGE_BLOCKS := "hjnmuskowb^["
+const BUSH_CHANCE := 0.8
+const BUSH_OPEN := 0.3
 ## The paved ways to the doors: how wide (in quarter tiles, the ground
 ## mask's pixels) and how far they look for the square or a path (tiles).
 const WAY_WIDTH := 1.4
@@ -378,6 +386,7 @@ func build() -> void:
 			_build_outdoor_cell(c, cell_char(c))
 	_build_blocks()
 	_pave_entrances()
+	_plant_bushes()
 	if not _ivy.xforms.is_empty():
 		add_child(AgedStone.ivy_node(_ivy))
 	if not nests.is_empty():
@@ -1114,8 +1123,7 @@ func _build_terrace(block: Rect2i) -> void:
 		var door := at + Vector3(float(house.get_meta("door_x")), 0, 0).rotated(Vector3.UP, rot) + out * deep * TILE * 0.5
 		doors["^" + str(number)] = door + out * 2.0
 		_entrances.append({"door": door, "out": out})
-		if hash("%s|lane|%d" % [level_name, number]) % 1000 < LANE_IVY * 1000.0:
-			_dress_building(house, at, [door], LANE_NEST)
+		_dress_building(house, at, [door], LANE_NEST, LANE_PATCHES)
 		if interiors.has("^"):
 			stations.append({"kind": "eingang", "building": "^", "house": number, "reach": 1.6,
 					"name": Lang.t("das Haus Nr. %d") % number,
@@ -1458,7 +1466,7 @@ func _age_kit_building(node: Node) -> void:
 ## time; and what was found is kept, so when the hero steps out of the crypt
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
-func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75) -> void:
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES) -> void:
 	var key := "%s|%s|%s" % [level_name, middle, _bounds_in(node)]
 	if not _dressed.has(key):
 		var rng := RandomNumberGenerator.new()
@@ -1471,7 +1479,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		var ground := node.global_position.y
 		var doors_at := door_spots.map(func(d: Vector3): return d + offset)
 		var leaves := {"xforms": [], "colours": []}
-		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves)
+		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches)
 		for i in leaves.xforms.size():
 			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
 		var spot := Vector3.INF
@@ -1520,7 +1528,69 @@ func _pave_entrances() -> void:
 			points.append(cell_to_world(c))
 		for i in points.size() - 1:
 			_pave_line(points[i], points[i + 1])
+	# The dirt paths in the village are cobbled too, joined tile to tile.
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if cell_char(c) != "," or not _in_village(c):
+				continue
+			_pave_line(cell_to_world(c), cell_to_world(c))
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1)]:
+				if ",:".contains(cell_char(c + d)) and (cell_char(c + d) == ":" or _in_village(c + d)):
+					_pave_line(cell_to_world(c), cell_to_world(c + d))
 	_ground_tex.update(_ground_img)
+
+
+## Whether a tile lies within the village: close to one of its buildings.
+func _in_village(c: Vector2i) -> bool:
+	if _village_near.is_empty():
+		for y in height:
+			for x in width:
+				if VILLAGE_BLOCKS.contains(cell_char(Vector2i(x, y))):
+					for dy in range(-VILLAGE_REACH, VILLAGE_REACH + 1):
+						for dx in range(-VILLAGE_REACH, VILLAGE_REACH + 1):
+							_village_near[Vector2i(x + dx, y + dy)] = true
+	return _village_near.has(c)
+
+
+## Shrubs on the grass beside the village buildings and between them, but
+## never in front of a door or on a paved way.
+func _plant_bushes() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level_name + "bueschen")
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if cell_char(c) != "." or rng.randf() > BUSH_CHANCE:
+				continue
+			# Beside a building: the side towards it.
+			var toward := Vector3.ZERO
+			for d: Vector2i in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+				if VILLAGE_BLOCKS.contains(cell_char(c + d)):
+					toward += Vector3(d.x, 0, d.y)
+			var count := rng.randi_range(1, 3)
+			if toward == Vector3.ZERO:
+				# Out on the grass between the buildings, now and then.
+				if not _in_village(c) or rng.randf() > BUSH_OPEN:
+					continue
+				toward = Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1))
+				count = 1
+			toward = toward.normalized()
+			var side := Vector3(-toward.z, 0, toward.x)
+			for k in count:
+				var at := cell_to_world(c) + toward * rng.randf_range(0.6, 1.3) + side * rng.randf_range(-1.6, 1.6)
+				if _paved_at(at) or _entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < 3.0):
+					continue
+				AgedStone.grow_bush(at, rng, _ivy)
+
+
+## Whether the ground at a spot is paved (the square or a paved way).
+func _paved_at(at: Vector3) -> bool:
+	var px := Vector2i(floori((at.x / TILE + 0.5) * 4.0), floori((at.z / TILE + 0.5) * 4.0))
+	if px.x < 0 or px.y < 0 or px.x >= _ground_img.get_width() or px.y >= _ground_img.get_height():
+		return false
+	var m := _ground_img.get_pixelv(px)
+	return minf(m.r, m.g) > 0.35
 
 
 ## The shortest way over open ground from a tile to the square or a path:

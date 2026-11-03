@@ -23,14 +23,14 @@ const KIT_TINT := Color(0.84, 0.81, 0.76)
 ## Ivy: how many patches a building gets at most, how high they climb
 ## (metres above the ground), how far from the door they keep, and the
 ## leaves' size.
-const IVY_PATCHES := 3
+const IVY_PATCHES := 4
 const IVY_HEIGHT := Vector2(3.0, 7.5)
-const IVY_DOOR_GAP := 4.0
+const IVY_DOOR_GAP := 1.9
 ## Leaves in one patch at most, so the whole village's ivy stays cheap.
-const PATCH_LEAVES := 260
+const PATCH_LEAVES := 280
 const LEAF_SIZE := Vector2(0.3, 0.46)
 ## The smallest wall (square metres) ivy grows on.
-const IVY_WALL := 1.2
+const IVY_WALL := 0.6
 ## Shades of the leaves: mostly dark green, now and then an autumn red.
 const LEAF_COLOURS := [Color(0.22, 0.36, 0.14), Color(0.17, 0.29, 0.11), Color(0.28, 0.42, 0.16),
 		Color(0.20, 0.33, 0.17), Color(0.36, 0.40, 0.14), Color(0.48, 0.22, 0.12)]
@@ -191,7 +191,8 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 	for attempt in patches * 6:
 		if grown >= patches:
 			break
-		# A wall, by its size.
+		# A wall, by its size; the first tries go to the walls that look
+		# south, the way the camera looks at the village.
 		var pick := rng.randf() * total
 		var wall: Dictionary = found[-1]
 		for w: Dictionary in found:
@@ -199,6 +200,9 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 			if pick <= 0.0:
 				wall = w
 				break
+		var facing := found.filter(func(w): return (w.n as Vector3).z > 0.4)
+		if grown == 0 and attempt < 6 and not facing.is_empty():
+			wall = facing[rng.randi() % facing.size()]
 		var root: Vector3 = _root_on(wall, ground, rng)
 		if root == Vector3.INF:
 			continue
@@ -292,6 +296,31 @@ static func _leaf(at: Vector3, n: Vector3, across: Vector3, rng: RandomNumberGen
 	leaves.xforms.append(Transform3D(b.scaled(Vector3(s, s, s)), at + n * rng.randf_range(0.04, 0.11)))
 	var c: Color = LEAF_COLOURS[rng.randi() % (LEAF_COLOURS.size() if rng.randf() < 0.12 else LEAF_COLOURS.size() - 1)]
 	leaves.colours.append(c * rng.randf_range(0.85, 1.15))
+
+
+## A round shrub of ivy-like leaves standing on the ground at `at`, now
+## and then in flower. Its leaves join the ivy's (one MultiMesh for both).
+static func grow_bush(at: Vector3, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
+	var radius := rng.randf_range(0.8, 1.5)
+	var tall := radius * rng.randf_range(0.7, 1.05)
+	var count := int(50 + radius * 80)
+	var flowers: Color = [Color(0.9, 0.5, 0.6), Color(0.95, 0.9, 0.85), Color(0.95, 0.8, 0.3), Color(0.7, 0.55, 0.9)][rng.randi() % 4]
+	var in_flower := rng.randf() < 0.35
+	for i in count:
+		# A spot on the dome, the leaf looking out from its middle.
+		var a := rng.randf() * TAU
+		var up := sqrt(rng.randf())
+		var out := Vector3(cos(a) * sqrt(1.0 - up * up), up, sin(a) * sqrt(1.0 - up * up)).normalized()
+		var p := at + Vector3(out.x * radius, out.y * tall + 0.05, out.z * radius) * rng.randf_range(0.55, 1.0)
+		var across := Vector3.UP.cross(out)
+		across = across.normalized() if across.length() > 0.01 else Vector3.RIGHT
+		var s := rng.randf_range(LEAF_SIZE.x, LEAF_SIZE.y) * 1.5
+		var b := Basis(across, out.cross(across), out).rotated(out, rng.randf_range(-PI, PI))
+		leaves.xforms.append(Transform3D(b.scaled(Vector3(s, s, s)), p))
+		var c: Color = LEAF_COLOURS[rng.randi() % (LEAF_COLOURS.size() - 1)] * rng.randf_range(0.8, 1.1)
+		if in_flower and out.y > 0.3 and rng.randf() < 0.18:
+			c = flowers * rng.randf_range(0.85, 1.05)
+		leaves.colours.append(c)
 
 
 ## All the leaves in one MultiMesh.

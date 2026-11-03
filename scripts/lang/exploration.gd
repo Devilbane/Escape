@@ -36,4 +36,6 @@ const EN := {
 	"WASSER": "WATER",
 	"EISEN": "IRON",
 	"FREIHEIT": "FREEDOM",
+	# The card that shows a writing (WritingCard).
+	"Inschrift": "Inscription",
 }

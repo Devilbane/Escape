@@ -296,7 +296,11 @@ const LEVER_STEPS := 10
 ## Writings on the walls: each level of the dungeon has one, chosen by its
 ## depth, on a plain wall somewhere. It stays hidden until the hero notices
 ## it while walking past in view (see _check_writing): one roll per visit,
-## WRITING_CHANCE % plus what the Erkunden skill adds. Each is the word
+## WRITING_CHANCE % plus what the Erkunden skill adds, from WRITING_RANGE;
+## a hero who walks right up to it (WRITING_SURE_RANGE) always notices it.
+## A noticed writing gets an amber frame, like a spotted trap, stays known
+## on later visits (in taken) and can be read again by running into the
+## wall (a "tafel" station). Each is the word
 ## carved into the stone and what it says (German, for Lang). The carved word
 ## is in the player's language too, so it reads as a hint: a Latin word such
 ## as CAVE ("beware") read as the English "cave" and meant nothing.
@@ -312,12 +316,18 @@ const WRITINGS := [
 	["EISEN", "In die Wand geritzt: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“"],
 	["FREIHEIT", "In die Wand geritzt: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“"],
 ]
-const WRITING_CHANCE := 25
+const WRITING_CHANCE := 50
 ## How close the hero must come to a writing to have a chance to notice it.
 const WRITING_RANGE := 8.0
+## Within this many metres, in view, the hero notices a writing for sure.
+const WRITING_SURE_RANGE := 5.0
+## The frame round a noticed writing: the same amber as a spotted trap's.
+const WRITING_FRAME_COLOR := Color(1.0, 0.62, 0.25)
+## Kept in taken once the hero has noticed this level's writing.
+const WRITING_KEY := "writing:found"
 ## This level's writing: {"cell", "label" (the carved word, hidden until
-## found), "text", "rolled", "found"}. Empty in the open air, in buildings
-## and at home.
+## found), "frame", "word", "text", "rolled", "found", "station"}. Empty in
+## the open air, in buildings and at home.
 var _writing := {}
 ## Seconds between pulling the lever and the stone starting to move.
 const SECRET_DELAY := 2.5
@@ -1484,7 +1494,47 @@ func _place_writing() -> void:
 	label.rotation.y = wall.rot
 	label.visible = false
 	add_child(label)
-	_writing = {"cell": wall.cell, "label": label, "text": entry[1], "rolled": false, "found": false}
+	var frame := _writing_frame(label)
+	# Run into the wall to read a noticed writing again.
+	var station := {"kind": "tafel", "cell": wall.cell + Vector2i(0, -1), "pos": wall.pos + facing * 0.5,
+			"used": false, "text": entry[1]}
+	_writing = {"cell": wall.cell, "label": label, "frame": frame, "word": entry[0], "text": entry[1],
+			"rolled": false, "found": false, "station": station}
+	if taken.has(WRITING_KEY):
+		# Noticed on an earlier visit: it shows at once, without news.
+		_writing.found = true
+		_writing.rolled = true
+		label.visible = true
+		frame.visible = true
+		stations.append(station)
+
+
+## An amber frame round a carved word, a little away from the stone, so a
+## noticed writing stands out as "something" from across the room.
+func _writing_frame(label: Label3D) -> Node3D:
+	var size := label.font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, label.font_size) * label.pixel_size
+	var w := size.x + 0.9
+	var h := size.y + 0.5
+	var frame := Node3D.new()
+	frame.position = label.position + Vector3(sin(label.rotation.y), 0, cos(label.rotation.y)) * -0.02
+	frame.rotation.y = label.rotation.y
+	frame.visible = false
+	var glow := StandardMaterial3D.new()
+	glow.albedo_color = WRITING_FRAME_COLOR
+	glow.emission_enabled = true
+	glow.emission = WRITING_FRAME_COLOR
+	glow.emission_energy_multiplier = 0.9
+	for bar in [[Vector3(0, h / 2, 0), Vector3(w + 0.12, 0.12, 0.04)], [Vector3(0, -h / 2, 0), Vector3(w + 0.12, 0.12, 0.04)],
+			[Vector3(w / 2, 0, 0), Vector3(0.12, h, 0.04)], [Vector3(-w / 2, 0, 0), Vector3(0.12, h, 0.04)]]:
+		var mesh := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = bar[1]
+		mesh.mesh = box
+		mesh.material_override = glow
+		mesh.position = bar[0]
+		frame.add_child(mesh)
+	add_child(frame)
+	return frame
 
 
 ## This level's writing (see _writing), for the tests.
@@ -1499,12 +1549,19 @@ func writing_chance() -> int:
 
 ## Rolls once per visit, the first time the hero comes near the writing in view.
 func _check_writing() -> void:
-	if _writing.is_empty() or _writing.rolled:
+	if _writing.is_empty() or _writing.found:
 		return
 	var spot := cell_to_world(_writing.cell)
-	if Vector2(player.global_position.x - spot.x, player.global_position.z - spot.z).length() > WRITING_RANGE:
+	var distance := Vector2(player.global_position.x - spot.x, player.global_position.z - spot.z).length()
+	if distance > WRITING_RANGE:
 		return
 	if not has_line_of_sight(player.global_position, spot):
+		return
+	# Right in front of it, nobody can miss it.
+	if distance <= WRITING_SURE_RANGE:
+		reveal_writing()
+		return
+	if _writing.rolled:
 		return
 	_writing.rolled = true
 	if randi_range(1, 100) <= writing_chance():
@@ -1524,6 +1581,13 @@ func reveal_writing() -> void:
 	var tween := create_tween()
 	tween.tween_property(label, "modulate:a", 1.0, 1.2)
 	tween.parallel().tween_property(label, "outline_modulate:a", 1.0, 1.2)
+	var frame: Node3D = _writing.frame
+	frame.visible = true
+	frame.scale = Vector3(1.25, 1.25, 1.0)
+	create_tween().tween_property(frame, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_BACK)
+	taken[WRITING_KEY] = true
+	if not stations.has(_writing.station):
+		stations.append(_writing.station)
 	Effects.float_text(self, label.global_position + Vector3(0, 0.8, 0), Lang.t("Eine Inschrift!"), Color(0.9, 0.86, 0.74))
 	Events.bus().writing_found.emit(_writing.text)
 

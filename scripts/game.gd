@@ -105,6 +105,8 @@ var quests := Quests.new(self)
 var journal := Journal.new(self)
 ## The first steps in the cell, one card at a time (see Tutorial).
 var tutorial := Tutorial.new(self)
+## The card that shows a wall writing the hero noticed (see WritingCard).
+var writing_card := WritingCard.new(self)
 ## How many mornings have dawned in the world above ground since the game
 ## began. The bounty board pins up fresh hunts each morning (see Bounties).
 ## The day turns at dawn, so the night after day d's evening, past midnight
@@ -228,6 +230,8 @@ var _message: Label
 ## Space kept free left and right of centred on-screen texts.
 const SCREEN_TEXT_MARGIN := 80
 const MESSAGE_FONT_SIZE := 24
+## How far above the bottom of the screen the messages sit (their lower edge).
+const MESSAGE_BOTTOM := 175.0
 var _fade: ColorRect
 var _title: Control
 var _title_text: Label
@@ -357,6 +361,7 @@ func _ready() -> void:
 	_setup_world()
 	_setup_hud()
 	tutorial.setup(_hud)
+	writing_card.setup(_hud)
 	var comic := Comic.new()
 	comic.camera = camera
 	add_child(comic)
@@ -891,8 +896,8 @@ func _setup_hud() -> void:
 	_message.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_message.offset_left = SCREEN_TEXT_MARGIN
 	_message.offset_right = -SCREEN_TEXT_MARGIN
-	_message.offset_top = -175
-	_message.offset_bottom = -175
+	_message.offset_top = -MESSAGE_BOTTOM
+	_message.offset_bottom = -MESSAGE_BOTTOM
 	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_message.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -1729,6 +1734,7 @@ func load_level(index: int, restock := true) -> void:
 		level.queue_free()
 	level_index = index
 	tutorial.restart()
+	writing_card.hide_now()
 	level = Outdoor.new() if Level.is_outdoor_file(level_files[index]) else Level.new()
 	level.load_from_file(level_files[index])
 	level.depth = index
@@ -3253,8 +3259,9 @@ func map_explored(file: String) -> void:
 	show_message(Lang.t("Ganz erkundet: %s\nDein Blick für Verborgenes wird schärfer (Erkunden).") % journal.level_title(file), 4.0)
 
 
-## The hero noticed a writing on a wall (see Level.reveal_writing): it goes
-## into the compendium and the journal; a new one trains Erkunden a little.
+## The hero noticed a writing on a wall (see Level.reveal_writing) or read
+## one again: it pops up on a card (see WritingCard) and goes into the
+## compendium and the journal; a new one trains Erkunden a little.
 func writing_found(text: String) -> void:
 	if not lore.has(text):
 		player.train("erkunden", Training.EXPLORE_WRITING_FOUND)
@@ -3268,7 +3275,10 @@ func writing_found(text: String) -> void:
 	learn(text)
 	learn(EXPLORE_LEARN)
 	Sfx.play(self, "secret", -8.0)
-	show_message(Lang.t(text), 6.0)
+	if WritingCard.word_of(text) != "":
+		writing_card.show_writing(text)
+	else:
+		show_message(Lang.t(text), 6.0)
 
 
 ## The hero spotted a hidden trap (see Traps): it trains Erkunden and earns
@@ -3362,8 +3372,17 @@ func learn(entry: String) -> void:
 		player.train("intelligenz", 5.0)
 
 
+## Puts the message line at its place: above a wall writing's card while
+## that shows (see WritingCard), else at MESSAGE_BOTTOM.
+func place_message() -> void:
+	var lift := maxf(MESSAGE_BOTTOM, writing_card.clearance())
+	_message.offset_top = -lift
+	_message.offset_bottom = -lift
+
+
 func show_message(text: String, duration := 2.2) -> void:
 	_message.text = text
+	place_message()
 	# Very long messages get a smaller font so they stay at a few lines.
 	var size := MESSAGE_FONT_SIZE
 	if text.length() > 160:

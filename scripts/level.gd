@@ -455,6 +455,8 @@ func build() -> void:
 		_decorate_lair()
 	if not outdoor and (building == "" or lair):
 		add_child(DungeonLife.new(self))
+	if not grates.is_empty():
+		add_child(GratePits.new(self))
 	if not _vault_slots.is_empty():
 		refresh_vaults()
 	traps = Traps.make(self)

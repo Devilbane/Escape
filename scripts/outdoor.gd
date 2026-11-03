@@ -835,7 +835,8 @@ func _build_campfire(pos: Vector3) -> void:
 	_add_solid(pos, Vector3(2.2, 1.5, 2.2))
 
 
-## A bench on the square, its seat turned to the fountain.
+## A bench on the square, its seat turned to the fountain. The hero can sit
+## on it (see Seats).
 func _build_bench(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	var to := Vector3.ZERO
@@ -844,8 +845,12 @@ func _build_bench(c: Vector2i) -> void:
 			if cell_char(Vector2i(x, y)) == "F":
 				to = cell_to_world(Vector2i(x, y)) - pos
 	var rot := atan2(to.x, to.z) if to.length() > 0.1 else 0.0
-	_put("bench", pos, rot, 1.3)
-	_add_solid(pos, Vector3(2.4, 1, 2.4))
+	_put("bench", pos, rot, Seats.BENCH_SCALE)
+	# Blocked where the bench is drawn: a long, narrow box turned with it, so
+	# the hero can walk right up to the seat (see Seats).
+	var box := _add_box(_walls_body, pos + Vector3(0, 0.5, 0), Vector3(Seats.BENCH_SIZE.x, 1.0, Seats.BENCH_SIZE.z))
+	box.rotation.y = rot
+	stations.append(Seats.station(c, pos, rot))
 
 
 ## A post with a lantern hanging from its arm, glowing warm.

@@ -107,8 +107,6 @@ const WALL_DECOR := [
 ## The bright cartoon stone of the pieces the kit has no match for is darkened
 ## to sit among the kit's stone.
 const STONE_TINT := Color(0.6, 0.56, 0.52)
-## Colour of the iron spikes in spike traps.
-const SPIKE_IRON := Color(0.5, 0.5, 0.53)
 ## The grey of the kit's floor tiles, for spike and grate tiles.
 const FLOOR_GREY := Color(0.74, 0.73, 0.71)
 ## Cartoon furniture that gets the worn, dusty look (see WornLook).
@@ -630,8 +628,11 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 	if piece in TINTED_PIECES:
 		for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
 			if mi.name == "spikes":
-				# Dull, hammered iron spikes (they move, so the grain rides along).
-				GearLook.apply(mi, "metal", SPIKE_IRON, true, 0.35)
+				# Old spikes: rust, dirt and dried blood (they move, so the
+				# grain rides along with them).
+				# Only what rises above the floor counts, not the foot hidden in it.
+				var box := mi.get_aabb()
+				mi.material_override = Traps.grim_spikes(maxf(box.position.y, 0.0), box.end.y)
 			elif mi.name == "wall_doorway_door":
 				# An old wooden door with rusty fittings.
 				WornLook.wear_mesh(mi, _wear(), false, STONE_TINT)

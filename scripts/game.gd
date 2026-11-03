@@ -3283,11 +3283,11 @@ func writing_found(text: String) -> void:
 
 ## The hero spotted a hidden trap (see Traps): it trains Erkunden and earns
 ## a little experience, and the compendium explains traps.
-func trap_spotted(kind: String, place_level: int) -> void:
+func trap_spotted(text: String, place_level: int) -> void:
 	player.train("erkunden", Training.EXPLORE_TRAP_FOUND)
 	learn(Traps.LEARN)
 	earn_xp(HeroLevel.time_xp(HeroLevel.TRAP_MINUTES, place_level, player.hero_level()))
-	show_message(Lang.t(Traps.KINDS[kind].spotted), 3.5)
+	show_message(text, 3.5)
 
 
 ## A teleporter trap flung the hero across the level (see Traps).

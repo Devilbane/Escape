@@ -132,13 +132,68 @@ func _run() -> void:
 	check(p.intuition_bonus() > 0 and deep.spot_chance() > with_skill, "Intuition helps to spot traps: %d" % deep.spot_chance())
 	p.xp.clear()
 
+	# Every trap has its own modifiers: how well hidden and how vicious.
+	var hides := {}
+	var dangers := {}
+	for file in Traps.PLACES:
+		for trap in _enter(file).traps:
+			hides[trap.hide] = true
+			dangers[trap.danger] = true
+	check(hides.size() == Traps.HIDES.size(), "traps come poorly hidden, normal and well hidden: %s" % [hides.keys()])
+	check(dangers.size() == Traps.DANGERS.size(), "traps come weak, normal and vicious: %s" % [dangers.keys()])
+	var mods := _enter("07_die_bibliothek.txt")
+	var probe: Dictionary = mods.traps[0].duplicate()
+	probe.hide = "gut"
+	var hidden_well := mods.spot_chance(probe)
+	probe.hide = "plump"
+	check(mods.spot_chance(probe) - hidden_well == Traps.HIDES.plump.spot - Traps.HIDES.gut.spot, "a well hidden trap is harder to spot: %d vs %d" % [hidden_well, mods.spot_chance(probe)])
+	probe.kind = "stacheln"
+	probe.danger = "schwach"
+	var weak := mods.spike_damage(probe)
+	probe.danger = "tueckisch"
+	check(mods.spike_damage(probe) > weak and weak >= 1, "a vicious trap hurts more: %d > %d" % [mods.spike_damage(probe), weak])
+	check(mods.teleport_damage(probe) > 0, "a vicious teleporter tears at the hero")
+	probe.danger = "normal"
+	check(mods.teleport_damage(probe) == 0, "a plain teleporter does not")
+	probe.hide = "gut"
+	probe.danger = "tueckisch"
+	check(mods.describe(probe) == "gut versteckte, tückische Stachelfalle", "the trap in words: %s" % mods.describe(probe))
+	Lang.language = "en"
+	Lang._apply()
+	check(mods.describe(probe) == "well-hidden, vicious spike trap", "and in English: %s" % mods.describe(probe))
+	Lang.language = "de"
+	Lang._apply()
+
+	# How clearly a spotted trap shows follows the roll.
+	check(is_equal_approx(Traps.visibility_for(0), Traps.VIS_MIN), "a roll that only just made it leaves a faint mark")
+	check(Traps.visibility_for(10) < Traps.visibility_for(30), "a better roll shows more clearly")
+	check(is_equal_approx(Traps.visibility_for(100), Traps.VIS_FULL), "a great roll shows it plainly")
+	var faint: Dictionary = mods.traps[1]
+	mods.spot_trap(faint, 0)
+	check(faint.known and faint.mark.visible and faint.seen < Traps.CLEAR, "a narrow roll: a faint mark")
+	check(game._message.text == Lang.t("Irgendetwas stimmt mit dem Boden dort nicht. Eine Falle? Vorsicht!"), "and the hero only senses a trap: %s" % game._message.text)
+	await _wait(90)
+	var bar: MeshInstance3D = faint.mark.get_child(0)
+	var bar_alpha: float = (bar.material_override as StandardMaterial3D).albedo_color.a
+	check(bar_alpha < 0.2, "the frame of a faint mark is barely there: %f" % bar_alpha)
+	check(game.level.taken[Traps.key(faint.cell)] < Traps.CLEAR, "how clearly it shows is kept")
+	game.load_level(_index_of("07_die_bibliothek.txt"), false)
+	check(is_equal_approx(game.level.traps.trap_at(faint.cell).seen, faint.seen), "a faint trap stays faint on the next visit")
+	mods = game.level.traps
+	var plain_old := {}
+	plain_old[Traps.key(mods.traps[2].cell)] = true
+	game.looted["07_die_bibliothek.txt"] = plain_old
+	game.load_level(_index_of("07_die_bibliothek.txt"), false)
+	check(is_equal_approx(game.level.traps.traps[2].seen, Traps.VIS_FULL), "a trap known from an older save shows plainly")
+
 	# A spotted trap shows, trains Erkunden, earns experience and is kept.
 	var t := _enter("07_die_bibliothek.txt")
 	var trap: Dictionary = t.traps[0]
 	var cell: Vector2i = trap.cell
 	var xp_before: int = p.hero_xp
-	t.spot_trap(trap)
-	check(trap.known and trap.mark.visible, "a spotted trap shows")
+	t.spot_trap(trap, 100)
+	check(trap.known and trap.mark.visible and trap.seen >= Traps.CLEAR, "a clearly spotted trap shows")
+	check(game._message.text == Lang.t("Du entdeckst eine %s! Geh außen herum oder spring darüber.") % t.describe(trap), "and the message names it: %s" % game._message.text)
 	check(p.xp.get("erkunden", 0.0) >= Training.EXPLORE_TRAP_FOUND, "spotting a trap trains Erkunden")
 	check(p.hero_xp > xp_before, "spotting a trap earns experience: %d -> %d" % [xp_before, p.hero_xp])
 	check(game.lore.has(Traps.LEARN), "the compendium explains traps")
@@ -156,7 +211,7 @@ func _run() -> void:
 	_put(near)
 	await _wait(3)
 	check(trap.rolled, "coming close rolls to spot the trap")
-	check(trap.known, "a sharp eye spots it: %d %%" % t.spot_chance())
+	check(trap.known, "a sharp eye spots it: %d %%" % t.spot_chance(trap))
 	p.xp.clear()
 	p.refresh_stats()
 
@@ -170,7 +225,7 @@ func _run() -> void:
 		_put(trap.cell)
 		await _wait(3)
 		check(p.hp < p.max_hp, "the spikes hurt: %d / %d" % [p.hp, p.max_hp])
-		check(trap.known and trap.mark.visible, "a sprung trap shows")
+		check(trap.known and trap.mark.visible and is_equal_approx(trap.seen, Traps.VIS_FULL), "a sprung trap shows plainly")
 		check(game.lore.has(Traps.LEARN), "stepping on a trap explains traps")
 		# A jump over a trap is safe.
 		await _wait(120)

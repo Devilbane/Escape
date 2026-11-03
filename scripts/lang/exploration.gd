@@ -5,8 +5,8 @@ extends RefCounted
 
 const EN := {
 	"Erkunden": "Exploring",
-	"Je Stufe: +3 % Geheimräume, +5 % Fallen, +4 % Fackeln, +8 % Inschriften. Wächst mit jeder ganz erkundeten Karte.":
-		"Per level: +3 % secret rooms, +5 % traps, +4 % torches, +8 % wall writings. Grows with every fully explored map.",
+	"Je Stufe: +3 % Geheimräume, +3 % Fallen, +4 % Fackeln, +8 % Inschriften. Wächst mit jeder ganz erkundeten Karte.":
+		"Per level: +3 % secret rooms, +3 % traps, +4 % torches, +8 % wall writings. Grows with every fully explored map.",
 	"Erkunden ist eine Fertigkeit ohne Ausrüstung. Sie wächst, wenn du eine Karte ganz erkundest (95 % ihres Bodens gesehen, siehe Karte), und ein wenig mit jedem Geheimraum und jeder Inschrift. Jede Stufe gibt +3 %, einen Geheimraum zu entdecken, +4 %, beim Durchsuchen eine Fackel zu finden, und +8 %, eine Inschrift an der Wand zu bemerken.":
 		"Exploring is a skill that needs no gear. It grows when you explore a map fully (95 % of its ground seen, see the map), and a little with every secret room and wall writing. Each level gives +3 % to discover a secret room, +4 % to find a torch when searching, and +8 % to notice a writing on a wall.",
 	"Ganz erkundet: %s\nDein Blick für Verborgenes wird schärfer (Erkunden).": "Fully explored: %s\nYour eye for hidden things grows sharper (Exploring).",

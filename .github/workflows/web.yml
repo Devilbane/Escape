@@ -74,6 +74,11 @@ jobs:
           timeout 600 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log
           grep -q PASS test.log
 
+      - name: Inventory keeps its size (picking, tabs, equipping; both languages)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/inventory_fixed_size.gd | tee inventory.log
+          grep -q PASS inventory.log
+
       - name: Event bus test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log

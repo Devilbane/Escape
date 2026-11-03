@@ -87,6 +87,10 @@ func _run(lang: String) -> void:
 	await _wait()
 	var start := _rect()
 	await _shot("inventory_none_" + lang)
+	# A name too long for two lines ends in "…"; its cell does not grow a third line.
+	for b in menus._box.find_children("*", "Button", true, false):
+		if b.custom_minimum_size == Menus.INVENTORY_CELL:
+			check(b.size == Menus.INVENTORY_CELL, "the cell %s keeps its size (%s): %s" % [b.text.replace("\n", " "), lang, b.size])
 	for i in p.bag.size():
 		menus._select(i)
 		await _wait()

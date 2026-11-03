@@ -42,5 +42,9 @@ https://opengameart.org/content/rpg-sound-pack
 https://opengameart.org/content/80-cc0-rpg-sfx
 License: CC0 (public domain).
 
+The eerie dungeon sounds (dungeon_drip_*, dungeon_moan_*, dungeon_chains_*,
+dungeon_whisper_*, dungeon_creak_*, dungeon_wind_*, dungeon_skitter_*) are made
+from scratch by tools/make_dungeon_sounds.py.
+
 All other sounds, including the comic word noises (word_*), are made by
 tools/make_sounds.py.

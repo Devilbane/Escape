@@ -171,6 +171,27 @@ static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null, pi
 	p.play()
 
 
+## Plays a sound once from a spot in the world, so it is heard from that
+## side (left or right of the screen). It does not fade with the distance on
+## its own: the caller picks the volume. Lives under `parent`, so it falls
+## silent when that (say, the level) goes away.
+static func play_3d(parent: Node, sound: String, volume_db: float, at: Vector3, pitch := 1.0) -> AudioStreamPlayer3D:
+	if parent == null or not parent.is_inside_tree():
+		return null
+	var p := AudioStreamPlayer3D.new()
+	p.stream = _stream(sound)
+	p.bus = BUS
+	p.volume_db = volume_db
+	p.pitch_scale = pitch
+	p.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
+	p.panning_strength = 1.5
+	parent.add_child(p)
+	p.global_position = at
+	p.finished.connect(p.queue_free)
+	p.play()
+	return p
+
+
 ## Like play, but only after `seconds` (say, once a chest lid is up).
 static func play_after(tree_node: Node, seconds: float, sound: String, volume_db := 0.0, at = null) -> void:
 	if seconds <= 0.0:

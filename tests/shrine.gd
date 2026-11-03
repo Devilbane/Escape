@@ -1,6 +1,7 @@
 extends SceneTree
 ## Headless test for the dungeon shrines: the panel offers +4 life, +1 power
-## and +3 % speed, and each gift adds exactly that to the hero.
+## and +3 % speed, and each gift adds exactly that to the hero. Taking a gift
+## hands control straight back: the hero can act and walk the very next frame.
 ## Run with: godot --headless --fixed-fps 60 -s tests/shrine.gd
 
 var failures := 0
@@ -67,6 +68,23 @@ func _test() -> void:
 	check(p.max_hp == max_before + 4, "+4 life raises the most life by 4 (%d -> %d)" % [max_before, p.max_hp])
 	check(p.hp == p.max_hp, "+4 life fills the new life too (%d / %d)" % [p.hp, p.max_hp])
 	check(game._shrine.is_empty() and not game._shrine_panel.visible, "the panel closes after a gift")
+
+	# No wait after the gift: the hero answers at once, and a step ends the
+	# little thank-you animation instead of waiting for it.
+	check(p.can_act(), "the hero can act right after taking a gift")
+	check(p.flourishing(), "the gift still shows its thank-you animation")
+	# A click on the floor next to the hero, as the player would make it.
+	var start := p.global_position
+	for step in [Vector3(3, 0, 0), Vector3(-3, 0, 0), Vector3(0, 0, 3), Vector3(0, 0, -3)]:
+		p.walk_to(start + step)
+		if not p.path.is_empty():
+			break
+	check(not p.path.is_empty(), "there is floor to walk to next to the shrine")
+	for i in 3:
+		await physics_frame
+	check(p.global_position.distance_to(start) > 0.01, "the hero walks the frame after a gift (moved %.3f)" % p.global_position.distance_to(start))
+	check(not p.flourishing(), "walking ends the thank-you animation")
+	check(p._current_anim != "PickUp", "the walk shows instead of the thank-you animation (%s)" % p._current_anim)
 
 	# Power: one more.
 	shrine.used = false

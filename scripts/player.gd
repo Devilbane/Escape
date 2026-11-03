@@ -185,6 +185,8 @@ const SNEAK_LANDINGS := [0.29, 0.79]
 var _last_phase := -1.0
 var _current_anim := ""
 var _busy := 0.0
+## Seconds a flourish (see play_flourish) still shows while the hero stands.
+var _flourish := 0.0
 var _invulnerable := 0.0
 var _attack_cooldown := 0.0
 var _knockback := Vector3.ZERO
@@ -547,6 +549,21 @@ func play_once(anim_name: String, duration: float) -> void:
 	_busy = duration
 
 
+## Plays a one-off animation that only shows off, such as taking a shrine's
+## gift or drinking from a fountain. Unlike play_once it never holds the hero:
+## any step, jump, click or attack ends it at once, so the player is never
+## left waiting for the animation after a reward.
+func play_flourish(anim_name: String, duration: float) -> void:
+	_current_anim = ""
+	play(anim_name, 0.1)
+	_flourish = duration
+
+
+## True while a flourish is still showing (see play_flourish).
+func flourishing() -> bool:
+	return _flourish > 0.0
+
+
 func face(direction: Vector3) -> void:
 	_model.rotation.y = atan2(direction.x, direction.z)
 
@@ -569,6 +586,7 @@ func revive(at: Vector3, heal := true) -> void:
 	global_position = at
 	_invulnerable = 1.5
 	_busy = 0.0
+	_flourish = 0.0
 	_falling = 0.0
 	_down = 0.0
 	_run_hits.clear()
@@ -1714,6 +1732,7 @@ func _physics_process(delta: float) -> void:
 	if frozen:
 		return
 	_busy = maxf(0.0, _busy - delta)
+	_flourish = maxf(0.0, _flourish - delta)
 	_invulnerable = maxf(0.0, _invulnerable - delta)
 	fight_cooldown = maxf(0.0, fight_cooldown - delta)
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
@@ -1810,7 +1829,10 @@ func _physics_process(delta: float) -> void:
 		_anim.speed_scale = 1.0
 	_footsteps(ground_speed)
 	_update_sneak_look()
-	if _busy > 0.0 or _anim_hold > 0.0 or not controllable or dead:
+	# A flourish shows only while the hero stands still; moving ends it.
+	if dir != Vector3.ZERO or not is_on_floor() or _busy > 0.0:
+		_flourish = 0.0
+	if _busy > 0.0 or _anim_hold > 0.0 or _flourish > 0.0 or not controllable or dead:
 		return
 	if not is_on_floor():
 		if _current_anim != "Jump_Full_Short":

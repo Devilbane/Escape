@@ -119,6 +119,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wake_up.gd | tee wake.log
           grep -q PASS wake.log
 
+      - name: Shrine gifts hand control straight back test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/shrine.gd | tee shrine.log
+          grep -q PASS shrine.log
+
       - name: Graveyard start after the escape test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/graveyard_start.gd | tee graveyard.log

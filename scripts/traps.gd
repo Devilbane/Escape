@@ -128,11 +128,12 @@ static func make(owner_level: Level) -> Traps:
 	return t
 
 
-## Whether a trapdoor on this level has a level below to fall to: the next
-## floor of the dungeon, or the floor under a mine once its way down is open.
+## Whether a trapdoor on this level has a level below to fall to: the
+## previous floor of the dungeon (the hero climbs it upwards, so that one lies
+## below), or the floor under a mine once its way down is open.
 static func can_drop(owner_level: Level) -> bool:
 	if owner_level.building == "":
-		return true
+		return owner_level.depth > 0
 	return owner_level.down_to != "" and (owner_level.seal == "" or owner_level.taken.has("mines:seal_open"))
 
 

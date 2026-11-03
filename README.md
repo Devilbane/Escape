@@ -731,7 +731,7 @@ or a file is not listed.
 
 ## Technology
 
-- Engine: [Godot 4.5](https://godotengine.org) with the Compatibility renderer, so it runs in the browser
+- Engine: [Godot 4.7](https://godotengine.org) with the Compatibility renderer, so it runs in the browser
 - Graphics: KayKit Dungeon Remastered, Adventurers and Skeletons by Kay Lousberg (CC0)
 - Graveyard, crypt and autumn trees: KayKit Halloween Bits; village buildings, trees and rocks: KayKit Medieval Hexagon Pack, both by Kay Lousberg (CC0)
 - Wooden floor and roof tiles of the house: "Wood 062" and "Roofing Tiles 014 C" by ambientCG (CC0)

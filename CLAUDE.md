@@ -1,6 +1,6 @@
 # Escape!: notes for Claude
 
-A Godot 4.5 game (GDScript). Entry scene `scenes/main.tscn`, main logic in `scripts/game.gd`,
+A Godot 4.7 game (GDScript). Entry scene `scenes/main.tscn`, main logic in `scripts/game.gd`,
 windows in `scripts/menus.gd`, the merchant window in `scripts/trade_window.gd`. Headless tests live
 in `tests/` and run with `godot --headless -s tests/<name>.gd`.
 

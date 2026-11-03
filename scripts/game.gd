@@ -1293,7 +1293,7 @@ func _drink(s: Dictionary) -> void:
 	var healed := player.hp < player.max_hp
 	player.hp = player.max_hp
 	var cured := player.cure()
-	player.play_once("PickUp", 0.6)
+	player.play_flourish("PickUp", 0.6)
 	Sfx.play(self, "drink")
 	var burst := Effects.make_sparkles(Color(0.5, 0.8, 1.0), true)
 	burst.position = player.global_position + Vector3(0, 1.0, 0)
@@ -1314,7 +1314,7 @@ func _eat_from_basket(heal: int) -> void:
 	var text := Lang.t("Essenskorb! +%d Leben") % heal
 	if player.cure():
 		text += "\n" + Lang.t("Dein Leiden ist geheilt.")
-	player.play_once("PickUp", 0.6)
+	player.play_flourish("PickUp", 0.6)
 	Sfx.play(self, "drink")
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), text, Color(1.0, 0.5, 0.55), true)
 	show_message(Lang.t("Brot, Käse und Äpfel: du isst dich satt. Der Korb füllt sich mit der Zeit wieder."), 3.5)
@@ -1633,7 +1633,7 @@ func _choose_gift(index: int) -> void:
 	level.use_shrine(_shrine)
 	_shrine = {}
 	_shrine_panel.visible = false
-	player.play_once("PickUp", 0.6)
+	player.play_flourish("PickUp", 0.6)
 	show_message(text)
 	_update_hud()
 
@@ -3584,7 +3584,7 @@ func message_lines() -> Array[Label]:
 
 func _on_key_collected() -> void:
 	level.has_key = true
-	player.play_once("PickUp", 0.6)
+	player.play_flourish("PickUp", 0.6)
 	Sfx.play(self, "key")
 	show_message(Lang.t("Du hast den Schlüssel gefunden!"))
 	player.train("weisheit", 3.0)

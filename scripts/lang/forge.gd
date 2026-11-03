@@ -31,4 +31,18 @@ const EN := {
 	"Bring mir altes Eisen, ich schmelze es ein und mache dir etwas Neues daraus.": "Bring me old iron, and I'll melt it down and make you something new.",
 	"Verbeulte Rüstung? Leg sie auf den Amboss.": "Dented armour? Put it on the anvil.",
 	"Schmied Gorm im Dorf arbeitet an seiner Esse: Er verkauft seine eigenen, besseren Waffen, die es sonst nirgends gibt, schmilzt Waffen, Schilde, Metallrüstungen und Schmuck zu Eisenbarren ein, schmiedet aus Eisen und etwas Gold neue Waffen, Schilde und Rüstungen, und bessert abgenutzte Rüstungen und Schilde gegen Gold aus. Eisenbarren verkauft er auch.": "Gorm the smith works at his forge in the village: he sells his own better weapons, found nowhere else, melts weapons, shields, metal armour and jewellery down into iron bars, forges new weapons, shields and armour from iron and a little gold, and mends worn armour and shields for gold. He sells iron bars too.",
+	"Waffen und Rüstungen werden zu Eisen, feine Stücke und Schmuck zu Bronze, Silber oder Gold, je seltener, desto edler; Zauberdinge lassen Mondsilber. Die edlen Barren kauft Gorm dir ab. Stoff, Leder, Fell und Knochen schmelzen nicht.":
+		"Weapons and armour become iron, fine pieces and jewellery bronze, silver or gold, the rarer the nobler; magic things leave moon silver. Gorm buys the fine bars from you. Cloth, leather, fur and bone do not melt.",
+	"Bronzebarren": "Bronze bars",
+	"Silberbarren": "Silver bars",
+	"Goldbarren": "Gold bars",
+	"Eisen": "Iron",
+	"Bronze": "Bronze",
+	"Mondsilber": "Moonsilver",
+	"Barren verkaufen": "Sell bars",
+	"Aus fein gearbeiteten Stücken und Schmuck geschmolzen. Gorm kauft jeden Barren für %d Gold.":
+		"Melted from finely worked pieces and jewellery. Gorm buys each bar for %d gold.",
+	"Eingeschmolzen: %s, %s": "Melted down: %s, %s",
+	"Davon hast du keine Barren.": "You have no bars of that.",
+	"Keine": "None",
 }

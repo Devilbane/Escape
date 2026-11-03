@@ -159,6 +159,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/floor_items.gd | tee floor_items.log
           grep -q PASS floor_items.log
 
+      - name: Dragon's helpers and hoard test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/dragon_hoard.gd | tee dragon_hoard.log
+          grep -q PASS dragon_hoard.log
+
       - name: Torch stacks test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/torch_stacks.gd | tee torch_stacks.log

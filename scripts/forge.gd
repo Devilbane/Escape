@@ -2,14 +2,20 @@ class_name Forge
 extends RefCounted
 ## The blacksmith's forge in the village (Gorm the smith):
 ## - melting down: metal gear (weapons, shields, metal helmets, mail, plate,
-##   rings, bracelets and amulets) becomes iron bars, more for pricier pieces;
+##   rings, bracelets and amulets) becomes metal by its kind and rarity (see
+##   melt_into; the dragon's hoard melts by the same table, see DragonHoard):
+##   weapons and armour iron bars, more for pricier pieces, fine ones a bar
+##   of bronze, silver or gold besides; jewellery bars of bronze, silver or
+##   gold; magic pieces from rare on a lump of moon silver as well;
+## - Gorm buys the bronze, silver and gold bars back for gold;
 ## - forging: iron bars and some gold become a new piece of metal gear;
 ## - mending: worn armour and shields get their durability back for gold;
 ## - iron bars can also be bought from the smith;
 ## - buying: Gorm sells his own fine weapons and a kite shield ("smith" in
 ##   Items.ALL), which are found nowhere else.
-## Iron bars are counted like gold (game.iron), not carried in the bag, and
-## are kept in the saved game.
+## Iron bars are counted like gold (game.iron), the fine bars beside them
+## (game.bars), the moon silver goes into the pouch (see Crafting); none of
+## it is carried in the bag, and all of it is kept in the saved game.
 ## Gold prices drop when Gorm thinks well of the hero (see Reputation): the
 ## functions that take `game` give the price at the smith's window right now.
 ## Forging from bought iron costs about what the merchant asks for the piece;
@@ -25,6 +31,26 @@ const MELTS := ["metal", "chain", "mixed"]
 const METAL_SLOTS := ["ring", "armreif", "amulett"]
 ## Gold per point of durability mended, at the least.
 const MIN_MEND_PRICE := 2
+## The metals gear melts into, in the order they are told: the German name of
+## a bar (or lump), a short word for a price line, the colour of the bars,
+## and what Gorm pays for one bar ("worth"). Iron and moon silver are not
+## bought back: they are worth more forged (see forge) and in recipes.
+const METALS := {
+	"eisen": {"name": "Eisenbarren", "short": "Eisen", "color": Color(0.55, 0.57, 0.6)},
+	"bronze": {"name": "Bronzebarren", "short": "Bronze", "color": Color(0.8, 0.5, 0.25), "worth": 3},
+	"silber": {"name": "Silberbarren", "short": "Silber", "color": Color(0.85, 0.87, 0.92), "worth": 7},
+	"gold": {"name": "Goldbarren", "short": "Goldbarren", "color": Color(1.0, 0.8, 0.3), "worth": 15},
+	"mondsilbererz": {"name": "Mondsilbererz", "short": "Mondsilber", "color": Color(0.6, 0.75, 1.0)},
+}
+## The fine bars Gorm buys back.
+const FINE := ["bronze", "silber", "gold"]
+## The fine metal of a piece by its rarity (see rarity, common to god-born):
+## jewellery is made of it, and fine weapons and armour have fittings of it
+## besides their iron.
+const PRECIOUS := ["bronze", "bronze", "silber", "gold", "gold"]
+const FITTINGS := ["", "", "bronze", "silber", "gold"]
+## Magic pieces from this rarity on leave a lump of moon silver.
+const MOON_FROM := 2
 
 
 ## Whether the smith can melt an item down.
@@ -37,7 +63,95 @@ static func can_melt(id: String) -> bool:
 
 ## Iron bars an item melts down into.
 static func melt_yield(id: String) -> int:
-	return maxi(1, roundi(Items.ALL[id].price / 8.0)) if can_melt(id) else 0
+	return int(melt_into(id).get("eisen", 0))
+
+
+## How rare a piece is, 0 (common) to 4 (god-born), by its price (see
+## Level.TIERS).
+static func rarity(id: String) -> int:
+	var price := int(Items.ALL[id].get("price", 0))
+	var r := 0
+	var i := 0
+	for tier in Level.TIERS:
+		if price >= int(Level.TIERS[tier].min_price):
+			r = i
+		i += 1
+	return r
+
+
+## Whether a piece is jewellery or a charm rather than a weapon or armour.
+static func _is_trinket(id: String) -> bool:
+	return str(Items.ALL[id].slot) in METAL_SLOTS or str(Items.ALL[id].slot) == "spezial"
+
+
+## The one melting table, for the smith and the dragon alike: what a piece
+## melts into, metal (see METALS) -> count. Empty for what does not melt.
+## - weapons, shields and metal armour: iron bars, one for every 8 gold of
+##   price, and from rare on one bar of the fine metal of their fittings;
+## - jewellery: bars of the fine metal of its rarity, as many as its worth
+##   at the merchant buys (one at the least);
+## - magic pieces from rare on: a lump of moon silver as well.
+## `any`: the dragon's fire melts more than Gorm's forge; a piece that is no
+## metal (a bone helmet, a charm) gives fine bars like jewellery.
+static func melt_into(id: String, any := false) -> Dictionary:
+	var out := {}
+	if not Items.ALL.has(id) or not (can_melt(id) or any):
+		return out
+	var item: Dictionary = Items.ALL[id]
+	var r := rarity(id)
+	if can_melt(id) and not _is_trinket(id):
+		out["eisen"] = maxi(1, roundi(int(item.price) / 8.0))
+		if FITTINGS[r] != "" and str(item.slot) in Items.SLOTS:
+			out[FITTINGS[r]] = 1
+	else:
+		var metal: String = PRECIOUS[r]
+		out[metal] = maxi(1, roundi(maxi(1, int(item.price) / 2) / float(METALS[metal].worth)))
+	if item.get("magic", false) and r >= MOON_FROM:
+		out["mondsilbererz"] = 1
+	return out
+
+
+## Metals in METALS order as a list of words: "2× Eisenbarren, 1×
+## Silberbarren" (translated), or short for a price line: "+2 Eisen, +1
+## Silber".
+static func metals_text(bars: Dictionary, short := false) -> String:
+	var parts := []
+	for metal in METALS:
+		var n := int(bars.get(metal, 0))
+		if n > 0:
+			parts.append(("+%d %s" if short else "%d× %s") % [n, Lang.t(METALS[metal].short if short else METALS[metal].name)])
+	return ", ".join(parts)
+
+
+## Puts metal into the hero's stores: iron bars, fine bars, moon silver into
+## the pouch.
+static func store(game: Node, bars: Dictionary) -> void:
+	for metal in bars:
+		var n := int(bars[metal])
+		if n <= 0:
+			continue
+		match metal:
+			"eisen":
+				game.iron += n
+			"mondsilbererz":
+				game.crafting.add("mondsilbererz", n, false)
+			_:
+				if metal in FINE:
+					game.bars[metal] = int(game.bars.get(metal, 0)) + n
+
+
+## Sells the hero's fine bars of one metal to Gorm (`count` of them, all
+## when -1). Returns "" on success, else why not.
+static func sell_bars(game: Node, metal: String, count := -1) -> String:
+	var have := int(game.bars.get(metal, 0))
+	if not metal in FINE or have <= 0:
+		return Lang.t("Davon hast du keine Barren.")
+	var n := have if count < 0 else mini(count, have)
+	game.bars[metal] = have - n
+	if int(game.bars[metal]) <= 0:
+		game.bars.erase(metal)
+	game.coins += n * int(METALS[metal].worth)
+	return ""
 
 
 ## Every piece the smith can forge: the metal weapons, shields and armour.
@@ -129,7 +243,7 @@ static func melt(game: Node, index: int) -> String:
 	p.bag.remove_at(index)
 	if not p.bag.has(id) and not p.equipped.values().has(id):
 		p.wear.erase(id)
-	game.iron += melt_yield(id)
+	store(game, melt_into(id))
 	return ""
 
 

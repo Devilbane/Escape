@@ -1672,7 +1672,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	if hp <= 0:
 		dead = true
 		play_once("Death_A", 99.0)
-		# A fallen hero's eyes shut under two red crosses, until they rise.
+		# A fallen hero's eyes are crossed out in black, until they rise.
 		DeadEyes.put_on(_model)
 		defeated.emit()
 	elif knocked:

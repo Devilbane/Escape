@@ -3,7 +3,7 @@ extends Node
 ## A fallen monster stays where it fell and rots away, instead of sinking
 ## into the floor. This node sits on the dead Enemy and drives its decay:
 ##   flesh (bandits, beasts, horrors): darkens and sags flat (a bandit with
-##     red crosses on shut eyes, see DeadEyes), then sinks
+##     black crosses for eyes, see DeadEyes), then sinks
 ##     away into a dark stain, and a real skeleton (see Remains) lies where
 ##     the body lay;
 ##   bones (skeletons): grey and slump, then fall apart into the same kind
@@ -101,8 +101,8 @@ func _ready() -> void:
 	_overlay.albedo_color = Color(ROT, 0.0)
 	for mesh: MeshInstance3D in enemy._model.find_children("*", "MeshInstance3D", true, false):
 		mesh.material_overlay = _overlay
-	# A dead person's eyes shut, each marked with a red cross (see DeadEyes);
-	# the lids rot with the face, the crosses stay red until it is gone.
+	# A dead person's eyes are covered in skin and crossed out in black
+	# (see DeadEyes): the skin rots with the face, the crosses stay till the end.
 	if enemy.is_human():
 		DeadEyes.put_on(enemy._model, _overlay)
 	# The dead give no light: glowing eyes and a horror's glow go out.

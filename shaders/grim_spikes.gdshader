@@ -38,19 +38,22 @@ void fragment() {
 	vec3 p = local_pos * 6.0 + floor(world_pos * 1.3) * 7.1;
 	float coarse = noise(p);
 	float fine = noise(p * 4.3);
-	// Rust in patches over dull iron.
-	vec3 iron = vec3(0.42, 0.41, 0.4);
-	vec3 rust = mix(vec3(0.44, 0.25, 0.11), vec3(0.62, 0.36, 0.15), fine);
-	float rusty = smoothstep(0.3, 0.7, coarse * 0.7 + fine * 0.3);
+	// Rust over most of the iron, only a few dull grey patches left.
+	vec3 iron = vec3(0.4, 0.39, 0.38);
+	vec3 rust = mix(vec3(0.5, 0.24, 0.08), vec3(0.78, 0.42, 0.14), fine);
+	float rusty = smoothstep(0.2, 0.5, coarse * 0.7 + fine * 0.3);
 	vec3 col = mix(iron, rust, rusty);
 	// Dirt caked on the lower part, with a ragged edge.
-	float dirt = 1.0 - smoothstep(0.18, 0.4, h + (fine - 0.5) * 0.25);
-	col = mix(col, vec3(0.24, 0.18, 0.12), dirt * 0.9);
-	// Dried blood from the tips, running down in streaks.
-	float streak = noise(vec3(local_pos.x * 18.0, local_pos.y * 1.5, local_pos.z * 18.0) + floor(world_pos * 1.3) * 3.7);
-	float blood = smoothstep(0.72, 0.9, h + (streak - 0.5) * 0.5);
-	col = mix(col, mix(vec3(0.3, 0.02, 0.02), vec3(0.48, 0.05, 0.03), fine), blood * 0.95);
+	float dirt = 1.0 - smoothstep(0.15, 0.35, h + (fine - 0.5) * 0.25);
+	col = mix(col, vec3(0.3, 0.22, 0.14), dirt * 0.9);
+	// Blood over the upper half, running down in long streaks; wet and dark
+	// near the tip.
+	float streak = noise(vec3(local_pos.x * 14.0, local_pos.y * 1.2, local_pos.z * 14.0) + floor(world_pos * 1.3) * 3.7);
+	float blood = smoothstep(0.5, 0.72, h + (streak - 0.5) * 0.7);
+	vec3 gore = mix(vec3(0.42, 0.02, 0.02), vec3(0.62, 0.05, 0.04), fine);
+	col = mix(col, gore, blood);
 	ALBEDO = col;
 	METALLIC = 0.35 * (1.0 - rusty) * (1.0 - dirt) * (1.0 - blood);
-	ROUGHNESS = mix(0.85, 0.45, blood);
+	ROUGHNESS = mix(0.85, 0.25, blood);
+	SPECULAR = mix(0.4, 0.8, blood);
 }

@@ -126,7 +126,14 @@ const DETOUR := 6.0
 const FRAME_ALPHA := 0.35
 ## Height of the frame and signs above the floor (DungeonLife.FLOOR_Y).
 const MARK_Y := 0.08
-const SPIKES_DOWN := -1.1
+const SPIKES_DOWN := -1.7
+## How tall a trap's spikes are (metres), before each gets its own length.
+const SPIKE_HEIGHT := 1.5
+## Seconds sprung spikes stay up before they sink back into their holes.
+const SPIKES_UP := 2.5
+## Seconds the spikes take to scrape up out of their holes (the trap_spikes
+## sound is cut to the same length).
+const SPIKES_RISE := 0.3
 
 ## The hero stepped on a teleporter and was moved to `to`.
 signal teleported(to: Vector3)
@@ -327,8 +334,12 @@ func _process(delta: float) -> void:
 	_time += delta
 	for t in traps:
 		t.rest = maxf(0.0, t.rest - delta)
-		if t.spikes and t.spikes.position.y > SPIKES_DOWN and t.rest < REARM - 0.7:
-			t.spikes.position.y = move_toward(t.spikes.position.y, SPIKES_DOWN, delta * 3.0)
+		if t.spikes:
+			t.up = maxf(0.0, t.up - delta)
+			if t.up > 0.0 and t.spikes.position.y < 0.0:
+				t.spikes.position.y = move_toward(t.spikes.position.y, 0.0, delta * -SPIKES_DOWN / SPIKES_RISE)
+			elif t.up <= 0.0 and t.spikes.position.y > SPIKES_DOWN:
+				t.spikes.position.y = move_toward(t.spikes.position.y, SPIKES_DOWN, delta * 1.5)
 		if t.known and t.kind == "teleport":
 			t.sign.rotation.y += delta * 0.6
 	var hero: Player = level.player
@@ -377,8 +388,10 @@ func spring(t: Dictionary) -> void:
 	Events.teach(LEARN)
 	match t.kind:
 		"stacheln":
-			t.spikes.position.y = 0.0
-			Sfx.play(level, "word_stich", -2.0, spot)
+			t.up = SPIKES_UP
+			_splatter(t)
+			Sfx.play(level, "trap_spikes", 0.0, spot)
+			Sfx.play(level, "word_stich", -4.0, spot)
 			hero.spring_trap(spike_damage(t))
 		"teleport":
 			var to := _teleport_target(t.cell)
@@ -527,6 +540,8 @@ func _build(t: Dictionary) -> void:
 		bar.position = Vector3(sin(side * PI * 0.5), 0, cos(side * PI * 0.5)) * 1.6 + Vector3(0, MARK_Y, 0)
 		mark.add_child(bar)
 	t.spikes = null
+	t.up = 0.0
+	t.blood = null
 	t.hatch = null
 	t.sign = null
 	t.pit = null
@@ -542,21 +557,24 @@ func _build(t: Dictionary) -> void:
 ## Nine holes in the floor, and the spikes below them that shoot up.
 func _build_spikes(t: Dictionary, mark: Node3D) -> void:
 	var hole := _material(Color(0.05, 0.04, 0.04), 0.0)
-	var iron := grim_spikes(-0.5, 0.5)
+	var iron := grim_spikes(-SPIKE_HEIGHT * 0.5, SPIKE_HEIGHT * 0.5)
 	var spikes := Node3D.new()
 	spikes.position.y = SPIKES_DOWN
 	t.node.add_child(spikes)
 	t.spikes = spikes
 	var spike_mesh := CylinderMesh.new()
 	spike_mesh.top_radius = 0.0
-	spike_mesh.bottom_radius = 0.13
-	spike_mesh.height = 1.0
+	spike_mesh.bottom_radius = 0.2
+	spike_mesh.height = SPIKE_HEIGHT
 	spike_mesh.radial_segments = 6
 	var hole_mesh := CylinderMesh.new()
-	hole_mesh.top_radius = 0.16
-	hole_mesh.bottom_radius = 0.16
+	hole_mesh.top_radius = 0.22
+	hole_mesh.bottom_radius = 0.22
 	hole_mesh.height = 0.02
 	hole_mesh.radial_segments = 10
+	# Each spike a little crooked and of its own length, the same on every visit.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(t.cell)
 	for gx in [-1, 0, 1]:
 		for gz in [-1, 0, 1]:
 			var at := Vector3(gx * 0.9, 0, gz * 0.9)
@@ -569,8 +587,40 @@ func _build_spikes(t: Dictionary, mark: Node3D) -> void:
 			var s := MeshInstance3D.new()
 			s.mesh = spike_mesh
 			s.material_override = iron
-			s.position = at + Vector3(0, 0.5, 0)
+			var tall := rng.randf_range(0.8, 1.1)
+			s.scale = Vector3(1.0, tall, 1.0)
+			s.position = at + Vector3(0, SPIKE_HEIGHT * 0.5 * tall, 0)
+			s.rotation = Vector3(rng.randf_range(-0.12, 0.12), rng.randf() * TAU, rng.randf_range(-0.12, 0.12))
 			spikes.add_child(s)
+
+
+## The first time spikes catch the hero, blood splashes on the floor round
+## the holes, and stays for this visit.
+func _splatter(t: Dictionary) -> void:
+	if t.blood != null:
+		return
+	var blood := Node3D.new()
+	t.node.add_child(blood)
+	t.blood = blood
+	var stain := StandardMaterial3D.new()
+	stain.albedo_color = Color(0.36, 0.02, 0.02)
+	stain.roughness = 0.3
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(t.cell) + 7
+	for i in 7:
+		var drop := MeshInstance3D.new()
+		var disc := CylinderMesh.new()
+		var r := rng.randf_range(0.12, 0.38)
+		disc.top_radius = r
+		disc.bottom_radius = r
+		disc.height = 0.01
+		disc.radial_segments = 9
+		drop.mesh = disc
+		drop.material_override = stain
+		drop.scale = Vector3(rng.randf_range(0.7, 1.6), 1.0, rng.randf_range(0.6, 1.0))
+		drop.rotation.y = rng.randf() * TAU
+		drop.position = Vector3(rng.randf_range(-1.3, 1.3), MARK_Y + 0.005 + i * 0.001, rng.randf_range(-1.3, 1.3))
+		blood.add_child(drop)
 
 
 ## A faint ring of runes that turns slowly.

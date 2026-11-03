@@ -536,11 +536,14 @@ func fall_text() -> String:
 	return Lang.t("Der Räuber geht zu Boden.") if is_human() else Lang.t("Das Skelett zerfällt zu Staub.")
 
 
-## The rest of _ready for a beast: no weapon, its own animations. Only a
-## horror is tinted, and glows from below.
+## The rest of _ready for a beast: no weapon, its own animations. A tinted
+## kind is darkened, a glowing one glows from below, and the slimes are
+## made of murky water (see _slime).
 func _ready_beast() -> void:
 	_anim = _model.find_child("AnimationPlayer", true, false)
-	if _stats.has("tint"):
+	if _stats.model == "Slime":
+		_slime()
+	elif _stats.has("tint"):
 		_darken(_stats.tint)
 	if _stats.has("glow"):
 		var glow := OmniLight3D.new()
@@ -640,6 +643,129 @@ func _darken(color: Color) -> void:
 			var mat := source.duplicate() as BaseMaterial3D
 			mat.albedo_color = source.albedo_color * color
 			mesh.set_surface_override_material(i, mat)
+
+
+const SLIME_SHADER := preload("res://shaders/slime.gdshader")
+## The murky, greenish water of the dungeon's neglected fountain, which the
+## plain slimes are made of: deep, shallow and scum colours.
+const SLIME_MURK := [Color(0.07, 0.12, 0.07), Color(0.27, 0.36, 0.18), Color(0.24, 0.26, 0.1)]
+## The slimes' body with its eyes left off and smoothed, shared by all slimes.
+static var _slime_body: ArrayMesh
+
+
+## The slimes are lumps of murky water without eyes: a glossy, see-through
+## body that wobbles and drips (see slime.gdshader). A kind with a tint is
+## water of that colour, still a little dirty.
+func _slime() -> void:
+	var meshes := _model.find_children("*", "MeshInstance3D", true, false)
+	if meshes.is_empty():
+		return
+	var mesh: MeshInstance3D = meshes[0]
+	if _slime_body == null:
+		_slime_body = _smooth_body(mesh.mesh)
+	mesh.mesh = _slime_body
+	var mat := ShaderMaterial.new()
+	mat.shader = SLIME_SHADER
+	var murk: Array = SLIME_MURK
+	if _stats.has("tint"):
+		var tint: Color = _stats.tint
+		var dirt: Color = SLIME_MURK[1]
+		murk = [tint.lerp(dirt, 0.3).darkened(0.75), tint.lerp(dirt, 0.25).darkened(0.4), tint.lerp(SLIME_MURK[2], 0.6).darkened(0.3)]
+	mat.set_shader_parameter("deep_color", murk[0])
+	mat.set_shader_parameter("shallow_color", murk[1])
+	mat.set_shader_parameter("scum_color", murk[2])
+	if _stats.has("glow"):
+		mat.set_shader_parameter("glow_color", _stats.glow)
+		mat.set_shader_parameter("glow", 0.35)
+	var box := mesh.global_transform * _slime_body.get_aabb()
+	mat.set_shader_parameter("height", box.size.y)
+	mat.set_shader_parameter("phase", randf() * 100.0)
+	mesh.material_override = mat
+	# Both sit in the model, so they shrink and spread with it as it melts.
+	_slime_puddle(murk[1], box.size / _model.scale.x)
+	_slime_drops(murk[1], box.size / _model.scale.x)
+
+
+## A wet, glossy smear under the slime that goes where it goes.
+func _slime_puddle(color: Color, body: Vector3) -> void:
+	var fade := GradientTexture2D.new()
+	fade.fill = GradientTexture2D.FILL_RADIAL
+	fade.fill_from = Vector2(0.5, 0.5)
+	fade.fill_to = Vector2(0.5, 0.0)
+	fade.gradient = Gradient.new()
+	fade.gradient.set_color(0, Color(1, 1, 1, 0.8))
+	fade.gradient.set_color(1, Color(1, 1, 1, 0.0))
+	fade.gradient.add_point(0.7, Color(1, 1, 1, 0.6))
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = color
+	mat.albedo_texture = fade
+	mat.roughness = 0.06
+	mat.metallic_specular = 0.8
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(body.x, body.z) * 1.25
+	var puddle := MeshInstance3D.new()
+	puddle.mesh = plane
+	puddle.material_override = mat
+	puddle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	puddle.position.y = 0.04 / _model.scale.x
+	_model.add_child(puddle)
+
+
+## Now and then a drop of slime runs off its sides and falls to the floor.
+func _slime_drops(color: Color, body: Vector3) -> void:
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(color, 0.85)
+	mat.roughness = 0.05
+	mat.metallic_specular = 0.8
+	var drop := SphereMesh.new()
+	drop.radius = 0.045 * body.y
+	drop.height = 0.16 * body.y
+	drop.radial_segments = 8
+	drop.rings = 4
+	drop.material = mat
+	var drops := CPUParticles3D.new()
+	drops.mesh = drop
+	drops.amount = 6
+	drops.lifetime = 0.9
+	drops.randomness = 0.6
+	drops.local_coords = false
+	drops.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
+	drops.emission_ring_axis = Vector3.UP
+	drops.emission_ring_radius = 0.42 * minf(body.x, body.z)
+	drops.emission_ring_inner_radius = 0.3 * minf(body.x, body.z)
+	drops.emission_ring_height = 0.0
+	drops.direction = Vector3.DOWN
+	drops.spread = 5.0
+	drops.initial_velocity_min = 0.0
+	drops.initial_velocity_max = 0.3
+	drops.gravity = Vector3(0, -4.0, 0)
+	drops.scale_amount_min = 0.6
+	drops.scale_amount_max = 1.2
+	drops.position.y = 0.35 * body.y
+	_model.add_child(drops)
+
+
+## The body of the slime model alone, without the eyes (its second surface),
+## with its facets smoothed away so it shines like something wet.
+static func _smooth_body(source: Mesh) -> ArrayMesh:
+	var arrays := source.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	# Every corner at one spot gets the mean of the facets meeting there.
+	var sums := {}
+	for i in verts.size():
+		var key := verts[i].snappedf(0.00001)
+		sums[key] = sums.get(key, Vector3.ZERO) + normals[i]
+	for i in verts.size():
+		normals[i] = (sums[verts[i].snappedf(0.00001)] as Vector3).normalized()
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TANGENT] = null
+	var body := ArrayMesh.new()
+	body.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, source.surface_get_format(0) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS)
+	body.surface_set_material(0, source.surface_get_material(0))
+	return body
 
 
 func _glowing_eyes() -> void:

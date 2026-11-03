@@ -10,7 +10,7 @@ class_name LevelWarmup
 ## level's message and the hero's first steps jumped or seemed to hang.
 ##
 ## So, while the screen is still dark: for one frame nothing in the new
-## level is culled, and every shader it needs is built in that single frame.
+## level is culled (neither by the view nor by distance), and every shader it needs is built in that single frame.
 ## The next frame runs with time standing still (Engine.time_scale 0), so
 ## the long wait is swallowed instead of being played out all at once.
 ## Afterwards everything is culled as before.
@@ -58,7 +58,10 @@ static func _tick() -> void:
 static func finish() -> void:
 	for g in _waiting:
 		if is_instance_valid(g) and g.has_meta(KEY):
-			g.extra_cull_margin = g.get_meta(KEY)
+			var kept: Array = g.get_meta(KEY)
+			g.extra_cull_margin = kept[0]
+			g.visibility_range_begin = kept[1]
+			g.visibility_range_end = kept[2]
 			g.remove_meta(KEY)
 	_waiting.clear()
 	if _drawn_at >= 0:
@@ -72,8 +75,11 @@ static func finish() -> void:
 static func _collect(node: Node) -> void:
 	if node is GeometryInstance3D and not node.has_meta(KEY):
 		var g := node as GeometryInstance3D
-		g.set_meta(KEY, g.extra_cull_margin)
+		g.set_meta(KEY, [g.extra_cull_margin, g.visibility_range_begin, g.visibility_range_end])
 		g.extra_cull_margin = MARGIN
+		# Litter and plants that fade out with distance are drawn too.
+		g.visibility_range_begin = 0.0
+		g.visibility_range_end = 0.0
 		_waiting.append(g)
 	for child in node.get_children():
 		_collect(child)

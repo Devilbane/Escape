@@ -79,6 +79,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/level_warmup.gd | tee warmup.log
           grep -q PASS warmup.log
 
+      - name: Village preload (ready behind the title screen)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/world_preload.gd | tee preload.log
+          grep -q PASS preload.log
+
       - name: Play through all levels automatically
         run: |
           timeout 600 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log
@@ -154,10 +159,20 @@ jobs:
           timeout 300 ~/godot/godot --headless -s tests/rare_loot.gd | tee rare_loot.log
           grep -q PASS rare_loot.log
 
+      - name: Named bosses' rare loot test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/boss_loot.gd | tee boss_loot.log
+          grep -q PASS boss_loot.log
+
       - name: Floor items test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/floor_items.gd | tee floor_items.log
           grep -q PASS floor_items.log
+
+      - name: Dragon's helpers and hoard test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/dragon_hoard.gd | tee dragon_hoard.log
+          grep -q PASS dragon_hoard.log
 
       - name: Torch stacks test
         run: |

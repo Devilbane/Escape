@@ -2089,12 +2089,13 @@ func _end_naming(note := "") -> void:
 
 ## The smith's window shows one of four tabs: "waffen" (buy Gorm's own
 ## weapons), "schmieden" (forge new gear),
-## "einschmelzen" (melt gear down into iron) or "ausbessern" (mend worn gear).
+## "einschmelzen" (melt gear down into metal, and sell the fine bars) or
+## "ausbessern" (mend worn gear).
 var _forge_tab := "waffen"
 const FORGE_ABOUT := {
 	"waffen": "Gorms eigene Arbeit: bessere Waffen, die es sonst nirgends gibt. Kriegshammer und Drachenschild schmiedet er nur aus deinem Eisen.",
 	"schmieden": "Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen.",
-	"einschmelzen": "Metall aus deiner Tasche wird zu Eisenbarren. Stoff, Leder, Fell und Knochen schmelzen nicht.",
+	"einschmelzen": "Waffen und Rüstungen werden zu Eisen, feine Stücke und Schmuck zu Bronze, Silber oder Gold, je seltener, desto edler; Zauberdinge lassen Mondsilber. Die edlen Barren kauft Gorm dir ab. Stoff, Leder, Fell und Knochen schmelzen nicht.",
 	"ausbessern": "Gorm hämmert Beulen aus: jeder Punkt Haltbarkeit kostet etwas Gold.",
 }
 const FORGE_TABS := [["waffen", "Waffen kaufen"], ["schmieden", "Schmieden"], ["einschmelzen", "Einschmelzen"], ["ausbessern", "Ausbessern"]]
@@ -2149,10 +2150,23 @@ func _build_smithy() -> void:
 			var melt := []
 			for id in _kinds(p.bag):
 				var can := Forge.can_melt(id)
-				melt.append({"key": "melt:" + id, "id": id, "name": Items.item_name(id), "price": Lang.t("+%d Eisen") % Forge.melt_yield(id) if can else Lang.t("Schmilzt nicht"), "price_ok": can,
+				melt.append({"key": "melt:" + id, "id": id, "name": Items.item_name(id), "price": Forge.metals_text(Forge.melt_into(id), true) if can else Lang.t("Schmilzt nicht"), "price_ok": can,
 						"button": Lang.t("Einschmelzen"), "action": _melt.bind(p.bag.find(id)), "enabled": can, "count": p.bag.count(id)})
+			# The fine bars the hero has: Gorm buys them, one bar at a time.
+			var fine := []
+			for metal in Forge.FINE:
+				var have := int(game.bars.get(metal, 0))
+				var worth: int = Forge.METALS[metal].worth
+				var entry := {"key": "bar:" + metal, "icon": "kind:bar_" + metal, "name": Lang.t(Forge.METALS[metal].name), "price": "+" + Lang.t("%d Gold") % worth,
+						"price_ok": have > 0, "button": Lang.t("Verkaufen"), "action": _sell_bar.bind(metal), "enabled": have > 0, "count": have,
+						"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t("Aus fein gearbeiteten Stücken und Schmuck geschmolzen. Gorm kauft jeden Barren für %d Gold.") % worth, TradeWindow.BLUE]]},
+						"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("%s: %d") % [Lang.t(Forge.METALS[metal].name), have], "icon": "kind:bar_" + metal}}
+				if have <= 0:
+					entry.gone = Lang.t("Keine")
+				fine.append(entry)
 			sections = [{"key": "melt", "title": Lang.t("Einschmelzen"), "icon": "kind:flame", "entries": melt,
-					"empty": Lang.t("Deine Tasche ist leer."), "gone": Lang.t("Eingeschmolzen")}]
+					"empty": Lang.t("Deine Tasche ist leer."), "gone": Lang.t("Eingeschmolzen")},
+					{"key": "bars", "title": Lang.t("Barren verkaufen"), "icon": "kind:bar_gold", "entries": fine}]
 		"ausbessern":
 			var mend := []
 			for id in Forge.worn_down(p):
@@ -2186,10 +2200,20 @@ func _forge(id: String) -> void:
 func _melt(index: int) -> void:
 	var id: String = game.player.bag[index]
 	var why := Forge.melt(game, index)
-	_note = why if why != "" else Lang.t("Eingeschmolzen: %s, +%d Eisen") % [Items.item_name(id), Forge.melt_yield(id)]
+	_note = why if why != "" else Lang.t("Eingeschmolzen: %s, %s") % [Items.item_name(id), Forge.metals_text(Forge.melt_into(id), true)]
 	if why == "":
 		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
 	game.player.refresh_stats()
+	game._update_hud()
+	_rebuild()
+
+
+func _sell_bar(metal: String) -> void:
+	var why := Forge.sell_bars(game, metal, 1)
+	_note = why if why != "" else Lang.t("Verkauft: %s für %d Gold") % [Lang.t(Forge.METALS[metal].name), int(Forge.METALS[metal].worth)]
+	if why == "":
+		Events.bus().traded.emit(game.trader_role)
+		Sfx.play_coins(game, int(Forge.METALS[metal].worth))
 	game._update_hud()
 	_rebuild()
 

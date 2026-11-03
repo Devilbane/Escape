@@ -66,6 +66,12 @@ signal speech_said(speaker: String, text: String, pos: Vector3)
 ## German text, for the compendium and the journal.
 signal writing_found(text: String)
 
+## The old dragon's little helpers carried something off the open ground
+## into its lair (see DragonHelpers): a floor entry's kind ("item" or
+## "coin") and item id. The hoard counts it (see DragonHoard).
+## Use Events.carried_off.
+signal loot_carried_off(kind: String, id: String)
+
 
 static var _bus: Events = null
 
@@ -90,6 +96,11 @@ static func found(text: String, color := EventLog.LOOT_COLOR) -> void:
 ## A spoken line for the event log (see speech_said).
 static func say(speaker: String, text: String, pos: Vector3) -> void:
 	bus().speech_said.emit(speaker, text, pos)
+
+
+## The dragon's helpers carried this off (see loot_carried_off).
+static func carried_off(kind: String, id: String) -> void:
+	bus().loot_carried_off.emit(kind, id)
 
 
 ## Something new for the compendium (see lore_learned).

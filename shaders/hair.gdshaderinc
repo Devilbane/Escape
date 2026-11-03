@@ -25,6 +25,9 @@ uniform sampler2D tex : source_color, filter_linear_mipmap;
 uniform bool crest = false;
 // Head: the hair is shaved off (the mesh is too; this switches the look).
 uniform bool shaved = false;
+// The hair knot of a woman: the strands are wound round it (COLOR is the
+// point on a unit ball, z outwards).
+uniform bool bun = false;
 // Head: the hair is cut short (the mesh is too; this makes the strands finer).
 uniform bool short_hair = false;
 // Head with natural hair: dye it (false keeps the texture's own colour).
@@ -142,6 +145,24 @@ float combed(vec3 p, out float height) {
 	return strand * lock_shade * layered * parting;
 }
 
+// The wound strands of the hair knot at q (a point on a unit ball, z out of
+// the head): they run round its axis and spiral out to the middle.
+float wound(vec3 q, out float height) {
+	float round = atan(q.y, q.x) / TAU + 0.35 * (1.0 - q.z);
+	float s = round * 70.0;
+	float l = round * 9.0;
+	float r = hash1(floor(l) * 7.13 + 3.1);
+	float fine = 1.0 - smoothstep(0.15, 0.4, fwidth(s));
+	float coarse = 1.0 - smoothstep(0.15, 0.45, fwidth(l));
+	float f = fract(s) * 2.0 - 1.0;
+	float curve = sqrt(max(0.0, 1.0 - f * f));
+	float edge = abs(fract(l) * 2.0 - 1.0);
+	height = curve * fine * 0.0025 + (1.0 - edge * edge) * coarse * 0.008;
+	// The middle, where the ends are tucked in, lies in shadow.
+	float tucked = mix(0.75, 1.0, smoothstep(0.75, 0.95, 1.0 - q.z) + smoothstep(0.85, 0.6, q.z));
+	return mix(1.0, 0.86 + 0.14 * curve, fine) * mix(1.0, (1.0 - 0.3 * edge * edge) * (0.9 + 0.2 * r), coarse) * tucked;
+}
+
 void vertex() {
 	rest = CUSTOM0;
 }
@@ -209,7 +230,7 @@ void fragment() {
 		} else {
 			// Combed into strands, locks and layers, with a little shine.
 			float h;
-			float comb = combed(p, h);
+			float comb = bun ? wound(COLOR.rgb * 2.0 - 1.0, h) : combed(p, h);
 			NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h * hair), dFdy(h * hair));
 			c *= mix(1.0, comb, hair);
 			albedo = c;

@@ -40,6 +40,11 @@ func _head_mesh() -> Mesh:
 	return head.mesh
 
 
+func _bun_shown() -> bool:
+	var bun := game.player.find_child("Bun", true, false) as Node3D
+	return bun != null and bun.visible
+
+
 func _crest_shown() -> bool:
 	var crest := game.player.find_child("Crest", true, false) as Node3D
 	return crest != null and crest.visible
@@ -99,6 +104,21 @@ func _test() -> void:
 		if v.role == "7":
 			pip_hair = v._info.get("hair", {})
 	check(pip_hair.get("style", "") == "spiky", "Pip wears spikes")
+	var spikes := game.player.find_child("Crest", true, false) as MeshInstance3D
+	check(spikes.mesh.get_aabb().position.y < HairLook.SKULL_CENTER.y - 0.2, "the spikes cover the sides and the back too")
+
+	# A woman ties her natural hair in a knot at the back; a hat or a cut hides it.
+	p.set_sex("female")
+	p.set_hair(HairLook.DEFAULT)
+	check(_bun_shown(), "a woman wears a hair knot")
+	p.equip("knochenhelm")
+	check(not _bun_shown(), "a helmet hides the hair knot")
+	p.unequip("kopf")
+	p.set_hair({"style": "short"})
+	check(not _bun_shown(), "a short crop has no knot")
+	p.set_sex("male")
+	p.set_hair(HairLook.DEFAULT)
+	check(not _bun_shown(), "a man wears no knot")
 
 	p.set_hair({"style": "punk", "color": "plaid", "tattoo": "A word much too long"})
 	check(p.hair.style == "natural" and p.hair.color == "natural" and p.hair.tattoo.length() <= HairLook.TATTOO_MAX, "unknown looks fall back to natural")

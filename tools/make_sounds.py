@@ -444,6 +444,37 @@ WORDS = ["zack", "klonk", "wumm", "krach", "boing", "wamm", "zing", "tschak", "k
          "klong", "plong"]
 
 
+def trap_spikes():
+    # Rusty iron spikes scraping up out of their holes: stick-slip grinding
+    # (jittered bursts that ring a few out-of-tune metal partials), rising in
+    # pitch as the spikes come up, then a dull iron clank when they stop.
+    r = np.random.default_rng(31)
+    sec = 0.5
+    n = int(SR * sec)
+    tt = np.arange(n) / SR
+    rise = 0.3  # Traps.SPIKES_RISE
+    excite = np.zeros(n)
+    pos = 0.0
+    while pos < rise:
+        rate = 70 + 160 * (pos / rise) ** 1.4
+        i = int(pos * SR)
+        burst = int(SR * r.uniform(0.002, 0.006))
+        excite[i:i + burst] += r.uniform(-1, 1, min(burst, n - i)) * r.uniform(0.4, 1.0)
+        pos += (1.0 / rate) * r.uniform(0.6, 1.5)
+    excite += r.uniform(-1, 1, n) * 0.12 * (tt < rise)
+    kt = np.arange(int(SR * 0.04)) / SR
+    kernel = np.zeros(len(kt))
+    for f, a in [(1130, 1.0), (1870, 0.8), (2740, 0.6), (3910, 0.45), (5230, 0.3)]:
+        kernel += np.sin(2 * np.pi * f * kt) * a * np.exp(-kt / 0.009)
+    grind = np.convolve(excite, kernel)[:n]
+    grind = highpass(grind, 600)
+    grind *= np.clip(tt / 0.03, 0, 1) * np.clip((rise + 0.03 - tt) / 0.06, 0, 1)
+    out = grind * 0.8
+    at(out, ring([(410, 0.7), (980, 0.5), (1720, 0.35), (2650, 0.2)], 0.2, 0.07) * 0.9, rise - 0.01)
+    at(out, thud(140, 0.12, 4, 0.04) * 0.6, rise - 0.01)
+    return out
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     save("swing", swing(), 0.6)
@@ -471,3 +502,4 @@ if __name__ == "__main__":
     save("drip", drip(), 0.45)
     save("snore", snore(), 0.5)
     save("ui_click", ui_click(), 0.35)
+    save("trap_spikes", trap_spikes(), 0.7)

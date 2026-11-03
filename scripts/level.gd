@@ -125,6 +125,8 @@ const SPIKE_UP_TIME := 1.1
 const SPIKE_DOWN_Y := -1.95
 ## How much longer a path through a spike trap counts for skeletons.
 const SPIKE_DETOUR := 6.0
+## How far (metres) from the hero rising floor spikes can be heard.
+const SPIKE_HEARD := 14.0
 
 var level_name := ""
 ## The map's file name, e.g. "03_das_labyrinth.txt".
@@ -2901,6 +2903,10 @@ func _update_spikes(delta: float) -> void:
 			target = SPIKE_DOWN_Y + 0.35 # A small twitch warns before they shoot up.
 			speed = 10.0
 		s.node.position.y = move_toward(s.node.position.y, target, delta * speed * 2.0)
+		var up := t < SPIKE_UP_TIME
+		if up and not s.get("up", false):
+			_spike_sound(s)
+		s.up = up
 		if player and not finished and _spike_is_up(s) and player.global_position.y < 0.6:
 			var sp := cell_to_world(s.cell)
 			if absf(player.global_position.x - sp.x) < 1.6 and absf(player.global_position.z - sp.z) < 1.6:
@@ -2911,6 +2917,19 @@ func _update_spikes(delta: float) -> void:
 			for e in enemies:
 				if is_instance_valid(e) and absf(e.global_position.x - sp.x) < 1.6 and absf(e.global_position.z - sp.z) < 1.6:
 					e.hurt_by_trap(sp)
+
+
+## Rusty iron scraping out of the floor, when the hero is near enough to hear
+## it (a hall full of spikes would drown everything else out otherwise). It is
+## a quick thrust, so the scrape plays a little higher than the trap's.
+func _spike_sound(s: Dictionary) -> void:
+	if player == null:
+		return
+	var sp := cell_to_world(s.cell)
+	var far := Vector2(player.global_position.x - sp.x, player.global_position.z - sp.z).length()
+	if far > SPIKE_HEARD:
+		return
+	Sfx.play(self, "trap_spikes", -6.0 - far * 0.8, sp, 1.25)
 
 
 ## Whether a tile has spikes that are up or about to shoot up: skeletons

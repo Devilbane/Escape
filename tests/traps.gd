@@ -220,6 +220,8 @@ func _run() -> void:
 	p.xp["intuition"] = 100000.0
 	p.xp["erkunden"] = 100000.0
 	var near: Vector2i = t.traps[0].cell + Vector2i(1, 0)
+	# A good roll (1): this checks the sight and the chance, not the luck.
+	t.next_roll = 1
 	_put(near)
 	await _wait(3)
 	check(trap.rolled, "coming close rolls to spot the trap")

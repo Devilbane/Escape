@@ -200,6 +200,11 @@ func _check_inside() -> void:
 	for s in lvl.stairs:
 		var to: Vector2i = lvl.stair_target(s.cell)
 		check(to.x >= 0 and lvl.storey_of(to) == s.storey + (1 if s.up else -1), "the stairs on %s lead one storey %s" % [s.cell, "up" if s.up else "down"])
+		# Nothing on the walls round the stairs sticks out of the steps.
+		for obj in lvl.interactables:
+			check(obj.cell != s.cell, "no %s stands in the stairs on %s" % [obj.label, s.cell])
+		for t in lvl._wall_torches:
+			check(t.cell != s.cell, "no torch hangs over the stairs on %s" % s.cell)
 	var p: Vector3 = game.player.global_position
 	check(lvl.storey_of(lvl.world_to_cell(p)) == 0, "the hero comes in on the ground floor")
 	var up: Dictionary = lvl.stairs.filter(func(s): return s.up and s.storey == 0)[0]

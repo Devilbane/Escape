@@ -17,7 +17,7 @@ signal trained(id: String, value: int)
 signal leveled_up(level: int)
 
 ## The hero's reference speed in m/s (100 % Tempo); walking is a share of it.
-const SPEED := 4.0
+const SPEED := 5.2
 ## Walking pace as a share of SPEED.
 const WALK_FACTOR := 0.5
 ## Running speeds up to this many times the walking pace...
@@ -83,6 +83,10 @@ var controllable := true
 var frozen := false
 var dead := false
 var hp := MAX_HP
+## What one shrine gift gives: the player picks one of the three.
+const SHRINE_LIFE := 4
+const SHRINE_POWER := 1
+const SHRINE_SPEED := 0.02
 # Gifts from shrines, kept for the whole run.
 var gift_hp := 0
 ## Life from the trophy wall at home (see HomeUpgrades), set by the game.

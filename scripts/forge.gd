@@ -8,7 +8,9 @@ extends RefCounted
 ##   of bronze, silver or gold besides; jewellery bars of bronze, silver or
 ##   gold; magic pieces from rare on a lump of moon silver as well;
 ## - Gorm buys the bronze, silver and gold bars back for gold;
-## - forging: iron bars and some gold become a new piece of metal gear;
+## - forging: iron bars and some gold become a new piece of metal gear; the
+##   thunder weapons also take lumps of thunder ore from the bag (see Items,
+##   "thunder"), and their blows may stun (see Enemy.shock);
 ## - mending: worn armour and shields get their durability back for gold;
 ## - iron bars can also be bought from the smith;
 ## - buying: Gorm sells his own fine weapons and a kite shield ("smith" in
@@ -22,7 +24,7 @@ extends RefCounted
 ## iron from melted loot makes it cheaper, and you choose what you get.
 
 ## What the compendium says about the forge, once the hero has been there.
-const LEARN := "Schmied Gorm im Dorf arbeitet an seiner Esse: Er verkauft seine eigenen, besseren Waffen, die es sonst nirgends gibt, schmilzt Waffen, Schilde, Metallrüstungen und Schmuck zu Eisenbarren ein, schmiedet aus Eisen und etwas Gold neue Waffen, Schilde und Rüstungen, und bessert abgenutzte Rüstungen und Schilde gegen Gold aus. Eisenbarren verkauft er auch."
+const LEARN := "Schmied Gorm im Dorf arbeitet an seiner Esse: Er verkauft seine eigenen, besseren Waffen, die es sonst nirgends gibt, schmilzt Waffen, Schilde, Metallrüstungen und Schmuck zu Eisenbarren ein, schmiedet aus Eisen und etwas Gold neue Waffen, Schilde und Rüstungen, aus Donnererz vom Gewitter auch Donnerwaffen, deren Treffer Gegner kurz betäuben können, und bessert abgenutzte Rüstungen und Schilde gegen Gold aus. Eisenbarren verkauft er auch."
 ## What one iron bar costs at the smith.
 const IRON_PRICE := 4
 ## Materials of gear that melts down into iron (see Items, "material").
@@ -154,12 +156,17 @@ static func sell_bars(game: Node, metal: String, count := -1) -> String:
 	return ""
 
 
-## Every piece the smith can forge: the metal weapons, shields and armour.
+## What the thunder weapons are forged from besides iron and gold.
+const THUNDER_ORE := "donnererz"
+
+
+## Every piece the smith can forge: the metal weapons, shields and armour,
+## and the thunder weapons.
 static func recipes() -> Array:
 	var ids := []
 	for id in Items.ALL:
 		var item: Dictionary = Items.ALL[id]
-		if item.get("material", "") in MELTS and not item.get("no_loot", false):
+		if item.get("material", "") in MELTS and (not item.get("no_loot", false) or item.has("thunder")):
 			ids.append(id)
 	ids.sort_custom(func(a, b): return Items.ALL[a].price < Items.ALL[b].price)
 	return ids
@@ -205,10 +212,19 @@ static func buy(game: Node, id: String) -> String:
 	return ""
 
 
-## What forging a piece costs: {"iron": bars, "gold": coins}.
+## What forging a piece costs: {"iron": bars, "gold": coins, "ore": lumps of
+## thunder ore from the bag (0 but for the thunder weapons)}.
 static func forge_cost(id: String, game: Node = null) -> Dictionary:
 	var price: int = Items.ALL[id].price
-	return {"iron": ceili(price / 6.0), "gold": _discounted(game, price / 3)}
+	return {"iron": ceili(price / 6.0), "gold": _discounted(game, price / 3), "ore": int(Items.ALL[id].get("thunder", 0))}
+
+
+## Whether the hero has everything forging a piece takes (room in the bag
+## aside).
+static func can_afford(game: Node, id: String) -> bool:
+	var cost := forge_cost(id, game)
+	return game.iron >= cost.iron and game.coins >= cost.gold and game.player.bag.count(THUNDER_ORE) >= cost.ore
+
 
 
 ## Gold for mending one point of durability of a piece.
@@ -255,7 +271,14 @@ static func forge(game: Node, id: String) -> String:
 		return Lang.t("Dafür hast du zu wenig Eisen.")
 	if game.coins < cost.gold:
 		return Lang.t("Dafür reicht dein Gold nicht.")
-	if p.bag_used() >= p.bag_size():
+	if p.bag.count(THUNDER_ORE) < cost.ore:
+		return Lang.t("Dafür hast du zu wenig Donnererz. Es glimmt nur bei Gewitter neben den Felsen.")
+	for _i in cost.ore:
+		p.bag.erase(THUNDER_ORE)
+	if not p.bag_fits(id):
+		# The ore went in vain: put it back.
+		for _i in cost.ore:
+			p.bag.append(THUNDER_ORE)
 		return Lang.t("Deine Tasche ist voll.")
 	game.iron -= cost.iron
 	game.coins -= cost.gold

@@ -493,8 +493,18 @@ leave again when it changes:
 | Thunderstorm | dark sky, pouring rain, lightning and thunder | **bats** swarm around the rocks; where lightning strikes a rock, a lump of glowing **thunder ore** may be left beside it |
 
 **Thunder ore** is only ever found in a thunderstorm, and only until the storm passes: whatever is left
-lying fades away. Pick it up and take it to Gorm the smith, who melts each lump into 4 iron bars, or sell it
-to the merchant.
+lying fades away. Picked up, it bundles five lumps to a bag slot and keeps. Take it to Gorm the smith, who
+forges it into the two **thunder weapons**, found and sold nowhere else:
+
+| Weapon | Forged from | Stats | Lightning |
+|---|---|---|---|
+| Thunder blade (Donnerklinge) | 11 iron, 21 gold, 2 thunder ore | +2 power, +1 Klingen | 20 % per blow |
+| Thunder hammer (Donnerhammer) | 14 iron, 26 gold, 3 thunder ore | +3 power, +1 Äxte | 25 % per blow |
+
+A thunder weapon crackles with blue sparks in the hero's hand. A melee blow that lands may crack with
+lightning: the enemy is **stunned** for 1.5 s (no moving, no striking) and "Stunned!" shows over its head.
+That is the whole effect, one readable chance per blow. Bosses, horrors and big brutes shrug it off. Gorm can
+still melt a lump into 4 iron bars, and the merchant still pays well for it.
 
 ## The robbers' pass
 

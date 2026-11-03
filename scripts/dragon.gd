@@ -352,3 +352,8 @@ func _fire_rain(player: Player) -> void:
 	for pos in spots:
 		if not level.is_opaque(level.world_to_cell(pos)):
 			FireField.spawn(level, pos, RAIN_WARN)
+
+
+## A boss shrugs off a thunder weapon's crack (see Enemy.shock).
+func can_be_stunned() -> bool:
+	return false

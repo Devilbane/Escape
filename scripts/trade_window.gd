@@ -516,6 +516,8 @@ static func stat_lines(id: String, worn := 0) -> Array:
 		lines.append([Lang.t("Platz für %d Dinge") % item.bag, BLUE])
 	if item.has("uses"):
 		lines.append([Lang.t("Fertigkeit: %s") % Lang.t(Training.SKILLS[item.uses].name), BLUE])
+	if item.get("shock", 0.0) > 0.0:
+		lines.append([Lang.t("%d%% Blitzschlag: betäubt den Gegner kurz") % roundi(item.shock * 100.0), BLUE])
 	for skill_id in item.get("skills", {}):
 		lines.append([Lang.t("+%d %s") % [item.skills[skill_id], Lang.t(Training.SKILLS[skill_id].name)], BLUE])
 	if item.has("teaches"):
@@ -536,6 +538,7 @@ const COMPARED := [
 	["hp", "Leben", 1.0, "", true],
 	["armor", "Härtung", 1.0, "", true],
 	["block", "Blockchance", 100.0, "%", true],
+	["shock", "Blitzschlag", 100.0, "%", true],
 	["speed", "Tempo", 100.0, "%", true],
 	["durability", "Haltbarkeit", 1.0, "", true],
 	["bag", "Taschenplätze", 1.0, "", true],

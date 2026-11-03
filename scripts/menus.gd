@@ -2094,7 +2094,7 @@ func _end_naming(note := "") -> void:
 var _forge_tab := "waffen"
 const FORGE_ABOUT := {
 	"waffen": "Gorms eigene Arbeit: bessere Waffen, die es sonst nirgends gibt. Kriegshammer und Drachenschild schmiedet er nur aus deinem Eisen.",
-	"schmieden": "Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen.",
+	"schmieden": "Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen. Mit Donnererz vom Gewitter schmiedet er Donnerwaffen, deren Treffer Gegner kurz betäuben können.",
 	"einschmelzen": "Waffen und Rüstungen werden zu Eisen, feine Stücke und Schmuck zu Bronze, Silber oder Gold, je seltener, desto edler; Zauberdinge lassen Mondsilber. Die edlen Barren kauft Gorm dir ab. Stoff, Leder, Fell und Knochen schmelzen nicht.",
 	"ausbessern": "Gorm hämmert Beulen aus: jeder Punkt Haltbarkeit kostet etwas Gold.",
 }
@@ -2132,9 +2132,17 @@ func _build_smithy() -> void:
 			var forged := []
 			for id in Forge.recipes():
 				var cost := Forge.forge_cost(id, game)
-				var ok: bool = game.iron >= cost.iron and game.coins >= cost.gold
-				forged.append({"key": id, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Eisen, %d Gold") % [cost.iron, cost.gold],
-						"price_ok": ok, "button": Lang.t("Schmieden"), "action": _forge.bind(id), "enabled": ok and room})
+				var ok := Forge.can_afford(game, id)
+				var entry := {"key": id, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Eisen, %d Gold") % [cost.iron, cost.gold],
+						"price_ok": game.iron >= cost.iron and game.coins >= cost.gold, "button": Lang.t("Schmieden"), "action": _forge.bind(id), "enabled": ok and room}
+				if int(cost.ore) > 0:
+					# The row has no room for a third cost: the ore is told
+					# in the details, green when the bag holds enough.
+					var have: int = p.bag.count(Forge.THUNDER_ORE)
+					var lines := TradeWindow.stat_lines(id)
+					lines.append([Lang.t("Braucht %d Donnererz, du hast %d") % [cost.ore, have], TradeWindow.GREEN if have >= int(cost.ore) else TradeWindow.RED])
+					entry.detail = {"subtitle": TradeWindow.subtitle(id), "lines": lines}
+				forged.append(entry)
 			var iron := []
 			for count in [1, 5]:
 				var price: int = count * Forge.iron_price(game)

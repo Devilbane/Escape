@@ -132,8 +132,9 @@ static func apply(env: Environment, sun: DirectionalLight3D, weather_look: Dicti
 	sun.light_energy *= dim
 	env.ambient_light_energy *= weather_look.amb
 	env.adjustment_saturation *= weather_look.sat
-	# A grey sky: the background drifts towards the haze, darker by night.
-	var haze := HAZE * clampf(env.ambient_light_energy / 0.52, 0.25, 1.0)
+	# A grey sky: the background drifts towards the haze, darker by night
+	# (as dark as the moon leaves it: fog never glows in a moonless night).
+	var haze := HAZE * clampf(env.ambient_light_energy / 0.52, 0.02, 1.0)
 	haze.a = 1.0
 	env.background_color = env.background_color.lerp(haze, clampf((1.0 - dim) * 0.8, 0.0, 1.0))
 	env.fog_enabled = weather_look.fog > 0.0005
@@ -236,7 +237,7 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 	var r: float = weather_look.rain
 	rain.emitting = r > 0.02
 	rain.visible = rain.emitting
-	var shade := clampf(0.45 + light, 0.45, 1.0)
+	var shade := clampf(0.12 + light, 0.12, 1.0)
 	var rain_mat: StandardMaterial3D = (rain.mesh as QuadMesh).material
 	rain_mat.albedo_color = Color(0.75 * shade, 0.82 * shade, 0.95 * shade, 0.45 * r)
 	var m: float = weather_look.mist

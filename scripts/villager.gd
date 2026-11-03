@@ -121,6 +121,18 @@ const LISTEN_TIME := 13.0
 ## comes at night. Everyone else goes home to sleep at nightfall (see
 ## Outdoor.set_hour) and comes out in the morning.
 const NIGHT_OWLS := ["4", "5", "O", "%"]
+## Out in the dark everyone about on honest business carries a torch: the
+## guard on his rounds, the priestess at the temple, and whoever is still
+## walking home at nightfall. Not those who keep to one lit spot all night,
+## the drinker on his bench and the wandering merchant by his lantern-hung
+## cart (their plans). Thieves and bandits are no villagers and go dark.
+const UNLIT_PLANS := ["sit", "stay"]
+## The torch's light: warm, flickering, a few tiles around the bearer.
+## Without shadows and only while someone is out, to stay cheap in the
+## browser (a handful of villagers at most).
+const TORCH_COLOR := Color(1.0, 0.6, 0.28)
+const TORCH_ENERGY := 1.7
+const TORCH_RANGE := 6.5
 
 var level: Outdoor
 var role := "7"
@@ -167,6 +179,14 @@ var chat_partner: Villager = null
 var chat_broken := false
 ## Whether we stay seated through the chat (the drinker on his bench).
 var _chat_sitting := false
+## The torch in the hand at night (see carries_torch), made the first night
+## it is needed, the left hand's own things hidden while it burns, and the
+## light it throws.
+var _torch: Node3D
+var _torch_light: OmniLight3D
+var _torch_hidden: Array[Node3D] = []
+var _torch_time := 0.0
+static var _wood: StandardMaterial3D
 
 
 func setup(owner_level: Outdoor, role_char: String, cell: Vector2i) -> void:
@@ -435,6 +455,7 @@ func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
 	_keep_apart()
+	_mind_torch(delta)
 	station.pos = global_position
 	station.cell = level.world_to_cell(global_position)
 	_update_bubble(delta)
@@ -587,6 +608,81 @@ func set_night(on: bool, at_once := false) -> void:
 		_start("idle", _rng.randf_range(0.5, 4.0))
 	elif _task == "walk" and get_meta("then", "") == "home":
 		_start("idle", 0.5)
+
+
+## Whether the villager walks about with a torch right now: at night, out
+## in the street, unless they keep to one lit spot (UNLIT_PLANS). Anyone
+## walking home carries one all the same.
+func carries_torch() -> bool:
+	if not night or at_home or not visible:
+		return false
+	return _task == "walk" or not _info.plan in UNLIT_PLANS
+
+
+## Lights the torch, puts it out, and lets it flicker while it burns.
+func _mind_torch(delta: float) -> void:
+	var on := carries_torch()
+	if on and _torch == null:
+		_make_torch()
+	if _torch == null:
+		return
+	if _torch.visible != on:
+		_torch.visible = on
+		_torch_light.visible = on
+		for item in _torch_hidden:
+			item.visible = not on
+	if on:
+		_torch_time += delta
+		_torch_light.light_energy = TORCH_ENERGY * (0.86 + 0.14 * sin(_torch_time * 11.0) * sin(_torch_time * 6.7))
+
+
+## A stick with a flame on its tip in the left hand (what the hand holds by
+## day, a shield or a book, is put away meanwhile), and its light, hung on
+## the body so it does not swing about. The same flame as the lanterns', so
+## no shader is new to the renderer (see LevelWarmup).
+func _make_torch() -> void:
+	var size: float = _info.get("scale", 1.0)
+	var hand: Node3D = _model.find_child("handslot_l", true, false)
+	_torch = Node3D.new()
+	_torch.name = "Torch"
+	if hand:
+		for item in hand.get_children():
+			if item is Node3D and item.visible:
+				_torch_hidden.append(item)
+		hand.add_child(_torch)
+	else:
+		_torch.position = Vector3(0.45, 1.3, 0.3) * size
+		add_child(_torch)
+	var stick := MeshInstance3D.new()
+	var rod := CylinderMesh.new()
+	rod.top_radius = 0.045
+	rod.bottom_radius = 0.03
+	rod.height = 0.6
+	stick.mesh = rod
+	stick.material_override = _torch_wood()
+	stick.position = Vector3(0, 0.15, 0)
+	_torch.add_child(stick)
+	var flame := Effects.make_flame()
+	flame.scale = Vector3.ONE * 0.55
+	flame.position = Vector3(0, 0.5, 0)
+	_torch.add_child(flame)
+	_torch_light = OmniLight3D.new()
+	_torch_light.light_color = TORCH_COLOR
+	_torch_light.light_energy = TORCH_ENERGY
+	_torch_light.omni_range = TORCH_RANGE
+	_torch_light.omni_attenuation = 1.4
+	_torch_light.position = Vector3(0.4, 2.3, 0.4) * size
+	add_child(_torch_light)
+	_torch.visible = false
+	_torch_light.visible = false
+
+
+## One plain wooden material for every villager's torch.
+static func _torch_wood() -> StandardMaterial3D:
+	if _wood == null:
+		_wood = StandardMaterial3D.new()
+		_wood.albedo_color = Color(0.32, 0.2, 0.11)
+	return _wood
 
 
 ## The door of the house nearest to the villager's own spot.

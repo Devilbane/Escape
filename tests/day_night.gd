@@ -2,7 +2,8 @@ extends SceneTree
 ## Headless test for the day and night above ground: the clock runs in the
 ## open and stands still in the dungeon, the sky follows the hour with the
 ## old daylight as the daytime look, lanterns and windows glow at night,
-## most villagers go home to sleep, the dead rise on the graveyard and sink
+## most villagers go home to sleep (with a torch while still out, like the
+## guard on his rounds), the dead rise on the graveyard and sink
 ## back at dawn, bandits are tougher at night, a night in the bed skips to
 ## the morning, and the hour is kept in the saved game.
 ## Run with: godot --headless --fixed-fps 60 -s tests/day_night.gd
@@ -174,6 +175,24 @@ func _at_night() -> void:
 	mira.global_position = game.level.cell_to_world(mira.home)
 	game.level.set_hour(22.0)
 	check(mira.visible and mira._task == "walk", "at nightfall the shopkeeper walks home")
+	# Out in the dark on honest business, villagers carry torches.
+	mira._mind_torch(0.1)
+	check(mira.carries_torch() and mira._torch.visible and mira._torch_light.visible, "the shopkeeper walks home with a torch")
+	var guard := _villager("4")
+	if guard != null:
+		guard._mind_torch(0.1)
+		check(guard.carries_torch() and guard._torch_light.visible and guard._torch_light.light_energy > 1.0, "the guard keeps watch with a burning torch")
+		check(guard._torch_hidden.all(func(n): return not n.visible), "the guard puts away his shield to hold the torch")
+	var drinker := _villager("5")
+	if drinker != null:
+		drinker._mind_torch(0.1)
+		check(not drinker.carries_torch(), "the drinker on his bench needs no torch")
+	game.level.set_hour(12.0)
+	if guard != null:
+		guard._mind_torch(0.1)
+		check(not guard.carries_torch() and not guard._torch.visible and not guard._torch_light.visible, "by day the torch is put out")
+		check(guard._torch_hidden.all(func(n): return n.visible), "and the guard takes up his shield again")
+	game.level.set_hour(22.0)
 	game.level.set_hour(23.0)
 	game.day_hour = 23.0
 

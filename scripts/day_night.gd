@@ -5,8 +5,8 @@ extends RefCounted
 ## a village building; down in the dungeon the clock stands still and the
 ## light is the dungeon's own.
 ##
-## The light follows the hour: a cool blue night with a pale moon, a pink
-## dawn, the warm daylight (the picture the game always had in the open:
+## The light follows the hour: a dark night lit only by the moon (as bright
+## as its phase allows, see Moon and Game._moonlight), a pink dawn, the warm daylight (the picture the game always had in the open:
 ## the values of the toned-down look stay the daytime baseline), and a
 ## golden-red dusk. Between these keyframes everything blends smoothly.
 
@@ -24,25 +24,27 @@ const NIGHT_UNTIL := 5.0
 
 ## The sky through the day: hour, background, ambient colour and energy,
 ## sun (or moon) colour and energy, its pitch and yaw in degrees, colour
-## saturation, and how strongly lamps and windows glow (0 to 1).
+## saturation, how strongly lamps and windows glow (0 to 1), and how much of
+## the light is the moon's (0 to 1). The night keys are the full moon's
+## silver light; a smaller moon dims them (see Moon.light).
 const KEYS := [
-	{"hour": 0.0, "bg": Color(0.05, 0.06, 0.12), "amb": Color(0.42, 0.5, 0.78), "amb_e": 0.3,
-		"sun": Color(0.62, 0.7, 0.95), "sun_e": 0.32, "pitch": -60.0, "yaw": 30.0, "sat": 0.8, "glow": 1.0},
-	{"hour": 4.5, "bg": Color(0.05, 0.06, 0.12), "amb": Color(0.42, 0.5, 0.78), "amb_e": 0.3,
-		"sun": Color(0.62, 0.7, 0.95), "sun_e": 0.32, "pitch": -60.0, "yaw": 30.0, "sat": 0.8, "glow": 1.0},
+	{"hour": 0.0, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.16,
+		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.34, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
+	{"hour": 4.5, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.16,
+		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.34, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
 	{"hour": 6.0, "bg": Color(0.5, 0.36, 0.42), "amb": Color(0.78, 0.62, 0.66), "amb_e": 0.4,
-		"sun": Color(1.0, 0.62, 0.42), "sun_e": 0.55, "pitch": -20.0, "yaw": -95.0, "sat": 0.92, "glow": 0.5},
+		"sun": Color(1.0, 0.62, 0.42), "sun_e": 0.55, "pitch": -20.0, "yaw": -95.0, "sat": 0.92, "glow": 0.5, "moon": 0.0},
 	# Daylight: exactly the open-air look the game had before the clock.
 	{"hour": 7.5, "bg": Color(0.5, 0.46, 0.57), "amb": Color(0.7, 0.68, 0.78), "amb_e": 0.52,
-		"sun": Color(1.0, 0.8, 0.6), "sun_e": 0.88, "pitch": -38.0, "yaw": -70.0, "sat": 0.95, "glow": 0.0},
+		"sun": Color(1.0, 0.8, 0.6), "sun_e": 0.88, "pitch": -38.0, "yaw": -70.0, "sat": 0.95, "glow": 0.0, "moon": 0.0},
 	{"hour": 17.5, "bg": Color(0.5, 0.46, 0.57), "amb": Color(0.7, 0.68, 0.78), "amb_e": 0.52,
-		"sun": Color(1.0, 0.8, 0.6), "sun_e": 0.88, "pitch": -38.0, "yaw": 0.0, "sat": 0.95, "glow": 0.0},
+		"sun": Color(1.0, 0.8, 0.6), "sun_e": 0.88, "pitch": -38.0, "yaw": 0.0, "sat": 0.95, "glow": 0.0, "moon": 0.0},
 	{"hour": 19.5, "bg": Color(0.55, 0.32, 0.3), "amb": Color(0.8, 0.58, 0.55), "amb_e": 0.42,
-		"sun": Color(1.0, 0.52, 0.3), "sun_e": 0.6, "pitch": -16.0, "yaw": 25.0, "sat": 0.95, "glow": 0.55},
-	{"hour": 21.0, "bg": Color(0.05, 0.06, 0.12), "amb": Color(0.42, 0.5, 0.78), "amb_e": 0.3,
-		"sun": Color(0.62, 0.7, 0.95), "sun_e": 0.32, "pitch": -60.0, "yaw": 30.0, "sat": 0.8, "glow": 1.0},
-	{"hour": 24.0, "bg": Color(0.05, 0.06, 0.12), "amb": Color(0.42, 0.5, 0.78), "amb_e": 0.3,
-		"sun": Color(0.62, 0.7, 0.95), "sun_e": 0.32, "pitch": -60.0, "yaw": 30.0, "sat": 0.8, "glow": 1.0},
+		"sun": Color(1.0, 0.52, 0.3), "sun_e": 0.6, "pitch": -16.0, "yaw": 25.0, "sat": 0.95, "glow": 0.55, "moon": 0.0},
+	{"hour": 21.0, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.16,
+		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.34, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
+	{"hour": 24.0, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.16,
+		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.34, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
 ]
 
 
@@ -74,6 +76,12 @@ static func sky_at(hour: float) -> Dictionary:
 ## How strongly lamps and windows glow at an hour: 0 by day, 1 at night.
 static func glow_at(hour: float) -> float:
 	return float(sky_at(hour).glow)
+
+
+## How much of the light at an hour is the moon's: 0 by day, at dusk and
+## at dawn, 1 in the dark of the night.
+static func moon_at(hour: float) -> float:
+	return float(sky_at(hour).moon)
 
 
 ## Lights the open air for an hour of the day.

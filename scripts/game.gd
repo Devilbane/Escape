@@ -1859,16 +1859,24 @@ func _tick_clock(delta: float) -> void:
 		_update_hud()
 
 
-## The night is as bright as tonight's moon: pale and clear at full moon,
-## nearly black at new moon (see Moon). Only the night's own light changes,
-## so the day looks the same whatever the moon.
+## The night is as bright as tonight's moon, the only light out there:
+## silver and clear at full moon, nearly black at new moon (see Moon). Only
+## the moon's share of the light changes (see DayNight.moon_at), so the day,
+## dusk and dawn look the same whatever the moon.
 func _moonlight() -> void:
-	var night := DayNight.glow_at(day_hour)
-	if night <= 0.0:
+	var bright := _night_light()
+	if bright >= 1.0:
 		return
-	var bright := lerpf(1.0, Moon.light(day), night)
 	_moon.light_energy *= bright
-	_env.ambient_light_energy *= lerpf(1.0, bright, 0.6)
+	_env.ambient_light_energy *= bright
+	var bg := _env.background_color
+	_env.background_color = Color(bg.r * bright, bg.g * bright, bg.b * bright)
+
+
+## How bright the open air is against the full moon's night: 1 by day and
+## on full-moon nights, down to Moon.DARKEST on a new-moon night.
+func _night_light() -> float:
+	return lerpf(1.0, Moon.light(day), DayNight.moon_at(day_hour))
 
 
 ## Whether the clock passed dawn (see Bounties.DAWN) going forward from one
@@ -1978,7 +1986,7 @@ func _show_weather() -> void:
 		return
 	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
-	Weather.show_particles(_rain, _mist, _weather_look, 1.0 - DayNight.glow_at(day_hour))
+	Weather.show_particles(_rain, _mist, _weather_look, 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3)
 	if _rain_sound:
 		var r: float = _weather_look.rain
 		if r > 0.02:

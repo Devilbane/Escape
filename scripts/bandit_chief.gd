@@ -208,7 +208,7 @@ func _shield_bash(player: Player) -> void:
 		return
 	var d := player.global_position - global_position
 	d.y = 0.0
-	if d.length() < BASH_RANGE + 0.6 and not level.stacked(self, player):
+	if d.length() < BASH_RANGE + 0.6 and not level.stacked(self, player) and not level.door_between(global_position, player.global_position):
 		# The shield sends a running hero sprawling even when the blow
 		# itself finds them still reeling from the last one.
 		player.take_damage(BASH_DAMAGE, global_position, self, false)
@@ -245,7 +245,8 @@ func _charge(delta: float, player: Player) -> void:
 	move_and_slide()
 	var d := player.global_position - global_position
 	d.y = 0.0
-	if not player.dead and d.length() < CHARGE_HITS_AT and absf(player.global_position.y - global_position.y) < 1.4:
+	if not player.dead and d.length() < CHARGE_HITS_AT and absf(player.global_position.y - global_position.y) < 1.4 \
+			and not level.door_between(global_position, player.global_position):
 		_charging = 0.0
 		_anim.speed_scale = 1.0
 		var before := player.hp

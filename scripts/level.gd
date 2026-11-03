@@ -2094,7 +2094,7 @@ func _build_door(c: Vector2i) -> void:
 	_add_box(body, Vector3(-1.55, 2, 0), Vector3(1.0, 4, 1))
 	_add_box(body, Vector3(1.55, 2, 0), Vector3(1.0, 4, 1))
 	var leaf := _add_box(body, Vector3(0, 2, 0), Vector3(2.2, 4, 1))
-	_doors.append({"door": door.find_child("wall_doorway_door", true, false), "leaf": leaf, "cell": c, "pos": pos, "open": false})
+	_doors.append({"door": door.find_child("wall_doorway_door", true, false), "leaf": leaf, "cell": c, "pos": pos, "open": false, "spans_x": blocks_north_south})
 
 
 func _build_exit(c: Vector2i) -> void:
@@ -2653,9 +2653,10 @@ func stone_cut(c: Vector2i) -> bool:
 
 ## The way along the grid from one tile to another (as close as it gets),
 ## for everyone who walks by the path finding. Someone standing on a tile
-## walled off by blocks can still set out from it.
+## the path finding counts as solid (walled off by blocks, or the doorway of
+## a locked door) can still set out from it, so a click always walks them out.
 func grid_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
-	var lift := _stone_cut.has(from)
+	var lift := astar.is_in_boundsv(from) and astar.is_point_solid(from)
 	if lift:
 		astar.set_point_solid(from, false)
 	var ids := astar.get_id_path(from, to, true)
@@ -4408,9 +4409,13 @@ func refresh_vaults() -> void:
 
 
 ## True when nothing blocks the view between two points on the grid.
+## A closed door blocks it too, even for someone standing in its doorway.
 func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
+	if door_between(a, b):
+		return false
 	var from := Vector2(a.x, a.z) / TILE
 	var to := Vector2(b.x, b.z) / TILE
+	var origin := Vector2i(roundi(from.x), roundi(from.y))
 	var target := Vector2i(roundi(to.x), roundi(to.y))
 	var steps := int(from.distance_to(to) * 4.0) + 1
 	for i in range(1, steps):
@@ -4418,9 +4423,33 @@ func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
 		var c := Vector2i(roundi(p.x), roundi(p.y))
 		if c == target:
 			break
+		if c == origin:
+			continue # The tile one stands on (a doorway, say) hides nothing.
 		if is_opaque(c):
 			return false
 	return true
+
+
+## Whether a closed door stands between two points: the straight line from
+## one to the other passes through its leaf. Nobody strikes, shoots or looks
+## through a closed door, not even at someone standing right in its doorway.
+func door_between(a: Vector3, b: Vector3) -> bool:
+	for d in _doors:
+		if d.open:
+			continue
+		var p: Vector3 = d.pos
+		# How far each point is from the leaf (across it), and where along
+		# the doorway each one stands.
+		var across_a: float = a.z - p.z if d.spans_x else a.x - p.x
+		var across_b: float = b.z - p.z if d.spans_x else b.x - p.x
+		if across_a * across_b >= 0.0:
+			continue # Both on the same side of the leaf.
+		var along_a: float = a.x - p.x if d.spans_x else a.z - p.z
+		var along_b: float = b.x - p.x if d.spans_x else b.z - p.z
+		var along := lerpf(along_a, along_b, across_a / (across_a - across_b))
+		if absf(along) <= TILE * 0.5:
+			return true
+	return false
 
 
 func is_opaque(c: Vector2i) -> bool:

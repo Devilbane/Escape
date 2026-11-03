@@ -17,7 +17,7 @@ signal trained(id: String, value: int)
 signal leveled_up(level: int)
 
 ## The hero's reference speed in m/s (100 % Tempo); walking is a share of it.
-const SPEED := 4.0
+const SPEED := 5.2
 ## Walking pace as a share of SPEED.
 const WALK_FACTOR := 0.5
 ## Running speeds up to this many times the walking pace...

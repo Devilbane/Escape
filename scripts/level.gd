@@ -116,7 +116,7 @@ const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_sh
 ## Kit texture sets that get the worn look: barrels, crates, tables,
 ## shelves, chests and the wall decorations.
 const WORN_SETS := ["props", "chests", "wallprops"]
-const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
+const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
 const SOLID := "#bxotkCDHBLVF?f=U|N%~T^"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
@@ -164,6 +164,9 @@ var interactables: Array = []
 ## the saved game, and calls restore_taken() after build(), so nothing fills
 ## up again after a reload, a night in bed or a walk out and back in.
 var taken := {}
+## Floor tiles with a grate (cell -> true). Nothing is placed on them: no
+## props, chests, people, traps or hidden finds.
+var grates := {}
 ## What lies about on the floor here: gear the hero dropped, loot from the
 ## fallen and spilt coins, as [kind ("item" or "coin"), item id, x, z] each.
 ## The game hands in its own list for this level and keeps it in the saved
@@ -452,6 +455,8 @@ func build() -> void:
 		_decorate_lair()
 	if not outdoor and (building == "" or lair):
 		add_child(DungeonLife.new(self))
+	if not grates.is_empty():
+		add_child(GratePits.new(self))
 	if not _vault_slots.is_empty():
 		refresh_vaults()
 	traps = Traps.make(self)
@@ -464,6 +469,12 @@ func build() -> void:
 ## Furniture that stands on a whole tile and cannot be walked through.
 const FURNITURE := "bxotkCHBLVFfy"
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+## Furniture that looks alike, by group: chests (treasure chest, trunk,
+## storage chest) and boards (tables, the timber frames in the mines). Two
+## pieces of one group never stand on touching tiles, not even corner to
+## corner, so a room does not show the same thing twice side by side.
+## tests/furniture_spacing.gd checks the maps.
+const LOOKALIKES := ["CkL", "t", "j"]
 
 
 ## Moves furniture out of the way: nothing may stand in a narrow passage, next
@@ -475,7 +486,7 @@ func _clear_passages() -> void:
 			return
 		var ch := cell_char(blocker)
 		_set_cell(blocker, ".")
-		var spot := _free_spot_near(blocker)
+		var spot := _free_spot_near(blocker, ch)
 		if spot.x >= 0:
 			_set_cell(spot, ch)
 
@@ -548,14 +559,15 @@ func _reachable() -> Dictionary:
 
 
 ## The nearest plain floor tile where the furniture blocks nothing.
-func _free_spot_near(from: Vector2i) -> Vector2i:
+func _free_spot_near(from: Vector2i, piece := "") -> Vector2i:
 	var seen := {from: true}
 	var todo: Array[Vector2i] = [from]
 	var i := 0
 	while i < todo.size():
 		var c := todo[i]
 		i += 1
-		if ".,".contains(cell_char(c)) and c != from and not _crowds_passage(c):
+		if ".,".contains(cell_char(c)) and c != from and not _crowds_passage(c) \
+				and not _beside_lookalike(c, piece):
 			var count := _reachable().size()
 			_set_cell(c, "x")
 			var ok := _reachable().size() == count - 1
@@ -568,6 +580,29 @@ func _free_spot_near(from: Vector2i) -> Vector2i:
 				seen[n] = true
 				todo.append(n)
 	return Vector2i(-1, -1)
+
+
+## Whether a piece of furniture on this tile would touch another of its
+## group (see LOOKALIKES), on a side or at a corner.
+func _beside_lookalike(c: Vector2i, piece: String) -> bool:
+	var group := lookalike_group(piece)
+	if group == "":
+		return false
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			if (dx != 0 or dy != 0) and group.contains(cell_char(c + Vector2i(dx, dy))):
+				return true
+	return false
+
+
+## The group of look-alike furniture a map letter belongs to, "" for none.
+static func lookalike_group(piece: String) -> String:
+	if piece == "":
+		return ""
+	for group in LOOKALIKES:
+		if group.contains(piece):
+			return group
+	return ""
 
 
 func _set_cell(c: Vector2i, ch: String) -> void:
@@ -632,6 +667,11 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 			if mi.name == "spikes":
 				# Dull, hammered iron spikes (they move, so the grain rides along).
 				GearLook.apply(mi, "metal", SPIKE_IRON, true, 0.35)
+			elif piece == "floor_tile_big_grate":
+				# Grey floor stone round the hole, dark iron bars across it.
+				mi.mesh = _grate_mesh(mi.mesh)
+				mi.set_surface_override_material(0, _kit_material("floor"))
+				mi.set_surface_override_material(1, _gate_iron())
 			elif mi.name == "wall_doorway_door":
 				# An old wooden door with rusty fittings.
 				WornLook.wear_mesh(mi, _wear(), false, STONE_TINT)
@@ -808,7 +848,12 @@ func _build_floor(c: Vector2i, ch: String) -> void:
 	if ch == ",":
 		piece = "floor_dirt_large"
 	elif roll < 0.07:
-		piece = "floor_tile_big_grate"
+		# A grate only on plain floor: nothing (an NPC, a chest, the start)
+		# stands over the hole. The roll still happens, so the other tiles
+		# keep their look.
+		if ch == ".":
+			piece = "floor_tile_big_grate"
+			grates[c] = true
 	elif roll < 0.14:
 		piece = "floor_dirt_large"
 	_place(piece, pos, _random_quarter_turn())
@@ -838,10 +883,11 @@ func _build_walls(c: Vector2i) -> void:
 		var piece := "wall"
 		var roll := _rng.randf()
 		if not low and d == Vector2i(0, -1):
+			# The barred window that once hung here showed only rock behind
+			# it, so its share of the roll is a solid wall now. The roll
+			# stays the same, so the rest of every map is built as before.
 			if roll < 0.12:
 				piece = "wall_shelves"
-			elif roll < 0.22:
-				piece = "wall_archedwindow_gated"
 			elif roll < 0.32:
 				piece = "wall_cracked"
 		elif not low and roll < 0.2:
@@ -1270,53 +1316,105 @@ func _plain_stone(color: Color) -> Material:
 
 const WATER_SHADER := preload("res://shaders/water.gdshader")
 
-## The healing fountain: an eight-sided basin of matt carved stone on a low
-## step, a column with a small bowl on top, and a spout whose water falls
-## back into the basin. The water glows faintly and breathes, with a few
-## motes drifting over it, since it heals.
+const DECAYED_STONE_SHADER := preload("res://shaders/decayed_stone.gdshader")
+
+## The fountain's stone, aged by decay (0 clean, 1 the forgotten dungeon
+## fountain): cracks, damp streaks, moss and a lime crust at the water lines
+## (see shaders/decayed_stone.gdshader). Shared per colour and decay.
+## rubble: loose pieces lying on the floor (no extra moss at their foot).
+func _decayed_stone(color: Color, decay: float, rubble := false) -> Material:
+	var key := "mat_decayed_stone_%s_%.2f_%s" % [color.to_html(), decay, rubble]
+	if not _scenes.has(key):
+		var stone := ShaderMaterial.new()
+		stone.shader = DECAYED_STONE_SHADER
+		stone.set_shader_parameter("albedo_color", color)
+		stone.set_shader_parameter("strength", decay)
+		stone.set_shader_parameter("water_line_a", FOUNTAIN_WATER)
+		stone.set_shader_parameter("water_line_b", FOUNTAIN_BOWL_WATER)
+		stone.set_shader_parameter("low_moss", 0.0 if rubble else 1.0)
+		_scenes[key] = stone
+	return _scenes[key]
+
+
+## Heights of the water in the fountain's basin and in its bowl.
+const FOUNTAIN_WATER := 0.92
+const FOUNTAIN_BOWL_WATER := 2.3
+
+## The healing fountain: an eight-sided basin of carved stone on a low step,
+## a column with a small bowl on top, and a spout whose water falls back into
+## the basin. The water glows faintly and breathes, with a few motes drifting
+## over it, since it heals. In the dungeon it has stood forgotten for ages:
+## the stone is cracked, streaked and mossy, a piece of the basin's coping has
+## broken off and lies on the floor with some rubble, the water is murky with
+## a film of scum and the spout only splutters. Up in the village it is
+## looked after and only a little weathered.
 func _build_fountain(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	var stone := _plain_stone(Color(0.56, 0.54, 0.5))
+	var decay := 0.25 if outdoor or is_home else 1.0
+	var old := decay > 0.5
+	var stone := _decayed_stone(Color(0.56, 0.54, 0.5) if not old else Color(0.5, 0.48, 0.43), decay)
 	# The inside of the basin stays wet and dark.
-	var wet := _plain_stone(Color(0.3, 0.31, 0.32))
+	var wet := _decayed_stone(Color(0.3, 0.31, 0.32) if not old else Color(0.24, 0.25, 0.21), decay)
 	var water := ShaderMaterial.new()
 	water.shader = WATER_SHADER
 	var still := ShaderMaterial.new()
 	still.shader = WATER_SHADER
 	still.set_shader_parameter("rings", 0.3)
 	still.set_shader_parameter("ring_spacing", 45.0)
-	# [inner radius, outer radius, bottom, top, sides, material]
+	if old:
+		# Murky, greenish water with scum along the rim; it still glows a
+		# little, as it still heals.
+		for m: ShaderMaterial in [water, still]:
+			m.set_shader_parameter("deep_color", Color(0.05, 0.09, 0.06))
+			m.set_shader_parameter("shallow_color", Color(0.16, 0.22, 0.14))
+			m.set_shader_parameter("glow_color", Color(0.4, 0.8, 0.62))
+			m.set_shader_parameter("glow", 0.16)
+			m.set_shader_parameter("scum", 1.0)
+		water.set_shader_parameter("radius", 1.3)
+		water.set_shader_parameter("rings", 0.45)
+		still.set_shader_parameter("radius", 0.5)
+	# One side of the coping has broken off (the one facing the room's
+	# entrance side most often seen, front right).
+	var coping_gaps := [1] if old else []
+	# [inner radius, outer radius, bottom, top, sides, material, gaps]
 	var parts := [
-		[0.0, 1.85, 0.0, 0.22, 8, stone],  # the step
-		[1.3, 1.55, 0.22, 1.0, 8, stone],  # the basin's wall
-		[1.25, 1.68, 1.0, 1.14, 8, stone],  # its coping, a little wider
-		[0.0, 1.31, 0.22, 0.4, 8, wet],  # the basin's floor
-		[0.0, 1.3, 0.4, 0.92, 24, water],  # the water
-		[0.0, 0.46, 0.4, 0.62, 8, stone],  # the column's foot
-		[0.0, 0.3, 0.62, 1.94, 8, stone],  # the column
-		[0.0, 0.52, 1.94, 2.06, 8, stone],  # its capital
-		[0.5, 0.74, 2.06, 2.38, 8, stone],  # the bowl on top
-		[0.0, 0.51, 2.06, 2.14, 8, wet],  # the bowl's floor
-		[0.0, 0.5, 2.14, 2.3, 24, still],  # the bowl's water
+		[0.0, 1.85, 0.0, 0.22, 8, stone, []],  # the step
+		[1.3, 1.55, 0.22, 1.0, 8, stone, []],  # the basin's wall
+		[1.25, 1.68, 1.0, 1.14, 8, stone, coping_gaps],  # its coping, a little wider
+		[0.0, 1.31, 0.22, 0.4, 8, wet, []],  # the basin's floor
+		[0.0, 1.3, 0.4, FOUNTAIN_WATER, 24, water, []],  # the water
+		[0.0, 0.46, 0.4, 0.62, 8, stone, []],  # the column's foot
+		[0.0, 0.3, 0.62, 1.94, 8, stone, []],  # the column
+		[0.0, 0.52, 1.94, 2.06, 8, stone, []],  # its capital
+		[0.5, 0.74, 2.06, 2.38, 8, stone, []],  # the bowl on top
+		[0.0, 0.51, 2.06, 2.14, 8, wet, []],  # the bowl's floor
+		[0.0, 0.5, 2.14, FOUNTAIN_BOWL_WATER, 24, still, []],  # the bowl's water
 	]
 	for part in parts:
 		var node := MeshInstance3D.new()
-		node.mesh = Effects.ring_mesh(part[0], part[1], part[2], part[3], part[4], part[5])
+		node.mesh = Effects.ring_mesh(part[0], part[1], part[2], part[3], part[4], part[5], part[6])
 		node.position = pos
 		if part[5] == water or part[5] == still:
 			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(node)
-	var spray := Effects.make_spray(Color(0.75, 0.92, 0.95))
+	if old:
+		_fountain_rubble(pos, _decayed_stone(Color(0.5, 0.48, 0.43), decay, true))
+	var spray := Effects.make_spray(Color(0.75, 0.92, 0.95) if not old else Color(0.62, 0.72, 0.62))
 	spray.position = pos + Vector3(0, 2.3, 0)
+	if old:
+		# The spout half choked: it splutters a few weak drops.
+		spray.amount = 16
+		spray.initial_velocity_min = 1.2
+		spray.initial_velocity_max = 2.0
 	add_child(spray)
-	var motes := Effects.make_sparkles(Color(0.6, 0.9, 0.9))
-	motes.amount = 8
+	var motes := Effects.make_sparkles(Color(0.6, 0.9, 0.9) if not old else Color(0.55, 0.85, 0.7))
+	motes.amount = 8 if not old else 5
 	motes.emission_sphere_radius = 1.1
 	motes.position = pos + Vector3(0, 1.2, 0)
 	add_child(motes)
 	var glow := OmniLight3D.new()
-	glow.light_color = Color(0.5, 0.85, 0.85)
-	glow.light_energy = 0.9
+	glow.light_color = Color(0.5, 0.85, 0.85) if not old else Color(0.48, 0.8, 0.68)
+	glow.light_energy = 0.9 if not old else 0.7
 	glow.omni_range = 6.5
 	glow.position = pos + Vector3(0, 1.8, 0)
 	add_child(glow)
@@ -1327,7 +1425,30 @@ func _build_fountain(c: Vector2i) -> void:
 	_add_solid(pos, Vector3(3.2, 2, 3.2))
 	_light_spots.append(pos)
 	stations.append({"kind": "brunnen", "cell": c, "pos": pos, "used": false})
-	fishing_waters.append({"water": "brunnen", "pos": pos, "reach": 1.3, "round": true, "surface": 0.92})
+	fishing_waters.append({"water": "brunnen", "pos": pos, "reach": 1.3, "round": true, "surface": FOUNTAIN_WATER})
+
+
+## The broken-off piece of the fountain's coping, lying on the floor in front
+## of the gap, with a few smaller chips of stone round the step. Fixed, not
+## random, so the fountain looks the same each visit.
+func _fountain_rubble(pos: Vector3, stone: Material) -> void:
+	# [size, offset from the middle, turn, tilt]
+	var pieces := [
+		[Vector3(0.72, 0.14, 0.4), Vector3(1.75, 0.07, 1.55), 0.85, Vector3(0.08, 0, 0.22)],
+		[Vector3(0.24, 0.12, 0.2), Vector3(1.95, 0.06, 0.6), 0.3, Vector3(0.2, 0, 0.1)],
+		[Vector3(0.16, 0.1, 0.14), Vector3(0.9, 0.27, 1.55), 1.2, Vector3(0, 0, 0.15)],
+		[Vector3(0.14, 0.08, 0.12), Vector3(-1.3, 0.05, 1.75), 2.1, Vector3(0.1, 0, 0)],
+		[Vector3(0.2, 0.1, 0.16), Vector3(-1.9, 0.05, -0.7), 0.6, Vector3(0.15, 0, 0.1)],
+	]
+	for piece in pieces:
+		var box := BoxMesh.new()
+		box.size = piece[0]
+		var node := MeshInstance3D.new()
+		node.mesh = box
+		node.material_override = stone
+		node.position = pos + piece[1]
+		node.rotation = Vector3(piece[3].x, piece[2], piece[3].z)
+		add_child(node)
 
 
 ## A secret passage: a wall tile with a fake wall on each open side.
@@ -2386,6 +2507,115 @@ func _mark_wide(floor_free: PackedByteArray, out: PackedByteArray, start: int, s
 				out[start + r * stride] = 1
 
 
+# --- Iron gates ------------------------------------------------------------------
+
+## An iron grating across a one tile gap, in the stone of the walls around it:
+## a stone beam on top (a kit pillar laid on its side, like the corner pillars
+## beside it) and dark iron bars below it. Returns the bars, which are their
+## own node so a gate can sink them into the floor and leave the beam standing.
+const GATE_BAR_COUNT := 7
+const GATE_BAR_TOP := 3.35
+const GATE_IRON := Color(0.13, 0.13, 0.14)
+
+
+func _build_iron_gate(pos: Vector3, rot: float) -> Node3D:
+	var gate := Node3D.new()
+	gate.position = pos
+	gate.rotation.y = rot
+	add_child(gate)
+	# The beam reaches from corner pillar to corner pillar, its top level with
+	# the top of the walls.
+	var beam := _add_kit_part(["SM_Pillar", "floor", Vector3(-2.0, 3.6, 0), Vector3(1.4, 4.0 / 2.59, 1.4), 0.0], gate)
+	beam.rotation.z = -PI * 0.5
+	var bars := Node3D.new()
+	bars.name = "Bars"
+	gate.add_child(bars)
+	var iron := _gate_iron()
+	var rod := CylinderMesh.new()
+	rod.top_radius = 0.06
+	rod.bottom_radius = 0.06
+	rod.height = GATE_BAR_TOP
+	rod.radial_segments = 8
+	for i in GATE_BAR_COUNT:
+		var bar := MeshInstance3D.new()
+		bar.mesh = rod
+		bar.material_override = iron
+		bar.position = Vector3(lerpf(-1.35, 1.35, i / float(GATE_BAR_COUNT - 1)), GATE_BAR_TOP * 0.5, 0)
+		bars.add_child(bar)
+	# Two flat bands hold the bars together.
+	var band := BoxMesh.new()
+	band.size = Vector3(3.0, 0.12, 0.08)
+	for y in [0.9, 2.5]:
+		var cross := MeshInstance3D.new()
+		cross.mesh = band
+		cross.material_override = iron
+		cross.position = Vector3(0, y, 0)
+		bars.add_child(cross)
+	return bars
+
+
+## Where the kit's floor texture keeps the plain ground between its cobbles:
+## one floor tile maps onto this square of the texture.
+const FLOOR_GROUND_UV := Rect2(0.3547, 0.4906, 0.1568, 0.1568)
+
+
+## The floor grate's model in two surfaces: its stone frame (0) and its bars
+## (1). The model is one mesh on the KayKit colour atlas, where the bars use
+## the left half of the texture and the stone the right half. The frame is
+## mapped onto the kit's floor texture instead, laid on like a floor tile, so
+## the rim round the hole is the same ground as the tiles beside it.
+func _grate_mesh(source: Mesh) -> Mesh:
+	if not _scenes.has("grate_mesh"):
+		var arrays := source.surface_get_arrays(0)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		if index.is_empty():
+			index.resize(verts.size())
+			for i in verts.size():
+				index[i] = i
+		var parts := [SurfaceTool.new(), SurfaceTool.new()]
+		for st: SurfaceTool in parts:
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for t in range(0, index.size(), 3):
+			var bar := uvs[index[t]].x < 0.5
+			var st: SurfaceTool = parts[1 if bar else 0]
+			for k in 3:
+				var i := index[t + k]
+				var v := verts[i]
+				var uv := uvs[i]
+				if not bar:
+					# From above for the rim, from the side for the pit's walls.
+					var n := normals[index[t]]
+					var flat := Vector2(v.x, v.z)
+					if absf(n.y) < 0.5:
+						flat = Vector2(v.z if absf(n.x) > absf(n.z) else v.x, -v.y)
+					uv = FLOOR_GROUND_UV.position + (flat + Vector2(2, 2)) / 4.0 * FLOOR_GROUND_UV.size
+				st.set_normal(normals[i])
+				st.set_uv(uv)
+				st.add_vertex(v)
+		var mesh := ArrayMesh.new()
+		for st: SurfaceTool in parts:
+			st.generate_tangents()
+			st.commit(mesh)
+		mesh.surface_set_material(0, source.surface_get_material(0))
+		mesh.surface_set_material(1, source.surface_get_material(0))
+		_scenes["grate_mesh"] = mesh
+	return _scenes["grate_mesh"]
+
+
+## Dark, slightly rusty iron for the bars of the gates and floor grates.
+func _gate_iron() -> Material:
+	if not _scenes.has("mat_gate_iron"):
+		var m := StandardMaterial3D.new()
+		m.albedo_color = GATE_IRON
+		m.metallic = 0.35
+		m.roughness = 0.75
+		_scenes["mat_gate_iron"] = m
+	return _scenes["mat_gate_iron"]
+
+
 # --- Pressure plates and the iron gate ------------------------------------------
 
 ## Stone slabs in the floor that sink while a stone block lies on them, and
@@ -2426,7 +2656,7 @@ func _build_gate(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	var across_x := cell_char(c + Vector2i(-1, 0)) == "#" and cell_char(c + Vector2i(1, 0)) == "#"
 	var rot := 0.0 if across_x else PI * 0.5
-	var bars := _place("wall_gated", pos, rot)
+	var bars := _build_iron_gate(pos, rot)
 	var body := StaticBody3D.new()
 	body.position = pos
 	body.rotation.y = rot
@@ -2969,7 +3199,7 @@ func hide_ingredients() -> void:
 					cells.append(c)
 	else:
 		for c in _reachable():
-			if cell_char(c) in [".", ","] and not astar.is_point_solid(c) and c != start_cell:
+			if cell_char(c) in [".", ","] and not astar.is_point_solid(c) and c != start_cell and not grates.has(c):
 				cells.append(c)
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
@@ -3246,7 +3476,7 @@ func _decorate_lair() -> void:
 						pos + Vector3(side * (TILE * 0.5 - 0.35), 2.9, -TILE * 0.5 + 0.35), PI * 0.25 * side + PI, 1.4)
 			elif north and ch in ".," and _rng.randf() < 0.18:
 				_place_lair("Banner", pos + Vector3(0, 0, -TILE * 0.5 + 0.35), 0.0, 0.85)
-			if ch in ".," and not north and _rng.randf() < 0.14:
+			if ch in ".," and not north and _rng.randf() < 0.14 and not grates.has(c):
 				_place_lair("Skull", pos + Vector3(_rng.randf_range(-1.3, 1.3), 0, _rng.randf_range(-1.3, 1.3)), _rng.randf() * TAU, 0.8)
 			if ch == "C":
 				# The hoard: gold heaped up around the chest.
@@ -3774,7 +4004,7 @@ func _trophy_statue(kind: String) -> Node3D:
 ## Iron bars across a one tile gap: solid, but you can see through.
 func _build_bars(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	_place("wall_gated", pos, 0.0)
+	_build_iron_gate(pos, 0.0)
 	_add_solid(pos, Vector3(TILE, 4, 0.6))
 
 

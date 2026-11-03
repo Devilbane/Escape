@@ -197,7 +197,7 @@ func _run() -> void:
 		check(Traps._apart(landed, trap.cell) >= Traps.TELEPORT_MIN_TILES, "the teleporter flings the hero away: %s -> %s" % [trap.cell, landed])
 		check(not game.level.astar.is_point_solid(landed), "onto open floor")
 
-	# A trapdoor drops the hero to the next floor, near its start.
+	# A trapdoor drops the hero to the floor below (the one before it), near its start.
 	t = _enter("03_das_labyrinth.txt")
 	trap = _first(t, "falltuer")
 	check(not trap.is_empty(), "the labyrinth has a trapdoor")
@@ -206,7 +206,7 @@ func _run() -> void:
 		p.hp = p.max_hp
 		_put(trap.cell)
 		await _wait(60)
-		check(game.level_index == from + 1, "the trapdoor drops the hero a level: %d -> %d" % [from + 1, game.level_index + 1])
+		check(game.level_index == from - 1, "the trapdoor drops the hero down a level: %d -> %d" % [from + 1, game.level_index + 1])
 		check(game.state == game.State.PLAYING, "and the game goes on")
 		var here: Vector2i = game.level.world_to_cell(p.global_position)
 		check(here != game.level.start_cell and not game.level.astar.is_point_solid(here), "the hero lands on open floor: %s" % here)

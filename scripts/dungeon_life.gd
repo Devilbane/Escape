@@ -34,8 +34,6 @@ var _rng := RandomNumberGenerator.new()
 var _critters: Array = []
 var _drips: Array = []
 var _time := 0.0
-## Tiles with a floor grate: things lying there would hang over the hole.
-var _grates := {}
 
 static var _dust_tex: Texture2D
 static var _drift_tex: Texture2D
@@ -50,9 +48,6 @@ func _init(owner_level: Level) -> void:
 
 func _ready() -> void:
 	_rng.seed = hash(level.level_name + ":life")
-	for child in level.get_children():
-		if child is Node3D and child.scene_file_path.ends_with("floor_tile_big_grate.glb"):
-			_grates[level.world_to_cell(child.position)] = true
 	var furniture := _furniture_boxes()
 	_build_dust()
 	_build_clutter()
@@ -78,7 +73,7 @@ func _open_cells() -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
 	for y in level.height:
 		for x in level.width:
-			if _is_open(Vector2i(x, y)) and not _grates.has(Vector2i(x, y)):
+			if _is_open(Vector2i(x, y)) and not level.grates.has(Vector2i(x, y)):
 				cells.append(Vector2i(x, y))
 	return cells
 
@@ -117,7 +112,7 @@ func _free_spot(p: Vector3) -> bool:
 
 # --- Materials and textures -------------------------------------------------
 
-func _material(key: String, color: Color, roughness := 0.85) -> StandardMaterial3D:
+static func _material(key: String, color: Color, roughness := 0.85) -> StandardMaterial3D:
 	if not _materials.has(key):
 		var m := StandardMaterial3D.new()
 		m.albedo_color = color
@@ -301,11 +296,11 @@ func _build_clutter() -> void:
 			continue
 		var roll := _rng.randf()
 		if roll < 0.09:
-			_bone_pile(_edge_spot(c))
+			bone_pile(self, _edge_spot(c), _rng)
 		elif roll < 0.16:
-			_broken_pot(_edge_spot(c))
+			broken_pot(self, _edge_spot(c), _rng)
 		elif roll < 0.24:
-			_pebbles(_edge_spot(c))
+			pebbles(self, _edge_spot(c), _rng)
 
 
 ## Old, dirty bone: yellowed, stained, with earth on the side it lies on
@@ -318,8 +313,8 @@ static func _bone_material() -> Material:
 	return _materials["bone"]
 
 
-func _bone(length: float) -> Node3D:
-	var bone := Node3D.new()
+static func bone(length: float) -> Node3D:
+	var piece := Node3D.new()
 	var shaft := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
 	cyl.top_radius = 0.045
@@ -330,7 +325,7 @@ func _bone(length: float) -> Node3D:
 	shaft.mesh = cyl
 	shaft.rotation.z = PI * 0.5
 	shaft.material_override = _bone_material()
-	bone.add_child(shaft)
+	piece.add_child(shaft)
 	var knob := SphereMesh.new()
 	knob.radius = 0.075
 	knob.height = 0.15
@@ -342,12 +337,12 @@ func _bone(length: float) -> Node3D:
 			k.mesh = knob
 			k.position = Vector3(end * length, 0, side * 0.045)
 			k.material_override = _bone_material()
-			bone.add_child(k)
-	return bone
+			piece.add_child(k)
+	return piece
 
 
-func _skull() -> Node3D:
-	var skull := Node3D.new()
+static func skull() -> Node3D:
+	var piece := Node3D.new()
 	var head := MeshInstance3D.new()
 	var dome := SphereMesh.new()
 	dome.radius = 0.2
@@ -358,14 +353,14 @@ func _skull() -> Node3D:
 	head.scale = Vector3(1.0, 0.95, 1.15)
 	head.position.y = 0.17
 	head.material_override = _bone_material()
-	skull.add_child(head)
+	piece.add_child(head)
 	var jaw := MeshInstance3D.new()
 	var jaw_box := BoxMesh.new()
 	jaw_box.size = Vector3(0.24, 0.1, 0.16)
 	jaw.mesh = jaw_box
 	jaw.position = Vector3(0, 0.05, 0.13)
 	jaw.material_override = _bone_material()
-	skull.add_child(jaw)
+	piece.add_child(jaw)
 	var socket := SphereMesh.new()
 	socket.radius = 0.055
 	socket.height = 0.09
@@ -376,29 +371,30 @@ func _skull() -> Node3D:
 		eye.mesh = socket
 		eye.position = Vector3(side * 0.08, 0.2, 0.19)
 		eye.material_override = _material("socket", Color(0.05, 0.04, 0.03), 1.0)
-		skull.add_child(eye)
-	return skull
+		piece.add_child(eye)
+	return piece
 
 
-func _bone_pile(at: Vector3) -> void:
+## A few bones on `parent` at `at`, sometimes with a skull.
+static func bone_pile(parent: Node3D, at: Vector3, rng: RandomNumberGenerator, skull_chance := 0.45) -> void:
 	var pile := Node3D.new()
 	pile.position = at + Vector3(0, 0.04, 0)
-	pile.rotation.y = _rng.randf() * TAU
-	add_child(pile)
-	for i in _rng.randi_range(2, 5):
-		var bone := _bone(_rng.randf_range(0.35, 0.75))
-		bone.position = Vector3(_rng.randf_range(-0.45, 0.45), 0.02 + i * 0.03, _rng.randf_range(-0.45, 0.45))
-		bone.rotation = Vector3(_rng.randf_range(-0.1, 0.1), _rng.randf() * TAU, 0)
-		pile.add_child(bone)
-	if _rng.randf() < 0.45:
-		var skull := _skull()
-		skull.position = Vector3(_rng.randf_range(-0.3, 0.3), -0.03, _rng.randf_range(-0.3, 0.3))
-		skull.rotation = Vector3(_rng.randf_range(-0.35, 0.2), _rng.randf() * TAU, _rng.randf_range(-0.4, 0.4))
-		pile.add_child(skull)
+	pile.rotation.y = rng.randf() * TAU
+	parent.add_child(pile)
+	for i in rng.randi_range(2, 5):
+		var b := bone(rng.randf_range(0.35, 0.75))
+		b.position = Vector3(rng.randf_range(-0.45, 0.45), 0.02 + i * 0.03, rng.randf_range(-0.45, 0.45))
+		b.rotation = Vector3(rng.randf_range(-0.1, 0.1), rng.randf() * TAU, 0)
+		pile.add_child(b)
+	if rng.randf() < skull_chance:
+		var head := skull()
+		head.position = Vector3(rng.randf_range(-0.3, 0.3), -0.03, rng.randf_range(-0.3, 0.3))
+		head.rotation = Vector3(rng.randf_range(-0.35, 0.2), rng.randf() * TAU, rng.randf_range(-0.4, 0.4))
+		pile.add_child(head)
 
 
 ## A curved piece of a clay pot's wall.
-func _shard_mesh(radius: float, span: float, tall: float) -> ArrayMesh:
+static func _shard_mesh(radius: float, span: float, tall: float) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var steps := 5
@@ -417,7 +413,7 @@ func _shard_mesh(radius: float, span: float, tall: float) -> ArrayMesh:
 	return st.commit()
 
 
-func _clay_material() -> StandardMaterial3D:
+static func _clay_material() -> StandardMaterial3D:
 	if not _materials.has("clay"):
 		var m := StandardMaterial3D.new()
 		m.albedo_color = Color(0.5, 0.28, 0.17)
@@ -427,16 +423,16 @@ func _clay_material() -> StandardMaterial3D:
 	return _materials["clay"]
 
 
-func _broken_pot(at: Vector3) -> void:
+static func broken_pot(parent: Node3D, at: Vector3, rng: RandomNumberGenerator) -> void:
 	var spot := Node3D.new()
 	spot.position = at
-	spot.rotation.y = _rng.randf() * TAU
-	add_child(spot)
-	var radius := _rng.randf_range(0.26, 0.36)
-	if _rng.randf() < 0.6:
+	spot.rotation.y = rng.randf() * TAU
+	parent.add_child(spot)
+	var radius := rng.randf_range(0.26, 0.36)
+	if rng.randf() < 0.6:
 		# The bottom of the pot still stands, its rim broken off.
 		var base := MeshInstance3D.new()
-		base.mesh = _shard_mesh(radius, TAU, _rng.randf_range(0.18, 0.3))
+		base.mesh = _shard_mesh(radius, TAU, rng.randf_range(0.18, 0.3))
 		base.material_override = _clay_material()
 		spot.add_child(base)
 		var bottom := MeshInstance3D.new()
@@ -449,33 +445,33 @@ func _broken_pot(at: Vector3) -> void:
 		bottom.position.y = 0.02
 		bottom.material_override = _clay_material()
 		spot.add_child(bottom)
-	for i in _rng.randi_range(3, 6):
+	for i in rng.randi_range(3, 6):
 		var shard := MeshInstance3D.new()
-		shard.mesh = _shard_mesh(radius, _rng.randf_range(0.5, 1.3), _rng.randf_range(0.12, 0.28))
+		shard.mesh = _shard_mesh(radius, rng.randf_range(0.5, 1.3), rng.randf_range(0.12, 0.28))
 		shard.material_override = _clay_material()
-		var dist := _rng.randf_range(0.35, 1.0)
-		var dir := _rng.randf() * TAU
+		var dist := rng.randf_range(0.35, 1.0)
+		var dir := rng.randf() * TAU
 		shard.position = Vector3(cos(dir) * dist, 0.03, sin(dir) * dist)
 		# Most pieces lie on their side.
-		shard.rotation = Vector3(_rng.randf_range(1.2, 1.9) * (1 if _rng.randf() < 0.5 else -1), _rng.randf() * TAU, 0)
+		shard.rotation = Vector3(rng.randf_range(1.2, 1.9) * (1 if rng.randf() < 0.5 else -1), rng.randf() * TAU, 0)
 		spot.add_child(shard)
 
 
 ## A few loose stones fallen from the walls.
-func _pebbles(at: Vector3) -> void:
+static func pebbles(parent: Node3D, at: Vector3, rng: RandomNumberGenerator) -> void:
 	var stone := SphereMesh.new()
 	stone.radius = 0.1
 	stone.height = 0.14
 	stone.radial_segments = 6
 	stone.rings = 3
-	for i in _rng.randi_range(3, 7):
+	for i in rng.randi_range(3, 7):
 		var s := MeshInstance3D.new()
 		s.mesh = stone
-		s.scale = Vector3.ONE * _rng.randf_range(0.5, 1.6)
-		s.rotation = Vector3(_rng.randf() * TAU, _rng.randf() * TAU, 0)
-		s.position = at + Vector3(_rng.randf_range(-0.6, 0.6), 0.03, _rng.randf_range(-0.6, 0.6))
+		s.scale = Vector3.ONE * rng.randf_range(0.5, 1.6)
+		s.rotation = Vector3(rng.randf() * TAU, rng.randf() * TAU, 0)
+		s.position = at + Vector3(rng.randf_range(-0.6, 0.6), 0.03, rng.randf_range(-0.6, 0.6))
 		s.material_override = _material("pebble", Color(0.36, 0.33, 0.3), 0.95)
-		add_child(s)
+		parent.add_child(s)
 
 
 # --- Cobwebs ------------------------------------------------------------------

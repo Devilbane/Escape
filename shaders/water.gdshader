@@ -16,6 +16,12 @@ uniform float glow = 0.25;
 // Rings spreading from the middle of the surface, where the spout lands.
 uniform float rings = 1.0;
 uniform float ring_spacing = 22.0;
+// Neglected water (the dungeon's fountain): a green film of scum floating in
+// patches, thickest along the rim, with specks of dirt in it. radius is the
+// water's own radius, for where the rim is.
+uniform float scum = 0.0;
+uniform float radius = 1.3;
+uniform vec3 scum_color : source_color = vec3(0.2, 0.25, 0.1);
 
 varying vec3 world_pos;
 varying vec3 local_pos;
@@ -47,4 +53,17 @@ void fragment() {
 	SPECULAR = 0.6;
 	float breath = 0.85 + 0.15 * sin(t * 1.3);
 	EMISSION = glow_color * glow * breath * (0.55 + 0.45 * r2) * (1.0 + 0.5 * max(ring, 0.0));
+	if (scum > 0.0) {
+		// The film drifts very slowly and the rings push it toward the rim.
+		vec3 q = vec3(p.x * 1.9 + t * 0.03, p.z * 1.9 - t * 0.02, 2.0);
+		float rim = smoothstep(0.45, 1.0, d / radius);
+		float film = smoothstep(0.5, 0.7, fbm(q) + 0.3 * rim - 0.25 * exp(-d * 3.0)) * scum;
+		float specks = smoothstep(0.7, 0.85, vnoise(vec3(p.x * 30.0, p.z * 30.0, t * 0.02))) * band(30.0, px);
+		ALBEDO = mix(ALBEDO, scum_color * (0.75 + 0.5 * r2), film);
+		ALBEDO *= 1.0 - 0.45 * specks * scum;
+		ALPHA = mix(ALPHA, 1.0, film);
+		ROUGHNESS = mix(ROUGHNESS, 0.75, film);
+		SPECULAR = mix(SPECULAR, 0.25, film);
+		EMISSION *= 1.0 - 0.85 * film;
+	}
 }

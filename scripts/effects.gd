@@ -177,10 +177,22 @@ static func cord_mesh(segments: Array, radius: float, material: Material) -> Arr
 ## so the facets catch the light like cut stone. UVs run in metres along the
 ## circumference and up the height. The mesh's origin is the ring's centre at
 ## the floor.
-static func ring_mesh(inner: float, outer: float, y0: float, y1: float, sides: int, material: Material) -> ArrayMesh:
+static func ring_mesh(inner: float, outer: float, y0: float, y1: float, sides: int, material: Material, gaps: Array = []) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in sides:
+		if i in gaps:
+			# A side left out (a broken-off piece): close the cut ends.
+			for k in 2:
+				var a := TAU * (i + k) / sides
+				var turn := 1.0 if k == 0 else -1.0
+				var d := Vector3(cos(a), 0, sin(a))
+				var n := Vector3(-sin(a), 0, cos(a)) * turn
+				var c := [d * inner + Vector3(0, y0, 0), d * inner + Vector3(0, y1, 0), d * outer + Vector3(0, y1, 0), d * outer + Vector3(0, y0, 0)]
+				if k == 0:
+					c.reverse()
+				_face(st, c, n, [Vector2(0, y0), Vector2(0, y1), Vector2(1, y1), Vector2(1, y0)])
+			continue
 		var a0 := TAU * i / sides
 		var a1 := TAU * (i + 1) / sides
 		var d0 := Vector3(cos(a0), 0, sin(a0))

@@ -292,6 +292,11 @@ signal stairs_taken(to: Vector3, up: bool, storey: int)
 var depth := 0
 var fog: Fog
 var _doors: Array = []
+## The footprints (on the ground, x and z) of the tall pieces that stop a
+## bolt, a thrown knife or an orb: pillars, statues and stacked crates. Each
+## is grown by SHOT_RADIUS, the half width of a shot. See shot_blocked.
+var shot_blockers: Array[Rect2] = []
+const SHOT_RADIUS := 0.2
 ## The monsters placed from the map, with the cell each started on, so a
 ## floor the hero leaves can remember who fell (see note_left).
 var _map_enemies: Array = []
@@ -1083,15 +1088,22 @@ func _add_solid(pos: Vector3, size: Vector3) -> void:
 ## would stand out past a narrow piece (a trunk, a table turned on its side)
 ## and stop the hero in mid air, or leave a corner of the piece open for the
 ## hero to sink into. Without meshes the box is `fallback` around `pos`.
-func _add_fitted_solid(model: Node3D, pos: Vector3, height: float, fallback := Vector2(2.4, 2.4)) -> void:
+func _add_fitted_solid(model: Node3D, pos: Vector3, height: float, fallback := Vector2(2.4, 2.4)) -> Rect2:
 	var foot := footprint(model, self)
 	var tile := AABB(Vector3(pos.x - TILE * 0.5, 0.0, pos.z - TILE * 0.5), Vector3(TILE, height, TILE))
 	if foot.size.x < 0.05 or foot.size.z < 0.05:
 		_add_solid(pos, Vector3(fallback.x, height, fallback.y))
-		return
+		return Rect2(pos.x - fallback.x * 0.5, pos.z - fallback.y * 0.5, fallback.x, fallback.y)
 	var box := foot.intersection(tile.grow(-0.05))
 	var middle := box.get_center()
 	_add_solid(Vector3(middle.x, 0.0, middle.z), Vector3(box.size.x, height, box.size.z))
+	return Rect2(box.position.x, box.position.z, box.size.x, box.size.z)
+
+
+## A piece taller than a shot flies (a pillar, a statue, a stack of crates)
+## stops bolts, knives and orbs where it stands, as well as the people.
+func _block_shots(foot: Rect2) -> void:
+	shot_blockers.append(foot.grow(SHOT_RADIUS))
 
 
 ## Blocks a round piece of furniture (a barrel) where it is drawn: an upright
@@ -1192,7 +1204,7 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_add_interactable("Fass", pos, pos + Vector3(0, 2.8, 0), c)
 		"x":
 			var stack := _place("crates_stacked", pos, _random_quarter_turn())
-			_add_fitted_solid(stack, pos, 2.0, Vector2(3.0, 3.0))
+			_block_shots(_add_fitted_solid(stack, pos, 2.0, Vector2(3.0, 3.0)))
 			_add_interactable("Kiste", pos, pos + Vector3(0, 3.6, 0), c)
 		"k":
 			var trunk_model := _place("trunk_large_A", pos, _random_quarter_turn())
@@ -1204,9 +1216,9 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			if _in_secret_room(c):
 				trunk.loot = _secret_loot(c, 0.5)
 		"o":
-			_add_fitted_solid(_place("pillar_decorated", pos), pos, 4.0, Vector2(1.6, 1.6))
+			_block_shots(_add_fitted_solid(_place("pillar_decorated", pos), pos, 4.0, Vector2(1.6, 1.6)))
 		"y":
-			_add_fitted_solid(_place_lair("Statue_Horse", pos, _random_quarter_turn(), 0.62), pos, 4.0, Vector2(2.6, 2.6))
+			_block_shots(_add_fitted_solid(_place_lair("Statue_Horse", pos, _random_quarter_turn(), 0.62), pos, 4.0, Vector2(2.6, 2.6)))
 		"H":
 			_build_shrine(c)
 		"B":
@@ -4765,6 +4777,45 @@ func door_between(a: Vector3, b: Vector3) -> bool:
 		if absf(along) <= TILE * 0.5:
 			return true
 	return false
+
+
+## True when a shot from `a` to `b` gets there: nothing blocks the view (see
+## has_line_of_sight) and no pillar, statue or crate stack stands in the way.
+## Shooters (the hero's knives, archers, mages) only let fly when it is.
+func has_clear_shot(a: Vector3, b: Vector3) -> bool:
+	return has_line_of_sight(a, b) and not shot_blocked(a, b)
+
+
+## Whether a shot flying from `a` to `b` runs into a pillar, a statue or a
+## stack of crates on the way (see shot_blockers).
+func shot_blocked(a: Vector3, b: Vector3) -> bool:
+	var from := Vector2(a.x, a.z)
+	var to := Vector2(b.x, b.z)
+	for foot in shot_blockers:
+		if segment_hits_rect(from, to, foot):
+			return true
+	return false
+
+
+## Whether the straight line from `a` to `b` touches the rectangle `r`.
+static func segment_hits_rect(a: Vector2, b: Vector2, r: Rect2) -> bool:
+	var d := b - a
+	var t0 := 0.0
+	var t1 := 1.0
+	for axis in 2:
+		var lo: float = r.position[axis]
+		var hi: float = r.end[axis]
+		if absf(d[axis]) < 0.00001:
+			if a[axis] < lo or a[axis] > hi:
+				return false
+			continue
+		var ta: float = (lo - a[axis]) / d[axis]
+		var tb: float = (hi - a[axis]) / d[axis]
+		t0 = maxf(t0, minf(ta, tb))
+		t1 = minf(t1, maxf(ta, tb))
+		if t0 > t1:
+			return false
+	return true
 
 
 func is_opaque(c: Vector2i) -> bool:

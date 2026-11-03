@@ -116,6 +116,33 @@ func _test() -> void:
 	check(game.lore.has(writing.text), "the writing goes into the compendium")
 	check(p.xp.get("erkunden", 0.0) > before, "a new writing trains Erkunden")
 	check(j.entries.any(func(e): return e.t == "Inschrift entdeckt"), "the journal notes the writing")
+	# A noticed writing stands out: an amber frame round it, a card with its
+	# word and clue, and running into the wall reads it again.
+	check(writing.frame.visible, "a noticed writing gets a frame")
+	check(game.level.stations.has(writing.station) and writing.station.kind == "tafel", "a noticed writing can be read again")
+	check(game.writing_card.showing(), "a noticed writing pops up on a card")
+	check(game.writing_card._word.text == Lang.t(writing.word), "the card shows the carved word: %s" % game.writing_card._word.text)
+	check(game.writing_card._text.text == Lang.t(writing.text), "the card shows what the writing says")
+	game.writing_card.hide_now()
+	game._use_station(writing.station)
+	check(game.writing_card.showing(), "running into the wall shows the card again")
+	# It stays known on the next visit.
+	var here: int = game.level_index
+	game.load_level(here, false)
+	var again: Dictionary = game.level.writing()
+	check(again.found and again.label.visible and again.frame.visible, "a noticed writing stays known on the next visit")
+	check(game.level.stations.has(again.station), "and can still be read there")
+	check(not game.writing_card.showing(), "a new visit does not pop the card up again")
+	# Walking right up to a writing always notices it, even after a failed roll.
+	var other := 1 if here != 1 else 2
+	game.looted.erase(game.level_files[other].get_file())
+	game.load_level(other, false)
+	var near: Dictionary = game.level.writing()
+	check(not near.found, "the next level's writing is hidden")
+	near.rolled = true
+	p.global_position = game.level.cell_to_world(near.cell)
+	game.level._check_writing()
+	check(near.found and near.frame.visible, "walking right up to a writing notices it for sure")
 	var texts := {}
 	for i in 10:
 		texts[Level.WRITINGS[i % Level.WRITINGS.size()][1]] = true

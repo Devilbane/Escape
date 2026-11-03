@@ -802,7 +802,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 		play_once("Throw", 0.45)
 	await get_tree().create_timer(0.2).timeout
 	Sfx.play(self, "throw")
-	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true).damage = power + heavy_hit("werfen")
+	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true).damage = throw_power() + heavy_hit("werfen")
 
 
 func _engage(enemy: Enemy) -> void:
@@ -888,6 +888,45 @@ const SNEAK_PER_LEVEL := 0.03
 const SECRET_PER_INTUITION := 2
 const JUMP_PER_DEXTERITY := 0.02
 const DODGE_PER_DEXTERITY := 0.04
+## Dodging blows and shots: DODGE_PER_DEXTERITY per point of Geschick, up to
+## this much.
+const DODGE_MAX := 0.4
+## Each point of Intelligenz above the start makes skills and crafts train
+## this much quicker, and adds this much to all experience (EP).
+const SKILL_LEARNING_PER_INTELLIGENCE := 0.1
+const XP_PER_INTELLIGENCE := 0.03
+
+
+## Points of Stärke above the start: each is +1 damage in close combat.
+func strength_points() -> int:
+	return attribute("staerke") - Training.ATTRIBUTES.staerke.start
+
+
+## The damage of a thrown knife before a heavy hit: the hero's power, with
+## Geschick in place of Stärke (a deft hand throws, a strong arm strikes).
+func throw_power() -> int:
+	return maxi(1, power - strength_points() + dexterity_points())
+
+
+## The chance to dodge a blow or a shot, 0..DODGE_MAX.
+func dodge_chance() -> float:
+	return clampf(DODGE_PER_DEXTERITY * dexterity_points(), 0.0, DODGE_MAX)
+
+
+## Points of Intelligenz above the start.
+func intelligence_points() -> int:
+	return attribute("intelligenz") - Training.ATTRIBUTES.intelligenz.start
+
+
+## How much quicker skills and crafts train thanks to Intelligenz (0.2 = 20 %).
+func skill_learning_bonus() -> float:
+	return SKILL_LEARNING_PER_INTELLIGENCE * intelligence_points()
+
+
+## Experience as a clever hero earns it: XP_PER_INTELLIGENCE more per point
+## of Intelligenz.
+func clever_xp(amount: int) -> int:
+	return roundi(amount * (1.0 + XP_PER_INTELLIGENCE * intelligence_points()))
 
 
 ## Points of Geschick above the start: each makes running jumps 2 % longer
@@ -1064,6 +1103,8 @@ func train(id: String, amount: float, need_gear := true) -> void:
 		amount *= 1.0 + Training.LEARNING_PER_WISDOM * (attribute("weisheit") - Training.ATTRIBUTES.weisheit.start)
 	var is_craft := Training.CRAFTS.has(id)
 	var is_skill := Training.is_skill(id) or is_craft
+	if is_skill:
+		amount *= 1.0 + skill_learning_bonus()
 	if is_skill and need_gear and not is_craft and not skill_enabled(id):
 		return
 	var old_xp: float = xp.get(id, 0.0)
@@ -1442,6 +1483,12 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 		train("blocken", 2.0)
 		train("staerke", 1.0)
 		_block(from)
+		return
+	# A deft hero steps aside from a blow or a shot (see dodge_chance).
+	if blockable and randf() < dodge_chance():
+		train("geschick", 1.0)
+		_invulnerable = 0.4
+		Effects.float_text(level, global_position + Vector3(0, 2.2, 0), Lang.t("Ausgewichen!"), Color(0.72, 0.9, 0.78))
 		return
 	if blockable:
 		train("blocken", 0.5)

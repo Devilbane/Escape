@@ -64,7 +64,8 @@ func _init() -> void:
 
 ## His name and the shares of his life where his phases begin (see BossBar).
 func boss_title() -> String:
-	return TITLE
+	# One made in the map workshop goes by the name it was given there.
+	return str(custom.get("title", TITLE))
 
 
 func phase_marks() -> Array:

@@ -27,31 +27,53 @@ const TYPES := ["monster", "npc", "item"]
 ## Where the workshop keeps the maps made with it.
 const USER_DIR := "user://karten/"
 
-## The monsters a creation can be based on: every kind that fights on foot
-## and is no boss with a script of its own (the dragon, the Mountain King,
-## the bandit chief).
-const MONSTER_BASES := ["krieger", "schuetze", "magier", "wicht", "koloss", "waechter",
-		"fledermaus", "schleim", "felstroll", "bergork", "eiswolf", "kristallschleim", "glutschleim",
-		"halsabschneider", "wilderer", "schlaeger", "wolf", "ork", "yeti", "spinne"]
+## The monsters a creation can be based on: every kind in the game that
+## fights, the bosses too. [family name, kinds]: the workshop lists them by
+## family (see EditorCreations). A boss keeps the fight of its own (the
+## dragon's fire breath, the bandit chief's charge, the Mountain King's rage)
+## and shows its health bar at the top; it takes the creation's name there.
+const MONSTER_FAMILIES := [
+	["Untote", ["krieger", "schuetze", "magier", "wicht", "koloss", "waechter", "fog_wraith"]],
+	["Räuber", ["halsabschneider", "wilderer", "schlaeger", "klippenschuetze", "hauptmann"]],
+	["Tiere der Wildnis", ["wolf", "ork", "yeti", "spinne"]],
+	["Drachenhöhle", ["fledermaus", "schleim", "drache"]],
+	["Berge und Minen", ["eiswolf", "bergork", "felstroll", "kristallschleim", "glutschleim", "bergkoenig"]],
+	["Grauen", ["hohle_mutter", "bleicher_waechter", "schlund"]],
+]
+## Every base, in the order of MONSTER_FAMILIES (tests/level_editor.gd checks
+## that the two agree and that every kind that fights is here).
+const MONSTER_BASES := ["krieger", "schuetze", "magier", "wicht", "koloss", "waechter", "fog_wraith",
+		"halsabschneider", "wilderer", "schlaeger", "klippenschuetze", "hauptmann",
+		"wolf", "ork", "yeti", "spinne",
+		"fledermaus", "schleim", "drache",
+		"eiswolf", "bergork", "felstroll", "kristallschleim", "glutschleim", "bergkoenig",
+		"hohle_mutter", "bleicher_waechter", "schlund"]
+## The bosses among them: each fights with a script of its own (see
+## Level._spawn_enemy).
+const MONSTER_BOSSES := ["hauptmann", "drache", "bergkoenig"]
 ## What each base is called in the workshop (German, see Lang).
 const MONSTER_NAMES := {
 	"krieger": "Skelettkrieger", "schuetze": "Skelettschütze", "magier": "Skelettmagier",
 	"wicht": "Skelettwicht", "koloss": "Skelettkoloss", "waechter": "Wächter in Rüstung",
-	"fledermaus": "Fledermaus", "schleim": "Schleim", "felstroll": "Felstroll", "bergork": "Bergork",
-	"eiswolf": "Eiswolf", "kristallschleim": "Kristallschleim", "glutschleim": "Glutschleim",
+	"fog_wraith": "Nebelgeist",
 	"halsabschneider": "Halsabschneider", "wilderer": "Wilderer", "schlaeger": "Schläger",
+	"klippenschuetze": "Klippenschütze", "hauptmann": "Räuberhauptmann",
 	"wolf": "Wolf", "ork": "Ork", "yeti": "Yeti", "spinne": "Spinne",
+	"fledermaus": "Fledermaus", "schleim": "Schleim", "drache": "Drache",
+	"eiswolf": "Eiswolf", "bergork": "Bergork", "felstroll": "Felstroll",
+	"kristallschleim": "Kristallschleim", "glutschleim": "Glutschleim", "bergkoenig": "Bergkönig",
+	"hohle_mutter": "Die Hohle Mutter", "bleicher_waechter": "Der Bleiche Wächter", "schlund": "Der Schlund",
 }
 ## The numbers of a monster: [key, label, lowest, highest, step]. A key left
 ## out keeps the base's own value.
 const MONSTER_STATS := [
-	["hp", "Leben", 1, 60, 1],
-	["damage", "Schaden", 1, 8, 1],
+	["hp", "Leben", 1, 200, 1],
+	["damage", "Schaden", 1, 10, 1],
 	["armor", "Härte", 0, 4, 1],
 	["speed", "Tempo", 1.0, 9.0, 0.2],
 	["cooldown", "Sekunden je Schlag", 0.6, 4.0, 0.1],
 	["size", "Größe", 0.6, 2.0, 0.05],
-	["gold", "Gold beim Sieg", 0, 50, 1],
+	["gold", "Gold beim Sieg", 0, 100, 1],
 ]
 
 ## The people: their body, the parts they may show (hats, capes, what they

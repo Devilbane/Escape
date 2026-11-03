@@ -3605,14 +3605,26 @@ func _spawn_enemies() -> void:
 			if Enemy.LETTERS.has(ch):
 				e = _spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")
 			else:
-				e = _spawn_enemy(creations[ch].base, c, elite, Creations.monster_stats(creations[ch]))
+				e = _spawn_enemy(creations[ch].base, c, elite, Creations.monster_stats(creations[ch]), true)
 			_map_enemies.append({"enemy": e, "cell": c})
 	_spawn_horror()
 
 
-func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}) -> Enemy:
-	# The dragon is a boss of its own.
-	var e: Enemy = Dragon.new() if kind == "drache" else (MountainKing.new() if kind == "bergkoenig" else Enemy.new())
+## A monster of a kind on a cell. "made" is a monster made in the map
+## workshop (see Creations): a boss made there fights like the real one and
+## shows its health bar, but none of the real one's rewards come with it.
+func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, made := false) -> Enemy:
+	# The bosses each fight with a script of their own.
+	var e: Enemy
+	match kind:
+		"drache":
+			e = Dragon.new()
+		"bergkoenig":
+			e = MountainKing.new()
+		"hauptmann":
+			e = BanditChief.new()
+		_:
+			e = Enemy.new()
 	e.kind = kind
 	e.custom = custom
 	e.elite = is_elite
@@ -3623,7 +3635,9 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}) ->
 	e.global_position = cell_to_world(c)
 	if e.kind == "waechter":
 		e.watch(_guarded_spot())
-	if Enemy.KINDS[kind].get("boss", false):
+	if made and (e is MountainKing or e is BanditChief):
+		add_child(BossBar.new(e))
+	elif Enemy.KINDS[kind].get("boss", false):
 		# The Mountain King (see Mines): a health bar at the top, and his
 		# hammer the first time he falls.
 		mine_boss = e

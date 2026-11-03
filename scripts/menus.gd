@@ -911,6 +911,13 @@ func _pouch_page(room: Vector2, columns: int) -> Control:
 		# Long names end in "…" rather than widen the page; the details box
 		# under it shows the full name and what the book says.
 		grid.add_child(_inventory_cell(b))
+	# More kinds than rows in the room: the region scrolls, and its cells
+	# give up the scroll bar's width, so the window keeps the bag's size.
+	if grid.get_combined_minimum_size().y > room.y:
+		var bar := scroll.get_v_scroll_bar().get_combined_minimum_size().x
+		var cell := floorf((room.x - bar - (columns - 1) * 8) / columns)
+		for b in grid.get_children():
+			b.custom_minimum_size.x = minf(INVENTORY_CELL.x, cell)
 	return scroll
 
 

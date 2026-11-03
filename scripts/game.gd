@@ -1245,6 +1245,8 @@ func _use_station(s: Dictionary) -> void:
 		player.play("Idle")
 		Events.bus().writing_found.emit(s.text)
 		_refresh_seals()
+	elif s.kind == Mines.CLUSTER:
+		_mine_crystals(s)
 	elif s.has("npc"):
 		# A villager who trades: a word, then the goods. A task handed out or
 		# finished comes first; the goods wait until the next time. While the
@@ -1268,6 +1270,49 @@ func _use_station(s: Dictionary) -> void:
 		player.face(s.pos - player.global_position)
 		menus.bench = s.get("craft", "")
 		menus.open(s.kind)
+
+
+## How long the hero knocks at a crystal cluster before the crystals come off:
+## two blows of the strike.
+const DIG_BLOW := 0.42
+
+
+## Running into a crystal cluster in a mine: two blows, then its crystals go
+## into the pouch and it dims until the next morning (see Mines). The first
+## crystals teach the recipes of the gem cutter's wheel.
+func _mine_crystals(s: Dictionary) -> void:
+	player.face(s.pos - player.global_position)
+	if s.spent:
+		player.play("Idle")
+		show_message(Lang.t("Hier ist nichts mehr zu holen. Bis zum nächsten Morgen wachsen die Kristalle nach."), 2.4)
+		return
+	if s.get("digging", false):
+		return
+	s.digging = true
+	player.path.clear()
+	for blow in 2:
+		player.play_once(Player.STRIKE_ANIM, DIG_BLOW * (2 - blow))
+		Sfx.play(self, "word_klack", -4.0, s.pos, 1.3 + blow * 0.15)
+		await get_tree().create_timer(DIG_BLOW).timeout
+	s.digging = false
+	if level == null or not level.stations.has(s):
+		return
+	var count := Mines.mine(level, s, day)
+	if count <= 0:
+		return
+	Sfx.play(self, "word_zing", -4.0, s.pos, 1.2)
+	var first := crafting.have(Mines.CRYSTAL_ID) == 0 and not crafting.found.has(Mines.CRYSTAL_ID)
+	crafting.add(Mines.CRYSTAL_ID, count)
+	Effects.float_text(level, s.pos + Vector3(0, 2.0, 0), "+%d %s" % [count, Crafting.ingredient_name(Mines.CRYSTAL_ID)], Mines.CRYSTAL, true)
+	Events.found(Lang.t("%d Grottenkristalle kommen in deinen Zutatenbeutel.") % count, Mines.CRYSTAL)
+	learn(Mines.CRYSTAL_LEARN)
+	var learned := crafting.learn_from_find(Mines.CRYSTAL_ID)
+	if first or not learned.is_empty():
+		var names := learned.map(func(id): return Lang.t(Crafting.RECIPES[id].name))
+		var text := Lang.t("Grottenkristalle! Schleife sie am Schleifrad im Dorf zu Schmuck.")
+		if not names.is_empty():
+			text += "\n" + Lang.t("Neue Rezepte: %s") % ", ".join(names)
+		show_message(text, 4.0)
 
 
 # --- Companions -----------------------------------------------------------------
@@ -1898,6 +1943,9 @@ static func _dawn_between(from: float, to: float) -> bool:
 ## finished in time are over.
 func _new_day(quiet := false) -> void:
 	day += 1
+	if level != null:
+		# Mined crystal clusters grow back with the morning.
+		Mines.refresh_crystals(level, day, true)
 	_dragon_morning(quiet)
 	var expired := bounties.refresh(day)
 	if quiet or not escaped:
@@ -2062,6 +2110,7 @@ func load_level(index: int, restock := true) -> void:
 	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
 	level.restore_taken()
+	Mines.refresh_crystals(level, day)
 	level.restore_floor()
 	level.restore_stones()
 	level.key_collected.connect(_on_key_collected)
@@ -4849,6 +4898,7 @@ func _process(delta: float) -> void:
 			"gefaehrten": Lang.t("Dagegenlaufen, um nach deinen Gefährten zu sehen"),
 			"schacht": Lang.t("Dagegenlaufen, um in die Tiefe hinabzusteigen"),
 			"tafel": Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
+			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 		}.get(station.kind, ""))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:

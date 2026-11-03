@@ -33,6 +33,8 @@ static func make(id: String, size := 44.0, plain := false) -> ItemIcon:
 static func kind_of(id: String) -> String:
 	if id.begins_with("kind:"):
 		return id.split(":")[1]
+	if id == Mines.CRYSTAL_ID:
+		return "crystal"
 	if not Items.ALL.has(id):
 		return "bag"
 	var item: Dictionary = Items.ALL[id]
@@ -169,6 +171,14 @@ func _draw() -> void:
 		"ore":
 			draw_colored_polygon(PackedVector2Array([p.call(0.2, 0.7), p.call(0.3, 0.3), p.call(0.6, 0.15), p.call(0.85, 0.45), p.call(0.7, 0.85)]), c)
 			draw_line(p.call(0.4, 0.35), p.call(0.55, 0.6), Color.WHITE, u * 0.04)
+		"crystal":
+			# Three glowing crystal points out of a little rock (see Mines).
+			draw_colored_polygon(PackedVector2Array([p.call(0.12, 0.88), p.call(0.2, 0.74), p.call(0.8, 0.74), p.call(0.88, 0.88)]), Color(0.42, 0.44, 0.5))
+			for spike in [[0.32, 0.38, 0.12], [0.52, 0.1, 0.14], [0.7, 0.32, 0.11]]:
+				var x: float = spike[0]
+				var w: float = spike[2]
+				draw_colored_polygon(PackedVector2Array([p.call(x - w, 0.78), p.call(x, spike[1]), p.call(x + w, 0.78)]), Mines.CRYSTAL)
+				draw_line(p.call(x, spike[1] + 0.06), p.call(x - w * 0.4, 0.74), Color(0.85, 0.97, 1.0), u * 0.03)
 		"crate":
 			draw_rect(Rect2(p.call(0.15, 0.15), Vector2(u * 0.7, u * 0.7)), WOOD)
 			draw_line(p.call(0.15, 0.15), p.call(0.85, 0.85), WOOD.darkened(0.4), u * 0.06)

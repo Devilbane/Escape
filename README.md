@@ -326,6 +326,12 @@ your house, so you can fetch ingredients and put away what you made without walk
 belongs to one craft, and a recipe made with that craft is made at its bench. Until you know such a
 recipe, a bench tells you what is done there. The benches are built in `scripts/crafting_square.gd`.
 
+The glowing **crystal clusters** in the mines can be mined: run into one and the hero knocks two **grotto
+crystals** off it into the ingredient pouch. A mined cluster stays dull until the next morning, then it has
+grown back. The first crystals teach two recipes for the gem cutter's wheel: a **crystal ring** (three
+crystals and a silver bar) and a **crystal amulet** (five crystals and a gold bar); the bars come from
+melting jewellery and fine gear at Gorm's forge. See `scripts/mines.gd` and `scripts/crafting.gd`.
+
 At the **bank** the banker keeps your gold safe (deposit and withdraw) and rents you a **vault** for
 50 gold. The vaults are in the **cellar**: small cells behind iron bars, each with its holder's name, their
 gold and their treasures. You can walk down and look at what every other hero keeps there; your own cell

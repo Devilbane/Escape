@@ -84,7 +84,7 @@ func _test() -> void:
 			check(r.has("effect") and Lang.EN.has(r.effect), "%s, a wish's reward, says what it does in both languages" % id)
 		check(Training.CRAFTS.has(r.craft) and Lang.EN.has(Training.CRAFTS[r.craft].name), "%s needs a craft that exists" % id)
 		for ingredient in r.ingredients:
-			check(ingredient == "eisen" or Crafting.INGREDIENTS.has(ingredient), "%s: %s is an ingredient" % [id, ingredient])
+			check(ingredient == "eisen" or ingredient in Forge.FINE or Crafting.INGREDIENTS.has(ingredient), "%s: %s is an ingredient" % [id, ingredient])
 		for line in r.lines:
 			check(Lang.EN.has(line.text), "%s: line %s has an English text" % [id, line.id])
 			if line.get("hidden", false):

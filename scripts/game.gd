@@ -3542,9 +3542,11 @@ func _message_line() -> Label:
 ## new one comes before that. One read already, or the same text again, is
 ## simply replaced.
 func _keep_unread_message(new_text: String) -> void:
-	if _message.modulate.a < 0.05 or _message.text == "" or _message.text == new_text:
+	# Asked by the tween, not by the line's alpha: a message shown in the same
+	# frame has not faded in yet, but it is still unread.
+	if _message_tween == null or not _message_tween.is_running() or _message.text == "" or _message.text == new_text:
 		return
-	var shown := _message_tween.get_total_elapsed_time() if _message_tween and _message_tween.is_valid() else INF
+	var shown := _message_tween.get_total_elapsed_time()
 	var needed := minf(read_time(_message.text), _message_duration + 0.25)
 	if shown >= needed:
 		return

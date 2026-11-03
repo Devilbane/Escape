@@ -164,6 +164,9 @@ var interactables: Array = []
 ## the saved game, and calls restore_taken() after build(), so nothing fills
 ## up again after a reload, a night in bed or a walk out and back in.
 var taken := {}
+## Floor tiles with a grate (cell -> true). Nothing is placed on them: no
+## props, chests, people, traps or hidden finds.
+var grates := {}
 ## What lies about on the floor here: gear the hero dropped, loot from the
 ## fallen and spilt coins, as [kind ("item" or "coin"), item id, x, z] each.
 ## The game hands in its own list for this level and keeps it in the saved
@@ -808,7 +811,12 @@ func _build_floor(c: Vector2i, ch: String) -> void:
 	if ch == ",":
 		piece = "floor_dirt_large"
 	elif roll < 0.07:
-		piece = "floor_tile_big_grate"
+		# A grate only on plain floor: nothing (an NPC, a chest, the start)
+		# stands over the hole. The roll still happens, so the other tiles
+		# keep their look.
+		if ch == ".":
+			piece = "floor_tile_big_grate"
+			grates[c] = true
 	elif roll < 0.14:
 		piece = "floor_dirt_large"
 	_place(piece, pos, _random_quarter_turn())
@@ -2969,7 +2977,7 @@ func hide_ingredients() -> void:
 					cells.append(c)
 	else:
 		for c in _reachable():
-			if cell_char(c) in [".", ","] and not astar.is_point_solid(c) and c != start_cell:
+			if cell_char(c) in [".", ","] and not astar.is_point_solid(c) and c != start_cell and not grates.has(c):
 				cells.append(c)
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
@@ -3246,7 +3254,7 @@ func _decorate_lair() -> void:
 						pos + Vector3(side * (TILE * 0.5 - 0.35), 2.9, -TILE * 0.5 + 0.35), PI * 0.25 * side + PI, 1.4)
 			elif north and ch in ".," and _rng.randf() < 0.18:
 				_place_lair("Banner", pos + Vector3(0, 0, -TILE * 0.5 + 0.35), 0.0, 0.85)
-			if ch in ".," and not north and _rng.randf() < 0.14:
+			if ch in ".," and not north and _rng.randf() < 0.14 and not grates.has(c):
 				_place_lair("Skull", pos + Vector3(_rng.randf_range(-1.3, 1.3), 0, _rng.randf_range(-1.3, 1.3)), _rng.randf() * TAU, 0.8)
 			if ch == "C":
 				# The hoard: gold heaped up around the chest.

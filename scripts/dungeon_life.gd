@@ -33,8 +33,6 @@ var _rng := RandomNumberGenerator.new()
 var _critters: Array = []
 var _drips: Array = []
 var _time := 0.0
-## Tiles with a floor grate: things lying there would hang over the hole.
-var _grates := {}
 
 static var _dust_tex: Texture2D
 static var _drift_tex: Texture2D
@@ -49,9 +47,6 @@ func _init(owner_level: Level) -> void:
 
 func _ready() -> void:
 	_rng.seed = hash(level.level_name + ":life")
-	for child in level.get_children():
-		if child is Node3D and child.scene_file_path.ends_with("floor_tile_big_grate.glb"):
-			_grates[level.world_to_cell(child.position)] = true
 	var furniture := _furniture_boxes()
 	_build_dust()
 	_build_clutter()
@@ -77,7 +72,7 @@ func _open_cells() -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
 	for y in level.height:
 		for x in level.width:
-			if _is_open(Vector2i(x, y)) and not _grates.has(Vector2i(x, y)):
+			if _is_open(Vector2i(x, y)) and not level.grates.has(Vector2i(x, y)):
 				cells.append(Vector2i(x, y))
 	return cells
 

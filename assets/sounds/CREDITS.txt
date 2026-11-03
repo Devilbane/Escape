@@ -46,5 +46,8 @@ The eerie dungeon sounds (dungeon_drip_*, dungeon_moan_*, dungeon_chains_*,
 dungeon_whisper_*, dungeon_creak_*, dungeon_wind_*, dungeon_skitter_*) are made
 from scratch by tools/make_dungeon_sounds.py.
 
+The fanfares for loot finer than rare (loot_epic, loot_godborn) are made
+from scratch by tools/make_rarity_sounds.py.
+
 All other sounds, including the comic word noises (word_*), are made by
 tools/make_sounds.py.

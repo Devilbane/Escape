@@ -4284,7 +4284,7 @@ func _search(obj: Dictionary) -> void:
 		Events.found(text, color)
 	if loot.has("item"):
 		player.bag.append(loot.item)
-		Sfx.play_gear(self, loot.item, found_after + (0.25 if loot.has("gold") else 0.0))
+		Sfx.play_find(self, loot.item, found_after + (0.25 if loot.has("gold") else 0.0))
 		var found := Lang.t("Gefunden: %s (%s)") % [Items.item_name(loot.item), Items.describe(loot.item)]
 		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
 		color = Color(0.75, 0.9, 1.0)

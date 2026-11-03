@@ -1795,7 +1795,7 @@ func _on_chief_fallen(e: BanditChief) -> void:
 			s.timer = INF
 	chief = null
 	_drop_item(BanditChief.TROPHY, e.global_position + Vector3(0.8, 0, 0.8))
-	Sfx.play_gear(self, BanditChief.TROPHY, 0.4, e.global_position)
+	Sfx.play_find(self, BanditChief.TROPHY, 0.4, e.global_position)
 	notice.emit(Lang.t("Rabenherz ist besiegt! Seine Klinge gehört dir."), 5.0)
 
 

@@ -129,6 +129,8 @@ const SPIKE_DOWN_Y := -1.95
 const SPIKE_DETOUR := 6.0
 
 var level_name := ""
+## The map's file name, e.g. "03_das_labyrinth.txt".
+var file := ""
 var hint := ""
 var grid: Array[String] = []
 var width := 0
@@ -153,6 +155,8 @@ const LIGHT_REACH := 8.0
 ## How close to a torch's wall the hero must run to reach it.
 const TORCH_TOUCH := 1.6
 var _spikes: Array = []
+## The hidden traps of this level (see Traps), or null.
+var traps: Traps = null
 var _pickups: Array = []
 var interactables: Array = []
 ## What the hero already took here: ids of searched furniture and picked up
@@ -170,6 +174,10 @@ var floor_items: Array = []
 ## where many fall does not fill the saved game without end.
 const FLOOR_MAX := 80
 var enemies: Array = []
+## Fallen monsters still lying here, oldest first, and the stains and bones
+## left by the ones that rotted away (see Corpse).
+var corpses: Array = []
+var remnants: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
 ## Water the hero can fish in (see Fishing): which water ("brunnen", "teich"
@@ -264,7 +272,7 @@ var _torch_spots: Array[Vector3] = []
 var _walls_body := StaticBody3D.new()
 var _door_hint_shown := false
 ## Hidden walls and the torches that open them. Each lever rolls once,
-## the first time the hero walks past it.
+## the first time the hero comes up close to it.
 var _secrets: Array = []
 ## Ingredients hidden in the ground that only the hero's fox can sniff out
 ## (see Pet): each {"cell": Vector2i, "id": String}. Never saved: they grow
@@ -280,7 +288,9 @@ var secret_bonus := 0
 ## Set by the game when the run is overdue a secret room: the lever is
 ## noticed for sure.
 var secret_sure := false
-const LEVER_RANGE := 7.0
+## How close the hero must come to a lever torch for it to work: the same
+## reach as searching, so a lever never tips while the hero is across the room.
+const LEVER_RANGE := SEARCH_RANGE
 ## How many steps from the secret wall a torch may be to serve as its lever.
 const LEVER_STEPS := 10
 ## Writings on the walls: each level of the dungeon has one, chosen by its
@@ -348,6 +358,7 @@ static func is_outdoor_file(path: String) -> bool:
 
 
 func load_from_file(path: String) -> void:
+	file = path.get_file()
 	var text := FileAccess.get_file_as_string(path)
 	for line in text.split("\n"):
 		line = line.strip_edges(false, true)
@@ -443,6 +454,9 @@ func build() -> void:
 		add_child(DungeonLife.new(self))
 	if not _vault_slots.is_empty():
 		refresh_vaults()
+	traps = Traps.make(self)
+	if traps:
+		add_child(traps)
 
 
 # --- Keeping the way free ---------------------------------------------------
@@ -816,6 +830,11 @@ func _build_walls(c: Vector2i) -> void:
 		# Each wall piece faces into the room.
 		var rot := atan2(-float(d.x), -float(d.y))
 		var low := _is_low_wall(n)
+		# The stairs of a home fill their whole tile and reach into the walls
+		# beside them: nothing hangs on those walls, or it would stick out of
+		# the steps. The rolls below still run, so the rest of the house keeps
+		# the same shelves, windows, torches and banners.
+		var by_stairs := is_home and "<>".contains(cell_char(c))
 		var piece := "wall"
 		var roll := _rng.randf()
 		if not low and d == Vector2i(0, -1):
@@ -827,7 +846,7 @@ func _build_walls(c: Vector2i) -> void:
 				piece = "wall_cracked"
 		elif not low and roll < 0.2:
 			piece = "wall_cracked"
-		var wall := _place(piece, pos, rot)
+		var wall := _place("wall" if by_stairs else piece, pos, rot)
 		if (c.x + c.y + d.x + d.y) % 2 != 0:
 			wall.position.y += 0.02
 		if cell_char(c) == "?":
@@ -835,7 +854,7 @@ func _build_walls(c: Vector2i) -> void:
 			wall.visible = false
 			_secret_at(c).inner.append(wall)
 			continue
-		if piece == "wall_shelves":
+		if piece == "wall_shelves" and not by_stairs:
 			var facing := Vector3(sin(rot), 0, cos(rot))
 			var shelf := _add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
 			shelf.touch_cell = n
@@ -846,13 +865,15 @@ func _build_walls(c: Vector2i) -> void:
 		var torch: Node3D = null
 		# A guardian's hall has no wall torches: only its fire bowl lights
 		# the middle, and the rim stays dark for the hero to creep along.
-		if not FURNITURE.contains(cell_char(c)) and not _near_guardian(c):
+		if not FURNITURE.contains(cell_char(c)) and not _near_guardian(c) and not by_stairs:
 			torch = _maybe_add_torch(pos, rot)
 		if torch != null:
 			_wall_torches.append({"holder": torch, "cell": c, "pos": pos, "rot": rot})
 		elif piece == "wall" and _rng.randf() < 0.18:
-			_add_kit_part(WALL_DECOR[_rng.randi() % WALL_DECOR.size()], wall)
-		elif piece == "wall" and cell_char(c) != "?" and not FURNITURE.contains(cell_char(c)):
+			var decor: Array = WALL_DECOR[_rng.randi() % WALL_DECOR.size()]
+			if not by_stairs:
+				_add_kit_part(decor, wall)
+		elif piece == "wall" and cell_char(c) != "?" and not FURNITURE.contains(cell_char(c)) and not by_stairs:
 			_bare_walls.append({"cell": c, "pos": pos, "rot": rot})
 
 
@@ -1421,7 +1442,8 @@ func explore_cells() -> Array[Vector2i]:
 	return out
 
 
-## Rolls each lever once, the first time the hero walks past it in view.
+## Rolls each lever once, the first time the hero stands next to it in view
+## (within LEVER_RANGE). From further away nothing happens and nothing is rolled.
 func _check_secrets() -> void:
 	for s in _secrets:
 		if s.rolled or s.lever == null:
@@ -1856,7 +1878,8 @@ func _someone_on(crate: Crate) -> bool:
 	var bodies: Array = enemies.duplicate()
 	bodies.append(player)
 	for b in bodies:
-		if is_instance_valid(b) and b is Node3D and absf(b.global_position.y - crate.top()) < 0.3 and crate.covers(b.global_position, 0.5):
+		# A corpse (see Corpse) lying on a crate does not hold it down.
+		if is_instance_valid(b) and b is Node3D and not (b is Enemy and b.dead) and absf(b.global_position.y - crate.top()) < 0.3 and crate.covers(b.global_position, 0.5):
 			return true
 	return false
 
@@ -2563,7 +2586,7 @@ func _check_pickups() -> void:
 			# Just dropped at the hero's feet: it stays until they step away
 			# and come back for it.
 			continue
-		if p.kind == "item" and player.bag.size() >= player.bag_size():
+		if p.kind == "item" and not player.bag_fits(p.id):
 			if not p.has("warned"):
 				p.warned = true
 				bag_full.emit()

@@ -17,7 +17,7 @@ signal trained(id: String, value: int)
 signal leveled_up(level: int)
 
 ## The hero's reference speed in m/s (100 % Tempo); walking is a share of it.
-const SPEED := 4.0
+const SPEED := 5.2
 ## Walking pace as a share of SPEED.
 const WALK_FACTOR := 0.5
 ## Running speeds up to this many times the walking pace...
@@ -83,6 +83,10 @@ var controllable := true
 var frozen := false
 var dead := false
 var hp := MAX_HP
+## What one shrine gift gives: the player picks one of the three.
+const SHRINE_LIFE := 4
+const SHRINE_POWER := 1
+const SHRINE_SPEED := 0.02
 # Gifts from shrines, kept for the whole run.
 var gift_hp := 0
 ## Life from the trophy wall at home (see HomeUpgrades), set by the game.
@@ -802,7 +806,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 		play_once("Throw", 0.45)
 	await get_tree().create_timer(0.2).timeout
 	Sfx.play(self, "throw")
-	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true).damage = power + heavy_hit("werfen")
+	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true).damage = throw_power() + heavy_hit("werfen")
 
 
 func _engage(enemy: Enemy) -> void:
@@ -888,6 +892,45 @@ const SNEAK_PER_LEVEL := 0.03
 const SECRET_PER_INTUITION := 2
 const JUMP_PER_DEXTERITY := 0.02
 const DODGE_PER_DEXTERITY := 0.04
+## Dodging blows and shots: DODGE_PER_DEXTERITY per point of Geschick, up to
+## this much.
+const DODGE_MAX := 0.4
+## Each point of Intelligenz above the start makes skills and crafts train
+## this much quicker, and adds this much to all experience (EP).
+const SKILL_LEARNING_PER_INTELLIGENCE := 0.1
+const XP_PER_INTELLIGENCE := 0.03
+
+
+## Points of Stärke above the start: each is +1 damage in close combat.
+func strength_points() -> int:
+	return attribute("staerke") - Training.ATTRIBUTES.staerke.start
+
+
+## The damage of a thrown knife before a heavy hit: the hero's power, with
+## Geschick in place of Stärke (a deft hand throws, a strong arm strikes).
+func throw_power() -> int:
+	return maxi(1, power - strength_points() + dexterity_points())
+
+
+## The chance to dodge a blow or a shot, 0..DODGE_MAX.
+func dodge_chance() -> float:
+	return clampf(DODGE_PER_DEXTERITY * dexterity_points(), 0.0, DODGE_MAX)
+
+
+## Points of Intelligenz above the start.
+func intelligence_points() -> int:
+	return attribute("intelligenz") - Training.ATTRIBUTES.intelligenz.start
+
+
+## How much quicker skills and crafts train thanks to Intelligenz (0.2 = 20 %).
+func skill_learning_bonus() -> float:
+	return SKILL_LEARNING_PER_INTELLIGENCE * intelligence_points()
+
+
+## Experience as a clever hero earns it: XP_PER_INTELLIGENCE more per point
+## of Intelligenz.
+func clever_xp(amount: int) -> int:
+	return roundi(amount * (1.0 + XP_PER_INTELLIGENCE * intelligence_points()))
 
 
 ## Points of Geschick above the start: each makes running jumps 2 % longer
@@ -897,8 +940,9 @@ func dexterity_points() -> int:
 
 
 ## Spikes shoot up under the hero: a deft hero may jump aside in time.
-## Either way the trap teaches a little.
-func spring_trap() -> void:
+## Either way the trap teaches a little. Hidden spike traps (see Traps) hurt
+## more in deeper places.
+func spring_trap(damage := 1) -> void:
 	if dead or _invulnerable > 0.0 or frozen:
 		return
 	if randf() < DODGE_PER_DEXTERITY * dexterity_points():
@@ -907,17 +951,18 @@ func spring_trap() -> void:
 		Effects.head_text(level, self, 2.2, Lang.t("Ausgewichen!"), Color(0.72, 0.9, 0.78))
 		return
 	train("geschick", 2.0)
-	take_damage(1, global_position - facing(), null, false)
+	take_damage(damage, global_position - facing(), null, false)
 
 
 ## Intuition sharpens the hero's gut feeling: +2 percent per point above 10
-## to notice a lever to a secret room.
+## to notice a lever to a secret room or a hidden trap (see Traps).
 func intuition_bonus() -> int:
 	return SECRET_PER_INTUITION * (attribute("intuition") - Training.ATTRIBUTES.intuition.start)
 
 
 ## What the Erkunden skill adds to a chance, in percent: `per_level` for each
-## level (one of Training.EXPLORE_SECRET, EXPLORE_TORCH, EXPLORE_WRITING).
+## level (one of Training.EXPLORE_SECRET, EXPLORE_TORCH, EXPLORE_WRITING,
+## EXPLORE_TRAP).
 func explore_bonus(per_level: int) -> int:
 	return per_level * skill("erkunden")
 
@@ -1062,6 +1107,8 @@ func train(id: String, amount: float, need_gear := true) -> void:
 		amount *= 1.0 + Training.LEARNING_PER_WISDOM * (attribute("weisheit") - Training.ATTRIBUTES.weisheit.start)
 	var is_craft := Training.CRAFTS.has(id)
 	var is_skill := Training.is_skill(id) or is_craft
+	if is_skill:
+		amount *= 1.0 + skill_learning_bonus()
 	if is_skill and need_gear and not is_craft and not skill_enabled(id):
 		return
 	var old_xp: float = xp.get(id, 0.0)
@@ -1332,6 +1379,16 @@ func bag_size() -> int:
 	return Items.bag_size(equipped.get("rucksack", ""))
 
 
+## How many bag slots are taken: bundled items (torches) share one.
+func bag_used() -> int:
+	return Items.slots_used(bag)
+
+
+## Whether one more of `id` fits in the bag (on a bundle of it, or a free slot).
+func bag_fits(id: String) -> bool:
+	return Items.fits(bag, bag_size(), id)
+
+
 ## Moves a bag item into its slot; whatever was worn there goes into the bag.
 ## Items the hero is not yet able to use stay in the bag, and so do books,
 ## and so does a smaller backpack that could not hold everything carried.
@@ -1343,8 +1400,11 @@ func equip(id: String) -> bool:
 	if slot == "spezial":
 		# Two places for specials: take a free one, else swap out the first.
 		slot = "spezial_2" if equipped.has("spezial_1") and not equipped.has("spezial_2") else "spezial_1"
-	var after := bag.size() - 1 + (1 if equipped.has(slot) else 0)
-	if slot == "rucksack" and after > Items.bag_size(id):
+	var after := bag.duplicate()
+	after.erase(id)
+	if equipped.has(slot):
+		after.append(equipped[slot])
+	if slot == "rucksack" and Items.slots_used(after) > Items.bag_size(id):
 		return false
 	bag.erase(id)
 	if equipped.has(slot):
@@ -1358,7 +1418,7 @@ func equip(id: String) -> bool:
 ## the backpack, when that is what comes off).
 func unequip(slot: String) -> bool:
 	var room := Items.BAG_SIZE if slot == "rucksack" else bag_size()
-	if not equipped.has(slot) or bag.size() >= room:
+	if not equipped.has(slot) or not Items.fits(bag, room, equipped[slot]):
 		return false
 	bag.append(equipped[slot])
 	equipped.erase(slot)
@@ -1440,6 +1500,12 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 		train("blocken", 2.0)
 		train("staerke", 1.0)
 		_block(from)
+		return
+	# A deft hero steps aside from a blow or a shot (see dodge_chance).
+	if blockable and randf() < dodge_chance():
+		train("geschick", 1.0)
+		_invulnerable = 0.4
+		Effects.float_text(level, global_position + Vector3(0, 2.2, 0), Lang.t("Ausgewichen!"), Color(0.72, 0.9, 0.78))
 		return
 	if blockable:
 		train("blocken", 0.5)

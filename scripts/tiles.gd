@@ -44,7 +44,7 @@ const DUNGEON := {
 	"s": "slime (dragon's lair)",
 	"R": "dragon (dragon's lair)",
 	"y": "stone horse statue (dragon's lair)",
-	"H": "shrine: one gift (more life, strength or speed)",
+	"H": "shrine: one gift (+4 life, +1 power or +2 % speed)",
 	"B": "bed (save and log out)",
 	"L": "storage chest",
 	"V": "merchant",

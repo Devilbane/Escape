@@ -320,6 +320,7 @@ func _bus_links() -> Array:
 		[bus.map_grew, map_notice],
 		[bus.map_explored, map_explored],
 		[bus.writing_found, writing_found],
+		[bus.trap_spotted, trap_spotted],
 		[bus.enemy_felled, xp_for_kill],
 		[bus.quest_done, xp_for_task],
 		[bus.bounty_paid, xp_for_bounty],
@@ -1011,7 +1012,7 @@ func _setup_shrine_panel() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
 	box.add_child(row)
-	var gifts := [Lang.t("+1 Leben"), Lang.t("+1 Kampfkraft"), Lang.t("+7% Tempo")]
+	var gifts := [Lang.t("+4 Leben"), Lang.t("+1 Kampfkraft"), Lang.t("+2% Tempo")]
 	for i in gifts.size():
 		var b := _make_button(Lang.t("%s\n(Taste %d)") % [gifts[i], i + 1], _choose_gift.bind(i))
 		b.custom_minimum_size = Vector2(200, 96)
@@ -1271,7 +1272,7 @@ func pick_up_crate(near := Vector3.INF) -> String:
 	var crate := level.crate_in_reach(player, near)
 	if crate == null:
 		return Lang.t("Keine Kiste in Reichweite.")
-	if player.bag.size() >= player.bag_size():
+	if player.bag_used() >= player.bag_size():
 		return Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.")
 	player.path.clear()
 	player.face(crate.global_position - player.global_position)
@@ -1339,7 +1340,7 @@ func take_stone(stone: StoneBlock = null) -> String:
 		return Lang.t("Kein freier Steinblock in Reichweite.")
 	if stone.heavy:
 		return push_stone(stone)
-	if player.bag.size() >= player.bag_size():
+	if player.bag_used() >= player.bag_size():
 		return Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.")
 	player.path.clear()
 	player.face(stone.global_position - player.global_position)
@@ -1494,7 +1495,7 @@ func _end_drag() -> void:
 ## The "Crate" button: picks up a crate in reach, else sets one down.
 func crate_action() -> void:
 	var why := ""
-	if level.crate_in_reach(player) != null and player.bag.size() < player.bag_size():
+	if level.crate_in_reach(player) != null and player.bag_used() < player.bag_size():
 		why = pick_up_crate()
 	elif player.bag.has("kiste"):
 		why = put_down_crate()
@@ -1520,15 +1521,15 @@ func _choose_gift(index: int) -> void:
 	var text := ""
 	match index:
 		0:
-			player.gift_hp += 1
-			player.hp += 1
-			text = Lang.t("Du fühlst dich zäher: +1 Leben")
+			player.gift_hp += Player.SHRINE_LIFE
+			player.hp += Player.SHRINE_LIFE
+			text = Lang.t("Du fühlst dich zäher: +4 Leben")
 		1:
-			player.gift_power += 1
+			player.gift_power += Player.SHRINE_POWER
 			text = Lang.t("Deine Hiebe werden härter: +1 Kampfkraft")
 		2:
-			player.gift_speed += 0.07
-			text = Lang.t("Deine Schritte werden leichter: +7% Tempo")
+			player.gift_speed += Player.SHRINE_SPEED
+			text = Lang.t("Deine Schritte werden leichter: +2% Tempo")
 		3:
 			if not _wise_gift.visible:
 				return
@@ -1799,6 +1800,9 @@ func load_level(index: int, restock := true) -> void:
 	level.dragon_awakened.connect(_on_dragon_awakened)
 	level.lair_exit_taken.connect(leave_lair)
 	level.stairs_taken.connect(_take_stairs)
+	if level.traps:
+		level.traps.teleported.connect(_on_trap_teleport)
+		level.traps.fell.connect(_fall_through_trapdoor)
 	level.boss_won.connect(_on_mine_boss_won)
 	_refresh_seals()
 	if horrors:
@@ -3277,6 +3281,71 @@ func writing_found(text: String) -> void:
 		show_message(Lang.t(text), 6.0)
 
 
+## The hero spotted a hidden trap (see Traps): it trains Erkunden and earns
+## a little experience, and the compendium explains traps.
+func trap_spotted(kind: String, place_level: int) -> void:
+	player.train("erkunden", Training.EXPLORE_TRAP_FOUND)
+	learn(Traps.LEARN)
+	earn_xp(HeroLevel.time_xp(HeroLevel.TRAP_MINUTES, place_level, player.hero_level()))
+	show_message(Lang.t(Traps.KINDS[kind].spotted), 3.5)
+
+
+## A teleporter trap flung the hero across the level (see Traps).
+func _on_trap_teleport(_to: Vector3) -> void:
+	learn(Traps.LEARN)
+	_snap_camera()
+	if is_instance_valid(pet):
+		pet.arrive()
+	show_message(Lang.t("Eine Teleportfalle! Sie hat dich an einen anderen Ort geschleudert."), 3.0)
+
+
+## The floor gave way under the hero (a trapdoor, see Traps): they fall to
+## the level below, land somewhere near its start and take `damage`.
+func _fall_through_trapdoor(damage: int) -> void:
+	if state != State.PLAYING:
+		return
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	player.velocity = Vector3.ZERO
+	learn(Traps.LEARN)
+	var tween := create_tween()
+	tween.tween_property(player, "global_position:y", player.global_position.y - 3.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
+	tween.tween_callback(_land_below.bind(damage))
+
+
+func _land_below(damage: int) -> void:
+	if level.building == "":
+		# Down to the next floor of the dungeon: it counts as leaving this one.
+		Training.save_hero(hero_name, player.xp, player.level_data())
+		dry_levels = 0 if level.secret_opened() else dry_levels + 1
+		load_level(level_index + 1)
+	else:
+		load_level(interiors[level.down_to], false)
+	player.global_position = level.cell_to_world(Traps.landing_cell(level))
+	player.velocity = Vector3.ZERO
+	player.face(Vector3.BACK)
+	if is_instance_valid(pet):
+		pet.arrive()
+	_snap_camera()
+	player.frozen = false
+	state = State.PLAYING
+	create_tween().tween_property(_fade, "color:a", 0.0, 0.8)
+	_announce_level()
+	Sfx.play(self, "rumble", -4.0)
+	_shake = 0.5
+	# The landing hurts, even though arriving on a level gives a moment's grace.
+	player._invulnerable = 0.0
+	player.take_damage(damage, player.global_position + Vector3(0, 0, 1), null, false)
+	var here := level
+	get_tree().create_timer(3.8).timeout.connect(func():
+		if level == here and state == State.PLAYING:
+			show_message(Lang.t("Eine Falltür! Du bist eine Ebene tiefer gestürzt."), 3.0))
+	if level.safe:
+		_autosave()
+
+
 ## Records where the hero found something, for the map and the journal (see
 ## Journal.note_find): kind is e.g. "ingredient" or "fish", id the item id and
 ## name its German name. pos is where it was found in the current level.
@@ -3530,6 +3599,8 @@ func xp_for_riddle(kind: String, place_level: int) -> void:
 func earn_xp(amount: int, big := false) -> void:
 	if amount <= 0 or player == null:
 		return
+	# A clever hero gets more out of everything (see Player.clever_xp).
+	amount = player.clever_xp(amount)
 	if level != null and player.is_inside_tree():
 		Effects.float_text(level, player.global_position + Vector3(0, 2.8 if big else 2.4, 0), Lang.t("+%d EP") % amount, XP_COLOR)
 	player.gain_xp(amount)
@@ -3593,7 +3664,7 @@ func _on_player_trained(id: String, value: int) -> void:
 	if attribute:
 		Sfx.play(self, "secret", -6.0)
 	show_message(text, 3.5 if attribute else 2.4)
-	learn("Eigenschaften wachsen sehr langsam durch Tun: Kämpfen macht stärker (Stärke, +1 Kampfkraft je Punkt, Lasten wiegen weniger), Treffer einstecken macht zäher (Konstitution, +1 Leben je Punkt), Laufen und Springen machen schneller (Tempo bis 150 %), Springen, Werfen und Fallen machen geschickter (Geschick: weiter springen, Stacheln ausweichen), Durchsuchen und Geheimnisse schärfen das Gespür (Intuition, +2 % je Punkt, Geheimräume zu entdecken), und alles, was du durchstehst, macht dich weiser (Weisheit: du lernst 5 % schneller je Punkt, ab 12 bieten Schreine eine vierte Gabe), und Neues zu verstehen macht klüger (Intelligenz: manche Dinge wie der Zauberhut brauchen sie). Fertigkeiten wachsen schneller, aber nur mit der passenden Ausrüstung. Alles bleibt deinem Helden über alle Läufe.")
+	learn("Eigenschaften wachsen sehr langsam durch Tun: Kämpfen macht stärker (Stärke: +1 Schaden im Nahkampf je Punkt, Lasten wiegen weniger), Treffer einstecken macht zäher (Konstitution, +1 Leben je Punkt), Laufen und Springen machen schneller (Tempo bis 150 %), Springen, Werfen und Fallen machen geschickter (Geschick: +1 Schaden mit Wurfmessern und +4 % Ausweichen je Punkt, weiter springen), Durchsuchen und Geheimnisse schärfen das Gespür (Intuition, +2 % je Punkt, Geheimräume zu entdecken), und alles, was du durchstehst, macht dich weiser (Weisheit: du lernst 5 % schneller je Punkt, ab 12 bieten Schreine eine vierte Gabe), und Neues zu verstehen macht klüger (Intelligenz: Fertigkeiten lernen 10 % schneller und 3 % mehr Erfahrung je Punkt; manche Dinge wie der Zauberhut brauchen sie). Fertigkeiten wachsen schneller, aber nur mit der passenden Ausrüstung. Alles bleibt deinem Helden über alle Läufe.")
 	_update_hud()
 
 
@@ -3641,7 +3712,7 @@ func _search(obj: Dictionary) -> void:
 	if obj.searched:
 		Effects.float_text(level, obj.icon_pos, Lang.t("Schon durchsucht"), Color(0.8, 0.8, 0.8), true)
 		return
-	if obj.loot.has("item") and player.bag.size() >= player.bag_size():
+	if obj.loot.has("item") and not player.bag_fits(obj.loot.item):
 		if not _message_busy():
 			show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0)
 		return
@@ -3684,7 +3755,7 @@ func _search(obj: Dictionary) -> void:
 		color = Color(0.75, 0.9, 1.0)
 		show_message(found + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
 	# An eye trained in exploring (Erkunden) finds a torch tucked away.
-	var torch := player.bag.size() < player.bag_size() and randi_range(1, 100) <= player.explore_bonus(Training.EXPLORE_TORCH)
+	var torch := player.bag_fits(HandTorch.ITEM) and randi_range(1, 100) <= player.explore_bonus(Training.EXPLORE_TORCH)
 	if torch:
 		player.bag.append(HandTorch.ITEM)
 		if loot.is_empty():

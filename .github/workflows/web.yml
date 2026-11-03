@@ -109,6 +109,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/floor_items.gd | tee floor_items.log
           grep -q PASS floor_items.log
 
+      - name: Torch stacks test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/torch_stacks.gd | tee torch_stacks.log
+          grep -q PASS torch_stacks.log
+
       - name: Several saved games test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log
@@ -193,6 +198,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_boss.gd | tee dragon.log
           grep -q PASS dragon.log
+
+      - name: Corpses stay and rot away test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/corpses.gd | tee corpses.log
+          grep -q PASS corpses.log
 
       - name: Dark holes, torches and horrors test
         run: |
@@ -328,6 +338,21 @@ jobs:
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/hero_level.gd | tee hero_level.log
           grep -q PASS hero_level.log
+
+      - name: Shrine gifts test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/shrine.gd | tee shrine.log
+          grep -q PASS shrine.log
+
+      - name: Hidden traps test
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/traps.gd | tee traps.log
+          grep -q PASS traps.log
+
+      - name: Life on the ground above test
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/surface_life.gd | tee surface_life.log
+          grep -q PASS surface_life.log
 
       - name: Export the browser version
         run: |

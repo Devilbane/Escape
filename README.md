@@ -167,7 +167,7 @@ needs a quarter more practice than the one before:
 | Constitution | 10 to 30 | losing life (hits, spikes, poison) | +1 life per point |
 | Speed | 100 % to 150 %, in steps of 5 | walking and jumping | walk faster |
 | Dexterity | 10 to 30 | jumping, throwing knives, spike traps | jumps from a run 2 % longer per point, 4 % per point to dodge spikes shooting up |
-| Intuition | 10 to 30 | searching, getting past secret levers, finding secret rooms | +2 % per point to notice a secret lever |
+| Intuition | 10 to 30 | searching, getting past secret levers, finding secret rooms | +2 % per point to notice a secret lever or a hidden trap |
 | Wisdom | 10 to 30 | experience, whatever the outcome: finishing levels, finding keys and secret rooms, choosing at a shrine, every finished run, even a deadly one | all other attributes and skills learn 5 % faster per point; from Wisdom 12 every shrine offers a fourth gift (+1 hardening) |
 | Intelligence | 10 to 30 | understanding new things (every new entry in the compendium), defeating skeleton mages | things of the mind need it: the wizard hat from Intelligence 11, later scrolls, wands and skills of the mind |
 
@@ -178,7 +178,8 @@ With Blades, Axes and Knife throwing, every heavy hit (+1 damage) is a skill rol
 Each level of Blocking adds 2 % block chance, Wearing armour makes hard armour 6 % lighter, Sneaking makes you 3 % faster.
 **Exploring** grows when you explore a map fully (95 % of the ground you can stand on, see the map), and a little
 with every secret room and wall writing you find. Each level adds 3 % to notice a secret lever, 4 % to find a
-torch when you search a chest, barrel, crate, shelf or table, and 8 % to notice the writing on a wall.
+torch when you search a chest, barrel, crate, shelf or table, 8 % to notice the writing on a wall and 5 % to
+spot a hidden trap.
 Every level of the dungeon has one writing scratched into a plain wall: you get one chance to notice it from a
 distance each time you walk past it (50 % plus Exploring), and you always notice it when you walk right up to it.
 A noticed writing gets an amber frame and pops up on a card with its word and what it says; run into the wall to
@@ -231,6 +232,15 @@ run. The first time you walk past it, you may discover it with some luck (d100),
 Normal 55 %, Uncommon 40 %, Rare 28 %, Epic 18 %, Godborn 10 %. Every secret room you find
 raises the chance by 1. The lever rolls only once. If you have not found one by level 3,
 the one there is certain; after that, never more than 4 levels go by without a secret room.
+
+From the labyrinth (level 3) on, and in the dragon's lair, the dark holes and the mines, **hidden traps** lie
+unseen in the floor: **spike traps**, **teleporter traps** that fling you to another part of the level, and
+**trapdoors** that drop you to the level below (on dungeon levels 3 to 9, and in the dwarves' hall once its seal
+is open). The first time you come near one and can see it, you get one chance to spot it: 55 % minus 3 % per
+level of the place, plus Intuition and Exploring. A spotted trap gets an orange frame with its sign inside
+(holes, a rune ring or a hatch), trains Exploring and gives a little experience; your path goes around it, and
+a jump (Space) carries you over it safely. A trap you step on unawares shows itself too. The deeper the place,
+the better the traps are hidden and the more they hurt. Known traps stay marked on later visits.
 
 You only see what lies in your line of sight and has light: a burning torch nearby or
 your own lantern. Dark corners stay black; skeletons in them you only hear by their footsteps.

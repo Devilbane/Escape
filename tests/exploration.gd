@@ -160,6 +160,50 @@ func _test() -> void:
 	var found := _torches_found(10)
 	check(found > 0, "with Erkunden 10 searching turns up torches: %d of 100" % found)
 
+	# A lever torch works only up close, never from across the room.
+	_test_lever_reach()
+
+
+## Puts the hero in view of a lever torch but out of reach: nothing happens.
+## Next to it, the lever is rolled (and, made sure, opens the secret wall).
+func _test_lever_reach() -> void:
+	var lv: Level = null
+	var s := {}
+	for i in 10:
+		game.load_level(i)
+		for sec in game.level._secrets:
+			if sec.lever != null:
+				lv = game.level
+				s = sec
+				break
+		if lv != null:
+			break
+	check(lv != null, "a dungeon level has a lever torch")
+	if lv == null:
+		return
+	check(Level.LEVER_RANGE == Level.SEARCH_RANGE, "a lever has the same reach as searching")
+	lv.secret_sure = true
+	var torch: Node3D = s.lever
+	var lever_spot := lv.cell_to_world(s.lever_cell)
+	var far := Vector2i(-1, -1)
+	for y in lv.height:
+		for x in lv.width:
+			var c := Vector2i(x, y)
+			if Level.SOLID.contains(lv.cell_char(c)):
+				continue
+			var spot := lv.cell_to_world(c)
+			var d := Vector2(spot.x - torch.global_position.x, spot.z - torch.global_position.z).length()
+			if d > Level.SEARCH_RANGE + 0.5 and d < 7.0 and lv.has_line_of_sight(spot, lever_spot):
+				far = c
+	check(far != Vector2i(-1, -1), "a spot in view of the lever but out of reach")
+	if far != Vector2i(-1, -1):
+		lv.player.global_position = lv.cell_to_world(far)
+		lv._check_secrets()
+		check(not s.rolled and not s.open, "a lever out of reach does nothing")
+	lv.player.global_position = lever_spot
+	lv._check_secrets()
+	check(s.rolled and s.open, "a lever next to the hero opens the secret wall")
+
 
 ## Searches 100 empty boxes with the skill at a level; how many torches
 ## turned up.

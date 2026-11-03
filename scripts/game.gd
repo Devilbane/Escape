@@ -2905,6 +2905,14 @@ func rest_at_inn() -> void:
 	tween.tween_property(_fade, "color:a", 0.0, 1.0)
 
 
+## The bed's "stay awake": saves the game where the hero stands, without
+## logging out, and shows the saved games. Closing that window carries on.
+func stay_awake() -> void:
+	var saved := save_game()
+	menus.saved_now = "ok" if saved else "failed"
+	menus.open("laden")
+
+
 func sleep() -> void:
 	# A night in the bed: the hero wakes up the next morning.
 	if level.outdoor or level.building != "":

@@ -38,6 +38,9 @@ var wish_master := ""
 var _style_from_wishes := false
 ## The saved game whose delete button was clicked once; a second click deletes.
 var _delete_asked := ""
+## The load window opened from the bed's "stay awake" right after saving:
+## "ok" or "failed", "" when it was opened to load a game.
+var saved_now := ""
 ## Which page of the compendium shows: "wissen" (controls and everything
 ## learned), "auftraege" (the villagers' tasks), "ruf" (the villagers'
 ## opinion of the hero) or "rezepte" (the recipes found and the ingredient pouch).
@@ -191,6 +194,8 @@ func is_open() -> bool:
 
 func open(kind: String) -> void:
 	current = kind
+	if kind != "laden":
+		saved_now = ""
 	_forge_tab = "waffen"
 	inventory_tab = "tasche"
 	_map_file = ""
@@ -218,6 +223,7 @@ func close() -> void:
 			game.show_message.call_deferred(naming_message, 6.0)
 			naming_message = ""
 	current = ""
+	saved_now = ""
 	game.trader_role = ""
 	_holder.visible = false
 	game.set_world_paused(false)
@@ -2377,12 +2383,18 @@ func _remove_tattoo() -> void:
 
 ## Every saved game, one per slot, the one saved last on top. In the middle
 ## of a run it warns first that the run so far is lost. A saved game can be
-## deleted too, after a second click to make sure.
+## deleted too, after a second click to make sure. Opened from the bed right
+## after saving, it says the game was saved instead and lets the player carry on.
 func _build_load() -> void:
-	_add_label(Lang.t("Spielstand laden"), 38, game.GOLD, game.TITLE_FONT)
+	var after_save := saved_now != ""
+	_add_label(Lang.t("Spielstände") if after_save else Lang.t("Spielstand laden"), 38, game.GOLD, game.TITLE_FONT)
 	var saves: Array = game.save_list()
 	var playing: bool = game.state == game.State.PLAYING
-	if saves.is_empty():
+	if saved_now == "ok":
+		_add_label(Lang.t("Spiel gespeichert auf Platz %d.") % game.save_slot, 20, Color(0.6, 1.0, 0.6))
+	elif saved_now == "failed":
+		_add_label(Lang.t("Speichern fehlgeschlagen!"), 20, Color(1.0, 0.5, 0.4))
+	elif saves.is_empty():
 		_add_label(Lang.t("Es gibt noch keinen Spielstand. Gespeichert wird beim Betreten der Zuflucht und in ihrem Bett."), 20)
 	elif playing:
 		_add_label(Lang.t("Was du seitdem erlebt hast, geht verloren."), 20, Color(1.0, 0.75, 0.5))
@@ -2403,7 +2415,7 @@ func _build_load() -> void:
 	if _note != "":
 		_add_label(_note, 16, Color(1.0, 0.75, 0.5))
 		_note = ""
-	var cancel: Button = game._make_button(Lang.t("Abbrechen"), func():
+	var cancel: Button = game._make_button(Lang.t("Weiterspielen") if after_save else Lang.t("Abbrechen"), func():
 		_delete_asked = ""
 		close())
 	cancel.custom_minimum_size = Vector2(220, 60)
@@ -2918,9 +2930,11 @@ func _build_bed() -> void:
 		game.sleep())
 	sleep.custom_minimum_size = Vector2(300, 60)
 	row.add_child(sleep)
-	var cancel: Button = game._make_button(Lang.t("Weiter wach bleiben"), close)
-	cancel.custom_minimum_size = Vector2(260, 60)
-	row.add_child(cancel)
+	# Staying up saves the game here as well and shows the saved games, so
+	# the player sees it went through and can keep playing straight away.
+	var awake: Button = game._make_button(Lang.t("Wach bleiben und speichern"), game.stay_awake)
+	awake.custom_minimum_size = Vector2(300, 60)
+	row.add_child(awake)
 
 
 # --- Time away (see Offline) ------------------------------------------------

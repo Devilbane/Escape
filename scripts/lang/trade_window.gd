@@ -83,5 +83,5 @@ const EN := {
 	"Hier kannst du dich ausruhen. Dein Spiel wird gespeichert\nund du loggst dich aus. Später geht es genau hier weiter.":
 		"You can rest here. Your game is saved\nand you log out. Later you carry on right here.",
 	"Schlafen und ausloggen": "Sleep and log out",
-	"Weiter wach bleiben": "Stay awake",
+	"Wach bleiben und speichern": "Stay awake and save",
 }

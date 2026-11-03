@@ -63,6 +63,18 @@ func _test_picks() -> void:
 				seen[id] = true
 			check(Items.ALL.has(lvl.loot_item(rng, min_price, area)), "a %s room of level %d still holds gear once all fitting gear is taken" % [tier, area])
 			lvl.free()
+	# A godborn room on a shallow level (Das Tor): only one piece of gear
+	# suits it, so the other chests reach for the nearest finer gear rather
+	# than the same book again.
+	var gate := Level.new()
+	var gate_rng := RandomNumberGenerator.new()
+	gate_rng.seed = 10
+	var gate_seen := {}
+	for i in 3:
+		var id := gate.loot_item(gate_rng, int(Level.TIERS["gottgeboren"].min_price), 6)
+		check(not gate_seen.has(id), "%s repeats in a godborn room of level 6" % id)
+		gate_seen[id] = true
+	gate.free()
 	# Common things may still repeat.
 	var plain := Level.new()
 	var plain_rng := RandomNumberGenerator.new()

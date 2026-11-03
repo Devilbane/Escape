@@ -227,6 +227,13 @@ var lore: Array = []
 var _knife_label: Label
 var _prompt: Label
 var _message: Label
+## Messages that came before the newest one, oldest first, kept above it
+## while they are still being read (see show_message), so a new message
+## never covers an unread one.
+var _message_kept: Array[Label] = []
+var _message_box: VBoxContainer
+## How long the newest message is meant to stay (see show_message).
+var _message_duration := 0.0
 ## Space kept free left and right of centred on-screen texts.
 const SCREEN_TEXT_MARGIN := 80
 const MESSAGE_FONT_SIZE := 24
@@ -935,17 +942,21 @@ func _setup_hud() -> void:
 	_prompt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hud.add_child(_prompt)
 
-	_message = _make_label(TEXT_FONT, MESSAGE_FONT_SIZE)
-	_message.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	_message.offset_left = SCREEN_TEXT_MARGIN
-	_message.offset_right = -SCREEN_TEXT_MARGIN
-	_message.offset_top = -MESSAGE_BOTTOM
-	_message.offset_bottom = -MESSAGE_BOTTOM
-	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_message.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_message.modulate.a = 0.0
-	_hud.add_child(_message)
+	# The message lines: the newest one always sits at the same place at the
+	# bottom, and the ones before it, while still unread, above it. The box
+	# grows upwards, so no line can ever cover another.
+	_message_box = VBoxContainer.new()
+	_message_box.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_message_box.offset_left = SCREEN_TEXT_MARGIN
+	_message_box.offset_right = -SCREEN_TEXT_MARGIN
+	_message_box.offset_top = -MESSAGE_BOTTOM
+	_message_box.offset_bottom = -MESSAGE_BOTTOM
+	_message_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_message_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_message_box.add_theme_constant_override("separation", MESSAGE_GAP)
+	_hud.add_child(_message_box)
+	_message = _message_line()
+	_message_box.add_child(_message)
 
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.8))
 	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
@@ -1924,6 +1935,9 @@ func load_level(index: int, restock := true) -> void:
 			shop_stock.append(Items.random_ware(rng))
 	_snap_camera()
 	_update_hud()
+	# Every shader the new level needs is built in its first, still dark
+	# frame, and the time that takes does not count (see LevelWarmup).
+	LevelWarmup.begin(level)
 
 
 func _show_title(text: String, sub: String, prompt: String) -> void:
@@ -3471,27 +3485,101 @@ func learn(entry: String) -> void:
 ## that shows (see WritingCard), else at MESSAGE_BOTTOM.
 func place_message() -> void:
 	var lift := maxf(MESSAGE_BOTTOM, writing_card.clearance())
-	_message.offset_top = -lift
-	_message.offset_bottom = -lift
+	_message_box.offset_top = -lift
+	_message_box.offset_bottom = -lift
 
 
-func show_message(text: String, duration := 2.2) -> void:
+## Shows a message at the bottom of the screen for `duration` seconds, in
+## `color` (white, or gold for great news). A message that came just before
+## and is not read yet moves up a line instead of being covered or lost.
+func show_message(text: String, duration := 2.2, color := Color.WHITE) -> void:
+	_keep_unread_message(text)
 	_message.text = text
+	_message_duration = duration
 	place_message()
-	# Very long messages get a smaller font so they stay at a few lines.
-	var size := MESSAGE_FONT_SIZE
-	if text.length() > 160:
-		size = MESSAGE_FONT_SIZE - 4
-	elif text.length() > 90:
-		size = MESSAGE_FONT_SIZE - 2
-	_message.add_theme_font_size_override("font_size", size)
-	_message.add_theme_constant_override("outline_size", maxi(4, size / 6))
+	_message.add_theme_color_override("font_color", color)
+	_style_message(_message, _message_size(text))
 	if _message_tween:
 		_message_tween.kill()
 	_message_tween = create_tween()
 	_message_tween.tween_property(_message, "modulate:a", 1.0, 0.25)
 	_message_tween.tween_interval(duration)
 	_message_tween.tween_property(_message, "modulate:a", 0.0, 0.6)
+
+
+## Space between two message lines, in pixels.
+const MESSAGE_GAP := 8
+## Seconds a message needs to be read: a second to look, then 60 ms per
+## letter (the ux-ui guide's rule for toasts).
+static func read_time(text: String) -> float:
+	return 1.0 + text.length() * 0.06
+
+
+## Very long messages get a smaller font so they stay at a few lines.
+func _message_size(text: String) -> int:
+	if text.length() > 160:
+		return MESSAGE_FONT_SIZE - 4
+	if text.length() > 90:
+		return MESSAGE_FONT_SIZE - 2
+	return MESSAGE_FONT_SIZE
+
+
+func _style_message(line: Label, size: int) -> void:
+	line.add_theme_font_size_override("font_size", size)
+	line.add_theme_constant_override("outline_size", maxi(4, size / 6))
+
+
+## Most unread messages kept above the newest one; an older one makes room.
+const MESSAGE_KEPT := 2
+
+
+func _message_line() -> Label:
+	var line := _make_label(TEXT_FONT, MESSAGE_FONT_SIZE)
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line.modulate.a = 0.0
+	return line
+
+
+## The message on screen moves up a line and stays until it is read, when a
+## new one comes before that. One read already, or the same text again, is
+## simply replaced.
+func _keep_unread_message(new_text: String) -> void:
+	# Asked by the tween, not by the line's alpha: a message shown in the same
+	# frame has not faded in yet, but it is still unread.
+	if _message_tween == null or not _message_tween.is_running() or _message.text == "" or _message.text == new_text:
+		return
+	var shown := _message_tween.get_total_elapsed_time()
+	var needed := minf(read_time(_message.text), _message_duration + 0.25)
+	if shown >= needed:
+		return
+	var kept := _message_line()
+	kept.text = _message.text
+	kept.add_theme_color_override("font_color", _message.get_theme_color("font_color"))
+	_style_message(kept, _message_size(_message.text))
+	kept.modulate.a = _message.modulate.a
+	_message_box.add_child(kept)
+	_message_box.move_child(kept, _message.get_index())
+	_message_kept.append(kept)
+	while _message_kept.size() > MESSAGE_KEPT:
+		_message_kept.pop_front().queue_free()
+	var tween := kept.create_tween()
+	tween.tween_property(kept, "modulate:a", 1.0, 0.15)
+	tween.tween_interval(maxf(needed - shown, 0.8))
+	tween.tween_property(kept, "modulate:a", 0.0, 0.6)
+	tween.tween_callback(func():
+		_message_kept.erase(kept)
+		kept.queue_free())
+
+
+## The message lines on screen now, oldest first, the newest last (for tests).
+func message_lines() -> Array[Label]:
+	var lines: Array[Label] = []
+	for line in _message_kept:
+		if is_instance_valid(line) and not line.is_queued_for_deletion():
+			lines.append(line)
+	lines.append(_message)
+	return lines
 
 
 func _on_key_collected() -> void:
@@ -3516,10 +3604,8 @@ func _on_gate_opened(pos: Vector3) -> void:
 	Comic.pop(pos, "rumble")
 	Sfx.play(self, "rumble", 0.0, pos)
 	Sfx.play(self, "chain", -4.0, pos)
-	show_message(Lang.t("Alle Druckplatten sind belegt: Das Eisengitter versinkt im Boden!"), 3.5)
+	show_message(Lang.t("Alle Druckplatten sind belegt: Das Eisengitter versinkt im Boden!"), 3.5, GOLD)
 	Events.bus().riddle_solved.emit("puzzle", HeroLevel.place_level(level))
-	_message.add_theme_color_override("font_color", GOLD)
-	get_tree().create_timer(3.8).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
 
 
 ## A lever torch found: a click and a golden message, then, a moment later,
@@ -3534,9 +3620,7 @@ func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	Comic.pop(lever_pos, "lever")
 	Sfx.play(self, "lever_pull", -2.0, lever_pos)
 	learn("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!")
-	show_message(Lang.t("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!"), 4.5)
-	_message.add_theme_color_override("font_color", GOLD)
-	get_tree().create_timer(4.8).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
+	show_message(Lang.t("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!"), 4.5, GOLD)
 	var tier: Dictionary = Level.TIERS[level.secret_tier]
 	var here := level
 	await get_tree().create_timer(Level.SECRET_DELAY).timeout
@@ -3613,9 +3697,7 @@ func _on_mine_boss_won() -> void:
 	Sfx.play(self, "level_done", -1.0)
 	player.train("weisheit", 10.0)
 	_shake = 1.2
-	show_message(Lang.t("Der Bergkönig ist besiegt! Das Herz des Berges gehört dir."), 5.0)
-	_message.add_theme_color_override("font_color", GOLD)
-	get_tree().create_timer(5.6).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
+	show_message(Lang.t("Der Bergkönig ist besiegt! Das Herz des Berges gehört dir."), 5.0, GOLD)
 
 
 func _on_lair_won() -> void:
@@ -3637,9 +3719,7 @@ func _on_lair_won() -> void:
 func _on_dragon_awakened(dragon: Dragon) -> void:
 	_shake = 1.4
 	learn(DRAGON_LEARN)
-	show_message(Lang.t("%s erwacht!") % Lang.t(dragon.boss_title()) + "\n" + Lang.t(DRAGON_LEARN), 5.0)
-	_message.add_theme_color_override("font_color", GOLD)
-	get_tree().create_timer(5.6).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
+	show_message(Lang.t("%s erwacht!") % Lang.t(dragon.boss_title()) + "\n" + Lang.t(DRAGON_LEARN), 5.0, GOLD)
 
 
 const DRAGON_LEARN := "Rote Ringe am Boden zeigen, wo sein Feuer fällt: geh beiseite oder spring darüber. Nach dem Feueratem schnauft er, dann trifft deine Klinge doppelt."

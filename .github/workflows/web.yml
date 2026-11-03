@@ -69,6 +69,11 @@ jobs:
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/cobwebs.gd | tee cobwebs.log
           grep -q PASS cobwebs.log
 
+      - name: Level warm-up (no hitch when a level starts)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/level_warmup.gd | tee warmup.log
+          grep -q PASS warmup.log
+
       - name: Play through all levels automatically
         run: |
           timeout 600 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log
@@ -263,6 +268,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/damage_numbers.gd | tee damage_numbers.log
           grep -q PASS damage_numbers.log
+
+      - name: Messages never cover each other test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/message_overlap.gd | tee message_overlap.log
+          grep -q PASS message_overlap.log
 
       - name: Hero and skeletons cannot stack test
         run: |

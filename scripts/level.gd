@@ -3570,7 +3570,7 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}) ->
 			if not taken.has(Mines.KING_DEFEATED):
 				taken[Mines.KING_DEFEATED] = true
 				_drop_item(Mines.TROPHY, e.global_position + Vector3(0.8, 0, 0.8))
-				Sfx.play_gear(self, Mines.TROPHY, 0.4, e.global_position)
+				Sfx.play_find(self, Mines.TROPHY, 0.4, e.global_position)
 			boss_won.emit())
 	if e is Dragon:
 		dragon = e as Dragon
@@ -3685,13 +3685,17 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 func _drop_gear(e: Enemy, chance := DROP_CHANCE) -> void:
 	var spot := e.global_position
 	var delay := 0.0
+	var dropped := []
 	for id in e.gear:
 		if randf() < chance:
 			_drop_item(id, spot)
+			dropped.append(id)
 			# It clatters onto the floor, one piece after the other.
 			Sfx.play_gear(self, id, delay, spot)
 			delay += 0.3
 			spot += Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
+	# The finest piece, if finer than rare, rings out once the heap is down.
+	Sfx.play_rarity(self, Sfx.finest(dropped), maxf(0.0, delay - 0.3), e.global_position)
 
 
 ## Named bosses (the bandit chief, the dragon, the Mountain King, and any
@@ -3740,7 +3744,7 @@ func _drop_boss_loot(e: Enemy) -> void:
 		return
 	var spot := e.global_position + Vector3(-0.8, 0, 0.8)
 	_drop_item(id, spot)
-	Sfx.play_gear(self, id, 0.6, spot)
+	Sfx.play_find(self, id, 0.6, spot)
 	var tier: Dictionary = TIERS[tier_of(id)]
 	Events.found(Lang.t("Seltene Beute: %s (%s)") % [Items.item_name(id), Lang.t(tier.name)], tier.color)
 

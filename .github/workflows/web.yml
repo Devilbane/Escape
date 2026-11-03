@@ -94,6 +94,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/inventory_fixed_size.gd | tee inventory.log
           grep -q PASS inventory.log
 
+      - name: Loot fanfares (epic and god-born gear ring out)
+        run: |
+          timeout 60 ~/godot/godot --headless -s tests/loot_fanfare.gd | tee fanfare.log
+          grep -q PASS fanfare.log
+
       - name: Event bus test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log

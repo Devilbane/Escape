@@ -238,6 +238,47 @@ static func play_gear(tree_node: Node, id: String, delay := 0.0, at = null) -> v
 	play_after(tree_node, delay, sound, -2.0, at)
 
 
+## The fanfare for loot finer than rare, by its tier (see Level.TIERS and
+## tools/make_rarity_sounds.py). Each one is bigger than the one below, so
+## the ear knows the tier before the eye reads it. Common to rare gear has
+## none: there the clatter alone tells of the find.
+const RARITY_SOUNDS := {"episch": "loot_epic", "gottgeboren": "loot_godborn"}
+## How long after the clatter the fanfare sets in.
+const RARITY_AFTER := 0.15
+
+
+## The fanfare a piece of gear earns when it turns up, or "" for none.
+static func rarity_sound(id: String) -> String:
+	return str(RARITY_SOUNDS.get(Level.tier_of(id), ""))
+
+
+## Of several pieces, the one whose fanfare is the grandest ("" when none of
+## them earns one): when a monster drops a heap, only the best of it sings.
+static func finest(ids: Array) -> String:
+	var order: Array = Level.TIERS.keys()
+	var best := ""
+	for id in ids:
+		if rarity_sound(id) != "" and (best == "" or order.find(Level.tier_of(id)) > order.find(Level.tier_of(best))):
+			best = id
+	return best
+
+
+## Rings out the fanfare of a piece finer than rare, just after its
+## clatter (`delay` is the clatter's own delay). Does nothing for others.
+static func play_rarity(tree_node: Node, id: String, delay := 0.0, at = null) -> void:
+	var sound := rarity_sound(id)
+	if sound != "":
+		play_after(tree_node, delay + RARITY_AFTER, sound, 0.0, at)
+
+
+## A piece of loot turning up: its clatter, and its fanfare if it is finer
+## than rare. For gear the hero finds or a monster drops, not for gear the
+## hero merely puts down.
+static func play_find(tree_node: Node, id: String, delay := 0.0, at = null) -> void:
+	play_gear(tree_node, id, delay, at)
+	play_rarity(tree_node, id, delay, at)
+
+
 ## A sound that loops for as long as it plays (an .ogg file), e.g. the
 ## rain. It starts silent and stopped: the caller sets the volume and
 ## plays it when the time comes.

@@ -282,6 +282,9 @@ signal stairs_taken(to: Vector3, up: bool, storey: int)
 var depth := 0
 var fog: Fog
 var _doors: Array = []
+## The monsters placed from the map, with the cell each started on, so a
+## floor the hero leaves can remember who fell (see note_left).
+var _map_enemies: Array = []
 var _torch_spots: Array[Vector3] = []
 var _walls_body := StaticBody3D.new()
 var _door_hint_shown := false
@@ -519,6 +522,7 @@ func build() -> void:
 	fog.setup(self)
 	add_child(fog)
 	_spawn_enemies()
+	_restore_left()
 	if lair and theme == "":
 		_decorate_lair()
 	if not outdoor and (building == "" or lair):
@@ -2012,6 +2016,68 @@ func use_shrine(s: Dictionary) -> void:
 	tween.parallel().tween_property(s.orb.material_override, "albedo_color", Color(0.3, 0.3, 0.35), 1.2)
 
 
+## The key in `taken` for a monster of the map slain on its start cell `c`.
+static func slain_key(c: Vector2i) -> String:
+	return "slain:%d:%d" % [c.x, c.y]
+
+
+## The key in `taken` for a door at cell `c` left open.
+static func door_key(c: Vector2i) -> String:
+	return "door:%d:%d" % [c.x, c.y]
+
+
+## Set in `taken` once the hero took this floor's key (held or used).
+const KEY_GONE := "key_gone"
+
+
+## The hero leaves this dungeon floor (up the stairs or down a trapdoor):
+## remember which monsters of the map fell, which doors stand open and
+## whether the key is gone, so falling back to it later finds it as it was
+## left instead of a fresh floor (see _restore_left). Chests, pickups and
+## the map already stay as they were through `taken` and the journal.
+func note_left() -> void:
+	for m in _map_enemies:
+		var e = m.enemy
+		if not is_instance_valid(e) or e.dead:
+			taken[slain_key(m.cell)] = true
+	var any_open := false
+	for d in _doors:
+		if d.open:
+			taken[door_key(d.cell)] = true
+			any_open = true
+	if has_key or any_open:
+		taken[KEY_GONE] = true
+
+
+## Puts back what note_left remembered: open doors stay open, a key that was
+## taken stays gone (and is still in the hero's hand if no door used it), and
+## a guardian who fell before the key was picked up leaves it where he stood.
+func _restore_left() -> void:
+	var any_open := false
+	for d in _doors:
+		if not taken.has(door_key(d.cell)):
+			continue
+		any_open = true
+		d.open = true
+		d.leaf.queue_free()
+		astar.set_point_solid(d.cell, false)
+		if d.door:
+			d.door.rotation.y -= deg_to_rad(105)
+	if taken.has(KEY_GONE):
+		for p in _pickups.duplicate():
+			if p.kind == "key":
+				_pickups.erase(p)
+				p.node.queue_free()
+		has_key = not any_open
+	elif not _has_cell("K"):
+		for y in height:
+			for x in width:
+				var c := Vector2i(x, y)
+				if Enemy.LETTERS.get(cell_char(c), "") == "waechter" and taken.has(slain_key(c)):
+					_build_key(cell_to_world(c))
+					return
+
+
 func _build_door(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	var blocks_north_south := cell_char(c + Vector2i(-1, 0)) == "#" and cell_char(c + Vector2i(1, 0)) == "#"
@@ -3289,10 +3355,17 @@ func _spawn_enemies() -> void:
 		for x in width:
 			var c := Vector2i(x, y)
 			var ch := cell_char(c)
+			if not (Enemy.LETTERS.has(ch) or creations.has(ch) and creations[ch].type == "monster" and not safe):
+				continue
+			if taken.has(slain_key(c)):
+				# Slain before the hero left this floor (see note_left).
+				continue
+			var e: Enemy
 			if Enemy.LETTERS.has(ch):
-				_spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")
-			elif creations.has(ch) and creations[ch].type == "monster" and not safe:
-				_spawn_enemy(creations[ch].base, c, elite, Creations.monster_stats(creations[ch]))
+				e = _spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")
+			else:
+				e = _spawn_enemy(creations[ch].base, c, elite, Creations.monster_stats(creations[ch]))
+			_map_enemies.append({"enemy": e, "cell": c})
 	_spawn_horror()
 
 

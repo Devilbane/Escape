@@ -261,6 +261,18 @@ func _run() -> void:
 		check(Traps._apart(landed, trap.cell) >= Traps.TELEPORT_MIN_TILES, "the teleporter flings the hero away: %s -> %s" % [trap.cell, landed])
 		check(not game.level.astar.is_point_solid(landed), "onto open floor")
 
+	# The floor below is the one the hero climbed out of: leave it with a
+	# monster slain and its door open, as if the hero had won through it.
+	_enter("02_die_stachelhalle.txt")
+	var below: Level = game.level
+	check(not below._map_enemies.is_empty() and not below._doors.is_empty(), "the hall has monsters and a door")
+	var slain_cell: Vector2i = below._map_enemies[0].cell
+	below._map_enemies[0].enemy.dead = true
+	below._doors[0].open = true
+	var door_cell: Vector2i = below._doors[0].cell
+	var monsters: int = below._map_enemies.size()
+	below.note_left()
+
 	# A trapdoor drops the hero to the floor below (the one before it), near its start.
 	t = _enter("03_das_labyrinth.txt")
 	trap = _first(t, "falltuer")
@@ -275,4 +287,12 @@ func _run() -> void:
 		var here: Vector2i = game.level.world_to_cell(p.global_position)
 		check(here != game.level.start_cell and not game.level.astar.is_point_solid(here), "the hero lands on open floor: %s" % here)
 		check(p.hp < p.max_hp, "the fall hurts")
+		# It is the floor as the hero left it, not a fresh one.
+		var lv: Level = game.level
+		check(lv.file.get_file() == "02_die_stachelhalle.txt", "back in the hall: %s" % lv.file)
+		check(not lv._map_enemies.any(func(m): return m.cell == slain_cell), "a slain monster stays dead")
+		check(lv._map_enemies.size() == monsters - 1, "the other monsters are still there")
+		check(lv._doors.any(func(d): return d.cell == door_cell and d.open), "the door stays open")
+		check(not lv.astar.is_point_solid(door_cell), "and can be walked through")
+		check(not lv._pickups.any(func(x): return x.kind == "key"), "the key used on it is gone")
 	done = true

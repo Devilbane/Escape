@@ -1310,53 +1310,105 @@ func _plain_stone(color: Color) -> Material:
 
 const WATER_SHADER := preload("res://shaders/water.gdshader")
 
-## The healing fountain: an eight-sided basin of matt carved stone on a low
-## step, a column with a small bowl on top, and a spout whose water falls
-## back into the basin. The water glows faintly and breathes, with a few
-## motes drifting over it, since it heals.
+const DECAYED_STONE_SHADER := preload("res://shaders/decayed_stone.gdshader")
+
+## The fountain's stone, aged by decay (0 clean, 1 the forgotten dungeon
+## fountain): cracks, damp streaks, moss and a lime crust at the water lines
+## (see shaders/decayed_stone.gdshader). Shared per colour and decay.
+## rubble: loose pieces lying on the floor (no extra moss at their foot).
+func _decayed_stone(color: Color, decay: float, rubble := false) -> Material:
+	var key := "mat_decayed_stone_%s_%.2f_%s" % [color.to_html(), decay, rubble]
+	if not _scenes.has(key):
+		var stone := ShaderMaterial.new()
+		stone.shader = DECAYED_STONE_SHADER
+		stone.set_shader_parameter("albedo_color", color)
+		stone.set_shader_parameter("strength", decay)
+		stone.set_shader_parameter("water_line_a", FOUNTAIN_WATER)
+		stone.set_shader_parameter("water_line_b", FOUNTAIN_BOWL_WATER)
+		stone.set_shader_parameter("low_moss", 0.0 if rubble else 1.0)
+		_scenes[key] = stone
+	return _scenes[key]
+
+
+## Heights of the water in the fountain's basin and in its bowl.
+const FOUNTAIN_WATER := 0.92
+const FOUNTAIN_BOWL_WATER := 2.3
+
+## The healing fountain: an eight-sided basin of carved stone on a low step,
+## a column with a small bowl on top, and a spout whose water falls back into
+## the basin. The water glows faintly and breathes, with a few motes drifting
+## over it, since it heals. In the dungeon it has stood forgotten for ages:
+## the stone is cracked, streaked and mossy, a piece of the basin's coping has
+## broken off and lies on the floor with some rubble, the water is murky with
+## a film of scum and the spout only splutters. Up in the village it is
+## looked after and only a little weathered.
 func _build_fountain(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	var stone := _plain_stone(Color(0.56, 0.54, 0.5))
+	var decay := 0.25 if outdoor or is_home else 1.0
+	var old := decay > 0.5
+	var stone := _decayed_stone(Color(0.56, 0.54, 0.5) if not old else Color(0.5, 0.48, 0.43), decay)
 	# The inside of the basin stays wet and dark.
-	var wet := _plain_stone(Color(0.3, 0.31, 0.32))
+	var wet := _decayed_stone(Color(0.3, 0.31, 0.32) if not old else Color(0.24, 0.25, 0.21), decay)
 	var water := ShaderMaterial.new()
 	water.shader = WATER_SHADER
 	var still := ShaderMaterial.new()
 	still.shader = WATER_SHADER
 	still.set_shader_parameter("rings", 0.3)
 	still.set_shader_parameter("ring_spacing", 45.0)
-	# [inner radius, outer radius, bottom, top, sides, material]
+	if old:
+		# Murky, greenish water with scum along the rim; it still glows a
+		# little, as it still heals.
+		for m: ShaderMaterial in [water, still]:
+			m.set_shader_parameter("deep_color", Color(0.05, 0.09, 0.06))
+			m.set_shader_parameter("shallow_color", Color(0.16, 0.22, 0.14))
+			m.set_shader_parameter("glow_color", Color(0.4, 0.8, 0.62))
+			m.set_shader_parameter("glow", 0.16)
+			m.set_shader_parameter("scum", 1.0)
+		water.set_shader_parameter("radius", 1.3)
+		water.set_shader_parameter("rings", 0.45)
+		still.set_shader_parameter("radius", 0.5)
+	# One side of the coping has broken off (the one facing the room's
+	# entrance side most often seen, front right).
+	var coping_gaps := [1] if old else []
+	# [inner radius, outer radius, bottom, top, sides, material, gaps]
 	var parts := [
-		[0.0, 1.85, 0.0, 0.22, 8, stone],  # the step
-		[1.3, 1.55, 0.22, 1.0, 8, stone],  # the basin's wall
-		[1.25, 1.68, 1.0, 1.14, 8, stone],  # its coping, a little wider
-		[0.0, 1.31, 0.22, 0.4, 8, wet],  # the basin's floor
-		[0.0, 1.3, 0.4, 0.92, 24, water],  # the water
-		[0.0, 0.46, 0.4, 0.62, 8, stone],  # the column's foot
-		[0.0, 0.3, 0.62, 1.94, 8, stone],  # the column
-		[0.0, 0.52, 1.94, 2.06, 8, stone],  # its capital
-		[0.5, 0.74, 2.06, 2.38, 8, stone],  # the bowl on top
-		[0.0, 0.51, 2.06, 2.14, 8, wet],  # the bowl's floor
-		[0.0, 0.5, 2.14, 2.3, 24, still],  # the bowl's water
+		[0.0, 1.85, 0.0, 0.22, 8, stone, []],  # the step
+		[1.3, 1.55, 0.22, 1.0, 8, stone, []],  # the basin's wall
+		[1.25, 1.68, 1.0, 1.14, 8, stone, coping_gaps],  # its coping, a little wider
+		[0.0, 1.31, 0.22, 0.4, 8, wet, []],  # the basin's floor
+		[0.0, 1.3, 0.4, FOUNTAIN_WATER, 24, water, []],  # the water
+		[0.0, 0.46, 0.4, 0.62, 8, stone, []],  # the column's foot
+		[0.0, 0.3, 0.62, 1.94, 8, stone, []],  # the column
+		[0.0, 0.52, 1.94, 2.06, 8, stone, []],  # its capital
+		[0.5, 0.74, 2.06, 2.38, 8, stone, []],  # the bowl on top
+		[0.0, 0.51, 2.06, 2.14, 8, wet, []],  # the bowl's floor
+		[0.0, 0.5, 2.14, FOUNTAIN_BOWL_WATER, 24, still, []],  # the bowl's water
 	]
 	for part in parts:
 		var node := MeshInstance3D.new()
-		node.mesh = Effects.ring_mesh(part[0], part[1], part[2], part[3], part[4], part[5])
+		node.mesh = Effects.ring_mesh(part[0], part[1], part[2], part[3], part[4], part[5], part[6])
 		node.position = pos
 		if part[5] == water or part[5] == still:
 			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(node)
-	var spray := Effects.make_spray(Color(0.75, 0.92, 0.95))
+	if old:
+		_fountain_rubble(pos, _decayed_stone(Color(0.5, 0.48, 0.43), decay, true))
+	var spray := Effects.make_spray(Color(0.75, 0.92, 0.95) if not old else Color(0.62, 0.72, 0.62))
 	spray.position = pos + Vector3(0, 2.3, 0)
+	if old:
+		# The spout half choked: it splutters a few weak drops.
+		spray.amount = 16
+		spray.initial_velocity_min = 1.2
+		spray.initial_velocity_max = 2.0
 	add_child(spray)
-	var motes := Effects.make_sparkles(Color(0.6, 0.9, 0.9))
-	motes.amount = 8
+	var motes := Effects.make_sparkles(Color(0.6, 0.9, 0.9) if not old else Color(0.55, 0.85, 0.7))
+	motes.amount = 8 if not old else 5
 	motes.emission_sphere_radius = 1.1
 	motes.position = pos + Vector3(0, 1.2, 0)
 	add_child(motes)
 	var glow := OmniLight3D.new()
-	glow.light_color = Color(0.5, 0.85, 0.85)
-	glow.light_energy = 0.9
+	glow.light_color = Color(0.5, 0.85, 0.85) if not old else Color(0.48, 0.8, 0.68)
+	glow.light_energy = 0.9 if not old else 0.7
 	glow.omni_range = 6.5
 	glow.position = pos + Vector3(0, 1.8, 0)
 	add_child(glow)
@@ -1367,7 +1419,30 @@ func _build_fountain(c: Vector2i) -> void:
 	_add_solid(pos, Vector3(3.2, 2, 3.2))
 	_light_spots.append(pos)
 	stations.append({"kind": "brunnen", "cell": c, "pos": pos, "used": false})
-	fishing_waters.append({"water": "brunnen", "pos": pos, "reach": 1.3, "round": true, "surface": 0.92})
+	fishing_waters.append({"water": "brunnen", "pos": pos, "reach": 1.3, "round": true, "surface": FOUNTAIN_WATER})
+
+
+## The broken-off piece of the fountain's coping, lying on the floor in front
+## of the gap, with a few smaller chips of stone round the step. Fixed, not
+## random, so the fountain looks the same each visit.
+func _fountain_rubble(pos: Vector3, stone: Material) -> void:
+	# [size, offset from the middle, turn, tilt]
+	var pieces := [
+		[Vector3(0.72, 0.14, 0.4), Vector3(1.75, 0.07, 1.55), 0.85, Vector3(0.08, 0, 0.22)],
+		[Vector3(0.24, 0.12, 0.2), Vector3(1.95, 0.06, 0.6), 0.3, Vector3(0.2, 0, 0.1)],
+		[Vector3(0.16, 0.1, 0.14), Vector3(0.9, 0.27, 1.55), 1.2, Vector3(0, 0, 0.15)],
+		[Vector3(0.14, 0.08, 0.12), Vector3(-1.3, 0.05, 1.75), 2.1, Vector3(0.1, 0, 0)],
+		[Vector3(0.2, 0.1, 0.16), Vector3(-1.9, 0.05, -0.7), 0.6, Vector3(0.15, 0, 0.1)],
+	]
+	for piece in pieces:
+		var box := BoxMesh.new()
+		box.size = piece[0]
+		var node := MeshInstance3D.new()
+		node.mesh = box
+		node.material_override = stone
+		node.position = pos + piece[1]
+		node.rotation = Vector3(piece[3].x, piece[2], piece[3].z)
+		add_child(node)
 
 
 ## A secret passage: a wall tile with a fake wall on each open side.

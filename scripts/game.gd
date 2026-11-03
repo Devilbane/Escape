@@ -1924,6 +1924,9 @@ func load_level(index: int, restock := true) -> void:
 			shop_stock.append(Items.random_ware(rng))
 	_snap_camera()
 	_update_hud()
+	# Every shader the new level needs is built in its first, still dark
+	# frame, and the time that takes does not count (see LevelWarmup).
+	LevelWarmup.begin(level)
 
 
 func _show_title(text: String, sub: String, prompt: String) -> void:

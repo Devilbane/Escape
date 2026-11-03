@@ -12,7 +12,7 @@ const EN := {
 	"Helm verstecken (schützt trotzdem)": "Hide helmet (it still protects)",
 	"Helm zeigen": "Show helmet",
 	"Wegwerfen": "Drop",
-	"%s weggeworfen.": "%s dropped.",
+	"%s abgelegt.": "%s dropped.",
 	"Deine Tasche ist voll.": "Your bag is full.",
 	"Lagertruhe": "Storage chest",
 	"Klicke einen Gegenstand an, um ihn zu verschieben.": "Click an item to move it.",

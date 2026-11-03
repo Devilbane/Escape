@@ -7,6 +7,8 @@ const EN := {
 	"Frisur": "Hair style",
 	"Farbe": "Colour",
 	"Natürlich": "Natural",
+	"Kurzhaarschnitt": "Short crop",
+	"Stachelkopf": "Spiky",
 	"Irokese": "Mohawk",
 	"Glatze": "Shaved",
 	"Naturfarbe": "Natural",

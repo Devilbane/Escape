@@ -696,7 +696,7 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		# Blades glance off the guardian's armour, and it turns to fight.
 		if wakes:
 			_wake(from)
-		Effects.float_text(level, global_position + Vector3(0, 2.2 * _stats.size, 0), Lang.t("Nur ein Stich in den Rücken!"), Color(0.8, 0.85, 0.95))
+		Effects.head_text(level, self, 2.2 * _stats.size, Lang.t("Nur ein Stich in den Rücken!"), Color(0.8, 0.85, 0.95))
 		Comic.pop(global_position, "block")
 		return
 	hp -= damage
@@ -706,7 +706,7 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	var away := global_position - from
 	away.y = 0.0
 	_knockback = away.normalized() * 9.0 / (_stats.size * _stats.size)
-	Effects.float_text(level, global_position + Vector3(0, 2.2 * _stats.size, 0), "-%d" % damage, Color(1, 0.45, 0.35))
+	Effects.head_text(level, self, 2.2 * _stats.size, "-%d" % damage, Color(1, 0.45, 0.35))
 	# The comic word below makes the sound of the blow.
 	if hp <= 0:
 		if is_human() or is_beast():

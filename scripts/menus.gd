@@ -539,7 +539,7 @@ func _crafts_text() -> String:
 
 
 ## The width of the column beside the character wheel.
-const CHARACTER_SIDE := 340
+const CHARACTER_SIDE := 420
 ## The details card beside the wheel has a fixed height that fits the longest
 ## details in both languages, so pointing at another entry moves nothing.
 const CHARACTER_CARD_HEIGHT := 262
@@ -965,8 +965,10 @@ func _place_stone_selected() -> void:
 
 func _drop_selected() -> void:
 	var p: Player = game.player
-	_note = Lang.t("%s weggeworfen.") % Items.item_name(p.bag[_selected])
+	var id: String = p.bag[_selected]
+	_note = Lang.t("%s abgelegt.") % Items.item_name(id)
 	p.bag.remove_at(_selected)
+	game.drop_on_floor(id)
 	_selected = -1
 	_rebuild()
 
@@ -2188,7 +2190,8 @@ func _buy_iron(count: int) -> void:
 # --- Barber -----------------------------------------------------------------
 
 ## What the barber offers: id, name, price in gold (see HairLook).
-const BARBER_STYLES := [["natural", "Natürlich", 5], ["mohawk", "Irokese", 15], ["bald", "Glatze", 10]]
+const BARBER_STYLES := [["natural", "Natürlich", 5], ["short", "Kurzhaarschnitt", 10], ["spiky", "Stachelkopf", 15],
+		["mohawk", "Irokese", 15], ["bald", "Glatze", 10]]
 const BARBER_COLORS := [["natural", "Naturfarbe", 5], ["black", "Schwarz", 10], ["blond", "Blond", 10],
 		["silver", "Silber", 10], ["red", "Rot", 10], ["green", "Grün", 10], ["blue", "Blau", 10],
 		["pink", "Pink", 10], ["purple", "Lila", 10], ["rainbow", "Regenbogen", 25], ["fire", "Feuer", 30]]
@@ -2293,7 +2296,7 @@ func _restyle(field: String, id: String, price: int) -> void:
 	game.player.set_hair(look)
 	Sfx.play(game, "coin")
 	_note = Lang.t("Schnipp, schnapp! Steht dir gut.")
-	if field == "style" and id != "natural" and look.tattoo != "":
+	if field == "style" and HairLook.shows_scalp(id) and look.tattoo != "":
 		_note = Lang.t("Schnipp, schnapp! Jetzt sieht man auch deine Tätowierung.")
 	_rebuild()
 
@@ -2319,7 +2322,7 @@ func _ink_tattoo() -> void:
 		game.player.set_hair(look)
 		Sfx.play(game, "coin")
 		_note = Lang.t("Gestochen: %s") % word
-		if look.style == "natural":
+		if not HairLook.shows_scalp(look.style):
 			_note += " " + Lang.t("Unter deinen Haaren sieht man sie erst, wenn du dir den Kopf scheren lässt.")
 	_rebuild()
 

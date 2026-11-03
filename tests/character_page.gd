@@ -100,11 +100,16 @@ func _test() -> void:
 	# The values the player reads on the wheel are 16 px or more.
 	check(CharacterPage.TEXT_SIZE >= 16, "the wheel's text is 16 px or more (%d)" % CharacterPage.TEXT_SIZE)
 
-	for setup in ["dagger", "sword and shield"]:
+	for setup in ["dagger", "sword and shield", "level points"]:
 		if setup == "sword and shield":
 			p.equipped["waffe"] = "schwert"
 			p.equipped["schild"] = "wappenschild"
 			p.xp["klingen"] = 200.0
+		if setup == "level points":
+			# Two-digit numbers everywhere still fit the card.
+			p.hero_xp = HeroLevel.total_for(HeroLevel.MAX)
+			p.level_points = {"staerke": 10, "geschick": 10, "intelligenz": 10}
+			p.refresh_stats()
 		for lang in ["en", "de"]:
 			Lang.language = lang
 			Lang._apply()
@@ -155,6 +160,19 @@ func _test() -> void:
 				check(_rect(card) == card_before, "the card keeps its size for %s (%s): %s, was %s" % [id, where, _rect(card), card_before])
 				check(_rect(menus._panel) == panel_before and _rect(wheel) == wheel_before and _rect(close) == close_before,
 						"nothing moves while %s shows (%s)" % [id, where])
+			# The main attributes show what they do now, with the real numbers.
+			for id in Training.MAIN_ATTRIBUTES:
+				wheel.point(id)
+				await _wait(2)
+				var live: Array = wheel.live_effects(id)
+				check(live.size() >= 2 and live.all(func(line): return _has_text(card, line)), "the card shows what %s does now (%s)" % [id, where])
+				if setup == "level points":
+					await _shot("attribute_%s_%s" % [id, lang])
+			if setup == "level points":
+				wheel.point("staerke")
+				await _wait(2)
+				check(p.strength_points() >= 10 and _has_text(card, Lang.t("Nahkampf: +%d Schaden, Hieb %d (+1 je Punkt)") % [p.strength_points(), p.power]),
+						"ten points of Stärke show as +%d damage (%s)" % [p.strength_points(), where])
 			# The attributes in the list beside the wheel show theirs too.
 			for id in Training.ATTRIBUTES:
 				wheel.point(id)
@@ -187,6 +205,8 @@ func _test() -> void:
 			menus.close()
 			await _wait()
 
+	p.hero_xp = 0
+	p.level_points = {}
 	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: character page")

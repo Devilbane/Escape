@@ -1710,9 +1710,10 @@ func _spawn_wild() -> void:
 	for s in _wild:
 		if s.kind == "hauptmann" and chief_defeated():
 			# He fell in this game already. If his blade was left lying
-			# there, it still waits where he fell.
+			# there, it still waits where he fell (games saved before the
+			# floor was kept get it back here).
 			s.timer = INF
-			if not taken.has(BanditChief.TROPHY):
+			if not taken.has(BanditChief.TROPHY) and not lies_on_floor(BanditChief.TROPHY):
 				_drop_item(BanditChief.TROPHY, cell_to_world(s.cell))
 			continue
 		_spawn_bandit(s)
@@ -2701,7 +2702,7 @@ func strike() -> Vector3:
 	lightning.emit(at)
 	if ore_spot.x >= 0:
 		var pos := cell_to_world(ore_spot).lerp(at, 0.35)
-		_drop_item(ORE, pos)
+		_drop_item(ORE, pos, false)
 		_pickups[-1]["weather"] = true
 		if player and _flat_distance(player.global_position, pos) < ORE_NOTICE_RANGE:
 			notice.emit(Lang.t("Der Blitz schlägt in einen Felsen ein! Daneben glimmt Donnererz."), 3.5)

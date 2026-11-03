@@ -80,6 +80,7 @@ const SHORTCUTS := [
 	["Charakter", "P"],
 	["Karte und Tagebuch", "N"],
 	["Aufträge", "O"],
+	["Nach Hause laufen", "X oder das Haus am rechten Rand, sobald du ein Zuhause hast; jeder eigene Schritt hält an"],
 	["Spielstand laden", "L"],
 	["Ton an/aus", "M"],
 	["Steinblock abstellen", "B, oder „Abstellen“ im Inventar"],

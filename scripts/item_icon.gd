@@ -246,6 +246,11 @@ func _draw() -> void:
 				var a := PI + PI * i / 16.0
 				body.append(p.call(0.5 + cos(a) * 0.36, 0.92 + sin(a) * 0.4))
 			draw_colored_polygon(body, GOLDEN)
+		"house":
+			# A house with a gable roof and a door: home.
+			draw_colored_polygon(PackedVector2Array([p.call(0.06, 0.5), p.call(0.5, 0.1), p.call(0.94, 0.5)]), GOLDEN)
+			draw_rect(Rect2(p.call(0.18, 0.5), Vector2(u * 0.64, u * 0.4)), GOLDEN)
+			draw_rect(Rect2(p.call(0.42, 0.62), Vector2(u * 0.16, u * 0.28)), TILE)
 		"coin":
 			draw_circle(p.call(0.5, 0.5), u * 0.42, GOLDEN.darkened(0.25))
 			draw_circle(p.call(0.5, 0.5), u * 0.32, GOLDEN)

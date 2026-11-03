@@ -26,6 +26,7 @@ The game can be played in English or German; you choose the language on the titl
 | Character page | P | figure icon on the right edge |
 | Map and journal | N | map icon on the right edge |
 | Quests and what is worth doing | O | scroll icon on the right edge |
+| Run home (once you have a house) | X | house icon on the right edge, below the menu handle; any step, click or blow of your own stops it |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |

@@ -379,6 +379,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/player_houses.gd | tee houses.log
           grep -q PASS houses.log
 
+      - name: Run home test (the home button and the way home)
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/home_run.gd | tee home_run.log
+          grep -q PASS home_run.log && ! grep -q FAIL home_run.log
+
       - name: Recipes and ingredient pouch test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/crafting.gd | tee crafting.log

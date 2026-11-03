@@ -64,6 +64,7 @@ const PARTS := [
 	preload("res://scripts/lang/tentacles.gd"),
 	preload("res://scripts/lang/event_log.gd"),
 	preload("res://scripts/lang/seats.gd"),
+	preload("res://scripts/lang/home_run.gd"),
 ]
 
 ## German text -> English text, all features together. Read it, never write it.

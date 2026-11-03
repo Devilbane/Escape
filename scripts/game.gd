@@ -56,6 +56,8 @@ var _drawer_tween: Tween
 ## handle, and those icons by the window they open (see _setup_quick_bar).
 var _drawer_rail: VBoxContainer
 var _quick_buttons := {}
+## The home button below the menu handle (see HomeRun).
+var _home_button: Button
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
@@ -126,6 +128,8 @@ var crafting := Crafting.new(self)
 var wishes := Wishes.new(self)
 ## The line in the water, when the hero is fishing (see Fishing).
 var fishing := Fishing.new(self)
+## The way home at a press of the home button or X (see HomeRun).
+var home_run := HomeRun.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
 ## gossip and secret recipes. Kept in the saved game.
 var reputation := Reputation.new(self)
@@ -357,6 +361,7 @@ func _bus_links() -> Array:
 		[bus.bounty_paid, xp_for_bounty],
 		[bus.riddle_solved, xp_for_riddle],
 		[bus.hero_acted, tutorial.on_hero_acted],
+		[bus.hero_acted, home_run.on_hero_acted],
 		[bus.loot_found, event_log.add_loot],
 		[bus.speech_said, heard],
 	]
@@ -667,6 +672,7 @@ func _setup_drawer() -> void:
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_drawer_rail.add_child(gap)
 	_drawer_rail.add_child(_drawer_handle)
+	_setup_home_button()
 
 	var panel := PanelContainer.new()
 	var back := StyleBoxFlat.new()
@@ -769,6 +775,64 @@ func _setup_quick_bar() -> void:
 		b.add_child(icon)
 		_drawer_rail.add_child(b)
 		_quick_buttons[w[0]] = b
+
+
+## The home button stands on the rail below the menu handle, set apart from
+## it like the window icons above: a house, the same size as those icons.
+## Its slot keeps its size while the button is hidden (no home yet, already
+## home, no way home from here), so nothing on the rail ever moves. It stays
+## pressed while the hero is on the way home; a second press stops.
+func _setup_home_button() -> void:
+	var gap := Control.new()
+	gap.custom_minimum_size.y = QUICK_HANDLE_GAP - QUICK_GAP * 2
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drawer_rail.add_child(gap)
+	var slot := Control.new()
+	slot.custom_minimum_size = QUICK_SIZE
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drawer_rail.add_child(slot)
+	_home_button = _make_button("", home_action)
+	_home_button.custom_minimum_size = QUICK_SIZE
+	_home_button.toggle_mode = true
+	_home_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
+	_home_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_home_button.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t("Nach Hause laufen"), "X"]
+	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+		var box: StyleBoxFlat = _home_button.get_theme_stylebox(style).duplicate()
+		box.corner_radius_top_right = 0
+		box.corner_radius_bottom_right = 0
+		_home_button.add_theme_stylebox_override(style, box)
+	var icon := ItemIcon.make("kind:house", QUICK_ICON, true)
+	icon.set_anchors_preset(Control.PRESET_CENTER)
+	icon.offset_left = -QUICK_ICON / 2.0
+	icon.offset_top = -QUICK_ICON / 2.0
+	icon.offset_right = QUICK_ICON / 2.0
+	icon.offset_bottom = QUICK_ICON / 2.0
+	_home_button.add_child(icon)
+	_home_button.visible = false
+	slot.add_child(_home_button)
+
+
+## The home button or X: sets out for home, or stops on the way.
+func home_action() -> void:
+	if state != State.PLAYING or not _shrine.is_empty():
+		return
+	var why := home_run.toggle()
+	if why != "":
+		show_message(why, 1.8)
+	update_home_button()
+
+
+## Shows the home button while a way home leads from here, pressed while the
+## hero is on it.
+func update_home_button() -> void:
+	if _home_button == null:
+		return
+	var show := home_run.active or home_run.can_show()
+	if _home_button.visible != show:
+		_home_button.visible = show
+	if _home_button.button_pressed != home_run.active:
+		_home_button.set_pressed_no_signal(home_run.active)
 
 
 ## Tooltips in the house style: a dark panel with a golden border, gold text.
@@ -4108,6 +4172,7 @@ func _with_article(label: String) -> String:
 
 func _on_player_hurt(_amount: int) -> void:
 	_update_hud()
+	home_run.on_hurt()
 	var tween := create_tween()
 	_fade.color = Color(0.6, 0.02, 0.02, 0.0)
 	tween.tween_property(_fade, "color:a", 0.35, 0.08)
@@ -4564,6 +4629,8 @@ func _process(delta: float) -> void:
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)
+	home_run.tick()
+	update_home_button()
 	_update_drag(delta)
 	_update_run_meter()
 	tutorial.update(delta)
@@ -4779,8 +4846,14 @@ func _unhandled_input(event: InputEvent) -> void:
 				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_P, KEY_N, KEY_O, KEY_ESCAPE]:
 					menus.close()
 				return
+			# Any key or click of the player's own (but the sound, the menu
+			# and the home key itself) calls the way home off.
+			if home_run.active and not (event is InputEventKey and event.physical_keycode in [KEY_X, KEY_M, KEY_TAB]):
+				home_run.stop()
 			if event is InputEventKey:
 				match event.physical_keycode:
+					KEY_X:
+						home_action()
 					KEY_SPACE:
 						player.jump()
 					KEY_F, KEY_J:

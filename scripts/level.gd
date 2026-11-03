@@ -395,13 +395,14 @@ var _writing := {}
 ## Seconds between pulling the lever and the stone starting to move.
 const SECRET_DELAY := 2.5
 ## Per wealth: chance in percent to notice the lever, gold in each chest,
-## the cheapest gear a chest may hold, and the colour of its name.
+## the cheapest gear a chest may hold, and the colour of its name (the
+## item rarity colours, see Rarity).
 const TIERS := {
-	"normal": {"name": "Gewöhnlich", "chance": 55, "gold": 10, "min_price": 0, "color": Color(0.85, 0.85, 0.85)},
-	"ungewoehnlich": {"name": "Ungewöhnlich", "chance": 40, "gold": 18, "min_price": 15, "color": Color(0.45, 0.9, 0.4)},
-	"selten": {"name": "Selten", "chance": 28, "gold": 30, "min_price": 25, "color": Color(0.35, 0.6, 1.0)},
-	"episch": {"name": "Episch", "chance": 18, "gold": 45, "min_price": 34, "color": Color(0.75, 0.4, 1.0)},
-	"gottgeboren": {"name": "Gottgeboren", "chance": 10, "gold": 70, "min_price": 42, "color": Color(1.0, 0.6, 0.15)},
+	"normal": {"name": "Gewöhnlich", "chance": 55, "gold": 10, "min_price": 0, "color": Rarity.COMMON},
+	"ungewoehnlich": {"name": "Ungewöhnlich", "chance": 40, "gold": 18, "min_price": 15, "color": Rarity.UNCOMMON},
+	"selten": {"name": "Selten", "chance": 28, "gold": 30, "min_price": 25, "color": Rarity.RARE},
+	"episch": {"name": "Episch", "chance": 18, "gold": 45, "min_price": 34, "color": Rarity.EPIC},
+	"gottgeboren": {"name": "Gottgeboren", "chance": 10, "gold": 70, "min_price": 42, "color": Rarity.GODBORN},
 }
 ## English names for the secret tiers, accepted in level files.
 const TIER_ALIASES := {"common": "normal", "uncommon": "ungewoehnlich", "rare": "selten", "epic": "episch", "godborn": "gottgeboren"}
@@ -3746,7 +3747,7 @@ func _drop_boss_loot(e: Enemy) -> void:
 	_drop_item(id, spot)
 	Sfx.play_find(self, id, 0.6, spot)
 	var tier: Dictionary = TIERS[tier_of(id)]
-	Events.found(Lang.t("Seltene Beute: %s (%s)") % [Items.item_name(id), Lang.t(tier.name)], tier.color)
+	Events.found(Lang.t("Seltene Beute: %s (%s)") % [Rarity.marked(id), Rarity.label(id)], tier.color)
 
 
 ## Gold coins spilt from a fallen bandit's purse, scattered around the spot.

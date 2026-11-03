@@ -59,8 +59,9 @@ const MOON_COLOR := Color(0.78, 0.84, 1.0)
 const MOON_LINE_HEIGHT := 52.0
 ## How many saved games the load window shows before the list scrolls.
 const LOAD_ROWS_SHOWN := 5
-## Shows the stats of the item under the mouse (or last tapped).
-var _info: Label
+## Shows the stats of the item under the mouse (or last tapped), its name in
+## the colour of its rarity (see Rarity).
+var _info: RichTextLabel
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## The windows built as a TradeWindow.
 const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "barbier"]
@@ -300,8 +301,12 @@ func _rebuild() -> void:
 		"gefaehrte_name":
 			_build_naming()
 	if current in ["lager", "tresor"]:
-		_info = _add_label(Lang.t(INFO_HINT), 16, BLUE)
+		_info = _make_info()
+		_info.autowrap_mode = TextServer.AUTOWRAP_OFF
+		_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_info.custom_minimum_size.y = 26
+		_box.add_child(_info)
+		_show_info("")
 	if _note != "" or current in TRADE_WINDOWS or current in ["werkbank", "inventar", "gefaehrten"]:
 		# The trading windows and the inventory keep a line for the note, so a
 		# purchase or a dropped item does not make the window grow.
@@ -456,9 +461,34 @@ func _add_label(text: String, size: int, color := Color.WHITE, font: Font = null
 	return l
 
 
+## The line that shows an item's details: like a label (see
+## Game._make_label), but its item name can have a colour of its own.
+func _make_info() -> RichTextLabel:
+	var l := RichTextLabel.new()
+	l.bbcode_enabled = true
+	l.fit_content = true
+	l.scroll_active = false
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_override("normal_font", game.TEXT_FONT)
+	l.add_theme_font_size_override("normal_font_size", 16)
+	l.add_theme_color_override("default_color", BLUE)
+	l.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
+	l.add_theme_constant_override("outline_size", 4)
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+	l.add_theme_constant_override("shadow_offset_y", 3)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
 func _item_button(text: String, action: Callable, enabled := true, id := "") -> Button:
 	var b: Button = game._make_button(text, action)
 	if id != "":
+		# An item's name shows in the colour of its rarity (see Rarity).
+		var c := Rarity.color(id)
+		for state in ["font_color", "font_pressed_color", "font_hover_pressed_color"]:
+			b.add_theme_color_override(state, c)
+		for state in ["font_hover_color", "font_focus_color"]:
+			b.add_theme_color_override(state, Rarity.hover(c))
 		# Pointing at an item (or tapping it) shows its stats right away.
 		b.mouse_entered.connect(_show_info.bind(id))
 		b.focus_entered.connect(_show_info.bind(id))
@@ -493,11 +523,27 @@ func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callabl
 			# The last of a bundle is the one taken, so the others keep their places.
 			var b := _item_button(text, action.bind(cell.indices.back()), true, cell.id)
 			if current == "inventar" and _selected in cell.indices:
-				b.modulate = Color(0.7, 1.0, 0.7)
+				_mark_picked(b)
 			grid.add_child(_inventory_cell(b) if current == "inventar" else b)
 		else:
 			var empty := _item_button("-", func(): pass, false)
 			grid.add_child(_inventory_cell(empty) if current == "inventar" else empty)
+
+
+## The picked cell of the inventory: a bright gold frame on a lighter
+## ground, as a picked row in the trade window. A frame rather than a tint,
+## so the name keeps the colour of its rarity.
+func _mark_picked(b: Button) -> void:
+	for state in ["normal", "hover"]:
+		var style: StyleBoxFlat = b.get_theme_stylebox(state).duplicate()
+		# The thicker frame must not take room from the text: the cell keeps
+		# its size and its text its place.
+		for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+			style.set_content_margin(side, style.get_margin(side))
+		style.bg_color = Color(0.2, 0.14, 0.1, 0.9)
+		style.border_color = game.GOLD
+		style.set_border_width_all(3)
+		b.add_theme_stylebox_override(state, style)
 
 
 func _show_info(id: String) -> void:
@@ -507,11 +553,23 @@ func _show_info(id: String) -> void:
 		# Off an item, the inventory shows the picked one again.
 		id = game.player.bag[_selected]
 	if id == "":
-		_info.text = Lang.t(INFO_HINT)
+		_info.text = _bb(Lang.t(INFO_HINT))
 	elif not Items.ALL.has(id) and (Crafting.INGREDIENTS.has(id) or id == "eisen"):
-		_info.text = game.crafting.describe_ingredient(id)
+		_info.text = _bb(game.crafting.describe_ingredient(id))
 	else:
-		_info.text = "%s: %s" % [Items.item_name(id), Items.describe(id, game.player.wear.get(id, 0))]
+		_info.text = info_text(id, game.player.wear.get(id, 0))
+
+
+## An item's details for the info line: its name in the colour of its
+## rarity, the rarity in words (so the colour is never the only cue), then
+## its values.
+static func info_text(id: String, worn := 0) -> String:
+	return "%s %s: %s" % [Rarity.bbcode(id), _bb("(%s)" % Rarity.label(id)), _bb(Items.describe(id, worn))]
+
+
+## Plain text made safe for a RichTextLabel.
+static func _bb(text: String) -> String:
+	return text.replace("[", "[lb]")
 
 
 func _stats_text() -> String:
@@ -838,15 +896,17 @@ func _inventory_details() -> Control:
 	actions.custom_minimum_size = Vector2(INVENTORY_CELL.x, 0)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_info = game._make_label(game.TEXT_FONT, 16, BLUE)
-	_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_info = _make_info()
 	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# Pass, so the mouse wheel scrolls a long description.
 	_info.mouse_filter = Control.MOUSE_FILTER_PASS
 	scroll.add_child(_info)
+	# The box holds that many lines, measured on a label of the same font.
 	var lines := float(INVENTORY_DETAIL_LINES)
+	var measure: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
 	scroll.custom_minimum_size = Vector2(INVENTORY_WIDTH - INVENTORY_CELL.x - 10,
-			ceilf(_info.get_line_height() * lines + _info.get_theme_constant("line_spacing") * (lines - 1.0)))
+			ceilf(measure.get_line_height() * lines + measure.get_theme_constant("line_spacing") * (lines - 1.0)))
+	measure.free()
 	row.add_child(scroll)
 	row.add_child(actions)
 	_show_info("")

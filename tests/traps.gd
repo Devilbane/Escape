@@ -62,6 +62,18 @@ func _wait(n: int) -> void:
 		await process_frame
 
 
+## Enters the first level (in the order of Traps.PLACES, shallow ones first)
+## that has a trap of `kind`, and returns that trap (empty if none has one).
+func _enter_with(kind: String) -> Dictionary:
+	for file in Traps.PLACES:
+		if not kind in Traps.PLACES[file].kinds:
+			continue
+		var found := _first(_enter(file), kind)
+		if not found.is_empty():
+			return found
+	return {}
+
+
 func _first(t: Traps, kind: String) -> Dictionary:
 	for trap in t.traps:
 		if trap.kind == kind:
@@ -215,10 +227,11 @@ func _run() -> void:
 	p.xp.clear()
 	p.refresh_stats()
 
-	# A spike trap hurts (Geschick at its start: no dodging).
-	t = _enter("07_die_bibliothek.txt")
-	trap = _first(t, "stacheln")
-	check(not trap.is_empty(), "the library has a spike trap")
+	# A spike trap hurts (Geschick at its start: no dodging). Which level has
+	# one depends on the layouts, so the first that does is taken.
+	trap = _enter_with("stacheln")
+	t = game.level.traps
+	check(not trap.is_empty(), "some level has a spike trap")
 	if not trap.is_empty():
 		p.hp = p.max_hp
 		p._invulnerable = 0.0
@@ -236,23 +249,17 @@ func _run() -> void:
 		check(p.hp == p.max_hp, "a jump over the spikes is safe")
 
 	# A teleporter flings the hero across the level.
-	var tele_file := ""
-	for file in Traps.PLACES:
-		if "teleport" in Traps.PLACES[file].kinds:
-			t = _enter(file)
-			if not _first(t, "teleport").is_empty():
-				tele_file = file
-				break
-	check(tele_file != "", "some level has a teleporter")
-	if tele_file != "":
-		trap = _first(t, "teleport")
+	trap = _enter_with("teleport")
+	t = game.level.traps
+	check(not trap.is_empty(), "some level has a teleporter")
+	if not trap.is_empty():
 		_put(trap.cell)
 		await _wait(3)
 		var landed: Vector2i = game.level.world_to_cell(p.global_position)
 		check(Traps._apart(landed, trap.cell) >= Traps.TELEPORT_MIN_TILES, "the teleporter flings the hero away: %s -> %s" % [trap.cell, landed])
 		check(not game.level.astar.is_point_solid(landed), "onto open floor")
 
-	# A trapdoor drops the hero to the next floor, near its start.
+	# A trapdoor drops the hero to the floor below (the one before it), near its start.
 	t = _enter("03_das_labyrinth.txt")
 	trap = _first(t, "falltuer")
 	check(not trap.is_empty(), "the labyrinth has a trapdoor")
@@ -261,7 +268,7 @@ func _run() -> void:
 		p.hp = p.max_hp
 		_put(trap.cell)
 		await _wait(60)
-		check(game.level_index == from + 1, "the trapdoor drops the hero a level: %d -> %d" % [from + 1, game.level_index + 1])
+		check(game.level_index == from - 1, "the trapdoor drops the hero down a level: %d -> %d" % [from + 1, game.level_index + 1])
 		check(game.state == game.State.PLAYING, "and the game goes on")
 		var here: Vector2i = game.level.world_to_cell(p.global_position)
 		check(here != game.level.start_cell and not game.level.astar.is_point_solid(here), "the hero lands on open floor: %s" % here)

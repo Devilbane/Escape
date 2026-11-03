@@ -1,7 +1,7 @@
 extends SceneTree
 ## Headless test: a fallen monster no longer sinks into the floor. Its body
 ## stays where it fell, darkens and sags, and at the end leaves a stain and
-## bones (a slime a puddle, a fog wraith nothing). Only a few corpses lie
+## bones as large as the body was (a slime a puddle, a fog wraith nothing). Only a few corpses lie
 ## about at once, and the remnants are capped too.
 ## Run with: godot --headless --fixed-fps 60 -s tests/corpses.gd
 
@@ -100,6 +100,11 @@ func _process(_delta: float) -> bool:
 			check(lvl.remnants.size() == 2, "a bone pile and a stain stay behind (%d)" % lvl.remnants.size())
 			for r in lvl.remnants:
 				check(r.get_child_count() == 2, "a remnant has a stain and bones")
+				if r.get_child_count() == 2:
+					# The bones keep the size of the body that lay there: no
+					# shrinking into a little heap.
+					var box: AABB = (r.get_child(1) as MeshInstance3D).mesh.get_aabb()
+					check(maxf(box.size.x, box.size.z) > 1.0, "the bones lie as long as the body was (%.2f m)" % maxf(box.size.x, box.size.z))
 			# Many dead at once: only the newest few lie about.
 			for i in Corpse.MAX_CORPSES + 4:
 				_fell("krieger", Vector3(-4.0 + i * 0.6, 0, -3.0))

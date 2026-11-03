@@ -3317,10 +3317,12 @@ func _fall_through_trapdoor(damage: int) -> void:
 
 func _land_below(damage: int) -> void:
 	if level.building == "":
-		# Down to the next floor of the dungeon: it counts as leaving this one.
+		# Down to the floor below in the dungeon: the hero climbs the dungeon
+		# upwards (the stairs lead to level_index + 1, see _next_level), so the
+		# floor below is the one they came from. It is not a floor cleared, so
+		# it does not count towards dry_levels.
 		Training.save_hero(hero_name, player.xp, player.level_data())
-		dry_levels = 0 if level.secret_opened() else dry_levels + 1
-		load_level(level_index + 1)
+		load_level(level_index - 1)
 	else:
 		load_level(interiors[level.down_to], false)
 	player.global_position = level.cell_to_world(Traps.landing_cell(level))

@@ -129,6 +129,8 @@ const SPIKE_DOWN_Y := -1.95
 const SPIKE_DETOUR := 6.0
 
 var level_name := ""
+## The map's file name, e.g. "03_das_labyrinth.txt".
+var file := ""
 var hint := ""
 var grid: Array[String] = []
 var width := 0
@@ -153,6 +155,8 @@ const LIGHT_REACH := 8.0
 ## How close to a torch's wall the hero must run to reach it.
 const TORCH_TOUCH := 1.6
 var _spikes: Array = []
+## The hidden traps of this level (see Traps), or null.
+var traps: Traps = null
 var _pickups: Array = []
 var interactables: Array = []
 ## What the hero already took here: ids of searched furniture and picked up
@@ -160,6 +164,15 @@ var interactables: Array = []
 ## the saved game, and calls restore_taken() after build(), so nothing fills
 ## up again after a reload, a night in bed or a walk out and back in.
 var taken := {}
+## What lies about on the floor here: gear the hero dropped, loot from the
+## fallen and spilt coins, as [kind ("item" or "coin"), item id, x, z] each.
+## The game hands in its own list for this level and keeps it in the saved
+## game; restore_floor() lays it all out again after build(), so nothing
+## vanishes when the hero walks off and comes back.
+var floor_items: Array = []
+## The most things kept lying on one level: past it the oldest go, so a level
+## where many fall does not fill the saved game without end.
+const FLOOR_MAX := 80
 var enemies: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
@@ -255,7 +268,7 @@ var _torch_spots: Array[Vector3] = []
 var _walls_body := StaticBody3D.new()
 var _door_hint_shown := false
 ## Hidden walls and the torches that open them. Each lever rolls once,
-## the first time the hero walks past it.
+## the first time the hero comes up close to it.
 var _secrets: Array = []
 ## Ingredients hidden in the ground that only the hero's fox can sniff out
 ## (see Pet): each {"cell": Vector2i, "id": String}. Never saved: they grow
@@ -271,7 +284,9 @@ var secret_bonus := 0
 ## Set by the game when the run is overdue a secret room: the lever is
 ## noticed for sure.
 var secret_sure := false
-const LEVER_RANGE := 7.0
+## How close the hero must come to a lever torch for it to work: the same
+## reach as searching, so a lever never tips while the hero is across the room.
+const LEVER_RANGE := SEARCH_RANGE
 ## How many steps from the secret wall a torch may be to serve as its lever.
 const LEVER_STEPS := 10
 ## Writings on the walls: each level of the dungeon has one, chosen by its
@@ -329,6 +344,7 @@ static func is_outdoor_file(path: String) -> bool:
 
 
 func load_from_file(path: String) -> void:
+	file = path.get_file()
 	var text := FileAccess.get_file_as_string(path)
 	for line in text.split("\n"):
 		line = line.strip_edges(false, true)
@@ -424,6 +440,9 @@ func build() -> void:
 		add_child(DungeonLife.new(self))
 	if not _vault_slots.is_empty():
 		refresh_vaults()
+	traps = Traps.make(self)
+	if traps:
+		add_child(traps)
 
 
 # --- Keeping the way free ---------------------------------------------------
@@ -1402,7 +1421,8 @@ func explore_cells() -> Array[Vector2i]:
 	return out
 
 
-## Rolls each lever once, the first time the hero walks past it in view.
+## Rolls each lever once, the first time the hero stands next to it in view
+## (within LEVER_RANGE). From further away nothing happens and nothing is rolled.
 func _check_secrets() -> void:
 	for s in _secrets:
 		if s.rolled or s.lever == null:
@@ -2484,6 +2504,11 @@ func _check_pickups() -> void:
 		var d := Vector2(player.global_position.x - n.global_position.x, player.global_position.z - n.global_position.z)
 		if d.length() > p.radius:
 			p.erase("warned")
+			p.erase("wait")
+			continue
+		if p.has("wait"):
+			# Just dropped at the hero's feet: it stays until they step away
+			# and come back for it.
 			continue
 		if p.kind == "item" and player.bag.size() >= player.bag_size():
 			if not p.has("warned"):
@@ -2491,6 +2516,8 @@ func _check_pickups() -> void:
 				bag_full.emit()
 			continue
 		_pickups.erase(p)
+		if p.has("floor"):
+			floor_items.erase(p.floor)
 		if p.has("id"):
 			taken[p.id] = true
 		var tween := create_tween()
@@ -2840,23 +2867,16 @@ func _drop_gear(e: Enemy, chance := DROP_CHANCE) -> void:
 
 
 ## Gold coins spilt from a fallen bandit's purse, scattered around the spot.
-## Unlike the coins placed by the map they have no id: once picked up they
-## are simply gone, and a reload does not bring them back.
+## Unlike the coins placed by the map they have no id: they are kept on the
+## floor list (see floor_items) until picked up, then simply gone.
 func _drop_coins(pos: Vector3, amount: int) -> void:
 	for i in amount:
-		var holder := Node3D.new()
 		var angle := randf() * TAU
-		holder.position = Vector3(pos.x, 0.03, pos.z) + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.5, 1.4)
-		holder.rotation.y = randf() * TAU
-		add_child(holder)
-		var coin := _place("coin", Vector3.ZERO, 0.0, holder)
-		coin.scale = Vector3.ONE * 1.6
-		_pickups.append({"node": holder, "kind": "coin", "radius": 1.5})
+		_lay_coin(Vector3(pos.x, 0, pos.z) + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.5, 1.4))
 	if amount > 0:
 		Sfx.play_coins(self, amount, 0.3, pos)
 
 
-## A worn piece left on the floor, glowing until the hero walks over it.
 ## Hides a few ingredients in the ground for the hero's fox to find: on the
 ## grass of the open air, on plain floor the hero can reach in the dungeon.
 ## Not in the safe rooms or inside the village buildings.
@@ -3002,7 +3022,74 @@ func lay_find(id: String, pos: Vector3) -> void:
 	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6})
 
 
-func _drop_item(id: String, pos: Vector3) -> void:
+## One spilt coin lying flat on the floor, kept on the floor list.
+func _lay_coin(pos: Vector3) -> void:
+	var holder := Node3D.new()
+	holder.position = Vector3(pos.x, 0.03, pos.z)
+	holder.rotation.y = randf() * TAU
+	add_child(holder)
+	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
+	coin.scale = Vector3.ONE * 1.6
+	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "floor": _remember_on_floor("coin", "", pos)})
+
+
+## Notes something lying on the floor (see floor_items) and returns the entry.
+func _remember_on_floor(kind: String, id: String, pos: Vector3) -> Array:
+	var entry := [kind, id, snappedf(pos.x, 0.01), snappedf(pos.z, 0.01)]
+	floor_items.append(entry)
+	while floor_items.size() > FLOOR_MAX:
+		var oldest: Array = floor_items.pop_front()
+		for p in _pickups.duplicate():
+			if is_same(p.get("floor"), oldest):
+				_pickups.erase(p)
+				if is_instance_valid(p.node):
+					p.node.queue_free()
+				break
+	return entry
+
+
+## Lays out again what lay on the floor when the hero was last here
+## (once, after build() and restore_taken()). What lies where the hero
+## arrives is not picked up at once: they step off and back to take it.
+func restore_floor() -> void:
+	var kept := floor_items.duplicate()
+	floor_items.clear()
+	for entry in kept:
+		if _pickups.any(func(p): return is_same(p.get("floor"), entry)):
+			# Laid out by build() already (the chief's blade): keep as it is.
+			floor_items.append(entry)
+			continue
+		if not (entry is Array and entry.size() >= 4):
+			continue
+		var pos := Vector3(float(entry[2]), 0, float(entry[3]))
+		if str(entry[0]) == "coin":
+			_lay_coin(pos)
+		elif Items.ALL.has(str(entry[1])):
+			_drop_item(str(entry[1]), pos)
+		else:
+			continue
+		var n: Node3D = _pickups[-1].node
+		if player and _flat_distance(player.global_position, n.global_position) <= _pickups[-1].radius:
+			_pickups[-1].wait = true
+
+
+## Whether an item lies on this level's floor list (see floor_items).
+func lies_on_floor(id: String) -> bool:
+	return floor_items.any(func(e): return e is Array and e.size() >= 2 and e[0] == "item" and e[1] == id)
+
+
+## Sets an item from the bag down at the hero's feet. It stays there (also
+## after leaving and coming back, or a reload) until picked up again, which
+## needs a step away first.
+func put_on_floor(id: String, pos: Vector3) -> void:
+	_drop_item(id, pos)
+	_pickups[-1].wait = true
+
+
+## Gear and loot left glowing on the floor until the hero walks over it.
+## `keep` false is for things meant to fade (thunder ore after the storm):
+## they are not put on the floor list.
+func _drop_item(id: String, pos: Vector3, keep := true) -> void:
 	var holder := _item_model(id)
 	holder.position = Vector3(pos.x, 1.0, pos.z)
 	add_child(holder)
@@ -3012,7 +3099,10 @@ func _drop_item(id: String, pos: Vector3) -> void:
 	light.omni_range = 3.5
 	holder.add_child(light)
 	holder.add_child(Effects.make_sparkles(Color(0.75, 0.9, 1.0)))
-	_pickups.append({"node": holder, "kind": "item", "id": id, "radius": 1.6})
+	var pickup := {"node": holder, "kind": "item", "id": id, "radius": 1.6}
+	if keep:
+		pickup.floor = _remember_on_floor("item", id, pos)
+	_pickups.append(pickup)
 
 
 ## What an item looks like lying about: its own model, or a gem.

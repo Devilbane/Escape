@@ -104,6 +104,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/looted_containers.gd | tee looted.log
           grep -q PASS looted.log
 
+      - name: Floor items test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/floor_items.gd | tee floor_items.log
+          grep -q PASS floor_items.log
+
       - name: Several saved games test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log
@@ -143,6 +148,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/bump_hint.gd | tee hints.log
           grep -q PASS hints.log
+
+      - name: First steps in the cell (tutorial cards) test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/tutorial.gd | tee tutorial.log
+          grep -q PASS tutorial.log
 
       - name: Villager speech cooldown test
         run: |
@@ -204,6 +214,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/heroine.gd | tee heroine.log
           grep -q PASS heroine.log
 
+      - name: Damage numbers over the head test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/damage_numbers.gd | tee damage_numbers.log
+          grep -q PASS damage_numbers.log
+
       - name: Hero and skeletons cannot stack test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/no_stacking.gd | tee stacking.log
@@ -243,6 +258,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/music.gd | tee music.log
           grep -q PASS music.log
+
+      - name: Eerie dungeon sounds test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dungeon_sounds.gd | tee dungeon_sounds.log
+          grep -q PASS dungeon_sounds.log
 
       - name: Day and night test
         run: |
@@ -313,6 +333,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/shrine.gd | tee shrine.log
           grep -q PASS shrine.log
+
+      - name: Hidden traps test
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/traps.gd | tee traps.log
+          grep -q PASS traps.log
 
       - name: Export the browser version
         run: |

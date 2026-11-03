@@ -507,7 +507,7 @@ func set_hair(look: Dictionary) -> void:
 	HairLook.apply(_model, hair)
 	var feather := _model.find_child("Feather", true, false) as Node3D
 	if feather:
-		feather.position = feather.get_meta("spots")[0 if hair.style == "natural" else 1]
+		feather.position = feather.get_meta("spots")[0 if hair.style == "natural" else 1] # Behind the ear of a cut head.
 	_show_headgear()
 
 
@@ -653,6 +653,7 @@ func jump() -> void:
 		jump_boost = clampf(run.length() / SPEED, 0.6, 1.6)
 		_air_momentum = run * (1.0 + 0.15 * jump_boost) * (1.0 + JUMP_PER_DEXTERITY * dexterity_points())
 	velocity.y = JUMP_VELOCITY * (0.85 + 0.15 * jump_boost)
+	Events.bus().hero_acted.emit("jump")
 	train("tempo", 3.0)
 	train("geschick", 2.0)
 	_current_anim = ""
@@ -733,6 +734,7 @@ func melee() -> void:
 		_target = target
 		face(target.global_position - global_position)
 	_attack_cooldown = 0.5
+	Events.bus().hero_acted.emit("melee")
 	var splash := would_splash()
 	if splash:
 		play_once(SPLASH_ANIM, 0.55)
@@ -794,6 +796,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 	face(dir)
 	knives -= 1
 	train("geschick", 0.5)
+	Events.bus().hero_acted.emit("throw")
 	_attack_cooldown = 0.6
 	if on_the_move:
 		_current_anim = ""
@@ -803,7 +806,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 		play_once("Throw", 0.45)
 	await get_tree().create_timer(0.2).timeout
 	Sfx.play(self, "throw")
-	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true).damage = power + heavy_hit("werfen")
+	Projectile.spawn(level, global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, true).damage = throw_power() + heavy_hit("werfen")
 
 
 func _engage(enemy: Enemy) -> void:
@@ -889,6 +892,45 @@ const SNEAK_PER_LEVEL := 0.03
 const SECRET_PER_INTUITION := 2
 const JUMP_PER_DEXTERITY := 0.02
 const DODGE_PER_DEXTERITY := 0.04
+## Dodging blows and shots: DODGE_PER_DEXTERITY per point of Geschick, up to
+## this much.
+const DODGE_MAX := 0.4
+## Each point of Intelligenz above the start makes skills and crafts train
+## this much quicker, and adds this much to all experience (EP).
+const SKILL_LEARNING_PER_INTELLIGENCE := 0.1
+const XP_PER_INTELLIGENCE := 0.03
+
+
+## Points of Stärke above the start: each is +1 damage in close combat.
+func strength_points() -> int:
+	return attribute("staerke") - Training.ATTRIBUTES.staerke.start
+
+
+## The damage of a thrown knife before a heavy hit: the hero's power, with
+## Geschick in place of Stärke (a deft hand throws, a strong arm strikes).
+func throw_power() -> int:
+	return maxi(1, power - strength_points() + dexterity_points())
+
+
+## The chance to dodge a blow or a shot, 0..DODGE_MAX.
+func dodge_chance() -> float:
+	return clampf(DODGE_PER_DEXTERITY * dexterity_points(), 0.0, DODGE_MAX)
+
+
+## Points of Intelligenz above the start.
+func intelligence_points() -> int:
+	return attribute("intelligenz") - Training.ATTRIBUTES.intelligenz.start
+
+
+## How much quicker skills and crafts train thanks to Intelligenz (0.2 = 20 %).
+func skill_learning_bonus() -> float:
+	return SKILL_LEARNING_PER_INTELLIGENCE * intelligence_points()
+
+
+## Experience as a clever hero earns it: XP_PER_INTELLIGENCE more per point
+## of Intelligenz.
+func clever_xp(amount: int) -> int:
+	return roundi(amount * (1.0 + XP_PER_INTELLIGENCE * intelligence_points()))
 
 
 ## Points of Geschick above the start: each makes running jumps 2 % longer
@@ -898,27 +940,29 @@ func dexterity_points() -> int:
 
 
 ## Spikes shoot up under the hero: a deft hero may jump aside in time.
-## Either way the trap teaches a little.
-func spring_trap() -> void:
+## Either way the trap teaches a little. Hidden spike traps (see Traps) hurt
+## more in deeper places.
+func spring_trap(damage := 1) -> void:
 	if dead or _invulnerable > 0.0 or frozen:
 		return
 	if randf() < DODGE_PER_DEXTERITY * dexterity_points():
 		train("geschick", 4.0)
 		_invulnerable = 0.6
-		Effects.float_text(level, global_position + Vector3(0, 2.2, 0), Lang.t("Ausgewichen!"), Color(0.72, 0.9, 0.78))
+		Effects.head_text(level, self, 2.2, Lang.t("Ausgewichen!"), Color(0.72, 0.9, 0.78))
 		return
 	train("geschick", 2.0)
-	take_damage(1, global_position - facing(), null, false)
+	take_damage(damage, global_position - facing(), null, false)
 
 
 ## Intuition sharpens the hero's gut feeling: +2 percent per point above 10
-## to notice a lever to a secret room.
+## to notice a lever to a secret room or a hidden trap (see Traps).
 func intuition_bonus() -> int:
 	return SECRET_PER_INTUITION * (attribute("intuition") - Training.ATTRIBUTES.intuition.start)
 
 
 ## What the Erkunden skill adds to a chance, in percent: `per_level` for each
-## level (one of Training.EXPLORE_SECRET, EXPLORE_TORCH, EXPLORE_WRITING).
+## level (one of Training.EXPLORE_SECRET, EXPLORE_TORCH, EXPLORE_WRITING,
+## EXPLORE_TRAP).
 func explore_bonus(per_level: int) -> int:
 	return per_level * skill("erkunden")
 
@@ -1063,6 +1107,8 @@ func train(id: String, amount: float, need_gear := true) -> void:
 		amount *= 1.0 + Training.LEARNING_PER_WISDOM * (attribute("weisheit") - Training.ATTRIBUTES.weisheit.start)
 	var is_craft := Training.CRAFTS.has(id)
 	var is_skill := Training.is_skill(id) or is_craft
+	if is_skill:
+		amount *= 1.0 + skill_learning_bonus()
 	if is_skill and need_gear and not is_craft and not skill_enabled(id):
 		return
 	var old_xp: float = xp.get(id, 0.0)
@@ -1244,7 +1290,7 @@ func _tick_ailments(delta: float) -> void:
 			if hp > 1:
 				hp -= 1
 				train("konstitution", 1.0)
-				Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-1", AILMENT_COLORS.gift)
+				Effects.head_text(level, self, 2.2, "-1", AILMENT_COLORS.gift)
 				hurt.emit(1)
 	if ailments.has("brand"):
 		_burn_tick -= delta
@@ -1253,7 +1299,7 @@ func _tick_ailments(delta: float) -> void:
 			if hp > 1:
 				hp -= 1
 				train("konstitution", 1.0)
-				Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-1", AILMENT_COLORS.brand)
+				Effects.head_text(level, self, 2.2, "-1", AILMENT_COLORS.brand)
 				hurt.emit(1)
 	if changed:
 		_ailments_changed()
@@ -1408,7 +1454,7 @@ func _block(from: Vector3) -> void:
 	var away := global_position - from
 	away.y = 0.0
 	_knockback = away.normalized() * 4.0
-	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), Lang.t("Geblockt!"), Color(0.72, 0.78, 0.88))
+	Effects.head_text(level, self, 2.2, Lang.t("Geblockt!"), Color(0.72, 0.78, 0.88))
 	Comic.pop(global_position, "block")
 
 
@@ -1442,6 +1488,12 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 		train("staerke", 1.0)
 		_block(from)
 		return
+	# A deft hero steps aside from a blow or a shot (see dodge_chance).
+	if blockable and randf() < dodge_chance():
+		train("geschick", 1.0)
+		_invulnerable = 0.4
+		Effects.float_text(level, global_position + Vector3(0, 2.2, 0), Lang.t("Ausgewichen!"), Color(0.72, 0.9, 0.78))
+		return
 	if blockable:
 		train("blocken", 0.5)
 	amount = soak(amount, hardening)
@@ -1464,7 +1516,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	away.y = 0.0
 	_knockback = away.normalized() * 10.0
 	path.clear()
-	Effects.float_text(level, global_position + Vector3(0, 2.2, 0), "-%d" % amount, Color(1, 0.3, 0.3))
+	Effects.head_text(level, self, 2.2, "-%d" % amount, Color(1, 0.3, 0.3))
 	# The blow lands; the comic word's cry ("AUA!") comes with the bubble.
 	Comic.pop(global_position, "hurt")
 	Sfx.play(self, "hit", -3.0)

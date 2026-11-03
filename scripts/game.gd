@@ -103,6 +103,8 @@ var met := {}
 var quests := Quests.new(self)
 ## The hero's map of every level and the exploration journal (see Journal).
 var journal := Journal.new(self)
+## The first steps in the cell, one card at a time (see Tutorial).
+var tutorial := Tutorial.new(self)
 ## How many mornings have dawned in the world above ground since the game
 ## began. The bounty board pins up fresh hunts each morning (see Bounties).
 ## The day turns at dawn, so the night after day d's evening, past midnight
@@ -158,6 +160,8 @@ var has_fox: bool:
 		return owns_companion("fuchs")
 ## The nameless horrors: their reveal, their bar and their discovery.
 var horrors: Horrors
+## Drips, creaks, whispers and the like in the dark of the dungeon.
+var dungeon_sounds: DungeonSounds
 const FOX_LEARN := "Füchse auf den Wiesen sind scheu, aber eine Wurst (bei der Krämerin) lockt sie an: Trägst du eine bei dir, kommt ein Fuchs neugierig näher und frisst sie dir aus der Hand. Nach drei Würsten folgt er dir überallhin, auch ins Verlies. Seine Nase findet Zutaten, die im Boden versteckt sind: Er läuft hin, gräbt sie aus und lässt sie für dich liegen; aufgehoben kommen sie in deinen Zutatenbeutel."
 ## What the hero already took on each level, by level file: the ids of
 ## searched furniture and picked up coins (see Level.taken). Kept in the
@@ -166,6 +170,10 @@ var looted := {}
 ## The stone blocks the hero built with on each level, by level file (see
 ## Level.built). Kept in the saved game, so buildings stay standing.
 var builds := {}
+## What lies on the floor of each level, by level file (a town house adds its
+## number: "haus.txt#2"), see Level.floor_items. Kept in the saved game, so
+## dropped gear and unclaimed loot stay where they fell.
+var floors := {}
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
 ## Levels left in a row without finding their secret room.
@@ -308,10 +316,12 @@ func _bus_links() -> Array:
 		[bus.map_grew, map_notice],
 		[bus.map_explored, map_explored],
 		[bus.writing_found, writing_found],
+		[bus.trap_spotted, trap_spotted],
 		[bus.enemy_felled, xp_for_kill],
 		[bus.quest_done, xp_for_task],
 		[bus.bounty_paid, xp_for_bounty],
 		[bus.riddle_solved, xp_for_riddle],
+		[bus.hero_acted, tutorial.on_hero_acted],
 	]
 
 
@@ -346,6 +356,7 @@ func _ready() -> void:
 				interiors[line.substr(9).strip_edges()] = i
 	_setup_world()
 	_setup_hud()
+	tutorial.setup(_hud)
 	var comic := Comic.new()
 	comic.camera = camera
 	add_child(comic)
@@ -353,6 +364,8 @@ func _ready() -> void:
 	add_child(menus)
 	horrors = Horrors.new(self)
 	add_child(horrors)
+	dungeon_sounds = DungeonSounds.new(self)
+	add_child(dungeon_sounds)
 	Sfx.load_settings()
 	Sfx.watch_focus(self)
 	Sfx.click_on_buttons(get_tree())
@@ -1715,6 +1728,7 @@ func load_level(index: int, restock := true) -> void:
 	if level:
 		level.queue_free()
 	level_index = index
+	tutorial.restart()
 	level = Outdoor.new() if Level.is_outdoor_file(level_files[index]) else Level.new()
 	level.load_from_file(level_files[index])
 	level.depth = index
@@ -1727,6 +1741,10 @@ func load_level(index: int, restock := true) -> void:
 	level.built = builds[file]
 	level.hero = hero_name
 	level.house_number = inside_house if level.is_home else 0
+	var floor_key := file if level.house_number == 0 else "%s#%d" % [file, level.house_number]
+	if not floors.has(floor_key):
+		floors[floor_key] = []
+	level.floor_items = floors[floor_key]
 	if level is Outdoor:
 		# Bandits who take their spots at night are tougher (see Outdoor.set_hour).
 		level.night = DayNight.is_night(day_hour)
@@ -1749,6 +1767,7 @@ func load_level(index: int, restock := true) -> void:
 	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
 	level.restore_taken()
+	level.restore_floor()
 	level.restore_stones()
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
@@ -1775,6 +1794,9 @@ func load_level(index: int, restock := true) -> void:
 	level.dragon_awakened.connect(_on_dragon_awakened)
 	level.lair_exit_taken.connect(leave_lair)
 	level.stairs_taken.connect(_take_stairs)
+	if level.traps:
+		level.traps.teleported.connect(_on_trap_teleport)
+		level.traps.fell.connect(_fall_through_trapdoor)
 	level.boss_won.connect(_on_mine_boss_won)
 	_refresh_seals()
 	if horrors:
@@ -2059,6 +2081,7 @@ func begin_new_game() -> void:
 	_hints_last.clear()
 	looted.clear()
 	builds.clear()
+	floors.clear()
 	met.clear()
 	quests.clear()
 	journal.clear()
@@ -2405,6 +2428,12 @@ func _apply_save(data: Dictionary) -> void:
 		for file in saved_builds:
 			if saved_builds[file] is Array:
 				builds[str(file)] = (saved_builds[file] as Array).filter(func(e): return e is Array and e.size() >= 4)
+	floors.clear()
+	var saved_floors = data.get("floors", {})
+	if saved_floors is Dictionary:
+		for key in saved_floors:
+			if saved_floors[key] is Array:
+				floors[str(key)] = (saved_floors[key] as Array).filter(func(e): return e is Array and e.size() >= 4)
 	escaped = bool(data.get("escaped", false))
 	home_upgrades = _known_keys(data.get("upgrades", []), HomeUpgrades.ALL)
 	trophies = _known_keys(data.get("trophies", []), HomeUpgrades.TROPHIES)
@@ -2588,7 +2617,7 @@ func save_game(going_away := false) -> bool:
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
 		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(),
 		"saved_at": Time.get_unix_time_from_system(),
-		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
+		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(), "floors": _floors_for_save(),
 		"quests": quests.for_save(),
 		"journal": journal.for_save(),
 		"day": day, "bounties": bounties.for_save(),
@@ -2622,6 +2651,27 @@ func _builds_for_save() -> Dictionary:
 		if not builds[file].is_empty():
 			out[file] = builds[file]
 	return out
+
+
+## What lies on each level's floor, levels with nothing left out.
+func _floors_for_save() -> Dictionary:
+	var out := {}
+	for key in floors:
+		if not floors[key].is_empty():
+			out[key] = floors[key]
+	return out
+
+
+## Sets an item from the bag down at the hero's feet, on this level's floor
+## (see Level.put_on_floor). It stays there until picked up again.
+func drop_on_floor(id: String) -> void:
+	if level == null or player == null:
+		return
+	var ahead := -player.global_transform.basis.z
+	ahead.y = 0.0
+	var spot := player.global_position + (ahead.normalized() * 0.6 if ahead.length() > 0.01 else Vector3.ZERO)
+	level.put_on_floor(id, spot)
+	Sfx.play_gear(level, id, 0.0, spot)
 
 
 ## The looted ids per level file as plain lists, levels with none left out.
@@ -3221,6 +3271,71 @@ func writing_found(text: String) -> void:
 	show_message(Lang.t(text), 6.0)
 
 
+## The hero spotted a hidden trap (see Traps): it trains Erkunden and earns
+## a little experience, and the compendium explains traps.
+func trap_spotted(kind: String, place_level: int) -> void:
+	player.train("erkunden", Training.EXPLORE_TRAP_FOUND)
+	learn(Traps.LEARN)
+	earn_xp(HeroLevel.time_xp(HeroLevel.TRAP_MINUTES, place_level, player.hero_level()))
+	show_message(Lang.t(Traps.KINDS[kind].spotted), 3.5)
+
+
+## A teleporter trap flung the hero across the level (see Traps).
+func _on_trap_teleport(_to: Vector3) -> void:
+	learn(Traps.LEARN)
+	_snap_camera()
+	if is_instance_valid(pet):
+		pet.arrive()
+	show_message(Lang.t("Eine Teleportfalle! Sie hat dich an einen anderen Ort geschleudert."), 3.0)
+
+
+## The floor gave way under the hero (a trapdoor, see Traps): they fall to
+## the level below, land somewhere near its start and take `damage`.
+func _fall_through_trapdoor(damage: int) -> void:
+	if state != State.PLAYING:
+		return
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	player.velocity = Vector3.ZERO
+	learn(Traps.LEARN)
+	var tween := create_tween()
+	tween.tween_property(player, "global_position:y", player.global_position.y - 3.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
+	tween.tween_callback(_land_below.bind(damage))
+
+
+func _land_below(damage: int) -> void:
+	if level.building == "":
+		# Down to the next floor of the dungeon: it counts as leaving this one.
+		Training.save_hero(hero_name, player.xp, player.level_data())
+		dry_levels = 0 if level.secret_opened() else dry_levels + 1
+		load_level(level_index + 1)
+	else:
+		load_level(interiors[level.down_to], false)
+	player.global_position = level.cell_to_world(Traps.landing_cell(level))
+	player.velocity = Vector3.ZERO
+	player.face(Vector3.BACK)
+	if is_instance_valid(pet):
+		pet.arrive()
+	_snap_camera()
+	player.frozen = false
+	state = State.PLAYING
+	create_tween().tween_property(_fade, "color:a", 0.0, 0.8)
+	_announce_level()
+	Sfx.play(self, "rumble", -4.0)
+	_shake = 0.5
+	# The landing hurts, even though arriving on a level gives a moment's grace.
+	player._invulnerable = 0.0
+	player.take_damage(damage, player.global_position + Vector3(0, 0, 1), null, false)
+	var here := level
+	get_tree().create_timer(3.8).timeout.connect(func():
+		if level == here and state == State.PLAYING:
+			show_message(Lang.t("Eine Falltür! Du bist eine Ebene tiefer gestürzt."), 3.0))
+	if level.safe:
+		_autosave()
+
+
 ## Records where the hero found something, for the map and the journal (see
 ## Journal.note_find): kind is e.g. "ingredient" or "fish", id the item id and
 ## name its German name. pos is where it was found in the current level.
@@ -3465,6 +3580,8 @@ func xp_for_riddle(kind: String, place_level: int) -> void:
 func earn_xp(amount: int, big := false) -> void:
 	if amount <= 0 or player == null:
 		return
+	# A clever hero gets more out of everything (see Player.clever_xp).
+	amount = player.clever_xp(amount)
 	if level != null and player.is_inside_tree():
 		Effects.float_text(level, player.global_position + Vector3(0, 2.8 if big else 2.4, 0), Lang.t("+%d EP") % amount, XP_COLOR)
 	player.gain_xp(amount)
@@ -3528,7 +3645,7 @@ func _on_player_trained(id: String, value: int) -> void:
 	if attribute:
 		Sfx.play(self, "secret", -6.0)
 	show_message(text, 3.5 if attribute else 2.4)
-	learn("Eigenschaften wachsen sehr langsam durch Tun: Kämpfen macht stärker (Stärke, +1 Kampfkraft je Punkt, Lasten wiegen weniger), Treffer einstecken macht zäher (Konstitution, +1 Leben je Punkt), Laufen und Springen machen schneller (Tempo bis 150 %), Springen, Werfen und Fallen machen geschickter (Geschick: weiter springen, Stacheln ausweichen), Durchsuchen und Geheimnisse schärfen das Gespür (Intuition, +2 % je Punkt, Geheimräume zu entdecken), und alles, was du durchstehst, macht dich weiser (Weisheit: du lernst 5 % schneller je Punkt, ab 12 bieten Schreine eine vierte Gabe), und Neues zu verstehen macht klüger (Intelligenz: manche Dinge wie der Zauberhut brauchen sie). Fertigkeiten wachsen schneller, aber nur mit der passenden Ausrüstung. Alles bleibt deinem Helden über alle Läufe.")
+	learn("Eigenschaften wachsen sehr langsam durch Tun: Kämpfen macht stärker (Stärke: +1 Schaden im Nahkampf je Punkt, Lasten wiegen weniger), Treffer einstecken macht zäher (Konstitution, +1 Leben je Punkt), Laufen und Springen machen schneller (Tempo bis 150 %), Springen, Werfen und Fallen machen geschickter (Geschick: +1 Schaden mit Wurfmessern und +4 % Ausweichen je Punkt, weiter springen), Durchsuchen und Geheimnisse schärfen das Gespür (Intuition, +2 % je Punkt, Geheimräume zu entdecken), und alles, was du durchstehst, macht dich weiser (Weisheit: du lernst 5 % schneller je Punkt, ab 12 bieten Schreine eine vierte Gabe), und Neues zu verstehen macht klüger (Intelligenz: Fertigkeiten lernen 10 % schneller und 3 % mehr Erfahrung je Punkt; manche Dinge wie der Zauberhut brauchen sie). Fertigkeiten wachsen schneller, aber nur mit der passenden Ausrüstung. Alles bleibt deinem Helden über alle Läufe.")
 	_update_hud()
 
 
@@ -4093,6 +4210,7 @@ func _process(delta: float) -> void:
 	_steer_by_mouse(delta)
 	_update_drag(delta)
 	_update_run_meter()
+	tutorial.update(delta)
 	if state == State.PLAYING:
 		fishing.tick(delta)
 	elif fishing.is_fishing():

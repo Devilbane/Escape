@@ -93,6 +93,8 @@ const TASKS := {
 }
 ## Riddles: minutes each takes; they are done where the hero stands.
 const RIDDLES := {"puzzle": 6, "secret": 3, "writing": 1, "rune": 5}
+## A hidden trap spotted (see Traps) is worth this many minutes at its place.
+const TRAP_MINUTES := 0.5
 ## A task nobody listed above: this long, in the village.
 const TASK_MINUTES := 5
 const VILLAGE_LEVEL := 5

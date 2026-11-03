@@ -2,8 +2,8 @@ class_name WritingCard
 extends RefCounted
 ## The card that pops up when the hero notices a writing on a wall (see
 ## Level.reveal_writing) or reads one again by running into it: a heading,
-## the carved word and what it says, in an amber frame like the one round
-## the writing on the wall. It does not stop the game and goes by itself.
+## the carved word and what it says, in an amber frame like a spotted trap's.
+## It does not stop the game and goes by itself.
 ##
 ## The card has one fixed size for every writing and language, at the
 ## bottom centre, above the controls help: the writing itself is on a north
@@ -42,7 +42,7 @@ func _init(owner_game: Node) -> void:
 ## Builds the card on the HUD; it starts hidden.
 func setup(hud: CanvasLayer) -> void:
 	card = PanelContainer.new()
-	var style := Menus.panel_style(Level.WRITING_FRAME_COLOR)
+	var style := Menus.panel_style(Level.WRITING_COLOR)
 	style.set_content_margin_all(14)
 	style.content_margin_left = 24
 	style.content_margin_right = 24
@@ -67,7 +67,7 @@ func setup(hud: CanvasLayer) -> void:
 	heading.text = Lang.t("Inschrift")
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(heading)
-	_word = game._make_label(game.TEXT_FONT, WORD_SIZE, Level.WRITING_FRAME_COLOR)
+	_word = game._make_label(game.TEXT_FONT, WORD_SIZE, Level.WRITING_COLOR)
 	_word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_word)
 	_text = game._make_label(game.TEXT_FONT, TEXT_SIZE)

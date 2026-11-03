@@ -116,7 +116,7 @@ const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_sh
 ## Kit texture sets that get the worn look: barrels, crates, tables,
 ## shelves, chests and the wall decorations.
 const WORN_SETS := ["props", "chests", "wallprops"]
-const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
+const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
 const SOLID := "#bxotkCDHBLVF?f=U|N%~T^"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
@@ -667,6 +667,11 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 			if mi.name == "spikes":
 				# Dull, hammered iron spikes (they move, so the grain rides along).
 				GearLook.apply(mi, "metal", SPIKE_IRON, true, 0.35)
+			elif piece == "floor_tile_big_grate":
+				# Grey floor stone round the hole, dark iron bars across it.
+				mi.mesh = _grate_mesh(mi.mesh)
+				mi.set_surface_override_material(0, _kit_material("floor"))
+				mi.set_surface_override_material(1, _gate_iron())
 			elif mi.name == "wall_doorway_door":
 				# An old wooden door with rusty fittings.
 				WornLook.wear_mesh(mi, _wear(), false, STONE_TINT)
@@ -878,10 +883,11 @@ func _build_walls(c: Vector2i) -> void:
 		var piece := "wall"
 		var roll := _rng.randf()
 		if not low and d == Vector2i(0, -1):
+			# The barred window that once hung here showed only rock behind
+			# it, so its share of the roll is a solid wall now. The roll
+			# stays the same, so the rest of every map is built as before.
 			if roll < 0.12:
 				piece = "wall_shelves"
-			elif roll < 0.22:
-				piece = "wall_archedwindow_gated"
 			elif roll < 0.32:
 				piece = "wall_cracked"
 		elif not low and roll < 0.2:
@@ -2501,6 +2507,115 @@ func _mark_wide(floor_free: PackedByteArray, out: PackedByteArray, start: int, s
 				out[start + r * stride] = 1
 
 
+# --- Iron gates ------------------------------------------------------------------
+
+## An iron grating across a one tile gap, in the stone of the walls around it:
+## a stone beam on top (a kit pillar laid on its side, like the corner pillars
+## beside it) and dark iron bars below it. Returns the bars, which are their
+## own node so a gate can sink them into the floor and leave the beam standing.
+const GATE_BAR_COUNT := 7
+const GATE_BAR_TOP := 3.35
+const GATE_IRON := Color(0.13, 0.13, 0.14)
+
+
+func _build_iron_gate(pos: Vector3, rot: float) -> Node3D:
+	var gate := Node3D.new()
+	gate.position = pos
+	gate.rotation.y = rot
+	add_child(gate)
+	# The beam reaches from corner pillar to corner pillar, its top level with
+	# the top of the walls.
+	var beam := _add_kit_part(["SM_Pillar", "floor", Vector3(-2.0, 3.6, 0), Vector3(1.4, 4.0 / 2.59, 1.4), 0.0], gate)
+	beam.rotation.z = -PI * 0.5
+	var bars := Node3D.new()
+	bars.name = "Bars"
+	gate.add_child(bars)
+	var iron := _gate_iron()
+	var rod := CylinderMesh.new()
+	rod.top_radius = 0.06
+	rod.bottom_radius = 0.06
+	rod.height = GATE_BAR_TOP
+	rod.radial_segments = 8
+	for i in GATE_BAR_COUNT:
+		var bar := MeshInstance3D.new()
+		bar.mesh = rod
+		bar.material_override = iron
+		bar.position = Vector3(lerpf(-1.35, 1.35, i / float(GATE_BAR_COUNT - 1)), GATE_BAR_TOP * 0.5, 0)
+		bars.add_child(bar)
+	# Two flat bands hold the bars together.
+	var band := BoxMesh.new()
+	band.size = Vector3(3.0, 0.12, 0.08)
+	for y in [0.9, 2.5]:
+		var cross := MeshInstance3D.new()
+		cross.mesh = band
+		cross.material_override = iron
+		cross.position = Vector3(0, y, 0)
+		bars.add_child(cross)
+	return bars
+
+
+## Where the kit's floor texture keeps the plain ground between its cobbles:
+## one floor tile maps onto this square of the texture.
+const FLOOR_GROUND_UV := Rect2(0.3547, 0.4906, 0.1568, 0.1568)
+
+
+## The floor grate's model in two surfaces: its stone frame (0) and its bars
+## (1). The model is one mesh on the KayKit colour atlas, where the bars use
+## the left half of the texture and the stone the right half. The frame is
+## mapped onto the kit's floor texture instead, laid on like a floor tile, so
+## the rim round the hole is the same ground as the tiles beside it.
+func _grate_mesh(source: Mesh) -> Mesh:
+	if not _scenes.has("grate_mesh"):
+		var arrays := source.surface_get_arrays(0)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		if index.is_empty():
+			index.resize(verts.size())
+			for i in verts.size():
+				index[i] = i
+		var parts := [SurfaceTool.new(), SurfaceTool.new()]
+		for st: SurfaceTool in parts:
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for t in range(0, index.size(), 3):
+			var bar := uvs[index[t]].x < 0.5
+			var st: SurfaceTool = parts[1 if bar else 0]
+			for k in 3:
+				var i := index[t + k]
+				var v := verts[i]
+				var uv := uvs[i]
+				if not bar:
+					# From above for the rim, from the side for the pit's walls.
+					var n := normals[index[t]]
+					var flat := Vector2(v.x, v.z)
+					if absf(n.y) < 0.5:
+						flat = Vector2(v.z if absf(n.x) > absf(n.z) else v.x, -v.y)
+					uv = FLOOR_GROUND_UV.position + (flat + Vector2(2, 2)) / 4.0 * FLOOR_GROUND_UV.size
+				st.set_normal(normals[i])
+				st.set_uv(uv)
+				st.add_vertex(v)
+		var mesh := ArrayMesh.new()
+		for st: SurfaceTool in parts:
+			st.generate_tangents()
+			st.commit(mesh)
+		mesh.surface_set_material(0, source.surface_get_material(0))
+		mesh.surface_set_material(1, source.surface_get_material(0))
+		_scenes["grate_mesh"] = mesh
+	return _scenes["grate_mesh"]
+
+
+## Dark, slightly rusty iron for the bars of the gates and floor grates.
+func _gate_iron() -> Material:
+	if not _scenes.has("mat_gate_iron"):
+		var m := StandardMaterial3D.new()
+		m.albedo_color = GATE_IRON
+		m.metallic = 0.35
+		m.roughness = 0.75
+		_scenes["mat_gate_iron"] = m
+	return _scenes["mat_gate_iron"]
+
+
 # --- Pressure plates and the iron gate ------------------------------------------
 
 ## Stone slabs in the floor that sink while a stone block lies on them, and
@@ -2541,7 +2656,7 @@ func _build_gate(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	var across_x := cell_char(c + Vector2i(-1, 0)) == "#" and cell_char(c + Vector2i(1, 0)) == "#"
 	var rot := 0.0 if across_x else PI * 0.5
-	var bars := _place("wall_gated", pos, rot)
+	var bars := _build_iron_gate(pos, rot)
 	var body := StaticBody3D.new()
 	body.position = pos
 	body.rotation.y = rot
@@ -3889,7 +4004,7 @@ func _trophy_statue(kind: String) -> Node3D:
 ## Iron bars across a one tile gap: solid, but you can see through.
 func _build_bars(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	_place("wall_gated", pos, 0.0)
+	_build_iron_gate(pos, 0.0)
 	_add_solid(pos, Vector3(TILE, 4, 0.6))
 
 

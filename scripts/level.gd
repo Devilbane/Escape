@@ -123,6 +123,8 @@ const LOW_WALL_SCALE := 0.3
 const SPIKE_PERIOD := 3.0
 const SPIKE_UP_TIME := 1.1
 const SPIKE_DOWN_Y := -1.95
+## Height of the blood round floor spikes, just above the stone.
+const SPIKE_BLOOD_Y := 0.075
 ## How much longer a path through a spike trap counts for skeletons.
 const SPIKE_DETOUR := 6.0
 ## How far (metres) from the hero rising floor spikes can be heard.
@@ -921,6 +923,8 @@ func _build_floor(c: Vector2i, ch: String) -> void:
 		var spikes: Node3D = tile.find_child("spikes", true, false)
 		spikes.position.y = SPIKE_DOWN_Y
 		_spikes.append({"node": spikes, "cell": c, "phase": c.x * 0.45 + c.y * 0.2})
+		# Pools and drops of the blood the spikes have drawn, different on each tile.
+		BloodStains.lay(tile.get_parent(), pos + Vector3(0, SPIKE_BLOOD_Y, 0), hash(c) + 11, 3, 30, 1.7)
 		return
 	var piece := "floor_tile_large"
 	var roll := _rng.randf()

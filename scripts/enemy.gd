@@ -215,6 +215,9 @@ const DEEPEST := 9
 
 var level: Level
 var kind := "krieger"
+## A monster made in the map workshop (see Creations.monster_stats): numbers
+## that replace those of its kind, and its own name ("title") over its head.
+var custom := {}
 ## Elite skeletons have two more life, move and strike faster, and show it
 ## with dark bones and glowing red eyes.
 var elite := false
@@ -327,6 +330,25 @@ func _rating() -> int:
 	return HeroLevel.rate(kind, int(_stats.hp), int(_stats.damage), hardening, float(_stats.cooldown))
 
 
+## The name of a monster made in the map workshop, over its head in red.
+func _add_title(text: String, size: float) -> void:
+	var tag := Label3D.new()
+	tag.text = text
+	tag.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	tag.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	tag.font_size = 30
+	tag.pixel_size = 0.011
+	tag.outline_size = 10
+	tag.outline_modulate = Color(0.05, 0.03, 0.06, 0.85)
+	tag.modulate = Color(1.0, 0.55, 0.45)
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.no_depth_test = true
+	tag.render_priority = 18
+	tag.outline_render_priority = 17
+	tag.position.y = tall + 0.5
+	add_child(tag)
+
+
 ## Whether felling this one is a boss's worth of experience.
 func is_level_boss() -> bool:
 	return kind in HeroLevel.BOSSES
@@ -334,6 +356,7 @@ func is_level_boss() -> bool:
 
 func _ready() -> void:
 	_stats = KINDS[kind].duplicate()
+	_stats.merge(custom, true)
 	_scan = randf() * RIVAL_SCAN
 	if elite:
 		_stats.hp += 2
@@ -398,6 +421,8 @@ func _ready() -> void:
 	add_child(_model)
 	_model.rotation.y = PI
 	_model.scale = Vector3.ONE * size
+	if _stats.has("title"):
+		_add_title(str(_stats.title), size)
 	if is_human():
 		_dress()
 	if is_beast():

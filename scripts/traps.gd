@@ -117,7 +117,7 @@ static var _materials := {}
 ## The traps for a level, or null when it has none. Called by Level.build
 ## once the grid and the path finding are set up.
 static func make(owner_level: Level) -> Traps:
-	var place: Dictionary = PLACES.get(owner_level.file, {})
+	var place: Dictionary = PLACES.get(owner_level.file, owner_level.trap_place)
 	if place.is_empty() or owner_level.outdoor or owner_level.is_home:
 		return null
 	var t := Traps.new()
@@ -128,9 +128,32 @@ static func make(owner_level: Level) -> Traps:
 	return t
 
 
+## Reads the header "traps: 3 stacheln, falltuer" of a map: {"count",
+## "kinds"}, or {} for none. Unknown kinds are left out.
+static func parse_header(text: String) -> Dictionary:
+	var parts := text.strip_edges().split(" ", false, 1)
+	if parts.is_empty() or not parts[0].is_valid_int():
+		return {}
+	var kinds: Array = []
+	if parts.size() > 1:
+		for k in parts[1].split(","):
+			if k.strip_edges() in ALL_KINDS and not k.strip_edges() in kinds:
+				kinds.append(k.strip_edges())
+	if kinds.is_empty():
+		kinds = NO_DROP.duplicate()
+	var count := clampi(int(parts[0]), 0, MAX_HEADER_TRAPS)
+	return {} if count == 0 else {"count": count, "kinds": kinds}
+
+
+## The most traps a map may ask for in its header.
+const MAX_HEADER_TRAPS := 8
+
+
 ## Whether a trapdoor on this level has a level below to fall to: the next
 ## floor of the dungeon, or the floor under a mine once its way down is open.
 static func can_drop(owner_level: Level) -> bool:
+	if owner_level.playtest:
+		return false
 	if owner_level.building == "":
 		return true
 	return owner_level.down_to != "" and (owner_level.seal == "" or owner_level.taken.has("mines:seal_open"))

@@ -60,6 +60,7 @@ const PARTS := [
 	preload("res://scripts/lang/mountains.gd"),
 	preload("res://scripts/lang/hero_level.gd"),
 	preload("res://scripts/lang/tutorial.gd"),
+	preload("res://scripts/lang/editor.gd"),
 ]
 
 ## German text -> English text, all features together. Read it, never write it.

@@ -59,6 +59,7 @@ func _check_dungeon_code() -> void:
 	var sources := {
 		"Level._build_content": _match_letters("res://scripts/level.gd", "_build_content"),
 		"Enemy.LETTERS": Enemy.LETTERS.keys(),
+		"Creations.LETTERS": _letters(Creations.LETTERS),
 	}
 	_check_listed(sources, Tiles.DUNGEON, "Tiles.DUNGEON")
 	_check_listed({"DungeonLife.OPEN_FLOOR": _letters(DungeonLife.OPEN_FLOOR),

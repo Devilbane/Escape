@@ -253,6 +253,8 @@ var _title_buttons: Control
 var _name_note: Label
 ## The hero's name, asked for when a new game starts; it goes into the ranking.
 var hero_name := ""
+## The map being tested from the workshop ("" while playing the game).
+var playtest_file := ""
 var _name_box: Control
 ## The folder of the saved games: SAVE_DIR, or TEST_SAVE_DIR in a test run.
 var save_dir := SAVE_DIR
@@ -278,6 +280,11 @@ var _lang_row: Control
 ## Engine flag set when a language is picked: it survives the scene reload,
 ## so the fresh title goes straight on to the name entry.
 const ASK_NAME_FLAG := &"escape_ask_name_after_reload"
+## Set by the map workshop (see LevelEditor) to the map file to test: the game
+## starts right on that map with a new hero, keeps nothing (no save, no
+## ranking, no training) and goes back to the workshop at its exit.
+const PLAYTEST_FLAG := &"escape_playtest_map"
+const EDITOR_SCENE := "res://scenes/editor.tscn"
 ## Holding the left mouse button this long turns a click into running.
 const HOLD_TO_RUN := 0.2
 ## How close to a clicked object's middle the hero walks before using it:
@@ -354,6 +361,13 @@ func _ready() -> void:
 		if f.ends_with(".txt"):
 			level_files.append(LEVEL_DIR + f)
 	level_files.sort()
+	# Gear made in the map workshop, so saved games that carry it know it.
+	Creations.register_all()
+	if Engine.has_meta(PLAYTEST_FLAG):
+		playtest_file = str(Engine.get_meta(PLAYTEST_FLAG))
+		Engine.remove_meta(PLAYTEST_FLAG)
+		level_files.append(playtest_file)
+	Training.keep = playtest_file == ""
 	for i in level_files.size():
 		for line in FileAccess.get_file_as_string(level_files[i]).split("\n"):
 			if line.begins_with("building:") and not interiors.has(line.substr(9).strip_edges()):
@@ -394,12 +408,38 @@ func _ready() -> void:
 	player.defeated.connect(_on_player_defeated)
 	player.bumped.connect(_on_player_bumped)
 	player.trained.connect(_on_player_trained)
+	if playtest_file != "":
+		_start_playtest()
+		return
 	load_level(_start_level())
 	_show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies"))
 	if Engine.has_meta(ASK_NAME_FLAG):
 		# A language was just chosen: no extra click, the hero's name comes next.
 		Engine.remove_meta(ASK_NAME_FLAG)
 		new_game()
+
+
+## Straight onto the map from the workshop, with a new hero called Tester.
+func _start_playtest() -> void:
+	hero_name = Lang.t("Tester")
+	load_level(level_files.size() - 1)
+	_title.visible = false
+	_title_buttons.visible = false
+	var back := _make_button(Lang.t("Zurück zur Werkstatt"), back_to_editor)
+	back.custom_minimum_size = Vector2(260, 52)
+	# Top middle, clear of the level name and life on the left and the
+	# key, knives and gold on the right.
+	back.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	back.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	back.offset_top = 24
+	_hud.add_child(back)
+	_start_playing()
+
+
+## Leaves the test (or the title screen) for the map workshop.
+func back_to_editor() -> void:
+	get_tree().paused = false
+	get_tree().change_scene_to_file(EDITOR_SCENE)
 
 
 ## Lets a link like .../Escape/?level=3 jump straight to a level.
@@ -492,7 +532,7 @@ func _set_atmosphere(outdoor: bool) -> void:
 		_ambience.volume_db = -30.0 if outdoor else -8.0
 
 
-func _make_label(font: Font, size: int, color := Color.WHITE) -> Label:
+static func _make_label(font: Font, size: int, color := Color.WHITE) -> Label:
 	var l := Label.new()
 	l.add_theme_font_override("font", font)
 	l.add_theme_font_size_override("font_size", size)
@@ -514,7 +554,7 @@ func _make_label(font: Font, size: int, color := Color.WHITE) -> Label:
 ## darkens the button, a disabled one is dimmed, and the keyboard focus (see
 ## Menus) draws a white outline around it. Focus stays off here; a window
 ## turns it on for its own buttons once the player uses the keys.
-func _make_button(text: String, action: Callable, on_press := false) -> Button:
+static func _make_button(text: String, action: Callable, on_press := false) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
@@ -706,7 +746,7 @@ func _setup_quick_bar() -> void:
 
 
 ## Tooltips in the house style: a dark panel with a golden border, gold text.
-func _tooltip_theme() -> Theme:
+static func _tooltip_theme() -> Theme:
 	var theme := Theme.new()
 	var box := StyleBoxFlat.new()
 	box.bg_color = Color(0.04, 0.03, 0.08, 0.95)
@@ -975,7 +1015,7 @@ func _setup_hud() -> void:
 	title_row.add_theme_constant_override("separation", 20)
 	_title.add_child(title_row)
 	_title_buttons = title_row
-	for entry in [[Lang.t("Spielstand laden"), open_load_window], [Lang.t("Neues Spiel"), new_game]]:
+	for entry in [[Lang.t("Spielstand laden"), open_load_window], [Lang.t("Neues Spiel"), new_game], [Lang.t("Karten-Werkstatt"), back_to_editor]]:
 		var b := _make_button(entry[0], entry[1])
 		b.custom_minimum_size = Vector2(240, 64)
 		title_row.add_child(b)
@@ -1046,6 +1086,12 @@ func _use_station(s: Dictionary) -> void:
 		go_inside(s.building, s.get("house", 0))
 	elif s.kind == "schacht":
 		_go_down_shaft(s)
+	elif s.kind == "figur":
+		# A person made in the map workshop (see DungeonNpc).
+		player.face(s.pos - player.global_position)
+		player.play("Idle")
+		bumped_person = true
+		s.figure.talk(player)
 	elif s.kind == "tafel":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
@@ -1738,6 +1784,9 @@ func load_level(index: int, restock := true) -> void:
 	level = Outdoor.new() if Level.is_outdoor_file(level_files[index]) else Level.new()
 	level.load_from_file(level_files[index])
 	level.depth = index
+	if playtest_file != "" and level_files[index] == playtest_file:
+		level.playtest = true
+		level.depth = 0
 	var file := level_files[index].get_file()
 	if not looted.has(file):
 		looted[file] = {}
@@ -2278,6 +2327,9 @@ func _update_music_controls() -> void:
 ## hero it leaves at once: the desktop version closes, the browser goes back
 ## to the title.
 func _on_quit_pressed() -> void:
+	if playtest_file != "":
+		back_to_editor()
+		return
 	if state == State.PLAYING:
 		if player.can_act() and not menus.is_open():
 			menus.open("beenden")
@@ -2614,6 +2666,8 @@ func _home_given_now() -> bool:
 ## the file is really there afterwards. Going away also writes the hero's
 ## plan for the time away and when the player left.
 func save_game(going_away := false) -> bool:
+	if playtest_file != "":
+		return false
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	journal.catch_up()
 	var data := {
@@ -3800,6 +3854,11 @@ func _on_player_defeated() -> void:
 
 ## Puts the finished run into the ranking and shows the list.
 func _end_run(escaped: bool) -> void:
+	if playtest_file != "":
+		state = State.OVER
+		show_message(Lang.t("Gefallen. Zurück zur Werkstatt..."), 2.0)
+		get_tree().create_timer(2.0).timeout.connect(back_to_editor)
+		return
 	state = State.WON if escaped else State.OVER
 	var entry := Ranking.add(hero_name, level_index + 1, level.level_name, coins, escaped)
 	# Whatever the outcome, a whole run is a lesson.
@@ -3874,6 +3933,9 @@ func _on_exit_reached() -> void:
 
 
 func _next_level() -> void:
+	if playtest_file != "":
+		back_to_editor()
+		return
 	if level.building != "":
 		_leave_building()
 		return
@@ -4484,7 +4546,9 @@ func _unhandled_input(event: InputEvent) -> void:
 						if no_room != "":
 							show_message(no_room, 1.6)
 					KEY_ESCAPE:
-						if player.can_act():
+						if playtest_file != "":
+							back_to_editor()
+						elif player.can_act():
 							menus.open("beenden")
 			elif event is InputEventMouseButton:
 				var point = _mouse_to_floor(event.position)

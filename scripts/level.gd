@@ -464,6 +464,12 @@ func build() -> void:
 ## Furniture that stands on a whole tile and cannot be walked through.
 const FURNITURE := "bxotkCHBLVFfy"
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+## Furniture that looks alike, by group: chests (treasure chest, trunk,
+## storage chest) and boards (tables, the timber frames in the mines). Two
+## pieces of one group never stand on touching tiles, not even corner to
+## corner, so a room does not show the same thing twice side by side.
+## tests/furniture_spacing.gd checks the maps.
+const LOOKALIKES := ["CkL", "t", "j"]
 
 
 ## Moves furniture out of the way: nothing may stand in a narrow passage, next
@@ -475,7 +481,7 @@ func _clear_passages() -> void:
 			return
 		var ch := cell_char(blocker)
 		_set_cell(blocker, ".")
-		var spot := _free_spot_near(blocker)
+		var spot := _free_spot_near(blocker, ch)
 		if spot.x >= 0:
 			_set_cell(spot, ch)
 
@@ -548,14 +554,15 @@ func _reachable() -> Dictionary:
 
 
 ## The nearest plain floor tile where the furniture blocks nothing.
-func _free_spot_near(from: Vector2i) -> Vector2i:
+func _free_spot_near(from: Vector2i, piece := "") -> Vector2i:
 	var seen := {from: true}
 	var todo: Array[Vector2i] = [from]
 	var i := 0
 	while i < todo.size():
 		var c := todo[i]
 		i += 1
-		if ".,".contains(cell_char(c)) and c != from and not _crowds_passage(c):
+		if ".,".contains(cell_char(c)) and c != from and not _crowds_passage(c) \
+				and not _beside_lookalike(c, piece):
 			var count := _reachable().size()
 			_set_cell(c, "x")
 			var ok := _reachable().size() == count - 1
@@ -568,6 +575,29 @@ func _free_spot_near(from: Vector2i) -> Vector2i:
 				seen[n] = true
 				todo.append(n)
 	return Vector2i(-1, -1)
+
+
+## Whether a piece of furniture on this tile would touch another of its
+## group (see LOOKALIKES), on a side or at a corner.
+func _beside_lookalike(c: Vector2i, piece: String) -> bool:
+	var group := lookalike_group(piece)
+	if group == "":
+		return false
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			if (dx != 0 or dy != 0) and group.contains(cell_char(c + Vector2i(dx, dy))):
+				return true
+	return false
+
+
+## The group of look-alike furniture a map letter belongs to, "" for none.
+static func lookalike_group(piece: String) -> String:
+	if piece == "":
+		return ""
+	for group in LOOKALIKES:
+		if group.contains(piece):
+			return group
+	return ""
 
 
 func _set_cell(c: Vector2i, ch: String) -> void:

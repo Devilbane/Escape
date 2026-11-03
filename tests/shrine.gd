@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless test for the dungeon shrines: the panel offers +4 life, +1 power
-## and +2 % speed, and each gift adds exactly that to the hero.
+## and +3 % speed, and each gift adds exactly that to the hero.
 ## Run with: godot --headless --fixed-fps 60 -s tests/shrine.gd
 
 var failures := 0
@@ -57,7 +57,7 @@ func _test() -> void:
 	game._open_shrine(shrine)
 	await _wait()
 	var texts := " ".join(_button_texts(game._shrine_panel, []))
-	for gift in ["+4 Leben", "+1 Kampfkraft", "+2% Tempo"]:
+	for gift in ["+4 Leben", "+1 Kampfkraft", "+3% Tempo"]:
 		check(texts.contains(Lang.t(gift)), "the shrine offers %s (%s)" % [gift, texts])
 
 	# Life: the most and the current life both grow by four.
@@ -75,14 +75,14 @@ func _test() -> void:
 	game._choose_gift(1)
 	check(p.power == power_before + 1, "+1 power raises power by 1 (%d -> %d)" % [power_before, p.power])
 
-	# Speed: two percent of the base speed on top.
+	# Speed: three percent of the base speed on top.
 	shrine.used = false
 	game._open_shrine(shrine)
 	var gift_before: float = p.gift_speed
 	var speed_before: float = p.base_speed
 	game._choose_gift(2)
-	check(is_equal_approx(p.gift_speed - gift_before, 0.02), "+2 % speed adds 0.02 (%.3f)" % (p.gift_speed - gift_before))
-	check(p.base_speed > speed_before, "+2 % speed makes the hero faster (%.3f -> %.3f)" % [speed_before, p.base_speed])
+	check(is_equal_approx(p.gift_speed - gift_before, 0.03), "+3 %% speed adds 0.03 (%.3f)" % (p.gift_speed - gift_before))
+	check(p.base_speed > speed_before, "+3 %% speed makes the hero faster (%.3f -> %.3f)" % [speed_before, p.base_speed])
 	_finish()
 
 

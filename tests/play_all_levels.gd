@@ -44,6 +44,18 @@ func _cell_of(ch: String) -> Vector3:
 	return Vector3.INF
 
 
+## The life at which the bot is healed: one blow from the hardest hitter
+## close by, at least 2. A horror deep in the dungeon (Level.DUNGEON_HORROR_CHANCE)
+## hits for 4, so a fixed "2" let it fell the bot in three quick blows.
+func _danger() -> int:
+	var most := 2
+	var p: Player = game.player
+	for e in game.level.enemies:
+		if is_instance_valid(e) and not e.dead and e.global_position.distance_to(p.global_position) < 8.0:
+			most = maxi(most, Player.soak(int(e._stats.damage), p.hardening))
+	return most
+
+
 func _process(delta: float) -> bool:
 	total += delta
 	timer += delta
@@ -57,7 +69,7 @@ func _process(delta: float) -> bool:
 	if game.state == game.State.TITLE:
 		game._start_playing()
 		return false
-	if game.state == game.State.PLAYING and game.player.hp <= 2 and not game.player.dead:
+	if game.state == game.State.PLAYING and game.player.hp <= _danger() and not game.player.dead:
 		game.player.hp = game.player.max_hp
 		rescues += 1
 	if game.state == game.State.OVER:

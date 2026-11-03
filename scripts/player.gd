@@ -86,7 +86,7 @@ var hp := MAX_HP
 ## What one shrine gift gives: the player picks one of the three.
 const SHRINE_LIFE := 4
 const SHRINE_POWER := 1
-const SHRINE_SPEED := 0.02
+const SHRINE_SPEED := 0.03
 # Gifts from shrines, kept for the whole run.
 var gift_hp := 0
 ## Life from the trophy wall at home (see HomeUpgrades), set by the game.

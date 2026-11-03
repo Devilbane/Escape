@@ -12,15 +12,23 @@ extends Node3D
 ##   falltuer (trapdoor): the floor gives way and the hero falls to the level
 ##     below (only where there is one, see PLACES and can_drop).
 ##
-## Spotting: the first time the hero comes within SPOT_RANGE of a hidden trap
-## and can see it, Intuition and the Erkunden skill get one roll (see
-## spot_chance). The deeper the place (HeroLevel.place_level), the harder
-## the roll and the more a trap hurts. A spotted trap trains Erkunden and
-## earns a little experience (Events.trap_spotted).
+## Every trap has two modifiers of its own (HIDES and DANGERS): how well it
+## is hidden, which changes the chance to spot it, and how vicious it is,
+## which changes what it deals.
 ##
-## A known trap is marked by an amber frame on its tile, with the kind's own
-## sign inside (holes, a rune ring or a hatch), and the hero's path finding
-## goes around it. Jumping over a trap (Space) is always safe.
+## Spotting: the first time on a visit that the hero comes within SPOT_RANGE
+## of a hidden trap and can see it, Intuition and the Erkunden skill get one
+## roll (see spot_chance). The deeper the place (HeroLevel.place_level), the
+## harder the roll and the more a trap hurts. A spotted trap trains Erkunden
+## and earns a little experience (Events.trap_spotted).
+##
+## A known trap shows faintly on the floor: the kind's own sign (holes, a
+## rune ring or a hatch) and a thin frame. How clearly depends on how well
+## the roll went (see visibility_for): a narrow roll leaves only a ghost of a
+## mark and the hero merely senses a trap; a good roll shows it plainly and
+## names its modifiers. A trap the hero stepped on shows plainly. The hero's
+## path finding goes around a known trap, and jumping over one (Space) is
+## always safe.
 ##
 ## Where traps lie is chosen by a random generator seeded with the level's
 ## name, so a level has its traps in the same places on every visit. The
@@ -46,29 +54,51 @@ const PLACES := {
 	"21_die_zwergenbinge.txt": {"count": 4, "kinds": ALL_KINDS},
 	"22_die_glutstollen.txt": {"count": 4, "kinds": NO_DROP},
 }
-## Each kind: its German name (for messages, see Lang), the colour of the
-## sign inside the amber frame and what the hero hears on spotting one.
+## Each kind: its German name (for messages, see Lang; every one is
+## feminine, so the adjectives below fit them all) and the colour of its sign.
 const KINDS := {
-	"stacheln": {"name": "Stachelfalle", "color": Color(0.62, 0.6, 0.58),
-		"spotted": "Du entdeckst eine Stachelfalle! Geh außen herum oder spring darüber."},
-	"teleport": {"name": "Teleportfalle", "color": Color(0.72, 0.5, 1.0),
-		"spotted": "Du entdeckst eine Teleportfalle! Geh außen herum oder spring darüber."},
-	"falltuer": {"name": "Falltür", "color": Color(0.5, 0.34, 0.2),
-		"spotted": "Du entdeckst eine Falltür! Geh außen herum oder spring darüber."},
+	"stacheln": {"name": "Stachelfalle", "color": Color(0.62, 0.6, 0.58)},
+	"teleport": {"name": "Teleportfalle", "color": Color(0.6, 0.45, 0.85)},
+	"falltuer": {"name": "Falltür", "color": Color(0.42, 0.3, 0.2)},
 }
+## How well a trap is hidden: "spot" is added to the chance to spot it.
+## "word" is the German adjective in the message ("" says nothing); "weight"
+## how often a trap gets it.
+const HIDES := {
+	"plump": {"spot": 15, "word": "schlecht versteckte", "weight": 1},
+	"normal": {"spot": 0, "word": "", "weight": 2},
+	"gut": {"spot": -20, "word": "gut versteckte", "weight": 1},
+}
+## How vicious a trap is: "damage" is added to what it deals (never below
+## 1), and a vicious one also gets 1 more per DANGER_LEVELS levels of the
+## place. A vicious teleporter tears at the hero too.
+const DANGERS := {
+	"schwach": {"damage": -1, "word": "schwache", "weight": 1},
+	"normal": {"damage": 0, "word": "", "weight": 2},
+	"tueckisch": {"damage": 1, "word": "tückische", "weight": 1},
+}
+const DANGER_LEVELS := 8
 ## What the compendium says about traps.
-const LEARN := "Verborgene Fallen: In Verliesen, Höhlen und Minen liegen Stachelfallen, Teleportfallen und Falltüren unsichtbar im Boden. Kommst du in ihre Nähe, helfen dir Intuition und Erkunden, sie zu entdecken. Je tiefer der Ort, desto besser sind sie versteckt und desto mehr schmerzen sie. Eine entdeckte Falle ist orange umrandet: Geh außen herum oder spring darüber (Leertaste). Eine Falltür lässt dich eine Ebene tiefer stürzen."
-## The frame every known trap gets: one warning colour for every kind.
-const FRAME_COLOR := Color(1.0, 0.62, 0.25)
+const LEARN := "Verborgene Fallen: In Verliesen, Höhlen und Minen liegen Stachelfallen, Teleportfallen und Falltüren unsichtbar im Boden. Kommst du in ihre Nähe, helfen dir Intuition und Erkunden, sie zu entdecken. Je tiefer der Ort und je besser versteckt die Falle, desto seltener gelingt das, und tückische Fallen schmerzen mehr. Wie deutlich du eine entdeckte Falle siehst, hängt davon ab, wie gut du sie bemerkt hast. Geh außen herum oder spring darüber (Leertaste). Eine Falltür lässt dich eine Ebene tiefer stürzen."
+## The thin frame of a known trap, and the colour of the words over it.
+const FRAME_COLOR := Color(0.62, 0.5, 0.36)
+const NOTE_COLOR := Color(1.0, 0.75, 0.5)
 
 ## Spotting: SPOT_BASE % at a place of level 0, SPOT_PER_LEVEL % less for
 ## each level of the place, plus Intuition (Player.intuition_bonus) and
 ## Erkunden (Training.EXPLORE_TRAP per level); never below SPOT_MIN or
 ## above SPOT_MAX.
-const SPOT_BASE := 55
-const SPOT_PER_LEVEL := 3
+const SPOT_BASE := 40
+const SPOT_PER_LEVEL := 2
 const SPOT_MIN := 5
-const SPOT_MAX := 95
+const SPOT_MAX := 90
+## How clearly a spotted trap shows (0..1): VIS_MIN for a roll that only just
+## made it, VIS_FULL once the roll beat the chance by VIS_SPAN points or
+## more. Below CLEAR the hero only senses a trap and learns nothing more.
+const VIS_MIN := 0.3
+const VIS_FULL := 1.0
+const VIS_SPAN := 40.0
+const CLEAR := 0.55
 ## How close (metres) the hero must come to a trap to have a chance to spot it.
 const SPOT_RANGE := 9.0
 
@@ -92,6 +122,8 @@ const AROUND_OK := ".,cKMAZwGWvsJOeig"
 const AROUND_DIAGONALS := 3
 ## How much longer a path over a known trap counts (see Level.SPIKE_DETOUR).
 const DETOUR := 6.0
+## How strong the frame is at full clearness: it only hints at the tile's edge.
+const FRAME_ALPHA := 0.35
 ## Height of the frame and signs above the floor (DungeonLife.FLOOR_Y).
 const MARK_Y := 0.08
 const SPIKES_DOWN := -1.1
@@ -102,8 +134,9 @@ signal teleported(to: Vector3)
 signal fell(damage: int)
 
 var level: Level
-## Each trap: {"cell", "kind", "known", "rolled", "node", "mark", "spikes",
-## "hatch", "rest"}.
+## Each trap: {"cell", "kind", "hide", "danger", "known", "seen" (how
+## clearly it shows, 0..1), "rolled", "node", "mark", "spikes", "hatch",
+## "rest"}.
 var traps: Array = []
 ## The level of the place, for spotting and damage (HeroLevel.place_level).
 var place_level := 1
@@ -155,7 +188,23 @@ func _place(count: int, kinds: Array) -> void:
 		# One trapdoor at most, and it comes first so every such level has one.
 		var kind: String = "falltuer" if drop and traps.is_empty() else plain[rng.randi() % plain.size()]
 		var known: bool = level.taken.has(key(c))
-		traps.append({"cell": c, "kind": kind, "known": known, "rolled": known, "rest": 0.0})
+		# Kept from before modifiers and faint marks: true means plainly seen.
+		var seen: float = float(level.taken[key(c)]) if known and level.taken[key(c)] is float else (VIS_FULL if known else 0.0)
+		traps.append({"cell": c, "kind": kind, "hide": _pick(rng, HIDES), "danger": _pick(rng, DANGERS),
+				"known": known, "seen": seen, "rolled": known, "rest": 0.0})
+
+
+## One of a table's ids, by the weights of its entries.
+static func _pick(rng: RandomNumberGenerator, table: Dictionary) -> String:
+	var total := 0
+	for id in table:
+		total += int(table[id].weight)
+	var roll := rng.randi() % total
+	for id in table:
+		roll -= int(table[id].weight)
+		if roll < 0:
+			return id
+	return table.keys()[0]
 
 
 ## Open floor, well away from the start and the exit, with open floor all
@@ -191,26 +240,64 @@ func _ready() -> void:
 	for t in traps:
 		_build(t)
 		if t.known:
-			_show(t, false)
+			_show(t, t.seen, false)
 
 
-## The chance in percent to spot a hidden trap here.
-func spot_chance() -> int:
+## The chance in percent to spot a hidden trap here: for a trap of normal
+## hiding, or for trap `t` with its own.
+func spot_chance(t := {}) -> int:
 	var hero: Player = level.player
 	var bonus := 0
 	if hero:
 		bonus = hero.intuition_bonus() + hero.explore_bonus(Training.EXPLORE_TRAP)
+	if not t.is_empty():
+		bonus += int(HIDES[t.hide].spot)
 	return clampi(SPOT_BASE - SPOT_PER_LEVEL * place_level + bonus, SPOT_MIN, SPOT_MAX)
 
 
-## What spikes deal here.
-func spike_damage() -> int:
-	return 1 + place_level / SPIKE_LEVELS
+## How clearly a trap shows when the roll (1..100) beat the chance by
+## `margin` points (0 when it only just made it).
+static func visibility_for(margin: int) -> float:
+	return lerpf(VIS_MIN, VIS_FULL, clampf(margin / VIS_SPAN, 0.0, 1.0))
+
+
+## What a trap's viciousness adds to what it deals here.
+func _extra(t: Dictionary) -> int:
+	var extra := int(DANGERS[t.danger].damage)
+	if t.danger == "tueckisch":
+		extra += place_level / DANGER_LEVELS
+	return extra
+
+
+## What spikes deal here: of a trap of normal danger, or of trap `t`.
+func spike_damage(t := {}) -> int:
+	return maxi(1, 1 + place_level / SPIKE_LEVELS + (_extra(t) if not t.is_empty() else 0))
 
 
 ## What a fall through a trapdoor here deals.
-func fall_damage() -> int:
-	return 1 + place_level / FALL_LEVELS
+func fall_damage(t := {}) -> int:
+	return maxi(1, 1 + place_level / FALL_LEVELS + (_extra(t) if not t.is_empty() else 0))
+
+
+## What a vicious teleporter tears from the hero (0 for any other).
+func teleport_damage(t: Dictionary) -> int:
+	return _extra(t) if t.danger == "tueckisch" else 0
+
+
+## The trap in words, German, for Lang: "gut versteckte, tückische Falltür".
+## In English the parts are translated one by one.
+func describe(t: Dictionary) -> String:
+	var words: Array[String] = []
+	for word in [HIDES[t.hide].word, DANGERS[t.danger].word]:
+		if word != "":
+			words.append(Lang.t(word))
+	var noun := Lang.t(KINDS[t.kind].name)
+	if Lang.language == "en":
+		noun = noun.to_lower()
+	words.append(noun)
+	if words.size() == 3:
+		return "%s, %s %s" % words
+	return " ".join(words)
 
 
 func _process(delta: float) -> void:
@@ -229,24 +316,32 @@ func _process(delta: float) -> void:
 		var flat := Vector2(hero.global_position.x - spot.x, hero.global_position.z - spot.z)
 		if not t.rolled and flat.length() <= SPOT_RANGE and level.has_line_of_sight(hero.global_position, spot):
 			t.rolled = true
-			if randi_range(1, 100) <= spot_chance():
-				spot_trap(t)
+			var chance := spot_chance(t)
+			var roll := randi_range(1, 100)
+			if roll <= chance:
+				spot_trap(t, chance - roll)
 		if t.rest <= 0.0 and absf(flat.x) < REACH and absf(flat.y) < REACH and hero.global_position.y < 0.6:
 			spring(t)
 			if _gone:
 				return
 
 
-## The hero noticed a hidden trap: it shows, and the game hears of it.
-func spot_trap(t: Dictionary) -> void:
+## The hero noticed a hidden trap, with the roll `margin` points under the
+## chance: it shows, as clearly as the roll was good, and the game hears of
+## it. A clear look also tells the trap's modifiers.
+func spot_trap(t: Dictionary, margin := int(VIS_SPAN)) -> void:
 	if t.known:
 		return
 	t.rolled = true
-	_show(t, true)
+	var seen := visibility_for(margin)
+	_show(t, seen, true)
 	var spot := level.cell_to_world(t.cell)
-	Effects.float_text(level, spot + Vector3(0, 1.6, 0), Lang.t("Eine Falle!"), FRAME_COLOR)
-	Sfx.play(level, "word_klick", -4.0, spot)
-	Events.bus().trap_spotted.emit(t.kind, place_level)
+	var clear := seen >= CLEAR
+	Effects.float_text(level, spot + Vector3(0, 1.6, 0), Lang.t("Eine Falle!" if clear else "Eine Falle?"), NOTE_COLOR)
+	Sfx.play(level, "word_klick", -4.0 if clear else -10.0, spot)
+	var text := Lang.t("Du entdeckst eine %s! Geh außen herum oder spring darüber.") % describe(t) if clear \
+			else Lang.t("Irgendetwas stimmt mit dem Boden dort nicht. Eine Falle? Vorsicht!")
+	Events.bus().trap_spotted.emit(text, place_level)
 
 
 ## The hero stepped on a trap.
@@ -255,13 +350,13 @@ func spring(t: Dictionary) -> void:
 	var spot := level.cell_to_world(t.cell)
 	t.rest = REARM
 	var was_known: bool = t.known
-	_show(t, false)
+	_show(t, VIS_FULL, false)
 	Events.teach(LEARN)
 	match t.kind:
 		"stacheln":
 			t.spikes.position.y = 0.0
 			Sfx.play(level, "word_stich", -2.0, spot)
-			hero.spring_trap(spike_damage())
+			hero.spring_trap(spike_damage(t))
 		"teleport":
 			var to := _teleport_target(t.cell)
 			if to.x < 0:
@@ -278,14 +373,16 @@ func spring(t: Dictionary) -> void:
 				if other.cell == to:
 					other.rest = REARM
 			teleported.emit(arrive)
+			if teleport_damage(t) > 0:
+				hero.take_damage(teleport_damage(t), arrive + hero.facing(), null, false)
 		"falltuer":
 			_gone = true
 			Sfx.play(level, "word_krach", -2.0, spot)
 			var tween := create_tween()
 			tween.tween_property(t.hatch, "rotation:x", deg_to_rad(-100), 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-			fell.emit(fall_damage())
+			fell.emit(fall_damage(t))
 	if not was_known:
-		Effects.float_text(level, spot + Vector3(0, 2.2, 0), Lang.t(KINDS[t.kind].name) + "!", FRAME_COLOR)
+		Effects.float_text(level, spot + Vector3(0, 2.2, 0), Lang.t(KINDS[t.kind].name) + "!", NOTE_COLOR)
 
 
 ## Where the hero lands after falling through a trapdoor into `below`: a
@@ -340,19 +437,40 @@ func _teleport_target(from: Vector2i) -> Vector2i:
 	return far[randi() % far.size()]
 
 
-## A trap becomes known: it shows, is kept as known, and paths go around it.
-func _show(t: Dictionary, fade: bool) -> void:
-	if not t.known:
-		t.known = true
-		t.rolled = true
-		level.taken[key(t.cell)] = true
+## A trap becomes known, `seen` (0..1) clearly, or more clearly than it
+## was: it shows, is kept as known, and paths go around it.
+func _show(t: Dictionary, seen: float, fade: bool) -> void:
+	t.known = true
+	t.rolled = true
+	t.seen = maxf(t.seen, seen)
+	level.taken[key(t.cell)] = t.seen
 	level.astar.set_point_weight_scale(t.cell, DETOUR)
-	if t.mark.visible:
-		return
+	var was_shown: bool = t.mark.visible
 	t.mark.visible = true
-	if fade:
-		t.mark.scale = Vector3(1.3, 1.0, 1.3)
-		create_tween().tween_property(t.mark, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_BACK)
+	_fade_mark(t, 0.0 if fade and not was_shown else t.seen)
+	if fade and not was_shown:
+		# The mark seeps into view instead of popping up.
+		create_tween().tween_method(func(v: float): _fade_mark(t, v), 0.0, t.seen, 1.2)
+
+
+## Every part of a trap's mark at `seen` (0..1) of its full strength; each
+## part keeps its own strength (the "alpha" meta), so the frame stays fainter
+## than the sign. The parts get see-through materials of their own the first
+## time (the browser renderer has no per-mesh transparency).
+func _fade_mark(t: Dictionary, seen: float) -> void:
+	var parts: Array = t.mark.find_children("*", "MeshInstance3D", true, false)
+	if t.pit:
+		parts.append(t.pit)
+	for mi: MeshInstance3D in parts:
+		if not mi.has_meta("own"):
+			var mat: StandardMaterial3D = mi.material_override.duplicate()
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mi.material_override = mat
+			mi.set_meta("own", mat.emission_energy_multiplier)
+		var own: StandardMaterial3D = mi.material_override
+		var a := float(mi.get_meta("alpha", 1.0)) * seen
+		own.albedo_color.a = a
+		own.emission_energy_multiplier = float(mi.get_meta("own")) * a
 
 
 func _flash(at: Vector3) -> void:
@@ -368,25 +486,27 @@ func _build(t: Dictionary) -> void:
 	node.position = level.cell_to_world(t.cell)
 	add_child(node)
 	t.node = node
-	# The mark: an amber frame on the tile and the kind's sign inside. Hidden
-	# until the trap is known.
+	# The mark: a thin, dim frame on the tile and the kind's sign inside.
+	# Hidden until the trap is known.
 	var mark := Node3D.new()
 	mark.visible = false
 	node.add_child(mark)
 	t.mark = mark
-	var frame := _material(FRAME_COLOR, 0.9)
+	var frame := _material(FRAME_COLOR, 0.0)
 	for side in 4:
 		var bar := MeshInstance3D.new()
 		var box := BoxMesh.new()
-		box.size = Vector3(3.2, 0.03, 0.14)
+		box.size = Vector3(3.2, 0.02, 0.06)
 		bar.mesh = box
 		bar.material_override = frame
+		bar.set_meta("alpha", FRAME_ALPHA)
 		bar.rotation.y = side * PI * 0.5
 		bar.position = Vector3(sin(side * PI * 0.5), 0, cos(side * PI * 0.5)) * 1.6 + Vector3(0, MARK_Y, 0)
 		mark.add_child(bar)
 	t.spikes = null
 	t.hatch = null
 	t.sign = null
+	t.pit = null
 	match t.kind:
 		"stacheln":
 			_build_spikes(t, mark)
@@ -399,7 +519,7 @@ func _build(t: Dictionary) -> void:
 ## Nine holes in the floor, and the spikes below them that shoot up.
 func _build_spikes(t: Dictionary, mark: Node3D) -> void:
 	var hole := _material(Color(0.05, 0.04, 0.04), 0.0)
-	var iron := _material(KINDS.stacheln.color, 0.0)
+	var iron := grim_spikes(-0.5, 0.5)
 	var spikes := Node3D.new()
 	spikes.position.y = SPIKES_DOWN
 	t.node.add_child(spikes)
@@ -420,6 +540,7 @@ func _build_spikes(t: Dictionary, mark: Node3D) -> void:
 			var h := MeshInstance3D.new()
 			h.mesh = hole_mesh
 			h.material_override = hole
+			h.set_meta("alpha", 0.8)
 			h.position = at + Vector3(0, MARK_Y, 0)
 			mark.add_child(h)
 			var s := MeshInstance3D.new()
@@ -431,7 +552,7 @@ func _build_spikes(t: Dictionary, mark: Node3D) -> void:
 
 ## A faint ring of runes that turns slowly.
 func _build_rune_ring(t: Dictionary, mark: Node3D) -> void:
-	var glow := _material(KINDS.teleport.color, 1.4)
+	var glow := _material(KINDS.teleport.color, 0.35)
 	var ring := Node3D.new()
 	ring.position.y = MARK_Y
 	mark.add_child(ring)
@@ -444,6 +565,7 @@ func _build_rune_ring(t: Dictionary, mark: Node3D) -> void:
 	circle.mesh = torus
 	circle.scale = Vector3(1, 0.15, 1)
 	circle.material_override = glow
+	circle.set_meta("alpha", 0.7)
 	ring.add_child(circle)
 	var rune_mesh := BoxMesh.new()
 	rune_mesh.size = Vector3(0.12, 0.02, 0.32)
@@ -452,6 +574,7 @@ func _build_rune_ring(t: Dictionary, mark: Node3D) -> void:
 		var rune := MeshInstance3D.new()
 		rune.mesh = rune_mesh
 		rune.material_override = glow
+		rune.set_meta("alpha", 0.7)
 		rune.position = Vector3(sin(a), 0, cos(a)) * 0.65
 		rune.rotation.y = a + (0.5 if i % 2 == 0 else -0.5)
 		ring.add_child(rune)
@@ -481,9 +604,27 @@ func _build_hatch(t: Dictionary, mark: Node3D) -> void:
 		var plank := MeshInstance3D.new()
 		plank.mesh = plank_mesh
 		plank.material_override = wood
+		plank.set_meta("alpha", 0.75)
 		plank.position = Vector3((i - 1) * 0.86, 0, 1.3)
 		hinge.add_child(plank)
 	mark.visibility_changed.connect(func(): pit.visible = mark.visible)
+
+
+const GRIM_SPIKES := preload("res://shaders/grim_spikes.gdshader")
+
+
+## The look of old trap spikes: rust, dirt at the foot and dried blood from
+## the tips. base_y and tip_y: the spikes' lowest and highest points in their
+## mesh. Also used for the spike tiles of the maps (see Level._place).
+static func grim_spikes(base_y: float, tip_y: float) -> ShaderMaterial:
+	var k := "grim:%s:%s" % [base_y, tip_y]
+	if not _materials.has(k):
+		var m := ShaderMaterial.new()
+		m.shader = GRIM_SPIKES
+		m.set_shader_parameter("base_y", base_y)
+		m.set_shader_parameter("tip_y", tip_y)
+		_materials[k] = m
+	return _materials[k]
 
 
 static func _material(color: Color, glow: float) -> StandardMaterial3D:

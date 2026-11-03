@@ -178,7 +178,7 @@ With Blades, Axes and Knife throwing, every heavy hit (+1 damage) is a skill rol
 Each level of Blocking adds 2 % block chance, Wearing armour makes hard armour 6 % lighter, Sneaking makes you 3 % faster.
 **Exploring** grows when you explore a map fully (95 % of the ground you can stand on, see the map), and a little
 with every secret room and wall writing you find. Each level adds 3 % to notice a secret lever, 4 % to find a
-torch when you search a chest, barrel, crate, shelf or table, 8 % to notice the writing on a wall and 5 % to
+torch when you search a chest, barrel, crate, shelf or table, 8 % to notice the writing on a wall and 3 % to
 spot a hidden trap.
 Every level of the dungeon has one writing scratched into a plain wall: you get one chance to notice it from a
 distance each time you walk past it (50 % plus Exploring), and you always notice it when you walk right up to it.
@@ -236,11 +236,14 @@ the one there is certain; after that, never more than 4 levels go by without a s
 From the labyrinth (level 3) on, and in the dragon's lair, the dark holes and the mines, **hidden traps** lie
 unseen in the floor: **spike traps**, **teleporter traps** that fling you to another part of the level, and
 **trapdoors** that drop you to the level below (on dungeon levels 3 to 9, and in the dwarves' hall once its seal
-is open). The first time you come near one and can see it, you get one chance to spot it: 55 % minus 3 % per
-level of the place, plus Intuition and Exploring. A spotted trap gets an orange frame with its sign inside
-(holes, a rune ring or a hatch), trains Exploring and gives a little experience; your path goes around it, and
-a jump (Space) carries you over it safely. A trap you step on unawares shows itself too. The deeper the place,
-the better the traps are hidden and the more they hurt. Known traps stay marked on later visits.
+is open). Each visit, the first time you come near one and can see it, you get one chance to spot it: 40 %
+minus 2 % per level of the place, plus Intuition and Exploring. Every trap also has modifiers of its own: it may
+be poorly hidden (+15 %) or well hidden (−20 %), and weak (−1 damage) or vicious (+1 damage, more in deep places;
+a vicious teleporter hurts too). A spotted trap shows faintly on the floor, its sign (holes, a rune ring or a
+hatch) in a thin frame, and the better your roll, the clearer it shows: a narrow roll leaves only a ghost of a
+mark and you merely sense a trap, a good one shows it plainly and names its modifiers. Spotting trains Exploring
+and gives a little experience; your path goes around a known trap, and a jump (Space) carries you over it
+safely. A trap you step on unawares shows itself plainly. Known traps stay marked on later visits.
 
 You only see what lies in your line of sight and has light: a burning torch nearby or
 your own lantern. Dark corners stay black; skeletons in them you only hear by their footsteps.

@@ -90,7 +90,7 @@ const SKILLS := {
 const EXPLORE_SECRET := 3
 const EXPLORE_TORCH := 4
 const EXPLORE_WRITING := 8
-const EXPLORE_TRAP := 5
+const EXPLORE_TRAP := 3
 ## Training for Erkunden: a whole map seen, a secret room, a wall writing.
 ## A run that sees every map fully earns about nine levels.
 const EXPLORE_FULL_MAP := 30.0

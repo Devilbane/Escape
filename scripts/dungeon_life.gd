@@ -23,6 +23,13 @@ const DUST_CHUNK := 3
 const OPEN_FLOOR := ".,cPKMAZwGW"
 ## Furniture that can carry a cobweb.
 const WEBBED := "bxtkoCBL"
+## No two cobwebs are nearer than this (seen from above), so they spread
+## through the rooms instead of piling up in one spot.
+const WEB_SPACING := 2.2
+## Cobwebs keep this far from a wall torch: the flame would have burnt them.
+const WEB_TORCH_GAP := 1.3
+## How many differently spun cobweb images there are.
+const WEB_KINDS := 3
 ## Critters only bother to move when the hero is this close.
 const ACTIVE_RANGE := 30.0
 ## Critters scurry off when the hero comes this close.
@@ -37,7 +44,14 @@ var _time := 0.0
 
 static var _dust_tex: Texture2D
 static var _drift_tex: Texture2D
-static var _web_tex: Texture2D
+static var _web_texs: Array[Texture2D] = []
+## Every cobweb on the level: its kind ("corner", "low_corner", "ledge",
+## "prop", "prop_wall", "between"), its middle and the four corners of its
+## sheet. The tests read it.
+var webs: Array[Dictionary] = []
+## Cobweb triangles waiting to be built, one SurfaceTool per patch of the
+## level and web image (see DUST_CHUNK).
+var _web_batches := {}
 static var _materials := {}
 
 
@@ -51,10 +65,10 @@ func _ready() -> void:
 	var furniture := _furniture_boxes()
 	_build_dust()
 	_build_clutter()
+	_build_furniture_webs(furniture)
 	_build_corner_webs()
-	for c in furniture:
-		if _rng.randf() < 0.55:
-			_web_on_furniture(furniture[c])
+	_build_ledge_webs()
+	_commit_webs()
 	_build_drips()
 	_spawn_critters()
 
@@ -146,12 +160,13 @@ func _dust_material() -> StandardMaterial3D:
 
 
 ## Without mipmaps, so the thin threads do not fade away with the distance.
-func _web_material() -> StandardMaterial3D:
-	if not _materials.has("web"):
-		var m := _decal_material("web_base", _web_texture()).duplicate() as StandardMaterial3D
+func _web_material(kind: int) -> StandardMaterial3D:
+	var key := "web%d" % kind
+	if not _materials.has(key):
+		var m := _decal_material("web_base%d" % kind, _web_texture(kind)).duplicate() as StandardMaterial3D
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-		_materials["web"] = m
-	return _materials["web"]
+		_materials[key] = m
+	return _materials[key]
 
 
 ## Soft, patchy grey-brown dust that tiles seamlessly.
@@ -190,24 +205,40 @@ static func _noise_image(noise_seed: int, frequency: float, edge: float) -> Imag
 
 
 ## A cobweb in a corner: threads fan out from the corner of the image (its
-## top left) and sagging rings of silk join them.
-static func _web_texture() -> Texture2D:
-	if _web_tex != null:
-		return _web_tex
+## top left) and sagging rings of silk join them. Three kinds: an ordinary
+## web (0), a dense one with many close rings (1) and an old, torn one with
+## gaps in its rings and a few broken threads (2).
+static func _web_texture(kind := 0) -> Texture2D:
+	if _web_texs.is_empty():
+		for k in WEB_KINDS:
+			_web_texs.append(ImageTexture.create_from_image(_web_image(k)))
+	return _web_texs[kind]
+
+
+static func _web_image(kind: int) -> Image:
 	var size := 256
 	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color(1, 1, 1, 0))
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 4711
+	rng.seed = 4711 + kind * 97
 	var spokes: Array[float] = []
-	var count := 7
+	var count: int = [7, 9, 6][kind]
 	for i in count:
 		spokes.append(lerpf(0.04, PI * 0.5 - 0.04, float(i) / (count - 1)) + rng.randf_range(-0.05, 0.05))
+	var reach: Array[float] = []
 	for a in spokes:
-		_line(img, Vector2.ZERO, Vector2(cos(a), sin(a)) * size * 1.05, 0.95)
-	var ring_r := 22.0
+		# A torn web has a few threads that snapped short.
+		var r := size * 1.05 if kind != 2 or rng.randf() < 0.6 else size * rng.randf_range(0.45, 0.8)
+		reach.append(r)
+		_line(img, Vector2.ZERO, Vector2(cos(a), sin(a)) * r, 0.95)
+	var ring_r: float = [22.0, 14.0, 26.0][kind]
+	var grow: Vector2 = [Vector2(1.22, 1.32), Vector2(1.14, 1.22), Vector2(1.25, 1.4)][kind]
 	while ring_r < size * 0.98:
 		for i in count - 1:
+			if ring_r > minf(reach[i], reach[i + 1]):
+				continue
+			if kind == 2 and rng.randf() < 0.3:
+				continue
 			var a0 := spokes[i]
 			var a1 := spokes[i + 1]
 			var r0 := ring_r * rng.randf_range(0.95, 1.05)
@@ -216,19 +247,22 @@ static func _web_texture() -> Texture2D:
 			var p1 := Vector2(cos(a1), sin(a1)) * r1
 			# Each strand sags a little toward the corner.
 			var mid := (p0 + p1) * 0.5 * 0.9
-			_line(img, p0, mid, 0.8)
-			_line(img, mid, p1, 0.8)
-		ring_r *= rng.randf_range(1.22, 1.32)
-	_web_tex = ImageTexture.create_from_image(img)
-	return _web_tex
+			_line(img, p0, mid, 0.85)
+			_line(img, mid, p1, 0.85)
+		ring_r *= rng.randf_range(grow.x, grow.y)
+	if kind == 2:
+		# A loose strand that hangs down from the torn edge.
+		var from := Vector2(cos(spokes[2]), sin(spokes[2])) * size * 0.55
+		_line(img, from, from + Vector2(rng.randf_range(10, 30), size * 0.4), 0.7)
+	return img
 
 
 static func _line(img: Image, a: Vector2, b: Vector2, alpha: float) -> void:
 	var steps := int(a.distance_to(b)) + 1
 	for i in steps + 1:
 		var p := a.lerp(b, float(i) / steps)
-		# Two pixels wide, so the silk still shows from the camera far above.
-		for o: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+		# Three pixels wide, so the silk still shows from the camera far above.
+		for o: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(-1, 0), Vector2i(0, -1)]:
 			var x := int(p.x) + o.x
 			var y := int(p.y) + o.y
 			if x < 0 or y < 0 or x >= img.get_width() or y >= img.get_height():
@@ -476,41 +510,136 @@ static func pebbles(parent: Node3D, at: Vector3, rng: RandomNumberGenerator) -> 
 
 # --- Cobwebs ------------------------------------------------------------------
 
-## A triangle of web with its corner (where the threads meet) at `corner`.
-func _web(corner: Vector3, a: Vector3, b: Vector3) -> void:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var n := (a - corner).cross(b - corner).normalized()
-	st.set_normal(n)
-	# The square image holds a quarter circle: map the triangle onto its
-	# two straight edges and close it with the far corner.
+## A sheet of web with its corner (where the threads meet) at `corner` and
+## its two straight edges running to `a` and `b`; the far corner closes it.
+## It is only spun when it keeps its distance from the other webs and from
+## torches, and stays clear of the paths (see _web_fits). Returns whether it
+## was spun.
+func _web(web_kind: String, corner: Vector3, a: Vector3, b: Vector3) -> bool:
 	var far := corner + (a - corner) + (b - corner)
+	var mid := (corner + a + b + far) * 0.25
+	if not _web_fits(web_kind, mid, [corner, a, b, far]):
+		return false
+	webs.append({"kind": web_kind, "mid": mid, "points": [corner, a, b, far]})
+	# Each web gets one of the images, sometimes mirrored, and an age: old
+	# webs are greyer and thinner.
+	var image := _rng.randi() % WEB_KINDS
+	if _rng.randf() < 0.5:
+		var swap := a
+		a = b
+		b = swap
+	var grey := _rng.randf_range(0.72, 1.0)
+	var alpha := _rng.randf_range(0.75, 1.0)
+	var cell := level.world_to_cell(mid)
+	var key := Vector3i(floori(cell.x / float(DUST_CHUNK)), floori(cell.y / float(DUST_CHUNK)), image)
+	if not _web_batches.has(key):
+		var fresh := SurfaceTool.new()
+		fresh.begin(Mesh.PRIMITIVE_TRIANGLES)
+		_web_batches[key] = fresh
+	var st: SurfaceTool = _web_batches[key]
+	var n := (a - corner).cross(b - corner).normalized()
+	# The square image holds a quarter circle: map the sheet onto its two
+	# straight edges and close it with the far corner.
 	for v in [[corner, Vector2(0, 0)], [a, Vector2(1, 0)], [far, Vector2(1, 1)], [corner, Vector2(0, 0)], [far, Vector2(1, 1)], [b, Vector2(0, 1)]]:
-		st.set_color(Color(1, 1, 1, _rng.randf_range(0.8, 1.0)))
+		st.set_normal(n)
+		st.set_color(Color(grey, grey, grey * 0.97, alpha * _rng.randf_range(0.85, 1.0)))
 		st.set_uv(v[1])
 		st.add_vertex(v[0])
-	var mi := MeshInstance3D.new()
-	mi.mesh = st.commit()
-	mi.material_override = _web_material()
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mi)
+	return true
 
 
-## Webs where two walls meet, just under the top of the walls.
+## Whether a web may hang here: far enough from every other web and from
+## the torches, and not over a floor grate, a door, a trap or anything else
+## the hero must see clearly. Webs that reach down to the floor also keep
+## out of corridors, so they never lie across the way.
+func _web_fits(web_kind: String, mid: Vector3, points: Array) -> bool:
+	var flat := Vector2(mid.x, mid.z)
+	for w in webs:
+		if flat.distance_to(Vector2(w.mid.x, w.mid.z)) < WEB_SPACING:
+			return false
+	for spot: Vector3 in level._torch_spots:
+		if flat.distance_to(Vector2(spot.x, spot.z)) < WEB_TORCH_GAP:
+			return false
+	for p: Vector3 in points:
+		var c := level.world_to_cell(p)
+		if level.grates.has(c):
+			return false
+		var ch := level.cell_char(c)
+		if not (_is_open(c) or _is_wall(c) or WEBBED.contains(ch)):
+			return false
+		if p.y < 0.6 and _is_open(c) and _is_corridor(c) and web_kind != "low_corner":
+			return false
+	return true
+
+
+## A tile with walls on two opposite sides: a passage one tile wide.
+func _is_corridor(c: Vector2i) -> bool:
+	return (_is_wall(c + Vector2i(1, 0)) and _is_wall(c + Vector2i(-1, 0))) \
+		or (_is_wall(c + Vector2i(0, 1)) and _is_wall(c + Vector2i(0, -1)))
+
+
+## How high the wall at `c` stands: the walls on the near side of a room are
+## built low so the hero stays in view.
+func _wall_top(c: Vector2i) -> float:
+	return WALL_HEIGHT * Level.LOW_WALL_SCALE if level._is_low_wall(c) else WALL_HEIGHT
+
+
+func _commit_webs() -> void:
+	for key: Vector3i in _web_batches:
+		var mi := MeshInstance3D.new()
+		mi.mesh = (_web_batches[key] as SurfaceTool).commit()
+		mi.material_override = _web_material(key.z)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
+	_web_batches.clear()
+
+
+## Webs where two walls meet: mostly up under the top of the walls, some
+## down in the corner on the floor. Where one of the walls is a low one,
+## the web stays below its top.
 func _build_corner_webs() -> void:
 	for c in _open_cells():
 		for d: Vector2i in [Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]:
 			if not (_is_wall(c + Vector2i(d.x, 0)) and _is_wall(c + Vector2i(0, d.y))):
 				continue
-			if _rng.randf() > 0.4:
+			if _rng.randf() > 0.85:
 				continue
 			var p := level.cell_to_world(c)
-			var corner := p + Vector3(d.x * WALL_FACE, _rng.randf_range(2.6, 3.6), d.y * WALL_FACE)
-			var size := _rng.randf_range(1.2, 2.0)
-			var drop := _rng.randf_range(0.4, 1.0)
-			_web(corner, corner + Vector3(-d.x * size, -drop, 0), corner + Vector3(0, -drop, -d.y * size))
-			if _rng.randf() < 0.5:
-				_hanging_spider(corner + Vector3(-d.x * size * 0.4, -drop * 0.4, -d.y * size * 0.4))
+			var top := minf(_wall_top(c + Vector2i(d.x, 0)), _wall_top(c + Vector2i(0, d.y)))
+			var base := p + Vector3(d.x * WALL_FACE, 0, d.y * WALL_FACE)
+			if top > 2.0 and _rng.randf() < 0.75:
+				var corner := base + Vector3(0, _rng.randf_range(2.6, 3.6), 0)
+				var size := _rng.randf_range(1.2, 2.0)
+				var drop := _rng.randf_range(0.4, 1.0)
+				if _web("corner", corner, corner + Vector3(-d.x * size, -drop, 0), corner + Vector3(0, -drop, -d.y * size)) \
+						and _rng.randf() < 0.4:
+					_hanging_spider(corner + Vector3(-d.x * size * 0.4, -drop * 0.4, -d.y * size * 0.4))
+			else:
+				# Low in the corner, the threads climb both walls from the floor.
+				var corner := base + Vector3(0, FLOOR_Y, 0)
+				var rise := minf(top - 0.1, _rng.randf_range(0.7, 1.2))
+				var size := _rng.randf_range(0.8, 1.3)
+				_web("low_corner", corner, corner + Vector3(-d.x * size, rise, 0), corner + Vector3(0, rise, -d.y * size))
+
+
+## Webs under the ceiling along a plain stretch of wall: spun from the top
+## of the wall out into the room, hanging a little.
+func _build_ledge_webs() -> void:
+	for c in _open_cells():
+		for d in Level.DIRS:
+			var w: Vector2i = c + d
+			if not _is_wall(w) or level._is_low_wall(w) or _rng.randf() > 0.45:
+				continue
+			var inward := Vector3(-d.x, 0, -d.y)
+			var along := Vector3(absf(d.y), 0, absf(d.x)) * (1.0 if _rng.randf() < 0.5 else -1.0)
+			var corner := level.cell_to_world(c) + Vector3(d.x, 0, d.y) * WALL_FACE \
+				+ along * _rng.randf_range(-1.0, 0.4) + Vector3(0, _rng.randf_range(3.3, 3.85), 0)
+			var span := _rng.randf_range(1.1, 1.8)
+			var reach := _rng.randf_range(0.7, 1.1)
+			var drop := _rng.randf_range(0.4, 0.9)
+			if _web("ledge", corner, corner + along * span + Vector3(0, -0.15, 0), corner + inward * reach + Vector3(0, -drop, 0)) \
+					and _rng.randf() < 0.15:
+				_hanging_spider(corner + inward * reach * 0.5 + along * span * 0.3 + Vector3(0, -drop * 0.5, 0))
 
 
 ## The bounds of every piece of furniture, found from the meshes the level
@@ -531,22 +660,106 @@ func _furniture_boxes() -> Dictionary:
 	return boxes
 
 
-func _web_on_furniture(box: AABB) -> void:
-	var top := minf(box.end.y, 3.0)
-	var cx := [box.position.x, box.end.x]
-	var cz := [box.position.z, box.end.z]
+## One web for most pieces of furniture, spun in one of several ways: down
+## one side, in the nook where it meets the floor, up to the wall behind it,
+## or across to the furniture next to it.
+func _build_furniture_webs(boxes: Dictionary) -> void:
+	for c: Vector2i in boxes:
+		if _rng.randf() > 0.95:
+			continue
+		var box: AABB = boxes[c]
+		var ways: Array[Callable] = [_web_down_side.bind(box), _web_in_nook.bind(box)]
+		for d in Level.DIRS:
+			if _is_wall(c + d) and not level._is_low_wall(c + d):
+				ways.append(_web_to_wall.bind(box, c, d))
+			if boxes.has(c + d):
+				ways.append(_web_between.bind(box, boxes[c + d], d))
+		# Shuffled with the level's own generator, so the webs hang the same
+		# way every time the level is played.
+		for i in range(ways.size() - 1, 0, -1):
+			var j := _rng.randi_range(0, i)
+			var swap := ways[i]
+			ways[i] = ways[j]
+			ways[j] = swap
+		# If the first way does not fit (too near another web, over a grate),
+		# the next one is tried.
+		for way in ways:
+			if way.call():
+				break
+
+
+func _box_corner(box: AABB) -> Array:
 	var sx: int = _rng.randi() % 2
 	var sz: int = _rng.randi() % 2
-	var corner := Vector3(cx[sx], FLOOR_Y, cz[sz])
+	var corner := Vector3([box.position.x, box.end.x][sx], FLOOR_Y, [box.position.z, box.end.z][sz])
 	var out := Vector3(-1.0 if sx == 0 else 1.0, 0, -1.0 if sz == 0 else 1.0)
+	return [corner, out]
+
+
+## Strung between the top edge and the floor, down one side.
+func _web_down_side(box: AABB) -> bool:
+	if box.size.y <= 0.8:
+		return false
+	var top := minf(box.end.y, 3.0)
+	var pick := _box_corner(box)
+	var corner: Vector3 = pick[0]
+	var out: Vector3 = pick[1]
 	var size := _rng.randf_range(1.0, 1.5)
-	if box.size.y > 0.8 and _rng.randf() < 0.6:
-		# Strung between the top edge and the floor, down one side.
-		var along := Vector3(out.x, 0, 0) if _rng.randf() < 0.5 else Vector3(0, 0, out.z)
-		_web(corner + Vector3(0, top - 0.03, 0), corner + Vector3(0, 0.0, 0) + along * size * 0.9, corner + Vector3(0, top - 0.03, 0) + along * size)
-	else:
-		# In the nook where the furniture meets the floor.
-		_web(corner, corner + Vector3(0, minf(top, size), 0), corner + out.normalized() * size * 1.2)
+	var along := Vector3(out.x, 0, 0) if _rng.randf() < 0.5 else Vector3(0, 0, out.z)
+	return _web("prop", corner + Vector3(0, top - 0.03, 0), corner + along * size * 0.9, corner + Vector3(0, top - 0.03, 0) + along * size)
+
+
+## In the nook where the furniture meets the floor.
+func _web_in_nook(box: AABB) -> bool:
+	var top := minf(box.end.y, 3.0)
+	var pick := _box_corner(box)
+	var corner: Vector3 = pick[0]
+	var out: Vector3 = pick[1]
+	var size := _rng.randf_range(1.0, 1.5)
+	return _web("prop", corner, corner + Vector3(0, minf(top, size), 0), corner + out.normalized() * size * 1.2)
+
+
+## From the wall behind the furniture down onto its top.
+func _web_to_wall(box: AABB, c: Vector2i, d: Vector2i) -> bool:
+	var top := minf(box.end.y, 3.0)
+	var face := level.cell_to_world(c) + Vector3(d.x, 0, d.y) * WALL_FACE
+	# The edge of the top that faces the wall, and how far it is from it.
+	var edge_x := box.end.x if d.x > 0 else box.position.x
+	var edge_z := box.end.z if d.y > 0 else box.position.z
+	var gap := absf(face.x - edge_x) if d.x != 0 else absf(face.z - edge_z)
+	if gap > 1.6:
+		return false
+	var side := 0 if _rng.randf() < 0.5 else 1
+	var lateral := Vector3(absf(d.y), 0, absf(d.x))
+	var inward := lateral * (1.0 if side == 0 else -1.0)
+	var end_at := Vector3([box.position.x, box.end.x][side], 0, [box.position.z, box.end.z][side])
+	var on_wall := Vector3(face.x if d.x != 0 else end_at.x, 0, face.z if d.y != 0 else end_at.z)
+	var on_top := Vector3(edge_x if d.x != 0 else end_at.x, top - 0.02, edge_z if d.y != 0 else end_at.z)
+	var high := top + _rng.randf_range(0.5, 1.0)
+	var corner := on_wall + Vector3(0, high, 0)
+	var size := minf(_rng.randf_range(0.8, 1.2), box.size.dot(lateral))
+	return _web("prop_wall", corner, on_top, corner + inward * size + Vector3(0, -0.3, 0))
+
+
+## Across the gap to the furniture on the next tile, from top to top.
+func _web_between(box: AABB, other: AABB, d: Vector2i) -> bool:
+	var top := minf(minf(box.end.y, other.end.y), 3.0) - 0.03
+	var lateral := Vector3(absf(d.y), 0, absf(d.x))
+	var from := (box.end if d.x > 0 or d.y > 0 else box.position).dot(Vector3(absf(d.x), 0, absf(d.y)))
+	var to := (other.position if d.x > 0 or d.y > 0 else other.end).dot(Vector3(absf(d.x), 0, absf(d.y)))
+	var gap := absf(to - from)
+	if gap < 0.3 or gap > 2.6 or top < 0.5:
+		return false
+	# Along one of the two long edges the pieces share.
+	var lo := maxf(box.position.dot(lateral), other.position.dot(lateral))
+	var hi := minf(box.end.dot(lateral), other.end.dot(lateral))
+	if hi - lo < 0.3:
+		return false
+	var at := lo if _rng.randf() < 0.5 else hi
+	var axis := Vector3(absf(d.x), 0, absf(d.y))
+	var corner := axis * from + lateral * at + Vector3(0, top, 0)
+	var across := axis * to + lateral * at + Vector3(0, top, 0)
+	return _web("between", corner, across, corner + Vector3(0, -minf(top, _rng.randf_range(0.6, 1.2)), 0))
 
 
 # --- Dripping water -----------------------------------------------------------

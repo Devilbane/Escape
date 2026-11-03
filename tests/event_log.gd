@@ -4,7 +4,7 @@ extends SceneTree
 ## line is only written down when the hero is near enough to hear it, a
 ## reputation change is one short line, and the box keeps one size and place
 ## however many lines come, clear of the status block and the message line.
-## Life shows as a bar with its numbers, above the log.
+## Life shows as a small bar with its numbers, under the hero.
 ## Run with: godot --headless -s tests/event_log.gd
 
 var failures := 0
@@ -99,13 +99,19 @@ func _check_layout() -> void:
 	var status: Control = game._level_label.get_parent()
 	check(not box.intersects(status.get_global_rect()), "the box keeps clear of the status block: %s vs %s" % [box, status.get_global_rect()])
 	check(not box.intersects(game._message_box.get_global_rect()), "the box keeps clear of the message line: %s vs %s" % [box, game._message_box.get_global_rect()])
-	# Life is a bar with its numbers on it, above the log.
+	# Life is a small bar with its numbers on it, under the hero.
 	var hero: Player = game.player
 	hero.hp = maxi(1, hero.max_hp / 2)
 	game._update_hud()
 	check(is_equal_approx(game._hp_bar.value, hero.hp) and is_equal_approx(game._hp_bar.max_value, hero.max_hp), "the life bar shows the hero's life")
-	check(game._hp_label.text.contains("%d / %d" % [hero.hp, hero.max_hp]), "with the numbers on it: %s" % game._hp_label.text)
-	check(game._hp_bar.get_global_rect().end.y < box.position.y, "the life bar sits above the log")
+	check(game._hp_label.text == "%d / %d" % [hero.hp, hero.max_hp], "with the numbers on it: %s" % game._hp_label.text)
+	game.state = game.State.PLAYING
+	game._place_hp_bar()
+	check(game._hp_bar.visible, "the life bar shows while playing")
+	var feet: Vector2 = game.camera.unproject_position(hero.global_position)
+	var bar: Rect2 = game._hp_bar.get_global_rect()
+	check(bar.position.y > feet.y and absf(bar.get_center().x - feet.x) <= 1.0, "the life bar sits under the hero: %s, feet %s" % [bar, feet])
+	check(bar.size.is_equal_approx(game.HP_BAR_SIZE), "the life bar keeps its size: %s" % bar.size)
 	for line in elog._lines.get_children():
 		check((line as RichTextLabel).get_theme_font_size("normal_font_size") == EventLog.FONT_SIZE, "small type")
 		break

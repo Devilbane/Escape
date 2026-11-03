@@ -211,8 +211,10 @@ var _hp_label: Label
 var _hp_bar: ProgressBar
 var _hp_fill: StyleBoxFlat
 var _hardening_label: Label
-## The life bar at the top left: its width and colours (bright when low).
-const HP_BAR_WIDTH := 260.0
+## The life bar under the hero: its size, its gap below the feet on screen,
+## and its colours (brighter when low).
+const HP_BAR_SIZE := Vector2(110, 20)
+const HP_BAR_GAP := 10.0
 const HP_COLOR := Color(0.78, 0.2, 0.2)
 const HP_LOW_COLOR := Color(1.0, 0.35, 0.25)
 ## The run meter: seconds of running left, as a bar and in numbers.
@@ -882,35 +884,36 @@ func _setup_hud() -> void:
 	row.add_child(left)
 	_level_label = _make_label(TEXT_FONT, 26, GOLD)
 	left.add_child(_level_label)
-	# Life as a bar with its numbers on it, MMO-style; the hardening sits
-	# beside it. The bar has one fixed size, so nothing moves as life changes.
-	var hp_row := HBoxContainer.new()
-	hp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hp_row.add_theme_constant_override("separation", 12)
-	left.add_child(hp_row)
+	# The hardening stays up here; life itself is a bar under the hero
+	# (see _place_hp_bar).
+	_hardening_label = _make_label(TEXT_FONT, 18, Color(0.8, 0.85, 0.95))
+	left.add_child(_hardening_label)
+	# Life as a small bar with its numbers on it, under the hero's feet,
+	# MMO-style. It has one fixed size, so nothing moves as life changes.
 	_hp_bar = ProgressBar.new()
 	_hp_bar.show_percentage = false
-	_hp_bar.custom_minimum_size = Vector2(HP_BAR_WIDTH, 26)
-	_hp_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_hp_bar.custom_minimum_size = HP_BAR_SIZE
+	_hp_bar.size = HP_BAR_SIZE
 	_hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var hp_back := StyleBoxFlat.new()
 	hp_back.bg_color = Color(0.08, 0.05, 0.1, 0.72)
-	hp_back.border_color = Color(0.85, 0.66, 0.32, 0.8)
+	hp_back.border_color = Color(0.05, 0.02, 0.06, 0.9)
 	hp_back.set_border_width_all(2)
-	hp_back.set_corner_radius_all(6)
+	hp_back.set_corner_radius_all(5)
 	_hp_fill = StyleBoxFlat.new()
 	_hp_fill.bg_color = HP_COLOR
-	_hp_fill.set_corner_radius_all(6)
+	_hp_fill.set_corner_radius_all(5)
 	_hp_bar.add_theme_stylebox_override("background", hp_back)
 	_hp_bar.add_theme_stylebox_override("fill", _hp_fill)
-	hp_row.add_child(_hp_bar)
-	_hp_label = _make_label(TEXT_FONT, 16)
+	_hp_bar.visible = false
+	_hud.add_child(_hp_bar)
+	_hp_label = _make_label(TEXT_FONT, 14)
+	_hp_label.add_theme_constant_override("outline_size", 4)
+	_hp_label.add_theme_constant_override("shadow_offset_y", 1)
 	_hp_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_hp_bar.add_child(_hp_label)
-	_hardening_label = _make_label(TEXT_FONT, 18, Color(0.8, 0.85, 0.95))
-	hp_row.add_child(_hardening_label)
 	var run_row := HBoxContainer.new()
 	run_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	run_row.add_theme_constant_override("separation", 10)
@@ -1703,7 +1706,7 @@ func _update_hud() -> void:
 		_level_label.text += "    " + _clock_shown
 	_hp_bar.max_value = maxi(1, player.max_hp)
 	_hp_bar.value = clampi(player.hp, 0, player.max_hp)
-	_hp_label.text = Lang.t("Leben: %d / %d") % [maxi(0, player.hp), player.max_hp]
+	_hp_label.text = "%d / %d" % [maxi(0, player.hp), player.max_hp]
 	# Low life turns the bar a brighter warning red.
 	_hp_fill.bg_color = HP_LOW_COLOR if player.hp * 4 <= player.max_hp else HP_COLOR
 	_hardening_label.text = Lang.t("Härtung %d") % player.hardening if player.hardening > 0 else ""
@@ -3334,6 +3337,16 @@ func heard(speaker: String, text: String, pos: Vector3) -> void:
 		event_log.add_speech(speaker, text)
 
 
+## Keeps the life bar centred under the hero's feet on screen.
+func _place_hp_bar() -> void:
+	var on_screen := state == State.PLAYING and player != null and player.is_inside_tree() and not player.dead \
+			and camera != null and not camera.is_position_behind(player.global_position)
+	_hp_bar.visible = on_screen
+	if on_screen:
+		var feet := camera.unproject_position(player.global_position)
+		_hp_bar.position = (feet + Vector2(-HP_BAR_SIZE.x / 2.0, HP_BAR_GAP)).round()
+
+
 ## News about a task (a new one, progress, done): a message and a word over
 ## the hero's head.
 func quest_news(text: String, color: Color, duration := 4.0) -> void:
@@ -4486,6 +4499,7 @@ func _process(delta: float) -> void:
 		_shake = maxf(0.0, _shake - delta)
 		var strength := 0.25 * minf(1.0, _shake)
 		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
+	_place_hp_bar()
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)

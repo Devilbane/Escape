@@ -1128,6 +1128,8 @@ func _use_station(s: Dictionary) -> void:
 		_open_shrine(s)
 	elif s.kind == "brunnen":
 		_drink(s)
+	elif s.kind == Seats.KIND:
+		player.sit_down(Seats.sit_spot(s), Seats.front(s), Seats.stand_spot(s, level, player.radius))
 	else:
 		player.face(s.pos - player.global_position)
 		menus.bench = s.get("craft", "")
@@ -3870,6 +3872,8 @@ func _on_player_bumped(point: Vector3) -> void:
 		Sfx.play(self, "swing", -6.0)
 		return
 	var station := level.station_at(point)
+	if station.get("kind", "") == Seats.KIND and (player.is_seated() or player.still_getting_up()):
+		return
 	if not station.is_empty():
 		if station.has("npc") or PERSON_STATIONS.has(station.kind):
 			bumped_person = true
@@ -4450,7 +4454,10 @@ func _process(delta: float) -> void:
 	_prompt.text = ""
 	if not at_station and level_index < 2 and not near.is_empty() and not near.searched:
 		_prompt.text = _hint("search", Lang.t("Dagegenlaufen, um %s zu untersuchen") % Lang.t(_with_article(near.label)))
-	if at_station and bumped_person and PERSON_STATIONS.has(station.kind):
+	if player.is_seated():
+		# Sitting: how to get up again, not how to sit down.
+		_prompt.text = _hint("aufstehen", Lang.t("Laufen, klicken oder springen, um aufzustehen"))
+	elif at_station and bumped_person and PERSON_STATIONS.has(station.kind):
 		# The hero knows by now that running into people talks to them.
 		_prompt.text = ""
 	elif at_station:
@@ -4475,6 +4482,7 @@ func _process(delta: float) -> void:
 			"gefaehrten": Lang.t("Dagegenlaufen, um nach deinen Gefährten zu sehen"),
 			"schacht": Lang.t("Dagegenlaufen, um in die Tiefe hinabzusteigen"),
 			"tafel": Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
+			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 		}.get(station.kind, ""))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = _hint("crate", Lang.t("E oder Klick: Kiste aufheben"))

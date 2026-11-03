@@ -80,6 +80,11 @@ func _check_outdoor_code() -> void:
 	# Groupings of letters already handed out above.
 	_check_listed({"Outdoor.WALK": _letters(Outdoor.WALK), "Outdoor.CAMP": _letters(Outdoor.CAMP)},
 			Tiles.OUTDOOR, "Tiles.OUTDOOR")
+	var life := {"SurfaceLife.GROUND": _letters(SurfaceLife.GROUND), "SurfaceLife.UNDER": _letters(SurfaceLife.UNDER),
+			"SurfaceLife.PATH": _letters(SurfaceLife.PATH), "SurfaceLife.WATER": _letters(SurfaceLife.WATER)}
+	for biome in SurfaceLife.BIOMES:
+		life["SurfaceLife.BIOMES." + biome] = _letters(SurfaceLife.BIOMES[biome])
+	_check_listed(life, Tiles.OUTDOOR, "Tiles.OUTDOOR")
 	# Every villager letter has a role. Villager.ROLES may hold more roles
 	# than the map places (the wandering merchant's "%" is a role id only).
 	for ch in Outdoor.VILLAGERS:

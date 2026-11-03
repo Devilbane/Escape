@@ -334,6 +334,11 @@ jobs:
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/traps.gd | tee traps.log
           grep -q PASS traps.log
 
+      - name: Life on the ground above test
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/surface_life.gd | tee surface_life.log
+          grep -q PASS surface_life.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

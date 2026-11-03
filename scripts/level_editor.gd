@@ -45,7 +45,9 @@ var _file_label: Label
 var _hover_label: Label
 var _message: Label
 var _summary: Label
-var _custom_grid: GridContainer
+var _palette_groups: VBoxContainer
+## Which tiles the palette shows: 0 the dungeon's, 1 the open air's, -1 none yet.
+var _palette_outdoor := -1
 var _dialog: Control
 var _message_time := 0.0
 
@@ -143,24 +145,9 @@ func _build_palette() -> Control:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	box.add_child(scroll)
-	var groups := EditorUi.vbox(EditorUi.ROW_GAP)
-	groups.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(groups)
-	for g in EditorPalette.GROUPS.size():
-		if g > 0:
-			var gap := Control.new()
-			gap.custom_minimum_size = Vector2(0, EditorUi.GROUP_GAP - EditorUi.ROW_GAP)
-			groups.add_child(gap)
-		groups.add_child(EditorUi.label(Lang.t(EditorPalette.GROUPS[g][0]), 16, EditorUi.GOLD))
-		var grid := GridContainer.new()
-		grid.columns = 5
-		grid.add_theme_constant_override("h_separation", 6)
-		grid.add_theme_constant_override("v_separation", 6)
-		groups.add_child(grid)
-		if g == EditorPalette.GROUPS.size() - 1:
-			_custom_grid = grid
-		for letter in EditorPalette.GROUPS[g][1]:
-			grid.add_child(_tile_button(letter))
+	_palette_groups = EditorUi.vbox(EditorUi.ROW_GAP)
+	_palette_groups.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_palette_groups)
 	# The picked tile: a box of fixed height, so a long note never moves the list.
 	var details := EditorUi.vbox(4)
 	details.custom_minimum_size = Vector2(0, 116)
@@ -177,11 +164,39 @@ func _build_palette() -> Control:
 	return panel
 
 
-func _tile_button(letter: String) -> Button:
+## The tiles of this kind of map: the dungeon's, or those of the open air.
+func _fill_palette() -> void:
+	var outdoor := map.is_outdoor()
+	if _palette_outdoor == int(outdoor):
+		return
+	_palette_outdoor = int(outdoor)
+	for child in _palette_groups.get_children():
+		_palette_groups.remove_child(child)
+		child.queue_free()
+	_tile_buttons.clear()
+	var all := EditorPalette.groups(outdoor)
+	for g in all.size():
+		if g > 0:
+			var gap := Control.new()
+			gap.custom_minimum_size = Vector2(0, EditorUi.GROUP_GAP - EditorUi.ROW_GAP)
+			_palette_groups.add_child(gap)
+		_palette_groups.add_child(EditorUi.label(Lang.t(all[g][0]), 16, EditorUi.GOLD))
+		var grid := GridContainer.new()
+		grid.columns = 5
+		grid.add_theme_constant_override("h_separation", 6)
+		grid.add_theme_constant_override("v_separation", 6)
+		_palette_groups.add_child(grid)
+		for letter in all[g][1]:
+			grid.add_child(_tile_button(letter, outdoor))
+	if not map.table().has(canvas.letter):
+		canvas.letter = "."
+
+
+func _tile_button(letter: String, outdoor := false) -> Button:
 	var b := EditorUi.toggle(letter, pick_letter.bind(letter), Vector2(46, 46))
 	b.add_theme_font_size_override("font_size", 18)
 	var swatch := ColorRect.new()
-	swatch.color = EditorPalette.color_of(letter)
+	swatch.color = EditorPalette.color_of(letter, outdoor)
 	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	swatch.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	swatch.offset_left = 8
@@ -259,14 +274,21 @@ func _build_map_page() -> void:
 	hint.placeholder_text = Lang.t("Was der Spieler beim Betreten liest")
 	box.add_child(EditorUi.row(Lang.t("Hinweis"), hint))
 	var size_row := EditorUi.hbox(8)
-	var w := EditorUi.spin(map.width(), 3, LevelMap.MAX_SIZE.x, 1, func(v): _resize(int(v), map.height()))
-	var h := EditorUi.spin(map.height(), 3, LevelMap.MAX_SIZE.y, 1, func(v): _resize(map.width(), int(v)))
+	var w := EditorUi.spin(map.width(), 3, map.max_size().x, 1, func(v): _resize(int(v), map.height()))
+	var h := EditorUi.spin(map.height(), 3, map.max_size().y, 1, func(v): _resize(map.width(), int(v)))
 	w.custom_minimum_size.x = 84
 	h.custom_minimum_size.x = 84
 	size_row.add_child(w)
 	size_row.add_child(EditorUi.label("×", 18))
 	size_row.add_child(h)
 	box.add_child(EditorUi.row(Lang.t("Größe"), size_row))
+	if map.is_outdoor():
+		box.add_child(_gap())
+		var about := EditorUi.label(Lang.t("Die Karte im Freien: Dorf, Wald, Pass und Berge. Gebäude sind Rechtecke aus einem Zeichen; Fallen, Geheimräume und eigene Geschöpfe gibt es hier nicht."), 16, EditorUi.DIM)
+		about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(about)
+		_add_other_headers(box, ["name", "hint", "outdoor"])
+		return
 	var tiers := Level.TIERS.keys().map(func(k): return [k, Lang.t(Level.TIERS[k].name)])
 	box.add_child(EditorUi.row(Lang.t("Geheimraum"), EditorUi.choice(tiers, Level.TIER_ALIASES.get(map.get_header("secret", "normal"), map.get_header("secret", "normal")), func(k): _set_header("secret", k))))
 	box.add_child(_gap())
@@ -301,7 +323,13 @@ func _build_map_page() -> void:
 	var note := EditorUi.label(Lang.t("Ohne eigene Inschrift wählt das Spiel eine nach der Tiefe."), 16, EditorUi.DIM)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
-	var others: Array = map.headers.filter(func(hd): return not hd[0] in ["name", "hint", "secret", "elite", "dark", "safe", "traps", "writing", "custom"])
+	_add_other_headers(box, ["name", "hint", "secret", "elite", "dark", "safe", "traps", "writing", "custom"])
+
+
+## The header lines this page does not edit, shown so nobody wonders where
+## they went: they are kept as they are.
+func _add_other_headers(box: VBoxContainer, shown: Array) -> void:
+	var others: Array = map.headers.filter(func(hd): return not hd[0] in shown)
 	if not others.is_empty():
 		box.add_child(_gap())
 		box.add_child(EditorUi.label(Lang.t("Weitere Angaben (bleiben erhalten)"), 16, EditorUi.GOLD))
@@ -397,21 +425,21 @@ func set_creation(letter: String, spec: Dictionary) -> void:
 func _update_tile_info() -> void:
 	var made := map.creations()
 	var letter := canvas.letter
-	_tile_name.text = "%s  %s" % [letter, EditorPalette.name_of(letter, made)]
-	_tile_note.text = Lang.t(EditorPalette.NOTES.get(letter, ""))
-	if Creations.LETTERS.contains(letter) and not made.has(letter):
+	var outdoor := map.is_outdoor()
+	_tile_name.text = "%s  %s" % [letter, EditorPalette.name_of(letter, made, outdoor)]
+	_tile_note.text = EditorPalette.note_of(letter, outdoor)
+	if not outdoor and Creations.LETTERS.contains(letter) and not made.has(letter):
 		_tile_note.text = Lang.t("Lege das Geschöpf auf der Seite „Geschöpfe“ an.")
 
 
 func _update_custom_tiles() -> void:
-	var made := map.creations()
-	for letter in Creations.LETTERS:
-		var b: Button = _tile_buttons[letter]
-		b.tooltip_text = EditorPalette.name_of(letter, made)
-		b.modulate = Color.WHITE if made.has(letter) else Color(1, 1, 1, 0.55)
+	var outdoor := map.is_outdoor()
+	var made := map.creations() if not outdoor else {}
 	for letter in _tile_buttons:
-		if not Creations.LETTERS.contains(letter):
-			_tile_buttons[letter].tooltip_text = EditorPalette.name_of(letter)
+		var b: Button = _tile_buttons[letter]
+		b.tooltip_text = EditorPalette.name_of(letter, made, outdoor)
+		if not outdoor and Creations.LETTERS.contains(letter):
+			b.modulate = Color.WHITE if made.has(letter) else Color(1, 1, 1, 0.55)
 
 
 ## Keeps the grid as it was before a stroke, for undo.
@@ -485,7 +513,8 @@ func _on_hovered(c: Vector2i) -> void:
 		_hover_label.text = ""
 		return
 	var ch := map.cell(c)
-	_hover_label.text = "%d, %d   %s  %s" % [c.x, c.y, ch, EditorPalette.name_of(ch, map.creations())]
+	var outdoor := map.is_outdoor()
+	_hover_label.text = "%d, %d   %s  %s" % [c.x, c.y, ch, EditorPalette.name_of(ch, {} if outdoor else map.creations(), outdoor)]
 
 
 func _update_file_label() -> void:
@@ -511,6 +540,7 @@ func _after_load() -> void:
 	_redo.clear()
 	canvas.map = map
 	canvas.marked = Vector2i(-1, -1)
+	_fill_palette()
 	_build_map_page()
 	creations_page.build(_page_boxes[1])
 	show_page(_page)
@@ -638,8 +668,6 @@ static func map_files() -> Array:
 		for f in files:
 			if not f.ends_with(".txt") or dir + f == TEST_FILE:
 				continue
-			if Level.is_outdoor_file(dir + f):
-				continue
 			out.append([dir + f, LevelMap.load_file(dir + f).get_header("name", f)])
 	return out
 
@@ -663,8 +691,6 @@ func _open_dialog() -> void:
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.clip_text = true
 		list.add_child(b)
-	var note := EditorUi.label(Lang.t("Die Karte im Freien ist zu groß für die Werkstatt."), 16, EditorUi.DIM)
-	box.add_child(note)
 	var row := EditorUi.hbox(14)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(EditorUi.button(Lang.t("Aus der Zwischenablage"), func(): _unless_lost(paste_map), Vector2(260, 60)))
@@ -674,9 +700,6 @@ func _open_dialog() -> void:
 
 func open_file(path: String) -> void:
 	close_dialog()
-	if Level.is_outdoor_file(path):
-		say(Lang.t("Die Karte im Freien ist zu groß für die Werkstatt."))
-		return
 	map = LevelMap.load_file(path)
 	file_path = path
 	dirty = false
@@ -688,7 +711,7 @@ func paste_map() -> void:
 	close_dialog()
 	var text := DisplayServer.clipboard_get()
 	var pasted := LevelMap.parse(text)
-	if pasted.grid.is_empty() or pasted.is_outdoor():
+	if pasted.grid.is_empty():
 		say(Lang.t("In der Zwischenablage ist keine Karte."))
 		return
 	map = pasted

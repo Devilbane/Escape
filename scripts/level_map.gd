@@ -13,9 +13,10 @@ const KEYS := ["name", "hint", "secret", "safe", "elite", "building", "lair", "d
 ## secret wall), "Q" (a block that can be pushed) and "x" (crates, which the
 ## hero can pick up) are left out.
 const SOLID := "#botkCHBLVFfy=U~"
-## The biggest map the workshop makes (the open-air map is larger and may be
-## opened, but not grown).
+## The biggest map the workshop makes: a dungeon, and the open air (the
+## village map is 172 x 46).
 const MAX_SIZE := Vector2i(80, 60)
+const MAX_OUTDOOR_SIZE := Vector2i(240, 120)
 
 ## [key, value] in the order of the file.
 var headers: Array = []
@@ -181,8 +182,8 @@ func set_cell(c: Vector2i, ch: String) -> void:
 
 ## Grows or crops the map to w x h; new tiles are wall.
 func resize(w: int, h: int) -> void:
-	w = clampi(w, 3, MAX_SIZE.x)
-	h = clampi(h, 3, MAX_SIZE.y)
+	w = clampi(w, 3, max_size().x)
+	h = clampi(h, 3, max_size().y)
 	while grid.size() < h:
 		grid.append("#".repeat(w))
 	grid.resize(h)
@@ -206,6 +207,10 @@ func find_all(ch: String) -> Array[Vector2i]:
 
 func count(ch: String) -> int:
 	return find_all(ch).size()
+
+
+func max_size() -> Vector2i:
+	return MAX_OUTDOOR_SIZE if is_outdoor() else MAX_SIZE
 
 
 # --- Checks -----------------------------------------------------------------

@@ -5,7 +5,8 @@ extends Control
 ##
 ## Left button: paint with the picked tile (brush), draw a rectangle, or
 ## flood-fill, as the tool says. Right button: paint wall. Middle button (or
-## Space held) drags the view, the wheel zooms round the pointer.
+## Space held) drags the view, the arrow keys move it, the wheel zooms round
+## the pointer.
 
 signal painted
 signal hovered(cell: Vector2i)
@@ -14,7 +15,8 @@ signal stroke_started
 
 enum Tool { BRUSH, RECT, FILL }
 
-const MIN_ZOOM := 10.0
+## Small enough for the whole village map to fit in view.
+const MIN_ZOOM := 3.0
 const MAX_ZOOM := 56.0
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 
@@ -45,6 +47,11 @@ func fit() -> void:
 		return
 	var cells := Vector2(maxi(map.width(), 1), maxi(map.height(), 1))
 	zoom = clampf(floorf(minf((size.x - 24) / cells.x, (size.y - 24) / cells.y)), MIN_ZOOM, MAX_ZOOM)
+	if zoom * cells.x > size.x:
+		# Too big to fit even at the smallest zoom: start at the top left.
+		offset = Vector2(12, 12)
+		queue_redraw()
+		return
 	offset = ((size - cells * zoom) / 2.0).round()
 	queue_redraw()
 
@@ -58,22 +65,28 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.04, 0.07))
 	if map == null:
 		return
-	var made := map.creations()
+	var outdoor := map.is_outdoor()
+	var made := map.creations() if not outdoor else {}
 	var w := map.width()
 	var h := map.height()
 	var font_size := int(zoom * 0.55)
-	for y in h:
-		for x in w:
+	# Only the tiles in view: the village map has thousands.
+	var first := cell_at(Vector2.ZERO).clamp(Vector2i.ZERO, Vector2i(w, h))
+	var last := (cell_at(size) + Vector2i.ONE).clamp(Vector2i.ZERO, Vector2i(w, h))
+	var gap := 0.5 if zoom >= 8.0 else 0.0
+	# The plain ground of each kind of map shows no letter.
+	var plain := "#.," if outdoor else "."
+	for y in range(first.y, last.y):
+		for x in range(first.x, last.x):
 			var c := Vector2i(x, y)
 			var ch := map.cell(c)
 			var r := Rect2(offset + Vector2(x, y) * zoom, Vector2(zoom, zoom))
-			if not r.intersects(Rect2(Vector2.ZERO, size)):
+			var color := EditorPalette.color_of(ch, outdoor)
+			draw_rect(r.grow(-gap), color)
+			if EditorPalette.is_wall(ch, outdoor):
 				continue
-			draw_rect(r.grow(-0.5), EditorPalette.color_of(ch))
-			if EditorPalette.is_wall(ch):
-				continue
-			if ch != "." and font_size >= 8:
-				var tint := Color(0.05, 0.03, 0.06) if EditorPalette.color_of(ch).get_luminance() > 0.45 else Color(1, 0.95, 0.85)
+			if not plain.contains(ch) and font_size >= 8:
+				var tint := Color(0.05, 0.03, 0.06) if color.get_luminance() > 0.45 else Color(1, 0.95, 0.85)
 				var text_size := TEXT_FONT.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 				draw_string(TEXT_FONT, r.position + Vector2((zoom - text_size.x) / 2.0, zoom * 0.5 + font_size * 0.36), ch,
 						HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, tint)
@@ -145,9 +158,18 @@ func _mouse_button(event: InputEventMouseButton) -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.physical_keycode == KEY_SPACE:
+	if not event is InputEventKey:
+		return
+	if event.physical_keycode == KEY_SPACE:
 		_space = event.pressed
 		mouse_default_cursor_shape = Control.CURSOR_DRAG if _space else Control.CURSOR_CROSS
+		return
+	# The arrow keys move the view, five tiles a press.
+	var step := {KEY_LEFT: Vector2(1, 0), KEY_RIGHT: Vector2(-1, 0), KEY_UP: Vector2(0, 1), KEY_DOWN: Vector2(0, -1)}
+	if event.pressed and step.has(event.physical_keycode):
+		offset += step[event.physical_keycode] * zoom * 5.0
+		queue_redraw()
+		get_viewport().set_input_as_handled()
 
 
 func zoom_at(point: Vector2, factor: float) -> void:

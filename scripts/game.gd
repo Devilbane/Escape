@@ -2648,6 +2648,9 @@ func boss_fallen(kind: String) -> bool:
 
 
 func _outdoor_index() -> int:
+	# Testing an open-air map from the workshop: out of a building onto that map.
+	if playtest_file != "" and Level.is_outdoor_file(playtest_file):
+		return level_files.size() - 1
 	for i in level_files.size():
 		if Level.is_outdoor_file(level_files[i]):
 			return i

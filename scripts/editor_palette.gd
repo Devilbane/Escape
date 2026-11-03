@@ -1,8 +1,9 @@
 class_name EditorPalette
 extends RefCounted
 ## The tiles of the map workshop (see LevelEditor): every letter of
-## Tiles.DUNGEON in groups, with a German name for the player (see Lang) and
-## the colour it is drawn in on the workshop's grid.
+## Tiles.DUNGEON (and of Tiles.OUTDOOR for the open-air map) in groups, with
+## a German name for the player (see Lang) and the colour it is drawn in on
+## the workshop's grid.
 
 ## [group name, letters]. tests/level_editor.gd checks that every letter of
 ## Tiles.DUNGEON is in exactly one group, so a new tile shows up here too.
@@ -62,23 +63,83 @@ const GROUP_COLORS := [Color(0.42, 0.4, 0.38), Color(0.8, 0.7, 0.4), Color(0.75,
 		Color(0.95, 0.75, 0.25), Color(0.55, 0.42, 0.3), Color(0.8, 0.28, 0.25), Color(0.55, 0.45, 0.95)]
 
 
-static func group_of(letter: String) -> int:
-	for i in GROUPS.size():
-		if GROUPS[i][1].contains(letter):
+## The open-air map (see Tiles.OUTDOOR, built by Outdoor): its own letters.
+## The digits there are villagers, not creations.
+const OUTDOOR_GROUPS := [
+	["Gelände", "#.,:~;='"],
+	["Natur", "Tdrtpy"],
+	["Wege und Eingänge", "PREa([]"],
+	["Gebäude", "hjnmuskowb^IiBL"],
+	["Dorf und Lager", "gzlexqFv!@NfC+%*$"],
+	["Dorfbewohner", "0123456789KOGMYZS"],
+	["Wilde Gegner", "cAXQWHJU{}-/"],
+	["Tiere", "DV&"],
+]
+
+const OUTDOOR_NAMES := {
+	"#": "Wald", ".": "Wiese", ",": "Pfad", ":": "Gepflasterter Platz", "~": "Dorfteich",
+	";": "Teich in der Wolfsmulde", "=": "Fels der Berge", "'": "Geröll",
+	"T": "Baum", "d": "Toter Baum", "r": "Felsen", "t": "Baumstumpf mit Holz", "p": "Kürbisse", "y": "Kürbisfeld",
+	"P": "Start vor der Gruft", "R": "Die Gruft", "E": "Weg in die Drachenhöhle", "a": "Tor im Zaun",
+	"(": "Dunkles Loch", "[": "Bergschenke", "]": "Mineneingang",
+	"h": "Haus", "j": "Schmiede", "n": "Wirtshaus", "m": "Markt", "u": "Windmühle", "s": "Tempel",
+	"k": "Amt der Krone", "o": "Post", "w": "Abenteurergilde", "b": "Bank", "^": "Weberzeile",
+	"I": "Hauswand", "i": "Holzboden", "B": "Bett", "L": "Truhe",
+	"g": "Grab", "z": "Friedhofszaun", "l": "Laterne", "e": "Fässer, Kisten und Säcke", "x": "Bank zum Sitzen",
+	"q": "Brunnen", "F": "Heilbrunnen", "v": "Sockel mit Futterkorb", "!": "Kopfgeldbrett",
+	"@": "Platz des fahrenden Händlers", "N": "Zelt", "f": "Lagerfeuer", "C": "Schatztruhe der Räuber",
+	"+": "Werkbank für Feinarbeit", "%": "Schleifrad", "*": "Alchemietisch", "$": "Deine Lagertruhe",
+	"0": "Dorfvorsteher", "1": "Schmied", "2": "Bäuerin", "3": "Holzfäller", "4": "Wache", "5": "Zecher",
+	"6": "Krämerin", "7": "Kind", "8": "Gelehrter", "9": "Wasserträgerin", "K": "Herold der Krone",
+	"O": "Priesterin", "G": "Gildenmeister", "M": "Postmeister", "Y": "Bankier", "Z": "Barbier", "S": "Steinmetz",
+	"c": "Halsabschneider", "A": "Wilderer", "X": "Schläger", "Q": "Räuberhauptmann", "W": "Wolf", "H": "Ork",
+	"J": "Yeti", "U": "Spinne", "{": "Felstroll", "}": "Bergork", "-": "Eiswolf", "/": "Klippenschütze",
+	"D": "Reh", "V": "Hirsch", "&": "Fuchs",
+}
+
+const OUTDOOR_NOTES := {
+	"P": "Genau einer pro Karte: hier tritt der Held aus der Gruft.",
+	"(": "Die Löcher zählen von oben nach unten: Loch n führt zu „building: loch<n>“.",
+	"]": "Die Minen zählen von Westen nach Osten: Mine n führt zu „building: mine<n>“.",
+	"h": "Ein Gebäude ist ein Rechteck aus demselben Zeichen.",
+	"^": "Ein Haus je Feld an der Vorderseite, von Westen nach Osten gezählt.",
+}
+
+const OUTDOOR_COLORS := {
+	"#": Color(0.12, 0.22, 0.12), ".": Color(0.36, 0.5, 0.28), ",": Color(0.55, 0.45, 0.3),
+	":": Color(0.55, 0.53, 0.5), "~": Color(0.25, 0.45, 0.7), ";": Color(0.2, 0.35, 0.6),
+	"=": Color(0.35, 0.33, 0.36), "'": Color(0.5, 0.48, 0.45), "P": Color(0.3, 0.75, 0.35),
+}
+const OUTDOOR_GROUP_COLORS := [Color(0.36, 0.5, 0.28), Color(0.25, 0.4, 0.2), Color(0.8, 0.7, 0.4),
+		Color(0.62, 0.42, 0.3), Color(0.55, 0.42, 0.3), Color(0.35, 0.55, 0.85), Color(0.8, 0.28, 0.25), Color(0.75, 0.6, 0.35)]
+
+
+static func groups(outdoor := false) -> Array:
+	return OUTDOOR_GROUPS if outdoor else GROUPS
+
+
+static func group_of(letter: String, outdoor := false) -> int:
+	var all := groups(outdoor)
+	for i in all.size():
+		if all[i][1].contains(letter):
 			return i
 	return -1
 
 
-static func color_of(letter: String) -> Color:
-	if COLORS.has(letter):
-		return COLORS[letter]
-	var g := group_of(letter)
-	return GROUP_COLORS[g] if g >= 0 else Color(1, 0, 1)
+static func color_of(letter: String, outdoor := false) -> Color:
+	var colors: Dictionary = OUTDOOR_COLORS if outdoor else COLORS
+	if colors.has(letter):
+		return colors[letter]
+	var g := group_of(letter, outdoor)
+	var group_colors: Array = OUTDOOR_GROUP_COLORS if outdoor else GROUP_COLORS
+	return group_colors[g] if g >= 0 else Color(1, 0, 1)
 
 
 ## The name of a tile in the player's language; a creation's own name for
 ## its digit when one is given.
-static func name_of(letter: String, creations := {}) -> String:
+static func name_of(letter: String, creations := {}, outdoor := false) -> String:
+	if outdoor:
+		return Lang.t(OUTDOOR_NAMES.get(letter, "Unbekannt"))
 	if creations.has(letter):
 		return Creations.label_of(creations[letter])
 	if Creations.LETTERS.contains(letter):
@@ -86,6 +147,11 @@ static func name_of(letter: String, creations := {}) -> String:
 	return Lang.t(NAMES.get(letter, "Unbekannt"))
 
 
+static func note_of(letter: String, outdoor := false) -> String:
+	var notes: Dictionary = OUTDOOR_NOTES if outdoor else NOTES
+	return Lang.t(notes[letter]) if notes.has(letter) else ""
+
+
 ## Whether a tile is drawn as a wall (no letter on it).
-static func is_wall(letter: String) -> bool:
-	return letter == "#" or letter == " "
+static func is_wall(letter: String, outdoor := false) -> bool:
+	return letter == " " or (letter == "#" and not outdoor)

@@ -28,6 +28,11 @@ func rebuild() -> void:
 	for child in _box.get_children():
 		child.queue_free()
 	_slot_buttons.clear()
+	if editor.map.is_outdoor():
+		var none := EditorUi.label(Lang.t("Eigene Geschöpfe gibt es nur in Verliesen. Im Freien sind die Ziffern Dorfbewohner."), 16, EditorUi.DIM)
+		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_box.add_child(none)
+		return
 	var made: Dictionary = editor.map.creations()
 	var intro := EditorUi.label(Lang.t("Jede Ziffer auf der Karte setzt ein eigenes Geschöpf: ein Monster, eine Person oder Ausrüstung."), 16, EditorUi.DIM)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

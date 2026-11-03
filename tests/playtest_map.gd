@@ -3,7 +3,7 @@ extends SceneTree
 ## LevelEditor.playtest and Game.PLAYTEST_FLAG): the game starts right on the
 ## map with a new hero, the map's own monster, person and gear are there,
 ## nothing is saved, and leaving by the stairs goes back to the workshop with
-## the map still open.
+## the map still open. The open-air map can be tested the same way.
 ## Run with: godot --headless -s tests/playtest_map.gd
 
 var failures := 0
@@ -78,9 +78,30 @@ func _process(_delta: float) -> bool:
 				return false
 			var back := current_scene
 			check(back is LevelEditor, "the stairs do not lead back to the workshop")
-			if back is LevelEditor:
-				check(back.map.get_header("name") == "Probe", "the workshop lost the tested map")
-				check(back.dirty, "the workshop forgot the map was not saved")
+			if not back is LevelEditor:
+				return _finish()
+			check(back.map.get_header("name") == "Probe", "the workshop lost the tested map")
+			check(back.dirty, "the workshop forgot the map was not saved")
+			# The open-air map can be tested too.
+			back.open_file("res://levels/11_die_freiheit.txt")
+			back.playtest()
+			back.queue_free()
+			_step = 3
+			frames = 0
+		3:
+			if frames < 8:
+				return false
+			game = current_scene
+			check(game.get("playtest_file") != null and game.level is Outdoor and game.level.playtest, "the open-air map is not tested")
+			check(game.state == game.State.PLAYING, "the open-air test does not start at once")
+			check(game._outdoor_index() == game.level_files.size() - 1, "leaving a building leads to the game's own village, not the tested map")
+			game.back_to_editor()
+			_step = 4
+			frames = 0
+		4:
+			if frames < 4:
+				return false
+			check(current_scene is LevelEditor and current_scene.map.is_outdoor(), "the open-air test does not lead back to the workshop")
 			return _finish()
 	return false
 

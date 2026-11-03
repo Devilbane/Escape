@@ -84,6 +84,17 @@ func _check_palette() -> void:
 		check(Lang.EN.has(g[0]), "no English for the group \"%s\"" % g[0])
 	for text in EditorPalette.NAMES.values() + EditorPalette.NOTES.values():
 		check(Lang.EN.has(text), "no English for \"%s\"" % text)
+	# The open air has its own tiles, all of them in the palette too.
+	for letter in Tiles.OUTDOOR:
+		var groups := EditorPalette.OUTDOOR_GROUPS.filter(func(g): return g[1].contains(letter)).size()
+		check(groups == 1, "outdoor letter '%s' is in %d palette groups" % [letter, groups])
+		check(EditorPalette.OUTDOOR_NAMES.has(letter), "outdoor letter '%s' has no name in the palette" % letter)
+	for g in EditorPalette.OUTDOOR_GROUPS:
+		for letter in g[1]:
+			check(Tiles.OUTDOOR.has(letter), "outdoor palette letter '%s' is not in Tiles.OUTDOOR" % letter)
+		check(Lang.EN.has(g[0]), "no English for the group \"%s\"" % g[0])
+	for text in EditorPalette.OUTDOOR_NAMES.values() + EditorPalette.OUTDOOR_NOTES.values():
+		check(Lang.EN.has(text), "no English for \"%s\"" % text)
 
 
 func _check_shipped_maps() -> void:
@@ -264,11 +275,50 @@ func _check_editor() -> void:
 		if entry[0].begins_with("res://"):
 			editor.open_file(entry[0])
 			check(not LevelMap.has_errors(editor.issues), "%s shows errors in the workshop" % entry[0])
+	await _check_outdoor()
 	editor.open_file("res://levels/04_die_gruft.txt")
+	check(editor._tile_buttons.has("_") and not editor._tile_buttons.has("&"), "a dungeon after the open air keeps the outdoor tiles")
 	editor.show_page(0)
 	await process_frame
 	await _shot("editor_gruft")
 	_finish()
+
+
+## The open-air map: its own tiles, its size, painting and saving it.
+func _check_outdoor() -> void:
+	var side: Control = editor._page_scroll.get_parent().get_parent()
+	var side_rect := _rect(side)
+	editor.open_file("res://levels/11_die_freiheit.txt")
+	await process_frame
+	await process_frame
+	check(editor.map.is_outdoor() and editor.map.width() == 172, "the open-air map does not open")
+	check(editor._tile_buttons.has("&") and editor._tile_buttons.has("h") and not editor._tile_buttons.has("_"), "the palette does not show the open air's tiles")
+	check(not LevelMap.has_errors(editor.issues), "the open-air map shows errors: %s" % [editor.issues])
+	check(_rect(side) == side_rect, "the open-air map resizes the side panel")
+	for page in LevelEditor.PAGES.size():
+		editor.show_page(page)
+		await process_frame
+		check(_rect(side) == side_rect, "page %d of the open-air map resizes the side panel" % page)
+		_check_fits(page, "outdoor page %d" % page)
+	var canvas := editor.canvas
+	check(canvas.zoom >= EditorCanvas.MIN_ZOOM and canvas.zoom * 172 <= canvas.size.x + 1.0, "the open-air map does not fit in view (zoom %s)" % canvas.zoom)
+	# Painting a tree on the meadow and saving keeps the rest of the map as it was.
+	var meadow := editor.map.find_all(".")[0]
+	editor.pick_letter("T")
+	canvas.stroke_started.emit()
+	canvas._paint(meadow, "T")
+	check(editor.map.cell(meadow) == "T", "painting on the open-air map does not work")
+	check(editor.save_as(SAVE_FILE), "saving the open-air map fails")
+	var before := Array(FileAccess.get_file_as_string("res://levels/11_die_freiheit.txt").split("\n")).map(func(l): return l.strip_edges(false, true)).filter(func(l): return l != "")
+	var after := Array(FileAccess.get_file_as_string(SAVE_FILE).split("\n")).filter(func(l): return l != "")
+	var changed := 0
+	for i in mini(before.size(), after.size()):
+		if before[i] != after[i]:
+			changed += 1
+	check(before.size() == after.size() and changed == 1, "saving the open-air map changed %d lines, not 1" % changed)
+	editor.show_page(0)
+	canvas.zoom_at(canvas.size / 2.0, 3.0)
+	await _shot("editor_outdoor")
 
 
 func _shot(file: String) -> void:

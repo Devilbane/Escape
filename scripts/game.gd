@@ -226,6 +226,8 @@ var lore: Array = []
 var _knife_label: Label
 var _prompt: Label
 var _message: Label
+## The list of keys at the bottom left (see _setup_hud).
+var _help: Label
 ## Messages that came before the newest one, oldest first, kept above it
 ## while they are still being read (see show_message), so a new message
 ## never covers an unread one.
@@ -959,7 +961,11 @@ func _setup_hud() -> void:
 	_message = _message_line()
 	_message_box.add_child(_message)
 
+	# The keys at the bottom left help while the first steps are learned;
+	# after that they go, to keep the screen clear (all keys are in the
+	# compendium, H).
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.8))
+	_help = help
 	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -3859,11 +3865,15 @@ func _on_player_trained(id: String, value: int) -> void:
 		_:
 			text = Lang.t("Du wirst geübter: %s, Stufe %d") % [Lang.t(_skill_or_craft_name(id)), value]
 	var attribute := Training.ATTRIBUTES.has(id)
-	Effects.float_text(level, player.global_position + Vector3(0, 3.4, 0), text.get_slice(":", 1).strip_edges() if attribute else Lang.t(_skill_or_craft_name(id)) + " %d" % value,
-			GOLD if attribute else Color(0.65, 0.85, 1.0))
 	if attribute:
+		# A stronger body is rare and big: a word over the hero and a message.
+		Effects.float_text(level, player.global_position + Vector3(0, 3.4, 0), text.get_slice(":", 1).strip_edges(), GOLD)
 		Sfx.play(self, "secret", -6.0)
-	show_message(text, 3.5 if attribute else 2.4)
+		show_message(text, 3.5)
+	else:
+		# A skill grows often: one quiet line in the event log keeps the
+		# screen clear for the game.
+		Events.found(text, Color(0.65, 0.85, 1.0))
 	learn("Eigenschaften wachsen sehr langsam durch Tun: Kämpfen macht stärker (Stärke: +1 Schaden im Nahkampf je Punkt, Lasten wiegen weniger), Treffer einstecken macht zäher (Konstitution, +1 Leben je Punkt), Laufen und Springen machen schneller (Tempo bis 150 %), Springen, Werfen und Fallen machen geschickter (Geschick: +1 Schaden mit Wurfmessern und +4 % Ausweichen je Punkt, weiter springen), Durchsuchen und Geheimnisse schärfen das Gespür (Intuition, +2 % je Punkt, Geheimräume zu entdecken), und alles, was du durchstehst, macht dich weiser (Weisheit: du lernst 5 % schneller je Punkt, ab 12 bieten Schreine eine vierte Gabe), und Neues zu verstehen macht klüger (Intelligenz: Fertigkeiten lernen 10 % schneller und 3 % mehr Erfahrung je Punkt; manche Dinge wie der Zauberhut brauchen sie). Fertigkeiten wachsen schneller, aber nur mit der passenden Ausrüstung. Alles bleibt deinem Helden über alle Läufe.")
 	_update_hud()
 
@@ -4445,6 +4455,7 @@ func _process(delta: float) -> void:
 	_update_drag(delta)
 	_update_run_meter()
 	tutorial.update(delta)
+	_help.visible = tutorial.pending()
 	if state == State.PLAYING:
 		fishing.tick(delta)
 	elif fishing.is_fishing():

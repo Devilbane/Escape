@@ -96,12 +96,11 @@ func is_talking() -> bool:
 func _process(delta: float) -> void:
 	_bubble_time = maxf(0.0, _bubble_time - delta)
 	_bubble_hold = maxf(0.0, _bubble_hold - delta)
-	var alpha := move_toward(_bubble.modulate.a, 1.0 if _bubble_time > 0.0 else 0.0, delta * 4.0)
-	_bubble.modulate.a = alpha
-	_bubble.outline_modulate.a = alpha
-	_bubble.visible = alpha > 0.0
-	_name_tag.modulate.a = 1.0 - alpha
-	_name_tag.outline_modulate.a = 0.85 * (1.0 - alpha)
+	# What is said goes into the event log (see Events.say), not over the
+	# head: the bubble only keeps the line and stays hidden.
+	_bubble.visible = false
+	_name_tag.modulate.a = 1.0
+	_name_tag.outline_modulate.a = 0.85
 	if _turn_to != Vector3.INF:
 		var d := _turn_to - global_position
 		d.y = 0.0

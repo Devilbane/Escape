@@ -747,23 +747,17 @@ func _neighbours() -> Array:
 func _update_bubble(delta: float) -> void:
 	_bubble_time = maxf(0.0, _bubble_time - delta)
 	_bubble_hold = maxf(0.0, _bubble_hold - delta)
-	var target := 1.0 if _bubble_time > 0.0 else 0.0
-	var alpha := move_toward(_bubble.modulate.a, target, delta * 4.0)
-	if alpha != _bubble.modulate.a:
-		# The outline has its own alpha that ignores `modulate`: fade both,
-		# or the dark outline stays behind as black text over the head.
-		_bubble.modulate.a = alpha
-		_bubble.outline_modulate.a = alpha
-	_bubble.visible = alpha > 0.0
-	# The speech bubble already starts with the name: the plain name tag
-	# steps aside while it shows, and comes back when the talk is over.
+	# What is said is written into the event log at the left edge of the
+	# screen (see Events.say), not shown over the head: the bubble only keeps
+	# the line and stays hidden, and the name tag and quest mark stay on.
+	_bubble.visible = false
 	if _name_tag and _name_tag.visible:
-		_name_tag.modulate.a = 1.0 - alpha
-		_name_tag.outline_modulate.a = 0.85 * (1.0 - alpha)
-	# The quest mark steps aside too, and bobs gently while it shows.
+		_name_tag.modulate.a = 1.0
+		_name_tag.outline_modulate.a = 0.85
+	# The quest mark bobs gently while it shows.
 	if _quest_mark and _quest_mark.visible:
-		_quest_mark.modulate.a = 1.0 - alpha
-		_quest_mark.outline_modulate.a = 0.9 * (1.0 - alpha)
+		_quest_mark.modulate.a = 1.0
+		_quest_mark.outline_modulate.a = 0.9
 		_mark_time += delta
 		_quest_mark.position.y = _mark_base + 0.08 * sin(_mark_time * 3.0)
 	if _bubble_time <= 0.0:

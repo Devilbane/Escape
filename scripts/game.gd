@@ -105,6 +105,8 @@ var quests := Quests.new(self)
 var journal := Journal.new(self)
 ## The first steps in the cell, one card at a time (see Tutorial).
 var tutorial := Tutorial.new(self)
+## Loot and speech at the left edge of the screen (see EventLog).
+var event_log := EventLog.new()
 ## The card that shows a wall writing the hero noticed (see WritingCard).
 var writing_card := WritingCard.new(self)
 ## How many mornings have dawned in the world above ground since the game
@@ -132,9 +134,6 @@ var village_talk := VillageTalk.new(self)
 ## The villager whose goods or services are open in a window right now
 ## (role letter), "" for none: their discount applies (see trader_price).
 var trader_role := ""
-## Villagers who just came to think better of the hero, told together.
-var _reputation_news: Array[String] = []
-const REPUTATION_NEWS_DELAY := 4.6
 ## Counts down to the next look at who has a task (see refresh_quest_marks).
 var _quest_mark_timer := 0.0
 ## The town house on Weavers' Lane the hero is inside right now (see Homes),
@@ -343,6 +342,8 @@ func _bus_links() -> Array:
 		[bus.bounty_paid, xp_for_bounty],
 		[bus.riddle_solved, xp_for_riddle],
 		[bus.hero_acted, tutorial.on_hero_acted],
+		[bus.loot_found, event_log.add_loot],
+		[bus.speech_said, heard],
 	]
 
 
@@ -966,6 +967,8 @@ func _setup_hud() -> void:
 	help.offset_bottom = -26
 	_hud.add_child(help)
 
+	_hud.add_child(event_log)
+
 	var version := _make_label(TEXT_FONT, 14, Color(1, 1, 1, 0.4))
 	version.text = _version_text()
 	version.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
@@ -1276,7 +1279,7 @@ func _on_fox_dug_up(id: String, pos: Vector3) -> void:
 	level.lay_find(id, pos)
 	Effects.float_text(level, pos + Vector3(0, 2.0, 0), Crafting.ingredient_name(id), Color(0.75, 0.9, 1.0), true)
 	var fox_name: String = pet.given_name if is_instance_valid(pet) and pet.given_name != "" else Lang.t("Dein Fuchs")
-	show_message(Lang.t("%s hat etwas ausgegraben: %s!") % [fox_name, Crafting.ingredient_name(id)], 3.0)
+	Events.found(Lang.t("%s hat etwas ausgegraben: %s!") % [fox_name, Crafting.ingredient_name(id)])
 
 
 ## A dug-up ingredient goes into the ingredient pouch, not the bag.
@@ -1284,7 +1287,7 @@ func _on_ingredient_collected(id: String) -> void:
 	crafting.add(id)
 	Sfx.play(self, "key", -3.0)
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5), true)
-	show_message(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Crafting.ingredient_name(id), 3.5)
+	Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5))
 
 
 ## The fountain: full life and every ailment gone, as often as you like.
@@ -3272,6 +3275,22 @@ func level_hint(index: int) -> Dictionary:
 	return info
 
 
+## How far from the hero a spoken line is still heard and written into the
+## event log, in metres.
+const HEAR_RANGE := 14.0
+
+
+## A line someone said (see Events.say): into the event log when the hero is
+## near enough to hear it.
+func heard(speaker: String, text: String, pos: Vector3) -> void:
+	if player == null or not player.is_inside_tree():
+		return
+	var d := pos - player.global_position
+	d.y = 0.0
+	if d.length() <= HEAR_RANGE:
+		event_log.add_speech(speaker, text)
+
+
 ## News about a task (a new one, progress, done): a message and a word over
 ## the hero's head.
 func quest_news(text: String, color: Color, duration := 4.0) -> void:
@@ -3308,22 +3327,13 @@ func quest_reward(id: String) -> void:
 ## Several at once (word of mouth after a task) are told together, once the
 ## reward has been read.
 func reputation_rose(role: String, new_level: int) -> void:
-	var line := "%s: %s" % [Quests.villager_name(role), Reputation.level_name(new_level)]
+	# Only what changed, as one line in the event log: the whole list of
+	# villagers is in the compendium (H, "Ruf") for whoever wants to look.
+	var line := Lang.t("Ansehen bei %s: %s") % [Quests.villager_name(role), Reputation.level_name(new_level)]
 	var off := roundi(Reputation.LEVELS[new_level].discount * 100.0)
 	if off > 0:
 		line += Lang.t(" (%d%% Rabatt)") % off
-	if level and not _villager_talking_near_hero():
-		Effects.float_text(level, player.global_position + Vector3(0, 3.8, 0), line, Color(0.75, 0.6, 1.0), true)
-	_reputation_news.append(line)
-	if _reputation_news.size() == 1:
-		get_tree().create_timer(REPUTATION_NEWS_DELAY).timeout.connect(_show_reputation_news)
-
-
-func _show_reputation_news() -> void:
-	if _reputation_news.is_empty():
-		return
-	show_message(Lang.t("Dein Ruf im Dorf steigt:") + "\n" + "\n".join(_reputation_news), 5.0)
-	_reputation_news.clear()
+	Events.found(line, Menus.REPUTATION_COLOR)
 	learn(Reputation.HOW_TO)
 
 
@@ -3600,6 +3610,7 @@ func _on_key_collected() -> void:
 	player.play_flourish("PickUp", 0.6)
 	Sfx.play(self, "key")
 	show_message(Lang.t("Du hast den Schlüssel gefunden!"))
+	Events.found(Lang.t("Du hast den Schlüssel gefunden!"), GOLD)
 	player.train("weisheit", 3.0)
 	_update_hud()
 
@@ -3654,12 +3665,13 @@ func _on_item_collected(id: String) -> void:
 		note_find("ore", id, Items.ALL[id].name, player.global_position)
 	Sfx.play(self, "key", -3.0)
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Color(0.75, 0.9, 1.0), true)
-	show_message(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)] + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
+	Events.found(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)])
 	_update_hud()
 
 
 func _on_coins_collected(amount: int) -> void:
 	coins += _gold(amount)
+	Events.found(Lang.t("+%d Gold") % _gold(amount), GOLD)
 	Sfx.play_coins(self, _gold(amount))
 	_update_hud()
 
@@ -3923,11 +3935,13 @@ func _search(obj: Dictionary) -> void:
 		coins += _gold(loot.gold)
 		text = Lang.t("+%d Gold") % _gold(loot.gold)
 		color = GOLD
+		Events.found(text, GOLD)
 	elif loot.has("knives"):
 		player.knives += loot.knives
 		Sfx.play_after(self, found_after, "gear_metal_%d" % (randi() % 3), -8.0)
 		text = Lang.t("+%d Wurfmesser") % loot.knives
 		color = Color(0.8, 0.9, 1.0)
+		Events.found(text, color)
 	elif loot.has("potion"):
 		Sfx.play(self, "drink")
 		player.hp = mini(player.max_hp, player.hp + 2)
@@ -3935,13 +3949,14 @@ func _search(obj: Dictionary) -> void:
 		if player.cure():
 			text += "\n" + Lang.t("Dein Leiden ist geheilt.")
 		color = Color(1.0, 0.5, 0.55)
+		Events.found(text, color)
 	if loot.has("item"):
 		player.bag.append(loot.item)
 		Sfx.play_gear(self, loot.item, found_after + (0.25 if loot.has("gold") else 0.0))
 		var found := Lang.t("Gefunden: %s (%s)") % [Items.item_name(loot.item), Items.describe(loot.item)]
 		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
 		color = Color(0.75, 0.9, 1.0)
-		show_message(found + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
+		Events.found(found)
 	# An eye trained in exploring (Erkunden) finds a torch tucked away.
 	var torch := player.bag_fits(HandTorch.ITEM) and randi_range(1, 100) <= player.explore_bonus(Training.EXPLORE_TORCH)
 	if torch:
@@ -3951,10 +3966,12 @@ func _search(obj: Dictionary) -> void:
 		Sfx.play_gear(self, HandTorch.ITEM, found_after + 0.25)
 		text = Items.item_name(HandTorch.ITEM) if text.ends_with("leer") else text + "  +" + Items.item_name(HandTorch.ITEM)
 		if not loot.has("item"):
-			show_message(Lang.t("Dein geübtes Auge findet eine Fackel, die hier versteckt lag."), 2.4)
+			Events.found(Lang.t("Dein geübtes Auge findet eine Fackel, die hier versteckt lag."), Color(1.0, 0.75, 0.4))
+		else:
+			Events.found(Lang.t("Gefunden: %s") % Items.item_name(HandTorch.ITEM), Color(1.0, 0.75, 0.4))
 	Effects.float_text(level, obj.icon_pos, text, color, true)
 	if loot.is_empty() and not torch:
-		show_message(Lang.t("Du durchsuchst %s... nichts.") % Lang.t(_with_article(obj.label)), 1.2)
+		Events.found(Lang.t("Du durchsuchst %s... nichts.") % Lang.t(_with_article(obj.label)), Color(0.8, 0.8, 0.85))
 	_update_hud()
 
 

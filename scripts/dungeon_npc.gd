@@ -80,7 +80,9 @@ func talk(hero: Node3D) -> void:
 	var lines: Array = spec.get("lines", [])
 	if lines.is_empty():
 		return
-	_bubble.text = "%s:\n%s" % [display_name, Lang.t(lines[_line % lines.size()])]
+	var said := Lang.t(lines[_line % lines.size()])
+	_bubble.text = "%s:\n%s" % [display_name, said]
+	Events.say(display_name, said, global_position)
 	_line += 1
 	_bubble_time = Villager.SAY_TIME
 	_bubble_hold = Villager.MIN_SAY_TIME

@@ -192,12 +192,12 @@ func take(caught: String, pos: Vector3, on: Node) -> void:
 	game.player.play_flourish("PickUp", 0.6)
 	if caught == "":
 		Sfx.play(game, "drip", -4.0)
-		game.show_message(Lang.t("Nur Wasserkraut am Haken."), 1.8)
+		Events.found(Lang.t("Nur Wasserkraut am Haken."), Color(0.8, 0.8, 0.85))
 	elif caught == "muenze":
 		game.coins += 1
 		Sfx.play(game, "coin")
 		Effects.float_text(on, pos + Vector3(0, 1.4, 0), Lang.t("+%d Gold") % 1, game.GOLD, true)
-		game.show_message(Lang.t("Eine alte Münze, die jemand für sein Glück hineingeworfen hat. +1 Gold"), 2.6)
+		Events.found(Lang.t("Eine alte Münze, die jemand für sein Glück hineingeworfen hat. +1 Gold"), game.GOLD)
 	else:
 		game.crafting.add(caught)
 		var fish := Crafting.ingredient_name(caught)
@@ -207,10 +207,11 @@ func take(caught: String, pos: Vector3, on: Node) -> void:
 			burst.position = pos + Vector3(0, 0.5, 0)
 			on.add_child(burst)
 			Events.tell(Lang.t("Ein seltener Fang: %s!") % fish + "\n" + Lang.t("Der Fang kommt in deinen Zutatenbeutel."), Color(0.6, 0.85, 1.0))
+			Events.found(Lang.t("Ein seltener Fang: %s!") % fish, Color(0.6, 0.85, 1.0))
 		else:
 			Sfx.play(game, "drip")
 			Effects.float_text(on, pos + Vector3(0, 1.4, 0), fish, Color(0.75, 0.9, 1.0), true)
-			game.show_message(Lang.t("Gefangen: %s! Ab in den Zutatenbeutel.") % fish, 2.4)
+			Events.found(Lang.t("Gefangen: %s! Ab in den Zutatenbeutel.") % fish)
 		for id in game.crafting.caught_fish(caught):
 			game.show_message(Lang.t("Jetzt verstehst du eine verwischte Zeile im Rezept „%s“.") % Lang.t(Crafting.RECIPES[id].name), 3.5)
 	game._update_hud()

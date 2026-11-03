@@ -686,6 +686,7 @@ func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := fals
 	for other in _neighbours():
 		other.hush()
 	_bubble.text = "%s:\n%s" % [display_name, text]
+	Events.say(display_name, text, global_position)
 	_bubble_time = time
 	_bubble_hold = minf(time, MIN_SAY_TIME)
 	_look_at = look_at

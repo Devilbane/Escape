@@ -284,6 +284,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/message_overlap.gd | tee message_overlap.log
           grep -q PASS message_overlap.log
 
+      - name: Event log test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/event_log.gd | tee event_log.log
+          grep -q PASS event_log.log
+
       - name: Hero and skeletons cannot stack test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/no_stacking.gd | tee stacking.log

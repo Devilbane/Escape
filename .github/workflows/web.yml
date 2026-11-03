@@ -134,6 +134,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/shrine.gd | tee shrine.log
           grep -q PASS shrine.log
 
+      - name: Sitting on the benches of the market square test
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/seats.gd | tee seats.log
+          grep -q PASS seats.log && ! grep -q FAIL seats.log
+
       - name: Graveyard start after the escape test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/graveyard_start.gd | tee graveyard.log

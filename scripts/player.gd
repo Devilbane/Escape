@@ -564,6 +564,98 @@ func flourishing() -> bool:
 	return _flourish > 0.0
 
 
+# --- Sitting (see Seats) -------------------------------------------------------
+
+## The hero sits on a seat (a bench on the square): from sit_down until any
+## step, click, jump, attack or blow stands them up again (stand_up). There is
+## no lock: the very input that stands the hero up also moves them.
+var _seated := false
+## Where the hero stands again: just in front of the seat, clear of it.
+var _stand_spot := Vector3.ZERO
+## Seconds since sitting down, to go from sitting down to sitting still.
+var _sit_time := 0.0
+## The animation that lowers the hero onto the seat, and how long it takes.
+const SIT_DOWN_ANIM := "Sit_Chair_Down"
+const SIT_DOWN_TIME := 0.75
+const SIT_IDLE_ANIM := "Sit_Chair_Idle"
+
+## When the hero last stood up (on the _clock), and how long a bump into a
+## seat right after that does not sit them down again.
+var _stood_at := -INF
+const SIT_AGAIN := 0.5
+
+
+## Sits down at `spot` facing `towards`; `stand_spot` is where the hero
+## stands again. The hero's feet stay where the animation puts them, so
+## `spot` is on the ground in front of the seat's middle.
+func sit_down(spot: Vector3, towards: Vector3, stand_spot: Vector3) -> void:
+	path.clear()
+	_hunt = null
+	_target = null
+	velocity = Vector3.ZERO
+	_knockback = Vector3.ZERO
+	_air_momentum = Vector3.ZERO
+	_flourish = 0.0
+	_seated = true
+	_stand_spot = stand_spot
+	_sit_time = 0.0
+	global_position = spot
+	face(towards)
+	_anim.get_animation(SIT_IDLE_ANIM).loop_mode = Animation.LOOP_LINEAR
+	_current_anim = ""
+	play(SIT_DOWN_ANIM, 0.15)
+
+
+func is_seated() -> bool:
+	return _seated
+
+
+## Gets up from the seat at once, back on the spot in front of it. Does
+## nothing while standing.
+func stand_up() -> void:
+	if not _seated:
+		return
+	_seated = false
+	_stood_at = _clock
+	global_position = _stand_spot
+	velocity = Vector3.ZERO
+	_current_anim = ""
+	play("Idle", 0.15)
+
+
+## True while the hero has just stood up and keeps running into the seat
+## (each bump keeps it true), so holding a key towards a bench does not sit
+## them down again and again. Once they let go for SIT_AGAIN seconds, running
+## into the seat sits them down as usual.
+func still_getting_up() -> bool:
+	if _clock - _stood_at < SIT_AGAIN:
+		_stood_at = _clock
+		return true
+	return false
+
+
+## While seated: any wish to move stands the hero up (and the same frame
+## goes on to move them); otherwise they sit still. True while still seated.
+func _stay_seated(delta: float) -> bool:
+	if not _seated:
+		return false
+	var wish := Vector3.ZERO
+	if controllable:
+		wish = _keyboard_direction()
+		if wish == Vector3.ZERO:
+			wish = steer
+	if dead or wish != Vector3.ZERO or not path.is_empty() or _hunt != null:
+		stand_up()
+		return false
+	velocity = Vector3.ZERO
+	_model.visible = true
+	_sit_time += delta
+	if _sit_time >= SIT_DOWN_TIME:
+		play(SIT_IDLE_ANIM, 0.3)
+	_anim.speed_scale = 1.0
+	return true
+
+
 func face(direction: Vector3) -> void:
 	_model.rotation.y = atan2(direction.x, direction.z)
 
@@ -587,6 +679,7 @@ func revive(at: Vector3, heal := true) -> void:
 	_invulnerable = 1.5
 	_busy = 0.0
 	_flourish = 0.0
+	_seated = false
 	_falling = 0.0
 	_down = 0.0
 	_run_hits.clear()
@@ -600,6 +693,7 @@ func revive(at: Vector3, heal := true) -> void:
 ## up to a thing standing there (a chest, a barrel, the merchant) and stops
 ## that far from its middle, instead of waiting a whole tile away.
 func walk_to(target: Vector3, stop_short := 0.0) -> void:
+	stand_up()
 	var from := level.set_out_cell(global_position)
 	var to := level.world_to_cell(target)
 	path.clear()
@@ -666,6 +760,7 @@ func is_running() -> bool:
 ## A jump from a run keeps its momentum and flies further the faster the
 ## hero runs; a standing jump goes straight up.
 func jump() -> void:
+	stand_up()
 	if not controllable or frozen or dead or not is_on_floor() or is_climbing():
 		return
 	_air_momentum = Vector3.ZERO
@@ -751,6 +846,7 @@ func would_splash() -> bool:
 ## kind of blow is chosen as the swing starts and kept even if the crowd
 ## shifts before the blade lands.
 func melee() -> void:
+	stand_up()
 	if not can_act() or _attack_cooldown > 0.0:
 		return
 	path.clear()
@@ -802,6 +898,7 @@ func melee() -> void:
 ## Throws a knife at `aim` (a world position), or at the closest enemy in sight.
 ## On the move the hero throws without stopping.
 func throw_knife(aim = null, on_the_move := false) -> void:
+	stand_up()
 	if not can_act() or _attack_cooldown > 0.0:
 		return
 	if knives <= 0:
@@ -845,6 +942,7 @@ func _engage(enemy: Enemy) -> void:
 ## Sent after an enemy with a click: the hero walks up to it and, once it
 ## is in reach, keeps striking it (see _pursue and _auto_attack).
 func charge(enemy: Enemy) -> void:
+	stand_up()
 	if enemy == null or enemy.dead or enemy.is_friend() or dead:
 		return
 	_engage(enemy)
@@ -1520,6 +1618,8 @@ const THORNS_DAMAGE := 1
 func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable := true) -> void:
 	if dead or _invulnerable > 0.0 or _down > 0.0 or frozen:
 		return
+	# A blow or a trap never finds the hero sitting idly.
+	stand_up()
 	if blockable:
 		mark_fight() # A blow or a shot, blocked or not; spikes are no fight.
 		defend_against(attacker)
@@ -1769,6 +1869,8 @@ func _physics_process(delta: float) -> void:
 	_regenerate(delta)
 	_pursue(delta)
 	_auto_attack()
+	if _stay_seated(delta):
+		return
 	if _climb >= 0.0:
 		_climb_step(delta)
 		return

@@ -3411,7 +3411,8 @@ func _land_below(damage: int) -> void:
 		# floor below is the one they came from. It is not a floor cleared, so
 		# it does not count towards dry_levels.
 		Training.save_hero(hero_name, player.xp, player.level_data())
-		load_level(level_index - 1)
+		level.note_left()
+		load_level(level_index - 1, false)
 	else:
 		load_level(interiors[level.down_to], false)
 	player.global_position = level.cell_to_world(Traps.landing_cell(level))
@@ -3980,6 +3981,8 @@ func _next_level() -> void:
 	player.train("weisheit", 10.0)
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	dry_levels = 0 if level.secret_opened() else dry_levels + 1
+	if level.building == "" and not level.outdoor:
+		level.note_left()
 	if level_index + 1 >= level_files.size():
 		_end_run(true)
 		return

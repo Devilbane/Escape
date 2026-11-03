@@ -105,8 +105,23 @@ func _check_layout() -> void:
 	game._update_hud()
 	check(is_equal_approx(game._hp_bar.value, hero.hp) and is_equal_approx(game._hp_bar.max_value, hero.max_hp), "the life bar shows the hero's life")
 	check(game._hp_label.text == "%d / %d" % [hero.hp, hero.max_hp], "with the numbers on it: %s" % game._hp_label.text)
+	# Poison turns it green.
+	hero.ailments["gift"] = 5.0
+	game._update_hud()
+	check(game._hp_fill.bg_color == game.HP_POISON_COLOR, "the life bar is green while poisoned")
+	hero.ailments.erase("gift")
+	game._update_hud()
+	check(game._hp_fill.bg_color != game.HP_POISON_COLOR, "and red again after")
 	game.state = game.State.PLAYING
-	game._place_hp_bar()
+	var ground: Vector3 = hero.global_position
+	var settled: Vector3 = game.camera.global_position
+	game._place_hp_bar(ground, settled)
+	var steady: Vector2 = game._hp_bar.position
+	# The camera shaking or catching up does not move the bar.
+	game.camera.global_position = settled + Vector3(0.3, 0.2, -0.25)
+	game._place_hp_bar(ground, settled)
+	check(game._hp_bar.position == steady, "the life bar stays put while the camera shakes")
+	game.camera.global_position = settled
 	check(game._hp_bar.visible, "the life bar shows while playing")
 	var feet: Vector2 = game.camera.unproject_position(hero.global_position)
 	var bar: Rect2 = game._hp_bar.get_global_rect()

@@ -220,6 +220,7 @@ const HP_BAR_GAP := 6.0
 const HP_BAR_REACH := 1.5
 const HP_COLOR := Color(0.78, 0.2, 0.2)
 const HP_LOW_COLOR := Color(1.0, 0.35, 0.25)
+const HP_POISON_COLOR := Color(0.35, 0.75, 0.25)
 ## The run meter: seconds of running left, as a bar and in numbers.
 var _run_bar: ProgressBar
 var _xp_bar: ProgressBar
@@ -1710,8 +1711,11 @@ func _update_hud() -> void:
 	_hp_bar.max_value = maxi(1, player.max_hp)
 	_hp_bar.value = clampi(player.hp, 0, player.max_hp)
 	_hp_label.text = "%d / %d" % [maxi(0, player.hp), player.max_hp]
-	# Low life turns the bar a brighter warning red.
-	_hp_fill.bg_color = HP_LOW_COLOR if player.hp * 4 <= player.max_hp else HP_COLOR
+	# Poison turns the bar green; low life a brighter warning red.
+	if player.ailments.has("gift"):
+		_hp_fill.bg_color = HP_POISON_COLOR
+	else:
+		_hp_fill.bg_color = HP_LOW_COLOR if player.hp * 4 <= player.max_hp else HP_COLOR
 	_hardening_label.text = Lang.t("Härtung %d") % player.hardening if player.hardening > 0 else ""
 	var gifts := []
 	if player.power > 1:
@@ -3340,23 +3344,29 @@ func heard(speaker: String, text: String, pos: Vector3) -> void:
 		event_log.add_speech(speaker, text)
 
 
-## Keeps the life bar centred under the hero's feet on screen.
-func _place_hp_bar() -> void:
+## Keeps the life bar at one steady spot under the hero on screen. It is
+## placed as seen from where the camera settles (`cam_at`) for the hero
+## standing at `ground` (feet, not lifted by a jump), so it neither jitters
+## with the camera catching up or shaking nor bobs with jumps.
+func _place_hp_bar(ground: Vector3, cam_at: Vector3) -> void:
 	var on_screen := state == State.PLAYING and player != null and player.is_inside_tree() and not player.dead \
-			and camera != null and not camera.is_position_behind(player.global_position)
+			and camera != null
 	_hp_bar.visible = on_screen
-	if on_screen:
-		var feet := player.global_position
-		# The bar starts below everything the hero can reach on screen: a
-		# ring of HP_BAR_REACH round the feet, on the ground and at blade
-		# height, whichever way the hero faces or swings.
-		var lowest := camera.unproject_position(feet).y
-		for i in 16:
-			var ring := Vector3(cos(TAU * i / 16.0), 0.0, sin(TAU * i / 16.0)) * HP_BAR_REACH
-			for height in [0.0, 1.2]:
-				lowest = maxf(lowest, camera.unproject_position(feet + ring + Vector3(0, height, 0)).y)
-		var x := camera.unproject_position(feet).x
-		_hp_bar.position = Vector2(x - HP_BAR_SIZE.x / 2.0, lowest + HP_BAR_GAP).round()
+	if not on_screen:
+		return
+	var real := camera.global_position
+	camera.global_position = cam_at
+	# The bar starts below everything the hero can reach on screen: a ring
+	# of HP_BAR_REACH round the feet, on the ground and at blade height,
+	# whichever way the hero faces or swings.
+	var lowest := camera.unproject_position(ground).y
+	for i in 16:
+		var ring := Vector3(cos(TAU * i / 16.0), 0.0, sin(TAU * i / 16.0)) * HP_BAR_REACH
+		for height in [0.0, 1.2]:
+			lowest = maxf(lowest, camera.unproject_position(ground + ring + Vector3(0, height, 0)).y)
+	var x := camera.unproject_position(ground).x
+	camera.global_position = real
+	_hp_bar.position = Vector2(x - HP_BAR_SIZE.x / 2.0, lowest + HP_BAR_GAP).round()
 
 
 ## News about a task (a new one, progress, done): a message and a word over
@@ -4511,7 +4521,7 @@ func _process(delta: float) -> void:
 		_shake = maxf(0.0, _shake - delta)
 		var strength := 0.25 * minf(1.0, _shake)
 		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
-	_place_hp_bar()
+	_place_hp_bar(p, target)
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)

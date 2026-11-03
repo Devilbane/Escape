@@ -310,7 +310,7 @@ const LEVER_STEPS := 10
 ## it while walking past in view (see _check_writing): one roll per visit,
 ## WRITING_CHANCE % plus what the Erkunden skill adds, from WRITING_RANGE;
 ## a hero who walks right up to it (WRITING_SURE_RANGE) always notices it.
-## A noticed writing gets an amber frame, like a spotted trap, stays known
+## A noticed writing pops up on a card (see WritingCard), stays known
 ## on later visits (in taken) and can be read again by running into the
 ## wall (a "tafel" station). Each is the word
 ## carved into the stone and what it says (German, for Lang). The carved word
@@ -333,12 +333,19 @@ const WRITING_CHANCE := 50
 const WRITING_RANGE := 8.0
 ## Within this many metres, in view, the hero notices a writing for sure.
 const WRITING_SURE_RANGE := 5.0
-## The frame round a noticed writing: the same amber as a spotted trap's.
-const WRITING_FRAME_COLOR := Color(1.0, 0.62, 0.25)
+## The colour of the card that shows a noticed writing (see WritingCard):
+## the same amber as a spotted trap's frame.
+const WRITING_COLOR := Color(1.0, 0.62, 0.25)
+## The carved word's largest font size, and the smallest it shrinks to.
+const WRITING_FONT_SIZE := 64
+const WRITING_FONT_MIN := 28
+## How wide the carved word may be at most: a wall piece is one TILE wide,
+## and the pillars at its ends take a little of it.
+const WRITING_MAX_WIDTH := 3.2
 ## Kept in taken once the hero has noticed this level's writing.
 const WRITING_KEY := "writing:found"
 ## This level's writing: {"cell", "label" (the carved word, hidden until
-## found), "frame", "word", "text", "rolled", "found", "station"}. Empty in
+## found), "word", "text", "rolled", "found", "station"}. Empty in
 ## the open air, in buildings and at home.
 var _writing := {}
 ## Seconds between pulling the lever and the stone starting to move.
@@ -1646,8 +1653,8 @@ func _place_writing() -> void:
 	# Lang.t already chose the language; do not translate the label again.
 	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
-	label.font_size = 72
 	label.pixel_size = 0.01
+	label.font_size = writing_font_size(label.font, label.text, label.pixel_size)
 	label.outline_size = 6
 	# Pale scratches in the dark stone.
 	label.modulate = Color(0.9, 0.86, 0.74)
@@ -1659,47 +1666,28 @@ func _place_writing() -> void:
 	label.rotation.y = wall.rot
 	label.visible = false
 	add_child(label)
-	var frame := _writing_frame(label)
 	# Run into the wall to read a noticed writing again.
 	var station := {"kind": "tafel", "cell": wall.cell + Vector2i(0, -1), "pos": wall.pos + facing * 0.5,
 			"used": false, "text": entry[1]}
-	_writing = {"cell": wall.cell, "label": label, "frame": frame, "word": entry[0], "text": entry[1],
+	_writing = {"cell": wall.cell, "label": label, "word": entry[0], "text": entry[1],
 			"rolled": false, "found": false, "station": station}
 	if taken.has(WRITING_KEY):
 		# Noticed on an earlier visit: it shows at once, without news.
 		_writing.found = true
 		_writing.rolled = true
 		label.visible = true
-		frame.visible = true
 		stations.append(station)
 
 
-## An amber frame round a carved word, a little away from the stone, so a
-## noticed writing stands out as "something" from across the room.
-func _writing_frame(label: Label3D) -> Node3D:
-	var size := label.font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, label.font_size) * label.pixel_size
-	var w := size.x + 0.9
-	var h := size.y + 0.5
-	var frame := Node3D.new()
-	frame.position = label.position + Vector3(sin(label.rotation.y), 0, cos(label.rotation.y)) * -0.02
-	frame.rotation.y = label.rotation.y
-	frame.visible = false
-	var glow := StandardMaterial3D.new()
-	glow.albedo_color = WRITING_FRAME_COLOR
-	glow.emission_enabled = true
-	glow.emission = WRITING_FRAME_COLOR
-	glow.emission_energy_multiplier = 0.9
-	for bar in [[Vector3(0, h / 2, 0), Vector3(w + 0.12, 0.12, 0.04)], [Vector3(0, -h / 2, 0), Vector3(w + 0.12, 0.12, 0.04)],
-			[Vector3(w / 2, 0, 0), Vector3(0.12, h, 0.04)], [Vector3(-w / 2, 0, 0), Vector3(0.12, h, 0.04)]]:
-		var mesh := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = bar[1]
-		mesh.mesh = box
-		mesh.material_override = glow
-		mesh.position = bar[0]
-		frame.add_child(mesh)
-	add_child(frame)
-	return frame
+## The largest font size, up to WRITING_FONT_SIZE, at which a carved word
+## fits on one wall piece (WRITING_MAX_WIDTH) in either
+## language: a long word such as FREIHEIT is carved smaller.
+static func writing_font_size(font: Font, text: String, pixel_size: float) -> int:
+	var room := WRITING_MAX_WIDTH
+	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, WRITING_FONT_SIZE).x * pixel_size
+	if width <= room:
+		return WRITING_FONT_SIZE
+	return maxi(WRITING_FONT_MIN, floori(WRITING_FONT_SIZE * room / width))
 
 
 ## This level's writing (see _writing), for the tests.
@@ -1746,10 +1734,6 @@ func reveal_writing() -> void:
 	var tween := create_tween()
 	tween.tween_property(label, "modulate:a", 1.0, 1.2)
 	tween.parallel().tween_property(label, "outline_modulate:a", 1.0, 1.2)
-	var frame: Node3D = _writing.frame
-	frame.visible = true
-	frame.scale = Vector3(1.25, 1.25, 1.0)
-	create_tween().tween_property(frame, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_BACK)
 	taken[WRITING_KEY] = true
 	if not stations.has(_writing.station):
 		stations.append(_writing.station)

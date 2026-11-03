@@ -182,8 +182,8 @@ torch when you search a chest, barrel, crate, shelf or table, 8 % to notice the 
 spot a hidden trap.
 Every level of the dungeon has one writing scratched into a plain wall: you get one chance to notice it from a
 distance each time you walk past it (50 % plus Exploring), and you always notice it when you walk right up to it.
-A noticed writing gets an amber frame and pops up on a card with its word and what it says; run into the wall to
-read it again. Found writings stay framed on later visits and go into the compendium and the journal.
+A noticed writing pops up on a card with its word and what it says; run into the wall to read it again.
+Found writings stay visible on later visits and go into the compendium and the journal.
 Some items add levels themselves (shadow cloak +2 Sneaking, crest shield +1 Blocking,
 chain mail +1 Wearing armour, silver bracelet +1 Knife throwing). Everything is shown in the inventory, with the progress
 towards the next point. What your hero has learned stays saved with their name, even across new games.

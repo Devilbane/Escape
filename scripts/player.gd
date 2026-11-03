@@ -177,6 +177,11 @@ const FIGHT_SNEAK_BLOCK := 2.0
 const SNEAK_SPEED := 0.4
 const SNEAK_ANIM := "Walking_C"
 var _lantern: OmniLight3D
+## See set_night_dim: how far the night closes in on the lantern, and what
+## is left of its brightness and reach on a moonless night.
+var night_dim := 0.0
+const NIGHT_LANTERN_ENERGY := 0.65
+const NIGHT_LANTERN_RANGE := 0.7
 ## The hand torch that burns in the pitch-black places (see HandTorch).
 var torch: HandTorch
 var _shown_alpha := -1.0
@@ -313,9 +318,27 @@ func mark_fight() -> void:
 ## Switches between walking normally and sneaking.
 func set_sneaking(on: bool) -> void:
 	sneaking = on
-	# A hooded lantern: just enough to see the floor, too little to be seen by.
-	_lantern.light_energy = 0.45 if on else 1.1
-	_lantern.omni_range = 5.0 if on else 8.5
+	_light_lantern()
+
+
+## How much the dark of the night above ground closes in on the lantern: 0
+## by day, in the dungeon and under a full moon, 1 on a moonless night (see
+## Game._moonlight). Then the glow shows the hero and a step or two around,
+## and the rest of the night stays dark.
+func set_night_dim(dim: float) -> void:
+	dim = clampf(dim, 0.0, 1.0)
+	if is_equal_approx(dim, night_dim):
+		return
+	night_dim = dim
+	if not (torch and torch.in_dark()):
+		_light_lantern()
+
+
+## The lantern as bright and wide as the hood and the night allow. A hooded
+## lantern: just enough to see the floor, too little to be seen by.
+func _light_lantern() -> void:
+	_lantern.light_energy = (0.45 if sneaking else 1.1) * lerpf(1.0, NIGHT_LANTERN_ENERGY, night_dim)
+	_lantern.omni_range = (5.0 if sneaking else 8.5) * lerpf(1.0, NIGHT_LANTERN_RANGE, night_dim)
 
 
 ## Whether skeletons could see the hero by some light, the lantern included.

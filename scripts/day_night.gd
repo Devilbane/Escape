@@ -28,10 +28,10 @@ const NIGHT_UNTIL := 5.0
 ## the light is the moon's (0 to 1). The night keys are the full moon's
 ## silver light; a smaller moon dims them (see Moon.light).
 const KEYS := [
-	{"hour": 0.0, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.16,
-		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.34, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
-	{"hour": 4.5, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.16,
-		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.34, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
+	{"hour": 0.0, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.12,
+		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.28, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
+	{"hour": 4.5, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.12,
+		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.28, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
 	{"hour": 6.0, "bg": Color(0.5, 0.36, 0.42), "amb": Color(0.78, 0.62, 0.66), "amb_e": 0.4,
 		"sun": Color(1.0, 0.62, 0.42), "sun_e": 0.55, "pitch": -20.0, "yaw": -95.0, "sat": 0.92, "glow": 0.5, "moon": 0.0},
 	# Daylight: exactly the open-air look the game had before the clock.
@@ -41,10 +41,10 @@ const KEYS := [
 		"sun": Color(1.0, 0.8, 0.6), "sun_e": 0.88, "pitch": -38.0, "yaw": 0.0, "sat": 0.95, "glow": 0.0, "moon": 0.0},
 	{"hour": 19.5, "bg": Color(0.55, 0.32, 0.3), "amb": Color(0.8, 0.58, 0.55), "amb_e": 0.42,
 		"sun": Color(1.0, 0.52, 0.3), "sun_e": 0.6, "pitch": -16.0, "yaw": 25.0, "sat": 0.95, "glow": 0.55, "moon": 0.0},
-	{"hour": 21.0, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.16,
-		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.34, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
-	{"hour": 24.0, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.16,
-		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.34, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
+	{"hour": 21.0, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.12,
+		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.28, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
+	{"hour": 24.0, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.12,
+		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.28, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
 ]
 
 

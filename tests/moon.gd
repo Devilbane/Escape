@@ -80,6 +80,8 @@ func _phases() -> void:
 	var full := _night_of(Moon.FULL)
 	var dark := _night_of(Moon.NEW)
 	check(Moon.light(full) > Moon.light(dark), "the full moon is brighter than the new moon")
+	check(Moon.light(dark + 1) < Moon.light(full) * 0.15, "a thin crescent is almost as dark as no moon")
+	check(Moon.light(dark + 2) < Moon.light(full) * 0.5, "the half moon is only dimly lit")
 	for n in Moon.CYCLE:
 		check(Moon.light(n) >= Moon.DARKEST - 0.001 and Moon.light(n) <= Moon.BRIGHTEST + 0.001, "the moonlight stays within its bounds")
 	check(Moon.nights_until(full, Moon.FULL) == 0, "tonight counts as zero nights to the full moon")
@@ -160,6 +162,7 @@ func _full_moon() -> void:
 	game.day_hour = 23.0
 	game._tick_clock(0.0)
 	check(game._moon.light_energy > 0.0 and is_equal_approx(game._moon.light_energy, bright), "the night is lit the same each full moon")
+	check(is_equal_approx(game.player._lantern.omni_range, 8.5), "under the full moon the hero's lantern reaches as far as by day")
 	check(game.lore.has(Moon.LORE), "the moon goes into the compendium's knowledge")
 
 
@@ -172,7 +175,9 @@ func _new_moon() -> void:
 	var out: Outdoor = game.level
 	check(game._moon.light_energy < bright, "the new moon night is darker than the full moon night")
 	check(game._moon.light_energy < bright * 0.15, "a new moon night is nearly black: the moon is the night's only light")
-	check(game._env.ambient_light_energy < 0.03, "and the new moon leaves hardly any ambient light")
+	check(game._env.ambient_light_energy < 0.01, "and the new moon leaves the night nearly pitch dark")
+	check(game._moon.light_energy > 0.0, "but a trace of moonlight still shows the shapes of things")
+	check(game.player._lantern.omni_range < 8.5 * 0.8 and game.player._lantern.light_energy < 1.1 * 0.8, "the hero's lantern shows only a small pool on a moonless night")
 	check(game._clock_text().contains(Lang.t("Neumond")), "the HUD clock names the new moon")
 	check(out.holes_breathe(), "the holes breathe at new moon")
 	check(out._breaths.size() == out.holes.size() and out._breaths.all(func(b): return b.emitting), "a dark breath rises out of every hole")

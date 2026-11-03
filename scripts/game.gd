@@ -573,6 +573,8 @@ func _set_atmosphere(outdoor: bool) -> void:
 		Weather.apply(_env, _moon, _weather_look)
 	else:
 		Weather.clear_air(_env)
+		if player:
+			player.set_night_dim(0.0)
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
 		_env.ambient_light_energy = 0.3
@@ -1922,6 +1924,9 @@ func _tick_clock(delta: float) -> void:
 ## dusk and dawn look the same whatever the moon.
 func _moonlight() -> void:
 	var bright := _night_light()
+	# The hero's lantern shrinks to a small pool as the night darkens.
+	if player:
+		player.set_night_dim(1.0 - bright)
 	if bright >= 1.0:
 		return
 	_moon.light_energy *= bright

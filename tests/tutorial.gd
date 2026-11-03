@@ -68,7 +68,8 @@ func _test() -> void:
 	t = game.tutorial
 	game.hero_name = HERO
 	game.hints_shown.clear()
-	check(Events.bus().hero_acted.get_connections().size() == 1, "the tutorial listens to the hero's actions once")
+	var tutorial_links := Events.bus().hero_acted.get_connections().filter(func(c): return c.callable == Callable(t, "on_hero_acted"))
+	check(tutorial_links.size() == 1, "the tutorial listens to the hero's actions once")
 	_check_card_size()
 
 	_enter_cell()

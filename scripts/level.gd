@@ -315,21 +315,45 @@ const LEVER_STEPS := 10
 ## A noticed writing pops up on a card (see WritingCard), stays known
 ## on later visits (in taken) and can be read again by running into the
 ## wall (a "tafel" station). Each is the word
-## carved into the stone and what it says (German, for Lang). The carved word
+## written in blood on the stone and what it says (German, for Lang). The word
 ## is in the player's language too, so it reads as a hint: a Latin word such
 ## as CAVE ("beware") read as the English "cave" and meant nothing.
 const WRITINGS := [
-	["HOFFNUNG", "Jemand hat in die Wand geritzt: „Gib nicht auf. Ich bin hier auch hinausgekommen.“"],
-	["FACKELN", "In die Wand geritzt: „Nicht jede Fackel ist nur eine Fackel.“"],
-	["IIII IIII IIII", "Striche in der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt."],
-	["LICHT", "In die Wand geritzt: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“"],
-	["GOLD", "In die Wand geritzt: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“"],
-	["LEISE", "In die Wand geritzt: „Die Toten hören schlecht. Wer leise geht, kommt weit.“"],
-	["SUCHE", "In die Wand geritzt: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“"],
-	["WASSER", "In die Wand geritzt: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“"],
-	["EISEN", "In die Wand geritzt: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“"],
-	["FREIHEIT", "In die Wand geritzt: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“"],
+	["HOFFNUNG", "Jemand hat mit Blut an die Wand geschrieben: „Gib nicht auf. Ich bin hier auch hinausgekommen.“"],
+	["FACKELN", "Mit Blut an die Wand geschrieben: „Nicht jede Fackel ist nur eine Fackel.“"],
+	["IIII IIII IIII", "Blutige Striche an der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt."],
+	["LICHT", "Mit Blut an die Wand geschrieben: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“"],
+	["GOLD", "Mit Blut an die Wand geschrieben: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“"],
+	["LEISE", "Mit Blut an die Wand geschrieben: „Die Toten hören schlecht. Wer leise geht, kommt weit.“"],
+	["SUCHE", "Mit Blut an die Wand geschrieben: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“"],
+	["WASSER", "Mit Blut an die Wand geschrieben: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“"],
+	["EISEN", "Mit Blut an die Wand geschrieben: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“"],
+	["FREIHEIT", "Mit Blut an die Wand geschrieben: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“"],
 ]
+## The writings' texts before they were written in blood, and what they
+## are now: a saved compendium keeps the new text (see Game.load).
+const OLD_WRITINGS := {
+	"Jemand hat in die Wand geritzt: „Gib nicht auf. Ich bin hier auch hinausgekommen.“":
+		"Jemand hat mit Blut an die Wand geschrieben: „Gib nicht auf. Ich bin hier auch hinausgekommen.“",
+	"In die Wand geritzt: „Nicht jede Fackel ist nur eine Fackel.“":
+		"Mit Blut an die Wand geschrieben: „Nicht jede Fackel ist nur eine Fackel.“",
+	"Striche in der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt.":
+		"Blutige Striche an der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt.",
+	"In die Wand geritzt: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“":
+		"Mit Blut an die Wand geschrieben: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“",
+	"In die Wand geritzt: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“":
+		"Mit Blut an die Wand geschrieben: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“",
+	"In die Wand geritzt: „Die Toten hören schlecht. Wer leise geht, kommt weit.“":
+		"Mit Blut an die Wand geschrieben: „Die Toten hören schlecht. Wer leise geht, kommt weit.“",
+	"In die Wand geritzt: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“":
+		"Mit Blut an die Wand geschrieben: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“",
+	"In die Wand geritzt: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“":
+		"Mit Blut an die Wand geschrieben: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“",
+	"In die Wand geritzt: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“":
+		"Mit Blut an die Wand geschrieben: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“",
+	"In die Wand geritzt: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“":
+		"Mit Blut an die Wand geschrieben: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“",
+}
 const WRITING_CHANCE := 50
 ## How close the hero must come to a writing to have a chance to notice it.
 const WRITING_RANGE := 8.0
@@ -344,6 +368,11 @@ const WRITING_FONT_MIN := 28
 ## How wide the carved word may be at most: a wall piece is one TILE wide,
 ## and the pillars at its ends take a little of it.
 const WRITING_MAX_WIDTH := 3.2
+## The blood the writings are smeared in, and its dark edges and dried stains.
+const WRITING_BLOOD := Color(0.6, 0.04, 0.03)
+const WRITING_BLOOD_DARK := Color(0.2, 0.01, 0.01)
+## How long the trickles under a writing's letters run (metres).
+const WRITING_DRIP_LENGTH := Vector2(0.15, 0.7)
 ## Kept in taken once the hero has noticed this level's writing.
 const WRITING_KEY := "writing:found"
 ## This level's writing: {"cell", "label" (the carved word, hidden until
@@ -1688,10 +1717,10 @@ func _place_writing() -> void:
 	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
 	label.pixel_size = 0.01
 	label.font_size = writing_font_size(label.font, label.text, label.pixel_size)
-	label.outline_size = 6
-	# Pale scratches in the dark stone.
-	label.modulate = Color(0.9, 0.86, 0.74)
-	label.outline_modulate = Color(0.12, 0.1, 0.08)
+	label.outline_size = 4
+	# Smeared on the stone in blood.
+	label.modulate = WRITING_BLOOD
+	label.outline_modulate = WRITING_BLOOD_DARK
 	label.double_sided = false
 	# Flat on the wall, facing into the room, at eye height.
 	var facing := Vector3(sin(wall.rot), 0, cos(wall.rot))
@@ -1699,10 +1728,12 @@ func _place_writing() -> void:
 	label.rotation.y = wall.rot
 	label.visible = false
 	add_child(label)
+	var drips := _writing_drips(label, rng)
+	_writing_arrow(wall.pos, facing, rng)
 	# Run into the wall to read a noticed writing again.
 	var station := {"kind": "tafel", "cell": wall.cell + Vector2i(0, -1), "pos": wall.pos + facing * 0.5,
 			"used": false, "text": entry[1]}
-	_writing = {"cell": wall.cell, "label": label, "word": entry[0], "text": entry[1],
+	_writing = {"cell": wall.cell, "label": label, "drips": drips, "word": entry[0], "text": entry[1],
 			"rolled": false, "found": false, "station": station}
 	if taken.has(WRITING_KEY):
 		# Noticed on an earlier visit: it shows at once, without news.
@@ -1710,6 +1741,97 @@ func _place_writing() -> void:
 		_writing.rolled = true
 		label.visible = true
 		stations.append(station)
+
+
+## Blood running down from the letters: thin trickles under the word, each
+## ending in a drop, hanging from a pivot at its top so it can run down when
+## the writing is noticed (see reveal_writing). Children of the label, so
+## they show with it.
+func _writing_drips(label: Label3D, rng: RandomNumberGenerator) -> Array:
+	var size := label.font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, label.font_size) * label.pixel_size
+	var blood := _blood_material(true)
+	var drips: Array = []
+	var count := clampi(int(size.x / 0.32), 3, 10)
+	for i in count:
+		var pivot := Node3D.new()
+		var x := (float(i) + rng.randf_range(0.2, 0.8)) / count * size.x - size.x / 2.0
+		# From the lower part of the letters, a little behind them.
+		pivot.position = Vector3(x, -size.y * 0.22, -0.01)
+		label.add_child(pivot)
+		var length := rng.randf_range(WRITING_DRIP_LENGTH.x, WRITING_DRIP_LENGTH.y)
+		var width := rng.randf_range(0.035, 0.06)
+		var trickle := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(width, length, 0.01)
+		trickle.mesh = box
+		trickle.material_override = blood
+		trickle.position.y = -length / 2.0
+		pivot.add_child(trickle)
+		var drop := MeshInstance3D.new()
+		var ball := SphereMesh.new()
+		ball.radius = width * 0.9
+		ball.height = width * 2.2
+		drop.mesh = ball
+		drop.material_override = blood
+		drop.position.y = -length
+		pivot.add_child(drop)
+		drips.append(pivot)
+	return drips
+
+
+## Bloodstains on the floor in front of the writing, dripped in the shape
+## of an arrow that points at it: a trail of drops towards the wall and a
+## head of two short strokes. Always there, so they lead the hero to a
+## writing not yet noticed. All within the tile in front of the wall.
+func _writing_arrow(wall_pos: Vector3, facing: Vector3, rng: RandomNumberGenerator) -> Node3D:
+	var arrow := Node3D.new()
+	arrow.name = "BloodArrow"
+	add_child(arrow)
+	var blood := _blood_material(false)
+	var side := Vector3(facing.z, 0, -facing.x)
+	var spots: Array = []
+	# The shaft: from the middle of the tile towards the wall.
+	var d := 3.3
+	while d > 1.3:
+		spots.append([d, rng.randf_range(-0.07, 0.07), rng.randf_range(0.1, 0.17)])
+		d -= rng.randf_range(0.28, 0.4)
+	# The tip and the two strokes of the head.
+	spots.append([0.95, 0.0, 0.19])
+	for k in [1.0, -1.0]:
+		for step in 3:
+			var t := (step + 1) / 3.0
+			spots.append([0.95 + 0.55 * t, k * 0.55 * t, rng.randf_range(0.1, 0.15)])
+	# A few splashes round about.
+	for i in 4:
+		spots.append([rng.randf_range(1.0, 3.4), rng.randf_range(-1.2, 1.2), rng.randf_range(0.04, 0.08)])
+	for spot in spots:
+		var stain := MeshInstance3D.new()
+		var disc := CylinderMesh.new()
+		disc.top_radius = spot[2]
+		disc.bottom_radius = spot[2]
+		disc.height = 0.01
+		disc.radial_segments = 12
+		stain.mesh = disc
+		stain.material_override = blood
+		stain.position = wall_pos + facing * spot[0] + side * spot[1] + Vector3(0, DungeonLife.FLOOR_Y + 0.01, 0)
+		# Not quite round: drops land a little smeared.
+		stain.scale = Vector3(rng.randf_range(0.8, 1.3), 1.0, rng.randf_range(0.8, 1.3))
+		stain.rotation.y = rng.randf() * TAU
+		arrow.add_child(stain)
+	return arrow
+
+
+## Blood: shiny and dark on the floor; on the wall unshaded like the letters,
+## so the trickles match them.
+static func _blood_material(on_wall: bool) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = WRITING_BLOOD if on_wall else WRITING_BLOOD_DARK.lerp(WRITING_BLOOD, 0.45)
+	if on_wall:
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	else:
+		m.roughness = 0.25
+		m.metallic_specular = 0.7
+	return m
 
 
 ## The largest font size, up to WRITING_FONT_SIZE, at which a carved word
@@ -1767,6 +1889,10 @@ func reveal_writing() -> void:
 	var tween := create_tween()
 	tween.tween_property(label, "modulate:a", 1.0, 1.2)
 	tween.parallel().tween_property(label, "outline_modulate:a", 1.0, 1.2)
+	# The blood runs down from the letters.
+	for drip in _writing.drips:
+		drip.scale.y = 0.05
+		create_tween().tween_property(drip, "scale:y", 1.0, randf_range(1.2, 2.6)).set_delay(0.4).set_ease(Tween.EASE_OUT)
 	taken[WRITING_KEY] = true
 	if not stations.has(_writing.station):
 		stations.append(_writing.station)

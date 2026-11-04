@@ -42,3 +42,14 @@ static func drawn_at(node: Node3D) -> Vector3:
 	if node.is_physics_interpolated_and_enabled():
 		return node.get_global_transform_interpolated().origin
 	return node.global_position
+
+
+## How fast `body` really moves over the ground. While time stands still
+## (the warm-up frame of a level, see LevelWarmup) a physics tick lasts no
+## time at all and the engine's real velocity is 0 / 0: not a number. Fed
+## to an animation's speed it broke the hero's pose and flooded the log with
+## errors (over a million in one play-through), so that tick counts as 0.
+static func ground_speed(body: CharacterBody3D) -> float:
+	var v := body.get_real_velocity()
+	var speed := Vector2(v.x, v.z).length()
+	return speed if is_finite(speed) else 0.0

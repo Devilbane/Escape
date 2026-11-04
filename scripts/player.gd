@@ -2072,7 +2072,7 @@ func _physics_process(delta: float) -> void:
 	_model.visible = dead or _invulnerable <= 0.0 or int(_invulnerable * 12.0) % 2 == 0
 	# Feet keep pace with the ground: the run and the walk play faster or
 	# slower with the speed.
-	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
+	var ground_speed := SmoothMotion.ground_speed(self)
 	if _current_anim == "Running_A":
 		_anim.speed_scale = clampf(ground_speed / RUN_ANIM_SPEED, 0.5, 2.5)
 	elif _current_anim == WALK_ANIM:

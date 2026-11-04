@@ -60,8 +60,9 @@ func _run() -> void:
 	# One table by kind and rarity: plain gear iron, fine gear fittings of a
 	# finer metal, jewellery the metal of its rarity, magic moon silver.
 	check(Forge.melt_into("schwert") == {"eisen": 2}, "a plain sword is iron: %s" % str(Forge.melt_into("schwert")))
-	check(Forge.melt_into("kettenhemd") == {"eisen": 4, "bronze": 1}, "chain mail has bronze fittings: %s" % str(Forge.melt_into("kettenhemd")))
-	check(Forge.melt_into("streitaxt").get("gold", 0) == 1, "a god-born battle axe has gold fittings")
+	check(Forge.melt_into("kettenhemd") == {"eisen": 4}, "uncommon chain mail is iron: %s" % str(Forge.melt_into("kettenhemd")))
+	check(Forge.melt_into("streitaxt").get("bronze", 0) == 1, "a rare battle axe has bronze fittings")
+	check(Forge.melt_into("plattenpanzer").get("silber", 0) == 1, "epic plate armour has silver fittings")
 	check(Forge.melt_into("bronzearmreif") == {"bronze": 2}, "a bronze bracelet is bronze: %s" % str(Forge.melt_into("bronzearmreif")))
 	check(Forge.melt_into("rubinring") == {"silber": 2}, "a ruby ring is silver: %s" % str(Forge.melt_into("rubinring")))
 	check(Forge.melt_into("klingenring") == {"gold": 1, "mondsilbererz": 1}, "a magic epic ring is gold and moon silver: %s" % str(Forge.melt_into("klingenring")))

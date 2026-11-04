@@ -41,7 +41,18 @@ func _process(_delta: float) -> bool:
 func _test_rarity() -> void:
 	check(Items.is_common("schwert") and Items.is_common("lederstiefel") and Items.is_common("fackel"), "starter gear and torches are common")
 	check(not Items.is_common("fechtbuch") and not Items.is_common("schleichbuch"), "books are not common")
-	check(not Items.is_common("amulett_leben") and not Items.is_common("axt"), "uncommon gear is not common")
+	check(not Items.is_common("amulett_leben") and not Items.is_common("kettenhemd"), "uncommon gear is not common")
+	check(Items.is_common("axt") and Items.is_common("rundschild") and Items.is_common("lederwams"), "basic gear is common")
+	# Every item has a rarity of its own, except the hero's crafted pieces
+	# (shown as their own work) and the map workshop's gear.
+	for id in Items.ALL:
+		var item: Dictionary = Items.ALL[id]
+		if item.get("crafted", false) or item.get("custom", false):
+			continue
+		check(Items.RARITY.has(id), "%s has a rarity in Items.RARITY" % id)
+	for id in Items.RARITY:
+		check(Items.ALL.has(id), "Items.RARITY lists %s, which is no item" % id)
+		check(Level.TIERS.has(Items.RARITY[id]), "%s has a known rarity, not %s" % [id, Items.RARITY[id]])
 
 
 ## Many picks for one level, as rich as the richest secret rooms: no fine
@@ -52,16 +63,16 @@ func _test_picks() -> void:
 			var lvl := Level.new()
 			var rng := RandomNumberGenerator.new()
 			rng.seed = hash("%s:%d" % [tier, area])
-			var min_price := int(Level.TIERS[tier].min_price)
+			var min_rank := Level.tier_rank(tier)
 			var pool := {}
 			for i in 200:
-				pool[Items.random_item(rng, min_price, "", area)] = true
+				pool[Items.random_item(rng, min_rank, "", area)] = true
 			var seen := {}
 			for i in pool.size():
-				var id := lvl.loot_item(rng, min_price, area)
+				var id := lvl.loot_item(rng, min_rank, area)
 				check(not seen.has(id), "%s repeats in a %s room of level %d while other gear still fits" % [id, tier, area])
 				seen[id] = true
-			check(Items.ALL.has(lvl.loot_item(rng, min_price, area)), "a %s room of level %d still holds gear once all fitting gear is taken" % [tier, area])
+			check(Items.ALL.has(lvl.loot_item(rng, min_rank, area)), "a %s room of level %d still holds gear once all fitting gear is taken" % [tier, area])
 			lvl.free()
 	# A godborn room on a shallow level (Das Tor): only one piece of gear
 	# suits it, so the other chests reach for the nearest finer gear rather
@@ -71,7 +82,7 @@ func _test_picks() -> void:
 	gate_rng.seed = 10
 	var gate_seen := {}
 	for i in 3:
-		var id := gate.loot_item(gate_rng, int(Level.TIERS["gottgeboren"].min_price), 6)
+		var id := gate.loot_item(gate_rng, Level.tier_rank("gottgeboren"), 6)
 		check(not gate_seen.has(id), "%s repeats in a godborn room of level 6" % id)
 		gate_seen[id] = true
 	gate.free()
@@ -95,14 +106,28 @@ func _test_levels() -> void:
 	game.hero_name = "Rare loot test"
 	game.escaped = false
 	var secret_items := 0
+	var beginner_floors := 0
 	for i in game.level_files.size():
 		game.load_level(i, false)
 		var lvl: Level = game.level
 		var seen := {}
+		var file: String = game.level_files[i].get_file()
+		if lvl.beginner_dungeon:
+			beginner_floors += 1
+			# What the skeletons wear, and may drop, is common.
+			for spot in lvl._map_enemies:
+				var e: Enemy = spot.enemy
+				if is_instance_valid(e):
+					for g in e.gear:
+						check(Items.is_common(g), "a monster on %s wears %s, which is not common" % [file, g])
 		for obj in lvl.interactables:
 			var id: String = obj.loot.get("item", "")
 			if id == "":
 				continue
+			# The beginner dungeon holds common things only, but for its
+			# secret room and a puzzle's gated chest.
+			if lvl.beginner_dungeon and not lvl._in_secret_room(obj.cell) and not lvl._behind_gate(obj.cell):
+				check(Items.is_common(id), "%s in %s on %s is not common" % [id, obj.id, file])
 			if not Level.is_outdoor_file(game.level_files[i]) and lvl._in_secret_room(obj.cell) and obj.label == "Schatztruhe":
 				secret_items += 1
 			if Items.is_common(id):
@@ -110,3 +135,4 @@ func _test_levels() -> void:
 			check(not seen.has(id), "%s lies in two containers of %s (%s and %s)" % [id, game.level_files[i], seen.get(id, ""), obj.id])
 			seen[id] = obj.id
 	check(secret_items > 0, "secret treasure chests still hold gear")
+	check(beginner_floors == 10, "the ten floors from Die Zelle to Das Tor are the beginner dungeon, not %d" % beginner_floors)

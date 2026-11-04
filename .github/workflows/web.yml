@@ -109,6 +109,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/storage_fixed_size.gd | tee storage.log
           grep -q PASS storage.log
 
+      - name: Every window keeps one fixed size (trading, equipment, chests, workbenches; empty and full; both languages)
+        run: |
+          timeout 300 ~/godot/godot --headless -s tests/windows_fixed_size.gd | tee fixed_size.log
+          grep -q PASS fixed_size.log
+
       - name: Loot fanfares (epic and god-born gear ring out)
         run: |
           timeout 60 ~/godot/godot --headless -s tests/loot_fanfare.gd | tee fanfare.log

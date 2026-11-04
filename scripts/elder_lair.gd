@@ -114,7 +114,7 @@ static func epic_item(level: Level, rng: RandomNumberGenerator, tier := "episch"
 				and not item.get("unique", false) and str(item.get("slot", "")) not in ["buch", "auftrag", "erz"] \
 				and not level._rare_loot.has(id))
 	if ids.is_empty():
-		return level.loot_item(rng, int(Level.TIERS[tier].min_price), HeroLevel.place_level(level))
+		return level.loot_item(rng, Level.tier_rank(tier), HeroLevel.place_level(level))
 	ids.sort()
 	var id: String = ids[rng.randi() % ids.size()]
 	level._rare_loot[id] = int(level._rare_loot.get(id, 0)) + 1

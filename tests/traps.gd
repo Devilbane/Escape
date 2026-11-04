@@ -255,6 +255,13 @@ func _run() -> void:
 	t = game.level.traps
 	check(not trap.is_empty(), "some level has a teleporter")
 	if not trap.is_empty():
+		# Its mark is a little patch of whirling dust: the specks circle on.
+		var specks: Array = trap.sign.get_children().filter(func(n): return n.has_meta("angle"))
+		check(specks.size() >= 12, "a teleporter shows as whirling dust: %d specks" % specks.size())
+		if not specks.is_empty():
+			var before: Vector3 = specks[0].position
+			t._whirl(trap.sign, 0.3)
+			check(specks[0].position.distance_to(before) > 0.01, "the dust whirls round")
 		_put(trap.cell)
 		await _wait(3)
 		var landed: Vector2i = game.level.world_to_cell(p.global_position)

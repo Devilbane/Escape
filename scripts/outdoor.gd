@@ -680,7 +680,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			var loot_rng := RandomNumberGenerator.new()
 			loot_rng.seed = hash("%s:hoard:%d:%d" % [level_name, c.x, c.y])
 			clear_loot(interactables[-1])
-			interactables[-1].loot = {"gold": 20, "item": loot_item(loot_rng, 20, HeroLevel.AREAS.pass.max)}
+			interactables[-1].loot = {"gold": 20, "item": loot_item(loot_rng, Level.tier_rank("ungewoehnlich"), HeroLevel.AREAS.pass.max)}
 		_:
 			if CraftingSquare.LETTERS.contains(ch):
 				CraftingSquare.build(self, c, ch)
@@ -1891,7 +1891,7 @@ func _build_house() -> void:
 				home_spot = cell_to_world(c + Vector2i(0, 1))
 				fox_beds.append(home_spot + Vector3(1.2, 0, -0.6))
 			elif ch == "L":
-				_place("chest", cell_to_world(c), 0.0)
+				_place("chest", cell_to_world(c), _back_to_wall(c))
 				_add_solid(cell_to_world(c), Vector3(2.4, 1.5, 2.4))
 				stations.append({"kind": "lager", "cell": c, "pos": cell_to_world(c), "used": false})
 	_build_house_pillars()

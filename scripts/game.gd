@@ -224,21 +224,31 @@ var _coin_label: Label
 var _key_label: Label
 var _hp_bar: ProgressBar
 var _hp_fill: StyleBoxFlat
-## The hero's conditions as icons under the life bar (see StatusIcon).
+## The hero's passing troubles (poison, a curse, burning, slowness) as icons
+## under the life bar (see StatusIcon, hero_ailments).
 var _status_row: HBoxContainer
+## The hero's boons (stronger blows, speed, hardening) as icons in the status
+## block at the top left, just above the event log (see hero_boons).
+var _boon_row: HBoxContainer
 ## Gear to mend, points to spend, upgrades to build: icons under the hero
 ## level (see hero_notices).
 var _notice_row: HBoxContainer
-## The life bar under the hero: its size, its gap below the feet on screen,
-## and its colours (brighter when low).
+## The life bar: its size, and where its top sits on screen, as a share of
+## the screen's height (centred across). It stays at that one spot, under
+## where the hero stands in the normal view, whatever the camera does.
 const HP_BAR_SIZE := Vector2(96, 8)
-const HP_BAR_GAP := 18.0
-## How far the hero's arms and blade reach out from the feet, in metres
-## (the bar keeps below all of it, see _place_hp_bar).
+const HP_BAR_Y := 0.68
+## How far the hero's arms and blade reach out from the feet, in metres: in
+## the normal view the bar sits below all of it (tests/event_log.gd).
 const HP_BAR_REACH := 1.8
-const HP_COLOR := Color(0.78, 0.2, 0.2)
-const HP_LOW_COLOR := Color(1.0, 0.35, 0.25)
-const HP_POISON_COLOR := Color(0.35, 0.75, 0.25)
+## The bar's colour by the share of life left: green when whole, yellow at
+## two thirds, red at one third, deep red near the end, blended between.
+const HP_COLORS := [
+	[1.0, Color(0.3, 0.8, 0.3)],
+	[0.66, Color(0.95, 0.82, 0.2)],
+	[0.33, Color(0.85, 0.2, 0.15)],
+	[0.0, Color(0.42, 0.02, 0.05)],
+]
 ## The run meter: seconds of running left, as a bar and in numbers.
 var _run_bar: ProgressBar
 var _xp_bar: ProgressBar
@@ -418,6 +428,8 @@ func _ready() -> void:
 		var base := Theme.new()
 		base.default_font_size = UiKit.sized(16)
 		get_window().theme = base
+	# Only the bodies that move in physics ticks are drawn between ticks (see SmoothMotion).
+	SmoothMotion.off_below(get_tree().root)
 	if get_tree().get_script() != null:
 		# A headless test runs as a script of its own: its saves stay apart.
 		save_dir = TEST_SAVE_DIR
@@ -1028,16 +1040,17 @@ func _setup_hud() -> void:
 	hp_back.set_border_width_all(1)
 	hp_back.set_corner_radius_all(3)
 	_hp_fill = StyleBoxFlat.new()
-	_hp_fill.bg_color = HP_COLOR
+	_hp_fill.bg_color = hp_color(1.0)
 	_hp_fill.set_corner_radius_all(3)
 	_hp_bar.add_theme_stylebox_override("background", hp_back)
 	_hp_bar.add_theme_stylebox_override("fill", _hp_fill)
 	_hp_bar.visible = false
 	_hud.add_child(_hp_bar)
-	# The hero's conditions (poison, a curse, burning, stronger blows, speed,
-	# hardening) as little red-framed icons in a row under the bar, in a
-	# fixed order from its left edge, so an icon coming or going never
-	# moves the others before it.
+	# The hero's passing troubles (poison, a curse, burning, slowness) as
+	# little red-framed icons in a row under the bar, where the eye is during
+	# a fight, in a fixed order from its left edge, so an icon coming or
+	# going never moves the others before it. Boons go to the status block
+	# at the top left (_boon_row).
 	_status_row = HBoxContainer.new()
 	_status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_status_row.add_theme_constant_override("separation", 4)
@@ -1089,6 +1102,15 @@ func _setup_hud() -> void:
 	_notice_row.add_theme_constant_override("separation", 4)
 	_notice_row.custom_minimum_size = Vector2(0, StatusIcon.SIZE)
 	left.add_child(_notice_row)
+	# The hero's boons (stronger blows, speed, hardening) as green-framed
+	# icons in a row of their own under the notices, the last line of the
+	# status block, just above the event log. It also keeps one icon's height
+	# when empty, and fills from its left edge in a fixed order.
+	_boon_row = HBoxContainer.new()
+	_boon_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boon_row.add_theme_constant_override("separation", 4)
+	_boon_row.custom_minimum_size = Vector2(0, StatusIcon.SIZE)
+	left.add_child(_boon_row)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1241,7 +1263,7 @@ func _setup_shrine_panel() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
 	box.add_child(row)
-	var gifts := [Lang.t("+4 Leben"), Lang.t("+1 Kampfkraft"), Lang.t("+3% Tempo")]
+	var gifts := [Lang.t("+4 Leben"), Lang.t("+1 Attributpunkt"), Lang.t("+1 Konstitution")]
 	for i in gifts.size():
 		var b := _make_button(Lang.t("%s\n(Taste %d)") % [gifts[i], i + 1], _choose_gift.bind(i))
 		b.custom_minimum_size = Vector2(200, 96)
@@ -1509,11 +1531,17 @@ func _on_ingredient_collected(id: String) -> void:
 	Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
 
 
-## The fountain: full life and every ailment gone, as often as you like.
+## The fountain: every ailment gone and full life, as often as you like; a
+## level can set a fixed amount of life per drink instead (Level.fountain_heal).
 func _drink(s: Dictionary) -> void:
 	player.face(s.pos - player.global_position)
-	var healed := player.hp < player.max_hp
-	player.hp = player.max_hp
+	var gain := player.max_hp - player.hp
+	if level.fountain_heal > 0:
+		gain = mini(level.fountain_heal, gain)
+	var healed := gain > 0
+	player.hp += gain
+	if healed:
+		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+%d" % gain, Color(0.5, 1.0, 0.5))
 	var cured := player.cure()
 	player.play_flourish("PickUp", 0.6)
 	Sfx.play(self, "drink")
@@ -1836,11 +1864,15 @@ func _choose_gift(index: int) -> void:
 			player.hp += Player.SHRINE_LIFE
 			text = Lang.t("Du fühlst dich zäher: +4 Leben")
 		1:
-			player.gift_power += Player.SHRINE_POWER
-			text = Lang.t("Deine Hiebe werden härter: +1 Kampfkraft")
+			player.gift_points += Player.SHRINE_POINTS
+			text = Lang.t("Die Ahnen schenken dir einen Attributpunkt: verteile ihn auf der Charakterseite (P).")
 		2:
-			player.gift_speed += Player.SHRINE_SPEED
-			text = Lang.t("Deine Schritte werden leichter: +3% Tempo")
+			# More Konstitution means more life; the new life comes filled.
+			var before := player.max_hp
+			player.gift_constitution += Player.SHRINE_CONSTITUTION
+			player.refresh_stats()
+			player.hp += player.max_hp - before
+			text = Lang.t("Du fühlst dich zäher: +1 Konstitution")
 		3:
 			if not _wise_gift.visible:
 				return
@@ -1882,11 +1914,9 @@ func _update_hud() -> void:
 		_level_label.text += "    " + _clock_shown
 	_hp_bar.max_value = maxi(1, player.max_hp)
 	_hp_bar.value = clampi(player.hp, 0, player.max_hp)
-	# Poison turns the bar green; low life a brighter warning red.
-	if player.ailments.has("gift"):
-		_hp_fill.bg_color = HP_POISON_COLOR
-	else:
-		_hp_fill.bg_color = HP_LOW_COLOR if player.hp * 4 <= player.max_hp else HP_COLOR
+	# Green when whole, through yellow and red to deep red as life is lost
+	# (poison shows as its icon under the bar).
+	_hp_fill.bg_color = hp_color(float(player.hp) / maxf(1.0, player.max_hp))
 	_update_status_icons()
 	_show_hero_level()
 	_coin_label.text = Lang.t("Gold: %d") % coins
@@ -2196,7 +2226,7 @@ func load_level(index: int, restock := true) -> void:
 	player.frozen = false
 	player.controllable = true
 	# Arriving on a level never heals by itself; climbing the stairs gives
-	# STAIRS_HEAL (see _next_level) and the fountain heals fully.
+	# STAIRS_HEAL (see _next_level) and the fountain heals (see _drink).
 	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
 	level.restore_taken()
@@ -2879,6 +2909,14 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_power = int(data.gift_power)
 	player.gift_speed = float(data.gift_speed)
 	player.gift_armor = int(data.get("gift_armor", 0))
+	player.gift_points = int(data.get("gift_points", 0))
+	player.gift_constitution = int(data.get("gift_constitution", 0))
+	player.gift_spent = {}
+	var gift_spent = data.get("gift_spent", {})
+	if gift_spent is Dictionary:
+		for id in gift_spent:
+			if id in HeroLevel.POINT_ATTRIBUTES:
+				player.gift_spent[id] = int(gift_spent[id])
 	player.equipped = data.equipped
 	player.wear = data.get("wear", {})
 	player.set_sex(str(data.get("sex", BodyLook.DEFAULT))) # Games saved before there were heroines have a hero.
@@ -3097,6 +3135,7 @@ func save_game(going_away := false) -> bool:
 	var data := {
 		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "iron": iron, "bars": bars, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
+		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
 		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(),
@@ -3187,7 +3226,7 @@ func rest_at_inn() -> void:
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	var bed := _nearest_bed()
 	if bed.is_empty():
 		player.play("Lie_Down", 0.2)
@@ -3243,7 +3282,7 @@ func sleep() -> void:
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	var bed := _nearest_bed()
 	if bed.is_empty():
 		player.play("Lie_Down", 0.2)
@@ -3409,6 +3448,7 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 	player.path.clear()
 	player.velocity = Vector3.ZERO
 	player.global_position = lie
+	player.reset_physics_interpolation()
 	player.face(foot)
 	player.lie_asleep()
 	var fox_wakes := false
@@ -3418,7 +3458,7 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 			pet.sleep_in_basket(basket)
 			fox_wakes = true
 	_fall_asleep()
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_interval(WAKE_SLEEP)
 	tween.tween_callback(func():
 		_stop_snoozing()
@@ -3656,29 +3696,43 @@ func heard(speaker: String, text: String, pos: Vector3) -> void:
 		event_log.add_speech(speaker, text)
 
 
-## The conditions the hero is in, as [kind, number] pairs in their fixed
-## order (see StatusIcon).
-func hero_conditions() -> Array:
+## The passing troubles the hero is in, as [kind, number] pairs in their
+## fixed order (see StatusIcon): shown under the life bar.
+func hero_ailments() -> Array:
 	var out := []
 	for kind in ["gift", "fluch", "brand"]:
 		if player.ailments.has(kind):
 			out.append([kind, ""])
+	# Slower only from a heavy load (the curse that slows has its own icon,
+	# and a little gear is normal); not while faster all the same.
+	if not _hero_fast() and Items.load_factor(player.load_weight()) <= 1.0 - Items.MAX_WEIGHT_SLOW * 0.5:
+		out.append(["slow", ""])
+	return out
+
+
+## The boons the hero has, as [kind, number] pairs in their fixed order (see
+## StatusIcon): shown in the status block at the top left.
+func hero_boons() -> Array:
+	var out := []
 	if player.power > 1:
 		out.append(["power", str(player.power)])
-	# Faster from gifts, level or Tempo; slower only from a heavy load (the
-	# curse that slows has its own icon, and a little gear is normal).
-	var unslowed := player.base_speed / (Player.CURSE_SLOW if player.ailments.has("fluch") else 1.0)
-	if unslowed > Player.SPEED + 0.01:
+	if _hero_fast():
 		out.append(["fast", ""])
-	elif Items.load_factor(player.load_weight()) <= 1.0 - Items.MAX_WEIGHT_SLOW * 0.5:
-		out.append(["slow", ""])
 	if player.hardening > 0:
 		out.append(["hardening", str(player.hardening)])
 	return out
 
 
+## Faster than normal from gifts, level or Tempo (leaving out the curse's
+## slowness, which has an icon of its own).
+func _hero_fast() -> bool:
+	var unslowed := player.base_speed / (Player.CURSE_SLOW if player.ailments.has("fluch") else 1.0)
+	return unslowed > Player.SPEED + 0.01
+
+
 func _update_status_icons() -> void:
-	_fill_icon_row(_status_row, hero_conditions())
+	_fill_icon_row(_status_row, hero_ailments())
+	_fill_icon_row(_boon_row, hero_boons())
 	_fill_icon_row(_notice_row, hero_notices())
 
 
@@ -3737,34 +3791,32 @@ func _fill_icon_row(row: HBoxContainer, wanted: Array) -> void:
 		row.add_child(StatusIcon.make(c[0], c[1], text))
 		# A new icon is explained once in the event log as well.
 		if not had.has(c[0]) and text != "" and state == State.PLAYING:
-			Events.found(text, StatusIcon.NOTICE_FRAME if c[0] in StatusIcon.NOTICES else Color(1.0, 0.6, 0.55))
+			Events.found(text, StatusIcon.log_color(c[0]))
 
 
-## Keeps the life bar at one steady spot under the hero on screen. It is
-## placed as seen from the camera without its shake (`cam_at`), for the hero
-## standing at `ground` (feet, not lifted by a jump): it stays under a
-## running hero while the camera trails behind, and neither trembles with
-## a shake nor bobs with jumps.
-func _place_hp_bar(ground: Vector3, cam_at: Vector3) -> void:
+## The life bar's colour for `share` of life left (0 to 1), see HP_COLORS.
+static func hp_color(share: float) -> Color:
+	share = clampf(share, 0.0, 1.0)
+	for i in range(1, HP_COLORS.size()):
+		var upper: Array = HP_COLORS[i - 1]
+		var lower: Array = HP_COLORS[i]
+		if share >= lower[0]:
+			return (lower[1] as Color).lerp(upper[1], (share - lower[0]) / (upper[0] - lower[0]))
+	return HP_COLORS.back()[1]
+
+
+## Keeps the life bar and the icons under it at one fixed spot on screen:
+## centred across, at HP_BAR_Y of the height. It does not follow the hero,
+## so it never moves while the camera trails, shakes or zooms.
+func _place_hp_bar() -> void:
 	var on_screen := state == State.PLAYING and player != null and player.is_inside_tree() and not player.dead \
 			and camera != null
 	_hp_bar.visible = on_screen
 	_status_row.visible = on_screen
 	if not on_screen:
 		return
-	var real := camera.global_position
-	camera.global_position = cam_at
-	# The bar starts below everything the hero can reach on screen: a ring
-	# of HP_BAR_REACH round the feet, on the ground and at blade height,
-	# whichever way the hero faces or swings.
-	var lowest := camera.unproject_position(ground).y
-	for i in 16:
-		var ring := Vector3(cos(TAU * i / 16.0), 0.0, sin(TAU * i / 16.0)) * HP_BAR_REACH
-		for height in [0.0, 1.2]:
-			lowest = maxf(lowest, camera.unproject_position(ground + ring + Vector3(0, height, 0)).y)
-	var x := camera.unproject_position(ground).x
-	camera.global_position = real
-	_hp_bar.position = Vector2(x - HP_BAR_SIZE.x / 2.0, lowest + HP_BAR_GAP).round()
+	var screen := _hud.get_viewport().get_visible_rect().size
+	_hp_bar.position = Vector2((screen.x - HP_BAR_SIZE.x) / 2.0, screen.y * HP_BAR_Y).round()
 	_status_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 5)
 
 
@@ -3900,7 +3952,7 @@ func _fall_through_trapdoor(damage: int) -> void:
 	player.path.clear()
 	player.velocity = Vector3.ZERO
 	learn(Traps.LEARN)
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(player, "global_position:y", player.global_position.y - 3.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
 	tween.tween_callback(_land_below.bind(damage))
@@ -3918,6 +3970,7 @@ func _land_below(damage: int) -> void:
 	else:
 		load_level(interiors[level.down_to], false)
 	player.global_position = level.cell_to_world(Traps.landing_cell(level))
+	player.reset_physics_interpolation()
 	player.velocity = Vector3.ZERO
 	player.face(Vector3.BACK)
 	if is_instance_valid(pet):
@@ -4601,7 +4654,7 @@ func _on_exit_reached() -> void:
 		# Out of the front door of the hero's own house, into the lane.
 		player.face(Vector3.BACK)
 		player.play("Walking_A")
-		var out := create_tween()
+		var out := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 		out.tween_property(player, "global_position", level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.6), 0.5)
 		out.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.5)
 		out.tween_callback(_next_level)
@@ -4613,7 +4666,7 @@ func _on_exit_reached() -> void:
 	# The stairs rise northwards across the exit cell in 8 steps of half a metre:
 	# step k (1..8) is 0.5 * k high, its middle 0.5 * k further north.
 	var foot := level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.5)
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(player, "global_position", foot + Vector3(0, 0, 0.1), 0.15)
 	for k in range(1, 9):
 		var step := foot + Vector3(0, 0.5 * k, -0.5 * k + 0.25)
@@ -4688,9 +4741,10 @@ func _step_out_of_crypt() -> void:
 	# once they have one).
 	var saved := save_game()
 	player.global_position = start + Vector3(0, 0, -3.2)
+	player.reset_physics_interpolation()
 	player.face(Vector3.BACK)
 	player.play("Walking_A")
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(_fade, "color:a", 0.0, 1.2)
 	tween.parallel().tween_property(player, "global_position", start, 1.6)
 	if is_instance_valid(pet):
@@ -4817,7 +4871,7 @@ func _take_stairs(to: Vector3, up: bool, storey: int) -> void:
 	if is_instance_valid(pet):
 		# Onto the stairs behind the hero.
 		pet.climb([player.global_position, player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4)], 0.35, 0.1)
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(player, "global_position", player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4), 0.45)
 	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
 	tween.parallel().tween_callback(func(): Sfx.play(player, "step_%d" % (randi() % 6), -14.0))
@@ -4934,6 +4988,10 @@ func zoom_by(steps: float) -> void:
 
 
 func _snap_camera() -> void:
+	# The hero was put somewhere new: drawn there at once, not sliding over.
+	player.reset_physics_interpolation()
+	if is_instance_valid(pet):
+		pet.reset_physics_interpolation()
 	var p := player.global_position
 	p.y = 0.0
 	camera.global_position = p + _camera_offset()
@@ -4987,24 +5045,24 @@ func _process(delta: float) -> void:
 	# The villagers chat with each other while the world runs.
 	if level is Outdoor and state == State.PLAYING and not menus.is_open() and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		village_talk.update(delta, level)
-	var p := player.global_position
+	# Where the hero is drawn this frame, between two physics ticks: the
+	# camera follows that, so the running hero and the ground glide together
+	# however many frames the screen shows between ticks.
+	var drawn := SmoothMotion.drawn_at(player)
+	var p := drawn
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
 	_zoom = move_toward(_zoom, _zoom_target, delta * 2.5)
 	camera.rotation_degrees.x = -lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom)
 	var target := p + _camera_offset()
 	camera.global_position = camera.global_position.lerp(target, 1.0 - exp(-5.0 * delta))
-	# Where the camera really is, before any shake: the life bar is placed as
-	# seen from here, so it stays under the hero while the camera trails a
-	# running hero, but does not tremble with the ground.
-	var followed := camera.global_position
 	if _shake > 0.0:
 		# The ground trembles while a secret wall sinks.
 		_shake = maxf(0.0, _shake - delta)
 		var strength := 0.25 * minf(1.0, _shake)
 		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
-	_place_hp_bar(p, followed)
+	_place_hp_bar()
 	var dust := get_node("Dust") as Node3D
-	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
+	dust.global_position = drawn + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)
 	home_run.tick()
 	update_home_button()

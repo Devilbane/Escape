@@ -60,8 +60,9 @@ func _run() -> void:
 	# One table by kind and rarity: plain gear iron, fine gear fittings of a
 	# finer metal, jewellery the metal of its rarity, magic moon silver.
 	check(Forge.melt_into("schwert") == {"eisen": 2}, "a plain sword is iron: %s" % str(Forge.melt_into("schwert")))
-	check(Forge.melt_into("kettenhemd") == {"eisen": 4, "bronze": 1}, "chain mail has bronze fittings: %s" % str(Forge.melt_into("kettenhemd")))
-	check(Forge.melt_into("streitaxt").get("gold", 0) == 1, "a god-born battle axe has gold fittings")
+	check(Forge.melt_into("kettenhemd") == {"eisen": 4}, "uncommon chain mail is iron: %s" % str(Forge.melt_into("kettenhemd")))
+	check(Forge.melt_into("streitaxt").get("bronze", 0) == 1, "a rare battle axe has bronze fittings")
+	check(Forge.melt_into("plattenpanzer").get("silber", 0) == 1, "epic plate armour has silver fittings")
 	check(Forge.melt_into("bronzearmreif") == {"bronze": 2}, "a bronze bracelet is bronze: %s" % str(Forge.melt_into("bronzearmreif")))
 	check(Forge.melt_into("rubinring") == {"silber": 2}, "a ruby ring is silver: %s" % str(Forge.melt_into("rubinring")))
 	check(Forge.melt_into("klingenring") == {"gold": 1, "mondsilbererz": 1}, "a magic epic ring is gold and moon silver: %s" % str(Forge.melt_into("klingenring")))
@@ -97,7 +98,7 @@ func _run() -> void:
 	check(p.bag.size() == 3 and game.iron == 0, "leather does not melt")
 	game.menus._melt(0)
 	check(Array(p.bag) == ["lederwams", "kupferring"] and game.iron == 6, "the plate armour melts into 6 iron bars")
-	check(int(game.bars.get("gold", 0)) == 1, "and its fine fittings into a gold bar (%s)" % str(game.bars))
+	check(int(game.bars.get("silber", 0)) == 1, "and its fine fittings into a silver bar (%s)" % str(game.bars))
 	game.menus._melt(1)
 	check(Array(p.bag) == ["lederwams"] and game.iron == 6 and int(game.bars.get("bronze", 0)) == 3, "the copper ring into 3 bronze bars (%s)" % str(game.bars))
 
@@ -183,8 +184,8 @@ func _run() -> void:
 	var coins_now: int = game.coins
 	game.menus._sell_bar("bronze")
 	check(int(game.bars.get("bronze", 0)) == 2 and game.coins == coins_now + Forge.METALS.bronze.worth, "a bronze bar sold to Gorm")
-	game.menus._sell_bar("silber")
-	check(game.coins == coins_now + Forge.METALS.bronze.worth and game.menus._note != "", "no silver bar, nothing sold")
+	game.menus._sell_bar("gold")
+	check(game.coins == coins_now + Forge.METALS.bronze.worth and game.menus._note != "", "no gold bar, nothing sold")
 
 	# The iron stays in the saved game.
 	game.iron = 7

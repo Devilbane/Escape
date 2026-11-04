@@ -8,7 +8,8 @@ extends Node3D
 ## The line "secret: normal|uncommon|rare|epic|godborn" sets how rich the
 ## secret room is (the German ids ungewoehnlich, selten, episch, gottgeboren
 ## work too). The richer it is, the harder its lever is to
-## notice. Any torch near the secret wall can be the lever, a new one each run.
+## notice. Any torch near the secret wall can be the lever, a new one each run,
+## except the torches by the stairs (see _on_way_out).
 ##
 ## A level with the line "safe: yes" is a safe room without enemies.
 ## A level with the line "outdoor: yes" lies in the open air and is built by
@@ -119,6 +120,8 @@ const STONE_TINT := Color(0.6, 0.56, 0.52)
 ## The grey of the kit's floor tiles, for spike and grate tiles.
 const FLOOR_GREY := Color(0.74, 0.73, 0.71)
 ## Cartoon furniture that gets the worn, dusty look (see WornLook).
+## Pieces of gold, polished to shine (see CoinShine).
+const GOLD_PIECES := ["coin", "coin_stack_large"]
 const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_shield", "banner_shield_brown"]
 ## Kit texture sets that get the worn look: barrels, crates, tables,
 ## shelves, chests and the wall decorations.
@@ -255,6 +258,9 @@ var lair_exit: Node3D
 var _in_lair_exit := false
 ## A hero's own house with several storeys (see "home: yes").
 var is_home := false
+## Life one drink from this level's fountain gives back (header "fountain:
+## 5"); 0 means the fountain heals fully, as it does everywhere else.
+var fountain_heal := 0
 ## The town house on Weavers' Lane this home is (set by the game).
 var house_number := 0
 ## Free spots kept for furniture: {"cell", "pos", "storey"}, from the "+"
@@ -300,6 +306,12 @@ var _stair_cell := Vector2i(-1, -1)
 signal stairs_taken(to: Vector3, up: bool, storey: int)
 ## How deep the level lies (0 for the first); deeper skeletons wear more gear.
 var depth := 0
+## Whether this is a floor of the beginner dungeon the hero escapes from (Die
+## Zelle to Das Tor: no building, not the open air). Its loot is common only:
+## containers, chests and what the skeletons wear. Only its secret rooms (and a
+## puzzle's gated chest) hold finer things, as rich as the map sets them; a
+## named boss's bonus drop (see roll_boss_loot) does not happen here.
+var beginner_dungeon := false
 var fog: Fog
 var _doors: Array = []
 ## The footprints (on the ground, x and z) of the tall pieces that stop a
@@ -411,9 +423,11 @@ const WRITING_KEY := "writing:found"
 var _writing := {}
 ## Seconds between pulling the lever and the stone starting to move.
 const SECRET_DELAY := 2.5
-## Per wealth: chance in percent to notice the lever, gold in each chest,
-## the cheapest gear a chest may hold, and the colour of its name (the
-## item rarity colours, see Rarity).
+## Per wealth, from plain to finest (the item rarities, see Rarity and
+## Items.RARITY): chance in percent to notice the lever, gold in each chest,
+## and the colour of its name. A chest holds gear of its tier or finer.
+## "min_price" sets the tier of gear Items.RARITY does not list (the hero's
+## own crafted pieces and the map workshop's gear): by its price.
 const TIERS := {
 	"normal": {"name": "Gewöhnlich", "chance": 55, "gold": 10, "min_price": 0, "color": Rarity.COMMON},
 	"ungewoehnlich": {"name": "Ungewöhnlich", "chance": 40, "gold": 18, "min_price": 15, "color": Rarity.UNCOMMON},
@@ -485,6 +499,8 @@ func load_from_file(path: String) -> void:
 			inn = true
 		elif line.begins_with("floor:"):
 			floor_name = line.substr(6).strip_edges()
+		elif line.begins_with("fountain:"):
+			fountain_heal = maxi(0, line.substr(9).strip_edges().to_int())
 		elif line.begins_with("outdoor:"):
 			# Out in the open (see Outdoor): no enemies, like a safe room.
 			outdoor = true
@@ -510,6 +526,7 @@ func load_from_file(path: String) -> void:
 			grid.append(line)
 			width = maxi(width, line.length())
 	height = grid.size()
+	beginner_dungeon = not outdoor and building == ""
 	if lair:
 		# Monsters live down there: not a safe room, even below a building.
 		safe = false
@@ -768,6 +785,8 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 	parent.add_child(node)
 	if piece in WORN_PIECES:
 		WornLook.wear(node, _wear(), piece.begins_with("banner"))
+	if piece in GOLD_PIECES:
+		CoinShine.polish(node)
 	if piece in TINTED_PIECES:
 		for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
 			if mi.name == "spikes":
@@ -1226,7 +1245,13 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_block_shots(_add_fitted_solid(stack, pos, 2.0, Vector2(3.0, 3.0)))
 			_add_interactable("Kiste", pos, pos + Vector3(0, 3.6, 0), c)
 		"k":
-			var trunk_model := _place("trunk_large_A", pos, _random_quarter_turn())
+			# Any way round in the middle of a room, but against a wall its back
+			# rests on the wall. The kit trunk opens to its -Z side, the other
+			# chests to +Z. The turn is rolled either way, so the rest of the
+			# map is built as before.
+			var trunk_rot := _random_quarter_turn()
+			trunk_rot = _back_to_wall(c, trunk_rot - PI) + PI
+			var trunk_model := _place("trunk_large_A", pos, trunk_rot)
 			_add_fitted_solid(trunk_model, pos, 1.5)
 			var trunk := _add_interactable("Truhe", pos, pos + Vector3(0, 2.4, 0), c, not _in_secret_room(c))
 			trunk.lid = trunk_model.find_child("Lid", true, false)
@@ -1250,7 +1275,7 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"N":
 			_build_companion_corner(c)
 		"L":
-			_add_fitted_solid(_place("chest", pos, _facing_room(c)), pos, 1.5)
+			_add_fitted_solid(_place("chest", pos, _back_to_wall(c, _facing_room(c))), pos, 1.5)
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
 		"V":
 			_build_merchant(c)
@@ -1400,6 +1425,7 @@ func _build_coin(pos: Vector3) -> void:
 	add_child(holder)
 	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
 	coin.scale = Vector3.ONE * 1.6
+	CoinShine.add_to_coin(holder)
 	var c := world_to_cell(pos)
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "id": "coin:%d,%d" % [c.x, c.y]})
 
@@ -1408,14 +1434,13 @@ func _build_coin(pos: Vector3) -> void:
 ## heap of gold, and glows violet.
 func _build_chest(c: Vector2i, epic := false) -> void:
 	var pos := cell_to_world(c)
-	# Face the chest towards the open side of the room.
-	var rot := 0.0
-	if cell_char(c + Vector2i(0, 1)) == "#":
-		rot = PI
+	# Back to the wall, lid towards the room.
+	var rot := _back_to_wall(c)
 	var chest := _place("chest_gold", pos, rot)
 	_add_fitted_solid(chest, pos, 1.5, Vector2(2.0, 2.0))
 	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c, false)
 	obj.lid = chest.find_child("chest_gold_lid", true, false)
+	obj.shine = CoinShine.add_to_chest(chest)
 	if epic:
 		var epic_rng := RandomNumberGenerator.new()
 		epic_rng.seed = hash("%s:epic:%d:%d" % [level_name, c.x, c.y])
@@ -1435,7 +1460,7 @@ func _build_chest(c: Vector2i, epic := false) -> void:
 	if _behind_gate(c):
 		# The reward of a block-pushing puzzle: as rich as a rare secret room.
 		var rare: Dictionary = TIERS["selten"]
-		obj.loot = {"gold": int(rare.gold), "item": loot_item(loot_rng, int(rare.min_price), HeroLevel.place_level(self) + 1)}
+		obj.loot = {"gold": int(rare.gold), "item": loot_item(loot_rng, tier_rank("selten"), HeroLevel.place_level(self) + 1)}
 		return
 	obj.loot = {"gold": 5, "item": loot_item(loot_rng, 0, HeroLevel.place_level(self))}
 
@@ -1473,8 +1498,8 @@ func _secret_loot(c: Vector2i, share: float) -> Dictionary:
 	var loot_rng := RandomNumberGenerator.new()
 	loot_rng.seed = hash("%s:secret:%d:%d" % [level_name, c.x, c.y])
 	var loot := {"gold": int(round(tier.gold * share * loot_rng.randf_range(0.8, 1.2)))}
-	if share >= 1.0 or tier.min_price >= 34:
-		loot.item = loot_item(loot_rng, tier.min_price, HeroLevel.place_level(self) + 1)
+	if share >= 1.0 or tier_rank(secret_tier) >= tier_rank("episch"):
+		loot.item = loot_item(loot_rng, tier_rank(secret_tier), HeroLevel.place_level(self) + 1)
 	return loot
 
 
@@ -1522,6 +1547,26 @@ func _facing_room(c: Vector2i) -> float:
 		if not SOLID.contains(cell_char(c + d)):
 			return atan2(float(d.x), float(d.y))
 	return 0.0
+
+
+## Letters a chest can rest its back against: walls, secret walls, bars, and
+## the walls of the house in the village.
+const CHEST_WALLS := "#?=I"
+
+
+## How to turn a chest (front on its +Z side, long side across it) so that its
+## back rests on a wall beside it and its lid opens towards the room. A wall
+## with open floor across the chest wins over one facing another wall or a
+## crate; next to no wall it keeps `fallback`.
+func _back_to_wall(c: Vector2i, fallback := 0.0) -> float:
+	var sides := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]
+	for d: Vector2i in sides:
+		if CHEST_WALLS.contains(cell_char(c - d)) and not SOLID.contains(cell_char(c + d)):
+			return atan2(float(d.x), float(d.y))
+	for d: Vector2i in sides:
+		if CHEST_WALLS.contains(cell_char(c - d)) and not CHEST_WALLS.contains(cell_char(c + d)):
+			return atan2(float(d.x), float(d.y))
+	return fallback
 
 
 ## Carved stone for pieces built in code (the fountain): the rough, matt stone
@@ -1734,10 +1779,10 @@ func _pick_levers() -> void:
 		var steps := _steps_from_secret(s)
 		var near: Array = []
 		for t in _wall_torches:
-			if steps.has(t.cell):
+			if steps.has(t.cell) and not _on_way_out(t.cell):
 				near.append(t)
 		# Too few torches around: hang more on the bare walls nearby.
-		var bare := _bare_walls.filter(func(w): return steps.has(w.cell))
+		var bare := _bare_walls.filter(func(w): return steps.has(w.cell) and not _on_way_out(w.cell))
 		while near.size() < LEVER_CHOICES and not bare.is_empty():
 			var w: Dictionary = bare.pop_at(_rng.randi() % bare.size())
 			if _torch_spots.any(func(spot): return spot.distance_to(w.pos) < TILE * 1.5):
@@ -1753,6 +1798,25 @@ func _pick_levers() -> void:
 			s.lever = _maybe_add_torch(face.pos, face.rot, true)
 			s.lever_cell = face.cell
 			s.lever_on_wall = true
+
+
+## Tiles that lead on to the next level: the exit stairs, the stairs of a
+## home and a mine's way down.
+const WAY_OUT := "E<>^"
+## How many tiles around the stairs (diagonals too) count as the way up.
+const WAY_OUT_REACH := 2
+
+
+## Whether a tile is on the way up: the stairs or a tile within WAY_OUT_REACH
+## of them, such as the alcove in front of the Zuflucht's stairs. The torches
+## there light the hero's way on and never serve as a secret wall's lever, so
+## climbing the stairs does not give the secret room away.
+func _on_way_out(c: Vector2i) -> bool:
+	for dy in range(-WAY_OUT_REACH, WAY_OUT_REACH + 1):
+		for dx in range(-WAY_OUT_REACH, WAY_OUT_REACH + 1):
+			if WAY_OUT.contains(cell_char(c + Vector2i(dx, dy))):
+				return true
+	return false
 
 
 var _outer: Dictionary = {}
@@ -2334,15 +2398,17 @@ func _push_apart(delta: float) -> void:
 		for j in range(i + 1, bodies.size()):
 			var a = bodies[i]
 			var b = bodies[j]
-			if _up_on_crate(a, b):
-				continue
+			# Most pairs are far apart: that is told first and cheaply, as
+			# this runs for every pair on every tick (some 800 in the village).
 			var d: Vector3 = b.global_position - a.global_position
-			if absf(d.y) > maxf(a.tall, b.tall) + 0.5:
-				continue
-			d.y = 0.0
-			var overlap: float = a.radius + b.radius - d.length()
+			var overlap: float = a.radius + b.radius - Vector2(d.x, d.z).length()
 			if overlap <= 0.02:
 				continue
+			if absf(d.y) > maxf(a.tall, b.tall) + 0.5:
+				continue
+			if _up_on_crate(a, b):
+				continue
+			d.y = 0.0
 			var away: Vector3 = d.normalized() if d.length() > 0.05 else _free_side(b)
 			var weight_a := _push_weight(a)
 			var weight_b := _push_weight(b)
@@ -3465,11 +3531,19 @@ func _check_doors() -> void:
 var _rare_loot := {}
 
 
-## A random piece of gear for a container on this level. Common things may
-## turn up again and again, but anything finer (uncommon and up, books too)
-## only once a level, so a secret room never holds the same book twice.
-func loot_item(rng: RandomNumberGenerator, min_price: int, area: int) -> String:
-	var id := Items.random_item(rng, min_price, "", area, _rare_loot)
+## A random piece of gear of rarity `min_rank` or finer (see tier_rank) for a
+## container on this level. Common things may turn up again and again, but
+## anything finer (uncommon and up, books too) only once a level, so a secret
+## room never holds the same book twice: once all the gear of its tier is
+## taken, the next chest reaches one tier lower. In the beginner dungeon,
+## plain loot (`min_rank` 0) is common only (see beginner_dungeon).
+func loot_item(rng: RandomNumberGenerator, min_rank: int, area: int) -> String:
+	var top := 0 if beginner_dungeon and min_rank == 0 else tier_rank("gottgeboren")
+	var rank := min_rank
+	var id := Items.random_item(rng, rank, "", area, _rare_loot, top)
+	while _rare_loot.has(id) and rank > 0:
+		rank -= 1
+		id = Items.random_item(rng, rank, "", area, _rare_loot, top)
 	if not Items.is_common(id):
 		_rare_loot[id] = int(_rare_loot.get(id, 0)) + 1
 	return id
@@ -3543,6 +3617,9 @@ func search(obj: Dictionary) -> Dictionary:
 	taken[obj.id] = true
 	if obj.lid:
 		create_tween().tween_property(obj.lid, "rotation:x", obj.lid.rotation.x - obj.get("lid_open", LID_OPEN), 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if obj.get("shine"):
+		# The gold inside catches the light once the lid is up.
+		obj.shine.emitting = true
 	_scatter_debris(obj)
 	if not obj.loot.is_empty():
 		var burst := Effects.make_sparkles(Color(1.0, 0.85, 0.3), true)
@@ -3560,6 +3637,8 @@ func restore_taken() -> void:
 		obj.searched = true
 		if obj.lid:
 			obj.lid.rotation.x -= obj.get("lid_open", LID_OPEN)
+		if obj.get("shine"):
+			obj.shine.emitting = true
 		_scatter_debris(obj)
 	for p in _pickups.duplicate():
 		if p.has("id") and taken.has(p.id):
@@ -3802,7 +3881,7 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 			continue
 		for attempt in 6:
 			# Gear that suits the place; the bosses' own fights stay as they were made.
-			var id := Items.random_item(rng, 0, "", 0 if HeroLevel.FIXED.has(kind) else HeroLevel.place_level(self))
+			var id := Items.random_item(rng, 0, "", 0 if HeroLevel.FIXED.has(kind) else HeroLevel.place_level(self), {}, 0 if beginner_dungeon else tier_rank("gottgeboren"))
 			var slot: String = Items.ALL[id].slot
 			if slot != "spezial" and slot != "buch" and not gear.any(func(g): return Items.ALL[g].slot == slot):
 				gear.append(id)
@@ -3838,22 +3917,35 @@ static func is_named_boss(e: Enemy) -> bool:
 	return e.is_level_boss() or str(e.custom.get("title", "")) != ""
 
 
-## The finest of TIERS whose cheapest gear a piece of gear reaches by price.
+## How rare a piece of gear is (a key of TIERS): as Items.RARITY lists it,
+## else the finest of TIERS whose "min_price" it reaches by price.
 static func tier_of(id: String) -> String:
 	var best := "normal"
 	if not Items.ALL.has(id):
 		return best
+	if Items.RARITY.has(id):
+		return Items.RARITY[id]
 	for t in TIERS:
 		if int(Items.ALL[id].price) >= int(TIERS[t].min_price) and int(TIERS[t].min_price) >= int(TIERS[best].min_price):
 			best = t
 	return best
 
 
+## A tier's place from plain to finest: 0 (common) to 4 (god-born).
+static func tier_rank(tier: String) -> int:
+	return TIERS.keys().find(tier)
+
+
+## How rare a piece of gear is, as a place in TIERS (see tier_rank).
+static func rank_of(id: String) -> int:
+	return tier_rank(tier_of(id))
+
+
 ## A named boss's rare loot, or "" when the roll misses (`roll` in 0..1;
 ## random when left out). The piece is rare or better, suits the place, and
 ## like all finer loot never repeats on this level (see loot_item).
 func roll_boss_loot(e: Enemy, roll := -1.0) -> String:
-	if not is_named_boss(e):
+	if not is_named_boss(e) or beginner_dungeon:
 		return ""
 	if roll < 0.0:
 		roll = randf()
@@ -3861,7 +3953,7 @@ func roll_boss_loot(e: Enemy, roll := -1.0) -> String:
 		return ""
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	return loot_item(rng, int(TIERS["selten"].min_price), HeroLevel.place_level(self))
+	return loot_item(rng, tier_rank("selten"), HeroLevel.place_level(self))
 
 
 ## Drops a named boss's rare loot, if the roll hits, beside where it fell,
@@ -4041,6 +4133,7 @@ func _lay_coin(pos: Vector3) -> void:
 	add_child(holder)
 	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
 	coin.scale = Vector3.ONE * 1.6
+	CoinShine.add_to_coin(holder)
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "floor": _remember_on_floor("coin", "", pos)})
 
 
@@ -4176,6 +4269,9 @@ func _place_lair(piece: String, pos: Vector3, rot_y := 0.0, s := 1.0) -> Node3D:
 	node.rotation.y = rot_y
 	node.scale = Vector3.ONE * s
 	add_child(node)
+	if piece == "Coin_Pile":
+		CoinShine.polish(node)
+		CoinShine.add_to_pile(node, s)
 	return node
 
 
@@ -4692,7 +4788,7 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 			astar.set_point_solid(c, true)
 			stations.append({"kind": "hauswerkbank", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"truhe":
-			_add_fitted_solid(_place("chest", pos, rot, root), pos, 1.5)
+			_add_fitted_solid(_place("chest", pos, _back_to_wall(c, rot), root), pos, 1.5)
 			astar.set_point_solid(c, true)
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"trophaeen":

@@ -7,8 +7,8 @@ extends Node3D
 ## Three kinds (KINDS):
 ##   stacheln (spike trap): spikes shoot up and hurt; a deft hero may jump
 ##     aside in time (see Player.spring_trap).
-##   teleport (teleporter trap): a rune circle flings the hero to another
-##     part of the same level.
+##   teleport (teleporter trap): a little patch of whirling dust flings the
+##     hero to another part of the same level.
 ##   falltuer (trapdoor): the floor gives way and the hero falls to the level
 ##     below (only where there is one, see PLACES and can_drop).
 ##
@@ -134,6 +134,11 @@ const SPIKES_UP := 2.5
 ## Seconds the spikes take to scrape up out of their holes (the trap_spikes
 ## sound is cut to the same length).
 const SPIKES_RISE := 0.3
+## The teleporter's dust: grey-brown floor dust with a faint violet cast, so
+## it reads as something uncanny without glowing like a spell.
+const DUST_COLOR := Color(0.6, 0.55, 0.58)
+## How fast the teleporter's dust whirls round (radians a second).
+const DUST_SPIN := 1.8
 
 ## The hero stepped on a teleporter and was moved to `to`.
 signal teleported(to: Vector3)
@@ -343,7 +348,7 @@ func _process(delta: float) -> void:
 			elif t.up <= 0.0 and t.spikes.position.y > SPIKES_DOWN:
 				t.spikes.position.y = move_toward(t.spikes.position.y, SPIKES_DOWN, delta * 1.5)
 		if t.known and t.kind == "teleport":
-			t.sign.rotation.y += delta * 0.6
+			_whirl(t.sign, delta)
 	var hero: Player = level.player
 	if _gone or hero == null or level.finished or hero.dead or hero.frozen:
 		return
@@ -552,7 +557,7 @@ func _build(t: Dictionary) -> void:
 		"stacheln":
 			_build_spikes(t, mark)
 		"teleport":
-			_build_rune_ring(t, mark)
+			_build_dust_swirl(t, mark)
 		"falltuer":
 			_build_hatch(t, mark)
 
@@ -605,40 +610,83 @@ func _splatter(t: Dictionary) -> void:
 	t.blood = BloodStains.lay(t.node, Vector3(0, MARK_Y + 0.02, 0), hash(t.cell) + 7, 3, 24, 1.4)
 
 
-## A faint ring of runes that turns slowly.
-func _build_rune_ring(t: Dictionary, mark: Node3D) -> void:
-	var glow := _material(KINDS.teleport.color, 0.35)
-	var ring := Node3D.new()
-	ring.position.y = MARK_Y
-	mark.add_child(ring)
-	t.sign = ring
-	var torus := TorusMesh.new()
-	torus.inner_radius = 1.0
-	torus.outer_radius = 1.12
-	torus.rings = 32
-	var circle := MeshInstance3D.new()
-	circle.mesh = torus
-	circle.scale = Vector3(1, 0.15, 1)
-	circle.material_override = glow
-	circle.set_meta("alpha", 0.7)
-	ring.add_child(circle)
-	var rune_mesh := BoxMesh.new()
-	rune_mesh.size = Vector3(0.12, 0.02, 0.32)
-	for i in 6:
-		var a := i * TAU / 6.0
-		var rune := MeshInstance3D.new()
-		rune.mesh = rune_mesh
-		rune.material_override = glow
-		rune.set_meta("alpha", 0.7)
-		rune.position = Vector3(sin(a), 0, cos(a)) * 0.65
-		rune.rotation.y = a + (0.5 if i % 2 == 0 else -0.5)
-		ring.add_child(rune)
+## A small patch of dust that whirls on the spot: a faint smudge on the
+## floor and specks of dust that spiral round it, the inner ones faster and
+## a little higher, like a tiny dust devil. Subtle on purpose: it only hints
+## that something here pulls at the air.
+func _build_dust_swirl(t: Dictionary, mark: Node3D) -> void:
+	var dust := _material(DUST_COLOR, 0.15)
+	var swirl := Node3D.new()
+	swirl.position.y = MARK_Y
+	mark.add_child(swirl)
+	t.sign = swirl
+	# The smudge the whirl has swept together, darker in the middle.
+	for ring in [[0.95, 0.18], [0.55, 0.22]]:
+		var disc := CylinderMesh.new()
+		disc.top_radius = ring[0]
+		disc.bottom_radius = ring[0]
+		disc.height = 0.01
+		disc.radial_segments = 20
+		var smudge := MeshInstance3D.new()
+		smudge.mesh = disc
+		smudge.material_override = dust
+		smudge.set_meta("alpha", ring[1])
+		swirl.add_child(smudge)
+	# The specks, on three spiral arms; the same on every visit.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(t.cell) + 3
+	var speck_mesh := SphereMesh.new()
+	speck_mesh.radius = 0.05
+	speck_mesh.height = 0.1
+	speck_mesh.radial_segments = 6
+	speck_mesh.rings = 3
+	var streak_mesh := BoxMesh.new()
+	streak_mesh.size = Vector3(0.04, 0.02, 0.34)
+	for arm in 3:
+		for i in 6:
+			var along := (i + 0.5) / 6.0
+			var r := lerpf(0.2, 0.9, along)
+			var mi := MeshInstance3D.new()
+			# Every third bit a short streak along the whirl, the rest specks.
+			mi.mesh = streak_mesh if i % 3 == 1 else speck_mesh
+			mi.material_override = dust
+			mi.set_meta("alpha", lerpf(0.75, 0.35, along))
+			mi.set_meta("angle", arm * TAU / 3.0 + along * 2.4 + rng.randf_range(-0.2, 0.2))
+			mi.set_meta("radius", r)
+			# Inner bits ride higher and turn faster.
+			mi.set_meta("height", lerpf(0.4, 0.06, along) + rng.randf_range(0.0, 0.08))
+			mi.set_meta("speed", lerpf(1.6, 0.7, along))
+			mi.set_meta("phase", rng.randf() * TAU)
+			mi.scale = Vector3.ONE * rng.randf_range(0.7, 1.3)
+			swirl.add_child(mi)
+	_whirl(swirl, 0.0)
+
+
+## Moves the teleporter's dust on by `delta` seconds: each bit circles at its
+## own speed, bobs up and down and drifts a little in and out.
+func _whirl(swirl: Node3D, delta: float) -> void:
+	for mi in swirl.get_children():
+		if not mi.has_meta("angle"):
+			continue
+		var a: float = mi.get_meta("angle") + delta * DUST_SPIN * float(mi.get_meta("speed"))
+		mi.set_meta("angle", a)
+		var wave := _time * 2.0 + float(mi.get_meta("phase"))
+		var r: float = mi.get_meta("radius") * (1.0 + 0.08 * sin(wave * 0.7))
+		mi.position = Vector3(sin(a) * r, float(mi.get_meta("height")) + 0.05 * sin(wave), cos(a) * r)
+		# Streaks lie along the way they fly.
+		mi.rotation.y = a + PI * 0.5
 
 
 ## A wooden hatch with a dark hole beneath; it swings down when it gives way.
 func _build_hatch(t: Dictionary, mark: Node3D) -> void:
-	var wood := _material(KINDS.falltuer.color, 0.0)
-	var dark := _material(Color(0.02, 0.015, 0.015), 0.0)
+	# The planks and the hole beneath are see-through while the mark fades in
+	# (_fade_mark), and see-through things are drawn in order of their
+	# centres' distance to the camera, not by depth. Without a fixed order the
+	# hole was drawn over whichever plank lay farther away than its centre,
+	# so a plank turned black and back as the camera moved. The planks always
+	# come after the hole.
+	var wood := _material(KINDS.falltuer.color, 0.0, 1)
+	var dark := _material(Color(0.02, 0.015, 0.015), 0.0, -1)
 	var pit := MeshInstance3D.new()
 	var pit_mesh := BoxMesh.new()
 	pit_mesh.size = Vector3(2.6, 0.01, 2.6)
@@ -682,12 +730,14 @@ static func grim_spikes(base_y: float, tip_y: float) -> ShaderMaterial:
 	return _materials[k]
 
 
-static func _material(color: Color, glow: float) -> StandardMaterial3D:
-	var k := "%s:%s" % [color, glow]
+## priority: the material's render_priority (see _build_hatch).
+static func _material(color: Color, glow: float, priority := 0) -> StandardMaterial3D:
+	var k := "%s:%s:%s" % [color, glow, priority]
 	if not _materials.has(k):
 		var m := StandardMaterial3D.new()
 		m.albedo_color = color
 		m.roughness = 0.9
+		m.render_priority = priority
 		if glow > 0.0:
 			m.emission_enabled = true
 			m.emission = color

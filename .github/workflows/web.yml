@@ -59,6 +59,11 @@ jobs:
           timeout 60 ~/godot/godot --headless -s tests/furniture_spacing.gd | tee spacing.log
           grep -q PASS spacing.log
 
+      - name: Chests rest their back on the wall and open towards the room
+        run: |
+          timeout 60 ~/godot/godot --headless -s tests/chest_facing.gd | tee chests.log
+          grep -q PASS chests.log
+
       - name: Furniture blocks only where it is drawn (nobody gets stuck on it)
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/furniture_stuck.gd | tee stuck.log
@@ -84,6 +89,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/world_preload.gd | tee preload.log
           grep -q PASS preload.log
 
+      - name: Smooth running (bodies drawn between physics ticks)
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/smooth_motion.gd | tee smooth.log
+          grep -q PASS smooth.log
+
       - name: Play through all levels automatically
         run: |
           timeout 600 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log
@@ -93,6 +103,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/inventory_fixed_size.gd | tee inventory.log
           grep -q PASS inventory.log
+
+      - name: Storage chest keeps its size (pointing at torches and other items; both languages)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/storage_fixed_size.gd | tee storage.log
+          grep -q PASS storage.log
 
       - name: Loot fanfares (epic and god-born gear ring out)
         run: |
@@ -158,6 +173,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/shrine.gd | tee shrine.log
           grep -q PASS shrine.log
+
+      - name: Refuge fountain gives 5 life per drink test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/fountain.gd | tee fountain.log
+          grep -q PASS fountain.log
 
       - name: Sitting on the benches of the market square test
         run: |

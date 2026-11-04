@@ -7,8 +7,8 @@ extends RefCounted
 ##
 ## The tiers are the familiar ones of many role-playing games, from plain to
 ## finest: common (white), uncommon (green), rare (blue), epic (violet) and
-## god-born (orange). How rare a piece is follows its price (see
-## Level.TIERS, whose cheapest gear per tier sets the bounds). Pieces the hero
+## god-born (orange). How rare a piece is follows how useful and valuable
+## it is (see Items.RARITY, one table for every item). Pieces the hero
 ## makes from a recipe ("crafted") are a tier of their own in turquoise,
 ## whatever their price, so the hero's own work is told apart at a glance.
 ##
@@ -49,7 +49,8 @@ const MARK_CLOSE := ""
 
 ## The tier of an item (a key of TIERS). Pieces made from a recipe are the
 ## hero's own work; ingredients flagged "rare" (the rare fish, the moon
-## flower) are rare; anything else in Items goes by its price.
+## flower) are rare; anything else in Items goes by Items.RARITY (see
+## Level.tier_of).
 static func tier(id: String) -> String:
 	if Items.ALL.has(id):
 		if Items.ALL[id].get("crafted", false):

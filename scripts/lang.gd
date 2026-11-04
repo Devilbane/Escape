@@ -72,6 +72,7 @@ const PARTS := [
 	preload("res://scripts/lang/home_run.gd"),
 	preload("res://scripts/lang/dragon_hoard.gd"),
 	preload("res://scripts/lang/launcher.gd"),
+	preload("res://scripts/lang/knives.gd"),
 ]
 
 ## German text -> English text, all features together. Read it, never write it.

@@ -74,6 +74,10 @@ You and the skeletons each take up your own spot: nobody can stand inside or on 
 If you land on a skeleton's head, you are pushed apart, and no blow lands until you stand side by side again.
 Step back and you throw knives at the skeleton you attacked last, as long as you can see it
 and have knives.
+A thrown knife lies where it lands (flat on the floor, with a faint glint) until you walk over it to pick it up,
+also after leaving the level and coming back. You keep **3 knives ready** for a fight, plus one for every two
+levels of Knife throwing (the HUD count under the life bar). Any more go into the backpack as spares
+(10 to a slot) and are slipped back into the belt once no fight is on; if the bag is full, a knife stays on the floor.
 
 Add `?level=3` to the address to start the game directly on level 3.
 

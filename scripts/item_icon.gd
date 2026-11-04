@@ -73,6 +73,8 @@ static func kind_of(id: String) -> String:
 			return "crate"
 		"licht":
 			return "torch_out"
+		"munition":
+			return "knife"
 		"futter":
 			return item.get("icon", "sausage")
 	return "scroll"

@@ -165,17 +165,19 @@ func _run() -> void:
 
 	# The workbench.
 	game.iron = 2
-	var knives: int = p.knives
+	# Knives go into the belt up to its cap, the rest into the bag.
+	var knives: int = p.knives + p.spare_knives()
 	game.menus.open("hauswerkbank")
 	check(game.menus.current == "hauswerkbank", "the workbench window opens")
 	game.menus._make_knives()
-	check(game.iron == 1 and p.knives == knives + HomeUpgrades.KNIVES_PER_IRON, "an iron bar becomes throwing knives")
+	check(game.iron == 1 and p.knives + p.spare_knives() == knives + HomeUpgrades.KNIVES_PER_IRON and p.knives <= p.knife_cap(), "an iron bar becomes throwing knives")
+	var spares := p.spare_knives()
 	p.bag.assign(["ritterhelm"])
 	p.wear["ritterhelm"] = 4
 	game.menus._mend_at_home("ritterhelm")
 	check(game.iron == 0 and not p.wear.has("ritterhelm"), "an iron bar mends a worn piece")
 	game.menus._make_knives()
-	check(p.knives == knives + HomeUpgrades.KNIVES_PER_IRON, "without iron no knives")
+	check(p.knives + spares + p.spare_knives() == knives + HomeUpgrades.KNIVES_PER_IRON, "without iron no knives")
 	game.menus.close()
 	var plan := Offline.empty_plan()
 	plan.craft = "messer"

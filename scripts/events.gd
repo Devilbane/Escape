@@ -68,6 +68,13 @@ signal speech_said(speaker: String, text: String, pos: Vector3)
 ## German text, for the compendium and the journal.
 signal writing_found(text: String)
 
+## Something frightening happened above ground: "blitz" (lightning struck),
+## "drache" (a dragon flew over), "woelfe" (a full-moon night fell),
+## "grauen" (a new-moon night fell) or "tote" (night fell and the dead rise).
+## The villagers near the hero cry out and talk about it (see
+## VillageWorries). Use Events.scare.
+signal scare_happened(kind: String)
+
 ## The old dragon's little helpers carried something off the open ground
 ## into its lair (see DragonHelpers): a floor entry's kind ("item" or
 ## "coin") and item id. The hoard counts it (see DragonHoard).
@@ -98,6 +105,11 @@ static func found(text: String, color := EventLog.LOOT_COLOR) -> void:
 ## A spoken line for the event log (see speech_said).
 static func say(speaker: String, text: String, pos: Vector3) -> void:
 	bus().speech_said.emit(speaker, text, pos)
+
+
+## Something frightening happened (see scare_happened).
+static func scare(kind: String) -> void:
+	bus().scare_happened.emit(kind)
 
 
 ## The dragon's helpers carried this off (see loot_carried_off).

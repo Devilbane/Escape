@@ -1355,7 +1355,9 @@ func _maybe_add_torch(wall_pos: Vector3, rot: float, forced := false) -> Node3D:
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.56, 0.24)
 	light.light_energy = 3.4
-	light.omni_range = 12.0
+	# The glow reaches a bit further than LIGHT_REACH, which alone decides
+	# what the torch reveals through the fog (so secret rooms stay hidden).
+	light.omni_range = 15.0
 	light.omni_attenuation = 1.3
 	light.position = Vector3(0, 1.0, 1.0)
 	holder.add_child(light)

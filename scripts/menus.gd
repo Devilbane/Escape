@@ -1414,6 +1414,9 @@ func _build_shop() -> void:
 		var food: String = Companions.SPECIES[kind].food
 		while game.shop_stock.count(food) < 2:
 			game.shop_stock.push_front(food)
+	# Grain for the hungry chicks in the village nests (see VillageBirds).
+	while game.shop_stock.count(VillageBirds.SEEDS) < 2:
+		game.shop_stock.push_front(VillageBirds.SEEDS)
 	# And torches for the pitch-black holes in the wild (see HandTorch).
 	while game.shop_stock.count(HandTorch.ITEM) < 3:
 		game.shop_stock.push_front(HandTorch.ITEM)
@@ -1514,6 +1517,9 @@ func _buy(index: int) -> void:
 			else:
 				_note = Lang.t("Gekauft: %s. %s äsen auf den Lichtungen zwischen Friedhof und Dorf.") % [Items.item_name(id), Lang.t(Companions.SPECIES[eater].plural)]
 				Events.teach(Companions.WHERE_DEER)
+		elif id == VillageBirds.SEEDS:
+			_note = Lang.t("Gekauft: Körner. Hungrige Küken piepsen in manchen Nestern auf den Dächern.")
+			Events.teach(VillageBirds.LEARN)
 	_rebuild()
 
 

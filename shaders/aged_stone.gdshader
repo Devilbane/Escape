@@ -35,6 +35,12 @@ uniform float blocks = 1.0;
 uniform float fade = 0.42;
 // Crusts of pale and orange lichen on the stone (old gravestones).
 uniform float lichen = 0.0;
+// 1: the near-black joints of the trim sheet become thin, grey mortar lines
+// (the village buildings); 0: the sheet's own deep, dark joints.
+uniform float soft_joints = 0.0;
+// 1: the roof tiles are uneven (each tile its own shade, now and then a new
+// or a blackened one) and bleached in patches (the village buildings).
+uniform float uneven_roofs = 0.0;
 uniform sampler2D trim : source_color, filter_linear_mipmap, repeat_enable;
 // Where the windows sit on the palette (white), and how bright they glow.
 uniform sampler2D glow_mask : hint_default_black, filter_linear;
@@ -96,6 +102,18 @@ void fragment() {
 	vec3 stone = sheet(mx, STONE_SIZE, band_area) * w.x + sheet(mz, STONE_SIZE, band_area) * w.z
 			+ sheet(my, STONE_SIZE, band_area) * w.y;
 	float relief = lum(stone);
+	// Softer joints: the dark rims along each joint are lifted to the
+	// stone's own colour, so the line gets thinner, and only its darkest
+	// core stays as mortar, a dark grey instead of black. The faces of the
+	// blocks (relief above ~0.42), even the darker ones, keep their shade.
+	// The scratches on the faces are lifted the same way and the relief is
+	// pressed flatter below, so they no longer read as black carvings.
+	float rim = smoothstep(0.16, 0.42, relief);
+	float lifted = max(mix(0.38, relief, rim), relief);
+	float core = 1.0 - smoothstep(0.02, 0.09, relief);
+	vec3 soft = mix(stone * (lifted / max(relief, 0.02)), vec3(0.24, 0.235, 0.225), core);
+	stone = mix(stone, soft, soft_joints);
+	relief = mix(relief, lum(stone), soft_joints);
 	vec2 along = w.x > w.z ? mx : mz;
 	float shade = hash3(vec3(floor(vec2(along.x / (STONE_SIZE.x / 7.0), along.y / (STONE_SIZE.y / 4.0))), 3.0));
 	vec3 stone_tint = mix(tint, tint * vec3(1.04, 1.0, 0.92), shade);
@@ -114,6 +132,23 @@ void fragment() {
 			+ sheet(my, TILES_SIZE, tile_area) * w.y;
 	float tiles = lum(tile_rgb) / 0.3;
 	faded *= mix(1.0, clamp(tiles, 0.55, 1.35), roof);
+	// Uneven, aged tiles: find the tile under this spot on the sheet (the
+	// same grid as in aged_roof.gdshader) and give it its own shade.
+	vec2 rm = w.y > max(w.x, w.z) ? my : (w.x > w.z ? mx : mz);
+	vec2 rf = rm / TILES_SIZE;
+	vec2 sp = vec2(fract(rf.x) * 256.0, (1.0 - fract(rf.y)) * 120.0);
+	float trow = floor((sp.y - 4.0) / 13.0);
+	float tcol = floor((sp.x - (mod(trow, 2.0) > 0.5 ? 16.0 : 29.5)) / 29.75);
+	vec3 tid = vec3(tcol, trow, 0.0) + vec3(floor(rf) * vec2(11.0, 17.0), 0.0);
+	float th1 = hash3(tid + 1.3);
+	float th2 = hash3(tid + 7.9);
+	float th3 = hash3(tid + 15.1);
+	vec3 uneven = faded * (0.8 + 0.34 * th1);
+	uneven = mix(uneven, th2 > 0.5 ? uneven * vec3(1.02, 0.9, 0.72) : vec3(lum(uneven)), abs(th2 - 0.5) * 0.9);
+	uneven *= th3 > 0.94 ? 1.2 : (th3 < 0.05 ? 0.55 : 1.0);
+	float bleach = smoothstep(0.45, 0.75, fbm(wpos * 0.35 + 11.0));
+	uneven = mix(uneven, vec3(lum(uneven)) * vec3(1.25, 1.2, 1.12) + 0.04, bleach * 0.5);
+	faded = mix(faded, uneven, roof * uneven_roofs * band(8.0, px));
 	if (window > 0.5) {
 		faded = base;
 	}
@@ -145,7 +180,8 @@ void fragment() {
 	ALBEDO = col;
 	ROUGHNESS = mix(0.95, 0.82, moss);
 	// Relief: the joints between the blocks sink in.
+	float bump = mix(0.6, 0.3, soft_joints);
 	float height = (relief * wall + tiles * 0.15 * roof) * band(2.0, px);
-	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * 0.6, dFdy(height) * 0.6), 0.0)).xyz);
+	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * bump, dFdy(height) * bump), 0.0)).xyz);
 	EMISSION = glow_colour * window * glow;
 }

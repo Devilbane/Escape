@@ -17,6 +17,12 @@ extends RefCounted
 ## little pond monster surfaces near the float while the hero waits (see
 ## MONSTER_WATERS): it peeks at the hero, says "Blubb!" and either sinks
 ## again or snaps up the bait and takes the float under with it.
+##
+## While fishing the hero holds a rod (FishingRod) in the right hand instead
+## of the weapon. A cast swings it back over the shoulder and whips it
+## forward; the float flies off the tip in an arc and splashes down, and the
+## line runs from the reel up the rod and out to it. The rod droops at rest,
+## and bends down hard when a fish pulls the float under.
 
 ## What bites in each water: [catch, weight, when]. A catch is a fish (an
 ## ingredient id), "muenze" for an old coin (+1 gold) or "" for weed.
@@ -60,6 +66,26 @@ const MONSTER_DEPTH := 1.4
 const MONSTER_DISTANCE := 1.6
 ## Explained in the compendium the first time the monster shows up.
 const MONSTER_LORE := "Das kleine Teichungeheuer: Im Dorfteich und im Tümpel der Wolfssenke lebt ein kleines grünes Ungeheuer. Manchmal taucht es beim Angeln neben dem Schwimmer auf und schaut neugierig. Es tut niemandem etwas, aber manchmal schnappt es sich den Köder."
+## The cast (seconds from the key press): the rod swings back over the
+## shoulder, whips forward, lets the float go and settles. The float flies
+## for FLY_TIME and splashes down.
+const SWING_BACK := 0.28
+const SWING_WHIP := 0.14
+const SETTLE := 0.35
+const RELEASE := SWING_BACK + SWING_WHIP * 0.6
+const FLY_TIME := 0.55
+## How the rod points (radians above the ground): held up before the cast,
+## swung back, whipped through, and at rest while waiting.
+const HOLD_PITCH := 0.9
+const BACK_PITCH := 1.95
+const WHIP_PITCH := 0.2
+const REST_PITCH := 0.55
+## How much each joint of the rod bends: a little droop at rest, flexing
+## back on the whip, and more for each metre the float is pulled under.
+const REST_BEND := -0.05
+const WHIP_BEND := 0.16
+const PULL_BEND := -0.9
+const BITE_BEND := -0.12
 ## Explained once in the compendium, the first time the line is cast.
 const HOW_TO := "Angeln (Taste G oder der Knopf „Angeln“): stell dich ans Wasser und wirf die Leine aus. Taucht der Schwimmer unter und erscheint ein !, drück schnell noch einmal. Fische kommen in den Zutatenbeutel. Seltene Fische beißen nur in einem Gewässer, manche nur zu bestimmten Stunden."
 
@@ -78,6 +104,13 @@ var _float_rest := Vector3.ZERO
 var _bob := 0.0
 ## The line from the hero's hand to the float, redrawn every frame.
 var _line: MeshInstance3D
+## The rod in the hero's hand, what it hides there while out (the knife or
+## the weapon), and seconds since the cast.
+var rod: FishingRod
+var _hidden_in_hand: Array[Node3D] = []
+var _cast_age := 0.0
+var _fly_from := Vector3.ZERO
+var _splashed := false
 ## The pond monster, while it is up; how long it has been up; the value of
 ## `timer` at which it rises this cast (-1: not this cast); whether it takes
 ## the bait; and where it surfaced.
@@ -139,11 +172,15 @@ func cast(w: Dictionary) -> void:
 	game.player.play_once("Throw", 0.6)
 	Sfx.play(game, "swing", -6.0)
 	_float_rest = float_spot(w, p, _level.fishing_waters)
+	_cast_age = 0.0
+	_splashed = false
+	_take_rod()
 	_float = _make_float()
-	_float.position = _float_rest
 	_level.add_child(_float)
 	_line = _make_line()
 	_level.add_child(_line)
+	_pose_rod()
+	_fly_float()
 	_draw_line()
 	_monster_due = -1.0
 	if w.water in MONSTER_WATERS and rng.randf() < MONSTER_CHANCE:
@@ -214,6 +251,110 @@ static func is_deep(waters: Array, kind: String, p: Vector3, gap := SHORE_GAP) -
 	return true
 
 
+## Puts the rod in the hero's right hand, in place of the knife or weapon.
+func _take_rod() -> void:
+	var hand: Node3D = game.player.find_child("handslot_r", true, false)
+	rod = FishingRod.new()
+	_hidden_in_hand.clear()
+	if hand == null:
+		rod.position = Vector3(0.35, 1.2, 0.2)
+		game.player.add_child(rod)
+		return
+	hand.add_child(rod)
+	_clear_hand()
+
+
+## Hides what else is in the rod's hand, also if the gear changes meanwhile.
+func _clear_hand() -> void:
+	for child in rod.get_parent().get_children():
+		if child != rod and child is Node3D and child.visible:
+			child.visible = false
+			_hidden_in_hand.append(child)
+
+
+## Puts the rod away, and the knife or weapon back in hand.
+func _put_rod_away() -> void:
+	if is_instance_valid(rod):
+		rod.queue_free()
+	rod = null
+	for node in _hidden_in_hand:
+		if is_instance_valid(node):
+			node.visible = true
+	_hidden_in_hand.clear()
+
+
+## How the rod points `age` seconds after the cast (radians above ground).
+static func rod_pitch(age: float) -> float:
+	if age < SWING_BACK:
+		return lerpf(HOLD_PITCH, BACK_PITCH, smoothstep(0.0, 1.0, age / SWING_BACK))
+	age -= SWING_BACK
+	if age < SWING_WHIP:
+		var k := age / SWING_WHIP
+		return lerpf(BACK_PITCH, WHIP_PITCH, k * k)
+	age -= SWING_WHIP
+	if age < SETTLE:
+		return lerpf(WHIP_PITCH, REST_PITCH, smoothstep(0.0, 1.0, age / SETTLE))
+	return REST_PITCH
+
+
+## How much each joint of the rod bends `age` seconds after the cast, with
+## the float `depth` metres under (or above, below 0) where it rests.
+static func rod_bend(age: float, depth: float) -> float:
+	var bend := REST_BEND + PULL_BEND * maxf(0.0, depth)
+	var whip := age - SWING_BACK
+	if whip > 0.0 and whip < SWING_WHIP + SETTLE:
+		# The tip lags behind on the whip and springs back after.
+		var k := whip / (SWING_WHIP + SETTLE)
+		bend += WHIP_BEND * sin(k * TAU) * (1.0 - k)
+	return bend
+
+
+## How far the float has flown, 0 at the release to 1 on the water; 0
+## while it still hangs at the rod's tip.
+static func flight(age: float) -> float:
+	return clampf((age - RELEASE) / FLY_TIME, 0.0, 1.0)
+
+
+## Where the rod's tip is drawn this frame (the hand moves with the hero,
+## who is drawn between physics ticks).
+func _rod_tip() -> Vector3:
+	var hero: Vector3 = game.player.global_position
+	var drawn: Vector3 = SmoothMotion.drawn_at(game.player)
+	return _level.to_local(rod.tip.global_position - hero + drawn)
+
+
+## Turns the rod towards the float, swings it for the cast and bends it
+## when the float is pulled under.
+func _pose_rod() -> void:
+	if not is_instance_valid(rod) or not is_instance_valid(_float):
+		return
+	var depth := _float_rest.y - _float.position.y if flight(_cast_age) >= 1.0 else 0.0
+	var bend := rod_bend(_cast_age, depth)
+	if state == BITE:
+		# The fish tugs: the rod bends down hard and shakes.
+		bend += BITE_BEND + sin(_bob * 27.0) * 0.05
+	if rod.get_parent() != game.player:
+		_clear_hand()
+	rod.aim(_float_rest - game.player.global_position, rod_pitch(_cast_age), bend)
+
+
+## The float before it lands: hanging off the tip on the backswing, then
+## flying out in an arc to where it rests. Splashes down on landing.
+func _fly_float() -> void:
+	var k := flight(_cast_age)
+	if k <= 0.0:
+		_fly_from = _rod_tip() - Vector3(0, 0.25, 0)
+		_float.position = _fly_from
+		return
+	var arc := 1.0 + 0.2 * _fly_from.distance_to(_float_rest)
+	_float.position = _fly_from.lerp(_float_rest, k) + Vector3(0, arc * 4.0 * k * (1.0 - k), 0)
+	if k >= 1.0 and not _splashed:
+		_splashed = true
+		_float.position = _float_rest
+		Sfx.play(game, "drip", -4.0, _float_rest, 1.2)
+		_ripple(_float_rest)
+
+
 ## A red and white float, a little ball on the water.
 func _make_float() -> Node3D:
 	var node := Node3D.new()
@@ -245,21 +386,25 @@ func _make_line() -> MeshInstance3D:
 	return line
 
 
-## Draws the line from the hero's raised hand to the float, sagging a little.
+## Poses the rod, then draws the line from the reel up to the rod's tip and
+## on out to the float, sagging a little once the float is on the water.
 func _draw_line() -> void:
 	if not is_instance_valid(_line) or not is_instance_valid(_float):
 		return
-	var hero: Vector3 = _level.to_local(SmoothMotion.drawn_at(game.player))
-	var tip := _float.position + Vector3(0, 0.1, 0)
-	var flat := Vector3(tip.x - hero.x, 0, tip.z - hero.z)
-	var hand: Vector3 = hero + flat.normalized() * 0.45 + Vector3(0, 1.35, 0) if flat.length() > 0.01 else hero + Vector3(0, 1.35, 0)
-	var sag := 0.05 * flat.length()
+	if not is_instance_valid(rod):
+		return
+	_pose_rod()
+	var tip := _rod_tip()
+	var reel: Vector3 = tip + rod.reel.global_position - rod.tip.global_position
+	var bob := _float.position + Vector3(0, 0.1, 0)
+	var sag := 0.05 * Vector2(bob.x - tip.x, bob.z - tip.z).length() * flight(_cast_age)
 	var mesh: ImmediateMesh = _line.mesh
 	mesh.clear_surfaces()
 	mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
+	mesh.surface_add_vertex(reel)
 	for i in 13:
 		var k := i / 12.0
-		mesh.surface_add_vertex(hand.lerp(tip, k) - Vector3(0, sag * 4.0 * k * (1.0 - k), 0))
+		mesh.surface_add_vertex(tip.lerp(bob, k) - Vector3(0, sag * 4.0 * k * (1.0 - k), 0))
 	mesh.surface_end()
 
 
@@ -280,6 +425,7 @@ func tick(delta: float) -> void:
 		return
 	_hp_at_cast = maxi(_hp_at_cast, game.player.hp)
 	_bob += delta
+	_cast_age += delta
 	if state == WAITING and _monster_due >= 0.0 and timer <= _monster_due:
 		monster_rises(_monster_steals)
 	if is_instance_valid(monster):
@@ -288,7 +434,11 @@ func tick(delta: float) -> void:
 		_draw_line()
 		return
 	timer -= delta
-	if state == WAITING:
+	if state == WAITING and not _splashed:
+		_fly_float()
+		if timer <= 0.0:
+			bite()
+	elif state == WAITING:
 		_float.position = _float_rest + Vector3(0, sin(_bob * 2.2) * 0.03, 0)
 		if timer <= 0.0:
 			bite()
@@ -357,6 +507,7 @@ func stop() -> void:
 	water = {}
 	_level = null
 	_monster_due = -1.0
+	_put_rod_away()
 	for node in [_float, _line, monster]:
 		if is_instance_valid(node):
 			node.queue_free()

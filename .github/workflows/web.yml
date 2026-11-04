@@ -524,6 +524,11 @@ jobs:
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/surface_life.gd | tee surface_life.log
           grep -q PASS surface_life.log
 
+      - name: Tree light (the trees are lit by the lanterns near them)
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/tree_light.gd | tee tree_light.log
+          grep -q PASS tree_light.log
+
       - name: The woodcutter chops a trunk, not the air
         run: |
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/woodcutter.gd | tee woodcutter.log

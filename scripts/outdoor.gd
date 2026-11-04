@@ -573,29 +573,39 @@ func _tree_material(mat: Material, wind := true) -> Material:
 	return _scenes[key]
 
 
-## Many copies of one model (trees) are drawn together in one go.
+## Many copies of one model (trees) are drawn together in one go, one batch
+## per GROUND_CHUNK patch of the map. The renderer lights each batch with at
+## most a handful of lights (rendering/limits/opengl/max_lights_per_object),
+## so one batch for every tree of a kind on the whole map left nearly all of
+## them blind to the lanterns, fires and torches near them.
 func _plant(name: String, pos: Vector3, rot: float, s: float) -> void:
-	if not _plants.has(name):
-		_plants[name] = []
-	_plants[name].append(Transform3D(Basis(Vector3.UP, rot).scaled(Vector3.ONE * s), pos))
+	var patch := Vector2i(floori(pos.x / (GROUND_CHUNK * TILE)), floori(pos.z / (GROUND_CHUNK * TILE)))
+	var key := [name, patch]
+	if not _plants.has(key):
+		_plants[key] = []
+	_plants[key].append(Transform3D(Basis(Vector3.UP, rot).scaled(Vector3.ONE * s), pos))
 
 
 func _flush_plants() -> void:
-	for name in _plants:
-		var scene: Node3D = load(_model_path(name)).instantiate()
-		for part in _meshes_of(scene, Transform3D()):
+	var parts := {}
+	for key in _plants:
+		var name: String = key[0]
+		if not parts.has(name):
+			var scene: Node3D = load(_model_path(name)).instantiate()
+			parts[name] = _meshes_of(scene, Transform3D())
+			scene.free()
+		for part in parts[name]:
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
 			mm.mesh = part[0]
-			mm.instance_count = _plants[name].size()
+			mm.instance_count = _plants[key].size()
 			for i in mm.instance_count:
-				mm.set_instance_transform(i, _plants[name][i] * part[1])
+				mm.set_instance_transform(i, _plants[key][i] * part[1])
 			var mmi := MultiMeshInstance3D.new()
 			mmi.multimesh = mm
 			if name.begins_with("tree"):
 				mmi.material_override = _tree_material((part[0] as Mesh).surface_get_material(0))
 			add_child(mmi)
-		scene.free()
 
 
 ## Every mesh in a model, with where it sits inside the model.

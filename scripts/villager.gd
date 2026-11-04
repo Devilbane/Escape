@@ -43,12 +43,14 @@ const SKIN_ROSY := Color(0.97, 0.85, 0.88)
 ## name: shown above the head; model; show: extra parts; hair: a look for a
 ## Rogue (see HairLook); skin: a tint for a Rogue's face; sex: "female" for a woman built on the Rogue (see
 ## BodyLook); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
-## animation at their spot; lines: what they say, one after another.
+## animation at their spot; tool: something held in place of the model's own
+## weapon ("hammer": the smith's hammer, see VillageProps.smith_hammer); lines:
+## what they say, one after another.
 const ROLES := {
 	"0": {"name": "Dorfvorsteher Aldo", "model": "Mage", "show": ["Mage_Hat", "2H_Staff", "Mage_Cape"],
 		"colors": [Color(0.55, 0.6, 0.8), Color(0.5, 0.5, 0.55), Color(0.45, 0.42, 0.7)], "plan": "stay", "work": "Idle",
 		"lines": ["Willkommen in Lindenhain, Fremder!", "Das Haus mit dem Ziegeldach gehört jetzt dir.", "Ruh dich aus. Die Gruft ist weit weg."]},
-	"1": {"name": "Schmied Gorm", "model": "Barbarian", "show": ["1H_Axe"],
+	"1": {"name": "Schmied Gorm", "model": "Barbarian", "show": [], "tool": "hammer",
 		"colors": [Color(0.55, 0.42, 0.32), Color(0.4, 0.36, 0.34), Color(1, 1, 1)], "plan": "shop", "work": "1H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Brauchst du eine Klinge? Ich schmiede die besten im Tal.", "Heiß muss das Eisen sein, sonst bricht es.", "Bring mir altes Eisen, ich schmelze es ein und mache dir etwas Neues daraus.", "Verbeulte Rüstung? Leg sie auf den Amboss."]},
 	"2": {"name": "Bäuerin Lene", "model": "Rogue", "show": [], "sex": "female",
@@ -132,7 +134,7 @@ const UNLIT_PLANS := ["sit", "stay"]
 ## browser (a handful of villagers at most).
 const TORCH_COLOR := Color(1.0, 0.6, 0.28)
 const TORCH_ENERGY := 1.7
-const TORCH_RANGE := 6.5
+const TORCH_RANGE := 8.0
 ## The woodcutter splits wood on a felled trunk beside his spot (see
 ## set_chopping and Outdoor._build_chopping_log) instead of swinging at the
 ## air. In his two-handed chop the lower blade of the axe comes down in front
@@ -141,7 +143,7 @@ const TORCH_RANGE := 6.5
 ## then is, in his own frame (+z ahead). Both were measured from the
 ## Barbarian model (tests/woodcutter.gd checks they still match).
 const BITE_TIME := 0.815
-const BITE_POINT := Vector3(-0.36, 0.41, 1.59)
+const BITE_POINT := Vector3(-0.215, 0.41, 1.59)
 ## The trunk he chops: its middle in his own frame, its radius and length.
 ## It lies across his way, settled a little into the ground, and its top is
 ## where the blade bites.
@@ -150,6 +152,31 @@ const LOG_RADIUS := 0.34
 const LOG_LENGTH := 3.0
 ## How long the axe sticks in the wood before he wrenches it out.
 const BITE_HOLD := 0.3
+## The smith hammers hot iron on an anvil beside his spot in the same way
+## (see Outdoor._build_anvil): in his one-handed chop the hammer comes down in
+## front of him, a little to his right. HAMMER_TIME is the moment in that
+## animation when its face reaches the top of the iron on the anvil, and
+## HAMMER_POINT is where the face then is, in his own frame (+z ahead).
+## Both were measured from the Barbarian model (tests/smith.gd checks they
+## still match). HAMMER_FACE is the middle of the hammer's striking face in
+## the hand's frame (the frame of the axe it stands in for).
+const HAMMER_TIME := 0.587
+const HAMMER_POINT := Vector3(-0.64, 0.985, 1.185)
+const HAMMER_FACE := Vector3(-0.17, 0.8, 0)
+## The anvil's foot in his frame: the hot iron on its face (see
+## VillageProps.HOT_IRON_AT) lies under HAMMER_POINT.
+const ANVIL_AT := Vector3(-0.6, 0, 1.245)
+## A hammer rings off the iron instead of sticking: only a short beat on it.
+## Then it springs back up the way it came (the swing played backwards at
+## HAMMER_REBOUND times its speed) to where it was raised high, at
+## HAMMER_RAISED in the swing, clear of the anvil, and either comes down
+## again from there or he lowers it and rests (see HAMMER_LOWERED).
+const HAMMER_HOLD := 0.09
+const HAMMER_REBOUND := 1.4
+const HAMMER_RAISED := 0.5
+## After the last blow of a few the swing plays backwards all the way down
+## to where it started, the hammer hanging as it does at rest.
+const HAMMER_LOWERED := 0.04
 
 var level: Outdoor
 var role := "7"
@@ -194,6 +221,9 @@ var chat_partner: Villager = null
 ## Set when someone else (the hero, mostly) speaks to us during a chat: the
 ## chat is over.
 var chat_broken := false
+## Singing a drinking song (see DrinkingSongs), between two lines too. Any
+## other line ends it; while it lasts, nobody pulls us into a chat.
+var singing := false
 ## Whether we stay seated through the chat (the drinker on his bench).
 var _chat_sitting := false
 ## The torch in the hand at night (see carries_torch), made the first night
@@ -203,15 +233,19 @@ var _torch: Node3D
 var _torch_light: OmniLight3D
 var _torch_hidden: Array[Node3D] = []
 var _torch_time := 0.0
-## Where the woodcutter stands to chop and which way he faces then (INF:
-## not a woodcutter, or no trunk to chop), the chips that fly at each blow,
-## and the blow under way: whether the blade has bitten yet, and how long
-## it still sticks in the wood.
+## Where the woodcutter (or the smith) stands to work and which way he faces
+## then (INF: neither, or nothing to strike), the chips (or sparks) that fly
+## at each blow, and the blow under way: whether the blade or hammer has
+## struck yet, and how long it still rests there.
 var _chop_stand := Vector3.INF
 var _chop_face := Vector3.FORWARD
 var _chips: CPUParticles3D
 var _bitten := false
 var _stuck := 0.0
+## The smith's hammer on its way back up after a blow (the swing played
+## backwards), and how many more blows follow before he rests.
+var _rebound := false
+var _blows := 0
 static var _wood: StandardMaterial3D
 
 
@@ -303,8 +337,9 @@ func _dress() -> void:
 	dress_model(_model, _info)
 
 
-## Shows the parts in info.show (and the body), hides the rest and dyes the
-## clothes in info.colors (body, legs, hat or cape). Also used for the people
+## Shows the parts in info.show (and the body), hides the rest, puts
+## info.tool in the right hand and dyes the clothes in info.colors (body,
+## legs, hat or cape). Also used for the people
 ## made in the map workshop (see DungeonNpc).
 static func dress_model(model: Node3D, info: Dictionary) -> void:
 	var show: Array = info.show
@@ -334,6 +369,14 @@ static func dress_model(model: Node3D, info: Dictionary) -> void:
 				var dyed: StandardMaterial3D = mat.duplicate()
 				dyed.albedo_color = color
 				mi.material_override = dyed
+	if info.get("tool", "") == "hammer":
+		# In the hand slot, where the one-handed axe would hang, so it swings
+		# exactly as the axe does.
+		var axe: Node3D = model.find_child("1H_Axe", true, false)
+		if axe:
+			var hammer := VillageProps.smith_hammer(axe.get_parent())
+			hammer.name = "SmithHammer"
+			hammer.transform = axe.transform
 
 
 func play(anim_name: String, blend := 0.25) -> void:
@@ -341,6 +384,7 @@ func play(anim_name: String, blend := 0.25) -> void:
 	# stuck axe out of the trunk at once.
 	_anim.speed_scale = 1.0
 	_stuck = 0.0
+	_rebound = false
 	if _current_anim == anim_name and _anim.is_playing():
 		return
 	_current_anim = anim_name
@@ -602,6 +646,9 @@ func _do(task: String, delta: float) -> void:
 	_current_anim = work
 	_anim.play(work, 0.15)
 	_bitten = false
+	_rebound = false
+	# The smith strikes a few times in a row before he takes a breath.
+	_blows = _rng.randi_range(1, 3) if smiths() else 0
 	# The woodcutter's blow is heard when the blade bites (see _bite).
 	if _info.has("sound") and not chops():
 		get_tree().create_timer(0.45).timeout.connect(func():
@@ -609,23 +656,25 @@ func _do(task: String, delta: float) -> void:
 				Sfx.play(self, _info.sound, -16.0, global_position, 0.8))
 
 
-## Gives the woodcutter his trunk: he stands at `stand`, faces `face` and
-## the blade lands where `chips` (placed by the caller at BITE_POINT) throws
-## up its splinters.
+## Gives the woodcutter his trunk (or the smith his anvil): he stands at
+## `stand`, faces `face` and the blade or hammer lands where `chips` (placed
+## by the caller at BITE_POINT or HAMMER_POINT) throws up its splinters or
+## sparks.
 func set_chopping(stand: Vector3, face: Vector3, chips: CPUParticles3D) -> void:
 	_chop_stand = stand
 	_chop_face = face
 	_chips = chips
 
 
-## Whether this villager chops wood on a trunk of his own.
+## Whether this villager strikes something of his own: wood on a trunk, or
+## iron on an anvil.
 func chops() -> bool:
 	return _chop_stand != Vector3.INF
 
 
-## Before a blow: the woodcutter steps onto his spot by the trunk and turns
-## to it. A swing comes only when he is there; anywhere else (his walk home
-## was cut short) he waits, so the axe never cuts the air.
+## Before a blow: the woodcutter (or smith) steps onto his spot by the trunk
+## (or anvil) and turns to it. A swing comes only when he is there; anywhere
+## else (his walk home was cut short) he waits, so he never hits the air.
 func _ready_to_chop(delta: float) -> bool:
 	if _current_anim == _info.work and _anim.is_playing():
 		return true
@@ -642,33 +691,66 @@ func _ready_to_chop(delta: float) -> bool:
 		return false
 	_turn_to(_chop_face, delta)
 	var facing := Vector3(sin(rotation.y), 0, cos(rotation.y))
-	if facing.angle_to(_chop_face) > 0.12:
+	if facing.angle_to(_chop_face) > 0.02:
 		if _current_anim != _info.work:
 			play("Idle")
 		return false
+	# Squarely on the spot: a blow lands where it was measured.
+	rotation.y = atan2(_chop_face.x, _chop_face.z)
+	global_position = Vector3(_chop_stand.x, global_position.y, _chop_stand.z)
 	return true
+
+
+## Whether this villager is the smith (his blows ring on the anvil).
+func smiths() -> bool:
+	return role == "1"
 
 
 ## During a blow: when the blade reaches the trunk it stops there, stuck in
 ## the wood, chips fly and the chop is heard; a moment later he wrenches the
-## axe out and stands back. True while the blow is held here.
+## axe out and stands back. The smith's hammer stops on the iron only for a
+## beat, with sparks and the ring of the anvil, and springs back up (see
+## HAMMER_REBOUND). True while the blow is held here.
 func _bite(delta: float) -> bool:
+	var smith := smiths()
 	if not _bitten:
-		if _anim.current_animation_position < BITE_TIME:
+		var at := HAMMER_TIME if smith else BITE_TIME
+		if _anim.current_animation_position < at:
 			return false
 		_bitten = true
-		# Exactly at the wood, not a tick later inside it.
-		_anim.seek(BITE_TIME, true)
+		# Exactly on the wood or the iron, not a tick later inside it.
+		_anim.seek(at, true)
 		_anim.speed_scale = 0.0
-		_stuck = BITE_HOLD
+		_stuck = HAMMER_HOLD if smith else BITE_HOLD
 		if _chips:
 			_chips.restart()
-		Sfx.play(self, "chop", -12.0, global_position, _rng.randf_range(0.9, 1.1))
+		Sfx.play(self, "anvil" if smith else "chop", -14.0 if smith else -12.0, global_position, _rng.randf_range(0.9, 1.1))
+		return true
+	if _rebound:
+		if _anim.current_animation_position > HAMMER_RAISED:
+			return true
+		if _blows > 0:
+			# Down again from up here.
+			_blows -= 1
+			_rebound = false
+			_bitten = false
+			_anim.speed_scale = 1.0
+			return true
+		# The last blow: he lowers the hammer the way he raised it, which
+		# keeps it clear of the anvil, and rests.
+		if _anim.current_animation_position > HAMMER_LOWERED:
+			return true
+		play("Idle", 0.1)
+		_work_pause = _rng.randf_range(0.4, 1.0)
 		return true
 	if _stuck <= 0.0:
 		return false
 	_stuck -= delta
 	if _stuck > 0.0:
+		return true
+	if smith:
+		_rebound = true
+		_anim.speed_scale = -HAMMER_REBOUND
 		return true
 	_anim.speed_scale = 1.0
 	play("Idle", 0.35)
@@ -892,6 +974,7 @@ func quest_mark() -> String:
 func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := false) -> void:
 	if chat_partner != null and not in_chat:
 		chat_broken = true
+	singing = false
 	# Whoever else is talking right beside us stops, or both bubbles would
 	# cover each other and neither could be read.
 	for other in _neighbours():
@@ -903,6 +986,15 @@ func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := fals
 	_look_at = look_at
 	if _task == "walk":
 		_start("idle", 0.5)
+
+
+## A line of a drinking song (see DrinkingSongs): said like any other, and
+## we stay in our seat until it is sung.
+func sing(text: String, time: float) -> void:
+	say(text, Vector3.INF, time)
+	singing = true
+	if _task == "sit":
+		_task_time = maxf(_task_time, time + 1.0)
 
 
 ## Whether the current line has not been shown long enough to be read: the
@@ -980,11 +1072,20 @@ func _update_bubble(delta: float) -> void:
 ## Whether we are free for a chat: awake, out in the village, at work or
 ## idling (not walking somewhere, listening to the herald or talking).
 func can_chat() -> bool:
-	if chat_partner != null or at_home or not visible or role == "%":
+	if chat_partner != null or at_home or not visible or role == "%" or singing:
 		return false
 	if night and goes_to_bed():
 		return false
 	return _task in ["work", "idle", "sit"] and _bubble_time <= 0.0 and _listen_to == Vector3.INF
+
+
+## Whether we can speak up on our own about the weather or a fright (see
+## VillageWorries): out in the street and awake, walking home too, but not in
+## a chat, listening to the herald or saying something already.
+func can_remark() -> bool:
+	if chat_partner != null or at_home or not visible or role == "%":
+		return false
+	return not _task in ["home", "listen", "chat"] and _bubble_time <= 0.0
 
 
 ## Starts a chat with `partner`. `walk`: we go over to them (and stop a step

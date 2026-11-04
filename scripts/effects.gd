@@ -270,6 +270,35 @@ static func make_wood_chips() -> CPUParticles3D:
 	return p
 
 
+## Sparks that fly off hot iron under the smith's hammer: a quick burst of
+## tiny glowing bits, thrown out low and wide, that fall and fade. Waits until
+## restart() is called for each blow.
+static func make_forge_sparks() -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = 16
+	p.lifetime = 0.45
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.emitting = false
+	p.local_coords = false
+	p.mesh = _quad(0.06, Color(1, 1, 1))
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.04
+	p.direction = Vector3.UP
+	p.spread = 80.0
+	p.gravity = Vector3(0, -9.8, 0)
+	p.initial_velocity_min = 2.0
+	p.initial_velocity_max = 4.2
+	p.scale_amount_min = 0.5
+	p.scale_amount_max = 1.2
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1.0, 0.95, 0.6))
+	ramp.add_point(0.4, Color(1.0, 0.6, 0.15))
+	ramp.set_color(ramp.get_point_count() - 1, Color(0.9, 0.25, 0.05, 0.0))
+	p.color_ramp = ramp
+	return p
+
+
 ## The open edges of a mesh: edges that belong to only one triangle.
 static func open_edges(mesh: Mesh) -> Array:
 	var arrays := mesh.surface_get_arrays(0)

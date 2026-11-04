@@ -17,7 +17,7 @@ extends Level
 ##   Buildings, each a rectangular block of the same letter:
 ##   h  house (half-timbered, see VillageHouse)   j  smithy   n  tavern   m  market   u  windmill
 ##   y  pumpkin field
-##   ^  Weavers' Lane: a row of narrow three-storey town houses, one per
+##   ^  Weavers' Lane: a row of narrow two-storey town houses, one per
 ##      tile across the front (see VillageHouse.build_narrow), numbered from
 ##      west to east. Every one is a home for a hero (see Homes), entered by
 ##      its own door; inside, all of them share the building floor with the
@@ -277,6 +277,8 @@ var _window_mask: ImageTexture
 var _ivy := {"xforms": [], "colours": []}
 var nests: Array[Vector3] = []
 var birds: VillageBirds
+## The dragon that now and then flies over, seen only as its shadow.
+var flyover: DragonFlyover
 var _entrances: Array = []
 var _ground_img: Image
 var _ground_tex: ImageTexture
@@ -452,6 +454,9 @@ func build() -> void:
 	# The old dragon's little helpers, who gather the loot at night.
 	if doors.has("E"):
 		add_child(DragonHelpers.new(self, doors.E))
+	# Now and then the dragon's shadow sweeps over the land (see DragonFlyover).
+	flyover = DragonFlyover.new(self, _lair_mountain_at)
+	add_child(flyover)
 	for y in height:
 		for x in width:
 			if cell_char(Vector2i(x, y)) == "r":
@@ -568,29 +573,39 @@ func _tree_material(mat: Material, wind := true) -> Material:
 	return _scenes[key]
 
 
-## Many copies of one model (trees) are drawn together in one go.
+## Many copies of one model (trees) are drawn together in one go, one batch
+## per GROUND_CHUNK patch of the map. The renderer lights each batch with at
+## most a handful of lights (rendering/limits/opengl/max_lights_per_object),
+## so one batch for every tree of a kind on the whole map left nearly all of
+## them blind to the lanterns, fires and torches near them.
 func _plant(name: String, pos: Vector3, rot: float, s: float) -> void:
-	if not _plants.has(name):
-		_plants[name] = []
-	_plants[name].append(Transform3D(Basis(Vector3.UP, rot).scaled(Vector3.ONE * s), pos))
+	var patch := Vector2i(floori(pos.x / (GROUND_CHUNK * TILE)), floori(pos.z / (GROUND_CHUNK * TILE)))
+	var key := [name, patch]
+	if not _plants.has(key):
+		_plants[key] = []
+	_plants[key].append(Transform3D(Basis(Vector3.UP, rot).scaled(Vector3.ONE * s), pos))
 
 
 func _flush_plants() -> void:
-	for name in _plants:
-		var scene: Node3D = load(_model_path(name)).instantiate()
-		for part in _meshes_of(scene, Transform3D()):
+	var parts := {}
+	for key in _plants:
+		var name: String = key[0]
+		if not parts.has(name):
+			var scene: Node3D = load(_model_path(name)).instantiate()
+			parts[name] = _meshes_of(scene, Transform3D())
+			scene.free()
+		for part in parts[name]:
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
 			mm.mesh = part[0]
-			mm.instance_count = _plants[name].size()
+			mm.instance_count = _plants[key].size()
 			for i in mm.instance_count:
-				mm.set_instance_transform(i, _plants[name][i] * part[1])
+				mm.set_instance_transform(i, _plants[key][i] * part[1])
 			var mmi := MultiMeshInstance3D.new()
 			mmi.multimesh = mm
 			if name.begins_with("tree"):
 				mmi.material_override = _tree_material((part[0] as Mesh).surface_get_material(0))
 			add_child(mmi)
-		scene.free()
 
 
 ## Every mesh in a model, with where it sits inside the model.
@@ -2152,6 +2167,7 @@ func _spawn_villagers() -> void:
 				_build_stone_yard(c + Vector2i(0, -1))
 			elif ch == "1":
 				_build_forge(c + Vector2i(-1, 0))
+				_build_anvil(v, c, Vector3.LEFT)
 			elif ch == "3":
 				_build_chopping_log(v, c)
 
@@ -2201,9 +2217,9 @@ func _build_stone_yard(cell: Vector2i) -> void:
 
 
 ## The smith's forge on the tile beside him: a hearth of rough stones with
-## glowing coals under a sooty hood and chimney, bellows, an anvil on an old
-## stump, a quench tub and a sign (see VillageProps.build_forge), with a
-## flame and a warm light over the coals.
+## glowing coals under a sooty hood and chimney, bellows, a quench tub and a
+## sign (see VillageProps.build_forge), with a flame and a warm light over the
+## coals. His anvil stands on his own tile (see _build_anvil).
 func _build_forge(cell: Vector2i) -> void:
 	var pos := cell_to_world(cell)
 	var coals := VillageProps.build_forge(self, pos)
@@ -2225,6 +2241,33 @@ func _build_forge(cell: Vector2i) -> void:
 	board.position = pos + Vector3(-1.5, 0, 1.6)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))
+
+
+## The smith's anvil on his own tile, between him and his forge (`face`
+## points there), with a bar of glowing iron on it, so his hammer lands on
+## iron and not in the air (see Villager.set_chopping). The sparks that fly at
+## each blow wait at the spot where the hammer strikes.
+func _build_anvil(v: Villager, cell: Vector2i, face: Vector3) -> void:
+	var stand := cell_to_world(cell)
+	var spot := Node3D.new()
+	spot.name = "SmithAnvil"
+	spot.position = stand
+	spot.rotation.y = atan2(face.x, face.z)
+	add_child(spot)
+	VillageProps.build_anvil(spot, Villager.ANVIL_AT)
+	var sparks := Effects.make_forge_sparks()
+	sparks.position = Villager.HAMMER_POINT
+	spot.add_child(sparks)
+	# The anvil with its heel and horn reaches further across his way than
+	# ahead of him.
+	var foot := spot.to_global(Villager.ANVIL_AT)
+	var size := Vector3(1.1, VillageProps.ANVIL_TOP, 0.8)
+	if absf(face.x) > 0.5:
+		size = Vector3(0.8, VillageProps.ANVIL_TOP, 1.1)
+	_add_solid(foot, size)
+	v.global_position = stand
+	v.rotation.y = spot.rotation.y
+	v.set_chopping(stand, face, sparks)
 
 
 ## The woodcutter's trunk: a felled tree lying across his way on his own
@@ -2703,6 +2746,9 @@ func set_hour(new_hour: float) -> void:
 			text += "\n" + Lang.t("Neumond. Die dunklen Löcher atmen, und etwas Großes kriecht näher ans Dorf.")
 			lines += 1
 		notice.emit(text, 4.5 + 1.5 * (lines - 1))
+		# The village takes fright at what the night brings (see VillageWorries).
+		if night:
+			Events.scare("grauen" if Moon.is_new(day) else "woelfe" if Moon.is_full(day) else "tote")
 
 
 ## Lights the fire in every house someone has come home to in the evening,
@@ -3330,6 +3376,7 @@ func strike() -> Vector3:
 	at.y = 0.0
 	_show_bolt(at)
 	lightning.emit(at)
+	Events.scare("blitz")
 	if ore_spot.x >= 0:
 		var pos := cell_to_world(ore_spot).lerp(at, 0.35)
 		_drop_item(ORE, pos, false)

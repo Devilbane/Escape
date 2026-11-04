@@ -504,6 +504,17 @@ def cheep():
         e = np.sin(np.pi * tt / sec) ** 1.5
         at(out, peep * e * r.uniform(0.6, 1.0), start)
         start += r.uniform(0.08, 0.15)
+def anvil():
+    # A smith's hammer on hot iron over the anvil: a bright, short "ting" of
+    # the anvil's steel, a dull knock of the blow through the soft iron, and
+    # a faint after-ring. Its own random numbers, so the other sounds stay as
+    # they are.
+    r = np.random.default_rng(31)
+    n = lambda sec: r.uniform(-1, 1, int(SR * sec))
+    out = np.zeros(int(SR * 0.7))
+    at(out, ring([(1180, 1.0), (2640, 0.55), (3910, 0.35), (5350, 0.18)], 0.6, 0.16), 0.001)
+    at(out, thud(170, 0.12, 4, 0.03) * 0.9, 0)
+    at(out, highpass(n(0.02), 3000) * env(int(SR * 0.02), 0.0002, 0.003) * 1.1, 0)
     return out
 
 
@@ -536,3 +547,4 @@ if __name__ == "__main__":
     save("trap_spikes", trap_spikes(), 0.7)
     save("chop", chop(), 0.75)
     save("cheep", cheep(), 0.4)
+    save("anvil", anvil(), 0.7)

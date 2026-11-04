@@ -1139,16 +1139,17 @@ func _setup_hud() -> void:
 	xp_row.add_child(_xp_bar)
 	_xp_label = _make_label(TEXT_FONT, 18, XP_COLOR)
 	xp_row.add_child(_xp_label)
-	# The key (in a dungeon) and the gold on one line under the experience
-	# bar, in the bars' label size. (Ammunition sits under the life bar.)
+	# The gold (first, on the left edge) and the key (in a dungeon) on one line
+	# under the experience bar, in the bars' label size. (Ammunition sits under
+	# the life bar.)
 	var purse_row := HBoxContainer.new()
 	purse_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	purse_row.add_theme_constant_override("separation", 24)
 	left.add_child(purse_row)
-	_key_label = _make_label(TEXT_FONT, 18)
-	purse_row.add_child(_key_label)
 	_coin_label = _make_label(TEXT_FONT, 18, GOLD)
 	purse_row.add_child(_coin_label)
+	_key_label = _make_label(TEXT_FONT, 18)
+	purse_row.add_child(_key_label)
 	# Things waiting for the hero (gear to mend, an upgrade to build) as little gold-framed icons under the hero level. The row
 	# always keeps one icon's height, so the status block never grows.
 	_notice_row = HBoxContainer.new()

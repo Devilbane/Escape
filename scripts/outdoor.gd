@@ -207,6 +207,9 @@ var met := {}
 var home_spot := Vector3.ZERO
 ## Fronts of the village buildings: where villagers walk to.
 var spots := {"houses": [], "square": [], "well": []}
+## The village houses' chimneys: each house's door spot (as in spots.houses)
+## and the plume of smoke over its roof (see ChimneySmoke).
+var chimneys: Array[Dictionary] = []
 ## The narrow town houses of Weavers' Lane, by number - 1 (see _build_terrace).
 var town_houses: Array[Node3D] = []
 
@@ -1106,6 +1109,10 @@ func _build_block(ch: String, block: Rect2i) -> void:
 				"cell": world_to_cell(door - Vector3(facing.x, 0, facing.y) * 0.5), "pos": door, "used": false})
 	if ch == "h":
 		spots.houses.append(front)
+		var plume := ChimneySmoke.make()
+		plume.position = node.transform * (node.get_meta("chimney") as Vector3)
+		add_child(plume)
+		chimneys.append({"door": front, "smoke": plume})
 	elif ch == "R":
 		# Ivy up the old crypt (never over its door), and no nest on it.
 		# The door is set back into the front, so the spots run back to it.
@@ -2580,11 +2587,15 @@ func set_hour(new_hour: float) -> void:
 			mat.emission_energy_multiplier = WINDOW_GLOW * glow
 	var dark := DayNight.is_night(hour)
 	var came := _mind_the_wanderer()
+	if not first:
+		_mind_chimneys()
 	if dark == night and not first:
 		return
 	night = dark
 	for v in villagers:
 		v.set_night(night, first)
+	if first:
+		_mind_chimneys(true)
 	if night:
 		_raise_dead()
 	else:
@@ -2604,6 +2615,23 @@ func set_hour(new_hour: float) -> void:
 			text += "\n" + Lang.t("Neumond. Die dunklen Löcher atmen, und etwas Großes kriecht näher ans Dorf.")
 			lines += 1
 		notice.emit(text, 4.5 + 1.5 * (lines - 1))
+
+
+## Lights the fire in every house someone has come home to in the evening,
+## and lets it burn down late at night or once the house is empty (see
+## ChimneySmoke). `at_once` settles it on the spot.
+func _mind_chimneys(at_once := false) -> void:
+	if chimneys.is_empty():
+		return
+	var burns := ChimneySmoke.fire_burns(hour)
+	var home := {}
+	if burns:
+		for v in villagers:
+			if v.at_home:
+				var door: Vector3 = v.house_door()
+				home[door] = int(home.get(door, 0)) + 1
+	for c in chimneys:
+		ChimneySmoke.light(c.smoke, ChimneySmoke.smokes(hour, int(home.get(c.door, 0))), at_once)
 
 
 # --- The wandering merchant ---------------------------------------------------

@@ -84,6 +84,8 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMate
 	house.name = "House"
 	house.set_meta("village_house", true)
 	house.set_meta("door", Vector3(door_x, 0, d * 0.5))
+	# The mouth of the chimney, where its evening smoke comes out (see ChimneySmoke).
+	house.set_meta("chimney", Vector3(cx, eaves + ridge * 1.2 + 0.55, -ud * 0.22))
 	house.add_child(_mesh_of(parts, _materials(rng, glass)))
 	return house
 

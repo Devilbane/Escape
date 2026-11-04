@@ -119,6 +119,16 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/rarity_colours.gd | tee rarity.log
           grep -q PASS rarity.log
 
+      - name: Villagers grumble about the weather and take fright test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/village_worries.gd | tee worries.log
+          grep -q PASS worries.log
+
+      - name: Fritz sings drinking songs test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/drinking_songs.gd | tee songs.log
+          grep -q PASS songs.log
+
       - name: Event bus test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log
@@ -304,6 +314,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_beasts.gd | tee beasts.log
           grep -q PASS beasts.log
 
+      - name: Spider webs test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/spider_webs.gd | tee webs.log
+          grep -q PASS webs.log
+
       - name: Monster rivals and befriending test
         run: |
           timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/factions.gd | tee factions.log
@@ -323,6 +338,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_boss.gd | tee dragon.log
           grep -q PASS dragon.log
+
+      - name: Dragon flies over the open air test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_flyover.gd | tee dragon_flyover.log
+          grep -q PASS dragon_flyover.log && ! grep -q FAIL dragon_flyover.log
 
       - name: Corpses stay and rot away test
         run: |
@@ -508,6 +528,21 @@ jobs:
         run: |
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/surface_life.gd | tee surface_life.log
           grep -q PASS surface_life.log
+
+      - name: Tree light (the trees are lit by the lanterns near them)
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/tree_light.gd | tee tree_light.log
+          grep -q PASS tree_light.log
+
+      - name: The woodcutter chops a trunk, not the air
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/woodcutter.gd | tee woodcutter.log
+          grep -q PASS woodcutter.log
+
+      - name: The smith hammers iron on his anvil, not the air
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/smith.gd | tee smith.log
+          grep -q PASS smith.log
 
       - name: Export the browser version
         run: |

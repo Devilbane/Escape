@@ -28,6 +28,7 @@ func _process(_delta: float) -> bool:
 		return false
 	_test_rarity()
 	_test_picks()
+	_test_scarcity()
 	_test_levels()
 	game.delete_save(game.save_path())
 	if failures == 0:
@@ -99,6 +100,47 @@ func _test_picks() -> void:
 			common[id] = true
 	check(repeated, "common gear may turn up more than once on a level")
 	plain.free()
+
+
+## Plain loot keeps finer pieces only with the odds of Level.FINER_KEEP:
+## many chests' worth of picks hold about half as much uncommon gear and
+## under a third as much rare and finer gear as a plain pick from the items
+## would, while a room of a set tier still holds that tier.
+func _test_scarcity() -> void:
+	check(Level.finer_keep("schwert") == 1.0, "common gear is never held back")
+	check(Level.finer_keep("kettenhemd") == 0.5, "uncommon gear is kept half as often")
+	for t in ["selten", "episch", "gottgeboren"]:
+		check(Level.FINER_KEEP[t] <= 1.0 / 3.0, "%s gear is kept a third as often or less" % t)
+	for area in [4, 6, 8, 10, 12]:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash("scarce:%d" % area)
+		var before := [0, 0]
+		var after := [0, 0]
+		var runs := 4000
+		for i in runs:
+			var old_id := Items.random_item(rng, 0, "", area)
+			var r := Level.rank_of(old_id)
+			if r >= 1:
+				before[mini(r, 2) - 1] += 1
+			# A fresh level each time, so no piece is used up.
+			var lvl := Level.new()
+			var new_id := lvl.loot_item(rng, 0, area)
+			lvl.free()
+			var n := Level.rank_of(new_id)
+			if n >= 1:
+				after[mini(n, 2) - 1] += 1
+		if before[0] > 200:
+			var share: float = float(after[0]) / before[0]
+			check(share > 0.38 and share < 0.62, "uncommon plain loot on level %d comes about half as often (%.2f)" % [area, share])
+		if before[1] > 200:
+			var share: float = float(after[1]) / before[1]
+			check(share < 0.38, "rare and finer plain loot on level %d comes a third as often or less (%.2f)" % [area, share])
+	var room_rng := RandomNumberGenerator.new()
+	room_rng.seed = 3
+	for i in 50:
+		var room := Level.new()
+		check(Level.rank_of(room.loot_item(room_rng, Level.tier_rank("selten"), 8)) >= Level.tier_rank("selten"), "a rare room still holds rare gear or finer")
+		room.free()
 
 
 ## Every dungeon level as it is built: no fine item in two containers.

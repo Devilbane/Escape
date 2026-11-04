@@ -98,8 +98,8 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMate
 
 ## A narrow town house for a row of them along a lane (see
 ## Outdoor._build_terrace): `room.x` across the front, so neighbours almost
-## touch, and three storeys, each jutting out a little further over the
-## street than the one below. The gable faces the lane, the roof slopes down
+## touch, and two storeys, the upper one jutting out a little over the
+## street, with an attic under the roof. The gable faces the lane, the roof slopes down
 ## to the neighbours on either side, and a small sign over the door carries
 ## the house number. Built facing south (+z) like `build`.
 static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator, glass: StandardMaterial3D) -> Node3D:
@@ -114,7 +114,7 @@ static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator,
 	_door(parts, Vector3(door_x, PLINTH, d * 0.5))
 	_window(parts, Vector3(-door_x, PLINTH + 1.6, d * 0.5), 0.0)
 	_window(parts, Vector3(w * 0.25, PLINTH + 1.6, -d * 0.5), PI)
-	# Two upper storeys, each jutting out over the lane a little more.
+	# The upper storey, jutting out over the lane a little.
 	var y0 := PLINTH + GROUND
 	for k in range(1, NARROW_STOREYS):
 		var sd := d + JETTY * k
@@ -167,8 +167,9 @@ static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator,
 	return house
 
 
-## How many storeys a narrow town house has: ground floor and two above.
-const NARROW_STOREYS := 3
+## How many storeys a narrow town house has: ground floor and one above
+## (the attic under the roof makes the home's third floor, see Homes).
+const NARROW_STOREYS := 2
 
 
 static func _materials(rng: RandomNumberGenerator, glass: StandardMaterial3D) -> Dictionary:

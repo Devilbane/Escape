@@ -987,6 +987,15 @@ func can_chat() -> bool:
 	return _task in ["work", "idle", "sit"] and _bubble_time <= 0.0 and _listen_to == Vector3.INF
 
 
+## Whether we can speak up on our own about the weather or a fright (see
+## VillageWorries): out in the street and awake, walking home too, but not in
+## a chat, listening to the herald or saying something already.
+func can_remark() -> bool:
+	if chat_partner != null or at_home or not visible or role == "%":
+		return false
+	return not _task in ["home", "listen", "chat"] and _bubble_time <= 0.0
+
+
 ## Starts a chat with `partner`. `walk`: we go over to them (and stop a step
 ## short, on our side); otherwise we wait where we are. Returns false when
 ## there is no way over.

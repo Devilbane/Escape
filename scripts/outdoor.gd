@@ -2703,6 +2703,9 @@ func set_hour(new_hour: float) -> void:
 			text += "\n" + Lang.t("Neumond. Die dunklen Löcher atmen, und etwas Großes kriecht näher ans Dorf.")
 			lines += 1
 		notice.emit(text, 4.5 + 1.5 * (lines - 1))
+		# The village takes fright at what the night brings (see VillageWorries).
+		if night:
+			Events.scare("grauen" if Moon.is_new(day) else "woelfe" if Moon.is_full(day) else "tote")
 
 
 ## Lights the fire in every house someone has come home to in the evening,
@@ -3330,6 +3333,7 @@ func strike() -> Vector3:
 	at.y = 0.0
 	_show_bolt(at)
 	lightning.emit(at)
+	Events.scare("blitz")
 	if ore_spot.x >= 0:
 		var pos := cell_to_world(ore_spot).lerp(at, 0.35)
 		_drop_item(ORE, pos, false)

@@ -88,16 +88,24 @@ var controllable := true
 var frozen := false
 var dead := false
 var hp := MAX_HP
-## What one shrine gift gives: the player picks one of the three.
+## What one shrine gift gives: the player picks one of the three (life, a
+## free attribute point, or Konstitution).
 const SHRINE_LIFE := 4
-const SHRINE_POWER := 1
-const SHRINE_SPEED := 0.03
+const SHRINE_POINTS := 1
+const SHRINE_CONSTITUTION := 1
 # Gifts from shrines, kept for the whole run.
 var gift_hp := 0
 ## Life from the trophy wall at home (see HomeUpgrades), set by the game.
 var home_hp := 0
+# Power and speed from shrines of older versions; still kept in old saves.
 var gift_power := 0
 var gift_speed := 0.0
+## Attribute points from shrines this run, and where the hero put them
+## (attribute id -> points). Unlike level points they end with the run.
+var gift_points := 0
+var gift_spent := {}
+## Konstitution from shrines this run.
+var gift_constitution := 0
 ## From the fourth shrine gift, which only a wise hero is offered.
 var gift_armor := 0
 ## What the companion at the hero's side gives (Companions.SPECIES of its
@@ -1195,9 +1203,9 @@ func explore_bonus(per_level: int) -> int:
 ## to the attribute's highest value.
 func attribute(id: String) -> int:
 	var value := Training.attribute_value(id, xp.get(id, 0.0))
-	var bonus: int = int(level_points.get(id, 0))
+	var bonus: int = int(level_points.get(id, 0)) + int(gift_spent.get(id, 0))
 	if id == "konstitution":
-		bonus += HeroLevel.constitution_bonus(hero_level())
+		bonus += HeroLevel.constitution_bonus(hero_level()) + gift_constitution
 	if bonus == 0:
 		return value
 	return mini(value + bonus * Training.ATTRIBUTES[id].step, Training.ATTRIBUTES[id].max)
@@ -1208,19 +1216,34 @@ func hero_level() -> int:
 	return HeroLevel.level_for(hero_xp)
 
 
-## Level points not yet put into an attribute.
+## Level points and shrine points not yet put into an attribute.
 func free_points() -> int:
+	return _free_level_points() + _free_gift_points()
+
+
+func _free_level_points() -> int:
 	var spent := 0
 	for id in level_points:
 		spent += int(level_points[id])
 	return maxi(0, HeroLevel.points_earned(hero_level()) - spent)
 
 
-## Puts a free level point into Stärke, Geschick or Intelligenz.
+func _free_gift_points() -> int:
+	var spent := 0
+	for id in gift_spent:
+		spent += int(gift_spent[id])
+	return maxi(0, gift_points - spent)
+
+
+## Puts a free point into Stärke, Geschick or Intelligenz: a shrine's point
+## first (it lasts this run), then a level point (it stays with the hero).
 func spend_point(id: String) -> bool:
 	if free_points() <= 0 or not id in HeroLevel.POINT_ATTRIBUTES:
 		return false
-	level_points[id] = int(level_points.get(id, 0)) + 1
+	if _free_gift_points() > 0:
+		gift_spent[id] = int(gift_spent.get(id, 0)) + 1
+	else:
+		level_points[id] = int(level_points.get(id, 0)) + 1
 	refresh_stats()
 	return true
 
@@ -1369,6 +1392,9 @@ func reset_gifts() -> void:
 	home_hp = 0
 	gift_power = 0
 	gift_speed = 0.0
+	gift_points = 0
+	gift_spent = {}
+	gift_constitution = 0
 	gift_armor = 0
 	companion_perks = {}
 	equipped = {}

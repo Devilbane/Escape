@@ -1,6 +1,7 @@
 extends SceneTree
-## Headless test for the dungeon shrines: the panel offers +4 life, +1 power
-## and +3 % speed, and each gift adds exactly that to the hero. Taking a gift
+## Headless test for the dungeon shrines: the panel offers +4 life, +1
+## attribute point and +1 Konstitution, and each gift adds exactly that to the
+## hero. Taking a gift
 ## hands control straight back: the hero can act and walk the very next frame.
 ## Run with: godot --headless --fixed-fps 60 -s tests/shrine.gd
 
@@ -58,7 +59,7 @@ func _test() -> void:
 	game._open_shrine(shrine)
 	await _wait()
 	var texts := " ".join(_button_texts(game._shrine_panel, []))
-	for gift in ["+4 Leben", "+1 Kampfkraft", "+3% Tempo"]:
+	for gift in ["+4 Leben", "+1 Attributpunkt", "+1 Konstitution"]:
 		check(texts.contains(Lang.t(gift)), "the shrine offers %s (%s)" % [gift, texts])
 
 	# Life: the most and the current life both grow by four.
@@ -86,21 +87,35 @@ func _test() -> void:
 	check(not p.flourishing(), "walking ends the thank-you animation")
 	check(p._current_anim != "PickUp", "the walk shows instead of the thank-you animation (%s)" % p._current_anim)
 
-	# Power: one more.
+	# An attribute point: one more free point, spent like a level point,
+	# and gone with the run.
 	shrine.used = false
 	game._open_shrine(shrine)
-	var power_before: int = p.power
+	var free_before: int = p.free_points()
 	game._choose_gift(1)
-	check(p.power == power_before + 1, "+1 power raises power by 1 (%d -> %d)" % [power_before, p.power])
+	check(p.free_points() == free_before + 1, "+1 attribute point gives a free point (%d -> %d)" % [free_before, p.free_points()])
+	var strength_before: int = p.attribute("staerke")
+	var level_points_before: Dictionary = p.level_points.duplicate()
+	check(p.spend_point("staerke"), "the shrine's point can be spent")
+	check(p.attribute("staerke") == strength_before + 1, "the point raises Stärke by 1 (%d -> %d)" % [strength_before, p.attribute("staerke")])
+	check(p.level_points == level_points_before, "the shrine's point is not kept as a level point")
+	check(p.free_points() == free_before, "the point is spent (%d free)" % p.free_points())
 
-	# Speed: three percent of the base speed on top.
+	# Konstitution: one more, and one more life, filled.
 	shrine.used = false
 	game._open_shrine(shrine)
-	var gift_before: float = p.gift_speed
-	var speed_before: float = p.base_speed
+	var con_before: int = p.attribute("konstitution")
+	max_before = p.max_hp
+	p.hp = p.max_hp
 	game._choose_gift(2)
-	check(is_equal_approx(p.gift_speed - gift_before, 0.03), "+3 %% speed adds 0.03 (%.3f)" % (p.gift_speed - gift_before))
-	check(p.base_speed > speed_before, "+3 %% speed makes the hero faster (%.3f -> %.3f)" % [speed_before, p.base_speed])
+	check(p.attribute("konstitution") == con_before + 1, "+1 Konstitution raises it by 1 (%d -> %d)" % [con_before, p.attribute("konstitution")])
+	check(p.max_hp == max_before + 1, "+1 Konstitution gives one more life (%d -> %d)" % [max_before, p.max_hp])
+	check(p.hp == p.max_hp, "the new life comes filled (%d / %d)" % [p.hp, p.max_hp])
+
+	# A new run takes the shrine's gifts away again.
+	p.reset_gifts()
+	check(p.gift_points == 0 and p.gift_spent.is_empty() and p.gift_constitution == 0, "a new run starts without shrine gifts")
+	check(p.attribute("staerke") == strength_before, "the spent shrine point goes with the run")
 	_finish()
 
 

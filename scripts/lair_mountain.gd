@@ -6,7 +6,8 @@ class_name LairMountain
 ## Built at load time as one mesh from a height field: a few cone-shaped
 ## peaks, a steep rock face right behind the arch, and a jagged ridge, every
 ## face flat-shaded in its own shade of stone (moss on the gentle slopes,
-## paler rock up high) to match the low-poly kits around it.
+## paler rock up high) to match the low-poly kits around it, and weathered
+## like the village stone (AgedStone.rock_material).
 ##
 ## Local space: the origin is the foot of the arch's front, +z points out of
 ## the cave towards the hero. The rock only stands where the map has forest
@@ -113,10 +114,8 @@ static func build(seed_value: int) -> MeshInstance3D:
 			else:
 				_face(st, a, b, c, rng)
 				_face(st, b, d, c, rng)
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.95
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	# Weathered like the village stone (see AgedStone.rock_material).
+	var mat := AgedStone.rock_material()
 	var node := MeshInstance3D.new()
 	node.name = "LairMountain"
 	node.mesh = st.commit()

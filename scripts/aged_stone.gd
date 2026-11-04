@@ -28,6 +28,14 @@ const GRAVE_TINTS := [Color(0.60, 0.61, 0.60), Color(0.66, 0.65, 0.62), Color(0.
 const GRAVE_AGE := 1.5
 const GRAVE_FADE := 0.75
 
+## The mountains' rock (see rock_material): how weathered, how much lichen.
+const ROCK_SHADER := preload("res://shaders/mountain_rock.gdshader")
+const ROCK_AGE := 1.1
+const ROCK_LICHEN := 0.35
+## A colour more saturated than this is wood or metal, not stone (see
+## ruin_material).
+const RUIN_WOOD := 0.3
+
 ## Ivy: how many patches a building gets at most, how high they climb
 ## (metres above the ground), how far from the door they keep, and the
 ## leaves' size.
@@ -103,6 +111,47 @@ static func grave_material(palette: Texture2D, hewn: bool, shade := 0, glowing: 
 		mat.set_shader_parameter("lichen", 1.0 if hewn else 0.4)
 		if glowing:
 			mat.set_shader_parameter("glow_mask", glowing)
+		_mats[key] = mat
+	return _mats[key]
+
+
+## The weathered rock of the mountains (Mountains, LairMountain): their own
+## painted faces with grain, strata, grime, rain streaks, moss and lichen laid
+## over them (shaders/mountain_rock.gdshader), so the rock looks as old as
+## the village stone. One material for all of them.
+static func rock_material() -> ShaderMaterial:
+	if not _mats.has("rock"):
+		var mat := ShaderMaterial.new()
+		mat.shader = ROCK_SHADER
+		mat.set_shader_parameter("age", ROCK_AGE)
+		mat.set_shader_parameter("lichen", ROCK_LICHEN)
+		_mats["rock"] = mat
+	return _mats["rock"]
+
+
+## Old stone for a model that comes in plain colours (the dungeon kit's
+## arch, columns and stairs at the dragon's lair): each colour greyed towards
+## the graveyard's stone and hewn (the models carve their own blocks), as
+## old as the graveyard. Strong colours (the wooden door) keep more of their
+## own colour.
+static func ruin_material(colour: Color) -> ShaderMaterial:
+	var key := "ruin_%s" % colour.to_html()
+	if not _mats.has(key):
+		var l := colour.r * 0.3 + colour.g * 0.55 + colour.b * 0.15
+		var hi := maxf(colour.r, maxf(colour.g, colour.b))
+		var sat := (hi - minf(colour.r, minf(colour.g, colour.b))) / hi if hi > 0.001 else 0.0
+		var stone: Color = GRAVE_TINTS[0]
+		# Grey stone loses its own hue; wood and metal only fade.
+		var tint := Color(l, l, l).lerp(colour, 0.55 if sat > RUIN_WOOD else 0.2)
+		tint = tint.lerp(stone * (l / 0.6), 0.0 if sat > RUIN_WOOD else 0.5)
+		var mat := ShaderMaterial.new()
+		mat.shader = SHADER
+		mat.set_shader_parameter("use_palette", false)
+		mat.set_shader_parameter("tint", Color(clampf(tint.r, 0, 1), clampf(tint.g, 0, 1), clampf(tint.b, 0, 1)))
+		mat.set_shader_parameter("trim", load(TRIM))
+		mat.set_shader_parameter("age", GRAVE_AGE)
+		mat.set_shader_parameter("blocks", 0.0)
+		mat.set_shader_parameter("lichen", 0.0 if sat > RUIN_WOOD else 0.35)
 		_mats[key] = mat
 	return _mats[key]
 

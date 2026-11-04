@@ -306,6 +306,18 @@ var _grave_glow: ImageTexture
 const WAY_WIDTH := 1.4
 ## The graveyard's path is wider: it covers the whole dirt path.
 const GRAVE_WAY_WIDTH := 2.2
+## Wide entrances (the caves and the mines) get a paved forecourt as wide
+## as the entrance, reaching out to the path that arrives there (see
+## _pave_forecourts): how far it looks for that path (tiles), how far the
+## arriving path is paved on from it (tiles), and how much narrower than
+## the entrance's block the forecourt is (metres).
+const FORECOURT_REACH := 3
+const FORECOURT_PATH := 1
+const FORECOURT_MARGIN := 1.0
+## The wide entrances, each {"block", "front"}, for _pave_forecourts.
+var _forecourts: Array[Dictionary] = []
+## The grey of the boulders fallen from the lair's mountain.
+const LAIR_BOULDER := Color(0.5, 0.48, 0.45)
 const WAY_SEARCH := 14
 ## The hour the world was last lit for, and whether it is night.
 var hour := -1.0
@@ -1168,15 +1180,18 @@ func _build_terrace(block: Rect2i) -> void:
 ## The way down into the dragon's lair: an old stone arch from Quaternius'
 ## dungeon kit set into the foot of a rocky mountain (see LairMountain) with
 ## its door hanging open, a black hole and stairs going down behind it,
-## columns either side, skulls in the grass and a red glow from below. Run
-## into the arch to go down.
+## columns either side, skulls in the grass and a red glow from below. Arch,
+## columns and stairs are in weathered old stone like the graveyard's, and
+## the forecourt is paved (see _pave_forecourts). Run into the arch to go
+## down.
 func _build_lair_entrance(block: Rect2i) -> void:
 	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
 	var depth := block.size.y * TILE * 0.5
 	var front := center + Vector3(0, 0, depth - 0.6)
 	var arch := _put("lair/Arch", front, 0.0, 1.0)
+	_age_ruin(arch)
 	# The door swung open against the arch's side.
-	_put("lair/Arch_Door", front + Vector3(-1.2, 0, 0.2), -PI * 0.55, 1.0)
+	_age_ruin(_put("lair/Arch_Door", front + Vector3(-1.2, 0, 0.2), -PI * 0.55, 1.0))
 	# Darkness in the opening, and the top steps sinking into it.
 	var hole := MeshInstance3D.new()
 	var quad := QuadMesh.new()
@@ -1189,9 +1204,9 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	hole.position = front + Vector3(0, 1.65, -0.35)
 	add_child(hole)
 	for i in 2:
-		_put("lair/Stairs_Modular", front + Vector3(0, -0.55 - i * 0.9, 0.55 - i * 0.9), PI, 1.3)
+		_age_ruin(_put("lair/Stairs_Modular", front + Vector3(0, -0.55 - i * 0.9, 0.55 - i * 0.9), PI, 1.3))
 	for side in [-1.0, 1.0]:
-		_put("lair/Column2", front + Vector3(side * 2.9, 0, -0.1), 0.0, 0.9)
+		_age_ruin(_put("lair/Column2", front + Vector3(side * 2.9, 0, -0.1), 0.0, 0.9))
 		_put("lair/Skull", front + Vector3(side * 2.2 + _rng.randf_range(-0.4, 0.4), 0, 1.6 + _rng.randf_range(0.0, 0.8)), _rng.randf() * TAU, 0.8)
 	# The mountain the lair is dug into, rising behind the arch, and a few
 	# boulders fallen from it at its foot either side.
@@ -1199,9 +1214,10 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	mountain.position = front
 	add_child(mountain)
 	_lair_mountain_at = front
+	_forecourts.append({"block": block, "front": front})
 	for side in [-1.0, 1.0]:
-		_put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0)
-		_put("rock_single_C", front + Vector3(side * 3.6, 0, -1.9), side * 2.1, 3.5)
+		_age_ruin(_put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0), LAIR_BOULDER)
+		_age_ruin(_put("rock_single_C", front + Vector3(side * 3.6, 0, -1.9), side * 2.1, 3.5), LAIR_BOULDER)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(1.0, 0.35, 0.15)
 	glow.light_energy = 1.8
@@ -1214,6 +1230,22 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	if interiors.has("E"):
 		stations.append({"kind": "eingang", "building": "E", "name": BUILDING_NAMES.E,
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.6), "used": false})
+
+
+## The dungeon kit's pieces at the lair (plain colours, one per surface) in
+## old, weathered stone to match the graveyard (see AgedStone.ruin_material).
+## With `colour`, every surface is that stone instead (the fallen boulders,
+## in the mountain's grey).
+func _age_ruin(node: Node, colour := Color(0, 0, 0, 0)) -> void:
+	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for s in mi.mesh.get_surface_count():
+			var mat := mi.get_active_material(s)
+			if colour.a > 0.0:
+				mi.material_override = AgedStone.ruin_material(colour)
+			elif mat is StandardMaterial3D:
+				mi.set_surface_override_material(s, AgedStone.ruin_material((mat as StandardMaterial3D).albedo_color))
 
 
 ## A mine entrance in the mountains (see Mines): a timber frame set into
@@ -1231,6 +1263,7 @@ func _build_mine_entrance(block: Rect2i) -> void:
 	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
 	var front := center + Vector3(0, 0, block.size.y * TILE * 0.5 - 0.4)
 	mines.append(front)
+	_forecourts.append({"block": block, "front": front})
 	var wood := StandardMaterial3D.new()
 	wood.albedo_color = Color(0.34, 0.23, 0.14)
 	wood.roughness = 0.9
@@ -1342,6 +1375,7 @@ func _build_elder_cave(block: Rect2i) -> void:
 	_add_solid(center, Vector3(block.size.x * TILE * 0.9, 4, block.size.y * TILE * 0.9))
 	glow.set_meta("block", block)
 	doors[ELDER_CAVE] = front + Vector3(0, 0, 2.4)
+	_forecourts.append({"block": block, "front": front})
 	if interiors.has(ELDER_CAVE):
 		stations.append({"kind": "eingang", "building": ELDER_CAVE, "name": BUILDING_NAMES[")"],
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.5), "used": false})
@@ -1671,6 +1705,54 @@ func _pave_graveyard() -> void:
 					_pave_line(cell_to_world(c), cell_to_world(c) + Vector3(0, 0, -TILE * 0.5), GRAVE_WAY_WIDTH)
 
 
+## The forecourts of the wide entrances (the dragon's lair, the Great Old
+## One's cave, the mines), paved like the graveyard's path: the whole width
+## of the entrance from its front out to the path that arrives there, and
+## that path paved on for a few tiles, so the way coming in covers the
+## forecourt instead of meeting it as a narrow strip.
+func _pave_forecourts() -> void:
+	for f: Dictionary in _forecourts:
+		var block: Rect2i = f.block
+		var front: Vector3 = f.front
+		var half := block.size.x * TILE * 0.5 - FORECOURT_MARGIN
+		# The first row in front of the block that the arriving path touches
+		# (the row right in front of it when no path is close).
+		var row := block.end.y
+		var arriving: Array[Vector2i] = []
+		for k in FORECOURT_REACH:
+			for x in range(block.position.x - 1, block.end.x + 1):
+				if cell_char(Vector2i(x, block.end.y + k)) == ",":
+					arriving.append(Vector2i(x, block.end.y + k))
+			if not arriving.is_empty():
+				row = block.end.y + k
+				break
+		var far := maxf(cell_to_world(Vector2i(block.position.x, row)).z, front.z + TILE * 0.5)
+		var z := front.z + 0.3
+		while z <= far + 0.01:
+			_pave_line(Vector3(front.x - half, 0, z), Vector3(front.x + half, 0, z), WAY_WIDTH)
+			z += 1.0
+		# The arriving path, paved on for a few tiles, tile to tile.
+		var seen := {}
+		var reach := {}
+		for c in arriving:
+			reach[c] = 0
+			seen[c] = true
+		var queue := arriving.duplicate()
+		while not queue.is_empty():
+			var c: Vector2i = queue.pop_front()
+			_pave_line(cell_to_world(c), cell_to_world(c), WAY_WIDTH)
+			if reach[c] >= FORECOURT_PATH:
+				continue
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var n := c + d
+				if seen.has(n) or cell_char(n) != "," or block.has_point(n):
+					continue
+				seen[n] = true
+				reach[n] = reach[c] + 1
+				_pave_line(cell_to_world(c), cell_to_world(n), WAY_WIDTH)
+				queue.append(n)
+
+
 ## A way paved like the market square from each door to the square or the
 ## nearest path (only drawn into the ground: the tiles stay as they are).
 func _pave_entrances() -> void:
@@ -1687,6 +1769,7 @@ func _pave_entrances() -> void:
 		for i in points.size() - 1:
 			_pave_line(points[i], points[i + 1])
 	_pave_graveyard()
+	_pave_forecourts()
 	# The dirt paths in the village are cobbled too, joined tile to tile.
 	for y in height:
 		for x in width:

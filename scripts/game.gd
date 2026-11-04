@@ -590,73 +590,14 @@ func _set_atmosphere(outdoor: bool) -> void:
 		_ambience.volume_db = -30.0 if outdoor else -8.0
 
 
+## A label with outline and shadow (see UiKit.label).
 static func _make_label(font: Font, size: int, color := Color.WHITE) -> Label:
-	var l := Label.new()
-	l.add_theme_font_override("font", font)
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", color)
-	l.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
-	l.add_theme_constant_override("outline_size", maxi(4, size / 6))
-	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
-	l.add_theme_constant_override("shadow_offset_y", 3)
-	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return l
+	return UiKit.label(font, size, color)
 
 
-## Every button of the game, in one look. A button acts when the pointer is
-## let go over it, so a click can still be called off by dragging off the
-## button; `on_press` makes it act the moment the pointer goes down instead,
-## which only the pull-out menu's game actions use (a jump or a strike must
-## not trail behind the click).
-## The states look different: hover lifts the border to bright gold, a press
-## darkens the button, a disabled one is dimmed, and the keyboard focus (see
-## Menus) draws a white outline around it. Focus stays off here; a window
-## turns it on for its own buttons once the player uses the keys.
+## Every button of the game, in one look (see UiKit.button).
 static func _make_button(text: String, action: Callable, on_press := false) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.focus_mode = Control.FOCUS_NONE
-	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	b.custom_minimum_size = Vector2(118, 64)
-	b.add_theme_font_override("font", TEXT_FONT)
-	b.add_theme_font_size_override("font_size", 18)
-	b.add_theme_color_override("font_color", GOLD)
-	b.add_theme_color_override("font_hover_color", BUTTON_HOVER_TEXT)
-	b.add_theme_color_override("font_pressed_color", GOLD)
-	b.add_theme_color_override("font_hover_pressed_color", GOLD)
-	b.add_theme_color_override("font_focus_color", BUTTON_HOVER_TEXT)
-	b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.35))
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color(0.08, 0.05, 0.1, 0.72)
-	normal.border_color = Color(0.85, 0.66, 0.32, 0.8)
-	normal.set_border_width_all(2)
-	normal.set_corner_radius_all(14)
-	var hover := normal.duplicate()
-	hover.bg_color = Color(0.17, 0.11, 0.12, 0.85)
-	hover.border_color = GOLD
-	var pressed := normal.duplicate()
-	pressed.bg_color = Color(0.3, 0.2, 0.1, 0.85)
-	pressed.border_color = GOLD
-	var disabled := normal.duplicate()
-	disabled.bg_color = Color(0.06, 0.05, 0.07, 0.5)
-	disabled.border_color = Color(0.85, 0.66, 0.32, 0.3)
-	var focus := StyleBoxFlat.new()
-	focus.draw_center = false
-	focus.border_color = Color(1, 1, 1, 0.95)
-	focus.set_border_width_all(3)
-	focus.set_corner_radius_all(16)
-	focus.set_expand_margin_all(4)
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", pressed)
-	b.add_theme_stylebox_override("hover_pressed", pressed)
-	b.add_theme_stylebox_override("disabled", disabled)
-	b.add_theme_stylebox_override("focus", focus)
-	if on_press:
-		b.button_down.connect(action)
-	else:
-		b.pressed.connect(action)
-	return b
+	return UiKit.button(text, action, on_press)
 
 
 ## All clickable buttons live in a menu that is pulled out from the right

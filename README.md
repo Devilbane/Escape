@@ -6,6 +6,20 @@ The game can be played in English or German; you choose the language on the titl
 
 **Play in the browser:** https://devilbane.github.io/Escape/
 
+## Playing on your own computer (Windows)
+
+Double-click **`Play Escape.bat`** in the game folder. On every start it looks on GitHub for a newer
+version, installs it and then starts the game, so the local copy is always as new as the browser version.
+
+- A folder cloned with git (or GitHub Desktop) is updated with a fast-forward pull; your own changes are never
+  overwritten. If they clash with the update, the game starts in its current version and says so.
+- Any other copy, such as a downloaded ZIP, is updated by downloading the new version and copying it over the
+  folder. The batch file alone is enough: put it in an empty folder and it downloads the whole game.
+- Godot 4.7 is found on its own (the `GODOT` environment variable, the PATH, the desktop or downloads).
+  If there is none, the right version is downloaded once into `.launcher\`.
+- Without an internet connection the game simply starts as it is. Saved games are never touched.
+- `Play Escape.bat -NoUpdate` starts without looking for updates, `Play Escape.bat -Editor` opens the Godot editor.
+
 ## Controls
 
 | Action | Keyboard | Mouse / touch |

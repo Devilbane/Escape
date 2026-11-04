@@ -35,7 +35,7 @@ const USER_DIR := "user://karten/"
 const MONSTER_FAMILIES := [
 	["Untote", ["krieger", "schuetze", "magier", "wicht", "koloss", "waechter", "fog_wraith"]],
 	["Räuber", ["halsabschneider", "wilderer", "schlaeger", "klippenschuetze", "hauptmann"]],
-	["Tiere der Wildnis", ["wolf", "ork", "yeti", "spinne"]],
+	["Tiere der Wildnis", ["wolf", "ork", "yeti", "spinne", "spinnenkoenigin"]],
 	["Drachenhöhle", ["fledermaus", "schleim", "drache"]],
 	["Berge und Minen", ["eiswolf", "bergork", "felstroll", "kristallschleim", "glutschleim", "bergkoenig"]],
 	["Grauen", ["hohle_mutter", "bleicher_waechter", "schlund"]],
@@ -45,14 +45,14 @@ const MONSTER_FAMILIES := [
 ## that the two agree and that every kind that fights is here).
 const MONSTER_BASES := ["krieger", "schuetze", "magier", "wicht", "koloss", "waechter", "fog_wraith",
 		"halsabschneider", "wilderer", "schlaeger", "klippenschuetze", "hauptmann",
-		"wolf", "ork", "yeti", "spinne",
+		"wolf", "ork", "yeti", "spinne", "spinnenkoenigin",
 		"fledermaus", "schleim", "drache",
 		"eiswolf", "bergork", "felstroll", "kristallschleim", "glutschleim", "bergkoenig",
 		"hohle_mutter", "bleicher_waechter", "schlund",
 		"brutdrache", "grosser_alter"]
 ## The bosses among them: each fights with a script of its own (see
 ## Level._spawn_enemy).
-const MONSTER_BOSSES := ["hauptmann", "drache", "bergkoenig"]
+const MONSTER_BOSSES := ["hauptmann", "drache", "bergkoenig", "spinnenkoenigin"]
 ## What each base is called in the workshop (German, see Lang).
 const MONSTER_NAMES := {
 	"krieger": "Skelettkrieger", "schuetze": "Skelettschütze", "magier": "Skelettmagier",
@@ -60,7 +60,7 @@ const MONSTER_NAMES := {
 	"fog_wraith": "Nebelgeist",
 	"halsabschneider": "Halsabschneider", "wilderer": "Wilderer", "schlaeger": "Schläger",
 	"klippenschuetze": "Klippenschütze", "hauptmann": "Räuberhauptmann",
-	"wolf": "Wolf", "ork": "Ork", "yeti": "Yeti", "spinne": "Spinne",
+	"wolf": "Wolf", "ork": "Ork", "yeti": "Yeti", "spinne": "Spinne", "spinnenkoenigin": "Spinnenkönigin",
 	"fledermaus": "Fledermaus", "schleim": "Schleim", "drache": "Drache",
 	"eiswolf": "Eiswolf", "bergork": "Bergork", "felstroll": "Felstroll",
 	"kristallschleim": "Kristallschleim", "glutschleim": "Glutschleim", "bergkoenig": "Bergkönig",

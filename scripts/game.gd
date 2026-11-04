@@ -229,6 +229,13 @@ var _coin_label: Label
 var _key_label: Label
 var _hp_bar: ProgressBar
 var _hp_fill: StyleBoxFlat
+## An invisible strip over the slim life bar, a little taller than it, that
+## takes the pointer and shows the life in numbers (see _update_hud).
+var _hp_hover: Control
+## How far the life bar's hover strip reaches above and below the bar, in
+## pixels (below it stops short of the ammunition row).
+const HP_HOVER_ABOVE := 6.0
+const HP_HOVER_BELOW := 4.0
 ## The hero's passing troubles (poison, a curse, burning, slowness) as icons
 ## under the life bar (see StatusIcon, hero_ailments).
 var _status_row: HBoxContainer
@@ -257,6 +264,10 @@ const HP_COLORS := [
 ## The run meter: seconds of running left, as a bar and in numbers.
 var _run_bar: ProgressBar
 var _xp_bar: ProgressBar
+## The rows of the run meter and of the experience bar: each takes the
+## pointer as a whole (bar and label) for its tooltip.
+var _run_row: HBoxContainer
+var _xp_row: HBoxContainer
 var _xp_label: Label
 var _run_label: Label
 var _run_fill: StyleBoxFlat
@@ -1038,6 +1049,9 @@ func _setup_hud() -> void:
 	for side in ["left", "right", "top"]:
 		top.add_theme_constant_override("margin_" + side, 24)
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Every HUD value explains itself on hover, in the house tooltip style.
+	var tips := _tooltip_theme()
+	top.theme = tips
 	_hud.add_child(top)
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1066,7 +1080,15 @@ func _setup_hud() -> void:
 	_hp_bar.add_theme_stylebox_override("background", hp_back)
 	_hp_bar.add_theme_stylebox_override("fill", _hp_fill)
 	_hp_bar.visible = false
+	_hp_bar.theme = tips
 	_hud.add_child(_hp_bar)
+	# The bar is only a few pixels high: a taller strip over it takes the
+	# pointer, so its tooltip is easy to reach.
+	_hp_hover = Control.new()
+	_hp_hover.mouse_filter = Control.MOUSE_FILTER_PASS
+	_hp_hover.position = Vector2(0, -HP_HOVER_ABOVE)
+	_hp_hover.size = Vector2(HP_BAR_SIZE.x, HP_BAR_SIZE.y + HP_HOVER_ABOVE + HP_HOVER_BELOW)
+	_hp_bar.add_child(_hp_hover)
 	# The hero's passing troubles (poison, a curse, burning, slowness) as
 	# little red-framed icons in a row under the bar, where the eye is during
 	# a fight, in a fixed order from its left edge, so an icon coming or
@@ -1075,10 +1097,12 @@ func _setup_hud() -> void:
 	_status_row = HBoxContainer.new()
 	_status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_status_row.add_theme_constant_override("separation", 4)
+	_status_row.theme = tips
 	_hud.add_child(_status_row)
 	_ammo_row = HBoxContainer.new()
 	_ammo_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ammo_row.add_theme_constant_override("separation", 0)
+	_ammo_row.theme = tips
 	_hud.add_child(_ammo_row)
 	for ammo in AMMO:
 		var slot := Control.new()
@@ -1106,9 +1130,10 @@ func _setup_hud() -> void:
 		slot.add_child(count)
 		_ammo_counts[ammo[0]] = count
 	var run_row := HBoxContainer.new()
-	run_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	run_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	run_row.add_theme_constant_override("separation", 10)
 	left.add_child(run_row)
+	_run_row = run_row
 	_run_bar = ProgressBar.new()
 	_run_bar.show_percentage = false
 	_run_bar.custom_minimum_size = Vector2(170, 14)
@@ -1129,9 +1154,10 @@ func _setup_hud() -> void:
 	# The hero's level beside a bar of the experience towards the next one,
 	# built like the run bar above it.
 	var xp_row := HBoxContainer.new()
-	xp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	xp_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	xp_row.add_theme_constant_override("separation", 10)
 	left.add_child(xp_row)
+	_xp_row = xp_row
 	_xp_bar = ProgressBar.new()
 	_xp_bar.show_percentage = false
 	_xp_bar.custom_minimum_size = Vector2(170, 14)
@@ -1153,8 +1179,10 @@ func _setup_hud() -> void:
 	purse_row.add_theme_constant_override("separation", 24)
 	left.add_child(purse_row)
 	_coin_label = _make_label(TEXT_FONT, 18, GOLD)
+	_coin_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	purse_row.add_child(_coin_label)
 	_key_label = _make_label(TEXT_FONT, 18)
+	_key_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	purse_row.add_child(_key_label)
 	# Things waiting for the hero (gear to mend, an upgrade to build) as little gold-framed icons under the hero level. The row
 	# always keeps one icon's height, so the status block never grows.
@@ -1956,6 +1984,10 @@ func _update_run_meter() -> void:
 	_run_bar.value = left
 	_run_fill.bg_color = Color(0.85, 0.3, 0.25) if player.winded else Color(0.55, 0.85, 0.4)
 	_run_label.text = Lang.t("Rennen: %d s") % ceili(left)
+	var run_tip := Lang.t("So lange kannst du noch rennen. Im Gehen und Stehen kommt die Puste zurück.")
+	if player.winded:
+		run_tip += "\n" + Lang.t("Außer Atem: Erst wenn sich die Leiste wieder etwas gefüllt hat, kannst du rennen.")
+	_run_row.tooltip_text = run_tip
 
 
 func _update_hud() -> void:
@@ -1968,13 +2000,17 @@ func _update_hud() -> void:
 	# Green when whole, through yellow and red to deep red as life is lost
 	# (poison shows as its icon under the bar).
 	_hp_fill.bg_color = hp_color(float(player.hp) / maxf(1.0, player.max_hp))
+	_hp_hover.tooltip_text = hp_tip()
 	_update_status_icons()
 	_show_hero_level()
 	_coin_label.text = Lang.t("Gold: %d") % coins
+	_coin_label.tooltip_text = Lang.t("Dein Gold: Damit bezahlst du bei Händlern und Handwerkern.")
 	_update_ammo()
 	_key_label.text = Lang.t("Schlüssel gefunden") if level.has_key else Lang.t("Kein Schlüssel")
 	_key_label.visible = not level.outdoor and level.building == ""
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
+	_key_label.tooltip_text = Lang.t("Mit dem Schlüssel öffnest du die verschlossene Tür zur nächsten Ebene.") if level.has_key \
+			else Lang.t("Irgendwo auf dieser Ebene liegt der Schlüssel zur verschlossenen Tür.")
 
 
 ## The hero's level and the experience towards the next one on the HUD.
@@ -1986,6 +2022,22 @@ func _show_hero_level() -> void:
 	_xp_label.text = Lang.t("Heldenstufe %d") % player.hero_level()
 	if player.free_points() > 0:
 		_xp_label.text += "   " + Lang.t("Punkt frei (P)")
+	var tip := Lang.t("Heldenstufe %d") % player.hero_level()
+	if step.y > 0:
+		tip += "\n" + Lang.t("Erfahrung: %d von %d bis zur nächsten Stufe") % [step.x, step.y]
+	else:
+		tip += "\n" + Lang.t("Die höchste Stufe ist erreicht.")
+	if player.free_points() > 0:
+		tip += "\n" + Lang.t("Du hast einen Punkt frei: Verteile ihn auf der Charakterseite (P).")
+	_xp_row.tooltip_text = tip
+
+
+## The life bar's tooltip: life in numbers, and how it comes back.
+func hp_tip() -> String:
+	var tip := Lang.t("Leben: %d von %d") % [clampi(player.hp, 0, player.max_hp), player.max_hp]
+	if player.hp < player.max_hp:
+		tip += "\n" + Lang.t("Es kommt von selbst zurück: %.1f pro Sekunde, nach einem Treffer erst nach einer kurzen Pause.") % player.life_regen()
+	return tip
 
 
 ## The time of day for the HUD, e.g. "21:30, night, full moon". Down in

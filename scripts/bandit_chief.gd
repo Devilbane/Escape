@@ -34,7 +34,7 @@ const CHARGE_SPEED := 15.0
 const CHARGE_TIME := 1.1
 const CHARGE_FROM := 5.0
 const CHARGE_UP_TO := 18.0
-const CHARGE_DAMAGE := 2
+const CHARGE_DAMAGE := 3
 const CHARGE_EVERY := 5.0
 const CHARGE_HITS_AT := 1.7
 ## How long a missed charge leaves him dazed.

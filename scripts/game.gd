@@ -1231,7 +1231,7 @@ func _setup_shrine_panel() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
 	box.add_child(row)
-	var gifts := [Lang.t("+4 Leben"), Lang.t("+1 Kampfkraft"), Lang.t("+3% Tempo")]
+	var gifts := [Lang.t("+4 Leben"), Lang.t("+1 Attributpunkt"), Lang.t("+1 Konstitution")]
 	for i in gifts.size():
 		var b := _make_button(Lang.t("%s\n(Taste %d)") % [gifts[i], i + 1], _choose_gift.bind(i))
 		b.custom_minimum_size = Vector2(200, 96)
@@ -1499,11 +1499,17 @@ func _on_ingredient_collected(id: String) -> void:
 	Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
 
 
-## The fountain: full life and every ailment gone, as often as you like.
+## The fountain: every ailment gone and full life, as often as you like; a
+## level can set a fixed amount of life per drink instead (Level.fountain_heal).
 func _drink(s: Dictionary) -> void:
 	player.face(s.pos - player.global_position)
-	var healed := player.hp < player.max_hp
-	player.hp = player.max_hp
+	var gain := player.max_hp - player.hp
+	if level.fountain_heal > 0:
+		gain = mini(level.fountain_heal, gain)
+	var healed := gain > 0
+	player.hp += gain
+	if healed:
+		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+%d" % gain, Color(0.5, 1.0, 0.5))
 	var cured := player.cure()
 	player.play_flourish("PickUp", 0.6)
 	Sfx.play(self, "drink")
@@ -1826,11 +1832,15 @@ func _choose_gift(index: int) -> void:
 			player.hp += Player.SHRINE_LIFE
 			text = Lang.t("Du fühlst dich zäher: +4 Leben")
 		1:
-			player.gift_power += Player.SHRINE_POWER
-			text = Lang.t("Deine Hiebe werden härter: +1 Kampfkraft")
+			player.gift_points += Player.SHRINE_POINTS
+			text = Lang.t("Die Ahnen schenken dir einen Attributpunkt: verteile ihn auf der Charakterseite (P).")
 		2:
-			player.gift_speed += Player.SHRINE_SPEED
-			text = Lang.t("Deine Schritte werden leichter: +3% Tempo")
+			# More Konstitution means more life; the new life comes filled.
+			var before := player.max_hp
+			player.gift_constitution += Player.SHRINE_CONSTITUTION
+			player.refresh_stats()
+			player.hp += player.max_hp - before
+			text = Lang.t("Du fühlst dich zäher: +1 Konstitution")
 		3:
 			if not _wise_gift.visible:
 				return
@@ -2186,7 +2196,7 @@ func load_level(index: int, restock := true) -> void:
 	player.frozen = false
 	player.controllable = true
 	# Arriving on a level never heals by itself; climbing the stairs gives
-	# STAIRS_HEAL (see _next_level) and the fountain heals fully.
+	# STAIRS_HEAL (see _next_level) and the fountain heals (see _drink).
 	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
 	level.restore_taken()
@@ -2869,6 +2879,14 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_power = int(data.gift_power)
 	player.gift_speed = float(data.gift_speed)
 	player.gift_armor = int(data.get("gift_armor", 0))
+	player.gift_points = int(data.get("gift_points", 0))
+	player.gift_constitution = int(data.get("gift_constitution", 0))
+	player.gift_spent = {}
+	var gift_spent = data.get("gift_spent", {})
+	if gift_spent is Dictionary:
+		for id in gift_spent:
+			if id in HeroLevel.POINT_ATTRIBUTES:
+				player.gift_spent[id] = int(gift_spent[id])
 	player.equipped = data.equipped
 	player.wear = data.get("wear", {})
 	player.set_sex(str(data.get("sex", BodyLook.DEFAULT))) # Games saved before there were heroines have a hero.
@@ -3087,6 +3105,7 @@ func save_game(going_away := false) -> bool:
 	var data := {
 		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "iron": iron, "bars": bars, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
+		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
 		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(),

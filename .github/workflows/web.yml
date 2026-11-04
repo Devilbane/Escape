@@ -159,6 +159,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/shrine.gd | tee shrine.log
           grep -q PASS shrine.log
 
+      - name: Refuge fountain gives 5 life per drink test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/fountain.gd | tee fountain.log
+          grep -q PASS fountain.log
+
       - name: Sitting on the benches of the market square test
         run: |
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/seats.gd | tee seats.log

@@ -255,6 +255,9 @@ var lair_exit: Node3D
 var _in_lair_exit := false
 ## A hero's own house with several storeys (see "home: yes").
 var is_home := false
+## Life one drink from this level's fountain gives back (header "fountain:
+## 5"); 0 means the fountain heals fully, as it does everywhere else.
+var fountain_heal := 0
 ## The town house on Weavers' Lane this home is (set by the game).
 var house_number := 0
 ## Free spots kept for furniture: {"cell", "pos", "storey"}, from the "+"
@@ -485,6 +488,8 @@ func load_from_file(path: String) -> void:
 			inn = true
 		elif line.begins_with("floor:"):
 			floor_name = line.substr(6).strip_edges()
+		elif line.begins_with("fountain:"):
+			fountain_heal = maxi(0, line.substr(9).strip_edges().to_int())
 		elif line.begins_with("outdoor:"):
 			# Out in the open (see Outdoor): no enemies, like a safe room.
 			outdoor = true

@@ -2120,6 +2120,8 @@ func _spawn_villagers() -> void:
 				_build_stone_yard(c + Vector2i(0, -1))
 			elif ch == "1":
 				_build_forge(c + Vector2i(-1, 0))
+			elif ch == "3":
+				_build_chopping_log(v, c)
 
 
 ## The barber's stall on the tile behind him: a market tent with a striped
@@ -2211,6 +2213,87 @@ func _build_forge(cell: Vector2i) -> void:
 	board.position = pos + Vector3(-1.5, 0, 1.6)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))
+
+
+## The woodcutter's trunk: a felled tree lying across his way on his own
+## tile, so his axe lands on wood and not in the air (see
+## Villager.set_chopping). He faces the stump with the logs ("t") when one is
+## near, as if the trunk came from there; otherwise east. The chips that fly
+## at each blow wait at the spot where the blade bites.
+func _build_chopping_log(v: Villager, cell: Vector2i) -> void:
+	var face := Vector3.RIGHT
+	var best := INF
+	for y in range(-3, 4):
+		for x in range(-3, 4):
+			if cell_char(cell + Vector2i(x, y)) == "t" and Vector2(x, y).length() < best:
+				best = Vector2(x, y).length()
+				face = Vector3(signf(x), 0, 0) if absi(x) >= absi(y) else Vector3(0, 0, signf(y))
+	var stand := cell_to_world(cell)
+	var spot := Node3D.new()
+	spot.name = "ChoppingLog"
+	spot.position = stand
+	spot.rotation.y = atan2(face.x, face.z)
+	add_child(spot)
+	var bark := StandardMaterial3D.new()
+	bark.albedo_color = Color(0.4, 0.27, 0.17)
+	bark.roughness = 1.0
+	var sapwood := StandardMaterial3D.new()
+	sapwood.albedo_color = Color(0.86, 0.7, 0.48)
+	sapwood.roughness = 0.9
+	var heartwood := StandardMaterial3D.new()
+	heartwood.albedo_color = Color(0.68, 0.48, 0.28)
+	heartwood.roughness = 0.9
+	# The trunk lies along the woodcutter's left and right (his own x).
+	var r := Villager.LOG_RADIUS
+	var trunk := MeshInstance3D.new()
+	var round_mesh := CylinderMesh.new()
+	round_mesh.top_radius = r
+	round_mesh.bottom_radius = r * 1.08
+	round_mesh.height = Villager.LOG_LENGTH
+	round_mesh.radial_segments = 14
+	round_mesh.rings = 1
+	trunk.mesh = round_mesh
+	trunk.material_override = bark
+	trunk.position = Villager.LOG_CENTRE
+	trunk.rotation.z = PI * 0.5
+	spot.add_child(trunk)
+	# The sawn ends: pale wood with a darker heart.
+	for side in [-1.0, 1.0]:
+		var radius: float = r * (1.08 if side < 0.0 else 1.0)
+		for ring in [[radius * 0.94, sapwood, 0.012], [radius * 0.45, heartwood, 0.02]]:
+			var disc := MeshInstance3D.new()
+			var disc_mesh := CylinderMesh.new()
+			disc_mesh.top_radius = ring[0]
+			disc_mesh.bottom_radius = ring[0]
+			disc_mesh.height = 0.02
+			disc_mesh.radial_segments = 14
+			disc_mesh.rings = 1
+			disc.mesh = disc_mesh
+			disc.material_override = ring[1]
+			disc.position = Villager.LOG_CENTRE + Vector3(-side * (Villager.LOG_LENGTH * 0.5 + ring[2]), 0, 0)
+			disc.rotation.z = PI * 0.5
+			spot.add_child(disc)
+	# Chips from earlier blows on the ground around the cut.
+	var chip_mesh := BoxMesh.new()
+	chip_mesh.size = Vector3(0.14, 0.025, 0.08)
+	for at in [Vector3(0.35, 0, 1.1), Vector3(-0.6, 0, 1.15), Vector3(0.1, 0, 2.05), Vector3(-0.45, 0, 2.15), Vector3(0.7, 0, 1.95), Vector3(-0.15, 0, 0.95)]:
+		var chip := MeshInstance3D.new()
+		chip.mesh = chip_mesh
+		chip.material_override = sapwood
+		chip.position = at + Vector3(0, 0.0125, 0)
+		chip.rotation.y = at.x * 7.0 + at.z * 3.0
+		spot.add_child(chip)
+	var chips := Effects.make_wood_chips()
+	chips.position = Villager.BITE_POINT
+	spot.add_child(chips)
+	var centre := spot.to_global(Villager.LOG_CENTRE)
+	var size := Vector3(Villager.LOG_LENGTH, 0.5, r * 2.0)
+	if absf(face.x) > 0.5:
+		size = Vector3(r * 2.0, 0.5, Villager.LOG_LENGTH)
+	_add_solid(Vector3(centre.x, 0, centre.z), size)
+	v.global_position = stand
+	v.rotation.y = spot.rotation.y
+	v.set_chopping(stand, face, chips)
 
 
 # --- Bandits ------------------------------------------------------------------

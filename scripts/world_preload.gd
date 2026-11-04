@@ -198,7 +198,7 @@ func _add_samples(at: Vector3) -> void:
 	var moving := Node3D.new()
 	_holder.add_child(moving)
 	for p: CPUParticles3D in [Weather.make_rain(), Weather.make_mist(), Effects.make_sparkles(Color(1, 0.9, 0.4)),
-			Effects.make_spray(Color(0.6, 0.05, 0.05)), Effects.make_flame()]:
+			Effects.make_spray(Color(0.6, 0.05, 0.05)), Effects.make_flame(), Effects.make_wood_chips()]:
 		moving.add_child(p)
 		p.global_position = at + Vector3(0, 1, 0)
 		p.emitting = true

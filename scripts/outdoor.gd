@@ -341,7 +341,7 @@ var night := false
 ## night, and sink back into the earth at dawn. They never rise within
 ## sight of the hero.
 const NIGHT_DEAD := 5
-const NIGHT_DEAD_KINDS := ["krieger", "wicht", "krieger", "schuetze", "wicht"]
+const NIGHT_DEAD_KINDS := ["krieger", "schuetze", "wicht", "krieger", "schuetze"]
 const NIGHT_DEAD_RESPAWN := 90.0
 const NIGHT_DEAD_FAR := 14.0
 ## At night fallen bandits are replaced this much sooner.

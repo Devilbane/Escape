@@ -539,25 +539,47 @@ static func grow_bush(at: Vector3, rng: RandomNumberGenerator, leaves: Dictionar
 		leaves.colours.append(c)
 
 
-## All the leaves in one MultiMesh.
-static func ivy_node(leaves: Dictionary) -> MultiMeshInstance3D:
+## The leaves (ivy and shrubs) are drawn in square tiles of the map, one
+## MultiMesh each, so a tile off screen or far from the camera is skipped
+## whole instead of every leaf of the village being drawn every frame.
+const LEAF_TILE := 16.0
+## Tiles further than this (metres) from the camera are not drawn; the
+## camera looks down from about 25 m, so this lies beyond the screen's edge.
+const LEAF_RANGE := 80.0
+
+
+## All the leaves, under one node "Ivy": one MultiMesh per tile of the map.
+static func ivy_node(leaves: Dictionary) -> Node3D:
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE
 	quad.center_offset = Vector3(0, 0.3, 0)
 	quad.material = leaf_material()
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = quad
-	mm.instance_count = leaves.xforms.size()
-	for i in mm.instance_count:
-		mm.set_instance_transform(i, leaves.xforms[i])
-		mm.set_instance_color(i, leaves.colours[i])
-	var node := MultiMeshInstance3D.new()
-	node.name = "Ivy"
-	node.multimesh = mm
-	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return node
+	var tiles := {}
+	for i in leaves.xforms.size():
+		var at: Vector3 = (leaves.xforms[i] as Transform3D).origin
+		var key := Vector2i(floori(at.x / LEAF_TILE), floori(at.z / LEAF_TILE))
+		if not tiles.has(key):
+			tiles[key] = []
+		tiles[key].append(i)
+	var root := Node3D.new()
+	root.name = "Ivy"
+	for key: Vector2i in tiles:
+		var picked: Array = tiles[key]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = quad
+		mm.instance_count = picked.size()
+		for k in picked.size():
+			mm.set_instance_transform(k, leaves.xforms[picked[k]])
+			mm.set_instance_color(k, leaves.colours[picked[k]])
+		var node := MultiMeshInstance3D.new()
+		node.name = "Leaves_%d_%d" % [key.x, key.y]
+		node.multimesh = mm
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.visibility_range_end = LEAF_RANGE
+		root.add_child(node)
+	return root
 
 
 ## A three-lobed ivy leaf with pale veins, its colour from each leaf.

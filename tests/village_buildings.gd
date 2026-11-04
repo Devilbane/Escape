@@ -180,10 +180,22 @@ func _check_aged(lvl: Outdoor) -> void:
 	# Ivy: plenty of it, all of it close to a wall and no higher than old
 	# ivy climbs, none in front of a door. (The leaves are read from the
 	# village's own list: a headless MultiMesh keeps no transforms.)
-	var ivy: MultiMeshInstance3D = lvl.get_node_or_null("Ivy")
-	check(ivy != null and ivy.multimesh.instance_count > 1000, "ivy climbs the walls")
+	var ivy: Node3D = lvl.get_node_or_null("Ivy")
+	var count := 0
+	var tiles := 0
 	if ivy:
-		check(ivy.multimesh.instance_count < 60000, "the ivy and shrubs stay cheap (%d leaves)" % ivy.multimesh.instance_count)
+		for part: MultiMeshInstance3D in ivy.get_children():
+			count += part.multimesh.instance_count
+			tiles += 1
+			# (While the level warms up, LevelWarmup keeps the range aside.)
+			var reach: float = part.get_meta(LevelWarmup.KEY)[2] if part.has_meta(LevelWarmup.KEY) else part.visibility_range_end
+			check(reach > 0.0, "a far tile of leaves is not drawn")
+	check(count > 1000, "ivy climbs the walls")
+	if ivy:
+		check(count < 60000, "the ivy and shrubs stay cheap (%d leaves)" % count)
+		# In tiles of the map, so those off screen are skipped (see
+		# AgedStone.ivy_node); no tile holds a large share of the leaves.
+		check(tiles > 10, "the leaves are drawn in tiles of the map (%d)" % tiles)
 		var near_door := 0
 		for i in lvl._ivy.xforms.size():
 			var at := (lvl._ivy.xforms[i] as Transform3D).origin

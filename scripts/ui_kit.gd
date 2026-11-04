@@ -90,3 +90,35 @@ static func panel_style(border: Color) -> StyleBoxFlat:
 	style.set_corner_radius_all(18)
 	style.set_content_margin_all(26)
 	return style
+
+
+## Width of the scroll bars in the windows: slim, so a bar is a quiet hint at
+## the side of a list rather than a wide grey strip next to it.
+const SCROLL_BAR_WIDTH := 6
+
+
+## The look of the windows' scroll bars, as a theme for a window's root: a
+## faint dark track and a dim gold handle that brightens under the pointer,
+## instead of the engine's wide grey bar. Everything else falls through to
+## the default look.
+static func scroll_theme() -> Theme:
+	var theme := Theme.new()
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0.0, 0.0, 0.0, 0.3)
+	track.set_corner_radius_all(SCROLL_BAR_WIDTH / 2)
+	track.set_content_margin_all(SCROLL_BAR_WIDTH / 2.0)
+	# How strong the gold of the handle is: at rest, under the pointer, dragged.
+	var alphas := {"grabber": 0.45, "grabber_highlight": 0.75, "grabber_pressed": 1.0}
+	var handles := {}
+	for state in alphas:
+		var handle := StyleBoxFlat.new()
+		handle.bg_color = Color(GOLD, alphas[state])
+		handle.set_corner_radius_all(SCROLL_BAR_WIDTH / 2)
+		handle.set_content_margin_all(SCROLL_BAR_WIDTH / 2.0)
+		handles[state] = handle
+	for type in ["VScrollBar", "HScrollBar"]:
+		theme.set_stylebox("scroll", type, track)
+		theme.set_stylebox("scroll_focus", type, track)
+		for name in handles:
+			theme.set_stylebox(name, type, handles[name])
+	return theme

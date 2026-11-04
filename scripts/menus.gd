@@ -112,6 +112,9 @@ func setup(owner_game: Node, hud: CanvasLayer) -> void:
 	center.add_child(_holder)
 	_panel = PanelContainer.new()
 	_panel.add_theme_stylebox_override("panel", panel_style(Color(0.85, 0.66, 0.32, 0.7)))
+	# Slim gold scroll bars in every window (chest, bag, trade lists...)
+	# instead of the engine's wide grey ones.
+	_panel.theme = UiKit.scroll_theme()
 	_holder.add_child(_panel)
 	_panel.minimum_size_changed.connect(_place_panel)
 	# Everything in the window sits in a scroll region. It is exactly as big as

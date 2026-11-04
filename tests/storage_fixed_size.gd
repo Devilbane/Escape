@@ -69,6 +69,10 @@ func _run(lang: String) -> void:
 	game.storage.clear()
 	for id in mix.slice(0, 6):
 		game.storage.append(id)
+	# The windows' scroll bars are the slim gold ones, not the wide grey default.
+	var bar: VScrollBar = menus._scroll.get_v_scroll_bar()
+	check(bar.get_combined_minimum_size().x <= UiKit.SCROLL_BAR_WIDTH, "the window's scroll bar is slim: %s" % bar.get_combined_minimum_size())
+	check(bar.get_theme_stylebox("grabber") is StyleBoxFlat, "the scroll bar has the game's handle")
 	for kind in ["lager", "tresor"]:
 		menus.open(kind)
 		await _wait()

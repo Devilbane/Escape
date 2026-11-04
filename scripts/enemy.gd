@@ -189,12 +189,12 @@ const KINDS := {
 			"Hit_A": "DragonArmature|Dragon_Hit", "Death_A": "DragonArmature|Dragon_Death"},
 		"tint": Color(0.5, 0.42, 0.62), "glow": Color(0.75, 0.35, 1.0),
 		"voice": ["voice_koloss", 0.95, "fauch"], "purse": [5, 10], "gear_chance": 0.5},
-	"grosser_alter": {"model": "Dragon", "dir": "lair", "ext": "fbx", "hp": 200, "speed": 0.0, "damage": 1, "reach": 30.0, "size": 4.2, "cooldown": 3.0, "armor": 9,
+	"grosser_alter": {"model": "Dragon", "dir": "lair", "ext": "fbx", "hp": 200, "speed": 0.0, "damage": 1, "reach": 30.0, "size": 3.6, "cooldown": 3.0, "armor": 9,
 		"beast": true, "big": true, "model_scale": 0.6, "turn": 0.0, "run_anim": 4.0, "lift": 0.0,
 		"anims": {"Idle": "DragonArmature|Dragon_Flying", "Walking_A": "DragonArmature|Dragon_Flying", "Running_A": "DragonArmature|Dragon_Flying",
 			"1H_Melee_Attack_Chop": "DragonArmature|Dragon_Attack", "1H_Ranged_Shoot": "DragonArmature|Dragon_Attack2",
 			"Hit_A": "DragonArmature|Dragon_Hit", "Death_A": "DragonArmature|Dragon_Death"},
-		"tint": Color(0.34, 0.3, 0.4), "glow": Color(0.7, 0.3, 1.0),
+		"tint": Color(0.62, 0.5, 0.66), "glow": Color(0.7, 0.3, 1.0),
 		"voice": ["voice_koloss", 0.3, "BRÜLL"], "purse": [0, 0], "gear_chance": 0.0},
 }
 ## Every horror there is (see Horrors).

@@ -117,14 +117,14 @@ func _check_dragon() -> void:
 	if elder == null:
 		return
 	check(lvl.enemies.filter(func(e): return e is ElderDragon).size() == 1, "there is one Great Old One")
-	check(elder._model.scale.x >= 4.0, "it is far bigger than anything else (%.1f)" % elder._model.scale.x)
+	check(elder._model.scale.x >= 3.5, "it is far bigger than anything else (%.1f)" % elder._model.scale.x)
 	var p: Player = game.player
 	# A sneaking hero right beside it does not wake it.
 	p.set_sneaking(true)
-	p.global_position = elder.global_position + Vector3(0, 0, 4.2)
+	p.global_position = elder.global_position + Vector3(0, 0, 4.6)
 	p.velocity = Vector3(3, 0, 0)
 	for i in 120:
-		elder._sleep(1.0 / 60.0, p, 4.2)
+		elder._sleep(1.0 / 60.0, p, 4.6)
 	check(elder.asleep and elder.unrest == 0.0, "a sneaking hero does not disturb it (%.2f)" % elder.unrest)
 	# Walking near it makes it restless, and in the end it wakes.
 	p.set_sneaking(false)

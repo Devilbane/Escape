@@ -3695,7 +3695,7 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, ma
 	if e is ElderDragon:
 		# Far too big to walk through, and it never moves from its bed.
 		elder = e as ElderDragon
-		_add_solid(e.global_position, Vector3(5.0, 4.0, 5.0))
+		_add_solid(e.global_position, Vector3(8.0, 4.0, 8.0))
 		elder.awakened.connect(func(): elder_awakened.emit())
 		elder.settled.connect(func(): elder_settled.emit())
 	if e is Dragon:

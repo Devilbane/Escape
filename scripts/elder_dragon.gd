@@ -43,6 +43,10 @@ const BREATH_STEP := 3.2
 const SETTLE_AFTER := 8.0
 ## How often the "Zzz" shows while it sleeps.
 const SNORE_EVERY := 3.2
+## Closer than this (metres, to its middle) the hero bumps into its body.
+const BUMP := 5.0
+## How far its lying body is shifted to lie centred over its spot.
+const SLEEP_SHIFT := Vector3(-3.3, 0, -0.4)
 
 ## Asleep or awake.
 var asleep := true
@@ -67,6 +71,14 @@ func boss_title() -> String:
 func _ready() -> void:
 	super._ready()
 	add_to_group("elder_dragon")
+	# It lies facing the hall and its hoard, and a pale light falls on it
+	# from above, so the hero sees what sleeps there.
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.85, 0.75, 1.0)
+	light.light_energy = 1.6
+	light.omni_range = 16.0
+	light.position = Vector3(0, 7.0, 2.0)
+	add_child(light)
 	_lie_down(false)
 
 
@@ -148,6 +160,10 @@ func _lie_down(blend: bool) -> void:
 		return
 	var name: String = _stats.anims.Death_A
 	_current_anim = "sleep"
+	# Lying on its side its body reaches far to one side: shifted back so
+	# it lies over its own spot (and its solid footprint, see Level).
+	_model.rotation.y = 0.0
+	_model.position = SLEEP_SHIFT * float(_stats.size) / 3.6
 	_anim.play(name, 0.6 if blend else 0.0)
 	_anim.seek(_anim.current_animation_length * 0.97, true)
 	_anim.speed_scale = 0.0
@@ -157,6 +173,7 @@ func _rise_up() -> void:
 	if _anim == null:
 		return
 	_anim.speed_scale = 1.0
+	_model.position = Vector3.ZERO
 	_current_anim = ""
 	_play("Idle", 0.5)
 
@@ -215,7 +232,7 @@ func _sleep(delta: float, player: Player, dist: float) -> void:
 	if player.dead:
 		return
 	# Bumping into it without sneaking wakes it at once.
-	if dist < girth() + 2.0 and not player.sneaking:
+	if dist < BUMP and not player.sneaking:
 		wake_up(player.global_position)
 		return
 	if dist < EAR and player.is_noisy():
@@ -247,7 +264,7 @@ func _draw_breath(to_player: Vector3) -> void:
 	Effects.float_text(level, global_position + Vector3(0, 3.0 * _stats.size, 0), "!!", Color(1.0, 0.35, 0.15), true)
 	Sfx.play(level, "voice_koloss_%d" % (randi() % 2), 2.0, global_position, 0.4)
 	for row in BREATH_ROWS:
-		var out := girth() + 2.0 + BREATH_STEP * row
+		var out := BUMP + BREATH_STEP * row
 		var spread := 1 + row / 2
 		for k in range(-spread, spread + 1):
 			var turn := BREATH_CONE * float(k) / float(maxi(1, spread))

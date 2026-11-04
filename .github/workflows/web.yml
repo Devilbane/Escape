@@ -444,6 +444,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_drawer.gd | tee drawer.log
           grep -q PASS drawer.log
 
+      - name: HUD tooltips test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_tooltips.gd | tee hud_tooltips.log
+          grep -q PASS hud_tooltips.log
+
       - name: Quick window icons and quests window test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/quick_bar.gd | tee quick_bar.log

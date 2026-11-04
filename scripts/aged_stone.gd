@@ -44,6 +44,20 @@ const IVY_HEIGHT := Vector2(3.0, 7.5)
 const IVY_DOOR_GAP := 1.9
 ## Leaves in one patch at most, so the whole village's ivy stays cheap.
 const PATCH_LEAVES := 280
+## Old ivy on the buildings that stand on their own, away from the square
+## (see Outdoor._standalone): more patches, climbing up to the eaves and the
+## gable tips, and from the top of the wall a little way up the roof.
+const OLD_IVY_PATCHES := 8
+const OLD_IVY_HEIGHT := Vector2(5.5, 11.0)
+const OLD_PATCH_LEAVES := 420
+const OLD_IVY_FOOT := 1.8
+const OLD_IVY_FILL := 0.5
+## Half the size of the clear middle of a window (across, up), in metres.
+const WINDOW_CLEAR := Vector2(0.42, 0.5)
+## How far (metres, along the slope) old ivy creeps up a roof, and the
+## steepest a roof may be (its normal's y at least) to be crept on.
+const ROOF_CREEP := Vector2(0.5, 2.0)
+const ROOF_SLOPE := 0.25
 const LEAF_SIZE := Vector2(0.3, 0.46)
 ## The smallest wall (square metres) ivy grows on.
 const IVY_WALL := 0.6
@@ -231,8 +245,12 @@ static func walls(tris: Array, middle: Vector3, ground: float) -> Array:
 	return planes.filter(func(p): return p.area >= 0.3)
 
 
-static func rooted(planes: Array, ground: float) -> Array:
-	return planes.filter(func(p): return p.area >= IVY_WALL and p.foot < ground + 0.9 and p.top > ground + 1.6)
+## Old ivy also roots on walls that stand on a stone base (the KayKit
+## buildings' walls start this high over the ground), growing out of the
+## base's ledge.
+static func rooted(planes: Array, ground: float, old := false) -> Array:
+	var foot := OLD_IVY_FOOT if old else 0.9
+	return planes.filter(func(p): return p.area >= IVY_WALL and p.foot < ground + foot and p.top > ground + 1.6)
 
 
 ## The highest flat ledge high up, where a nest can sit (INF if none).
@@ -265,12 +283,22 @@ static func _on_wall(wall: Dictionary, p: Vector3) -> bool:
 
 ## Grows ivy up a building's outer walls: leaves (transforms and colours) are
 ## added to `leaves`. `doors` are the spots in front of its doors, where no
-## ivy grows.
-static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES) -> void:
+## ivy grows. `old` ivy climbs much higher, up to the roof and on to it.
+## `windows` are the middles of window panes (world space): their middle
+## stays clear of leaves, so the ivy frames a window but never covers it.
+static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = []) -> void:
 	var all_walls := walls(tris, middle, ground)
-	var found := rooted(all_walls, ground)
+	var found := rooted(all_walls, ground, old)
+	# A wall up on a stone base that looks the way a door does holds that
+	# door up there too (the KayKit buildings): no ivy grows from its foot.
+	found = found.filter(func(w): return float(w.foot) < ground + 0.9 or not doors.any(
+			func(d: Vector3): return Vector2(d.x - middle.x, d.z - middle.z).normalized().dot(Vector2(w.n.x, w.n.z)) > 0.7))
 	if found.is_empty():
 		return
+	# The roof's sloping faces, for old ivy to creep on to.
+	var roofs: Array = []
+	if old:
+		roofs = tris.filter(func(t): return (t.n as Vector3).y > ROOF_SLOPE and (t.n as Vector3).y < 0.97 and t.c.y > ground + 2.0)
 	var total := 0.0
 	for w: Dictionary in found:
 		total += w.area
@@ -288,14 +316,16 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 				wall = w
 				break
 		var facing := found.filter(func(w): return (w.n as Vector3).z > 0.4)
-		if grown == 0 and attempt < 6 and not facing.is_empty():
+		# Old ivy gives the camera's side a few more of its patches.
+		var first := 3 if old else 1
+		if grown < first and attempt < 6 * first and not facing.is_empty():
 			wall = facing[rng.randi() % facing.size()]
 		var root: Vector3 = _root_on(wall, ground, rng)
 		if root == Vector3.INF:
 			continue
 		if doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
 			continue
-		_grow_patch(wall, all_walls, root, ground, rng, leaves)
+		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows)
 		grown += 1
 
 
@@ -321,19 +351,23 @@ static func _root_on(wall: Dictionary, ground: float, rng: RandomNumberGenerator
 
 ## A few tendrils climb from the root, wandering a little sideways and now
 ## and then branching; leaves grow along them, thickest near the ground.
-static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
+## Old ivy climbs higher, and a tendril that runs out of wall below its
+## reach creeps on up the roof above it.
+static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = []) -> void:
 	var n: Vector3 = root_wall.n
 	var across := Vector3.UP.cross(n).normalized()
-	var reach := ground + rng.randf_range(IVY_HEIGHT.x, IVY_HEIGHT.y)
+	var height: Vector2 = OLD_IVY_HEIGHT if old else IVY_HEIGHT
+	var reach := ground + rng.randf_range(height.x, height.y)
+	var most: int = OLD_PATCH_LEAVES if old else PATCH_LEAVES
 	# The walls in line with this one: the ivy climbs on up them where one
 	# ends (a jutting upper floor, a ledge).
 	var line := all_walls.filter(func(w): return (w.n as Vector3).dot(n) > 0.99)
 	var tips: Array = []
-	for i in rng.randi_range(3, 5):
+	for i in (rng.randi_range(4, 7) if old else rng.randi_range(3, 5)):
 		tips.append({"p": root + across * rng.randf_range(-0.6, 0.6), "drift": rng.randf_range(-0.6, 0.6), "wall": root_wall})
 	var steps := 0
 	var first: int = leaves.xforms.size()
-	while not tips.is_empty() and steps < 600 and leaves.xforms.size() - first < PATCH_LEAVES:
+	while not tips.is_empty() and steps < 600 and leaves.xforms.size() - first < most:
 		steps += 1
 		var tip: Dictionary = tips.pop_back()
 		var p: Vector3 = tip.p
@@ -349,18 +383,116 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 				if not _on_wall(wall, next):
 					var hop := _wall_at(line, next)
 					if hop.is_empty():
+						if not roofs.is_empty() and p.y > ground + 3.0:
+							_creep_roof(p, n, roofs, rng, leaves)
 						break
 					wall = hop
 					next = next + n * (float(wall.d) - n.dot(next))
 			p = next
 			# Fuller near the ground, sparse at the top.
 			var fill := clampf(1.0 - (p.y - ground) / maxf(reach - ground, 0.5), 0.0, 1.0)
+			# Old ivy stays thick a long way up.
+			if old:
+				fill = maxf(fill, OLD_IVY_FILL)
 			for k in rng.randi_range(1, 1 + int(fill * 1.6)):
 				var at := p + across * rng.randf_range(-0.2, 0.2) + Vector3.UP * rng.randf_range(-0.08, 0.08)
-				if _on_wall(wall, at):
+				if _on_wall(wall, at) and not _on_pane(at, n, windows):
 					_leaf(at, n, across, rng, leaves, 0.75 + fill * 0.35)
 			if rng.randf() < 0.08 and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
+
+
+## Old ivy over the eaves: from the top of a wall (`p`, the wall looking
+## along `n`) out under the overhang and on to the roof above, then a little
+## way up its slope, the leaves lying flat on the tiles and thinning out.
+static func _creep_roof(p: Vector3, n: Vector3, roofs: Array, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
+	# Only the roof faces close by are worth testing.
+	var near := roofs.filter(func(t): return _near_xz(t, p, 3.0))
+	if near.is_empty():
+		return
+	var on := {}
+	for out in [0.1, 0.3, 0.5, 0.7, 0.9]:
+		on = _roof_at(near, p + n * out, p.y - 0.2, p.y + 1.6)
+		if not on.is_empty():
+			break
+	if on.is_empty():
+		return
+	var rn: Vector3 = on.n
+	var along := Vector3.UP.cross(rn)
+	along = along.normalized() if along.length() > 0.01 else Vector3.RIGHT
+	var at: Vector3 = on.p
+	# The wall meets the roof under its overhang: go down the slope to the
+	# eaves' edge, so the ivy runs on from the wall without a bare strip.
+	var downhill := -(Vector3.UP - rn * rn.y).normalized()
+	var under := 0.0
+	for i in 10:
+		var lower := _roof_at(near, at + downhill * 0.1, at.y - 0.4, at.y + 0.1)
+		if lower.is_empty():
+			break
+		at = lower.p
+		under += 0.1
+	# Over the edge: leaves hang down the eaves' edge, facing out like the
+	# wall's, then turn on to the roof.
+	var eave_across := Vector3.UP.cross(n).normalized()
+	for k in 4:
+		var spot := at + n * 0.08 + eave_across * rng.randf_range(-0.2, 0.2) - Vector3.UP * (0.08 + k * 0.12)
+		_leaf(spot, n.lerp(rn, 0.3).normalized(), eave_across, rng, leaves, 0.95)
+	var length := under + rng.randf_range(ROOF_CREEP.x, ROOF_CREEP.y)
+	var drift := rng.randf_range(-0.5, 0.5)
+	var went := 0.0
+	while went < length:
+		var fill := 1.0 - went / length
+		for k in rng.randi_range(1, 2):
+			var spot := at + along * rng.randf_range(-0.2, 0.2)
+			_leaf(spot, rn, along, rng, leaves, 0.75 + fill * 0.3)
+		# Up the slope (the roof's own up), wandering a little sideways.
+		var up := (Vector3.UP - rn * rn.y).normalized()
+		drift = clampf(drift + rng.randf_range(-0.3, 0.3), -0.8, 0.8)
+		var next := at + up * 0.16 + along * drift * 0.08
+		var still := _roof_at(near, next, next.y - 0.3, next.y + 0.3)
+		if still.is_empty():
+			break
+		at = still.p
+		rn = still.n
+		went += 0.16
+
+
+## Whether a spot on a wall facing `n` lies over the middle of a window
+## pane (a leaf there would hide it; the frame and shutters may be grown
+## over). The leaf's own size reaches a little further.
+static func _on_pane(at: Vector3, n: Vector3, windows: Array) -> bool:
+	for w: Vector3 in windows:
+		var d := at - w
+		if absf(d.dot(n)) > 0.5:
+			continue
+		var side := d - n * d.dot(n)
+		if absf(side.y) < WINDOW_CLEAR.y and Vector2(side.x, side.z).length() < WINDOW_CLEAR.x:
+			return true
+	return false
+
+
+## Whether a triangle's corners come within `r` (across the ground) of `p`.
+static func _near_xz(t: Dictionary, p: Vector3, r: float) -> bool:
+	var lo := Vector2(minf(t.a.x, minf(t.b.x, t.c.x)), minf(t.a.z, minf(t.b.z, t.c.z)))
+	var hi := Vector2(maxf(t.a.x, maxf(t.b.x, t.c.x)), maxf(t.a.z, maxf(t.b.z, t.c.z)))
+	return p.x > lo.x - r and p.x < hi.x + r and p.z > lo.y - r and p.z < hi.y + r
+
+
+## The highest roof face straight above or below `p` with its surface
+## between `lo` and `hi`: {"p" (the spot on it), "n"}, or empty.
+static func _roof_at(roofs: Array, p: Vector3, lo: float, hi: float) -> Dictionary:
+	var best := {}
+	var q := Vector2(p.x, p.z)
+	for t: Dictionary in roofs:
+		var tn: Vector3 = t.n
+		if not Geometry2D.point_is_inside_triangle(q, Vector2(t.a.x, t.a.z), Vector2(t.b.x, t.b.z), Vector2(t.c.x, t.c.z)):
+			continue
+		# The face's height at this spot, from its plane.
+		var y: float = t.a.y - (tn.x * (p.x - t.a.x) + tn.z * (p.z - t.a.z)) / tn.y
+		if y < lo or y > hi or (not best.is_empty() and y <= float(best.p.y)):
+			continue
+		best = {"p": Vector3(p.x, y, p.z), "n": tn}
+	return best
 
 
 ## The wall in line on which a point (moved on to its plane) lies.
@@ -410,25 +542,47 @@ static func grow_bush(at: Vector3, rng: RandomNumberGenerator, leaves: Dictionar
 		leaves.colours.append(c)
 
 
-## All the leaves in one MultiMesh.
-static func ivy_node(leaves: Dictionary) -> MultiMeshInstance3D:
+## The leaves (ivy and shrubs) are drawn in square tiles of the map, one
+## MultiMesh each, so a tile off screen or far from the camera is skipped
+## whole instead of every leaf of the village being drawn every frame.
+const LEAF_TILE := 16.0
+## Tiles further than this (metres) from the camera are not drawn; the
+## camera looks down from about 25 m, so this lies beyond the screen's edge.
+const LEAF_RANGE := 80.0
+
+
+## All the leaves, under one node "Ivy": one MultiMesh per tile of the map.
+static func ivy_node(leaves: Dictionary) -> Node3D:
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE
 	quad.center_offset = Vector3(0, 0.3, 0)
 	quad.material = leaf_material()
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = quad
-	mm.instance_count = leaves.xforms.size()
-	for i in mm.instance_count:
-		mm.set_instance_transform(i, leaves.xforms[i])
-		mm.set_instance_color(i, leaves.colours[i])
-	var node := MultiMeshInstance3D.new()
-	node.name = "Ivy"
-	node.multimesh = mm
-	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return node
+	var tiles := {}
+	for i in leaves.xforms.size():
+		var at: Vector3 = (leaves.xforms[i] as Transform3D).origin
+		var key := Vector2i(floori(at.x / LEAF_TILE), floori(at.z / LEAF_TILE))
+		if not tiles.has(key):
+			tiles[key] = []
+		tiles[key].append(i)
+	var root := Node3D.new()
+	root.name = "Ivy"
+	for key: Vector2i in tiles:
+		var picked: Array = tiles[key]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = quad
+		mm.instance_count = picked.size()
+		for k in picked.size():
+			mm.set_instance_transform(k, leaves.xforms[picked[k]])
+			mm.set_instance_color(k, leaves.colours[picked[k]])
+		var node := MultiMeshInstance3D.new()
+		node.name = "Leaves_%d_%d" % [key.x, key.y]
+		node.multimesh = mm
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.visibility_range_end = LEAF_RANGE
+		root.add_child(node)
+	return root
 
 
 ## A three-lobed ivy leaf with pale veins, its colour from each leaf.

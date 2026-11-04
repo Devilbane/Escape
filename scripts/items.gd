@@ -143,6 +143,7 @@ static var ALL := {
 	"wurst": {"name": "Wurst", "slot": "futter", "weight": 0.3, "price": 2, "no_loot": true, "effect": "Füchse lieben sie. Sie leben auf der Wiese am Waldteich westlich vom Dorf: Füttere einen Fuchs dreimal, und er wird dein Freund"},
 	# Food for a doe and a stag (see Companions): the shopkeeper always has some too.
 	"apfel": {"name": "Apfel", "slot": "futter", "icon": "apple", "weight": 0.2, "price": 2, "no_loot": true, "effect": "Rehe lieben ihn. Sie äsen auf den Lichtungen zwischen Friedhof und Dorf: Füttere ein Reh dreimal, und es wird dein Freund"},
+	"koerner": {"name": "Körner", "slot": "futter", "icon": "seeds", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Küken lieben sie. In manchen Nestern auf den Dächern des Dorfes piepsen hungrige Junge: Stell dich unter das Nest, und du wirfst ihnen eine Handvoll hinauf"},
 	"salzleckstein": {"name": "Salzleckstein", "slot": "futter", "icon": "salt", "weight": 0.5, "price": 3, "no_loot": true, "effect": "Hirsche lieben ihn. Sie äsen auf den Lichtungen zwischen Friedhof und Dorf: Lass einen Hirsch dreimal lecken, und er wird dein Freund"},
 	# A hand torch for the pitch-black places (see HandTorch): the shopkeeper
 	# always has some. Carried in the bag, lit by itself in the dark.
@@ -392,7 +393,7 @@ const RARITY := {
 	"schildbuch": "ungewoehnlich", "ruestbuch": "ungewoehnlich", "schleichbuch": "ungewoehnlich",
 	# Everyday things, tasks and materials.
 	"kiste": "normal", "steinblock": "normal", "fackel": "normal",
-	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal",
+	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal", "koerner": "normal",
 	"banditendolch": "normal", "brief": "normal", "kuerbis": "normal", "wetzstein": "normal", "wassereimer": "normal",
 	"donnererz": "selten",
 }

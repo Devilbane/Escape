@@ -486,6 +486,38 @@ def chop():
     return out
 
 
+def cheep():
+    # Hungry chicks in a nest: a few thin, high peeps tumbling over each
+    # other, each a quick rising sweep. Its own random numbers, so the other
+    # sounds stay as they are.
+    r = np.random.default_rng(31)
+    out = np.zeros(int(SR * 0.75))
+    start = 0.0
+    for i in range(5):
+        sec = r.uniform(0.06, 0.09)
+        tt = t(sec)
+        low = r.uniform(3000, 3600)
+        high = low + r.uniform(700, 1200)
+        sweep = low + (high - low) * np.sin(np.pi * 0.5 * tt / sec)
+        phase = 2 * np.pi * np.cumsum(sweep) / SR
+        peep = np.sin(phase) + 0.25 * np.sin(2 * phase)
+        e = np.sin(np.pi * tt / sec) ** 1.5
+        at(out, peep * e * r.uniform(0.6, 1.0), start)
+        start += r.uniform(0.08, 0.15)
+def anvil():
+    # A smith's hammer on hot iron over the anvil: a bright, short "ting" of
+    # the anvil's steel, a dull knock of the blow through the soft iron, and
+    # a faint after-ring. Its own random numbers, so the other sounds stay as
+    # they are.
+    r = np.random.default_rng(31)
+    n = lambda sec: r.uniform(-1, 1, int(SR * sec))
+    out = np.zeros(int(SR * 0.7))
+    at(out, ring([(1180, 1.0), (2640, 0.55), (3910, 0.35), (5350, 0.18)], 0.6, 0.16), 0.001)
+    at(out, thud(170, 0.12, 4, 0.03) * 0.9, 0)
+    at(out, highpass(n(0.02), 3000) * env(int(SR * 0.02), 0.0002, 0.003) * 1.1, 0)
+    return out
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     save("swing", swing(), 0.6)
@@ -514,3 +546,5 @@ if __name__ == "__main__":
     save("ui_click", ui_click(), 0.35)
     save("trap_spikes", trap_spikes(), 0.7)
     save("chop", chop(), 0.75)
+    save("cheep", cheep(), 0.4)
+    save("anvil", anvil(), 0.7)

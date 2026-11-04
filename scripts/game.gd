@@ -270,8 +270,16 @@ const SCREEN_TEXT_MARGIN := 80
 ## Space kept free left and right of the message lines: past the event log
 ## and the first-steps card at the left edge (see EventLog, Tutorial).
 const MESSAGE_MARGIN := EventLog.LEFT + Tutorial.CARD_WIDTH + 16.0
-const MESSAGE_FONT_SIZE := 24
-## How far above the bottom of the screen the messages sit (their lower edge).
+const MESSAGE_FONT_SIZE := 18
+## The message lines float over the hero's head (see place_message): this
+## wide at most, centred over the hero, their lower edge this many pixels
+## above the top of the name over the head.
+const MESSAGE_WIDTH := 480.0
+const MESSAGE_HEAD_GAP := 12.0
+## The message lines never rise into the status line at the top of the screen.
+const MESSAGE_TOP := 110.0
+## Where the messages sit (their lower edge, above the bottom of the screen)
+## while there is no hero on screen to float over: the title, a level change.
 const MESSAGE_BOTTOM := 175.0
 var _fade: ColorRect
 var _title: Control
@@ -431,6 +439,7 @@ func _ready() -> void:
 	writing_card.setup(_hud)
 	var comic := Comic.new()
 	comic.camera = camera
+	comic.avoid = message_rects
 	add_child(comic)
 	menus = Menus.new()
 	add_child(menus)
@@ -1099,17 +1108,11 @@ func _setup_hud() -> void:
 	_prompt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hud.add_child(_prompt)
 
-	# The message lines: the newest one always sits at the same place at the
-	# bottom, and the ones before it, while still unread, above it. The box
-	# grows upwards, so no line can ever cover another.
+	# The message lines: the newest one sits just over the hero's head, and
+	# the ones before it, while still unread, above it. The box grows
+	# upwards, so no line can ever cover another (see place_message).
 	_message_box = VBoxContainer.new()
-	_message_box.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	# The column stays clear of the event log and the first-steps card at the
-	# left, and keeps centred.
-	_message_box.offset_left = MESSAGE_MARGIN
-	_message_box.offset_right = -MESSAGE_MARGIN
-	_message_box.offset_top = -MESSAGE_BOTTOM
-	_message_box.offset_bottom = -MESSAGE_BOTTOM
+	_message_box.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	_message_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_message_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_message_box.add_theme_constant_override("separation", MESSAGE_GAP)
@@ -3758,26 +3761,11 @@ func _place_hp_bar(ground: Vector3, cam_at: Vector3) -> void:
 	_status_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 5)
 
 
-## News about a task (a new one, progress, done): a message and a word over
-## the hero's head.
-func quest_news(text: String, color: Color, duration := 4.0) -> void:
+## News about a task (a new one, progress, done): a message over the hero's
+## head (no extra word floats up there: it would only say the same twice).
+func quest_news(text: String, _color: Color, duration := 4.0) -> void:
 	show_message(text, duration)
-	# The words floating up from the hero would cover the villager's speech
-	# bubble right beside them: the message at the bottom says it already.
-	if not _villager_talking_near_hero():
-		Effects.float_text(level, player.global_position + Vector3(0, 3.2, 0), text.get_slice("\n", 0), color, true)
 	_update_hud()
-
-
-## Whether a villager whose speech bubble would lie over the hero's head is
-## talking right now (see Villager.BUBBLE_ROOM).
-func _villager_talking_near_hero() -> bool:
-	if not level is Outdoor or player == null:
-		return false
-	for v in level.villagers:
-		if is_instance_valid(v) and v.visible and v.is_talking() and Vector2(v.global_position.x - player.global_position.x, v.global_position.z - player.global_position.z).length() < Villager.BUBBLE_ROOM:
-			return true
-	return false
 
 
 ## A task is done: the reward, with a jingle.
@@ -3971,27 +3959,111 @@ func learn(entry: String) -> void:
 		player.train("intelligenz", 5.0)
 
 
-## Puts the message line at its place: above a wall writing's card while
-## that shows (see WritingCard), else at MESSAGE_BOTTOM.
-func place_message() -> void:
-	var lift := maxf(MESSAGE_BOTTOM, writing_card.clearance())
-	_message_box.offset_top = -lift
-	_message_box.offset_bottom = -lift
+## Where the message lines float, as the lower edge's centre on screen
+## (smoothed, see place_message), and how far they were lifted over the
+## words rising from the hero's head while the current messages show.
+var _message_at := Vector2.INF
+var _message_lift := 0.0
 
 
-## Shows a message at the bottom of the screen for `duration` seconds, in
-## `color` (white, or gold for great news). A message that came just before
+## Puts the message lines at their place: centred just over the name above
+## the hero's head, so the eye finds them where it already is. Words rising
+## from the head (damage, experience, a level-up) never run through them:
+## the lines move up out of their way, and only down again once nothing is
+## shown. Without a hero on screen they sit low in the middle. Never under
+## a wall writing's card (see WritingCard). Called every frame with `delta`
+## to follow the hero smoothly; 0 puts them in place at once.
+func place_message(delta := 0.0) -> void:
+	var screen := _hud.get_viewport().get_visible_rect().size
+	var width := minf(MESSAGE_WIDTH, screen.x - 2.0 * SCREEN_TEXT_MARGIN)
+	var target := Vector2(screen.x / 2.0, screen.y - MESSAGE_BOTTOM)
+	var head := _hero_head_on_screen()
+	if head != Vector2.INF:
+		target = head - Vector2(0, MESSAGE_HEAD_GAP)
+	if _message_at == Vector2.INF or delta <= 0.0 or head == Vector2.INF or not _messages_shown():
+		_message_at = target
+	else:
+		_message_at = _message_at.lerp(target, 1.0 - exp(-20.0 * delta))
+	if not _messages_shown():
+		_message_lift = 0.0
+	# Across: centred over the hero, kept clear of the event log and the
+	# first-steps card at the left where the screen is wide enough for that.
+	var lowest_left := MESSAGE_MARGIN if screen.x - 2.0 * MESSAGE_MARGIN >= width else (screen.x - width) / 2.0
+	var left := clampf(_message_at.x - width / 2.0, lowest_left, screen.x - lowest_left - width)
+	var bottom := minf(_message_at.y, screen.y - maxf(writing_card.clearance(), 24.0))
+	var height := _message_box.get_combined_minimum_size().y
+	if head != Vector2.INF and _messages_shown():
+		_message_lift = maxf(_message_lift, _lift_over_words(Rect2(left, bottom - height, width, height)))
+	bottom -= _message_lift
+	# Never up into the status line at the top.
+	bottom = maxf(bottom, MESSAGE_TOP + height)
+	_message_box.offset_left = round(left)
+	_message_box.offset_right = round(left + width)
+	_message_box.offset_top = round(bottom)
+	_message_box.offset_bottom = round(bottom)
+
+
+## The top of the name over the hero's head on screen, seen through the
+## camera, for the hero standing on the ground (a jump does not toss the
+## messages about); INF while no hero is on screen to float over.
+func _hero_head_on_screen() -> Vector2:
+	if state != State.PLAYING or player == null or not player.is_inside_tree() or player.dead or camera == null:
+		return Vector2.INF
+	var feet := player.global_position
+	if not player.frozen:
+		feet.y = minf(feet.y, 0.5)
+	var top := feet + Vector3(0, Player.NAME_TAG_TOP, 0)
+	if camera.is_position_behind(top):
+		return Vector2.INF
+	return camera.unproject_position(top)
+
+
+## How far `box` has to move up to clear the words rising over heads and at
+## spots that it would lie on (see DamageNumber.columns).
+func _lift_over_words(box: Rect2) -> float:
+	var lift := 0.0
+	for column in DamageNumber.columns(camera):
+		var rect: Rect2 = column.rect
+		var moved := Rect2(box.position - Vector2(0, lift), box.size)
+		# Only the words that would start under or inside the lines push them;
+		# a stack higher up on screen is left alone.
+		if moved.intersects(rect.grow(2.0)) and rect.end.y > moved.position.y + moved.size.y * 0.5:
+			lift = maxf(lift, box.end.y - rect.position.y + MESSAGE_GAP)
+	return lift
+
+
+## Whether a message line is on screen or about to fade in.
+func _messages_shown() -> bool:
+	if _message_tween != null and _message_tween.is_running():
+		return true
+	return not message_lines().filter(func(l): return l.modulate.a > 0.05 and l.text != "").is_empty()
+
+
+## The screen boxes of the message lines that show, for the comic bubbles to
+## keep clear of (see Comic.avoid).
+func message_rects() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for line in message_lines():
+		if line.modulate.a > 0.05 and line.text != "":
+			out.append(line.get_global_rect())
+	return out
+
+
+## Shows a message just over the hero's head for `duration` seconds, in
+## `color` (white, or gold for great news), and writes it into the event
+## log, where it can be read again later. A message that came just before
 ## and is not read yet moves up a line instead of being covered or lost.
 func show_message(text: String, duration := 2.2, color := Color.WHITE) -> void:
+	event_log.add_message(text, color)
 	_keep_unread_message(text)
 	_message.text = text
 	_message_duration = duration
-	place_message()
 	_message.add_theme_color_override("font_color", color)
 	_style_message(_message, _message_size(text))
 	if _message_tween:
 		_message_tween.kill()
 	_message_tween = create_tween()
+	place_message()
 	_message_tween.tween_property(_message, "modulate:a", 1.0, 0.25)
 	_message_tween.tween_interval(duration)
 	_message_tween.tween_property(_message, "modulate:a", 0.0, 0.6)
@@ -4016,7 +4088,7 @@ func _message_size(text: String) -> int:
 
 func _style_message(line: Label, size: int) -> void:
 	line.add_theme_font_size_override("font_size", size)
-	line.add_theme_constant_override("outline_size", maxi(4, size / 6))
+	line.add_theme_constant_override("outline_size", maxi(3, size / 6))
 
 
 ## Most unread messages kept above the newest one; an older one makes room.
@@ -4932,6 +5004,7 @@ func _process(delta: float) -> void:
 	update_torch_button()
 	_update_drag(delta)
 	_update_run_meter()
+	place_message(delta)
 	tutorial.update(delta)
 	_help.visible = tutorial.pending()
 	if state == State.PLAYING:

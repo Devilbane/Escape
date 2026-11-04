@@ -93,14 +93,10 @@ func _test() -> void:
 	b.say("Weit weg")
 	check(a.is_talking() and b.is_talking(), "villagers far apart keep their own bubbles")
 
-	# A new task told while a villager beside the hero talks: the message at
-	# the bottom shows it, no words float up over the speech bubble.
+	# A new task told while a villager beside the hero talks: the message
+	# over the hero's head shows it, no extra words float up over the bubble.
 	game.player.global_position = at + Vector3(1.0, 0, 0)
-	check(game._villager_talking_near_hero(), "a villager beside the hero is talking")
 	var before: int = game.level.get_child_count()
 	game.quest_news("Neuer Auftrag: Test\nZiel", Color.WHITE)
 	check(game.level.get_child_count() == before, "no floating words cover the bubble")
-	for v in game.level.villagers:
-		v.hush()
-	game.quest_news("Neuer Auftrag: Test\nZiel", Color.WHITE)
-	check(game.level.get_child_count() > before, "with nobody talking the words float up as before")
+	check(game._message.text == "Neuer Auftrag: Test\nZiel", "the message tells the task: %s" % game._message.text)

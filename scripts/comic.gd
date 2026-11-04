@@ -42,6 +42,9 @@ const BODY_HEIGHT := 2.3
 static var current: Comic
 
 var camera: Camera3D
+## Screen boxes the bubbles keep clear of besides the floating words: the
+## message lines over the hero's head (see Game.message_rects).
+var avoid := Callable()
 var _bursts := {}
 var _pops: Array = []
 
@@ -197,6 +200,9 @@ func _free_spot(anchor: Vector3, extent: Vector2) -> Vector2:
 			var other_extent: Vector2 = p.node.size * GROWN
 			blocked.append(Rect2(other - other_extent * 0.5, other_extent).grow(GAP))
 	blocked.append_array(text_columns(camera))
+	if avoid.is_valid():
+		for rect: Rect2 in avoid.call():
+			blocked.append(rect.grow(GAP))
 	# Keep clear of the status line at the top and the buttons at the bottom.
 	var screen := get_viewport().get_visible_rect().grow_individual(-16, -100, -16, -110)
 	var best := Vector2.ZERO

@@ -1,7 +1,8 @@
 class_name EventLog
 extends PanelContainer
-## The event log at the left edge of the screen: what the hero finds (loot)
-## and what the people around say, newest at the bottom, in small type.
+## The event log at the left edge of the screen: what the hero finds (loot),
+## what the people around say and every message shown over the hero's head
+## (to read again later), newest at the bottom, in small type.
 ## The box has one fixed size and place, so a new line never moves or
 ## resizes anything else on screen: older lines slide up and out at its top.
 ## It dims when nothing new came for a while and lights up again with the
@@ -16,7 +17,7 @@ const WIDTH := 300.0
 const HEIGHT := 200.0
 ## Small type for a list the player can glance at (fine print in the ux-ui
 ## guide's sizes; nothing the player must read to decide is only here).
-const FONT_SIZE := 15
+const FONT_SIZE := 11
 ## Space between two lines, in pixels.
 const GAP := 4
 ## Lines kept to scroll back through (the mouse wheel or a drag over the
@@ -78,6 +79,11 @@ func add_loot(text: String, color := LOOT_COLOR) -> void:
 	_add("", text, color)
 
 
+## A message shown over the hero's head, already translated, in its colour.
+func add_message(text: String, color := Color.WHITE) -> void:
+	_add("", text, color)
+
+
 ## A line someone said, already translated; `speaker` is their name.
 func add_speech(speaker: String, text: String) -> void:
 	_add(speaker, text, SPEECH_COLOR)
@@ -101,7 +107,7 @@ func _add(speaker: String, text: String, color: Color) -> void:
 	line.add_theme_font_size_override("normal_font_size", FONT_SIZE)
 	line.add_theme_color_override("default_color", color)
 	line.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
-	line.add_theme_constant_override("outline_size", 3)
+	line.add_theme_constant_override("outline_size", 2)
 	# Item names marked by Rarity.marked show in the colour of their rarity.
 	var body := Rarity.to_bbcode(_escape(text))
 	if speaker != "":

@@ -3769,6 +3769,8 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, ma
 			e = ElderDragon.new()
 		"hauptmann":
 			e = BanditChief.new()
+		"spinnenkoenigin":
+			e = SpiderQueen.new()
 		_:
 			e = Enemy.new()
 	e.kind = kind
@@ -3782,6 +3784,9 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, ma
 	if e.kind == "waechter":
 		e.watch(_guarded_spot())
 	if made and (e is MountainKing or e is BanditChief):
+		add_child(BossBar.new(e))
+	elif e is SpiderQueen:
+		# The Spider Queen (see SpiderQueen): her health bar at the top.
 		add_child(BossBar.new(e))
 	elif Enemy.KINDS[kind].get("boss", false):
 		# The Mountain King (see Mines): a health bar at the top, and his

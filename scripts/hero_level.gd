@@ -51,8 +51,8 @@ const SWING := 0.8
 
 ## Monsters whose level is set by hand: the guardian falls only to a stab in
 ## the back, and the bosses are long fights made for dodging.
-const FIXED := {"waechter": 3, "hauptmann": 9, "drache": 11, "bergkoenig": 20, "grosser_alter": 20}
-const BOSSES := ["hauptmann", "drache", "bergkoenig"]
+const FIXED := {"waechter": 3, "hauptmann": 9, "drache": 11, "bergkoenig": 20, "grosser_alter": 20, "spinnenkoenigin": 11}
+const BOSSES := ["hauptmann", "drache", "bergkoenig", "spinnenkoenigin"]
 
 ## The areas of the world and the levels they are made for. A monster in an
 ## area is balanced to fit it (see Enemy and area_target): its natural level,
@@ -75,7 +75,7 @@ const AREAS := {
 }
 ## Which area a building (Level.building) belongs to.
 const BUILDING_AREAS := {
-	"b": "dorf", "^": "dorf", "loch1": "loecher", "loch2": "loecher", "loch3": "loecher",
+	"b": "dorf", "^": "dorf", "loch1": "loecher", "loch2": "loecher", "loch2b": "loecher", "loch3": "loecher",
 	"E": "hoehle", "[": "berge", "mine1": "mine1", "mine2": "mine2",
 	"mine3": "mine3", "mine3b": "mine3", "mine3c": "mine3",
 	"uralt1": "uralt", "uralt2": "uralt", "uralt3": "uralt",

@@ -13,7 +13,7 @@ const GROUPS := [
 	["Fallen und Rätsel", "S_QT"],
 	["Schätze", "cCkU&$"],
 	["Einrichtung", "bxotfHFBLV+NXy"],
-	["Monster", "MAZwGWvsJOeigRYd@"],
+	["Monster", "MAZwGWvsuqJOeigRYd@"],
 	["Eigene Geschöpfe", "1234567890"],
 ]
 
@@ -29,6 +29,7 @@ const NAMES := {
 	"+": "Platz für Möbel", "N": "Strohecke der Gefährten", "X": "Hort eines Grauens", "y": "Steinpferd",
 	"M": "Skelettkrieger", "A": "Skelettschütze", "Z": "Skelettmagier", "w": "Skelettwicht",
 	"G": "Skelettkoloss", "W": "Wächter in Rüstung", "v": "Fledermaus", "s": "Schleim",
+	"u": "Spinne", "q": "Spinnenkönigin",
 	"J": "Felstroll", "O": "Bergork", "e": "Eiswolf", "i": "Kristallschleim", "g": "Glutschleim",
 	"R": "Drache", "Y": "Bergkönig",
 	"&": "Epische Schatztruhe", "$": "Hort des Großen Alten", "d": "Brutdrache", "@": "Der Große Alte",
@@ -50,6 +51,7 @@ const NOTES := {
 	">": "Nur in Häusern: führt ins Stockwerk darunter.",
 	"R": "Ein Endgegner: gehört in eine Drachenhöhle.",
 	"Y": "Ein Endgegner: gehört in eine Mine.",
+	"q": "Ein Endgegner: gehört in ein Spinnenloch.",
 	"@": "Unbesiegbar: schläft, bis ihn Lärm weckt. Gehört in den Hort des Großen Alten.",
 	"$": "Gold und Ausrüstung: gehört vor den schlafenden Großen Alten (@).",
 	"&": "Enthält ein episches Stück und viel Gold.",

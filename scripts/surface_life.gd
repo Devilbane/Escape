@@ -65,14 +65,15 @@ const PATH := ",aP"
 const SQUARE := ":"
 const WATER := "~;"
 
-## How many pieces of each kind lie on one tile, on average.
+## How many pieces of each kind lie on one tile, on average. (Twigs were
+## halved once: the ground looked too cluttered with sticks.)
 const RECIPES := {
-	FOREST: {"leaf": 7.0, "twig": 2.0, "pebble": 1.0, "cone": 0.8, "moss": 0.5, "dirt": 0.3, "tuft": 2.2, "mushroom": 0.45},
-	VILLAGE: {"leaf": 2.0, "straw": 3.0, "chip": 1.2, "pebble": 1.5, "twig": 0.6, "dirt": 0.5, "tuft": 1.3},
-	GRAVEYARD: {"leaf": 6.0, "twig": 2.0, "pebble": 0.8, "moss": 0.9, "dirt": 0.4, "tuft": 1.0, "mushroom": 0.4},
-	HOLLOW: {"leaf": 4.0, "twig": 2.5, "pebble": 1.5, "rubble": 0.35, "bone": 0.5, "moss": 0.5, "dirt": 0.4, "tuft": 2.0, "mushroom": 0.2},
-	PASS: {"leaf": 1.5, "twig": 1.5, "pebble": 2.5, "rubble": 0.4, "bone": 0.25, "dirt": 0.8, "tuft": 0.8},
-	MOUNTAIN: {"pebble": 4.0, "rubble": 1.2, "lichen": 0.6, "tuft": 0.8, "twig": 0.3},
+	FOREST: {"leaf": 7.0, "twig": 1.0, "pebble": 1.0, "cone": 0.8, "moss": 0.5, "dirt": 0.3, "tuft": 2.2, "mushroom": 0.45},
+	VILLAGE: {"leaf": 2.0, "straw": 3.0, "chip": 1.2, "pebble": 1.5, "twig": 0.3, "dirt": 0.5, "tuft": 1.3},
+	GRAVEYARD: {"leaf": 6.0, "twig": 1.0, "pebble": 0.8, "moss": 0.9, "dirt": 0.4, "tuft": 1.0, "mushroom": 0.4},
+	HOLLOW: {"leaf": 4.0, "twig": 1.25, "pebble": 1.5, "rubble": 0.35, "bone": 0.5, "moss": 0.5, "dirt": 0.4, "tuft": 2.0, "mushroom": 0.2},
+	PASS: {"leaf": 1.5, "twig": 0.75, "pebble": 2.5, "rubble": 0.4, "bone": 0.25, "dirt": 0.8, "tuft": 0.8},
+	MOUNTAIN: {"pebble": 4.0, "rubble": 1.2, "lichen": 0.6, "tuft": 0.8, "twig": 0.15},
 }
 ## On a path or the paved square only these lie about, and fewer of them.
 const PATH_KINDS := {"leaf": 0.35, "pebble": 0.5, "twig": 0.25, "straw": 0.3}

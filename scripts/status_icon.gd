@@ -8,6 +8,7 @@ extends Control
 ##   "gift"     poisoned: a green drop
 ##   "fluch"    cursed: a violet eye
 ##   "brand"    burning: a flame
+##   "netz"     webbed (a spider's web): a cobweb
 ##   "slow"     slower: boots with an arrow down
 ## boons, with a green frame, in the status block at the top left
 ## (Game.hero_boons):
@@ -105,6 +106,16 @@ func _draw() -> void:
 			# An evil eye.
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-9, 0), c + Vector2(0, -6), c + Vector2(9, 0), c + Vector2(0, 6)]), Color(0.75, 0.55, 1.0))
 			draw_circle(c, 3.2, Color(0.15, 0.05, 0.2))
+		"netz":
+			# A cobweb: eight spokes and three rings of silk.
+			var silk := Color(0.93, 0.93, 0.86)
+			for i in 8:
+				draw_line(c, c + Vector2.from_angle(TAU * i / 8.0) * 9.5, silk, 1.2, true)
+			for ring in [3.5, 6.5, 9.5]:
+				var pts := PackedVector2Array()
+				for i in 9:
+					pts.append(c + Vector2.from_angle(TAU * i / 8.0) * ring)
+				draw_polyline(pts, silk, 1.0, true)
 	if kind in ["fast", "slow", "upgrade"]:
 		var up := kind != "slow"
 		var tip := Vector2(size.x - 6, 6 if up else 13)

@@ -154,8 +154,9 @@ var knives := 5
 ## Ailments and the seconds each has left. Poison ("gift") takes a life every
 ## few seconds but never the last one; a curse ("fluch") slows the hero;
 ## burning ("brand", from the dragon's fire) takes a life every
-## BURN_TICK seconds for a few seconds, never the last one either.
-## Both wear off soon; a fountain, a shrine or a healing potion cures them.
+## BURN_TICK seconds for a few seconds, never the last one either; a spider's
+## web ("netz") makes the hero much slower for a few seconds.
+## All wear off soon; a fountain, a shrine or a healing potion cures them.
 var ailments := {}
 var _poison_tick := 0.0
 var _burn_tick := 0.0
@@ -1433,6 +1434,8 @@ func refresh_stats() -> void:
 	base_speed = SPEED * (1.0 + speed_bonus) * attribute("tempo") / 100.0
 	if ailments.has("fluch"):
 		base_speed *= CURSE_SLOW
+	if ailments.has("netz"):
+		base_speed *= WEB_SLOW
 	hp = mini(hp, max_hp)
 	_show_held("waffe", "handslot_r", "Knife")
 	_show_held("schild", "handslot_l", "")
@@ -1463,18 +1466,21 @@ func _show_tint(slot: String, parts: Array) -> void:
 const AILMENT_TIME := 20.0
 const POISON_TICK := 8.0
 const CURSE_SLOW := 0.85
-const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0), "brand": Color(1.0, 0.5, 0.15)}
+const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0), "brand": Color(1.0, 0.5, 0.15), "netz": Color(0.93, 0.93, 0.86)}
 ## Burning is short but fierce.
 const BURN_TIME := 4.5
 const BURN_TICK := 1.5
-const AILMENT_WORDS := {"gift": "Vergiftet!", "fluch": "Verflucht!", "brand": "Brennt!"}
+## A spider's web sticks only briefly, but slows the hero a lot.
+const WEB_TIME := 3.0
+const WEB_SLOW := 0.55
+const AILMENT_WORDS := {"gift": "Vergiftet!", "fluch": "Verflucht!", "brand": "Brennt!", "netz": "Eingesponnen!"}
 
 
 func afflict(kind: String) -> void:
 	if dead:
 		return
 	var fresh := not ailments.has(kind)
-	ailments[kind] = BURN_TIME if kind == "brand" else AILMENT_TIME
+	ailments[kind] = BURN_TIME if kind == "brand" else WEB_TIME if kind == "netz" else AILMENT_TIME
 	if fresh:
 		if kind == "gift":
 			_poison_tick = POISON_TICK
@@ -1574,7 +1580,7 @@ func _ailments_changed() -> void:
 	var old := get_node_or_null("AilmentHaze")
 	if old:
 		old.free()
-	for kind in ["brand", "gift", "fluch"]:
+	for kind in ["netz", "brand", "gift", "fluch"]:
 		if ailments.has(kind):
 			var haze := Effects.make_sparkles(AILMENT_COLORS[kind])
 			haze.name = "AilmentHaze"

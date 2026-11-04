@@ -319,7 +319,7 @@ you saved last. But the game goes on. A long path leads
 through the autumn forest, past a pond and a woodcutter, to the village of **Lindenhain**. Run into anyone
 to hear what they have to say. The **village elder** gives you your own house on **Weavers' Lane**, and a golden
 light shows the door. Weavers' Lane runs along the northern edge of the village: a row of twenty narrow,
-three-storey town houses wall to wall, each with its own colours and a number over the door, so the village has
+two-storey town houses wall to wall, each with its own colours and a number over the door, so the village has
 a home for many heroes. Inside, the **ground floor** has the **chest** (your storage), the **upper floor** the
 **bed** (save and log out), and the **attic** is free. Walk onto the stairs to go up or down a storey. Chalked
 squares on the floorboards keep room for furniture on every storey. The moment you first step inside, the house

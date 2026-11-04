@@ -13,6 +13,14 @@ const W := preload("res://scripts/weathered_props.gd")
 ## The street lamp: where its lantern hangs from the post's foot (the light
 ## and the candle sit there, see Outdoor._build_lantern).
 const LANTERN_AT := Vector3(0, 2.05, 1.0)
+## The smith's anvil (see build_anvil): how high its stump is, and so its
+## face; where the hot iron lies on the face and how thick it is; how far
+## back the stump stands from under the face (x) and its radius (y).
+const STUMP_HEIGHT := 0.55
+const ANVIL_TOP := STUMP_HEIGHT + 0.015 + 0.36
+const HOT_IRON_AT := Vector3(-0.04, ANVIL_TOP, -0.06)
+const HOT_IRON_HEIGHT := 0.035
+const SMITH_STUMP := Vector2(0.1, 0.27)
 
 
 static func _rng_at(at: Vector3, salt: String) -> RandomNumberGenerator:
@@ -65,8 +73,9 @@ static func stone_courses(b: WeatheredProps.Builder, middle: Vector3, size: Vect
 
 ## Gorm's forge on its tile (`pos` is the tile's middle): a hearth of rough
 ## stones with a bed of glowing coals under a sooty hood and chimney, a pair
-## of bellows, an anvil with a hammer on an old stump, a quench tub and some
-## iron bars. The flame and the light are added by the caller.
+## of bellows, a quench tub and some iron bars. His anvil stands on his own
+## tile in front of it, where his hammer lands (see build_anvil). The flame
+## and the light are added by the caller.
 ## Returns where the coals glow (the middle of their top).
 static func build_forge(parent: Node3D, pos: Vector3) -> Vector3:
 	var rng := _rng_at(pos, "forge")
@@ -96,7 +105,6 @@ static func build_forge(parent: Node3D, pos: Vector3) -> Vector3:
 	# A short lintel beam across the front of the hood.
 	b.box(back + Vector3(0, rim_y + 0.98, 0.3), Vector3(1.2, 0.14, 0.14), W.TIMBER[3] * 0.75, W.WOOD)
 	_bellows(b, hearth + Vector3(1.32, 0, -0.1), rng)
-	_anvil(b, Vector3(0.8, 0, 0.8), 1.0, rng)
 	_quench_tub(b, Vector3(-1.05, 0, 0.75), rng)
 	# Iron bars waiting on the front of the rim, and tongs leaning on it.
 	for i in 3:
@@ -142,9 +150,67 @@ static func _bellows(b: WeatheredProps.Builder, at: Vector3, rng: RandomNumberGe
 	b.bar(at + Vector3(-0.25, 0.62, 0), at + Vector3(-0.48, 0.66, 0), 0.04, W.IRON_COLOUR, W.IRON, 6)
 
 
-## An anvil on a stump, a hammer lying on its face. `s` scales it (1 at the
-## forge, smaller on the fine metalwork bench, which has no stump).
-static func _anvil(b: WeatheredProps.Builder, at: Vector3, s: float, rng: RandomNumberGenerator, stump := true) -> void:
+## The smith's anvil on an old stump, its horn towards +x, with a bar of
+## glowing iron on its face for him to hammer (see Outdoor._build_anvil); he
+## stands on its -z side. `foot` is on the ground under the middle of the
+## face, in `parent`'s frame; the iron lies at HOT_IRON_AT from there, on the
+## near half of the face. The stump is slimmer than the forge's used to be
+## and stands a little back (SMITH_STUMP), so the hammer hanging from his
+## hand while he rests, and on its way up and down, never touches it.
+## Returns the glowing bar.
+static func build_anvil(parent: Node3D, foot: Vector3) -> MeshInstance3D:
+	var rng := _rng_at(parent.to_global(foot), "anvil")
+	var b := WeatheredProps.Builder.new()
+	var stump := Vector3(0, 0, SMITH_STUMP.x)
+	var r := SMITH_STUMP.y
+	b.cylinder(stump, r, r * 0.92, STUMP_HEIGHT, W.DARK_TIMBER, W.WOOD, 9)
+	b.cylinder(stump + Vector3(0, STUMP_HEIGHT, 0), r * 0.86, r * 0.84, 0.015, W.TIMBER[2] * 1.2, W.WOOD, 9)
+	for a in [0.9, 2.3, 4.6]:
+		var d := Vector3(cos(a), 0, sin(a))
+		b.frustum(stump + d * r * 0.92, Vector2(0.14, 0.11), Vector2(0.05, 0.05), 0.12, W.DARK_TIMBER, W.WOOD, Basis(Vector3.UP, -a))
+	_anvil(b, Vector3(0, STUMP_HEIGHT + 0.015, 0), 1.0, rng, false, false)
+	b.finish(parent, foot)
+	var iron := MeshInstance3D.new()
+	var bar := BoxMesh.new()
+	bar.size = Vector3(0.3, HOT_IRON_HEIGHT, 0.07)
+	iron.mesh = bar
+	iron.material_override = hot_iron_material()
+	iron.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	iron.position = foot + HOT_IRON_AT + Vector3(0, HOT_IRON_HEIGHT * 0.5, 0)
+	iron.rotation.y = 0.12
+	parent.add_child(iron)
+	return iron
+
+
+## Iron glowing orange from the coals.
+static func hot_iron_material() -> StandardMaterial3D:
+	var key := "hot_iron"
+	if not W._mats.has(key):
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.85, 0.3, 0.06)
+		m.emission_enabled = true
+		m.emission = Color(1.0, 0.45, 0.1)
+		m.emission_energy_multiplier = 2.2
+		W._mats[key] = m
+	return W._mats[key]
+
+
+## The smith's hammer, hung in `parent` (his hand slot): a short ash handle
+## along +y with an iron head near its top, the striking face towards -x
+## (where the edge of the one-handed axe it stands in for is, see
+## Villager.HAMMER_FACE), the peen towards +x.
+static func smith_hammer(parent: Node3D) -> MeshInstance3D:
+	var b := WeatheredProps.Builder.new()
+	b.bar(Vector3(0, -0.22, 0), Vector3(0, 0.87, 0), 0.026, W.TIMBER[0], W.WOOD, 6)
+	b.box(Vector3(-0.08, 0.74, 0), Vector3(0.18, 0.12, 0.12), W.IRON_COLOUR, W.IRON)
+	b.frustum(Vector3(0.01, 0.8, 0), Vector2(0.12, 0.12), Vector2(0.03, 0.1), 0.1, W.IRON_COLOUR, W.IRON, Basis(Vector3.BACK, -PI * 0.5))
+	return b.finish(parent, Vector3.ZERO, true, true)
+
+
+## An anvil on a stump, a hammer lying on its face unless `hammer` is false.
+## `s` scales it (1 at the forge, smaller on the fine metalwork bench, which
+## has no stump).
+static func _anvil(b: WeatheredProps.Builder, at: Vector3, s: float, rng: RandomNumberGenerator, stump := true, hammer := true) -> void:
 	var y := 0.0
 	if stump:
 		b.cylinder(at, 0.36, 0.32, 0.55, W.DARK_TIMBER, W.WOOD, 9)
@@ -163,7 +229,7 @@ static func _anvil(b: WeatheredProps.Builder, at: Vector3, s: float, rng: Random
 	# The horn, a cone pointing along +x, and the square heel.
 	b.cylinder(o + Vector3(0.3, 0.31, 0) * s, 0.065 * s, 0.008 * s, 0.3 * s, W.IRON_COLOUR, W.IRON, 8, Basis(Vector3.BACK, -PI * 0.5))
 	b.box(o + Vector3(-0.38, 0.29, 0) * s, Vector3(0.14, 0.07, 0.16) * s, W.IRON_COLOUR, W.IRON)
-	if s >= 1.0:
+	if s >= 1.0 and hammer:
 		var top := o + Vector3(-0.05, 0.36, 0)
 		b.bar(top + Vector3(0, 0.02, -0.02), top + Vector3(0.05, 0.03, 0.34), 0.018, W.TIMBER[0], W.WOOD, 5)
 		b.box(top + Vector3(-0.02, 0, -0.06), Vector3(0.16, 0.06, 0.06), W.IRON_COLOUR * 0.8, W.IRON, _turn(rng, 0.1))

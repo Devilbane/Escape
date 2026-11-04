@@ -10,7 +10,8 @@ extends RefCounted
 ##   - "after" lines once a task they care about is done (see Quests),
 ##   - "bounty" lines about today's notices on the board (see Bounties),
 ##   - lines about the hero once the hero is in their good books (see
-##     Reputation).
+##     Reputation),
+##   - the weather, the night and fresh frights (see VillageWorries).
 ## The hero who overhears a chat learns the tie; known ties are listed on the
 ## compendium's reputation page next to each villager's goal.
 ##
@@ -347,6 +348,11 @@ func start_chat(village: Outdoor, only := "") -> bool:
 	var count := int(_talks.get(key, 0))
 	_talks[key] = count + 1
 	var chosen: Array = all[count % all.size()]
+	# A fresh fright or the weather may be on their minds instead (see
+	# VillageWorries).
+	var worry: Array = game.village_worries.chat_lines(village) if "village_worries" in game else []
+	if not worry.is_empty():
+		chosen = ["a", _fill(worry)]
 	var first: Villager = a if chosen[0] == "a" else b
 	var second: Villager = b if first == a else a
 	var lines := []

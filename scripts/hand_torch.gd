@@ -23,13 +23,13 @@ const LOW := 30.0
 ## How far the hero sees in the dark (metres): without a torch the own tile
 ## and barely the next, with one the tiles around and not much more.
 const DARK_REACH := 2.6
-const TORCH_REACH := 6.2
+const TORCH_REACH := 7.6
 ## The hero's lantern in the dark: a glimmer that only shows the feet.
 const DARK_LANTERN_ENERGY := 0.12
 const DARK_LANTERN_RANGE := 3.0
 const LIGHT_COLOR := Color(1.0, 0.58, 0.26)
 const LIGHT_ENERGY := 2.0
-const LIGHT_RANGE := 7.5
+const LIGHT_RANGE := 9.2
 
 var player: Player
 ## Seconds left on the torch in hand; 0 when there is none.

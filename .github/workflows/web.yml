@@ -134,6 +134,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/drinking_songs.gd | tee songs.log
           grep -q PASS songs.log
 
+      - name: Townsfolk small talk, rumours and stories test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/village_rumours.gd | tee rumours.log
+          grep -q PASS rumours.log
+
       - name: Event bus test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log
@@ -194,6 +199,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/fountain.gd | tee fountain.log
           grep -q PASS fountain.log
 
+      - name: Drinking too much at the village fountain swells the belly test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/bloated_belly.gd | tee belly.log
+          grep -q PASS belly.log
+
       - name: Sitting on the benches of the market square test
         run: |
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/seats.gd | tee seats.log
@@ -224,6 +234,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/floor_items.gd | tee floor_items.log
           grep -q PASS floor_items.log
 
+      - name: Thrown knives test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/thrown_knives.gd | tee thrown_knives.log
+          grep -q PASS thrown_knives.log
+
       - name: Dragon's helpers and hoard test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/dragon_hoard.gd | tee dragon_hoard.log
@@ -253,6 +268,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log
           grep -q PASS barber.log
+
+      - name: Spider hole and Spider Queen test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/spider_hole.gd | tee spider_hole.log
+          grep -q PASS spider_hole.log
 
       - name: Merchant trading window test
         run: |
@@ -424,6 +444,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_drawer.gd | tee drawer.log
           grep -q PASS drawer.log
 
+      - name: HUD tooltips test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_tooltips.gd | tee hud_tooltips.log
+          grep -q PASS hud_tooltips.log
+
       - name: Quick window icons and quests window test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/quick_bar.gd | tee quick_bar.log
@@ -453,6 +478,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/weather.gd | tee weather.log
           grep -q PASS weather.log
+
+      - name: Rain puddles test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/puddles.gd | tee puddles.log
+          grep -q PASS puddles.log
 
       - name: Village houses and chapel test
         run: |
@@ -558,6 +588,11 @@ jobs:
         run: |
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/smith.gd | tee smith.log
           grep -q PASS smith.log
+
+      - name: Windmill sails turn with the wind and whoosh test
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/windmill.gd | tee windmill.log
+          grep -q PASS windmill.log
 
       - name: Export the browser version
         run: |

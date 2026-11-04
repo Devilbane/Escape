@@ -32,8 +32,9 @@ extends RefCounted
 ## Slots of things that burn in the dragon's fire, and gear materials that do.
 const BURNS_SLOTS := ["buch", "kiste", "futter", "licht"]
 const BURNS_MATERIALS := ["cloth", "leather", "fur"]
-## Slots the helpers leave alone: things carried for a villager's task.
-const LEFT_ALONE_SLOTS := ["auftrag"]
+## Slots the helpers leave alone: things carried for a villager's task, and
+## spare throwing knives.
+const LEFT_ALONE_SLOTS := ["auftrag", "munition"]
 ## The compendium's word on the helpers, learned the first time they take
 ## something.
 const LORE := "Die Helfer des Drachen: Jede Nacht schwärmen kleine Drachlinge aus dem Steinbogen am Berg und sammeln ein, was im Freien am Boden liegt. Glutschlund schmilzt die Ausrüstung ein: Waffen und Rüstungen zu Eisen, feine Stücke und Schmuck zu Bronze, Silber oder Gold, je seltener, desto edler, und Zauberdinge lassen Mondsilber zurück. Bücher und alles, was brennt, gehen in seinem Feuer auf. Wer den Drachen besiegt, nimmt sich seinen Hort: das Eisen für den Schmied, das Mondsilber für Rezepte, die edlen Barren für Gorm, der sie dir abkauft. Lass also nachts nichts draußen liegen, was du behalten willst."

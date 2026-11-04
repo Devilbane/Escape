@@ -84,6 +84,14 @@ func _process(_delta: float) -> bool:
 					check(_corpse(e) != null and _corpse(e)._overlay.albedo_color.a > 0.0, "%s darkens" % e.kind)
 			check(not is_instance_valid(fallen[3]), "the fog wraith has blown away")
 			check(fallen[2]._model.scale.y < _corpse(fallen[2])._scale0.y * 0.5, "the slime has run out flat")
+			# The rot darkens only the round puddle under the slime, not the
+			# square plane it is drawn on: no grey square around the corpse.
+			for mesh: MeshInstance3D in fallen[2]._model.find_children("*", "MeshInstance3D", true, false):
+				var own := mesh.material_override as BaseMaterial3D
+				if own != null and own.albedo_texture != null:
+					var rot := mesh.material_overlay as BaseMaterial3D
+					check(rot != null and rot.albedo_texture == own.albedo_texture, "the rot on the slime's puddle keeps its round shape")
+					check(rot != null and rot.albedo_color.a > 0.0, "the slime's puddle darkens with it")
 			check(lvl.remnants.is_empty(), "nothing has rotted away yet")
 			# Fast forward: the skeleton and the wolf come to their end.
 			_corpse(fallen[0]).age = 200.0

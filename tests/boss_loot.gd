@@ -36,7 +36,7 @@ func _enemy(kind: String, custom := {}) -> Enemy:
 
 ## Which enemies count as named bosses.
 func _test_who() -> void:
-	for kind in ["hauptmann", "drache", "bergkoenig"]:
+	for kind in ["hauptmann", "drache", "bergkoenig", "spinnenkoenigin"]:
 		var e := _enemy(kind)
 		check(Level.is_named_boss(e), "%s is a named boss" % kind)
 		e.free()
@@ -72,7 +72,7 @@ func _test_rarity() -> void:
 	for depth in [0, 3, 6, 9]:
 		var lvl := Level.new()
 		lvl.depth = depth
-		for kind in ["hauptmann", "drache", "bergkoenig"]:
+		for kind in ["hauptmann", "drache", "bergkoenig", "spinnenkoenigin"]:
 			var e := _enemy(kind)
 			var id := lvl.roll_boss_loot(e, 0.0)
 			check(Items.ALL.has(id), "%s on depth %d drops real gear" % [kind, depth])

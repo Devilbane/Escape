@@ -1,14 +1,18 @@
 class_name StatusIcon
 extends Control
-## A little icon for a condition the hero is in, shown in a row under the
-## life bar (see Game._update_status_icons): a dark tile with a red frame and
-## a drawn picture, with a number in its corner where the condition has one.
+## A little icon for a condition the hero is in (see
+## Game._update_status_icons): a dark tile with a coloured frame and a drawn
+## picture, with a number in its corner where the condition has one.
+## Passing troubles, with a red frame, in a row under the life bar
+## (Game.hero_ailments):
 ##   "gift"     poisoned: a green drop
 ##   "fluch"    cursed: a violet eye
 ##   "brand"    burning: a flame
+##   "slow"     slower: boots with an arrow down
+## boons, with a green frame, in the status block at the top left
+## (Game.hero_boons):
 ##   "power"    stronger blows: a sword, with the fighting power
 ##   "fast"     faster: boots with an arrow up
-##   "slow"     slower: boots with an arrow down
 ##   "hardening" hardened: a shield, with the hardening
 ## and, with a golden frame, things waiting for the hero (Game.hero_notices):
 ##   "repair"   worn gear to mend: hammer and anvil, with how many pieces
@@ -18,8 +22,11 @@ extends Control
 const SIZE := 26.0
 const FRAME := Color(0.9, 0.22, 0.2)
 const NOTICE_FRAME := Color(0.95, 0.75, 0.3)
+const BOON_FRAME := Color(0.4, 0.92, 0.4)
 ## The kinds that are notices (golden frame) rather than conditions.
 const NOTICES := ["repair", "upgrade"]
+## The kinds that are boons (green frame) rather than troubles.
+const BOONS := ["power", "fast", "hardening"]
 const TILE := Color(0.07, 0.05, 0.07, 0.9)
 const FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 
@@ -65,10 +72,28 @@ static func make(what: String, number := "", tip := "") -> StatusIcon:
 	return icon
 
 
+## The frame of a kind's tile: gold for a notice, green for a boon, red for
+## a trouble.
+static func frame_color(what: String) -> Color:
+	if what in NOTICES:
+		return NOTICE_FRAME
+	if what in BOONS:
+		return BOON_FRAME
+	return FRAME
+
+
+## The colour a kind's explanation has in the event log, matching its frame
+## (a lighter red for a trouble, which reads better as text).
+static func log_color(what: String) -> Color:
+	if what in NOTICES or what in BOONS:
+		return frame_color(what)
+	return Color(1.0, 0.6, 0.55)
+
+
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
 	draw_rect(r, TILE)
-	draw_rect(r.grow(-1), NOTICE_FRAME if kind in NOTICES else FRAME, false, 2.0)
+	draw_rect(r.grow(-1), frame_color(kind), false, 2.0)
 	var c := size / 2.0
 	match kind:
 		"gift":

@@ -153,7 +153,9 @@ func _check_layout() -> void:
 					clear = false
 		check(clear, "running with the camera trailing %s, nothing of the hero touches the bar" % lag)
 	game.camera.global_position = settled
-	# Conditions show as little icons in a row under the bar.
+	# Passing troubles show as little icons in a row under the bar; boons
+	# go to the status block at the top left, just above the event log.
+	var status_before: Rect2 = game._level_label.get_parent().get_global_rect()
 	hero.ailments["gift"] = 5.0
 	var hardening_before: int = hero.hardening
 	hero.hardening = 2
@@ -162,10 +164,25 @@ func _check_layout() -> void:
 	var kinds := []
 	for icon in game._status_row.get_children():
 		kinds.append(icon.kind)
-	check(kinds.has("gift") and kinds.has("hardening") and kinds.find("gift") < kinds.find("hardening"), "poison and hardening show as icons, in order: %s" % [kinds])
-	check(kinds == game.hero_conditions().map(func(c): return c[0]), "one icon per condition: %s" % [kinds])
-	for icon in game._status_row.get_children():
-		check(icon.tooltip_text != "" and icon.mouse_filter == Control.MOUSE_FILTER_PASS, "the %s icon explains itself under the pointer" % icon.kind)
+	check(kinds.has("gift") and not kinds.has("hardening"), "poison shows under the bar, hardening does not: %s" % [kinds])
+	check(kinds == game.hero_ailments().map(func(c): return c[0]), "one icon per trouble: %s" % [kinds])
+	for kind in kinds:
+		check(not kind in StatusIcon.BOONS, "no boon under the bar: %s" % kind)
+	var boons := []
+	for icon in game._boon_row.get_children():
+		boons.append(icon.kind)
+	check(boons.has("hardening") and boons == game.hero_boons().map(func(c): return c[0]), "hardening shows in the boon row: %s" % [boons])
+	for kind in boons:
+		check(kind in StatusIcon.BOONS, "only boons in the boon row: %s" % kind)
+	check(game._boon_row.get_parent() == game._level_label.get_parent(), "the boons sit in the status block at the top left")
+	var boon_rect: Rect2 = game._boon_row.get_global_rect()
+	check(boon_rect.position.x <= 40.0 and boon_rect.end.y <= EventLog.TOP, "the boon row is at the left, above the event log: %s" % boon_rect)
+	check(boon_rect.position.y >= game._notice_row.get_global_rect().end.y, "under the notices: %s" % boon_rect)
+	check(game._level_label.get_parent().get_global_rect().is_equal_approx(status_before), "a boon coming does not grow the status block")
+	for row in [game._status_row, game._boon_row]:
+		for icon in row.get_children():
+			check(icon.tooltip_text != "" and icon.mouse_filter == Control.MOUSE_FILTER_PASS, "the %s icon explains itself under the pointer" % icon.kind)
+	check(StatusIcon.frame_color("hardening") != StatusIcon.frame_color("gift") and StatusIcon.frame_color("hardening") != StatusIcon.frame_color("repair"), "boons, troubles and notices have frames of their own")
 	var told := false
 	for line in elog.entries():
 		if line == game.icon_text("gift", ""):
@@ -178,6 +195,7 @@ func _check_layout() -> void:
 	hero.ailments.erase("gift")
 	hero.hardening = hardening_before
 	game._update_hud()
+	check(game._boon_row.get_global_rect().is_equal_approx(boon_rect), "the boon row keeps its place when its icons go")
 	# Worn gear shows as a gold-framed repair icon under the hero level.
 	var shield_before: String = hero.equipped.get("schild", "")
 	hero.equipped["schild"] = "rundschild"

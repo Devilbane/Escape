@@ -224,8 +224,12 @@ var _coin_label: Label
 var _key_label: Label
 var _hp_bar: ProgressBar
 var _hp_fill: StyleBoxFlat
-## The hero's conditions as icons under the life bar (see StatusIcon).
+## The hero's passing troubles (poison, a curse, burning, slowness) as icons
+## under the life bar (see StatusIcon, hero_ailments).
 var _status_row: HBoxContainer
+## The hero's boons (stronger blows, speed, hardening) as icons in the status
+## block at the top left, just above the event log (see hero_boons).
+var _boon_row: HBoxContainer
 ## Gear to mend, points to spend, upgrades to build: icons under the hero
 ## level (see hero_notices).
 var _notice_row: HBoxContainer
@@ -1018,10 +1022,11 @@ func _setup_hud() -> void:
 	_hp_bar.add_theme_stylebox_override("fill", _hp_fill)
 	_hp_bar.visible = false
 	_hud.add_child(_hp_bar)
-	# The hero's conditions (poison, a curse, burning, stronger blows, speed,
-	# hardening) as little red-framed icons in a row under the bar, in a
-	# fixed order from its left edge, so an icon coming or going never
-	# moves the others before it.
+	# The hero's passing troubles (poison, a curse, burning, slowness) as
+	# little red-framed icons in a row under the bar, where the eye is during
+	# a fight, in a fixed order from its left edge, so an icon coming or
+	# going never moves the others before it. Boons go to the status block
+	# at the top left (_boon_row).
 	_status_row = HBoxContainer.new()
 	_status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_status_row.add_theme_constant_override("separation", 4)
@@ -1073,6 +1078,15 @@ func _setup_hud() -> void:
 	_notice_row.add_theme_constant_override("separation", 4)
 	_notice_row.custom_minimum_size = Vector2(0, StatusIcon.SIZE)
 	left.add_child(_notice_row)
+	# The hero's boons (stronger blows, speed, hardening) as green-framed
+	# icons in a row of their own under the notices, the last line of the
+	# status block, just above the event log. It also keeps one icon's height
+	# when empty, and fills from its left edge in a fixed order.
+	_boon_row = HBoxContainer.new()
+	_boon_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boon_row.add_theme_constant_override("separation", 4)
+	_boon_row.custom_minimum_size = Vector2(0, StatusIcon.SIZE)
+	left.add_child(_boon_row)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -3646,29 +3660,43 @@ func heard(speaker: String, text: String, pos: Vector3) -> void:
 		event_log.add_speech(speaker, text)
 
 
-## The conditions the hero is in, as [kind, number] pairs in their fixed
-## order (see StatusIcon).
-func hero_conditions() -> Array:
+## The passing troubles the hero is in, as [kind, number] pairs in their
+## fixed order (see StatusIcon): shown under the life bar.
+func hero_ailments() -> Array:
 	var out := []
 	for kind in ["gift", "fluch", "brand"]:
 		if player.ailments.has(kind):
 			out.append([kind, ""])
+	# Slower only from a heavy load (the curse that slows has its own icon,
+	# and a little gear is normal); not while faster all the same.
+	if not _hero_fast() and Items.load_factor(player.load_weight()) <= 1.0 - Items.MAX_WEIGHT_SLOW * 0.5:
+		out.append(["slow", ""])
+	return out
+
+
+## The boons the hero has, as [kind, number] pairs in their fixed order (see
+## StatusIcon): shown in the status block at the top left.
+func hero_boons() -> Array:
+	var out := []
 	if player.power > 1:
 		out.append(["power", str(player.power)])
-	# Faster from gifts, level or Tempo; slower only from a heavy load (the
-	# curse that slows has its own icon, and a little gear is normal).
-	var unslowed := player.base_speed / (Player.CURSE_SLOW if player.ailments.has("fluch") else 1.0)
-	if unslowed > Player.SPEED + 0.01:
+	if _hero_fast():
 		out.append(["fast", ""])
-	elif Items.load_factor(player.load_weight()) <= 1.0 - Items.MAX_WEIGHT_SLOW * 0.5:
-		out.append(["slow", ""])
 	if player.hardening > 0:
 		out.append(["hardening", str(player.hardening)])
 	return out
 
 
+## Faster than normal from gifts, level or Tempo (leaving out the curse's
+## slowness, which has an icon of its own).
+func _hero_fast() -> bool:
+	var unslowed := player.base_speed / (Player.CURSE_SLOW if player.ailments.has("fluch") else 1.0)
+	return unslowed > Player.SPEED + 0.01
+
+
 func _update_status_icons() -> void:
-	_fill_icon_row(_status_row, hero_conditions())
+	_fill_icon_row(_status_row, hero_ailments())
+	_fill_icon_row(_boon_row, hero_boons())
 	_fill_icon_row(_notice_row, hero_notices())
 
 
@@ -3727,7 +3755,7 @@ func _fill_icon_row(row: HBoxContainer, wanted: Array) -> void:
 		row.add_child(StatusIcon.make(c[0], c[1], text))
 		# A new icon is explained once in the event log as well.
 		if not had.has(c[0]) and text != "" and state == State.PLAYING:
-			Events.found(text, StatusIcon.NOTICE_FRAME if c[0] in StatusIcon.NOTICES else Color(1.0, 0.6, 0.55))
+			Events.found(text, StatusIcon.log_color(c[0]))
 
 
 ## Keeps the life bar at one steady spot under the hero on screen. It is

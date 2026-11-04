@@ -284,7 +284,11 @@ Searched barrels, crates, tables and chests can be recognised by coins and a tor
 
 ## Beyond the gate: freedom
 
-Whoever climbs the last stairs steps out of a **crypt** onto a graveyard under the evening sky. That counts
+Whoever climbs the last stairs steps out of a **crypt** onto an old graveyard under the evening sky. The crypt,
+the gravestones and the low wall of the fence are of the same weathered stone as the village, only older and
+greyer: moss, lichen on the gravestones, ivy up the crypt and over parts of the fence. A sunken, overgrown path
+of old cobbles leads from the crypt door to the gate, leaves lie on the turf, and at night small grave lights
+burn beside some of the graves. Getting out counts
 as an escape: it goes into the ranking and the game is saved at once. From then on the **graveyard** is your
 new starting point: every load, and every new try after a fall, begins in front of the crypt door, wherever
 you saved last. But the game goes on. A long path leads

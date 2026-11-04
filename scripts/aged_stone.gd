@@ -20,6 +20,14 @@ const HOUSE_TINTS := [Color(0.80, 0.78, 0.74), Color(0.88, 0.80, 0.66), Color(0.
 ## The tint of the KayKit buildings' walls.
 const KIT_TINT := Color(0.84, 0.81, 0.76)
 
+## The graveyard's stone: cool greys and one weathered sandstone, picked per
+## gravestone; how much older it looks than the village; how grey the strong
+## colours (the crypt's roof) have turned.
+const GRAVE_TINTS := [Color(0.60, 0.61, 0.60), Color(0.66, 0.65, 0.62), Color(0.55, 0.57, 0.57),
+		Color(0.70, 0.64, 0.55)]
+const GRAVE_AGE := 1.5
+const GRAVE_FADE := 0.75
+
 ## Ivy: how many patches a building gets at most, how high they climb
 ## (metres above the ground), how far from the door they keep, and the
 ## leaves' size.
@@ -68,6 +76,33 @@ static func house_material(tint: Color) -> ShaderMaterial:
 		mat.set_shader_parameter("use_palette", false)
 		mat.set_shader_parameter("tint", tint)
 		mat.set_shader_parameter("trim", load(TRIM))
+		_mats[key] = mat
+	return _mats[key]
+
+
+## The graveyard's old stone (the KayKit Halloween models, which share one
+## palette texture): older than the village, greyer, mossier, and the roof
+## of the crypt faded to the grey of old slate. Gravestones (`hewn`) are cut
+## from one piece and crusted with lichen; the crypt and the fence's low wall
+## are laid in blocks. `shade` picks one of GRAVE_TINTS. With `glowing`
+## (white where the palette glows, see the kit's windows), it is a material of
+## its own.
+static func grave_material(palette: Texture2D, hewn: bool, shade := 0, glowing: Texture2D = null) -> ShaderMaterial:
+	var key := "grave_%d_%d_%d_%d" % [palette.get_instance_id() if palette else 0, int(hewn), shade,
+			glowing.get_instance_id() if glowing else 0]
+	if not _mats.has(key):
+		var mat := ShaderMaterial.new()
+		mat.shader = SHADER
+		mat.set_shader_parameter("palette", palette)
+		mat.set_shader_parameter("use_palette", true)
+		mat.set_shader_parameter("tint", GRAVE_TINTS[shade % GRAVE_TINTS.size()])
+		mat.set_shader_parameter("trim", load(TRIM))
+		mat.set_shader_parameter("age", GRAVE_AGE)
+		mat.set_shader_parameter("fade", GRAVE_FADE)
+		mat.set_shader_parameter("blocks", 0.0 if hewn else 1.0)
+		mat.set_shader_parameter("lichen", 1.0 if hewn else 0.4)
+		if glowing:
+			mat.set_shader_parameter("glow_mask", glowing)
 		_mats[key] = mat
 	return _mats[key]
 

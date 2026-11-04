@@ -51,6 +51,8 @@ func _lamp_energy() -> float:
 
 func _window_glow() -> float:
 	for mat in game.level._window_mats.values():
+		if mat is ShaderMaterial:
+			return float(mat.get_shader_parameter("glow"))
 		return mat.emission_energy_multiplier
 	return -1.0
 
@@ -133,8 +135,8 @@ func _load_at_night() -> void:
 	check(_window_glow() > 1.0, "windows glow at night")
 	# Only the panes may shine: a textured window mask must multiply the
 	# glow colour, never add to it, or the whole building turns white.
-	for mat: StandardMaterial3D in game.level._window_mats.values():
-		if mat.emission_texture:
+	for mat in game.level._window_mats.values():
+		if mat is StandardMaterial3D and mat.emission_texture:
 			check(mat.emission_operator == BaseMaterial3D.EMISSION_OP_MULTIPLY, "only the window panes glow, not the whole building")
 	for v in game.level.villagers:
 		if v.goes_to_bed():

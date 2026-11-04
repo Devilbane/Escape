@@ -39,6 +39,7 @@ const MONSTER_FAMILIES := [
 	["Drachenhöhle", ["fledermaus", "schleim", "drache"]],
 	["Berge und Minen", ["eiswolf", "bergork", "felstroll", "kristallschleim", "glutschleim", "bergkoenig"]],
 	["Grauen", ["hohle_mutter", "bleicher_waechter", "schlund"]],
+	["Hort des Großen Alten", ["brutdrache", "grosser_alter"]],
 ]
 ## Every base, in the order of MONSTER_FAMILIES (tests/level_editor.gd checks
 ## that the two agree and that every kind that fights is here).
@@ -47,7 +48,8 @@ const MONSTER_BASES := ["krieger", "schuetze", "magier", "wicht", "koloss", "wae
 		"wolf", "ork", "yeti", "spinne",
 		"fledermaus", "schleim", "drache",
 		"eiswolf", "bergork", "felstroll", "kristallschleim", "glutschleim", "bergkoenig",
-		"hohle_mutter", "bleicher_waechter", "schlund"]
+		"hohle_mutter", "bleicher_waechter", "schlund",
+		"brutdrache", "grosser_alter"]
 ## The bosses among them: each fights with a script of its own (see
 ## Level._spawn_enemy).
 const MONSTER_BOSSES := ["hauptmann", "drache", "bergkoenig"]
@@ -63,6 +65,7 @@ const MONSTER_NAMES := {
 	"eiswolf": "Eiswolf", "bergork": "Bergork", "felstroll": "Felstroll",
 	"kristallschleim": "Kristallschleim", "glutschleim": "Glutschleim", "bergkoenig": "Bergkönig",
 	"hohle_mutter": "Die Hohle Mutter", "bleicher_waechter": "Der Bleiche Wächter", "schlund": "Der Schlund",
+	"brutdrache": "Brutdrache", "grosser_alter": "Der Große Alte",
 }
 ## The numbers of a monster: [key, label, lowest, highest, step]. A key left
 ## out keeps the base's own value.

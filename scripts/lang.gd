@@ -43,6 +43,7 @@ const PARTS := [
 	preload("res://scripts/lang/bounties.gd"),
 	preload("res://scripts/lang/day_night.gd"),
 	preload("res://scripts/lang/journal.gd"),
+	preload("res://scripts/lang/elder_lair.gd"),
 	preload("res://scripts/lang/wandering_merchant.gd"),
 	preload("res://scripts/lang/fox.gd"),
 	preload("res://scripts/lang/companions.gd"),

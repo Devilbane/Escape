@@ -11,9 +11,9 @@ const GROUPS := [
 	["Boden und Wände", "#.,?=~j%"],
 	["Wege", "PEDK<>^|"],
 	["Fallen und Rätsel", "S_QT"],
-	["Schätze", "cCkU"],
+	["Schätze", "cCkU&$"],
 	["Einrichtung", "bxotfHFBLV+NXy"],
-	["Monster", "MAZwGWvsJOeigRY"],
+	["Monster", "MAZwGWvsJOeigRYd@"],
 	["Eigene Geschöpfe", "1234567890"],
 ]
 
@@ -31,6 +31,7 @@ const NAMES := {
 	"G": "Skelettkoloss", "W": "Wächter in Rüstung", "v": "Fledermaus", "s": "Schleim",
 	"J": "Felstroll", "O": "Bergork", "e": "Eiswolf", "i": "Kristallschleim", "g": "Glutschleim",
 	"R": "Drache", "Y": "Bergkönig",
+	"&": "Epische Schatztruhe", "$": "Hort des Großen Alten", "d": "Brutdrache", "@": "Der Große Alte",
 }
 
 ## What a few tiles need to work, shown under the palette when picked.
@@ -49,6 +50,9 @@ const NOTES := {
 	">": "Nur in Häusern: führt ins Stockwerk darunter.",
 	"R": "Ein Endgegner: gehört in eine Drachenhöhle.",
 	"Y": "Ein Endgegner: gehört in eine Mine.",
+	"@": "Unbesiegbar: schläft, bis ihn Lärm weckt. Gehört in den Hort des Großen Alten.",
+	"$": "Gold und Ausrüstung: gehört vor den schlafenden Großen Alten (@).",
+	"&": "Enthält ein episches Stück und viel Gold.",
 }
 
 ## Colours on the grid. Letters not listed take their group's colour.
@@ -68,7 +72,7 @@ const GROUP_COLORS := [Color(0.42, 0.4, 0.38), Color(0.8, 0.7, 0.4), Color(0.75,
 const OUTDOOR_GROUPS := [
 	["Gelände", "#.,:~;='"],
 	["Natur", "Tdrtpy"],
-	["Wege und Eingänge", "PREa([]"],
+	["Wege und Eingänge", "PREa([])"],
 	["Gebäude", "hjnmuskowb^IiBL"],
 	["Dorf und Lager", "gzlexqFv!@NfC+%*$"],
 	["Dorfbewohner", "0123456789KOGMYZS"],
@@ -81,7 +85,7 @@ const OUTDOOR_NAMES := {
 	";": "Teich in der Wolfsmulde", "=": "Fels der Berge", "'": "Geröll",
 	"T": "Baum", "d": "Toter Baum", "r": "Felsen", "t": "Baumstumpf mit Holz", "p": "Kürbisse", "y": "Kürbisfeld",
 	"P": "Start vor der Gruft", "R": "Die Gruft", "E": "Weg in die Drachenhöhle", "a": "Tor im Zaun",
-	"(": "Dunkles Loch", "[": "Bergschenke", "]": "Mineneingang",
+	"(": "Dunkles Loch", "[": "Bergschenke", "]": "Mineneingang", ")": "Höhle des Großen Alten",
 	"h": "Haus", "j": "Schmiede", "n": "Wirtshaus", "m": "Markt", "u": "Windmühle", "s": "Tempel",
 	"k": "Amt der Krone", "o": "Post", "w": "Abenteurergilde", "b": "Bank", "^": "Weberzeile",
 	"I": "Hauswand", "i": "Holzboden", "B": "Bett", "L": "Truhe",

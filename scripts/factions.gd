@@ -33,6 +33,8 @@ const KINDS := {
 	# and cannot be won over.
 	"eiswolf": "mountain", "bergork": "mountain", "felstroll": "mountain", "klippenschuetze": "mountain",
 	"kristallschleim": "mountain", "glutschleim": "mountain", "bergkoenig": "mountain",
+	# The Great Old One and its brood below the high valley (see ElderLair).
+	"brutdrache": "elder", "grosser_alter": "elder",
 }
 
 ## The factions. "name" is shown in messages. A faction with a "gift" can be
@@ -52,6 +54,8 @@ const FACTIONS := {
 		"refuse": "Die Brut des Drachen lässt sich nicht zähmen."},
 	"mountain": {"name": "Die Bergbrut",
 		"refuse": "In den Bergen gilt nur das Recht des Stärkeren. Geschenke bringen hier nichts."},
+	"elder": {"name": "Die Brut des Großen Alten",
+		"refuse": "Die Brut des Großen Alten bewacht seinen Hort. Für Geschenke hat sie nur Feuer übrig."},
 	"horrors": {"name": "Die Namenlosen",
 		"refuse": "Es hat keinen Hunger auf Geschenke. Es hat Hunger auf dich."},
 	"wolves": {"name": "Die Wölfe", "gift": "barsch", "count": 1,

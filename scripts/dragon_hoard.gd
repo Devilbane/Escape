@@ -20,8 +20,14 @@ extends RefCounted
 ## touched. Things carried for a villager's task and the unique blades are
 ## left where they lie, so no task and no trophy is ever lost.
 ##
-## Kept in the saved game: the coins and bars in the hoard, and what tonight brought
-## (for the line at dawn).
+## Most of it does not stay with Glutschlund, though: of every ELDER_TURN
+## things the helpers carry home (coins and gear that would melt), all but
+## the first go further down, into the hoard of the Great Old One below the
+## high valley (see ElderLair). There the gear is not melted but heaped up
+## whole, so a hero who sneaks in can take it back as it was.
+##
+## Kept in the saved game: the coins and bars in the hoard, the Great Old
+## One's share, and what tonight brought (for the line at dawn).
 
 ## Slots of things that burn in the dragon's fire, and gear materials that do.
 const BURNS_SLOTS := ["buch", "kiste", "futter", "licht"]
@@ -32,6 +38,14 @@ const LEFT_ALONE_SLOTS := ["auftrag"]
 ## something.
 const LORE := "Die Helfer des Drachen: Jede Nacht schwärmen kleine Drachlinge aus dem Steinbogen am Berg und sammeln ein, was im Freien am Boden liegt. Glutschlund schmilzt die Ausrüstung ein: Waffen und Rüstungen zu Eisen, feine Stücke und Schmuck zu Bronze, Silber oder Gold, je seltener, desto edler, und Zauberdinge lassen Mondsilber zurück. Bücher und alles, was brennt, gehen in seinem Feuer auf. Wer den Drachen besiegt, nimmt sich seinen Hort: das Eisen für den Schmied, das Mondsilber für Rezepte, die edlen Barren für Gorm, der sie dir abkauft. Lass also nachts nichts draußen liegen, was du behalten willst."
 const COLOR := Color(1.0, 0.62, 0.25)
+## Of every ELDER_TURN things carried home, the first stays with Glutschlund
+## and the rest go to the Great Old One.
+const ELDER_TURN := 3
+## The most pieces of gear the Great Old One's hoard holds; more is melted
+## in Glutschlund's lair as before.
+const ELDER_ITEMS_MAX := 40
+## The compendium's word on where the helpers take the most of it.
+const ELDER_LORE := "Die Helfer des Drachen behalten nicht alles: Den größten Teil ihrer Beute, Münzen und ganze Ausrüstung, schleppen sie tief hinab zum Großen Alten, einem uralten Drachen unter dem Hochtal. Dort liegt sie unversehrt in seinem Hort. Wer leise genug ist, kann sie sich zurückholen."
 
 ## The coins heaped up in the lair.
 var gold := 0
@@ -41,6 +55,11 @@ var metals := {}
 ## What the helpers took since the last morning: how many things, how many
 ## burnt, the coins, and the metal it all melted into.
 var tonight := {}
+## The Great Old One's share: coins and whole pieces of gear (item ids).
+var elder_gold := 0
+var elder_items: Array[String] = []
+## How many things the helpers carried home so far (see ELDER_TURN).
+var carried := 0
 
 
 func _init() -> void:
@@ -50,11 +69,14 @@ func _init() -> void:
 func clear() -> void:
 	gold = 0
 	metals = {}
+	elder_gold = 0
+	elder_items = []
+	carried = 0
 	tonight = _empty_tally()
 
 
 static func _empty_tally() -> Dictionary:
-	return {"things": 0, "burnt": 0, "coins": 0, "metals": {}}
+	return {"things": 0, "burnt": 0, "coins": 0, "metals": {}, "elder": 0}
 
 
 ## What becomes of a thing the helpers find lying about: "coin", "melt",
@@ -101,14 +123,23 @@ func gather(kind: String, id: String) -> Dictionary:
 	if f == "":
 		return {}
 	tonight.things = int(tonight.things) + 1
-	match f:
-		"coin":
-			gold += 1
-			tonight.coins = int(tonight.coins) + 1
-			return {"coins": 1}
-		"burn":
-			tonight.burnt = int(tonight.burnt) + 1
-			return {}
+	if f == "burn":
+		tonight.burnt = int(tonight.burnt) + 1
+		return {}
+	var to_elder := carried % ELDER_TURN != 0 and (f == "coin" or elder_items.size() < ELDER_ITEMS_MAX)
+	carried += 1
+	if f == "coin":
+		tonight.coins = int(tonight.coins) + 1
+	if to_elder:
+		tonight.elder = int(tonight.get("elder", 0)) + 1
+		if f == "coin":
+			elder_gold += 1
+		else:
+			elder_items.append(id)
+		return {"elder": 1}
+	if f == "coin":
+		gold += 1
+		return {"coins": 1}
 	var bars := melt(id)
 	for metal in bars:
 		metals[metal] = int(metals.get(metal, 0)) + int(bars[metal])
@@ -144,6 +175,8 @@ func morning_report() -> String:
 		text += " " + Lang.t("Münzen: %d.") % int(tonight.coins)
 	if int(tonight.burnt) > 0:
 		text += " " + Lang.t("Verbrannt: %d.") % int(tonight.burnt)
+	if int(tonight.get("elder", 0)) > 0:
+		text += " " + Lang.t("Den größten Teil (%d) schleppten sie hinab in den Hort des Großen Alten.") % int(tonight.elder)
 	tonight = _empty_tally()
 	return text
 
@@ -168,8 +201,22 @@ func take_all() -> Dictionary:
 	return had
 
 
+## The Great Old One's share as its lair shows it: "coins" and "items".
+func elder_contents() -> Dictionary:
+	return {"coins": elder_gold, "items": elder_items.duplicate()}
+
+
+## The hero took the Great Old One's hoard: returns its share and empties it.
+func take_elder() -> Dictionary:
+	var had := elder_contents()
+	elder_gold = 0
+	elder_items = []
+	return had
+
+
 func for_save() -> Dictionary:
-	return {"gold": gold, "metals": metals, "tonight": tonight}
+	return {"gold": gold, "metals": metals, "tonight": tonight,
+		"elder_gold": elder_gold, "elder_items": elder_items, "carried": carried}
 
 
 ## Saved games from before the hoard have none: an empty hoard.
@@ -178,6 +225,13 @@ func load_from(data) -> void:
 	if not data is Dictionary:
 		return
 	gold = maxi(0, int(data.get("gold", 0)))
+	elder_gold = maxi(0, int(data.get("elder_gold", 0)))
+	carried = maxi(0, int(data.get("carried", 0)))
+	var kept = data.get("elder_items", [])
+	if kept is Array:
+		for id in kept:
+			if Items.ALL.has(str(id)) and elder_items.size() < ELDER_ITEMS_MAX:
+				elder_items.append(str(id))
 	var m = data.get("metals", {})
 	if m is Dictionary:
 		for metal in m:
@@ -185,7 +239,7 @@ func load_from(data) -> void:
 				metals[str(metal)] = int(m[metal])
 	var t = data.get("tonight", {})
 	if t is Dictionary:
-		for key in ["things", "burnt", "coins"]:
+		for key in ["things", "burnt", "coins", "elder"]:
 			tonight[key] = maxi(0, int(t.get(key, 0)))
 		var tm = t.get("metals", {})
 		if tm is Dictionary:

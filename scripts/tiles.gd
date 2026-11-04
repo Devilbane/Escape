@@ -72,6 +72,11 @@ const DUNGEON := {
 	"~": "a crack of glowing embers in the floor (mines, cannot be crossed)",
 	"T": "a stone tablet with an old inscription (a hint, see Mines)",
 	"^": "the way down to the next floor of a mine (see the header \"down:\")",
+	# The Great Old One's dungeon (see ElderLair).
+	"d": "brood drake (hovers, spits fire from afar), see Enemy.LETTERS",
+	"@": "the Great Old One (cannot be slain, sleeps until noise wakes it, see ElderDragon)",
+	"$": "the Great Old One's hoard: walk onto it to take it (see ElderLair)",
+	"&": "epic treasure chest (an epic piece of gear and gold)",
 	# Made in the map workshop: what each digit places is written in the
 	# map's own header (see Creations).
 	"1": "your own creation (header \"custom: 1 {...}\", see Creations)",
@@ -176,6 +181,7 @@ const OUTDOOR := {
 	"'": "scree: stony mountain ground",
 	"[": "the mountain tavern (a block of tiles, see the floor \"building: [\")",
 	"]": "a mine entrance (a block of tiles); numbered west to east, mine n leads to \"building: mine<n>\"",
+	")": "the cave mouth of the Great Old One (a block of tiles), leads to \"building: uralt1\"",
 	"{": "rock troll",
 	"}": "mountain orc",
 	"-": "ice wolf",

@@ -88,7 +88,7 @@ const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@'{}-/"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
-const BLOCK_CHARS := "RhjnmuskowbE^[]"
+const BLOCK_CHARS := "RhjnmuskowbE^[])"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
 	"m": "building_market_green", "u": "building_windmill_red",
@@ -99,7 +99,7 @@ const BLOCK_MODELS := {
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
 	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
-	"E": "die Drachenhöhle", "[": "die Bergschenke",
+	"E": "die Drachenhöhle", "[": "die Bergschenke", ")": "den Hort des Großen Alten",
 }
 ## The mine entrances in the mountains (see "]" and Mines), west to east:
 ## the floor of mine n has the line "building: mine<n>".
@@ -1048,6 +1048,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch == "]":
 		_build_mine_entrance(block)
 		return
+	if ch == ")":
+		_build_elder_cave(block)
+		return
 	var facing := _block_facing(block) if ch != "R" else Vector2i(0, 1)
 	var rot := atan2(float(facing.x), float(facing.y))
 	var turned := facing.x != 0
@@ -1269,6 +1272,78 @@ func _build_mine_entrance(block: Rect2i) -> void:
 	doors[id] = front + Vector3(0, 0, 2.2)
 	if interiors.has(id):
 		stations.append({"kind": "eingang", "building": id, "name": Lang.t("Mine %d") % number,
+				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.5), "used": false})
+
+
+## The way down to the Great Old One (see ElderLair): a huge black cave
+## mouth at the foot of the rock face, fanged with stone teeth all round,
+## scorched black in front, a giant skull and old bones at its feet and a
+## faint violet glow breathing out of the dark. Run into it to go down.
+const ELDER_CAVE := "uralt1"
+
+
+func _build_elder_cave(block: Rect2i) -> void:
+	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
+	var front := center + Vector3(0, 0, block.size.y * TILE * 0.5 - 0.4)
+	var width := block.size.x * TILE
+	var black := StandardMaterial3D.new()
+	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	black.albedo_color = Color(0.015, 0.01, 0.02)
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.3, 0.28, 0.3)
+	stone.roughness = 0.95
+	var soot := StandardMaterial3D.new()
+	soot.albedo_color = Color(0.06, 0.05, 0.05, 0.55)
+	soot.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	soot.roughness = 1.0
+	# The black mouth, wide and tall, set back into the rock.
+	_add_mesh_box(front + Vector3(0, 3.2, -2.6), Vector3(width * 0.78, 6.4, 2.0), black)
+	# Stone teeth hanging from the top and rising from the floor.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level_name + "uralt")
+	for i in 9:
+		var x := lerpf(-width * 0.36, width * 0.36, i / 8.0)
+		for up in [true, false]:
+			var tooth := MeshInstance3D.new()
+			var cone := CylinderMesh.new()
+			cone.radial_segments = 5
+			cone.rings = 1
+			cone.top_radius = 0.02 if not up else rng.randf_range(0.35, 0.6)
+			cone.bottom_radius = rng.randf_range(0.35, 0.6) if not up else 0.02
+			cone.height = rng.randf_range(1.2, 2.4) if up else rng.randf_range(0.6, 1.4)
+			tooth.mesh = cone
+			tooth.material_override = stone
+			tooth.position = front + Vector3(x, (6.4 - cone.height * 0.5) if up else cone.height * 0.5, -1.5)
+			add_child(tooth)
+	# The brow of rock over the mouth.
+	_add_mesh_box(front + Vector3(0, 6.8, -1.9), Vector3(width * 0.9, 1.0, 1.6), stone)
+	for side in [-1.0, 1.0]:
+		_add_mesh_box(front + Vector3(side * width * 0.43, 3.4, -1.9), Vector3(1.4, 6.8, 1.6), stone)
+	# Scorched ground in front, a giant skull and bones.
+	var scorch := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = width * 0.32
+	disc.bottom_radius = width * 0.32
+	disc.height = 0.02
+	scorch.mesh = disc
+	scorch.material_override = soot
+	scorch.position = front + Vector3(0, 0.03, 1.2)
+	scorch.scale = Vector3(1.0, 1.0, 0.55)
+	add_child(scorch)
+	_put("lair/Skull", front + Vector3(-width * 0.3, 0, 1.6), 0.6, 3.2)
+	for i in 4:
+		_put("lair/Skull", front + Vector3(rng.randf_range(-width * 0.35, width * 0.35), 0, rng.randf_range(2.0, 4.5)), rng.randf() * TAU, 0.9)
+	var glow := OmniLight3D.new()
+	glow.light_color = ElderLair.VIOLET
+	glow.light_energy = 1.8
+	glow.omni_range = 9.0
+	glow.position = front + Vector3(0, 1.6, -1.0)
+	add_child(glow)
+	_add_solid(center, Vector3(block.size.x * TILE * 0.9, 4, block.size.y * TILE * 0.9))
+	glow.set_meta("block", block)
+	doors[ELDER_CAVE] = front + Vector3(0, 0, 2.4)
+	if interiors.has(ELDER_CAVE):
+		stations.append({"kind": "eingang", "building": ELDER_CAVE, "name": BUILDING_NAMES[")"],
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.5), "used": false})
 
 

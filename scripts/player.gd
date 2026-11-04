@@ -9,6 +9,8 @@ signal defeated
 signal ailments_changed
 ## Life came back by itself (see _regenerate).
 signal regenerated
+## Spare knives went from the bag into the belt, or back (see _settle_knives).
+signal knives_settled
 ## Emitted when the hero runs into something solid, with a point just inside it.
 signal bumped(point: Vector3)
 ## Emitted when training raises an attribute or a skill, with its new value.
@@ -150,7 +152,18 @@ var base_speed := SPEED
 var speed: float:
 	get:
 		return base_speed * Items.load_factor(load_weight())
+## Throwing knives ready to hand, at most knife_cap() of them; spares ride
+## in the bag as Items.KNIFE and are slipped back into the belt once no fight
+## is on (see _settle_knives). A thrown knife lies where it fell until the
+## hero walks over it (see Level.lay_knife).
 var knives := 5
+## How many knives the hero keeps ready with no skill in Messerwurf; each
+## KNIFE_CAP_STEP levels of the skill add one more.
+const KNIFE_CAP_BASE := 3
+const KNIFE_CAP_STEP := 2
+## Seconds between looks at the belt and the bag (see _settle_knives).
+const KNIFE_SETTLE_EVERY := 0.5
+var _knife_settle := 0.0
 ## Ailments and the seconds each has left. Poison ("gift") takes a life every
 ## few seconds but never the last one; a curse ("fluch") slows the hero;
 ## burning ("brand", from the dragon's fire) takes a life every
@@ -875,7 +888,7 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 
 
 ## A step sounds each time a foot lands in the run animation, so the sound
-## keeps the rhythm of the feet at any speed.
+## keeps the rhythm of the feet at any speed. In a rain puddle it splashes.
 func _footsteps(ground_speed: float) -> void:
 	var sneak := _current_anim == SNEAK_ANIM
 	var walk := _current_anim == WALK_ANIM
@@ -889,8 +902,13 @@ func _footsteps(ground_speed: float) -> void:
 			if phase < _last_phase:
 				crossed = _last_phase < landing or phase >= landing
 			if crossed:
+				# In a rain puddle every step splashes (see Puddles).
+				var outdoor := level as Outdoor
+				if outdoor and outdoor.in_puddle(global_position):
+					Sfx.play(self, "splash_%d" % (randi() % 4), -21.0 if sneak else (-15.0 if walk else -11.0))
+					outdoor.puddles.splash(global_position, not sneak)
 				# Sneaking: only a very soft touch, barely to be heard.
-				if sneak:
+				elif sneak:
 					Sfx.play(self, "sneak_%d" % (randi() % 4), -22.0)
 				else:
 					Sfx.play(self, "step_%d" % (randi() % 6), -17.0 if walk else -14.0)
@@ -983,6 +1001,55 @@ func melee() -> void:
 ## (a thunder weapon, see Items "shock" and Enemy.shock), else 0.
 func shock_chance() -> float:
 	return float(Items.ALL.get(equipped.get("waffe", ""), {}).get("shock", 0.0))
+
+
+## How many throwing knives the hero can keep ready for a fight:
+## KNIFE_CAP_BASE, and one more per KNIFE_CAP_STEP levels of Messerwurf.
+func knife_cap() -> int:
+	return KNIFE_CAP_BASE + skill("werfen") / KNIFE_CAP_STEP
+
+
+## Spare throwing knives in the bag.
+func spare_knives() -> int:
+	return bag.count(Items.KNIFE)
+
+
+## Whether one more throwing knife can be taken: into the belt, else the bag.
+func can_take_knife() -> bool:
+	return knives < knife_cap() or bag_fits(Items.KNIFE)
+
+
+## Takes `count` throwing knives: into the belt up to knife_cap(), the rest
+## into the bag while it has room. Returns how many found no place (the
+## caller lays those at the hero's feet).
+func add_knives(count: int) -> int:
+	var ready := clampi(knife_cap() - knives, 0, count)
+	knives += ready
+	var left := count - ready
+	while left > 0 and bag_fits(Items.KNIFE):
+		bag.append(Items.KNIFE)
+		left -= 1
+	return left
+
+
+## Out of a fight, the belt is filled from the bag up to knife_cap(), and
+## knives over it (the skill dropped, an old save) go back into the bag
+## while it has room. In a fight only what is ready can be thrown.
+## Returns whether anything moved.
+func _settle_knives() -> bool:
+	if fight_cooldown > 0.0 or dead:
+		return false
+	var cap := knife_cap()
+	var moved := false
+	while knives < cap and bag.has(Items.KNIFE):
+		bag.erase(Items.KNIFE)
+		knives += 1
+		moved = true
+	while knives > cap and bag_fits(Items.KNIFE):
+		bag.append(Items.KNIFE)
+		knives -= 1
+		moved = true
+	return moved
 
 
 ## Throws a knife at `aim` (a world position), or at the closest enemy in sight.
@@ -1692,7 +1759,7 @@ func bag_fits(id: String) -> bool:
 ## and so does an item whose swap would leave the bag with too few slots.
 ## Returns whether the item was put on.
 func equip(id: String) -> bool:
-	if Items.is_book(id) or Items.is_crate(id) or Items.is_stone(id) or Items.is_material(id) or not can_use(Items.ALL[id].get("requires", {})):
+	if Items.is_book(id) or Items.is_crate(id) or Items.is_stone(id) or Items.is_material(id) or Items.is_ammo(id) or not can_use(Items.ALL[id].get("requires", {})):
 		return false
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":
@@ -2047,6 +2114,11 @@ func _physics_process(delta: float) -> void:
 	_get_up(delta)
 	_tick_ailments(delta)
 	_regenerate(delta)
+	_knife_settle -= delta
+	if _knife_settle <= 0.0:
+		_knife_settle = KNIFE_SETTLE_EVERY
+		if _settle_knives():
+			knives_settled.emit()
 	_pursue(delta)
 	_auto_attack()
 	if _stay_seated(delta):

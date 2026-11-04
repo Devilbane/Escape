@@ -2,7 +2,9 @@ class_name Projectile
 extends Node3D
 ## A thrown dagger (from the hero), a crossbow bolt or a magic orb (from a
 ## skeleton). Orbs fly slower but curve after the hero. The dragon's fire
-## flies like an orb, burns for two and never curses.
+## flies like an orb, burns for two and never curses. A spider's web ("web")
+## is a pale ball of silk: it does no harm but sticks to the hero and slows
+## them for a moment (Player.afflict "netz").
 
 const SPEED := 20.0
 const LIFETIME := 2.0
@@ -20,19 +22,23 @@ var at_rival := false
 var damage := 1
 var magic := false
 var fire := false
+var web := false
 var _age := 0.0
 
 const MAGIC_SPEED := 5.5
 const MAGIC_TURN := 0.8
 const CURSE_CHANCE := 0.35
+## A web flies slower than a bolt: a hero who sees it coming can step aside.
+const WEB_SPEED := 11.0
 
 
-static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: bool, is_magic := false, is_fire := false) -> Projectile:
+static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: bool, is_magic := false, is_fire := false, is_web := false) -> Projectile:
 	var p := Projectile.new()
 	p.level = owner_level
 	p.from_player = by_player
 	p.magic = is_magic
 	p.fire = is_fire
+	p.web = is_web
 	dir.y = 0.0
 	p.direction = dir.normalized()
 	owner_level.add_child(p)
@@ -56,6 +62,9 @@ static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: 
 		p.add_child(glow)
 		p.add_child(Effects.make_sparkles(Color(1.0, 0.6, 0.2) if is_fire else Color(0.8, 0.4, 1.0)))
 		return p
+	if is_web:
+		p.add_child(_web_ball())
+		return p
 	var model: Node3D = load("res://assets/weapons/dagger.gltf" if by_player else "res://assets/weapons/Skeleton_Arrow.gltf").instantiate()
 	model.rotation.x = -PI * 0.5
 	model.scale = Vector3.ONE * (1.4 if by_player else 2.0)
@@ -63,6 +72,37 @@ static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: 
 	if by_player:
 		p.add_child(Effects.make_sparkles(Color(0.8, 0.9, 1.0)))
 	return p
+
+
+## A spider's web in flight: a pale, see-through ball of silk with a few
+## threads trailing behind it and a faint glimmer, so it reads in the dark too.
+static func _web_ball() -> Node3D:
+	var ball := Node3D.new()
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.93, 0.93, 0.88, 0.8)
+	var core := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.28
+	sphere.height = 0.56
+	sphere.radial_segments = 10
+	sphere.rings = 5
+	core.mesh = sphere
+	core.material_override = mat
+	ball.add_child(core)
+	# Threads trailing back (look_at points -Z along the flight).
+	for i in 3:
+		var strand := MeshInstance3D.new()
+		var line := BoxMesh.new()
+		line.size = Vector3(0.025, 0.025, 0.9)
+		strand.mesh = line
+		strand.material_override = mat
+		strand.position = Vector3((i - 1) * 0.12, (i % 2) * 0.1 - 0.05, 0.55)
+		strand.rotation.y = (i - 1) * 0.18
+		ball.add_child(strand)
+	ball.add_child(Effects.make_sparkles(Color(0.95, 0.95, 0.9)))
+	return ball
 
 
 func _ready() -> void:
@@ -82,7 +122,7 @@ func _physics_process(delta: float) -> void:
 		want.y = 0.0
 		var turn := clampf(direction.signed_angle_to(want.normalized(), Vector3.UP), -MAGIC_TURN * delta, MAGIC_TURN * delta)
 		direction = direction.rotated(Vector3.UP, turn)
-	var step := direction * (MAGIC_SPEED if magic else SPEED) * delta
+	var step := direction * (MAGIC_SPEED if magic else WEB_SPEED if web else SPEED) * delta
 	var was := global_position
 	global_position += step
 	# A wall, a closed door or a pillar (statue, crate stack) stops it.
@@ -108,6 +148,14 @@ func _physics_process(delta: float) -> void:
 	else:
 		var player: Player = level.player
 		if not player.dead and _hits(player.global_position) and player.global_position.y < 1.2:
+			if web:
+				# Sticky silk: no harm, but the hero is slowed for a moment.
+				player.afflict("netz")
+				if is_instance_valid(shooter):
+					player.defend_against(shooter)
+				Sfx.play(player, "swing", -8.0, player.global_position, 0.7)
+				queue_free()
+				return
 			var before := player.hp
 			player.take_damage(2 if fire else damage, global_position - direction)
 			player.defend_against(shooter)

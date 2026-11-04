@@ -3755,10 +3755,10 @@ func heard(speaker: String, text: String, pos: Vector3) -> void:
 ## fixed order (see StatusIcon): shown under the life bar.
 func hero_ailments() -> Array:
 	var out := []
-	for kind in ["gift", "fluch", "brand"]:
+	for kind in ["gift", "fluch", "brand", "netz"]:
 		if player.ailments.has(kind):
 			out.append([kind, ""])
-	# Slower only from a heavy load (the curse that slows has its own icon,
+	# Slower only from a heavy load (the curse and the web that slow have their own icons,
 	# and a little gear is normal); not while faster all the same.
 	if not _hero_fast() and Items.load_factor(player.load_weight()) <= 1.0 - Items.MAX_WEIGHT_SLOW * 0.5:
 		out.append(["slow", ""])
@@ -3778,10 +3778,11 @@ func hero_boons() -> Array:
 	return out
 
 
-## Faster than normal from gifts, level or Tempo (leaving out the curse's
-## slowness, which has an icon of its own).
+## Faster than normal from gifts, level or Tempo (leaving out the curse's and
+## the web's slowness, which have icons of their own).
 func _hero_fast() -> bool:
-	var unslowed := player.base_speed / (Player.CURSE_SLOW if player.ailments.has("fluch") else 1.0)
+	var unslowed := player.base_speed / (Player.CURSE_SLOW if player.ailments.has("fluch") else 1.0) \
+			/ (Player.WEB_SLOW if player.ailments.has("netz") else 1.0)
 	return unslowed > Player.SPEED + 0.01
 
 
@@ -3799,6 +3800,7 @@ func icon_text(kind: String, number: String) -> String:
 		"gift": return Lang.t("Vergiftet: Du verlierst alle paar Sekunden ein Leben, nie das letzte. Ein Brunnen, ein Schrein oder ein Heiltrank heilt es.")
 		"fluch": return Lang.t("Verflucht: Du bist langsamer. Es vergeht bald; ein Brunnen, ein Schrein oder ein Heiltrank heilt es sofort.")
 		"brand": return Lang.t("Du brennst: Ein paar Sekunden lang verlierst du Leben, nie das letzte.")
+		"netz": return Lang.t("Eingesponnen: Spinnenseide klebt an dir. Ein paar Sekunden lang bist du viel langsamer.")
 		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
 		"fast": return Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
 		"slow": return Lang.t("Schwer beladen: Du läufst langsamer. Leg im Inventar (I) etwas ab.")

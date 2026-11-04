@@ -39,6 +39,10 @@ const GIVE_UP := 5.0
 ## the hunt and walks back, so running out of its hall always works.
 const LEASH := 14.0
 const POISON_CHANCE := 0.25
+## A spider throws its web (KINDS "web") at a hero it sees between these
+## distances: nearer than WEB_MIN it simply bites.
+const WEB_MIN := 4.0
+const WEB_REACH := 13.0
 ## Model, weapon, life, speed, damage, reach, scale and pause between attacks.
 ## "armor" is the kind's own hardening (thick bones, hide or leather), on top
 ## of what its worn gear adds.
@@ -85,11 +89,13 @@ const KINDS := {
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
 		"voice": ["voice_koloss", 0.75, "BRÜLL"], "purse": [4, 8], "gear_chance": 0.4},
 	# The spider's model has no flinch of its own: it hops back instead.
+	# Spiders bite up close and throw a sticky web from afar ("web": seconds
+	# between throws) that slows the hero for a moment (see _throw_web).
 	"spinne": {"model": "Spider", "dir": "wild", "hp": 3, "speed": 5.0, "damage": 1, "reach": 2.0, "size": 1.0, "cooldown": 1.3,
 		"beast": true, "roam": true, "model_scale": 0.6, "turn": 0.0, "run_anim": 3.0,
 		"anims": {"Idle": "HumanArmature|Spider_Idle", "Walking_A": "HumanArmature|Spider_Walk", "Running_A": "HumanArmature|Spider_Walk",
 			"1H_Melee_Attack_Chop": "HumanArmature|Spider_Attack", "Hit_A": "HumanArmature|Spider_Jump", "Death_A": "HumanArmature|Spider_Death"},
-		"voice": ["voice_wicht", 1.4, "zisch"], "purse": [0, 2], "gear_chance": 0.0, "poison": 0.3},
+		"voice": ["voice_wicht", 1.4, "zisch"], "purse": [0, 2], "gear_chance": 0.0, "poison": 0.3, "web": 7.0},
 	# The monsters of the dragon's lair (Quaternius Monster Pack in
 	# assets/lair, FBX files: "ext"). Bats and the dragon only ever fly, so
 	# every move plays their flying loop; "lift" raises the model off the
@@ -122,7 +128,7 @@ const KINDS := {
 		"anims": {"Idle": "HumanArmature|Spider_Idle", "Walking_A": "HumanArmature|Spider_Walk", "Running_A": "HumanArmature|Spider_Walk",
 			"1H_Melee_Attack_Chop": "HumanArmature|Spider_Attack", "Hit_A": "HumanArmature|Spider_Jump", "Death_A": "HumanArmature|Spider_Death"},
 		"tint": Color(0.42, 0.36, 0.48), "glow": Color(0.55, 0.9, 0.4),
-		"voice": ["voice_wicht", 0.55, "tsss"], "purse": [25, 40], "gear_chance": 1.0, "poison": 0.6},
+		"voice": ["voice_wicht", 0.55, "tsss"], "purse": [25, 40], "gear_chance": 1.0, "poison": 0.6, "web": 5.0},
 	"bleicher_waechter": {"model": "Yeti", "dir": "wild", "hp": 32, "speed": 3.9, "damage": 3, "reach": 3.6, "size": 2.1, "cooldown": 2.2,
 		"beast": true, "horror": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
@@ -267,6 +273,8 @@ var _anim: AnimationPlayer
 var _current_anim := ""
 var _busy := 0.0
 var _cooldown := 0.0
+## Seconds before a spider can throw its next web.
+var _web_cool := 0.0
 var _awake := false
 ## Seconds spent pushing without getting anywhere, and the sidestep out.
 var _stuck := 0.0
@@ -1039,6 +1047,7 @@ func _physics_process(delta: float) -> void:
 	_busy = maxf(0.0, _busy - delta)
 	_trap_cool = maxf(0.0, _trap_cool - delta)
 	_cooldown = maxf(0.0, _cooldown - delta)
+	_web_cool = maxf(0.0, _web_cool - delta)
 	_repath -= delta
 	var player: Player = level.player
 	var to_player := player.global_position - global_position
@@ -1099,6 +1108,9 @@ func _physics_process(delta: float) -> void:
 			_face(to_player)
 			if _cooldown <= 0.0:
 				_strike(player)
+		elif can_throw_web(dist, sees):
+			_face(to_player)
+			_throw_web(player)
 		else:
 			if _repath <= 0.0 or _path.is_empty():
 				_repath = 0.5
@@ -1433,6 +1445,34 @@ func _strike(target: Node3D) -> void:
 		# Minion blades and spider bites are sometimes poisoned.
 		if player.hp < before and randf() < _stats.get("poison", POISON_CHANCE if kind == "wicht" else 0.0):
 			player.afflict("gift")
+
+
+## True when a spider may throw its web at the hero now: it sees the hero,
+## not too near and not too far, with nothing in the way, and its last web
+## is long enough ago.
+func can_throw_web(dist: float, sees: bool) -> bool:
+	if not _stats.has("web") or _web_cool > 0.0 or not sees or _lost > 0.0:
+		return false
+	if dist < WEB_MIN or dist > WEB_REACH:
+		return false
+	return level.has_clear_shot(global_position, level.player.global_position)
+
+
+## A spider rears up and throws a ball of web at the hero (see Projectile):
+## it does no harm, but sticks and slows the hero for a moment
+## (Player.afflict "netz"). Then the spider runs in to bite.
+func _throw_web(target: Node3D) -> void:
+	_web_cool = float(_stats.web)
+	_play_once("1H_Melee_Attack_Chop", 0.6)
+	Sfx.play(self, "swing", -6.0, global_position, 1.5)
+	await get_tree().create_timer(0.35).timeout
+	if dead or not is_inside_tree() or not is_instance_valid(target) or level.stacked(self, target):
+		return
+	var origin := global_position + Vector3(0, 0.9, 0)
+	var aim := target.global_position + Vector3(0, 1.0, 0)
+	var shot := Projectile.spawn(level, origin, aim - origin, false, false, false, true)
+	shot.shooter = self
+	shot.damage = 0
 
 
 ## A bolt, an orb or fire at the hero, or at a rival monster.

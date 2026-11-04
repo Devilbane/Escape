@@ -199,6 +199,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/torch_stacks.gd | tee torch_stacks.log
           grep -q PASS torch_stacks.log
 
+      - name: Torch button test (lit on request only)
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/torch_button.gd | tee torch_button.log
+          grep -q PASS torch_button.log
+
       - name: Several saved games test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log

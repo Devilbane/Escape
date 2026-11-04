@@ -58,6 +58,9 @@ var _drawer_rail: VBoxContainer
 var _quick_buttons := {}
 ## The home button below the menu handle (see HomeRun).
 var _home_button: Button
+## The torch button below it: lights or puts out the hand torch (see HandTorch).
+var _torch_button: Button
+var _torch_count: Label
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
@@ -671,7 +674,10 @@ func _setup_drawer() -> void:
 	_hud.add_child(_drawer)
 
 	_drawer_handle = _make_button("", toggle_drawer, true)
-	_drawer_handle.custom_minimum_size = Vector2(70, 120)
+	# 88 high: room for the arrow and "Menü", and for the home and torch
+	# buttons below it between the gold line and the corner mark on a 720 px
+	# screen (see _setup_torch_button).
+	_drawer_handle.custom_minimum_size = Vector2(70, 88)
 	_drawer_handle.add_theme_font_size_override("font_size", 16)
 	_drawer_handle.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
@@ -697,6 +703,7 @@ func _setup_drawer() -> void:
 	_drawer_rail.add_child(gap)
 	_drawer_rail.add_child(_drawer_handle)
 	_setup_home_button()
+	_setup_torch_button()
 
 	var panel := PanelContainer.new()
 	var back := StyleBoxFlat.new()
@@ -771,7 +778,9 @@ const QUICK_SIZE := Vector2(70, 48)
 const QUICK_ICON := 30.0
 ## Between two icons, and between the last icon and the handle.
 const QUICK_GAP := 8
-const QUICK_HANDLE_GAP := 20
+## Between the handle and the groups above and below it: twice the gap
+## inside a group, so the groups read apart (at least 2 * QUICK_GAP).
+const QUICK_HANDLE_GAP := 16
 
 
 ## One icon per window in QUICK_WINDOWS, each with a tooltip that names the
@@ -835,6 +844,79 @@ func _setup_home_button() -> void:
 	_home_button.add_child(icon)
 	_home_button.visible = false
 	slot.add_child(_home_button)
+
+
+## The torch button stands on the rail just below the home button, the same
+## size: a torch, burning while the hand torch burns (the button stays
+## pressed then), with the torches left in the bag in its corner. Like the
+## home button its slot keeps its size while it is hidden (no torch at all),
+## so nothing on the rail moves.
+func _setup_torch_button() -> void:
+	var slot := Control.new()
+	slot.custom_minimum_size = QUICK_SIZE
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drawer_rail.add_child(slot)
+	_torch_button = _make_button("", torch_action)
+	_torch_button.custom_minimum_size = QUICK_SIZE
+	_torch_button.toggle_mode = true
+	_torch_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
+	_torch_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_torch_button.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t("Fackel anzünden oder löschen"), "V"]
+	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+		var box: StyleBoxFlat = _torch_button.get_theme_stylebox(style).duplicate()
+		box.corner_radius_top_right = 0
+		box.corner_radius_bottom_right = 0
+		_torch_button.add_theme_stylebox_override(style, box)
+	var icon := ItemIcon.make("kind:torch_out", QUICK_ICON, true)
+	icon.name = "Icon"
+	icon.set_anchors_preset(Control.PRESET_CENTER)
+	icon.offset_left = -QUICK_ICON / 2.0
+	icon.offset_top = -QUICK_ICON / 2.0
+	icon.offset_right = QUICK_ICON / 2.0
+	icon.offset_bottom = QUICK_ICON / 2.0
+	_torch_button.add_child(icon)
+	# The count sits in a fixed box in the lower right corner, so a change
+	# from 9 to 10 does not move it.
+	_torch_count = _make_label(TEXT_FONT, 16)
+	_torch_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_torch_count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_torch_count.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_torch_count.offset_right = -6
+	_torch_count.offset_bottom = -1
+	_torch_button.add_child(_torch_count)
+	_torch_button.visible = false
+	slot.add_child(_torch_button)
+
+
+## The torch button or V: lights a torch from the bag, or puts it out.
+func torch_action() -> void:
+	if state != State.PLAYING or player == null:
+		return
+	var why := player.torch.toggle()
+	if why != "":
+		show_message(why, 2.4)
+	update_torch_button()
+
+
+## Shows the torch button while the hero has a torch, pressed and burning
+## while one burns, with the count of torches left in the bag.
+func update_torch_button() -> void:
+	if _torch_button == null or player == null:
+		return
+	var torch: HandTorch = player.torch
+	var show := torch.lit or torch.has_torch()
+	if _torch_button.visible != show:
+		_torch_button.visible = show
+	if _torch_button.button_pressed != torch.lit:
+		_torch_button.set_pressed_no_signal(torch.lit)
+	var icon: ItemIcon = _torch_button.get_node("Icon")
+	var look := "kind:torch" if torch.lit else "kind:torch_out"
+	if icon.what != look:
+		icon.what = look
+		icon.queue_redraw()
+	var count := str(torch.spare()) if torch.spare() > 0 else ""
+	if _torch_count.text != count:
+		_torch_count.text = count
 
 
 ## The home button or X: sets out for home, or stops on the way.
@@ -1099,7 +1181,7 @@ func _setup_hud() -> void:
 	# compendium, H).
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.8))
 	_help = help
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   V: Fackel   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
@@ -2800,6 +2882,8 @@ func _apply_save(data: Dictionary) -> void:
 	# Wall writings saved before they were written in blood.
 	for i in lore.size():
 		lore[i] = Level.OLD_WRITINGS.get(lore[i], lore[i])
+		if lore[i] == OLD_DARK_LEARN:
+			lore[i] = DARK_LEARN
 	looted.clear()
 	var saved_loot = data.get("looted", {})
 	if saved_loot is Dictionary:
@@ -4601,7 +4685,10 @@ func go_inside(building: String, house := 0) -> void:
 			_on_home_claimed())
 
 
-const DARK_LEARN := "In manchen Löchern und Höhlen ist es stockfinster: Ohne Fackel siehst du kaum die eigene Hand, und auch mit einer nur wenige Schritte weit. Fackeln gibt es bei der Krämerin. Im Dunkeln brennt eine von selbst, drei Minuten lang, dann die nächste. Eine brennende Fackel sieht jedes Ungeheuer."
+## The entry from before torches were lit on request: a saved compendium
+## gets the new one (see _apply_save).
+const OLD_DARK_LEARN := "In manchen Löchern und Höhlen ist es stockfinster: Ohne Fackel siehst du kaum die eigene Hand, und auch mit einer nur wenige Schritte weit. Fackeln gibt es bei der Krämerin. Im Dunkeln brennt eine von selbst, drei Minuten lang, dann die nächste. Eine brennende Fackel sieht jedes Ungeheuer."
+const DARK_LEARN := "In manchen Löchern und Höhlen ist es stockfinster: Ohne Fackel siehst du kaum die eigene Hand, und auch mit einer nur wenige Schritte weit. Fackeln gibt es bei der Krämerin. Zünde eine an, wenn du sie brauchst: mit der Fackel am rechten Rand oder der Taste V. Sie brennt drei Minuten lang, bis du sie löschst; was übrig bleibt, brennt beim nächsten Mal weiter. Eine brennende Fackel sieht jedes Ungeheuer."
 
 
 ## Down in a pitch-black place: a word on the darkness, and on torches if
@@ -4615,8 +4702,10 @@ func _warn_of_darkness() -> void:
 			return
 		if none:
 			show_message(Lang.t("Stockfinster! Ohne Fackel siehst du kaum die eigene Hand. (Die Krämerin verkauft Fackeln.)"), 4.0)
+		elif player.torch.lit:
+			show_message(Lang.t("Stockfinster. Deine Fackel wirft nur einen kleinen Lichtkreis."), 3.0)
 		else:
-			show_message(Lang.t("Stockfinster. Deine Fackel wirft nur einen kleinen Lichtkreis."), 3.0))
+			show_message(Lang.t("Stockfinster! Zünde eine Fackel an: die Fackel am rechten Rand oder Taste V."), 4.0))
 
 
 ## Whether the hero may go into town house `house`: their own, or an empty
@@ -4843,6 +4932,7 @@ func _process(delta: float) -> void:
 	_steer_by_mouse(delta)
 	home_run.tick()
 	update_home_button()
+	update_torch_button()
 	_update_drag(delta)
 	_update_run_meter()
 	tutorial.update(delta)
@@ -5097,6 +5187,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						toggle_drawer()
 					KEY_C:
 						_toggle_sneak()
+					KEY_V:
+						torch_action()
 					KEY_G:
 						fish_action()
 					KEY_T:

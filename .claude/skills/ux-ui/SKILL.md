@@ -611,7 +611,7 @@ Use these helpers and values; do not re-create them.
 | Item names | `Rarity` (`scripts/rarity.gd`) | An item's name is always in its rarity colour: `_item_button(…, id)` and `TradeWindow.name_color` do it for buttons and rows, `Rarity.bbcode(id)` for a RichTextLabel, `Rarity.marked(id)` inside an `Events.found` text. Where there is room, name the tier in words too (`Rarity.label(id)`). |
 | Translations | `Lang.t()`, `Lang.EN` | Every new player-facing string. |
 | Pull-out menu | `game._setup_drawer()` | Right edge, Tab toggles; window buttons push it away. |
-| Quick window icons | `game._setup_quick_bar()`, `QUICK_WINDOWS` | Map, compendium, inventory, character and quests as 70 × 48 picture buttons on the drawer's rail above its handle (8 apart, 20 to the handle); tooltip "Name (key X)" in `_tooltip_theme()`; the open window's icon stays pressed. Add a window there rather than a second icon row. |
+| Quick window icons | `game._setup_quick_bar()`, `QUICK_WINDOWS` | Map, compendium, inventory, character and quests as 70 × 48 picture buttons on the drawer's rail above its 70 × 88 handle (8 apart, 16 to the handle); below the handle, 16 apart, the home and torch buttons (8 apart, each slot kept while hidden); tooltip "Name (key X)" in `_tooltip_theme()`; the open window's icon stays pressed. Add a window there rather than a second icon row. |
 | Shortcut list | `Menus.SHORTCUTS` | Add every new key. |
 
 Spacing scale (keep to these steps): **4, 6, 8, 10, 12, 14, 24, 26, 28**. Within a row 8 to 10;

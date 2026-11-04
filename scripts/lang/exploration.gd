@@ -18,7 +18,7 @@ const EN := {
 	"Jemand hat mit Blut an die Wand geschrieben: „Gib nicht auf. Ich bin hier auch hinausgekommen.“": "Someone wrote on the wall in blood: \"Don't give up. I got out of here too.\"",
 	"Mit Blut an die Wand geschrieben: „Nicht jede Fackel ist nur eine Fackel.“": "Written on the wall in blood: \"Not every torch is just a torch.\"",
 	"Blutige Striche an der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt.": "Bloody lines on the wall, bundled in twelves. Someone counted the days here for a long time.",
-	"Mit Blut an die Wand geschrieben: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“": "Written on the wall in blood: \"In the dark a torch lights by itself. Always carry one.\"",
+	"Mit Blut an die Wand geschrieben: „In der Finsternis ist eine Fackel dein Leben. Nimm immer eine mit.“": "Written on the wall in blood: \"In the dark a torch is your life. Always carry one.\"",
 	"Mit Blut an die Wand geschrieben: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“": "Written on the wall in blood: \"The richest chests stand where nobody looks.\"",
 	"Mit Blut an die Wand geschrieben: „Die Toten hören schlecht. Wer leise geht, kommt weit.“": "Written on the wall in blood: \"The dead hear poorly. Whoever walks quietly goes far.\"",
 	"Mit Blut an die Wand geschrieben: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“": "Written on the wall in blood: \"Whoever has seen every passage also sees what others miss.\"",

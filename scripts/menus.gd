@@ -75,6 +75,7 @@ const SHORTCUTS := [
 	["Nahkampf", "F oder J, gegen das Skelett laufen oder es anklicken"],
 	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],
 	["Schleichen", "C oder Doppelklick"],
+	["Fackel anzünden oder löschen", "V oder die Fackel am rechten Rand, unter dem Haus"],
 	["Benutzen, durchsuchen, Fackel", "Dagegenlaufen"],
 	["Inventar", "I"],
 	["Kompendium", "H"],

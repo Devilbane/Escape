@@ -397,6 +397,7 @@ func is_level_boss() -> bool:
 
 
 func _ready() -> void:
+	SmoothMotion.follow_ticks(self)
 	_stats = KINDS[kind].duplicate()
 	_stats.merge(custom, true)
 	_scan = randf() * RIVAL_SCAN
@@ -1008,7 +1009,7 @@ func _sink() -> void:
 	collision_layer = 0
 	collision_mask = 0
 	_play("Idle")
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(self, "position:y", -2.8, 2.2)
 	tween.tween_callback(queue_free)
 

@@ -22,6 +22,12 @@ window/size/resizable.launcher=false
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[physics]
+
+common/physics_interpolation=true
+common/physics_interpolation.launcher=false
+common/physics_jitter_fix=0.0
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

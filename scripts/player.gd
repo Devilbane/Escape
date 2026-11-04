@@ -236,6 +236,7 @@ var _on_crate := false
 
 
 func _ready() -> void:
+	SmoothMotion.follow_ticks(self)
 	add_to_group("combatant")
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
@@ -744,6 +745,7 @@ func revive(at: Vector3, heal := true) -> void:
 	_hunt = null
 	velocity = Vector3.ZERO
 	global_position = at
+	reset_physics_interpolation()
 	_invulnerable = 1.5
 	_busy = 0.0
 	_flourish = 0.0

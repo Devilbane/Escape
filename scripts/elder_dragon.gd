@@ -36,9 +36,12 @@ const BREATH_CONE := deg_to_rad(26.0)
 const BREATH_WINDUP := 1.4
 const BREATH_EVERY := 3.6
 const BREATH_DAMAGE := 14
-## The rings of the breath: rows out from the snout and rings per row.
-const BREATH_ROWS := 7
-const BREATH_STEP := 3.2
+## The fields of the breath: rows out from the snout, how far apart (rows
+## and the fields in a row), and how wide each one burns. The gap is smaller
+## than a field is wide, so they overlap into one sheet of fire.
+const BREATH_ROWS := 8
+const BREATH_STEP := 2.4
+const BREATH_FIELD := 1.6
 ## Out of the hero's sight this long, it goes back to sleep.
 const SETTLE_AFTER := 8.0
 ## How often the "Zzz" shows while it sleeps.
@@ -263,15 +266,20 @@ func _draw_breath(to_player: Vector3) -> void:
 	_play("Idle")
 	Effects.float_text(level, global_position + Vector3(0, 3.0 * _stats.size, 0), "!!", Color(1.0, 0.35, 0.15), true)
 	Sfx.play(level, "voice_koloss_%d" % (randi() % 2), 2.0, global_position, 0.4)
+	var count := 0
 	for row in BREATH_ROWS:
 		var out := BUMP + BREATH_STEP * row
-		var spread := 1 + row / 2
+		# As many fields across as fit at BREATH_STEP apart on this row's arc.
+		var spread := ceili(out * BREATH_CONE / BREATH_STEP)
 		for k in range(-spread, spread + 1):
 			var turn := BREATH_CONE * float(k) / float(maxi(1, spread))
 			var pos := global_position + _aim.rotated(Vector3.UP, turn) * out
 			if level.is_opaque(level.world_to_cell(pos)):
 				continue
-			FireField.spawn(level, pos, BREATH_WINDUP + 0.05 * row, 4.0)
+			# Only every third field casts its own light: the blaze is lit
+			# well enough, and dozens of lights would cost too much.
+			FireField.spawn(level, pos, BREATH_WINDUP + 0.04 * row, 4.0, BREATH_FIELD, count % 3 == 0)
+			count += 1
 
 
 ## The breath itself: whoever still stands in the cone burns badly.

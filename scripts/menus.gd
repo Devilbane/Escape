@@ -4,6 +4,8 @@ extends Node
 ## Each window is rebuilt from scratch whenever something in it changes.
 
 const STORAGE_SIZE := 16
+## Lines kept for the info line of the storage chest and the vault.
+const STORAGE_INFO_LINES := 3
 const BLUE := Color(0.65, 0.85, 1.0)
 ## The colour of everything about the villagers' goodwill (see Reputation).
 const REPUTATION_COLOR := Color(0.78, 0.65, 1.0)
@@ -296,11 +298,16 @@ func _rebuild() -> void:
 		"gefaehrte_name":
 			_build_naming()
 	if current in ["lager", "tresor"]:
-		_info = _make_info()
-		_info.autowrap_mode = TextServer.AUTOWRAP_OFF
+		# The info line of the chest and the vault has a fixed box as wide as
+		# the window: a long description (a torch, say) wraps or scrolls in it
+		# instead of widening the window. A window that changed its size on
+		# hover moved the item away from the pointer, which reset the line,
+		# which shrank the window again: it flickered.
+		var info_box := _info_box(STORAGE_INFO_LINES)
 		_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_info.custom_minimum_size.y = 26
-		_box.add_child(_info)
+		_info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_info.custom_minimum_size.y = info_box.custom_minimum_size.y
+		_box.add_child(info_box)
 		_show_info("")
 	if _note != "" or current in TRADE_WINDOWS or current in ["werkbank", "inventar", "gefaehrten"]:
 		# The trading windows and the inventory keep a line for the note, so a
@@ -473,6 +480,25 @@ func _make_info() -> RichTextLabel:
 	l.add_theme_constant_override("shadow_offset_y", 3)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
+
+
+## A box of fixed size for the info line (`_info`, made here): `lines` lines
+## high, measured on a label of the same font, and `width` wide (0: as wide
+## as its container makes it, the text never widens it). A longer text
+## scrolls inside, so pointing at an item never resizes the window.
+func _info_box(lines: int, width := 0.0) -> ScrollContainer:
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_info = _make_info()
+	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Pass, so the mouse wheel scrolls a long description.
+	_info.mouse_filter = Control.MOUSE_FILTER_PASS
+	scroll.add_child(_info)
+	var measure: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	scroll.custom_minimum_size = Vector2(width,
+			ceilf(measure.get_line_height() * lines + measure.get_theme_constant("line_spacing") * (lines - 1.0)))
+	measure.free()
+	return scroll
 
 
 func _item_button(text: String, action: Callable, enabled := true, id := "") -> Button:
@@ -921,19 +947,7 @@ func _inventory_details() -> Control:
 	var actions := VBoxContainer.new()
 	actions.add_theme_constant_override("separation", 4)
 	actions.custom_minimum_size = Vector2(INVENTORY_CELL.x, 0)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_info = _make_info()
-	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Pass, so the mouse wheel scrolls a long description.
-	_info.mouse_filter = Control.MOUSE_FILTER_PASS
-	scroll.add_child(_info)
-	# The box holds that many lines, measured on a label of the same font.
-	var lines := float(INVENTORY_DETAIL_LINES)
-	var measure: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
-	scroll.custom_minimum_size = Vector2(INVENTORY_WIDTH - INVENTORY_CELL.x - 10,
-			ceilf(measure.get_line_height() * lines + measure.get_theme_constant("line_spacing") * (lines - 1.0)))
-	measure.free()
+	var scroll := _info_box(INVENTORY_DETAIL_LINES, INVENTORY_WIDTH - INVENTORY_CELL.x - 10)
 	row.add_child(scroll)
 	row.add_child(actions)
 	_show_info("")

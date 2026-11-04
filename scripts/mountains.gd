@@ -35,6 +35,8 @@ const CRAG_SCALE := 0.045
 const SOUTH_SLOPE := 1.05
 const SOUTH_LOOK := 8
 const SINK := 0.25
+## How many tiles the distance field reaches past the mesh.
+const FIELD_MARGIN := 2
 
 const ROCK := Color(0.47, 0.45, 0.43)
 const ROCK_DARK := Color(0.3, 0.29, 0.29)
@@ -70,7 +72,11 @@ static func build(level: Level, seed_value: int) -> void:
 		return
 	# Past the edge of the map the rock goes on a little way.
 	area = area.grow(4)
-	var dist := _distance_field(level, area)
+	# The distance field reaches a little further than the mesh: a point at
+	# the mesh's edge blends the tiles either side of it, and a tile missing
+	# from the field counts as deep rock, which stood up a seam of rock on
+	# open ground wherever the mesh's edge crossed it.
+	var dist := _distance_field(level, area.grow(FIELD_MARGIN))
 	var north := {}
 	for y in range(area.position.y, area.end.y):
 		for x in range(area.position.x, area.end.x):

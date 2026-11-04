@@ -62,6 +62,8 @@ func _rules() -> void:
 	check(a.blend_mode == b.blend_mode and a.shading_mode == b.shading_mode and a.billboard_mode == b.billboard_mode
 			and a.transparency == b.transparency and a.vertex_color_use_as_albedo == b.vertex_color_use_as_albedo,
 			"the smoke needs no shader the flames do not already need")
+	check(plume.angular_velocity_min == 0.0 and plume.angular_velocity_max == 0.0,
+			"the smoke does not spin (a spinning billboard came out as green and yellow balls on some drivers)")
 	check(not plume.emitting, "a new plume starts cold")
 	plume.free()
 	flame.free()

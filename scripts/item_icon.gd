@@ -35,6 +35,12 @@ static func kind_of(id: String) -> String:
 		return id.split(":")[1]
 	if id == Mines.CRYSTAL_ID:
 		return "crystal"
+	if id == DragonLair.BLOOD:
+		return "potion"
+	if id == DragonLair.HEART:
+		return "crystal"
+	if id == DragonLair.SCALE:
+		return "shield"
 	if not Items.ALL.has(id):
 		return "bag"
 	var item: Dictionary = Items.ALL[id]

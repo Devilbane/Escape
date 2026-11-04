@@ -184,7 +184,7 @@ func _test() -> void:
 		check(hole._pickups.filter(func(q): return q.kind == "hoard").is_empty(), "no hoard lies in %s" % spot[1])
 
 	# In the lair the gold lies beside the chest, the dragon's to guard.
-	game.load_level(game.interiors["E"], false)
+	game.load_level(game.interiors["E3"], false)
 	var lair: Level = game.level
 	check(lair.lair, "into the dragon's lair")
 	var heaps: Array = lair._pickups.filter(func(q): return q.kind == "hoard")

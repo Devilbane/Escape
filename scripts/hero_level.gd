@@ -76,7 +76,7 @@ const AREAS := {
 ## Which area a building (Level.building) belongs to.
 const BUILDING_AREAS := {
 	"b": "dorf", "^": "dorf", "loch1": "loecher", "loch2": "loecher", "loch3": "loecher",
-	"E": "hoehle", "[": "berge", "mine1": "mine1", "mine2": "mine2",
+	"E": "hoehle", "E2": "hoehle", "E3": "hoehle", "[": "berge", "mine1": "mine1", "mine2": "mine2",
 	"mine3": "mine3", "mine3b": "mine3", "mine3c": "mine3",
 	"uralt1": "uralt", "uralt2": "uralt", "uralt3": "uralt",
 }

@@ -62,7 +62,8 @@ func _process(_delta: float) -> bool:
 			game.load_level(game._outdoor_index(), false)
 			game.state = game.State.PLAYING
 			game.player.global_position = game.level.doors.E
-			game.go_inside("E")
+			# The dragon sleeps on the lair's third floor (see DragonLair).
+			game.go_inside("E3")
 			stage = 1
 		1:
 			stage_frames += 1

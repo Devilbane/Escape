@@ -630,13 +630,23 @@ the gear it swallowed. Very rarely a horror also lurks in the far end of a level
 
 In a clearing in the woods, north of the path from the graveyard to the village, an old **stone arch**
 stands over stairs that lead down into the dark. Run into the arch to climb down into the **dragon's lair**,
-a dungeon of its own: **bats** flutter about, quick but frail; green **slimes** creep along, tough and
-sometimes poisonous; skeleton warriors, archers, minions and a brute haunt the crypts; and in the great hall
-at the bottom the **dragon** guards its hoard. Every monster of the lair carries some gold, and the dragon a heap of it and usually a piece
+a dungeon of its own, **three floors deep**, each a maze of narrow passages with loops, dead ends and
+spike traps: **bats** flutter about, quick but frail; green **slimes** creep along, tough and
+sometimes poisonous; skeleton warriors, archers, mages, minions and brutes haunt the crypts; and in the great hall
+at the bottom the **dragon** guards its hoard.
+
+| Floor | Name | The way down |
+|---|---|---|
+| 1 | The Dragon's Lair | a **key** at the far end of a side branch opens the door to the shaft |
+| 2 | The Sulphur Passages | an **iron gate** bars the shaft; push the two old stone blocks onto the pressure plates |
+| 3 | Embermaw's Hoard | a **skeleton brute** guards the key to the locked door of the dragon's hall |
+
+Run into the shaft to climb down a floor; the stairs of a floor lead back up. While you are down there every
+floor stays as you left it (fallen monsters, open doors, the key, pushed blocks), so climbing back up costs no progress. Every monster of the lair carries some gold, and the dragon a heap of it and usually a piece
 of gear. Behind it waits the hoard's treasure chest among piles of coins.
 The halls are dressed with cobwebs, skulls, banners and a stone horse statue from the dungeon kit.
-The stairs you came down lead back out of the arch. The monsters stand ready again every time you come
-down, so there is always something to fight; searched chests and barrels stay empty.
+The stairs of the first floor lead back out of the arch. The monsters stand ready again (and the doors are
+locked again) every time you come down through the arch, so there is always something to fight; searched chests and barrels stay empty.
 **Embermaw, the Hoard Dragon** is the boss of the lair. When it spots you, it wakes with a roar that shakes
 the lair, and its **health bar** shows at the top of the screen, with marks where its next phase begins.
 It hovers over its gold, spits **fireballs** from afar (they follow you like a mage's orb and burn for 2)
@@ -658,6 +668,14 @@ It guards its hoard and does not follow you far; leave it alone for 15 seconds a
 Slay the dragon and the lair is **complete**: a fanfare plays, a window says so, counts the monsters you
 have slain and offers to **leave the lair** at once (or stay and collect the loot). Where the dragon fell, a
 **golden way out** shines up on the floor: step into it and you stand in front of the stone arch again.
+
+The fallen dragon also leaves **parts of its body**: always a **dragon scale** and **dragon blood**, and half the
+time its glowing **ember heart**. They go into the ingredient pouch, and the first of each teaches a recipe for the
+fine metalwork bench on the crafting square: the **scale bracelet** (2 scales, 2 iron bars: +3 life, armour +1), the
+**dragon blood ring** (2 dragon blood, a silver bar: +2 life, +2 power) and the **ember heart amulet** (the heart,
+dragon blood, a scale and a gold bar: +4 life, +2 power, faster).
+When you leave the won lair, a window, **Embermaw's Hoard**, sums up what you carried out of it this visit:
+the gold, the bars from the hoard, the dragon's parts and any gear you found down there.
 
 By the campfire waits the boss of the pass: **Ravenheart, the bandit chief**. Once he takes up the fight, his
 **health bar** shows at the top of the screen, with marks where his next phase begins:

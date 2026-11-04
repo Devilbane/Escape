@@ -3498,6 +3498,11 @@ func _check_pickups() -> void:
 			coins_collected.emit(1)
 
 
+## Whether this floor has a locked door (open or not).
+func has_doors() -> bool:
+	return not _doors.is_empty()
+
+
 func _check_doors() -> void:
 	for d in _doors:
 		if d.open:
@@ -3815,6 +3820,7 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, ma
 		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
 		# The dragon guards the lair: once it falls, the lair is won.
 		if lair and e.kind == "drache":
+			_drop_dragon_parts(e.global_position)
 			_win_lair(e.global_position)
 		# A guardian on a level without a key carries it.
 		if e.kind == "waechter" and not has_key and not _has_cell("K"):
@@ -4129,7 +4135,7 @@ func fox_bed_near(pos: Vector3) -> Vector3:
 ## Lays a dug-up ingredient on the ground. Picked up, it goes into the
 ## ingredient pouch (see Crafting), not the bag. It is not marked as taken:
 ## the ground holds new ones the next time round.
-func lay_find(id: String, pos: Vector3) -> void:
+func lay_find(id: String, pos: Vector3, colour := Color(0.55, 0.75, 0.35)) -> void:
 	var holder := Node3D.new()
 	var lump := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
@@ -4137,14 +4143,14 @@ func lay_find(id: String, pos: Vector3) -> void:
 	mesh.height = 0.4
 	lump.mesh = mesh
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.55, 0.75, 0.35)
+	mat.albedo_color = colour
 	mat.emission_enabled = true
-	mat.emission = Color(0.4, 0.6, 0.25)
+	mat.emission = colour * 0.75
 	lump.material_override = mat
 	holder.add_child(lump)
 	holder.position = Vector3(pos.x, 0.8, pos.z)
 	add_child(holder)
-	holder.add_child(Effects.make_sparkles(Color(0.7, 0.95, 0.5)))
+	holder.add_child(Effects.make_sparkles(colour.lightened(0.4)))
 	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6})
 
 
@@ -4457,6 +4463,20 @@ const LAIR_EXIT_RADIUS := 1.3
 ## The way out shines up this long after the dragon fell.
 const LAIR_EXIT_DELAY := 1.5
 const LAIR_EXIT_COLOR := Color(1.0, 0.8, 0.35)
+
+
+## The fallen dragon leaves parts of its body around where it fell, for
+## the ingredient pouch (see DragonLair.parts). Only the real dragon of
+## Embermaw's lair does; one made in the map workshop does not.
+func _drop_dragon_parts(at: Vector3) -> void:
+	if not DragonLair.is_floor(self):
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var found := DragonLair.parts(rng)
+	for i in found.size():
+		var angle := TAU * i / found.size() + 0.4
+		lay_find(found[i], at + Vector3(cos(angle), 0, sin(angle)) * 1.4, DragonLair.PART_COLOURS[found[i]])
 
 
 ## The dragon has fallen where it hovered: the lair is won. A glowing way

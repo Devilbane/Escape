@@ -124,6 +124,13 @@ var day := 0
 ## they gather on the open ground at night (see DragonHoard). Kept in the
 ## saved game.
 var hoard := DragonHoard.new()
+## What the hero had on stepping through the arch into Embermaw's lair, and
+## whether the dragon fell on this visit (see DragonLair and the window
+## "beute", which shows the spoils on the way out).
+var lair_before := {}
+var lair_won_here := false
+## What the hero carried out of the won lair (see DragonLair.spoils).
+var lair_spoils := {}
 ## The hunts on the bounty board: posted, taken on and paid (see Bounties).
 ## Kept in the saved game.
 var bounties := Bounties.new(self)
@@ -1581,6 +1588,13 @@ func _on_ingredient_collected(id: String) -> void:
 	Sfx.play(self, "key", -3.0)
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5), true)
 	Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
+	# A part of the fallen dragon teaches the recipe made from it.
+	if DragonLair.PART_COLOURS.has(id):
+		learn(DragonLair.PARTS_LEARN)
+		var learned := crafting.learn_from_find(id)
+		if not learned.is_empty():
+			var names := learned.map(func(r): return Lang.t(Crafting.RECIPES[r].name))
+			show_message(Lang.t("Neue Rezepte: %s") % ", ".join(names), 4.0, GOLD)
 
 
 ## The fountain: every ailment gone and full life, as often as you like; a
@@ -1974,7 +1988,8 @@ func _update_hud() -> void:
 	_coin_label.text = Lang.t("Gold: %d") % coins
 	_update_ammo()
 	_key_label.text = Lang.t("Schlüssel gefunden") if level.has_key else Lang.t("Kein Schlüssel")
-	_key_label.visible = not level.outdoor and level.building == ""
+	# The lair's floors have locked doors too.
+	_key_label.visible = not level.outdoor and (level.building == "" or (DragonLair.is_floor(level) and level.has_doors()))
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
 
 
@@ -4427,6 +4442,8 @@ func _on_mine_boss_won() -> void:
 
 func _on_lair_won() -> void:
 	var here := level
+	if DragonLair.is_floor(level):
+		lair_won_here = true
 	Sfx.play(self, "level_done", -1.0)
 	player.train("weisheit", 10.0)
 	get_tree().create_timer(LAIR_WON_DELAY).timeout.connect(func():
@@ -4462,7 +4479,7 @@ func leave_lair() -> void:
 	var tween := create_tween()
 	tween.tween_property(_fade, "color", Color(0.9, 0.75, 0.4, 1.0), 0.5)
 	tween.tween_callback(func():
-		_leave_building()
+		_leave_building(true)
 		get_tree().create_timer(1.0).timeout.connect(func():
 			if state == State.PLAYING:
 				show_message(Lang.t("Du trittst mit dem Schatz des Drachen aus dem Steinbogen ins Freie."), 3.5)))
@@ -4892,6 +4909,14 @@ func go_inside(building: String, house := 0) -> void:
 		return
 	inside_house = house
 	_home_given_now()
+	if building == DragonLair.FLOORS[0] and level is Outdoor:
+		# Through the arch: a new visit to the lair, set back as it always is.
+		DragonLair.reset(looted, level_files, interiors)
+		lair_before = DragonLair.snapshot(self)
+		lair_won_here = false
+	elif DragonLair.is_floor(level):
+		# Down a floor of the lair: this one stays as the hero left it.
+		level.note_left()
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
@@ -5035,8 +5060,10 @@ func _refresh_seals() -> void:
 ## Up the stairs of a building floor and out of its door into the village.
 ## A deeper floor of a mine leads up to the floor above instead, beside the
 ## way down the hero came by.
-func _leave_building() -> void:
-	if level.up_to != "" and interiors.has(level.up_to):
+func _leave_building(all_the_way := false) -> void:
+	if not all_the_way and level.up_to != "" and interiors.has(level.up_to):
+		if DragonLair.is_floor(level):
+			level.note_left()
 		load_level(interiors[level.up_to], false)
 		if level.shaft_side != Vector3.ZERO:
 			player.global_position = level.shaft_side
@@ -5047,6 +5074,10 @@ func _leave_building() -> void:
 		_announce_level()
 		return
 	var building: String = level.building
+	var from_lair := DragonLair.is_floor(level)
+	if from_lair:
+		# Every floor of the lair comes out of the one arch.
+		building = DragonLair.FLOORS[0]
 	if inside_house > 0:
 		building += str(inside_house)
 	inside_house = 0
@@ -5057,6 +5088,29 @@ func _leave_building() -> void:
 	_snap_camera()
 	state = State.PLAYING
 	create_tween().tween_property(_fade, "color:a", 0.0, 0.8)
+	if from_lair and lair_won_here:
+		_show_lair_spoils()
+
+
+## Out of the won lair: a window lists what the hero carried out of it
+## (see DragonLair.spoils), once the fade has cleared.
+const SPOILS_DELAY := 1.2
+
+
+func _show_lair_spoils() -> void:
+	lair_won_here = false
+	if lair_before.is_empty():
+		# Loaded inside the lair: nothing to measure the spoils against.
+		return
+	lair_spoils = DragonLair.spoils(lair_before, self)
+	lair_before = {}
+	var here := level
+	get_tree().create_timer(SPOILS_DELAY).timeout.connect(func():
+		if level != here or state != State.PLAYING or player.dead:
+			return
+		if menus.is_open():
+			menus.close()
+		menus.open("beute"))
 
 
 ## Reaching a safe room saves the game at once, so the way there is never

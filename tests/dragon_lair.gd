@@ -7,6 +7,12 @@ extends SceneTree
 ## lead back out of the arch, and the monsters stand ready again next time.
 ## The fallen dragon wins the lair: a window says so and offers the way out,
 ## and a golden way out shines up where it fell.
+## The lair is three floors deep (see DragonLair): a key and a door on the
+## first, a block puzzle and an iron gate on the second, and the dragon behind
+## a locked door on the third. What the hero did on a floor stays while they
+## are down there, and is set back on the next visit. The fallen dragon leaves
+## parts of its body that teach the dragon recipes, and leaving the won lair
+## shows the spoils.
 ## Run with: godot --headless --fixed-fps 60 -s tests/dragon_lair.gd
 
 var failures := 0
@@ -20,6 +26,7 @@ var kills := 0
 var struck := false
 var first_count := 0
 var coins_before := 0
+var top_count := 0
 
 
 func check(ok: bool, what: String) -> void:
@@ -77,6 +84,53 @@ func _process(_delta: float) -> bool:
 			var lvl: Level = game.level
 			check(lvl.building == "E" and lvl.lair, "the arch led into the dragon's lair (%s)" % lvl.level_name)
 			check(not lvl.safe, "the lair is no safe room")
+			# The first floor: a maze with a key, a locked door and the way down.
+			check(lvl.down_to == "E2" and game.interiors.has("E2") and game.interiors.has("E3"), "the lair goes three floors deep")
+			check(lvl.has_doors() and lvl._has_cell("K"), "a key and a locked door on the first floor")
+			game._update_hud()
+			check(game._key_label.visible, "the key shows in the HUD down here")
+			var key_cell := _find(lvl, "K")
+			var to_key := lvl.grid_path(lvl.start_cell, key_cell)
+			check(not to_key.is_empty() and to_key[-1] == key_cell, "the key can be reached from the stairs")
+			check(not _shaft(lvl).is_empty(), "a way leads down to the next floor")
+			top_count = _alive(lvl).size()
+			# A monster felled up here stays felled while the hero is down there.
+			_alive(lvl)[0].take_hit(99, game.player.global_position)
+			game._use_station(_shaft(lvl))
+			stage = 20
+			stage_frames = 0
+		20:
+			stage_frames += 1
+			if stage_frames < 60:
+				return false
+			var lvl: Level = game.level
+			check(lvl.building == "E2" and lvl.lair, "the shaft leads to the second floor")
+			check(lvl.up_to == "E" and lvl.down_to == "E3", "the second floor hangs between the first and the third")
+			check(not lvl._gates.is_empty() and lvl._has_cell("_") and lvl._has_cell("Q"), "an iron gate, plates and blocks bar the way down")
+			check(not lvl.gates_open(), "the gate is shut")
+			check(not _shaft(lvl).is_empty(), "a way leads further down")
+			# Back up the stairs: the felled monster is still down.
+			game._next_level()
+			stage = 21
+			stage_frames = 0
+		21:
+			stage_frames += 1
+			if stage_frames < 60:
+				return false
+			var lvl: Level = game.level
+			check(lvl.building == "E", "the stairs of the second floor lead back up")
+			check(_alive(lvl).size() == top_count - 1, "a monster felled on the first floor stays felled (%d of %d)" % [_alive(lvl).size(), top_count])
+			check(game.player.global_position.distance_to(_shaft(lvl).pos) < 6.0, "the hero comes up beside the shaft")
+			game.go_inside("E3")
+			stage = 22
+			stage_frames = 0
+		22:
+			stage_frames += 1
+			if stage_frames < 60:
+				return false
+			var lvl: Level = game.level
+			check(lvl.building == "E3" and lvl.lair and lvl.up_to == "E2", "the third floor lies at the bottom")
+			check(lvl.has_doors() and lvl._has_cell("K"), "a locked door seals the dragon's hall")
 			var kinds := {}
 			for e in _alive(lvl):
 				kinds[e.kind] = kinds.get(e.kind, 0) + 1
@@ -98,9 +152,12 @@ func _process(_delta: float) -> bool:
 			print("kit pieces: ", props.keys())
 			check(props.has("Coin_Pile") and props.has("Skull") and props.has("Statue_Horse"), "the lair is dressed with the kit's coins, skulls and statues")
 			check(props.has("Cobweb") or props.has("Cobweb2"), "cobwebs hang in the corners")
-			# Every part of the lair can be reached from the stairs.
+			# The key can be reached from the stairs; it opens the way to the dragon.
 			var dragon: Enemy = _alive(lvl).filter(func(e): return e.kind == "drache")[0]
-			check(not lvl.grid_path(lvl.start_cell, lvl.world_to_cell(dragon.global_position)).is_empty(), "a way leads down to the dragon")
+			var to_key := lvl.grid_path(lvl.start_cell, _find(lvl, "K"))
+			check(not to_key.is_empty() and to_key[-1] == _find(lvl, "K"), "the key of the dragon's hall can be reached")
+			var to_dragon := lvl.grid_path(lvl.start_cell, lvl.world_to_cell(dragon.global_position))
+			check(to_dragon.is_empty() or to_dragon[-1] != lvl.world_to_cell(dragon.global_position), "the dragon's hall is locked")
 			first_count = _alive(lvl).size()
 			lvl.enemy_killed.connect(func(_e: Enemy): kills += 1)
 			# The dragon spits fire when it sees the hero from afar.
@@ -164,6 +221,17 @@ func _process(_delta: float) -> bool:
 			check(after - before >= Enemy.KINDS.drache.purse[0], "the dragon leaves a heap of gold (%d coins)" % (after - before))
 			check(dragon.fall_text() == Lang.t("Der Drache stürzt brüllend zu Boden!"), "the message says the dragon fell")
 			check(lvl.lair_cleared, "the fallen dragon wins the lair")
+			# It leaves its scale and its blood, maybe its heart.
+			var parts := lvl._pickups.filter(func(p): return p.kind == "ingredient")
+			check(parts.size() >= 2 and parts.size() <= 3, "the dragon leaves 2 or 3 parts (%d)" % parts.size())
+			var ids := parts.map(func(p): return p.ingredient)
+			check(DragonLair.SCALE in ids and DragonLair.BLOOD in ids, "a scale and dragon blood among them")
+			for p in parts + lvl._pickups.filter(func(q): return q.kind == "coin"):
+				game.player.global_position = p.node.global_position
+				game.player.velocity = Vector3.ZERO
+				lvl._check_pickups()
+			check(game.crafting.have(DragonLair.SCALE) == 1 and game.crafting.have(DragonLair.BLOOD) == 1, "the parts go into the pouch")
+			check(game.crafting.knows("schuppenreif") and game.crafting.knows("drachenblutring"), "the parts teach the dragon recipes")
 			stage = 6
 			stage_frames = 0
 		6:
@@ -187,12 +255,18 @@ func _process(_delta: float) -> bool:
 			stage_frames = 0
 		4:
 			stage_frames += 1
-			if stage_frames < 90:
+			# The spoils show once the fade has cleared (Game.SPOILS_DELAY).
+			if stage_frames < 90 or (game.menus.current != "beute" and stage_frames < 240):
 				return false
 			var lvl: Level = game.level
 			check(lvl is Outdoor, "leaving the won lair leads back out into the woods")
 			if lvl is Outdoor:
 				check(game.player.global_position.distance_to(lvl.doors.E) < 3.0, "the hero comes out in front of the arch")
+			# What the hero carried out of it.
+			check(game.menus.current == "beute", "a window shows the spoils of the lair")
+			check(game.lair_spoils.get("ingredients", {}).get(DragonLair.SCALE, 0) == 1, "the dragon's scale is among the spoils")
+			check(int(game.lair_spoils.get("gold", 0)) > 0, "the gold is among the spoils")
+			game.menus.close()
 			game.go_inside("E")
 			stage = 5
 			stage_frames = 0
@@ -201,7 +275,16 @@ func _process(_delta: float) -> bool:
 			if stage_frames < 60:
 				return false
 			var lvl: Level = game.level
-			check(_alive(lvl).size() == first_count, "the monsters stand ready again on the next visit")
+			check(_alive(lvl).size() == top_count, "the monsters stand ready again on the next visit")
+			game.go_inside("E3")
+			stage = 23
+			stage_frames = 0
+		23:
+			stage_frames += 1
+			if stage_frames < 60:
+				return false
+			var lvl: Level = game.level
+			check(_alive(lvl).size() == first_count, "the dragon's floor stands ready again too")
 			check(not lvl.lair_cleared and lvl.lair_exit == null, "the lair waits to be won again")
 			# Win it again, then step into the golden way out.
 			var dragon: Enemy = _alive(lvl).filter(func(e): return e.kind == "drache")[0]
@@ -234,6 +317,8 @@ func _process(_delta: float) -> bool:
 				return false
 			check(game.player.global_position.distance_to(lvl.doors.E) < 3.0, "the way out leads to the arch")
 			check(game.menus.current != "hoehle", "no lair window left open outside")
+			if game.menus.is_open():
+				game.menus.close()
 			game.go_inside("E")
 			stage = 9
 			stage_frames = 0
@@ -254,3 +339,20 @@ func _process(_delta: float) -> bool:
 			_finish()
 			return true
 	return false
+
+
+## The first cell of the map with the letter `ch`.
+func _find(lvl: Level, ch: String) -> Vector2i:
+	for y in lvl.height:
+		for x in lvl.width:
+			if lvl.cell_char(Vector2i(x, y)) == ch:
+				return Vector2i(x, y)
+	return Vector2i(-1, -1)
+
+
+## The floor's way down (a "schacht" station), or {}.
+func _shaft(lvl: Level) -> Dictionary:
+	for st in lvl.stations:
+		if st.kind == "schacht":
+			return st
+	return {}

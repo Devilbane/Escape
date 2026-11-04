@@ -221,6 +221,9 @@ var chat_partner: Villager = null
 ## Set when someone else (the hero, mostly) speaks to us during a chat: the
 ## chat is over.
 var chat_broken := false
+## Singing a drinking song (see DrinkingSongs), between two lines too. Any
+## other line ends it; while it lasts, nobody pulls us into a chat.
+var singing := false
 ## Whether we stay seated through the chat (the drinker on his bench).
 var _chat_sitting := false
 ## The torch in the hand at night (see carries_torch), made the first night
@@ -971,6 +974,7 @@ func quest_mark() -> String:
 func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := false) -> void:
 	if chat_partner != null and not in_chat:
 		chat_broken = true
+	singing = false
 	# Whoever else is talking right beside us stops, or both bubbles would
 	# cover each other and neither could be read.
 	for other in _neighbours():
@@ -982,6 +986,15 @@ func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := fals
 	_look_at = look_at
 	if _task == "walk":
 		_start("idle", 0.5)
+
+
+## A line of a drinking song (see DrinkingSongs): said like any other, and
+## we stay in our seat until it is sung.
+func sing(text: String, time: float) -> void:
+	say(text, Vector3.INF, time)
+	singing = true
+	if _task == "sit":
+		_task_time = maxf(_task_time, time + 1.0)
 
 
 ## Whether the current line has not been shown long enough to be read: the
@@ -1059,7 +1072,7 @@ func _update_bubble(delta: float) -> void:
 ## Whether we are free for a chat: awake, out in the village, at work or
 ## idling (not walking somewhere, listening to the herald or talking).
 func can_chat() -> bool:
-	if chat_partner != null or at_home or not visible or role == "%":
+	if chat_partner != null or at_home or not visible or role == "%" or singing:
 		return false
 	if night and goes_to_bed():
 		return false

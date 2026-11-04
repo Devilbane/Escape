@@ -3534,16 +3534,35 @@ func _check_doors() -> void:
 var _rare_loot := {}
 
 
+## How often a piece finer than common, picked by chance for plain loot,
+## is kept: an ordinary chest, a crate or a heap of rubble holds it with
+## these odds and a common piece instead otherwise, and a fallen enemy drops
+## its worn gear of that tier this much less often (see _drop_gear). So
+## uncommon finds come half as often, and rare ones and finer less than a
+## third as often, and each one feels like an event. Loot of a set tier (a
+## secret room, a chest behind a gate, the hoards, a boss's rare drop when
+## it falls) is not touched: it is always as fine as promised.
+const FINER_KEEP := {"normal": 1.0, "ungewoehnlich": 0.5, "selten": 0.3, "episch": 0.3, "gottgeboren": 0.3}
+
+
+## How often a plain piece of gear of this item's tier is kept (see FINER_KEEP).
+static func finer_keep(id: String) -> float:
+	return float(FINER_KEEP.get(tier_of(id), 1.0))
+
+
 ## A random piece of gear of rarity `min_rank` or finer (see tier_rank) for a
 ## container on this level. Common things may turn up again and again, but
 ## anything finer (uncommon and up, books too) only once a level, so a secret
 ## room never holds the same book twice: once all the gear of its tier is
 ## taken, the next chest reaches one tier lower. In the beginner dungeon,
-## plain loot (`min_rank` 0) is common only (see beginner_dungeon).
+## plain loot (`min_rank` 0) is common only (see beginner_dungeon). Plain
+## loot keeps a finer piece only with the odds of FINER_KEEP.
 func loot_item(rng: RandomNumberGenerator, min_rank: int, area: int) -> String:
 	var top := 0 if beginner_dungeon and min_rank == 0 else tier_rank("gottgeboren")
 	var rank := min_rank
 	var id := Items.random_item(rng, rank, "", area, _rare_loot, top)
+	if min_rank == 0 and not Items.is_common(id) and rng.randf() >= finer_keep(id):
+		id = Items.random_item(rng, 0, "", area, {}, 0)
 	while _rare_loot.has(id) and rank > 0:
 		rank -= 1
 		id = Items.random_item(rng, rank, "", area, _rare_loot, top)
@@ -3897,7 +3916,8 @@ func _drop_gear(e: Enemy, chance := DROP_CHANCE) -> void:
 	var delay := 0.0
 	var dropped := []
 	for id in e.gear:
-		if randf() < chance:
+		# Finer pieces fall less often than the enemy wore them (see FINER_KEEP).
+		if randf() < chance * finer_keep(id):
 			_drop_item(id, spot)
 			dropped.append(id)
 			# It clatters onto the floor, one piece after the other.
@@ -3912,7 +3932,7 @@ func _drop_gear(e: Enemy, chance := DROP_CHANCE) -> void:
 ## monster given a name in the map workshop) hold this small chance, on top
 ## of their usual loot, to drop one extra piece of gear that is rare or
 ## better (see roll_boss_loot).
-const BOSS_RARE_CHANCE := 0.1
+const BOSS_RARE_CHANCE := 0.03
 
 
 ## Whether a fallen enemy is a named boss (see BOSS_RARE_CHANCE).

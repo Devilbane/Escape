@@ -109,6 +109,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/storage_fixed_size.gd | tee storage.log
           grep -q PASS storage.log
 
+      - name: Every window keeps one fixed size (trading, equipment, chests, workbenches; empty and full; both languages)
+        run: |
+          timeout 300 ~/godot/godot --headless -s tests/windows_fixed_size.gd | tee fixed_size.log
+          grep -q PASS fixed_size.log
+
       - name: Loot fanfares (epic and god-born gear ring out)
         run: |
           timeout 60 ~/godot/godot --headless -s tests/loot_fanfare.gd | tee fanfare.log
@@ -123,6 +128,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/village_worries.gd | tee worries.log
           grep -q PASS worries.log
+
+      - name: Fritz sings drinking songs test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/drinking_songs.gd | tee songs.log
+          grep -q PASS songs.log
 
       - name: Event bus test
         run: |
@@ -314,6 +324,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_beasts.gd | tee beasts.log
           grep -q PASS beasts.log
 
+      - name: Spider webs test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/spider_webs.gd | tee webs.log
+          grep -q PASS webs.log
+
       - name: Monster rivals and befriending test
         run: |
           timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/factions.gd | tee factions.log
@@ -333,6 +348,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_boss.gd | tee dragon.log
           grep -q PASS dragon.log
+
+      - name: Dragon flies over the open air test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_flyover.gd | tee dragon_flyover.log
+          grep -q PASS dragon_flyover.log && ! grep -q FAIL dragon_flyover.log
 
       - name: Corpses stay and rot away test
         run: |
@@ -444,6 +464,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/village_buildings.gd | tee village.log
           grep -q PASS village.log
 
+      - name: Eggs and chicks in the village nests (begging, fed by parents and the hero)
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/nest_chicks.gd | tee chicks.log
+          grep -q PASS chicks.log
+
       - name: Map and journal test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/journal.gd | tee journal.log
@@ -518,6 +543,11 @@ jobs:
         run: |
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/surface_life.gd | tee surface_life.log
           grep -q PASS surface_life.log
+
+      - name: Tree light (the trees are lit by the lanterns near them)
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/tree_light.gd | tee tree_light.log
+          grep -q PASS tree_light.log
 
       - name: The woodcutter chops a trunk, not the air
         run: |

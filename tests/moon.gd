@@ -164,7 +164,7 @@ func _full_moon() -> void:
 	check(game._moon.light_energy > 0.0 and is_equal_approx(game._moon.light_energy, bright), "the night is lit the same each full moon")
 	check(is_equal_approx(game.player._lantern.omni_range, 8.5), "under the full moon the hero's lantern reaches as far as by day")
 	var c: Color = game._moon.light_color
-	check(c.b > c.r + 0.3 and c.b > c.g, "the moonlight casts a bluish sheen")
+	check(c.b > c.r + 0.5 and c.b > c.g + 0.3, "the moonlight casts a cold blue sheen")
 	check(game._env.ambient_light_color.b > game._env.ambient_light_color.r + 0.3, "and the night air is bluish too")
 	check(game._env.adjustment_saturation > 0.9, "with colour enough left for the blue to show")
 	check(game.lore.has(Moon.LORE), "the moon goes into the compendium's knowledge")

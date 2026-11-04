@@ -492,6 +492,8 @@ func _skill_details(id: String) -> Dictionary:
 	lines.append(Lang.t("Bestimmt von: %s") % ", ".join(names))
 	if SKILL_EFFECTS.has(id):
 		lines.append(Lang.t(SKILL_EFFECTS[id]))
+	elif id == "werfen":
+		lines.append(Lang.t("Griffbereit: %d Wurfmesser (3, und eines mehr je zwei Stufen)") % player.knife_cap())
 	if Training.skill_level(xp, id) < Training.skill_max(id):
 		lines.append(Lang.t("Noch %d %% Übung bis zur nächsten Stufe.") % (100 - floori(Training.skill_progress(xp, id) * 100.0)))
 	var note := ""

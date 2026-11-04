@@ -75,6 +75,8 @@ const PARTS := [
 	preload("res://scripts/lang/home_run.gd"),
 	preload("res://scripts/lang/dragon_hoard.gd"),
 	preload("res://scripts/lang/launcher.gd"),
+	preload("res://scripts/lang/knives.gd"),
+	preload("res://scripts/lang/nest_chicks.gd"),
 	preload("res://scripts/lang/spider_webs.gd"),
 ]
 

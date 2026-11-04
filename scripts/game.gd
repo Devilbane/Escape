@@ -279,7 +279,7 @@ var _ammo_counts := {}
 ## slot of AMMO_SLOT, shown at 0 too (dimmed), so a count changing never
 ## moves anything.
 const AMMO := [
-	["knives", "kind:knife", "Messer: %d"],
+	["knives", "kind:knife", "Wurfmesser griffbereit: %d von %d\nIm Rucksack: %d"],
 ]
 const AMMO_SLOT := Vector2(62, 26)
 const AMMO_ICON := 20.0
@@ -509,6 +509,7 @@ func _ready() -> void:
 	player.leveled_up.connect(_on_leveled_up)
 	player.ailments_changed.connect(_update_hud)
 	player.regenerated.connect(_update_hud)
+	player.knives_settled.connect(_update_hud)
 	player.defeated.connect(_on_player_defeated)
 	player.bumped.connect(_on_player_bumped)
 	player.trained.connect(_on_player_trained)
@@ -3259,6 +3260,14 @@ func drop_on_floor(id: String) -> void:
 	Sfx.play_gear(level, id, 0.0, spot)
 
 
+## Gives the hero throwing knives: ready in the belt up to Player.knife_cap,
+## the rest into the bag, and what the bag cannot hold at their feet.
+func give_knives(count: int) -> void:
+	for i in player.add_knives(count):
+		drop_on_floor(Items.KNIFE)
+	_update_hud()
+
+
 ## The looted ids per level file as plain lists, levels with none left out.
 func _looted_for_save() -> Dictionary:
 	var out := {}
@@ -3636,7 +3645,7 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 		player.train(id, result.study_xp[id], false)
 	player.set_block_signals(false)
 	coins += int(result.gold)
-	player.knives += int(result.knives)
+	give_knives(int(result.knives))
 	var repaired := _repair_gear(int(result.repairs))
 	# Cut stone blocks go into the storage chest, as many as it still holds.
 	var stones := 0
@@ -3894,7 +3903,15 @@ func _update_ammo() -> void:
 		count.text = str(n)
 		var slot := count.get_parent() as Control
 		slot.modulate.a = 1.0 if n > 0 else 0.45
-		slot.tooltip_text = Lang.t(ammo[2]) % n
+		slot.tooltip_text = Lang.t(ammo[2]) % _ammo_tip_values(ammo[0], n)
+
+
+## The numbers for an ammunition tooltip (see AMMO): for knives the ready
+## count, how many can be ready and the spares in the bag.
+func _ammo_tip_values(field: String, n: int) -> Array:
+	if field == "knives":
+		return [n, player.knife_cap(), player.spare_knives()]
+	return [n]
 
 
 ## News about a task (a new one, progress, done): a message over the hero's
@@ -4336,7 +4353,18 @@ func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 
 
 ## A piece of gear a skeleton dropped.
+## Picked up again: the first time, the compendium explains thrown knives.
+const KNIFE_LORE := "Wurfmesser: Ein geworfenes Messer bleibt liegen, wo es landet, und du hebst es auf, wenn du darüberläufst. Griffbereit für den Kampf trägst du 3 Wurfmesser und eines mehr je zwei Stufen Messerwurf; weitere wandern in den Rucksack (10 auf einem Platz). Sobald kein Kampf mehr tobt, steckst du sie von dort nach."
+
+
 func _on_item_collected(id: String) -> void:
+	if id == Items.KNIFE:
+		# A thrown knife picked up again: into the belt while it has room.
+		give_knives(1)
+		Sfx.play(self, "gear_metal_%d" % (randi() % 3), -10.0)
+		Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Lang.t("+%d Wurfmesser") % 1, AMMO_COLOR)
+		Events.teach(KNIFE_LORE)
+		return
 	player.bag.append(id)
 	if Items.ALL.get(id, {}).get("slot", "") == "erz":
 		# Where ore turned up goes on the map (see Journal).
@@ -4621,7 +4649,7 @@ func _search(obj: Dictionary) -> void:
 		color = GOLD
 		Events.found(text, GOLD)
 	elif loot.has("knives"):
-		player.knives += loot.knives
+		give_knives(loot.knives)
 		Sfx.play_after(self, found_after, "gear_metal_%d" % (randi() % 3), -8.0)
 		text = Lang.t("+%d Wurfmesser") % loot.knives
 		color = Color(0.8, 0.9, 1.0)

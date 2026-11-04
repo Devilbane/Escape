@@ -22,6 +22,9 @@ var at_rival := false
 var damage := 1
 var magic := false
 var fire := false
+## Where it was thrown from: a knife that ends inside a wall falls back
+## towards here (see Level.knife_rest).
+var thrown_from := Vector3.ZERO
 var web := false
 var _age := 0.0
 
@@ -43,6 +46,7 @@ static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: 
 	p.direction = dir.normalized()
 	owner_level.add_child(p)
 	p.global_position = origin
+	p.thrown_from = origin
 	p.look_at(origin + p.direction, Vector3.UP)
 	if is_magic:
 		var orb := MeshInstance3D.new()
@@ -128,7 +132,7 @@ func _physics_process(delta: float) -> void:
 	# A wall, a closed door or a pillar (statue, crate stack) stops it.
 	if _age > (LIFETIME * 2.0 if magic else LIFETIME) or level.is_opaque(level.world_to_cell(global_position)) \
 			or level.shot_blocked(was, global_position):
-		queue_free()
+		_land(was)
 		return
 	if from_player:
 		for e in level.enemies:
@@ -139,7 +143,7 @@ func _physics_process(delta: float) -> void:
 				level.player.train("werfen", 1.0)
 				if e.dead and e.kind == "magier":
 					level.player.train("intelligenz", 4.0)
-				queue_free()
+				_land(global_position - direction * 0.6)
 				return
 	elif at_rival:
 		if is_instance_valid(foe) and not foe.dead and _hits(foe.global_position):
@@ -163,6 +167,14 @@ func _physics_process(delta: float) -> void:
 			if magic and not fire and player.hp < before and randf() < CURSE_CHANCE:
 				player.afflict("fluch")
 			queue_free()
+
+
+## The shot is over. The hero's knife falls to the floor near `at` and lies
+## there to be picked up again (see Level.lay_knife); bolts and orbs vanish.
+func _land(at: Vector3) -> void:
+	if from_player and not magic and is_instance_valid(level):
+		level.lay_knife(level.knife_rest(at, thrown_from), direction)
+	queue_free()
 
 
 func _hits(target: Vector3) -> bool:

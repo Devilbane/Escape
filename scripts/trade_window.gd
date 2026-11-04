@@ -32,9 +32,14 @@ const ROW_WIDTH := 300.0
 ## The list: two columns of rows and room for the scroll bar.
 const LIST_WIDTH := ROW_WIDTH * 2 + 8.0 + 14.0
 const ROW_HEIGHT := 60.0
+## The button in a row (Buy, Sell, Melt down...): wide enough for the
+## longest word in both languages ("Einschmelzen").
+const ROW_BUTTON_WIDTH := 100.0
 const CARD_WIDTH := 255.0
 ## Everything under the gold line: the list and the two cards beside it.
 const BODY_WIDTH := LIST_WIDTH + 2.0 * (CARD_WIDTH + 12.0)
+## The row of tabs (Buy / Sell, Gorm's work) under the gold line.
+const TABS_HEIGHT := 40.0
 const BORDER := Color(0.85, 0.66, 0.32, 0.55)
 const BLUE := Color(0.55, 0.75, 1.0)
 const ORANGE := Color(1.0, 0.6, 0.25)
@@ -132,8 +137,13 @@ func build(box: VBoxContainer, gold_text: String, sections: Array, extra: Contro
 		standing.custom_minimum_size.x = 420
 		gold.add_child(standing)
 	box.add_child(gold)
-	if extra:
-		box.add_child(extra)
+	# The tabs' row is there in every merchant's window, empty where he has
+	# no tabs, so all of them share one size and one layout.
+	if extra == null:
+		extra = Control.new()
+		extra.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	extra.custom_minimum_size.y = maxf(extra.custom_minimum_size.y, TABS_HEIGHT)
+	box.add_child(extra)
 	var body := HBoxContainer.new()
 	body.alignment = BoxContainer.ALIGNMENT_CENTER
 	body.add_theme_constant_override("separation", 12)
@@ -141,7 +151,8 @@ func build(box: VBoxContainer, gold_text: String, sections: Array, extra: Contro
 	# The list and the panel always keep the same size, so nothing jumps
 	# when a category folds or a row is picked.
 	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# Never scrolled sideways, and never widened by a row either.
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	scroll.custom_minimum_size = Vector2(LIST_WIDTH, LIST_HEIGHT)
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 6)
@@ -268,8 +279,12 @@ func _row(entry: Dictionary) -> Control:
 		now.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(now)
 	elif entry.has("action"):
-		var b := _button(entry.get("button", Lang.t("Kaufen")), entry.action, entry.get("enabled", true), Vector2(80, 36), 16)
+		var b := _button(entry.get("button", Lang.t("Kaufen")), entry.action, entry.get("enabled", true), Vector2(ROW_BUTTON_WIDTH, 36), 16)
 		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		# A long word ("Einschmelzen") ends in "…" rather than widen the row;
+		# the card beside the list shows it in full.
+		b.clip_text = true
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.mouse_entered.connect(_on_row_hover.bind(entry.key))
 		# With the keys, the focus on a row's button shows that row's cards.
 		b.focus_entered.connect(_on_row_hover.bind(entry.key))
@@ -312,7 +327,8 @@ func _on_row_hover(key: String) -> void:
 ## size, so only what it shows changes.
 func _slot() -> Control:
 	var slot := ScrollContainer.new()
-	slot.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# A card never widens its place (its lines wrap, see _wrapped).
+	slot.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	slot.custom_minimum_size = Vector2(CARD_WIDTH, LIST_HEIGHT)
 	return slot
 
@@ -373,9 +389,9 @@ func _detail_card(entry: Dictionary, upgrade := false) -> Control:
 	# Shield"), in the rarity's colour, so the colour is never the only cue.
 	var kind: String = detail.get("subtitle", subtitle(id))
 	if Items.ALL.has(id) and not detail.has("subtitle"):
-		names.add_child(_label("%s · %s" % [Rarity.label(id), kind], 16, Rarity.color(id)))
+		names.add_child(_beside(_label("%s · %s" % [Rarity.label(id), kind], 16, Rarity.color(id))))
 	else:
-		names.add_child(_label(kind, 16, ORANGE))
+		names.add_child(_beside(_label(kind, 16, ORANGE)))
 	head.add_child(names)
 	box.add_child(head)
 	if upgrade:
@@ -401,11 +417,13 @@ func _detail_card(entry: Dictionary, upgrade := false) -> Control:
 	if entry.has("action") and not entry.get("current", false):
 		box.add_child(HSeparator.new())
 		if entry.get("price", "") != "":
-			var cost := _price_line(Lang.t("Kosten: %s") % entry.price, entry.get("price_ok", true), 17)
+			var cost := _price_line(Lang.t("Kosten: %s") % entry.price, entry.get("price_ok", true), 17, true)
 			cost.alignment = BoxContainer.ALIGNMENT_CENTER
 			box.add_child(cost)
 		var b := _button(entry.get("gone", entry.get("button", Lang.t("Kaufen"))), entry.action, entry.get("enabled", true), Vector2(150, 42), 18)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		b.clip_text = true
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		box.add_child(b)
 	elif entry.get("current", false):
 		box.add_child(HSeparator.new())
@@ -438,7 +456,7 @@ func _compare_card(compare: Dictionary) -> Control:
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	names.add_child(name_label)
 	if compare.get("subtitle", "") != "":
-		names.add_child(_label(compare.subtitle, 15, GREY))
+		names.add_child(_beside(_label(compare.subtitle, 15, GREY)))
 	head.add_child(names)
 	box.add_child(head)
 	# With a comparison the differences say it all; the worn item's own
@@ -461,7 +479,7 @@ func _compare_card(compare: Dictionary) -> Control:
 			var arrow := ItemIcon.make("kind:up" if diff[0] else "kind:down", 13, true)
 			arrow.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			row.add_child(arrow)
-			row.add_child(_label(diff[1], 16, GREEN if diff[0] else RED))
+			row.add_child(_beside(_label(diff[1], 16, GREEN if diff[0] else RED)))
 			box.add_child(row)
 	return card
 
@@ -635,6 +653,14 @@ func _label(text: String, size: int, color: Color, font: Font = null) -> Label:
 	return l
 
 
+## A label beside an icon in a card: it breaks over lines in the room left,
+## so a long kind or comparison never widens the card.
+func _beside(l: Label) -> Label:
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return l
+
+
 func _wrapped(text: String, size: int, color: Color) -> Label:
 	var l := _label(text, size, color)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -642,13 +668,25 @@ func _wrapped(text: String, size: int, color: Color) -> Label:
 	return l
 
 
-func _price_line(text: String, ok: bool, size: int) -> HBoxContainer:
+## A price with its coin. It never widens its row or card: in a row a long
+## price ("12 Iron, 300 Gold") ends in "…", in a card (`wrap`) it breaks
+## over two lines.
+func _price_line(text: String, ok: bool, size: int, wrap := false) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 5)
 	var coin := ItemIcon.make("kind:coin", size - 2, true)
 	coin.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(coin)
-	row.add_child(_label(text, size, game.GOLD if ok else RED))
+	var l := _label(text, size, game.GOLD if ok else RED)
+	if wrap:
+		var width := minf(l.get_minimum_size().x, CARD_WIDTH - 60.0)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size.x = width
+	else:
+		l.clip_text = true
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(l)
 	return row
 
 

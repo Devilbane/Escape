@@ -109,6 +109,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/storage_fixed_size.gd | tee storage.log
           grep -q PASS storage.log
 
+      - name: Every window keeps one fixed size (trading, equipment, chests, workbenches; empty and full; both languages)
+        run: |
+          timeout 300 ~/godot/godot --headless -s tests/windows_fixed_size.gd | tee fixed_size.log
+          grep -q PASS fixed_size.log
+
       - name: Loot fanfares (epic and god-born gear ring out)
         run: |
           timeout 60 ~/godot/godot --headless -s tests/loot_fanfare.gd | tee fanfare.log
@@ -223,6 +228,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/floor_items.gd | tee floor_items.log
           grep -q PASS floor_items.log
+
+      - name: Thrown knives test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/thrown_knives.gd | tee thrown_knives.log
+          grep -q PASS thrown_knives.log
 
       - name: Dragon's helpers and hoard test
         run: |
@@ -459,6 +469,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/village_buildings.gd | tee village.log
           grep -q PASS village.log
 
+      - name: Eggs and chicks in the village nests (begging, fed by parents and the hero)
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/nest_chicks.gd | tee chicks.log
+          grep -q PASS chicks.log
+
       - name: Map and journal test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/journal.gd | tee journal.log
@@ -548,6 +563,11 @@ jobs:
         run: |
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/smith.gd | tee smith.log
           grep -q PASS smith.log
+
+      - name: Windmill sails turn with the wind and whoosh test
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/windmill.gd | tee windmill.log
+          grep -q PASS windmill.log
 
       - name: Export the browser version
         run: |

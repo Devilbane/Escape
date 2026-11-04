@@ -67,7 +67,7 @@ const KINDS := {
 	"schlaeger": {"model": "Barbarian", "dir": "characters", "weapon": "axe_1handed", "hp": 6, "speed": 3.8, "damage": 2, "reach": 2.3, "size": 1.15, "cooldown": 1.8, "armor": 1,
 		"human": true, "roam": true, "parts": ["Barbarian_Hat"], "colors": [Color(0.5, 0.36, 0.28), Color(0.3, 0.26, 0.22), Color(0.4, 0.3, 0.22)]},
 	# The chief is the boss of the pass (see BanditChief).
-	"hauptmann": {"model": "Knight", "dir": "characters", "weapon": "sword_1handed", "shield": "shield_round", "hp": 20, "speed": 4.2, "damage": 2, "reach": 2.2, "size": 1.1, "cooldown": 1.4,
+	"hauptmann": {"model": "Knight", "dir": "characters", "weapon": "sword_1handed", "shield": "shield_round", "hp": 30, "speed": 4.2, "damage": 3, "reach": 2.2, "size": 1.1, "cooldown": 1.4,
 		"human": true, "roam": true, "parts": ["Knight_Cape"], "colors": [Color(0.45, 0.14, 0.12), Color(0.22, 0.2, 0.2), Color(0.5, 0.1, 0.1)]},
 	# The beasts of the wild (Quaternius models in assets/wild): "beast"
 	# kinds bite or claw instead of holding a weapon. "anims" maps the

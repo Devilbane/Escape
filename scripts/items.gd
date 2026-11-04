@@ -28,7 +28,7 @@ const BAG_SIZE := 8
 ## stays a plain list of ids (one entry per item), so saving, dropping and
 ## lighting a torch take one from a bundle; only the count of slots and the
 ## inventory's grid see bundles (see slots_used and stacks).
-const STACK := {"fackel": 5, "donnererz": 5}
+const STACK := {"fackel": 5, "donnererz": 5, "wurfmesser": 10}
 ## Small things bundle by their slot too: jewellery (rings, amulets, bracelets)
 ## and animal food. Only identical items share a slot: an item is one id with
 ## fixed values, so two Kupferringe are alike, a Kupferring and a Rubinring
@@ -143,9 +143,15 @@ static var ALL := {
 	"wurst": {"name": "Wurst", "slot": "futter", "weight": 0.3, "price": 2, "no_loot": true, "effect": "Füchse lieben sie. Sie leben auf der Wiese am Waldteich westlich vom Dorf: Füttere einen Fuchs dreimal, und er wird dein Freund"},
 	# Food for a doe and a stag (see Companions): the shopkeeper always has some too.
 	"apfel": {"name": "Apfel", "slot": "futter", "icon": "apple", "weight": 0.2, "price": 2, "no_loot": true, "effect": "Rehe lieben ihn. Sie äsen auf den Lichtungen zwischen Friedhof und Dorf: Füttere ein Reh dreimal, und es wird dein Freund"},
+	"koerner": {"name": "Körner", "slot": "futter", "icon": "seeds", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Küken lieben sie. In manchen Nestern auf den Dächern des Dorfes piepsen hungrige Junge: Stell dich unter das Nest, und du wirfst ihnen eine Handvoll hinauf"},
 	"salzleckstein": {"name": "Salzleckstein", "slot": "futter", "icon": "salt", "weight": 0.5, "price": 3, "no_loot": true, "effect": "Hirsche lieben ihn. Sie äsen auf den Lichtungen zwischen Friedhof und Dorf: Lass einen Hirsch dreimal lecken, und er wird dein Freund"},
 	# A hand torch for the pitch-black places (see HandTorch): the shopkeeper
 	# always has some. Carried in the bag, lit by itself in the dark.
+	# Spare throwing knives (see Player.knives): the hero keeps only a few
+	# ready to throw (Player.knife_cap), the rest ride in the bag and are
+	# slipped back into the belt once no fight is on. Thrown, a knife lies
+	# where it fell until the hero walks over it.
+	"wurfmesser": {"name": "Wurfmesser", "slot": "munition", "weight": 0.2, "price": 1, "no_loot": true, "model": "res://assets/weapons/dagger.gltf", "material": "metal", "effect": "Ersatz für deinen Gürtel: Sobald kein Kampf mehr tobt, steckst du Wurfmesser aus dem Rucksack nach, bis wieder so viele griffbereit sind, wie du tragen kannst (3, und eines mehr je zwei Stufen Messerwurf)"},
 	"fackel": {"name": "Fackel", "slot": "licht", "weight": 0.5, "price": 3, "no_loot": true, "effect": "Zünde sie an, wenn du Licht brauchst (Taste V oder die Fackel am rechten Rand), dann brennt sie drei Minuten lang. In der Finsternis siehst du ohne sie kaum die eigene Hand"},
 }
 
@@ -153,6 +159,16 @@ static var ALL := {
 ## Whether an item is food for a companion (see Companions).
 static func is_food(id: String) -> bool:
 	return ALL.has(id) and ALL[id].slot == "futter"
+
+
+## The bag item for a spare throwing knife (see Player.knives).
+const KNIFE := "wurfmesser"
+
+
+## Whether an item is ammunition carried in the bag (spare throwing knives):
+## carried, never worn.
+static func is_ammo(id: String) -> bool:
+	return ALL.has(id) and ALL[id].slot == "munition"
 
 
 ## Whether an item is a hand torch (see HandTorch): carried, never worn.
@@ -391,8 +407,8 @@ const RARITY := {
 	"fechtbuch": "ungewoehnlich", "axtbuch": "ungewoehnlich", "wurfbuch": "ungewoehnlich",
 	"schildbuch": "ungewoehnlich", "ruestbuch": "ungewoehnlich", "schleichbuch": "ungewoehnlich",
 	# Everyday things, tasks and materials.
-	"kiste": "normal", "steinblock": "normal", "fackel": "normal",
-	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal",
+	"kiste": "normal", "steinblock": "normal", "fackel": "normal", "wurfmesser": "normal",
+	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal", "koerner": "normal",
 	"banditendolch": "normal", "brief": "normal", "kuerbis": "normal", "wetzstein": "normal", "wassereimer": "normal",
 	"donnererz": "selten",
 }

@@ -161,6 +161,11 @@ func _fit() -> void:
 	var screen: Vector2 = _panel.get_viewport_rect().size - Vector2.ONE * 2.0 * SCREEN_MARGIN
 	var frame: Vector2 = _panel.get_theme_stylebox("panel").get_minimum_size()
 	var content: Vector2 = _box.get_combined_minimum_size()
+	var fixed := fixed_size(current)
+	if fixed != Vector2.ZERO:
+		# A window the player works in has one size, whatever it holds:
+		# its content sits in the middle of it (and would scroll in it).
+		content = fixed
 	if _rescale:
 		_rescale = false
 		var need := content + frame
@@ -168,6 +173,10 @@ func _fit() -> void:
 		_panel.scale = Vector2.ONE * maxf(s, MIN_SCALE)
 	var room: Vector2 = screen / _panel.scale.x - frame
 	var view := content
+	if fixed != Vector2.ZERO:
+		_scroll.custom_minimum_size = Vector2(minf(view.x, room.x), minf(view.y, room.y)).floor()
+		_place_panel()
+		return
 	if view.y > room.y:
 		view.y = room.y
 		view.x += _scroll.get_v_scroll_bar().get_combined_minimum_size().x
@@ -176,6 +185,47 @@ func _fit() -> void:
 		view.y = minf(view.y + _scroll.get_h_scroll_bar().get_combined_minimum_size().y, room.y)
 	_scroll.custom_minimum_size = view.floor()
 	_place_panel()
+
+
+## The fixed size of the content of each window the player works in
+## (trading, equipment, chests, workbenches...), by kind; "trade" is every
+## merchant's (see TRADE_WINDOWS). These windows never change their size:
+## not when the player points at something, picks, folds, switches a tab,
+## buys or sells, and not from one visit to the next with more or less in
+## the bag. Each is as big as its fullest content in either language
+## (`tests/windows_fixed_size.gd` checks that nothing outgrows it). Dialogs
+## not listed here (bed, load, quit...) fit their content.
+const WINDOW_SIZES := {
+	"trade": Vector2(1156, 584),
+	"inventar": Vector2(940, 720),
+	"lager": Vector2(1256, 764),
+	"tresor": Vector2(940, 652),
+	"bank": Vector2(780, 400),
+	"werkbank": Vector2(780, 536),
+	"hauswerkbank": Vector2(560, 360),
+	"ausbau": Vector2(780, 400),
+	"aushang": Vector2(780, 400),
+	"trophaeen": Vector2(560, 360),
+	"charakter": Vector2(1024, 642),
+	"gefaehrten": Vector2(960, 530),
+	"wunsch": Vector2(760, 560),
+	"kampfstil": Vector2(700, 330),
+	"kompendium": Vector2(990, 600),
+	"karte": Vector2(980, 616),
+	"auftraege": Vector2(760, 532),
+}
+
+
+## The windows (besides the merchants') that can leave a note after a
+## click; they keep its line from the start.
+const NOTE_WINDOWS := ["inventar", "lager", "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
+	"aushang", "gefaehrten", "wunsch"]
+
+
+## The fixed content size of a kind of window, or zero for one that fits
+## its content.
+static func fixed_size(kind: String) -> Vector2:
+	return WINDOW_SIZES.get("trade" if kind in TRADE_WINDOWS else kind, Vector2.ZERO)
 
 
 ## Sizes the window to its content and tells the holder its scaled size.
@@ -312,20 +362,14 @@ func _rebuild() -> void:
 		_info.custom_minimum_size.y = info_box.custom_minimum_size.y
 		_box.add_child(info_box)
 		_show_info("")
-	if _note != "" or current in TRADE_WINDOWS or current in ["werkbank", "inventar", "gefaehrten"]:
-		# The trading windows and the inventory keep a line for the note, so a
-		# purchase or a dropped item does not make the window grow.
+	if _note != "" or current in TRADE_WINDOWS or current in NOTE_WINDOWS:
+		# Every window the player works in keeps a line for the note, so a
+		# purchase or a dropped item does not make the window grow. One line
+		# at most, as wide as the window, never wider: a long note ends in "…".
 		var note := _add_label(_note, 16, Color(1.0, 0.75, 0.5))
-		note.custom_minimum_size.y = 26
-		if current == "gefaehrten":
-			note.clip_text = true
-			note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-			note.custom_minimum_size.x = COMPANION_ROW.x
-		if current in TRADE_WINDOWS or current == "inventar":
-			# One line at most, never wider than the window.
-			note.clip_text = true
-			note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-			note.custom_minimum_size.x = INVENTORY_WIDTH if current == "inventar" else TradeWindow.BODY_WIDTH
+		note.custom_minimum_size = Vector2(0, 26)
+		note.clip_text = true
+		note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	# The inventory has its own "Back to game" button at the top instead.
 	if not current in ["inventar", "bett", "laden", "ueberschreiben", "beenden", "plan", "rueckkehr", "hoehle", "gefaehrte_name"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
@@ -548,10 +592,10 @@ func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callabl
 			var b := _item_button(text, action.bind(cell.indices.back()), true, cell.id)
 			if current == "inventar" and _selected in cell.indices:
 				_mark_picked(b)
-			grid.add_child(_inventory_cell(b) if current == "inventar" else b)
+			grid.add_child(_inventory_cell(b))
 		else:
 			var empty := _item_button("-", func(): pass, false)
-			grid.add_child(_inventory_cell(empty) if current == "inventar" else empty)
+			grid.add_child(_inventory_cell(empty))
 
 
 ## The picked cell of the inventory: a bright gold frame on a lighter
@@ -961,8 +1005,8 @@ func _inventory_details() -> Control:
 			buttons.append(_item_button(Lang.t("Abstellen"), _put_down_selected))
 		elif Items.is_stone(id):
 			buttons.append(_item_button(Lang.t("Abstellen"), _place_stone_selected))
-		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id) or Items.is_light(id):
-			pass # Carried for a task, to the smith, for a fox or for the dark, not worn.
+		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id) or Items.is_light(id) or Items.is_ammo(id):
+			pass # Carried for a task, to the smith, for a fox, for the dark or as spare knives, not worn.
 		else:
 			buttons.append(_item_button(Lang.t("Anlegen"), _equip_selected))
 		buttons.append(_item_button(Lang.t("Wegwerfen"), _drop_selected))
@@ -1150,7 +1194,9 @@ func _build_storage() -> void:
 	var size := HomeUpgrades.storage_size(game.home_upgrades)
 	var used := HomeUpgrades.storage_used(game.storage)
 	_add_label(Lang.t("Truhe (%d / %d)") % [used, size], 20)
-	_add_item_grid(game.storage, maxi(size, used), Items.item_name, _take, 8 if size > STORAGE_SIZE else 6, null, true)
+	# Eight across, with or without the second chest, so the window keeps
+	# its width when the chest grows.
+	_add_item_grid(game.storage, maxi(size, used), Items.item_name, _take, 8, null, true)
 
 
 func _store(index: int) -> void:
@@ -1414,6 +1460,9 @@ func _build_shop() -> void:
 		var food: String = Companions.SPECIES[kind].food
 		while game.shop_stock.count(food) < 2:
 			game.shop_stock.push_front(food)
+	# Grain for the hungry chicks in the village nests (see VillageBirds).
+	while game.shop_stock.count(VillageBirds.SEEDS) < 2:
+		game.shop_stock.push_front(VillageBirds.SEEDS)
 	# And torches for the pitch-black holes in the wild (see HandTorch).
 	while game.shop_stock.count(HandTorch.ITEM) < 3:
 		game.shop_stock.push_front(HandTorch.ITEM)
@@ -1514,6 +1563,9 @@ func _buy(index: int) -> void:
 			else:
 				_note = Lang.t("Gekauft: %s. %s äsen auf den Lichtungen zwischen Friedhof und Dorf.") % [Items.item_name(id), Lang.t(Companions.SPECIES[eater].plural)]
 				Events.teach(Companions.WHERE_DEER)
+		elif id == VillageBirds.SEEDS:
+			_note = Lang.t("Gekauft: Körner. Hungrige Küken piepsen in manchen Nestern auf den Dächern.")
+			Events.teach(VillageBirds.LEARN)
 	_rebuild()
 
 
@@ -1920,7 +1972,7 @@ func _claim_bounty(id: String) -> void:
 func _build_workbench() -> void:
 	var p: Player = game.player
 	_add_label(Lang.t("Werkbank"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Eisenbarren: %d      Wurfmesser: %d") % [game.iron, p.knives], 20, game.GOLD)
+	_add_label(Lang.t("Eisenbarren: %d      Wurfmesser: %d") % [game.iron, p.knives + p.spare_knives()], 20, game.GOLD)
 	_add_label(Lang.t("Eisenbarren gibt es bei Schmied Gorm, oder du schmilzt dort alte Ausrüstung ein."), 16, BLUE)
 	var make := _item_button(Lang.t("%d Wurfmesser schmieden\n%d Eisenbarren") % [HomeUpgrades.KNIVES_PER_IRON, 1], _make_knives, game.iron >= 1)
 	make.custom_minimum_size = Vector2(320, 58)
@@ -1944,7 +1996,7 @@ func _make_knives() -> void:
 		_note = Lang.t("Dafür brauchst du einen Eisenbarren.")
 	else:
 		game.iron -= 1
-		game.player.knives += HomeUpgrades.KNIVES_PER_IRON
+		game.give_knives(HomeUpgrades.KNIVES_PER_IRON)
 		_note = Lang.t("Geschmiedet: %d Wurfmesser") % HomeUpgrades.KNIVES_PER_IRON
 		Sfx.play(game, "gear_metal_0", -2.0)
 	game._update_hud()

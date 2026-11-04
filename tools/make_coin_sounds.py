@@ -57,12 +57,12 @@ def clink(base, ring, gain=1.0, weight=0.5):
         out += amp * pair * np.exp(-tt / decay)
     # The impact: a few milliseconds of noise in the coins' own range ...
     k = int(SR * 0.012)
-    hit = band(rng.uniform(-1, 1, k), 2000, 11000) * np.exp(-np.arange(k) / (SR * 0.0025))
+    hit = band(rng.uniform(-1, 1, k), 2600, 13000) * np.exp(-np.arange(k) / (SR * 0.0025))
     out[:k] += hit * 4.0
     # ... and a short, dull knock of the metal's weight.
     k = int(SR * 0.025)
     tk = np.arange(k) / SR
-    knock = np.sin(2 * np.pi * rng.uniform(950, 1500) * tk) * np.exp(-tk / 0.006)
+    knock = np.sin(2 * np.pi * rng.uniform(1300, 2000) * tk) * np.exp(-tk / 0.006)
     out[:k] += knock * weight * 1.5
     a = int(SR * 0.0003)
     out[:a] *= np.linspace(0, 1, a)
@@ -103,7 +103,7 @@ def jingle(count, spread, length, ringing=0.25):
     parts = []
     for _ in range(count):
         at = spread * rng.uniform(0, 1) ** 1.6
-        base = rng.uniform(3800, 6800)
+        base = rng.uniform(5000, 8500)
         if rng.uniform() < ringing:
             ring = rng.uniform(0.035, 0.065)
             gain = rng.uniform(0.5, 0.9)
@@ -112,7 +112,7 @@ def jingle(count, spread, length, ringing=0.25):
             gain = rng.uniform(0.35, 1.0)
         parts.append((clink(base, ring, gain, rng.uniform(0.2, 0.7)), at))
     # The first coins land clearly, with weight.
-    parts.append((clink(rng.uniform(4300, 5200), 0.06, 1.0, 1.0), 0.0))
+    parts.append((clink(rng.uniform(5600, 6600), 0.06, 1.0, 1.0), 0.0))
     return lay(parts, length)
 
 

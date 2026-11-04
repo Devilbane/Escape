@@ -99,6 +99,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/inventory_fixed_size.gd | tee inventory.log
           grep -q PASS inventory.log
 
+      - name: Storage chest keeps its size (pointing at torches and other items; both languages)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/storage_fixed_size.gd | tee storage.log
+          grep -q PASS storage.log
+
       - name: Loot fanfares (epic and god-born gear ring out)
         run: |
           timeout 60 ~/godot/godot --headless -s tests/loot_fanfare.gd | tee fanfare.log

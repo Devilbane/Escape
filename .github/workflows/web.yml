@@ -459,6 +459,11 @@ jobs:
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/mountains.gd | tee mountains.log
           grep -q PASS mountains.log
 
+      - name: The Great Old One's dungeon (sneak to the hoard, epic treasure rooms)
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/elder_lair.gd | tee elder.log
+          grep -q PASS elder.log
+
       - name: Hero level and experience test
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/hero_level.gd | tee hero_level.log

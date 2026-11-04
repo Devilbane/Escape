@@ -1997,10 +1997,13 @@ func _dragon_morning(asleep := false) -> void:
 						node.queue_free()
 					hoard.gather(str(p.floor[0]), str(p.floor[1]))
 			hoard.sweep(floors[key])
+	var to_elder := int(hoard.tonight.get("elder", 0)) > 0
 	var text := hoard.morning_report()
 	if text != "":
 		Events.found(text, DragonHoard.COLOR)
 		learn(DragonHoard.LORE)
+	if to_elder:
+		learn(DragonHoard.ELDER_LORE)
 
 
 ## The hero took the dragon's hoard in its lair: the coins into the purse,
@@ -2020,6 +2023,48 @@ func _on_hoard_taken() -> void:
 		Events.found(Lang.t("+%d Gold") % amount, GOLD)
 		Sfx.play_coins(self, amount)
 	_update_hud()
+
+
+## The hero took the Great Old One's hoard (see ElderLair): the old dragon's
+## own treasure the first time, and whatever the dragon helpers brought since.
+## The coins go into the purse, the gear into the bag; what does not fit is
+## left lying at the hero's feet.
+func _on_elder_hoard_taken() -> void:
+	var amount := 0
+	var items: Array = []
+	if not level.taken.has(ElderLair.ANCIENT_KEY):
+		level.taken[ElderLair.ANCIENT_KEY] = true
+		var ancient := ElderLair.ancient_loot(level)
+		amount += int(ancient.coins)
+		items += ancient.items
+	var share := hoard.take_elder()
+	amount += int(share.coins)
+	items += share.items
+	var left := 0
+	for i in items.size():
+		var id := str(items[i])
+		if player.bag_fits(id):
+			player.bag.append(id)
+		else:
+			left += 1
+			var angle := TAU * i / maxf(1.0, items.size())
+			level._drop_item(id, player.global_position + Vector3(cos(angle), 0, sin(angle)) * 1.8)
+	if not items.is_empty():
+		Events.found(Lang.t("Der Hort des Großen Alten: %s") % ", ".join(items.map(func(id): return Rarity.marked(str(id)))), ElderLair.GOLD)
+		Sfx.play_rarity(level, Sfx.finest(items), 0.2, player.global_position)
+	if amount > 0:
+		coins += _gold(amount)
+		Events.found(Lang.t("+%d Gold") % _gold(amount), GOLD)
+		Sfx.play_coins(self, _gold(amount))
+	show_message(Lang.t("Gold klirrt! Der Große Alte regt sich im Schlaf. Leise fort von hier!") if left == 0 \
+			else Lang.t("Gold klirrt! Deine Tasche ist voll, der Rest liegt am Boden. Leise!"), 3.5, ElderLair.GOLD)
+	_update_hud()
+
+
+## The Great Old One woke up: there is no fighting it, only running.
+func _on_elder_awakened() -> void:
+	_shake = 1.6
+	show_message(Lang.t("Der Große Alte erwacht! Flieh aus seinem Blick, bis er wieder einschläft!"), 4.5, Color(1.0, 0.45, 0.25))
 
 
 ## The weather runs on the clock: when its hours are up, the next weather
@@ -2099,6 +2144,7 @@ func load_level(index: int, restock := true) -> void:
 	level.floor_items = floors[floor_key]
 	if level.lair:
 		level.hoard = hoard.contents()
+		level.elder_hoard = hoard.elder_contents()
 	if level is Outdoor:
 		# Bandits who take their spots at night are tougher (see Outdoor.set_hour).
 		level.night = DayNight.is_night(day_hour)
@@ -2150,6 +2196,16 @@ func load_level(index: int, restock := true) -> void:
 	level.lair_exit_taken.connect(leave_lair)
 	level.hoard_taken.connect(_on_hoard_taken)
 	level.hoard_guarded.connect(func(): show_message(Lang.t("Glutschlund wacht über seinen Hort. Besiege den Drachen, dann gehört der Hort dir."), 3.0))
+	level.elder_hoard_taken.connect(_on_elder_hoard_taken)
+	level.elder_awakened.connect(_on_elder_awakened)
+	level.elder_settled.connect(func(): show_message(Lang.t("Der Große Alte schläft wieder ein. Jetzt leise!"), 3.0))
+	if ElderLair.is_floor(level):
+		learn(ElderLair.LORE)
+	if is_instance_valid(level.elder):
+		var here := level
+		get_tree().create_timer(4.8).timeout.connect(func():
+			if level == here and state == State.PLAYING and is_instance_valid(here.elder) and here.elder.asleep:
+				show_message(Lang.t("Der Große Alte schläft auf seinem Hort. Schleiche (Taste C), sonst wacht er auf!"), 4.5))
 	level.stairs_taken.connect(_take_stairs)
 	if level.traps:
 		level.traps.teleported.connect(_on_trap_teleport)

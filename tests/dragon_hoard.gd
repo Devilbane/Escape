@@ -7,6 +7,8 @@ extends SceneTree
 ## is gone by morning, and the event log says what the night brought; the
 ## floors of buildings are not touched. The hoard is kept in the saved game,
 ## lies in the lair beside the chest, and is the hero's once the dragon fell.
+## Most of what the helpers carry goes further down, to the Great Old One (see
+## ElderLair), gear kept whole; that share is kept in the saved game too.
 ## Run with: godot --headless -s tests/dragon_hoard.gd
 
 var failures := 0
@@ -106,7 +108,11 @@ func _test() -> void:
 	check(left.has("brief"), "the letter for the elder still lies there")
 	check(left.has("axt"), "nothing is snatched from the hero's feet")
 	check(not left.has("schwert") and not left.has("fechtbuch") and not left.has("coin"), "the rest is carried off (%s)" % str(left))
-	check(game.hoard.gold == 2 and game.hoard.metals == Forge.melt_into("schwert"), "the sword melted into iron, and two coins (%d, %s)" % [game.hoard.gold, str(game.hoard.metals)])
+	# Of every three things carried home, the first stays with Glutschlund and
+	# the other two go down to the Great Old One, gear kept whole.
+	var sword_melted: bool = game.hoard.metals == Forge.melt_into("schwert")
+	check(game.hoard.gold + game.hoard.elder_gold == 2 and (sword_melted != game.hoard.elder_items.has("schwert")), "the sword went to one hoard, and two coins (%d + %d, %s, %s)" % [game.hoard.gold, game.hoard.elder_gold, str(game.hoard.metals), str(game.hoard.elder_items)])
+	check(int(game.hoard.tonight.elder) == 2 and game.hoard.carried == 3, "two of the three things went to the Great Old One (%d)" % int(game.hoard.tonight.elder))
 	check(int(game.hoard.tonight.burnt) == 1, "the book burnt")
 	check(game.lore.has(DragonHoard.LORE), "the compendium learns of the helpers")
 	check(lvl.floor_pickups().size() == 1, "only the axe is still there for them to take")
@@ -134,11 +140,12 @@ func _test() -> void:
 		if "zuflucht" in game.level_files[i]:
 			refuge = i
 	game.load_level(refuge, false)
-	gold_before = game.hoard.gold
-	var iron_before := int(game.hoard.metals.get("eisen", 0))
+	gold_before = game.hoard.gold + game.hoard.elder_gold
+	var elder_before: int = game.hoard.elder_items.size()
 	game._new_day()
 	check(game.floors[key].size() == 1 and game.floors[key][0][1] == "wassereimer", "the open air was swept by morning: %s" % str(game.floors[key]))
-	check(game.hoard.gold == gold_before + 1 and int(game.hoard.metals.eisen) == iron_before + int(Forge.melt_into("kettenhemd").eisen) and game.hoard.metals.has("bronze"), "the chain mail and the coin went into the hoard: %s" % str(game.hoard.metals))
+	check(game.hoard.gold + game.hoard.elder_gold == gold_before + 1 and game.hoard.elder_items.size() == elder_before + 1 and game.hoard.elder_items.has("kettenhemd"), "the chain mail and the coin went down to the Great Old One: %s" % str(game.hoard.elder_items))
+	check(game.lore.has(DragonHoard.ELDER_LORE), "the compendium learns where most of the loot goes")
 	check(game.floors["haus.txt#2"].size() == 1, "a building's floor is not touched")
 
 	# Asleep in the open: what lies there vanishes from the ground too.
@@ -153,11 +160,14 @@ func _test() -> void:
 	game.hoard.metals["mondsilbererz"] = 1
 	var hoard_gold: int = game.hoard.gold
 	var hoard_metals: Dictionary = game.hoard.metals.duplicate()
+	var elder_gold: int = game.hoard.elder_gold
+	var elder_items: Array[String] = game.hoard.elder_items.duplicate()
 	check(game.save_game(true), "the game saves")
 	game.hoard.clear()
 	var data: Dictionary = game._read_save()
 	game._apply_save(data)
 	check(game.hoard.gold == hoard_gold and game.hoard.metals == hoard_metals, "the hoard is kept in the saved game (%d, %s)" % [game.hoard.gold, str(game.hoard.metals)])
+	check(game.hoard.elder_gold == elder_gold and game.hoard.elder_items == elder_items, "the Great Old One's share is kept in the saved game (%d, %s)" % [game.hoard.elder_gold, str(game.hoard.elder_items)])
 	data.erase("hoard")
 	game._apply_save(data)
 	check(game.hoard.is_empty(), "a game saved before the hoard has an empty one")

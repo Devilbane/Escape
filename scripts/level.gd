@@ -54,6 +54,11 @@ signal lair_exit_taken
 signal hoard_taken
 ## The hero stepped onto the hoard while its dragon still lives.
 signal hoard_guarded
+## The hero took the Great Old One's hoard (see ElderLair).
+signal elder_hoard_taken
+## The Great Old One woke up, or went back to sleep (see ElderDragon).
+signal elder_awakened
+signal elder_settled
 signal exit_reached
 ## The boss of a mine floor has fallen (see Mines).
 signal boss_won
@@ -119,7 +124,7 @@ const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_sh
 ## shelves, chests and the wall decorations.
 const WORN_SETS := ["props", "chests", "wallprops"]
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "#bxotkCDHBLVF?f=U|N%~T^"
+const SOLID := "#bxotkCDHBLVF?f=U|N%~T^&"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
@@ -239,6 +244,11 @@ var lair_cleared := false
 ## metal (see DragonHoard.contents), handed in by the game before build().
 ## It lies beside the hoard chest.
 var hoard := {}
+## The Great Old One's hoard as the dragon helpers left it (see ElderLair):
+## "coins" and "items". Set before the floor is built.
+var elder_hoard := {}
+## The Great Old One, on the floor where it sleeps.
+var elder: ElderDragon
 ## The glowing way out that opens in the lair once the dragon has fallen.
 var lair_exit: Node3D
 ## Whether the hero still stands in the way out (it leads out once per step).
@@ -541,6 +551,8 @@ func build() -> void:
 	_restore_left()
 	if lair and theme == "":
 		_decorate_lair()
+	if ElderLair.is_floor(self):
+		ElderLair.decorate(self)
 	if not outdoor and (building == "" or lair):
 		add_child(DungeonLife.new(self))
 	if not grates.is_empty():
@@ -1194,6 +1206,10 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_build_coin(pos)
 		"C":
 			_build_chest(c)
+		"&":
+			_build_chest(c, true)
+		"$":
+			ElderLair.build_hoard(self, c)
 		"D":
 			_build_door(c)
 		"b":
@@ -1386,7 +1402,9 @@ func _build_coin(pos: Vector3) -> void:
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "id": "coin:%d,%d" % [c.x, c.y]})
 
 
-func _build_chest(c: Vector2i) -> void:
+## An epic chest ("&", see ElderLair) holds a piece of the epic tier and a
+## heap of gold, and glows violet.
+func _build_chest(c: Vector2i, epic := false) -> void:
 	var pos := cell_to_world(c)
 	# Face the chest towards the open side of the room.
 	var rot := 0.0
@@ -1396,6 +1414,17 @@ func _build_chest(c: Vector2i) -> void:
 	_add_fitted_solid(chest, pos, 1.5, Vector2(2.0, 2.0))
 	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c, false)
 	obj.lid = chest.find_child("chest_gold_lid", true, false)
+	if epic:
+		var epic_rng := RandomNumberGenerator.new()
+		epic_rng.seed = hash("%s:epic:%d:%d" % [level_name, c.x, c.y])
+		obj.loot = {"gold": ElderLair.EPIC_GOLD, "item": ElderLair.epic_item(self, epic_rng)}
+		var glow := OmniLight3D.new()
+		glow.light_color = Rarity.EPIC
+		glow.light_energy = 2.0
+		glow.omni_range = 6.0
+		glow.position = pos + Vector3(0, 1.6, 0)
+		add_child(glow)
+		return
 	if _in_secret_room(c):
 		obj.loot = _secret_loot(c, 1.0)
 		return
@@ -3354,6 +3383,17 @@ func _check_pickups() -> void:
 			# Just dropped at the hero's feet: it stays until they step away
 			# and come back for it.
 			continue
+		if p.kind == "elder_hoard":
+			# The hoard of the Great Old One is for whoever dares: the gold
+			# clinks, though, and the dragon stirs.
+			_pickups.erase(p)
+			var t := create_tween()
+			t.tween_property(n, "scale", Vector3.ONE * 0.01, 0.5).set_ease(Tween.EASE_IN)
+			t.tween_callback(n.queue_free)
+			elder_hoard_taken.emit()
+			if is_instance_valid(elder):
+				elder.disturb(ElderLair.GRAB_STIR)
+			continue
 		if p.kind == "hoard" and not lair_cleared:
 			# The dragon sleeps on its gold: it is the hero's once it fell.
 			if not p.has("warned"):
@@ -3622,6 +3662,8 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, ma
 			e = Dragon.new()
 		"bergkoenig":
 			e = MountainKing.new()
+		"grosser_alter":
+			e = ElderDragon.new()
 		"hauptmann":
 			e = BanditChief.new()
 		_:
@@ -3650,6 +3692,12 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, ma
 				_drop_item(Mines.TROPHY, e.global_position + Vector3(0.8, 0, 0.8))
 				Sfx.play_find(self, Mines.TROPHY, 0.4, e.global_position)
 			boss_won.emit())
+	if e is ElderDragon:
+		# Far too big to walk through, and it never moves from its bed.
+		elder = e as ElderDragon
+		_add_solid(e.global_position, Vector3(5.0, 4.0, 5.0))
+		elder.awakened.connect(func(): elder_awakened.emit())
+		elder.settled.connect(func(): elder_settled.emit())
 	if e is Dragon:
 		dragon = e as Dragon
 		dragon.awakened.connect(func(): dragon_awakened.emit(e))

@@ -51,7 +51,7 @@ const SWING := 0.8
 
 ## Monsters whose level is set by hand: the guardian falls only to a stab in
 ## the back, and the bosses are long fights made for dodging.
-const FIXED := {"waechter": 3, "hauptmann": 9, "drache": 11, "bergkoenig": 20}
+const FIXED := {"waechter": 3, "hauptmann": 9, "drache": 11, "bergkoenig": 20, "grosser_alter": 20}
 const BOSSES := ["hauptmann", "drache", "bergkoenig"]
 
 ## The areas of the world and the levels they are made for. A monster in an
@@ -71,12 +71,14 @@ const AREAS := {
 	"mine1": {"name": "Kupfergrube", "min": 11, "max": 13, "from": [3, 13]},
 	"mine2": {"name": "Kristallgrotte", "min": 13, "max": 15, "from": [4, 13]},
 	"mine3": {"name": "Zwergenbinge, Glutstollen und Herz des Berges", "min": 16, "max": 19, "from": [3, 13]},
+	"uralt": {"name": "Hort des Großen Alten", "min": 17, "max": 19, "from": [3, 13]},
 }
 ## Which area a building (Level.building) belongs to.
 const BUILDING_AREAS := {
 	"b": "dorf", "^": "dorf", "loch1": "loecher", "loch2": "loecher", "loch3": "loecher",
 	"E": "hoehle", "[": "berge", "mine1": "mine1", "mine2": "mine2",
 	"mine3": "mine3", "mine3b": "mine3", "mine3c": "mine3",
+	"uralt1": "uralt", "uralt2": "uralt", "uralt3": "uralt",
 }
 
 ## Every task and how long it likely takes: minutes and the level of the

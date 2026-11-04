@@ -46,6 +46,7 @@ const OUTDOOR_MARKS := {
 	"^": ["home", "Weberzeile"], ";": ["water", "Teich"], "F": ["fountain", "Marktbrunnen"], "q": ["fountain", "Ziehbrunnen"],
 	"~": ["water", "Teich"], "f": ["camp", "Räuberlager"], "v": ["food", "Futterkorb"],
 	"S": ["building", "Steinmetz"], "[": ["building", "Bergschenke"], "]": ["lair", "Mine"],
+	")": ["lair", "Hort des Großen Alten"],
 }
 ## Whole areas of the open air, marked in the middle of all their tiles:
 ## [characters, German name].

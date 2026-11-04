@@ -642,6 +642,29 @@ The **compendium** (key H) shows all keys and mouse commands and collects every 
 explanation you have been given so far: the introduction of every level, the tips on sneaking and on the
 guardian, the secret lever. It is saved with the game.
 
+## The hoard of the Great Old One
+
+South of the high valley in the mountains a narrow ravine winds down to a fanged black **cave mouth**. Below it
+lie three floors, made for a hero of about **level 18** (the monsters are lifted to levels 17 to 19):
+
+1. **The Scorched Halls**: brood drakes (young dragons that hover and spit fire), rock trolls, mountain orcs
+   and ember slimes, and the first **epic treasure room** behind a locked door.
+2. **The Bone Gallery**: the second epic treasure room at the end of the gallery; its key lies with the
+   brood's guards. Each treasure room holds two **epic chests** (a violet piece of gear and 60 gold each).
+3. **The Lair of the Great Old One**: a dragon older than the mountain, asleep on its bed of gold.
+
+The **Great Old One** is not there to be slain: no blade or knife gets through its scales. Asleep it is
+blind but it hears. Walking, running or jumping near it makes it restless ("Zzz?", then "It stirs!"), and
+bumping into it wakes it at once. **Sneaking** (key C) makes no noise at all. Awake, it rears up and every
+few seconds marks a cone of **red rings** in front of it and then breathes fire there: stay in it and it burns
+for most of your life. It never leaves its bed, so run out of its sight; after a while it falls asleep again.
+
+Its **hoard** lies right in front of it. Sneak onto the heap to take it: the first time it holds the old
+dragon's own treasure (250 gold, an epic and a god-born piece of gear), and later whatever the **dragon's
+helpers** brought. Of every three things they carry off the open ground at night, two go down to the Great Old
+One, coins and **whole gear**, so what you lost can be taken back. The clink of the gold makes the dragon stir,
+so leave quietly. See `scripts/elder_lair.gd` and `scripts/elder_dragon.gd`.
+
 ## Map and journal
 
 Your hero draws a **map** as they go. In the dungeon everything the fog of war has shown you goes on it,

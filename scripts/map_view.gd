@@ -94,7 +94,7 @@ static func tile_color(ch: String, outdoor: bool) -> Color:
 			"N", "f", "C": return Color(0.5, 0.4, 0.3)
 			"I": return Color(0.45, 0.4, 0.36)
 			"i", "B", "L": return Color(0.66, 0.5, 0.32)
-			"R", "E", "]": return Color(0.38, 0.37, 0.4)
+			"R", "E", "]", ")": return Color(0.38, 0.37, 0.4)
 			"=": return Color(0.42, 0.41, 0.4)
 			"'", "{", "}", "-", "/": return Color(0.58, 0.57, 0.53)
 			"h", "^", "j", "n", "m", "u", "s", "k", "o", "w", "b", "[": return Color(0.58, 0.34, 0.24)

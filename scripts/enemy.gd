@@ -178,13 +178,32 @@ const KINDS := {
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
 		"tint": Color(0.36, 0.28, 0.26), "glow": Color(1.0, 0.4, 0.12),
 		"voice": ["voice_koloss", 0.4, "GRROOOM"], "purse": [60, 90], "gear_chance": 1.0},
+	# The Great Old One's dungeon below the high valley (see ElderLair): the
+	# brood drakes, young dragons that hover and spit fire from afar, and the
+	# Great Old One itself, a dragon far too old and too big to be slain (see
+	# ElderDragon). Its numbers do not matter: no blade gets through.
+	"brutdrache": {"model": "Dragon", "dir": "lair", "ext": "fbx", "hp": 18, "speed": 4.4, "damage": 3, "reach": 16.0, "size": 1.15, "cooldown": 2.3, "armor": 1,
+		"beast": true, "roam": true, "ranged": true, "fire": true, "model_scale": 0.42, "turn": 0.0, "run_anim": 4.0, "lift": 1.0,
+		"anims": {"Idle": "DragonArmature|Dragon_Flying", "Walking_A": "DragonArmature|Dragon_Flying", "Running_A": "DragonArmature|Dragon_Flying",
+			"1H_Melee_Attack_Chop": "DragonArmature|Dragon_Attack", "1H_Ranged_Shoot": "DragonArmature|Dragon_Attack2",
+			"Hit_A": "DragonArmature|Dragon_Hit", "Death_A": "DragonArmature|Dragon_Death"},
+		"tint": Color(0.5, 0.42, 0.62), "glow": Color(0.75, 0.35, 1.0),
+		"voice": ["voice_koloss", 0.95, "fauch"], "purse": [5, 10], "gear_chance": 0.5},
+	"grosser_alter": {"model": "Dragon", "dir": "lair", "ext": "fbx", "hp": 200, "speed": 0.0, "damage": 1, "reach": 30.0, "size": 4.2, "cooldown": 3.0, "armor": 9,
+		"beast": true, "big": true, "model_scale": 0.6, "turn": 0.0, "run_anim": 4.0, "lift": 0.0,
+		"anims": {"Idle": "DragonArmature|Dragon_Flying", "Walking_A": "DragonArmature|Dragon_Flying", "Running_A": "DragonArmature|Dragon_Flying",
+			"1H_Melee_Attack_Chop": "DragonArmature|Dragon_Attack", "1H_Ranged_Shoot": "DragonArmature|Dragon_Attack2",
+			"Hit_A": "DragonArmature|Dragon_Hit", "Death_A": "DragonArmature|Dragon_Death"},
+		"tint": Color(0.34, 0.3, 0.4), "glow": Color(0.7, 0.3, 1.0),
+		"voice": ["voice_koloss", 0.3, "BRÜLL"], "purse": [0, 0], "gear_chance": 0.0},
 }
 ## Every horror there is (see Horrors).
 const HORRORS := ["hohle_mutter", "bleicher_waechter", "schlund"]
 ## Which map letter places which kind.
 const LETTERS := {"M": "krieger", "A": "schuetze", "Z": "magier", "w": "wicht", "G": "koloss", "W": "waechter",
 	"v": "fledermaus", "s": "schleim", "R": "drache",
-	"J": "felstroll", "O": "bergork", "e": "eiswolf", "i": "kristallschleim", "g": "glutschleim", "Y": "bergkoenig"}
+	"J": "felstroll", "O": "bergork", "e": "eiswolf", "i": "kristallschleim", "g": "glutschleim", "Y": "bergkoenig",
+	"d": "brutdrache", "@": "grosser_alter"}
 ## The letters of the open-air map that place bandits (see Outdoor).
 const WILD_LETTERS := {"c": "halsabschneider", "A": "wilderer", "X": "schlaeger", "Q": "hauptmann",
 	"W": "wolf", "H": "ork", "J": "yeti", "U": "spinne",
@@ -395,7 +414,7 @@ func _ready() -> void:
 		_stats.roam = true
 	# Deeper down the dead are tougher and hit harder. The bosses keep their
 	# own numbers.
-	if level and kind not in ["drache", "hauptmann", "bergkoenig"]:
+	if level and kind not in ["drache", "hauptmann", "bergkoenig", "grosser_alter"]:
 		var deep := clampi(level.depth, 0, DEEPEST)
 		_stats.hp += deep / HP_EVERY_LEVELS
 		_stats.damage += deep / DAMAGE_EVERY_LEVELS
@@ -554,6 +573,8 @@ func fall_text() -> String:
 			return Lang.t("Der Schleim zerfließt.")
 		"bergkoenig":
 			return Lang.t("Der Bergkönig stürzt! Der ganze Berg erbebt.")
+		"brutdrache":
+			return Lang.t("Der Brutdrache stürzt zu Boden.")
 	if is_horror():
 		return Lang.t("Das Ungeheuer bricht zusammen. Die Stille danach ist fast schlimmer.")
 	return Lang.t("Der Räuber geht zu Boden.") if is_human() else Lang.t("Das Skelett zerfällt zu Staub.")

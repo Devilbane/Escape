@@ -208,5 +208,5 @@ func _check_layout() -> void:
 			check(tip.y < bar.position.y, "the blade at %s does not touch the bar" % dir)
 	check(bar.size.is_equal_approx(game.HP_BAR_SIZE), "the life bar keeps its size: %s" % bar.size)
 	for line in elog._lines.get_children():
-		check((line as RichTextLabel).get_theme_font_size("normal_font_size") == EventLog.FONT_SIZE, "small type")
+		check((line as RichTextLabel).get_theme_font_size("normal_font_size") == UiKit.sized(EventLog.FONT_SIZE), "small type")
 		break

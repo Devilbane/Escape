@@ -270,7 +270,7 @@ const SCREEN_TEXT_MARGIN := 80
 ## Space kept free left and right of the message lines: past the event log
 ## and the first-steps card at the left edge (see EventLog, Tutorial).
 const MESSAGE_MARGIN := EventLog.LEFT + Tutorial.CARD_WIDTH + 16.0
-const MESSAGE_FONT_SIZE := 18
+const MESSAGE_FONT_SIZE := 24
 ## The message lines float over the hero's head (see place_message): this
 ## wide at most, centred over the hero, their lower edge this many pixels
 ## above the top of the name over the head.
@@ -413,6 +413,11 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	Lang.setup()
+	# Text that sets no size of its own follows the game's text scale too.
+	if get_window().theme == null:
+		var base := Theme.new()
+		base.default_font_size = UiKit.sized(16)
+		get_window().theme = base
 	if get_tree().get_script() != null:
 		# A headless test runs as a script of its own: its saves stay apart.
 		save_dir = TEST_SAVE_DIR
@@ -601,12 +606,14 @@ func _set_atmosphere(outdoor: bool) -> void:
 
 ## A label with outline and shadow (see UiKit.label).
 static func _make_label(font: Font, size: int, color := Color.WHITE) -> Label:
-	return UiKit.label(font, size, color)
+	return UiKit.label(font, UiKit.sized(size), color)
 
 
 ## Every button of the game, in one look (see UiKit.button).
 static func _make_button(text: String, action: Callable, on_press := false) -> Button:
-	return UiKit.button(text, action, on_press)
+	var b := UiKit.button(text, action, on_press)
+	b.add_theme_font_size_override("font_size", UiKit.sized(b.get_theme_font_size("font_size")))
+	return b
 
 
 ## All clickable buttons live in a menu that is pulled out from the right
@@ -628,7 +635,7 @@ func _setup_drawer() -> void:
 	# buttons below it between the gold line and the corner mark on a 720 px
 	# screen (see _setup_torch_button).
 	_drawer_handle.custom_minimum_size = Vector2(70, 88)
-	_drawer_handle.add_theme_font_size_override("font_size", 16)
+	_drawer_handle.add_theme_font_size_override("font_size", UiKit.sized(16))
 	_drawer_handle.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
 		var box: StyleBoxFlat = _drawer_handle.get_theme_stylebox(style).duplicate()
@@ -705,7 +712,7 @@ func _setup_drawer() -> void:
 	buttons.add_child(_make_button(Lang.t("Beenden"), do_quit, true))
 	for b in buttons.get_children():
 		b.custom_minimum_size = Vector2(150, 58)
-		b.add_theme_font_size_override("font_size", 18)
+		b.add_theme_font_size_override("font_size", UiKit.sized(18))
 	column.add_child(_make_music_slider())
 	column.add_child(_make_effects_slider())
 	_update_music_controls()
@@ -905,7 +912,7 @@ static func _tooltip_theme() -> Theme:
 	box.content_margin_bottom = 6
 	theme.set_stylebox("panel", "TooltipPanel", box)
 	theme.set_font("font", "TooltipLabel", TEXT_FONT)
-	theme.set_font_size("font_size", "TooltipLabel", 16)
+	theme.set_font_size("font_size", "TooltipLabel", UiKit.sized(16))
 	theme.set_color("font_color", "TooltipLabel", GOLD)
 	theme.set_color("font_outline_color", "TooltipLabel", Color.BLACK)
 	theme.set_constant("outline_size", "TooltipLabel", 4)
@@ -2286,7 +2293,7 @@ func _show_title(text: String, sub: String, prompt: String) -> void:
 		child.queue_free()
 	_name_box.visible = false
 	_lang_row.visible = false
-	_title_text.add_theme_font_size_override("font_size", 120)
+	_title_text.add_theme_font_size_override("font_size", UiKit.sized(120))
 	_title.visible = true
 	_title_text.text = text
 	_title_sub.text = sub
@@ -2360,7 +2367,7 @@ func new_game() -> void:
 	# and its save slots, and the headline steps back a little.
 	_title_prompt.visible = false
 	_title_sub.visible = false
-	_title_text.add_theme_font_size_override("font_size", 90)
+	_title_text.add_theme_font_size_override("font_size", UiKit.sized(90))
 	_name_box.visible = true
 	_choose_sex(player.sex)
 	_name_edit.text = hero_name
@@ -2437,7 +2444,7 @@ func _setup_name_box() -> void:
 	_name_edit.custom_minimum_size = Vector2(360, 60)
 	_name_edit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_name_edit.add_theme_font_override("font", TEXT_FONT)
-	_name_edit.add_theme_font_size_override("font_size", 28)
+	_name_edit.add_theme_font_size_override("font_size", UiKit.sized(28))
 	_name_edit.add_theme_stylebox_override("normal", Menus.panel_style(Color(0.85, 0.66, 0.32, 0.8)))
 	_name_edit.add_theme_stylebox_override("focus", Menus.panel_style(GOLD))
 	_name_edit.text_submitted.connect(func(_t): _start_new_game())
@@ -2651,7 +2658,7 @@ func _make_volume_row(title: String, tooltip: String, value: float, on_change: C
 	var label := Label.new()
 	label.text = Lang.t(title)
 	label.add_theme_font_override("font", TEXT_FONT)
-	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_font_size_override("font_size", UiKit.sized(18))
 	label.add_theme_color_override("font_color", GOLD)
 	# Both rows' labels take the same width, so the sliders line up.
 	label.custom_minimum_size = Vector2(90, 0)
@@ -3288,7 +3295,7 @@ func _float_snooze_letter(i: int) -> void:
 	var label := Label3D.new()
 	label.text = SNOOZE_LETTERS[i]
 	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
-	label.font_size = 72 - i * 7
+	label.font_size = UiKit.sized(72 - i * 7)
 	label.pixel_size = 0.012
 	label.outline_size = 12
 	label.outline_modulate = Color(0.05, 0.03, 0.12, 0.9)
@@ -4087,8 +4094,8 @@ func _message_size(text: String) -> int:
 
 
 func _style_message(line: Label, size: int) -> void:
-	line.add_theme_font_size_override("font_size", size)
-	line.add_theme_constant_override("outline_size", maxi(3, size / 6))
+	line.add_theme_font_size_override("font_size", UiKit.sized(size))
+	line.add_theme_constant_override("outline_size", maxi(3, UiKit.sized(size) / 6))
 
 
 ## Most unread messages kept above the newest one; an older one makes room.
@@ -4578,7 +4585,7 @@ func _end_run(escaped: bool) -> void:
 		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], place)
 	else:
 		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], Lang.t("Klicken für ein neues Spiel"))
-	_title_text.add_theme_font_size_override("font_size", 90)
+	_title_text.add_theme_font_size_override("font_size", UiKit.sized(90))
 	_ranking_slot.add_child(Ranking.build(self, entry))
 
 

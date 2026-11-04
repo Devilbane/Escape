@@ -74,7 +74,7 @@ func setup(hud: CanvasLayer) -> void:
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	var line: float = game.TEXT_FONT.get_height(TEXT_SIZE) + _text.get_theme_constant("line_spacing")
+	var line: float = game.TEXT_FONT.get_height(UiKit.sized(TEXT_SIZE)) + _text.get_theme_constant("line_spacing")
 	_text.custom_minimum_size = Vector2(CARD_WIDTH - 48, ceilf(line * TEXT_LINES))
 	box.add_child(_text)
 

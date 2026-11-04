@@ -10,6 +10,17 @@ const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const GOLD := Color(1.0, 0.82, 0.4)
 ## Button text while the pointer is over the button: a lighter gold.
 const BUTTON_HOVER_TEXT := Color(1.0, 0.92, 0.66)
+## The game draws all its text at this share of the size it was designed at
+## (the owner found it a quarter too big): use sized() wherever a font size
+## is set. The names over the heads of the hero, the townsfolk and the foes
+## keep their size, and so does writing that is part of the world (signs,
+## wall writings). The launcher keeps its own sizes.
+const TEXT_SCALE := 0.75
+
+
+## `size`, a font size as designed, at the game's text scale (TEXT_SCALE).
+static func sized(size: int) -> int:
+	return maxi(1, roundi(size * TEXT_SCALE))
 
 
 static func label(font: Font, size: int, color := Color.WHITE) -> Label:

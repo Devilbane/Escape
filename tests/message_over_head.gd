@@ -8,8 +8,8 @@ extends SceneTree
 ## - Words rising from the hero's head (damage, experience) never run
 ##   through the message lines; the lines go back down once nothing shows.
 ## - Without a hero on screen (the title) the message sits low in the middle.
-## - The message and event log text is a quarter smaller than it was; the
-##   name over the head keeps its size.
+## - The message and event log text is a quarter smaller than designed (the
+##   game's text scale); the name over the head keeps its size.
 ## Run with: godot --headless --fixed-fps 60 -s tests/message_over_head.gd
 
 var failures := 0
@@ -141,9 +141,9 @@ func _over_head_check() -> void:
 	game.show_message("Gefahr!", 2.0, Color(1.0, 0.45, 0.25))
 	logged = game.event_log._lines.get_child(game.event_log._lines.get_child_count() - 1)
 	check(logged.get_theme_color("default_color").is_equal_approx(Color(1.0, 0.45, 0.25)), "a coloured message keeps its colour in the log")
-	# A quarter smaller than before (24 and 15); the name keeps its 30.
-	check(game.MESSAGE_FONT_SIZE == 18, "the message text is a quarter smaller")
-	check(EventLog.FONT_SIZE == 11, "the event log text is a quarter smaller")
+	# A quarter smaller than designed (24 and 15); the name keeps its 30.
+	check(game._message.get_theme_font_size("font_size") == 18, "the message text is a quarter smaller: %d" % game._message.get_theme_font_size("font_size"))
+	check(logged.get_theme_font_size("normal_font_size") == 11, "the event log text is a quarter smaller: %d" % logged.get_theme_font_size("normal_font_size"))
 	check(hero.name_tag.font_size == 30, "the name over the head keeps its size")
 	check(hero.name_tag.position.y > 3.0, "the name sits higher than before")
 

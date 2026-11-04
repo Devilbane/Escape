@@ -120,7 +120,7 @@ static func _make(text: String, color: Color) -> DamageNumber:
 	var label := DamageNumber.new()
 	label.text = text
 	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
-	label.font_size = 64
+	label.font_size = UiKit.sized(64)
 	label.pixel_size = 0.012
 	label.outline_size = 14
 	label.outline_modulate = Color(0.05, 0.02, 0.06)

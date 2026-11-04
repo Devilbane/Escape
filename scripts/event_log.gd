@@ -17,7 +17,7 @@ const WIDTH := 300.0
 const HEIGHT := 200.0
 ## Small type for a list the player can glance at (fine print in the ux-ui
 ## guide's sizes; nothing the player must read to decide is only here).
-const FONT_SIZE := 11
+const FONT_SIZE := 15
 ## Space between two lines, in pixels.
 const GAP := 4
 ## Lines kept to scroll back through (the mouse wheel or a drag over the
@@ -104,7 +104,7 @@ func _add(speaker: String, text: String, color: Color) -> void:
 	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	line.mouse_filter = MOUSE_FILTER_IGNORE
 	line.add_theme_font_override("normal_font", FONT)
-	line.add_theme_font_size_override("normal_font_size", FONT_SIZE)
+	line.add_theme_font_size_override("normal_font_size", UiKit.sized(FONT_SIZE))
 	line.add_theme_color_override("default_color", color)
 	line.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
 	line.add_theme_constant_override("outline_size", 2)

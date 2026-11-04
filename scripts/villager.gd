@@ -223,7 +223,7 @@ func _ready() -> void:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	_bubble = Label3D.new()
 	_bubble.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
-	_bubble.font_size = 44
+	_bubble.font_size = UiKit.sized(44)
 	_bubble.pixel_size = 0.011
 	_bubble.outline_size = 12
 	_bubble.outline_modulate = Color(0.05, 0.03, 0.06, 0)

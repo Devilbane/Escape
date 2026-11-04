@@ -295,6 +295,10 @@ const BUSH_OPEN := 0.3
 ## the fence has ivy on its low wall, how many graves have a grave light (a
 ## small lantern with a candle, lit at night), and where the light stands.
 const CRYPT_IVY := 6
+## A building with no paving of the square (":") this many tiles round its
+## block stands on its own, out of the village's busy middle: old ivy grows
+## all over it, up to and on to its roof (see AgedStone.grow_ivy).
+const SQUARE_GAP := 2
 const FENCE_IVY := 0.3
 const GRAVE_LIGHTS := 0.35
 const GRAVE_LIGHT_AT := Vector3(1.25, 0, -0.35)
@@ -1078,7 +1082,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		add_child(node)
 		var door: Vector3 = node.transform * (node.get_meta("door") as Vector3)
 		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
-		_dress_building(node, center, [door])
+		_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
 	else:
 		var model: String = BLOCK_MODELS[ch]
 		var box := _aabb_of(model)
@@ -1098,7 +1102,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch != "R" and ch != "h":
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
 		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
-		_dress_building(node, center, [door])
+		_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
 	if interiors.has(ch):
 		# Run into the door to go in.
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
@@ -1600,14 +1604,27 @@ func _age_kit_building(node: Node) -> void:
 		mi.material_override = _window_mats[mat]
 
 
+## Whether a building's block stands on its own: no paving of the square
+## within SQUARE_GAP tiles of it (see SQUARE_GAP).
+func _standalone(block: Rect2i) -> bool:
+	var round := block.grow(SQUARE_GAP)
+	for y in range(round.position.y, round.end.y):
+		for x in range(round.position.x, round.end.x):
+			if cell_char(Vector2i(x, y)) == ":":
+				return false
+	return true
+
+
 ## Ivy up the walls of a building, and maybe a nest up on it (see AgedStone).
 ## `middle` is the middle of its foot, `door_spots` where its doors are.
 ## Each building has its own random numbers, so it is dressed the same every
 ## time; and what was found is kept, so when the hero steps out of the crypt
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
-func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES) -> void:
-	var key := "%s|%s|%s" % [level_name, middle, _bounds_in(node)]
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false) -> void:
+	if old:
+		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
+	var key := "%s|%s|%s|%s" % [level_name, middle, _bounds_in(node), old]
 	if not _dressed.has(key):
 		var rng := RandomNumberGenerator.new()
 		rng.seed = hash(key)
@@ -1619,7 +1636,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		var ground := node.global_position.y
 		var doors_at := door_spots.map(func(d: Vector3): return d + offset)
 		var leaves := {"xforms": [], "colours": []}
-		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches)
+		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old)
 		for i in leaves.xforms.size():
 			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
 		var spot := Vector3.INF

@@ -177,16 +177,17 @@ func _check_aged(lvl: Outdoor) -> void:
 	check(lit, "the stone buildings' windows glow at night")
 	lvl.set_hour(12.0)
 
-	# Ivy: plenty of it, all of it close to a wall and low down, none in
-	# front of a door.
+	# Ivy: plenty of it, all of it close to a wall and no higher than old
+	# ivy climbs, none in front of a door. (The leaves are read from the
+	# village's own list: a headless MultiMesh keeps no transforms.)
 	var ivy: MultiMeshInstance3D = lvl.get_node_or_null("Ivy")
 	check(ivy != null and ivy.multimesh.instance_count > 1000, "ivy climbs the walls")
 	if ivy:
 		check(ivy.multimesh.instance_count < 60000, "the ivy and shrubs stay cheap (%d leaves)" % ivy.multimesh.instance_count)
 		var near_door := 0
-		for i in ivy.multimesh.instance_count:
-			var at := ivy.multimesh.get_instance_transform(i).origin
-			if at.y > AgedStone.IVY_HEIGHT.y + 0.5 or at.y < 0.0:
+		for i in lvl._ivy.xforms.size():
+			var at := (lvl._ivy.xforms[i] as Transform3D).origin
+			if at.y > AgedStone.OLD_IVY_HEIGHT.y + 1.0 or at.y < 0.0:
 				check(false, "a leaf grows from the ground up (%.1f m)" % at.y)
 				break
 			for e: Dictionary in lvl._entrances:
@@ -194,6 +195,30 @@ func _check_aged(lvl: Outdoor) -> void:
 				if Vector2(at.x - door.x, at.z - door.z).length() < 1.0 and at.y < 2.4:
 					near_door += 1
 		check(near_door == 0, "no ivy grows over a door (%d leaves)" % near_door)
+		# Old ivy on the houses that stand away from the square: up to the
+		# eaves (VillageHouse's upper floor ends at 6.1 m) and on to the roof.
+		var standalone := 0
+		for house: Node3D in lvl.get_children().filter(func(c): return c.has_meta("village_house") and c.has_meta("block")):
+			var block: Rect2i = house.get_meta("block")
+			if not lvl._standalone(block):
+				continue
+			standalone += 1
+			var area := _block_area(lvl, block).grow(1.0)
+			var high := 0
+			var on_roof := 0
+			for i in lvl._ivy.xforms.size():
+				var xf: Transform3D = lvl._ivy.xforms[i]
+				if not area.has_point(Vector2(xf.origin.x, xf.origin.z)):
+					continue
+				if xf.origin.y > VillageHouse.PLINTH + VillageHouse.GROUND + VillageHouse.UPPER - 0.6:
+					high += 1
+				# A leaf lying on a slope faces up and out (its face is its z).
+				var face := xf.basis.z.normalized()
+				if face.y > 0.55 and face.y < 0.98 and xf.origin.y > 6.0:
+					on_roof += 1
+			check(high > 50, "old ivy climbs up to the eaves of a standalone house (%d leaves)" % high)
+			check(on_roof > 10, "old ivy creeps on to the roof of a standalone house (%d leaves)" % on_roof)
+		check(standalone > 0, "some houses stand away from the square")
 
 	# Nests up high, two birds to each, sitting in them at night.
 	check(lvl.nests.size() >= 4 and lvl.nests.size() <= Outdoor.MAX_NESTS, "there are bird nests on the roofs (%d)" % lvl.nests.size())

@@ -26,7 +26,7 @@ extends RefCounted
 ## What the compendium says about the forge, once the hero has been there.
 const LEARN := "Schmied Gorm im Dorf arbeitet an seiner Esse: Er verkauft seine eigenen, besseren Waffen, die es sonst nirgends gibt, schmilzt Waffen, Schilde, Metallrüstungen und Schmuck zu Eisenbarren ein, schmiedet aus Eisen und etwas Gold neue Waffen, Schilde und Rüstungen, aus Donnererz vom Gewitter auch Donnerwaffen, deren Treffer Gegner kurz betäuben können, und bessert abgenutzte Rüstungen und Schilde gegen Gold aus. Eisenbarren verkauft er auch."
 ## What one iron bar costs at the smith.
-const IRON_PRICE := 4
+const IRON_PRICE := 10
 ## Materials of gear that melts down into iron (see Items, "material").
 const MELTS := ["metal", "chain", "mixed"]
 ## Slots whose pieces are all metal (jewellery), whatever their material says.
@@ -181,7 +181,7 @@ static func _discounted(game: Node, gold: int) -> int:
 
 ## What one of Gorm's wares costs the hero.
 static func ware_price(game: Node, id: String) -> int:
-	return _discounted(game, Items.ALL[id].price)
+	return _discounted(game, Items.buy_price(id))
 
 
 ## What one iron bar costs the hero.
@@ -205,10 +205,12 @@ static func buy(game: Node, id: String) -> String:
 
 
 ## What forging a piece costs: {"iron": bars, "gold": coins, "ore": lumps of
-## thunder ore from the bag (0 but for the thunder weapons)}.
+## thunder ore from the bag (0 but for the thunder weapons)}: one iron bar
+## for every 4 gold of the piece's worth and half its worth in gold, so that
+## from bought iron it costs about what a merchant asks (Items.buy_price).
 static func forge_cost(id: String, game: Node = null) -> Dictionary:
 	var price: int = Items.ALL[id].price
-	return {"iron": ceili(price / 6.0), "gold": _discounted(game, price / 3), "ore": int(Items.ALL[id].get("thunder", 0))}
+	return {"iron": ceili(price / 4.0), "gold": _discounted(game, price / 2), "ore": int(Items.ALL[id].get("thunder", 0))}
 
 
 ## Whether the hero has everything forging a piece takes (room in the bag

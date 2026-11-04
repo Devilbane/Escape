@@ -72,7 +72,7 @@ func _run() -> void:
 	check(recipes.has("schwert") and recipes.has("plattenpanzer") and recipes.has("ritterhelm") and not recipes.has("lederwams") and not recipes.has("vampirzahn"), "the smith forges metal gear only")
 	for id in recipes:
 		var cost := Forge.forge_cost(id)
-		check(cost.iron * Forge.IRON_PRICE + cost.gold <= Items.ALL[id].price + Forge.IRON_PRICE, "forging %s from bought iron costs about the merchant's price" % id)
+		check(cost.iron * Forge.IRON_PRICE + cost.gold <= Items.buy_price(id) + Forge.IRON_PRICE, "forging %s from bought iron costs about the merchant's price" % id)
 		check(Forge.melt_yield(id) <= cost.iron, "melting %s down gives back no more iron than it takes" % id)
 
 	game.load_level(game._outdoor_index(), false)
@@ -106,8 +106,10 @@ func _run() -> void:
 	# Forging.
 	game.menus._show_forge_tab("schmieden")
 	var cost := Forge.forge_cost("ritterhelm")
+	check(cost.iron > 6, "one melted plate armour is not enough iron for a knight's helmet")
+	game.iron = cost.iron + 2
 	game.menus._forge("ritterhelm")
-	check(p.bag.has("ritterhelm") and game.iron == 6 - cost.iron and game.coins == 100 - cost.gold, "iron and gold become a knight's helmet (%d iron, %d gold)" % [game.iron, game.coins])
+	check(p.bag.has("ritterhelm") and game.iron == 2 and game.coins == 100 - cost.gold, "iron and gold become a knight's helmet (%d iron, %d gold)" % [game.iron, game.coins])
 	game.iron = 0
 	game.menus._forge("schwert")
 	check(not p.bag.has("schwert") and game.coins == 100 - cost.gold, "without iron nothing is forged")
@@ -154,14 +156,14 @@ func _run() -> void:
 		check(item.slot == "schild" or Training.SKILLS.has(item.uses), "%s trains a skill" % id)
 		check(item.price > Items.ALL["axt"].price, "%s is better and dearer than the common axe" % id)
 	p.bag.clear()
-	game.coins = Items.ALL["langschwert"].price - 1
+	game.coins = Items.buy_price("langschwert") - 1
 	game.menus.open("schmied")
 	check(game.menus._forge_tab == "waffen", "the smith's window opens on his wares")
 	game.menus._buy_ware("langschwert")
-	check(p.bag.is_empty() and game.coins == Items.ALL["langschwert"].price - 1, "without enough gold nothing is bought")
+	check(p.bag.is_empty() and game.coins == Items.buy_price("langschwert") - 1, "without enough gold nothing is bought")
 	game.coins = 200
 	game.menus._buy_ware("langschwert")
-	check(Array(p.bag) == ["langschwert"] and game.coins == 200 - Items.ALL["langschwert"].price, "gold buys the longsword")
+	check(Array(p.bag) == ["langschwert"] and game.coins == 200 - Items.buy_price("langschwert"), "gold buys the longsword")
 	check(Forge.buy(game, "schwert") != "" and p.bag.size() == 1, "Gorm does not sell the merchant's sword")
 	game.menus._buy_ware("drachenschild")
 	check(not p.bag.has("drachenschild"), "but not the kite shield")

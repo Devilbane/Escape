@@ -161,6 +161,22 @@ static func is_food(id: String) -> bool:
 	return ALL.has(id) and ALL[id].slot == "futter"
 
 
+## Merchants ask this many times an item's worth ("price") when they sell it;
+## what they pay for one stays half its worth (see Menus.sell_price), and
+## melting, loot and rarity still go by the worth alone. Everyday supplies
+## (animal food, grain and torches) are sold at their worth.
+const BUY_MARKUP := 3
+
+
+## What a merchant asks for an item, before any discount (see
+## Reputation.price): its worth times BUY_MARKUP, supplies at their worth.
+static func buy_price(id: String) -> int:
+	if not ALL.has(id):
+		return 0
+	var worth := int(ALL[id].price)
+	return worth if ALL[id].slot in ["futter", "licht"] else worth * BUY_MARKUP
+
+
 ## The bag item for a spare throwing knife (see Player.knives).
 const KNIFE := "wurfmesser"
 

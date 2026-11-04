@@ -1473,7 +1473,7 @@ func _build_shop() -> void:
 	# by the item, so buying or selling one never moves the others.
 	if _shop_page == "kaufen":
 		for id in _kinds(game.shop_stock):
-			var entry := _ware_entry("ware:" + id, id, game.trader_price(Items.ALL[id].price), _buy.bind(game.shop_stock.find(id)))
+			var entry := _ware_entry("ware:" + id, id, game.trader_price(Items.buy_price(id)), _buy.bind(game.shop_stock.find(id)))
 			# Animal food never runs out (see Companions), so it shows no count.
 			entry.count = 1 if Items.is_food(id) else game.shop_stock.count(id)
 			(goods if _is_consumable(id) else gear).append(entry)
@@ -1540,7 +1540,7 @@ static func _is_consumable(id: String) -> bool:
 
 func _buy(index: int) -> void:
 	var id: String = game.shop_stock[index]
-	var price: int = game.trader_price(Items.ALL[id].price)
+	var price: int = game.trader_price(Items.buy_price(id))
 	if game.coins < price:
 		_note = Lang.t("Dafür reicht dein Gold nicht.")
 	elif not game.player.bag_fits(id):
@@ -1664,7 +1664,7 @@ const STONE := "steinblock"
 ## them back for half the price.
 func _build_stonemason() -> void:
 	var p: Player = game.player
-	var price: int = game.trader_price(Items.ALL[STONE].price)
+	var price: int = game.trader_price(Items.buy_price(STONE))
 	var room: int = p.bag_size() - p.bag_used()
 	_add_label(Lang.t("Steinmetz"), 38, game.GOLD, game.TITLE_FONT)
 	var all := mini(room, game.coins / price) if price > 0 else room
@@ -1688,7 +1688,7 @@ func _build_stonemason() -> void:
 
 func _buy_stones(count: int) -> void:
 	var p: Player = game.player
-	var price: int = game.trader_price(Items.ALL[STONE].price)
+	var price: int = game.trader_price(Items.buy_price(STONE))
 	var bought := 0
 	for i in count:
 		if game.coins < price or p.bag_used() >= p.bag_size():

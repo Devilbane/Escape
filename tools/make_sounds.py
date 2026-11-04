@@ -1,7 +1,8 @@
 """Builds the game's sound effects (and one sound per comic word) from scratch (noise, tones and envelopes),
 so there are no licences to worry about. Run: python3 tools/make_sounds.py
 The footsteps (step_*, sneak_*) and the door are real recordings instead, see
-assets/sounds/CREDITS.txt; the loot sounds come from tools/make_loot_sounds.py."""
+assets/sounds/CREDITS.txt; the loot sounds come from tools/make_loot_sounds.py and the coins
+from tools/make_coin_sounds.py."""
 import os, subprocess, wave
 import numpy as np
 
@@ -110,14 +111,6 @@ def throw():
     n = noise(0.18)
     tt = t(0.18)
     return (lowpass(n, 3500) - lowpass(n, 1200)) * np.sin(np.pi * tt / 0.18) ** 3
-
-
-def coin():
-    tt = t(0.45)
-    a = np.sin(2 * np.pi * 1975 * tt) * env(len(tt), 0.001, 0.08)
-    b = np.sin(2 * np.pi * 2637 * tt) * env(len(tt), 0.001, 0.12)
-    b[: int(SR * 0.07)] = 0
-    return a + b
 
 
 def key():
@@ -482,7 +475,6 @@ if __name__ == "__main__":
     save("bones", bones(), 0.7)
     save("hurt", hurt(), 0.8)
     save("throw", throw(), 0.5)
-    save("coin", coin(), 0.45)
     save("key", key(), 0.5)
     save("rummage", rummage(), 0.5)
     save("lever", lever(), 0.8)

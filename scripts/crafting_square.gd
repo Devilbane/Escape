@@ -65,20 +65,30 @@ static func bench_of(craft: String) -> Dictionary:
 
 
 ## Builds the piece of the square on one tile and adds its station to the
-## level. The worker stands east of it, on the open square.
+## level. The worker stands east of it, on the open square. The bench and the
+## wood, stone and iron on it are one weathered mesh (see VillageProps); only
+## what shines or glows has a material of its own.
 static func build(level: Level, c: Vector2i, ch: String) -> void:
 	var pos := level.cell_to_world(c)
 	if ch == CHEST:
 		_build_chest(level, c, pos)
 		return
-	_build_table(level, pos)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("bench:%s:%d:%d" % [ch, c.x, c.y])
+	var b := WeatheredProps.Builder.new()
+	VillageProps.build_workbench(b, Vector3(-0.7, 0, 0), rng)
+	var top := Vector3(-0.7, 0.98, 0)
 	match ch:
 		"+":
+			VillageProps.dress_metalwork(b, top, rng)
 			_dress_metalwork(level, pos)
 		"%":
+			VillageProps.dress_gem_wheel(b, top, rng)
 			_dress_gem_wheel(level, pos)
 		"*":
+			VillageProps.dress_alchemy(b, top, CAULDRON, rng)
 			_dress_alchemy(level, pos)
+	b.finish(level, pos)
 	var bench: Dictionary = BENCHES[ch]
 	_add_sign(level, pos, Lang.t(bench.sign))
 	level._add_solid(pos + Vector3(-0.5, 0, 0), Vector3(2.0, 1.2, 3.0))
@@ -87,55 +97,42 @@ static func build(level: Level, c: Vector2i, ch: String) -> void:
 
 # --- Pieces -------------------------------------------------------------------
 
+## Where the alchemist's cauldron stands, from the middle of the tile: in
+## front of the south end of the bench.
+const CAULDRON := Vector3(0.55, 0, 1.15)
+
+
 ## The hero's storage chest, iron-bound, its lid turned to the square, with
 ## a sign so nobody walks past it.
 static func _build_chest(level: Level, c: Vector2i, pos: Vector3) -> void:
 	level._place("chest", pos + Vector3(-0.4, 0, 0), PI * 0.5)
-	# A low stone plinth keeps it off the wet paving.
-	_box(level, pos + Vector3(-0.4, 0.06, 0), Vector3(1.9, 0.12, 2.3), _mat(Color(0.5, 0.48, 0.45), 0.95))
+	# A low plinth of two old slabs keeps it off the wet paving.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("chest:%d:%d" % [c.x, c.y])
+	var b := WeatheredProps.Builder.new()
+	for z in [-0.58, 0.58]:
+		b.box(Vector3(-0.4, 0, z), Vector3(1.9, 0.12, 1.12), WeatheredProps.vary(WeatheredProps.STONES[3], rng),
+				WeatheredProps.STONE, Basis(Vector3.UP, rng.randf_range(-0.03, 0.03)))
+	b.finish(level, pos)
 	_add_sign(level, pos, Lang.t("Deine Truhe"))
 	level._add_solid(pos + Vector3(-0.4, 0, 0), Vector3(2.0, 1.5, 2.4))
 	level.stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
 
 
-## A heavy wooden workbench along the west side of the tile.
-static func _build_table(level: Level, pos: Vector3) -> void:
-	var wood := _mat(Color(0.42, 0.28, 0.16), 0.9)
-	var dark := _mat(Color(0.3, 0.2, 0.12), 0.9)
-	var at := pos + Vector3(-0.7, 0, 0)
-	_box(level, at + Vector3(0, 0.92, 0), Vector3(1.3, 0.12, 2.6), wood)
-	for x in [-0.55, 0.55]:
-		for z in [-1.15, 1.15]:
-			_box(level, at + Vector3(x, 0.43, z), Vector3(0.14, 0.86, 0.14), dark)
-	# A shelf low down, with a crossbar along the back.
-	_box(level, at + Vector3(0, 0.22, 0), Vector3(1.1, 0.06, 2.3), dark)
-	_box(level, at + Vector3(-0.55, 0.6, 0), Vector3(0.08, 0.1, 2.3), dark)
-
-
-## A small anvil, a glowing crucible, a candle, a gold ring and coils of wire.
+## On the fine metalwork bench, besides the anvil and the hearth of bricks
+## (see VillageProps.dress_metalwork): the metal glowing in the crucible, a
+## gold ring and a coil of silver wire, and a warm light.
 static func _dress_metalwork(level: Level, pos: Vector3) -> void:
 	var top := pos + Vector3(-0.7, 0.98, 0)
-	var iron := _mat(Color(0.22, 0.22, 0.24), 0.45, 0.75)
-	_box(level, top + Vector3(0.1, 0.06, -0.6), Vector3(0.18, 0.12, 0.14), iron)
-	_box(level, top + Vector3(0.1, 0.16, -0.6), Vector3(0.42, 0.1, 0.18), iron)
-	_box(level, top + Vector3(0.36, 0.17, -0.6), Vector3(0.12, 0.06, 0.1), iron)
-	# The crucible on a little hearth of bricks, the metal in it glowing.
-	var brick := _mat(Color(0.48, 0.26, 0.18), 0.95)
-	_box(level, top + Vector3(-0.1, 0.12, 0.65), Vector3(0.5, 0.24, 0.5), brick)
 	var glow := _mat(Color(0.4, 0.12, 0.02), 0.6)
 	glow.emission_enabled = true
 	glow.emission = Color(1.0, 0.55, 0.15)
 	glow.emission_energy_multiplier = 2.0
-	var cup := CylinderMesh.new()
-	cup.top_radius = 0.13
-	cup.bottom_radius = 0.09
-	cup.height = 0.16
-	_mesh(level, cup, _mat(Color(0.35, 0.33, 0.3), 0.8), top + Vector3(-0.1, 0.32, 0.65))
 	var melt := CylinderMesh.new()
 	melt.top_radius = 0.11
 	melt.bottom_radius = 0.11
 	melt.height = 0.02
-	_mesh(level, melt, glow, top + Vector3(-0.1, 0.4, 0.65))
+	_mesh(level, melt, glow, top + Vector3(-0.1, 0.39, 0.65))
 	# A finished ring and a coil of silver wire, catching the light.
 	var gold := _mat(Color(0.95, 0.75, 0.3), 0.25, 1.0)
 	var ring := TorusMesh.new()
@@ -155,28 +152,12 @@ static func _dress_metalwork(level: Level, pos: Vector3) -> void:
 	level.add_child(light)
 
 
-## A grinding wheel on its frame with a crank, and cut stones in red, blue
-## and green that glitter.
+## On the gem cutter's bench, besides the wheel (see
+## VillageProps.dress_gem_wheel): cut stones in red, blue and green on a
+## cloth, glittering.
 static func _dress_gem_wheel(level: Level, pos: Vector3) -> void:
 	var top := pos + Vector3(-0.7, 0.98, 0)
-	var wood := _mat(Color(0.3, 0.2, 0.12), 0.9)
-	var iron := _mat(Color(0.25, 0.25, 0.27), 0.45, 0.7)
-	for z in [-0.75, -0.25]:
-		_box(level, top + Vector3(0, 0.25, z), Vector3(0.1, 0.5, 0.1), wood)
-	var axle := CylinderMesh.new()
-	axle.top_radius = 0.03
-	axle.bottom_radius = 0.03
-	axle.height = 0.7
-	_mesh(level, axle, iron, top + Vector3(0, 0.48, -0.5), Vector3(PI * 0.5, 0, 0))
-	# The wheel turns in the plane facing the worker.
-	var wheel := CylinderMesh.new()
-	wheel.top_radius = 0.4
-	wheel.bottom_radius = 0.4
-	wheel.height = 0.1
-	_mesh(level, wheel, _mat(Color(0.62, 0.6, 0.55), 0.95), top + Vector3(0, 0.48, -0.5), Vector3(PI * 0.5, 0, 0))
-	_box(level, top + Vector3(0.12, 0.48, -0.1), Vector3(0.24, 0.04, 0.04), iron)
-	# Cut stones on a cloth.
-	_box(level, top + Vector3(0.05, 0.005, 0.6), Vector3(0.7, 0.01, 0.8), _mat(Color(0.25, 0.12, 0.3), 0.95))
+	_mesh(level, _box_mesh(Vector3(0.7, 0.01, 0.8)), WeatheredProps.colour_material(Color(0.3, 0.16, 0.34)), top + Vector3(0.05, 0.005, 0.6))
 	var colours := [Color(0.9, 0.1, 0.15), Color(0.15, 0.35, 1.0), Color(0.1, 0.85, 0.35), Color(0.95, 0.85, 0.3), Color(0.7, 0.3, 0.95)]
 	for i in colours.size():
 		var gem := _mat(colours[i], 0.1, 0.2)
@@ -192,8 +173,9 @@ static func _dress_gem_wheel(level: Level, pos: Vector3) -> void:
 	level.add_child(sparkle)
 
 
-## Bottles and a mortar on the table, and a cauldron bubbling green over a
-## small fire beside it.
+## On and by the alchemist's table, besides the cauldron, the mortar and the
+## book (see VillageProps.dress_alchemy): bottles of coloured brews, the
+## green brew bubbling in the cauldron over a small fire, and its light.
 static func _dress_alchemy(level: Level, pos: Vector3) -> void:
 	var top := pos + Vector3(-0.7, 0.98, 0)
 	var glass := [Color(0.3, 0.8, 0.4, 0.75), Color(0.7, 0.2, 0.8, 0.75), Color(0.9, 0.4, 0.15, 0.75), Color(0.3, 0.5, 0.95, 0.75)]
@@ -213,30 +195,16 @@ static func _dress_alchemy(level: Level, pos: Vector3) -> void:
 		neck.bottom_radius = 0.03
 		neck.height = 0.1
 		_mesh(level, neck, bottle, top + Vector3(-0.2 + (i % 2) * 0.25, body.height + 0.05, -0.9 + i * 0.22))
-	var mortar := CylinderMesh.new()
-	mortar.top_radius = 0.13
-	mortar.bottom_radius = 0.09
-	mortar.height = 0.14
-	_mesh(level, mortar, _mat(Color(0.6, 0.58, 0.55), 0.95), top + Vector3(0.1, 0.07, 0.35))
-	# An open book of recipes.
-	_box(level, top + Vector3(0.0, 0.03, 0.85), Vector3(0.4, 0.05, 0.55), _mat(Color(0.9, 0.85, 0.7), 0.95))
-	# The cauldron in front of the south end, over a few glowing logs.
-	var at := pos + Vector3(0.55, 0, 1.15)
-	var iron := _mat(Color(0.12, 0.12, 0.13), 0.6, 0.6)
-	var pot := CylinderMesh.new()
-	pot.top_radius = 0.42
-	pot.bottom_radius = 0.3
-	pot.height = 0.55
-	_mesh(level, pot, iron, at + Vector3(0, 0.5, 0))
+	var at := pos + CAULDRON
 	var brew := _mat(Color(0.2, 0.7, 0.2), 0.3)
 	brew.emission_enabled = true
 	brew.emission = Color(0.35, 1.0, 0.3)
 	brew.emission_energy_multiplier = 1.2
 	var surface := CylinderMesh.new()
-	surface.top_radius = 0.38
-	surface.bottom_radius = 0.38
+	surface.top_radius = 0.4
+	surface.bottom_radius = 0.4
 	surface.height = 0.02
-	_mesh(level, surface, brew, at + Vector3(0, 0.76, 0))
+	_mesh(level, surface, brew, at + Vector3(0, 0.72, 0))
 	var fire := Effects.make_flame()
 	fire.position = at + Vector3(0, 0.12, 0)
 	fire.scale = Vector3.ONE * 0.8
@@ -255,6 +223,7 @@ static func _dress_alchemy(level: Level, pos: Vector3) -> void:
 
 static func _add_sign(level: Level, pos: Vector3, text: String) -> void:
 	var board := Effects.shop_sign(text, SIGN_FONT)
+	WeatheredProps.weather_plain(board)
 	board.position = pos + Vector3(-1.6, 0, 1.75)
 	level.add_child(board)
 	level._add_solid(pos + Vector3(-1.6, 0, 1.75), Vector3(0.5, 2.6, 0.5))
@@ -270,10 +239,10 @@ static func _mat(color: Color, roughness := 0.7, metallic := 0.0) -> StandardMat
 	return m
 
 
-static func _box(level: Level, pos: Vector3, size: Vector3, mat: Material) -> void:
+static func _box_mesh(size: Vector3) -> BoxMesh:
 	var mesh := BoxMesh.new()
 	mesh.size = size
-	_mesh(level, mesh, mat, pos)
+	return mesh
 
 
 static func _mesh(level: Level, mesh: Mesh, mat: Material, pos: Vector3, rot := Vector3.ZERO) -> void:

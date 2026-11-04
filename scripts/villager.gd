@@ -789,6 +789,11 @@ static func _torch_wood() -> StandardMaterial3D:
 	return _wood
 
 
+## The door of the house the villager sleeps in (see _house_door).
+func house_door() -> Vector3:
+	return _house_door()
+
+
 ## The door of the house nearest to the villager's own spot.
 func _house_door() -> Vector3:
 	var houses: Array = level.spots.houses

@@ -12,6 +12,11 @@ extends RefCounted
 ##
 ## The line is drawn in again when the hero walks away from the water, is
 ## hit, or opens a window.
+##
+## The line flies well out over a pond (CAST_REACH), and now and then a
+## little pond monster surfaces near the float while the hero waits (see
+## MONSTER_WATERS): it peeks at the hero, says "Blubb!" and either sinks
+## again or snaps up the bait and takes the float under with it.
 
 ## What bites in each water: [catch, weight, when]. A catch is a fish (an
 ## ingredient id), "muenze" for an old coin (+1 gold) or "" for weed.
@@ -29,6 +34,32 @@ const WAIT_MIN := 2.5
 const WAIT_MAX := 6.5
 ## Seconds the hero has to strike once the float jerks under.
 const BITE_TIME := 1.2
+## How far the line flies at most, from the hero out over a pond (metres).
+## The float lands as far out as that, but always clear of the far shore.
+const CAST_REACH := 6.0
+## How far the float stays from any shore, and the pond monster with its
+## tail (metres). The pond's ground fades from water to grass over most of
+## a tile, so the water that shows starts well inside the map's pond tiles.
+const SHORE_GAP := 1.2
+const MONSTER_SHORE_GAP := 1.8
+## The waters where the little pond monster lives (not the fountain).
+const MONSTER_WATERS := ["teich", "senke"]
+## The chance, for each cast into one of those waters, that it shows up.
+const MONSTER_CHANCE := 0.15
+## Seconds the monster takes to rise, how long it stays up, and to sink.
+const MONSTER_RISE := 0.7
+const MONSTER_STAY := 2.8
+const MONSTER_SINK := 0.7
+## The chance that the monster snaps up the bait when it shows up.
+const MONSTER_STEALS := 0.4
+## How big the monster is drawn, on top of the sizes in make_monster, and
+## how deep it hides below the water before it rises (metres).
+const MONSTER_SCALE := 1.7
+const MONSTER_DEPTH := 1.4
+## How far from the float the monster surfaces (metres).
+const MONSTER_DISTANCE := 1.6
+## Explained in the compendium the first time the monster shows up.
+const MONSTER_LORE := "Das kleine Teichungeheuer: Im Dorfteich und im Tümpel der Wolfssenke lebt ein kleines grünes Ungeheuer. Manchmal taucht es beim Angeln neben dem Schwimmer auf und schaut neugierig. Es tut niemandem etwas, aber manchmal schnappt es sich den Köder."
 ## Explained once in the compendium, the first time the line is cast.
 const HOW_TO := "Angeln (Taste G oder der Knopf „Angeln“): stell dich ans Wasser und wirf die Leine aus. Taucht der Schwimmer unter und erscheint ein !, drück schnell noch einmal. Fische kommen in den Zutatenbeutel. Seltene Fische beißen nur in einem Gewässer, manche nur zu bestimmten Stunden."
 
@@ -45,6 +76,16 @@ var _hp_at_cast := 0
 var _float: Node3D
 var _float_rest := Vector3.ZERO
 var _bob := 0.0
+## The line from the hero's hand to the float, redrawn every frame.
+var _line: MeshInstance3D
+## The pond monster, while it is up; how long it has been up; the value of
+## `timer` at which it rises this cast (-1: not this cast); whether it takes
+## the bait; and where it surfaced.
+var monster: Node3D
+var _monster_age := 0.0
+var _monster_due := -1.0
+var _monster_steals := false
+var _monster_home := Vector3.ZERO
 var rng := RandomNumberGenerator.new()
 
 
@@ -97,17 +138,52 @@ func cast(w: Dictionary) -> void:
 	game.player.face(w.pos - p)
 	game.player.play_once("Throw", 0.6)
 	Sfx.play(game, "swing", -6.0)
-	_float_rest = float_spot(w, p)
+	_float_rest = float_spot(w, p, _level.fishing_waters)
 	_float = _make_float()
 	_float.position = _float_rest
 	_level.add_child(_float)
+	_line = _make_line()
+	_level.add_child(_line)
+	_draw_line()
+	_monster_due = -1.0
+	if w.water in MONSTER_WATERS and rng.randf() < MONSTER_CHANCE:
+		# Some time while the hero waits, before a fish bites.
+		_monster_due = rng.randf_range(0.0, maxf(0.0, timer - 1.5))
+		_monster_steals = rng.randf() < MONSTER_STEALS
 	Events.teach(HOW_TO)
 	game.show_message(Lang.t("Du wirfst die Leine aus und wartest …"), 2.0)
 
 
-## Where the float lands: on the water, a little way in from the edge
-## closest to the hero.
-static func float_spot(w: Dictionary, from: Vector3) -> Vector3:
+## Where the float lands. On a pond the line flies out from the hero, past
+## the nearest edge and on over the water, up to CAST_REACH metres from the
+## hero but always SHORE_GAP clear of any shore; `waters` are the level's
+## fishing waters, so it can fly on over a pond made of several tiles. The
+## small fountain basin keeps the float near its middle.
+static func float_spot(w: Dictionary, from: Vector3, waters: Array = []) -> Vector3:
+	var near := edge_spot(w, from)
+	if w.round:
+		return near
+	var start := Vector3(from.x, 0, from.z)
+	var dir := Vector3(near.x, 0, near.z) - start
+	if dir.length() < 0.01:
+		return near
+	dir = dir.normalized()
+	var best := near
+	var entered := false
+	var t := 0.0
+	while t <= CAST_REACH:
+		var p := start + dir * t
+		if is_deep(waters, w.water, p):
+			best = Vector3(p.x, w.surface, p.z)
+			entered = true
+		elif entered and not on_water(waters, w.water, p):
+			break
+		t += 0.25
+	return best
+
+
+## The spot just inside the edge of a water that is closest to the hero.
+static func edge_spot(w: Dictionary, from: Vector3) -> Vector3:
 	var to := Vector3(from.x - w.pos.x, 0, from.z - w.pos.z)
 	var spot: Vector3 = w.pos
 	if w.round:
@@ -117,6 +193,25 @@ static func float_spot(w: Dictionary, from: Vector3) -> Vector3:
 		spot += Vector3(clampf(to.x, -inner, inner), 0, clampf(to.z, -inner, inner))
 	spot.y = w.surface
 	return spot
+
+
+## Whether a spot lies on one of the waters of a kind ("teich", ...).
+static func on_water(waters: Array, kind: String, p: Vector3) -> bool:
+	for w in waters:
+		if w.water == kind and Level.water_distance(w, p) <= 0.0:
+			return true
+	return false
+
+
+## Whether a spot is out on a water, at least `gap` metres from every shore
+## (also across the diagonals, so not tucked into a corner).
+static func is_deep(waters: Array, kind: String, p: Vector3, gap := SHORE_GAP) -> bool:
+	if not on_water(waters, kind, p):
+		return false
+	for i in 8:
+		if not on_water(waters, kind, p + Vector3(gap, 0, 0).rotated(Vector3.UP, i * TAU / 8.0)):
+			return false
+	return true
 
 
 ## A red and white float, a little ball on the water.
@@ -138,6 +233,36 @@ func _make_float() -> Node3D:
 	return node
 
 
+## The fishing line: a thin pale cord, drawn anew every frame.
+func _make_line() -> MeshInstance3D:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.92, 0.92, 0.86)
+	var line := MeshInstance3D.new()
+	line.mesh = ImmediateMesh.new()
+	line.material_override = mat
+	line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return line
+
+
+## Draws the line from the hero's raised hand to the float, sagging a little.
+func _draw_line() -> void:
+	if not is_instance_valid(_line) or not is_instance_valid(_float):
+		return
+	var hero: Vector3 = _level.to_local(SmoothMotion.drawn_at(game.player))
+	var tip := _float.position + Vector3(0, 0.1, 0)
+	var flat := Vector3(tip.x - hero.x, 0, tip.z - hero.z)
+	var hand: Vector3 = hero + flat.normalized() * 0.45 + Vector3(0, 1.35, 0) if flat.length() > 0.01 else hero + Vector3(0, 1.35, 0)
+	var sag := 0.05 * flat.length()
+	var mesh: ImmediateMesh = _line.mesh
+	mesh.clear_surfaces()
+	mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
+	for i in 13:
+		var k := i / 12.0
+		mesh.surface_add_vertex(hand.lerp(tip, k) - Vector3(0, sag * 4.0 * k * (1.0 - k), 0))
+	mesh.surface_end()
+
+
 ## Called every frame by the game.
 func tick(delta: float) -> void:
 	if state == IDLE:
@@ -155,6 +280,13 @@ func tick(delta: float) -> void:
 		return
 	_hp_at_cast = maxi(_hp_at_cast, game.player.hp)
 	_bob += delta
+	if state == WAITING and _monster_due >= 0.0 and timer <= _monster_due:
+		monster_rises(_monster_steals)
+	if is_instance_valid(monster):
+		# No fish bites while the monster is about.
+		_tick_monster(delta)
+		_draw_line()
+		return
 	timer -= delta
 	if state == WAITING:
 		_float.position = _float_rest + Vector3(0, sin(_bob * 2.2) * 0.03, 0)
@@ -166,6 +298,8 @@ func tick(delta: float) -> void:
 		if timer <= 0.0:
 			stop()
 			game.show_message(Lang.t("Zu langsam! Der Fisch ist weg."), 1.8)
+			return
+	_draw_line()
 
 
 ## A fish takes the bait: the hero has BITE_TIME seconds to strike.
@@ -222,9 +356,194 @@ func stop() -> void:
 	state = IDLE
 	water = {}
 	_level = null
-	if is_instance_valid(_float):
-		_float.queue_free()
+	_monster_due = -1.0
+	for node in [_float, _line, monster]:
+		if is_instance_valid(node):
+			node.queue_free()
 	_float = null
+	_line = null
+	monster = null
+
+
+## The little pond monster surfaces near the float. With `steals` it snaps
+## up the bait at the end and takes the float under with it.
+func monster_rises(steals: bool) -> void:
+	_monster_due = -1.0
+	if state != WAITING or is_instance_valid(monster) or not (water.water in MONSTER_WATERS):
+		return
+	_monster_steals = steals
+	_monster_age = 0.0
+	_monster_home = monster_spot(_level.fishing_waters, water, _float_rest, game.player.global_position)
+	monster = make_monster()
+	monster.position = _monster_home + Vector3(0, -MONSTER_DEPTH, 0)
+	_level.add_child(monster)
+	_face_hero()
+	_ripple(_monster_home)
+	Sfx.play(game, "drip", -2.0, _monster_home, 0.55)
+	Events.teach(MONSTER_LORE)
+	game.show_message(Lang.t("Neben dem Schwimmer taucht ein kleines Teichungeheuer auf!"), 2.5)
+
+
+## Where the monster surfaces: MONSTER_DISTANCE from the float, out on the
+## water, a little to one side of the way from the hero (so the hero's name
+## tag does not hide it); else straight beyond it, or by the float.
+static func monster_spot(waters: Array, w: Dictionary, float_at: Vector3, hero: Vector3) -> Vector3:
+	var away := Vector3(float_at.x - hero.x, 0, float_at.z - hero.z)
+	away = away.normalized() if away.length() > 0.01 else Vector3.FORWARD
+	for distance in [MONSTER_DISTANCE, MONSTER_DISTANCE * 0.65]:
+		for turn in [0.8, -0.8, 0.0, 1.6, -1.6, 2.4, -2.4]:
+			var p: Vector3 = float_at + away.rotated(Vector3.UP, turn) * distance
+			if is_deep(waters, w.water, p, MONSTER_SHORE_GAP):
+				return Vector3(p.x, w.surface, p.z)
+	return float_at + away * 0.6
+
+
+## The monster's head turns toward the hero.
+func _face_hero() -> void:
+	var to: Vector3 = _level.to_local(game.player.global_position) - monster.position
+	to.y = 0
+	if to.length() > 0.01:
+		monster.rotation.y = atan2(-to.x, -to.z)
+
+
+## The monster's visit, frame by frame: it rises, bobs and blinks, looks at
+## the hero and says "Blubb!", then sinks again. If it takes the bait it
+## glides to the float first and pulls it under as it sinks.
+func _tick_monster(delta: float) -> void:
+	_monster_age += delta
+	var t := _monster_age
+	var up := _monster_home
+	var float_y := sin(_bob * 2.2) * 0.03
+	if t < MONSTER_RISE:
+		var k := t / MONSTER_RISE
+		monster.position = up + Vector3(0, -MONSTER_DEPTH * (1.0 - k * k * (3.0 - 2.0 * k)), 0)
+	elif t < MONSTER_RISE + MONSTER_STAY:
+		var s := t - MONSTER_RISE
+		var pos := up
+		if _monster_steals:
+			# Glides over to the float in the second half of its stay.
+			var k := clampf((s - MONSTER_STAY * 0.5) / (MONSTER_STAY * 0.45), 0.0, 1.0)
+			pos = up.lerp(Vector3(_float_rest.x, up.y, _float_rest.z), k * k * (3.0 - 2.0 * k))
+		monster.position = pos + Vector3(0, sin(s * 3.0) * 0.04, 0)
+		monster.rotation.z = sin(s * 2.0) * 0.08
+		_face_hero()
+		if _monster_steals and s > MONSTER_STAY * 0.5:
+			monster.rotation.y = lerp_angle(monster.rotation.y, atan2(-(_float_rest.x - monster.position.x), -(_float_rest.z - monster.position.z)), minf(1.0, delta * 6.0))
+		# A blink now and then.
+		var eyes := monster.get_node_or_null("Eyes") as Node3D
+		if eyes:
+			eyes.scale.y = 0.15 if fmod(s, 1.6) > 1.45 else 1.0
+		if s - delta < 0.5 and s >= 0.5:
+			Effects.float_text(_level, up + Vector3(0, 1.3, 0), Lang.t("Blubb!"), Color(0.6, 0.95, 0.75), true)
+			Sfx.play(game, "drip", -4.0, up, 0.7)
+	elif t < MONSTER_RISE + MONSTER_STAY + MONSTER_SINK:
+		var k := (t - MONSTER_RISE - MONSTER_STAY) / MONSTER_SINK
+		var here := Vector3(monster.position.x, up.y, monster.position.z)
+		monster.position = here + Vector3(0, -MONSTER_DEPTH * k * k, 0)
+		if _monster_steals:
+			float_y = -0.5 * k
+		if t - delta < MONSTER_RISE + MONSTER_STAY:
+			_ripple(here)
+			Sfx.play(game, "drip", -3.0, here, 0.6)
+	else:
+		if _monster_steals:
+			stop()
+			game.show_message(Lang.t("Das kleine Teichungeheuer schnappt sich deinen Köder und taucht damit ab!"), 2.5)
+			return
+		monster.queue_free()
+		monster = null
+		# The fish need a moment to come back.
+		timer = maxf(timer, 1.0)
+		game.show_message(Lang.t("Das kleine Teichungeheuer taucht wieder ab. Du wartest weiter …"), 2.0)
+	if is_instance_valid(_float):
+		_float.position = _float_rest + Vector3(0, float_y, 0)
+
+
+## A small green pond monster, about knee high above the water: a round
+## head with big eyes and two stubby horns, and a hump and a tail tip
+## behind it. It looks along -Z.
+static func make_monster() -> Node3D:
+	var root := Node3D.new()
+	root.name = "PondMonster"
+	var skin := _paint(Color(0.25, 0.55, 0.42))
+	var belly := _paint(Color(0.55, 0.78, 0.5))
+	var parts := [
+		[_ball(0.3), skin, Vector3(0, 0.25, -0.05), Vector3(1.0, 1.0, 1.0)],
+		[_ball(0.2), belly, Vector3(0, 0.15, -0.2), Vector3(1.1, 0.8, 0.7)],
+		[_ball(0.22), skin, Vector3(0, 0.02, 0.45), Vector3(1.0, 0.8, 1.2)],
+		[_ball(0.13), skin, Vector3(0, 0.0, 0.85), Vector3(1.0, 0.8, 1.3)],
+	]
+	for part in parts:
+		var mi := _mesh_part(part[0], part[1], part[2])
+		mi.scale = part[3]
+		root.add_child(mi)
+	for side in [-1.0, 1.0]:
+		var horn := CylinderMesh.new()
+		horn.top_radius = 0.0
+		horn.bottom_radius = 0.06
+		horn.height = 0.18
+		var h := _mesh_part(horn, belly, Vector3(side * 0.15, 0.55, 0.0))
+		h.rotation.z = -side * 0.35
+		root.add_child(h)
+	# The eyes, in their own node so they can blink.
+	var eyes := Node3D.new()
+	eyes.name = "Eyes"
+	eyes.position = Vector3(0, 0.36, -0.25)
+	var white := _paint(Color(0.97, 0.97, 0.92), 0.3)
+	var dark := _paint(Color(0.05, 0.05, 0.08), 0.2)
+	for side in [-1.0, 1.0]:
+		eyes.add_child(_mesh_part(_ball(0.09), white, Vector3(side * 0.11, 0, 0)))
+		eyes.add_child(_mesh_part(_ball(0.045), dark, Vector3(side * 0.11, 0.0, -0.07)))
+	root.add_child(eyes)
+	root.scale = Vector3.ONE * MONSTER_SCALE
+	return root
+
+
+static func _ball(radius: float) -> SphereMesh:
+	var mesh := SphereMesh.new()
+	mesh.radius = radius
+	mesh.height = radius * 2.0
+	mesh.radial_segments = 16
+	mesh.rings = 8
+	return mesh
+
+
+static func _paint(color: Color, roughness := 0.6) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = roughness
+	return mat
+
+
+static func _mesh_part(mesh: Mesh, mat: Material, pos: Vector3) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.position = pos
+	return mi
+
+
+## A pale ring that spreads over the water and fades, where the monster
+## rises or sinks.
+func _ripple(at: Vector3) -> void:
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.4
+	torus.outer_radius = 0.5
+	ring.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.85, 0.95, 1.0, 0.6)
+	ring.material_override = mat
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ring.position = at + Vector3(0, 0.02, 0)
+	ring.scale = Vector3(1, 0.1, 1)
+	_level.add_child(ring)
+	var tw := ring.create_tween().set_parallel()
+	tw.tween_property(ring, "scale", Vector3(2.6, 0.1, 2.6), 1.0)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 1.0)
+	tw.chain().tween_callback(ring.queue_free)
 
 
 ## Whether it is dawn or dusk, when the silver pike bites.

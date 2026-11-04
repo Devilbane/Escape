@@ -464,6 +464,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/nest_chicks.gd | tee chicks.log
           grep -q PASS chicks.log
 
+      - name: Villagers feed the birds (seed scattered, birds peck and perch on the feeder)
+        run: |
+          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/bird_feeding.gd | tee feeding.log
+          grep -q PASS feeding.log
+
       - name: Map and journal test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/journal.gd | tee journal.log

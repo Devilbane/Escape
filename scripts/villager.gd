@@ -247,6 +247,26 @@ var _stuck := 0.0
 var _rebound := false
 var _blows := 0
 static var _wood: StandardMaterial3D
+## Feeding the birds (see VillageBirds): how many handfuls of seed are thrown,
+## how far ahead they land (metres), when in the throw the seed leaves the
+## hand (seconds), and the breath between two throws.
+const SEED_TOSSES := 3
+const SEED_AHEAD := 2.2
+const SEED_RELEASE := 0.42
+const SEED_PAUSE := Vector2(0.7, 1.6)
+## What the feeder calls out to the birds (for the event log, see Events.say).
+const SEED_CALLS := ["Put, put, put! Kommt, ihr Kleinen!", "Hier, ihr Piepmätze, frische Körner!", "Na, wer hat Hunger?"]
+## A handful of seed leaves the hand at `from` and lands around `to` (both
+## in world space).
+signal seeds_tossed(from: Vector3, to: Vector3)
+## The handfuls still to throw, the seconds into this throw (or, below zero,
+## to the next), whether this throw has let go yet, and where the seed lands.
+var _tosses := 0
+var _toss_clock := 0.0
+var _tossed := false
+var _seed_spot := Vector3.INF
+var _skeleton: Skeleton3D
+var _head_top := -1.0
 
 
 func setup(owner_level: Outdoor, role_char: String, cell: Vector2i) -> void:
@@ -550,6 +570,8 @@ func _physics_process(delta: float) -> void:
 		"listen":
 			_turn_to(_listen_to - global_position, delta)
 			play("Idle")
+		"feed":
+			_feed(delta)
 		"chat":
 			if chat_partner and is_instance_valid(chat_partner):
 				_turn_to(chat_partner.global_position - global_position, delta)
@@ -1065,6 +1087,125 @@ func _update_bubble(delta: float) -> void:
 		_quest_mark.position.y = _mark_base + 0.08 * sin(_mark_time * 3.0)
 	if _bubble_time <= 0.0:
 		_look_at = Vector3.INF
+
+
+# --- Feeding the birds (see VillageBirds) ---------------------------------------
+
+## Whether we could stop to feed the birds now: awake, out in the street,
+## idling (after an errand, between rounds), not talking or listening, and
+## not one who keeps to a shop or a spot.
+func can_feed_birds() -> bool:
+	if chat_partner != null or at_home or not visible or role == "%" or singing or night:
+		return false
+	return _task == "idle" and _bubble_time <= 0.0 and _listen_to == Vector3.INF and not keeps_spot()
+
+
+## Stops for `time` seconds to throw a few handfuls of seed on the ground
+## ahead, calls the birds and stands watching them. Returns where the seed
+## lands (world space, on the ground).
+func feed_birds(time: float) -> Vector3:
+	_start("feed", time)
+	_tosses = SEED_TOSSES
+	_toss_clock = -0.3
+	_tossed = false
+	var ahead := Vector3(sin(rotation.y), 0.0, cos(rotation.y))
+	_seed_spot = Vector3(global_position.x, 0.0, global_position.z) + ahead * SEED_AHEAD
+	Events.say(display_name, Lang.t(SEED_CALLS[_rng.randi() % SEED_CALLS.size()]), global_position)
+	return _seed_spot
+
+
+## Whether we are feeding the birds right now.
+func is_feeding() -> bool:
+	return _task == "feed"
+
+
+## Throws the handfuls one after another, then stands still and watches.
+func _feed(delta: float) -> void:
+	_turn_to(_seed_spot - global_position, delta)
+	if _tosses <= 0:
+		play("Idle")
+		return
+	_toss_clock += delta
+	if _current_anim == "Throw":
+		if not _tossed and _toss_clock >= SEED_RELEASE:
+			_tossed = true
+			_tosses -= 1
+			seeds_tossed.emit(hand_at(), _seed_spot)
+		if _toss_clock >= SEED_RELEASE and not _anim.is_playing():
+			play("Idle", 0.2)
+			_toss_clock = -_rng.randf_range(SEED_PAUSE.x, SEED_PAUSE.y)
+		return
+	if _toss_clock >= 0.0:
+		_current_anim = "Throw"
+		_anim.play("Throw", 0.15)
+		_toss_clock = 0.0
+		_tossed = false
+
+
+func _bones() -> Skeleton3D:
+	if _skeleton == null and _model:
+		var found := _model.find_children("*", "Skeleton3D", true, false)
+		if not found.is_empty():
+			_skeleton = found[0]
+	return _skeleton
+
+
+## The throwing hand, in world space.
+func hand_at() -> Vector3:
+	var bones := _bones()
+	if bones == null:
+		return global_position + Vector3.UP * 1.2
+	return (bones.global_transform * bones.get_bone_global_pose(bones.find_bone("handslot.r"))).origin
+
+
+## Where a bird can sit on us, in our own space (so it can be drawn with our
+## smoothed body): 0 on top of the head (or the hat), 1 on the left shoulder,
+## 2 on the right one. The head turns and bobs with the animation, the birds
+## with it.
+func perch_point(slot: int) -> Vector3:
+	var bones := _bones()
+	if bones == null:
+		return Vector3(0.0, 2.3, 0.0) if slot == 0 else Vector3(0.45 * (1 if slot == 1 else -1), 1.3, 0.0)
+	var mine := global_transform.affine_inverse() * bones.global_transform
+	if slot == 0:
+		return mine * (bones.get_bone_global_pose(bones.find_bone("head")) * Vector3(0.0, _top_of_head(), 0.0))
+	var side := 1.0 if slot == 1 else -1.0
+	var arm := bones.get_bone_global_pose(bones.find_bone("upperarm.l" if slot == 1 else "upperarm.r")).origin
+	# Out on the shoulder, past the edge of the big head.
+	return mine * (arm + Vector3(side * PERCH_OUT, PERCH_UP, 0.14))
+
+
+## How far out and up from the shoulder joint a bird sits (model units).
+const PERCH_OUT := 0.46
+const PERCH_UP := 0.12
+
+
+## The top of the head above the head bone (model units): the hat or helmet
+## if one shows, else the head itself.
+func _top_of_head() -> float:
+	if _head_top >= 0.0:
+		return _head_top
+	var bones := _bones()
+	_head_top = 0.96
+	if bones == null:
+		return _head_top
+	var head_y := bones.get_bone_global_rest(bones.find_bone("head")).origin.y
+	for mi: MeshInstance3D in bones.find_children("*", "MeshInstance3D", true, false):
+		if not mi.is_visible_in_tree():
+			continue
+		if String(mi.name).ends_with("_Head"):
+			_head_top = maxf(_head_top, mi.get_aabb().end.y - head_y)
+			continue
+		# A hat, helmet, crest or bun fixed to the head bone: its box in the
+		# head's own space (a little below its very top, the tip of a hat).
+		var xf := Transform3D.IDENTITY
+		var node: Node = mi
+		while node != bones and not node is BoneAttachment3D:
+			xf = (node as Node3D).transform * xf
+			node = node.get_parent()
+		if node is BoneAttachment3D and (node as BoneAttachment3D).bone_name == "head":
+			_head_top = maxf(_head_top, (xf * mi.get_aabb()).end.y * 0.92)
+	return _head_top
 
 
 # --- Chatting with each other (see VillageTalk) ---------------------------------

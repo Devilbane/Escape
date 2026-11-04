@@ -23,6 +23,12 @@ extends Node3D
 ## hatch), others a brood of chicks. Hungry chicks stretch up, gape and
 ## cheep; their parents bring them the worms they find (see "carry"), and
 ## the hero can toss them a handful of grain (SEEDS) from below the nest.
+##
+## Now and then a villager idling in the street throws out a few handfuls of
+## seed (see Villager.feed_birds): the grains fly from the hand and scatter on
+## the ground, and the birds from the nests around come down and peck about
+## them. A few land on the feeder instead, on the head (or hat) and the
+## shoulders, and ride there until the seed is gone.
 
 const SHADER := preload("res://shaders/bird.gdshader")
 ## Birds per nest, flying speed (metres a second), how far they fly from
@@ -83,6 +89,31 @@ const CHEEP_EVERY := Vector2(1.2, 2.8)
 ## Seconds between two rocks of an egg, and how long a rock lasts.
 const ROCK_EVERY := Vector2(4.0, 11.0)
 const ROCK_TIME := 0.7
+## Feeding (see Villager.feed_birds): the seconds between two feedings (the
+## first comes sooner), how long the feeder stands there, how far from their
+## nest birds come for the seed, how many come at most, how many grains a
+## handful scatters and how wide, the seconds a grain flies, how long the seed
+## lies after the feeder has gone, and how near a grain a dipping beak picks
+## it up (metres).
+const SEED_EVERY := Vector2(45.0, 100.0)
+const SEED_FIRST := Vector2(8.0, 30.0)
+const SEED_TIME := Vector2(20.0, 30.0)
+const SEED_RANGE := 50.0
+const SEED_BIRDS := 7
+const SEED_GRAINS := 14
+const SEED_SPREAD := 1.7
+const SEED_FLIGHT := 0.55
+const SEED_LINGER := 25.0
+const SEED_BITE := 0.8
+## How likely a bird coming to the seed lands on the feeder (on the head or a
+## shoulder, see Villager.perch_point), how long it sits there before it
+## flutters down to the grains or turns round, how near the hero may come to
+## it (closer than to one on the ground: it trusts the feeder) and how big it
+## is drawn there (the birds are big beside the people's heads).
+const PERCH_CHANCE := 0.5
+const PERCH_STAY := Vector2(6.0, 14.0)
+const PERCH_SHY := 1.8
+const PERCH_SIZE := 0.72
 ## For the compendium.
 const LEARN := "Küken: In manchen Nestern auf den Dächern des Dorfes liegen Eier, in anderen sitzen junge Vögel. Hungrige Küken recken sich, sperren die Schnäbel auf und piepsen, bis ihre Eltern mit einem Wurm kommen. Trägst du Körner bei dir (bei der Krämerin), stell dich unter so ein Nest: Du wirfst den Küken eine Handvoll hinauf."
 ## Whether the hero was told how to feed the chicks (once a game).
@@ -117,6 +148,21 @@ var _chick_jaw: MultiMesh
 var _eggs: MultiMesh
 var _rng := RandomNumberGenerator.new()
 var _clock := 0.0
+## The feeding under way, or {}: {"by" (the Villager), "spot" (where the seed
+## lands, in our space), "called" (whether the birds were called yet, at the
+## first handful), "perch" (the bird on the head, left and right shoulder by
+## id, or -1)}.
+var feeding := {}
+## The grains thrown: {"from", "to", "t" (0 to 1 in the air, below 0 not
+## thrown yet), "eaten"}.
+var grains: Array = []
+var _grains: MultiMesh
+var _seed_wait := 0.0
+var _grain_left := 0.0
+## How many feedings there were and how many birds sat on a feeder (for the
+## tests).
+var feedings := 0
+var perched := 0
 
 
 func _init(level_node: Node3D, nest_spots: Array[Vector3], ground_spots: Array[Vector3], market_spots: Array[Vector3], seed_value: int) -> void:
@@ -134,7 +180,8 @@ func _init(level_node: Node3D, nest_spots: Array[Vector3], ground_spots: Array[V
 					"time": 1.0, "wait": _rng.randf_range(0.5, SIT.y), "state": "sit",
 					"phase": _rng.randf() * TAU, "yaw": _rng.randf() * TAU, "next": "out",
 					"kind": _rng.randi() % KINDS, "market": false, "dip": 0.0, "dipping": 0.0, "worm": 0.0,
-					"nest": n, "carry": false, "feed": 0.0})
+						"nest": n, "carry": false, "feed": 0.0, "id": birds.size(), "seeds": false, "perch": -1,
+						"turn": 0.0, "size": 1.0, "size_from": 1.0})
 	_mm = MultiMesh.new()
 	_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_mm.use_custom_data = true
@@ -169,6 +216,9 @@ func _init(level_node: Node3D, nest_spots: Array[Vector3], ground_spots: Array[V
 	for i in birds.size():
 		_show(i)
 	_make_broods(seed_value)
+	_grains = _brood_multimesh("Seeds", grain_mesh(), SEED_GRAINS * Villager.SEED_TOSSES)
+	_hide_grains()
+	_seed_wait = _rng.randf_range(SEED_FIRST.x, SEED_FIRST.y)
 
 
 func _process(delta: float) -> void:
@@ -187,6 +237,8 @@ func _process(delta: float) -> void:
 	var night: bool = level.get("night") == true
 	if hero_at != Vector3.INF:
 		_shy_away(hero_at)
+	_mind_feeding(delta, night)
+	_fly_grains(delta)
 	for i in birds.size():
 		_think(birds[i], delta, night)
 		_show(i)
@@ -198,6 +250,10 @@ func _process(delta: float) -> void:
 ## others pecking near them go with them.
 func _shy_away(hero_at: Vector3) -> void:
 	for b: Dictionary in birds:
+		if b.state == "perch":
+			if _flat_distance(b.at, hero_at) < PERCH_SHY:
+				_take_off(b)
+			continue
 		if b.state != "peck" or _flat_distance(b.at, hero_at) > SHY:
 			continue
 		var from: Vector3 = b.at
@@ -210,6 +266,8 @@ func _take_off(b: Dictionary) -> void:
 	b.worm = 0.0
 	b.dipping = 0.0
 	b.market = false
+	b.seeds = false
+	_leave_perch(b)
 	_fly(b, b.home, "home")
 	# Startled: they burst up steeply.
 	b.lift = float(b.lift) + 3.0
@@ -218,10 +276,23 @@ func _take_off(b: Dictionary) -> void:
 func _think(b: Dictionary, delta: float, night: bool) -> void:
 	match b.state:
 		"fly":
+			if b.next == "perch":
+				if feeding.is_empty() or int(b.perch) < 0:
+					# The feeder went off while it was on the way.
+					_leave_perch(b)
+					b.seeds = false
+					_fly(b, b.home, "home")
+				else:
+					b.to = _perch_at(int(b.perch))
 			b.t += delta / b.time
 			if b.t >= 1.0:
 				b.at = b.to
-				if b.to == b.home:
+				if b.next == "perch":
+					b.state = "perch"
+					b.wait = _rng.randf_range(PERCH_STAY.x, PERCH_STAY.y)
+					b.dip = _rng.randf_range(DIP_EVERY.x, DIP_EVERY.y) * 2.0
+					b.turn = _rng.randf_range(-0.6, 0.6)
+				elif b.to == b.home:
 					b.state = "sit"
 					b.market = false
 					b.wait = _rng.randf_range(SIT.x, SIT.y)
@@ -266,11 +337,19 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 				return
 			if b.dipping > 0.0:
 				b.dipping -= delta
-				if b.dipping <= 0.0 and _rng.randf() < WORM_CHANCE:
+				if b.dipping <= 0.0 and b.seeds:
+					# A grain, not a worm.
+					_eat_grain(b.at)
+				elif b.dipping <= 0.0 and _rng.randf() < WORM_CHANCE:
 					b.worm = WORM_TIME
 					b.carry = _wants_worm(b)
 				return
 			if b.wait <= 0.0:
+				if b.seeds and not feeding.is_empty():
+					# A few hops over to other grains, as long as there is seed.
+					_fly(b, _by_the_seed(), "peck")
+					return
+				b.seeds = false
 				if b.market and _rng.randf() < MARKET_FLUTTER:
 					# Over to another spot on the square, a few hops away.
 					var spot: Vector3 = b.at
@@ -309,6 +388,8 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 			if b.at != b.home:
 				_fly(b, b.home, "home")
 				return
+			if _to_seeds(b):
+				return
 			var roll := _rng.randf()
 			if roll < MARKET_CHANCE and _to_market(b):
 				return
@@ -327,6 +408,30 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 				var away := Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)).normalized() * _rng.randf_range(8.0, 16.0)
 				_fly(b, b.home + away + Vector3.UP * _rng.randf_range(1.0, 4.0), "sit")
 				b.wait = 0.0
+		"perch":
+			if night or feeding.is_empty():
+				_take_off(b)
+				return
+			b.at = _perch_at(int(b.perch))
+			b.yaw = _feeder_yaw() + float(b.turn)
+			b.wait -= delta
+			if b.dipping > 0.0:
+				b.dipping -= delta
+			else:
+				b.dip -= delta
+				if b.dip <= 0.0:
+					# A look down at the grains, or a turn to the other side.
+					b.dipping = DIP_TIME * 1.5
+					b.dip = _rng.randf_range(DIP_EVERY.x, DIP_EVERY.y) * 3.0
+					if _rng.randf() < 0.3:
+						b.turn = _rng.randf_range(-1.2, 1.2)
+			if b.wait <= 0.0:
+				if _rng.randf() < 0.5:
+					# Down to the grains, making room for another.
+					_leave_perch(b)
+					_fly(b, _by_the_seed(), "peck")
+				else:
+					b.wait = _rng.randf_range(PERCH_STAY.x, PERCH_STAY.y)
 
 
 ## A bird on the ground keeps a little room between itself and the others.
@@ -379,6 +484,7 @@ func _wants_worm(b: Dictionary) -> bool:
 
 
 func _fly(b: Dictionary, to: Vector3, next: String) -> void:
+	b.size_from = b.size
 	b.from = b.at
 	b.to = to
 	b.next = next
@@ -390,6 +496,216 @@ func _fly(b: Dictionary, to: Vector3, next: String) -> void:
 	b.state = "fly"
 
 
+# --- Fed by the villagers ------------------------------------------------------
+
+## Now and then, by day, a villager idling near the nests stops to feed the
+## birds; while they do, the birds come. When they stop (their time is up,
+## night falls, the herald calls), the birds on them fly off.
+func _mind_feeding(delta: float, night: bool) -> void:
+	if feeding.is_empty():
+		_seed_wait -= delta
+		if _seed_wait > 0.0 or night:
+			return
+		_seed_wait = _rng.randf_range(SEED_EVERY.x, SEED_EVERY.y)
+		start_feeding()
+		return
+	var by: Object = feeding.by
+	if night or not is_instance_valid(by) or not by.is_feeding():
+		end_feeding()
+
+
+## Picks a villager free to feed the birds near enough to the nests (or the
+## one given) and sets them to it. False when nobody is free (the next try
+## comes soon).
+func start_feeding(by: Node3D = null) -> bool:
+	if not feeding.is_empty():
+		return false
+	if by == null:
+		var free := []
+		var people = level.get("villagers")
+		for v in (people if people is Array else []):
+			if is_instance_valid(v) and v.has_method("can_feed_birds") and v.can_feed_birds():
+				var at := to_local(v.global_position)
+				if nests.any(func(n: Vector3): return _flat_distance(n, at) < SEED_RANGE * 0.8):
+					free.append(v)
+		if free.is_empty():
+			_seed_wait = _rng.randf_range(5.0, 12.0)
+			return false
+		by = free[_rng.randi() % free.size()]
+	var spot := to_local(by.feed_birds(_rng.randf_range(SEED_TIME.x, SEED_TIME.y)))
+	spot.y = 0.0
+	feeding = {"by": by, "spot": spot, "called": false, "perch": [-1, -1, -1]}
+	by.seeds_tossed.connect(_on_seeds_tossed)
+	feedings += 1
+	return true
+
+
+## The feeder is done: the birds on them fly home, the others peck what is
+## left, and the seed lies a while longer.
+func end_feeding() -> void:
+	if feeding.is_empty():
+		return
+	var by: Object = feeding.by
+	if is_instance_valid(by) and by.seeds_tossed.is_connected(_on_seeds_tossed):
+		by.seeds_tossed.disconnect(_on_seeds_tossed)
+	for b: Dictionary in birds:
+		if int(b.perch) >= 0:
+			_take_off(b)
+	feeding = {}
+	_grain_left = SEED_LINGER
+
+
+## A handful leaves the feeder's hand: the grains fly out and scatter round
+## the spot. At the first one the birds come.
+func _on_seeds_tossed(from: Vector3, to: Vector3) -> void:
+	if feeding.is_empty():
+		return
+	var start := to_local(from)
+	var land := to_local(to)
+	land.y = 0.0
+	var free := []
+	for k in grains.size():
+		if grains[k].eaten:
+			free.append(k)
+	for k in SEED_GRAINS:
+		var a := _rng.randf() * TAU
+		var r := sqrt(_rng.randf()) * SEED_SPREAD
+		var g := {"from": start, "to": land + Vector3(cos(a) * r, 0.03, sin(a) * r), "t": -k * 0.012, "eaten": false}
+		if not free.is_empty():
+			grains[free.pop_back()] = g
+		elif grains.size() < _grains.instance_count:
+			grains.append(g)
+	_grain_left = SEED_LINGER
+	if not feeding.called:
+		feeding.called = true
+		var near := birds.filter(func(b: Dictionary): return b.state in ["sit", "peck"])
+		# The nearest first, so they are the ones that come.
+		near.sort_custom(func(x: Dictionary, y: Dictionary): return _flat_distance(x.at, land) < _flat_distance(y.at, land))
+		for b: Dictionary in near:
+			_to_seeds(b)
+
+
+## Sends a bird to the seed (or onto the feeder) if there is a feeding near
+## enough to its nest and room for one more. False otherwise.
+func _to_seeds(b: Dictionary) -> bool:
+	if feeding.is_empty() or not feeding.called or b.carry or b.feed > 0.0 or b.seeds:
+		return false
+	if _flat_distance(b.home, feeding.spot) > SEED_RANGE:
+		return false
+	if birds.filter(func(o: Dictionary): return o.seeds).size() >= SEED_BIRDS:
+		return false
+	b.seeds = true
+	b.market = false
+	b.worm = 0.0
+	b.dipping = 0.0
+	var slots: Array = feeding.perch
+	var free := slots.find(-1)
+	if free >= 0 and _rng.randf() < PERCH_CHANCE:
+		slots[free] = b.id
+		b.perch = free
+		_fly(b, _perch_at(free), "perch")
+		perched += 1
+	else:
+		_fly(b, _by_the_seed(), "peck")
+	return true
+
+
+## A spot among the grains.
+func _by_the_seed() -> Vector3:
+	var a := _rng.randf() * TAU
+	var r := sqrt(_rng.randf()) * SEED_SPREAD
+	return (feeding.spot as Vector3) + Vector3(cos(a) * r, 0.05, sin(a) * r)
+
+
+## Where a bird sits on the feeder in this slot (see Villager.perch_point),
+## in our space, as the feeder is drawn this frame.
+func _perch_at(slot: int) -> Vector3:
+	var by: Node3D = feeding.by
+	var p := to_local(SmoothMotion.drawn_transform(by) * by.perch_point(slot))
+	# The bird's feet, not its middle, on the head or shoulder.
+	return p + Vector3.UP * 0.05 * SIZE * PERCH_SIZE
+
+
+## Which way the feeder faces (towards the seed), as a yaw in our space.
+func _feeder_yaw() -> float:
+	var by: Node3D = feeding.by
+	var ahead := global_transform.basis.inverse() * SmoothMotion.drawn_transform(by).basis.z
+	return atan2(ahead.x, ahead.z)
+
+
+## Frees the bird's place on the feeder.
+func _leave_perch(b: Dictionary) -> void:
+	if int(b.perch) < 0:
+		return
+	if not feeding.is_empty():
+		var slots: Array = feeding.perch
+		if slots[int(b.perch)] == b.id:
+			slots[int(b.perch)] = -1
+	b.perch = -1
+	if b.state == "perch":
+		b.state = "sit"
+
+
+## A dipping beak takes the nearest grain on the ground within reach.
+func _eat_grain(at: Vector3) -> void:
+	var best := -1
+	var best_d := SEED_BITE
+	for k in grains.size():
+		var g: Dictionary = grains[k]
+		if g.eaten or g.t < 1.0:
+			continue
+		var d := _flat_distance(g.to, at)
+		if d < best_d:
+			best_d = d
+			best = k
+	if best >= 0:
+		grains[best].eaten = true
+
+
+## How many grains still lie on the ground (or fly).
+func grains_left() -> int:
+	return grains.filter(func(g: Dictionary): return not g.eaten).size()
+
+
+## The grains in the air and on the ground; gone once the seed has lain long
+## enough after the feeder left.
+func _fly_grains(delta: float) -> void:
+	if grains.is_empty():
+		return
+	if feeding.is_empty():
+		_grain_left -= delta
+		if _grain_left <= 0.0:
+			grains.clear()
+			_hide_grains()
+			return
+	for k in grains.size():
+		var g: Dictionary = grains[k]
+		if g.eaten or g.t < 0.0:
+			if not g.eaten:
+				g.t = float(g.t) + delta / SEED_FLIGHT
+			_grains.set_instance_transform(k, Transform3D(Basis().scaled(Vector3.ZERO), g.to))
+			continue
+		var t := minf(1.0, float(g.t) + delta / SEED_FLIGHT)
+		g.t = t
+		var at: Vector3 = (g.from as Vector3).lerp(g.to, t) + Vector3.UP * sin(PI * t) * 0.6
+		_grains.set_instance_transform(k, Transform3D(Basis(Vector3.UP, k * 1.7), at))
+
+
+func _hide_grains() -> void:
+	for k in _grains.instance_count:
+		_grains.set_instance_transform(k, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
+
+
+## A grain of seed: a small pale-gold husk.
+static func grain_mesh() -> Mesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_ball(st, Vector3.ZERO, Vector3(0.035, 0.022, 0.05), func(d: Vector3) -> Color:
+		return Color(0.86, 0.72, 0.4).lerp(Color(0.62, 0.48, 0.26), clampf(-d.y, 0.0, 1.0)), 3, 5)
+	st.generate_normals()
+	return st.commit()
+
+
 static func _flat_distance(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
 
@@ -398,10 +714,17 @@ func _show(i: int) -> void:
 	var b: Dictionary = birds[i]
 	var flying: bool = b.state == "fly"
 	var kind := (float(b.kind) + 0.5) / KINDS
-	var basis := Basis(Vector3.UP, b.yaw).scaled(Vector3.ONE * SIZE)
+	# Small on a feeder, growing back on the way off.
+	var goal := PERCH_SIZE if b.state == "perch" or (flying and b.next == "perch") else 1.0
+	b.size = lerpf(b.size_from, goal, smoothstep(0.0, 1.0, b.t)) if flying else goal
+	var basis := Basis(Vector3.UP, b.yaw).scaled(Vector3.ONE * SIZE * float(b.size))
 	var at: Vector3 = b.at
 	var worm := 0.0
-	if flying:
+	if b.state == "perch":
+		_mm.set_instance_custom_data(i, Color(b.phase, 0.0, 1.0, kind))
+		if b.dipping > 0.0:
+			basis = basis * Basis(Vector3.RIGHT, sin(PI * (1.0 - float(b.dipping) / (DIP_TIME * 1.5))) * 0.45)
+	elif flying:
 		# Gliding down the last stretch, beating hard on the way up.
 		var climbing: bool = b.t < 0.5
 		_mm.set_instance_custom_data(i, Color(b.phase, 0.9 if climbing else 0.45, 0.0, kind))

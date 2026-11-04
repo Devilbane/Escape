@@ -44,6 +44,14 @@ static func drawn_at(node: Node3D) -> Vector3:
 	return node.global_position
 
 
+## The whole transform `node` is drawn with this frame (see drawn_at), for
+## something that rides on it per frame, such as a bird on a villager's head.
+static func drawn_transform(node: Node3D) -> Transform3D:
+	if node.is_physics_interpolated_and_enabled():
+		return node.get_global_transform_interpolated()
+	return node.global_transform
+
+
 ## How fast `body` really moves over the ground. While time stands still
 ## (the warm-up frame of a level, see LevelWarmup) a physics tick lasts no
 ## time at all and the engine's real velocity is 0 / 0: not a number. Fed

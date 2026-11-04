@@ -1005,8 +1005,8 @@ func _inventory_details() -> Control:
 			buttons.append(_item_button(Lang.t("Abstellen"), _put_down_selected))
 		elif Items.is_stone(id):
 			buttons.append(_item_button(Lang.t("Abstellen"), _place_stone_selected))
-		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id) or Items.is_light(id):
-			pass # Carried for a task, to the smith, for a fox or for the dark, not worn.
+		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id) or Items.is_light(id) or Items.is_ammo(id):
+			pass # Carried for a task, to the smith, for a fox, for the dark or as spare knives, not worn.
 		else:
 			buttons.append(_item_button(Lang.t("Anlegen"), _equip_selected))
 		buttons.append(_item_button(Lang.t("Wegwerfen"), _drop_selected))
@@ -1972,7 +1972,7 @@ func _claim_bounty(id: String) -> void:
 func _build_workbench() -> void:
 	var p: Player = game.player
 	_add_label(Lang.t("Werkbank"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Eisenbarren: %d      Wurfmesser: %d") % [game.iron, p.knives], 20, game.GOLD)
+	_add_label(Lang.t("Eisenbarren: %d      Wurfmesser: %d") % [game.iron, p.knives + p.spare_knives()], 20, game.GOLD)
 	_add_label(Lang.t("Eisenbarren gibt es bei Schmied Gorm, oder du schmilzt dort alte Ausrüstung ein."), 16, BLUE)
 	var make := _item_button(Lang.t("%d Wurfmesser schmieden\n%d Eisenbarren") % [HomeUpgrades.KNIVES_PER_IRON, 1], _make_knives, game.iron >= 1)
 	make.custom_minimum_size = Vector2(320, 58)
@@ -1996,7 +1996,7 @@ func _make_knives() -> void:
 		_note = Lang.t("Dafür brauchst du einen Eisenbarren.")
 	else:
 		game.iron -= 1
-		game.player.knives += HomeUpgrades.KNIVES_PER_IRON
+		game.give_knives(HomeUpgrades.KNIVES_PER_IRON)
 		_note = Lang.t("Geschmiedet: %d Wurfmesser") % HomeUpgrades.KNIVES_PER_IRON
 		Sfx.play(game, "gear_metal_0", -2.0)
 	game._update_hud()

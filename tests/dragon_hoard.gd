@@ -167,10 +167,11 @@ func _test() -> void:
 
 	# The other lairs below the wild have chests but no dragon: no hoard there,
 	# and no word of Embermaw guarding one.
-	game.load_level(game.interiors["loch2"], false)
-	var hole: Level = game.level
-	check(hole.lair and not hole.guards_hoard(), "the spider hole is a lair without the dragon")
-	check(hole._pickups.filter(func(q): return q.kind == "hoard").is_empty(), "no hoard lies in the spider hole")
+	for spot in [["loch1", "the open grave"], ["loch2", "the spider hole"], ["loch3", "the pale depths"]]:
+		game.load_level(game.interiors[spot[0]], false)
+		var hole: Level = game.level
+		check(hole.lair and not hole.guards_hoard(), "%s is a lair without the dragon" % spot[1])
+		check(hole._pickups.filter(func(q): return q.kind == "hoard").is_empty(), "no hoard lies in %s" % spot[1])
 
 	# In the lair the gold lies beside the chest, the dragon's to guard.
 	game.load_level(game.interiors["E"], false)

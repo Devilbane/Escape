@@ -233,6 +233,43 @@ static func make_spray(color: Color) -> CPUParticles3D:
 	return p
 
 
+## Wood chips that fly off where an axe bites into a trunk: a burst of pale
+## splinters thrown up and to the sides, tumbling down again. Waits until
+## restart() is called for each blow.
+static func make_wood_chips() -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = 12
+	p.lifetime = 0.75
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.emitting = false
+	p.local_coords = false
+	var chip := BoxMesh.new()
+	chip.size = Vector3(0.1, 0.02, 0.06)
+	chip.material = _paint(Color(0.86, 0.7, 0.48), 0.9)
+	p.mesh = chip
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.08
+	p.direction = Vector3.UP
+	p.spread = 55.0
+	p.gravity = Vector3(0, -9.8, 0)
+	p.initial_velocity_min = 1.8
+	p.initial_velocity_max = 3.4
+	p.particle_flag_rotate_y = true
+	p.angle_min = 0.0
+	p.angle_max = 360.0
+	p.angular_velocity_min = -540.0
+	p.angular_velocity_max = 540.0
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.3
+	var shrink := Curve.new()
+	shrink.add_point(Vector2(0, 1))
+	shrink.add_point(Vector2(0.75, 1))
+	shrink.add_point(Vector2(1, 0))
+	p.scale_amount_curve = shrink
+	return p
+
+
 ## The open edges of a mesh: edges that belong to only one triangle.
 static func open_edges(mesh: Mesh) -> Array:
 	var arrays := mesh.surface_get_arrays(0)

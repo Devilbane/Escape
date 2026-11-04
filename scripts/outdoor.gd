@@ -44,7 +44,9 @@ extends Level
 ##   The world has weather too (see Weather): rain brings slimes out of the
 ##   pond, fog sends fog wraiths drifting among the dead trees (d) and hides
 ##   a sneaking hero, and in a thunderstorm bats swarm around the rocks (r)
-##   while lightning leaves glowing thunder ore beside them.
+##   while lightning leaves glowing thunder ore beside them. Rain leaves
+##   puddles on the grass, the paths and the square that splash underfoot
+##   and dry up a while after it (see Puddles).
 ##   The wolf hollow north of the pass, where beasts roam and come back the
 ##   same way: W wolf, H orc, J yeti, U spider.   ;  the hollow's pond,
 ##   where the moon trout bites at night (see Fishing).
@@ -215,6 +217,8 @@ var spots := {"houses": [], "square": [], "well": [], "market": []}
 var chimneys: Array[Dictionary] = []
 ## The narrow town houses of Weavers' Lane, by number - 1 (see _build_terrace).
 var town_houses: Array[Node3D] = []
+## The windmills (see "u" and Windmill), whose sails turn in the wind.
+var windmills: Array[Windmill] = []
 
 var _plants := {}
 var _house_rect := Rect2i()
@@ -341,7 +345,7 @@ var night := false
 ## night, and sink back into the earth at dawn. They never rise within
 ## sight of the hero.
 const NIGHT_DEAD := 5
-const NIGHT_DEAD_KINDS := ["krieger", "wicht", "krieger", "schuetze", "wicht"]
+const NIGHT_DEAD_KINDS := ["krieger", "schuetze", "wicht", "krieger", "schuetze"]
 const NIGHT_DEAD_RESPAWN := 90.0
 const NIGHT_DEAD_FAR := 14.0
 ## At night fallen bandits are replaced this much sooner.
@@ -384,6 +388,8 @@ const ORE_NOTICE_RANGE := 36.0
 ## The weather's creatures on their spots: cell, kind, the creature (or
 ## null while it is gone) and the seconds until the next one comes.
 var _weather_foes: Array = []
+## The rain puddles on the open ground (see Puddles).
+var puddles: Puddles
 var _strike_timer := 0.0
 var _rock_cells: Array[Vector2i] = []
 ## Where the mountain over the dragon's lair stands (the foot of the arch),
@@ -448,6 +454,8 @@ func build() -> void:
 	_flush_plants()
 	# Leaves, twigs, rubble and little crawling creatures on the ground.
 	add_child(SurfaceLife.new(self))
+	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
+	add_child(puddles)
 	var floor_shape := CollisionShape3D.new()
 	floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(floor_shape)
@@ -1130,6 +1138,10 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		node = _put(model, center - foot, rot, s)
 		if ch != "R":
 			_age_kit_building(node)
+		if ch == "u":
+			var mill := Windmill.attach(self, node)
+			if mill:
+				windmills.append(mill)
 		else:
 			_age_graveyard(node, false)
 	var solid := Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86)
@@ -3289,6 +3301,17 @@ func set_weather(kind: String) -> void:
 	else:
 		notice.emit(Lang.t("Das Gewitter zieht ab. Liegengebliebenes Donnererz verglimmt.") if was == Weather.STORM
 				else Lang.t("Der Himmel klart auf."), 4.0)
+
+
+## How much water lies in the rain puddles (see Puddles.set_water).
+func set_puddles(water: float, rain := 0.0, sky := 1.0) -> void:
+	if puddles:
+		puddles.set_water(water, rain, sky)
+
+
+## Whether a spot on the ground is in a rain puddle deep enough to splash.
+func in_puddle(p: Vector3) -> bool:
+	return puddles != null and p.y < 0.3 and puddles.wet_at(p)
 
 
 ## Spots for the creatures of a weather: open ground right next to the map

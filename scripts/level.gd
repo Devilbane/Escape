@@ -3354,8 +3354,9 @@ func _process(delta: float) -> void:
 		if not s.used:
 			s.orb.position.y = 2.3 + sin(_time * 2.0) * 0.15
 	for p in _pickups:
-		# Coins lie still on the floor; keys and dropped gear hover and turn.
-		if is_instance_valid(p.node) and p.kind != "coin":
+		# Coins and thrown knives lie still on the floor; keys and dropped
+		# gear hover and turn.
+		if is_instance_valid(p.node) and p.kind != "coin" and not p.has("flat"):
 			p.node.rotation.y += delta * 2.0
 			p.node.position.y += sin(_time * 3.0) * delta * 0.25
 	_update_spikes(delta)
@@ -3470,7 +3471,7 @@ func _check_pickups() -> void:
 				p.warned = true
 				hoard_guarded.emit()
 			continue
-		if p.kind == "item" and not player.bag_fits(p.id):
+		if p.kind == "item" and not (player.can_take_knife() if p.id == Items.KNIFE else player.bag_fits(p.id)):
 			if not p.has("warned"):
 				p.warned = true
 				bag_full.emit()
@@ -4164,12 +4165,54 @@ func _lay_coin(pos: Vector3) -> void:
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "floor": _remember_on_floor("coin", "", pos)})
 
 
+## A thrown knife lying flat where it fell (see Projectile), kept on the
+## floor list until the hero walks over it. One that lands at the hero's
+## feet waits until they step away and come back for it.
+func lay_knife(pos: Vector3, heading := Vector3.ZERO) -> void:
+	var holder := Node3D.new()
+	holder.position = Vector3(pos.x, 0.06, pos.z)
+	holder.rotation.y = atan2(heading.x, heading.z) + PI if heading.length() > 0.01 else randf() * TAU
+	add_child(holder)
+	var model: Node3D = load(Items.ALL[Items.KNIFE].model).instantiate()
+	model.rotation.x = -PI * 0.5
+	model.scale = Vector3.ONE * 1.4
+	holder.add_child(model)
+	# A faint glint, so a knife in a dark corner can still be found.
+	var glint := Effects.make_sparkles(Color(0.8, 0.9, 1.0))
+	glint.amount = 4
+	glint.emission_sphere_radius = 0.35
+	holder.add_child(glint)
+	var pickup := {"node": holder, "kind": "item", "id": Items.KNIFE, "radius": 1.5, "flat": true,
+		"floor": _remember_on_floor("item", Items.KNIFE, pos)}
+	if player and _flat_distance(player.global_position, holder.global_position) <= pickup.radius:
+		pickup.wait = true
+	_pickups.append(pickup)
+
+
+## Where a thrown knife comes to rest: the first open floor cell going back
+## from `pos` towards `from` (out of a wall, a pillar or the water), else
+## `from` itself.
+func knife_rest(pos: Vector3, from: Vector3) -> Vector3:
+	var back := from - pos
+	back.y = 0.0
+	var steps := ceili(back.length() / 0.5)
+	for i in steps + 1:
+		var at := pos + back * (float(i) / maxf(1.0, steps))
+		var c := world_to_cell(at)
+		if astar.is_in_boundsv(c) and not astar.is_point_solid(c) and not is_opaque(c):
+			return at
+	return from
+
+
 ## Notes something lying on the floor (see floor_items) and returns the entry.
+## When the list is full, the oldest thrown knife makes room first, then the
+## oldest of anything.
 func _remember_on_floor(kind: String, id: String, pos: Vector3) -> Array:
 	var entry := [kind, id, snappedf(pos.x, 0.01), snappedf(pos.z, 0.01)]
 	floor_items.append(entry)
 	while floor_items.size() > FLOOR_MAX:
-		var oldest: Array = floor_items.pop_front()
+		var knife := floor_items.find_custom(func(e): return e is Array and e.size() >= 2 and e[1] == Items.KNIFE and not is_same(e, entry))
+		var oldest: Array = floor_items.pop_at(knife) if knife >= 0 else floor_items.pop_front()
 		for p in _pickups.duplicate():
 			if is_same(p.get("floor"), oldest):
 				_pickups.erase(p)
@@ -4195,6 +4238,8 @@ func restore_floor() -> void:
 		var pos := Vector3(float(entry[2]), 0, float(entry[3]))
 		if str(entry[0]) == "coin":
 			_lay_coin(pos)
+		elif str(entry[1]) == Items.KNIFE:
+			lay_knife(pos)
 		elif Items.ALL.has(str(entry[1])):
 			_drop_item(str(entry[1]), pos)
 		else:
@@ -4231,7 +4276,10 @@ func floor_pickups() -> Array:
 ## after leaving and coming back, or a reload) until picked up again, which
 ## needs a step away first.
 func put_on_floor(id: String, pos: Vector3) -> void:
-	_drop_item(id, pos)
+	if id == Items.KNIFE:
+		lay_knife(pos)
+	else:
+		_drop_item(id, pos)
 	_pickups[-1].wait = true
 
 

@@ -72,6 +72,7 @@ static func kit_material(palette: Texture2D, windows: Texture2D) -> ShaderMateri
 		mat.set_shader_parameter("trim", load(TRIM))
 		mat.set_shader_parameter("glow_mask", windows)
 		mat.set_shader_parameter("soft_joints", 1.0)
+		mat.set_shader_parameter("uneven_roofs", 1.0)
 		_mats[key] = mat
 	return _mats[key]
 

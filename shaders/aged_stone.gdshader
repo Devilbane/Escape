@@ -38,6 +38,9 @@ uniform float lichen = 0.0;
 // 1: the near-black joints of the trim sheet become thin, grey mortar lines
 // (the village buildings); 0: the sheet's own deep, dark joints.
 uniform float soft_joints = 0.0;
+// 1: the roof tiles are uneven (each tile its own shade, now and then a new
+// or a blackened one) and bleached in patches (the village buildings).
+uniform float uneven_roofs = 0.0;
 uniform sampler2D trim : source_color, filter_linear_mipmap, repeat_enable;
 // Where the windows sit on the palette (white), and how bright they glow.
 uniform sampler2D glow_mask : hint_default_black, filter_linear;
@@ -127,6 +130,23 @@ void fragment() {
 			+ sheet(my, TILES_SIZE, tile_area) * w.y;
 	float tiles = lum(tile_rgb) / 0.3;
 	faded *= mix(1.0, clamp(tiles, 0.55, 1.35), roof);
+	// Uneven, aged tiles: find the tile under this spot on the sheet (the
+	// same grid as in aged_roof.gdshader) and give it its own shade.
+	vec2 rm = w.y > max(w.x, w.z) ? my : (w.x > w.z ? mx : mz);
+	vec2 rf = rm / TILES_SIZE;
+	vec2 sp = vec2(fract(rf.x) * 256.0, (1.0 - fract(rf.y)) * 120.0);
+	float trow = floor((sp.y - 4.0) / 13.0);
+	float tcol = floor((sp.x - (mod(trow, 2.0) > 0.5 ? 16.0 : 29.5)) / 29.75);
+	vec3 tid = vec3(tcol, trow, 0.0) + vec3(floor(rf) * vec2(11.0, 17.0), 0.0);
+	float th1 = hash3(tid + 1.3);
+	float th2 = hash3(tid + 7.9);
+	float th3 = hash3(tid + 15.1);
+	vec3 uneven = faded * (0.8 + 0.34 * th1);
+	uneven = mix(uneven, th2 > 0.5 ? uneven * vec3(1.02, 0.9, 0.72) : vec3(lum(uneven)), abs(th2 - 0.5) * 0.9);
+	uneven *= th3 > 0.94 ? 1.2 : (th3 < 0.05 ? 0.55 : 1.0);
+	float bleach = smoothstep(0.45, 0.75, fbm(wpos * 0.35 + 11.0));
+	uneven = mix(uneven, vec3(lum(uneven)) * vec3(1.25, 1.2, 1.12) + 0.04, bleach * 0.5);
+	faded = mix(faded, uneven, roof * uneven_roofs * band(8.0, px));
 	if (window > 0.5) {
 		faded = base;
 	}

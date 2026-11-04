@@ -15,6 +15,7 @@ class_name VillageHouse
 const WOOD_TEX := "res://assets/house/wood_floor.jpg"
 const STONE_TEX := "res://assets/chapel/trim_sheet.png"
 const DOOR_TEX := "res://assets/chapel/door_diffuse.png"
+const ROOF_SHADER := preload("res://shaders/aged_roof.gdshader")
 
 ## Roof tints, picked per house (the stone tints are AgedStone.HOUSE_TINTS).
 const ROOFS := [Color(1, 1, 1), Color(0.8, 0.72, 0.68), Color(0.72, 0.74, 0.8), Color(1.0, 0.86, 0.7)]
@@ -165,7 +166,7 @@ static func _materials(rng: RandomNumberGenerator, glass: StandardMaterial3D) ->
 	return {
 		"plaster": AgedStone.house_material(AgedStone.HOUSE_TINTS[rng.randi() % AgedStone.HOUSE_TINTS.size()]),
 		"timber": _textured("timber", WOOD_TEX, TIMBER),
-		"roof": _textured("roof_%d" % (rng.randi() % ROOFS.size()), STONE_TEX, Color.WHITE),
+		"roof": _roof_material(rng.randi() % ROOFS.size()),
 		"stone": _textured("stone", STONE_TEX, Color(0.9, 0.88, 0.85)),
 		"door": _textured("door", DOOR_TEX, Color.WHITE),
 		"glass": glass,
@@ -256,6 +257,10 @@ static func _roof(parts: Dictionary, w: float, d: float, eaves: float, ridge: fl
 	var slope := atan2(ridge, wall_d * 0.5)
 	var len := d * 0.5 / cos(slope)
 	var st := _tool(parts, "roof")
+	# Each patch gets a random number in its vertex colour, so the aged roof
+	# (shaders/aged_roof.gdshader) shades its tiles differently.
+	var seeds := RandomNumberGenerator.new()
+	seeds.seed = hash(Vector3(w, d, eaves))
 	var cols := maxi(1, roundi(w / TILES_PATCH.x))
 	var rows := maxi(1, roundi(len / TILES_PATCH.y))
 	for side: float in [-1.0, 1.0]:
@@ -275,7 +280,9 @@ static func _roof(parts: Dictionary, w: float, d: float, eaves: float, ridge: fl
 				var uvs := [TILES_UV.position, TILES_UV.position + Vector2(TILES_UV.size.x, 0),
 						TILES_UV.end, TILES_UV.position + Vector2(0, TILES_UV.size.y)]
 				var order := [0, 1, 2, 0, 2, 3] if side > 0.0 else [0, 2, 1, 0, 3, 2]
+				var seed_colour := Color(seeds.randf(), 0, 0)
 				for k: int in order:
+					st.set_color(seed_colour)
 					st.set_normal(n)
 					st.set_uv(uvs[k])
 					st.add_vertex(quad[k])
@@ -334,13 +341,23 @@ static func _tool(parts: Dictionary, key: String) -> SurfaceTool:
 	return parts[key]
 
 
+## The aged tiles of a roof (shaders/aged_roof.gdshader), in one of ROOFS.
+static func _roof_material(shade: int) -> ShaderMaterial:
+	var key := "roof_%d" % shade
+	if not _mats.has(key):
+		var mat := ShaderMaterial.new()
+		mat.shader = ROOF_SHADER
+		mat.set_shader_parameter("tiles", load(STONE_TEX))
+		mat.set_shader_parameter("tint", ROOFS[shade])
+		_mats[key] = mat
+	return _mats[key]
+
+
 static func _textured(key: String, path: String, tint: Color) -> StandardMaterial3D:
 	if not _mats.has(key):
 		var mat := StandardMaterial3D.new()
 		mat.albedo_texture = load(path)
 		mat.albedo_color = tint
 		mat.roughness = 0.9
-		if key.begins_with("roof"):
-			mat.albedo_color = ROOFS[int(key.substr(5))]
 		_mats[key] = mat
 	return _mats[key]

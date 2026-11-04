@@ -263,7 +263,22 @@ var _pending_station: Dictionary = {}
 ## Everything the hero has been told so far, for the compendium (key H):
 ## level hints ("#<index>") and explanatory tips, in the order they came.
 var lore: Array = []
-var _knife_label: Label
+## The hero's ammunition (see AMMO) as small icons with their counts, under
+## the life bar left of the trouble icons; its count labels by ammo field.
+var _ammo_row: HBoxContainer
+var _ammo_counts := {}
+## Every kind of ammunition shown under the life bar: the Player field that
+## counts it, its icon (ItemIcon) and the text of its tooltip. Each has a
+## slot of AMMO_SLOT, shown at 0 too (dimmed), so a count changing never
+## moves anything.
+const AMMO := [
+	["knives", "kind:knife", "Messer: %d"],
+]
+const AMMO_SLOT := Vector2(62, 26)
+const AMMO_ICON := 20.0
+const AMMO_COLOR := Color(0.8, 0.88, 1.0)
+## Space between the ammunition and the trouble icons beside it.
+const AMMO_GAP := 14.0
 var _prompt: Label
 var _message: Label
 ## The list of keys at the bottom left (see _setup_hud).
@@ -1055,6 +1070,35 @@ func _setup_hud() -> void:
 	_status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_status_row.add_theme_constant_override("separation", 4)
 	_hud.add_child(_status_row)
+	_ammo_row = HBoxContainer.new()
+	_ammo_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ammo_row.add_theme_constant_override("separation", 0)
+	_hud.add_child(_ammo_row)
+	for ammo in AMMO:
+		var slot := Control.new()
+		slot.custom_minimum_size = AMMO_SLOT
+		slot.mouse_filter = Control.MOUSE_FILTER_PASS
+		_ammo_row.add_child(slot)
+		# A dark tile like the trouble icons', framed in steel blue (the
+		# colour of the count), so it reads on any floor.
+		var tile := Panel.new()
+		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tile.size = Vector2(AMMO_SLOT.y, AMMO_SLOT.y)
+		var box := StyleBoxFlat.new()
+		box.bg_color = StatusIcon.TILE
+		box.border_color = AMMO_COLOR
+		box.set_border_width_all(2)
+		tile.add_theme_stylebox_override("panel", box)
+		slot.add_child(tile)
+		var icon := ItemIcon.make(ammo[1], AMMO_ICON, true)
+		icon.position = Vector2((AMMO_SLOT.y - AMMO_ICON) / 2.0, (AMMO_SLOT.y - AMMO_ICON) / 2.0)
+		tile.add_child(icon)
+		var count := _make_label(TEXT_FONT, 18, AMMO_COLOR)
+		count.position = Vector2(AMMO_SLOT.y + 5, 0)
+		count.size = Vector2(AMMO_SLOT.x - AMMO_SLOT.y - 5, AMMO_SLOT.y)
+		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		slot.add_child(count)
+		_ammo_counts[ammo[0]] = count
 	var run_row := HBoxContainer.new()
 	run_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	run_row.add_theme_constant_override("separation", 10)
@@ -1095,6 +1139,16 @@ func _setup_hud() -> void:
 	xp_row.add_child(_xp_bar)
 	_xp_label = _make_label(TEXT_FONT, 18, XP_COLOR)
 	xp_row.add_child(_xp_label)
+	# The key (in a dungeon) and the gold on one line under the experience
+	# bar, in the bars' label size. (Ammunition sits under the life bar.)
+	var purse_row := HBoxContainer.new()
+	purse_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	purse_row.add_theme_constant_override("separation", 24)
+	left.add_child(purse_row)
+	_key_label = _make_label(TEXT_FONT, 18)
+	purse_row.add_child(_key_label)
+	_coin_label = _make_label(TEXT_FONT, 18, GOLD)
+	purse_row.add_child(_coin_label)
 	# Things waiting for the hero (gear to mend, an upgrade to build) as little gold-framed icons under the hero level. The row
 	# always keeps one icon's height, so the status block never grows.
 	_notice_row = HBoxContainer.new()
@@ -1111,16 +1165,6 @@ func _setup_hud() -> void:
 	_boon_row.add_theme_constant_override("separation", 4)
 	_boon_row.custom_minimum_size = Vector2(0, StatusIcon.SIZE)
 	left.add_child(_boon_row)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(spacer)
-	_key_label = _make_label(TEXT_FONT, 22)
-	row.add_child(_key_label)
-	_knife_label = _make_label(TEXT_FONT, 22, Color(0.8, 0.88, 1.0))
-	row.add_child(_knife_label)
-	_coin_label = _make_label(TEXT_FONT, 22, GOLD)
-	row.add_child(_coin_label)
 
 
 	# Centred texts span the screen width (minus a margin) and wrap onto
@@ -1920,7 +1964,7 @@ func _update_hud() -> void:
 	_update_status_icons()
 	_show_hero_level()
 	_coin_label.text = Lang.t("Gold: %d") % coins
-	_knife_label.text = Lang.t("Messer: %d") % player.knives
+	_update_ammo()
 	_key_label.text = Lang.t("Schlüssel gefunden") if level.has_key else Lang.t("Kein Schlüssel")
 	_key_label.visible = not level.outdoor and level.building == ""
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
@@ -3815,11 +3859,25 @@ func _place_hp_bar() -> void:
 			and camera != null
 	_hp_bar.visible = on_screen
 	_status_row.visible = on_screen
+	_ammo_row.visible = on_screen
 	if not on_screen:
 		return
 	var screen := _hud.get_viewport().get_visible_rect().size
 	_hp_bar.position = Vector2((screen.x - HP_BAR_SIZE.x) / 2.0, screen.y * HP_BAR_Y).round()
-	_status_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 5)
+	# Under the bar from its left edge: the ammunition, then the troubles.
+	_ammo_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 5)
+	_status_row.position = _ammo_row.position + Vector2(AMMO_SLOT.x * AMMO.size() + AMMO_GAP, 0)
+
+
+## Writes the ammunition counts under the life bar; an empty kind is dimmed.
+func _update_ammo() -> void:
+	for ammo in AMMO:
+		var n := int(player.get(ammo[0]))
+		var count: Label = _ammo_counts[ammo[0]]
+		count.text = str(n)
+		var slot := count.get_parent() as Control
+		slot.modulate.a = 1.0 if n > 0 else 0.45
+		slot.tooltip_text = Lang.t(ammo[2]) % n
 
 
 ## News about a task (a new one, progress, done): a message over the hero's

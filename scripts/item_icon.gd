@@ -115,6 +115,11 @@ func _draw() -> void:
 			draw_line(p.call(0.25, 0.75), p.call(0.82, 0.18), STEEL, u * 0.09)
 			draw_line(p.call(0.15, 0.6), p.call(0.4, 0.85), GOLDEN, u * 0.07)
 			draw_line(p.call(0.22, 0.78), p.call(0.1, 0.9), WOOD, u * 0.08)
+		"knife":
+			# A throwing knife: a slim leaf blade, a wrapped grip, a ring.
+			draw_colored_polygon(PackedVector2Array([p.call(0.88, 0.12), p.call(0.62, 0.3), p.call(0.48, 0.52), p.call(0.7, 0.38)]), STEEL)
+			draw_line(p.call(0.48, 0.52), p.call(0.25, 0.75), LEATHER, u * 0.09)
+			draw_arc(p.call(0.2, 0.8), u * 0.07, 0.0, TAU, 12, STEEL, u * 0.04)
 		"axe":
 			draw_line(p.call(0.2, 0.9), p.call(0.65, 0.15), WOOD, u * 0.08)
 			draw_colored_polygon(PackedVector2Array([p.call(0.5, 0.2), p.call(0.88, 0.12), p.call(0.92, 0.5), p.call(0.62, 0.42)]), STEEL)

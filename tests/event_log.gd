@@ -220,7 +220,31 @@ func _check_layout() -> void:
 	check(not kinds.has("slow") or Items.load_factor(hero.load_weight()) < 1.0 - Items.MAX_WEIGHT_SLOW * 0.5 + 0.001, "no slow icon for a light load: %s" % [kinds])
 	var row: Rect2 = game._status_row.get_global_rect()
 	var bar_now: Rect2 = game._hp_bar.get_global_rect()
-	check(row.position.y >= bar_now.end.y and is_equal_approx(row.position.x, bar_now.position.x), "the icons sit under the bar, from its left edge: %s vs %s" % [row, bar_now])
+	var ammo: Rect2 = game._ammo_row.get_global_rect()
+	check(ammo.position.y >= bar_now.end.y and is_equal_approx(ammo.position.x, bar_now.position.x), "the ammunition sits under the bar, from its left edge: %s vs %s" % [ammo, bar_now])
+	check(is_equal_approx(row.position.y, ammo.position.y) and row.position.x >= ammo.end.x + 12.0, "the troubles sit beside it, a gap apart: %s vs %s" % [row, ammo])
+	# The knives under the bar: an icon and the count; the count changing
+	# moves nothing, and none left dims the slot.
+	var knives_before: int = hero.knives
+	var label: Label = game._ammo_counts["knives"]
+	hero.knives = 7
+	game._update_hud()
+	check(label.text == "7", "the knife count shows: %s" % label.text)
+	check(label.get_parent().tooltip_text != "", "the knife slot explains itself under the pointer")
+	hero.knives = 12
+	game._update_hud()
+	game._place_hp_bar()
+	check(game._ammo_row.get_global_rect().is_equal_approx(ammo) and game._status_row.get_global_rect().position.is_equal_approx(row.position), "a two-digit count moves nothing")
+	hero.knives = 0
+	game._update_hud()
+	check(label.get_parent().modulate.a < 1.0, "no knives left: the slot is dimmed")
+	hero.knives = knives_before
+	game._update_hud()
+	# Gold and the key sit in the status block, right under the experience bar.
+	var xp_row: Control = game._xp_label.get_parent()
+	var purse: Control = game._coin_label.get_parent()
+	check(purse.get_parent() == xp_row.get_parent() and purse.get_index() == xp_row.get_index() + 1, "the gold line sits right under the experience bar")
+	check(game._key_label.get_parent() == purse, "with the key")
 	hero.ailments.erase("gift")
 	hero.hardening = hardening_before
 	game._update_hud()

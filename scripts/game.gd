@@ -1377,7 +1377,9 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == "schrein":
 		_open_shrine(s)
 	elif s.kind == "brunnen":
-		_drink(s)
+		# Pushing on against the fountain drinks one sip at a time.
+		if not belly_sips.still_drinking(_clock_now()):
+			_drink(s)
 	elif s.kind == Seats.KIND:
 		player.sit_down(Seats.sit_spot(s), Seats.front(s), Seats.stand_spot(s, level, player.radius))
 	else:
@@ -1599,13 +1601,35 @@ func _drink(s: Dictionary) -> void:
 	var burst := Effects.make_sparkles(Color(0.5, 0.8, 1.0), true)
 	burst.position = player.global_position + Vector3(0, 1.0, 0)
 	level.add_child(burst)
-	if cured:
+	if level.outdoor and belly_sips.sip(_clock_now()):
+		_overdrink()
+	elif cured:
 		show_message(Lang.t("Das Wasser des Brunnens heilt dich von allem Übel."))
 	elif healed:
 		show_message(Lang.t("Das kühle Wasser heilt deine Wunden."))
 	else:
 		show_message(Lang.t("Du trinkst vom klaren Wasser."))
 	_update_hud()
+
+
+## Sips at the village fountain, to tell when the hero drinks too much.
+var belly_sips := BloatedBelly.new()
+
+
+## Seconds since the game started, for counting sips.
+func _clock_now() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+
+## One sip too many at the village fountain: the belly swells, the hero
+## waddles and says so (see BloatedBelly).
+func _overdrink() -> void:
+	player.bloat()
+	var said := BloatedBelly.line()
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), said, Color(0.6, 0.85, 1.0))
+	Events.say(hero_name, said, player.global_position)
+	Sfx.play(self, "word_grumpel", -4.0, player.global_position)
+	show_message(Lang.t("Dein Bauch ist prall voll Wasser. Drei Minuten lang watschelst du nur noch langsam."), 3.5)
 
 
 ## The food basket on the village pedestal: bread, cheese and apples give
@@ -3758,6 +3782,8 @@ func hero_ailments() -> Array:
 	for kind in ["gift", "fluch", "brand", "netz"]:
 		if player.ailments.has(kind):
 			out.append([kind, ""])
+	if player.ailments.has(BloatedBelly.KIND):
+		out.append([BloatedBelly.KIND, BloatedBelly.countdown(player.ailments[BloatedBelly.KIND])])
 	# Slower only from a heavy load (the curse and the web that slow have their own icons,
 	# and a little gear is normal); not while faster all the same.
 	if not _hero_fast() and Items.load_factor(player.load_weight()) <= 1.0 - Items.MAX_WEIGHT_SLOW * 0.5:
@@ -3782,7 +3808,8 @@ func hero_boons() -> Array:
 ## the web's slowness, which have icons of their own).
 func _hero_fast() -> bool:
 	var unslowed := player.base_speed / (Player.CURSE_SLOW if player.ailments.has("fluch") else 1.0) \
-			/ (Player.WEB_SLOW if player.ailments.has("netz") else 1.0)
+			/ (Player.WEB_SLOW if player.ailments.has("netz") else 1.0) \
+			/ (BloatedBelly.SLOW if player.ailments.has(BloatedBelly.KIND) else 1.0)
 	return unslowed > Player.SPEED + 0.01
 
 
@@ -3801,6 +3828,7 @@ func icon_text(kind: String, number: String) -> String:
 		"fluch": return Lang.t("Verflucht: Du bist langsamer. Es vergeht bald; ein Brunnen, ein Schrein oder ein Heiltrank heilt es sofort.")
 		"brand": return Lang.t("Du brennst: Ein paar Sekunden lang verlierst du Leben, nie das letzte.")
 		"netz": return Lang.t("Eingesponnen: Spinnenseide klebt an dir. Ein paar Sekunden lang bist du viel langsamer.")
+		BloatedBelly.KIND: return Lang.t("Zu viel Wasser getrunken: Dein Bauch ist prall und du bist viel langsamer. Noch %s, dann geht es von selbst vorbei.") % BloatedBelly.long_countdown(player.ailments.get(BloatedBelly.KIND, 0.0))
 		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
 		"fast": return Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
 		"slow": return Lang.t("Schwer beladen: Du läufst langsamer. Leg im Inventar (I) etwas ab.")
@@ -3837,6 +3865,13 @@ func _fill_icon_row(row: HBoxContainer, wanted: Array) -> void:
 	for icon in row.get_children():
 		shown.append([icon.kind, icon.value])
 	if shown == wanted:
+		return
+	# Only the numbers changed (a countdown): the icons stay and take the new
+	# number and explanation, so a tooltip being read is not torn away.
+	if shown.size() == wanted.size() and range(shown.size()).all(func(i): return shown[i][0] == wanted[i][0]):
+		for i in wanted.size():
+			var icon: StatusIcon = row.get_child(i)
+			icon.set_number(wanted[i][1], icon_text(wanted[i][0], wanted[i][1]))
 		return
 	var had := []
 	for icon in row.get_children():
@@ -5109,6 +5144,9 @@ func _process(delta: float) -> void:
 			player.set_sneaking(false)
 			show_message(Lang.t("Entdeckt! Du kannst nicht mehr schleichen."), 1.6)
 	_guardian_intro()
+	# A swollen belly counts down under the life bar.
+	if player != null and player.ailments.has(BloatedBelly.KIND):
+		_update_status_icons()
 	if state == State.PLAYING and level != null and not menus.is_open():
 		journal.update(delta)
 	_quest_mark_timer -= delta

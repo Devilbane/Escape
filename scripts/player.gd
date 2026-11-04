@@ -1436,13 +1436,18 @@ func refresh_stats() -> void:
 		base_speed *= CURSE_SLOW
 	if ailments.has("netz"):
 		base_speed *= WEB_SLOW
+	if ailments.has(BloatedBelly.KIND):
+		base_speed *= BloatedBelly.SLOW
 	hp = mini(hp, max_hp)
+	# The tunic is dressed on the plain body; the belly swells over it after.
+	BloatedBelly.swell(_model, false)
 	_show_held("waffe", "handslot_r", "Knife")
 	_show_held("schild", "handslot_l", "")
 	_show_headgear()
 	_show_tint("umhang", ["Rogue_Cape"])
 	_show_tint("ruestung", ["Rogue_Body"])
 	_show_tint("schuhe", ["Rogue_LegLeft", "Rogue_LegRight"])
+	BloatedBelly.swell(_model, ailments.has(BloatedBelly.KIND))
 	_shown_alpha = -1.0 # New parts: fade them too if sneaking.
 
 
@@ -1491,15 +1496,29 @@ func afflict(kind: String) -> void:
 
 
 ## Cures one ailment, or all of them; true if there was anything to cure.
+## A belly swollen with water (see BloatedBelly) is no ailment to cure: it
+## only goes down with time, so curing all of them leaves it.
 func cure(kind := "") -> bool:
-	var had := ailments.has(kind) if kind != "" else not ailments.is_empty()
+	var belly: Variant = ailments.get(BloatedBelly.KIND)
+	var had := ailments.has(kind) if kind != "" else ailments.size() > (0 if belly == null else 1)
 	if kind == "":
 		ailments.clear()
+		if belly != null:
+			ailments[BloatedBelly.KIND] = belly
 	else:
 		ailments.erase(kind)
 	if had:
 		_ailments_changed()
 	return had
+
+
+## Too much water: the belly swells and the hero waddles at
+## BloatedBelly.SLOW of their speed for BloatedBelly.TIME seconds.
+func bloat() -> void:
+	if dead:
+		return
+	ailments[BloatedBelly.KIND] = BloatedBelly.TIME
+	_ailments_changed()
 
 
 ## Life the hero gets back: Konstitution / REGEN_PER_CON_DIVISOR every REGEN_INTERVAL seconds.

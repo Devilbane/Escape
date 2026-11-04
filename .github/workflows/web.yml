@@ -459,6 +459,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/village_buildings.gd | tee village.log
           grep -q PASS village.log
 
+      - name: Eggs and chicks in the village nests (begging, fed by parents and the hero)
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/nest_chicks.gd | tee chicks.log
+          grep -q PASS chicks.log
+
       - name: Map and journal test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/journal.gd | tee journal.log

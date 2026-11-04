@@ -211,6 +211,41 @@ func _check_aged(lvl: Outdoor) -> void:
 				flew = true
 				break
 		check(flew, "by day the birds fly out")
+		var kinds := {}
+		for b: Dictionary in birds.birds:
+			kinds[b.kind] = true
+		check(kinds.size() >= 4, "the birds come in several colourful kinds (%d)" % kinds.size())
+		# They come down to the market square, peck there (dipping for worms
+		# and now and then pulling one out) and take off when the hero comes.
+		check(not birds.market.is_empty(), "the birds know the market square")
+		# (No hero for a while, so nobody scares them off.)
+		lvl.player = null
+		var on_market := false
+		var dipped := false
+		var wormed := false
+		for i in 60 * 240:
+			birds._process(1.0 / 30.0)
+			for b: Dictionary in birds.birds:
+				if b.state == "peck" and b.market:
+					on_market = true
+					dipped = dipped or b.dipping > 0.0
+					wormed = wormed or b.worm > 0.0
+			if on_market and dipped and wormed:
+				break
+		check(on_market, "birds land on the market square")
+		check(dipped, "pecking birds dip their heads")
+		check(wormed, "now and then a bird pulls out a worm")
+		lvl.player = game.player
+		var pecker: Dictionary = {}
+		for b: Dictionary in birds.birds:
+			if b.state == "peck":
+				pecker = b
+				break
+		if not pecker.is_empty():
+			game.player.global_position = lvl.to_global(pecker.at)
+			birds._process(1.0 / 30.0)
+			check(pecker.state == "fly", "a pecking bird takes off when the hero walks up")
+		game.player.global_position = lvl.nests[0] - Vector3(0, lvl.nests[0].y, 0)
 		lvl.night = true
 		for i in 60 * 30:
 			birds._process(1.0 / 20.0)

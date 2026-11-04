@@ -38,7 +38,7 @@ const FIRST_PHASE := 1
 ## The moon is the only light of the night, so a new moon leaves the open
 ## air nearly pitch black, only the shapes of things to be made out: only
 ## lanterns, windows, fires and torches light it.
-const DARKEST := 0.04
+const DARKEST := 0.015
 const BRIGHTEST := 1.0
 ## How steeply the light falls off from the full moon: a thin crescent is
 ## almost as dark as no moon at all, the half moon only dimly lit.

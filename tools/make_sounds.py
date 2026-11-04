@@ -468,6 +468,24 @@ def trap_spikes():
     return out
 
 
+def chop():
+    # An axe biting into a log: a dry, hollow "tock" of the wood, the crisp
+    # bite of the blade and a few small splinters. Its own random numbers,
+    # so the other sounds stay as they are.
+    r = np.random.default_rng(23)
+    n = lambda sec: r.uniform(-1, 1, int(SR * sec))
+    out = np.zeros(int(SR * 0.4))
+    tt = t(0.25)
+    tock = (np.sin(2 * np.pi * 210 * tt) + 0.5 * np.sin(2 * np.pi * 395 * tt) + 0.25 * np.sin(2 * np.pi * 710 * tt))
+    at(out, tock * env(len(tt), 0.001, 0.035), 0.002)
+    at(out, lowpass(n(0.12), 1400) * env(int(SR * 0.12), 0.0005, 0.02) * 2.5, 0)
+    at(out, highpass(n(0.03), 2500) * env(int(SR * 0.03), 0.0002, 0.004) * 1.2, 0)
+    for i in range(4):
+        c = highpass(n(0.015), 1800) * env(int(SR * 0.015), 0.0002, 0.003) * r.uniform(0.25, 0.5)
+        at(out, c, 0.04 + i * 0.035 + r.uniform(0, 0.02))
+    return out
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     save("swing", swing(), 0.6)
@@ -495,3 +513,4 @@ if __name__ == "__main__":
     save("snore", snore(), 0.5)
     save("ui_click", ui_click(), 0.35)
     save("trap_spikes", trap_spikes(), 0.7)
+    save("chop", chop(), 0.75)

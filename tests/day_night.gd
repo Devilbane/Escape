@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless test for the day and night above ground: the clock runs in the
-## open and stands still in the dungeon, the sky follows the hour with the
+## open and in the dungeon alike, the sky follows the hour with the
 ## old daylight as the daytime look, lanterns and windows glow at night,
 ## most villagers go home to sleep (with a torch while still out, like the
 ## guard on his rounds), the dead rise on the graveyard and sink
@@ -216,11 +216,14 @@ func _clock_and_saving() -> void:
 	game.day_hour = 23.9
 	game._tick_clock(30.0)
 	check(game.day_hour < 1.0, "the clock goes round past midnight")
-	# Down in the dungeon time stands still.
+	# Down in the dungeon the clock runs on, and the HUD shows the hour.
 	game.load_level(0, false)
+	game.state = game.State.PLAYING
 	game.day_hour = 15.0
-	game._tick_clock(120.0)
-	check(is_equal_approx(game.day_hour, 15.0), "time stands still in the dungeon")
+	game._tick_clock(60.0)
+	check(is_equal_approx(game.day_hour, 15.0 + 24.0 / 20.0), "time goes on in the dungeon")
+	check(game._clock_text().begins_with(DayNight.clock_text(game.day_hour)), "the HUD shows the hour in the dungeon")
+	check(not game._clock_text().contains(Lang.t(Moon.word(game.day))), "but no moon down there")
 	game.state = before_state
 
 	# The hour goes into the saved game and comes back from it.

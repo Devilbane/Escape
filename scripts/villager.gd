@@ -133,6 +133,23 @@ const UNLIT_PLANS := ["sit", "stay"]
 const TORCH_COLOR := Color(1.0, 0.6, 0.28)
 const TORCH_ENERGY := 1.7
 const TORCH_RANGE := 6.5
+## The woodcutter splits wood on a felled trunk beside his spot (see
+## set_chopping and Outdoor._build_chopping_log) instead of swinging at the
+## air. In his two-handed chop the lower blade of the axe comes down in front
+## of him, a little to his left; BITE_TIME is the moment in that animation
+## when it reaches the top of the trunk, and BITE_POINT is where the blade
+## then is, in his own frame (+z ahead). Both were measured from the
+## Barbarian model (tests/woodcutter.gd checks they still match).
+const BITE_TIME := 0.815
+const BITE_POINT := Vector3(-0.36, 0.41, 1.59)
+## The trunk he chops: its middle in his own frame, its radius and length.
+## It lies across his way, settled a little into the ground, and its top is
+## where the blade bites.
+const LOG_CENTRE := Vector3(-0.3, 0.12, 1.6)
+const LOG_RADIUS := 0.34
+const LOG_LENGTH := 3.0
+## How long the axe sticks in the wood before he wrenches it out.
+const BITE_HOLD := 0.3
 
 var level: Outdoor
 var role := "7"
@@ -186,6 +203,15 @@ var _torch: Node3D
 var _torch_light: OmniLight3D
 var _torch_hidden: Array[Node3D] = []
 var _torch_time := 0.0
+## Where the woodcutter stands to chop and which way he faces then (INF:
+## not a woodcutter, or no trunk to chop), the chips that fly at each blow,
+## and the blow under way: whether the blade has bitten yet, and how long
+## it still sticks in the wood.
+var _chop_stand := Vector3.INF
+var _chop_face := Vector3.FORWARD
+var _chips: CPUParticles3D
+var _bitten := false
+var _stuck := 0.0
 static var _wood: StandardMaterial3D
 
 
@@ -311,6 +337,10 @@ static func dress_model(model: Node3D, info: Dictionary) -> void:
 
 
 func play(anim_name: String, blend := 0.25) -> void:
+	# Anything else to do (the hero comes to talk, night falls) pulls a
+	# stuck axe out of the trunk at once.
+	_anim.speed_scale = 1.0
+	_stuck = 0.0
 	if _current_anim == anim_name and _anim.is_playing():
 		return
 	_current_anim = anim_name
@@ -554,8 +584,12 @@ func _do(task: String, delta: float) -> void:
 	if _anim.get_animation(work).loop_mode != Animation.LOOP_NONE:
 		play(work)
 		return
+	if chops() and not _ready_to_chop(delta):
+		return
 	# One-off moves (a hammer blow, picking something up) again and again,
 	# with a breath in between.
+	if chops() and _current_anim == work and _bite(delta):
+		return
 	if _anim.is_playing() and _current_anim == work:
 		return
 	_work_pause -= delta
@@ -567,10 +601,79 @@ func _do(task: String, delta: float) -> void:
 		return
 	_current_anim = work
 	_anim.play(work, 0.15)
-	if _info.has("sound"):
+	_bitten = false
+	# The woodcutter's blow is heard when the blade bites (see _bite).
+	if _info.has("sound") and not chops():
 		get_tree().create_timer(0.45).timeout.connect(func():
 			if is_inside_tree():
 				Sfx.play(self, _info.sound, -16.0, global_position, 0.8))
+
+
+## Gives the woodcutter his trunk: he stands at `stand`, faces `face` and
+## the blade lands where `chips` (placed by the caller at BITE_POINT) throws
+## up its splinters.
+func set_chopping(stand: Vector3, face: Vector3, chips: CPUParticles3D) -> void:
+	_chop_stand = stand
+	_chop_face = face
+	_chips = chips
+
+
+## Whether this villager chops wood on a trunk of his own.
+func chops() -> bool:
+	return _chop_stand != Vector3.INF
+
+
+## Before a blow: the woodcutter steps onto his spot by the trunk and turns
+## to it. A swing comes only when he is there; anywhere else (his walk home
+## was cut short) he waits, so the axe never cuts the air.
+func _ready_to_chop(delta: float) -> bool:
+	if _current_anim == _info.work and _anim.is_playing():
+		return true
+	if level.world_to_cell(global_position) != home:
+		play("Idle")
+		return false
+	var to := _chop_stand - global_position
+	to.y = 0.0
+	if to.length() > 0.05:
+		var step := minf(to.length(), WALK_SPEED * 0.6 * delta)
+		global_position += to.normalized() * step
+		_turn_to(to, delta)
+		play("Walking_B")
+		return false
+	_turn_to(_chop_face, delta)
+	var facing := Vector3(sin(rotation.y), 0, cos(rotation.y))
+	if facing.angle_to(_chop_face) > 0.12:
+		if _current_anim != _info.work:
+			play("Idle")
+		return false
+	return true
+
+
+## During a blow: when the blade reaches the trunk it stops there, stuck in
+## the wood, chips fly and the chop is heard; a moment later he wrenches the
+## axe out and stands back. True while the blow is held here.
+func _bite(delta: float) -> bool:
+	if not _bitten:
+		if _anim.current_animation_position < BITE_TIME:
+			return false
+		_bitten = true
+		# Exactly at the wood, not a tick later inside it.
+		_anim.seek(BITE_TIME, true)
+		_anim.speed_scale = 0.0
+		_stuck = BITE_HOLD
+		if _chips:
+			_chips.restart()
+		Sfx.play(self, "chop", -12.0, global_position, _rng.randf_range(0.9, 1.1))
+		return true
+	if _stuck <= 0.0:
+		return false
+	_stuck -= delta
+	if _stuck > 0.0:
+		return true
+	_anim.speed_scale = 1.0
+	play("Idle", 0.35)
+	_work_pause = _rng.randf_range(0.5, 1.3)
+	return true
 
 
 func _turn_to(direction: Vector3, delta: float) -> void:

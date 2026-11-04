@@ -4069,7 +4069,9 @@ func place_message(delta := 0.0) -> void:
 func _hero_head_on_screen() -> Vector2:
 	if state != State.PLAYING or player == null or not player.is_inside_tree() or player.dead or camera == null:
 		return Vector2.INF
-	var feet := player.global_position
+	# Where the hero is drawn this frame (between physics ticks), so the
+	# lines move with the hero and do not judder (see SmoothMotion).
+	var feet := SmoothMotion.drawn_at(player)
 	if not player.frozen:
 		feet.y = minf(feet.y, 0.5)
 	var top := feet + Vector3(0, Player.NAME_TAG_TOP, 0)

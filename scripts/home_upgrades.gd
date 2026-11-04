@@ -70,7 +70,7 @@ const SECOND_CHEST := 16
 
 ## At the workbench: throwing knives made from one iron bar, and iron bars
 ## to mend one worn piece completely.
-const KNIVES_PER_IRON := 3
+const KNIVES_PER_IRON := 2
 const MEND_IRON := 1
 ## With a workshop, a piece crafted while away takes this share of the hours.
 const WORKSHOP_CRAFT := 2.0 / 3.0

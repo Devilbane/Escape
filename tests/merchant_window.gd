@@ -152,7 +152,7 @@ func _test() -> void:
 	# Buying from the card still works.
 	var before: int = game.coins
 	menus._buy(game.shop_stock.find("schwert"))
-	check(game.coins == before - Items.ALL["schwert"].price and p.bag.has("schwert"), "buying takes the gold and gives the item")
+	check(game.coins == before - Items.buy_price("schwert") and p.bag.has("schwert"), "buying takes the gold and gives the item")
 
 	# Buying keeps everything in place: rows keep their order, a sold-out
 	# row stays (dimmed), the pick, the scroll and every row's place stay.

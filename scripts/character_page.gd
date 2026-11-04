@@ -24,10 +24,11 @@ const INNER := 124.0
 ## Where the ring of basic skills ends and the ring of advanced skills starts.
 const MIDDLE := 204.0
 const OUTER := 262.0
-## Text sizes: names and values the player reads (16 px or more, see the ux-ui
-## guide), and the main attributes' values as the wheel's focal point.
-const TEXT_SIZE := 16
-const VALUE_SIZE := 28
+## Text sizes: names and values the player reads, and the main attributes'
+## values as the wheel's focal point. Designed at 16 and 28 px, drawn at the
+## game's text scale (see UiKit.TEXT_SCALE).
+const TEXT_SIZE := 12
+const VALUE_SIZE := 21
 ## A skill's plate: its name and level, and under it the chance of a roll.
 const LINE := 19.0
 const PLATE_PAD := Vector2(8.0, 5.0)
@@ -366,7 +367,7 @@ func _draw_skills(i: int, places: Dictionary) -> void:
 		if lines.detail != "":
 			_text(Vector2(plate.get_center().x, baseline), lines.detail, TEXT_SIZE, GOLD)
 	if not has_basic:
-		_text(c + _dir(sector_angle(i)) * ((INNER + MIDDLE) / 2.0 + 2.0) + Vector2(0, 6), "—", 20, DIM)
+		_text(c + _dir(sector_angle(i)) * ((INNER + MIDDLE) / 2.0 + 2.0) + Vector2(0, 6), "—", UiKit.sized(20), DIM)
 
 
 ## A line of text centred on a point (the point is on the baseline).

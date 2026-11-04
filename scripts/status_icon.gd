@@ -60,7 +60,7 @@ static func make(what: String, number := "", tip := "") -> StatusIcon:
 		var label := Label.new()
 		label.text = number
 		label.add_theme_font_override("font", FONT)
-		label.add_theme_font_size_override("font_size", 14)
+		label.add_theme_font_size_override("font_size", UiKit.sized(14))
 		label.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
 		label.add_theme_constant_override("outline_size", 4)
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE

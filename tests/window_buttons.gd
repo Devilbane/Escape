@@ -141,7 +141,7 @@ func _test() -> void:
 		var c: Color = l.get_theme_color("font_color")
 		# Prices, better and worse: the colours of a decision.
 		var decides: bool = c in [game.GOLD, TradeWindow.GREEN, TradeWindow.RED]
-		if decides and l.is_visible_in_tree() and l.get_theme_font_size("font_size") < 16:
+		if decides and l.is_visible_in_tree() and l.get_theme_font_size("font_size") < UiKit.sized(16):
 			small.append("%s (%d)" % [l.text, l.get_theme_font_size("font_size")])
 	check(small.is_empty(), "no price or comparison under 16 px: %s" % [small])
 

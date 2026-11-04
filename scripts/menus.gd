@@ -443,7 +443,7 @@ func _done_label(text: String, size: int, color: Color, width: float, tag := "",
 	l.custom_minimum_size.x = width
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.add_theme_font_override("normal_font", game.TEXT_FONT)
-	l.add_theme_font_size_override("normal_font_size", size)
+	l.add_theme_font_size_override("normal_font_size", UiKit.sized(size))
 	l.add_theme_color_override("default_color", color)
 	l.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
 	l.add_theme_constant_override("outline_size", maxi(4, size / 6))
@@ -475,7 +475,7 @@ func _make_info() -> RichTextLabel:
 	l.scroll_active = false
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.add_theme_font_override("normal_font", game.TEXT_FONT)
-	l.add_theme_font_size_override("normal_font_size", 16)
+	l.add_theme_font_size_override("normal_font_size", UiKit.sized(16))
 	l.add_theme_color_override("default_color", BLUE)
 	l.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
 	l.add_theme_constant_override("outline_size", 4)
@@ -518,7 +518,7 @@ func _item_button(text: String, action: Callable, enabled := true, id := "") -> 
 		b.focus_entered.connect(_show_info.bind(id))
 		b.mouse_exited.connect(_show_info.bind(""))
 	b.custom_minimum_size = Vector2(160, 54)
-	b.add_theme_font_size_override("font_size", 16)
+	b.add_theme_font_size_override("font_size", UiKit.sized(16))
 	b.disabled = not enabled
 	return b
 
@@ -747,7 +747,7 @@ func _build_character() -> void:
 			game._update_hud()
 			_rebuild())
 	spend.custom_minimum_size = Vector2(CHARACTER_SIDE + 40, 52)
-	spend.add_theme_font_size_override("font_size", 16)
+	spend.add_theme_font_size_override("font_size", UiKit.sized(16))
 	var label_spend := func(_id: String) -> void:
 		var free := p.free_points()
 		var id: String = wheel.picked
@@ -880,7 +880,7 @@ func _inventory_cell(b: Button) -> Button:
 	b.custom_minimum_size = INVENTORY_CELL
 	b.clip_text = true
 	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	b.add_theme_font_size_override("font_size", INVENTORY_TEXT)
+	b.add_theme_font_size_override("font_size", UiKit.sized(INVENTORY_TEXT))
 	if not "\n" in b.text:
 		b.text = _two_lines(b)
 	return b
@@ -929,7 +929,7 @@ func _add_worn_heading(p: Player) -> void:
 		toggle.custom_minimum_size = Vector2(SIDE, 44)
 		toggle.clip_text = true
 		toggle.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		toggle.add_theme_font_size_override("font_size", INVENTORY_TEXT)
+		toggle.add_theme_font_size_override("font_size", UiKit.sized(INVENTORY_TEXT))
 		heading.add_child(toggle)
 	else:
 		var keep := Control.new()
@@ -1040,7 +1040,7 @@ func _add_inventory_header() -> void:
 	_box.add_child(header)
 	var back: Button = game._make_button(Lang.t("Zurück zum Spiel"), close)
 	back.custom_minimum_size = Vector2(190, 44)
-	back.add_theme_font_size_override("font_size", 16)
+	back.add_theme_font_size_override("font_size", UiKit.sized(16))
 	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var style: StyleBoxFlat = back.get_theme_stylebox("normal").duplicate()
 	style.bg_color = Color(0.2, 0.42, 0.18, 0.9)
@@ -1792,7 +1792,7 @@ func _build_style() -> void:
 	for id in Wishes.STYLES:
 		var b: Button = game._make_button(Lang.t(Wishes.STYLES[id].name), _choose_style.bind(id))
 		b.custom_minimum_size = Vector2(220, 60)
-		b.add_theme_font_size_override("font_size", 18)
+		b.add_theme_font_size_override("font_size", UiKit.sized(18))
 		if id == w.style:
 			# The style named before: marked by a word too, not only by colour.
 			b.text = Lang.t(Wishes.STYLES[id].name) + "  ✓"
@@ -2148,7 +2148,7 @@ func _build_naming() -> void:
 	edit.custom_minimum_size = Vector2(320, 52)
 	edit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	edit.add_theme_font_override("font", game.TEXT_FONT)
-	edit.add_theme_font_size_override("font_size", 22)
+	edit.add_theme_font_size_override("font_size", UiKit.sized(22))
 	edit.add_theme_stylebox_override("normal", panel_style(Color(0.85, 0.66, 0.32, 0.8)))
 	edit.add_theme_stylebox_override("focus", panel_style(game.GOLD))
 	for style in ["normal", "focus"]:
@@ -2429,7 +2429,7 @@ func _tattoo_editor() -> Control:
 	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	edit.custom_minimum_size = Vector2(220, 44)
 	edit.add_theme_font_override("font", game.TEXT_FONT)
-	edit.add_theme_font_size_override("font_size", 18)
+	edit.add_theme_font_size_override("font_size", UiKit.sized(18))
 	edit.add_theme_stylebox_override("normal", panel_style(Color(0.85, 0.66, 0.32, 0.8)))
 	edit.add_theme_stylebox_override("focus", panel_style(game.GOLD))
 	for style in ["normal", "focus"]:

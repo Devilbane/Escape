@@ -655,7 +655,7 @@ func _price_line(text: String, ok: bool, size: int) -> HBoxContainer:
 func _button(text: String, action: Callable, enabled: bool, min_size: Vector2, font_size: int) -> Button:
 	var b: Button = game._make_button(text, action)
 	b.custom_minimum_size = min_size
-	b.add_theme_font_size_override("font_size", font_size)
+	b.add_theme_font_size_override("font_size", UiKit.sized(font_size))
 	b.disabled = not enabled
 	return b
 

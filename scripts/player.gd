@@ -51,9 +51,12 @@ const MAX_HP := 5
 var radius := 0.55
 var tall := 2.4
 ## The name over the head (see _build_name_tag), and its height above the feet:
-## just clear of a helmet or a tall haircut seen from the tilted camera.
+## clear of a helmet or a tall haircut seen from the tilted camera, with a
+## little air between. NAME_TAG_TOP is about the top of its letters, where
+## the messages over the head start (Game.place_message).
 var name_tag: Label3D
-const NAME_TAG_HEIGHT := 3.0
+const NAME_TAG_HEIGHT := 3.3
+const NAME_TAG_TOP := NAME_TAG_HEIGHT + 0.25
 var _display_name := ""
 ## A hero who loses more than this share of their life to hits taken while
 ## running, within KNOCKDOWN_WINDOW seconds, stumbles to the ground and gets

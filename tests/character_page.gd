@@ -100,7 +100,7 @@ func _test() -> void:
 	root.size = Vector2i(1280, 720)
 
 	# The values the player reads on the wheel are 16 px or more.
-	check(CharacterPage.TEXT_SIZE >= 16, "the wheel's text is 16 px or more (%d)" % CharacterPage.TEXT_SIZE)
+	check(CharacterPage.TEXT_SIZE >= UiKit.sized(16), "the wheel's text is 16 px or more at the game's text scale (%d)" % CharacterPage.TEXT_SIZE)
 
 	# The yardstick for the odds is a person balanced to the hero's level,
 	# the way the game balances monsters to an area (see Enemy._fit_area).
@@ -133,7 +133,7 @@ func _test() -> void:
 			check(is_equal_approx(menus._panel.scale.x, 1.0), "the window fits 1280 × 720 unshrunk (%s): scale %s" % [where, menus._panel.scale.x])
 			for l in _labels(menus._box, []):
 				if l.text != "":
-					check(l.get_theme_font_size("font_size") >= 16, "'%s' is 16 px or more (%s)" % [l.text, where])
+					check(l.get_theme_font_size("font_size") >= UiKit.sized(16), "'%s' is 16 px or more at the game's text scale (%s)" % [l.text, where])
 
 			# Plates and blocks stay apart and inside the wheel; basic skills
 			# keep off the middle circle.

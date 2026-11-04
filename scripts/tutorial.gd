@@ -131,7 +131,7 @@ func setup(hud: CanvasLayer) -> void:
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	# Room for TEXT_LINES lines from the start, so a shorter text does not
 	# make the card smaller.
-	var line: float = game.TEXT_FONT.get_height(TEXT_SIZE) + _text.get_theme_constant("line_spacing")
+	var line: float = game.TEXT_FONT.get_height(UiKit.sized(TEXT_SIZE)) + _text.get_theme_constant("line_spacing")
 	_text.custom_minimum_size = Vector2(CARD_WIDTH - 32, ceilf(line * TEXT_LINES))
 	_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	box.add_child(_text)

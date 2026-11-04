@@ -47,7 +47,7 @@ func _ready() -> void:
 	_name_tag = _label(30, 2.75)
 	_name_tag.text = display_name
 	_name_tag.outline_modulate = Color(0.05, 0.03, 0.06, 0.85)
-	_bubble = _label(44, 3.7)
+	_bubble = _label(UiKit.sized(44), 3.7)
 	_bubble.width = 520
 	_bubble.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_bubble.modulate.a = 0.0

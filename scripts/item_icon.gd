@@ -236,6 +236,13 @@ func _draw() -> void:
 			draw_colored_polygon(PackedVector2Array([p.call(0.15, 0.75), p.call(0.3, 0.35), p.call(0.7, 0.3), p.call(0.88, 0.72), p.call(0.5, 0.85)]), Color(0.9, 0.88, 0.84))
 			draw_line(p.call(0.3, 0.35), p.call(0.5, 0.85), Color(0.7, 0.68, 0.66), u * 0.04)
 			draw_line(p.call(0.5, 0.42), p.call(0.66, 0.5), Color(0.98, 0.98, 1.0), u * 0.05)
+		"seeds":
+			# A little heap of grain.
+			for g: Vector2 in [Vector2(0.3, 0.72), Vector2(0.5, 0.74), Vector2(0.7, 0.72), Vector2(0.4, 0.56), Vector2(0.6, 0.56), Vector2(0.5, 0.4)]:
+				draw_set_transform(p.call(g.x, g.y), 0.5, Vector2(1.0, 0.62))
+				draw_circle(Vector2.ZERO, u * 0.12, Color(0.86, 0.7, 0.36))
+				draw_circle(Vector2(-u * 0.03, -u * 0.03), u * 0.04, Color(0.98, 0.88, 0.6))
+			draw_set_transform(Vector2.ZERO)
 		"paw":
 			# "kind:paw:fuchs": in the colour of that kind of companion.
 			var parts := what.split(":")

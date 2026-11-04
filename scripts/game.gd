@@ -233,16 +233,22 @@ var _boon_row: HBoxContainer
 ## Gear to mend, points to spend, upgrades to build: icons under the hero
 ## level (see hero_notices).
 var _notice_row: HBoxContainer
-## The life bar under the hero: its size, its gap below the feet on screen,
-## and its colours (brighter when low).
+## The life bar: its size, and where its top sits on screen, as a share of
+## the screen's height (centred across). It stays at that one spot, under
+## where the hero stands in the normal view, whatever the camera does.
 const HP_BAR_SIZE := Vector2(96, 8)
-const HP_BAR_GAP := 18.0
-## How far the hero's arms and blade reach out from the feet, in metres
-## (the bar keeps below all of it, see _place_hp_bar).
+const HP_BAR_Y := 0.68
+## How far the hero's arms and blade reach out from the feet, in metres: in
+## the normal view the bar sits below all of it (tests/event_log.gd).
 const HP_BAR_REACH := 1.8
-const HP_COLOR := Color(0.78, 0.2, 0.2)
-const HP_LOW_COLOR := Color(1.0, 0.35, 0.25)
-const HP_POISON_COLOR := Color(0.35, 0.75, 0.25)
+## The bar's colour by the share of life left: green when whole, yellow at
+## two thirds, red at one third, deep red near the end, blended between.
+const HP_COLORS := [
+	[1.0, Color(0.3, 0.8, 0.3)],
+	[0.66, Color(0.95, 0.82, 0.2)],
+	[0.33, Color(0.85, 0.2, 0.15)],
+	[0.0, Color(0.42, 0.02, 0.05)],
+]
 ## The run meter: seconds of running left, as a bar and in numbers.
 var _run_bar: ProgressBar
 var _xp_bar: ProgressBar
@@ -1016,7 +1022,7 @@ func _setup_hud() -> void:
 	hp_back.set_border_width_all(1)
 	hp_back.set_corner_radius_all(3)
 	_hp_fill = StyleBoxFlat.new()
-	_hp_fill.bg_color = HP_COLOR
+	_hp_fill.bg_color = hp_color(1.0)
 	_hp_fill.set_corner_radius_all(3)
 	_hp_bar.add_theme_stylebox_override("background", hp_back)
 	_hp_bar.add_theme_stylebox_override("fill", _hp_fill)
@@ -1886,11 +1892,9 @@ func _update_hud() -> void:
 		_level_label.text += "    " + _clock_shown
 	_hp_bar.max_value = maxi(1, player.max_hp)
 	_hp_bar.value = clampi(player.hp, 0, player.max_hp)
-	# Poison turns the bar green; low life a brighter warning red.
-	if player.ailments.has("gift"):
-		_hp_fill.bg_color = HP_POISON_COLOR
-	else:
-		_hp_fill.bg_color = HP_LOW_COLOR if player.hp * 4 <= player.max_hp else HP_COLOR
+	# Green when whole, through yellow and red to deep red as life is lost
+	# (poison shows as its icon under the bar).
+	_hp_fill.bg_color = hp_color(float(player.hp) / maxf(1.0, player.max_hp))
 	_update_status_icons()
 	_show_hero_level()
 	_coin_label.text = Lang.t("Gold: %d") % coins
@@ -3758,31 +3762,29 @@ func _fill_icon_row(row: HBoxContainer, wanted: Array) -> void:
 			Events.found(text, StatusIcon.log_color(c[0]))
 
 
-## Keeps the life bar at one steady spot under the hero on screen. It is
-## placed as seen from the camera without its shake (`cam_at`), for the hero
-## standing at `ground` (feet, not lifted by a jump): it stays under a
-## running hero while the camera trails behind, and neither trembles with
-## a shake nor bobs with jumps.
-func _place_hp_bar(ground: Vector3, cam_at: Vector3) -> void:
+## The life bar's colour for `share` of life left (0 to 1), see HP_COLORS.
+static func hp_color(share: float) -> Color:
+	share = clampf(share, 0.0, 1.0)
+	for i in range(1, HP_COLORS.size()):
+		var upper: Array = HP_COLORS[i - 1]
+		var lower: Array = HP_COLORS[i]
+		if share >= lower[0]:
+			return (lower[1] as Color).lerp(upper[1], (share - lower[0]) / (upper[0] - lower[0]))
+	return HP_COLORS.back()[1]
+
+
+## Keeps the life bar and the icons under it at one fixed spot on screen:
+## centred across, at HP_BAR_Y of the height. It does not follow the hero,
+## so it never moves while the camera trails, shakes or zooms.
+func _place_hp_bar() -> void:
 	var on_screen := state == State.PLAYING and player != null and player.is_inside_tree() and not player.dead \
 			and camera != null
 	_hp_bar.visible = on_screen
 	_status_row.visible = on_screen
 	if not on_screen:
 		return
-	var real := camera.global_position
-	camera.global_position = cam_at
-	# The bar starts below everything the hero can reach on screen: a ring
-	# of HP_BAR_REACH round the feet, on the ground and at blade height,
-	# whichever way the hero faces or swings.
-	var lowest := camera.unproject_position(ground).y
-	for i in 16:
-		var ring := Vector3(cos(TAU * i / 16.0), 0.0, sin(TAU * i / 16.0)) * HP_BAR_REACH
-		for height in [0.0, 1.2]:
-			lowest = maxf(lowest, camera.unproject_position(ground + ring + Vector3(0, height, 0)).y)
-	var x := camera.unproject_position(ground).x
-	camera.global_position = real
-	_hp_bar.position = Vector2(x - HP_BAR_SIZE.x / 2.0, lowest + HP_BAR_GAP).round()
+	var screen := _hud.get_viewport().get_visible_rect().size
+	_hp_bar.position = Vector2((screen.x - HP_BAR_SIZE.x) / 2.0, screen.y * HP_BAR_Y).round()
 	_status_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 5)
 
 
@@ -4942,16 +4944,12 @@ func _process(delta: float) -> void:
 	camera.rotation_degrees.x = -lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom)
 	var target := p + _camera_offset()
 	camera.global_position = camera.global_position.lerp(target, 1.0 - exp(-5.0 * delta))
-	# Where the camera really is, before any shake: the life bar is placed as
-	# seen from here, so it stays under the hero while the camera trails a
-	# running hero, but does not tremble with the ground.
-	var followed := camera.global_position
 	if _shake > 0.0:
 		# The ground trembles while a secret wall sinks.
 		_shake = maxf(0.0, _shake - delta)
 		var strength := 0.25 * minf(1.0, _shake)
 		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
-	_place_hp_bar(p, followed)
+	_place_hp_bar()
 	var dust := get_node("Dust") as Node3D
 	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)

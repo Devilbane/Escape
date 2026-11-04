@@ -4,7 +4,8 @@ extends SceneTree
 ## line is only written down when the hero is near enough to hear it, a
 ## reputation change is one short line, and the box keeps one size and place
 ## however many lines come, clear of the status block and the message line.
-## Life shows as a small bar with its numbers, under the hero.
+## Life shows as a small bar at a fixed spot under the hero, its colour by
+## the life left.
 ## Run with: godot --headless -s tests/event_log.gd
 
 var failures := 0
@@ -120,39 +121,67 @@ func _check_layout() -> void:
 	game._update_hud()
 	check(is_equal_approx(game._hp_bar.value, hero.hp) and is_equal_approx(game._hp_bar.max_value, hero.max_hp), "the life bar shows the hero's life")
 	check(game.HP_BAR_SIZE.y <= 10.0, "the life bar is slim")
-	# Poison turns it green.
+	# Its colour runs from green through yellow and red to deep red as life
+	# is lost.
+	check(game.hp_color(1.0).is_equal_approx(game.HP_COLORS[0][1]), "green at full life")
+	check(game.hp_color(0.66).is_equal_approx(game.HP_COLORS[1][1]), "yellow at two thirds")
+	check(game.hp_color(0.33).is_equal_approx(game.HP_COLORS[2][1]), "red at one third")
+	check(game.hp_color(0.0).is_equal_approx(game.HP_COLORS[3][1]), "deep red at the end")
+	var green: Color = game.hp_color(1.0)
+	check(green.g > green.r * 2.0, "the full bar is green: %s" % green)
+	var deep: Color = game.hp_color(0.05)
+	check(deep.r > deep.g * 4.0 and deep.r < game.hp_color(0.33).r, "near the end a deep, darker red: %s" % deep)
+	var last := -1.0
+	var smooth := true
+	for i in 21:
+		var c: Color = game.hp_color(i / 20.0)
+		if last >= 0.0 and absf(c.g - last) > 0.2:
+			smooth = false
+		last = c.g
+	check(smooth, "the colour blends without jumps")
+	hero.hp = hero.max_hp
+	game._update_hud()
+	check(game._hp_fill.bg_color.is_equal_approx(game.hp_color(1.0)), "the bar is green at full life")
+	hero.hp = maxi(1, hero.max_hp / 10)
+	game._update_hud()
+	check(game._hp_fill.bg_color.is_equal_approx(game.hp_color(float(hero.hp) / hero.max_hp)), "and follows the life lost: %s" % game._hp_fill.bg_color)
 	hero.ailments["gift"] = 5.0
 	game._update_hud()
-	check(game._hp_fill.bg_color == game.HP_POISON_COLOR, "the life bar is green while poisoned")
+	check(game._hp_fill.bg_color.is_equal_approx(game.hp_color(float(hero.hp) / hero.max_hp)), "poison keeps the life colour (it has its icon)")
 	hero.ailments.erase("gift")
+	hero.hp = maxi(1, hero.max_hp / 2)
 	game._update_hud()
-	check(game._hp_fill.bg_color != game.HP_POISON_COLOR, "and red again after")
+	# The bar has one fixed spot on screen, centred across: the camera
+	# shaking, trailing a running hero or zooming does not move it.
 	game.state = game.State.PLAYING
 	var ground: Vector3 = hero.global_position
-	var settled: Vector3 = game.camera.global_position
-	game._place_hp_bar(ground, settled)
+	game._zoom = 0.0
+	game.camera.rotation_degrees.x = -game.CAMERA_PITCH
+	var settled: Vector3 = ground + game._camera_offset()
+	game.camera.global_position = settled
+	game._place_hp_bar()
 	var steady: Vector2 = game._hp_bar.position
-	# The camera shaking or catching up does not move the bar.
-	game.camera.global_position = settled + Vector3(0.3, 0.2, -0.25)
-	game._place_hp_bar(ground, settled)
-	check(game._hp_bar.position == steady, "the life bar stays put while the camera shakes")
+	var screen: Vector2 = game._hud.get_viewport().get_visible_rect().size
+	check(is_equal_approx(game._hp_bar.get_global_rect().get_center().x, screen.x / 2.0), "the bar is centred across the screen")
+	for moved in [Vector3(0.3, 0.2, -0.25), Vector3(0, 0, 1.5), Vector3(-1.5, 0, 0), Vector3(0, -3, -4)]:
+		game.camera.global_position = settled + moved
+		game._place_hp_bar()
+		check(game._hp_bar.position == steady, "the life bar stays put with the camera moved by %s" % moved)
 	game.camera.global_position = settled
-	# Running: the camera trails behind the hero, so the hero is off the
-	# screen's middle. The bar still keeps below everything the hero's legs,
-	# arms and blade can reach, seen through the trailing camera.
-	for lag in [Vector3(0, 0, -1.5), Vector3(0, 0, 1.5), Vector3(1.5, 0, 0), Vector3(-1.5, 0, 0)]:
-		game.camera.global_position = settled + lag
-		game._place_hp_bar(ground, game.camera.global_position)
-		var top: float = game._hp_bar.get_global_rect().position.y
-		var clear := true
-		for i in 16:
-			var dir := Vector3(cos(TAU * i / 16.0), 0.0, sin(TAU * i / 16.0))
-			for height in [0.0, 1.2, 2.2]:
-				var tip: Vector2 = game.camera.unproject_position(ground + dir * game.HP_BAR_REACH + Vector3(0, height, 0))
-				if tip.y >= top:
-					clear = false
-		check(clear, "running with the camera trailing %s, nothing of the hero touches the bar" % lag)
-	game.camera.global_position = settled
+	# In the normal view it sits below everything the hero's legs, arms and
+	# blade can reach, and below the feet.
+	var top: float = game._hp_bar.get_global_rect().position.y
+	var clear := true
+	for i in 16:
+		var dir := Vector3(cos(TAU * i / 16.0), 0.0, sin(TAU * i / 16.0))
+		for height in [0.0, 1.2, 2.2]:
+			var tip: Vector2 = game.camera.unproject_position(ground + dir * game.HP_BAR_REACH + Vector3(0, height, 0))
+			if tip.y >= top:
+				clear = false
+	check(clear, "nothing of the hero touches the bar in the normal view")
+	# The icons under it keep clear of the message lines at the bottom.
+	var icons_bottom: float = top + game.HP_BAR_SIZE.y + 5 + StatusIcon.SIZE
+	check(icons_bottom < screen.y - game.MESSAGE_BOTTOM, "the icons under the bar end above the message line: %s" % icons_bottom)
 	# Passing troubles show as little icons in a row under the bar; boons
 	# go to the status block at the top left, just above the event log.
 	var status_before: Rect2 = game._level_label.get_parent().get_global_rect()
@@ -160,7 +189,7 @@ func _check_layout() -> void:
 	var hardening_before: int = hero.hardening
 	hero.hardening = 2
 	game._update_hud()
-	game._place_hp_bar(ground, settled)
+	game._place_hp_bar()
 	var kinds := []
 	for icon in game._status_row.get_children():
 		kinds.append(icon.kind)
@@ -215,15 +244,10 @@ func _check_layout() -> void:
 	notices = game.hero_notices().map(func(n): return n[0])
 	check(not notices.has("repair"), "and it goes once the gear is mended: %s" % [notices])
 	check(game._hp_bar.visible, "the life bar shows while playing")
+	game.camera.global_position = hero.global_position + game._camera_offset()
 	var feet: Vector2 = game.camera.unproject_position(hero.global_position)
 	var bar: Rect2 = game._hp_bar.get_global_rect()
-	check(bar.position.y > feet.y and absf(bar.get_center().x - feet.x) <= 1.0, "the life bar sits under the hero: %s, feet %s" % [bar, feet])
-	# Below the blade's reach, whichever way the hero turns.
-	for i in 8:
-		var dir := Vector3(cos(TAU * i / 8.0), 0.0, sin(TAU * i / 8.0))
-		for height in [0.0, 0.6, 1.2]:
-			var tip: Vector2 = game.camera.unproject_position(hero.global_position + dir * game.HP_BAR_REACH + Vector3(0, height, 0))
-			check(tip.y < bar.position.y, "the blade at %s does not touch the bar" % dir)
+	check(bar.position.y > feet.y and absf(bar.get_center().x - feet.x) <= 1.0, "the life bar sits under the hero in the normal view: %s, feet %s" % [bar, feet])
 	check(bar.size.is_equal_approx(game.HP_BAR_SIZE), "the life bar keeps its size: %s" % bar.size)
 	for line in elog._lines.get_children():
 		check((line as RichTextLabel).get_theme_font_size("normal_font_size") == EventLog.FONT_SIZE, "small type")

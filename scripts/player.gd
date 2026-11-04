@@ -280,8 +280,8 @@ func _ready() -> void:
 
 ## The hero's name over the head, in the same look as the name tags of the
 ## townsfolk and dungeon folk (Villager, DungeonNpc): Cinzel Bold 30, warm
-## white with a dark outline, always facing the camera. The life bar sits under
-## the feet (Game._place_hp_bar), so the two never meet.
+## white with a dark outline, always facing the camera. The life bar sits at
+## a fixed spot under the feet (Game._place_hp_bar), so the two never meet.
 func _build_name_tag() -> void:
 	name_tag = Label3D.new()
 	name_tag.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED

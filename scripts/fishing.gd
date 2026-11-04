@@ -2,7 +2,13 @@ class_name Fishing
 extends RefCounted
 ## Fishing: stand by the water, cast the line (key G or the "Angeln" button)
 ## and wait. When the float jerks under and a "!" shows, press again quickly
-## to strike, and the catch comes in. Too slow, and the fish is gone.
+## to strike, and the catch comes in.
+##
+## Or wait: when the bite is let go, the fish may bite again a moment later,
+## and again (CHAIN_CHANCE each time, up to MAX_CHAIN bites in a row). The
+## longer the row, the rarer the catch (CHAIN_WEED, CHAIN_RARE). When the
+## fish does not bite again, the row breaks off and the fish is gone, and so
+## it is when the hero strikes into the pause between two bites.
 ##
 ## Three waters hold fish: the fountain on the village square, the village
 ## pond and the pond in the wolf hollow. Most bites are a perch (or, in the
@@ -40,6 +46,17 @@ const WAIT_MIN := 2.5
 const WAIT_MAX := 6.5
 ## Seconds the hero has to strike once the float jerks under.
 const BITE_TIME := 1.2
+## Bites in a row: when a bite is let go, the fish bites again with this
+## chance, after a pause of CHAIN_GAP_MIN to CHAIN_GAP_MAX seconds; never
+## more than MAX_CHAIN times in a row.
+const CHAIN_CHANCE := 0.6
+const MAX_CHAIN := 5
+const CHAIN_GAP_MIN := 0.7
+const CHAIN_GAP_MAX := 1.4
+## For each bite in a row after the first, weed weighs this much in the
+## catch (see roll), and a rare fish this much.
+const CHAIN_WEED := 0.5
+const CHAIN_RARE := 2.0
 ## How far the line flies at most, from the hero out over a pond (metres).
 ## The float lands as far out as that, but always clear of the far shore.
 const CAST_REACH := 6.0
@@ -87,7 +104,7 @@ const WHIP_BEND := 0.16
 const PULL_BEND := -0.9
 const BITE_BEND := -0.12
 ## Explained once in the compendium, the first time the line is cast.
-const HOW_TO := "Angeln (Taste G oder der Knopf „Angeln“): stell dich ans Wasser und wirf die Leine aus. Taucht der Schwimmer unter und erscheint ein !, drück schnell noch einmal. Fische kommen in den Zutatenbeutel. Seltene Fische beißen nur in einem Gewässer, manche nur zu bestimmten Stunden."
+const HOW_TO := "Angeln (Taste G oder der Knopf „Angeln“): stell dich ans Wasser und wirf die Leine aus. Taucht der Schwimmer unter und erscheint ein !, drück schnell noch einmal. Oder warte ab: Manchmal beißt der Fisch gleich noch einmal, und je mehr Bisse in Folge, desto seltener der Fang. Reißt die Folge ab, ist der Fisch weg. Fische kommen in den Zutatenbeutel. Seltene Fische beißen nur in einem Gewässer, manche nur zu bestimmten Stunden."
 
 enum {IDLE, WAITING, BITE}
 
@@ -98,6 +115,8 @@ var water := {}
 var _level: Node
 ## Seconds until the next bite (WAITING) or until the fish lets go (BITE).
 var timer := 0.0
+## How many times the fish has bitten in a row this cast (0: not yet).
+var bites := 0
 var _hp_at_cast := 0
 var _float: Node3D
 var _float_rest := Vector3.ZERO
@@ -143,8 +162,13 @@ func water_near() -> Dictionary:
 func press() -> String:
 	match state:
 		WAITING:
+			var row := bites
 			stop()
-			game.show_message(Lang.t("Du holst die Leine ein. Noch hat nichts angebissen."), 1.8)
+			if row > 0:
+				# Struck into the pause between two bites.
+				game.show_message(Lang.t("Zu früh angeschlagen! Der Fisch ist weg."), 2.0)
+			else:
+				game.show_message(Lang.t("Du holst die Leine ein. Noch hat nichts angebissen."), 1.8)
 			return ""
 		BITE:
 			land()
@@ -164,6 +188,7 @@ func cast(w: Dictionary) -> void:
 	water = w
 	_level = game.level
 	state = WAITING
+	bites = 0
 	timer = rng.randf_range(WAIT_MIN, WAIT_MAX)
 	_hp_at_cast = game.player.hp
 	var p: Vector3 = game.player.global_position
@@ -446,24 +471,50 @@ func tick(delta: float) -> void:
 		# The float is pulled under and jerks about.
 		_float.position = _float_rest + Vector3(sin(_bob * 31.0) * 0.05, -0.12, 0)
 		if timer <= 0.0:
-			stop()
-			game.show_message(Lang.t("Zu langsam! Der Fisch ist weg."), 1.8)
-			return
+			let_go(bites < MAX_CHAIN and rng.randf() < CHAIN_CHANCE)
+			if state == IDLE:
+				return
 	_draw_line()
 
 
-## A fish takes the bait: the hero has BITE_TIME seconds to strike.
+## A fish takes the bait: the hero has BITE_TIME seconds to strike. Each
+## bite in a row shows one more "!" and sounds a little higher.
 func bite() -> void:
 	state = BITE
 	timer = BITE_TIME
-	Sfx.play(game, "drip", 0.0, _float_rest, 0.8)
-	Effects.float_text(_level, _float_rest + Vector3(0, 1.2, 0), "!", Color(1.0, 0.85, 0.3), true)
-	game.show_message(Lang.t("Es beißt! Schnell: G oder „Angeln“!"), BITE_TIME)
+	bites += 1
+	_monster_due = -1.0
+	Sfx.play(game, "drip", 0.0, _float_rest, 0.8 + 0.1 * (bites - 1))
+	Effects.float_text(_level, _float_rest + Vector3(0, 1.2, 0), "!".repeat(bites), Color(1.0, 0.85, 0.3), true)
+	if bites == 1:
+		game.show_message(Lang.t("Es beißt! Schnell: G oder „Angeln“!"), BITE_TIME)
+	else:
+		game.show_message(Lang.t("%d. Biss in Folge! G: anschlagen, oder auf den nächsten warten.") % bites, BITE_TIME)
+
+
+## The hero let a bite go by. With `again` the float comes up and the fish
+## bites once more after a short pause; otherwise the row breaks off and
+## the fish is gone.
+func let_go(again: bool) -> void:
+	if again:
+		state = WAITING
+		timer = rng.randf_range(CHAIN_GAP_MIN, CHAIN_GAP_MAX)
+		game.show_message(Lang.t("Der Schwimmer taucht wieder auf … beißt er noch einmal?"), timer)
+		return
+	var row := bites
+	var at := _float_rest
+	var on := _level
+	stop()
+	Effects.float_text(on, at + Vector3(0, 1.2, 0), Lang.t("Weg!"), Color(0.75, 0.75, 0.8), true)
+	if row <= 1:
+		game.show_message(Lang.t("Zu langsam! Der Fisch beißt nicht noch einmal und ist weg."), 2.2)
+	else:
+		game.show_message(Lang.t("Die Bissfolge reißt nach %d Bissen ab: Der Fisch ist weg!") % row, 2.5)
 
 
 ## The hero strikes in time: what was on the hook comes in.
 func land() -> void:
-	var caught := roll(water.water, game.day_hour, rng)
+	var caught := roll(water.water, game.day_hour, rng, bites)
 	var pos: Vector3 = _float_rest
 	var on: Node = _level
 	stop()
@@ -504,6 +555,7 @@ func take(caught: String, pos: Vector3, on: Node) -> void:
 ## Draws the line in, without a catch.
 func stop() -> void:
 	state = IDLE
+	bites = 0
 	water = {}
 	_level = null
 	_monster_due = -1.0
@@ -712,17 +764,34 @@ static func bites_at(when: String, hour: float) -> bool:
 	return true
 
 
-## What comes in from a water at an hour, picked by the weights in WATERS.
-static func roll(water_id: String, hour: float, random: RandomNumberGenerator) -> String:
+## Whether a catch is one of the rare fish.
+static func is_rare(caught: String) -> bool:
+	return (Crafting.INGREDIENTS.get(caught, {}) as Dictionary).get("rare", false)
+
+
+## How much a row of WATERS weighs after `bites` bites in a row: each bite
+## after the first makes weed rarer and a rare fish likelier.
+static func weight(row: Array, bites := 1) -> float:
+	var extra := maxi(0, bites - 1)
+	if row[0] == "":
+		return row[1] * pow(CHAIN_WEED, extra)
+	if is_rare(row[0]):
+		return row[1] * pow(CHAIN_RARE, extra)
+	return float(row[1])
+
+
+## What comes in from a water at an hour, picked by the weights in WATERS
+## (see weight) after `bites` bites in a row.
+static func roll(water_id: String, hour: float, random: RandomNumberGenerator, bites := 1) -> String:
 	var table := (WATERS.get(water_id, []) as Array).filter(func(row): return bites_at(row[2], hour))
-	var total := 0
+	var total := 0.0
 	for row in table:
-		total += int(row[1])
-	if total <= 0:
+		total += weight(row, bites)
+	if total <= 0.0:
 		return ""
-	var pick := random.randi_range(1, total)
+	var pick := random.randf() * total
 	for row in table:
-		pick -= int(row[1])
-		if pick <= 0:
+		pick -= weight(row, bites)
+		if pick < 0.0:
 			return row[0]
-	return ""
+	return table[-1][0]

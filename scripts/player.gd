@@ -191,8 +191,8 @@ var _lantern: OmniLight3D
 ## See set_night_dim: how far the night closes in on the lantern, and what
 ## is left of its brightness and reach on a moonless night.
 var night_dim := 0.0
-const NIGHT_LANTERN_ENERGY := 0.65
-const NIGHT_LANTERN_RANGE := 0.7
+const NIGHT_LANTERN_ENERGY := 0.55
+const NIGHT_LANTERN_RANGE := 0.62
 ## The hand torch that burns in the pitch-black places (see HandTorch).
 var torch: HandTorch
 var _shown_alpha := -1.0

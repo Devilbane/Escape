@@ -1,9 +1,8 @@
 class_name DayNight
 extends RefCounted
-## The clock of the world above ground. One full day, midnight to midnight,
-## takes DAY_LENGTH real seconds while the hero is in the open air or inside
-## a village building; down in the dungeon the clock stands still and the
-## light is the dungeon's own.
+## The clock of the world. One full day, midnight to midnight, takes
+## DAY_LENGTH real seconds wherever the hero is, down in the dungeon too
+## (there the light is the dungeon's own, and the hour shows on the HUD).
 ##
 ## The light follows the hour: a dark night lit only by the moon (as bright
 ## as its phase allows, see Moon and Game._moonlight), a pink dawn, the warm daylight (the picture the game always had in the open:
@@ -26,12 +25,14 @@ const NIGHT_UNTIL := 5.0
 ## sun (or moon) colour and energy, its pitch and yaw in degrees, colour
 ## saturation, how strongly lamps and windows glow (0 to 1), and how much of
 ## the light is the moon's (0 to 1). The night keys are the full moon's
-## silver light; a smaller moon dims them (see Moon.light).
+## cool blue light, with the colours left nearly full so its bluish sheen
+## shows on everything; a smaller moon dims it (see Moon.light), down to
+## nearly pitch black at new moon.
 const KEYS := [
-	{"hour": 0.0, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.12,
-		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.28, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
-	{"hour": 4.5, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.12,
-		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.28, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
+	{"hour": 0.0, "bg": Color(0.02, 0.03, 0.07), "amb": Color(0.42, 0.56, 1.0), "amb_e": 0.12,
+		"sun": Color(0.56, 0.72, 1.0), "sun_e": 0.3, "pitch": -60.0, "yaw": 30.0, "sat": 0.95, "glow": 1.0, "moon": 1.0},
+	{"hour": 4.5, "bg": Color(0.02, 0.03, 0.07), "amb": Color(0.42, 0.56, 1.0), "amb_e": 0.12,
+		"sun": Color(0.56, 0.72, 1.0), "sun_e": 0.3, "pitch": -60.0, "yaw": 30.0, "sat": 0.95, "glow": 1.0, "moon": 1.0},
 	{"hour": 6.0, "bg": Color(0.5, 0.36, 0.42), "amb": Color(0.78, 0.62, 0.66), "amb_e": 0.4,
 		"sun": Color(1.0, 0.62, 0.42), "sun_e": 0.55, "pitch": -20.0, "yaw": -95.0, "sat": 0.92, "glow": 0.5, "moon": 0.0},
 	# Daylight: exactly the open-air look the game had before the clock.
@@ -41,10 +42,10 @@ const KEYS := [
 		"sun": Color(1.0, 0.8, 0.6), "sun_e": 0.88, "pitch": -38.0, "yaw": 0.0, "sat": 0.95, "glow": 0.0, "moon": 0.0},
 	{"hour": 19.5, "bg": Color(0.55, 0.32, 0.3), "amb": Color(0.8, 0.58, 0.55), "amb_e": 0.42,
 		"sun": Color(1.0, 0.52, 0.3), "sun_e": 0.6, "pitch": -16.0, "yaw": 25.0, "sat": 0.95, "glow": 0.55, "moon": 0.0},
-	{"hour": 21.0, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.12,
-		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.28, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
-	{"hour": 24.0, "bg": Color(0.03, 0.035, 0.06), "amb": Color(0.6, 0.68, 0.9), "amb_e": 0.12,
-		"sun": Color(0.74, 0.82, 1.0), "sun_e": 0.28, "pitch": -60.0, "yaw": 30.0, "sat": 0.72, "glow": 1.0, "moon": 1.0},
+	{"hour": 21.0, "bg": Color(0.02, 0.03, 0.07), "amb": Color(0.42, 0.56, 1.0), "amb_e": 0.12,
+		"sun": Color(0.56, 0.72, 1.0), "sun_e": 0.3, "pitch": -60.0, "yaw": 30.0, "sat": 0.95, "glow": 1.0, "moon": 1.0},
+	{"hour": 24.0, "bg": Color(0.02, 0.03, 0.07), "amb": Color(0.42, 0.56, 1.0), "amb_e": 0.12,
+		"sun": Color(0.56, 0.72, 1.0), "sun_e": 0.3, "pitch": -60.0, "yaw": 30.0, "sat": 0.95, "glow": 1.0, "moon": 1.0},
 ]
 
 

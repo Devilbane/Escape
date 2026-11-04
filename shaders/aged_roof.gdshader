@@ -14,7 +14,7 @@ shader_type spatial;
 
 #include "res://shaders/detail.gdshaderinc"
 
-uniform sampler2D tiles : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D trim : source_color, filter_linear_mipmap, repeat_enable;
 // The house's roof shade (VillageHouse.ROOFS).
 uniform vec3 tint : source_color = vec3(1.0);
 // How weathered the roof is.
@@ -47,7 +47,7 @@ float lum(vec3 c) {
 void fragment() {
 	vec3 n = normalize(wnrm);
 	float px = length(fwidth(wpos));
-	vec3 tex = texture(tiles, UV).rgb;
+	vec3 tex = texture(trim, UV).rgb;
 	float raw = lum(tex);
 
 	// Which tile of the patch this is.

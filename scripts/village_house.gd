@@ -347,7 +347,7 @@ static func _roof_material(shade: int) -> ShaderMaterial:
 	if not _mats.has(key):
 		var mat := ShaderMaterial.new()
 		mat.shader = ROOF_SHADER
-		mat.set_shader_parameter("tiles", load(STONE_TEX))
+		mat.set_shader_parameter("trim", load(STONE_TEX))
 		mat.set_shader_parameter("tint", ROOFS[shade])
 		_mats[key] = mat
 	return _mats[key]

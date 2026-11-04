@@ -59,6 +59,11 @@ jobs:
           timeout 60 ~/godot/godot --headless -s tests/furniture_spacing.gd | tee spacing.log
           grep -q PASS spacing.log
 
+      - name: Chests rest their back on the wall and open towards the room
+        run: |
+          timeout 60 ~/godot/godot --headless -s tests/chest_facing.gd | tee chests.log
+          grep -q PASS chests.log
+
       - name: Furniture blocks only where it is drawn (nobody gets stuck on it)
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/furniture_stuck.gd | tee stuck.log

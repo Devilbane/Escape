@@ -1891,7 +1891,7 @@ func _build_house() -> void:
 				home_spot = cell_to_world(c + Vector2i(0, 1))
 				fox_beds.append(home_spot + Vector3(1.2, 0, -0.6))
 			elif ch == "L":
-				_place("chest", cell_to_world(c), 0.0)
+				_place("chest", cell_to_world(c), _back_to_wall(c))
 				_add_solid(cell_to_world(c), Vector3(2.4, 1.5, 2.4))
 				stations.append({"kind": "lager", "cell": c, "pos": cell_to_world(c), "used": false})
 	_build_house_pillars()

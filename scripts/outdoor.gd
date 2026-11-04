@@ -152,6 +152,9 @@ const CHAPEL_FOOT_MID := 3.0
 ## Where the bricks sit on the kit's trim sheet (v from top to bottom of four
 ## rows of bricks).
 const GABLE_BRICK_V := Vector2(0.6, 0.92)
+## The candlelight behind the temple's stained glass at night: dimmer than
+## the houses' windows, so the colours glow softly instead of burning white.
+const CHAPEL_GLASS_LIGHT := Color(0.42, 0.37, 0.3)
 
 const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
@@ -1517,13 +1520,15 @@ func _skin_chapel(chapel: Node) -> void:
 		var trim := StandardMaterial3D.new()
 		trim.albedo_texture = load(CHAPEL_DIR + "trim_sheet.png")
 		trim.roughness = 0.9
+		# Coloured panes in lead, painted over the kit's clear glass (see
+		# tools/make_stained_glass.py).
 		var glass := StandardMaterial3D.new()
-		glass.albedo_texture = load(CHAPEL_DIR + "window_diffuse.png")
+		glass.albedo_texture = load(CHAPEL_DIR + "stained_glass.png")
 		glass.emission_enabled = true
-		# The stained glass itself glows, in its own colours (multiplied,
-		# so the tint does not wash the panes out to white).
-		glass.emission = Color(1.0, 0.92, 0.8)
-		glass.emission_texture = load(CHAPEL_DIR + "window_diffuse.png")
+		# At night only the panes glow, each in its own colour, lit warm from
+		# within; the stone round them stays dark.
+		glass.emission = CHAPEL_GLASS_LIGHT
+		glass.emission_texture = load(CHAPEL_DIR + "stained_glass_glow.png")
 		glass.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
 		glass.emission_energy_multiplier = 0.0
 		var wood := StandardMaterial3D.new()

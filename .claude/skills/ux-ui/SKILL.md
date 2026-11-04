@@ -599,12 +599,13 @@ Use these helpers and values; do not re-create them.
 | Window frame | `Menus.panel_style(border)` | Dark background (0.04, 0.03, 0.08, 0.9), 2 px border, radius 18, margin 26. |
 | Window host | `Menus.setup` | `CenterContainer` over the HUD, a holder `Control`, one `PanelContainer`, a `ScrollContainer`, one `VBoxContainer` (`separation` 10, 6 in the inventory). |
 | Fitting the screen | `Menus._fit` | Every window fits the screen: when it opens (and when the screen changes size) it shrinks to fit, down to `MIN_SCALE` 0.8, and beyond that its content scrolls. Still keep windows within 1280 × 720 at scale 1: long lists go into a fixed scroll region of their own. `tests/windows_fit_screen.gd` checks every window. |
+| Fixed window sizes | `Menus.WINDOW_SIZES`, `Menus.fixed_size(kind)` | Every window the player works in (all merchants share `"trade"`, inventory, chests, workbenches, character, compendium, map...) has one content size, whatever it holds; its content sits in the middle. A new such window gets an entry, sized for its fullest content in both languages. Long names, prices and notes are shortened with "…" or wrap; they never widen a window. `tests/windows_fixed_size.gd` opens each one empty and full and checks it. |
 | Scroll bars | `UiKit.scroll_theme()`, set on `Menus._panel` | Every window's scroll bars are slim (`SCROLL_BAR_WIDTH` 6): a faint dark track and a dim gold handle that brightens on hover and when dragged. Do not style scroll bars per window. |
 | Opening/closing | `Menus.open(kind)` / `Menus.close()` | Pauses and resumes the world, resets per-visit state. |
 | Labels | `game._make_label(font, size, color)` | Adds outline and shadow; mouse ignored. |
 | Buttons | `game._make_button(text, action, on_press = false)` | 118 × 64 default, `TEXT_FONT` 18, gold text, radius 14. Close buttons 180 × 52; dialog buttons 220 × 60. Hover: bright gold border, lighter background and text, hand cursor. Pressed: dark amber. Disabled: dimmed. Focus: white outline outside the border. Acts on release; `on_press = true` only for the drawer's game actions. Do not override these states per button. |
 | Keyboard focus | `Menus._input`, `_focusables`, `_focus_at` | Arrow keys or Tab show the focus in the open window, a click hides it, `_rebuild` keeps it. Buttons stay `FOCUS_NONE` outside windows, so a key never presses a HUD button. |
-| Merchant / list-with-details | `TradeWindow` (`scripts/trade_window.gd`) | Sections, rows 350 × 60, cards 290 wide, list height 400. |
+| Merchant / list-with-details | `TradeWindow` (`scripts/trade_window.gd`) | Sections, rows 300 × 60 (their button 100 wide), cards 255 wide, list height 380; a row for tabs in every merchant's window, empty where he has none. |
 | Book pages | `Menus._book_column`, `BOOK_COLUMN` = 470 | Compendium, recipes, quest log, reputation. |
 | Item pictures | `ItemIcon.make(id_or_kind, size, flat)` | Use `kind:*` icons (coin, chev_up, chev_down, up, …) for UI symbols. |
 | Fonts | `game.TITLE_FONT` (Cinzel Decorative Black), `game.TEXT_FONT` (Cinzel Bold) | Titles vs everything else. |
@@ -683,7 +684,10 @@ windows, window buttons acting on release, and 16 px for prices and comparisons 
 (the "window buttons" PR, tested by `tests/window_buttons.gd`); the character wheel's small text:
 the wheel is 580 px across with all its text at 16 px or more, long skill names break over two
 lines, and the details (how a roll is made up, what an attribute does, why a skill is dimmed) show
-in a card of fixed size beside it on hover or tap (tested by `tests/character_page.gd`).
+in a card of fixed size beside it on hover or tap (tested by `tests/character_page.gd`); one fixed
+size per window for every window the player works in, the same for all merchants, with chest cells,
+row buttons, prices, card lines and notes that shorten or wrap instead of widening it (tested by
+`tests/windows_fixed_size.gd`).
 
 1. **Trade rows and folding headers take no keyboard focus.** With the keys, the player reaches
    each row's button (which shows that row's cards) but cannot pick a row or fold a category.

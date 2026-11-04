@@ -53,6 +53,10 @@ var style := "flesh"
 var age := 0.0
 var _rule: Dictionary
 var _overlay: StandardMaterial3D
+## Copies of the rot layer for meshes that are cut to a shape by their
+## texture's alpha (a slime's round puddle is a square plane): each copy
+## carries that texture, so the rot darkens only the shape, not the square.
+var _shaped: Array[StandardMaterial3D] = []
 var _scale0 := Vector3.ONE
 var _fog_timer := 0.0
 var _done := false
@@ -100,7 +104,7 @@ func _ready() -> void:
 	_overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_overlay.albedo_color = Color(ROT, 0.0)
 	for mesh: MeshInstance3D in enemy._model.find_children("*", "MeshInstance3D", true, false):
-		mesh.material_overlay = _overlay
+		mesh.material_overlay = _overlay_for(mesh)
 	# A dead person's eyes are covered in skin and crossed out in black
 	# (see DeadEyes): the skin rots with the face, the crosses stay till the end.
 	if enemy.is_human():
@@ -110,6 +114,25 @@ func _ready() -> void:
 		var fade := light.create_tween()
 		fade.tween_property(light, "light_energy", 0.0, 1.5)
 		fade.tween_callback(light.queue_free)
+
+
+## The rot layer for `mesh`: the shared one, or a copy cut to the shape
+## of its texture when that texture's alpha shapes it.
+func _overlay_for(mesh: MeshInstance3D) -> StandardMaterial3D:
+	var own := mesh.material_override as BaseMaterial3D
+	if own == null or own.albedo_texture == null or own.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED:
+		return _overlay
+	var cut := _overlay.duplicate() as StandardMaterial3D
+	cut.albedo_texture = own.albedo_texture
+	_shaped.append(cut)
+	return cut
+
+
+## How dark the rot is (0 none, 1 black), on every layer.
+func _set_rot(a: float) -> void:
+	_overlay.albedo_color.a = a
+	for cut in _shaped:
+		cut.albedo_color.a = a
 
 
 ## Too many corpses: this one, the oldest, goes to its end now.
@@ -127,7 +150,7 @@ func _process(delta: float) -> void:
 		var level: Level = enemy.level
 		if level != null:
 			enemy.visible = level.fog == null or level.fog.is_cell_visible(level.world_to_cell(enemy.global_position))
-	_overlay.albedo_color.a = float(_rule.black) * clampf(age / float(_rule.dark), 0.0, 1.0)
+	_set_rot(float(_rule.black) * clampf(age / float(_rule.dark), 0.0, 1.0))
 	var sag: Array = _rule.sag
 	var s := smoothstep(float(sag[0]), float(sag[1]), age)
 	var shape := Vector3(lerpf(1.0, float(_rule.wide), s), lerpf(1.0, float(_rule.flat), s), lerpf(1.0, float(_rule.wide), s))
@@ -144,7 +167,7 @@ func _process(delta: float) -> void:
 			_leave_remnant()
 			var g := smoothstep(0.0, 1.0, gone)
 			shape.y *= lerpf(1.0, 0.04, g)
-			_overlay.albedo_color.a = lerpf(_overlay.albedo_color.a, LAST_BLACK, g)
+			_set_rot(lerpf(_overlay.albedo_color.a, LAST_BLACK, g))
 			DeadEyes.fade(enemy._model, 1.0 - g)
 			if _stain_mat != null:
 				_stain_mat.albedo_color.a = _stain_alpha * g

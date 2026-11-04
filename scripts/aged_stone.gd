@@ -47,11 +47,13 @@ const PATCH_LEAVES := 280
 ## Old ivy on the buildings that stand on their own, away from the square
 ## (see Outdoor._standalone): more patches, climbing up to the eaves and the
 ## gable tips, and from the top of the wall a little way up the roof.
-const OLD_IVY_PATCHES := 7
+const OLD_IVY_PATCHES := 8
 const OLD_IVY_HEIGHT := Vector2(5.5, 11.0)
 const OLD_PATCH_LEAVES := 420
 const OLD_IVY_FOOT := 1.8
 const OLD_IVY_FILL := 0.5
+## Half the size of the clear middle of a window (across, up), in metres.
+const WINDOW_CLEAR := Vector2(0.42, 0.5)
 ## How far (metres, along the slope) old ivy creeps up a roof, and the
 ## steepest a roof may be (its normal's y at least) to be crept on.
 const ROOF_CREEP := Vector2(0.5, 2.0)
@@ -279,7 +281,9 @@ static func _on_wall(wall: Dictionary, p: Vector3) -> bool:
 ## Grows ivy up a building's outer walls: leaves (transforms and colours) are
 ## added to `leaves`. `doors` are the spots in front of its doors, where no
 ## ivy grows. `old` ivy climbs much higher, up to the roof and on to it.
-static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false) -> void:
+## `windows` are the middles of window panes (world space): their middle
+## stays clear of leaves, so the ivy frames a window but never covers it.
+static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = []) -> void:
 	var all_walls := walls(tris, middle, ground)
 	var found := rooted(all_walls, ground, old)
 	# A wall up on a stone base that looks the way a door does holds that
@@ -309,14 +313,16 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 				wall = w
 				break
 		var facing := found.filter(func(w): return (w.n as Vector3).z > 0.4)
-		if grown == 0 and attempt < 6 and not facing.is_empty():
+		# Old ivy gives the camera's side a few more of its patches.
+		var first := 3 if old else 1
+		if grown < first and attempt < 6 * first and not facing.is_empty():
 			wall = facing[rng.randi() % facing.size()]
 		var root: Vector3 = _root_on(wall, ground, rng)
 		if root == Vector3.INF:
 			continue
 		if doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
 			continue
-		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs)
+		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows)
 		grown += 1
 
 
@@ -344,7 +350,7 @@ static func _root_on(wall: Dictionary, ground: float, rng: RandomNumberGenerator
 ## and then branching; leaves grow along them, thickest near the ground.
 ## Old ivy climbs higher, and a tendril that runs out of wall below its
 ## reach creeps on up the roof above it.
-static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = []) -> void:
+static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = []) -> void:
 	var n: Vector3 = root_wall.n
 	var across := Vector3.UP.cross(n).normalized()
 	var height: Vector2 = OLD_IVY_HEIGHT if old else IVY_HEIGHT
@@ -387,7 +393,7 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 				fill = maxf(fill, OLD_IVY_FILL)
 			for k in rng.randi_range(1, 1 + int(fill * 1.6)):
 				var at := p + across * rng.randf_range(-0.2, 0.2) + Vector3.UP * rng.randf_range(-0.08, 0.08)
-				if _on_wall(wall, at):
+				if _on_wall(wall, at) and not _on_pane(at, n, windows):
 					_leaf(at, n, across, rng, leaves, 0.75 + fill * 0.35)
 			if rng.randf() < 0.08 and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
@@ -412,14 +418,23 @@ static func _creep_roof(p: Vector3, n: Vector3, roofs: Array, rng: RandomNumberG
 	var along := Vector3.UP.cross(rn)
 	along = along.normalized() if along.length() > 0.01 else Vector3.RIGHT
 	var at: Vector3 = on.p
-	# Over the edge: a few leaves from the wall's top out round the eaves,
-	# turning from the wall's face to the roof's.
+	# The wall meets the roof under its overhang: go down the slope to the
+	# eaves' edge, so the ivy runs on from the wall without a bare strip.
+	var downhill := -(Vector3.UP - rn * rn.y).normalized()
+	var under := 0.0
+	for i in 10:
+		var lower := _roof_at(near, at + downhill * 0.1, at.y - 0.4, at.y + 0.1)
+		if lower.is_empty():
+			break
+		at = lower.p
+		under += 0.1
+	# Over the edge: leaves hang down the eaves' edge, facing out like the
+	# wall's, then turn on to the roof.
 	var eave_across := Vector3.UP.cross(n).normalized()
-	for k in 3:
-		var f := (k + 1) / 4.0
-		var spot := p.lerp(at, f) + n * 0.1
-		_leaf(spot, n.lerp(rn, f).normalized(), eave_across, rng, leaves, 0.95)
-	var length := rng.randf_range(ROOF_CREEP.x, ROOF_CREEP.y)
+	for k in 4:
+		var spot := at + n * 0.08 + eave_across * rng.randf_range(-0.2, 0.2) - Vector3.UP * (0.08 + k * 0.12)
+		_leaf(spot, n.lerp(rn, 0.3).normalized(), eave_across, rng, leaves, 0.95)
+	var length := under + rng.randf_range(ROOF_CREEP.x, ROOF_CREEP.y)
 	var drift := rng.randf_range(-0.5, 0.5)
 	var went := 0.0
 	while went < length:
@@ -437,6 +452,20 @@ static func _creep_roof(p: Vector3, n: Vector3, roofs: Array, rng: RandomNumberG
 		at = still.p
 		rn = still.n
 		went += 0.16
+
+
+## Whether a spot on a wall facing `n` lies over the middle of a window
+## pane (a leaf there would hide it; the frame and shutters may be grown
+## over). The leaf's own size reaches a little further.
+static func _on_pane(at: Vector3, n: Vector3, windows: Array) -> bool:
+	for w: Vector3 in windows:
+		var d := at - w
+		if absf(d.dot(n)) > 0.5:
+			continue
+		var side := d - n * d.dot(n)
+		if absf(side.y) < WINDOW_CLEAR.y and Vector2(side.x, side.z).length() < WINDOW_CLEAR.x:
+			return true
+	return false
 
 
 ## Whether a triangle's corners come within `r` (across the ground) of `p`.

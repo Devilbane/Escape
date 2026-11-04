@@ -38,12 +38,16 @@ const BEAM := 0.22
 const ROOF_OVERHANG := 0.45
 
 static var _mats := {}
+## The middles of the window panes of the house being built (kept on the
+## house as meta "windows", so the ivy can leave them clear).
+static var _panes: Array = []
 
 
 ## A house that fits into a footprint of `room` metres (x across the front,
 ## y deep). Its glowing window panes use `glass`, so the village can light
 ## them at night.
 static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMaterial3D) -> Node3D:
+	_panes = []
 	var w := clampf(room.x - 1.2 - JETTY * 2.0, 4.5, 7.0) - rng.randf_range(0.0, 0.6)
 	var d := clampf(room.y - 1.4 - JETTY * 2.0, 4.0, 6.0) - rng.randf_range(0.0, 0.5)
 	var ridge := rng.randf_range(2.6, 3.4)
@@ -84,6 +88,7 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMate
 	house.name = "House"
 	house.set_meta("village_house", true)
 	house.set_meta("door", Vector3(door_x, 0, d * 0.5))
+	house.set_meta("windows", _panes.duplicate())
 	house.add_child(_mesh_of(parts, _materials(rng, glass)))
 	return house
 
@@ -95,6 +100,7 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMate
 ## to the neighbours on either side, and a small sign over the door carries
 ## the house number. Built facing south (+z) like `build`.
 static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator, glass: StandardMaterial3D) -> Node3D:
+	_panes = []
 	var w := room.x - 0.06
 	var d := clampf(room.y - 1.6 - JETTY * 2.0, 4.0, 6.0) - rng.randf_range(0.0, 0.3)
 	var ridge := w * rng.randf_range(0.62, 0.8)
@@ -136,6 +142,7 @@ static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator,
 	house.name = "TownHouse%d" % number
 	house.set_meta("town_house", number)
 	house.set_meta("door_x", door_x)
+	house.set_meta("windows", _panes.duplicate())
 	var mats := _materials(rng, glass)
 	house.add_child(_mesh_of(parts, mats))
 	var roof := _mesh_of(roof_parts, mats)
@@ -219,6 +226,7 @@ static func _door(parts: Dictionary, at: Vector3) -> void:
 
 ## A window: a glowing pane in a frame, with open shutters either side.
 static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
+	_panes.append(at)
 	var b := Basis(Vector3.UP, turn)
 	var out := b * Vector3(0, 0, 1)
 	var side := b * Vector3(1, 0, 0)

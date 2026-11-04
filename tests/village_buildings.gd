@@ -217,6 +217,15 @@ func _check_aged(lvl: Outdoor) -> void:
 				if face.y > 0.55 and face.y < 0.98 and xf.origin.y > 6.0:
 					on_roof += 1
 			check(high > 50, "old ivy climbs up to the eaves of a standalone house (%d leaves)" % high)
+			# The ivy frames the windows, but no leaf sits on a pane's middle.
+			var on_glass := 0
+			for w: Vector3 in house.get_meta("windows", []):
+				var pane: Vector3 = house.global_transform * w - lvl.global_position
+				for i in lvl._ivy.xforms.size():
+					var d: Vector3 = (lvl._ivy.xforms[i] as Transform3D).origin - pane
+					if absf(d.y) < 0.25 and Vector2(d.x, d.z).length() < 0.3:
+						on_glass += 1
+			check(on_glass == 0, "ivy leaves the windows of a standalone house clear (%d leaves)" % on_glass)
 			check(on_roof > 10, "old ivy creeps on to the roof of a standalone house (%d leaves)" % on_roof)
 		check(standalone > 0, "some houses stand away from the square")
 

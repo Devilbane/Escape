@@ -1636,7 +1636,9 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		var ground := node.global_position.y
 		var doors_at := door_spots.map(func(d: Vector3): return d + offset)
 		var leaves := {"xforms": [], "colours": []}
-		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old)
+		# Window panes the house builder noted (see VillageHouse), in world space.
+		var panes: Array = (node.get_meta("windows", []) as Array).map(func(w: Vector3): return node.global_transform * w)
+		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes)
 		for i in leaves.xforms.size():
 			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
 		var spot := Vector3.INF

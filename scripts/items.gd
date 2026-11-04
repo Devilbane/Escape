@@ -146,7 +146,7 @@ static var ALL := {
 	"salzleckstein": {"name": "Salzleckstein", "slot": "futter", "icon": "salt", "weight": 0.5, "price": 3, "no_loot": true, "effect": "Hirsche lieben ihn. Sie äsen auf den Lichtungen zwischen Friedhof und Dorf: Lass einen Hirsch dreimal lecken, und er wird dein Freund"},
 	# A hand torch for the pitch-black places (see HandTorch): the shopkeeper
 	# always has some. Carried in the bag, lit by itself in the dark.
-	"fackel": {"name": "Fackel", "slot": "licht", "weight": 0.5, "price": 3, "no_loot": true, "effect": "Brennt in der Finsternis von selbst, drei Minuten lang. Ohne sie siehst du dort kaum die eigene Hand"},
+	"fackel": {"name": "Fackel", "slot": "licht", "weight": 0.5, "price": 3, "no_loot": true, "effect": "Zünde sie an, wenn du Licht brauchst (Taste V oder die Fackel am rechten Rand), dann brennt sie drei Minuten lang. In der Finsternis siehst du ohne sie kaum die eigene Hand"},
 }
 
 

@@ -27,6 +27,7 @@ The game can be played in English or German; you choose the language on the titl
 | Map and journal | N | map icon on the right edge |
 | Quests and what is worth doing | O | scroll icon on the right edge |
 | Run home (once you have a house) | X | house icon on the right edge, below the menu handle; any step, click or blow of your own stops it |
+| Light or put out a torch | V | torch icon on the right edge, below the house icon (shows while you carry a torch, with how many are left in the bag) |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |
@@ -576,11 +577,12 @@ at the rim and a cold mist rising out of it. Come close and the holes **whisper*
 Run into one to climb down into a small cave of its own: **The Open Grave**, **The Spider Hole** and **The Pale Deep**.
 
 Down there it is **pitch black**. No torch burns on the walls, and without a light of your own you see hardly
-more than the tile you stand on. **Torches** are sold by the shopkeeper (3 gold, she always has some): in the
-dark one lights itself from your bag and burns for three minutes, then the next one is lit, and when the last
-one gutters out the darkness closes in again. Even a torch only lights a few steps around you, and a burning
-torch cannot be hooded: every monster down there sees you coming. Back in the open the torch goes out and keeps
-what is left of it for next time.
+more than the tile you stand on. **Torches** are sold by the shopkeeper (3 gold, she always has some). A torch
+never lights itself: light one when you need it with the **torch icon** on the right edge (below the house
+icon) or **V**. It burns for three minutes wherever you go, also on a dark night, until you put it out the same
+way; what is left of it burns on the next time you light it. When it burns down the darkness closes in again
+until you light the next one. Even a torch only lights a few steps around you, and a burning torch cannot be
+hooded: every monster sees you coming.
 
 Somewhere in each cave lies a **den**, and every other time you come down something lives in it: a **horror**,
 a huge monster nobody has a name for. At first you only hear it breathing in the dark. The moment you see it,

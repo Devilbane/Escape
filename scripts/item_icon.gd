@@ -71,6 +71,8 @@ static func kind_of(id: String) -> String:
 			return "ore"
 		"kiste":
 			return "crate"
+		"licht":
+			return "torch_out"
 		"futter":
 			return item.get("icon", "sausage")
 	return "scroll"
@@ -194,6 +196,16 @@ func _draw() -> void:
 		"flame":
 			draw_colored_polygon(PackedVector2Array([p.call(0.5, 0.05), p.call(0.8, 0.5), p.call(0.72, 0.85), p.call(0.5, 0.95), p.call(0.28, 0.85), p.call(0.2, 0.5)]), Color(1.0, 0.5, 0.15))
 			draw_colored_polygon(PackedVector2Array([p.call(0.5, 0.4), p.call(0.65, 0.7), p.call(0.5, 0.88), p.call(0.35, 0.7)]), Color(1.0, 0.85, 0.3))
+		"torch", "torch_out":
+			# A torch held slanted: a wooden shaft, a wrapped head, and a flame
+			# on it while it burns ("torch"); a dark, cold head when it is out.
+			draw_line(p.call(0.3, 0.95), p.call(0.56, 0.45), WOOD, u * 0.11)
+			draw_colored_polygon(PackedVector2Array([p.call(0.5, 0.36), p.call(0.7, 0.42), p.call(0.62, 0.56), p.call(0.46, 0.5)]), LEATHER.darkened(0.25))
+			if kind_of(what) == "torch":
+				draw_colored_polygon(PackedVector2Array([p.call(0.64, 0.02), p.call(0.84, 0.3), p.call(0.74, 0.46), p.call(0.56, 0.44), p.call(0.44, 0.3)]), Color(1.0, 0.5, 0.15))
+				draw_colored_polygon(PackedVector2Array([p.call(0.62, 0.18), p.call(0.72, 0.34), p.call(0.64, 0.42), p.call(0.54, 0.36)]), Color(1.0, 0.85, 0.3))
+			else:
+				draw_line(p.call(0.5, 0.36), p.call(0.66, 0.42), Color(0.45, 0.42, 0.4), u * 0.05)
 		"scissors":
 			draw_arc(p.call(0.28, 0.75), u * 0.14, 0, TAU, 20, GOLDEN, u * 0.06)
 			draw_arc(p.call(0.72, 0.75), u * 0.14, 0, TAU, 20, GOLDEN, u * 0.06)

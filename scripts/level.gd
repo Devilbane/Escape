@@ -340,7 +340,7 @@ const WRITINGS := [
 	["HOFFNUNG", "Jemand hat mit Blut an die Wand geschrieben: „Gib nicht auf. Ich bin hier auch hinausgekommen.“"],
 	["FACKELN", "Mit Blut an die Wand geschrieben: „Nicht jede Fackel ist nur eine Fackel.“"],
 	["IIII IIII IIII", "Blutige Striche an der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt."],
-	["LICHT", "Mit Blut an die Wand geschrieben: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“"],
+	["LICHT", "Mit Blut an die Wand geschrieben: „In der Finsternis ist eine Fackel dein Leben. Nimm immer eine mit.“"],
 	["GOLD", "Mit Blut an die Wand geschrieben: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“"],
 	["LEISE", "Mit Blut an die Wand geschrieben: „Die Toten hören schlecht. Wer leise geht, kommt weit.“"],
 	["SUCHE", "Mit Blut an die Wand geschrieben: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“"],
@@ -358,7 +358,9 @@ const OLD_WRITINGS := {
 	"Striche in der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt.":
 		"Blutige Striche an der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt.",
 	"In die Wand geritzt: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“":
-		"Mit Blut an die Wand geschrieben: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“",
+		"Mit Blut an die Wand geschrieben: „In der Finsternis ist eine Fackel dein Leben. Nimm immer eine mit.“",
+	"Mit Blut an die Wand geschrieben: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“":
+		"Mit Blut an die Wand geschrieben: „In der Finsternis ist eine Fackel dein Leben. Nimm immer eine mit.“",
 	"In die Wand geritzt: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“":
 		"Mit Blut an die Wand geschrieben: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“",
 	"In die Wand geritzt: „Die Toten hören schlecht. Wer leise geht, kommt weit.“":

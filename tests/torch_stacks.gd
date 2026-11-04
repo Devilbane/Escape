@@ -3,7 +3,7 @@ extends SceneTree
 ## shows one cell per bundle with its count; a full bag still takes a torch
 ## while a bundle has room; dropping takes one off the bundle (it lies on
 ## the floor and can be picked up again); the bag comes back the same after
-## a save and load; and in the dark one torch of a bundle is lit.
+## a save and load; and a torch lit on request takes one off a bundle.
 ## Run with: godot --headless --fixed-fps 60 -s tests/torch_stacks.gd
 
 const TORCH := HandTorch.ITEM
@@ -156,12 +156,15 @@ func _test() -> void:
 	check(game.player.bag.count(TORCH) == 7 and game.player.bag_used() == 3, "after loading 7 torches are back in 2 bundles (%d torches, %d slots)" % [game.player.bag.count(TORCH), game.player.bag_used()])
 	p = game.player
 
-	# In the dark one torch of a bundle is lit; the rest stays bundled.
+	# Lit on request, one torch of a bundle burns; the rest stays bundled.
 	game.level.pitch_dark = true
 	p.torch.left = 0.0
 	p.torch._process(0.1)
-	check(p.torch.lit and p.bag.count(TORCH) == 6, "in the dark one torch is lit, 6 stay in the bag (%d)" % p.bag.count(TORCH))
+	check(not p.torch.lit and p.bag.count(TORCH) == 7, "the dark alone lights no torch")
+	p.torch.toggle()
+	check(p.torch.lit and p.bag.count(TORCH) == 6, "lit on request, 6 stay in the bag (%d)" % p.bag.count(TORCH))
 	check(p.bag_used() == 3, "the bundles are 5 and 1 now")
+	p.torch.toggle()
 	game.level.pitch_dark = false
 	p.torch._process(0.1)
 

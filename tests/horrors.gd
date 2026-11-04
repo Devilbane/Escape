@@ -2,10 +2,10 @@ extends SceneTree
 ## Headless test for the creepy holes, the hand torch and the nameless
 ## horrors: three dark holes lie in the wild, each with a way to it and a
 ## pitch-black cave below. Down there no torch burns on the walls and the
-## hero sees hardly past their own tile, until a hand torch from the bag
-## lights itself. The horror in its den is revealed with "???" on its bar,
+## hero sees hardly past their own tile, until the player lights a hand
+## torch from the bag with the torch button. The horror in its den is revealed with "???" on its bar,
 ## and once it has fallen it is discovered: named, and in the compendium.
-## Back in the open the torch goes out and the lantern shines again.
+## Back in the open the torch burns on until put out, and the lantern shines again.
 ## Run with: godot --headless --fixed-fps 60 -s tests/horrors.gd
 
 var failures := 0
@@ -86,7 +86,9 @@ func _process(_delta: float) -> bool:
 				return false
 			var lvl: Level = game.level
 			var torch: HandTorch = game.player.torch
-			check(torch.lit and torch.left > 0.0, "a torch from the bag lights itself in the dark")
+			check(not torch.lit, "the dark alone lights no torch: the player does")
+			game.torch_action()
+			check(torch.lit and torch.left > 0.0, "the torch button lights a torch from the bag")
 			check(torch.spare() == 1, "it is taken from the bag (%d left)" % torch.spare())
 			check(game.player.is_lit(), "a burning torch cannot be hooded")
 			check(torch.light_reach() > HandTorch.DARK_REACH, "the torch lets the hero see a little farther")
@@ -126,7 +128,9 @@ func _process(_delta: float) -> bool:
 			if stage_frames < 30:
 				return false
 			check(game.level is Outdoor, "the stairs lead back out of the hole")
-			check(not game.player.torch.lit, "in the open the torch goes out")
+			check(game.player.torch.lit, "in the open the torch burns on until it is put out")
+			game.torch_action()
+			check(not game.player.torch.lit and game.player.torch.left > 0.0, "put out, it keeps what is left of it")
 			check(is_equal_approx(game.player._lantern.light_energy, 1.1), "and the lantern shines as before")
 			_finish()
 			return true

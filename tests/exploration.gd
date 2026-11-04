@@ -64,9 +64,9 @@ func _test() -> void:
 			"(vollständig)", "Eine Inschrift!", "Dein geübtes Auge findet eine Fackel, die hier versteckt lag.",
 			"Ganz erkundet: %s\nDein Blick für Verborgenes wird schärfer (Erkunden)."]:
 		check(Lang.EN.has(text), "has English: " + text)
-	# Writings found before they were written in blood map to today's texts.
+	# Writings found before they were written in blood (or before a text changed) map to today's texts.
 	var texts_now: Array = Level.WRITINGS.map(func(w): return w[1])
-	check(Level.OLD_WRITINGS.size() == Level.WRITINGS.size() and Level.OLD_WRITINGS.values().all(func(t): return t in texts_now), "every old writing text maps to its new one")
+	check(Level.OLD_WRITINGS.size() >= Level.WRITINGS.size() and Level.OLD_WRITINGS.values().all(func(t): return t in texts_now), "every old writing text maps to its new one")
 	# Every carved word fits on its wall piece, in both languages.
 	var font: Font = preload("res://assets/fonts/Cinzel-Bold.woff2")
 	for w in Level.WRITINGS:

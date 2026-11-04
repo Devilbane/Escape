@@ -206,7 +206,7 @@ var met := {}
 ## Where the hero wakes up in the house: next to the bed.
 var home_spot := Vector3.ZERO
 ## Fronts of the village buildings: where villagers walk to.
-var spots := {"houses": [], "square": [], "well": []}
+var spots := {"houses": [], "square": [], "well": [], "market": []}
 ## The village houses' chimneys: each house's door spot (as in spots.houses)
 ## and the plume of smoke over its roof (see ChimneySmoke).
 var chimneys: Array[Dictionary] = []
@@ -425,7 +425,9 @@ func build() -> void:
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []
 		pecking.assign(spots.square)
-		birds = VillageBirds.new(self, nests, pecking, hash(level_name + "voegel"))
+		var market: Array[Vector3] = []
+		market.assign(spots.market)
+		birds = VillageBirds.new(self, nests, pecking, market, hash(level_name + "voegel"))
 		add_child(birds)
 	Mountains.build(self, hash(level_name + "berge"))
 	_build_forest()
@@ -433,6 +435,11 @@ func build() -> void:
 	_build_wall_collision()
 	_build_rock_collision()
 	_setup_astar()
+	if birds:
+		# Not where the fountain, a bench or a stall stands.
+		var free: Array[Vector3] = []
+		free.assign(birds.market.filter(func(m: Vector3): return is_open(world_to_cell(m))))
+		birds.market = free
 	_flush_plants()
 	# Leaves, twigs, rubble and little crawling creatures on the ground.
 	add_child(SurfaceLife.new(self))
@@ -685,6 +692,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_add_solid(pos, Vector3(TILE * 0.9, 1, TILE * 0.9))
 		":":
 			spots.square.append(pos)
+			spots.market.append(pos)
 		"F":
 			_build_fountain(c)
 			spots.well.append(pos + Vector3(0, 0, 2.6))

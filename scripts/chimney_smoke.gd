@@ -53,8 +53,12 @@ static func make() -> CPUParticles3D:
 	p.initial_velocity_max = 0.7
 	p.damping_min = 0.1
 	p.damping_max = 0.2
-	p.angular_velocity_min = -20.0
-	p.angular_velocity_max = 20.0
+	# No spin: a soft round dot looks the same turned, and a turning
+	# billboard particle is the only kind that reads its instance custom data
+	# (the angle). On some graphics drivers the compatibility renderer then
+	# mixes up the instance data, and the smoke came out as glaring green and
+	# yellow balls over the roof. Without spin it is drawn like every other
+	# particle in the game.
 	p.scale_amount_min = 0.8
 	p.scale_amount_max = 1.2
 	# Small and dense at the chimney's mouth, wide and thin up high.

@@ -151,15 +151,15 @@ func _test_inventory() -> void:
 func _test_storage() -> void:
 	var menus: Menus = game.menus
 	game.storage.clear()
-	game.storage.append("stachelschild")
+	game.storage.append("plattenpanzer")
 	menus.open("lager")
 	await _wait()
 	var ok := false
 	for b in menus._box.find_children("*", "Button", true, false):
-		if b.text.replace("\n", " ").contains(Items.item_name("stachelschild")) and b.get_theme_color("font_color") == Rarity.EPIC:
+		if b.text.replace("\n", " ").contains(Items.item_name("plattenpanzer")) and b.get_theme_color("font_color") == Rarity.EPIC:
 			ok = true
-	check(ok, "the storage chest shows the epic shield in violet")
-	menus._show_info("stachelschild")
+	check(ok, "the storage chest shows the epic plate armour in violet")
+	menus._show_info("plattenpanzer")
 	check(menus._info.text.contains(Rarity.EPIC.to_html(false)), "the chest's info line colours the name")
 	await _shot("storage_epic")
 	menus.close()

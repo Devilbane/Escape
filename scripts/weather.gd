@@ -20,7 +20,8 @@ extends RefCounted
 ## Over the light of the hour, the weather lays its own look: rain and
 ## storm darken and grey the sky, fog washes it out and hides the distance.
 ## Rain falls around the hero, mist drifts over the ground, and lightning
-## lights up the whole world for a moment.
+## lights up the whole world for a moment. Rain leaves puddles that stay a
+## while after it (see Puddles and puddle_water).
 
 const CLEAR := "clear"
 const RAIN := "rain"
@@ -73,6 +74,11 @@ const RAIN_BOX := Vector3(22, 0.5, 16)
 const RAIN_HEIGHT := 16.0
 ## Drifting patches of mist at full strength.
 const MIST_PATCHES := 28
+## Rain puddles (see Puddles): how many hours of rain fill them up (a
+## storm pours twice as fast), and how many hours of dry weather after it
+## they take to dry up again.
+const PUDDLE_FILL_HOURS := 0.8
+const PUDDLE_DRY_HOURS := 3.0
 
 
 ## The part of the day the chances go by.
@@ -110,6 +116,18 @@ static func spell(rng: RandomNumberGenerator, kind := RAIN) -> float:
 	if kind == CLEAR:
 		return rng.randf_range(CLEAR_MIN_HOURS, CLEAR_MAX_HOURS)
 	return rng.randf_range(MIN_HOURS, MAX_HOURS)
+
+
+## How much water lies in the puddles (0 dry to 1 full) after `delta` real
+## seconds more of `kind` weather: rain fills them, a storm faster, and any
+## other weather dries them, slowly, so they stay a while after the rain.
+static func puddle_water(water: float, kind: String, delta: float) -> float:
+	var hours := delta * 24.0 / DayNight.DAY_LENGTH
+	if kind == RAIN or kind == STORM:
+		water += hours / PUDDLE_FILL_HOURS * (2.0 if kind == STORM else 1.0)
+	else:
+		water -= hours / PUDDLE_DRY_HOURS
+	return clampf(water, 0.0, 1.0)
 
 
 ## The look of a weather (see LOOKS).

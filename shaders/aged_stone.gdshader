@@ -105,9 +105,11 @@ void fragment() {
 	// Softer joints: the dark rims along each joint are lifted to the
 	// stone's own colour, so the line gets thinner, and only its darkest
 	// core stays as mortar, a dark grey instead of black. The faces of the
-	// blocks (relief above ~0.36), even the darker ones, keep their shade.
-	float rim = smoothstep(0.16, 0.36, relief);
-	float lifted = max(mix(0.31, relief, rim), relief);
+	// blocks (relief above ~0.42), even the darker ones, keep their shade.
+	// The scratches on the faces are lifted the same way and the relief is
+	// pressed flatter below, so they no longer read as black carvings.
+	float rim = smoothstep(0.16, 0.42, relief);
+	float lifted = max(mix(0.38, relief, rim), relief);
 	float core = 1.0 - smoothstep(0.02, 0.09, relief);
 	vec3 soft = mix(stone * (lifted / max(relief, 0.02)), vec3(0.24, 0.235, 0.225), core);
 	stone = mix(stone, soft, soft_joints);
@@ -178,7 +180,8 @@ void fragment() {
 	ALBEDO = col;
 	ROUGHNESS = mix(0.95, 0.82, moss);
 	// Relief: the joints between the blocks sink in.
+	float bump = mix(0.6, 0.3, soft_joints);
 	float height = (relief * wall + tiles * 0.15 * roof) * band(2.0, px);
-	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * 0.6, dFdy(height) * 0.6), 0.0)).xyz);
+	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * bump, dFdy(height) * bump), 0.0)).xyz);
 	EMISSION = glow_colour * window * glow;
 }

@@ -308,8 +308,10 @@ const WAY_WIDTH := 1.4
 const GRAVE_WAY_WIDTH := 2.2
 ## The paved way up to the lair's arch: how far out it reaches (metres) and
 ## how wide it is (as WAY_WIDTH).
-const LAIR_WAY_LENGTH := 7.0
-const LAIR_WAY_WIDTH := 2.0
+const LAIR_WAY_LENGTH := 4.5
+const LAIR_WAY_WIDTH := 1.6
+## The grey of the boulders fallen from the lair's mountain.
+const LAIR_BOULDER := Color(0.5, 0.48, 0.45)
 const WAY_SEARCH := 14
 ## The hour the world was last lit for, and whether it is night.
 var hour := -1.0
@@ -1207,8 +1209,8 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	add_child(mountain)
 	_lair_mountain_at = front
 	for side in [-1.0, 1.0]:
-		_put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0)
-		_put("rock_single_C", front + Vector3(side * 3.6, 0, -1.9), side * 2.1, 3.5)
+		_age_ruin(_put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0), LAIR_BOULDER)
+		_age_ruin(_put("rock_single_C", front + Vector3(side * 3.6, 0, -1.9), side * 2.1, 3.5), LAIR_BOULDER)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(1.0, 0.35, 0.15)
 	glow.light_energy = 1.8
@@ -1225,13 +1227,17 @@ func _build_lair_entrance(block: Rect2i) -> void:
 
 ## The dungeon kit's pieces at the lair (plain colours, one per surface) in
 ## old, weathered stone to match the graveyard (see AgedStone.ruin_material).
-func _age_ruin(node: Node) -> void:
+## With `colour`, every surface is that stone instead (the fallen boulders,
+## in the mountain's grey).
+func _age_ruin(node: Node, colour := Color(0, 0, 0, 0)) -> void:
 	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
 		if mi.mesh == null:
 			continue
 		for s in mi.mesh.get_surface_count():
 			var mat := mi.get_active_material(s)
-			if mat is StandardMaterial3D:
+			if colour.a > 0.0:
+				mi.material_override = AgedStone.ruin_material(colour)
+			elif mat is StandardMaterial3D:
 				mi.set_surface_override_material(s, AgedStone.ruin_material((mat as StandardMaterial3D).albedo_color))
 
 

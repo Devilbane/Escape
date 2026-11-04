@@ -31,7 +31,7 @@ const GRAVE_FADE := 0.75
 ## The mountains' rock (see rock_material): how weathered, how much lichen.
 const ROCK_SHADER := preload("res://shaders/mountain_rock.gdshader")
 const ROCK_AGE := 1.1
-const ROCK_LICHEN := 0.45
+const ROCK_LICHEN := 0.35
 ## A colour more saturated than this is wood or metal, not stone (see
 ## ruin_material).
 const RUIN_WOOD := 0.3
@@ -116,7 +116,7 @@ static func grave_material(palette: Texture2D, hewn: bool, shade := 0, glowing: 
 
 
 ## The weathered rock of the mountains (Mountains, LairMountain): their own
-## painted faces with grain, strata, cracks, grime, moss and lichen laid
+## painted faces with grain, strata, grime, rain streaks, moss and lichen laid
 ## over them (shaders/mountain_rock.gdshader), so the rock looks as old as
 ## the village stone. One material for all of them.
 static func rock_material() -> ShaderMaterial:
@@ -151,7 +151,7 @@ static func ruin_material(colour: Color) -> ShaderMaterial:
 		mat.set_shader_parameter("trim", load(TRIM))
 		mat.set_shader_parameter("age", GRAVE_AGE)
 		mat.set_shader_parameter("blocks", 0.0)
-		mat.set_shader_parameter("lichen", 0.0 if sat > RUIN_WOOD else 0.6)
+		mat.set_shader_parameter("lichen", 0.0 if sat > RUIN_WOOD else 0.35)
 		_mats[key] = mat
 	return _mats[key]
 

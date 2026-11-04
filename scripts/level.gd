@@ -1226,7 +1226,13 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_block_shots(_add_fitted_solid(stack, pos, 2.0, Vector2(3.0, 3.0)))
 			_add_interactable("Kiste", pos, pos + Vector3(0, 3.6, 0), c)
 		"k":
-			var trunk_model := _place("trunk_large_A", pos, _random_quarter_turn())
+			# Any way round in the middle of a room, but against a wall its back
+			# rests on the wall. The kit trunk opens to its -Z side, the other
+			# chests to +Z. The turn is rolled either way, so the rest of the
+			# map is built as before.
+			var trunk_rot := _random_quarter_turn()
+			trunk_rot = _back_to_wall(c, trunk_rot - PI) + PI
+			var trunk_model := _place("trunk_large_A", pos, trunk_rot)
 			_add_fitted_solid(trunk_model, pos, 1.5)
 			var trunk := _add_interactable("Truhe", pos, pos + Vector3(0, 2.4, 0), c, not _in_secret_room(c))
 			trunk.lid = trunk_model.find_child("Lid", true, false)
@@ -1250,7 +1256,7 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"N":
 			_build_companion_corner(c)
 		"L":
-			_add_fitted_solid(_place("chest", pos, _facing_room(c)), pos, 1.5)
+			_add_fitted_solid(_place("chest", pos, _back_to_wall(c, _facing_room(c))), pos, 1.5)
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
 		"V":
 			_build_merchant(c)
@@ -1408,10 +1414,8 @@ func _build_coin(pos: Vector3) -> void:
 ## heap of gold, and glows violet.
 func _build_chest(c: Vector2i, epic := false) -> void:
 	var pos := cell_to_world(c)
-	# Face the chest towards the open side of the room.
-	var rot := 0.0
-	if cell_char(c + Vector2i(0, 1)) == "#":
-		rot = PI
+	# Back to the wall, lid towards the room.
+	var rot := _back_to_wall(c)
 	var chest := _place("chest_gold", pos, rot)
 	_add_fitted_solid(chest, pos, 1.5, Vector2(2.0, 2.0))
 	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c, false)
@@ -1522,6 +1526,26 @@ func _facing_room(c: Vector2i) -> float:
 		if not SOLID.contains(cell_char(c + d)):
 			return atan2(float(d.x), float(d.y))
 	return 0.0
+
+
+## Letters a chest can rest its back against: walls, secret walls, bars, and
+## the walls of the house in the village.
+const CHEST_WALLS := "#?=I"
+
+
+## How to turn a chest (front on its +Z side, long side across it) so that its
+## back rests on a wall beside it and its lid opens towards the room. A wall
+## with open floor across the chest wins over one facing another wall or a
+## crate; next to no wall it keeps `fallback`.
+func _back_to_wall(c: Vector2i, fallback := 0.0) -> float:
+	var sides := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]
+	for d: Vector2i in sides:
+		if CHEST_WALLS.contains(cell_char(c - d)) and not SOLID.contains(cell_char(c + d)):
+			return atan2(float(d.x), float(d.y))
+	for d: Vector2i in sides:
+		if CHEST_WALLS.contains(cell_char(c - d)) and not CHEST_WALLS.contains(cell_char(c + d)):
+			return atan2(float(d.x), float(d.y))
+	return fallback
 
 
 ## Carved stone for pieces built in code (the fountain): the rough, matt stone
@@ -4692,7 +4716,7 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 			astar.set_point_solid(c, true)
 			stations.append({"kind": "hauswerkbank", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"truhe":
-			_add_fitted_solid(_place("chest", pos, rot, root), pos, 1.5)
+			_add_fitted_solid(_place("chest", pos, _back_to_wall(c, rot), root), pos, 1.5)
 			astar.set_point_solid(c, true)
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"trophaeen":

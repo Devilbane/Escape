@@ -306,6 +306,10 @@ var _grave_glow: ImageTexture
 const WAY_WIDTH := 1.4
 ## The graveyard's path is wider: it covers the whole dirt path.
 const GRAVE_WAY_WIDTH := 2.2
+## The paved way up to the lair's arch: how far out it reaches (metres) and
+## how wide it is (as WAY_WIDTH).
+const LAIR_WAY_LENGTH := 7.0
+const LAIR_WAY_WIDTH := 2.0
 const WAY_SEARCH := 14
 ## The hour the world was last lit for, and whether it is night.
 var hour := -1.0
@@ -1168,15 +1172,18 @@ func _build_terrace(block: Rect2i) -> void:
 ## The way down into the dragon's lair: an old stone arch from Quaternius'
 ## dungeon kit set into the foot of a rocky mountain (see LairMountain) with
 ## its door hanging open, a black hole and stairs going down behind it,
-## columns either side, skulls in the grass and a red glow from below. Run
-## into the arch to go down.
+## columns either side, skulls in the grass and a red glow from below. Arch,
+## columns and stairs are in weathered old stone like the graveyard's, and
+## the last stretch of the way is paved (see _pave_lair_way). Run into the
+## arch to go down.
 func _build_lair_entrance(block: Rect2i) -> void:
 	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
 	var depth := block.size.y * TILE * 0.5
 	var front := center + Vector3(0, 0, depth - 0.6)
 	var arch := _put("lair/Arch", front, 0.0, 1.0)
+	_age_ruin(arch)
 	# The door swung open against the arch's side.
-	_put("lair/Arch_Door", front + Vector3(-1.2, 0, 0.2), -PI * 0.55, 1.0)
+	_age_ruin(_put("lair/Arch_Door", front + Vector3(-1.2, 0, 0.2), -PI * 0.55, 1.0))
 	# Darkness in the opening, and the top steps sinking into it.
 	var hole := MeshInstance3D.new()
 	var quad := QuadMesh.new()
@@ -1189,9 +1196,9 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	hole.position = front + Vector3(0, 1.65, -0.35)
 	add_child(hole)
 	for i in 2:
-		_put("lair/Stairs_Modular", front + Vector3(0, -0.55 - i * 0.9, 0.55 - i * 0.9), PI, 1.3)
+		_age_ruin(_put("lair/Stairs_Modular", front + Vector3(0, -0.55 - i * 0.9, 0.55 - i * 0.9), PI, 1.3))
 	for side in [-1.0, 1.0]:
-		_put("lair/Column2", front + Vector3(side * 2.9, 0, -0.1), 0.0, 0.9)
+		_age_ruin(_put("lair/Column2", front + Vector3(side * 2.9, 0, -0.1), 0.0, 0.9))
 		_put("lair/Skull", front + Vector3(side * 2.2 + _rng.randf_range(-0.4, 0.4), 0, 1.6 + _rng.randf_range(0.0, 0.8)), _rng.randf() * TAU, 0.8)
 	# The mountain the lair is dug into, rising behind the arch, and a few
 	# boulders fallen from it at its foot either side.
@@ -1214,6 +1221,27 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	if interiors.has("E"):
 		stations.append({"kind": "eingang", "building": "E", "name": BUILDING_NAMES.E,
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.6), "used": false})
+
+
+## The dungeon kit's pieces at the lair (plain colours, one per surface) in
+## old, weathered stone to match the graveyard (see AgedStone.ruin_material).
+func _age_ruin(node: Node) -> void:
+	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for s in mi.mesh.get_surface_count():
+			var mat := mi.get_active_material(s)
+			if mat is StandardMaterial3D:
+				mi.set_surface_override_material(s, AgedStone.ruin_material((mat as StandardMaterial3D).albedo_color))
+
+
+## The last stretch of the way up to the lair's arch, paved with old stones
+## like the graveyard's path (only drawn into the ground).
+func _pave_lair_way() -> void:
+	if _lair_mountain_at == Vector3.INF:
+		return
+	var front := _lair_mountain_at
+	_pave_line(front + Vector3(0, 0, 0.4), front + Vector3(0, 0, LAIR_WAY_LENGTH), LAIR_WAY_WIDTH)
 
 
 ## A mine entrance in the mountains (see Mines): a timber frame set into
@@ -1687,6 +1715,7 @@ func _pave_entrances() -> void:
 		for i in points.size() - 1:
 			_pave_line(points[i], points[i + 1])
 	_pave_graveyard()
+	_pave_lair_way()
 	# The dirt paths in the village are cobbled too, joined tile to tile.
 	for y in height:
 		for x in width:

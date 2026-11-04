@@ -1,7 +1,8 @@
 class_name Mountains
 ## The high mountains far east of the wolf hollow: every "=" tile of the
 ## open-air map is solid rock, and this builds the rock as low-poly,
-## flat-shaded meshes in the style of the dragon's mountain (LairMountain).
+## flat-shaded meshes in the style of the dragon's mountain (LairMountain),
+## weathered like the village stone (AgedStone.rock_material).
 ##
 ## The rock rises steeply right where the walkable ground ends, then climbs
 ## on into peaks with snow on their tops. One rule keeps the hero in view:
@@ -100,10 +101,8 @@ static func build(level: Level, seed_value: int) -> void:
 				h = maxf(0.6, h + rng.randf_range(-0.6, 0.6) * minf(1.0, h / 5.0))
 			row.append(Vector3(x, h - SINK, z))
 		points.append(row)
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.95
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	# Weathered like the village stone (see AgedStone.rock_material).
+	var mat := AgedStone.rock_material()
 	var per := int(CHUNK * tile / STEP)
 	for cz in range(0, nz, per):
 		for cx in range(0, nx, per):

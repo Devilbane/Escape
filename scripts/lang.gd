@@ -50,6 +50,7 @@ const PARTS := [
 	preload("res://scripts/lang/pouch.gd"),
 	preload("res://scripts/lang/weather.gd"),
 	preload("res://scripts/lang/moon.gd"),
+	preload("res://scripts/lang/dragon_flyover.gd"),
 	preload("res://scripts/lang/reputation.gd"),
 	preload("res://scripts/lang/horrors.gd"),
 	preload("res://scripts/lang/home_upgrades.gd"),

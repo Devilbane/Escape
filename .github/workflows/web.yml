@@ -324,6 +324,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_boss.gd | tee dragon.log
           grep -q PASS dragon.log
 
+      - name: Dragon flies over the open air test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_flyover.gd | tee dragon_flyover.log
+          grep -q PASS dragon_flyover.log && ! grep -q FAIL dragon_flyover.log
+
       - name: Corpses stay and rot away test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/corpses.gd | tee corpses.log

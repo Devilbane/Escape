@@ -38,6 +38,13 @@ func _test_plan() -> void:
 	check(LauncherScript.plan(release, {"build": "12"}, "old") == "launcher", "a changed launcher comes first")
 	check(LauncherScript.plan(release, {}, "old") == "launcher", "a changed launcher comes before the first download")
 	check(LauncherScript.plan(release, {"build": "12"}, "") == "play", "no self-update outside an exported launcher")
+	release.engine_sha256 = "1".repeat(64)
+	check(LauncherScript.plan(release, {"build": "12"}, "abc") == "engine", "no game engine yet: it is fetched")
+	check(LauncherScript.plan(release, {"build": "11", "engine": "0".repeat(64)}, "abc") == "engine", "a changed engine comes before the game")
+	check(LauncherScript.plan(release, {"build": "11", "engine": "1".repeat(64)}, "abc") == "game", "with the engine in place the game follows")
+	check(LauncherScript.plan(release, {"build": "12", "engine": "1".repeat(64)}, "abc") == "play", "engine and game up to date")
+	check(not LauncherScript.playable({"build": "12"}), "no game without its engine")
+	check(LauncherScript.playable({"build": "12", "engine": "1"}), "engine and data make a game")
 	check(LauncherScript.valid_manifest(release), "a complete version.json is used")
 	check(not LauncherScript.valid_manifest({"build": "12"}), "a version.json without checksum is not used")
 	check(not LauncherScript.valid_manifest(null), "an unreadable version.json is not used")
@@ -62,12 +69,12 @@ func _test_window() -> void:
 	var Texts = LauncherScript.Texts
 	var before := []
 	var cases := [
-		["looking", LauncherScript.Step.CHECKING, {"version": "0.5", "build": "41"}, "Suche nach einer neuen Version …", []],
+		["looking", LauncherScript.Step.CHECKING, {"version": "0.5", "build": "41", "engine": "e"}, "Suche nach einer neuen Version …", []],
 		["download", LauncherScript.Step.DOWNLOADING, {}, "Lade das Spiel: %s von %s MB", ["1234,5", "1234,5"]],
-		["update", LauncherScript.Step.DOWNLOADING, {"version": "0.5", "build": "41"}, "Lade die neue Version: %s von %s MB", ["12,3", "70,2"]],
-		["checking", LauncherScript.Step.VERIFYING, {"version": "0.5", "build": "41"}, "Prüfe die heruntergeladene Datei …", []],
-		["ready", LauncherScript.Step.READY, {"version": "0.5", "build": "42"}, "Version %s ist bereit. Viel Glück auf der Flucht!", ["0.5.42"]],
-		["offline", LauncherScript.Step.OFFLINE, {"version": "0.5", "build": "41"}, "Keine Verbindung zum Server. Du spielst die installierte Version.", []],
+		["update", LauncherScript.Step.DOWNLOADING, {"version": "0.5", "build": "41", "engine": "e"}, "Lade die neue Version: %s von %s MB", ["12,3", "70,2"]],
+		["checking", LauncherScript.Step.VERIFYING, {"version": "0.5", "build": "41", "engine": "e"}, "Prüfe die heruntergeladene Datei …", []],
+		["ready", LauncherScript.Step.READY, {"version": "0.5", "build": "42", "engine": "e"}, "Version %s ist bereit. Viel Glück auf der Flucht!", ["0.5.42"]],
+		["offline", LauncherScript.Step.OFFLINE, {"version": "0.5", "build": "41", "engine": "e"}, "Keine Verbindung zum Server. Du spielst die installierte Version.", []],
 		["failed", LauncherScript.Step.FAILED, {}, "Das Spiel konnte nicht geladen werden. Prüfe die Internetverbindung und versuche es erneut.", []],
 	]
 	for code in ["de", "en"]:

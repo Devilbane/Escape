@@ -1,10 +1,10 @@
 name: Windows download
 
-# Builds the Windows version: Escape.exe (the launcher, see scripts/launcher.gd) and the game
-# data, game/Escape.pck. After every browser build of main that passed its tests, they are
-# published on the GitHub release "windows", always under the same links:
+# Builds the Windows version: Escape.exe (the launcher, see scripts/launcher.gd) and the game,
+# game/Escape.exe (the bare engine) with its data game/Escape.pck. After every browser build
+# of main that passed its tests, they are published on the GitHub release "windows", always under the same links:
 #   https://github.com/devilbane/escape/releases/download/windows/Escape-Windows.zip  (for players)
-#   .../windows/version.json, .../windows/Escape.pck, .../windows/Escape.exe        (for the launcher)
+#   .../windows/version.json, Escape.exe, EscapeGame.exe, Escape.pck                 (for the launcher)
 # A pull request that touches the launcher builds it too, as a download on the workflow run.
 
 on:
@@ -50,7 +50,7 @@ jobs:
           path: |
             ~/godot
             ~/.local/share/godot/export_templates
-          key: godot-${{ env.GODOT_VERSION }}-windows
+          key: godot-${{ env.GODOT_VERSION }}-windows-2
 
       - name: Install Godot
         if: steps.cache.outputs.cache-hit != 'true'
@@ -62,7 +62,7 @@ jobs:
           unzip -q Godot_v*_linux.x86_64.zip && mv Godot_v*_linux.x86_64 godot && rm Godot_v*_linux.x86_64.zip
           templates=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
           mkdir -p $templates
-          unzip -qj Godot_v*_export_templates.tpz templates/windows_release_x86_64.exe templates/windows_debug_x86_64.exe templates/version.txt -d $templates
+          unzip -qj Godot_v*_export_templates.tpz templates/windows_release_x86_64.exe templates/windows_debug_x86_64.exe templates/linux_release.x86_64 templates/version.txt -d $templates
           rm Godot_v*_export_templates.tpz
 
       - name: Import the project
@@ -90,20 +90,43 @@ jobs:
           grep -q "const REV := \"$rev\"" scripts/launcher.gd
           echo "Version $version.$build, launcher $rev"
 
-      - name: Export Escape.exe and the game data
+      - name: Export the launcher and the game
         run: |
           mkdir -p build/Escape/game build/release
           ~/godot/godot --headless --export-release "Windows" build/Escape/Escape.exe
-          ~/godot/godot --headless --export-pack "Windows game" build/Escape/game/Escape.pck
-          test -s build/Escape/Escape.exe && test -s build/Escape/game/Escape.pck
+          # game/Escape.exe is the bare engine; it loads game/Escape.pck because of the name.
+          ~/godot/godot --headless --export-release "Windows game" build/Escape/game/Escape.exe
+          test -s build/Escape/Escape.exe && test -s build/Escape/game/Escape.exe && test -s build/Escape/game/Escape.pck
           # The game data must start with Godot's pack header.
           head -c 4 build/Escape/game/Escape.pck | grep -q GDPC
+
+      - name: Start the exported launcher (with the Linux engine of the same build)
+        run: |
+          # The pack inside Escape.exe ends with its size and "GDPC". Run it with the Linux
+          # release engine, which behaves like the Windows one, against a server that is not
+          # there: it must show its window and say it found no connection, without errors.
+          mkdir -p build/smoke
+          python3 - <<'PY'
+          import struct
+          data = open("build/Escape/Escape.exe", "rb").read()
+          assert data[-4:] == b"GDPC", "Escape.exe carries no pack"
+          size = struct.unpack("<Q", data[-12:-4])[0]
+          open("build/smoke/Escape.pck", "wb").write(data[len(data) - 12 - size:len(data) - 12])
+          PY
+          cp ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/linux_release.x86_64 build/smoke/Escape
+          chmod +x build/smoke/Escape
+          timeout 60 build/smoke/Escape --headless --launcher-source=http://127.0.0.1:9/ --quit-after 600 2>&1 | tee smoke.log
+          grep -q "Launcher: Suche nach einer neuen Version" smoke.log
+          grep -q "Launcher: Das Spiel konnte nicht geladen werden" smoke.log
+          ! grep -q "ERROR" smoke.log
 
       - name: Package
         run: |
           cd build
-          echo "{\"version\":\"$VERSION\",\"build\":\"$BUILD\"}" > Escape/game/installed.json
+          engine=$(sha256sum Escape/game/Escape.exe | cut -d' ' -f1)
+          echo "{\"version\":\"$VERSION\",\"build\":\"$BUILD\",\"engine\":\"$engine\"}" > Escape/game/installed.json
           cp Escape/Escape.exe Escape/game/Escape.pck release/
+          cp Escape/game/Escape.exe release/EscapeGame.exe
           zip -qr9 release/Escape-Windows.zip Escape
           python3 - <<'PY'
           import hashlib, json, os
@@ -119,6 +142,8 @@ jobs:
               "pack_size": os.path.getsize("release/Escape.pck"), "pack_sha256": sha("release/Escape.pck"),
               "launcher": env["REV"], "launcher_file": "Escape.exe",
               "launcher_size": os.path.getsize("release/Escape.exe"), "launcher_sha256": sha("release/Escape.exe"),
+              "engine_file": "EscapeGame.exe",
+              "engine_size": os.path.getsize("release/EscapeGame.exe"), "engine_sha256": sha("release/EscapeGame.exe"),
           }
           json.dump(manifest, open("release/version.json", "w"), indent=1)
           print(json.dumps(manifest, indent=1))
@@ -150,10 +175,10 @@ jobs:
           if gh release view windows >/dev/null 2>&1; then
             # The files first, version.json last: the launcher only looks for a new game once
             # the files it names are in place.
-            gh release upload windows Escape.exe Escape.pck Escape-Windows.zip --clobber
+            gh release upload windows Escape.exe EscapeGame.exe Escape.pck Escape-Windows.zip --clobber
             gh release upload windows version.json --clobber
             gh release edit windows --title "Escape! for Windows ($VERSION.$BUILD)" --notes "$notes" --latest
           else
-            gh release create windows Escape.exe Escape.pck Escape-Windows.zip version.json \
+            gh release create windows Escape.exe EscapeGame.exe Escape.pck Escape-Windows.zip version.json \
               --title "Escape! for Windows ($VERSION.$BUILD)" --notes "$notes" --latest
           fi

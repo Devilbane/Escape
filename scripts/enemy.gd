@@ -96,6 +96,15 @@ const KINDS := {
 		"anims": {"Idle": "HumanArmature|Spider_Idle", "Walking_A": "HumanArmature|Spider_Walk", "Running_A": "HumanArmature|Spider_Walk",
 			"1H_Melee_Attack_Chop": "HumanArmature|Spider_Attack", "Hit_A": "HumanArmature|Spider_Jump", "Death_A": "HumanArmature|Spider_Death"},
 		"voice": ["voice_wicht", 1.4, "zisch"], "purse": [0, 2], "gear_chance": 0.0, "poison": 0.3, "web": 7.0},
+	# The Spider Queen (see SpiderQueen), the boss at the bottom of the spider
+	# hole: a spider grown huge and pale, throwing webs far more often than
+	# her brood. At half her life she calls her young out of the walls.
+	"spinnenkoenigin": {"model": "Spider", "dir": "wild", "hp": 34, "speed": 4.8, "damage": 2, "reach": 3.2, "size": 2.0, "cooldown": 1.4, "armor": 1,
+		"beast": true, "big": true, "model_scale": 0.6, "turn": 0.0, "run_anim": 3.0,
+		"anims": {"Idle": "HumanArmature|Spider_Idle", "Walking_A": "HumanArmature|Spider_Walk", "Running_A": "HumanArmature|Spider_Walk",
+			"1H_Melee_Attack_Chop": "HumanArmature|Spider_Attack", "Hit_A": "HumanArmature|Spider_Jump", "Death_A": "HumanArmature|Spider_Death"},
+		"tint": Color(0.78, 0.7, 0.82), "glow": Color(0.75, 0.45, 1.0),
+		"voice": ["voice_wicht", 0.8, "tsss"], "purse": [20, 30], "gear_chance": 1.0, "poison": 0.4, "web": 4.0},
 	# The monsters of the dragon's lair (Quaternius Monster Pack in
 	# assets/lair, FBX files: "ext"). Bats and the dragon only ever fly, so
 	# every move plays their flying loop; "lift" raises the model off the
@@ -209,7 +218,7 @@ const HORRORS := ["hohle_mutter", "bleicher_waechter", "schlund"]
 const LETTERS := {"M": "krieger", "A": "schuetze", "Z": "magier", "w": "wicht", "G": "koloss", "W": "waechter",
 	"v": "fledermaus", "s": "schleim", "R": "drache",
 	"J": "felstroll", "O": "bergork", "e": "eiswolf", "i": "kristallschleim", "g": "glutschleim", "Y": "bergkoenig",
-	"d": "brutdrache", "@": "grosser_alter"}
+	"d": "brutdrache", "@": "grosser_alter", "u": "spinne", "q": "spinnenkoenigin"}
 ## The letters of the open-air map that place bandits (see Outdoor).
 const WILD_LETTERS := {"c": "halsabschneider", "A": "wilderer", "X": "schlaeger", "Q": "hauptmann",
 	"W": "wolf", "H": "ork", "J": "yeti", "U": "spinne",
@@ -423,7 +432,7 @@ func _ready() -> void:
 		_stats.roam = true
 	# Deeper down the dead are tougher and hit harder. The bosses keep their
 	# own numbers.
-	if level and kind not in ["drache", "hauptmann", "bergkoenig", "grosser_alter"]:
+	if level and kind not in ["drache", "hauptmann", "bergkoenig", "grosser_alter", "spinnenkoenigin"]:
 		var deep := clampi(level.depth, 0, DEEPEST)
 		_stats.hp += deep / HP_EVERY_LEVELS
 		_stats.damage += deep / DAMAGE_EVERY_LEVELS
@@ -562,6 +571,8 @@ func fall_text() -> String:
 			return Lang.t("Der Yeti stürzt um.")
 		"spinne":
 			return Lang.t("Die Spinne rollt sich zusammen.")
+		"spinnenkoenigin":
+			return Lang.t("Die Spinnenkönigin bricht zusammen. Das Nest verstummt.")
 		"fledermaus":
 			return Lang.t("Die Fledermaus fällt zu Boden.")
 		"schleim":

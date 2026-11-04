@@ -134,6 +134,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/drinking_songs.gd | tee songs.log
           grep -q PASS songs.log
 
+      - name: Townsfolk small talk, rumours and stories test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/village_rumours.gd | tee rumours.log
+          grep -q PASS rumours.log
+
       - name: Event bus test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log
@@ -263,6 +268,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log
           grep -q PASS barber.log
+
+      - name: Spider hole and Spider Queen test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/spider_hole.gd | tee spider_hole.log
+          grep -q PASS spider_hole.log
 
       - name: Merchant trading window test
         run: |
@@ -433,6 +443,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_drawer.gd | tee drawer.log
           grep -q PASS drawer.log
+
+      - name: HUD tooltips test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_tooltips.gd | tee hud_tooltips.log
+          grep -q PASS hud_tooltips.log
 
       - name: Quick window icons and quests window test
         run: |

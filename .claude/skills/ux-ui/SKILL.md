@@ -615,6 +615,7 @@ Use these helpers and values; do not re-create them.
 | Pull-out menu | `game._setup_drawer()` | Right edge, Tab toggles; window buttons push it away. |
 | Quick window icons | `game._setup_quick_bar()`, `QUICK_WINDOWS` | Map, compendium, inventory, character and quests as 70 × 48 picture buttons on the drawer's rail above its 70 × 88 handle (8 apart, 16 to the handle); below the handle, 16 apart, the home and torch buttons (8 apart, each slot kept while hidden); tooltip "Name (key X)" in `_tooltip_theme()`; the open window's icon stays pressed. Add a window there rather than a second icon row. |
 | Shortcut list | `Menus.SHORTCUTS` | Add every new key. |
+| HUD tooltips | `game._setup_hud()`, `_tooltip_theme()` | Every HUD value explains itself on hover in the house tooltip style: the life bar (through `_hp_hover`, a strip taller than the 8 px bar), ammunition, trouble, notice and boon icons, the run meter, the experience row, gold and key. A new HUD value takes the pointer with `MOUSE_FILTER_PASS` (clicks still reach the game) and sets its `tooltip_text` where it is updated; `tests/hud_tooltips.gd` checks each is reachable. The values themselves stay on screen, so nothing depends on hover. |
 
 Spacing scale (keep to these steps): **4, 6, 8, 10, 12, 14, 24, 26, 28**. Within a row 8 to 10;
 between rows 6; between groups 12 to 14; window margin 26; HUD edge margin 24.

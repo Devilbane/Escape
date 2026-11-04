@@ -25,6 +25,7 @@ const KINDS := {
 	"koloss": "undead", "waechter": "undead", "fog_wraith": "undead",
 	"halsabschneider": "bandits", "wilderer": "bandits", "schlaeger": "bandits", "hauptmann": "bandits",
 	"wolf": "wolves", "ork": "orcs", "spinne": "spiders", "yeti": "yeti",
+	"spinnenkoenigin": "spiders",
 	"fledermaus": "brood", "schleim": "brood", "drache": "brood",
 	# The nameless horrors (see Horrors) belong to nobody and fight nobody
 	# but the hero.

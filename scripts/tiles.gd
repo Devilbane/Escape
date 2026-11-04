@@ -60,6 +60,9 @@ const DUNGEON := {
 	"+": "free floor kept for furniture (homes)",
 	"N": "the companions' corner: straw where the companions who stay home rest (homes)",
 	"X": "a horror's den (see Horrors)",
+	# The spider hole (see SpiderQueen).
+	"u": "spider (throws webs), see Enemy.LETTERS",
+	"q": "the Spider Queen (the boss at the bottom of the spider hole)",
 	# The mountain mines (see Mines).
 	"J": "rock troll (big, slow, hits very hard), see Enemy.LETTERS",
 	"O": "mountain orc (armoured)",

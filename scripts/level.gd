@@ -4204,8 +4204,19 @@ func _decorate_lair() -> void:
 				for i in 4:
 					var angle := TAU * i / 4.0 + _rng.randf_range(-0.4, 0.4)
 					_place_lair("Coin_Pile", pos + Vector3(cos(angle), 0, sin(angle)) * 2.0, _rng.randf() * TAU, _rng.randf_range(7.0, 11.0))
-				if hoard.values().any(func(n): return int(n) > 0) and _hoard == null:
+				if guards_hoard() and hoard.values().any(func(n): return int(n) > 0) and _hoard == null:
 					_hoard = _build_hoard(c)
+
+
+## Whether the dragon itself lives here: only its own lair holds the hoard. The
+## other lairs below the wild (the spider hole, the open grave, ...) have
+## chests of their own but no dragon, and so no hoard.
+func guards_hoard() -> bool:
+	for row in grid:
+		for ch in row:
+			if Enemy.LETTERS.get(ch, "") == "drache":
+				return true
+	return false
 
 
 ## The hoard the dragon's helpers brought in (see DragonHoard), on the free

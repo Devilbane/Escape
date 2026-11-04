@@ -6,9 +6,10 @@ extends SceneTree
 ## unique blades are left alone. What lay about while the hero was elsewhere
 ## is gone by morning, and the event log says what the night brought; the
 ## floors of buildings are not touched. The hoard is kept in the saved game,
-## lies in the lair beside the chest, and is the hero's once the dragon fell.
-## Most of what the helpers carry goes further down, to the Great Old One (see
-## ElderLair), gear kept whole; that share is kept in the saved game too.
+## lies in the lair beside the chest (and in no other lair), and is the hero's
+## once the dragon fell. Most of what the helpers carry goes further down, to
+## the Great Old One (see ElderLair), gear kept whole; that share is kept in the
+## saved game too.
 ## Run with: godot --headless -s tests/dragon_hoard.gd
 
 var failures := 0
@@ -173,6 +174,14 @@ func _test() -> void:
 	check(game.hoard.is_empty(), "a game saved before the hoard has an empty one")
 	game.hoard.gold = hoard_gold
 	game.hoard.metals = hoard_metals.duplicate()
+
+	# The other lairs below the wild have chests but no dragon: no hoard there,
+	# and no word of Embermaw guarding one.
+	for spot in [["loch1", "the open grave"], ["loch2", "the spider hole"], ["loch3", "the pale depths"]]:
+		game.load_level(game.interiors[spot[0]], false)
+		var hole: Level = game.level
+		check(hole.lair and not hole.guards_hoard(), "%s is a lair without the dragon" % spot[1])
+		check(hole._pickups.filter(func(q): return q.kind == "hoard").is_empty(), "no hoard lies in %s" % spot[1])
 
 	# In the lair the gold lies beside the chest, the dragon's to guard.
 	game.load_level(game.interiors["E"], false)

@@ -1937,12 +1937,15 @@ func _show_hero_level() -> void:
 		_xp_label.text += "   " + Lang.t("Punkt frei (P)")
 
 
-## The time of day for the HUD, e.g. "21:30, night, full moon", above
-## ground only.
+## The time of day for the HUD, e.g. "21:30, night, full moon". Down in
+## the dungeon only the hour and the part of the day.
 func _clock_text() -> String:
-	if level == null or not (level.outdoor or level.building != ""):
+	if level == null:
 		return ""
 	var text := "%s, %s" % [DayNight.clock_text(day_hour), Lang.t(DayNight.part_of_day(day_hour))]
+	# Down in the dungeon the time goes on, but sky and moon are out of sight.
+	if not (level.outdoor or level.building != ""):
+		return text
 	if weather != Weather.CLEAR:
 		text += ", " + Lang.t(Weather.word(weather))
 	# At night the clock names tonight's moon (see Moon).
@@ -1951,11 +1954,10 @@ func _clock_text() -> String:
 	return text
 
 
-## The world's clock runs while the hero is above ground (in the open or in
-## a village building) and the world is not paused; the open air is lit for
-## the hour. Down in the dungeon time stands still.
+## The world's clock runs wherever the hero is, down in the dungeon too,
+## while the world is not paused; the open air is lit for the hour.
 func _tick_clock(delta: float) -> void:
-	if level == null or not (level.outdoor or level.building != ""):
+	if level == null:
 		return
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		var before := day_hour
@@ -1982,7 +1984,7 @@ func _tick_clock(delta: float) -> void:
 
 
 ## The night is as bright as tonight's moon, the only light out there:
-## silver and clear at full moon, nearly black at new moon (see Moon). Only
+## a cool bluish sheen at full moon, nearly pitch black at new moon (see Moon). Only
 ## the moon's share of the light changes (see DayNight.moon_at), so the day,
 ## dusk and dawn look the same whatever the moon.
 func _moonlight() -> void:

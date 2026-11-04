@@ -163,6 +163,10 @@ func _full_moon() -> void:
 	game._tick_clock(0.0)
 	check(game._moon.light_energy > 0.0 and is_equal_approx(game._moon.light_energy, bright), "the night is lit the same each full moon")
 	check(is_equal_approx(game.player._lantern.omni_range, 8.5), "under the full moon the hero's lantern reaches as far as by day")
+	var c: Color = game._moon.light_color
+	check(c.b > c.r + 0.3 and c.b > c.g, "the moonlight casts a bluish sheen")
+	check(game._env.ambient_light_color.b > game._env.ambient_light_color.r + 0.3, "and the night air is bluish too")
+	check(game._env.adjustment_saturation > 0.9, "with colour enough left for the blue to show")
 	check(game.lore.has(Moon.LORE), "the moon goes into the compendium's knowledge")
 
 
@@ -175,7 +179,7 @@ func _new_moon() -> void:
 	var out: Outdoor = game.level
 	check(game._moon.light_energy < bright, "the new moon night is darker than the full moon night")
 	check(game._moon.light_energy < bright * 0.15, "a new moon night is nearly black: the moon is the night's only light")
-	check(game._env.ambient_light_energy < 0.01, "and the new moon leaves the night nearly pitch dark")
+	check(game._env.ambient_light_energy < 0.004 and game._moon.light_energy < bright * 0.03, "and the new moon leaves the night nearly pitch black")
 	check(game._moon.light_energy > 0.0, "but a trace of moonlight still shows the shapes of things")
 	check(game.player._lantern.omni_range < 8.5 * 0.8 and game.player._lantern.light_energy < 1.1 * 0.8, "the hero's lantern shows only a small pool on a moonless night")
 	check(game._clock_text().contains(Lang.t("Neumond")), "the HUD clock names the new moon")

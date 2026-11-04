@@ -5,9 +5,12 @@ extends PanelContainer
 ## (to read again later), newest at the bottom, in small type.
 ## The box has one fixed size and place, so a new line never moves or
 ## resizes anything else on screen: older lines slide up and out at its top.
-## It dims when nothing new came for a while and lights up again with the
-## next line. It stays hidden until the first line comes. The mouse wheel or
-## a drag over the box scrolls back through the last KEEP lines.
+## Only the text shows over the world: the dark box behind it fades in while
+## the player clicks on it or scrolls it, and fades out again a little after
+## (FRAME_STAY). The text dims when nothing new came for a while and lights
+## up again with the next line. It stays hidden until the first line comes.
+## The mouse wheel or a drag over the box scrolls back through the last KEEP
+## lines.
 
 ## Where the box sits: below the status block at the top left, and well
 ## above the message line at the bottom (see Game.MESSAGE_BOTTOM).
@@ -28,6 +31,13 @@ const WHEEL_STEP := 40.0
 ## Seconds without a new line before the box dims, and how far.
 const DIM_AFTER := 10.0
 const DIM := 0.55
+## Seconds the dark box stays after the last click or scroll before it fades
+## out, and how fast it fades in and out (share of full per second).
+const FRAME_STAY := 2.5
+const FRAME_FADE := 4.0
+## The dark box at full strength: its background and its border.
+const FRAME_BG := Color(0.04, 0.03, 0.08, 0.55)
+const FRAME_BORDER := Color(0.85, 0.66, 0.32, 0.35)
 ## The same line from the same speaker again within this many seconds (the
 ## hero bumping into someone twice) is written once.
 const REPEAT_TIME := 6.0
@@ -40,6 +50,11 @@ const FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 var _lines: VBoxContainer
 var _clip: Control
 var _idle := 0.0
+## How strongly the dark box shows (0: only the text), and the seconds since
+## the player last clicked on the box or scrolled it.
+var _frame := 0.0
+var _since_touch := INF
+var _style: StyleBoxFlat
 ## How far the player scrolled back up, in pixels (0: the newest line at
 ## the bottom shows).
 var _scroll := 0.0
@@ -53,12 +68,12 @@ func _init() -> void:
 	custom_minimum_size = Vector2(WIDTH, HEIGHT)
 	size = custom_minimum_size
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.03, 0.08, 0.55)
-	style.border_color = Color(0.85, 0.66, 0.32, 0.35)
+	_style = style
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(10)
 	style.set_content_margin_all(10)
 	add_theme_stylebox_override("panel", style)
+	_show_frame(0.0)
 	# The lines hang from the bottom of a clipped area and grow upwards.
 	var clip := Control.new()
 	clip.clip_contents = true
@@ -107,7 +122,12 @@ func _add(speaker: String, text: String, color: Color) -> void:
 	line.add_theme_font_size_override("normal_font_size", UiKit.sized(FONT_SIZE))
 	line.add_theme_color_override("default_color", color)
 	line.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
-	line.add_theme_constant_override("outline_size", 2)
+	line.add_theme_constant_override("outline_size", 3)
+	# Without the dark box behind it the text stands on the world: an outline
+	# and a shadow keep it readable there (as Game._make_label does).
+	line.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+	line.add_theme_constant_override("shadow_offset_y", 2)
+	line.add_theme_constant_override("shadow_offset_x", 1)
 	# Item names marked by Rarity.marked show in the colour of their rarity.
 	var body := Rarity.to_bbcode(_escape(text))
 	if speaker != "":
@@ -147,6 +167,8 @@ func scrolled() -> float:
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
+		# A click on the box or a turn of the wheel shows the dark box.
+		_since_touch = 0.0
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			scroll_to(_scroll + WHEEL_STEP)
 			accept_event()
@@ -155,6 +177,7 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 	elif event is InputEventScreenDrag or (event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT):
 		# Dragging the text down shows older lines, as on a phone.
+		_since_touch = 0.0
 		scroll_to(_scroll + event.relative.y)
 		accept_event()
 	if event is InputEventMouse or event is InputEventScreenDrag:
@@ -173,6 +196,21 @@ func entries() -> Array[String]:
 	return out
 
 
+## How strongly the dark box behind the text shows now (0 to 1, for tests).
+func frame_strength() -> float:
+	return _frame
+
+
+func _show_frame(strength: float) -> void:
+	_frame = strength
+	_style.bg_color = Color(FRAME_BG, FRAME_BG.a * strength)
+	_style.border_color = Color(FRAME_BORDER, FRAME_BORDER.a * strength)
+
+
 func _process(delta: float) -> void:
 	_idle += delta
+	_since_touch += delta
 	modulate.a = move_toward(modulate.a, DIM if _idle > DIM_AFTER else 1.0, delta * 2.0)
+	var want := 1.0 if _since_touch < FRAME_STAY else 0.0
+	if _frame != want:
+		_show_frame(move_toward(_frame, want, delta * FRAME_FADE))

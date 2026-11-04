@@ -637,8 +637,14 @@ func _build_rune_ring(t: Dictionary, mark: Node3D) -> void:
 
 ## A wooden hatch with a dark hole beneath; it swings down when it gives way.
 func _build_hatch(t: Dictionary, mark: Node3D) -> void:
-	var wood := _material(KINDS.falltuer.color, 0.0)
-	var dark := _material(Color(0.02, 0.015, 0.015), 0.0)
+	# The planks and the hole beneath are see-through while the mark fades in
+	# (_fade_mark), and see-through things are drawn in order of their
+	# centres' distance to the camera, not by depth. Without a fixed order the
+	# hole was drawn over whichever plank lay farther away than its centre,
+	# so a plank turned black and back as the camera moved. The planks always
+	# come after the hole.
+	var wood := _material(KINDS.falltuer.color, 0.0, 1)
+	var dark := _material(Color(0.02, 0.015, 0.015), 0.0, -1)
 	var pit := MeshInstance3D.new()
 	var pit_mesh := BoxMesh.new()
 	pit_mesh.size = Vector3(2.6, 0.01, 2.6)
@@ -682,12 +688,14 @@ static func grim_spikes(base_y: float, tip_y: float) -> ShaderMaterial:
 	return _materials[k]
 
 
-static func _material(color: Color, glow: float) -> StandardMaterial3D:
-	var k := "%s:%s" % [color, glow]
+## priority: the material's render_priority (see _build_hatch).
+static func _material(color: Color, glow: float, priority := 0) -> StandardMaterial3D:
+	var k := "%s:%s:%s" % [color, glow, priority]
 	if not _materials.has(k):
 		var m := StandardMaterial3D.new()
 		m.albedo_color = color
 		m.roughness = 0.9
+		m.render_priority = priority
 		if glow > 0.0:
 			m.emission_enabled = true
 			m.emission = color

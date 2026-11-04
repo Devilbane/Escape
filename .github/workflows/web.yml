@@ -124,6 +124,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/village_worries.gd | tee worries.log
           grep -q PASS worries.log
 
+      - name: Fritz sings drinking songs test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/drinking_songs.gd | tee songs.log
+          grep -q PASS songs.log
+
       - name: Event bus test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log

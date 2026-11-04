@@ -145,6 +145,8 @@ var village_talk := VillageTalk.new(self)
 ## What the villagers grumble about: the weather, the night and the frights
 ## of the world (see VillageWorries).
 var village_worries := VillageWorries.new(self)
+## Zecher Fritz's drinking songs at the tavern (see DrinkingSongs).
+var drinking_songs := DrinkingSongs.new(self)
 ## The villager whose goods or services are open in a window right now
 ## (role letter), "" for none: their discount applies (see trader_price).
 var trader_role := ""
@@ -2626,6 +2628,7 @@ func begin_new_game() -> void:
 	reputation.clear()
 	village_talk.clear()
 	village_worries.clear()
+	drinking_songs.clear()
 	storage.clear()
 	shop_stock.clear()
 	wanderer_stock.clear()
@@ -5114,6 +5117,7 @@ func _process(delta: float) -> void:
 	if level is Outdoor and state == State.PLAYING and not menus.is_open() and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		village_talk.update(delta, level)
 		village_worries.update(delta, level)
+		drinking_songs.update(delta, level)
 	# Where the hero is drawn this frame, between two physics ticks: the
 	# camera follows that, so the running hero and the ground glide together
 	# however many frames the screen shows between ticks.

@@ -16,6 +16,7 @@ shader_type spatial;
 // where it would be smaller than a few pixels, so it never flickers.
 
 #include "res://shaders/detail.gdshaderinc"
+#include "res://shaders/flutter.gdshaderinc"
 
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -47,6 +48,8 @@ void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	height = world.y - NODE_POSITION_WORLD.y;
 	up_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	// Flags and banners flutter (after the pattern is laid out, so it rides along).
+	flutter_vertex(VERTEX, NORMAL, TANGENT, dot(NODE_POSITION_WORLD, vec3(0.37, 0.0, 0.61)));
 }
 
 void fragment() {

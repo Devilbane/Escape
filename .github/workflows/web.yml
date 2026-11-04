@@ -594,6 +594,11 @@ jobs:
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/windmill.gd | tee windmill.log
           grep -q PASS windmill.log
 
+      - name: Flags and banners flutter in the wind, more in a storm
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/flag_wind.gd | tee flags.log
+          grep -q PASS flags.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

@@ -20,6 +20,7 @@ shader_type spatial;
 // where it would be smaller than a few pixels, so it never flickers.
 
 #include "res://shaders/detail.gdshaderinc"
+#include "res://shaders/flutter.gdshaderinc"
 
 // The colours are read and weathered as they were painted (sRGB); the
 // result goes into linear light at the end.
@@ -63,6 +64,8 @@ void vertex() {
 	} else if (source == 1) {
 		kind = COLOR.a;
 	}
+	// Flags and banners flutter (after the pattern is laid out, so it rides along).
+	flutter_vertex(VERTEX, NORMAL, TANGENT, dot(NODE_POSITION_WORLD, vec3(0.37, 0.0, 0.61)));
 }
 
 void fragment() {

@@ -6,7 +6,8 @@ extends SceneTree
 ## Amulet of the Deep recipe calls for them, and catching a silver pike
 ## clears its smudged line. The line flies well out over a pond, and the
 ## little pond monster can surface there (never in the fountain), then sink
-## again or take the bait.
+## again or take the bait. The hero holds a rod while fishing and swings it
+## for the cast.
 ## Run with: godot --headless -s tests/fishing.gd
 
 var failures := 0
@@ -135,9 +136,24 @@ func _test() -> void:
 	_key_g()
 	check(fishing.state == Fishing.WAITING, "G casts the line")
 	check(is_instance_valid(fishing._float) and fishing._float.get_parent() == game.level, "a float lies on the water")
+	# The rod: in the right hand instead of the knife, swung back and whipped
+	# through on the cast; the float flies off its tip and splashes down.
+	var hand: Node3D = player.find_child("handslot_r", true, false)
+	check(is_instance_valid(fishing.rod) and fishing.rod.get_parent() == hand, "the hero holds a fishing rod in the right hand")
+	check(not hand.get_node("Knife").visible, "the knife is put away while fishing")
+	check(Fishing.rod_pitch(Fishing.SWING_BACK) > PI / 2.0, "the cast swings the rod back over the shoulder")
+	check(Fishing.rod_pitch(Fishing.SWING_BACK + Fishing.SWING_WHIP) < Fishing.REST_PITCH, "and whips it forward")
+	check(is_equal_approx(Fishing.rod_pitch(5.0), Fishing.REST_PITCH), "then the rod rests")
+	check(Fishing.rod_bend(5.0, 0.3) < Fishing.rod_bend(5.0, 0.0), "the rod bends when the float is pulled under")
+	check(fishing._float.position.distance_to(fishing._rod_tip()) < 0.5, "the float hangs at the rod's tip before the throw")
+	fishing.tick(Fishing.RELEASE + Fishing.FLY_TIME * 0.5)
+	check(fishing._float.position.y > fishing._float_rest.y + 0.5, "the float flies out in an arc")
+	fishing.tick(Fishing.FLY_TIME)
+	check(fishing._splashed and fishing._float.position.distance_to(fishing._float_rest) < 0.1, "the float lands on the water")
 	check(game.lore.has(Fishing.HOW_TO), "the compendium explains fishing")
 	_key_g()
 	check(not fishing.is_fishing(), "G again draws the line in")
+	check(fishing.rod == null and hand.get_node("Knife").visible, "the rod is put away and the knife is back")
 
 	# A bite: too slow and the fish is gone.
 	var pouch_before: Dictionary = game.crafting.pouch.duplicate()

@@ -277,6 +277,8 @@ var _window_mask: ImageTexture
 var _ivy := {"xforms": [], "colours": []}
 var nests: Array[Vector3] = []
 var birds: VillageBirds
+## The dragon that now and then flies over, seen only as its shadow.
+var flyover: DragonFlyover
 var _entrances: Array = []
 var _ground_img: Image
 var _ground_tex: ImageTexture
@@ -452,6 +454,9 @@ func build() -> void:
 	# The old dragon's little helpers, who gather the loot at night.
 	if doors.has("E"):
 		add_child(DragonHelpers.new(self, doors.E))
+	# Now and then the dragon's shadow sweeps over the land (see DragonFlyover).
+	flyover = DragonFlyover.new(self, _lair_mountain_at)
+	add_child(flyover)
 	for y in height:
 		for x in width:
 			if cell_char(Vector2i(x, y)) == "r":

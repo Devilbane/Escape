@@ -4,7 +4,9 @@ extends SceneTree
 ## has to be struck in time, rare fish bite only in their own water and at
 ## their own hours, every fish goes into the ingredient pouch, Hanna's
 ## Amulet of the Deep recipe calls for them, and catching a silver pike
-## clears its smudged line.
+## clears its smudged line. The line flies well out over a pond, and the
+## little pond monster can surface there (never in the fountain), then sink
+## again or take the bait.
 ## Run with: godot --headless -s tests/fishing.gd
 
 var failures := 0
@@ -172,6 +174,65 @@ func _test() -> void:
 	check(not fishing.is_fishing(), "opening a window draws the line in")
 	game.menus.close()
 	check(not is_instance_valid(fishing._float) or fishing._float.is_queued_for_deletion(), "the float is gone")
+
+	# The line flies well out over the ponds, but stays in the water.
+	for kind in ["teich", "senke"]:
+		var w := _water(kind)
+		_stand_by(w)
+		var from := player.global_position
+		var spot := Fishing.float_spot(w, from, game.level.fishing_waters)
+		var old := Fishing.edge_spot(w, from)
+		var flat := Vector2(spot.x - from.x, spot.z - from.z).length()
+		check(flat > Vector2(old.x - from.x, old.z - from.z).length() + 1.0, "%s: the line flies further out than the nearest edge" % kind)
+		check(flat >= 3.5 and flat <= Fishing.CAST_REACH + 0.01, "%s: the float lands 3.5 to %.0f m out (%.1f)" % [kind, Fishing.CAST_REACH, flat])
+		check(Fishing.is_deep(game.level.fishing_waters, kind, spot), "%s: the float lands clear of the shore" % kind)
+	var basin := _water("brunnen")
+	_stand_by(basin)
+	var in_basin := Fishing.float_spot(basin, player.global_position, game.level.fishing_waters)
+	check(Level.water_distance(basin, in_basin) <= 0.0, "the float stays in the fountain basin")
+
+	# The pond monster: never in the fountain.
+	_key_g()
+	fishing.monster_rises(false)
+	check(fishing.monster == null, "no pond monster in the fountain")
+	_key_g()
+	# In a pond it surfaces, holds the fish off, and sinks again.
+	_stand_by(_water("teich"))
+	_key_g()
+	check(fishing.is_fishing() and is_instance_valid(fishing._line), "a line runs out to the float")
+	fishing.timer = 5.0
+	fishing.monster_rises(false)
+	check(is_instance_valid(fishing.monster) and fishing.monster.get_parent() == game.level, "the pond monster surfaces in the pond")
+	check(Fishing.is_deep(game.level.fishing_waters, "teich", fishing._monster_home, Fishing.MONSTER_SHORE_GAP), "it surfaces out on the water")
+	check(game.lore.has(Fishing.MONSTER_LORE), "the compendium tells of the pond monster")
+	var up := Fishing.MONSTER_RISE + Fishing.MONSTER_STAY + Fishing.MONSTER_SINK
+	for i in int(up / 0.1) - 2:
+		fishing.tick(0.1)
+	check(fishing.state == Fishing.WAITING and fishing.timer == 5.0, "no fish bites while the monster is about")
+	for i in 4:
+		fishing.tick(0.1)
+	check(fishing.monster == null and fishing.is_fishing(), "the monster sinks again and the line stays out")
+	# Or it takes the bait, and the line comes in empty.
+	pouch_before = game.crafting.pouch.duplicate()
+	fishing.monster_rises(true)
+	var monster := fishing.monster
+	for i in int(up / 0.1) + 3:
+		fishing.tick(0.1)
+	check(not fishing.is_fishing(), "the monster takes the bait and the line comes in")
+	check(not is_instance_valid(monster) or monster.is_queued_for_deletion(), "the monster is gone")
+	check(game.crafting.pouch == pouch_before, "nothing is caught when the monster takes the bait")
+	# It turns up now and then on its own.
+	var visits := 0
+	for i in 200:
+		_key_g()
+		if fishing._monster_due >= 0.0:
+			visits += 1
+		_key_g()
+	check(visits > 10 and visits < 60, "the monster turns up now and then (%d of 200 casts)" % visits)
+	for text in [Fishing.MONSTER_LORE, "Blubb!", "Neben dem Schwimmer taucht ein kleines Teichungeheuer auf!",
+			"Das kleine Teichungeheuer schnappt sich deinen Köder und taucht damit ab!",
+			"Das kleine Teichungeheuer taucht wieder ab. Du wartest weiter …"]:
+		check(Lang.EN.has(text), "\"%s\" has an English text" % text)
 
 	# Catches go into the pouch; a coin is gold.
 	game.crafting.clear()

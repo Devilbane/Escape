@@ -71,6 +71,7 @@ static func kit_material(palette: Texture2D, windows: Texture2D) -> ShaderMateri
 		mat.set_shader_parameter("tint", KIT_TINT)
 		mat.set_shader_parameter("trim", load(TRIM))
 		mat.set_shader_parameter("glow_mask", windows)
+		mat.set_shader_parameter("soft_joints", 1.0)
 		_mats[key] = mat
 	return _mats[key]
 
@@ -84,6 +85,7 @@ static func house_material(tint: Color) -> ShaderMaterial:
 		mat.set_shader_parameter("use_palette", false)
 		mat.set_shader_parameter("tint", tint)
 		mat.set_shader_parameter("trim", load(TRIM))
+		mat.set_shader_parameter("soft_joints", 1.0)
 		_mats[key] = mat
 	return _mats[key]
 

@@ -9,7 +9,7 @@ extends Node
 ## browser to call the page unresponsive. Loading the villagers' and animals'
 ## models from disk came on top. Rain and mist turn on the fog, and every
 ## shader needs a fog version of its own; the see-through look of a sneaking
-## hero, blood, floating numbers and sparks need theirs the first time they
+## hero, blood, rain puddles, floating numbers and sparks need theirs the first time they
 ## show. Built only then, those froze the screen for seconds (sneaking in the
 ## rain).
 ##
@@ -191,6 +191,10 @@ func _add_samples(at: Vector3) -> void:
 		ghost.global_position = at
 		player.look_sneaky(ghost, 0.65)
 	BloodStains.lay(_level, at + Vector3(1, 0.02, 0), 7)
+	# The rain puddles are dry on a fine day, so fill them for their shader.
+	if _level is Outdoor and _level.puddles:
+		_level.puddles.set_water(1.0, 1.0)
+		_level.puddles.splash(at + Vector3(-1, 0, 0))
 	var number := DamageNumber._make("12", Color(1, 0.3, 0.2))
 	_level.add_child(number)
 	number.global_position = at + Vector3(0, 2, 0)

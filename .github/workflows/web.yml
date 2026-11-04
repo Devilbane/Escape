@@ -429,6 +429,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/weather.gd | tee weather.log
           grep -q PASS weather.log
 
+      - name: Rain puddles test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/puddles.gd | tee puddles.log
+          grep -q PASS puddles.log
+
       - name: Village houses and chapel test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/village_buildings.gd | tee village.log

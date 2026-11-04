@@ -75,6 +75,9 @@ var _clock_shown := ""
 ## The weather above ground (see Weather) and how many hours of the day it
 ## still lasts. Both are saved with the game.
 var weather := Weather.CLEAR
+## How much water lies in the rain puddles above ground, 0 dry to 1 full
+## (see Weather.puddle_water and Puddles).
+var puddle_water := 0.0
 var weather_hours := Weather.FIRST_HOURS
 var _weather_rng := RandomNumberGenerator.new()
 ## The look of the sky as it moves towards the weather's own, and a stroke
@@ -152,6 +155,8 @@ var village_talk := VillageTalk.new(self)
 ## What the villagers grumble about: the weather, the night and the frights
 ## of the world (see VillageWorries).
 var village_worries := VillageWorries.new(self)
+## Small talk, rumours and stories in the village (see VillageRumours).
+var village_rumours := VillageRumours.new(self)
 ## Zecher Fritz's drinking songs at the tavern (see DrinkingSongs).
 var drinking_songs := DrinkingSongs.new(self)
 ## The villager whose goods or services are open in a window right now
@@ -432,6 +437,7 @@ func _bus_links() -> Array:
 		[bus.speech_said, heard],
 		[bus.loot_carried_off, _on_loot_carried_off],
 		[bus.scare_happened, village_worries.on_scare],
+		[bus.enemy_slain, village_rumours.on_slain],
 	]
 
 
@@ -1346,11 +1352,11 @@ func _use_station(s: Dictionary) -> void:
 	_pending_station = {}
 	# Still saying the last line: a new bump does not start a new one yet, or
 	# the text flickers while the hero keeps pushing against the villager.
-	var busy: bool = s.has("npc") and s.npc.is_busy_talking()
+	var busy: bool = s.has("npc") and (s.npc.is_busy_talking() or village_rumours.is_telling(s.npc))
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not wishes.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc):
+		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not wishes.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc) and not village_rumours.tell(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building, s.get("house", 0))
@@ -1377,7 +1383,7 @@ func _use_station(s: Dictionary) -> void:
 			player.face(s.pos - player.global_position)
 			player.play("Idle")
 			return
-		if not busy and not reputation.gossip(s.npc):
+		if not busy and not reputation.gossip(s.npc) and not village_rumours.tell(s.npc, true):
 			s.npc.talk(player)
 		player.face(s.pos - player.global_position)
 		trader_role = s.npc.role
@@ -1385,7 +1391,9 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == "schrein":
 		_open_shrine(s)
 	elif s.kind == "brunnen":
-		_drink(s)
+		# Pushing on against the fountain drinks one sip at a time.
+		if not belly_sips.still_drinking(_clock_now()):
+			_drink(s)
 	elif s.kind == Seats.KIND:
 		player.sit_down(Seats.sit_spot(s), Seats.front(s), Seats.stand_spot(s, level, player.radius))
 	else:
@@ -1614,13 +1622,35 @@ func _drink(s: Dictionary) -> void:
 	var burst := Effects.make_sparkles(Color(0.5, 0.8, 1.0), true)
 	burst.position = player.global_position + Vector3(0, 1.0, 0)
 	level.add_child(burst)
-	if cured:
+	if level.outdoor and belly_sips.sip(_clock_now()):
+		_overdrink()
+	elif cured:
 		show_message(Lang.t("Das Wasser des Brunnens heilt dich von allem Übel."))
 	elif healed:
 		show_message(Lang.t("Das kühle Wasser heilt deine Wunden."))
 	else:
 		show_message(Lang.t("Du trinkst vom klaren Wasser."))
 	_update_hud()
+
+
+## Sips at the village fountain, to tell when the hero drinks too much.
+var belly_sips := BloatedBelly.new()
+
+
+## Seconds since the game started, for counting sips.
+func _clock_now() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+
+## One sip too many at the village fountain: the belly swells, the hero
+## waddles and says so (see BloatedBelly).
+func _overdrink() -> void:
+	player.bloat()
+	var said := BloatedBelly.line()
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), said, Color(0.6, 0.85, 1.0))
+	Events.say(hero_name, said, player.global_position)
+	Sfx.play(self, "word_grumpel", -4.0, player.global_position)
+	show_message(Lang.t("Dein Bauch ist prall voll Wasser. Drei Minuten lang watschelst du nur noch langsam."), 3.5)
 
 
 ## The food basket on the village pedestal: bread, cheese and apples give
@@ -2032,6 +2062,7 @@ func _tick_clock(delta: float) -> void:
 		if _dawn_between(before, day_hour):
 			_new_day()
 		_tick_weather(delta)
+		puddle_water = Weather.puddle_water(puddle_water, weather, delta)
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
 		_moonlight()
@@ -2044,6 +2075,7 @@ func _tick_clock(delta: float) -> void:
 			level.day = day
 			level.set_hour(day_hour)
 			level.set_weather(weather)
+			level.set_puddles(puddle_water, _weather_look.rain, clampf(_env.ambient_light_energy / 0.52, 0.05, 1.0))
 			if level.moon_night >= 0 and (Moon.is_full(level.moon_night) or Moon.is_new(level.moon_night)):
 				learn(Moon.LORE)
 	if _clock_text() != _clock_shown:
@@ -2644,6 +2676,7 @@ func begin_new_game() -> void:
 	reputation.clear()
 	village_talk.clear()
 	village_worries.clear()
+	village_rumours.clear()
 	drinking_songs.clear()
 	storage.clear()
 	shop_stock.clear()
@@ -2653,6 +2686,7 @@ func begin_new_game() -> void:
 	away_plan = Offline.empty_plan()
 	day_hour = DayNight.START_HOUR
 	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
+	puddle_water = 0.0
 	player.knives = 5
 	player.set_sex(_new_sex)
 	player.set_hair(HairLook.DEFAULT)
@@ -3043,6 +3077,7 @@ func _apply_save(data: Dictionary) -> void:
 	wishes.load_from(data.get("wishes", {}))
 	reputation.load_from(data.get("reputation", {}))
 	village_talk.load_from(data.get("ties", []))
+	village_rumours.load_from(data.get("rumours", {}))
 	Factions.load_from(data.get("factions", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
@@ -3061,6 +3096,7 @@ func _apply_save(data: Dictionary) -> void:
 				wanderer_stock.append(str(id))
 	# Games saved before there was weather wake up to clear skies.
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
+	puddle_water = clampf(float(data.get("puddles", 0.0)), 0.0, 1.0)
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
 	inside_house = 0
 	var own_house := Homes.house_of(hero_name)
@@ -3219,12 +3255,13 @@ func save_game(going_away := false) -> bool:
 		"wishes": wishes.for_save(),
 		"reputation": reputation.for_save(),
 		"ties": village_talk.for_save(),
+		"rumours": village_rumours.for_save(),
 		"factions": Factions.for_save(),
 		"companions": {"list": companions, "following": following, "trust": trust},
 		"hour": day_hour,
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
 		"hoard": hoard.for_save(),
-		"weather": weather, "weather_hours": weather_hours,
+		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water,
 		"inn": level.inn,
 	}
 	if going_away:
@@ -3321,6 +3358,8 @@ func rest_at_inn() -> void:
 			_new_day(true)
 		day_hour = DayNight.WAKE_HOUR
 		set_weather(Weather.roll(day_hour, _weather_rng))
+		# The puddles dried up overnight.
+		puddle_water = 0.0
 		player.hp = player.max_hp
 		player.cure()
 		player.global_position = level.bed_side if level.bed_side != Vector3.ZERO else player.global_position
@@ -3349,8 +3388,9 @@ func sleep() -> void:
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
 		day_hour = DayNight.WAKE_HOUR
-		# A new morning brings new weather.
+		# A new morning brings new weather, and the puddles dried up overnight.
 		set_weather(Weather.roll(day_hour, _weather_rng))
+		puddle_water = 0.0
 	if level.inn:
 		# A night in an inn's bed: the hero gets up rested.
 		player.hp = player.max_hp
@@ -3782,6 +3822,8 @@ func hero_ailments() -> Array:
 	for kind in ["gift", "fluch", "brand", "netz"]:
 		if player.ailments.has(kind):
 			out.append([kind, ""])
+	if player.ailments.has(BloatedBelly.KIND):
+		out.append([BloatedBelly.KIND, BloatedBelly.countdown(player.ailments[BloatedBelly.KIND])])
 	# Slower only from a heavy load (the curse and the web that slow have their own icons,
 	# and a little gear is normal); not while faster all the same.
 	if not _hero_fast() and Items.load_factor(player.load_weight()) <= 1.0 - Items.MAX_WEIGHT_SLOW * 0.5:
@@ -3806,7 +3848,8 @@ func hero_boons() -> Array:
 ## the web's slowness, which have icons of their own).
 func _hero_fast() -> bool:
 	var unslowed := player.base_speed / (Player.CURSE_SLOW if player.ailments.has("fluch") else 1.0) \
-			/ (Player.WEB_SLOW if player.ailments.has("netz") else 1.0)
+			/ (Player.WEB_SLOW if player.ailments.has("netz") else 1.0) \
+			/ (BloatedBelly.SLOW if player.ailments.has(BloatedBelly.KIND) else 1.0)
 	return unslowed > Player.SPEED + 0.01
 
 
@@ -3825,6 +3868,7 @@ func icon_text(kind: String, number: String) -> String:
 		"fluch": return Lang.t("Verflucht: Du bist langsamer. Es vergeht bald; ein Brunnen, ein Schrein oder ein Heiltrank heilt es sofort.")
 		"brand": return Lang.t("Du brennst: Ein paar Sekunden lang verlierst du Leben, nie das letzte.")
 		"netz": return Lang.t("Eingesponnen: Spinnenseide klebt an dir. Ein paar Sekunden lang bist du viel langsamer.")
+		BloatedBelly.KIND: return Lang.t("Zu viel Wasser getrunken: Dein Bauch ist prall und du bist viel langsamer. Noch %s, dann geht es von selbst vorbei.") % BloatedBelly.long_countdown(player.ailments.get(BloatedBelly.KIND, 0.0))
 		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
 		"fast": return Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
 		"slow": return Lang.t("Schwer beladen: Du läufst langsamer. Leg im Inventar (I) etwas ab.")
@@ -3861,6 +3905,13 @@ func _fill_icon_row(row: HBoxContainer, wanted: Array) -> void:
 	for icon in row.get_children():
 		shown.append([icon.kind, icon.value])
 	if shown == wanted:
+		return
+	# Only the numbers changed (a countdown): the icons stay and take the new
+	# number and explanation, so a tooltip being read is not torn away.
+	if shown.size() == wanted.size() and range(shown.size()).all(func(i): return shown[i][0] == wanted[i][0]):
+		for i in wanted.size():
+			var icon: StatusIcon = row.get_child(i)
+			icon.set_number(wanted[i][1], icon_text(wanted[i][0], wanted[i][1]))
 		return
 	var had := []
 	for icon in row.get_children():
@@ -5191,6 +5242,9 @@ func _process(delta: float) -> void:
 			player.set_sneaking(false)
 			show_message(Lang.t("Entdeckt! Du kannst nicht mehr schleichen."), 1.6)
 	_guardian_intro()
+	# A swollen belly counts down under the life bar.
+	if player != null and player.ailments.has(BloatedBelly.KIND):
+		_update_status_icons()
 	if state == State.PLAYING and level != null and not menus.is_open():
 		journal.update(delta)
 	_quest_mark_timer -= delta
@@ -5201,6 +5255,7 @@ func _process(delta: float) -> void:
 	if level is Outdoor and state == State.PLAYING and not menus.is_open() and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		village_talk.update(delta, level)
 		village_worries.update(delta, level)
+		village_rumours.update(delta, level)
 		drinking_songs.update(delta, level)
 	# Where the hero is drawn this frame, between two physics ticks: the
 	# camera follows that, so the running hero and the ground glide together

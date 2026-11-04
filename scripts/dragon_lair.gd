@@ -1,6 +1,6 @@
 class_name DragonLair
 ## Embermaw's lair below the stone arch in the woods: three floors deep, each
-## a maze of its own (levels 13, 27 and 28, buildings E, E2 and E3).
+## a maze of its own (levels 13, 28 and 29, buildings E, E2 and E3).
 ##
 ## - E, the dragon's cave: a tangle of passages with loops and dead ends. A
 ##   key lies at the far end of a side branch; it opens the door to the room

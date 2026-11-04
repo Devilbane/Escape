@@ -48,11 +48,12 @@ const PLACES := {
 	# Embermaw's lair (see DragonLair): no trapdoors, so the key, the gate and
 	# the door of each floor cannot be skipped by a fall.
 	"13_die_drachenhoehle.txt": {"count": 3, "kinds": NO_DROP},
-	"27_die_schwefelgaenge.txt": {"count": 3, "kinds": NO_DROP},
-	"28_glutschlunds_hort.txt": {"count": 3, "kinds": NO_DROP},
+	"28_die_schwefelgaenge.txt": {"count": 3, "kinds": NO_DROP},
+	"29_glutschlunds_hort.txt": {"count": 3, "kinds": NO_DROP},
 	"15_das_offene_grab.txt": {"count": 2, "kinds": NO_DROP},
 	"16_das_spinnenloch.txt": {"count": 2, "kinds": NO_DROP},
 	"17_die_bleiche_tiefe.txt": {"count": 2, "kinds": NO_DROP},
+	"27_das_nest_der_koenigin.txt": {"count": 2, "kinds": NO_DROP},
 	"19_die_kupfergrube.txt": {"count": 4, "kinds": NO_DROP},
 	"20_die_kristallgrotte.txt": {"count": 4, "kinds": NO_DROP},
 	"21_die_zwergenbinge.txt": {"count": 4, "kinds": ALL_KINDS},

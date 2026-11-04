@@ -12,6 +12,8 @@ extends RefCounted
 ##   - lines about the hero once the hero is in their good books (see
 ##     Reputation),
 ##   - the weather, the night and fresh frights (see VillageWorries).
+## Now and then any two villagers chat instead, tied or not: small talk,
+## rumours and old stories (see VillageRumours).
 ## The hero who overhears a chat learns the tie; known ties are listed on the
 ## compendium's reputation page next to each villager's goal.
 ##
@@ -43,6 +45,8 @@ const LINE_GAP := 0.45
 ## Word of mouth for family, friends and sweethearts of the one the hero
 ## helped (the usual word of mouth is Reputation.WORD_OF_MOUTH).
 const CLOSE_WORD := 10
+## The key of a chat between any two (see start_rumour_chat) begins with this.
+const RUMOUR_KEY := "plausch:"
 
 ## Kinds of tie: the name in the compendium and whether it is a warm one.
 const KINDS := {
@@ -314,10 +318,15 @@ func current() -> String:
 
 ## Picks a pair who are tied, both free, close enough to each other and to
 ## the hero, and starts them talking. `only` limits it to one tie (by key).
+## Now and then (VillageRumours.CHAT_CHANCE) any two free villagers chat
+## instead, about small things, a rumour or an old story.
 ## Returns whether a chat began.
 func start_chat(village: Outdoor, only := "") -> bool:
 	if not _chat.is_empty() or village == null or game == null:
 		return false
+	if only == "" and "village_rumours" in game and randf() < VillageRumours.CHAT_CHANCE:
+		if start_rumour_chat(village):
+			return true
 	var by_role := {}
 	for v in village.villagers:
 		if is_instance_valid(v):
@@ -330,7 +339,7 @@ func start_chat(village: Outdoor, only := "") -> bool:
 			continue
 		var a: Villager = by_role.get(tie.a)
 		var b: Villager = by_role.get(tie.b)
-		if a == null or b == null or not a.can_chat() or not b.can_chat():
+		if a == null or b == null or not _free(a) or not _free(b):
 			continue
 		if _flat(a.global_position, b.global_position) > CHAT_REACH:
 			continue
@@ -348,16 +357,71 @@ func start_chat(village: Outdoor, only := "") -> bool:
 	var count := int(_talks.get(key, 0))
 	_talks[key] = count + 1
 	var chosen: Array = all[count % all.size()]
-	# A fresh fright or the weather may be on their minds instead (see
-	# VillageWorries).
-	var worry: Array = game.village_worries.chat_lines(village) if "village_worries" in game else []
-	if not worry.is_empty():
-		chosen = ["a", _fill(worry)]
-	var first: Villager = a if chosen[0] == "a" else b
-	var second: Villager = b if first == a else a
+	var first: String = chosen[0]
+	var second := "b" if first == "a" else "a"
 	var lines := []
 	for i in chosen[1].size():
 		lines.append([first if i % 2 == 0 else second, chosen[1][i]])
+	return _begin(village, key, a, b, lines)
+
+
+## Any two free villagers, one of them near the hero and the other close
+## by, chat about small things, a rumour or an old story (see
+## VillageRumours). Returns whether a chat began.
+func start_rumour_chat(village: Outdoor) -> bool:
+	if not _chat.is_empty() or village == null or game == null or not ("village_rumours" in game):
+		return false
+	var hero: Vector3 = game.player.global_position
+	var free := []
+	for v in village.villagers:
+		if is_instance_valid(v) and _free(v):
+			free.append(v)
+	var near := []
+	for v in free:
+		if _flat(v.global_position, hero) <= HEAR_RANGE:
+			near.append(v)
+	near.shuffle()
+	for a in near:
+		# The closest free villager keeps them company.
+		var b: Villager = null
+		var best := CHAT_REACH
+		for o in free:
+			var d := _flat(a.global_position, o.global_position)
+			if o != a and d <= best:
+				best = d
+				b = o
+		if b == null:
+			continue
+		var said: Array = game.village_rumours.chat_for(a.role, b.role)
+		if said.is_empty():
+			continue
+		var lines := []
+		for entry in said:
+			lines.append([entry[0], game.village_rumours.fill(entry[1])])
+		return _begin(village, RUMOUR_KEY + key_of({"a": a.role, "b": b.role}), a, b, lines)
+	return false
+
+
+## Free for a chat, and not telling the hero a story just now.
+func _free(v: Villager) -> bool:
+	if not v.can_chat():
+		return false
+	return not ("village_rumours" in game and game.village_rumours.is_telling(v))
+
+
+## Starts the chat between `a` and `b`: `lines` are [side ("a" or "b"),
+## text] in the order said. A fresh fright or the weather may be on their
+## minds instead (see VillageWorries).
+func _begin(village: Outdoor, key: String, a: Villager, b: Villager, lines: Array) -> bool:
+	var worry: Array = game.village_worries.chat_lines(village) if "village_worries" in game else []
+	if not worry.is_empty():
+		var filled := _fill(worry)
+		lines = []
+		for i in filled.size():
+			lines.append(["a" if i % 2 == 0 else "b", filled[i]])
+	var said := []
+	for entry in lines:
+		said.append([a if entry[0] == "a" else b, entry[1]])
 	# Someone who keeps a stall or a post stays put; the other walks over.
 	# If both stay put, the second one comes.
 	var walker: Villager = null
@@ -369,7 +433,7 @@ func start_chat(village: Outdoor, only := "") -> bool:
 	host.join_chat(walker if walker else a, false)
 	if walker == null:
 		a.join_chat(b, false)
-	_chat = {"key": key, "a": a, "b": b, "lines": lines, "wait": 0.0, "time": 0.0}
+	_chat = {"key": key, "a": a, "b": b, "lines": said, "wait": 0.0, "time": 0.0}
 	return true
 
 
@@ -422,7 +486,7 @@ static func line_time(text: String) -> float:
 
 
 func _overheard(key: String) -> void:
-	if known.has(key):
+	if known.has(key) or key.begins_with(RUMOUR_KEY):
 		return
 	known[key] = true
 	Events.teach(HOW_TO)

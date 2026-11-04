@@ -145,6 +145,8 @@ var village_talk := VillageTalk.new(self)
 ## What the villagers grumble about: the weather, the night and the frights
 ## of the world (see VillageWorries).
 var village_worries := VillageWorries.new(self)
+## Small talk, rumours and stories in the village (see VillageRumours).
+var village_rumours := VillageRumours.new(self)
 ## Zecher Fritz's drinking songs at the tavern (see DrinkingSongs).
 var drinking_songs := DrinkingSongs.new(self)
 ## The villager whose goods or services are open in a window right now
@@ -425,6 +427,7 @@ func _bus_links() -> Array:
 		[bus.speech_said, heard],
 		[bus.loot_carried_off, _on_loot_carried_off],
 		[bus.scare_happened, village_worries.on_scare],
+		[bus.enemy_slain, village_rumours.on_slain],
 	]
 
 
@@ -1338,11 +1341,11 @@ func _use_station(s: Dictionary) -> void:
 	_pending_station = {}
 	# Still saying the last line: a new bump does not start a new one yet, or
 	# the text flickers while the hero keeps pushing against the villager.
-	var busy: bool = s.has("npc") and s.npc.is_busy_talking()
+	var busy: bool = s.has("npc") and (s.npc.is_busy_talking() or village_rumours.is_telling(s.npc))
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not wishes.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc):
+		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not wishes.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc) and not village_rumours.tell(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building, s.get("house", 0))
@@ -1369,7 +1372,7 @@ func _use_station(s: Dictionary) -> void:
 			player.face(s.pos - player.global_position)
 			player.play("Idle")
 			return
-		if not busy and not reputation.gossip(s.npc):
+		if not busy and not reputation.gossip(s.npc) and not village_rumours.tell(s.npc, true):
 			s.npc.talk(player)
 		player.face(s.pos - player.global_position)
 		trader_role = s.npc.role
@@ -2628,6 +2631,7 @@ func begin_new_game() -> void:
 	reputation.clear()
 	village_talk.clear()
 	village_worries.clear()
+	village_rumours.clear()
 	drinking_songs.clear()
 	storage.clear()
 	shop_stock.clear()
@@ -3027,6 +3031,7 @@ func _apply_save(data: Dictionary) -> void:
 	wishes.load_from(data.get("wishes", {}))
 	reputation.load_from(data.get("reputation", {}))
 	village_talk.load_from(data.get("ties", []))
+	village_rumours.load_from(data.get("rumours", {}))
 	Factions.load_from(data.get("factions", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
@@ -3203,6 +3208,7 @@ func save_game(going_away := false) -> bool:
 		"wishes": wishes.for_save(),
 		"reputation": reputation.for_save(),
 		"ties": village_talk.for_save(),
+		"rumours": village_rumours.for_save(),
 		"factions": Factions.for_save(),
 		"companions": {"list": companions, "following": following, "trust": trust},
 		"hour": day_hour,
@@ -5119,6 +5125,7 @@ func _process(delta: float) -> void:
 	if level is Outdoor and state == State.PLAYING and not menus.is_open() and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		village_talk.update(delta, level)
 		village_worries.update(delta, level)
+		village_rumours.update(delta, level)
 		drinking_songs.update(delta, level)
 	# Where the hero is drawn this frame, between two physics ticks: the
 	# camera follows that, so the running hero and the ground glide together

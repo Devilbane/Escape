@@ -65,6 +65,10 @@ static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: 
 	return p
 
 
+func _ready() -> void:
+	SmoothMotion.follow_ticks(self)
+
+
 func _physics_process(delta: float) -> void:
 	_age += delta
 	var homing := Vector3.INF

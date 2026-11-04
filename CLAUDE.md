@@ -44,3 +44,13 @@ The map editor is its own scene, `scenes/editor.tscn` (`scripts/level_editor.gd`
 map (`tests/level_editor.gd`). A new tile letter also needs a group, a German name and an English entry in
 `EditorPalette` (the test checks it). The digits are each map's own creations (`Creations`, header `custom:`).
 
+
+## Smooth motion
+
+Physics interpolation is on, but the game's root turns it off and only bodies that move in
+`_physics_process` (hero, `Enemy`, `Villager`, `Animal`, `Pet`, `Projectile`) turn it on, with
+`SmoothMotion.follow_ticks(self)` in `_ready` (`scripts/smooth_motion.gd`). A new such body does the same.
+Move those bodies only in physics ticks: a tween on one uses `set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)`,
+and putting one somewhere new calls `reset_physics_interpolation()`. Anything moved per frame stays
+uninterpolated. Something that follows the hero per frame uses `SmoothMotion.drawn_at(player)`.
+`tests/smooth_motion.gd` checks it; `tests/profile_run.gd` and `tests/profile_nodes.gd` measure frame costs.

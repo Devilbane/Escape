@@ -415,6 +415,8 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	Lang.setup()
+	# Only the bodies that move in physics ticks are drawn between ticks (see SmoothMotion).
+	SmoothMotion.off_below(get_tree().root)
 	if get_tree().get_script() != null:
 		# A headless test runs as a script of its own: its saves stay apart.
 		save_dir = TEST_SAVE_DIR
@@ -3214,7 +3216,7 @@ func rest_at_inn() -> void:
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	var bed := _nearest_bed()
 	if bed.is_empty():
 		player.play("Lie_Down", 0.2)
@@ -3270,7 +3272,7 @@ func sleep() -> void:
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	var bed := _nearest_bed()
 	if bed.is_empty():
 		player.play("Lie_Down", 0.2)
@@ -3436,6 +3438,7 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 	player.path.clear()
 	player.velocity = Vector3.ZERO
 	player.global_position = lie
+	player.reset_physics_interpolation()
 	player.face(foot)
 	player.lie_asleep()
 	var fox_wakes := false
@@ -3445,7 +3448,7 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 			pet.sleep_in_basket(basket)
 			fox_wakes = true
 	_fall_asleep()
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_interval(WAKE_SLEEP)
 	tween.tween_callback(func():
 		_stop_snoozing()
@@ -3954,7 +3957,7 @@ func _fall_through_trapdoor(damage: int) -> void:
 	player.path.clear()
 	player.velocity = Vector3.ZERO
 	learn(Traps.LEARN)
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(player, "global_position:y", player.global_position.y - 3.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
 	tween.tween_callback(_land_below.bind(damage))
@@ -3972,6 +3975,7 @@ func _land_below(damage: int) -> void:
 	else:
 		load_level(interiors[level.down_to], false)
 	player.global_position = level.cell_to_world(Traps.landing_cell(level))
+	player.reset_physics_interpolation()
 	player.velocity = Vector3.ZERO
 	player.face(Vector3.BACK)
 	if is_instance_valid(pet):
@@ -4571,7 +4575,7 @@ func _on_exit_reached() -> void:
 		# Out of the front door of the hero's own house, into the lane.
 		player.face(Vector3.BACK)
 		player.play("Walking_A")
-		var out := create_tween()
+		var out := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 		out.tween_property(player, "global_position", level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.6), 0.5)
 		out.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.5)
 		out.tween_callback(_next_level)
@@ -4583,7 +4587,7 @@ func _on_exit_reached() -> void:
 	# The stairs rise northwards across the exit cell in 8 steps of half a metre:
 	# step k (1..8) is 0.5 * k high, its middle 0.5 * k further north.
 	var foot := level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.5)
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(player, "global_position", foot + Vector3(0, 0, 0.1), 0.15)
 	for k in range(1, 9):
 		var step := foot + Vector3(0, 0.5 * k, -0.5 * k + 0.25)
@@ -4658,9 +4662,10 @@ func _step_out_of_crypt() -> void:
 	# once they have one).
 	var saved := save_game()
 	player.global_position = start + Vector3(0, 0, -3.2)
+	player.reset_physics_interpolation()
 	player.face(Vector3.BACK)
 	player.play("Walking_A")
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(_fade, "color:a", 0.0, 1.2)
 	tween.parallel().tween_property(player, "global_position", start, 1.6)
 	if is_instance_valid(pet):
@@ -4787,7 +4792,7 @@ func _take_stairs(to: Vector3, up: bool, storey: int) -> void:
 	if is_instance_valid(pet):
 		# Onto the stairs behind the hero.
 		pet.climb([player.global_position, player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4)], 0.35, 0.1)
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(player, "global_position", player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4), 0.45)
 	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
 	tween.parallel().tween_callback(func(): Sfx.play(player, "step_%d" % (randi() % 6), -14.0))
@@ -4904,6 +4909,10 @@ func zoom_by(steps: float) -> void:
 
 
 func _snap_camera() -> void:
+	# The hero was put somewhere new: drawn there at once, not sliding over.
+	player.reset_physics_interpolation()
+	if is_instance_valid(pet):
+		pet.reset_physics_interpolation()
 	var p := player.global_position
 	p.y = 0.0
 	camera.global_position = p + _camera_offset()
@@ -4957,7 +4966,11 @@ func _process(delta: float) -> void:
 	# The villagers chat with each other while the world runs.
 	if level is Outdoor and state == State.PLAYING and not menus.is_open() and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		village_talk.update(delta, level)
-	var p := player.global_position
+	# Where the hero is drawn this frame, between two physics ticks: the
+	# camera follows that, so the running hero and the ground glide together
+	# however many frames the screen shows between ticks.
+	var drawn := SmoothMotion.drawn_at(player)
+	var p := drawn
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
 	_zoom = move_toward(_zoom, _zoom_target, delta * 2.5)
 	camera.rotation_degrees.x = -lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom)
@@ -4970,7 +4983,7 @@ func _process(delta: float) -> void:
 		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
 	_place_hp_bar()
 	var dust := get_node("Dust") as Node3D
-	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
+	dust.global_position = drawn + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)
 	home_run.tick()
 	update_home_button()

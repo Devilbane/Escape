@@ -244,6 +244,7 @@ var _on_crate := false
 
 
 func _ready() -> void:
+	SmoothMotion.follow_ticks(self)
 	add_to_group("combatant")
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
@@ -752,6 +753,7 @@ func revive(at: Vector3, heal := true) -> void:
 	_hunt = null
 	velocity = Vector3.ZERO
 	global_position = at
+	reset_physics_interpolation()
 	_invulnerable = 1.5
 	_busy = 0.0
 	_flourish = 0.0
@@ -2096,7 +2098,7 @@ func _physics_process(delta: float) -> void:
 	_model.visible = dead or _invulnerable <= 0.0 or int(_invulnerable * 12.0) % 2 == 0
 	# Feet keep pace with the ground: the run and the walk play faster or
 	# slower with the speed.
-	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
+	var ground_speed := SmoothMotion.ground_speed(self)
 	if _current_anim == "Running_A":
 		_anim.speed_scale = clampf(ground_speed / RUN_ANIM_SPEED, 0.5, 2.5)
 	elif _current_anim == WALK_ANIM:

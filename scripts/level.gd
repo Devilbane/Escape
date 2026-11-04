@@ -2398,15 +2398,17 @@ func _push_apart(delta: float) -> void:
 		for j in range(i + 1, bodies.size()):
 			var a = bodies[i]
 			var b = bodies[j]
-			if _up_on_crate(a, b):
-				continue
+			# Most pairs are far apart: that is told first and cheaply, as
+			# this runs for every pair on every tick (some 800 in the village).
 			var d: Vector3 = b.global_position - a.global_position
-			if absf(d.y) > maxf(a.tall, b.tall) + 0.5:
-				continue
-			d.y = 0.0
-			var overlap: float = a.radius + b.radius - d.length()
+			var overlap: float = a.radius + b.radius - Vector2(d.x, d.z).length()
 			if overlap <= 0.02:
 				continue
+			if absf(d.y) > maxf(a.tall, b.tall) + 0.5:
+				continue
+			if _up_on_crate(a, b):
+				continue
+			d.y = 0.0
 			var away: Vector3 = d.normalized() if d.length() > 0.05 else _free_side(b)
 			var weight_a := _push_weight(a)
 			var weight_b := _push_weight(b)

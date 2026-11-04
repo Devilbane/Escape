@@ -54,6 +54,7 @@ var _message_time := 0.0
 
 func _ready() -> void:
 	Lang.setup()
+	SmoothMotion.off_below(get_tree().root)
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	theme = preload("res://scripts/game.gd")._tooltip_theme()
 	DirAccess.make_dir_recursive_absolute(Creations.USER_DIR)

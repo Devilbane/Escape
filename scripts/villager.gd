@@ -199,6 +199,7 @@ func setup(owner_level: Outdoor, role_char: String, cell: Vector2i) -> void:
 
 
 func _ready() -> void:
+	SmoothMotion.follow_ticks(self)
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.5 * _info.get("scale", 1.0)

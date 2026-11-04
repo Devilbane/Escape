@@ -49,6 +49,8 @@ var _pops: Array = []
 func _ready() -> void:
 	current = self
 	layer = 5
+	# Drawn now, while the game loads, not at the first blow.
+	_burst_shape()
 
 
 ## Shows a word at a point in the world. Kind picks words and colours:
@@ -242,14 +244,39 @@ func _body_rect(body: Node3D) -> Rect2:
 
 
 ## A jagged comic explosion: coloured star with a thick black rim and speed lines.
+## The star's shape is drawn once (see _burst_shape); a colour only fills it in.
 func _burst_texture(fill: Color) -> Texture2D:
 	var key := fill.to_html()
 	if _bursts.has(key):
 		return _bursts[key]
+	var shape := _burst_shape()
+	var mask: Image = shape[0]
+	var lines: Image = shape[1]
+	var size := mask.get_size()
+	var paint := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
+	paint.fill(fill)
+	var img := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
+	img.blit_rect_mask(paint, mask, Rect2i(Vector2i.ZERO, size), Vector2i.ZERO)
+	img.blend_rect(lines, Rect2i(Vector2i.ZERO, size), Vector2i.ZERO)
+	var tex := ImageTexture.create_from_image(img)
+	_bursts[key] = tex
+	return tex
+
+
+## The star's inside as a mask, and its rim and speed lines, the same for
+## every colour. Drawing them pixel by pixel took some 30 ms, which used to
+## be paid again for every new colour in the middle of a fight; now it is
+## paid once, when the game starts (see _ready).
+static var _shape: Array = []
+
+
+static func _burst_shape() -> Array:
+	if not _shape.is_empty():
+		return _shape
 	const W := 260
 	const H := 200
-	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
+	var mask := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	var lines := Image.create(W, H, false, Image.FORMAT_RGBA8)
 	var center := Vector2(W, H) * 0.5
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
@@ -257,23 +284,24 @@ func _burst_texture(fill: Color) -> Texture2D:
 	var radii: Array[float] = []
 	for i in POINTS * 2:
 		radii.append(rng.randf_range(0.86, 1.0) if i % 2 == 0 else rng.randf_range(0.58, 0.68))
-	# Distance from the centre to the star's edge in a given direction (0..1 of the half size).
-	var edge := func(angle: float) -> float:
-		var t := fposmod(angle, TAU) / TAU * POINTS * 2
-		var i := int(t)
-		return lerpf(radii[i % radii.size()], radii[(i + 1) % radii.size()], t - i)
+	var count := radii.size()
+	var rim := Color(0.06, 0.03, 0.06)
+	var soft_rim := Color(0.06, 0.03, 0.06, 0.5)
 	var half := Vector2(W, H) * 0.5
 	for y in H:
 		for x in W:
 			var d := (Vector2(x, y) - center) / half
 			var r := d.length()
-			var e: float = edge.call(d.angle()) * 0.84
+			# Distance from the centre to the star's edge in this direction (0..1 of the half size).
+			var t := fposmod(d.angle(), TAU) / TAU * count
+			var i := int(t)
+			var e := lerpf(radii[i % count], radii[(i + 1) % count], t - i) * 0.84
 			if r < e - 0.07:
-				img.set_pixel(x, y, fill)
+				mask.set_pixel(x, y, Color.WHITE)
 			elif r < e:
-				img.set_pixel(x, y, Color(0.06, 0.03, 0.06))
+				lines.set_pixel(x, y, rim)
 			elif r < e + 0.03:
-				img.set_pixel(x, y, Color(0.06, 0.03, 0.06, 0.5))
+				lines.set_pixel(x, y, soft_rim)
 	# A few speed lines bursting out past the rim.
 	for i in 10:
 		var a := TAU * i / 10.0 + 0.2
@@ -284,7 +312,6 @@ func _burst_texture(fill: Color) -> Texture2D:
 			for o in [-1, 0, 1]:
 				var q: Vector2 = (p + dir.orthogonal() * o).round()
 				if q.x >= 0 and q.y >= 0 and q.x < W and q.y < H:
-					img.set_pixelv(Vector2i(q), Color(1, 1, 1, 0.9))
-	var tex := ImageTexture.create_from_image(img)
-	_bursts[key] = tex
-	return tex
+					lines.set_pixelv(Vector2i(q), Color(1, 1, 1, 0.9))
+	_shape = [mask, lines]
+	return _shape

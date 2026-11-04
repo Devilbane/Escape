@@ -132,6 +132,7 @@ func has_nose() -> bool:
 
 
 func _ready() -> void:
+	SmoothMotion.follow_ticks(self)
 	var species: Dictionary = Companions.SPECIES[kind]
 	_model = load("res://assets/animals/%s.glb" % species.model).instantiate()
 	_model.scale = Vector3.ONE * float(species.scale)
@@ -456,7 +457,7 @@ func _to_bed(delta: float) -> void:
 		_walk(delta, RUN_SPEED if _flat(_bed - global_position).length() > 4.0 else WALK_SPEED, null)
 		if _path.is_empty():
 			# A little hop over the rim, onto the cushion.
-			create_tween().tween_property(self, "global_position", _bed + Vector3(0, BASKET_FLOOR, 0), 0.3)
+			create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS).tween_property(self, "global_position", _bed + Vector3(0, BASKET_FLOOR, 0), 0.3)
 		return
 	_anim.speed_scale = 0.35
 	play("Idle")
@@ -560,7 +561,7 @@ func climb(points: Array, step_time: float, delay: float, done := false, first_t
 	_path.clear()
 	if _climb:
 		_climb.kill()
-	_climb = create_tween()
+	_climb = create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	_climb.tween_interval(delay)
 	var from := global_position
 	_climb.tween_callback(func():
@@ -602,6 +603,7 @@ func _beside_hero(hero: Node3D) -> void:
 			spot = p
 			break
 	global_position = Vector3(spot.x, 0.0, spot.z)
+	reset_physics_interpolation()
 	_path.clear()
 	state = "follow"
 

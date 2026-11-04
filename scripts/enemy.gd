@@ -397,6 +397,7 @@ func is_level_boss() -> bool:
 
 
 func _ready() -> void:
+	SmoothMotion.follow_ticks(self)
 	_stats = KINDS[kind].duplicate()
 	_stats.merge(custom, true)
 	_scan = randf() * RIVAL_SCAN
@@ -1008,7 +1009,7 @@ func _sink() -> void:
 	collision_layer = 0
 	collision_mask = 0
 	_play("Idle")
-	var tween := create_tween()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(self, "position:y", -2.8, 2.2)
 	tween.tween_callback(queue_free)
 
@@ -1138,7 +1139,7 @@ func _physics_process(delta: float) -> void:
 	_footfalls(delta, move != Vector3.ZERO, dist)
 	_voice(delta, dist)
 	# Feet keep pace with the ground; bigger skeletons take longer strides.
-	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
+	var ground_speed := SmoothMotion.ground_speed(self)
 	var run_anim: float = _stats.get("run_anim", Player.RUN_ANIM_SPEED)
 	_anim.speed_scale = clampf(ground_speed / (run_anim * float(_stats.size)), 0.5, 2.5) if _current_anim == "Running_A" else 1.0
 
@@ -1258,7 +1259,7 @@ func _voice(delta: float, dist: float) -> void:
 ## Caught on a table corner or a door frame: step aside for a moment and
 ## look for a new way.
 func _check_stuck(delta: float, move: Vector3) -> void:
-	var ground_speed := Vector2(get_real_velocity().x, get_real_velocity().z).length()
+	var ground_speed := SmoothMotion.ground_speed(self)
 	if move == Vector3.ZERO or ground_speed > float(_stats.speed) * 0.3:
 		_stuck = maxf(0.0, _stuck - delta)
 		return

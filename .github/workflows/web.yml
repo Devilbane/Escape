@@ -119,6 +119,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/rarity_colours.gd | tee rarity.log
           grep -q PASS rarity.log
 
+      - name: Villagers grumble about the weather and take fright test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/village_worries.gd | tee worries.log
+          grep -q PASS worries.log
+
       - name: Event bus test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log

@@ -1,7 +1,8 @@
 extends SceneTree
 ## Headless test for fishing: the fountain, the village pond and the pond in
 ## the wolf hollow hold fish; the line is cast with G by the water, a bite
-## has to be struck in time, rare fish bite only in their own water and at
+## has to be struck in time (or let go for another bite in a row, which
+## makes the catch rarer, until the row breaks off), rare fish bite only in their own water and at
 ## their own hours, every fish goes into the ingredient pouch, Hanna's
 ## Amulet of the Deep recipe calls for them, and catching a silver pike
 ## clears its smudged line. The line flies well out over a pond, and the
@@ -155,15 +156,52 @@ func _test() -> void:
 	check(not fishing.is_fishing(), "G again draws the line in")
 	check(fishing.rod == null and hand.get_node("Knife").visible, "the rod is put away and the knife is back")
 
-	# A bite: too slow and the fish is gone.
+	# A bite: let go, the fish may bite again; when it does not, it is gone.
 	var pouch_before: Dictionary = game.crafting.pouch.duplicate()
 	var coins_before: int = game.coins
 	_key_g()
 	fishing.tick(Fishing.WAIT_MAX + 0.1)
-	check(fishing.state == Fishing.BITE, "a fish bites after a while")
+	check(fishing.state == Fishing.BITE and fishing.bites == 1, "a fish bites after a while")
+	fishing.let_go(true)
+	check(fishing.state == Fishing.WAITING and fishing.timer <= Fishing.CHAIN_GAP_MAX, "let go, the float comes up and the fish may bite again soon")
+	fishing.tick(Fishing.CHAIN_GAP_MAX + 0.05)
+	check(fishing.state == Fishing.BITE and fishing.bites == 2, "the fish bites a second time in a row")
+	fishing.let_go(false)
+	check(not fishing.is_fishing() and fishing.bites == 0, "the row breaks off and the fish is gone")
+	check(game.crafting.pouch == pouch_before and game.coins == coins_before, "nothing is caught when the row breaks off")
+	# Striking into the pause between two bites loses the fish too.
+	_key_g()
+	fishing.bite()
+	fishing.let_go(true)
+	_key_g()
+	check(not fishing.is_fishing() and game.crafting.pouch == pouch_before and game.coins == coins_before, "striking between two bites catches nothing")
+	# Left alone, the bite times out by itself, and the row never runs past MAX_CHAIN.
+	_key_g()
+	for i in Fishing.MAX_CHAIN:
+		fishing.bite()
+		fishing.let_go(true)
+	fishing.bite()
 	fishing.tick(Fishing.BITE_TIME + 0.1)
-	check(not fishing.is_fishing(), "the fish lets go when the hero is too slow")
-	check(game.crafting.pouch == pouch_before and game.coins == coins_before, "nothing is caught when too slow")
+	check(not fishing.is_fishing(), "after MAX_CHAIN bites the fish lets go for good")
+	for text in ["Zu langsam! Der Fisch beißt nicht noch einmal und ist weg.", "Die Bissfolge reißt nach %d Bissen ab: Der Fisch ist weg!",
+			"Der Schwimmer taucht wieder auf … beißt er noch einmal?", "%d. Biss in Folge! G: anschlagen, oder auf den nächsten warten.",
+			"Zu früh angeschlagen! Der Fisch ist weg.", "Weg!", Fishing.HOW_TO]:
+		check(Lang.EN.has(text), "\"%s\" has an English text" % text)
+
+	# A longer row makes the catch rarer: less weed, more rare fish.
+	var chain_rng := RandomNumberGenerator.new()
+	for kind in ["brunnen", "teich", "senke"]:
+		var hour := 6.0 if kind == "teich" else 23.0
+		var tally := {1: {"": 0, "rare": 0}, 4: {"": 0, "rare": 0}}
+		for row in tally:
+			chain_rng.seed = 7
+			for i in 2000:
+				var got := Fishing.roll(kind, hour, chain_rng, row)
+				if got == "":
+					tally[row][""] += 1
+				elif Fishing.is_rare(got):
+					tally[row]["rare"] += 1
+		check(tally[4][""] < tally[1][""] and tally[4]["rare"] > tally[1]["rare"] * 2, "%s: four bites in a row bring less weed and more rare fish (%s)" % [kind, tally])
 
 	# Struck in time: something comes in and the line is free again.
 	_key_g()

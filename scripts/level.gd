@@ -8,7 +8,8 @@ extends Node3D
 ## The line "secret: normal|uncommon|rare|epic|godborn" sets how rich the
 ## secret room is (the German ids ungewoehnlich, selten, episch, gottgeboren
 ## work too). The richer it is, the harder its lever is to
-## notice. Any torch near the secret wall can be the lever, a new one each run.
+## notice. Any torch near the secret wall can be the lever, a new one each run,
+## except the torches by the stairs (see _on_way_out).
 ##
 ## A level with the line "safe: yes" is a safe room without enemies.
 ## A level with the line "outdoor: yes" lies in the open air and is built by
@@ -1778,10 +1779,10 @@ func _pick_levers() -> void:
 		var steps := _steps_from_secret(s)
 		var near: Array = []
 		for t in _wall_torches:
-			if steps.has(t.cell):
+			if steps.has(t.cell) and not _on_way_out(t.cell):
 				near.append(t)
 		# Too few torches around: hang more on the bare walls nearby.
-		var bare := _bare_walls.filter(func(w): return steps.has(w.cell))
+		var bare := _bare_walls.filter(func(w): return steps.has(w.cell) and not _on_way_out(w.cell))
 		while near.size() < LEVER_CHOICES and not bare.is_empty():
 			var w: Dictionary = bare.pop_at(_rng.randi() % bare.size())
 			if _torch_spots.any(func(spot): return spot.distance_to(w.pos) < TILE * 1.5):
@@ -1797,6 +1798,25 @@ func _pick_levers() -> void:
 			s.lever = _maybe_add_torch(face.pos, face.rot, true)
 			s.lever_cell = face.cell
 			s.lever_on_wall = true
+
+
+## Tiles that lead on to the next level: the exit stairs, the stairs of a
+## home and a mine's way down.
+const WAY_OUT := "E<>^"
+## How many tiles around the stairs (diagonals too) count as the way up.
+const WAY_OUT_REACH := 2
+
+
+## Whether a tile is on the way up: the stairs or a tile within WAY_OUT_REACH
+## of them, such as the alcove in front of the Zuflucht's stairs. The torches
+## there light the hero's way on and never serve as a secret wall's lever, so
+## climbing the stairs does not give the secret room away.
+func _on_way_out(c: Vector2i) -> bool:
+	for dy in range(-WAY_OUT_REACH, WAY_OUT_REACH + 1):
+		for dx in range(-WAY_OUT_REACH, WAY_OUT_REACH + 1):
+			if WAY_OUT.contains(cell_char(c + Vector2i(dx, dy))):
+				return true
+	return false
 
 
 var _outer: Dictionary = {}

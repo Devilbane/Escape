@@ -25,7 +25,7 @@ const STEPS := [
 	{"id": "move", "title": "Gehen", "text": "Gehe mit W A S D oder den Pfeiltasten. Oder klicke auf den Boden, dann gehst du dorthin."},
 	{"id": "run", "title": "Rennen", "text": "Halte Umschalt oder die linke Maustaste gedrückt, um zu rennen. Rennen kostet Atem: Sieh auf den Balken oben links."},
 	{"id": "melee", "title": "Nahkampf", "text": "Drücke F oder J, um mit dem Dolch zuzuschlagen. Oder laufe gegen einen Gegner oder klicke ihn an."},
-	{"id": "throw", "title": "Wurfmesser", "text": "Drücke R oder K, oder klicke rechts dorthin, wohin das Messer fliegen soll. Wie viele du hast, steht oben rechts."},
+	{"id": "throw", "title": "Wurfmesser", "text": "Drücke R oder K, oder klicke rechts dorthin, wohin das Messer fliegen soll. Wie viele du hast, steht unter deinem Lebensbalken."},
 	{"id": "sneak", "title": "Schleichen", "text": "Drücke C oder doppelklicke, um zu schleichen: langsamer und lautlos. Im Dunkeln sieht dich keiner."},
 	{"id": "sneak_off", "title": "Grau und durchsichtig?", "text": "Grau und durchsichtig heißt: Du schleichst. Drücke wieder C oder doppelklicke, um normal zu gehen."},
 	{"id": "jump", "title": "Springen", "text": "Drücke die Leertaste, um zu springen. Mit Anlauf springst du weiter; beim Rennen mit der Maus springt ein Rechtsklick."},

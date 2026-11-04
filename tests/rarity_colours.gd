@@ -12,8 +12,8 @@ var frames := 0
 var shots := OS.get_environment("SHOTS")
 
 ## One piece of each tier, plain to finest, then one the hero crafts.
-const SAMPLES := {"schwert": "normal", "wappenschild": "ungewoehnlich", "axt": "selten",
-		"stachelschild": "episch", "langschwert": "gottgeboren", "klingenring": Rarity.SELF_MADE}
+const SAMPLES := {"schwert": "normal", "wappenschild": "ungewoehnlich", "stachelschild": "selten",
+		"plattenpanzer": "episch", "reiserucksack": "gottgeboren", "klingenring": Rarity.SELF_MADE}
 ## The window's dark ground (see Menus.panel_style).
 const WINDOW := Color(0.04, 0.03, 0.08)
 
@@ -100,9 +100,12 @@ func _test_code() -> void:
 		colours.append(c)
 	check(Lang.t("Selbst gefertigt") == "Self-crafted", "the hero's own work is named in English")
 	# Marks in a text turn into names, plain or coloured.
-	var text := "Found: %s and %s" % [Rarity.marked("axt"), Rarity.marked("goldkarpfen")]
-	check(Rarity.plain(text) == "Found: %s and %s" % [Items.item_name("axt"), Crafting.ingredient_name("goldkarpfen")], "marks become plain names: " + Rarity.plain(text))
-	check(Rarity.to_bbcode(text).contains("[color=#%s]%s[/color]" % [Rarity.RARE.to_html(false), Items.item_name("axt")]), "marks become coloured names")
+	var text := "Found: %s and %s" % [Rarity.marked("stachelschild"), Rarity.marked("goldkarpfen")]
+	check(Rarity.plain(text) == "Found: %s and %s" % [Items.item_name("stachelschild"), Crafting.ingredient_name("goldkarpfen")], "marks become plain names: " + Rarity.plain(text))
+	check(Rarity.to_bbcode(text).contains("[color=#%s]%s[/color]" % [Rarity.RARE.to_html(false), Items.item_name("stachelschild")]), "marks become coloured names")
+	# Basic gear is common, whatever it costs.
+	for id in ["schwert", "axt", "lederstiefel"]:
+		check(Rarity.tier(id) == "normal", "%s is common, not %s" % [id, Rarity.tier(id)])
 
 
 func _test_inventory() -> void:
@@ -111,7 +114,7 @@ func _test_inventory() -> void:
 	p.bag.clear()
 	p.equipped.clear()
 	p.equipped["rucksack"] = "grosser_rucksack"
-	p.equipped["waffe"] = "langschwert"
+	p.equipped["waffe"] = "runenhammer"
 	for id in SAMPLES:
 		p.bag.append(id)
 	p.bag.append("fackel")
@@ -129,13 +132,13 @@ func _test_inventory() -> void:
 	# The worn weapon's slot too.
 	var worn_ok := false
 	for b in menus._box.find_children("*", "Button", true, false):
-		if b.text.contains(Items.item_name("langschwert")) and b.get_theme_color("font_color") == Rarity.GODBORN:
+		if b.text.contains(Items.item_name("runenhammer")) and b.get_theme_color("font_color") == Rarity.GODBORN:
 			worn_ok = true
-	check(worn_ok, "the worn god-born sword is orange in its slot")
+	check(worn_ok, "the worn god-born hammer is orange in its slot")
 	# The details name the rarity in words, the name in its colour.
-	menus._select(p.bag.find("axt"))
+	menus._select(p.bag.find("stachelschild"))
 	await _wait()
-	check(menus._info.get_parsed_text().contains("%s (%s)" % [Items.item_name("axt"), Lang.t("Selten")]), "the details name the rarity: " + menus._info.get_parsed_text())
+	check(menus._info.get_parsed_text().contains("%s (%s)" % [Items.item_name("stachelschild"), Lang.t("Selten")]), "the details name the rarity: " + menus._info.get_parsed_text())
 	check(menus._info.text.contains(Rarity.RARE.to_html(false)), "the details show the name in blue")
 	await _shot("inventory_rare_picked")
 	menus._select(p.bag.find("klingenring"))
@@ -148,15 +151,15 @@ func _test_inventory() -> void:
 func _test_storage() -> void:
 	var menus: Menus = game.menus
 	game.storage.clear()
-	game.storage.append("stachelschild")
+	game.storage.append("plattenpanzer")
 	menus.open("lager")
 	await _wait()
 	var ok := false
 	for b in menus._box.find_children("*", "Button", true, false):
-		if b.text.replace("\n", " ").contains(Items.item_name("stachelschild")) and b.get_theme_color("font_color") == Rarity.EPIC:
+		if b.text.replace("\n", " ").contains(Items.item_name("plattenpanzer")) and b.get_theme_color("font_color") == Rarity.EPIC:
 			ok = true
-	check(ok, "the storage chest shows the epic shield in violet")
-	menus._show_info("stachelschild")
+	check(ok, "the storage chest shows the epic plate armour in violet")
+	menus._show_info("plattenpanzer")
 	check(menus._info.text.contains(Rarity.EPIC.to_html(false)), "the chest's info line colours the name")
 	await _shot("storage_epic")
 	menus.close()
@@ -185,19 +188,19 @@ func _test_merchant() -> void:
 		if trade._entries[key].get("id", "") == "stachelschild" and not key.begins_with("sell:"):
 			trade.pick(key)
 	await _wait()
-	var line := "%s · %s" % [Lang.t("Episch"), TradeWindow.subtitle("stachelschild")]
+	var line := "%s · %s" % [Lang.t("Selten"), TradeWindow.subtitle("stachelschild")]
 	var found := false
 	for l in menus._box.find_children("*", "Label", true, false):
-		if l.text == line and l.get_theme_color("font_color") == Rarity.EPIC:
+		if l.text == line and l.get_theme_color("font_color") == Rarity.RARE:
 			found = true
-	check(found, "the card says '%s' in violet" % line)
-	await _shot("merchant_epic_card")
+	check(found, "the card says '%s' in blue" % line)
+	await _shot("merchant_rare_card")
 	menus.close()
 
 
 func _test_event_log() -> void:
 	var log: EventLog = game.event_log
-	for id in ["schwert", "axt", "langschwert"]:
+	for id in ["schwert", "axt", "runenhammer"]:
 		Events.found(Lang.t("Gefunden: %s (%s)") % [Rarity.marked(id), Items.describe(id)])
 	Events.found(Lang.t("Ein seltener Fang: %s!") % Rarity.marked("goldkarpfen"), Color(0.6, 0.85, 1.0))
 	await _wait()
@@ -205,7 +208,7 @@ func _test_event_log() -> void:
 	check(lines.size() >= 4, "the log has the finds")
 	for l in lines:
 		check(not l.contains(Rarity.MARK_OPEN) and not l.contains(Rarity.MARK_CLOSE), "no marks show in the log: " + l)
-	check(lines[-2].contains(Items.item_name("langschwert")), "the log names the find")
+	check(lines[-2].contains(Items.item_name("runenhammer")), "the log names the find")
 	var last: RichTextLabel = log._lines.get_child(log._lines.get_child_count() - 2)
-	check(last.text.contains(Rarity.GODBORN.to_html(false)), "the god-born sword is orange in the log")
+	check(last.text.contains(Rarity.GODBORN.to_html(false)), "the god-born hammer is orange in the log")
 	await _shot("event_log")

@@ -300,6 +300,12 @@ var _stair_cell := Vector2i(-1, -1)
 signal stairs_taken(to: Vector3, up: bool, storey: int)
 ## How deep the level lies (0 for the first); deeper skeletons wear more gear.
 var depth := 0
+## Whether this is a floor of the beginner dungeon the hero escapes from (Die
+## Zelle to Das Tor: no building, not the open air). Its loot is common only:
+## containers, chests and what the skeletons wear. Only its secret rooms (and a
+## puzzle's gated chest) hold finer things, as rich as the map sets them; a
+## named boss's bonus drop (see roll_boss_loot) does not happen here.
+var beginner_dungeon := false
 var fog: Fog
 var _doors: Array = []
 ## The footprints (on the ground, x and z) of the tall pieces that stop a
@@ -411,9 +417,11 @@ const WRITING_KEY := "writing:found"
 var _writing := {}
 ## Seconds between pulling the lever and the stone starting to move.
 const SECRET_DELAY := 2.5
-## Per wealth: chance in percent to notice the lever, gold in each chest,
-## the cheapest gear a chest may hold, and the colour of its name (the
-## item rarity colours, see Rarity).
+## Per wealth, from plain to finest (the item rarities, see Rarity and
+## Items.RARITY): chance in percent to notice the lever, gold in each chest,
+## and the colour of its name. A chest holds gear of its tier or finer.
+## "min_price" sets the tier of gear Items.RARITY does not list (the hero's
+## own crafted pieces and the map workshop's gear): by its price.
 const TIERS := {
 	"normal": {"name": "Gewöhnlich", "chance": 55, "gold": 10, "min_price": 0, "color": Rarity.COMMON},
 	"ungewoehnlich": {"name": "Ungewöhnlich", "chance": 40, "gold": 18, "min_price": 15, "color": Rarity.UNCOMMON},
@@ -510,6 +518,7 @@ func load_from_file(path: String) -> void:
 			grid.append(line)
 			width = maxi(width, line.length())
 	height = grid.size()
+	beginner_dungeon = not outdoor and building == ""
 	if lair:
 		# Monsters live down there: not a safe room, even below a building.
 		safe = false
@@ -1435,7 +1444,7 @@ func _build_chest(c: Vector2i, epic := false) -> void:
 	if _behind_gate(c):
 		# The reward of a block-pushing puzzle: as rich as a rare secret room.
 		var rare: Dictionary = TIERS["selten"]
-		obj.loot = {"gold": int(rare.gold), "item": loot_item(loot_rng, int(rare.min_price), HeroLevel.place_level(self) + 1)}
+		obj.loot = {"gold": int(rare.gold), "item": loot_item(loot_rng, tier_rank("selten"), HeroLevel.place_level(self) + 1)}
 		return
 	obj.loot = {"gold": 5, "item": loot_item(loot_rng, 0, HeroLevel.place_level(self))}
 
@@ -1473,8 +1482,8 @@ func _secret_loot(c: Vector2i, share: float) -> Dictionary:
 	var loot_rng := RandomNumberGenerator.new()
 	loot_rng.seed = hash("%s:secret:%d:%d" % [level_name, c.x, c.y])
 	var loot := {"gold": int(round(tier.gold * share * loot_rng.randf_range(0.8, 1.2)))}
-	if share >= 1.0 or tier.min_price >= 34:
-		loot.item = loot_item(loot_rng, tier.min_price, HeroLevel.place_level(self) + 1)
+	if share >= 1.0 or tier_rank(secret_tier) >= tier_rank("episch"):
+		loot.item = loot_item(loot_rng, tier_rank(secret_tier), HeroLevel.place_level(self) + 1)
 	return loot
 
 
@@ -3465,11 +3474,19 @@ func _check_doors() -> void:
 var _rare_loot := {}
 
 
-## A random piece of gear for a container on this level. Common things may
-## turn up again and again, but anything finer (uncommon and up, books too)
-## only once a level, so a secret room never holds the same book twice.
-func loot_item(rng: RandomNumberGenerator, min_price: int, area: int) -> String:
-	var id := Items.random_item(rng, min_price, "", area, _rare_loot)
+## A random piece of gear of rarity `min_rank` or finer (see tier_rank) for a
+## container on this level. Common things may turn up again and again, but
+## anything finer (uncommon and up, books too) only once a level, so a secret
+## room never holds the same book twice: once all the gear of its tier is
+## taken, the next chest reaches one tier lower. In the beginner dungeon,
+## plain loot (`min_rank` 0) is common only (see beginner_dungeon).
+func loot_item(rng: RandomNumberGenerator, min_rank: int, area: int) -> String:
+	var top := 0 if beginner_dungeon and min_rank == 0 else tier_rank("gottgeboren")
+	var rank := min_rank
+	var id := Items.random_item(rng, rank, "", area, _rare_loot, top)
+	while _rare_loot.has(id) and rank > 0:
+		rank -= 1
+		id = Items.random_item(rng, rank, "", area, _rare_loot, top)
 	if not Items.is_common(id):
 		_rare_loot[id] = int(_rare_loot.get(id, 0)) + 1
 	return id
@@ -3802,7 +3819,7 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 			continue
 		for attempt in 6:
 			# Gear that suits the place; the bosses' own fights stay as they were made.
-			var id := Items.random_item(rng, 0, "", 0 if HeroLevel.FIXED.has(kind) else HeroLevel.place_level(self))
+			var id := Items.random_item(rng, 0, "", 0 if HeroLevel.FIXED.has(kind) else HeroLevel.place_level(self), {}, 0 if beginner_dungeon else tier_rank("gottgeboren"))
 			var slot: String = Items.ALL[id].slot
 			if slot != "spezial" and slot != "buch" and not gear.any(func(g): return Items.ALL[g].slot == slot):
 				gear.append(id)
@@ -3838,22 +3855,35 @@ static func is_named_boss(e: Enemy) -> bool:
 	return e.is_level_boss() or str(e.custom.get("title", "")) != ""
 
 
-## The finest of TIERS whose cheapest gear a piece of gear reaches by price.
+## How rare a piece of gear is (a key of TIERS): as Items.RARITY lists it,
+## else the finest of TIERS whose "min_price" it reaches by price.
 static func tier_of(id: String) -> String:
 	var best := "normal"
 	if not Items.ALL.has(id):
 		return best
+	if Items.RARITY.has(id):
+		return Items.RARITY[id]
 	for t in TIERS:
 		if int(Items.ALL[id].price) >= int(TIERS[t].min_price) and int(TIERS[t].min_price) >= int(TIERS[best].min_price):
 			best = t
 	return best
 
 
+## A tier's place from plain to finest: 0 (common) to 4 (god-born).
+static func tier_rank(tier: String) -> int:
+	return TIERS.keys().find(tier)
+
+
+## How rare a piece of gear is, as a place in TIERS (see tier_rank).
+static func rank_of(id: String) -> int:
+	return tier_rank(tier_of(id))
+
+
 ## A named boss's rare loot, or "" when the roll misses (`roll` in 0..1;
 ## random when left out). The piece is rare or better, suits the place, and
 ## like all finer loot never repeats on this level (see loot_item).
 func roll_boss_loot(e: Enemy, roll := -1.0) -> String:
-	if not is_named_boss(e):
+	if not is_named_boss(e) or beginner_dungeon:
 		return ""
 	if roll < 0.0:
 		roll = randf()
@@ -3861,7 +3891,7 @@ func roll_boss_loot(e: Enemy, roll := -1.0) -> String:
 		return ""
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	return loot_item(rng, int(TIERS["selten"].min_price), HeroLevel.place_level(self))
+	return loot_item(rng, tier_rank("selten"), HeroLevel.place_level(self))
 
 
 ## Drops a named boss's rare loot, if the roll hits, beside where it fell,

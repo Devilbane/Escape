@@ -58,6 +58,10 @@ func _test_chance() -> void:
 	check(lvl.roll_boss_loot(chief, 0.0) != "", "a lucky roll drops something")
 	var plain := _enemy("krieger")
 	check(lvl.roll_boss_loot(plain, 0.0) == "", "a plain monster never drops boss loot")
+	# The beginner dungeon's loot is common only: no bonus drop there.
+	lvl.beginner_dungeon = true
+	check(lvl.roll_boss_loot(chief, 0.0) == "", "no boss loot in the beginner dungeon")
+	lvl.beginner_dungeon = false
 	plain.free()
 	chief.free()
 	lvl.free()
@@ -65,7 +69,6 @@ func _test_chance() -> void:
 
 ## Whatever drops is rare or better, on shallow and deep levels alike.
 func _test_rarity() -> void:
-	var rare_price := int(Level.TIERS["selten"].min_price)
 	for depth in [0, 3, 6, 9]:
 		var lvl := Level.new()
 		lvl.depth = depth
@@ -74,7 +77,6 @@ func _test_rarity() -> void:
 			var id := lvl.roll_boss_loot(e, 0.0)
 			check(Items.ALL.has(id), "%s on depth %d drops real gear" % [kind, depth])
 			if Items.ALL.has(id):
-				check(int(Items.ALL[id].price) >= rare_price, "%s on depth %d drops rare or better, not %s" % [kind, depth, id])
 				check(Level.tier_of(id) in ["selten", "episch", "gottgeboren"], "%s is rare or better" % id)
 			e.free()
 		lvl.free()
@@ -89,7 +91,7 @@ func _test_no_repeats() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
 	var seen := {}
-	var chest := lvl.loot_item(rng, int(Level.TIERS["selten"].min_price), HeroLevel.place_level(lvl))
+	var chest := lvl.loot_item(rng, Level.tier_rank("selten"), HeroLevel.place_level(lvl))
 	seen[chest] = true
 	var boss := _enemy("bergkoenig", {"title": "Prüfung"})
 	for i in 8:

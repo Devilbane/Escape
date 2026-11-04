@@ -68,17 +68,9 @@ static func melt_yield(id: String) -> int:
 	return int(melt_into(id).get("eisen", 0))
 
 
-## How rare a piece is, 0 (common) to 4 (god-born), by its price (see
-## Level.TIERS).
+## How rare a piece is, 0 (common) to 4 (god-born) (see Items.RARITY).
 static func rarity(id: String) -> int:
-	var price := int(Items.ALL[id].get("price", 0))
-	var r := 0
-	var i := 0
-	for tier in Level.TIERS:
-		if price >= int(Level.TIERS[tier].min_price):
-			r = i
-		i += 1
-	return r
+	return Level.rank_of(id)
 
 
 ## Whether a piece is jewellery or a charm rather than a weapon or armour.

@@ -236,12 +236,11 @@ static func bag_size(backpack: String) -> int:
 	return maxi(BAG_SIZE, int(ALL.get(backpack, {}).get("bag", 0)))
 
 
-## Whether an item is plain, common stuff (cheaper than an uncommon secret
-## room's cheapest gear, see Level.TIERS). Only common things may turn up in
-## more than one container of a level; anything finer, books included, is
-## found there once at most (see Level.loot_item).
+## Whether an item is plain, common stuff (see RARITY). Only common things
+## may turn up in more than one container of a level; anything finer, books
+## included, is found there once at most (see Level.loot_item).
 static func is_common(id: String) -> bool:
-	return ALL.has(id) and ALL[id].price < int(Level.TIERS["ungewoehnlich"].min_price)
+	return ALL.has(id) and Level.tier_of(id) == "normal"
 
 
 static func is_book(id: String) -> bool:
@@ -361,6 +360,43 @@ const LEVELS := {
 	"reiserucksack": 14,
 	"runenhammer": 16,
 }
+## How rare each item is (a key of Level.TIERS), by how useful and valuable
+## it is, not by its price: basic gear is common, solid upgrades uncommon,
+## strong or magic pieces with several bonuses rare, the best of a kind epic,
+## and only the truly exceptional god-born. Pieces made from a recipe
+## ("crafted") show as the hero's own work (see Rarity) and are left out
+## here, like the map workshop's gear: they go by their price (see
+## Level.tier_of). tests/rare_loot.gd checks that every other item is listed.
+const RARITY := {
+	# Weapons and shields.
+	"schwert": "normal", "axt": "normal", "rundschild": "normal",
+	"wappenschild": "ungewoehnlich", "streitkolben": "ungewoehnlich", "langschwert": "ungewoehnlich",
+	"krummsaebel": "selten", "streitaxt": "selten", "stachelschild": "selten",
+	"kriegshammer": "episch", "rabenklinge": "episch", "drachenschild": "episch",
+	"runenhammer": "gottgeboren",
+	# Head, cloak, armour and shoes.
+	"knochenhelm": "normal", "wollumhang": "normal", "lederwams": "normal", "lederstiefel": "normal",
+	"zauberhut": "ungewoehnlich", "baerenkappe": "ungewoehnlich", "kettenhemd": "ungewoehnlich", "eilstiefel": "ungewoehnlich",
+	"ritterhelm": "selten", "schattenumhang": "selten", "koenigsumhang": "selten",
+	"plattenpanzer": "episch",
+	# Jewellery.
+	"bronzearmreif": "normal", "kupferring": "normal",
+	"amulett_leben": "ungewoehnlich", "amulett_tempo": "ungewoehnlich", "amulett_kraft": "ungewoehnlich",
+	"silberarmreif": "selten", "rubinring": "selten",
+	# Specials.
+	"vampirzahn": "selten", "gluecksklee": "episch", "dornenrune": "episch", "phoenixfeder": "gottgeboren",
+	# Backpacks.
+	"leinenrucksack": "normal", "lederrucksack": "ungewoehnlich", "grosser_rucksack": "selten", "reiserucksack": "gottgeboren",
+	# Books: useful, but sold in shops and only quicken training.
+	"fechtbuch": "ungewoehnlich", "axtbuch": "ungewoehnlich", "wurfbuch": "ungewoehnlich",
+	"schildbuch": "ungewoehnlich", "ruestbuch": "ungewoehnlich", "schleichbuch": "ungewoehnlich",
+	# Everyday things, tasks and materials.
+	"kiste": "normal", "steinblock": "normal", "fackel": "normal",
+	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal",
+	"banditendolch": "normal", "brief": "normal", "kuerbis": "normal", "wetzstein": "normal", "wassereimer": "normal",
+	"donnererz": "selten",
+}
+
 ## Loot for a place of level L is gear of level L - LOOT_BELOW to L + LOOT_ABOVE.
 const LOOT_BELOW := 4
 const LOOT_ABOVE := 1
@@ -376,12 +412,16 @@ static func item_level(id: String) -> int:
 ## level, see HeroLevel.place_level) only gear that suits it is picked, so
 ## deeper and harder places hold better things; the best gear of all still
 ## turns up in the hardest places, which have nothing above them.
+## Only gear of rarity `min_rank` to `top_rank` is picked (places in
+## Level.TIERS: 0 common to 4 god-born, see Level.tier_rank).
 ## Items in `exclude` (a set of ids) are left out. When they use up all the
 ## gear that suits the place, the gear of the nearest other level is picked
 ## instead (a godborn room on a shallow level may hold only one fitting
 ## piece); only when nothing at all is left may an excluded item turn up again.
-static func random_item(rng: RandomNumberGenerator, min_price := 0, slot := "", area := 0, exclude := {}) -> String:
-	var ids := ALL.keys().filter(func(id): return ALL[id].price >= min_price and (slot == "" or ALL[id].slot == slot) and not ALL[id].get("no_loot", false) and not ALL[id].get("smith", false))
+static func random_item(rng: RandomNumberGenerator, min_rank := 0, slot := "", area := 0, exclude := {}, top_rank := 4) -> String:
+	var ids := ALL.keys().filter(func(id):
+		var rank := Level.rank_of(id)
+		return rank >= min_rank and rank <= top_rank and (slot == "" or ALL[id].slot == slot) and not ALL[id].get("no_loot", false) and not ALL[id].get("smith", false))
 	var all := ids
 	var low := 0
 	if area > 0:

@@ -132,7 +132,7 @@ const UNLIT_PLANS := ["sit", "stay"]
 ## browser (a handful of villagers at most).
 const TORCH_COLOR := Color(1.0, 0.6, 0.28)
 const TORCH_ENERGY := 1.7
-const TORCH_RANGE := 6.5
+const TORCH_RANGE := 8.0
 ## The woodcutter splits wood on a felled trunk beside his spot (see
 ## set_chopping and Outdoor._build_chopping_log) instead of swinging at the
 ## air. In his two-handed chop the lower blade of the axe comes down in front

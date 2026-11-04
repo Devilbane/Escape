@@ -75,6 +75,9 @@ var _clock_shown := ""
 ## The weather above ground (see Weather) and how many hours of the day it
 ## still lasts. Both are saved with the game.
 var weather := Weather.CLEAR
+## How much water lies in the rain puddles above ground, 0 dry to 1 full
+## (see Weather.puddle_water and Puddles).
+var puddle_water := 0.0
 var weather_hours := Weather.FIRST_HOURS
 var _weather_rng := RandomNumberGenerator.new()
 ## The look of the sky as it moves towards the weather's own, and a stroke
@@ -2017,6 +2020,7 @@ func _tick_clock(delta: float) -> void:
 		if _dawn_between(before, day_hour):
 			_new_day()
 		_tick_weather(delta)
+		puddle_water = Weather.puddle_water(puddle_water, weather, delta)
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
 		_moonlight()
@@ -2029,6 +2033,7 @@ func _tick_clock(delta: float) -> void:
 			level.day = day
 			level.set_hour(day_hour)
 			level.set_weather(weather)
+			level.set_puddles(puddle_water, _weather_look.rain, clampf(_env.ambient_light_energy / 0.52, 0.05, 1.0))
 			if level.moon_night >= 0 and (Moon.is_full(level.moon_night) or Moon.is_new(level.moon_night)):
 				learn(Moon.LORE)
 	if _clock_text() != _clock_shown:
@@ -2638,6 +2643,7 @@ func begin_new_game() -> void:
 	away_plan = Offline.empty_plan()
 	day_hour = DayNight.START_HOUR
 	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
+	puddle_water = 0.0
 	player.knives = 5
 	player.set_sex(_new_sex)
 	player.set_hair(HairLook.DEFAULT)
@@ -3046,6 +3052,7 @@ func _apply_save(data: Dictionary) -> void:
 				wanderer_stock.append(str(id))
 	# Games saved before there was weather wake up to clear skies.
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
+	puddle_water = clampf(float(data.get("puddles", 0.0)), 0.0, 1.0)
 	var index := clampi(int(data.level), 0, level_files.size() - 1)
 	inside_house = 0
 	var own_house := Homes.house_of(hero_name)
@@ -3209,7 +3216,7 @@ func save_game(going_away := false) -> bool:
 		"hour": day_hour,
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
 		"hoard": hoard.for_save(),
-		"weather": weather, "weather_hours": weather_hours,
+		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water,
 		"inn": level.inn,
 	}
 	if going_away:
@@ -3306,6 +3313,8 @@ func rest_at_inn() -> void:
 			_new_day(true)
 		day_hour = DayNight.WAKE_HOUR
 		set_weather(Weather.roll(day_hour, _weather_rng))
+		# The puddles dried up overnight.
+		puddle_water = 0.0
 		player.hp = player.max_hp
 		player.cure()
 		player.global_position = level.bed_side if level.bed_side != Vector3.ZERO else player.global_position
@@ -3334,8 +3343,9 @@ func sleep() -> void:
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
 		day_hour = DayNight.WAKE_HOUR
-		# A new morning brings new weather.
+		# A new morning brings new weather, and the puddles dried up overnight.
 		set_weather(Weather.roll(day_hour, _weather_rng))
+		puddle_water = 0.0
 	if level.inn:
 		# A night in an inn's bed: the hero gets up rested.
 		player.hp = player.max_hp

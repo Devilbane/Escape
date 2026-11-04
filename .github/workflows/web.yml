@@ -134,6 +134,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/drinking_songs.gd | tee songs.log
           grep -q PASS songs.log
 
+      - name: Townsfolk small talk, rumours and stories test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/village_rumours.gd | tee rumours.log
+          grep -q PASS rumours.log
+
       - name: Event bus test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log

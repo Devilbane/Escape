@@ -17,7 +17,7 @@ extends Level
 ##   Buildings, each a rectangular block of the same letter:
 ##   h  house (half-timbered, see VillageHouse)   j  smithy   n  tavern   m  market   u  windmill
 ##   y  pumpkin field
-##   ^  Weavers' Lane: a row of narrow three-storey town houses, one per
+##   ^  Weavers' Lane: a row of narrow two-storey town houses, one per
 ##      tile across the front (see VillageHouse.build_narrow), numbered from
 ##      west to east. Every one is a home for a hero (see Homes), entered by
 ##      its own door; inside, all of them share the building floor with the

@@ -10,6 +10,8 @@ extends Control
 ##   "brand"    burning: a flame
 ##   "netz"     webbed (a spider's web): a cobweb
 ##   "slow"     slower: boots with an arrow down
+##   "bauch"    too much water (see BloatedBelly): a round, full belly with
+##              a drop, with the time left
 ## boons, with a green frame, in the status block at the top left
 ## (Game.hero_boons):
 ##   "power"    stronger blows: a sword, with the fighting power
@@ -33,6 +35,7 @@ const FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 
 var kind := ""
 var value := ""
+var _number: Label
 
 
 ## `tip` is the short explanation shown when the pointer rests on the icon
@@ -59,6 +62,7 @@ static func make(what: String, number := "", tip := "") -> StatusIcon:
 		icon.add_child(drawn)
 	if number != "":
 		var label := Label.new()
+		icon._number = label
 		label.text = number
 		label.add_theme_font_override("font", FONT)
 		label.add_theme_font_size_override("font_size", UiKit.sized(14))
@@ -71,6 +75,15 @@ static func make(what: String, number := "", tip := "") -> StatusIcon:
 		label.size = Vector2(SIZE + 4, SIZE)
 		icon.add_child(label)
 	return icon
+
+
+## A new number and explanation for the same icon (a countdown), without
+## building it again.
+func set_number(number: String, tip: String) -> void:
+	value = number
+	tooltip_text = tip
+	if _number:
+		_number.text = number
 
 
 ## The frame of a kind's tile: gold for a notice, green for a boon, red for
@@ -106,6 +119,14 @@ func _draw() -> void:
 			# An evil eye.
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-9, 0), c + Vector2(0, -6), c + Vector2(9, 0), c + Vector2(0, 6)]), Color(0.75, 0.55, 1.0))
 			draw_circle(c, 3.2, Color(0.15, 0.05, 0.2))
+		"bauch":
+			# A belly round and full of water, a drop above it.
+			var water := Color(0.45, 0.72, 1.0)
+			draw_circle(c + Vector2(0, 2.5), 8.5, Color(0.93, 0.74, 0.6))
+			draw_arc(c + Vector2(0, 2.5), 8.5, 0.0, TAU, 24, Color(0.55, 0.36, 0.28), 1.2, true)
+			draw_circle(c + Vector2(-0.5, 3.5), 1.1, Color(0.45, 0.28, 0.22))
+			draw_circle(c + Vector2(6.0, -6.5), 2.6, water)
+			draw_colored_polygon(PackedVector2Array([c + Vector2(6.0, -11.0), c + Vector2(8.4, -7.3), c + Vector2(3.6, -7.3)]), water)
 		"netz":
 			# A cobweb: eight spokes and three rings of silk.
 			var silk := Color(0.93, 0.93, 0.86)

@@ -58,6 +58,7 @@ const PARTS := [
 	preload("res://scripts/lang/village_talk.gd"),
 	preload("res://scripts/lang/village_worries.gd"),
 	preload("res://scripts/lang/drinking_songs.gd"),
+	preload("res://scripts/lang/bloated_belly.gd"),
 	preload("res://scripts/lang/wishes.gd"),
 	preload("res://scripts/lang/rarity.gd"),
 	preload("res://scripts/lang/quick_bar.gd"),

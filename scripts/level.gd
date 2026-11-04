@@ -785,6 +785,7 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 	parent.add_child(node)
 	if piece in WORN_PIECES:
 		WornLook.wear(node, _wear(), piece.begins_with("banner"))
+		FlagWind.attach(node, piece, self)
 	if piece in GOLD_PIECES:
 		CoinShine.polish(node)
 	if piece in TINTED_PIECES:
@@ -856,6 +857,8 @@ func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
 			skeleton.get_parent().queue_free()
 			continue
 		mi.material_override = mat
+	if model.ends_with("Flag"):
+		FlagWind.attach(kit, model, self)
 	return kit
 
 
@@ -4339,6 +4342,7 @@ func _place_lair(piece: String, pos: Vector3, rot_y := 0.0, s := 1.0) -> Node3D:
 	node.rotation.y = rot_y
 	node.scale = Vector3.ONE * s
 	add_child(node)
+	FlagWind.attach(node, piece, self)
 	if piece == "Coin_Pile":
 		CoinShine.polish(node)
 		CoinShine.add_to_pile(node, s)

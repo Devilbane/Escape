@@ -564,6 +564,8 @@ func _put(name: String, pos: Vector3, rot := 0.0, s := 1.0, parent: Node = self)
 	# The old props (barrels, crates, lumber, stone heaps, pumpkins, tents)
 	# weathered to match the aged stone (see WeatheredProps).
 	WeatheredProps.weather_model(node, name)
+	# Flags flutter in the wind (see FlagWind).
+	FlagWind.attach(node, name, self)
 	parent.add_child(node)
 	return node
 

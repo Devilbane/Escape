@@ -3,11 +3,15 @@ extends Control
 ## The Windows launcher: the first thing "Escape.exe" shows.
 ##
 ## Escape.exe is the Godot engine with this small launcher packed inside it. The game
-## itself is a separate file, game/Escape.pck, which the launcher keeps up to date:
+## itself lives in the "game" folder: game/Escape.exe (the bare engine) and game/Escape.pck
+## (the game's data, which the engine loads because it has the same name). The launcher
+## keeps them up to date:
 ##   1. it reads version.json from the GitHub release "windows" (see .github/workflows/desktop.yml),
 ##   2. downloads a newer Escape.exe first when the launcher itself has changed (and
-##      restarts), then a newer game/Escape.pck, with a progress bar, checking every file,
-##   3. starts the game on "Play" by running Escape.exe again with --main-pack game/Escape.pck.
+##      restarts), then a newer game/Escape.exe when the engine changed, then a newer
+##      game/Escape.pck, with a progress bar, checking every file,
+##   3. starts game/Escape.exe on "Play". (Exported Godot cannot be told on the command
+##      line which data to load, so the game needs an engine file of its own.)
 ## Without an internet connection the installed version simply starts. Saved games live in
 ## the player's user folder and are never touched.
 ##
@@ -24,6 +28,7 @@ const Texts := preload("res://scripts/lang.gd")
 const SOURCE := "https://github.com/devilbane/escape/releases/download/windows/"
 const MANIFEST := "version.json"
 const PACK := "Escape.pck"
+const GAME_EXE := "Escape.exe"
 const INSTALLED := "installed.json"
 ## Changed by the build (desktop.yml) to a fingerprint of the launcher and the engine. When the
 ## release names another one, this launcher is out of date and fetches the new Escape.exe.
@@ -44,7 +49,8 @@ var step := Step.CHECKING
 var auto_check := true
 var source := SOURCE
 var game_dir := ""
-## What is installed now: {"version": "0.5", "build": "276"}, empty when nothing is.
+## What is installed now: {"version": "0.5", "build": "276", "engine": "<sha256 of game/Escape.exe>"};
+## a key is missing when its file is.
 var installed := {}
 var manifest := {}
 
@@ -52,6 +58,8 @@ var _http: HTTPRequest
 var _download_target := ""
 var _download_size := 0
 var _download_label := ""
+## "launcher", "engine" or "game": which file is coming.
+var _download_kind := ""
 ## The status line as German text plus its arguments, so a language switch can redo it.
 var _status_text := ""
 var _status_args := []
@@ -79,15 +87,24 @@ func _ready() -> void:
 # --- What to do -------------------------------------------------------------------------
 
 ## The next thing to do once version.json has been read: "launcher" (fetch a new
-## Escape.exe), "game" (fetch a new Escape.pck) or "play" (all is up to date).
+## Escape.exe), "engine" (fetch a new game/Escape.exe), "game" (fetch a new
+## game/Escape.pck) or "play" (all is up to date).
 static func plan(release: Dictionary, have: Dictionary, rev: String) -> String:
 	if rev != "" and String(release.get("launcher", "")) != "" and String(release.launcher) != rev:
 		return "launcher"
+	var engine := String(release.get("engine_sha256", ""))
+	if engine != "" and String(have.get("engine", "")) != engine:
+		return "engine"
 	if String(release.get("build", "")) == "":
 		return "play"
 	if String(have.get("build", "")) != String(release.build):
 		return "game"
 	return "play"
+
+
+## The game can start once both its engine and its data are there.
+static func playable(have: Dictionary) -> bool:
+	return String(have.get("build", "")) != "" and String(have.get("engine", "")) != ""
 
 
 ## A release file must name the game's file with its size and checksum, or it is not used.
@@ -98,10 +115,23 @@ static func valid_manifest(data) -> bool:
 
 static func read_installed(dir: String) -> Dictionary:
 	var file := dir.path_join(INSTALLED)
-	if not FileAccess.file_exists(file) or not FileAccess.file_exists(dir.path_join(PACK)):
+	if not FileAccess.file_exists(file):
 		return {}
 	var data = JSON.parse_string(FileAccess.get_file_as_string(file))
-	return data if data is Dictionary else {}
+	if not data is Dictionary:
+		return {}
+	if not FileAccess.file_exists(dir.path_join(PACK)):
+		data.erase("build")
+	if not FileAccess.file_exists(dir.path_join(GAME_EXE)):
+		data.erase("engine")
+	return data
+
+
+func _save_installed() -> void:
+	var file := FileAccess.open(game_dir.path_join(INSTALLED), FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(installed))
+		file.close()
 
 
 ## "12.3" in English, "12,3" in German.
@@ -189,22 +219,31 @@ func _on_manifest(ok: bool, body: PackedByteArray) -> void:
 		_offline()
 		return
 	manifest = data
-	match plan(manifest, installed, REV):
+	_continue(REV)
+
+
+## Fetches whatever is out of date, one file after the other, then gets ready to play.
+func _continue(rev: String) -> void:
+	var label := "update" if playable(installed) else "first"
+	match plan(manifest, installed, rev):
 		"launcher":
 			_download(source + String(manifest.get("launcher_file", "Escape.exe")),
-				OS.get_executable_path() + ".new", int(manifest.get("launcher_size", 0)), "launcher")
+				OS.get_executable_path() + ".new", int(manifest.get("launcher_size", 0)), "launcher", "launcher")
+		"engine":
+			_download(source + String(manifest.get("engine_file", "EscapeGame.exe")),
+				game_dir.path_join(GAME_EXE + ".part"), int(manifest.get("engine_size", 0)), "engine", label)
 		"game":
-			_download(source + PACK, game_dir.path_join(PACK + ".part"), int(manifest.pack_size),
-				"update" if installed else "first")
+			_download(source + PACK, game_dir.path_join(PACK + ".part"), int(manifest.pack_size), "game", label)
 		_:
 			_ready_to_play()
 
 
-func _download(url: String, target: String, size: int, what: String) -> void:
+func _download(url: String, target: String, size: int, kind: String, label: String) -> void:
 	step = Step.DOWNLOADING
 	_download_target = target
 	_download_size = size
-	_download_label = what
+	_download_kind = kind
+	_download_label = label
 	DirAccess.remove_absolute(target)
 	_show_progress(0)
 	_refresh()
@@ -233,33 +272,38 @@ func _on_downloaded(ok: bool) -> void:
 	_refresh()
 	await get_tree().process_frame
 	var target := _download_target
-	var launcher := _download_label == "launcher"
-	var sha := String(manifest.get("launcher_sha256" if launcher else "pack_sha256", ""))
+	var sha := String(manifest.get({"launcher": "launcher_sha256", "engine": "engine_sha256", "game": "pack_sha256"}[_download_kind], ""))
 	if ok and FileAccess.file_exists(target) and (sha == "" or FileAccess.get_sha256(target) == sha):
-		if launcher:
-			_replace_launcher(target)
-		else:
-			_install_pack(target)
+		match _download_kind:
+			"launcher":
+				_replace_launcher(target)
+			"engine":
+				_install(target, GAME_EXE, {"engine": sha})
+			_:
+				_install(target, PACK, {"version": String(manifest.get("version", "")), "build": String(manifest.build)})
 		return
 	DirAccess.remove_absolute(target)
-	if installed:
+	if playable(installed):
 		_offline("Der Download ist fehlgeschlagen. Du spielst die installierte Version.")
 	else:
 		_failed()
 
 
-func _install_pack(part: String) -> void:
-	var pack := game_dir.path_join(PACK)
-	DirAccess.remove_absolute(pack)
-	if DirAccess.rename_absolute(part, pack) != OK:
-		_failed()
+## Puts a checked download in place of the old file and goes on with the next one.
+func _install(part: String, name: String, facts: Dictionary) -> void:
+	var path := game_dir.path_join(name)
+	DirAccess.remove_absolute(path)
+	if DirAccess.rename_absolute(part, path) != OK:
+		DirAccess.remove_absolute(part)
+		installed = read_installed(game_dir)
+		if playable(installed):
+			_offline("Der Download ist fehlgeschlagen. Du spielst die installierte Version.")
+		else:
+			_failed()
 		return
-	installed = {"version": String(manifest.get("version", "")), "build": String(manifest.build)}
-	var file := FileAccess.open(game_dir.path_join(INSTALLED), FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(installed))
-		file.close()
-	_ready_to_play()
+	installed.merge(facts, true)
+	_save_installed()
+	_continue(REV)
 
 
 ## Windows lets a running program be renamed, though not overwritten: the old exe steps
@@ -285,11 +329,7 @@ func _replace_launcher(new_exe: String) -> void:
 
 ## Without the new launcher the game can still be updated by this one.
 func _after_launcher_failed() -> void:
-	if plan(manifest, installed, "") == "game":
-		_download(source + PACK, game_dir.path_join(PACK + ".part"), int(manifest.pack_size),
-			"update" if installed else "first")
-	else:
-		_ready_to_play()
+	_continue("")
 
 
 func _ready_to_play() -> void:
@@ -299,7 +339,7 @@ func _ready_to_play() -> void:
 
 
 func _offline(why := "Keine Verbindung zum Server. Du spielst die installierte Version.") -> void:
-	if not installed:
+	if not playable(installed):
 		_failed()
 		return
 	step = Step.OFFLINE
@@ -319,7 +359,7 @@ func _on_play() -> void:
 	if step == Step.FAILED:
 		_check()
 		return
-	if not installed or step in [Step.STARTING, Step.VERIFYING]:
+	if not playable(installed) or step in [Step.STARTING, Step.VERIFYING]:
 		return
 	# Playing during a download: the download is dropped, the installed version starts.
 	if _http:
@@ -330,7 +370,11 @@ func _on_play() -> void:
 	_set_status("Das Spiel startet …")
 	_refresh()
 	if OS.has_feature("template"):
-		OS.create_process(OS.get_executable_path(), ["--main-pack", game_dir.path_join(PACK)])
+		if OS.create_process(game_dir.path_join(GAME_EXE), []) == -1:
+			step = Step.READY
+			_set_status("Das Spiel ließ sich nicht starten.")
+			_refresh()
+			return
 		get_tree().quit()
 	else:
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
@@ -479,7 +523,7 @@ func _refresh() -> void:
 	_status.add_theme_color_override("font_color", NOTE if problem else TEXT)
 	_progress.modulate.a = 1.0 if step in [Step.DOWNLOADING, Step.VERIFYING] else 0.0
 	_play.text = "Erneut versuchen" if step == Step.FAILED else "Spielen"
-	_play.disabled = step in [Step.STARTING, Step.VERIFYING] or (not installed and step != Step.FAILED)
+	_play.disabled = step in [Step.STARTING, Step.VERIFYING] or (not playable(installed) and step != Step.FAILED)
 	_quit.disabled = step == Step.STARTING
 	for code in _lang_buttons:
 		var chosen: bool = code == ("en" if Texts.language == "en" else "de")

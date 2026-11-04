@@ -15,4 +15,5 @@ const EN := {
 	"Der Download ist fehlgeschlagen. Du spielst die installierte Version.": "The download failed. You will play the installed version.",
 	"Das Spiel konnte nicht geladen werden. Prüfe die Internetverbindung und versuche es erneut.": "The game could not be downloaded. Check your internet connection and try again.",
 	"Das Spiel startet …": "Starting the game …",
+	"Das Spiel ließ sich nicht starten.": "The game could not be started.",
 }

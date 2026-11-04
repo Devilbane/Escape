@@ -159,7 +159,8 @@ func _dragon_hoard() -> void:
 	game.state = game.State.PLAYING
 	await _wait(10)
 	game.player.global_position = game.level.doors.E
-	game.go_inside("E")
+	# The hoard lies on the lair's third floor, beside the dragon.
+	game.go_inside("E3")
 	await _wait(60)
 	var lvl: Level = game.level
 	check(lvl._hoard != null, "the lair has its hoard")

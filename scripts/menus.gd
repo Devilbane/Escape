@@ -346,6 +346,8 @@ func _rebuild() -> void:
 			_build_return()
 		"hoehle":
 			_build_lair_won()
+		"beute":
+			_build_spoils()
 		"gefaehrten":
 			_build_companions()
 		"gefaehrte_name":
@@ -3093,6 +3095,61 @@ func _build_lair_won() -> void:
 	var stay: Button = game._make_button(Lang.t("Bleiben und Beute sammeln"), close)
 	stay.custom_minimum_size = Vector2(300, 60)
 	row.add_child(stay)
+
+
+## The spoils of the won lair (see DragonLair.spoils): gold, bars,
+## ingredients and gear, each with its picture, in a list of fixed size
+## that scrolls when it is long, so the window keeps one size.
+const SPOILS_LIST := Vector2(660, 252)
+const SPOILS_CELL := 318
+
+
+func _build_spoils() -> void:
+	var s: Dictionary = game.lair_spoils
+	_add_label(Lang.t("Glutschlunds Hort"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Das hast du aus der Drachenhöhle getragen:"), 20)
+	var entries := []
+	if int(s.get("gold", 0)) > 0:
+		entries.append(["kind:coin", Lang.t("%d Gold") % int(s.gold), game.GOLD])
+	var bars: Dictionary = s.get("bars", {})
+	for metal in Forge.METALS:
+		if int(bars.get(metal, 0)) > 0:
+			var icon: String = "kind:iron" if metal == "eisen" else ("kind:ore" if metal == "mondsilbererz" else "kind:bar_" + metal)
+			entries.append([icon, "%d× %s" % [int(bars[metal]), Lang.t(Forge.METALS[metal].name)], Forge.METALS[metal].color])
+	var found: Dictionary = s.get("ingredients", {})
+	for id in found:
+		entries.append([id, "%d× %s" % [int(found[id]), Crafting.ingredient_name(id)], Rarity.color(id)])
+	var items: Dictionary = s.get("items", {})
+	for id in items:
+		var label: String = Items.item_name(id) if int(items[id]) == 1 else "%d× %s" % [int(items[id]), Items.item_name(id)]
+		entries.append([id, label, Rarity.color(id)])
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = SPOILS_LIST
+	scroll.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(scroll)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 24)
+	grid.add_theme_constant_override("v_separation", 6)
+	scroll.add_child(grid)
+	if entries.is_empty():
+		var none := _add_label(Lang.t("Nichts. Der Drache ist tot, aber sein Gold liegt noch unten."), 18, BLUE)
+		none.reparent(grid)
+	for e in entries:
+		var row := HBoxContainer.new()
+		row.custom_minimum_size.x = SPOILS_CELL
+		row.add_theme_constant_override("separation", 10)
+		row.add_child(ItemIcon.make(e[0], 40.0))
+		var l: Label = game._make_label(game.TEXT_FONT, 18, e[2])
+		l.text = e[1]
+		l.clip_text = true
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(l)
+		grid.add_child(row)
+	_add_label(Lang.t("Aus Drachenschuppe, Drachenblut und Glutherz machst du am Feinschmiedetisch Drachenschmuck."), 16, Color(1.0, 0.85, 0.55))
 
 
 func _build_bed() -> void:

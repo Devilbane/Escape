@@ -53,6 +53,13 @@ const INGREDIENTS := {
 	# Mined from the crystal clusters of the mines (see Mines).
 	"grottenkristall": {"name": "Grottenkristall", "region": "Kristallgrotte", "when": "", "source": "Kristallbüschel abbauen",
 		"where": "Wächst in leuchtenden Büscheln in der Kristallgrotte, der zweiten Mine. Lauf dagegen, um zwei abzuschlagen; bis zum nächsten Morgen wächst das Büschel nach."},
+	# Left by Embermaw when it falls, deep in its lair (see DragonLair).
+	"drachenschuppe": {"name": "Drachenschuppe", "rare": true, "region": "Drachenhöhle", "when": "", "source": "Beute des Drachen",
+		"where": "Glutschlund verliert eine, wenn er fällt, ganz unten in der Drachenhöhle."},
+	"drachenblut": {"name": "Drachenblut", "rare": true, "region": "Drachenhöhle", "when": "", "source": "Beute des Drachen",
+		"where": "Rinnt aus Glutschlund, wenn er fällt, ganz unten in der Drachenhöhle."},
+	"glutherz": {"name": "Glutherz", "rare": true, "region": "Drachenhöhle", "when": "", "source": "Beute des Drachen, nicht immer",
+		"where": "Das glühende Herz des Drachen. Nicht jedes Mal, wenn Glutschlund fällt, bleibt es heil."},
 }
 ## The smith's iron bars in the ingredient book.
 const IRON := {"name": "Eisenbarren", "region": "Dorf", "when": "", "source": "Schmied Gorm",
@@ -169,6 +176,34 @@ const RECIPES := {
 		"lines": [
 			{"id": "kristall", "text": "Fünf Grottenkristalle, zu einem Stern geschliffen."},
 			{"id": "gold", "text": "Ein Goldbarren für Kette und Fassung."},
+		]},
+	# Learned with the first part of the fallen dragon (see DragonLair) and
+	# made at the fine metalwork bench on the crafting square.
+	"schuppenreif": {"name": "Schuppenreif", "giver": "", "found": "drachenschuppe",
+		"craft": "feinschmieden", "craft_level": 0, "result": "schuppenreif",
+		"effect": "+3 Leben, Rüstung tragen +1",
+		"ingredients": {"drachenschuppe": 2, "eisen": 2},
+		"lines": [
+			{"id": "schuppe", "text": "Zwei Drachenschuppen, hart wie Stahl."},
+			{"id": "eisen", "text": "Zwei Barren Eisen für den Reif."},
+		]},
+	"drachenblutring": {"name": "Drachenblutring", "giver": "", "found": "drachenblut",
+		"craft": "feinschmieden", "craft_level": 0, "result": "drachenblutring",
+		"effect": "+2 Leben, +2 Kampfkraft",
+		"ingredients": {"drachenblut": 2, "silber": 1},
+		"lines": [
+			{"id": "blut", "text": "Zwei Phiolen Drachenblut, in denen das Silber gehärtet wird."},
+			{"id": "silber", "text": "Ein Silberbarren für den Ring."},
+		]},
+	"glutherzamulett": {"name": "Glutherz-Amulett", "giver": "", "found": "glutherz",
+		"craft": "feinschmieden", "craft_level": 0, "result": "glutherzamulett",
+		"effect": "+4 Leben, +2 Kampfkraft, schneller",
+		"ingredients": {"glutherz": 1, "drachenblut": 1, "drachenschuppe": 1, "gold": 1},
+		"lines": [
+			{"id": "herz", "text": "Das glühende Herz des Drachen als Stein."},
+			{"id": "blut", "text": "Drachenblut, damit die Glut nicht erlischt."},
+			{"id": "schuppe", "text": "Eine Drachenschuppe als Fassung."},
+			{"id": "gold", "text": "Ein Goldbarren für die Kette."},
 		]},
 }
 

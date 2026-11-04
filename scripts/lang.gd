@@ -39,6 +39,7 @@ const PARTS := [
 	preload("res://scripts/lang/quests.gd"),
 	preload("res://scripts/lang/crafting.gd"),
 	preload("res://scripts/lang/crystals.gd"),
+	preload("res://scripts/lang/dragon_lair.gd"),
 	preload("res://scripts/lang/fishing.gd"),
 	preload("res://scripts/lang/bounties.gd"),
 	preload("res://scripts/lang/day_night.gd"),

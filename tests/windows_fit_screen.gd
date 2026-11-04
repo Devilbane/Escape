@@ -15,7 +15,7 @@ var shots := OS.get_environment("SHOTS")
 const KINDS := ["inventar", "lager", "bank", "barbier", "steinmetz", "ausbau", "hauswerkbank",
 	"trophaeen", "aushang", "schmied", "werkbank", "tresor", "haendler", "wanderhaendler", "bett",
 	"laden", "kompendium", "charakter", "beenden", "plan", "rueckkehr", "hoehle", "karte", "kampfstil", "wunsch",
-	"gefaehrten", "gefaehrte_name", "auftraege"]
+	"gefaehrten", "gefaehrte_name", "auftraege", "beute"]
 
 
 func check(ok: bool, what: String) -> void:
@@ -83,6 +83,15 @@ func _fill() -> void:
 	game.companions = Companions.ORDER.map(func(k): return Companions.make(k, "Wwwwwwwwwwwwwwwwww"))
 	game.following = 0
 	game.wishes.style = "schleichen"
+	# The spoils of a rich visit to the dragon's lair: every metal, every
+	# ingredient and a pile of gear (see DragonLair.spoils).
+	var gear := {}
+	for id in Items.ALL.keys().slice(0, 12):
+		gear[id] = 2
+	var parts := {}
+	for ingredient in Crafting.INGREDIENTS:
+		parts[ingredient] = 3
+	game.lair_spoils = {"gold": 12345, "bars": {"eisen": 9, "bronze": 4, "silber": 3, "gold": 2}, "ingredients": parts, "items": gear}
 
 
 func _test() -> void:

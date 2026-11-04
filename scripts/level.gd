@@ -119,6 +119,8 @@ const STONE_TINT := Color(0.6, 0.56, 0.52)
 ## The grey of the kit's floor tiles, for spike and grate tiles.
 const FLOOR_GREY := Color(0.74, 0.73, 0.71)
 ## Cartoon furniture that gets the worn, dusty look (see WornLook).
+## Pieces of gold, polished to shine (see CoinShine).
+const GOLD_PIECES := ["coin", "coin_stack_large"]
 const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_shield", "banner_shield_brown"]
 ## Kit texture sets that get the worn look: barrels, crates, tables,
 ## shelves, chests and the wall decorations.
@@ -768,6 +770,8 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 	parent.add_child(node)
 	if piece in WORN_PIECES:
 		WornLook.wear(node, _wear(), piece.begins_with("banner"))
+	if piece in GOLD_PIECES:
+		CoinShine.polish(node)
 	if piece in TINTED_PIECES:
 		for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
 			if mi.name == "spikes":
@@ -1400,6 +1404,7 @@ func _build_coin(pos: Vector3) -> void:
 	add_child(holder)
 	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
 	coin.scale = Vector3.ONE * 1.6
+	CoinShine.add_to_coin(holder)
 	var c := world_to_cell(pos)
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "id": "coin:%d,%d" % [c.x, c.y]})
 
@@ -1416,6 +1421,7 @@ func _build_chest(c: Vector2i, epic := false) -> void:
 	_add_fitted_solid(chest, pos, 1.5, Vector2(2.0, 2.0))
 	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c, false)
 	obj.lid = chest.find_child("chest_gold_lid", true, false)
+	obj.shine = CoinShine.add_to_chest(chest)
 	if epic:
 		var epic_rng := RandomNumberGenerator.new()
 		epic_rng.seed = hash("%s:epic:%d:%d" % [level_name, c.x, c.y])
@@ -3543,6 +3549,9 @@ func search(obj: Dictionary) -> Dictionary:
 	taken[obj.id] = true
 	if obj.lid:
 		create_tween().tween_property(obj.lid, "rotation:x", obj.lid.rotation.x - obj.get("lid_open", LID_OPEN), 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if obj.get("shine"):
+		# The gold inside catches the light once the lid is up.
+		obj.shine.emitting = true
 	_scatter_debris(obj)
 	if not obj.loot.is_empty():
 		var burst := Effects.make_sparkles(Color(1.0, 0.85, 0.3), true)
@@ -3560,6 +3569,8 @@ func restore_taken() -> void:
 		obj.searched = true
 		if obj.lid:
 			obj.lid.rotation.x -= obj.get("lid_open", LID_OPEN)
+		if obj.get("shine"):
+			obj.shine.emitting = true
 		_scatter_debris(obj)
 	for p in _pickups.duplicate():
 		if p.has("id") and taken.has(p.id):
@@ -4041,6 +4052,7 @@ func _lay_coin(pos: Vector3) -> void:
 	add_child(holder)
 	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
 	coin.scale = Vector3.ONE * 1.6
+	CoinShine.add_to_coin(holder)
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "floor": _remember_on_floor("coin", "", pos)})
 
 
@@ -4176,6 +4188,9 @@ func _place_lair(piece: String, pos: Vector3, rot_y := 0.0, s := 1.0) -> Node3D:
 	node.rotation.y = rot_y
 	node.scale = Vector3.ONE * s
 	add_child(node)
+	if piece == "Coin_Pile":
+		CoinShine.polish(node)
+		CoinShine.add_to_pile(node, s)
 	return node
 
 

@@ -28,6 +28,10 @@ uniform float strength = 1.0;
 uniform bool flat_texture = false;
 // The whole part is cloth: faded and stained, never rusty or scratched.
 uniform bool cloth = false;
+// Gold higher than this above the part's foot (metres) is a heap of coins
+// (the gold in a treasure chest, see CoinShine): it stays bright and polished,
+// with no tarnish or dust, and glows a little.
+uniform float shiny_gold_above = 100.0;
 
 const vec3 DUST = vec3(0.6, 0.56, 0.5);
 const vec3 RUST = vec3(0.25, 0.13, 0.07);
@@ -60,6 +64,7 @@ void fragment() {
 		brass = 0.0;
 	}
 	float wood = 1.0 - max(iron, brass);
+	float shiny = cloth ? 0.0 : brass * step(shiny_gold_above, height);
 
 	float stains = fbm(p * 2.2);
 	float grit = fbm(p * 7.0);
@@ -111,7 +116,7 @@ void fragment() {
 		vec3 rust_col = RUST * (0.8 + 0.5 * vnoise(p * 26.0));
 		col = mix(col, rust_col, rust * 0.75 * strength);
 		// Brass and gold go dull and brown.
-		float tarnish = brass * (0.45 + 0.45 * smoothstep(0.35, 0.65, stains));
+		float tarnish = brass * (0.45 + 0.45 * smoothstep(0.35, 0.65, stains)) * (1.0 - shiny);
 		col = mix(col, col * vec3(0.62, 0.55, 0.4), tarnish * strength);
 		// Chips show darker, scratches show the bare, lighter wood or metal.
 		col *= 1.0 - 0.22 * chips * strength;
@@ -119,9 +124,14 @@ void fragment() {
 		col = mix(col, bare, scratch * 0.7 * strength * (1.0 - rust * 0.7));
 		// Dust settles on everything that faces up.
 		float up = smoothstep(0.35, 0.85, up_normal.y);
-		float dust = up * smoothstep(0.3, 0.7, fbm(p * 1.6 + 11.0) + 0.15) * 0.6;
+		float dust = up * smoothstep(0.3, 0.7, fbm(p * 1.6 + 11.0) + 0.15) * 0.6 * (1.0 - shiny);
 		col = mix(col, DUST * (0.9 + 0.2 * grit), dust * strength);
+		// Coins heaped up: the clean, warm gold of the texture, a little brighter.
+		vec3 gold = c * vec3(1.15, 1.08, 0.9);
+		col = mix(col, gold, shiny);
 		ALBEDO = col;
+		METALLIC = 0.5 * shiny;
+		EMISSION = gold * 0.18 * shiny;
 
 		float h = strength * (-chips * 0.004 - scratch * 0.0012 + grit * 0.01 * band(7.0, px) + rust * 0.002);
 		NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
@@ -130,7 +140,7 @@ void fragment() {
 		}
 		// Bare metal keeps a little shine; rust, dust and old wood are matt.
 		float metal = max(iron, brass) * (1.0 - rust) * (1.0 - dust);
-		ROUGHNESS = mix(0.93, 0.55 + 0.3 * grime, metal);
-		SPECULAR = mix(0.2, 0.45, metal);
+		ROUGHNESS = mix(mix(0.93, 0.55 + 0.3 * grime, metal), 0.25, shiny);
+		SPECULAR = mix(mix(0.2, 0.45, metal), 0.9, shiny);
 	}
 }

@@ -215,6 +215,8 @@ var spots := {"houses": [], "square": [], "well": [], "market": []}
 var chimneys: Array[Dictionary] = []
 ## The narrow town houses of Weavers' Lane, by number - 1 (see _build_terrace).
 var town_houses: Array[Node3D] = []
+## The windmills (see "u" and Windmill), whose sails turn in the wind.
+var windmills: Array[Windmill] = []
 
 var _plants := {}
 var _house_rect := Rect2i()
@@ -1130,6 +1132,10 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		node = _put(model, center - foot, rot, s)
 		if ch != "R":
 			_age_kit_building(node)
+		if ch == "u":
+			var mill := Windmill.attach(self, node)
+			if mill:
+				windmills.append(mill)
 		else:
 			_age_graveyard(node, false)
 	var solid := Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86)

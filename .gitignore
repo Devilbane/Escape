@@ -1,3 +1,4 @@
 build/
 .godot/
 tools/.voices/
+.launcher/

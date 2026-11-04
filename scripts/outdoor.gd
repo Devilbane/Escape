@@ -17,7 +17,7 @@ extends Level
 ##   Buildings, each a rectangular block of the same letter:
 ##   h  house (half-timbered, see VillageHouse)   j  smithy   n  tavern   m  market   u  windmill
 ##   y  pumpkin field
-##   ^  Weavers' Lane: a row of narrow three-storey town houses, one per
+##   ^  Weavers' Lane: a row of narrow two-storey town houses, one per
 ##      tile across the front (see VillageHouse.build_narrow), numbered from
 ##      west to east. Every one is a home for a hero (see Homes), entered by
 ##      its own door; inside, all of them share the building floor with the
@@ -152,6 +152,9 @@ const CHAPEL_FOOT_MID := 3.0
 ## Where the bricks sit on the kit's trim sheet (v from top to bottom of four
 ## rows of bricks).
 const GABLE_BRICK_V := Vector2(0.6, 0.92)
+## The candlelight behind the temple's stained glass at night: dimmer than
+## the houses' windows, so the colours glow softly instead of burning white.
+const CHAPEL_GLASS_LIGHT := Color(0.42, 0.37, 0.3)
 
 const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
@@ -279,6 +282,8 @@ var _window_mask: ImageTexture
 var _ivy := {"xforms": [], "colours": []}
 var nests: Array[Vector3] = []
 var birds: VillageBirds
+## The dragon that now and then flies over, seen only as its shadow.
+var flyover: DragonFlyover
 var _entrances: Array = []
 var _ground_img: Image
 var _ground_tex: ImageTexture
@@ -454,6 +459,9 @@ func build() -> void:
 	# The old dragon's little helpers, who gather the loot at night.
 	if doors.has("E"):
 		add_child(DragonHelpers.new(self, doors.E))
+	# Now and then the dragon's shadow sweeps over the land (see DragonFlyover).
+	flyover = DragonFlyover.new(self, _lair_mountain_at)
+	add_child(flyover)
 	for y in height:
 		for x in width:
 			if cell_char(Vector2i(x, y)) == "r":
@@ -570,29 +578,39 @@ func _tree_material(mat: Material, wind := true) -> Material:
 	return _scenes[key]
 
 
-## Many copies of one model (trees) are drawn together in one go.
+## Many copies of one model (trees) are drawn together in one go, one batch
+## per GROUND_CHUNK patch of the map. The renderer lights each batch with at
+## most a handful of lights (rendering/limits/opengl/max_lights_per_object),
+## so one batch for every tree of a kind on the whole map left nearly all of
+## them blind to the lanterns, fires and torches near them.
 func _plant(name: String, pos: Vector3, rot: float, s: float) -> void:
-	if not _plants.has(name):
-		_plants[name] = []
-	_plants[name].append(Transform3D(Basis(Vector3.UP, rot).scaled(Vector3.ONE * s), pos))
+	var patch := Vector2i(floori(pos.x / (GROUND_CHUNK * TILE)), floori(pos.z / (GROUND_CHUNK * TILE)))
+	var key := [name, patch]
+	if not _plants.has(key):
+		_plants[key] = []
+	_plants[key].append(Transform3D(Basis(Vector3.UP, rot).scaled(Vector3.ONE * s), pos))
 
 
 func _flush_plants() -> void:
-	for name in _plants:
-		var scene: Node3D = load(_model_path(name)).instantiate()
-		for part in _meshes_of(scene, Transform3D()):
+	var parts := {}
+	for key in _plants:
+		var name: String = key[0]
+		if not parts.has(name):
+			var scene: Node3D = load(_model_path(name)).instantiate()
+			parts[name] = _meshes_of(scene, Transform3D())
+			scene.free()
+		for part in parts[name]:
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
 			mm.mesh = part[0]
-			mm.instance_count = _plants[name].size()
+			mm.instance_count = _plants[key].size()
 			for i in mm.instance_count:
-				mm.set_instance_transform(i, _plants[name][i] * part[1])
+				mm.set_instance_transform(i, _plants[key][i] * part[1])
 			var mmi := MultiMeshInstance3D.new()
 			mmi.multimesh = mm
 			if name.begins_with("tree"):
 				mmi.material_override = _tree_material((part[0] as Mesh).surface_get_material(0))
 			add_child(mmi)
-		scene.free()
 
 
 ## Every mesh in a model, with where it sits inside the model.
@@ -1523,13 +1541,15 @@ func _skin_chapel(chapel: Node) -> void:
 		var trim := StandardMaterial3D.new()
 		trim.albedo_texture = load(CHAPEL_DIR + "trim_sheet.png")
 		trim.roughness = 0.9
+		# Coloured panes in lead, painted over the kit's clear glass (see
+		# tools/make_stained_glass.py).
 		var glass := StandardMaterial3D.new()
-		glass.albedo_texture = load(CHAPEL_DIR + "window_diffuse.png")
+		glass.albedo_texture = load(CHAPEL_DIR + "stained_glass.png")
 		glass.emission_enabled = true
-		# The stained glass itself glows, in its own colours (multiplied,
-		# so the tint does not wash the panes out to white).
-		glass.emission = Color(1.0, 0.92, 0.8)
-		glass.emission_texture = load(CHAPEL_DIR + "window_diffuse.png")
+		# At night only the panes glow, each in its own colour, lit warm from
+		# within; the stone round them stays dark.
+		glass.emission = CHAPEL_GLASS_LIGHT
+		glass.emission_texture = load(CHAPEL_DIR + "stained_glass_glow.png")
 		glass.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
 		glass.emission_energy_multiplier = 0.0
 		var wood := StandardMaterial3D.new()

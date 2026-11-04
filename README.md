@@ -8,6 +8,16 @@ The game can be played in English or German; you choose the language on the titl
 
 ## Playing on your own computer (Windows)
 
+**Download:** https://github.com/devilbane/escape/releases/download/windows/Escape-Windows.zip
+
+Unpack the zip anywhere and start **`Escape.exe`**. It opens the launcher: it looks for a newer version,
+downloads it with a progress bar (only the game data, `game\Escape.pck`, and a new `Escape.exe` only when the
+launcher itself has changed) and starts the game with **Play** (or Enter). Without an internet connection the
+installed version starts. Saved games live in `%APPDATA%\Godot\app_userdata\Escape!` and are never touched.
+A new download is built after every change to `main` (`.github/workflows/desktop.yml`).
+
+### Playing from the source folder
+
 Double-click **`Play Escape.bat`** in the game folder. On every start it looks on GitHub for a newer
 version, installs it and then starts the game, so the local copy is always as new as the browser version.
 

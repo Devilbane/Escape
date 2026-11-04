@@ -134,13 +134,7 @@ func setup(owner_game: Node, hud: CanvasLayer) -> void:
 
 
 static func panel_style(border: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.03, 0.08, 0.9)
-	style.border_color = border
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(18)
-	style.set_content_margin_all(26)
-	return style
+	return UiKit.panel_style(border)
 
 
 ## Gap between a window and the edge of the screen.

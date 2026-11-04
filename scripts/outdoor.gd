@@ -2157,6 +2157,7 @@ func _spawn_villagers() -> void:
 				_build_stone_yard(c + Vector2i(0, -1))
 			elif ch == "1":
 				_build_forge(c + Vector2i(-1, 0))
+				_build_anvil(v, c, Vector3.LEFT)
 			elif ch == "3":
 				_build_chopping_log(v, c)
 
@@ -2206,9 +2207,9 @@ func _build_stone_yard(cell: Vector2i) -> void:
 
 
 ## The smith's forge on the tile beside him: a hearth of rough stones with
-## glowing coals under a sooty hood and chimney, bellows, an anvil on an old
-## stump, a quench tub and a sign (see VillageProps.build_forge), with a
-## flame and a warm light over the coals.
+## glowing coals under a sooty hood and chimney, bellows, a quench tub and a
+## sign (see VillageProps.build_forge), with a flame and a warm light over the
+## coals. His anvil stands on his own tile (see _build_anvil).
 func _build_forge(cell: Vector2i) -> void:
 	var pos := cell_to_world(cell)
 	var coals := VillageProps.build_forge(self, pos)
@@ -2230,6 +2231,33 @@ func _build_forge(cell: Vector2i) -> void:
 	board.position = pos + Vector3(-1.5, 0, 1.6)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))
+
+
+## The smith's anvil on his own tile, between him and his forge (`face`
+## points there), with a bar of glowing iron on it, so his hammer lands on
+## iron and not in the air (see Villager.set_chopping). The sparks that fly at
+## each blow wait at the spot where the hammer strikes.
+func _build_anvil(v: Villager, cell: Vector2i, face: Vector3) -> void:
+	var stand := cell_to_world(cell)
+	var spot := Node3D.new()
+	spot.name = "SmithAnvil"
+	spot.position = stand
+	spot.rotation.y = atan2(face.x, face.z)
+	add_child(spot)
+	VillageProps.build_anvil(spot, Villager.ANVIL_AT)
+	var sparks := Effects.make_forge_sparks()
+	sparks.position = Villager.HAMMER_POINT
+	spot.add_child(sparks)
+	# The anvil with its heel and horn reaches further across his way than
+	# ahead of him.
+	var foot := spot.to_global(Villager.ANVIL_AT)
+	var size := Vector3(1.1, VillageProps.ANVIL_TOP, 0.8)
+	if absf(face.x) > 0.5:
+		size = Vector3(0.8, VillageProps.ANVIL_TOP, 1.1)
+	_add_solid(foot, size)
+	v.global_position = stand
+	v.rotation.y = spot.rotation.y
+	v.set_chopping(stand, face, sparks)
 
 
 ## The woodcutter's trunk: a felled tree lying across his way on his own
@@ -2708,6 +2736,9 @@ func set_hour(new_hour: float) -> void:
 			text += "\n" + Lang.t("Neumond. Die dunklen Löcher atmen, und etwas Großes kriecht näher ans Dorf.")
 			lines += 1
 		notice.emit(text, 4.5 + 1.5 * (lines - 1))
+		# The village takes fright at what the night brings (see VillageWorries).
+		if night:
+			Events.scare("grauen" if Moon.is_new(day) else "woelfe" if Moon.is_full(day) else "tote")
 
 
 ## Lights the fire in every house someone has come home to in the evening,
@@ -3335,6 +3366,7 @@ func strike() -> Vector3:
 	at.y = 0.0
 	_show_bolt(at)
 	lightning.emit(at)
+	Events.scare("blitz")
 	if ore_spot.x >= 0:
 		var pos := cell_to_world(ore_spot).lerp(at, 0.35)
 		_drop_item(ORE, pos, false)

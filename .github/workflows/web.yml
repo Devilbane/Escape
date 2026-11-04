@@ -119,6 +119,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/rarity_colours.gd | tee rarity.log
           grep -q PASS rarity.log
 
+      - name: Villagers grumble about the weather and take fright test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/village_worries.gd | tee worries.log
+          grep -q PASS worries.log
+
       - name: Event bus test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log
@@ -513,6 +518,16 @@ jobs:
         run: |
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/surface_life.gd | tee surface_life.log
           grep -q PASS surface_life.log
+
+      - name: The woodcutter chops a trunk, not the air
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/woodcutter.gd | tee woodcutter.log
+          grep -q PASS woodcutter.log
+
+      - name: The smith hammers iron on his anvil, not the air
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/smith.gd | tee smith.log
+          grep -q PASS smith.log
 
       - name: Export the browser version
         run: |

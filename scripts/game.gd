@@ -142,6 +142,9 @@ var home_run := HomeRun.new(self)
 var reputation := Reputation.new(self)
 ## Who in the village is tied to whom, and their chats (see VillageTalk).
 var village_talk := VillageTalk.new(self)
+## What the villagers grumble about: the weather, the night and the frights
+## of the world (see VillageWorries).
+var village_worries := VillageWorries.new(self)
 ## The villager whose goods or services are open in a window right now
 ## (role letter), "" for none: their discount applies (see trader_price).
 var trader_role := ""
@@ -419,6 +422,7 @@ func _bus_links() -> Array:
 		[bus.loot_found, event_log.add_loot],
 		[bus.speech_said, heard],
 		[bus.loot_carried_off, _on_loot_carried_off],
+		[bus.scare_happened, village_worries.on_scare],
 	]
 
 
@@ -2621,6 +2625,7 @@ func begin_new_game() -> void:
 	fishing.stop()
 	reputation.clear()
 	village_talk.clear()
+	village_worries.clear()
 	storage.clear()
 	shop_stock.clear()
 	wanderer_stock.clear()
@@ -5108,6 +5113,7 @@ func _process(delta: float) -> void:
 	# The villagers chat with each other while the world runs.
 	if level is Outdoor and state == State.PLAYING and not menus.is_open() and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		village_talk.update(delta, level)
+		village_worries.update(delta, level)
 	# Where the hero is drawn this frame, between two physics ticks: the
 	# camera follows that, so the running hero and the ground glide together
 	# however many frames the screen shows between ticks.

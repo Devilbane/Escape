@@ -26,6 +26,9 @@ uniform vec3 dirt : source_color = vec3(0.40, 0.31, 0.22);
 uniform vec3 grave_soil : source_color = vec3(0.20, 0.23, 0.14);
 uniform vec3 water : source_color = vec3(0.16, 0.30, 0.38);
 uniform vec3 paving : source_color = vec3(0.50, 0.47, 0.43);
+// The graveyard (x0, z0, x1, z1 in metres): its paving is old, sunk and
+// overgrown, and fallen leaves lie on its turf. Empty by default.
+uniform vec4 old_paving = vec4(0.0);
 
 varying vec3 world_pos;
 
@@ -168,15 +171,19 @@ vec3 earth(vec2 p, float px, float centre, out float h) {
 	return col;
 }
 
-// Round cobbles of uneven size with joints of soil, moss and weeds.
-vec3 cobbles(vec2 p, float px, out float h) {
+// Round cobbles of uneven size with joints of soil, moss and weeds. Where
+// old is 1 (the graveyard) they are older: greyer and darker, sunk, with
+// moss over many of them and some gone, grass growing in the gaps.
+vec3 cobbles(vec2 p, float px, float old, out float h) {
 	vec2 q = p / 0.42;
 	q += (vec2(noise(p * 1.3), noise(p * 1.3 + 9.0)) - 0.5) * 0.7;
 	vec4 c = cells(q, 0.6);
 	// Rounded corners: the face shrinks where three stones meet.
 	float edge = (c.y - c.x) * (0.75 + 0.25 * noise(q * 3.0));
 	float face = smoothstep(0.06, 0.16, edge);
-	float dome = sqrt(smoothstep(0.04, 0.5, edge));
+	// Old paving: a stone gone here and there, and the rest worn flat.
+	face *= 1.0 - step(c.z, 0.2 * old);
+	float dome = sqrt(smoothstep(0.04, 0.5, edge)) * (1.0 - 0.4 * old);
 	// Each stone its own shade, some warmer, some cooler, a few dark ones.
 	vec3 stone = mix(paving, vec3(dot(paving, vec3(0.33))), 0.45) * (0.8 + 0.3 * c.z);
 	stone *= mix(vec3(1.04, 1.0, 0.94), vec3(0.94, 0.98, 1.05), c.w);
@@ -190,11 +197,12 @@ vec3 cobbles(vec2 p, float px, out float h) {
 	float stain = fbm2(p * 0.4 + 70.0);
 	stone *= 0.88 + 0.24 * stain;
 	// Joints: dark soil with moss and a little grass growing in them.
-	float moss = smoothstep(0.45, 0.75, fbm2(p * 1.6 + 5.0));
-	vec3 joint = mix(paving * 0.4, vec3(0.17, 0.24, 0.11), moss);
+	float moss = smoothstep(0.45 - 0.2 * old, 0.75 - 0.15 * old, fbm2(p * 1.6 + 5.0));
+	stone = mix(stone, vec3(dot(stone, vec3(0.33))) * 0.86, 0.5 * old);
+	vec3 joint = mix(paving * 0.4, vec3(0.17, 0.24, 0.11), max(moss, old * 0.7));
 	joint *= (0.8 + 0.4 * noise(p * 45.0)) * (0.7 + 0.5 * smoothstep(0.0, 0.06, edge));
 	// Moss creeps onto the edge of some stones.
-	stone = mix(stone, vec3(0.2, 0.28, 0.12), moss * (1.0 - smoothstep(0.1, 0.24, edge)) * 0.7);
+	stone = mix(stone, vec3(0.2, 0.28, 0.12), moss * (1.0 - smoothstep(0.1 + 0.25 * old, 0.24 + 0.4 * old, edge)) * (0.7 + 0.2 * old));
 	h = 0.025 * dome * face + 0.0015 * grain * band(26.0, px) + 0.0008 * fine * band(80.0, px);
 	return mix(joint, stone, face);
 }
@@ -254,6 +262,7 @@ void fragment() {
 	vec4 m = texture(ground_mask, uv);
 	float n = fbm2(p * 0.18);
 	float fray = fbm2(p * 1.1 + 50.0) - 0.5;
+	float old = step(old_paving.x, p.x) * step(p.x, old_paving.z) * step(old_paving.y, p.y) * step(p.y, old_paving.w);
 
 	// How much of each kind of ground lies here.
 	float wood = smoothstep(0.45, 0.75, 1.0 - m.a + (n - 0.5) * 0.4 + fray * 0.15);
@@ -280,6 +289,16 @@ void fragment() {
 		float bare = smoothstep(0.55, 0.75, fbm2(p * 0.5 + 33.0));
 		vec3 ground = grave_soil * vec3(1.25, 1.0, 0.85) * (0.8 + 0.4 * noise(p * 12.0));
 		col = mix(col, mix(turf, ground, bare * 0.7), soil);
+		// Fallen leaves from the autumn trees round the graveyard.
+		if (old > 0.5) {
+			vec2 lp = p * 4.0 + (vec2(noise(p * 2.8), noise(p * 2.8 + 4.0)) - 0.5) * 0.8;
+			vec4 l = cells(lp, 1.0);
+			float drift = smoothstep(0.4, 0.7, fbm2(p * 0.35 + 81.0));
+			float leaf = step(1.0 - 0.55 * drift, l.z) * (1.0 - smoothstep(0.24, 0.34, l.x)) * band(4.0, px) * soil;
+			vec3 tint = l.w < 0.4 ? vec3(0.42, 0.22, 0.08) : (l.w < 0.75 ? vec3(0.55, 0.36, 0.1) : vec3(0.3, 0.26, 0.1));
+			col = mix(col, tint * (0.6 + 0.5 * l.z), leaf * 0.85);
+			h += 0.003 * leaf;
+		}
 	}
 	float stony = smoothstep(0.4, 0.62, texture(stone_mask, uv).r + (n - 0.5) * 0.3 + fray * 0.2);
 	if (stony > 0.001) {
@@ -297,7 +316,7 @@ void fragment() {
 	float rough = 0.95;
 	if (square > 0.001) {
 		float hc;
-		vec3 c = cobbles(p, px, hc);
+		vec3 c = cobbles(p, px, old, hc);
 		col = mix(col, c, square);
 		h = mix(h, hc, square);
 		rough = mix(rough, 0.82, square);

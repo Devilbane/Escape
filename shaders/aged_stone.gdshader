@@ -18,6 +18,9 @@ shader_type spatial;
 //   tint (use_palette off).
 // The windows of the KayKit buildings glow at night through glow_mask, as
 // before (see Outdoor._light_windows).
+// The graveyard wears it too (see AgedStone.grave_material): the crypt and
+// the fence's low wall are laid in blocks, the gravestones are hewn from one
+// piece (blocks = 0), older still, greyer, and spotted with lichen.
 
 #include "res://shaders/detail.gdshaderinc"
 
@@ -26,6 +29,12 @@ uniform bool use_palette = true;
 // The stone's tint (sandstone, grey, ...), and the strength of the weather.
 uniform vec3 tint : source_color = vec3(0.86, 0.83, 0.78);
 uniform float age = 1.0;
+// 1: laid in stone blocks; 0: hewn from one piece (a gravestone).
+uniform float blocks = 1.0;
+// How far the strong colours (roofs, doors) are greyed by the weather.
+uniform float fade = 0.42;
+// Crusts of pale and orange lichen on the stone (old gravestones).
+uniform float lichen = 0.0;
 uniform sampler2D trim : source_color, filter_linear_mipmap, repeat_enable;
 // Where the windows sit on the palette (white), and how bright they glow.
 uniform sampler2D glow_mask : hint_default_black, filter_linear;
@@ -91,9 +100,15 @@ void fragment() {
 	float shade = hash3(vec3(floor(vec2(along.x / (STONE_SIZE.x / 7.0), along.y / (STONE_SIZE.y / 4.0))), 3.0));
 	vec3 stone_tint = mix(tint, tint * vec3(1.04, 1.0, 0.92), shade);
 	stone *= stone_tint * (0.86 + 0.28 * shade) * 1.2;
+	// Hewn from one piece: no joints, only the grain and pits of the stone.
+	float grain = fbm(wpos * 2.2 + 3.0);
+	float pits = vnoise(wpos * 17.0);
+	vec3 solid = tint * (0.74 + 0.32 * grain) * (0.94 + 0.12 * pits * band(17.0, px));
+	stone = mix(solid, stone, blocks);
+	relief = mix(0.35 * grain + 0.25 * pits * band(17.0, px), relief, blocks);
 
 	// Faded paint, and roof tiles in the faded colour of the roof.
-	vec3 faded = mix(base, vec3(l), 0.42) * 0.86;
+	vec3 faded = mix(base, vec3(l), fade) * 0.86;
 	vec4 tile_area = vec4(TILES.x, TILES.y, TILES.z, TILES.w);
 	vec3 tile_rgb = sheet(mx, TILES_SIZE, tile_area) * w.x + sheet(mz, TILES_SIZE, tile_area) * w.z
 			+ sheet(my, TILES_SIZE, tile_area) * w.y;
@@ -121,6 +136,11 @@ void fragment() {
 	float moss = smoothstep(0.66, 0.82, fbm(p * 2.4 + 5.0) + moss_place * 0.25) * smoothstep(0.05, 0.4, moss_place);
 	vec3 moss_col = mix(vec3(0.05, 0.08, 0.02), vec3(0.11, 0.14, 0.04), vnoise(wpos * 4.0));
 	col = mix(col, moss_col, moss * 0.5 * age * (1.0 - window));
+	// Lichen: round crusts, pale grey-green, now and then orange.
+	vec3 lp = wpos * 3.5;
+	float crust = smoothstep(0.6, 0.66, fbm(lp + 21.0) + 0.06 * vnoise(lp * 6.0)) * lichen * wall * (1.0 - moss);
+	vec3 lichen_col = vnoise(lp * 0.6 + 9.0) > 0.62 ? vec3(0.62, 0.42, 0.16) : vec3(0.58, 0.6, 0.48);
+	col = mix(col, lichen_col * (0.85 + 0.3 * vnoise(lp * 8.0)), crust * 0.75);
 
 	ALBEDO = col;
 	ROUGHNESS = mix(0.95, 0.82, moss);

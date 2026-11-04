@@ -291,9 +291,21 @@ const VILLAGE_REACH := 6
 const VILLAGE_BLOCKS := "hjnmuskowb^["
 const BUSH_CHANCE := 0.8
 const BUSH_OPEN := 0.3
+## The graveyard (see _age_graveyard): ivy patches on the crypt, how much of
+## the fence has ivy on its low wall, how many graves have a grave light (a
+## small lantern with a candle, lit at night), and where the light stands.
+const CRYPT_IVY := 6
+const FENCE_IVY := 0.3
+const GRAVE_LIGHTS := 0.35
+const GRAVE_LIGHT_AT := Vector3(1.25, 0, -0.35)
+## Where the grave light's panes sit on the Halloween kit's palette (UV).
+const GRAVE_PANES := Rect2(0.25, 0.75, 0.125, 0.25)
+var _grave_glow: ImageTexture
 ## The paved ways to the doors: how wide (in quarter tiles, the ground
 ## mask's pixels) and how far they look for the square or a path (tiles).
 const WAY_WIDTH := 1.4
+## The graveyard's path is wider: it covers the whole dirt path.
+const GRAVE_WAY_WIDTH := 2.2
 const WAY_SEARCH := 14
 ## The hour the world was last lit for, and whether it is night.
 var hour := -1.0
@@ -453,6 +465,10 @@ func _build_ground() -> void:
 	mat.set_shader_parameter("stone_mask", ImageTexture.create_from_image(stones))
 	mat.set_shader_parameter("grid_size", Vector2(width, height))
 	mat.set_shader_parameter("tile", TILE)
+	# The graveyard's paving is older than the village's (see _pave_graveyard).
+	if fence.size != Vector2i.ZERO:
+		mat.set_shader_parameter("old_paving", Vector4((fence.position.x - 0.5) * TILE, (fence.position.y - 0.5) * TILE,
+				(fence.end.x - 0.5) * TILE, (fence.end.y - 0.5) * TILE))
 	var margin := 10
 	var size := GROUND_CHUNK * TILE
 	for cy in range(-margin, height + margin, GROUND_CHUNK):
@@ -589,9 +605,11 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_wanderer_cell = c
 		"g":
 			var grave: String = GRAVES[_rng.randi() % GRAVES.size()]
-			_put(grave, pos + Vector3(0, 0, -0.6) + _jitter(0.3), _rng.randf_range(-0.15, 0.15))
+			var stone := _put(grave, pos + Vector3(0, 0, -0.6) + _jitter(0.3), _rng.randf_range(-0.15, 0.15))
+			_age_graveyard(stone, true, absi(hash(c)) % AgedStone.GRAVE_TINTS.size())
 			_graves.append(c)
 			_add_solid(pos + Vector3(0, 0, -0.6), Vector3(2.0, 1.6, 1.0))
+			_grave_light(c, pos)
 		"d":
 			var tree: String = ["tree_dead_large", "tree_dead_medium", "tree_dead_small"][_rng.randi() % 3]
 			_put(tree, pos + _jitter(0.5), _rng.randf() * TAU, _rng.randf_range(1.1, 1.4))
@@ -981,16 +999,20 @@ func _build_fence(c: Vector2i, gate: bool) -> void:
 	var rot := 0.0 if across else PI * 0.5
 	var along := Vector3(1, 0, 0) if across else Vector3(0, 0, 1)
 	if gate:
-		_put("arch_gate", pos, rot)
+		_age_graveyard(_put("arch_gate", pos, rot), false)
 		_add_solid(pos + along * 1.9, Vector3(0.5, 4, 0.5))
 		_add_solid(pos - along * 1.9, Vector3(0.5, 4, 0.5))
 		return
-	_put("fence" if _rng.randf() < 0.85 else "fence_broken", pos, rot)
+	var piece := _put("fence" if _rng.randf() < 0.85 else "fence_broken", pos, rot)
+	_age_graveyard(piece, false)
+	# Ivy over the low wall of some of the fence.
+	if absi(hash("%s|zaun|%s" % [level_name, c])) % 1000 < FENCE_IVY * 1000.0:
+		_dress_building(piece, pos, [], 0.0, 1)
 	for end in [-1, 1]:
 		var key := "pillar_%d_%d" % [roundi((pos.x + along.x * 2 * end) * 10), roundi((pos.z + along.z * 2 * end) * 10)]
 		if not _scenes.has(key):
 			_scenes[key] = true
-			_put("fence_pillar", pos + along * 2.0 * end, rot)
+			_age_graveyard(_put("fence_pillar", pos + along * 2.0 * end, rot), false)
 	_add_solid(pos, Vector3(4, 2.2, 0.5) if across else Vector3(0.5, 2.2, 4))
 
 
@@ -1051,6 +1073,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		node = _put(model, center - foot, rot, s)
 		if ch != "R":
 			_age_kit_building(node)
+		else:
+			_age_graveyard(node, false)
 	var solid := Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86)
 	_add_solid(center, solid)
 	var reach := Vector2(block.size) * TILE * 0.5 + Vector2(2.0, 2.0)
@@ -1068,6 +1092,13 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch == "h":
 		spots.houses.append(front)
 	elif ch == "R":
+		# Ivy up the old crypt (never over its door), and no nest on it.
+		# The door is set back into the front, so the spots run back to it.
+		var door_spots := []
+		for x in [-1.2, 0.0, 1.2]:
+			for z in [0.0, -1.5, -3.0]:
+				door_spots.append(center + Vector3(x, 0, reach.y - 2.0 + z))
+		_dress_building(node, center, door_spots, 0.0, CRYPT_IVY)
 		# A faint cold glow in the crypt door the hero came out of.
 		var light := OmniLight3D.new()
 		light.light_color = Color(0.6, 0.75, 1.0)
@@ -1513,6 +1544,58 @@ func _bounds_in(node: Node3D) -> AABB:
 	return box
 
 
+## The graveyard's models (crypt, gravestones, fence; the KayKit Halloween
+## kit, all on one palette) in old, weathered stone to match the village (see
+## AgedStone.grave_material). `hewn`: a gravestone, cut from one piece.
+## `glowing`: a mask of what glows at night (the panes of a grave light).
+func _age_graveyard(node: Node, hewn: bool, shade := 0, glowing: Texture2D = null) -> void:
+	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		var mat := mi.get_active_material(0)
+		if mat is StandardMaterial3D:
+			var aged := AgedStone.grave_material((mat as StandardMaterial3D).albedo_texture, hewn, shade, glowing)
+			mi.material_override = aged
+			if glowing:
+				# Lit at nightfall with the windows of the village.
+				_window_mats[aged] = aged
+
+
+## A small lantern beside some of the graves, its panes aglow at night like
+## the windows of the village (no light of its own, so it costs nothing).
+func _grave_light(c: Vector2i, pos: Vector3) -> void:
+	var roll := absi(hash("%s|licht|%s" % [level_name, c]))
+	if roll % 1000 >= GRAVE_LIGHTS * 1000.0:
+		return
+	if _grave_glow == null:
+		# The panes are the one patch of the kit's palette at GRAVE_PANES.
+		var img := Image.create(256, 256, false, Image.FORMAT_RGB8)
+		img.fill_rect(Rect2i(Vector2i(GRAVE_PANES.position * 256.0), Vector2i(GRAVE_PANES.size * 256.0)), Color.WHITE)
+		_grave_glow = ImageTexture.create_from_image(img)
+	var at := pos + GRAVE_LIGHT_AT * Vector3(1 if roll % 2 == 0 else -1, 1, 1)
+	_age_graveyard(_put("lantern_standing", at, float(roll % 628) * 0.01), false, 0, _grave_glow)
+	_add_solid(at, Vector3(0.6, 1.0, 0.6))
+
+
+## The graveyard's path, from the crypt door through the gate, paved with old
+## stones like the village's (sunk, mossy and gappy there, see meadow.gdshader).
+func _pave_graveyard() -> void:
+	var yard := _bounds_of("z")
+	if yard.size == Vector2i.ZERO:
+		return
+	for y in range(yard.position.y, yard.end.y):
+		for x in range(yard.position.x, yard.end.x):
+			var c := Vector2i(x, y)
+			if not ",Pa".contains(cell_char(c)):
+				continue
+			_pave_line(cell_to_world(c), cell_to_world(c), GRAVE_WAY_WIDTH)
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var n := c + d
+				if ",Pa".contains(cell_char(n)) and yard.has_point(n):
+					_pave_line(cell_to_world(c), cell_to_world(n), GRAVE_WAY_WIDTH)
+				elif d.y < 0 and cell_char(n) == "R":
+					# Up to the crypt's door.
+					_pave_line(cell_to_world(c), cell_to_world(c) + Vector3(0, 0, -TILE * 0.5), GRAVE_WAY_WIDTH)
+
+
 ## A way paved like the market square from each door to the square or the
 ## nearest path (only drawn into the ground: the tiles stay as they are).
 func _pave_entrances() -> void:
@@ -1528,6 +1611,7 @@ func _pave_entrances() -> void:
 			points.append(cell_to_world(c))
 		for i in points.size() - 1:
 			_pave_line(points[i], points[i + 1])
+	_pave_graveyard()
 	# The dirt paths in the village are cobbled too, joined tile to tile.
 	for y in height:
 		for x in width:
@@ -1650,11 +1734,10 @@ func _clear_between(a: Vector2i, b: Vector2i) -> bool:
 
 ## Paints a straight run of paving into the ground's mask (red and green
 ## together are the square's stones, see _build_ground).
-func _pave_line(from: Vector3, to: Vector3) -> void:
+func _pave_line(from: Vector3, to: Vector3, r := WAY_WIDTH) -> void:
 	var a := Vector2(from.x / TILE + 0.5, from.z / TILE + 0.5) * 4.0
 	var b := Vector2(to.x / TILE + 0.5, to.z / TILE + 0.5) * 4.0
 	var steps := maxi(1, ceili(a.distance_to(b) * 2.0))
-	var r := WAY_WIDTH
 	for k in steps + 1:
 		var p := a.lerp(b, float(k) / steps)
 		for y in range(floori(p.y - r - 1.0), ceili(p.y + r + 1.0)):

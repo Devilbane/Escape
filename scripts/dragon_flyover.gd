@@ -246,7 +246,7 @@ func light() -> float:
 
 
 ## The scream, from far off where the dragon comes from,
-## and a line in the event log.
+## a line in the event log, and a scare for the village.
 func _scream(hero_at: Vector3) -> void:
 	screamed = true
 	var at := from
@@ -255,6 +255,8 @@ func _scream(hero_at: Vector3) -> void:
 	var dir := Vector3(at.x - hero_at.x, 0, at.z - hero_at.z)
 	var spot := hero_at + (dir.normalized() * 20.0 if dir.length() > 0.1 else Vector3.ZERO) + Vector3(0, 8, 0)
 	Sfx.play_3d(level, SOUND, SOUND_DB, spot, _rng.randf_range(0.9, 1.05))
+	# Villagers nearby cry out and talk of the dragon a while (see VillageWorries).
+	Events.scare("drache")
 	Events.tell(Lang.t("Ein riesiger Schatten gleitet über das Land. Fern in den Bergen schreit ein Drache."), COLOR, 4.5)
 
 

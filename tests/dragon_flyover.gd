@@ -105,8 +105,11 @@ func _in_the_open() -> void:
 		var d: Vector3 = fly._pick_direction(near)
 		check(absf(d.dot(line)) > 0.9, "it flies to or from the dragon's mountain")
 	# The time comes: it flies by itself.
+	var scares: Array = []
+	Events.bus().scare_happened.connect(func(kind: String): scares.append(kind))
 	fly.wait = 0.01
 	fly._process(0.05)
+	check(scares == ["drache"], "the scream gives the village a dragon scare (%s)" % [scares])
 	check(fly.flying and fly.flights == 1, "when its time comes, the dragon flies over")
 	check(fly.screamed, "the scream comes first")
 	# A flight across, east to west, watched to its end.

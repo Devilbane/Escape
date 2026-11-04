@@ -260,6 +260,8 @@ var _lamps: Array[OmniLight3D] = []
 var _fires: Array[Vector3] = []
 var _candles: Array[MeshInstance3D] = []
 var _candle_mat: StandardMaterial3D
+## The glass of the street lamps' lanterns, glowing at night.
+var _pane_mat: StandardMaterial3D
 ## Where the window panes of the village houses sit in the kit's palette
 ## texture: one small patch colours every pane. A mask over that patch lets
 ## the windows glow without touching walls or roofs.
@@ -533,9 +535,12 @@ func _put(name: String, pos: Vector3, rot := 0.0, s := 1.0, parent: Node = self)
 	node.position = pos
 	node.rotation.y = rot
 	node.scale = Vector3.ONE * s
-	if name.begins_with("tree"):
+	if name.begins_with("tree") and not WeatheredProps.MODELS.has(name):
 		for mi in node.find_children("*", "MeshInstance3D", true, false):
 			mi.material_override = _tree_material(mi.get_active_material(0), not name.ends_with("_cut"))
+	# The old props (barrels, crates, lumber, stone heaps, pumpkins, tents)
+	# weathered to match the aged stone (see WeatheredProps).
+	WeatheredProps.weather_model(node, name)
 	parent.add_child(node)
 	return node
 
@@ -709,16 +714,12 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 				_animal_spots.append({"cell": c, "kind": Animal.LETTERS[ch]})
 
 
-## A tall stone pedestal with a basket of bread, cheese and apples on top,
-## and the crates to climb up to it lying close by.
+## A tall pedestal of old, hewn stone (see VillageProps.build_pedestal) with
+## a basket of bread, cheese and apples on top, and the crates to climb up to
+## it lying close by.
 func _build_pedestal(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.66, 0.63, 0.58)
-	stone.roughness = 0.95
-	_add_mesh_box(pos + Vector3(0, 0.15, 0), Vector3(1.7, 0.3, 1.7), stone)
-	_add_mesh_box(pos + Vector3(0, PEDESTAL_HEIGHT * 0.5, 0), Vector3(1.25, PEDESTAL_HEIGHT - 0.5, 1.25), stone)
-	_add_mesh_box(pos + Vector3(0, PEDESTAL_HEIGHT - 0.12, 0), Vector3(1.7, 0.24, 1.7), stone)
+	VillageProps.build_pedestal(self, pos, PEDESTAL_HEIGHT)
 	_add_solid(pos, Vector3(1.7, PEDESTAL_HEIGHT, 1.7))
 	# The basket: an open crate, filled with food that glints.
 	var box := _aabb_of("crate_open")
@@ -739,12 +740,8 @@ func _build_pedestal(c: Vector2i) -> void:
 ## notices pinned to it, facing south. Run into it to read the hunts.
 func _build_bounty_board(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.42, 0.28, 0.17)
-	wood.roughness = 0.9
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.3, 0.19, 0.12)
-	dark.roughness = 0.95
+	var wood := WeatheredProps.colour_material(Color(0.42, 0.28, 0.17))
+	var dark := WeatheredProps.colour_material(Color(0.3, 0.19, 0.12))
 	var paper := StandardMaterial3D.new()
 	paper.albedo_color = Color(0.93, 0.88, 0.74)
 	paper.roughness = 1.0
@@ -812,21 +809,20 @@ func board_mark() -> String:
 	return _board_mark.text if _board_mark and _board_mark.visible else ""
 
 
-## A loaf, a wedge of cheese and a few apples, heaped in the basket.
+## A loaf, a wedge of cheese and a few apples, heaped in the basket: fresh,
+## but no longer shining like wax (see WeatheredProps.FRESH).
 func _add_food(parent: Node3D) -> void:
-	var bread := StandardMaterial3D.new()
-	bread.albedo_color = Color(0.72, 0.45, 0.2)
 	var loaf := MeshInstance3D.new()
 	var loaf_mesh := CapsuleMesh.new()
 	loaf_mesh.radius = 0.16
 	loaf_mesh.height = 0.6
+	loaf_mesh.radial_segments = 12
+	loaf_mesh.rings = 4
 	loaf.mesh = loaf_mesh
-	loaf.material_override = bread
+	loaf.material_override = WeatheredProps.colour_material(Color(0.7, 0.44, 0.2), WeatheredProps.FRESH)
 	loaf.rotation = Vector3(0, 0.5, PI * 0.5)
 	loaf.position = Vector3(-0.1, 0.05, 0.05)
 	parent.add_child(loaf)
-	var cheese_mat := StandardMaterial3D.new()
-	cheese_mat.albedo_color = Color(0.98, 0.8, 0.3)
 	var cheese := MeshInstance3D.new()
 	var wedge := CylinderMesh.new()
 	wedge.top_radius = 0.2
@@ -834,16 +830,17 @@ func _add_food(parent: Node3D) -> void:
 	wedge.height = 0.14
 	wedge.radial_segments = 3
 	cheese.mesh = wedge
-	cheese.material_override = cheese_mat
+	cheese.material_override = WeatheredProps.colour_material(Color(0.92, 0.74, 0.32), WeatheredProps.FRESH)
 	cheese.position = Vector3(0.2, 0.05, -0.15)
 	parent.add_child(cheese)
-	var apple_mat := StandardMaterial3D.new()
-	apple_mat.albedo_color = Color(0.8, 0.1, 0.08)
+	var ball := SphereMesh.new()
+	ball.radius = 0.1
+	ball.height = 0.2
+	ball.radial_segments = 10
+	ball.rings = 6
+	var apple_mat := WeatheredProps.colour_material(Color(0.72, 0.12, 0.08), WeatheredProps.FRESH)
 	for spot in [Vector3(0.22, 0.08, 0.2), Vector3(0.05, 0.1, -0.25), Vector3(-0.28, 0.06, -0.18)]:
 		var apple := MeshInstance3D.new()
-		var ball := SphereMesh.new()
-		ball.radius = 0.1
-		ball.height = 0.2
 		apple.mesh = ball
 		apple.material_override = apple_mat
 		apple.position = spot
@@ -934,9 +931,21 @@ func _build_bench(c: Vector2i) -> void:
 	stations.append(Seats.station(c, pos, rot))
 
 
-## A post with a lantern hanging from its arm, glowing warm.
+## A street lamp: an old timber post on a stone foot with an iron lantern
+## hanging from its arm (see VillageProps.build_lamp), its panes and the
+## candle in it glowing at night.
 func _build_lantern(pos: Vector3) -> void:
-	_put("post_lantern", pos, 0.0, 1.0)
+	if _pane_mat == null:
+		_pane_mat = StandardMaterial3D.new()
+		_pane_mat.albedo_color = Color(0.32, 0.3, 0.24, 0.55)
+		_pane_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_pane_mat.roughness = 0.25
+		_pane_mat.emission_enabled = true
+		_pane_mat.emission = Color(1.0, 0.68, 0.34)
+		_pane_mat.emission_energy_multiplier = 0.0
+		# Lit at nightfall with the windows of the village.
+		_window_mats[_pane_mat] = _pane_mat
+	VillageProps.build_lamp(self, pos, _pane_mat)
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.68, 0.38)
 	light.light_energy = 2.2
@@ -953,12 +962,12 @@ func _build_lantern(pos: Vector3) -> void:
 		_candle_mat.emission_energy_multiplier = 0.0
 	var candle := MeshInstance3D.new()
 	var ball := SphereMesh.new()
-	ball.radius = 0.15
-	ball.height = 0.3
+	ball.radius = 0.06
+	ball.height = 0.12
 	candle.mesh = ball
 	candle.material_override = _candle_mat
 	candle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	candle.position = pos + Vector3(0, 2.05, 1.0)
+	candle.position = pos + VillageProps.LANTERN_AT
 	candle.visible = false
 	add_child(candle)
 	_candles.append(candle)
@@ -1413,38 +1422,27 @@ func _build_hole(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	holes.append(pos)
 	var id := "loch%d" % holes.size()
-	var earth := MeshInstance3D.new()
-	var ring := CylinderMesh.new()
-	ring.top_radius = 1.9
-	ring.bottom_radius = 2.1
-	ring.height = 0.08
-	ring.radial_segments = 14
-	earth.mesh = ring
-	var soil := StandardMaterial3D.new()
-	soil.albedo_color = Color(0.17, 0.12, 0.09)
-	soil.roughness = 1.0
-	earth.material_override = soil
-	earth.position = pos + Vector3(0, 0.03, 0)
-	add_child(earth)
+	# The ragged lip of torn earth round the opening (see VillageProps).
+	VillageProps.build_hole_rim(self, pos, 1.3)
 	var pit := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
-	disc.top_radius = 1.35
-	disc.bottom_radius = 1.35
+	disc.top_radius = 1.32
+	disc.bottom_radius = 1.32
 	disc.height = 0.02
-	disc.radial_segments = 11
+	disc.radial_segments = 18
 	pit.mesh = disc
 	var black := StandardMaterial3D.new()
 	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	black.albedo_color = Color(0.0, 0.0, 0.0)
 	pit.material_override = black
-	pit.position = pos + Vector3(0, 0.08, 0)
+	pit.position = pos + Vector3(0, 0.03, 0)
 	pit.rotation.y = _rng.randf() * TAU
 	add_child(pit)
 	# Torn-up rocks round the rim, and what is left of those who went down.
 	for i in 6:
 		var angle: float = TAU * i / 6.0 + _rng.randf_range(-0.3, 0.3)
 		var rock: String = ["rock_single_A", "rock_single_C", "rock_single_E"][_rng.randi() % 3]
-		_put(rock, pos + Vector3(cos(angle), 0, sin(angle)) * _rng.randf_range(1.6, 1.9), _rng.randf() * TAU, _rng.randf_range(2.0, 3.4))
+		_put(rock, pos + Vector3(cos(angle), 0, sin(angle)) * _rng.randf_range(1.9, 2.3), _rng.randf() * TAU, _rng.randf_range(2.0, 3.4))
 	for i in 2:
 		var angle: float = _rng.randf() * TAU
 		_put("lair/Skull", pos + Vector3(cos(angle), 0, sin(angle)) * 2.3, _rng.randf() * TAU, 0.6)
@@ -2163,6 +2161,7 @@ func _build_barber_shop(cell: Vector2i) -> void:
 	pole.position = pos + Vector3(-2.0, 0, 1.9)
 	add_child(pole)
 	var board := Effects.shop_sign(Lang.t("Barbier"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	WeatheredProps.weather_plain(board)
 	board.position = pos + Vector3(1.4, 0, 1.9)
 	add_child(board)
 	_add_solid(pos + Vector3(-2.0, 0, 1.9), Vector3(0.5, 2.6, 0.5))
@@ -2187,37 +2186,21 @@ func _build_stone_yard(cell: Vector2i) -> void:
 	_add_solid(pos + Vector3(0.2, 0, 0), Vector3(3.4, StoneBlock.HEIGHT * 2.0, 2.6))
 	astar.set_point_solid(cell, true)
 	var board := Effects.shop_sign(Lang.t("Steinmetz"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	WeatheredProps.weather_plain(board)
 	board.position = pos + Vector3(-1.6, 0, 1.9)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.6, 0, 1.9), Vector3(0.5, 2.6, 0.5))
 
 
-## The smith's forge on the tile beside him: a stone hearth with glowing
-## coals and a warm light, an anvil on a tree stump, and a sign.
+## The smith's forge on the tile beside him: a hearth of rough stones with
+## glowing coals under a sooty hood and chimney, bellows, an anvil on an old
+## stump, a quench tub and a sign (see VillageProps.build_forge), with a
+## flame and a warm light over the coals.
 func _build_forge(cell: Vector2i) -> void:
 	var pos := cell_to_world(cell)
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.42, 0.4, 0.38)
-	stone.roughness = 0.95
-	var iron := StandardMaterial3D.new()
-	iron.albedo_color = Color(0.2, 0.2, 0.22)
-	iron.metallic = 0.7
-	iron.roughness = 0.45
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.4, 0.27, 0.16)
-	wood.roughness = 0.9
-	var coals := StandardMaterial3D.new()
-	coals.albedo_color = Color(0.3, 0.06, 0.02)
-	coals.emission_enabled = true
-	coals.emission = Color(1.0, 0.35, 0.08)
-	coals.emission_energy_multiplier = 1.5
-	# The hearth: a low stone block with glowing coals on top and a chimney.
-	var hearth := pos + Vector3(-0.5, 0, -0.7)
-	_add_mesh_box(hearth + Vector3(0, 0.45, 0), Vector3(2.0, 0.9, 1.5), stone)
-	_add_mesh_box(hearth + Vector3(0, 0.93, 0), Vector3(1.5, 0.08, 1.0), coals)
-	_add_mesh_box(hearth + Vector3(0, 2.0, -0.55), Vector3(0.8, 2.2, 0.5), stone)
+	var coals := VillageProps.build_forge(self, pos)
 	var flame := Effects.make_flame()
-	flame.position = hearth + Vector3(0, 1.0, 0)
+	flame.position = coals
 	flame.scale = Vector3.ONE * 2.0
 	add_child(flame)
 	var light := OmniLight3D.new()
@@ -2225,17 +2208,12 @@ func _build_forge(cell: Vector2i) -> void:
 	light.light_energy = 3.0
 	light.omni_range = 9.0
 	light.omni_attenuation = 1.4
-	light.position = hearth + Vector3(0, 1.8, 0.4)
+	light.position = coals + Vector3(0, 0.8, 0.6)
 	add_child(light)
-	# The anvil on its stump, in front of the hearth.
-	var anvil := pos + Vector3(0.8, 0, 0.8)
-	_add_mesh_box(anvil + Vector3(0, 0.3, 0), Vector3(0.6, 0.6, 0.6), wood)
-	_add_mesh_box(anvil + Vector3(0, 0.68, 0), Vector3(0.3, 0.16, 0.28), iron)
-	_add_mesh_box(anvil + Vector3(0, 0.85, 0), Vector3(0.85, 0.2, 0.36), iron)
-	_add_mesh_box(anvil + Vector3(0.52, 0.88, 0), Vector3(0.22, 0.12, 0.2), iron)
 	_add_solid(pos, Vector3(3.2, 1.2, 3.0))
 	astar.set_point_solid(cell, true)
 	var board := Effects.shop_sign(Lang.t("Schmiede"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	WeatheredProps.weather_plain(board)
 	board.position = pos + Vector3(-1.5, 0, 1.6)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))

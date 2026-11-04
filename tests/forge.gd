@@ -98,7 +98,7 @@ func _run() -> void:
 	check(p.bag.size() == 3 and game.iron == 0, "leather does not melt")
 	game.menus._melt(0)
 	check(Array(p.bag) == ["lederwams", "kupferring"] and game.iron == 6, "the plate armour melts into 6 iron bars")
-	check(int(game.bars.get("gold", 0)) == 1, "and its fine fittings into a gold bar (%s)" % str(game.bars))
+	check(int(game.bars.get("silber", 0)) == 1, "and its fine fittings into a silver bar (%s)" % str(game.bars))
 	game.menus._melt(1)
 	check(Array(p.bag) == ["lederwams"] and game.iron == 6 and int(game.bars.get("bronze", 0)) == 3, "the copper ring into 3 bronze bars (%s)" % str(game.bars))
 
@@ -184,8 +184,8 @@ func _run() -> void:
 	var coins_now: int = game.coins
 	game.menus._sell_bar("bronze")
 	check(int(game.bars.get("bronze", 0)) == 2 and game.coins == coins_now + Forge.METALS.bronze.worth, "a bronze bar sold to Gorm")
-	game.menus._sell_bar("silber")
-	check(game.coins == coins_now + Forge.METALS.bronze.worth and game.menus._note != "", "no silver bar, nothing sold")
+	game.menus._sell_bar("gold")
+	check(game.coins == coins_now + Forge.METALS.bronze.worth and game.menus._note != "", "no gold bar, nothing sold")
 
 	# The iron stays in the saved game.
 	game.iron = 7

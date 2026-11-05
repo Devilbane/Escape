@@ -83,7 +83,7 @@ static func reset(looted: Dictionary, files: Array, interiors: Dictionary) -> vo
 ## the bag.
 static func snapshot(game: Node) -> Dictionary:
 	return {"coins": game.coins, "iron": game.iron, "bars": game.bars.duplicate(),
-			"pouch": game.crafting.pouch.duplicate(), "bag": game.player.bag.duplicate()}
+			"pouch": game.crafting.pouch.merged(game.crafting.purse), "bag": game.player.bag.duplicate()}
 
 
 ## What the hero gained since `before` (see snapshot): "gold", "bars"
@@ -101,8 +101,9 @@ static func spoils(before: Dictionary, game: Node) -> Dictionary:
 		if n > 0:
 			out.bars[metal] = n
 	var old_pouch: Dictionary = before.get("pouch", {})
-	for id in game.crafting.pouch:
-		var n := int(game.crafting.pouch[id]) - int(old_pouch.get(id, 0))
+	var now: Dictionary = game.crafting.pouch.merged(game.crafting.purse)
+	for id in now:
+		var n := int(now[id]) - int(old_pouch.get(id, 0))
 		if n > 0:
 			out.ingredients[id] = n
 	var old_bag := {}

@@ -201,11 +201,7 @@ static func _change_carried(game: Node, id: String, n: int) -> void:
 			else:
 				game.player.bag.erase(id)
 	else:
-		var left: int = game.crafting.have(id) + n
-		if left > 0:
-			game.crafting.pouch[id] = left
-		else:
-			game.crafting.pouch.erase(id)
+		game.crafting.set_count(id, game.crafting.have(id) + n)
 
 
 ## The empty stores of a new game.

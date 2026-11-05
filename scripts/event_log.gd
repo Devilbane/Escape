@@ -10,14 +10,22 @@ extends PanelContainer
 ## (FRAME_STAY). The text dims when nothing new came for a while and lights
 ## up again with the next line. It stays hidden until the first line comes.
 ## The mouse wheel or a drag over the box scrolls back through the last KEEP
-## lines.
+## lines. Its width is the player's: a slider in the pull-out menu sets it
+## between MIN_WIDTH and MAX_WIDTH, kept in the settings file. The height
+## stays, so the first-steps card below it never moves.
 
 ## Where the box sits: below the status block at the top left, and well
 ## above the message line at the bottom (see Game.MESSAGE_BOTTOM).
 const LEFT := 24.0
 const TOP := 196.0
-const WIDTH := 300.0
 const HEIGHT := 200.0
+## The width the player can pick with the slider, and the step it moves in.
+## At MAX_WIDTH the box still keeps clear of the message line (Game.MESSAGE_MARGIN).
+const MIN_WIDTH := 160.0
+const MAX_WIDTH := 300.0
+const DEFAULT_WIDTH := 240.0
+const WIDTH_STEP := 20.0
+const SETTINGS_FILE := Sfx.SETTINGS_FILE
 ## Small type for a list the player can glance at (fine print in the ux-ui
 ## guide's sizes; nothing the player must read to decide is only here).
 const FONT_SIZE := 15
@@ -60,13 +68,26 @@ var _style: StyleBoxFlat
 var _scroll := 0.0
 var _last := ""
 
+## The width the player picked (see set_width), shared by every log.
+static var width := DEFAULT_WIDTH
+
+
+## Reads the width from the settings file (DEFAULT_WIDTH when none is kept).
+static func load_settings() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(SETTINGS_FILE) == OK:
+		width = _clamped(float(cfg.get_value("protokoll", "breite", DEFAULT_WIDTH)))
+
+
+static func _clamped(value: float) -> float:
+	return clampf(snappedf(value, WIDTH_STEP), MIN_WIDTH, MAX_WIDTH)
+
 
 func _init() -> void:
 	# The box takes the wheel and drags to scroll; nothing else.
 	mouse_filter = MOUSE_FILTER_STOP
 	position = Vector2(LEFT, TOP)
-	custom_minimum_size = Vector2(WIDTH, HEIGHT)
-	size = custom_minimum_size
+	_apply_width()
 	var style := StyleBoxFlat.new()
 	_style = style
 	style.set_border_width_all(1)
@@ -87,6 +108,33 @@ func _init() -> void:
 	_lines.grow_vertical = GROW_DIRECTION_BEGIN
 	clip.add_child(_lines)
 	visible = false
+
+
+## Sets the width of the box (within MIN_WIDTH and MAX_WIDTH) and keeps it in
+## the settings file. The dark box shows for a moment, so the player sees the
+## new size while moving the slider, even before the first line came.
+func set_width(value: float) -> void:
+	width = _clamped(value)
+	_apply_width()
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_FILE)
+	cfg.set_value("protokoll", "breite", width)
+	cfg.save(SETTINGS_FILE)
+	visible = true
+	_since_touch = 0.0
+	if _scroll > 0.0:
+		# Narrower lines wrap into more rows: keep the scroll within them.
+		scroll_to.call_deferred(_scroll)
+
+
+## Takes the width read by load_settings (the box is made before it is read).
+func use_saved_width() -> void:
+	_apply_width()
+
+
+func _apply_width() -> void:
+	custom_minimum_size = Vector2(width, HEIGHT)
+	size = custom_minimum_size
 
 
 ## Something the hero found, already translated.
@@ -214,3 +262,7 @@ func _process(delta: float) -> void:
 	var want := 1.0 if _since_touch < FRAME_STAY else 0.0
 	if _frame != want:
 		_show_frame(move_toward(_frame, want, delta * FRAME_FADE))
+	elif want == 0.0 and _lines.get_child_count() == 0:
+		# Shown only to preview its width (set_width): hidden again until the
+		# first line comes.
+		visible = false

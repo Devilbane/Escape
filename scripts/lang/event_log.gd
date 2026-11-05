@@ -13,5 +13,7 @@ const EN := {
 	"Härtung %s: Jeder Treffer gegen dich wird um so viel schwächer, bleibt aber mindestens halb so stark.": "Hardening %s: every hit on you is that much weaker, but keeps at least half its force.",
 	"Abgenutzt: %s Teil(e) deiner Ausrüstung. Plane beim Schlafen „Ausrüstung ausbessern“ ein, sonst zerbrechen sie.": "Worn: %s piece(s) of your gear. Plan \"Mend gear\" when you sleep, or they will break.",
 	"Hagen der Steinmetz kann jetzt einen Ausbau für dein Haus bauen.": "Hagen the stonemason can build an upgrade for your house now.",
+	"Protokoll": "Log",
+	"Breite des Ereignisprotokolls links": "Width of the event log on the left",
 	"Seltene Beute: %s (%s)": "Rare loot: %s (%s)",
 }

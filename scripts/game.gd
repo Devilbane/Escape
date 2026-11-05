@@ -44,6 +44,10 @@ var _sound_button: Button
 var _music_button: Button
 var _music_slider: HSlider
 var _effects_slider: HSlider
+var _log_width_slider: HSlider
+## The width of the labels in front of the pull-out menu's sliders, room for
+## the longest in both languages ("Protokoll").
+const SLIDER_LABEL_WIDTH := 90.0
 ## The pull-out menu on the right edge of the screen that holds all the
 ## clickable buttons, its handle, and how far it is pulled out (0 to 1).
 var _drawer: HBoxContainer
@@ -507,6 +511,9 @@ func _ready() -> void:
 			if line.begins_with("building:") and not interiors.has(line.substr(9).strip_edges()):
 				interiors[line.substr(9).strip_edges()] = i
 	_setup_world()
+	# The event log's width is the player's (the slider in the pull-out menu).
+	EventLog.load_settings()
+	event_log.use_saved_width()
 	_setup_hud()
 	tutorial.setup(_hud)
 	writing_card.setup(_hud)
@@ -784,6 +791,7 @@ func _setup_drawer() -> void:
 		b.add_theme_font_size_override("font_size", UiKit.sized(18))
 	column.add_child(_make_music_slider())
 	column.add_child(_make_effects_slider())
+	column.add_child(_make_log_width_slider())
 	_update_music_controls()
 	_update_drawer_handle()
 	_place_drawer(0.0)
@@ -2899,6 +2907,12 @@ func _toggle_music() -> void:
 
 ## A row with a volume: a label and a slider from silent to full.
 func _make_volume_row(title: String, tooltip: String, value: float, on_change: Callable) -> HBoxContainer:
+	return _make_slider_row(title, tooltip, value, 0.0, 1.0, 0.05, on_change)
+
+
+## A row of the pull-out menu's settings: a label and a slider. Every row's
+## label takes the same width, so the sliders line up.
+func _make_slider_row(title: String, tooltip: String, value: float, low: float, high: float, step: float, on_change: Callable) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	var label := Label.new()
@@ -2906,13 +2920,12 @@ func _make_volume_row(title: String, tooltip: String, value: float, on_change: C
 	label.add_theme_font_override("font", TEXT_FONT)
 	label.add_theme_font_size_override("font_size", UiKit.sized(18))
 	label.add_theme_color_override("font_color", GOLD)
-	# Both rows' labels take the same width, so the sliders line up.
-	label.custom_minimum_size = Vector2(90, 0)
+	label.custom_minimum_size = Vector2(SLIDER_LABEL_WIDTH, 0)
 	row.add_child(label)
 	var slider := HSlider.new()
-	slider.min_value = 0.0
-	slider.max_value = 1.0
-	slider.step = 0.05
+	slider.min_value = low
+	slider.max_value = high
+	slider.step = step
 	slider.focus_mode = Control.FOCUS_NONE
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -2928,6 +2941,14 @@ func _make_volume_row(title: String, tooltip: String, value: float, on_change: C
 func _make_music_slider() -> Control:
 	var row := _make_volume_row("Musik", "Lautstärke der Musik", Music.volume, _on_music_volume_changed)
 	_music_slider = row.get_child(1)
+	return row
+
+
+## The event log's width row: from narrow to the widest that keeps clear of
+## the message line (see EventLog.set_width).
+func _make_log_width_slider() -> Control:
+	var row := _make_slider_row("Protokoll", "Breite des Ereignisprotokolls links", EventLog.width, EventLog.MIN_WIDTH, EventLog.MAX_WIDTH, EventLog.WIDTH_STEP, event_log.set_width)
+	_log_width_slider = row.get_child(1)
 	return row
 
 

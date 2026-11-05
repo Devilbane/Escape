@@ -3023,6 +3023,40 @@ func grid_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
 	return ids
 
 
+## The tiles that lead out of a floor: the stairs out, up and down, and the
+## way down in a mine. A frightened hero runs for the nearest (see flee_path).
+const EXITS := "E<>^"
+## How far a frightened hero runs straight away from the fright where no
+## way out can be reached (metres).
+const FLEE_AWAY := 14.0
+
+
+## Where a frightened hero at `from` runs (see Player.scare): along the
+## shortest path to the nearest way out, or straight away from `threat`
+## where there is none.
+func flee_path(from: Vector3, threat: Vector3) -> Array[Vector3]:
+	var here := world_to_cell(from)
+	var best: Array[Vector2i] = []
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if not cell_char(c) in EXITS or c == here:
+				continue
+			var cells := grid_path(here, c)
+			if cells.size() > 1 and (best.is_empty() or cells.size() < best.size()):
+				best = cells
+	var out: Array[Vector3] = []
+	for c in best.slice(1):
+		out.append(cell_to_world(c))
+	if out.is_empty():
+		var away := from - threat
+		away.y = 0.0
+		if away.length() < 0.01:
+			away = Vector3.FORWARD
+		out.append(from + away.normalized() * FLEE_AWAY)
+	return out
+
+
 ## Judges again which tiles the blocks wall off: those they stand on and
 ## those they walled off before.
 func refresh_stone_paths() -> void:

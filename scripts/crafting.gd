@@ -76,6 +76,10 @@ const INGREDIENTS := {
 		"where": "Spinnen tragen sie unter dem Leib. Manchmal bleibt eines heil, wenn eine fällt."},
 	"schleimgelee": {"name": "Schleimgelee", "tier": "normal", "region": "Verlies", "when": "", "source": "Beute der Schleime",
 		"where": "Ein zäher, essbarer Klumpen, den manchmal ein Schleim zurücklässt."},
+	"ektoplasma": {"name": "Ektoplasma", "tier": "normal", "region": "Verlies", "when": "", "source": "Beute der Geister",
+		"where": "Ein kalter, schimmernder Rest, der manchmal bleibt, wenn ein Totengeist oder eine Banshee verweht."},
+	"grabstaub": {"name": "Grabstaub", "tier": "normal", "region": "Verlies", "when": "", "source": "Beute der Ghule",
+		"where": "Ghule wühlen in alten Gräbern. Manchmal rieselt ein Häufchen davon aus ihren Krallen, wenn einer fällt."},
 	# Of the mountains (uncommon), like the other ingredients a beast leaves
 	# from where it lives.
 	"edelweiss": {"name": "Edelweiß", "tier": "ungewoehnlich", "region": "Gebirge", "when": "", "source": "Beute der Bergtiere",
@@ -91,6 +95,12 @@ const INGREDIENTS := {
 		"where": "Selten bleibt ein Flügel heil, wenn eine Fledermaus fällt. Eine Trophäe, oder etwas für ein Handwerk."},
 	"schleimkern": {"name": "Schleimkern", "tier": "selten", "region": "Verlies", "when": "", "source": "Beute der Schleime",
 		"where": "Der harte Kern eines Schleims, selten heil. Eine Trophäe, oder etwas für ein Handwerk."},
+	"geisterschleier": {"name": "Geisterschleier", "tier": "selten", "region": "Verlies", "when": "", "source": "Beute der Totengeister",
+		"where": "Ein Fetzen Nebel, der nicht verweht. Selten bleibt er zurück, wenn ein Totengeist fällt. Eine Trophäe, oder etwas für ein Handwerk."},
+	"bansheehaar": {"name": "Bansheehaar", "tier": "selten", "region": "Verlies", "when": "", "source": "Beute der Banshees",
+		"where": "Eine bleiche Strähne, kalt wie Eis. Selten bleibt sie zurück, wenn eine Banshee verstummt. Eine Trophäe, oder etwas für ein Handwerk."},
+	"ghulkralle": {"name": "Ghulkralle", "tier": "selten", "region": "Verlies", "when": "", "source": "Beute der Ghule",
+		"where": "Selten bleibt eine Kralle heil, wenn ein Ghul fällt. Eine Trophäe, oder etwas für ein Handwerk."},
 	# Raw ore from trolls and the beasts of the mountains (see Ore): each
 	# lump has its own weight and make-up, kept in `ores`.
 	"erzbrocken_klein": {"name": "Kleiner Erzbrocken", "store": "metall", "tier": "normal", "region": "Gebirge", "when": "", "source": "Beute der Trolle und Bergwesen",

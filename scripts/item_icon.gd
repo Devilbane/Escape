@@ -37,6 +37,7 @@ const INGREDIENT_ICONS := {
 	"barsch": "fish", "goldkarpfen": "fish", "silberhecht": "fish", "mondforelle": "fish",
 	"mondsilbererz": "ore", "mondstein": "gem",
 	"holzkohle": "coal", "kalkstein": "lime",
+	"ektoplasma": "potion",
 }
 
 

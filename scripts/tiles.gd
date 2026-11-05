@@ -65,6 +65,10 @@ const DUNGEON := {
 	# The spider hole (see SpiderQueen).
 	"u": "spider (throws webs), see Enemy.LETTERS",
 	"q": "the Spider Queen (the boss at the bottom of the spider hole)",
+	# The ghosts and ghouls of the deep dungeon (see Enemy._ghostly).
+	"r": "wraith (see-through until it notices the hero, its touch curses), see Enemy.LETTERS",
+	"n": "banshee (wailing orbs from afar, her shriek wakes the monsters nearby)",
+	"l": "ghoul (quick, poisoned claws)",
 	# The mountain mines (see Mines).
 	"J": "rock troll (big, slow, hits very hard), see Enemy.LETTERS",
 	"O": "mountain orc (armoured)",

@@ -34,8 +34,11 @@ const KINDS := {
 	# The dead: skeletons of every size.
 	"krieger": "undead", "schuetze": "undead", "magier": "undead", "wicht": "undead",
 	"koloss": "undead", "waechter": "undead",
-	# What is left of the dead when no bones are left: wraiths in the fog.
-	"fog_wraith": "ghosts",
+	# The dead who keep their flesh: ghouls, eaters of corpses.
+	"ghul": "undead",
+	# What is left of the dead when no bones are left: wraiths in the fog,
+	# and the wraiths and banshees of the deep dungeon.
+	"fog_wraith": "ghosts", "totengeist": "ghosts", "banshee": "ghosts",
 	# Robbers of the pass and the cliff archers of the mountain road.
 	"halsabschneider": "bandits", "wilderer": "bandits", "schlaeger": "bandits", "hauptmann": "bandits",
 	"klippenschuetze": "bandits",

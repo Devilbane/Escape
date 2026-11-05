@@ -178,7 +178,8 @@ var _knife_settle := 0.0
 ## few seconds but never the last one; a curse ("fluch") slows the hero;
 ## burning ("brand", from the dragon's fire) takes a life every
 ## BURN_TICK seconds for a few seconds, never the last one either; a spider's
-## web ("netz") makes the hero much slower for a few seconds.
+## web ("netz") makes the hero much slower for a few seconds; fear ("angst",
+## see scare) makes the hero flee towards the nearest way out for FEAR_TIME.
 ## All wear off soon; a fountain, a shrine or a healing potion cures them.
 var ailments := {}
 var _poison_tick := 0.0
@@ -817,7 +818,7 @@ func walk_to(target: Vector3, stop_short := 0.0) -> void:
 
 
 func can_act() -> bool:
-	return controllable and not frozen and not dead and _busy <= 0.0
+	return controllable and not frozen and not dead and _busy <= 0.0 and not is_afraid()
 
 
 ## How many seconds the hero can run with full breath: Konstitution x 2.
@@ -1555,21 +1556,33 @@ func _show_tint(slot: String, parts: Array) -> void:
 const AILMENT_TIME := 20.0
 const POISON_TICK := 8.0
 const CURSE_SLOW := 0.85
-const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0), "brand": Color(1.0, 0.5, 0.15), "netz": Color(0.93, 0.93, 0.86)}
+const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0), "brand": Color(1.0, 0.5, 0.15), "netz": Color(0.93, 0.93, 0.86),
+	"angst": Color(0.7, 0.85, 1.0)}
 ## Burning is short but fierce.
 const BURN_TIME := 4.5
 const BURN_TICK := 1.5
 ## A spider's web sticks only briefly, but slows the hero a lot.
 const WEB_TIME := 3.0
 const WEB_SLOW := 0.55
-const AILMENT_WORDS := {"gift": "Vergiftet!", "fluch": "Verflucht!", "brand": "Brennt!", "netz": "Eingesponnen!"}
+const AILMENT_WORDS := {"gift": "Vergiftet!", "fluch": "Verflucht!", "brand": "Brennt!", "netz": "Eingesponnen!", "angst": "Verängstigt!"}
+## Fear (see scare): the hero runs for the nearest way out for FEAR_TIME
+## seconds, and cannot be frightened again for FEAR_CALM seconds after.
+const FEAR_TIME := 3.0
+const FEAR_CALM := 8.0
+## Each point of the Erkunden skill counts this many times towards the
+## hero's nerve (see nerve).
+const NERVE_PER_EXPLORE := 2
+## Where a frightened hero runs (see scare), and the seconds before the hero
+## can be frightened again.
+var _flee: Array[Vector3] = []
+var _fear_calm := 0.0
 
 
 func afflict(kind: String) -> void:
 	if dead:
 		return
 	var fresh := not ailments.has(kind)
-	ailments[kind] = BURN_TIME if kind == "brand" else WEB_TIME if kind == "netz" else AILMENT_TIME
+	ailments[kind] = BURN_TIME if kind == "brand" else WEB_TIME if kind == "netz" else FEAR_TIME if kind == "angst" else AILMENT_TIME
 	if fresh:
 		if kind == "gift":
 			_poison_tick = POISON_TICK
@@ -1577,6 +1590,42 @@ func afflict(kind: String) -> void:
 			_burn_tick = BURN_TICK
 		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t(AILMENT_WORDS[kind]), AILMENT_COLORS[kind])
 		_ailments_changed()
+
+
+## The hero's nerve against a ghost's fright (see scare): Weisheit, Intuition
+## and the Erkunden skill, a well-travelled, wise and wary mind.
+func nerve() -> int:
+	return attribute("weisheit") + attribute("intuition") + NERVE_PER_EXPLORE * skill("erkunden")
+
+
+## A ghost tries to frighten the hero (see Enemy.scare_strength). The fright
+## (its `strength` and a roll of 1..20) is set against the hero's nerve and a
+## roll of 1..20: a hero who stands firm says so and grows a little wiser;
+## one who does not runs for the nearest way out for FEAR_TIME seconds, away
+## from `from` where there is none (see Level.flee_path). Returns whether
+## the hero was frightened. `roll` (two numbers, the ghost's and the hero's)
+## is for the tests.
+func scare(from: Vector3, strength: int, roll: Array = []) -> bool:
+	if dead or level == null or ailments.has("angst") or _fear_calm > 0.0:
+		return false
+	var ghost: int = roll[0] if roll.size() == 2 else randi_range(1, 20)
+	var hero: int = roll[1] if roll.size() == 2 else randi_range(1, 20)
+	if strength + ghost <= nerve() + hero:
+		Effects.head_text(level, self, 3.0, Lang.t("Standhaft!"), AILMENT_COLORS.angst)
+		train("weisheit", 1.0)
+		return false
+	_fear_calm = FEAR_CALM
+	path.clear()
+	_hunt = null
+	_target = null
+	_flee = level.flee_path(global_position, from)
+	afflict("angst")
+	return true
+
+
+## Whether the hero is running in fear (see scare).
+func is_afraid() -> bool:
+	return ailments.has("angst") and not dead
 
 
 ## Cures one ailment, or all of them; true if there was anything to cure.
@@ -1683,7 +1732,7 @@ func _ailments_changed() -> void:
 	var old := get_node_or_null("AilmentHaze")
 	if old:
 		old.free()
-	for kind in ["netz", "brand", "gift", "fluch"]:
+	for kind in ["angst", "netz", "brand", "gift", "fluch"]:
 		if ailments.has(kind):
 			var haze := Effects.make_sparkles(AILMENT_COLORS[kind])
 			haze.name = "AilmentHaze"
@@ -2148,12 +2197,24 @@ func _keyboard_direction() -> Vector3:
 	return Vector3(x, 0, z).normalized()
 
 
+## The next step of a frightened hero's run along the flee path.
+func _flee_step() -> Vector3:
+	while not _flee.is_empty():
+		var to := _flee[0] - global_position
+		to.y = 0.0
+		if to.length() > 0.4:
+			return to.normalized()
+		_flee.remove_at(0)
+	return Vector3.ZERO
+
+
 func _physics_process(delta: float) -> void:
 	if frozen:
 		return
 	_busy = maxf(0.0, _busy - delta)
 	_flourish = maxf(0.0, _flourish - delta)
 	_invulnerable = maxf(0.0, _invulnerable - delta)
+	_fear_calm = maxf(0.0, _fear_calm - delta)
 	fight_cooldown = maxf(0.0, fight_cooldown - delta)
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_auto_cooldown = maxf(0.0, _auto_cooldown - delta)
@@ -2191,6 +2252,8 @@ func _physics_process(delta: float) -> void:
 				to = path[0] - global_position
 				to.y = 0.0
 				dir = to.normalized()
+	if is_afraid() and controllable and _busy <= 0.0:
+		dir = _flee_step()
 	_breathe(delta, dir != Vector3.ZERO)
 	var vy := velocity.y - GRAVITY * delta
 	if is_on_floor():

@@ -123,7 +123,7 @@ const KEEP_AWAY := 3
 ## corner tiles (so the ring around it is unbroken but for one corner), must
 ## be one of these: open floor, a coin, the key or a
 ## monster's spot. So there is always a way around a trap.
-const AROUND_OK := ".,cKMAZwGWvsJOeig"
+const AROUND_OK := ".,cKMAZwGWvsJOeigrnl"
 const AROUND_DIAGONALS := 3
 ## How much longer a path over a known trap counts (see Level.SPIKE_DETOUR).
 const DETOUR := 6.0

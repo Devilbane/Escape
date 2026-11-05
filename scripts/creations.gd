@@ -33,7 +33,7 @@ const USER_DIR := "user://karten/"
 ## dragon's fire breath, the bandit chief's charge, the Mountain King's rage)
 ## and shows its health bar at the top; it takes the creation's name there.
 const MONSTER_FAMILIES := [
-	["Untote", ["krieger", "schuetze", "magier", "wicht", "koloss", "waechter", "fog_wraith"]],
+	["Untote", ["krieger", "schuetze", "magier", "wicht", "koloss", "waechter", "fog_wraith", "totengeist", "banshee", "ghul"]],
 	["Räuber", ["halsabschneider", "wilderer", "schlaeger", "klippenschuetze", "hauptmann"]],
 	["Tiere der Wildnis", ["wolf", "ork", "yeti", "spinne", "spinnenkoenigin"]],
 	["Drachenhöhle", ["fledermaus", "schleim", "drache"]],
@@ -43,7 +43,7 @@ const MONSTER_FAMILIES := [
 ]
 ## Every base, in the order of MONSTER_FAMILIES (tests/level_editor.gd checks
 ## that the two agree and that every kind that fights is here).
-const MONSTER_BASES := ["krieger", "schuetze", "magier", "wicht", "koloss", "waechter", "fog_wraith",
+const MONSTER_BASES := ["krieger", "schuetze", "magier", "wicht", "koloss", "waechter", "fog_wraith", "totengeist", "banshee", "ghul",
 		"halsabschneider", "wilderer", "schlaeger", "klippenschuetze", "hauptmann",
 		"wolf", "ork", "yeti", "spinne", "spinnenkoenigin",
 		"fledermaus", "schleim", "drache",
@@ -57,7 +57,7 @@ const MONSTER_BOSSES := ["hauptmann", "drache", "bergkoenig", "spinnenkoenigin"]
 const MONSTER_NAMES := {
 	"krieger": "Skelettkrieger", "schuetze": "Skelettschütze", "magier": "Skelettmagier",
 	"wicht": "Skelettwicht", "koloss": "Skelettkoloss", "waechter": "Wächter in Rüstung",
-	"fog_wraith": "Nebelgeist",
+	"fog_wraith": "Nebelgeist", "totengeist": "Totengeist", "banshee": "Banshee", "ghul": "Ghul",
 	"halsabschneider": "Halsabschneider", "wilderer": "Wilderer", "schlaeger": "Schläger",
 	"klippenschuetze": "Klippenschütze", "hauptmann": "Räuberhauptmann",
 	"wolf": "Wolf", "ork": "Ork", "yeti": "Yeti", "spinne": "Spinne", "spinnenkoenigin": "Spinnenkönigin",

@@ -358,6 +358,27 @@ has no wall torches. A guardian in a level without `K` drops the key when it die
 
 Searched barrels, crates, tables and chests can be recognised by coins and a torn sheet in front of them.
 
+### Ghosts and ghouls
+
+Deeper down the dead do not rest. In **the crypt**, **the catacombs**, **the bone pit** and **the open
+grave** under the graveyard you meet:
+
+- **Wraiths**: see-through white spirits with a neon green glow, hovering without feet. A wraith that has
+  not noticed you is only a faint shimmer with two glowing eyes. Once it spots you it flares up, and its
+  cold touch can **curse** you (slower for a while).
+- **Banshees**: wailing spirits that keep their distance and throw wailing orbs that follow you, like the
+  skeleton mages. When a banshee first sees you she **shrieks** and wakes every monster nearby.
+- **Ghouls**: hunched, grey corpse-eaters. Quick, and their claws can **poison** you.
+
+Ghosts (wraiths, banshees and the fog wraiths above ground) float over spike traps and make no footsteps.
+Once one has spotted you, **walls and closed doors no longer stop it**: it drifts straight through them
+at you. A ghost can also **frighten** you: its fright (stronger for a stronger kind, a higher level and an
+elite) is rolled against your nerve, which is your **Wisdom**, **Intuition** and twice your **Exploring**
+skill. If your nerve fails you are **frightened** for 3 seconds: you run for the nearest way out (the
+stairs) and cannot fight. A hero who stands firm grows a little wiser. Ghosts carry no coins: they leave
+ectoplasm, a crypt herb or, rarely, a wraith's veil or a banshee's hair; ghouls leave grave dust, a crypt
+herb or a ghoul's claw.
+
 ## Beyond the gate: freedom
 
 Whoever climbs the last stairs steps out of a **crypt** onto an old graveyard under the evening sky. The crypt,
@@ -626,7 +647,7 @@ more gold and sometimes a piece of gear.
 Not all monsters are on the same side. Every kind belongs to a **faction**, and some factions hate each
 other: when rivals meet, they fight, and whoever wins leaves the loser's loot lying for you.
 
-- **The dead** (skeletons, fog wraiths) hate everything that lives.
+- **The dead** (skeletons, fog wraiths, wraiths, banshees and ghouls) hate everything that lives.
 - **The bandits** of the pass and **the beasts of the wolf hollow** (wolves, orcs, spiders, the yeti)
   are at war. Lure a wolf onto the pass, or let it find a bandit on its own, and watch them go at it.
   The beasts share their hollow in peace.

@@ -9,6 +9,7 @@ extends Control
 ##   "fluch"    cursed: a violet eye
 ##   "brand"    burning: a flame
 ##   "netz"     webbed (a spider's web): a cobweb
+##   "angst"    frightened by a ghost (see Player.scare): a white ghost with a green glow
 ##   "slow"     slower: boots with an arrow down
 ##   "bauch"    too much water (see BloatedBelly): a round, full belly with
 ##              a drop, with the time left
@@ -127,6 +128,17 @@ func _draw() -> void:
 			draw_circle(c + Vector2(-0.5, 3.5), 1.1, Color(0.45, 0.28, 0.22))
 			draw_circle(c + Vector2(6.0, -6.5), 2.6, water)
 			draw_colored_polygon(PackedVector2Array([c + Vector2(6.0, -11.0), c + Vector2(8.4, -7.3), c + Vector2(3.6, -7.3)]), water)
+		"angst":
+			# A little ghost: a white sheet with a wavy hem, dark eyes, a green glow.
+			draw_circle(c + Vector2(0, -1), 10.5, Color(0.3, 1.0, 0.45, 0.25))
+			var sheet := PackedVector2Array()
+			for i in 13:
+				sheet.append(c + Vector2(0, -2) + Vector2.from_angle(PI + PI * i / 12.0) * 7.0)
+			for i in 7:
+				sheet.append(c + Vector2(7.0 - i * 14.0 / 6.0, 8.0 - (i % 2) * 2.5))
+			draw_colored_polygon(sheet, Color(0.95, 1.0, 0.97))
+			draw_circle(c + Vector2(-2.6, -2.5), 1.4, Color(0.05, 0.15, 0.08))
+			draw_circle(c + Vector2(2.6, -2.5), 1.4, Color(0.05, 0.15, 0.08))
 		"netz":
 			# A cobweb: eight spokes and three rings of silk.
 			var silk := Color(0.93, 0.93, 0.86)

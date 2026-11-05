@@ -369,6 +369,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/spider_webs.gd | tee webs.log
           grep -q PASS webs.log
 
+      - name: Ghosts and ghouls test
+        run: |
+          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/ghosts.gd | tee ghosts.log
+          grep -q PASS ghosts.log
+
       - name: Monster rivals and befriending test
         run: |
           timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/factions.gd | tee factions.log

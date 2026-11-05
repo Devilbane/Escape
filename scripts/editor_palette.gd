@@ -13,7 +13,7 @@ const GROUPS := [
 	["Fallen und Rätsel", "S_QT"],
 	["Schätze", "cCkU&$"],
 	["Einrichtung", "bxotfHFBLmhV+NXy"],
-	["Monster", "MAZwGWvsuqJOeigRYd@"],
+	["Monster", "MAZwGWrnlvsuqJOeigRYd@"],
 	["Eigene Geschöpfe", "1234567890"],
 ]
 
@@ -30,6 +30,7 @@ const NAMES := {
 	"M": "Skelettkrieger", "A": "Skelettschütze", "Z": "Skelettmagier", "w": "Skelettwicht",
 	"G": "Skelettkoloss", "W": "Wächter in Rüstung", "v": "Fledermaus", "s": "Schleim",
 	"u": "Spinne", "q": "Spinnenkönigin",
+	"r": "Totengeist", "n": "Banshee", "l": "Ghul",
 	"J": "Felstroll", "O": "Bergork", "e": "Eiswolf", "i": "Kristallschleim", "g": "Glutschleim",
 	"R": "Drache", "Y": "Bergkönig",
 	"&": "Epische Schatztruhe", "$": "Hort des Großen Alten", "d": "Brutdrache", "@": "Der Große Alte",

@@ -185,6 +185,8 @@ const TORCH_TOUCH := 1.6
 var _spikes: Array = []
 ## The hidden traps of this level (see Traps), or null.
 var traps: Traps = null
+## The flame jets in the walls of this level (see FlameJets), or null.
+var flame_jets: FlameJets = null
 var _pickups: Array = []
 var interactables: Array = []
 ## What the hero already took here: ids of searched furniture and picked up
@@ -589,6 +591,9 @@ func build() -> void:
 	traps = Traps.make(self)
 	if traps:
 		add_child(traps)
+	flame_jets = FlameJets.make(self)
+	if flame_jets:
+		add_child(flame_jets)
 
 
 # --- Keeping the way free ---------------------------------------------------

@@ -319,6 +319,13 @@ mark and you merely sense a trap, a good one shows it plainly and names its modi
 and gives a little experience; your path goes around a known trap, and a jump (Space) carries you over it
 safely. A trap you step on unawares shows itself plainly. Known traps stay marked on later visits.
 
+In the catacombs, the blade hall, the gate, the dragon's lair and the scorched halls, iron **flame jets** sit in
+the walls. They are never hidden: a strip of soot on the floor shows the lane each one fires across, straight to
+the wall opposite (2 to 5 tiles). Each runs on its own steady beat: 3 seconds quiet, 1 second of warning (the
+nozzle and the soot strip glow red and the mechanism clicks), then 1.5 seconds of fire. The fire hurts once per
+blast, as much as the place's spike traps, and sets you burning. Jumping does not help, but Dexterity may still
+let you twist aside: read the warning and cross while the jet is quiet.
+
 You only see what lies in your line of sight and has light: a burning torch nearby or
 your own lantern. Dark corners stay black; skeletons in them you only hear by their footsteps.
 Areas you have already explored stay visible in grey. Some torches burn, some do not: run into

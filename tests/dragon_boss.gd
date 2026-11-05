@@ -79,6 +79,10 @@ func _process(_delta: float) -> bool:
 			check(dragon.max_hp() >= 30, "the dragon is tough (%d life)" % dragon.max_hp())
 			check(lvl.dragon_bar != null and not lvl.dragon_bar.wanted(), "its health bar waits until the fight starts")
 			lvl.dragon_awakened.connect(func(_d): awakened += 1)
+			# These checks are about the dragon's own rules: leave out the
+			# hardening of whatever gear it rolled (see Level._roll_gear, which
+			# picks from every item, so new armour pieces change what it wears).
+			dragon.hardening = 0
 			# A stab in the back of the sleeping dragon only hurts it.
 			var behind := dragon.global_position - dragon.ahead() * 2.0
 			check(dragon.open_to_backstab(behind), "the sleeping dragon can be stabbed in the back")

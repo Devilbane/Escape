@@ -94,7 +94,7 @@ func _run() -> void:
 	game.iron = 0
 	game.bars = {}
 	game.metal_grams = {}
-	game.coins = 100
+	game.coins = 300
 	game.menus.open("schmied")
 	check(game.menus.current == "schmied", "the smith's window opens")
 	check(game.lore.has(Forge.LEARN), "the compendium tells about the forge")
@@ -115,12 +115,12 @@ func _run() -> void:
 	check(cost.iron == 6, "a 6 kg iron cap takes 6 iron bars, one per kilo")
 	game.iron = cost.iron + 2
 	game.menus._forge("eisenhaube")
-	check(p.bag.has("eisenhaube") and game.iron == 2 and game.coins == 100 - cost.gold, "iron and gold become an iron cap (%d iron, %d gold)" % [game.iron, game.coins])
+	check(p.bag.has("eisenhaube") and game.iron == 2 and game.coins == 300 - cost.gold, "iron and gold become an iron cap (%d iron, %d gold)" % [game.iron, game.coins])
 	game.iron = 0
 	game.menus._forge("schwert")
-	check(not p.bag.has("schwert") and game.coins == 100 - cost.gold, "without iron nothing is forged")
+	check(not p.bag.has("schwert") and game.coins == 300 - cost.gold, "without iron nothing is forged")
 	game.menus._buy_iron(5)
-	check(game.iron == 5 and game.coins == 100 - cost.gold - 5 * Forge.IRON_PRICE, "iron bars can be bought")
+	check(game.iron == 5 and game.coins == 300 - cost.gold - 5 * Forge.IRON_PRICE, "iron bars can be bought")
 	while p.bag.size() < p.bag_size():
 		p.bag.append("lederwams")
 	game.menus._forge("schwert")

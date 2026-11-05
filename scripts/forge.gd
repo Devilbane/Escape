@@ -103,7 +103,8 @@ const STEEL_XP := 6.0
 
 
 ## The slots of metal armour, priced by the iron in it (see armour_iron).
-const ARMOUR_SLOTS := ["schild", "kopf", "ruestung"]
+## Gloves and shoes join them for the iron and steel armour sets.
+const ARMOUR_SLOTS := ["schild", "kopf", "ruestung", "handschuhe", "schuhe"]
 
 
 ## Whether a piece is steel gear: forged from steel bars, melted into them.

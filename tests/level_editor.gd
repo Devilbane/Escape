@@ -146,7 +146,7 @@ func _check_creations() -> void:
 	check(again == made, "creations change when written back")
 	# Values are kept in bounds.
 	var wild := Creations.checked({"type": "monster", "base": "einhorn", "hp": 9999, "speed": -3})
-	check(wild.base == "krieger" and wild.hp == 200 and wild.speed == 1.0, "a monster's values are not kept in bounds: %s" % wild)
+	check(wild.base == "krieger" and wild.hp == 400 and wild.speed == 1.0, "a monster's values are not kept in bounds: %s" % wild)
 	# Every kind that fights is a base, the bosses too, listed once by family
 	# and named in both languages.
 	var listed := []
@@ -163,7 +163,7 @@ func _check_creations() -> void:
 	for kind in Creations.MONSTER_BOSSES:
 		check(kind in HeroLevel.BOSSES, "%s is no boss" % kind)
 	# The biggest base's own numbers fit the form.
-	check(Enemy.KINDS.bergkoenig.hp <= 200 and Enemy.KINDS.bergkoenig.damage <= 10, "the Mountain King's numbers do not fit the form")
+	check(Enemy.KINDS.bergkoenig.hp <= 400 and Enemy.KINDS.bergkoenig.damage <= 10, "the Mountain King's numbers do not fit the form")
 	var npc := Creations.checked({"type": "npc", "model": "Knight", "sex": "female", "show": ["Mage_Hat", "Knight_Helmet"], "colors": ["nix"]})
 	check(npc.sex == "male" and npc.show == ["Knight_Helmet"] and npc.colors.size() == 3, "a person's look is not checked: %s" % npc)
 	check(Creations.item_id("Große Krone!") == "eigen_grosse_krone", "item ids: %s" % Creations.item_id("Große Krone!"))

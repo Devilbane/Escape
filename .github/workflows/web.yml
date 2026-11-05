@@ -269,6 +269,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log
           grep -q PASS slots.log
 
+      - name: Drip puddles test (a step into one splashes)
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/drip_puddles.gd | tee drip_puddles.log
+          grep -q PASS drip_puddles.log
+
       - name: Stay awake and save test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/stay_awake.gd | tee stay_awake.log

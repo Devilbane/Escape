@@ -50,8 +50,10 @@ static func hardening(equipped: Dictionary) -> int:
 	return int(SETS.get(worn(equipped), {}).get("hardening", 0))
 
 
-## A set's name in the player's language ("" for none).
-static func set_name(kind: String) -> String:
+## A set's name in the player's language ("" for none). Not "set_name":
+## called from another script, that would be the script resource's own
+## Resource.set_name and give nothing back.
+static func title(kind: String) -> String:
 	return Lang.t(SETS[kind].name) if SETS.has(kind) else ""
 
 
@@ -75,7 +77,7 @@ static func pieces_worn(equipped: Dictionary, kind: String) -> int:
 static func summary(equipped: Dictionary) -> String:
 	var kind := worn(equipped)
 	if kind != "":
-		return Lang.t("%s: %s") % [set_name(kind), bonus_text(kind)]
+		return Lang.t("%s: %s") % [title(kind), bonus_text(kind)]
 	return Lang.t("Kein Rüstungsset")
 
 
@@ -98,5 +100,5 @@ static func change_news(before: String, after: String) -> String:
 	if before == after:
 		return ""
 	if after != "":
-		return Lang.t("%s vollständig: %s") % [set_name(after), bonus_text(after)]
-	return Lang.t("%s abgelegt: der Setbonus ist weg") % set_name(before)
+		return Lang.t("%s vollständig: %s") % [title(after), bonus_text(after)]
+	return Lang.t("%s abgelegt: der Setbonus ist weg") % title(before)

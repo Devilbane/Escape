@@ -58,13 +58,19 @@ const SWALLOWED_COINS := 0.5
 ## are the hero's money (MONEY, counted in game.coins, see Crafting.have).
 ## The gold coins of old, now called ancient gold coins, are no more: every
 ## one is exchanged into a copper coin, one for one (see Game._apply_save).
-const COINS := {"eisenmuenze": "eisen", "kupfermuenze": "kupfer", "silbermuenze": "silber"}
+const COINS := {"eisenmuenze": "eisen", "kupfermuenze": "kupfer", "silbermuenze": "silber", "goldmuenze": "gold"}
+## New gold coins (not the ancient ones): only rare foes and finer, that is
+## elites, horrors and bosses, of GOLD_FROM_LEVEL and up carry them,
+## GOLD_COINS of them (see gold_coins).
+const GOLD_COIN := "goldmuenze"
+const GOLD_FROM_LEVEL := 25
+const GOLD_COINS := [1, 3]
 ## The coin that is the hero's money.
 const MONEY := "kupfermuenze"
 ## How many coins of one metal melt into one bar.
 const COINS_PER_BAR := 100
 ## How each coin looks lying on the floor.
-const COIN_COLORS := {"eisenmuenze": Color(0.6, 0.62, 0.66), "kupfermuenze": Color(0.85, 0.48, 0.28), "silbermuenze": Color(0.88, 0.9, 0.95)}
+const COIN_COLORS := {"eisenmuenze": Color(0.6, 0.62, 0.66), "kupfermuenze": Color(0.85, 0.48, 0.28), "silbermuenze": Color(0.88, 0.9, 0.95), "goldmuenze": Color(1.0, 0.8, 0.3)}
 
 ## What a beast leaves, by kind: "food" (common), "biome" (uncommon: one of
 ## these ingredients of where it lives) and "part" (rare: for a trophy or a
@@ -181,6 +187,15 @@ static func ore_find(kind: String, tough: float, roll := -1.0) -> String:
 	if not drops_ore(kind):
 		return ""
 	return Ore.lump_of_tier(roll_tier(tough, TOP_TIER, roll))
+
+
+## The new gold coins a fallen foe leaves: GOLD_COINS of them from an elite,
+## a horror or a boss (`rare`) whose fight is for level GOLD_FROM_LEVEL or
+## higher, none from anyone else.
+static func gold_coins(rare: bool, fight_level: int, rng: RandomNumberGenerator = null) -> int:
+	if not rare or fight_level < GOLD_FROM_LEVEL:
+		return 0
+	return rng.randi_range(GOLD_COINS[0], GOLD_COINS[1]) if rng else randi_range(GOLD_COINS[0], GOLD_COINS[1])
 
 
 ## Whether an ingredient is one of the coins.

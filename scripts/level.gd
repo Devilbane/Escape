@@ -3958,6 +3958,9 @@ func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0) -> Stri
 		found = Loot.creature_find(e.kind, tier)
 		if found != "":
 			lay_find(found, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), Rarity.color(found), 1, true)
+	# Rare foes and bosses of level 25 and up: a few new gold coins.
+	var gold_coins := Loot.gold_coins(e.elite or e.is_horror() or is_named_boss(e), e.rated_level)
+	_lay_pouch_coins(Loot.GOLD_COIN, gold_coins, pos + Vector3(-0.9, 0, 0.4))
 	# Trolls and the creatures of the mountains: maybe a lump of ore besides.
 	var ore := Loot.ore_find(e.kind, tough, ore_roll)
 	if ore != "":

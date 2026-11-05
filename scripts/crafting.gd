@@ -67,6 +67,8 @@ const INGREDIENTS := {
 		"where": "Jeder kluge Gegner trägt ein paar bei sich: Skelette, Banditen, Orks, Trolle und Drachen. Gorm schmilzt hundert davon zu einem Eisenbarren ein."},
 	"silbermuenze": {"name": "Silbermünze", "store": "metall", "tier": "ungewoehnlich", "region": "Überall", "when": "", "source": "Beute kluger Gegner",
 		"where": "Nur zähe kluge Gegner tragen sie öfter. Gorm schmilzt hundert davon zu einem Silberbarren ein."},
+	"goldmuenze": {"name": "Goldmünze", "store": "metall", "tier": "selten", "region": "Überall", "when": "", "source": "Beute seltener Gegner und Bosse",
+		"where": "Nur seltene Gegner und Bosse ab Stufe 25 tragen ein bis drei davon, frisch geprägt, nicht wie die uralten. Gorm schmilzt hundert davon zu einem Goldbarren ein."},
 	# Food (common), from the beasts.
 	"wildfleisch": {"name": "Wildfleisch", "tier": "normal", "region": "Wildnis", "when": "", "source": "Beute wilder Tiere",
 		"where": "Wölfe, Yetis und Fledermäuse lassen manchmal ein Stück zurück."},

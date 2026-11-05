@@ -118,6 +118,13 @@ func _test_coins() -> void:
 		slime_iron += 1 if Loot.coins("schleim", 0.1, rng).has("eisenmuenze") else 0
 	check(copper_tough > copper_weak, "tough foes carry copper more often (%d vs %d)" % [copper_tough, copper_weak])
 	check(slime_iron > 100 and slime_iron < 300, "a slime holds coins about half the time (%d of 400)" % slime_iron)
+	# New gold coins: 1 to 3 from rare foes and bosses of level 25 and up.
+	check(Loot.gold_coins(false, 40, rng) == 0, "plain foes carry no gold coins")
+	check(Loot.gold_coins(true, 24, rng) == 0, "rare foes below level 25 carry none")
+	for i in 50:
+		var g := Loot.gold_coins(true, 25, rng)
+		check(g >= 1 and g <= 3, "a rare foe of level 25 carries 1 to 3 gold coins (%d)" % g)
+	check(Rarity.tier(Loot.GOLD_COIN) == "selten" and Forge.METALS.has(Loot.COINS[Loot.GOLD_COIN]), "gold coins are rare and melt into gold")
 	for coin in Loot.COINS:
 		check(Crafting.INGREDIENTS.has(coin) != (coin == Loot.MONEY), "%s goes into the pouch, or is the money" % coin)
 		check(Forge.METALS.has(Loot.COINS[coin]), "%s melts into a real metal" % coin)

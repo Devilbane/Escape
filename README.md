@@ -178,7 +178,9 @@ foes, and those who use gear like yours (skeletons, bandits, orcs, trolls, drago
 **coins**: copper coins, your money, into your purse, iron and silver coins into the ingredient pouch,
 and a find is a piece of gear of that rarity. (The gold coins of old are now called **ancient gold
 coins**; every one you had is exchanged automatically into a copper coin, one for one, and every price
-in the game is paid in copper. Wherever this README still says gold for money, read copper.) Beasts without a mind (wolves, spiders, bats, yetis) carry no
+in the game is paid in copper. Wherever this README still says gold for money, read copper.) New **gold
+coins**, freshly minted, drop only from rare foes and bosses (elites, horrors, named bosses) of level 25
+and up, one to three at a time. Beasts without a mind (wolves, spiders, bats, yetis) carry no
 coins; a find is food such as meat (common), an ingredient of the place they live in (uncommon) or a
 part of their body for a trophy or a craft (rare), and mostly they leave nothing. Slimes are beasts too,
 but they swallow what their victims carried, so they also drop coins and gear. At the forge Gorm melts

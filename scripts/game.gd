@@ -2205,9 +2205,9 @@ func _new_day(quiet := false) -> void:
 ## A helper carried something off the open ground before the hero's eyes
 ## (see DragonHelpers): into the hoard. The first of a night gets a line in
 ## the event log, and the compendium learns of them.
-func _on_loot_carried_off(kind: String, id: String) -> void:
+func _on_loot_carried_off(kind: String, id: String, count := 1) -> void:
 	var first := int(hoard.tonight.things) == 0
-	hoard.gather(kind, id)
+	hoard.gather(kind, id, count)
 	if first:
 		Events.found(Lang.t("Kleine Drachlinge schwärmen aus dem Berg und tragen fort, was am Boden liegt."), DragonHoard.COLOR)
 		learn(DragonHoard.LORE)
@@ -2228,7 +2228,7 @@ func _dragon_morning(asleep := false) -> void:
 					var node: Node3D = level.take_from_floor(p)
 					if node:
 						node.queue_free()
-					hoard.gather(str(p.floor[0]), str(p.floor[1]))
+					hoard.gather(str(p.floor[0]), str(p.floor[1]), CoinPile.count_of(p.floor))
 			hoard.sweep(floors[key])
 	var to_elder := int(hoard.tonight.get("elder", 0)) > 0
 	var text := hoard.morning_report()
@@ -4517,11 +4517,56 @@ func _on_item_collected(id: String) -> void:
 	_update_hud()
 
 
-func _on_coins_collected(amount: int) -> void:
-	coins += _gold(amount)
-	Events.found(Lang.t("+%d Kupfer") % _gold(amount), GOLD)
-	Sfx.play_coins(self, _gold(amount))
+## Coins picked up off the floor. The money (copper, see Loot.MONEY) goes
+## into the purse, and the lucky clover doubles what was found, not what the
+## hero had put down themselves (`own`); the other metals go into the pouch.
+func _on_coins_collected(amount: int, metal := CoinPile.MONEY, own := 0) -> void:
+	own = clampi(own, 0, amount)
+	if metal != CoinPile.MONEY:
+		if Crafting.INGREDIENTS.has(metal):
+			_on_ingredient_collected(metal, amount, true)
+		return
+	var gained := _gold(amount - own) + own
+	coins += gained
+	Events.found(Lang.t("+%d Kupfer") % gained, GOLD)
+	Sfx.play_coins(self, gained)
 	_update_hud()
+
+
+## How many coins of `metal` the hero carries (gold in the purse, the other
+## metals in the ingredient pouch).
+func coins_held(metal: String) -> int:
+	if metal == CoinPile.MONEY:
+		return coins
+	return crafting.have(metal) if Crafting.INGREDIENTS.has(metal) else 0
+
+
+## The coin metals the hero can put down: gold always, the others while
+## carried.
+func coin_metals() -> Array:
+	return CoinPile.METALS.keys().filter(func(m): return m == CoinPile.MONEY or coins_held(m) > 0)
+
+
+## Puts `count` coins of `metal` down at the hero's feet, where they join a
+## pile of that metal lying there (see Level.lay_coins). It stays until the
+## hero steps away and comes back for it. Returns how many went down.
+func put_coins_down(metal: String, count: int) -> int:
+	count = clampi(count, 0, coins_held(metal))
+	if count <= 0 or level == null or player == null:
+		return 0
+	if metal == CoinPile.MONEY:
+		coins -= count
+	else:
+		crafting.pouch[metal] = coins_held(metal) - count
+	var ahead := -player.global_transform.basis.z
+	ahead.y = 0.0
+	var spot := player.global_position + (ahead.normalized() * 0.6 if ahead.length() > 0.01 else Vector3.ZERO)
+	var pile: Dictionary = level.lay_coins(spot, count, metal, count)
+	if not pile.is_empty():
+		pile.wait = true
+	Sfx.play_coins(level, count, 0.0, spot)
+	_update_hud()
+	return count
 
 
 ## Gold found, doubled by the lucky clover.

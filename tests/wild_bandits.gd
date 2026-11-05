@@ -135,15 +135,14 @@ func _process(_delta: float) -> bool:
 			check(empty.any(func(s): return s.kind == target.kind) and empty.all(func(s): return s.timer > 0.0), "the fallen bandit's spot waits for the next one")
 			# Picked up: the gold counts.
 			var gold_before: int = game.coins
-			var coins_dropped: int = lvl._pickups.slice(pickups_before).filter(func(p): return p.kind == "coin").size()
-			# Copper coins, the money, may also lie in a little pile of their
-			# own (see Loot.coins): they count as well.
-			var is_money := func(p): return p.kind == "coin" or (p.kind == "ingredient" and p.ingredient == Loot.MONEY)
+			# Every coin lies in a pile now, the purse's and the pouch's copper
+			# alike (see CoinPile): all of the money counts.
+			var coins_dropped := 0
 			for p in lvl._pickups.slice(pickups_before):
-				if p.kind == "ingredient" and p.ingredient == Loot.MONEY:
-					coins_dropped += int(p.count)
+				if p.kind == "coin" and CoinPile.metal_of(str(p.get("metal", ""))) == CoinPile.MONEY:
+					coins_dropped += CoinPile.count_of(p.get("floor"))
 			for p in lvl._pickups.duplicate():
-				if is_money.call(p) and is_instance_valid(p.node):
+				if p.kind == "coin" and is_instance_valid(p.node):
 					player.global_position = p.node.global_position
 					lvl._check_pickups()
 			check(game.coins == gold_before + coins_dropped, "the dropped gold (%d coins) is picked up" % coins_dropped)

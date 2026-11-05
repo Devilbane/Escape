@@ -89,7 +89,9 @@ func _test() -> void:
 	lvl._drop_item("schwert", far)
 	lvl._drop_item("fechtbuch", far + Vector3(2.0, 0, 0))
 	lvl._drop_item("brief", far + Vector3(0, 0, 2.0))
-	lvl._drop_coins(far + Vector3(-3.0, 0, 0), 2)
+	# Two purses spilt apart: two piles of a coin each.
+	lvl._drop_coins(far + Vector3(-3.0, 0, 0), 1)
+	lvl._drop_coins(far + Vector3(-3.0, 0, -4.0), 1)
 	var feet := den + Vector3(-16.0, 0, 18.0)
 	lvl._drop_item("axt", feet)
 	p.global_position = Vector3(feet.x, p.global_position.y, feet.z)

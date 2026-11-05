@@ -224,13 +224,20 @@ func _test_game() -> void:
 	var found := lvl.drop_kill_loot(bandit, 2, 0.0)
 	check(Level.tier_of(found) == "episch", "a lucky bandit kill drops an epic piece (%s)" % found)
 	var added: Array = lvl._pickups.slice(before)
-	check(added.filter(func(p): return p.kind == "coin").size() == 2, "two gold coins from the purse")
-	check(added.any(func(p): return p.kind == "ingredient" and p.ingredient == "eisenmuenze" and int(p.count) >= 2), "a heap of iron coins")
+	# Every coin lies in a pile of its metal (see CoinPile).
+	var of_metal := func(list: Array, metal: String) -> int:
+		var n := 0
+		for p in list:
+			if p.kind == "coin" and p.get("metal", "") == metal:
+				n += CoinPile.count_of(p.floor)
+		return n
+	check(of_metal.call(added, Loot.MONEY) >= 2, "the two copper coins from the purse (and maybe more from the pouch)")
+	check(of_metal.call(added, "eisenmuenze") >= 2, "a heap of iron coins")
 	check(added.any(func(p): return p.kind == "item" and p.id == found), "the epic piece lies on the floor")
 	# A plain roll leaves coins only.
 	before = lvl._pickups.size()
 	check(lvl.drop_kill_loot(bandit, 0, 0.99) == "", "an unlucky roll drops no gear")
-	check(lvl._pickups.slice(before).all(func(p): return p.kind == "ingredient" and Loot.is_coin(p.ingredient)), "only coins")
+	check(lvl._pickups.slice(before).all(func(p): return p.kind == "coin" and Loot.is_coin(p.metal)), "only coins")
 	bandit.queue_free()
 	# A beast: no coins, but its rare part on a rare roll.
 	var wolf := Enemy.new()

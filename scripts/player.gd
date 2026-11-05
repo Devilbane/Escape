@@ -159,6 +159,9 @@ var base_speed := SPEED
 var speed: float:
 	get:
 		return base_speed * Items.load_factor(load_weight())
+## The share of the pace the ground underfoot allows right now: grass, scree
+## and puddles slow the hero a little (see Surfaces).
+var surface_pace := 1.0
 ## Throwing knives ready to hand, at most knife_cap() of them; spares ride
 ## in the bag as Items.KNIFE and are slipped back into the belt once no fight
 ## is on (see _settle_knives). A thrown knife lies where it fell until the
@@ -2190,7 +2193,9 @@ func _physics_process(delta: float) -> void:
 				dir = to.normalized()
 	_breathe(delta, dir != Vector3.ZERO)
 	var vy := velocity.y - GRAVITY * delta
-	var pace := speed * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else WALK_FACTOR * run_boost)
+	if is_on_floor():
+		surface_pace = Surfaces.ease_pace(surface_pace, level, global_position, delta)
+	var pace := speed * surface_pace * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else WALK_FACTOR * run_boost)
 	velocity = dir * pace + _knockback
 	if _air_momentum != Vector3.ZERO:
 		if is_on_floor() and vy <= 0.0:

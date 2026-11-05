@@ -110,7 +110,7 @@ func _check_layout() -> void:
 	check(is_zero_approx(elog.scrolled()), "and back down to the newest")
 	var box := elog.get_global_rect()
 	check(box.is_equal_approx(rect_before), "the box keeps its size and place: %s vs %s" % [box, rect_before])
-	check(box.size.is_equal_approx(Vector2(EventLog.WIDTH, EventLog.HEIGHT)), "the box has its fixed size: %s" % box.size)
+	check(box.size.is_equal_approx(Vector2(EventLog.width, EventLog.HEIGHT)), "the box has its fixed size: %s" % box.size)
 	check(box.position.x <= 40.0, "the box is at the very left: %s" % box.position)
 	var status: Control = game._level_label.get_parent()
 	check(not box.intersects(status.get_global_rect()), "the box keeps clear of the status block: %s vs %s" % [box, status.get_global_rect()])

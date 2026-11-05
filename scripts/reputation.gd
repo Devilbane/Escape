@@ -88,7 +88,7 @@ const GOSSIP := {
 		"Der Bankier vermietet Schließfächer im Tresorkeller. Dort sieht man, was andere Helden besitzen."],
 	"Z": ["Die Glatze zeigt deine Tätowierung am besten. Nur so als Hinweis.",
 		"Gorm, Mira und Hagen haben jeder ein Geheimrezept. Hilf ihnen, dann verraten sie es dir vielleicht."],
-	"Y": ["Gold auf der Bank ist sicher, auch wenn du im Verlies fällst.",
+	"Y": ["Kupfer auf der Bank ist sicher, auch wenn du im Verlies fällst.",
 		"Wer den Leuten im Dorf hilft, bekommt bessere Preise. Ich sehe das an den Büchern der Händler."],
 	"S": ["Stapel deine Blöcke versetzt, und lass keine Lücke breiter als ein Schritt. Sonst kommen die Räuber durch.",
 		"Mira verkauft nicht nur Kram. Sie weiß auch, wie man Leder pflegt. Frag sie, wenn sie dich gut kennt."],

@@ -112,6 +112,9 @@ func _run(lang: String) -> void:
 	menus._show_inventory_tab("beutel")
 	await _wait()
 	check(_rect() == start, "the pouch tab keeps the window (%s): %s, was %s" % [lang, _rect(), start])
+	menus._show_inventory_tab("muenzen")
+	await _wait()
+	check(_rect() == start, "the coin tab keeps the window (%s): %s, was %s" % [lang, _rect(), start])
 	menus._show_inventory_tab("tasche")
 	# Equipping a weapon with a long name keeps the slot buttons' width.
 	for i in p.bag.size():

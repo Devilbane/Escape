@@ -237,6 +237,6 @@ func _test_hero_level() -> void:
 	_write(game.save_path(3), untrained, 4, 50.0)
 	var old: Dictionary = game.save_info(game.save_path(3))
 	check(int(old.hero_level) == 1, "an older save of an untrained hero is on hero level 1")
-	check(game.save_summary(old) == untrained + ", Heldenstufe 1, auf Ebene 1 mit 4 Gold.", "the older save's description reads whole: " + game.save_summary(old))
+	check(game.save_summary(old) == untrained + ", Heldenstufe 1, auf Ebene 1 mit 4 Kupfer.", "the older save's description reads whole: " + game.save_summary(old))
 	game.player.hero_xp = 0
 	game.state = game.State.TITLE

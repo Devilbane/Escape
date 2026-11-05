@@ -97,12 +97,12 @@ static func has_loot(level: Level) -> bool:
 	return int(level.elder_hoard.get("coins", 0)) > 0 or not (level.elder_hoard.get("items", []) as Array).is_empty()
 
 
-## The old dragon's own treasure, fixed per hero: an epic piece, a
-## god-born one, and ANCIENT_GOLD.
+## The old dragon's own treasure, fixed per hero: two epic pieces (god-born
+## ones are not loot for now, see Loot.TOP_TIER) and ANCIENT_GOLD.
 static func ancient_loot(level: Level) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("%s:elder:%s" % [level.level_name, level.hero])
-	return {"coins": ANCIENT_GOLD, "items": [epic_item(level, rng, "episch"), epic_item(level, rng, "gottgeboren")]}
+	return {"coins": ANCIENT_GOLD, "items": [epic_item(level, rng, "episch"), epic_item(level, rng, Loot.TOP_TIER)]}
 
 
 ## A piece of gear of `tier` (see Level.TIERS) for the loot of this place:

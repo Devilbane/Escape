@@ -549,6 +549,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/home_upgrades.gd | tee upgrades.log
           grep -q PASS upgrades.log
 
+      - name: Home stores test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/home_stores.gd | tee home_stores.log
+          grep -q PASS home_stores.log
+
       - name: Mountains, tavern and mines test
         run: |
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/mountains.gd | tee mountains.log

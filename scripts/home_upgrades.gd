@@ -21,7 +21,7 @@ extends RefCounted
 ## Everything here is pure: the game's state goes in, a result comes out.
 
 ## What the compendium says about home upgrades, once the hero has seen them.
-const LEARN := "Dein Haus in der Weberzeile lässt sich ausbauen: Mit Steinblöcken und etwas Gold baut dir Steinmetz Hagen eine Werkstatt (Wurfmesser aus Eisen, Ausrüstung flicken, schnelleres Handwerk während du weg bist), eine zweite Truhe (doppelt so viel Platz) und eine Trophäenwand (jede Trophäe eines besiegten mächtigen Gegners gibt +1 Leben). Das Ausbau-Fenster öffnest du am Bett in deinem Haus oder beim Steinmetz."
+const LEARN := "Dein Haus in der Weberzeile lässt sich ausbauen: Mit Steinblöcken und etwas Kupfer baut dir Steinmetz Hagen eine Werkstatt (Wurfmesser aus Eisen, Ausrüstung flicken, schnelleres Handwerk während du weg bist), eine zweite Truhe (doppelt so viel Platz) und eine Trophäenwand (jede Trophäe eines besiegten mächtigen Gegners gibt +1 Leben). Das Ausbau-Fenster öffnest du am Bett in deinem Haus oder beim Steinmetz."
 
 ## The upgrades, in the order they are shown: name, what it does, and its
 ## price in stone blocks and gold.
@@ -114,7 +114,7 @@ static func why_not(id: String, built: Dictionary, bag: Array, storage: Array, g
 	if stones_owned(bag, storage) < ALL[id].stones:
 		return Lang.t("Dafür brauchst du %d Steinblöcke (in Tasche oder Truhe).") % ALL[id].stones
 	if gold < ALL[id].gold:
-		return Lang.t("Dafür reicht dein Gold nicht.")
+		return Lang.t("Dafür reicht dein Kupfer nicht.")
 	return ""
 
 

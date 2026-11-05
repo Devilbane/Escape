@@ -38,7 +38,7 @@ const EN := {
 	"Zu früh angeschlagen! Der Fisch ist weg.": "Struck too early! The fish is gone.",
 	"Es beißt! Schnell: G oder „Angeln“!": "A bite! Quick: G or \"Fish\"!",
 	"Nur Wasserkraut am Haken.": "Only weed on the hook.",
-	"Eine alte Münze, die jemand für sein Glück hineingeworfen hat. +1 Gold": "An old coin someone threw in for luck. +1 gold",
+	"Eine alte Münze, die jemand für sein Glück hineingeworfen hat. +1 Kupfer": "An old coin someone threw in for luck. +1 copper",
 	"Ein seltener Fang: %s!": "A rare catch: %s!",
 	"Der Fang kommt in deinen Zutatenbeutel.": "The catch goes into your ingredient pouch.",
 	"Gefangen: %s! Ab in den Zutatenbeutel.": "Caught: %s! Into the ingredient pouch it goes.",

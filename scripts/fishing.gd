@@ -531,8 +531,8 @@ func take(caught: String, pos: Vector3, on: Node) -> void:
 	elif caught == "muenze":
 		game.coins += 1
 		Sfx.play(game, "coin")
-		Effects.float_text(on, pos + Vector3(0, 1.4, 0), Lang.t("+%d Gold") % 1, game.GOLD, true)
-		Events.found(Lang.t("Eine alte Münze, die jemand für sein Glück hineingeworfen hat. +1 Gold"), game.GOLD)
+		Effects.float_text(on, pos + Vector3(0, 1.4, 0), Lang.t("+%d Kupfer") % 1, game.GOLD, true)
+		Events.found(Lang.t("Eine alte Münze, die jemand für sein Glück hineingeworfen hat. +1 Kupfer"), game.GOLD)
 	else:
 		game.crafting.add(caught)
 		var fish := Crafting.ingredient_name(caught)

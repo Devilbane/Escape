@@ -94,6 +94,11 @@ func _process(_delta: float) -> bool:
 			# It wakes with a roar and soon draws breath: red rings on the
 			# floor, which catch fire.
 			stage_frames += 1
+			# Keep the hero in breath range: blows from the lair's other
+			# monsters push it around, and this stage is about the fire.
+			if player.global_position.distance_to(dragon.global_position) > Dragon.BREATH_RANGE - 3.0:
+				player.global_position = dragon.global_position + Vector3(-7.0, 0, 0)
+				player.velocity = Vector3.ZERO
 			if stage_frames == 30:
 				check(awakened == 1, "the dragon wakes with a roar (intro)")
 				check(game.level.dragon_bar.wanted(), "the health bar shows during the fight")

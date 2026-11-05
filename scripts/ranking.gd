@@ -54,7 +54,7 @@ static func build(game: Node, current: Dictionary) -> Control:
 	grid.add_theme_constant_override("h_separation", 26)
 	grid.add_theme_constant_override("v_separation", 4)
 	box.add_child(grid)
-	for title in [Lang.t("Platz"), Lang.t("Name"), Lang.t("Status"), Lang.t("Ebene"), Lang.t("Gold"), Lang.t("Datum")]:
+	for title in [Lang.t("Platz"), Lang.t("Name"), Lang.t("Status"), Lang.t("Ebene"), Lang.t("Kupfer"), Lang.t("Datum")]:
 		_cell(game, grid, title, Color(0.65, 0.85, 1.0))
 	var runs := load_all()
 	var rank := 0

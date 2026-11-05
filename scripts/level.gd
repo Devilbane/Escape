@@ -40,7 +40,9 @@ extends Node3D
 ## Barrels, crates, tables, trunks, chests and wall shelves can be searched.
 
 signal key_collected
-signal coins_collected(amount: int)
+## Coins picked up: how many, their metal (see CoinPile.METALS) and how
+## many of them the hero had put down themselves.
+signal coins_collected(amount: int, metal: String, own: int)
 signal door_opened
 signal door_locked
 signal player_hurt
@@ -66,8 +68,9 @@ signal boss_won
 signal item_collected(id: String)
 signal bag_full
 signal secret_found(lever_pos: Vector3, wall_pos: Vector3)
-## The hero picked up an ingredient the fox dug up (see lay_find).
-signal ingredient_collected(id: String)
+## The hero picked up an ingredient: one the fox dug up, or `count` from a
+## fallen foe (`from_loot`, see lay_find and drop_kill_loot).
+signal ingredient_collected(id: String, count: int, from_loot: bool)
 ## How many of the level's pressure plates have a block on them changed.
 signal plates_changed(pressed: int, total: int)
 ## Every pressure plate is pressed: the iron gate at `pos` opens.
@@ -127,7 +130,7 @@ const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_sh
 ## shelves, chests and the wall decorations.
 const WORN_SETS := ["props", "chests", "wallprops"]
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "#bxotkCDHBLVF?f=U|N%~T^&"
+const SOLID := "#bxotkCDHBLmhVF?f=U|N%~T^&"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
@@ -193,7 +196,9 @@ var taken := {}
 ## props, chests, people, traps or hidden finds.
 var grates := {}
 ## What lies about on the floor here: gear the hero dropped, loot from the
-## fallen and spilt coins, as [kind ("item" or "coin"), item id, x, z] each.
+## fallen and spilt coins, as [kind ("item" or "coin"), item id, x, z] each;
+## a pile of coins also has its count and how many the hero put down
+## (["coin", metal, x, z, count, own], see CoinPile).
 ## The game hands in its own list for this level and keeps it in the saved
 ## game; restore_floor() lays it all out again after build(), so nothing
 ## vanishes when the hero walks off and comes back.
@@ -1280,6 +1285,10 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"L":
 			_add_fitted_solid(_place("chest", pos, _back_to_wall(c, _facing_room(c))), pos, 1.5)
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
+		"m":
+			HomeStoreFurniture.build_metal_chest(self, c)
+		"h":
+			HomeStoreFurniture.build_board(self, c)
 		"V":
 			_build_merchant(c)
 		"=":
@@ -2176,10 +2185,14 @@ func station_at(point: Vector3) -> Dictionary:
 
 ## The closest unused station within reach of a position, if any.
 func nearest_station(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
+	var best := {}
+	var best_distance := max_distance
 	for s in stations:
-		if not s.used and Vector2(from.x - s.pos.x, from.z - s.pos.z).length() <= max_distance:
-			return s
-	return {}
+		var d := Vector2(from.x - s.pos.x, from.z - s.pos.z).length()
+		if not s.used and d <= best_distance:
+			best = s
+			best_distance = d
+	return best
 
 
 ## The water closest to a spot, if the hero standing there can cast a line
@@ -3493,12 +3506,14 @@ func _check_pickups() -> void:
 		elif p.kind == "item":
 			item_collected.emit(p.id)
 		elif p.kind == "ingredient":
-			ingredient_collected.emit(p.ingredient)
+			ingredient_collected.emit(p.ingredient, int(p.get("count", 1)), bool(p.get("loot", false)))
 		elif p.kind == "hoard":
 			hoard = {}
 			hoard_taken.emit()
+		elif p.has("floor"):
+			coins_collected.emit(CoinPile.count_of(p.floor), CoinPile.metal_of(str(p.floor[1])), CoinPile.own_of(p.floor))
 		else:
-			coins_collected.emit(1)
+			coins_collected.emit(1, CoinPile.MONEY, 0)
 
 
 ## Whether this floor has a locked door (open or not).
@@ -3544,8 +3559,8 @@ var _rare_loot := {}
 
 ## How often a piece finer than common, picked by chance for plain loot,
 ## is kept: an ordinary chest, a crate or a heap of rubble holds it with
-## these odds and a common piece instead otherwise, and a fallen enemy drops
-## its worn gear of that tier this much less often (see _drop_gear). So
+## these odds and a common piece instead otherwise (what a fallen enemy
+## drops goes by Loot's odds instead, see drop_kill_loot). So
 ## uncommon finds come half as often, and rare ones and finer less than a
 ## third as often, and each one feels like an event. Loot of a set tier (a
 ## secret room, a chest behind a gate, the hoards, a boss's rare drop when
@@ -3821,11 +3836,11 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, ma
 		add_child(dragon_bar)
 	e.died.connect(func():
 		enemy_killed.emit(e)
-		_drop_gear(e, DROP_CHANCE if not e.is_beast() else BEAST_DROP_CHANCE)
-		_drop_boss_loot(e)
-		# A monster of the lair leaves a little gold, the dragon a heap.
+		# Coins and maybe gear, or a beast's food, ingredient or part (see
+		# Loot); a monster of the lair leaves a little gold, the dragon a heap.
 		var purse: Array = e.custom.get("purse", Enemy.KINDS[e.kind].get("purse", [0, 0]))
-		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
+		drop_kill_loot(e, randi_range(purse[0], purse[1]))
+		_drop_boss_loot(e)
 		# The dragon guards the lair: once it falls, the lair is won.
 		if lair and e.kind == "drache":
 			_drop_dragon_parts(e.global_position)
@@ -3886,10 +3901,6 @@ func _far_corner() -> Vector2i:
 ## Chance for each piece of gear a skeleton may wear: higher the deeper it lies.
 const GEAR_CHANCE := 0.1
 const GEAR_CHANCE_PER_LEVEL := 0.05
-## Chance that a worn piece drops when its skeleton falls; a monster of the
-## lair carries its piece in its belly, so it always drops.
-const DROP_CHANCE := 0.1
-const BEAST_DROP_CHANCE := 1.0
 
 
 ## The items a skeleton wears: up to two (three for a brute), no specials,
@@ -3925,21 +3936,66 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 	return gear
 
 
-func _drop_gear(e: Enemy, chance := DROP_CHANCE) -> void:
-	var spot := e.global_position
-	var delay := 0.0
-	var dropped := []
-	for id in e.gear:
-		# Finer pieces fall less often than the enemy wore them (see FINER_KEEP).
-		if randf() < chance * finer_keep(id):
-			_drop_item(id, spot)
-			dropped.append(id)
-			# It clatters onto the floor, one piece after the other.
-			Sfx.play_gear(self, id, delay, spot)
-			delay += 0.3
-			spot += Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
-	# The finest piece, if finer than rare, rings out once the heap is down.
-	Sfx.play_rarity(self, Sfx.finest(dropped), maxf(0.0, delay - 0.3), e.global_position)
+## What a fallen enemy leaves (see Loot), the one place every fight's loot
+## is decided. One roll per kill for a find of a tier, with Loot's odds for
+## a foe as tough as this one:
+## - intelligent ones (and slimes, with what they swallowed) leave `gold`
+##   copper coins (the purse), iron, copper and silver coins for the pouch, and on a find
+##   a piece of gear of that tier (see roll_kill_gear);
+## - other beasts leave, on a find, their food, an ingredient of where they
+##   live, or a part of their body (see Loot.creature_find).
+## Trolls and the creatures of the mountains roll once more for a lump of
+## ore (see Loot.ore_find; `ore_roll` sets that roll). In the beginner
+## dungeon a find is common at most. Returns the gear or ingredient id
+## dropped (not the ore), or "".
+func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0) -> String:
+	var tough := Loot.toughness(e.max_hp(), e.elite, is_named_boss(e))
+	var tier := Loot.roll_tier(tough, "normal" if beginner_dungeon else Loot.TOP_TIER, roll)
+	var pos := e.global_position
+	var found := ""
+	if Loot.carries_valuables(e.kind):
+		_drop_coins(pos, gold)
+		var pouch_coins := Loot.coins(e.kind, tough)
+		var angle := randf() * TAU
+		for coin in pouch_coins:
+			angle += TAU / 3.0
+			_lay_pouch_coins(coin, int(pouch_coins[coin]), pos + Vector3(cos(angle), 0, sin(angle)) * 0.9)
+		if tier != "":
+			found = roll_kill_gear(e, tier)
+			if found != "":
+				var spot := pos + Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
+				_drop_item(found, spot)
+				# It clatters onto the floor; an epic piece rings out as well.
+				Sfx.play_gear(self, found, 0.0, spot)
+				Sfx.play_rarity(self, found, 0.3, spot)
+	elif tier != "":
+		found = Loot.creature_find(e.kind, tier)
+		if found != "":
+			lay_find(found, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), Rarity.color(found), 1, true)
+	# Rare foes and bosses of level 25 and up: a few new gold coins.
+	var gold_coins := Loot.gold_coins(e.elite or e.is_horror() or is_named_boss(e), e.rated_level)
+	_lay_pouch_coins(Loot.GOLD_COIN, gold_coins, pos + Vector3(-0.9, 0, 0.4))
+	# Trolls and the creatures of the mountains: maybe a lump of ore besides.
+	var ore := Loot.ore_find(e.kind, tough, ore_roll)
+	if ore != "":
+		lay_find(ore, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), Ore.ROCK, 1, true)
+	return found
+
+
+## The piece of gear a fallen foe leaves on a find of `tier`: one it wore of
+## that tier, else one of that tier that suits the place and, like all finer
+## loot, does not repeat on this level (see loot_item). "" when there is none.
+func roll_kill_gear(e: Enemy, tier: String) -> String:
+	var worn := e.gear.filter(func(g): return tier_of(g) == tier)
+	if not worn.is_empty():
+		return worn[randi() % worn.size()]
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var rank := tier_rank(tier)
+	var id := Items.random_item(rng, rank, "", HeroLevel.place_level(self), _rare_loot, rank)
+	if id != "" and not Items.is_common(id):
+		_rare_loot[id] = int(_rare_loot.get(id, 0)) + 1
+	return id
 
 
 ## Named bosses (the bandit chief, the dragon, the Mountain King, and any
@@ -4006,15 +4062,17 @@ func _drop_boss_loot(e: Enemy) -> void:
 	Events.found(Lang.t("Seltene Beute: %s (%s)") % [Rarity.marked(id), Rarity.label(id)], tier.color)
 
 
-## Gold coins spilt from a fallen bandit's purse, scattered around the spot.
+## Coins spilt from a fallen foe's purse (copper, the money, unless `metal`
+## says otherwise): one pile beside the spot, which joins a pile of the same
+## metal already lying there (see lay_coins).
 ## Unlike the coins placed by the map they have no id: they are kept on the
 ## floor list (see floor_items) until picked up, then simply gone.
-func _drop_coins(pos: Vector3, amount: int) -> void:
-	for i in amount:
-		var angle := randf() * TAU
-		_lay_coin(Vector3(pos.x, 0, pos.z) + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.5, 1.4))
-	if amount > 0:
-		Sfx.play_coins(self, amount, 0.3, pos)
+func _drop_coins(pos: Vector3, amount: int, metal := CoinPile.MONEY) -> void:
+	if amount <= 0:
+		return
+	var angle := randf() * TAU
+	lay_coins(Vector3(pos.x, 0, pos.z) + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.3, 0.7), amount, metal)
+	Sfx.play_coins(self, amount, 0.3, pos)
 
 
 ## Hides a few ingredients in the ground for the hero's fox to find: on the
@@ -4142,8 +4200,10 @@ func fox_bed_near(pos: Vector3) -> Vector3:
 
 ## Lays a dug-up ingredient on the ground. Picked up, it goes into the
 ## ingredient pouch (see Crafting), not the bag. It is not marked as taken:
-## the ground holds new ones the next time round.
-func lay_find(id: String, pos: Vector3, colour := Color(0.55, 0.75, 0.35)) -> void:
+## the ground holds new ones the next time round. `count` of them lie there
+## as one; `loot` marks the loot of a fallen foe (see drop_kill_loot), which
+## puts no mark on the hero's map.
+func lay_find(id: String, pos: Vector3, colour := Color(0.55, 0.75, 0.35), count := 1, loot := false) -> void:
 	var holder := Node3D.new()
 	var lump := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
@@ -4159,19 +4219,104 @@ func lay_find(id: String, pos: Vector3, colour := Color(0.55, 0.75, 0.35)) -> vo
 	holder.position = Vector3(pos.x, 0.8, pos.z)
 	add_child(holder)
 	holder.add_child(Effects.make_sparkles(colour.lightened(0.4)))
-	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6})
+	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6, "count": count, "loot": loot})
 
 
-## One spilt coin lying flat on the floor, kept on the floor list.
+## The pouch coins of one metal (see Loot.COINS) a fallen foe leaves: they
+## pile up and glow like any other coins on the floor (see lay_coins), and
+## picked up, go into the pouch (copper, the money, into the purse).
+func _lay_pouch_coins(coin: String, count: int, pos: Vector3) -> void:
+	if count <= 0:
+		return
+	lay_coins(pos, count, coin)
+
+
+## One spilt coin of the money on the floor (it joins a pile lying there).
 func _lay_coin(pos: Vector3) -> void:
+	lay_coins(pos, 1)
+
+
+## Puts `count` coins of `metal` on the floor at `pos`: they join the pile of
+## that metal lying there (within CoinPile.JOIN_RADIUS), or start one. A pile
+## holds at most CoinPile.MAX; what does not fit starts a new pile beside it.
+## `own`: how many of them the hero put down from the purse. Returns the
+## pickup of the pile the last of them went to.
+func lay_coins(pos: Vector3, count: int, metal := CoinPile.MONEY, own := 0) -> Dictionary:
+	metal = CoinPile.metal_of(metal)
+	own = clampi(own, 0, count)
+	var last := {}
+	while count > 0:
+		var pile := _coin_pile_near(pos, metal)
+		var n := 0
+		var o := 0
+		if pile.is_empty():
+			n = mini(count, CoinPile.MAX)
+			o = mini(own, n)
+			last = _coin_pile(_beside_full_piles(pos), n, metal, o)
+		else:
+			var entry: Array = pile.floor
+			n = mini(count, CoinPile.MAX - CoinPile.count_of(entry))
+			o = mini(own, n)
+			_set_pile(pile, CoinPile.count_of(entry) + n, CoinPile.own_of(entry) + o)
+			last = pile
+		count -= n
+		own -= o
+	return last
+
+
+## The pile of `metal` lying within reach of `pos` that still has room, the
+## nearest; empty when there is none.
+func _coin_pile_near(pos: Vector3, metal: String) -> Dictionary:
+	var best := {}
+	var best_d := CoinPile.JOIN_RADIUS
+	for p in _pickups:
+		if p.kind != "coin" or not p.has("floor") or p.get("metal", "") != metal or not is_instance_valid(p.node):
+			continue
+		if CoinPile.count_of(p.floor) >= CoinPile.MAX:
+			continue
+		var d := _flat_distance(pos, p.node.position)
+		if d <= best_d:
+			best = p
+			best_d = d
+	return best
+
+
+## Where a new pile goes when full piles lie at `pos`: just beside them.
+func _beside_full_piles(pos: Vector3) -> Vector3:
+	for p in _pickups:
+		if p.kind != "coin" or not p.has("floor") or not is_instance_valid(p.node):
+			continue
+		var room := CoinPile.radius(CoinPile.count_of(p.floor)) + 0.6
+		var away := Vector3(pos.x - p.node.position.x, 0, pos.z - p.node.position.z)
+		if away.length() < room:
+			var dir := away.normalized() if away.length() > 0.05 else Vector3(cos(randf() * TAU), 0, sin(randf() * TAU))
+			return Vector3(p.node.position.x, 0, p.node.position.z) + dir * room
+	return pos
+
+
+## A new pile of coins on the floor list.
+func _coin_pile(pos: Vector3, count: int, metal: String, own: int) -> Dictionary:
 	var holder := Node3D.new()
 	holder.position = Vector3(pos.x, 0.03, pos.z)
 	holder.rotation.y = randf() * TAU
 	add_child(holder)
-	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
-	coin.scale = Vector3.ONE * 1.6
-	CoinShine.add_to_coin(holder)
-	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "floor": _remember_on_floor("coin", "", pos)})
+	var entry := _remember_on_floor("coin", metal, pos)
+	entry.append_array([count, own])
+	var pile := {"node": holder, "kind": "coin", "metal": metal, "radius": 1.5, "floor": entry}
+	_pickups.append(pile)
+	_set_pile(pile, count, own)
+	return pile
+
+
+## A pile now holds `count` coins: its entry, its reach and its look.
+func _set_pile(pile: Dictionary, count: int, own: int) -> void:
+	var entry: Array = pile.floor
+	while entry.size() < 6:
+		entry.append(1 if entry.size() == 4 else 0)
+	entry[4] = count
+	entry[5] = clampi(own, 0, count)
+	pile.radius = maxf(1.5, CoinPile.radius(count) + 0.9)
+	CoinPile.dress(pile.node, count, str(pile.metal), self)
 
 
 ## A thrown knife lying flat where it fell (see Projectile), kept on the
@@ -4246,7 +4391,7 @@ func restore_floor() -> void:
 			continue
 		var pos := Vector3(float(entry[2]), 0, float(entry[3]))
 		if str(entry[0]) == "coin":
-			_lay_coin(pos)
+			_coin_pile(pos, CoinPile.count_of(entry), CoinPile.metal_of(str(entry[1])), CoinPile.own_of(entry))
 		elif str(entry[1]) == Items.KNIFE:
 			lay_knife(pos)
 		elif Items.ALL.has(str(entry[1])):

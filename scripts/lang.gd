@@ -56,6 +56,7 @@ const PARTS := [
 	preload("res://scripts/lang/reputation.gd"),
 	preload("res://scripts/lang/horrors.gd"),
 	preload("res://scripts/lang/home_upgrades.gd"),
+	preload("res://scripts/lang/home_stores.gd"),
 	preload("res://scripts/lang/factions.gd"),
 	preload("res://scripts/lang/village_talk.gd"),
 	preload("res://scripts/lang/village_worries.gd"),
@@ -64,6 +65,7 @@ const PARTS := [
 	preload("res://scripts/lang/bloated_belly.gd"),
 	preload("res://scripts/lang/wishes.gd"),
 	preload("res://scripts/lang/rarity.gd"),
+	preload("res://scripts/lang/loot.gd"),
 	preload("res://scripts/lang/quick_bar.gd"),
 	preload("res://scripts/lang/exploration.gd"),
 	preload("res://scripts/lang/traps.gd"),
@@ -83,6 +85,7 @@ const PARTS := [
 	preload("res://scripts/lang/bird_feeding.gd"),
 	preload("res://scripts/lang/spider_webs.gd"),
 	preload("res://scripts/lang/spider_queen.gd"),
+	preload("res://scripts/lang/coin_piles.gd"),
 ]
 
 ## German text -> English text, all features together. Read it, never write it.

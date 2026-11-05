@@ -197,7 +197,7 @@ func _process(_delta: float) -> bool:
 				# the hero dodges trains Geschick.
 				armour_xp = player.xp.get("ruestung", 0.0)
 				dodge_xp = player.xp.get("geschick", 0.0)
-				coins_before = lvl._pickups.filter(func(p): return p.kind == "coin").size()
+				coins_before = CoinPile.coins_in(lvl._pickups)
 				return false
 			stage_frames += 1
 			if player.hp < hero_hp or player.knockdowns > 0 or player.xp.get("blocken", 0.0) > 0.0 or player.xp.get("ruestung", 0.0) > armour_xp or player.xp.get("geschick", 0.0) > dodge_xp:
@@ -227,14 +227,15 @@ func _process(_delta: float) -> bool:
 			check(target.fall_text() == Lang.t("Die Fledermaus fällt zu Boden."), "the message says the bat fell")
 			# The dragon falls too and leaves a heap of gold.
 			var dragon: Enemy = _alive(lvl).filter(func(e): return e.kind == "drache")[0]
-			var before := lvl._pickups.filter(func(p): return p.kind == "coin").size()
+			var before := CoinPile.coins_in(lvl._pickups)
 			dragon.take_hit(99, player.global_position)
-			var after := lvl._pickups.filter(func(p): return p.kind == "coin").size()
+			var after := CoinPile.coins_in(lvl._pickups)
 			check(after - before >= Enemy.KINDS.drache.purse[0], "the dragon leaves a heap of gold (%d coins)" % (after - before))
 			check(dragon.fall_text() == Lang.t("Der Drache stürzt brüllend zu Boden!"), "the message says the dragon fell")
 			check(lvl.lair_cleared, "the fallen dragon wins the lair")
-			# It leaves its scale and its blood, maybe its heart.
-			var parts := lvl._pickups.filter(func(p): return p.kind == "ingredient")
+			# It leaves its scale and its blood, maybe its heart (besides the
+			# coins and ore every intelligent foe may leave, see Loot).
+			var parts := lvl._pickups.filter(func(p): return p.kind == "ingredient" and not Loot.is_coin(p.ingredient) and not Ore.is_ore(p.ingredient))
 			check(parts.size() >= 2 and parts.size() <= 4, "the dragon leaves 2 to 4 parts (%d)" % parts.size())
 			var ids := parts.map(func(p): return p.ingredient)
 			check(DragonLair.SCALE in ids and DragonLair.BLOOD in ids, "a scale and dragon blood among them")

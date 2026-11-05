@@ -49,9 +49,9 @@ const MAX_WEIGHT_SLOW := 0.35
 static var ALL := {
 	"schwert": {"name": "Schwert", "slot": "waffe", "uses": "klingen", "weight": 3, "power": 1, "price": 12, "model": "res://assets/weapons/sword_1handed.gltf", "material": "mixed"},
 	"axt": {"name": "Axt", "slot": "waffe", "uses": "aexte", "weight": 4, "power": 2, "price": 25, "model": "res://assets/weapons/axe_1handed.gltf", "material": "mixed"},
-	"rundschild": {"name": "Rundschild", "slot": "schild", "weight": 3, "hp": 1, "block": 0.2, "durability": 5, "price": 10, "model": "res://assets/weapons/shield_round.gltf", "material": "mixed"},
-	"wappenschild": {"name": "Wappenschild", "slot": "schild", "weight": 5, "hp": 2, "armor": 1, "block": 0.25, "durability": 6, "skills": {"blocken": 1}, "price": 22, "model": "res://assets/weapons/shield_badge.gltf", "material": "mixed"},
-	"stachelschild": {"name": "Stachelschild", "slot": "schild", "weight": 6, "hp": 2, "power": 1, "block": 0.3, "durability": 7, "price": 35, "model": "res://assets/weapons/shield_spikes.gltf", "material": "mixed"},
+	"rundschild": {"name": "Rundschild", "slot": "schild", "weight": 3, "hp": 1, "block": 0.2, "durability": 5, "price": 35, "model": "res://assets/weapons/shield_round.gltf", "material": "mixed"},
+	"wappenschild": {"name": "Wappenschild", "slot": "schild", "weight": 5, "hp": 2, "armor": 1, "block": 0.25, "durability": 6, "skills": {"blocken": 1}, "price": 61, "model": "res://assets/weapons/shield_badge.gltf", "material": "mixed"},
+	"stachelschild": {"name": "Stachelschild", "slot": "schild", "weight": 6, "hp": 2, "power": 1, "block": 0.3, "durability": 7, "price": 77, "model": "res://assets/weapons/shield_spikes.gltf", "material": "mixed"},
 	# Gorm's own fine work ("smith"): only the smith sells and forges these,
 	# they are never found as loot or sold by the merchant (see Forge).
 	# Models from the Medieval Weapon Pack by Omie's Assets (CC0).
@@ -61,7 +61,7 @@ static var ALL := {
 	"streitkolben": {"name": "Streitkolben", "slot": "waffe", "uses": "aexte", "weight": 4.5, "hp": 1, "power": 2, "price": 40, "smith": true, "model": "res://assets/weapons/forge/mace.gltf", "material": "mixed"},
 	"streitaxt": {"name": "Streitaxt", "slot": "waffe", "uses": "aexte", "weight": 5, "power": 3, "price": 60, "smith": true, "model": "res://assets/weapons/forge/battle_axe.gltf", "material": "mixed"},
 	"kriegshammer": {"name": "Kriegshammer", "slot": "waffe", "uses": "aexte", "weight": 6, "power": 3, "skills": {"aexte": 1}, "price": 70, "smith": true, "model": "res://assets/weapons/forge/war_hammer.gltf", "material": "mixed"},
-	"drachenschild": {"name": "Drachenschild", "slot": "schild", "weight": 6, "hp": 3, "armor": 1, "block": 0.3, "durability": 9, "skills": {"blocken": 1}, "price": 55, "smith": true, "model": "res://assets/weapons/forge/kite_shield.gltf", "material": "mixed"},
+	"drachenschild": {"name": "Drachenschild", "slot": "schild", "weight": 6, "hp": 3, "armor": 1, "block": 0.3, "durability": 9, "skills": {"blocken": 1}, "price": 87, "smith": true, "model": "res://assets/weapons/forge/kite_shield.gltf", "material": "mixed"},
 	# Thunder weapons: Gorm forges them from iron, gold and the thunder ore a
 	# storm leaves ("thunder": lumps of ore it takes, see Forge). A blow that
 	# lands may "shock" the enemy: a lightning crack stuns it for a moment
@@ -71,14 +71,14 @@ static var ALL := {
 	"donnerhammer": {"name": "Donnerhammer", "slot": "waffe", "uses": "aexte", "weight": 6, "power": 3, "skills": {"aexte": 1}, "shock": 0.25, "thunder": 3, "price": 80, "no_loot": true, "crafted": true, "model": "res://assets/weapons/forge/war_hammer.gltf", "material": "mixed"},
 	"knochenhelm": {"name": "Knochenhelm", "slot": "kopf", "weight": 1, "power": 1, "price": 18, "hat": ["res://assets/enemies/Skeleton_Warrior.glb", "Skeleton_Warrior_Helmet"], "material": "bone"},
 	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "requires": {"intelligenz": 11}, "weight": 0.5, "hp": 1, "speed": 0.07, "magic": true, "armour_value": 1, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"], "brim": 0.4, "material": "cloth", "set": "stoff"},
-	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 4, "hp": 2, "armor": 1, "durability": 4, "armour_value": 5, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "material": "metal", "set": "stahl"},
+	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 4, "hp": 2, "armor": 1, "durability": 4, "armour_value": 5, "price": 55, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "material": "metal", "set": "stahl"},
 	"baerenkappe": {"name": "Bärenkappe", "slot": "kopf", "weight": 1, "hp": 1, "power": 1, "price": 34, "hat": ["res://assets/characters/Barbarian.glb", "Barbarian_Hat"], "material": "fur"},
 	"wollumhang": {"name": "Wollumhang", "slot": "umhang", "weight": 1, "hp": 1, "price": 12, "tint": Color(0.55, 0.4, 0.28), "material": "cloth"},
 	"schattenumhang": {"name": "Schattenumhang", "slot": "umhang", "weight": 1, "hp": 1, "speed": 0.1, "skills": {"schleichen": 2}, "magic": true, "price": 26, "tint": Color(0.16, 0.15, 0.24), "material": "cloth"},
 	"koenigsumhang": {"name": "Königsumhang", "slot": "umhang", "weight": 2, "hp": 2, "power": 1, "price": 42, "tint": Color(0.75, 0.08, 0.1), "material": "cloth"},
 	"lederwams": {"name": "Lederwams", "slot": "ruestung", "weight": 4.5, "hp": 1, "armour_value": 4, "price": 14, "tint": Color(0.5, 0.3, 0.15), "material": "leather", "set": "leder"},
-	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "weight": 18, "hp": 2, "armor": 1, "durability": 5, "skills": {"ruestung": 1}, "armour_value": 8, "price": 28, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4, "material": "chain", "set": "eisen"},
-	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "weight": 14, "hp": 3, "armor": 2, "durability": 6, "power": 1, "armour_value": 10, "price": 48, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55, "material": "metal", "set": "stahl"},
+	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "weight": 18, "hp": 2, "armor": 1, "durability": 5, "skills": {"ruestung": 1}, "armour_value": 8, "price": 194, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4, "material": "chain", "set": "eisen"},
+	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "weight": 14, "hp": 3, "armor": 2, "durability": 6, "power": 1, "armour_value": 10, "price": 164, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55, "material": "metal", "set": "stahl"},
 	"lederstiefel": {"name": "Lederstiefel", "slot": "schuhe", "weight": 2, "hp": 1, "armour_value": 2, "price": 10, "tint": Color(0.45, 0.27, 0.13), "material": "leather", "set": "leder"},
 	"eilstiefel": {"name": "Eilstiefel", "slot": "schuhe", "weight": 2, "speed": 0.15, "armour_value": 1, "price": 26, "tint": Color(0.25, 0.45, 0.95), "material": "leather", "set": "leder"},
 	# More pieces for the armour sets (see ArmourSets): a helmet, an armour,
@@ -90,7 +90,7 @@ static var ALL := {
 	"stoffhandschuhe": {"name": "Stoffhandschuhe", "slot": "handschuhe", "weight": 0.3, "hp": 1, "armour_value": 1, "price": 6, "tint": Color(0.5, 0.42, 0.3), "material": "cloth", "set": "stoff"},
 	"lederkappe": {"name": "Lederkapuze", "slot": "kopf", "weight": 1.5, "hp": 1, "armour_value": 2, "price": 12, "hat": ["res://assets/enemies/Skeleton_Rogue.glb", "Skeleton_Rogue_Hood"], "tint": Color(0.5, 0.3, 0.15), "material": "leather", "set": "leder"},
 	"lederhandschuhe": {"name": "Lederhandschuhe", "slot": "handschuhe", "weight": 1, "hp": 1, "armour_value": 2, "price": 10, "tint": Color(0.5, 0.3, 0.15), "material": "leather", "set": "leder"},
-	"eisenhaube": {"name": "Eisenhaube", "slot": "kopf", "weight": 6, "hp": 1, "armor": 1, "durability": 4, "armour_value": 4, "price": 26, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "tint": Color(0.55, 0.56, 0.6), "metal": 0.3, "material": "metal", "set": "eisen"},
+	"eisenhaube": {"name": "Eisenhaube", "slot": "kopf", "weight": 6, "hp": 1, "armor": 1, "durability": 4, "armour_value": 4, "price": 73, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "tint": Color(0.55, 0.56, 0.6), "metal": 0.3, "material": "metal", "set": "eisen"},
 	"eisenschuhe": {"name": "Eisenschuhe", "slot": "schuhe", "weight": 7, "hp": 1, "armour_value": 3, "price": 22, "tint": Color(0.55, 0.56, 0.6), "metal": 0.3, "material": "metal", "set": "eisen"},
 	"eisenhandschuhe": {"name": "Eisenhandschuhe", "slot": "handschuhe", "weight": 4, "hp": 1, "armour_value": 3, "price": 18, "tint": Color(0.55, 0.56, 0.6), "metal": 0.3, "material": "metal", "set": "eisen"},
 	"stahlstiefel": {"name": "Stahlstiefel", "slot": "schuhe", "weight": 4, "hp": 2, "armor": 1, "durability": 6, "armour_value": 4, "price": 25, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55, "material": "metal", "set": "stahl"},
@@ -137,7 +137,7 @@ static var ALL := {
 	# Unique: the Mountain King's hammer, deep in the third mine (see Mines).
 	"runenhammer": {"name": "Runenhammer des Bergkönigs", "slot": "waffe", "uses": "aexte", "weight": 6, "hp": 2, "power": 4, "skills": {"aexte": 1}, "price": 160, "no_loot": true, "unique": true, "model": "res://assets/weapons/forge/war_hammer.gltf", "material": "mixed", "effect": "Einzigartig: der Hammer des Bergkönigs aus dem Herzen des Berges"},
 	"vampirzahn": {"name": "Vampirzahn", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Jeder dritte besiegte Gegner gibt dir 1 Leben"},
-	"gluecksklee": {"name": "Glücksklee", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Doppeltes Gold"},
+	"gluecksklee": {"name": "Glücksklee", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Doppeltes Kupfer"},
 	"dornenrune": {"name": "Dornenrune", "slot": "spezial", "weight": 0.5, "price": 45, "effect": "Wer dich im Nahkampf trifft, erleidet 1 Schaden, wenn er nicht gehärtet ist"},
 	"phoenixfeder": {"name": "Phönixfeder", "slot": "spezial", "weight": 0.1, "price": 60, "effect": "Rettet dich einmal vor dem Tod, dann verbrennt sie"},
 	# Backpacks: "bag" is how many items the hero can carry while wearing one.
@@ -505,6 +505,9 @@ static func item_level(id: String) -> int:
 ## instead (a godborn room on a shallow level may hold only one fitting
 ## piece); only when nothing at all is left may an excluded item turn up again.
 static func random_item(rng: RandomNumberGenerator, min_rank := 0, slot := "", area := 0, exclude := {}, top_rank := 4) -> String:
+	# God-born pieces are not loot for now (see Loot.TOP_TIER).
+	top_rank = mini(top_rank, Level.tier_rank(Loot.TOP_TIER))
+	min_rank = mini(min_rank, top_rank)
 	var ids := ALL.keys().filter(func(id):
 		var rank := Level.rank_of(id)
 		return rank >= min_rank and rank <= top_rank and (slot == "" or ALL[id].slot == slot) and not ALL[id].get("no_loot", false) and not ALL[id].get("smith", false))
@@ -524,6 +527,8 @@ static func random_item(rng: RandomNumberGenerator, min_rank := 0, slot := "", a
 			fresh = _nearest_level(all.filter(func(id): return not exclude.has(id)), low, area + LOOT_ABOVE)
 		if not fresh.is_empty():
 			ids = fresh
+	if ids.is_empty():
+		return ""
 	return _weighted(rng, ids)
 
 

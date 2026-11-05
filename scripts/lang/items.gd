@@ -48,7 +48,7 @@ const EN := {
 	"Vampirzahn": "Vampire fang",
 	"Jeder dritte besiegte Gegner gibt dir 1 Leben": "Every third defeated enemy gives you 1 life",
 	"Glücksklee": "Lucky clover",
-	"Doppeltes Gold": "Double gold",
+	"Doppeltes Kupfer": "Double copper",
 	"Dornenrune": "Thorn rune",
 	"Wer dich im Nahkampf trifft, erleidet 1 Schaden, wenn er nicht gehärtet ist": "Whoever hits you up close takes 1 damage, unless they are hardened",
 	"Phönixfeder": "Phoenix feather",

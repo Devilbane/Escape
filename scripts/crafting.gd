@@ -27,15 +27,15 @@ const INGREDIENTS := {
 		"where": "Knochenmagier im Verlies hüten ihn."},
 	# Hidden in the ground: only the hero's fox sniffs them out (see Pet).
 	# "fox" weighs how often the fox finds one: rarer ones less often.
-	"baerlauch": {"name": "Bärlauch", "region": "Wildnis", "when": "", "source": "Dein Fuchs", "fox": 6,
+	"baerlauch": {"name": "Bärlauch", "tier": "ungewoehnlich", "region": "Wildnis", "when": "", "source": "Dein Fuchs", "fox": 6,
 		"where": "Wächst versteckt auf den Wiesen. Nur ein Fuchs erschnüffelt ihn."},
-	"steinpilz": {"name": "Steinpilz", "region": "Wildnis", "when": "", "source": "Dein Fuchs", "fox": 4,
+	"steinpilz": {"name": "Steinpilz", "tier": "ungewoehnlich", "region": "Wildnis", "when": "", "source": "Dein Fuchs", "fox": 4,
 		"where": "Steckt im Gras der Wiesen. Nur ein Fuchs erschnüffelt ihn."},
-	"trueffel": {"name": "Trüffel", "region": "Wildnis", "when": "", "source": "Dein Fuchs", "fox": 1,
+	"trueffel": {"name": "Trüffel", "tier": "ungewoehnlich", "region": "Wildnis", "when": "", "source": "Dein Fuchs", "fox": 1,
 		"where": "Selten und tief in der Erde der Wiesen. Nur ein Fuchs erschnüffelt sie."},
-	"hoehlenpilz": {"name": "Höhlenpilz", "region": "Verlies", "when": "", "source": "Dein Fuchs", "fox": 4,
+	"hoehlenpilz": {"name": "Höhlenpilz", "tier": "ungewoehnlich", "region": "Verlies", "when": "", "source": "Dein Fuchs", "fox": 4,
 		"where": "Wächst unter dem Staub der Verliesböden. Nur ein Fuchs erschnüffelt ihn."},
-	"glimmermoos": {"name": "Glimmermoos", "region": "Verlies", "when": "", "source": "Dein Fuchs", "fox": 2,
+	"glimmermoos": {"name": "Glimmermoos", "tier": "ungewoehnlich", "region": "Verlies", "when": "", "source": "Dein Fuchs", "fox": 2,
 		"where": "Leuchtet schwach unter den Steinen des Verlieses. Nur ein Fuchs erschnüffelt es."},
 	# Fish, caught with the line (see Fishing). The perch bites everywhere;
 	# the other three are rare and bite in one water only.
@@ -51,7 +51,7 @@ const INGREDIENTS := {
 	"mondblume": {"name": "Mondblume", "rare": true, "region": "Wolfssenke", "when": "nur bei Vollmond", "source": "Blüte am Tümpel",
 		"where": "Öffnet sich nur in Vollmondnächten am Tümpel der Wolfssenke, wo dann das Wolfsrudel jagt."},
 	# Mined from the crystal clusters of the mines (see Mines).
-	"grottenkristall": {"name": "Grottenkristall", "region": "Kristallgrotte", "when": "", "source": "Kristallbüschel abbauen",
+	"grottenkristall": {"name": "Grottenkristall", "tier": "ungewoehnlich", "region": "Kristallgrotte", "when": "", "source": "Kristallbüschel abbauen",
 		"where": "Wächst in leuchtenden Büscheln in der Kristallgrotte, der zweiten Mine. Lauf dagegen, um zwei abzuschlagen; bis zum nächsten Morgen wächst das Büschel nach."},
 	# Left by Embermaw when it falls, deep in its lair (see DragonLair).
 	"drachenschuppe": {"name": "Drachenschuppe", "rare": true, "region": "Drachenhöhle", "when": "", "source": "Beute des Drachen",
@@ -60,6 +60,53 @@ const INGREDIENTS := {
 		"where": "Rinnt aus Glutschlund, wenn er fällt, ganz unten in der Drachenhöhle."},
 	"glutherz": {"name": "Glutherz", "rare": true, "region": "Drachenhöhle", "when": "", "source": "Beute des Drachen, nicht immer",
 		"where": "Das glühende Herz des Drachen. Nicht jedes Mal, wenn Glutschlund fällt, bleibt es heil."},
+	# The loot of fallen monsters (see Loot), each with its "tier" (see
+	# Rarity); "store": "metall" marks what a house keeps with the metal. Coins, from every intelligent foe: a hundred of one metal melt
+	# into a bar of it at Gorm's forge.
+	"eisenmuenze": {"name": "Eisenmünze", "store": "metall", "tier": "normal", "region": "Überall", "when": "", "source": "Beute kluger Gegner",
+		"where": "Jeder kluge Gegner trägt ein paar bei sich: Skelette, Banditen, Orks, Trolle und Drachen. Gorm schmilzt hundert davon zu einem Eisenbarren ein."},
+	"silbermuenze": {"name": "Silbermünze", "store": "metall", "tier": "ungewoehnlich", "region": "Überall", "when": "", "source": "Beute kluger Gegner",
+		"where": "Nur zähe kluge Gegner tragen sie öfter. Gorm schmilzt hundert davon zu einem Silberbarren ein."},
+	"goldmuenze": {"name": "Goldmünze", "store": "metall", "tier": "selten", "region": "Überall", "when": "", "source": "Beute seltener Gegner und Bosse",
+		"where": "Nur seltene Gegner und Bosse ab Stufe 25 tragen ein bis drei davon, frisch geprägt, nicht wie die uralten. Gorm schmilzt hundert davon zu einem Goldbarren ein."},
+	# Food (common), from the beasts.
+	"wildfleisch": {"name": "Wildfleisch", "tier": "normal", "region": "Wildnis", "when": "", "source": "Beute wilder Tiere",
+		"where": "Wölfe, Yetis und Fledermäuse lassen manchmal ein Stück zurück."},
+	"spinnenei": {"name": "Spinnenei", "tier": "normal", "region": "Wildnis", "when": "", "source": "Beute der Spinnen",
+		"where": "Spinnen tragen sie unter dem Leib. Manchmal bleibt eines heil, wenn eine fällt."},
+	"schleimgelee": {"name": "Schleimgelee", "tier": "normal", "region": "Verlies", "when": "", "source": "Beute der Schleime",
+		"where": "Ein zäher, essbarer Klumpen, den manchmal ein Schleim zurücklässt."},
+	# Of the mountains (uncommon), like the other ingredients a beast leaves
+	# from where it lives.
+	"edelweiss": {"name": "Edelweiß", "tier": "ungewoehnlich", "region": "Gebirge", "when": "", "source": "Beute der Bergtiere",
+		"where": "Hängt im Fell der Eiswölfe und Yetis, die hoch oben streifen."},
+	# Parts of a creature (rare): a trophy, or something for a craft.
+	"wolfsfell": {"name": "Wolfsfell", "tier": "selten", "region": "Wildnis", "when": "", "source": "Beute der Wölfe",
+		"where": "Selten bleibt ein Fell heil, wenn ein Wolf oder Eiswolf fällt. Eine Trophäe, oder etwas für ein Handwerk."},
+	"giftdruese": {"name": "Giftdrüse", "tier": "selten", "region": "Wildnis", "when": "", "source": "Beute der Spinnen",
+		"where": "Selten bleibt sie heil, wenn eine Spinne fällt. Eine Trophäe, oder etwas für ein Handwerk."},
+	"yetifell": {"name": "Yetifell", "tier": "selten", "region": "Wildnis", "when": "", "source": "Beute der Yetis",
+		"where": "Selten bleibt ein Fell heil, wenn ein Yeti fällt. Eine Trophäe, oder etwas für ein Handwerk."},
+	"fledermausfluegel": {"name": "Fledermausflügel", "tier": "selten", "region": "Drachenhöhle", "when": "", "source": "Beute der Fledermäuse",
+		"where": "Selten bleibt ein Flügel heil, wenn eine Fledermaus fällt. Eine Trophäe, oder etwas für ein Handwerk."},
+	"schleimkern": {"name": "Schleimkern", "tier": "selten", "region": "Verlies", "when": "", "source": "Beute der Schleime",
+		"where": "Der harte Kern eines Schleims, selten heil. Eine Trophäe, oder etwas für ein Handwerk."},
+	# Raw ore from trolls and the beasts of the mountains (see Ore): each
+	# lump has its own weight and make-up, kept in `ores`.
+	"erzbrocken_klein": {"name": "Kleiner Erzbrocken", "store": "metall", "tier": "normal", "region": "Gebirge", "when": "", "source": "Beute der Trolle und Bergwesen",
+		"where": "Trolle und die Wesen der Berge tragen Erz bei sich. Gorm schmilzt es ein: Was an Metall darin steckt, bekommst du grammgenau."},
+	"erzbrocken": {"name": "Erzbrocken", "store": "metall", "tier": "ungewoehnlich", "region": "Gebirge", "when": "", "source": "Beute der Trolle und Bergwesen",
+		"where": "Ein bis zwei Kilo Gestein mit Eisen, Kupfer, Silber, etwas Gold und manchmal einem unbekannten, hellblau schimmernden Metall."},
+	"erzbrocken_gross": {"name": "Großer Erzbrocken", "store": "metall", "tier": "selten", "region": "Gebirge", "when": "", "source": "Beute der Trolle und Bergwesen",
+		"where": "Ein schwerer Brocken von zweieinhalb bis fünf Kilo. Je tausend Gramm eines Metalls schmiedet Gorm zu einem Barren."},
+	"erzbrocken_episch": {"name": "Edelerz", "store": "metall", "tier": "episch", "region": "Gebirge", "when": "", "source": "Beute der Trolle und Bergwesen",
+		"where": "Ein sehr seltener Brocken, reich an Silber und Gold, mit ein bis fünf ungeschliffenen Edelsteinen darin."},
+	# Gems from noble ore (see Ore.GEMS): each with its own weight in carat,
+	# which sets its rarity. Gorm cuts them; cutting takes off some weight.
+	"rohedelstein": {"name": "Ungeschliffener Edelstein", "store": "metall", "tier": "ungewoehnlich", "region": "Gebirge", "when": "", "source": "Aus Edelerz geschmolzen",
+		"where": "Steckt in Edelerz. Erst geschliffen taugt er zu etwas; Gorm schleift ihn, dabei verliert er 15 bis 50 Prozent seines Gewichts."},
+	"edelstein": {"name": "Geschliffener Edelstein", "store": "metall", "tier": "selten", "region": "Dorf", "when": "", "source": "Schmied Gorm",
+		"where": "Ein Edelstein, von Gorm geschliffen. Je mehr Karat, desto seltener und wertvoller; Gorm kauft ihn dir ab."},
 }
 ## The smith's iron bars in the ingredient book.
 const IRON := {"name": "Eisenbarren", "region": "Dorf", "when": "", "source": "Schmied Gorm",
@@ -252,6 +299,12 @@ var pouch := {}
 ## Ingredients the hero gathered at least once: their place is marked as
 ## found in the ingredient book.
 var found := []
+## The lumps of ore in the pouch, by size (see Ore.LUMPS): a list of
+## {"grams", "share"} each, oldest first, as many as the pouch counts.
+var ores := {}
+## The gems in the pouch (see Ore.GEMS), uncut and cut: their weights in
+## carat, oldest first, as many as the pouch counts.
+var gems := {}
 
 
 func _init(owner_game: Node = null) -> void:
@@ -262,6 +315,8 @@ func clear() -> void:
 	known.clear()
 	pouch.clear()
 	found.clear()
+	ores.clear()
+	gems.clear()
 
 
 func knows(id: String) -> bool:
@@ -298,9 +353,84 @@ func read_line(id: String, line_id: String) -> bool:
 func have(ingredient: String) -> int:
 	if ingredient == "eisen":
 		return game.iron if game else 0
+	if ingredient == Loot.MONEY:
+		return game.coins if game else 0
 	if ingredient in Forge.FINE:
 		return int(game.bars.get(ingredient, 0)) if game else 0
 	return int(pouch.get(ingredient, 0))
+
+
+## Takes `count` of an ingredient out of the pouch (as many as there are);
+## ore goes oldest lump first.
+func take(ingredient: String, count := 1) -> void:
+	if ingredient == Loot.MONEY:
+		game.coins = maxi(0, game.coins - count)
+		return
+	var store := _pieces(ingredient)
+	if store.has(ingredient):
+		var list: Array = store[ingredient]
+		for i in mini(count, list.size()):
+			list.pop_front()
+		if list.is_empty():
+			store.erase(ingredient)
+	pouch[ingredient] = have(ingredient) - count
+	if int(pouch[ingredient]) <= 0:
+		pouch.erase(ingredient)
+
+
+## Where the single pieces of an ingredient are kept, each with its own
+## make-up: `ores` for lumps of ore, `gems` for gems; an empty table for
+## the rest (see has_pieces).
+func _pieces(ingredient: String) -> Dictionary:
+	if Ore.is_ore(ingredient):
+		return ores
+	if Ore.GEMS.has(ingredient):
+		return gems
+	return {}
+
+
+## Whether each piece of an ingredient is kept on its own (ore, gems).
+static func has_pieces(ingredient: String) -> bool:
+	return Ore.is_ore(ingredient) or Ore.GEMS.has(ingredient)
+
+
+## Takes up to `count` pieces of an ore or gem out of the pouch, oldest
+## first, and returns them (lumps or carats) so they can be put back as they
+## were (see give_pieces and HomeStores).
+func take_pieces(ingredient: String, count: int) -> Array:
+	var n := mini(count, have(ingredient))
+	var list: Array = _pieces(ingredient).get(ingredient, [])
+	var out := list.slice(0, n)
+	take(ingredient, n)
+	return out
+
+
+## Puts `count` pieces of an ore or gem back into the pouch: those given,
+## and newly rolled ones for any that are missing.
+func give_pieces(ingredient: String, count: int, pieces: Array) -> void:
+	if count <= 0:
+		return
+	var store := _pieces(ingredient)
+	if not store.has(ingredient):
+		store[ingredient] = []
+	for i in count:
+		if i < pieces.size():
+			store[ingredient].append(pieces[i])
+		else:
+			store[ingredient].append(Ore.roll(ingredient) if Ore.is_ore(ingredient) else Ore.roll_carat())
+	pouch[ingredient] = have(ingredient) + count
+	if not found.has(ingredient):
+		found.append(ingredient)
+
+
+## Puts one gem of `carat` into the pouch (see Ore.GEMS).
+func add_gem(id: String, carat: int) -> void:
+	pouch[id] = have(id) + 1
+	if not gems.has(id):
+		gems[id] = []
+	gems[id].append(carat)
+	if not found.has(id):
+		found.append(id)
 
 
 ## Puts ingredients into the pouch. found_here: the hero gathered them where
@@ -309,8 +439,19 @@ func have(ingredient: String) -> int:
 func add(ingredient: String, count := 1, found_here := true) -> void:
 	if ingredient == "eisen":
 		game.iron += count
+	elif ingredient == Loot.MONEY:
+		# Copper coins are the hero's money (see Loot.MONEY).
+		game.coins += count
 	elif INGREDIENTS.has(ingredient):
 		pouch[ingredient] = have(ingredient) + count
+		var store := _pieces(ingredient)
+		if has_pieces(ingredient):
+			# Each lump of ore gets its own weight and make-up (see Ore.roll),
+			# each gem its own weight (see Ore.roll_carat).
+			if not store.has(ingredient):
+				store[ingredient] = []
+			for i in count:
+				store[ingredient].append(Ore.roll(ingredient) if Ore.is_ore(ingredient) else Ore.roll_carat())
 		if not found.has(ingredient):
 			found.append(ingredient)
 		if found_here and game != null and game.level != null and game.player != null:
@@ -368,6 +509,8 @@ func caught_fish(fish: String) -> Array:
 static func ingredient_name(ingredient: String) -> String:
 	if ingredient == "eisen":
 		return Lang.t("Eisenbarren")
+	if ingredient == Loot.MONEY:
+		return Lang.t("Kupfermünze")
 	if ingredient in Forge.FINE:
 		return Lang.t(Forge.METALS[ingredient].name)
 	return Lang.t(INGREDIENTS[ingredient].name) if INGREDIENTS.has(ingredient) else ingredient
@@ -375,7 +518,7 @@ static func ingredient_name(ingredient: String) -> String:
 
 ## What is kept in the saved game: only plain values.
 func for_save() -> Dictionary:
-	return {"known": known.duplicate(true), "pouch": pouch.duplicate(), "found": found.duplicate()}
+	return {"known": known.duplicate(true), "pouch": pouch.duplicate(), "found": found.duplicate(), "ores": ores.duplicate(true), "gems": gems.duplicate(true)}
 
 
 ## Back from the saved game; unknown recipes, ingredients and lines are left
@@ -405,6 +548,41 @@ func load_from(saved) -> void:
 			var count := int(saved_pouch[ingredient])
 			if INGREDIENTS.has(str(ingredient)) and count > 0:
 				pouch[str(ingredient)] = count
+	# The lumps of ore keep their make-up; a lump the pouch counts but the
+	# save lacks (an older game) is rolled anew.
+	var saved_ores = saved.get("ores", {})
+	if not (saved_ores is Dictionary):
+		saved_ores = {}
+	for id in Ore.LUMPS:
+		var lumps := []
+		var kept = saved_ores.get(id, [])
+		if kept is Array:
+			for lump in kept:
+				if lump is Dictionary and lump.has("grams") and lump.get("share") is Dictionary and lumps.size() < have(id):
+					var gems := []
+					if lump.get("gems", []) is Array:
+						for carat in lump.get("gems", []):
+							gems.append(int(carat))
+					lumps.append({"grams": int(lump.grams), "share": lump.share, "gems": gems})
+		while lumps.size() < have(id):
+			lumps.append(Ore.roll(id))
+		if not lumps.is_empty():
+			ores[id] = lumps
+	# The gems keep their weight in carat (see Ore.GEMS).
+	var saved_gems = saved.get("gems", {})
+	if not (saved_gems is Dictionary):
+		saved_gems = {}
+	for id in Ore.GEMS:
+		var list := []
+		var kept = saved_gems.get(id, [])
+		if kept is Array:
+			for carat in kept:
+				if int(carat) > 0 and list.size() < have(id):
+					list.append(int(carat))
+		while list.size() < have(id):
+			list.append(Ore.roll_carat())
+		if not list.is_empty():
+			gems[id] = list
 	var saved_found = saved.get("found", [])
 	if saved_found is Array:
 		for ingredient in saved_found:

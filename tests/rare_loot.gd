@@ -44,6 +44,16 @@ func _test_rarity() -> void:
 	check(not Items.is_common("fechtbuch") and not Items.is_common("schleichbuch"), "books are not common")
 	check(not Items.is_common("amulett_leben") and not Items.is_common("kettenhemd"), "uncommon gear is not common")
 	check(Items.is_common("axt") and Items.is_common("rundschild") and Items.is_common("lederwams"), "basic gear is common")
+	check(Items.RARITY["amulett_tempo"] == "selten", "the Amulet of Haste is rare")
+	# A godborn secret room in the beginner dungeon holds uncommon gear at most.
+	var beginner := Level.new()
+	beginner.beginner_dungeon = true
+	var b_rng := RandomNumberGenerator.new()
+	b_rng.seed = 11
+	for i in 30:
+		var id := beginner.loot_item(b_rng, Level.tier_rank("gottgeboren"), 6)
+		check(Level.rank_of(id) <= Level.tier_rank(Level.BEGINNER_TOP_TIER), "a beginner secret room holds %s, finer than uncommon" % id)
+	beginner.free()
 	# Every item has a rarity of its own, except the hero's crafted pieces
 	# (shown as their own work) and the map workshop's gear.
 	for id in Items.ALL:
@@ -156,6 +166,7 @@ func _test_levels() -> void:
 		var file: String = game.level_files[i].get_file()
 		if lvl.beginner_dungeon:
 			beginner_floors += 1
+			check(Level.tier_rank(lvl.secret_tier) <= Level.tier_rank(Level.BEGINNER_TOP_TIER), "the secret room of %s is uncommon at most, not %s" % [file, lvl.secret_tier])
 			# What the skeletons wear, and may drop, is common.
 			for spot in lvl._map_enemies:
 				var e: Enemy = spot.enemy
@@ -170,6 +181,8 @@ func _test_levels() -> void:
 			# secret room and a puzzle's gated chest.
 			if lvl.beginner_dungeon and not lvl._in_secret_room(obj.cell) and not lvl._behind_gate(obj.cell):
 				check(Items.is_common(id), "%s in %s on %s is not common" % [id, obj.id, file])
+			if lvl.beginner_dungeon:
+				check(Level.rank_of(id) <= Level.tier_rank(Level.BEGINNER_TOP_TIER), "%s in %s on %s is finer than uncommon" % [id, obj.id, file])
 			if not Level.is_outdoor_file(game.level_files[i]) and lvl._in_secret_room(obj.cell) and obj.label == "Schatztruhe":
 				secret_items += 1
 			if Items.is_common(id):

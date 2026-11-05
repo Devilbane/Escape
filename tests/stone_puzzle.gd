@@ -89,7 +89,8 @@ func _run() -> void:
 	for obj in lvl.interactables:
 		if obj.cell == CHEST:
 			chest = obj
-	check(not chest.is_empty() and int(chest.loot.get("gold", 0)) == int(Level.TIERS["selten"].gold) and chest.loot.has("item"), "the chest behind the gate holds a rare reward")
+	check(not chest.is_empty() and int(chest.loot.get("gold", 0)) == int(Level.TIERS[lvl.puzzle_tier()].gold) and chest.loot.has("item"), "the chest behind the gate holds its reward")
+	check(lvl.puzzle_tier() == Level.BEGINNER_TOP_TIER and Level.rank_of(chest.loot.item) <= Level.tier_rank(Level.BEGINNER_TOP_TIER), "the beginner dungeon's puzzle chest is uncommon at most")
 
 	# A heavy block is pushed with E, but never goes into the bag.
 	var block: StoneBlock = null

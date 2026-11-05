@@ -312,8 +312,9 @@ var depth := 0
 ## Whether this is a floor of the beginner dungeon the hero escapes from (Die
 ## Zelle to Das Tor: no building, not the open air). Its loot is common only:
 ## containers, chests and what the skeletons wear. Only its secret rooms (and a
-## puzzle's gated chest) hold finer things, as rich as the map sets them; a
-## named boss's bonus drop (see roll_boss_loot) does not happen here.
+## puzzle's gated chest) hold finer things, and no finer than uncommon
+## (BEGINNER_TOP_TIER), whatever the map sets; a named boss's bonus drop (see
+## roll_boss_loot) does not happen here.
 var beginner_dungeon := false
 var fog: Fog
 var _doors: Array = []
@@ -438,6 +439,9 @@ const TIERS := {
 	"episch": {"name": "Episch", "chance": 18, "gold": 45, "min_price": 34, "color": Rarity.EPIC},
 	"gottgeboren": {"name": "Gottgeboren", "chance": 10, "gold": 70, "min_price": 42, "color": Rarity.GODBORN},
 }
+## The finest tier anything in the beginner dungeon may be: its secret rooms
+## and treasure chests hold common and uncommon things only.
+const BEGINNER_TOP_TIER := "ungewoehnlich"
 ## English names for the secret tiers, accepted in level files.
 const TIER_ALIASES := {"common": "normal", "uncommon": "ungewoehnlich", "rare": "selten", "epic": "episch", "godborn": "gottgeboren"}
 ## Every wall torch, with the tile it lights, and the plain walls without one.
@@ -533,6 +537,8 @@ func load_from_file(path: String) -> void:
 			width = maxi(width, line.length())
 	height = grid.size()
 	beginner_dungeon = not outdoor and building == ""
+	if beginner_dungeon and tier_rank(secret_tier) > tier_rank(BEGINNER_TOP_TIER):
+		secret_tier = BEGINNER_TOP_TIER
 	if lair:
 		# Monsters live down there: not a safe room, even below a building.
 		safe = false
@@ -1474,11 +1480,17 @@ func _build_chest(c: Vector2i, epic := false) -> void:
 	var loot_rng := RandomNumberGenerator.new()
 	loot_rng.seed = hash("%s:chest:%d:%d" % [level_name, c.x, c.y])
 	if _behind_gate(c):
-		# The reward of a block-pushing puzzle: as rich as a rare secret room.
-		var rare: Dictionary = TIERS["selten"]
-		obj.loot = {"gold": int(rare.gold), "item": loot_item(loot_rng, tier_rank("selten"), HeroLevel.place_level(self) + 1)}
+		# The reward of a block-pushing puzzle: as rich as a rare secret room
+		# (an uncommon one in the beginner dungeon).
+		var reward := puzzle_tier()
+		obj.loot = {"gold": int(TIERS[reward].gold), "item": loot_item(loot_rng, tier_rank(reward), HeroLevel.place_level(self) + 1)}
 		return
 	obj.loot = {"gold": 5, "item": loot_item(loot_rng, 0, HeroLevel.place_level(self))}
+
+
+## How rich the chest behind a puzzle's iron gate is (a key of TIERS).
+func puzzle_tier() -> String:
+	return BEGINNER_TOP_TIER if beginner_dungeon else "selten"
 
 
 ## The tiles reachable from the start without passing an iron gate (|).
@@ -3581,10 +3593,14 @@ static func finer_keep(id: String) -> float:
 ## anything finer (uncommon and up, books too) only once a level, so a secret
 ## room never holds the same book twice: once all the gear of its tier is
 ## taken, the next chest reaches one tier lower. In the beginner dungeon,
-## plain loot (`min_rank` 0) is common only (see beginner_dungeon). Plain
-## loot keeps a finer piece only with the odds of FINER_KEEP.
+## plain loot (`min_rank` 0) is common only and nothing is finer than
+## BEGINNER_TOP_TIER (see beginner_dungeon). Plain loot keeps a finer piece
+## only with the odds of FINER_KEEP.
 func loot_item(rng: RandomNumberGenerator, min_rank: int, area: int) -> String:
-	var top := 0 if beginner_dungeon and min_rank == 0 else tier_rank("gottgeboren")
+	var top := tier_rank("gottgeboren")
+	if beginner_dungeon:
+		top = 0 if min_rank == 0 else tier_rank(BEGINNER_TOP_TIER)
+		min_rank = mini(min_rank, top)
 	var rank := min_rank
 	var id := Items.random_item(rng, rank, "", area, _rare_loot, top)
 	if min_rank == 0 and not Items.is_common(id) and rng.randf() >= finer_keep(id):
@@ -3954,7 +3970,8 @@ const LIMESTONE_COLOUR := Color(0.88, 0.86, 0.76)
 ## Trolls and the creatures of the mountains roll once more for a lump of
 ## ore (see Loot.ore_find; `ore_roll` sets that roll), and once for a few
 ## lumps of limestone (see Loot.limestone_find). In the beginner
-## dungeon a find is common at most. Returns the gear or ingredient id
+## dungeon a find is common at most, and ore uncommon at most (never the
+## epic noble ore). Returns the gear or ingredient id
 ## dropped (not the ore), or "".
 func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0) -> String:
 	var tough := Loot.toughness(e.max_hp(), e.elite, is_named_boss(e))
@@ -3984,7 +4001,7 @@ func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0) -> Stri
 	var gold_coins := Loot.gold_coins(e.elite or e.is_horror() or is_named_boss(e), e.rated_level)
 	_lay_pouch_coins(Loot.GOLD_COIN, gold_coins, pos + Vector3(-0.9, 0, 0.4))
 	# Trolls and the creatures of the mountains: maybe a lump of ore besides.
-	var ore := Loot.ore_find(e.kind, tough, ore_roll)
+	var ore := Loot.ore_find(e.kind, tough, ore_roll, BEGINNER_TOP_TIER if beginner_dungeon else Loot.TOP_TIER)
 	if ore != "":
 		lay_find(ore, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), Ore.ROCK, 1, true)
 	# And a few lumps of limestone, for steel (see Forge.STEEL_RECIPE).

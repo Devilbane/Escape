@@ -1,7 +1,7 @@
 name: Die Klingenhalle
 hint: Stacheln, Klingen und Zauber. Alles, was du gelernt hast, zählt jetzt.
 elite: ja
-secret: episch
+secret: ungewoehnlich
 ###########################
 ##########E################
 ########C...C##############

@@ -175,12 +175,15 @@ light blue for what you made from a recipe. Each fallen monster rolls once for a
 per kill: common 1 in 20 to 1 in 40, uncommon 1 in 80 to 1 in 160, rare 1 in 320 to 1 in 640, epic 1 in
 1000 to 1 in 2500. The tougher the monster (and every elite or boss), the better its odds. Intelligent
 foes, and those who use gear like yours (skeletons, bandits, orcs, trolls, dragons), always carry
-**coins**: iron, copper and silver coins go into the ingredient pouch, gold coins into your purse, and
-a find is a piece of gear of that rarity. Beasts without a mind (wolves, spiders, bats, yetis) carry no
+**coins**: copper coins, your money, into your purse, iron and silver coins into the ingredient pouch,
+and a find is a piece of gear of that rarity. (The gold coins of old are now called **ancient gold
+coins**; every one you had is exchanged automatically into a copper coin, one for one, and every price
+in the game is paid in copper. Wherever this README still says gold for money, read copper.) Beasts without a mind (wolves, spiders, bats, yetis) carry no
 coins; a find is food such as meat (common), an ingredient of the place they live in (uncommon) or a
 part of their body for a trophy or a craft (rare), and mostly they leave nothing. Slimes are beasts too,
 but they swallow what their victims carried, so they also drop coins and gear. At the forge Gorm melts
-every **100 coins** of one metal into **one bar** of it; he buys copper and silver bars like the others.
+every **100 coins** of one metal into **one bar** of it (copper coins come out of your purse); he buys
+silver bars like the others, but not copper ones, which are a hundred of your coins.
 Trolls and the other creatures of the mountains also carry **raw ore**, on a roll of its own with the
 same odds. Its weight sets its rarity: 500 to 999 g common, 1 to 2 kg uncommon, 2.5 to 5 kg rare. Each
 lump has its own make-up, rolled in order: 25-60 % slag, 10-40 % iron, 5-40 % copper, 1-15 % silver,

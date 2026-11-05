@@ -24,7 +24,7 @@ extends RefCounted
 ## iron from melted loot makes it cheaper, and you choose what you get.
 
 ## What the compendium says about the forge, once the hero has been there.
-const LEARN := "Schmied Gorm im Dorf arbeitet an seiner Esse: Er verkauft seine eigenen, besseren Waffen, die es sonst nirgends gibt, schmilzt Waffen, Schilde, Metallrüstungen und Schmuck zu Eisenbarren ein, schmiedet aus Eisen und etwas Gold neue Waffen, Schilde und Rüstungen, aus Donnererz vom Gewitter auch Donnerwaffen, deren Treffer Gegner kurz betäuben können, und bessert abgenutzte Rüstungen und Schilde gegen Gold aus. Eisenbarren verkauft er auch."
+const LEARN := "Schmied Gorm im Dorf arbeitet an seiner Esse: Er verkauft seine eigenen, besseren Waffen, die es sonst nirgends gibt, schmilzt Waffen, Schilde, Metallrüstungen und Schmuck zu Eisenbarren ein, schmiedet aus Eisen und etwas Kupfer neue Waffen, Schilde und Rüstungen, aus Donnererz vom Gewitter auch Donnerwaffen, deren Treffer Gegner kurz betäuben können, und bessert abgenutzte Rüstungen und Schilde gegen Kupfer aus. Eisenbarren verkauft er auch."
 ## What one iron bar costs at the smith.
 const IRON_PRICE := 10
 ## Materials of gear that melts down into iron (see Items, "material").
@@ -39,14 +39,15 @@ const MIN_MEND_PRICE := 2
 ## bought back: they are worth more forged (see forge) and in recipes.
 const METALS := {
 	"eisen": {"name": "Eisenbarren", "short": "Eisen", "color": Color(0.55, 0.57, 0.6)},
-	"kupfer": {"name": "Kupferbarren", "short": "Kupfer", "color": Color(0.85, 0.48, 0.28), "worth": 2},
+	"kupfer": {"name": "Kupferbarren", "short": "Kupfer", "color": Color(0.85, 0.48, 0.28)},
 	"bronze": {"name": "Bronzebarren", "short": "Bronze", "color": Color(0.8, 0.5, 0.25), "worth": 3},
 	"silber": {"name": "Silberbarren", "short": "Silber", "color": Color(0.85, 0.87, 0.92), "worth": 7},
 	"gold": {"name": "Goldbarren", "short": "Goldbarren", "color": Color(1.0, 0.8, 0.3), "worth": 15},
 	"mondsilbererz": {"name": "Mondsilbererz", "short": "Mondsilber", "color": Color(0.6, 0.75, 1.0)},
 }
-## The fine bars Gorm buys back (copper bars come only from melted coins,
-## see melt_coins).
+## The fine bars, kept in game.bars (copper bars come from melted coins and
+## ore, see melt_coins). Gorm buys back those with a "worth"; a copper bar is
+## a hundred of the coins the hero pays with, so it is not sold.
 const FINE := ["kupfer", "bronze", "silber", "gold"]
 ## The fine metal of a piece by its rarity (see rarity, common to god-born):
 ## jewellery is made of it, and fine weapons and armour have fittings of it
@@ -159,7 +160,7 @@ static func store(game: Node, bars: Dictionary) -> void:
 ## when -1). Returns "" on success, else why not.
 static func sell_bars(game: Node, metal: String, count := -1) -> String:
 	var have := int(game.bars.get(metal, 0))
-	if not metal in FINE or have <= 0:
+	if not metal in FINE or not METALS[metal].has("worth") or have <= 0:
 		return Lang.t("Davon hast du keine Barren.")
 	var n := have if count < 0 else mini(count, have)
 	game.bars[metal] = have - n
@@ -281,7 +282,7 @@ static func buy(game: Node, id: String) -> String:
 		return Lang.t("Das verkauft Gorm nicht.")
 	var price := ware_price(game, id)
 	if game.coins < price:
-		return Lang.t("Dafür reicht dein Gold nicht.")
+		return Lang.t("Dafür reicht dein Kupfer nicht.")
 	if p.bag_used() >= p.bag_size():
 		return Lang.t("Deine Tasche ist voll.")
 	game.coins -= price
@@ -356,7 +357,7 @@ static func forge(game: Node, id: String) -> String:
 	if game.iron < cost.iron:
 		return Lang.t("Dafür hast du zu wenig Eisen.")
 	if game.coins < cost.gold:
-		return Lang.t("Dafür reicht dein Gold nicht.")
+		return Lang.t("Dafür reicht dein Kupfer nicht.")
 	if p.bag.count(THUNDER_ORE) < cost.ore:
 		return Lang.t("Dafür hast du zu wenig Donnererz. Es glimmt nur bei Gewitter neben den Felsen.")
 	for _i in cost.ore:
@@ -379,7 +380,7 @@ static func mend(game: Node, id: String) -> String:
 		return Lang.t("%s ist wie neu.") % Items.item_name(id)
 	var price := mend_price(id, game)
 	if game.coins < price:
-		return Lang.t("Dafür reicht dein Gold nicht.")
+		return Lang.t("Dafür reicht dein Kupfer nicht.")
 	while int(p.wear.get(id, 0)) > 0 and game.coins >= price:
 		p.wear[id] = int(p.wear[id]) - 1
 		game.coins -= price
@@ -392,7 +393,7 @@ static func mend(game: Node, id: String) -> String:
 static func buy_iron(game: Node, count: int) -> String:
 	var price := iron_price(game)
 	if count <= 0 or game.coins < price * count:
-		return Lang.t("Dafür reicht dein Gold nicht.")
+		return Lang.t("Dafür reicht dein Kupfer nicht.")
 	game.coins -= price * count
 	game.iron += count
 	return ""

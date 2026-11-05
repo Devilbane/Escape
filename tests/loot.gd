@@ -119,10 +119,10 @@ func _test_coins() -> void:
 	check(copper_tough > copper_weak, "tough foes carry copper more often (%d vs %d)" % [copper_tough, copper_weak])
 	check(slime_iron > 100 and slime_iron < 300, "a slime holds coins about half the time (%d of 400)" % slime_iron)
 	for coin in Loot.COINS:
-		check(Crafting.INGREDIENTS.has(coin), "%s goes into the pouch" % coin)
+		check(Crafting.INGREDIENTS.has(coin) != (coin == Loot.MONEY), "%s goes into the pouch, or is the money" % coin)
 		check(Forge.METALS.has(Loot.COINS[coin]), "%s melts into a real metal" % coin)
 		check(ItemIcon.kind_of(coin) == "coin", "%s looks like a coin" % coin)
-	check(Lang.EN.get("Kupferbarren", "") == "Copper bar" and Forge.FINE.has("kupfer"), "copper bars are fine bars Gorm buys")
+	check(Lang.EN.get("Kupferbarren", "") == "Copper bar" and Forge.FINE.has("kupfer"), "copper bars are kept with the fine bars")
 
 
 ## No chest, kill or hoard holds a god-born piece, even when asked for one.
@@ -246,9 +246,14 @@ func _test_game() -> void:
 	check(Forge.melt_coins(game, "eisenmuenze") == "" and game.iron == 2, "and another")
 	check(Forge.melt_coins(game, "eisenmuenze") != "" and game.iron == 2, "50 are not enough")
 	check(game.crafting.have("eisenmuenze") == 50, "50 iron coins are left")
-	game.crafting.add("kupfermuenze", 100, false)
-	check(Forge.melt_coins(game, "kupfermuenze") == "" and int(game.bars.get("kupfer", 0)) == 1, "100 copper coins become a copper bar")
-	check(Forge.sell_bars(game, "kupfer", 1) == "", "Gorm buys the copper bar")
+	# Copper coins are the money: picked up, they go into the purse.
+	game.coins = 30
+	game._on_ingredient_collected(Loot.MONEY, 100, true)
+	check(game.coins == 130 and game.crafting.have(Loot.MONEY) == 130, "copper coins go into the purse")
+	check(Forge.melt_coins(game, Loot.MONEY) == "" and int(game.bars.get("kupfer", 0)) == 1 and game.coins == 30, "100 copper coins become a copper bar")
+	check(Forge.melt_coins(game, Loot.MONEY) != "" and game.coins == 30, "30 are not enough")
+	check(Forge.sell_bars(game, "kupfer", 1) != "", "a copper bar is not sold back for the coins it was")
+
 	# A troll may leave a lump of ore; melted, it gives grams, and full
 	# kilos become bars.
 	var troll := Enemy.new()

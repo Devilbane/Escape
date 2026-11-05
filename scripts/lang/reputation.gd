@@ -58,7 +58,7 @@ const EN := {
 	"Der Bankier vermietet Schließfächer im Tresorkeller. Dort sieht man, was andere Helden besitzen.": "The banker rents out vaults in the cellar. There you can see what other heroes own.",
 	"Die Glatze zeigt deine Tätowierung am besten. Nur so als Hinweis.": "A shaved head shows off your tattoo best. Just saying.",
 	"Gorm, Mira und Hagen haben jeder ein Geheimrezept. Hilf ihnen, dann verraten sie es dir vielleicht.": "Gorm, Mira and Hagen each have a secret recipe. Help them and they may tell you.",
-	"Gold auf der Bank ist sicher, auch wenn du im Verlies fällst.": "Gold in the bank is safe, even if you fall in the dungeon.",
+	"Kupfer auf der Bank ist sicher, auch wenn du im Verlies fällst.": "Copper in the bank is safe, even if you fall in the dungeon.",
 	"Wer den Leuten im Dorf hilft, bekommt bessere Preise. Ich sehe das an den Büchern der Händler.": "Whoever helps the people of the village gets better prices. I see it in the traders' books.",
 	"Stapel deine Blöcke versetzt, und lass keine Lücke breiter als ein Schritt. Sonst kommen die Räuber durch.": "Stagger your blocks, and leave no gap wider than a step. Otherwise the bandits get through.",
 	"Mira verkauft nicht nur Kram. Sie weiß auch, wie man Leder pflegt. Frag sie, wenn sie dich gut kennt.": "Mira does not just sell odds and ends. She also knows how to care for leather. Ask her once she knows you well.",

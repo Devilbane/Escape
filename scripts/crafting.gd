@@ -65,8 +65,6 @@ const INGREDIENTS := {
 	# into a bar of it at Gorm's forge.
 	"eisenmuenze": {"name": "Eisenmünze", "store": "metall", "tier": "normal", "region": "Überall", "when": "", "source": "Beute kluger Gegner",
 		"where": "Jeder kluge Gegner trägt ein paar bei sich: Skelette, Banditen, Orks, Trolle und Drachen. Gorm schmilzt hundert davon zu einem Eisenbarren ein."},
-	"kupfermuenze": {"name": "Kupfermünze", "store": "metall", "tier": "normal", "region": "Überall", "when": "", "source": "Beute kluger Gegner",
-		"where": "Kluge Gegner tragen sie, zähe öfter und mehr. Gorm schmilzt hundert davon zu einem Kupferbarren ein."},
 	"silbermuenze": {"name": "Silbermünze", "store": "metall", "tier": "ungewoehnlich", "region": "Überall", "when": "", "source": "Beute kluger Gegner",
 		"where": "Nur zähe kluge Gegner tragen sie öfter. Gorm schmilzt hundert davon zu einem Silberbarren ein."},
 	# Food (common), from the beasts.
@@ -319,6 +317,8 @@ func read_line(id: String, line_id: String) -> bool:
 func have(ingredient: String) -> int:
 	if ingredient == "eisen":
 		return game.iron if game else 0
+	if ingredient == Loot.MONEY:
+		return game.coins if game else 0
 	if ingredient in Forge.FINE:
 		return int(game.bars.get(ingredient, 0)) if game else 0
 	return int(pouch.get(ingredient, 0))
@@ -327,6 +327,9 @@ func have(ingredient: String) -> int:
 ## Takes `count` of an ingredient out of the pouch (as many as there are);
 ## ore goes oldest lump first.
 func take(ingredient: String, count := 1) -> void:
+	if ingredient == Loot.MONEY:
+		game.coins = maxi(0, game.coins - count)
+		return
 	var store := _pieces(ingredient)
 	if store.has(ingredient):
 		var list: Array = store[ingredient]
@@ -371,6 +374,9 @@ func add_gem(id: String, carat: int) -> void:
 func add(ingredient: String, count := 1, found_here := true) -> void:
 	if ingredient == "eisen":
 		game.iron += count
+	elif ingredient == Loot.MONEY:
+		# Copper coins are the hero's money (see Loot.MONEY).
+		game.coins += count
 	elif INGREDIENTS.has(ingredient):
 		pouch[ingredient] = have(ingredient) + count
 		var store := _pieces(ingredient)
@@ -438,6 +444,8 @@ func caught_fish(fish: String) -> Array:
 static func ingredient_name(ingredient: String) -> String:
 	if ingredient == "eisen":
 		return Lang.t("Eisenbarren")
+	if ingredient == Loot.MONEY:
+		return Lang.t("Kupfermünze")
 	if ingredient in Forge.FINE:
 		return Lang.t(Forge.METALS[ingredient].name)
 	return Lang.t(INGREDIENTS[ingredient].name) if INGREDIENTS.has(ingredient) else ingredient

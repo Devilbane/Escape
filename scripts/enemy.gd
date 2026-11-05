@@ -314,7 +314,7 @@ const VOICE_RANGE := 18.0
 const VOICE_WORDS := {"krieger": "knurr", "schuetze": "zisch", "magier": "murmel",
 	"wicht": "kicher", "koloss": "GROLL", "waechter": "klirr"}
 ## What a bandit shouts while it hunts the hero.
-const TAUNTS := ["Her mit dem Gold!", "Den schnappen wir uns!", "Dein Beutel oder dein Leben!", "Keiner kommt hier durch!"]
+const TAUNTS := ["Her mit dem Kupfer!", "Den schnappen wir uns!", "Dein Beutel oder dein Leben!", "Keiner kommt hier durch!"]
 var _voice_timer := 0.0
 ## Where a roaming bandit is strolling to, and how long it lingers there.
 var _roam_pause := 0.0

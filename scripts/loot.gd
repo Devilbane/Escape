@@ -13,8 +13,8 @@ extends RefCounted
 ## Two kinds of monsters, two kinds of loot:
 ## - intelligent ones, and those who use the hero's kind of gear (the
 ##   skeletons, the bandits, orcs, trolls, dragons): coins with every kill
-##   (iron, copper and silver coins into the pouch, gold coins into the
-##   purse, see coins) and, with the odds above, a piece of gear of the
+##   (iron and silver coins into the pouch, copper coins, the money, into
+##   the purse, see coins) and, with the odds above, a piece of gear of the
 ##   rolled tier, one they wore if they wore one of that tier;
 ## - the others, beasts without a mind (wolves, spiders, bats, yetis,
 ##   slimes): no coins and no gear but, with the odds above, food (common),
@@ -53,10 +53,14 @@ const SWALLOWS := ["schleim", "kristallschleim", "glutschleim", "schlund"]
 ## A slime holds each kind of coin only this often.
 const SWALLOWED_COINS := 0.5
 
-## The coins: pouch ingredient (see Crafting.INGREDIENTS) -> the metal its
-## bar is of (see Forge.METALS). Gold coins are the hero's money (game.coins)
-## and are not melted down.
+## The coins -> the metal their bar is of (see Forge.METALS). Iron and
+## silver coins go into the pouch (see Crafting.INGREDIENTS); copper coins
+## are the hero's money (MONEY, counted in game.coins, see Crafting.have).
+## The gold coins of old, now called ancient gold coins, are no more: every
+## one is exchanged into a copper coin, one for one (see Game._apply_save).
 const COINS := {"eisenmuenze": "eisen", "kupfermuenze": "kupfer", "silbermuenze": "silber"}
+## The coin that is the hero's money.
+const MONEY := "kupfermuenze"
 ## How many coins of one metal melt into one bar.
 const COINS_PER_BAR := 100
 ## How each coin looks lying on the floor.
@@ -142,7 +146,7 @@ static func creature_find(kind: String, tier: String, rng: RandomNumberGenerator
 	return str(what)
 
 
-## The coins a fallen one leaves (no gold: that is the kind's own purse):
+## The metal coins a fallen one leaves besides its purse (see Level.drop_kill_loot):
 ## pouch coin -> count. Every intelligent kill leaves iron coins, tougher
 ## ones copper and silver as well, more often and more of them. A slime
 ## holds each kind only now and then.

@@ -169,6 +169,8 @@ var _quest_mark_timer := 0.0
 var inside_house := 0
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
+## The hero's money: copper coins (see Loot.MONEY; the gold coins of old
+## were exchanged into them one for one).
 var coins := 0
 ## Iron bars for the smith's forge (see Forge), counted like gold.
 var iron := 0
@@ -2059,8 +2061,8 @@ func _update_hud() -> void:
 	_hp_hover.tooltip_text = hp_tip()
 	_update_status_icons()
 	_show_hero_level()
-	_coin_label.text = Lang.t("Gold: %d") % coins
-	_coin_label.tooltip_text = Lang.t("Dein Gold: Damit bezahlst du bei Händlern und Handwerkern.")
+	_coin_label.text = Lang.t("Kupfer: %d") % coins
+	_coin_label.tooltip_text = Lang.t("Dein Kupfer: Damit bezahlst du bei Händlern und Handwerkern.")
 	_update_ammo()
 	_key_label.text = Lang.t("Schlüssel gefunden") if level.has_key else Lang.t("Kein Schlüssel")
 	# The lair's floors have locked doors too.
@@ -2247,7 +2249,7 @@ func _on_hoard_taken() -> void:
 		Sfx.play_gear(level, "schwert", 0.0, player.global_position)
 	if amount > 0:
 		coins += amount
-		Events.found(Lang.t("+%d Gold") % amount, GOLD)
+		Events.found(Lang.t("+%d Kupfer") % amount, GOLD)
 		Sfx.play_coins(self, amount)
 	_update_hud()
 
@@ -2281,7 +2283,7 @@ func _on_elder_hoard_taken() -> void:
 		Sfx.play_rarity(level, Sfx.finest(items), 0.2, player.global_position)
 	if amount > 0:
 		coins += _gold(amount)
-		Events.found(Lang.t("+%d Gold") % _gold(amount), GOLD)
+		Events.found(Lang.t("+%d Kupfer") % _gold(amount), GOLD)
 		Sfx.play_coins(self, _gold(amount))
 	show_message(Lang.t("Gold klirrt! Der Große Alte regt sich im Schlaf. Leise fort von hier!") if left == 0 \
 			else Lang.t("Gold klirrt! Deine Tasche ist voll, der Rest liegt am Boden. Leise!"), 3.5, ElderLair.GOLD)
@@ -3013,10 +3015,10 @@ func save_list() -> Array:
 static func save_summary(info: Dictionary) -> String:
 	var who := Lang.t("%s, Heldenstufe %d,") % [info.name, int(info.get("hero_level", 1))]
 	if info.home:
-		return Lang.t("%s zu Hause mit %d Gold.") % [who, info.coins]
+		return Lang.t("%s zu Hause mit %d Kupfer.") % [who, info.coins]
 	if info.escaped:
-		return Lang.t("%s auf dem Friedhof mit %d Gold.") % [who, info.coins]
-	return Lang.t("%s auf Ebene %d mit %d Gold.") % [who, info.level, info.coins]
+		return Lang.t("%s auf dem Friedhof mit %d Kupfer.") % [who, info.coins]
+	return Lang.t("%s auf Ebene %d mit %d Kupfer.") % [who, info.level, info.coins]
 
 
 ## Whether the hero of saved game a has come further than the one of b: their
@@ -3051,6 +3053,10 @@ func _read_save(path := "") -> Dictionary:
 func _apply_save(data: Dictionary) -> void:
 	hero_name = data.get("name", Lang.t("Namenlos"))
 	coins = int(data.coins)
+	# A game saved before copper became the money held ancient gold coins:
+	# each one is exchanged into a copper coin, one for one (see Loot.MONEY).
+	if data.get("currency", "") != Loot.MONEY and coins > 0:
+		Events.tell(Lang.t("Deine %d uralten Goldmünzen wurden eins zu eins in %d Kupfermünzen getauscht. Kupfer ist jetzt dein Geld.") % [coins, coins], GOLD, 8.0)
 	iron = int(data.get("iron", 0))
 	metal_grams = {}
 	var saved_grams = data.get("metal_grams", {})
@@ -3310,7 +3316,7 @@ func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	journal.catch_up()
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
@@ -3774,7 +3780,7 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 		storage.append(Menus.STONE)
 		stones += 1
 	if spent.job > 0.0:
-		lines.append(Lang.t("%s: %s, +%d Gold") % [Lang.t(Offline.JOBS[plan.job].name), Offline.duration_text(spent.job), result.gold])
+		lines.append(Lang.t("%s: %s, +%d Kupfer") % [Lang.t(Offline.JOBS[plan.job].name), Offline.duration_text(spent.job), result.gold])
 	if spent.train > 0.0:
 		lines.append(Lang.t("Training (%s): %s") % [_training_name(plan.train), Offline.duration_text(spent.train)])
 	if spent.study > 0.0:
@@ -4507,7 +4513,7 @@ func _on_item_collected(id: String) -> void:
 
 func _on_coins_collected(amount: int) -> void:
 	coins += _gold(amount)
-	Events.found(Lang.t("+%d Gold") % _gold(amount), GOLD)
+	Events.found(Lang.t("+%d Kupfer") % _gold(amount), GOLD)
 	Sfx.play_coins(self, _gold(amount))
 	_update_hud()
 
@@ -4777,7 +4783,7 @@ func _search(obj: Dictionary) -> void:
 	if loot.has("gold"):
 		Sfx.play_coins(self, _gold(loot.gold), found_after)
 		coins += _gold(loot.gold)
-		text = Lang.t("+%d Gold") % _gold(loot.gold)
+		text = Lang.t("+%d Kupfer") % _gold(loot.gold)
 		color = GOLD
 		Events.found(text, GOLD)
 	elif loot.has("knives"):
@@ -4866,7 +4872,7 @@ func _end_run(escaped: bool) -> void:
 		# The run is over, so this hero's saved game in the safe room is
 		# gone too. The other slots keep theirs.
 		delete_save(save_path())
-		_show_title(Lang.t("Frei!"), Lang.t("%s ist entkommen und hat %d Gold erbeutet.") % [hero_name, coins], Lang.t("Klicken für ein neues Spiel"))
+		_show_title(Lang.t("Frei!"), Lang.t("%s ist entkommen und hat %d Kupfer erbeutet.") % [hero_name, coins], Lang.t("Klicken für ein neues Spiel"))
 	elif has_slot_save():
 		# A fallen hero may rise again in the safe room, or once out of the
 		# dungeon, on the graveyard or in their own house.
@@ -4874,9 +4880,9 @@ func _end_run(escaped: bool) -> void:
 		var place := Lang.t("Klicken oder eine Taste: in deinem Haus weiterspielen.  N: neues Spiel") if info.home \
 				else Lang.t("Klicken oder eine Taste: ab dem Friedhof weiterspielen.  N: neues Spiel") if info.escaped \
 				else Lang.t("Klicken oder eine Taste: ab der Zuflucht weiterspielen.  N: neues Spiel")
-		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], place)
+		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Kupfer.") % [hero_name, level_index + 1, coins], place)
 	else:
-		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], Lang.t("Klicken für ein neues Spiel"))
+		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Kupfer.") % [hero_name, level_index + 1, coins], Lang.t("Klicken für ein neues Spiel"))
 	_title_text.add_theme_font_size_override("font_size", UiKit.sized(90))
 	_ranking_slot.add_child(Ranking.build(self, entry))
 
@@ -4999,7 +5005,7 @@ func _step_out_of_crypt() -> void:
 		if healed > 0:
 			_update_hud()
 			Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+%d" % healed, Color(0.5, 1.0, 0.5))
-		var text := Lang.t("Frei! %s ist entkommen und hat %d Gold erbeutet.") % [hero_name, coins] if first else ""
+		var text := Lang.t("Frei! %s ist entkommen und hat %d Kupfer erbeutet.") % [hero_name, coins] if first else ""
 		text += ("\n" if text != "" else "") + (Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"))
 		get_tree().create_timer(4.8).timeout.connect(func():
 			if state == State.PLAYING:

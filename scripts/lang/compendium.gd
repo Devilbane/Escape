@@ -51,7 +51,7 @@ const EN := {
 	"Leben: %d / %d": "Life: %d / %d",
 	"Kampfkraft %d": "Power %d",
 	"Tempo %d%%": "Speed %d%%",
-	"Gold: %d": "Gold: %d",
+	"Kupfer: %d": "Copper: %d",
 	"Schlüssel gefunden": "Key found",
 	"Kein Schlüssel": "No key",
 	"Dagegenlaufen, um %s zu untersuchen": "Run into %s to search it",

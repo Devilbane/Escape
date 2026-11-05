@@ -12,8 +12,6 @@ const EN := {
 	"Beute kluger Gegner": "loot of intelligent foes",
 	"Jeder kluge Gegner trägt ein paar bei sich: Skelette, Banditen, Orks, Trolle und Drachen. Gorm schmilzt hundert davon zu einem Eisenbarren ein.":
 		"Every intelligent foe carries a few: skeletons, bandits, orcs, trolls and dragons. Gorm melts a hundred of them into one iron bar.",
-	"Kluge Gegner tragen sie, zähe öfter und mehr. Gorm schmilzt hundert davon zu einem Kupferbarren ein.":
-		"Intelligent foes carry them, tough ones more often and more of them. Gorm melts a hundred of them into one copper bar.",
 	"Nur zähe kluge Gegner tragen sie öfter. Gorm schmilzt hundert davon zu einem Silberbarren ein.":
 		"Only tough intelligent foes carry them often. Gorm melts a hundred of them into one silver bar.",
 	"Kupferbarren": "Copper bar",
@@ -99,4 +97,7 @@ const EN := {
 		"Gorm cuts it. It loses 15 to 50 percent of its weight, and its rarity follows what is left.",
 	"Je mehr Karat, desto seltener und wertvoller. Gorm kauft geschliffene Edelsteine.": "The more carats, the rarer and more valuable. Gorm buys cut gems.",
 	"Geschliffen: %d ct werden %d ct (%s)": "Cut: %d ct become %d ct (%s)",
+	# The money: ancient gold coins become copper coins.
+	"Deine %d uralten Goldmünzen wurden eins zu eins in %d Kupfermünzen getauscht. Kupfer ist jetzt dein Geld.":
+		"Your %d ancient gold coins were exchanged one for one into %d copper coins. Copper is your money now.",
 }

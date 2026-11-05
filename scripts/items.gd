@@ -105,7 +105,7 @@ static var ALL := {
 	# Unique: the Mountain King's hammer, deep in the third mine (see Mines).
 	"runenhammer": {"name": "Runenhammer des Bergkönigs", "slot": "waffe", "uses": "aexte", "weight": 6, "hp": 2, "power": 4, "skills": {"aexte": 1}, "price": 160, "no_loot": true, "unique": true, "model": "res://assets/weapons/forge/war_hammer.gltf", "material": "mixed", "effect": "Einzigartig: der Hammer des Bergkönigs aus dem Herzen des Berges"},
 	"vampirzahn": {"name": "Vampirzahn", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Jeder dritte besiegte Gegner gibt dir 1 Leben"},
-	"gluecksklee": {"name": "Glücksklee", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Doppeltes Gold"},
+	"gluecksklee": {"name": "Glücksklee", "slot": "spezial", "weight": 0.1, "price": 40, "effect": "Doppeltes Kupfer"},
 	"dornenrune": {"name": "Dornenrune", "slot": "spezial", "weight": 0.5, "price": 45, "effect": "Wer dich im Nahkampf trifft, erleidet 1 Schaden, wenn er nicht gehärtet ist"},
 	"phoenixfeder": {"name": "Phönixfeder", "slot": "spezial", "weight": 0.1, "price": 60, "effect": "Rettet dich einmal vor dem Tod, dann verbrennt sie"},
 	# Backpacks: "bag" is how many items the hero can carry while wearing one.

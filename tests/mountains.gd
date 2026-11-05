@@ -244,7 +244,7 @@ func _check_king() -> void:
 	check(lvl.mine_boss_bar != null, "the Mountain King has a health bar")
 	if not king is MountainKing:
 		return
-	check(king.max_hp() >= 100, "the Mountain King takes a long fight (%d)" % king.max_hp())
+	check(king.max_hp() >= 300, "the Mountain King takes a long fight (%d)" % king.max_hp())
 	king.take_hit(king.max_hp() / 2 + 6, king.global_position + Vector3(2, 0, 0), "pierce")
 	check(king.phase == 2, "at half his life the Mountain King rages")
 	king.take_hit(9999, king.global_position + Vector3(2, 0, 0), "pierce")

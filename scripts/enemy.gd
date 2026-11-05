@@ -83,7 +83,7 @@ const KINDS := {
 	"schlaeger": {"model": "Barbarian", "dir": "characters", "weapon": "axe_1handed", "hp": 6, "speed": 3.8, "damage": 2, "reach": 2.3, "size": 1.15, "cooldown": 1.8, "armor": 1,
 		"human": true, "roam": true, "parts": ["Barbarian_Hat"], "colors": [Color(0.5, 0.36, 0.28), Color(0.3, 0.26, 0.22), Color(0.4, 0.3, 0.22)]},
 	# The chief is the boss of the pass (see BanditChief).
-	"hauptmann": {"model": "Knight", "dir": "characters", "weapon": "sword_1handed", "shield": "shield_round", "hp": 30, "speed": 4.2, "damage": 3, "reach": 2.2, "size": 1.1, "cooldown": 1.4,
+	"hauptmann": {"model": "Knight", "dir": "characters", "weapon": "sword_1handed", "shield": "shield_round", "hp": 60, "speed": 4.2, "damage": 3, "reach": 2.2, "size": 1.1, "cooldown": 1.4,
 		"human": true, "roam": true, "parts": ["Knight_Cape"], "colors": [Color(0.45, 0.14, 0.12), Color(0.22, 0.2, 0.2), Color(0.5, 0.1, 0.1)]},
 	# The ghoul lurks among the dead of the dungeon with the ghosts: no
 	# spirit but a hunched, grey eater of corpses, quick, with claws that
@@ -124,7 +124,7 @@ const KINDS := {
 	# The Spider Queen (see SpiderQueen), the boss at the bottom of the spider
 	# hole: a spider grown huge and pale, throwing webs far more often than
 	# her brood. At half her life she calls her young out of the walls.
-	"spinnenkoenigin": {"model": "Spider", "dir": "wild", "hp": 34, "speed": 4.8, "damage": 2, "reach": 3.2, "size": 2.0, "cooldown": 1.4, "armor": 1,
+	"spinnenkoenigin": {"model": "Spider", "dir": "wild", "hp": 68, "speed": 4.8, "damage": 2, "reach": 3.2, "size": 2.0, "cooldown": 1.4, "armor": 1,
 		"beast": true, "big": true, "model_scale": 0.6, "turn": 0.0, "run_anim": 3.0,
 		"anims": {"Idle": "HumanArmature|Spider_Idle", "Walking_A": "HumanArmature|Spider_Walk", "Running_A": "HumanArmature|Spider_Walk",
 			"1H_Melee_Attack_Chop": "HumanArmature|Spider_Attack", "Hit_A": "HumanArmature|Spider_Jump", "Death_A": "HumanArmature|Spider_Death"},
@@ -145,7 +145,7 @@ const KINDS := {
 		"anims": {"Idle": "Armature|Slime_Idle", "Walking_A": "Armature|Slime_Walk", "Running_A": "Armature|Slime_Walk",
 			"1H_Melee_Attack_Chop": "Armature|Slime_Attack", "Hit_A": "Armature|Slime_Idle", "Death_A": "Armature|Slime_Death"},
 		"voice": ["voice_koloss", 1.5, "blubb"], "purse": [1, 3], "gear_chance": 0.15, "poison": 0.35},
-	"drache": {"model": "Dragon", "dir": "lair", "ext": "fbx", "hp": 36, "speed": 3.4, "damage": 2, "reach": 14.0, "size": 1.6, "cooldown": 2.2,
+	"drache": {"model": "Dragon", "dir": "lair", "ext": "fbx", "hp": 72, "speed": 3.4, "damage": 2, "reach": 14.0, "size": 1.6, "cooldown": 2.2,
 		"beast": true, "ranged": true, "fire": true, "model_scale": 0.6, "turn": 0.0, "run_anim": 4.0, "lift": 1.0,
 		"anims": {"Idle": "DragonArmature|Dragon_Flying", "Walking_A": "DragonArmature|Dragon_Flying", "Running_A": "DragonArmature|Dragon_Flying",
 			"1H_Melee_Attack_Chop": "DragonArmature|Dragon_Attack", "1H_Ranged_Shoot": "DragonArmature|Dragon_Attack2",
@@ -213,7 +213,7 @@ const KINDS := {
 	# The boss deep down in the third mine (see Mines): a rock troll grown
 	# huge on the mountain's heat. A plain fight, but a long one: big, slow
 	# blows to step away from, and a health bar at the top.
-	"bergkoenig": {"model": "Yeti", "dir": "wild", "hp": 150, "speed": 3.6, "damage": 9, "reach": 4.0, "size": 2.6, "cooldown": 2.6, "armor": 3,
+	"bergkoenig": {"model": "Yeti", "dir": "wild", "hp": 300, "speed": 3.6, "damage": 9, "reach": 4.0, "size": 2.6, "cooldown": 2.6, "armor": 3,
 		"beast": true, "mountain": true, "boss": true, "big": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
 		"tint": Color(0.36, 0.28, 0.26), "glow": Color(1.0, 0.4, 0.12),

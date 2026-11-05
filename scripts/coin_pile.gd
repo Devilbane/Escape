@@ -63,6 +63,16 @@ static func count_of(entry) -> int:
 	return int(entry[4]) if entry is Array and entry.size() >= 5 else 1
 
 
+## How many coins lie in these pickups (Level._pickups): every coin of every
+## pile, one for each coin the map placed.
+static func coins_in(pickups: Array) -> int:
+	var n := 0
+	for p in pickups:
+		if p.get("kind", "") == "coin":
+			n += count_of(p.get("floor"))
+	return n
+
+
 ## How many of those the hero put down themselves.
 static func own_of(entry) -> int:
 	return clampi(int(entry[5]), 0, count_of(entry)) if entry is Array and entry.size() >= 6 else 0

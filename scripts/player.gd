@@ -95,9 +95,11 @@ var dead := false
 var hp := MAX_HP
 ## What one shrine gift gives: the player picks one of the three (life, a
 ## free attribute point, or Konstitution).
-const SHRINE_LIFE := 4
+const SHRINE_LIFE := 5
 const SHRINE_POINTS := 1
 const SHRINE_CONSTITUTION := 1
+## In the beginner dungeon a shrine's Konstitution gift is bigger.
+const SHRINE_CONSTITUTION_BEGINNER := 2
 # Gifts from shrines, kept for the whole run.
 var gift_hp := 0
 ## Life from the trophy wall at home (see HomeUpgrades), set by the game.

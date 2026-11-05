@@ -295,6 +295,8 @@ var _run_fill: StyleBoxFlat
 var _shrine_panel: Control
 ## The fourth shrine gift, offered only to a wise hero.
 var _wise_gift: Button
+## The Konstitution gift, whose amount depends on the dungeon.
+var _constitution_gift: Button
 var _shrine: Dictionary = {}
 var _pending_station: Dictionary = {}
 ## Everything the hero has been told so far, for the compendium (key H):
@@ -1365,11 +1367,13 @@ func _setup_shrine_panel() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
 	box.add_child(row)
-	var gifts := [Lang.t("+4 Leben"), Lang.t("+1 Attributpunkt"), Lang.t("+1 Konstitution")]
+	var gifts := [Lang.t("+5 Leben"), Lang.t("+1 Attributpunkt"), Lang.t("+1 Konstitution")]
 	for i in gifts.size():
 		var b := _make_button(Lang.t("%s\n(Taste %d)") % [gifts[i], i + 1], _choose_gift.bind(i))
 		b.custom_minimum_size = Vector2(200, 96)
 		row.add_child(b)
+		if i == 2:
+			_constitution_gift = b
 	_wise_gift = _make_button(Lang.t("%s\n(Taste %d)") % [Lang.t("+1 Härtung"), 4], _choose_gift.bind(3))
 	_wise_gift.custom_minimum_size = Vector2(200, 96)
 	row.add_child(_wise_gift)
@@ -1996,7 +2000,13 @@ func _open_shrine(s: Dictionary) -> void:
 	set_world_paused(true)
 	# A wise hero sees one more way to take the shrine's blessing.
 	_wise_gift.visible = player.attribute("weisheit") >= Training.WISE_SHRINE
+	_constitution_gift.text = Lang.t("%s\n(Taste %d)") % [Lang.t("+%d Konstitution") % shrine_constitution(), 3]
 	_shrine_panel.visible = true
+
+
+## How much Konstitution a shrine gives here: more in the beginner dungeon.
+func shrine_constitution() -> int:
+	return Player.SHRINE_CONSTITUTION_BEGINNER if level.beginner_dungeon else Player.SHRINE_CONSTITUTION
 
 
 func _choose_gift(index: int) -> void:
@@ -2007,17 +2017,18 @@ func _choose_gift(index: int) -> void:
 		0:
 			player.gift_hp += Player.SHRINE_LIFE
 			player.hp += Player.SHRINE_LIFE
-			text = Lang.t("Du fühlst dich zäher: +4 Leben")
+			text = Lang.t("Du fühlst dich zäher: +5 Leben")
 		1:
 			player.gift_points += Player.SHRINE_POINTS
 			text = Lang.t("Die Ahnen schenken dir einen Attributpunkt: verteile ihn auf der Charakterseite (P).")
 		2:
 			# More Konstitution means more life; the new life comes filled.
 			var before := player.max_hp
-			player.gift_constitution += Player.SHRINE_CONSTITUTION
+			var amount := shrine_constitution()
+			player.gift_constitution += amount
 			player.refresh_stats()
 			player.hp += player.max_hp - before
-			text = Lang.t("Du fühlst dich zäher: +1 Konstitution")
+			text = Lang.t("Du fühlst dich zäher: +%d Konstitution") % amount
 		3:
 			if not _wise_gift.visible:
 				return

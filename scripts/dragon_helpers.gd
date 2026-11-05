@@ -146,7 +146,7 @@ func _snatch(h: Dictionary) -> void:
 	h.home = true
 	if carried == null:
 		return
-	Events.carried_off(str(entry[0]), str(entry[1]))
+	Events.carried_off(str(entry[0]), str(entry[1]), CoinPile.count_of(entry))
 	carried.reparent(h.node, false)
 	carried.position = Vector3(0, -0.5, 0)
 	carried.scale = Vector3.ONE * 0.6

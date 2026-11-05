@@ -159,7 +159,7 @@ func _window(kind: String, where: String) -> void:
 func _tabs(kind: String) -> Array:
 	match kind:
 		"inventar":
-			return ["tasche", "beutel"]
+			return ["tasche", "beutel", "muenzen"]
 		"haendler", "steinmetz":
 			return ["kaufen", "verkaufen"]
 		"schmied":

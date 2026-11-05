@@ -40,7 +40,9 @@ extends Node3D
 ## Barrels, crates, tables, trunks, chests and wall shelves can be searched.
 
 signal key_collected
-signal coins_collected(amount: int)
+## Coins picked up: how many, their metal (see CoinPile.METALS) and how
+## many of them the hero had put down themselves.
+signal coins_collected(amount: int, metal: String, own: int)
 signal door_opened
 signal door_locked
 signal player_hurt
@@ -193,7 +195,9 @@ var taken := {}
 ## props, chests, people, traps or hidden finds.
 var grates := {}
 ## What lies about on the floor here: gear the hero dropped, loot from the
-## fallen and spilt coins, as [kind ("item" or "coin"), item id, x, z] each.
+## fallen and spilt coins, as [kind ("item" or "coin"), item id, x, z] each;
+## a pile of coins also has its count and how many the hero put down
+## (["coin", metal, x, z, count, own], see CoinPile).
 ## The game hands in its own list for this level and keeps it in the saved
 ## game; restore_floor() lays it all out again after build(), so nothing
 ## vanishes when the hero walks off and comes back.
@@ -3505,8 +3509,10 @@ func _check_pickups() -> void:
 		elif p.kind == "hoard":
 			hoard = {}
 			hoard_taken.emit()
+		elif p.has("floor"):
+			coins_collected.emit(CoinPile.count_of(p.floor), CoinPile.metal_of(str(p.floor[1])), CoinPile.own_of(p.floor))
 		else:
-			coins_collected.emit(1)
+			coins_collected.emit(1, CoinPile.MONEY, 0)
 
 
 ## Whether this floor has a locked door (open or not).
@@ -4014,15 +4020,16 @@ func _drop_boss_loot(e: Enemy) -> void:
 	Events.found(Lang.t("Seltene Beute: %s (%s)") % [Rarity.marked(id), Rarity.label(id)], tier.color)
 
 
-## Gold coins spilt from a fallen bandit's purse, scattered around the spot.
+## Coins spilt from a fallen bandit's purse: one pile beside the spot, which
+## joins a pile of the same metal already lying there (see lay_coins).
 ## Unlike the coins placed by the map they have no id: they are kept on the
 ## floor list (see floor_items) until picked up, then simply gone.
-func _drop_coins(pos: Vector3, amount: int) -> void:
-	for i in amount:
-		var angle := randf() * TAU
-		_lay_coin(Vector3(pos.x, 0, pos.z) + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.5, 1.4))
-	if amount > 0:
-		Sfx.play_coins(self, amount, 0.3, pos)
+func _drop_coins(pos: Vector3, amount: int, metal := CoinPile.MONEY) -> void:
+	if amount <= 0:
+		return
+	var angle := randf() * TAU
+	lay_coins(Vector3(pos.x, 0, pos.z) + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.3, 0.7), amount, metal)
+	Sfx.play_coins(self, amount, 0.3, pos)
 
 
 ## Hides a few ingredients in the ground for the hero's fox to find: on the
@@ -4170,16 +4177,92 @@ func lay_find(id: String, pos: Vector3, colour := Color(0.55, 0.75, 0.35)) -> vo
 	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6})
 
 
-## One spilt coin lying flat on the floor, kept on the floor list.
+## One spilt gold coin on the floor (it joins a pile lying there).
 func _lay_coin(pos: Vector3) -> void:
+	lay_coins(pos, 1)
+
+
+## Puts `count` coins of `metal` on the floor at `pos`: they join the pile of
+## that metal lying there (within CoinPile.JOIN_RADIUS), or start one. A pile
+## holds at most CoinPile.MAX; what does not fit starts a new pile beside it.
+## `own`: how many of them the hero put down from the purse. Returns the
+## pickup of the pile the last of them went to.
+func lay_coins(pos: Vector3, count: int, metal := CoinPile.MONEY, own := 0) -> Dictionary:
+	metal = CoinPile.metal_of(metal)
+	own = clampi(own, 0, count)
+	var last := {}
+	while count > 0:
+		var pile := _coin_pile_near(pos, metal)
+		var n := 0
+		var o := 0
+		if pile.is_empty():
+			n = mini(count, CoinPile.MAX)
+			o = mini(own, n)
+			last = _coin_pile(_beside_full_piles(pos), n, metal, o)
+		else:
+			var entry: Array = pile.floor
+			n = mini(count, CoinPile.MAX - CoinPile.count_of(entry))
+			o = mini(own, n)
+			_set_pile(pile, CoinPile.count_of(entry) + n, CoinPile.own_of(entry) + o)
+			last = pile
+		count -= n
+		own -= o
+	return last
+
+
+## The pile of `metal` lying within reach of `pos` that still has room, the
+## nearest; empty when there is none.
+func _coin_pile_near(pos: Vector3, metal: String) -> Dictionary:
+	var best := {}
+	var best_d := CoinPile.JOIN_RADIUS
+	for p in _pickups:
+		if p.kind != "coin" or not p.has("floor") or p.get("metal", "") != metal or not is_instance_valid(p.node):
+			continue
+		if CoinPile.count_of(p.floor) >= CoinPile.MAX:
+			continue
+		var d := _flat_distance(pos, p.node.position)
+		if d <= best_d:
+			best = p
+			best_d = d
+	return best
+
+
+## Where a new pile goes when full piles lie at `pos`: just beside them.
+func _beside_full_piles(pos: Vector3) -> Vector3:
+	for p in _pickups:
+		if p.kind != "coin" or not p.has("floor") or not is_instance_valid(p.node):
+			continue
+		var room := CoinPile.radius(CoinPile.count_of(p.floor)) + 0.6
+		var away := Vector3(pos.x - p.node.position.x, 0, pos.z - p.node.position.z)
+		if away.length() < room:
+			var dir := away.normalized() if away.length() > 0.05 else Vector3(cos(randf() * TAU), 0, sin(randf() * TAU))
+			return Vector3(p.node.position.x, 0, p.node.position.z) + dir * room
+	return pos
+
+
+## A new pile of coins on the floor list.
+func _coin_pile(pos: Vector3, count: int, metal: String, own: int) -> Dictionary:
 	var holder := Node3D.new()
 	holder.position = Vector3(pos.x, 0.03, pos.z)
 	holder.rotation.y = randf() * TAU
 	add_child(holder)
-	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
-	coin.scale = Vector3.ONE * 1.6
-	CoinShine.add_to_coin(holder)
-	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "floor": _remember_on_floor("coin", "", pos)})
+	var entry := _remember_on_floor("coin", metal, pos)
+	entry.append_array([count, own])
+	var pile := {"node": holder, "kind": "coin", "metal": metal, "radius": 1.5, "floor": entry}
+	_pickups.append(pile)
+	_set_pile(pile, count, own)
+	return pile
+
+
+## A pile now holds `count` coins: its entry, its reach and its look.
+func _set_pile(pile: Dictionary, count: int, own: int) -> void:
+	var entry: Array = pile.floor
+	while entry.size() < 6:
+		entry.append(1 if entry.size() == 4 else 0)
+	entry[4] = count
+	entry[5] = clampi(own, 0, count)
+	pile.radius = maxf(1.5, CoinPile.radius(count) + 0.9)
+	CoinPile.dress(pile.node, count, str(pile.metal), self)
 
 
 ## A thrown knife lying flat where it fell (see Projectile), kept on the
@@ -4254,7 +4337,7 @@ func restore_floor() -> void:
 			continue
 		var pos := Vector3(float(entry[2]), 0, float(entry[3]))
 		if str(entry[0]) == "coin":
-			_lay_coin(pos)
+			_coin_pile(pos, CoinPile.count_of(entry), CoinPile.metal_of(str(entry[1])), CoinPile.own_of(entry))
 		elif str(entry[1]) == Items.KNIFE:
 			lay_knife(pos)
 		elif Items.ALL.has(str(entry[1])):

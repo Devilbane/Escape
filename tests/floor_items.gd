@@ -75,8 +75,11 @@ func _test() -> void:
 	# Out and back in.
 	game.load_level(_index_of("zuflucht"), false)
 	check(_items(id).size() == 2, "both items still lie there when coming back")
-	var coins: int = game.level._pickups.filter(func(c): return c.kind == "coin" and c.has("floor")).size()
-	check(coins == 2, "the spilt coins still lie there (%d)" % coins)
+	var piles: Array = game.level._pickups.filter(func(c): return c.kind == "coin" and c.has("floor"))
+	var coins := 0
+	for pile in piles:
+		coins += CoinPile.count_of(pile.floor)
+	check(piles.size() == 1 and coins == 2, "the spilt coins still lie there, in one pile (%d in %d)" % [coins, piles.size()])
 	var near: Array = _items(id).filter(func(q): return Vector2(q.node.global_position.x - spot.x, q.node.global_position.z - spot.z).length() < 0.1)
 	check(near.size() == 1, "the dropped item lies where it was dropped")
 

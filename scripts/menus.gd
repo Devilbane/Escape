@@ -898,9 +898,13 @@ func _build_inventory() -> void:
 	_box.add_child(tabs)
 	var bag_tab := Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag_used(), p.bag_size(), Items.weight_text(p.carried_weight())]
 	var pouch_tab := Lang.t("Zutatenbeutel (%d)") % _pouch_ids().size()
-	for tab in [["tasche", bag_tab], ["beutel", pouch_tab]]:
+	# The bag is three cells wide, the pouch two, the coins one: together as
+	# wide as the bag's grid.
+	for tab in [["tasche", bag_tab, 3], ["beutel", pouch_tab, 2], ["muenzen", Lang.t("Münzen"), 1]]:
 		var b := _item_button(tab[1], _show_inventory_tab.bind(tab[0]))
-		b.custom_minimum_size = Vector2(3 * INVENTORY_CELL.x + 2 * 8, 44)
+		b.custom_minimum_size = Vector2(tab[2] * INVENTORY_CELL.x + (tab[2] - 1) * 8, 44)
+		b.clip_text = true
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.modulate = Color(1.0, 0.9, 0.6) if inventory_tab == tab[0] else Color(0.75, 0.75, 0.8)
 		tabs.add_child(b)
 	# The bag's page is always built: it sets the size the pouch's page gets,
@@ -909,11 +913,11 @@ func _build_inventory() -> void:
 	page.add_theme_constant_override("separation", 6)
 	_box.add_child(page)
 	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, 6, page, true)
-	if inventory_tab == "beutel":
+	if inventory_tab != "tasche":
 		var room := page.get_combined_minimum_size()
 		_box.remove_child(page)
 		page.queue_free()
-		_box.add_child(_pouch_page(room, 6))
+		_box.add_child(_pouch_page(room, 6) if inventory_tab == "beutel" else _purse_page(room))
 	_box.add_child(_inventory_details())
 
 
@@ -1076,6 +1080,143 @@ func _pouch_page(room: Vector2, columns: int) -> Control:
 		for b in grid.get_children():
 			b.custom_minimum_size.x = minf(INVENTORY_CELL.x, cell)
 	return scroll
+
+
+## How many coins of each metal the coin tab puts down (metal -> count).
+var coin_amounts := {}
+## The quick amounts on the coin tab ("Alle" is everything carried).
+const COIN_STEPS := [1, 10, 100]
+
+
+## The coin tab: a row per metal the hero carries (gold always), with how
+## many, a few quick amounts, a field to type any amount and the button to
+## put them down at the hero's feet, where they join a pile of the same
+## metal (see CoinPile). As big as the bag's page.
+func _purse_page(room: Vector2) -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = room
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 6)
+	scroll.add_child(list)
+	var hint: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	hint.text = Lang.t("Münzen einer Art am selben Fleck bilden einen Haufen (bis %d).") % CoinPile.MAX
+	hint.clip_text = true
+	hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.custom_minimum_size = Vector2(room.x - 12, 26)
+	list.add_child(hint)
+	for metal in game.coin_metals():
+		list.add_child(_coin_row(metal, room.x - 12))
+	return scroll
+
+
+func _coin_row(metal: String, width: float) -> Control:
+	var info: Dictionary = CoinPile.METALS[metal]
+	var held: int = game.coins_held(metal)
+	var amount := clampi(int(coin_amounts.get(metal, 1)), 0, held)
+	if held > 0 and amount == 0:
+		amount = 1
+	coin_amounts[metal] = amount
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.08, 0.12, 0.85)
+	style.border_color = Color(0.85, 0.66, 0.32, 0.55)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(8)
+	panel.add_theme_stylebox_override("panel", style)
+	panel.custom_minimum_size.x = width
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	var icon := ItemIcon.make("kind:coin", 36)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if metal != CoinPile.GOLD:
+		# The coin picture made grey, then coloured like the metal.
+		icon.modulate = Color(info.tint.r * 1.15, info.tint.g * 1.25, info.tint.b * 2.2)
+	row.add_child(icon)
+	var names := VBoxContainer.new()
+	names.add_theme_constant_override("separation", 0)
+	names.custom_minimum_size.x = 250
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	names.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(names)
+	var title: Label = game._make_label(game.TEXT_FONT, 18, info.tint)
+	title.text = Lang.t(info.name)
+	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	names.add_child(title)
+	var count: Label = game._make_label(game.TEXT_FONT, 16, TradeWindow.GREY)
+	count.text = Lang.t("Dabei: %d") % held if held > 0 else Lang.t("Keine dabei")
+	count.clip_text = true
+	count.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	names.add_child(count)
+	for step in COIN_STEPS + [-1]:
+		var n: int = held if step < 0 else step
+		var b := _item_button(Lang.t("Alle") if step < 0 else str(step), _set_coin_amount.bind(metal, n), held > 0 and (step < 0 or step <= held))
+		b.custom_minimum_size = Vector2(64, 44)
+		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		if held > 0 and n == amount:
+			_mark_picked(b)
+		row.add_child(b)
+	var edit := LineEdit.new()
+	edit.name = "Amount"
+	edit.text = str(amount)
+	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	edit.max_length = 5
+	edit.editable = held > 0
+	edit.custom_minimum_size = Vector2(100, 44)
+	edit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	edit.tooltip_text = Lang.t("Wie viele Münzen (1 bis %d)") % mini(held, CoinPile.MAX) if held > 0 else ""
+	edit.add_theme_font_override("font", game.TEXT_FONT)
+	edit.add_theme_font_size_override("font_size", UiKit.sized(18))
+	edit.add_theme_color_override("font_color", game.GOLD)
+	edit.add_theme_stylebox_override("normal", panel_style(Color(0.85, 0.66, 0.32, 0.8)))
+	edit.add_theme_stylebox_override("focus", panel_style(game.GOLD))
+	edit.add_theme_stylebox_override("read_only", panel_style(Color(0.5, 0.45, 0.4, 0.5)))
+	for st in ["normal", "focus", "read_only"]:
+		edit.get_theme_stylebox(st).set_content_margin_all(6)
+	# Digits only; the amount is kept as it is typed, and Enter puts them down.
+	edit.text_changed.connect(func(t: String):
+		var digits := ""
+		for ch in t:
+			if ch >= "0" and ch <= "9":
+				digits += ch
+		if digits != t:
+			var at := edit.caret_column
+			edit.text = digits
+			edit.caret_column = mini(at, digits.length())
+		coin_amounts[metal] = int(digits) if digits != "" else 0)
+	edit.text_submitted.connect(func(_t): _put_coins_down(metal))
+	row.add_child(edit)
+	var put := _item_button(Lang.t("Ablegen"), _put_coins_down.bind(metal), held > 0)
+	put.custom_minimum_size = Vector2(150, 44)
+	put.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(put)
+	return panel
+
+
+func _set_coin_amount(metal: String, n: int) -> void:
+	coin_amounts[metal] = n
+	_note = ""
+	_rebuild()
+
+
+## Puts the chosen number of coins down at the hero's feet (a typed amount
+## is kept within what is carried and what one pile holds).
+func _put_coins_down(metal: String) -> void:
+	var held: int = game.coins_held(metal)
+	var n := clampi(int(coin_amounts.get(metal, 0)), 0, mini(held, CoinPile.MAX))
+	if n <= 0:
+		_note = Lang.t("Keine Münzen zum Ablegen.") if held <= 0 else Lang.t("Gib an, wie viele Münzen du ablegen willst.")
+		_rebuild()
+		return
+	var done: int = game.put_coins_down(metal, n)
+	_note = Lang.t("%d %s abgelegt.") % [done, Lang.t(CoinPile.METALS[metal].name)]
+	coin_amounts[metal] = mini(n, game.coins_held(metal))
+	_rebuild()
 
 
 func _show_inventory_tab(tab: String) -> void:

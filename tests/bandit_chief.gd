@@ -159,7 +159,7 @@ func _process(_delta: float) -> bool:
 			check(lvl.chief_defeated() and game._looted_for_save().values().any(func(ids): return Outdoor.CHIEF_DEFEATED in ids), "his fall is kept in the saved game")
 			var drops: Array = lvl._pickups.slice(pickups_before)
 			check(drops.any(func(p): return p.get("id", "") == BanditChief.TROPHY), "he drops his unique blade")
-			check(drops.filter(func(p): return p.kind == "coin").size() >= Outdoor.CHIEF_GOLD, "his purse spills plenty of gold")
+			check(CoinPile.coins_in(drops) >= Outdoor.CHIEF_GOLD, "his purse spills plenty of gold")
 			var spot: Array = lvl._wild.filter(func(s): return s.kind == "hauptmann")
 			check(spot.size() == 1 and spot[0].timer == INF, "nobody takes the chief's place")
 			print("the chief fell at ", where)

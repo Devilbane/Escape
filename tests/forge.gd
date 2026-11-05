@@ -61,11 +61,13 @@ func _run() -> void:
 	# finer metal, jewellery the metal of its rarity, magic moon silver.
 	check(Forge.melt_into("schwert") == {"eisen": 2}, "a plain sword is iron: %s" % str(Forge.melt_into("schwert")))
 	check(Forge.melt_into("kettenhemd") == {"eisen": 5}, "uncommon chain mail is iron: %s" % str(Forge.melt_into("kettenhemd")))
-	check(Forge.melt_into("streitaxt").get("bronze", 0) == 1, "a rare battle axe has bronze fittings")
-	check(Forge.melt_into("plattenpanzer").get("silber", 0) == 1, "epic plate armour has silver fittings")
-	check(Forge.melt_into("bronzearmreif") == {"bronze": 2}, "a bronze bracelet is bronze: %s" % str(Forge.melt_into("bronzearmreif")))
-	check(Forge.melt_into("rubinring") == {"silber": 2}, "a ruby ring is silver: %s" % str(Forge.melt_into("rubinring")))
-	check(Forge.melt_into("klingenring") == {"gold": 1, "mondsilbererz": 1}, "a magic epic ring is gold and moon silver: %s" % str(Forge.melt_into("klingenring")))
+	# Fine metal comes in grams, worth a quarter of a weapon's or armour's
+	# price for fittings and half a piece of jewellery's (see Forge.GRAM_VALUE).
+	check(Forge.melt_into("streitaxt").get("g:bronze", 0) == Forge.grams_worth("bronze", Items.ALL["streitaxt"].price / 4.0), "a rare battle axe has bronze fittings")
+	check(Forge.melt_into("plattenpanzer").get("g:silber", 0) == Forge.grams_worth("silber", Items.ALL["plattenpanzer"].price / 4.0), "epic plate armour has silver fittings")
+	check(Forge.melt_into("bronzearmreif") == {"g:bronze": Forge.grams_worth("bronze", Items.ALL["bronzearmreif"].price / 2.0)}, "a bronze bracelet is bronze: %s" % str(Forge.melt_into("bronzearmreif")))
+	check(Forge.melt_into("rubinring").keys() == ["g:silber"], "a ruby ring is silver: %s" % str(Forge.melt_into("rubinring")))
+	check(Forge.melt_into("klingenring").has("g:gold") and Forge.melt_into("klingenring").get("mondsilbererz", 0) == 1, "a magic epic ring is gold and moon silver: %s" % str(Forge.melt_into("klingenring")))
 	check(Forge.melt_into("lederwams").is_empty() and Forge.melt_into("knochenhelm").is_empty(), "leather and bone do not melt at the forge")
 	check(DragonHoard.melt("kettenhemd") == Forge.melt_into("kettenhemd"), "the dragon melts by the same table")
 	var recipes := Forge.recipes()
@@ -89,6 +91,7 @@ func _run() -> void:
 	p.bag.append_array(["plattenpanzer", "lederwams", "kupferring"])
 	game.iron = 0
 	game.bars = {}
+	game.metal_grams = {}
 	game.coins = 100
 	game.menus.open("schmied")
 	check(game.menus.current == "schmied", "the smith's window opens")
@@ -98,9 +101,10 @@ func _run() -> void:
 	check(p.bag.size() == 3 and game.iron == 0, "leather does not melt")
 	game.menus._melt(0)
 	check(Array(p.bag) == ["lederwams", "kupferring"] and game.iron == 8, "the 8 kg plate armour melts into 8 iron bars")
-	check(int(game.bars.get("silber", 0)) == 1, "and its fine fittings into a silver bar (%s)" % str(game.bars))
+	check(int(game.metal_grams.get("silber", 0)) == Forge.melt_into("plattenpanzer")["g:silber"], "and its fine fittings into grams of silver (%s)" % str(game.metal_grams))
 	game.menus._melt(1)
-	check(Array(p.bag) == ["lederwams"] and game.iron == 8 and int(game.bars.get("bronze", 0)) == 3, "the copper ring into 3 bronze bars (%s)" % str(game.bars))
+	check(Array(p.bag) == ["lederwams"] and game.iron == 8 and int(game.metal_grams.get("bronze", 0)) == Forge.melt_into("kupferring")["g:bronze"], "the copper ring into grams of bronze (%s)" % str(game.metal_grams))
+	game.bars["bronze"] = 3
 
 
 	# Forging.

@@ -260,6 +260,28 @@ func _test_game() -> void:
 	check(Forge.melt_coins(game, Loot.MONEY) == "" and int(game.bars.get("kupfer", 0)) == 1 and game.coins == 30, "100 copper coins become a copper bar")
 	check(Forge.melt_coins(game, Loot.MONEY) != "" and game.coins == 30, "30 are not enough")
 	check(Forge.sell_bars(game, "kupfer", 1) != "", "a copper bar is not sold back for the coins it was")
+	# Exchange: 25 copper make a silver coin, 10 silver a gold coin.
+	check(Loot.COIN_VALUE.silbermuenze == 25 and Loot.COIN_VALUE.goldmuenze == 10 * Loot.COIN_VALUE.silbermuenze, "25 copper a silver coin, 10 silver a gold coin")
+	game.coins = 0
+	game.crafting.add("silbermuenze", 4, false)
+	game.crafting.add("goldmuenze", 2, false)
+	check(Loot.exchange(game, "silbermuenze") == 100 and game.coins == 100 and game.crafting.have("silbermuenze") == 0, "the bank changes 4 silver coins into 100 copper")
+	check(Loot.exchange(game, "goldmuenze") == 0 and game.coins == 100 and game.crafting.have("goldmuenze") == 2, "but new gold coins are never changed into copper")
+	# Loading a save from before copper (no "currency") changes the ancient
+	# gold in the purse, never the new gold coins in the pouch.
+	if game.save_game():
+		var old: Dictionary = game._read_save()
+		old.erase("currency")
+		game._apply_save(old)
+		check(game.coins == 100 and game.crafting.have("goldmuenze") == 2, "an old save keeps the new gold coins as they are (%d, %d)" % [game.coins, game.crafting.have("goldmuenze")])
+	else:
+		check(false, "the game could be saved")
+	check(Loot.exchange(game, "eisenmuenze") == 0, "iron coins are not changed")
+	# Bars are worth their thousand grams at the same rates.
+	check(Forge.METALS.silber.worth == 2500 and Forge.METALS.gold.worth == 25000, "a silver bar is worth 100 silver coins, a gold bar 100 gold coins")
+	var ring := Forge.melt_into("silberarmreif")
+	check(ring.has(Forge.GRAMS + "silber") and not ring.has("silber"), "a silver bracelet melts into grams of silver, not a bar: %s" % str(ring))
+	check(absf(ring[Forge.GRAMS + "silber"] * Forge.GRAM_VALUE.silber - int(Items.ALL["silberarmreif"].price) / 2.0) <= 2.0, "worth half its price")
 
 	# A troll may leave a lump of ore; melted, it gives grams, and full
 	# kilos become bars.

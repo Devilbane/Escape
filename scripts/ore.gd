@@ -68,6 +68,7 @@ const METALS := {
 	"eisen": {"name": "Eisen", "color": Color(0.6, 0.62, 0.66)},
 	"kupfer": {"name": "Kupfer", "color": Color(0.85, 0.48, 0.28)},
 	"silber": {"name": "Silber", "color": Color(0.88, 0.9, 0.95)},
+	"bronze": {"name": "Bronze", "color": Color(0.8, 0.5, 0.25)},
 	"gold": {"name": "Gold", "color": Color(1.0, 0.8, 0.3)},
 	UNKNOWN: {"name": "Unbekanntes Metall", "color": Color(0.5, 0.85, 1.0)},
 }

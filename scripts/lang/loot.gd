@@ -104,4 +104,6 @@ const EN := {
 	"Beute seltener Gegner und Bosse": "loot of rare foes and bosses",
 	"Nur seltene Gegner und Bosse ab Stufe 25 tragen ein bis drei davon, frisch geprägt, nicht wie die uralten. Gorm schmilzt hundert davon zu einem Goldbarren ein.":
 		"Only rare foes and bosses of level 25 and up carry one to three, freshly minted, unlike the ancient ones. Gorm melts a hundred of them into one gold bar.",
+	"%d× %s wechseln (je %d Kupfer)": "Change %d× %s (%d copper each)",
+	"Gewechselt: %d× %s gegen %d Kupfer": "Changed: %d× %s for %d copper",
 }

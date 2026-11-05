@@ -200,7 +200,7 @@ const WINDOW_SIZES := {
 	"inventar": Vector2(940, 720),
 	"lager": Vector2(1256, 764),
 	"tresor": Vector2(940, 652),
-	"bank": Vector2(780, 400),
+	"bank": Vector2(780, 460),
 	"werkbank": Vector2(780, 536),
 	"hauswerkbank": Vector2(560, 360),
 	"ausbau": Vector2(780, 400),
@@ -1340,6 +1340,16 @@ func _build_bank() -> void:
 			[Lang.t("10 abheben"), func(): _pay_out(10), Bank.gold(hero) > 0],
 			[Lang.t("Alles abheben"), func(): _pay_out(Bank.gold(hero)), Bank.gold(hero) > 0]]:
 		row.add_child(_item_button(b[0], b[1], b[2]))
+	# Silver and gold coins from the pouch, changed into copper (see Loot.COIN_VALUE).
+	var change := HBoxContainer.new()
+	change.alignment = BoxContainer.ALIGNMENT_CENTER
+	change.add_theme_constant_override("separation", 12)
+	_box.add_child(change)
+	for coin in Loot.CHANGED:
+		var have: int = game.crafting.have(coin)
+		var b := _item_button(Lang.t("%d× %s wechseln (je %d Kupfer)") % [have, Crafting.ingredient_name(coin), Loot.COIN_VALUE[coin]], _exchange.bind(coin), have > 0)
+		b.custom_minimum_size = Vector2(340, 44)
+		change.add_child(b)
 	if Bank.has_vault(hero):
 		_add_label(Lang.t("Dein Schließfach im Tresorkeller hat Platz für %d Schätze.") % Bank.VAULT_SIZE, 16, BLUE)
 	else:
@@ -1354,6 +1364,17 @@ func _build_bank() -> void:
 	down.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	down.custom_minimum_size = Vector2(320, 54)
 	_box.add_child(down)
+
+
+func _exchange(coin: String) -> void:
+	var n: int = game.crafting.have(coin)
+	var got := Loot.exchange(game, coin)
+	_note = Lang.t("Gewechselt: %d× %s gegen %d Kupfer") % [n, Crafting.ingredient_name(coin), got]
+	Sfx.play_coins(game, mini(got, 20))
+	game._update_hud()
+	# Bank and saved game must agree.
+	game.save_game()
+	_rebuild()
 
 
 func _pay_in(amount: int) -> void:

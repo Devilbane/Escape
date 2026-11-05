@@ -40,11 +40,21 @@ const MIN_MEND_PRICE := 2
 const METALS := {
 	"eisen": {"name": "Eisenbarren", "short": "Eisen", "color": Color(0.55, 0.57, 0.6)},
 	"kupfer": {"name": "Kupferbarren", "short": "Kupfer", "color": Color(0.85, 0.48, 0.28)},
-	"bronze": {"name": "Bronzebarren", "short": "Bronze", "color": Color(0.8, 0.5, 0.25), "worth": 3},
-	"silber": {"name": "Silberbarren", "short": "Silber", "color": Color(0.85, 0.87, 0.92), "worth": 7},
-	"gold": {"name": "Goldbarren", "short": "Goldbarren", "color": Color(1.0, 0.8, 0.3), "worth": 15},
+	"bronze": {"name": "Bronzebarren", "short": "Bronze", "color": Color(0.8, 0.5, 0.25), "worth": 150},
+	"silber": {"name": "Silberbarren", "short": "Silber", "color": Color(0.85, 0.87, 0.92), "worth": 2500},
+	"gold": {"name": "Goldbarren", "short": "Goldbarren", "color": Color(1.0, 0.8, 0.3), "worth": 25000},
 	"mondsilbererz": {"name": "Mondsilbererz", "short": "Mondsilber", "color": Color(0.6, 0.75, 1.0)},
 }
+## What one gram of a fine metal is worth in copper coins, from the exchange
+## rates: a coin weighs 10 g (see Ore.COIN_GRAMS), 25 copper coins make a
+## silver coin and 10 silver coins a gold coin, so a gram of copper is worth
+## 0.1, of silver 2.5 and of gold 25 copper coins; bronze, mostly copper,
+## a little more than copper. A bar (Ore.GRAMS_PER_BAR) is worth a
+## thousand grams: METALS "worth".
+const GRAM_VALUE := {"kupfer": 0.1, "bronze": 0.15, "silber": 2.5, "gold": 25.0}
+## A key in a melting table (see melt_into) for grams of a fine metal rather
+## than bars: GRAMS + metal, e.g. "g:silber".
+const GRAMS := "g:"
 ## The fine bars, kept in game.bars (copper bars come from melted coins and
 ## ore, see melt_coins). Gorm buys back those with a "worth"; a copper bar is
 ## a hundred of the coins the hero pays with, so it is not sold.
@@ -100,13 +110,15 @@ static func _is_trinket(id: String) -> bool:
 
 ## The one melting table, for the smith and the dragon alike: what a piece
 ## melts into, metal (see METALS) -> count. Empty for what does not melt.
-## - weapons, shields and metal armour: iron bars, one for every 8 gold of
-##   price, and from rare on one bar of the fine metal of their fittings;
-## - jewellery: bars of the fine metal of its rarity, as many as its worth
-##   at the merchant buys (one at the least);
+## - weapons, shields and metal armour: iron bars (a bar per kilo of
+##   armour, one for every 8 coins of a weapon's price), and from rare on
+##   grams of the fine metal of their fittings, worth a quarter of its price;
+## - jewellery: grams of the fine metal of its rarity, worth half its price
+##   (see GRAM_VALUE; a gram at the least);
 ## - magic pieces from rare on: a lump of moon silver as well.
 ## `any`: the dragon's fire melts more than Gorm's forge; a piece that is no
-## metal (a bone helmet, a charm) gives fine bars like jewellery.
+## metal (a bone helmet, a charm) gives fine metal like jewellery. Grams are
+## keyed GRAMS + metal.
 static func melt_into(id: String, any := false) -> Dictionary:
 	var out := {}
 	if not Items.ALL.has(id) or not (can_melt(id) or any):
@@ -118,25 +130,54 @@ static func melt_into(id: String, any := false) -> Dictionary:
 		# for every 8 gold of their price.
 		out["eisen"] = armour_iron(id) if armour_iron(id) > 0 else maxi(1, roundi(int(item.price) / 8.0))
 		if FITTINGS[r] != "" and str(item.slot) in Items.SLOTS:
-			out[FITTINGS[r]] = 1
+			out[GRAMS + FITTINGS[r]] = grams_worth(FITTINGS[r], int(item.price) / 4.0)
 	else:
 		var metal: String = PRECIOUS[r]
-		out[metal] = maxi(1, roundi(maxi(1, int(item.price) / 2) / float(METALS[metal].worth)))
+		out[GRAMS + metal] = grams_worth(metal, int(item.price) / 2.0)
 	if item.get("magic", false) and r >= MOON_FROM:
 		out["mondsilbererz"] = 1
 	return out
 
 
-## Metals in METALS order as a list of words: "2× Eisenbarren, 1×
-## Silberbarren" (translated), or short for a price line: "+2 Eisen, +1
-## Silber".
+## How many grams of a fine metal are worth `copper` copper coins (one at
+## the least).
+static func grams_worth(metal: String, copper: float) -> int:
+	return maxi(1, roundi(copper / float(GRAM_VALUE.get(metal, 1.0))))
+
+
+## Whether a key of a melting table names a metal: bars of one of METALS, or
+## grams of one (GRAMS + metal).
+static func is_metal_key(key: String) -> bool:
+	return METALS.has(key) or (key.begins_with(GRAMS) and METALS.has(key.substr(GRAMS.length())))
+
+
+## Metals in METALS order as a list of words: "2× Eisenbarren, 40 g Silber"
+## (translated), or short for a price line: "+2 Eisen, +40 g Silber".
 static func metals_text(bars: Dictionary, short := false) -> String:
 	var parts := []
 	for metal in METALS:
 		var n := int(bars.get(metal, 0))
 		if n > 0:
 			parts.append(("+%d %s" if short else "%d× %s") % [n, Lang.t(METALS[metal].short if short else METALS[metal].name)])
+		var g := int(bars.get(GRAMS + metal, 0))
+		if g > 0:
+			parts.append(("+%d g %s" if short else "%d g %s") % [g, Lang.t(METALS[metal].short)])
 	return ", ".join(parts)
+
+
+## Adds grams of a metal to game.metal_grams; every Ore.GRAMS_PER_BAR grams
+## of one with bars (not the unknown metal) become a bar of it. Returns the
+## new bars, metal -> count.
+static func add_grams(game: Node, grams: Dictionary) -> Dictionary:
+	var bars := {}
+	for metal in grams:
+		var total := int(game.metal_grams.get(metal, 0)) + int(grams[metal])
+		if metal != Ore.UNKNOWN and total >= Ore.GRAMS_PER_BAR:
+			bars[metal] = total / Ore.GRAMS_PER_BAR
+			total %= Ore.GRAMS_PER_BAR
+		game.metal_grams[metal] = total
+	store(game, bars)
+	return bars
 
 
 ## Puts metal into the hero's stores: iron bars, fine bars, moon silver into
@@ -145,6 +186,9 @@ static func store(game: Node, bars: Dictionary) -> void:
 	for metal in bars:
 		var n := int(bars[metal])
 		if n <= 0:
+			continue
+		if str(metal).begins_with(GRAMS):
+			add_grams(game, {str(metal).substr(GRAMS.length()): n})
 			continue
 		match metal:
 			"eisen":
@@ -198,14 +242,7 @@ static func melt_ore(game: Node, id: String) -> Dictionary:
 	game.crafting.take(id, 1)
 	for carat in gems:
 		game.crafting.add_gem(Ore.UNCUT, int(carat))
-	var bars := {}
-	for metal in grams:
-		var total := int(game.metal_grams.get(metal, 0)) + int(grams[metal])
-		if metal != Ore.UNKNOWN and total >= Ore.GRAMS_PER_BAR:
-			bars[metal] = total / Ore.GRAMS_PER_BAR
-			total %= Ore.GRAMS_PER_BAR
-		game.metal_grams[metal] = total
-	store(game, bars)
+	var bars := add_grams(game, grams)
 	return {"why": "", "grams": grams, "bars": bars, "gems": gems}
 
 

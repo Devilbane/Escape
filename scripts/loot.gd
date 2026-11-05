@@ -61,12 +61,21 @@ const SWALLOWED_COINS := 0.5
 const COINS := {"eisenmuenze": "eisen", "kupfermuenze": "kupfer", "silbermuenze": "silber", "goldmuenze": "gold"}
 ## New gold coins (not the ancient ones): only rare foes and finer, that is
 ## elites, horrors and bosses, of GOLD_FROM_LEVEL and up carry them,
-## GOLD_COINS of them (see gold_coins).
+## GOLD_COINS of them (see gold_coins). Their own pouch ingredient is their
+## "new" mark: they are never morphed into copper or ancient gold, neither
+## when an old save is loaded (that only touches the purse) nor at the bank.
 const GOLD_COIN := "goldmuenze"
 const GOLD_FROM_LEVEL := 25
 const GOLD_COINS := [1, 3]
 ## The coin that is the hero's money.
 const MONEY := "kupfermuenze"
+## What a coin is worth in copper coins: 25 copper make a silver coin, 10
+## silver a gold coin. The bank changes silver coins into copper at this
+## rate (see exchange); gold coins it leaves alone (see GOLD_COIN). Iron coins are small change for the smith:
+## they are only melted.
+const COIN_VALUE := {"kupfermuenze": 1, "silbermuenze": 25, "goldmuenze": 250}
+## The coins the bank changes into copper.
+const CHANGED := ["silbermuenze"]
 ## How many coins of one metal melt into one bar.
 const COINS_PER_BAR := 100
 ## How each coin looks lying on the floor.
@@ -196,6 +205,17 @@ static func gold_coins(rare: bool, fight_level: int, rng: RandomNumberGenerator 
 	if not rare or fight_level < GOLD_FROM_LEVEL:
 		return 0
 	return rng.randi_range(GOLD_COINS[0], GOLD_COINS[1]) if rng else randi_range(GOLD_COINS[0], GOLD_COINS[1])
+
+
+## Changes all the hero's coins of one kind (see CHANGED) into copper coins,
+## the money, at COIN_VALUE. Returns how many copper coins that made.
+static func exchange(game: Node, coin: String) -> int:
+	if not coin in CHANGED:
+		return 0
+	var n: int = game.crafting.have(coin)
+	game.crafting.take(coin, n)
+	game.coins += n * int(COIN_VALUE[coin])
+	return n * int(COIN_VALUE[coin])
 
 
 ## Whether an ingredient is one of the coins.

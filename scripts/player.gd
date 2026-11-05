@@ -98,6 +98,8 @@ var hp := MAX_HP
 const SHRINE_LIFE := 5
 const SHRINE_POINTS := 1
 const SHRINE_CONSTITUTION := 1
+## In the beginner dungeon a shrine's Konstitution gift is bigger.
+const SHRINE_CONSTITUTION_BEGINNER := 2
 # Gifts from shrines, kept for the whole run.
 var gift_hp := 0
 ## Life from the trophy wall at home (see HomeUpgrades), set by the game.

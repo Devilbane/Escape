@@ -87,7 +87,7 @@ Find the **key**, open the **door** and climb the **stairs** up to the next leve
 Barrels, crates, tables, chests and wall shelves can be searched: inside there may be gold,
 throwing knives, a healing potion or nothing at all. Searched objects get a tick.
 Skeletons attack with blades or crossbows. You can jump over **spikes**. Skeletons avoid spike traps, wait until the spikes are down, and hurt themselves on them.
-At a **shrine** you choose one gift: +5 life, +1 attribute point (to put into Strength, Dexterity or Intelligence on the character page) or +1 Constitution (a wise hero also gets +1 hardening).
+At a **shrine** you choose one gift: +5 life, +1 attribute point (to put into Strength, Dexterity or Intelligence on the character page) or +1 Constitution (+2 in the beginner dungeon; a wise hero also gets +1 hardening).
 Gifts last until the end of the game.
 
 Sometimes you find **gear**: helmets and hats (bone helmet, wizard hat, knight's helmet, bear cap) sit visibly on your head, sword and axe give power, shields give life,

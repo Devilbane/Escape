@@ -9,5 +9,6 @@ const EN := {
 	"%s\n(Taste %d)": "%s\n(key %d)",
 	"Du fühlst dich zäher: +5 Leben": "You feel tougher: +5 life",
 	"Die Ahnen schenken dir einen Attributpunkt: verteile ihn auf der Charakterseite (P).": "The ancestors give you an attribute point: spend it on the character page (P).",
-	"Du fühlst dich zäher: +1 Konstitution": "You feel tougher: +1 Constitution",
+	"Du fühlst dich zäher: +%d Konstitution": "You feel tougher: +%d Constitution",
+	"+%d Konstitution": "+%d Constitution",
 }

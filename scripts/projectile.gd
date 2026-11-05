@@ -26,11 +26,16 @@ var fire := false
 ## towards here (see Level.knife_rest).
 var thrown_from := Vector3.ZERO
 var web := false
+## This knife's own chance to break, KNIFE_BREAK_CHANCE unless a test sets it.
+var break_chance := KNIFE_BREAK_CHANCE
 var _age := 0.0
 
 const MAGIC_SPEED := 5.5
 const MAGIC_TURN := 0.8
 const CURSE_CHANCE := 0.35
+## How often a thrown knife breaks when it lands (on a foe, a wall or the
+## floor) instead of lying there to be picked up again.
+const KNIFE_BREAK_CHANCE := 0.2
 ## A web flies slower than a bolt: a hero who sees it coming can step aside.
 const WEB_SPEED := 11.0
 
@@ -170,10 +175,15 @@ func _physics_process(delta: float) -> void:
 
 
 ## The shot is over. The hero's knife falls to the floor near `at` and lies
-## there to be picked up again (see Level.lay_knife); bolts and orbs vanish.
+## there to be picked up again (see Level.lay_knife), unless it breaks
+## (break_chance); bolts and orbs vanish.
 func _land(at: Vector3) -> void:
 	if from_player and not magic and is_instance_valid(level):
-		level.lay_knife(level.knife_rest(at, thrown_from), direction)
+		if randf() < break_chance:
+			Comic.pop(at, "break")
+			Sfx.play(self, "gear_metal_%d" % (randi() % 3), -4.0, at, 1.5)
+		else:
+			level.lay_knife(level.knife_rest(at, thrown_from), direction)
 	queue_free()
 
 

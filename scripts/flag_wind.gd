@@ -43,15 +43,15 @@ const SHAPES := {
 ## The wind in each weather: how hard it blows (1 is a breeze) and how fast
 ## its waves run through the cloth (radians per second).
 const WINDS := {
-	Weather.CLEAR: Vector2(1.0, 2.0),
-	Weather.RAIN: Vector2(1.6, 3.0),
-	Weather.FOG: Vector2(0.4, 1.1),
-	Weather.STORM: Vector2(2.6, 4.6),
+	Weather.CLEAR: Vector2(1.0, 3.6),
+	Weather.RAIN: Vector2(1.6, 5.0),
+	Weather.FOG: Vector2(0.4, 2.0),
+	Weather.STORM: Vector2(2.6, 7.0),
 }
 ## The shader for cloth that had a plain material.
 const CLOTH := preload("res://shaders/flutter_cloth.gdshader")
 ## The soft draught down in the dungeon.
-const DRAUGHT := Vector2(0.5, 1.3)
+const DRAUGHT := Vector2(0.5, 2.4)
 ## How long the wind takes to come most of the way to a new weather's (seconds).
 const EASE := 6.0
 ## The cloth is cut until a strip spans at most this share of its length.

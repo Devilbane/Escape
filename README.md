@@ -365,8 +365,8 @@ through the autumn forest, past a pond and a woodcutter, to the village of **Lin
 to hear what they have to say. The **village elder** gives you your own house on **Weavers' Lane**, and a golden
 light shows the door. Weavers' Lane runs along the northern edge of the village: a row of twenty narrow,
 two-storey town houses wall to wall, each with its own colours and a number over the door, so the village has
-a home for many heroes. Inside, the **ground floor** is the storeroom: the **chest** (your storage), a
-**steel-banded chest** for your metal (gold coins, iron bars, the fine bars from the forge, ore and raw gems such
+a home for many heroes. Inside, the **ground floor** has the **chest** (your storage) and the stairs down
+to the **cellar**, which holds a **steel-banded chest** for your metal (gold coins, iron bars, the fine bars from the forge, ore and raw gems such
 as moon silver, moonstone, grotto crystals and thunder ore) and an **ingredient board** on the wall (shelves of
 phials and flasks, bundles of herbs and a filled bucket) for everything else of your ingredient pouch (herbs,
 mushrooms, fish, the dragon's parts) and the animal food from your bag. Both hold as much as you like: in their

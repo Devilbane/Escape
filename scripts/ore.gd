@@ -40,7 +40,7 @@ const PARTS := [["schlacke", 25, 60], ["eisen", 10, 40], ["kupfer", 5, 40], ["si
 const NOBLE_PARTS := [["schlacke", 10, 20], ["eisen", 5, 15], ["kupfer", 5, 15], ["silber", 10, 20], ["gold", 20, 30]]
 const NOBLE_GEMS := [1, 5]
 
-## The gems (pouch ingredients): uncut from noble ore, cut by Gorm. Each
+## The gems (kept in the purse, see Crafting.purse): uncut from noble ore, cut by Gorm. Each
 ## has its own weight in carat (Crafting.gems).
 const UNCUT := "rohedelstein"
 const CUT := "edelstein"

@@ -54,6 +54,11 @@ jobs:
           timeout 60 ~/godot/godot --headless -s tests/tile_letters.gd | tee tiles.log
           grep -q PASS tiles.log
 
+      - name: Monster families (every map names who lives there, every monster fits)
+        run: |
+          timeout 60 ~/godot/godot --headless -s tests/monster_families.gd | tee families.log
+          grep -q PASS families.log
+
       - name: Furniture spacing (no two chests or boards side by side)
         run: |
           timeout 60 ~/godot/godot --headless -s tests/furniture_spacing.gd | tee spacing.log

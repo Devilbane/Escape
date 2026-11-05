@@ -1,6 +1,7 @@
 name: Die Stachelhalle
 hint: Spring über die Stacheln! (Leertaste)
 secret: ungewoehnlich
+monsters: undead
 ###################
 #######E###########
 #####b...x#########

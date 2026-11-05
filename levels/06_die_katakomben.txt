@@ -2,6 +2,7 @@ name: Die Katakomben
 hint: Kleine Wichte kommen in Scharen. Bleib in Bewegung!
 elite: ja
 secret: ungewoehnlich
+monsters: undead, ghosts
 ########################
 #########E##############
 #######C...C############

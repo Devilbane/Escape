@@ -2,6 +2,7 @@ name: Die Knochengrube
 hint: Ein Koloss! Er ist langsam, aber er schlägt doppelt hart.
 elite: ja
 secret: ungewoehnlich
+monsters: undead
 #######################
 #########E#############
 #######C...C###########

@@ -1,5 +1,6 @@
 name: Die Drachenhöhle
 hint: Unter dem alten Steinbogen im Wald: ein Gewirr aus Gängen voller Fledermäuse, Schleime und Skelette. Ein Schlüssel öffnet die Tür zum Schacht in die Tiefe, und ganz unten schläft ein Drache auf seinem Gold.
+monsters: undead, wildlife, fable
 building: E
 floor: cellar
 lair: yes

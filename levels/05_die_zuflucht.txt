@@ -3,6 +3,7 @@ hint: Ein sicherer Ort. Der Brunnen heilt deine Wunden und jedes Gift, und du ka
 safe: ja
 fountain: 5
 secret: ungewoehnlich
+monsters: humans
 #################
 ######E##########
 ####.....########

@@ -2,6 +2,7 @@ name: Die Klingenhalle
 hint: Stacheln, Klingen und Zauber. Alles, was du gelernt hast, zählt jetzt.
 elite: ja
 secret: ungewoehnlich
+monsters: undead
 ###########################
 ##########E################
 ########C...C##############

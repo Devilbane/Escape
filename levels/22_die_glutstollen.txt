@@ -1,5 +1,6 @@
 name: Die Glutstollen
 hint: Unter dem Siegel: Stollen voller Glut, wo der Berg selbst brennt. Halte dich von den glühenden Spalten fern.
+monsters: wildlife, fable
 building: mine3b
 lair: ja
 theme: glut

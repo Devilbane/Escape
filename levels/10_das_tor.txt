@@ -2,6 +2,7 @@ name: Das Tor
 hint: Dahinter liegt die Freiheit. Zwei Kolosse bewachen den letzten Weg.
 elite: ja
 secret: ungewoehnlich
+monsters: undead
 ############################
 ##########E#################
 #######C.....C##############

@@ -1,5 +1,6 @@
 name: Das Spinnenloch
 hint: Ein Loch im Waldboden, tiefer als jeder Brunnen. Fäden kleben an den Wänden, und irgendwo in der Finsternis klickt etwas.
+monsters: wildlife
 building: loch2
 floor: cellar
 lair: yes

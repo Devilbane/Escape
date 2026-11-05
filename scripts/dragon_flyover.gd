@@ -2,8 +2,10 @@ class_name DragonFlyover
 extends Node3D
 ## Now and then, out in the open air, a dragon flies over: high up and out
 ## of sight, so all the hero sees is its huge shadow sweeping across the
-## ground, wings beating, and all the hero hears is a long, eerie scream far
-## away in the mountains. It is rare (minutes apart), only above ground
+## ground, wings beating. First a long, eerie scream far away in the
+## mountains; then, as it comes over, the heavy whump of its wings on every
+## downstroke, growing louder and passing overhead, and a piercing shriek
+## right above the hero. It is rare (minutes apart), only above ground
 ## (Outdoor builds it; a dungeon never has one), and does no harm.
 ##
 ## Where the map has the dragon's lair (its stone arch, "E"), the dragon
@@ -14,12 +16,20 @@ extends Node3D
 ## grows as they beat, like the shadow of a real wing seen from below. Their
 ## pictures are drawn once, at load time (see _body_image, _wing_image). The
 ## shadow is as dark as the light allows: plain by day, faint by moonlight,
-## nearly gone on a dark night or in fog, while the scream still carries.
+## nearly gone on a dark night or in fog, while its sounds still carry.
 ## Moved per frame (it is no physics body). Tested by tests/dragon_flyover.gd.
 
 ## The scream (built by tools/make_dragon_sounds.py) and how loud it is.
 const SOUND := "dragon_scream"
 const SOUND_DB := -5.0
+## Its wing beats (one is picked each time) and the shriek as it passes right
+## overhead, how loud they are this close, and how high up it flies (the
+## sounds come from there).
+const WING_SOUNDS := ["dragon_wingbeat_0", "dragon_wingbeat_1", "dragon_wingbeat_2"]
+const WING_DB := -2.0
+const SHRIEK_SOUNDS := ["dragon_shriek_0", "dragon_shriek_1"]
+const SHRIEK_DB := -3.0
+const HEIGHT := 30.0
 ## Seconds before the first flight after the hero steps out, and between two
 ## flights, at least and at most. Only counted while the open air runs.
 const FIRST_WAIT := Vector2(120.0, 360.0)
@@ -60,7 +70,8 @@ var lair := Vector3.INF
 var wait := 0.0
 ## The flight now: whether one is under way, where it starts, its direction
 ## (flat, unit), how far it has come, how long it is, its size, and whether
-## the scream was heard yet.
+## the scream was heard yet, how many wing beats were heard on this flight,
+## and whether it shrieked overhead yet.
 var flying := false
 var from := Vector3.ZERO
 var heading := Vector3.FORWARD
@@ -68,11 +79,17 @@ var travelled := 0.0
 var length := 0.0
 var size := 1.0
 var screamed := false
+var beats := 0
+var shrieked := false
 ## How many flights there were (for the test).
 var flights := 0
 
 var _rng := RandomNumberGenerator.new()
 var _time := 0.0
+## Where in its beat the wings were last frame (0 to 1), to hear each downstroke once.
+var _beat_phase := 0.0
+## The hero's spot on this flight (the shriek comes when the dragon is over it).
+var _near := Vector3.ZERO
 var _body: MeshInstance3D
 var _wings: Array[Node3D] = []
 var _material: StandardMaterial3D
@@ -160,9 +177,13 @@ func start(near: Vector3, direction := Vector3.ZERO) -> void:
 	travelled = 0.0
 	size = _rng.randf_range(SIZE.x, SIZE.y)
 	screamed = false
+	shrieked = false
+	beats = 0
 	flying = true
 	flights += 1
+	_near = near
 	_time = _rng.randf() * 10.0
+	_beat_phase = fposmod(_time / BEAT, 1.0)
 	scale = Vector3.ONE * size
 	# The head leads: the shapes' front is their -z.
 	rotation = Vector3(0, atan2(-heading.x, -heading.z), 0)
@@ -195,6 +216,7 @@ func _fly(delta: float) -> void:
 		return
 	_place()
 	_beat()
+	_sounds()
 	_material.albedo_color.a = DARK * light() * _fade()
 	_wing_material.albedo_color.a = _material.albedo_color.a
 
@@ -221,10 +243,47 @@ func _place() -> void:
 ## The wings beat, with now and then a moment's glide with them spread
 ## (the beat eases out and in again).
 func _beat() -> void:
-	var beating := smoothstep(-0.3, 0.3, sin(TAU * _time / (GLIDE_EVERY * 2.0)))
+	var beating := _beating()
 	var open := 1.0 - FOLD * beating * (0.5 - 0.5 * cos(TAU * _time / BEAT))
 	_wings[0].scale.x = open
 	_wings[1].scale.x = -open
+
+
+## How much the wings beat now (0 while gliding, 1 in full beat).
+func _beating() -> float:
+	return smoothstep(-0.3, 0.3, sin(TAU * _time / (GLIDE_EVERY * 2.0)))
+
+
+## The sounds of the flight overhead: a wing beat as each downstroke starts
+## (the wings are folded most halfway through the beat, see _beat), none
+## while it glides; and the shriek once it is over the hero.
+func _sounds() -> void:
+	var phase := fposmod(_time / BEAT, 1.0)
+	var downstroke := _beat_phase < 0.5 and phase >= 0.5
+	_beat_phase = phase
+	var hero: Node3D = level.player if level else null
+	var hero_at: Vector3 = hero.global_position if hero else _near
+	if downstroke and _beating() > 0.4:
+		beats += 1
+		_overhead(WING_SOUNDS[_rng.randi() % WING_SOUNDS.size()], WING_DB, hero_at)
+	if not shrieked and travelled >= length * 0.5:
+		shrieked = true
+		_overhead(SHRIEK_SOUNDS[_rng.randi() % SHRIEK_SOUNDS.size()], SHRIEK_DB, hero_at)
+
+
+## Plays one of its sounds from the dragon, high over its shadow: from that
+## side, softer the farther off it is (as loud as `volume_db` straight
+## overhead) and fading in and out at the ends of the path like the shadow.
+## A bigger dragon sounds a little deeper.
+func _overhead(sound: String, volume_db: float, hero_at: Vector3) -> void:
+	var at := global_position + Vector3(0, HEIGHT, 0)
+	var off := Vector3(at.x - hero_at.x, 0, at.z - hero_at.z)
+	var distance := Vector2(off.length(), HEIGHT).length()
+	var db := volume_db + 20.0 * log(HEIGHT / distance) / log(10.0)
+	db += 20.0 * log(maxf(_fade(), 0.05)) / log(10.0)
+	# Heard from its side, but placed near enough that the panning follows it.
+	var spot := hero_at + (off.normalized() * minf(off.length(), 20.0) if off.length() > 0.1 else Vector3.ZERO) + Vector3(0, 8, 0)
+	Sfx.play_3d(level, sound, db, spot, _rng.randf_range(0.95, 1.05) / size)
 
 
 ## The shadow fades in and out at the ends of its path (out of view anyway).

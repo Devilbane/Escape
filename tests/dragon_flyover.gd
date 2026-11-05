@@ -4,7 +4,8 @@ extends SceneTree
 ## flies; it screams first, then its shadow sweeps right past the hero, head
 ## first, and is gone again; it flies to or from the dragon's mountain; the
 ## shadow is as dark as the light allows; its pictures have a body and wings;
-## its scream and its line in the event log are there.
+## its wings are heard beating as it comes over and it shrieks right overhead;
+## its sounds and its line in the event log are there.
 ## Run with: godot --headless --fixed-fps 60 -s tests/dragon_flyover.gd
 
 var failures := 0
@@ -54,6 +55,8 @@ func _flyovers(node: Node, out: Array) -> Array:
 
 func _rules() -> void:
 	check(ResourceLoader.exists(Sfx.DIR + DragonFlyover.SOUND + ".wav"), "the scream is there")
+	for sound in DragonFlyover.WING_SOUNDS + DragonFlyover.SHRIEK_SOUNDS:
+		check(ResourceLoader.exists(Sfx.DIR + sound + ".wav"), "the sound %s is there" % sound)
 	check(Lang.EN.has(LINE), "the event log line has its English")
 	check(DragonFlyover.FIRST_WAIT.x >= 60.0 and DragonFlyover.WAIT.x >= 180.0, "the dragon comes rarely: minutes apart")
 
@@ -132,6 +135,8 @@ func _in_the_open() -> void:
 	check(seconds > 4.0 and seconds < 10.0, "it is over in a few seconds (%.1f s)" % seconds)
 	check(dark > 0.3, "the shadow is dark enough to see by day (%.2f)" % dark)
 	check(not fly.flying and not fly.is_shown(), "then the shadow is gone")
+	check(fly.beats >= 2, "its wings are heard beating as it comes over (%d beats)" % fly.beats)
+	check(fly.shrieked, "it shrieks as it passes overhead")
 	check(fly.wait >= DragonFlyover.WAIT.x and fly.wait <= DragonFlyover.WAIT.y, "the next flight is minutes away")
 	# A dark night, and fog: fainter.
 	level.day = 0

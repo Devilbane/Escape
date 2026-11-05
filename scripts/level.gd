@@ -221,6 +221,8 @@ var fishing_waters: Array = []
 var safe := false
 ## The world above ground after the last dungeon level: see Outdoor.
 var outdoor := false
+## The dust, cobwebs, critters and drip puddles of a dungeon floor, or null.
+var life: DungeonLife
 ## Inside a village building: the building's letter on the village map,
 ## and which floor ("cellar" below, "upstairs" above).
 var building := ""
@@ -578,7 +580,8 @@ func build() -> void:
 	if ElderLair.is_floor(self):
 		ElderLair.decorate(self)
 	if not outdoor and (building == "" or lair):
-		add_child(DungeonLife.new(self))
+		life = DungeonLife.new(self)
+		add_child(life)
 	if not grates.is_empty():
 		add_child(GratePits.new(self))
 		var tentacles := GrateTentacles.make(self)
@@ -2383,6 +2386,18 @@ const PUSH_APART_SPEED := 6.0
 ## How far two bodies may sink into each other before they count as stacked
 ## (bodies that merely touch must still be able to fight).
 const STACK_TOLERANCE := 0.15
+
+
+## Whether a spot on the floor is in water deep enough to splash: a drip
+## puddle in the dungeon (see DungeonLife). Outdoor has rain puddles instead.
+func in_puddle(p: Vector3) -> bool:
+	return life != null and life.in_puddle(p)
+
+
+## A foot lands in the water at a spot (see in_puddle); a soft step when not hard.
+func splash_puddle(at: Vector3, _hard := true) -> void:
+	if life:
+		life.splash(at)
 
 
 ## Whether `a` and `b` (the hero or skeletons) stand inside each other or on

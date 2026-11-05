@@ -3313,6 +3313,11 @@ func in_puddle(p: Vector3) -> bool:
 	return puddles != null and p.y < 0.3 and puddles.wet_at(p)
 
 
+func splash_puddle(at: Vector3, hard := true) -> void:
+	if puddles:
+		puddles.splash(at, hard)
+
+
 ## Spots for the creatures of a weather: open ground right next to the map
 ## letter they gather around, spread out so they do not come in a heap.
 func _place_weather_foes(foes: Dictionary) -> void:

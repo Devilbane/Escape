@@ -102,7 +102,9 @@ func _check_floor(building: String, up: String, down: String) -> void:
 		if e is ElderDragon:
 			continue
 		check(e.rated_level >= 17 and e.rated_level <= 19, "%s on %s is a fight for level 17 to 19 (%d)" % [e.kind, building, e.rated_level])
-	var epic := lvl.interactables.filter(func(o): return o.has("loot") and str(o.loot.get("item", "")) != "" and Rarity.tier(str(o.loot.item)) == "episch")
+	# Treasure chests hold gold beside their epic piece; a plain crate may
+	# hold an epic piece too (a beast trophy, see ArmourSets).
+	var epic := lvl.interactables.filter(func(o): return o.has("loot") and o.loot.has("gold") and str(o.loot.get("item", "")) != "" and Rarity.tier(str(o.loot.item)) == "episch")
 	if building != "uralt3":
 		check(epic.size() >= 2, "%s has an epic treasure room with two epic chests (%d)" % [building, epic.size()])
 		check(lvl._has_cell("D") and (lvl._has_cell("K")), "%s's treasure room lies behind a locked door with a key" % building)

@@ -55,7 +55,7 @@ const INGREDIENTS := {
 		"where": "Wächst in leuchtenden Büscheln in der Kristallgrotte, der zweiten Mine. Lauf dagegen, um zwei abzuschlagen; bis zum nächsten Morgen wächst das Büschel nach."},
 	# Left by Embermaw when it falls, deep in its lair (see DragonLair).
 	"drachenschuppe": {"name": "Drachenschuppe", "rare": true, "region": "Drachenhöhle", "when": "", "source": "Beute des Drachen",
-		"where": "Glutschlund verliert eine, wenn er fällt, ganz unten in der Drachenhöhle."},
+		"where": "Glutschlund verliert eine, wenn er fällt, manchmal auch zwei, ganz unten in der Drachenhöhle."},
 	"drachenblut": {"name": "Drachenblut", "rare": true, "region": "Drachenhöhle", "when": "", "source": "Beute des Drachen",
 		"where": "Rinnt aus Glutschlund, wenn er fällt, ganz unten in der Drachenhöhle."},
 	"glutherz": {"name": "Glutherz", "rare": true, "region": "Drachenhöhle", "when": "", "source": "Beute des Drachen, nicht immer",
@@ -204,6 +204,40 @@ const RECIPES := {
 			{"id": "blut", "text": "Drachenblut, damit die Glut nicht erlischt."},
 			{"id": "schuppe", "text": "Eine Drachenschuppe als Fassung."},
 			{"id": "gold", "text": "Ein Goldbarren für die Kette."},
+		]},
+	# The dragon scale armour set (see ArmourSets): learned with the first
+	# scale, like the scale bracelet, and riveted at the same bench.
+	"drachenhelm": {"name": "Drachenschuppenhelm", "giver": "", "found": "drachenschuppe",
+		"craft": "feinschmieden", "craft_level": 0, "result": "drachenhelm",
+		"effect": "+3 Leben, +1 Härtung, Teil des Drachenschuppensets",
+		"ingredients": {"drachenschuppe": 1, "eisen": 1},
+		"lines": [
+			{"id": "schuppe", "text": "Eine Drachenschuppe für die Stirn."},
+			{"id": "eisen", "text": "Ein Barren Eisen für den Helm darunter."},
+		]},
+	"drachenpanzer": {"name": "Drachenschuppenpanzer", "giver": "", "found": "drachenschuppe",
+		"craft": "feinschmieden", "craft_level": 0, "result": "drachenpanzer",
+		"effect": "+4 Leben, +2 Härtung, Teil des Drachenschuppensets",
+		"ingredients": {"drachenschuppe": 2, "eisen": 2},
+		"lines": [
+			{"id": "schuppe", "text": "Zwei Drachenschuppen für Brust und Rücken."},
+			{"id": "eisen", "text": "Zwei Barren Eisen für die Ringe, die sie halten."},
+		]},
+	"drachenstiefel": {"name": "Drachenschuppenstiefel", "giver": "", "found": "drachenschuppe",
+		"craft": "feinschmieden", "craft_level": 0, "result": "drachenstiefel",
+		"effect": "+2 Leben, schneller, Teil des Drachenschuppensets",
+		"ingredients": {"drachenschuppe": 1, "eisen": 1},
+		"lines": [
+			{"id": "schuppe", "text": "Eine Drachenschuppe, in Streifen geschnitten."},
+			{"id": "eisen", "text": "Ein Barren Eisen für Sohlen und Schnallen."},
+		]},
+	"drachenhandschuhe": {"name": "Drachenschuppenhandschuhe", "giver": "", "found": "drachenschuppe",
+		"craft": "feinschmieden", "craft_level": 0, "result": "drachenhandschuhe",
+		"effect": "+2 Leben, +1 Kampfkraft, Teil des Drachenschuppensets",
+		"ingredients": {"drachenschuppe": 1, "eisen": 1},
+		"lines": [
+			{"id": "schuppe", "text": "Eine Drachenschuppe für die Handrücken."},
+			{"id": "eisen", "text": "Ein Barren Eisen für die Fingerglieder."},
 		]},
 }
 

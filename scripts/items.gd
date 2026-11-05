@@ -2,8 +2,10 @@ class_name Items
 extends RefCounted
 ## Everything the hero can carry: weapons, shields, clothes, jewellery and specials.
 ## Each item adds to one of the hero's values while it is worn. Hard armour
-## takes "armor" off every hit (a hit still costs at least 1 life) and has
-## "durability": each hit may wear it down, and at 0 it breaks. Shields have
+## takes "armor" (Härtung) off every hit (a hit still keeps half its force);
+## "armour_value" (Rüstungswert, in percent) then takes that share off what
+## is left (see Player.armour_cut). Hard armour has "durability": each hit
+## may wear it down, and at 0 it breaks. Shields have
 ## a "block" chance: a blocked hit does no harm at all, but may wear the shield.
 ## Every item has a "weight" in kg; everything the hero carries, worn or in the
 ## bag, slows them down by WEIGHT_SLOW per kg (at most MAX_WEIGHT_SLOW).
@@ -17,10 +19,10 @@ extends RefCounted
 ## away (see Offline).
 ## A worn backpack ("bag") holds more than the plain bag's BAG_SIZE items.
 
-const SLOTS := ["kopf", "waffe", "schild", "umhang", "ruestung", "schuhe",
+const SLOTS := ["kopf", "waffe", "schild", "umhang", "ruestung", "handschuhe", "schuhe",
 		"amulett", "ring", "armreif", "spezial_1", "spezial_2", "rucksack"]
 const SLOT_NAMES := {"kopf": "Kopf", "waffe": "Waffe", "schild": "Schild", "umhang": "Umhang",
-		"ruestung": "Rüstung", "schuhe": "Schuhe", "amulett": "Amulett", "ring": "Ring",
+		"ruestung": "Rüstung", "handschuhe": "Handschuhe", "schuhe": "Schuhe", "amulett": "Amulett", "ring": "Ring",
 		"armreif": "Armreif", "spezial_1": "Spezial 1", "spezial_2": "Spezial 2",
 		"rucksack": "Rucksack"}
 const BAG_SIZE := 8
@@ -39,7 +41,7 @@ const MAX_WEIGHT_SLOW := 0.35
 
 ## Cloaks, armour and shoes also colour the hero ("tint"; "metal" makes it shine).
 ## Everything the hero visibly wears names its "material" (see GearLook), which
-## gives it a faint grain: cloth, leather, metal, chain, fur, bone, or "mixed"
+## gives it a faint grain: cloth, leather, metal, chain, scale, fur, bone, or "mixed"
 ## for weapons and shields (wood, with metal where the model is grey).
 ## Specials ("spezial") have an effect of their own instead of plain numbers.
 ## Not a constant: gear made in the map workshop joins it ("custom", see
@@ -68,17 +70,47 @@ static var ALL := {
 	"donnerklinge": {"name": "Donnerklinge", "slot": "waffe", "uses": "klingen", "weight": 3, "power": 2, "skills": {"klingen": 1}, "shock": 0.2, "thunder": 2, "price": 65, "no_loot": true, "crafted": true, "model": "res://assets/weapons/forge/long_sword.gltf", "material": "mixed"},
 	"donnerhammer": {"name": "Donnerhammer", "slot": "waffe", "uses": "aexte", "weight": 6, "power": 3, "skills": {"aexte": 1}, "shock": 0.25, "thunder": 3, "price": 80, "no_loot": true, "crafted": true, "model": "res://assets/weapons/forge/war_hammer.gltf", "material": "mixed"},
 	"knochenhelm": {"name": "Knochenhelm", "slot": "kopf", "weight": 1, "power": 1, "price": 18, "hat": ["res://assets/enemies/Skeleton_Warrior.glb", "Skeleton_Warrior_Helmet"], "material": "bone"},
-	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "requires": {"intelligenz": 11}, "weight": 0.5, "hp": 1, "speed": 0.07, "magic": true, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"], "brim": 0.4, "material": "cloth"},
-	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 3, "hp": 2, "armor": 1, "durability": 4, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "material": "metal"},
+	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "requires": {"intelligenz": 11}, "weight": 0.5, "hp": 1, "speed": 0.07, "magic": true, "armour_value": 1, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"], "brim": 0.4, "material": "cloth", "set": "stoff"},
+	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 4, "hp": 2, "armor": 1, "durability": 4, "armour_value": 5, "price": 30, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "material": "metal", "set": "stahl"},
 	"baerenkappe": {"name": "Bärenkappe", "slot": "kopf", "weight": 1, "hp": 1, "power": 1, "price": 34, "hat": ["res://assets/characters/Barbarian.glb", "Barbarian_Hat"], "material": "fur"},
 	"wollumhang": {"name": "Wollumhang", "slot": "umhang", "weight": 1, "hp": 1, "price": 12, "tint": Color(0.55, 0.4, 0.28), "material": "cloth"},
 	"schattenumhang": {"name": "Schattenumhang", "slot": "umhang", "weight": 1, "hp": 1, "speed": 0.1, "skills": {"schleichen": 2}, "magic": true, "price": 26, "tint": Color(0.16, 0.15, 0.24), "material": "cloth"},
 	"koenigsumhang": {"name": "Königsumhang", "slot": "umhang", "weight": 2, "hp": 2, "power": 1, "price": 42, "tint": Color(0.75, 0.08, 0.1), "material": "cloth"},
-	"lederwams": {"name": "Lederwams", "slot": "ruestung", "weight": 2, "hp": 1, "price": 14, "tint": Color(0.5, 0.3, 0.15), "material": "leather"},
-	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "weight": 5, "hp": 2, "armor": 1, "durability": 5, "skills": {"ruestung": 1}, "price": 28, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4, "material": "chain"},
-	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "weight": 8, "hp": 3, "armor": 2, "durability": 6, "power": 1, "price": 48, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55, "material": "metal"},
-	"lederstiefel": {"name": "Lederstiefel", "slot": "schuhe", "weight": 1, "speed": 0.05, "price": 10, "tint": Color(0.45, 0.27, 0.13), "material": "leather"},
-	"eilstiefel": {"name": "Eilstiefel", "slot": "schuhe", "weight": 1, "speed": 0.15, "price": 26, "tint": Color(0.25, 0.45, 0.95), "material": "leather"},
+	"lederwams": {"name": "Lederwams", "slot": "ruestung", "weight": 4.5, "hp": 1, "armour_value": 4, "price": 14, "tint": Color(0.5, 0.3, 0.15), "material": "leather", "set": "leder"},
+	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "weight": 18, "hp": 2, "armor": 1, "durability": 5, "skills": {"ruestung": 1}, "armour_value": 8, "price": 28, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4, "material": "chain", "set": "eisen"},
+	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "weight": 14, "hp": 3, "armor": 2, "durability": 6, "power": 1, "armour_value": 10, "price": 48, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55, "material": "metal", "set": "stahl"},
+	"lederstiefel": {"name": "Lederstiefel", "slot": "schuhe", "weight": 2, "hp": 1, "armour_value": 2, "price": 10, "tint": Color(0.45, 0.27, 0.13), "material": "leather", "set": "leder"},
+	"eilstiefel": {"name": "Eilstiefel", "slot": "schuhe", "weight": 2, "speed": 0.15, "armour_value": 1, "price": 26, "tint": Color(0.25, 0.45, 0.95), "material": "leather", "set": "leder"},
+	# More pieces for the armour sets (see ArmourSets): a helmet, an armour,
+	# gloves and shoes of one kind ("set") give a set bonus. Hoods come from the
+	# skeleton rogue, helmets from the knight; "tint" colours them.
+	"filzkappe": {"name": "Filzkapuze", "slot": "kopf", "weight": 0.5, "hp": 1, "armour_value": 1, "price": 8, "hat": ["res://assets/enemies/Skeleton_Rogue.glb", "Skeleton_Rogue_Hood"], "tint": Color(0.5, 0.42, 0.3), "material": "cloth", "set": "stoff"},
+	"steppwams": {"name": "Steppwams", "slot": "ruestung", "weight": 1.5, "hp": 1, "armour_value": 2, "price": 12, "tint": Color(0.72, 0.64, 0.5), "material": "cloth", "set": "stoff"},
+	"stoffschuhe": {"name": "Stoffschuhe", "slot": "schuhe", "weight": 0.7, "speed": 0.03, "armour_value": 1, "price": 6, "tint": Color(0.5, 0.42, 0.3), "material": "cloth", "set": "stoff"},
+	"stoffhandschuhe": {"name": "Stoffhandschuhe", "slot": "handschuhe", "weight": 0.3, "hp": 1, "armour_value": 1, "price": 6, "tint": Color(0.5, 0.42, 0.3), "material": "cloth", "set": "stoff"},
+	"lederkappe": {"name": "Lederkapuze", "slot": "kopf", "weight": 1.5, "hp": 1, "armour_value": 2, "price": 12, "hat": ["res://assets/enemies/Skeleton_Rogue.glb", "Skeleton_Rogue_Hood"], "tint": Color(0.5, 0.3, 0.15), "material": "leather", "set": "leder"},
+	"lederhandschuhe": {"name": "Lederhandschuhe", "slot": "handschuhe", "weight": 1, "hp": 1, "armour_value": 2, "price": 10, "tint": Color(0.5, 0.3, 0.15), "material": "leather", "set": "leder"},
+	"eisenhaube": {"name": "Eisenhaube", "slot": "kopf", "weight": 6, "hp": 1, "armor": 1, "durability": 4, "armour_value": 4, "price": 26, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "tint": Color(0.55, 0.56, 0.6), "metal": 0.3, "material": "metal", "set": "eisen"},
+	"eisenschuhe": {"name": "Eisenschuhe", "slot": "schuhe", "weight": 7, "hp": 1, "armour_value": 3, "price": 22, "tint": Color(0.55, 0.56, 0.6), "metal": 0.3, "material": "metal", "set": "eisen"},
+	"eisenhandschuhe": {"name": "Eisenhandschuhe", "slot": "handschuhe", "weight": 4, "hp": 1, "armour_value": 3, "price": 18, "tint": Color(0.55, 0.56, 0.6), "metal": 0.3, "material": "metal", "set": "eisen"},
+	"stahlstiefel": {"name": "Stahlstiefel", "slot": "schuhe", "weight": 4, "hp": 2, "armor": 1, "durability": 6, "armour_value": 4, "price": 25, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55, "material": "metal", "set": "stahl"},
+	"panzerhandschuhe": {"name": "Panzerhandschuhe", "slot": "handschuhe", "weight": 3, "hp": 2, "armor": 1, "durability": 5, "armour_value": 4, "price": 30, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55, "material": "metal", "set": "stahl"},
+	# Scale armour of the great beasts. Hydra and wyrm scales are trophies
+	# ("trophy"): found only deep down, never sold, and they do not count as
+	# the top of their kind for the shops. The dragon scale pieces are made
+	# from Embermaw's scales (see Crafting).
+	"hydrahelm": {"name": "Hydraschuppenhelm", "slot": "kopf", "weight": 2, "hp": 2, "armor": 1, "durability": 6, "armour_value": 4, "price": 60, "trophy": true, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "tint": Color(0.35, 0.7, 0.45), "metal": 0.35, "material": "scale", "set": "hydra"},
+	"hydrapanzer": {"name": "Hydraschuppenpanzer", "slot": "ruestung", "weight": 6, "hp": 3, "armor": 2, "durability": 8, "armour_value": 8, "price": 90, "trophy": true, "tint": Color(0.35, 0.7, 0.45), "metal": 0.35, "material": "scale", "set": "hydra"},
+	"hydrastiefel": {"name": "Hydraschuppenstiefel", "slot": "schuhe", "weight": 2, "hp": 1, "speed": 0.05, "armour_value": 3, "price": 50, "trophy": true, "tint": Color(0.35, 0.7, 0.45), "metal": 0.35, "material": "scale", "set": "hydra"},
+	"hydrahandschuhe": {"name": "Hydraschuppenhandschuhe", "slot": "handschuhe", "weight": 1, "hp": 2, "armour_value": 3, "price": 45, "trophy": true, "tint": Color(0.35, 0.7, 0.45), "metal": 0.35, "material": "scale", "set": "hydra"},
+	"wyrmhelm": {"name": "Lindwurmschuppenhelm", "slot": "kopf", "weight": 2, "hp": 2, "armor": 1, "durability": 7, "armour_value": 5, "price": 65, "trophy": true, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "tint": Color(0.5, 0.45, 0.75), "metal": 0.4, "material": "scale", "set": "wyrm"},
+	"wyrmpanzer": {"name": "Lindwurmschuppenpanzer", "slot": "ruestung", "weight": 6, "hp": 3, "armor": 2, "durability": 9, "armour_value": 9, "price": 95, "trophy": true, "tint": Color(0.5, 0.45, 0.75), "metal": 0.4, "material": "scale", "set": "wyrm"},
+	"wyrmstiefel": {"name": "Lindwurmschuppenstiefel", "slot": "schuhe", "weight": 2, "hp": 1, "speed": 0.05, "armour_value": 3, "price": 55, "trophy": true, "tint": Color(0.5, 0.45, 0.75), "metal": 0.4, "material": "scale", "set": "wyrm"},
+	"wyrmhandschuhe": {"name": "Lindwurmschuppenhandschuhe", "slot": "handschuhe", "weight": 1, "hp": 2, "armour_value": 3, "price": 50, "trophy": true, "tint": Color(0.5, 0.45, 0.75), "metal": 0.4, "material": "scale", "set": "wyrm"},
+	"drachenhelm": {"name": "Drachenschuppenhelm", "slot": "kopf", "weight": 2, "hp": 3, "armor": 1, "durability": 8, "armour_value": 5, "price": 80, "no_loot": true, "crafted": true, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "tint": Color(0.8, 0.25, 0.15), "metal": 0.45, "material": "scale", "set": "drache"},
+	"drachenpanzer": {"name": "Drachenschuppenpanzer", "slot": "ruestung", "weight": 6, "hp": 4, "armor": 2, "durability": 10, "armour_value": 10, "price": 120, "no_loot": true, "crafted": true, "tint": Color(0.8, 0.25, 0.15), "metal": 0.45, "material": "scale", "set": "drache"},
+	"drachenstiefel": {"name": "Drachenschuppenstiefel", "slot": "schuhe", "weight": 2, "hp": 2, "speed": 0.05, "armour_value": 4, "price": 70, "no_loot": true, "crafted": true, "tint": Color(0.8, 0.25, 0.15), "metal": 0.45, "material": "scale", "set": "drache"},
+	"drachenhandschuhe": {"name": "Drachenschuppenhandschuhe", "slot": "handschuhe", "weight": 1, "hp": 2, "power": 1, "armour_value": 4, "price": 65, "no_loot": true, "crafted": true, "tint": Color(0.8, 0.25, 0.15), "metal": 0.45, "material": "scale", "set": "drache"},
 	"amulett_tempo": {"name": "Amulett der Eile", "slot": "amulett", "weight": 0.3, "speed": 0.1, "magic": true, "price": 15},
 	"amulett_kraft": {"name": "Amulett der Stärke", "slot": "amulett", "weight": 0.3, "power": 1, "magic": true, "price": 18},
 	"amulett_leben": {"name": "Amulett des Lebens", "slot": "amulett", "weight": 0.3, "hp": 1, "magic": true, "price": 15},
@@ -315,6 +347,8 @@ static func describe(id: String, worn := 0) -> String:
 		parts.append(Lang.t("+%d Leben") % item.hp)
 	if item.get("armor", 0) > 0:
 		parts.append(Lang.t("+%d Härtung") % item.armor)
+	if item.get("armour_value", 0) > 0:
+		parts.append(Lang.t("+%d %% Rüstungswert") % item.armour_value)
 	if item.get("block", 0.0) > 0.0:
 		parts.append(Lang.t("%d%% Blocken") % roundi(item.block * 100.0))
 	if item.has("durability"):
@@ -339,6 +373,8 @@ static func describe(id: String, worn := 0) -> String:
 		parts.append(Lang.t("+%d %s") % [item.skills[skill_id], Lang.t(Training.SKILLS[skill_id].name)])
 	if item.get("weight", 0.0) > 0.0:
 		parts.append(Lang.t("Gewicht %s") % weight_text(item.weight))
+	if ArmourSets.SETS.has(item.get("set", "")):
+		parts.append(Lang.t("Teil: %s (%s)") % [ArmourSets.set_name(item.set), ArmourSets.bonus_text(item.set)])
 	if item.has("effect"):
 		parts.append(Lang.t(item.effect))
 	return ", ".join(parts)
@@ -353,18 +389,18 @@ static func merchant_sells(id: String) -> bool:
 	if not ALL.has(id):
 		return false
 	var item: Dictionary = ALL[id]
-	if item.get("no_loot", false) or item.get("unique", false) or item.get("magic", false) or item.get("wanderer", false) or item.slot == "spezial" or item.has("effect"):
+	if item.get("no_loot", false) or item.get("unique", false) or item.get("magic", false) or item.get("wanderer", false) or item.get("trophy", false) or item.slot == "spezial" or item.has("effect"):
 		return false
 	return is_book(id) or not is_top_tier(id)
 
 
 ## Whether nothing of the same slot is dearer (unique items, the wandering
-## merchant's wares and pieces made from recipes left aside).
+## merchant's wares, beast trophies and pieces made from recipes left aside).
 static func is_top_tier(id: String) -> bool:
 	var slot: String = ALL[id].slot
 	for other in ALL:
 		var item: Dictionary = ALL[other]
-		if other != id and item.slot == slot and item.price > ALL[id].price and not item.get("unique", false) and not item.get("wanderer", false) and not item.get("crafted", false) and not item.get("custom", false):
+		if other != id and item.slot == slot and item.price > ALL[id].price and not item.get("unique", false) and not item.get("wanderer", false) and not item.get("trophy", false) and not item.get("crafted", false) and not item.get("custom", false):
 			return false
 	return true
 
@@ -395,6 +431,12 @@ const LEVELS := {
 	"schuppenreif": 11, "drachenblutring": 11, "glutherzamulett": 11,
 	"kristallring": 13, "kristallamulett": 13,
 	"reiserucksack": 14,
+	"filzkappe": 1, "steppwams": 1, "stoffschuhe": 1, "lederkappe": 2,
+	"eisenhaube": 4, "eisenschuhe": 4, "stahlstiefel": 8,
+	"stoffhandschuhe": 1, "lederhandschuhe": 2,
+	"eisenhandschuhe": 4, "panzerhandschuhe": 8,
+	"hydrahelm": 12, "hydrapanzer": 13, "hydrastiefel": 12, "hydrahandschuhe": 12,
+	"wyrmhelm": 14, "wyrmpanzer": 15, "wyrmstiefel": 14, "wyrmhandschuhe": 14,
 	"runenhammer": 16,
 }
 ## How rare each item is (a key of Level.TIERS), by how useful and valuable
@@ -416,6 +458,13 @@ const RARITY := {
 	"zauberhut": "ungewoehnlich", "baerenkappe": "ungewoehnlich", "kettenhemd": "ungewoehnlich", "eilstiefel": "ungewoehnlich",
 	"ritterhelm": "selten", "schattenumhang": "selten", "koenigsumhang": "selten",
 	"plattenpanzer": "episch",
+	# Armour set pieces (see ArmourSets); the dragon scale ones are crafted.
+	"filzkappe": "normal", "steppwams": "normal", "stoffschuhe": "normal", "lederkappe": "normal",
+	"stoffhandschuhe": "normal", "lederhandschuhe": "normal",
+	"eisenhaube": "ungewoehnlich", "eisenschuhe": "ungewoehnlich", "eisenhandschuhe": "ungewoehnlich",
+	"stahlstiefel": "selten", "panzerhandschuhe": "selten",
+	"hydrahelm": "episch", "hydrapanzer": "episch", "hydrastiefel": "episch", "hydrahandschuhe": "episch",
+	"wyrmhelm": "episch", "wyrmpanzer": "episch", "wyrmstiefel": "episch", "wyrmhandschuhe": "episch",
 	# Jewellery.
 	"bronzearmreif": "normal", "kupferring": "normal",
 	"amulett_leben": "ungewoehnlich", "amulett_tempo": "ungewoehnlich", "amulett_kraft": "ungewoehnlich",

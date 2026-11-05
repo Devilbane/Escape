@@ -59,6 +59,8 @@ static func kind_of(id: String) -> String:
 			return "armour"
 		"schuhe":
 			return "boots"
+		"handschuhe":
+			return "gloves"
 		"amulett":
 			return "amulet"
 		"ring":
@@ -153,6 +155,13 @@ func _draw() -> void:
 			draw_colored_polygon(PackedVector2Array([p.call(0.15, 0.2), p.call(0.38, 0.12), p.call(0.5, 0.22), p.call(0.62, 0.12), p.call(0.85, 0.2),
 					p.call(0.78, 0.45), p.call(0.72, 0.42), p.call(0.72, 0.88), p.call(0.28, 0.88), p.call(0.28, 0.42), p.call(0.22, 0.45)]), c)
 			draw_line(p.call(0.5, 0.25), p.call(0.5, 0.85), c.darkened(0.35), u * 0.04)
+		"gloves":
+			# A glove: a palm with four fingers and the thumb off to the side.
+			draw_rect(Rect2(p.call(0.3, 0.42), Vector2(u * 0.4, u * 0.42)), c)
+			for i in 4:
+				draw_line(p.call(0.34 + i * 0.105, 0.44), p.call(0.34 + i * 0.105, 0.14 + absf(i - 1.5) * 0.06), c, u * 0.09)
+			draw_line(p.call(0.32, 0.6), p.call(0.14, 0.42), c, u * 0.1)
+			draw_line(p.call(0.3, 0.78), p.call(0.7, 0.78), c.darkened(0.35), u * 0.06)
 		"boots":
 			for dx in [0.0, 0.3]:
 				draw_colored_polygon(PackedVector2Array([p.call(0.18 + dx, 0.15), p.call(0.4 + dx, 0.15), p.call(0.4 + dx, 0.72), p.call(0.55 + dx, 0.78),

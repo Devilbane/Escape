@@ -11,9 +11,10 @@ extends RefCounted
 const SHADER := preload("res://shaders/tint.gdshader")
 
 ## Material names as items use them, and the shader's number for each.
-const KINDS := {"cloth": 1, "leather": 2, "metal": 3, "chain": 4, "fur": 5, "bone": 6, "wood": 7, "mixed": 7, "outfit": 8}
+## "scale" (the beast scale armour of ArmourSets) has the grain of chain.
+const KINDS := {"cloth": 1, "leather": 2, "metal": 3, "chain": 4, "scale": 4, "fur": 5, "bone": 6, "wood": 7, "mixed": 7, "outfit": 8}
 ## How metallic metal is when an item does not say.
-const DEFAULT_METAL := {"metal": 0.45, "chain": 0.4}
+const DEFAULT_METAL := {"metal": 0.45, "chain": 0.4, "scale": 0.35}
 
 ## Meshes that already carry their rest positions, by source mesh.
 static var _baked := {}
@@ -26,12 +27,14 @@ const BRIM_TOP := 0.2
 
 
 ## Puts the material look on every mesh of a node (a held weapon, a hat).
-static func dress(node: Node, material: String) -> void:
+## A tint other than white recolours it too (the hoods and helmets of the
+## armour sets, see ArmourSets).
+static func dress(node: Node, material: String, tint := Color.WHITE, metal := -1.0) -> void:
 	var meshes := node.find_children("*", "MeshInstance3D", true, false)
 	if node is MeshInstance3D:
 		meshes.append(node)
 	for mesh: MeshInstance3D in meshes:
-		apply(mesh, material)
+		apply(mesh, material, tint, tint != Color.WHITE, metal)
 
 
 ## Pulls a hat's brim in towards the crown, so it no longer hides the face:

@@ -361,6 +361,7 @@ func _flames(reach: float) -> CPUParticles3D:
 	quad.size = Vector2(1.3, 1.3)
 	quad.material = FireField._flame_material()
 	p.mesh = quad
+	Effects.start_cold(p)
 	return p
 
 

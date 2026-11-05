@@ -87,7 +87,7 @@ static func add_to_chest(chest: Node3D) -> CPUParticles3D:
 	var to_chest := chest.global_transform.affine_inverse() * body.global_transform
 	var points := _top_points(body.mesh, to_chest, HEAP_HEIGHT)
 	var glints := make(points, 5, 0.9)
-	glints.emitting = false
+	Effects.start_cold(glints)
 	chest.add_child(glints)
 	return glints
 

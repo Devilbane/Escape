@@ -366,6 +366,7 @@ func _build(g: Dictionary) -> void:
 	ramp.add_point(0.25, BUBBLE)
 	ramp.set_color(ramp.get_point_count() - 1, Color(BUBBLE, 0.0))
 	bubbles.color_ramp = ramp
+	Effects.start_cold(bubbles)
 	node.add_child(bubbles)
 	g.bubbles = bubbles
 	var glow := MeshInstance3D.new()

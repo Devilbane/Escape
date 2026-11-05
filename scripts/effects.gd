@@ -15,6 +15,23 @@ static func _glow_material(color: Color) -> StandardMaterial3D:
 	return mat
 
 
+## Starts a particle effect cold (not emitting) without a stray flash.
+## A CPUParticles3D draws all its particles from the moment it is made, out
+## of a GPU buffer the engine only fills once it first emits. Until then the
+## buffer holds whatever the graphics driver left in that memory: on some
+## machines a cold chimney's smoke showed as a handful of glaring green and
+## yellow balls. Camera-facing particles ignore the scale, so even the empty
+## (zero) transforms would be drawn; a blank buffer (no colour, no alpha)
+## draws nothing. Call it once the amount is set.
+static func start_cold(p: CPUParticles3D) -> void:
+	p.emitting = false
+	var blank := PackedFloat32Array()
+	# Per particle: a 3D transform (12), its colour (4) and custom data (4).
+	blank.resize(p.amount * 20)
+	blank.fill(0.0)
+	RenderingServer.multimesh_set_buffer(p.get_base(), blank)
+
+
 static var _dot: Texture2D
 
 static func _soft_dot() -> Texture2D:
@@ -267,6 +284,7 @@ static func make_wood_chips() -> CPUParticles3D:
 	shrink.add_point(Vector2(0.75, 1))
 	shrink.add_point(Vector2(1, 0))
 	p.scale_amount_curve = shrink
+	start_cold(p)
 	return p
 
 
@@ -296,6 +314,7 @@ static func make_forge_sparks() -> CPUParticles3D:
 	ramp.add_point(0.4, Color(1.0, 0.6, 0.15))
 	ramp.set_color(ramp.get_point_count() - 1, Color(0.9, 0.25, 0.05, 0.0))
 	p.color_ramp = ramp
+	start_cold(p)
 	return p
 
 

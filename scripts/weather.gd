@@ -209,6 +209,7 @@ static func make_rain() -> CPUParticles3D:
 	p.gravity = Vector3(0, -9.8, 0)
 	p.initial_velocity_min = 18.0
 	p.initial_velocity_max = 22.0
+	Effects.start_cold(p)
 	return p
 
 
@@ -247,6 +248,7 @@ static func make_mist() -> CPUParticles3D:
 	ramp.add_point(0.7, Color(HAZE, 0.22))
 	ramp.set_color(ramp.get_point_count() - 1, Color(HAZE, 0.0))
 	p.color_ramp = ramp
+	Effects.start_cold(p)
 	return p
 
 

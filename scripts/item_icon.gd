@@ -29,6 +29,16 @@ static func make(id: String, size := 44.0, plain := false) -> ItemIcon:
 	return icon
 
 
+## The pictures of the ingredients of the pouch (see Crafting.INGREDIENTS)
+## that have none of their own above: herbs, mushrooms, fish, ore and gems.
+const INGREDIENT_ICONS := {
+	"baerlauch": "herb", "glimmermoos": "herb", "mondblume": "flower",
+	"steinpilz": "mushroom", "trueffel": "mushroom", "hoehlenpilz": "mushroom",
+	"barsch": "fish", "goldkarpfen": "fish", "silberhecht": "fish", "mondforelle": "fish",
+	"mondsilbererz": "ore", "mondstein": "gem",
+}
+
+
 ## The kind of picture an item gets, from its slot (and weapon skill).
 static func kind_of(id: String) -> String:
 	if id.begins_with("kind:"):
@@ -41,6 +51,14 @@ static func kind_of(id: String) -> String:
 		return "crystal"
 	if id == DragonLair.SCALE:
 		return "shield"
+	if id == HomeStores.COINS:
+		return "coin"
+	if id == "eisen":
+		return "iron"
+	if id in Forge.FINE:
+		return "bar_" + id
+	if INGREDIENT_ICONS.has(id):
+		return INGREDIENT_ICONS[id]
 	if not Items.ALL.has(id):
 		return "bag"
 	var item: Dictionary = Items.ALL[id]
@@ -298,6 +316,33 @@ func _draw() -> void:
 		"coin":
 			draw_circle(p.call(0.5, 0.5), u * 0.42, GOLDEN.darkened(0.25))
 			draw_circle(p.call(0.5, 0.5), u * 0.32, GOLDEN)
+		"herb":
+			# A bundle of leaves on a tied stem.
+			draw_line(p.call(0.5, 0.92), p.call(0.5, 0.45), WOOD, u * 0.05)
+			for leaf in [[0.5, 0.2, 0.0], [0.32, 0.38, -0.7], [0.68, 0.38, 0.7], [0.36, 0.58, -0.9], [0.64, 0.58, 0.9]]:
+				draw_set_transform(p.call(leaf[0], leaf[1]), leaf[2], Vector2(0.55, 1.0))
+				draw_circle(Vector2.ZERO, u * 0.17, Color(0.35, 0.65, 0.3))
+			draw_set_transform(Vector2.ZERO)
+			draw_line(p.call(0.42, 0.75), p.call(0.58, 0.75), GOLDEN, u * 0.05)
+		"flower":
+			for k in 5:
+				var a := TAU * k / 5.0
+				draw_circle(p.call(0.5 + cos(a) * 0.2, 0.42 + sin(a) * 0.2), u * 0.13, Color(0.82, 0.86, 1.0))
+			draw_circle(p.call(0.5, 0.42), u * 0.1, GOLDEN)
+			draw_line(p.call(0.5, 0.6), p.call(0.5, 0.92), Color(0.35, 0.6, 0.3), u * 0.05)
+		"mushroom":
+			draw_rect(Rect2(p.call(0.4, 0.5), Vector2(u * 0.2, u * 0.38)), Color(0.92, 0.88, 0.78))
+			draw_colored_polygon(PackedVector2Array([p.call(0.12, 0.55), p.call(0.25, 0.25), p.call(0.5, 0.15), p.call(0.75, 0.25), p.call(0.88, 0.55)]), Color(0.6, 0.38, 0.2))
+		"fish":
+			draw_set_transform(p.call(0.45, 0.5), 0.0, Vector2(1.0, 0.5))
+			draw_circle(Vector2.ZERO, u * 0.32, Color(0.6, 0.72, 0.8))
+			draw_set_transform(Vector2.ZERO)
+			draw_colored_polygon(PackedVector2Array([p.call(0.72, 0.5), p.call(0.92, 0.32), p.call(0.92, 0.68)]), Color(0.5, 0.62, 0.72))
+			draw_circle(p.call(0.28, 0.46), u * 0.04, Color(0.08, 0.08, 0.1))
+		"gem":
+			draw_colored_polygon(PackedVector2Array([p.call(0.2, 0.38), p.call(0.35, 0.18), p.call(0.65, 0.18), p.call(0.8, 0.38), p.call(0.5, 0.85)]), Color(0.72, 0.8, 1.0))
+			draw_line(p.call(0.2, 0.38), p.call(0.8, 0.38), Color.WHITE, u * 0.03)
+			draw_line(p.call(0.42, 0.22), p.call(0.5, 0.8), Color(0.95, 0.97, 1.0), u * 0.03)
 		_:
 			draw_rect(Rect2(p.call(0.25, 0.15), Vector2(u * 0.5, u * 0.7)), Color(0.9, 0.82, 0.62))
 			for y in [0.35, 0.5, 0.65]:

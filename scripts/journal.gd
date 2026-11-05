@@ -36,6 +36,9 @@ const DUNGEON_MARKS := {
 	"F": ["fountain", "Brunnen"], "V": ["merchant", "Händler"], "B": ["bed", "Bett"],
 	"L": ["storage", "Vorratstruhe"],
 }
+## Kinds of landmark that go on the map and into the journal without a
+## "new on your map" note (see Game.map_notice).
+const QUIET_KINDS := ["shrine"]
 ## Landmarks in the open air. A building or a pond covering several tiles is
 ## one landmark, marked in its middle.
 const OUTDOOR_MARKS := {
@@ -343,7 +346,9 @@ func _discover(file: String) -> void:
 			# Doors are many and plain: on the map, not in the journal.
 			if place.kind != "door":
 				write("Entdeckt: %s", [place.name], file)
-				fresh.append(place_name(place))
+				# Shrines are common enough not to need a "new on your map" note.
+				if not QUIET_KINDS.has(place.kind):
+					fresh.append(place_name(place))
 	if not fresh.is_empty():
 		Events.bus().map_grew.emit(fresh)
 

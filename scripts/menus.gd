@@ -199,6 +199,8 @@ const WINDOW_SIZES := {
 	"trade": Vector2(1156, 584),
 	"inventar": Vector2(940, 720),
 	"lager": Vector2(1256, 764),
+	"metalltruhe": Vector2(880, 580),
+	"zutatenbord": Vector2(880, 580),
 	"tresor": Vector2(940, 652),
 	"bank": Vector2(780, 400),
 	"werkbank": Vector2(780, 536),
@@ -218,7 +220,7 @@ const WINDOW_SIZES := {
 
 ## The windows (besides the merchants') that can leave a note after a
 ## click; they keep its line from the start.
-const NOTE_WINDOWS := ["inventar", "lager", "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
+const NOTE_WINDOWS := ["inventar", "lager", "metalltruhe", "zutatenbord", "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
 	"aushang", "gefaehrten", "wunsch"]
 
 
@@ -250,6 +252,7 @@ func open(kind: String) -> void:
 		saved_now = ""
 	_forge_tab = "waffen"
 	inventory_tab = "tasche"
+	_store_scroll = 0
 	_map_file = ""
 	_shop_page = "kaufen"
 	trade.reset()
@@ -296,6 +299,10 @@ func _rebuild() -> void:
 			_build_inventory()
 		"lager":
 			_build_storage()
+		"metalltruhe":
+			_build_home_store(HomeStores.METAL)
+		"zutatenbord":
+			_build_home_store(HomeStores.PANTRY)
 		"bank":
 			_build_bank()
 		"barbier":
@@ -1218,6 +1225,181 @@ func _take(index: int) -> void:
 		game.player.bag.append(game.storage[index])
 		game.storage.remove_at(index)
 		_note = ""
+	_rebuild()
+
+
+# --- The steel-banded chest and the ingredient board (see HomeStores) -------
+
+## The rows of the two stores' windows: how tall one is, and how many show
+## before the list scrolls. The columns: the name, what the hero carries,
+## the two buttons that store, the two that take, what lies at home.
+const STORE_ROW_HEIGHT := 56.0
+const STORE_ROWS := 5
+const STORE_NAME_WIDTH := 250.0
+const STORE_COUNT_WIDTH := 92.0
+const STORE_BUTTON := Vector2(76, 44)
+const STORE_WIDTH := 840.0
+const STORE_GREY := Color(0.75, 0.72, 0.68)
+## Where the list of the open store was scrolled to, kept over rebuilds.
+var _store_scroll := 0
+var _store_list: ScrollContainer = null
+
+
+## The window of the steel-banded chest ("metall") or the ingredient board
+## ("zutaten"): one row for every kind the hero carries or keeps there, with
+## buttons to store or take one (ten coins) or all of it, and two buttons
+## below for everything at once.
+func _build_home_store(store: String) -> void:
+	Events.teach(HomeStores.LEARN)
+	if _store_list != null and is_instance_valid(_store_list):
+		_store_scroll = _store_list.scroll_vertical
+	var metal := store == HomeStores.METAL
+	_add_label(Lang.t("Stahlbeschlagene Truhe") if metal else Lang.t("Zutatenbord"), 38, game.GOLD, game.TITLE_FONT)
+	var about := _add_label(Lang.t("Münzen, Barren, Erz und rohe Edelsteine. Sie fasst beliebig viel.") if metal
+			else Lang.t("Kräuter, Pilze, Fische, Phiolen und Tierfutter. Es fasst beliebig viel."), 16, BLUE)
+	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	about.custom_minimum_size.x = STORE_WIDTH
+	_box.add_child(_store_columns([Lang.t("Bei dir"), Lang.t("Einlagern"), Lang.t("Nehmen"), Lang.t("Im Haus")]))
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(STORE_WIDTH, STORE_ROWS * STORE_ROW_HEIGHT + (STORE_ROWS - 1) * 6)
+	scroll.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(scroll)
+	_store_list = scroll
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 6)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	var ids := HomeStores.shown(game, store)
+	if ids.is_empty():
+		var empty: Label = game._make_label(game.TEXT_FONT, 16, STORE_GREY)
+		empty.text = Lang.t("Noch nichts davon bei dir oder hier. Gold, Barren, Erz und Edelsteine kommen hier hinein, sobald du welche hast.") if metal \
+				else Lang.t("Noch nichts davon bei dir oder hier. Zutaten aus deinem Beutel und Tierfutter aus der Tasche kommen hier hinein, sobald du welche hast.")
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.custom_minimum_size.x = STORE_WIDTH - 40
+		list.add_child(empty)
+	for id in ids:
+		list.add_child(_store_row(id))
+	if _store_scroll > 0:
+		scroll.set_deferred("scroll_vertical", _store_scroll)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	_box.add_child(row)
+	var any_carried := ids.any(func(id): return HomeStores.carried(game, id) > 0)
+	var any_stored := ids.any(func(id): return HomeStores.stored(game, id) > 0)
+	for b in [[Lang.t("Alles einlagern"), func(): _store_all(store, true), any_carried],
+			[Lang.t("Alles nehmen"), func(): _store_all(store, false), any_stored]]:
+		var button := _item_button(b[0], b[1], b[2])
+		button.custom_minimum_size = Vector2(220, 52)
+		row.add_child(button)
+
+
+## The line over the list naming its columns, laid out as a row is.
+func _store_columns(titles: Array) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	row.custom_minimum_size.x = STORE_WIDTH
+	var lead := Control.new()
+	lead.custom_minimum_size.x = 6 + 40 + 10 + STORE_NAME_WIDTH
+	row.add_child(lead)
+	var widths := [STORE_COUNT_WIDTH, STORE_BUTTON.x * 2 + 6, STORE_BUTTON.x * 2 + 6, STORE_COUNT_WIDTH]
+	for i in titles.size():
+		var l: Label = game._make_label(game.TEXT_FONT, 16, STORE_GREY)
+		l.text = titles[i]
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.custom_minimum_size.x = widths[i]
+		l.clip_text = true
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		row.add_child(l)
+	return row
+
+
+## One kind in a store's window: picture and name, how many the hero has,
+## store one or all, take one or all, how many lie at home.
+func _store_row(id: String) -> Control:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(STORE_WIDTH - 14, STORE_ROW_HEIGHT)
+	panel.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.07, 0.06, 0.08, 0.95), Color(0.85, 0.66, 0.32, 0.3), 8, 6))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	row.add_child(ItemIcon.make(id, 40))
+	var name_label: Label = game._make_label(game.TEXT_FONT, 16, TradeWindow.name_color(id, Color.WHITE))
+	name_label.text = store_kind_name(id)
+	name_label.custom_minimum_size.x = STORE_NAME_WIDTH
+	name_label.clip_text = true
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(name_label)
+	var have := HomeStores.carried(game, id)
+	var kept := HomeStores.stored(game, id)
+	row.add_child(_store_count(have))
+	var small := str(HomeStores.step(id))
+	row.add_child(_store_pair([[small, func(): _store_move(id, HomeStores.step(id), true), have > 0],
+			[Lang.t("Alle"), func(): _store_move(id, have, true), have > 0]]))
+	row.add_child(_store_pair([[small, func(): _store_move(id, HomeStores.step(id), false), kept > 0],
+			[Lang.t("Alle"), func(): _store_move(id, kept, false), kept > 0]]))
+	row.add_child(_store_count(kept))
+	return panel
+
+
+func _store_count(n: int) -> Label:
+	var l: Label = game._make_label(game.TEXT_FONT, 18, Color.WHITE if n > 0 else STORE_GREY)
+	l.text = str(n)
+	l.custom_minimum_size.x = STORE_COUNT_WIDTH
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.clip_text = true
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	return l
+
+
+func _store_pair(buttons: Array) -> Control:
+	var pair := HBoxContainer.new()
+	pair.add_theme_constant_override("separation", 6)
+	for b in buttons:
+		var button := _item_button(b[0], b[1], b[2])
+		button.custom_minimum_size = STORE_BUTTON
+		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		pair.add_child(button)
+	return pair
+
+
+## The name of a kind in the stores: coins, bars, ingredients or items.
+static func store_kind_name(id: String) -> String:
+	if id == HomeStores.COINS:
+		return Lang.t("Goldmünzen")
+	if Items.ALL.has(id):
+		return Items.item_name(id)
+	return Crafting.ingredient_name(id)
+
+
+## Moves `count` of a kind into its store (`in` true) or out of it.
+func _store_move(id: String, count: int, into: bool) -> void:
+	var moved := HomeStores.put(game, id, count) if into else HomeStores.take(game, id, count)
+	if moved > 0:
+		_note = (Lang.t("%d × %s eingelagert.") if into else Lang.t("%d × %s genommen.")) % [moved, store_kind_name(id)]
+		if id == HomeStores.COINS:
+			Sfx.play(game, "coin")
+	elif not into:
+		_note = Lang.t("Deine Tasche ist voll.")
+	_after_store_move()
+
+
+func _store_all(store: String, into: bool) -> void:
+	var moved := HomeStores.put_all(game, store) if into else HomeStores.take_all(game, store)
+	if moved > 0:
+		_note = Lang.t("%d Dinge eingelagert.") % moved if into else Lang.t("%d Dinge genommen.") % moved
+	elif not into:
+		_note = Lang.t("Deine Tasche ist voll.")
+	_after_store_move()
+
+
+func _after_store_move() -> void:
+	game._update_hud()
 	_rebuild()
 
 

@@ -284,6 +284,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/stay_awake.gd | tee stay_awake.log
           grep -q PASS stay_awake.log
 
+      - name: Camp with bedroll and campfire test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/camp.gd | tee camp.log
+          grep -q PASS camp.log
+
       - name: Barber test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log

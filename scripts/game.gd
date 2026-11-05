@@ -199,6 +199,8 @@ var trust := {}
 ## The companion at the hero's side, and those waiting at home while the
 ## hero is in their house.
 var pet: Pet = null
+## The camp the hero rolled out on this level, if any (see Camp).
+var camp: Camp = null
 var home_pets: Array[Pet] = []
 ## Whether the hero has won a fox over (it may be at home).
 var has_fox: bool:
@@ -780,6 +782,7 @@ func _setup_drawer() -> void:
 	buttons.add_child(_make_button(Lang.t("Stein"), do_stone, true))
 	buttons.add_child(_make_button(Lang.t("Angeln"), fish_action, true))
 	buttons.add_child(_make_button(Lang.t("Schenken"), gift_action, true))
+	buttons.add_child(_make_button(Lang.t("Lager"), _camp_from_drawer, true))
 	_sound_button = _make_button("", _toggle_sound, true)
 	buttons.add_child(_sound_button)
 	_update_sound_button()
@@ -3050,7 +3053,8 @@ func save_info(path := "") -> Dictionary:
 	var time := float(data.get("saved_at", FileAccess.get_modified_time(path)))
 	var hero := str(data.get("name", Lang.t("Namenlos")))
 	return {"path": path, "slot": slot_of(path), "name": hero, "hero_level": saved_hero_level(data, hero), "level": int(data.level) + 1, "coins": int(data.coins),
-			"escaped": bool(data.get("escaped", false)), "home": bool(data.get("claimed", false)), "time": time}
+			"escaped": bool(data.get("escaped", false)), "home": bool(data.get("claimed", false)), "time": time,
+			"camp": not Camp.from_save(data.get("camp")).is_empty()}
 
 
 ## The hero level of a saved game. Games saved before the save kept the
@@ -3080,6 +3084,10 @@ func save_list() -> Array:
 ## sits beside the name, as it belongs to the hero, not to the place.
 static func save_summary(info: Dictionary) -> String:
 	var who := Lang.t("%s, Heldenstufe %d,") % [info.name, int(info.get("hero_level", 1))]
+	if info.get("camp", false):
+		if info.escaped:
+			return Lang.t("%s an einem Lagerfeuer im Freien mit %d Kupfer.") % [who, info.coins]
+		return Lang.t("%s an einem Lagerfeuer auf Ebene %d mit %d Kupfer.") % [who, info.level, info.coins]
 	if info.home:
 		return Lang.t("%s zu Hause mit %d Kupfer.") % [who, info.coins]
 	if info.escaped:
@@ -3244,9 +3252,13 @@ func _apply_save(data: Dictionary) -> void:
 	inside_house = 0
 	var own_house := Homes.house_of(hero_name)
 	var at_inn: bool = data.get("inn", false) and _is_inn_file(index)
+	var camp_at := Camp.from_save(data.get("camp"))
 	if at_inn:
 		# Saved in the bed of an inn on the way: the hero wakes up there,
 		# not back home, so the long road need not be walked again.
+		pass
+	elif not camp_at.is_empty():
+		# Saved at a camp: the hero wakes up by its fire, wherever it was.
 		pass
 	elif escaped and home_claimed and own_house > 0 and interiors.has("^"):
 		# The hero's own town house is the place to come back to: every
@@ -3258,7 +3270,14 @@ func _apply_save(data: Dictionary) -> void:
 		# game was saved: on the graveyard, or in the hero's own house.
 		index = _outdoor_index()
 	load_level(index, false)
-	if (level.is_home or level.inn) and level.bed_side != Vector3.ZERO:
+	camp = null
+	if not camp_at.is_empty() and not at_inn:
+		camp = Camp.pitch(level, camp_at.pos, camp_at.rot)
+		Camp.clear_around(level, camp.global_position)
+		player.global_position = camp.stand_spot()
+		player.face(camp.global_position - player.global_position)
+		_snap_camera()
+	elif (level.is_home or level.inn) and level.bed_side != Vector3.ZERO:
 		player.global_position = level.bed_side
 	elif level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
 		# The hero's own house is the place to come back to: next to the bed.
@@ -3407,6 +3426,15 @@ func save_game(going_away := false) -> bool:
 		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water,
 		"inn": level.inn,
 	}
+	if has_camp():
+		# Saved at a camp: the game wakes up there. The floor is kept as
+		# the hero leaves it (monsters slain, doors open, the key), so it is
+		# the same quiet spot after a reload. (The open air keeps no such
+		# record: its monsters come back with the days anyway.)
+		if not level.outdoor:
+			level.note_left()
+			data.looted = _looted_for_save()
+		data.camp = camp.for_save()
 	if going_away:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
 	var path := save_path()
@@ -3525,7 +3553,11 @@ func stay_awake() -> void:
 	menus.open("laden")
 
 
-func sleep() -> void:
+## A night in the bed, or by the fire of the camp (`at_camp`, see Camp):
+## the game is saved, the hero lies down and falls asleep, and the player
+## logs out.
+func sleep(at_camp_now := false) -> void:
+	at_camp_now = at_camp_now and has_camp()
 	# A night in the bed: the hero wakes up the next morning.
 	if level.outdoor or level.building != "":
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
@@ -3545,15 +3577,17 @@ func sleep() -> void:
 	player.frozen = true
 	player.path.clear()
 	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
-	var bed := _nearest_bed()
-	if bed.is_empty():
+	var bed := {} if at_camp_now else _nearest_bed()
+	if at_camp_now:
+		_lie_down_at_camp(tween)
+	elif bed.is_empty():
 		player.play("Lie_Down", 0.2)
 	else:
 		_climb_into_bed(tween, bed)
 	if is_instance_valid(pet):
 		# The fox goes to bed too: into its basket beside the hero's bed. A
-		# doe or a stag lies down where it is.
-		pet.go_to_bed(level.fox_bed_near(bed.pos if not bed.is_empty() else player.global_position) if pet.kind == "fuchs" else Vector3.INF)
+		# doe or a stag lies down where it is, and so does the fox at a camp.
+		pet.go_to_bed(level.fox_bed_near(bed.pos if not bed.is_empty() else player.global_position) if pet.kind == "fuchs" and not at_camp_now else Vector3.INF)
 	# Settled on the back, the hero closes their eyes and drifts off: a few
 	# floating Z's and some soft snoring before the night falls.
 	tween.tween_interval(1.9)
@@ -3638,6 +3672,65 @@ func _nearest_bed() -> Dictionary:
 	return best
 
 
+## A few steps onto the bedroll of the camp, then the hero lies down on
+## their back with the head on its rolled-up end.
+func _lie_down_at_camp(tween: Tween) -> void:
+	var spot := camp.lie_spot()
+	var from := player.global_position
+	var foot := camp.foot()
+	player.velocity = Vector3.ZERO
+	player.face(spot - from)
+	player.play("Walking_A", 0.1)
+	tween.tween_method(func(t: float):
+		player.global_position = from.lerp(spot, t), 0.0, 1.0, 0.5)
+	tween.tween_callback(func():
+		# Lying down falls backwards, so face the foot of the bedroll.
+		player.face(foot)
+		player.play("Lie_Down", 0.15))
+
+
+## A game saved asleep at a camp starts there: the hero lies on the bedroll
+## by the fire while the night fades, opens their eyes, yawns and gets up.
+## `done` runs once the hero can move again. Returns false (and does
+## nothing) if the game was not saved asleep at a camp.
+func _wake_at_camp(data: Dictionary, done: Callable) -> bool:
+	if not saved_in_bed(data) or Camp.from_save(data.get("camp")).is_empty() or not has_camp():
+		return false
+	_waking = true
+	state = State.TRANSITION
+	var lie := camp.lie_spot()
+	var stand := Vector3(lie.x, camp.global_position.y, lie.z)
+	player.frozen = true
+	player.path.clear()
+	player.velocity = Vector3.ZERO
+	player.global_position = lie
+	player.reset_physics_interpolation()
+	player.face(camp.foot())
+	player.lie_asleep()
+	_fall_asleep()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	tween.tween_interval(WAKE_SLEEP)
+	tween.tween_callback(func():
+		_stop_snoozing()
+		player.set_asleep(false))
+	tween.tween_interval(WAKE_YAWN)
+	tween.tween_callback(func():
+		var slot := player.find_child("HeadSlot", true, false) as Node3D
+		var head := slot.global_position if slot else player.global_position
+		Effects.float_text(level, head + Vector3(0, 0.8, 0), Lang.t("Gähn!"), Color(0.85, 0.9, 1.0), true))
+	tween.tween_interval(WAKE_STRETCH)
+	tween.tween_callback(player.get_up_from_bed)
+	tween.tween_interval(Player.GET_UP_TIME)
+	tween.tween_callback(func():
+		player.global_position = stand
+		player.play("Idle", 0.2)
+		player.frozen = false
+		_waking = false
+		state = State.PLAYING
+		done.call())
+	return true
+
+
 ## A little hop up onto the mattress, then the hero lies down on their back
 ## with the head on the pillow and the feet towards the foot of the bed.
 func _climb_into_bed(tween: Tween, bed: Dictionary) -> void:
@@ -3673,7 +3766,7 @@ const WAKE_HOP := 0.45
 ## (see _wake_in_bed); otherwise, or once out of bed, the welcome-back
 ## window tells what the hero did while the player was away.
 func _after_load(data: Dictionary) -> void:
-	if not _wake_in_bed(data, _return_from_away.bind(data)):
+	if not _wake_at_camp(data, _return_from_away.bind(data)) and not _wake_in_bed(data, _return_from_away.bind(data)):
 		_return_from_away(data)
 
 
@@ -4992,7 +5085,8 @@ func _end_run(escaped: bool) -> void:
 		# A fallen hero may rise again in the safe room, or once out of the
 		# dungeon, on the graveyard or in their own house.
 		var info := save_info()
-		var place := Lang.t("Klicken oder eine Taste: in deinem Haus weiterspielen.  N: neues Spiel") if info.home \
+		var place := Lang.t("Klicken oder eine Taste: an deinem Lager weiterspielen.  N: neues Spiel") if info.camp \
+				else Lang.t("Klicken oder eine Taste: in deinem Haus weiterspielen.  N: neues Spiel") if info.home \
 				else Lang.t("Klicken oder eine Taste: ab dem Friedhof weiterspielen.  N: neues Spiel") if info.escaped \
 				else Lang.t("Klicken oder eine Taste: ab der Zuflucht weiterspielen.  N: neues Spiel")
 		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Kupfer.") % [hero_name, level_index + 1, coins], place)
@@ -5482,6 +5576,8 @@ func _process(delta: float) -> void:
 	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
 		_prompt.text = ""
 		return
+	if has_camp() and Camp._flat(player.global_position, camp.global_position) > Camp.LEAVE_RANGE:
+		pack_camp()
 	if not _pending_station.is_empty() and player.can_act() and _arrived(_pending_station.pos):
 		player.path.clear()
 		if _reach(_pending_station.pos) <= Level.SEARCH_RANGE + 0.3:
@@ -5543,6 +5639,8 @@ func _process(delta: float) -> void:
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 		}.get(station.kind, ""))
+	elif _prompt.text == "" and at_camp():
+		_prompt.text = _hint("camp", Lang.t("U: Lager"))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = _hint("crate", Lang.t("E oder Klick: Kiste aufheben"))
 	elif _prompt.text == "" and _drag_stone != null:
@@ -5729,6 +5827,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						_toggle_sneak()
 					KEY_V:
 						torch_action()
+					KEY_U:
+						camp_action()
 					KEY_G:
 						fish_action()
 					KEY_T:
@@ -5775,6 +5875,65 @@ func _unhandled_input(event: InputEvent) -> void:
 						_toggle_sneak()
 					else:
 						_click(point)
+
+
+## Key U, the "Lager" button or the bedroll in the inventory: rolls out a
+## camp where the hero stands (see Camp) and opens its window. At the camp
+## already, it opens the window again.
+func camp_action() -> void:
+	if state != State.PLAYING or player == null or menus.is_open() or not _shrine.is_empty():
+		return
+	if at_camp():
+		player.path.clear()
+		menus.open("nachtlager")
+		return
+	if not player.can_act():
+		return
+	var why := Camp.why_not(player, level, _indoors())
+	if why != "":
+		show_message(why, 2.4)
+		return
+	pack_camp(false)
+	var spot := Camp.find_spot(level, player.global_position, player.facing())
+	camp = Camp.pitch(level, spot.pos, spot.rot)
+	player.path.clear()
+	player.velocity = Vector3.ZERO
+	player.face(camp.global_position - player.global_position)
+	Sfx.play(self, "rummage", -4.0, player.global_position)
+	learn(CAMP_LEARN)
+	menus.open("nachtlager")
+
+
+const CAMP_LEARN := "Mit einer Schlafrolle (beim Händler) schlägst du überall ein Lager auf: Taste U, der Knopf „Lager“ im Menü oder die Schlafrolle im Inventar. Am Lagerfeuer speicherst du und schläfst wie im Bett, und beim Laden wachst du dort auf. Nicht im Kampf, nicht mit Ungeheuern in der Nähe und nicht in Häusern. Gehst du weg, packst du das Lager wieder ein."
+
+
+func _camp_from_drawer() -> void:
+	set_drawer_open(false)
+	camp_action()
+
+
+## Whether the hero is inside a building, where a bed is the place to sleep.
+func _indoors() -> bool:
+	return level.building != "" or level.is_home or level.inn or inside_house > 0
+
+
+## Whether a camp stands on the level the hero is on.
+func has_camp() -> bool:
+	return is_instance_valid(camp) and not camp.is_queued_for_deletion() and camp.get_parent() == level
+
+
+## Whether the hero stands at their camp.
+func at_camp() -> bool:
+	return has_camp() and Camp._flat(player.global_position, camp.global_position) <= Camp.NEAR
+
+
+## Rolls the bedroll up again and puts the fire out.
+func pack_camp(say := true) -> void:
+	if is_instance_valid(camp):
+		camp.queue_free()
+		if say and camp.get_parent() == level:
+			show_message(Lang.t("Du packst dein Lager zusammen."), 1.8)
+	camp = null
 
 
 ## Key G or the "Angeln" button: casts the line by the water, strikes when

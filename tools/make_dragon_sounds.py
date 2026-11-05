@@ -1,8 +1,7 @@
 """Builds the sounds of the dragon that now and then flies over the open air
 (see scripts/dragon_flyover.gd): its far-off scream as it comes, the heavy beats
 of its huge wings (three, told apart) and its shriek as it sweeps overhead
-(two: the banshee's shriek and the ghosts' fright, four octaves down with a
-deep roar under them), all
+(the banshee's shriek four octaves down, with a deep roar under it), all
 from tones and noise like
 tools/make_sounds.py (whose helpers it uses), so there is no licence to worry about.
 Run: python3 tools/make_dragon_sounds.py"""
@@ -163,8 +162,7 @@ def pitched(x, octaves, length):
 
 def dragon_shriek(seed, source, octaves, length):
     # The shriek right overhead as it sweeps past, from a big old dragon with
-    # a massive body: a ghost's scream (the banshee's shriek, or the howling
-    # rush of a ghost's fright) taken four octaves down into its huge chest,
+    # a massive body: a ghost's scream (the banshee's shriek) taken four octaves down into its huge chest,
     # with an octave higher on top so its scream still cuts through (and is
     # heard on small speakers), a rumbling roar that swells with it, driven
     # hard so it is loud.
@@ -194,6 +192,4 @@ if __name__ == "__main__":
     save("dragon_scream", dragon_scream(), 0.85)
     for i in range(3):
         save("dragon_wingbeat_%d" % i, wingbeat(300 + i), 0.85)
-    for i in range(2):
-        source = ["banshee_shriek", "ghost_scare"][i]
-        save("dragon_shriek_%d" % i, dragon_shriek(500 + i, source, 4, 2.0), 0.95)
+    save("dragon_shriek", dragon_shriek(500, "banshee_shriek", 4, 2.0), 0.95)

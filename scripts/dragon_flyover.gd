@@ -22,12 +22,12 @@ extends Node3D
 ## The scream (built by tools/make_dragon_sounds.py) and how loud it is.
 const SOUND := "dragon_scream"
 const SOUND_DB := -5.0
-## Its wing beats (one is picked each time) and the shriek as it passes right
+## Its wing beats (one is picked each time) and the deep shriek as it passes right
 ## overhead, how loud they are this close, and how high up it flies (the
 ## sounds come from there).
 const WING_SOUNDS := ["dragon_wingbeat_0", "dragon_wingbeat_1", "dragon_wingbeat_2"]
 const WING_DB := -2.0
-const SHRIEK_SOUNDS := ["dragon_shriek_0", "dragon_shriek_1"]
+const SHRIEK := "dragon_shriek"
 const SHRIEK_DB := 1.0
 const HEIGHT := 30.0
 ## Seconds before the first flight after the hero steps out, and between two
@@ -268,7 +268,7 @@ func _sounds() -> void:
 		_overhead(WING_SOUNDS[_rng.randi() % WING_SOUNDS.size()], WING_DB, hero_at)
 	if not shrieked and travelled >= length * 0.5:
 		shrieked = true
-		_overhead(SHRIEK_SOUNDS[_rng.randi() % SHRIEK_SOUNDS.size()], SHRIEK_DB, hero_at)
+		_overhead(SHRIEK, SHRIEK_DB, hero_at)
 
 
 ## Plays one of its sounds from the dragon, high over its shadow: from that

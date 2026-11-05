@@ -55,7 +55,7 @@ func _flyovers(node: Node, out: Array) -> Array:
 
 func _rules() -> void:
 	check(ResourceLoader.exists(Sfx.DIR + DragonFlyover.SOUND + ".wav"), "the scream is there")
-	for sound in DragonFlyover.WING_SOUNDS + DragonFlyover.SHRIEK_SOUNDS:
+	for sound in DragonFlyover.WING_SOUNDS + [DragonFlyover.SHRIEK]:
 		check(ResourceLoader.exists(Sfx.DIR + sound + ".wav"), "the sound %s is there" % sound)
 	check(Lang.EN.has(LINE), "the event log line has its English")
 	check(DragonFlyover.FIRST_WAIT.x >= 60.0 and DragonFlyover.WAIT.x >= 180.0, "the dragon comes rarely: minutes apart")

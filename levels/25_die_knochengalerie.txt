@@ -1,5 +1,6 @@
 name: Die Knochengalerie
 hint: Gebeine von allem, was sich je hierher gewagt hat. Am Ende der Galerie wartet die zweite Schatzkammer, und ihr Schlüssel liegt bei den Wächtern der Brut.
+monsters: wildlife, fable
 building: uralt2
 lair: ja
 theme: uralt

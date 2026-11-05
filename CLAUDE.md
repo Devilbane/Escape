@@ -29,6 +29,13 @@ built by `Level`, `Tiles.OUTDOOR` for the open-air map). Before using a new lett
 then run `tests/tile_letters.gd`: it fails when a map uses an unlisted letter or when two things in
 the code (a match arm, `Enemy.WILD_LETTERS`, `Animal.LETTERS`, ...) share one letter.
 
+## Monster families
+
+Every kind in `Enemy.KINDS` belongs to a family in `MonsterFamilies.KINDS` (`scripts/monster_families.gd`):
+bandits, undead, ghosts, wildlife, fable or humans (the horrors fit anywhere). Every map in `levels/` names
+the families that live there in its header, `monsters: undead, ghosts`. A new kind gets a family, and a
+monster placed or spawned somewhere must belong to that map's families; `tests/monster_families.gd` checks both.
+
 ## Event bus
 
 Features report what happened on the event bus, `Events.bus()` (`scripts/events.gd`), instead of

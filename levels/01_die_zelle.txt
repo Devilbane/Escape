@@ -1,6 +1,7 @@
 name: Die Zelle
 hint: Durchsuche alles, finde den Schlüssel und öffne die Tür.
 secret: normal
+monsters: undead
 #################
 ######E##########
 ####b...x########

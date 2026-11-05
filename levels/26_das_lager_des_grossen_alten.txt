@@ -1,5 +1,6 @@
 name: Das Lager des Großen Alten
 hint: Hier schläft der Große Alte auf seinem Hort, älter als der Berg und nicht zu besiegen. Schleiche dich heran, nimm dir den Hort und schleiche wieder fort.
+monsters: fable
 building: uralt3
 lair: ja
 theme: uralt

@@ -285,6 +285,9 @@ var inn := false
 ## The setting of a mine floor (header "theme:", see Mines): its light and
 ## look. "" for every other level.
 var theme := ""
+## The families of monsters that naturally live here (header "monsters:",
+## see MonsterFamilies).
+var monster_families: Array[String] = []
 ## Where a mine floor's way down ("^") and its stairs lead (headers "down:"
 ## and "up:"), and whether the way down is sealed ("seal:").
 var down_to := ""
@@ -501,6 +504,8 @@ func load_from_file(path: String) -> void:
 			is_home = true
 		elif line.begins_with("theme:"):
 			theme = line.substr(6).strip_edges()
+		elif line.begins_with(MonsterFamilies.HEADER + ":"):
+			monster_families = MonsterFamilies.parse(line.substr(MonsterFamilies.HEADER.length() + 1))
 		elif line.begins_with("down:"):
 			down_to = line.substr(5).strip_edges()
 		elif line.begins_with("up:"):
@@ -3813,6 +3818,11 @@ func _spawn_enemies() -> void:
 			if taken.has(slain_key(c)):
 				# Slain before the hero left this floor (see note_left).
 				continue
+			var kind: String = Enemy.LETTERS[ch] if Enemy.LETTERS.has(ch) else creations[ch].base
+			if not monster_families.is_empty() and not MonsterFamilies.fits(kind, monster_families):
+				# Still placed, but the map's "monsters:" header should name its family.
+				push_warning("%s: a %s (%s) does not live here (monsters: %s)" % [file, kind,
+						MonsterFamilies.family_of(kind), ", ".join(monster_families)])
 			var e: Enemy
 			if Enemy.LETTERS.has(ch):
 				e = _spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")

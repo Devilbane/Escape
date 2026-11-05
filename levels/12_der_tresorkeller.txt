@@ -1,5 +1,6 @@
 name: Der Tresorkeller
 hint: Unter der Bank der Krone: Hinter Eisengittern lagern die Schätze der Helden. Schau dich ruhig um.
+monsters: humans
 building: b
 floor: cellar
 ###################

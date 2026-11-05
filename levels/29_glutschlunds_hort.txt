@@ -1,5 +1,6 @@
 name: Glutschlunds Hort
 hint: Die tiefste Ebene der Drachenhöhle. Hinter einer verschlossenen Tür schläft Glutschlund auf seinem Gold. Den Schlüssel hütet ein Skelett-Koloss am anderen Ende der Gänge.
+monsters: undead, wildlife, fable
 building: E3
 floor: cellar
 lair: yes

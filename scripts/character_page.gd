@@ -451,7 +451,7 @@ func protection_details(id: String) -> Dictionary:
 		var lines := [Lang.t("Wert %d: Jeder Treffer gegen dich wird um so viel schwächer.") % player.hardening,
 			Lang.t("Ein Treffer behält aber mindestens die Hälfte seiner Wucht.")]
 		if kind != "":
-			lines.append(Lang.t("Davon +%d aus dem %s.") % [ArmourSets.hardening(player.equipped), ArmourSets.set_name(kind)])
+			lines.append(Lang.t("Davon +%d aus dem %s.") % [ArmourSets.hardening(player.equipped), ArmourSets.title(kind)])
 		return {"title": Lang.t("Härtung"), "lines": lines,
 			"note": Lang.t("Kommt von harter Rüstung, Schilden und Rüstungssets.")}
 	return {"title": Lang.t("Rüstungswert"),
@@ -466,11 +466,11 @@ func set_details() -> Dictionary:
 	var kind := ArmourSets.worn(player.equipped)
 	var lines := []
 	if kind != "":
-		lines.append(Lang.t("Du trägst das %s: %s.") % [ArmourSets.set_name(kind), ArmourSets.bonus_text(kind)])
+		lines.append(Lang.t("Du trägst das %s: %s.") % [ArmourSets.title(kind), ArmourSets.bonus_text(kind)])
 	else:
 		var near := ArmourSets.closest(player.equipped)
 		lines.append(Lang.t("Du trägst kein ganzes Set.") if near == "" else
-				Lang.t("%s: %d von %d Teilen.") % [ArmourSets.set_name(near), ArmourSets.pieces_worn(player.equipped, near), ArmourSets.PIECES.size()])
+				Lang.t("%s: %d von %d Teilen.") % [ArmourSets.title(near), ArmourSets.pieces_worn(player.equipped, near), ArmourSets.PIECES.size()])
 	lines.append(Lang.t("Helm, Rüstung, Handschuhe und Schuhe aus einem Material ergeben ein Set. Der Umhang zählt nicht."))
 	lines.append(Lang.t("Stoff und Leder geben mehr Geschick, Eisen und Stahl mehr Härtung, Schuppen beides."))
 	return {"title": Lang.t("Rüstungsset"), "lines": lines,
@@ -484,7 +484,7 @@ func _attribute_details(id: String) -> Dictionary:
 	var lines := [Lang.t("Wert %d%s, höchstens %d%s") % [value, unit, a.max, unit]]
 	if id == "geschick" and ArmourSets.dexterity(player.equipped) > 0:
 		var kind := ArmourSets.worn(player.equipped)
-		lines[0] += " " + Lang.t("(+%d aus dem %s)") % [ArmourSets.dexterity(player.equipped), ArmourSets.set_name(kind)]
+		lines[0] += " " + Lang.t("(+%d aus dem %s)") % [ArmourSets.dexterity(player.equipped), ArmourSets.title(kind)]
 	var live := live_effects(id)
 	lines.append_array(live if not live.is_empty() else [Lang.t(ATTRIBUTE_EFFECTS.get(id, ""))])
 	var governs := []

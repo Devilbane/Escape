@@ -76,7 +76,7 @@ func _process(_delta: float) -> bool:
 			if dragon == null:
 				_finish()
 				return true
-			check(dragon.max_hp() >= 30, "the dragon is tough (%d life)" % dragon.max_hp())
+			check(dragon.max_hp() >= 72, "the dragon is tough (%d life)" % dragon.max_hp())
 			check(lvl.dragon_bar != null and not lvl.dragon_bar.wanted(), "its health bar waits until the fight starts")
 			lvl.dragon_awakened.connect(func(_d): awakened += 1)
 			# These checks are about the dragon's own rules: leave out the

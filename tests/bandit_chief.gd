@@ -71,7 +71,7 @@ func _process(_delta: float) -> bool:
 			if chief == null:
 				_finish()
 				return true
-			check(chief.max_hp() >= 20, "the chief has a boss's life (%d)" % chief.max_hp())
+			check(chief.max_hp() >= 60, "the chief has a boss's life (%d)" % chief.max_hp())
 			check(lvl.boss_bar != null and not lvl.boss_bar.wanted(), "his health bar waits until the fight starts")
 			check(Items.ALL.has(BanditChief.TROPHY) and Items.ALL[BanditChief.TROPHY].get("no_loot", false), "his blade is unique, never found elsewhere")
 			check(not lvl.chief_defeated(), "a new game starts with the chief standing")

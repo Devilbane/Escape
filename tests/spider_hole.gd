@@ -82,6 +82,7 @@ func _process(_delta: float) -> bool:
 			check(lvl.get_children().any(func(c): return c is BossBar and c.boss == queen), "her health bar is there")
 			check(Lang.EN.has(queen.boss_title()), "her name has its English")
 			check(Factions.of("spinnenkoenigin") != "", "she belongs to a faction")
+			check(queen.max_hp() >= 68, "she takes a long fight (%d life)" % queen.max_hp())
 			# A stab in the back hurts, but does not fell her.
 			queen.take_hit(1, queen.global_position - queen.global_transform.basis.z * 2.0, "backstab")
 			check(not queen.dead, "one stab in the back does not end her")

@@ -61,6 +61,9 @@ const BOSSES := ["hauptmann", "drache", "bergkoenig", "spinnenkoenigin"]
 ## their own depth, so the hero leaves the crypt at about level 5. The areas
 ## after it lead up to about level 15, and the deep mine is the top, 16 to 20.
 ## "name" is for the compendium and the docs.
+## The strongest a monster of the dungeon's floors may be: one whose rolled
+## gear lifts it higher is toned down to it (see Enemy._fit_area).
+const DUNGEON_TOP := 7
 const AREAS := {
 	"dorf": {"name": "Dorf und Friedhof", "min": 5, "max": 7, "from": [1, 6]},
 	"pass": {"name": "Räuberpass", "min": 5, "max": 7, "from": [2, 5]},

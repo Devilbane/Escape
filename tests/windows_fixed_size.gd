@@ -20,7 +20,7 @@ var shots := OS.get_environment("SHOTS")
 
 ## The windows and the villager each belongs to (for the goodwill line).
 const KINDS := {
-	"inventar": "", "lager": "", "tresor": "", "bank": "", "haendler": "6", "schmied": "1",
+	"inventar": "", "lager": "", "metalltruhe": "", "zutatenbord": "", "tresor": "", "bank": "", "haendler": "6", "schmied": "1",
 	"steinmetz": "S", "barbier": "Z", "wanderhaendler": "", "werkbank": "", "hauswerkbank": "",
 	"ausbau": "", "aushang": "", "trophaeen": "", "charakter": "", "gefaehrten": "", "wunsch": "",
 	"kampfstil": "", "kompendium": "", "karte": "", "auftraege": "",
@@ -96,6 +96,8 @@ func _fill(full: bool) -> void:
 	game.menus.wish_master = Wishes.STYLE_ASKER
 	game.companions = []
 	game.home_upgrades = {"truhe": true} if full else {}
+	game.home_stores = HomeStores.empty()
+	game.bars = {}
 	if not full:
 		return
 	p.equipped["rucksack"] = "reiserucksack"
@@ -115,6 +117,12 @@ func _fill(full: bool) -> void:
 		game.crafting.learn_recipe(id)
 	for ingredient in Crafting.INGREDIENTS:
 		game.crafting.add(ingredient, 7)
+	# Both stores full of every kind they take, a long count at home too.
+	for metal in Forge.FINE:
+		game.bars[metal] = 99
+	for store in [HomeStores.METAL, HomeStores.PANTRY]:
+		for kind in HomeStores.kinds(store):
+			game.home_stores[store][kind] = 99999
 	for id in Quests.ALL:
 		if not Quests.ALL[id].get("wish", false):
 			game.quests.state[id] = {"state": "active", "count": 0}
@@ -241,6 +249,19 @@ func _work(kind: String, where: String) -> void:
 			if game.storage.size() > 0:
 				_step = "taking"
 				menus._take(0)
+				await _same(kind, where)
+		"metalltruhe", "zutatenbord":
+			var store := HomeStores.METAL if kind == "metalltruhe" else HomeStores.PANTRY
+			var ids := HomeStores.shown(game, store)
+			if not ids.is_empty():
+				_step = "storing one"
+				menus._store_move(ids[0], 1, true)
+				await _same(kind, where)
+				_step = "taking all"
+				menus._store_move(ids[0], HomeStores.stored(game, ids[0]), false)
+				await _same(kind, where)
+				_step = "storing everything"
+				menus._store_all(store, true)
 				await _same(kind, where)
 		"tresor":
 			if game.player.bag.size() > 0:

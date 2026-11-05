@@ -55,6 +55,7 @@ const PARTS := [
 	preload("res://scripts/lang/reputation.gd"),
 	preload("res://scripts/lang/horrors.gd"),
 	preload("res://scripts/lang/home_upgrades.gd"),
+	preload("res://scripts/lang/home_stores.gd"),
 	preload("res://scripts/lang/factions.gd"),
 	preload("res://scripts/lang/village_talk.gd"),
 	preload("res://scripts/lang/village_worries.gd"),

@@ -47,6 +47,8 @@ const DUNGEON := {
 	"H": "shrine: one gift (+4 life, +1 attribute point or +1 Konstitution)",
 	"B": "bed (save and log out)",
 	"L": "storage chest",
+	"m": "steel-banded chest for metal, ore and raw gems (homes, see HomeStores)",
+	"h": "ingredient board: shelves of herbs, phials and flasks (homes, see HomeStores)",
 	"V": "merchant",
 	"F": "fountain: refills life, cures poison and curses",
 	"?": "secret wall, opened by a lever torch",

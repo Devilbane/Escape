@@ -102,6 +102,10 @@ var home_claimed := false
 ## HomeUpgrades), and the trophies won: enemy kind -> true for the first
 ## foe of each kind in HomeUpgrades.TROPHIES.
 var home_upgrades := {}
+## What lies in the steel-banded chest and on the ingredient board of the
+## hero's house: store -> kind -> how many (see HomeStores). Kept in the
+## saved game.
+var home_stores := HomeStores.empty()
 var trophies := {}
 ## The villagers the hero has talked to, by role letter -> true. Once met,
 ## a villager wears their name over their head. Kept in the saved game.
@@ -2720,6 +2724,7 @@ func begin_new_game() -> void:
 	home_given = false
 	home_claimed = false
 	home_upgrades.clear()
+	home_stores = HomeStores.empty()
 	trophies.clear()
 	secrets_found = 0
 	dry_levels = 0
@@ -3133,6 +3138,7 @@ func _apply_save(data: Dictionary) -> void:
 				floors[str(key)] = (saved_floors[key] as Array).filter(func(e): return e is Array and e.size() >= 4)
 	escaped = bool(data.get("escaped", false))
 	home_upgrades = _known_keys(data.get("upgrades", []), HomeUpgrades.ALL)
+	home_stores = HomeStores.load_from(data.get("home_stores", {}))
 	trophies = _known_keys(data.get("trophies", []), HomeUpgrades.TROPHIES)
 	home_given = bool(data.get("home", false))
 	home_claimed = home_given and bool(data.get("claimed", false))
@@ -3321,7 +3327,7 @@ func save_game(going_away := false) -> bool:
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
-		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(),
+		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(), "home_stores": HomeStores.for_save(home_stores),
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(), "floors": _floors_for_save(),
 		"quests": quests.for_save(),
@@ -5406,6 +5412,8 @@ func _process(delta: float) -> void:
 			"schrein": Lang.t("Dagegenlaufen, um den Schrein zu berühren"),
 			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
+			"metalltruhe": Lang.t("Dagegenlaufen, um die stahlbeschlagene Truhe für Metall und Edelsteine zu öffnen"),
+			"zutatenbord": Lang.t("Dagegenlaufen, um ans Zutatenbord zu gehen"),
 			"haendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else Lang.t("Dagegenlaufen, um mit dem Händler zu handeln"),
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",

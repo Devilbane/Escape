@@ -128,7 +128,7 @@ const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_sh
 ## shelves, chests and the wall decorations.
 const WORN_SETS := ["props", "chests", "wallprops"]
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "#bxotkCDHBLVF?f=U|N%~T^&"
+const SOLID := "#bxotkCDHBLmhVF?f=U|N%~T^&"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 ## Height of walls between the camera and the room, so they never hide the player.
@@ -1281,6 +1281,10 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"L":
 			_add_fitted_solid(_place("chest", pos, _back_to_wall(c, _facing_room(c))), pos, 1.5)
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
+		"m":
+			HomeStoreFurniture.build_metal_chest(self, c)
+		"h":
+			HomeStoreFurniture.build_board(self, c)
 		"V":
 			_build_merchant(c)
 		"=":
@@ -2177,10 +2181,14 @@ func station_at(point: Vector3) -> Dictionary:
 
 ## The closest unused station within reach of a position, if any.
 func nearest_station(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
+	var best := {}
+	var best_distance := max_distance
 	for s in stations:
-		if not s.used and Vector2(from.x - s.pos.x, from.z - s.pos.z).length() <= max_distance:
-			return s
-	return {}
+		var d := Vector2(from.x - s.pos.x, from.z - s.pos.z).length()
+		if not s.used and d <= best_distance:
+			best = s
+			best_distance = d
+	return best
 
 
 ## The water closest to a spot, if the hero standing there can cast a line
@@ -3926,7 +3934,7 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 ## is decided. One roll per kill for a find of a tier, with Loot's odds for
 ## a foe as tough as this one:
 ## - intelligent ones (and slimes, with what they swallowed) leave `gold`
-##   gold coins, iron, copper and silver coins for the pouch, and on a find
+##   copper coins (the purse), iron, copper and silver coins for the pouch, and on a find
 ##   a piece of gear of that tier (see roll_kill_gear);
 ## - other beasts leave, on a find, their food, an ingredient of where they
 ##   live, or a part of their body (see Loot.creature_find).

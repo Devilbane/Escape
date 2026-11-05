@@ -13,7 +13,7 @@ const EN := {
 	"Obergeschoss": "Upper floor",
 	"Dachkammer": "Attic",
 	"Dein Haus": "Your house",
-	"Dein eigenes Haus in der Weberzeile: unten die Truhe, oben das Bett, unterm Dach viel Platz. Die Kreidefelder halten Raum für Möbel frei.": "Your own house on Weavers' Lane: the chest downstairs, the bed upstairs, plenty of room under the roof. The chalk squares keep space free for furniture.",
+	"Dein eigenes Haus in der Weberzeile: unten die Truhen und das Zutatenbord, oben das Bett, unterm Dach viel Platz. Die Kreidefelder halten Raum für Möbel frei.": "Your own house on Weavers' Lane: the chests and the ingredient board downstairs, the bed upstairs, plenty of room under the roof. The chalk squares keep space free for furniture.",
 	"Willkommen, Fremder! Du kommst aus der alten Gruft? In der Weberzeile steht ein Haus für dich bereit.": "Welcome, stranger! You came out of the old crypt? A house on Weavers' Lane is waiting for you.",
 	"Dorfvorsteher Aldo": "Aldo the Elder",
 	"Krämerin Mira": "Mira the Shopkeeper",

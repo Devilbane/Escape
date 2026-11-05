@@ -12,7 +12,7 @@ const GROUPS := [
 	["Wege", "PEDK<>^|"],
 	["Fallen und Rätsel", "S_QT"],
 	["Schätze", "cCkU&$"],
-	["Einrichtung", "bxotfHFBLV+NXy"],
+	["Einrichtung", "bxotfHFBLmhV+NXy"],
 	["Monster", "MAZwGWvsuqJOeigRYd@"],
 	["Eigene Geschöpfe", "1234567890"],
 ]
@@ -25,7 +25,7 @@ const NAMES := {
 	"S": "Stachelfalle", "_": "Druckplatte", "Q": "Schwerer Steinblock", "T": "Steintafel",
 	"c": "Münze", "C": "Schatztruhe", "k": "Kleine Truhe", "U": "Tresor hinter Gittern",
 	"b": "Fässer", "x": "Kisten", "o": "Säule", "t": "Tisch", "f": "Feuerschale",
-	"H": "Schrein", "F": "Brunnen", "B": "Bett", "L": "Lagertruhe", "V": "Händler",
+	"H": "Schrein", "F": "Brunnen", "B": "Bett", "L": "Lagertruhe", "m": "Stahlbeschlagene Truhe", "h": "Zutatenbord", "V": "Händler",
 	"+": "Platz für Möbel", "N": "Strohecke der Gefährten", "X": "Hort eines Grauens", "y": "Steinpferd",
 	"M": "Skelettkrieger", "A": "Skelettschütze", "Z": "Skelettmagier", "w": "Skelettwicht",
 	"G": "Skelettkoloss", "W": "Wächter in Rüstung", "v": "Fledermaus", "s": "Schleim",
@@ -55,6 +55,8 @@ const NOTES := {
 	"@": "Unbesiegbar: schläft, bis ihn Lärm weckt. Gehört in den Hort des Großen Alten.",
 	"$": "Gold und Ausrüstung: gehört vor den schlafenden Großen Alten (@).",
 	"&": "Enthält ein episches Stück und viel Kupfer.",
+	"m": "Nur in Häusern: Münzen, Barren, Erz und rohe Edelsteine.",
+	"h": "Nur in Häusern: Kräuter, Pilze, Fische, Phiolen und Tierfutter. Gehört an eine Wand.",
 }
 
 ## Colours on the grid. Letters not listed take their group's colour.

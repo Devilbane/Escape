@@ -360,6 +360,35 @@ static func has_pieces(ingredient: String) -> bool:
 	return Ore.is_ore(ingredient) or Ore.GEMS.has(ingredient)
 
 
+## Takes up to `count` pieces of an ore or gem out of the pouch, oldest
+## first, and returns them (lumps or carats) so they can be put back as they
+## were (see give_pieces and HomeStores).
+func take_pieces(ingredient: String, count: int) -> Array:
+	var n := mini(count, have(ingredient))
+	var list: Array = _pieces(ingredient).get(ingredient, [])
+	var out := list.slice(0, n)
+	take(ingredient, n)
+	return out
+
+
+## Puts `count` pieces of an ore or gem back into the pouch: those given,
+## and newly rolled ones for any that are missing.
+func give_pieces(ingredient: String, count: int, pieces: Array) -> void:
+	if count <= 0:
+		return
+	var store := _pieces(ingredient)
+	if not store.has(ingredient):
+		store[ingredient] = []
+	for i in count:
+		if i < pieces.size():
+			store[ingredient].append(pieces[i])
+		else:
+			store[ingredient].append(Ore.roll(ingredient) if Ore.is_ore(ingredient) else Ore.roll_carat())
+	pouch[ingredient] = have(ingredient) + count
+	if not found.has(ingredient):
+		found.append(ingredient)
+
+
 ## Puts one gem of `carat` into the pouch (see Ore.GEMS).
 func add_gem(id: String, carat: int) -> void:
 	pouch[id] = have(id) + 1

@@ -1,7 +1,7 @@
 name: Die Bibliothek
 hint: Skelett-Magier! Ihre Kugeln folgen dir. Lauf hinter eine Säule.
 elite: ja
-secret: episch
+secret: ungewoehnlich
 #########################
 ##########E##############
 ########C...C############

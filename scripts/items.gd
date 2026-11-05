@@ -472,8 +472,8 @@ const RARITY := {
 	"wyrmhelm": "episch", "wyrmpanzer": "episch", "wyrmstiefel": "episch", "wyrmhandschuhe": "episch",
 	# Jewellery.
 	"bronzearmreif": "normal", "kupferring": "normal",
-	"amulett_leben": "ungewoehnlich", "amulett_tempo": "ungewoehnlich", "amulett_kraft": "ungewoehnlich",
-	"silberarmreif": "selten", "rubinring": "selten",
+	"amulett_leben": "ungewoehnlich", "amulett_kraft": "ungewoehnlich",
+	"amulett_tempo": "selten", "silberarmreif": "selten", "rubinring": "selten",
 	# Specials.
 	"vampirzahn": "selten", "gluecksklee": "episch", "dornenrune": "episch", "phoenixfeder": "gottgeboren",
 	# Backpacks.

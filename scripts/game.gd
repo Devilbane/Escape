@@ -1275,6 +1275,16 @@ func _setup_hud() -> void:
 
 	_hud.add_child(event_log)
 
+	# The words of Fritz's drinking songs over his head, under the rest of
+	# the HUD (see SongSheet).
+	var sheet := SongSheet.new()
+	sheet.game = self
+	sheet.camera = camera
+	sheet.live = func() -> bool: return level is Outdoor and menus != null and not menus.is_open()
+	_hud.add_child(sheet)
+	_hud.move_child(sheet, 0)
+	drinking_songs.sheet = sheet
+
 	var version := _make_label(TEXT_FONT, 14, Color(1, 1, 1, 0.4))
 	version.text = _version_text()
 	version.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
@@ -4407,6 +4417,26 @@ func message_rects() -> Array[Rect2]:
 	for line in message_lines():
 		if line.modulate.a > 0.05 and line.text != "":
 			out.append(line.get_global_rect())
+	return out
+
+
+## The screen boxes of the HUD that rides under the hero (life bar, ammunition
+## and status icons) and of the prompt beside him, for the song sheet to
+## keep clear of (see SongSheet).
+func hero_hud_rects() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for c: Control in [_hp_bar, _ammo_row, _status_row, _prompt]:
+		if not c or not c.is_visible_in_tree() or c.modulate.a <= 0.05 or c.size == Vector2.ZERO:
+			continue
+		var rect := c.get_global_rect()
+		if c is Label:
+			# A label as wide as the screen: only its words count.
+			var l := c as Label
+			if l.text == "":
+				continue
+			var w := l.get_theme_font("font").get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, l.get_theme_font_size("font_size")).x
+			rect = Rect2(rect.get_center().x - w * 0.5, rect.position.y, w, rect.size.y)
+		out.append(rect)
 	return out
 
 

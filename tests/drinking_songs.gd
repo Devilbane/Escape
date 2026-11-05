@@ -4,7 +4,11 @@ extends SceneTree
 ## evening near the hero, Fritz sings a whole verse, line after line, in the
 ## event log; far from the hero he does not; the moon song waits for the
 ## night; while he sings, nobody pulls him into a chat; and the hero talking
-## to him ends the song.
+## to him ends the song. The words show in the song sheet over his head
+## (SongSheet): the whole verse, the line he sings now in step with him and
+## filling as he sings it, in a bubble of one fixed size that holds every
+## line of every song in both languages; it fades when the song is over or
+## broken off and while a window is open.
 ## Run with: godot --headless -s tests/drinking_songs.gd
 
 var failures := 0
@@ -67,8 +71,31 @@ func _run(seconds: float, sung := [], step := 0.1) -> Array:
 				sung.append(line)
 		for v in game.level.villagers:
 			v._update_bubble(step)
+		game.drinking_songs.sheet.step(step)
+		_sheet_seen(fritz)
 		t += step
 	return sung
+
+
+## What the song sheet showed while the songs ran: the line it marked each
+## time Fritz sang one (it must be the one he sings), and its sizes.
+var sheet_lines := []
+var sheet_sizes := {}
+var sheet_in_step := true
+
+
+func _sheet_seen(fritz: Villager) -> void:
+	var sheet: SongSheet = game.drinking_songs.sheet
+	if not sheet.shows():
+		return
+	sheet_sizes[sheet.size] = true
+	if fritz._bubble_time > 0.0 and fritz.singing:
+		var said: String = fritz._bubble.text.get_slice("\n", 1)
+		var shown: String = DrinkingSongs.MARK % sheet.lines()[sheet.line()]
+		if said != shown:
+			sheet_in_step = false
+		if not sheet_lines.has(shown):
+			sheet_lines.append(shown)
 
 
 func _verse(index: int) -> Array:
@@ -125,6 +152,7 @@ func _test() -> void:
 
 	# Near the hero, he sings a whole verse, line after line, in order.
 	game.player.global_position = fritz.global_position + Vector3(3, 0, 2)
+	game._snap_camera()
 	_free_everyone()
 	songs._timer = 0.0
 	sung = _run(0.2, [])
@@ -135,11 +163,77 @@ func _test() -> void:
 	check(not songs.is_singing() and not fritz.singing, "and then the song is over")
 	check(songs._timer >= DrinkingSongs.EVENING_EVERY.x - 1.0, "the next one comes in a while (%.1f s)" % songs._timer)
 
+	# The song sheet showed every line as he sang it, then went.
+	var sheet: SongSheet = songs.sheet
+	check(sheet != null, "the game has a song sheet")
+	check(sheet_lines == _verse(0), "the sheet showed each line as he sang it: %s" % [sheet_lines])
+	check(sheet_in_step, "the sheet marks the line he is singing, never another")
+	check(sheet_sizes.size() == 1, "the sheet keeps one size for the whole verse: %s" % [sheet_sizes.keys()])
+	_run(SongSheet.LINGER + SongSheet.FADE_OUT + 0.3, [])
+	check(not sheet.shows() and not sheet.visible, "after the verse the sheet goes")
+
+	# The sheet is big enough for every line in both languages, and its size
+	# is the same for every song and language.
+	var box := SongSheet.box_size()
+	var room := box.x - SongSheet.PAD.x * 2 - SongSheet.MARKER
+	for song in DrinkingSongs.SONGS:
+		for line in song.lines:
+			for text in [line, Lang.EN.get(line, line)]:
+				var w := SongSheet.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, SongSheet._font_size()).x
+				check(w <= room, "\"%s\" fits in the sheet" % text)
+	check(box.x <= 640.0, "the sheet is not wider than half the screen (%d)" % box.x)
+
 	# The next song is another one.
 	_free_everyone()
 	songs._timer = 0.0
 	sung = _run(DrinkingSongs.LINE_TIME * DrinkingSongs.TUNE.size() + 1.0, [])
 	check(sung == _verse(1), "the next time he sings another song: %s" % [sung])
+	check(sheet_sizes.size() == 1, "another song keeps the sheet's size")
+
+	# Mid-line, the line he sings fills with colour as he sings it.
+	_free_everyone()
+	songs._timer = 0.0
+	_run(0.2, [])
+	var early := sheet.progress()
+	_run(DrinkingSongs.LINE_TIME * 0.5, [])
+	check(sheet.line() == 0 and sheet.progress() > early and sheet.progress() < 1.0,
+		"the line fills as he sings it (%.2f to %.2f)" % [early, sheet.progress()])
+	_run(DrinkingSongs.LINE_TIME * 0.5, [])
+	check(sheet.line() == 1, "then the sheet moves on to the next line")
+	check(sheet.visible and sheet.modulate.a > 0.9, "the sheet shows over Fritz (%.2f)" % sheet.modulate.a)
+	var screen := sheet.get_viewport_rect()
+	check(screen.encloses(sheet.get_rect()), "the sheet stays on screen: %s" % sheet.get_rect())
+	check(SongSheet._overlap(sheet.get_rect(), sheet._blocked()) == 0.0, "the sheet does not cover the hero")
+	var tail_at := sheet.position + sheet._tip
+	var fritz_at: Vector2 = game.camera.unproject_position(fritz.global_position)
+	check(absf(tail_at.x - fritz_at.x) < 60.0, "its tail points at Fritz (%d px beside him)" % absf(tail_at.x - fritz_at.x))
+	# With the hero standing right where the sheet hangs, it moves aside.
+	game.player.global_position = fritz.global_position + Vector3(0, 0, -2.5)
+	game._snap_camera()
+	for i in 3:
+		sheet.step(0.05)
+	var ends: Array = sheet._anchors()
+	var least := INF
+	for i in SongSheet.SPOTS.size():
+		least = minf(least, SongSheet._overlap(sheet._spot_rect(i, ends[0], ends[1]), sheet._blocked()))
+	check(SongSheet._overlap(sheet.get_rect(), sheet._blocked()) <= least + 1.0,
+		"the sheet takes the spot that covers the hero least (%s)" % sheet.where())
+	check(sheet.where() != "above", "with the hero above Fritz, the sheet moves away from him (%s)" % sheet.where())
+	game.player.global_position = fritz.global_position + Vector3(3, 0, 2)
+	game._snap_camera()
+	# A window opens: the sheet fades out, and comes back after.
+	game.menus.open("inventory")
+	for i in 10:
+		sheet.step(0.05)
+	check(sheet.modulate.a == 0.0, "the sheet fades out while a window is open")
+	game.menus.close()
+	for i in 10:
+		sheet.step(0.05)
+	check(sheet.modulate.a > 0.9 or not sheet.shows(), "and comes back when it closes (%.2f)" % sheet.modulate.a)
+	songs.stop()
+	for i in 10:
+		sheet.step(0.05)
+	check(not sheet.shows(), "a broken-off song takes the sheet away")
 
 	# The hero talks to him mid-song: the song is over.
 	_free_everyone()
@@ -150,6 +244,8 @@ func _test() -> void:
 	fritz.talk(game.player)
 	_run(0.2, [])
 	check(not songs.is_singing() and not fritz.singing, "talking to him ends the song")
+	_run(SongSheet.FADE_OUT + 0.2, [])
+	check(not sheet.shows(), "and takes the sheet away")
 
 	# By night he sings of the moon too.
 	village.set_hour(22.0)

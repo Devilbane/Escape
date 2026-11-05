@@ -12,6 +12,10 @@ extends RefCounted
 ## to him, a fright) ends the song; while he sings, nobody pulls him into a
 ## chat.
 ##
+## The words also show in a bubble over his head (SongSheet), the whole
+## verse with the line he sings now filling with colour, so the player can
+## sing along.
+##
 ## Every verse is German and has an English entry in
 ## scripts/lang/drinking_songs.gd.
 
@@ -65,6 +69,9 @@ const SONGS := [
 ]
 
 var game: Node
+## The bubble with the words over his head (null where there is none, as in
+## a bare test).
+var sheet: SongSheet
 ## The song going on: the singer, the lines still to sing (translated) and
 ## the seconds until the next one ({} for none).
 var _song := {}
@@ -136,9 +143,11 @@ func start_song(village: Outdoor) -> bool:
 	var song: Dictionary = SONGS[songs[_sung % songs.size()]]
 	_sung += 1
 	var lines := []
+	var words := []
 	for line in song.lines:
-		lines.append(MARK % Lang.t(line))
-	_song = {"singer": singer, "lines": lines, "line": 0, "wait": 0.0,
+		words.append(Lang.t(line))
+		lines.append(MARK % words.back())
+	_song = {"singer": singer, "lines": lines, "words": words, "line": 0, "wait": 0.0,
 		"pitch": _rng.randf_range(0.95, 1.05), "sound": null}
 	return true
 
@@ -172,6 +181,8 @@ func _run_song(delta: float) -> void:
 		return
 	var text: String = lines.pop_front()
 	singer.sing(text, LINE_TIME)
+	if sheet:
+		sheet.sing(singer, _song.words, _song.line, LINE_TIME)
 	# One pitch for the whole verse, so the phrases make one tune; heard
 	# from his side of the screen.
 	_song.sound = Sfx.play_3d(singer, TUNE[_song.line % TUNE.size()], VOLUME, singer.global_position, _song.pitch)
@@ -188,4 +199,6 @@ func stop(cut := true) -> void:
 	var singer = _song.get("singer")
 	if singer != null and is_instance_valid(singer):
 		singer.singing = false
+	if sheet and not _song.is_empty():
+		sheet.finish(cut)
 	_song = {}

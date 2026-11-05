@@ -71,14 +71,18 @@ static var ALL := {
 	"donnerhammer": {"name": "Donnerhammer", "slot": "waffe", "uses": "aexte", "weight": 6, "power": 3, "skills": {"aexte": 1}, "shock": 0.25, "thunder": 3, "price": 80, "no_loot": true, "crafted": true, "model": "res://assets/weapons/forge/war_hammer.gltf", "material": "mixed"},
 	"knochenhelm": {"name": "Knochenhelm", "slot": "kopf", "weight": 1, "power": 1, "price": 18, "hat": ["res://assets/enemies/Skeleton_Warrior.glb", "Skeleton_Warrior_Helmet"], "material": "bone"},
 	"zauberhut": {"name": "Zauberhut", "slot": "kopf", "requires": {"intelligenz": 11}, "weight": 0.5, "hp": 1, "speed": 0.07, "magic": true, "armour_value": 1, "price": 26, "hat": ["res://assets/characters/Mage.glb", "Mage_Hat"], "brim": 0.4, "material": "cloth", "set": "stoff"},
-	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 4, "hp": 2, "armor": 1, "durability": 4, "armour_value": 5, "price": 55, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "material": "metal", "set": "stahl"},
+	# Metal armour is priced by its iron (a bar, 10 copper, per kilo, see
+	# Forge.armour_iron) plus the work. Steel is lighter than iron but the
+	# finer work: the knight's helmet and the plate armour stay the dearest of
+	# their kind, so merchants keep them out of their stock (Items.is_top_tier).
+	"ritterhelm": {"name": "Ritterhelm", "slot": "kopf", "weight": 4, "hp": 2, "armor": 1, "durability": 4, "armour_value": 5, "price": 80, "hat": ["res://assets/characters/Knight.glb", "Knight_Helmet"], "material": "metal", "set": "stahl"},
 	"baerenkappe": {"name": "Bärenkappe", "slot": "kopf", "weight": 1, "hp": 1, "power": 1, "price": 34, "hat": ["res://assets/characters/Barbarian.glb", "Barbarian_Hat"], "material": "fur"},
 	"wollumhang": {"name": "Wollumhang", "slot": "umhang", "weight": 1, "hp": 1, "price": 12, "tint": Color(0.55, 0.4, 0.28), "material": "cloth"},
 	"schattenumhang": {"name": "Schattenumhang", "slot": "umhang", "weight": 1, "hp": 1, "speed": 0.1, "skills": {"schleichen": 2}, "magic": true, "price": 26, "tint": Color(0.16, 0.15, 0.24), "material": "cloth"},
 	"koenigsumhang": {"name": "Königsumhang", "slot": "umhang", "weight": 2, "hp": 2, "power": 1, "price": 42, "tint": Color(0.75, 0.08, 0.1), "material": "cloth"},
 	"lederwams": {"name": "Lederwams", "slot": "ruestung", "weight": 4.5, "hp": 1, "armour_value": 4, "price": 14, "tint": Color(0.5, 0.3, 0.15), "material": "leather", "set": "leder"},
 	"kettenhemd": {"name": "Kettenhemd", "slot": "ruestung", "weight": 18, "hp": 2, "armor": 1, "durability": 5, "skills": {"ruestung": 1}, "armour_value": 8, "price": 194, "tint": Color(0.62, 0.64, 0.68), "metal": 0.4, "material": "chain", "set": "eisen"},
-	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "weight": 14, "hp": 3, "armor": 2, "durability": 6, "power": 1, "armour_value": 10, "price": 164, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55, "material": "metal", "set": "stahl"},
+	"plattenpanzer": {"name": "Plattenpanzer", "slot": "ruestung", "weight": 14, "hp": 3, "armor": 2, "durability": 6, "power": 1, "armour_value": 10, "price": 200, "tint": Color(1.0, 1.02, 1.1), "metal": 0.55, "material": "metal", "set": "stahl"},
 	"lederstiefel": {"name": "Lederstiefel", "slot": "schuhe", "weight": 2, "hp": 1, "armour_value": 2, "price": 10, "tint": Color(0.45, 0.27, 0.13), "material": "leather", "set": "leder"},
 	"eilstiefel": {"name": "Eilstiefel", "slot": "schuhe", "weight": 2, "speed": 0.15, "armour_value": 1, "price": 26, "tint": Color(0.25, 0.45, 0.95), "material": "leather", "set": "leder"},
 	# More pieces for the armour sets (see ArmourSets): a helmet, an armour,

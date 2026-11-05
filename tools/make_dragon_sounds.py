@@ -1,10 +1,12 @@
 """Builds the sounds of the dragon that now and then flies over the open air
 (see scripts/dragon_flyover.gd): its far-off scream as it comes, the heavy beats
 of its huge wings (three, told apart) and its shriek as it sweeps overhead
-(two, a rough, breathy throat voice through moving resonances), all from tones and noise like
+(two: the banshee's shriek and the ghosts' fright, pitched far down with a deep
+roar under them), all
+from tones and noise like
 tools/make_sounds.py (whose helpers it uses), so there is no licence to worry about.
 Run: python3 tools/make_dragon_sounds.py"""
-import os
+import os, subprocess
 import numpy as np
 from make_sounds import SR, OUT, t, noise, lowpass, highpass, env, save
 
@@ -117,100 +119,41 @@ def wingbeat(seed):
     return out
 
 
-def formant(x, freqs, widths):
-    # A resonance of the throat: a band-pass whose centre (and width) follow
-    # the curves `freqs` and `widths` (one value per sample), so the cry's
-    # colour moves like a mouth opening and closing.
-    y = np.zeros_like(x)
-    x1 = x2 = y1 = y2 = 0.0
-    step = 32
-    for s in range(0, len(x), step):
-        f = freqs[s]
-        w0 = 2 * np.pi * f / SR
-        alpha = np.sin(w0) * widths[s] / (2 * f)
-        b0, a0 = alpha, 1 + alpha
-        a1, a2 = -2 * np.cos(w0), 1 - alpha
-        b0, a1, a2 = b0 / a0, a1 / a0, a2 / a0
-        for i in range(s, min(s + step, len(x))):
-            v = x[i]
-            out = b0 * v - b0 * x2 - a1 * y1 - a2 * y2
-            x2, x1 = x1, v
-            y2, y1 = y1, out
-            y[i] = out
-    return y
+def ghost_sound(name):
+    # One of the ghosts' screams as the game ships it (built by
+    # tools/make_ghost_sounds.py), read back with ffmpeg.
+    path = os.path.join(OUT, name + ".ogg")
+    raw = subprocess.run(["ffmpeg", "-v", "quiet", "-i", path, "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"],
+                         check=True, capture_output=True).stdout
+    return np.frombuffer(raw, np.float32).astype(float)
 
 
-def throat(f0, sec, r, breathiness=0.35):
-    # The voice of a living throat rather than a tone: a train of glottal
-    # pulses whose pitch wanders (jitter) and loudness flickers (shimmer),
-    # now and then falling into a rattling every-other-pulse roughness (the
-    # voice cracking under strain), with breath hissing through each pulse.
-    n = len(f0)
-    drift = np.cumsum(r.normal(0, 1, n)) / np.sqrt(SR) * 0.9
-    drift = lowpass(drift - np.linspace(drift[0], drift[-1], n), 12)
-    freq = f0 * (1 + 0.035 * drift / (np.std(drift) + 1e-9)) * (1 + 0.004 * r.normal(0, 1, n))
-    phase = np.cumsum(freq) / SR
-    cycle = np.floor(phase)
-    frac = phase - cycle
-    # A pulse that opens slowly and snaps shut: rich, not buzzy-square.
-    open_q = 0.6
-    pulse = np.where(frac < open_q, np.sin(0.5 * np.pi * frac / open_q) ** 2, 0.0)
-    pulse = np.diff(pulse, prepend=0.0) * 20
-    count = int(cycle[-1]) + 2
-    shimmer = 1 + 0.18 * r.normal(0, 1, count)
-    # Stretches where the voice breaks into a growling rattle.
-    rough = lowpass(r.uniform(-1, 1, n), 3) * 40
-    rough = np.clip(rough, 0, 1)
-    odd = (cycle.astype(int) % 2 == 1)
-    voiced = pulse * shimmer[cycle.astype(int)] * np.where(odd, 1 - 0.7 * rough, 1.0)
-    breath = r.uniform(-1, 1, n) * (0.4 + 0.6 * np.where(frac < 0.6, 1.0, 0.3)) * breathiness
-    return voiced + breath
+def slowed(x, factor):
+    # Played slower: pitched down by `factor` (and that much longer).
+    n = int(len(x) / factor)
+    return np.interp(np.arange(n) * factor, np.arange(len(x)), x)
 
 
-def dragon_shriek(seed):
-    # The shriek right overhead as it sweeps past: a great raptor-like
-    # scream from a huge throat. A strained, rough voice through the moving
-    # resonances of a long throat and open jaws: a quick rasping rise, a
-    # held, cracking top, then a falling, breathy rattle as the breath runs
-    # out, with the land and the air spreading it out behind.
+def dragon_shriek(seed, source, factor):
+    # The shriek right overhead as it sweeps past: a ghost's scream (the
+    # banshee's shriek, or the howling rush of a ghost's fright) pitched far down into a huge throat, with an octave lower still under
+    # it and a rumbling roar from its chest, driven hard so it is loud.
     r = np.random.default_rng(seed)
-    cry = r.uniform(2.0, 2.4)
-    tt = t(cry)
-    top = r.uniform(430, 520)
-    f0 = glide([(0, top * 0.45), (0.14, top * 0.9), (0.35, top), (0.9, top * 1.06),
-                (1.4, top * 0.92), (cry - 0.35, top * 0.6), (cry, top * 0.35)], cry)
-    # A shiver in the held top: the scream strains.
-    f0 *= 1 + 0.03 * np.sin(2 * np.pi * r.uniform(6, 9) * tt) * np.clip((tt - 0.3) / 0.5, 0, 1)
-    src = throat(f0, cry, r)
-    # Bright as a scream is: the high harmonics brought up before the throat shapes them.
-    src = highpass(src, 600) * 1.5 + src * 0.5
-    # The mouth: opens wide as the cry rises (the formants climb), closes as
-    # it dies away. A big beast: wide resonances.
-    opening = np.interp(tt, [0, 0.25, 1.2, cry], [0.6, 1.0, 0.95, 0.55])
-    x = np.zeros_like(tt)
-    for base, width, gain in [(820, 260, 0.8), (1550, 320, 1.0), (2600, 420, 0.9), (3600, 600, 0.5)]:
-        x += formant(src, base * (0.75 + 0.35 * opening), np.full_like(tt, width)) * gain
-    # Strain: the voice driven hard, so it rasps.
-    x = np.tanh(x / (np.max(np.abs(x)) + 1e-9) * 2.6)
-    x *= shape(cry, 0.08, cry * 0.45, cry * 0.5)
-    # Flicker of loudness: no living voice holds steady.
-    x *= 1 + 0.25 * lowpass(r.uniform(-1, 1, len(tt)), 14) * 8
-    # A low, throaty undertone from the size of the chest it comes from.
-    chest = formant(throat(f0 * 0.5, cry, r, 0.6), np.full_like(tt, 260.0), np.full_like(tt, 200.0))
-    x += chest / (np.max(np.abs(chest)) + 1e-9) * 0.3 * shape(cry, 0.1, cry * 0.4, cry * 0.5)
-    x = lowpass(x, 5200)
-    # Open land: no hard echoes, a soft diffuse tail (noise that dies away),
-    # darker as it lingers.
-    tail_sec = 1.6
-    m = int(SR * tail_sec)
-    ir = r.uniform(-1, 1, m) * np.exp(-np.arange(m) / (SR * 0.35))
-    ir = lowpass(ir, 1800) * 0.06
-    ir[0] = 1.0
-    size = len(x) + m
-    out = np.fft.irfft(np.fft.rfft(x, size) * np.fft.rfft(ir, size), size)
-    fade = int(SR * 0.4)
-    out[-fade:] *= np.linspace(1, 0, fade)
-    return out
+    src = ghost_sound(source)
+    # Only the scream and the start of its echo: slowed, the whole echo
+    # would outlast the flight.
+    x = slowed(src, factor)[: int(SR * 4.8)]
+    sub = lowpass(slowed(src, factor * 0.5)[: len(x)], 500)
+    x = x + sub * 1.4
+    # The roar: deep noise that swells with the scream's own loudness.
+    loud = lowpass(np.abs(x), 8) * 6
+    roar = lowpass(r.uniform(-1, 1, len(x)), 120) * 8 * loud
+    x = x / (np.max(np.abs(x)) + 1e-9) + roar / (np.max(np.abs(roar)) + 1e-9) * 0.6
+    x = np.tanh(x * 2.2)
+    x = lowpass(x, 4500)
+    fade = int(SR * 1.2)
+    x[-fade:] *= np.linspace(1, 0, fade) ** 2
+    return x
 
 
 if __name__ == "__main__":
@@ -219,4 +162,5 @@ if __name__ == "__main__":
     for i in range(3):
         save("dragon_wingbeat_%d" % i, wingbeat(300 + i), 0.85)
     for i in range(2):
-        save("dragon_shriek_%d" % i, dragon_shriek(500 + i), 0.85)
+        source, factor = [("banshee_shriek", 0.42), ("ghost_scare", 0.5)][i]
+        save("dragon_shriek_%d" % i, dragon_shriek(500 + i, source, factor), 0.95)

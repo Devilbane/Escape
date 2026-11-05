@@ -28,7 +28,7 @@ const SOUND_DB := -5.0
 const WING_SOUNDS := ["dragon_wingbeat_0", "dragon_wingbeat_1", "dragon_wingbeat_2"]
 const WING_DB := -2.0
 const SHRIEK_SOUNDS := ["dragon_shriek_0", "dragon_shriek_1"]
-const SHRIEK_DB := -3.0
+const SHRIEK_DB := 1.0
 const HEIGHT := 30.0
 ## Seconds before the first flight after the hero steps out, and between two
 ## flights, at least and at most. Only counted while the open air runs.

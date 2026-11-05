@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless test for the dungeon shrines: the panel offers +4 life, +1
+## Headless test for the dungeon shrines: the panel offers +5 life, +1
 ## attribute point and +1 Konstitution, and each gift adds exactly that to the
 ## hero. Taking a gift
 ## hands control straight back: the hero can act and walk the very next frame.
@@ -59,15 +59,15 @@ func _test() -> void:
 	game._open_shrine(shrine)
 	await _wait()
 	var texts := " ".join(_button_texts(game._shrine_panel, []))
-	for gift in ["+4 Leben", "+1 Attributpunkt", "+1 Konstitution"]:
+	for gift in ["+5 Leben", "+1 Attributpunkt", "+1 Konstitution"]:
 		check(texts.contains(Lang.t(gift)), "the shrine offers %s (%s)" % [gift, texts])
 
-	# Life: the most and the current life both grow by four.
+	# Life: the most and the current life both grow by five.
 	var max_before: int = p.max_hp
 	p.hp = p.max_hp
 	game._choose_gift(0)
-	check(p.max_hp == max_before + 4, "+4 life raises the most life by 4 (%d -> %d)" % [max_before, p.max_hp])
-	check(p.hp == p.max_hp, "+4 life fills the new life too (%d / %d)" % [p.hp, p.max_hp])
+	check(p.max_hp == max_before + 5, "+5 life raises the most life by 5 (%d -> %d)" % [max_before, p.max_hp])
+	check(p.hp == p.max_hp, "+5 life fills the new life too (%d / %d)" % [p.hp, p.max_hp])
 	check(game._shrine.is_empty() and not game._shrine_panel.visible, "the panel closes after a gift")
 
 	# No wait after the gift: the hero answers at once, and a step ends the

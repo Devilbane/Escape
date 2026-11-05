@@ -1365,7 +1365,7 @@ func _setup_shrine_panel() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
 	box.add_child(row)
-	var gifts := [Lang.t("+4 Leben"), Lang.t("+1 Attributpunkt"), Lang.t("+1 Konstitution")]
+	var gifts := [Lang.t("+5 Leben"), Lang.t("+1 Attributpunkt"), Lang.t("+1 Konstitution")]
 	for i in gifts.size():
 		var b := _make_button(Lang.t("%s\n(Taste %d)") % [gifts[i], i + 1], _choose_gift.bind(i))
 		b.custom_minimum_size = Vector2(200, 96)
@@ -2007,7 +2007,7 @@ func _choose_gift(index: int) -> void:
 		0:
 			player.gift_hp += Player.SHRINE_LIFE
 			player.hp += Player.SHRINE_LIFE
-			text = Lang.t("Du fühlst dich zäher: +4 Leben")
+			text = Lang.t("Du fühlst dich zäher: +5 Leben")
 		1:
 			player.gift_points += Player.SHRINE_POINTS
 			text = Lang.t("Die Ahnen schenken dir einen Attributpunkt: verteile ihn auf der Charakterseite (P).")

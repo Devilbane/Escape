@@ -95,7 +95,7 @@ var dead := false
 var hp := MAX_HP
 ## What one shrine gift gives: the player picks one of the three (life, a
 ## free attribute point, or Konstitution).
-const SHRINE_LIFE := 4
+const SHRINE_LIFE := 5
 const SHRINE_POINTS := 1
 const SHRINE_CONSTITUTION := 1
 # Gifts from shrines, kept for the whole run.

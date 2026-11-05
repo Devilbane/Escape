@@ -36,6 +36,7 @@ const INGREDIENT_ICONS := {
 	"steinpilz": "mushroom", "trueffel": "mushroom", "hoehlenpilz": "mushroom",
 	"barsch": "fish", "goldkarpfen": "fish", "silberhecht": "fish", "mondforelle": "fish",
 	"mondsilbererz": "ore", "mondstein": "gem",
+	"holzkohle": "coal", "kalkstein": "lime",
 }
 
 
@@ -216,6 +217,12 @@ func _draw() -> void:
 		"stone":
 			draw_rect(Rect2(p.call(0.15, 0.3), Vector2(u * 0.7, u * 0.5)), Color(0.62, 0.6, 0.56))
 			draw_colored_polygon(PackedVector2Array([p.call(0.15, 0.3), p.call(0.3, 0.16), p.call(0.97, 0.16), p.call(0.85, 0.3)]), Color(0.76, 0.74, 0.7))
+		"coal", "lime":
+			# A lump of charcoal (black, with a glint) or of limestone (pale),
+			# for steel (see Forge.STEEL_RECIPE).
+			var lump := Color(0.16, 0.15, 0.15) if kind_of(what) == "coal" else Color(0.86, 0.84, 0.76)
+			draw_colored_polygon(PackedVector2Array([p.call(0.18, 0.75), p.call(0.25, 0.4), p.call(0.5, 0.22), p.call(0.8, 0.38), p.call(0.84, 0.72), p.call(0.55, 0.85)]), lump)
+			draw_line(p.call(0.35, 0.42), p.call(0.55, 0.36), lump.lightened(0.35), u * 0.04)
 		"ore":
 			draw_colored_polygon(PackedVector2Array([p.call(0.2, 0.7), p.call(0.3, 0.3), p.call(0.6, 0.15), p.call(0.85, 0.45), p.call(0.7, 0.85)]), c)
 			draw_line(p.call(0.4, 0.35), p.call(0.55, 0.6), Color.WHITE, u * 0.04)

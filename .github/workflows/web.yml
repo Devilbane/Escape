@@ -439,6 +439,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/forge.gd | tee forge.log
           grep -q PASS forge.log
 
+      - name: Steel test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/steel.gd | tee steel.log
+          grep -q PASS steel.log
+
       - name: Purse test (coins and gems take no bag or pouch slot)
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/purse.gd | tee purse.log

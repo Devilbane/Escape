@@ -105,6 +105,12 @@ const INGREDIENTS := {
 	# which sets its rarity. Gorm cuts them; cutting takes off some weight.
 	"rohedelstein": {"name": "Ungeschliffener Edelstein", "store": "metall", "tier": "ungewoehnlich", "region": "Gebirge", "when": "", "source": "Aus Edelerz geschmolzen",
 		"where": "Steckt in Edelerz. Erst geschliffen taugt er zu etwas; Gorm schleift ihn, dabei verliert er 15 bis 50 Prozent seines Gewichts."},
+	# What a steel bar is made of besides iron (see Forge.STEEL_RECIPE):
+	# charcoal for its carbon, limestone as a flux.
+	"holzkohle": {"name": "Holzkohle", "store": "metall", "tier": "normal", "region": "Dorf", "when": "", "source": "Schmied Gorm",
+		"where": "Gorm brennt sie selbst und verkauft sie an seiner Esse. Mit Kalkstein macht er aus Eisen Stahl."},
+	"kalkstein": {"name": "Kalkstein", "store": "metall", "tier": "normal", "region": "Gebirge", "when": "", "source": "Beute der Trolle und Bergwesen",
+		"where": "Trolle und die Wesen der Berge tragen oft ein paar Brocken bei sich. Mit Holzkohle macht Gorm aus Eisen Stahl."},
 	"edelstein": {"name": "Geschliffener Edelstein", "store": "metall", "tier": "selten", "region": "Dorf", "when": "", "source": "Schmied Gorm",
 		"where": "Ein Edelstein, von Gorm geschliffen. Je mehr Karat, desto seltener und wertvoller; Gorm kauft ihn dir ab."},
 }

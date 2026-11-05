@@ -76,7 +76,7 @@ const MONSTER_STATS := [
 	["speed", "Tempo", 1.0, 9.0, 0.2],
 	["cooldown", "Sekunden je Schlag", 0.6, 4.0, 0.1],
 	["size", "Größe", 0.6, 2.0, 0.05],
-	["gold", "Gold beim Sieg", 0, 100, 1],
+	["gold", "Kupfer beim Sieg", 0, 100, 1],
 ]
 
 ## The people: their body, the parts they may show (hats, capes, what they

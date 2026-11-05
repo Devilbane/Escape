@@ -183,7 +183,7 @@ const EN := {
 	"Schaden": "Damage",
 	"Härte": "Hardening",
 	"Sekunden je Schlag": "Seconds per blow",
-	"Gold beim Sieg": "Gold when slain",
+	"Kupfer beim Sieg": "Copper when slain",
 	"Steht": "Stands",
 	"Sitzt": "Sits",
 	"Hantiert": "Busy with hands",

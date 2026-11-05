@@ -162,13 +162,11 @@ const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
 ## The elder calls the hero over from this far (metres).
 const GREET_RANGE := 11.0
-## Bandits: how likely each piece of gear is on them, how likely a worn
-## piece drops when they fall, and the gold in their purse. The chief has
+## Bandits: how likely each piece of gear is on them (what they drop when
+## they fall goes by Loot's odds, see Level.drop_kill_loot). The chief has
 ## more of everything.
 const BANDIT_GEAR_CHANCE := 0.45
-const BANDIT_DROP_CHANCE := 0.35
 const CHIEF_GEAR_CHANCE := 0.6
-const CHIEF_DROP_CHANCE := 0.5
 ## Seconds after a bandit falls until another takes its place, and how far
 ## away the hero must be for that to happen out of sight.
 const BANDIT_RESPAWN := 150.0
@@ -2405,10 +2403,10 @@ func chief_defeated() -> bool:
 	return taken.has(CHIEF_DEFEATED)
 
 
-## Puts a bandit (or a beast) on its spot. When it falls it leaves gold and
-## maybe a piece of its gear, and after a while another comes to take its
-## place. Beasts carry what their kind says (see "purse" and "gear_chance"
-## in Enemy.KINDS): a wolf hardly anything, an orc or the yeti more.
+## Puts a bandit (or a beast) on its spot. When it falls it leaves its loot
+## (see Level.drop_kill_loot): a bandit or an orc coins and maybe a piece of
+## gear, a wolf or a yeti maybe meat, an ingredient or its fur. After a while
+## another comes to take its place.
 func _spawn_bandit(s: Dictionary) -> void:
 	var stats: Dictionary = Enemy.KINDS[s.kind]
 	var is_chief: bool = s.kind == "hauptmann"
@@ -2424,9 +2422,8 @@ func _spawn_bandit(s: Dictionary) -> void:
 	e.global_position = cell_to_world(s.cell)
 	e.died.connect(func():
 		enemy_killed.emit(e)
-		_drop_gear(e, CHIEF_DROP_CHANCE if is_chief else BANDIT_DROP_CHANCE)
+		drop_kill_loot(e, randi_range(purse[0], purse[1]))
 		_drop_boss_loot(e)
-		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
 		s.enemy = null
 		s.timer = BANDIT_RESPAWN * (NIGHT_RESPAWN_FACTOR if night else 1.0)
 		if is_chief:
@@ -2482,7 +2479,7 @@ func call_reinforcements(from: Enemy, count: int) -> void:
 		e.alert(hero)
 		e.died.connect(func():
 			enemy_killed.emit(e)
-			_drop_coins(e.global_position, randi_range(0, 2)))
+			drop_kill_loot(e, randi_range(0, 2)))
 		enemies = enemies.filter(func(x): return is_instance_valid(x))
 		enemies.append(e)
 		_called.append(e)
@@ -2969,7 +2966,7 @@ func _spawn_risen(s: Dictionary) -> void:
 	add_child(dust)
 	e.died.connect(func():
 		enemy_killed.emit(e)
-		_drop_coins(e.global_position, randi_range(0, 2))
+		drop_kill_loot(e, randi_range(0, 2))
 		s.enemy = null
 		s.timer = NIGHT_DEAD_RESPAWN)
 	s.enemy = e
@@ -3230,7 +3227,7 @@ func _spawn_pack_wolf(s: Dictionary) -> void:
 	var purse: Array = Enemy.KINDS[s.kind].get("purse", [0, 1])
 	e.died.connect(func():
 		enemy_killed.emit(e)
-		_drop_coins(e.global_position, randi_range(purse[0], purse[1]) + (3 if s.leader else 0))
+		drop_kill_loot(e, randi_range(purse[0], purse[1]) + (3 if s.leader else 0))
 		s.timer = INF)
 	s.enemy = e
 	enemies = enemies.filter(func(x): return is_instance_valid(x))
@@ -3251,7 +3248,7 @@ func _spawn_moon_horror() -> void:
 	e.died.connect(func():
 		enemy_killed.emit(e)
 		taken["neumond:%d" % int(s.night)] = true
-		_drop_coins(e.global_position, randi_range(8, 14))
+		drop_kill_loot(e, randi_range(8, 14))
 		s.timer = INF)
 	s.enemy = e
 	enemies = enemies.filter(func(x): return is_instance_valid(x))
@@ -3372,7 +3369,7 @@ func _spawn_weather_foe(s: Dictionary) -> void:
 	var purse: Array = Enemy.KINDS[s.kind].get("purse", [0, 2])
 	e.died.connect(func():
 		enemy_killed.emit(e)
-		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
+		drop_kill_loot(e, randi_range(purse[0], purse[1]))
 		s.enemy = null
 		s.timer = WEATHER_RESPAWN)
 	s.enemy = e

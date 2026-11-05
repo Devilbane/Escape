@@ -22,6 +22,9 @@ var stage := 0
 var stage_frames := 0
 var target: Enemy
 var hero_hp := 0
+var armour_xp := 0.0
+var dodge_xp := 0.0
+var scales := 0
 var kills := 0
 var struck := false
 var first_count := 0
@@ -190,10 +193,14 @@ func _process(_delta: float) -> bool:
 				player.velocity = Vector3.ZERO
 				player.hp = player.max_hp
 				hero_hp = player.hp
-				coins_before = lvl._pickups.filter(func(p): return p.kind == "coin").size()
+				# A bite the armour catches whole still trains wearing it, one
+				# the hero dodges trains Geschick.
+				armour_xp = player.xp.get("ruestung", 0.0)
+				dodge_xp = player.xp.get("geschick", 0.0)
+				coins_before = CoinPile.coins_in(lvl._pickups)
 				return false
 			stage_frames += 1
-			if player.hp < hero_hp or player.knockdowns > 0 or player.xp.get("blocken", 0.0) > 0.0:
+			if player.hp < hero_hp or player.knockdowns > 0 or player.xp.get("blocken", 0.0) > 0.0 or player.xp.get("ruestung", 0.0) > armour_xp or player.xp.get("geschick", 0.0) > dodge_xp:
 				struck = true
 			if player.hp <= 2:
 				player.hp = player.max_hp
@@ -210,27 +217,34 @@ func _process(_delta: float) -> bool:
 					_finish()
 					return true
 				return false
+			if not struck and target.slain_by_rival:
+				# Another monster of the lair got to it first: try the next bat.
+				target = null
+				stage_frames = 0
+				return false
 			check(struck, "the bat bit")
 			check(kills >= 1, "the fallen bat counts as a kill")
 			check(target.fall_text() == Lang.t("Die Fledermaus fällt zu Boden."), "the message says the bat fell")
 			# The dragon falls too and leaves a heap of gold.
 			var dragon: Enemy = _alive(lvl).filter(func(e): return e.kind == "drache")[0]
-			var before := lvl._pickups.filter(func(p): return p.kind == "coin").size()
+			var before := CoinPile.coins_in(lvl._pickups)
 			dragon.take_hit(99, player.global_position)
-			var after := lvl._pickups.filter(func(p): return p.kind == "coin").size()
+			var after := CoinPile.coins_in(lvl._pickups)
 			check(after - before >= Enemy.KINDS.drache.purse[0], "the dragon leaves a heap of gold (%d coins)" % (after - before))
 			check(dragon.fall_text() == Lang.t("Der Drache stürzt brüllend zu Boden!"), "the message says the dragon fell")
 			check(lvl.lair_cleared, "the fallen dragon wins the lair")
-			# It leaves its scale and its blood, maybe its heart.
-			var parts := lvl._pickups.filter(func(p): return p.kind == "ingredient")
-			check(parts.size() >= 2 and parts.size() <= 3, "the dragon leaves 2 or 3 parts (%d)" % parts.size())
+			# It leaves its scale and its blood, maybe its heart (besides the
+			# coins and ore every intelligent foe may leave, see Loot).
+			var parts := lvl._pickups.filter(func(p): return p.kind == "ingredient" and not Loot.is_coin(p.ingredient) and not Ore.is_ore(p.ingredient))
+			check(parts.size() >= 2 and parts.size() <= 4, "the dragon leaves 2 to 4 parts (%d)" % parts.size())
 			var ids := parts.map(func(p): return p.ingredient)
 			check(DragonLair.SCALE in ids and DragonLair.BLOOD in ids, "a scale and dragon blood among them")
 			for p in parts + lvl._pickups.filter(func(q): return q.kind == "coin"):
 				game.player.global_position = p.node.global_position
 				game.player.velocity = Vector3.ZERO
 				lvl._check_pickups()
-			check(game.crafting.have(DragonLair.SCALE) == 1 and game.crafting.have(DragonLair.BLOOD) == 1, "the parts go into the pouch")
+			scales = ids.count(DragonLair.SCALE)
+			check(game.crafting.have(DragonLair.SCALE) == scales and scales >= 1 and scales <= 2 and game.crafting.have(DragonLair.BLOOD) == 1, "the parts go into the pouch")
 			check(game.crafting.knows("schuppenreif") and game.crafting.knows("drachenblutring"), "the parts teach the dragon recipes")
 			stage = 6
 			stage_frames = 0
@@ -264,7 +278,7 @@ func _process(_delta: float) -> bool:
 				check(game.player.global_position.distance_to(lvl.doors.E) < 3.0, "the hero comes out in front of the arch")
 			# What the hero carried out of it.
 			check(game.menus.current == "beute", "a window shows the spoils of the lair")
-			check(game.lair_spoils.get("ingredients", {}).get(DragonLair.SCALE, 0) == 1, "the dragon's scale is among the spoils")
+			check(game.lair_spoils.get("ingredients", {}).get(DragonLair.SCALE, 0) == scales, "the dragon's scales are among the spoils")
 			check(int(game.lair_spoils.get("gold", 0)) > 0, "the gold is among the spoils")
 			game.menus.close()
 			game.go_inside("E")

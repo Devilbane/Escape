@@ -112,7 +112,7 @@ func _test() -> void:
 
 	# Mira: gold on top, two categories in two columns, no cards yet.
 	menus.open("haendler")
-	check(_has_text("Your gold: 379"), "the gold is shown at the top")
+	check(_has_text("Your copper: 379"), "the money is shown at the top")
 	check(_has_text("Equipment") and _has_text("Consumables"), "the categories are shown")
 	check(_has_text("Point at an item"), "the panel shows a hint before a row is picked")
 	var start_size := await _window_size()
@@ -231,7 +231,7 @@ func _test() -> void:
 	# Gorm, Hagen and Benno use the same window.
 	for kind in ["schmied", "steinmetz", "barbier"]:
 		menus.open(kind)
-		check(menus.is_open() and _has_text("Your gold"), "%s opens the trading window" % kind)
+		check(menus.is_open() and _has_text("Your copper"), "%s opens the trading window" % kind)
 		await _shot("merchant_" + kind)
 		menus.close()
 	_finish()

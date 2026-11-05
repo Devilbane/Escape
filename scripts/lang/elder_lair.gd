@@ -39,5 +39,5 @@ const EN := {
 	"Epische Schatztruhe": "Epic treasure chest",
 	"Unbesiegbar: schläft, bis ihn Lärm weckt. Gehört in den Hort des Großen Alten.": "Cannot be defeated: sleeps until noise wakes it. Belongs in the hoard of the Great Old One.",
 	"Gold und Ausrüstung: gehört vor den schlafenden Großen Alten (@).": "Gold and gear: belongs in front of the sleeping Great Old One (@).",
-	"Enthält ein episches Stück und viel Gold.": "Holds an epic piece and a lot of gold.",
+	"Enthält ein episches Stück und viel Kupfer.": "Holds an epic piece and a lot of copper.",
 }

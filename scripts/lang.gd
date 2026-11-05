@@ -40,6 +40,7 @@ const PARTS := [
 	preload("res://scripts/lang/crafting.gd"),
 	preload("res://scripts/lang/crystals.gd"),
 	preload("res://scripts/lang/dragon_lair.gd"),
+	preload("res://scripts/lang/armour_sets.gd"),
 	preload("res://scripts/lang/fishing.gd"),
 	preload("res://scripts/lang/bounties.gd"),
 	preload("res://scripts/lang/day_night.gd"),
@@ -64,6 +65,7 @@ const PARTS := [
 	preload("res://scripts/lang/bloated_belly.gd"),
 	preload("res://scripts/lang/wishes.gd"),
 	preload("res://scripts/lang/rarity.gd"),
+	preload("res://scripts/lang/loot.gd"),
 	preload("res://scripts/lang/quick_bar.gd"),
 	preload("res://scripts/lang/exploration.gd"),
 	preload("res://scripts/lang/traps.gd"),
@@ -83,6 +85,7 @@ const PARTS := [
 	preload("res://scripts/lang/bird_feeding.gd"),
 	preload("res://scripts/lang/spider_webs.gd"),
 	preload("res://scripts/lang/spider_queen.gd"),
+	preload("res://scripts/lang/coin_piles.gd"),
 ]
 
 ## German text -> English text, all features together. Read it, never write it.

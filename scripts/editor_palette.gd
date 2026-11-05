@@ -54,7 +54,7 @@ const NOTES := {
 	"q": "Ein Endgegner: gehört in ein Spinnenloch.",
 	"@": "Unbesiegbar: schläft, bis ihn Lärm weckt. Gehört in den Hort des Großen Alten.",
 	"$": "Gold und Ausrüstung: gehört vor den schlafenden Großen Alten (@).",
-	"&": "Enthält ein episches Stück und viel Gold.",
+	"&": "Enthält ein episches Stück und viel Kupfer.",
 	"m": "Nur in Häusern: Münzen, Barren, Erz und rohe Edelsteine.",
 	"h": "Nur in Häusern: Kräuter, Pilze, Fische, Phiolen und Tierfutter. Gehört an eine Wand.",
 }

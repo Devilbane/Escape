@@ -3,7 +3,8 @@ extends RefCounted
 ## The two special stores in every town house on Weavers' Lane (see Homes),
 ## beside the plain storage chest:
 ##   metall   a steel-banded chest ("m" on the home's map) for what is made of
-##            metal or dug from the rock: gold coins, iron bars, the fine bars
+##            metal or dug from the rock: copper coins (the money)
+##            and the pouch's other coins, iron bars, the fine bars
 ##            from Gorm's forge (Forge.FINE), ore and raw gems (moon silver,
 ##            moonstone, grotto crystals, thunder ore).
 ##   zutaten  an ingredient board ("h"): shelves on the wall with phials,
@@ -28,6 +29,10 @@ const PANTRY := "zutaten"
 const STATIONS := {METAL: "metalltruhe", PANTRY: "zutatenbord"}
 ## The coins in the chest, by this id (no item or ingredient has it).
 const COINS := "muenzen"
+## Ore and gems keep each piece as it is (its weight, make-up and gems, see
+## Crafting.ores and Crafting.gems) while it lies in the chest: kind -> the
+## pieces, oldest first, under this key of the stores.
+const PIECES := "stuecke"
 ## Coins move ten at a time with the small button, everything else one.
 const COIN_STEP := 10
 ## Ingredients of the pouch that are ore or gems: they go in the chest, the
@@ -115,7 +120,11 @@ static func put(game: Node, id: String, count: int) -> int:
 	var n := mini(count, carried(game, id))
 	if store == "" or n <= 0:
 		return 0
-	_change_carried(game, id, -n)
+	if Crafting.has_pieces(id):
+		var pieces: Dictionary = game.home_stores.get_or_add(PIECES, {})
+		pieces[id] = pieces.get(id, []) + game.crafting.take_pieces(id, n)
+	else:
+		_change_carried(game, id, -n)
 	var box: Dictionary = game.home_stores.get(store, {})
 	box[id] = int(box.get(id, 0)) + n
 	game.home_stores[store] = box
@@ -138,7 +147,17 @@ static func take(game: Node, id: String, count: int) -> int:
 		n = fit
 		if n <= 0:
 			return 0
-	_change_carried(game, id, n)
+	if Crafting.has_pieces(id):
+		var pieces: Dictionary = game.home_stores.get_or_add(PIECES, {})
+		var list: Array = pieces.get(id, [])
+		game.crafting.give_pieces(id, n, list.slice(0, n))
+		list = list.slice(n)
+		if list.is_empty():
+			pieces.erase(id)
+		else:
+			pieces[id] = list
+	else:
+		_change_carried(game, id, n)
 	var box: Dictionary = game.home_stores[store]
 	box[id] = int(box[id]) - n
 	if box[id] <= 0:
@@ -191,7 +210,7 @@ static func _change_carried(game: Node, id: String, n: int) -> void:
 
 ## The empty stores of a new game.
 static func empty() -> Dictionary:
-	return {METAL: {}, PANTRY: {}}
+	return {METAL: {}, PANTRY: {}, PIECES: {}}
 
 
 ## What is kept in the saved game: only plain values.
@@ -205,7 +224,7 @@ static func load_from(saved) -> Dictionary:
 	var out := empty()
 	if not (saved is Dictionary):
 		return out
-	for store in out:
+	for store in STATIONS:
 		var box = saved.get(store, {})
 		if not (box is Dictionary):
 			continue
@@ -213,4 +232,22 @@ static func load_from(saved) -> Dictionary:
 			var count := int(box[id])
 			if count > 0 and store_of(str(id)) == store:
 				out[store][str(id)] = count
+	# The pieces of ore and gems, as many as the chest counts (missing ones
+	# are rolled anew when taken out, see Crafting.give_pieces).
+	var pieces = saved.get(PIECES, {})
+	if pieces is Dictionary:
+		for id in pieces:
+			var count := int(out[METAL].get(str(id), 0))
+			if Crafting.has_pieces(str(id)) and pieces[id] is Array and count > 0:
+				var list: Array = []
+				for piece in pieces[id].slice(0, count):
+					if Ore.is_ore(str(id)) and piece is Dictionary and piece.has("grams") and piece.get("share") is Dictionary:
+						var gems := []
+						for carat in (piece.get("gems", []) if piece.get("gems", []) is Array else []):
+							gems.append(int(carat))
+						list.append({"grams": int(piece.grams), "share": piece.share, "gems": gems})
+					elif Ore.GEMS.has(str(id)) and (piece is float or piece is int):
+						list.append(int(piece))
+				if not list.is_empty():
+					out[PIECES][str(id)] = list
 	return out

@@ -39,7 +39,7 @@ const EN := {
 	"Ich bringe die Post zu jedem Haus im Dorf.": "I bring the post to every house in the village.",
 	"Die Postkutsche kommt jeden dritten Tag.": "The mail coach comes every third day.",
 	"Bankier Goldwin": "Goldwin the Banker",
-	"Gold ist bei uns sicherer als in jeder Truhe.": "Gold is safer with us than in any chest.",
+	"Kupfer ist bei uns sicherer als in jeder Truhe.": "Copper is safer with us than in any chest.",
 	"Die Bank der Krone öffnet bald ihre Schalter für Abenteurer.": "The crown's bank will soon open its counters to adventurers.",
 	"Zinsen? Nur für treue Kunden.": "Interest? Only for loyal customers.",
 	"Barbier Benno": "Benno the Barber",

@@ -51,6 +51,12 @@ static func kind_of(id: String) -> String:
 		return "crystal"
 	if id == DragonLair.SCALE:
 		return "shield"
+	if Loot.is_coin(id):
+		return "coin"
+	if Ore.is_ore(id):
+		return "ore"
+	if Ore.GEMS.has(id):
+		return "gem"
 	if id == HomeStores.COINS:
 		return "coin"
 	if id == "eisen":
@@ -77,6 +83,8 @@ static func kind_of(id: String) -> String:
 			return "armour"
 		"schuhe":
 			return "boots"
+		"handschuhe":
+			return "gloves"
 		"amulett":
 			return "amulet"
 		"ring":
@@ -171,6 +179,13 @@ func _draw() -> void:
 			draw_colored_polygon(PackedVector2Array([p.call(0.15, 0.2), p.call(0.38, 0.12), p.call(0.5, 0.22), p.call(0.62, 0.12), p.call(0.85, 0.2),
 					p.call(0.78, 0.45), p.call(0.72, 0.42), p.call(0.72, 0.88), p.call(0.28, 0.88), p.call(0.28, 0.42), p.call(0.22, 0.45)]), c)
 			draw_line(p.call(0.5, 0.25), p.call(0.5, 0.85), c.darkened(0.35), u * 0.04)
+		"gloves":
+			# A glove: a palm with four fingers and the thumb off to the side.
+			draw_rect(Rect2(p.call(0.3, 0.42), Vector2(u * 0.4, u * 0.42)), c)
+			for i in 4:
+				draw_line(p.call(0.34 + i * 0.105, 0.44), p.call(0.34 + i * 0.105, 0.14 + absf(i - 1.5) * 0.06), c, u * 0.09)
+			draw_line(p.call(0.32, 0.6), p.call(0.14, 0.42), c, u * 0.1)
+			draw_line(p.call(0.3, 0.78), p.call(0.7, 0.78), c.darkened(0.35), u * 0.06)
 		"boots":
 			for dx in [0.0, 0.3]:
 				draw_colored_polygon(PackedVector2Array([p.call(0.18 + dx, 0.15), p.call(0.4 + dx, 0.15), p.call(0.4 + dx, 0.72), p.call(0.55 + dx, 0.78),
@@ -215,7 +230,7 @@ func _draw() -> void:
 		"crate":
 			draw_rect(Rect2(p.call(0.15, 0.15), Vector2(u * 0.7, u * 0.7)), WOOD)
 			draw_line(p.call(0.15, 0.15), p.call(0.85, 0.85), WOOD.darkened(0.4), u * 0.06)
-		"iron", "bar_bronze", "bar_silber", "bar_gold":
+		"iron", "bar_kupfer", "bar_bronze", "bar_silber", "bar_gold":
 			# A bar of metal; the fine ones in their own colour (see Forge.METALS).
 			var metal: Color = STEEL if kind_of(what) == "iron" else Forge.METALS[kind_of(what).substr(4)].color
 			draw_colored_polygon(PackedVector2Array([p.call(0.1, 0.75), p.call(0.25, 0.45), p.call(0.9, 0.45), p.call(0.75, 0.75)]), metal.darkened(0.2))
@@ -314,8 +329,10 @@ func _draw() -> void:
 			draw_rect(Rect2(p.call(0.18, 0.5), Vector2(u * 0.64, u * 0.4)), GOLDEN)
 			draw_rect(Rect2(p.call(0.42, 0.62), Vector2(u * 0.16, u * 0.28)), TILE)
 		"coin":
-			draw_circle(p.call(0.5, 0.5), u * 0.42, GOLDEN.darkened(0.25))
-			draw_circle(p.call(0.5, 0.5), u * 0.32, GOLDEN)
+			# Gold, or the metal of a pouch coin (see Loot.COINS).
+			var metal: Color = Loot.COIN_COLORS.get(what, GOLDEN)
+			draw_circle(p.call(0.5, 0.5), u * 0.42, metal.darkened(0.25))
+			draw_circle(p.call(0.5, 0.5), u * 0.32, metal)
 		"herb":
 			# A bundle of leaves on a tied stem.
 			draw_line(p.call(0.5, 0.92), p.call(0.5, 0.45), WOOD, u * 0.05)

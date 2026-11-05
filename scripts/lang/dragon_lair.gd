@@ -10,7 +10,7 @@ const EN := {
 	"Glutherz": "Ember heart",
 	"Beute des Drachen": "The dragon's remains",
 	"Beute des Drachen, nicht immer": "The dragon's remains, not always",
-	"Glutschlund verliert eine, wenn er fällt, ganz unten in der Drachenhöhle.": "Embermaw loses one when it falls, at the very bottom of the dragon's lair.",
+	"Glutschlund verliert eine, wenn er fällt, manchmal auch zwei, ganz unten in der Drachenhöhle.": "Embermaw loses one when it falls, sometimes two, at the very bottom of the dragon's lair.",
 	"Rinnt aus Glutschlund, wenn er fällt, ganz unten in der Drachenhöhle.": "Runs from Embermaw when it falls, at the very bottom of the dragon's lair.",
 	"Das glühende Herz des Drachen. Nicht jedes Mal, wenn Glutschlund fällt, bleibt es heil.": "The dragon's glowing heart. Not every time Embermaw falls does it stay whole.",
 	"Schuppenreif": "Scale bracelet",

@@ -13,8 +13,7 @@ extends RefCounted
 ## Two kinds of monsters, two kinds of loot:
 ## - intelligent ones, and those who use the hero's kind of gear (the
 ##   skeletons, the bandits, orcs, trolls, dragons): coins with every kill
-##   (iron and silver coins into the pouch, copper coins, the money, into
-##   the purse, see coins) and, with the odds above, a piece of gear of the
+##   (all of them into the purse, copper coins as the money, see coins) and, with the odds above, a piece of gear of the
 ##   rolled tier, one they wore if they wore one of that tier;
 ## - the others, beasts without a mind (wolves, spiders, bats, yetis,
 ##   slimes): no coins and no gear but, with the odds above, food (common),
@@ -54,7 +53,7 @@ const SWALLOWS := ["schleim", "kristallschleim", "glutschleim", "schlund"]
 const SWALLOWED_COINS := 0.5
 
 ## The coins -> the metal their bar is of (see Forge.METALS). Iron and
-## silver coins go into the pouch (see Crafting.INGREDIENTS); copper coins
+## silver coins go into the purse (see Crafting.purse); copper coins
 ## are the hero's money (MONEY, counted in game.coins, see Crafting.have).
 ## The gold coins of old, now called ancient gold coins, are no more: every
 ## one is exchanged into a copper coin, one for one (see Game._apply_save).

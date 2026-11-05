@@ -444,6 +444,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/steel.gd | tee steel.log
           grep -q PASS steel.log
 
+      - name: Purse test (coins and gems take no bag or pouch slot)
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/purse.gd | tee purse.log
+          grep -q PASS purse.log
+
       - name: Stone walls and the block-pushing puzzle test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/stone_puzzle.gd | tee puzzle.log

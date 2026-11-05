@@ -300,16 +300,22 @@ const HOW_TO := "Rezepte stehen im Kompendium (Taste H) im „Rezeptbuch“: was
 var game: Node
 ## Known recipes: recipe id -> {"read": [ids of faded lines already read]}.
 var known := {}
-## The ingredient pouch: ingredient id -> count.
+## The ingredient pouch: ingredient id -> count. Coins and gems are never
+## in it: they go in the purse (see in_purse).
 var pouch := {}
+## The purse: the coins other than copper (iron, silver, gold, see
+## Loot.COINS) and the cut and uncut gems (see Ore.GEMS), id -> count. It
+## takes no place in the bag or the pouch. The copper coins, the hero's
+## money, are counted in game.coins and belong in it too.
+var purse := {}
 ## Ingredients the hero gathered at least once: their place is marked as
 ## found in the ingredient book.
 var found := []
 ## The lumps of ore in the pouch, by size (see Ore.LUMPS): a list of
 ## {"grams", "share"} each, oldest first, as many as the pouch counts.
 var ores := {}
-## The gems in the pouch (see Ore.GEMS), uncut and cut: their weights in
-## carat, oldest first, as many as the pouch counts.
+## The gems in the purse (see Ore.GEMS), uncut and cut: their weights in
+## carat, oldest first, as many as the purse counts.
 var gems := {}
 
 
@@ -320,6 +326,7 @@ func _init(owner_game: Node = null) -> void:
 func clear() -> void:
 	known.clear()
 	pouch.clear()
+	purse.clear()
 	found.clear()
 	ores.clear()
 	gems.clear()
@@ -363,10 +370,33 @@ func have(ingredient: String) -> int:
 		return game.coins if game else 0
 	if ingredient in Forge.FINE:
 		return int(game.bars.get(ingredient, 0)) if game else 0
-	return int(pouch.get(ingredient, 0))
+	return int(_holder(ingredient).get(ingredient, 0))
 
 
-## Takes `count` of an ingredient out of the pouch (as many as there are);
+## Whether something is carried in the purse rather than the pouch: every
+## coin (see Loot.COINS) and the cut and uncut gems (see Ore.GEMS).
+static func in_purse(id: String) -> bool:
+	return Loot.COINS.has(id) or Ore.GEMS.has(id)
+
+
+## The table that counts an ingredient: the purse for coins and gems, the
+## pouch for the rest.
+func _holder(ingredient: String) -> Dictionary:
+	return purse if in_purse(ingredient) else pouch
+
+
+## Sets how many of a pouch or purse ingredient the hero carries (none
+## takes it out of the table). Not for copper coins, iron or the fine bars.
+func set_count(ingredient: String, count: int) -> void:
+	var table := _holder(ingredient)
+	if count > 0:
+		table[ingredient] = count
+	else:
+		table.erase(ingredient)
+
+
+## Takes `count` of an ingredient out of the pouch or purse (as many as
+## there are);
 ## ore goes oldest lump first.
 func take(ingredient: String, count := 1) -> void:
 	if ingredient == Loot.MONEY:
@@ -379,9 +409,7 @@ func take(ingredient: String, count := 1) -> void:
 			list.pop_front()
 		if list.is_empty():
 			store.erase(ingredient)
-	pouch[ingredient] = have(ingredient) - count
-	if int(pouch[ingredient]) <= 0:
-		pouch.erase(ingredient)
+	set_count(ingredient, have(ingredient) - count)
 
 
 ## Where the single pieces of an ingredient are kept, each with its own
@@ -424,14 +452,14 @@ func give_pieces(ingredient: String, count: int, pieces: Array) -> void:
 			store[ingredient].append(pieces[i])
 		else:
 			store[ingredient].append(Ore.roll(ingredient) if Ore.is_ore(ingredient) else Ore.roll_carat())
-	pouch[ingredient] = have(ingredient) + count
+	set_count(ingredient, have(ingredient) + count)
 	if not found.has(ingredient):
 		found.append(ingredient)
 
 
-## Puts one gem of `carat` into the pouch (see Ore.GEMS).
+## Puts one gem of `carat` into the purse (see Ore.GEMS).
 func add_gem(id: String, carat: int) -> void:
-	pouch[id] = have(id) + 1
+	set_count(id, have(id) + 1)
 	if not gems.has(id):
 		gems[id] = []
 	gems[id].append(carat)
@@ -449,7 +477,7 @@ func add(ingredient: String, count := 1, found_here := true) -> void:
 		# Copper coins are the hero's money (see Loot.MONEY).
 		game.coins += count
 	elif INGREDIENTS.has(ingredient):
-		pouch[ingredient] = have(ingredient) + count
+		set_count(ingredient, have(ingredient) + count)
 		var store := _pieces(ingredient)
 		if has_pieces(ingredient):
 			# Each lump of ore gets its own weight and make-up (see Ore.roll),
@@ -524,7 +552,7 @@ static func ingredient_name(ingredient: String) -> String:
 
 ## What is kept in the saved game: only plain values.
 func for_save() -> Dictionary:
-	return {"known": known.duplicate(true), "pouch": pouch.duplicate(), "found": found.duplicate(), "ores": ores.duplicate(true), "gems": gems.duplicate(true)}
+	return {"known": known.duplicate(true), "pouch": pouch.duplicate(), "purse": purse.duplicate(), "found": found.duplicate(), "ores": ores.duplicate(true), "gems": gems.duplicate(true)}
 
 
 ## Back from the saved game; unknown recipes, ingredients and lines are left
@@ -548,12 +576,14 @@ func load_from(saved) -> void:
 					if lines.has(str(line_id)) and not read.has(str(line_id)):
 						read.append(str(line_id))
 			known[str(id)] = {"read": read}
-	var saved_pouch = saved.get("pouch", {})
-	if saved_pouch is Dictionary:
-		for ingredient in saved_pouch:
-			var count := int(saved_pouch[ingredient])
-			if INGREDIENTS.has(str(ingredient)) and count > 0:
-				pouch[str(ingredient)] = count
+	# Older games kept coins and gems in the pouch: they move to the purse.
+	for key in ["pouch", "purse"]:
+		var saved_table = saved.get(key, {})
+		if saved_table is Dictionary:
+			for ingredient in saved_table:
+				var count := int(saved_table[ingredient])
+				if INGREDIENTS.has(str(ingredient)) and count > 0:
+					set_count(str(ingredient), have(str(ingredient)) + count)
 	# The lumps of ore keep their make-up; a lump the pouch counts but the
 	# save lacks (an older game) is rolled anew.
 	var saved_ores = saved.get("ores", {})
@@ -682,9 +712,7 @@ func make(id: String) -> String:
 			if int(game.bars[ingredient]) <= 0:
 				game.bars.erase(ingredient)
 		else:
-			pouch[ingredient] = have(ingredient) - count
-			if pouch[ingredient] <= 0:
-				pouch.erase(ingredient)
+			take(ingredient, count)
 	var p: Player = game.player
 	if p.bag_fits(r.result):
 		p.bag.append(r.result)
@@ -720,14 +748,15 @@ func describe(id: String) -> String:
 
 
 ## The ingredients for the ingredient book: every one a known recipe names,
-## in the order the recipes name them, and anything else in the pouch.
+## in the order the recipes name them, and anything else in the pouch or
+## the purse.
 func book_ingredients() -> Array:
 	var ids := []
 	for id in entries():
 		for ingredient in RECIPES[id].ingredients:
 			if not ids.has(ingredient):
 				ids.append(ingredient)
-	for ingredient in pouch:
+	for ingredient in pouch.keys() + purse.keys():
 		if not ids.has(ingredient):
 			ids.append(ingredient)
 	return ids

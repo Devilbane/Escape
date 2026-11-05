@@ -90,6 +90,8 @@ func _fill(full: bool) -> void:
 	p.wear.clear()
 	game.storage.clear()
 	game.crafting.pouch.clear()
+	game.crafting.purse.clear()
+	game.crafting.gems.clear()
 	game.coins = 99999 if full else 0
 	game.iron = 999 if full else 0
 	game.menus.bench = CraftingSquare.BENCHES.values()[0].craft

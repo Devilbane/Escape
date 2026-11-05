@@ -3944,7 +3944,7 @@ const LIMESTONE_COLOUR := Color(0.88, 0.86, 0.76)
 ## is decided. One roll per kill for a find of a tier, with Loot's odds for
 ## a foe as tough as this one:
 ## - intelligent ones (and slimes, with what they swallowed) leave `gold`
-##   copper coins (the purse), iron, copper and silver coins for the pouch, and on a find
+##   copper coins (the purse), iron, copper and silver coins for the purse too, and on a find
 ##   a piece of gear of that tier (see roll_kill_gear);
 ## - other beasts leave, on a find, their food, an ingredient of where they
 ##   live, or a part of their body (see Loot.creature_find).

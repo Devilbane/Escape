@@ -927,9 +927,9 @@ func _build_inventory() -> void:
 	_box.add_child(tabs)
 	var bag_tab := Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag_used(), p.bag_size(), Items.weight_text(p.carried_weight())]
 	var pouch_tab := Lang.t("Zutatenbeutel (%d)") % _pouch_ids().size()
-	# The bag is three cells wide, the pouch two, the coins one: together as
-	# wide as the bag's grid.
-	for tab in [["tasche", bag_tab, 3], ["beutel", pouch_tab, 2], ["muenzen", Lang.t("Münzen"), 1]]:
+	# The bag is three cells wide, the pouch two, the purse (coins and gems)
+	# one: together as wide as the bag's grid.
+	for tab in [["tasche", bag_tab, 3], ["beutel", pouch_tab, 2], ["muenzen", Lang.t("Geldbeutel"), 1]]:
 		var b := _item_button(tab[1], _show_inventory_tab.bind(tab[0]))
 		b.custom_minimum_size = Vector2(tab[2] * INVENTORY_CELL.x + (tab[2] - 1) * 8, 44)
 		b.clip_text = true
@@ -1059,11 +1059,11 @@ func _inventory_details() -> Control:
 
 
 ## The ingredients the hero carries, in the order of the ingredient book,
-## with the smith's iron bars last.
+## with the smith's iron bars last. Coins and gems are in the purse, not here.
 func _pouch_ids() -> Array:
 	var ids := []
 	for id in Crafting.INGREDIENTS:
-		if game.crafting.have(id) > 0:
+		if game.crafting.have(id) > 0 and not Crafting.in_purse(id):
 			ids.append(id)
 	if game.crafting.have("eisen") > 0:
 		ids.append("eisen")
@@ -1117,10 +1117,13 @@ var coin_amounts := {}
 const COIN_STEPS := [1, 10, 100]
 
 
-## The coin tab: a row per metal the hero carries (gold always), with how
+## The purse tab: a row per metal the hero carries (copper always), with how
 ## many, a few quick amounts, a field to type any amount and the button to
 ## put them down at the hero's feet, where they join a pile of the same
-## metal (see CoinPile). As big as the bag's page.
+## metal (see CoinPile); below them a row per kind of gem carried, cut and
+## uncut, with their weights. Nothing in it takes a place in the bag or the
+## pouch (see Crafting.purse). As big as the bag's page; it scrolls if it
+## ever holds more.
 func _purse_page(room: Vector2) -> Control:
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -1138,7 +1141,57 @@ func _purse_page(room: Vector2) -> Control:
 	list.add_child(hint)
 	for metal in game.coin_metals():
 		list.add_child(_coin_row(metal, room.x - 12))
+	for id in Ore.GEMS:
+		if game.crafting.have(id) > 0:
+			list.add_child(_gem_row(id, room.x - 12))
 	return scroll
+
+
+## One kind of gem in the purse: how many, and the weight and rarity of each
+## (oldest first, as Gorm takes them). A click shows what the book says.
+func _gem_row(id: String, width: float) -> Control:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _purse_row_style())
+	panel.custom_minimum_size.x = width
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	var icon := ItemIcon.make(id, 36)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(icon)
+	var names := VBoxContainer.new()
+	names.add_theme_constant_override("separation", 0)
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	names.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(names)
+	var carats: Array = game.crafting.gems.get(id, [])
+	var title: Label = game._make_label(game.TEXT_FONT, 18, Rarity.color(id))
+	title.text = "%s  ×%d" % [Crafting.ingredient_name(id), game.crafting.have(id)]
+	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	names.add_child(title)
+	var each: Label = game._make_label(game.TEXT_FONT, 16, TradeWindow.GREY)
+	each.text = ", ".join(carats.map(func(c): return _carat_text(int(c))))
+	each.tooltip_text = each.text
+	each.clip_text = true
+	each.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	names.add_child(each)
+	var info := _item_button(Lang.t("Infos"), _show_info.bind(id))
+	info.custom_minimum_size = Vector2(150, 44)
+	info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(info)
+	return panel
+
+
+## The frame of one row on the purse tab.
+static func _purse_row_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.08, 0.12, 0.85)
+	style.border_color = Color(0.85, 0.66, 0.32, 0.55)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(8)
+	return style
 
 
 func _coin_row(metal: String, width: float) -> Control:
@@ -1149,13 +1202,7 @@ func _coin_row(metal: String, width: float) -> Control:
 		amount = 1
 	coin_amounts[metal] = amount
 	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.08, 0.12, 0.85)
-	style.border_color = Color(0.85, 0.66, 0.32, 0.55)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	style.set_content_margin_all(8)
-	panel.add_theme_stylebox_override("panel", style)
+	panel.add_theme_stylebox_override("panel", _purse_row_style())
 	panel.custom_minimum_size.x = width
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)

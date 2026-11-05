@@ -299,6 +299,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/character_page.gd | tee character_page.log
           grep -q PASS character_page.log
 
+      - name: Armour sets test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/armour_sets.gd | tee armour_sets.log
+          grep -q PASS armour_sets.log
+
       - name: Villager quests test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/quests.gd | tee quests.log

@@ -651,8 +651,8 @@ static func _bb(text: String) -> String:
 
 func _stats_text() -> String:
 	var p: Player = game.player
-	return Lang.t("Leben %d / %d (+%.1f/s)    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Kupfer %d") % [
-		p.hp, p.max_hp, p.life_regen(), p.power, p.hardening, roundi(p.speed / Player.SPEED * 100.0), p.knives, game.coins]
+	return Lang.t("Leben %d / %d (+%.1f/s)    Kampfkraft %d    Härtung %d    Rüstungswert %d%%    Tempo %d%%    Messer %d    Kupfer %d") % [
+		p.hp, p.max_hp, p.life_regen(), p.power, p.hardening, p.armour_value, roundi(p.speed / Player.SPEED * 100.0), p.knives, game.coins]
 
 
 ## The hero's attributes, each with how far it is to the next point.
@@ -707,6 +707,8 @@ var _character_keep := ""
 var _character_level: Label = null
 ## The width kept for the hero level and experience in the bottom row.
 const CHARACTER_LEVEL_WIDTH := 200
+## The armour set line (for tests).
+var _character_set: Label = null
 
 
 ## The wheel of attributes and skills (see CharacterPage). Beside it: what
@@ -726,7 +728,7 @@ func _build_character() -> void:
 	var side := VBoxContainer.new()
 	side.custom_minimum_size.x = CHARACTER_SIDE
 	side.alignment = BoxContainer.ALIGNMENT_CENTER
-	side.add_theme_constant_override("separation", 14)
+	side.add_theme_constant_override("separation", 10)
 	row.add_child(side)
 	var title: Label = game._make_label(game.TITLE_FONT, 38, game.GOLD)
 	title.text = Lang.t("Charakter")
@@ -766,6 +768,29 @@ func _build_character() -> void:
 	odds_box.add_child(odds_grid)
 	_character_row(odds_grid, wheel, CharacterPage.ODDS, Lang.t("Treffer"), CharacterPage.percent(odds.hit), Color.WHITE)
 	_character_row(odds_grid, wheel, CharacterPage.ODDS, Lang.t("Block"), CharacterPage.percent(odds.block), Color.WHITE)
+	# Below the odds, the two kinds of protection: a flat amount and a share
+	# off every hit. Pointing at them explains them in the card.
+	var guard_title: Label = game._make_label(game.TEXT_FONT, 16, game.GOLD)
+	guard_title.text = Lang.t("Schutz:")
+	odds_box.add_child(guard_title)
+	var guard_grid := GridContainer.new()
+	guard_grid.columns = 2
+	guard_grid.add_theme_constant_override("h_separation", 14)
+	guard_grid.add_theme_constant_override("v_separation", 6)
+	odds_box.add_child(guard_grid)
+	_character_row(guard_grid, wheel, CharacterPage.HARDENING, Lang.t("Härtung"), str(p.hardening), Color.WHITE)
+	_character_row(guard_grid, wheel, CharacterPage.ARMOUR, Lang.t("Rüstungswert"), "%d %%" % p.armour_value, Color.WHITE)
+	# The armour set worn and what it gives, in one line that keeps its
+	# height; pointing at it explains sets in the card below.
+	var set_kind := ArmourSets.worn(p.equipped)
+	var set_line: Label = game._make_label(game.TEXT_FONT, 16, TradeWindow.GREEN if set_kind != "" else TradeWindow.GREY)
+	set_line.text = ArmourSets.summary(p.equipped)
+	set_line.clip_text = true
+	set_line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	set_line.custom_minimum_size.x = CHARACTER_SIDE
+	_character_point(set_line, wheel, CharacterPage.ARMOUR_SET)
+	_character_set = set_line
+	side.add_child(set_line)
 	# The details card: what the wheel points at, else how a roll works.
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(CHARACTER_SIDE, CHARACTER_CARD_HEIGHT)
@@ -867,6 +892,9 @@ func _character_point(l: Label, wheel: CharacterPage, id: String) -> void:
 ## picks or points at can make the window wider or narrower.
 const INVENTORY_CELL := Vector2(150, 48)
 const INVENTORY_WIDTH := 6 * 150 + 5 * 8
+## The worn slots: seven narrower cells across the same width.
+const WORN_COLUMNS := 7
+const WORN_CELL := Vector2(floorf((INVENTORY_WIDTH - (WORN_COLUMNS - 1) * 8) / float(WORN_COLUMNS)), 48)
 ## The details of the picked item or the one under the pointer: lines of
 ## text kept for them, and the font size. Longer texts scroll in that box.
 const INVENTORY_DETAIL_LINES := 4
@@ -881,8 +909,9 @@ func _build_inventory() -> void:
 	_add_inventory_line(_skills_text(), Color(0.8, 0.85, 0.9))
 	_add_worn_heading(p)
 	var row := GridContainer.new()
-	# Six across keeps all eleven slots in two rows, so the window fits the screen.
-	row.columns = 6
+	# Seven across keeps all thirteen slots in two rows, as wide as the bag's
+	# six cells, so the window fits the screen.
+	row.columns = WORN_COLUMNS
 	row.add_theme_constant_override("h_separation", 8)
 	row.add_theme_constant_override("v_separation", 8)
 	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -890,7 +919,7 @@ func _build_inventory() -> void:
 	for slot in Items.SLOTS:
 		var id: String = p.equipped.get(slot, "")
 		var text: String = "%s\n%s" % [Lang.t(Items.SLOT_NAMES[slot]), Items.item_name(id) if id != "" else "-"]
-		row.add_child(_inventory_cell(_item_button(text, _unequip.bind(slot), id != "", id)))
+		row.add_child(_inventory_cell(_item_button(text, _unequip.bind(slot), id != "", id), WORN_CELL))
 	# Two tabs share the space below: the bag and the ingredient pouch.
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -933,13 +962,13 @@ func _add_inventory_line(text: String, color: Color) -> Label:
 ## Makes an item button one cell of the inventory's grid: always the same
 ## size. A long name breaks over two lines, and what does not fit even then
 ## ends in "…" (the details box shows it in full).
-func _inventory_cell(b: Button) -> Button:
-	b.custom_minimum_size = INVENTORY_CELL
+func _inventory_cell(b: Button, cell := INVENTORY_CELL) -> Button:
+	b.custom_minimum_size = cell
 	b.clip_text = true
 	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	b.add_theme_font_size_override("font_size", UiKit.sized(INVENTORY_TEXT))
 	if not "\n" in b.text:
-		b.text = _two_lines(b)
+		b.text = _two_lines(b, cell.x)
 	return b
 
 
@@ -947,8 +976,8 @@ func _inventory_cell(b: Button) -> Button:
 ## A wrapping button grows taller for a third line (a name like "Rune hammer
 ## of the Mountain King"), which would make the window jump; with the break
 ## put in by hand, the second line ends in "…" instead.
-func _two_lines(b: Button) -> String:
-	var width := INVENTORY_CELL.x - b.get_theme_stylebox("normal").get_minimum_size().x
+func _two_lines(b: Button, cell_width := INVENTORY_CELL.x) -> String:
+	var width := cell_width - b.get_theme_stylebox("normal").get_minimum_size().x
 	var para := TextParagraph.new()
 	para.add_string(b.text, b.get_theme_font("font"), INVENTORY_TEXT)
 	para.width = width
@@ -1605,6 +1634,9 @@ func _bench_row(id: String) -> Control:
 	row.add_child(text)
 	var title: Label = game._make_label(game.TEXT_FONT, 20, game.GOLD)
 	title.text = Lang.t(r.name) + (("  ·  " + Lang.t(r.effect)) if r.has("effect") else "")
+	# A long name and effect wrap instead of widening the window.
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.custom_minimum_size.x = 560
 	text.add_child(title)
 	var parts := []
 	for ingredient in r.ingredients:

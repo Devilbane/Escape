@@ -160,6 +160,15 @@ backpack, or swap it for a smaller one, while everything you carry still fits.
 Hard armour (knight's helmet, crest shield, chain mail, plate armour) has **hardening**: it takes a fixed amount off every
 hit (at least 1 damage always gets through). Every hit has a 5 % chance to wear off one point of
 **durability**; once that is used up, the piece breaks.
+**Armour sets**: wear a helmet, an armour, gloves and shoes all of one material and you get a set bonus to
+**dexterity** and **hardening** (your cloak does not count). Hardening takes a fixed amount off every hit; the
+**armour value** of your pieces then takes a share (in %) off what is left, so light hits are sometimes caught
+whole. Cloth (+2 / +1, 3 kg for the set) is light but protects little; leather (+3 / +1, 9 kg) protects more;
+iron (+1 / +3, 35 kg) and steel (+1 / +4, 25 kg) protect a lot but their weight slows you down. The scale
+sets of the great beasts give both: hydra scales +3 / +3 and wyrm scales +2 / +4 turn up deep in the dungeon,
+and dragon scales (+3 / +4, the best) are made at the fine metalwork bench from the scales Embermaw leaves
+(one, sometimes two each time it falls). The character page shows the set you wear, your hardening and your
+armour value.
 At the **forge** beside the smithy in the village, Gorm the **smith** works your gear (walk into him):
 *melt down* metal gear from your bag (weapons, shields, knight's helmet, chain mail, plate armour, rings,
 bracelets, amulets) into **iron bars**, one bar per 8 gold of a weapon's price and one per kilo of metal armour (plate armour gives 8;

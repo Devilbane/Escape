@@ -3921,7 +3921,7 @@ func hero_boons() -> Array:
 		out.append(["power", str(player.power)])
 	if _hero_fast():
 		out.append(["fast", ""])
-	if player.hardening > 0:
+	if player.hardening > 0 or player.armour_value > 0:
 		out.append(["hardening", str(player.hardening)])
 	return out
 
@@ -3954,7 +3954,8 @@ func icon_text(kind: String, number: String) -> String:
 		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
 		"fast": return Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
 		"slow": return Lang.t("Schwer beladen: Du läufst langsamer. Leg im Inventar (I) etwas ab.")
-		"hardening": return Lang.t("Härtung %s: Jeder Treffer gegen dich wird um so viel schwächer, bleibt aber mindestens halb so stark.") % number
+		"hardening": return Lang.t("Härtung %s: Jeder Treffer gegen dich wird um so viel schwächer, bleibt aber mindestens halb so stark.") % number \
+				+ ("\n" + Lang.t("Rüstungswert %d %%: Was übrig bleibt, wird um diesen Anteil kleiner.") % player.armour_value if player.armour_value > 0 else "")
 		"repair": return Lang.t("Abgenutzt: %s Teil(e) deiner Ausrüstung. Plane beim Schlafen „Ausrüstung ausbessern“ ein, sonst zerbrechen sie.") % number
 		"upgrade": return Lang.t("Hagen der Steinmetz kann jetzt einen Ausbau für dein Haus bauen.")
 	return ""

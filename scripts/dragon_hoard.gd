@@ -2,23 +2,25 @@ class_name DragonHoard
 extends RefCounted
 ## The hoard of Glutschlund, the old dragon of the mountain. Every night its
 ## little helpers (see DragonHelpers) swarm out of the lair's stone arch and
-## carry off what lies about on the open ground of the world: gear the hero
-## dropped, loot left by the fallen, spilt coins. Back in the lair the dragon
+## carry off everything that lies about on the ground, all of it: gear the
+## hero dropped, loot left by the fallen, spilt coins of every metal, in the
+## open air, in buildings and below ground alike. Back in the lair the dragon
 ## melts the gear down into bars of iron, bronze, silver or gold, by the
-## piece's kind and rarity (and magic leaves moon silver); books and
-## everything else that burns go up in its fire. The hoard waits in the lair
-## beside the hoard chest, and is the hero's once the dragon has fallen (see
-## Level, "hoard"): the iron goes to the smith's iron bars, the moon silver
-## into the pouch, the fine bars to the hero for Gorm to buy, the coins
-## into the purse.
+## piece's kind and rarity (and magic leaves moon silver); coins of gold,
+## silver and iron melt into their metal; books and everything else that
+## burns go up in its fire. The hoard waits in the lair beside the hoard
+## chest, and is the hero's once the dragon has fallen (see Level, "hoard"):
+## the iron goes to the smith's iron bars, the moon silver into the pouch,
+## the fine bars to the hero for Gorm to buy, the coins into the purse.
 ##
 ## While the hero is out in the open at night the helpers can be watched at
-## work. Whatever is still lying about when the morning comes while the hero
-## was elsewhere (in a building, asleep, below ground) the helpers took
-## unseen: the dawn sweep (see sweep) does the same bookkeeping in one go.
-## Only the open air is swept; inside buildings and below ground nothing is
-## touched. Things carried for a villager's task and the unique blades are
-## left where they lie, so no task and no trophy is ever lost.
+## work. Whatever is still lying about when the morning comes, the helpers
+## took unseen: the dawn sweep (see sweep) does the same bookkeeping in one
+## go, on every map and in every building. Only what lies right beside the
+## hero, awake, stays where it is. Things carried for a villager's task and
+## the unique pieces are never melted: they go whole to the Great Old One
+## (see KEPT_WHOLE_SLOTS), so the hero can fetch them back and no task and
+## no trophy is lost for good.
 ##
 ## Most of it does not stay with Glutschlund, though: of every ELDER_TURN
 ## things the helpers carry home (coins and gear that would melt), all but
@@ -32,12 +34,16 @@ extends RefCounted
 ## Slots of things that burn in the dragon's fire, and gear materials that do.
 const BURNS_SLOTS := ["buch", "kiste", "futter", "licht"]
 const BURNS_MATERIALS := ["cloth", "leather", "fur"]
-## Slots the helpers leave alone: things carried for a villager's task, and
-## spare throwing knives.
-const LEFT_ALONE_SLOTS := ["auftrag", "munition"]
+## Slots of things the dragon does not melt or burn: things carried for a
+## villager's task go whole to the Great Old One (like the unique pieces),
+## where the hero can fetch them back.
+const KEPT_WHOLE_SLOTS := ["auftrag"]
 ## The compendium's word on the helpers, learned the first time they take
 ## something.
 const LORE := "Die Helfer des Drachen: Jede Nacht schwärmen kleine Drachlinge aus dem Steinbogen am Berg und sammeln ein, was im Freien am Boden liegt. Glutschlund schmilzt die Ausrüstung ein: Waffen und Rüstungen zu Eisen, feine Stücke und Schmuck zu Bronze, Silber oder Gold, je seltener, desto edler, und Zauberdinge lassen Mondsilber zurück. Bücher und alles, was brennt, gehen in seinem Feuer auf. Wer den Drachen besiegt, nimmt sich seinen Hort: das Eisen für den Schmied, das Mondsilber für Rezepte, die edlen Barren für Gorm, der sie dir abkauft. Lass also nachts nichts draußen liegen, was du behalten willst."
+## The compendium's word on how far the helpers go, learned the first
+## morning they took something from a building or from below ground.
+const EVERYWHERE_LORE := "Die Helfer des Drachen lassen nichts liegen: Sie holen jede Nacht alles, was am Boden liegt, nicht nur im Freien, sondern auch aus Häusern, Höhlen und Verliesen. Münzen aus Gold, Silber und Eisen schmilzt Glutschlund zu Metall. Aufträge und einzigartige Stücke verbrennt und schmilzt er nie: Die bringen die Helfer ganz hinab zum Großen Alten. Was du behalten willst, gehört in die Tasche oder in eine Truhe."
 const COLOR := Color(1.0, 0.62, 0.25)
 ## Of every ELDER_TURN things carried home, the first stays with Glutschlund
 ## and the rest go to the Great Old One.
@@ -80,17 +86,18 @@ static func _empty_tally() -> Dictionary:
 	return {"things": 0, "burnt": 0, "coins": 0, "metals": {}, "elder": 0}
 
 
-## What becomes of a thing the helpers find lying about: "coin", "melt",
-## "burn", or "" when they leave it where it lies.
+## What becomes of a thing the helpers find lying about: "coin" (the
+## money), "melt", "burn", "keep" (to the Great Old One whole), or "" for
+## what is no thing to carry (an unknown id).
 static func fate(kind: String, id: String) -> String:
 	if kind == "coin":
-		# The money only: the helpers leave the other metals lying.
-		return "coin" if CoinPile.metal_of(id) == CoinPile.MONEY else ""
+		# The money is heaped up as it is; the other metals melt.
+		return "coin" if CoinPile.metal_of(id) == CoinPile.MONEY else "melt"
 	if kind != "item" or not Items.ALL.has(id):
 		return ""
 	var item: Dictionary = Items.ALL[id]
-	if item.get("unique", false) or str(item.get("slot", "")) in LEFT_ALONE_SLOTS:
-		return ""
+	if item.get("unique", false) or str(item.get("slot", "")) in KEPT_WHOLE_SLOTS:
+		return "keep"
 	if Items.is_book(id) or str(item.get("slot", "")) in BURNS_SLOTS or str(item.get("material", "")) in BURNS_MATERIALS:
 		return "burn"
 	return "melt"
@@ -107,6 +114,15 @@ static func takes(entry) -> bool:
 ## burn melts. Empty for what does not.
 static func melt(id: String) -> Dictionary:
 	return Forge.melt_into(id, true) if fate("item", id) == "melt" else {}
+
+
+## What `count` coins of a metal other than the money melt into: their
+## grams (Ore.COIN_GRAMS a coin), as at Gorm's forge.
+static func melt_coins(id: String, count: int) -> Dictionary:
+	var metal := CoinPile.metal_of(id)
+	if metal == CoinPile.MONEY or not Loot.COINS.has(metal) or count <= 0:
+		return {}
+	return {Forge.GRAMS + str(Loot.COINS[metal]): count * Ore.COIN_GRAMS}
 
 
 ## What coins and fine bars are worth in gold coins (the iron and the moon
@@ -132,7 +148,12 @@ func gather(kind: String, id: String, count := 1) -> Dictionary:
 	if f == "burn":
 		tonight.burnt = int(tonight.burnt) + 1
 		return {}
-	var to_elder := carried % ELDER_TURN != 0 and (f == "coin" or elder_items.size() < ELDER_ITEMS_MAX)
+	if f == "keep":
+		# Never melted: whole to the Great Old One, past its limit too.
+		tonight.elder = int(tonight.get("elder", 0)) + 1
+		elder_items.append(id)
+		return {"elder": 1}
+	var to_elder := carried % ELDER_TURN != 0 and (f == "coin" or (kind == "item" and elder_items.size() < ELDER_ITEMS_MAX))
 	carried += 1
 	if f == "coin":
 		tonight.coins = int(tonight.coins) + count
@@ -146,24 +167,25 @@ func gather(kind: String, id: String, count := 1) -> Dictionary:
 	if f == "coin":
 		gold += count
 		return {"coins": count}
-	var bars := melt(id)
+	var bars := melt(id) if kind == "item" else melt_coins(id, count)
 	for metal in bars:
 		metals[metal] = int(metals.get(metal, 0)) + int(bars[metal])
 		tonight.metals[metal] = int(tonight.metals.get(metal, 0)) + int(bars[metal])
 	return bars
 
 
-## The dawn sweep: takes everything the helpers would from a floor list of
-## the open air (see Level.floor_items), changed in place. Returns how many
-## things went.
-func sweep(list: Array) -> int:
-	var count := 0
+## The dawn sweep: takes everything the helpers would from a floor list
+## (see Level.floor_items), changed in place. Returns the ids of the items
+## that went (coins not), so the map can count them as taken.
+func sweep(list: Array) -> Array[String]:
+	var went: Array[String] = []
 	for entry in list.duplicate():
 		if takes(entry):
 			list.erase(entry)
 			gather(str(entry[0]), str(entry[1]), CoinPile.count_of(entry))
-			count += 1
-	return count
+			if str(entry[0]) == "item":
+				went.append(str(entry[1]))
+	return went
 
 
 ## The line for the event log about what tonight brought, "" when nothing.
@@ -236,7 +258,8 @@ func load_from(data) -> void:
 	var kept = data.get("elder_items", [])
 	if kept is Array:
 		for id in kept:
-			if Items.ALL.has(str(id)) and elder_items.size() < ELDER_ITEMS_MAX:
+			# No limit here: task items and unique pieces go past it.
+			if Items.ALL.has(str(id)):
 				elder_items.append(str(id))
 	var m = data.get("metals", {})
 	if m is Dictionary:

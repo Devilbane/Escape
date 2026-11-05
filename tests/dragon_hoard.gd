@@ -1,11 +1,13 @@
 extends SceneTree
 ## Headless test for the old dragon's little helpers and its hoard (see
 ## DragonHoard and DragonHelpers): at night dragonlings fly out of the lair's
-## arch and carry off what lies on the open ground, but nothing at the
-## hero's feet; gear melts into gold, books and cloth burn, task items and
-## unique blades are left alone. What lay about while the hero was elsewhere
-## is gone by morning, and the event log says what the night brought; the
-## floors of buildings are not touched. The hoard is kept in the saved game,
+## arch and carry off all that lies on the open ground, but nothing at the
+## hero's feet; the more lies about, the more of them come; gear melts into
+## gold, coins of other metals into grams, books and cloth burn, task items
+## and unique blades go whole to the Great Old One. What is left at daybreak
+## they fetch in the morning. What lay about while the hero was elsewhere is
+## gone by morning, on every map and in every building, and the event log
+## says what the night brought. The hoard is kept in the saved game,
 ## lies in the lair beside the chest (and in no other lair), and is the hero's
 ## once the dragon fell. Most of what the helpers carry goes further down, to
 ## the Great Old One (see ElderLair), gear kept whole; that share is kept in the
@@ -60,9 +62,16 @@ func _test() -> void:
 	check(DragonHoard.fate("item", "fechtbuch") == "burn", "a book burns")
 	check(DragonHoard.fate("item", "wollumhang") == "burn", "a wool cloak burns")
 	check(DragonHoard.fate("item", "fackel") == "burn", "a torch burns")
-	check(DragonHoard.fate("item", "brief") == "", "a task item is left alone")
-	check(DragonHoard.fate("item", "rabenklinge") == "", "a unique blade is left alone")
+	check(DragonHoard.fate("item", "brief") == "keep", "a task item is kept whole")
+	check(DragonHoard.fate("item", "rabenklinge") == "keep", "a unique blade is kept whole")
+	check(DragonHoard.fate("item", Items.KNIFE) == "melt", "a throwing knife is melted down")
 	check(DragonHoard.fate("coin", "") == "coin", "coins are gathered")
+	check(DragonHoard.fate("coin", "silbermuenze") == "melt", "silver coins are melted down")
+	check(DragonHoard.melt_coins("silbermuenze", 3) == {"g:silber": 3 * Ore.COIN_GRAMS}, "silver coins melt into their grams")
+	check(DragonHoard.melt_coins("eisenmuenze", 2) == {"g:eisen": 2 * Ore.COIN_GRAMS}, "iron coins melt into iron")
+	check(DragonHoard.melt_coins("", 5).is_empty(), "the money is not melted")
+	check(DragonHelpers.out_limit(0) == DragonHelpers.MIN_OUT and DragonHelpers.out_limit(100) == DragonHelpers.MAX_OUT, "more helpers come the more lies about")
+	check(DragonHelpers.spawn_gap(40) < DragonHelpers.spawn_gap(0), "and they come quicker")
 	check(DragonHoard.melt("schwert") == Forge.melt_into("schwert"), "a sword melts into what the smith gets from it")
 	check(DragonHoard.melt("rubinring").has("g:silber"), "a ruby ring into silver")
 	check(DragonHoard.melt("knochenhelm") == {"g:bronze": Forge.melt_into("knochenhelm", true)["g:bronze"]}, "the dragon's fire melts even a bone helmet")
@@ -108,14 +117,14 @@ func _test() -> void:
 	check(lvl.night, "it is night")
 	_run_helpers(helpers, 60.0)
 	var left := _floor_ids(lvl)
-	check(left.has("brief"), "the letter for the elder still lies there")
 	check(left.has("axt"), "nothing is snatched from the hero's feet")
-	check(not left.has("schwert") and not left.has("fechtbuch") and not left.has("coin"), "the rest is carried off (%s)" % str(left))
+	check(not left.has("schwert") and not left.has("fechtbuch") and not left.has("coin") and not left.has("brief"), "the rest is carried off, the letter too (%s)" % str(left))
+	check(game.hoard.elder_items.has("brief"), "the letter went whole to the Great Old One")
 	# Of every three things carried home, the first stays with Glutschlund and
 	# the other two go down to the Great Old One, gear kept whole.
 	var sword_melted: bool = game.hoard.metals == Forge.melt_into("schwert")
 	check(game.hoard.gold + game.hoard.elder_gold == 2 and (sword_melted != game.hoard.elder_items.has("schwert")), "the sword went to one hoard, and two coins (%d + %d, %s, %s)" % [game.hoard.gold, game.hoard.elder_gold, str(game.hoard.metals), str(game.hoard.elder_items)])
-	check(int(game.hoard.tonight.elder) == 2 and game.hoard.carried == 3, "two of the three things went to the Great Old One (%d)" % int(game.hoard.tonight.elder))
+	check(int(game.hoard.tonight.elder) == 3 and game.hoard.carried == 3, "two of the three things went to the Great Old One, and the letter (%d)" % int(game.hoard.tonight.elder))
 	check(int(game.hoard.tonight.burnt) == 1, "the book burnt")
 	check(game.lore.has(DragonHoard.LORE), "the compendium learns of the helpers")
 	check(lvl.floor_pickups().size() == 1, "only the axe is still there for them to take")
@@ -129,13 +138,34 @@ func _test() -> void:
 	# Morning in sight of the helpers: the event log tells the night's tally.
 	var gold_before: int = game.hoard.gold
 	game._new_day()
-	var said: Array = game.event_log.entries().filter(func(t): return "5" in t and Lang.t("Eisenbarren") in t and Lang.t("Verbrannt: %d.") % 1 in t)
+	var said: Array = game.event_log.entries().filter(func(t): return "6" in t and Lang.t("Eisenbarren") in t and Lang.t("Verbrannt: %d.") % 1 in t)
 	check(not said.is_empty(), "the event log tells what the night brought: %s" % str(game.event_log.entries()))
 	check(int(game.hoard.tonight.things) == 0, "the tally starts afresh")
 	check(game.hoard.gold == gold_before, "nothing more went at dawn")
 
+	# A great heap of things: more helpers come, and what is left at daybreak
+	# they fetch in the morning twilight, all of it.
+	lvl.set_hour(4.0)
+	game.day_hour = 4.0
+	for i in 24:
+		lvl._drop_item("schwert", den + Vector3(6.0 + (i % 6) * 2.0, 0, 30.0 + (i / 6) * 2.0))
+	_run_helpers(helpers, 3.0)
+	check(helpers.helpers.size() > DragonHelpers.MIN_OUT, "many helpers fly out for a great heap (%d)" % helpers.helpers.size())
+	lvl.set_hour(7.0)
+	game.day_hour = 7.0
+	check(not lvl.night, "the day broke")
+	game._new_day()
+	check(not helpers.leftovers.is_empty(), "something was still lying about at daybreak")
+	_run_helpers(helpers, 120.0)
+	check(lvl.floor_pickups().is_empty(), "in the morning twilight they fetched the rest (%d left)" % lvl.floor_pickups().size())
+	check(helpers.leftovers.is_empty() and helpers.helpers.is_empty(), "then they stay home for the day")
+	lvl._drop_item("axt", den + Vector3(10.0, 0, 10.0))
+	_run_helpers(helpers, 10.0)
+	check(_floor_ids(lvl).has("axt"), "what falls by day waits for the night")
+	lvl.take_from_floor(lvl.floor_pickups()[0]).queue_free()
+
 	# While the hero was in a building: by morning the open air is swept,
-	# the building's own floor is not.
+	# and every other building's floor too, task items and all.
 	game.floors[key] = [["item", "kettenhemd", 1.0, 1.0], ["coin", "", 2.0, 2.0], ["item", "wassereimer", 3.0, 3.0]]
 	game.floors["haus.txt#2"] = [["item", "schwert", 1.0, 1.0]]
 	var refuge := -1
@@ -146,13 +176,31 @@ func _test() -> void:
 	gold_before = game.hoard.gold + game.hoard.elder_gold
 	var elder_before: int = game.hoard.elder_items.size()
 	game._new_day()
-	check(game.floors[key].size() == 1 and game.floors[key][0][1] == "wassereimer", "the open air was swept by morning: %s" % str(game.floors[key]))
-	check(game.hoard.gold + game.hoard.elder_gold == gold_before + 1 and game.hoard.elder_items.size() == elder_before + 1 and game.hoard.elder_items.has("kettenhemd"), "the chain mail and the coin went down to the Great Old One: %s" % str(game.hoard.elder_items))
+	check(game.floors[key].is_empty(), "the open air was swept by morning, all of it: %s" % str(game.floors[key]))
+	check(game.hoard.gold + game.hoard.elder_gold == gold_before + 1 and game.hoard.elder_items.size() == elder_before + 2 and game.hoard.elder_items.has("kettenhemd") and game.hoard.elder_items.has("wassereimer"), "the chain mail, the bucket and the coin went down to the Great Old One: %s" % str(game.hoard.elder_items))
 	check(game.lore.has(DragonHoard.ELDER_LORE), "the compendium learns where most of the loot goes")
-	check(game.floors["haus.txt#2"].size() == 1, "a building's floor is not touched")
+	check(game.floors["haus.txt#2"].is_empty(), "a building's floor is swept too")
+	check(game.lore.has(DragonHoard.EVERYWHERE_LORE), "the compendium learns that they go everywhere")
+	check(game.looted.get("haus.txt", {}).has("schwert"), "what they took counts as taken on its map")
+
+	# On the map the hero is on, awake: gone by morning, all but what lies
+	# right beside the hero.
+	var cell: Level = game.level
+	var hero_at: Vector3 = game.player.global_position
+	cell._drop_item("schwert", hero_at + Vector3(0.5, 0, 0.5))
+	cell._drop_item("axt", hero_at + Vector3(12.0, 0, 0))
+	cell._drop_coins(hero_at + Vector3(0, 0, 12.0), 3, "silbermuenze")
+	var grams_before := int(game.hoard.metals.get("g:silber", 0))
+	game._new_day()
+	var here := _floor_ids(cell)
+	check(here == ["schwert"], "only the sword at the hero's feet is left: %s" % str(here))
+	check(int(game.hoard.metals.get("g:silber", 0)) == grams_before + 3 * Ore.COIN_GRAMS, "the silver coins melted into the hoard (%s)" % str(game.hoard.metals))
 
 	# Asleep in the open: what lies there vanishes from the ground too.
 	game.floors.erase("haus.txt#2")
+	for k in game.floors.keys():
+		if k != key:
+			game.floors[k].clear()
 	game.load_level(outdoor, false)
 	lvl = game.level
 	lvl._drop_item("streitaxt", lvl.doors.E + Vector3(8.0, 0, 8.0))

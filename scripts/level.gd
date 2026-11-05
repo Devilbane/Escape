@@ -4509,14 +4509,17 @@ func lies_on_floor(id: String) -> bool:
 
 ## Takes a pickup lying on the floor list off the floor (the dragon's
 ## helpers carry it away, see DragonHelpers): no longer a pickup, gone from
-## floor_items. Returns its node, which the caller frees, or null when it
-## was taken already.
+## floor_items, and counted as taken like a thing the hero picked up (so a
+## trophy is not laid out again). Returns its node, which the caller frees,
+## or null when it was taken already.
 func take_from_floor(p: Dictionary) -> Node3D:
 	if not _pickups.has(p):
 		return null
 	_pickups.erase(p)
 	if p.has("floor"):
 		floor_items.erase(p.floor)
+	if p.has("id"):
+		taken[p.id] = true
 	return p.node if is_instance_valid(p.node) else null
 
 

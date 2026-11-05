@@ -4,14 +4,12 @@ extends RefCounted
 
 const EN := {
 	"Münzen": "Coins",
-	"Goldmünzen": "Gold coins",
 	"Silbermünzen": "Silver coins",
 	"Kupfermünzen": "Copper coins",
 	"Eisenmünzen": "Iron coins",
 	"Münzen einer Art am selben Fleck bilden einen Haufen (bis %d).": "Coins of one kind on the same spot form one pile (up to %d).",
 	"Dabei: %d": "Carried: %d",
 	"Keine dabei": "None carried",
-	"Alle": "All",
 	"Ablegen": "Put down",
 	"Wie viele Münzen (1 bis %d)": "How many coins (1 to %d)",
 	"Keine Münzen zum Ablegen.": "No coins to put down.",

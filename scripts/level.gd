@@ -133,8 +133,6 @@ const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_d
 const SOLID := "#bxotkCDHBLmhVF?f=U|N%~T^&"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
-## Height of walls between the camera and the room, so they never hide the player.
-const LOW_WALL_SCALE := 0.3
 const SPIKE_PERIOD := 3.0
 const SPIKE_UP_TIME := 1.1
 const SPIKE_DOWN_Y := -1.95
@@ -448,6 +446,9 @@ var _bare_walls: Array = []
 ## Where the bookcases and the wall decorations stand, so that no two of one
 ## kind end up side by side (see WALL_GAP): {"kind", "pos"}.
 var _wall_pieces: Array = []
+## The walls between the camera and a room: full height, but see-through
+## right in front of the hero (see WallFade).
+var _near_walls := WallFade.new()
 ## Two bookcases, or two wall decorations of one kind, are at least this far
 ## apart (metres): three tiles, so a room does not show the same thing twice
 ## in one spot.
@@ -755,8 +756,9 @@ func world_to_cell(p: Vector3) -> Vector2i:
 	return Vector2i(roundi(p.x / TILE), roundi(p.z / TILE))
 
 
-## A wall tile is "low" when the room lies north of it, i.e. it stands between
-## the camera and the floor.
+## A wall tile is "low" (near) when the room lies north of it, i.e. it stands
+## between the camera and the floor. It is built at full height like every
+## other wall, but bare, and turns see-through in front of the hero.
 func _is_low_wall(c: Vector2i) -> bool:
 	# A secret wall counts as wall here: the wall below it stays full height
 	# and gives nothing away.
@@ -1048,7 +1050,7 @@ func _build_walls(c: Vector2i) -> void:
 			var shelf := _add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
 			shelf.touch_cell = n
 		if low:
-			wall.scale.y = LOW_WALL_SCALE
+			_near_walls.add(wall)
 			continue
 		# No torch behind a barrel, crate or table: the hero must reach it.
 		var torch: Node3D = null
@@ -1092,7 +1094,7 @@ func _build_corner_pillars() -> void:
 			if walls == 1 or diagonal:
 				var pillar := _place("pillar", Vector3(vx * TILE - TILE * 0.5, 0, vy * TILE - TILE * 0.5))
 				if low:
-					pillar.scale.y = LOW_WALL_SCALE
+					_near_walls.add(pillar)
 
 
 func _build_wall_collision() -> void:
@@ -1761,7 +1763,7 @@ func _build_secret_face(c: Vector2i, d: Vector2i) -> void:
 	var wall := _place("wall", pos, rot)
 	secret.walls.append(wall)
 	if d == Vector2i(0, 1):
-		wall.scale.y = LOW_WALL_SCALE
+		_near_walls.add(wall)
 	elif _outer_side().has(c):
 		secret.faces.append({"cell": c, "pos": pos, "rot": rot})
 
@@ -3358,6 +3360,7 @@ func _open_gates() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	_near_walls.update(self, player, get_viewport().get_camera_3d())
 	for t in _torches:
 		if not is_instance_valid(t.light):
 			continue
@@ -4930,12 +4933,12 @@ func _build_stairs(c: Vector2i, up: bool) -> void:
 const WALL_DEPTH := 4.0
 
 
-## The front door of a home: a doorway in the low south wall with the
+## The front door of a home: a doorway in the near south wall with the
 ## daylight of the lane outside, and a mat to wipe your feet on.
 func _build_home_door(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	var doorway := _place("wall_doorway", pos + Vector3(0, 0, TILE * 0.5), 0.0)
-	doorway.scale.y = LOW_WALL_SCALE
+	_near_walls.add(doorway)
 	var leaf: Node3D = doorway.find_child("wall_doorway_door", true, false)
 	if leaf:
 		leaf.visible = false

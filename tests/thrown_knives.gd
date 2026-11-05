@@ -128,7 +128,7 @@ func _test() -> void:
 	check(game.level.floor_items.any(func(e): return e[1] == Items.KNIFE), "it is on the floor list")
 
 	# A knife that breaks is gone: nothing more lies on the floor.
-	var listed := game.level.floor_items.filter(func(e): return e[1] == Items.KNIFE).size()
+	var listed: int = game.level.floor_items.filter(func(e): return e[1] == Items.KNIFE).size()
 	var broken: Projectile = Projectile.spawn(game.level, start + Vector3(0, 1.5, 0), dirs[0], true)
 	broken.break_chance = 1.0
 	for i in 400:

@@ -1,8 +1,8 @@
 """Builds the sounds of the dragon that now and then flies over the open air
 (see scripts/dragon_flyover.gd): its far-off scream as it comes, the heavy beats
 of its huge wings (three, told apart) and its shriek as it sweeps overhead
-(two: the banshee's shriek and the ghosts' fright, pitched far down with a deep
-roar under them), all
+(two: the banshee's shriek and the ghosts' fright, four octaves down with a
+deep roar under them), all
 from tones and noise like
 tools/make_sounds.py (whose helpers it uses), so there is no licence to worry about.
 Run: python3 tools/make_dragon_sounds.py"""
@@ -134,23 +134,56 @@ def slowed(x, factor):
     return np.interp(np.arange(n) * factor, np.arange(len(x)), x)
 
 
-def dragon_shriek(seed, source, factor):
-    # The shriek right overhead as it sweeps past: a ghost's scream (the
-    # banshee's shriek, or the howling rush of a ghost's fright) pitched far down into a huge throat, with an octave lower still under
-    # it and a rumbling roar from its chest, driven hard so it is loud.
+def stretched(x, rate, frame=2048, hop=256):
+    # Longer (rate < 1) or shorter (rate > 1) at the same pitch: a phase
+    # vocoder, which keeps each frequency's phase running on between frames.
+    window = np.hanning(frame)
+    x = np.concatenate([np.zeros(frame), x, np.zeros(frame)])
+    steps = np.arange(0, len(x) - frame - hop, hop * rate)
+    bins = np.fft.rfftfreq(frame) * 2 * np.pi * hop
+    out = np.zeros(len(steps) * hop + frame)
+    phase = np.angle(np.fft.rfft(x[:frame] * window))
+    for k, at in enumerate(steps):
+        i = int(at)
+        a = np.fft.rfft(x[i:i + frame] * window)
+        b = np.fft.rfft(x[i + hop:i + hop + frame] * window)
+        out[k * hop:k * hop + frame] += np.fft.irfft(np.abs(b) * np.exp(1j * phase)) * window
+        delta = np.angle(b) - np.angle(a) - bins
+        phase += bins + (delta + np.pi) % (2 * np.pi) - np.pi
+    return out[frame:]
+
+
+def pitched(x, octaves, length):
+    # Pitched down by `octaves` (slowed), then pressed back to `length`
+    # times its old length at that new, deep pitch.
+    factor = 2.0 ** -octaves
+    deep = slowed(x, factor)
+    return stretched(deep, (len(deep) / len(x)) / length)
+
+
+def dragon_shriek(seed, source, octaves, length):
+    # The shriek right overhead as it sweeps past, from a big old dragon with
+    # a massive body: a ghost's scream (the banshee's shriek, or the howling
+    # rush of a ghost's fright) taken four octaves down into its huge chest,
+    # with an octave higher on top so its scream still cuts through (and is
+    # heard on small speakers), a rumbling roar that swells with it, driven
+    # hard so it is loud.
     r = np.random.default_rng(seed)
     src = ghost_sound(source)
-    # Only the scream and the start of its echo: slowed, the whole echo
-    # would outlast the flight.
-    x = slowed(src, factor)[: int(SR * 4.8)]
-    sub = lowpass(slowed(src, factor * 0.5)[: len(x)], 500)
-    x = x + sub * 1.4
+    # Only the scream and the start of its echo.
+    src = src[: int(SR * 2.4)]
+    deep = pitched(src, octaves, length)
+    upper = pitched(src, octaves - 1, length)[: len(deep)]
+    x = deep / (np.max(np.abs(deep)) + 1e-9)
+    x[: len(upper)] += upper / (np.max(np.abs(upper)) + 1e-9) * 0.45
     # The roar: deep noise that swells with the scream's own loudness.
     loud = lowpass(np.abs(x), 8) * 6
-    roar = lowpass(r.uniform(-1, 1, len(x)), 120) * 8 * loud
-    x = x / (np.max(np.abs(x)) + 1e-9) + roar / (np.max(np.abs(roar)) + 1e-9) * 0.6
-    x = np.tanh(x * 2.2)
-    x = lowpass(x, 4500)
+    roar = lowpass(r.uniform(-1, 1, len(x)), 90) * 8 * loud
+    x = x / (np.max(np.abs(x)) + 1e-9) + roar / (np.max(np.abs(roar)) + 1e-9) * 0.5
+    # Driven hard: the overtones of the strain carry the deep voice.
+    x = np.tanh(x * 3.0)
+    # Below hearing it only shakes speakers: cut it.
+    x = lowpass(highpass(x, 30), 3500)
     fade = int(SR * 1.2)
     x[-fade:] *= np.linspace(1, 0, fade) ** 2
     return x
@@ -162,5 +195,5 @@ if __name__ == "__main__":
     for i in range(3):
         save("dragon_wingbeat_%d" % i, wingbeat(300 + i), 0.85)
     for i in range(2):
-        source, factor = [("banshee_shriek", 0.42), ("ghost_scare", 0.5)][i]
-        save("dragon_shriek_%d" % i, dragon_shriek(500 + i, source, factor), 0.95)
+        source = ["banshee_shriek", "ghost_scare"][i]
+        save("dragon_shriek_%d" % i, dragon_shriek(500 + i, source, 4, 2.0), 0.95)

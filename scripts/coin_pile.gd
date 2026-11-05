@@ -25,17 +25,27 @@ const JOIN_RADIUS := 1.2
 
 ## The metals coins are made of: copper, the money, goes into the purse
 ## (game.coins), the others into the ingredient pouch (Crafting.INGREDIENTS).
-## Each has its colour (the coins' own tint, their glow and their glints) and
-## a German name for the purse.
+## Each looks like its metal: its colour (the coins' own tint, their glow and
+## their glints), how metallic and how smooth it is (rough is dull, smooth is
+## polished), how strongly it glows of its own in the dark ("shine", added to
+## the pile's size step) and how much it blinks ("sparkle": 0 never, 1 as
+## the pile's size says, more blinks more often). Copper is a warm reddish
+## brown with a soft sheen, iron a dull dark grey that does not blink,
+## silver polished bright and gold polished, blinking the most. And a German
+## name for the purse.
 const GOLD := "goldmuenze"
 ## The metal of the hero's money (see Loot.MONEY): these coins go into the
 ## purse (game.coins); every other metal into the ingredient pouch.
 const MONEY := "kupfermuenze"
 const METALS := {
-	"goldmuenze": {"name": "Goldmünzen", "tint": Color(1.0, 0.82, 0.42), "glow": Color(1.0, 0.72, 0.25), "glint": Color(1.0, 0.95, 0.75)},
-	"silbermuenze": {"name": "Silbermünzen", "tint": Color(0.7, 0.76, 0.88), "glow": Color(0.7, 0.82, 1.0), "glint": Color(0.92, 0.96, 1.0)},
-	"kupfermuenze": {"name": "Kupfermünzen", "tint": Color(0.86, 0.42, 0.24), "glow": Color(1.0, 0.45, 0.22), "glint": Color(1.0, 0.82, 0.7)},
-	"eisenmuenze": {"name": "Eisenmünzen", "tint": Color(0.42, 0.44, 0.48), "glow": Color(0.55, 0.72, 0.85), "glint": Color(0.85, 0.9, 0.95)},
+	"goldmuenze": {"name": "Goldmünzen", "tint": Color(0.92, 0.6, 0.12), "glow": Color(1.0, 0.68, 0.2), "glint": Color(1.0, 0.95, 0.75),
+		"metallic": 0.65, "roughness": 0.16, "shine": 0.14, "sparkle": 2.2},
+	"silbermuenze": {"name": "Silbermünzen", "tint": Color(0.76, 0.78, 0.82), "glow": Color(0.82, 0.88, 1.0), "glint": Color(1.0, 1.0, 1.0),
+		"metallic": 0.7, "roughness": 0.14, "shine": 0.1, "sparkle": 1.0},
+	"kupfermuenze": {"name": "Kupfermünzen", "tint": Color(0.68, 0.34, 0.2), "glow": Color(0.8, 0.38, 0.2), "glint": Color(1.0, 0.72, 0.55),
+		"metallic": 0.6, "roughness": 0.4, "shine": 0.04, "sparkle": 0.6},
+	"eisenmuenze": {"name": "Eisenmünzen", "tint": Color(0.42, 0.42, 0.44), "glow": Color(0.55, 0.57, 0.6), "glint": Color(0.8, 0.82, 0.85),
+		"metallic": 0.4, "roughness": 0.8, "shine": 0.04, "sparkle": 0.0},
 }
 
 ## Every pile's glow is called this (the tests look for it).
@@ -106,13 +116,17 @@ static func heap_coins(count: int) -> int:
 ## How the glints blink on a pile of `count` coins: how many, how long each
 ## round lasts (shorter blinks more often), and how much of the round is the
 ## flash. A lone coin glints now and then; a big heap sparkles all the time.
-static func glints_of(count: int) -> Dictionary:
+## `metal` scales it by the metal's "sparkle" (see METALS): gold blinks more
+## and more often, copper less, iron not at all (amount 0).
+static func glints_of(count: int, metal := "") -> Dictionary:
 	var t := fullness(count)
-	return {
-		"amount": clampi(1 + roundi(log(float(maxi(count, 1))) / log(2.0) * 0.7), 1, CoinShine.MAX_GLINTS),
-		"lifetime": lerpf(1.8, 0.65, t),
-		"pop": lerpf(0.35, 1.0, t),
-	}
+	var sparkle: float = METALS[metal].sparkle if METALS.has(metal) else 1.0
+	var amount := clampi(1 + roundi(log(float(maxi(count, 1))) / log(2.0) * 0.7), 1, CoinShine.MAX_GLINTS)
+	var lifetime := lerpf(1.8, 0.65, t)
+	if sparkle != 1.0:
+		amount = 0 if sparkle <= 0.0 else clampi(roundi(amount * sparkle), 1, CoinShine.MAX_GLINTS)
+		lifetime /= maxf(sqrt(sparkle), 0.01)
+	return {"amount": amount, "lifetime": lifetime, "pop": lerpf(0.35, 1.0, t)}
 
 
 ## How bright a pile glows in the dark (the halo's strongest alpha) and how
@@ -145,10 +159,11 @@ static func dress(holder: Node3D, count: int, metal: String, level: Node) -> voi
 		_tint(holder, metal, count)
 	else:
 		points = _heap(holder, count, metal, level, rng)
-	var look := glints_of(count)
-	var glints := CoinShine.make(points, look.amount, look.lifetime, look.pop)
-	glints.color_ramp = _tinted_ramp(glints.color_ramp, METALS[metal].glint)
-	holder.add_child(glints)
+	var look := glints_of(count, metal)
+	if look.amount > 0:
+		var glints := CoinShine.make(points, look.amount, look.lifetime, look.pop)
+		glints.color_ramp = _tinted_ramp(glints.color_ramp, METALS[metal].glint)
+		holder.add_child(glints)
 	holder.add_child(_glow(count, metal))
 
 
@@ -216,17 +231,21 @@ static func _heap(holder: Node3D, count: int, metal: String, level: Node, rng: R
 	return points
 
 
-## The mound under a heap's coins: the coins' colour, a shade deeper.
+## The mound under a heap's coins: the coins' metal, a shade deeper and a
+## little rougher (it stands for the coins further in).
 static func _mound(coin: StandardMaterial3D, metal: String) -> StandardMaterial3D:
 	if _mound_material.has(coin):
 		return _mound_material[coin]
 	var m := coin.duplicate() as StandardMaterial3D
 	m.albedo_texture = null
 	m.emission_texture = null
-	m.albedo_color = (METALS[metal].tint as Color).darkened(0.25)
+	m.albedo_color = (METALS[metal].tint as Color).darkened(0.2)
 	m.emission = METALS[metal].glow
 	m.emission_energy_multiplier *= 0.5
-	m.roughness = 0.5
+	m.roughness = minf(1.0, float(METALS[metal].roughness) + 0.25)
+	# Less mirror than the coins: with nothing round it to mirror, a big
+	# smooth metal mound would show dark.
+	m.metallic = 0.2
 	_mound_material[coin] = m
 	return m
 
@@ -269,24 +288,20 @@ static func _tint(holder: Node3D, metal: String, count: int) -> void:
 static func _make_tinted(source: StandardMaterial3D, metal: String, step: int) -> StandardMaterial3D:
 	var m := source.duplicate() as StandardMaterial3D
 	var info: Dictionary = METALS[metal]
-	m.emission_enabled = true
-	m.emission_energy_multiplier = 0.1 + 0.04 * step
-	if metal == GOLD:
-		# Already polished by CoinShine: only a warmer glow as the pile grows.
-		return m
 	if m.albedo_texture != null:
-		# The gold texture made grey, then coloured like the metal.
+		# The coin's stamped face kept, made grey, then coloured like the metal.
 		m.albedo_texture = _greyed(m.albedo_texture)
 		m.emission_texture = m.albedo_texture
-		m.albedo_color = info.tint
-	else:
-		m.albedo_color = info.tint
-	# Less of the warm torchlight mirrored and a little more of their own
-	# glow than gold, so silver, copper and iron keep their colour by a fire.
+	m.albedo_color = info.tint
+	m.metallic = info.metallic
+	m.roughness = info.roughness
+	# Polished metal mirrors the light brightly, dull metal hardly at all.
+	m.metallic_specular = lerpf(0.9, 0.3, float(info.roughness))
+	# A faint glow of their own in their colour, so they read as their metal
+	# in a dark corner too (and a little more the bigger the pile).
+	m.emission_enabled = true
 	m.emission = info.glow
-	m.emission_energy_multiplier = 0.1 + 0.03 * step
-	m.metallic = 0.4
-	m.metallic_specular = 0.5
+	m.emission_energy_multiplier = float(info.shine) + 0.03 * step
 	return m
 
 

@@ -3967,7 +3967,8 @@ const LIMESTONE_COLOUR := Color(0.88, 0.86, 0.76)
 ## Trolls and the creatures of the mountains roll once more for a lump of
 ## ore (see Loot.ore_find; `ore_roll` sets that roll), and once for a few
 ## lumps of limestone (see Loot.limestone_find). In the beginner
-## dungeon a find is common at most. Returns the gear or ingredient id
+## dungeon a find is common at most, and ore uncommon at most (never the
+## epic noble ore). Returns the gear or ingredient id
 ## dropped (not the ore), or "".
 func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0) -> String:
 	var tough := Loot.toughness(e.max_hp(), e.elite, is_named_boss(e))
@@ -3997,7 +3998,7 @@ func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0) -> Stri
 	var gold_coins := Loot.gold_coins(e.elite or e.is_horror() or is_named_boss(e), e.rated_level)
 	_lay_pouch_coins(Loot.GOLD_COIN, gold_coins, pos + Vector3(-0.9, 0, 0.4))
 	# Trolls and the creatures of the mountains: maybe a lump of ore besides.
-	var ore := Loot.ore_find(e.kind, tough, ore_roll)
+	var ore := Loot.ore_find(e.kind, tough, ore_roll, BEGINNER_TOP_TIER if beginner_dungeon else Loot.TOP_TIER)
 	if ore != "":
 		lay_find(ore, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), Ore.ROCK, 1, true)
 	# And a few lumps of limestone, for steel (see Forge.STEEL_RECIPE).

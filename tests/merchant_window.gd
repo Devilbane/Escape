@@ -216,7 +216,7 @@ func _test() -> void:
 	menus.close()
 
 	# Merchants sell only plain gear: no specials, magic, unique or top tier.
-	for id in ["vampirzahn", "phoenixfeder", "rabenklinge", "zauberhut", "amulett_kraft", "schattenumhang", "plattenpanzer", "eilstiefel", "rubinring", "kriegshammer", "drachenschild"]:
+	for id in ["vampirzahn", "phoenixfeder", "rabenklinge", "zauberhut", "amulett_kraft", "schattenumhang", "plattenpanzer", "stahlstiefel", "rubinring", "kriegshammer", "drachenschild"]:
 		check(not Items.merchant_sells(id), "%s is not sold by merchants" % id)
 	for id in ["schwert", "rundschild", "lederwams", "kettenhemd", "kupferring", "bronzearmreif", "wurfbuch"]:
 		check(Items.merchant_sells(id), "%s is sold by merchants" % id)

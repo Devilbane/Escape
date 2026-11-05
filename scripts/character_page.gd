@@ -403,6 +403,12 @@ const SKILL_EFFECTS := {
 ## The entry for the hit and block chances beside the wheel (see
 ## Menus._build_character): against a person of the hero's own level.
 const ODDS := "odds"
+## The entries for the hero's protection beside the wheel: Härtung (a flat
+## amount off every hit) and Rüstungswert (a share off every hit).
+const HARDENING := "haertung"
+const ARMOUR := "ruestungswert"
+## The entry for the armour set worn (see ArmourSets).
+const ARMOUR_SET := "ruestungsset"
 
 
 ## Why a skill is dimmed: the gear it needs.
@@ -420,6 +426,10 @@ const GEAR_HINTS := {
 func details(id: String) -> Dictionary:
 	if id == ODDS:
 		return odds_details()
+	if id == HARDENING or id == ARMOUR:
+		return protection_details(id)
+	if id == ARMOUR_SET:
+		return set_details()
 	if Training.ATTRIBUTES.has(id):
 		return _attribute_details(id)
 	if Training.SKILLS.has(id):
@@ -433,11 +443,48 @@ func details(id: String) -> Dictionary:
 	}
 
 
+## What Härtung or Rüstungswert does, with the hero's numbers, and how much
+## of it the worn armour set gives (see ArmourSets).
+func protection_details(id: String) -> Dictionary:
+	var kind := ArmourSets.worn(player.equipped)
+	if id == HARDENING:
+		var lines := [Lang.t("Wert %d: Jeder Treffer gegen dich wird um so viel schwächer.") % player.hardening,
+			Lang.t("Ein Treffer behält aber mindestens die Hälfte seiner Wucht.")]
+		if kind != "":
+			lines.append(Lang.t("Davon +%d aus dem %s.") % [ArmourSets.hardening(player.equipped), ArmourSets.set_name(kind)])
+		return {"title": Lang.t("Härtung"), "lines": lines,
+			"note": Lang.t("Kommt von harter Rüstung, Schilden und Rüstungssets.")}
+	return {"title": Lang.t("Rüstungswert"),
+		"lines": [Lang.t("%d %%: Was nach der Härtung von einem Treffer übrig ist, wird um diesen Anteil kleiner.") % player.armour_value,
+			Lang.t("Leichte Treffer fängt die Rüstung so manchmal ganz ab."),
+			Lang.t("Höchstens %d %%.") % Player.ARMOUR_VALUE_MAX],
+		"note": Lang.t("Kommt von Helm, Rüstung, Handschuhen und Schuhen. Stoff schützt wenig, Stahl und Schuppen viel.")}
+
+
+## The armour set worn and what it gives, or how close the hero is to one.
+func set_details() -> Dictionary:
+	var kind := ArmourSets.worn(player.equipped)
+	var lines := []
+	if kind != "":
+		lines.append(Lang.t("Du trägst das %s: %s.") % [ArmourSets.set_name(kind), ArmourSets.bonus_text(kind)])
+	else:
+		var near := ArmourSets.closest(player.equipped)
+		lines.append(Lang.t("Du trägst kein ganzes Set.") if near == "" else
+				Lang.t("%s: %d von %d Teilen.") % [ArmourSets.set_name(near), ArmourSets.pieces_worn(player.equipped, near), ArmourSets.PIECES.size()])
+	lines.append(Lang.t("Helm, Rüstung, Handschuhe und Schuhe aus einem Material ergeben ein Set. Der Umhang zählt nicht."))
+	lines.append(Lang.t("Stoff und Leder geben mehr Geschick, Eisen und Stahl mehr Härtung, Schuppen beides."))
+	return {"title": Lang.t("Rüstungsset"), "lines": lines,
+		"note": Lang.t("Das beste Set: Drachenschuppen, +3 Geschick und +4 Härtung.")}
+
+
 func _attribute_details(id: String) -> Dictionary:
 	var a: Dictionary = Training.ATTRIBUTES[id]
 	var value := player.attribute(id)
 	var unit := "%" if id == "tempo" else ""
 	var lines := [Lang.t("Wert %d%s, höchstens %d%s") % [value, unit, a.max, unit]]
+	if id == "geschick" and ArmourSets.dexterity(player.equipped) > 0:
+		var kind := ArmourSets.worn(player.equipped)
+		lines[0] += " " + Lang.t("(+%d aus dem %s)") % [ArmourSets.dexterity(player.equipped), ArmourSets.set_name(kind)]
 	var live := live_effects(id)
 	lines.append_array(live if not live.is_empty() else [Lang.t(ATTRIBUTE_EFFECTS.get(id, ""))])
 	var governs := []

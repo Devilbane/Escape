@@ -19,8 +19,9 @@ class_name DragonLair
 ## was. Chests searched and coins taken stay gone, like everywhere.
 ##
 ## Embermaw itself drops parts of its body when it falls (see parts): a scale
-## and its blood every time, and now and then its glowing heart. They go into
-## the ingredient pouch and teach the dragon recipes (see Crafting).
+## and its blood every time, now and then a second scale and its glowing
+## heart. They go into the ingredient pouch and teach the dragon recipes
+## (see Crafting), the dragon scale armour among them.
 ##
 ## Once the lair is won, leaving it shows what the hero carried out of it
 ## (snapshot, spoils and the window "beute" in Menus).
@@ -40,6 +41,9 @@ const PART_COLOURS := {
 }
 ## How often the fallen dragon leaves its glowing heart too.
 const HEART_CHANCE := 0.5
+## How often it leaves a second scale: uncommon, but the dragon scale armour
+## (see ArmourSets) needs five of them.
+const EXTRA_SCALE_CHANCE := 0.4
 
 ## What the compendium says about the parts, the first time one is found.
 const PARTS_LEARN := "Glutschlund hinterlässt, wenn er fällt, Teile seines Leibes: immer eine Schuppe und sein Blut, manchmal auch sein glühendes Herz. Sie kommen in deinen Zutatenbeutel; am Feinschmiedetisch auf dem Handwerkerplatz wird daraus Drachenschmuck."
@@ -50,10 +54,13 @@ static func is_floor(level: Level) -> bool:
 	return level != null and level.lair and level.building in FLOORS
 
 
-## What the dragon leaves this time: the scale and the blood, and the heart
-## with a chance of HEART_CHANCE.
+## What the dragon leaves this time: the scale and the blood, a second scale
+## with a chance of EXTRA_SCALE_CHANCE, and the heart with a chance of
+## HEART_CHANCE.
 static func parts(rng: RandomNumberGenerator) -> Array:
 	var out := [SCALE, BLOOD]
+	if rng.randf() < EXTRA_SCALE_CHANCE:
+		out.append(SCALE)
 	if rng.randf() < HEART_CHANCE:
 		out.append(HEART)
 	return out

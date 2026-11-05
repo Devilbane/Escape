@@ -340,7 +340,14 @@ var rated_level := 1
 func _fit_area() -> void:
 	rated_level = _rating()
 	var area := HeroLevel.area_of(level, kind) if level else ""
-	if area == "" or HeroLevel.FIXED.has(kind):
+	if HeroLevel.FIXED.has(kind):
+		return
+	if area == "":
+		# The dungeon is not lifted, but a monster whose rolled gear makes it
+		# stronger than the dungeon's top is toned down to it (horrors are
+		# meant to be far above the hero and stay as they are).
+		if level and not level.outdoor and level.building == "" and not kind in HORRORS and rated_level > HeroLevel.DUNGEON_TOP:
+			rated_level = fit_level(kind, _stats, hardening, rated_level, HeroLevel.DUNGEON_TOP)
 		return
 	rated_level = fit_level(kind, _stats, hardening, HeroLevel.area_target(area, rated_level), HeroLevel.AREAS[area].max)
 

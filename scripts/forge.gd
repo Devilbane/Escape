@@ -69,7 +69,8 @@ const MOON_FROM := 2
 
 
 ## The slots of metal armour, priced by the iron in it (see armour_iron).
-const ARMOUR_SLOTS := ["schild", "kopf", "ruestung"]
+## Gloves and shoes join them for the iron and steel armour sets.
+const ARMOUR_SLOTS := ["schild", "kopf", "ruestung", "handschuhe", "schuhe"]
 
 
 ## The iron bars in a piece of metal armour (a shield, a helmet, mail or

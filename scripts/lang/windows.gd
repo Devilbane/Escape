@@ -4,7 +4,7 @@ extends RefCounted
 const EN := {
 	"Schließen": "Close",
 	"Zurück zum Spiel": "Back to game",
-	"Leben %d / %d (+%.1f/s)    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Kupfer %d": "Life %d / %d (+%.1f/s)    Power %d    Hardening %d    Speed %d%%    Knives %d    Copper %d",
+	"Leben %d / %d (+%.1f/s)    Kampfkraft %d    Härtung %d    Rüstungswert %d%%    Tempo %d%%    Messer %d    Kupfer %d": "Life %d / %d (+%.1f/s)    Power %d    Hardening %d    Armour value %d%%    Speed %d%%    Knives %d    Copper %d",
 	"%+.1f Leben/s": "%+.1f life/s",
 	"Angelegt (anklicken zum Ablegen)": "Worn (click to take off)",
 	"Tasche (%d / %d)": "Bag (%d / %d)",

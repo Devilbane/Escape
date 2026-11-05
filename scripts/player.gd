@@ -132,6 +132,11 @@ var power := 1
 ## Taken off every hit by worn armour; a hit still keeps at least half its
 ## force (see soak), so armour softens blows but never shrugs them off.
 var hardening := 0
+## The share of a hit (in percent) the worn armour takes off after the
+## hardening (Rüstungswert, "armour_value" in Items.ALL), at most
+## ARMOUR_VALUE_MAX.
+var armour_value := 0
+const ARMOUR_VALUE_MAX := 60
 ## How much each armour piece has worn down, by item id.
 var wear := {}
 ## The hero's hair style, hair colour and head tattoo (see HairLook); the
@@ -1272,13 +1277,16 @@ func explore_bonus(per_level: int) -> int:
 
 
 ## An attribute's value now: Stärke and Konstitution 10..30, Tempo 100..150 (%).
-## Level points and the Konstitution of levels come on top of training, up
-## to the attribute's highest value.
+## Level points, the Konstitution of levels and the Geschick of a worn armour
+## set (see ArmourSets) come on top of training, up to the attribute's
+## highest value.
 func attribute(id: String) -> int:
 	var value := Training.attribute_value(id, xp.get(id, 0.0))
 	var bonus: int = int(level_points.get(id, 0)) + int(gift_spent.get(id, 0))
 	if id == "konstitution":
 		bonus += HeroLevel.constitution_bonus(hero_level()) + gift_constitution
+	elif id == "geschick":
+		bonus += ArmourSets.dexterity(equipped)
 	if bonus == 0:
 		return value
 	return mini(value + bonus * Training.ATTRIBUTES[id].step, Training.ATTRIBUTES[id].max)
@@ -1483,6 +1491,7 @@ func refresh_stats() -> void:
 	var power_bonus: int = gift_power + int(companion_perks.get("power", 0))
 	var speed_bonus: float = gift_speed + float(companion_perks.get("speed", 0.0))
 	hardening = gift_armor
+	armour_value = 0
 	block_chance = 0.0
 	for slot in equipped:
 		var item: Dictionary = Items.ALL[equipped[slot]]
@@ -1490,7 +1499,10 @@ func refresh_stats() -> void:
 		power_bonus += item.get("power", 0)
 		speed_bonus += item.get("speed", 0.0)
 		hardening += item.get("armor", 0)
+		armour_value += int(item.get("armour_value", 0))
 		block_chance += item.get("block", 0.0)
+	hardening += ArmourSets.hardening(equipped)
+	armour_value = mini(armour_value, ARMOUR_VALUE_MAX)
 	if equipped.has("schild"):
 		block_chance += BLOCK_PER_LEVEL * skill("blocken")
 	var hero := hero_level()
@@ -1701,7 +1713,7 @@ func _show_headgear() -> void:
 	slot.add_child(hat)
 	if item.has("brim"):
 		GearLook.narrow_brim(hat, item.brim)
-	GearLook.dress(hat, item.get("material", ""))
+	GearLook.dress(hat, item.get("material", ""), item.get("tint", Color.WHITE), item.get("metal", -1.0))
 
 
 func has_special(id: String) -> bool:
@@ -1775,11 +1787,13 @@ func equip(id: String) -> bool:
 	# more slot than before; with none free, nothing is swapped.
 	if slot != "rucksack" and Items.slots_used(after) > maxi(bag_size(), bag_used()):
 		return false
+	var was := ArmourSets.worn(equipped)
 	bag.erase(id)
 	if equipped.has(slot):
 		bag.append(equipped[slot])
 	equipped[slot] = id
 	refresh_stats()
+	_tell_set_change(was)
 	return true
 
 
@@ -1789,10 +1803,19 @@ func unequip(slot: String) -> bool:
 	var room := Items.BAG_SIZE if slot == "rucksack" else bag_size()
 	if not equipped.has(slot) or not Items.fits(bag, room, equipped[slot]):
 		return false
+	var was := ArmourSets.worn(equipped)
 	bag.append(equipped[slot])
 	equipped.erase(slot)
 	refresh_stats()
+	_tell_set_change(was)
 	return true
+
+
+## Says so when putting something on or off made or broke an armour set.
+func _tell_set_change(was: String) -> void:
+	var news := ArmourSets.change_news(was, ArmourSets.worn(equipped))
+	if news != "":
+		Events.tell(news, Color(0.55, 0.75, 1.0))
 
 
 ## Everything the hero carries, worn or in the bag, in kg.
@@ -1849,6 +1872,21 @@ static func soak(amount: int, hardening: int) -> int:
 	return maxi(ceili(amount / 2.0), amount - maxi(0, hardening))
 
 
+## What is left of a hit of `amount` after armour that takes `percent` of
+## it off (the Rüstungswert, after the hardening). Hits are small whole
+## numbers, so the share left over is rounded up with a chance equal to its
+## fraction (`roll` in 0..1): on average exactly `percent` is taken off, and
+## now and then a light hit is caught whole.
+static func armour_cut(amount: int, percent: int, roll: float) -> int:
+	if amount <= 0 or percent <= 0:
+		return maxi(0, amount)
+	var left := amount * (1.0 - clampi(percent, 0, 100) / 100.0)
+	var whole := floori(left)
+	if roll < left - whole:
+		whole += 1
+	return whole
+
+
 ## Seconds the hero cannot be hurt again after a hit. Short enough that a
 ## crowd of enemies is a real danger.
 const HURT_GRACE := 0.6
@@ -1880,9 +1918,14 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 		return
 	if blockable:
 		train("blocken", 0.5)
-	amount = soak(amount, hardening)
+	amount = armour_cut(soak(amount, hardening), armour_value, randf())
 	train("ruestung", 1.0)
 	_wear_armor()
+	if amount <= 0:
+		# The armour caught the whole hit.
+		_invulnerable = HURT_GRACE
+		Effects.float_text(level, global_position + Vector3(0, 2.2, 0), Lang.t("Abgefangen!"), Color(0.72, 0.8, 0.95))
+		return
 	# Every life lost hardens the body a little.
 	train("konstitution", amount)
 	hp -= amount

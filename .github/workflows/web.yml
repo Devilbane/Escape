@@ -599,6 +599,11 @@ jobs:
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/traps.gd | tee traps.log
           grep -q PASS traps.log
 
+      - name: Flame jets test
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/flame_jets.gd | tee flame_jets.log
+          grep -q PASS flame_jets.log
+
       - name: Life on the ground above test
         run: |
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/surface_life.gd | tee surface_life.log

@@ -198,6 +198,27 @@ static func ore_find(kind: String, tough: float, roll := -1.0) -> String:
 	return Ore.lump_of_tier(roll_tier(tough, TOP_TIER, roll))
 
 
+## Limestone for steel (see Forge.STEEL_RECIPE): the trolls and the other
+## creatures of the mountains carry a few lumps this often, the trolls more.
+const LIMESTONE_CHANCE := 0.5
+const LIMESTONE := [1, 2]
+const TROLL_LIMESTONE := [2, 4]
+
+
+## The lumps of limestone a fallen one leaves (0 for none): only those that
+## carry ore (see drops_ore), on a roll of its own. `roll` in 0..1, random
+## when left out.
+static func limestone_find(kind: String, roll := -1.0, rng: RandomNumberGenerator = null) -> int:
+	if not drops_ore(kind):
+		return 0
+	if roll < 0.0:
+		roll = rng.randf() if rng else randf()
+	if roll >= LIMESTONE_CHANCE:
+		return 0
+	var span: Array = TROLL_LIMESTONE if kind in TROLLS else LIMESTONE
+	return rng.randi_range(span[0], span[1]) if rng else randi_range(span[0], span[1])
+
+
 ## The new gold coins a fallen foe leaves: GOLD_COINS of them from an elite,
 ## a horror or a boss (`rare`) whose fight is for level GOLD_FROM_LEVEL or
 ## higher, none from anyone else.

@@ -332,8 +332,8 @@ func _test_game() -> void:
 	game.crafting.load_from(saved)
 	check(game.crafting.gems.get(Ore.UNCUT, []) == [3], "the uncut gem keeps its weight in the saved game")
 	# Metal armour is priced by its iron: a bar per kilo.
-	check(Forge.armour_iron("plattenpanzer") == 14 and Forge.melt_yield("plattenpanzer") == 14, "plate armour holds 14 iron bars")
-	check(Forge.forge_cost("plattenpanzer").iron == 14, "forging plate armour takes 14 bars")
+	check(Forge.armour_iron("plattenpanzer") == 14 and Forge.melt_into("plattenpanzer").get("stahl", 0) == 14, "plate armour holds 14 steel bars")
+	check(Forge.forge_cost("plattenpanzer").steel == 14, "forging plate armour takes 14 steel bars")
 	check(int(Items.ALL["plattenpanzer"].price) >= 14 * Forge.IRON_PRICE, "plate armour is worth at least its iron")
 	check(Forge.armour_iron("schwert") == 0 and Forge.armour_iron("lederwams") == 0, "weapons and leather go by the old rule")
 	game.delete_save(game.save_path())

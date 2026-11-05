@@ -11,6 +11,10 @@ extends RefCounted
 ## - forging: iron bars and some gold become a new piece of metal gear; the
 ##   thunder weapons also take lumps of thunder ore from the bag (see Items,
 ##   "thunder"), and their blows may stun (see Enemy.shock);
+## - steel: an iron bar, charcoal and limestone make a steel bar (see
+##   make_steel), and steel gear ("set": "stahl" in Items.ALL) is forged
+##   from steel bars only. Both ask for a level in a craft of the hero's
+##   (see STEEL_MAKING and FORGING), which grows by working at the forge;
 ## - mending: worn armour and shields get their durability back for gold;
 ## - iron bars can also be bought from the smith;
 ## - buying: Gorm sells his own fine weapons and a kite shield ("smith" in
@@ -25,6 +29,9 @@ extends RefCounted
 
 ## What the compendium says about the forge, once the hero has been there.
 const LEARN := "Schmied Gorm im Dorf arbeitet an seiner Esse: Er verkauft seine eigenen, besseren Waffen, die es sonst nirgends gibt, schmilzt Waffen, Schilde, Metallrüstungen und Schmuck zu Eisenbarren ein, schmiedet aus Eisen und etwas Kupfer neue Waffen, Schilde und Rüstungen, aus Donnererz vom Gewitter auch Donnerwaffen, deren Treffer Gegner kurz betäuben können, und bessert abgenutzte Rüstungen und Schilde gegen Kupfer aus. Eisenbarren verkauft er auch."
+## What the compendium says about steel, once the hero has been at the forge.
+## The levels are STEEL_MAKING_LEVEL and STEEL_FORGING_LEVEL.
+const STEEL_LEARN := "An Gorms Esse kochst du Stahl: Ein Eisenbarren mit einer Holzkohle und einem Kalkstein wird ein Stahlbarren. Holzkohle verkauft Gorm, Kalkstein tragen Trolle und die Wesen der Berge bei sich. Stahl kochen kannst du ab Stahlkochen Stufe 3; das lernst du beim Einschmelzen von Ausrüstung, Erz und Münzen. Stahlrüstung gibt es nur aus Stahlbarren, und schmieden kannst du sie ab Schmiedekunst Stufe 4, die mit jedem geschmiedeten Stück wächst. Stahlrüstung ist immer selten oder besser."
 ## What one iron bar costs at the smith.
 const IRON_PRICE := 10
 ## Materials of gear that melts down into iron (see Items, "material").
@@ -39,6 +46,7 @@ const MIN_MEND_PRICE := 2
 ## bought back: they are worth more forged (see forge) and in recipes.
 const METALS := {
 	"eisen": {"name": "Eisenbarren", "short": "Eisen", "color": Color(0.55, 0.57, 0.6)},
+	"stahl": {"name": "Stahlbarren", "short": "Stahl", "color": Color(0.72, 0.8, 0.9)},
 	"kupfer": {"name": "Kupferbarren", "short": "Kupfer", "color": Color(0.85, 0.48, 0.28)},
 	"bronze": {"name": "Bronzebarren", "short": "Bronze", "color": Color(0.8, 0.5, 0.25), "worth": 150},
 	"silber": {"name": "Silberbarren", "short": "Silber", "color": Color(0.85, 0.87, 0.92), "worth": 2500},
@@ -55,10 +63,12 @@ const GRAM_VALUE := {"kupfer": 0.1, "bronze": 0.15, "silber": 2.5, "gold": 25.0}
 ## A key in a melting table (see melt_into) for grams of a fine metal rather
 ## than bars: GRAMS + metal, e.g. "g:silber".
 const GRAMS := "g:"
-## The fine bars, kept in game.bars (copper bars come from melted coins and
-## ore, see melt_coins). Gorm buys back those with a "worth"; a copper bar is
-## a hundred of the coins the hero pays with, so it is not sold.
-const FINE := ["kupfer", "bronze", "silber", "gold"]
+## The bars kept in game.bars besides the iron: the fine ones (copper bars
+## come from melted coins and ore, see melt_coins) and steel (see
+## make_steel). Gorm buys back those with a "worth"; a copper bar is a
+## hundred of the coins the hero pays with, and steel is worth more forged,
+## so neither is sold.
+const FINE := ["kupfer", "bronze", "silber", "gold", "stahl"]
 ## The fine metal of a piece by its rarity (see rarity, common to god-born):
 ## jewellery is made of it, and fine weapons and armour have fittings of it
 ## besides their iron.
@@ -67,9 +77,90 @@ const FITTINGS := ["", "", "bronze", "silber", "gold"]
 ## Magic pieces from this rarity on leave a lump of moon silver.
 const MOON_FROM := 2
 
+## Steel. A steel bar is an iron bar, burnt with charcoal for its carbon and
+## limestone as a flux to take the slag away (STEEL_RECIPE). Gorm sells the
+## charcoal (CHARCOAL_PRICE); the limestone the trolls and the creatures of
+## the mountains carry (see Loot.limestone_find). Steel gear is always rare
+## or finer (see Items.RARITY).
+const STEEL := "stahl"
+const CHARCOAL := "holzkohle"
+const LIMESTONE := "kalkstein"
+const STEEL_RECIPE := {"eisen": 1, "holzkohle": 1, "kalkstein": 1}
+const CHARCOAL_PRICE := 2
+## The hero's two crafts at the forge (Training.CRAFTS): Schmiedekunst
+## (forging) grows with every piece forged, Stahlkochen (steel making) with
+## every piece, lump of ore or heap of coins melted and every steel bar made.
+## Making steel bars needs STEEL_MAKING_LEVEL, forging steel gear
+## STEEL_FORGING_LEVEL.
+const FORGING := "schmiedekunst"
+const STEEL_MAKING := "stahlkochen"
+const STEEL_MAKING_LEVEL := 3
+const STEEL_FORGING_LEVEL := 4
+## Training for each piece forged, each melt and each steel bar made.
+const FORGE_XP := 10.0
+const MELT_XP := 4.0
+const STEEL_XP := 6.0
+
 
 ## The slots of metal armour, priced by the iron in it (see armour_iron).
 const ARMOUR_SLOTS := ["schild", "kopf", "ruestung"]
+
+
+## Whether a piece is steel gear: forged from steel bars, melted into them.
+static func is_steel(id: String) -> bool:
+	return Items.ALL.has(id) and str(Items.ALL[id].get("set", "")) == "stahl"
+
+
+## The hero's level in one of the forge's crafts (FORGING, STEEL_MAKING).
+static func craft_level(game: Node, craft: String) -> int:
+	if game == null or game.player == null:
+		return 0
+	return Training.skill_level(float(game.player.xp.get(craft, 0.0)), craft)
+
+
+## Why the hero cannot make a steel bar right now, or "".
+static func why_no_steel(game: Node) -> String:
+	if craft_level(game, STEEL_MAKING) < STEEL_MAKING_LEVEL:
+		return Lang.t("Für Stahl brauchst du Stahlkochen Stufe %d.") % STEEL_MAKING_LEVEL
+	var missing := []
+	for ingredient in STEEL_RECIPE:
+		var short: int = int(STEEL_RECIPE[ingredient]) - int(game.crafting.have(ingredient))
+		if short > 0:
+			missing.append("%d %s" % [short, Crafting.ingredient_name(ingredient)])
+	if not missing.is_empty():
+		return Lang.t("Es fehlt: %s") % ", ".join(missing)
+	return ""
+
+
+## Makes one steel bar from STEEL_RECIPE and trains steel making. Returns ""
+## on success, else why not.
+static func make_steel(game: Node) -> String:
+	var why := why_no_steel(game)
+	if why != "":
+		return why
+	for ingredient in STEEL_RECIPE:
+		if ingredient == "eisen":
+			game.iron -= int(STEEL_RECIPE[ingredient])
+		else:
+			game.crafting.take(ingredient, int(STEEL_RECIPE[ingredient]))
+	store(game, {STEEL: 1})
+	game.player.train(STEEL_MAKING, STEEL_XP, false)
+	return ""
+
+
+## Buys charcoal into the pouch. Returns "" on success, else why not.
+static func buy_charcoal(game: Node, count: int) -> String:
+	var price := charcoal_price(game)
+	if count <= 0 or game.coins < price * count:
+		return Lang.t("Dafür reicht dein Kupfer nicht.")
+	game.coins -= price * count
+	game.crafting.add(CHARCOAL, count, false)
+	return ""
+
+
+## What one piece of charcoal costs the hero.
+static func charcoal_price(game: Node = null) -> int:
+	return _discounted(game, CHARCOAL_PRICE)
 
 
 ## The iron bars in a piece of metal armour (a shield, a helmet, mail or
@@ -128,7 +219,8 @@ static func melt_into(id: String, any := false) -> Dictionary:
 	if can_melt(id) and not _is_trinket(id):
 		# Metal armour gives back its iron, a bar per kilo; weapons one bar
 		# for every 8 gold of their price.
-		out["eisen"] = armour_iron(id) if armour_iron(id) > 0 else maxi(1, roundi(int(item.price) / 8.0))
+		# Steel gear gives back steel bars.
+		out[STEEL if is_steel(id) else "eisen"] = armour_iron(id) if armour_iron(id) > 0 else maxi(1, roundi(int(item.price) / 8.0))
 		if FITTINGS[r] != "" and str(item.slot) in Items.SLOTS:
 			out[GRAMS + FITTINGS[r]] = grams_worth(FITTINGS[r], int(item.price) / 4.0)
 	else:
@@ -224,6 +316,7 @@ static func melt_coins(game: Node, coin: String) -> String:
 		return Lang.t("Für einen Barren braucht Gorm %d Münzen.") % Loot.COINS_PER_BAR
 	game.crafting.take(coin, Loot.COINS_PER_BAR)
 	store(game, {Loot.COINS[coin]: 1})
+	game.player.train(STEEL_MAKING, MELT_XP, false)
 	return ""
 
 
@@ -243,6 +336,7 @@ static func melt_ore(game: Node, id: String) -> Dictionary:
 	for carat in gems:
 		game.crafting.add_gem(Ore.UNCUT, int(carat))
 	var bars := add_grams(game, grams)
+	game.player.train(STEEL_MAKING, MELT_XP, false)
 	return {"why": "", "grams": grams, "bars": bars, "gems": gems}
 
 
@@ -327,8 +421,9 @@ static func buy(game: Node, id: String) -> String:
 	return ""
 
 
-## What forging a piece costs: {"iron": bars, "gold": coins, "ore": lumps of
-## thunder ore from the bag (0 but for the thunder weapons)}: one iron bar
+## What forging a piece costs: {"iron": bars, "steel": steel bars (0 but for
+## steel gear, which takes them in place of iron), "gold": coins, "ore": lumps
+## of thunder ore from the bag (0 but for the thunder weapons)}: one iron bar
 ## for every 4 gold of the piece's worth and half its worth in gold, so that
 ## from bought iron it costs about what a merchant asks (Items.buy_price).
 ## Metal armour takes its own iron instead (see armour_iron) and the rest of
@@ -338,16 +433,30 @@ static func forge_cost(id: String, game: Node = null) -> Dictionary:
 	var ore := int(Items.ALL[id].get("thunder", 0))
 	var iron := armour_iron(id)
 	if iron > 0:
-		# Metal armour: its iron, a bar per kilo, and gold for the work.
-		return {"iron": iron, "gold": _discounted(game, maxi(1, price - iron * IRON_PRICE)), "ore": ore}
-	return {"iron": ceili(price / 4.0), "gold": _discounted(game, price / 2), "ore": ore}
+		# Metal armour: its iron, a bar per kilo, and gold for the work; steel
+		# gear the same in steel bars.
+		var gold := _discounted(game, maxi(1, price - iron * IRON_PRICE))
+		if is_steel(id):
+			return {"iron": 0, "steel": iron, "gold": gold, "ore": ore}
+		return {"iron": iron, "steel": 0, "gold": gold, "ore": ore}
+	var bars := ceili(price / 4.0)
+	if is_steel(id):
+		return {"iron": 0, "steel": bars, "gold": _discounted(game, price / 2), "ore": ore}
+	return {"iron": bars, "steel": 0, "gold": _discounted(game, price / 2), "ore": ore}
+
+
+## The Schmiedekunst level forging a piece needs: STEEL_FORGING_LEVEL for
+## steel gear, none for the rest.
+static func forge_level(id: String) -> int:
+	return STEEL_FORGING_LEVEL if is_steel(id) else 0
 
 
 ## Whether the hero has everything forging a piece takes (room in the bag
 ## aside).
 static func can_afford(game: Node, id: String) -> bool:
 	var cost := forge_cost(id, game)
-	return game.iron >= cost.iron and game.coins >= cost.gold and game.player.bag.count(THUNDER_ORE) >= cost.ore
+	return game.iron >= cost.iron and int(game.bars.get(STEEL, 0)) >= cost.steel and game.coins >= cost.gold \
+			and game.player.bag.count(THUNDER_ORE) >= cost.ore and craft_level(game, FORGING) >= forge_level(id)
 
 
 
@@ -384,6 +493,7 @@ static func melt(game: Node, index: int) -> String:
 	if not p.bag.has(id) and not p.equipped.values().has(id):
 		p.wear.erase(id)
 	store(game, melt_into(id))
+	game.player.train(STEEL_MAKING, MELT_XP, false)
 	return ""
 
 
@@ -391,8 +501,12 @@ static func melt(game: Node, index: int) -> String:
 static func forge(game: Node, id: String) -> String:
 	var p: Player = game.player
 	var cost := forge_cost(id, game)
+	if craft_level(game, FORGING) < forge_level(id):
+		return Lang.t("Für Stahl brauchst du Schmiedekunst Stufe %d.") % forge_level(id)
 	if game.iron < cost.iron:
 		return Lang.t("Dafür hast du zu wenig Eisen.")
+	if int(game.bars.get(STEEL, 0)) < cost.steel:
+		return Lang.t("Dafür hast du zu wenig Stahl.")
 	if game.coins < cost.gold:
 		return Lang.t("Dafür reicht dein Kupfer nicht.")
 	if p.bag.count(THUNDER_ORE) < cost.ore:
@@ -405,8 +519,13 @@ static func forge(game: Node, id: String) -> String:
 			p.bag.append(THUNDER_ORE)
 		return Lang.t("Deine Tasche ist voll.")
 	game.iron -= cost.iron
+	if cost.steel > 0:
+		game.bars[STEEL] = int(game.bars[STEEL]) - cost.steel
+		if int(game.bars[STEEL]) <= 0:
+			game.bars.erase(STEEL)
 	game.coins -= cost.gold
 	p.bag.append(id)
+	p.train(FORGING, FORGE_XP, false)
 	return ""
 
 

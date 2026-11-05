@@ -56,7 +56,8 @@ func _run() -> void:
 	# The rules.
 	check(Forge.can_melt("plattenpanzer") and Forge.can_melt("schwert") and Forge.can_melt("kupferring"), "metal gear and jewellery melt")
 	check(not Forge.can_melt("lederwams") and not Forge.can_melt("wollumhang") and not Forge.can_melt("fechtbuch") and not Forge.can_melt("steinblock"), "leather, cloth, books and stone do not")
-	check(Forge.melt_yield("plattenpanzer") == 14 and Forge.melt_yield("schwert") == 2, "heavier armour and pricier weapons give more iron")
+	check(Forge.melt_yield("kettenhemd") == 18 and Forge.melt_yield("eisenhaube") == 6 and Forge.melt_yield("schwert") == 2, "heavier armour and pricier weapons give more iron")
+	check(Forge.melt_yield("plattenpanzer") == 0 and Forge.melt_into("plattenpanzer").get("stahl", 0) == 14, "steel plate armour melts into 14 steel bars, no iron")
 	# One table by kind and rarity: plain gear iron, fine gear fittings of a
 	# finer metal, jewellery the metal of its rarity, magic moon silver.
 	check(Forge.melt_into("schwert") == {"eisen": 2}, "a plain sword is iron: %s" % str(Forge.melt_into("schwert")))
@@ -74,8 +75,9 @@ func _run() -> void:
 	check(recipes.has("schwert") and recipes.has("plattenpanzer") and recipes.has("ritterhelm") and not recipes.has("lederwams") and not recipes.has("vampirzahn"), "the smith forges metal gear only")
 	for id in recipes:
 		var cost := Forge.forge_cost(id)
-		check(cost.iron * Forge.IRON_PRICE + cost.gold <= Items.buy_price(id) + Forge.IRON_PRICE, "forging %s from bought iron costs about the merchant's price" % id)
+		check((cost.iron + cost.steel) * Forge.IRON_PRICE + cost.gold <= Items.buy_price(id) + Forge.IRON_PRICE, "forging %s from bought iron costs about the merchant's price" % id)
 		check(Forge.melt_yield(id) <= cost.iron, "melting %s down gives back no more iron than it takes" % id)
+		check(int(Forge.melt_into(id).get("stahl", 0)) <= cost.steel, "melting %s down gives back no more steel than it takes" % id)
 
 	game.load_level(game._outdoor_index(), false)
 	var lvl: Outdoor = game.level
@@ -100,20 +102,20 @@ func _run() -> void:
 	game.menus._melt(1)
 	check(p.bag.size() == 3 and game.iron == 0, "leather does not melt")
 	game.menus._melt(0)
-	check(Array(p.bag) == ["lederwams", "kupferring"] and game.iron == 14, "the 14 kg plate armour melts into 14 iron bars")
+	check(Array(p.bag) == ["lederwams", "kupferring"] and game.iron == 0 and int(game.bars.get("stahl", 0)) == 14, "the 14 kg steel plate armour melts into 14 steel bars")
 	check(int(game.metal_grams.get("silber", 0)) == Forge.melt_into("plattenpanzer")["g:silber"], "and its fine fittings into grams of silver (%s)" % str(game.metal_grams))
 	game.menus._melt(1)
-	check(Array(p.bag) == ["lederwams"] and game.iron == 14 and int(game.metal_grams.get("bronze", 0)) == Forge.melt_into("kupferring")["g:bronze"], "the copper ring into grams of bronze (%s)" % str(game.metal_grams))
+	check(Array(p.bag) == ["lederwams"] and game.iron == 0 and int(game.metal_grams.get("bronze", 0)) == Forge.melt_into("kupferring")["g:bronze"], "the copper ring into grams of bronze (%s)" % str(game.metal_grams))
 	game.bars["bronze"] = 3
 
 
 	# Forging.
 	game.menus._show_forge_tab("schmieden")
-	var cost := Forge.forge_cost("ritterhelm")
-	check(cost.iron == 4, "a 4 kg knight's helmet takes 4 iron bars, one per kilo")
+	var cost := Forge.forge_cost("eisenhaube")
+	check(cost.iron == 6, "a 6 kg iron cap takes 6 iron bars, one per kilo")
 	game.iron = cost.iron + 2
-	game.menus._forge("ritterhelm")
-	check(p.bag.has("ritterhelm") and game.iron == 2 and game.coins == 100 - cost.gold, "iron and gold become a knight's helmet (%d iron, %d gold)" % [game.iron, game.coins])
+	game.menus._forge("eisenhaube")
+	check(p.bag.has("eisenhaube") and game.iron == 2 and game.coins == 100 - cost.gold, "iron and gold become an iron cap (%d iron, %d gold)" % [game.iron, game.coins])
 	game.iron = 0
 	game.menus._forge("schwert")
 	check(not p.bag.has("schwert") and game.coins == 100 - cost.gold, "without iron nothing is forged")

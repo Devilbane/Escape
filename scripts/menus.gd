@@ -2646,6 +2646,7 @@ const FORGE_TABS := [["waffen", "Waffen kaufen"], ["schmieden", "Schmieden"], ["
 func _build_smithy() -> void:
 	var p: Player = game.player
 	Events.teach(Forge.LEARN)
+	Events.teach(Forge.STEEL_LEARN)
 	_add_label(Lang.t("Schmiede"), 38, game.GOLD, game.TITLE_FONT)
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -2677,6 +2678,19 @@ func _build_smithy() -> void:
 				var ok := Forge.can_afford(game, id)
 				var entry := {"key": id, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Eisen, %d Kupfer") % [cost.iron, cost.gold],
 						"price_ok": game.iron >= cost.iron and game.coins >= cost.gold, "button": Lang.t("Schmieden"), "action": _forge.bind(id), "enabled": ok and room}
+				if Forge.is_steel(id):
+					# Steel gear: steel bars in place of iron, and a level of
+					# Schmiedekunst. Until the hero has it, the price line
+					# says so; the details always tell both.
+					var level := Forge.craft_level(game, Forge.FORGING)
+					var need := Forge.forge_level(id)
+					var steel := int(game.bars.get(Forge.STEEL, 0))
+					entry.price = Lang.t("%d Stahl, %d Kupfer") % [cost.steel, cost.gold] if level >= need else Lang.t("Braucht Schmiedekunst %d") % need
+					entry.price_ok = level >= need and steel >= int(cost.steel) and game.coins >= cost.gold
+					var lines := TradeWindow.stat_lines(id)
+					lines.append([Lang.t("Schmiedekunst Stufe %d nötig, du hast %d") % [need, level], TradeWindow.GREEN if level >= need else TradeWindow.RED])
+					lines.append([Lang.t("Braucht %d Stahlbarren, du hast %d") % [cost.steel, steel], TradeWindow.GREEN if steel >= int(cost.steel) else TradeWindow.RED])
+					entry.detail = {"subtitle": TradeWindow.subtitle(id), "lines": lines}
 				if int(cost.ore) > 0:
 					# The row has no room for a third cost: the ore is told
 					# in the details, green when the bag holds enough.
@@ -2694,6 +2708,7 @@ func _build_smithy() -> void:
 						"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("Eisen: %d") % game.iron, "icon": "kind:iron"}})
 			sections = [
 				{"key": "forge", "title": Lang.t("Schmieden"), "icon": "kind:hammer_anvil", "entries": forged},
+				{"key": "steel", "title": Lang.t("Stahl"), "icon": "kind:bar_" + Forge.STEEL, "entries": _steel_entries()},
 				{"key": "iron", "title": Lang.t("Eisenbarren"), "icon": "kind:iron", "entries": iron},
 			]
 		"einschmelzen":
@@ -2761,7 +2776,52 @@ func _build_smithy() -> void:
 						"button": Lang.t("Ausbessern"), "action": _mend.bind(id), "enabled": game.coins >= Forge.mend_price(id, game)})
 			sections = [{"key": "mend", "title": Lang.t("Ausbessern"), "icon": "kind:hammer_anvil", "entries": mend, "gone": Lang.t("Wie neu"),
 					"empty": Lang.t("Deine Ausrüstung ist heil.")}]
-	_trade(Lang.t("Dein Kupfer: %d    Eisen: %d") % [game.coins, game.iron], sections, tabs, Lang.t(FORGE_ABOUT[_forge_tab]))
+	_trade(Lang.t("Dein Kupfer: %d    Eisen: %d    Stahl: %d") % [game.coins, game.iron, int(game.bars.get(Forge.STEEL, 0))], sections, tabs, Lang.t(FORGE_ABOUT[_forge_tab]))
+
+
+## The forge's steel rows: make a steel bar (iron, charcoal, limestone, and a
+## level of Stahlkochen, see Forge.make_steel), and buy charcoal.
+func _steel_entries() -> Array:
+	var out := []
+	var level := Forge.craft_level(game, Forge.STEEL_MAKING)
+	var need := Forge.STEEL_MAKING_LEVEL
+	var why := Forge.why_no_steel(game)
+	var steel := int(game.bars.get(Forge.STEEL, 0))
+	var lines := [[Lang.t("Ein Eisenbarren, mit Holzkohle und Kalkstein gekocht, wird ein Stahlbarren. Stahlrüstung schmiedet Gorm nur aus Stahl."), TradeWindow.BLUE],
+			[Lang.t("Stahlkochen Stufe %d nötig, du hast %d") % [need, level], TradeWindow.GREEN if level >= need else TradeWindow.RED]]
+	for ingredient in Forge.STEEL_RECIPE:
+		var have: int = game.crafting.have(ingredient)
+		lines.append([Lang.t("%s: %d nötig, du hast %d") % [Crafting.ingredient_name(ingredient), int(Forge.STEEL_RECIPE[ingredient]), have], TradeWindow.GREEN if have >= int(Forge.STEEL_RECIPE[ingredient]) else TradeWindow.RED])
+	out.append({"key": "steel:make", "icon": "kind:bar_" + Forge.STEEL, "name": Lang.t("Stahlbarren"), "count": steel,
+			"price": Lang.t("1 Eisen, 1 Holzkohle, 1 Kalkstein") if level >= need else Lang.t("Braucht Stahlkochen %d") % need, "price_ok": why == "",
+			"button": Lang.t("Kochen"), "action": _make_steel, "enabled": why == "",
+			"detail": {"subtitle": Lang.t("Rohstoff"), "lines": lines},
+			"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("%s: %d") % [Lang.t("Stahlbarren"), steel], "icon": "kind:bar_" + Forge.STEEL}})
+	for count in [1, 5]:
+		var price: int = count * Forge.charcoal_price(game)
+		out.append({"key": "charcoal%d" % count, "icon": Forge.CHARCOAL, "name": Lang.t("%d Holzkohle") % count, "price": Lang.t("%d Kupfer") % price,
+				"price_ok": game.coins >= price, "action": _buy_charcoal.bind(count), "enabled": game.coins >= price,
+				"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t(Crafting.INGREDIENTS[Forge.CHARCOAL].where), TradeWindow.BLUE]]},
+				"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("%s: %d") % [Crafting.ingredient_name(Forge.CHARCOAL), game.crafting.have(Forge.CHARCOAL)], "icon": Forge.CHARCOAL}})
+	return out
+
+
+func _make_steel() -> void:
+	var why := Forge.make_steel(game)
+	_note = why if why != "" else Lang.t("Gekocht: 1 Stahlbarren")
+	if why == "":
+		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
+	game._update_hud()
+	_rebuild()
+
+
+func _buy_charcoal(count: int) -> void:
+	var why := Forge.buy_charcoal(game, count)
+	if why == "":
+		Events.bus().traded.emit(game.trader_role)
+	_note = why if why != "" else Lang.t("Gekauft: %d Holzkohle") % count
+	game._update_hud()
+	_rebuild()
 
 
 func _show_forge_tab(tab: String) -> void:

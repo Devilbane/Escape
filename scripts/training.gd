@@ -105,6 +105,10 @@ const EXPLORE_TRAP_FOUND := 2.0
 ## but they are not part of the wheel of combat skills on the character page.
 const CRAFTS := {
 	"feinschmieden": {"name": "Feinschmieden", "attributes": ["geschick", "intelligenz"]},
+	# At Gorm's forge (see Forge.FORGING, Forge.STEEL_MAKING): forging grows
+	# with every piece forged, steel making with every melt and steel bar.
+	"schmiedekunst": {"name": "Schmiedekunst", "attributes": ["staerke"]},
+	"stahlkochen": {"name": "Stahlkochen", "attributes": ["intelligenz"]},
 }
 ## The three main attributes, clockwise from the top of the character page.
 const MAIN_ATTRIBUTES := ["staerke", "geschick", "intelligenz"]

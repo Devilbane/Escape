@@ -3936,6 +3936,10 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 	return gear
 
 
+## How limestone glows on the floor.
+const LIMESTONE_COLOUR := Color(0.88, 0.86, 0.76)
+
+
 ## What a fallen enemy leaves (see Loot), the one place every fight's loot
 ## is decided. One roll per kill for a find of a tier, with Loot's odds for
 ## a foe as tough as this one:
@@ -3945,7 +3949,8 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 ## - other beasts leave, on a find, their food, an ingredient of where they
 ##   live, or a part of their body (see Loot.creature_find).
 ## Trolls and the creatures of the mountains roll once more for a lump of
-## ore (see Loot.ore_find; `ore_roll` sets that roll). In the beginner
+## ore (see Loot.ore_find; `ore_roll` sets that roll), and once for a few
+## lumps of limestone (see Loot.limestone_find). In the beginner
 ## dungeon a find is common at most. Returns the gear or ingredient id
 ## dropped (not the ore), or "".
 func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0) -> String:
@@ -3979,6 +3984,10 @@ func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0) -> Stri
 	var ore := Loot.ore_find(e.kind, tough, ore_roll)
 	if ore != "":
 		lay_find(ore, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), Ore.ROCK, 1, true)
+	# And a few lumps of limestone, for steel (see Forge.STEEL_RECIPE).
+	var lime := Loot.limestone_find(e.kind)
+	if lime > 0:
+		lay_find(Forge.LIMESTONE, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), LIMESTONE_COLOUR, lime, true)
 	return found
 
 

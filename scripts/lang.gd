@@ -34,6 +34,7 @@ const PARTS := [
 	preload("res://scripts/lang/crates.gd"),
 	preload("res://scripts/lang/stones.gd"),
 	preload("res://scripts/lang/forge.gd"),
+	preload("res://scripts/lang/steel.gd"),
 	preload("res://scripts/lang/thunder.gd"),
 	preload("res://scripts/lang/puzzles.gd"),
 	preload("res://scripts/lang/quests.gd"),

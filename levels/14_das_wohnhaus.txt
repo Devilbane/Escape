@@ -1,10 +1,10 @@
 name: Dein Haus
-hint: Dein eigenes Haus in der Weberzeile: unten die Truhen und das Zutatenbord, oben das Bett, unterm Dach viel Platz. Die Kreidefelder halten Raum für Möbel frei.
+hint: Dein eigenes Haus in der Weberzeile: unten die Truhe, im Keller die Stahltruhe und das Zutatenbord, oben das Bett, unterm Dach viel Platz. Die Kreidefelder halten Raum für Möbel frei.
 building: ^
 home: ja
-################
-#L.<##B.<##+.+##
-#+P+##+.+##+.+##
-#m.h##...##...##
-#+EN##+>.##+>+##
-################
+#####################
+#<.h##L.<##B.<##+.+##
+#...##+P+##+.+##+.+##
+#m..##>.+##...##...##
+#...##+EN##+>.##+>+##
+#####################

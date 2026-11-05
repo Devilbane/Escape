@@ -66,14 +66,16 @@ func _run() -> void:
 	var lvl: Level = game.level
 	check(lvl.is_home, "the hero is in their town house")
 
-	# All three stores stand in the house, on the ground floor, each on a
-	# tile of its own the hero can walk up to.
+	# The storage chest stands on the ground floor; the steel-banded chest
+	# and the ingredient board in the cellar below it, each on a tile of its
+	# own the hero can walk up to. Stairs lead down there and back up.
 	var chest := _station(lvl, "lager")
 	var metal := _station(lvl, HomeStores.STATIONS[HomeStores.METAL])
 	var board := _station(lvl, HomeStores.STATIONS[HomeStores.PANTRY])
 	check(chest.size() == 1 and metal.size() == 1 and board.size() == 1, "every house has a storage chest, a steel-banded chest and an ingredient board")
 	for s in chest + metal + board:
-		check(lvl.storey_of(s.cell) == 0, "%s stands downstairs" % s.kind)
+		var want := 0 if s.kind == "lager" else -1
+		check(lvl.storey_of(s.cell) == want, "%s stands on storey %d (%d)" % [s.kind, want, lvl.storey_of(s.cell)])
 		var reachable := false
 		for d in Level.DIRS:
 			var n: Vector2i = s.cell + d
@@ -82,6 +84,14 @@ func _run() -> void:
 		check(reachable, "%s has plain floor beside it to walk up to" % s.kind)
 		check(lvl.station_at(s.pos).get("kind", "") == s.kind, "running into %s finds it" % s.kind)
 		check(lvl.nearest_station(s.pos).get("kind", "") == s.kind, "the hint over %s names it, not a neighbour" % s.kind)
+	check(lvl.has_cellar() and lvl.storey_name(-1) == Lang.t("Keller"), "the house has a cellar")
+	check(lvl.storey_of(lvl.exit_cell) == 0 and lvl.storey_count() == 3, "the front door is on the ground floor, with two floors above")
+	var down: Array = lvl.stairs.filter(func(st): return not st.up and st.storey == 0)
+	check(down.size() == 1, "stairs on the ground floor lead down")
+	if down.size() == 1:
+		var to := lvl.stair_target(down[0].cell)
+		check(to.x >= 0 and lvl.storey_of(to) == -1 and lvl.cell_char(to) == "<", "and arrive on the cellar's stairs up")
+		check(lvl.stair_target(to) == down[0].cell, "which lead back up to the ground floor")
 	check(lvl.find_child("MetalChest", false, false) != null and lvl.find_child("IngredientBoard", false, false) != null, "both are built as furniture")
 
 	# What goes where.

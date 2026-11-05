@@ -27,10 +27,11 @@ void flutter_vertex(inout vec3 v, inout vec3 n, inout vec3 t, float seed) {
 	float raw = dot(v - flutter_root, flutter_reach) / len2;
 	float w = clamp(raw, 0.0, 1.0);
 	float inside = step(0.0, raw) * step(raw, 1.0);
-	// Two waves running out to the free end, and a slow swell under them.
-	float a = wind_phase + seed - w * 4.5;
+	// Two quick waves running out to the free end (about one ripple along
+	// the cloth), and a slow swell under them.
+	float a = wind_phase + seed - w * 6.0;
 	float wave = sin(a) + 0.35 * sin(1.7 * a + 1.3) + 0.4 * sin(0.37 * wind_phase + seed * 1.9);
-	float dwave = -4.5 * (cos(a) + 0.35 * 1.7 * cos(1.7 * a + 1.3));
+	float dwave = -6.0 * (cos(a) + 0.35 * 1.7 * cos(1.7 * a + 1.3));
 	float amp = flutter * sqrt(len2) * wind_strength;
 	float d = amp * w * wave;
 	// How fast the swing grows along the cloth (the slope of the bend).

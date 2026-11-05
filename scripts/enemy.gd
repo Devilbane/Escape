@@ -249,6 +249,8 @@ const DEEPEST := 9
 
 var level: Level
 var kind := "krieger"
+## The share of its pace the ground underfoot allows right now (see Surfaces).
+var surface_pace := 1.0
 ## A monster made in the map workshop (see Creations.monster_stats): numbers
 ## that replace those of its kind, and its own name ("title") over its head.
 var custom := {}
@@ -1153,7 +1155,10 @@ func _physics_process(delta: float) -> void:
 		_detour_time -= delta
 		move = (move * 0.3 + _detour).normalized()
 	move = _mind_spikes(move)
-	velocity = move * float(_stats.speed) + _knockback
+	# Walkers feel the ground (see Surfaces); flyers skim over it.
+	if _stats.get("lift", 0.0) <= 0.0:
+		surface_pace = Surfaces.ease_pace(surface_pace, level, global_position, delta)
+	velocity = move * float(_stats.speed) * surface_pace + _knockback
 	velocity.y = -9.0
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 40.0)
 	move_and_slide()
@@ -1290,7 +1295,7 @@ func _voice(delta: float, dist: float) -> void:
 ## look for a new way.
 func _check_stuck(delta: float, move: Vector3) -> void:
 	var ground_speed := SmoothMotion.ground_speed(self)
-	if move == Vector3.ZERO or ground_speed > float(_stats.speed) * 0.3:
+	if move == Vector3.ZERO or ground_speed > float(_stats.speed) * surface_pace * 0.3:
 		_stuck = maxf(0.0, _stuck - delta)
 		return
 	_stuck += delta

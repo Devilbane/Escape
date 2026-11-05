@@ -747,6 +747,12 @@ func cell_char(c: Vector2i) -> String:
 	return "#" if ch == " " else ch
 
 
+## The ground of a tile, for how fast feet carry over it (see Surfaces):
+## dirt floors are a little slower than the stone of the halls.
+func ground_at(c: Vector2i) -> String:
+	return Surfaces.DIRT if cell_char(c) == "," else Surfaces.STONE
+
+
 func cell_to_world(c: Vector2i) -> Vector3:
 	return Vector3(c.x * TILE, 0.0, c.y * TILE)
 

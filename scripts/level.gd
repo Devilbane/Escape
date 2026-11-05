@@ -4573,10 +4573,13 @@ func _build_lair_exit(pos: Vector3) -> Node3D:
 
 ## The names of a home's storeys, from the ground up.
 const STOREY_NAMES := ["Erdgeschoss", "Obergeschoss", "Dachkammer"]
+const CELLAR_NAME := "Keller"
 
 
 ## Splits a home into its storeys: every room sealed off by walls is one,
-## counted from west to east.
+## counted from west to east. The room with the front door ("E") is the
+## ground floor, storey 0; rooms west of it are cellars below it (-1, ...),
+## rooms east of it the floors above.
 func _find_storeys() -> void:
 	_storeys.clear()
 	if not is_home:
@@ -4599,16 +4602,23 @@ func _find_storeys() -> void:
 						room.append(n)
 				i += 1
 			rooms.append(room)
+	var ground := 0
+	for k in rooms.size():
+		if rooms[k].any(func(c): return cell_char(c) == "E"):
+			ground = k
+			break
 	for k in rooms.size():
 		for c in rooms[k]:
-			_storeys[c] = k
+			_storeys[c] = k - ground
 
 
-## Which storey of a home a tile is on (0 is the ground floor).
+## Which storey of a home a tile is on (0 is the ground floor, -1 the cellar).
 func storey_of(c: Vector2i) -> int:
 	return _storeys.get(c, 0)
 
 
+## How many storeys a home has from the ground floor up (its cellar, if
+## any, is not counted: see has_cellar).
 func storey_count() -> int:
 	var top := -1
 	for c in _storeys:
@@ -4616,9 +4626,16 @@ func storey_count() -> int:
 	return top + 1
 
 
+## Whether a home has a cellar below its ground floor.
+func has_cellar() -> bool:
+	return _storeys.values().has(-1)
+
+
 ## The name of a storey of a home, in the chosen language.
 func storey_name(storey: int) -> String:
-	if storey <= 0:
+	if storey < 0:
+		return Lang.t(CELLAR_NAME)
+	if storey == 0:
 		return Lang.t(STOREY_NAMES[0])
 	if storey >= storey_count() - 1 and storey_count() >= 3:
 		return Lang.t(STOREY_NAMES[2])

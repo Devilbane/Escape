@@ -56,10 +56,10 @@ func _run() -> void:
 	# The rules.
 	check(Forge.can_melt("plattenpanzer") and Forge.can_melt("schwert") and Forge.can_melt("kupferring"), "metal gear and jewellery melt")
 	check(not Forge.can_melt("lederwams") and not Forge.can_melt("wollumhang") and not Forge.can_melt("fechtbuch") and not Forge.can_melt("steinblock"), "leather, cloth, books and stone do not")
-	check(Forge.melt_yield("plattenpanzer") == 14 and Forge.melt_yield("schwert") == 2, "heavier armour and pricier weapons give more iron")
+	check(Forge.melt_yield("plattenpanzer") == 14 and Forge.melt_yield("schwert") == 3, "heavier gear gives more iron, a bar per kilo")
 	# One table by kind and rarity: plain gear iron, fine gear fittings of a
 	# finer metal, jewellery the metal of its rarity, magic moon silver.
-	check(Forge.melt_into("schwert") == {"eisen": 2}, "a plain sword is iron: %s" % str(Forge.melt_into("schwert")))
+	check(Forge.melt_into("schwert") == {"eisen": 3}, "a plain 3 kg sword is 3 iron bars: %s" % str(Forge.melt_into("schwert")))
 	check(Forge.melt_into("kettenhemd") == {"eisen": 18}, "uncommon chain mail is iron: %s" % str(Forge.melt_into("kettenhemd")))
 	# Fine metal comes in grams, worth a quarter of a weapon's or armour's
 	# price for fittings and half a piece of jewellery's (see Forge.GRAM_VALUE).
@@ -165,9 +165,9 @@ func _run() -> void:
 	check(game.menus._forge_tab == "waffen", "the smith's window opens on his wares")
 	game.menus._buy_ware("langschwert")
 	check(p.bag.is_empty() and game.coins == Items.buy_price("langschwert") - 1, "without enough gold nothing is bought")
-	game.coins = 200
+	game.coins = 400
 	game.menus._buy_ware("langschwert")
-	check(Array(p.bag) == ["langschwert"] and game.coins == 200 - Items.buy_price("langschwert"), "gold buys the longsword")
+	check(Array(p.bag) == ["langschwert"] and game.coins == 400 - Items.buy_price("langschwert"), "copper buys the longsword")
 	check(Forge.buy(game, "schwert") != "" and p.bag.size() == 1, "Gorm does not sell the merchant's sword")
 	game.menus._buy_ware("drachenschild")
 	check(not p.bag.has("drachenschild"), "but not the kite shield")

@@ -335,7 +335,21 @@ func _test_game() -> void:
 	check(Forge.armour_iron("plattenpanzer") == 14 and Forge.melt_yield("plattenpanzer") == 14, "plate armour holds 14 iron bars")
 	check(Forge.forge_cost("plattenpanzer").iron == 14, "forging plate armour takes 14 bars")
 	check(int(Items.ALL["plattenpanzer"].price) >= 14 * Forge.IRON_PRICE, "plate armour is worth at least its iron")
-	check(Forge.armour_iron("schwert") == 0 and Forge.armour_iron("lederwams") == 0, "weapons and leather go by the old rule")
+	check(Forge.armour_iron("schwert") == 3 and Forge.melt_yield("schwert") == 3 and Forge.forge_cost("schwert").iron == 3, "a 3 kg sword holds 3 iron bars, like armour")
+	check(Forge.armour_iron("lederwams") == 0, "leather holds no iron")
+	# Every metal piece is worth more than its iron; the sets cost cloth <
+	# leather < iron < steel < the scale sets.
+	for id in Items.ALL:
+		check(int(Items.ALL[id].price) > Forge.armour_iron(id) * Forge.IRON_PRICE, "%s is worth more than its iron" % id)
+	var set_price := func(s: String) -> int:
+		var sum := 0
+		for id in Items.ALL:
+			if str(Items.ALL[id].get("set", "")) == s and id != "zauberhut" and id != "eilstiefel":
+				sum += int(Items.ALL[id].price)
+		return sum
+	var order := ["stoff", "leder", "eisen", "stahl", "hydra", "wyrm", "drache"]
+	for i in order.size() - 1:
+		check(set_price.call(order[i]) < set_price.call(order[i + 1]), "the %s set (%d) costs less than the %s set (%d)" % [order[i], set_price.call(order[i]), order[i + 1], set_price.call(order[i + 1])])
 	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: loot")

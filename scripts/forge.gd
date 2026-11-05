@@ -68,13 +68,13 @@ const FITTINGS := ["", "", "bronze", "silber", "gold"]
 const MOON_FROM := 2
 
 
-## The slots of metal armour, priced by the iron in it (see armour_iron).
-## Gloves and shoes join them for the iron and steel armour sets.
-const ARMOUR_SLOTS := ["schild", "kopf", "ruestung", "handschuhe", "schuhe"]
+## The slots of metal gear priced by the iron in it (see armour_iron):
+## armour, gloves and shoes for the iron and steel sets, and the weapons.
+const ARMOUR_SLOTS := ["schild", "kopf", "ruestung", "handschuhe", "schuhe", "waffe"]
 
 
-## The iron bars in a piece of metal armour (a shield, a helmet, mail or
-## plate): one bar per kilo it weighs, as a bar is a kilo of metal (see Ore)
+## The iron bars in a piece of metal gear (a weapon, a shield, a helmet,
+## mail or plate): one bar per kilo it weighs, as a bar is a kilo of metal (see Ore)
 ## or a hundred coins. 0 for anything else. Its worth (Items.ALL "price") is
 ## that iron at IRON_PRICE a bar plus the smith's work.
 static func armour_iron(id: String) -> int:
@@ -127,8 +127,8 @@ static func melt_into(id: String, any := false) -> Dictionary:
 	var item: Dictionary = Items.ALL[id]
 	var r := rarity(id)
 	if can_melt(id) and not _is_trinket(id):
-		# Metal armour gives back its iron, a bar per kilo; weapons one bar
-		# for every 8 gold of their price.
+		# Metal gear gives back its iron, a bar per kilo (anything else one
+		# bar for every 8 copper of its price).
 		out["eisen"] = armour_iron(id) if armour_iron(id) > 0 else maxi(1, roundi(int(item.price) / 8.0))
 		if FITTINGS[r] != "" and str(item.slot) in Items.SLOTS:
 			out[GRAMS + FITTINGS[r]] = grams_worth(FITTINGS[r], int(item.price) / 4.0)

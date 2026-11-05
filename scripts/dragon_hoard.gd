@@ -84,7 +84,8 @@ static func _empty_tally() -> Dictionary:
 ## "burn", or "" when they leave it where it lies.
 static func fate(kind: String, id: String) -> String:
 	if kind == "coin":
-		return "coin"
+		# Gold only: the helpers leave the plainer metals lying.
+		return "coin" if CoinPile.metal_of(id) == CoinPile.MONEY else ""
 	if kind != "item" or not Items.ALL.has(id):
 		return ""
 	var item: Dictionary = Items.ALL[id]
@@ -118,8 +119,9 @@ static func coin_worth(coins: int, bars: Dictionary) -> int:
 
 
 ## The helpers brought this home: into the hoard it goes, melted or burnt.
-## Returns what it added, metal -> count ("coins" for a coin).
-func gather(kind: String, id: String) -> Dictionary:
+## Returns what it added, metal -> count ("coins" for coins). `count`: how
+## many coins a pile held.
+func gather(kind: String, id: String, count := 1) -> Dictionary:
 	var f := fate(kind, id)
 	if f == "":
 		return {}
@@ -130,17 +132,17 @@ func gather(kind: String, id: String) -> Dictionary:
 	var to_elder := carried % ELDER_TURN != 0 and (f == "coin" or elder_items.size() < ELDER_ITEMS_MAX)
 	carried += 1
 	if f == "coin":
-		tonight.coins = int(tonight.coins) + 1
+		tonight.coins = int(tonight.coins) + count
 	if to_elder:
 		tonight.elder = int(tonight.get("elder", 0)) + 1
 		if f == "coin":
-			elder_gold += 1
+			elder_gold += count
 		else:
 			elder_items.append(id)
 		return {"elder": 1}
 	if f == "coin":
-		gold += 1
-		return {"coins": 1}
+		gold += count
+		return {"coins": count}
 	var bars := melt(id)
 	for metal in bars:
 		metals[metal] = int(metals.get(metal, 0)) + int(bars[metal])
@@ -156,7 +158,7 @@ func sweep(list: Array) -> int:
 	for entry in list.duplicate():
 		if takes(entry):
 			list.erase(entry)
-			gather(str(entry[0]), str(entry[1]))
+			gather(str(entry[0]), str(entry[1]), CoinPile.count_of(entry))
 			count += 1
 	return count
 

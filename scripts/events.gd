@@ -77,9 +77,9 @@ signal scare_happened(kind: String)
 
 ## The old dragon's little helpers carried something off the open ground
 ## into its lair (see DragonHelpers): a floor entry's kind ("item" or
-## "coin") and item id. The hoard counts it (see DragonHoard).
-## Use Events.carried_off.
-signal loot_carried_off(kind: String, id: String)
+## "coin") and item id (a coin's metal), and how many (a pile of coins).
+## The hoard counts it (see DragonHoard). Use Events.carried_off.
+signal loot_carried_off(kind: String, id: String, count: int)
 
 
 static var _bus: Events = null
@@ -113,8 +113,8 @@ static func scare(kind: String) -> void:
 
 
 ## The dragon's helpers carried this off (see loot_carried_off).
-static func carried_off(kind: String, id: String) -> void:
-	bus().loot_carried_off.emit(kind, id)
+static func carried_off(kind: String, id: String, count := 1) -> void:
+	bus().loot_carried_off.emit(kind, id, count)
 
 
 ## Something new for the compendium (see lore_learned).

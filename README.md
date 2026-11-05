@@ -324,7 +324,12 @@ through the autumn forest, past a pond and a woodcutter, to the village of **Lin
 to hear what they have to say. The **village elder** gives you your own house on **Weavers' Lane**, and a golden
 light shows the door. Weavers' Lane runs along the northern edge of the village: a row of twenty narrow,
 two-storey town houses wall to wall, each with its own colours and a number over the door, so the village has
-a home for many heroes. Inside, the **ground floor** has the **chest** (your storage), the **upper floor** the
+a home for many heroes. Inside, the **ground floor** is the storeroom: the **chest** (your storage), a
+**steel-banded chest** for your metal (gold coins, iron bars, the fine bars from the forge, ore and raw gems such
+as moon silver, moonstone, grotto crystals and thunder ore) and an **ingredient board** on the wall (shelves of
+phials and flasks, bundles of herbs and a filled bucket) for everything else of your ingredient pouch (herbs,
+mushrooms, fish, the dragon's parts) and the animal food from your bag. Both hold as much as you like: in their
+windows, store or take one of a kind (ten coins), all of it, or everything at once. The **upper floor** has the
 **bed** (save and log out), and the **attic** is free. Walk onto the stairs to go up or down a storey. Chalked
 squares on the floorboards keep room for furniture on every storey. The moment you first step inside, the house
 is yours: the game saves, and from then on your house replaces the graveyard as the starting point. Every load,
@@ -816,7 +821,8 @@ played in the order of their file names. One character stands for one tile:
 | `?`       | secret wall       | `f`       | brazier           |
 | `v`       | bat               | `s`       | slime             |
 | `R`       | dragon            | `y`       | horse statue      |
-| `X`       | a horror's den    |           |                   |
+| `X`       | a horror's den    | `m`       | steel-banded chest (homes) |
+| `h`       | ingredient board (homes) |    |                   |
 
 The lines `name:` and `hint:` give the level's name and the introduction shown when it starts.
 A line `lair: yes` on a building floor makes it a dungeon of its own instead of a safe room, with monsters,

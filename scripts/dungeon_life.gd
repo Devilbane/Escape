@@ -13,6 +13,9 @@ const TILE := Level.TILE
 ## Where the stone of the walls begins, measured from the middle of a tile.
 const WALL_FACE := 1.7
 const WALL_HEIGHT := 4.0
+## How high webs climb a near wall (see _wall_top): as high as those walls
+## once stood, so every web hangs where it always did.
+const NEAR_WEB_TOP := 1.2
 ## The top of the floor tiles; the cobbles stick up a little.
 const FLOOR_Y := 0.065
 ## Dust is batched in squares of this many tiles: the browser renderer lights
@@ -578,10 +581,11 @@ func _is_corridor(c: Vector2i) -> bool:
 		or (_is_wall(c + Vector2i(0, 1)) and _is_wall(c + Vector2i(0, -1)))
 
 
-## How high the wall at `c` stands: the walls on the near side of a room are
-## built low so the hero stays in view.
+## How high webs may climb the wall at `c`: the walls on the near side of a
+## room turn see-through in front of the hero (see WallFade), so webs keep
+## to the bottom of them instead of hanging in the air.
 func _wall_top(c: Vector2i) -> float:
-	return WALL_HEIGHT * Level.LOW_WALL_SCALE if level._is_low_wall(c) else WALL_HEIGHT
+	return NEAR_WEB_TOP if level._is_low_wall(c) else WALL_HEIGHT
 
 
 func _commit_webs() -> void:
@@ -595,8 +599,8 @@ func _commit_webs() -> void:
 
 
 ## Webs where two walls meet: mostly up under the top of the walls, some
-## down in the corner on the floor. Where one of the walls is a low one,
-## the web stays below its top.
+## down in the corner on the floor. Where one of the walls is a near one,
+## the web stays low (see _wall_top).
 func _build_corner_webs() -> void:
 	for c in _open_cells():
 		for d: Vector2i in [Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]:

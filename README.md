@@ -171,9 +171,9 @@ and dragon scales (+3 / +4, the best) are made at the fine metalwork bench from 
 armour value.
 At the **forge** beside the smithy in the village, Gorm the **smith** works your gear (walk into him):
 *melt down* metal gear from your bag (weapons, shields, knight's helmet, chain mail, plate armour, rings,
-bracelets, amulets) into **iron bars**, one bar per 8 gold of a weapon's price and one per kilo of metal armour (plate armour gives 8;
+bracelets, amulets) into **iron bars**, one bar per kilo of a metal weapon or armour (a sword gives 3, chain mail 18;
 cloth, leather, fur and bone do not melt); *forge* any metal weapon, shield or armour from iron and a
-little gold (plate armour: 8 iron and 24 gold), so you pick exactly the piece you want; and *mend* worn
+little copper (a bar per kilo and copper for the work), so you pick exactly the piece you want; and *mend* worn
 armour and shields, a few gold per point of durability. He also sells iron bars for 4 gold each, so
 forging from bought iron costs about what the merchant asks; iron from melted loot makes it cheaper.
 Iron is counted like gold, weighs nothing and stays in your saved game.
@@ -204,8 +204,10 @@ metal become a bar and the rest waits for the next lump. Epic **noble ore** hold
 5-15 % iron, 5-15 % copper, 10-20 % silver and 20-30 % gold (the rest unknown metal) and one to five
 **uncut gems**. A gem's weight sets its rarity: 2-4 carat common, 5-11 uncommon, 12-18 rare, 19-22
 epic, 23-24 god-born. Gorm cuts them, which grinds off 15-50 % of their weight, and buys the cut ones.
-**Metal armour** (shields, the knight's helmet, chain mail, plate armour) is priced by the iron in it:
-one bar per kilo it weighs, worth 10 gold a bar, plus the smith's work. It melts back into that many
+**Metal gear** (weapons, shields, helmets, mail, plate, metal gloves and shoes) is priced by the iron in it:
+one bar per kilo it weighs, worth 10 copper a bar, plus the smith's work, set high. A full armour set costs
+about 60 copper in cloth, 120 in leather, 500 in iron, 890 in steel, and 1,600 to 2,400 in hydra, wyrm or
+dragon scales. It melts back into that many
 bars, and forging it takes that many bars and gold for the work.
 Gorm also *sells his own work*, which is found nowhere else (not as loot, not at the merchant), and
 he can forge it from iron too. The kite shield and the war hammer, the top of their kinds, he does not

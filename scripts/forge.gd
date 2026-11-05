@@ -102,9 +102,9 @@ const MELT_XP := 4.0
 const STEEL_XP := 6.0
 
 
-## The slots of metal armour, priced by the iron in it (see armour_iron).
-## Gloves and shoes join them for the iron and steel armour sets.
-const ARMOUR_SLOTS := ["schild", "kopf", "ruestung", "handschuhe", "schuhe"]
+## The slots of metal gear priced by the iron in it (see armour_iron):
+## armour, gloves and shoes for the iron and steel sets, and the weapons.
+const ARMOUR_SLOTS := ["schild", "kopf", "ruestung", "handschuhe", "schuhe", "waffe"]
 
 
 ## Whether a piece is steel gear: forged from steel bars, melted into them.
@@ -164,8 +164,8 @@ static func charcoal_price(game: Node = null) -> int:
 	return _discounted(game, CHARCOAL_PRICE)
 
 
-## The iron bars in a piece of metal armour (a shield, a helmet, mail or
-## plate): one bar per kilo it weighs, as a bar is a kilo of metal (see Ore)
+## The iron bars in a piece of metal gear (a weapon, a shield, a helmet,
+## mail or plate): one bar per kilo it weighs, as a bar is a kilo of metal (see Ore)
 ## or a hundred coins. 0 for anything else. Its worth (Items.ALL "price") is
 ## that iron at IRON_PRICE a bar plus the smith's work.
 static func armour_iron(id: String) -> int:

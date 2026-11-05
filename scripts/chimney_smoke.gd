@@ -42,7 +42,6 @@ static func make() -> CPUParticles3D:
 	# The smoke stays where it was let out, so the breeze carries it off
 	# even if the house is moved.
 	p.local_coords = false
-	p.emitting = false
 	p.mesh = Effects._quad(0.9, Color(1, 1, 1))
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	p.emission_sphere_radius = 0.18
@@ -73,6 +72,7 @@ static func make() -> CPUParticles3D:
 	ramp.add_point(0.5, Color(GREY, 0.24))
 	ramp.set_color(ramp.get_point_count() - 1, Color(GREY, 0.0))
 	p.color_ramp = ramp
+	Effects.start_cold(p)
 	return p
 
 

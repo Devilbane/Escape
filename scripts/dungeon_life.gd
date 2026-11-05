@@ -43,6 +43,9 @@ var level: Level
 var _rng := RandomNumberGenerator.new()
 var _critters: Array = []
 var _drips: Array = []
+## The drip puddles on the floor: their middle and the half widths of the
+## water across (x) and along (z). A step into one splashes (see in_puddle).
+var puddles: Array[Dictionary] = []
 var _time := 0.0
 
 static var _dust_tex: Texture2D
@@ -777,7 +780,10 @@ func _build_drips() -> void:
 	for i in count:
 		var c: Vector2i = cells[_rng.randi() % cells.size()]
 		var p := level.cell_to_world(c) + Vector3(_rng.randf_range(-1.0, 1.0), FLOOR_Y, _rng.randf_range(-1.0, 1.0))
-		_build_puddle(p)
+		var radius := _build_puddle(p)
+		# The water's rim wobbles between 0.74 and 1.06 of its radius; a foot
+		# well inside the mean edge is in the water.
+		puddles.append({"pos": p, "rx": radius * 1.25 * 0.9, "rz": radius * 0.9, "drip": _drips.size()})
 		var drop := MeshInstance3D.new()
 		var ball := SphereMesh.new()
 		ball.radius = 0.05
@@ -836,8 +842,9 @@ func _ripple_material() -> StandardMaterial3D:
 	return _materials["ripple"]
 
 
-## A small, irregular puddle with a dark wet rim around it.
-func _build_puddle(at: Vector3) -> void:
+## A small, irregular puddle with a dark wet rim around it. Gives back the
+## radius of its water.
+func _build_puddle(at: Vector3) -> float:
 	var radius := _rng.randf_range(0.6, 0.9)
 	for layer in [[radius * 1.35, 0.01, _wet_material()], [radius, 0.02, _water_material()]]:
 		var st := SurfaceTool.new()
@@ -860,6 +867,35 @@ func _build_puddle(at: Vector3) -> void:
 		mi.position = at + Vector3(0, layer[1], 0)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
+	return radius
+
+
+## The drip puddle a spot on the floor lies in, or an empty one.
+func puddle_at(p: Vector3) -> Dictionary:
+	for pd in puddles:
+		var d: Vector3 = p - pd.pos
+		if absf(d.y) > 0.5:
+			continue
+		var u: float = d.x / pd.rx
+		var v: float = d.z / pd.rz
+		if u * u + v * v <= 1.0:
+			return pd
+	return {}
+
+
+## Whether a spot on the floor is in a drip puddle.
+func in_puddle(p: Vector3) -> bool:
+	return not puddle_at(p).is_empty()
+
+
+## A foot lands in a drip puddle: its water rings out from the step.
+func splash(at: Vector3) -> void:
+	var pd := puddle_at(at)
+	if pd.is_empty():
+		return
+	var d: Dictionary = _drips[pd.drip]
+	d.ripple.position = Vector3(at.x, pd.pos.y + 0.03, at.z)
+	d.wave = 0.0
 
 
 func _update_drips(delta: float, hero: Vector3) -> void:
@@ -874,6 +910,7 @@ func _update_drips(delta: float, hero: Vector3) -> void:
 			if y <= 0.0:
 				d.fall = -1.0
 				d.drop.visible = false
+				d.ripple.position = d.pos + Vector3(0, 0.03, 0)
 				d.wave = 0.0
 				if near:
 					Sfx.play(self, "drip", -4.0, d.pos, _rng.randf_range(0.85, 1.2))

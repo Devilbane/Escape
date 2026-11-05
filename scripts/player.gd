@@ -898,7 +898,7 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 
 
 ## A step sounds each time a foot lands in the run animation, so the sound
-## keeps the rhythm of the feet at any speed. In a rain puddle it splashes.
+## keeps the rhythm of the feet at any speed. In a puddle it splashes.
 func _footsteps(ground_speed: float) -> void:
 	var sneak := _current_anim == SNEAK_ANIM
 	var walk := _current_anim == WALK_ANIM
@@ -912,11 +912,11 @@ func _footsteps(ground_speed: float) -> void:
 			if phase < _last_phase:
 				crossed = _last_phase < landing or phase >= landing
 			if crossed:
-				# In a rain puddle every step splashes (see Puddles).
-				var outdoor := level as Outdoor
-				if outdoor and outdoor.in_puddle(global_position):
+				# In a puddle every step splashes: rain puddles above ground
+				# (see Puddles), drip puddles below (see DungeonLife).
+				if level.in_puddle(global_position):
 					Sfx.play(self, "splash_%d" % (randi() % 4), -21.0 if sneak else (-15.0 if walk else -11.0))
-					outdoor.puddles.splash(global_position, not sneak)
+					level.splash_puddle(global_position, not sneak)
 				# Sneaking: only a very soft touch, barely to be heard.
 				elif sneak:
 					Sfx.play(self, "sneak_%d" % (randi() % 4), -22.0)

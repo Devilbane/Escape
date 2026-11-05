@@ -1640,7 +1640,11 @@ func _on_ingredient_collected(id: String, count := 1, from_loot := false) -> voi
 		return
 	Sfx.play(self, "key", -3.0)
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Rarity.color(id) if from_loot else Color(0.7, 0.95, 0.5), true)
-	Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
+	if Crafting.in_purse(id):
+		# Gems go in the purse, like the coins (see Crafting.purse).
+		Events.found(Lang.t("%s kommt in deinen Geldbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
+	else:
+		Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
 	# A part of the fallen dragon teaches the recipe made from it.
 	if DragonLair.PART_COLOURS.has(id):
 		learn(DragonLair.PARTS_LEARN)
@@ -4519,7 +4523,8 @@ func _on_item_collected(id: String) -> void:
 
 ## Coins picked up off the floor. The money (copper, see Loot.MONEY) goes
 ## into the purse, and the lucky clover doubles what was found, not what the
-## hero had put down themselves (`own`); the other metals go into the pouch.
+## hero had put down themselves (`own`); the other metals go there too (see
+## Crafting.purse).
 func _on_coins_collected(amount: int, metal := CoinPile.MONEY, own := 0) -> void:
 	own = clampi(own, 0, amount)
 	if metal != CoinPile.MONEY:
@@ -4533,8 +4538,8 @@ func _on_coins_collected(amount: int, metal := CoinPile.MONEY, own := 0) -> void
 	_update_hud()
 
 
-## How many coins of `metal` the hero carries (gold in the purse, the other
-## metals in the ingredient pouch).
+## How many coins of `metal` the hero carries, all of them in the purse
+## (copper counted in `coins`, the other metals in Crafting.purse).
 func coins_held(metal: String) -> int:
 	if metal == CoinPile.MONEY:
 		return coins
@@ -4557,7 +4562,7 @@ func put_coins_down(metal: String, count: int) -> int:
 	if metal == CoinPile.MONEY:
 		coins -= count
 	else:
-		crafting.pouch[metal] = coins_held(metal) - count
+		crafting.take(metal, count)
 	var ahead := -player.global_transform.basis.z
 	ahead.y = 0.0
 	var spot := player.global_position + (ahead.normalized() * 0.6 if ahead.length() > 0.01 else Vector3.ZERO)

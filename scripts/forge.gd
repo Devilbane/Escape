@@ -214,7 +214,7 @@ static func sell_bars(game: Node, metal: String, count := -1) -> String:
 	return ""
 
 
-## Melts COINS_PER_BAR coins of one metal from the pouch (see Loot.COINS)
+## Melts COINS_PER_BAR coins of one metal from the purse (see Loot.COINS)
 ## into one bar of it: iron coins into an iron bar, copper and silver coins
 ## into fine bars. Returns "" on success, else why not.
 static func melt_coins(game: Node, coin: String) -> String:
@@ -231,7 +231,7 @@ static func melt_coins(game: Node, coin: String) -> String:
 ## game.metal_grams gram by gram, the slag is thrown away, and every
 ## Ore.GRAMS_PER_BAR grams of iron, copper, silver or gold become a bar of it
 ## (the unknown metal stays in grams); the uncut gems in noble ore go into
-## the pouch. Returns {"why": "" on success, else why not; "grams": metal ->
+## the purse. Returns {"why": "" on success, else why not; "grams": metal ->
 ## grams it gave; "bars": metal -> new bars; "gems": their carats}.
 static func melt_ore(game: Node, id: String) -> Dictionary:
 	var lumps: Array = game.crafting.ores.get(id, [])

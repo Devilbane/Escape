@@ -337,9 +337,25 @@ func _draw() -> void:
 			draw_rect(Rect2(p.call(0.42, 0.62), Vector2(u * 0.16, u * 0.28)), TILE)
 		"coin":
 			# Gold, or the metal of a pouch coin (see Loot.COINS).
+			# Each looks like its metal (see CoinPile.METALS): iron dull, copper
+			# with a soft sheen, silver and gold polished, gold with a glint.
 			var metal: Color = Loot.COIN_COLORS.get(what, GOLDEN)
-			draw_circle(p.call(0.5, 0.5), u * 0.42, metal.darkened(0.25))
+			var polish: float = {"eisenmuenze": 0.0, "kupfermuenze": 0.45, "silbermuenze": 1.0}.get(what, 1.0)
+			draw_circle(p.call(0.5, 0.5), u * 0.42, metal.darkened(0.3 + 0.1 * polish))
 			draw_circle(p.call(0.5, 0.5), u * 0.32, metal)
+			if polish > 0.0:
+				# A shine on the face, brighter the more polished.
+				draw_arc(p.call(0.5, 0.5), u * 0.24, PI * 1.05, PI * 1.6, 10, Color(1, 1, 1, 0.35 + 0.5 * polish), u * 0.06)
+			else:
+				# Iron: a few dark pits, no shine.
+				for pit in [[0.4, 0.42], [0.6, 0.56], [0.46, 0.64]]:
+					draw_circle(p.call(pit[0], pit[1]), u * 0.035, metal.darkened(0.35))
+			if what == "goldmuenze" or not Loot.COIN_COLORS.has(what):
+				# A four-pointed glint on polished gold.
+				var g: Vector2 = p.call(0.7, 0.3)
+				var glint := Color(1.0, 0.97, 0.85)
+				draw_colored_polygon(PackedVector2Array([g + Vector2(0, -u * 0.16), g + Vector2(u * 0.035, 0), g + Vector2(0, u * 0.16), g + Vector2(-u * 0.035, 0)]), glint)
+				draw_colored_polygon(PackedVector2Array([g + Vector2(-u * 0.16, 0), g + Vector2(0, -u * 0.035), g + Vector2(u * 0.16, 0), g + Vector2(0, u * 0.035)]), glint)
 		"herb":
 			# A bundle of leaves on a tied stem.
 			draw_line(p.call(0.5, 0.92), p.call(0.5, 0.45), WOOD, u * 0.05)

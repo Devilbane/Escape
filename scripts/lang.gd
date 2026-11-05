@@ -70,6 +70,7 @@ const PARTS := [
 	preload("res://scripts/lang/quick_bar.gd"),
 	preload("res://scripts/lang/exploration.gd"),
 	preload("res://scripts/lang/traps.gd"),
+	preload("res://scripts/lang/flame_jets.gd"),
 	preload("res://scripts/lang/save_slots.gd"),
 	preload("res://scripts/lang/mountains.gd"),
 	preload("res://scripts/lang/hero_level.gd"),

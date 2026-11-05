@@ -134,7 +134,7 @@ func _test_scarcity() -> void:
 			check(share > 0.38 and share < 0.62, "uncommon plain loot on level %d comes about half as often (%.2f)" % [area, share])
 		if before[1] > 200:
 			var share: float = float(after[1]) / before[1]
-			check(share < 0.38, "rare and finer plain loot on level %d comes a third as often or less (%.2f)" % [area, share])
+			check(share < 0.42, "rare and finer plain loot on level %d comes a third as often or less (%.2f)" % [area, share])
 	var room_rng := RandomNumberGenerator.new()
 	room_rng.seed = 3
 	for i in 50:

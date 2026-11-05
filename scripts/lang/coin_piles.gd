@@ -3,9 +3,8 @@ extends RefCounted
 ## purse (see CoinPile). Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
-	"Münzen": "Coins",
 	"Silbermünzen": "Silver coins",
-	"Kupfermünzen": "Copper coins",
+	"Goldmünzen": "Gold coins",
 	"Eisenmünzen": "Iron coins",
 	"Münzen einer Art am selben Fleck bilden einen Haufen (bis %d).": "Coins of one kind on the same spot form one pile (up to %d).",
 	"Dabei: %d": "Carried: %d",

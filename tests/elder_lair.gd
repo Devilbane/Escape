@@ -184,7 +184,7 @@ func _check_hoard() -> void:
 	check(lvl.taken.has(ElderLair.ANCIENT_KEY), "the old dragon's own treasure is taken")
 	check(game.coins >= coins_before + ElderLair.ANCIENT_GOLD, "its gold goes into the purse (%d -> %d)" % [coins_before, game.coins])
 	var tiers: Array = p.bag.map(func(id): return Rarity.tier(id))
-	check(tiers.has("episch") and tiers.has("gottgeboren"), "an epic and a god-born piece from the hoard (%s)" % str(p.bag))
+	check(tiers.has("episch") and not tiers.has("gottgeboren"), "epic pieces from the hoard, no god-born one (%s)" % str(p.bag))
 	check(lvl.elder.asleep and lvl.elder.unrest > 0.0, "the clink of the gold makes it stir but not wake (%.2f)" % lvl.elder.unrest)
 	check(lvl._pickups.filter(func(q): return q.kind == "elder_hoard").is_empty(), "the hoard is gone once taken")
 	# What the dragon helpers bring piles up again, and is the hero's too.

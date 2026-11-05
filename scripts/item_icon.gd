@@ -51,6 +51,12 @@ static func kind_of(id: String) -> String:
 		return "crystal"
 	if id == DragonLair.SCALE:
 		return "shield"
+	if Loot.is_coin(id):
+		return "coin"
+	if Ore.is_ore(id):
+		return "ore"
+	if Ore.GEMS.has(id):
+		return "gem"
 	if id == HomeStores.COINS:
 		return "coin"
 	if id == "eisen":
@@ -215,7 +221,7 @@ func _draw() -> void:
 		"crate":
 			draw_rect(Rect2(p.call(0.15, 0.15), Vector2(u * 0.7, u * 0.7)), WOOD)
 			draw_line(p.call(0.15, 0.15), p.call(0.85, 0.85), WOOD.darkened(0.4), u * 0.06)
-		"iron", "bar_bronze", "bar_silber", "bar_gold":
+		"iron", "bar_kupfer", "bar_bronze", "bar_silber", "bar_gold":
 			# A bar of metal; the fine ones in their own colour (see Forge.METALS).
 			var metal: Color = STEEL if kind_of(what) == "iron" else Forge.METALS[kind_of(what).substr(4)].color
 			draw_colored_polygon(PackedVector2Array([p.call(0.1, 0.75), p.call(0.25, 0.45), p.call(0.9, 0.45), p.call(0.75, 0.75)]), metal.darkened(0.2))
@@ -314,8 +320,10 @@ func _draw() -> void:
 			draw_rect(Rect2(p.call(0.18, 0.5), Vector2(u * 0.64, u * 0.4)), GOLDEN)
 			draw_rect(Rect2(p.call(0.42, 0.62), Vector2(u * 0.16, u * 0.28)), TILE)
 		"coin":
-			draw_circle(p.call(0.5, 0.5), u * 0.42, GOLDEN.darkened(0.25))
-			draw_circle(p.call(0.5, 0.5), u * 0.32, GOLDEN)
+			# Gold, or the metal of a pouch coin (see Loot.COINS).
+			var metal: Color = Loot.COIN_COLORS.get(what, GOLDEN)
+			draw_circle(p.call(0.5, 0.5), u * 0.42, metal.darkened(0.25))
+			draw_circle(p.call(0.5, 0.5), u * 0.32, metal)
 		"herb":
 			# A bundle of leaves on a tied stem.
 			draw_line(p.call(0.5, 0.92), p.call(0.5, 0.45), WOOD, u * 0.05)

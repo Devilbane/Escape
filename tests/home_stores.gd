@@ -154,8 +154,26 @@ func _run() -> void:
 	check(odd.metall == {"muenzen": 5} and odd.zutaten.is_empty(), "a saved store keeps only what belongs in it")
 	check(HomeStores.load_from(null) == HomeStores.empty(), "an old save starts with empty stores")
 
+	# Ore, gems and the new coins go in the chest; each lump and gem stays
+	# as it was (weight, make-up, carat), through the chest and the save.
+	for id in ["erzbrocken_klein", "erzbrocken_episch", "rohedelstein", "edelstein", "eisenmuenze", "silbermuenze", "goldmuenze"]:
+		check(HomeStores.store_of(id) == HomeStores.METAL, "%s goes in the steel-banded chest" % id)
+	game.crafting.add("erzbrocken", 2, false)
+	game.crafting.add_gem("rohedelstein", 13)
+	var lumps: Array = game.crafting.ores["erzbrocken"].duplicate(true)
+	check(HomeStores.put(game, "erzbrocken", 2) == 2 and HomeStores.put(game, "rohedelstein", 1) == 1, "two lumps of ore and a raw gem go in")
+	check(game.crafting.have("erzbrocken") == 0 and not game.crafting.ores.has("erzbrocken") and not game.crafting.gems.has("rohedelstein"), "and leave the pouch")
+	check(game.save_game(), "the game saves with ore in the chest")
+	game.home_stores = HomeStores.empty()
+	game._apply_save(game._read_save())
+	check(HomeStores.take(game, "erzbrocken", 2) == 2 and HomeStores.take(game, "rohedelstein", 1) == 1, "and come back out after loading")
+	var back: Array = game.crafting.ores.get("erzbrocken", [])
+	check(back.size() == 2 and int(back[0].grams) == int(lumps[0].grams) and int(back[1].grams) == int(lumps[1].grams) and int(back[0].share.eisen) == int(lumps[0].share.eisen), "each lump as heavy and as rich as before (%s)" % str(back))
+	check(game.crafting.gems.get("rohedelstein", []) == [13], "the gem as heavy as before")
+	check(not game.home_stores[HomeStores.PIECES].has("erzbrocken"), "the chest keeps no pieces of what left it")
+
 	# Every text has its English.
 	for text in [HomeStores.LEARN, "Stahlbeschlagene Truhe", "Zutatenbord", "Bei dir", "Einlagern", "Nehmen", "Im Haus", "Alle",
-			"Alles einlagern", "Alles nehmen", "Goldmünzen", "%d × %s eingelagert.", "%d × %s genommen."]:
+			"Alles einlagern", "Alles nehmen", "Kupfermünzen", "%d × %s eingelagert.", "%d × %s genommen."]:
 		check(Lang.EN.has(text), "English for: " + text)
 	_finish()

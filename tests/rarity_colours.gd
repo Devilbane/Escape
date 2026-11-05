@@ -139,7 +139,7 @@ func _test_inventory() -> void:
 	menus._select(p.bag.find("stachelschild"))
 	await _wait()
 	check(menus._info.get_parsed_text().contains("%s (%s)" % [Items.item_name("stachelschild"), Lang.t("Selten")]), "the details name the rarity: " + menus._info.get_parsed_text())
-	check(menus._info.text.contains(Rarity.RARE.to_html(false)), "the details show the name in blue")
+	check(menus._info.text.contains(Rarity.RARE.to_html(false)), "the details show the name in yellow")
 	await _shot("inventory_rare_picked")
 	menus._select(p.bag.find("klingenring"))
 	await _wait()

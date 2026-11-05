@@ -84,7 +84,7 @@ static func _empty_tally() -> Dictionary:
 ## "burn", or "" when they leave it where it lies.
 static func fate(kind: String, id: String) -> String:
 	if kind == "coin":
-		# Gold only: the helpers leave the plainer metals lying.
+		# The money only: the helpers leave the other metals lying.
 		return "coin" if CoinPile.metal_of(id) == CoinPile.MONEY else ""
 	if kind != "item" or not Items.ALL.has(id):
 		return ""
@@ -114,7 +114,10 @@ static func melt(id: String) -> Dictionary:
 static func coin_worth(coins: int, bars: Dictionary) -> int:
 	var total := coins
 	for metal in bars:
-		total += int(bars[metal]) * int(Forge.METALS.get(metal, {}).get("worth", 0))
+		if str(metal).begins_with(Forge.GRAMS):
+			total += roundi(int(bars[metal]) * float(Forge.GRAM_VALUE.get(str(metal).substr(Forge.GRAMS.length()), 0.0)))
+		else:
+			total += int(bars[metal]) * int(Forge.METALS.get(metal, {}).get("worth", 0))
 	return total
 
 
@@ -238,7 +241,7 @@ func load_from(data) -> void:
 	var m = data.get("metals", {})
 	if m is Dictionary:
 		for metal in m:
-			if Forge.METALS.has(str(metal)) and int(m[metal]) > 0:
+			if Forge.is_metal_key(str(metal)) and int(m[metal]) > 0:
 				metals[str(metal)] = int(m[metal])
 	var t = data.get("tonight", {})
 	if t is Dictionary:
@@ -247,5 +250,5 @@ func load_from(data) -> void:
 		var tm = t.get("metals", {})
 		if tm is Dictionary:
 			for metal in tm:
-				if Forge.METALS.has(str(metal)):
+				if Forge.is_metal_key(str(metal)):
 					tonight.metals[str(metal)] = maxi(0, int(tm[metal]))

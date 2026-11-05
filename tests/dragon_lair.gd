@@ -221,8 +221,9 @@ func _process(_delta: float) -> bool:
 			check(after - before >= Enemy.KINDS.drache.purse[0], "the dragon leaves a heap of gold (%d coins)" % (after - before))
 			check(dragon.fall_text() == Lang.t("Der Drache stürzt brüllend zu Boden!"), "the message says the dragon fell")
 			check(lvl.lair_cleared, "the fallen dragon wins the lair")
-			# It leaves its scale and its blood, maybe its heart.
-			var parts := lvl._pickups.filter(func(p): return p.kind == "ingredient")
+			# It leaves its scale and its blood, maybe its heart (besides the
+			# coins and ore every intelligent foe may leave, see Loot).
+			var parts := lvl._pickups.filter(func(p): return p.kind == "ingredient" and not Loot.is_coin(p.ingredient) and not Ore.is_ore(p.ingredient))
 			check(parts.size() >= 2 and parts.size() <= 3, "the dragon leaves 2 or 3 parts (%d)" % parts.size())
 			var ids := parts.map(func(p): return p.ingredient)
 			check(DragonLair.SCALE in ids and DragonLair.BLOOD in ids, "a scale and dragon blood among them")

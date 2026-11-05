@@ -4,7 +4,7 @@ extends RefCounted
 const EN := {
 	"Schließen": "Close",
 	"Zurück zum Spiel": "Back to game",
-	"Leben %d / %d (+%.1f/s)    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Gold %d": "Life %d / %d (+%.1f/s)    Power %d    Hardening %d    Speed %d%%    Knives %d    Gold %d",
+	"Leben %d / %d (+%.1f/s)    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Kupfer %d": "Life %d / %d (+%.1f/s)    Power %d    Hardening %d    Speed %d%%    Knives %d    Copper %d",
 	"%+.1f Leben/s": "%+.1f life/s",
 	"Angelegt (anklicken zum Ablegen)": "Worn (click to take off)",
 	"Tasche (%d / %d)": "Bag (%d / %d)",
@@ -19,8 +19,8 @@ const EN := {
 	"Truhe (%d / %d)": "Chest (%d / %d)",
 	"Die Truhe ist voll.": "The chest is full.",
 	"Händler": "Merchant",
-	"Dein Gold: %d": "Your gold: %d",
+	"Dein Kupfer: %d": "Your copper: %d",
 	"Kaufen": "Buy",
-	"%s\n%d Gold": "%s\n%d gold",
+	"%s\n%d Kupfer": "%s\n%d copper",
 	"Verkaufen": "Sell",
 }

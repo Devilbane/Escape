@@ -64,8 +64,8 @@ func _test() -> void:
 	check(DragonHoard.fate("item", "rabenklinge") == "", "a unique blade is left alone")
 	check(DragonHoard.fate("coin", "") == "coin", "coins are gathered")
 	check(DragonHoard.melt("schwert") == Forge.melt_into("schwert"), "a sword melts into what the smith gets from it")
-	check(DragonHoard.melt("rubinring").has("silber"), "a ruby ring into silver")
-	check(DragonHoard.melt("knochenhelm") == {"bronze": Forge.melt_into("knochenhelm", true).bronze}, "the dragon's fire melts even a bone helmet")
+	check(DragonHoard.melt("rubinring").has("g:silber"), "a ruby ring into silver")
+	check(DragonHoard.melt("knochenhelm") == {"g:bronze": Forge.melt_into("knochenhelm", true)["g:bronze"]}, "the dragon's fire melts even a bone helmet")
 	check(DragonHoard.melt("fechtbuch").is_empty(), "a burnt book leaves nothing")
 
 	game.hero_name = "Hoard test"
@@ -194,11 +194,12 @@ func _test() -> void:
 	if heaps.is_empty():
 		return
 	var heap: Node3D = heaps[0].node
-	for metal in hoard_metals:
+	for metal in hoard_metals.keys().filter(func(m): return Forge.METALS.has(m)):
 		check(heap.get_node_or_null("Barren_" + metal) != null, "a stack of %s lies by the heap" % metal)
 	var coins_before: int = game.coins
 	game.iron = 0
 	game.bars = {}
+	game.metal_grams = {}
 	game.crafting.pouch.erase("mondsilbererz")
 	game.player.global_position = Vector3(heap.global_position.x, game.player.global_position.y, heap.global_position.z)
 	lair._check_pickups()
@@ -207,6 +208,6 @@ func _test() -> void:
 	lair._check_pickups()
 	check(game.coins == coins_before + hoard_gold, "once it fell the coins are the hero's (+%d)" % (game.coins - coins_before))
 	check(game.iron == int(hoard_metals.eisen), "the iron goes to the smith's iron bars (%d)" % game.iron)
-	check(int(game.bars.get("bronze", 0)) == int(hoard_metals.bronze), "the bronze bars to the hero's fine bars (%s)" % str(game.bars))
+	check(int(game.metal_grams.get("bronze", 0)) == int(hoard_metals.get("g:bronze", 0)) and hoard_metals.has("g:bronze"), "the bronze to the hero's metal in grams (%s)" % str(game.metal_grams))
 	check(game.crafting.have("mondsilbererz") == 1, "the moon silver into the pouch")
 	check(game.hoard.is_empty(), "the hoard is empty again")

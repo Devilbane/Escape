@@ -48,7 +48,7 @@ const FACTIONS := {
 	"undead": {"name": "Die Toten",
 		"refuse": "Die Toten wollen keine Geschenke. Sie wollen nur dich."},
 	"bandits": {"name": "Die Räuber",
-		"refuse": "Räuber nehmen dein Gold lieber mit Gewalt."},
+		"refuse": "Räuber nehmen dein Kupfer lieber mit Gewalt."},
 	"spiders": {"name": "Die Spinnen",
 		"refuse": "Die Spinne starrt dich mit acht Augen an. Mit ihr ist kein Frieden zu machen."},
 	"brood": {"name": "Die Brut des Drachen",
@@ -65,7 +65,7 @@ const FACTIONS := {
 		"won": "Das Rudel hat dich angenommen! Die Wölfe greifen dich nicht mehr an und kämpfen an deiner Seite.",
 		"friend": "Die Wölfe sind deine Freunde."},
 	"orcs": {"name": "Die Orks", "gift": "gold", "count": 6,
-		"wish": "Orks wollen Gold sehen: 6 Münzen für einen Handschlag.",
+		"wish": "Orks wollen Kupfer sehen: 6 Münzen für einen Handschlag.",
 		"thanks": "Der Ork beißt auf die Münzen und grunzt zufrieden.",
 		"won": "Die Orks nennen dich Freund! Sie greifen dich nicht mehr an und kämpfen an deiner Seite.",
 		"friend": "Die Orks sind deine Freunde."},
@@ -95,7 +95,7 @@ const RIVAL_KILL_FAVOUR := 0.25
 const LOWEST := -6.0
 
 ## Explained once in the compendium, the first time a faction is won over.
-const HOW_TO := "Nicht alle Ungeheuer sind Freunde: Räuber und die Bestien der Wolfssenke bekämpfen sich, und die Toten hassen alles, was lebt. Wölfe, Orks und den Yeti kannst du mit Geschenken für dich gewinnen (Taste T oder „Schenken“, nah bei ihnen): Wölfe mögen Barsch, Orks Gold, der Yeti zwei Barsche. Nach drei Geschenken greifen sie dich nicht mehr an und kämpfen an deiner Seite. Wer ihresgleichen erschlägt, verliert ihre Gunst."
+const HOW_TO := "Nicht alle Ungeheuer sind Freunde: Räuber und die Bestien der Wolfssenke bekämpfen sich, und die Toten hassen alles, was lebt. Wölfe, Orks und den Yeti kannst du mit Geschenken für dich gewinnen (Taste T oder „Schenken“, nah bei ihnen): Wölfe mögen Barsch, Orks Kupfer, der Yeti zwei Barsche. Nach drei Geschenken greifen sie dich nicht mehr an und kämpfen an deiner Seite. Wer ihresgleichen erschlägt, verliert ihre Gunst."
 
 ## Faction id -> favour (see FRIENDLY). Kept in the saved game.
 static var favour := {}

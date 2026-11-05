@@ -11,7 +11,7 @@ extends RefCounted
 ## A pile is one entry on the level's floor list (see Level.floor_items):
 ## ["coin", metal, x, z, count, own], where `own` is how many of the coins the
 ## hero put down themselves (the lucky clover doubles only what is found).
-## Older saves have ["coin", "", x, z]: one gold coin.
+## Older saves have ["coin", "", x, z]: one coin of the money.
 ##
 ## Kept cheap like CoinShine: one model per pile whatever its size, shared
 ## materials (per source, metal and size step), the glints and the glow are
@@ -23,14 +23,14 @@ const MAX := 10000
 ## How close (metres) coins must come down to an existing pile to join it.
 const JOIN_RADIUS := 1.2
 
-## The metals coins are made of: gold goes into the purse (game.coins), the
-## others into the ingredient pouch (Crafting.INGREDIENTS) where they exist.
+## The metals coins are made of: copper, the money, goes into the purse
+## (game.coins), the others into the ingredient pouch (Crafting.INGREDIENTS).
 ## Each has its colour (the coins' own tint, their glow and their glints) and
 ## a German name for the purse.
 const GOLD := "goldmuenze"
-## The metal of the hero's money: these coins go into the purse
-## (game.coins); every other metal into the ingredient pouch.
-const MONEY := GOLD
+## The metal of the hero's money (see Loot.MONEY): these coins go into the
+## purse (game.coins); every other metal into the ingredient pouch.
+const MONEY := "kupfermuenze"
 const METALS := {
 	"goldmuenze": {"name": "Goldmünzen", "tint": Color(1.0, 0.82, 0.42), "glow": Color(1.0, 0.72, 0.25), "glint": Color(1.0, 0.95, 0.75)},
 	"silbermuenze": {"name": "Silbermünzen", "tint": Color(0.7, 0.76, 0.88), "glow": Color(0.7, 0.82, 1.0), "glint": Color(0.92, 0.96, 1.0)},

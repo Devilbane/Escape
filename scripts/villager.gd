@@ -94,7 +94,7 @@ const ROLES := {
 		"lines": ["Haare schneiden, färben, tätowieren: Bei mir wirst du ein neuer Mensch!", "Ein Irokese steht dir bestimmt. Oder gleich in Flammen?", "Halt still, sonst wird die Tätowierung schief."]},
 	"Y": {"name": "Bankier Goldwin", "model": "Mage", "show": ["Mage_Hat"],
 		"colors": [Color(0.25, 0.45, 0.3), Color(0.25, 0.25, 0.28), Color(0.2, 0.35, 0.25)], "plan": "work", "work": "Interact",
-		"lines": ["Gold ist bei uns sicherer als in jeder Truhe.", "Die Bank der Krone öffnet bald ihre Schalter für Abenteurer.", "Zinsen? Nur für treue Kunden."]},
+		"lines": ["Kupfer ist bei uns sicherer als in jeder Truhe.", "Die Bank der Krone öffnet bald ihre Schalter für Abenteurer.", "Zinsen? Nur für treue Kunden."]},
 	"S": {"name": "Steinmetz Hagen", "model": "Barbarian", "show": ["1H_Axe"],
 		"colors": [Color(0.6, 0.58, 0.55), Color(0.4, 0.38, 0.36), Color(0.7, 0.68, 0.64)], "plan": "shop", "work": "1H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Steinblöcke, sauber behauen! Bau dir, was du willst.", "Eine Mauer hält länger als jeder Zaun.", "Stapel sie versetzt, dann hält die Mauer besser."]},
@@ -112,7 +112,7 @@ const NEWS := [
 	"Hört, hört! Die Krone sucht mutige Helden. Meldet euch in der Abenteurergilde!",
 	"Hört, hört! Morgen ist Markttag. Die Krämerin hat frisches Brot!",
 	"Hört, hört! Briefe aus der Hauptstadt liegen auf der Post bereit.",
-	"Hört, hört! Die Bank der Krone verwahrt euer Gold sicher.",
+	"Hört, hört! Die Bank der Krone verwahrt euer Kupfer sicher.",
 	"Hört, hört! Heute Abend gibt es Segen im Tempel für alle!",
 	"Hört, hört! Jede dritte Nacht kommt der Wanderhändler Zarek mit seinem Karren ins Dorf!",
 ]

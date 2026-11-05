@@ -12,7 +12,7 @@ const EN := {
 	"Erfahrung: %d von %d bis zur nächsten Stufe": "Experience: %d of %d to the next level",
 	"Die höchste Stufe ist erreicht.": "You have reached the highest level.",
 	"Du hast einen Punkt frei: Verteile ihn auf der Charakterseite (P).": "You have a free point: spend it on the character page (P).",
-	"Dein Gold: Damit bezahlst du bei Händlern und Handwerkern.": "Your gold: you pay merchants and craftsmen with it.",
+	"Dein Kupfer: Damit bezahlst du bei Händlern und Handwerkern.": "Your copper: you pay merchants and craftsmen with it.",
 	"Mit dem Schlüssel öffnest du die verschlossene Tür zur nächsten Ebene.": "The key opens the locked door to the next level.",
 	"Irgendwo auf dieser Ebene liegt der Schlüssel zur verschlossenen Tür.": "Somewhere on this level lies the key to the locked door.",
 }

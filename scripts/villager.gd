@@ -1010,6 +1010,12 @@ func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := fals
 		_start("idle", 0.5)
 
 
+## How high over our feet the name tag floats (metres): the song sheet's tail
+## points just above it (see SongSheet).
+func tag_height() -> float:
+	return _name_tag.position.y if _name_tag else 2.75
+
+
 ## A line of a drinking song (see DrinkingSongs): said like any other, and
 ## we stay in our seat until it is sung.
 func sing(text: String, time: float) -> void:

@@ -1,5 +1,6 @@
 name: Die Bergschenke
 hint: Die letzte Schenke vor den Minen, mitten im Schartenpass. Am Feuer ist es warm, im Bett ruhst du dich bis zum Morgen aus, in der Truhe wartet, was du eingelagert hast, und der Wirt hat, was ein Wanderer braucht.
+monsters: humans
 building: [
 inn: ja
 ###################

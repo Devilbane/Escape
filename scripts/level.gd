@@ -133,8 +133,6 @@ const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_d
 const SOLID := "#bxotkCDHBLmhVF?f=U|N%~T^&"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
-## Height of walls between the camera and the room, so they never hide the player.
-const LOW_WALL_SCALE := 0.3
 const SPIKE_PERIOD := 3.0
 const SPIKE_UP_TIME := 1.1
 const SPIKE_DOWN_Y := -1.95
@@ -185,6 +183,8 @@ const TORCH_TOUCH := 1.6
 var _spikes: Array = []
 ## The hidden traps of this level (see Traps), or null.
 var traps: Traps = null
+## The flame jets in the walls of this level (see FlameJets), or null.
+var flame_jets: FlameJets = null
 var _pickups: Array = []
 var interactables: Array = []
 ## What the hero already took here: ids of searched furniture and picked up
@@ -221,6 +221,8 @@ var fishing_waters: Array = []
 var safe := false
 ## The world above ground after the last dungeon level: see Outdoor.
 var outdoor := false
+## The dust, cobwebs, critters and drip puddles of a dungeon floor, or null.
+var life: DungeonLife
 ## Inside a village building: the building's letter on the village map,
 ## and which floor ("cellar" below, "upstairs" above).
 var building := ""
@@ -283,6 +285,9 @@ var inn := false
 ## The setting of a mine floor (header "theme:", see Mines): its light and
 ## look. "" for every other level.
 var theme := ""
+## The families of monsters that naturally live here (header "monsters:",
+## see MonsterFamilies).
+var monster_families: Array[String] = []
 ## Where a mine floor's way down ("^") and its stairs lead (headers "down:"
 ## and "up:"), and whether the way down is sealed ("seal:").
 var down_to := ""
@@ -314,8 +319,9 @@ var depth := 0
 ## Whether this is a floor of the beginner dungeon the hero escapes from (Die
 ## Zelle to Das Tor: no building, not the open air). Its loot is common only:
 ## containers, chests and what the skeletons wear. Only its secret rooms (and a
-## puzzle's gated chest) hold finer things, as rich as the map sets them; a
-## named boss's bonus drop (see roll_boss_loot) does not happen here.
+## puzzle's gated chest) hold finer things, and no finer than uncommon
+## (BEGINNER_TOP_TIER), whatever the map sets; a named boss's bonus drop (see
+## roll_boss_loot) does not happen here.
 var beginner_dungeon := false
 var fog: Fog
 var _doors: Array = []
@@ -440,6 +446,9 @@ const TIERS := {
 	"episch": {"name": "Episch", "chance": 18, "gold": 45, "min_price": 34, "color": Rarity.EPIC},
 	"gottgeboren": {"name": "Gottgeboren", "chance": 10, "gold": 70, "min_price": 42, "color": Rarity.GODBORN},
 }
+## The finest tier anything in the beginner dungeon may be: its secret rooms
+## and treasure chests hold common and uncommon things only.
+const BEGINNER_TOP_TIER := "ungewoehnlich"
 ## English names for the secret tiers, accepted in level files.
 const TIER_ALIASES := {"common": "normal", "uncommon": "ungewoehnlich", "rare": "selten", "epic": "episch", "godborn": "gottgeboren"}
 ## Every wall torch, with the tile it lights, and the plain walls without one.
@@ -448,6 +457,9 @@ var _bare_walls: Array = []
 ## Where the bookcases and the wall decorations stand, so that no two of one
 ## kind end up side by side (see WALL_GAP): {"kind", "pos"}.
 var _wall_pieces: Array = []
+## The walls between the camera and a room: full height, but see-through
+## right in front of the hero (see WallFade).
+var _near_walls := WallFade.new()
 ## Two bookcases, or two wall decorations of one kind, are at least this far
 ## apart (metres): three tiles, so a room does not show the same thing twice
 ## in one spot.
@@ -492,6 +504,8 @@ func load_from_file(path: String) -> void:
 			is_home = true
 		elif line.begins_with("theme:"):
 			theme = line.substr(6).strip_edges()
+		elif line.begins_with(MonsterFamilies.HEADER + ":"):
+			monster_families = MonsterFamilies.parse(line.substr(MonsterFamilies.HEADER.length() + 1))
 		elif line.begins_with("down:"):
 			down_to = line.substr(5).strip_edges()
 		elif line.begins_with("up:"):
@@ -532,6 +546,8 @@ func load_from_file(path: String) -> void:
 			width = maxi(width, line.length())
 	height = grid.size()
 	beginner_dungeon = not outdoor and building == ""
+	if beginner_dungeon and tier_rank(secret_tier) > tier_rank(BEGINNER_TOP_TIER):
+		secret_tier = BEGINNER_TOP_TIER
 	if lair:
 		# Monsters live down there: not a safe room, even below a building.
 		safe = false
@@ -578,7 +594,8 @@ func build() -> void:
 	if ElderLair.is_floor(self):
 		ElderLair.decorate(self)
 	if not outdoor and (building == "" or lair):
-		add_child(DungeonLife.new(self))
+		life = DungeonLife.new(self)
+		add_child(life)
 	if not grates.is_empty():
 		add_child(GratePits.new(self))
 		var tentacles := GrateTentacles.make(self)
@@ -589,6 +606,9 @@ func build() -> void:
 	traps = Traps.make(self)
 	if traps:
 		add_child(traps)
+	flame_jets = FlameJets.make(self)
+	if flame_jets:
+		add_child(flame_jets)
 
 
 # --- Keeping the way free ---------------------------------------------------
@@ -747,6 +767,12 @@ func cell_char(c: Vector2i) -> String:
 	return "#" if ch == " " else ch
 
 
+## The ground of a tile, for how fast feet carry over it (see Surfaces):
+## dirt floors are a little slower than the stone of the halls.
+func ground_at(c: Vector2i) -> String:
+	return Surfaces.DIRT if cell_char(c) == "," else Surfaces.STONE
+
+
 func cell_to_world(c: Vector2i) -> Vector3:
 	return Vector3(c.x * TILE, 0.0, c.y * TILE)
 
@@ -755,8 +781,9 @@ func world_to_cell(p: Vector3) -> Vector2i:
 	return Vector2i(roundi(p.x / TILE), roundi(p.z / TILE))
 
 
-## A wall tile is "low" when the room lies north of it, i.e. it stands between
-## the camera and the floor.
+## A wall tile is "low" (near) when the room lies north of it, i.e. it stands
+## between the camera and the floor. It is built at full height like every
+## other wall, but bare, and turns see-through in front of the hero.
 func _is_low_wall(c: Vector2i) -> bool:
 	# A secret wall counts as wall here: the wall below it stays full height
 	# and gives nothing away.
@@ -1048,7 +1075,7 @@ func _build_walls(c: Vector2i) -> void:
 			var shelf := _add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
 			shelf.touch_cell = n
 		if low:
-			wall.scale.y = LOW_WALL_SCALE
+			_near_walls.add(wall)
 			continue
 		# No torch behind a barrel, crate or table: the hero must reach it.
 		var torch: Node3D = null
@@ -1092,7 +1119,7 @@ func _build_corner_pillars() -> void:
 			if walls == 1 or diagonal:
 				var pillar := _place("pillar", Vector3(vx * TILE - TILE * 0.5, 0, vy * TILE - TILE * 0.5))
 				if low:
-					pillar.scale.y = LOW_WALL_SCALE
+					_near_walls.add(pillar)
 
 
 func _build_wall_collision() -> void:
@@ -1431,15 +1458,15 @@ func _build_key(pos: Vector3) -> void:
 	_pickups.append({"node": holder, "kind": "key", "radius": 1.8})
 
 
-## A small gold coin lying flat on the floor, picked up when the hero walks over it.
+## A coin of the money (copper, see CoinPile.MONEY) lying flat on the floor,
+## picked up when the hero walks over it. It looks like a lone coin dropped
+## there: copper, glinting now and then, glowing faintly (see CoinPile.dress).
 func _build_coin(pos: Vector3) -> void:
 	var holder := Node3D.new()
 	holder.position = pos + Vector3(0, 0.03, 0)
 	holder.rotation.y = deg_to_rad(hash(Vector2(pos.x, pos.z)) % 360)
 	add_child(holder)
-	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
-	coin.scale = Vector3.ONE * 1.6
-	CoinShine.add_to_coin(holder)
+	CoinPile.dress(holder, 1, CoinPile.MONEY, self)
 	var c := world_to_cell(pos)
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "id": "coin:%d,%d" % [c.x, c.y]})
 
@@ -1472,11 +1499,17 @@ func _build_chest(c: Vector2i, epic := false) -> void:
 	var loot_rng := RandomNumberGenerator.new()
 	loot_rng.seed = hash("%s:chest:%d:%d" % [level_name, c.x, c.y])
 	if _behind_gate(c):
-		# The reward of a block-pushing puzzle: as rich as a rare secret room.
-		var rare: Dictionary = TIERS["selten"]
-		obj.loot = {"gold": int(rare.gold), "item": loot_item(loot_rng, tier_rank("selten"), HeroLevel.place_level(self) + 1)}
+		# The reward of a block-pushing puzzle: as rich as a rare secret room
+		# (an uncommon one in the beginner dungeon).
+		var reward := puzzle_tier()
+		obj.loot = {"gold": int(TIERS[reward].gold), "item": loot_item(loot_rng, tier_rank(reward), HeroLevel.place_level(self) + 1)}
 		return
 	obj.loot = {"gold": 5, "item": loot_item(loot_rng, 0, HeroLevel.place_level(self))}
+
+
+## How rich the chest behind a puzzle's iron gate is (a key of TIERS).
+func puzzle_tier() -> String:
+	return BEGINNER_TOP_TIER if beginner_dungeon else "selten"
 
 
 ## The tiles reachable from the start without passing an iron gate (|).
@@ -1761,7 +1794,7 @@ func _build_secret_face(c: Vector2i, d: Vector2i) -> void:
 	var wall := _place("wall", pos, rot)
 	secret.walls.append(wall)
 	if d == Vector2i(0, 1):
-		wall.scale.y = LOW_WALL_SCALE
+		_near_walls.add(wall)
 	elif _outer_side().has(c):
 		secret.faces.append({"cell": c, "pos": pos, "rot": rot})
 
@@ -2383,6 +2416,18 @@ const PUSH_APART_SPEED := 6.0
 ## How far two bodies may sink into each other before they count as stacked
 ## (bodies that merely touch must still be able to fight).
 const STACK_TOLERANCE := 0.15
+
+
+## Whether a spot on the floor is in water deep enough to splash: a drip
+## puddle in the dungeon (see DungeonLife). Outdoor has rain puddles instead.
+func in_puddle(p: Vector3) -> bool:
+	return life != null and life.in_puddle(p)
+
+
+## A foot lands in the water at a spot (see in_puddle); a soft step when not hard.
+func splash_puddle(at: Vector3, _hard := true) -> void:
+	if life:
+		life.splash(at)
 
 
 ## Whether `a` and `b` (the hero or skeletons) stand inside each other or on
@@ -3392,6 +3437,7 @@ func _open_gates() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	_near_walls.update(self, player, get_viewport().get_camera_3d())
 	for t in _torches:
 		if not is_instance_valid(t.light):
 			continue
@@ -3612,10 +3658,14 @@ static func finer_keep(id: String) -> float:
 ## anything finer (uncommon and up, books too) only once a level, so a secret
 ## room never holds the same book twice: once all the gear of its tier is
 ## taken, the next chest reaches one tier lower. In the beginner dungeon,
-## plain loot (`min_rank` 0) is common only (see beginner_dungeon). Plain
-## loot keeps a finer piece only with the odds of FINER_KEEP.
+## plain loot (`min_rank` 0) is common only and nothing is finer than
+## BEGINNER_TOP_TIER (see beginner_dungeon). Plain loot keeps a finer piece
+## only with the odds of FINER_KEEP.
 func loot_item(rng: RandomNumberGenerator, min_rank: int, area: int) -> String:
-	var top := 0 if beginner_dungeon and min_rank == 0 else tier_rank("gottgeboren")
+	var top := tier_rank("gottgeboren")
+	if beginner_dungeon:
+		top = 0 if min_rank == 0 else tier_rank(BEGINNER_TOP_TIER)
+		min_rank = mini(min_rank, top)
 	var rank := min_rank
 	var id := Items.random_item(rng, rank, "", area, _rare_loot, top)
 	if min_rank == 0 and not Items.is_common(id) and rng.randf() >= finer_keep(id):
@@ -3802,6 +3852,11 @@ func _spawn_enemies() -> void:
 			if taken.has(slain_key(c)):
 				# Slain before the hero left this floor (see note_left).
 				continue
+			var kind: String = Enemy.LETTERS[ch] if Enemy.LETTERS.has(ch) else creations[ch].base
+			if not monster_families.is_empty() and not MonsterFamilies.fits(kind, monster_families):
+				# Still placed, but the map's "monsters:" header should name its family.
+				push_warning("%s: a %s (%s) does not live here (monsters: %s)" % [file, kind,
+						MonsterFamilies.family_of(kind), ", ".join(monster_families)])
 			var e: Enemy
 			if Enemy.LETTERS.has(ch):
 				e = _spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")
@@ -3985,7 +4040,8 @@ const LIMESTONE_COLOUR := Color(0.88, 0.86, 0.76)
 ## Trolls and the creatures of the mountains roll once more for a lump of
 ## ore (see Loot.ore_find; `ore_roll` sets that roll), and once for a few
 ## lumps of limestone (see Loot.limestone_find). In the beginner
-## dungeon a find is common at most. Returns the gear or ingredient id
+## dungeon a find is common at most, and ore uncommon at most (never the
+## epic noble ore). Returns the gear or ingredient id
 ## dropped (not the ore), or "".
 func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0) -> String:
 	var tough := Loot.toughness(e.max_hp(), e.elite, is_named_boss(e))
@@ -4015,7 +4071,7 @@ func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0) -> Stri
 	var gold_coins := Loot.gold_coins(e.elite or e.is_horror() or is_named_boss(e), e.rated_level)
 	_lay_pouch_coins(Loot.GOLD_COIN, gold_coins, pos + Vector3(-0.9, 0, 0.4))
 	# Trolls and the creatures of the mountains: maybe a lump of ore besides.
-	var ore := Loot.ore_find(e.kind, tough, ore_roll)
+	var ore := Loot.ore_find(e.kind, tough, ore_roll, BEGINNER_TOP_TIER if beginner_dungeon else Loot.TOP_TIER)
 	if ore != "":
 		lay_find(ore, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), Ore.ROCK, 1, true)
 	# And a few lumps of limestone, for steel (see Forge.STEEL_RECIPE).
@@ -4964,12 +5020,12 @@ func _build_stairs(c: Vector2i, up: bool) -> void:
 const WALL_DEPTH := 4.0
 
 
-## The front door of a home: a doorway in the low south wall with the
+## The front door of a home: a doorway in the near south wall with the
 ## daylight of the lane outside, and a mat to wipe your feet on.
 func _build_home_door(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	var doorway := _place("wall_doorway", pos + Vector3(0, 0, TILE * 0.5), 0.0)
-	doorway.scale.y = LOW_WALL_SCALE
+	_near_walls.add(doorway)
 	var leaf: Node3D = doorway.find_child("wall_doorway_door", true, false)
 	if leaf:
 		leaf.visible = false

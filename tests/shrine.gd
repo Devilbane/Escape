@@ -1,6 +1,6 @@
 extends SceneTree
-## Headless test for the dungeon shrines: the panel offers +4 life, +1
-## attribute point and +1 Konstitution, and each gift adds exactly that to the
+## Headless test for the dungeon shrines: the panel offers +5 life, +1
+## attribute point and +1 Konstitution (+2 in the beginner dungeon), and each gift adds exactly that to the
 ## hero. Taking a gift
 ## hands control straight back: the hero can act and walk the very next frame.
 ## Run with: godot --headless --fixed-fps 60 -s tests/shrine.gd
@@ -59,15 +59,15 @@ func _test() -> void:
 	game._open_shrine(shrine)
 	await _wait()
 	var texts := " ".join(_button_texts(game._shrine_panel, []))
-	for gift in ["+4 Leben", "+1 Attributpunkt", "+1 Konstitution"]:
+	for gift in ["+5 Leben", "+1 Attributpunkt"]:
 		check(texts.contains(Lang.t(gift)), "the shrine offers %s (%s)" % [gift, texts])
 
-	# Life: the most and the current life both grow by four.
+	# Life: the most and the current life both grow by five.
 	var max_before: int = p.max_hp
 	p.hp = p.max_hp
 	game._choose_gift(0)
-	check(p.max_hp == max_before + 4, "+4 life raises the most life by 4 (%d -> %d)" % [max_before, p.max_hp])
-	check(p.hp == p.max_hp, "+4 life fills the new life too (%d / %d)" % [p.hp, p.max_hp])
+	check(p.max_hp == max_before + 5, "+5 life raises the most life by 5 (%d -> %d)" % [max_before, p.max_hp])
+	check(p.hp == p.max_hp, "+5 life fills the new life too (%d / %d)" % [p.hp, p.max_hp])
 	check(game._shrine.is_empty() and not game._shrine_panel.visible, "the panel closes after a gift")
 
 	# No wait after the gift: the hero answers at once, and a step ends the
@@ -101,16 +101,31 @@ func _test() -> void:
 	check(p.level_points == level_points_before, "the shrine's point is not kept as a level point")
 	check(p.free_points() == free_before, "the point is spent (%d free)" % p.free_points())
 
-	# Konstitution: one more, and one more life, filled.
+	# Konstitution: the first floor is the beginner dungeon, so two more,
+	# and two more life, filled.
+	check(game.level.beginner_dungeon, "the first floor is in the beginner dungeon")
 	shrine.used = false
 	game._open_shrine(shrine)
+	texts = " ".join(_button_texts(game._shrine_panel, []))
+	check(texts.contains(Lang.t("+%d Konstitution") % 2), "the beginner dungeon's shrine offers +2 Konstitution (%s)" % texts)
 	var con_before: int = p.attribute("konstitution")
 	max_before = p.max_hp
 	p.hp = p.max_hp
 	game._choose_gift(2)
-	check(p.attribute("konstitution") == con_before + 1, "+1 Konstitution raises it by 1 (%d -> %d)" % [con_before, p.attribute("konstitution")])
-	check(p.max_hp == max_before + 1, "+1 Konstitution gives one more life (%d -> %d)" % [max_before, p.max_hp])
+	check(p.attribute("konstitution") == con_before + 2, "+2 Konstitution raises it by 2 (%d -> %d)" % [con_before, p.attribute("konstitution")])
+	check(p.max_hp == max_before + 2, "+2 Konstitution gives two more life (%d -> %d)" % [max_before, p.max_hp])
 	check(p.hp == p.max_hp, "the new life comes filled (%d / %d)" % [p.hp, p.max_hp])
+
+	# Outside the beginner dungeon the gift is +1.
+	game.level.beginner_dungeon = false
+	shrine.used = false
+	game._open_shrine(shrine)
+	texts = " ".join(_button_texts(game._shrine_panel, []))
+	check(texts.contains(Lang.t("+%d Konstitution") % 1), "other shrines offer +1 Konstitution (%s)" % texts)
+	con_before = p.attribute("konstitution")
+	game._choose_gift(2)
+	check(p.attribute("konstitution") == con_before + 1, "+1 Konstitution elsewhere raises it by 1 (%d -> %d)" % [con_before, p.attribute("konstitution")])
+	game.level.beginner_dungeon = true
 
 	# A new run takes the shrine's gifts away again.
 	p.reset_gifts()

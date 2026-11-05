@@ -54,6 +54,11 @@ jobs:
           timeout 60 ~/godot/godot --headless -s tests/tile_letters.gd | tee tiles.log
           grep -q PASS tiles.log
 
+      - name: Monster families (every map names who lives there, every monster fits)
+        run: |
+          timeout 60 ~/godot/godot --headless -s tests/monster_families.gd | tee families.log
+          grep -q PASS families.log
+
       - name: Furniture spacing (no two chests or boards side by side)
         run: |
           timeout 60 ~/godot/godot --headless -s tests/furniture_spacing.gd | tee spacing.log
@@ -78,6 +83,11 @@ jobs:
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/cobwebs.gd | tee cobwebs.log
           grep -q PASS cobwebs.log
+
+      - name: Walls at full height (only the stretch in front of the hero turns see-through)
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/wall_height.gd | tee walls.log
+          grep -q PASS walls.log && ! grep -q FAIL walls.log
 
       - name: Level warm-up (no hitch when a level starts)
         run: |
@@ -123,6 +133,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/rarity_colours.gd | tee rarity.log
           grep -q PASS rarity.log
+
+      - name: Coins look like their metal (copper, iron, polished silver, blinking gold)
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/coin_metals.gd | tee coin_metals.log
+          grep -q PASS coin_metals.log
 
       - name: Villagers grumble about the weather and take fright test
         run: |
@@ -258,6 +273,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log
           grep -q PASS slots.log
+
+      - name: Drip puddles test (a step into one splashes)
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/drip_puddles.gd | tee drip_puddles.log
+          grep -q PASS drip_puddles.log
 
       - name: Stay awake and save test
         run: |
@@ -504,6 +524,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/puddles.gd | tee puddles.log
           grep -q PASS puddles.log
 
+      - name: Walking speed by ground test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/surfaces.gd | tee surfaces.log
+          grep -q PASS surfaces.log
+
       - name: Village houses and chapel test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/village_buildings.gd | tee village.log
@@ -593,6 +618,11 @@ jobs:
         run: |
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/traps.gd | tee traps.log
           grep -q PASS traps.log
+
+      - name: Flame jets test
+        run: |
+          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/flame_jets.gd | tee flame_jets.log
+          grep -q PASS flame_jets.log
 
       - name: Life on the ground above test
         run: |

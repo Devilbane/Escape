@@ -1,5 +1,6 @@
 name: Die Freiheit
 hint: Frische Luft! Folge dem Weg durch den Wald ins Dorf. Dort wartet ein Zuhause auf dich.
+monsters: bandits, undead, ghosts, wildlife, fable, humans
 outdoor: ja
 
 ############################################################################################================================================================================

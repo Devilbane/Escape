@@ -95,9 +95,11 @@ var dead := false
 var hp := MAX_HP
 ## What one shrine gift gives: the player picks one of the three (life, a
 ## free attribute point, or Konstitution).
-const SHRINE_LIFE := 4
+const SHRINE_LIFE := 5
 const SHRINE_POINTS := 1
 const SHRINE_CONSTITUTION := 1
+## In the beginner dungeon a shrine's Konstitution gift is bigger.
+const SHRINE_CONSTITUTION_BEGINNER := 2
 # Gifts from shrines, kept for the whole run.
 var gift_hp := 0
 ## Life from the trophy wall at home (see HomeUpgrades), set by the game.
@@ -157,6 +159,9 @@ var base_speed := SPEED
 var speed: float:
 	get:
 		return base_speed * Items.load_factor(load_weight())
+## The share of the pace the ground underfoot allows right now: grass, scree
+## and puddles slow the hero a little (see Surfaces).
+var surface_pace := 1.0
 ## Throwing knives ready to hand, at most knife_cap() of them; spares ride
 ## in the bag as Items.KNIFE and are slipped back into the belt once no fight
 ## is on (see _settle_knives). A thrown knife lies where it fell until the
@@ -894,7 +899,7 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 
 
 ## A step sounds each time a foot lands in the run animation, so the sound
-## keeps the rhythm of the feet at any speed. In a rain puddle it splashes.
+## keeps the rhythm of the feet at any speed. In a puddle it splashes.
 func _footsteps(ground_speed: float) -> void:
 	var sneak := _current_anim == SNEAK_ANIM
 	var walk := _current_anim == WALK_ANIM
@@ -908,11 +913,11 @@ func _footsteps(ground_speed: float) -> void:
 			if phase < _last_phase:
 				crossed = _last_phase < landing or phase >= landing
 			if crossed:
-				# In a rain puddle every step splashes (see Puddles).
-				var outdoor := level as Outdoor
-				if outdoor and outdoor.in_puddle(global_position):
+				# In a puddle every step splashes: rain puddles above ground
+				# (see Puddles), drip puddles below (see DungeonLife).
+				if level.in_puddle(global_position):
 					Sfx.play(self, "splash_%d" % (randi() % 4), -21.0 if sneak else (-15.0 if walk else -11.0))
-					outdoor.puddles.splash(global_position, not sneak)
+					level.splash_puddle(global_position, not sneak)
 				# Sneaking: only a very soft touch, barely to be heard.
 				elif sneak:
 					Sfx.play(self, "sneak_%d" % (randi() % 4), -22.0)
@@ -2251,7 +2256,9 @@ func _physics_process(delta: float) -> void:
 		dir = _flee_step()
 	_breathe(delta, dir != Vector3.ZERO)
 	var vy := velocity.y - GRAVITY * delta
-	var pace := speed * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else WALK_FACTOR * run_boost)
+	if is_on_floor():
+		surface_pace = Surfaces.ease_pace(surface_pace, level, global_position, delta)
+	var pace := speed * surface_pace * (SNEAK_SPEED + SNEAK_PER_LEVEL * skill("schleichen") if sneaking else WALK_FACTOR * run_boost)
 	velocity = dir * pace + _knockback
 	if _air_momentum != Vector3.ZERO:
 		if is_on_floor() and vy <= 0.0:

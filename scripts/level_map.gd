@@ -7,7 +7,7 @@ extends RefCounted
 
 ## The header lines the game reads (see Level.load_from_file, Creations,
 ## Traps.parse_header). Any other line is a row of the map.
-const KEYS := ["name", "hint", "secret", "safe", "elite", "building", "lair", "dark", "horror",
+const KEYS := ["name", "hint", "secret", "monsters", "safe", "elite", "building", "lair", "dark", "horror",
 		"home", "theme", "down", "up", "seal", "inn", "floor", "outdoor", "fountain", "traps", "writing", "custom"]
 ## Tiles the hero cannot walk through (walls and Level.FURNITURE); "?" (a
 ## secret wall), "Q" (a block that can be pushed) and "x" (crates, which the
@@ -275,6 +275,7 @@ func validate() -> Array:
 		add.call(true, "Es gibt %d Starts (P), erlaubt ist einer.", starts[1], [starts.size()])
 	if get_header("name") == "":
 		add.call(false, "Die Karte hat keinen Namen.")
+	_check_families(add, made)
 	if is_outdoor():
 		return out
 	var exits := find_all("E")
@@ -344,6 +345,40 @@ func validate() -> Array:
 	if lost > 0:
 		add.call(false, "%d Schätze liegen, wo niemand hinkommt.", first, [lost])
 	return out
+
+
+## Whether each monster on the map belongs where the header "monsters:" says
+## (see MonsterFamilies): hints only, a map plays either way.
+func _check_families(add: Callable, made: Dictionary) -> void:
+	var value := get_header(MonsterFamilies.HEADER)
+	for name in MonsterFamilies.unknown(value):
+		add.call(false, "„%s“ ist keine Monsterfamilie.", Vector2i(-1, -1), [name])
+	var families := MonsterFamilies.parse(value)
+	var letters: Dictionary = Enemy.WILD_LETTERS if is_outdoor() else Enemy.LETTERS
+	var named: Dictionary = EditorPalette.OUTDOOR_NAMES if is_outdoor() else EditorPalette.NAMES
+	var told := {}
+	for y in grid.size():
+		for x in grid[y].length():
+			var ch := grid[y][x]
+			if told.has(ch):
+				continue
+			var kind := ""
+			var label := ""
+			if letters.has(ch):
+				kind = letters[ch]
+				label = Lang.t(named.get(ch, kind))
+			elif made.has(ch) and made[ch].type == "monster":
+				kind = made[ch].base
+				label = Creations.label_of(made[ch])
+			if kind == "" or MonsterFamilies.fits(kind, families):
+				continue
+			told[ch] = true
+			if families.is_empty():
+				add.call(false, "Die Karte sagt nicht, welche Monster hier leben (Bewohner).", Vector2i(x, y))
+				return
+			var family := MonsterFamilies.family_of(kind)
+			add.call(false, "%s (%s) lebt hier nicht: Hake die Familie unter Bewohner an.", Vector2i(x, y),
+					[label, Lang.t(MonsterFamilies.FAMILIES.get(family, family))])
 
 
 ## An issue of validate in the player's language.

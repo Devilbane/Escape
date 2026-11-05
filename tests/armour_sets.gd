@@ -9,8 +9,9 @@ extends SceneTree
 ## or a piece off says so, and the character page shows the set worn in a
 ## line that keeps its size. Hydra and wyrm pieces are never sold, the dragon
 ## scale pieces are crafted from Embermaw's scales, and the dragon sometimes
-## leaves two scales. Armour value takes a share off each hit after the
-## hardening, and the character page explains both.
+## leaves two scales. Each piece's card names its set. Armour value takes a
+## share off each hit after the hardening, and the character page explains
+## both.
 ## Run with: godot --headless -s tests/armour_sets.gd
 
 var failures := 0
@@ -60,6 +61,13 @@ func _test() -> void:
 		var item: Dictionary = Items.ALL[id]
 		if item.has("set"):
 			check(ArmourSets.SETS.has(item.set) and item.slot in ArmourSets.PIECES, "%s belongs to a known set in a set slot" % id)
+			# The item card names the set the piece belongs to.
+			var card := Items.describe(id)
+			check(ArmourSets.title(item.set) != "" and ArmourSets.title(item.set) in card and not "null" in card, "%s's card names its set (%s)" % [id, card])
+		# Every armour piece of a set's material belongs to a set; only bone
+		# and fur have none.
+		elif item.slot in ArmourSets.PIECES:
+			check(item.get("material", "") in ["bone", "fur"], "%s (%s) belongs to the set of its material" % [id, item.get("material", "")])
 	# What a full set weighs: cloth 3 kg, leather 9, steel 25, iron 35. The
 	# weight is what slows the hero (Items.WEIGHT_SLOW per kg).
 	var weights := {}

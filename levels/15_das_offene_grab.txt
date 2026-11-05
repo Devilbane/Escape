@@ -1,5 +1,6 @@
 name: Das offene Grab
 hint: Unter dem Friedhof, wo die Toten nicht schlafen: stockfinster, feucht und voller Knochen. Etwas Großes regt sich hier unten.
+monsters: undead, ghosts, wildlife
 building: loch1
 floor: cellar
 lair: yes

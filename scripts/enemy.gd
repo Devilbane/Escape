@@ -88,11 +88,12 @@ const KINDS := {
 	# The ghoul lurks among the dead of the dungeon with the ghosts: no
 	# spirit but a hunched, grey eater of corpses, quick, with claws that
 	# poison. An orc's body without its club ("hide"), its colourful skin
-	# washed out to the tint's dead grey ("recolor", see _tint).
+	# turned to dead grey, rotting in patches down to the bare bones
+	# ("ghoul_skin", see ghoul.gdshader).
 	"ghul": {"model": "Orc", "dir": "wild", "hp": 4, "speed": 5.4, "damage": 1, "reach": 2.0, "size": 0.95, "cooldown": 1.1,
 		"beast": true, "model_scale": 0.82, "turn": 0.0, "run_anim": 4.5, "hide": ["Orc_Weapon"],
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
-		"tint": Color(0.62, 0.68, 0.6), "recolor": true, "voice": ["voice_ghul", 1.0, "schmatz"], "gear_chance": 0.0, "poison": 0.3},
+		"ghoul_skin": true, "voice": ["voice_ghul", 1.0, "schmatz"], "gear_chance": 0.0, "poison": 0.3},
 	# The beasts of the wild (Quaternius models in assets/wild): "beast"
 	# kinds bite or claw instead of holding a weapon. "anims" maps the
 	# animation names played here to the model's own, "model_scale" and
@@ -274,6 +275,8 @@ const DEEPEST := 9
 
 var level: Level
 var kind := "krieger"
+## The share of its pace the ground underfoot allows right now (see Surfaces).
+var surface_pace := 1.0
 ## A monster made in the map workshop (see Creations.monster_stats): numbers
 ## that replace those of its kind, and its own name ("title") over its head.
 var custom := {}
@@ -666,10 +669,8 @@ func _ready_beast() -> void:
 	_hide_parts()
 	if _stats.model == "Slime":
 		_slime()
-	elif _stats.get("recolor", false):
-		for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
-			if mesh.visible and mesh.mesh != null:
-				_tint(mesh, _stats.tint)
+	elif _stats.get("ghoul_skin", false):
+		_rot_skin()
 	elif _stats.has("tint"):
 		_darken(_stats.tint)
 	if _stats.has("glow"):
@@ -911,6 +912,27 @@ func _glowing_eyes() -> void:
 	glow.omni_range = 1.2
 	glow.position = Vector3(0, 2.0 * _stats.size, 0.6 * _stats.size)
 	add_child(glow)
+
+
+const GHOUL_SHADER := preload("res://shaders/ghoul.gdshader")
+
+
+## A ghoul's skin (see ghoul.gdshader): dead grey, rotting in patches down
+## to the bare bones, the patches in other places on every ghoul.
+func _rot_skin() -> void:
+	var seed := Vector3(randf() * 50.0, randf() * 50.0, randf() * 50.0)
+	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+		if not mesh.visible or mesh.mesh == null:
+			continue
+		for i in mesh.mesh.get_surface_count():
+			var source := mesh.get_active_material(i) as BaseMaterial3D
+			var mat := ShaderMaterial.new()
+			mat.shader = GHOUL_SHADER
+			if source != null:
+				mat.set_shader_parameter("tex", source.albedo_texture)
+			mat.set_shader_parameter("seed", seed)
+			mat.set_shader_parameter("decay", randf_range(0.55, 0.8))
+			mesh.set_surface_override_material(i, mat)
 
 
 const SPIRIT_SHADER := preload("res://shaders/spirit.gdshader")
@@ -1389,7 +1411,10 @@ func _physics_process(delta: float) -> void:
 		_detour_time -= delta
 		move = (move * 0.3 + _detour).normalized()
 	move = _mind_spikes(move)
-	velocity = move * float(_stats.speed) + _knockback
+	# Walkers feel the ground (see Surfaces); flyers and ghosts skim over it.
+	if _stats.get("lift", 0.0) <= 0.0 and not is_ghost():
+		surface_pace = Surfaces.ease_pace(surface_pace, level, global_position, delta)
+	velocity = move * float(_stats.speed) * surface_pace + _knockback
 	velocity.y = 0.0 if is_ghost() else -9.0
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 40.0)
 	move_and_slide()
@@ -1526,7 +1551,7 @@ func _voice(delta: float, dist: float) -> void:
 ## look for a new way.
 func _check_stuck(delta: float, move: Vector3) -> void:
 	var ground_speed := SmoothMotion.ground_speed(self)
-	if move == Vector3.ZERO or ground_speed > float(_stats.speed) * 0.3:
+	if move == Vector3.ZERO or ground_speed > float(_stats.speed) * surface_pace * 0.3:
 		_stuck = maxf(0.0, _stuck - delta)
 		return
 	_stuck += delta

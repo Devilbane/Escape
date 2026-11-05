@@ -290,4 +290,13 @@ const EN := {
 	"Ein Haus je Feld an der Vorderseite, von Westen nach Osten gezählt.": "One house per tile along the front, counted from west to east.",
 	"Die Karte im Freien: Dorf, Wald, Pass und Berge. Gebäude sind Rechtecke aus einem Zeichen; Fallen, Geheimräume und eigene Geschöpfe gibt es hier nicht.": "The open-air map: village, forest, pass and mountains. Buildings are rectangles of one letter; there are no traps, secret rooms or creations of your own here.",
 	"Eigene Geschöpfe gibt es nur in Verliesen. Im Freien sind die Ziffern Dorfbewohner.": "Creations of your own are for dungeons only. In the open air the digits are villagers.",
+	# Who lives where (MonsterFamilies, the "Bewohner" boxes of the map page).
+	"Bewohner": "Inhabitants",
+	"Geister": "Ghosts",
+	"Wildtiere": "Wildlife",
+	"Sagenwesen": "Creatures of legend",
+	"Menschen": "Humans",
+	"„%s“ ist keine Monsterfamilie.": "\"%s\" is not a family of monsters.",
+	"Die Karte sagt nicht, welche Monster hier leben (Bewohner).": "The map does not say which monsters live here (Inhabitants).",
+	"%s (%s) lebt hier nicht: Hake die Familie unter Bewohner an.": "%s (%s) does not live here: tick its family under Inhabitants.",
 }

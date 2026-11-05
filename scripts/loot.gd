@@ -82,7 +82,7 @@ const CHANGED := ["silbermuenze"]
 ## How many coins of one metal melt into one bar.
 const COINS_PER_BAR := 100
 ## How each coin looks lying on the floor.
-const COIN_COLORS := {"eisenmuenze": Color(0.6, 0.62, 0.66), "kupfermuenze": Color(0.85, 0.48, 0.28), "silbermuenze": Color(0.88, 0.9, 0.95), "goldmuenze": Color(1.0, 0.8, 0.3)}
+const COIN_COLORS := {"eisenmuenze": Color(0.5, 0.5, 0.52), "kupfermuenze": Color(0.8, 0.43, 0.26), "silbermuenze": Color(0.86, 0.88, 0.93), "goldmuenze": Color(1.0, 0.78, 0.25)}
 
 ## What a beast leaves, by kind: "food" (common), "biome" (uncommon: one of
 ## these ingredients of where it lives) and "part" (rare: for a trophy or a
@@ -200,11 +200,11 @@ static func drops_ore(kind: String) -> bool:
 
 ## The ore a fallen one leaves on a roll of its own (with the same odds per
 ## tier): a lump of ore of that tier (see Ore.LUMPS; epic is noble ore with
-## gems), or "" for none.
-static func ore_find(kind: String, tough: float, roll := -1.0) -> String:
+## gems), or "" for none. `top` is the finest tier it can give.
+static func ore_find(kind: String, tough: float, roll := -1.0, top := TOP_TIER) -> String:
 	if not drops_ore(kind):
 		return ""
-	return Ore.lump_of_tier(roll_tier(tough, TOP_TIER, roll))
+	return Ore.lump_of_tier(roll_tier(tough, top, roll))
 
 
 ## Limestone for steel (see Forge.STEEL_RECIPE): the trolls and the other

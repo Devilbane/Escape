@@ -288,7 +288,8 @@ func _build_map_page() -> void:
 		var about := EditorUi.label(Lang.t("Die Karte im Freien: Dorf, Wald, Pass und Berge. Gebäude sind Rechtecke aus einem Zeichen; Fallen, Geheimräume und eigene Geschöpfe gibt es hier nicht."), 16, EditorUi.DIM)
 		about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		box.add_child(about)
-		_add_other_headers(box, ["name", "hint", "outdoor"])
+		_add_families(box)
+		_add_other_headers(box, ["name", "hint", "outdoor", MonsterFamilies.HEADER])
 		return
 	var tiers := Level.TIERS.keys().map(func(k): return [k, Lang.t(Level.TIERS[k].name)])
 	box.add_child(EditorUi.row(Lang.t("Geheimraum"), EditorUi.choice(tiers, Level.TIER_ALIASES.get(map.get_header("secret", "normal"), map.get_header("secret", "normal")), func(k): _set_header("secret", k))))
@@ -299,6 +300,7 @@ func _build_map_page() -> void:
 		box.add_child(EditorUi.check(Lang.t(entry[1]), map.has_header(key), func(on):
 			map.set_flag(key, on)
 			_changed()))
+	_add_families(box)
 	box.add_child(_gap())
 	box.add_child(EditorUi.label(Lang.t("Verborgene Fallen"), 16, EditorUi.GOLD))
 	var trap := Traps.parse_header(map.get_header("traps"))
@@ -324,7 +326,7 @@ func _build_map_page() -> void:
 	var note := EditorUi.label(Lang.t("Ohne eigene Inschrift wählt das Spiel eine nach der Tiefe."), 16, EditorUi.DIM)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
-	_add_other_headers(box, ["name", "hint", "secret", "elite", "dark", "safe", "traps", "writing", "custom"])
+	_add_other_headers(box, ["name", "hint", "secret", MonsterFamilies.HEADER, "elite", "dark", "safe", "traps", "writing", "custom"])
 
 
 ## The header lines this page does not edit, shown so nobody wonders where
@@ -348,6 +350,34 @@ func _gap() -> Control:
 
 func _set_header(key: String, value: String) -> void:
 	map.set_header(key, value)
+	_changed()
+
+
+## Which families of monsters live here (header "monsters:", see
+## MonsterFamilies): one box each. The checks name a monster that does not fit.
+func _add_families(box: VBoxContainer) -> void:
+	box.add_child(_gap())
+	box.add_child(EditorUi.label(Lang.t("Bewohner"), 16, EditorUi.GOLD))
+	# Six short names: two columns of equal width keep the page short.
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", EditorUi.ROW_GAP)
+	box.add_child(grid)
+	var families := MonsterFamilies.parse(map.get_header(MonsterFamilies.HEADER))
+	for family in MonsterFamilies.FAMILIES:
+		var c := EditorUi.check(Lang.t(MonsterFamilies.FAMILIES[family]), family in families, func(_on): _store_families())
+		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		c.set_meta("family", family)
+		grid.add_child(c)
+
+
+func _store_families() -> void:
+	var families: Array = []
+	for child in _page_boxes[0].find_children("*", "", true, false):
+		if child is CheckBox and child.has_meta("family") and child.button_pressed:
+			families.append(child.get_meta("family"))
+	map.set_header(MonsterFamilies.HEADER, MonsterFamilies.to_value(families))
 	_changed()
 
 

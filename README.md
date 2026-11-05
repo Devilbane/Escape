@@ -87,7 +87,7 @@ Find the **key**, open the **door** and climb the **stairs** up to the next leve
 Barrels, crates, tables, chests and wall shelves can be searched: inside there may be gold,
 throwing knives, a healing potion or nothing at all. Searched objects get a tick.
 Skeletons attack with blades or crossbows. You can jump over **spikes**. Skeletons avoid spike traps, wait until the spikes are down, and hurt themselves on them.
-At a **shrine** you choose one gift: +4 life, +1 attribute point (to put into Strength, Dexterity or Intelligence on the character page) or +1 Constitution (a wise hero also gets +1 hardening).
+At a **shrine** you choose one gift: +5 life, +1 attribute point (to put into Strength, Dexterity or Intelligence on the character page) or +1 Constitution (+2 in the beginner dungeon; a wise hero also gets +1 hardening).
 Gifts last until the end of the game.
 
 Sometimes you find **gear**: helmets and hats (bone helmet, wizard hat, knight's helmet, bear cap) sit visibly on your head, sword and axe give power, shields give life,
@@ -318,6 +318,13 @@ hatch) in a thin frame, and the better your roll, the clearer it shows: a narrow
 mark and you merely sense a trap, a good one shows it plainly and names its modifiers. Spotting trains Exploring
 and gives a little experience; your path goes around a known trap, and a jump (Space) carries you over it
 safely. A trap you step on unawares shows itself plainly. Known traps stay marked on later visits.
+
+In the catacombs, the blade hall, the gate, the dragon's lair and the scorched halls, iron **flame jets** sit in
+the walls. They are never hidden: a strip of soot on the floor shows the lane each one fires across, straight to
+the wall opposite (2 to 5 tiles). Each runs on its own steady beat: 3 seconds quiet, 1 second of warning (the
+nozzle and the soot strip glow red and the mechanism clicks), then 1.5 seconds of fire. The fire hurts once per
+blast, as much as the place's spike traps, and sets you burning. Jumping does not help, but Dexterity may still
+let you twist aside: read the warning and cross while the jet is quiet.
 
 You only see what lies in your line of sight and has light: a burning torch nearby or
 your own lantern. Dark corners stay black; skeletons in them you only hear by their footsteps.

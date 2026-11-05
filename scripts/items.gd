@@ -379,7 +379,7 @@ static func describe(id: String, worn := 0) -> String:
 	if item.get("weight", 0.0) > 0.0:
 		parts.append(Lang.t("Gewicht %s") % weight_text(item.weight))
 	if ArmourSets.SETS.has(item.get("set", "")):
-		parts.append(Lang.t("Teil: %s (%s)") % [ArmourSets.set_name(item.set), ArmourSets.bonus_text(item.set)])
+		parts.append(Lang.t("Teil: %s (%s)") % [ArmourSets.title(item.set), ArmourSets.bonus_text(item.set)])
 	if item.has("effect"):
 		parts.append(Lang.t(item.effect))
 	return ", ".join(parts)
@@ -472,8 +472,8 @@ const RARITY := {
 	"wyrmhelm": "episch", "wyrmpanzer": "episch", "wyrmstiefel": "episch", "wyrmhandschuhe": "episch",
 	# Jewellery.
 	"bronzearmreif": "normal", "kupferring": "normal",
-	"amulett_leben": "ungewoehnlich", "amulett_tempo": "ungewoehnlich", "amulett_kraft": "ungewoehnlich",
-	"silberarmreif": "selten", "rubinring": "selten",
+	"amulett_leben": "ungewoehnlich", "amulett_kraft": "ungewoehnlich",
+	"amulett_tempo": "selten", "silberarmreif": "selten", "rubinring": "selten",
 	# Specials.
 	"vampirzahn": "selten", "gluecksklee": "episch", "dornenrune": "episch", "phoenixfeder": "gottgeboren",
 	# Backpacks.

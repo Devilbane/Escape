@@ -222,7 +222,9 @@ var _plants := {}
 var _house_rect := Rect2i()
 var _door_cell := Vector2i(-1, -1)
 var _roof: Node3D
-var _south_walls: Array = []
+## The south walls of the house: full height, but see-through in front of
+## the hero while the hero is inside (see WallFade).
+var _house_fade := WallFade.new()
 var _inside := false
 var _entered_once := false
 var _marker: Node3D
@@ -388,6 +390,8 @@ const ORE_NOTICE_RANGE := 36.0
 var _weather_foes: Array = []
 ## The rain puddles on the open ground (see Puddles).
 var puddles: Puddles
+## The bounds of the square and the graveyard fence, found once (see ground_at).
+var _ground_rects := {}
 var _strike_timer := 0.0
 var _rock_cells: Array[Vector2i] = []
 ## Where the mountain over the dragon's lair stands (the foot of the arch),
@@ -2004,8 +2008,8 @@ func _block_facing(block: Rect2i) -> Vector2i:
 # --- The hero's house ---------------------------------------------------------
 
 ## Stone walls from the dungeon kit around a wooden floor, under a tiled
-## roof. Inside, the roof lifts off and the south wall drops low, like the
-## walls in the dungeon, so the camera can look in.
+## roof. Inside, the roof lifts off and the south wall turns see-through in
+## front of the hero, like the near walls in the dungeon (see WallFade).
 func _build_house() -> void:
 	_house_rect = _bounds_of("I")
 	if _house_rect.size == Vector2i.ZERO:
@@ -2057,8 +2061,8 @@ func _build_house_walls(c: Vector2i) -> void:
 		# back: a second wall faces out.
 		var outer := _place("wall", pos + Vector3(d.x, 0, d.y) * 0.02, atan2(float(d.x), float(d.y)))
 		if d == Vector2i(0, 1) or c == _door_cell:
-			_south_walls.append(wall)
-			_south_walls.append(outer)
+			_house_fade.add(wall)
+			_house_fade.add(outer)
 
 
 func _build_house_pillars() -> void:
@@ -2069,7 +2073,7 @@ func _build_house_pillars() -> void:
 			if walls == 1 or walls == 3:
 				var pillar := _place("pillar", Vector3(vx * TILE - TILE * 0.5, 0, vy * TILE - TILE * 0.5))
 				if vy == _house_rect.end.y - 1:
-					_south_walls.append(pillar)
+					_house_fade.add(pillar)
 
 
 func _build_roof() -> void:
@@ -2652,8 +2656,8 @@ func _process(delta: float) -> void:
 	if inside != _inside:
 		_inside = inside
 		_roof.visible = not inside
-		for wall in _south_walls:
-			create_tween().tween_property(wall, "scale:y", LOW_WALL_SCALE if inside else 1.0, 0.35)
+		if not inside:
+			_house_fade.reset(self)
 		if inside and house_given and not _entered_once:
 			_entered_once = true
 			notice.emit(Lang.t("Dein neues Zuhause! Im Bett speicherst du, in der Truhe lagerst du deine Schätze."), 4.0)
@@ -2661,6 +2665,8 @@ func _process(delta: float) -> void:
 		if inside and _marker:
 			_marker.queue_free()
 			_marker = null
+	if inside:
+		_house_fade.update(self, player, get_viewport().get_camera_3d())
 	_mind_the_wild(delta)
 	_whisper_from_holes(delta)
 	_mind_the_night(delta)
@@ -3309,8 +3315,36 @@ func set_puddles(water: float, rain := 0.0, sky := 1.0) -> void:
 
 
 ## Whether a spot on the ground is in a rain puddle deep enough to splash.
+## The ground of an open-air tile, as _build_ground lays it (see Surfaces):
+## paving on the square, the dirt paths, the floor of the hero's old house,
+## loose scree in the mountains, dark soil in the graveyard, the pumpkin
+## field and the robbers' camp, and grass everywhere else.
+func ground_at(c: Vector2i) -> String:
+	if _ground_rects.is_empty():
+		_ground_rects = {"square": _bounds_of(":"), "fence": _bounds_of("z")}
+	var ch := cell_char(c)
+	if ",aP".contains(ch):
+		return Surfaces.PATH
+	if ch == "i" or ch == "B" or ch == "L":
+		return Surfaces.WOOD
+	if "'=]{}-/".contains(ch):
+		return Surfaces.SCREE
+	var square: Rect2i = _ground_rects.square
+	if ch == ":" or (square.has_point(c) and not BLOCK_CHARS.contains(ch)):
+		return Surfaces.PAVING
+	var fence: Rect2i = _ground_rects.fence
+	if fence.has_point(c) or ch == "y" or CAMP.contains(ch):
+		return Surfaces.SOIL
+	return Surfaces.GRASS
+
+
 func in_puddle(p: Vector3) -> bool:
 	return puddles != null and p.y < 0.3 and puddles.wet_at(p)
+
+
+func splash_puddle(at: Vector3, hard := true) -> void:
+	if puddles:
+		puddles.splash(at, hard)
 
 
 ## Spots for the creatures of a weather: open ground right next to the map

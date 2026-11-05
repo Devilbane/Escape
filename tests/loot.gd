@@ -160,6 +160,9 @@ func _test_ore() -> void:
 	check(Loot.ore_find("felstroll", 1.0, Loot.chance("episch", 1.0) + 0.0001) == "erzbrocken_gross", "the next luckiest is a large lump")
 	check(Loot.ore_find("felstroll", 1.0, 0.99) == "", "most trolls carry none")
 	check(Loot.ore_find("wolf", 1.0, 0.0) == "", "a wolf never carries ore")
+	# In the beginner dungeon the luckiest roll stops at uncommon ore.
+	var capped := Loot.ore_find("felstroll", 1.0, 0.0, Level.BEGINNER_TOP_TIER)
+	check(capped != "" and Level.tier_rank(Rarity.tier(capped)) <= Level.tier_rank(Level.BEGINNER_TOP_TIER), "a beginner dungeon troll leaves uncommon ore at most, not %s" % capped)
 	var weights := {"erzbrocken_klein": [500, 999, "normal"], "erzbrocken": [1000, 2000, "ungewoehnlich"], "erzbrocken_gross": [2500, 5000, "selten"]}
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5

@@ -3,7 +3,8 @@ extends SceneTree
 ## is picked up again by walking over it; it stays on the floor after leaving
 ## and coming back. Only 3 + Messerwurf / 2 knives are ready for a fight;
 ## the rest go into the bag and are slipped back into the belt once no fight
-## is on. The ammunition count under the life bar follows.
+## is on. The ammunition count under the life bar follows. One throw in five
+## breaks the knife: it is gone instead of lying on the floor.
 ## Run with: godot --headless -s tests/thrown_knives.gd
 
 var failures := 0
@@ -108,6 +109,8 @@ func _test() -> void:
 	var before := _knives_on_floor().size()
 	var dirs := [Vector3.FORWARD, Vector3.BACK, Vector3.LEFT, Vector3.RIGHT]
 	var shot: Projectile = Projectile.spawn(game.level, start + Vector3(0, 1.5, 0), dirs[0], true)
+	check(is_equal_approx(shot.break_chance, 0.2), "a thrown knife breaks one time in five (%.2f)" % shot.break_chance)
+	shot.break_chance = 0.0
 	for i in 400:
 		if not is_instance_valid(shot) or shot.is_queued_for_deletion():
 			break
@@ -123,6 +126,18 @@ func _test() -> void:
 	check(not game.level.astar.is_point_solid(cell) and not game.level.is_opaque(cell), "it lies on open floor, not in the wall")
 	check(spot.y < 0.2, "it lies flat on the floor (%.2f)" % spot.y)
 	check(game.level.floor_items.any(func(e): return e[1] == Items.KNIFE), "it is on the floor list")
+
+	# A knife that breaks is gone: nothing more lies on the floor.
+	var listed: int = game.level.floor_items.filter(func(e): return e[1] == Items.KNIFE).size()
+	var broken: Projectile = Projectile.spawn(game.level, start + Vector3(0, 1.5, 0), dirs[0], true)
+	broken.break_chance = 1.0
+	for i in 400:
+		if not is_instance_valid(broken) or broken.is_queued_for_deletion():
+			break
+		broken._physics_process(1.0 / 60.0)
+	check(not is_instance_valid(broken) or broken.is_queued_for_deletion(), "the breaking knife's flight ends")
+	check(_knives_on_floor().size() == before + 1, "a broken knife does not lie on the floor")
+	check(game.level.floor_items.filter(func(e): return e[1] == Items.KNIFE).size() == listed, "nor on the floor list")
 
 	# It stays there when coming back.
 	game.load_level(refuge, false)

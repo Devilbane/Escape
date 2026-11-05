@@ -3905,7 +3905,7 @@ func heard(speaker: String, text: String, pos: Vector3) -> void:
 ## fixed order (see StatusIcon): shown under the life bar.
 func hero_ailments() -> Array:
 	var out := []
-	for kind in ["gift", "fluch", "brand", "netz"]:
+	for kind in ["gift", "fluch", "brand", "netz", "angst"]:
 		if player.ailments.has(kind):
 			out.append([kind, ""])
 	if player.ailments.has(BloatedBelly.KIND):
@@ -3954,6 +3954,7 @@ func icon_text(kind: String, number: String) -> String:
 		"fluch": return Lang.t("Verflucht: Du bist langsamer. Es vergeht bald; ein Brunnen, ein Schrein oder ein Heiltrank heilt es sofort.")
 		"brand": return Lang.t("Du brennst: Ein paar Sekunden lang verlierst du Leben, nie das letzte.")
 		"netz": return Lang.t("Eingesponnen: Spinnenseide klebt an dir. Ein paar Sekunden lang bist du viel langsamer.")
+		"angst": return Lang.t("Verängstigt: Ein Geist hat dich in Panik versetzt. Ein paar Sekunden lang rennst du zum nächsten Ausgang. Weisheit, Intuition und Erkunden helfen, standhaft zu bleiben.")
 		BloatedBelly.KIND: return Lang.t("Zu viel Wasser getrunken: Dein Bauch ist prall und du bist viel langsamer. Noch %s, dann geht es von selbst vorbei.") % BloatedBelly.long_countdown(player.ailments.get(BloatedBelly.KIND, 0.0))
 		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
 		"fast": return Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)

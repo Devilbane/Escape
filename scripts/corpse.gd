@@ -11,7 +11,8 @@ extends Node
 ##     numbers, and the level runs in tests/play_all_levels.gd depend on
 ##     that stream);
 ##   melt (slimes): run out flat at once into a puddle that dries to a stain;
-##   wisp (fog wraiths): blow away in a moment and leave nothing.
+##   wisp (fog wraiths and the ghosts of the dungeon): blow away in a moment
+##     and leave nothing.
 ## For the web build only a few corpses lie about at once (MAX_CORPSES): a
 ## new one hurries the oldest to its end. The remnants are cheap static
 ## meshes, also capped (MAX_REMNANTS). Neither is kept when the hero leaves
@@ -85,7 +86,7 @@ static func lay(who: Enemy) -> Corpse:
 
 ## How a kind rots away.
 static func style_of(who: Enemy) -> String:
-	if who.kind == "fog_wraith":
+	if who.kind == "fog_wraith" or who.is_ghost():
 		return "wisp"
 	if who.kind.contains("schleim"):
 		return "melt"

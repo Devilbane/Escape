@@ -19,6 +19,10 @@ extends RefCounted
 ##   slimes): no coins and no gear but, with the odds above, food (common),
 ##   an ingredient of the place they live in (uncommon) or a part of their
 ##   body to keep as a trophy or use in a craft (rare), or nothing.
+## The ghosts of the dungeon (Enemy "ghost": wraiths, banshees) were people
+## once, but they have no hands and no pockets any more: they leave what a
+## beast does, from a table of their own (ectoplasm, a crypt herb, a part of
+## what they are).
 ## Slimes are beasts too, but they swallow what their victims carried: they
 ## also drop coins and gear like the intelligent ones (see SWALLOWS).
 ##
@@ -96,6 +100,10 @@ const CREATURES := {
 	"schlund": {"food": "schleimgelee", "biome": ["glimmermoos", "hoehlenpilz"], "part": "schleimkern"},
 	"kristallschleim": {"food": "schleimgelee", "biome": ["grottenkristall"], "part": "schleimkern"},
 	"glutschleim": {"food": "schleimgelee", "biome": ["grottenkristall"], "part": "schleimkern"},
+	# The ghosts and ghouls of the deep dungeon.
+	"totengeist": {"food": "ektoplasma", "biome": ["hoehlenpilz", "glimmermoos"], "part": "geisterschleier"},
+	"banshee": {"food": "ektoplasma", "biome": ["glimmermoos", "hoehlenpilz"], "part": "bansheehaar"},
+	"ghul": {"food": "grabstaub", "biome": ["hoehlenpilz", "glimmermoos"], "part": "ghulkralle"},
 }
 ## Which part of a beast's table each tier gives (epic finds are gear only).
 const CREATURE_TIERS := {"normal": "food", "ungewoehnlich": "biome", "selten": "part"}
@@ -105,6 +113,8 @@ const CREATURE_TIERS := {"normal": "food", "ungewoehnlich": "biome", "selten": "
 ## gear): then it carries coins and maybe gear.
 static func is_intelligent(kind: String) -> bool:
 	var stats: Dictionary = Enemy.KINDS.get(kind, {})
+	if stats.has("ghost"):
+		return false
 	return kind in INTELLIGENT or not stats.get("beast", false)
 
 

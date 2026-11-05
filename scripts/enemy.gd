@@ -55,7 +55,23 @@ const KINDS := {
 	# Fog wraiths drift among the dead trees above ground, only in fog (see
 	# Weather): pale little dead that roam instead of standing guard.
 	"fog_wraith": {"model": "Skeleton_Minion", "weapon": "Skeleton_Blade", "hp": 2, "speed": 5.6, "damage": 1, "reach": 1.8, "size": 0.9, "cooldown": 1.1,
-		"tint": Color(0.78, 0.86, 0.95), "roam": true, "voice": ["voice_wicht", 0.75, "huuu"], "purse": [1, 3]},
+		"tint": Color(0.78, 0.86, 0.95), "roam": true, "voice": ["voice_wicht", 0.75, "huuu"], "purse": [1, 3], "scare": 10},
+	# The ghosts of the deep dungeon (see _ghostly): the dead who never found
+	# rest. "ghost" is their pale white, "aura" the neon glow around them:
+	# see-through, with no feet,
+	# they hover above the floor, drift over spikes and make no sound when
+	# they move. Once one has spotted the hero, walls and closed doors no
+	# longer stop it: it drifts straight through them at the hero. They wear nothing, carry nothing and fade away when they
+	# fall. A wraith ("fade") is all but invisible until it notices the hero,
+	# and its cold touch can curse ("curse": the chance per hit). A banshee
+	# keeps her distance and throws wailing orbs like a mage ("magic"); when
+	# she first sees the hero she shrieks and wakes every monster within
+	# "shriek" metres. Every ghost (fog wraiths too) can frighten the hero
+	# ("scare": how strong its fright is, see scare_strength and Player.scare).
+	"totengeist": {"model": "Skeleton_Rogue", "weapon": "Skeleton_Blade", "hp": 3, "speed": 4.4, "damage": 1, "reach": 2.0, "size": 1.0, "cooldown": 1.5,
+		"ghost": Color(0.95, 1.0, 0.97), "aura": Color(0.3, 1.0, 0.45), "fade": true, "curse": 0.3, "scare": 14, "gear_chance": 0.0, "voice": ["voice_totengeist", 1.0, "huuu"]},
+	"banshee": {"model": "Skeleton_Mage", "hp": 2, "speed": 3.8, "damage": 1, "reach": 18.0, "size": 1.0, "cooldown": 3.0, "ranged": true, "magic": true,
+		"ghost": Color(0.95, 1.0, 0.97), "aura": Color(0.45, 1.0, 0.3), "shriek": 16.0, "scare": 18, "hide": ["_Hat"], "gear_chance": 0.0, "voice": ["voice_banshee", 1.0, "uuuh"]},
 	"waechter": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Axe", "shield": "Skeleton_Shield_Large_A", "hp": 1, "speed": 3.0, "damage": 2, "reach": 2.3, "size": 1.25, "cooldown": 1.6, "tint": Color(0.46, 0.5, 0.58), "armored": true},
 	# The bandits of the open wild: "human" kinds use the adventurer models
 	# ("dir"), keep only the body parts in "parts", wear clothes in "colors"
@@ -69,6 +85,14 @@ const KINDS := {
 	# The chief is the boss of the pass (see BanditChief).
 	"hauptmann": {"model": "Knight", "dir": "characters", "weapon": "sword_1handed", "shield": "shield_round", "hp": 30, "speed": 4.2, "damage": 3, "reach": 2.2, "size": 1.1, "cooldown": 1.4,
 		"human": true, "roam": true, "parts": ["Knight_Cape"], "colors": [Color(0.45, 0.14, 0.12), Color(0.22, 0.2, 0.2), Color(0.5, 0.1, 0.1)]},
+	# The ghoul lurks among the dead of the dungeon with the ghosts: no
+	# spirit but a hunched, grey eater of corpses, quick, with claws that
+	# poison. An orc's body without its club ("hide"), its colourful skin
+	# washed out to the tint's dead grey ("recolor", see _tint).
+	"ghul": {"model": "Orc", "dir": "wild", "hp": 4, "speed": 5.4, "damage": 1, "reach": 2.0, "size": 0.95, "cooldown": 1.1,
+		"beast": true, "model_scale": 0.82, "turn": 0.0, "run_anim": 4.5, "hide": ["Orc_Weapon"],
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
+		"tint": Color(0.62, 0.68, 0.6), "recolor": true, "voice": ["voice_ghul", 1.0, "schmatz"], "gear_chance": 0.0, "poison": 0.3},
 	# The beasts of the wild (Quaternius models in assets/wild): "beast"
 	# kinds bite or claw instead of holding a weapon. "anims" maps the
 	# animation names played here to the model's own, "model_scale" and
@@ -218,7 +242,8 @@ const HORRORS := ["hohle_mutter", "bleicher_waechter", "schlund"]
 const LETTERS := {"M": "krieger", "A": "schuetze", "Z": "magier", "w": "wicht", "G": "koloss", "W": "waechter",
 	"v": "fledermaus", "s": "schleim", "R": "drache",
 	"J": "felstroll", "O": "bergork", "e": "eiswolf", "i": "kristallschleim", "g": "glutschleim", "Y": "bergkoenig",
-	"d": "brutdrache", "@": "grosser_alter", "u": "spinne", "q": "spinnenkoenigin"}
+	"d": "brutdrache", "@": "grosser_alter", "u": "spinne", "q": "spinnenkoenigin",
+	"r": "totengeist", "n": "banshee", "l": "ghul"}
 ## The letters of the open-air map that place bandits (see Outdoor).
 const WILD_LETTERS := {"c": "halsabschneider", "A": "wilderer", "X": "schlaeger", "Q": "hauptmann",
 	"W": "wolf", "H": "ork", "J": "yeti", "U": "spinne",
@@ -284,6 +309,15 @@ var _busy := 0.0
 var _cooldown := 0.0
 ## Seconds before a spider can throw its next web.
 var _web_cool := 0.0
+## A ghost's see-through materials (see _ghostly), how much of it shows
+## now (0..1, see _haunt) and its glow.
+var _ghost_mats: Array[ShaderMaterial] = []
+var _ghost_alpha := 1.0
+var _ghost_light: OmniLight3D
+## Seconds before a banshee can shriek again (see _shriek).
+var _shriek_cool := 0.0
+## Seconds before a ghost can try to frighten the hero again (see _frighten).
+var _scare_cool := 0.0
 var _awake := false
 ## Seconds spent pushing without getting anywhere, and the sidestep out.
 var _stuck := 0.0
@@ -473,6 +507,10 @@ func _ready() -> void:
 	shape.shape = capsule
 	shape.position.y = 1.2 * size
 	add_child(shape)
+	if _stats.has("ghost"):
+		# A ghost bumps into nothing: walls and closed doors do not stop it
+		# (see _physics_process), and it floats, so it needs no floor.
+		collision_mask = 0
 
 	var body: Node3D = load("res://assets/%s/%s.%s" % [_stats.get("dir", "enemies"), _stats.model, _stats.get("ext", "glb")]).instantiate()
 	if is_beast():
@@ -499,7 +537,7 @@ func _ready() -> void:
 	var weapon := _worn("waffe")
 	if weapon.has("model") and not ranged:
 		_hold(skeleton, "handslot.r", weapon.model)
-	else:
+	elif _stats.has("weapon"):
 		_hold(skeleton, "handslot.r", "res://assets/weapons/%s.gltf" % _stats.weapon)
 	var shield := _worn("schild")
 	if _stats.has("shield"):
@@ -515,7 +553,9 @@ func _ready() -> void:
 		var part := "umhang" if mesh.name.ends_with("_Cloak") or mesh.name.ends_with("_Cape") else "ruestung" if mesh.name.ends_with("_Body") else ""
 		if part != "" and _worn(part).has("tint"):
 			_tint(mesh, _worn(part).tint, _worn(part).get("metal", 0.0))
-	if elite or kind == "koloss" or kind == "waechter":
+	if is_ghost():
+		_ghostly()
+	elif elite or kind == "koloss" or kind == "waechter":
 		_glowing_eyes()
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Walking_D_Skeletons", "Skeleton_Inactive_Standing_Pose"]:
@@ -542,6 +582,11 @@ func is_human() -> bool:
 ## Whether this is an animal or monster of the wild.
 func is_beast() -> bool:
 	return _stats.get("beast", false)
+
+
+## Whether this is one of the ghosts of the dungeon (see _ghostly).
+func is_ghost() -> bool:
+	return _stats.has("ghost")
 
 
 ## Whether this is one of the nameless horrors (see Horrors).
@@ -588,6 +633,12 @@ func fall_text() -> String:
 			return Lang.t("Der Drache stürzt brüllend zu Boden!")
 		"fog_wraith":
 			return Lang.t("Der Nebelgeist verweht.")
+		"totengeist":
+			return Lang.t("Der Totengeist verweht mit einem Seufzer.")
+		"banshee":
+			return Lang.t("Die Banshee verstummt und zerfällt zu Nebel.")
+		"ghul":
+			return Lang.t("Der Ghul sackt zusammen.")
 		"eiswolf":
 			return Lang.t("Der Eiswolf bleibt liegen.")
 		"bergork":
@@ -612,8 +663,13 @@ func fall_text() -> String:
 ## made of murky water (see _slime).
 func _ready_beast() -> void:
 	_anim = _model.find_child("AnimationPlayer", true, false)
+	_hide_parts()
 	if _stats.model == "Slime":
 		_slime()
+	elif _stats.get("recolor", false):
+		for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+			if mesh.visible and mesh.mesh != null:
+				_tint(mesh, _stats.tint)
 	elif _stats.has("tint"):
 		_darken(_stats.tint)
 	if _stats.has("glow"):
@@ -857,6 +913,159 @@ func _glowing_eyes() -> void:
 	add_child(glow)
 
 
+const SPIRIT_SHADER := preload("res://shaders/spirit.gdshader")
+## How high a ghost hovers above the floor (metres), and how far it bobs.
+const HOVER := 0.35
+const BOB := 0.08
+## How much of a wraith shows while it has not noticed the hero: a shimmer
+## at its edges, nothing more.
+const FADED := 0.16
+## Seconds a banshee waits before she can shriek again.
+const SHRIEK_COOL := 12.0
+## A ghost tries to frighten the hero when it first notices the hero, and
+## again every SCARE_COOL seconds while it hunts the hero within SCARE_RANGE
+## metres in sight. An elite's fright is ELITE_SCARE stronger.
+const SCARE_COOL := 10.0
+const SCARE_RANGE := 10.0
+const ELITE_SCARE := 3
+
+
+## Hides the parts of the model a kind leaves off ("hide": name endings),
+## such as the mage's hat on a banshee or the club of a ghoul.
+func _hide_parts() -> void:
+	var hide: Array = _stats.get("hide", [])
+	if hide.is_empty():
+		return
+	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+		for ending in hide:
+			if String(mesh.name).ends_with(ending):
+				mesh.visible = false
+
+
+## Turns the skeleton into a ghost (see spirit.gdshader): every part, the
+## held blade too, see-through in the kind's "ghost" colour and fading away
+## towards the floor, with a neon aura at its edges ("aura"), eyes burning
+## in that colour, a glow around it,
+## and the whole of it hovering above the floor.
+func _ghostly() -> void:
+	_hide_parts()
+	var color: Color = _stats.ghost
+	var aura: Color = _stats.get("aura", color)
+	var phase := randf() * 100.0
+	# One height for the whole body, so it fades from the knees down as one.
+	var body := AABB()
+	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+		if mesh.visible and mesh.mesh != null and not _is_held(mesh):
+			body = mesh.get_aabb() if body.size == Vector3.ZERO else body.merge(mesh.get_aabb())
+	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+		if not mesh.visible or mesh.mesh == null:
+			continue
+		if String(mesh.name).ends_with("_Eyes"):
+			var eyes := StandardMaterial3D.new()
+			eyes.albedo_color = aura
+			eyes.emission_enabled = true
+			eyes.emission = aura
+			eyes.emission_energy_multiplier = 5.0
+			eyes.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mesh.material_override = eyes
+			continue
+		# A held blade keeps all of itself; the body fades out below.
+		var held := _is_held(mesh)
+		# An elite's dark tint would sit over the ghost's own look.
+		mesh.material_override = null
+		for i in mesh.mesh.get_surface_count():
+			var source := mesh.get_active_material(i) as BaseMaterial3D
+			var mat := ShaderMaterial.new()
+			mat.shader = SPIRIT_SHADER
+			if source != null and source.albedo_texture != null:
+				mat.set_shader_parameter("tex", source.albedo_texture)
+				mat.set_shader_parameter("use_tex", true)
+			mat.set_shader_parameter("color", color)
+			mat.set_shader_parameter("aura", aura)
+			mat.set_shader_parameter("phase", phase)
+			if held:
+				mat.set_shader_parameter("fade_low", -1000.0)
+				mat.set_shader_parameter("fade_high", -999.0)
+				mat.set_shader_parameter("sway", 0.0)
+			else:
+				mat.set_shader_parameter("fade_low", body.position.y + 0.06 * body.size.y)
+				mat.set_shader_parameter("fade_high", body.position.y + 0.42 * body.size.y)
+			mesh.set_surface_override_material(i, mat)
+			_ghost_mats.append(mat)
+		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_ghost_light = OmniLight3D.new()
+	_ghost_light.light_color = aura
+	_ghost_light.light_energy = 0.9
+	_ghost_light.omni_range = 3.2
+	_ghost_light.position = Vector3(0, 1.5, 0)
+	add_child(_ghost_light)
+	_model.position.y = HOVER
+	_set_ghost_alpha(FADED if _stats.get("fade", false) else 1.0)
+
+
+## Whether a part of the model is something held in a hand (a blade).
+func _is_held(mesh: Node) -> bool:
+	var up := mesh.get_parent()
+	while up != null and up != _model:
+		if up is BoneAttachment3D:
+			return true
+		up = up.get_parent()
+	return false
+
+
+## How much of the ghost shows, 0..1, and its glow with it.
+func _set_ghost_alpha(value: float) -> void:
+	_ghost_alpha = value
+	for mat in _ghost_mats:
+		mat.set_shader_parameter("alpha", value)
+	if _ghost_light != null:
+		_ghost_light.light_energy = 0.9 * value
+	for mesh: MeshInstance3D in _model.find_children("*_Eyes", "MeshInstance3D", true, false):
+		var eyes := mesh.material_override as StandardMaterial3D
+		if eyes != null:
+			eyes.albedo_color.a = clampf(value * 1.5, 0.0, 1.0)
+
+
+## A ghost's tick: it bobs in the air, and a wraith flares up out of its
+## shimmer as soon as it is on the hunt, and fades back once it gives up.
+func _haunt(delta: float) -> void:
+	var target := 1.0 if _awake or not _stats.get("fade", false) else FADED
+	if not is_equal_approx(_ghost_alpha, target):
+		_set_ghost_alpha(move_toward(_ghost_alpha, target, delta * (3.0 if target > _ghost_alpha else 0.6)))
+	var t := Time.get_ticks_msec() / 1000.0
+	_model.position.y = HOVER + sin(t * 1.7 + float(get_instance_id() % 97)) * BOB
+
+
+## The banshee has seen the hero: a shriek that wakes every monster within
+## "shriek" metres and sets it on the hero.
+func _shriek(player: Player) -> void:
+	_shriek_cool = SHRIEK_COOL
+	var color: Color = _stats.get("aura", _stats.ghost)
+	Sfx.play(self, "banshee_shriek", 4.0, global_position)
+	Effects.head_text(level, self, 3.0, Lang.t("KREISCH!"), color)
+	Events.tell(Lang.t("Eine Banshee kreischt! Ihr Schrei weckt alles in der Nähe."), color)
+	var reach: float = _stats.shriek
+	for e in level.enemies:
+		if is_instance_valid(e) and e != self and not e.dead and _flat_distance(e) < reach:
+			e.alert(player.global_position)
+
+
+## How strong this ghost's fright is (see Player.scare): its kind's "scare",
+## its level (see rated_level, which grows with the depth it haunts) and
+## more for an elite.
+func scare_strength() -> int:
+	return int(_stats.get("scare", 0)) + rated_level + (ELITE_SCARE if elite else 0)
+
+
+## The ghost tries to frighten the hero: a hero whose nerve fails runs for
+## the nearest way out (see Player.scare), with a howl and a word for it.
+func _frighten(player: Player) -> void:
+	_scare_cool = SCARE_COOL
+	if player.scare(global_position, scare_strength()):
+		Sfx.play(self, "ghost_scare", 2.0, global_position)
+		Events.tell(Lang.t("Das Grauen packt dich! Du rennst zum nächsten Ausgang."), Player.AILMENT_COLORS.angst)
+
+
 ## `anim_name` is one of the skeleton models' animation names; a beast plays
 ## its own animation for it (see "anims" in KINDS).
 func _play(anim_name: String, blend := 0.2) -> void:
@@ -931,7 +1140,11 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	Effects.head_text(level, self, 2.2 * _stats.size, "-%d" % damage, Color(1, 0.45, 0.35))
 	# The comic word below makes the sound of the blow.
 	if hp <= 0:
-		if is_human() or is_beast():
+		if is_ghost():
+			# Nothing solid to strike: a sigh, and it blows apart.
+			Comic.pop(global_position, "backstab" if kind == "backstab" else "big")
+			Sfx.play(self, "magic", -4.0, global_position, 0.6)
+		elif is_human() or is_beast():
 			# No bones to rattle: a person or a beast goes down with a thud.
 			Comic.pop(global_position, "backstab" if kind == "backstab" else "big")
 			Sfx.play(self, "hit", -2.0, global_position)
@@ -1006,7 +1219,7 @@ func _set_foe(e: Enemy) -> void:
 
 ## Spikes hurt skeletons too, once per thrust.
 func hurt_by_trap(at: Vector3) -> void:
-	if _trap_cool > 0.0 or dead or _stats.get("armored", false):
+	if _trap_cool > 0.0 or dead or _stats.get("armored", false) or is_ghost():
 		return
 	_trap_cool = 1.2
 	take_hit(1, at, "hit", false)
@@ -1015,7 +1228,8 @@ func hurt_by_trap(at: Vector3) -> void:
 ## Waits at the edge of a spike trap that is up or about to strike, rather
 ## than walk into it. Already standing on one, it keeps going to get off.
 func _mind_spikes(move: Vector3) -> Vector3:
-	if move == Vector3.ZERO:
+	# A ghost drifts over the spikes.
+	if move == Vector3.ZERO or is_ghost():
 		return move
 	var here := level.world_to_cell(global_position)
 	var ahead := level.world_to_cell(global_position + move * Level.TILE * 0.45)
@@ -1049,6 +1263,9 @@ func _die() -> void:
 		# A flyer drops out of the air.
 		create_tween().tween_property(_model.get_child(0), "position:y", 0.0, 0.5) \
 				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	if is_ghost():
+		# A ghost fades out as it blows apart (see Corpse "wisp").
+		create_tween().tween_method(_set_ghost_alpha, _ghost_alpha, 0.0, 1.6)
 	died.emit()
 	# The body stays where it fell and rots away (see Corpse).
 	Corpse.lay(self)
@@ -1066,6 +1283,8 @@ func _physics_process(delta: float) -> void:
 	_trap_cool = maxf(0.0, _trap_cool - delta)
 	_cooldown = maxf(0.0, _cooldown - delta)
 	_web_cool = maxf(0.0, _web_cool - delta)
+	_shriek_cool = maxf(0.0, _shriek_cool - delta)
+	_scare_cool = maxf(0.0, _scare_cool - delta)
 	_repath -= delta
 	var player: Player = level.player
 	var to_player := player.global_position - global_position
@@ -1074,6 +1293,8 @@ func _physics_process(delta: float) -> void:
 	var sees := dist < SIGHT and level.has_line_of_sight(global_position, player.global_position)
 	# Under the open sky there is no fog of war: everything shows.
 	visible = level.fog == null or level.fog.is_cell_visible(level.world_to_cell(global_position))
+	if is_ghost():
+		_haunt(delta)
 	var friendly := is_friend()
 	_calmed = maxf(0.0, _calmed - delta)
 	if (friendly or _calmed > 0.0) and _awake:
@@ -1084,6 +1305,12 @@ func _physics_process(delta: float) -> void:
 	if not player.dead and not friendly and _calmed <= 0.0 and _notices(player, to_player, dist, sees):
 		if not _awake:
 			Effects.float_text(level, global_position + Vector3(0, 3.4 * _stats.size, 0), "!", Color(1.0, 0.3, 0.2))
+			if _stats.has("shriek") and _shriek_cool <= 0.0:
+				_shriek(player)
+			if _stats.has("scare"):
+				_scare_cool = 0.0
+		if _stats.has("scare") and _scare_cool <= 0.0 and dist < SCARE_RANGE and sees:
+			_frighten(player)
 		_wake(player.global_position)
 	elif _awake:
 		_lost += delta
@@ -1104,10 +1331,16 @@ func _physics_process(delta: float) -> void:
 		foe = null
 		_path.clear()
 		_repath = 0.0
+	# A ghost that has spotted the hero feels where the hero is, through
+	# walls and doors, and does not lose the trail while the hero is near.
+	if is_ghost() and _awake and not player.dead and dist < SIGHT:
+		_lost = 0.0
+		_last_known = player.global_position
 	# A rival nearer than the hero is fought first.
 	var fights_foe := foe != null and (not _awake or player.dead or _flat_distance(foe) < dist)
 
-	var move := _step_out() if _busy <= 0.0 else Vector3.ZERO
+	var through_walls := is_ghost() and _awake
+	var move := _step_out() if _busy <= 0.0 and not through_walls else Vector3.ZERO
 	if move != Vector3.ZERO:
 		pass # Out of the furniture first.
 	elif fights_foe:
@@ -1122,13 +1355,16 @@ func _physics_process(delta: float) -> void:
 			_face(to_player)
 			if _cooldown <= 0.0:
 				_shoot(player)
-		elif not ranged and dist < _stats.reach and not level.door_between(global_position, player.global_position):
+		elif not ranged and dist < _stats.reach and (through_walls or not level.door_between(global_position, player.global_position)):
 			_face(to_player)
 			if _cooldown <= 0.0:
 				_strike(player)
 		elif can_throw_web(dist, sees):
 			_face(to_player)
 			_throw_web(player)
+		elif through_walls:
+			# Straight at the hero, through stone and doors alike.
+			move = to_player.normalized()
 		else:
 			if _repath <= 0.0 or _path.is_empty():
 				_repath = 0.5
@@ -1154,7 +1390,7 @@ func _physics_process(delta: float) -> void:
 		move = (move * 0.3 + _detour).normalized()
 	move = _mind_spikes(move)
 	velocity = move * float(_stats.speed) + _knockback
-	velocity.y = -9.0
+	velocity.y = 0.0 if is_ghost() else -9.0
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 40.0)
 	move_and_slide()
 	if move != Vector3.ZERO:
@@ -1247,7 +1483,7 @@ func _fight_foe() -> Vector3:
 ## mark where they sound.
 func _footfalls(delta: float, moving: bool, dist: float) -> void:
 	_step_timer -= delta
-	if visible or not moving or dist > HEARD_FROM or _step_timer > 0.0:
+	if visible or not moving or is_ghost() or dist > HEARD_FROM or _step_timer > 0.0:
 		return
 	_step_timer = 0.8
 	Sfx.play(level, "step_%d" % (randi() % 6), lerpf(-24.0, -10.0, 1.0 - dist / HEARD_FROM), global_position)
@@ -1457,12 +1693,15 @@ func _strike(target: Node3D) -> void:
 		return
 	var player := target as Player
 	if player != null and d.length() < float(_stats.reach) + 0.6 and not level.stacked(self, player) \
-			and not level.door_between(global_position, player.global_position):
+			and (is_ghost() or not level.door_between(global_position, player.global_position)):
 		var before := player.hp
 		player.take_damage(_stats.damage, global_position, self)
 		# Minion blades and spider bites are sometimes poisoned.
 		if player.hp < before and randf() < _stats.get("poison", POISON_CHANCE if kind == "wicht" else 0.0):
 			player.afflict("gift")
+		# A wraith's touch is cold as the grave: it curses.
+		if player.hp < before and _stats.has("curse") and randf() < float(_stats.curse):
+			player.afflict("fluch")
 
 
 ## True when a spider may throw its web at the hero now: it sees the hero,
@@ -1496,7 +1735,7 @@ func _throw_web(target: Node3D) -> void:
 ## A bolt, an orb or fire at the hero, or at a rival monster.
 func _shoot(target: Node3D) -> void:
 	_cooldown = _stats.cooldown
-	var magic: bool = kind == "magier"
+	var magic: bool = kind == "magier" or _stats.get("magic", false)
 	var fire: bool = _stats.get("fire", false)
 	_play_once("Spellcast_Shoot" if magic else "1H_Ranged_Shoot", 0.9 if magic or fire else 0.7)
 	await get_tree().create_timer(0.5 if magic or fire else 0.3).timeout

@@ -5,7 +5,8 @@ extends RefCounted
 ## dungeon, they fight each other (see Enemy.foe), and whoever wins leaves
 ## the loser's loot for the hero.
 ##
-## - The dead (skeletons, fog wraiths) hate everything that lives.
+## - The dead (skeletons, fog wraiths, the ghosts and ghouls of the dungeon)
+##   hate everything that lives.
 ## - The bandits of the pass and the beasts of the wolf hollow (wolves, orcs,
 ##   spiders, the yeti) are at war. The beasts share their hollow in peace.
 ## - The dragon's brood (bats, slimes, the dragon) wants the skeletons out
@@ -23,6 +24,7 @@ extends RefCounted
 const KINDS := {
 	"krieger": "undead", "schuetze": "undead", "magier": "undead", "wicht": "undead",
 	"koloss": "undead", "waechter": "undead", "fog_wraith": "undead",
+	"totengeist": "undead", "banshee": "undead", "ghul": "undead",
 	"halsabschneider": "bandits", "wilderer": "bandits", "schlaeger": "bandits", "hauptmann": "bandits",
 	"wolf": "wolves", "ork": "orcs", "spinne": "spiders", "yeti": "yeti",
 	"spinnenkoenigin": "spiders",

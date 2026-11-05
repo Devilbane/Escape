@@ -176,6 +176,9 @@ var iron := 0
 ## at the forge or taken from the dragon's hoard, bought back by the smith
 ## (see Forge). Kept in the saved game.
 var bars := {}
+## Grams of metal melted from ore not yet enough for a bar (see Ore and
+## Forge.melt_ore), by metal, the unknown metal too. Kept in the saved game.
+var metal_grams := {}
 ## The hero's companions (see Companions): {"kind", "name"} for each, the
 ## index of the one that goes with the hero (-1: none, they all wait at
 ## home), and how many gifts each kind of wild animal has eaten from the
@@ -1619,10 +1622,18 @@ func _on_fox_dug_up(id: String, pos: Vector3) -> void:
 
 
 ## A dug-up ingredient goes into the ingredient pouch, not the bag.
-func _on_ingredient_collected(id: String) -> void:
-	crafting.add(id)
+## An ingredient picked up: `count` of it, from a fallen foe's loot when
+## `from_loot` (see Level.drop_kill_loot), which puts no mark on the map.
+func _on_ingredient_collected(id: String, count := 1, from_loot := false) -> void:
+	crafting.add(id, count, not from_loot)
+	if Loot.is_coin(id):
+		Sfx.play_coins(self, mini(count, 5))
+		Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), "+%d %s" % [count, Crafting.ingredient_name(id)], Rarity.color(id), true)
+		Events.found(Lang.t("Gefunden: %s") % ("%d× %s" % [count, Rarity.marked(id)]))
+		_update_hud()
+		return
 	Sfx.play(self, "key", -3.0)
-	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5), true)
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Rarity.color(id) if from_loot else Color(0.7, 0.95, 0.5), true)
 	Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
 	# A part of the fallen dragon teaches the recipe made from it.
 	if DragonLair.PART_COLOURS.has(id):
@@ -2699,6 +2710,7 @@ func begin_new_game() -> void:
 	coins = 0
 	iron = 0
 	bars = {}
+	metal_grams = {}
 	companions = []
 	following = -1
 	trust = {}
@@ -3040,6 +3052,12 @@ func _apply_save(data: Dictionary) -> void:
 	hero_name = data.get("name", Lang.t("Namenlos"))
 	coins = int(data.coins)
 	iron = int(data.get("iron", 0))
+	metal_grams = {}
+	var saved_grams = data.get("metal_grams", {})
+	if saved_grams is Dictionary:
+		for metal in saved_grams:
+			if Ore.METALS.has(str(metal)) and int(saved_grams[metal]) > 0:
+				metal_grams[str(metal)] = int(saved_grams[metal])
 	bars = {}
 	var saved_bars = data.get("bars", {})
 	if saved_bars is Dictionary:
@@ -3292,7 +3310,7 @@ func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	journal.catch_up()
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "iron": iron, "bars": bars, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,

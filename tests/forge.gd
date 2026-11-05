@@ -56,11 +56,11 @@ func _run() -> void:
 	# The rules.
 	check(Forge.can_melt("plattenpanzer") and Forge.can_melt("schwert") and Forge.can_melt("kupferring"), "metal gear and jewellery melt")
 	check(not Forge.can_melt("lederwams") and not Forge.can_melt("wollumhang") and not Forge.can_melt("fechtbuch") and not Forge.can_melt("steinblock"), "leather, cloth, books and stone do not")
-	check(Forge.melt_yield("plattenpanzer") == 6 and Forge.melt_yield("schwert") == 2, "pricier pieces give more iron")
+	check(Forge.melt_yield("plattenpanzer") == 8 and Forge.melt_yield("schwert") == 2, "heavier armour and pricier weapons give more iron")
 	# One table by kind and rarity: plain gear iron, fine gear fittings of a
 	# finer metal, jewellery the metal of its rarity, magic moon silver.
 	check(Forge.melt_into("schwert") == {"eisen": 2}, "a plain sword is iron: %s" % str(Forge.melt_into("schwert")))
-	check(Forge.melt_into("kettenhemd") == {"eisen": 4}, "uncommon chain mail is iron: %s" % str(Forge.melt_into("kettenhemd")))
+	check(Forge.melt_into("kettenhemd") == {"eisen": 5}, "uncommon chain mail is iron: %s" % str(Forge.melt_into("kettenhemd")))
 	check(Forge.melt_into("streitaxt").get("bronze", 0) == 1, "a rare battle axe has bronze fittings")
 	check(Forge.melt_into("plattenpanzer").get("silber", 0) == 1, "epic plate armour has silver fittings")
 	check(Forge.melt_into("bronzearmreif") == {"bronze": 2}, "a bronze bracelet is bronze: %s" % str(Forge.melt_into("bronzearmreif")))
@@ -97,16 +97,16 @@ func _run() -> void:
 	game.menus._melt(1)
 	check(p.bag.size() == 3 and game.iron == 0, "leather does not melt")
 	game.menus._melt(0)
-	check(Array(p.bag) == ["lederwams", "kupferring"] and game.iron == 6, "the plate armour melts into 6 iron bars")
+	check(Array(p.bag) == ["lederwams", "kupferring"] and game.iron == 8, "the 8 kg plate armour melts into 8 iron bars")
 	check(int(game.bars.get("silber", 0)) == 1, "and its fine fittings into a silver bar (%s)" % str(game.bars))
 	game.menus._melt(1)
-	check(Array(p.bag) == ["lederwams"] and game.iron == 6 and int(game.bars.get("bronze", 0)) == 3, "the copper ring into 3 bronze bars (%s)" % str(game.bars))
+	check(Array(p.bag) == ["lederwams"] and game.iron == 8 and int(game.bars.get("bronze", 0)) == 3, "the copper ring into 3 bronze bars (%s)" % str(game.bars))
 
 
 	# Forging.
 	game.menus._show_forge_tab("schmieden")
 	var cost := Forge.forge_cost("ritterhelm")
-	check(cost.iron > 6, "one melted plate armour is not enough iron for a knight's helmet")
+	check(cost.iron == 3, "a 3 kg knight's helmet takes 3 iron bars, one per kilo")
 	game.iron = cost.iron + 2
 	game.menus._forge("ritterhelm")
 	check(p.bag.has("ritterhelm") and game.iron == 2 and game.coins == 100 - cost.gold, "iron and gold become a knight's helmet (%d iron, %d gold)" % [game.iron, game.coins])

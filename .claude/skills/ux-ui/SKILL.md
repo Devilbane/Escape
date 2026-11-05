@@ -378,7 +378,7 @@ Further rules:
   | Note / warning | (1.0, 0.75, 0.5) | Notes after an action, quit warning |
   | Secondary | `GREY` (0.75, 0.72, 0.68) | Counts, empty states, fine print |
   | Lives | (1.0, 0.45, 0.42) | HP in the HUD |
-  | Item rarity | `Rarity.color(id)`: common (0.92, 0.92, 0.9), uncommon (0.35, 0.9, 0.35), rare (0.25, 0.55, 1.0), epic (0.75, 0.42, 1.0), god-born (1.0, 0.5, 0.1), self-crafted (0.25, 0.9, 0.85) | Every item name: inventory, chest, vault, trade rows and cards, event log, words over a find |
+  | Item rarity | `Rarity.color(id)`: common white (0.92, 0.92, 0.9), uncommon blue (0.3, 0.58, 1.0), rare yellow (1.0, 0.95, 0.2), epic violet (0.75, 0.42, 1.0), god-born orange (1.0, 0.5, 0.1), self-crafted light blue (0.45, 0.92, 1.0) | Every item name: inventory, chest, vault, trade rows and cards, event log, words over a find |
 
 - **Never colour alone.** About 8 % of men and 0.5 % of women have a colour vision deficiency; red
   and green are the most commonly confused. Pair every colour meaning with a second cue: an icon

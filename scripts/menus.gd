@@ -2260,7 +2260,7 @@ var _forge_tab := "waffen"
 const FORGE_ABOUT := {
 	"waffen": "Gorms eigene Arbeit: bessere Waffen, die es sonst nirgends gibt. Kriegshammer und Drachenschild schmiedet er nur aus deinem Eisen.",
 	"schmieden": "Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen. Mit Donnererz vom Gewitter schmiedet er Donnerwaffen, deren Treffer Gegner kurz betäuben können.",
-	"einschmelzen": "Waffen und Rüstungen werden zu Eisen, feine Stücke und Schmuck zu Bronze, Silber oder Gold, je seltener, desto edler; Zauberdinge lassen Mondsilber. Die edlen Barren kauft Gorm dir ab. Stoff, Leder, Fell und Knochen schmelzen nicht.",
+	"einschmelzen": "Waffen und Rüstungen werden zu Eisen, feine Stücke und Schmuck zu Bronze, Silber oder Gold, je seltener, desto edler; Zauberdinge lassen Mondsilber. Je hundert Münzen einer Sorte werden zu einem Barren. Die edlen Barren kauft Gorm dir ab. Stoff, Leder, Fell und Knochen schmelzen nicht.",
 	"ausbessern": "Gorm hämmert Beulen aus: jeder Punkt Haltbarkeit kostet etwas Gold.",
 }
 const FORGE_TABS := [["waffen", "Waffen kaufen"], ["schmieden", "Schmieden"], ["einschmelzen", "Einschmelzen"], ["ausbessern", "Ausbessern"]]
@@ -2337,8 +2337,40 @@ func _build_smithy() -> void:
 				if have <= 0:
 					entry.gone = Lang.t("Keine")
 				fine.append(entry)
+			# The pouch coins from fallen foes (see Loot.COINS): a hundred of
+			# one metal melt into one bar of it.
+			var coins := []
+			for coin in Loot.COINS:
+				var have: int = game.crafting.have(coin)
+				var metal: String = Loot.COINS[coin]
+				var bar := Lang.t(Forge.METALS[metal].name)
+				var icon: String = "kind:iron" if metal == "eisen" else "kind:bar_" + metal
+				var ok := have >= Loot.COINS_PER_BAR
+				coins.append({"key": "coins:" + coin, "icon": coin, "name": Crafting.ingredient_name(coin), "price": Lang.t("%d Münzen: 1 %s") % [Loot.COINS_PER_BAR, bar],
+						"price_ok": ok, "button": Lang.t("Einschmelzen"), "action": _melt_coins.bind(coin), "enabled": ok, "count": have,
+						"detail": {"subtitle": Lang.t("Münzen"), "lines": [[Lang.t("Gorm schmilzt je %d Münzen zu einem %s ein.") % [Loot.COINS_PER_BAR, bar], TradeWindow.BLUE],
+							[Lang.t("Du hast %d, genug für %d.") % [have, have / Loot.COINS_PER_BAR], TradeWindow.GREEN if ok else TradeWindow.GREY]]},
+						"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("%s: %d") % [bar, game.crafting.have(metal)], "icon": icon}})
+			# Raw ore from the mountains (see Ore): the oldest lump of each
+			# size melts first, into grams of the metals in it.
+			var ore := []
+			for lump_id in Ore.LUMPS:
+				var lumps: Array = game.crafting.ores.get(lump_id, [])
+				var next: Dictionary = lumps[0] if not lumps.is_empty() else {}
+				var entry := {"key": "ore:" + lump_id, "icon": lump_id, "name": Crafting.ingredient_name(lump_id),
+						"price": "%d g" % int(next.grams) if not next.is_empty() else "", "price_ok": not next.is_empty(),
+						"button": Lang.t("Einschmelzen"), "action": _melt_ore.bind(lump_id), "enabled": not next.is_empty(), "count": lumps.size(),
+						"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Ore.describe(next) if not next.is_empty() else Lang.t("Keiner"), TradeWindow.BLUE],
+							[Lang.t("Je %d g eines Metalls werden ein Barren.") % Ore.GRAMS_PER_BAR, TradeWindow.GREY]]},
+						"compare": {"title": Lang.t("Übrig vom Schmelzen"), "name": Ore.grams_text(game.metal_grams), "icon": "kind:ore"}}
+				if next.is_empty():
+					entry.gone = Lang.t("Keiner")
+				ore.append(entry)
 			sections = [{"key": "melt", "title": Lang.t("Einschmelzen"), "icon": "kind:flame", "entries": melt,
 					"empty": Lang.t("Deine Tasche ist leer."), "gone": Lang.t("Eingeschmolzen")},
+					{"key": "ore", "title": Lang.t("Erz einschmelzen"), "icon": "kind:ore", "entries": ore},
+					{"key": "gems", "title": Lang.t("Edelsteine"), "icon": "kind:crystal", "entries": _gem_entries()},
+					{"key": "coins", "title": Lang.t("Münzen einschmelzen"), "icon": "kind:coin", "entries": coins},
 					{"key": "bars", "title": Lang.t("Barren verkaufen"), "icon": "kind:bar_gold", "entries": fine}]
 		"ausbessern":
 			var mend := []
@@ -2377,6 +2409,76 @@ func _melt(index: int) -> void:
 	if why == "":
 		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
 	game.player.refresh_stats()
+	game._update_hud()
+	_rebuild()
+
+
+## The forge's gem rows (see Ore.GEMS): cut the oldest uncut gem, sell the
+## oldest cut one. A gem's rarity follows its weight, named in words.
+func _gem_entries() -> Array:
+	var out := []
+	var uncut: Array = game.crafting.gems.get(Ore.UNCUT, [])
+	var cut: Array = game.crafting.gems.get(Ore.CUT, [])
+	var a := {"key": "gem:cut", "icon": Ore.UNCUT, "name": Crafting.ingredient_name(Ore.UNCUT), "count": uncut.size(),
+			"price": _carat_text(int(uncut[0])) if not uncut.is_empty() else "", "price_ok": not uncut.is_empty(),
+			"button": Lang.t("Schleifen"), "action": _cut_gem, "enabled": not uncut.is_empty(),
+			"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t("Gorm schleift ihn. Dabei verliert er 15 bis 50 Prozent seines Gewichts, und seine Seltenheit richtet sich nach dem, was bleibt."), TradeWindow.BLUE]]}}
+	if uncut.is_empty():
+		a.gone = Lang.t("Keiner")
+	out.append(a)
+	var worth := Ore.gem_worth(int(cut[0])) if not cut.is_empty() else 0
+	var b := {"key": "gem:sell", "icon": Ore.CUT, "name": Crafting.ingredient_name(Ore.CUT), "count": cut.size(),
+			"price": "%s, +%s" % [_carat_text(int(cut[0])), Lang.t("%d Gold") % worth] if not cut.is_empty() else "", "price_ok": not cut.is_empty(),
+			"button": Lang.t("Verkaufen"), "action": _sell_gem, "enabled": not cut.is_empty(),
+			"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t("Je mehr Karat, desto seltener und wertvoller. Gorm kauft geschliffene Edelsteine."), TradeWindow.BLUE]]}}
+	if cut.is_empty():
+		b.gone = Lang.t("Keiner")
+	out.append(b)
+	return out
+
+
+## A gem's weight and rarity in words: "14 ct, Rare".
+static func _carat_text(carat: int) -> String:
+	return "%d ct, %s" % [carat, Lang.t(Rarity.TIERS[Ore.gem_tier(carat)].name)]
+
+
+func _cut_gem() -> void:
+	var out := Forge.cut_gem(game)
+	_note = out.why if out.why != "" else Lang.t("Geschliffen: %d ct werden %d ct (%s)") % [out.from, out.to, Lang.t(Rarity.TIERS[Ore.gem_tier(out.to)].name)]
+	if out.why == "":
+		Sfx.play(game, "hit")
+	_rebuild()
+
+
+func _sell_gem() -> void:
+	var carat := int(game.crafting.gems.get(Ore.CUT, [0])[0])
+	var why := Forge.sell_gem(game)
+	_note = why if why != "" else Lang.t("Verkauft: %s für %d Gold") % [_carat_text(carat), Ore.gem_worth(carat)]
+	if why == "":
+		Events.bus().traded.emit(game.trader_role)
+		Sfx.play_coins(game, Ore.gem_worth(carat))
+	game._update_hud()
+	_rebuild()
+
+
+func _melt_ore(id: String) -> void:
+	var out := Forge.melt_ore(game, id)
+	_note = out.why if out.why != "" else Lang.t("Eingeschmolzen: %s, %s") % [Crafting.ingredient_name(id), Ore.grams_text(out.grams)]
+	if out.why == "" and not out.bars.is_empty():
+		_note += "  " + Forge.metals_text(out.bars, true)
+	if out.why == "" and not out.gems.is_empty():
+		_note += "  " + Lang.t("+%d ungeschliffene Edelsteine") % out.gems.size()
+	if out.why == "":
+		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
+	game._update_hud()
+	_rebuild()
+
+
+func _melt_coins(coin: String) -> void:
+	var why := Forge.melt_coins(game, coin)
+	_note = why if why != "" else Lang.t("Eingeschmolzen: %d× %s, +1 %s") % [Loot.COINS_PER_BAR, Crafting.ingredient_name(coin), Lang.t(Forge.METALS[Loot.COINS[coin]].name)]
+	if why == "":
+		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
 	game._update_hud()
 	_rebuild()
 

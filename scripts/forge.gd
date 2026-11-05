@@ -39,13 +39,15 @@ const MIN_MEND_PRICE := 2
 ## bought back: they are worth more forged (see forge) and in recipes.
 const METALS := {
 	"eisen": {"name": "Eisenbarren", "short": "Eisen", "color": Color(0.55, 0.57, 0.6)},
+	"kupfer": {"name": "Kupferbarren", "short": "Kupfer", "color": Color(0.85, 0.48, 0.28), "worth": 2},
 	"bronze": {"name": "Bronzebarren", "short": "Bronze", "color": Color(0.8, 0.5, 0.25), "worth": 3},
 	"silber": {"name": "Silberbarren", "short": "Silber", "color": Color(0.85, 0.87, 0.92), "worth": 7},
 	"gold": {"name": "Goldbarren", "short": "Goldbarren", "color": Color(1.0, 0.8, 0.3), "worth": 15},
 	"mondsilbererz": {"name": "Mondsilbererz", "short": "Mondsilber", "color": Color(0.6, 0.75, 1.0)},
 }
-## The fine bars Gorm buys back.
-const FINE := ["bronze", "silber", "gold"]
+## The fine bars Gorm buys back (copper bars come only from melted coins,
+## see melt_coins).
+const FINE := ["kupfer", "bronze", "silber", "gold"]
 ## The fine metal of a piece by its rarity (see rarity, common to god-born):
 ## jewellery is made of it, and fine weapons and armour have fittings of it
 ## besides their iron.
@@ -53,6 +55,23 @@ const PRECIOUS := ["bronze", "bronze", "silber", "gold", "gold"]
 const FITTINGS := ["", "", "bronze", "silber", "gold"]
 ## Magic pieces from this rarity on leave a lump of moon silver.
 const MOON_FROM := 2
+
+
+## The slots of metal armour, priced by the iron in it (see armour_iron).
+const ARMOUR_SLOTS := ["schild", "kopf", "ruestung"]
+
+
+## The iron bars in a piece of metal armour (a shield, a helmet, mail or
+## plate): one bar per kilo it weighs, as a bar is a kilo of metal (see Ore)
+## or a hundred coins. 0 for anything else. Its worth (Items.ALL "price") is
+## that iron at IRON_PRICE a bar plus the smith's work.
+static func armour_iron(id: String) -> int:
+	if not Items.ALL.has(id):
+		return 0
+	var item: Dictionary = Items.ALL[id]
+	if not str(item.slot) in ARMOUR_SLOTS or not str(item.get("material", "")) in MELTS:
+		return 0
+	return maxi(1, roundi(float(item.get("weight", 1))))
 
 
 ## Whether the smith can melt an item down.
@@ -94,7 +113,9 @@ static func melt_into(id: String, any := false) -> Dictionary:
 	var item: Dictionary = Items.ALL[id]
 	var r := rarity(id)
 	if can_melt(id) and not _is_trinket(id):
-		out["eisen"] = maxi(1, roundi(int(item.price) / 8.0))
+		# Metal armour gives back its iron, a bar per kilo; weapons one bar
+		# for every 8 gold of their price.
+		out["eisen"] = armour_iron(id) if armour_iron(id) > 0 else maxi(1, roundi(int(item.price) / 8.0))
 		if FITTINGS[r] != "" and str(item.slot) in Items.SLOTS:
 			out[FITTINGS[r]] = 1
 	else:
@@ -145,6 +166,70 @@ static func sell_bars(game: Node, metal: String, count := -1) -> String:
 	if int(game.bars[metal]) <= 0:
 		game.bars.erase(metal)
 	game.coins += n * int(METALS[metal].worth)
+	return ""
+
+
+## Melts COINS_PER_BAR coins of one metal from the pouch (see Loot.COINS)
+## into one bar of it: iron coins into an iron bar, copper and silver coins
+## into fine bars. Returns "" on success, else why not.
+static func melt_coins(game: Node, coin: String) -> String:
+	if not Loot.is_coin(coin):
+		return Lang.t("Das schmilzt Gorm nicht ein.")
+	if game.crafting.have(coin) < Loot.COINS_PER_BAR:
+		return Lang.t("Für einen Barren braucht Gorm %d Münzen.") % Loot.COINS_PER_BAR
+	game.crafting.take(coin, Loot.COINS_PER_BAR)
+	store(game, {Loot.COINS[coin]: 1})
+	return ""
+
+
+## Melts the oldest lump of ore of size `id` (see Ore): its metal goes into
+## game.metal_grams gram by gram, the slag is thrown away, and every
+## Ore.GRAMS_PER_BAR grams of iron, copper, silver or gold become a bar of it
+## (the unknown metal stays in grams); the uncut gems in noble ore go into
+## the pouch. Returns {"why": "" on success, else why not; "grams": metal ->
+## grams it gave; "bars": metal -> new bars; "gems": their carats}.
+static func melt_ore(game: Node, id: String) -> Dictionary:
+	var lumps: Array = game.crafting.ores.get(id, [])
+	if not Ore.is_ore(id) or lumps.is_empty():
+		return {"why": Lang.t("Davon hast du kein Erz."), "grams": {}, "bars": {}, "gems": []}
+	var grams := Ore.metal_grams(lumps[0])
+	var gems: Array = lumps[0].get("gems", []).duplicate()
+	game.crafting.take(id, 1)
+	for carat in gems:
+		game.crafting.add_gem(Ore.UNCUT, int(carat))
+	var bars := {}
+	for metal in grams:
+		var total := int(game.metal_grams.get(metal, 0)) + int(grams[metal])
+		if metal != Ore.UNKNOWN and total >= Ore.GRAMS_PER_BAR:
+			bars[metal] = total / Ore.GRAMS_PER_BAR
+			total %= Ore.GRAMS_PER_BAR
+		game.metal_grams[metal] = total
+	store(game, bars)
+	return {"why": "", "grams": grams, "bars": bars, "gems": gems}
+
+
+## Cuts the hero's oldest uncut gem: it loses 15-50 % of its weight (see
+## Ore.cut_weight) and becomes a cut gem. Returns {"why", "from", "to"}
+## (carat before and after).
+static func cut_gem(game: Node) -> Dictionary:
+	var uncut: Array = game.crafting.gems.get(Ore.UNCUT, [])
+	if uncut.is_empty():
+		return {"why": Lang.t("Du hast keinen ungeschliffenen Edelstein."), "from": 0, "to": 0}
+	var from := int(uncut[0])
+	var to := Ore.cut_weight(from)
+	game.crafting.take(Ore.UNCUT, 1)
+	game.crafting.add_gem(Ore.CUT, to)
+	return {"why": "", "from": from, "to": to}
+
+
+## Sells the hero's oldest cut gem to Gorm (see Ore.gem_worth). Returns ""
+## on success, else why not.
+static func sell_gem(game: Node) -> String:
+	var cut: Array = game.crafting.gems.get(Ore.CUT, [])
+	if cut.is_empty():
+		return Lang.t("Du hast keinen geschliffenen Edelstein.")
+	game.coins += Ore.gem_worth(int(cut[0]))
+	game.crafting.take(Ore.CUT, 1)
 	return ""
 
 
@@ -208,9 +293,16 @@ static func buy(game: Node, id: String) -> String:
 ## thunder ore from the bag (0 but for the thunder weapons)}: one iron bar
 ## for every 4 gold of the piece's worth and half its worth in gold, so that
 ## from bought iron it costs about what a merchant asks (Items.buy_price).
+## Metal armour takes its own iron instead (see armour_iron) and the rest of
+## its worth in gold for the work.
 static func forge_cost(id: String, game: Node = null) -> Dictionary:
 	var price: int = Items.ALL[id].price
-	return {"iron": ceili(price / 4.0), "gold": _discounted(game, price / 2), "ore": int(Items.ALL[id].get("thunder", 0))}
+	var ore := int(Items.ALL[id].get("thunder", 0))
+	var iron := armour_iron(id)
+	if iron > 0:
+		# Metal armour: its iron, a bar per kilo, and gold for the work.
+		return {"iron": iron, "gold": _discounted(game, maxi(1, price - iron * IRON_PRICE)), "ore": ore}
+	return {"iron": ceili(price / 4.0), "gold": _discounted(game, price / 2), "ore": ore}
 
 
 ## Whether the hero has everything forging a piece takes (room in the bag

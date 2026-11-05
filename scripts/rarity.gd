@@ -5,11 +5,12 @@ extends RefCounted
 ## storage chest and the vault, the merchants' rows and cards, the event log,
 ## the words over the hero's head when something is found).
 ##
-## The tiers are the familiar ones of many role-playing games, from plain to
-## finest: common (white), uncommon (green), rare (blue), epic (violet) and
-## god-born (orange). How rare a piece is follows how useful and valuable
-## it is (see Items.RARITY, one table for every item). Pieces the hero
-## makes from a recipe ("crafted") are a tier of their own in turquoise,
+## The tiers, from plain to finest: common (white), uncommon (blue), rare
+## (yellow), epic (violet) and god-born (orange). How rare a piece is follows
+## how useful and valuable it is (see Items.RARITY, one table for every item),
+## and how often a fallen monster drops one is set per tier in Loot.ODDS.
+## God-born pieces are not loot for now (see Loot.TOP_TIER). Pieces the hero
+## makes from a recipe ("crafted") are a tier of their own in light blue,
 ## whatever their price, so the hero's own work is told apart at a glance.
 ##
 ## Colour is never the only cue (see the ux-ui guide, 8.3): the inventory's
@@ -17,15 +18,17 @@ extends RefCounted
 ##
 ## The colours are bright enough for at least 4.5 : 1 against the game's
 ## dark windows (0.04, 0.03, 0.08) and stay apart from the window colours
-## that mean something else: GOLD (titles, prices), the info BLUE and the
-## reputation violet are lighter and paler than rare and epic.
+## that mean something else: the rare yellow is a cool lemon, brighter and
+## less orange than GOLD (titles, prices); the self-crafted light blue leans
+## to cyan, unlike the paler info BLUE; the reputation violet is paler than
+## epic.
 
 const COMMON := Color(0.92, 0.92, 0.9)
-const UNCOMMON := Color(0.35, 0.9, 0.35)
-const RARE := Color(0.25, 0.55, 1.0)
+const UNCOMMON := Color(0.3, 0.58, 1.0)
+const RARE := Color(1.0, 0.95, 0.2)
 const EPIC := Color(0.75, 0.42, 1.0)
 const GODBORN := Color(1.0, 0.5, 0.1)
-const CRAFTED := Color(0.25, 0.9, 0.85)
+const CRAFTED := Color(0.45, 0.92, 1.0)
 
 ## The tier of what the hero made from a recipe (see Crafting).
 const SELF_MADE := "gefertigt"
@@ -48,15 +51,18 @@ const MARK_CLOSE := ""
 
 
 ## The tier of an item (a key of TIERS). Pieces made from a recipe are the
-## hero's own work; ingredients flagged "rare" (the rare fish, the moon
-## flower) are rare; anything else in Items goes by Items.RARITY (see
-## Level.tier_of).
+## hero's own work; an ingredient goes by its "tier" (the loot of creatures,
+## see Loot), else ingredients flagged "rare" (the rare fish, the moon flower)
+## are rare; anything else in Items goes by Items.RARITY (see Level.tier_of).
 static func tier(id: String) -> String:
 	if Items.ALL.has(id):
 		if Items.ALL[id].get("crafted", false):
 			return SELF_MADE
 		return Level.tier_of(id)
-	if Crafting.INGREDIENTS.get(id, {}).get("rare", false):
+	var ingredient: Dictionary = Crafting.INGREDIENTS.get(id, {})
+	if ingredient.has("tier"):
+		return str(ingredient.tier)
+	if ingredient.get("rare", false):
 		return "selten"
 	return "normal"
 

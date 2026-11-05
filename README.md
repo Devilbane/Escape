@@ -162,12 +162,37 @@ hit (at least 1 damage always gets through). Every hit has a 5 % chance to wear 
 **durability**; once that is used up, the piece breaks.
 At the **forge** beside the smithy in the village, Gorm the **smith** works your gear (walk into him):
 *melt down* metal gear from your bag (weapons, shields, knight's helmet, chain mail, plate armour, rings,
-bracelets, amulets) into **iron bars**, one bar per 8 gold of the piece's price (plate armour gives 6;
+bracelets, amulets) into **iron bars**, one bar per 8 gold of a weapon's price and one per kilo of metal armour (plate armour gives 8;
 cloth, leather, fur and bone do not melt); *forge* any metal weapon, shield or armour from iron and a
-little gold (plate armour: 8 iron and 16 gold), so you pick exactly the piece you want; and *mend* worn
+little gold (plate armour: 8 iron and 24 gold), so you pick exactly the piece you want; and *mend* worn
 armour and shields, a few gold per point of durability. He also sells iron bars for 4 gold each, so
 forging from bought iron costs about what the merchant asks; iron from melted loot makes it cheaper.
 Iron is counted like gold, weighs nothing and stays in your saved game.
+
+**Loot and rarity.** Every item name shows in the colour of its rarity: **common** white, **uncommon**
+blue, **rare** yellow, **epic** violet, **god-born** orange (not lootable for now) and **self-crafted**
+light blue for what you made from a recipe. Each fallen monster rolls once for a find, with these odds
+per kill: common 1 in 20 to 1 in 40, uncommon 1 in 80 to 1 in 160, rare 1 in 320 to 1 in 640, epic 1 in
+1000 to 1 in 2500. The tougher the monster (and every elite or boss), the better its odds. Intelligent
+foes, and those who use gear like yours (skeletons, bandits, orcs, trolls, dragons), always carry
+**coins**: iron, copper and silver coins go into the ingredient pouch, gold coins into your purse, and
+a find is a piece of gear of that rarity. Beasts without a mind (wolves, spiders, bats, yetis) carry no
+coins; a find is food such as meat (common), an ingredient of the place they live in (uncommon) or a
+part of their body for a trophy or a craft (rare), and mostly they leave nothing. Slimes are beasts too,
+but they swallow what their victims carried, so they also drop coins and gear. At the forge Gorm melts
+every **100 coins** of one metal into **one bar** of it; he buys copper and silver bars like the others.
+Trolls and the other creatures of the mountains also carry **raw ore**, on a roll of its own with the
+same odds. Its weight sets its rarity: 500 to 999 g common, 1 to 2 kg uncommon, 2.5 to 5 kg rare. Each
+lump has its own make-up, rolled in order: 25-60 % slag, 10-40 % iron, 5-40 % copper, 1-15 % silver,
+1-5 % gold, and whatever is left an unknown metal with a light blue glow. Gorm melts it down and you get
+every gram of metal in it; a bar is one kilo (as heavy as 100 coins of 10 g), so every 1000 g of one
+metal become a bar and the rest waits for the next lump. Epic **noble ore** holds only 10-20 % slag,
+5-15 % iron, 5-15 % copper, 10-20 % silver and 20-30 % gold (the rest unknown metal) and one to five
+**uncut gems**. A gem's weight sets its rarity: 2-4 carat common, 5-11 uncommon, 12-18 rare, 19-22
+epic, 23-24 god-born. Gorm cuts them, which grinds off 15-50 % of their weight, and buys the cut ones.
+**Metal armour** (shields, the knight's helmet, chain mail, plate armour) is priced by the iron in it:
+one bar per kilo it weighs, worth 10 gold a bar, plus the smith's work. It melts back into that many
+bars, and forging it takes that many bars and gold for the work.
 Gorm also *sells his own work*, which is found nowhere else (not as loot, not at the merchant), and
 he can forge it from iron too. The kite shield and the war hammer, the top of their kinds, he does not
 sell: you have him forge them from your iron. The window opens on this tab:

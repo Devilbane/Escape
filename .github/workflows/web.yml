@@ -79,6 +79,11 @@ jobs:
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/cobwebs.gd | tee cobwebs.log
           grep -q PASS cobwebs.log
 
+      - name: Walls at full height (only the stretch in front of the hero turns see-through)
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/wall_height.gd | tee walls.log
+          grep -q PASS walls.log && ! grep -q FAIL walls.log
+
       - name: Level warm-up (no hitch when a level starts)
         run: |
           timeout 120 ~/godot/godot --headless -s tests/level_warmup.gd | tee warmup.log

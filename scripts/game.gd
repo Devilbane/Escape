@@ -2228,23 +2228,46 @@ func _on_loot_carried_off(kind: String, id: String, count := 1) -> void:
 		learn(DragonHoard.LORE)
 
 
-## The morning after a night: what still lay about in the open air, where
-## the hero did not watch the helpers at work (in a building, below ground,
-## asleep), they took unseen. Then the event log tells what the night brought.
+## The morning after a night: the helpers leave nothing lying, anywhere.
+## In the open air before the hero's eyes they come back for what is left
+## in the morning twilight (see DragonHelpers.dawn). On any other map the
+## hero is on, or asleep, it is gone from the ground by morning, all but
+## what lies right beside the awake hero. Every other map and building they
+## swept unseen (see DragonHoard.sweep). Then the event log tells what the
+## night brought.
 func _dragon_morning(asleep := false) -> void:
-	var outdoor := _outdoor_index()
-	if outdoor >= 0:
-		var key := level_files[outdoor].get_file()
-		var watched: bool = not asleep and level is Outdoor and level.file == key
-		if floors.has(key) and not watched:
-			if level is Outdoor and level.file == key:
-				# Asleep in the open: the things vanish from the ground too.
-				for p in level.floor_pickups():
-					var node: Node3D = level.take_from_floor(p)
-					if node:
-						node.queue_free()
-					hoard.gather(str(p.floor[0]), str(p.floor[1]), CoinPile.count_of(p.floor))
-			hoard.sweep(floors[key])
+	var here: Array = level.floor_items if level != null else []
+	var reached_inside := false
+	if level != null:
+		var helpers: DragonHelpers = level.get_node_or_null("DragonHelpers")
+		if helpers != null and not asleep and level is Outdoor:
+			helpers.dawn()
+		else:
+			var things := 0
+			for p in level.floor_pickups():
+				if not asleep and player != null and DragonHelpers._flat(player.global_position - p.node.global_position) < DragonHelpers.SHY:
+					continue
+				var node: Node3D = level.take_from_floor(p)
+				if node:
+					node.queue_free()
+				hoard.gather(str(p.floor[0]), str(p.floor[1]), CoinPile.count_of(p.floor))
+				things += 1
+			reached_inside = things > 0 and not level is Outdoor
+	for key in floors:
+		if is_same(floors[key], here):
+			continue
+		var before: int = floors[key].size()
+		var went := hoard.sweep(floors[key])
+		var file := str(key).get_slice("#", 0)
+		if not went.is_empty():
+			# Counted as taken, as if the hero had picked it up (a trophy is
+			# not laid out again where it fell).
+			if not looted.has(file):
+				looted[file] = {}
+			for id in went:
+				looted[file][id] = true
+		if floors[key].size() < before and not Level.is_outdoor_file(file):
+			reached_inside = true
 	var to_elder := int(hoard.tonight.get("elder", 0)) > 0
 	var text := hoard.morning_report()
 	if text != "":
@@ -2252,6 +2275,8 @@ func _dragon_morning(asleep := false) -> void:
 		learn(DragonHoard.LORE)
 	if to_elder:
 		learn(DragonHoard.ELDER_LORE)
+	if reached_inside:
+		learn(DragonHoard.EVERYWHERE_LORE)
 
 
 ## The hero took the dragon's hoard in its lair: the coins into the purse,

@@ -39,12 +39,16 @@ static func make(id: String, size := 44.0, plain := false) -> ItemIcon:
 ## The pictures of the ingredients of the pouch (see Crafting.INGREDIENTS)
 ## that have none of their own above: herbs, mushrooms, fish, ore and gems.
 const INGREDIENT_ICONS := {
-	"baerlauch": "herb", "glimmermoos": "herb", "mondblume": "flower",
-	"steinpilz": "mushroom", "trueffel": "mushroom", "hoehlenpilz": "mushroom",
-	"barsch": "fish", "goldkarpfen": "fish", "silberhecht": "fish", "mondforelle": "fish",
-	"mondsilbererz": "ore", "mondstein": "gem",
+	"baerlauch": "garlic", "glimmermoos": "moss", "mondblume": "moonflower", "edelweiss": "edelweiss",
+	"steinpilz": "porcini", "trueffel": "truffle", "hoehlenpilz": "cave_mushroom",
+	"barsch": "perch", "goldkarpfen": "carp", "silberhecht": "pike", "mondforelle": "trout",
+	"mondsilbererz": "ore", "mondstein": "gem", "grottenkristall": "crystal",
 	"holzkohle": "coal", "kalkstein": "lime",
-	"ektoplasma": "potion",
+	"wildfleisch": "meat", "spinnenei": "spider_egg", "schleimgelee": "slime_jelly", "ektoplasma": "ectoplasm",
+	"grabstaub": "grave_dust", "wolfsfell": "pelt", "yetifell": "snow_pelt", "giftdruese": "venom_gland",
+	"fledermausfluegel": "bat_wing", "schleimkern": "slime_core", "geisterschleier": "ghost_veil",
+	"bansheehaar": "banshee_hair", "ghulkralle": "ghoul_claw",
+	"drachenschuppe": "dragon_scale", "drachenblut": "dragon_blood", "glutherz": "ember_heart",
 }
 
 
@@ -54,6 +58,8 @@ static func kind_of(id: String) -> String:
 		return id.split(":")[1]
 	if id == Mines.CRYSTAL_ID:
 		return "crystal"
+	if INGREDIENT_ICONS.has(id):
+		return INGREDIENT_ICONS[id]
 	if id == DragonLair.BLOOD:
 		return "potion"
 	if id == DragonLair.HEART:

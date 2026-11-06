@@ -132,7 +132,7 @@ func _check_window(kind: String, where: String) -> void:
 		menus._show_inventory_tab("beutel")
 		await _check_rect("inventar/beutel", where)
 		check(menus._panel.size == bag_size, "the pouch tab keeps the inventory's size (%s): %s, bag %s" % [where, menus._panel.size, bag_size])
-		check(_has_text(menus._box, Crafting.ingredient_name("baerlauch") + "\n× 7"), "the pouch tab lists the wild garlic (%s)" % where)
+		check(_has_text(menus._box, Crafting.ingredient_name("baerlauch") + "  × 7"), "the pouch tab lists the wild garlic (%s)" % where)
 	elif kind == "karte":
 		for page in ["karte", "tagebuch"]:
 			menus.map_page = page
@@ -149,7 +149,7 @@ func _check_window(kind: String, where: String) -> void:
 
 
 func _has_text(node: Node, text: String) -> bool:
-	if (node is Label or node is Button) and node.text.contains(text):
+	if (node is Label or node is Button) and (node.text.contains(text) or (node is Button and node.tooltip_text.contains(text))):
 		return true
 	for child in node.get_children():
 		if _has_text(child, text):

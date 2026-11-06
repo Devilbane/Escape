@@ -197,9 +197,7 @@ func _draw(item: RID, rect: Rect2) -> void:
 			RenderingServer.NINE_PATCH_STRETCH, RenderingServer.NINE_PATCH_STRETCH, true, bg_color)
 	if width <= 0 or border_color.a <= 0.0:
 		return
-	var rim := _rim(width, radius)
-	rs.canvas_item_add_nine_patch(item, rect, Rect2(Vector2.ZERO, rim.get_size()), rim.get_rid(), Vector2(corner, corner), Vector2(corner, corner),
-		RenderingServer.NINE_PATCH_STRETCH, RenderingServer.NINE_PATCH_STRETCH, false, border_color)
+	_draw_rim(item, rect, width, radius, corner)
 	if width >= RIVET_FROM and minf(rect.size.x, rect.size.y) >= width * 6:
 		var rivet := _rivet_texture()
 		var d := clampf(width * 1.6, 10.0, 20.0)
@@ -208,6 +206,84 @@ func _draw(item: RID, rect: Rect2) -> void:
 		for p in [rect.position + Vector2(inset, inset), Vector2(rect.end.x - inset, rect.position.y + inset),
 				Vector2(rect.position.x + inset, rect.end.y - inset), rect.end - Vector2(inset, inset)]:
 			rs.canvas_item_add_texture_rect(item, Rect2(p - Vector2(d, d) / 2.0, Vector2(d, d)), rivet.get_rid(), false, tint)
+
+
+## The bronze's colour across the frame, as light falling over cast metal:
+## bands of bright and dark bronze running diagonally from the top left to
+## the bottom right of the whole box (the look of the chosen mock-up).
+const METAL_STOPS := [
+	[0.0, Color("f6d08a")], [0.18, Color("b9763a")], [0.4, Color("6a3b16")],
+	[0.62, Color("c88b45")], [0.82, Color("7a4419")], [1.0, Color("e2a861")],
+]
+## The house bronze the bands are made for; another border colour shifts
+## them by its ratio to this (a gold hover shines, a blue border is steel).
+const METAL_BASE := Color(0.88, 0.66, 0.36)
+## How many pieces a side's middle is cut into, so the bands run smoothly.
+const METAL_STEPS := 10
+
+
+## The colour of the metal at `t` (0 at the top left, 1 at the bottom right),
+## shifted by the border colour.
+func metal_at(t: float) -> Color:
+	var c: Color = METAL_STOPS[-1][1]
+	for i in range(1, METAL_STOPS.size()):
+		if t <= METAL_STOPS[i][0]:
+			var a: Array = METAL_STOPS[i - 1]
+			var b: Array = METAL_STOPS[i]
+			c = (a[1] as Color).lerp(b[1], (t - a[0]) / (b[0] - a[0]))
+			break
+	var shifted := Color(c.r * border_color.r / METAL_BASE.r, c.g * border_color.g / METAL_BASE.g, c.b * border_color.b / METAL_BASE.b)
+	# Too bright for a channel: dim the whole colour, so the bands keep
+	# their light and dark instead of all turning flat white-gold.
+	var top := maxf(shifted.r, maxf(shifted.g, shifted.b))
+	if top > 1.0:
+		shifted = Color(shifted.r / top, shifted.g / top, shifted.b / top)
+	return Color(shifted, border_color.a)
+
+
+## The rim, drawn as a mesh over the rim texture (corners kept, sides
+## stretched, like a nine-patch) so each point can take the metal's colour
+## at its place in the box.
+func _draw_rim(item: RID, rect: Rect2, width: int, radius: int, corner: float) -> void:
+	var rim := _rim(width, radius)
+	var tex := rim.get_size()
+	var xs := _cuts(rect.position.x, rect.size.x, corner)
+	var ys := _cuts(rect.position.y, rect.size.y, corner)
+	var us := _cuts(0.0, tex.x, corner)
+	var vs := _cuts(0.0, tex.y, corner)
+	# 145 degrees in CSS: towards the bottom right, a little more down.
+	var dir := Vector2(sin(deg_to_rad(145.0)), -cos(deg_to_rad(145.0)))
+	var span := absf(rect.size.x * dir.x) + absf(rect.size.y * dir.y)
+	var start := rect.position + Vector2(0.0 if dir.x >= 0.0 else rect.size.x, 0.0 if dir.y >= 0.0 else rect.size.y)
+	var points := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	var colors := PackedColorArray()
+	for j in ys.size():
+		for i in xs.size():
+			var at := Vector2(xs[i], ys[j])
+			points.append(at)
+			uvs.append(Vector2(us[i] / tex.x, vs[j] / tex.y))
+			colors.append(metal_at(clampf((at - start).dot(dir) / maxf(span, 1.0), 0.0, 1.0)))
+	var indices := PackedInt32Array()
+	var n := xs.size()
+	for j in ys.size() - 1:
+		for i in n - 1:
+			# The middle of the box has no rim: leave it out.
+			if i > 0 and i < n - 2 and j > 0 and j < ys.size() - 2:
+				continue
+			var a := j * n + i
+			indices.append_array([a, a + 1, a + n, a + 1, a + n + 1, a + n])
+	RenderingServer.canvas_item_add_triangle_array(item, indices, points, colors, uvs, PackedInt32Array(), PackedFloat32Array(), rim.get_rid())
+
+
+## The places a side is cut at: its two corners and METAL_STEPS pieces between.
+static func _cuts(from: float, length: float, corner: float) -> PackedFloat32Array:
+	var cuts := PackedFloat32Array([from])
+	var inner := maxf(length - 2.0 * corner, 0.0)
+	for k in METAL_STEPS + 1:
+		cuts.append(from + minf(corner, length / 2.0) + inner * k / METAL_STEPS)
+	cuts.append(from + length)
+	return cuts
 
 
 ## How far a point of a texture of `size` lies inside a rounded square with
@@ -254,23 +330,23 @@ static func _rim(width: int, radius: int) -> ImageTexture:
 				shade = 0.08
 			elif width < 3:
 				# A thin rim: just the lit metal.
-				shade = 0.8 + (_noise(x / 2, y / 2) - 0.5) * 0.12
+				shade = 0.9 + (_noise(x / 2, y / 2) - 0.5) * 0.12
 			else:
 				var t := clampf((d - line) / maxf(width - 2.0 * line, 1.0), 0.0, 1.0)
 				# A raised bar: dark at its two feet, bright along its ridge; of its
 				# two slopes the one facing the light (top left) is lit, the other
 				# in shade.
-				shade = 0.3 + 0.66 * sin(t * PI)
+				shade = 0.55 + 0.45 * sin(t * PI)
 				var out := Vector2(px - half, py - half)
 				var away := Vector2(signf(out.x) * maxf(absf(out.x) - (half - corner), 0.0),
 					signf(out.y) * maxf(absf(out.y) - (half - corner), 0.0))
 				if away.length() > 0.0:
 					var facing := away.normalized().dot(Vector2(-0.7071, -0.7071))
-					shade += 0.32 * cos(t * PI) * facing + 0.1 * facing
+					shade += 0.22 * cos(t * PI) * facing + 0.06 * facing
 				# A slow sheen along each side, as light running over polished
 				# metal (the sides are stretched, so it spans the whole side).
 				var along := (px if absf(out.y) > absf(out.x) else py) / size
-				shade += 0.12 * sin(along * TAU + (1.3 if out.y > 0.0 or out.x > 0.0 else 0.0))
+				shade += 0.05 * sin(along * TAU + (1.3 if out.y > 0.0 or out.x > 0.0 else 0.0))
 				# Hammer dents: a soft blotch every few pixels.
 				shade += (_noise(x / 3, y / 3) - 0.5) * 0.14 + (_noise(x, y) - 0.5) * 0.05
 			var alpha := clampf(d, 0.0, 1.0) * clampf(width + 0.5 - d + 0.5, 0.0, 1.0)

@@ -121,20 +121,23 @@ func _test_inventory() -> void:
 	menus.open("inventar")
 	await _wait()
 	var cells := {}
+	# The bag's slots are pictures: the rim takes the rarity colour (a
+	# common item keeps the bronze), the name is in the tooltip.
 	for b in menus._box.find_children("*", "Button", true, false):
-		for id in SAMPLES:
-			if b.text.replace("\n", " ").begins_with(Items.item_name(id).substr(0, 8)):
-				cells[id] = b
+		if b.get_meta("item", "") in SAMPLES:
+			cells[b.get_meta("item")] = b
 	for id in SAMPLES:
 		check(cells.has(id), "the bag shows %s" % id)
 		if cells.has(id):
-			check(cells[id].get_theme_color("font_color") == Rarity.color(id), "%s's name is in its rarity colour" % id)
+			var rim: Color = Rarity.color(id) if Rarity.tier(id) != "normal" else UiKit.BRONZE
+			check(cells[id].get_theme_stylebox("normal").border_color == rim, "%s's slot is rimmed in its rarity colour" % id)
+			check(cells[id].tooltip_text.begins_with(Items.item_name(id)), "%s's slot names it on mouse-over" % id)
 	# The worn weapon's slot too.
 	var worn_ok := false
 	for b in menus._box.find_children("*", "Button", true, false):
-		if b.text.contains(Items.item_name("runenhammer")) and b.get_theme_color("font_color") == Rarity.GODBORN:
+		if b.get_meta("item", "") == "runenhammer" and b.get_theme_stylebox("normal").border_color == Rarity.GODBORN:
 			worn_ok = true
-	check(worn_ok, "the worn god-born hammer is orange in its slot")
+	check(worn_ok, "the worn god-born hammer is rimmed orange in its slot")
 	# The details name the rarity in words, the name in its colour.
 	menus._select(p.bag.find("stachelschild"))
 	await _wait()
@@ -156,7 +159,7 @@ func _test_storage() -> void:
 	await _wait()
 	var ok := false
 	for b in menus._box.find_children("*", "Button", true, false):
-		if b.text.replace("\n", " ").contains(Items.item_name("plattenpanzer")) and b.get_theme_color("font_color") == Rarity.EPIC:
+		if b.get_meta("item", "") == "plattenpanzer" and b.get_theme_stylebox("normal").border_color == Rarity.EPIC:
 			ok = true
 	check(ok, "the storage chest shows the epic plate armour in violet")
 	menus._show_info("plattenpanzer")

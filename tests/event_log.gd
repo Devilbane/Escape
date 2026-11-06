@@ -120,34 +120,16 @@ func _check_layout() -> void:
 	hero.hp = maxi(1, hero.max_hp / 2)
 	game._update_hud()
 	check(is_equal_approx(game._hp_bar.value, hero.hp) and is_equal_approx(game._hp_bar.max_value, hero.max_hp), "the life bar shows the hero's life")
-	check(game.HP_BAR_SIZE.y <= 10.0, "the life bar is slim")
-	# Its colour runs from green through yellow and red to deep red as life
-	# is lost.
-	check(game.hp_color(1.0).is_equal_approx(game.HP_COLORS[0][1]), "green at full life")
-	check(game.hp_color(0.66).is_equal_approx(game.HP_COLORS[1][1]), "yellow at two thirds")
-	check(game.hp_color(0.33).is_equal_approx(game.HP_COLORS[2][1]), "red at one third")
-	check(game.hp_color(0.0).is_equal_approx(game.HP_COLORS[3][1]), "deep red at the end")
-	var green: Color = game.hp_color(1.0)
-	check(green.g > green.r * 2.0, "the full bar is green: %s" % green)
-	var deep: Color = game.hp_color(0.05)
-	check(deep.r > deep.g * 4.0 and deep.r < game.hp_color(0.33).r, "near the end a deep, darker red: %s" % deep)
-	var last := -1.0
-	var smooth := true
-	for i in 21:
-		var c: Color = game.hp_color(i / 20.0)
-		if last >= 0.0 and absf(c.g - last) > 0.2:
-			smooth = false
-		last = c.g
-	check(smooth, "the colour blends without jumps")
-	hero.hp = hero.max_hp
-	game._update_hud()
-	check(game._hp_fill.bg_color.is_equal_approx(game.hp_color(1.0)), "the bar is green at full life")
-	hero.hp = maxi(1, hero.max_hp / 10)
-	game._update_hud()
-	check(game._hp_fill.bg_color.is_equal_approx(game.hp_color(float(hero.hp) / hero.max_hp)), "and follows the life lost: %s" % game._hp_fill.bg_color)
+	check(game.HP_BAR_SIZE.y <= 16.0, "the life bar is slim")
+	# It is the mock-up's bar: glossy red in a bronze rim, with a heart.
+	var reds: Array = game.HP_REDS
+	check(reds[0].r > reds[0].g * 2.0 and reds[2].r > reds[2].g * 4.0, "the life bar is red, lit at its top and dark at its foot")
+	check(game._hp_fill is StyleBoxTexture, "the fill is a glossy band")
+	var rims: Array = game._hp_bar.get_children().filter(func(c): return c is Panel and c.get_theme_stylebox("panel") is BronzeStyle)
+	check(rims.size() == 1, "the life bar has a bronze rim")
+	check(game._hp_bar.get_children().any(func(c): return c is ItemIcon and c.what == "kind:heart"), "a heart sits at the bar's end")
 	hero.ailments["gift"] = 5.0
 	game._update_hud()
-	check(game._hp_fill.bg_color.is_equal_approx(game.hp_color(float(hero.hp) / hero.max_hp)), "poison keeps the life colour (it has its icon)")
 	hero.ailments.erase("gift")
 	hero.hp = maxi(1, hero.max_hp / 2)
 	game._update_hud()
@@ -242,9 +224,10 @@ func _check_layout() -> void:
 	game._update_hud()
 	# Gold and the key sit in the status block, right under the experience bar.
 	var xp_row: Control = game._xp_label.get_parent()
-	var purse: Control = game._coin_label.get_parent()
+	# (The coins and key sit in a bronze plate: its row's parent.)
+	var purse: Control = game._coin_label.get_parent().get_parent()
 	check(purse.get_parent() == xp_row.get_parent() and purse.get_index() == xp_row.get_index() + 1, "the gold line sits right under the experience bar")
-	check(game._key_label.get_parent() == purse, "with the key")
+	check(game._key_label.get_parent() == game._coin_label.get_parent(), "with the key")
 	hero.ailments.erase("gift")
 	hero.hardening = hardening_before
 	game._update_hud()

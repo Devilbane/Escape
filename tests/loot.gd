@@ -253,8 +253,15 @@ func _test_game() -> void:
 	check(added.any(func(p): return p.kind == "item" and p.id == found), "the epic piece lies on the floor")
 	# A plain roll leaves coins only.
 	before = lvl._pickups.size()
-	check(lvl.drop_kill_loot(bandit, 0, 0.99) == "", "an unlucky roll drops no gear")
+	check(lvl.drop_kill_loot(bandit, 0, 0.99, -1.0, -1.0, 0.99) == "", "an unlucky roll drops no gear")
 	check(lvl._pickups.slice(before).all(func(p): return p.kind == "coin" and Loot.is_coin(p.metal)), "only coins")
+	# Bandits carry throwing knives: on a lucky roll they lie on the floor.
+	before = lvl._pickups.size()
+	lvl.drop_kill_loot(bandit, 0, 0.99, -1.0, -1.0, 0.0)
+	var knives: Array = lvl._pickups.slice(before).filter(func(p): return p.kind == "item" and p.id == Items.KNIFE)
+	check(knives.size() >= Loot.KNIVES[0] and knives.size() <= Loot.KNIVES[1], "a bandit leaves throwing knives (%d)" % knives.size())
+	check(Loot.knife_find("halsabschneider", 0.99) == 0, "but not always")
+	check(Loot.knife_find("wolf", 0.0) == 0 and Loot.knife_find("krieger", 0.0) == 0, "only bandits carry them")
 	bandit.queue_free()
 	# A beast: no coins, but its rare part on a rare roll.
 	var wolf := Enemy.new()

@@ -1993,6 +1993,10 @@ func _build_shop() -> void:
 	# And torches for the pitch-black holes in the wild (see HandTorch).
 	while game.shop_stock.count(HandTorch.ITEM) < 3:
 		game.shop_stock.push_front(HandTorch.ITEM)
+	# And throwing knives, a full stack topped up after every sale, so the
+	# belt can always be filled again (see Player.knives).
+	while game.shop_stock.count(Items.KNIFE) < Items.stack_size(Items.KNIFE):
+		game.shop_stock.push_front(Items.KNIFE)
 	# And a bedroll for a camp in the wild, for a hero who has none (see Camp).
 	if not game.shop_stock.has(Camp.ITEM) and not p.bag.has(Camp.ITEM) and not game.storage.has(Camp.ITEM):
 		game.shop_stock.push_front(Camp.ITEM)
@@ -2004,8 +2008,9 @@ func _build_shop() -> void:
 	if _shop_page == "kaufen":
 		for id in _kinds(game.shop_stock):
 			var entry := _ware_entry("ware:" + id, id, game.trader_price(Items.buy_price(id)), _buy.bind(game.shop_stock.find(id)))
-			# Animal food never runs out (see Companions), so it shows no count.
-			entry.count = 1 if Items.is_food(id) else game.shop_stock.count(id)
+			# Animal food and throwing knives never run out (see above), so
+			# they show no count.
+			entry.count = 1 if Items.is_food(id) or id == Items.KNIFE else game.shop_stock.count(id)
 			(goods if _is_consumable(id) else gear).append(entry)
 	else:
 		for id in _kinds(p.bag):

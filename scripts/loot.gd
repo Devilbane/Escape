@@ -248,6 +248,25 @@ static func limestone_find(kind: String, roll := -1.0, rng: RandomNumberGenerato
 	return rng.randi_range(span[0], span[1]) if rng else randi_range(span[0], span[1])
 
 
+## Throwing knives (see Player.knives): the bandits carry a few and leave
+## them this often, so a hero who fights them never runs dry for long.
+const KNIFE_CHANCE := 0.4
+const KNIVES := [1, 2]
+
+
+## The throwing knives a fallen one leaves (0 for none): only the bandits
+## (MonsterFamilies "bandits"), on a roll of its own. `roll` in 0..1, random
+## when left out.
+static func knife_find(kind: String, roll := -1.0, rng: RandomNumberGenerator = null) -> int:
+	if MonsterFamilies.family_of(kind) != "bandits":
+		return 0
+	if roll < 0.0:
+		roll = rng.randf() if rng else randf()
+	if roll >= KNIFE_CHANCE:
+		return 0
+	return rng.randi_range(KNIVES[0], KNIVES[1]) if rng else randi_range(KNIVES[0], KNIVES[1])
+
+
 ## The new gold coins a fallen foe leaves: GOLD_COINS of them from an elite,
 ## a horror or a boss (`rare`) whose fight is for level GOLD_FROM_LEVEL or
 ## higher, none from anyone else.

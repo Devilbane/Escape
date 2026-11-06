@@ -2129,10 +2129,10 @@ func _show_hero_level() -> void:
 	var step := HeroLevel.progress(player.hero_xp)
 	_xp_bar.max_value = maxi(1, step.y)
 	_xp_bar.value = step.x if step.y > 0 else 1
-	_xp_label.text = Lang.t("Heldenstufe %d") % player.hero_level()
+	_xp_label.text = Lang.t("Stufe %d") % player.hero_level()
 	if player.free_points() > 0:
 		_xp_label.text += "   " + Lang.t("Punkt frei (P)")
-	var tip := Lang.t("Heldenstufe %d") % player.hero_level()
+	var tip := Lang.t("Stufe %d") % player.hero_level()
 	if step.y > 0:
 		tip += "\n" + Lang.t("Erfahrung: %d von %d bis zur nächsten Stufe") % [step.x, step.y]
 	else:

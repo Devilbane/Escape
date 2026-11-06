@@ -726,7 +726,7 @@ func _setup_drawer() -> void:
 	_drawer_handle.add_theme_font_size_override("font_size", UiKit.sized(16))
 	_drawer_handle.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-		var box: StyleBoxFlat = _drawer_handle.get_theme_stylebox(style).duplicate()
+		var box: BronzeStyle = _drawer_handle.get_theme_stylebox(style).duplicate()
 		box.corner_radius_top_right = 0
 		box.corner_radius_bottom_right = 0
 		_drawer_handle.add_theme_stylebox_override(style, box)
@@ -751,8 +751,8 @@ func _setup_drawer() -> void:
 	_setup_torch_button()
 
 	var panel := PanelContainer.new()
-	var back := StyleBoxFlat.new()
-	back.bg_color = Color(0.05, 0.03, 0.07, 0.85)
+	var back := BronzeStyle.new()
+	back.bg_color = UiKit.PANEL_BG
 	back.border_color = Color(0.85, 0.66, 0.32, 0.8)
 	back.set_border_width_all(2)
 	back.border_width_right = 0
@@ -842,7 +842,7 @@ func _setup_quick_bar() -> void:
 		b.custom_minimum_size = QUICK_SIZE
 		b.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t(w[1]), w[2]]
 		for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-			var box: StyleBoxFlat = b.get_theme_stylebox(style).duplicate()
+			var box: BronzeStyle = b.get_theme_stylebox(style).duplicate()
 			box.corner_radius_top_right = 0
 			box.corner_radius_bottom_right = 0
 			b.add_theme_stylebox_override(style, box)
@@ -878,7 +878,7 @@ func _setup_home_button() -> void:
 	_home_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_home_button.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t("Nach Hause laufen"), "X"]
 	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-		var box: StyleBoxFlat = _home_button.get_theme_stylebox(style).duplicate()
+		var box: BronzeStyle = _home_button.get_theme_stylebox(style).duplicate()
 		box.corner_radius_top_right = 0
 		box.corner_radius_bottom_right = 0
 		_home_button.add_theme_stylebox_override(style, box)
@@ -910,7 +910,7 @@ func _setup_torch_button() -> void:
 	_torch_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_torch_button.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t("Fackel anzünden oder löschen"), "V"]
 	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-		var box: StyleBoxFlat = _torch_button.get_theme_stylebox(style).duplicate()
+		var box: BronzeStyle = _torch_button.get_theme_stylebox(style).duplicate()
 		box.corner_radius_top_right = 0
 		box.corner_radius_bottom_right = 0
 		_torch_button.add_theme_stylebox_override(style, box)
@@ -991,8 +991,8 @@ func update_home_button() -> void:
 ## Tooltips in the house style: a dark panel with a golden border, gold text.
 static func _tooltip_theme() -> Theme:
 	var theme := Theme.new()
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.04, 0.03, 0.08, 0.95)
+	var box := BronzeStyle.new()
+	box.bg_color = Color(UiKit.PANEL_BG, 0.96)
 	box.border_color = Color(0.85, 0.66, 0.32, 0.8)
 	box.set_border_width_all(2)
 	box.set_corner_radius_all(8)
@@ -1160,7 +1160,7 @@ func _setup_hud() -> void:
 		var tile := Panel.new()
 		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		tile.size = Vector2(AMMO_SLOT.y, AMMO_SLOT.y)
-		var box := StyleBoxFlat.new()
+		var box := BronzeStyle.new()
 		box.bg_color = StatusIcon.TILE
 		box.border_color = AMMO_COLOR
 		box.set_border_width_all(2)
@@ -1185,8 +1185,8 @@ func _setup_hud() -> void:
 	_run_bar.custom_minimum_size = Vector2(170, 14)
 	_run_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_run_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var back := StyleBoxFlat.new()
-	back.bg_color = Color(0.08, 0.05, 0.1, 0.72)
+	var back := BronzeStyle.new()
+	back.bg_color = UiKit.BUTTON_BG
 	back.border_color = Color(0.85, 0.66, 0.32, 0.8)
 	back.set_border_width_all(2)
 	back.set_corner_radius_all(6)
@@ -1373,8 +1373,8 @@ func _setup_shrine_panel() -> void:
 	_shrine_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_shrine_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_shrine_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.03, 0.08, 0.88)
+	var style := BronzeStyle.new()
+	style.bg_color = UiKit.PANEL_BG
 	style.border_color = Color(0.5, 0.75, 1.0, 0.7)
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(18)

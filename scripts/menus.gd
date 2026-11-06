@@ -140,7 +140,7 @@ func setup(owner_game: Node, hud: CanvasLayer) -> void:
 	trade.rebuild = _rebuild
 
 
-static func panel_style(border: Color) -> StyleBoxFlat:
+static func panel_style(border: Color) -> BronzeStyle:
 	return UiKit.panel_style(border)
 
 
@@ -616,7 +616,7 @@ func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callabl
 ## so the name keeps the colour of its rarity.
 func _mark_picked(b: Button) -> void:
 	for state in ["normal", "hover"]:
-		var style: StyleBoxFlat = b.get_theme_stylebox(state).duplicate()
+		var style: BronzeStyle = b.get_theme_stylebox(state).duplicate()
 		# The thicker frame must not take room from the text: the cell keeps
 		# its size and its text its place.
 		for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
@@ -798,7 +798,7 @@ func _build_character() -> void:
 	# The details card: what the wheel points at, else how a roll works.
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(CHARACTER_SIDE, CHARACTER_CARD_HEIGHT)
-	card.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.07, 0.05, 0.07, 0.97), TradeWindow.BORDER, 8, 12, 2))
+	card.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.1, 0.07, 0.045, 0.97), TradeWindow.BORDER, 8, 12, 2))
 	side.add_child(card)
 	var lines := VBoxContainer.new()
 	lines.add_theme_constant_override("separation", 6)
@@ -1192,9 +1192,9 @@ func _gem_row(id: String, width: float) -> Control:
 
 
 ## The frame of one row on the purse tab.
-static func _purse_row_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.08, 0.12, 0.85)
+static func _purse_row_style() -> BronzeStyle:
+	var style := BronzeStyle.new()
+	style.bg_color = Color(0.12, 0.085, 0.05, 0.85)
 	style.border_color = Color(0.85, 0.66, 0.32, 0.55)
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(8)
@@ -1320,7 +1320,7 @@ func _add_inventory_header() -> void:
 	back.custom_minimum_size = Vector2(190, 44)
 	back.add_theme_font_size_override("font_size", UiKit.sized(16))
 	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var style: StyleBoxFlat = back.get_theme_stylebox("normal").duplicate()
+	var style: BronzeStyle = back.get_theme_stylebox("normal").duplicate()
 	style.bg_color = Color(0.2, 0.42, 0.18, 0.9)
 	style.border_color = game.GOLD
 	style.set_border_width_all(3)
@@ -1547,7 +1547,7 @@ func _store_columns(titles: Array) -> Control:
 func _store_row(id: String) -> Control:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(STORE_WIDTH - 14, STORE_ROW_HEIGHT)
-	panel.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.07, 0.06, 0.08, 0.95), Color(0.85, 0.66, 0.32, 0.3), 8, 6))
+	panel.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.09, 0.065, 0.045, 0.95), Color(0.85, 0.66, 0.32, 0.3), 8, 6))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	panel.add_child(row)
@@ -2518,8 +2518,8 @@ func _companion_row(kind: String) -> Control:
 	var tame := index >= 0
 	var at_side: bool = tame and index == game.following
 	var row := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.1, 0.16, 0.9) if tame else Color(0.08, 0.07, 0.1, 0.7)
+	var style := BronzeStyle.new()
+	style.bg_color = Color(0.14, 0.1, 0.06, 0.9) if tame else Color(0.09, 0.07, 0.05, 0.7)
 	style.border_color = game.GOLD if at_side else Color(0.4, 0.34, 0.25, 0.6)
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(8)

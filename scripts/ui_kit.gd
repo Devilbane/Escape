@@ -10,6 +10,15 @@ const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const GOLD := Color(1.0, 0.82, 0.4)
 ## Button text while the pointer is over the button: a lighter gold.
 const BUTTON_HOVER_TEXT := Color(1.0, 0.92, 0.66)
+## The forged-bronze look (see BronzeStyle): the tint of the metal rims, the
+## dark leather-brown grounds of windows and buttons, and the rims' sizes.
+const BRONZE := Color(0.88, 0.66, 0.36)
+const PANEL_BG := Color(0.085, 0.062, 0.045, 0.93)
+const BUTTON_BG := Color(0.13, 0.085, 0.05, 0.85)
+const PANEL_RIM := 7
+const PANEL_RADIUS := 8
+const BUTTON_RIM := 3
+const BUTTON_RADIUS := 6
 ## The game draws all its text at this share of the size it was designed at
 ## (the owner found it a quarter too big): use sized() wherever a font size
 ## is set. The names over the heads of the hero, the townsfolk and the foes
@@ -59,25 +68,25 @@ static func button(text: String, action: Callable, on_press := false) -> Button:
 	b.add_theme_color_override("font_hover_pressed_color", GOLD)
 	b.add_theme_color_override("font_focus_color", BUTTON_HOVER_TEXT)
 	b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.35))
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color(0.08, 0.05, 0.1, 0.72)
-	normal.border_color = Color(0.85, 0.66, 0.32, 0.8)
-	normal.set_border_width_all(2)
-	normal.set_corner_radius_all(14)
-	var hover := normal.duplicate()
-	hover.bg_color = Color(0.17, 0.11, 0.12, 0.85)
+	var normal := BronzeStyle.new()
+	normal.bg_color = BUTTON_BG
+	normal.border_color = BRONZE
+	normal.set_border_width_all(BUTTON_RIM)
+	normal.set_corner_radius_all(BUTTON_RADIUS)
+	var hover: BronzeStyle = normal.duplicate()
+	hover.bg_color = Color(0.21, 0.14, 0.08, 0.9)
 	hover.border_color = GOLD
-	var pressed := normal.duplicate()
-	pressed.bg_color = Color(0.3, 0.2, 0.1, 0.85)
+	var pressed: BronzeStyle = normal.duplicate()
+	pressed.bg_color = Color(0.32, 0.2, 0.09, 0.9)
 	pressed.border_color = GOLD
-	var disabled := normal.duplicate()
-	disabled.bg_color = Color(0.06, 0.05, 0.07, 0.5)
-	disabled.border_color = Color(0.85, 0.66, 0.32, 0.3)
-	var focus := StyleBoxFlat.new()
+	var disabled: BronzeStyle = normal.duplicate()
+	disabled.bg_color = Color(0.07, 0.05, 0.04, 0.5)
+	disabled.border_color = Color(BRONZE, 0.35)
+	var focus := BronzeStyle.new()
 	focus.draw_center = false
 	focus.border_color = Color(1, 1, 1, 0.95)
 	focus.set_border_width_all(3)
-	focus.set_corner_radius_all(16)
+	focus.set_corner_radius_all(BUTTON_RADIUS + 2)
 	focus.set_expand_margin_all(4)
 	b.add_theme_stylebox_override("normal", normal)
 	b.add_theme_stylebox_override("hover", hover)
@@ -92,14 +101,28 @@ static func button(text: String, action: Callable, on_press := false) -> Button:
 	return b
 
 
-## The frame of every window.
-static func panel_style(border: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.03, 0.08, 0.9)
-	style.border_color = border
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(18)
+## The frame of every window: a thick forged-bronze rim with rivets in its
+## corners around a dark leather-brown ground. `border` tints the metal (the
+## house gold gives bronze); a clearly visible border is drawn solid, so the
+## ground does not shine through the rim.
+static func panel_style(border: Color) -> BronzeStyle:
+	var style := BronzeStyle.new()
+	style.bg_color = PANEL_BG
+	style.border_color = Color(border, 1.0) if border.a >= 0.6 else border
+	style.set_border_width_all(PANEL_RIM)
+	style.set_corner_radius_all(PANEL_RADIUS)
 	style.set_content_margin_all(26)
+	return style
+
+
+## A smaller bronze frame for boxes inside a window or on the HUD (rows,
+## cards, slots, tooltips): a thinner rim, no rivets, the same metal.
+static func frame_style(bg: Color, border := BRONZE, width := 3, radius := 4) -> BronzeStyle:
+	var style := BronzeStyle.new()
+	style.bg_color = bg
+	style.border_color = border
+	style.set_border_width_all(width)
+	style.set_corner_radius_all(radius)
 	return style
 
 

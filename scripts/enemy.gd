@@ -1312,41 +1312,40 @@ func cripple() -> bool:
 	return true
 
 
-## Bleeding left from a vital hit: ticks still to come and the time to the next.
-var _bleed_ticks := 0
-var _bleed_time := 0.0
+## Its open wound, if any (see Bleeding).
+var wound := Bleeding.new()
 
 
-## A vital hit opened a wound: it loses 1 life every BLEED_EVERY seconds,
-## BLEED_TICKS times (a new wound starts the count again). Bleeding to
-## death counts as the hero's kill.
-func bleed() -> void:
+## Whether its blows and shots cut, and so can make the hero bleed.
+func cuts() -> bool:
+	return Bleeding.monster_cuts(kind, _stats)
+
+
+## A wound opened (a cutting hit, see Bleeding, or a vital hit, see
+## MonsterLore): it bleeds `amount` more life, 1 a second, 2 while it
+## moves. Bleeding to death counts as the hero's kill. A ghost has no blood.
+func bleed(amount: int) -> void:
 	if dead or is_ghost():
 		return
-	if _bleed_ticks <= 0:
-		Effects.head_text(level, self, 3.1 * _stats.size, Lang.t("Blutet!"), Color(0.9, 0.15, 0.15))
-	_bleed_ticks = MonsterLore.BLEED_TICKS
-	_bleed_time = MonsterLore.BLEED_EVERY
+	if wound.open(amount):
+		Effects.head_text(level, self, 3.1 * _stats.size, Lang.t("Blutet!"), Bleeding.COLOR)
 
 
 func is_bleeding() -> bool:
-	return _bleed_ticks > 0 and not dead
+	return wound.active() and not dead
 
 
 func _tick_bleeding(delta: float) -> void:
-	if _bleed_ticks <= 0:
+	var lost := wound.run(delta, _meant_speed > Bleeding.MOVING_SPEED)
+	if lost <= 0:
 		return
-	_bleed_time -= delta
-	if _bleed_time > 0.0:
-		return
-	_bleed_ticks -= 1
-	_bleed_time = MonsterLore.BLEED_EVERY
-	if hp <= 1:
+	if hp <= lost:
 		# The last drop: it falls as from the hero's blow.
+		wound.stop()
 		take_hit(hp, global_position, "pierce", false)
 		return
-	hp -= 1
-	Effects.head_text(level, self, 2.2 * _stats.size, "-1", Color(0.9, 0.15, 0.15))
+	hp -= lost
+	Effects.head_text(level, self, 2.2 * _stats.size, "-%d" % lost, Bleeding.COLOR)
 
 
 ## A blow (or a shot) from a rival monster. It fights back; armour that
@@ -1926,6 +1925,9 @@ func _strike(target: Node3D) -> void:
 		# Minion blades and spider bites are sometimes poisoned.
 		if player.hp < before and randf() < _stats.get("poison", POISON_CHANCE if kind == "wicht" else 0.0):
 			player.afflict("gift")
+		# A blade, a bolt or claws that cut may leave the hero bleeding (see Bleeding).
+		if cuts() and Bleeding.rolls_wound(before - player.hp):
+			player.bleed(before - player.hp)
 		# A wraith's touch is cold as the grave: it curses.
 		if player.hp < before and _stats.has("curse") and randf() < float(_stats.curse):
 			player.afflict("fluch")

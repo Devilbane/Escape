@@ -190,8 +190,12 @@ var _knife_settle := 0.0
 ## BURN_TICK seconds for a few seconds, never the last one either; a spider's
 ## web ("netz") makes the hero much slower for a few seconds; fear ("angst",
 ## see scare) makes the hero flee towards the nearest way out for FEAR_TIME.
+## Bleeding ("blut", see bleed and Bleeding) lasts as long as its wound has
+## life to bleed: 1 a second, 2 while the hero moves, never the last one.
 ## All wear off soon; a fountain, a shrine or a healing potion cures them.
 var ailments := {}
+## The hero's open wound (see bleed).
+var wound := Bleeding.new()
 var _poison_tick := 0.0
 var _burn_tick := 0.0
 ## A direction to run in, set every frame while the mouse button is held.
@@ -1034,6 +1038,9 @@ func melee() -> void:
 			victims.push_front(_target)
 		victims.resize(1)
 	var hits := 0
+	# A blade or an axe cuts and may leave a bleeding wound; a mace or a
+	# hammer does not (see Bleeding).
+	var cuts := Bleeding.weapon_cuts(equipped.get("waffe", ""))
 	# The weapon's impact speaks for the blow (see blow_sound), so the comic
 	# words of these hits only add a quiet echo of it.
 	if not victims.is_empty():
@@ -1046,7 +1053,9 @@ func melee() -> void:
 			# A sneak attack never rolls: it lands SNEAK_ATTACK_FACTOR times
 			# the hardest blow the hero can deal.
 			this_blow = "sneak"
+			var had: int = e.hp
 			e.take_hit(sneak_attack_damage(), global_position, "backstab")
+			wound_foe(e, had - e.hp, cuts)
 			train("schleichen", 4.0)
 		else:
 			# Monster knowledge: a blow may find a vital point (see MonsterLore).
@@ -1057,9 +1066,11 @@ func melee() -> void:
 				this_blow = "glance"
 			elif heavy > 0:
 				this_blow = "heavy"
+			var had: int = e.hp
 			e.take_hit(vital_damage(power, weapon) if vital else damage, global_position)
 			if vital:
 				vital_struck(e, "")
+			wound_foe(e, had - e.hp, cuts, vital)
 		if blow == "" or BLOWS.find(this_blow) > BLOWS.find(blow):
 			blow = this_blow
 			blow_at = e.global_position
@@ -1124,8 +1135,8 @@ func _leap_strike(arms: String) -> void:
 
 
 ## After a vital hit landed on `e`: a burst at the point struck, the word over
-## its head, and maybe a crippled attack and a bleeding wound (see
-## MonsterLore). `sound` is the knife's impact; a melee blow passes "" and
+## its head, and maybe a crippled attack (see MonsterLore; the bleeding
+## wound is rolled in wound_foe). `sound` is the knife's impact; a melee blow passes "" and
 ## sounds its weapon instead.
 func vital_struck(e: Enemy, sound := "hit") -> void:
 	if sound != "":
@@ -1137,8 +1148,22 @@ func vital_struck(e: Enemy, sound := "hit") -> void:
 	e.vital_mark()
 	if randf() < MonsterLore.SLOW_CHANCE:
 		e.cripple()
-	if randf() < MonsterLore.BLEED_CHANCE:
-		e.bleed()
+
+
+## After a blow or a knife cost `e` `lost` life: a cutting hit opens a wound
+## with Bleeding.CHANCE, a vital hit with MonsterLore.BLEED_CHANCE whatever
+## the weapon (or the higher of the two). The wound bleeds as much life as
+## the hit cost (see Bleeding, Enemy.bleed). Returns whether it bleeds.
+func wound_foe(e: Enemy, lost: int, cutting: bool, vital := false) -> bool:
+	if e == null or e.dead:
+		return false
+	var chance := Bleeding.CHANCE if cutting else 0.0
+	if vital:
+		chance = maxf(chance, MonsterLore.BLEED_CHANCE)
+	if not Bleeding.rolls_wound(lost, chance):
+		return false
+	e.bleed(lost)
+	return true
 
 
 ## How many throwing knives the hero can keep ready for a fight:
@@ -1699,7 +1724,7 @@ func _show_tint(slot: String, parts: Array) -> void:
 const AILMENT_TIME := 20.0
 const POISON_TICK := 8.0
 const CURSE_SLOW := 0.85
-const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0), "brand": Color(1.0, 0.5, 0.15), "netz": Color(0.93, 0.93, 0.86),
+const AILMENT_COLORS := {"blut": Bleeding.COLOR, "gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0), "brand": Color(1.0, 0.5, 0.15), "netz": Color(0.93, 0.93, 0.86),
 	"angst": Color(0.7, 0.85, 1.0)}
 ## Burning is short but fierce.
 const BURN_TIME := 4.5
@@ -1707,7 +1732,7 @@ const BURN_TICK := 1.5
 ## A spider's web sticks only briefly, but slows the hero a lot.
 const WEB_TIME := 3.0
 const WEB_SLOW := 0.55
-const AILMENT_WORDS := {"gift": "Vergiftet!", "fluch": "Verflucht!", "brand": "Brennt!", "netz": "Eingesponnen!", "angst": "Verängstigt!"}
+const AILMENT_WORDS := {"blut": "Blutet!", "gift": "Vergiftet!", "fluch": "Verflucht!", "brand": "Brennt!", "netz": "Eingesponnen!", "angst": "Verängstigt!"}
 ## Fear (see scare): the hero runs for the nearest way out for FEAR_TIME
 ## seconds, and cannot be frightened again for FEAR_CALM seconds after.
 const FEAR_TIME := 3.0
@@ -1733,6 +1758,27 @@ func afflict(kind: String) -> void:
 			_burn_tick = BURN_TICK
 		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t(AILMENT_WORDS[kind]), AILMENT_COLORS[kind])
 		_ailments_changed()
+
+
+## A cutting hit opened a wound (see Bleeding): the hero bleeds `amount`
+## more life, 1 a second, twice as fast while moving, never the last one.
+## A second wound adds to the first.
+func bleed(amount: int) -> void:
+	if dead or amount <= 0:
+		return
+	var fresh := wound.open(amount)
+	ailments["blut"] = wound.seconds_left()
+	if fresh:
+		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t(AILMENT_WORDS.blut), AILMENT_COLORS.blut)
+		_ailments_changed()
+	else:
+		ailments_changed.emit()
+
+
+## Whether the hero moves on purpose (not just pushed back by a blow): a
+## bleeding hero then bleeds twice as fast (see Bleeding).
+func is_moving() -> bool:
+	return (Vector3(velocity.x, 0, velocity.z) - Vector3(_knockback.x, 0, _knockback.z)).length() > Bleeding.MOVING_SPEED
 
 
 ## The hero's nerve against a ghost's fright (see scare): Weisheit, Intuition
@@ -1848,6 +1894,8 @@ func _tick_ailments(delta: float) -> void:
 		return
 	var changed := false
 	for kind in ailments.keys():
+		if kind == "blut":
+			continue # Lasts as long as the wound bleeds (below).
 		ailments[kind] -= delta
 		if ailments[kind] <= 0.0:
 			ailments.erase(kind)
@@ -1861,6 +1909,24 @@ func _tick_ailments(delta: float) -> void:
 				train("konstitution", 1.0)
 				Effects.head_text(level, self, 2.2, "-1", AILMENT_COLORS.gift)
 				hurt.emit(1)
+	# Bleeding: the ailment lasts as long as the wound has life to bleed.
+	if ailments.has("blut"):
+		var lost := wound.run(delta, is_moving())
+		if lost > 0:
+			var taken := mini(lost, hp - 1)
+			if taken > 0:
+				hp -= taken
+				train("konstitution", taken)
+				Effects.head_text(level, self, 2.2, "-%d" % taken, AILMENT_COLORS.blut)
+				hurt.emit(taken)
+		if wound.active():
+			ailments["blut"] = maxf(wound.seconds_left(), 0.01)
+		else:
+			ailments.erase("blut")
+			changed = true
+	elif wound.active():
+		# Cured (a fountain, a shrine, a potion): the wound closes.
+		wound.stop()
 	if ailments.has("brand"):
 		_burn_tick -= delta
 		if _burn_tick <= 0.0:
@@ -1880,7 +1946,9 @@ func _ailments_changed() -> void:
 	var old := get_node_or_null("AilmentHaze")
 	if old:
 		old.free()
-	for kind in ["angst", "netz", "brand", "gift", "fluch"]:
+	if not ailments.has("blut"):
+		wound.stop()
+	for kind in ["angst", "netz", "brand", "blut", "gift", "fluch"]:
 		if ailments.has(kind):
 			var haze := Effects.make_sparkles(AILMENT_COLORS[kind])
 			haze.name = "AilmentHaze"

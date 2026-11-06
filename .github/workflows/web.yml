@@ -169,6 +169,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/save_notice.gd | tee save_notice.log
           grep -q PASS save_notice.log
 
+      - name: Bleeding test (cutting hits bleed the hit's life, faster on the move)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/bleeding.gd | tee bleeding.log
+          grep -q PASS bleeding.log
+
       - name: Healing pause test (no regeneration right after a blow)
         run: |
           timeout 120 ~/godot/godot --headless -s tests/regen_pause.gd | tee regen.log

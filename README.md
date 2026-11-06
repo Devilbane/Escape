@@ -348,6 +348,14 @@ nozzle and the soot strip glow red and the mechanism clicks), then 1.5 seconds o
 blast, as much as the place's spike traps, and sets you burning. Jumping does not help, but Dexterity may still
 let you twist aside: read the warning and cross while the jet is quiet.
 
+**Bleeding.** A hit that cuts (a blade, an axe, a dagger, a bolt, claws or fangs; not a club, a mace, a hammer,
+a fist, magic or fire) opens a bleeding wound one time in five. The wound bleeds away as much life as the hit
+cost, 1 life per second, and twice as fast while the bleeder moves: stand still and it lasts longer but hurts
+no more. A second wound adds its life to the first. A red drop under your life bar shows how much is still to
+bleed; your own bleeding never takes your last life, and a fountain, a shrine or a healing potion stops it. Your
+blades, axes and knives make monsters bleed the same way (a vital hit with any weapon too), and a monster can
+bleed to death. Ghosts have no blood.
+
 You only see what lies in your line of sight and has light: a burning torch nearby or
 your own lantern. Dark corners stay black; skeletons in them you only hear by their footsteps.
 Areas you have already explored stay visible in grey. Some torches burn, some do not: run into

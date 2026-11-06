@@ -284,7 +284,7 @@ var _hp_hover: Control
 ## pixels (below it stops short of the ammunition row).
 const HP_HOVER_ABOVE := 6.0
 const HP_HOVER_BELOW := 4.0
-## The hero's passing troubles (poison, a curse, burning, slowness) as icons
+## The hero's passing troubles (bleeding, poison, a curse, burning, slowness) as icons
 ## under the life bar (see StatusIcon, hero_ailments).
 var _status_row: HBoxContainer
 ## The hero's boons (stronger blows, speed, hardening) as icons in the status
@@ -4403,6 +4403,9 @@ func heard(speaker: String, text: String, pos: Vector3) -> void:
 ## fixed order (see StatusIcon): shown under the life bar.
 func hero_ailments() -> Array:
 	var out := []
+	# Bleeding shows the life still to bleed away.
+	if player.ailments.has("blut"):
+		out.append(["blut", str(player.wound.left)])
 	for kind in ["gift", "fluch", "brand", "netz", "angst"]:
 		if player.ailments.has(kind):
 			out.append([kind, ""])
@@ -4448,6 +4451,7 @@ func _update_status_icons() -> void:
 ## appears (touch has no pointer to rest).
 func icon_text(kind: String, number: String) -> String:
 	match kind:
+		"blut": return Lang.t("Du blutest: Noch %s Leben fließen ab, eines pro Sekunde, doppelt so schnell, solange du läufst. Nie das letzte. Ein Brunnen, ein Schrein oder ein Heiltrank stillt die Blutung.") % number
 		"gift": return Lang.t("Vergiftet: Du verlierst alle paar Sekunden ein Leben, nie das letzte. Ein Brunnen, ein Schrein oder ein Heiltrank heilt es.")
 		"fluch": return Lang.t("Verflucht: Du bist langsamer. Es vergeht bald; ein Brunnen, ein Schrein oder ein Heiltrank heilt es sofort.")
 		"brand": return Lang.t("Du brennst: Ein paar Sekunden lang verlierst du Leben, nie das letzte.")
@@ -6020,8 +6024,8 @@ func _process(delta: float) -> void:
 			player.set_sneaking(false)
 			show_message(Lang.t("Entdeckt! Du kannst nicht mehr schleichen."), 1.6)
 	_guardian_intro()
-	# A swollen belly counts down under the life bar.
-	if player != null and player.ailments.has(BloatedBelly.KIND):
+	# A swollen belly and a bleeding wound count down under the life bar.
+	if player != null and (player.ailments.has(BloatedBelly.KIND) or player.ailments.has("blut")):
 		_update_status_icons()
 	if state == State.PLAYING and level != null and not menus.is_open():
 		journal.update(delta)

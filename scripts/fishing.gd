@@ -897,14 +897,15 @@ func _bubble(at: Vector3) -> void:
 
 ## A small green pond monster, about knee high above the water: a round
 ## head with big eyes and two spiky, fin-like ears, and a hump and a tail tip
-## behind it. Its skin is scaly (see ScaleSkin), and a ridge of plates runs
-## down its back over the hump to the tail. It looks along -Z.
+## behind it. Its skin, its ears and the ridge of plates down its back over
+## the hump to the tail are scaly (see ScaleSkin). It looks along -Z.
 static func make_monster() -> Node3D:
 	var root := Node3D.new()
 	root.name = "PondMonster"
-	var skin := ScaleSkin.apply(_paint(Color(0.3, 0.64, 0.48), 0.45), 1.0, 28.0)
+	var skin := ScaleSkin.apply(_paint(Color(0.3, 0.64, 0.48), 0.45), 1.0, 18.0)
 	var belly := _paint(Color(0.6, 0.84, 0.55))
-	var plate := _paint(Color(0.5, 0.64, 0.3), 0.45)
+	var plate := ScaleSkin.apply(_paint(Color(0.5, 0.64, 0.3), 0.45), 1.0, 18.0)
+	var fin_skin := ScaleSkin.apply(_paint(Color(0.6, 0.84, 0.55), 0.45), 0.8, 18.0)
 	var parts := [
 		[_ball(0.3), skin, Vector3(0, 0.25, -0.05), Vector3(1.0, 1.0, 1.0)],
 		[_ball(0.2), belly, Vector3(0, 0.15, -0.2), Vector3(1.1, 0.8, 0.7)],
@@ -926,7 +927,7 @@ static func make_monster() -> Node3D:
 		var fin := PrismMesh.new()
 		fin.size = Vector3(0.26, 0.24, 0.02)
 		# Upside down: narrow where it grows from the head, wide at its edge.
-		var web := _mesh_part(fin, belly, Vector3(0, 0.12, 0))
+		var web := _mesh_part(fin, fin_skin, Vector3(0, 0.12, 0))
 		web.rotation.z = PI
 		ear.add_child(web)
 		for i in 3:

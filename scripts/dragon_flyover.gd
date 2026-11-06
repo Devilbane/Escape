@@ -15,8 +15,9 @@ extends Node3D
 ## (head, neck, tail) and one wing on either side, whose span shrinks and
 ## grows as they beat, like the shadow of a real wing seen from below. Their
 ## pictures are drawn once, at load time (see _body_image, _wing_image). The
-## shadow is as dark as the light allows: plain by day, faint by moonlight,
-## nearly gone on a dark night or in fog, while its sounds still carry.
+## shadow is as dark as the light allows: plain by day, and by night as plain
+## as the moon makes it (clear under a full moon, dim under a half moon, gone
+## on a new-moon night), fainter in fog, while its sounds still carry.
 ## Moved per frame (it is no physics body). Tested by tests/dragon_flyover.gd.
 
 ## The scream (built by tools/make_dragon_sounds.py) and how loud it is.
@@ -55,9 +56,16 @@ const FOLD := 0.5
 const GLIDE_EVERY := 2.6
 ## How high over the ground the shadow lies (over the paving and the grass).
 const LIFT := 0.12
-## How dark the shadow is in full daylight (its alpha), and its colour.
-const DARK := 0.5
-const TINT := Color(0.04, 0.05, 0.09)
+## How dark the shadow is in full daylight (its alpha), and its colour: a
+## dense, near-black shade, plainly a huge thing passing over.
+const DARK := 0.72
+const TINT := Color(0.01, 0.01, 0.02)
+## How dark it is under a clear full moon (its alpha), and its colour then:
+## black, as a shadow takes away the moon's blue light (a bluish tint would
+## melt into the bluish night ground). Darker than by day, since a dim
+## picture needs more to stand out.
+const MOON_DARK := 0.8
+const MOON_TINT := Color(0, 0, 0)
 ## The picture resolution: pixels per metre.
 const PIXELS := 12.0
 ## The colour of its line in the event log.
@@ -217,8 +225,9 @@ func _fly(delta: float) -> void:
 	_place()
 	_beat()
 	_sounds()
-	_material.albedo_color.a = DARK * light() * _fade()
-	_wing_material.albedo_color.a = _material.albedo_color.a
+	var shade := Color(tint(), strength() * _fade())
+	_material.albedo_color = shade
+	_wing_material.albedo_color = shade
 
 
 ## Shows or hides the shapes. The node itself stays visible, so the copy of
@@ -293,15 +302,34 @@ func _fade() -> float:
 
 
 ## How dark a shadow the light casts now, from 0 to 1: full by day, only as
-## much as the moon gives at night, weaker in bad weather.
+## much as the moon gives at night (see Moon.light: full at full moon, next
+## to nothing at new moon), weaker in bad weather.
 func light() -> float:
 	var outdoor := level as Outdoor
 	if outdoor == null or outdoor.hour < 0.0:
 		return 1.0
-	var night := DayNight.moon_at(outdoor.hour)
-	var bright := lerpf(1.0, Moon.light(outdoor.day) * 0.6, night)
+	var bright := lerpf(1.0, Moon.light(outdoor.day), _night())
 	var sun: float = Weather.look(outdoor.weather if outdoor.weather != "" else Weather.CLEAR).sun
 	return clampf(bright * lerpf(0.35, 1.0, sun), 0.0, 1.0)
+
+
+## How dark the shadow is drawn now (its alpha, before it fades in and out
+## at the ends of its path): DARK by day, MOON_DARK at night, times light().
+func strength() -> float:
+	return lerpf(DARK, MOON_DARK, _night()) * light()
+
+
+## The shadow's colour now: TINT by day, MOON_TINT by moonlight.
+func tint() -> Color:
+	return TINT.lerp(MOON_TINT, _night())
+
+
+## How much of the light is the moon's now (see DayNight.moon_at): 0 by day.
+func _night() -> float:
+	var outdoor := level as Outdoor
+	if outdoor == null or outdoor.hour < 0.0:
+		return 0.0
+	return DayNight.moon_at(outdoor.hour)
 
 
 ## The scream, from far off where the dragon comes from,

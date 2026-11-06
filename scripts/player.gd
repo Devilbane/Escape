@@ -220,6 +220,9 @@ const NIGHT_LANTERN_ENERGY := 0.55
 const NIGHT_LANTERN_RANGE := 0.62
 ## The hand torch that burns in the pitch-black places (see HandTorch).
 var torch: HandTorch
+## The hero's healing potions: the cooldown and the life over time of the
+## last one drunk (see HealingPotions).
+var potions := HealingPotions.new()
 var _shown_alpha := -1.0
 
 var _model: Node3D
@@ -312,6 +315,7 @@ func _ready() -> void:
 	# A hand torch for the pitch-black places (see HandTorch).
 	torch = HandTorch.new(self)
 	add_child(torch)
+	potions.player = self
 	_build_name_tag()
 
 
@@ -991,7 +995,9 @@ func melee() -> void:
 	var hits := 0
 	for e in victims:
 		if e.open_to_backstab(global_position):
-			e.take_hit(power, global_position, "backstab")
+			# A sneak attack never rolls: it lands SNEAK_ATTACK_FACTOR times
+			# the hardest blow the hero can deal.
+			e.take_hit(sneak_attack_damage(), global_position, "backstab")
 			train("schleichen", 4.0)
 		else:
 			# Monster knowledge: a blow may find a vital point (see MonsterLore).
@@ -1029,7 +1035,8 @@ func finds_vital(e: Enemy) -> bool:
 
 ## What a vital hit deals: MonsterLore.VITAL_FACTOR times the hardest blow of
 ## `base` (power for the blade, throw_power for a knife), that is with the
-## heavy hit of `skill_id` whenever the skill can roll one at all. No roll.
+## heavy hit of `skill_id` whenever the skill can roll one at all (for the
+## blade, the same as max_hit). No roll.
 func vital_damage(base: int, skill_id: String) -> int:
 	return MonsterLore.VITAL_FACTOR * (base + (1 if skill_chance(skill_id) > 0 else 0))
 
@@ -1441,6 +1448,22 @@ func heavy_hit(skill_id: String) -> int:
 	return 1 if skill_check(skill_id) else 0
 
 
+## A sneak attack (a stab in the back of a foe that has not noticed the
+## hero) deals this many times the hero's maximum hit.
+const SNEAK_ATTACK_FACTOR := 3
+
+
+## The hardest single blow the hero can deal right now: the power, plus the
+## heavy hit when the weapon's skill can roll one at all.
+func max_hit() -> int:
+	return power + (1 if skill_chance(weapon_skill()) > 0 else 0)
+
+
+## What a sneak attack deals: SNEAK_ATTACK_FACTOR times max_hit, no roll.
+func sneak_attack_damage() -> int:
+	return SNEAK_ATTACK_FACTOR * max_hit()
+
+
 ## The average of the attributes that govern a skill.
 func skill_attribute_average(id: String) -> float:
 	var governing: Array = Training.SKILLS[id].attributes
@@ -1706,6 +1729,11 @@ func life_regen() -> float:
 	return attribute("konstitution") / REGEN_PER_CON_DIVISOR / REGEN_INTERVAL
 
 
+## Whether a fresh hit is holding the healing back for now.
+func regen_paused() -> bool:
+	return _regen_pause > 0.0
+
+
 ## Heals the hero once every REGEN_INTERVAL seconds, more with more Konstitution.
 func _regenerate(delta: float) -> void:
 	if dead or hp >= max_hp:
@@ -1859,7 +1887,7 @@ func bag_fits(id: String) -> bool:
 ## and so does an item whose swap would leave the bag with too few slots.
 ## Returns whether the item was put on.
 func equip(id: String) -> bool:
-	if Items.is_book(id) or Items.is_crate(id) or Items.is_stone(id) or Items.is_material(id) or Items.is_ammo(id) or Items.is_bedroll(id) or not can_use(Items.ALL[id].get("requires", {})):
+	if Items.is_book(id) or Items.is_crate(id) or Items.is_stone(id) or Items.is_material(id) or Items.is_ammo(id) or Items.is_bedroll(id) or Items.is_potion(id) or not can_use(Items.ALL[id].get("requires", {})):
 		return false
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":
@@ -2257,6 +2285,7 @@ func _physics_process(delta: float) -> void:
 	_get_up(delta)
 	_tick_ailments(delta)
 	_regenerate(delta)
+	potions.tick(delta)
 	_knife_settle -= delta
 	if _knife_settle <= 0.0:
 		_knife_settle = KNIFE_SETTLE_EVERY

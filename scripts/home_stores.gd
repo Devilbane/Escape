@@ -237,11 +237,8 @@ static func load_from(saved) -> Dictionary:
 			if Crafting.has_pieces(str(id)) and pieces[id] is Array and count > 0:
 				var list: Array = []
 				for piece in pieces[id].slice(0, count):
-					if Ore.is_ore(str(id)) and piece is Dictionary and piece.has("grams") and piece.get("share") is Dictionary:
-						var gems := []
-						for carat in (piece.get("gems", []) if piece.get("gems", []) is Array else []):
-							gems.append(int(carat))
-						list.append({"grams": int(piece.grams), "share": piece.share, "gems": gems})
+					if Ore.is_ore(str(id)) and piece is Dictionary and piece.has("grams"):
+						list.append({"grams": int(piece.grams)})
 					elif Ore.GEMS.has(str(id)) and (piece is float or piece is int):
 						list.append(int(piece))
 				if not list.is_empty():

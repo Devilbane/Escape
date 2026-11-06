@@ -20,6 +20,7 @@ on:
       - "scenes/launcher.tscn"
       - "scripts/launcher.gd"
       - "scripts/ui_kit.gd"
+      - "scripts/bronze_style.gd"
       - "scripts/lang/launcher.gd"
       - "tests/launcher.gd"
   workflow_dispatch:
@@ -80,7 +81,7 @@ jobs:
           version=$(sed -n 's/^const VERSION := "\(.*\)"/\1/p' scripts/game.gd)
           # The launcher fetches a new Escape.exe only when this changes: its own files
           # and the engine, not every change to the game.
-          rev=$( (echo "$GODOT_VERSION"; cat scripts/launcher.gd scripts/ui_kit.gd scenes/launcher.tscn scripts/lang/launcher.gd export_presets.cfg) | sha256sum | cut -c1-16)
+          rev=$( (echo "$GODOT_VERSION"; cat scripts/launcher.gd scripts/ui_kit.gd scripts/bronze_style.gd scenes/launcher.tscn scripts/lang/launcher.gd export_presets.cfg) | sha256sum | cut -c1-16)
           echo "BUILD=$build" >> $GITHUB_ENV
           echo "VERSION=$version" >> $GITHUB_ENV
           echo "REV=$rev" >> $GITHUB_ENV

@@ -68,9 +68,10 @@ const MONSTER_NAMES := {
 	"brutdrache": "Brutdrache", "grosser_alter": "Der Große Alte",
 }
 ## The numbers of a monster: [key, label, lowest, highest, step]. A key left
-## out keeps the base's own value.
+## out keeps the base's own value. Life goes up to MONSTER_MAX_HP.
+const MONSTER_MAX_HP := 10000
 const MONSTER_STATS := [
-	["hp", "Leben", 1, 400, 1],
+	["hp", "Leben", 1, MONSTER_MAX_HP, 1],
 	["damage", "Schaden", 1, 10, 1],
 	["armor", "Härte", 0, 4, 1],
 	["speed", "Tempo", 1.0, 9.0, 0.2],

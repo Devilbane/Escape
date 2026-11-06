@@ -30,7 +30,8 @@ const BAG_SIZE := 8
 ## stays a plain list of ids (one entry per item), so saving, dropping and
 ## lighting a torch take one from a bundle; only the count of slots and the
 ## inventory's grid see bundles (see slots_used and stacks).
-const STACK := {"fackel": 5, "donnererz": 5, "wurfmesser": 10}
+const STACK := {"fackel": 5, "donnererz": 5, "wurfmesser": 10,
+		"heiltrank_schwach": 5, "heiltrank": 5, "heiltrank_stark": 5}
 ## Small things bundle by their slot too: jewellery (rings, amulets, bracelets)
 ## and animal food. Only identical items share a slot: an item is one id with
 ## fixed values, so two Kupferringe are alike, a Kupferring and a Rubinring
@@ -197,6 +198,14 @@ static var ALL := {
 	# A bedroll for a camp away from any bed (see Camp): the merchant keeps
 	# one for a hero who has none. Rolled out, never used up.
 	"schlafrolle": {"name": "Schlafrolle", "slot": "rast", "weight": 2, "price": 8, "no_loot": true, "effect": "Schlag damit ein Lager auf (Taste U, der Knopf „Lager“ im Menü oder hier im Inventar): Du rollst sie aus und machst ein Feuer. Am Lager kannst du speichern und schlafen wie im Bett. Nicht im Kampf und nicht mit Ungeheuern in der Nähe"},
+	# Healing potions, brewed at the alchemist's table (see HealingPotions):
+	# low, medium and high potency. Drunk, never worn; five to a bag slot.
+	"heiltrank_schwach": {"name": "Schwacher Heiltrank", "slot": "trank", "weight": 0.3, "price": 6, "no_loot": true, "crafted": true, "tint": Color(1.0, 0.5, 0.5), "pips": 1,
+		"effect": "Stärke niedrig: heilt sofort 15 bis 20 % deiner Leben, dann 20 Sekunden lang 1 Leben pro Sekunde. Trinken mit Taste 1 oder dem Trank am rechten Rand, einmal pro Minute"},
+	"heiltrank": {"name": "Heiltrank", "slot": "trank", "weight": 0.3, "price": 12, "no_loot": true, "crafted": true, "tint": Color(0.92, 0.2, 0.25), "pips": 2,
+		"effect": "Stärke mittel: heilt sofort 25 bis 35 % deiner Leben, dann 20 Sekunden lang 1 Leben pro Sekunde. Trinken mit Taste 1 oder dem Trank am rechten Rand, einmal pro Minute"},
+	"heiltrank_stark": {"name": "Starker Heiltrank", "slot": "trank", "weight": 0.3, "price": 20, "no_loot": true, "crafted": true, "tint": Color(0.7, 0.05, 0.2), "pips": 3,
+		"effect": "Stärke hoch: heilt sofort 40 bis 60 % deiner Leben, dann 20 Sekunden lang 1 Leben pro Sekunde. Trinken mit Taste 1 oder dem Trank am rechten Rand, einmal pro Minute"},
 }
 
 
@@ -234,6 +243,11 @@ static func is_ammo(id: String) -> bool:
 ## Whether an item is a bedroll for a camp (see Camp): carried, never worn.
 static func is_bedroll(id: String) -> bool:
 	return ALL.has(id) and ALL[id].slot == "rast"
+
+
+## Whether an item is a healing potion (see HealingPotions): drunk, never worn.
+static func is_potion(id: String) -> bool:
+	return ALL.has(id) and ALL[id].slot == "trank"
 
 
 ## Whether an item is a hand torch (see HandTorch): carried, never worn.

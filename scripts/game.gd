@@ -65,6 +65,13 @@ var _home_button: Button
 ## The torch button below it: lights or puts out the hand torch (see HandTorch).
 var _torch_button: Button
 var _torch_count: Label
+## The potion button left of the torch button: drinks a healing potion (see
+## HealingPotions), with the potions left in its corner and the cooldown as
+## a shade and the seconds over it.
+var _potion_button: Button
+var _potion_count: Label
+var _potion_shade: ColorRect
+var _potion_wait: Label
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
@@ -319,7 +326,7 @@ var _ammo_counts := {}
 ## slot of AMMO_SLOT, shown at 0 too (dimmed), so a count changing never
 ## moves anything.
 const AMMO := [
-	["knives", "kind:knife", "Wurfmesser griffbereit: %d von %d\nIm Rucksack: %d"],
+	["knives", "kind:knife", "Wurfmesser griffbereit: %d von %d\nIm Rucksack: %d\nSchaden: %d je Treffer\nZerbricht bei %d%% der Würfe\nWerfen: Taste R oder rechte Maustaste"],
 ]
 const AMMO_SLOT := Vector2(62, 26)
 const AMMO_ICON := 20.0
@@ -727,7 +734,7 @@ func _setup_drawer() -> void:
 	_drawer_handle.add_theme_font_size_override("font_size", UiKit.sized(16))
 	_drawer_handle.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-		var box: StyleBoxFlat = _drawer_handle.get_theme_stylebox(style).duplicate()
+		var box: BronzeStyle = _drawer_handle.get_theme_stylebox(style).duplicate()
 		box.corner_radius_top_right = 0
 		box.corner_radius_bottom_right = 0
 		_drawer_handle.add_theme_stylebox_override(style, box)
@@ -750,10 +757,11 @@ func _setup_drawer() -> void:
 	_drawer_rail.add_child(_drawer_handle)
 	_setup_home_button()
 	_setup_torch_button()
+	_setup_potion_button()
 
 	var panel := PanelContainer.new()
-	var back := StyleBoxFlat.new()
-	back.bg_color = Color(0.05, 0.03, 0.07, 0.85)
+	var back := BronzeStyle.new()
+	back.bg_color = UiKit.PANEL_BG
 	back.border_color = Color(0.85, 0.66, 0.32, 0.8)
 	back.set_border_width_all(2)
 	back.border_width_right = 0
@@ -843,7 +851,7 @@ func _setup_quick_bar() -> void:
 		b.custom_minimum_size = QUICK_SIZE
 		b.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t(w[1]), w[2]]
 		for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-			var box: StyleBoxFlat = b.get_theme_stylebox(style).duplicate()
+			var box: BronzeStyle = b.get_theme_stylebox(style).duplicate()
 			box.corner_radius_top_right = 0
 			box.corner_radius_bottom_right = 0
 			b.add_theme_stylebox_override(style, box)
@@ -879,7 +887,7 @@ func _setup_home_button() -> void:
 	_home_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_home_button.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t("Nach Hause laufen"), "X"]
 	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-		var box: StyleBoxFlat = _home_button.get_theme_stylebox(style).duplicate()
+		var box: BronzeStyle = _home_button.get_theme_stylebox(style).duplicate()
 		box.corner_radius_top_right = 0
 		box.corner_radius_bottom_right = 0
 		_home_button.add_theme_stylebox_override(style, box)
@@ -911,7 +919,7 @@ func _setup_torch_button() -> void:
 	_torch_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_torch_button.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t("Fackel anzünden oder löschen"), "V"]
 	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-		var box: StyleBoxFlat = _torch_button.get_theme_stylebox(style).duplicate()
+		var box: BronzeStyle = _torch_button.get_theme_stylebox(style).duplicate()
 		box.corner_radius_top_right = 0
 		box.corner_radius_bottom_right = 0
 		_torch_button.add_theme_stylebox_override(style, box)
@@ -934,6 +942,99 @@ func _setup_torch_button() -> void:
 	_torch_button.add_child(_torch_count)
 	_torch_button.visible = false
 	slot.add_child(_torch_button)
+
+
+## The potion button stands left of the torch button, on the same line and
+## as big, outside the rail so the rail keeps its height: a red flask, the
+## potions left in the bag in its corner. After a potion it is shaded from
+## the top, the shade draining away over the minute until the next one may
+## be drunk, with the seconds left in its middle. It shows while the hero
+## carries a potion; its place is outside the rail, so nothing moves.
+func _setup_potion_button() -> void:
+	var slot: Control = _torch_button.get_parent()
+	_potion_button = _make_button("", potion_action)
+	_potion_button.custom_minimum_size = QUICK_SIZE
+	_potion_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
+	_potion_button.position = Vector2(-QUICK_SIZE.x - QUICK_GAP, 0)
+	_potion_button.size = QUICK_SIZE
+	_potion_button.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t("Heiltrank trinken"), "1"]
+	var icon := ItemIcon.make("kind:heal_potion", QUICK_ICON, true)
+	icon.set_anchors_preset(Control.PRESET_CENTER)
+	icon.offset_left = -QUICK_ICON / 2.0
+	icon.offset_top = -QUICK_ICON / 2.0
+	icon.offset_right = QUICK_ICON / 2.0
+	icon.offset_bottom = QUICK_ICON / 2.0
+	_potion_button.add_child(icon)
+	# The cooldown: a dark shade from the top, as tall as the share of the
+	# minute still to wait, inside the button's rounded frame.
+	_potion_shade = ColorRect.new()
+	_potion_shade.color = Color(0.0, 0.0, 0.0, 0.62)
+	_potion_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_potion_shade.anchor_right = 1.0
+	_potion_shade.offset_left = 3
+	_potion_shade.offset_right = -3
+	_potion_shade.offset_top = 3
+	_potion_shade.visible = false
+	_potion_button.add_child(_potion_shade)
+	_potion_wait = _make_label(TEXT_FONT, 18)
+	_potion_wait.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_potion_wait.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_potion_wait.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_potion_button.add_child(_potion_wait)
+	# The count sits in a fixed box in the lower right corner, like the
+	# torches', so a change from 9 to 10 does not move it.
+	_potion_count = _make_label(TEXT_FONT, 16)
+	_potion_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_potion_count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_potion_count.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_potion_count.offset_right = -6
+	_potion_count.offset_bottom = -1
+	_potion_button.add_child(_potion_count)
+	_potion_button.visible = false
+	slot.add_child(_potion_button)
+
+
+## Drinks a healing potion from the bag (the strongest, or the one named).
+## Returns "" when it worked, else why not.
+func drink_potion(id := "") -> String:
+	if state != State.PLAYING or player == null:
+		return ""
+	var why: String = player.potions.drink(id)
+	if why == "":
+		Events.teach(HealingPotions.LEARN)
+		_update_hud()
+	update_potion_button()
+	return why
+
+
+## The potion button or 1: drinks the strongest potion in the bag.
+func potion_action() -> void:
+	var why := drink_potion()
+	if why != "":
+		show_message(why, 2.4)
+
+
+## Shows the potion button while the hero carries a potion, with the count
+## and, after a potion, the shade and the seconds until the next one.
+func update_potion_button() -> void:
+	if _potion_button == null or player == null:
+		return
+	var potions: HealingPotions = player.potions
+	var count := potions.carried()
+	if _potion_button.visible != (count > 0):
+		_potion_button.visible = count > 0
+	var text := str(count) if count > 0 else ""
+	if _potion_count.text != text:
+		_potion_count.text = text
+	var waiting := potions.cooldown > 0.0
+	if _potion_shade.visible != waiting:
+		_potion_shade.visible = waiting
+	if waiting:
+		var inner := QUICK_SIZE.y - 6.0
+		_potion_shade.offset_bottom = 3.0 + inner * potions.cooldown / HealingPotions.COOLDOWN
+	var wait := str(ceili(potions.cooldown)) if waiting else ""
+	if _potion_wait.text != wait:
+		_potion_wait.text = wait
 
 
 ## The torch button or V: lights a torch from the bag, or puts it out.
@@ -992,8 +1093,8 @@ func update_home_button() -> void:
 ## Tooltips in the house style: a dark panel with a golden border, gold text.
 static func _tooltip_theme() -> Theme:
 	var theme := Theme.new()
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.04, 0.03, 0.08, 0.95)
+	var box := BronzeStyle.new()
+	box.bg_color = Color(UiKit.PANEL_BG, 0.96)
 	box.border_color = Color(0.85, 0.66, 0.32, 0.8)
 	box.set_border_width_all(2)
 	box.set_corner_radius_all(8)
@@ -1161,7 +1262,7 @@ func _setup_hud() -> void:
 		var tile := Panel.new()
 		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		tile.size = Vector2(AMMO_SLOT.y, AMMO_SLOT.y)
-		var box := StyleBoxFlat.new()
+		var box := BronzeStyle.new()
 		box.bg_color = StatusIcon.TILE
 		box.border_color = AMMO_COLOR
 		box.set_border_width_all(2)
@@ -1186,8 +1287,8 @@ func _setup_hud() -> void:
 	_run_bar.custom_minimum_size = Vector2(170, 14)
 	_run_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_run_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var back := StyleBoxFlat.new()
-	back.bg_color = Color(0.08, 0.05, 0.1, 0.72)
+	var back := BronzeStyle.new()
+	back.bg_color = UiKit.BUTTON_BG
 	back.border_color = Color(0.85, 0.66, 0.32, 0.8)
 	back.set_border_width_all(2)
 	back.set_corner_radius_all(6)
@@ -1374,8 +1475,8 @@ func _setup_shrine_panel() -> void:
 	_shrine_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_shrine_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_shrine_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.03, 0.08, 0.88)
+	var style := BronzeStyle.new()
+	style.bg_color = UiKit.PANEL_BG
 	style.border_color = Color(0.5, 0.75, 1.0, 0.7)
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(18)
@@ -2143,11 +2244,16 @@ func _show_hero_level() -> void:
 	_xp_row.tooltip_text = tip
 
 
-## The life bar's tooltip: life in numbers, and how it comes back.
+## The life bar's tooltip: life in numbers, and while some is missing how
+## fast it comes back now (or that a fresh hit has paused it).
 func hp_tip() -> String:
 	var tip := Lang.t("Leben: %d von %d") % [clampi(player.hp, 0, player.max_hp), player.max_hp]
-	if player.hp < player.max_hp:
-		tip += "\n" + Lang.t("Es kommt von selbst zurück: %.1f pro Sekunde, nach einem Treffer erst nach einer kurzen Pause.") % player.life_regen()
+	if player.hp >= player.max_hp:
+		return tip
+	if player.regen_paused():
+		tip += "\n" + Lang.t("Erholung: nach dem Treffer kurz unterbrochen, dann %.1f pro Sekunde") % player.life_regen()
+	else:
+		tip += "\n" + Lang.t("Erholung: %.1f pro Sekunde") % player.life_regen()
 	return tip
 
 
@@ -2481,6 +2587,7 @@ func load_level(index: int, restock := true) -> void:
 	level.item_collected.connect(_on_item_collected)
 	level.secret_found.connect(_on_secret_found)
 	level.ingredient_collected.connect(_on_ingredient_collected)
+	level.bundle_reached.connect(_on_bundle_reached)
 	level.hide_ingredients()
 	_spawn_pet()
 	if has_fox:
@@ -3020,8 +3127,9 @@ func _on_quit_pressed() -> void:
 		back_to_editor()
 		return
 	if state == State.PLAYING:
-		if player.can_act() and not menus.is_open():
-			menus.open("beenden")
+		if not menus.is_open():
+			set_drawer_open(false)
+			open_pause()
 	elif state == State.TITLE:
 		if not OS.has_feature("web"):
 			get_tree().quit()
@@ -3049,6 +3157,15 @@ func _close_tab() -> void:
 
 ## Leaves the game for the title screen. A browser tab cannot close itself,
 ## so only the desktop version quits outright.
+## Esc or the quit button: stops the world and opens the pause window, with
+## buttons to play on or to quit. It opens even while the hero is busy
+## (swinging, stumbling, afraid), as long as they are alive.
+func open_pause() -> void:
+	if state != State.PLAYING or player == null or player.dead or menus.is_open() or not _shrine.is_empty():
+		return
+	menus.open("beenden")
+
+
 func quit_game() -> void:
 	if state != State.PLAYING:
 		return
@@ -3272,8 +3389,18 @@ func _apply_save(data: Dictionary) -> void:
 	# Games saved before there was weather wake up to clear skies.
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
 	puddle_water = clampf(float(data.get("puddles", 0.0)), 0.0, 1.0)
-	var index := clampi(int(data.level), 0, level_files.size() - 1)
-	inside_house = 0
+	_go_to_wake_place(_wake_place(data))
+	player.hp = clampi(int(data.hp), 1, player.max_hp)
+	player.cure()
+	_update_hud()
+
+
+## Where a saved game wakes up, by the hero's state as it is now (escaped,
+## their own house): {"index": level, "house": town house number inside or 0,
+## "inn": in an inn's bed, "camp": the camp (see Camp.from_save) or {}}.
+func _wake_place(data: Dictionary) -> Dictionary:
+	var index := clampi(int(data.get("level", 0)), 0, level_files.size() - 1)
+	var house := 0
 	var own_house := Homes.house_of(hero_name)
 	var at_inn: bool = data.get("inn", false) and _is_inn_file(index)
 	var camp_at := Camp.from_save(data.get("camp"))
@@ -3288,14 +3415,22 @@ func _apply_save(data: Dictionary) -> void:
 		# The hero's own town house is the place to come back to: every
 		# load wakes up beside its bed, wherever the game was saved.
 		index = interiors["^"]
-		inside_house = own_house
+		house = own_house
 	elif escaped and _outdoor_index() >= 0:
 		# Out of the dungeon, every load begins in the open air, wherever the
 		# game was saved: on the graveyard, or in the hero's own house.
 		index = _outdoor_index()
-	load_level(index, false)
+	return {"index": index, "house": house, "inn": at_inn, "camp": {} if at_inn else camp_at}
+
+
+## Loads the level of a wake place (see _wake_place) and puts the hero there:
+## at the camp, beside the bed, or where the level starts.
+func _go_to_wake_place(place: Dictionary) -> void:
+	inside_house = int(place.house)
+	load_level(int(place.index), false)
 	camp = null
-	if not camp_at.is_empty() and not at_inn:
+	var camp_at: Dictionary = place.camp
+	if not camp_at.is_empty():
 		camp = Camp.pitch(level, camp_at.pos, camp_at.rot)
 		Camp.clear_around(level, camp.global_position)
 		player.global_position = camp.stand_spot()
@@ -3306,14 +3441,15 @@ func _apply_save(data: Dictionary) -> void:
 	elif level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
 		# The hero's own house is the place to come back to: next to the bed.
 		player.global_position = level.home_spot
-	player.hp = clampi(int(data.hp), 1, player.max_hp)
-	player.cure()
-	_update_hud()
 
 
 func _leave_title(prepare: Callable) -> void:
 	state = State.TRANSITION
 	_title_buttons.visible = false
+	# The language buttons too: left in the faded title, they would lie
+	# unseen across the middle of the screen and take the pointer from the
+	# life bar and the knives under it.
+	_lang_row.visible = false
 	var tween := create_tween()
 	tween.tween_property(_title, "modulate:a", 0.0, 0.4)
 	tween.tween_callback(func():
@@ -4230,10 +4366,12 @@ func _update_ammo() -> void:
 
 
 ## The numbers for an ammunition tooltip (see AMMO): for knives the ready
-## count, how many can be ready and the spares in the bag.
+## count, how many can be ready, the spares in the bag, the damage of a
+## throw and the chance in percent that a thrown knife breaks.
 func _ammo_tip_values(field: String, n: int) -> Array:
 	if field == "knives":
-		return [n, player.knife_cap(), player.spare_knives()]
+		return [n, player.knife_cap(), player.spare_knives(), player.throw_power(),
+				roundi(Projectile.KNIFE_BREAK_CHANCE * 100.0)]
 	return [n]
 
 
@@ -5109,14 +5247,79 @@ func _on_player_hurt(_amount: int) -> void:
 	tween.tween_property(_fade, "color:a", 0.0, 0.35)
 
 
-## Death ends the run: it goes into the ranking with a skull.
+## Out of life, the hero is not dead but unconscious (see Rescue): what
+## they looted stays where they fell, an eagle (on the surface) or the
+## dwarves' emergency team (below ground) carries them to the bed they last
+## slept in, and they wake up there with full life. Only a playtest from the
+## workshop still ends, back in the workshop.
 func _on_player_defeated() -> void:
 	state = State.TRANSITION
-	show_message(Lang.t("Du wurdest besiegt..."), 2.0)
-	var tween := create_tween()
-	tween.tween_interval(1.6)
-	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.8)
-	tween.tween_callback(func(): _end_run(false))
+	if playtest_file != "":
+		show_message(Lang.t("Du wurdest besiegt..."), 2.0)
+		var tween := create_tween()
+		tween.tween_interval(1.6)
+		tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.8)
+		tween.tween_callback(func(): _end_run(false))
+		return
+	player.frozen = true
+	player.path.clear()
+	menus.close()
+	var fell_on := level
+	var lost := Rescue.drop_belongings(self)
+	lost.xp = Rescue.forget(player)
+	_update_hud()
+	var eagle := Rescue.on_surface(level)
+	show_message(Lang.t("Du verlierst das Bewusstsein...") + "\n" + (Lang.t("Ein Adler stößt herab!") if eagle else Lang.t("Der Rettungstrupp der Zwerge ist unterwegs!")), 3.0)
+	Rescue.send(level, player,
+			func(seconds: float): create_tween().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), seconds),
+			func(): _wake_after_rescue(eagle, lost, fell_on.level_name))
+
+
+## The rescuers bring the hero to their latest safe spot: the bed of the
+## saved game (or its camp), else where this floor begins. They wake up
+## there, rested, and the game is saved.
+func _wake_after_rescue(eagle: bool, lost: Dictionary, fell_on: String) -> void:
+	if level.building == "" and not level.outdoor:
+		# The floor stays as the hero left it (monsters slain, doors open).
+		level.note_left()
+	elif DragonLair.is_floor(level):
+		level.note_left()
+	var data := _read_save() if has_slot_save() else {"level": level_index}
+	_go_to_wake_place(_wake_place(data))
+	player.hp = player.max_hp
+	player.cure()
+	_snap_camera()
+	_update_hud()
+	create_tween().tween_property(_fade, "color:a", 0.0, 1.2)
+	var asleep := {"away": {"rescued": true}, "camp": data.get("camp")}
+	var awake := func(): _rescued(eagle, lost, fell_on)
+	if not _wake_at_camp(asleep, awake) and not _wake_in_bed(asleep, awake):
+		state = State.PLAYING
+		awake.call()
+
+
+## Up again after a rescue: who brought the hero here, and where their
+## things lie.
+func _rescued(eagle: bool, lost: Dictionary, fell_on: String) -> void:
+	var text := Lang.t("Ein Riesenadler hat dich bewusstlos davongetragen und hierher gebracht.") if eagle \
+			else Lang.t("Der Rettungstrupp der Zwerge hat dich bewusstlos aus der Tiefe getragen und hierher gebracht.")
+	if int(lost.items) + int(lost.coins) + int(lost.ingredients) > 0:
+		text += "\n" + Lang.t("Deine Tasche, dein Zutatenbeutel und %d Münzen liegen noch dort, wo du gefallen bist: %s.") % [int(lost.coins), Lang.t(fell_on)]
+	if int(lost.get("xp", 0)) > 0:
+		text += "\n" + Lang.t("Gedächtnisverlust: %d Erfahrung vergessen.") % int(lost.xp)
+	show_message(text, 6.0)
+	Events.tell(text.replace("\n", " "), Color(1.0, 0.85, 0.45), 8.0)
+	Events.teach(Rescue.LORE)
+	save_game()
+
+
+## The hero walked onto their pack (see Rescue): back with what fits.
+func _on_bundle_reached(entry: Array) -> void:
+	var pouch := Rescue.is_pouch(entry)
+	if Rescue.take_back(self, entry):
+		Sfx.play(self, "rummage", -3.0)
+		Events.found(Lang.t("Du nimmst deinen Zutatenbeutel wieder an dich.") if pouch else Lang.t("Du nimmst deine Tasche wieder an dich."), GOLD)
+		_update_hud()
 
 
 ## Puts the finished run into the ranking and shows the list.
@@ -5633,6 +5836,7 @@ func _process(delta: float) -> void:
 	home_run.tick()
 	update_home_button()
 	update_torch_button()
+	update_potion_button()
 	_update_drag(delta)
 	_update_run_meter()
 	place_message(delta)
@@ -5896,6 +6100,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						_toggle_sneak()
 					KEY_V:
 						torch_action()
+					KEY_1:
+						potion_action()
 					KEY_U:
 						camp_action()
 					KEY_G:
@@ -5921,8 +6127,11 @@ func _unhandled_input(event: InputEvent) -> void:
 					KEY_ESCAPE:
 						if playtest_file != "":
 							back_to_editor()
-						elif player.can_act():
-							menus.open("beenden")
+						elif _drawer_open:
+							# The pull-out menu goes first, as a window would.
+							set_drawer_open(false)
+						else:
+							open_pause()
 			elif event is InputEventMouseButton:
 				var point = _mouse_to_floor(event.position)
 				if point == null:

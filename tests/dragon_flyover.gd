@@ -75,6 +75,14 @@ func _pictures() -> void:
 	check(wing.get_pixel(w - 2, h - 2).a < 0.05, "behind the wing tip the picture is clear")
 
 
+## The first night with a phase of the moon.
+func _night_of(which: int) -> int:
+	var night := 0
+	while Moon.phase(night) != which:
+		night += 1
+	return night
+
+
 func _in_the_dungeon() -> void:
 	for i in game.level_files.size():
 		if not Level.is_outdoor_file(game.level_files[i]):
@@ -138,12 +146,30 @@ func _in_the_open() -> void:
 	check(fly.beats >= 2, "its wings are heard beating as it comes over (%d beats)" % fly.beats)
 	check(fly.shrieked, "it shrieks as it passes overhead")
 	check(fly.wait >= DragonFlyover.WAIT.x and fly.wait <= DragonFlyover.WAIT.y, "the next flight is minutes away")
-	# A dark night, and fog: fainter.
-	level.day = 0
-	while not Moon.is_new(level.day):
-		level.day += 1
+	# By moonlight: as plain as by day under a full moon, dimmer as the moon
+	# wanes, all but gone on a new-moon night; drawn black, not night-blue.
+	var by_day := fly.strength()
 	level.hour = 0.5
-	check(fly.light() < 0.1, "on a new-moon night the shadow is all but gone (%.2f)" % fly.light())
+	level.day = _night_of(Moon.FULL)
+	var full := fly.strength()
+	check(full >= by_day, "under a full moon the shadow is as plain as by day (%.2f, by day %.2f)" % [full, by_day])
+	check(fly.tint().v < 0.01, "by moonlight the shadow is black, not lost in the blue night")
+	level.day = _night_of(2)
+	var half := fly.strength()
+	check(half > 0.1 and half < full * 0.6, "under a half moon it is dimmer (%.2f)" % half)
+	level.day = _night_of(Moon.NEW)
+	check(fly.light() < 0.1 and fly.strength() < 0.05, "on a new-moon night the shadow is all but gone (%.2f)" % fly.strength())
+	# A night flight under the full moon draws it that dark.
+	level.day = _night_of(Moon.FULL)
+	fly.flying = false
+	fly.start(near, Vector3(1, 0, 0))
+	dark = 0.0
+	seconds = 0.0
+	while fly.flying and seconds < 30.0:
+		fly._process(0.1)
+		seconds += 0.1
+		dark = maxf(dark, fly._material.albedo_color.a)
+	check(dark > 0.5, "the shadow is plain to see under a full moon (%.2f)" % dark)
 	level.hour = 12.0
 	level.weather = Weather.FOG
 	check(fly.light() < 0.8, "in fog the shadow is fainter (%.2f)" % fly.light())

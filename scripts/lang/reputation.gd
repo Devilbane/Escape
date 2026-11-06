@@ -53,7 +53,7 @@ const EN := {
 	"Ein verwundeter Hauptmann bindet seine Wunden, wenn du fliehst. Bleib dran, wenn du ihn schwächst.": "A wounded chief binds his wounds if you flee. Keep at it once you weaken him.",
 	"Wer im Tempel betet, findet Ruhe. Wer im Bett schläft, auch, und sein Spiel ist gespeichert.": "Whoever prays in the temple finds peace. So does whoever sleeps in their bed, and their game is saved.",
 	"Der Drache in der Höhle spuckt Feuer. Stell dich hinter eine Statue.": "The dragon in the lair spits fire. Stand behind a statue.",
-	"Ein Stich in den Rücken fällt jedes Skelett, das dich noch nicht bemerkt hat.": "A stab in the back fells any skeleton that has not noticed you yet.",
+	"Hat dich ein Feind noch nicht bemerkt, trifft ihn ein Stich in den Rücken dreimal so hart wie dein härtester Schlag.": "A stab in the back of a foe that has not noticed you hits three times as hard as your hardest blow.",
 	"Ich trage die Post in jedes Haus. Bei Gorm riecht es immer nach Öl, nicht nach Wasser. Merkwürdig, oder?": "I carry the post to every house. Gorm's always smells of oil, not water. Strange, isn't it?",
 	"Der Bankier vermietet Schließfächer im Tresorkeller. Dort sieht man, was andere Helden besitzen.": "The banker rents out vaults in the cellar. There you can see what other heroes own.",
 	"Die Glatze zeigt deine Tätowierung am besten. Nur so als Hinweis.": "A shaved head shows off your tattoo best. Just saying.",

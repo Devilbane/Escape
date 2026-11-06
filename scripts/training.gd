@@ -109,6 +109,9 @@ const CRAFTS := {
 	# with every piece forged, steel making with every melt and steel bar.
 	"schmiedekunst": {"name": "Schmiedekunst", "attributes": ["staerke"]},
 	"stahlkochen": {"name": "Stahlkochen", "attributes": ["intelligenz"]},
+	# At the alchemist's table on the crafting square: brewing healing
+	# potions (see HealingPotions), stronger with more of it.
+	"alchemie": {"name": "Alchemie", "attributes": ["intelligenz"]},
 }
 ## The three main attributes, clockwise from the top of the character page.
 const MAIN_ATTRIBUTES := ["staerke", "geschick", "intelligenz"]

@@ -17,7 +17,7 @@ var game: Node
 ## The open window: "", "inventar", "lager", "haendler", "bett",
 ## "nachtlager" (the camp with the bedroll, see Camp), "laden",
 ## "ueberschreiben" (asks before a new game overwrites a slot), "kompendium",
-## "charakter", "beenden", "plan" (the day planned for the
+## "charakter", "beenden" (the pause window with the quit button), "plan" (the day planned for the
 ## time away) or "rueckkehr" (what the hero did while the player was away).
 var current := ""
 var _holder: Control
@@ -79,6 +79,7 @@ const SHORTCUTS := [
 	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],
 	["Schleichen", "C oder Doppelklick"],
 	["Fackel anzünden oder löschen", "V oder die Fackel am rechten Rand, unter dem Haus"],
+	["Heiltrank trinken", "1 oder der Trank links neben der Fackel, einmal pro Minute; „Trinken“ im Inventar wählt einen bestimmten"],
 	["Lager aufschlagen (speichern und schlafen)", "U, der Knopf „Lager“ im Menü, oder die Schlafrolle im Inventar"],
 	["Benutzen, durchsuchen, Fackel", "Dagegenlaufen"],
 	["Inventar", "I"],
@@ -94,7 +95,7 @@ const SHORTCUTS := [
 	["Steinblock aufheben", "E neben dem Block, oder ihn kurz anklicken"],
 	["Schwere Steinblöcke schieben", "E neben dem Block, oder ihn kurz anklicken; ziehen setzt ihn ab, bis zu 5 Felder von seinem Platz"],
 	["Zoom", "+ und −, Mausrad"],
-	["Spiel beenden", "Esc"],
+	["Pause, Spiel beenden", "Esc (noch einmal Esc spielt weiter)"],
 	["In Fenstern wählen", "Pfeiltasten oder Tab, Eingabe drückt den Knopf, Esc schließt"],
 ]
 
@@ -140,7 +141,7 @@ func setup(owner_game: Node, hud: CanvasLayer) -> void:
 	trade.rebuild = _rebuild
 
 
-static func panel_style(border: Color) -> StyleBoxFlat:
+static func panel_style(border: Color) -> BronzeStyle:
 	return UiKit.panel_style(border)
 
 
@@ -616,7 +617,7 @@ func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callabl
 ## so the name keeps the colour of its rarity.
 func _mark_picked(b: Button) -> void:
 	for state in ["normal", "hover"]:
-		var style: StyleBoxFlat = b.get_theme_stylebox(state).duplicate()
+		var style: BronzeStyle = b.get_theme_stylebox(state).duplicate()
 		# The thicker frame must not take room from the text: the cell keeps
 		# its size and its text its place.
 		for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
@@ -688,12 +689,16 @@ func _skills_text() -> String:
 
 # --- Character page -------------------------------------------------------
 
-## The crafts, each with its level, for the character page.
+## The crafts, each with its level, for the character page: two to a line,
+## so four crafts still take two lines in the column beside the wheel.
 func _crafts_text() -> String:
 	var parts := []
 	for id in Training.CRAFTS:
 		parts.append("%s %d" % [Lang.t(Training.CRAFTS[id].name), Training.skill_level(game.player.xp.get(id, 0.0), id)])
-	return Lang.t("Handwerk:") + " " + "   ".join(parts)
+	var lines := []
+	for i in range(0, parts.size(), 2):
+		lines.append("   ".join(parts.slice(i, i + 2)))
+	return Lang.t("Handwerk:") + " " + "\n".join(lines)
 
 
 ## The width of the column beside the character wheel.
@@ -798,7 +803,7 @@ func _build_character() -> void:
 	# The details card: what the wheel points at, else how a roll works.
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(CHARACTER_SIDE, CHARACTER_CARD_HEIGHT)
-	card.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.07, 0.05, 0.07, 0.97), TradeWindow.BORDER, 8, 12, 2))
+	card.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.1, 0.07, 0.045, 0.97), TradeWindow.BORDER, 8, 12, 2))
 	side.add_child(card)
 	var lines := VBoxContainer.new()
 	lines.add_theme_constant_override("separation", 6)
@@ -851,7 +856,7 @@ func _build_character() -> void:
 	_character_level.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_character_spend = spend
 	for entry in [
-		[Lang.t("Innen: Grundfertigkeiten. Außen: fortgeschrittene Fertigkeiten."), CHARACTER_TEXT],
+		[Lang.t("Innen Grundfertigkeiten, außen fortgeschrittene."), CHARACTER_TEXT],
 		[_crafts_text(), game.GOLD],
 	]:
 		var l: Label = game._make_label(game.TEXT_FONT, 16, entry[1])
@@ -1055,6 +1060,8 @@ func _inventory_details() -> Control:
 			buttons.append(_item_button(Lang.t("Lager aufschlagen"), func():
 				close()
 				game.camp_action()))
+		elif Items.is_potion(id):
+			buttons.append(_item_button(Lang.t("Trinken"), _drink_selected))
 		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id) or Items.is_light(id) or Items.is_ammo(id):
 			pass # Carried for a task, to the smith, for a fox, for the dark or as spare knives, not worn.
 		else:
@@ -1192,9 +1199,9 @@ func _gem_row(id: String, width: float) -> Control:
 
 
 ## The frame of one row on the purse tab.
-static func _purse_row_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.08, 0.12, 0.85)
+static func _purse_row_style() -> BronzeStyle:
+	var style := BronzeStyle.new()
+	style.bg_color = Color(0.12, 0.085, 0.05, 0.85)
 	style.border_color = Color(0.85, 0.66, 0.32, 0.55)
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(8)
@@ -1320,7 +1327,7 @@ func _add_inventory_header() -> void:
 	back.custom_minimum_size = Vector2(190, 44)
 	back.add_theme_font_size_override("font_size", UiKit.sized(16))
 	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var style: StyleBoxFlat = back.get_theme_stylebox("normal").duplicate()
+	var style: BronzeStyle = back.get_theme_stylebox("normal").duplicate()
 	style.bg_color = Color(0.2, 0.42, 0.18, 0.9)
 	style.border_color = game.GOLD
 	style.set_border_width_all(3)
@@ -1385,6 +1392,21 @@ func _place_stone_selected() -> void:
 	var why: String = game.place_stone()
 	if why != "":
 		game.show_message(why, 1.6)
+
+
+## Drinks the picked potion (see HealingPotions); during the cooldown the
+## note says how long to wait. The rest of the bundle stays picked.
+func _drink_selected() -> void:
+	var p: Player = game.player
+	var id: String = p.bag[_selected]
+	var why: String = game.drink_potion(id)
+	_note = why if why != "" else Lang.t("%s getrunken.") % Items.item_name(id)
+	_selected = -1
+	for cell in Items.stacks(p.bag):
+		if cell.id == id:
+			_selected = cell.indices.back()
+			break
+	_rebuild()
 
 
 func _drop_selected() -> void:
@@ -1547,7 +1569,7 @@ func _store_columns(titles: Array) -> Control:
 func _store_row(id: String) -> Control:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(STORE_WIDTH - 14, STORE_ROW_HEIGHT)
-	panel.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.07, 0.06, 0.08, 0.95), Color(0.85, 0.66, 0.32, 0.3), 8, 6))
+	panel.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.09, 0.065, 0.045, 0.95), Color(0.85, 0.66, 0.32, 0.3), 8, 6))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	panel.add_child(row)
@@ -1703,6 +1725,14 @@ func _bench_row(id: String) -> Control:
 	needs.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	needs.custom_minimum_size.x = 560
 	text.add_child(needs)
+	# A potion says what the hero brews now and when it gets stronger.
+	var potency: String = c.potency_line(id)
+	if potency != "":
+		var brew: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+		brew.text = potency
+		brew.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		brew.custom_minimum_size.x = 560
+		text.add_child(brew)
 	var why: String = c.why_not(id)
 	var state: Label = game._make_label(game.TEXT_FONT, 16, Color(1.0, 0.75, 0.5) if why != "" else Color(0.4, 0.92, 0.4))
 	state.text = why if why != "" else Lang.t("Alles da: du kannst es herstellen.")
@@ -1721,7 +1751,7 @@ func _make_recipe(id: String) -> void:
 	if why != "":
 		_note = why
 	else:
-		var item: String = Crafting.RECIPES[id].result
+		var item: String = game.crafting.last_made
 		var p: Player = game.player
 		var where := Lang.t("in deiner Tasche") if p.bag.has(item) else Lang.t("in deiner Truhe, die Tasche ist voll")
 		_note = Lang.t("Hergestellt: %s, %s.") % [Items.item_name(item), where]
@@ -2518,8 +2548,8 @@ func _companion_row(kind: String) -> Control:
 	var tame := index >= 0
 	var at_side: bool = tame and index == game.following
 	var row := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.1, 0.16, 0.9) if tame else Color(0.08, 0.07, 0.1, 0.7)
+	var style := BronzeStyle.new()
+	style.bg_color = Color(0.14, 0.1, 0.06, 0.9) if tame else Color(0.09, 0.07, 0.05, 0.7)
 	style.border_color = game.GOLD if at_side else Color(0.4, 0.34, 0.25, 0.6)
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(8)
@@ -2812,7 +2842,7 @@ func _build_smithy() -> void:
 				var entry := {"key": "ore:" + lump_id, "icon": lump_id, "name": Crafting.ingredient_name(lump_id),
 						"price": "%d g" % int(next.grams) if not next.is_empty() else "", "price_ok": not next.is_empty(),
 						"button": Lang.t("Einschmelzen"), "action": _melt_ore.bind(lump_id), "enabled": not next.is_empty(), "count": lumps.size(),
-						"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Ore.describe(next) if not next.is_empty() else Lang.t("Keiner"), TradeWindow.BLUE],
+						"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Ore.guess(lump_id, next) if not next.is_empty() else Lang.t("Keiner"), TradeWindow.BLUE],
 							[Lang.t("Je %d g eines Metalls werden ein Barren.") % Ore.GRAMS_PER_BAR, TradeWindow.GREY]]},
 						"compare": {"title": Lang.t("Übrig vom Schmelzen"), "name": Ore.grams_text(game.metal_grams), "icon": "kind:ore"}}
 				if next.is_empty():
@@ -2960,7 +2990,7 @@ func _sell_gem() -> void:
 
 func _melt_ore(id: String) -> void:
 	var out := Forge.melt_ore(game, id)
-	_note = out.why if out.why != "" else Lang.t("Eingeschmolzen: %s, %s") % [Crafting.ingredient_name(id), Ore.grams_text(out.grams)]
+	_note = out.why if out.why != "" else Lang.t("Eingeschmolzen: %s (%d %% Schlacke), %s") % [Crafting.ingredient_name(id), int(out.share.get(Ore.SLAG, 0)), Ore.grams_text(out.grams)]
 	if out.why == "" and not out.bars.is_empty():
 		_note += "  " + Forge.metals_text(out.bars, true)
 	if out.why == "" and not out.gems.is_empty():
@@ -3724,20 +3754,24 @@ func _villager_about(role: String) -> String:
 
 
 func _build_quit() -> void:
-	_add_label(Lang.t("Spiel beenden"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Was seit dem letzten Schlaf im Bett geschah, geht verloren."), 20, Color(1.0, 0.75, 0.5))
+	_add_label(Lang.t("Pause"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Die Welt steht still, bis du weiterspielst."), 20)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
 	_box.add_child(row)
-	var quit: Button = game._make_button(Lang.t("Beenden"), func():
+	# Going on is the main way out of a pause, so it comes first; Esc does
+	# the same.
+	var resume: Button = game._make_button(Lang.t("Weiterspielen"), close)
+	resume.custom_minimum_size = Vector2(220, 60)
+	row.add_child(resume)
+	var quit: Button = game._make_button(Lang.t("Spiel beenden"), func():
 		close()
 		game.quit_game())
 	quit.custom_minimum_size = Vector2(220, 60)
 	row.add_child(quit)
-	var cancel: Button = game._make_button(Lang.t("Abbrechen"), close)
-	cancel.custom_minimum_size = Vector2(220, 60)
-	row.add_child(cancel)
+	# What quitting costs sits right under the buttons.
+	_add_label(Lang.t("Was seit dem letzten Schlaf im Bett geschah, geht verloren."), 16, Color(1.0, 0.75, 0.5))
 
 
 ## The dragon has fallen: the lair is won. Says so, counts the fallen

@@ -58,6 +58,7 @@ const PARTS := [
 	preload("res://scripts/lang/horrors.gd"),
 	preload("res://scripts/lang/ghosts.gd"),
 	preload("res://scripts/lang/home_upgrades.gd"),
+	preload("res://scripts/lang/healing_potions.gd"),
 	preload("res://scripts/lang/home_stores.gd"),
 	preload("res://scripts/lang/factions.gd"),
 	preload("res://scripts/lang/village_talk.gd"),
@@ -91,6 +92,7 @@ const PARTS := [
 	preload("res://scripts/lang/coin_piles.gd"),
 	preload("res://scripts/lang/purse.gd"),
 	preload("res://scripts/lang/camp.gd"),
+	preload("res://scripts/lang/rescue.gd"),
 	preload("res://scripts/lang/monster_lore.gd"),
 ]
 

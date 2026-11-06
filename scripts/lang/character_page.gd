@@ -36,7 +36,7 @@ const EN := {
 	"Gedimmt: braucht eine Axt in der Hand.": "Dimmed: needs an axe in hand.",
 	"Gedimmt: braucht einen Schild.": "Dimmed: needs a shield.",
 	"Gedimmt: braucht eine Rüstung.": "Dimmed: needs armour.",
-	"Innen: Grundfertigkeiten. Außen: fortgeschrittene Fertigkeiten.": "Inside: basic skills. Outside: advanced skills.",
+	"Innen Grundfertigkeiten, außen fortgeschrittene.": "Inside: basic skills. Outside: advanced skills.",
 	"+1 Leben je Punkt; länger rennen und schneller heilen.": "+1 life per point; run longer and heal faster.",
 	"Wie schnell du gehst und rennst.": "How fast you walk and run.",
 	"+2 % je Punkt, einen Geheimraum zu entdecken.": "+2 % per point to spot a secret room.",

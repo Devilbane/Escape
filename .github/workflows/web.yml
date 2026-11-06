@@ -274,6 +274,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/torch_button.gd | tee torch_button.log
           grep -q PASS torch_button.log
 
+      - name: Healing potions test (brewed by potency, button left of the torch, once a minute)
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/healing_potions.gd | tee healing_potions.log
+          grep -q "PASS: healing potions" healing_potions.log
+
       - name: Several saved games test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log
@@ -293,6 +298,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/camp.gd | tee camp.log
           grep -q PASS camp.log
+
+      - name: Rescue test (out of life, carried to the bed; the loot stays where the hero fell)
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/rescue.gd | tee rescue.log
+          grep -q PASS rescue.log
 
       - name: Barber test
         run: |
@@ -323,6 +333,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/window_buttons.gd | tee window_buttons.log
           grep -q PASS window_buttons.log
+
+      - name: Bronze frames test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/bronze_frames.gd | tee bronze_frames.log
+          grep -q PASS bronze_frames.log
 
       - name: Character page test
         run: |
@@ -433,6 +448,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/splash_attack.gd | tee splash.log
           grep -q PASS splash.log
+
+      - name: Sneak attack test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/sneak_attack.gd | tee sneak.log
+          grep -q PASS sneak.log
 
       - name: Monster lore test
         run: |

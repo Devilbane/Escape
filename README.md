@@ -52,11 +52,12 @@ version, installs it and then starts the game, so the local copy is always as ne
 | Quests and what is worth doing | O | scroll icon on the right edge |
 | Run home (once you have a house) | X | house icon on the right edge, below the menu handle; any step, click or blow of your own stops it |
 | Light or put out a torch | V | torch icon on the right edge, below the house icon (shows while you carry a torch, with how many are left in the bag) |
+| Drink a healing potion | 1 | potion icon left of the torch icon (shows while you carry a potion, with how many are left; shaded with the seconds left while the next one waits), or "Drink" in the inventory |
 | Pitch a camp (save and sleep away from a bed) | U | “Camp” button, “Pitch camp” on the bedroll in the inventory |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |
-| Quit game | Esc | “Quit” button, top right |
+| Pause, quit game | Esc (again to play on) | “Quit” button, top right |
 | Sound on/off | M | “Sound” button, top right |
 | Music on/off, music volume | | “Music” button and the volume slider in the pull-out menu (Tab) |
 | Choose in a window | arrow keys or Tab, then Enter; Esc closes | click the button |
@@ -284,7 +285,7 @@ Merchants sell only plain, basic gear: no specials, no unique or magic items (wi
 amulets, silver bracelet) and not the top tier of any kind (plate armour, swift boots, ruby ring, bear cap,
 royal cloak, big backpack, war hammer, kite shield). Those come only from loot and your own crafting.
 Their windows have a Buy and a Sell page, categories that fold, and cards that compare an item with what
-you wear. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero falls later, the saved game is kept: a click on the “Fallen” screen continues the game from the refuge, N starts a new one.
+you wear. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero's life runs out later, they are rescued and carried back there (see **Out cold** below).
 On the next start you continue from there with a click or a key. The saved game is stored in the browser.
 
 **Camp:** away from any bed you can save at a **camp**. Buy a **bedroll** from the merchant (who keeps one for a hero
@@ -295,6 +296,17 @@ there, on the bedroll by the fire, on a dungeon floor or out in the open. The be
 pitch a camp in a fight, with a monster within 12 m (nor where one still alive will stand again after a reload),
 indoors (sleep in a bed there), or on a grate or a trap. Walk more than 10 m away and you pack the camp up again.
 Saving at a camp on a dungeon floor keeps the floor as you left it (monsters slain, doors open, the key).
+
+**Out cold:** when your life drops to zero you do not die, you fall unconscious. On the surface (the open air, a
+house, an inn) a **giant eagle** swoops down and carries you off; below ground (the dungeon, the mines, the lairs)
+the **dwarves' emergency team** comes with lanterns and a stretcher. You wake up in the bed you last saved in (or at
+your camp) with full life, and the game is saved. The blow to the head costs you **all the experience you gathered
+towards your next hero level** (the level itself stays). You keep your armour, your weapons and the knives in your
+belt, but **your bag (with your backpack) and your ingredient pouch drop to the ground whole** where you fell,
+with everything in them, and **all your coins** lie in piles beside them. Walk back to the spot and onto the bag and
+the pouch to take it all back (gear only while the bag has room). The dragon's helpers leave both alone, but at night they carry coins lying about off to the
+dragon's hoard like any others, so do not leave them there overnight. A test run from the map workshop still ends
+and goes back to the workshop.
 
 **Hero or heroine:** a new game asks whether you play a hero or a heroine before it asks for your name.
 The heroine has a body and a face of her own, not just new colours: a narrower waist and jaw, larger eyes
@@ -445,6 +457,16 @@ green over a small fire. Between them stands **your chest**: it opens the same s
 your house, so you can fetch ingredients and put away what you made without walking home. Each bench
 belongs to one craft, and a recipe made with that craft is made at its bench. Until you know such a
 recipe, a bench tells you what is done there. The benches are built in `scripts/crafting_square.gd`.
+
+**Healing potions** are brewed at the alchemist's table. **Priestess Elsbeth** at the temple hands out the
+recipe: one **wild garlic** (your fox sniffs it out on the meadows) and one **slime jelly** (left by slimes in
+the dungeon). How strong a brew turns out depends on the brewer: Intelligence + 2 × your level in the new
+**alchemy** craft gives the brewing points. Below 16 points you brew a **weak** potion (low potency, heals
+15–20 % of your life at once), from 16 a **healing potion** (medium, 25–35 %), from 26 a **strong** one (high,
+40–60 %). Whatever the potency, every potion then heals 1 life per second for 20 seconds, and cures poison
+and curses like the fountain. Potions stack 5 to a bag slot. Drink with the potion icon left of the torch icon
+on the right edge, the key 1 (the strongest one you carry) or "Drink" in the inventory (a certain one); after
+a potion the icon is shaded and counts down the minute until the next. See `scripts/healing_potions.gd`.
 
 The glowing **crystal clusters** in the mines can be mined: run into one and the hero knocks two **grotto
 crystals** off it into the ingredient pouch. A mined cluster stays dull until the next morning, then it has

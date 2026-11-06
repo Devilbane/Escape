@@ -86,8 +86,8 @@ func _process(_delta: float) -> bool:
 			# A stab in the back of the sleeping dragon only hurts it.
 			var behind := dragon.global_position - dragon.ahead() * 2.0
 			check(dragon.open_to_backstab(behind), "the sleeping dragon can be stabbed in the back")
-			dragon.take_hit(2, behind, "backstab")
-			check(not dragon.dead and dragon.hp == dragon.max_hp() - 2 * Dragon.BACKSTAB_FACTOR, "a stab in the back no longer kills the dragon (%d life left)" % dragon.hp)
+			dragon.take_hit(6, behind, "backstab")
+			check(not dragon.dead and dragon.hp == dragon.max_hp() - 6, "a stab in the back no longer kills the dragon (%d life left)" % dragon.hp)
 			player.knives = 0
 			player.global_position = dragon.global_position + Vector3(-7.0, 0, 0)
 			player.hp = player.max_hp

@@ -9,6 +9,7 @@ const EN := {
 	"Drück C (oder Doppelklick), um zu schleichen, bevor du eintrittst.\nEr sieht nur, was im Licht seiner Feuerschale steht.\nAm dunklen Rand des Saals bist du unsichtbar.": "Press C (or double click) to sneak before you enter.\nIt only sees what stands in the light of its fire bowl.\nAlong the dark rim of the hall you are invisible.",
 	"Schleich im Schatten um ihn herum, bis du in seinem Rücken stehst.\nDann tritt heran und schlag zu (F).\nEntdeckt er dich, lauf hinaus: Er gibt bald auf.": "Sneak through the shadows around it until you stand at its back.\nThen step up and strike (F).\nIf it spots you, run out: it soon gives up.",
 	"Nur ein Stich in den Rücken!": "Only a stab in the back!",
+	"Hinterhalt!": "Sneak attack!",
 	"Das Skelett zerfällt zu Staub.": "The skeleton crumbles to dust.",
 	"Der Räuber geht zu Boden.": "The bandit goes down.",
 	"Der Wolf bleibt liegen.": "The wolf stays down.",

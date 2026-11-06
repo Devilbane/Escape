@@ -924,17 +924,15 @@ static func make_monster() -> Node3D:
 		ear.position = Vector3(side * 0.2, 0.44, 0.04)
 		ear.rotation = Vector3(0.15, side * 0.3, -side * 0.85)
 		root.add_child(ear)
-		var fin := PrismMesh.new()
-		fin.size = Vector3(0.26, 0.24, 0.02)
-		# Upside down: narrow where it grows from the head, wide at its edge.
-		var web := _mesh_part(fin, fin_skin, Vector3(0, 0.12, 0))
-		web.rotation.z = PI
+		# A thin leaf with rounded edges, pointing out from the head.
+		var web := _mesh_part(_ball(0.12), fin_skin, Vector3(0, 0.16, 0))
+		web.scale = Vector3(0.8, 1.45, 0.14)
 		ear.add_child(web)
 		for i in 3:
 			var length: float = [0.3, 0.34, 0.3][i]
 			var ray := CylinderMesh.new()
 			ray.top_radius = 0.0
-			ray.bottom_radius = 0.025
+			ray.bottom_radius = 0.028
 			ray.height = length
 			ray.radial_segments = 8
 			var pivot := Node3D.new()
@@ -944,11 +942,10 @@ static func make_monster() -> Node3D:
 	# The ridge of plates from the back of the head to the tail tip.
 	var ridge := [[0.14, 0.5, 0.13], [0.27, 0.4, 0.15], [0.39, 0.24, 0.16], [0.52, 0.22, 0.15], [0.65, 0.18, 0.13], [0.78, 0.12, 0.1], [0.9, 0.09, 0.08]]
 	for r in ridge:
-		var prism := PrismMesh.new()
-		prism.size = Vector3(r[2] * 1.1, r[2], 0.03)
-		prism.left_to_right = 0.2
-		var p := _mesh_part(prism, plate, Vector3(0, r[1] + r[2] * 0.3, r[0]))
-		p.rotation.y = -PI / 2.0
+		# A thin rounded plate, half sunk into the body, leaning to the tail.
+		var p := _mesh_part(_ball(r[2] * 0.75), plate, Vector3(0, r[1] - r[2] * 0.15, r[0]))
+		p.scale = Vector3(0.22, 1.45, 0.6)
+		p.rotation.x = 0.55
 		root.add_child(p)
 	# The eyes, in their own node so they can blink.
 	var eyes := Node3D.new()

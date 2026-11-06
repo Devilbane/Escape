@@ -539,7 +539,10 @@ func _ready() -> void:
 	writing_card.setup(_hud)
 	var comic := Comic.new()
 	comic.camera = camera
-	comic.avoid = message_rects
+	comic.avoid = func() -> Array[Rect2]:
+		var rects := message_rects()
+		rects.append_array(hero_hud_rects())
+		return rects
 	add_child(comic)
 	menus = Menus.new()
 	add_child(menus)
@@ -3706,6 +3709,112 @@ func rest_at_inn() -> void:
 	tween.tween_property(_fade, "color:a", 0.0, 1.0)
 
 
+## The camp's "rest by the fire" on a dungeon floor (see Camp): the hero
+## lies down on the bedroll and sleeps a while. Mostly they get up rested,
+## with full life, and the game is saved at the camp, which makes it the
+## spot they wake up at after blacking out (see _wake_after_rescue). But
+## now and then (Camp.ambush_chance) monsters creep up to the fire: the
+## rest is cut short with only half the lost life back, nothing is saved,
+## and the hero has to fight. A companion at their side keeps watch
+## instead of lying down, which makes an ambush rarer, or stops it.
+##
+## `roll` is the dice for the ambush, for tests; below 0 it is rolled.
+func rest_at_camp(roll := -1.0) -> void:
+	if state != State.PLAYING or not has_camp() or not Camp.can_rest(level):
+		return
+	var why := Camp.why_no_rest(player, level)
+	if why != "":
+		show_message(why, 2.4)
+		return
+	var guard := camp_guard()
+	var ambushed := (roll if roll >= 0.0 else randf()) < Camp.ambush_chance(level, guard)
+	learn(CAMP_REST_LEARN)
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	_lie_down_at_camp(tween)
+	tween.tween_interval(1.9)
+	tween.tween_callback(_fall_asleep)
+	tween.tween_interval(1.6)
+	if ambushed:
+		tween.tween_callback(_camp_ambushed.bind(guard))
+		return
+	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
+	tween.tween_callback(func():
+		_stop_snoozing()
+		player.set_asleep(false)
+		player.hp = player.max_hp
+		player.cure()
+		player.global_position = camp.stand_spot()
+		player.reset_physics_interpolation()
+		player.face(camp.global_position - player.global_position)
+		player.play("Idle")
+		_snap_camera()
+		_update_hud()
+		var saved := save_game()
+		player.frozen = false
+		state = State.PLAYING
+		show_message(Lang.t("Ausgeruht! Du hast wieder volles Leben.") + "\n" + (Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")), 3.5))
+	tween.tween_property(_fade, "color:a", 0.0, 1.0)
+
+
+const CAMP_REST_LEARN := "Im Verlies kannst du dich an deinem Lager ausruhen: Du bekommst volles Leben, das Spiel wird gespeichert, und nach einer Ohnmacht wachst du dort auf. Doch manchmal schleichen sich Ungeheuer an (30 %) und wecken dich mit nur halb geheilten Wunden. Ein Gefährte hält Wache: Mit Fuchs (10 %) oder Reh (15 %) wird es seltener, an einen Hirsch wagt sich keiner heran."
+
+
+## The companion at the hero's side that keeps watch at the camp: its kind
+## (see Camp.GUARDS), or "" when none goes with the hero.
+func camp_guard() -> String:
+	if not is_instance_valid(pet):
+		return ""
+	var kind: String = companion().get("kind", pet.kind)
+	return kind if Camp.GUARDS.has(kind) else ""
+
+
+## A rest by the fire cut short: a twig snaps, the hero wakes with half
+## their lost life back and gets up, and the monsters step out of the dark
+## and come for them. Nothing is saved.
+func _camp_ambushed(guard: String) -> void:
+	_stop_snoozing()
+	player.set_asleep(false)
+	player.hp = mini(player.max_hp, player.hp + ceili((player.max_hp - player.hp) / 2.0))
+	_update_hud()
+	Sfx.play(self, "word_knack", -2.0, camp.global_position)
+	var slot := player.find_child("HeadSlot", true, false) as Node3D
+	var head := slot.global_position if slot else player.global_position
+	Effects.float_text(level, head + Vector3(0, 0.8, 0), "!", Color(1.0, 0.5, 0.3), true)
+	var text := Lang.t("Ein Hinterhalt! Ungeheuer schleichen sich an dein Lager heran.")
+	if guard != "":
+		text = Lang.t("%s schlägt Alarm und weckt dich: Ein Hinterhalt!") % companion().get("name", Companions.species_name(guard))
+	show_message(text, 3.5, Color(1.0, 0.75, 0.5))
+	player.get_up_from_bed()
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	tween.tween_interval(Player.GET_UP_TIME)
+	tween.tween_callback(func():
+		if has_camp():
+			player.global_position = camp.stand_spot()
+			player.reset_physics_interpolation()
+		player.play("Idle", 0.2)
+		player.frozen = false
+		state = State.PLAYING
+		_spawn_ambush())
+
+
+## The monsters of an ambush (see Camp): a few of the floor's own kinds
+## turn up out of the dark around the camp, already after the hero.
+func _spawn_ambush() -> Array[Enemy]:
+	var made: Array[Enemy] = []
+	var kinds := Camp.ambush_kinds(level)
+	if kinds.is_empty():
+		return made
+	var at := camp.global_position if has_camp() else player.global_position
+	for c in Camp.ambush_cells(level, at, Camp.AMBUSHERS):
+		var e: Enemy = level._spawn_enemy(kinds[randi() % kinds.size()], c)
+		e.alert(player.global_position)
+		made.append(e)
+	return made
+
+
 ## The bed's "stay awake": saves the game where the hero stands, without
 ## logging out, and shows the saved games. Closing that window carries on.
 func stay_awake() -> void:
@@ -5055,7 +5164,7 @@ func _on_leveled_up(new_level: int) -> void:
 	var text := Lang.t("Heldenstufe %d! +1 Leben") % new_level
 	if new_level % HeroLevel.CON_EVERY == 0:
 		text += ", " + Lang.t("+1 Konstitution")
-	if new_level % HeroLevel.SPEED_EVERY == 0:
+	if HeroLevel.gives_speed(new_level):
 		text += ", " + Lang.t("+1 % Tempo")
 	if new_level % HeroLevel.POINT_EVERY == 0:
 		text += "\n" + Lang.t("Ein Punkt für Stärke, Geschick oder Intelligenz: Taste P öffnet den Charakter.")
@@ -5073,7 +5182,7 @@ func _on_leveled_up(new_level: int) -> void:
 ## Seconds the level-up waits for a message already on screen.
 const LEVEL_MESSAGE_WAIT := 3.0
 ## Explained once in the compendium, at the first level-up.
-const LEVEL_LEARN := "Erfahrung (EP) bekommst du für besiegte Gegner, erfüllte Aufträge, Kopfgelder und gelöste Rätsel. Gegner weit unter deiner Heldenstufe bringen wenig. Jede Stufe gibt +1 Leben, jede 2. Stufe +1 % Tempo, jede 3. Stufe einen Punkt für Stärke, Geschick oder Intelligenz (im Charakter, Taste P) und jede 5. Stufe +1 Konstitution."
+const LEVEL_LEARN := "Erfahrung (EP) bekommst du für besiegte Gegner, erfüllte Aufträge, Kopfgelder und gelöste Rätsel. Gegner weit unter deiner Heldenstufe bringen wenig. Jede Stufe gibt +1 Leben, jede 2. Stufe bis Stufe 20 +1 % Tempo, jede 3. Stufe einen Punkt für Stärke, Geschick oder Intelligenz (im Charakter, Taste P) und jede 5. Stufe +1 Konstitution."
 
 
 func _on_player_trained(id: String, value: int) -> void:

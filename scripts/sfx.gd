@@ -205,6 +205,37 @@ static func play_after(tree_node: Node, seconds: float, sound: String, volume_db
 			play(tree_node, sound, volume_db, at))
 
 
+## The hero's weapon sounds (built by tools/make_weapon_sounds.py from CC0
+## recordings), by kind
+## of blow, with how many takes each has. "swing" and "sweep" are the rush of
+## air as the hero strikes one enemy or sweeps a crowd; the rest is the blow
+## landing: "hit" plain, "heavy" a heavy hit, "vital" a vital point found,
+## "sneak" a sneak attack and "glance" the weapon glancing off armour.
+const WEAPON_TAKES := {"swing": 3, "sweep": 2, "hit": 4, "heavy": 3, "vital": 2, "sneak": 2, "glance": 3}
+## How loud each kind sits, so the telling blows stand out of a fight.
+const WEAPON_DB := {"swing": -3.0, "sweep": -2.0, "hit": 0.0, "heavy": 1.0, "vital": 2.0, "sneak": 2.0, "glance": -1.0}
+## The two weapon families that sound apart.
+const WEAPON_FAMILIES := ["sword", "axe"]
+
+
+## Which family a weapon skill sounds like: axes, maces and hammers
+## (Aexte) chop as an "axe", blades as a "sword".
+static func weapon_family(skill_id: String) -> String:
+	return "axe" if skill_id == "aexte" else "sword"
+
+
+## The file of one take of a weapon sound, e.g. "sword_hit_2".
+static func weapon_sound(family: String, blow: String, take: int) -> String:
+	return "%s_%s_%d" % [family, blow, take]
+
+
+## Plays a random take of a weapon sound: `family` from weapon_family,
+## `blow` a key of WEAPON_TAKES. With `at`, it fades with the distance.
+static func play_weapon(tree_node: Node, family: String, blow: String, at = null) -> void:
+	var take := randi() % int(WEAPON_TAKES.get(blow, 1))
+	play(tree_node, weapon_sound(family, blow, take), float(WEAPON_DB.get(blow, 0.0)), at)
+
+
 ## Coins clinking: a coin or two, or a whole handful of gold.
 static func play_coins(tree_node: Node, amount: int, delay := 0.0, at = null) -> void:
 	var sound := "coins_big_%d" % (randi() % 3) if amount >= 5 else "coins_small_%d" % (randi() % 3)

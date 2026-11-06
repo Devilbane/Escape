@@ -12,6 +12,7 @@ shader_type spatial;
 // - stone (grey, when the model is stone, see grey_stone): hewn and pitted,
 //   warm grey like the village, with lichen and moss,
 // - cloth (light, pale browns: sacks, canvas): faded, with water stains,
+//   or, on a cloth that is kept clean (see `linen`), fresh woven linen,
 // - produce (pumpkins, bread, apples): their own colour, mottled and dull,
 //   with earth at the foot,
 // - anything else (paint): faded and stained.
@@ -36,10 +37,16 @@ uniform float grey_stone = 0.0;
 uniform bool produce = false;
 // The strength of the weather.
 uniform float age = 1.0;
+// The cloth is clean linen, looked after (the barber's tent): a light natural
+// off-white with a fine plain weave and a few thicker threads, with no stains,
+// grime, streaks or moss on it. The poles and frame weather as usual.
+uniform bool linen = false;
 
 // The warm grey of the village stone (AgedStone.GRAVE_TINTS), and rust.
 // All colours here are as painted (sRGB), like the palette.
 const vec3 STONE = vec3(0.62, 0.61, 0.58);
+// Unbleached linen, as painted.
+const vec3 LINEN = vec3(0.93, 0.9, 0.82);
 // Old timber gone silver-grey in the weather (luminance about 0.53).
 const vec3 SILVER = vec3(0.56, 0.53, 0.48);
 const vec3 RUST = vec3(0.3, 0.15, 0.07);
@@ -135,6 +142,31 @@ void fragment() {
 	// Cloth: faded, with water stains running down it.
 	float damp = smoothstep(0.45, 0.75, stains);
 	vec3 cloth = mix(c, vec3(l) * vec3(1.0, 0.95, 0.86), 0.35 * age) * (1.0 - age * (0.1 + 0.22 * damp));
+	// Clean linen: threads crossing over and under each other (a plain
+	// weave, about 60 to the metre), a few thicker threads and the soft
+	// unevenness of hand-spun yarn. On the roof the threads run along x and
+	// z, on the walls along the side and upright.
+	float weave_h = 0.0;
+	// Only the light canvas: a tent's darker poles and frame read as cloth
+	// too here, and keep their weathered look.
+	float clean = 0.0;
+	if (linen) {
+		clean = is_cloth * smoothstep(0.7, 0.78, l);
+	}
+	if (clean > 0.0) {
+		vec2 wp = up > 0.5 ? p.xz : vec2(p.x * abs(n.z) + p.z * abs(n.x), p.y);
+		vec2 t = wp * 60.0;
+		vec2 f = fract(t);
+		float over = mod(floor(t.x) + floor(t.y), 2.0);
+		float warp = sin(3.14159 * f.x) * (0.65 + 0.35 * sin(3.14159 * f.y));
+		float weft = sin(3.14159 * f.y) * (0.65 + 0.35 * sin(3.14159 * f.x));
+		weave_h = mix(warp, weft, over) * band(60.0, px);
+		float slub = smoothstep(0.7, 0.9, vnoise(vec3(wp.x * 30.0, wp.y * 2.5, 3.0))) * band(30.0, px)
+				+ smoothstep(0.7, 0.9, vnoise(vec3(wp.x * 2.5, wp.y * 30.0, 7.0))) * band(30.0, px);
+		float yarn = vnoise(vec3(wp * 3.0, 11.0));
+		vec3 cloth_linen = LINEN * (0.88 + 0.16 * weave_h + 0.04 * slub + 0.04 * (yarn - 0.5));
+		cloth = mix(cloth, cloth_linen, clean);
+	}
 
 	// Produce: its own colour, a little duller, mottled and speckled.
 	float mottle = fbm(p * 5.0 + 17.0);
@@ -146,15 +178,16 @@ void fragment() {
 
 	vec3 col = wood * is_wood + iron * is_iron + stone * is_stone + cloth * is_cloth + fruit * fresh + paint * is_paint;
 
-	// Weather over all of it.
-	col *= mix(1.0, 0.92 + 0.16 * cloud, age);
-	col *= 1.0 + 0.12 * (grit - 0.5) * age;
+	// Weather over all of it (but the clean linen).
+	float dirt = age * (1.0 - clean);
+	col *= mix(1.0, 0.92 + 0.16 * cloud, dirt);
+	col *= 1.0 + 0.12 * (grit - 0.5) * dirt;
 	// Grime and earth splashed up at the foot.
-	col = mix(col, col * EARTH / 0.3, low * 0.25 * age);
+	col = mix(col, col * EARTH / 0.3, low * 0.25 * dirt);
 	// Rain streaks running down the sides.
 	float streak = vnoise(vec3(p.x * 2.4 + p.z * 1.7, p.y * 0.2, 1.7)) * vnoise(vec3(p.x * 5.1 - p.z * 3.3, p.y * 0.45, 4.2));
 	streak = smoothstep(0.3, 0.58, streak) * side * band(5.0, px) * (1.0 - fresh);
-	col *= 1.0 - streak * 0.18 * age;
+	col *= 1.0 - streak * 0.18 * dirt;
 	// Moss and a green film on wood and stone that face up or stand low.
 	float moss_place = max(low * 0.7, up * 0.6) * (is_wood + is_stone);
 	float moss = smoothstep(0.66, 0.84, fbm(p * 2.4 + 5.0) + moss_place * 0.3) * smoothstep(0.05, 0.4, moss_place);
@@ -169,5 +202,6 @@ void fragment() {
 	ROUGHNESS = mix(0.94, 0.6, sheen) - 0.2 * fresh;
 	SPECULAR = mix(0.25, 0.45, sheen + fresh * 0.5);
 	float h = grit * 0.012 - crack * 0.006 * is_wood + pits * 0.006 * is_stone + rust * 0.003 * is_iron + crust * 0.004;
+	h = mix(h, weave_h * 0.003, clean);
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h) * age, dFdy(h) * age);
 }

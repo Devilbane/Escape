@@ -104,7 +104,7 @@ func _test() -> void:
 
 	# The yardstick for the odds is a person balanced to the hero's level,
 	# the way the game balances monsters to an area (see Enemy._fit_area).
-	for l in range(1, HeroLevel.MAX + 1):
+	for l in range(1, HeroLevel.WORLD_TOP + 1):
 		var foe := Enemy.reference_foe(l)
 		check(absi(int(foe.level) - l) <= 1 and Enemy.KINDS[Enemy.REFERENCE_KIND].get("human", false),
 				"the reference person fits hero level %d: %s" % [l, foe])
@@ -192,8 +192,10 @@ func _test() -> void:
 			# Beside the list: hit and block chances against a person of the
 			# hero's own level, from the real fight numbers. Pointing at them
 			# explains them in the card, in its own space.
-			var odds := p.odds_against(Enemy.reference_foe(p.hero_level()))
-			check(_has_text(menus._box, Lang.t("Gegen Menschen deiner Stufe:")), "the odds say whom they are against (%s)" % where)
+			# Above the world's top (level 20) they are its strongest.
+			var odds := p.odds_against(Enemy.reference_foe(HeroLevel.measured(p.hero_level())))
+			var against := "Gegen Menschen deiner Stufe:" if p.hero_level() <= HeroLevel.WORLD_TOP else "Gegen die stärksten Menschen:"
+			check(_has_text(menus._box, Lang.t(against)), "the odds say whom they are against (%s)" % where)
 			var hit_value: Label = null
 			for l in _labels(menus._box, []):
 				if l.text == Lang.t("Treffer"):

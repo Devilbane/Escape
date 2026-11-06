@@ -3,6 +3,7 @@ extends SceneTree
 ## paving and paths keep the full pace, grass, soil and scree slow a little,
 ## rain puddles the most; the hero eases into the pace of the ground
 ## underfoot instead of jumping at a tile's edge, and so do the monsters.
+## Every ground has footsteps that fit it.
 ## Run with: godot --headless --fixed-fps 60 -s tests/surfaces.gd
 
 var failures := 0
@@ -76,6 +77,22 @@ func _table() -> void:
 	check(Surfaces.PACE[Surfaces.SCREE] < Surfaces.PACE[Surfaces.GRASS], "scree is slower than grass")
 	for kind: String in Surfaces.PACE:
 		check(Surfaces.PACE[Surfaces.PUDDLE] <= Surfaces.PACE[kind], "a puddle is the slowest ground (%s)" % kind)
+	# Every ground has footsteps of its own kind, and every one of them exists.
+	for kind: String in Surfaces.PACE:
+		if kind == Surfaces.PUDDLE:
+			continue
+		check(Surfaces.STEPS.has(kind), "%s has footsteps" % kind)
+		for i in 12:
+			var sound := Surfaces.step_sound(kind)
+			check(ResourceLoader.exists(Sfx.DIR + sound + ".wav"), "the step %s on %s exists" % [sound, kind])
+	for kind in [Surfaces.GRASS, Surfaces.WOOD, Surfaces.SCREE, Surfaces.PATH]:
+		check(not Surfaces.hard(kind), "%s does not sound like stone" % kind)
+		check(Surfaces.step_sound(kind).begins_with("step_" + Surfaces.STEPS[kind] + "_"), "%s plays its own steps" % kind)
+	check(Surfaces.hard(Surfaces.STONE) and Surfaces.hard(Surfaces.PAVING), "stone and paving ring hard")
+	var kinds := {}
+	for kind: String in Surfaces.STEPS:
+		kinds[Surfaces.STEPS[kind]] = true
+	check(kinds.size() >= 5, "grass, earth, scree, wood and stone each sound different (%d)" % kinds.size())
 
 
 func _easing() -> void:

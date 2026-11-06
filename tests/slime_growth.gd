@@ -4,7 +4,7 @@ extends SceneTree
 ## it fells (no corpse, and the prey's loot stays in its belly until the
 ## slime falls), grows a level or more per meal up to level 25 and is a
 ## sparkling, harder-hitting Blob from level 15 on; and it smells corpses
-## and eats them, growing from them too.
+## and eats them, growing from them too and slurping up the loot by them.
 ## Run with: godot --headless --fixed-fps 60 -s tests/slime_growth.gd
 
 var failures := 0
@@ -196,6 +196,10 @@ func _process(_delta: float) -> bool:
 				if is_instance_valid(c) and c.enemy == wolf:
 					corpse = c
 			check(corpse != null, "the wolf lies as a corpse")
+			# Loot lying by the body: a pile of 7 coins and a sword.
+			game.level.lay_coins(wolf.global_position + Vector3(0.5, 0, 0), 7)
+			game.level._drop_item("schwert", wolf.global_position + Vector3(-0.6, 0, 0.3))
+			coins_before = _money_on_floor()
 			slime = _spawn("schleim", spot)
 			stage_frames = 0
 			stage = 4
@@ -214,6 +218,12 @@ func _process(_delta: float) -> bool:
 			check(wolf.swallowed_by == slime, "the slime eats the corpse")
 			check(slime.rated_level > level_before, "the corpse makes the slime grow")
 			check(not game.level.corpses.has(corpse), "the eaten corpse is gone")
+			# (It may have eaten the Blob's puddle first, with the Blob's coins.)
+			check(_money_on_floor() <= coins_before - 7, "the slime slurps up the coins by the corpse")
+			check(not game.level.lies_on_floor("schwert"), "the slime slurps up the sword by the corpse")
+			var slurped: Array = slime.belly.back().loot if not slime.belly.is_empty() else []
+			check(slurped.any(func(t): return t[0] == "item" and t[1] == "schwert"), "the sword is in the slime's belly")
+			check(slurped.any(func(t): return t[0] == "coins" and int(t[2]) == 7), "the 7 coins are in the slime's belly")
 			_finish()
 			return true
 	return false

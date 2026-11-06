@@ -1533,7 +1533,8 @@ func _head_for(at: Vector3) -> Vector3:
 
 
 ## Lunges at a corpse and swallows it: it grows as from a kill (see
-## swallow), and the body is gone. Its loot already lay on the floor.
+## swallow), and the body is gone, with the loot lying round it (see
+## Level.slurp_loot), which it carries until it falls.
 func _eat_corpse(c: Corpse) -> void:
 	_cooldown = _stats.cooldown
 	var slow: float = minf(float(_stats.size), 1.6)
@@ -1547,6 +1548,11 @@ func _eat_corpse(c: Corpse) -> void:
 	c.eaten()
 	body.swallowed_by = self
 	swallow(body)
+	# The loot lying round the body goes down with it.
+	var loot := level.slurp_loot(body.global_position, SlimeGrowth.SLURP_REACH)
+	if not loot.is_empty():
+		belly.append({"victim": null, "loot": loot})
+		show_swallowed(loot)
 	body._slide_into(self, true)
 
 

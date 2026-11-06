@@ -4,7 +4,8 @@ extends CharacterBody3D
 ## the well or the square now and then, and comes back. Run into one to hear
 ## what they have to say. Driven by a small script, no AI service needed.
 
-const WALK_SPEED := 1.7
+## A stroll through town (m/s): unhurried, the stride matched (see Stride).
+const WALK_SPEED := 1.3
 const RUN_SPEED := 3.6
 ## Body parts every model keeps; everything else (hats, weapons, books) is
 ## shown only when a role asks for it.

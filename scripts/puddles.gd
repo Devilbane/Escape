@@ -21,16 +21,21 @@ const PATH := ","
 ## puddle runs into it.
 const WET := "~;(>qF"
 ## One puddle for about this many tiles of open ground, at most MAX.
-const TILES_PER_PUDDLE := 3.5
-const MAX := 480
-## A puddle's radius in metres (a tile is 4 m), smallest and largest, and
-## the largest beside a wall, a fence or a house, so it stays on its tile.
-const RADIUS := Vector2(0.55, 1.85)
-const EDGE_RADIUS := 1.0
+const TILES_PER_PUDDLE := 2.5
+const MAX := 700
+## A puddle's radius in metres (a tile is 4 m), smallest and largest (a
+## sheet of water across a whole dip), and the largest beside a wall, a
+## fence or a house, so it stays on its tile.
+const RADIUS := Vector2(0.9, 5.2)
+const EDGE_RADIUS := 1.2
+## How far the wet ground of a puddle reaches at most (of its radius), for a
+## round one and a long one, with its ragged edge and the soaked soil.
+const REACH := 1.7
+const REACH_LONG := 2.2
 ## How much further a long puddle in a rut reaches (of its radius).
 const LONG_REACH := 1.5
 ## How far apart two puddles stay, as a share of their radii added up.
-const APART := 1.25
+const APART := 1.05
 ## How big a dip in the ground is (metres across, roughly).
 const DIP_SIZE := 22.0
 ## Just above the ground and the paving, so nothing flickers through.
@@ -111,15 +116,22 @@ func _init(level: Level, seed_value: int) -> void:
 		var c: Vector2i = entry[1]
 		var depth: float = entry[2]
 		# Deep dips hold big puddles, the rest small ones.
-		var radius := lerpf(RADIUS.x, RADIUS.y, clampf(depth * depth * 1.4 + rng.randf_range(-0.3, 0.2), 0.0, 1.0))
+		var big := clampf(depth * 1.6 - 0.25 + rng.randf_range(-0.25, 0.25), 0.0, 1.0)
+		var radius := lerpf(RADIUS.x, RADIUS.y, pow(big, 1.5))
 		var away := _away_from_walls(level, c)
 		var shift := Vector2(rng.randf_range(-1.1, 1.1), rng.randf_range(-1.1, 1.1))
 		if away != Vector2.INF:
 			# Beside a wall: a small one, pushed out from under the eaves.
-			radius = minf(radius, EDGE_RADIUS * rng.randf_range(0.6, 1.0))
+			radius = minf(radius, EDGE_RADIUS * rng.randf_range(0.75, 1.0))
 			shift = away * 0.45
 		var at := level.cell_to_world(c) + Vector3(shift.x, LIFT, shift.y)
 		var long := level.cell_char(c) == PATH
+		# A big one shrinks until it stays on open ground, clear of the
+		# walls, the houses and the ponds.
+		while radius > RADIUS.x and not _fits(level, at, radius * (REACH_LONG if long else REACH)):
+			radius = maxf(RADIUS.x, radius * 0.8)
+		if not _fits(level, at, radius * (REACH_LONG if long else REACH) * 0.7):
+			continue
 		# How far it reaches, for keeping the next one clear of it.
 		var span := radius * (LONG_REACH if long else 1.0)
 		if _crowded(at, span):
@@ -142,13 +154,33 @@ func _init(level: Level, seed_value: int) -> void:
 		mi.visible = false
 		add_child(mi)
 		# Big puddles fill first and dry last; small ones need more rain.
-		var needs := remap(radius, RADIUS.x, RADIUS.y, 0.45, 0.0) + rng.randf_range(0.0, 0.06)
+		var needs := remap(radius, RADIUS.x, RADIUS.y, 0.45, 0.0) + rng.randf_range(0.0, 0.02)
 		var s := {"node": mi, "at": at, "radius": radius, "needs": needs, "fill": 0.0, "span": span}
 		spots.append(s)
 		for t in _tiles_under(at, span):
 			if not _by_tile.has(t):
 				_by_tile[t] = []
 			_by_tile[t].append(s)
+
+
+## Whether a puddle reaching `reach` round `at` lies on open ground only (or
+## runs in under the trees of the forest's edge).
+static func _fits(level: Level, at: Vector3, reach: float) -> bool:
+	var lo := level.world_to_cell(at - Vector3(reach, 0, reach))
+	var hi := level.world_to_cell(at + Vector3(reach, 0, reach))
+	var half := Level.TILE * 0.5
+	for y in range(lo.y, hi.y + 1):
+		for x in range(lo.x, hi.x + 1):
+			var c := Vector2i(x, y)
+			var ch := level.cell_char(c)
+			if GROUND.contains(ch) or ch == "#":
+				continue
+			# Does the circle reach into this tile?
+			var mid := level.cell_to_world(c)
+			var near := Vector2(clampf(at.x, mid.x - half, mid.x + half), clampf(at.z, mid.z - half, mid.z + half))
+			if near.distance_squared_to(Vector2(at.x, at.z)) < reach * reach:
+				return false
+	return true
 
 
 ## Whether any of the eight tiles round `c` is one of `chars`.

@@ -16,8 +16,8 @@ extends PanelContainer
 
 ## Where the box sits: below the status block at the top left, and well
 ## above the message line at the bottom (see Game.MESSAGE_BOTTOM).
-const LEFT := 24.0
-const TOP := 196.0
+const LEFT := 16.0
+const TOP := 188.0
 const HEIGHT := 200.0
 ## The width the player can pick with the slider, and the step it moves in.
 ## At MAX_WIDTH the box still keeps clear of the message line (Game.MESSAGE_MARGIN).

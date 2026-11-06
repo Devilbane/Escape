@@ -1209,6 +1209,23 @@ func _place_drawer_arrow() -> void:
 	_drawer_arrow.position = Vector2((_drawer_handle.size.x - box.x) / 2.0, (_drawer_handle.size.y - line) / 2.0 - box.y / 2.0)
 
 
+## How far the status block, the coin plate and the event log sit from the
+## screen's left and top edges.
+const HUD_EDGE := 16
+
+
+## A bar's rim is laid just around it, outside its box: this moves the bar in
+## by the rim's width so the rim, not the bar, lines up with the plate, the
+## icon rows and the event log below.
+func _rim_indent(bar: Control) -> Control:
+	var holder := MarginContainer.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	holder.add_theme_constant_override("margin_left", BAR_RIM)
+	holder.add_child(bar)
+	return holder
+
+
 func _setup_hud() -> void:
 	_hud = CanvasLayer.new()
 	add_child(_hud)
@@ -1216,7 +1233,7 @@ func _setup_hud() -> void:
 	var top := MarginContainer.new()
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	for side in ["left", "right", "top"]:
-		top.add_theme_constant_override("margin_" + side, 24)
+		top.add_theme_constant_override("margin_" + side, HUD_EDGE)
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Every HUD value explains itself on hover, in the house tooltip style.
 	var tips := _tooltip_theme()
@@ -1310,7 +1327,7 @@ func _setup_hud() -> void:
 	_run_bar.add_theme_stylebox_override("background", bar_back())
 	_run_bar.add_theme_stylebox_override("fill", _run_fill)
 	_run_bar.add_child(bar_rim())
-	run_row.add_child(_run_bar)
+	run_row.add_child(_rim_indent(_run_bar))
 	_run_label = _make_label(TEXT_FONT, 18, Color(0.75, 0.95, 0.6))
 	run_row.add_child(_run_label)
 	# The hero's level beside a bar of the experience towards the next one,
@@ -1328,7 +1345,7 @@ func _setup_hud() -> void:
 	_xp_bar.add_theme_stylebox_override("background", bar_back())
 	_xp_bar.add_theme_stylebox_override("fill", bar_fill([Color("ffe58a"), Color("e0b33a"), Color("a87a18")]))
 	_xp_bar.add_child(bar_rim())
-	xp_row.add_child(_xp_bar)
+	xp_row.add_child(_rim_indent(_xp_bar))
 	_xp_label = _make_label(TEXT_FONT, 18, XP_COLOR)
 	xp_row.add_child(_xp_label)
 	# The gold (first, on the left edge) and the key (in a dungeon) on one line

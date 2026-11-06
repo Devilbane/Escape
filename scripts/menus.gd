@@ -765,7 +765,9 @@ func _build_character() -> void:
 	odds_box.add_theme_constant_override("separation", 6)
 	top.add_child(odds_box)
 	var odds_title: Label = game._make_label(game.TEXT_FONT, 16, game.GOLD)
-	odds_title.text = Lang.t("Gegen Menschen deiner Stufe:")
+	# Above the world's top the yardstick is its strongest (HeroLevel.measured).
+	odds_title.text = Lang.t("Gegen Menschen deiner Stufe:") if p.hero_level() <= HeroLevel.WORLD_TOP \
+			else Lang.t("Gegen die stärksten Menschen:")
 	odds_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	odds_title.custom_minimum_size.x = CHARACTER_ODDS_WIDTH
 	_character_point(odds_title, wheel, CharacterPage.ODDS)

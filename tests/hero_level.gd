@@ -63,6 +63,23 @@ func _curve() -> void:
 	check(HeroLevel.total_for(5) == 1000, "level 5 takes 1000 XP in all: %d" % HeroLevel.total_for(5))
 	check(HeroLevel.level_for(10 ** 7) == HeroLevel.MAX, "level %d is the top" % HeroLevel.MAX)
 	check(HeroLevel.progress(150) == Vector2i(50, 200), "progress within level 2: %s" % HeroLevel.progress(150))
+	# Above the world's top (level 20) the hero keeps growing, up to MAX.
+	check(HeroLevel.MAX > HeroLevel.WORLD_TOP, "the hero can rise above the world's top")
+	check(HeroLevel.level_for(HeroLevel.total_for(21)) == 21 and HeroLevel.level_for(HeroLevel.total_for(21) - 1) == 20, "level 21 takes 2000 XP after level 20")
+	check(HeroLevel.progress(HeroLevel.total_for(30) + 10) == Vector2i(10, 3000), "progress within level 30")
+	check(HeroLevel.progress(HeroLevel.total_for(HeroLevel.MAX) + 10).y == 0, "nothing beyond the top level")
+	check(HeroLevel.points_earned(30) == 10 and HeroLevel.constitution_bonus(30) == 6 and HeroLevel.life_bonus(30) == 29, "levels above 20 still give life, Konstitution and points")
+	check(is_equal_approx(HeroLevel.speed_bonus(40), HeroLevel.speed_bonus(HeroLevel.SPEED_TOP)) and HeroLevel.speed_bonus(HeroLevel.SPEED_TOP) > HeroLevel.speed_bonus(18), "Tempo grows up to level %d, then stops" % HeroLevel.SPEED_TOP)
+	check(HeroLevel.gives_speed(20) and not HeroLevel.gives_speed(22), "the level-up message tells Tempo only up to level 20")
+	check(HeroLevel.rate("troll", 100000, 1000, 50, 0.5) == HeroLevel.MAX, "monsters are rated up to the top level")
+	var top := 0
+	for area in HeroLevel.AREAS:
+		top = maxi(top, HeroLevel.AREAS[area].max)
+	for kind in HeroLevel.FIXED:
+		top = maxi(top, HeroLevel.FIXED[kind])
+	check(top == HeroLevel.WORLD_TOP, "WORLD_TOP is the strongest place or boss there is: %d" % top)
+	check(HeroLevel.kill_xp(19, 40) == HeroLevel.kill_xp(19, 20), "the top areas pay a hero above 20 like one of level 20")
+	check(HeroLevel.kill_xp(5, 40) < HeroLevel.kill_xp(19, 40), "small fry still pays little")
 	# The owner's seasoned character is the yardstick at level 18.
 	check(HeroLevel.expected_power(18) == Mines.BENCHMARK.power, "power at level 18 is the benchmark's")
 	check(HeroLevel.expected_hardening(18) == Mines.BENCHMARK.hardening, "hardening at level 18 is the benchmark's")

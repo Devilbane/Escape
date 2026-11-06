@@ -58,5 +58,9 @@ from scratch by tools/make_rarity_sounds.py.
 The splashes of a step into a rain puddle (splash_*) are made from scratch
 by tools/make_weather_sounds.py, like the rain and the thunder.
 
+The hero's sword and axe sounds (sword_* and axe_*: swings, sweeps and the
+impacts of a plain, heavy, vital, sneak and glancing blow) are made from
+scratch by tools/make_weapon_sounds.py.
+
 All other sounds, including the comic word noises (word_*), are made by
 tools/make_sounds.py.

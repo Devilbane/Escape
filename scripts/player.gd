@@ -972,16 +972,19 @@ func melee() -> void:
 	_attack_cooldown = 0.5
 	Events.bus().hero_acted.emit("melee")
 	var splash := would_splash()
+	# A blade swishes, an axe (or a mace or hammer) whooms (see Sfx.play_weapon).
+	var arms := Sfx.weapon_family(weapon_skill())
 	if splash:
 		play_once(SPLASH_ANIM, 0.55)
-		Sfx.play(self, "swing", 0.0, null, 0.8)
+		Sfx.play_weapon(self, arms, "sweep")
 	else:
 		play_once(STRIKE_ANIM, 0.45)
-		Sfx.play(self, "swing")
+		Sfx.play_weapon(self, arms, "swing")
 	await get_tree().create_timer(0.25 if splash else 0.18).timeout
 	var weapon := weapon_skill()
 	# One roll for a heavy hit per swing; a sweep shares it out.
-	var full := power + heavy_hit(weapon)
+	var heavy := heavy_hit(weapon)
+	var full := power + heavy
 	var damage := maxi(1, roundi(full * SPLASH_SHARE)) if splash else full
 	var victims := enemies_in_reach()
 	if splash:
@@ -993,18 +996,35 @@ func melee() -> void:
 			victims.push_front(_target)
 		victims.resize(1)
 	var hits := 0
+	# The weapon's impact speaks for the blow (see blow_sound), so the comic
+	# words of these hits only add a quiet echo of it.
+	if not victims.is_empty():
+		Comic.under_weapon()
+	var blow := ""
+	var blow_at := global_position
 	for e in victims:
+		var this_blow := "hit"
 		if e.open_to_backstab(global_position):
 			# A sneak attack never rolls: it lands SNEAK_ATTACK_FACTOR times
 			# the hardest blow the hero can deal.
+			this_blow = "sneak"
 			e.take_hit(sneak_attack_damage(), global_position, "backstab")
 			train("schleichen", 4.0)
 		else:
 			# Monster knowledge: a blow may find a vital point (see MonsterLore).
 			var vital := finds_vital(e)
+			if vital:
+				this_blow = "vital"
+			elif e.is_armored():
+				this_blow = "glance"
+			elif heavy > 0:
+				this_blow = "heavy"
 			e.take_hit(vital_damage(power, weapon) if vital else damage, global_position)
 			if vital:
-				vital_struck(e)
+				vital_struck(e, "")
+		if blow == "" or BLOWS.find(this_blow) > BLOWS.find(blow):
+			blow = this_blow
+			blow_at = e.global_position
 			if not e.dead and randf() < shock_chance():
 				e.shock()
 		hits += 1
@@ -1014,8 +1034,16 @@ func melee() -> void:
 		train("staerke", 3.0 if e.dead else 1.0)
 		if e.dead and e.kind == "magier":
 			train("intelligenz", 4.0)
+	if blow != "":
+		Sfx.play_weapon(self, arms, blow, blow_at)
 	if hits == 0 and target:
 		Comic.pop(global_position + facing() * 1.5, "miss")
+
+
+## The kinds of blow a melee swing can land, from the least to the most
+## telling. A sweep that lands several kinds at once sounds only the most
+## telling one, so a crowd fight stays a clear sound per swing.
+const BLOWS := ["glance", "hit", "heavy", "vital", "sneak"]
 
 
 ## The chance that a blow of the held weapon cracks with lightning and stuns
@@ -1042,9 +1070,11 @@ func vital_damage(base: int, skill_id: String) -> int:
 
 
 ## After a vital hit landed on `e`: the word over its head, and maybe a
-## crippled attack and a bleeding wound (see MonsterLore).
-func vital_struck(e: Enemy) -> void:
-	Sfx.play(self, "hit", 2.0, e.global_position, 1.3)
+## crippled attack and a bleeding wound (see MonsterLore). `sound` is the
+## knife's impact; a melee blow passes "" and sounds its weapon instead.
+func vital_struck(e: Enemy, sound := "hit") -> void:
+	if sound != "":
+		Sfx.play(self, sound, 2.0, e.global_position, 1.3)
 	if e.dead:
 		Effects.head_text(level, e, 2.7, Lang.t("Schwachstelle!"), MonsterLore.VITAL_COLOR)
 		return

@@ -544,6 +544,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dungeon_sounds.gd | tee dungeon_sounds.log
           grep -q PASS dungeon_sounds.log
 
+      - name: Sword and axe sounds test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/weapon_sounds.gd | tee weapon_sounds.log
+          grep -q PASS weapon_sounds.log
+
       - name: Day and night test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/day_night.gd | tee daynight.log

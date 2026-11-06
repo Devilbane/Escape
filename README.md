@@ -56,7 +56,7 @@ version, installs it and then starts the game, so the local copy is always as ne
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |
-| Quit game | Esc | “Quit” button, top right |
+| Pause, quit game | Esc (again to play on) | “Quit” button, top right |
 | Sound on/off | M | “Sound” button, top right |
 | Music on/off, music volume | | “Music” button and the volume slider in the pull-out menu (Tab) |
 | Choose in a window | arrow keys or Tab, then Enter; Esc closes | click the button |

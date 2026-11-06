@@ -3018,8 +3018,9 @@ func _on_quit_pressed() -> void:
 		back_to_editor()
 		return
 	if state == State.PLAYING:
-		if player.can_act() and not menus.is_open():
-			menus.open("beenden")
+		if not menus.is_open():
+			set_drawer_open(false)
+			open_pause()
 	elif state == State.TITLE:
 		if not OS.has_feature("web"):
 			get_tree().quit()
@@ -3047,6 +3048,15 @@ func _close_tab() -> void:
 
 ## Leaves the game for the title screen. A browser tab cannot close itself,
 ## so only the desktop version quits outright.
+## Esc or the quit button: stops the world and opens the pause window, with
+## buttons to play on or to quit. It opens even while the hero is busy
+## (swinging, stumbling, afraid), as long as they are alive.
+func open_pause() -> void:
+	if state != State.PLAYING or player == null or player.dead or menus.is_open() or not _shrine.is_empty():
+		return
+	menus.open("beenden")
+
+
 func quit_game() -> void:
 	if state != State.PLAYING:
 		return
@@ -5917,8 +5927,11 @@ func _unhandled_input(event: InputEvent) -> void:
 					KEY_ESCAPE:
 						if playtest_file != "":
 							back_to_editor()
-						elif player.can_act():
-							menus.open("beenden")
+						elif _drawer_open:
+							# The pull-out menu goes first, as a window would.
+							set_drawer_open(false)
+						else:
+							open_pause()
 			elif event is InputEventMouseButton:
 				var point = _mouse_to_floor(event.position)
 				if point == null:

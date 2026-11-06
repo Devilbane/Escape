@@ -314,6 +314,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log
           grep -q PASS barber.log
 
+      - name: Postmaster's cap test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/post_cap.gd | tee post_cap.log
+          grep -q "PASS: post cap" post_cap.log
+
       - name: Spider hole and Spider Queen test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/spider_hole.gd | tee spider_hole.log

@@ -3,7 +3,9 @@ extends SceneTree
 ## the open air has one and the dungeon none; it waits minutes before it
 ## flies; it screams first, then its shadow sweeps right past the hero, head
 ## first, and is gone again; it flies to or from the dragon's mountain; the
-## shadow is as dark as the light allows; its pictures have a body and wings;
+## shadow is a real one, cast by the sun or moon from shapes up the light's ray,
+## one solid cut-out (wings as dark as the body), as plain as the light allows;
+## its pictures have a body and wings;
 ## its wings are heard beating as it comes over and it shrieks right overhead;
 ## its sounds and its line in the event log are there.
 ## Run with: godot --headless --fixed-fps 60 -s tests/dragon_flyover.gd
@@ -75,6 +77,29 @@ func _pictures() -> void:
 	check(wing.get_pixel(w - 2, h - 2).a < 0.05, "behind the wing tip the picture is clear")
 
 
+## The shadow is cast, not painted: the shapes are never seen, only their
+## shadow, and each is a cut-out, so wings and body are one even shade.
+func _real_shadow(fly: DragonFlyover) -> void:
+	var meshes: Array = [fly._body]
+	for joint in fly._wings:
+		meshes.append(joint.get_child(0))
+	for mesh: MeshInstance3D in meshes:
+		check(mesh.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, "the dragon is never seen, only its shadow")
+		var mat := (mesh.mesh as PlaneMesh).material as StandardMaterial3D
+		check(mat.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, "the shadow is a solid cut-out, not see-through")
+	check(fly._wing_material.transparency == fly._material.transparency, "the wings cast as dark a shadow as the body")
+
+
+## The shapes fly over the shadow's spot, up the light's ray towards the
+## sun or moon, high over the village but never far off.
+func _up_the_ray(fly: DragonFlyover) -> void:
+	var up := fly.global_position - fly.ground
+	check(up.normalized().dot(fly.to_light()) > 0.99, "the shapes are up the light's ray from the shadow")
+	check(fly.global_position.y > 4.0 and fly.global_position.y <= DragonFlyover.ALTITUDE + 0.01, "the shapes fly high over the ground (%.1f m)" % fly.global_position.y)
+	check(up.length() <= DragonFlyover.RAY + 0.01, "the shapes are never far off up the ray (%.1f m)" % up.length())
+	check(absf(fly.ground.y) < 0.01, "the shadow's spot is on the ground")
+
+
 ## The first night with a phase of the moon.
 func _night_of(which: int) -> int:
 	var night := 0
@@ -128,48 +153,47 @@ func _in_the_open() -> void:
 	fly.start(near, Vector3(-1, 0, 0))
 	var front := -fly._body.global_transform.basis.z
 	check(front.normalized().dot(Vector3(-1, 0, 0)) > 0.99, "the head leads the way")
+	_real_shadow(fly)
 	var closest := INF
 	var seconds := 0.0
-	var dark := 0.0
 	while fly.flying and seconds < 30.0:
 		fly._process(0.1)
 		seconds += 0.1
 		if fly.flying:
 			check(fly.is_shown(), "the shadow lies on the ground while it flies")
-			closest = minf(closest, Vector2(fly.global_position.x - near.x, fly.global_position.z - near.z).length())
-			check(absf(fly.global_position.y - DragonFlyover.LIFT) < 0.01, "the shadow lies just over the ground")
-			dark = maxf(dark, fly._material.albedo_color.a)
+			closest = minf(closest, Vector2(fly.ground.x - near.x, fly.ground.z - near.z).length())
+			_up_the_ray(fly)
 	check(closest <= DragonFlyover.PASS_SIDE + 1.0, "the shadow sweeps right past the hero (%.1f m)" % closest)
 	check(seconds > 4.0 and seconds < 10.0, "it is over in a few seconds (%.1f s)" % seconds)
-	check(dark > 0.3, "the shadow is dark enough to see by day (%.2f)" % dark)
 	check(not fly.flying and not fly.is_shown(), "then the shadow is gone")
 	check(fly.beats >= 2, "its wings are heard beating as it comes over (%d beats)" % fly.beats)
 	check(fly.shrieked, "it shrieks as it passes overhead")
 	check(fly.wait >= DragonFlyover.WAIT.x and fly.wait <= DragonFlyover.WAIT.y, "the next flight is minutes away")
 	# By moonlight: as plain as by day under a full moon, dimmer as the moon
-	# wanes, all but gone on a new-moon night; drawn black, not night-blue.
-	var by_day := fly.strength()
+	# wanes, all but gone on a new-moon night (the moon casts it).
+	var by_day := fly.light()
 	level.hour = 0.5
 	level.day = _night_of(Moon.FULL)
-	var full := fly.strength()
-	check(full >= by_day, "under a full moon the shadow is as plain as by day (%.2f, by day %.2f)" % [full, by_day])
-	check(fly.tint().v < 0.01, "by moonlight the shadow is black, not lost in the blue night")
+	var full := fly.light()
+	check(full >= by_day * 0.95, "under a full moon the shadow is as plain as by day (%.2f, by day %.2f)" % [full, by_day])
 	level.day = _night_of(2)
-	var half := fly.strength()
+	var half := fly.light()
 	check(half > 0.1 and half < full * 0.6, "under a half moon it is dimmer (%.2f)" % half)
 	level.day = _night_of(Moon.NEW)
-	check(fly.light() < 0.1 and fly.strength() < 0.05, "on a new-moon night the shadow is all but gone (%.2f)" % fly.strength())
-	# A night flight under the full moon draws it that dark.
-	level.day = _night_of(Moon.FULL)
+	check(fly.light() < 0.1, "on a new-moon night the shadow is all but gone (%.2f)" % fly.light())
+	# Under the evening's low sun and the night's high moon the shapes still
+	# fly up the light's ray, never far off, so the shadow still passes the hero.
+	for hour in [19.5, 0.5, 5.5, 13.0]:
+		game.day_hour = hour
+		game._tick_clock(0.0)
+		fly.flying = false
+		fly.start(near, Vector3(1, 0, 0))
+		fly.travelled = fly.length * 0.5
+		fly._place()
+		_up_the_ray(fly)
+		check(Vector2(fly.ground.x - near.x, fly.ground.z - near.z).length() <= DragonFlyover.PASS_SIDE + 0.5, "at %.1f h the shadow still passes the hero" % hour)
 	fly.flying = false
-	fly.start(near, Vector3(1, 0, 0))
-	dark = 0.0
-	seconds = 0.0
-	while fly.flying and seconds < 30.0:
-		fly._process(0.1)
-		seconds += 0.1
-		dark = maxf(dark, fly._material.albedo_color.a)
-	check(dark > 0.5, "the shadow is plain to see under a full moon (%.2f)" % dark)
+	fly._show(false)
 	level.hour = 12.0
 	level.weather = Weather.FOG
 	check(fly.light() < 0.8, "in fog the shadow is fainter (%.2f)" % fly.light())

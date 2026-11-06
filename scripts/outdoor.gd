@@ -2195,11 +2195,14 @@ func _spawn_villagers() -> void:
 
 ## The barber's stall on the tile behind him: a market tent with a striped
 ## barber's pole and a hanging sign with scissors at its front, so the shop
-## is easy to spot on the square.
+## is easy to spot on the square. A barber keeps things clean: the tent is of
+## fresh woven linen, not the stained canvas of the bandits' tents.
 func _build_barber_shop(cell: Vector2i) -> void:
 	var pos := cell_to_world(cell)
 	var box := _aabb_of("tent")
-	_put("tent", pos, 0.0, 3.6 / maxf(box.size.x, box.size.z))
+	var tent := _put("tent", pos, 0.0, 3.6 / maxf(box.size.x, box.size.z))
+	tent.name = "BarberTent"
+	WeatheredProps.clean_linen(tent)
 	_add_solid(pos, Vector3(3.4, 2.6, 3.4))
 	astar.set_point_solid(cell, true)
 	var pole := Effects.barber_pole()

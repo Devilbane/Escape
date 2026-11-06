@@ -55,10 +55,12 @@ uniform float fade = 0.0;
 
 // Where the tattoo sits on the head (head mesh space): the word runs from
 // the back to the front above the right ear, straight or in an arch.
-const float TATTOO_BACK = -0.32;
-const float TATTOO_FRONT = 0.14;
-const float TATTOO_TOP = 1.96;
-const float TATTOO_BOTTOM = 1.61;
+// It covers most of the shaved side, so the word reads from afar; the
+// patch keeps the ink texture's shape (HairLook.INK_SIZE).
+const float TATTOO_BACK = -0.42;
+const float TATTOO_FRONT = 0.26;
+const float TATTOO_TOP = 2.07;
+const float TATTOO_BOTTOM = 1.552;
 const vec3 INK = vec3(0.02, 0.03, 0.07);
 // How bright the natural hair is in the texture, to dye it evenly.
 const float NATURAL_LIGHT = 0.16;

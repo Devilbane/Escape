@@ -558,8 +558,11 @@ func _ready() -> void:
 			_tint(mesh, _worn(part).tint, _worn(part).get("metal", 0.0))
 	if is_ghost():
 		_ghostly()
-	elif elite or kind == "koloss" or kind == "waechter":
-		_glowing_eyes()
+	else:
+		# Cracked bone, scratched metal, worn cloth and leather (see GearLook).
+		GearLook.dress_body(_model, "outfit" if is_human() else "remains")
+		if elite or kind == "koloss" or kind == "waechter":
+			_glowing_eyes()
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Running_A", "Walking_A", "Walking_D_Skeletons", "Skeleton_Inactive_Standing_Pose"]:
 		if _anim.has_animation(a):

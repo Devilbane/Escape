@@ -1,7 +1,7 @@
 class_name GearLook
 extends RefCounted
-## Gives worn gear a faint hint of what it is made of, so it looks less like
-## plastic: cloth gets a fine weave and a matt surface, leather a pebbled grain
+## Shows what worn gear and whole characters are made of, so they look less
+## like plastic: cloth gets a fine weave and a matt surface, leather a pebbled grain
 ## and a soft sheen, metal hammered dents, and so on (the shader is
 ## shaders/gear_material.gdshaderinc). Items name their material in
 ## Items.ALL ("material"); weapons and shields are "mixed": wood, with metal
@@ -12,12 +12,15 @@ const SHADER := preload("res://shaders/tint.gdshader")
 
 ## Material names as items use them, and the shader's number for each.
 ## "scale" (the beast scale armour of ArmourSets) has the grain of chain.
-const KINDS := {"cloth": 1, "leather": 2, "metal": 3, "chain": 4, "scale": 4, "fur": 5, "bone": 6, "wood": 7, "mixed": 7, "outfit": 8}
+## "remains" is a skeleton's whole model: like an outfit, but pale parts are bone.
+const KINDS := {"cloth": 1, "leather": 2, "metal": 3, "chain": 4, "scale": 4, "fur": 5, "bone": 6, "wood": 7, "mixed": 7, "outfit": 8, "remains": 9}
 ## How metallic metal is when an item does not say.
 const DEFAULT_METAL := {"metal": 0.45, "chain": 0.4, "scale": 0.35}
 
 ## Meshes that already carry their rest positions, by source mesh.
 static var _baked := {}
+## The shared materials of dress_body, by texture, material and dye.
+static var _body_looks := {}
 ## Hats with a narrowed brim, by source mesh and how much brim is kept.
 static var _narrowed := {}
 ## How wide a hat's crown is where the brim begins, and how high the brim
@@ -84,15 +87,77 @@ static func apply(mesh: MeshInstance3D, material: String, tint := Color.WHITE, r
 	if source == null or source.albedo_texture == null:
 		return
 	mesh.mesh = with_rest_positions(mesh.mesh)
+	mesh.material_override = _look(source.albedo_texture, material, tint, recolor, metal)
+
+
+static func _look(texture: Texture2D, material: String, tint := Color.WHITE, recolor := false, metal := -1.0, dye := Color.WHITE) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = SHADER
-	mat.set_shader_parameter("tex", source.albedo_texture)
+	mat.set_shader_parameter("tex", texture)
 	mat.set_shader_parameter("recolor", recolor)
 	mat.set_shader_parameter("tint", tint)
 	mat.set_shader_parameter("metal", metal if metal >= 0.0 else DEFAULT_METAL.get(material, 0.0))
 	mat.set_shader_parameter("stuff", KINDS.get(material, 0))
-	mat.set_shader_parameter("metal_where_grey", material in ["mixed", "outfit"])
-	mesh.material_override = mat
+	mat.set_shader_parameter("metal_where_grey", material in ["mixed", "outfit", "remains"])
+	mat.set_shader_parameter("dye", dye)
+	return mat
+
+
+## Gives a whole character model (a villager, a bandit, a skeleton) the look
+## of what it is made of: material "outfit" for people, "remains" for the
+## dead. A part still drawn with the model's own plain material keeps the
+## colour it was dyed; a part already recoloured by the tint shader (brutes,
+## worn cloaks) gets the grain on top. Parts with a look of their own
+## (glowing eyes, hair, ghosts, props) are left as they are.
+static func dress_body(model: Node, material: String) -> void:
+	for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		if mesh.mesh == null or mesh.mesh.get_surface_count() == 0:
+			continue
+		var own := mesh.get_active_material(0)
+		if own is ShaderMaterial and (own as ShaderMaterial).shader == SHADER:
+			var tinted := own as ShaderMaterial
+			var stuff = tinted.get_shader_parameter("stuff")
+			if stuff == null or int(stuff) == 0:
+				mesh.mesh = with_rest_positions(mesh.mesh)
+				tinted.set_shader_parameter("stuff", KINDS[material])
+				tinted.set_shader_parameter("metal_where_grey", true)
+			continue
+		if _in_prop(mesh, model):
+			continue
+		var plain := own as StandardMaterial3D
+		var source := mesh.mesh.surface_get_material(0) as StandardMaterial3D
+		if plain == null or source == null or plain.albedo_texture == null or plain.albedo_texture != source.albedo_texture:
+			continue
+		if plain.emission_enabled or plain.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or plain.shading_mode != BaseMaterial3D.SHADING_MODE_PER_PIXEL:
+			continue
+		# A person's own body has no metal on it: grey there is hair, a beard
+		# or a glove (helmets, weapons and buckles are parts of their own).
+		var grey_is_metal := material != "outfit" or not _is_body(mesh)
+		var key := [plain.albedo_texture, material, plain.albedo_color, grey_is_metal]
+		if not _body_looks.has(key):
+			_body_looks[key] = _look(plain.albedo_texture, material, Color.WHITE, false, -1.0, plain.albedo_color)
+			_body_looks[key].set_shader_parameter("metal_where_grey", grey_is_metal)
+		mesh.mesh = with_rest_positions(mesh.mesh)
+		mesh.material_override = _body_looks[key]
+
+
+## Whether a mesh belongs to a village prop someone carries (a bucket, a
+## sack): those weather like the props around them (see WeatheredProps).
+static func _in_prop(mesh: Node, model: Node) -> bool:
+	var node := mesh
+	while node != null and node != model:
+		if node.scene_file_path != "" and WeatheredProps.MODELS.has(node.scene_file_path.get_file().get_basename()):
+			return true
+		node = node.get_parent()
+	return false
+
+
+## The parts every character model has: head, body, arms and legs.
+const BODY_PARTS := ["Head", "Body", "ArmLeft", "ArmRight", "LegLeft", "LegRight"]
+
+
+static func _is_body(mesh: MeshInstance3D) -> bool:
+	return String(mesh.name).get_slice("_", String(mesh.name).get_slice_count("_") - 1) in BODY_PARTS
 
 
 ## A copy of a mesh whose vertices also carry their rest position (CUSTOM0).

@@ -7,7 +7,7 @@ var frames := 0
 var v: Node3D
 var e: Node3D
 var style := "today"
-var OUT := "user://character_styles/"
+var OUT := OS.get_environment("MOCK_OUT") if OS.get_environment("MOCK_OUT") != "" else "user://character_styles/"
 
 const LIGHT_CEL := """
 void light() {

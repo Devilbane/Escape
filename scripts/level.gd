@@ -4047,6 +4047,8 @@ const LIMESTONE_COLOUR := Color(0.88, 0.86, 0.76)
 ## - intelligent ones (and slimes, with what they swallowed) leave `gold`
 ##   copper coins (the purse), iron, copper and silver coins for the purse too, and on a find
 ##   a piece of gear of that tier (see roll_kill_gear);
+## - slimes besides roll once more for what their body leaves, mostly their
+##   jelly (see Loot.slime_find; `body_roll` sets that roll);
 ## - other beasts leave, on a find, their food, an ingredient of where they
 ##   live, or a part of their body (see Loot.creature_find).
 ## Trolls and the creatures of the mountains roll once more for a lump of
@@ -4054,8 +4056,8 @@ const LIMESTONE_COLOUR := Color(0.88, 0.86, 0.76)
 ## lumps of limestone (see Loot.limestone_find). In the beginner
 ## dungeon a find is common at most, and ore uncommon at most (never the
 ## epic noble ore). Returns the gear or ingredient id
-## dropped (not the ore), or "".
-func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0) -> String:
+## dropped (not the ore; for a slime the gear, else its body's find), or "".
+func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0, body_roll := -1.0) -> String:
 	var tough := Loot.toughness(e.max_hp(), e.elite, is_named_boss(e))
 	var tier := Loot.roll_tier(tough, "normal" if beginner_dungeon else Loot.TOP_TIER, roll)
 	var pos := e.global_position
@@ -4075,6 +4077,13 @@ func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0) -> Stri
 				# It clatters onto the floor; an epic piece rings out as well.
 				Sfx.play_gear(self, found, 0.0, spot)
 				Sfx.play_rarity(self, found, 0.3, spot)
+		# A slime's own body: mostly its jelly, now and then a finer find.
+		if e.kind in Loot.SWALLOWS:
+			var body := Loot.slime_find(e.kind, tough, body_roll, "normal" if beginner_dungeon else Loot.TOP_TIER)
+			if body != "":
+				lay_find(body, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), Rarity.color(body), 1, true)
+				if found == "":
+					found = body
 	elif tier != "":
 		found = Loot.creature_find(e.kind, tier)
 		if found != "":

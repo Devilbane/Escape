@@ -1583,8 +1583,10 @@ func _physics_process(delta: float) -> void:
 	if move != Vector3.ZERO:
 		_face(move, delta)
 	_check_stuck(delta, move)
+	var walker := is_human() and not is_ghost()
 	if _busy > 0.0:
-		_model.position.y = _hover_y()
+		if walker:
+			_model.position.y = 0.0
 		return
 	if move == Vector3.ZERO:
 		_play("Idle")
@@ -1607,17 +1609,13 @@ func _physics_process(delta: float) -> void:
 		_anim.speed_scale = clampf(ground_speed / (float(_stats.get("run_anim", 4.0)) * float(_stats.size)), 0.5, 2.5)
 	else:
 		_anim.speed_scale = 1.0
-	_model.position.y = _hover_y() + (Stride.lift(_anim, _anim_of(_current_anim), _stride_size) if is_human() and not is_ghost() else 0.0)
+	if walker:
+		_model.position.y = Stride.lift(_anim, _anim_of(_current_anim), _stride_size)
 
 
 ## The model's own animation for one of the skeleton names (see _play).
 func _anim_of(anim_name: String) -> String:
 	return _stats.get("anims", {}).get(anim_name, anim_name)
-
-
-## Where the model floats above the body: ghosts hover (see _ghostly).
-func _hover_y() -> float:
-	return _model.position.y if is_ghost() else 0.0
 
 
 ## The walk, jog or run that fits a monster on the hunt at `speed` (see

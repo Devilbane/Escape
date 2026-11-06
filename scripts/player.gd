@@ -245,6 +245,9 @@ const JOG_LANDINGS := [0.11, 0.61]
 ## The same for the sneaking walk, whose feet land later in its cycle.
 const SNEAK_LANDINGS := [0.29, 0.79]
 var _last_phase := -1.0
+## Lifted onto the toes by the walk (see Stride.lift); anything else that
+## moves the model (the leap of a vital strike) is left alone.
+var _on_toes := false
 var _current_anim := ""
 var _busy := 0.0
 ## Seconds a flourish (see play_flourish) still shows while the hero stands.
@@ -662,7 +665,9 @@ func play(anim_name: String, blend := 0.2) -> void:
 	_current_anim = anim_name
 	_anim.play(anim_name, blend)
 	# Off the toes (see Stride.lift) when anything else begins.
-	_model.position.y = 0.0
+	if _on_toes:
+		_model.position.y = 0.0
+		_on_toes = false
 
 
 ## Plays a one-off animation and pauses movement for its duration.
@@ -2463,7 +2468,10 @@ func _physics_process(delta: float) -> void:
 		_anim.speed_scale = GET_UP_SPEED
 	else:
 		_anim.speed_scale = 1.0
-	_model.position.y = Stride.lift(_anim, _current_anim, _model.scale.x)
+	var lift := Stride.lift(_anim, _current_anim, _model.scale.x)
+	if lift > 0.0 or _on_toes:
+		_model.position.y = lift
+		_on_toes = lift > 0.0
 	_footsteps(ground_speed)
 	_update_sneak_look()
 	# A flourish shows only while the hero stands still; moving ends it.

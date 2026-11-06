@@ -377,7 +377,9 @@ var rated_level := 1
 func _fit_area() -> void:
 	rated_level = _rating()
 	var area := HeroLevel.area_of(level, kind) if level else ""
-	if HeroLevel.FIXED.has(kind):
+	# A monster made in the map workshop keeps the life and blow its maker
+	# gave it (up to Creations.MONSTER_MAX_HP), however far that is above the area.
+	if HeroLevel.FIXED.has(kind) or custom.has("hp") or custom.has("damage"):
 		return
 	if area == "":
 		# The dungeon is not lifted, but a monster whose rolled gear makes it

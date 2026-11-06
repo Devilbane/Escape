@@ -20,7 +20,7 @@ hint: Eine Probe.
 secret: normal
 traps: 2 stacheln, teleport
 writing: MUT | In die Wand geritzt: Nur Mut.
-custom: 1 {"type": "monster", "base": "krieger", "name": "Knochenfürst", "hp": 9, "damage": 2, "tint": "#aa3322"}
+custom: 1 {"type": "monster", "base": "krieger", "name": "Knochenfürst", "hp": 10000, "damage": 2, "tint": "#aa3322"}
 custom: 2 {"type": "npc", "name": "Bruder Anselm", "model": "Mage", "show": ["Mage_Hat"], "lines": ["Friede sei mit dir.", "Geh mit Gott."]}
 custom: 3 {"type": "item", "id": "eigen_probekrone", "base": "knochenhelm", "name": "Probekrone", "power": 3, "price": 40}
 ####################
@@ -145,8 +145,8 @@ func _check_creations() -> void:
 	var again := LevelMap.parse(m.to_text()).creations()
 	check(again == made, "creations change when written back")
 	# Values are kept in bounds.
-	var wild := Creations.checked({"type": "monster", "base": "einhorn", "hp": 9999, "speed": -3})
-	check(wild.base == "krieger" and wild.hp == 400 and wild.speed == 1.0, "a monster's values are not kept in bounds: %s" % wild)
+	var wild := Creations.checked({"type": "monster", "base": "einhorn", "hp": 99999, "speed": -3})
+	check(wild.base == "krieger" and wild.hp == Creations.MONSTER_MAX_HP and wild.hp == 10000 and wild.speed == 1.0, "a monster's values are not kept in bounds: %s" % wild)
 	# Every kind that fights is a base, the bosses too, listed once by family
 	# and named in both languages.
 	var listed := []
@@ -195,7 +195,7 @@ func _check_level_build() -> void:
 	check(custom.size() == 1, "%d custom monsters, not 1" % custom.size())
 	if custom.size() == 1:
 		var e: Enemy = custom[0]
-		check(e.kind == "krieger" and e.hp >= 9, "the custom monster fights with hp %d" % e.hp)
+		check(e.kind == "krieger" and e.hp >= 10000, "the custom monster fights with hp %d, not the 10000 it was made with" % e.hp)
 		check(e.custom.get("title", "") == "Knochenfürst", "the custom monster has no name")
 		check(e.custom.has("tint"), "the custom monster has no colour")
 	var figures := level.stations.filter(func(s): return s.kind == "figur")

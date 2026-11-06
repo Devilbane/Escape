@@ -251,3 +251,12 @@ func _clock_and_saving() -> void:
 	check(DayNight.clock_text(13.6) == "13:30", "the clock shows quarter hours")
 	var dusk: Dictionary = DayNight.sky_at(19.0)
 	check(dusk.amb_e < 0.52 and dusk.amb_e > 0.3, "dusk is between day and night")
+
+	# The sun stands still through a part of the day, so its shadows do not
+	# shimmer; it only swings, briefly, from one part of the day to the next.
+	check(DayNight.sun_angles_at(8.0).is_equal_approx(DayNight.sun_angles_at(17.0)), "the sun stands still all day")
+	check(DayNight.sun_angles_at(22.0).is_equal_approx(DayNight.sun_angles_at(3.0)), "the moon stands still all night")
+	check(not DayNight.sun_angles_at(12.0).is_equal_approx(DayNight.sun_angles_at(0.0)), "the moon lights from elsewhere than the sun")
+	var mid_swing := DayNight.sun_angles_at(7.0 + DayNight.SUN_SWING * 0.5)
+	check(not mid_swing.is_equal_approx(DayNight.sun_angles_at(6.5)) and not mid_swing.is_equal_approx(DayNight.sun_angles_at(8.0)), "between two parts of the day the sun swings across")
+	check(DayNight.SUN_SWING * DayNight.DAY_LENGTH / 24.0 < 3.0, "and the swing takes only a moment")

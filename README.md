@@ -52,6 +52,7 @@ version, installs it and then starts the game, so the local copy is always as ne
 | Quests and what is worth doing | O | scroll icon on the right edge |
 | Run home (once you have a house) | X | house icon on the right edge, below the menu handle; any step, click or blow of your own stops it |
 | Light or put out a torch | V | torch icon on the right edge, below the house icon (shows while you carry a torch, with how many are left in the bag) |
+| Drink a healing potion | 1 | potion icon left of the torch icon (shows while you carry a potion, with how many are left; shaded with the seconds left while the next one waits), or "Drink" in the inventory |
 | Pitch a camp (save and sleep away from a bed) | U | “Camp” button, “Pitch camp” on the bedroll in the inventory |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Offer a monster a gift | T, next to it | “Give gift” button |
@@ -456,6 +457,16 @@ green over a small fire. Between them stands **your chest**: it opens the same s
 your house, so you can fetch ingredients and put away what you made without walking home. Each bench
 belongs to one craft, and a recipe made with that craft is made at its bench. Until you know such a
 recipe, a bench tells you what is done there. The benches are built in `scripts/crafting_square.gd`.
+
+**Healing potions** are brewed at the alchemist's table. **Priestess Elsbeth** at the temple hands out the
+recipe: one **wild garlic** (your fox sniffs it out on the meadows) and one **slime jelly** (left by slimes in
+the dungeon). How strong a brew turns out depends on the brewer: Intelligence + 2 × your level in the new
+**alchemy** craft gives the brewing points. Below 16 points you brew a **weak** potion (low potency, heals
+15–20 % of your life at once), from 16 a **healing potion** (medium, 25–35 %), from 26 a **strong** one (high,
+40–60 %). Whatever the potency, every potion then heals 1 life per second for 20 seconds, and cures poison
+and curses like the fountain. Potions stack 5 to a bag slot. Drink with the potion icon left of the torch icon
+on the right edge, the key 1 (the strongest one you carry) or "Drink" in the inventory (a certain one); after
+a potion the icon is shaded and counts down the minute until the next. See `scripts/healing_potions.gd`.
 
 The glowing **crystal clusters** in the mines can be mined: run into one and the hero knocks two **grotto
 crystals** off it into the ingredient pouch. A mined cluster stays dull until the next morning, then it has

@@ -65,6 +65,13 @@ var _home_button: Button
 ## The torch button below it: lights or puts out the hand torch (see HandTorch).
 var _torch_button: Button
 var _torch_count: Label
+## The potion button left of the torch button: drinks a healing potion (see
+## HealingPotions), with the potions left in its corner and the cooldown as
+## a shade and the seconds over it.
+var _potion_button: Button
+var _potion_count: Label
+var _potion_shade: ColorRect
+var _potion_wait: Label
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
@@ -749,6 +756,7 @@ func _setup_drawer() -> void:
 	_drawer_rail.add_child(_drawer_handle)
 	_setup_home_button()
 	_setup_torch_button()
+	_setup_potion_button()
 
 	var panel := PanelContainer.new()
 	var back := StyleBoxFlat.new()
@@ -933,6 +941,99 @@ func _setup_torch_button() -> void:
 	_torch_button.add_child(_torch_count)
 	_torch_button.visible = false
 	slot.add_child(_torch_button)
+
+
+## The potion button stands left of the torch button, on the same line and
+## as big, outside the rail so the rail keeps its height: a red flask, the
+## potions left in the bag in its corner. After a potion it is shaded from
+## the top, the shade draining away over the minute until the next one may
+## be drunk, with the seconds left in its middle. It shows while the hero
+## carries a potion; its place is outside the rail, so nothing moves.
+func _setup_potion_button() -> void:
+	var slot: Control = _torch_button.get_parent()
+	_potion_button = _make_button("", potion_action)
+	_potion_button.custom_minimum_size = QUICK_SIZE
+	_potion_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
+	_potion_button.position = Vector2(-QUICK_SIZE.x - QUICK_GAP, 0)
+	_potion_button.size = QUICK_SIZE
+	_potion_button.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t("Heiltrank trinken"), "1"]
+	var icon := ItemIcon.make("kind:heal_potion", QUICK_ICON, true)
+	icon.set_anchors_preset(Control.PRESET_CENTER)
+	icon.offset_left = -QUICK_ICON / 2.0
+	icon.offset_top = -QUICK_ICON / 2.0
+	icon.offset_right = QUICK_ICON / 2.0
+	icon.offset_bottom = QUICK_ICON / 2.0
+	_potion_button.add_child(icon)
+	# The cooldown: a dark shade from the top, as tall as the share of the
+	# minute still to wait, inside the button's rounded frame.
+	_potion_shade = ColorRect.new()
+	_potion_shade.color = Color(0.0, 0.0, 0.0, 0.62)
+	_potion_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_potion_shade.anchor_right = 1.0
+	_potion_shade.offset_left = 3
+	_potion_shade.offset_right = -3
+	_potion_shade.offset_top = 3
+	_potion_shade.visible = false
+	_potion_button.add_child(_potion_shade)
+	_potion_wait = _make_label(TEXT_FONT, 18)
+	_potion_wait.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_potion_wait.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_potion_wait.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_potion_button.add_child(_potion_wait)
+	# The count sits in a fixed box in the lower right corner, like the
+	# torches', so a change from 9 to 10 does not move it.
+	_potion_count = _make_label(TEXT_FONT, 16)
+	_potion_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_potion_count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_potion_count.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_potion_count.offset_right = -6
+	_potion_count.offset_bottom = -1
+	_potion_button.add_child(_potion_count)
+	_potion_button.visible = false
+	slot.add_child(_potion_button)
+
+
+## Drinks a healing potion from the bag (the strongest, or the one named).
+## Returns "" when it worked, else why not.
+func drink_potion(id := "") -> String:
+	if state != State.PLAYING or player == null:
+		return ""
+	var why: String = player.potions.drink(id)
+	if why == "":
+		Events.teach(HealingPotions.LEARN)
+		_update_hud()
+	update_potion_button()
+	return why
+
+
+## The potion button or 1: drinks the strongest potion in the bag.
+func potion_action() -> void:
+	var why := drink_potion()
+	if why != "":
+		show_message(why, 2.4)
+
+
+## Shows the potion button while the hero carries a potion, with the count
+## and, after a potion, the shade and the seconds until the next one.
+func update_potion_button() -> void:
+	if _potion_button == null or player == null:
+		return
+	var potions: HealingPotions = player.potions
+	var count := potions.carried()
+	if _potion_button.visible != (count > 0):
+		_potion_button.visible = count > 0
+	var text := str(count) if count > 0 else ""
+	if _potion_count.text != text:
+		_potion_count.text = text
+	var waiting := potions.cooldown > 0.0
+	if _potion_shade.visible != waiting:
+		_potion_shade.visible = waiting
+	if waiting:
+		var inner := QUICK_SIZE.y - 6.0
+		_potion_shade.offset_bottom = 3.0 + inner * potions.cooldown / HealingPotions.COOLDOWN
+	var wait := str(ceili(potions.cooldown)) if waiting else ""
+	if _potion_wait.text != wait:
+		_potion_wait.text = wait
 
 
 ## The torch button or V: lights a torch from the bag, or puts it out.
@@ -5731,6 +5832,7 @@ func _process(delta: float) -> void:
 	home_run.tick()
 	update_home_button()
 	update_torch_button()
+	update_potion_button()
 	_update_drag(delta)
 	_update_run_meter()
 	place_message(delta)
@@ -5994,6 +6096,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						_toggle_sneak()
 					KEY_V:
 						torch_action()
+					KEY_1:
+						potion_action()
 					KEY_U:
 						camp_action()
 					KEY_G:

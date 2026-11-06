@@ -274,6 +274,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/torch_button.gd | tee torch_button.log
           grep -q PASS torch_button.log
 
+      - name: Healing potions test (brewed by potency, button left of the torch, once a minute)
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/healing_potions.gd | tee healing_potions.log
+          grep -q "PASS: healing potions" healing_potions.log
+
       - name: Several saved games test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log

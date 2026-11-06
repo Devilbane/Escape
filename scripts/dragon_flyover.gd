@@ -11,13 +11,17 @@ extends Node3D
 ## Where the map has the dragon's lair (its stone arch, "E"), the dragon
 ## flies to or from that mountain. The scream comes from the side it comes from.
 ##
-## The shadow is three flat shapes lying just above the ground: the body
-## (head, neck, tail) and one wing on either side, whose span shrinks and
-## grows as they beat, like the shadow of a real wing seen from below. Their
-## pictures are drawn once, at load time (see _body_image, _wing_image). The
-## shadow is as dark as the light allows: plain by day, and by night as plain
-## as the moon makes it (clear under a full moon, dim under a half moon, gone
-## on a new-moon night), fainter in fog, while its sounds still carry.
+## The shadow is a real one, cast by the sun (or the moon): three flat cut-out
+## shapes fly up in the air, never seen themselves (they only cast a shadow):
+## the body (head, neck, tail) and one wing on either side, whose span shrinks
+## and grows as they beat. Their pictures are drawn once, at load time (see
+## _body_image, _wing_image). So the whole dragon, wings and body alike, lies
+## on the ground as one solid shape, exactly as dark as the shadow of a house
+## or a tree beside it, stretched by a low sun, lying over roofs and walls, and
+## by night as plain as the moon makes it (clear under a full moon, dim under a
+## half moon, gone on a new-moon night), fainter in fog, while its sounds still
+## carry. The shapes are placed up the light's ray from the spot on the ground
+## the shadow should cover, so it passes the hero whatever the hour.
 ## Moved per frame (it is no physics body). Tested by tests/dragon_flyover.gd.
 
 ## The scream (built by tools/make_dragon_sounds.py) and how loud it is.
@@ -54,18 +58,16 @@ const SHOULDER := 1.6
 const BEAT := 0.9
 const FOLD := 0.5
 const GLIDE_EVERY := 2.6
-## How high over the ground the shadow lies (over the paving and the grass).
-const LIFT := 0.12
-## How dark the shadow is in full daylight (its alpha), and its colour: a
-## dense, near-black shade, plainly a huge thing passing over.
-const DARK := 0.72
-const TINT := Color(0.01, 0.01, 0.02)
-## How dark it is under a clear full moon (its alpha), and its colour then:
-## black, as a shadow takes away the moon's blue light (a bluish tint would
-## melt into the bluish night ground). Darker than by day, since a dim
-## picture needs more to stand out.
-const MOON_DARK := 0.8
-const MOON_TINT := Color(0, 0, 0)
+## How high over the ground the shapes that cast the shadow fly: above every
+## roof, tree and tower of the village, but low enough that the shadow stays
+## sharp and lies where it should even when the sun is low.
+const ALTITUDE := 16.0
+## How far up the light's ray from the ground the shapes may be at most
+## (metres): the light only draws shadows of what is near the view, so under
+## a low sun they fly lower instead of far off. And the light's lowest
+## elevation counted on (radians).
+const RAY := 24.0
+const LOW_SUN := 0.2
 ## The picture resolution: pixels per metre.
 const PIXELS := 12.0
 ## The colour of its line in the event log.
@@ -102,6 +104,10 @@ var _body: MeshInstance3D
 var _wings: Array[Node3D] = []
 var _material: StandardMaterial3D
 var _wing_material: StandardMaterial3D
+## The light that casts the shadow (the game's sun and moon), found once.
+var _light: DirectionalLight3D
+## The spot on the ground the shadow covers now (the shapes fly up the light's ray from it).
+var ground := Vector3.ZERO
 
 ## The pictures and the material, made once and shared by every flyover.
 static var _body_tex: ImageTexture
@@ -125,11 +131,13 @@ func _build() -> void:
 	if _body_tex == null:
 		_body_tex = ImageTexture.create_from_image(_body_image())
 		_wing_tex = ImageTexture.create_from_image(_wing_image())
+	# A cut-out: each pixel either casts the full shadow or none, so wings
+	# and body are one even shade (no see-through, no darker overlaps).
 	_material = StandardMaterial3D.new()
 	_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	_material.alpha_scissor_threshold = 0.5
 	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_material.albedo_color = Color(TINT, 0.0)
 	_material.albedo_texture = _body_tex
 	_material.disable_receive_shadows = true
 	_wing_material = _material.duplicate() as StandardMaterial3D
@@ -155,7 +163,8 @@ func _flat(box: Vector2, material: Material) -> MeshInstance3D:
 	plane.material = material
 	var mesh := MeshInstance3D.new()
 	mesh.mesh = plane
-	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Never seen itself: it only casts the dragon's shadow.
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 	return mesh
 
 
@@ -225,9 +234,6 @@ func _fly(delta: float) -> void:
 	_place()
 	_beat()
 	_sounds()
-	var shade := Color(tint(), strength() * _fade())
-	_material.albedo_color = shade
-	_wing_material.albedo_color = shade
 
 
 ## Shows or hides the shapes. The node itself stays visible, so the copy of
@@ -239,14 +245,48 @@ func _show(on: bool) -> void:
 		(joint.get_child(0) as Node3D).visible = on
 
 
-## Whether the shadow is on the ground now.
+## Whether the shadow is on the ground now (the shapes that cast it are out).
 func is_shown() -> bool:
 	return _body.visible
 
 
 func _place() -> void:
 	_show(true)
-	global_position = from + heading * travelled + Vector3(0, LIFT, 0)
+	ground = from + heading * travelled
+	var up := to_light()
+	global_position = ground + up * minf(ALTITUDE / up.y, RAY)
+
+
+## The way towards the sun (or the moon) from the ground, a unit vector
+## pointing up: the shapes fly that way from the shadow's spot.
+func to_light() -> Vector3:
+	var sun := _sun()
+	var dir: Vector3
+	if sun:
+		dir = sun.global_transform.basis.z
+	else:
+		var hour: float = (level as Outdoor).hour if level is Outdoor and (level as Outdoor).hour >= 0.0 else 12.0
+		dir = Basis.from_euler(DayNight.sun_angles_at(hour) * PI / 180.0).z
+	dir = dir.normalized()
+	if dir.y < sin(LOW_SUN):
+		# Never from below the horizon: up at least to the lowest light counted on.
+		var flat := Vector3(dir.x, 0, dir.z)
+		flat = flat.normalized() if flat.length() > 0.01 else Vector3.FORWARD
+		dir = (flat * cos(LOW_SUN) + Vector3.UP * sin(LOW_SUN)).normalized()
+	return dir
+
+
+## The game's sun and moon light (a DirectionalLight3D beside the level).
+func _sun() -> DirectionalLight3D:
+	if _light != null and is_instance_valid(_light):
+		return _light
+	var holder: Node = level.get_parent() if level else null
+	if holder:
+		for child in holder.get_children():
+			if child is DirectionalLight3D:
+				_light = child
+				return _light
+	return null
 
 
 ## The wings beat, with now and then a moment's glide with them spread
@@ -295,7 +335,7 @@ func _overhead(sound: String, volume_db: float, hero_at: Vector3) -> void:
 	Sfx.play_3d(level, sound, db, spot, _rng.randf_range(0.95, 1.05) / size)
 
 
-## The shadow fades in and out at the ends of its path (out of view anyway).
+## Its sounds fade in and out at the ends of its path (out of view anyway).
 func _fade() -> float:
 	var edge := 12.0
 	return clampf(minf(travelled, length - travelled) / edge, 0.0, 1.0)
@@ -303,7 +343,8 @@ func _fade() -> float:
 
 ## How dark a shadow the light casts now, from 0 to 1: full by day, only as
 ## much as the moon gives at night (see Moon.light: full at full moon, next
-## to nothing at new moon), weaker in bad weather.
+## to nothing at new moon), weaker in bad weather. The real shadow follows
+## the light by itself; this says how plain it is (for the test).
 func light() -> float:
 	var outdoor := level as Outdoor
 	if outdoor == null or outdoor.hour < 0.0:
@@ -311,17 +352,6 @@ func light() -> float:
 	var bright := lerpf(1.0, Moon.light(outdoor.day), _night())
 	var sun: float = Weather.look(outdoor.weather if outdoor.weather != "" else Weather.CLEAR).sun
 	return clampf(bright * lerpf(0.35, 1.0, sun), 0.0, 1.0)
-
-
-## How dark the shadow is drawn now (its alpha, before it fades in and out
-## at the ends of its path): DARK by day, MOON_DARK at night, times light().
-func strength() -> float:
-	return lerpf(DARK, MOON_DARK, _night()) * light()
-
-
-## The shadow's colour now: TINT by day, MOON_TINT by moonlight.
-func tint() -> Color:
-	return TINT.lerp(MOON_TINT, _night())
 
 
 ## How much of the light is the moon's now (see DayNight.moon_at): 0 by day.
@@ -422,7 +452,8 @@ static func _wing_image() -> Image:
 
 
 ## Paints a shape (inside(x, z) in metres, centred on the box) into a
-## picture, then softens its edge as a shadow from high up would be.
+## picture: solid inside, clear outside (a cut-out; the light's own shadow
+## filter softens the edge on the ground).
 static func _paint(box: Vector2, inside: Callable) -> Image:
 	var w := int(box.x * PIXELS)
 	var h := int(box.y * PIXELS)
@@ -436,9 +467,6 @@ static func _paint(box: Vector2, inside: Callable) -> Image:
 				image.set_pixel(i, j, dark)
 			else:
 				image.set_pixel(i, j, Color(1, 1, 1, 0))
-	# Soft edges: down to a quarter and back up again.
-	image.resize(maxi(1, w / 4), maxi(1, h / 4), Image.INTERPOLATE_LANCZOS)
-	image.resize(w, h, Image.INTERPOLATE_CUBIC)
 	return image
 
 

@@ -2,7 +2,9 @@ extends SceneTree
 ## Headless test: one enemy in reach gets a single strike at full power. Two or
 ## more in reach are met with a sweep: up to three of them are hit, each for
 ## half the damage (at least 1), and the fourth is spared. Attacked without a
-## command, the hero fights back against the attacker.
+## command, the hero fights back against the attacker; struck from afar with no
+## knife to answer, the hero walks up and strikes back, gives up a long chase,
+## and a step ends the chase at once.
 ## Run with: godot --headless --fixed-fps 60 -s tests/splash_attack.gd
 
 var failures := 0
@@ -93,6 +95,37 @@ func _walkable_spot_near(from: Vector3, near: float, far: float) -> Vector3:
 			best = pos
 			best_d = d
 	return best
+
+
+## One skeleton a few tiles away strikes the hero, who stands idle with
+## `knife_count` knives. False (after a FAIL) when there is no such spot.
+func _far_attacker(knife_count: int) -> bool:
+	var player: Player = game.player
+	if not _line_up(1):
+		check(false, "the level still has a skeleton")
+		return false
+	var spot := _walkable_spot_near(player.global_position, 5.0, 8.0)
+	if spot == Vector3.INF:
+		check(false, "a free spot a few tiles away")
+		return false
+	crowd[0].global_position = spot
+	player.path.clear()
+	player.stop_hunt()
+	player._target = null
+	player._chase_rest = 0.0
+	player.knives = knife_count
+	player._auto_cooldown = 0.0
+	_strike(crowd[0])
+	return true
+
+
+## `enemy` lands a light blow on the hero, who can be hurt right now.
+func _strike(enemy: Enemy) -> void:
+	var player: Player = game.player
+	player.hp = player.max_hp
+	player._invulnerable = 0.0
+	player._down = 0.0
+	player.take_damage(1, enemy.global_position, enemy)
 
 
 func _lost(i: int) -> int:
@@ -192,6 +225,61 @@ func _process(_delta: float) -> bool:
 				check(_lost(0) > 0, "the hero struck the clicked skeleton")
 				check(player.knives == 5, "no knives thrown on the way")
 				stage += 1
+		8:
+			# Struck from afar with no knives left: the hero walks up and strikes back.
+			if not _far_attacker(0):
+				_finish()
+				return true
+			check(player._hunt == crowd[0], "struck from afar, the hero goes after the attacker")
+			stage_frames = 0
+			stage += 1
+		9:
+			stage_frames += 1
+			if stage_frames == 240:
+				var d := player.global_position.distance_to(crowd[0].global_position)
+				print("strike back: %.1f m from the attacker after 4 s, %d damage" % [d, _lost(0)])
+				check(d < 5.0, "the hero walked up to the attacker")
+				check(_lost(0) > 0, "the hero struck the attacker back")
+				stage += 1
+		10:
+			# A step ends the chase at once.
+			if not _far_attacker(0):
+				_finish()
+				return true
+			Input.action_press("ui_right")
+			stage_frames = 0
+			stage += 1
+		11:
+			stage_frames += 1
+			if stage_frames == 45: # Past the flinch from the blow.
+				Input.action_release("ui_right")
+				check(player._hunt == null, "a step ends the chase")
+				stage += 1
+		12:
+			# A chase that runs out gives up, and the same foe is not chased again at once.
+			if not _far_attacker(0):
+				_finish()
+				return true
+			player._chase_left = 0.02
+			stage_frames = 0
+			stage += 1
+		13:
+			stage_frames += 1
+			if stage_frames == 45:
+				check(player._hunt == null and player.path.is_empty(), "a long chase gives up")
+				_strike(crowd[0])
+				check(player._hunt == null, "a foe given up on is not chased again at once")
+				stage += 1
+		14:
+			# With knives and a clear shot, the hero answers from where they stand.
+			if not _far_attacker(5):
+				_finish()
+				return true
+			if game.level.has_clear_shot(player.global_position, crowd[0].global_position):
+				check(player._hunt == null, "with knives in hand, the hero throws instead of chasing")
+			else:
+				print("no clear shot at the spot, the knife answer is not checked")
+			stage += 1
 		_:
 			_finish()
 			return true

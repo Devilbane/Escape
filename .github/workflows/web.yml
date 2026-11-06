@@ -249,6 +249,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/looted_containers.gd | tee looted.log
           grep -q PASS looted.log
 
+      - name: Hero strikes back at attackers test
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/splash_attack.gd | tee splash.log
+          grep -q PASS splash.log
+
       - name: Rare loot does not repeat on a level test
         run: |
           timeout 300 ~/godot/godot --headless -s tests/rare_loot.gd | tee rare_loot.log

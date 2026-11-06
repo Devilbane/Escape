@@ -40,7 +40,7 @@ const CARD_WIDTH := 255.0
 const BODY_WIDTH := LIST_WIDTH + 2.0 * (CARD_WIDTH + 12.0)
 ## The row of tabs (Buy / Sell, Gorm's work) under the gold line.
 const TABS_HEIGHT := 40.0
-const BORDER := Color(0.85, 0.66, 0.32, 0.55)
+const BORDER := Color(0.88, 0.66, 0.36, 0.9)
 const BLUE := Color(0.55, 0.75, 1.0)
 const ORANGE := Color(1.0, 0.6, 0.25)
 const GREY := Color(0.75, 0.72, 0.68)
@@ -192,7 +192,7 @@ func _keep_selection() -> void:
 func _add_section(list: VBoxContainer, section: Dictionary) -> void:
 	var folded: bool = collapsed.get(section.key, false)
 	var header := PanelContainer.new()
-	header.add_theme_stylebox_override("panel", _style(Color(0.1, 0.08, 0.1, 0.95), BORDER, 8, 6))
+	header.add_theme_stylebox_override("panel", _style(Color(0.13, 0.09, 0.055, 0.95), BORDER, 8, 6))
 	header.mouse_filter = Control.MOUSE_FILTER_STOP
 	header.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	header.gui_input.connect(_on_header_input.bind(section.key))
@@ -215,7 +215,7 @@ func _add_section(list: VBoxContainer, section: Dictionary) -> void:
 		# An empty category keeps the shape of a row, so it lines up with the rest.
 		var empty := PanelContainer.new()
 		empty.custom_minimum_size = Vector2(0, ROW_HEIGHT * 0.7)
-		empty.add_theme_stylebox_override("panel", _style(Color(0.07, 0.06, 0.08, 0.6), Color(0.85, 0.66, 0.32, 0.15), 8, 6))
+		empty.add_theme_stylebox_override("panel", _style(Color(0.09, 0.065, 0.045, 0.6), Color(0.85, 0.66, 0.32, 0.15), 8, 6))
 		var text := _label(section.get("empty", Lang.t("Nichts im Angebot.")), 15, GREY)
 		text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -235,7 +235,7 @@ func _row(entry: Dictionary) -> Control:
 	var picked: bool = entry.key == selected
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(ROW_WIDTH, ROW_HEIGHT)
-	panel.add_theme_stylebox_override("panel", _style(Color(0.12, 0.09, 0.1, 0.95) if picked else Color(0.07, 0.06, 0.08, 0.95),
+	panel.add_theme_stylebox_override("panel", _style(Color(0.17, 0.115, 0.06, 0.95) if picked else Color(0.09, 0.065, 0.045, 0.95),
 			game.GOLD if picked else Color(0.85, 0.66, 0.32, 0.3), 8, 6, 2 if picked else 1))
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -701,7 +701,7 @@ func _button(text: String, action: Callable, enabled: bool, min_size: Vector2, f
 func _card(glow: bool) -> PanelContainer:
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(CARD_WIDTH, LIST_HEIGHT)
-	var style := _style(Color(0.07, 0.05, 0.07, 0.97), game.GOLD if glow else BORDER, 10, 12, 2)
+	var style := _style(Color(0.1, 0.07, 0.045, 0.97), game.GOLD if glow else BORDER, 10, 12, 2)
 	if glow:
 		style.shadow_color = Color(1.0, 0.7, 0.25, 0.35)
 		style.shadow_size = 10
@@ -712,8 +712,8 @@ func _card(glow: bool) -> PanelContainer:
 	return card
 
 
-static func _style(bg: Color, border: Color, radius: int, margin: int, width := 1) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
+static func _style(bg: Color, border: Color, radius: int, margin: int, width := 1) -> BronzeStyle:
+	var style := BronzeStyle.new()
 	style.bg_color = bg
 	style.border_color = border
 	style.set_border_width_all(width)

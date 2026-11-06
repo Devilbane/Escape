@@ -334,6 +334,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/window_buttons.gd | tee window_buttons.log
           grep -q PASS window_buttons.log
 
+      - name: Bronze frames test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/bronze_frames.gd | tee bronze_frames.log
+          grep -q PASS bronze_frames.log
+
       - name: Character page test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/character_page.gd | tee character_page.log

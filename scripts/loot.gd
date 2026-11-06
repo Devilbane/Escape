@@ -24,7 +24,9 @@ extends RefCounted
 ## beast does, from a table of their own (ectoplasm, a crypt herb, a part of
 ## what they are).
 ## Slimes are beasts too, but they swallow what their victims carried: they
-## also drop coins and gear like the intelligent ones (see SWALLOWS).
+## also drop coins and gear like the intelligent ones (see SWALLOWS), and
+## besides, on a roll of its own, what a beast leaves (see slime_find). Their
+## jelly is a brewing ingredient, so it comes far more often (SLIME_JELLY).
 ##
 ## A hundred coins of one metal melt down into one bar of it at Gorm's
 ## forge (see COINS and Forge.melt_coins). Trolls and the other creatures of
@@ -55,6 +57,9 @@ const TROLLS := ["felstroll", "bergkoenig"]
 const SWALLOWS := ["schleim", "kristallschleim", "glutschleim", "schlund"]
 ## A slime holds each kind of coin only this often.
 const SWALLOWED_COINS := 0.5
+## How often a slime leaves at least a lump of its jelly (or a finer find
+## of its table): about one kill in four, as healing potions need it.
+const SLIME_JELLY := 0.25
 
 ## The coins -> the metal their bar is of (see Forge.METALS). Iron and
 ## silver coins go into the purse (see Crafting.purse); copper coins
@@ -168,6 +173,21 @@ static func creature_find(kind: String, tier: String, rng: RandomNumberGenerator
 		var list: Array = what
 		return str(list[(rng.randi() if rng else randi()) % list.size()])
 	return str(what)
+
+
+## What a slime's own body leaves, on a roll apart from what it swallowed:
+## a find of its table on a tier rolled as for any beast (a biome
+## ingredient or its core, rarely), else its jelly SLIME_JELLY of the time,
+## else "". `roll` in 0..1, random when left out; `top` as in roll_tier.
+static func slime_find(kind: String, tough: float, roll := -1.0, top := TOP_TIER) -> String:
+	if not CREATURES.has(kind):
+		return ""
+	if roll < 0.0:
+		roll = randf()
+	var found := creature_find(kind, roll_tier(tough, top, roll))
+	if found == "" and roll < SLIME_JELLY:
+		found = str(CREATURES[kind].food)
+	return found
 
 
 ## The metal coins a fallen one leaves besides its purse (see Level.drop_kill_loot):

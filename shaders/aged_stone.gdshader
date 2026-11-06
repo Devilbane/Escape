@@ -18,6 +18,11 @@ shader_type spatial;
 //   tint (use_palette off).
 // The windows of the KayKit buildings glow at night through glow_mask, as
 // before (see Outdoor._light_windows).
+// Their wood (the brown beams, frames, doors, posts and planks) gets the grain
+// of the villagers' timber (wood_tex, the same texture as VillageHouse's
+// beams), laid along the length of each beam on every face, the sides too:
+// AgedStone.grained_mesh writes each triangle's beam direction into the
+// vertex colours (alpha 0.5 marks it).
 // The graveyard wears it too (see AgedStone.grave_material): the crypt and
 // the fence's low wall are laid in blocks, the gravestones are hewn from one
 // piece (blocks = 0), older still, greyer, and spotted with lichen.
@@ -46,6 +51,10 @@ uniform sampler2D trim : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D glow_mask : hint_default_black, filter_linear;
 uniform vec3 glow_colour : source_color = vec3(1.0, 0.7, 0.36);
 uniform float glow = 0.0;
+// The grain of the timber (read as painted, not as light; see wood_tex use).
+uniform sampler2D wood_tex : hint_default_white, filter_linear_mipmap, repeat_enable;
+// How strongly the grain shows on the KayKit wood (0: flat colour).
+uniform float wood_grain = 0.0;
 
 // The four rows of stone blocks on the trim sheet (v, top and bottom), the
 // metres one copy of them covers across and up, and the red roof tiles.
@@ -53,15 +62,25 @@ const vec2 STONE_V = vec2(0.6, 0.92);
 const vec2 STONE_SIZE = vec2(4.8, 2.4);
 const vec4 TILES = vec4(0.5, 0.06, 0.5, 0.235);
 const vec2 TILES_SIZE = vec2(2.4, 1.2);
+// The metres one copy of the wood texture covers along a beam and across it,
+// and its mean brightness as painted.
+const vec2 WOOD_SIZE = vec2(2.0, 0.9);
+const float WOOD_MEAN = 0.333;
 
 varying vec3 wpos;
 varying vec3 wnrm;
 varying float foot;
+varying vec3 grain_dir;
+varying float has_dir;
 
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	wnrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	foot = NODE_POSITION_WORLD.y;
+	// The beam's length, from AgedStone.grained_mesh (alpha 0.5); meshes
+	// without it have white vertex colours.
+	has_dir = 1.0 - step(0.75, COLOR.a);
+	grain_dir = (MODEL_MATRIX * vec4(COLOR.rgb * 2.0 - 1.0, 0.0)).xyz;
 }
 
 float lum(vec3 c) {
@@ -153,6 +172,31 @@ void fragment() {
 		faded = base;
 	}
 
+	// Wood: the warm browns of the palette (beams, frames, doors, posts,
+	// planks), told apart by their hue: redder is roof tiles, yellower and
+	// stronger is paint. Slanted faces that look up stay roofs. (The palette
+	// arrives here as painted, as the thresholds above take it too.)
+	vec3 ps = base;
+	float ps_hi = max(ps.r, max(ps.g, ps.b));
+	float ps_lo = min(ps.r, min(ps.g, ps.b));
+	float ps_sat = ps_hi > 0.001 ? (ps_hi - ps_lo) / ps_hi : 0.0;
+	float hue = ps.r >= ps_hi - 0.0001 && ps_hi - ps_lo > 0.01 ? 60.0 * (ps.g - ps.b) / (ps_hi - ps_lo) : -1.0;
+	float slope = smoothstep(0.3, 0.55, n.y) * (1.0 - smoothstep(0.93, 0.99, n.y));
+	float woody = smoothstep(7.0, 10.0, hue) * (1.0 - smoothstep(42.0, 46.0, hue))
+			* smoothstep(0.43, 0.48, ps_sat) * (1.0 - smoothstep(0.74, 0.78, ps_sat))
+			* (1.0 - wall) * (1.0 - window) * (1.0 - slope) * wood_grain;
+	// The grain runs along the beam: its direction from the mesh, laid flat
+	// on this face. On the end of a beam, or without one, it lies level.
+	vec3 level = abs(n.y) > 0.7 ? vec3(1.0, 0.0, 0.0) : normalize(cross(vec3(0.0, 1.0, 0.0), n));
+	vec3 gd = grain_dir - n * dot(grain_dir, n);
+	gd = has_dir > 0.5 && length(gd) > 0.3 * length(grain_dir) ? normalize(gd) : level;
+	vec2 wm = vec2(dot(wpos, gd), dot(wpos, cross(n, gd))) / WOOD_SIZE;
+	float wl = lum(textureGrad(wood_tex, wm, dFdx(wm), dFdy(wm)).rgb);
+	// The grain's light and dark, a little stronger than in the texture.
+	float rings = clamp(1.0 + 1.45 * (wl / WOOD_MEAN - 1.0), 0.45, 1.55);
+	vec3 timber = mix(base, vec3(l) * vec3(1.08, 0.96, 0.8), fade * 0.85) * 0.92 * rings;
+	faded = mix(faded, timber, woody);
+
 	vec3 col = mix(faded, stone, wall);
 
 	// Weather.
@@ -181,7 +225,7 @@ void fragment() {
 	ROUGHNESS = mix(0.95, 0.82, moss);
 	// Relief: the joints between the blocks sink in.
 	float bump = mix(0.6, 0.3, soft_joints);
-	float height = (relief * wall + tiles * 0.15 * roof) * band(2.0, px);
+	float height = (relief * wall + tiles * 0.15 * roof * (1.0 - woody)) * band(2.0, px) + woody * wl * 0.6 * band(30.0, px);
 	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * bump, dFdy(height) * bump), 0.0)).xyz);
 	EMISSION = glow_colour * window * glow;
 }

@@ -61,6 +61,21 @@ static func palette_material(palette: Texture2D, kind: float) -> ShaderMaterial:
 	return _mats[key]
 
 
+## The weathered material of a model's palette texture, its cloth kept
+## clean: fresh woven linen with no stains or grime (the barber's tent).
+static func linen_material(palette: Texture2D, kind: float) -> ShaderMaterial:
+	var key := "linen_%d_%.2f" % [palette.get_instance_id(), kind]
+	if not _mats.has(key):
+		var mat := ShaderMaterial.new()
+		mat.shader = SHADER
+		mat.set_shader_parameter("palette", palette)
+		mat.set_shader_parameter("source", 0)
+		mat.set_shader_parameter("grey_stone", 1.0 if kind > 0.75 else 0.0)
+		mat.set_shader_parameter("linen", true)
+		_mats[key] = mat
+	return _mats[key]
+
+
 ## The material of the meshes a Builder makes. `fresh`: its strong colours
 ## are produce or earth (see FRESH), for the whole mesh.
 static func vertex_material(fresh := false) -> ShaderMaterial:
@@ -98,6 +113,16 @@ static func weather_model(node: Node, model: String) -> void:
 		var source := mi.get_active_material(0) as StandardMaterial3D
 		if source and source.albedo_texture:
 			mi.material_override = palette_material(source.albedo_texture, kind)
+
+
+## Gives a placed model (weathered already, see weather_model) clean linen
+## for its cloth, keeping the weathered wood.
+static func clean_linen(node: Node) -> void:
+	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		var m := mi.material_override as ShaderMaterial
+		if m and m.shader == SHADER and m.get_shader_parameter("source") == 0:
+			mi.material_override = linen_material(m.get_shader_parameter("palette"),
+					STONE if m.get_shader_parameter("grey_stone") > 0.5 else IRON)
 
 
 ## Weathers the plain painted parts of something built from primitive meshes

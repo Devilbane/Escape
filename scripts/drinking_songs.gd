@@ -4,7 +4,9 @@ extends RefCounted
 ## night he strikes up a verse every minute or so, by day only now and then.
 ## A verse is four lines, sung one after another like any other line
 ## (Villager.sing, so they go into the event log with his name), each to its
-## own phrase of one little tune (hum_0 to hum_3, built by tools/make_hum.py).
+## own phrase of one little tune (hum_0 to hum_3, built by tools/make_hum.py),
+## which he sings himself: "la la la" in a deep, old, crackling bass, one
+## syllable for every syllable of the line.
 ##
 ## He only sings when the hero is near enough to hear him, when he is free
 ## (not in a chat, not listening to the herald, not saying something else)
@@ -36,8 +38,8 @@ const EVENING_FROM := 18.0
 const HEAR_RANGE := 14.0
 ## Seconds each line is sung: one phrase of the tune.
 const LINE_TIME := 3.2
-## How loud the tune plays (dB).
-const VOLUME := -7.0
+## How loud the tune plays (dB): his deep, rough voice needs a little more than a hum.
+const VOLUME := -4.0
 ## The phrases of the tune, one per line of a verse.
 const TUNE := ["hum_0", "hum_1", "hum_2", "hum_3"]
 ## How a sung line is marked, so it reads as a song and not as talk.

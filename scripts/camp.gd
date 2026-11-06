@@ -13,6 +13,14 @@ extends Node3D
 ##   spot of one still alive, so the camp is still quiet after a reload;
 ## - walking away (LEAVE_RANGE) packs the camp up again.
 ##
+## Down in the dungeon the hero can also rest by the fire for a while
+## (see Game.rest_at_camp): it heals them fully and saves the game, so the
+## camp becomes the place they wake up at after blacking out. But the deep
+## is never quite safe: a rest may be cut short by an ambush (AMBUSH_CHANCE),
+## a few of the floor's own monsters creeping up to the fire. A companion at
+## the hero's side keeps watch (GUARDS): the fox and the doe hear them
+## coming, so an ambush is much rarer, and no monster dares near a stag.
+##
 ## The camp is drawn from plain shapes, so it fits the dungeon and the open
 ## air alike: a rolled-out mat with its head end rolled up as a pillow, and
 ## a ring of stones with crossed logs, a flame and a flickering light.
@@ -28,6 +36,17 @@ const LEAVE_RANGE := 10.0
 ## Within this distance (metres) the camp key opens the camp's window
 ## instead of pitching a new camp.
 const NEAR := 4.0
+## The chance that a rest by the fire on a dungeon floor is cut short by
+## an ambush, with nobody keeping watch.
+const AMBUSH_CHANCE := 0.3
+## The chance of an ambush while a companion keeps watch, by its kind: the
+## fox's nose and the doe's ears hear them coming, nobody dares near a stag.
+const GUARDS := {"fuchs": 0.1, "reh": 0.15, "hirsch": 0.0}
+## How many monsters creep up in an ambush, and how far from the fire
+## (metres) they turn up: out of the dark, with time to stand up.
+const AMBUSHERS := 2
+const AMBUSH_NEAR := 7.0
+const AMBUSH_FAR := 11.0
 ## The bedroll: how far in front of the hero it is rolled out, and its size.
 const ROLL_AHEAD := 1.3
 const ROLL_SIZE := Vector3(0.85, 0.07, 2.0)
@@ -160,6 +179,76 @@ static func monster_near(level: Level, at: Vector3) -> bool:
 		if is_instance_valid(e) and not e.dead and not e.is_friend() and _flat(level.cell_to_world(m.cell), at) < SAFE_RANGE:
 			return true
 	return false
+
+
+## Whether the hero can rest by the camp's fire here: on a dungeon floor,
+## not in the open air (there the camp is for the night and logging out).
+static func can_rest(level: Level) -> bool:
+	return not level.outdoor and level.building == ""
+
+
+## Why the hero cannot rest by the fire right now, as a line for the
+## player, or "" when they can: not in a fight, nor with a monster close by.
+static func why_no_rest(player: Player, level: Level) -> String:
+	var at := player.global_position
+	if player.fight_cooldown > 0.0 or level.enemies.any(func(e): return is_instance_valid(e) and not e.dead and not e.is_friend() and e.is_hunting() and _flat(e.global_position, at) < HUNT_RANGE):
+		return Lang.t("Mitten im Kampf kannst du dich nicht ausruhen.")
+	if monster_near(level, at):
+		return Lang.t("Zu gefährlich: Hier treiben sich Ungeheuer herum.")
+	return ""
+
+
+## The chance of an ambush while resting here, with the companion of kind
+## `guard` keeping watch ("" for nobody). None where no monster of the
+## floor could come (see ambush_kinds).
+static func ambush_chance(level: Level, guard: String) -> float:
+	if ambush_kinds(level).is_empty():
+		return 0.0
+	return float(GUARDS.get(guard, AMBUSH_CHANCE))
+
+
+## The kinds of monsters that may creep up to the fire: the plain ones this
+## floor's map places (whether still alive or not), so they always belong
+## here. No bosses, no guardian of the key and no horrors.
+static func ambush_kinds(level: Level) -> Array[String]:
+	var kinds: Array[String] = []
+	for row in level.grid:
+		for ch in row:
+			if not Enemy.LETTERS.has(ch):
+				continue
+			var kind: String = Enemy.LETTERS[ch]
+			if kind in kinds or kind == "waechter" or kind in HeroLevel.BOSSES or kind in Enemy.HORRORS \
+					or Enemy.KINDS[kind].get("boss", false) or kind in ["drache", "grosser_alter", "brutdrache"]:
+				continue
+			kinds.append(kind)
+	return kinds
+
+
+## Where the ambushers turn up: open floor between AMBUSH_NEAR and
+## AMBUSH_FAR from the fire at `at`, with a way to it, apart from each
+## other. Fewer (or none) if there is no such floor.
+static func ambush_cells(level: Level, at: Vector3, count: int) -> Array[Vector2i]:
+	var from := level.world_to_cell(at)
+	var reach := ceili(AMBUSH_FAR / Level.TILE)
+	var spots: Array[Vector2i] = []
+	for dy in range(-reach, reach + 1):
+		for dx in range(-reach, reach + 1):
+			var c := from + Vector2i(dx, dy)
+			var p := level.cell_to_world(c)
+			var d := _flat(p, at)
+			if d >= AMBUSH_NEAR and d <= AMBUSH_FAR and _open(level, p):
+				spots.append(c)
+	spots.shuffle()
+	var picked: Array[Vector2i] = []
+	for c in spots:
+		if picked.size() >= count:
+			break
+		if picked.any(func(o): return (o - c).length() < 1.5):
+			continue
+		if level.astar.is_in_boundsv(from) and level.astar.get_id_path(c, from).is_empty():
+			continue
+		picked.append(c)
+	return picked
 
 
 ## After a reload at the camp: monsters that came up close by chance (the

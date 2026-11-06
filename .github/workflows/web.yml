@@ -409,6 +409,11 @@ jobs:
           timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/factions.gd | tee factions.log
           grep -q PASS factions.log
 
+      - name: Weak monsters leave a far stronger hero alone test
+        run: |
+          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/cowed_monsters.gd | tee cowed.log
+          grep -q PASS cowed.log
+
       - name: Peaceful animals of the woods test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/animals.gd | tee animals.log
@@ -543,6 +548,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dungeon_sounds.gd | tee dungeon_sounds.log
           grep -q PASS dungeon_sounds.log
+
+      - name: Sword and axe sounds test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/weapon_sounds.gd | tee weapon_sounds.log
+          grep -q PASS weapon_sounds.log
 
       - name: Day and night test
         run: |
@@ -698,6 +708,11 @@ jobs:
         run: |
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/flag_wind.gd | tee flags.log
           grep -q PASS flags.log
+
+      - name: The wood of the village buildings has its grain along every beam
+        run: |
+          timeout 60 ~/godot/godot --headless --fixed-fps 60 -s tests/kit_wood_grain.gd | tee kit_wood.log
+          grep -q PASS kit_wood.log
 
       - name: Export the browser version
         run: |

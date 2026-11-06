@@ -567,10 +567,11 @@ func _dimmed_reason(id: String) -> String:
 	return Lang.t(GEAR_HINTS.get(id, "Gedimmt: braucht passende Ausrüstung"))
 
 
-## The hero's odds against a person of the hero's own level (see
-## Enemy.reference_foe and Player.odds_against).
+## The hero's odds against a person of the hero's own level, or of the
+## world's top above it (see HeroLevel.measured, Enemy.reference_foe and
+## Player.odds_against).
 func odds() -> Dictionary:
-	var foe := Enemy.reference_foe(player.hero_level())
+	var foe := Enemy.reference_foe(HeroLevel.measured(player.hero_level()))
 	var o := player.odds_against(foe)
 	o.foe = foe
 	return o

@@ -414,6 +414,10 @@ var goo_left := 0.0
 ## and the villagers it has swallowed (they come out when it falls).
 var snack: Node3D = null
 var folk: Array = []
+## What a slime gained from what it ate (see SlimeGrowth): half their life
+## added to its own, and how many it ate, each making it a little faster.
+var life_bonus := 0
+var meals := 0
 var _puddle_mat: StandardMaterial3D
 var _drops_mat: StandardMaterial3D
 
@@ -550,7 +554,7 @@ func _ready() -> void:
 	if SlimeGrowth.grows(kind):
 		SlimeGrowth.born(self)
 	ranged = _stats.get("ranged", false)
-	hp = _stats.hp
+	hp = max_hp()
 	add_to_group("combatant")
 	var size: float = _stats.size
 	var shape := CollisionShape3D.new()
@@ -663,7 +667,9 @@ func is_horror() -> bool:
 
 ## Its full life, gear included.
 func max_hp() -> int:
-	return int(_stats.hp)
+	# A Blob is far harder to bring down (see SlimeGrowth.BLOB_LIFE), and a
+	# slime keeps half the life of all it ate (life_bonus).
+	return int(_stats.hp) * (SlimeGrowth.BLOB_LIFE if blob else 1) + life_bonus
 
 
 ## Whether this one's faction is the hero's friend (see Factions).
@@ -1537,12 +1543,16 @@ func _die() -> void:
 ## the meal's worth up to SlimeGrowth.MAX_LEVEL and swells to its new size;
 ## from SlimeGrowth.BLOB_LEVEL on it is a Blob.
 func swallow(victim: Enemy) -> void:
-	grow_from(victim.rated_level, victim.merged)
+	grow_from(victim.rated_level, victim.merged, victim.max_hp(), victim.meals)
 
 
-## A meal of `prey_level` (see swallow and SlimeGrowth.gulp): it heals, grows
-## and swells, and says so.
-func grow_from(prey_level: int, merging := false) -> void:
+## A meal of `prey_level` with `prey_life` life (see swallow and
+## SlimeGrowth.gulp): it grows and swells, keeps half the prey's life, heals
+## by all of it, gets a little faster (the prey's own meals count too, when
+## it swallows a slime) and says so.
+func grow_from(prey_level: int, merging := false, prey_life := 0, prey_meals := 0) -> void:
+	life_bonus += prey_life / 2
+	meals += 1 + prey_meals
 	var was_max := max_hp()
 	var was_level := rated_level
 	var target := mini(SlimeGrowth.MAX_LEVEL, rated_level + SlimeGrowth.gain(prey_level))
@@ -1551,10 +1561,13 @@ func grow_from(prey_level: int, merging := false) -> void:
 	var became_blob := not blob and SlimeGrowth.is_blob_level(rated_level)
 	if became_blob:
 		SlimeGrowth.blob_up(self)
-	# The meal heals it: its new life, and half of what it lacked.
-	hp = mini(max_hp(), hp + maxi(0, max_hp() - was_max))
-	hp = mini(max_hp(), hp + (max_hp() - hp + 1) / 2)
+	# The meal heals it: its new life, and as much as the prey had.
+	var had := hp
+	hp = mini(max_hp(), hp + maxi(0, max_hp() - was_max) + prey_life / 2)
+	hp = mini(max_hp(), hp + prey_life)
 	var height := 2.2 * float(_stats.size)
+	if hp > had:
+		Effects.head_text(level, self, height - 0.5, "+%d" % (hp - had), Color(0.5, 1.0, 0.55))
 	Effects.head_text(level, self, height, Lang.t("Blubb!") if merging else Lang.t("Schluck!"), SlimeGrowth.GULP_COLOR)
 	if rated_level > was_level:
 		_resize(SlimeGrowth.size_of(self))
@@ -1820,7 +1833,7 @@ func _physics_process(delta: float) -> void:
 	_busy = maxf(0.0, _busy - delta)
 	_trap_cool = maxf(0.0, _trap_cool - delta)
 	# Crippled by a vital hit, it needs longer between attacks.
-	_cooldown = maxf(0.0, _cooldown - delta / attack_slow / (SlimeCoat.ATTACK_SLOW if slimed > 0.0 else 1.0))
+	_cooldown = maxf(0.0, _cooldown - delta / attack_slow / (SlimeCoat.ATTACK_SLOW if slimed > 0.0 else 1.0) * SlimeGrowth.strike_pace(meals))
 	_tick_slime(delta)
 	_tick_bleeding(delta)
 	if dead:
@@ -1979,7 +1992,7 @@ func _physics_process(delta: float) -> void:
 	# Off the hunt, a bandit strolls; skeletons shuffle back to their post.
 	var strolling: bool = move != Vector3.ZERO and move.length() < 0.7 and (is_human() or _stats.get("roam", false))
 	var walk: String = "Walking_D_Skeletons" if not is_human() and _anim.has_animation("Walking_D_Skeletons") else "Walking_A"
-	_meant_speed = move.length() * float(_stats.speed) * surface_pace * (SlimeCoat.SLOW if slimed > 0.0 else 1.0)
+	_meant_speed = move.length() * float(_stats.speed) * surface_pace * (SlimeCoat.SLOW if slimed > 0.0 else 1.0) * SlimeGrowth.move_pace(meals)
 	if strolling:
 		# No faster than the walk's feet can step (see Stride).
 		_meant_speed = minf(_meant_speed, Stride.top_speed(_rig, _anim_of(walk), _stride_size))

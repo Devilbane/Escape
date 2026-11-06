@@ -15,6 +15,7 @@ var slime: Enemy
 var villager: Villager
 var hp_before := 0
 var at_square := Vector3.ZERO
+var fox_spot := Vector3.ZERO
 
 
 func check(ok: bool, what: String) -> void:
@@ -89,14 +90,26 @@ func _process(_delta: float) -> bool:
 			if fox == null:
 				_finish()
 				return true
-			slime = _spawn(fox.global_position + Vector3(2.0, 0, 0), {"hp": 40})
+			fox_spot = fox.global_position
+			slime = _spawn(fox.global_position + Vector3(2.0, 0, 0), {"hp": 40, "damage": 1})
 			slime.set_physics_process(false)
 			check(SlimeGrowth.nearest_snack(slime) == fox or SlimeGrowth.nearest_snack(slime) is Node3D, "a slime notices the fox")
 			var lvl := slime.rated_level
+			slime._stats.damage = 1 # Its blows come one life at a time.
+			slime.hp = 5
 			var blows := _eat(fox)
+			check(slime.hp >= 5 + SlimeGrowth.SNACKS.fuchs[0], "eating heals it by the fox's life (%d)" % slime.hp)
 			check(blows > 1, "a fox takes more than one blow (%d)" % blows)
 			check(not out.animals.has(fox), "the eaten fox is gone from the woods")
 			check(slime.rated_level > lvl, "the slime grows from the fox (%d, was %d)" % [slime.rated_level, lvl])
+			check(slime.meals == 1 and slime.life_bonus == 1, "it keeps half the fox's life and counts the meal (%d, %d)" % [slime.meals, slime.life_bonus])
+			check(SlimeGrowth.move_pace(1) > 1.0 and SlimeGrowth.strike_pace(1) > 1.0, "every meal makes it faster")
+			check(SlimeGrowth.move_pace(999) <= SlimeGrowth.MOVE_PACE_TOP and SlimeGrowth.strike_pace(999) <= SlimeGrowth.STRIKE_PACE_TOP, "up to a cap")
+			# A Blob has fifteen times the life of a plain slime of its make.
+			var blob := _spawn(fox_spot + Vector3(0, -50, 0), {"kept_level": 18})
+			check(blob.blob and blob.max_hp() == int(blob._stats.hp) * SlimeGrowth.BLOB_LIFE and blob.hp == blob.max_hp(), "a Blob has %d times the life (%d)" % [SlimeGrowth.BLOB_LIFE, blob.max_hp()])
+			game.level.enemies.erase(blob)
+			blob.queue_free()
 			# A brave villager fights it off.
 			for v in out.villagers:
 				if not v.at_home and v.visible:

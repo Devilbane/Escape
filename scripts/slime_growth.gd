@@ -16,8 +16,10 @@ extends RefCounted
 ##   a corpse before anything living, the hero too unless the hero is right
 ##   next to it (HERO_CLOSE). It swallows the body and grows as from a kill.
 ## - Growth: whatever a slime fells it swallows whole, body and belongings
-##   (see Enemy.swallow): no corpse is left, the slime heals and grows by
-##   gain() levels, up to MAX_LEVEL. What its prey carried stays in its belly
+##   (see Enemy.swallow): no corpse is left, the slime grows by gain()
+##   levels, up to MAX_LEVEL, keeps half the prey's life as its own
+##   (Enemy.life_bonus), heals by all of it, and is a little faster on its
+##   feet and in its blows for every creature it ate (move_pace, strike_pace). What its prey carried stays in its belly
 ##   (Enemy.belly), where it shows through the slime's body (SHOWN things
 ##   at most), and spills out when the slime itself falls, with its own loot
 ##   (see Level.spill_belly). A corpse's loot lies on the floor beside it:
@@ -42,13 +44,22 @@ extends RefCounted
 ##   crawls out again when the slime falls, or is back when the hero next
 ##   comes to the village.
 ## - Blob: from BLOB_LEVEL on a slime is a Blob. It sparkles, hits harder
-##   (BLOB_DAMAGE), strikes faster (BLOB_PACE) and its touch poisons more
-##   often (BLOB_POISON).
+##   (BLOB_DAMAGE), strikes faster (BLOB_PACE), its touch poisons more
+##   often (BLOB_POISON) and it has BLOB_LIFE times the life (Enemy.max_hp;
+##   its level is still rated on its plain life).
 
 ## The kinds that grow. The Maw ("schlund") is a horror: it stays as it is.
 const GROWERS := ["schleim", "kristallschleim", "glutschleim"]
 const MAX_LEVEL := 25
 const BLOB_LEVEL := 15
+## How many times the life a Blob has.
+const BLOB_LIFE := 15
+## Each creature a slime eats makes it MEAL_PACE faster on its feet and in
+## its blows, up to MOVE_PACE_TOP and STRIKE_PACE_TOP (so it never outruns
+## the hero).
+const MEAL_PACE := 0.05
+const MOVE_PACE_TOP := 1.5
+const STRIKE_PACE_TOP := 2.0
 ## How many levels above itself a slime still dares to hunt.
 const PREY_MARGIN := 2
 ## How many levels smaller another slime must be to look like food.
@@ -146,6 +157,16 @@ static func gain(prey_level: int) -> int:
 ## How big a slime of this kind (its own size `base`) is at `slime_level`.
 static func size_for(base: float, slime_level: int) -> float:
 	return minf(base * (SIZE_BASE + SIZE_PER_LEVEL * slime_level), SIZE_TOP)
+
+
+## How much faster than its kind a slime that ate `meals` creatures moves,
+## and strikes.
+static func move_pace(meals: int) -> float:
+	return minf(1.0 + MEAL_PACE * meals, MOVE_PACE_TOP)
+
+
+static func strike_pace(meals: int) -> float:
+	return minf(1.0 + MEAL_PACE * meals, STRIKE_PACE_TOP)
 
 
 static func is_blob_level(slime_level: int) -> bool:
@@ -255,6 +276,8 @@ static func can_snack(n) -> bool:
 		return false
 	if n is Villager and ((n as Villager).eaten or (n as Villager).at_home):
 		return false
+	if n.has_meta("eaten"):
+		return false # An animal on its way into a slime.
 	return snack_key(n) != ""
 
 
@@ -320,7 +343,7 @@ static func goo_for_a_while(n: Node3D, colour: Color) -> void:
 ## inside (see release_folk).
 static func gulp(slime: Enemy, n: Node3D) -> void:
 	var key := snack_key(n)
-	slime.grow_from((n as Villager).fight_level() if n is Villager else int(SNACKS[key][1]))
+	slime.grow_from((n as Villager).fight_level() if n is Villager else int(SNACKS[key][1]), false, snack_life(n))
 	n.remove_meta("slime_life")
 	var model: Node3D = n.get("_model")
 	var outdoor := slime.level as Outdoor
@@ -333,6 +356,7 @@ static func gulp(slime: Enemy, n: Node3D) -> void:
 		v.process_mode = Node.PROCESS_MODE_DISABLED
 		slime.folk.append(v)
 	elif outdoor != null:
+		n.set_meta("eaten", true)
 		outdoor.animals.erase(n)
 		n.set_physics_process(false)
 		var tween := n.create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS).set_parallel()
@@ -408,7 +432,7 @@ static func snapshot(level: Level) -> Array:
 			for thing in meal.loot:
 				belly.append(_thing_to_save(thing))
 		var kept := {"kind": e.kind, "x": snappedf(e.global_position.x, 0.01), "z": snappedf(e.global_position.z, 0.01),
-			"level": e.rated_level, "hp": e.hp, "jitter": snappedf(float(e._stats.get("size_jitter", 1.0)), 0.001), "belly": belly}
+			"level": e.rated_level, "hp": e.hp, "bonus": e.life_bonus, "meals": e.meals, "jitter": snappedf(float(e._stats.get("size_jitter", 1.0)), 0.001), "belly": belly}
 		if e._stats.has("tint"):
 			var tint: Color = e._stats.tint
 			kept.tint = [snappedf(tint.r, 0.001), snappedf(tint.g, 0.001), snappedf(tint.b, 0.001)]
@@ -428,6 +452,8 @@ static func restore(level: Outdoor, kept: Array) -> void:
 			custom.tint = Color(float(tint[0]), float(tint[1]), float(tint[2]))
 		var at := Vector3(float(k.get("x", 0.0)), 0.0, float(k.get("z", 0.0)))
 		var e := level.spawn_slime(str(k.kind), at, custom)
+		e.life_bonus = maxi(0, int(k.get("bonus", 0)))
+		e.meals = maxi(0, int(k.get("meals", 0)))
 		e.hp = clampi(int(k.get("hp", e.max_hp())), 1, e.max_hp())
 		var loot := []
 		for thing in k.get("belly", []):

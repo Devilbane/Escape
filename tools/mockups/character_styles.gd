@@ -1,7 +1,7 @@
 extends SceneTree
 ## Renders the hero, the smith and a skeleton warrior in one style.
 ## Mock-up only (not used by the game). Run with a display:
-## godot --path . --resolution 2560x1440 -s tools/mockups/character_styles.gd -- <today|hd|cel|paint|grit>
+## godot --path . --resolution 2560x1440 -s tools/mockups/character_styles.gd -- <today|hd|cel|paint|grit|detail> (fplus/both need --rendering-method forward_plus)
 var game: Node
 var frames := 0
 var v: Node3D
@@ -71,6 +71,80 @@ void fragment() {
 	ALBEDO = (texture(tex, UV) * albedo).rgb;
 	METALLIC = metallic;
 	ROUGHNESS = roughness;
+}
+"""
+
+const DETAIL_CALL := """
+	{
+		vec3 d_wp = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		vec3 d_wn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+		vec3 d_alb = ALBEDO;
+		float d_rough = ROUGHNESS;
+		vec3 d_g = vec3(0.0);
+		d_detail(d_wp, d_wn, d_alb, d_rough, d_g);
+		ALBEDO = d_alb;
+		ROUGHNESS = d_rough;
+		NORMAL = normalize(NORMAL + (VIEW_MATRIX * vec4(d_g, 0.0)).xyz);
+	}
+"""
+
+const DETAIL_FUNCS := """
+float d_hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float d_noise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(d_hash(i), d_hash(i + vec2(1, 0)), f.x), mix(d_hash(i + vec2(0, 1)), d_hash(i + vec2(1, 1)), f.x), f.y);
+}
+float d_fbm(vec2 p) { float a = 0.5; float r = 0.0; for (int i = 0; i < 4; i++) { r += a * d_noise(p); p *= 2.03; a *= 0.5; } return r; }
+float d_cells(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p); float d = 1.0;
+	for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+		vec2 o = vec2(float(x), float(y));
+		vec2 r = o + vec2(d_hash(i + o), d_hash(i + o + 7.1)) - f;
+		d = min(d, dot(r, r));
+	}
+	return sqrt(d);
+}
+// Height of the painted surface: cloth weave, leather grain, metal scratches, bone cracks, skin.
+float d_height(vec2 uv, vec4 w) {
+	float weave = 0.5 + 0.5 * sin(uv.x * 420.0) * sin(uv.y * 420.0);
+	weave = mix(weave, d_noise(uv * 140.0), 0.35);
+	float leather = smoothstep(0.0, 0.45, d_cells(uv * 70.0)) * 0.7 + d_fbm(uv * 30.0) * 0.3;
+	float scratch = 1.0 - smoothstep(0.0, 0.06, abs(d_noise(vec2(uv.x * 9.0, uv.y * 240.0)) - 0.5)) * 0.8;
+	scratch = scratch * 0.7 + d_noise(uv * 160.0) * 0.3;
+	float cracks = smoothstep(0.0, 0.05, abs(d_fbm(uv * 14.0) - 0.5)) * 0.75 + d_noise(uv * 90.0) * 0.25;
+	float skin = d_noise(uv * 220.0) * 0.4 + 0.6;
+	return weave * w.x + leather * w.y + scratch * w.z + mix(skin, cracks, step(0.5, 1.0 - w.w)) * w.w;
+}
+void d_detail(vec3 p, vec3 n, inout vec3 alb, inout float rough, out vec3 g) {
+	vec3 an = abs(n);
+	vec2 uv = an.x > an.y && an.x > an.z ? p.zy : (an.y > an.z ? p.xz : p.xy);
+	float mx = max(alb.r, max(alb.g, alb.b));
+	float mn = min(alb.r, min(alb.g, alb.b));
+	float sat = mx > 0.001 ? (mx - mn) / mx : 0.0;
+	float warm = step(alb.b, alb.g) * step(alb.g, alb.r);
+	float skinw = warm * smoothstep(0.65, 0.8, mx) * smoothstep(0.12, 0.22, sat) * (1.0 - smoothstep(0.4, 0.5, sat));
+	float leatherw = warm * max(1.0 - smoothstep(0.45, 0.6, mx), smoothstep(0.45, 0.55, sat)) * smoothstep(0.2, 0.35, sat) * (1.0 - skinw);
+	float greyw = 1.0 - smoothstep(0.1, 0.22, sat);
+	float bonew = greyw * smoothstep(0.6, 0.8, mx);
+	float metalw = greyw - bonew;
+	float clothw = max(0.0, 1.0 - skinw - leatherw - greyw);
+	vec4 w = vec4(clothw, leatherw, metalw, skinw + bonew);
+	if (bonew > skinw) { w.w = -w.w; }
+	vec4 wa = vec4(w.xyz, abs(w.w));
+	// sign of w.w picks cracks (bone) or pores (skin)
+	vec4 ww = vec4(wa.xyz, abs(w.w));
+	float e = 0.0015;
+	float h0 = d_height(uv, ww);
+	float hx = d_height(uv + vec2(e, 0.0), ww);
+	float hy = d_height(uv + vec2(0.0, e), ww);
+	float amount = 0.9 - 0.75 * skinw;
+	alb *= 0.86 + 0.28 * h0 * amount + (1.0 - amount) * 0.14;
+	alb *= 1.0 - 0.25 * metalw * (1.0 - h0);
+	rough = clamp(rough + (0.5 - h0) * 0.35 * metalw - 0.25 * metalw, 0.05, 1.0);
+	vec3 t1 = an.x > an.y && an.x > an.z ? vec3(0, 0, 1) : (an.y > an.z ? vec3(1, 0, 0) : vec3(1, 0, 0));
+	vec3 t2 = an.x > an.y && an.x > an.z ? vec3(0, 1, 0) : (an.y > an.z ? vec3(0, 0, 1) : vec3(0, 1, 0));
+	g = -((hx - h0) / e * t1 + (hy - h0) / e * t2) * 0.0014 * amount;
+	g -= n * dot(g, n);
 }
 """
 
@@ -177,7 +251,7 @@ func _chars() -> Array:
 	return [e, v, game.player]
 
 
-func _restyle(light_code: String, overlay: Material, outline: Material = null) -> void:
+func _restyle(light_code: String, overlay: Material, outline: Material = null, detail := false) -> void:
 	for c in _chars():
 		for m: MeshInstance3D in c.find_children("*", "MeshInstance3D", true, false):
 			if m.mesh == null:
@@ -200,9 +274,9 @@ func _restyle(light_code: String, overlay: Material, outline: Material = null) -
 					params = {"albedo": mat.albedo_color, "tex": mat.albedo_texture if mat.albedo_texture else WHITE, "metallic": mat.metallic, "roughness": mat.roughness}
 				if code == "" or code.contains("void light()"):
 					continue
-				if light_code != "":
+				if light_code != "" or detail:
 					var sh := Shader.new()
-					sh.code = code + "\n" + light_code
+					sh.code = (_add_detail(code) if detail else code) + "\n" + light_code
 					var nm := ShaderMaterial.new()
 					nm.shader = sh
 					nm.next_pass = outline
@@ -214,6 +288,42 @@ func _restyle(light_code: String, overlay: Material, outline: Material = null) -
 						m.set_surface_override_material(i, nm)
 			if overlay:
 				m.material_overlay = overlay
+
+
+## Puts the painted surface detail at the end of the shader's fragment().
+func _inline(code: String) -> String:
+	var out := PackedStringArray()
+	for line in code.split("\n"):
+		if line.strip_edges().begins_with("#include"):
+			var path := line.get_slice("\"", 1)
+			out.append(_inline(FileAccess.get_file_as_string(path)))
+		else:
+			out.append(line)
+	return "\n".join(out)
+
+
+func _add_detail(code: String) -> String:
+	code = _inline(code)
+	if code.contains("hair_color"):
+		return code  # the hair has its own strands
+	var at := code.find("void fragment()")
+	if at < 0:
+		return code
+	var open := code.find("{", at)
+	var depth := 0
+	var close := -1
+	for k in range(open, code.length()):
+		var ch := code[k]
+		if ch == "{":
+			depth += 1
+		elif ch == "}":
+			depth -= 1
+			if depth == 0:
+				close = k
+				break
+	if close < 0:
+		return code
+	return code.substr(0, at) + DETAIL_FUNCS + "\n" + code.substr(at, close - at) + DETAIL_CALL + code.substr(close)
 
 
 func _mat(code: String, next: Material = null) -> ShaderMaterial:
@@ -245,9 +355,40 @@ func _apply_style() -> void:
 		"paint":
 			root.msaa_3d = Viewport.MSAA_4X
 			_restyle(LIGHT_PAINT, _mat(PAINT_OVERLAY), _outline(0.03, Color(0.22, 0.12, 0.06)))
+		"fplus":
+			_full_renderer()
+		"detail":
+			root.msaa_3d = Viewport.MSAA_4X
+			_restyle("", null, null, true)
+		"both":
+			_full_renderer()
+			_restyle("", null, null, true)
 		"grit":
 			root.msaa_3d = Viewport.MSAA_4X
 			_restyle(LIGHT_GRIT, _mat(GRIT_OVERLAY), _outline(0.022, Color(0.03, 0.03, 0.04)))
+
+
+## What the Forward+ renderer adds: contact shadows (SSAO), bounced light
+## (SSIL), glow and softer, finer shadows.
+func _full_renderer() -> void:
+	root.msaa_3d = Viewport.MSAA_4X
+	var env: Environment = game._env
+	env.ssao_enabled = true
+	env.ssao_radius = 0.9
+	env.ssao_intensity = 2.2
+	env.ssao_power = 1.6
+	env.ssao_detail = 0.8
+	env.ssil_enabled = true
+	env.ssil_radius = 3.0
+	env.ssil_intensity = 0.8
+	env.glow_enabled = true
+	env.glow_intensity = 0.5
+	env.glow_bloom = 0.04
+	env.glow_hdr_threshold = 1.1
+	RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_HIGH)
+	RenderingServer.directional_shadow_atlas_set_size(8192, true)
+	game._moon.light_angular_distance = 0.6
+	game._moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 
 
 func _hide_ui() -> void:

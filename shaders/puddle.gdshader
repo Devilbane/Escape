@@ -24,8 +24,11 @@ uniform float sky = 1.0;
 // The last few steps into the puddles: where (xyz) and how long ago (w,
 // seconds). Each sends a ring of waves out over the water.
 uniform vec4 steps[3];
-// How full this puddle is (0 dried up, 1 full); it fades as it dries.
-instance uniform float fill = 1.0;
+// How full this puddle is (0 dried up, 1 full) comes in the height of its
+// scale, since the puddle itself is flat (see Puddles.set_water); it fades
+// as it dries. Not an instance uniform: there are hundreds of puddles, and
+// those share one small buffer with the stones of the walls.
+varying float fill;
 
 // How long the waves of a step run (seconds; see Puddles.STEP_WAVE).
 const float STEP_WAVE = 1.2;
@@ -36,6 +39,7 @@ varying float inner;
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	inner = COLOR.r;
+	fill = clamp(length(MODEL_MATRIX[1].xyz), 0.0, 1.0);
 }
 
 // Rings spreading from drops falling on the water: one drop at a time per
@@ -94,7 +98,8 @@ void fragment() {
 	// The grey sky mirrored in the water.
 	vec3 up = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
 	float sheen = pow(clamp(dot(reflect(-normalize(VIEW), n), up), 0.0, 1.0), 6.0);
-	// Seen from above, the water mirrors the grey sky in soft streaks.
-	float mirror = 0.28 * smoothstep(0.5, 0.85, r1) + 0.2 * sheen + 0.3 * fresnel;
+	// Seen from above, the water mirrors the grey sky, brighter in soft
+	// streaks, so a puddle reads as water and not as a hole in the ground.
+	float mirror = 0.24 + 0.28 * smoothstep(0.5, 0.85, r1) + 0.2 * sheen + 0.3 * fresnel;
 	EMISSION = vec3(0.5, 0.55, 0.6) * sky * water * (mirror + 0.6 * max(wake, 0.0));
 }

@@ -113,7 +113,7 @@ static func build_cell(level: Level, c: Vector2i, ch: String) -> bool:
 		"%":
 			_build_crystals(level, c, pos)
 		"~":
-			_build_embers(level, pos)
+			EmberCracks.build(level, c, pos)
 		"T":
 			_build_tablet(level, c, pos)
 		"^":
@@ -267,36 +267,6 @@ static func mine(level: Level, station: Dictionary, day: int) -> int:
 	burst.position = station.pos + Vector3(0, 1.2, 0)
 	level.add_child(burst)
 	return CRYSTAL_YIELD
-
-
-## A crack in the floor full of glowing embers: too hot to step over.
-static func _build_embers(level: Level, pos: Vector3) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(pos)
-	_box(level, pos + Vector3(0, 0.02, 0), Vector3(Level.TILE * 0.92, 0.06, Level.TILE * 0.92), _material(Color(0.12, 0.07, 0.05)))
-	# Glowing cracks: two jagged lines running across the tile, each a chain
-	# of short pieces that bend a little at every joint.
-	var hot := _material(EMBER, 3.0)
-	var warm := _material(Color(0.55, 0.12, 0.04), 1.2)
-	_box(level, pos + Vector3(0, 0.04, 0), Vector3(Level.TILE * 0.8, 0.03, Level.TILE * 0.8), warm)
-	for line in 2:
-		var at := Vector2(rng.randf_range(-1.6, 1.6), -1.8) if line == 0 else Vector2(-1.8, rng.randf_range(-1.4, 1.4))
-		var heading := PI * 0.5 if line == 0 else 0.0
-		for k in 7:
-			heading += rng.randf_range(-0.7, 0.7)
-			var length := rng.randf_range(0.4, 0.7)
-			var step := Vector2(cos(heading), sin(heading)) * length
-			var mid := at + step * 0.5
-			if absf(mid.x) > 1.9 or absf(mid.y) > 1.9:
-				break
-			_box(level, pos + Vector3(mid.x, 0.07, mid.y), Vector3(length + 0.06, 0.04, rng.randf_range(0.08, 0.2)), hot, -heading)
-			at += step
-	var flame := Effects.make_flame()
-	flame.position = pos + Vector3(0, 0.4, 0)
-	flame.scale = Vector3.ONE * 1.3
-	level.add_child(flame)
-	_light(level, pos + Vector3(0, 1.2, 0), EMBER, 2.4, 8.0)
-	level._add_solid(pos, Vector3(Level.TILE * 0.9, 1.0, Level.TILE * 0.9))
 
 
 ## A stone tablet with the dwarves' writing: run into it to read it.

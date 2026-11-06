@@ -268,6 +268,10 @@ jobs:
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_growth.gd | tee slime_growth.log
           grep -q PASS slime_growth.log
+      - name: Slime tricks test (half damage from shots, slimed attackers, spit)
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_tricks.gd | tee slime_tricks.log
+          grep -q PASS slime_tricks.log
 
       - name: Floor items test
         run: |

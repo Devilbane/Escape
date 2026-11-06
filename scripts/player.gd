@@ -1070,6 +1070,7 @@ func melee() -> void:
 			var had: int = e.hp
 			e.take_hit(sneak_attack_damage(), global_position, "backstab")
 			wound_foe(e, had - e.hp, cuts)
+			_touch_slime(e)
 			train("schleichen", 4.0)
 		else:
 			# Monster knowledge: a blow may find a vital point (see MonsterLore).
@@ -1084,6 +1085,7 @@ func melee() -> void:
 			e.take_hit(vital_damage(power, weapon) if vital else damage, global_position)
 			if vital:
 				vital_struck(e, "")
+			_touch_slime(e)
 			wound_foe(e, had - e.hp, cuts, vital)
 		if blow == "" or BLOWS.find(this_blow) > BLOWS.find(blow):
 			blow = this_blow
@@ -1371,6 +1373,12 @@ func _give_up_chase() -> void:
 	_chase_left = 0.0
 	_hunt = null
 	path.clear()
+
+
+## A blow on a slime may leave the hero slimed (see SlimeCoat).
+func _touch_slime(e: Enemy) -> void:
+	if SlimeCoat.sticks(e):
+		get_slimed(e.slime_colour())
 
 
 ## Keeps fighting the current target: blade while next to it, knives from afar.
@@ -1755,6 +1763,8 @@ func refresh_stats() -> void:
 		base_speed *= CURSE_SLOW
 	if ailments.has("netz"):
 		base_speed *= WEB_SLOW
+	if ailments.has(SlimeCoat.KIND):
+		base_speed *= SlimeCoat.SLOW
 	if ailments.has(BloatedBelly.KIND):
 		base_speed *= BloatedBelly.SLOW
 	hp = mini(hp, max_hp)
@@ -1768,6 +1778,9 @@ func refresh_stats() -> void:
 	_show_tint("schuhe", ["Rogue_LegLeft", "Rogue_LegRight"])
 	BloatedBelly.swell(_model, ailments.has(BloatedBelly.KIND))
 	_shown_alpha = -1.0 # New parts: fade them too if sneaking.
+	# New parts: slimed too, if the hero is (see SlimeCoat).
+	if slime_covered() and _model != null:
+		SlimeCoat.coat(self, _model, slime_tint)
 
 
 const TINT_SHADER := preload("res://shaders/tint.gdshader")
@@ -1791,14 +1804,14 @@ const AILMENT_TIME := 20.0
 const POISON_TICK := 8.0
 const CURSE_SLOW := 0.85
 const AILMENT_COLORS := {"blut": Bleeding.COLOR, "gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0), "brand": Color(1.0, 0.5, 0.15), "netz": Color(0.93, 0.93, 0.86),
-	"angst": Color(0.7, 0.85, 1.0)}
+	"angst": Color(0.7, 0.85, 1.0), "schleimig": SlimeCoat.COLOR}
 ## Burning is short but fierce.
 const BURN_TIME := 4.5
 const BURN_TICK := 1.5
 ## A spider's web sticks only briefly, but slows the hero a lot.
 const WEB_TIME := 3.0
 const WEB_SLOW := 0.55
-const AILMENT_WORDS := {"blut": "Blutet!", "gift": "Vergiftet!", "fluch": "Verflucht!", "brand": "Brennt!", "netz": "Eingesponnen!", "angst": "Verängstigt!"}
+const AILMENT_WORDS := {"blut": "Blutet!", "gift": "Vergiftet!", "fluch": "Verflucht!", "brand": "Brennt!", "netz": "Eingesponnen!", "angst": "Verängstigt!", "schleimig": "Verschleimt!"}
 ## Fear (see scare): the hero runs for the nearest way out for FEAR_TIME
 ## seconds, and cannot be frightened again for FEAR_CALM seconds after.
 const FEAR_TIME := 3.0
@@ -1816,7 +1829,8 @@ func afflict(kind: String) -> void:
 	if dead:
 		return
 	var fresh := not ailments.has(kind)
-	ailments[kind] = BURN_TIME if kind == "brand" else WEB_TIME if kind == "netz" else FEAR_TIME if kind == "angst" else AILMENT_TIME
+	ailments[kind] = BURN_TIME if kind == "brand" else WEB_TIME if kind == "netz" else FEAR_TIME if kind == "angst" \
+			else SlimeCoat.TIME if kind == SlimeCoat.KIND else AILMENT_TIME
 	if fresh:
 		if kind == "gift":
 			_poison_tick = POISON_TICK
@@ -1824,6 +1838,40 @@ func afflict(kind: String) -> void:
 			_burn_tick = BURN_TICK
 		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t(AILMENT_WORDS[kind]), AILMENT_COLORS[kind])
 		_ailments_changed()
+
+
+## The colour of the slime the hero is coated in (see get_slimed).
+var slime_tint := SlimeCoat.COLOR
+## Seconds left under a slime's gooey cover after its blow (see goo).
+var goo_left := 0.0
+
+
+## Struck by a slime: under a clear cover of its goo for a few seconds
+## (see SlimeCoat). It only shows; it does not slow.
+func goo(colour: Color) -> void:
+	if dead or _model == null:
+		return
+	goo_left = SlimeCoat.GOO_TIME
+	slime_tint = colour
+	SlimeCoat.coat(self, _model, slime_tint)
+
+
+## Whether slime covers the hero now: slimed, or goo from a slime's blow.
+func slime_covered() -> bool:
+	return ailments.has(SlimeCoat.KIND) or goo_left > 0.0
+
+
+## Coated in slime of `colour` (a blow on a slime, or its gob, see
+## SlimeCoat): slower on foot and between blows for a few seconds.
+func get_slimed(colour: Color) -> void:
+	if dead:
+		return
+	var recoat := ailments.has(SlimeCoat.KIND) and colour != slime_tint
+	slime_tint = colour
+	afflict(SlimeCoat.KIND)
+	Events.teach(SlimeCoat.LEARN)
+	if recoat:
+		refresh_stats()
 
 
 ## A cutting hit opened a wound (see Bleeding): the hero bleeds `amount`
@@ -2014,6 +2062,8 @@ func _ailments_changed() -> void:
 		old.free()
 	if not ailments.has("blut"):
 		wound.stop()
+	if not slime_covered() and get_node_or_null(SlimeCoat.NODE) != null:
+		SlimeCoat.wipe(self, _model)
 	for kind in ["angst", "netz", "brand", "blut", "gift", "fluch"]:
 		if ailments.has(kind):
 			var haze := Effects.make_sparkles(AILMENT_COLORS[kind])
@@ -2498,12 +2548,18 @@ func _physics_process(delta: float) -> void:
 	_invulnerable = maxf(0.0, _invulnerable - delta)
 	_fear_calm = maxf(0.0, _fear_calm - delta)
 	fight_cooldown = maxf(0.0, fight_cooldown - delta)
-	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
-	_auto_cooldown = maxf(0.0, _auto_cooldown - delta)
+	# Slimed, the hero's arms are slow too (see SlimeCoat).
+	var arms := delta / (SlimeCoat.ATTACK_SLOW if ailments.has(SlimeCoat.KIND) else 1.0)
+	_attack_cooldown = maxf(0.0, _attack_cooldown - arms)
+	_auto_cooldown = maxf(0.0, _auto_cooldown - arms)
 	_anim_hold = maxf(0.0, _anim_hold - delta)
 	_clock += delta
 	_get_up(delta)
 	_tick_ailments(delta)
+	if goo_left > 0.0:
+		goo_left -= delta
+		if not slime_covered():
+			SlimeCoat.wipe(self, _model)
 	_regenerate(delta)
 	potions.tick(delta)
 	_knife_settle -= delta

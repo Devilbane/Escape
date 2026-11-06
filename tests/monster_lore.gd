@@ -177,6 +177,8 @@ func _test() -> void:
 	# hero's kill. The hero steps away, so nobody else strikes it.
 	player.global_position += Vector3(30, 0, 0)
 	player.reset_physics_interpolation()
+	# A wound left over from the blows above would bleed on too.
+	foe.wound.stop()
 	foe.hp = 10
 	foe.bleed(3)
 	check(foe.is_bleeding(), "a vital hit can make it bleed")

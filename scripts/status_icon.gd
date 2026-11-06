@@ -10,6 +10,7 @@ extends Control
 ##   "fluch"    cursed: a violet eye
 ##   "brand"    burning: a flame
 ##   "netz"     webbed (a spider's web): a cobweb
+##   "schleimig" slimed (see SlimeCoat): a green blob dripping
 ##   "angst"    frightened by a ghost (see Player.scare): a white ghost with a green glow
 ##   "slow"     slower: boots with an arrow down
 ##   "bauch"    too much water (see BloatedBelly): a round, full belly with
@@ -147,6 +148,20 @@ func _draw() -> void:
 			draw_colored_polygon(sheet, Color(0.95, 1.0, 0.97))
 			draw_circle(c + Vector2(-2.6, -2.5), 1.4, Color(0.05, 0.15, 0.08))
 			draw_circle(c + Vector2(2.6, -2.5), 1.4, Color(0.05, 0.15, 0.08))
+		SlimeCoat.KIND:
+			# A glossy green blob with two drops running off it.
+			var goo := SlimeCoat.COLOR
+			var blob := PackedVector2Array()
+			for i in 17:
+				var a := PI + PI * i / 16.0
+				blob.append(c + Vector2(0, 1) + Vector2(cos(a) * 8.5, sin(a) * 7.5))
+			blob.append(c + Vector2(8.5, 4))
+			blob.append(c + Vector2(-8.5, 4))
+			draw_colored_polygon(blob, goo.darkened(0.15))
+			draw_circle(c + Vector2(-4.5, 5.5), 2.2, goo.darkened(0.15))
+			draw_circle(c + Vector2(3.5, 7.5), 1.8, goo.darkened(0.15))
+			draw_circle(c + Vector2(3.5, 10.5), 1.2, goo)
+			draw_circle(c + Vector2(-3.0, -2.5), 2.0, Color(1, 1, 1, 0.75))
 		"netz":
 			# A cobweb: eight spokes and three rings of silk.
 			var silk := Color(0.93, 0.93, 0.86)

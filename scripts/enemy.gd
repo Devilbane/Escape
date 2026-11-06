@@ -402,6 +402,14 @@ var merged := false
 ## Wanders the whole map instead of roaming round its home (slimes in the
 ## open air, see SlimeGrowth.WANDER_TILES).
 var wanders := false
+## Seconds left coated in slime (see SlimeCoat): slower on its feet and
+## between blows.
+var slimed := 0.0
+## What of the last little shots a slime let through, carried on (see SlimeCoat.absorb).
+var absorbed := 0.0
+var _spit_cool := 0.0
+## Seconds left under a slime's gooey cover after its blow (see goo).
+var goo_left := 0.0
 var _puddle_mat: StandardMaterial3D
 var _drops_mat: StandardMaterial3D
 
@@ -1239,6 +1247,21 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		kind = "hit"
 	elif kind != "backstab":
 		damage = Player.soak(damage, hardening)
+	if kind == "knife" or kind == "shot":
+		# A slime's soft body swallows little shots (see SlimeCoat).
+		if SlimeCoat.is_slime(self):
+			damage = SlimeCoat.absorb(self, damage)
+			if kind == "knife":
+				Events.teach(SlimeCoat.LEARN)
+			if damage <= 0:
+				if wakes:
+					_provoked = true
+					_wake(from)
+				Effects.head_text(level, self, 2.2 * _stats.size, Lang.t("Verschluckt!"), SlimeCoat.COLOR)
+				Comic.pop(global_position, "block")
+				return
+		if kind == "shot":
+			kind = "hit"
 	if kind == "backstab" and _stats.get("armored", false):
 		# The guardian's armour has one gap, and a sneak attack finds it:
 		# it always falls to a single stab in the back.
@@ -1406,7 +1429,7 @@ func _tick_bleeding(delta: float) -> void:
 
 ## A blow (or a shot) from a rival monster. It fights back; armour that
 ## stops the hero's blade stops a rival's just as well.
-func hit_by_rival(damage: int, attacker: Enemy) -> void:
+func hit_by_rival(damage: int, attacker: Enemy, shot := false) -> void:
 	if dead:
 		return
 	if attacker != null and is_instance_valid(attacker) and not attacker.dead:
@@ -1417,7 +1440,7 @@ func hit_by_rival(damage: int, attacker: Enemy) -> void:
 	var from: Vector3 = attacker.global_position if attacker != null and is_instance_valid(attacker) else global_position
 	_last_rival = attacker
 	slain_by_rival = true
-	take_hit(damage, from, "hit", false)
+	take_hit(damage, from, "shot" if shot else "hit", false)
 	if not dead:
 		slain_by_rival = false
 
@@ -1749,11 +1772,13 @@ func _physics_process(delta: float) -> void:
 	_busy = maxf(0.0, _busy - delta)
 	_trap_cool = maxf(0.0, _trap_cool - delta)
 	# Crippled by a vital hit, it needs longer between attacks.
-	_cooldown = maxf(0.0, _cooldown - delta / attack_slow)
+	_cooldown = maxf(0.0, _cooldown - delta / attack_slow / (SlimeCoat.ATTACK_SLOW if slimed > 0.0 else 1.0))
+	_tick_slime(delta)
 	_tick_bleeding(delta)
 	if dead:
 		return
 	_web_cool = maxf(0.0, _web_cool - delta)
+	_spit_cool = maxf(0.0, _spit_cool - delta)
 	_shriek_cool = maxf(0.0, _shriek_cool - delta)
 	_scare_cool = maxf(0.0, _scare_cool - delta)
 	_repath -= delta
@@ -1857,6 +1882,9 @@ func _physics_process(delta: float) -> void:
 		elif can_throw_web(dist, sees):
 			_face(to_player)
 			_throw_web(player)
+		elif can_spit(player, dist, sees):
+			_face(to_player)
+			_spit(player)
 		elif through_walls:
 			# Straight at the hero, through stone and doors alike.
 			move = to_player.normalized()
@@ -1893,7 +1921,7 @@ func _physics_process(delta: float) -> void:
 	# Off the hunt, a bandit strolls; skeletons shuffle back to their post.
 	var strolling: bool = move != Vector3.ZERO and move.length() < 0.7 and (is_human() or _stats.get("roam", false))
 	var walk: String = "Walking_D_Skeletons" if not is_human() and _anim.has_animation("Walking_D_Skeletons") else "Walking_A"
-	_meant_speed = move.length() * float(_stats.speed) * surface_pace
+	_meant_speed = move.length() * float(_stats.speed) * surface_pace * (SlimeCoat.SLOW if slimed > 0.0 else 1.0)
 	if strolling:
 		# No faster than the walk's feet can step (see Stride).
 		_meant_speed = minf(_meant_speed, Stride.top_speed(_rig, _anim_of(walk), _stride_size))
@@ -2009,6 +2037,10 @@ func _fight_foe() -> Vector3:
 		_face(to)
 		if _cooldown <= 0.0:
 			_strike(foe)
+		return Vector3.ZERO
+	elif can_spit(foe, d, true):
+		_face(to)
+		_spit(foe)
 		return Vector3.ZERO
 	if _repath <= 0.0 or _path.is_empty():
 		_repath = 0.5
@@ -2244,12 +2276,20 @@ func _strike(target: Node3D) -> void:
 	if rival != null:
 		if not rival.dead and d.length() < float(_stats.reach) + 0.6 + rival.girth() and not level.stacked(self, rival):
 			rival.hit_by_rival(_stats.damage, self)
+			# A slime's blow leaves its goo on the victim (see SlimeCoat).
+			if SlimeCoat.is_slime(self) and not rival.dead:
+				rival.goo(slime_colour())
+			# Close up, a slime sticks to whoever strikes it (see SlimeCoat).
+			if SlimeCoat.sticks(rival):
+				get_slimed(rival.slime_colour())
 		return
 	var player := target as Player
 	if player != null and d.length() < float(_stats.reach) + 0.6 and not level.stacked(self, player) \
 			and (is_ghost() or not level.door_between(global_position, player.global_position)):
 		var before := player.hp
 		player.take_damage(_stats.damage, global_position, self)
+		if SlimeCoat.is_slime(self) and player.hp < before:
+			player.goo(slime_colour())
 		# Minion blades and spider bites are sometimes poisoned.
 		if player.hp < before and randf() < _stats.get("poison", POISON_CHANCE if kind == "wicht" else 0.0):
 			player.afflict("gift")
@@ -2259,6 +2299,72 @@ func _strike(target: Node3D) -> void:
 		# A wraith's touch is cold as the grave: it curses.
 		if player.hp < before and _stats.has("curse") and randf() < float(_stats.curse):
 			player.afflict("fluch")
+
+
+## Coated in slime of `colour` (see SlimeCoat): slower for SlimeCoat.TIME
+## seconds, wet and dripping. A ghost or a slime it does not stick to.
+func get_slimed(colour: Color) -> void:
+	if not SlimeCoat.can_coat(self) or _model == null:
+		return
+	if slimed <= 0.0:
+		Effects.head_text(level, self, 2.2 * _stats.size, Lang.t("Verschleimt!"), colour)
+	slimed = SlimeCoat.TIME
+	SlimeCoat.coat(self, _model, colour)
+
+
+func _tick_slime(delta: float) -> void:
+	if slimed <= 0.0 and goo_left <= 0.0:
+		return
+	slimed = maxf(0.0, slimed - delta)
+	goo_left = maxf(0.0, goo_left - delta)
+	if slimed <= 0.0 and goo_left <= 0.0:
+		SlimeCoat.wipe(self, _model)
+
+
+## Struck by a slime: under a clear cover of its goo for a few seconds
+## (see SlimeCoat). It only shows.
+func goo(colour: Color) -> void:
+	if not SlimeCoat.can_coat(self) or _model == null:
+		return
+	goo_left = SlimeCoat.GOO_TIME
+	SlimeCoat.coat(self, _model, colour)
+
+
+## The colour of this slime's water, for the coat it leaves (see SlimeCoat).
+func slime_colour() -> Color:
+	return _stats.tint if _stats.has("tint") else SLIME_MURK[1].lightened(0.15)
+
+
+## True when a slime may spit a gob at `target` now: it hunts it, sees it,
+## not too near and not too far (SlimeCoat.SPIT_MIN..SPIT_REACH), with a
+## clear shot, and its last gob is long enough ago.
+func can_spit(target: Node3D, dist: float, sees: bool) -> bool:
+	if not SlimeCoat.is_slime(self) or _spit_cool > 0.0 or not sees or _lost > 0.0 or _busy > 0.0:
+		return false
+	if dist < SlimeCoat.SPIT_MIN or dist > SlimeCoat.SPIT_REACH:
+		return false
+	if target is Enemy and not SlimeCoat.can_coat(target as Enemy):
+		return false
+	return level.has_clear_shot(global_position, target.global_position)
+
+
+## A slime rears up and spits a gob of itself (see Projectile): it does no
+## harm, but slimes whoever it hits (see SlimeCoat).
+func _spit(target: Node3D) -> void:
+	_spit_cool = SlimeCoat.BLOB_SPIT_COOL if blob else SlimeCoat.SPIT_COOL
+	_play_once("1H_Melee_Attack_Chop", 0.6)
+	Sfx.play(self, "swing", -6.0, global_position, 0.7)
+	await get_tree().create_timer(0.3).timeout
+	if dead or not is_inside_tree() or not is_instance_valid(target) or level.stacked(self, target):
+		return
+	var origin := global_position + Vector3(0, 0.6 * float(_stats.size), 0)
+	var aim := target.global_position + Vector3(0, 1.0, 0)
+	var shot := Projectile.spawn(level, origin, aim - origin, false, false, false, false, slime_colour())
+	shot.shooter = self
+	shot.damage = 0
+	if target is Enemy:
+		shot.foe = target as Enemy
+		shot.at_rival = true
 
 
 ## True when a spider may throw its web at the hero now: it sees the hero,

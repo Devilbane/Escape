@@ -4,7 +4,8 @@ extends Node3D
 ## skeleton). Orbs fly slower but curve after the hero. The dragon's fire
 ## flies like an orb, burns for two and never curses. A spider's web ("web")
 ## is a pale ball of silk: it does no harm but sticks to the hero and slows
-## them for a moment (Player.afflict "netz").
+## them for a moment (Player.afflict "netz"). A slime's gob ("gob") does no
+## harm either, but slimes whoever it hits (see SlimeCoat).
 
 const SPEED := 20.0
 const LIFETIME := 2.0
@@ -26,6 +27,9 @@ var fire := false
 ## towards here (see Level.knife_rest).
 var thrown_from := Vector3.ZERO
 var web := false
+var gob := false
+## The colour of the slime that spat the gob.
+var gob_colour := SlimeCoat.COLOR
 ## This knife's own chance to break, KNIFE_BREAK_CHANCE unless a test sets it.
 var break_chance := KNIFE_BREAK_CHANCE
 var _age := 0.0
@@ -40,13 +44,16 @@ const KNIFE_BREAK_CHANCE := 0.2
 const WEB_SPEED := 11.0
 
 
-static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: bool, is_magic := false, is_fire := false, is_web := false) -> Projectile:
+static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: bool, is_magic := false, is_fire := false, is_web := false, slime = null) -> Projectile:
 	var p := Projectile.new()
 	p.level = owner_level
 	p.from_player = by_player
 	p.magic = is_magic
 	p.fire = is_fire
 	p.web = is_web
+	p.gob = slime is Color
+	if p.gob:
+		p.gob_colour = slime
 	dir.y = 0.0
 	p.direction = dir.normalized()
 	owner_level.add_child(p)
@@ -73,6 +80,9 @@ static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: 
 		return p
 	if is_web:
 		p.add_child(_web_ball())
+		return p
+	if p.gob:
+		p.add_child(SlimeCoat.gob(slime))
 		return p
 	var model: Node3D = load("res://assets/weapons/dagger.gltf" if by_player else "res://assets/weapons/Skeleton_Arrow.gltf").instantiate()
 	model.rotation.x = -PI * 0.5
@@ -131,7 +141,7 @@ func _physics_process(delta: float) -> void:
 		want.y = 0.0
 		var turn := clampf(direction.signed_angle_to(want.normalized(), Vector3.UP), -MAGIC_TURN * delta, MAGIC_TURN * delta)
 		direction = direction.rotated(Vector3.UP, turn)
-	var step := direction * (MAGIC_SPEED if magic else WEB_SPEED if web else SPEED) * delta
+	var step := direction * (MAGIC_SPEED if magic else WEB_SPEED if web else SlimeCoat.SPIT_SPEED if gob else SPEED) * delta
 	var was := global_position
 	global_position += step
 	# A wall, a closed door or a pillar (statue, crate stack) stops it.
@@ -159,7 +169,13 @@ func _physics_process(delta: float) -> void:
 				return
 	elif at_rival:
 		if is_instance_valid(foe) and not foe.dead and _hits(foe.global_position):
-			foe.hit_by_rival(2 if fire else damage, shooter as Enemy if is_instance_valid(shooter) else null)
+			if gob:
+				foe.get_slimed(gob_colour)
+				if is_instance_valid(shooter):
+					foe.provoke(shooter as Enemy)
+			else:
+				# A bolt or an arrow is a little shot a slime swallows (see SlimeCoat).
+				foe.hit_by_rival(2 if fire else damage, shooter as Enemy if is_instance_valid(shooter) else null, not magic and not fire)
 			queue_free()
 	else:
 		var player: Player = level.player
@@ -170,6 +186,13 @@ func _physics_process(delta: float) -> void:
 				if is_instance_valid(shooter):
 					player.defend_against(shooter)
 				Sfx.play(player, "swing", -8.0, player.global_position, 0.7)
+				queue_free()
+				return
+			if gob:
+				player.get_slimed(gob_colour)
+				if is_instance_valid(shooter):
+					player.defend_against(shooter)
+				Sfx.play(player, "swing", -8.0, player.global_position, 0.5)
 				queue_free()
 				return
 			var before := player.hp

@@ -4439,7 +4439,7 @@ func hero_ailments() -> Array:
 	# Bleeding shows the life still to bleed away.
 	if player.ailments.has("blut"):
 		out.append(["blut", str(player.wound.left)])
-	for kind in ["gift", "fluch", "brand", "netz", "angst"]:
+	for kind in ["gift", "fluch", "brand", "netz", SlimeCoat.KIND, "angst"]:
 		if player.ailments.has(kind):
 			out.append([kind, ""])
 	if player.ailments.has(BloatedBelly.KIND):
@@ -4469,6 +4469,7 @@ func hero_boons() -> Array:
 func _hero_fast() -> bool:
 	var unslowed := player.base_speed / (Player.CURSE_SLOW if player.ailments.has("fluch") else 1.0) \
 			/ (Player.WEB_SLOW if player.ailments.has("netz") else 1.0) \
+			/ (SlimeCoat.SLOW if player.ailments.has(SlimeCoat.KIND) else 1.0) \
 			/ (BloatedBelly.SLOW if player.ailments.has(BloatedBelly.KIND) else 1.0)
 	return unslowed > Player.SPEED + 0.01
 
@@ -4489,6 +4490,7 @@ func icon_text(kind: String, number: String) -> String:
 		"fluch": return Lang.t("Verflucht: Du bist langsamer. Es vergeht bald; ein Brunnen, ein Schrein oder ein Heiltrank heilt es sofort.")
 		"brand": return Lang.t("Du brennst: Ein paar Sekunden lang verlierst du Leben, nie das letzte.")
 		"netz": return Lang.t("Eingesponnen: Spinnenseide klebt an dir. Ein paar Sekunden lang bist du viel langsamer.")
+		SlimeCoat.KIND: return Lang.t("Verschleimt: Schleim klebt an dir. Ein paar Sekunden lang läufst und schlägst du langsamer. Ein Brunnen, ein Schrein oder ein Heiltrank wäscht ihn ab.")
 		"angst": return Lang.t("Verängstigt: Ein Geist hat dich in Panik versetzt. Ein paar Sekunden lang rennst du zum nächsten Ausgang. Weisheit, Intuition und Erkunden helfen, standhaft zu bleiben.")
 		BloatedBelly.KIND: return Lang.t("Zu viel Wasser getrunken: Dein Bauch ist prall und du bist viel langsamer. Noch %s, dann geht es von selbst vorbei.") % BloatedBelly.long_countdown(player.ailments.get(BloatedBelly.KIND, 0.0))
 		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number

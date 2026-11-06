@@ -339,6 +339,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/bronze_frames.gd | tee bronze_frames.log
           grep -q PASS bronze_frames.log
 
+      - name: Item icons test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/item_icons.gd | tee item_icons.log
+          grep -q PASS item_icons.log
+
       - name: Character page test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/character_page.gd | tee character_page.log

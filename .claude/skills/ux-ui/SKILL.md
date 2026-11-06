@@ -608,7 +608,7 @@ Use these helpers and values; do not re-create them.
 | Keyboard focus | `Menus._input`, `_focusables`, `_focus_at` | Arrow keys or Tab show the focus in the open window, a click hides it, `_rebuild` keeps it. Buttons stay `FOCUS_NONE` outside windows, so a key never presses a HUD button. |
 | Merchant / list-with-details | `TradeWindow` (`scripts/trade_window.gd`) | Sections, rows 300 × 60 (their button 100 wide), cards 255 wide, list height 380; a row for tabs in every merchant's window, empty where he has none. |
 | Book pages | `Menus._book_column`, `BOOK_COLUMN` = 470 | Compendium, recipes, quest log, reputation. |
-| Item pictures | `ItemIcon.make(id_or_kind, size, flat)` | Use `kind:*` icons (coin, chev_up, chev_down, up, …) for UI symbols. |
+| Item pictures | `ItemIcon.make(id_or_kind, size, flat)` | Use `kind:*` icons (coin, chev_up, chev_down, up, …) for UI symbols. Things are painted SVGs in `assets/ui/icons` (made by `tools/make_icons.py`; a `<kind>__tint.svg` holds the part tinted with the item's colour), drawn in a bronze slot. A new kind gets a painting there, not new shapes in `_draw`. |
 | Fonts | `game.TITLE_FONT` (Cinzel Decorative Black), `game.TEXT_FONT` (Cinzel Bold) | Titles vs everything else. |
 | Colours | `game.GOLD`, `TradeWindow.GREEN/RED/GREY/BLUE/ORANGE`, `Menus.BLUE`, `Menus.REPUTATION_COLOR` | See section 7. |
 | Item names | `Rarity` (`scripts/rarity.gd`) | An item's name is always in its rarity colour: `_item_button(…, id)` and `TradeWindow.name_color` do it for buttons and rows, `Rarity.bbcode(id)` for a RichTextLabel, `Rarity.marked(id)` inside an `Events.found` text. Where there is room, name the tier in words too (`Rarity.label(id)`). |

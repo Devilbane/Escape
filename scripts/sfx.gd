@@ -205,12 +205,13 @@ static func play_after(tree_node: Node, seconds: float, sound: String, volume_db
 			play(tree_node, sound, volume_db, at))
 
 
-## The hero's weapon sounds (built by tools/make_weapon_sounds.py), by kind
+## The hero's weapon sounds (built by tools/make_weapon_sounds.py from CC0
+## recordings), by kind
 ## of blow, with how many takes each has. "swing" and "sweep" are the rush of
 ## air as the hero strikes one enemy or sweeps a crowd; the rest is the blow
 ## landing: "hit" plain, "heavy" a heavy hit, "vital" a vital point found,
 ## "sneak" a sneak attack and "glance" the weapon glancing off armour.
-const WEAPON_TAKES := {"swing": 3, "sweep": 2, "hit": 3, "heavy": 2, "vital": 2, "sneak": 2, "glance": 2}
+const WEAPON_TAKES := {"swing": 3, "sweep": 2, "hit": 4, "heavy": 3, "vital": 2, "sneak": 2, "glance": 3}
 ## How loud each kind sits, so the telling blows stand out of a fight.
 const WEAPON_DB := {"swing": -3.0, "sweep": -2.0, "hit": 0.0, "heavy": 1.0, "vital": 2.0, "sneak": 2.0, "glance": -1.0}
 ## The two weapon families that sound apart.

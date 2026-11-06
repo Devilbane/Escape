@@ -44,6 +44,7 @@ const EN := {
 	"Kupferring": "Copper ring",
 	"Rubinring": "Ruby ring",
 	"Verlorener Siegelring": "Long-lost signet ring",
+	"Einzigartig: lange verloren im Schlamm des Dorfteichs": "Unique: long lost in the mud of the village pond",
 	"Bronzearmreif": "Bronze bracelet",
 	"Silberarmreif": "Silver bracelet",
 	"Vampirzahn": "Vampire fang",

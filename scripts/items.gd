@@ -123,7 +123,7 @@ static var ALL := {
 	"kupferring": {"name": "Kupferring", "slot": "ring", "weight": 0.1, "power": 1, "price": 16},
 	"rubinring": {"name": "Rubinring", "slot": "ring", "weight": 0.1, "hp": 1, "power": 1, "price": 32},
 	# Long lost in the village pond, fished up only once (see Fishing.RING).
-	"siegelring": {"name": "Verlorener Siegelring", "slot": "ring", "weight": 0.1, "hp": 1, "power": 1, "speed": 0.05, "magic": true, "price": 60, "no_loot": true},
+	"siegelring": {"name": "Verlorener Siegelring", "slot": "ring", "weight": 0.1, "hp": 1, "power": 1, "speed": 0.05, "magic": true, "price": 60, "no_loot": true, "unique": true, "effect": "Einzigartig: lange verloren im Schlamm des Dorfteichs"},
 	"bronzearmreif": {"name": "Bronzearmreif", "slot": "armreif", "weight": 0.4, "hp": 1, "price": 12},
 	# Made at the fine metalwork bench from the wish recipes (see Crafting).
 	"klingenring": {"name": "Klingenring", "slot": "ring", "weight": 0.1, "power": 1, "skills": {"klingen": 1}, "magic": true, "price": 34, "no_loot": true, "crafted": true},

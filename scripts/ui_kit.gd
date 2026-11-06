@@ -7,6 +7,9 @@ extends RefCounted
 
 const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
+## The forged-bronze frame (BronzeStyle), loaded by its path: the launcher
+## runs this script without the game's list of named classes.
+const Bronze := preload("res://scripts/bronze_style.gd")
 const GOLD := Color(1.0, 0.82, 0.4)
 ## Button text while the pointer is over the button: a lighter gold.
 const BUTTON_HOVER_TEXT := Color(1.0, 0.92, 0.66)
@@ -68,21 +71,21 @@ static func button(text: String, action: Callable, on_press := false) -> Button:
 	b.add_theme_color_override("font_hover_pressed_color", GOLD)
 	b.add_theme_color_override("font_focus_color", BUTTON_HOVER_TEXT)
 	b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.35))
-	var normal := BronzeStyle.new()
+	var normal := Bronze.new()
 	normal.bg_color = BUTTON_BG
 	normal.border_color = BRONZE
 	normal.set_border_width_all(BUTTON_RIM)
 	normal.set_corner_radius_all(BUTTON_RADIUS)
-	var hover: BronzeStyle = normal.duplicate()
+	var hover: Bronze = normal.duplicate()
 	hover.bg_color = Color(0.21, 0.14, 0.08, 0.9)
 	hover.border_color = GOLD
-	var pressed: BronzeStyle = normal.duplicate()
+	var pressed: Bronze = normal.duplicate()
 	pressed.bg_color = Color(0.32, 0.2, 0.09, 0.9)
 	pressed.border_color = GOLD
-	var disabled: BronzeStyle = normal.duplicate()
+	var disabled: Bronze = normal.duplicate()
 	disabled.bg_color = Color(0.07, 0.05, 0.04, 0.5)
 	disabled.border_color = Color(BRONZE, 0.35)
-	var focus := BronzeStyle.new()
+	var focus := Bronze.new()
 	focus.draw_center = false
 	focus.border_color = Color(1, 1, 1, 0.95)
 	focus.set_border_width_all(3)
@@ -105,8 +108,8 @@ static func button(text: String, action: Callable, on_press := false) -> Button:
 ## corners around a dark leather-brown ground. `border` tints the metal (the
 ## house gold gives bronze); a clearly visible border is drawn solid, so the
 ## ground does not shine through the rim.
-static func panel_style(border: Color) -> BronzeStyle:
-	var style := BronzeStyle.new()
+static func panel_style(border: Color) -> Bronze:
+	var style := Bronze.new()
 	style.bg_color = PANEL_BG
 	style.border_color = Color(border, 1.0) if border.a >= 0.6 else border
 	style.set_border_width_all(PANEL_RIM)
@@ -117,8 +120,8 @@ static func panel_style(border: Color) -> BronzeStyle:
 
 ## A smaller bronze frame for boxes inside a window or on the HUD (rows,
 ## cards, slots, tooltips): a thinner rim, no rivets, the same metal.
-static func frame_style(bg: Color, border := BRONZE, width := 3, radius := 4) -> BronzeStyle:
-	var style := BronzeStyle.new()
+static func frame_style(bg: Color, border := BRONZE, width := 3, radius := 4) -> Bronze:
+	var style := Bronze.new()
 	style.bg_color = bg
 	style.border_color = border
 	style.set_border_width_all(width)

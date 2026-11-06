@@ -14,6 +14,11 @@ const EN := {
 	"Die höchste Stufe ist erreicht.": "You have reached the highest level.",
 	"Du hast einen Punkt frei: Verteile ihn auf der Charakterseite (P).": "You have a free point: spend it on the character page (P).",
 	"Dein Kupfer: Damit bezahlst du bei Händlern und Handwerkern.": "Your copper: you pay merchants and craftsmen with it.",
+	"Kupfermünzen: %d": "Copper coins: %d",
+	"Silbermünzen: %d": "Silver coins: %d",
+	"Goldmünzen: %d": "Gold coins: %d",
+	"Eine Silbermünze ist %d Kupfer wert.": "A silver coin is worth %d copper.",
+	"Eine Goldmünze ist %d Kupfer wert.": "A gold coin is worth %d copper.",
 	"Mit dem Schlüssel öffnest du die verschlossene Tür zur nächsten Ebene.": "The key opens the locked door to the next level.",
 	"Irgendwo auf dieser Ebene liegt der Schlüssel zur verschlossenen Tür.": "Somewhere on this level lies the key to the locked door.",
 }

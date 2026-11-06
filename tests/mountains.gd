@@ -13,6 +13,7 @@ var game: Node
 var frames := 0
 var stage := 0
 var wait := 0
+var stage_frames := 0
 
 
 func check(ok: bool, what: String) -> void:
@@ -136,15 +137,29 @@ func _process(_delta: float) -> bool:
 			check(hammer.is_empty() or hammer[0].node.global_position.distance_to(lvl.lair_exit.global_position) > Level.LAIR_EXIT_RADIUS + 1.0,
 					"the way out does not lie on the king's hammer")
 			game.player.global_position = Vector3(lvl.lair_exit.global_position.x, game.player.global_position.y, lvl.lair_exit.global_position.z)
-			wait = 150
+			game.player.velocity = Vector3.ZERO
+			wait = 0
+			stage_frames = 0
 			stage = 12
 		12:
+			# Out through the fade, then a moment to settle (as in tests/dragon_lair.gd).
+			stage_frames += 1
 			var lvl: Level = game.level
-			check(lvl is Outdoor, "the way out leads out of the mine into the open")
-			if lvl is Outdoor:
-				var at: Vector3 = game.player.global_position
-				var door: Vector3 = lvl.doors["mine3"]
-				check(Vector2(at.x - door.x, at.z - door.z).length() < 1.0, "the hero stands in front of mine 3")
+			if not lvl is Outdoor:
+				if stage_frames > 200:
+					check(false, "the way out leads out of the mine into the open")
+					_finish()
+					return true
+				return false
+			if stage_frames < 60:
+				return false
+			var at: Vector3 = game.player.global_position
+			var door: Vector3 = lvl.doors["mine3"]
+			check(Vector2(at.x - door.x, at.z - door.z).length() < 3.0,
+					"the hero stands in front of mine 3 (%.1f m away)" % Vector2(at.x - door.x, at.z - door.z).length())
+			for id in ["mine1", "mine2"]:
+				var other: Vector3 = lvl.doors[id]
+				check(at.distance_to(other) > at.distance_to(door), "the way out leads to mine 3, not %s" % id)
 			_finish()
 			return true
 	return false

@@ -1166,6 +1166,11 @@ func wound_foe(e: Enemy, lost: int, cutting: bool, vital := false) -> bool:
 	return true
 
 
+## What the compendium says about throwing knives: taught when one is picked
+## up again, or when the hero reaches for one and has none at all.
+const KNIFE_LORE := "Wurfmesser: Ein geworfenes Messer bleibt liegen, wo es landet, und du hebst es auf, wenn du darüberläufst. Bei einem von fünf Würfen zerbricht es allerdings. Griffbereit für den Kampf trägst du 3 Wurfmesser und eines mehr je zwei Stufen Messerwurf; weitere wandern in den Rucksack (10 auf einem Platz). Sobald kein Kampf mehr tobt, steckst du sie von dort nach. Neue verkauft der Händler im Dorf, Räuber tragen oft welche bei sich, und an der Werkbank im eigenen Haus schmiedest du sie aus Eisen."
+
+
 ## How many throwing knives the hero can keep ready for a fight:
 ## KNIFE_CAP_BASE, and one more per KNIFE_CAP_STEP levels of Messerwurf.
 func knife_cap() -> int:
@@ -1222,7 +1227,14 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 	if not can_act() or _attack_cooldown > 0.0:
 		return
 	if knives <= 0:
-		Effects.float_text(level, global_position + Vector3(0, 3.2, 0), Lang.t("Keine Wurfmesser"), Color(1, 1, 1, 0.8))
+		# Spares in the bag go into the belt once the fight is over; with
+		# none at all, the compendium says where to get more.
+		var why := Lang.t("Keine Wurfmesser")
+		if spare_knives() > 0:
+			why = Lang.t("Gürtel leer: Nachschub nach dem Kampf")
+		else:
+			Events.teach(KNIFE_LORE)
+		Effects.float_text(level, global_position + Vector3(0, 3.2, 0), why, Color(1, 1, 1, 0.8))
 		return
 	path.clear()
 	var dir := facing()

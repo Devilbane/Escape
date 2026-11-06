@@ -138,6 +138,15 @@ static func float_text(parent: Node, pos: Vector3, text: String, color: Color, a
 	DamageNumber.show_at(parent, pos, text, color, above_fog)
 
 
+## What the hero just found or earned (an item, coins, an ingredient, a catch,
+## experience), floating up like float_text, in letters sized by its `worth`
+## from 0 to 1 (see DamageNumber.worth_size, item_worth, copper_worth and
+## xp_worth): a small find reads as a note, a great one stands out. Drawn over
+## walls and the fog of war.
+static func loot_text(parent: Node, pos: Vector3, text: String, color: Color, worth: float) -> void:
+	DamageNumber.show_at(parent, pos, text, color, true, DamageNumber.worth_size(worth))
+
+
 ## A damage number or a short word over `target`'s head. Unlike float_text it
 ## follows the head, and numbers over one head stack without overlapping.
 static func head_text(parent: Node, target: Node3D, height: float, text: String, color: Color) -> void:

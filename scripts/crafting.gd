@@ -143,7 +143,8 @@ const FINE_BARS := {"region": "Dorf", "when": "", "source": "Schmied Gorm",
 ## gathers that ingredient (see learn_from_find). "bench" is the bench it is
 ## made at when that is not the one of its craft. A recipe with a "result" (an item in Items.ALL) can be made
 ## at the bench of its craft on the crafting square (see make); one without
-## is not complete yet.
+## is not complete yet. A recipe with "potency" makes the potion its brewer
+## is able to brew (see HealingPotions.brewed) instead of its "result".
 const RECIPES := {
 	"mondsilberring": {"name": "Mondsilberring", "giver": "8",
 		"craft": "feinschmieden", "craft_level": 3,
@@ -302,12 +303,26 @@ const RECIPES := {
 			{"id": "schuppe", "text": "Eine Drachenschuppe für die Handrücken."},
 			{"id": "eisen", "text": "Ein Barren Eisen für die Fingerglieder."},
 		]},
+	# Priestess Elsbeth tends the wounded at the temple; she hands out the
+	# healing potion, brewed at the alchemist's table (see HealingPotions).
+	"heiltrank": {"name": "Heiltrank", "giver": "O",
+		"craft": "alchemie", "craft_level": 0, "result": "heiltrank", "potency": true,
+		"effect": "Heilt 15 bis 60 % deiner Leben, je nach Stärke, dann 20 Sekunden lang 1 Leben pro Sekunde",
+		"ingredients": {"baerlauch": 1, "schleimgelee": 1},
+		"offer": "Ich verbinde hier jeden Tag Wunden. Nimm dieses Rezept für einen Heiltrank: Bärlauch, in Schleimgelee gekocht. Brau ihn am Alchemistentisch auf dem Handwerkerplatz. Je klüger und geübter du bist, desto stärker wird er.",
+		"lines": [
+			{"id": "lauch", "text": "Ein Bund Bärlauch, den nur ein Fuchs im Gras der Wiesen findet."},
+			{"id": "gelee", "text": "Ein Klumpen Schleimgelee als Grund, damit der Trank im Leib bleibt."},
+			{"id": "kunst", "text": "Wer klug ist und die Alchemie übt, braut ihn stärker."},
+		]},
 }
 
 ## Explained once in the compendium, when the first recipe is found.
 const HOW_TO := "Rezepte stehen im Kompendium (Taste H) im „Rezeptbuch“: was hineingehört, welches Handwerk es braucht, und verblasste Zeilen (…), die du noch herausfinden musst. Darunter stehen die Zutaten: wo und wann man sie findet und woher sie kommen. Zutaten kommen in deinen Zutatenbeutel, nicht in die Tasche."
 
 var game: Node
+## The item the last make() put in the bag or the chest.
+var last_made := ""
 ## Known recipes: recipe id -> {"read": [ids of faded lines already read]}.
 var known := {}
 ## The ingredient pouch: ingredient id -> count. Coins and gems are never
@@ -724,12 +739,40 @@ func make(id: String) -> String:
 		else:
 			take(ingredient, count)
 	var p: Player = game.player
-	if p.bag_fits(r.result):
-		p.bag.append(r.result)
+	var result := result_of(id)
+	if p.bag_fits(result):
+		p.bag.append(result)
 	else:
-		game.storage.append(r.result)
+		game.storage.append(result)
+	last_made = result
 	p.train(r.craft, CRAFT_XP, false)
 	return ""
+
+
+## The item a recipe makes right now: its "result", or for a potion the
+## potency the hero is able to brew (see HealingPotions).
+func result_of(id: String) -> String:
+	var r: Dictionary = RECIPES[id]
+	if r.get("potency", false) and game != null and game.player != null:
+		return HealingPotions.brewed(game.player.potions.brew_points())
+	return str(r.get("result", ""))
+
+
+## For a potion: what the hero brews now and from how many brewing points
+## the next potency comes, e.g. "Du braust: Heiltrank (Stärke mittel) ·
+## Intelligenz 12 + 2 × Alchemie 3 = 18 · hoch ab 26". "" for anything else.
+func potency_line(id: String) -> String:
+	if not RECIPES[id].get("potency", false) or game == null or game.player == null:
+		return ""
+	var p: Player = game.player
+	var made := result_of(id)
+	var alchemy := Training.skill_level(float(p.xp.get(HealingPotions.CRAFT, 0.0)), HealingPotions.CRAFT)
+	var text := Lang.t("Du braust: %s (Stärke %s)") % [Items.item_name(made), HealingPotions.potency_name(made)]
+	text += "  ·  " + Lang.t("Intelligenz %d + 2 × Alchemie %d = %d") % [p.attribute("intelligenz"), alchemy, p.potions.brew_points()]
+	var next := HealingPotions.next_of(made)
+	if next != "":
+		text += "  ·  " + Lang.t("%s ab %d") % [HealingPotions.potency_name(next), int(HealingPotions.POTIONS[next].from)]
+	return text
 
 
 # --- Compendium -----------------------------------------------------------------
@@ -746,6 +789,8 @@ func describe(id: String) -> String:
 	var lines := []
 	if r.has("effect"):
 		lines.append(Lang.t("Wirkung: %s") % Lang.t(r.effect))
+	if potency_line(id) != "":
+		lines.append(potency_line(id))
 	for line in r.lines:
 		lines.append(Lang.t("„%s“") % Lang.t(line.text if line_read(id, line) else line.faded))
 	var parts := []

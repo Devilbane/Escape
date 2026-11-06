@@ -79,6 +79,7 @@ const SHORTCUTS := [
 	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],
 	["Schleichen", "C oder Doppelklick"],
 	["Fackel anzünden oder löschen", "V oder die Fackel am rechten Rand, unter dem Haus"],
+	["Heiltrank trinken", "1 oder der Trank links neben der Fackel, einmal pro Minute; „Trinken“ im Inventar wählt einen bestimmten"],
 	["Lager aufschlagen (speichern und schlafen)", "U, der Knopf „Lager“ im Menü, oder die Schlafrolle im Inventar"],
 	["Benutzen, durchsuchen, Fackel", "Dagegenlaufen"],
 	["Inventar", "I"],
@@ -688,12 +689,16 @@ func _skills_text() -> String:
 
 # --- Character page -------------------------------------------------------
 
-## The crafts, each with its level, for the character page.
+## The crafts, each with its level, for the character page: two to a line,
+## so four crafts still take two lines in the column beside the wheel.
 func _crafts_text() -> String:
 	var parts := []
 	for id in Training.CRAFTS:
 		parts.append("%s %d" % [Lang.t(Training.CRAFTS[id].name), Training.skill_level(game.player.xp.get(id, 0.0), id)])
-	return Lang.t("Handwerk:") + " " + "   ".join(parts)
+	var lines := []
+	for i in range(0, parts.size(), 2):
+		lines.append("   ".join(parts.slice(i, i + 2)))
+	return Lang.t("Handwerk:") + " " + "\n".join(lines)
 
 
 ## The width of the column beside the character wheel.
@@ -851,7 +856,7 @@ func _build_character() -> void:
 	_character_level.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_character_spend = spend
 	for entry in [
-		[Lang.t("Innen: Grundfertigkeiten. Außen: fortgeschrittene Fertigkeiten."), CHARACTER_TEXT],
+		[Lang.t("Innen Grundfertigkeiten, außen fortgeschrittene."), CHARACTER_TEXT],
 		[_crafts_text(), game.GOLD],
 	]:
 		var l: Label = game._make_label(game.TEXT_FONT, 16, entry[1])
@@ -1055,6 +1060,8 @@ func _inventory_details() -> Control:
 			buttons.append(_item_button(Lang.t("Lager aufschlagen"), func():
 				close()
 				game.camp_action()))
+		elif Items.is_potion(id):
+			buttons.append(_item_button(Lang.t("Trinken"), _drink_selected))
 		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id) or Items.is_light(id) or Items.is_ammo(id):
 			pass # Carried for a task, to the smith, for a fox, for the dark or as spare knives, not worn.
 		else:
@@ -1387,6 +1394,21 @@ func _place_stone_selected() -> void:
 		game.show_message(why, 1.6)
 
 
+## Drinks the picked potion (see HealingPotions); during the cooldown the
+## note says how long to wait. The rest of the bundle stays picked.
+func _drink_selected() -> void:
+	var p: Player = game.player
+	var id: String = p.bag[_selected]
+	var why: String = game.drink_potion(id)
+	_note = why if why != "" else Lang.t("%s getrunken.") % Items.item_name(id)
+	_selected = -1
+	for cell in Items.stacks(p.bag):
+		if cell.id == id:
+			_selected = cell.indices.back()
+			break
+	_rebuild()
+
+
 func _drop_selected() -> void:
 	var p: Player = game.player
 	var id: String = p.bag[_selected]
@@ -1703,6 +1725,14 @@ func _bench_row(id: String) -> Control:
 	needs.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	needs.custom_minimum_size.x = 560
 	text.add_child(needs)
+	# A potion says what the hero brews now and when it gets stronger.
+	var potency: String = c.potency_line(id)
+	if potency != "":
+		var brew: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+		brew.text = potency
+		brew.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		brew.custom_minimum_size.x = 560
+		text.add_child(brew)
 	var why: String = c.why_not(id)
 	var state: Label = game._make_label(game.TEXT_FONT, 16, Color(1.0, 0.75, 0.5) if why != "" else Color(0.4, 0.92, 0.4))
 	state.text = why if why != "" else Lang.t("Alles da: du kannst es herstellen.")
@@ -1721,7 +1751,7 @@ func _make_recipe(id: String) -> void:
 	if why != "":
 		_note = why
 	else:
-		var item: String = Crafting.RECIPES[id].result
+		var item: String = game.crafting.last_made
 		var p: Player = game.player
 		var where := Lang.t("in deiner Tasche") if p.bag.has(item) else Lang.t("in deiner Truhe, die Tasche ist voll")
 		_note = Lang.t("Hergestellt: %s, %s.") % [Items.item_name(item), where]

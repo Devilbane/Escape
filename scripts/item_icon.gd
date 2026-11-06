@@ -109,6 +109,8 @@ static func kind_of(id: String) -> String:
 			return "torch_out"
 		"rast":
 			return "bedroll"
+		"trank":
+			return "heal_potion"
 		"munition":
 			return "knife"
 		"futter":
@@ -310,6 +312,18 @@ func _draw() -> void:
 			draw_circle(p.call(0.5, 0.64), u * 0.2, paw)
 			for toe in [Vector2(0.24, 0.4), Vector2(0.4, 0.24), Vector2(0.6, 0.24), Vector2(0.76, 0.4)]:
 				draw_circle(p.call(toe.x, toe.y), u * 0.09, paw)
+		"heal_potion":
+			# A round flask of red brew with a cork, a light on the glass and,
+			# for a potion of the bag, one to three golden dots for its
+			# potency (low, medium, high), so it never hangs on the red alone.
+			var brew := c if Items.ALL.has(what) else Color(0.92, 0.2, 0.25)
+			draw_circle(p.call(0.5, 0.64), u * 0.3, Color(0.85, 0.88, 0.95, 0.55))
+			draw_circle(p.call(0.5, 0.66), u * 0.25, brew)
+			draw_rect(Rect2(p.call(0.4, 0.2), Vector2(u * 0.2, u * 0.2)), Color(0.85, 0.88, 0.95, 0.55))
+			draw_rect(Rect2(p.call(0.41, 0.08), Vector2(u * 0.18, u * 0.13)), WOOD)
+			draw_circle(p.call(0.4, 0.56), u * 0.06, Color(1, 1, 1, 0.7))
+			for i in int(Items.ALL.get(what, {}).get("pips", 0)):
+				draw_circle(p.call(0.84, 0.18 + i * 0.2), u * 0.07, GOLDEN)
 		"potion":
 			draw_circle(p.call(0.5, 0.65), u * 0.28, Color(0.4, 0.75, 0.4, 0.8))
 			draw_rect(Rect2(p.call(0.42, 0.12), Vector2(u * 0.16, u * 0.28)), GOLDEN)

@@ -22,31 +22,46 @@ const NIGHT_FROM := 21.0
 const NIGHT_UNTIL := 5.0
 
 ## The sky through the day: hour, background, ambient colour and energy,
-## sun (or moon) colour and energy, its pitch and yaw in degrees, colour
-## saturation, how strongly lamps and windows glow (0 to 1), and how much of
+## sun (or moon) colour and energy, colour saturation, how strongly lamps and windows glow (0 to 1), and how much of
 ## the light is the moon's (0 to 1). The night keys are the full moon's
 ## cold, deep blue light, with the colours left full so its bluish sheen
 ## covers everything; a smaller moon dims it (see Moon.light), down to
 ## nearly pitch black at new moon.
 const KEYS := [
 	{"hour": 0.0, "bg": Color(0.015, 0.03, 0.09), "amb": Color(0.28, 0.42, 1.0), "amb_e": 0.17,
-		"sun": Color(0.4, 0.58, 1.0), "sun_e": 0.44, "pitch": -60.0, "yaw": 30.0, "sat": 1.05, "glow": 1.0, "moon": 1.0},
+		"sun": Color(0.4, 0.58, 1.0), "sun_e": 0.44, "sat": 1.05, "glow": 1.0, "moon": 1.0},
 	{"hour": 4.5, "bg": Color(0.015, 0.03, 0.09), "amb": Color(0.28, 0.42, 1.0), "amb_e": 0.17,
-		"sun": Color(0.4, 0.58, 1.0), "sun_e": 0.44, "pitch": -60.0, "yaw": 30.0, "sat": 1.05, "glow": 1.0, "moon": 1.0},
+		"sun": Color(0.4, 0.58, 1.0), "sun_e": 0.44, "sat": 1.05, "glow": 1.0, "moon": 1.0},
 	{"hour": 6.0, "bg": Color(0.5, 0.36, 0.42), "amb": Color(0.78, 0.62, 0.66), "amb_e": 0.4,
-		"sun": Color(1.0, 0.62, 0.42), "sun_e": 0.55, "pitch": -20.0, "yaw": -95.0, "sat": 0.92, "glow": 0.5, "moon": 0.0},
+		"sun": Color(1.0, 0.62, 0.42), "sun_e": 0.55, "sat": 0.92, "glow": 0.5, "moon": 0.0},
 	# Daylight: exactly the open-air look the game had before the clock.
 	{"hour": 7.5, "bg": Color(0.5, 0.46, 0.57), "amb": Color(0.7, 0.68, 0.78), "amb_e": 0.52,
-		"sun": Color(1.0, 0.8, 0.6), "sun_e": 0.88, "pitch": -38.0, "yaw": -70.0, "sat": 0.95, "glow": 0.0, "moon": 0.0},
+		"sun": Color(1.0, 0.8, 0.6), "sun_e": 0.88, "sat": 0.95, "glow": 0.0, "moon": 0.0},
 	{"hour": 17.5, "bg": Color(0.5, 0.46, 0.57), "amb": Color(0.7, 0.68, 0.78), "amb_e": 0.52,
-		"sun": Color(1.0, 0.8, 0.6), "sun_e": 0.88, "pitch": -38.0, "yaw": 0.0, "sat": 0.95, "glow": 0.0, "moon": 0.0},
+		"sun": Color(1.0, 0.8, 0.6), "sun_e": 0.88, "sat": 0.95, "glow": 0.0, "moon": 0.0},
 	{"hour": 19.5, "bg": Color(0.55, 0.32, 0.3), "amb": Color(0.8, 0.58, 0.55), "amb_e": 0.42,
-		"sun": Color(1.0, 0.52, 0.3), "sun_e": 0.6, "pitch": -16.0, "yaw": 25.0, "sat": 0.95, "glow": 0.55, "moon": 0.0},
+		"sun": Color(1.0, 0.52, 0.3), "sun_e": 0.6, "sat": 0.95, "glow": 0.55, "moon": 0.0},
 	{"hour": 21.0, "bg": Color(0.015, 0.03, 0.09), "amb": Color(0.28, 0.42, 1.0), "amb_e": 0.17,
-		"sun": Color(0.4, 0.58, 1.0), "sun_e": 0.44, "pitch": -60.0, "yaw": 30.0, "sat": 1.05, "glow": 1.0, "moon": 1.0},
+		"sun": Color(0.4, 0.58, 1.0), "sun_e": 0.44, "sat": 1.05, "glow": 1.0, "moon": 1.0},
 	{"hour": 24.0, "bg": Color(0.015, 0.03, 0.09), "amb": Color(0.28, 0.42, 1.0), "amb_e": 0.17,
-		"sun": Color(0.4, 0.58, 1.0), "sun_e": 0.44, "pitch": -60.0, "yaw": 30.0, "sat": 1.05, "glow": 1.0, "moon": 1.0},
+		"sun": Color(0.4, 0.58, 1.0), "sun_e": 0.44, "sat": 1.05, "glow": 1.0, "moon": 1.0},
 ]
+
+
+## Where the sun (or the moon) stands through the day: from each hour on,
+## its pitch and yaw in degrees. It does not wander with the clock: a light
+## turning a little every frame makes every shadow shimmer and crawl, so it
+## stays put for a whole part of the day (night, dawn, day, dusk) and only
+## then swings to its next place, in SUN_SWING hours (about two seconds).
+## Each change falls in a dim hour or a soft light, where the swing is
+## barely seen.
+const SUN_STEPS := [
+	{"hour": 5.0, "pitch": -20.0, "yaw": -95.0},
+	{"hour": 7.0, "pitch": -38.0, "yaw": -35.0},
+	{"hour": 18.5, "pitch": -16.0, "yaw": 25.0},
+	{"hour": 21.0, "pitch": -60.0, "yaw": 30.0},
+]
+const SUN_SWING := 0.04
 
 
 ## The hour after `seconds` of real time have passed.
@@ -85,6 +100,23 @@ static func moon_at(hour: float) -> float:
 	return float(sky_at(hour).moon)
 
 
+## The sun's (or moon's) pitch and yaw in degrees at an hour, as a Vector3
+## for rotation_degrees: still within a part of the day, see SUN_STEPS.
+static func sun_angles_at(hour: float) -> Vector3:
+	hour = fposmod(hour, 24.0)
+	var n := SUN_STEPS.size()
+	# The step in force is the last one begun; before the first, the night's.
+	var now := n - 1
+	for i in n:
+		if hour >= SUN_STEPS[i].hour:
+			now = i
+	var to: Dictionary = SUN_STEPS[now]
+	var from: Dictionary = SUN_STEPS[(now + n - 1) % n]
+	var since := fposmod(hour - float(to.hour), 24.0)
+	var t := smoothstep(0.0, SUN_SWING, since)
+	return Vector3(lerpf(from.pitch, to.pitch, t), lerpf(from.yaw, to.yaw, t), 0.0)
+
+
 ## Lights the open air for an hour of the day.
 static func apply(env: Environment, sun: DirectionalLight3D, hour: float) -> void:
 	var sky := sky_at(hour)
@@ -94,7 +126,10 @@ static func apply(env: Environment, sun: DirectionalLight3D, hour: float) -> voi
 	env.adjustment_saturation = sky.sat
 	sun.light_color = sky.sun
 	sun.light_energy = sky.sun_e
-	sun.rotation_degrees = Vector3(sky.pitch, sky.yaw, 0)
+	var angles := sun_angles_at(hour)
+	# Only touched when it changes, so the shadows are not redrawn for nothing.
+	if not sun.rotation_degrees.is_equal_approx(angles):
+		sun.rotation_degrees = angles
 
 
 ## The time as the HUD shows it, e.g. "21:30", in quarter hours.

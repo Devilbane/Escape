@@ -4,14 +4,13 @@ extends RefCounted
 ##
 ## - Colour: a plain slime ("schleim") is water of one of COLOURS, picked
 ##   when it is born; the crystal and ember slimes keep their own colour.
-##   Slimes of one colour are kin and leave each other be.
 ## - Size: a slime is as big as its level (see size_for), from a small lump
 ##   at level 1 to a hulk at MAX_LEVEL. Some are born a level or more above
 ##   their place (BIRTH_GROWTH, never above its area's top, see birth_top),
 ##   so a group never looks all alike.
 ## - Hunger: a slime falls upon any other creature it could swallow (see
 ##   can_eat): a monster no more than PREY_MARGIN levels above it, or a
-##   slime of another colour at least SLIME_GAP levels below it. Ghosts,
+##   slime of another kind at least SLIME_GAP levels below it. Ghosts,
 ##   horrors, bosses and the big ones it leaves alone. The prey fights back.
 ## - Corpses: a slime smells the dead from afar (CORPSE_SCENT) and goes for
 ##   a corpse before anything living, the hero too unless the hero is right
@@ -23,6 +22,11 @@ extends RefCounted
 ##   at most), and spills out when the slime itself falls, with its own loot
 ##   (see Level.spill_belly). A corpse's loot lies on the floor beside it:
 ##   a slime eating the corpse slurps up what lies within SLURP_REACH.
+## - Merging: a slime notices another slime of its kind within
+##   Enemy.RIVAL_SIGHT that it can see, and goes to it when it has nothing
+##   better to do (no prey, no corpse, no hero). When two touch (MERGE_GAP),
+##   the higher level takes the other in: their colours mix by their levels,
+##   and it grows as from a meal, belly and all.
 ## - Blob: from BLOB_LEVEL on a slime is a Blob. It sparkles, hits harder
 ##   (BLOB_DAMAGE), strikes faster (BLOB_PACE) and its touch poisons more
 ##   often (BLOB_POISON).
@@ -75,8 +79,12 @@ const SHOWN := 8
 const SLURP_REACH := 1.6
 ## How long a swallowed thing may be inside it, against its body's height.
 const INSIDE := 0.4
+## The classic slime's colour, for mixing with a coloured one.
+const PLAIN := Color(0.36, 0.78, 0.26)
+## How close two slimes' bodies come before they flow into one.
+const MERGE_GAP := 0.5
 ## Into the compendium the first time the hero sees a slime swallow something.
-const LEARN := "Schleime wachsen: Ein Schleim fällt über jedes Wesen her, das er verschlingen kann, auch über kleinere Schleime anderer Farbe, und er wittert die Toten von weitem und geht lieber an eine Leiche als an etwas Lebendiges. Was er erlegt, schluckt er ganz, samt allem, was es bei sich trug, und wird davon größer und stärker, bis Stufe 25. Ab Stufe 15 ist er ein Blob: Er funkelt, schlägt härter zu und vergiftet öfter. Fällt er, gibt er alles wieder her, was er verschluckt hat."
+const LEARN := "Schleime wachsen: Ein Schleim fällt über jedes Wesen her, das er verschlingen kann, und er wittert die Toten von weitem und geht lieber an eine Leiche als an etwas Lebendiges. Was er erlegt, schluckt er ganz, samt allem, was es bei sich trug, und wird davon größer und stärker, bis Stufe 25. Ab Stufe 15 ist er ein Blob: Er funkelt, schlägt härter zu und vergiftet öfter. Fällt er, gibt er alles wieder her, was er verschluckt hat. Zwei Schleime, die einander bemerken, kriechen zueinander und fließen zu einem zusammen."
 
 
 static func grows(kind: String) -> bool:
@@ -96,7 +104,8 @@ static func can_eat(slime: Enemy, prey: Enemy) -> bool:
 	if not grows(slime.kind) or prey == slime or prey.dead or not edible(prey):
 		return false
 	if grows(prey.kind):
-		return not kin(slime, prey) and prey.rated_level <= slime.rated_level - SLIME_GAP
+		# One of its own kind it merges with instead (see try_merge).
+		return prey.kind != slime.kind and prey.rated_level <= slime.rated_level - SLIME_GAP
 	return prey.rated_level <= slime.rated_level + PREY_MARGIN
 
 
@@ -105,10 +114,6 @@ static func swallows(slime: Enemy, prey: Enemy) -> bool:
 	return slime != null and is_instance_valid(slime) and not slime.dead and grows(slime.kind) \
 			and slime != prey and edible(prey)
 
-
-## Two slimes of one kind and colour.
-static func kin(a: Enemy, b: Enemy) -> bool:
-	return a.kind == b.kind and a._stats.get("tint", null) == b._stats.get("tint", null)
 
 
 ## How many levels a meal of this level is worth.
@@ -198,3 +203,36 @@ static func nearest_corpse(slime: Enemy) -> Corpse:
 			best = c
 			best_d = d
 	return best
+
+
+## The other slime of its kind this one notices: the nearest within
+## Enemy.RIVAL_SIGHT that it can see, or null.
+static func nearest_slime(e: Enemy) -> Enemy:
+	var best: Enemy = null
+	var best_d := Enemy.RIVAL_SIGHT
+	for o in e.level.enemies:
+		if not _mergeable(e, o):
+			continue
+		var d: float = e._flat_distance(o)
+		if d < best_d and e.level.has_line_of_sight(e.global_position, o.global_position):
+			best = o
+			best_d = d
+	return best
+
+
+## Merges this slime with another of its kind it touches, if this one is the
+## bigger (the higher level; on a tie, the older). True when it did.
+static func try_merge(e: Enemy) -> bool:
+	for o in e.level.enemies:
+		if not _mergeable(e, o) or e._flat_distance(o) > e.radius + o.radius + MERGE_GAP:
+			continue
+		if o.rated_level > e.rated_level or (o.rated_level == e.rated_level and o.get_instance_id() < e.get_instance_id()):
+			continue
+		e.merge_with(o)
+		return true
+	return false
+
+
+static func _mergeable(e: Enemy, o) -> bool:
+	return is_instance_valid(o) and o is Enemy and o != e and not o.dead and o.kind == e.kind \
+			and o.swallowed_by == null and not o.is_friend()

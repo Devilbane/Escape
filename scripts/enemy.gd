@@ -395,6 +395,12 @@ var _sparkles: CPUParticles3D
 var _glow_light: OmniLight3D
 ## The corpse a slime is going for (see SlimeGrowth.nearest_corpse).
 var meal: Corpse = null
+## Another slime this one has noticed and goes to merge with (see
+## SlimeGrowth.nearest_slime), and whether it merged into a bigger one.
+var drawn_to: Enemy = null
+var merged := false
+var _puddle_mat: StandardMaterial3D
+var _drops_mat: StandardMaterial3D
 
 
 ## Balances a monster to the area it lives in (see HeroLevel.AREAS): a
@@ -676,6 +682,8 @@ func calm() -> void:
 
 ## What the message line says when this one falls.
 func fall_text() -> String:
+	if merged:
+		return Lang.t("Zwei Schleime fließen zusammen.")
 	match kind:
 		"wolf":
 			return Lang.t("Der Wolf bleibt liegen.")
@@ -856,11 +864,7 @@ func _slime() -> void:
 	mesh.mesh = _slime_body
 	var mat := ShaderMaterial.new()
 	mat.shader = SLIME_SHADER
-	var murk: Array = SLIME_MURK
-	if _stats.has("tint"):
-		var tint: Color = _stats.tint
-		var dirt: Color = SLIME_MURK[1]
-		murk = [tint.lerp(dirt, 0.3).darkened(0.75), tint.lerp(dirt, 0.25).darkened(0.4), tint.lerp(SLIME_MURK[2], 0.6).darkened(0.3)]
+	var murk := _slime_murk()
 	mat.set_shader_parameter("deep_color", murk[0])
 	mat.set_shader_parameter("shallow_color", murk[1])
 	mat.set_shader_parameter("scum_color", murk[2])
@@ -878,6 +882,29 @@ func _slime() -> void:
 	_slime_drops(murk[1], box.size / _model.scale.x)
 
 
+## The water it is made of: deep, shallow and scum colours. A kind with a
+## tint is water of that colour, still a little dirty.
+func _slime_murk() -> Array:
+	if not _stats.has("tint"):
+		return SLIME_MURK
+	var tint: Color = _stats.tint
+	var dirt: Color = SLIME_MURK[1]
+	return [tint.lerp(dirt, 0.3).darkened(0.75), tint.lerp(dirt, 0.25).darkened(0.4), tint.lerp(SLIME_MURK[2], 0.6).darkened(0.3)]
+
+
+## Takes on its tint anew (after a merge, see merge_with): body, puddle, drops.
+func _recolour() -> void:
+	var murk := _slime_murk()
+	if _slime_mat != null:
+		_slime_mat.set_shader_parameter("deep_color", murk[0])
+		_slime_mat.set_shader_parameter("shallow_color", murk[1])
+		_slime_mat.set_shader_parameter("scum_color", murk[2])
+	if _puddle_mat != null:
+		_puddle_mat.albedo_color = murk[1]
+	if _drops_mat != null:
+		_drops_mat.albedo_color = Color(murk[1], 0.85)
+
+
 ## A wet, glossy smear under the slime that goes where it goes.
 func _slime_puddle(color: Color, body: Vector3) -> void:
 	var fade := GradientTexture2D.new()
@@ -892,6 +919,7 @@ func _slime_puddle(color: Color, body: Vector3) -> void:
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = color
 	mat.albedo_texture = fade
+	_puddle_mat = mat
 	mat.roughness = 0.06
 	mat.metallic_specular = 0.8
 	var plane := PlaneMesh.new()
@@ -909,6 +937,7 @@ func _slime_drops(color: Color, body: Vector3) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = Color(color, 0.85)
+	_drops_mat = mat
 	mat.roughness = 0.05
 	mat.metallic_specular = 0.8
 	var drop := SphereMesh.new()
@@ -1486,7 +1515,7 @@ func swallow(victim: Enemy) -> void:
 	hp = mini(max_hp(), hp + maxi(0, max_hp() - was_max))
 	hp = mini(max_hp(), hp + (max_hp() - hp + 1) / 2)
 	var height := 2.2 * float(_stats.size)
-	Effects.head_text(level, self, height, Lang.t("Schluck!"), SlimeGrowth.GULP_COLOR)
+	Effects.head_text(level, self, height, Lang.t("Blubb!") if victim.merged else Lang.t("Schluck!"), SlimeGrowth.GULP_COLOR)
 	if rated_level > was_level:
 		_resize(SlimeGrowth.size_of(self))
 		Effects.head_text(level, self, height + 0.6, Lang.t("Stufe %d") % rated_level, SlimeGrowth.GULP_COLOR)
@@ -1635,6 +1664,23 @@ static func _lump(colour: Color, r: float, flat := false) -> MeshInstance3D:
 	return lump
 
 
+## Takes in another slime of its kind that it touched (see SlimeGrowth.
+## try_merge): their colours mix by their levels, and the other flows into
+## it as if swallowed, with all it carried, so this one grows from it.
+func merge_with(other: Enemy) -> void:
+	var mine: Color = _stats.get("tint", SlimeGrowth.PLAIN)
+	var theirs: Color = other._stats.get("tint", SlimeGrowth.PLAIN)
+	if mine != theirs:
+		var share := float(other.rated_level) / float(rated_level + other.rated_level)
+		_stats.tint = mine.lerp(theirs, share)
+		_recolour()
+	other.merged = true
+	other._last_rival = self
+	other.slain_by_rival = true
+	other.hp = 0
+	other._die()
+
+
 ## Swells (or shrinks) to `size`: its model, its body for blows and walls,
 ## its glow and its shader's measure of it, over SlimeGrowth.GULP_TIME.
 func _resize(size: float) -> void:
@@ -1756,8 +1802,14 @@ func _physics_process(delta: float) -> void:
 	if _scan <= 0.0:
 		_scan = RIVAL_SCAN
 		_look_for_foe(friendly, leash)
-		if SlimeGrowth.grows(kind) and meal == null:
-			meal = SlimeGrowth.nearest_corpse(self)
+		if SlimeGrowth.grows(kind):
+			if meal == null:
+				meal = SlimeGrowth.nearest_corpse(self)
+			# Two slimes that touch flow into one; one that notices another
+			# goes to it (see SlimeGrowth).
+			if SlimeGrowth.try_merge(self):
+				return
+			drawn_to = SlimeGrowth.nearest_slime(self) if foe == null and meal == null else null
 	if foe != null and (not is_instance_valid(foe) or foe.dead):
 		foe = null
 		_path.clear()
@@ -1823,6 +1875,9 @@ func _physics_process(delta: float) -> void:
 					move = to.normalized()
 			elif _lost > 0.0:
 				_look_around(delta)
+	elif not _awake and not dead and drawn_to != null and is_instance_valid(drawn_to) and not drawn_to.dead:
+		if _busy <= 0.0:
+			move = _head_for(drawn_to.global_position)
 	elif not _awake and not dead:
 		move = _roam(delta) if _stats.get("roam", false) else _rest(delta)
 	if _detour_time > 0.0 and move != Vector3.ZERO:

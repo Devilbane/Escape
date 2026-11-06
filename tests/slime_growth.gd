@@ -4,7 +4,8 @@ extends SceneTree
 ## it fells (no corpse, and the prey's loot stays in its belly until the
 ## slime falls), grows a level or more per meal up to level 25 and is a
 ## sparkling, harder-hitting Blob from level 15 on; and it smells corpses
-## and eats them, growing from them too and slurping up the loot by them.
+## and eats them, growing from them too and slurping up the loot by them;
+## and two slimes that notice each other come together and merge.
 ## Run with: godot --headless --fixed-fps 60 -s tests/slime_growth.gd
 
 var failures := 0
@@ -141,9 +142,8 @@ func _process(_delta: float) -> bool:
 			check(not SlimeGrowth.can_eat(bandit, slime), "a bandit does not eat slimes")
 			var other := _spawn("schleim", spot + Vector3(0, -50, 0), {"tint": Color(0.1, 0.2, 0.9)})
 			other.rated_level = 13
-			check(not SlimeGrowth.can_eat(slime, other), "a slime only one level smaller is no meal")
 			other.rated_level = 5
-			check(SlimeGrowth.can_eat(slime, other) != SlimeGrowth.kin(slime, other), "a much smaller slime of another colour is a meal, kin is not")
+			check(not SlimeGrowth.can_eat(slime, other), "a slime does not hunt its own kind: they merge instead")
 			game.level.enemies.erase(other)
 			other.queue_free()
 			stage_frames = 0
@@ -224,6 +224,33 @@ func _process(_delta: float) -> bool:
 			var slurped: Array = slime.belly.back().loot if not slime.belly.is_empty() else []
 			check(slurped.any(func(t): return t[0] == "item" and t[1] == "schwert"), "the sword is in the slime's belly")
 			check(slurped.any(func(t): return t[0] == "coins" and int(t[2]) == 7), "the 7 coins are in the slime's belly")
+			# Merging: a red slime and a blue one a few tiles apart.
+			game.level.enemies.erase(slime)
+			slime.queue_free()
+			wolf = _spawn("schleim", spot + Vector3(0, 0, Level.TILE), {"tint": Color(1, 0, 0)})
+			slime = _spawn("schleim", spot + Vector3(Level.TILE * 3.0, 0, Level.TILE), {"tint": Color(0, 0, 1)})
+			stage_frames = 0
+			stage = 5
+		5:
+			stage_frames += 1
+			if stage_frames == 3:
+				wolf.rated_level = 4
+				slime.rated_level = 8
+				level_before = slime.rated_level
+			if stage_frames == 40:
+				check(slime.drawn_to == wolf or wolf.drawn_to == slime or wolf.dead, "the slimes notice each other and come together")
+			if not wolf.dead:
+				if stage_frames > 900:
+					check(false, "the two slimes did not merge within 15 seconds")
+					_finish()
+					return true
+				return false
+			check(wolf.merged and wolf.swallowed_by == slime, "the smaller slime flows into the bigger one")
+			check(slime.rated_level > level_before, "the merged slime is bigger")
+			var tint: Color = slime._stats.tint
+			check(tint.r > 0.1 and tint.b > 0.1, "their colours mix (%s)" % tint)
+			check(tint.b > tint.r, "the bigger one's colour wins out")
+			check(wolf.fall_text() == Lang.t("Zwei Schleime fließen zusammen."), "the message says they flowed together")
 			_finish()
 			return true
 	return false

@@ -224,9 +224,25 @@ ICONS = {
     "hero": (f'<circle cx="32" cy="20" r="10" fill="url(#gold)" {O}/><path d="M12 56c0-12 9-20 20-20s20 8 20 20z" fill="url(#gold)" {O}/>', None),
     "house": (f'<path d="M6 30L32 8l26 22z" fill="#9a3a22" {O}/><path d="M12 30h40v26H12z" fill="url(#parch)" {O}/><path d="M28 40h8v16h-8z" fill="url(#wood)" {O}/>'
               f'<path d="M16 36h8v7h-8zM40 36h8v7h-8z" fill="#f2c46d" {O}/>', None),
-    "coin": (f'<circle cx="32" cy="32" r="23" fill="none" {O}/><circle cx="32" cy="32" r="17" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="2"/>'
-             f'<path d="M27 24h10M32 24v16M27 40h10" stroke="#000" stroke-opacity=".4" stroke-width="3"/>',
-             '<circle cx="32" cy="32" r="23" fill="url(#greyr)"/>'),
+    # A coin of polished metal: the grey part (tinted with the metal) is a rim and a face shaded in
+    # bands of light and dark like a mirror; the painting on top adds the bevel lines, a raised
+    # mark, a soft sheen and a little white glint, so it still reads at 18 px.
+    "coin": ('<g fill="none" stroke="#fff" stroke-linecap="round">'
+             '<circle cx="32" cy="32" r="23" fill="none" stroke="#1b1108" stroke-width="2"/>'
+             '<circle cx="32" cy="32" r="17.5" stroke="#000" stroke-opacity=".5" stroke-width="1.6"/>'
+             '<circle cx="32" cy="32" r="19" stroke="#fff" stroke-opacity=".55" stroke-width="1" transform="rotate(180 32 32)"/></g>'
+             '<path d="M27 24.6h10M32 24.6v15.6M27 40.2h10" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="3" stroke-linecap="round"/>'
+             '<path d="M27 24h10M32 24v16M27 40h10" fill="none" stroke="#000" stroke-opacity=".45" stroke-width="3" stroke-linecap="round"/>'
+             '<path d="M13 24A21 21 0 0 1 26 12" fill="none" stroke="#fff" stroke-opacity=".9" stroke-width="3.2" stroke-linecap="round"/>'
+             '<path d="M46 40A15 15 0 0 1 38 47" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>'
+             '<path d="M45 11l1.6 4.4L51 17l-4.4 1.6L45 23l-1.6-4.4L39 17l4.4-1.6z" fill="#fff" fill-opacity=".95"/>',
+             '<defs><linearGradient id="rimm" x1="0" y1="0" x2="1" y2="1">'
+             '<stop offset="0" stop-color="#ffffff"/><stop offset=".22" stop-color="#d4d4d4"/><stop offset=".4" stop-color="#8c8c8c"/>'
+             '<stop offset=".58" stop-color="#f2f2f2"/><stop offset=".8" stop-color="#9a9a9a"/><stop offset="1" stop-color="#5a5a5a"/></linearGradient>'
+             '<linearGradient id="facem" x1="1" y1="1" x2="0" y2="0">'
+             '<stop offset="0" stop-color="#ffffff"/><stop offset=".3" stop-color="#cfcfcf"/><stop offset=".55" stop-color="#9c9c9c"/>'
+             '<stop offset=".78" stop-color="#e8e8e8"/><stop offset="1" stop-color="#b0b0b0"/></linearGradient></defs>'
+             '<circle cx="32" cy="32" r="23" fill="url(#rimm)"/><circle cx="32" cy="32" r="17.5" fill="url(#facem)"/>'),
     "herb": (f'<path d="M32 58V28" stroke="#4a2a12" stroke-width="3"/>' + "".join(
                  f'<ellipse cx="{x}" cy="{y}" rx="6" ry="12" transform="rotate({r} {x} {y})" fill="url(#green)" {O}/>'
                  for x, y, r in [(32, 14, 0), (20, 24, -40), (44, 24, 40), (22, 38, -60), (42, 38, 60)])

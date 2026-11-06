@@ -294,7 +294,7 @@ func _shown() -> void:
 	p.level_points = {}
 	p.refresh_stats()
 	game._update_hud()
-	check(game._xp_label.text.contains(Lang.t("Heldenstufe %d") % 3), "the HUD shows the level: %s" % game._xp_label.text)
+	check(game._xp_label.text.contains(Lang.t("Stufe %d") % 3), "the HUD shows the level: %s" % game._xp_label.text)
 	check(game._xp_bar.value == 50 and game._xp_bar.max_value == 300, "the HUD bar shows the way to the next level")
 	check(game._xp_label.text.contains(Lang.t("Punkt frei (P)")), "the HUD tells of a free point")
 	menus.open("charakter")

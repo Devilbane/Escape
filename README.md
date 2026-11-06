@@ -299,10 +299,11 @@ Saving at a camp on a dungeon floor keeps the floor as you left it (monsters sla
 **Out cold:** when your life drops to zero you do not die, you fall unconscious. On the surface (the open air, a
 house, an inn) a **giant eagle** swoops down and carries you off; below ground (the dungeon, the mines, the lairs)
 the **dwarves' emergency team** comes with lanterns and a stretcher. You wake up in the bed you last saved in (or at
-your camp) with full life, and the game is saved. You keep everything you wear and the knives in your belt, but
-**everything in your bag, all your coins and all your ingredients stay where you fell**: the coins as piles, the
-rest tied up in your **bundle**. Walk back to the spot and onto the bundle to take it all back (gear only while the
-bag has room). The dragon's helpers leave the bundle alone, but at night they carry coins lying about off to the
+your camp) with full life, and the game is saved. The blow to the head costs you **all the experience you gathered
+towards your next hero level** (the level itself stays). You keep your armour, your weapons and the knives in your
+belt, but **your bag drops to the ground as a whole** where you fell, with everything in it, your backpack and your
+ingredients too, and **all your coins** lie in piles beside it. Walk back to the spot and onto the bag to take it
+all back (gear only while the bag has room). The dragon's helpers leave the bag alone, but at night they carry coins lying about off to the
 dragon's hoard like any others, so do not leave them there overnight. A test run from the map workshop still ends
 and goes back to the workshop.
 

@@ -5118,6 +5118,7 @@ func _on_player_defeated() -> void:
 	menus.close()
 	var fell_on := level
 	var lost := Rescue.drop_belongings(self)
+	lost.xp = Rescue.forget(player)
 	_update_hud()
 	var eagle := Rescue.on_surface(level)
 	show_message(Lang.t("Du verlierst das Bewusstsein...") + "\n" + (Lang.t("Ein Adler stößt herab!") if eagle else Lang.t("Der Rettungstrupp der Zwerge ist unterwegs!")), 3.0)
@@ -5155,7 +5156,9 @@ func _rescued(eagle: bool, lost: Dictionary, fell_on: String) -> void:
 	var text := Lang.t("Ein Riesenadler hat dich bewusstlos davongetragen und hierher gebracht.") if eagle \
 			else Lang.t("Der Rettungstrupp der Zwerge hat dich bewusstlos aus der Tiefe getragen und hierher gebracht.")
 	if int(lost.items) + int(lost.coins) + int(lost.ingredients) > 0:
-		text += "\n" + Lang.t("Deine Beute, %d Münzen und %d Zutaten liegen noch dort, wo du gefallen bist: %s.") % [int(lost.coins), int(lost.ingredients), Lang.t(fell_on)]
+		text += "\n" + Lang.t("Deine Tasche mit allem darin und %d Münzen liegen noch dort, wo du gefallen bist: %s.") % [int(lost.coins), Lang.t(fell_on)]
+	if int(lost.get("xp", 0)) > 0:
+		text += "\n" + Lang.t("Gedächtnisverlust: %d Erfahrung vergessen.") % int(lost.xp)
 	show_message(text, 6.0)
 	Events.tell(text.replace("\n", " "), Color(1.0, 0.85, 0.45), 8.0)
 	Events.teach(Rescue.LORE)
@@ -5166,7 +5169,7 @@ func _rescued(eagle: bool, lost: Dictionary, fell_on: String) -> void:
 func _on_bundle_reached(entry: Array) -> void:
 	if Rescue.take_back(self, entry):
 		Sfx.play(self, "rummage", -3.0)
-		Events.found(Lang.t("Du nimmst dein Bündel wieder an dich."), GOLD)
+		Events.found(Lang.t("Du nimmst deine Tasche wieder an dich."), GOLD)
 		_update_hud()
 
 

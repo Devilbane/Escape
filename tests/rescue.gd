@@ -1,10 +1,11 @@
 extends SceneTree
 ## Headless test for the rescue (see Rescue): a hero whose life runs out on a
-## dungeon floor is not dead. The bag, the coins and the ingredients stay
-## where they fell (the coins as a pile, the rest as the hero's pack); worn
-## gear stays on. The dwarves' emergency team carries the hero to the bed of
-## the saved game, where they wake up with full life and the run goes on.
-## Back at the spot, the pack and the coins come back. On the surface it is
+## dungeon floor is not dead. The bag as a whole (with the backpack and the
+## ingredients) and the coins stay where they fell; other worn gear stays
+## on, and the progress towards the next hero level is forgotten. The
+## dwarves' emergency team carries the hero to the bed of the saved game,
+## where they wake up with full life and the run goes on. Back at the spot,
+## the bag, the backpack and the coins come back. On the surface it is
 ## an eagle that comes.
 ## Run with: godot --headless --fixed-fps 60 -s tests/rescue.gd
 
@@ -76,7 +77,8 @@ func _process(delta: float) -> bool:
 			for text in [Rescue.LORE, "Du verlierst das Bewusstsein...", "Ein Adler stößt herab!", "Der Rettungstrupp der Zwerge ist unterwegs!",
 					"Bergrettung!", "Ein Riesenadler hat dich bewusstlos davongetragen und hierher gebracht.",
 					"Der Rettungstrupp der Zwerge hat dich bewusstlos aus der Tiefe getragen und hierher gebracht.",
-					"Deine Beute, %d Münzen und %d Zutaten liegen noch dort, wo du gefallen bist: %s.", "Du nimmst dein Bündel wieder an dich."]:
+					"Deine Tasche mit allem darin und %d Münzen liegen noch dort, wo du gefallen bist: %s.", "Du nimmst deine Tasche wieder an dich.",
+					"Gedächtnisverlust: %d Erfahrung vergessen."]:
 				check(Lang.EN.has(text), "'%s' has English" % text)
 			game.hero_name = HERO
 			game.escaped = false
@@ -92,6 +94,8 @@ func _process(delta: float) -> bool:
 			player.bag.assign(["knochenhelm", "knochenhelm", "lederkappe"])
 			player.equipped["waffe"] = "schwert"
 			worn = player.equipped.duplicate()
+			player.equipped["rucksack"] = "leinenrucksack"
+			player.hero_xp = HeroLevel.total_for(3) + 40
 			game.coins = 57
 			game.crafting.add(HERB, 3, false)
 			game.crafting.add(ORE, 2, false)
@@ -100,7 +104,8 @@ func _process(delta: float) -> bool:
 			check(player.bag.is_empty(), "the bag is left behind")
 			check(game.coins == 0, "the coins are left behind")
 			check(game.crafting.have(HERB) == 0 and game.crafting.have(ORE) == 0, "the ingredients are left behind")
-			check(player.equipped == worn, "worn gear stays on")
+			check(player.equipped == worn, "worn gear stays on, the backpack goes with the bag (%s)" % [player.equipped])
+			check(player.hero_level() == 3 and player.hero_xp == HeroLevel.total_for(3), "amnesia: the progress towards the next level is forgotten, the level stays (%d)" % player.hero_xp)
 			var here: Array = game.level.floor_items
 			var packs := _bundles(here)
 			check(packs.size() == 1, "the pack lies on the floor")
@@ -150,6 +155,7 @@ func _process(delta: float) -> bool:
 			check(game.crafting.have(HERB) == 3 and game.crafting.have(ORE) == 2, "the ingredients come back")
 			check(game.crafting.ores.get(ORE, []).size() == 2, "the ore keeps its lumps")
 			check(game.coins == 57, "the coins come back, not doubled (%d)" % game.coins)
+			check(player.equipped.get("rucksack", "") == "leinenrucksack", "the backpack is worn again")
 			check(_bundles(game.level.floor_items).is_empty(), "the empty pack is gone")
 			# On the surface an eagle comes.
 			game.escaped = true

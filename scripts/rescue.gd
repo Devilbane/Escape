@@ -11,9 +11,11 @@ extends Node3D
 ##
 ## The rescuers carry the hero, not their loot. Everything in the bag, every
 ## coin in the purse and every ingredient in the pouch stays where they fell:
-## the coins as piles (see CoinPile), the rest in one pack, the hero's
-## "bundle" on the floor list (see Level.lay_bundle). What is worn stays
-## worn, and so do the knives in the belt. Walking onto the pack gives it all
+## the coins as piles (see CoinPile), the bag as a whole (with a worn
+## backpack and the pouch in it), the hero's "bundle" on the floor list (see
+## Level.lay_bundle). Other worn gear stays worn, and so do the knives in the
+## belt. And the blow to the head costs all experience gathered towards the
+## next hero level (see forget). Walking onto the pack gives it all
 ## back (as much as the bag holds). The dragon's helpers leave the pack alone,
 ## but at night they may carry the coin piles off to the hoard like any other
 ## coins lying about (see DragonHelpers).
@@ -23,7 +25,7 @@ extends Node3D
 ## the hero is drawn (SmoothMotion.drawn_at).
 
 ## Explained once in the compendium, the first time it happens.
-const LORE := "Sinkt dein Leben auf null, wirst du bewusstlos, aber nicht tot. An der Oberfläche trägt dich ein Riesenadler fort, unter der Erde holt dich der Rettungstrupp der Zwerge. Du wachst in dem Bett auf, in dem du zuletzt geschlafen hast (oder an deinem Lager), mit vollem Leben. Was du anhast, behältst du. Alles in der Tasche, deine Münzen und deine Zutaten bleiben dort liegen, wo du gefallen bist: die Münzen als Haufen, der Rest in deinem Bündel. Geh hin und hol es dir zurück. Aber beeil dich: Nachts tragen die Helfer des Drachen liegende Münzen in seinen Hort."
+const LORE := "Sinkt dein Leben auf null, wirst du bewusstlos, aber nicht tot. An der Oberfläche trägt dich ein Riesenadler fort, unter der Erde holt dich der Rettungstrupp der Zwerge. Du wachst in dem Bett auf, in dem du zuletzt geschlafen hast (oder an deinem Lager), mit vollem Leben. Aber der Schlag auf den Kopf kostet dich alle Erfahrung, die du seit deiner letzten Heldenstufe gesammelt hast; die Stufe selbst bleibt. Deine Rüstung und deine Waffen behältst du. Deine Tasche fällt als Ganzes zu Boden, mit allem darin (auch dein Rucksack und deine Zutaten), und deine Münzen liegen als Haufen daneben. Geh hin und hol dir alles zurück. Aber beeil dich: Nachts tragen die Helfer des Drachen liegende Münzen in seinen Hort."
 
 ## The pack's floor entry kind (see Level.floor_items).
 const BUNDLE := "bundle"
@@ -330,6 +332,15 @@ static func _cone(r: float, h: float) -> CylinderMesh:
 
 # --- What stays behind ------------------------------------------------------------
 
+## The blow to the head: the hero forgets all they learnt towards their next
+## hero level (the level itself stays). Returns the experience lost.
+static func forget(hero: Player) -> int:
+	var start := HeroLevel.total_for(hero.hero_level())
+	var lost := maxi(0, hero.hero_xp - start)
+	hero.hero_xp = start
+	return lost
+
+
 ## Whether a floor entry is the hero's pack.
 static func is_bundle(entry) -> bool:
 	return entry is Array and entry.size() >= 5 and str(entry[0]) == BUNDLE and entry[4] is Dictionary
@@ -340,7 +351,7 @@ static func is_empty(entry) -> bool:
 	if not is_bundle(entry):
 		return true
 	var c: Dictionary = entry[4]
-	return (c.get("bag", []) as Array).is_empty() and (c.get("pouch", {}) as Dictionary).is_empty()
+	return str(c.get("backpack", "")) == "" and (c.get("bag", []) as Array).is_empty() and (c.get("pouch", {}) as Dictionary).is_empty()
 
 
 ## The pack on the floor: a tied-up leather sack with a strap, glowing a
@@ -375,8 +386,14 @@ static func drop_belongings(game: Node) -> Dictionary:
 	var lost := {"items": hero.bag.size(), "coins": 0, "ingredients": 0}
 	var bag := []
 	bag.assign(hero.bag)
-	var contents := {"bag": bag, "pouch": {}, "pieces": {}}
+	var contents := {"bag": bag, "pouch": {}, "pieces": {}, "backpack": ""}
 	hero.bag.clear()
+	# The bag goes down as a whole: a worn backpack with it.
+	var backpack := str(hero.equipped.get("rucksack", ""))
+	if backpack != "":
+		contents.backpack = backpack
+		hero.equipped.erase("rucksack")
+		lost.items += 1
 	var coins := {}
 	if game.coins > 0:
 		coins[CoinPile.MONEY] = int(game.coins)
@@ -418,6 +435,20 @@ static func take_back(game: Node, entry: Array) -> bool:
 	var crafting: Crafting = game.crafting
 	var c: Dictionary = entry[4]
 	var any := false
+	# The backpack first, so the bag has its room again.
+	var backpack := str(c.get("backpack", ""))
+	if backpack != "" and Items.ALL.has(backpack):
+		if not hero.equipped.has("rucksack"):
+			hero.equipped["rucksack"] = backpack
+			c.backpack = ""
+			any = true
+		elif hero.bag_fits(backpack):
+			hero.bag.append(backpack)
+			c.backpack = ""
+			any = true
+	elif backpack != "":
+		c.backpack = ""
+	hero.refresh_stats()
 	var pieces: Dictionary = c.get("pieces", {})
 	var pouch: Dictionary = c.get("pouch", {})
 	for id in pouch.keys():

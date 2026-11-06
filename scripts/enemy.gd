@@ -2001,7 +2001,10 @@ func _physics_process(delta: float) -> void:
 		_play(walk)
 	else:
 		_play(_hunting_gait(walk, _meant_speed))
-	_footfalls(delta, move != Vector3.ZERO, dist)
+	if _stats.model == "Slime":
+		SlimeSounds.glide(self, delta, move != Vector3.ZERO)
+	else:
+		_footfalls(delta, move != Vector3.ZERO, dist)
 	_voice(delta, dist)
 	# Feet keep pace with the ground (see Stride): every walk and run plays
 	# just as fast as its planted foot must travel, bigger bodies taking
@@ -2322,7 +2325,10 @@ func _strike(target: Node3D) -> void:
 	_cooldown = _stats.cooldown
 	var slow: float = _stats.size
 	_play_once("1H_Melee_Attack_Chop", 0.9 * slow)
-	Sfx.play(self, "swing", -4.0, global_position)
+	if _stats.model == "Slime":
+		SlimeSounds.attack(self)
+	else:
+		Sfx.play(self, "swing", -4.0, global_position)
 	_anim.speed_scale = 1.0 / slow
 	await get_tree().create_timer(0.45 * slow).timeout
 	_anim.speed_scale = 1.0

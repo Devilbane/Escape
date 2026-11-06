@@ -88,3 +88,10 @@ License: CC0 (public domain), from opengameart.org:
 
 All other sounds, including the comic word noises (word_*), are made by
 tools/make_sounds.py.
+
+The slimes' slurps and squelches (slime_glide_0..3, slime_attack_0..2) are
+made by tools/make_slime_sounds.py from the eight slime recordings
+(slime_01 to slime_08) of "80 CC0 creture SFX #2" by rubberduck,
+https://opengameart.org/content/80-cc0-creture-sfx-2
+License: CC0 (public domain). (The "Slime Squelch" pack there is CC-BY-SA and
+is not used.)

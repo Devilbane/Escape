@@ -47,6 +47,8 @@ const EN := {
 	"Der Bergkönig": "The Mountain King",
 	"Der Bergkönig tobt!": "The Mountain King rages!",
 	"Der Bergkönig ist besiegt! Das Herz des Berges gehört dir.": "The Mountain King is defeated! The heart of the mountain is yours.",
+	"Wo er fiel, leuchtet gleich ein goldener Ausgang. Tritt hinein, und du stehst wieder vor der Mine.": "Where he fell, a golden way out is about to shine. Step into it and you stand in front of the mine again.",
+	"Du trittst aus dem Stollen der Mine ins Freie.": "You step out of the mine's tunnel into the open.",
 	"Runenhammer des Bergkönigs": "The Mountain King's Rune Hammer",
 	"Einzigartig: der Hammer des Bergkönigs aus dem Herzen des Berges": "Unique: the Mountain King's hammer from the heart of the mountain",
 }

@@ -101,6 +101,11 @@ func _check_floor(building: String, up: String, down: String) -> void:
 	for e in lvl.enemies:
 		if e is ElderDragon:
 			continue
+		# A slime may be born a few levels above its place and grows by
+		# eating (see SlimeGrowth), so only its floor is checked.
+		if SlimeGrowth.grows(e.kind):
+			check(e.rated_level >= 17 and e.rated_level <= SlimeGrowth.MAX_LEVEL, "%s on %s is a fight for level 17 or more (%d)" % [e.kind, building, e.rated_level])
+			continue
 		check(e.rated_level >= 17 and e.rated_level <= 19, "%s on %s is a fight for level 17 to 19 (%d)" % [e.kind, building, e.rated_level])
 	# Treasure chests hold gold beside their epic piece; a plain crate may
 	# hold an epic piece too (a beast trophy, see ArmourSets).

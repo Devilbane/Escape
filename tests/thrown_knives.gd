@@ -184,3 +184,12 @@ func _test() -> void:
 	p.bag.clear()
 	game.give_knives(5)
 	check(p.knives == 3 and p.spare_knives() == 2, "given knives fill the belt, then the bag")
+
+	# Reaching for a knife with none at all: the compendium says where to get more.
+	p.knives = 0
+	p.bag.clear()
+	game.lore.erase(game.KNIFE_LORE)
+	p._attack_cooldown = 0.0
+	p.throw_knife()
+	check(game.lore.has(game.KNIFE_LORE), "an empty belt teaches where new knives come from")
+	check("Händler" in game.KNIFE_LORE, "the entry names the merchant")

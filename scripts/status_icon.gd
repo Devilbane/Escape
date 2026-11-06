@@ -5,6 +5,7 @@ extends Control
 ## picture, with a number in its corner where the condition has one.
 ## Passing troubles, with a red frame, in a row under the life bar
 ## (Game.hero_ailments):
+##   "blut"     bleeding (see Bleeding): a red drop, with the life still to bleed
 ##   "gift"     poisoned: a green drop
 ##   "fluch"    cursed: a violet eye
 ##   "brand"    burning: a flame
@@ -116,6 +117,13 @@ func _draw() -> void:
 			draw_circle(c + Vector2(0, 3), 6.0, Color(0.4, 0.85, 0.3))
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -9), c + Vector2(5.6, 1.5), c + Vector2(-5.6, 1.5)]), Color(0.4, 0.85, 0.3))
 			draw_circle(c + Vector2(-2, 3), 1.6, Color(0.8, 1.0, 0.7))
+		"blut":
+			# A drop of blood, a little left of centre to leave room for the number.
+			var blood := Bleeding.COLOR
+			var at := c + Vector2(-2, 0)
+			draw_circle(at + Vector2(0, 3), 6.0, blood)
+			draw_colored_polygon(PackedVector2Array([at + Vector2(0, -9), at + Vector2(5.6, 1.5), at + Vector2(-5.6, 1.5)]), blood)
+			draw_circle(at + Vector2(-2, 3), 1.6, Color(1.0, 0.65, 0.6))
 		"fluch":
 			# An evil eye.
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-9, 0), c + Vector2(0, -6), c + Vector2(9, 0), c + Vector2(0, 6)]), Color(0.75, 0.55, 1.0))

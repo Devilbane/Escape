@@ -36,11 +36,9 @@ const VITAL_FACTOR := 2
 ## the fight, and how much longer it then needs between attacks.
 const SLOW_CHANCE := 0.3
 const SLOW_FACTOR := 1.5
-## The chance that a vital hit makes the monster bleed: BLEED_TICKS times 1
-## life, one every BLEED_EVERY seconds.
+## The chance that a vital hit makes the monster bleed, whatever the weapon:
+## as much life as the hit cost, bled away as Bleeding tells.
 const BLEED_CHANCE := 0.3
-const BLEED_TICKS := 3
-const BLEED_EVERY := 1.5
 ## The colour of the words over a monster struck in a vital point, and of
 ## the compendium's numbers: a warm amber, apart from the red damage
 ## numbers and the sneak attack's crimson.

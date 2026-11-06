@@ -145,9 +145,12 @@ func _physics_process(delta: float) -> void:
 			if is_instance_valid(e) and not e.dead and not e.is_friend() and _hits(e.global_position):
 				# Monster knowledge: a knife may find a vital point (see MonsterLore).
 				var vital: bool = level.player.finds_vital(e)
+				var had: int = e.hp
 				e.take_hit(level.player.vital_damage(level.player.throw_power(), "werfen") if vital else damage, global_position - direction, "knife")
 				if vital:
 					level.player.vital_struck(e)
+				# A knife cuts: the wound may bleed (see Bleeding).
+				level.player.wound_foe(e, had - e.hp, true, vital)
 				level.player.mark_fight()
 				level.player.train("werfen", 1.0)
 				if e.dead and e.kind == "magier":
@@ -172,6 +175,9 @@ func _physics_process(delta: float) -> void:
 			var before := player.hp
 			player.take_damage(2 if fire else damage, global_position - direction)
 			player.defend_against(shooter)
+			# A bolt cuts: the hero may bleed (see Bleeding).
+			if not magic and not fire and Bleeding.rolls_wound(before - player.hp):
+				player.bleed(before - player.hp)
 			# A mage's orb sometimes curses whoever it hits.
 			if magic and not fire and player.hp < before and randf() < CURSE_CHANCE:
 				player.afflict("fluch")

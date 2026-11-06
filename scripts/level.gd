@@ -4074,7 +4074,7 @@ const LIMESTONE_COLOUR := Color(0.88, 0.86, 0.76)
 ## dungeon a find is common at most, and ore uncommon at most (never the
 ## epic noble ore). Returns the gear or ingredient id
 ## dropped (not the ore; for a slime the gear, else its body's find), or "".
-func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0, body_roll := -1.0) -> String:
+func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0, body_roll := -1.0, knife_roll := -1.0) -> String:
 	# Swallowed by a slime (see SlimeGrowth): what it carried stays in the
 	# slime's belly until the slime falls. A slime gives back its belly.
 	if e.swallowed_by != null and is_instance_valid(e.swallowed_by):
@@ -4122,6 +4122,10 @@ func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0, body_ro
 	var lime := Loot.limestone_find(e.kind)
 	if lime > 0:
 		lay_find(Forge.LIMESTONE, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), LIMESTONE_COLOUR, lime, true)
+	# Bandits carry throwing knives: they lie where the bandit fell, picked
+	# up by walking over them like a thrown one (see Loot.knife_find).
+	for i in Loot.knife_find(e.kind, knife_roll):
+		lay_knife(knife_rest(pos + Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0)), pos))
 	return found
 
 

@@ -36,7 +36,8 @@ func _finish() -> void:
 
 
 ## Puts one plain warrior right in front of the hero, too tough to fall,
-## looking away from the hero (its back turned) or at them.
+## looking away from the hero (its back turned, the hero sneaking up) or at
+## them.
 func _place(back_turned: bool) -> void:
 	var player: Player = game.player
 	if foe == null or not is_instance_valid(foe) or foe.dead:
@@ -54,6 +55,8 @@ func _place(back_turned: bool) -> void:
 	foe.velocity = Vector3.ZERO
 	foe._model.rotation.y = 0.0 if back_turned else PI
 	start_hp = foe.hp
+	# Right up close a foe notices a hero who does not sneak (Enemy._notices).
+	player.set_sneaking(back_turned)
 	player.power = POWER
 	player.hp = player.max_hp
 	player._attack_cooldown = 0.0

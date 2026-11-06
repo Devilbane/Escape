@@ -260,3 +260,31 @@ func _clock_and_saving() -> void:
 	var mid_swing := DayNight.sun_angles_at(7.0 + DayNight.SUN_SWING * 0.5)
 	check(not mid_swing.is_equal_approx(DayNight.sun_angles_at(6.5)) and not mid_swing.is_equal_approx(DayNight.sun_angles_at(8.0)), "between two parts of the day the sun swings across")
 	check(DayNight.SUN_SWING * DayNight.DAY_LENGTH / 24.0 < 3.0, "and the swing takes only a moment")
+
+	# The ground never grows brighter as the evening goes on, not even when
+	# the dusk's low sun gives way to the high moon at nightfall (as bright
+	# as the eye sees the light's colours, under the full moon).
+	var ground := func(h: float) -> float:
+		var sky: Dictionary = DayNight.sky_at(h)
+		var sun_on_ground := DayNight.sun_strength(h) * sin(deg_to_rad(-DayNight.sun_angles_at(h).x))
+		return sun_on_ground * (sky.sun as Color).get_luminance() + float(sky.amb_e) * (sky.amb as Color).get_luminance()
+	var was: float = ground.call(17.5)
+	var darker := true
+	var h := 17.5
+	while h <= 23.0:
+		var now: float = ground.call(h)
+		darker = darker and now <= was + 0.0001
+		was = now
+		h += 0.005
+	check(darker, "the ground only darkens from evening into the night")
+	check(is_equal_approx(DayNight.sun_strength(12.0), 0.88), "by day the sun shines as strongly as ever")
+
+	# The night is dark, lit only by the moon: even the full moon lights the
+	# ground far less than the dusk, and each smaller moon less again.
+	var night_ground := func(phase: int) -> float:
+		return float(ground.call(23.0)) * Moon.light(posmod(phase - Moon.FIRST_PHASE, Moon.CYCLE))
+	check(float(night_ground.call(Moon.FULL)) < float(ground.call(19.5)) * 0.6, "a full-moon night is much darker than the dusk")
+	var by_phase := true
+	for p in range(Moon.NEW, Moon.FULL):
+		by_phase = by_phase and float(night_ground.call(p)) < float(night_ground.call(p + 1))
+	check(by_phase, "the fuller the moon, the brighter the night")

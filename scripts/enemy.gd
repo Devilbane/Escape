@@ -1598,7 +1598,7 @@ func _footfalls(delta: float, moving: bool, dist: float) -> void:
 	if visible or not moving or is_ghost() or dist > HEARD_FROM or _step_timer > 0.0:
 		return
 	_step_timer = 0.8
-	Sfx.play(level, "step_%d" % (randi() % 6), lerpf(-24.0, -10.0, 1.0 - dist / HEARD_FROM), global_position)
+	Sfx.play(level, Surfaces.step_sound(Surfaces.ground(level, global_position)), lerpf(-24.0, -10.0, 1.0 - dist / HEARD_FROM), global_position)
 	Effects.float_text(level, global_position + Vector3(0, 1.0, 0), Lang.t("tapp"), Color(0.7, 0.7, 0.75, 0.6))
 
 

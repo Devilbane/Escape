@@ -24,6 +24,7 @@ signal phase_changed(phase: int)
 const TITLE := "Glutschlund, der Hortdrache"
 ## Share of its life at which phase 2 and phase 3 begin.
 const PHASE_AT := [0.6, 0.3]
+const BACKSTAB_FACTOR := 3
 ## Off the hunt this long, it is whole again.
 const RECOVER_AFTER := 15.0
 ## How far from its hoard it follows the hero (metres).
@@ -72,8 +73,7 @@ func _init() -> void:
 
 ## Its name and the shares of its life where its phases begin (see BossBar).
 func boss_title() -> String:
-	# One made in the map workshop goes by the name it was given there.
-	return str(custom.get("title", TITLE))
+	return TITLE
 
 
 func phase_marks() -> Array:
@@ -96,6 +96,11 @@ func is_breathing() -> bool:
 func take_hit(damage: int, from: Vector3, hit_kind := "hit", wakes := true) -> void:
 	if dead:
 		return
+	if hit_kind == "backstab":
+		# No single stab ends a dragon, but it hurts.
+		damage *= BACKSTAB_FACTOR
+		hit_kind = "hit"
+		Comic.pop(global_position, "backstab")
 	if _winded > 0.0:
 		damage *= 2
 	super.take_hit(damage, from, hit_kind, wakes)
@@ -330,7 +335,7 @@ func _bite(player: Player) -> void:
 		return
 	var d := player.global_position - global_position
 	d.y = 0.0
-	if d.length() < BITE_RANGE + girth() + 0.6 and not level.stacked(self, player) and not level.door_between(global_position, player.global_position):
+	if d.length() < BITE_RANGE + girth() + 0.6 and not level.stacked(self, player):
 		player.take_damage(BITE_DAMAGE, global_position, self)
 
 
@@ -347,8 +352,3 @@ func _fire_rain(player: Player) -> void:
 	for pos in spots:
 		if not level.is_opaque(level.world_to_cell(pos)):
 			FireField.spawn(level, pos, RAIN_WARN)
-
-
-## A boss shrugs off a thunder weapon's crack (see Enemy.shock).
-func can_be_stunned() -> bool:
-	return false

@@ -138,7 +138,7 @@ func _test() -> void:
 	game.coins = 100
 	_bump("S")
 	check(game.menus.current == "steinmetz" and game.trader_role == "S", "the next time the goods open")
-	var stone_price: int = rep.price("S", Items.buy_price(Menus.STONE))
+	var stone_price: int = rep.price("S", Items.ALL[Menus.STONE].price)
 	game.menus._buy_stones(1)
 	check(game.coins == 100 - stone_price and game.player.bag.has(Menus.STONE), "the stonemason sells at his price for the hero")
 	game.menus.close()
@@ -159,10 +159,10 @@ func _test() -> void:
 	# The smith's prices follow his standing too.
 	rep.gain("1", 45)
 	game.trader_role = "1"
-	check(Forge.ware_price(game, "langschwert") == rep.price("1", Items.buy_price("langschwert")), "Gorm's own work is cheaper for an honoured hero")
+	check(Forge.ware_price(game, "langschwert") == rep.price("1", Items.ALL["langschwert"].price), "Gorm's own work is cheaper for an honoured hero")
 	check(Forge.forge_cost("schwert", game).gold <= Forge.forge_cost("schwert").gold, "forging is no dearer")
 	game.trader_role = ""
-	check(Forge.ware_price(game, "langschwert") == Items.buy_price("langschwert"), "away from Gorm's window the price is the usual")
+	check(Forge.ware_price(game, "langschwert") == Items.ALL["langschwert"].price, "away from Gorm's window the price is the usual")
 
 	# The reputation page in the compendium.
 	game.menus.compendium_page = "ruf"

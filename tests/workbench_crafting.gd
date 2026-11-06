@@ -70,7 +70,7 @@ func _test() -> void:
 	check(c.recipes_for("feinschmieden") == ["mondsilberring", "klingenring"], "the bench lists the known recipes of its craft")
 	check(c.recipes_for("alchemie").is_empty(), "another craft's bench lists none of them")
 	var why: String = c.why_not("klingenring")
-	check(why.contains("Mondsilbererz") and why.contains("4 Eisenbarren"), "the bench says what is missing")
+	check(why.contains("Mondsilbererz") and why.contains("2 Eisenbarren"), "the bench says what is missing")
 	check(c.why_not("mondsilberring") == "Das Rezept ist noch nicht vollständig.", "a recipe without a result cannot be made yet")
 
 	# The window at the bench.
@@ -84,7 +84,7 @@ func _test() -> void:
 	# Everything there: the piece is made.
 	c.add("mondsilbererz", 2, false)
 	c.add("glimmermoos", 1, false)
-	game.iron = 5
+	game.iron = 3
 	check(c.why_not("klingenring") == "", "with every ingredient the recipe can be made")
 	game.menus._make_recipe("klingenring")
 	check(game.player.bag == ["klingenring"], "the ring goes into the bag")
@@ -103,10 +103,10 @@ func _test() -> void:
 
 	# A full bag: the piece waits in the chest.
 	while game.player.bag.size() < game.player.bag_size():
-		game.player.bag.append("schwert")
+		game.player.bag.append("kupferring")
 	c.learn_recipe("axtreif")
 	c.add("hoehlenpilz", 2, false)
-	game.iron = 6
+	game.iron = 3
 	check(c.make("axtreif") == "", "the bracelet is made with a full bag")
 	check(game.storage.has("axtreif") and not game.player.bag.has("axtreif"), "with a full bag it goes into the chest")
 
@@ -114,7 +114,7 @@ func _test() -> void:
 	var before: int = c.craft_level("feinschmieden")
 	for i in 4:
 		c.add("hoehlenpilz", 2, false)
-		game.iron = 6
+		game.iron = 3
 		c.make("axtreif")
 	check(c.craft_level("feinschmieden") > before, "making things raises the craft's level")
 	game.menus.open("werkbank")

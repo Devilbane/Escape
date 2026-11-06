@@ -20,8 +20,7 @@ extends RefCounted
 ## Over the light of the hour, the weather lays its own look: rain and
 ## storm darken and grey the sky, fog washes it out and hides the distance.
 ## Rain falls around the hero, mist drifts over the ground, and lightning
-## lights up the whole world for a moment. Rain leaves puddles that stay a
-## while after it (see Puddles and puddle_water).
+## lights up the whole world for a moment.
 
 const CLEAR := "clear"
 const RAIN := "rain"
@@ -74,11 +73,6 @@ const RAIN_BOX := Vector3(22, 0.5, 16)
 const RAIN_HEIGHT := 16.0
 ## Drifting patches of mist at full strength.
 const MIST_PATCHES := 28
-## Rain puddles (see Puddles): how many hours of rain fill them up (a
-## storm pours twice as fast), and how many hours of dry weather after it
-## they take to dry up again.
-const PUDDLE_FILL_HOURS := 0.8
-const PUDDLE_DRY_HOURS := 3.0
 
 
 ## The part of the day the chances go by.
@@ -118,18 +112,6 @@ static func spell(rng: RandomNumberGenerator, kind := RAIN) -> float:
 	return rng.randf_range(MIN_HOURS, MAX_HOURS)
 
 
-## How much water lies in the puddles (0 dry to 1 full) after `delta` real
-## seconds more of `kind` weather: rain fills them, a storm faster, and any
-## other weather dries them, slowly, so they stay a while after the rain.
-static func puddle_water(water: float, kind: String, delta: float) -> float:
-	var hours := delta * 24.0 / DayNight.DAY_LENGTH
-	if kind == RAIN or kind == STORM:
-		water += hours / PUDDLE_FILL_HOURS * (2.0 if kind == STORM else 1.0)
-	else:
-		water -= hours / PUDDLE_DRY_HOURS
-	return clampf(water, 0.0, 1.0)
-
-
 ## The look of a weather (see LOOKS).
 static func look(kind: String) -> Dictionary:
 	return (LOOKS.get(kind, LOOKS[CLEAR]) as Dictionary).duplicate()
@@ -150,9 +132,8 @@ static func apply(env: Environment, sun: DirectionalLight3D, weather_look: Dicti
 	sun.light_energy *= dim
 	env.ambient_light_energy *= weather_look.amb
 	env.adjustment_saturation *= weather_look.sat
-	# A grey sky: the background drifts towards the haze, darker by night
-	# (as dark as the moon leaves it: fog never glows in a moonless night).
-	var haze := HAZE * clampf(env.ambient_light_energy / 0.52, 0.02, 1.0)
+	# A grey sky: the background drifts towards the haze, darker by night.
+	var haze := HAZE * clampf(env.ambient_light_energy / 0.52, 0.25, 1.0)
 	haze.a = 1.0
 	env.background_color = env.background_color.lerp(haze, clampf((1.0 - dim) * 0.8, 0.0, 1.0))
 	env.fog_enabled = weather_look.fog > 0.0005
@@ -209,7 +190,6 @@ static func make_rain() -> CPUParticles3D:
 	p.gravity = Vector3(0, -9.8, 0)
 	p.initial_velocity_min = 18.0
 	p.initial_velocity_max = 22.0
-	Effects.start_cold(p)
 	return p
 
 
@@ -248,7 +228,6 @@ static func make_mist() -> CPUParticles3D:
 	ramp.add_point(0.7, Color(HAZE, 0.22))
 	ramp.set_color(ramp.get_point_count() - 1, Color(HAZE, 0.0))
 	p.color_ramp = ramp
-	Effects.start_cold(p)
 	return p
 
 
@@ -257,7 +236,7 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 	var r: float = weather_look.rain
 	rain.emitting = r > 0.02
 	rain.visible = rain.emitting
-	var shade := clampf(0.12 + light, 0.12, 1.0)
+	var shade := clampf(0.45 + light, 0.45, 1.0)
 	var rain_mat: StandardMaterial3D = (rain.mesh as QuadMesh).material
 	rain_mat.albedo_color = Color(0.75 * shade, 0.82 * shade, 0.95 * shade, 0.45 * r)
 	var m: float = weather_look.mist

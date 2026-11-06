@@ -2,7 +2,7 @@ extends RefCounted
 ## English texts: Home upgrades. Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
-	"Dein Haus in der Weberzeile lässt sich ausbauen: Mit Steinblöcken und etwas Kupfer baut dir Steinmetz Hagen eine Werkstatt (Wurfmesser aus Eisen, Ausrüstung flicken, schnelleres Handwerk während du weg bist), eine zweite Truhe (doppelt so viel Platz) und eine Trophäenwand (jede Trophäe eines besiegten mächtigen Gegners gibt +1 Leben). Das Ausbau-Fenster öffnest du am Bett in deinem Haus oder beim Steinmetz.": "Your house on Weavers' Lane can be upgraded: for stone blocks and some copper, Hagen the stonemason builds you a workshop (throwing knives from iron, mending gear, faster crafting while you are away), a second chest (twice the room) and a trophy wall (every trophy of a mighty foe you defeated gives +1 life). Open the upgrade window at the bed in your house or at the stonemason's.",
+	"Dein Haus in der Weberzeile lässt sich ausbauen: Mit Steinblöcken und etwas Gold baut dir Steinmetz Hagen eine Werkstatt (Wurfmesser aus Eisen, Ausrüstung flicken, schnelleres Handwerk während du weg bist), eine zweite Truhe (doppelt so viel Platz) und eine Trophäenwand (jede Trophäe eines besiegten mächtigen Gegners gibt +1 Leben). Das Ausbau-Fenster öffnest du am Bett in deinem Haus oder beim Steinmetz.": "Your house on Weavers' Lane can be upgraded: for stone blocks and some gold, Hagen the stonemason builds you a workshop (throwing knives from iron, mending gear, faster crafting while you are away), a second chest (twice the room) and a trophy wall (every trophy of a mighty foe you defeated gives +1 life). Open the upgrade window at the bed in your house or at the stonemason's.",
 	"Werkstatt": "Workshop",
 	"Zweite Truhe": "Second chest",
 	"Trophäenwand": "Trophy wall",
@@ -33,10 +33,10 @@ const EN := {
 	"%s: %s": "%s: %s",
 	"erbeutet": "won",
 	"Haus ausbauen": "Upgrade your house",
-	"Dein Kupfer: %d      Steinblöcke in Tasche und Truhe: %d": "Your copper: %d      Stone blocks in bag and chest: %d",
+	"Dein Gold: %d      Steinblöcke in Tasche und Truhe: %d": "Your gold: %d      Stone blocks in bag and chest: %d",
 	"Steinmetz Hagen baut dir an, was du bezahlst. Steinblöcke verkauft er auch.": "Hagen the stonemason builds whatever you pay for. He sells the stone blocks too.",
 	"Gebaut": "Built",
-	"Bauen\n%d Steine, %d Kupfer": "Build\n%d stones, %d copper",
+	"Bauen\n%d Steine, %d Gold": "Build\n%d stones, %d gold",
 	"Gebaut: %s. Du findest es in deinem Haus.": "Built: %s. You will find it in your house.",
 	"Eisenbarren: %d      Wurfmesser: %d": "Iron bars: %d      Throwing knives: %d",
 	"Eisenbarren gibt es bei Schmied Gorm, oder du schmilzt dort alte Ausrüstung ein.": "Gorm the smith sells iron bars, or you can melt down old gear at his forge.",

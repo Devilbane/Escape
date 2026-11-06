@@ -1,7 +1,6 @@
 name: Das Labyrinth
 hint: Vorsicht, Skelett-Schützen! Halte Abstand oder wirf Messer.
 secret: normal
-monsters: undead
 ######################
 ########E#############
 ######C...C###########

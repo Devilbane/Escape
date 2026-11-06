@@ -119,7 +119,7 @@ func _label(size: int, color: Color) -> Label:
 	var l := Label.new()
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.add_theme_font_override("font", FONT)
-	l.add_theme_font_size_override("font_size", UiKit.sized(size))
+	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
 	l.add_theme_color_override("font_outline_color", Color(0.03, 0.01, 0.03))
 	l.add_theme_constant_override("outline_size", maxi(5, size / 6))

@@ -118,12 +118,6 @@ func _process(_delta: float) -> bool:
 			var fallen: Enemy = wolf if wolf.dead else bandit
 			check(fallen.slain_by_rival, "the fallen one was slain by its rival")
 			check(Factions.favour_of("wolves") == 0.0 and Factions.favour_of("orcs") == 0.0, "a rival's kill earns the hero no favour")
-			# The winner of the fight would only get in the way of what comes
-			# next (a bandit left standing hunts the hero): off it goes.
-			var winner: Enemy = bandit if fallen == wolf else wolf
-			if is_instance_valid(winner) and not winner.dead:
-				game.level.enemies.erase(winner)
-				winner.queue_free()
 			# Next: win the wolves over. The hero stands right by a new wolf.
 			wolf = _spawn("wolf", spot + Vector3(0, 0, Level.TILE))
 			game.player.global_position = wolf.global_position + Vector3(2.0, 0, 0)

@@ -1,7 +1,7 @@
 class_name Homes
 extends RefCounted
 ## The town houses on Weavers' Lane, north of the village square: narrow
-## two-storey homes (with an attic) in a row (see Outdoor._build_terrace), one for every
+## three-storey homes in a row (see Outdoor._build_terrace), one for every
 ## hero. A hero without a house moves into the first free one they walk
 ## into; from then on it is theirs, and the doors of the others stay shut.
 ## Like the bank's books (see Bank), the deeds are kept apart from the saved

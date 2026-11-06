@@ -8,8 +8,7 @@ extends Node3D
 ## The line "secret: normal|uncommon|rare|epic|godborn" sets how rich the
 ## secret room is (the German ids ungewoehnlich, selten, episch, gottgeboren
 ## work too). The richer it is, the harder its lever is to
-## notice. Any torch near the secret wall can be the lever, a new one each run,
-## except the torches by the stairs (see _on_way_out).
+## notice. Any torch near the secret wall can be the lever, a new one each run.
 ##
 ## A level with the line "safe: yes" is a safe room without enemies.
 ## A level with the line "outdoor: yes" lies in the open air and is built by
@@ -40,9 +39,7 @@ extends Node3D
 ## Barrels, crates, tables, trunks, chests and wall shelves can be searched.
 
 signal key_collected
-## Coins picked up: how many, their metal (see CoinPile.METALS) and how
-## many of them the hero had put down themselves.
-signal coins_collected(amount: int, metal: String, own: int)
+signal coins_collected(amount: int)
 signal door_opened
 signal door_locked
 signal player_hurt
@@ -53,27 +50,14 @@ signal lair_won
 signal dragon_awakened(dragon: Dragon)
 ## The hero stepped into the glowing way out that opens once the lair is won.
 signal lair_exit_taken
-## The hero took the dragon's hoard (see DragonHoard).
-signal hoard_taken
-## The hero stepped onto the hoard while its dragon still lives.
-signal hoard_guarded
-## The hero took the Great Old One's hoard (see ElderLair).
-signal elder_hoard_taken
-## The Great Old One woke up, or went back to sleep (see ElderDragon).
-signal elder_awakened
-signal elder_settled
 signal exit_reached
 ## The boss of a mine floor has fallen (see Mines).
 signal boss_won
 signal item_collected(id: String)
 signal bag_full
 signal secret_found(lever_pos: Vector3, wall_pos: Vector3)
-## The hero picked up an ingredient: one the fox dug up, or `count` from a
-## fallen foe (`from_loot`, see lay_find and drop_kill_loot).
-signal ingredient_collected(id: String, count: int, from_loot: bool)
-## The hero walked onto their own pack, dropped where they fell (see Rescue):
-## its floor entry, which the game empties into the hero as far as it fits.
-signal bundle_reached(entry: Array)
+## The hero picked up an ingredient the fox dug up (see lay_find).
+signal ingredient_collected(id: String)
 ## How many of the level's pressure plates have a block on them changed.
 signal plates_changed(pressed: int, total: int)
 ## Every pressure plate is pressed: the iron gate at `pos` opens.
@@ -123,43 +107,23 @@ const WALL_DECOR := [
 ## The bright cartoon stone of the pieces the kit has no match for is darkened
 ## to sit among the kit's stone.
 const STONE_TINT := Color(0.6, 0.56, 0.52)
+## Colour of the iron spikes in spike traps.
+const SPIKE_IRON := Color(0.5, 0.5, 0.53)
 ## The grey of the kit's floor tiles, for spike and grate tiles.
 const FLOOR_GREY := Color(0.74, 0.73, 0.71)
-## Cartoon furniture that gets the worn, dusty look (see WornLook).
-## Pieces of gold, polished to shine (see CoinShine).
-const GOLD_PIECES := ["coin", "coin_stack_large"]
-const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_shield", "banner_shield_brown"]
-## Kit texture sets that get the worn look: barrels, crates, tables,
-## shelves, chests and the wall decorations.
-const WORN_SETS := ["props", "chests", "wallprops"]
-const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "#bxotkCDHBLmhVF?f=U|N%~T^&"
+const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_archedwindow_gated", "wall_doorway", "wall_doorway_door", "stairs"]
+const SOLID := "#bxotkCDHBLVF?f=U|N%~T^"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
+## Height of walls between the camera and the room, so they never hide the player.
+const LOW_WALL_SCALE := 0.3
 const SPIKE_PERIOD := 3.0
 const SPIKE_UP_TIME := 1.1
 const SPIKE_DOWN_Y := -1.95
-## Height of the blood round floor spikes, just above the stone.
-const SPIKE_BLOOD_Y := 0.075
 ## How much longer a path through a spike trap counts for skeletons.
 const SPIKE_DETOUR := 6.0
-## How far (metres) from the hero rising floor spikes can be heard.
-const SPIKE_HEARD := 14.0
 
 var level_name := ""
-## The map's file name, e.g. "03_das_labyrinth.txt".
-var file := ""
-## The monsters, people and gear made in the map workshop for this map:
-## letter -> spec (header "custom:", see Creations).
-var creations := {}
-## Hidden traps from the header "traps: <count> <kind>, <kind>" (see Traps);
-## the game's own maps list theirs in Traps.PLACES.
-var trap_place := {}
-## The wall writing from the header "writing: WORD | text"; empty for the
-## writing chosen by the depth (see WRITINGS).
-var custom_writing: Array = []
-## Played from the map workshop (see LevelEditor): no level below to fall to.
-var playtest := false
 var hint := ""
 var grid: Array[String] = []
 var width := 0
@@ -184,10 +148,6 @@ const LIGHT_REACH := 8.0
 ## How close to a torch's wall the hero must run to reach it.
 const TORCH_TOUCH := 1.6
 var _spikes: Array = []
-## The hidden traps of this level (see Traps), or null.
-var traps: Traps = null
-## The flame jets in the walls of this level (see FlameJets), or null.
-var flame_jets: FlameJets = null
 var _pickups: Array = []
 var interactables: Array = []
 ## What the hero already took here: ids of searched furniture and picked up
@@ -195,25 +155,7 @@ var interactables: Array = []
 ## the saved game, and calls restore_taken() after build(), so nothing fills
 ## up again after a reload, a night in bed or a walk out and back in.
 var taken := {}
-## Floor tiles with a grate (cell -> true). Nothing is placed on them: no
-## props, chests, people, traps or hidden finds.
-var grates := {}
-## What lies about on the floor here: gear the hero dropped, loot from the
-## fallen and spilt coins, as [kind ("item" or "coin"), item id, x, z] each;
-## a pile of coins also has its count and how many the hero put down
-## (["coin", metal, x, z, count, own], see CoinPile).
-## The game hands in its own list for this level and keeps it in the saved
-## game; restore_floor() lays it all out again after build(), so nothing
-## vanishes when the hero walks off and comes back.
-var floor_items: Array = []
-## The most things kept lying on one level: past it the oldest go, so a level
-## where many fall does not fill the saved game without end.
-const FLOOR_MAX := 80
 var enemies: Array = []
-## Fallen monsters still lying here, oldest first, and the stains and bones
-## left by the ones that rotted away (see Corpse).
-var corpses: Array = []
-var remnants: Array = []
 ## Shrines and the safe room's bed, storage chest and merchant: things to run into.
 var stations: Array = []
 ## Water the hero can fish in (see Fishing): which water ("brunnen", "teich"
@@ -224,8 +166,6 @@ var fishing_waters: Array = []
 var safe := false
 ## The world above ground after the last dungeon level: see Outdoor.
 var outdoor := false
-## The dust, cobwebs, critters and drip puddles of a dungeon floor, or null.
-var life: DungeonLife
 ## Inside a village building: the building's letter on the village map,
 ## and which floor ("cellar" below, "upstairs" above).
 var building := ""
@@ -253,25 +193,12 @@ const HORROR_FROM_DEPTH := 3
 const HORROR_MIN_STEPS := 10
 ## Whether the lair's dragon has fallen on this visit.
 var lair_cleared := false
-## What the dragon's helpers heaped up in the lair, "coins" and bars by
-## metal (see DragonHoard.contents), handed in by the game before build().
-## It lies beside the hoard chest.
-var hoard := {}
-## The Great Old One's hoard as the dragon helpers left it (see ElderLair):
-## "coins" and "items". Set before the floor is built.
-var elder_hoard := {}
-## The Great Old One, on the floor where it sleeps.
-var elder: ElderDragon
-## The glowing way out that opens once the lair's dragon or the Mountain
-## King has fallen.
+## The glowing way out that opens in the lair once the dragon has fallen.
 var lair_exit: Node3D
 ## Whether the hero still stands in the way out (it leads out once per step).
 var _in_lair_exit := false
 ## A hero's own house with several storeys (see "home: yes").
 var is_home := false
-## Life one drink from this level's fountain gives back (header "fountain:
-## 5"); 0 means the fountain heals fully, as it does everywhere else.
-var fountain_heal := 0
 ## The town house on Weavers' Lane this home is (set by the game).
 var house_number := 0
 ## Free spots kept for furniture: {"cell", "pos", "storey"}, from the "+"
@@ -289,9 +216,6 @@ var inn := false
 ## The setting of a mine floor (header "theme:", see Mines): its light and
 ## look. "" for every other level.
 var theme := ""
-## The families of monsters that naturally live here (header "monsters:",
-## see MonsterFamilies).
-var monster_families: Array[String] = []
 ## Where a mine floor's way down ("^") and its stairs lead (headers "down:"
 ## and "up:"), and whether the way down is sealed ("seal:").
 var down_to := ""
@@ -320,28 +244,13 @@ var _stair_cell := Vector2i(-1, -1)
 signal stairs_taken(to: Vector3, up: bool, storey: int)
 ## How deep the level lies (0 for the first); deeper skeletons wear more gear.
 var depth := 0
-## Whether this is a floor of the beginner dungeon the hero escapes from (Die
-## Zelle to Das Tor: no building, not the open air). Its loot is common only:
-## containers, chests and what the skeletons wear. Only its secret rooms (and a
-## puzzle's gated chest) hold finer things, and no finer than uncommon
-## (BEGINNER_TOP_TIER), whatever the map sets; a named boss's bonus drop (see
-## roll_boss_loot) does not happen here.
-var beginner_dungeon := false
 var fog: Fog
 var _doors: Array = []
-## The footprints (on the ground, x and z) of the tall pieces that stop a
-## bolt, a thrown knife or an orb: pillars, statues and stacked crates. Each
-## is grown by SHOT_RADIUS, the half width of a shot. See shot_blocked.
-var shot_blockers: Array[Rect2] = []
-const SHOT_RADIUS := 0.2
-## The monsters placed from the map, with the cell each started on, so a
-## floor the hero leaves can remember who fell (see note_left).
-var _map_enemies: Array = []
 var _torch_spots: Array[Vector3] = []
 var _walls_body := StaticBody3D.new()
 var _door_hint_shown := false
 ## Hidden walls and the torches that open them. Each lever rolls once,
-## the first time the hero comes up close to it.
+## the first time the hero walks past it.
 var _secrets: Array = []
 ## Ingredients hidden in the ground that only the hero's fox can sniff out
 ## (see Pet): each {"cell": Vector2i, "id": String}. Never saved: they grow
@@ -357,117 +266,49 @@ var secret_bonus := 0
 ## Set by the game when the run is overdue a secret room: the lever is
 ## noticed for sure.
 var secret_sure := false
-## How close the hero must come to a lever torch for it to work: the same
-## reach as searching, so a lever never tips while the hero is across the room.
-const LEVER_RANGE := SEARCH_RANGE
+const LEVER_RANGE := 7.0
 ## How many steps from the secret wall a torch may be to serve as its lever.
 const LEVER_STEPS := 10
 ## Writings on the walls: each level of the dungeon has one, chosen by its
 ## depth, on a plain wall somewhere. It stays hidden until the hero notices
 ## it while walking past in view (see _check_writing): one roll per visit,
-## WRITING_CHANCE % plus what the Erkunden skill adds, from WRITING_RANGE;
-## a hero who walks right up to it (WRITING_SURE_RANGE) always notices it.
-## A noticed writing pops up on a card (see WritingCard), stays known
-## on later visits (in taken) and can be read again by running into the
-## wall (a "tafel" station). Each is the word
-## written in blood on the stone and what it says (German, for Lang). The word
-## is in the player's language too, so it reads as a hint: a Latin word such
-## as CAVE ("beware") read as the English "cave" and meant nothing.
+## WRITING_CHANCE % plus what the Erkunden skill adds. Each is the word
+## carved into the stone and what it says (German, for Lang).
 const WRITINGS := [
-	["HOFFNUNG", "Jemand hat mit Blut an die Wand geschrieben: „Gib nicht auf. Ich bin hier auch hinausgekommen.“"],
-	["FACKELN", "Mit Blut an die Wand geschrieben: „Nicht jede Fackel ist nur eine Fackel.“"],
-	["IIII IIII IIII", "Blutige Striche an der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt."],
-	["LICHT", "Mit Blut an die Wand geschrieben: „In der Finsternis ist eine Fackel dein Leben. Nimm immer eine mit.“"],
-	["GOLD", "Mit Blut an die Wand geschrieben: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“"],
-	["LEISE", "Mit Blut an die Wand geschrieben: „Die Toten hören schlecht. Wer leise geht, kommt weit.“"],
-	["SUCHE", "Mit Blut an die Wand geschrieben: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“"],
-	["WASSER", "Mit Blut an die Wand geschrieben: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“"],
-	["EISEN", "Mit Blut an die Wand geschrieben: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“"],
-	["FREIHEIT", "Mit Blut an die Wand geschrieben: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“"],
+	["SPES", "Jemand hat in die Wand geritzt: „Gib nicht auf. Ich bin hier auch hinausgekommen.“"],
+	["CAVE", "In die Wand geritzt: „Nicht jede Fackel ist nur eine Fackel.“"],
+	["XII", "Striche in der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt."],
+	["LVX", "In die Wand geritzt: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“"],
+	["AVRVM", "In die Wand geritzt: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“"],
+	["SILENTIVM", "In die Wand geritzt: „Die Toten hören schlecht. Wer leise geht, kommt weit.“"],
+	["MEMENTO", "In die Wand geritzt: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“"],
+	["AQVA", "In die Wand geritzt: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“"],
+	["FERRVM", "In die Wand geritzt: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“"],
+	["LIBERTAS", "In die Wand geritzt: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“"],
 ]
-## The writings' texts before they were written in blood, and what they
-## are now: a saved compendium keeps the new text (see Game.load).
-const OLD_WRITINGS := {
-	"Jemand hat in die Wand geritzt: „Gib nicht auf. Ich bin hier auch hinausgekommen.“":
-		"Jemand hat mit Blut an die Wand geschrieben: „Gib nicht auf. Ich bin hier auch hinausgekommen.“",
-	"In die Wand geritzt: „Nicht jede Fackel ist nur eine Fackel.“":
-		"Mit Blut an die Wand geschrieben: „Nicht jede Fackel ist nur eine Fackel.“",
-	"Striche in der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt.":
-		"Blutige Striche an der Wand, zu Zwölfergruppen gebündelt. Jemand hat hier lange die Tage gezählt.",
-	"In die Wand geritzt: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“":
-		"Mit Blut an die Wand geschrieben: „In der Finsternis ist eine Fackel dein Leben. Nimm immer eine mit.“",
-	"Mit Blut an die Wand geschrieben: „In der Finsternis brennt eine Fackel von selbst. Nimm immer eine mit.“":
-		"Mit Blut an die Wand geschrieben: „In der Finsternis ist eine Fackel dein Leben. Nimm immer eine mit.“",
-	"In die Wand geritzt: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“":
-		"Mit Blut an die Wand geschrieben: „Die reichsten Truhen stehen dort, wo niemand hinsieht.“",
-	"In die Wand geritzt: „Die Toten hören schlecht. Wer leise geht, kommt weit.“":
-		"Mit Blut an die Wand geschrieben: „Die Toten hören schlecht. Wer leise geht, kommt weit.“",
-	"In die Wand geritzt: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“":
-		"Mit Blut an die Wand geschrieben: „Wer jeden Gang gesehen hat, sieht auch, was andere übersehen.“",
-	"In die Wand geritzt: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“":
-		"Mit Blut an die Wand geschrieben: „Das Wasser der Brunnen heilt. Trink, bevor du weitergehst.“",
-	"In die Wand geritzt: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“":
-		"Mit Blut an die Wand geschrieben: „Die Skelette tragen, was sie uns Gefangenen genommen haben.“",
-	"In die Wand geritzt: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“":
-		"Mit Blut an die Wand geschrieben: „Hinter dem Tor liegt die Freiheit. Ich habe sie gerochen.“",
-}
-const WRITING_CHANCE := 50
+const WRITING_CHANCE := 25
 ## How close the hero must come to a writing to have a chance to notice it.
 const WRITING_RANGE := 8.0
-## Within this many metres, in view, the hero notices a writing for sure.
-const WRITING_SURE_RANGE := 5.0
-## The colour of the card that shows a noticed writing (see WritingCard):
-## the same amber as a spotted trap's frame.
-const WRITING_COLOR := Color(1.0, 0.62, 0.25)
-## The carved word's largest font size, and the smallest it shrinks to.
-const WRITING_FONT_SIZE := 64
-const WRITING_FONT_MIN := 28
-## How wide the carved word may be at most: a wall piece is one TILE wide,
-## and the pillars at its ends take a little of it.
-const WRITING_MAX_WIDTH := 3.2
-## The blood the writings are smeared in, and its dark edges and dried stains.
-const WRITING_BLOOD := Color(0.6, 0.04, 0.03)
-const WRITING_BLOOD_DARK := Color(0.2, 0.01, 0.01)
-## How long the trickles under a writing's letters run (metres).
-const WRITING_DRIP_LENGTH := Vector2(0.15, 0.7)
-## Kept in taken once the hero has noticed this level's writing.
-const WRITING_KEY := "writing:found"
 ## This level's writing: {"cell", "label" (the carved word, hidden until
-## found), "word", "text", "rolled", "found", "station"}. Empty in
-## the open air, in buildings and at home.
+## found), "text", "rolled", "found"}. Empty in the open air, in buildings
+## and at home.
 var _writing := {}
 ## Seconds between pulling the lever and the stone starting to move.
 const SECRET_DELAY := 2.5
-## Per wealth, from plain to finest (the item rarities, see Rarity and
-## Items.RARITY): chance in percent to notice the lever, gold in each chest,
-## and the colour of its name. A chest holds gear of its tier or finer.
-## "min_price" sets the tier of gear Items.RARITY does not list (the hero's
-## own crafted pieces and the map workshop's gear): by its price.
+## Per wealth: chance in percent to notice the lever, gold in each chest,
+## the cheapest gear a chest may hold, and the colour of its name.
 const TIERS := {
-	"normal": {"name": "Gewöhnlich", "chance": 55, "gold": 10, "min_price": 0, "color": Rarity.COMMON},
-	"ungewoehnlich": {"name": "Ungewöhnlich", "chance": 40, "gold": 18, "min_price": 15, "color": Rarity.UNCOMMON},
-	"selten": {"name": "Selten", "chance": 28, "gold": 30, "min_price": 25, "color": Rarity.RARE},
-	"episch": {"name": "Episch", "chance": 18, "gold": 45, "min_price": 34, "color": Rarity.EPIC},
-	"gottgeboren": {"name": "Gottgeboren", "chance": 10, "gold": 70, "min_price": 42, "color": Rarity.GODBORN},
+	"normal": {"name": "Gewöhnlich", "chance": 55, "gold": 10, "min_price": 0, "color": Color(0.85, 0.85, 0.85)},
+	"ungewoehnlich": {"name": "Ungewöhnlich", "chance": 40, "gold": 18, "min_price": 15, "color": Color(0.45, 0.9, 0.4)},
+	"selten": {"name": "Selten", "chance": 28, "gold": 30, "min_price": 25, "color": Color(0.35, 0.6, 1.0)},
+	"episch": {"name": "Episch", "chance": 18, "gold": 45, "min_price": 34, "color": Color(0.75, 0.4, 1.0)},
+	"gottgeboren": {"name": "Gottgeboren", "chance": 10, "gold": 70, "min_price": 42, "color": Color(1.0, 0.6, 0.15)},
 }
-## The finest tier anything in the beginner dungeon may be: its secret rooms
-## and treasure chests hold common and uncommon things only.
-const BEGINNER_TOP_TIER := "ungewoehnlich"
 ## English names for the secret tiers, accepted in level files.
 const TIER_ALIASES := {"common": "normal", "uncommon": "ungewoehnlich", "rare": "selten", "epic": "episch", "godborn": "gottgeboren"}
 ## Every wall torch, with the tile it lights, and the plain walls without one.
 var _wall_torches: Array = []
 var _bare_walls: Array = []
-## Where the bookcases and the wall decorations stand, so that no two of one
-## kind end up side by side (see WALL_GAP): {"kind", "pos"}.
-var _wall_pieces: Array = []
-## The walls between the camera and a room: full height, but see-through
-## right in front of the hero (see WallFade).
-var _near_walls := WallFade.new()
-## Two bookcases, or two wall decorations of one kind, are at least this far
-## apart (metres): three tiles, so a room does not show the same thing twice
-## in one spot.
-const WALL_GAP := TILE * 3.0 - 0.1
 ## A secret wall's lever is picked from at least this many torches.
 const LEVER_CHOICES := 3
 
@@ -481,7 +322,6 @@ static func is_outdoor_file(path: String) -> bool:
 
 
 func load_from_file(path: String) -> void:
-	file = path.get_file()
 	var text := FileAccess.get_file_as_string(path)
 	for line in text.split("\n"):
 		line = line.strip_edges(false, true)
@@ -508,8 +348,6 @@ func load_from_file(path: String) -> void:
 			is_home = true
 		elif line.begins_with("theme:"):
 			theme = line.substr(6).strip_edges()
-		elif line.begins_with(MonsterFamilies.HEADER + ":"):
-			monster_families = MonsterFamilies.parse(line.substr(MonsterFamilies.HEADER.length() + 1))
 		elif line.begins_with("down:"):
 			down_to = line.substr(5).strip_edges()
 		elif line.begins_with("up:"):
@@ -522,23 +360,10 @@ func load_from_file(path: String) -> void:
 			inn = true
 		elif line.begins_with("floor:"):
 			floor_name = line.substr(6).strip_edges()
-		elif line.begins_with("fountain:"):
-			fountain_heal = maxi(0, line.substr(9).strip_edges().to_int())
 		elif line.begins_with("outdoor:"):
 			# Out in the open (see Outdoor): no enemies, like a safe room.
 			outdoor = true
 			safe = true
-		elif line.begins_with(Creations.HEADER):
-			var c := Creations.parse_line(line)
-			if not c.is_empty():
-				creations[c.letter] = c.spec
-				Creations.register(c.spec)
-		elif line.begins_with("traps:"):
-			trap_place = Traps.parse_header(line.substr(6))
-		elif line.begins_with("writing:"):
-			var parts := line.substr(8).split("|", true, 1)
-			if parts.size() == 2 and parts[0].strip_edges() != "" and parts[1].strip_edges() != "":
-				custom_writing = [parts[0].strip_edges(), parts[1].strip_edges()]
 		elif line.begins_with("secret:"):
 			secret_tier = line.substr(7).strip_edges()
 			secret_tier = TIER_ALIASES.get(secret_tier, secret_tier)
@@ -549,9 +374,6 @@ func load_from_file(path: String) -> void:
 			grid.append(line)
 			width = maxi(width, line.length())
 	height = grid.size()
-	beginner_dungeon = not outdoor and building == ""
-	if beginner_dungeon and tier_rank(secret_tier) > tier_rank(BEGINNER_TOP_TIER):
-		secret_tier = BEGINNER_TOP_TIER
 	if lair:
 		# Monsters live down there: not a safe room, even below a building.
 		safe = false
@@ -571,8 +393,6 @@ func build() -> void:
 			_build_floor(c, ch)
 			_build_walls(c)
 			_build_content(c, ch)
-			if creations.has(ch):
-				_build_creation(c, creations[ch])
 	_build_corner_pillars()
 	furniture_slots.sort_custom(func(a, b): return a.storey < b.storey)
 	if is_home:
@@ -582,8 +402,7 @@ func build() -> void:
 	_build_wall_collision()
 	_setup_astar()
 	for c in _heavy_starts:
-		var heavy := add_stone(StoneBlock.cell_for(cell_to_world(c), true), true, 0, true)
-		heavy.home = heavy.global_position
+		add_stone(StoneBlock.cell_for(cell_to_world(c), true), true, 0, true)
 	refresh_stone_paths()
 	var floor_shape := CollisionShape3D.new()
 	floor_shape.shape = WorldBoundaryShape3D.new()
@@ -592,27 +411,12 @@ func build() -> void:
 	fog.setup(self)
 	add_child(fog)
 	_spawn_enemies()
-	_restore_left()
 	if lair and theme == "":
 		_decorate_lair()
-	if ElderLair.is_floor(self):
-		ElderLair.decorate(self)
 	if not outdoor and (building == "" or lair):
-		life = DungeonLife.new(self)
-		add_child(life)
-	if not grates.is_empty():
-		add_child(GratePits.new(self))
-		var tentacles := GrateTentacles.make(self)
-		if tentacles:
-			add_child(tentacles)
+		add_child(DungeonLife.new(self))
 	if not _vault_slots.is_empty():
 		refresh_vaults()
-	traps = Traps.make(self)
-	if traps:
-		add_child(traps)
-	flame_jets = FlameJets.make(self)
-	if flame_jets:
-		add_child(flame_jets)
 
 
 # --- Keeping the way free ---------------------------------------------------
@@ -620,13 +424,6 @@ func build() -> void:
 ## Furniture that stands on a whole tile and cannot be walked through.
 const FURNITURE := "bxotkCHBLVFfy"
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-## Furniture that looks alike, by group: chests (treasure chest, trunk,
-## storage chest), boards (tables, the timber frames in the mines), barrels
-## and crates. Two
-## pieces of one group never stand on touching tiles, not even corner to
-## corner, so a room does not show the same thing twice side by side.
-## tests/furniture_spacing.gd checks the maps.
-const LOOKALIKES := ["CkL", "t", "j", "b", "x"]
 
 
 ## Moves furniture out of the way: nothing may stand in a narrow passage, next
@@ -638,7 +435,7 @@ func _clear_passages() -> void:
 			return
 		var ch := cell_char(blocker)
 		_set_cell(blocker, ".")
-		var spot := _free_spot_near(blocker, ch)
+		var spot := _free_spot_near(blocker)
 		if spot.x >= 0:
 			_set_cell(spot, ch)
 
@@ -681,7 +478,7 @@ func _is_narrow(c: Vector2i) -> bool:
 
 func _walkable(c: Vector2i) -> bool:
 	var ch := cell_char(c)
-	return ch != "#" and not FURNITURE.contains(ch) and not (creations.has(ch) and creations[ch].type == "npc")
+	return ch != "#" and not FURNITURE.contains(ch)
 
 
 ## Every tile the hero can reach from the start, walking through doors.
@@ -711,15 +508,14 @@ func _reachable() -> Dictionary:
 
 
 ## The nearest plain floor tile where the furniture blocks nothing.
-func _free_spot_near(from: Vector2i, piece := "") -> Vector2i:
+func _free_spot_near(from: Vector2i) -> Vector2i:
 	var seen := {from: true}
 	var todo: Array[Vector2i] = [from]
 	var i := 0
 	while i < todo.size():
 		var c := todo[i]
 		i += 1
-		if ".,".contains(cell_char(c)) and c != from and not _crowds_passage(c) \
-				and not _beside_lookalike(c, piece):
+		if ".,".contains(cell_char(c)) and c != from and not _crowds_passage(c):
 			var count := _reachable().size()
 			_set_cell(c, "x")
 			var ok := _reachable().size() == count - 1
@@ -732,29 +528,6 @@ func _free_spot_near(from: Vector2i, piece := "") -> Vector2i:
 				seen[n] = true
 				todo.append(n)
 	return Vector2i(-1, -1)
-
-
-## Whether a piece of furniture on this tile would touch another of its
-## group (see LOOKALIKES), on a side or at a corner.
-func _beside_lookalike(c: Vector2i, piece: String) -> bool:
-	var group := lookalike_group(piece)
-	if group == "":
-		return false
-	for dy in range(-1, 2):
-		for dx in range(-1, 2):
-			if (dx != 0 or dy != 0) and group.contains(cell_char(c + Vector2i(dx, dy))):
-				return true
-	return false
-
-
-## The group of look-alike furniture a map letter belongs to, "" for none.
-static func lookalike_group(piece: String) -> String:
-	if piece == "":
-		return ""
-	for group in LOOKALIKES:
-		if group.contains(piece):
-			return group
-	return ""
 
 
 func _set_cell(c: Vector2i, ch: String) -> void:
@@ -771,12 +544,6 @@ func cell_char(c: Vector2i) -> String:
 	return "#" if ch == " " else ch
 
 
-## The ground of a tile, for how fast feet carry over it (see Surfaces):
-## dirt floors are a little slower than the stone of the halls.
-func ground_at(c: Vector2i) -> String:
-	return Surfaces.DIRT if cell_char(c) == "," else Surfaces.STONE
-
-
 func cell_to_world(c: Vector2i) -> Vector3:
 	return Vector3(c.x * TILE, 0.0, c.y * TILE)
 
@@ -785,9 +552,8 @@ func world_to_cell(p: Vector3) -> Vector2i:
 	return Vector2i(roundi(p.x / TILE), roundi(p.z / TILE))
 
 
-## A wall tile is "low" (near) when the room lies north of it, i.e. it stands
-## between the camera and the floor. It is built at full height like every
-## other wall, but bare, and turns see-through in front of the hero.
+## A wall tile is "low" when the room lies north of it, i.e. it stands between
+## the camera and the floor.
 func _is_low_wall(c: Vector2i) -> bool:
 	# A secret wall counts as wall here: the wall below it stays full height
 	# and gives nothing away.
@@ -819,27 +585,13 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 	node.position = pos
 	node.rotation.y = rot_y
 	parent.add_child(node)
-	if piece in WORN_PIECES:
-		WornLook.wear(node, _wear(), piece.begins_with("banner"))
-		FlagWind.attach(node, piece, self)
-	if piece in GOLD_PIECES:
-		CoinShine.polish(node)
 	if piece in TINTED_PIECES:
 		for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
 			if mi.name == "spikes":
-				# Old spikes: rust, dirt and dried blood (they move, so the
-				# grain rides along with them).
-				# Only what rises above the floor counts, not the foot hidden in it.
-				var box := mi.get_aabb()
-				mi.material_override = Traps.grim_spikes(maxf(box.position.y, 0.0), box.end.y)
-			elif piece == "floor_tile_big_grate":
-				# Grey floor stone round the hole, dark iron bars across it.
-				mi.mesh = _grate_mesh(mi.mesh)
-				mi.set_surface_override_material(0, _kit_material("floor"))
-				mi.set_surface_override_material(1, _gate_iron())
+				# Dull, hammered iron spikes (they move, so the grain rides along).
+				GearLook.apply(mi, "metal", SPIKE_IRON, true, 0.35)
 			elif mi.name == "wall_doorway_door":
-				# An old wooden door with rusty fittings.
-				WornLook.wear_mesh(mi, _wear(), false, STONE_TINT)
+				mi.material_override = _tinted(mi.get_active_material(0))
 			else:
 				mi.material_override = _rough_stone(mi.get_active_material(0), piece in ["floor_tile_big_spikes", "floor_tile_big_grate"])
 	return node
@@ -865,78 +617,18 @@ func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
 	kit.rotation.y = part[4]
 	parent.add_child(kit)
 	var mat := _kit_material(part[1])
-	if model.ends_with("Flag"):
-		mat = WornLook.material(load(KIT_DIR + part[1] + "_albedo.png"), load(KIT_DIR + part[1] + "_normal.png"), _wear(), true)
 	for mi: MeshInstance3D in kit.find_children("*", "MeshInstance3D", true, false):
 		var skeleton := mi.get_parent() as Skeleton3D
 		if skeleton:
 			# The chests come rigged, and the rig shows only the lid, tipped
-			# on its back: use the plain mesh, standing upright, instead. It
-			# is modelled with the lid up, so the lid is cut off onto a hinge
-			# of its own and shut (search() opens it like the gold chest's).
-			var halves := _chest_halves(mi.mesh)
-			var body := MeshInstance3D.new()
-			body.mesh = halves[0]
-			body.material_override = mat
-			kit.add_child(body)
-			var hinge := Node3D.new()
-			hinge.name = "Lid"
-			hinge.position = CHEST_HINGE
-			# Turned round, so that tipping it back (rotation.x down) opens it.
-			hinge.rotation = Vector3(CHEST_SHUT, PI, 0.0)
-			kit.add_child(hinge)
-			var lid := MeshInstance3D.new()
-			lid.mesh = halves[1]
-			lid.material_override = mat
-			lid.transform = Transform3D(Basis(Vector3.UP, PI), CHEST_HINGE).affine_inverse()
-			hinge.add_child(lid)
+			# on its back: use the plain mesh, standing upright, instead.
+			var plain := MeshInstance3D.new()
+			plain.mesh = mi.mesh
+			kit.add_child(plain)
 			skeleton.get_parent().queue_free()
-			continue
+			mi = plain
 		mi.material_override = mat
-	if model.ends_with("Flag"):
-		FlagWind.attach(kit, model, self)
 	return kit
-
-
-## Where the kit chests' lid is hinged (in the model's own units), and how
-## far it turns from the way it is modelled (standing up) to shut.
-const CHEST_HINGE := Vector3(0, 0.3208, 0.2669)
-const CHEST_SHUT := deg_to_rad(97.0)
-## How far a searched chest's lid opens (unless it says "lid_open" itself).
-const LID_OPEN := deg_to_rad(70.0)
-
-
-## A rigged kit chest cut into its body and its lid (the triangles that
-## move with the lid bone), as two plain meshes without the rig.
-func _chest_halves(mesh: Mesh) -> Array:
-	var key := "halves_%d" % mesh.get_instance_id()
-	if _scenes.has(key):
-		return _scenes[key]
-	var arrays := mesh.surface_get_arrays(0)
-	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
-	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
-	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	var per := bones.size() / (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
-	var parts := [PackedInt32Array(), PackedInt32Array()]
-	for t in range(0, indices.size(), 3):
-		var v := indices[t]
-		var on_lid := 0.0
-		for k in per:
-			if bones[v * per + k] == 1:
-				on_lid += weights[v * per + k]
-		var part: PackedInt32Array = parts[1 if on_lid > 0.5 else 0]
-		part.append_array([indices[t], indices[t + 1], indices[t + 2]])
-		parts[1 if on_lid > 0.5 else 0] = part
-	arrays[Mesh.ARRAY_BONES] = null
-	arrays[Mesh.ARRAY_WEIGHTS] = null
-	var halves := []
-	for part in parts:
-		arrays[Mesh.ARRAY_INDEX] = part
-		var half := ArrayMesh.new()
-		half.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		halves.append(half)
-	_scenes[key] = halves
-	return halves
 
 
 ## The darkened cartoon stone, made rough and matt like the kit's walls, so
@@ -977,8 +669,6 @@ func _kit_material(set_name: String) -> Material:
 		stone.set_shader_parameter("albedo_tex", load(KIT_DIR + "walls_albedo.png"))
 		stone.set_shader_parameter("normal_tex", load(KIT_DIR + "walls_normal.png"))
 		_scenes[key] = stone
-	if not _scenes.has(key) and set_name in WORN_SETS:
-		_scenes[key] = WornLook.material(load(KIT_DIR + set_name + "_albedo.png"), load(KIT_DIR + set_name + "_normal.png"), _wear())
 	if not _scenes.has(key):
 		var m := StandardMaterial3D.new()
 		m.albedo_texture = load(KIT_DIR + set_name + "_albedo.png")
@@ -987,12 +677,6 @@ func _kit_material(set_name: String) -> Material:
 		m.roughness = 0.9
 		_scenes[key] = m
 	return _scenes[key]
-
-
-## How worn the furniture looks here: fully in the dungeon, a little in the
-## hero's home and out in the open, where people use and look after things.
-func _wear() -> float:
-	return WornLook.HOME if is_home or outdoor else WornLook.DUNGEON
 
 
 func _random_quarter_turn() -> float:
@@ -1009,20 +693,13 @@ func _build_floor(c: Vector2i, ch: String) -> void:
 		var spikes: Node3D = tile.find_child("spikes", true, false)
 		spikes.position.y = SPIKE_DOWN_Y
 		_spikes.append({"node": spikes, "cell": c, "phase": c.x * 0.45 + c.y * 0.2})
-		# Pools and drops of the blood the spikes have drawn, different on each tile.
-		BloodStains.lay(tile.get_parent(), pos + Vector3(0, SPIKE_BLOOD_Y, 0), hash(c) + 11, 3, 30, 1.7)
 		return
 	var piece := "floor_tile_large"
 	var roll := _rng.randf()
 	if ch == ",":
 		piece = "floor_dirt_large"
 	elif roll < 0.07:
-		# A grate only on plain floor: nothing (an NPC, a chest, the start)
-		# stands over the hole. The roll still happens, so the other tiles
-		# keep their look.
-		if ch == ".":
-			piece = "floor_tile_big_grate"
-			grates[c] = true
+		piece = "floor_tile_big_grate"
 	elif roll < 0.14:
 		piece = "floor_dirt_large"
 	_place(piece, pos, _random_quarter_turn())
@@ -1044,28 +721,18 @@ func _build_walls(c: Vector2i) -> void:
 		# Each wall piece faces into the room.
 		var rot := atan2(-float(d.x), -float(d.y))
 		var low := _is_low_wall(n)
-		# The stairs of a home fill their whole tile and reach into the walls
-		# beside them: nothing hangs on those walls, or it would stick out of
-		# the steps. The rolls below still run, so the rest of the house keeps
-		# the same shelves, windows, torches and banners.
-		var by_stairs := is_home and "<>".contains(cell_char(c))
 		var piece := "wall"
 		var roll := _rng.randf()
 		if not low and d == Vector2i(0, -1):
-			# The barred window that once hung here showed only rock behind
-			# it, so its share of the roll is a solid wall now. The roll
-			# stays the same, so the rest of every map is built as before.
 			if roll < 0.12:
 				piece = "wall_shelves"
+			elif roll < 0.22:
+				piece = "wall_archedwindow_gated"
 			elif roll < 0.32:
 				piece = "wall_cracked"
 		elif not low and roll < 0.2:
 			piece = "wall_cracked"
-		# A bookcase right beside another one is left out: a plain wall
-		# instead. The piece stays as rolled, so the rolls after it, and the
-		# rest of the map, stay as they were.
-		var shelves := piece == "wall_shelves" and not by_stairs and not _wall_piece_near("shelves", pos)
-		var wall := _place("wall" if by_stairs or (piece == "wall_shelves" and not shelves) else piece, pos, rot)
+		var wall := _place(piece, pos, rot)
 		if (c.x + c.y + d.x + d.y) % 2 != 0:
 			wall.position.y += 0.02
 		if cell_char(c) == "?":
@@ -1073,40 +740,25 @@ func _build_walls(c: Vector2i) -> void:
 			wall.visible = false
 			_secret_at(c).inner.append(wall)
 			continue
-		if shelves:
-			_wall_pieces.append({"kind": "shelves", "pos": pos})
+		if piece == "wall_shelves":
 			var facing := Vector3(sin(rot), 0, cos(rot))
 			var shelf := _add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
 			shelf.touch_cell = n
 		if low:
-			_near_walls.add(wall)
+			wall.scale.y = LOW_WALL_SCALE
 			continue
 		# No torch behind a barrel, crate or table: the hero must reach it.
 		var torch: Node3D = null
 		# A guardian's hall has no wall torches: only its fire bowl lights
 		# the middle, and the rim stays dark for the hero to creep along.
-		if not FURNITURE.contains(cell_char(c)) and not _near_guardian(c) and not by_stairs:
+		if not FURNITURE.contains(cell_char(c)) and not _near_guardian(c):
 			torch = _maybe_add_torch(pos, rot)
 		if torch != null:
 			_wall_torches.append({"holder": torch, "cell": c, "pos": pos, "rot": rot})
 		elif piece == "wall" and _rng.randf() < 0.18:
-			var pick := _rng.randi() % WALL_DECOR.size()
-			if not by_stairs:
-				# The same banner or sword close by: another one, or none.
-				for i in WALL_DECOR.size():
-					var k := (pick + i) % WALL_DECOR.size()
-					if not _wall_piece_near("decor%d" % k, pos):
-						_add_kit_part(WALL_DECOR[k], wall)
-						_wall_pieces.append({"kind": "decor%d" % k, "pos": pos})
-						break
-		elif piece == "wall" and cell_char(c) != "?" and not FURNITURE.contains(cell_char(c)) and not by_stairs:
+			_add_kit_part(WALL_DECOR[_rng.randi() % WALL_DECOR.size()], wall)
+		elif piece == "wall" and cell_char(c) != "?" and not FURNITURE.contains(cell_char(c)):
 			_bare_walls.append({"cell": c, "pos": pos, "rot": rot})
-
-
-## Whether a bookcase or wall decoration of this kind already hangs within
-## WALL_GAP of a wall at pos.
-func _wall_piece_near(kind: String, pos: Vector3) -> bool:
-	return _wall_pieces.any(func(w): return w.kind == kind and w.pos.distance_to(pos) < WALL_GAP)
 
 
 func _build_corner_pillars() -> void:
@@ -1123,7 +775,7 @@ func _build_corner_pillars() -> void:
 			if walls == 1 or diagonal:
 				var pillar := _place("pillar", Vector3(vx * TILE - TILE * 0.5, 0, vy * TILE - TILE * 0.5))
 				if low:
-					_near_walls.add(pillar)
+					pillar.scale.y = LOW_WALL_SCALE
 
 
 func _build_wall_collision() -> void:
@@ -1155,94 +807,6 @@ func _add_solid(pos: Vector3, size: Vector3) -> void:
 	_add_box(_walls_body, pos + Vector3(0, size.y * 0.5, 0), size)
 
 
-## Blocks a placed piece of furniture where it is drawn and nowhere else: a
-## box round the footprint of its meshes, turned and moved with it, kept
-## within its tile and `height` high. A fixed box the size of a tile part
-## would stand out past a narrow piece (a trunk, a table turned on its side)
-## and stop the hero in mid air, or leave a corner of the piece open for the
-## hero to sink into. Without meshes the box is `fallback` around `pos`.
-func _add_fitted_solid(model: Node3D, pos: Vector3, height: float, fallback := Vector2(2.4, 2.4)) -> Rect2:
-	var foot := footprint(model, self)
-	var tile := AABB(Vector3(pos.x - TILE * 0.5, 0.0, pos.z - TILE * 0.5), Vector3(TILE, height, TILE))
-	if foot.size.x < 0.05 or foot.size.z < 0.05:
-		_add_solid(pos, Vector3(fallback.x, height, fallback.y))
-		return Rect2(pos.x - fallback.x * 0.5, pos.z - fallback.y * 0.5, fallback.x, fallback.y)
-	var box := foot.intersection(tile.grow(-0.05))
-	var middle := box.get_center()
-	_add_solid(Vector3(middle.x, 0.0, middle.z), Vector3(box.size.x, height, box.size.z))
-	return Rect2(box.position.x, box.position.z, box.size.x, box.size.z)
-
-
-## A piece taller than a shot flies (a pillar, a statue, a stack of crates)
-## stops bolts, knives and orbs where it stands, as well as the people.
-func _block_shots(foot: Rect2) -> void:
-	shot_blockers.append(foot.grow(SHOT_RADIUS))
-
-
-## Blocks a round piece of furniture (a barrel) where it is drawn: an upright
-## cylinder as wide as the piece itself, however it is turned.
-func _add_round_solid(model: Node3D, height: float) -> void:
-	var own := footprint(model, model)
-	var shape := CollisionShape3D.new()
-	var cylinder := CylinderShape3D.new()
-	cylinder.radius = maxf(own.size.x, own.size.z) * 0.5 if own.size.x > 0.05 else 1.2
-	cylinder.height = height
-	shape.shape = cylinder
-	var middle := model.transform * own.get_center() if own.size.x > 0.05 else model.position
-	shape.position = Vector3(middle.x, height * 0.5, middle.z)
-	_walls_body.add_child(shape)
-
-
-## Blocks an irregular piece (a boulder) where it is drawn: a box round its
-## own footprint, scaled and turned with it, a little inside its outline
-## (`inset`), as the piece is rounder than its box. It is not cut to its
-## tile: a boulder that reaches over into the next tile blocks there too,
-## or the hero could walk into the drawn rock from that side.
-func _add_turned_solid(model: Node3D, height: float, inset := 0.9) -> void:
-	var own := footprint(model, model)
-	if own.size.x < 0.05 or own.size.z < 0.05:
-		_add_solid(model.position, Vector3(2.8, height, 2.8))
-		return
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(own.size.x * model.scale.x * inset, height, own.size.z * model.scale.z * inset)
-	shape.shape = box
-	var middle := model.transform * own.get_center()
-	shape.position = Vector3(middle.x, height * 0.5, middle.z)
-	shape.rotation.y = model.rotation.y
-	_walls_body.add_child(shape)
-
-
-## The bounds of a model's visible meshes in the space of `space` (an
-## ancestor of it), from the floor up; flat bits lying on the floor (a rug,
-## a shadow) do not count. An empty AABB when there are none.
-static func footprint(model: Node3D, space: Node) -> AABB:
-	var bounds := AABB()
-	var found := false
-	var meshes: Array = model.find_children("*", "MeshInstance3D", true, false)
-	if model is MeshInstance3D:
-		meshes.append(model)
-	for mi: MeshInstance3D in meshes:
-		if mi.mesh == null:
-			continue
-		var xf := Transform3D.IDENTITY
-		var shown := true
-		var n: Node = mi
-		while n != null and n != space:
-			if n is Node3D:
-				xf = (n as Node3D).transform * xf
-				shown = shown and (n as Node3D).visible
-			n = n.get_parent()
-		if not shown:
-			continue
-		var box: AABB = xf * mi.get_aabb()
-		if box.end.y < 0.1:
-			continue
-		bounds = bounds.merge(box) if found else box
-		found = true
-	return bounds
-
-
 func _build_content(c: Vector2i, ch: String) -> void:
 	var pos := cell_to_world(c)
 	match ch:
@@ -1266,47 +830,35 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_build_coin(pos)
 		"C":
 			_build_chest(c)
-		"&":
-			_build_chest(c, true)
-		"$":
-			ElderLair.build_hoard(self, c)
 		"D":
 			_build_door(c)
 		"b":
-			var barrel := _place("barrel_large", pos + Vector3(_rng.randf_range(-0.4, 0.4), 0, _rng.randf_range(-0.4, 0.4)), _rng.randf() * TAU)
-			# One barrel to a tile, not a pile. The roll for the small one that
-			# stood beside it stays, so the rest of the map is built as before.
-			_rng.randf()
-			_add_round_solid(barrel, 2.0)
+			_place("barrel_large", pos + Vector3(_rng.randf_range(-0.4, 0.4), 0, _rng.randf_range(-0.4, 0.4)), _rng.randf() * TAU)
+			_place("barrel_small", pos + Vector3(1.2, 0, 1.1), _rng.randf() * TAU)
+			_add_solid(pos, Vector3(2.4, 2, 2.4))
 			_add_interactable("Fass", pos, pos + Vector3(0, 2.8, 0), c)
 		"x":
-			var stack := _place("crates_stacked", pos, _random_quarter_turn())
-			_block_shots(_add_fitted_solid(stack, pos, 2.0, Vector2(3.0, 3.0)))
+			_place("crates_stacked", pos, _random_quarter_turn())
+			_add_solid(pos, Vector3(3.0, 2, 3.0))
 			_add_interactable("Kiste", pos, pos + Vector3(0, 3.6, 0), c)
 		"k":
-			# Any way round in the middle of a room, but against a wall its back
-			# rests on the wall. The kit trunk opens to its -Z side, the other
-			# chests to +Z. The turn is rolled either way, so the rest of the
-			# map is built as before.
-			var trunk_rot := _random_quarter_turn()
-			trunk_rot = _back_to_wall(c, trunk_rot - PI) + PI
-			var trunk_model := _place("trunk_large_A", pos, trunk_rot)
-			_add_fitted_solid(trunk_model, pos, 1.5)
-			var trunk := _add_interactable("Truhe", pos, pos + Vector3(0, 2.4, 0), c, not _in_secret_room(c))
-			trunk.lid = trunk_model.find_child("Lid", true, false)
-			# All the way up, as the trunk is modelled, so it shows it is empty.
-			trunk.lid_open = CHEST_SHUT
+			_place("trunk_large_A", pos, _random_quarter_turn())
+			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
+			var trunk := _add_interactable("Truhe", pos, pos + Vector3(0, 2.4, 0), c)
 			if _in_secret_room(c):
 				trunk.loot = _secret_loot(c, 0.5)
 		"o":
-			_block_shots(_add_fitted_solid(_place("pillar_decorated", pos), pos, 4.0, Vector2(1.6, 1.6)))
+			_place("pillar_decorated", pos)
+			_add_solid(pos, Vector3(1.6, 4, 1.6))
 		"y":
-			_block_shots(_add_fitted_solid(_place_lair("Statue_Horse", pos, _random_quarter_turn(), 0.62), pos, 4.0, Vector2(2.6, 2.6)))
+			_place_lair("Statue_Horse", pos, _random_quarter_turn(), 0.62)
+			_add_solid(pos, Vector3(2.6, 4, 2.6))
 		"H":
 			_build_shrine(c)
 		"B":
 			var bed_rot := _facing_room(c)
-			_add_fitted_solid(_place("bed_decorated", pos, bed_rot), pos, 1.5, Vector2(3.2, 3.2))
+			_place("bed_decorated", pos, bed_rot)
+			_add_solid(pos, Vector3(3.2, 1.5, 3.2))
 			stations.append({"kind": "bett", "cell": c, "pos": pos, "rot": bed_rot, "used": false})
 			if is_home or inn:
 				bed_side = cell_to_world(_open_side(c))
@@ -1314,12 +866,9 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"N":
 			_build_companion_corner(c)
 		"L":
-			_add_fitted_solid(_place("chest", pos, _back_to_wall(c, _facing_room(c))), pos, 1.5)
+			_place("chest", pos, _facing_room(c))
+			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
-		"m":
-			HomeStoreFurniture.build_metal_chest(self, c)
-		"h":
-			HomeStoreFurniture.build_board(self, c)
 		"V":
 			_build_merchant(c)
 		"=":
@@ -1337,7 +886,8 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"?":
 			_secret_at(c)
 		"t":
-			_add_fitted_solid(_place("table_medium_decorated_A", pos, _random_quarter_turn()), pos, 2.0, Vector2(3.0, 2.2))
+			_place("table_medium_decorated_A", pos, _random_quarter_turn())
+			_add_solid(pos, Vector3(3.0, 2, 2.2))
 			_add_interactable("Tisch", pos, pos + Vector3(0, 2.8, 0), c)
 		"j", "%", "~", "T", "^":
 			Mines.build_cell(self, c, ch)
@@ -1398,9 +948,7 @@ func _maybe_add_torch(wall_pos: Vector3, rot: float, forced := false) -> Node3D:
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.56, 0.24)
 	light.light_energy = 3.4
-	# The glow reaches a bit further than LIGHT_REACH, which alone decides
-	# what the torch reveals through the fog (so secret rooms stay hidden).
-	light.omni_range = 22.5
+	light.omni_range = 12.0
 	light.omni_attenuation = 1.3
 	light.position = Vector3(0, 1.0, 1.0)
 	holder.add_child(light)
@@ -1462,58 +1010,39 @@ func _build_key(pos: Vector3) -> void:
 	_pickups.append({"node": holder, "kind": "key", "radius": 1.8})
 
 
-## A coin of the money (copper, see CoinPile.MONEY) lying flat on the floor,
-## picked up when the hero walks over it. It looks like a lone coin dropped
-## there: copper, glinting now and then, glowing faintly (see CoinPile.dress).
+## A small gold coin lying flat on the floor, picked up when the hero walks over it.
 func _build_coin(pos: Vector3) -> void:
 	var holder := Node3D.new()
 	holder.position = pos + Vector3(0, 0.03, 0)
 	holder.rotation.y = deg_to_rad(hash(Vector2(pos.x, pos.z)) % 360)
 	add_child(holder)
-	CoinPile.dress(holder, 1, CoinPile.MONEY, self)
+	var coin := _place("coin", Vector3.ZERO, 0.0, holder)
+	coin.scale = Vector3.ONE * 1.6
 	var c := world_to_cell(pos)
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "id": "coin:%d,%d" % [c.x, c.y]})
 
 
-## An epic chest ("&", see ElderLair) holds a piece of the epic tier and a
-## heap of gold, and glows violet.
-func _build_chest(c: Vector2i, epic := false) -> void:
+func _build_chest(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	# Back to the wall, lid towards the room.
-	var rot := _back_to_wall(c)
+	# Face the chest towards the open side of the room.
+	var rot := 0.0
+	if cell_char(c + Vector2i(0, 1)) == "#":
+		rot = PI
 	var chest := _place("chest_gold", pos, rot)
-	_add_fitted_solid(chest, pos, 1.5, Vector2(2.0, 2.0))
-	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c, false)
+	_add_solid(pos, Vector3(2.0, 1.5, 2.0))
+	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c)
 	obj.lid = chest.find_child("chest_gold_lid", true, false)
-	obj.shine = CoinShine.add_to_chest(chest)
-	if epic:
-		var epic_rng := RandomNumberGenerator.new()
-		epic_rng.seed = hash("%s:epic:%d:%d" % [level_name, c.x, c.y])
-		obj.loot = {"gold": ElderLair.EPIC_GOLD, "item": ElderLair.epic_item(self, epic_rng)}
-		var glow := OmniLight3D.new()
-		glow.light_color = Rarity.EPIC
-		glow.light_energy = 2.0
-		glow.omni_range = 6.0
-		glow.position = pos + Vector3(0, 1.6, 0)
-		add_child(glow)
-		return
 	if _in_secret_room(c):
 		obj.loot = _secret_loot(c, 1.0)
 		return
 	var loot_rng := RandomNumberGenerator.new()
 	loot_rng.seed = hash("%s:chest:%d:%d" % [level_name, c.x, c.y])
 	if _behind_gate(c):
-		# The reward of a block-pushing puzzle: as rich as a rare secret room
-		# (an uncommon one in the beginner dungeon).
-		var reward := puzzle_tier()
-		obj.loot = {"gold": int(TIERS[reward].gold), "item": loot_item(loot_rng, tier_rank(reward), HeroLevel.place_level(self) + 1)}
+		# The reward of a block-pushing puzzle: as rich as a rare secret room.
+		var rare: Dictionary = TIERS["selten"]
+		obj.loot = {"gold": int(rare.gold), "item": Items.random_item(loot_rng, int(rare.min_price), "", HeroLevel.place_level(self) + 1)}
 		return
-	obj.loot = {"gold": 5, "item": loot_item(loot_rng, 0, HeroLevel.place_level(self))}
-
-
-## How rich the chest behind a puzzle's iron gate is (a key of TIERS).
-func puzzle_tier() -> String:
-	return BEGINNER_TOP_TIER if beginner_dungeon else "selten"
+	obj.loot = {"gold": 5, "item": Items.random_item(loot_rng, 0, "", HeroLevel.place_level(self))}
 
 
 ## The tiles reachable from the start without passing an iron gate (|).
@@ -1549,8 +1078,8 @@ func _secret_loot(c: Vector2i, share: float) -> Dictionary:
 	var loot_rng := RandomNumberGenerator.new()
 	loot_rng.seed = hash("%s:secret:%d:%d" % [level_name, c.x, c.y])
 	var loot := {"gold": int(round(tier.gold * share * loot_rng.randf_range(0.8, 1.2)))}
-	if share >= 1.0 or tier_rank(secret_tier) >= tier_rank("episch"):
-		loot.item = loot_item(loot_rng, tier_rank(secret_tier), HeroLevel.place_level(self) + 1)
+	if share >= 1.0 or tier.min_price >= 34:
+		loot.item = Items.random_item(loot_rng, tier.min_price, "", HeroLevel.place_level(self) + 1)
 	return loot
 
 
@@ -1600,26 +1129,6 @@ func _facing_room(c: Vector2i) -> float:
 	return 0.0
 
 
-## Letters a chest can rest its back against: walls, secret walls, bars, and
-## the walls of the house in the village.
-const CHEST_WALLS := "#?=I"
-
-
-## How to turn a chest (front on its +Z side, long side across it) so that its
-## back rests on a wall beside it and its lid opens towards the room. A wall
-## with open floor across the chest wins over one facing another wall or a
-## crate; next to no wall it keeps `fallback`.
-func _back_to_wall(c: Vector2i, fallback := 0.0) -> float:
-	var sides := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]
-	for d: Vector2i in sides:
-		if CHEST_WALLS.contains(cell_char(c - d)) and not SOLID.contains(cell_char(c + d)):
-			return atan2(float(d.x), float(d.y))
-	for d: Vector2i in sides:
-		if CHEST_WALLS.contains(cell_char(c - d)) and not CHEST_WALLS.contains(cell_char(c + d)):
-			return atan2(float(d.x), float(d.y))
-	return fallback
-
-
 ## Carved stone for pieces built in code (the fountain): the rough, matt stone
 ## shader on a plain colour, so its stains, grain and pits give the stone its
 ## look without a kit texture. Shared per colour.
@@ -1642,105 +1151,53 @@ func _plain_stone(color: Color) -> Material:
 
 const WATER_SHADER := preload("res://shaders/water.gdshader")
 
-const DECAYED_STONE_SHADER := preload("res://shaders/decayed_stone.gdshader")
-
-## The fountain's stone, aged by decay (0 clean, 1 the forgotten dungeon
-## fountain): cracks, damp streaks, moss and a lime crust at the water lines
-## (see shaders/decayed_stone.gdshader). Shared per colour and decay.
-## rubble: loose pieces lying on the floor (no extra moss at their foot).
-func _decayed_stone(color: Color, decay: float, rubble := false) -> Material:
-	var key := "mat_decayed_stone_%s_%.2f_%s" % [color.to_html(), decay, rubble]
-	if not _scenes.has(key):
-		var stone := ShaderMaterial.new()
-		stone.shader = DECAYED_STONE_SHADER
-		stone.set_shader_parameter("albedo_color", color)
-		stone.set_shader_parameter("strength", decay)
-		stone.set_shader_parameter("water_line_a", FOUNTAIN_WATER)
-		stone.set_shader_parameter("water_line_b", FOUNTAIN_BOWL_WATER)
-		stone.set_shader_parameter("low_moss", 0.0 if rubble else 1.0)
-		_scenes[key] = stone
-	return _scenes[key]
-
-
-## Heights of the water in the fountain's basin and in its bowl.
-const FOUNTAIN_WATER := 0.92
-const FOUNTAIN_BOWL_WATER := 2.3
-
-## The healing fountain: an eight-sided basin of carved stone on a low step,
-## a column with a small bowl on top, and a spout whose water falls back into
-## the basin. The water glows faintly and breathes, with a few motes drifting
-## over it, since it heals. In the dungeon it has stood forgotten for ages:
-## the stone is cracked, streaked and mossy, a piece of the basin's coping has
-## broken off and lies on the floor with some rubble, the water is murky with
-## a film of scum and the spout only splutters. Up in the village it is
-## looked after and only a little weathered.
+## The healing fountain: an eight-sided basin of matt carved stone on a low
+## step, a column with a small bowl on top, and a spout whose water falls
+## back into the basin. The water glows faintly and breathes, with a few
+## motes drifting over it, since it heals.
 func _build_fountain(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	var decay := 0.25 if outdoor or is_home else 1.0
-	var old := decay > 0.5
-	var stone := _decayed_stone(Color(0.56, 0.54, 0.5) if not old else Color(0.5, 0.48, 0.43), decay)
+	var stone := _plain_stone(Color(0.56, 0.54, 0.5))
 	# The inside of the basin stays wet and dark.
-	var wet := _decayed_stone(Color(0.3, 0.31, 0.32) if not old else Color(0.24, 0.25, 0.21), decay)
+	var wet := _plain_stone(Color(0.3, 0.31, 0.32))
 	var water := ShaderMaterial.new()
 	water.shader = WATER_SHADER
 	var still := ShaderMaterial.new()
 	still.shader = WATER_SHADER
 	still.set_shader_parameter("rings", 0.3)
 	still.set_shader_parameter("ring_spacing", 45.0)
-	if old:
-		# Murky, greenish water with scum along the rim; it still glows a
-		# little, as it still heals.
-		for m: ShaderMaterial in [water, still]:
-			m.set_shader_parameter("deep_color", Color(0.05, 0.09, 0.06))
-			m.set_shader_parameter("shallow_color", Color(0.16, 0.22, 0.14))
-			m.set_shader_parameter("glow_color", Color(0.4, 0.8, 0.62))
-			m.set_shader_parameter("glow", 0.16)
-			m.set_shader_parameter("scum", 1.0)
-		water.set_shader_parameter("radius", 1.3)
-		water.set_shader_parameter("rings", 0.45)
-		still.set_shader_parameter("radius", 0.5)
-	# One side of the coping has broken off (the one facing the room's
-	# entrance side most often seen, front right).
-	var coping_gaps := [1] if old else []
-	# [inner radius, outer radius, bottom, top, sides, material, gaps]
+	# [inner radius, outer radius, bottom, top, sides, material]
 	var parts := [
-		[0.0, 1.85, 0.0, 0.22, 8, stone, []],  # the step
-		[1.3, 1.55, 0.22, 1.0, 8, stone, []],  # the basin's wall
-		[1.25, 1.68, 1.0, 1.14, 8, stone, coping_gaps],  # its coping, a little wider
-		[0.0, 1.31, 0.22, 0.4, 8, wet, []],  # the basin's floor
-		[0.0, 1.3, 0.4, FOUNTAIN_WATER, 24, water, []],  # the water
-		[0.0, 0.46, 0.4, 0.62, 8, stone, []],  # the column's foot
-		[0.0, 0.3, 0.62, 1.94, 8, stone, []],  # the column
-		[0.0, 0.52, 1.94, 2.06, 8, stone, []],  # its capital
-		[0.5, 0.74, 2.06, 2.38, 8, stone, []],  # the bowl on top
-		[0.0, 0.51, 2.06, 2.14, 8, wet, []],  # the bowl's floor
-		[0.0, 0.5, 2.14, FOUNTAIN_BOWL_WATER, 24, still, []],  # the bowl's water
+		[0.0, 1.85, 0.0, 0.22, 8, stone],  # the step
+		[1.3, 1.55, 0.22, 1.0, 8, stone],  # the basin's wall
+		[1.25, 1.68, 1.0, 1.14, 8, stone],  # its coping, a little wider
+		[0.0, 1.31, 0.22, 0.4, 8, wet],  # the basin's floor
+		[0.0, 1.3, 0.4, 0.92, 24, water],  # the water
+		[0.0, 0.46, 0.4, 0.62, 8, stone],  # the column's foot
+		[0.0, 0.3, 0.62, 1.94, 8, stone],  # the column
+		[0.0, 0.52, 1.94, 2.06, 8, stone],  # its capital
+		[0.5, 0.74, 2.06, 2.38, 8, stone],  # the bowl on top
+		[0.0, 0.51, 2.06, 2.14, 8, wet],  # the bowl's floor
+		[0.0, 0.5, 2.14, 2.3, 24, still],  # the bowl's water
 	]
 	for part in parts:
 		var node := MeshInstance3D.new()
-		node.mesh = Effects.ring_mesh(part[0], part[1], part[2], part[3], part[4], part[5], part[6])
+		node.mesh = Effects.ring_mesh(part[0], part[1], part[2], part[3], part[4], part[5])
 		node.position = pos
 		if part[5] == water or part[5] == still:
 			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(node)
-	if old:
-		_fountain_rubble(pos, _decayed_stone(Color(0.5, 0.48, 0.43), decay, true))
-	var spray := Effects.make_spray(Color(0.75, 0.92, 0.95) if not old else Color(0.62, 0.72, 0.62))
+	var spray := Effects.make_spray(Color(0.75, 0.92, 0.95))
 	spray.position = pos + Vector3(0, 2.3, 0)
-	if old:
-		# The spout half choked: it splutters a few weak drops.
-		spray.amount = 16
-		spray.initial_velocity_min = 1.2
-		spray.initial_velocity_max = 2.0
 	add_child(spray)
-	var motes := Effects.make_sparkles(Color(0.6, 0.9, 0.9) if not old else Color(0.55, 0.85, 0.7))
-	motes.amount = 8 if not old else 5
+	var motes := Effects.make_sparkles(Color(0.6, 0.9, 0.9))
+	motes.amount = 8
 	motes.emission_sphere_radius = 1.1
 	motes.position = pos + Vector3(0, 1.2, 0)
 	add_child(motes)
 	var glow := OmniLight3D.new()
-	glow.light_color = Color(0.5, 0.85, 0.85) if not old else Color(0.48, 0.8, 0.68)
-	glow.light_energy = 0.9 if not old else 0.7
+	glow.light_color = Color(0.5, 0.85, 0.85)
+	glow.light_energy = 0.9
 	glow.omni_range = 6.5
 	glow.position = pos + Vector3(0, 1.8, 0)
 	add_child(glow)
@@ -1751,30 +1208,7 @@ func _build_fountain(c: Vector2i) -> void:
 	_add_solid(pos, Vector3(3.2, 2, 3.2))
 	_light_spots.append(pos)
 	stations.append({"kind": "brunnen", "cell": c, "pos": pos, "used": false})
-	fishing_waters.append({"water": "brunnen", "pos": pos, "reach": 1.3, "round": true, "surface": FOUNTAIN_WATER})
-
-
-## The broken-off piece of the fountain's coping, lying on the floor in front
-## of the gap, with a few smaller chips of stone round the step. Fixed, not
-## random, so the fountain looks the same each visit.
-func _fountain_rubble(pos: Vector3, stone: Material) -> void:
-	# [size, offset from the middle, turn, tilt]
-	var pieces := [
-		[Vector3(0.72, 0.14, 0.4), Vector3(1.75, 0.07, 1.55), 0.85, Vector3(0.08, 0, 0.22)],
-		[Vector3(0.24, 0.12, 0.2), Vector3(1.95, 0.06, 0.6), 0.3, Vector3(0.2, 0, 0.1)],
-		[Vector3(0.16, 0.1, 0.14), Vector3(0.9, 0.27, 1.55), 1.2, Vector3(0, 0, 0.15)],
-		[Vector3(0.14, 0.08, 0.12), Vector3(-1.3, 0.05, 1.75), 2.1, Vector3(0.1, 0, 0)],
-		[Vector3(0.2, 0.1, 0.16), Vector3(-1.9, 0.05, -0.7), 0.6, Vector3(0.15, 0, 0.1)],
-	]
-	for piece in pieces:
-		var box := BoxMesh.new()
-		box.size = piece[0]
-		var node := MeshInstance3D.new()
-		node.mesh = box
-		node.material_override = stone
-		node.position = pos + piece[1]
-		node.rotation = Vector3(piece[3].x, piece[2], piece[3].z)
-		add_child(node)
+	fishing_waters.append({"water": "brunnen", "pos": pos, "reach": 1.3, "round": true, "surface": 0.92})
 
 
 ## A secret passage: a wall tile with a fake wall on each open side.
@@ -1798,7 +1232,7 @@ func _build_secret_face(c: Vector2i, d: Vector2i) -> void:
 	var wall := _place("wall", pos, rot)
 	secret.walls.append(wall)
 	if d == Vector2i(0, 1):
-		_near_walls.add(wall)
+		wall.scale.y = LOW_WALL_SCALE
 	elif _outer_side().has(c):
 		secret.faces.append({"cell": c, "pos": pos, "rot": rot})
 
@@ -1830,10 +1264,10 @@ func _pick_levers() -> void:
 		var steps := _steps_from_secret(s)
 		var near: Array = []
 		for t in _wall_torches:
-			if steps.has(t.cell) and not _on_way_out(t.cell):
+			if steps.has(t.cell):
 				near.append(t)
 		# Too few torches around: hang more on the bare walls nearby.
-		var bare := _bare_walls.filter(func(w): return steps.has(w.cell) and not _on_way_out(w.cell))
+		var bare := _bare_walls.filter(func(w): return steps.has(w.cell))
 		while near.size() < LEVER_CHOICES and not bare.is_empty():
 			var w: Dictionary = bare.pop_at(_rng.randi() % bare.size())
 			if _torch_spots.any(func(spot): return spot.distance_to(w.pos) < TILE * 1.5):
@@ -1849,25 +1283,6 @@ func _pick_levers() -> void:
 			s.lever = _maybe_add_torch(face.pos, face.rot, true)
 			s.lever_cell = face.cell
 			s.lever_on_wall = true
-
-
-## Tiles that lead on to the next level: the exit stairs, the stairs of a
-## home and a mine's way down.
-const WAY_OUT := "E<>^"
-## How many tiles around the stairs (diagonals too) count as the way up.
-const WAY_OUT_REACH := 2
-
-
-## Whether a tile is on the way up: the stairs or a tile within WAY_OUT_REACH
-## of them, such as the alcove in front of the Zuflucht's stairs. The torches
-## there light the hero's way on and never serve as a secret wall's lever, so
-## climbing the stairs does not give the secret room away.
-func _on_way_out(c: Vector2i) -> bool:
-	for dy in range(-WAY_OUT_REACH, WAY_OUT_REACH + 1):
-		for dx in range(-WAY_OUT_REACH, WAY_OUT_REACH + 1):
-			if WAY_OUT.contains(cell_char(c + Vector2i(dx, dy))):
-				return true
-	return false
 
 
 var _outer: Dictionary = {}
@@ -1908,8 +1323,7 @@ func explore_cells() -> Array[Vector2i]:
 	return out
 
 
-## Rolls each lever once, the first time the hero stands next to it in view
-## (within LEVER_RANGE). From further away nothing happens and nothing is rolled.
+## Rolls each lever once, the first time the hero walks past it in view.
 func _check_secrets() -> void:
 	for s in _secrets:
 		if s.rolled or s.lever == null:
@@ -1924,25 +1338,6 @@ func _check_secrets() -> void:
 		if randi_range(1, 100) <= secret_chance():
 			player.train("intuition", 12.0)
 			_open_secret(s)
-
-
-## A person or a piece of gear made in the map workshop (monsters come with
-## the others, see _spawn_enemies). Gear lies on the floor once: picked up
-## or not, it is remembered from then on (taken, then floor_items).
-func _build_creation(c: Vector2i, spec: Dictionary) -> void:
-	var pos := cell_to_world(c)
-	match spec.type:
-		"npc":
-			var npc := DungeonNpc.new()
-			npc.setup(spec)
-			add_child(npc)
-			npc.global_position = pos
-			stations.append({"kind": "figur", "cell": c, "pos": pos, "used": false, "figure": npc})
-		"item":
-			var key := "custom:%d:%d" % [c.x, c.y]
-			if Items.ALL.has(spec.id) and not taken.has(key):
-				taken[key] = true
-				_drop_item(spec.id, pos)
 
 
 ## Carves this level's writing into a plain wall in the part of the level
@@ -1960,18 +1355,16 @@ func _place_writing() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("%s:writing" % level_name)
 	var wall: Dictionary = walls[rng.randi() % walls.size()]
-	var entry: Array = custom_writing if not custom_writing.is_empty() else WRITINGS[depth % WRITINGS.size()]
+	var entry: Array = WRITINGS[depth % WRITINGS.size()]
 	var label := Label3D.new()
-	label.text = Lang.t(entry[0])
-	# Lang.t already chose the language; do not translate the label again.
-	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	label.text = entry[0]
 	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	label.font_size = 72
 	label.pixel_size = 0.01
-	label.font_size = writing_font_size(label.font, label.text, label.pixel_size)
-	label.outline_size = 4
-	# Smeared on the stone in blood.
-	label.modulate = WRITING_BLOOD
-	label.outline_modulate = WRITING_BLOOD_DARK
+	label.outline_size = 6
+	# Pale scratches in the dark stone.
+	label.modulate = Color(0.9, 0.86, 0.74)
+	label.outline_modulate = Color(0.12, 0.1, 0.08)
 	label.double_sided = false
 	# Flat on the wall, facing into the room, at eye height.
 	var facing := Vector3(sin(wall.rot), 0, cos(wall.rot))
@@ -1979,121 +1372,7 @@ func _place_writing() -> void:
 	label.rotation.y = wall.rot
 	label.visible = false
 	add_child(label)
-	var drips := _writing_drips(label, rng)
-	_writing_arrow(wall.pos, facing, rng)
-	# Run into the wall to read a noticed writing again.
-	var station := {"kind": "tafel", "cell": wall.cell + Vector2i(0, -1), "pos": wall.pos + facing * 0.5,
-			"used": false, "text": entry[1]}
-	_writing = {"cell": wall.cell, "label": label, "drips": drips, "word": entry[0], "text": entry[1],
-			"rolled": false, "found": false, "station": station}
-	if taken.has(WRITING_KEY):
-		# Noticed on an earlier visit: it shows at once, without news.
-		_writing.found = true
-		_writing.rolled = true
-		label.visible = true
-		stations.append(station)
-
-
-## Blood running down from the letters: thin trickles under the word, each
-## ending in a drop, hanging from a pivot at its top so it can run down when
-## the writing is noticed (see reveal_writing). Children of the label, so
-## they show with it.
-func _writing_drips(label: Label3D, rng: RandomNumberGenerator) -> Array:
-	var size := label.font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, label.font_size) * label.pixel_size
-	var blood := _blood_material(true)
-	var drips: Array = []
-	var count := clampi(int(size.x / 0.32), 3, 10)
-	for i in count:
-		var pivot := Node3D.new()
-		var x := (float(i) + rng.randf_range(0.2, 0.8)) / count * size.x - size.x / 2.0
-		# From the lower part of the letters, a little behind them.
-		pivot.position = Vector3(x, -size.y * 0.22, -0.01)
-		label.add_child(pivot)
-		var length := rng.randf_range(WRITING_DRIP_LENGTH.x, WRITING_DRIP_LENGTH.y)
-		var width := rng.randf_range(0.035, 0.06)
-		var trickle := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(width, length, 0.01)
-		trickle.mesh = box
-		trickle.material_override = blood
-		trickle.position.y = -length / 2.0
-		pivot.add_child(trickle)
-		var drop := MeshInstance3D.new()
-		var ball := SphereMesh.new()
-		ball.radius = width * 0.9
-		ball.height = width * 2.2
-		drop.mesh = ball
-		drop.material_override = blood
-		drop.position.y = -length
-		pivot.add_child(drop)
-		drips.append(pivot)
-	return drips
-
-
-## Bloodstains on the floor in front of the writing, dripped in the shape
-## of an arrow that points at it: a trail of drops towards the wall and a
-## head of two short strokes. Always there, so they lead the hero to a
-## writing not yet noticed. All within the tile in front of the wall.
-func _writing_arrow(wall_pos: Vector3, facing: Vector3, rng: RandomNumberGenerator) -> Node3D:
-	var arrow := Node3D.new()
-	arrow.name = "BloodArrow"
-	add_child(arrow)
-	var blood := _blood_material(false)
-	var side := Vector3(facing.z, 0, -facing.x)
-	var spots: Array = []
-	# The shaft: from the middle of the tile towards the wall.
-	var d := 3.3
-	while d > 1.3:
-		spots.append([d, rng.randf_range(-0.07, 0.07), rng.randf_range(0.1, 0.17)])
-		d -= rng.randf_range(0.28, 0.4)
-	# The tip and the two strokes of the head.
-	spots.append([0.95, 0.0, 0.19])
-	for k in [1.0, -1.0]:
-		for step in 3:
-			var t := (step + 1) / 3.0
-			spots.append([0.95 + 0.55 * t, k * 0.55 * t, rng.randf_range(0.1, 0.15)])
-	# A few splashes round about.
-	for i in 4:
-		spots.append([rng.randf_range(1.0, 3.4), rng.randf_range(-1.2, 1.2), rng.randf_range(0.04, 0.08)])
-	for spot in spots:
-		var stain := MeshInstance3D.new()
-		var disc := CylinderMesh.new()
-		disc.top_radius = spot[2]
-		disc.bottom_radius = spot[2]
-		disc.height = 0.01
-		disc.radial_segments = 12
-		stain.mesh = disc
-		stain.material_override = blood
-		stain.position = wall_pos + facing * spot[0] + side * spot[1] + Vector3(0, DungeonLife.FLOOR_Y + 0.01, 0)
-		# Not quite round: drops land a little smeared.
-		stain.scale = Vector3(rng.randf_range(0.8, 1.3), 1.0, rng.randf_range(0.8, 1.3))
-		stain.rotation.y = rng.randf() * TAU
-		arrow.add_child(stain)
-	return arrow
-
-
-## Blood: shiny and dark on the floor; on the wall unshaded like the letters,
-## so the trickles match them.
-static func _blood_material(on_wall: bool) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = WRITING_BLOOD if on_wall else WRITING_BLOOD_DARK.lerp(WRITING_BLOOD, 0.45)
-	if on_wall:
-		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	else:
-		m.roughness = 0.25
-		m.metallic_specular = 0.7
-	return m
-
-
-## The largest font size, up to WRITING_FONT_SIZE, at which a carved word
-## fits on one wall piece (WRITING_MAX_WIDTH) in either
-## language: a long word such as FREIHEIT is carved smaller.
-static func writing_font_size(font: Font, text: String, pixel_size: float) -> int:
-	var room := WRITING_MAX_WIDTH
-	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, WRITING_FONT_SIZE).x * pixel_size
-	if width <= room:
-		return WRITING_FONT_SIZE
-	return maxi(WRITING_FONT_MIN, floori(WRITING_FONT_SIZE * room / width))
+	_writing = {"cell": wall.cell, "label": label, "text": entry[1], "rolled": false, "found": false}
 
 
 ## This level's writing (see _writing), for the tests.
@@ -2108,19 +1387,12 @@ func writing_chance() -> int:
 
 ## Rolls once per visit, the first time the hero comes near the writing in view.
 func _check_writing() -> void:
-	if _writing.is_empty() or _writing.found:
+	if _writing.is_empty() or _writing.rolled:
 		return
 	var spot := cell_to_world(_writing.cell)
-	var distance := Vector2(player.global_position.x - spot.x, player.global_position.z - spot.z).length()
-	if distance > WRITING_RANGE:
+	if Vector2(player.global_position.x - spot.x, player.global_position.z - spot.z).length() > WRITING_RANGE:
 		return
 	if not has_line_of_sight(player.global_position, spot):
-		return
-	# Right in front of it, nobody can miss it.
-	if distance <= WRITING_SURE_RANGE:
-		reveal_writing()
-		return
-	if _writing.rolled:
 		return
 	_writing.rolled = true
 	if randi_range(1, 100) <= writing_chance():
@@ -2140,13 +1412,6 @@ func reveal_writing() -> void:
 	var tween := create_tween()
 	tween.tween_property(label, "modulate:a", 1.0, 1.2)
 	tween.parallel().tween_property(label, "outline_modulate:a", 1.0, 1.2)
-	# The blood runs down from the letters.
-	for drip in _writing.drips:
-		drip.scale.y = 0.05
-		create_tween().tween_property(drip, "scale:y", 1.0, randf_range(1.2, 2.6)).set_delay(0.4).set_ease(Tween.EASE_OUT)
-	taken[WRITING_KEY] = true
-	if not stations.has(_writing.station):
-		stations.append(_writing.station)
 	Effects.float_text(self, label.global_position + Vector3(0, 0.8, 0), Lang.t("Eine Inschrift!"), Color(0.9, 0.86, 0.74))
 	Events.bus().writing_found.emit(_writing.text)
 
@@ -2222,14 +1487,10 @@ func station_at(point: Vector3) -> Dictionary:
 
 ## The closest unused station within reach of a position, if any.
 func nearest_station(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
-	var best := {}
-	var best_distance := max_distance
 	for s in stations:
-		var d := Vector2(from.x - s.pos.x, from.z - s.pos.z).length()
-		if not s.used and d <= best_distance:
-			best = s
-			best_distance = d
-	return best
+		if not s.used and Vector2(from.x - s.pos.x, from.z - s.pos.z).length() <= max_distance:
+			return s
+	return {}
 
 
 ## The water closest to a spot, if the hero standing there can cast a line
@@ -2267,117 +1528,6 @@ func use_shrine(s: Dictionary) -> void:
 	tween.parallel().tween_property(s.orb.material_override, "albedo_color", Color(0.3, 0.3, 0.35), 1.2)
 
 
-## The key in `taken` for a monster of the map slain on its start cell `c`.
-static func slain_key(c: Vector2i) -> String:
-	return "slain:%d:%d" % [c.x, c.y]
-
-
-## The key in `taken` for a door at cell `c` left open.
-static func door_key(c: Vector2i) -> String:
-	return "door:%d:%d" % [c.x, c.y]
-
-
-## Set in `taken` once the hero took this floor's key (held or used).
-const KEY_GONE := "key_gone"
-## Set in `taken` once every pressure plate was pressed and the iron gates
-## sank into the floor.
-const GATES_OPEN := "gates_open"
-
-
-## The key in `taken` for where a heavy block that started on grid cell
-## `first` was left: [x, z, along x (1) or z (0)] of its first cell.
-static func heavy_key(first: Vector2i) -> String:
-	return "heavy:%d:%d" % [first.x, first.y]
-
-
-## The hero leaves this dungeon floor (up the stairs or down a trapdoor):
-## remember which monsters of the map fell, which doors stand open and
-## whether the key is gone, so falling back to it later finds it as it was
-## left instead of a fresh floor (see _restore_left). Chests, pickups and
-## the map already stay as they were through `taken` and the journal.
-func note_left() -> void:
-	for m in _map_enemies:
-		var e = m.enemy
-		if not is_instance_valid(e) or e.dead:
-			taken[slain_key(m.cell)] = true
-	var any_open := false
-	for d in _doors:
-		if d.open:
-			taken[door_key(d.cell)] = true
-			any_open = true
-	if has_key or any_open:
-		taken[KEY_GONE] = true
-	# Heavy blocks stay where the hero pushed them, and a puzzle once solved
-	# stays solved, so a fall through a trapdoor costs no progress.
-	for st in stones:
-		if is_instance_valid(st) and st.heavy:
-			taken[heavy_key(StoneBlock.cell_for(st.home, true))] = [st.cell.x, st.cell.y, 1 if st.along_x else 0]
-	if not _gates.is_empty() and gates_open():
-		taken[GATES_OPEN] = true
-
-
-## Puts back what note_left remembered: open doors stay open, a key that was
-## taken stays gone (and is still in the hero's hand if no door used it), and
-## a guardian who fell before the key was picked up leaves it where he stood.
-func _restore_left() -> void:
-	_restore_heavy()
-	var any_open := false
-	for d in _doors:
-		if not taken.has(door_key(d.cell)):
-			continue
-		any_open = true
-		d.open = true
-		d.leaf.queue_free()
-		astar.set_point_solid(d.cell, false)
-		if d.door:
-			d.door.rotation.y -= deg_to_rad(105)
-	if taken.has(KEY_GONE):
-		for p in _pickups.duplicate():
-			if p.kind == "key":
-				_pickups.erase(p)
-				p.node.queue_free()
-		has_key = not any_open
-	elif not _has_cell("K"):
-		for y in height:
-			for x in width:
-				var c := Vector2i(x, y)
-				if Enemy.LETTERS.get(cell_char(c), "") == "waechter" and taken.has(slain_key(c)):
-					_build_key(cell_to_world(c))
-					return
-
-
-## Puts the heavy blocks back where note_left found them, sinks the iron
-## gates of a solved puzzle at once and settles the plates under the blocks
-## quietly, without the clack and the count of a block just pushed on.
-func _restore_heavy() -> void:
-	var moved := false
-	for st in stones:
-		if not st.heavy:
-			continue
-		var at = taken.get(heavy_key(StoneBlock.cell_for(st.home, true)))
-		if at is Array and at.size() >= 3:
-			st.place(Vector2i(int(at[0]), int(at[1])), int(at[2]) == 1, 0)
-			moved = true
-	if moved:
-		refresh_stone_paths()
-	if taken.has(GATES_OPEN):
-		for g in _gates:
-			if g.open:
-				continue
-			g.open = true
-			g.body.queue_free()
-			astar.set_point_solid(g.cell, false)
-			g.node.position.y = GATE_SUNK
-	var pressed := 0
-	for plate in _plates:
-		plate.pressed = _plate_pressed(plate)
-		if plate.pressed:
-			pressed += 1
-			plate.node.position.y = 0.0
-			plate.mat.set_shader_parameter("glow", 1.0)
-	_plates_pressed = pressed
-
-
 func _build_door(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	var blocks_north_south := cell_char(c + Vector2i(-1, 0)) == "#" and cell_char(c + Vector2i(1, 0)) == "#"
@@ -2390,7 +1540,7 @@ func _build_door(c: Vector2i) -> void:
 	_add_box(body, Vector3(-1.55, 2, 0), Vector3(1.0, 4, 1))
 	_add_box(body, Vector3(1.55, 2, 0), Vector3(1.0, 4, 1))
 	var leaf := _add_box(body, Vector3(0, 2, 0), Vector3(2.2, 4, 1))
-	_doors.append({"door": door.find_child("wall_doorway_door", true, false), "leaf": leaf, "cell": c, "pos": pos, "open": false, "spans_x": blocks_north_south})
+	_doors.append({"door": door.find_child("wall_doorway_door", true, false), "leaf": leaf, "cell": c, "pos": pos, "open": false})
 
 
 func _build_exit(c: Vector2i) -> void:
@@ -2420,18 +1570,6 @@ const PUSH_APART_SPEED := 6.0
 ## How far two bodies may sink into each other before they count as stacked
 ## (bodies that merely touch must still be able to fight).
 const STACK_TOLERANCE := 0.15
-
-
-## Whether a spot on the floor is in water deep enough to splash: a drip
-## puddle in the dungeon (see DungeonLife). Outdoor has rain puddles instead.
-func in_puddle(p: Vector3) -> bool:
-	return life != null and life.in_puddle(p)
-
-
-## A foot lands in the water at a spot (see in_puddle); a soft step when not hard.
-func splash_puddle(at: Vector3, _hard := true) -> void:
-	if life:
-		life.splash(at)
 
 
 ## Whether `a` and `b` (the hero or skeletons) stand inside each other or on
@@ -2465,75 +1603,21 @@ func _push_apart(delta: float) -> void:
 		for j in range(i + 1, bodies.size()):
 			var a = bodies[i]
 			var b = bodies[j]
-			# Most pairs are far apart: that is told first and cheaply, as
-			# this runs for every pair on every tick (some 800 in the village).
-			var d: Vector3 = b.global_position - a.global_position
-			var overlap: float = a.radius + b.radius - Vector2(d.x, d.z).length()
-			if overlap <= 0.02:
-				continue
-			if absf(d.y) > maxf(a.tall, b.tall) + 0.5:
-				continue
 			if _up_on_crate(a, b):
 				continue
+			var d: Vector3 = b.global_position - a.global_position
+			if absf(d.y) > maxf(a.tall, b.tall) + 0.5:
+				continue
 			d.y = 0.0
+			var overlap: float = a.radius + b.radius - d.length()
+			if overlap <= 0.02:
+				continue
 			var away: Vector3 = d.normalized() if d.length() > 0.05 else _free_side(b)
 			var weight_a := _push_weight(a)
 			var weight_b := _push_weight(b)
 			var step := minf(overlap, PUSH_APART_SPEED * delta)
-			var move_a: Vector3 = -away * step * weight_b / (weight_a + weight_b)
-			var move_b: Vector3 = away * step * weight_a / (weight_a + weight_b)
-			# The hero is never shoved onto a tile with furniture: the
-			# skeleton makes all the room instead.
-			if a is Player and shoves_onto_furniture(a, move_a):
-				move_b = away * step
-				move_a = Vector3.ZERO
-			elif b is Player and shoves_onto_furniture(b, move_b):
-				move_a = -away * step
-				move_b = Vector3.ZERO
-			_shove(a, b, move_a)
-			_shove(b, a, move_b)
-
-
-## The tile to set out from for someone standing at `pos`: their own, or,
-## when they stand on the free edge of a tile with furniture (only the piece
-## itself is solid, see _add_fitted_solid), the free tile beside it on the
-## side they stand on, so the way leads round the piece and not through it.
-func set_out_cell(pos: Vector3) -> Vector2i:
-	var c := world_to_cell(pos)
-	if not astar.is_in_boundsv(c) or not astar.is_point_solid(c) or _stone_cut.has(c):
-		return c
-	# The nearest free tile, also past a corner or a second piece (in among
-	# boulders lying side by side).
-	var best := c
-	var best_distance := INF
-	for dy in range(-2, 3):
-		for dx in range(-2, 3):
-			var n := c + Vector2i(dx, dy)
-			if astar.is_in_boundsv(n) and not astar.is_point_solid(n):
-				var distance := Vector2(pos.x, pos.z).distance_to(Vector2(cell_to_world(n).x, cell_to_world(n).z))
-				if distance < best_distance:
-					best = n
-					best_distance = distance
-	return best
-
-
-## Whether moving `body` by `motion` carries it off its tile onto a tile
-## that is not free to walk: one with furniture, a closed door, blocks. With
-## `from` the body has moved already, from there to where it is now. Monsters
-## and blows never push the hero there (see Player._keep_off_furniture), so
-## the hero is never squeezed in beside a piece of furniture.
-func shoves_onto_furniture(body: Node3D, motion: Vector3, from = null) -> bool:
-	var start: Vector3 = body.global_position if from == null else from
-	var end: Vector3 = body.global_position + motion
-	var flat := Vector3(end.x - start.x, 0.0, end.z - start.z)
-	if flat.length() < 0.0001:
-		return false
-	var here := world_to_cell(start)
-	var there := world_to_cell(end)
-	if from == null:
-		# Ahead by the body's width: the shove would press it in there.
-		there = world_to_cell(end + flat.normalized() * body.radius)
-	return there != here and astar.is_in_boundsv(there) and astar.is_point_solid(there)
+			_shove(a, b, -away * step * weight_b / (weight_a + weight_b))
+			_shove(b, a, away * step * weight_a / (weight_a + weight_b))
 
 
 ## Whether the higher of two bodies stands on a crate. A hero up on a
@@ -2618,8 +1702,7 @@ func _someone_on(crate: Crate) -> bool:
 	var bodies: Array = enemies.duplicate()
 	bodies.append(player)
 	for b in bodies:
-		# A corpse (see Corpse) lying on a crate does not hold it down.
-		if is_instance_valid(b) and b is Node3D and not (b is Enemy and b.dead) and absf(b.global_position.y - crate.top()) < 0.3 and crate.covers(b.global_position, 0.5):
+		if is_instance_valid(b) and b is Node3D and absf(b.global_position.y - crate.top()) < 0.3 and crate.covers(b.global_position, 0.5):
 			return true
 	return false
 
@@ -2833,7 +1916,7 @@ func stone_spot_ahead(hero: Node3D, ahead: Vector3) -> Dictionary:
 ## when it is too far from the hero or there is no room.
 func stone_drop_spot(stone: StoneBlock, point: Vector3, x_wise: bool, hero: Node3D) -> Dictionary:
 	if stone.heavy:
-		return _heavy_spot(stone, point, x_wise, hero)
+		return _slide_spot(stone, point, hero)
 	var first := StoneBlock.cell_for(point, x_wise)
 	var spot := StoneBlock.spot_of(first, x_wise, 0)
 	var on_layer := stone_layer_for(first, x_wise, stone)
@@ -2928,65 +2011,39 @@ func stone_surface(point: Vector3) -> float:
 	return stone_column(StoneBlock.grid_cell(point)) * StoneBlock.HEIGHT
 
 
-## How far a heavy block may move from where it lay when the level began:
-## five tiles, measured from middle to middle. Within that it goes anywhere
-## on the floor, so it can be neither lost nor wedged out of a puzzle's reach.
-const HEAVY_RANGE := 5.0 * TILE
-
-
-## Whether a heavy block lying on these cells would still be within
-## HEAVY_RANGE of where it started. Always true for the hero's own blocks.
-func heavy_in_range(stone: StoneBlock, first: Vector2i, x_wise: bool) -> bool:
-	return not stone.heavy or _flat_distance(StoneBlock.spot_of(first, x_wise, 0), stone.home) <= HEAVY_RANGE
-
-
-## A heavy block moves freely: anywhere on the floor towards `point`, lying
-## along x or z, within the hero's reach and within HEAVY_RANGE of where it
-## started. It is never stacked and never passes through a wall or a shut
-## gate (the way from its tile to the new one must be open floor). A point
-## beyond the range is pulled back onto its edge, and "edge" says so.
-func _heavy_spot(stone: StoneBlock, point: Vector3, x_wise: bool, hero: Node3D) -> Dictionary:
-	var result := {"cell": stone.cell, "along_x": stone.along_x, "layer": stone.layer, "ok": false, "edge": false}
+## A heavy block only slides: along the floor, in a straight line along x or
+## z from where it lies, as far towards `point` as it goes before it hits
+## something (and within the hero's reach). Never turned, never stacked.
+func _slide_spot(stone: StoneBlock, point: Vector3, hero: Node3D) -> Dictionary:
+	var result := {"cell": stone.cell, "along_x": stone.along_x, "layer": stone.layer, "ok": false}
 	if stone.layer != 0:
 		return result
-	var off := Vector3(point.x - stone.home.x, 0.0, point.z - stone.home.z)
-	if off.length() > HEAVY_RANGE:
-		# A little inside the edge, so the snap to the grid stays within it.
-		point = stone.home + off.normalized() * (HEAVY_RANGE - StoneBlock.CELL)
-		result.edge = true
-	var first := StoneBlock.cell_for(point, x_wise)
-	result.cell = first
-	result.along_x = x_wise
-	result.layer = 0
-	if first == stone.cell and x_wise == stone.along_x:
+	var aim := StoneBlock.cell_for(point, stone.along_x) - stone.cell
+	if aim == Vector2i.ZERO:
 		return result
-	var spot := StoneBlock.spot_of(first, x_wise, 0)
-	if _flat_distance(spot, hero.global_position) > STONE_DRAG_RANGE or not heavy_in_range(stone, first, x_wise):
-		return result
-	result.ok = _slides_onto(stone, first, x_wise) and _floor_way(stone.global_position, spot)
+	var dir := Vector2i(signi(aim.x), 0) if absi(aim.x) >= absi(aim.y) else Vector2i(0, signi(aim.y))
+	var reached := stone.cell
+	for i in maxi(absi(aim.x), absi(aim.y)):
+		var next := reached + dir
+		if _flat_distance(StoneBlock.spot_of(next, stone.along_x, 0), hero.global_position) > STONE_DRAG_RANGE:
+			break
+		if not _slides_onto(stone, next):
+			break
+		reached = next
+	result.cell = reached
+	result.ok = reached != stone.cell
 	return result
 
 
-func _slides_onto(stone: StoneBlock, first: Vector2i, x_wise: bool) -> bool:
-	return stone_layer_for(first, x_wise, stone) == 0 and stone_fits(first, x_wise, 0, stone)
-
-
-## Whether open floor leads from one spot to another: no wall, pillar or
-## shut gate between their tiles.
-func _floor_way(from: Vector3, to: Vector3) -> bool:
-	var a := world_to_cell(from)
-	var b := world_to_cell(to)
-	if a == b:
-		return true
-	var way := grid_path(a, b)
-	return not way.is_empty() and way[-1] == b
+func _slides_onto(stone: StoneBlock, first: Vector2i) -> bool:
+	return stone_layer_for(first, stone.along_x, stone) == 0 and stone_fits(first, stone.along_x, 0, stone)
 
 
 ## Pushes a heavy block one grid cell on along `dir`. False when something
-## is in the way, something lies on it or it would leave HEAVY_RANGE.
+## is in the way or something lies on it.
 func push_stone(stone: StoneBlock, dir: Vector2i) -> bool:
 	var next := stone.cell + dir
-	if stone.layer != 0 or not stone_free(stone) or not heavy_in_range(stone, next, stone.along_x) or not _slides_onto(stone, next, stone.along_x):
+	if stone.layer != 0 or not stone_free(stone) or not _slides_onto(stone, next):
 		return false
 	move_stone(stone, next, stone.along_x, 0)
 	return true
@@ -3015,50 +2072,15 @@ func stone_cut(c: Vector2i) -> bool:
 
 ## The way along the grid from one tile to another (as close as it gets),
 ## for everyone who walks by the path finding. Someone standing on a tile
-## the path finding counts as solid (walled off by blocks, or the doorway of
-## a locked door) can still set out from it, so a click always walks them out.
+## walled off by blocks can still set out from it.
 func grid_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
-	var lift := astar.is_in_boundsv(from) and astar.is_point_solid(from)
+	var lift := _stone_cut.has(from)
 	if lift:
 		astar.set_point_solid(from, false)
 	var ids := astar.get_id_path(from, to, true)
 	if lift:
 		astar.set_point_solid(from, true)
 	return ids
-
-
-## The tiles that lead out of a floor: the stairs out, up and down, and the
-## way down in a mine. A frightened hero runs for the nearest (see flee_path).
-const EXITS := "E<>^"
-## How far a frightened hero runs straight away from the fright where no
-## way out can be reached (metres).
-const FLEE_AWAY := 14.0
-
-
-## Where a frightened hero at `from` runs (see Player.scare): along the
-## shortest path to the nearest way out, or straight away from `threat`
-## where there is none.
-func flee_path(from: Vector3, threat: Vector3) -> Array[Vector3]:
-	var here := world_to_cell(from)
-	var best: Array[Vector2i] = []
-	for y in height:
-		for x in width:
-			var c := Vector2i(x, y)
-			if not cell_char(c) in EXITS or c == here:
-				continue
-			var cells := grid_path(here, c)
-			if cells.size() > 1 and (best.is_empty() or cells.size() < best.size()):
-				best = cells
-	var out: Array[Vector3] = []
-	for c in best.slice(1):
-		out.append(cell_to_world(c))
-	if out.is_empty():
-		var away := from - threat
-		away.y = 0.0
-		if away.length() < 0.01:
-			away = Vector3.FORWARD
-		out.append(from + away.normalized() * FLEE_AWAY)
-	return out
 
 
 ## Judges again which tiles the blocks wall off: those they stand on and
@@ -3187,115 +2209,6 @@ func _mark_wide(floor_free: PackedByteArray, out: PackedByteArray, start: int, s
 				out[start + r * stride] = 1
 
 
-# --- Iron gates ------------------------------------------------------------------
-
-## An iron grating across a one tile gap, in the stone of the walls around it:
-## a stone beam on top (a kit pillar laid on its side, like the corner pillars
-## beside it) and dark iron bars below it. Returns the bars, which are their
-## own node so a gate can sink them into the floor and leave the beam standing.
-const GATE_BAR_COUNT := 7
-const GATE_BAR_TOP := 3.35
-const GATE_IRON := Color(0.13, 0.13, 0.14)
-
-
-func _build_iron_gate(pos: Vector3, rot: float) -> Node3D:
-	var gate := Node3D.new()
-	gate.position = pos
-	gate.rotation.y = rot
-	add_child(gate)
-	# The beam reaches from corner pillar to corner pillar, its top level with
-	# the top of the walls.
-	var beam := _add_kit_part(["SM_Pillar", "floor", Vector3(-2.0, 3.6, 0), Vector3(1.4, 4.0 / 2.59, 1.4), 0.0], gate)
-	beam.rotation.z = -PI * 0.5
-	var bars := Node3D.new()
-	bars.name = "Bars"
-	gate.add_child(bars)
-	var iron := _gate_iron()
-	var rod := CylinderMesh.new()
-	rod.top_radius = 0.06
-	rod.bottom_radius = 0.06
-	rod.height = GATE_BAR_TOP
-	rod.radial_segments = 8
-	for i in GATE_BAR_COUNT:
-		var bar := MeshInstance3D.new()
-		bar.mesh = rod
-		bar.material_override = iron
-		bar.position = Vector3(lerpf(-1.35, 1.35, i / float(GATE_BAR_COUNT - 1)), GATE_BAR_TOP * 0.5, 0)
-		bars.add_child(bar)
-	# Two flat bands hold the bars together.
-	var band := BoxMesh.new()
-	band.size = Vector3(3.0, 0.12, 0.08)
-	for y in [0.9, 2.5]:
-		var cross := MeshInstance3D.new()
-		cross.mesh = band
-		cross.material_override = iron
-		cross.position = Vector3(0, y, 0)
-		bars.add_child(cross)
-	return bars
-
-
-## Where the kit's floor texture keeps the plain ground between its cobbles:
-## one floor tile maps onto this square of the texture.
-const FLOOR_GROUND_UV := Rect2(0.3547, 0.4906, 0.1568, 0.1568)
-
-
-## The floor grate's model in two surfaces: its stone frame (0) and its bars
-## (1). The model is one mesh on the KayKit colour atlas, where the bars use
-## the left half of the texture and the stone the right half. The frame is
-## mapped onto the kit's floor texture instead, laid on like a floor tile, so
-## the rim round the hole is the same ground as the tiles beside it.
-func _grate_mesh(source: Mesh) -> Mesh:
-	if not _scenes.has("grate_mesh"):
-		var arrays := source.surface_get_arrays(0)
-		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-		var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-		if index.is_empty():
-			index.resize(verts.size())
-			for i in verts.size():
-				index[i] = i
-		var parts := [SurfaceTool.new(), SurfaceTool.new()]
-		for st: SurfaceTool in parts:
-			st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		for t in range(0, index.size(), 3):
-			var bar := uvs[index[t]].x < 0.5
-			var st: SurfaceTool = parts[1 if bar else 0]
-			for k in 3:
-				var i := index[t + k]
-				var v := verts[i]
-				var uv := uvs[i]
-				if not bar:
-					# From above for the rim, from the side for the pit's walls.
-					var n := normals[index[t]]
-					var flat := Vector2(v.x, v.z)
-					if absf(n.y) < 0.5:
-						flat = Vector2(v.z if absf(n.x) > absf(n.z) else v.x, -v.y)
-					uv = FLOOR_GROUND_UV.position + (flat + Vector2(2, 2)) / 4.0 * FLOOR_GROUND_UV.size
-				st.set_normal(normals[i])
-				st.set_uv(uv)
-				st.add_vertex(v)
-		var mesh := ArrayMesh.new()
-		for st: SurfaceTool in parts:
-			st.generate_tangents()
-			st.commit(mesh)
-		mesh.surface_set_material(0, source.surface_get_material(0))
-		mesh.surface_set_material(1, source.surface_get_material(0))
-		_scenes["grate_mesh"] = mesh
-	return _scenes["grate_mesh"]
-
-
-## Dark, slightly rusty iron for the bars of the gates and floor grates.
-func _gate_iron() -> Material:
-	if not _scenes.has("mat_gate_iron"):
-		var m := StandardMaterial3D.new()
-		m.albedo_color = GATE_IRON
-		m.metallic = 0.35
-		m.roughness = 0.75
-		_scenes["mat_gate_iron"] = m
-	return _scenes["mat_gate_iron"]
-
-
 # --- Pressure plates and the iron gate ------------------------------------------
 
 ## Stone slabs in the floor that sink while a stone block lies on them, and
@@ -3310,14 +2223,6 @@ const DIRS_NSWE: Array[Vector2i] = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1
 ## lying on any of them presses it.
 const PLATE_SIZE := StoneBlock.CELL * 2.0 - 0.1
 const PLATE_UP := 0.06
-## How deep an open iron gate has sunk into the floor (its bars' height).
-const GATE_SUNK := -4.1
-const PLATE_SHADER := preload("res://shaders/pressure_plate.gdshader")
-## The worn stone frame the plate sinks into: how wide its sides are and how
-## far its top stands above the floor (a little above a pressed plate's top,
-## so a pressed plate reads as pushed in).
-const PLATE_FRAME := 0.16
-const PLATE_FRAME_TOP := 0.075
 
 
 func _build_plate(c: Vector2i) -> void:
@@ -3326,53 +2231,25 @@ func _build_plate(c: Vector2i) -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3(PLATE_SIZE, 0.12, PLATE_SIZE)
 	slab.mesh = box
-	var mat := ShaderMaterial.new()
-	mat.shader = PLATE_SHADER
-	mat.set_shader_parameter("plate_size", PLATE_SIZE)
-	mat.set_shader_parameter("glow", 0.0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.4, 0.38, 0.35)
+	mat.roughness = 0.95
+	mat.emission_enabled = true
+	mat.emission = Color(0.35, 0.95, 0.55)
+	mat.emission_energy_multiplier = 0.15
 	slab.material_override = mat
 	slab.position = pos + Vector3(0, PLATE_UP, 0)
-	# A quarter turn of its own, so the runes do not all face one way.
-	slab.rotation.y = PI * 0.5 * (absi(c.x * 3 + c.y * 5) % 4)
 	add_child(slab)
-	_build_plate_frame(pos)
 	var first := StoneBlock.grid_cell(pos - Vector3(StoneBlock.CELL, 0.0, StoneBlock.CELL) * 0.5)
 	var cells: Array[Vector2i] = [first, first + Vector2i(1, 0), first + Vector2i(0, 1), first + Vector2i(1, 1)]
 	_plates.append({"cell": c, "cells": cells, "node": slab, "mat": mat, "pressed": false})
-
-
-## The low, old stone kerb around a plate, set into the floor: four sides of
-## the fountain's decayed stone, a shade darker than the plate.
-func _build_plate_frame(pos: Vector3) -> void:
-	var stone := _decayed_stone(Color(0.4, 0.38, 0.34), 1.0, true)
-	var gap := 0.012
-	var inner := PLATE_SIZE * 0.5 + gap
-	var height := PLATE_FRAME_TOP + 0.05
-	var y := PLATE_FRAME_TOP - height * 0.5
-	var long := PLATE_SIZE + (gap + PLATE_FRAME) * 2.0
-	# [middle, size]: the north and south sides run the full length, the east
-	# and west ones fit between them.
-	var sides := [
-		[Vector3(0, y, -inner - PLATE_FRAME * 0.5), Vector3(long, height, PLATE_FRAME)],
-		[Vector3(0, y, inner + PLATE_FRAME * 0.5), Vector3(long, height, PLATE_FRAME)],
-		[Vector3(-inner - PLATE_FRAME * 0.5, y, 0), Vector3(PLATE_FRAME, height, inner * 2.0)],
-		[Vector3(inner + PLATE_FRAME * 0.5, y, 0), Vector3(PLATE_FRAME, height, inner * 2.0)],
-	]
-	for side in sides:
-		var piece := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		mesh.size = side[1]
-		piece.mesh = mesh
-		piece.material_override = stone
-		piece.position = pos + side[0]
-		add_child(piece)
 
 
 func _build_gate(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	var across_x := cell_char(c + Vector2i(-1, 0)) == "#" and cell_char(c + Vector2i(1, 0)) == "#"
 	var rot := 0.0 if across_x else PI * 0.5
-	var bars := _build_iron_gate(pos, rot)
+	var bars := _place("wall_gated", pos, rot)
 	var body := StaticBody3D.new()
 	body.position = pos
 	body.rotation.y = rot
@@ -3411,10 +2288,7 @@ func _check_plates() -> void:
 		if down != plate.pressed:
 			plate.pressed = down
 			create_tween().tween_property(plate.node, "position:y", 0.0 if down else PLATE_UP, 0.15)
-			# The carving glows up while a block weighs the plate down.
-			var mat: ShaderMaterial = plate.mat
-			create_tween().tween_method(func(g: float): mat.set_shader_parameter("glow", g),
-					mat.get_shader_parameter("glow"), 1.0 if down else 0.0, 0.3)
+			plate.mat.emission_energy_multiplier = 1.4 if down else 0.15
 			Sfx.play(self, "lever" if down else "word_klack", -4.0, plate.node.global_position)
 		if down:
 			pressed += 1
@@ -3435,13 +2309,12 @@ func _open_gates() -> void:
 		g.open = true
 		g.body.queue_free()
 		astar.set_point_solid(g.cell, false)
-		create_tween().tween_property(g.node, "position:y", GATE_SUNK, 2.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		create_tween().tween_property(g.node, "position:y", -4.1, 2.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		gate_opened.emit(g.node.global_position)
 
 
 func _process(delta: float) -> void:
 	_time += delta
-	_near_walls.update(self, player, get_viewport().get_camera_3d())
 	for t in _torches:
 		if not is_instance_valid(t.light):
 			continue
@@ -3454,9 +2327,8 @@ func _process(delta: float) -> void:
 		if not s.used:
 			s.orb.position.y = 2.3 + sin(_time * 2.0) * 0.15
 	for p in _pickups:
-		# Coins and thrown knives lie still on the floor; keys and dropped
-		# gear hover and turn.
-		if is_instance_valid(p.node) and p.kind != "coin" and not p.has("flat"):
+		# Coins lie still on the floor; keys and dropped gear hover and turn.
+		if is_instance_valid(p.node) and p.kind != "coin":
 			p.node.rotation.y += delta * 2.0
 			p.node.position.y += sin(_time * 3.0) * delta * 0.25
 	_update_spikes(delta)
@@ -3500,10 +2372,6 @@ func _update_spikes(delta: float) -> void:
 			target = SPIKE_DOWN_Y + 0.35 # A small twitch warns before they shoot up.
 			speed = 10.0
 		s.node.position.y = move_toward(s.node.position.y, target, delta * speed * 2.0)
-		var up := t < SPIKE_UP_TIME
-		if up and not s.get("up", false):
-			_spike_sound(s)
-		s.up = up
 		if player and not finished and _spike_is_up(s) and player.global_position.y < 0.6:
 			var sp := cell_to_world(s.cell)
 			if absf(player.global_position.x - sp.x) < 1.6 and absf(player.global_position.z - sp.z) < 1.6:
@@ -3514,19 +2382,6 @@ func _update_spikes(delta: float) -> void:
 			for e in enemies:
 				if is_instance_valid(e) and absf(e.global_position.x - sp.x) < 1.6 and absf(e.global_position.z - sp.z) < 1.6:
 					e.hurt_by_trap(sp)
-
-
-## Rusty iron scraping out of the floor, when the hero is near enough to hear
-## it (a hall full of spikes would drown everything else out otherwise). It is
-## a quick thrust, so the scrape plays a little higher than the trap's.
-func _spike_sound(s: Dictionary) -> void:
-	if player == null:
-		return
-	var sp := cell_to_world(s.cell)
-	var far := Vector2(player.global_position.x - sp.x, player.global_position.z - sp.z).length()
-	if far > SPIKE_HEARD:
-		return
-	Sfx.play(self, "trap_spikes", -6.0 - far * 0.8, sp, 1.25)
 
 
 ## Whether a tile has spikes that are up or about to shoot up: skeletons
@@ -3543,48 +2398,18 @@ func is_spike_cell(c: Vector2i) -> bool:
 
 
 func _check_pickups() -> void:
-	if player.dead:
-		# Out cold, the hero picks nothing up: not even what they dropped.
-		return
 	for p in _pickups.duplicate():
 		var n: Node3D = p.node
 		var d := Vector2(player.global_position.x - n.global_position.x, player.global_position.z - n.global_position.z)
 		if d.length() > p.radius:
 			p.erase("warned")
-			p.erase("wait")
 			continue
-		if p.has("wait"):
-			# Just dropped at the hero's feet: it stays until they step away
-			# and come back for it.
-			continue
-		if p.kind == "elder_hoard":
-			# The hoard of the Great Old One is for whoever dares: the gold
-			# clinks, though, and the dragon stirs.
-			_pickups.erase(p)
-			var t := create_tween()
-			t.tween_property(n, "scale", Vector3.ONE * 0.01, 0.5).set_ease(Tween.EASE_IN)
-			t.tween_callback(n.queue_free)
-			elder_hoard_taken.emit()
-			if is_instance_valid(elder):
-				elder.disturb(ElderLair.GRAB_STIR)
-			continue
-		if p.kind == "hoard" and not lair_cleared:
-			# The dragon sleeps on its gold: it is the hero's once it fell.
-			if not p.has("warned"):
-				p.warned = true
-				hoard_guarded.emit()
-			continue
-		if p.kind == "bundle":
-			_open_bundle(p)
-			continue
-		if p.kind == "item" and not (player.can_take_knife() if p.id == Items.KNIFE else player.bag_fits(p.id)):
+		if p.kind == "item" and player.bag.size() >= player.bag_size():
 			if not p.has("warned"):
 				p.warned = true
 				bag_full.emit()
 			continue
 		_pickups.erase(p)
-		if p.has("floor"):
-			floor_items.erase(p.floor)
 		if p.has("id"):
 			taken[p.id] = true
 		var tween := create_tween()
@@ -3596,19 +2421,9 @@ func _check_pickups() -> void:
 		elif p.kind == "item":
 			item_collected.emit(p.id)
 		elif p.kind == "ingredient":
-			ingredient_collected.emit(p.ingredient, int(p.get("count", 1)), bool(p.get("loot", false)))
-		elif p.kind == "hoard":
-			hoard = {}
-			hoard_taken.emit()
-		elif p.has("floor"):
-			coins_collected.emit(CoinPile.count_of(p.floor), CoinPile.metal_of(str(p.floor[1])), CoinPile.own_of(p.floor))
+			ingredient_collected.emit(p.ingredient)
 		else:
-			coins_collected.emit(1, CoinPile.MONEY, 0)
-
-
-## Whether this floor has a locked door (open or not).
-func has_doors() -> bool:
-	return not _doors.is_empty()
+			coins_collected.emit(1)
 
 
 func _check_doors() -> void:
@@ -3642,71 +2457,12 @@ func _check_doors() -> void:
 
 # --- Searching --------------------------------------------------------------
 
-## Gear finer than common already lying in this level's containers, counted
-## by id (see loot_item).
-var _rare_loot := {}
-
-
-## How often a piece finer than common, picked by chance for plain loot,
-## is kept: an ordinary chest, a crate or a heap of rubble holds it with
-## these odds and a common piece instead otherwise (what a fallen enemy
-## drops goes by Loot's odds instead, see drop_kill_loot). So
-## uncommon finds come half as often, and rare ones and finer less than a
-## third as often, and each one feels like an event. Loot of a set tier (a
-## secret room, a chest behind a gate, the hoards, a boss's rare drop when
-## it falls) is not touched: it is always as fine as promised.
-const FINER_KEEP := {"normal": 1.0, "ungewoehnlich": 0.5, "selten": 0.3, "episch": 0.3, "gottgeboren": 0.3}
-
-
-## How often a plain piece of gear of this item's tier is kept (see FINER_KEEP).
-static func finer_keep(id: String) -> float:
-	return float(FINER_KEEP.get(tier_of(id), 1.0))
-
-
-## A random piece of gear of rarity `min_rank` or finer (see tier_rank) for a
-## container on this level. Common things may turn up again and again, but
-## anything finer (uncommon and up, books too) only once a level, so a secret
-## room never holds the same book twice: once all the gear of its tier is
-## taken, the next chest reaches one tier lower. In the beginner dungeon,
-## plain loot (`min_rank` 0) is common only and nothing is finer than
-## BEGINNER_TOP_TIER (see beginner_dungeon). Plain loot keeps a finer piece
-## only with the odds of FINER_KEEP.
-func loot_item(rng: RandomNumberGenerator, min_rank: int, area: int) -> String:
-	var top := tier_rank("gottgeboren")
-	if beginner_dungeon:
-		top = 0 if min_rank == 0 else tier_rank(BEGINNER_TOP_TIER)
-		min_rank = mini(min_rank, top)
-	var rank := min_rank
-	var id := Items.random_item(rng, rank, "", area, _rare_loot, top)
-	if min_rank == 0 and not Items.is_common(id) and rng.randf() >= finer_keep(id):
-		id = Items.random_item(rng, 0, "", area, {}, 0)
-	while _rare_loot.has(id) and rank > 0:
-		rank -= 1
-		id = Items.random_item(rng, rank, "", area, _rare_loot, top)
-	if not Items.is_common(id):
-		_rare_loot[id] = int(_rare_loot.get(id, 0)) + 1
-	return id
-
-
-## Empties a container's loot before new loot is put in, so the gear it held
-## is free to turn up elsewhere on the level.
-func clear_loot(obj: Dictionary) -> void:
-	var id: String = obj.loot.get("item", "")
-	if _rare_loot.has(id):
-		_rare_loot[id] -= 1
-		if _rare_loot[id] <= 0:
-			_rare_loot.erase(id)
-	obj.loot = {}
-
-
-## Something to search. With `roll_loot` false it starts empty, for a container
-## that gets loot of its own right after.
-func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector2i, roll_loot := true) -> Dictionary:
+func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector2i) -> Dictionary:
 	var loot_rng := RandomNumberGenerator.new()
 	loot_rng.seed = hash("%s:%d:%d:%d" % [level_name, c.x, c.y, interactables.size()])
 	var roll := loot_rng.randf()
 	var loot := {}
-	if roll < 0.3 or not roll_loot:
+	if roll < 0.3:
 		loot = {}
 	elif roll < 0.62:
 		loot = {"gold": loot_rng.randi_range(1, 3)}
@@ -3715,7 +2471,7 @@ func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector
 	elif roll < 0.87:
 		loot = {"potion": 1}
 	else:
-		loot = {"item": loot_item(loot_rng, 0, HeroLevel.place_level(self))}
+		loot = {"item": Items.random_item(loot_rng, 0, "", HeroLevel.place_level(self))}
 	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null,
 			"id": "%s:%d,%d" % [label, c.x, c.y]}
 	interactables.append(obj)
@@ -3755,10 +2511,7 @@ func search(obj: Dictionary) -> Dictionary:
 	obj.searched = true
 	taken[obj.id] = true
 	if obj.lid:
-		create_tween().tween_property(obj.lid, "rotation:x", obj.lid.rotation.x - obj.get("lid_open", LID_OPEN), 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	if obj.get("shine"):
-		# The gold inside catches the light once the lid is up.
-		obj.shine.emitting = true
+		create_tween().tween_property(obj.lid, "rotation:x", obj.lid.rotation.x - deg_to_rad(70), 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_scatter_debris(obj)
 	if not obj.loot.is_empty():
 		var burst := Effects.make_sparkles(Color(1.0, 0.85, 0.3), true)
@@ -3775,9 +2528,7 @@ func restore_taken() -> void:
 			continue
 		obj.searched = true
 		if obj.lid:
-			obj.lid.rotation.x -= obj.get("lid_open", LID_OPEN)
-		if obj.get("shine"):
-			obj.shine.emitting = true
+			obj.lid.rotation.x -= deg_to_rad(70)
 		_scatter_debris(obj)
 	for p in _pickups.duplicate():
 		if p.has("id") and taken.has(p.id):
@@ -3857,46 +2608,15 @@ func _spawn_enemies() -> void:
 		for x in width:
 			var c := Vector2i(x, y)
 			var ch := cell_char(c)
-			if not (Enemy.LETTERS.has(ch) or creations.has(ch) and creations[ch].type == "monster" and not safe):
-				continue
-			if taken.has(slain_key(c)):
-				# Slain before the hero left this floor (see note_left).
-				continue
-			var kind: String = Enemy.LETTERS[ch] if Enemy.LETTERS.has(ch) else creations[ch].base
-			if not monster_families.is_empty() and not MonsterFamilies.fits(kind, monster_families):
-				# Still placed, but the map's "monsters:" header should name its family.
-				push_warning("%s: a %s (%s) does not live here (monsters: %s)" % [file, kind,
-						MonsterFamilies.family_of(kind), ", ".join(monster_families)])
-			var e: Enemy
 			if Enemy.LETTERS.has(ch):
-				e = _spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")
-			else:
-				e = _spawn_enemy(creations[ch].base, c, elite, Creations.monster_stats(creations[ch]), true)
-			_map_enemies.append({"enemy": e, "cell": c})
+				_spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")
 	_spawn_horror()
 
 
-## A monster of a kind on a cell. "made" is a monster made in the map
-## workshop (see Creations): a boss made there fights like the real one and
-## shows its health bar, but none of the real one's rewards come with it.
-func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, made := false) -> Enemy:
-	# The bosses each fight with a script of their own.
-	var e: Enemy
-	match kind:
-		"drache":
-			e = Dragon.new()
-		"bergkoenig":
-			e = MountainKing.new()
-		"grosser_alter":
-			e = ElderDragon.new()
-		"hauptmann":
-			e = BanditChief.new()
-		"spinnenkoenigin":
-			e = SpiderQueen.new()
-		_:
-			e = Enemy.new()
+func _spawn_enemy(kind: String, c: Vector2i, is_elite := false) -> Enemy:
+	# The dragon is a boss of its own.
+	var e: Enemy = Dragon.new() if kind == "drache" else (MountainKing.new() if kind == "bergkoenig" else Enemy.new())
 	e.kind = kind
-	e.custom = custom
 	e.elite = is_elite
 	var gear_chance: float = Enemy.KINDS[e.kind].get("gear_chance", -1.0)
 	e.gear = _roll_gear(e.kind, c, gear_chance) if gear_chance != 0.0 else ([] as Array[String])
@@ -3905,12 +2625,7 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, ma
 	e.global_position = cell_to_world(c)
 	if e.kind == "waechter":
 		e.watch(_guarded_spot())
-	if made and (e is MountainKing or e is BanditChief):
-		add_child(BossBar.new(e))
-	elif e is SpiderQueen:
-		# The Spider Queen (see SpiderQueen): her health bar at the top.
-		add_child(BossBar.new(e))
-	elif Enemy.KINDS[kind].get("boss", false):
+	if Enemy.KINDS[kind].get("boss", false):
 		# The Mountain King (see Mines): a health bar at the top, and his
 		# hammer the first time he falls.
 		mine_boss = e
@@ -3920,16 +2635,8 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, ma
 			if not taken.has(Mines.KING_DEFEATED):
 				taken[Mines.KING_DEFEATED] = true
 				_drop_item(Mines.TROPHY, e.global_position + Vector3(0.8, 0, 0.8))
-				Sfx.play_find(self, Mines.TROPHY, 0.4, e.global_position)
-			boss_won.emit()
-			# As in the dragon's lair, a golden way out opens where he fell.
-			_open_way_out(e.global_position))
-	if e is ElderDragon:
-		# Far too big to walk through, and it never moves from its bed.
-		elder = e as ElderDragon
-		_add_solid(e.global_position, Vector3(8.0, 4.0, 8.0))
-		elder.awakened.connect(func(): elder_awakened.emit())
-		elder.settled.connect(func(): elder_settled.emit())
+				Sfx.play_gear(self, Mines.TROPHY, 0.4, e.global_position)
+			boss_won.emit())
 	if e is Dragon:
 		dragon = e as Dragon
 		dragon.awakened.connect(func(): dragon_awakened.emit(e))
@@ -3937,14 +2644,12 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, ma
 		add_child(dragon_bar)
 	e.died.connect(func():
 		enemy_killed.emit(e)
-		# Coins and maybe gear, or a beast's food, ingredient or part (see
-		# Loot); a monster of the lair leaves a little gold, the dragon a heap.
-		var purse: Array = e.custom.get("purse", Enemy.KINDS[e.kind].get("purse", [0, 0]))
-		drop_kill_loot(e, randi_range(purse[0], purse[1]))
-		_drop_boss_loot(e)
+		_drop_gear(e, DROP_CHANCE if not e.is_beast() else BEAST_DROP_CHANCE)
+		# A monster of the lair leaves a little gold, the dragon a heap.
+		var purse: Array = Enemy.KINDS[e.kind].get("purse", [0, 0])
+		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
 		# The dragon guards the lair: once it falls, the lair is won.
 		if lair and e.kind == "drache":
-			_drop_dragon_parts(e.global_position)
 			_win_lair(e.global_position)
 		# A guardian on a level without a key carries it.
 		if e.kind == "waechter" and not has_key and not _has_cell("K"):
@@ -4002,6 +2707,10 @@ func _far_corner() -> Vector2i:
 ## Chance for each piece of gear a skeleton may wear: higher the deeper it lies.
 const GEAR_CHANCE := 0.1
 const GEAR_CHANCE_PER_LEVEL := 0.05
+## Chance that a worn piece drops when its skeleton falls; a monster of the
+## lair carries its piece in its belly, so it always drops.
+const DROP_CHANCE := 0.1
+const BEAST_DROP_CHANCE := 1.0
 
 
 ## The items a skeleton wears: up to two (three for a brute), no specials,
@@ -4029,7 +2738,7 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 			continue
 		for attempt in 6:
 			# Gear that suits the place; the bosses' own fights stay as they were made.
-			var id := Items.random_item(rng, 0, "", 0 if HeroLevel.FIXED.has(kind) else HeroLevel.place_level(self), {}, 0 if beginner_dungeon else tier_rank("gottgeboren"))
+			var id := Items.random_item(rng, 0, "", 0 if HeroLevel.FIXED.has(kind) else HeroLevel.place_level(self))
 			var slot: String = Items.ALL[id].slot
 			if slot != "spezial" and slot != "buch" and not gear.any(func(g): return Items.ALL[g].slot == slot):
 				gear.append(id)
@@ -4037,164 +2746,36 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 	return gear
 
 
-## How limestone glows on the floor.
-const LIMESTONE_COLOUR := Color(0.88, 0.86, 0.76)
+func _drop_gear(e: Enemy, chance := DROP_CHANCE) -> void:
+	var spot := e.global_position
+	var delay := 0.0
+	for id in e.gear:
+		if randf() < chance:
+			_drop_item(id, spot)
+			# It clatters onto the floor, one piece after the other.
+			Sfx.play_gear(self, id, delay, spot)
+			delay += 0.3
+			spot += Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
 
 
-## What a fallen enemy leaves (see Loot), the one place every fight's loot
-## is decided. One roll per kill for a find of a tier, with Loot's odds for
-## a foe as tough as this one:
-## - intelligent ones (and slimes, with what they swallowed) leave `gold`
-##   copper coins (the purse), iron, copper and silver coins for the purse too, and on a find
-##   a piece of gear of that tier (see roll_kill_gear);
-## - slimes besides roll once more for what their body leaves, mostly their
-##   jelly (see Loot.slime_find; `body_roll` sets that roll);
-## - other beasts leave, on a find, their food, an ingredient of where they
-##   live, or a part of their body (see Loot.creature_find).
-## Trolls and the creatures of the mountains roll once more for a lump of
-## ore (see Loot.ore_find; `ore_roll` sets that roll), and once for a few
-## lumps of limestone (see Loot.limestone_find). In the beginner
-## dungeon a find is common at most, and ore uncommon at most (never the
-## epic noble ore). Returns the gear or ingredient id
-## dropped (not the ore; for a slime the gear, else its body's find), or "".
-func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0, body_roll := -1.0) -> String:
-	var tough := Loot.toughness(e.max_hp(), e.elite, is_named_boss(e))
-	var tier := Loot.roll_tier(tough, "normal" if beginner_dungeon else Loot.TOP_TIER, roll)
-	var pos := e.global_position
-	var found := ""
-	if Loot.carries_valuables(e.kind):
-		_drop_coins(pos, gold)
-		var pouch_coins := Loot.coins(e.kind, tough)
+## Gold coins spilt from a fallen bandit's purse, scattered around the spot.
+## Unlike the coins placed by the map they have no id: once picked up they
+## are simply gone, and a reload does not bring them back.
+func _drop_coins(pos: Vector3, amount: int) -> void:
+	for i in amount:
+		var holder := Node3D.new()
 		var angle := randf() * TAU
-		for coin in pouch_coins:
-			angle += TAU / 3.0
-			_lay_pouch_coins(coin, int(pouch_coins[coin]), pos + Vector3(cos(angle), 0, sin(angle)) * 0.9)
-		if tier != "":
-			found = roll_kill_gear(e, tier)
-			if found != "":
-				var spot := pos + Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
-				_drop_item(found, spot)
-				# It clatters onto the floor; an epic piece rings out as well.
-				Sfx.play_gear(self, found, 0.0, spot)
-				Sfx.play_rarity(self, found, 0.3, spot)
-		# A slime's own body: mostly its jelly, now and then a finer find.
-		if e.kind in Loot.SWALLOWS:
-			var body := Loot.slime_find(e.kind, tough, body_roll, "normal" if beginner_dungeon else Loot.TOP_TIER)
-			if body != "":
-				lay_find(body, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), Rarity.color(body), 1, true)
-				if found == "":
-					found = body
-	elif tier != "":
-		found = Loot.creature_find(e.kind, tier)
-		if found != "":
-			lay_find(found, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), Rarity.color(found), 1, true)
-	# Rare foes and bosses of level 25 and up: a few new gold coins.
-	var gold_coins := Loot.gold_coins(e.elite or e.is_horror() or is_named_boss(e), e.rated_level)
-	_lay_pouch_coins(Loot.GOLD_COIN, gold_coins, pos + Vector3(-0.9, 0, 0.4))
-	# Trolls and the creatures of the mountains: maybe a lump of ore besides.
-	var ore := Loot.ore_find(e.kind, tough, ore_roll, BEGINNER_TOP_TIER if beginner_dungeon else Loot.TOP_TIER)
-	if ore != "":
-		lay_find(ore, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), Ore.ROCK, 1, true)
-	# And a few lumps of limestone, for steel (see Forge.STEEL_RECIPE).
-	var lime := Loot.limestone_find(e.kind)
-	if lime > 0:
-		lay_find(Forge.LIMESTONE, pos + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)), LIMESTONE_COLOUR, lime, true)
-	return found
+		holder.position = Vector3(pos.x, 0.03, pos.z) + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.5, 1.4)
+		holder.rotation.y = randf() * TAU
+		add_child(holder)
+		var coin := _place("coin", Vector3.ZERO, 0.0, holder)
+		coin.scale = Vector3.ONE * 1.6
+		_pickups.append({"node": holder, "kind": "coin", "radius": 1.5})
+	if amount > 0:
+		Sfx.play_coins(self, amount, 0.3, pos)
 
 
-## The piece of gear a fallen foe leaves on a find of `tier`: one it wore of
-## that tier, else one of that tier that suits the place and, like all finer
-## loot, does not repeat on this level (see loot_item). "" when there is none.
-func roll_kill_gear(e: Enemy, tier: String) -> String:
-	var worn := e.gear.filter(func(g): return tier_of(g) == tier)
-	if not worn.is_empty():
-		return worn[randi() % worn.size()]
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	var rank := tier_rank(tier)
-	var id := Items.random_item(rng, rank, "", HeroLevel.place_level(self), _rare_loot, rank)
-	if id != "" and not Items.is_common(id):
-		_rare_loot[id] = int(_rare_loot.get(id, 0)) + 1
-	return id
-
-
-## Named bosses (the bandit chief, the dragon, the Mountain King, and any
-## monster given a name in the map workshop) hold this small chance, on top
-## of their usual loot, to drop one extra piece of gear that is rare or
-## better (see roll_boss_loot).
-const BOSS_RARE_CHANCE := 0.03
-
-
-## Whether a fallen enemy is a named boss (see BOSS_RARE_CHANCE).
-static func is_named_boss(e: Enemy) -> bool:
-	return e.is_level_boss() or str(e.custom.get("title", "")) != ""
-
-
-## How rare a piece of gear is (a key of TIERS): as Items.RARITY lists it,
-## else the finest of TIERS whose "min_price" it reaches by price.
-static func tier_of(id: String) -> String:
-	var best := "normal"
-	if not Items.ALL.has(id):
-		return best
-	if Items.RARITY.has(id):
-		return Items.RARITY[id]
-	for t in TIERS:
-		if int(Items.ALL[id].price) >= int(TIERS[t].min_price) and int(TIERS[t].min_price) >= int(TIERS[best].min_price):
-			best = t
-	return best
-
-
-## A tier's place from plain to finest: 0 (common) to 4 (god-born).
-static func tier_rank(tier: String) -> int:
-	return TIERS.keys().find(tier)
-
-
-## How rare a piece of gear is, as a place in TIERS (see tier_rank).
-static func rank_of(id: String) -> int:
-	return tier_rank(tier_of(id))
-
-
-## A named boss's rare loot, or "" when the roll misses (`roll` in 0..1;
-## random when left out). The piece is rare or better, suits the place, and
-## like all finer loot never repeats on this level (see loot_item).
-func roll_boss_loot(e: Enemy, roll := -1.0) -> String:
-	if not is_named_boss(e) or beginner_dungeon:
-		return ""
-	if roll < 0.0:
-		roll = randf()
-	if roll >= BOSS_RARE_CHANCE:
-		return ""
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	return loot_item(rng, tier_rank("selten"), HeroLevel.place_level(self))
-
-
-## Drops a named boss's rare loot, if the roll hits, beside where it fell,
-## and tells the event log.
-func _drop_boss_loot(e: Enemy) -> void:
-	var id := roll_boss_loot(e)
-	if id == "":
-		return
-	var spot := e.global_position + Vector3(-0.8, 0, 0.8)
-	_drop_item(id, spot)
-	Sfx.play_find(self, id, 0.6, spot)
-	var tier: Dictionary = TIERS[tier_of(id)]
-	Events.found(Lang.t("Seltene Beute: %s (%s)") % [Rarity.marked(id), Rarity.label(id)], tier.color)
-
-
-## Coins spilt from a fallen foe's purse (copper, the money, unless `metal`
-## says otherwise): one pile beside the spot, which joins a pile of the same
-## metal already lying there (see lay_coins).
-## Unlike the coins placed by the map they have no id: they are kept on the
-## floor list (see floor_items) until picked up, then simply gone.
-func _drop_coins(pos: Vector3, amount: int, metal := CoinPile.MONEY) -> void:
-	if amount <= 0:
-		return
-	var angle := randf() * TAU
-	lay_coins(Vector3(pos.x, 0, pos.z) + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.3, 0.7), amount, metal)
-	Sfx.play_coins(self, amount, 0.3, pos)
-
-
+## A worn piece left on the floor, glowing until the hero walks over it.
 ## Hides a few ingredients in the ground for the hero's fox to find: on the
 ## grass of the open air, on plain floor the hero can reach in the dungeon.
 ## Not in the safe rooms or inside the village buildings.
@@ -4211,7 +2792,7 @@ func hide_ingredients() -> void:
 					cells.append(c)
 	else:
 		for c in _reachable():
-			if cell_char(c) in [".", ","] and not astar.is_point_solid(c) and c != start_cell and not grates.has(c):
+			if cell_char(c) in [".", ","] and not astar.is_point_solid(c) and c != start_cell:
 				cells.append(c)
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
@@ -4320,10 +2901,8 @@ func fox_bed_near(pos: Vector3) -> Vector3:
 
 ## Lays a dug-up ingredient on the ground. Picked up, it goes into the
 ## ingredient pouch (see Crafting), not the bag. It is not marked as taken:
-## the ground holds new ones the next time round. `count` of them lie there
-## as one; `loot` marks the loot of a fallen foe (see drop_kill_loot), which
-## puts no mark on the hero's map.
-func lay_find(id: String, pos: Vector3, colour := Color(0.55, 0.75, 0.35), count := 1, loot := false) -> void:
+## the ground holds new ones the next time round.
+func lay_find(id: String, pos: Vector3) -> void:
 	var holder := Node3D.new()
 	var lump := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
@@ -4331,283 +2910,18 @@ func lay_find(id: String, pos: Vector3, colour := Color(0.55, 0.75, 0.35), count
 	mesh.height = 0.4
 	lump.mesh = mesh
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = colour
+	mat.albedo_color = Color(0.55, 0.75, 0.35)
 	mat.emission_enabled = true
-	mat.emission = colour * 0.75
+	mat.emission = Color(0.4, 0.6, 0.25)
 	lump.material_override = mat
 	holder.add_child(lump)
 	holder.position = Vector3(pos.x, 0.8, pos.z)
 	add_child(holder)
-	holder.add_child(Effects.make_sparkles(colour.lightened(0.4)))
-	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6, "count": count, "loot": loot})
+	holder.add_child(Effects.make_sparkles(Color(0.7, 0.95, 0.5)))
+	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6})
 
 
-## The pouch coins of one metal (see Loot.COINS) a fallen foe leaves: they
-## pile up and glow like any other coins on the floor (see lay_coins), and
-## picked up, go into the pouch (copper, the money, into the purse).
-func _lay_pouch_coins(coin: String, count: int, pos: Vector3) -> void:
-	if count <= 0:
-		return
-	lay_coins(pos, count, coin)
-
-
-## One spilt coin of the money on the floor (it joins a pile lying there).
-func _lay_coin(pos: Vector3) -> void:
-	lay_coins(pos, 1)
-
-
-## Puts `count` coins of `metal` on the floor at `pos`: they join the pile of
-## that metal lying there (within CoinPile.JOIN_RADIUS), or start one. A pile
-## holds at most CoinPile.MAX; what does not fit starts a new pile beside it.
-## `own`: how many of them the hero put down from the purse. Returns the
-## pickup of the pile the last of them went to.
-func lay_coins(pos: Vector3, count: int, metal := CoinPile.MONEY, own := 0) -> Dictionary:
-	metal = CoinPile.metal_of(metal)
-	own = clampi(own, 0, count)
-	var last := {}
-	while count > 0:
-		var pile := _coin_pile_near(pos, metal)
-		var n := 0
-		var o := 0
-		if pile.is_empty():
-			n = mini(count, CoinPile.MAX)
-			o = mini(own, n)
-			last = _coin_pile(_beside_full_piles(pos), n, metal, o)
-		else:
-			var entry: Array = pile.floor
-			n = mini(count, CoinPile.MAX - CoinPile.count_of(entry))
-			o = mini(own, n)
-			_set_pile(pile, CoinPile.count_of(entry) + n, CoinPile.own_of(entry) + o)
-			last = pile
-		count -= n
-		own -= o
-	return last
-
-
-## The pile of `metal` lying within reach of `pos` that still has room, the
-## nearest; empty when there is none.
-func _coin_pile_near(pos: Vector3, metal: String) -> Dictionary:
-	var best := {}
-	var best_d := CoinPile.JOIN_RADIUS
-	for p in _pickups:
-		if p.kind != "coin" or not p.has("floor") or p.get("metal", "") != metal or not is_instance_valid(p.node):
-			continue
-		if CoinPile.count_of(p.floor) >= CoinPile.MAX:
-			continue
-		var d := _flat_distance(pos, p.node.position)
-		if d <= best_d:
-			best = p
-			best_d = d
-	return best
-
-
-## Where a new pile goes when full piles lie at `pos`: just beside them.
-func _beside_full_piles(pos: Vector3) -> Vector3:
-	for p in _pickups:
-		if p.kind != "coin" or not p.has("floor") or not is_instance_valid(p.node):
-			continue
-		var room := CoinPile.radius(CoinPile.count_of(p.floor)) + 0.6
-		var away := Vector3(pos.x - p.node.position.x, 0, pos.z - p.node.position.z)
-		if away.length() < room:
-			var dir := away.normalized() if away.length() > 0.05 else Vector3(cos(randf() * TAU), 0, sin(randf() * TAU))
-			return Vector3(p.node.position.x, 0, p.node.position.z) + dir * room
-	return pos
-
-
-## A new pile of coins on the floor list.
-func _coin_pile(pos: Vector3, count: int, metal: String, own: int) -> Dictionary:
-	var holder := Node3D.new()
-	holder.position = Vector3(pos.x, 0.03, pos.z)
-	holder.rotation.y = randf() * TAU
-	add_child(holder)
-	var entry := _remember_on_floor("coin", metal, pos)
-	entry.append_array([count, own])
-	var pile := {"node": holder, "kind": "coin", "metal": metal, "radius": 1.5, "floor": entry}
-	_pickups.append(pile)
-	_set_pile(pile, count, own)
-	return pile
-
-
-## A pile now holds `count` coins: its entry, its reach and its look.
-func _set_pile(pile: Dictionary, count: int, own: int) -> void:
-	var entry: Array = pile.floor
-	while entry.size() < 6:
-		entry.append(1 if entry.size() == 4 else 0)
-	entry[4] = count
-	entry[5] = clampi(own, 0, count)
-	pile.radius = maxf(1.5, CoinPile.radius(count) + 0.9)
-	CoinPile.dress(pile.node, count, str(pile.metal), self)
-
-
-## A thrown knife lying flat where it fell (see Projectile), kept on the
-## floor list until the hero walks over it. One that lands at the hero's
-## feet waits until they step away and come back for it.
-func lay_knife(pos: Vector3, heading := Vector3.ZERO) -> void:
-	var holder := Node3D.new()
-	holder.position = Vector3(pos.x, 0.06, pos.z)
-	holder.rotation.y = atan2(heading.x, heading.z) + PI if heading.length() > 0.01 else randf() * TAU
-	add_child(holder)
-	var model: Node3D = load(Items.ALL[Items.KNIFE].model).instantiate()
-	model.rotation.x = -PI * 0.5
-	model.scale = Vector3.ONE * 1.4
-	holder.add_child(model)
-	# A faint glint, so a knife in a dark corner can still be found.
-	var glint := Effects.make_sparkles(Color(0.8, 0.9, 1.0))
-	glint.amount = 4
-	glint.emission_sphere_radius = 0.35
-	holder.add_child(glint)
-	var pickup := {"node": holder, "kind": "item", "id": Items.KNIFE, "radius": 1.5, "flat": true,
-		"floor": _remember_on_floor("item", Items.KNIFE, pos)}
-	if player and _flat_distance(player.global_position, holder.global_position) <= pickup.radius:
-		pickup.wait = true
-	_pickups.append(pickup)
-
-
-## Where a thrown knife comes to rest: the first open floor cell going back
-## from `pos` towards `from` (out of a wall, a pillar or the water), else
-## `from` itself.
-func knife_rest(pos: Vector3, from: Vector3) -> Vector3:
-	var back := from - pos
-	back.y = 0.0
-	var steps := ceili(back.length() / 0.5)
-	for i in steps + 1:
-		var at := pos + back * (float(i) / maxf(1.0, steps))
-		var c := world_to_cell(at)
-		if astar.is_in_boundsv(c) and not astar.is_point_solid(c) and not is_opaque(c):
-			return at
-	return from
-
-
-## Notes something lying on the floor (see floor_items) and returns the entry.
-## When the list is full, the oldest thrown knife makes room first, then the
-## oldest of anything.
-func _remember_on_floor(kind: String, id: String, pos: Vector3) -> Array:
-	var entry := [kind, id, snappedf(pos.x, 0.01), snappedf(pos.z, 0.01)]
-	floor_items.append(entry)
-	while floor_items.size() > FLOOR_MAX:
-		var knife := floor_items.find_custom(func(e): return e is Array and e.size() >= 2 and e[1] == Items.KNIFE and not is_same(e, entry))
-		if knife < 0:
-			# The hero's own pack (see Rescue) is never pushed off the floor.
-			knife = floor_items.find_custom(func(e): return not Rescue.is_bundle(e) and not is_same(e, entry))
-		if knife < 0:
-			break
-		var oldest: Array = floor_items.pop_at(knife)
-		for p in _pickups.duplicate():
-			if is_same(p.get("floor"), oldest):
-				_pickups.erase(p)
-				if is_instance_valid(p.node):
-					p.node.queue_free()
-				break
-	return entry
-
-
-## Lays out again what lay on the floor when the hero was last here
-## (once, after build() and restore_taken()). What lies where the hero
-## arrives is not picked up at once: they step off and back to take it.
-func restore_floor() -> void:
-	var kept := floor_items.duplicate()
-	floor_items.clear()
-	for entry in kept:
-		if _pickups.any(func(p): return is_same(p.get("floor"), entry)):
-			# Laid out by build() already (the chief's blade): keep as it is.
-			floor_items.append(entry)
-			continue
-		if not (entry is Array and entry.size() >= 4):
-			continue
-		var pos := Vector3(float(entry[2]), 0, float(entry[3]))
-		if str(entry[0]) == "coin":
-			_coin_pile(pos, CoinPile.count_of(entry), CoinPile.metal_of(str(entry[1])), CoinPile.own_of(entry))
-		elif Rescue.is_bundle(entry):
-			_bundle_pickup(entry)
-		elif str(entry[1]) == Items.KNIFE:
-			lay_knife(pos)
-		elif Items.ALL.has(str(entry[1])):
-			_drop_item(str(entry[1]), pos)
-		else:
-			continue
-		var n: Node3D = _pickups[-1].node
-		if player and _flat_distance(player.global_position, n.global_position) <= _pickups[-1].radius:
-			_pickups[-1].wait = true
-
-
-## Whether an item lies on this level's floor list (see floor_items).
-func lies_on_floor(id: String) -> bool:
-	return floor_items.any(func(e): return e is Array and e.size() >= 2 and e[0] == "item" and e[1] == id)
-
-
-## Takes a pickup lying on the floor list off the floor (the dragon's
-## helpers carry it away, see DragonHelpers): no longer a pickup, gone from
-## floor_items, and counted as taken like a thing the hero picked up (so a
-## trophy is not laid out again). Returns its node, which the caller frees,
-## or null when it was taken already.
-func take_from_floor(p: Dictionary) -> Node3D:
-	if not _pickups.has(p):
-		return null
-	_pickups.erase(p)
-	if p.has("floor"):
-		floor_items.erase(p.floor)
-	if p.has("id"):
-		taken[p.id] = true
-	return p.node if is_instance_valid(p.node) else null
-
-
-## The pickups the dragon's helpers may take: what lies on the floor list.
-func floor_pickups() -> Array:
-	return _pickups.filter(func(p): return p.has("floor") and is_instance_valid(p.node) and DragonHoard.takes(p.floor))
-
-
-## The hero's pack, dropped where they fell (see Rescue): everything from
-## the bag and the ingredient pouch in one bundle, ["bundle", "", x, z,
-## contents]. It lies there (also after leaving, or a reload) until the
-## hero walks onto it again; the dragon's helpers leave it alone.
-func lay_bundle(pos: Vector3, contents: Dictionary) -> void:
-	var entry := _remember_on_floor("bundle", "", pos)
-	entry.append(contents)
-	_bundle_pickup(entry)
-	_pickups[-1].wait = true
-
-
-## The look of the pack on the floor and its pickup, for its floor entry.
-func _bundle_pickup(entry: Array) -> void:
-	var holder := Rescue.bundle_model(Rescue.is_pouch(entry))
-	holder.position = Vector3(float(entry[2]), 0.0, float(entry[3]))
-	add_child(holder)
-	_pickups.append({"node": holder, "kind": "bundle", "radius": 1.6, "flat": true, "floor": entry})
-
-
-## The hero stands on their pack: what fits goes back to them. An empty pack
-## is gone; one with gear still in it (a full bag) waits until they step
-## off and come back.
-func _open_bundle(p: Dictionary) -> void:
-	bundle_reached.emit(p.floor)
-	if not Rescue.is_empty(p.floor):
-		p.wait = true
-		bag_full.emit()
-		return
-	_pickups.erase(p)
-	floor_items.erase(p.floor)
-	var n: Node3D = p.node
-	var tween := create_tween()
-	tween.tween_property(n, "position:y", n.position.y + 1.2, 0.35).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(n, "scale", Vector3.ONE * 0.01, 0.35).set_ease(Tween.EASE_IN)
-	tween.tween_callback(n.queue_free)
-
-
-## Sets an item from the bag down at the hero's feet. It stays there (also
-## after leaving and coming back, or a reload) until picked up again, which
-## needs a step away first.
-func put_on_floor(id: String, pos: Vector3) -> void:
-	if id == Items.KNIFE:
-		lay_knife(pos)
-	else:
-		_drop_item(id, pos)
-	_pickups[-1].wait = true
-
-
-## Gear and loot left glowing on the floor until the hero walks over it.
-## `keep` false is for things meant to fade (thunder ore after the storm):
-## they are not put on the floor list.
-func _drop_item(id: String, pos: Vector3, keep := true) -> void:
+func _drop_item(id: String, pos: Vector3) -> void:
 	var holder := _item_model(id)
 	holder.position = Vector3(pos.x, 1.0, pos.z)
 	add_child(holder)
@@ -4617,10 +2931,7 @@ func _drop_item(id: String, pos: Vector3, keep := true) -> void:
 	light.omni_range = 3.5
 	holder.add_child(light)
 	holder.add_child(Effects.make_sparkles(Color(0.75, 0.9, 1.0)))
-	var pickup := {"node": holder, "kind": "item", "id": id, "radius": 1.6}
-	if keep:
-		pickup.floor = _remember_on_floor("item", id, pos)
-	_pickups.append(pickup)
+	_pickups.append({"node": holder, "kind": "item", "id": id, "radius": 1.6})
 
 
 ## What an item looks like lying about: its own model, or a gem.
@@ -4665,10 +2976,6 @@ func _place_lair(piece: String, pos: Vector3, rot_y := 0.0, s := 1.0) -> Node3D:
 	node.rotation.y = rot_y
 	node.scale = Vector3.ONE * s
 	add_child(node)
-	FlagWind.attach(node, piece, self)
-	if piece == "Coin_Pile":
-		CoinShine.polish(node)
-		CoinShine.add_to_pile(node, s)
 	return node
 
 
@@ -4692,91 +2999,13 @@ func _decorate_lair() -> void:
 						pos + Vector3(side * (TILE * 0.5 - 0.35), 2.9, -TILE * 0.5 + 0.35), PI * 0.25 * side + PI, 1.4)
 			elif north and ch in ".," and _rng.randf() < 0.18:
 				_place_lair("Banner", pos + Vector3(0, 0, -TILE * 0.5 + 0.35), 0.0, 0.85)
-			if ch in ".," and not north and _rng.randf() < 0.14 and not grates.has(c):
+			if ch in ".," and not north and _rng.randf() < 0.14:
 				_place_lair("Skull", pos + Vector3(_rng.randf_range(-1.3, 1.3), 0, _rng.randf_range(-1.3, 1.3)), _rng.randf() * TAU, 0.8)
 			if ch == "C":
 				# The hoard: gold heaped up around the chest.
 				for i in 4:
 					var angle := TAU * i / 4.0 + _rng.randf_range(-0.4, 0.4)
 					_place_lair("Coin_Pile", pos + Vector3(cos(angle), 0, sin(angle)) * 2.0, _rng.randf() * TAU, _rng.randf_range(7.0, 11.0))
-				if guards_hoard() and hoard.values().any(func(n): return int(n) > 0) and _hoard == null:
-					_hoard = _build_hoard(c)
-
-
-## Whether the dragon itself lives here: only its own lair holds the hoard. The
-## other lairs below the wild (the spider hole, the open grave, ...) have
-## chests of their own but no dragon, and so no hoard.
-func guards_hoard() -> bool:
-	for row in grid:
-		for ch in row:
-			if Enemy.LETTERS.get(ch, "") == "drache":
-				return true
-	return false
-
-
-## The hoard the dragon's helpers brought in (see DragonHoard), on the free
-## tile beside the hoard chest: a heap of coins, bigger the more it is worth,
-## with little stacks of bars around it, one stack per metal in its own
-## colour, and a warm glow. Walked over once the dragon has fallen, it is
-## the hero's.
-var _hoard: Node3D
-const HOARD_SCALE := Vector2(7.0, 18.0)
-
-
-func _build_hoard(chest: Vector2i) -> Node3D:
-	var spot := _lair_exit_spot(chest)
-	if spot.is_equal_approx(cell_to_world(chest)):
-		spot += Vector3(0, 0, TILE * 0.5)
-	var holder := Node3D.new()
-	holder.position = spot
-	add_child(holder)
-	var worth := DragonHoard.coin_worth(int(hoard.get("coins", 0)), hoard)
-	var size := clampf(HOARD_SCALE.x + worth / 25.0, HOARD_SCALE.x, HOARD_SCALE.y)
-	_place_lair("Coin_Pile", Vector3.ZERO, randf() * TAU, size).reparent(holder, false)
-	var stacks: Array = Forge.METALS.keys().filter(func(m): return int(hoard.get(m, 0)) > 0)
-	for i in stacks.size():
-		var angle := PI * 0.75 + TAU * i / 5.0
-		_build_bar_stack(holder, Vector3(cos(angle), 0, sin(angle)) * 1.1, angle, stacks[i], int(hoard[stacks[i]]))
-	var glow := OmniLight3D.new()
-	glow.light_color = Color(1.0, 0.78, 0.35)
-	glow.light_energy = 1.3
-	glow.omni_range = 4.0
-	glow.position = Vector3(0, 1.2, 0)
-	holder.add_child(glow)
-	holder.add_child(Effects.make_sparkles(Color(1.0, 0.85, 0.4)))
-	_pickups.append({"node": holder, "kind": "hoard", "radius": 1.8})
-	return holder
-
-
-## A small stack of bars of one metal: a bar for each, up to BAR_STACK_MAX,
-## in rows of three laid crosswise.
-const BAR_STACK_MAX := 9
-const BAR_SIZE := Vector3(0.42, 0.14, 0.2)
-
-
-func _build_bar_stack(holder: Node3D, at: Vector3, rot: float, metal: String, count: int) -> void:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Forge.METALS[metal].color
-	mat.metallic = 0.8
-	mat.roughness = 0.35
-	var mesh := BoxMesh.new()
-	mesh.size = BAR_SIZE
-	mesh.material = mat
-	var stack := Node3D.new()
-	stack.name = "Barren_" + metal
-	stack.position = at
-	stack.rotation.y = rot
-	holder.add_child(stack)
-	for i in mini(count, BAR_STACK_MAX):
-		var layer := i / 3
-		var bar := MeshInstance3D.new()
-		bar.mesh = mesh
-		var across := (i % 3 - 1) * (BAR_SIZE.z + 0.03)
-		bar.position = Vector3(0, BAR_SIZE.y * (layer + 0.5), across)
-		if layer % 2 == 1:
-			bar.position = Vector3(across, BAR_SIZE.y * (layer + 0.5), 0)
-			bar.rotation.y = PI * 0.5
-		stack.add_child(bar)
 
 
 ## How close (metres) the hero must step to the way out's middle to leave.
@@ -4784,20 +3013,6 @@ const LAIR_EXIT_RADIUS := 1.3
 ## The way out shines up this long after the dragon fell.
 const LAIR_EXIT_DELAY := 1.5
 const LAIR_EXIT_COLOR := Color(1.0, 0.8, 0.35)
-
-
-## The fallen dragon leaves parts of its body around where it fell, for
-## the ingredient pouch (see DragonLair.parts). Only the real dragon of
-## Embermaw's lair does; one made in the map workshop does not.
-func _drop_dragon_parts(at: Vector3) -> void:
-	if not DragonLair.is_floor(self):
-		return
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	var found := DragonLair.parts(rng)
-	for i in found.size():
-		var angle := TAU * i / found.size() + 0.4
-		lay_find(found[i], at + Vector3(cos(angle), 0, sin(angle)) * 1.4, DragonLair.PART_COLOURS[found[i]])
 
 
 ## The dragon has fallen where it hovered: the lair is won. A glowing way
@@ -4808,29 +3023,20 @@ func _win_lair(at: Vector3) -> void:
 		return
 	lair_cleared = true
 	lair_won.emit()
-	_open_way_out(at)
-
-
-## A glowing way out shines up on a free tile next to `at` a moment later
-## (see lair_exit): the dragon's lair and the Heart of the Mountain have one.
-func _open_way_out(at: Vector3) -> void:
-	if is_instance_valid(lair_exit):
-		return
 	var spot := _lair_exit_spot(world_to_cell(at))
 	await get_tree().create_timer(LAIR_EXIT_DELAY).timeout
-	if not is_inside_tree() or is_instance_valid(lair_exit):
+	if not is_inside_tree():
 		return
 	lair_exit = _build_lair_exit(spot)
 
 
-## A free floor tile (plain or dirt) beside `c` for the way out (or `c`
-## itself, if none).
+## A free floor tile beside `c` for the way out (or `c` itself, if none).
 func _lair_exit_spot(c: Vector2i) -> Vector3:
 	var best := c
 	var best_dist := INF
 	for d in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
 		var n: Vector2i = c + d
-		if not astar.is_in_boundsv(n) or astar.is_point_solid(n) or not cell_char(n) in [".", ","]:
+		if not astar.is_in_boundsv(n) or astar.is_point_solid(n) or cell_char(n) != ".":
 			continue
 		# The one nearest the stairs the hero came down, as a reminder of
 		# the way they came.
@@ -4886,13 +3092,10 @@ func _build_lair_exit(pos: Vector3) -> Node3D:
 
 ## The names of a home's storeys, from the ground up.
 const STOREY_NAMES := ["Erdgeschoss", "Obergeschoss", "Dachkammer"]
-const CELLAR_NAME := "Keller"
 
 
 ## Splits a home into its storeys: every room sealed off by walls is one,
-## counted from west to east. The room with the front door ("E") is the
-## ground floor, storey 0; rooms west of it are cellars below it (-1, ...),
-## rooms east of it the floors above.
+## counted from west to east.
 func _find_storeys() -> void:
 	_storeys.clear()
 	if not is_home:
@@ -4915,23 +3118,16 @@ func _find_storeys() -> void:
 						room.append(n)
 				i += 1
 			rooms.append(room)
-	var ground := 0
-	for k in rooms.size():
-		if rooms[k].any(func(c): return cell_char(c) == "E"):
-			ground = k
-			break
 	for k in rooms.size():
 		for c in rooms[k]:
-			_storeys[c] = k - ground
+			_storeys[c] = k
 
 
-## Which storey of a home a tile is on (0 is the ground floor, -1 the cellar).
+## Which storey of a home a tile is on (0 is the ground floor).
 func storey_of(c: Vector2i) -> int:
 	return _storeys.get(c, 0)
 
 
-## How many storeys a home has from the ground floor up (its cellar, if
-## any, is not counted: see has_cellar).
 func storey_count() -> int:
 	var top := -1
 	for c in _storeys:
@@ -4939,16 +3135,9 @@ func storey_count() -> int:
 	return top + 1
 
 
-## Whether a home has a cellar below its ground floor.
-func has_cellar() -> bool:
-	return _storeys.values().has(-1)
-
-
 ## The name of a storey of a home, in the chosen language.
 func storey_name(storey: int) -> String:
-	if storey < 0:
-		return Lang.t(CELLAR_NAME)
-	if storey == 0:
+	if storey <= 0:
 		return Lang.t(STOREY_NAMES[0])
 	if storey >= storey_count() - 1 and storey_count() >= 3:
 		return Lang.t(STOREY_NAMES[2])
@@ -5097,12 +3286,12 @@ func _build_stairs(c: Vector2i, up: bool) -> void:
 const WALL_DEPTH := 4.0
 
 
-## The front door of a home: a doorway in the near south wall with the
+## The front door of a home: a doorway in the low south wall with the
 ## daylight of the lane outside, and a mat to wipe your feet on.
 func _build_home_door(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	var doorway := _place("wall_doorway", pos + Vector3(0, 0, TILE * 0.5), 0.0)
-	_near_walls.add(doorway)
+	doorway.scale.y = LOW_WALL_SCALE
 	var leaf: Node3D = doorway.find_child("wall_doorway_door", true, false)
 	if leaf:
 		leaf.visible = false
@@ -5216,16 +3405,15 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 		rot = -PI * 0.5
 	match id:
 		"werkstatt":
-			var bench := Node3D.new()
-			root.add_child(bench)
-			_place("table_medium_decorated_A", pos, rot, bench)
-			_place("stool", pos + Vector3(sin(rot), 0, cos(rot)) * 1.3, rot, bench)
-			_place("sword_shield", pos + Vector3(-sin(rot), 0, -cos(rot)) * 1.55, rot, bench)
-			_add_fitted_solid(bench, pos, 1.2, Vector2(2.6, 2.6))
+			_place("table_medium_decorated_A", pos, rot, root)
+			_place("stool", pos + Vector3(sin(rot), 0, cos(rot)) * 1.3, rot, root)
+			_place("sword_shield", pos + Vector3(-sin(rot), 0, -cos(rot)) * 1.55, rot, root)
+			_add_solid(pos, Vector3(2.6, 1.2, 2.6))
 			astar.set_point_solid(c, true)
 			stations.append({"kind": "hauswerkbank", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"truhe":
-			_add_fitted_solid(_place("chest", pos, _back_to_wall(c, rot), root), pos, 1.5)
+			_place("chest", pos, rot, root)
+			_add_solid(pos, Vector3(2.4, 1.5, 2.4))
 			astar.set_point_solid(c, true)
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"trophaeen":
@@ -5339,7 +3527,7 @@ func _trophy_statue(kind: String) -> Node3D:
 ## Iron bars across a one tile gap: solid, but you can see through.
 func _build_bars(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	_build_iron_gate(pos, 0.0)
+	_place("wall_gated", pos, 0.0)
 	_add_solid(pos, Vector3(TILE, 4, 0.6))
 
 
@@ -5396,13 +3584,9 @@ func refresh_vaults() -> void:
 
 
 ## True when nothing blocks the view between two points on the grid.
-## A closed door blocks it too, even for someone standing in its doorway.
 func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
-	if door_between(a, b):
-		return false
 	var from := Vector2(a.x, a.z) / TILE
 	var to := Vector2(b.x, b.z) / TILE
-	var origin := Vector2i(roundi(from.x), roundi(from.y))
 	var target := Vector2i(roundi(to.x), roundi(to.y))
 	var steps := int(from.distance_to(to) * 4.0) + 1
 	for i in range(1, steps):
@@ -5410,70 +3594,7 @@ func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
 		var c := Vector2i(roundi(p.x), roundi(p.y))
 		if c == target:
 			break
-		if c == origin:
-			continue # The tile one stands on (a doorway, say) hides nothing.
 		if is_opaque(c):
-			return false
-	return true
-
-
-## Whether a closed door stands between two points: the straight line from
-## one to the other passes through its leaf. Nobody strikes, shoots or looks
-## through a closed door, not even at someone standing right in its doorway.
-func door_between(a: Vector3, b: Vector3) -> bool:
-	for d in _doors:
-		if d.open:
-			continue
-		var p: Vector3 = d.pos
-		# How far each point is from the leaf (across it), and where along
-		# the doorway each one stands.
-		var across_a: float = a.z - p.z if d.spans_x else a.x - p.x
-		var across_b: float = b.z - p.z if d.spans_x else b.x - p.x
-		if across_a * across_b >= 0.0:
-			continue # Both on the same side of the leaf.
-		var along_a: float = a.x - p.x if d.spans_x else a.z - p.z
-		var along_b: float = b.x - p.x if d.spans_x else b.z - p.z
-		var along := lerpf(along_a, along_b, across_a / (across_a - across_b))
-		if absf(along) <= TILE * 0.5:
-			return true
-	return false
-
-
-## True when a shot from `a` to `b` gets there: nothing blocks the view (see
-## has_line_of_sight) and no pillar, statue or crate stack stands in the way.
-## Shooters (the hero's knives, archers, mages) only let fly when it is.
-func has_clear_shot(a: Vector3, b: Vector3) -> bool:
-	return has_line_of_sight(a, b) and not shot_blocked(a, b)
-
-
-## Whether a shot flying from `a` to `b` runs into a pillar, a statue or a
-## stack of crates on the way (see shot_blockers).
-func shot_blocked(a: Vector3, b: Vector3) -> bool:
-	var from := Vector2(a.x, a.z)
-	var to := Vector2(b.x, b.z)
-	for foot in shot_blockers:
-		if segment_hits_rect(from, to, foot):
-			return true
-	return false
-
-
-## Whether the straight line from `a` to `b` touches the rectangle `r`.
-static func segment_hits_rect(a: Vector2, b: Vector2, r: Rect2) -> bool:
-	var d := b - a
-	var t0 := 0.0
-	var t1 := 1.0
-	for axis in 2:
-		var lo: float = r.position[axis]
-		var hi: float = r.end[axis]
-		if absf(d[axis]) < 0.00001:
-			if a[axis] < lo or a[axis] > hi:
-				return false
-			continue
-		var ta: float = (lo - a[axis]) / d[axis]
-		var tb: float = (hi - a[axis]) / d[axis]
-		t0 = maxf(t0, minf(ta, tb))
-		t1 = minf(t1, maxf(ta, tb))
-		if t0 > t1:
 			return false
 	return true
 

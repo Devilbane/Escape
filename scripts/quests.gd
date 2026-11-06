@@ -22,58 +22,58 @@ const ALL := {
 	"raeuberplage": {"giver": "4", "kind": "kill", "targets": BANDITS, "count": 5, "gold": 25,
 		"title": "Räuberplage",
 		"goal": "Besiege 5 Räuber am Räuberpass, östlich des Marktplatzes.",
-		"offer": "Die Räuber am Pass werden frech. Besiege fünf von ihnen, und die Krone zahlt dir 25 Kupfer.",
+		"offer": "Die Räuber am Pass werden frech. Besiege fünf von ihnen, und die Krone zahlt dir 25 Gold.",
 		"remind": "Noch %d Räuber, dann ist der Pass ruhiger.",
 		"done": "Fünf Räuber weniger! Hier ist dein Sold von der Krone."},
 	"dolche": {"giver": "6", "kind": "fetch", "item": "banditendolch", "count": 3, "gold": 30,
 		"title": "Gestohlene Dolche",
 		"goal": "Bring Krämerin Mira 3 Banditendolche. Die Halsabschneider am Räuberpass tragen sie.",
-		"offer": "Die Halsabschneider vom Pass haben mir eine Kiste Dolche gestohlen. Bring mir drei zurück, dann zahle ich 30 Kupfer.",
+		"offer": "Die Halsabschneider vom Pass haben mir eine Kiste Dolche gestohlen. Bring mir drei zurück, dann zahle ich 30 Gold.",
 		"remind": "Mir fehlen noch %d Dolche. Die Halsabschneider am Pass haben sie.",
-		"done": "Meine Dolche! Danke dir, hier sind 30 Kupfer."},
+		"done": "Meine Dolche! Danke dir, hier sind 30 Gold."},
 	"brief": {"giver": "M", "kind": "deliver", "item": "brief", "to": "0", "gold": 10,
 		"title": "Post für den Vorsteher",
 		"goal": "Bring den Brief aus der Hauptstadt zu Dorfvorsteher Aldo.",
 		"offer": "Ein Brief aus der Hauptstadt für den Dorfvorsteher! Bringst du ihn hin? Aldo gibt dir sicher etwas dafür.",
 		"remind": "Der Brief ist für Dorfvorsteher Aldo. Er steht vor seinem Haus.",
-		"done": "Ein Brief aus der Hauptstadt? Danke! Hier sind 10 Kupfer für deine Mühe."},
+		"done": "Ein Brief aus der Hauptstadt? Danke! Hier sind 10 Gold für deine Mühe."},
 	"kuerbis": {"giver": "2", "kind": "deliver", "item": "kuerbis", "to": "5", "gold": 5, "reward": "lederstiefel",
 		"title": "Kürbis für die Suppe",
 		"goal": "Bring Bäuerin Lenes Kürbis zu Zecher Fritz im Wirtshaus.",
 		"offer": "Fritz im Wirtshaus will Kürbissuppe. Bringst du ihm diesen Kürbis? Er hat ein Paar Stiefel für dich.",
 		"remind": "Der Kürbis ist für Zecher Fritz. Er sitzt beim Wirtshaus.",
-		"done": "Ein Kürbis von Lene! Endlich gibt es Suppe. Hier, die Stiefel und 5 Kupfer."},
+		"done": "Ein Kürbis von Lene! Endlich gibt es Suppe. Hier, die Stiefel und 5 Gold."},
 	"wasser": {"giver": "9", "kind": "deliver", "item": "wassereimer", "to": "O", "gold": 8,
 		"title": "Wasser für den Tempel",
 		"goal": "Bring Wasserträgerin Hannas Eimer zu Priesterin Elsbeth am Tempel.",
 		"offer": "Die Priesterin braucht frisches Wasser für den Tempel. Trägst du ihr diesen Eimer hin? Meine Arme sind lahm.",
 		"remind": "Der Eimer ist für Priesterin Elsbeth am Tempel.",
-		"done": "Frisches Wasser für den Tempel. Die Götter danken dir, und ich auch: 8 Kupfer."},
+		"done": "Frisches Wasser für den Tempel. Die Götter danken dir, und ich auch: 8 Gold."},
 	"schlaeger": {"giver": "1", "kind": "kill", "targets": ["schlaeger"], "count": 3, "gold": 10, "reward": "kettenhemd",
 		"title": "Grobe Schläger",
 		"goal": "Besiege 3 Schläger mit Äxten am Räuberpass.",
 		"offer": "Die Schläger vom Pass tragen Äxte, die sie mir nie bezahlt haben. Besiege drei von ihnen, dann bekommst du ein Kettenhemd.",
 		"remind": "Noch %d Schläger. Dann schmiede ich dir dein Kettenhemd.",
-		"done": "Das wird ihnen eine Lehre sein! Hier, ein Kettenhemd aus meiner Esse, und 10 Kupfer."},
+		"done": "Das wird ihnen eine Lehre sein! Hier, ein Kettenhemd aus meiner Esse, und 10 Gold."},
 	"wilderer": {"giver": "3", "kind": "kill", "targets": ["wilderer"], "count": 2, "gold": 18,
 		"title": "Wilderer im Wald",
 		"goal": "Besiege 2 Wilderer mit Armbrüsten am Räuberpass.",
-		"offer": "Wilderer schießen im Wald auf alles, was sich bewegt. Besiege zwei von ihnen, dann zahle ich 18 Kupfer.",
+		"offer": "Wilderer schießen im Wald auf alles, was sich bewegt. Besiege zwei von ihnen, dann zahle ich 18 Gold.",
 		"remind": "Noch %d Wilderer. Pass auf ihre Bolzen auf!",
-		"done": "Endlich kann ich wieder in Ruhe Holz hacken. Hier sind 18 Kupfer."},
+		"done": "Endlich kann ich wieder in Ruhe Holz hacken. Hier sind 18 Gold."},
 	"hauptmann": {"giver": "G", "kind": "kill", "targets": ["hauptmann"], "count": 1, "after": "raeuberplage", "gold": 40, "reward": "schattenumhang",
 		"title": "Der Räuberhauptmann",
 		"goal": "Besiege den Räuberhauptmann am Lagerfeuer im Räuberlager.",
-		"offer": "Die Wache sagt, du hast am Pass aufgeräumt. Jetzt der Hauptmann am Lagerfeuer! Besiege ihn, und die Gilde zahlt 40 Kupfer und einen Schattenumhang.",
+		"offer": "Die Wache sagt, du hast am Pass aufgeräumt. Jetzt der Hauptmann am Lagerfeuer! Besiege ihn, und die Gilde zahlt 40 Gold und einen Schattenumhang.",
 		"remind": "Der Hauptmann sitzt am Lagerfeuer im Räuberlager. Nimm Heiltränke mit.",
-		"done": "Der Hauptmann ist besiegt? Die Gilde ist stolz auf dich! Hier sind 40 Kupfer und ein Schattenumhang."},
+		"done": "Der Hauptmann ist besiegt? Die Gilde ist stolz auf dich! Hier sind 40 Gold und ein Schattenumhang."},
 	# Gorm and Hagen have quarrelled for years (see VillageTalk): this ends it.
 	"versoehnung": {"giver": "S", "kind": "deliver", "item": "wetzstein", "to": "1", "gold": 12, "standing": 1,
 		"title": "Ein Stein für den Schmied",
 		"goal": "Bring Steinmetz Hagens Wetzstein zu Schmied Gorm an seiner Esse.",
 		"offer": "Gorm und ich streiten seit Jahren. Bring ihm diesen Wetzstein aus meinem Bruch. Vielleicht ist dann endlich Ruhe.",
 		"remind": "Der Wetzstein ist für Schmied Gorm an seiner Esse.",
-		"done": "Von Hagen? Ein Wetzstein aus seinem Bruch... Der ist gut. Sag ihm Danke von mir. Hier sind 12 Kupfer."},
+		"done": "Von Hagen? Ein Wetzstein aus seinem Bruch... Der ist gut. Sag ihm Danke von mir. Hier sind 12 Gold."},
 	# Wishes Guild Master Ragna helps with (see Wishes): each earns a recipe.
 	"wunsch_klingen": {"giver": "G", "wish": true, "kind": "kill", "targets": ["krieger"], "count": 5, "gold": 5, "recipe": "klingenring",
 		"title": "Ein Ring für die Klinge",
@@ -89,8 +89,8 @@ const ALL := {
 		"done": "Axt gegen Axt, und du stehst noch. Hier ist das Rezept für den Armreif der Axt."},
 	"wunsch_blocken": {"giver": "G", "wish": true, "kind": "kill", "targets": ["schuetze"], "count": 4, "gold": 5, "recipe": "schildamulett",
 		"title": "Ein Amulett für den Schild",
-		"goal": "Besiege 4 Skelettschützen. Nachts schießen sie auf dem Friedhof, und im offenen Grab darunter lauern sie immer. Fang ihre Bolzen mit dem Schild ab.",
-		"offer": "Ein Schild zeigt sich gegen Bolzen. Besiege vier Skelettschützen, nachts auf dem Friedhof oder unten im offenen Grab, dann bekommst du das Rezept.",
+		"goal": "Besiege 4 Skelettschützen im Verlies. Fang ihre Bolzen mit dem Schild ab.",
+		"offer": "Ein Schild zeigt sich gegen Bolzen. Besiege vier Skelettschützen im Verlies, dann bekommst du das Rezept.",
 		"remind": "Noch %d Skelettschützen. Halt den Schild hoch!",
 		"done": "Kein Bolzen kam durch, sehr gut. Hier ist das Rezept für das Amulett des Walls."},
 	"wunsch_werfen": {"giver": "G", "wish": true, "kind": "kill", "targets": ["wilderer"], "count": 3, "gold": 5, "recipe": "wurfring",
@@ -201,7 +201,7 @@ static func reward_text(id: String) -> String:
 	var q: Dictionary = ALL[id]
 	var parts := []
 	if q.get("gold", 0) > 0:
-		parts.append(Lang.t("%d Kupfer") % q.gold)
+		parts.append(Lang.t("%d Gold") % q.gold)
 	if q.has("reward"):
 		parts.append(Items.item_name(q.reward))
 	if q.has("recipe"):
@@ -214,7 +214,7 @@ func _carried(item: String) -> int:
 
 
 func _bag_free() -> int:
-	return game.player.bag_size() - game.player.bag_used()
+	return game.player.bag_size() - game.player.bag.size()
 
 
 ## The mark over a villager's head: "?" when the hero can hand something in
@@ -374,7 +374,7 @@ func _finish(id: String, v: Villager) -> void:
 	v.say(said, game.player.global_position, 7.0 if said != Lang.t(q.done) else 5.5)
 	game.coins += int(q.get("gold", 0))
 	if q.has("reward"):
-		if game.player.bag_fits(q.reward):
+		if _bag_free() > 0:
 			game.player.bag.append(q.reward)
 		else:
 			# No room (a delivery fills the bag again): it waits in the chest.

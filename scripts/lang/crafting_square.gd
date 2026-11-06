@@ -22,7 +22,7 @@ const EN := {
 	"Am Marktplatz von Lindenhain, gleich neben Gorms Esse, steht der Handwerkerplatz: eine Werkbank fürs Feinschmieden, ein Schleifrad für Edelsteine, ein Tisch für die Alchemie und eine Truhe, in der deine Lagertruhe von zu Hause bereitsteht. Hier treffen sich alle, die etwas herstellen wollen.": "On the market square of Lindenhain, right beside Gorm's forge, lies the crafting square: a bench for fine metalwork, a wheel for cutting gems, a table for alchemy, and a chest that holds your storage from home. Everyone who wants to make something meets here.",
 	"Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!": "This torchholder looks odd.\nYou pull it and you hear a distant sound of moving stone!",
 	"Geheimraum: %s": "Secret room: %s",
-	"Gewöhnlich": "Common",
+	"Gewöhnlich": "Normal",
 	"Ungewöhnlich": "Uncommon",
 	"Selten": "Rare",
 	"Episch": "Epic",

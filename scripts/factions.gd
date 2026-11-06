@@ -5,8 +5,7 @@ extends RefCounted
 ## dungeon, they fight each other (see Enemy.foe), and whoever wins leaves
 ## the loser's loot for the hero.
 ##
-## - The dead (skeletons, fog wraiths, the ghosts and ghouls of the dungeon)
-##   hate everything that lives.
+## - The dead (skeletons, fog wraiths) hate everything that lives.
 ## - The bandits of the pass and the beasts of the wolf hollow (wolves, orcs,
 ##   spiders, the yeti) are at war. The beasts share their hollow in peace.
 ## - The dragon's brood (bats, slimes, the dragon) wants the skeletons out
@@ -24,10 +23,8 @@ extends RefCounted
 const KINDS := {
 	"krieger": "undead", "schuetze": "undead", "magier": "undead", "wicht": "undead",
 	"koloss": "undead", "waechter": "undead", "fog_wraith": "undead",
-	"totengeist": "undead", "banshee": "undead", "ghul": "undead",
 	"halsabschneider": "bandits", "wilderer": "bandits", "schlaeger": "bandits", "hauptmann": "bandits",
 	"wolf": "wolves", "ork": "orcs", "spinne": "spiders", "yeti": "yeti",
-	"spinnenkoenigin": "spiders",
 	"fledermaus": "brood", "schleim": "brood", "drache": "brood",
 	# The nameless horrors (see Horrors) belong to nobody and fight nobody
 	# but the hero.
@@ -36,8 +33,6 @@ const KINDS := {
 	# and cannot be won over.
 	"eiswolf": "mountain", "bergork": "mountain", "felstroll": "mountain", "klippenschuetze": "mountain",
 	"kristallschleim": "mountain", "glutschleim": "mountain", "bergkoenig": "mountain",
-	# The Great Old One and its brood below the high valley (see ElderLair).
-	"brutdrache": "elder", "grosser_alter": "elder",
 }
 
 ## The factions. "name" is shown in messages. A faction with a "gift" can be
@@ -50,15 +45,13 @@ const FACTIONS := {
 	"undead": {"name": "Die Toten",
 		"refuse": "Die Toten wollen keine Geschenke. Sie wollen nur dich."},
 	"bandits": {"name": "Die Räuber",
-		"refuse": "Räuber nehmen dein Kupfer lieber mit Gewalt."},
+		"refuse": "Räuber nehmen dein Gold lieber mit Gewalt."},
 	"spiders": {"name": "Die Spinnen",
 		"refuse": "Die Spinne starrt dich mit acht Augen an. Mit ihr ist kein Frieden zu machen."},
 	"brood": {"name": "Die Brut des Drachen",
 		"refuse": "Die Brut des Drachen lässt sich nicht zähmen."},
 	"mountain": {"name": "Die Bergbrut",
 		"refuse": "In den Bergen gilt nur das Recht des Stärkeren. Geschenke bringen hier nichts."},
-	"elder": {"name": "Die Brut des Großen Alten",
-		"refuse": "Die Brut des Großen Alten bewacht seinen Hort. Für Geschenke hat sie nur Feuer übrig."},
 	"horrors": {"name": "Die Namenlosen",
 		"refuse": "Es hat keinen Hunger auf Geschenke. Es hat Hunger auf dich."},
 	"wolves": {"name": "Die Wölfe", "gift": "barsch", "count": 1,
@@ -67,7 +60,7 @@ const FACTIONS := {
 		"won": "Das Rudel hat dich angenommen! Die Wölfe greifen dich nicht mehr an und kämpfen an deiner Seite.",
 		"friend": "Die Wölfe sind deine Freunde."},
 	"orcs": {"name": "Die Orks", "gift": "gold", "count": 6,
-		"wish": "Orks wollen Kupfer sehen: 6 Münzen für einen Handschlag.",
+		"wish": "Orks wollen Gold sehen: 6 Münzen für einen Handschlag.",
 		"thanks": "Der Ork beißt auf die Münzen und grunzt zufrieden.",
 		"won": "Die Orks nennen dich Freund! Sie greifen dich nicht mehr an und kämpfen an deiner Seite.",
 		"friend": "Die Orks sind deine Freunde."},
@@ -97,7 +90,7 @@ const RIVAL_KILL_FAVOUR := 0.25
 const LOWEST := -6.0
 
 ## Explained once in the compendium, the first time a faction is won over.
-const HOW_TO := "Nicht alle Ungeheuer sind Freunde: Räuber und die Bestien der Wolfssenke bekämpfen sich, und die Toten hassen alles, was lebt. Wölfe, Orks und den Yeti kannst du mit Geschenken für dich gewinnen (Taste T oder „Schenken“, nah bei ihnen): Wölfe mögen Barsch, Orks Kupfer, der Yeti zwei Barsche. Nach drei Geschenken greifen sie dich nicht mehr an und kämpfen an deiner Seite. Wer ihresgleichen erschlägt, verliert ihre Gunst."
+const HOW_TO := "Nicht alle Ungeheuer sind Freunde: Räuber und die Bestien der Wolfssenke bekämpfen sich, und die Toten hassen alles, was lebt. Wölfe, Orks und den Yeti kannst du mit Geschenken für dich gewinnen (Taste T oder „Schenken“, nah bei ihnen): Wölfe mögen Barsch, Orks Gold, der Yeti zwei Barsche. Nach drei Geschenken greifen sie dich nicht mehr an und kämpfen an deiner Seite. Wer ihresgleichen erschlägt, verliert ihre Gunst."
 
 ## Faction id -> favour (see FRIENDLY). Kept in the saved game.
 static var favour := {}

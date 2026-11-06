@@ -1,17 +1,15 @@
 class_name HandTorch
 extends Node
 ## The hero's hand torch, for the pitch-black places (levels with the line
-## "dark: yes", such as the creepy holes in the wild) and the dark nights.
-## Torches ("fackel") are bought from the shopkeeper and carried in the bag.
-## The hero lights one only when the player asks (the torch button on the
-## right edge, or the key V, see toggle) and it burns for BURN seconds,
-## wherever the hero goes, until it is put out or burns down. Put out, what
-## is left of it burns on the next time it is lit. A burnt-down torch is not
-## replaced by itself: the player lights the next one.
-## Without a burning torch the hero sees hardly more than the tile they
-## stand on in the pitch dark (DARK_REACH, see Fog), and even with one only
+## "dark: yes", such as the creepy holes in the wild). Torches ("fackel")
+## are bought from the shopkeeper and carried in the bag. In the dark one is
+## lit by itself and burns for BURN seconds, then the next one is lit, until
+## the bag holds none. Without a burning torch the hero sees hardly more
+## than the tile they stand on (DARK_REACH, see Fog), and even with one only
 ## a few steps around (TORCH_REACH). A burning torch cannot be hooded: every
-## monster sees the hero coming.
+## monster down there sees the hero coming.
+## Back in the light the torch is put out, and what is left of it burns on
+## the next time it gets dark.
 
 ## A word for the message line (see Game.show_message).
 signal notice(text: String, duration: float)
@@ -21,15 +19,15 @@ const ITEM := "fackel"
 const BURN := 180.0
 const LOW := 30.0
 ## How far the hero sees in the dark (metres): without a torch the own tile
-## and barely the next, with one about three tiles around.
+## and barely the next, with one the tiles around and not much more.
 const DARK_REACH := 2.6
-const TORCH_REACH := 11.4
+const TORCH_REACH := 6.2
 ## The hero's lantern in the dark: a glimmer that only shows the feet.
 const DARK_LANTERN_ENERGY := 0.12
 const DARK_LANTERN_RANGE := 3.0
 const LIGHT_COLOR := Color(1.0, 0.58, 0.26)
 const LIGHT_ENERGY := 2.0
-const LIGHT_RANGE := 13.8
+const LIGHT_RANGE := 7.5
 
 var player: Player
 ## Seconds left on the torch in hand; 0 when there is none.
@@ -62,37 +60,17 @@ func spare() -> int:
 	return player.bag.count(ITEM)
 
 
-## Whether the hero has a torch to light: one half burnt in hand, or one
-## in the bag.
-func has_torch() -> bool:
-	return left > 0.0 or player.bag.has(ITEM)
-
-
-## Lights a torch, or puts the burning one out (the torch button, key V).
-## Returns why not, if nothing happened ("" when it worked).
-func toggle() -> String:
-	if player.dead:
-		return ""
-	if lit:
-		_set_lit(false)
-		notice.emit(Lang.t("Du löschst deine Fackel."), 1.8)
-		return ""
-	if left <= 0.0:
-		if not player.bag.has(ITEM):
-			return Lang.t("Du hast keine Fackel. (Die Krämerin verkauft Fackeln.)")
-		player.bag.erase(ITEM)
-		left = BURN
-		_warned = false
-		notice.emit(Lang.t("Du zündest eine Fackel an. Noch %d im Beutel.") % spare(), 2.4)
-	else:
-		notice.emit(Lang.t("Du zündest deine Fackel wieder an."), 1.8)
-	_set_lit(true)
-	return ""
-
-
 func _process(delta: float) -> void:
 	var dark: bool = in_dark() and not player.dead
-	if player.dead and lit:
+	if dark and not lit:
+		if left <= 0.0 and player.bag.has(ITEM):
+			player.bag.erase(ITEM)
+			left = BURN
+			_warned = false
+			notice.emit(Lang.t("Du zündest eine Fackel an. Noch %d im Beutel.") % spare(), 2.4)
+		if left > 0.0:
+			_set_lit(true)
+	elif not dark and lit:
 		_set_lit(false)
 	if dark != _was_dark:
 		_was_dark = dark
@@ -121,10 +99,14 @@ func _process(delta: float) -> void:
 	if left <= 0.0:
 		left = 0.0
 		_set_lit(false)
-		Sfx.play(player, "drip", -4.0)
 		if player.bag.has(ITEM):
-			notice.emit(Lang.t("Die Fackel ist heruntergebrannt. Zünde die nächste an (Fackel am rechten Rand oder Taste V)."), 3.0)
+			player.bag.erase(ITEM)
+			left = BURN
+			_warned = false
+			_set_lit(true)
+			notice.emit(Lang.t("Die Fackel ist heruntergebrannt. Du zündest die nächste an."), 2.4)
 		else:
+			Sfx.play(player, "drip", -4.0)
 			notice.emit(Lang.t("Deine Fackel ist erloschen! Finsternis umgibt dich."), 3.0)
 
 

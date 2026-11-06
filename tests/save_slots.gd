@@ -1,8 +1,7 @@
 extends SceneTree
 ## Headless test for the save slots: each game is saved into a slot of its
 ## own, the load window lists every slot's game, any of them can be loaded
-## and deleted, each one's description names the hero level, saved games of
-## older versions (the single file, and the files
+## and deleted, saved games of older versions (the single file, and the files
 ## named after their hero) move into free slots, a new game picks its slot in
 ## the name box, and taking a slot whose hero has come further asks first.
 ## Run with: godot --headless -s tests/save_slots.gd
@@ -36,8 +35,6 @@ func _process(_delta: float) -> bool:
 	_test_slots()
 	_clean_up()
 	_test_new_game()
-	_clean_up()
-	_test_hero_level()
 	_clean_up()
 	if failures == 0:
 		print("PASS: save slots")
@@ -205,38 +202,3 @@ func _test_new_game() -> void:
 			break
 	check(game.menus.current == "", "confirming closes the question")
 	check(game.save_slot == 1 and not game.has_slot_save(1), "confirming replaces slot 1's saved game")
-
-
-## The load window's description of a saved game names the hero level, in
-## both languages. Games saved before the save kept the experience take it from
-## the hero's training, and a hero who never trained is on level 1.
-func _test_hero_level() -> void:
-	game.load_level(0, false)
-	game.hero_name = HEROES[0]
-	game.save_slot = 1
-	game.coins = 5
-	game.player.hero_xp = HeroLevel.total_for(7)
-	check(game.save_game(), "a game with some experience is saved")
-	var info: Dictionary = game.save_info(game.save_path(1))
-	check(int(info.get("hero_level", 0)) == 7, "the saved game knows its hero level")
-	var summary: String = game.save_summary(info)
-	check(summary.begins_with(HEROES[0] + ", Heldenstufe 7,"), "the description names the hero level beside the name: " + summary)
-	var was := Lang.language
-	Lang.language = "en"
-	Lang._apply()
-	summary = game.save_summary(info)
-	Lang.language = was
-	Lang._apply()
-	check(summary.begins_with(HEROES[0] + ", hero level 7,"), "the English description names the hero level too: " + summary)
-
-	# An older save of the same hero, without "xp", still knows the level.
-	_write(game.save_path(2), HEROES[0], 3, 100.0)
-	check(int(game.save_info(game.save_path(2)).hero_level) == 7, "an older save takes the hero level from the training")
-	# An older save of a hero who never trained shows level 1 and no gap.
-	var untrained := "Slot test Untrained %d" % Time.get_ticks_usec()
-	_write(game.save_path(3), untrained, 4, 50.0)
-	var old: Dictionary = game.save_info(game.save_path(3))
-	check(int(old.hero_level) == 1, "an older save of an untrained hero is on hero level 1")
-	check(game.save_summary(old) == untrained + ", Heldenstufe 1, auf Ebene 1 mit 4 Kupfer.", "the older save's description reads whole: " + game.save_summary(old))
-	game.player.hero_xp = 0
-	game.state = game.State.TITLE

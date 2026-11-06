@@ -1,9 +1,9 @@
 extends SceneTree
 ## Headless test for the town houses of Weavers' Lane: a row of narrow
-## two-storey houses north of the village, one home for every hero (see
+## three-storey houses north of the village, one home for every hero (see
 ## Homes). Each house has its own number and door; a hero without a house
 ## moves into the first empty one, the others' doors stay shut. Inside, the
-## home has three floors (the attic under the roof the third) linked by stairs: the chest on the ground floor,
+## home has three storeys linked by stairs: the chest on the ground floor,
 ## the bed upstairs, and chalked spots for furniture on every storey. The
 ## hero walks up and down the stairs and out of the front door, back to the
 ## door of their own house.
@@ -139,7 +139,7 @@ func _check_lane() -> void:
 		check(lvl.doors.has("^" + str(number)), "house %d has a spot in front of its door" % number)
 		var box := _bounds(house)
 		check(box.size.x < Level.TILE + 0.5, "house %d is narrow (%.1f m wide)" % [number, box.size.x])
-		check(box.size.y > 6.5 and box.size.y < 12.0, "house %d has two storeys and a roof (%.1f m high)" % [number, box.size.y])
+		check(box.size.y > 9.0 and box.size.y < 16.0, "house %d has three storeys and a roof (%.1f m high)" % [number, box.size.y])
 		var plate: Label3D = house.find_child("Number", true, false)
 		check(plate != null and plate.text == str(number), "house %d shows its number over the door" % number)
 		check(lvl.astar.is_point_solid(lvl.world_to_cell(house.position)), "house %d is solid" % number)
@@ -178,7 +178,7 @@ func _check_inside() -> void:
 	check(lvl.building == "^" and lvl.is_home, "the door led into the hero's home")
 	check(lvl.house_number == mine, "the home knows which house it is")
 	check(lvl.safe and lvl.enemies.is_empty(), "a home is a safe place")
-	check(lvl.storey_count() == 3, "the home has three floors, the attic under the roof the third (%d)" % lvl.storey_count())
+	check(lvl.storey_count() == 3, "the home has three storeys (%d)" % lvl.storey_count())
 	var beds := lvl.stations.filter(func(s): return s.kind == "bett")
 	var chests := lvl.stations.filter(func(s): return s.kind == "lager")
 	check(beds.size() == 1 and chests.size() == 1, "a home has a bed and a chest")
@@ -200,11 +200,6 @@ func _check_inside() -> void:
 	for s in lvl.stairs:
 		var to: Vector2i = lvl.stair_target(s.cell)
 		check(to.x >= 0 and lvl.storey_of(to) == s.storey + (1 if s.up else -1), "the stairs on %s lead one storey %s" % [s.cell, "up" if s.up else "down"])
-		# Nothing on the walls round the stairs sticks out of the steps.
-		for obj in lvl.interactables:
-			check(obj.cell != s.cell, "no %s stands in the stairs on %s" % [obj.label, s.cell])
-		for t in lvl._wall_torches:
-			check(t.cell != s.cell, "no torch hangs over the stairs on %s" % s.cell)
 	var p: Vector3 = game.player.global_position
 	check(lvl.storey_of(lvl.world_to_cell(p)) == 0, "the hero comes in on the ground floor")
 	var up: Dictionary = lvl.stairs.filter(func(s): return s.up and s.storey == 0)[0]

@@ -10,7 +10,7 @@ const EN := {
 	"Diese Schriftrolle fand ich zwischen alten Büchern: ein Rezept für einen Ring aus Mondsilber. Die Hälfte ist verblasst. Nimm sie, vielleicht findest du heraus, was dort stand.": "I found this scroll among old books: a recipe for a ring of moonsilver. Half of it has faded. Take it, perhaps you can find out what it said.",
 	"Zwei Brocken Mondsilber, die nur bei Nacht schimmern.": "Two lumps of moonsilver that only shimmer at night.",
 	"Ein Mondstein, wie ihn die Knochenmagier hüten.": "A moonstone, such as the skeleton mages guard.",
-	"Zwei Barren Eisen für den Reif.": "Two bars of iron for the band.",
+	"Ein Barren Eisen für den Reif.": "A bar of iron for the band.",
 	"Eine geübte Hand: Feinschmieden, Stufe 3.": "A practised hand: fine metalwork, level 3.",
 	"Ein stilles … ohne …": "A still … without …",
 	"Ein stilles Gemüt: ausgeruht und ohne Kampf im Herzen.": "A still mind: rested, and no fight in the heart.",

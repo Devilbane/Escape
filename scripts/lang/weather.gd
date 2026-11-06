@@ -15,5 +15,5 @@ const EN := {
 	"Der Nebelgeist verweht.": "The fog wraith drifts apart.",
 	"huuu": "whooo",
 	"Donnererz": "Thunder ore",
-	"Nur bei Gewitter zu finden. Gorm schmiedet daraus Donnerwaffen": "Only found in thunderstorms. Gorm forges thunder weapons from it",
+	"Nur bei Gewitter zu finden. Gorm schmilzt es zu Eisenbarren": "Only found in thunderstorms. Gorm melts it into iron bars",
 }

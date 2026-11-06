@@ -4,9 +4,7 @@ extends SceneTree
 ## not overlap each other or the middle circle, the window fits 1280 × 720
 ## without shrinking, pointing at an entry (on the wheel or in the list beside
 ## it) shows its details in the card, a click keeps them, and none of this
-## moves or resizes anything in the window, in both languages. Beside the
-## list, the hit and block chances against a person of the hero's level show,
-## and pointing at them explains them in the card.
+## moves or resizes anything in the window, in both languages.
 ## Run with: godot --headless -s tests/character_page.gd
 ## With SHOTS=<folder> and a display it also saves screenshots there.
 
@@ -100,26 +98,13 @@ func _test() -> void:
 	root.size = Vector2i(1280, 720)
 
 	# The values the player reads on the wheel are 16 px or more.
-	check(CharacterPage.TEXT_SIZE >= UiKit.sized(16), "the wheel's text is 16 px or more at the game's text scale (%d)" % CharacterPage.TEXT_SIZE)
+	check(CharacterPage.TEXT_SIZE >= 16, "the wheel's text is 16 px or more (%d)" % CharacterPage.TEXT_SIZE)
 
-	# The yardstick for the odds is a person balanced to the hero's level,
-	# the way the game balances monsters to an area (see Enemy._fit_area).
-	for l in range(1, HeroLevel.WORLD_TOP + 1):
-		var foe := Enemy.reference_foe(l)
-		check(absi(int(foe.level) - l) <= 1 and Enemy.KINDS[Enemy.REFERENCE_KIND].get("human", false),
-				"the reference person fits hero level %d: %s" % [l, foe])
-
-	for setup in ["dagger", "sword and shield", "level points"]:
+	for setup in ["dagger", "sword and shield"]:
 		if setup == "sword and shield":
 			p.equipped["waffe"] = "schwert"
 			p.equipped["schild"] = "wappenschild"
 			p.xp["klingen"] = 200.0
-			p.refresh_stats()
-		if setup == "level points":
-			# Two-digit numbers everywhere still fit the card.
-			p.hero_xp = HeroLevel.total_for(HeroLevel.MAX)
-			p.level_points = {"staerke": 10, "geschick": 10, "intelligenz": 10}
-			p.refresh_stats()
 		for lang in ["en", "de"]:
 			Lang.language = lang
 			Lang._apply()
@@ -133,7 +118,7 @@ func _test() -> void:
 			check(is_equal_approx(menus._panel.scale.x, 1.0), "the window fits 1280 × 720 unshrunk (%s): scale %s" % [where, menus._panel.scale.x])
 			for l in _labels(menus._box, []):
 				if l.text != "":
-					check(l.get_theme_font_size("font_size") >= UiKit.sized(16), "'%s' is 16 px or more at the game's text scale (%s)" % [l.text, where])
+					check(l.get_theme_font_size("font_size") >= 16, "'%s' is 16 px or more (%s)" % [l.text, where])
 
 			# Plates and blocks stay apart and inside the wheel; basic skills
 			# keep off the middle circle.
@@ -170,52 +155,12 @@ func _test() -> void:
 				check(_rect(card) == card_before, "the card keeps its size for %s (%s): %s, was %s" % [id, where, _rect(card), card_before])
 				check(_rect(menus._panel) == panel_before and _rect(wheel) == wheel_before and _rect(close) == close_before,
 						"nothing moves while %s shows (%s)" % [id, where])
-			# The main attributes show what they do now, with the real numbers.
-			for id in Training.MAIN_ATTRIBUTES:
-				wheel.point(id)
-				await _wait(2)
-				var live: Array = wheel.live_effects(id)
-				check(live.size() >= 2 and live.all(func(line): return _has_text(card, line)), "the card shows what %s does now (%s)" % [id, where])
-				if setup == "level points":
-					await _shot("attribute_%s_%s" % [id, lang])
-			if setup == "level points":
-				wheel.point("staerke")
-				await _wait(2)
-				check(p.strength_points() >= 10 and _has_text(card, Lang.t("Nahkampf: +%d Schaden, Hieb %d (+1 je Punkt)") % [p.strength_points(), p.power]),
-						"ten points of Stärke show as +%d damage (%s)" % [p.strength_points(), where])
 			# The attributes in the list beside the wheel show theirs too.
 			for id in Training.ATTRIBUTES:
 				wheel.point(id)
 				await _wait(2)
 				check(_has_text(card, Lang.t(Training.ATTRIBUTES[id].name)) and _rect(card) == card_before,
 						"the card shows %s in its own space (%s)" % [id, where])
-			# Beside the list: hit and block chances against a person of the
-			# hero's own level, from the real fight numbers. Pointing at them
-			# explains them in the card, in its own space.
-			# Above the world's top (level 20) they are its strongest.
-			var odds := p.odds_against(Enemy.reference_foe(HeroLevel.measured(p.hero_level())))
-			var against := "Gegen Menschen deiner Stufe:" if p.hero_level() <= HeroLevel.WORLD_TOP else "Gegen die stärksten Menschen:"
-			check(_has_text(menus._box, Lang.t(against)), "the odds say whom they are against (%s)" % where)
-			var hit_value: Label = null
-			for l in _labels(menus._box, []):
-				if l.text == Lang.t("Treffer"):
-					hit_value = l.get_parent().get_child(l.get_index() + 1)
-			check(hit_value != null and hit_value.text == CharacterPage.percent(odds.hit), "the hit chance shows (%s)" % where)
-			check(_has_text(menus._box, CharacterPage.percent(odds.block)), "the block chance shows (%s)" % where)
-			check(is_equal_approx(odds.block, p.block_chance if p.equipped.has("schild") else 0.0),
-					"the block chance is the shield's (%s): %s" % [where, odds.block])
-			if hit_value != null:
-				hit_value.mouse_entered.emit()
-				await _wait(2)
-				check(wheel.shown() == CharacterPage.ODDS and _has_text(card, Lang.t("Treffer und Block")),
-						"pointing at the odds explains them (%s)" % where)
-				check(_has_text(card, Lang.t("Ausweichen: %s der übrigen Hiebe.") % CharacterPage.percent(odds.dodge)),
-						"the card shows the dodge chance (%s)" % where)
-				check(_rect(card) == card_before and _rect(menus._panel) == panel_before, "the odds' card keeps its size (%s)" % where)
-				if setup == "sword and shield":
-					await _shot("character_odds_" + lang)
-				hit_value.mouse_exited.emit()
-				await _wait(2)
 			# A click keeps an entry; the pointer leaving brings it back.
 			var blocking: Vector2 = wheel._hits["blocken"].get_center()
 			_click(wheel, blocking)
@@ -242,8 +187,6 @@ func _test() -> void:
 			menus.close()
 			await _wait()
 
-	p.hero_xp = 0
-	p.level_points = {}
 	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: character page")

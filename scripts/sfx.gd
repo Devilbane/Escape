@@ -171,27 +171,6 @@ static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null, pi
 	p.play()
 
 
-## Plays a sound once from a spot in the world, so it is heard from that
-## side (left or right of the screen). It does not fade with the distance on
-## its own: the caller picks the volume. Lives under `parent`, so it falls
-## silent when that (say, the level) goes away.
-static func play_3d(parent: Node, sound: String, volume_db: float, at: Vector3, pitch := 1.0) -> AudioStreamPlayer3D:
-	if parent == null or not parent.is_inside_tree():
-		return null
-	var p := AudioStreamPlayer3D.new()
-	p.stream = _stream(sound)
-	p.bus = BUS
-	p.volume_db = volume_db
-	p.pitch_scale = pitch
-	p.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
-	p.panning_strength = 1.5
-	parent.add_child(p)
-	p.global_position = at
-	p.finished.connect(p.queue_free)
-	p.play()
-	return p
-
-
 ## Like play, but only after `seconds` (say, once a chest lid is up).
 static func play_after(tree_node: Node, seconds: float, sound: String, volume_db := 0.0, at = null) -> void:
 	if seconds <= 0.0:
@@ -203,37 +182,6 @@ static func play_after(tree_node: Node, seconds: float, sound: String, volume_db
 	timer.timeout.connect(func():
 		if is_instance_valid(tree_node):
 			play(tree_node, sound, volume_db, at))
-
-
-## The hero's weapon sounds (built by tools/make_weapon_sounds.py from CC0
-## recordings), by kind
-## of blow, with how many takes each has. "swing" and "sweep" are the rush of
-## air as the hero strikes one enemy or sweeps a crowd; the rest is the blow
-## landing: "hit" plain, "heavy" a heavy hit, "vital" a vital point found,
-## "sneak" a sneak attack and "glance" the weapon glancing off armour.
-const WEAPON_TAKES := {"swing": 3, "sweep": 2, "hit": 4, "heavy": 3, "vital": 2, "sneak": 2, "glance": 3}
-## How loud each kind sits, so the telling blows stand out of a fight.
-const WEAPON_DB := {"swing": -3.0, "sweep": -2.0, "hit": 0.0, "heavy": 1.0, "vital": 2.0, "sneak": 2.0, "glance": -1.0}
-## The two weapon families that sound apart.
-const WEAPON_FAMILIES := ["sword", "axe"]
-
-
-## Which family a weapon skill sounds like: axes, maces and hammers
-## (Aexte) chop as an "axe", blades as a "sword".
-static func weapon_family(skill_id: String) -> String:
-	return "axe" if skill_id == "aexte" else "sword"
-
-
-## The file of one take of a weapon sound, e.g. "sword_hit_2".
-static func weapon_sound(family: String, blow: String, take: int) -> String:
-	return "%s_%s_%d" % [family, blow, take]
-
-
-## Plays a random take of a weapon sound: `family` from weapon_family,
-## `blow` a key of WEAPON_TAKES. With `at`, it fades with the distance.
-static func play_weapon(tree_node: Node, family: String, blow: String, at = null) -> void:
-	var take := randi() % int(WEAPON_TAKES.get(blow, 1))
-	play(tree_node, weapon_sound(family, blow, take), float(WEAPON_DB.get(blow, 0.0)), at)
 
 
 ## Coins clinking: a coin or two, or a whole handful of gold.
@@ -267,47 +215,6 @@ static func play_gear(tree_node: Node, id: String, delay := 0.0, at = null) -> v
 	if id == "plattenpanzer":
 		sound = "gear_chain_%d" % (randi() % 2)
 	play_after(tree_node, delay, sound, -2.0, at)
-
-
-## The fanfare for loot finer than rare, by its tier (see Level.TIERS and
-## tools/make_rarity_sounds.py). Each one is bigger than the one below, so
-## the ear knows the tier before the eye reads it. Common to rare gear has
-## none: there the clatter alone tells of the find.
-const RARITY_SOUNDS := {"episch": "loot_epic", "gottgeboren": "loot_godborn"}
-## How long after the clatter the fanfare sets in.
-const RARITY_AFTER := 0.15
-
-
-## The fanfare a piece of gear earns when it turns up, or "" for none.
-static func rarity_sound(id: String) -> String:
-	return str(RARITY_SOUNDS.get(Level.tier_of(id), ""))
-
-
-## Of several pieces, the one whose fanfare is the grandest ("" when none of
-## them earns one): when a monster drops a heap, only the best of it sings.
-static func finest(ids: Array) -> String:
-	var order: Array = Level.TIERS.keys()
-	var best := ""
-	for id in ids:
-		if rarity_sound(id) != "" and (best == "" or order.find(Level.tier_of(id)) > order.find(Level.tier_of(best))):
-			best = id
-	return best
-
-
-## Rings out the fanfare of a piece finer than rare, just after its
-## clatter (`delay` is the clatter's own delay). Does nothing for others.
-static func play_rarity(tree_node: Node, id: String, delay := 0.0, at = null) -> void:
-	var sound := rarity_sound(id)
-	if sound != "":
-		play_after(tree_node, delay + RARITY_AFTER, sound, 0.0, at)
-
-
-## A piece of loot turning up: its clatter, and its fanfare if it is finer
-## than rare. For gear the hero finds or a monster drops, not for gear the
-## hero merely puts down.
-static func play_find(tree_node: Node, id: String, delay := 0.0, at = null) -> void:
-	play_gear(tree_node, id, delay, at)
-	play_rarity(tree_node, id, delay, at)
 
 
 ## A sound that loops for as long as it plays (an .ogg file), e.g. the

@@ -10,6 +10,3 @@ and rose window walls, the roof, the spire and the door, plus the trim sheet
 (512 px), the stained glass and the door textures (scaled down to 256 px).
 The trim sheet's stone blocks and roof tiles also dress the villagers'
 half-timbered houses (see scripts/village_house.gd).
-
-stained_glass.png and stained_glass_glow.png are the kit's window texture with
-coloured panes in lead painted into its openings (tools/make_stained_glass.py).

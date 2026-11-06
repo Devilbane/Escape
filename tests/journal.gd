@@ -67,9 +67,6 @@ func _test() -> void:
 		check(Lang.EN.has(text), "the journal text has English: " + text)
 
 	# The cell: the map fills in from what the hero sees.
-	var told: Array = []
-	var listen := func(names: Array): told.append_array(names)
-	Events.bus().map_grew.connect(listen)
 	game.load_level(0)
 	var cell: String = game.level_files[0].get_file()
 	check(j.current_file() == cell, "the journal knows the level the hero is on")
@@ -81,16 +78,12 @@ func _test() -> void:
 	var shrine := _place(cell, "shrine")
 	check(not shrine.is_empty(), "the cell has a shrine landmark")
 	check(j.is_seen(cell, shrine), "the shrine in view is on the map")
-	check(j.entries.any(func(e): return e.t == "Entdeckt: %s" and e.a == ["Schrein"]), "the journal notes the shrine")
-	check(not told.has(Lang.t("Schrein")), "a shrine is not announced as new on the map: %s" % [told])
 	var stairs := _place(cell, "stairs")
 	check(not stairs.is_empty() and not j.is_seen(cell, stairs), "the stairs out of sight are not")
 	game.player.global_position = game.level.cell_to_world(Vector2i(6, 3))
 	_look()
 	check(j.is_seen(cell, stairs), "walking into the room puts the stairs on the map")
 	check(j.entries.any(func(e): return e.t == "Entdeckt: %s" and e.a == ["Treppe"]), "the journal notes the stairs")
-	check(told.has(Lang.t("Treppe")), "the stairs are announced as new on the map: %s" % [told])
-	Events.bus().map_grew.disconnect(listen)
 	check(game.lore.has(game.MAP_LEARN), "the compendium explains the map")
 
 	# A secret room is marked on the map.

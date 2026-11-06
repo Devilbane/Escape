@@ -112,7 +112,7 @@ func _test() -> void:
 
 	# Mira: gold on top, two categories in two columns, no cards yet.
 	menus.open("haendler")
-	check(_has_text("Your copper: 379"), "the money is shown at the top")
+	check(_has_text("Your gold: 379"), "the gold is shown at the top")
 	check(_has_text("Equipment") and _has_text("Consumables"), "the categories are shown")
 	check(_has_text("Point at an item"), "the panel shows a hint before a row is picked")
 	var start_size := await _window_size()
@@ -152,7 +152,7 @@ func _test() -> void:
 	# Buying from the card still works.
 	var before: int = game.coins
 	menus._buy(game.shop_stock.find("schwert"))
-	check(game.coins == before - Items.buy_price("schwert") and p.bag.has("schwert"), "buying takes the gold and gives the item")
+	check(game.coins == before - Items.ALL["schwert"].price and p.bag.has("schwert"), "buying takes the gold and gives the item")
 
 	# Buying keeps everything in place: rows keep their order, a sold-out
 	# row stays (dimmed), the pick, the scroll and every row's place stay.
@@ -216,7 +216,7 @@ func _test() -> void:
 	menus.close()
 
 	# Merchants sell only plain gear: no specials, magic, unique or top tier.
-	for id in ["vampirzahn", "phoenixfeder", "rabenklinge", "zauberhut", "amulett_kraft", "schattenumhang", "plattenpanzer", "stahlstiefel", "rubinring", "kriegshammer", "drachenschild"]:
+	for id in ["vampirzahn", "phoenixfeder", "rabenklinge", "zauberhut", "amulett_kraft", "schattenumhang", "plattenpanzer", "eilstiefel", "rubinring", "kriegshammer", "drachenschild"]:
 		check(not Items.merchant_sells(id), "%s is not sold by merchants" % id)
 	for id in ["schwert", "rundschild", "lederwams", "kettenhemd", "kupferring", "bronzearmreif", "wurfbuch"]:
 		check(Items.merchant_sells(id), "%s is sold by merchants" % id)
@@ -231,7 +231,7 @@ func _test() -> void:
 	# Gorm, Hagen and Benno use the same window.
 	for kind in ["schmied", "steinmetz", "barbier"]:
 		menus.open(kind)
-		check(menus.is_open() and _has_text("Your copper"), "%s opens the trading window" % kind)
+		check(menus.is_open() and _has_text("Your gold"), "%s opens the trading window" % kind)
 		await _shot("merchant_" + kind)
 		menus.close()
 	_finish()

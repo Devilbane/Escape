@@ -1,7 +1,7 @@
 extends SceneTree
 ## Headless test for the names of the villagers: nobody wears a name over
-## their head until the hero has talked to them, after that the name stays
-## (also while they talk: speech goes into the event log), and the
+## their head until the hero has talked to them, after that the name stays,
+## the speech bubble takes the name tag's place while it shows, and the
 ## villagers the hero has met are remembered in the hero's own saved game.
 ## Run with: godot --headless -s tests/npc_names.gd
 
@@ -71,15 +71,13 @@ func _test() -> void:
 	check(not _tag(mira).visible, "the shopkeeper is still unknown")
 	check(game.met.has("Z") and not game.met.has("6"), "the game remembers who the hero has met")
 
-	# Speech goes into the event log, not over the head: no bubble shows, and
-	# the name tag stays while the barber talks and after.
+	# While the bubble shows, the plain name tag steps aside; then it is back.
 	benno._update_bubble(1.0)
-	check(not benno._bubble.visible, "no speech bubble over the head")
-	check(_tag(benno).visible and _tag(benno).modulate.a > 0.95, "the name tag stays while he talks")
+	check(_tag(benno).modulate.a < 0.05, "the name tag makes way for the speech bubble")
 	benno._bubble_time = 0.0
 	for i in 10:
 		benno._update_bubble(0.5)
-	check(_tag(benno).visible and _tag(benno).modulate.a > 0.95, "the name tag stays after the talk")
+	check(_tag(benno).visible and _tag(benno).modulate.a > 0.95, "the name tag is back once the bubble is gone")
 
 	# The elder's welcome counts as a talk too.
 	aldo.greet_newcomer(game.player)

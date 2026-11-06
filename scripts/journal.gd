@@ -36,9 +36,6 @@ const DUNGEON_MARKS := {
 	"F": ["fountain", "Brunnen"], "V": ["merchant", "Händler"], "B": ["bed", "Bett"],
 	"L": ["storage", "Vorratstruhe"],
 }
-## Kinds of landmark that go on the map and into the journal without a
-## "new on your map" note (see Game.map_notice).
-const QUIET_KINDS := ["shrine"]
 ## Landmarks in the open air. A building or a pond covering several tiles is
 ## one landmark, marked in its middle.
 const OUTDOOR_MARKS := {
@@ -49,7 +46,6 @@ const OUTDOOR_MARKS := {
 	"^": ["home", "Weberzeile"], ";": ["water", "Teich"], "F": ["fountain", "Marktbrunnen"], "q": ["fountain", "Ziehbrunnen"],
 	"~": ["water", "Teich"], "f": ["camp", "Räuberlager"], "v": ["food", "Futterkorb"],
 	"S": ["building", "Steinmetz"], "[": ["building", "Bergschenke"], "]": ["lair", "Mine"],
-	")": ["lair", "Hort des Großen Alten"],
 }
 ## Whole areas of the open air, marked in the middle of all their tiles:
 ## [characters, German name].
@@ -346,9 +342,7 @@ func _discover(file: String) -> void:
 			# Doors are many and plain: on the map, not in the journal.
 			if place.kind != "door":
 				write("Entdeckt: %s", [place.name], file)
-				# Shrines are common enough not to need a "new on your map" note.
-				if not QUIET_KINDS.has(place.kind):
-					fresh.append(place_name(place))
+				fresh.append(place_name(place))
 	if not fresh.is_empty():
 		Events.bus().map_grew.emit(fresh)
 
@@ -421,21 +415,6 @@ func spots_of(id: String) -> Array:
 
 func finds_on(file: String) -> Array:
 	return finds.filter(func(f): return f.file == file)
-
-
-## The tiles of a level file that a treasure map read but not yet done
-## marks (see TreasureMaps.marked): a red cross on the map.
-func treasure_spots(file: String) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	if game == null:
-		return out
-	var info := map_of(file)
-	if info.is_empty() or not info.outdoor:
-		return out
-	for id in TreasureMaps.MAPS:
-		if game.treasure_maps.marked(id):
-			out.append_array(TreasureMaps.cells_on(info.grid, id))
-	return out
 
 
 static func find_color(kind: String) -> Color:

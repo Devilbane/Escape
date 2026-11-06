@@ -10,7 +10,6 @@ const EN := {
 	"Hirsche": "Stags",
 	"+1 Erkunden, gräbt versteckte Zutaten aus": "+1 Exploring, digs up hidden ingredients",
 	"+10 % Tempo": "+10 % speed",
-	"+1 Kampfkraft": "+1 power",
 	"Das Reh frisst dir den Apfel aus der Hand. Vertrauen: %d / %d": "The doe eats the apple from your hand. Trust: %d / %d",
 	"Das Reh vertraut dir und geht jetzt mit dir! Solange es bei dir ist, bist du flinker: +10 % Tempo.": "The doe trusts you and comes along with you now! While it is at your side you are quicker: +10 % speed.",
 	"Der Hirsch leckt an deinem Salzleckstein. Vertrauen: %d / %d": "The stag licks your salt lick. Trust: %d / %d",

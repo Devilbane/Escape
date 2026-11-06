@@ -87,4 +87,4 @@ func _test() -> void:
 	check(bus.enemy_slain.get_connections().is_empty(), "nobody counts kills without the game")
 	root.add_child(game)
 	check(bus.news_told.get_connections().size() == 1, "back in the tree, the game listens once")
-	check(bus.enemy_slain.get_connections().size() == 4, "factions, bounties, the village rumours and monster lore count kills again")
+	check(bus.enemy_slain.get_connections().size() == 2, "factions and bounties count kills again")

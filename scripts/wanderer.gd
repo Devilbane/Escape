@@ -91,8 +91,8 @@ static func ware_name(id: String) -> String:
 
 
 ## What his goods cost: an ingredient its own price; gear a fifth more than
-## the shopkeeper asks before any discount (rounded up), for the long road.
+## the shopkeeper asks (rounded up), for the long road.
 static func price(id: String) -> int:
 	if is_ingredient(id):
 		return INGREDIENT_PRICES[id]
-	return (Items.buy_price(id) * 6 + 4) / 5 if Items.ALL.has(id) else 0
+	return (int(Items.ALL[id].price) * 6 + 4) / 5 if Items.ALL.has(id) else 0

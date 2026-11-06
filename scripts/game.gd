@@ -44,10 +44,6 @@ var _sound_button: Button
 var _music_button: Button
 var _music_slider: HSlider
 var _effects_slider: HSlider
-var _log_width_slider: HSlider
-## The width of the labels in front of the pull-out menu's sliders, room for
-## the longest in both languages ("Protokoll").
-const SLIDER_LABEL_WIDTH := 90.0
 ## The pull-out menu on the right edge of the screen that holds all the
 ## clickable buttons, its handle, and how far it is pulled out (0 to 1).
 var _drawer: HBoxContainer
@@ -60,18 +56,6 @@ var _drawer_tween: Tween
 ## handle, and those icons by the window they open (see _setup_quick_bar).
 var _drawer_rail: VBoxContainer
 var _quick_buttons := {}
-## The home button below the menu handle (see HomeRun).
-var _home_button: Button
-## The torch button below it: lights or puts out the hand torch (see HandTorch).
-var _torch_button: Button
-var _torch_count: Label
-## The potion button left of the torch button: drinks a healing potion (see
-## HealingPotions), with the potions left in its corner and the cooldown as
-## a shade and the seconds over it.
-var _potion_button: Button
-var _potion_count: Label
-var _potion_shade: ColorRect
-var _potion_wait: Label
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
@@ -86,9 +70,6 @@ var _clock_shown := ""
 ## The weather above ground (see Weather) and how many hours of the day it
 ## still lasts. Both are saved with the game.
 var weather := Weather.CLEAR
-## How much water lies in the rain puddles above ground, 0 dry to 1 full
-## (see Weather.puddle_water and Puddles).
-var puddle_water := 0.0
 var weather_hours := Weather.FIRST_HOURS
 var _weather_rng := RandomNumberGenerator.new()
 ## The look of the sky as it moves towards the weather's own, and a stroke
@@ -113,10 +94,6 @@ var home_claimed := false
 ## HomeUpgrades), and the trophies won: enemy kind -> true for the first
 ## foe of each kind in HomeUpgrades.TROPHIES.
 var home_upgrades := {}
-## What lies in the steel-banded chest and on the ingredient board of the
-## hero's house: store -> kind -> how many (see HomeStores). Kept in the
-## saved game.
-var home_stores := HomeStores.empty()
 var trophies := {}
 ## The villagers the hero has talked to, by role letter -> true. Once met,
 ## a villager wears their name over their head. Kept in the saved game.
@@ -126,29 +103,12 @@ var met := {}
 var quests := Quests.new(self)
 ## The hero's map of every level and the exploration journal (see Journal).
 var journal := Journal.new(self)
-## The first steps in the cell, one card at a time (see Tutorial).
-var tutorial := Tutorial.new(self)
-## Loot and speech at the left edge of the screen (see EventLog).
-var event_log := EventLog.new()
-## The card that shows a wall writing the hero noticed (see WritingCard).
-var writing_card := WritingCard.new(self)
 ## How many mornings have dawned in the world above ground since the game
 ## began. The bounty board pins up fresh hunts each morning (see Bounties).
 ## The day turns at dawn, so the night after day d's evening, past midnight
 ## too, still counts as day d: that is when the wandering merchant comes
 ## (see Wanderer).
 var day := 0
-## The gold the old dragon's helpers heaped up in its lair, from the loot
-## they gather on the open ground at night (see DragonHoard). Kept in the
-## saved game.
-var hoard := DragonHoard.new()
-## What the hero had on stepping through the arch into Embermaw's lair, and
-## whether the dragon fell on this visit (see DragonLair and the window
-## "beute", which shows the spoils on the way out).
-var lair_before := {}
-var lair_won_here := false
-## What the hero carried out of the won lair (see DragonLair.spoils).
-var lair_spoils := {}
 ## The hunts on the bounty board: posted, taken on and paid (see Bounties).
 ## Kept in the saved game.
 var bounties := Bounties.new(self)
@@ -160,25 +120,17 @@ var crafting := Crafting.new(self)
 var wishes := Wishes.new(self)
 ## The line in the water, when the hero is fishing (see Fishing).
 var fishing := Fishing.new(self)
-## Treasure maps from messages in a bottle and where they lead (see TreasureMaps).
-var treasure_maps := TreasureMaps.new(self)
-## The way home at a press of the home button or X (see HomeRun).
-var home_run := HomeRun.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
 ## gossip and secret recipes. Kept in the saved game.
 var reputation := Reputation.new(self)
 ## Who in the village is tied to whom, and their chats (see VillageTalk).
 var village_talk := VillageTalk.new(self)
-## What the villagers grumble about: the weather, the night and the frights
-## of the world (see VillageWorries).
-var village_worries := VillageWorries.new(self)
-## Small talk, rumours and stories in the village (see VillageRumours).
-var village_rumours := VillageRumours.new(self)
-## Zecher Fritz's drinking songs at the tavern (see DrinkingSongs).
-var drinking_songs := DrinkingSongs.new(self)
 ## The villager whose goods or services are open in a window right now
 ## (role letter), "" for none: their discount applies (see trader_price).
 var trader_role := ""
+## Villagers who just came to think better of the hero, told together.
+var _reputation_news: Array[String] = []
+const REPUTATION_NEWS_DELAY := 4.6
 ## Counts down to the next look at who has a task (see refresh_quest_marks).
 var _quest_mark_timer := 0.0
 ## The town house on Weavers' Lane the hero is inside right now (see Homes),
@@ -186,20 +138,9 @@ var _quest_mark_timer := 0.0
 var inside_house := 0
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
-## The floor above each deeper floor (its "up:" line): building -> building.
-var floor_above := {}
-## The hero's money: copper coins (see Loot.MONEY; the gold coins of old
-## were exchanged into them one for one).
 var coins := 0
 ## Iron bars for the smith's forge (see Forge), counted like gold.
 var iron := 0
-## The fine bars the hero has, by metal ("bronze", "silber", "gold"): melted
-## at the forge or taken from the dragon's hoard, bought back by the smith
-## (see Forge). Kept in the saved game.
-var bars := {}
-## Grams of metal melted from ore not yet enough for a bar (see Ore and
-## Forge.melt_ore), by metal, the unknown metal too. Kept in the saved game.
-var metal_grams := {}
 ## The hero's companions (see Companions): {"kind", "name"} for each, the
 ## index of the one that goes with the hero (-1: none, they all wait at
 ## home), and how many gifts each kind of wild animal has eaten from the
@@ -210,8 +151,6 @@ var trust := {}
 ## The companion at the hero's side, and those waiting at home while the
 ## hero is in their house.
 var pet: Pet = null
-## The camp the hero rolled out on this level, if any (see Camp).
-var camp: Camp = null
 var home_pets: Array[Pet] = []
 ## Whether the hero has won a fox over (it may be at home).
 var has_fox: bool:
@@ -219,8 +158,6 @@ var has_fox: bool:
 		return owns_companion("fuchs")
 ## The nameless horrors: their reveal, their bar and their discovery.
 var horrors: Horrors
-## Drips, creaks, whispers and the like in the dark of the dungeon.
-var dungeon_sounds: DungeonSounds
 const FOX_LEARN := "Füchse auf den Wiesen sind scheu, aber eine Wurst (bei der Krämerin) lockt sie an: Trägst du eine bei dir, kommt ein Fuchs neugierig näher und frisst sie dir aus der Hand. Nach drei Würsten folgt er dir überallhin, auch ins Verlies. Seine Nase findet Zutaten, die im Boden versteckt sind: Er läuft hin, gräbt sie aus und lässt sie für dich liegen; aufgehoben kommen sie in deinen Zutatenbeutel."
 ## What the hero already took on each level, by level file: the ids of
 ## searched furniture and picked up coins (see Level.taken). Kept in the
@@ -229,10 +166,6 @@ var looted := {}
 ## The stone blocks the hero built with on each level, by level file (see
 ## Level.built). Kept in the saved game, so buildings stay standing.
 var builds := {}
-## What lies on the floor of each level, by level file (a town house adds its
-## number: "haus.txt#2"), see Level.floor_items. Kept in the saved game, so
-## dropped gear and unclaimed loot stay where they fell.
-var floors := {}
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
 ## Levels left in a row without finding their secret room.
@@ -262,115 +195,31 @@ var _zoom := 0.0
 var _zoom_target := 0.0
 
 var _hud: CanvasLayer
-## The "Game saved" plate in the top right corner (see SaveNotice).
-var save_notice: SaveNotice
 var _level_label: Label
-## The copper coins (the money) on the HUD; the silver and gold coins of the
-## purse are counted after it (see _update_purse).
 var _coin_label: Label
-var _silver_label: Label
-var _gold_label: Label
-## The coin pictures before the counts, by coin id (see Loot.COINS).
-var _coin_icons := {}
 var _key_label: Label
-## The key's picture before its line: bright once the key is found.
-var _key_icon: ItemIcon
-var _hp_bar: ProgressBar
-var _hp_fill: StyleBoxTexture
-## An invisible strip over the slim life bar, a little taller than it, that
-## takes the pointer and shows the life in numbers (see _update_hud).
-var _hp_hover: Control
-## How far the life bar's hover strip reaches above and below the bar, in
-## pixels (below it stops short of the ammunition row).
-const HP_HOVER_ABOVE := 6.0
-const HP_HOVER_BELOW := 4.0
-## The hero's passing troubles (poison, a curse, burning, slowness) as icons
-## under the life bar (see StatusIcon, hero_ailments).
-var _status_row: HBoxContainer
-## The hero's boons (stronger blows, speed, hardening) as icons in the status
-## block at the top left, just above the event log (see hero_boons).
-var _boon_row: HBoxContainer
-## Gear to mend, points to spend, upgrades to build: icons under the hero
-## level (see hero_notices).
-var _notice_row: HBoxContainer
-## The life bar: its size, and where its top sits on screen, as a share of
-## the screen's height (centred across). It stays at that one spot, under
-## where the hero stands in the normal view, whatever the camera does.
-const HP_BAR_SIZE := Vector2(120, 16)
-const HP_BAR_Y := 0.68
-## How far the hero's arms and blade reach out from the feet, in metres: in
-## the normal view the bar sits below all of it (tests/event_log.gd).
-const HP_BAR_REACH := 1.8
-## The life bar's red, from its lit top to its dark foot (the mock-up's bar).
-const HP_REDS := [Color("ff6a4a"), Color("b81c12"), Color("6e0a06")]
-## The rim of the HUD's bars, and the heart beside the life bar.
-const BAR_RIM := 4
-const HEART_SIZE := 24.0
-## The coin and key pictures in the purse plate at the top left.
-const PURSE_ICON := 22.0
+var _hp_label: Label
 ## The run meter: seconds of running left, as a bar and in numbers.
 var _run_bar: ProgressBar
 var _xp_bar: ProgressBar
-## The rows of the run meter and of the experience bar: each takes the
-## pointer as a whole (bar and label) for its tooltip.
-var _run_row: HBoxContainer
-var _xp_row: HBoxContainer
 var _xp_label: Label
 var _run_label: Label
-var _run_fill: StyleBoxTexture
+var _run_fill: StyleBoxFlat
+var _gift_label: Label
 var _shrine_panel: Control
 ## The fourth shrine gift, offered only to a wise hero.
 var _wise_gift: Button
-## The Konstitution gift, whose amount depends on the dungeon.
-var _constitution_gift: Button
 var _shrine: Dictionary = {}
 var _pending_station: Dictionary = {}
 ## Everything the hero has been told so far, for the compendium (key H):
 ## level hints ("#<index>") and explanatory tips, in the order they came.
 var lore: Array = []
-## The hero's ammunition (see AMMO) as small icons with their counts, under
-## the life bar left of the trouble icons; its count labels by ammo field.
-var _ammo_row: HBoxContainer
-var _ammo_counts := {}
-## Every kind of ammunition shown under the life bar: the Player field that
-## counts it, its icon (ItemIcon) and the text of its tooltip. Each has a
-## slot of AMMO_SLOT, shown at 0 too (dimmed), so a count changing never
-## moves anything.
-const AMMO := [
-	["knives", "kind:knife", "Wurfmesser griffbereit: %d von %d\nIm Rucksack: %d\nSchaden: %d je Treffer\nZerbricht bei %d%% der Würfe\nWerfen: Taste R oder rechte Maustaste"],
-]
-const AMMO_SLOT := Vector2(62, 26)
-const AMMO_ICON := 20.0
-const AMMO_COLOR := Color(0.8, 0.88, 1.0)
-## Space between the ammunition and the trouble icons beside it.
-const AMMO_GAP := 14.0
+var _knife_label: Label
 var _prompt: Label
 var _message: Label
-## The list of keys at the bottom left (see _setup_hud).
-var _help: Label
-## Messages that came before the newest one, oldest first, kept above it
-## while they are still being read (see show_message), so a new message
-## never covers an unread one.
-var _message_kept: Array[Label] = []
-var _message_box: VBoxContainer
-## How long the newest message is meant to stay (see show_message).
-var _message_duration := 0.0
 ## Space kept free left and right of centred on-screen texts.
 const SCREEN_TEXT_MARGIN := 80
-## Space kept free left and right of the message lines: past the event log
-## and the first-steps card at the left edge (see EventLog, Tutorial).
-const MESSAGE_MARGIN := EventLog.LEFT + Tutorial.CARD_WIDTH + 16.0
 const MESSAGE_FONT_SIZE := 24
-## The message lines float over the hero's head (see place_message): this
-## wide at most, centred over the hero, their lower edge this many pixels
-## above the top of the name over the head.
-const MESSAGE_WIDTH := 480.0
-const MESSAGE_HEAD_GAP := 12.0
-## The message lines never rise into the status line at the top of the screen.
-const MESSAGE_TOP := 110.0
-## Where the messages sit (their lower edge, above the bottom of the screen)
-## while there is no hero on screen to float over: the title, a level change.
-const MESSAGE_BOTTOM := 175.0
 var _fade: ColorRect
 var _title: Control
 var _title_text: Label
@@ -390,15 +239,8 @@ var wanderer_stock: Array[String] = []
 var wanderer_night := -1
 var _title_buttons: Control
 var _name_note: Label
-## The hero's name, asked for when a new game starts; it goes into the ranking
-## and stands over the hero's head like the townsfolk's names (Player.set_display_name).
-var hero_name := "":
-	set(value):
-		hero_name = value
-		if player:
-			player.set_display_name(value)
-## The map being tested from the workshop ("" while playing the game).
-var playtest_file := ""
+## The hero's name, asked for when a new game starts; it goes into the ranking.
+var hero_name := ""
 var _name_box: Control
 ## The folder of the saved games: SAVE_DIR, or TEST_SAVE_DIR in a test run.
 var save_dir := SAVE_DIR
@@ -424,11 +266,6 @@ var _lang_row: Control
 ## Engine flag set when a language is picked: it survives the scene reload,
 ## so the fresh title goes straight on to the name entry.
 const ASK_NAME_FLAG := &"escape_ask_name_after_reload"
-## Set by the map workshop (see LevelEditor) to the map file to test: the game
-## starts right on that map with a new hero, keeps nothing (no save, no
-## ranking, no training) and goes back to the workshop at its exit.
-const PLAYTEST_FLAG := &"escape_playtest_map"
-const EDITOR_SCENE := "res://scenes/editor.tscn"
 ## Holding the left mouse button this long turns a click into running.
 const HOLD_TO_RUN := 0.2
 ## How close to a clicked object's middle the hero walks before using it:
@@ -441,16 +278,13 @@ var _mouse_held_time := 0.0
 ## land, which way it lies there, where it lands, and how long it is held.
 var _drag_stone: StoneBlock = null
 var _drag_ghost: MeshInstance3D = null
-## While a heavy block is dragged: a faint ring on the floor around where it
-## started, as far as it may go (Level.HEAVY_RANGE).
-var _drag_ring: MeshInstance3D = null
 var _drag_along_x := true
 var _drag_spot := {}
 var _drag_time := 0.0
 var _drag_press := Vector2.ZERO
 ## A press shorter than this, without moving the block, is a click on it.
 const DRAG_CLICK := 0.25
-const HEAVY_LEARN := "Alte, schwere Steinblöcke liegen in manchen Kammern des Verlieses. In die Tasche passen sie nicht, aber sie rutschen über den Boden: E (oder ein Klick) schiebt einen ein Stück von dir weg, mit der Maus ziehst du ihn auf ein freies Feld in der Nähe, und ein Rechtsklick dabei dreht ihn. Weiter als 5 Felder von seinem alten Platz rückt kein Block; der helle Kreis beim Ziehen zeigt, wie weit. Liegt auf jeder Druckplatte einer Kammer ein Block, öffnet sich ihr Eisengitter."
+const HEAVY_LEARN := "Alte, schwere Steinblöcke liegen in manchen Kammern des Verlieses. In die Tasche passen sie nicht, aber sie rutschen über den Boden: E (oder ein Klick) schiebt einen ein Stück von dir weg, mit der Maus ziehst du ihn geradeaus, bis er anstößt. Liegt auf jeder Druckplatte einer Kammer ein Block, öffnet sich ihr Eisengitter."
 const STONE_LEARN := "Steinblöcke kauft man beim Steinmetz im Dorf. Abstellen mit B (oder „Abstellen“ im Inventar): der Block legt sich quer vor dich, auf den Boden oder auf andere Blöcke. Mit der linken Maustaste greifst du einen Block, ziehst ihn auf ein anderes Feld in der Nähe und lässt los; ein Rechtsklick dabei dreht ihn. E nimmt einen Block wieder in die Tasche. Auf einen Block steigst du einfach hinauf, auf zwei mit einem Sprung. Skelette und Räuber können nicht klettern: Eine Mauer aus Blöcken hält sie fern, und sie müssen außen herum."
 
 
@@ -466,7 +300,6 @@ func _bus_links() -> Array:
 		[bus.lore_learned, learn],
 		[bus.enemy_slain, Callable(Factions, "on_hero_kill")],
 		[bus.enemy_slain, bounties.on_kill],
-		[bus.enemy_slain, Callable(MonsterLore, "on_hero_kill")],
 		[bus.quest_done, quest_reward],
 		[bus.quest_done, reputation.on_quest_done],
 		[bus.quest_item_given, update_after_quest],
@@ -475,19 +308,10 @@ func _bus_links() -> Array:
 		[bus.map_grew, map_notice],
 		[bus.map_explored, map_explored],
 		[bus.writing_found, writing_found],
-		[bus.trap_spotted, trap_spotted],
 		[bus.enemy_felled, xp_for_kill],
 		[bus.quest_done, xp_for_task],
 		[bus.bounty_paid, xp_for_bounty],
 		[bus.riddle_solved, xp_for_riddle],
-		[bus.hero_acted, tutorial.on_hero_acted],
-		[bus.hero_acted, home_run.on_hero_acted],
-		[bus.loot_found, event_log.add_loot],
-		[bus.speech_said, heard],
-		[bus.loot_carried_off, _on_loot_carried_off],
-		[bus.scare_happened, village_worries.on_scare],
-		[bus.enemy_slain, village_rumours.on_slain],
-		[bus.treasure_map_found, treasure_maps.read],
 	]
 
 
@@ -507,13 +331,6 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	Lang.setup()
-	# Text that sets no size of its own follows the game's text scale too.
-	if get_window().theme == null:
-		var base := Theme.new()
-		base.default_font_size = UiKit.sized(16)
-		get_window().theme = base
-	# Only the bodies that move in physics ticks are drawn between ticks (see SmoothMotion).
-	SmoothMotion.off_below(get_tree().root)
 	if get_tree().get_script() != null:
 		# A headless test runs as a script of its own: its saves stay apart.
 		save_dir = TEST_SAVE_DIR
@@ -523,45 +340,19 @@ func _ready() -> void:
 		if f.ends_with(".txt"):
 			level_files.append(LEVEL_DIR + f)
 	level_files.sort()
-	# Gear made in the map workshop, so saved games that carry it know it.
-	Creations.register_all()
-	if Engine.has_meta(PLAYTEST_FLAG):
-		playtest_file = str(Engine.get_meta(PLAYTEST_FLAG))
-		Engine.remove_meta(PLAYTEST_FLAG)
-		level_files.append(playtest_file)
-	Training.keep = playtest_file == ""
 	for i in level_files.size():
-		var building := ""
-		var above := ""
 		for line in FileAccess.get_file_as_string(level_files[i]).split("\n"):
-			if line.begins_with("building:"):
-				building = line.substr(9).strip_edges()
-				if not interiors.has(building):
-					interiors[building] = i
-			elif line.begins_with("up:"):
-				above = line.substr(3).strip_edges()
-		if building != "" and above != "" and not floor_above.has(building):
-			floor_above[building] = above
+			if line.begins_with("building:") and not interiors.has(line.substr(9).strip_edges()):
+				interiors[line.substr(9).strip_edges()] = i
 	_setup_world()
-	# The event log's width is the player's (the slider in the pull-out menu).
-	EventLog.load_settings()
-	event_log.use_saved_width()
 	_setup_hud()
-	tutorial.setup(_hud)
-	writing_card.setup(_hud)
 	var comic := Comic.new()
 	comic.camera = camera
-	comic.avoid = func() -> Array[Rect2]:
-		var rects := message_rects()
-		rects.append_array(hero_hud_rects())
-		return rects
 	add_child(comic)
 	menus = Menus.new()
 	add_child(menus)
 	horrors = Horrors.new(self)
 	add_child(horrors)
-	dungeon_sounds = DungeonSounds.new(self)
-	add_child(dungeon_sounds)
 	Sfx.load_settings()
 	Sfx.watch_focus(self)
 	Sfx.click_on_buttons(get_tree())
@@ -574,7 +365,6 @@ func _ready() -> void:
 	menus.setup(self, _hud)
 	player = Player.new()
 	add_child(player)
-	player.set_display_name(hero_name)
 	# The hand torch speaks through the message line (see HandTorch).
 	player.torch.notice.connect(func(text: String, duration: float):
 		if state == State.PLAYING:
@@ -583,44 +373,15 @@ func _ready() -> void:
 	player.leveled_up.connect(_on_leveled_up)
 	player.ailments_changed.connect(_update_hud)
 	player.regenerated.connect(_update_hud)
-	player.knives_settled.connect(_update_hud)
 	player.defeated.connect(_on_player_defeated)
 	player.bumped.connect(_on_player_bumped)
 	player.trained.connect(_on_player_trained)
-	if playtest_file != "":
-		_start_playtest()
-		return
 	load_level(_start_level())
 	_show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies"))
-	# The village gets ready behind the title, so the crypt door is quick later.
-	WorldPreload.start(self)
 	if Engine.has_meta(ASK_NAME_FLAG):
 		# A language was just chosen: no extra click, the hero's name comes next.
 		Engine.remove_meta(ASK_NAME_FLAG)
 		new_game()
-
-
-## Straight onto the map from the workshop, with a new hero called Tester.
-func _start_playtest() -> void:
-	hero_name = Lang.t("Tester")
-	load_level(level_files.size() - 1)
-	_title.visible = false
-	_title_buttons.visible = false
-	var back := _make_button(Lang.t("Zurück zur Werkstatt"), back_to_editor)
-	back.custom_minimum_size = Vector2(260, 52)
-	# Top middle, clear of the level name and life on the left and the
-	# key, knives and gold on the right.
-	back.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	back.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	back.offset_top = 24
-	_hud.add_child(back)
-	_start_playing()
-
-
-## Leaves the test (or the title screen) for the map workshop.
-func back_to_editor() -> void:
-	get_tree().paused = false
-	get_tree().change_scene_to_file(EDITOR_SCENE)
 
 
 ## Lets a link like .../Escape/?level=3 jump straight to a level.
@@ -701,8 +462,6 @@ func _set_atmosphere(outdoor: bool) -> void:
 		Weather.apply(_env, _moon, _weather_look)
 	else:
 		Weather.clear_air(_env)
-		if player:
-			player.set_night_dim(0.0)
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
 		_env.ambient_light_energy = 0.3
@@ -715,15 +474,72 @@ func _set_atmosphere(outdoor: bool) -> void:
 		_ambience.volume_db = -30.0 if outdoor else -8.0
 
 
-## A label with outline and shadow (see UiKit.label).
-static func _make_label(font: Font, size: int, color := Color.WHITE) -> Label:
-	return UiKit.label(font, UiKit.sized(size), color)
+func _make_label(font: Font, size: int, color := Color.WHITE) -> Label:
+	var l := Label.new()
+	l.add_theme_font_override("font", font)
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", color)
+	l.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
+	l.add_theme_constant_override("outline_size", maxi(4, size / 6))
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+	l.add_theme_constant_override("shadow_offset_y", 3)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
 
 
-## Every button of the game, in one look (see UiKit.button).
-static func _make_button(text: String, action: Callable, on_press := false) -> Button:
-	var b := UiKit.button(text, action, on_press)
-	b.add_theme_font_size_override("font_size", UiKit.sized(b.get_theme_font_size("font_size")))
+## Every button of the game, in one look. A button acts when the pointer is
+## let go over it, so a click can still be called off by dragging off the
+## button; `on_press` makes it act the moment the pointer goes down instead,
+## which only the pull-out menu's game actions use (a jump or a strike must
+## not trail behind the click).
+## The states look different: hover lifts the border to bright gold, a press
+## darkens the button, a disabled one is dimmed, and the keyboard focus (see
+## Menus) draws a white outline around it. Focus stays off here; a window
+## turns it on for its own buttons once the player uses the keys.
+func _make_button(text: String, action: Callable, on_press := false) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.custom_minimum_size = Vector2(118, 64)
+	b.add_theme_font_override("font", TEXT_FONT)
+	b.add_theme_font_size_override("font_size", 18)
+	b.add_theme_color_override("font_color", GOLD)
+	b.add_theme_color_override("font_hover_color", BUTTON_HOVER_TEXT)
+	b.add_theme_color_override("font_pressed_color", GOLD)
+	b.add_theme_color_override("font_hover_pressed_color", GOLD)
+	b.add_theme_color_override("font_focus_color", BUTTON_HOVER_TEXT)
+	b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.35))
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0.08, 0.05, 0.1, 0.72)
+	normal.border_color = Color(0.85, 0.66, 0.32, 0.8)
+	normal.set_border_width_all(2)
+	normal.set_corner_radius_all(14)
+	var hover := normal.duplicate()
+	hover.bg_color = Color(0.17, 0.11, 0.12, 0.85)
+	hover.border_color = GOLD
+	var pressed := normal.duplicate()
+	pressed.bg_color = Color(0.3, 0.2, 0.1, 0.85)
+	pressed.border_color = GOLD
+	var disabled := normal.duplicate()
+	disabled.bg_color = Color(0.06, 0.05, 0.07, 0.5)
+	disabled.border_color = Color(0.85, 0.66, 0.32, 0.3)
+	var focus := StyleBoxFlat.new()
+	focus.draw_center = false
+	focus.border_color = Color(1, 1, 1, 0.95)
+	focus.set_border_width_all(3)
+	focus.set_corner_radius_all(16)
+	focus.set_expand_margin_all(4)
+	b.add_theme_stylebox_override("normal", normal)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", pressed)
+	b.add_theme_stylebox_override("hover_pressed", pressed)
+	b.add_theme_stylebox_override("disabled", disabled)
+	b.add_theme_stylebox_override("focus", focus)
+	if on_press:
+		b.button_down.connect(action)
+	else:
+		b.pressed.connect(action)
 	return b
 
 
@@ -742,14 +558,11 @@ func _setup_drawer() -> void:
 	_hud.add_child(_drawer)
 
 	_drawer_handle = _make_button("", toggle_drawer, true)
-	# 88 high: room for the arrow and "Menü", and for the home and torch
-	# buttons below it between the gold line and the corner mark on a 720 px
-	# screen (see _setup_torch_button).
-	_drawer_handle.custom_minimum_size = Vector2(70, 88)
-	_drawer_handle.add_theme_font_size_override("font_size", UiKit.sized(16))
+	_drawer_handle.custom_minimum_size = Vector2(70, 120)
+	_drawer_handle.add_theme_font_size_override("font_size", 16)
 	_drawer_handle.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-		var box: BronzeStyle = _drawer_handle.get_theme_stylebox(style).duplicate()
+		var box: StyleBoxFlat = _drawer_handle.get_theme_stylebox(style).duplicate()
 		box.corner_radius_top_right = 0
 		box.corner_radius_bottom_right = 0
 		_drawer_handle.add_theme_stylebox_override(style, box)
@@ -770,13 +583,10 @@ func _setup_drawer() -> void:
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_drawer_rail.add_child(gap)
 	_drawer_rail.add_child(_drawer_handle)
-	_setup_home_button()
-	_setup_torch_button()
-	_setup_potion_button()
 
 	var panel := PanelContainer.new()
-	var back := BronzeStyle.new()
-	back.bg_color = UiKit.PANEL_BG
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(0.05, 0.03, 0.07, 0.85)
 	back.border_color = Color(0.85, 0.66, 0.32, 0.8)
 	back.set_border_width_all(2)
 	back.border_width_right = 0
@@ -816,7 +626,6 @@ func _setup_drawer() -> void:
 	buttons.add_child(_make_button(Lang.t("Stein"), do_stone, true))
 	buttons.add_child(_make_button(Lang.t("Angeln"), fish_action, true))
 	buttons.add_child(_make_button(Lang.t("Schenken"), gift_action, true))
-	buttons.add_child(_make_button(Lang.t("Lager"), _camp_from_drawer, true))
 	_sound_button = _make_button("", _toggle_sound, true)
 	buttons.add_child(_sound_button)
 	_update_sound_button()
@@ -825,10 +634,9 @@ func _setup_drawer() -> void:
 	buttons.add_child(_make_button(Lang.t("Beenden"), do_quit, true))
 	for b in buttons.get_children():
 		b.custom_minimum_size = Vector2(150, 58)
-		b.add_theme_font_size_override("font_size", UiKit.sized(18))
+		b.add_theme_font_size_override("font_size", 18)
 	column.add_child(_make_music_slider())
 	column.add_child(_make_effects_slider())
-	column.add_child(_make_log_width_slider())
 	_update_music_controls()
 	_update_drawer_handle()
 	_place_drawer(0.0)
@@ -841,17 +649,15 @@ func _setup_drawer() -> void:
 const QUICK_WINDOWS := [
 	["karte", "Karte", "N", "kind:map"],
 	["kompendium", "Kompendium", "H", "kind:book"],
-	["inventar", "Inventar", "I", "kind:cuirass"],
-	["charakter", "Charakter", "P", "kind:stats"],
+	["inventar", "Inventar", "I", "kind:bag"],
+	["charakter", "Charakter", "P", "kind:hero"],
 	["auftraege", "Aufträge", "O", "kind:scroll"],
 ]
 const QUICK_SIZE := Vector2(70, 48)
 const QUICK_ICON := 30.0
 ## Between two icons, and between the last icon and the handle.
 const QUICK_GAP := 8
-## Between the handle and the groups above and below it: twice the gap
-## inside a group, so the groups read apart (at least 2 * QUICK_GAP).
-const QUICK_HANDLE_GAP := 16
+const QUICK_HANDLE_GAP := 20
 
 
 ## One icon per window in QUICK_WINDOWS, each with a tooltip that names the
@@ -866,7 +672,7 @@ func _setup_quick_bar() -> void:
 		b.custom_minimum_size = QUICK_SIZE
 		b.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t(w[1]), w[2]]
 		for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-			var box: BronzeStyle = b.get_theme_stylebox(style).duplicate()
+			var box: StyleBoxFlat = b.get_theme_stylebox(style).duplicate()
 			box.corner_radius_top_right = 0
 			box.corner_radius_bottom_right = 0
 			b.add_theme_stylebox_override(style, box)
@@ -881,235 +687,11 @@ func _setup_quick_bar() -> void:
 		_quick_buttons[w[0]] = b
 
 
-## The home button stands on the rail below the menu handle, set apart from
-## it like the window icons above: a house, the same size as those icons.
-## Its slot keeps its size while the button is hidden (no home yet, already
-## home, no way home from here), so nothing on the rail ever moves. It stays
-## pressed while the hero is on the way home; a second press stops.
-func _setup_home_button() -> void:
-	var gap := Control.new()
-	gap.custom_minimum_size.y = QUICK_HANDLE_GAP - QUICK_GAP * 2
-	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_drawer_rail.add_child(gap)
-	var slot := Control.new()
-	slot.custom_minimum_size = QUICK_SIZE
-	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_drawer_rail.add_child(slot)
-	_home_button = _make_button("", home_action)
-	_home_button.custom_minimum_size = QUICK_SIZE
-	_home_button.toggle_mode = true
-	_home_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
-	_home_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_home_button.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t("Nach Hause laufen"), "X"]
-	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-		var box: BronzeStyle = _home_button.get_theme_stylebox(style).duplicate()
-		box.corner_radius_top_right = 0
-		box.corner_radius_bottom_right = 0
-		_home_button.add_theme_stylebox_override(style, box)
-	var icon := ItemIcon.make("kind:house", QUICK_ICON, true)
-	icon.set_anchors_preset(Control.PRESET_CENTER)
-	icon.offset_left = -QUICK_ICON / 2.0
-	icon.offset_top = -QUICK_ICON / 2.0
-	icon.offset_right = QUICK_ICON / 2.0
-	icon.offset_bottom = QUICK_ICON / 2.0
-	_home_button.add_child(icon)
-	_home_button.visible = false
-	slot.add_child(_home_button)
-
-
-## The torch button stands on the rail just below the home button, the same
-## size: a torch, burning while the hand torch burns (the button stays
-## pressed then), with the torches left in the bag in its corner. Like the
-## home button its slot keeps its size while it is hidden (no torch at all),
-## so nothing on the rail moves.
-func _setup_torch_button() -> void:
-	var slot := Control.new()
-	slot.custom_minimum_size = QUICK_SIZE
-	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_drawer_rail.add_child(slot)
-	_torch_button = _make_button("", torch_action)
-	_torch_button.custom_minimum_size = QUICK_SIZE
-	_torch_button.toggle_mode = true
-	_torch_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
-	_torch_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_torch_button.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t("Fackel anzünden oder löschen"), "V"]
-	for style in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-		var box: BronzeStyle = _torch_button.get_theme_stylebox(style).duplicate()
-		box.corner_radius_top_right = 0
-		box.corner_radius_bottom_right = 0
-		_torch_button.add_theme_stylebox_override(style, box)
-	var icon := ItemIcon.make("kind:torch_out", QUICK_ICON, true)
-	icon.name = "Icon"
-	icon.set_anchors_preset(Control.PRESET_CENTER)
-	icon.offset_left = -QUICK_ICON / 2.0
-	icon.offset_top = -QUICK_ICON / 2.0
-	icon.offset_right = QUICK_ICON / 2.0
-	icon.offset_bottom = QUICK_ICON / 2.0
-	_torch_button.add_child(icon)
-	# The count sits in a fixed box in the lower right corner, so a change
-	# from 9 to 10 does not move it.
-	_torch_count = _make_label(TEXT_FONT, 16)
-	_torch_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_torch_count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	_torch_count.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_torch_count.offset_right = -6
-	_torch_count.offset_bottom = -1
-	_torch_button.add_child(_torch_count)
-	_torch_button.visible = false
-	slot.add_child(_torch_button)
-
-
-## The potion button stands left of the torch button, on the same line and
-## as big, outside the rail so the rail keeps its height: a red flask, the
-## potions left in the bag in its corner. After a potion it is shaded from
-## the top, the shade draining away over the minute until the next one may
-## be drunk, with the seconds left in its middle. It shows while the hero
-## carries a potion; its place is outside the rail, so nothing moves.
-func _setup_potion_button() -> void:
-	var slot: Control = _torch_button.get_parent()
-	_potion_button = _make_button("", potion_action)
-	_potion_button.custom_minimum_size = QUICK_SIZE
-	_potion_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
-	_potion_button.position = Vector2(-QUICK_SIZE.x - QUICK_GAP, 0)
-	_potion_button.size = QUICK_SIZE
-	_potion_button.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t("Heiltrank trinken"), "1"]
-	var icon := ItemIcon.make("kind:heal_potion", QUICK_ICON, true)
-	icon.set_anchors_preset(Control.PRESET_CENTER)
-	icon.offset_left = -QUICK_ICON / 2.0
-	icon.offset_top = -QUICK_ICON / 2.0
-	icon.offset_right = QUICK_ICON / 2.0
-	icon.offset_bottom = QUICK_ICON / 2.0
-	_potion_button.add_child(icon)
-	# The cooldown: a dark shade from the top, as tall as the share of the
-	# minute still to wait, inside the button's rounded frame.
-	_potion_shade = ColorRect.new()
-	_potion_shade.color = Color(0.0, 0.0, 0.0, 0.62)
-	_potion_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_potion_shade.anchor_right = 1.0
-	_potion_shade.offset_left = 3
-	_potion_shade.offset_right = -3
-	_potion_shade.offset_top = 3
-	_potion_shade.visible = false
-	_potion_button.add_child(_potion_shade)
-	_potion_wait = _make_label(TEXT_FONT, 18)
-	_potion_wait.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_potion_wait.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_potion_wait.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_potion_button.add_child(_potion_wait)
-	# The count sits in a fixed box in the lower right corner, like the
-	# torches', so a change from 9 to 10 does not move it.
-	_potion_count = _make_label(TEXT_FONT, 16)
-	_potion_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_potion_count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	_potion_count.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_potion_count.offset_right = -6
-	_potion_count.offset_bottom = -1
-	_potion_button.add_child(_potion_count)
-	_potion_button.visible = false
-	slot.add_child(_potion_button)
-
-
-## Drinks a healing potion from the bag (the strongest, or the one named).
-## Returns "" when it worked, else why not.
-func drink_potion(id := "") -> String:
-	if state != State.PLAYING or player == null:
-		return ""
-	var why: String = player.potions.drink(id)
-	if why == "":
-		Events.teach(HealingPotions.LEARN)
-		_update_hud()
-	update_potion_button()
-	return why
-
-
-## The potion button or 1: drinks the strongest potion in the bag.
-func potion_action() -> void:
-	var why := drink_potion()
-	if why != "":
-		show_message(why, 2.4)
-
-
-## Shows the potion button while the hero carries a potion, with the count
-## and, after a potion, the shade and the seconds until the next one.
-func update_potion_button() -> void:
-	if _potion_button == null or player == null:
-		return
-	var potions: HealingPotions = player.potions
-	var count := potions.carried()
-	if _potion_button.visible != (count > 0):
-		_potion_button.visible = count > 0
-	var text := str(count) if count > 0 else ""
-	if _potion_count.text != text:
-		_potion_count.text = text
-	var waiting := potions.cooldown > 0.0
-	if _potion_shade.visible != waiting:
-		_potion_shade.visible = waiting
-	if waiting:
-		var inner := QUICK_SIZE.y - 6.0
-		_potion_shade.offset_bottom = 3.0 + inner * potions.cooldown / HealingPotions.COOLDOWN
-	var wait := str(ceili(potions.cooldown)) if waiting else ""
-	if _potion_wait.text != wait:
-		_potion_wait.text = wait
-
-
-## The torch button or V: lights a torch from the bag, or puts it out.
-func torch_action() -> void:
-	if state != State.PLAYING or player == null:
-		return
-	var why := player.torch.toggle()
-	if why != "":
-		show_message(why, 2.4)
-	update_torch_button()
-
-
-## Shows the torch button while the hero has a torch, pressed and burning
-## while one burns, with the count of torches left in the bag.
-func update_torch_button() -> void:
-	if _torch_button == null or player == null:
-		return
-	var torch: HandTorch = player.torch
-	var show := torch.lit or torch.has_torch()
-	if _torch_button.visible != show:
-		_torch_button.visible = show
-	if _torch_button.button_pressed != torch.lit:
-		_torch_button.set_pressed_no_signal(torch.lit)
-	var icon: ItemIcon = _torch_button.get_node("Icon")
-	var look := "kind:torch" if torch.lit else "kind:torch_out"
-	if icon.what != look:
-		icon.what = look
-		icon.queue_redraw()
-	var count := str(torch.spare()) if torch.spare() > 0 else ""
-	if _torch_count.text != count:
-		_torch_count.text = count
-
-
-## The home button or X: sets out for home, or stops on the way.
-func home_action() -> void:
-	if state != State.PLAYING or not _shrine.is_empty():
-		return
-	var why := home_run.toggle()
-	if why != "":
-		show_message(why, 1.8)
-	update_home_button()
-
-
-## Shows the home button while a way home leads from here, pressed while the
-## hero is on it.
-func update_home_button() -> void:
-	if _home_button == null:
-		return
-	var show := home_run.active or home_run.can_show()
-	if _home_button.visible != show:
-		_home_button.visible = show
-	if _home_button.button_pressed != home_run.active:
-		_home_button.set_pressed_no_signal(home_run.active)
-
-
 ## Tooltips in the house style: a dark panel with a golden border, gold text.
-static func _tooltip_theme() -> Theme:
+func _tooltip_theme() -> Theme:
 	var theme := Theme.new()
-	var box := BronzeStyle.new()
-	box.bg_color = Color(UiKit.PANEL_BG, 0.96)
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.04, 0.03, 0.08, 0.95)
 	box.border_color = Color(0.85, 0.66, 0.32, 0.8)
 	box.set_border_width_all(2)
 	box.set_corner_radius_all(8)
@@ -1119,7 +701,7 @@ static func _tooltip_theme() -> Theme:
 	box.content_margin_bottom = 6
 	theme.set_stylebox("panel", "TooltipPanel", box)
 	theme.set_font("font", "TooltipLabel", TEXT_FONT)
-	theme.set_font_size("font_size", "TooltipLabel", UiKit.sized(16))
+	theme.set_font_size("font_size", "TooltipLabel", 16)
 	theme.set_color("font_color", "TooltipLabel", GOLD)
 	theme.set_color("font_outline_color", "TooltipLabel", Color.BLACK)
 	theme.set_constant("outline_size", "TooltipLabel", 4)
@@ -1212,9 +794,6 @@ func _setup_hud() -> void:
 	for side in ["left", "right", "top"]:
 		top.add_theme_constant_override("margin_" + side, 24)
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Every HUD value explains itself on hover, in the house tooltip style.
-	var tips := _tooltip_theme()
-	top.theme = tips
 	_hud.add_child(top)
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1225,162 +804,60 @@ func _setup_hud() -> void:
 	row.add_child(left)
 	_level_label = _make_label(TEXT_FONT, 26, GOLD)
 	left.add_child(_level_label)
-	# Life as a bar under the hero's feet, its fill the share of life left,
-	# MMO-style: a glossy red in a bronze rim, a heart at its left end. It
-	# has one fixed size, so nothing moves as life changes.
-	_hp_bar = ProgressBar.new()
-	_hp_bar.show_percentage = false
-	_hp_bar.custom_minimum_size = HP_BAR_SIZE
-	_hp_bar.size = HP_BAR_SIZE
-	_hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hp_fill = bar_fill(HP_REDS)
-	_hp_bar.add_theme_stylebox_override("background", bar_back())
-	_hp_bar.add_theme_stylebox_override("fill", _hp_fill)
-	_hp_bar.add_child(bar_rim())
-	var heart := ItemIcon.make("kind:heart", HEART_SIZE, true)
-	heart.position = Vector2(-HEART_SIZE + 4.0, (HP_BAR_SIZE.y - HEART_SIZE) / 2.0)
-	_hp_bar.add_child(heart)
-	_hp_bar.visible = false
-	_hp_bar.theme = tips
-	_hud.add_child(_hp_bar)
-	# The bar is only a few pixels high: a taller strip over it takes the
-	# pointer, so its tooltip is easy to reach.
-	_hp_hover = Control.new()
-	_hp_hover.mouse_filter = Control.MOUSE_FILTER_PASS
-	_hp_hover.position = Vector2(0, -HP_HOVER_ABOVE)
-	_hp_hover.size = Vector2(HP_BAR_SIZE.x, HP_BAR_SIZE.y + HP_HOVER_ABOVE + HP_HOVER_BELOW)
-	_hp_bar.add_child(_hp_hover)
-	# The hero's passing troubles (poison, a curse, burning, slowness) as
-	# little red-framed icons in a row under the bar, where the eye is during
-	# a fight, in a fixed order from its left edge, so an icon coming or
-	# going never moves the others before it. Boons go to the status block
-	# at the top left (_boon_row).
-	_status_row = HBoxContainer.new()
-	_status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_status_row.add_theme_constant_override("separation", 4)
-	_status_row.theme = tips
-	_hud.add_child(_status_row)
-	_ammo_row = HBoxContainer.new()
-	_ammo_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_ammo_row.add_theme_constant_override("separation", 0)
-	_ammo_row.theme = tips
-	_hud.add_child(_ammo_row)
-	for ammo in AMMO:
-		var slot := Control.new()
-		slot.custom_minimum_size = AMMO_SLOT
-		slot.mouse_filter = Control.MOUSE_FILTER_PASS
-		_ammo_row.add_child(slot)
-		# A dark tile like the trouble icons', framed in steel blue (the
-		# colour of the count), so it reads on any floor.
-		var tile := Panel.new()
-		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		tile.size = Vector2(AMMO_SLOT.y, AMMO_SLOT.y)
-		var box := BronzeStyle.new()
-		box.bg_color = StatusIcon.TILE
-		box.border_color = AMMO_COLOR
-		box.set_border_width_all(2)
-		tile.add_theme_stylebox_override("panel", box)
-		slot.add_child(tile)
-		var icon := ItemIcon.make(ammo[1], AMMO_ICON, true)
-		icon.position = Vector2((AMMO_SLOT.y - AMMO_ICON) / 2.0, (AMMO_SLOT.y - AMMO_ICON) / 2.0)
-		tile.add_child(icon)
-		var count := _make_label(TEXT_FONT, 18, AMMO_COLOR)
-		count.position = Vector2(AMMO_SLOT.y + 5, 0)
-		count.size = Vector2(AMMO_SLOT.x - AMMO_SLOT.y - 5, AMMO_SLOT.y)
-		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		slot.add_child(count)
-		_ammo_counts[ammo[0]] = count
+	_hp_label = _make_label(TEXT_FONT, 24, Color(1.0, 0.45, 0.42))
+	left.add_child(_hp_label)
 	var run_row := HBoxContainer.new()
-	run_row.mouse_filter = Control.MOUSE_FILTER_PASS
+	run_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	run_row.add_theme_constant_override("separation", 10)
 	left.add_child(run_row)
-	_run_row = run_row
 	_run_bar = ProgressBar.new()
 	_run_bar.show_percentage = false
 	_run_bar.custom_minimum_size = Vector2(170, 14)
 	_run_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_run_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_run_fill = bar_fill([Color.WHITE, Color(0.72, 0.72, 0.72), Color(0.42, 0.42, 0.42)])
-	_run_bar.add_theme_stylebox_override("background", bar_back())
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(0.08, 0.05, 0.1, 0.72)
+	back.border_color = Color(0.85, 0.66, 0.32, 0.8)
+	back.set_border_width_all(2)
+	back.set_corner_radius_all(6)
+	_run_fill = StyleBoxFlat.new()
+	_run_fill.set_corner_radius_all(6)
+	_run_bar.add_theme_stylebox_override("background", back)
 	_run_bar.add_theme_stylebox_override("fill", _run_fill)
-	_run_bar.add_child(bar_rim())
 	run_row.add_child(_run_bar)
 	_run_label = _make_label(TEXT_FONT, 18, Color(0.75, 0.95, 0.6))
 	run_row.add_child(_run_label)
 	# The hero's level beside a bar of the experience towards the next one,
 	# built like the run bar above it.
 	var xp_row := HBoxContainer.new()
-	xp_row.mouse_filter = Control.MOUSE_FILTER_PASS
+	xp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	xp_row.add_theme_constant_override("separation", 10)
 	left.add_child(xp_row)
-	_xp_row = xp_row
 	_xp_bar = ProgressBar.new()
 	_xp_bar.show_percentage = false
 	_xp_bar.custom_minimum_size = Vector2(170, 14)
 	_xp_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_xp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_xp_bar.add_theme_stylebox_override("background", bar_back())
-	_xp_bar.add_theme_stylebox_override("fill", bar_fill([Color("ffe58a"), Color("e0b33a"), Color("a87a18")]))
-	_xp_bar.add_child(bar_rim())
+	var xp_fill := StyleBoxFlat.new()
+	xp_fill.bg_color = XP_COLOR
+	xp_fill.set_corner_radius_all(6)
+	_xp_bar.add_theme_stylebox_override("background", back.duplicate())
+	_xp_bar.add_theme_stylebox_override("fill", xp_fill)
 	xp_row.add_child(_xp_bar)
 	_xp_label = _make_label(TEXT_FONT, 18, XP_COLOR)
 	xp_row.add_child(_xp_label)
-	# The gold (first, on the left edge) and the key (in a dungeon) on one line
-	# under the experience bar, in the bars' label size. (Ammunition sits under
-	# the life bar.)
-	# They sit in a small bronze-framed plate, each after its picture.
-	var purse_plate := PanelContainer.new()
-	purse_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	purse_plate.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	var plate := UiKit.frame_style(Color(0.09, 0.066, 0.047, 0.92), UiKit.BRONZE, BAR_RIM, 6)
-	plate.content_margin_left = 12
-	plate.content_margin_right = 14
-	plate.content_margin_top = 4
-	plate.content_margin_bottom = 4
-	purse_plate.add_theme_stylebox_override("panel", plate)
-	left.add_child(purse_plate)
-	var purse_row := HBoxContainer.new()
-	purse_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	purse_row.add_theme_constant_override("separation", 4)
-	purse_plate.add_child(purse_row)
-	# A copper, a silver and a gold coin, each with its count right after it:
-	# the picture sits closer to its own count than to the next coin.
-	var counts := {}
-	for id in PURSE_COINS:
-		if not counts.is_empty():
-			purse_row.add_child(_purse_gap(10))
-		var icon := ItemIcon.make(id, PURSE_ICON, true)
-		_coin_icons[id] = icon
-		purse_row.add_child(icon)
-		var count := _make_label(TEXT_FONT, 18, Loot.COIN_COLORS[id].lerp(Color.WHITE, 0.3))
-		count.mouse_filter = Control.MOUSE_FILTER_PASS
-		purse_row.add_child(count)
-		counts[id] = count
-	_coin_label = counts[Loot.MONEY]
-	_silver_label = counts["silbermuenze"]
-	_gold_label = counts["goldmuenze"]
-	purse_row.add_child(_purse_gap(18))
-	_key_icon = ItemIcon.make("kind:key", PURSE_ICON, true)
-	purse_row.add_child(_key_icon)
-	_key_label = _make_label(TEXT_FONT, 18)
-	_key_label.mouse_filter = Control.MOUSE_FILTER_PASS
-	purse_row.add_child(_key_label)
-	# Things waiting for the hero (gear to mend, an upgrade to build) as little gold-framed icons under the hero level. The row
-	# always keeps one icon's height, so the status block never grows.
-	_notice_row = HBoxContainer.new()
-	_notice_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_notice_row.add_theme_constant_override("separation", 4)
-	_notice_row.custom_minimum_size = Vector2(0, StatusIcon.SIZE)
-	left.add_child(_notice_row)
-	# The hero's boons (stronger blows, speed, hardening) as green-framed
-	# icons in a row of their own under the notices, the last line of the
-	# status block, just above the event log. It also keeps one icon's height
-	# when empty, and fills from its left edge in a fixed order.
-	_boon_row = HBoxContainer.new()
-	_boon_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_boon_row.add_theme_constant_override("separation", 4)
-	_boon_row.custom_minimum_size = Vector2(0, StatusIcon.SIZE)
-	left.add_child(_boon_row)
+	_gift_label = _make_label(TEXT_FONT, 18, Color(0.65, 0.85, 1.0))
+	left.add_child(_gift_label)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(spacer)
+	_key_label = _make_label(TEXT_FONT, 22)
+	row.add_child(_key_label)
+	_knife_label = _make_label(TEXT_FONT, 22, Color(0.8, 0.88, 1.0))
+	row.add_child(_knife_label)
+	_coin_label = _make_label(TEXT_FONT, 22, GOLD)
+	row.add_child(_coin_label)
 
 
 	# Centred texts span the screen width (minus a margin) and wrap onto
@@ -1397,41 +874,25 @@ func _setup_hud() -> void:
 	_prompt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hud.add_child(_prompt)
 
-	# The message lines: the newest one sits just over the hero's head, and
-	# the ones before it, while still unread, above it. The box grows
-	# upwards, so no line can ever cover another (see place_message).
-	_message_box = VBoxContainer.new()
-	_message_box.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_message_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_message_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_message_box.add_theme_constant_override("separation", MESSAGE_GAP)
-	_hud.add_child(_message_box)
-	_message = _message_line()
-	_message_box.add_child(_message)
+	_message = _make_label(TEXT_FONT, MESSAGE_FONT_SIZE)
+	_message.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_message.offset_left = SCREEN_TEXT_MARGIN
+	_message.offset_right = -SCREEN_TEXT_MARGIN
+	_message.offset_top = -175
+	_message.offset_bottom = -175
+	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_message.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_message.modulate.a = 0.0
+	_hud.add_child(_message)
 
-	# The keys at the bottom left help while the first steps are learned in
-	# the beginner dungeon; after that, or outside it, they go, to keep the
-	# screen clear (all keys are in the compendium, H).
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.8))
-	_help = help
-	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   V: Fackel   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
+	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	help.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	help.offset_left = 24
 	help.offset_bottom = -26
 	_hud.add_child(help)
-
-	_hud.add_child(event_log)
-
-	# The words of Fritz's drinking songs over his head, under the rest of
-	# the HUD (see SongSheet).
-	var sheet := SongSheet.new()
-	sheet.game = self
-	sheet.camera = camera
-	sheet.live = func() -> bool: return level is Outdoor and menus != null and not menus.is_open()
-	_hud.add_child(sheet)
-	_hud.move_child(sheet, 0)
-	drinking_songs.sheet = sheet
 
 	var version := _make_label(TEXT_FONT, 14, Color(1, 1, 1, 0.4))
 	version.text = _version_text()
@@ -1461,9 +922,6 @@ func _setup_hud() -> void:
 	_hud.add_child(mark)
 
 	_setup_drawer()
-
-	save_notice = SaveNotice.new()
-	add_child(save_notice)
 
 	_setup_shrine_panel()
 
@@ -1499,7 +957,7 @@ func _setup_hud() -> void:
 	title_row.add_theme_constant_override("separation", 20)
 	_title.add_child(title_row)
 	_title_buttons = title_row
-	for entry in [[Lang.t("Spielstand laden"), open_load_window], [Lang.t("Neues Spiel"), new_game], [Lang.t("Karten-Werkstatt"), back_to_editor]]:
+	for entry in [[Lang.t("Spielstand laden"), open_load_window], [Lang.t("Neues Spiel"), new_game]]:
 		var b := _make_button(entry[0], entry[1])
 		b.custom_minimum_size = Vector2(240, 64)
 		title_row.add_child(b)
@@ -1511,8 +969,8 @@ func _setup_shrine_panel() -> void:
 	_shrine_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_shrine_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_shrine_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	var style := BronzeStyle.new()
-	style.bg_color = UiKit.PANEL_BG
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.04, 0.03, 0.08, 0.88)
 	style.border_color = Color(0.5, 0.75, 1.0, 0.7)
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(18)
@@ -1536,13 +994,11 @@ func _setup_shrine_panel() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
 	box.add_child(row)
-	var gifts := [Lang.t("+5 Leben"), Lang.t("+1 Attributpunkt"), Lang.t("+1 Konstitution")]
+	var gifts := [Lang.t("+1 Leben"), Lang.t("+1 Kampfkraft"), Lang.t("+7% Tempo")]
 	for i in gifts.size():
 		var b := _make_button(Lang.t("%s\n(Taste %d)") % [gifts[i], i + 1], _choose_gift.bind(i))
 		b.custom_minimum_size = Vector2(200, 96)
 		row.add_child(b)
-		if i == 2:
-			_constitution_gift = b
 	_wise_gift = _make_button(Lang.t("%s\n(Taste %d)") % [Lang.t("+1 Härtung"), 4], _choose_gift.bind(3))
 	_wise_gift.custom_minimum_size = Vector2(200, 96)
 	row.add_child(_wise_gift)
@@ -1562,31 +1018,21 @@ func _use_station(s: Dictionary) -> void:
 	_pending_station = {}
 	# Still saying the last line: a new bump does not start a new one yet, or
 	# the text flickers while the hero keeps pushing against the villager.
-	var busy: bool = s.has("npc") and (s.npc.is_busy_talking() or village_rumours.is_telling(s.npc))
+	var busy: bool = s.has("npc") and s.npc.is_busy_talking()
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not wishes.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc) and not village_rumours.tell(s.npc):
+		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not wishes.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building, s.get("house", 0))
-	elif s.kind == TreasureMaps.DIG or s.kind == TreasureMaps.BOULDER:
-		treasure_maps.use(s)
 	elif s.kind == "schacht":
 		_go_down_shaft(s)
-	elif s.kind == "figur":
-		# A person made in the map workshop (see DungeonNpc).
-		player.face(s.pos - player.global_position)
-		player.play("Idle")
-		bumped_person = true
-		s.figure.talk(player)
 	elif s.kind == "tafel":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
 		Events.bus().writing_found.emit(s.text)
 		_refresh_seals()
-	elif s.kind == Mines.CLUSTER:
-		_mine_crystals(s)
 	elif s.has("npc"):
 		# A villager who trades: a word, then the goods. A task handed out or
 		# finished comes first; the goods wait until the next time. While the
@@ -1595,7 +1041,7 @@ func _use_station(s: Dictionary) -> void:
 			player.face(s.pos - player.global_position)
 			player.play("Idle")
 			return
-		if not busy and not reputation.gossip(s.npc) and not village_rumours.tell(s.npc, true):
+		if not busy and not reputation.gossip(s.npc):
 			s.npc.talk(player)
 		player.face(s.pos - player.global_position)
 		trader_role = s.npc.role
@@ -1603,58 +1049,11 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == "schrein":
 		_open_shrine(s)
 	elif s.kind == "brunnen":
-		# Pushing on against the fountain drinks one sip at a time.
-		if not belly_sips.still_drinking(_clock_now()):
-			_drink(s)
-	elif s.kind == Seats.KIND:
-		player.sit_down(Seats.sit_spot(s), Seats.front(s), Seats.stand_spot(s, level, player.radius))
+		_drink(s)
 	else:
 		player.face(s.pos - player.global_position)
 		menus.bench = s.get("craft", "")
 		menus.open(s.kind)
-
-
-## How long the hero knocks at a crystal cluster before the crystals come off:
-## two blows of the strike.
-const DIG_BLOW := 0.42
-
-
-## Running into a crystal cluster in a mine: two blows, then its crystals go
-## into the pouch and it dims until the next morning (see Mines). The first
-## crystals teach the recipes of the gem cutter's wheel.
-func _mine_crystals(s: Dictionary) -> void:
-	player.face(s.pos - player.global_position)
-	if s.spent:
-		player.play("Idle")
-		show_message(Lang.t("Hier ist nichts mehr zu holen. Bis zum nächsten Morgen wachsen die Kristalle nach."), 2.4)
-		return
-	if s.get("digging", false):
-		return
-	s.digging = true
-	player.path.clear()
-	for blow in 2:
-		player.play_once(Player.STRIKE_ANIM, DIG_BLOW * (2 - blow))
-		Sfx.play(self, "word_klack", -4.0, s.pos, 1.3 + blow * 0.15)
-		await get_tree().create_timer(DIG_BLOW).timeout
-	s.digging = false
-	if level == null or not level.stations.has(s):
-		return
-	var count := Mines.mine(level, s, day)
-	if count <= 0:
-		return
-	Sfx.play(self, "word_zing", -4.0, s.pos, 1.2)
-	var first := crafting.have(Mines.CRYSTAL_ID) == 0 and not crafting.found.has(Mines.CRYSTAL_ID)
-	crafting.add(Mines.CRYSTAL_ID, count)
-	Effects.loot_text(level, s.pos + Vector3(0, 2.0, 0), "+%d %s" % [count, Crafting.ingredient_name(Mines.CRYSTAL_ID)], Mines.CRYSTAL, DamageNumber.item_worth(Mines.CRYSTAL_ID))
-	Events.found(Lang.t("%d Grottenkristalle kommen in deinen Zutatenbeutel.") % count, Mines.CRYSTAL)
-	learn(Mines.CRYSTAL_LEARN)
-	var learned := crafting.learn_from_find(Mines.CRYSTAL_ID)
-	if first or not learned.is_empty():
-		var names := learned.map(func(id): return Lang.t(Crafting.RECIPES[id].name))
-		var text := Lang.t("Grottenkristalle! Schleife sie am Schleifrad im Dorf zu Schmuck.")
-		if not names.is_empty():
-			text += "\n" + Lang.t("Neue Rezepte: %s") % ", ".join(names)
-		show_message(text, 4.0)
 
 
 # --- Companions -----------------------------------------------------------------
@@ -1797,85 +1196,37 @@ func _on_animal_fed(animal: Animal) -> void:
 ## The fox dug up a hidden ingredient: it lies there for the hero to take.
 func _on_fox_dug_up(id: String, pos: Vector3) -> void:
 	level.lay_find(id, pos)
-	Effects.loot_text(level, pos + Vector3(0, 2.0, 0), Crafting.ingredient_name(id), Color(0.75, 0.9, 1.0), DamageNumber.item_worth(id))
+	Effects.float_text(level, pos + Vector3(0, 2.0, 0), Crafting.ingredient_name(id), Color(0.75, 0.9, 1.0), true)
 	var fox_name: String = pet.given_name if is_instance_valid(pet) and pet.given_name != "" else Lang.t("Dein Fuchs")
-	Events.found(Lang.t("%s hat etwas ausgegraben: %s!") % [fox_name, Rarity.marked(id)])
+	show_message(Lang.t("%s hat etwas ausgegraben: %s!") % [fox_name, Crafting.ingredient_name(id)], 3.0)
 
 
 ## A dug-up ingredient goes into the ingredient pouch, not the bag.
-## An ingredient picked up: `count` of it, from a fallen foe's loot when
-## `from_loot` (see Level.drop_kill_loot), which puts no mark on the map.
-func _on_ingredient_collected(id: String, count := 1, from_loot := false) -> void:
-	crafting.add(id, count, not from_loot)
-	if Loot.is_coin(id):
-		Sfx.play_coins(self, mini(count, 5))
-		Effects.loot_text(level, player.global_position + Vector3(0, 3.0, 0), "+%d %s" % [count, Crafting.ingredient_name(id)], Rarity.color(id),
-				DamageNumber.copper_worth(count * Loot.COIN_VALUE.get(id, 1)))
-		Events.found(Lang.t("Gefunden: %s") % ("%d× %s" % [count, Rarity.marked(id)]))
-		_update_hud()
-		return
+func _on_ingredient_collected(id: String) -> void:
+	crafting.add(id)
 	Sfx.play(self, "key", -3.0)
-	Effects.loot_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Rarity.color(id) if from_loot else Color(0.7, 0.95, 0.5), DamageNumber.item_worth(id))
-	if Crafting.in_purse(id):
-		# Gems go in the purse, like the coins (see Crafting.purse).
-		Events.found(Lang.t("%s kommt in deinen Geldbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
-	else:
-		Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
-	# A part of the fallen dragon teaches the recipe made from it.
-	if DragonLair.PART_COLOURS.has(id):
-		learn(DragonLair.PARTS_LEARN)
-		var learned := crafting.learn_from_find(id)
-		if not learned.is_empty():
-			var names := learned.map(func(r): return Lang.t(Crafting.RECIPES[r].name))
-			show_message(Lang.t("Neue Rezepte: %s") % ", ".join(names), 4.0, GOLD)
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Color(0.7, 0.95, 0.5), true)
+	show_message(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Crafting.ingredient_name(id), 3.5)
 
 
-## The fountain: every ailment gone and full life, as often as you like; a
-## level can set a fixed amount of life per drink instead (Level.fountain_heal).
+## The fountain: full life and every ailment gone, as often as you like.
 func _drink(s: Dictionary) -> void:
 	player.face(s.pos - player.global_position)
-	var gain := player.max_hp - player.hp
-	if level.fountain_heal > 0:
-		gain = mini(level.fountain_heal, gain)
-	var healed := gain > 0
-	player.hp += gain
-	if healed:
-		Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+%d" % gain, Color(0.5, 1.0, 0.5))
+	var healed := player.hp < player.max_hp
+	player.hp = player.max_hp
 	var cured := player.cure()
-	player.play_flourish("PickUp", 0.6)
+	player.play_once("PickUp", 0.6)
 	Sfx.play(self, "drink")
 	var burst := Effects.make_sparkles(Color(0.5, 0.8, 1.0), true)
 	burst.position = player.global_position + Vector3(0, 1.0, 0)
 	level.add_child(burst)
-	if level.outdoor and belly_sips.sip(_clock_now()):
-		_overdrink()
-	elif cured:
+	if cured:
 		show_message(Lang.t("Das Wasser des Brunnens heilt dich von allem Übel."))
 	elif healed:
 		show_message(Lang.t("Das kühle Wasser heilt deine Wunden."))
 	else:
 		show_message(Lang.t("Du trinkst vom klaren Wasser."))
 	_update_hud()
-
-
-## Sips at the village fountain, to tell when the hero drinks too much.
-var belly_sips := BloatedBelly.new()
-
-
-## Seconds since the game started, for counting sips.
-func _clock_now() -> float:
-	return Time.get_ticks_msec() / 1000.0
-
-
-## One sip too many at the village fountain: the belly swells, the hero
-## waddles and says so (see BloatedBelly).
-func _overdrink() -> void:
-	player.bloat()
-	var said := BloatedBelly.line()
-	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), said, Color(0.6, 0.85, 1.0))
-	Events.say(hero_name, said, player.global_position)
-	Sfx.play(self, "word_grumpel", -4.0, player.global_position)
-	show_message(Lang.t("Dein Bauch ist prall voll Wasser. Drei Minuten lang watschelst du nur noch langsam."), 3.5)
 
 
 ## The food basket on the village pedestal: bread, cheese and apples give
@@ -1885,7 +1236,7 @@ func _eat_from_basket(heal: int) -> void:
 	var text := Lang.t("Essenskorb! +%d Leben") % heal
 	if player.cure():
 		text += "\n" + Lang.t("Dein Leiden ist geheilt.")
-	player.play_flourish("PickUp", 0.6)
+	player.play_once("PickUp", 0.6)
 	Sfx.play(self, "drink")
 	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), text, Color(1.0, 0.5, 0.55), true)
 	show_message(Lang.t("Brot, Käse und Äpfel: du isst dich satt. Der Korb füllt sich mit der Zeit wieder."), 3.5)
@@ -1903,7 +1254,7 @@ func pick_up_crate(near := Vector3.INF) -> String:
 	var crate := level.crate_in_reach(player, near)
 	if crate == null:
 		return Lang.t("Keine Kiste in Reichweite.")
-	if player.bag_used() >= player.bag_size():
+	if player.bag.size() >= player.bag_size():
 		return Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.")
 	player.path.clear()
 	player.face(crate.global_position - player.global_position)
@@ -1971,7 +1322,7 @@ func take_stone(stone: StoneBlock = null) -> String:
 		return Lang.t("Kein freier Steinblock in Reichweite.")
 	if stone.heavy:
 		return push_stone(stone)
-	if player.bag_used() >= player.bag_size():
+	if player.bag.size() >= player.bag_size():
 		return Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.")
 	player.path.clear()
 	player.face(stone.global_position - player.global_position)
@@ -1993,8 +1344,6 @@ func push_stone(stone: StoneBlock) -> String:
 	player.face(away)
 	player.play_once("Interact", 0.3)
 	learn(HEAVY_LEARN)
-	if not level.heavy_in_range(stone, stone.cell + dir, stone.along_x):
-		return Lang.t("Weiter als 5 Felder von seinem Platz rückt der Block nicht.")
 	if not level.push_stone(stone, dir):
 		return Lang.t("Der Block rührt sich nicht: Etwas ist im Weg.")
 	Sfx.play(self, "rumble", -14.0, stone.global_position)
@@ -2058,29 +1407,7 @@ func _grab_stone(screen_pos: Vector2) -> bool:
 	_drag_ghost.material_override = mat
 	_drag_ghost.visible = false
 	level.add_child(_drag_ghost)
-	if stone.heavy:
-		_drag_ring = _range_ring(stone.home, Level.HEAVY_RANGE)
-		level.add_child(_drag_ring)
 	return true
-
-
-## A thin, pale ring lying on the floor around `middle`.
-func _range_ring(middle: Vector3, radius: float) -> MeshInstance3D:
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = radius - 0.07
-	torus.outer_radius = radius + 0.07
-	torus.rings = 96
-	ring.mesh = torus
-	ring.scale = Vector3(1.0, 0.3, 1.0)
-	ring.position = Vector3(middle.x, 0.04, middle.z)
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(1.0, 0.92, 0.65, 0.55)
-	ring.material_override = mat
-	return ring
 
 
 ## Where the dragged block would land: the stone or floor under the mouse.
@@ -2135,8 +1462,6 @@ func _drop_stone() -> void:
 		var why := take_stone(stone)
 		if why != "":
 			show_message(why, 1.6)
-	elif spot.get("edge", false):
-		show_message(Lang.t("Weiter als 5 Felder von seinem Platz rückt der Block nicht."), 1.6)
 	elif not spot.is_empty() and not (spot.cell == stone.cell and spot.along_x == stone.along_x and spot.layer == stone.layer):
 		show_message(Lang.t("Dort ist kein Platz für den Steinblock.") if level._flat_distance(StoneBlock.spot_of(spot.cell, spot.along_x, 0), player.global_position) <= Level.STONE_DRAG_RANGE else Lang.t("So weit reicht dein Wurf nicht."), 1.4)
 
@@ -2147,15 +1472,12 @@ func _end_drag() -> void:
 	if _drag_ghost != null and is_instance_valid(_drag_ghost):
 		_drag_ghost.queue_free()
 	_drag_ghost = null
-	if _drag_ring != null and is_instance_valid(_drag_ring):
-		_drag_ring.queue_free()
-	_drag_ring = null
 
 
 ## The "Crate" button: picks up a crate in reach, else sets one down.
 func crate_action() -> void:
 	var why := ""
-	if level.crate_in_reach(player) != null and player.bag_used() < player.bag_size():
+	if level.crate_in_reach(player) != null and player.bag.size() < player.bag_size():
 		why = pick_up_crate()
 	elif player.bag.has("kiste"):
 		why = put_down_crate()
@@ -2172,13 +1494,7 @@ func _open_shrine(s: Dictionary) -> void:
 	set_world_paused(true)
 	# A wise hero sees one more way to take the shrine's blessing.
 	_wise_gift.visible = player.attribute("weisheit") >= Training.WISE_SHRINE
-	_constitution_gift.text = Lang.t("%s\n(Taste %d)") % [Lang.t("+%d Konstitution") % shrine_constitution(), 3]
 	_shrine_panel.visible = true
-
-
-## How much Konstitution a shrine gives here: more in the beginner dungeon.
-func shrine_constitution() -> int:
-	return Player.SHRINE_CONSTITUTION_BEGINNER if level.beginner_dungeon else Player.SHRINE_CONSTITUTION
 
 
 func _choose_gift(index: int) -> void:
@@ -2187,20 +1503,15 @@ func _choose_gift(index: int) -> void:
 	var text := ""
 	match index:
 		0:
-			player.gift_hp += Player.SHRINE_LIFE
-			player.hp += Player.SHRINE_LIFE
-			text = Lang.t("Du fühlst dich zäher: +5 Leben")
+			player.gift_hp += 1
+			player.hp += 1
+			text = Lang.t("Du fühlst dich zäher: +1 Leben")
 		1:
-			player.gift_points += Player.SHRINE_POINTS
-			text = Lang.t("Die Ahnen schenken dir einen Attributpunkt: verteile ihn auf der Charakterseite (P).")
+			player.gift_power += 1
+			text = Lang.t("Deine Hiebe werden härter: +1 Kampfkraft")
 		2:
-			# More Konstitution means more life; the new life comes filled.
-			var before := player.max_hp
-			var amount := shrine_constitution()
-			player.gift_constitution += amount
-			player.refresh_stats()
-			player.hp += player.max_hp - before
-			text = Lang.t("Du fühlst dich zäher: +%d Konstitution") % amount
+			player.gift_speed += 0.07
+			text = Lang.t("Deine Schritte werden leichter: +7% Tempo")
 		3:
 			if not _wise_gift.visible:
 				return
@@ -2215,7 +1526,7 @@ func _choose_gift(index: int) -> void:
 	level.use_shrine(_shrine)
 	_shrine = {}
 	_shrine_panel.visible = false
-	player.play_flourish("PickUp", 0.6)
+	player.play_once("PickUp", 0.6)
 	show_message(text)
 	_update_hud()
 
@@ -2231,12 +1542,8 @@ func _update_run_meter() -> void:
 	var left := full if player.stamina < 0.0 else player.stamina
 	_run_bar.max_value = full
 	_run_bar.value = left
-	_run_fill.modulate_color = Color(0.85, 0.3, 0.25) if player.winded else Color(0.55, 0.85, 0.4)
+	_run_fill.bg_color = Color(0.85, 0.3, 0.25) if player.winded else Color(0.55, 0.85, 0.4)
 	_run_label.text = Lang.t("Rennen: %d s") % ceili(left)
-	var run_tip := Lang.t("So lange kannst du noch rennen. Im Gehen und Stehen kommt die Puste zurück.")
-	if player.winded:
-		run_tip += "\n" + Lang.t("Außer Atem: Erst wenn sich die Leiste wieder etwas gefüllt hat, kannst du rennen.")
-	_run_row.tooltip_text = run_tip
 
 
 func _update_hud() -> void:
@@ -2244,57 +1551,27 @@ func _update_hud() -> void:
 	_clock_shown = _clock_text()
 	if _clock_shown != "":
 		_level_label.text += "    " + _clock_shown
-	_hp_bar.max_value = maxi(1, player.max_hp)
-	_hp_bar.value = clampi(player.hp, 0, player.max_hp)
-	_hp_hover.tooltip_text = hp_tip()
-	_update_status_icons()
+	_hp_label.text = Lang.t("Leben: %d / %d") % [maxi(0, player.hp), player.max_hp]
+	if player.hardening > 0:
+		_hp_label.text += "    " + Lang.t("Härtung %d") % player.hardening
+	var gifts := []
+	if player.power > 1:
+		gifts.append(Lang.t("Kampfkraft %d") % player.power)
+	if absf(player.speed - Player.SPEED) > 0.01:
+		gifts.append(Lang.t("Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0))
+	if player.ailments.has("gift"):
+		gifts.append(Lang.t("Vergiftet"))
+	if player.ailments.has("fluch"):
+		gifts.append(Lang.t("Verflucht"))
+	if player.ailments.has("brand"):
+		gifts.append(Lang.t("Brennt"))
+	_gift_label.text = "   ".join(gifts)
 	_show_hero_level()
-	_update_purse()
-	_update_ammo()
+	_coin_label.text = Lang.t("Gold: %d") % coins
+	_knife_label.text = Lang.t("Messer: %d") % player.knives
 	_key_label.text = Lang.t("Schlüssel gefunden") if level.has_key else Lang.t("Kein Schlüssel")
-	# The lair's floors have locked doors too.
-	_key_label.visible = not level.outdoor and (level.building == "" or (DragonLair.is_floor(level) and level.has_doors()))
-	_key_icon.visible = _key_label.visible
-	_key_icon.modulate.a = 1.0 if level.has_key else 0.4
+	_key_label.visible = not level.outdoor and level.building == ""
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
-	_key_label.tooltip_text = Lang.t("Mit dem Schlüssel öffnest du die verschlossene Tür zur nächsten Ebene.") if level.has_key \
-			else Lang.t("Irgendwo auf dieser Ebene liegt der Schlüssel zur verschlossenen Tür.")
-
-
-## The coins on the HUD, in this order: copper (the money), silver, gold.
-const PURSE_COINS := ["kupfermuenze", "silbermuenze", "goldmuenze"]
-
-
-## A fixed gap in the purse line.
-func _purse_gap(width: float) -> Control:
-	var gap := Control.new()
-	gap.custom_minimum_size.x = width
-	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return gap
-
-
-## Counts the copper, silver and gold coins on the HUD, each after its
-## picture. A metal the hero has none of is dimmed, like the missing key.
-func _update_purse() -> void:
-	if _coin_label == null:
-		return
-	var labels := {"kupfermuenze": _coin_label, "silbermuenze": _silver_label, "goldmuenze": _gold_label}
-	var names := {"kupfermuenze": "Kupfermünzen: %d", "silbermuenze": "Silbermünzen: %d", "goldmuenze": "Goldmünzen: %d"}
-	for id in PURSE_COINS:
-		var held := coins_held(id)
-		var label: Label = labels[id]
-		label.text = str(held)
-		var shade := 1.0 if held > 0 else 0.45
-		label.modulate.a = shade
-		_coin_icons[id].modulate.a = shade
-		var tip := Lang.t(names[id]) % held + "\n"
-		if id == Loot.MONEY:
-			tip += Lang.t("Dein Kupfer: Damit bezahlst du bei Händlern und Handwerkern.")
-		elif id == "silbermuenze":
-			tip += Lang.t("Eine Silbermünze ist %d Kupfer wert.") % Loot.COIN_VALUE[id]
-		else:
-			tip += Lang.t("Eine Goldmünze ist %d Kupfer wert.") % Loot.COIN_VALUE[id]
-		label.tooltip_text = tip
 
 
 ## The hero's level and the experience towards the next one on the HUD.
@@ -2303,41 +1580,17 @@ func _show_hero_level() -> void:
 	var step := HeroLevel.progress(player.hero_xp)
 	_xp_bar.max_value = maxi(1, step.y)
 	_xp_bar.value = step.x if step.y > 0 else 1
-	_xp_label.text = Lang.t("Stufe %d") % player.hero_level()
+	_xp_label.text = Lang.t("Heldenstufe %d") % player.hero_level()
 	if player.free_points() > 0:
 		_xp_label.text += "   " + Lang.t("Punkt frei (P)")
-	var tip := Lang.t("Stufe %d") % player.hero_level()
-	if step.y > 0:
-		tip += "\n" + Lang.t("Erfahrung: %d von %d bis zur nächsten Stufe") % [step.x, step.y]
-	else:
-		tip += "\n" + Lang.t("Die höchste Stufe ist erreicht.")
-	if player.free_points() > 0:
-		tip += "\n" + Lang.t("Du hast einen Punkt frei: Verteile ihn auf der Charakterseite (P).")
-	_xp_row.tooltip_text = tip
 
 
-## The life bar's tooltip: life in numbers, and while some is missing how
-## fast it comes back now (or that a fresh hit has paused it).
-func hp_tip() -> String:
-	var tip := Lang.t("Leben: %d von %d") % [clampi(player.hp, 0, player.max_hp), player.max_hp]
-	if player.hp >= player.max_hp:
-		return tip
-	if player.regen_paused():
-		tip += "\n" + Lang.t("Erholung: nach dem Treffer kurz unterbrochen, dann %.1f pro Sekunde") % player.life_regen()
-	else:
-		tip += "\n" + Lang.t("Erholung: %.1f pro Sekunde") % player.life_regen()
-	return tip
-
-
-## The time of day for the HUD, e.g. "21:30, night, full moon". Down in
-## the dungeon only the hour and the part of the day.
+## The time of day for the HUD, e.g. "21:30, night, full moon", above
+## ground only.
 func _clock_text() -> String:
-	if level == null:
+	if level == null or not (level.outdoor or level.building != ""):
 		return ""
 	var text := "%s, %s" % [DayNight.clock_text(day_hour), Lang.t(DayNight.part_of_day(day_hour))]
-	# Down in the dungeon the time goes on, but sky and moon are out of sight.
-	if not (level.outdoor or level.building != ""):
-		return text
 	if weather != Weather.CLEAR:
 		text += ", " + Lang.t(Weather.word(weather))
 	# At night the clock names tonight's moon (see Moon).
@@ -2346,10 +1599,11 @@ func _clock_text() -> String:
 	return text
 
 
-## The world's clock runs wherever the hero is, down in the dungeon too,
-## while the world is not paused; the open air is lit for the hour.
+## The world's clock runs while the hero is above ground (in the open or in
+## a village building) and the world is not paused; the open air is lit for
+## the hour. Down in the dungeon time stands still.
 func _tick_clock(delta: float) -> void:
-	if level == null:
+	if level == null or not (level.outdoor or level.building != ""):
 		return
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		var before := day_hour
@@ -2357,7 +1611,6 @@ func _tick_clock(delta: float) -> void:
 		if _dawn_between(before, day_hour):
 			_new_day()
 		_tick_weather(delta)
-		puddle_water = Weather.puddle_water(puddle_water, weather, delta)
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
 		_moonlight()
@@ -2370,34 +1623,22 @@ func _tick_clock(delta: float) -> void:
 			level.day = day
 			level.set_hour(day_hour)
 			level.set_weather(weather)
-			level.set_puddles(puddle_water, _weather_look.rain, clampf(_env.ambient_light_energy / 0.52, 0.05, 1.0))
 			if level.moon_night >= 0 and (Moon.is_full(level.moon_night) or Moon.is_new(level.moon_night)):
 				learn(Moon.LORE)
 	if _clock_text() != _clock_shown:
 		_update_hud()
 
 
-## The night is as bright as tonight's moon, the only light out there:
-## a cool bluish sheen at full moon, nearly pitch black at new moon (see Moon). Only
-## the moon's share of the light changes (see DayNight.moon_at), so the day,
-## dusk and dawn look the same whatever the moon.
+## The night is as bright as tonight's moon: pale and clear at full moon,
+## nearly black at new moon (see Moon). Only the night's own light changes,
+## so the day looks the same whatever the moon.
 func _moonlight() -> void:
-	var bright := _night_light()
-	# The hero's lantern shrinks to a small pool as the night darkens.
-	if player:
-		player.set_night_dim(1.0 - bright)
-	if bright >= 1.0:
+	var night := DayNight.glow_at(day_hour)
+	if night <= 0.0:
 		return
+	var bright := lerpf(1.0, Moon.light(day), night)
 	_moon.light_energy *= bright
-	_env.ambient_light_energy *= bright
-	var bg := _env.background_color
-	_env.background_color = Color(bg.r * bright, bg.g * bright, bg.b * bright)
-
-
-## How bright the open air is against the full moon's night: 1 by day and
-## on full-moon nights, down to Moon.DARKEST on a new-moon night.
-func _night_light() -> float:
-	return lerpf(1.0, Moon.light(day), DayNight.moon_at(day_hour))
+	_env.ambient_light_energy *= lerpf(1.0, bright, 0.6)
 
 
 ## Whether the clock passed dawn (see Bounties.DAWN) going forward from one
@@ -2413,10 +1654,6 @@ static func _dawn_between(from: float, to: float) -> bool:
 ## finished in time are over.
 func _new_day(quiet := false) -> void:
 	day += 1
-	if level != null:
-		# Mined crystal clusters grow back with the morning.
-		Mines.refresh_crystals(level, day, true)
-	_dragon_morning(quiet)
 	var expired := bounties.refresh(day)
 	if quiet or not escaped:
 		return
@@ -2424,133 +1661,6 @@ func _new_day(quiet := false) -> void:
 	if expired > 0:
 		text += "\n" + Lang.t("Nicht erledigte Jagden vom Vortag sind verfallen: %d") % expired
 	quest_news(text, Color(1.0, 0.82, 0.4), 4.0)
-
-
-# --- The dragon's helpers ------------------------------------------------------
-
-## A helper carried something off the open ground before the hero's eyes
-## (see DragonHelpers): into the hoard. The first of a night gets a line in
-## the event log, and the compendium learns of them.
-func _on_loot_carried_off(kind: String, id: String, count := 1) -> void:
-	var first := int(hoard.tonight.things) == 0
-	hoard.gather(kind, id, count)
-	if first:
-		Events.found(Lang.t("Kleine Drachlinge schwärmen aus dem Berg und tragen fort, was am Boden liegt."), DragonHoard.COLOR)
-		learn(DragonHoard.LORE)
-
-
-## The morning after a night: the helpers leave nothing lying, anywhere.
-## In the open air before the hero's eyes they come back for what is left
-## in the morning twilight (see DragonHelpers.dawn). On any other map the
-## hero is on, or asleep, it is gone from the ground by morning, all but
-## what lies right beside the awake hero. Every other map and building they
-## swept unseen (see DragonHoard.sweep). Then the event log tells what the
-## night brought.
-func _dragon_morning(asleep := false) -> void:
-	var here: Array = level.floor_items if level != null else []
-	var reached_inside := false
-	if level != null:
-		var helpers: DragonHelpers = level.get_node_or_null("DragonHelpers")
-		if helpers != null and not asleep and level is Outdoor:
-			helpers.dawn()
-		else:
-			var things := 0
-			for p in level.floor_pickups():
-				if not asleep and player != null and DragonHelpers._flat(player.global_position - p.node.global_position) < DragonHelpers.SHY:
-					continue
-				var node: Node3D = level.take_from_floor(p)
-				if node:
-					node.queue_free()
-				hoard.gather(str(p.floor[0]), str(p.floor[1]), CoinPile.count_of(p.floor))
-				things += 1
-			reached_inside = things > 0 and not level is Outdoor
-	for key in floors:
-		if is_same(floors[key], here):
-			continue
-		var before: int = floors[key].size()
-		var went := hoard.sweep(floors[key])
-		var file := str(key).get_slice("#", 0)
-		if not went.is_empty():
-			# Counted as taken, as if the hero had picked it up (a trophy is
-			# not laid out again where it fell).
-			if not looted.has(file):
-				looted[file] = {}
-			for id in went:
-				looted[file][id] = true
-		if floors[key].size() < before and not Level.is_outdoor_file(file):
-			reached_inside = true
-	var to_elder := int(hoard.tonight.get("elder", 0)) > 0
-	var text := hoard.morning_report()
-	if text != "":
-		Events.found(text, DragonHoard.COLOR)
-		learn(DragonHoard.LORE)
-	if to_elder:
-		learn(DragonHoard.ELDER_LORE)
-	if reached_inside:
-		learn(DragonHoard.EVERYWHERE_LORE)
-
-
-## The hero took the dragon's hoard in its lair: the coins into the purse,
-## the bars into the hero's stores (see Forge.store): iron for the smith's
-## forge, moon silver into the pouch, the fine bars for Gorm to buy.
-func _on_hoard_taken() -> void:
-	var had := hoard.take_all()
-	var amount := int(had.get("coins", 0))
-	had.erase("coins")
-	var text := Forge.metals_text(had)
-	if text != "":
-		Events.found(Lang.t("Der Hort des Drachen: %s") % text, GOLD)
-		Forge.store(self, had)
-		Sfx.play_gear(level, "schwert", 0.0, player.global_position)
-	if amount > 0:
-		coins += amount
-		Events.found(Lang.t("+%d Kupfer") % amount, GOLD)
-		Sfx.play_coins(self, amount)
-	_update_hud()
-
-
-## The hero took the Great Old One's hoard (see ElderLair): the old dragon's
-## own treasure the first time, and whatever the dragon helpers brought since.
-## The coins go into the purse, the gear into the bag; what does not fit is
-## left lying at the hero's feet.
-func _on_elder_hoard_taken() -> void:
-	var amount := 0
-	var items: Array = []
-	if not level.taken.has(ElderLair.ANCIENT_KEY):
-		level.taken[ElderLair.ANCIENT_KEY] = true
-		var ancient := ElderLair.ancient_loot(level)
-		amount += int(ancient.coins)
-		items += ancient.items
-	var share := hoard.take_elder()
-	amount += int(share.coins)
-	items += share.items
-	var left := 0
-	for i in items.size():
-		var id := str(items[i])
-		if player.bag_fits(id):
-			player.bag.append(id)
-		else:
-			left += 1
-			var angle := TAU * i / maxf(1.0, items.size())
-			level._drop_item(id, player.global_position + Vector3(cos(angle), 0, sin(angle)) * 1.8)
-	if not items.is_empty():
-		Events.found(Lang.t("Der Hort des Großen Alten: %s") % ", ".join(items.map(func(id): return Rarity.marked(str(id)))), ElderLair.GOLD)
-		Sfx.play_rarity(level, Sfx.finest(items), 0.2, player.global_position)
-	if amount > 0:
-		coins += _gold(amount)
-		Events.found(Lang.t("+%d Kupfer") % _gold(amount), GOLD)
-		Sfx.play_coins(self, _gold(amount))
-	show_message(Lang.t("Gold klirrt! Der Große Alte regt sich im Schlaf. Leise fort von hier!") if left == 0 \
-			else Lang.t("Gold klirrt! Deine Tasche ist voll, der Rest liegt am Boden. Leise!"), 3.5, ElderLair.GOLD)
-	_update_hud()
-
-
-## The Great Old One woke up: there is no fighting it, only running.
-func _on_elder_awakened() -> void:
-	_shake = 1.6
-	show_message(Lang.t("Der Große Alte erwacht! Flieh aus seinem Blick, bis er wieder einschläft!"), 4.5, Color(1.0, 0.45, 0.25))
-
-
 ## The weather runs on the clock: when its hours are up, the next weather
 ## comes, picked for the hour (see Weather.roll).
 func _tick_weather(delta: float) -> void:
@@ -2580,7 +1690,7 @@ func _show_weather() -> void:
 		return
 	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
-	Weather.show_particles(_rain, _mist, _weather_look, 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3)
+	Weather.show_particles(_rain, _mist, _weather_look, 1.0 - DayNight.glow_at(day_hour))
 	if _rain_sound:
 		var r: float = _weather_look.rain
 		if r > 0.02:
@@ -2605,14 +1715,9 @@ func load_level(index: int, restock := true) -> void:
 	if level:
 		level.queue_free()
 	level_index = index
-	tutorial.restart()
-	writing_card.hide_now()
 	level = Outdoor.new() if Level.is_outdoor_file(level_files[index]) else Level.new()
 	level.load_from_file(level_files[index])
 	level.depth = index
-	if playtest_file != "" and level_files[index] == playtest_file:
-		level.playtest = true
-		level.depth = 0
 	var file := level_files[index].get_file()
 	if not looted.has(file):
 		looted[file] = {}
@@ -2622,18 +1727,10 @@ func load_level(index: int, restock := true) -> void:
 	level.built = builds[file]
 	level.hero = hero_name
 	level.house_number = inside_house if level.is_home else 0
-	var floor_key := file if level.house_number == 0 else "%s#%d" % [file, level.house_number]
-	if not floors.has(floor_key):
-		floors[floor_key] = []
-	level.floor_items = floors[floor_key]
-	if level.lair:
-		level.hoard = hoard.contents()
-		level.elder_hoard = hoard.elder_contents()
 	if level is Outdoor:
 		# Bandits who take their spots at night are tougher (see Outdoor.set_hour).
 		level.night = DayNight.is_night(day_hour)
 		level.interiors = interiors
-		level.treasure = treasure_maps.state
 		level.house_given = home_given
 		level._entered_once = home_claimed
 		level.met = met
@@ -2648,19 +1745,16 @@ func load_level(index: int, restock := true) -> void:
 	player.frozen = false
 	player.controllable = true
 	# Arriving on a level never heals by itself; climbing the stairs gives
-	# STAIRS_HEAL (see _next_level) and the fountain heals (see _drink).
+	# STAIRS_HEAL (see _next_level) and the fountain heals fully.
 	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
 	level.restore_taken()
-	Mines.refresh_crystals(level, day)
-	level.restore_floor()
 	level.restore_stones()
 	level.key_collected.connect(_on_key_collected)
 	level.coins_collected.connect(_on_coins_collected)
 	level.item_collected.connect(_on_item_collected)
 	level.secret_found.connect(_on_secret_found)
 	level.ingredient_collected.connect(_on_ingredient_collected)
-	level.bundle_reached.connect(_on_bundle_reached)
 	level.hide_ingredients()
 	_spawn_pet()
 	if has_fox:
@@ -2680,22 +1774,7 @@ func load_level(index: int, restock := true) -> void:
 	level.lair_won.connect(_on_lair_won)
 	level.dragon_awakened.connect(_on_dragon_awakened)
 	level.lair_exit_taken.connect(leave_lair)
-	level.hoard_taken.connect(_on_hoard_taken)
-	level.hoard_guarded.connect(func(): show_message(Lang.t("Glutschlund wacht über seinen Hort. Besiege den Drachen, dann gehört der Hort dir."), 3.0))
-	level.elder_hoard_taken.connect(_on_elder_hoard_taken)
-	level.elder_awakened.connect(_on_elder_awakened)
-	level.elder_settled.connect(func(): show_message(Lang.t("Der Große Alte schläft wieder ein. Jetzt leise!"), 3.0))
-	if ElderLair.is_floor(level):
-		learn(ElderLair.LORE)
-	if is_instance_valid(level.elder):
-		var here := level
-		get_tree().create_timer(4.8).timeout.connect(func():
-			if level == here and state == State.PLAYING and is_instance_valid(here.elder) and here.elder.asleep:
-				show_message(Lang.t("Der Große Alte schläft auf seinem Hort. Schleiche (Taste C), sonst wacht er auf!"), 4.5))
 	level.stairs_taken.connect(_take_stairs)
-	if level.traps:
-		level.traps.teleported.connect(_on_trap_teleport)
-		level.traps.fell.connect(_fall_through_trapdoor)
 	level.boss_won.connect(_on_mine_boss_won)
 	_refresh_seals()
 	if horrors:
@@ -2736,9 +1815,6 @@ func load_level(index: int, restock := true) -> void:
 			shop_stock.append(Items.random_ware(rng))
 	_snap_camera()
 	_update_hud()
-	# Every shader the new level needs is built in its first, still dark
-	# frame, and the time that takes does not count (see LevelWarmup).
-	LevelWarmup.begin(level)
 
 
 func _show_title(text: String, sub: String, prompt: String) -> void:
@@ -2746,7 +1822,7 @@ func _show_title(text: String, sub: String, prompt: String) -> void:
 		child.queue_free()
 	_name_box.visible = false
 	_lang_row.visible = false
-	_title_text.add_theme_font_size_override("font_size", UiKit.sized(120))
+	_title_text.add_theme_font_size_override("font_size", 120)
 	_title.visible = true
 	_title_text.text = text
 	_title_sub.text = sub
@@ -2820,7 +1896,7 @@ func new_game() -> void:
 	# and its save slots, and the headline steps back a little.
 	_title_prompt.visible = false
 	_title_sub.visible = false
-	_title_text.add_theme_font_size_override("font_size", UiKit.sized(90))
+	_title_text.add_theme_font_size_override("font_size", 90)
 	_name_box.visible = true
 	_choose_sex(player.sex)
 	_name_edit.text = hero_name
@@ -2897,7 +1973,7 @@ func _setup_name_box() -> void:
 	_name_edit.custom_minimum_size = Vector2(360, 60)
 	_name_edit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_name_edit.add_theme_font_override("font", TEXT_FONT)
-	_name_edit.add_theme_font_size_override("font_size", UiKit.sized(28))
+	_name_edit.add_theme_font_size_override("font_size", 28)
 	_name_edit.add_theme_stylebox_override("normal", Menus.panel_style(Color(0.85, 0.66, 0.32, 0.8)))
 	_name_edit.add_theme_stylebox_override("focus", Menus.panel_style(GOLD))
 	_name_edit.text_submitted.connect(func(_t): _start_new_game())
@@ -2968,8 +2044,6 @@ func begin_new_game() -> void:
 	_name_edit.release_focus()
 	coins = 0
 	iron = 0
-	bars = {}
-	metal_grams = {}
 	companions = []
 	following = -1
 	trust = {}
@@ -2977,18 +2051,14 @@ func begin_new_game() -> void:
 	home_given = false
 	home_claimed = false
 	home_upgrades.clear()
-	home_stores = HomeStores.empty()
 	trophies.clear()
 	secrets_found = 0
-	fishing.ring_found = false
-	treasure_maps.clear()
 	dry_levels = 0
 	bumped_person = false
 	hints_shown.clear()
 	_hints_last.clear()
 	looted.clear()
 	builds.clear()
-	floors.clear()
 	met.clear()
 	quests.clear()
 	journal.clear()
@@ -2998,22 +2068,16 @@ func begin_new_game() -> void:
 	crafting.clear()
 	wishes.clear()
 	Factions.clear()
-	MonsterLore.clear()
 	fishing.stop()
 	reputation.clear()
 	village_talk.clear()
-	village_worries.clear()
-	village_rumours.clear()
-	drinking_songs.clear()
 	storage.clear()
 	shop_stock.clear()
 	wanderer_stock.clear()
 	wanderer_night = -1
-	hoard.clear()
 	away_plan = Offline.empty_plan()
 	day_hour = DayNight.START_HOUR
 	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
-	puddle_water = 0.0
 	player.knives = 5
 	player.set_sex(_new_sex)
 	player.set_hair(HairLook.DEFAULT)
@@ -3115,25 +2179,20 @@ func _toggle_music() -> void:
 
 ## A row with a volume: a label and a slider from silent to full.
 func _make_volume_row(title: String, tooltip: String, value: float, on_change: Callable) -> HBoxContainer:
-	return _make_slider_row(title, tooltip, value, 0.0, 1.0, 0.05, on_change)
-
-
-## A row of the pull-out menu's settings: a label and a slider. Every row's
-## label takes the same width, so the sliders line up.
-func _make_slider_row(title: String, tooltip: String, value: float, low: float, high: float, step: float, on_change: Callable) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	var label := Label.new()
 	label.text = Lang.t(title)
 	label.add_theme_font_override("font", TEXT_FONT)
-	label.add_theme_font_size_override("font_size", UiKit.sized(18))
+	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", GOLD)
-	label.custom_minimum_size = Vector2(SLIDER_LABEL_WIDTH, 0)
+	# Both rows' labels take the same width, so the sliders line up.
+	label.custom_minimum_size = Vector2(90, 0)
 	row.add_child(label)
 	var slider := HSlider.new()
-	slider.min_value = low
-	slider.max_value = high
-	slider.step = step
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
 	slider.focus_mode = Control.FOCUS_NONE
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -3149,14 +2208,6 @@ func _make_slider_row(title: String, tooltip: String, value: float, low: float, 
 func _make_music_slider() -> Control:
 	var row := _make_volume_row("Musik", "Lautstärke der Musik", Music.volume, _on_music_volume_changed)
 	_music_slider = row.get_child(1)
-	return row
-
-
-## The event log's width row: from narrow to the widest that keeps clear of
-## the message line (see EventLog.set_width).
-func _make_log_width_slider() -> Control:
-	var row := _make_slider_row("Protokoll", "Breite des Ereignisprotokolls links", EventLog.width, EventLog.MIN_WIDTH, EventLog.MAX_WIDTH, EventLog.WIDTH_STEP, event_log.set_width)
-	_log_width_slider = row.get_child(1)
 	return row
 
 
@@ -3198,13 +2249,9 @@ func _update_music_controls() -> void:
 ## hero it leaves at once: the desktop version closes, the browser goes back
 ## to the title.
 func _on_quit_pressed() -> void:
-	if playtest_file != "":
-		back_to_editor()
-		return
 	if state == State.PLAYING:
-		if not menus.is_open():
-			set_drawer_open(false)
-			open_pause()
+		if player.can_act() and not menus.is_open():
+			menus.open("beenden")
 	elif state == State.TITLE:
 		if not OS.has_feature("web"):
 			get_tree().quit()
@@ -3232,15 +2279,6 @@ func _close_tab() -> void:
 
 ## Leaves the game for the title screen. A browser tab cannot close itself,
 ## so only the desktop version quits outright.
-## Esc or the quit button: stops the world and opens the pause window, with
-## buttons to play on or to quit. It opens even while the hero is busy
-## (swinging, stumbling, afraid), as long as they are alive.
-func open_pause() -> void:
-	if state != State.PLAYING or player == null or player.dead or menus.is_open() or not _shrine.is_empty():
-		return
-	menus.open("beenden")
-
-
 func quit_game() -> void:
 	if state != State.PLAYING:
 		return
@@ -3254,8 +2292,8 @@ func quit_game() -> void:
 	tween.tween_callback(func(): _show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies")))
 
 
-## Name, hero level, map level, gold, slot and time of a saved game (by
-## default this hero's), or nothing when there is none.
+## Name, level, gold, slot and time of a saved game (by default this hero's),
+## or nothing when there is none.
 func save_info(path := "") -> Dictionary:
 	if path == "":
 		path = save_path()
@@ -3266,20 +2304,8 @@ func save_info(path := "") -> Dictionary:
 		return {}
 	# Games saved before there were several have no time of their own.
 	var time := float(data.get("saved_at", FileAccess.get_modified_time(path)))
-	var hero := str(data.get("name", Lang.t("Namenlos")))
-	return {"path": path, "slot": slot_of(path), "name": hero, "hero_level": saved_hero_level(data, hero), "level": int(data.level) + 1, "coins": int(data.coins),
-			"escaped": bool(data.get("escaped", false)), "home": bool(data.get("claimed", false)), "time": time,
-			"camp": not Camp.from_save(data.get("camp")).is_empty()}
-
-
-## The hero level of a saved game. Games saved before the save kept the
-## experience ("xp") take it from the hero's training (see Training.load_level),
-## where it has always been kept by name; a hero with neither is on level 1.
-static func saved_hero_level(data: Dictionary, hero: String) -> int:
-	var xp = data.get("xp")
-	if xp == null:
-		xp = Training.load_level(hero).get("xp", 0)
-	return HeroLevel.level_for(int(xp))
+	return {"path": path, "slot": slot_of(path), "name": str(data.get("name", Lang.t("Namenlos"))), "level": int(data.level) + 1, "coins": int(data.coins),
+			"escaped": bool(data.get("escaped", false)), "home": bool(data.get("claimed", false)), "time": time}
 
 
 ## Every saved game there is, the one saved last first.
@@ -3294,20 +2320,14 @@ func save_list() -> Array:
 	return saves
 
 
-## Who a saved game's hero is and where, in one sentence: "Ada, Heldenstufe 7,
-## auf Ebene 3 mit 40 Gold.", at home, or on the graveyard. The hero level
-## sits beside the name, as it belongs to the hero, not to the place.
+## Where a saved game's hero is, in one sentence: "Ada auf Ebene 3 mit 40
+## Gold.", at home, or on the graveyard.
 static func save_summary(info: Dictionary) -> String:
-	var who := Lang.t("%s, Heldenstufe %d,") % [info.name, int(info.get("hero_level", 1))]
-	if info.get("camp", false):
-		if info.escaped:
-			return Lang.t("%s an einem Lagerfeuer im Freien mit %d Kupfer.") % [who, info.coins]
-		return Lang.t("%s an einem Lagerfeuer auf Ebene %d mit %d Kupfer.") % [who, info.level, info.coins]
 	if info.home:
-		return Lang.t("%s zu Hause mit %d Kupfer.") % [who, info.coins]
+		return Lang.t("%s zu Hause mit %d Gold.") % [info.name, info.coins]
 	if info.escaped:
-		return Lang.t("%s auf dem Friedhof mit %d Kupfer.") % [who, info.coins]
-	return Lang.t("%s auf Ebene %d mit %d Kupfer.") % [who, info.level, info.coins]
+		return Lang.t("%s auf dem Friedhof mit %d Gold.") % [info.name, info.coins]
+	return Lang.t("%s auf Ebene %d mit %d Gold.") % [info.name, info.level, info.coins]
 
 
 ## Whether the hero of saved game a has come further than the one of b: their
@@ -3342,30 +2362,12 @@ func _read_save(path := "") -> Dictionary:
 func _apply_save(data: Dictionary) -> void:
 	hero_name = data.get("name", Lang.t("Namenlos"))
 	coins = int(data.coins)
-	# A game saved before copper became the money held ancient gold coins:
-	# each one is exchanged into a copper coin, one for one (see Loot.MONEY).
-	if data.get("currency", "") != Loot.MONEY and coins > 0:
-		Events.tell(Lang.t("Deine %d uralten Goldmünzen wurden eins zu eins in %d Kupfermünzen getauscht. Kupfer ist jetzt dein Geld.") % [coins, coins], GOLD, 8.0)
 	iron = int(data.get("iron", 0))
-	metal_grams = {}
-	var saved_grams = data.get("metal_grams", {})
-	if saved_grams is Dictionary:
-		for metal in saved_grams:
-			if Ore.METALS.has(str(metal)) and int(saved_grams[metal]) > 0:
-				metal_grams[str(metal)] = int(saved_grams[metal])
-	bars = {}
-	var saved_bars = data.get("bars", {})
-	if saved_bars is Dictionary:
-		for metal in saved_bars:
-			if str(metal) in Forge.FINE and int(saved_bars[metal]) > 0:
-				bars[str(metal)] = int(saved_bars[metal])
 	var friends := Companions.from_save(data)
 	companions = friends.list
 	following = friends.following
 	trust = friends.trust
 	secrets_found = int(data.get("secrets", 0))
-	fishing.ring_found = bool(data.get("fished_ring", false))
-	treasure_maps.load_from(data.get("treasure_maps", {}))
 	dry_levels = int(data.get("dry", 0))
 	bumped_person = bool(data.get("bumped_person", false))
 	hints_shown.clear()
@@ -3381,14 +2383,6 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_power = int(data.gift_power)
 	player.gift_speed = float(data.gift_speed)
 	player.gift_armor = int(data.get("gift_armor", 0))
-	player.gift_points = int(data.get("gift_points", 0))
-	player.gift_constitution = int(data.get("gift_constitution", 0))
-	player.gift_spent = {}
-	var gift_spent = data.get("gift_spent", {})
-	if gift_spent is Dictionary:
-		for id in gift_spent:
-			if id in HeroLevel.POINT_ATTRIBUTES:
-				player.gift_spent[id] = int(gift_spent[id])
 	player.equipped = data.equipped
 	player.wear = data.get("wear", {})
 	player.set_sex(str(data.get("sex", BodyLook.DEFAULT))) # Games saved before there were heroines have a hero.
@@ -3396,11 +2390,6 @@ func _apply_save(data: Dictionary) -> void:
 	player.xp = Training.load_hero(hero_name)
 	player.set_level_data(Training.load_level(hero_name))
 	lore.assign(data.get("lore", []))
-	# Wall writings saved before they were written in blood.
-	for i in lore.size():
-		lore[i] = Level.OLD_WRITINGS.get(lore[i], lore[i])
-		if lore[i] == OLD_DARK_LEARN:
-			lore[i] = DARK_LEARN
 	looted.clear()
 	var saved_loot = data.get("looted", {})
 	if saved_loot is Dictionary:
@@ -3416,15 +2405,8 @@ func _apply_save(data: Dictionary) -> void:
 		for file in saved_builds:
 			if saved_builds[file] is Array:
 				builds[str(file)] = (saved_builds[file] as Array).filter(func(e): return e is Array and e.size() >= 4)
-	floors.clear()
-	var saved_floors = data.get("floors", {})
-	if saved_floors is Dictionary:
-		for key in saved_floors:
-			if saved_floors[key] is Array:
-				floors[str(key)] = (saved_floors[key] as Array).filter(func(e): return e is Array and e.size() >= 4)
 	escaped = bool(data.get("escaped", false))
 	home_upgrades = _known_keys(data.get("upgrades", []), HomeUpgrades.ALL)
-	home_stores = HomeStores.load_from(data.get("home_stores", {}))
 	trophies = _known_keys(data.get("trophies", []), HomeUpgrades.TROPHIES)
 	home_given = bool(data.get("home", false))
 	home_claimed = home_given and bool(data.get("claimed", false))
@@ -3445,9 +2427,7 @@ func _apply_save(data: Dictionary) -> void:
 	wishes.load_from(data.get("wishes", {}))
 	reputation.load_from(data.get("reputation", {}))
 	village_talk.load_from(data.get("ties", []))
-	village_rumours.load_from(data.get("rumours", {}))
 	Factions.load_from(data.get("factions", {}))
-	MonsterLore.load_from(data.get("monster_lore", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
@@ -3456,7 +2436,6 @@ func _apply_save(data: Dictionary) -> void:
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
 	wanderer_night = int(data.get("wanderer_night", -1))
-	hoard.load_from(data.get("hoard", {}))
 	wanderer_stock.clear()
 	var wares = data.get("wanderer", [])
 	if wares is Array:
@@ -3465,68 +2444,37 @@ func _apply_save(data: Dictionary) -> void:
 				wanderer_stock.append(str(id))
 	# Games saved before there was weather wake up to clear skies.
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
-	puddle_water = clampf(float(data.get("puddles", 0.0)), 0.0, 1.0)
-	_go_to_wake_place(_wake_place(data))
-	player.hp = clampi(int(data.hp), 1, player.max_hp)
-	player.cure()
-	_update_hud()
-
-
-## Where a saved game wakes up, by the hero's state as it is now (escaped,
-## their own house): {"index": level, "house": town house number inside or 0,
-## "inn": in an inn's bed, "camp": the camp (see Camp.from_save) or {}}.
-func _wake_place(data: Dictionary) -> Dictionary:
-	var index := clampi(int(data.get("level", 0)), 0, level_files.size() - 1)
-	var house := 0
+	var index := clampi(int(data.level), 0, level_files.size() - 1)
+	inside_house = 0
 	var own_house := Homes.house_of(hero_name)
 	var at_inn: bool = data.get("inn", false) and _is_inn_file(index)
-	var camp_at := Camp.from_save(data.get("camp"))
 	if at_inn:
 		# Saved in the bed of an inn on the way: the hero wakes up there,
 		# not back home, so the long road need not be walked again.
-		pass
-	elif not camp_at.is_empty():
-		# Saved at a camp: the hero wakes up by its fire, wherever it was.
 		pass
 	elif escaped and home_claimed and own_house > 0 and interiors.has("^"):
 		# The hero's own town house is the place to come back to: every
 		# load wakes up beside its bed, wherever the game was saved.
 		index = interiors["^"]
-		house = own_house
+		inside_house = own_house
 	elif escaped and _outdoor_index() >= 0:
 		# Out of the dungeon, every load begins in the open air, wherever the
 		# game was saved: on the graveyard, or in the hero's own house.
 		index = _outdoor_index()
-	return {"index": index, "house": house, "inn": at_inn, "camp": {} if at_inn else camp_at}
-
-
-## Loads the level of a wake place (see _wake_place) and puts the hero there:
-## at the camp, beside the bed, or where the level starts.
-func _go_to_wake_place(place: Dictionary) -> void:
-	inside_house = int(place.house)
-	load_level(int(place.index), false)
-	camp = null
-	var camp_at: Dictionary = place.camp
-	if not camp_at.is_empty():
-		camp = Camp.pitch(level, camp_at.pos, camp_at.rot)
-		Camp.clear_around(level, camp.global_position)
-		player.global_position = camp.stand_spot()
-		player.face(camp.global_position - player.global_position)
-		_snap_camera()
-	elif (level.is_home or level.inn) and level.bed_side != Vector3.ZERO:
+	load_level(index, false)
+	if (level.is_home or level.inn) and level.bed_side != Vector3.ZERO:
 		player.global_position = level.bed_side
 	elif level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
 		# The hero's own house is the place to come back to: next to the bed.
 		player.global_position = level.home_spot
+	player.hp = clampi(int(data.hp), 1, player.max_hp)
+	player.cure()
+	_update_hud()
 
 
 func _leave_title(prepare: Callable) -> void:
 	state = State.TRANSITION
 	_title_buttons.visible = false
-	# The language buttons too: left in the faded title, they would lie
-	# unseen across the middle of the screen and take the pointer from the
-	# life bar and the knives under it.
-	_lang_row.visible = false
 	var tween := create_tween()
 	tween.tween_property(_title, "modulate:a", 0.0, 0.4)
 	tween.tween_callback(func():
@@ -3613,9 +2561,6 @@ func boss_fallen(kind: String) -> bool:
 
 
 func _outdoor_index() -> int:
-	# Testing an open-air map from the workshop: out of a building onto that map.
-	if playtest_file != "" and Level.is_outdoor_file(playtest_file):
-		return level_files.size() - 1
 	for i in level_files.size():
 		if Level.is_outdoor_file(level_files[i]):
 			return i
@@ -3634,19 +2579,16 @@ func _home_given_now() -> bool:
 ## the file is really there afterwards. Going away also writes the hero's
 ## plan for the time away and when the player left.
 func save_game(going_away := false) -> bool:
-	if playtest_file != "":
-		return false
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	journal.catch_up()
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "level": level_index, "coins": coins, "iron": iron, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
-		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
-		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(), "home_stores": HomeStores.for_save(home_stores),
+		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(),
 		"saved_at": Time.get_unix_time_from_system(),
-		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(), "floors": _floors_for_save(),
+		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(),
 		"quests": quests.for_save(),
 		"journal": journal.for_save(),
 		"day": day, "bounties": bounties.for_save(),
@@ -3654,25 +2596,13 @@ func save_game(going_away := false) -> bool:
 		"wishes": wishes.for_save(),
 		"reputation": reputation.for_save(),
 		"ties": village_talk.for_save(),
-		"rumours": village_rumours.for_save(),
 		"factions": Factions.for_save(),
-		"monster_lore": MonsterLore.for_save(),
 		"companions": {"list": companions, "following": following, "trust": trust},
 		"hour": day_hour,
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
-		"hoard": hoard.for_save(),
-		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water,
+		"weather": weather, "weather_hours": weather_hours,
 		"inn": level.inn,
 	}
-	if has_camp():
-		# Saved at a camp: the game wakes up there. The floor is kept as
-		# the hero leaves it (monsters slain, doors open, the key), so it is
-		# the same quiet spot after a reload. (The open air keeps no such
-		# record: its monsters come back with the days anyway.)
-		if not level.outdoor:
-			level.note_left()
-			data.looted = _looted_for_save()
-		data.camp = camp.for_save()
 	if going_away:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
 	var path := save_path()
@@ -3682,10 +2612,7 @@ func save_game(going_away := false) -> bool:
 		return false
 	file.store_string(JSON.stringify(data))
 	file.close()
-	var saved := FileAccess.file_exists(path)
-	if saved and save_notice != null:
-		save_notice.flash()
-	return saved
+	return FileAccess.file_exists(path)
 
 
 ## The stone blocks per level file, levels without any left out.
@@ -3695,35 +2622,6 @@ func _builds_for_save() -> Dictionary:
 		if not builds[file].is_empty():
 			out[file] = builds[file]
 	return out
-
-
-## What lies on each level's floor, levels with nothing left out.
-func _floors_for_save() -> Dictionary:
-	var out := {}
-	for key in floors:
-		if not floors[key].is_empty():
-			out[key] = floors[key]
-	return out
-
-
-## Sets an item from the bag down at the hero's feet, on this level's floor
-## (see Level.put_on_floor). It stays there until picked up again.
-func drop_on_floor(id: String) -> void:
-	if level == null or player == null:
-		return
-	var ahead := -player.global_transform.basis.z
-	ahead.y = 0.0
-	var spot := player.global_position + (ahead.normalized() * 0.6 if ahead.length() > 0.01 else Vector3.ZERO)
-	level.put_on_floor(id, spot)
-	Sfx.play_gear(level, id, 0.0, spot)
-
-
-## Gives the hero throwing knives: ready in the belt up to Player.knife_cap,
-## the rest into the bag, and what the bag cannot hold at their feet.
-func give_knives(count: int) -> void:
-	for i in player.add_knives(count):
-		drop_on_floor(Items.KNIFE)
-	_update_hud()
 
 
 ## The looted ids per level file as plain lists, levels with none left out.
@@ -3754,7 +2652,7 @@ func rest_at_inn() -> void:
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
-	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	var tween := create_tween()
 	var bed := _nearest_bed()
 	if bed.is_empty():
 		player.play("Lie_Down", 0.2)
@@ -3770,8 +2668,6 @@ func rest_at_inn() -> void:
 			_new_day(true)
 		day_hour = DayNight.WAKE_HOUR
 		set_weather(Weather.roll(day_hour, _weather_rng))
-		# The puddles dried up overnight.
-		puddle_water = 0.0
 		player.hp = player.max_hp
 		player.cure()
 		player.global_position = level.bed_side if level.bed_side != Vector3.ZERO else player.global_position
@@ -3782,160 +2678,38 @@ func rest_at_inn() -> void:
 		var saved := save_game()
 		player.frozen = false
 		state = State.PLAYING
-		show_message(Lang.t("Ausgeruht! Ein neuer Morgen in den Bergen.") + ("" if saved else "\n" + Lang.t("Speichern fehlgeschlagen!")), 3.5))
+		show_message(Lang.t("Ausgeruht! Ein neuer Morgen in den Bergen.") + "\n" + (Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")), 3.5))
 	tween.tween_property(_fade, "color:a", 0.0, 1.0)
 
 
-## The camp's "rest by the fire" on a dungeon floor (see Camp): the hero
-## lies down on the bedroll and sleeps a while. Mostly they get up rested,
-## with full life, and the game is saved at the camp, which makes it the
-## spot they wake up at after blacking out (see _wake_after_rescue). But
-## now and then (Camp.ambush_chance) monsters creep up to the fire: the
-## rest is cut short with only half the lost life back, nothing is saved,
-## and the hero has to fight. A companion at their side keeps watch
-## instead of lying down, which makes an ambush rarer, or stops it.
-##
-## `roll` is the dice for the ambush, for tests; below 0 it is rolled.
-func rest_at_camp(roll := -1.0) -> void:
-	if state != State.PLAYING or not has_camp() or not Camp.can_rest(level):
-		return
-	var why := Camp.why_no_rest(player, level)
-	if why != "":
-		show_message(why, 2.4)
-		return
-	var guard := camp_guard()
-	var ambushed := (roll if roll >= 0.0 else randf()) < Camp.ambush_chance(level, guard)
-	learn(CAMP_REST_LEARN)
-	state = State.TRANSITION
-	player.frozen = true
-	player.path.clear()
-	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
-	_lie_down_at_camp(tween)
-	tween.tween_interval(1.9)
-	tween.tween_callback(_fall_asleep)
-	tween.tween_interval(1.6)
-	if ambushed:
-		tween.tween_callback(_camp_ambushed.bind(guard))
-		return
-	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
-	tween.tween_callback(func():
-		_stop_snoozing()
-		player.set_asleep(false)
-		player.hp = player.max_hp
-		player.cure()
-		player.global_position = camp.stand_spot()
-		player.reset_physics_interpolation()
-		player.face(camp.global_position - player.global_position)
-		player.play("Idle")
-		_snap_camera()
-		_update_hud()
-		var saved := save_game()
-		player.frozen = false
-		state = State.PLAYING
-		show_message(Lang.t("Ausgeruht! Du hast wieder volles Leben.") + ("" if saved else "\n" + Lang.t("Speichern fehlgeschlagen!")), 3.5))
-	tween.tween_property(_fade, "color:a", 0.0, 1.0)
-
-
-const CAMP_REST_LEARN := "Im Verlies kannst du dich an deinem Lager ausruhen: Du bekommst volles Leben, das Spiel wird gespeichert, und nach einer Ohnmacht wachst du dort auf. Doch manchmal schleichen sich Ungeheuer an (30 %) und wecken dich mit nur halb geheilten Wunden. Ein Gefährte hält Wache: Mit Fuchs (10 %) oder Reh (15 %) wird es seltener, an einen Hirsch wagt sich keiner heran."
-
-
-## The companion at the hero's side that keeps watch at the camp: its kind
-## (see Camp.GUARDS), or "" when none goes with the hero.
-func camp_guard() -> String:
-	if not is_instance_valid(pet):
-		return ""
-	var kind: String = companion().get("kind", pet.kind)
-	return kind if Camp.GUARDS.has(kind) else ""
-
-
-## A rest by the fire cut short: a twig snaps, the hero wakes with half
-## their lost life back and gets up, and the monsters step out of the dark
-## and come for them. Nothing is saved.
-func _camp_ambushed(guard: String) -> void:
-	_stop_snoozing()
-	player.set_asleep(false)
-	player.hp = mini(player.max_hp, player.hp + ceili((player.max_hp - player.hp) / 2.0))
-	_update_hud()
-	Sfx.play(self, "word_knack", -2.0, camp.global_position)
-	var slot := player.find_child("HeadSlot", true, false) as Node3D
-	var head := slot.global_position if slot else player.global_position
-	Effects.float_text(level, head + Vector3(0, 0.8, 0), "!", Color(1.0, 0.5, 0.3), true)
-	var text := Lang.t("Ein Hinterhalt! Ungeheuer schleichen sich an dein Lager heran.")
-	if guard != "":
-		text = Lang.t("%s schlägt Alarm und weckt dich: Ein Hinterhalt!") % companion().get("name", Companions.species_name(guard))
-	show_message(text, 3.5, Color(1.0, 0.75, 0.5))
-	player.get_up_from_bed()
-	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
-	tween.tween_interval(Player.GET_UP_TIME)
-	tween.tween_callback(func():
-		if has_camp():
-			player.global_position = camp.stand_spot()
-			player.reset_physics_interpolation()
-		player.play("Idle", 0.2)
-		player.frozen = false
-		state = State.PLAYING
-		_spawn_ambush())
-
-
-## The monsters of an ambush (see Camp): a few of the floor's own kinds
-## turn up out of the dark around the camp, already after the hero.
-func _spawn_ambush() -> Array[Enemy]:
-	var made: Array[Enemy] = []
-	var kinds := Camp.ambush_kinds(level)
-	if kinds.is_empty():
-		return made
-	var at := camp.global_position if has_camp() else player.global_position
-	for c in Camp.ambush_cells(level, at, Camp.AMBUSHERS):
-		var e: Enemy = level._spawn_enemy(kinds[randi() % kinds.size()], c)
-		e.alert(player.global_position)
-		made.append(e)
-	return made
-
-
-## The bed's "stay awake": saves the game where the hero stands, without
-## logging out, and shows the saved games. Closing that window carries on.
-func stay_awake() -> void:
-	var saved := save_game()
-	menus.saved_now = "ok" if saved else "failed"
-	menus.open("laden")
-
-
-## A night in the bed, or by the fire of the camp (`at_camp`, see Camp):
-## the game is saved, the hero lies down and falls asleep, and the player
-## logs out.
-func sleep(at_camp_now := false) -> void:
-	at_camp_now = at_camp_now and has_camp()
+func sleep() -> void:
 	# A night in the bed: the hero wakes up the next morning.
 	if level.outdoor or level.building != "":
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
 		day_hour = DayNight.WAKE_HOUR
-		# A new morning brings new weather, and the puddles dried up overnight.
+		# A new morning brings new weather.
 		set_weather(Weather.roll(day_hour, _weather_rng))
-		puddle_water = 0.0
 	if level.inn:
 		# A night in an inn's bed: the hero gets up rested.
 		player.hp = player.max_hp
 		player.cure()
 	var saved := save_game(true)
-	# A failed save says so at once (a good one shows the save notice).
-	if not saved:
-		show_message(Lang.t("Speichern fehlgeschlagen!"), 2.4)
+	# Say so at once, so nobody has to wonder whether the save went through.
+	show_message(Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"), 2.4)
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
-	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
-	var bed := {} if at_camp_now else _nearest_bed()
-	if at_camp_now:
-		_lie_down_at_camp(tween)
-	elif bed.is_empty():
+	var tween := create_tween()
+	var bed := _nearest_bed()
+	if bed.is_empty():
 		player.play("Lie_Down", 0.2)
 	else:
 		_climb_into_bed(tween, bed)
 	if is_instance_valid(pet):
 		# The fox goes to bed too: into its basket beside the hero's bed. A
-		# doe or a stag lies down where it is, and so does the fox at a camp.
-		pet.go_to_bed(level.fox_bed_near(bed.pos if not bed.is_empty() else player.global_position) if pet.kind == "fuchs" and not at_camp_now else Vector3.INF)
+		# doe or a stag lies down where it is.
+		pet.go_to_bed(level.fox_bed_near(bed.pos if not bed.is_empty() else player.global_position) if pet.kind == "fuchs" else Vector3.INF)
 	# Settled on the back, the hero closes their eyes and drifts off: a few
 	# floating Z's and some soft snoring before the night falls.
 	tween.tween_interval(1.9)
@@ -3978,7 +2752,7 @@ func _float_snooze_letter(i: int) -> void:
 	var label := Label3D.new()
 	label.text = SNOOZE_LETTERS[i]
 	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
-	label.font_size = UiKit.sized(72 - i * 7)
+	label.font_size = 72 - i * 7
 	label.pixel_size = 0.012
 	label.outline_size = 12
 	label.outline_modulate = Color(0.05, 0.03, 0.12, 0.9)
@@ -4020,65 +2794,6 @@ func _nearest_bed() -> Dictionary:
 	return best
 
 
-## A few steps onto the bedroll of the camp, then the hero lies down on
-## their back with the head on its rolled-up end.
-func _lie_down_at_camp(tween: Tween) -> void:
-	var spot := camp.lie_spot()
-	var from := player.global_position
-	var foot := camp.foot()
-	player.velocity = Vector3.ZERO
-	player.face(spot - from)
-	player.play("Walking_A", 0.1)
-	tween.tween_method(func(t: float):
-		player.global_position = from.lerp(spot, t), 0.0, 1.0, 0.5)
-	tween.tween_callback(func():
-		# Lying down falls backwards, so face the foot of the bedroll.
-		player.face(foot)
-		player.play("Lie_Down", 0.15))
-
-
-## A game saved asleep at a camp starts there: the hero lies on the bedroll
-## by the fire while the night fades, opens their eyes, yawns and gets up.
-## `done` runs once the hero can move again. Returns false (and does
-## nothing) if the game was not saved asleep at a camp.
-func _wake_at_camp(data: Dictionary, done: Callable) -> bool:
-	if not saved_in_bed(data) or Camp.from_save(data.get("camp")).is_empty() or not has_camp():
-		return false
-	_waking = true
-	state = State.TRANSITION
-	var lie := camp.lie_spot()
-	var stand := Vector3(lie.x, camp.global_position.y, lie.z)
-	player.frozen = true
-	player.path.clear()
-	player.velocity = Vector3.ZERO
-	player.global_position = lie
-	player.reset_physics_interpolation()
-	player.face(camp.foot())
-	player.lie_asleep()
-	_fall_asleep()
-	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
-	tween.tween_interval(WAKE_SLEEP)
-	tween.tween_callback(func():
-		_stop_snoozing()
-		player.set_asleep(false))
-	tween.tween_interval(WAKE_YAWN)
-	tween.tween_callback(func():
-		var slot := player.find_child("HeadSlot", true, false) as Node3D
-		var head := slot.global_position if slot else player.global_position
-		Effects.float_text(level, head + Vector3(0, 0.8, 0), Lang.t("Gähn!"), Color(0.85, 0.9, 1.0), true))
-	tween.tween_interval(WAKE_STRETCH)
-	tween.tween_callback(player.get_up_from_bed)
-	tween.tween_interval(Player.GET_UP_TIME)
-	tween.tween_callback(func():
-		player.global_position = stand
-		player.play("Idle", 0.2)
-		player.frozen = false
-		_waking = false
-		state = State.PLAYING
-		done.call())
-	return true
-
-
 ## A little hop up onto the mattress, then the hero lies down on their back
 ## with the head on the pillow and the feet towards the foot of the bed.
 func _climb_into_bed(tween: Tween, bed: Dictionary) -> void:
@@ -4114,7 +2829,7 @@ const WAKE_HOP := 0.45
 ## (see _wake_in_bed); otherwise, or once out of bed, the welcome-back
 ## window tells what the hero did while the player was away.
 func _after_load(data: Dictionary) -> void:
-	if not _wake_at_camp(data, _return_from_away.bind(data)) and not _wake_in_bed(data, _return_from_away.bind(data)):
+	if not _wake_in_bed(data, _return_from_away.bind(data)):
 		_return_from_away(data)
 
 
@@ -4151,7 +2866,6 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 	player.path.clear()
 	player.velocity = Vector3.ZERO
 	player.global_position = lie
-	player.reset_physics_interpolation()
 	player.face(foot)
 	player.lie_asleep()
 	var fox_wakes := false
@@ -4161,7 +2875,7 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 			pet.sleep_in_basket(basket)
 			fox_wakes = true
 	_fall_asleep()
-	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	var tween := create_tween()
 	tween.tween_interval(WAKE_SLEEP)
 	tween.tween_callback(func():
 		_stop_snoozing()
@@ -4278,17 +2992,17 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 		player.train(id, result.study_xp[id], false)
 	player.set_block_signals(false)
 	coins += int(result.gold)
-	give_knives(int(result.knives))
+	player.knives += int(result.knives)
 	var repaired := _repair_gear(int(result.repairs))
 	# Cut stone blocks go into the storage chest, as many as it still holds.
 	var stones := 0
 	for i in int(result.get("stones", 0)):
-		if not HomeUpgrades.storage_fits(home_upgrades, storage, Menus.STONE):
+		if storage.size() >= HomeUpgrades.storage_size(home_upgrades):
 			break
 		storage.append(Menus.STONE)
 		stones += 1
 	if spent.job > 0.0:
-		lines.append(Lang.t("%s: %s, +%d Kupfer") % [Lang.t(Offline.JOBS[plan.job].name), Offline.duration_text(spent.job), result.gold])
+		lines.append(Lang.t("%s: %s, +%d Gold") % [Lang.t(Offline.JOBS[plan.job].name), Offline.duration_text(spent.job), result.gold])
 	if spent.train > 0.0:
 		lines.append(Lang.t("Training (%s): %s") % [_training_name(plan.train), Offline.duration_text(spent.train)])
 	if spent.study > 0.0:
@@ -4383,220 +3097,26 @@ func level_hint(index: int) -> Dictionary:
 	return info
 
 
-## How far from the hero a spoken line is still heard and written into the
-## event log, in metres.
-const HEAR_RANGE := 14.0
-
-
-## A line someone said (see Events.say): into the event log when the hero is
-## near enough to hear it.
-func heard(speaker: String, text: String, pos: Vector3) -> void:
-	if player == null or not player.is_inside_tree():
-		return
-	var d := pos - player.global_position
-	d.y = 0.0
-	if d.length() <= HEAR_RANGE:
-		event_log.add_speech(speaker, text)
-
-
-## The passing troubles the hero is in, as [kind, number] pairs in their
-## fixed order (see StatusIcon): shown under the life bar.
-func hero_ailments() -> Array:
-	var out := []
-	for kind in ["gift", "fluch", "brand", "netz", "angst"]:
-		if player.ailments.has(kind):
-			out.append([kind, ""])
-	if player.ailments.has(BloatedBelly.KIND):
-		out.append([BloatedBelly.KIND, BloatedBelly.countdown(player.ailments[BloatedBelly.KIND])])
-	# Slower only from a heavy load (the curse and the web that slow have their own icons,
-	# and a little gear is normal); not while faster all the same.
-	if not _hero_fast() and Items.load_factor(player.load_weight()) <= 1.0 - Items.MAX_WEIGHT_SLOW * 0.5:
-		out.append(["slow", ""])
-	return out
-
-
-## The boons the hero has, as [kind, number] pairs in their fixed order (see
-## StatusIcon): shown in the status block at the top left.
-func hero_boons() -> Array:
-	var out := []
-	if player.power > 1:
-		out.append(["power", str(player.power)])
-	if _hero_fast():
-		out.append(["fast", ""])
-	if player.hardening > 0 or player.armour_value > 0:
-		out.append(["hardening", str(player.hardening)])
-	return out
-
-
-## Faster than normal from gifts, level or Tempo (leaving out the curse's and
-## the web's slowness, which have icons of their own).
-func _hero_fast() -> bool:
-	var unslowed := player.base_speed / (Player.CURSE_SLOW if player.ailments.has("fluch") else 1.0) \
-			/ (Player.WEB_SLOW if player.ailments.has("netz") else 1.0) \
-			/ (BloatedBelly.SLOW if player.ailments.has(BloatedBelly.KIND) else 1.0)
-	return unslowed > Player.SPEED + 0.01
-
-
-func _update_status_icons() -> void:
-	_fill_icon_row(_status_row, hero_ailments())
-	_fill_icon_row(_boon_row, hero_boons())
-	_fill_icon_row(_notice_row, hero_notices())
-
-
-## What a condition or notice icon means, in a sentence: shown when the
-## pointer rests on the icon, and written into the event log when it first
-## appears (touch has no pointer to rest).
-func icon_text(kind: String, number: String) -> String:
-	match kind:
-		"gift": return Lang.t("Vergiftet: Du verlierst alle paar Sekunden ein Leben, nie das letzte. Ein Brunnen, ein Schrein oder ein Heiltrank heilt es.")
-		"fluch": return Lang.t("Verflucht: Du bist langsamer. Es vergeht bald; ein Brunnen, ein Schrein oder ein Heiltrank heilt es sofort.")
-		"brand": return Lang.t("Du brennst: Ein paar Sekunden lang verlierst du Leben, nie das letzte.")
-		"netz": return Lang.t("Eingesponnen: Spinnenseide klebt an dir. Ein paar Sekunden lang bist du viel langsamer.")
-		"angst": return Lang.t("Verängstigt: Ein Geist hat dich in Panik versetzt. Ein paar Sekunden lang rennst du zum nächsten Ausgang. Weisheit, Intuition und Erkunden helfen, standhaft zu bleiben.")
-		BloatedBelly.KIND: return Lang.t("Zu viel Wasser getrunken: Dein Bauch ist prall und du bist viel langsamer. Noch %s, dann geht es von selbst vorbei.") % BloatedBelly.long_countdown(player.ailments.get(BloatedBelly.KIND, 0.0))
-		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
-		"fast": return Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
-		"slow": return Lang.t("Schwer beladen: Du läufst langsamer. Leg im Inventar (I) etwas ab.")
-		"hardening": return Lang.t("Härtung %s: Jeder Treffer gegen dich wird um so viel schwächer, bleibt aber mindestens halb so stark.") % number \
-				+ ("\n" + Lang.t("Rüstungswert %d %%: Was übrig bleibt, wird um diesen Anteil kleiner.") % player.armour_value if player.armour_value > 0 else "")
-		"repair": return Lang.t("Abgenutzt: %s Teil(e) deiner Ausrüstung. Plane beim Schlafen „Ausrüstung ausbessern“ ein, sonst zerbrechen sie.") % number
-		"upgrade": return Lang.t("Hagen der Steinmetz kann jetzt einen Ausbau für dein Haus bauen.")
-	return ""
-
-
-## Things waiting for the hero, as [kind, number] pairs (see StatusIcon):
-## worn gear to mend (half its durability or more used up) and a home
-## upgrade Hagen could build right now. (A free level point is told beside
-## the hero level, with its key.)
-func hero_notices() -> Array:
-	var out := []
-	var worn := 0
-	for id in player.equipped.values():
-		var durability: int = Items.ALL.get(id, {}).get("durability", 0)
-		if durability > 0 and player.wear.get(id, 0) * 2 >= durability:
-			worn += 1
-	if worn > 0:
-		out.append(["repair", str(worn)])
-	for id in HomeUpgrades.ALL:
-		if HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, coins) == "":
-			out.append(["upgrade", ""])
-			break
-	return out
-
-
-## Shows `wanted` ([kind, number] pairs) as icons in `row`, rebuilt only
-## when something changed.
-func _fill_icon_row(row: HBoxContainer, wanted: Array) -> void:
-	var shown := []
-	for icon in row.get_children():
-		shown.append([icon.kind, icon.value])
-	if shown == wanted:
-		return
-	# Only the numbers changed (a countdown): the icons stay and take the new
-	# number and explanation, so a tooltip being read is not torn away.
-	if shown.size() == wanted.size() and range(shown.size()).all(func(i): return shown[i][0] == wanted[i][0]):
-		for i in wanted.size():
-			var icon: StatusIcon = row.get_child(i)
-			icon.set_number(wanted[i][1], icon_text(wanted[i][0], wanted[i][1]))
-		return
-	var had := []
-	for icon in row.get_children():
-		had.append(icon.kind)
-		row.remove_child(icon)
-		icon.queue_free()
-	for c in wanted:
-		var text := icon_text(c[0], c[1])
-		row.add_child(StatusIcon.make(c[0], c[1], text))
-		# A new icon is explained once in the event log as well.
-		if not had.has(c[0]) and text != "" and state == State.PLAYING:
-			Events.found(text, StatusIcon.log_color(c[0]))
-
-
-
-## The dark well of a HUD bar (life, running, experience).
-static func bar_back() -> StyleBoxFlat:
-	var back := StyleBoxFlat.new()
-	back.bg_color = Color(0.07, 0.035, 0.02, 0.9)
-	back.set_corner_radius_all(4)
-	return back
-
-
-## A HUD bar's fill: a glossy band from `colors` (top, middle, foot).
-static func bar_fill(colors: Array) -> StyleBoxTexture:
-	var gradient := Gradient.new()
-	gradient.offsets = PackedFloat32Array([0.0, 0.6, 1.0])
-	gradient.colors = PackedColorArray(colors)
-	var tex := GradientTexture2D.new()
-	tex.gradient = gradient
-	tex.fill_from = Vector2(0, 0)
-	tex.fill_to = Vector2(0, 1)
-	tex.width = 4
-	tex.height = 32
-	var fill := StyleBoxTexture.new()
-	fill.texture = tex
-	return fill
-
-
-## The bronze rim of a HUD bar: a frame with an empty middle, laid just
-## around the bar, so the bar keeps its size and its fill shows whole.
-static func bar_rim() -> Panel:
-	var rim := Panel.new()
-	rim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	rim.offset_left = -BAR_RIM
-	rim.offset_top = -BAR_RIM
-	rim.offset_right = BAR_RIM
-	rim.offset_bottom = BAR_RIM
-	rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style := UiKit.frame_style(Color.TRANSPARENT, UiKit.BRONZE, BAR_RIM, 5)
-	style.draw_center = false
-	rim.add_theme_stylebox_override("panel", style)
-	return rim
-
-
-## Keeps the life bar and the icons under it at one fixed spot on screen:
-## centred across, at HP_BAR_Y of the height. It does not follow the hero,
-## so it never moves while the camera trails, shakes or zooms.
-func _place_hp_bar() -> void:
-	var on_screen := state == State.PLAYING and player != null and player.is_inside_tree() and not player.dead \
-			and camera != null
-	_hp_bar.visible = on_screen
-	_status_row.visible = on_screen
-	_ammo_row.visible = on_screen
-	if not on_screen:
-		return
-	var screen := _hud.get_viewport().get_visible_rect().size
-	_hp_bar.position = Vector2((screen.x - HP_BAR_SIZE.x) / 2.0, screen.y * HP_BAR_Y).round()
-	# Under the bar from its left edge: the ammunition, then the troubles.
-	_ammo_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 5)
-	_status_row.position = _ammo_row.position + Vector2(AMMO_SLOT.x * AMMO.size() + AMMO_GAP, 0)
-
-
-## Writes the ammunition counts under the life bar; an empty kind is dimmed.
-func _update_ammo() -> void:
-	for ammo in AMMO:
-		var n := int(player.get(ammo[0]))
-		var count: Label = _ammo_counts[ammo[0]]
-		count.text = str(n)
-		var slot := count.get_parent() as Control
-		slot.modulate.a = 1.0 if n > 0 else 0.45
-		slot.tooltip_text = Lang.t(ammo[2]) % _ammo_tip_values(ammo[0], n)
-
-
-## The numbers for an ammunition tooltip (see AMMO): for knives the ready
-## count, how many can be ready, the spares in the bag, the damage of a
-## throw and the chance in percent that a thrown knife breaks.
-func _ammo_tip_values(field: String, n: int) -> Array:
-	if field == "knives":
-		return [n, player.knife_cap(), player.spare_knives(), player.throw_power(),
-				roundi(Projectile.KNIFE_BREAK_CHANCE * 100.0)]
-	return [n]
-
-
-## News about a task (a new one, progress, done): a message over the hero's
-## head (no extra word floats up there: it would only say the same twice).
-func quest_news(text: String, _color: Color, duration := 4.0) -> void:
+## News about a task (a new one, progress, done): a message and a word over
+## the hero's head.
+func quest_news(text: String, color: Color, duration := 4.0) -> void:
 	show_message(text, duration)
+	# The words floating up from the hero would cover the villager's speech
+	# bubble right beside them: the message at the bottom says it already.
+	if not _villager_talking_near_hero():
+		Effects.float_text(level, player.global_position + Vector3(0, 3.2, 0), text.get_slice("\n", 0), color, true)
 	_update_hud()
+
+
+## Whether a villager whose speech bubble would lie over the hero's head is
+## talking right now (see Villager.BUBBLE_ROOM).
+func _villager_talking_near_hero() -> bool:
+	if not level is Outdoor or player == null:
+		return false
+	for v in level.villagers:
+		if is_instance_valid(v) and v.visible and v.is_talking() and Vector2(v.global_position.x - player.global_position.x, v.global_position.z - player.global_position.z).length() < Villager.BUBBLE_ROOM:
+			return true
+	return false
 
 
 ## A task is done: the reward, with a jingle.
@@ -4613,13 +3133,22 @@ func quest_reward(id: String) -> void:
 ## Several at once (word of mouth after a task) are told together, once the
 ## reward has been read.
 func reputation_rose(role: String, new_level: int) -> void:
-	# Only what changed, as one line in the event log: the whole list of
-	# villagers is in the compendium (H, "Ruf") for whoever wants to look.
-	var line := Lang.t("Ansehen bei %s: %s") % [Quests.villager_name(role), Reputation.level_name(new_level)]
+	var line := "%s: %s" % [Quests.villager_name(role), Reputation.level_name(new_level)]
 	var off := roundi(Reputation.LEVELS[new_level].discount * 100.0)
 	if off > 0:
 		line += Lang.t(" (%d%% Rabatt)") % off
-	Events.found(line, Menus.REPUTATION_COLOR)
+	if level and not _villager_talking_near_hero():
+		Effects.float_text(level, player.global_position + Vector3(0, 3.8, 0), line, Color(0.75, 0.6, 1.0), true)
+	_reputation_news.append(line)
+	if _reputation_news.size() == 1:
+		get_tree().create_timer(REPUTATION_NEWS_DELAY).timeout.connect(_show_reputation_news)
+
+
+func _show_reputation_news() -> void:
+	if _reputation_news.is_empty():
+		return
+	show_message(Lang.t("Dein Ruf im Dorf steigt:") + "\n" + "\n".join(_reputation_news), 5.0)
+	_reputation_news.clear()
 	learn(Reputation.HOW_TO)
 
 
@@ -4674,9 +3203,8 @@ func map_explored(file: String) -> void:
 	show_message(Lang.t("Ganz erkundet: %s\nDein Blick für Verborgenes wird schärfer (Erkunden).") % journal.level_title(file), 4.0)
 
 
-## The hero noticed a writing on a wall (see Level.reveal_writing) or read
-## one again: it pops up on a card (see WritingCard) and goes into the
-## compendium and the journal; a new one trains Erkunden a little.
+## The hero noticed a writing on a wall (see Level.reveal_writing): it goes
+## into the compendium and the journal; a new one trains Erkunden a little.
 func writing_found(text: String) -> void:
 	if not lore.has(text):
 		player.train("erkunden", Training.EXPLORE_WRITING_FOUND)
@@ -4690,79 +3218,7 @@ func writing_found(text: String) -> void:
 	learn(text)
 	learn(EXPLORE_LEARN)
 	Sfx.play(self, "secret", -8.0)
-	if WritingCard.word_of(text) != "":
-		writing_card.show_writing(text)
-	else:
-		show_message(Lang.t(text), 6.0)
-
-
-## The hero spotted a hidden trap (see Traps): it trains Erkunden and earns
-## a little experience, and the compendium explains traps.
-func trap_spotted(text: String, place_level: int) -> void:
-	player.train("erkunden", Training.EXPLORE_TRAP_FOUND)
-	learn(Traps.LEARN)
-	earn_xp(HeroLevel.time_xp(HeroLevel.TRAP_MINUTES, place_level, player.hero_level()))
-	show_message(text, 3.5)
-
-
-## A teleporter trap flung the hero across the level (see Traps).
-func _on_trap_teleport(_to: Vector3) -> void:
-	learn(Traps.LEARN)
-	_snap_camera()
-	if is_instance_valid(pet):
-		pet.arrive()
-	show_message(Lang.t("Eine Teleportfalle! Sie hat dich an einen anderen Ort geschleudert."), 3.0)
-
-
-## The floor gave way under the hero (a trapdoor, see Traps): they fall to
-## the level below, land somewhere near its start and take `damage`.
-func _fall_through_trapdoor(damage: int) -> void:
-	if state != State.PLAYING:
-		return
-	state = State.TRANSITION
-	player.frozen = true
-	player.path.clear()
-	player.velocity = Vector3.ZERO
-	learn(Traps.LEARN)
-	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
-	tween.tween_property(player, "global_position:y", player.global_position.y - 3.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
-	tween.tween_callback(_land_below.bind(damage))
-
-
-func _land_below(damage: int) -> void:
-	if level.building == "":
-		# Down to the floor below in the dungeon: the hero climbs the dungeon
-		# upwards (the stairs lead to level_index + 1, see _next_level), so the
-		# floor below is the one they came from. It is not a floor cleared, so
-		# it does not count towards dry_levels.
-		Training.save_hero(hero_name, player.xp, player.level_data())
-		level.note_left()
-		load_level(level_index - 1, false)
-	else:
-		load_level(interiors[level.down_to], false)
-	player.global_position = level.cell_to_world(Traps.landing_cell(level))
-	player.reset_physics_interpolation()
-	player.velocity = Vector3.ZERO
-	player.face(Vector3.BACK)
-	if is_instance_valid(pet):
-		pet.arrive()
-	_snap_camera()
-	player.frozen = false
-	state = State.PLAYING
-	create_tween().tween_property(_fade, "color:a", 0.0, 0.8)
-	_announce_level()
-	Sfx.play(self, "rumble", -4.0)
-	_shake = 0.5
-	# The landing hurts, even though arriving on a level gives a moment's grace.
-	player._invulnerable = 0.0
-	player.take_damage(damage, player.global_position + Vector3(0, 0, 1), null, false)
-	var here := level
-	get_tree().create_timer(3.8).timeout.connect(func():
-		if level == here and state == State.PLAYING:
-			show_message(Lang.t("Eine Falltür! Du bist eine Ebene tiefer gestürzt."), 3.0))
-	if level.safe:
-		_autosave()
+	show_message(Lang.t(text), 6.0)
 
 
 ## Records where the hero found something, for the map and the journal (see
@@ -4791,219 +3247,29 @@ func learn(entry: String) -> void:
 		player.train("intelligenz", 5.0)
 
 
-## Where the message lines float, as the lower edge's centre on screen
-## (smoothed, see place_message), and how far they were lifted over the
-## words rising from the hero's head while the current messages show.
-var _message_at := Vector2.INF
-var _message_lift := 0.0
-
-
-## Puts the message lines at their place: centred just over the name above
-## the hero's head, so the eye finds them where it already is. Words rising
-## from the head (damage, experience, a level-up) never run through them:
-## the lines move up out of their way, and only down again once nothing is
-## shown. Without a hero on screen they sit low in the middle. Never under
-## a wall writing's card (see WritingCard). Called every frame with `delta`
-## to follow the hero smoothly; 0 puts them in place at once.
-func place_message(delta := 0.0) -> void:
-	var screen := _hud.get_viewport().get_visible_rect().size
-	var width := minf(MESSAGE_WIDTH, screen.x - 2.0 * SCREEN_TEXT_MARGIN)
-	var target := Vector2(screen.x / 2.0, screen.y - MESSAGE_BOTTOM)
-	var head := _hero_head_on_screen()
-	if head != Vector2.INF:
-		target = head - Vector2(0, MESSAGE_HEAD_GAP)
-	if _message_at == Vector2.INF or delta <= 0.0 or head == Vector2.INF or not _messages_shown():
-		_message_at = target
-	else:
-		_message_at = _message_at.lerp(target, 1.0 - exp(-20.0 * delta))
-	if not _messages_shown():
-		_message_lift = 0.0
-	# Across: centred over the hero, kept clear of the event log and the
-	# first-steps card at the left where the screen is wide enough for that.
-	var lowest_left := MESSAGE_MARGIN if screen.x - 2.0 * MESSAGE_MARGIN >= width else (screen.x - width) / 2.0
-	var left := clampf(_message_at.x - width / 2.0, lowest_left, screen.x - lowest_left - width)
-	var bottom := minf(_message_at.y, screen.y - maxf(writing_card.clearance(), 24.0))
-	var height := _message_box.get_combined_minimum_size().y
-	if head != Vector2.INF and _messages_shown():
-		_message_lift = maxf(_message_lift, _lift_over_words(Rect2(left, bottom - height, width, height)))
-	bottom -= _message_lift
-	# Never up into the status line at the top.
-	bottom = maxf(bottom, MESSAGE_TOP + height)
-	_message_box.offset_left = round(left)
-	_message_box.offset_right = round(left + width)
-	_message_box.offset_top = round(bottom)
-	_message_box.offset_bottom = round(bottom)
-
-
-## The top of the name over the hero's head on screen, seen through the
-## camera, for the hero standing on the ground (a jump does not toss the
-## messages about); INF while no hero is on screen to float over.
-func _hero_head_on_screen() -> Vector2:
-	if state != State.PLAYING or player == null or not player.is_inside_tree() or player.dead or camera == null:
-		return Vector2.INF
-	# Where the hero is drawn this frame (between physics ticks), so the
-	# lines move with the hero and do not judder (see SmoothMotion).
-	var feet := SmoothMotion.drawn_at(player)
-	if not player.frozen:
-		feet.y = minf(feet.y, 0.5)
-	var top := feet + Vector3(0, Player.NAME_TAG_TOP, 0)
-	if camera.is_position_behind(top):
-		return Vector2.INF
-	return camera.unproject_position(top)
-
-
-## How far `box` has to move up to clear the words rising over heads and at
-## spots that it would lie on (see DamageNumber.columns).
-func _lift_over_words(box: Rect2) -> float:
-	var lift := 0.0
-	for column in DamageNumber.columns(camera):
-		var rect: Rect2 = column.rect
-		var moved := Rect2(box.position - Vector2(0, lift), box.size)
-		# Only the words that would start under or inside the lines push them;
-		# a stack higher up on screen is left alone.
-		if moved.intersects(rect.grow(2.0)) and rect.end.y > moved.position.y + moved.size.y * 0.5:
-			lift = maxf(lift, box.end.y - rect.position.y + MESSAGE_GAP)
-	return lift
-
-
-## Whether a message line is on screen or about to fade in.
-func _messages_shown() -> bool:
-	if _message_tween != null and _message_tween.is_running():
-		return true
-	return not message_lines().filter(func(l): return l.modulate.a > 0.05 and l.text != "").is_empty()
-
-
-## The screen boxes of the message lines that show, for the comic bubbles to
-## keep clear of (see Comic.avoid).
-func message_rects() -> Array[Rect2]:
-	var out: Array[Rect2] = []
-	for line in message_lines():
-		if line.modulate.a > 0.05 and line.text != "":
-			out.append(line.get_global_rect())
-	return out
-
-
-## The screen boxes of the HUD that rides under the hero (life bar, ammunition
-## and status icons) and of the prompt beside him, for the song sheet to
-## keep clear of (see SongSheet).
-func hero_hud_rects() -> Array[Rect2]:
-	var out: Array[Rect2] = []
-	for c: Control in [_hp_bar, _ammo_row, _status_row, _prompt]:
-		if not c or not c.is_visible_in_tree() or c.modulate.a <= 0.05 or c.size == Vector2.ZERO:
-			continue
-		var rect := c.get_global_rect()
-		if c is Label:
-			# A label as wide as the screen: only its words count.
-			var l := c as Label
-			if l.text == "":
-				continue
-			var w := l.get_theme_font("font").get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, l.get_theme_font_size("font_size")).x
-			rect = Rect2(rect.get_center().x - w * 0.5, rect.position.y, w, rect.size.y)
-		out.append(rect)
-	return out
-
-
-## Shows a message just over the hero's head for `duration` seconds, in
-## `color` (white, or gold for great news), and writes it into the event
-## log, where it can be read again later. A message that came just before
-## and is not read yet moves up a line instead of being covered or lost.
-func show_message(text: String, duration := 2.2, color := Color.WHITE) -> void:
-	event_log.add_message(text, color)
-	_keep_unread_message(text)
+func show_message(text: String, duration := 2.2) -> void:
 	_message.text = text
-	_message_duration = duration
-	_message.add_theme_color_override("font_color", color)
-	_style_message(_message, _message_size(text))
+	# Very long messages get a smaller font so they stay at a few lines.
+	var size := MESSAGE_FONT_SIZE
+	if text.length() > 160:
+		size = MESSAGE_FONT_SIZE - 4
+	elif text.length() > 90:
+		size = MESSAGE_FONT_SIZE - 2
+	_message.add_theme_font_size_override("font_size", size)
+	_message.add_theme_constant_override("outline_size", maxi(4, size / 6))
 	if _message_tween:
 		_message_tween.kill()
 	_message_tween = create_tween()
-	place_message()
 	_message_tween.tween_property(_message, "modulate:a", 1.0, 0.25)
 	_message_tween.tween_interval(duration)
 	_message_tween.tween_property(_message, "modulate:a", 0.0, 0.6)
 
 
-## Space between two message lines, in pixels.
-const MESSAGE_GAP := 8
-## Seconds a message needs to be read: a second to look, then 60 ms per
-## letter (the ux-ui guide's rule for toasts).
-static func read_time(text: String) -> float:
-	return 1.0 + text.length() * 0.06
-
-
-## Very long messages get a smaller font so they stay at a few lines.
-func _message_size(text: String) -> int:
-	if text.length() > 160:
-		return MESSAGE_FONT_SIZE - 4
-	if text.length() > 90:
-		return MESSAGE_FONT_SIZE - 2
-	return MESSAGE_FONT_SIZE
-
-
-func _style_message(line: Label, size: int) -> void:
-	line.add_theme_font_size_override("font_size", UiKit.sized(size))
-	line.add_theme_constant_override("outline_size", maxi(3, UiKit.sized(size) / 6))
-
-
-## Most unread messages kept above the newest one; an older one makes room.
-const MESSAGE_KEPT := 2
-
-
-func _message_line() -> Label:
-	var line := _make_label(TEXT_FONT, MESSAGE_FONT_SIZE)
-	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	line.modulate.a = 0.0
-	return line
-
-
-## The message on screen moves up a line and stays until it is read, when a
-## new one comes before that. One read already, or the same text again, is
-## simply replaced.
-func _keep_unread_message(new_text: String) -> void:
-	# Asked by the tween, not by the line's alpha: a message shown in the same
-	# frame has not faded in yet, but it is still unread.
-	if _message_tween == null or not _message_tween.is_running() or _message.text == "" or _message.text == new_text:
-		return
-	var shown := _message_tween.get_total_elapsed_time()
-	var needed := minf(read_time(_message.text), _message_duration + 0.25)
-	if shown >= needed:
-		return
-	var kept := _message_line()
-	kept.text = _message.text
-	kept.add_theme_color_override("font_color", _message.get_theme_color("font_color"))
-	_style_message(kept, _message_size(_message.text))
-	kept.modulate.a = _message.modulate.a
-	_message_box.add_child(kept)
-	_message_box.move_child(kept, _message.get_index())
-	_message_kept.append(kept)
-	while _message_kept.size() > MESSAGE_KEPT:
-		_message_kept.pop_front().queue_free()
-	var tween := kept.create_tween()
-	tween.tween_property(kept, "modulate:a", 1.0, 0.15)
-	tween.tween_interval(maxf(needed - shown, 0.8))
-	tween.tween_property(kept, "modulate:a", 0.0, 0.6)
-	tween.tween_callback(func():
-		_message_kept.erase(kept)
-		kept.queue_free())
-
-
-## The message lines on screen now, oldest first, the newest last (for tests).
-func message_lines() -> Array[Label]:
-	var lines: Array[Label] = []
-	for line in _message_kept:
-		if is_instance_valid(line) and not line.is_queued_for_deletion():
-			lines.append(line)
-	lines.append(_message)
-	return lines
-
-
 func _on_key_collected() -> void:
 	level.has_key = true
-	player.play_flourish("PickUp", 0.6)
+	player.play_once("PickUp", 0.6)
 	Sfx.play(self, "key")
 	show_message(Lang.t("Du hast den Schlüssel gefunden!"))
-	Events.found(Lang.t("Du hast den Schlüssel gefunden!"), GOLD)
 	player.train("weisheit", 3.0)
 	_update_hud()
 
@@ -5021,8 +3287,10 @@ func _on_gate_opened(pos: Vector3) -> void:
 	Comic.pop(pos, "rumble")
 	Sfx.play(self, "rumble", 0.0, pos)
 	Sfx.play(self, "chain", -4.0, pos)
-	show_message(Lang.t("Alle Druckplatten sind belegt: Das Eisengitter versinkt im Boden!"), 3.5, GOLD)
+	show_message(Lang.t("Alle Druckplatten sind belegt: Das Eisengitter versinkt im Boden!"), 3.5)
 	Events.bus().riddle_solved.emit("puzzle", HeroLevel.place_level(level))
+	_message.add_theme_color_override("font_color", GOLD)
+	get_tree().create_timer(3.8).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
 
 
 ## A lever torch found: a click and a golden message, then, a moment later,
@@ -5037,7 +3305,9 @@ func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 	Comic.pop(lever_pos, "lever")
 	Sfx.play(self, "lever_pull", -2.0, lever_pos)
 	learn("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!")
-	show_message(Lang.t("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!"), 4.5, GOLD)
+	show_message(Lang.t("Diese Fackelhalterung sieht seltsam aus.\nDu ziehst daran und hörst in der Ferne Stein, der sich bewegt!"), 4.5)
+	_message.add_theme_color_override("font_color", GOLD)
+	get_tree().create_timer(4.8).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
 	var tier: Dictionary = Level.TIERS[level.secret_tier]
 	var here := level
 	await get_tree().create_timer(Level.SECRET_DELAY).timeout
@@ -5051,79 +3321,21 @@ func _on_secret_found(lever_pos: Vector3, wall_pos: Vector3) -> void:
 
 
 ## A piece of gear a skeleton dropped.
-## Picked up again: the first time, the compendium explains thrown knives.
-const KNIFE_LORE := "Wurfmesser: Ein geworfenes Messer bleibt liegen, wo es landet, und du hebst es auf, wenn du darüberläufst. Bei einem von fünf Würfen zerbricht es allerdings. Griffbereit für den Kampf trägst du 3 Wurfmesser und eines mehr je zwei Stufen Messerwurf; weitere wandern in den Rucksack (10 auf einem Platz). Sobald kein Kampf mehr tobt, steckst du sie von dort nach."
-
-
 func _on_item_collected(id: String) -> void:
-	if id == Items.KNIFE:
-		# A thrown knife picked up again: into the belt while it has room.
-		give_knives(1)
-		Sfx.play(self, "gear_metal_%d" % (randi() % 3), -10.0)
-		Effects.loot_text(level, player.global_position + Vector3(0, 3.0, 0), Lang.t("+%d Wurfmesser") % 1, AMMO_COLOR, 0.0)
-		Events.teach(KNIFE_LORE)
-		return
 	player.bag.append(id)
 	if Items.ALL.get(id, {}).get("slot", "") == "erz":
 		# Where ore turned up goes on the map (see Journal).
 		note_find("ore", id, Items.ALL[id].name, player.global_position)
 	Sfx.play(self, "key", -3.0)
-	Effects.loot_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Rarity.color(id), DamageNumber.item_worth(id))
-	Events.found(Lang.t("Gefunden: %s (%s)") % [Rarity.marked(id), Items.describe(id)])
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Color(0.75, 0.9, 1.0), true)
+	show_message(Lang.t("Gefunden: %s (%s)") % [Items.item_name(id), Items.describe(id)] + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
 	_update_hud()
 
 
-## Coins picked up off the floor. The money (copper, see Loot.MONEY) goes
-## into the purse, and the lucky clover doubles what was found, not what the
-## hero had put down themselves (`own`); the other metals go there too (see
-## Crafting.purse).
-func _on_coins_collected(amount: int, metal := CoinPile.MONEY, own := 0) -> void:
-	own = clampi(own, 0, amount)
-	if metal != CoinPile.MONEY:
-		if Crafting.INGREDIENTS.has(metal):
-			_on_ingredient_collected(metal, amount, true)
-		return
-	var gained := _gold(amount - own) + own
-	coins += gained
-	Events.found(Lang.t("+%d Kupfer") % gained, GOLD)
-	Sfx.play_coins(self, gained)
+func _on_coins_collected(amount: int) -> void:
+	coins += _gold(amount)
+	Sfx.play_coins(self, _gold(amount))
 	_update_hud()
-
-
-## How many coins of `metal` the hero carries, all of them in the purse
-## (copper counted in `coins`, the other metals in Crafting.purse).
-func coins_held(metal: String) -> int:
-	if metal == CoinPile.MONEY:
-		return coins
-	return crafting.have(metal) if Crafting.INGREDIENTS.has(metal) else 0
-
-
-## The coin metals the hero can put down: gold always, the others while
-## carried.
-func coin_metals() -> Array:
-	return CoinPile.METALS.keys().filter(func(m): return m == CoinPile.MONEY or coins_held(m) > 0)
-
-
-## Puts `count` coins of `metal` down at the hero's feet, where they join a
-## pile of that metal lying there (see Level.lay_coins). It stays until the
-## hero steps away and comes back for it. Returns how many went down.
-func put_coins_down(metal: String, count: int) -> int:
-	count = clampi(count, 0, coins_held(metal))
-	if count <= 0 or level == null or player == null:
-		return 0
-	if metal == CoinPile.MONEY:
-		coins -= count
-	else:
-		crafting.take(metal, count)
-	var ahead := -player.global_transform.basis.z
-	ahead.y = 0.0
-	var spot := player.global_position + (ahead.normalized() * 0.6 if ahead.length() > 0.01 else Vector3.ZERO)
-	var pile: Dictionary = level.lay_coins(spot, count, metal, count)
-	if not pile.is_empty():
-		pile.wait = true
-	Sfx.play_coins(level, count, 0.0, spot)
-	_update_hud()
-	return count
 
 
 ## Gold found, doubled by the lucky clover.
@@ -5172,14 +3384,13 @@ func _on_mine_boss_won() -> void:
 	Sfx.play(self, "level_done", -1.0)
 	player.train("weisheit", 10.0)
 	_shake = 1.2
-	show_message(Lang.t("Der Bergkönig ist besiegt! Das Herz des Berges gehört dir.") + "\n"
-			+ Lang.t("Wo er fiel, leuchtet gleich ein goldener Ausgang. Tritt hinein, und du stehst wieder vor der Mine."), 5.0, GOLD)
+	show_message(Lang.t("Der Bergkönig ist besiegt! Das Herz des Berges gehört dir."), 5.0)
+	_message.add_theme_color_override("font_color", GOLD)
+	get_tree().create_timer(5.6).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
 
 
 func _on_lair_won() -> void:
 	var here := level
-	if DragonLair.is_floor(level):
-		lair_won_here = true
 	Sfx.play(self, "level_done", -1.0)
 	player.train("weisheit", 10.0)
 	get_tree().create_timer(LAIR_WON_DELAY).timeout.connect(func():
@@ -5197,7 +3408,9 @@ func _on_lair_won() -> void:
 func _on_dragon_awakened(dragon: Dragon) -> void:
 	_shake = 1.4
 	learn(DRAGON_LEARN)
-	show_message(Lang.t("%s erwacht!") % Lang.t(dragon.boss_title()) + "\n" + Lang.t(DRAGON_LEARN), 5.0, GOLD)
+	show_message(Lang.t("%s erwacht!") % Lang.t(dragon.boss_title()) + "\n" + Lang.t(DRAGON_LEARN), 5.0)
+	_message.add_theme_color_override("font_color", GOLD)
+	get_tree().create_timer(5.6).timeout.connect(func(): _message.add_theme_color_override("font_color", Color.WHITE))
 
 
 const DRAGON_LEARN := "Rote Ringe am Boden zeigen, wo sein Feuer fällt: geh beiseite oder spring darüber. Nach dem Feueratem schnauft er, dann trifft deine Klinge doppelt."
@@ -5208,8 +3421,6 @@ const DRAGON_LEARN := "Rote Ringe am Boden zeigen, wo sein Feuer fällt: geh bei
 func leave_lair() -> void:
 	if state != State.PLAYING or not level.lair or player.dead:
 		return
-	var news := Lang.t("Du trittst mit dem Schatz des Drachen aus dem Steinbogen ins Freie.") if DragonLair.is_floor(level) \
-			else Lang.t("Du trittst aus dem Stollen der Mine ins Freie.")
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
@@ -5217,10 +3428,10 @@ func leave_lair() -> void:
 	var tween := create_tween()
 	tween.tween_property(_fade, "color", Color(0.9, 0.75, 0.4, 1.0), 0.5)
 	tween.tween_callback(func():
-		_leave_building(true)
+		_leave_building()
 		get_tree().create_timer(1.0).timeout.connect(func():
 			if state == State.PLAYING:
-				show_message(news, 3.5)))
+				show_message(Lang.t("Du trittst mit dem Schatz des Drachen aus dem Steinbogen ins Freie."), 3.5)))
 
 
 ## Training raised an attribute or a skill: say so, the attributes louder.
@@ -5254,11 +3465,8 @@ func xp_for_riddle(kind: String, place_level: int) -> void:
 func earn_xp(amount: int, big := false) -> void:
 	if amount <= 0 or player == null:
 		return
-	# A clever hero gets more out of everything (see Player.clever_xp).
-	amount = player.clever_xp(amount)
 	if level != null and player.is_inside_tree():
-		Effects.loot_text(level, player.global_position + Vector3(0, 2.8 if big else 2.4, 0), Lang.t("+%d EP") % amount, XP_COLOR,
-				DamageNumber.xp_worth(amount, player.hero_level()))
+		Effects.float_text(level, player.global_position + Vector3(0, 2.8 if big else 2.4, 0), Lang.t("+%d EP") % amount, XP_COLOR)
 	player.gain_xp(amount)
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	_update_hud()
@@ -5272,7 +3480,7 @@ func _on_leveled_up(new_level: int) -> void:
 	var text := Lang.t("Heldenstufe %d! +1 Leben") % new_level
 	if new_level % HeroLevel.CON_EVERY == 0:
 		text += ", " + Lang.t("+1 Konstitution")
-	if HeroLevel.gives_speed(new_level):
+	if new_level % HeroLevel.SPEED_EVERY == 0:
 		text += ", " + Lang.t("+1 % Tempo")
 	if new_level % HeroLevel.POINT_EVERY == 0:
 		text += "\n" + Lang.t("Ein Punkt für Stärke, Geschick oder Intelligenz: Taste P öffnet den Charakter.")
@@ -5290,7 +3498,7 @@ func _on_leveled_up(new_level: int) -> void:
 ## Seconds the level-up waits for a message already on screen.
 const LEVEL_MESSAGE_WAIT := 3.0
 ## Explained once in the compendium, at the first level-up.
-const LEVEL_LEARN := "Erfahrung (EP) bekommst du für besiegte Gegner, erfüllte Aufträge, Kopfgelder und gelöste Rätsel. Gegner weit unter deiner Heldenstufe bringen wenig. Jede Stufe gibt +1 Leben, jede 2. Stufe bis Stufe 20 +1 % Tempo, jede 3. Stufe einen Punkt für Stärke, Geschick oder Intelligenz (im Charakter, Taste P) und jede 5. Stufe +1 Konstitution."
+const LEVEL_LEARN := "Erfahrung (EP) bekommst du für besiegte Gegner, erfüllte Aufträge, Kopfgelder und gelöste Rätsel. Gegner weit unter deiner Heldenstufe bringen wenig. Jede Stufe gibt +1 Leben, jede 2. Stufe +1 % Tempo, jede 3. Stufe einen Punkt für Stärke, Geschick oder Intelligenz (im Charakter, Taste P) und jede 5. Stufe +1 Konstitution."
 
 
 func _on_player_trained(id: String, value: int) -> void:
@@ -5315,16 +3523,12 @@ func _on_player_trained(id: String, value: int) -> void:
 		_:
 			text = Lang.t("Du wirst geübter: %s, Stufe %d") % [Lang.t(_skill_or_craft_name(id)), value]
 	var attribute := Training.ATTRIBUTES.has(id)
+	Effects.float_text(level, player.global_position + Vector3(0, 3.4, 0), text.get_slice(":", 1).strip_edges() if attribute else Lang.t(_skill_or_craft_name(id)) + " %d" % value,
+			GOLD if attribute else Color(0.65, 0.85, 1.0))
 	if attribute:
-		# A stronger body is rare and big: a word over the hero and a message.
-		Effects.float_text(level, player.global_position + Vector3(0, 3.4, 0), text.get_slice(":", 1).strip_edges(), GOLD)
 		Sfx.play(self, "secret", -6.0)
-		show_message(text, 3.5)
-	else:
-		# A skill grows often: one quiet line in the event log keeps the
-		# screen clear for the game.
-		Events.found(text, Color(0.65, 0.85, 1.0))
-	learn("Eigenschaften wachsen sehr langsam durch Tun: Kämpfen macht stärker (Stärke: +1 Schaden im Nahkampf je Punkt, Lasten wiegen weniger), Treffer einstecken macht zäher (Konstitution, +1 Leben je Punkt), Laufen und Springen machen schneller (Tempo bis 150 %), Springen, Werfen und Fallen machen geschickter (Geschick: +1 Schaden mit Wurfmessern und +4 % Ausweichen je Punkt, weiter springen), Durchsuchen und Geheimnisse schärfen das Gespür (Intuition, +2 % je Punkt, Geheimräume zu entdecken), und alles, was du durchstehst, macht dich weiser (Weisheit: du lernst 5 % schneller je Punkt, ab 12 bieten Schreine eine vierte Gabe), und Neues zu verstehen macht klüger (Intelligenz: Fertigkeiten lernen 10 % schneller und 3 % mehr Erfahrung je Punkt; manche Dinge wie der Zauberhut brauchen sie). Fertigkeiten wachsen schneller, aber nur mit der passenden Ausrüstung. Alles bleibt deinem Helden über alle Läufe.")
+	show_message(text, 3.5 if attribute else 2.4)
+	learn("Eigenschaften wachsen sehr langsam durch Tun: Kämpfen macht stärker (Stärke, +1 Kampfkraft je Punkt, Lasten wiegen weniger), Treffer einstecken macht zäher (Konstitution, +1 Leben je Punkt), Laufen und Springen machen schneller (Tempo bis 150 %), Springen, Werfen und Fallen machen geschickter (Geschick: weiter springen, Stacheln ausweichen), Durchsuchen und Geheimnisse schärfen das Gespür (Intuition, +2 % je Punkt, Geheimräume zu entdecken), und alles, was du durchstehst, macht dich weiser (Weisheit: du lernst 5 % schneller je Punkt, ab 12 bieten Schreine eine vierte Gabe), und Neues zu verstehen macht klüger (Intelligenz: manche Dinge wie der Zauberhut brauchen sie). Fertigkeiten wachsen schneller, aber nur mit der passenden Ausrüstung. Alles bleibt deinem Helden über alle Läufe.")
 	_update_hud()
 
 
@@ -5355,8 +3559,6 @@ func _on_player_bumped(point: Vector3) -> void:
 		Sfx.play(self, "swing", -6.0)
 		return
 	var station := level.station_at(point)
-	if station.get("kind", "") == Seats.KIND and (player.is_seated() or player.still_getting_up()):
-		return
 	if not station.is_empty():
 		if station.has("npc") or PERSON_STATIONS.has(station.kind):
 			bumped_person = true
@@ -5374,7 +3576,7 @@ func _search(obj: Dictionary) -> void:
 	if obj.searched:
 		Effects.float_text(level, obj.icon_pos, Lang.t("Schon durchsucht"), Color(0.8, 0.8, 0.8), true)
 		return
-	if obj.loot.has("item") and not player.bag_fits(obj.loot.item):
+	if obj.loot.has("item") and player.bag.size() >= player.bag_size():
 		if not _message_busy():
 			show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0)
 		return
@@ -5388,28 +3590,20 @@ func _search(obj: Dictionary) -> void:
 		Sfx.play(self, "rummage", -3.0)
 	var found_after := 0.55 if chest else 0.2
 	var loot := level.search(obj)
-	if obj.has("treasure"):
-		treasure_maps.opened(obj)
 	# Searching every nook trains a feeling for where things hide.
 	player.train("intuition", 1.0)
 	var text := Lang.t("%s: leer") % Lang.t(obj.label)
 	var color := Color(0.8, 0.8, 0.85)
-	# How big the words over it are: the best of what was in it.
-	var worth := 0.0
 	if loot.has("gold"):
 		Sfx.play_coins(self, _gold(loot.gold), found_after)
 		coins += _gold(loot.gold)
-		text = Lang.t("+%d Kupfer") % _gold(loot.gold)
+		text = Lang.t("+%d Gold") % _gold(loot.gold)
 		color = GOLD
-		worth = DamageNumber.copper_worth(_gold(loot.gold))
-		Events.found(text, GOLD)
 	elif loot.has("knives"):
-		give_knives(loot.knives)
+		player.knives += loot.knives
 		Sfx.play_after(self, found_after, "gear_metal_%d" % (randi() % 3), -8.0)
 		text = Lang.t("+%d Wurfmesser") % loot.knives
 		color = Color(0.8, 0.9, 1.0)
-		worth = 0.1
-		Events.found(text, color)
 	elif loot.has("potion"):
 		Sfx.play(self, "drink")
 		player.hp = mini(player.max_hp, player.hp + 2)
@@ -5417,33 +3611,26 @@ func _search(obj: Dictionary) -> void:
 		if player.cure():
 			text += "\n" + Lang.t("Dein Leiden ist geheilt.")
 		color = Color(1.0, 0.5, 0.55)
-		worth = 0.3
-		Events.found(text, color)
 	if loot.has("item"):
 		player.bag.append(loot.item)
-		Sfx.play_find(self, loot.item, found_after + (0.25 if loot.has("gold") else 0.0))
-		var found := Lang.t("Gefunden: %s (%s)") % [Rarity.marked(loot.item), Items.describe(loot.item)]
+		Sfx.play_gear(self, loot.item, found_after + (0.25 if loot.has("gold") else 0.0))
+		var found := Lang.t("Gefunden: %s (%s)") % [Items.item_name(loot.item), Items.describe(loot.item)]
 		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
-		# The words over the chest take the colour of the piece found.
-		color = Rarity.color(loot.item)
-		worth = maxf(worth, DamageNumber.item_worth(loot.item))
-		Events.found(found)
+		color = Color(0.75, 0.9, 1.0)
+		show_message(found + Lang.t("\nTaste I öffnet das Inventar."), 5.0)
 	# An eye trained in exploring (Erkunden) finds a torch tucked away.
-	var torch := player.bag_fits(HandTorch.ITEM) and randi_range(1, 100) <= player.explore_bonus(Training.EXPLORE_TORCH)
+	var torch := player.bag.size() < player.bag_size() and randi_range(1, 100) <= player.explore_bonus(Training.EXPLORE_TORCH)
 	if torch:
 		player.bag.append(HandTorch.ITEM)
 		if loot.is_empty():
 			color = Color(1.0, 0.75, 0.4)
 		Sfx.play_gear(self, HandTorch.ITEM, found_after + 0.25)
-		worth = maxf(worth, DamageNumber.item_worth(HandTorch.ITEM))
 		text = Items.item_name(HandTorch.ITEM) if text.ends_with("leer") else text + "  +" + Items.item_name(HandTorch.ITEM)
 		if not loot.has("item"):
-			Events.found(Lang.t("Dein geübtes Auge findet eine Fackel, die hier versteckt lag."), Color(1.0, 0.75, 0.4))
-		else:
-			Events.found(Lang.t("Gefunden: %s") % Items.item_name(HandTorch.ITEM), Color(1.0, 0.75, 0.4))
-	Effects.loot_text(level, obj.icon_pos, text, color, worth)
+			show_message(Lang.t("Dein geübtes Auge findet eine Fackel, die hier versteckt lag."), 2.4)
+	Effects.float_text(level, obj.icon_pos, text, color, true)
 	if loot.is_empty() and not torch:
-		Events.found(Lang.t("Du durchsuchst %s... nichts.") % Lang.t(_with_article(obj.label)), Color(0.8, 0.8, 0.85))
+		show_message(Lang.t("Du durchsuchst %s... nichts.") % Lang.t(_with_article(obj.label)), 1.2)
 	_update_hud()
 
 
@@ -5459,95 +3646,24 @@ func _with_article(label: String) -> String:
 
 func _on_player_hurt(_amount: int) -> void:
 	_update_hud()
-	home_run.on_hurt()
 	var tween := create_tween()
 	_fade.color = Color(0.6, 0.02, 0.02, 0.0)
 	tween.tween_property(_fade, "color:a", 0.35, 0.08)
 	tween.tween_property(_fade, "color:a", 0.0, 0.35)
 
 
-## Out of life, the hero is not dead but unconscious (see Rescue): what
-## they looted stays where they fell, an eagle (on the surface) or the
-## dwarves' emergency team (below ground) carries them to the bed they last
-## slept in, and they wake up there with full life. Only a playtest from the
-## workshop still ends, back in the workshop.
+## Death ends the run: it goes into the ranking with a skull.
 func _on_player_defeated() -> void:
 	state = State.TRANSITION
-	if playtest_file != "":
-		show_message(Lang.t("Du wurdest besiegt..."), 2.0)
-		var tween := create_tween()
-		tween.tween_interval(1.6)
-		tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.8)
-		tween.tween_callback(func(): _end_run(false))
-		return
-	player.frozen = true
-	player.path.clear()
-	menus.close()
-	var fell_on := level
-	var lost := Rescue.drop_belongings(self)
-	lost.xp = Rescue.forget(player)
-	_update_hud()
-	var eagle := Rescue.on_surface(level)
-	show_message(Lang.t("Du verlierst das Bewusstsein...") + "\n" + (Lang.t("Ein Adler stößt herab!") if eagle else Lang.t("Der Rettungstrupp der Zwerge ist unterwegs!")), 3.0)
-	Rescue.send(level, player,
-			func(seconds: float): create_tween().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), seconds),
-			func(): _wake_after_rescue(eagle, lost, fell_on.level_name))
-
-
-## The rescuers bring the hero to their latest safe spot: the bed of the
-## saved game (or its camp), else where this floor begins. They wake up
-## there, rested, and the game is saved.
-func _wake_after_rescue(eagle: bool, lost: Dictionary, fell_on: String) -> void:
-	if level.building == "" and not level.outdoor:
-		# The floor stays as the hero left it (monsters slain, doors open).
-		level.note_left()
-	elif DragonLair.is_floor(level):
-		level.note_left()
-	var data := _read_save() if has_slot_save() else {"level": level_index}
-	_go_to_wake_place(_wake_place(data))
-	player.hp = player.max_hp
-	player.cure()
-	_snap_camera()
-	_update_hud()
-	create_tween().tween_property(_fade, "color:a", 0.0, 1.2)
-	var asleep := {"away": {"rescued": true}, "camp": data.get("camp")}
-	var awake := func(): _rescued(eagle, lost, fell_on)
-	if not _wake_at_camp(asleep, awake) and not _wake_in_bed(asleep, awake):
-		state = State.PLAYING
-		awake.call()
-
-
-## Up again after a rescue: who brought the hero here, and where their
-## things lie.
-func _rescued(eagle: bool, lost: Dictionary, fell_on: String) -> void:
-	var text := Lang.t("Ein Riesenadler hat dich bewusstlos davongetragen und hierher gebracht.") if eagle \
-			else Lang.t("Der Rettungstrupp der Zwerge hat dich bewusstlos aus der Tiefe getragen und hierher gebracht.")
-	if int(lost.items) + int(lost.coins) + int(lost.ingredients) > 0:
-		text += "\n" + Lang.t("Deine Tasche, dein Zutatenbeutel und %d Münzen liegen noch dort, wo du gefallen bist: %s.") % [int(lost.coins), Lang.t(fell_on)]
-	if int(lost.get("xp", 0)) > 0:
-		text += "\n" + Lang.t("Gedächtnisverlust: %d Erfahrung vergessen.") % int(lost.xp)
-	show_message(text, 6.0)
-	Events.tell(text.replace("\n", " "), Color(1.0, 0.85, 0.45), 8.0)
-	Events.teach(Rescue.LORE)
-	save_game()
-
-
-## The hero walked onto their pack (see Rescue): back with what fits.
-func _on_bundle_reached(entry: Array) -> void:
-	var pouch := Rescue.is_pouch(entry)
-	if Rescue.take_back(self, entry):
-		Sfx.play(self, "rummage", -3.0)
-		Events.found(Lang.t("Du nimmst deinen Zutatenbeutel wieder an dich.") if pouch else Lang.t("Du nimmst deine Tasche wieder an dich."), GOLD)
-		_update_hud()
+	show_message(Lang.t("Du wurdest besiegt..."), 2.0)
+	var tween := create_tween()
+	tween.tween_interval(1.6)
+	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.8)
+	tween.tween_callback(func(): _end_run(false))
 
 
 ## Puts the finished run into the ranking and shows the list.
 func _end_run(escaped: bool) -> void:
-	if playtest_file != "":
-		state = State.OVER
-		show_message(Lang.t("Gefallen. Zurück zur Werkstatt..."), 2.0)
-		get_tree().create_timer(2.0).timeout.connect(back_to_editor)
-		return
 	state = State.WON if escaped else State.OVER
 	var entry := Ranking.add(hero_name, level_index + 1, level.level_name, coins, escaped)
 	# Whatever the outcome, a whole run is a lesson.
@@ -5558,19 +3674,18 @@ func _end_run(escaped: bool) -> void:
 		# The run is over, so this hero's saved game in the safe room is
 		# gone too. The other slots keep theirs.
 		delete_save(save_path())
-		_show_title(Lang.t("Frei!"), Lang.t("%s ist entkommen und hat %d Kupfer erbeutet.") % [hero_name, coins], Lang.t("Klicken für ein neues Spiel"))
+		_show_title(Lang.t("Frei!"), Lang.t("%s ist entkommen und hat %d Gold erbeutet.") % [hero_name, coins], Lang.t("Klicken für ein neues Spiel"))
 	elif has_slot_save():
 		# A fallen hero may rise again in the safe room, or once out of the
 		# dungeon, on the graveyard or in their own house.
 		var info := save_info()
-		var place := Lang.t("Klicken oder eine Taste: an deinem Lager weiterspielen.  N: neues Spiel") if info.camp \
-				else Lang.t("Klicken oder eine Taste: in deinem Haus weiterspielen.  N: neues Spiel") if info.home \
+		var place := Lang.t("Klicken oder eine Taste: in deinem Haus weiterspielen.  N: neues Spiel") if info.home \
 				else Lang.t("Klicken oder eine Taste: ab dem Friedhof weiterspielen.  N: neues Spiel") if info.escaped \
 				else Lang.t("Klicken oder eine Taste: ab der Zuflucht weiterspielen.  N: neues Spiel")
-		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Kupfer.") % [hero_name, level_index + 1, coins], place)
+		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], place)
 	else:
-		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Kupfer.") % [hero_name, level_index + 1, coins], Lang.t("Klicken für ein neues Spiel"))
-	_title_text.add_theme_font_size_override("font_size", UiKit.sized(90))
+		_show_title(Lang.t("Gefallen"), Lang.t("%s fiel auf Ebene %d mit %d Gold.") % [hero_name, level_index + 1, coins], Lang.t("Klicken für ein neues Spiel"))
+	_title_text.add_theme_font_size_override("font_size", 90)
 	_ranking_slot.add_child(Ranking.build(self, entry))
 
 
@@ -5586,7 +3701,7 @@ func _on_exit_reached() -> void:
 		# Out of the front door of the hero's own house, into the lane.
 		player.face(Vector3.BACK)
 		player.play("Walking_A")
-		var out := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+		var out := create_tween()
 		out.tween_property(player, "global_position", level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.6), 0.5)
 		out.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.5)
 		out.tween_callback(_next_level)
@@ -5598,7 +3713,7 @@ func _on_exit_reached() -> void:
 	# The stairs rise northwards across the exit cell in 8 steps of half a metre:
 	# step k (1..8) is 0.5 * k high, its middle 0.5 * k further north.
 	var foot := level.cell_to_world(level.exit_cell) + Vector3(0, 0, Level.TILE * 0.5)
-	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	var tween := create_tween()
 	tween.tween_property(player, "global_position", foot + Vector3(0, 0, 0.1), 0.15)
 	for k in range(1, 9):
 		var step := foot + Vector3(0, 0.5 * k, -0.5 * k + 0.25)
@@ -5623,9 +3738,6 @@ func _on_exit_reached() -> void:
 
 
 func _next_level() -> void:
-	if playtest_file != "":
-		back_to_editor()
-		return
 	if level.building != "":
 		_leave_building()
 		return
@@ -5633,8 +3745,6 @@ func _next_level() -> void:
 	player.train("weisheit", 10.0)
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	dry_levels = 0 if level.secret_opened() else dry_levels + 1
-	if level.building == "" and not level.outdoor:
-		level.note_left()
 	if level_index + 1 >= level_files.size():
 		_end_run(true)
 		return
@@ -5673,10 +3783,9 @@ func _step_out_of_crypt() -> void:
 	# once they have one).
 	var saved := save_game()
 	player.global_position = start + Vector3(0, 0, -3.2)
-	player.reset_physics_interpolation()
 	player.face(Vector3.BACK)
 	player.play("Walking_A")
-	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	var tween := create_tween()
 	tween.tween_property(_fade, "color:a", 0.0, 1.2)
 	tween.parallel().tween_property(player, "global_position", start, 1.6)
 	if is_instance_valid(pet):
@@ -5692,11 +3801,10 @@ func _step_out_of_crypt() -> void:
 		if healed > 0:
 			_update_hud()
 			Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+%d" % healed, Color(0.5, 1.0, 0.5))
-		var text := Lang.t("Frei! %s ist entkommen und hat %d Kupfer erbeutet.") % [hero_name, coins] if first else ""
-		if not saved:
-			text += ("\n" if text != "" else "") + Lang.t("Speichern fehlgeschlagen!")
+		var text := Lang.t("Frei! %s ist entkommen und hat %d Gold erbeutet.") % [hero_name, coins] if first else ""
+		text += ("\n" if text != "" else "") + (Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"))
 		get_tree().create_timer(4.8).timeout.connect(func():
-			if state == State.PLAYING and text != "":
+			if state == State.PLAYING:
 				show_message(text, 3.5)))
 
 
@@ -5708,7 +3816,7 @@ func _on_home_claimed() -> void:
 	home_claimed = true
 	home_given = true
 	var saved := save_game()
-	var text := Lang.t("Dein Haus ist jetzt dein Startpunkt.") if saved else Lang.t("Speichern fehlgeschlagen!")
+	var text := Lang.t("Dein Haus ist jetzt dein Startpunkt. Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")
 	get_tree().create_timer(4.2).timeout.connect(func():
 		if state == State.PLAYING:
 			show_message(text, 3.0))
@@ -5724,14 +3832,6 @@ func go_inside(building: String, house := 0) -> void:
 		return
 	inside_house = house
 	_home_given_now()
-	if building == DragonLair.FLOORS[0] and level is Outdoor:
-		# Through the arch: a new visit to the lair, set back as it always is.
-		DragonLair.reset(looted, level_files, interiors)
-		lair_before = DragonLair.snapshot(self)
-		lair_won_here = false
-	elif DragonLair.is_floor(level):
-		# Down a floor of the lair: this one stays as the hero left it.
-		level.note_left()
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
@@ -5756,10 +3856,7 @@ func go_inside(building: String, house := 0) -> void:
 			_on_home_claimed())
 
 
-## The entry from before torches were lit on request: a saved compendium
-## gets the new one (see _apply_save).
-const OLD_DARK_LEARN := "In manchen Löchern und Höhlen ist es stockfinster: Ohne Fackel siehst du kaum die eigene Hand, und auch mit einer nur wenige Schritte weit. Fackeln gibt es bei der Krämerin. Im Dunkeln brennt eine von selbst, drei Minuten lang, dann die nächste. Eine brennende Fackel sieht jedes Ungeheuer."
-const DARK_LEARN := "In manchen Löchern und Höhlen ist es stockfinster: Ohne Fackel siehst du kaum die eigene Hand, und auch mit einer nur wenige Schritte weit. Fackeln gibt es bei der Krämerin. Zünde eine an, wenn du sie brauchst: mit der Fackel am rechten Rand oder der Taste V. Sie brennt drei Minuten lang, bis du sie löschst; was übrig bleibt, brennt beim nächsten Mal weiter. Eine brennende Fackel sieht jedes Ungeheuer."
+const DARK_LEARN := "In manchen Löchern und Höhlen ist es stockfinster: Ohne Fackel siehst du kaum die eigene Hand, und auch mit einer nur wenige Schritte weit. Fackeln gibt es bei der Krämerin. Im Dunkeln brennt eine von selbst, drei Minuten lang, dann die nächste. Eine brennende Fackel sieht jedes Ungeheuer."
 
 
 ## Down in a pitch-black place: a word on the darkness, and on torches if
@@ -5773,10 +3870,8 @@ func _warn_of_darkness() -> void:
 			return
 		if none:
 			show_message(Lang.t("Stockfinster! Ohne Fackel siehst du kaum die eigene Hand. (Die Krämerin verkauft Fackeln.)"), 4.0)
-		elif player.torch.lit:
-			show_message(Lang.t("Stockfinster. Deine Fackel wirft nur einen kleinen Lichtkreis."), 3.0)
 		else:
-			show_message(Lang.t("Stockfinster! Zünde eine Fackel an: die Fackel am rechten Rand oder Taste V."), 4.0))
+			show_message(Lang.t("Stockfinster. Deine Fackel wirft nur einen kleinen Lichtkreis."), 3.0))
 
 
 ## Whether the hero may go into town house `house`: their own, or an empty
@@ -5812,7 +3907,7 @@ func _take_stairs(to: Vector3, up: bool, storey: int) -> void:
 	if is_instance_valid(pet):
 		# Onto the stairs behind the hero.
 		pet.climb([player.global_position, player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4)], 0.35, 0.1)
-	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	var tween := create_tween()
 	tween.tween_property(player, "global_position", player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4), 0.45)
 	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
 	tween.parallel().tween_callback(func(): Sfx.play(player, "step_%d" % (randi() % 6), -14.0))
@@ -5872,23 +3967,11 @@ func _refresh_seals() -> void:
 			Mines.show_runes(st, lore)
 
 
-## The top floor of the building `building` lies under: the one whose door
-## stands in the open (see floor_above), e.g. "mine3" for "mine3c".
-func top_floor(building: String) -> String:
-	var seen := {}
-	while floor_above.has(building) and not seen.has(building):
-		seen[building] = true
-		building = floor_above[building]
-	return building
-
-
 ## Up the stairs of a building floor and out of its door into the village.
 ## A deeper floor of a mine leads up to the floor above instead, beside the
 ## way down the hero came by.
-func _leave_building(all_the_way := false) -> void:
-	if not all_the_way and level.up_to != "" and interiors.has(level.up_to):
-		if DragonLair.is_floor(level):
-			level.note_left()
+func _leave_building() -> void:
+	if level.up_to != "" and interiors.has(level.up_to):
 		load_level(interiors[level.up_to], false)
 		if level.shaft_side != Vector3.ZERO:
 			player.global_position = level.shaft_side
@@ -5899,13 +3982,6 @@ func _leave_building(all_the_way := false) -> void:
 		_announce_level()
 		return
 	var building: String = level.building
-	var from_lair := DragonLair.is_floor(level)
-	if from_lair:
-		# Every floor of the lair comes out of the one arch.
-		building = DragonLair.FLOORS[0]
-	else:
-		# All the way out from a deeper floor (a mine's): out of its door.
-		building = top_floor(building)
 	if inside_house > 0:
 		building += str(inside_house)
 	inside_house = 0
@@ -5916,40 +3992,16 @@ func _leave_building(all_the_way := false) -> void:
 	_snap_camera()
 	state = State.PLAYING
 	create_tween().tween_property(_fade, "color:a", 0.0, 0.8)
-	if from_lair and lair_won_here:
-		_show_lair_spoils()
-
-
-## Out of the won lair: a window lists what the hero carried out of it
-## (see DragonLair.spoils), once the fade has cleared.
-const SPOILS_DELAY := 1.2
-
-
-func _show_lair_spoils() -> void:
-	lair_won_here = false
-	if lair_before.is_empty():
-		# Loaded inside the lair: nothing to measure the spoils against.
-		return
-	lair_spoils = DragonLair.spoils(lair_before, self)
-	lair_before = {}
-	var here := level
-	get_tree().create_timer(SPOILS_DELAY).timeout.connect(func():
-		if level != here or state != State.PLAYING or player.dead:
-			return
-		if menus.is_open():
-			menus.close()
-		menus.open("beute"))
 
 
 ## Reaching a safe room saves the game at once, so the way there is never
 ## lost. The notice waits until the level message has had its say.
 func _autosave() -> void:
 	var saved := save_game()
-	if saved:
-		return
+	var text := Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")
 	get_tree().create_timer(4.2).timeout.connect(func():
 		if state == State.PLAYING and level != null and level.safe:
-			show_message(Lang.t("Speichern fehlgeschlagen!"), 2.4))
+			show_message(text, 2.4))
 
 
 # --- Per frame --------------------------------------------------------------
@@ -5972,10 +4024,6 @@ func zoom_by(steps: float) -> void:
 
 
 func _snap_camera() -> void:
-	# The hero was put somewhere new: drawn there at once, not sliding over.
-	player.reset_physics_interpolation()
-	if is_instance_valid(pet):
-		pet.reset_physics_interpolation()
 	var p := player.global_position
 	p.y = 0.0
 	camera.global_position = p + _camera_offset()
@@ -6020,9 +4068,6 @@ func _process(delta: float) -> void:
 			player.set_sneaking(false)
 			show_message(Lang.t("Entdeckt! Du kannst nicht mehr schleichen."), 1.6)
 	_guardian_intro()
-	# A swollen belly counts down under the life bar.
-	if player != null and player.ailments.has(BloatedBelly.KIND):
-		_update_status_icons()
 	if state == State.PLAYING and level != null and not menus.is_open():
 		journal.update(delta)
 	_quest_mark_timer -= delta
@@ -6032,14 +4077,7 @@ func _process(delta: float) -> void:
 	# The villagers chat with each other while the world runs.
 	if level is Outdoor and state == State.PLAYING and not menus.is_open() and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		village_talk.update(delta, level)
-		village_worries.update(delta, level)
-		village_rumours.update(delta, level)
-		drinking_songs.update(delta, level)
-	# Where the hero is drawn this frame, between two physics ticks: the
-	# camera follows that, so the running hero and the ground glide together
-	# however many frames the screen shows between ticks.
-	var drawn := SmoothMotion.drawn_at(player)
-	var p := drawn
+	var p := player.global_position
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
 	_zoom = move_toward(_zoom, _zoom_target, delta * 2.5)
 	camera.rotation_degrees.x = -lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom)
@@ -6050,21 +4088,11 @@ func _process(delta: float) -> void:
 		_shake = maxf(0.0, _shake - delta)
 		var strength := 0.25 * minf(1.0, _shake)
 		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
-	_place_hp_bar()
 	var dust := get_node("Dust") as Node3D
-	dust.global_position = drawn + Vector3(0, 2.0, 0)
+	dust.global_position = player.global_position + Vector3(0, 2.0, 0)
 	_steer_by_mouse(delta)
-	home_run.tick()
-	update_home_button()
-	update_torch_button()
-	update_potion_button()
 	_update_drag(delta)
 	_update_run_meter()
-	# Silver and gold coins come and go in many places (loot, trade, the forge).
-	_update_purse()
-	place_message(delta)
-	tutorial.update(delta)
-	_help.visible = help_shown()
 	if state == State.PLAYING:
 		fishing.tick(delta)
 	elif fishing.is_fishing():
@@ -6072,8 +4100,6 @@ func _process(delta: float) -> void:
 	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
 		_prompt.text = ""
 		return
-	if has_camp() and Camp._flat(player.global_position, camp.global_position) > Camp.LEAVE_RANGE:
-		pack_camp()
 	if not _pending_station.is_empty() and player.can_act() and _arrived(_pending_station.pos):
 		player.path.clear()
 		if _reach(_pending_station.pos) <= Level.SEARCH_RANGE + 0.3:
@@ -6102,10 +4128,7 @@ func _process(delta: float) -> void:
 	_prompt.text = ""
 	if not at_station and level_index < 2 and not near.is_empty() and not near.searched:
 		_prompt.text = _hint("search", Lang.t("Dagegenlaufen, um %s zu untersuchen") % Lang.t(_with_article(near.label)))
-	if player.is_seated():
-		# Sitting: how to get up again, not how to sit down.
-		_prompt.text = _hint("aufstehen", Lang.t("Laufen, klicken oder springen, um aufzustehen"))
-	elif at_station and bumped_person and PERSON_STATIONS.has(station.kind):
+	if at_station and bumped_person and PERSON_STATIONS.has(station.kind):
 		# The hero knows by now that running into people talks to them.
 		_prompt.text = ""
 	elif at_station:
@@ -6113,14 +4136,12 @@ func _process(delta: float) -> void:
 			"schrein": Lang.t("Dagegenlaufen, um den Schrein zu berühren"),
 			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
-			"metalltruhe": Lang.t("Dagegenlaufen, um die stahlbeschlagene Truhe für Metall und Edelsteine zu öffnen"),
-			"zutatenbord": Lang.t("Dagegenlaufen, um ans Zutatenbord zu gehen"),
 			"haendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else Lang.t("Dagegenlaufen, um mit dem Händler zu handeln"),
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"bank": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
-			"eingang": Lang.t("Dagegenlaufen, um in das dunkle Loch hinabzusteigen") if String(station.get("building", "")).begins_with("loch") or station.get("building", "") == TreasureMaps.CAVE else Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
+			"eingang": Lang.t("Dagegenlaufen, um in das dunkle Loch hinabzusteigen") if String(station.get("building", "")).begins_with("loch") else Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
@@ -6132,26 +4153,14 @@ func _process(delta: float) -> void:
 			"gefaehrten": Lang.t("Dagegenlaufen, um nach deinen Gefährten zu sehen"),
 			"schacht": Lang.t("Dagegenlaufen, um in die Tiefe hinabzusteigen"),
 			"tafel": Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
-			TreasureMaps.DIG: Lang.t("Dagegenlaufen, um nach dem Schatz zu graben"),
-			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
-			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
-			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 		}.get(station.kind, ""))
-	elif _prompt.text == "" and at_camp():
-		_prompt.text = _hint("camp", Lang.t("U: Lager"))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = _hint("crate", Lang.t("E oder Klick: Kiste aufheben"))
 	elif _prompt.text == "" and _drag_stone != null:
-		if _drag_stone.heavy and _drag_spot.get("edge", false):
-			# Not a tutorial hint but the reason the block stops: always shown.
-			_prompt.text = Lang.t("Weiter geht es nicht: höchstens 5 Felder von seinem Platz")
-		elif _drag_stone.heavy:
-			_prompt.text = _hint("drag_heavy", Lang.t("Loslassen: Block dorthin   Rechtsklick: drehen"))
-		else:
-			_prompt.text = _hint("drag", Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen"))
+		_prompt.text = _hint("drag_heavy", Lang.t("Loslassen: Block rutscht dorthin")) if _drag_stone.heavy else _hint("drag", Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen"))
 	elif _prompt.text == "" and level.stone_in_reach(player) != null:
 		if level.stone_in_reach(player).heavy:
-			_prompt.text = _hint("stone_heavy", Lang.t("E oder Klick: Block schieben   Ziehen: verschieben"))
+			_prompt.text = _hint("stone_heavy", Lang.t("E oder Klick: Block schieben   Ziehen: rutschen lassen"))
 		else:
 			_prompt.text = _hint("stone", Lang.t("E oder Klick: Steinblock aufheben   Ziehen: verschieben"))
 	# By the water the line can be cast, also next to the fountain.
@@ -6171,13 +4180,6 @@ func _process(delta: float) -> void:
 		if gift_prompt != "":
 			_prompt.text = gift_prompt if _prompt.text == "" else _prompt.text + "   " + gift_prompt
 	_count_hints()
-
-
-## Whether the list of keys shows at the bottom left: while a first step is
-## still to be learned, and only in the beginner dungeon. Once the hero is out
-## (open air, a building, a mine) it goes, even with a step still unlearned.
-func help_shown() -> bool:
-	return tutorial.pending() and level != null and level.beginner_dungeon
 
 
 ## An explanatory hint of one kind ("bett", "search", "fish", ...): shown the
@@ -6234,7 +4236,6 @@ func _steer_by_mouse(delta: float) -> void:
 		# Holding the button runs, for as long as the hero's breath lasts.
 		player.wants_run = true
 		_pending_search = {}
-		fishing.cancel_walk()
 		_pending_station = {}
 
 
@@ -6293,14 +4294,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_P, KEY_N, KEY_O, KEY_ESCAPE]:
 					menus.close()
 				return
-			# Any key or click of the player's own (but the sound, the menu
-			# and the home key itself) calls the way home off.
-			if home_run.active and not (event is InputEventKey and event.physical_keycode in [KEY_X, KEY_M, KEY_TAB]):
-				home_run.stop()
 			if event is InputEventKey:
 				match event.physical_keycode:
-					KEY_X:
-						home_action()
 					KEY_SPACE:
 						player.jump()
 					KEY_F, KEY_J:
@@ -6331,12 +4326,6 @@ func _unhandled_input(event: InputEvent) -> void:
 						toggle_drawer()
 					KEY_C:
 						_toggle_sneak()
-					KEY_V:
-						torch_action()
-					KEY_1:
-						potion_action()
-					KEY_U:
-						camp_action()
 					KEY_G:
 						fish_action()
 					KEY_T:
@@ -6358,13 +4347,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						if no_room != "":
 							show_message(no_room, 1.6)
 					KEY_ESCAPE:
-						if playtest_file != "":
-							back_to_editor()
-						elif _drawer_open:
-							# The pull-out menu goes first, as a window would.
-							set_drawer_open(false)
-						else:
-							open_pause()
+						if player.can_act():
+							menus.open("beenden")
 			elif event is InputEventMouseButton:
 				var point = _mouse_to_floor(event.position)
 				if point == null:
@@ -6386,65 +4370,6 @@ func _unhandled_input(event: InputEvent) -> void:
 						_toggle_sneak()
 					else:
 						_click(point)
-
-
-## Key U, the "Lager" button or the bedroll in the inventory: rolls out a
-## camp where the hero stands (see Camp) and opens its window. At the camp
-## already, it opens the window again.
-func camp_action() -> void:
-	if state != State.PLAYING or player == null or menus.is_open() or not _shrine.is_empty():
-		return
-	if at_camp():
-		player.path.clear()
-		menus.open("nachtlager")
-		return
-	if not player.can_act():
-		return
-	var why := Camp.why_not(player, level, _indoors())
-	if why != "":
-		show_message(why, 2.4)
-		return
-	pack_camp(false)
-	var spot := Camp.find_spot(level, player.global_position, player.facing())
-	camp = Camp.pitch(level, spot.pos, spot.rot)
-	player.path.clear()
-	player.velocity = Vector3.ZERO
-	player.face(camp.global_position - player.global_position)
-	Sfx.play(self, "rummage", -4.0, player.global_position)
-	learn(CAMP_LEARN)
-	menus.open("nachtlager")
-
-
-const CAMP_LEARN := "Mit einer Schlafrolle (beim Händler) schlägst du überall ein Lager auf: Taste U, der Knopf „Lager“ im Menü oder die Schlafrolle im Inventar. Am Lagerfeuer speicherst du und schläfst wie im Bett, und beim Laden wachst du dort auf. Nicht im Kampf, nicht mit Ungeheuern in der Nähe und nicht in Häusern. Gehst du weg, packst du das Lager wieder ein."
-
-
-func _camp_from_drawer() -> void:
-	set_drawer_open(false)
-	camp_action()
-
-
-## Whether the hero is inside a building, where a bed is the place to sleep.
-func _indoors() -> bool:
-	return level.building != "" or level.is_home or level.inn or inside_house > 0
-
-
-## Whether a camp stands on the level the hero is on.
-func has_camp() -> bool:
-	return is_instance_valid(camp) and not camp.is_queued_for_deletion() and camp.get_parent() == level
-
-
-## Whether the hero stands at their camp.
-func at_camp() -> bool:
-	return has_camp() and Camp._flat(player.global_position, camp.global_position) <= Camp.NEAR
-
-
-## Rolls the bedroll up again and puts the fire out.
-func pack_camp(say := true) -> void:
-	if is_instance_valid(camp):
-		camp.queue_free()
-		if say and camp.get_parent() == level:
-			show_message(Lang.t("Du packst dein Lager zusammen."), 1.8)
-	camp = null
 
 
 ## Key G or the "Angeln" button: casts the line by the water, strikes when
@@ -6537,9 +4462,7 @@ func _mouse_to_floor(screen_pos: Vector2):
 func _click(point: Vector3) -> void:
 	# Clicking an enemy attacks it: a strike when it is in reach, else the
 	# hero walks up to it and strikes. Clicking an object searches it.
-	# Clicking the water of a pond casts the line there (see Fishing).
 	player.stop_hunt()
-	fishing.cancel_walk()
 	for e in level.enemies:
 		if is_instance_valid(e) and not e.dead and e.visible and Vector2(e.global_position.x - point.x, e.global_position.z - point.z).length() < 1.6:
 			if e.is_friend():
@@ -6565,10 +4488,6 @@ func _click(point: Vector3) -> void:
 		_pending_search = {}
 		_pending_station = {}
 		player.walk_to(crate.global_position, WALK_UP_TO)
-		return
-	if fishing.click_water(point):
-		_pending_search = {}
-		_pending_station = {}
 		return
 	var station := level.nearest_station(point, 2.2)
 	if not station.is_empty():

@@ -1,4 +1,5 @@
-"""Builds the loot sounds from CC0 recordings: a chest lid opening (chest_open_*), gear clattering onto the floor (gear_*)
+"""Builds the loot sounds from CC0 recordings: coins (coins_small_*, coins_big_*),
+a chest lid opening (chest_open_*), gear clattering onto the floor (gear_*)
 and the secret-passage lever being pulled (lever_pull).
 Downloads the three packs from OpenGameArt into a temporary folder, trims and
 layers them, and writes 22 kHz mono WAVs to assets/sounds.
@@ -97,6 +98,15 @@ def build(tmp):
     k = lambda f: load(tmp, "kenney", f)
     a = lambda f: load(tmp, "artisticdude", f)
     r = lambda f: load(tmp, "rubberduck", f)
+
+    # A coin or two: short clinks.
+    save("coins_small_0", k("handleCoins2.ogg"), 0.6)
+    save("coins_small_1", a("coin3.wav"), 0.6)
+    save("coins_small_2", r("item_coins_01.ogg"), 0.6)
+    # A handful of gold: longer jingles.
+    save("coins_big_0", a("coin2.wav"), 0.7)
+    save("coins_big_1", cut(r("item_coins_04.ogg"), 1.2, 0.3), 0.7)
+    save("coins_big_2", mix((k("handleCoins.ogg"), 0, 1.0), (r("item_coins_03.ogg"), 0.18, 0.5)), 0.7)
 
     # A chest: the latch clicks, the hinges creak, the lid falls back.
     latch = k("metalLatch.ogg")

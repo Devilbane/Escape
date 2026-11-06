@@ -60,6 +60,7 @@ const SNIFF_REST := 12.0
 ## A spot it cannot reach in this time is given up for now.
 const GIVE_UP := 10.0
 const SCALE := 0.4
+const RUN_ANIM := 5.0
 ## Sitting and lying: extra bone turns over Idle, in degrees about the bone's
 ## own x axis (or a Vector3 of euler angles), and "drop" lowers the body (in
 ## the model's own units).
@@ -131,7 +132,6 @@ func has_nose() -> bool:
 
 
 func _ready() -> void:
-	SmoothMotion.follow_ticks(self)
 	var species: Dictionary = Companions.SPECIES[kind]
 	_model = load("res://assets/animals/%s.glb" % species.model).instantiate()
 	_model.scale = Vector3.ONE * float(species.scale)
@@ -456,7 +456,7 @@ func _to_bed(delta: float) -> void:
 		_walk(delta, RUN_SPEED if _flat(_bed - global_position).length() > 4.0 else WALK_SPEED, null)
 		if _path.is_empty():
 			# A little hop over the rim, onto the cushion.
-			create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS).tween_property(self, "global_position", _bed + Vector3(0, BASKET_FLOOR, 0), 0.3)
+			create_tween().tween_property(self, "global_position", _bed + Vector3(0, BASKET_FLOOR, 0), 0.3)
 		return
 	_anim.speed_scale = 0.35
 	play("Idle")
@@ -560,7 +560,7 @@ func climb(points: Array, step_time: float, delay: float, done := false, first_t
 	_path.clear()
 	if _climb:
 		_climb.kill()
-	_climb = create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	_climb = create_tween()
 	_climb.tween_interval(delay)
 	var from := global_position
 	_climb.tween_callback(func():
@@ -602,7 +602,6 @@ func _beside_hero(hero: Node3D) -> void:
 			spot = p
 			break
 	global_position = Vector3(spot.x, 0.0, spot.z)
-	reset_physics_interpolation()
 	_path.clear()
 	state = "follow"
 
@@ -664,14 +663,6 @@ func _walk(delta: float, speed: float, hero: Node3D) -> void:
 		# Keeps up with a running hero.
 		var hero_speed: float = Vector2(hero.velocity.x, hero.velocity.z).length() if hero is CharacterBody3D else 0.0
 		speed = maxf(speed, hero_speed * 1.1)
-	# Walk or gallop, whichever fits the speed; a walk no faster than its
-	# legs step, every gait played just as fast as its planted paws must
-	# travel (see Stride).
-	var rig := Stride.rig_of(str(Companions.SPECIES[kind].model))
-	var size := _model.scale.x
-	var anim := Stride.gait(rig, Stride.GAITS[rig], size, speed, _current_anim)
-	if anim == "Walk":
-		speed = minf(speed, Stride.top_speed(rig, anim, size))
 	var to := _flat(_path[0] - global_position)
 	var step := speed * delta
 	if to.length() <= step:
@@ -680,8 +671,12 @@ func _walk(delta: float, speed: float, hero: Node3D) -> void:
 	else:
 		global_position += to.normalized() * step
 	_turn_to(to, delta)
-	play(anim)
-	_anim.speed_scale = Stride.playback(rig, anim, size, speed)
+	if speed > WALK_SPEED * 1.5:
+		play("Gallop")
+		_anim.speed_scale = clampf(speed / RUN_ANIM, 0.6, 2.0)
+	else:
+		play("Walk")
+		_anim.speed_scale = 1.0
 
 
 func _set_path(target: Vector3) -> bool:

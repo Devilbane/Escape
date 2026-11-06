@@ -34,15 +34,9 @@ const LORE := "Der Mond: Alle acht Nächte wird er einmal voll und einmal dunkel
 ## so the first full moon comes on night 3 and the first new moon on night 7.
 const FIRST_PHASE := 1
 ## How bright the moonlight is at night, new moon to full moon (a factor on
-## the night sky's own light, see DayNight: its night is the full moon's).
-## The moon is the only light of the night, so a new moon leaves the open
-## air nearly pitch black, only the shapes of things to be made out: only
-## lanterns, windows, fires and torches light it.
-const DARKEST := 0.01
-const BRIGHTEST := 1.0
-## How steeply the light falls off from the full moon: a thin crescent is
-## almost as dark as no moon at all, the half moon only dimly lit.
-const FALLOFF := 1.6
+## the night sky's own light, see DayNight).
+const DARKEST := 0.45
+const BRIGHTEST := 1.3
 
 
 ## The phase of a night, 0 (new moon) to CYCLE - 1.
@@ -64,9 +58,9 @@ static func word(night: int) -> String:
 
 
 ## How bright the moon shines on a night: DARKEST at new moon, BRIGHTEST at
-## full moon, falling off steeply in between (see FALLOFF).
+## full moon, smoothly in between.
 static func light(night: int) -> float:
-	var t := pow((1.0 - cos(TAU * phase(night) / CYCLE)) * 0.5, FALLOFF)
+	var t := (1.0 - cos(TAU * phase(night) / CYCLE)) * 0.5
 	return lerpf(DARKEST, BRIGHTEST, t)
 
 

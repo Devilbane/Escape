@@ -1,6 +1,5 @@
 name: Die bleiche Tiefe
 hint: Unter der Wolfssenke führt ein Schacht in eine kalte, stille Halle. Selbst die Wölfe meiden dieses Loch.
-monsters: undead, ghosts
 building: loch3
 floor: cellar
 lair: yes

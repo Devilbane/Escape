@@ -16,10 +16,6 @@ uniform bool use_normal_map = true;
 uniform float strength = 1.0;
 // 1 turns the texture grey (keeping its light and dark) before albedo_color.
 uniform float desaturate = 0.0;
-// How see-through this piece is (0 solid, 1 gone): a near wall in front of
-// the hero (see WallFade). Pixels drop out in a fine even pattern, so the
-// wall stays an ordinary solid one in the opaque pass.
-instance uniform float fade = 0.0;
 
 varying vec3 world_pos;
 
@@ -46,12 +42,4 @@ void fragment() {
 	}
 	ROUGHNESS = 0.92 + 0.08 * grit;
 	SPECULAR = 0.2;
-	if (fade > 0.0) {
-		// A 4 x 4 ordered dither: the share of pixels dropped is the fade.
-		ivec2 q = ivec2(FRAGCOORD.xy) % 4;
-		int bayer[16] = int[](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
-		if ((float(bayer[q.y * 4 + q.x]) + 0.5) / 16.0 < fade) {
-			discard;
-		}
-	}
 }

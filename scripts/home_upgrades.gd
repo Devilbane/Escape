@@ -21,7 +21,7 @@ extends RefCounted
 ## Everything here is pure: the game's state goes in, a result comes out.
 
 ## What the compendium says about home upgrades, once the hero has seen them.
-const LEARN := "Dein Haus in der Weberzeile lässt sich ausbauen: Mit Steinblöcken und etwas Kupfer baut dir Steinmetz Hagen eine Werkstatt (Wurfmesser aus Eisen, Ausrüstung flicken, schnelleres Handwerk während du weg bist), eine zweite Truhe (doppelt so viel Platz) und eine Trophäenwand (jede Trophäe eines besiegten mächtigen Gegners gibt +1 Leben). Das Ausbau-Fenster öffnest du am Bett in deinem Haus oder beim Steinmetz."
+const LEARN := "Dein Haus in der Weberzeile lässt sich ausbauen: Mit Steinblöcken und etwas Gold baut dir Steinmetz Hagen eine Werkstatt (Wurfmesser aus Eisen, Ausrüstung flicken, schnelleres Handwerk während du weg bist), eine zweite Truhe (doppelt so viel Platz) und eine Trophäenwand (jede Trophäe eines besiegten mächtigen Gegners gibt +1 Leben). Das Ausbau-Fenster öffnest du am Bett in deinem Haus oder beim Steinmetz."
 
 ## The upgrades, in the order they are shown: name, what it does, and its
 ## price in stone blocks and gold.
@@ -70,7 +70,7 @@ const SECOND_CHEST := 16
 
 ## At the workbench: throwing knives made from one iron bar, and iron bars
 ## to mend one worn piece completely.
-const KNIVES_PER_IRON := 2
+const KNIVES_PER_IRON := 3
 const MEND_IRON := 1
 ## With a workshop, a piece crafted while away takes this share of the hours.
 const WORKSHOP_CRAFT := 2.0 / 3.0
@@ -87,19 +87,6 @@ static func storage_size(built: Dictionary) -> int:
 	return STORAGE_SIZE + (SECOND_CHEST if has(built, "truhe") else 0)
 
 
-## How many of the storage chest's slots these items take: torches bundle
-## there just as in the bag (see Items.stacks), so the chest stays a plain
-## list of ids and older saves with loose torches bundle on their own.
-static func storage_used(storage: Array) -> int:
-	return Items.slots_used(storage)
-
-
-## Whether one more of `id` fits in the storage chest: on a bundle of it
-## with room, or in a free slot.
-static func storage_fits(built: Dictionary, storage: Array, id: String) -> bool:
-	return Items.fits(storage, storage_size(built), id)
-
-
 ## Stone blocks the hero can pay with: in the bag and in the storage chest.
 static func stones_owned(bag: Array, storage: Array) -> int:
 	return bag.count(STONE) + storage.count(STONE)
@@ -114,7 +101,7 @@ static func why_not(id: String, built: Dictionary, bag: Array, storage: Array, g
 	if stones_owned(bag, storage) < ALL[id].stones:
 		return Lang.t("Dafür brauchst du %d Steinblöcke (in Tasche oder Truhe).") % ALL[id].stones
 	if gold < ALL[id].gold:
-		return Lang.t("Dafür reicht dein Kupfer nicht.")
+		return Lang.t("Dafür reicht dein Gold nicht.")
 	return ""
 
 

@@ -272,6 +272,10 @@ jobs:
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_tricks.gd | tee slime_tricks.log
           grep -q PASS slime_tricks.log
+      - name: Slime prey test (townsfolk and animals, fighting back, hiding, coming back out)
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_prey.gd | tee slime_prey.log
+          grep -q PASS slime_prey.log
 
       - name: Floor items test
         run: |

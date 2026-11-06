@@ -410,6 +410,10 @@ var absorbed := 0.0
 var _spit_cool := 0.0
 ## Seconds left under a slime's gooey cover after its blow (see goo).
 var goo_left := 0.0
+## The villager or animal a slime is after (see SlimeGrowth.nearest_snack),
+## and the villagers it has swallowed (they come out when it falls).
+var snack: Node3D = null
+var folk: Array = []
 var _puddle_mat: StandardMaterial3D
 var _drops_mat: StandardMaterial3D
 
@@ -1518,9 +1522,13 @@ func _die() -> void:
 	died.emit()
 	if swallowed_by != null:
 		remove_from_group("combatant")
+		# The villagers inside go on into the bigger slime.
+		swallowed_by.folk.append_array(folk)
+		folk.clear()
 		swallowed_by.swallow(self)
 		_slide_into(swallowed_by)
 		return
+	SlimeGrowth.release_folk(self)
 	# The body stays where it fell and rots away (see Corpse).
 	Corpse.lay(self)
 
@@ -1529,9 +1537,15 @@ func _die() -> void:
 ## the meal's worth up to SlimeGrowth.MAX_LEVEL and swells to its new size;
 ## from SlimeGrowth.BLOB_LEVEL on it is a Blob.
 func swallow(victim: Enemy) -> void:
+	grow_from(victim.rated_level, victim.merged)
+
+
+## A meal of `prey_level` (see swallow and SlimeGrowth.gulp): it heals, grows
+## and swells, and says so.
+func grow_from(prey_level: int, merging := false) -> void:
 	var was_max := max_hp()
 	var was_level := rated_level
-	var target := mini(SlimeGrowth.MAX_LEVEL, rated_level + SlimeGrowth.gain(victim.rated_level))
+	var target := mini(SlimeGrowth.MAX_LEVEL, rated_level + SlimeGrowth.gain(prey_level))
 	if target > rated_level:
 		rated_level = mini(fit_level(kind, _stats, hardening, target, SlimeGrowth.MAX_LEVEL), SlimeGrowth.MAX_LEVEL)
 	var became_blob := not blob and SlimeGrowth.is_blob_level(rated_level)
@@ -1541,7 +1555,7 @@ func swallow(victim: Enemy) -> void:
 	hp = mini(max_hp(), hp + maxi(0, max_hp() - was_max))
 	hp = mini(max_hp(), hp + (max_hp() - hp + 1) / 2)
 	var height := 2.2 * float(_stats.size)
-	Effects.head_text(level, self, height, Lang.t("Blubb!") if victim.merged else Lang.t("Schluck!"), SlimeGrowth.GULP_COLOR)
+	Effects.head_text(level, self, height, Lang.t("Blubb!") if merging else Lang.t("Schluck!"), SlimeGrowth.GULP_COLOR)
 	if rated_level > was_level:
 		_resize(SlimeGrowth.size_of(self))
 		Effects.head_text(level, self, height + 0.6, Lang.t("Stufe %d") % rated_level, SlimeGrowth.GULP_COLOR)
@@ -1564,6 +1578,40 @@ func _go_feed() -> Vector3:
 			_eat_corpse(meal)
 		return Vector3.ZERO
 	return _head_for(at)
+
+
+## A slime that vanishes (taken out of the world without falling) lets its
+## swallowed villagers out too.
+func _exit_tree() -> void:
+	if folk.is_empty() or level == null or not is_instance_valid(level) or level.is_queued_for_deletion():
+		return
+	SlimeGrowth.release_folk(self)
+
+
+## Goes for the villager or animal it hunts, and strikes once in reach.
+func _go_snack() -> Vector3:
+	var to := snack.global_position - global_position
+	to.y = 0.0
+	if to.length() < float(_stats.reach) + 0.6:
+		_face(to)
+		if _cooldown <= 0.0:
+			_bite_snack(snack)
+		return Vector3.ZERO
+	return _head_for(snack.global_position)
+
+
+func _bite_snack(n: Node3D) -> void:
+	_cooldown = _stats.cooldown
+	var slow: float = _stats.size
+	_play_once("1H_Melee_Attack_Chop", 0.9 * slow)
+	Sfx.play(self, "swing", -4.0, global_position)
+	await get_tree().create_timer(0.45 * slow).timeout
+	if dead or not is_inside_tree() or not SlimeGrowth.can_snack(n):
+		return
+	var d := n.global_position - global_position
+	d.y = 0.0
+	if d.length() < float(_stats.reach) + 1.2:
+		SlimeGrowth.bite(self, n)
 
 
 ## The next step towards `at`: straight on with nothing in the way, else
@@ -1838,6 +1886,9 @@ func _physics_process(delta: float) -> void:
 			if SlimeGrowth.try_merge(self):
 				return
 			drawn_to = SlimeGrowth.nearest_slime(self) if foe == null and meal == null else null
+			snack = SlimeGrowth.nearest_snack(self) if foe == null and meal == null else null
+			if snack is Villager:
+				(snack as Villager).alarm(self)
 	if foe != null and (not is_instance_valid(foe) or foe.dead):
 		foe = null
 		_path.clear()
@@ -1855,6 +1906,10 @@ func _physics_process(delta: float) -> void:
 		meal = null
 		_path.clear()
 	var feeds := meal != null and (not _awake or player.dead or dist > SlimeGrowth.HERO_CLOSE)
+	if snack != null and not SlimeGrowth.can_snack(snack):
+		snack = null
+		_path.clear()
+	var snacks := snack != null and not fights_foe and (not _awake or player.dead or _flat_distance(snack) < dist)
 
 	var through_walls := is_ghost() and _awake
 	var move := _step_out() if _busy <= 0.0 and not through_walls else Vector3.ZERO
@@ -1866,6 +1921,9 @@ func _physics_process(delta: float) -> void:
 	elif fights_foe:
 		if _busy <= 0.0:
 			move = _fight_foe()
+	elif snacks:
+		if _busy <= 0.0:
+			move = _go_snack()
 	elif _awake and not player.dead and _busy <= 0.0:
 		if level.stacked(self, player):
 			pass # Inside the hero's spot: no blow or shot until pushed apart.

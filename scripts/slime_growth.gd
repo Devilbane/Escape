@@ -33,6 +33,14 @@ extends RefCounted
 ## - Lasting: the slimes of the open air stay in the world while the hero
 ##   is in a dungeon or a house, and in the saved game (see snapshot and
 ##   restore): where they are, their level, colour, life and belly.
+## - Townsfolk and animals: in the open air a slime hunts the villagers and
+##   the woods' foxes, does and stags too (see nearest_snack, SNACKS). Each
+##   blow costs them some of their life (they cannot die otherwise) and
+##   leaves them under its goo; an animal bolts, a villager cries for help.
+##   At no life left the slime swallows them and grows as from a kill. An
+##   animal is gone; a villager waits inside the slime (Enemy.folk) and
+##   crawls out again when the slime falls, or is back when the hero next
+##   comes to the village.
 ## - Blob: from BLOB_LEVEL on a slime is a Blob. It sparkles, hits harder
 ##   (BLOB_DAMAGE), strikes faster (BLOB_PACE) and its touch poisons more
 ##   often (BLOB_POISON).
@@ -78,6 +86,11 @@ const GULP_COLOR := Color(0.6, 1.0, 0.45)
 ## How far a slime smells a corpse, and how close the hero must come before
 ## it leaves its meal for the hero.
 const CORPSE_SCENT := 20.0
+## The townsfolk and animals a slime hunts: [life, level]. Their life only
+## counts the slime's blows; their level is what they are worth as a meal.
+const SNACKS := {"fuchs": [3, 2], "reh": [4, 3], "hirsch": [6, 4], "villager": [8, 5]}
+## How far a slime notices a villager or an animal it could eat.
+const SNACK_SIGHT := 14.0
 const HERO_CLOSE := 3.5
 ## How many swallowed things show inside a slime at most.
 const SHOWN := 8
@@ -223,6 +236,122 @@ static func nearest_corpse(slime: Enemy) -> Corpse:
 			best = c
 			best_d = d
 	return best
+
+
+## What `n` is as a meal: "villager", an animal's kind, or "".
+static func snack_key(n) -> String:
+	if n is Villager:
+		return "villager"
+	if n is Animal and SNACKS.has((n as Animal).kind):
+		return (n as Animal).kind
+	return ""
+
+
+## Whether a slime can go for this villager or animal now: out in the open,
+## not inside a house and not eaten already.
+static func can_snack(n) -> bool:
+	if n == null or not is_instance_valid(n) or not n.is_inside_tree() or not n.is_visible_in_tree():
+		return false
+	if n is Villager and ((n as Villager).eaten or (n as Villager).at_home):
+		return false
+	return snack_key(n) != ""
+
+
+## The nearest villager or animal of the open air a slime notices (within
+## SNACK_SIGHT and in sight), or null.
+static func nearest_snack(slime: Enemy) -> Node3D:
+	var outdoor := slime.level as Outdoor
+	if outdoor == null:
+		return null
+	var best: Node3D = null
+	var best_d := SNACK_SIGHT
+	for n in outdoor.villagers + outdoor.animals:
+		if not can_snack(n):
+			continue
+		var d: float = slime._flat_distance(n)
+		if d < best_d and slime.level.has_line_of_sight(slime.global_position, n.global_position):
+			best = n
+			best_d = d
+	return best
+
+
+## A slime's blow on a villager or an animal: some of its life, a cover of
+## goo, and it runs or cries for help. At no life left the slime eats it.
+static func bite(slime: Enemy, n: Node3D) -> void:
+	var key := snack_key(n)
+	var life: int = n.get_meta("slime_life", SNACKS[key][0]) - maxi(1, int(slime._stats.damage))
+	n.set_meta("slime_life", life)
+	var colour := slime.slime_colour()
+	Effects.head_text(slime.level, n, 2.2, "-%d" % maxi(1, int(slime._stats.damage)), Color(1, 0.45, 0.35))
+	Comic.pop(n.global_position, "hit")
+	if life <= 0:
+		gulp(slime, n)
+		return
+	goo_for_a_while(n, colour)
+	if n is Animal:
+		(n as Animal).bolt_from(slime.global_position)
+	elif n is Villager:
+		(n as Villager).alarm(slime)
+
+
+static func goo_for_a_while(n: Node3D, colour: Color) -> void:
+	var model: Node3D = n.get("_model")
+	if model == null:
+		return
+	SlimeCoat.coat(n, model, colour)
+	# Only the newest cover's timer wipes it off.
+	var mine: int = n.get_meta("goo_count", 0) + 1
+	n.set_meta("goo_count", mine)
+	n.get_tree().create_timer(SlimeCoat.GOO_TIME, false, true).timeout.connect(func():
+		if is_instance_valid(n) and int(n.get_meta("goo_count", 0)) == mine:
+			SlimeCoat.wipe(n, model))
+
+
+## The slime swallows the villager or animal: it slides into it, and the
+## slime grows as from a kill. An animal is gone for good; a villager waits
+## inside (see release_folk).
+static func gulp(slime: Enemy, n: Node3D) -> void:
+	var key := snack_key(n)
+	slime.grow_from(int(SNACKS[key][1]))
+	n.remove_meta("slime_life")
+	var model: Node3D = n.get("_model")
+	var outdoor := slime.level as Outdoor
+	if n is Villager:
+		var v := n as Villager
+		v.eaten = true
+		v.calm_down()
+		v.hush()
+		v._hide_inside(true)
+		v.process_mode = Node.PROCESS_MODE_DISABLED
+		slime.folk.append(v)
+	elif outdoor != null:
+		outdoor.animals.erase(n)
+		n.set_physics_process(false)
+		var tween := n.create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS).set_parallel()
+		tween.tween_property(n, "global_position", slime.global_position + Vector3(0, 0.4, 0), GULP_TIME)
+		if model != null:
+			tween.tween_property(model, "scale", Vector3.ONE * 0.05, GULP_TIME).set_ease(Tween.EASE_IN)
+		tween.chain().tween_callback(n.queue_free)
+
+
+## A fallen slime lets out the villagers it swallowed, a little shaken.
+static func release_folk(slime: Enemy) -> void:
+	var i := 0
+	for v in slime.folk:
+		if not is_instance_valid(v):
+			continue
+		v.eaten = false
+		v.process_mode = Node.PROCESS_MODE_INHERIT
+		v.global_position = slime.global_position + Vector3(0.6 * i, 0, 0.6)
+		v.reset_physics_interpolation()
+		v._hide_inside(false)
+		var model: Node3D = v.get("_model")
+		if model != null:
+			goo_for_a_while(v, slime.slime_colour())
+		v.calm_down()
+		v.say(Lang.t("Puh! Wieder draußen!"))
+		i += 1
+	slime.folk.clear()
 
 
 ## The other slime of its kind this one notices: the nearest within

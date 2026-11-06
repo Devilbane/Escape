@@ -215,6 +215,11 @@ func _next() -> void:
 		_speed = _stats.walk
 
 
+## Bolts from something that attacked it (a slime, see SlimeGrowth.bite).
+func bolt_from(danger: Vector3) -> void:
+	_flee_from(danger)
+
+
 ## Bolts to the spot near home that lies farthest from the hero.
 func _flee_from(danger: Vector3) -> void:
 	var best := Vector2i(-1, -1)

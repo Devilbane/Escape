@@ -183,6 +183,15 @@ var level: Outdoor
 var role := "7"
 var home := Vector2i.ZERO
 var station: Dictionary = {}
+## Swallowed by a slime (see SlimeGrowth.gulp): hidden inside it until it falls.
+var eaten := false
+## A slime going for them (see alarm): the brave draw a blade and fight it
+## ("fight"), the others run into the nearest house and wait there until it
+## is gone ("hide").
+var threat: Enemy = null
+var brave := false
+var _blow_cool := 0.0
+var _calm_check := 0.0
 var display_name := ""
 var _info: Dictionary
 var _model: Node3D
@@ -279,6 +288,7 @@ func setup(owner_level: Outdoor, role_char: String, cell: Vector2i) -> void:
 	_info = ROLES[role]
 	display_name = Lang.t(_info.name)
 	_rng.seed = hash(role) + cell.x * 31 + cell.y
+	brave = _rng.randf() < BRAVE_SHARE
 
 
 func _ready() -> void:
@@ -447,8 +457,126 @@ func _start(task: String, time: float) -> void:
 	_task = task
 	_task_time = time
 	_work_pause = 0.0
-	if task == "home" and not at_home:
+	if task in ["home", "hide"] and not at_home:
 		_hide_inside(true)
+
+
+# --- A slime in the village ----------------------------------------------------
+
+## How many villagers stand and fight a slime; the rest run indoors.
+const BRAVE_SHARE := 0.55
+## How hard and how often a villager strikes a slime, and from how near.
+const BLOW := 1
+const BLOW_TIME := 1.3
+const BLOW_REACH := 1.7
+## A villager in hiding comes out once no slime is this near the door.
+const SAFE_DISTANCE := 12.0
+## A fighter gives up a slime that gets this far away.
+const GIVE_UP := 14.0
+
+
+## A slime is after them (see Enemy.snack): the brave draw a blade and
+## fight, the rest run into the nearest house until it is gone.
+func alarm(slime: Enemy) -> void:
+	if eaten or at_home or slime == null or not is_instance_valid(slime) or slime.dead:
+		return
+	if threat == slime and _task in ["fight", "hide"] or (_task == "walk" and get_meta("then", "") == "hide"):
+		return
+	threat = slime
+	leave_chat()
+	_listen_to = Vector3.INF
+	if brave:
+		_draw_blade(true)
+		say(Lang.t("Weg mit dir, Schleim!"))
+		_task = "fight"
+		_blow_cool = 0.6
+	else:
+		say(Lang.t("Hilfe! Ein Schleim!"))
+		_walk_to(_house_door(), RUN_SPEED, "hide")
+
+
+## The danger is over (the slime fell, went off, or swallowed them).
+func calm_down() -> void:
+	threat = null
+	_draw_blade(false)
+	if not at_home:
+		_start("idle", _rng.randf_range(0.5, 2.0))
+
+
+func _draw_blade(on: bool) -> void:
+	var hand := _model.find_child("handslot_r", true, false) if _model != null else null
+	if hand == null:
+		return
+	var old := hand.get_node_or_null("SlimeBlade")
+	if old:
+		old.queue_free()
+	# The tool in that hand (a hammer, a mug) is put away meanwhile.
+	for c in hand.get_children():
+		if c is Node3D and c != old:
+			if on and (c as Node3D).visible:
+				c.set_meta("put_away", true)
+				(c as Node3D).visible = false
+			elif not on and c.has_meta("put_away"):
+				c.remove_meta("put_away")
+				(c as Node3D).visible = true
+	if on:
+		var blade: Node3D = load("res://assets/weapons/sword_1handed.gltf").instantiate()
+		blade.name = "SlimeBlade"
+		hand.add_child(blade)
+
+
+## Fights the slime: up to it, then a blow every BLOW_TIME (which may leave
+## them under its goo, see SlimeCoat).
+func _fight(delta: float) -> void:
+	if threat == null or not is_instance_valid(threat) or threat.dead \
+			or threat.global_position.distance_to(global_position) > GIVE_UP:
+		calm_down()
+		return
+	var to := threat.global_position - global_position
+	to.y = 0.0
+	_turn_to(to, delta)
+	var reach := BLOW_REACH + threat.radius
+	if to.length() > reach:
+		var walked := _stride("Running_A", RUN_SPEED)
+		global_position += to.normalized() * minf(walked * delta, to.length() - reach + 0.1)
+		return
+	_blow_cool -= delta
+	if _blow_cool > 0.0:
+		if not _anim.is_playing() or _current_anim != "1H_Melee_Attack_Chop":
+			play("Idle")
+		return
+	_blow_cool = BLOW_TIME
+	_current_anim = "1H_Melee_Attack_Chop"
+	_anim.play("1H_Melee_Attack_Chop", 0.1)
+	var slime := threat
+	get_tree().create_timer(0.4, false, true).timeout.connect(func():
+		if eaten or not is_inside_tree() or slime == null or not is_instance_valid(slime) or slime.dead:
+			return
+		if slime.global_position.distance_to(global_position) > BLOW_REACH + slime.radius + 0.6:
+			return
+		Sfx.play(self, "hit", -8.0, global_position)
+		slime.hit_by_rival(BLOW, null)
+		if SlimeCoat.sticks(slime):
+			SlimeGrowth.goo_for_a_while(self, slime.slime_colour()))
+
+
+## Hiding indoors: out again once no slime is near the door.
+func _hide(delta: float) -> void:
+	_calm_check -= delta
+	if _calm_check > 0.0:
+		return
+	_calm_check = 1.0
+	for e in level.enemies:
+		if is_instance_valid(e) and not e.dead and SlimeGrowth.grows(e.kind) \
+				and e.global_position.distance_to(global_position) < SAFE_DISTANCE:
+			return
+	threat = null
+	_hide_inside(false)
+	if night and goes_to_bed():
+		_start("home", 10.0)
+		_hide_inside(true)
+	else:
+		_start("idle", _rng.randf_range(0.5, 2.0))
 
 
 ## What comes after the current task: mostly back to work, now and then a
@@ -594,6 +722,12 @@ func _physics_process(delta: float) -> void:
 	match _task:
 		"home":
 			pass
+		"fight":
+			_fight(delta)
+			return
+		"hide":
+			_hide(delta)
+			return
 		"walk":
 			_walk(delta, hero)
 		"work", "sit", "idle":
@@ -944,6 +1078,8 @@ func _house_door() -> Vector3:
 
 ## In through the door (gone from the street) or back out of it.
 func _hide_inside(inside: bool) -> void:
+	if eaten and not inside:
+		return # Inside a slime, not at home: morning does not bring them out.
 	at_home = inside
 	visible = not inside
 	if inside:

@@ -259,7 +259,8 @@ var hoard := {}
 var elder_hoard := {}
 ## The Great Old One, on the floor where it sleeps.
 var elder: ElderDragon
-## The glowing way out that opens in the lair once the dragon has fallen.
+## The glowing way out that opens once the lair's dragon or the Mountain
+## King has fallen.
 var lair_exit: Node3D
 ## Whether the hero still stands in the way out (it leads out once per step).
 var _in_lair_exit := false
@@ -3911,7 +3912,9 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, ma
 				taken[Mines.KING_DEFEATED] = true
 				_drop_item(Mines.TROPHY, e.global_position + Vector3(0.8, 0, 0.8))
 				Sfx.play_find(self, Mines.TROPHY, 0.4, e.global_position)
-			boss_won.emit())
+			boss_won.emit()
+			# As in the dragon's lair, a golden way out opens where he fell.
+			_open_way_out(e.global_position))
 	if e is ElderDragon:
 		# Far too big to walk through, and it never moves from its bed.
 		elder = e as ElderDragon
@@ -4743,20 +4746,29 @@ func _win_lair(at: Vector3) -> void:
 		return
 	lair_cleared = true
 	lair_won.emit()
+	_open_way_out(at)
+
+
+## A glowing way out shines up on a free tile next to `at` a moment later
+## (see lair_exit): the dragon's lair and the Heart of the Mountain have one.
+func _open_way_out(at: Vector3) -> void:
+	if is_instance_valid(lair_exit):
+		return
 	var spot := _lair_exit_spot(world_to_cell(at))
 	await get_tree().create_timer(LAIR_EXIT_DELAY).timeout
-	if not is_inside_tree():
+	if not is_inside_tree() or is_instance_valid(lair_exit):
 		return
 	lair_exit = _build_lair_exit(spot)
 
 
-## A free floor tile beside `c` for the way out (or `c` itself, if none).
+## A free floor tile (plain or dirt) beside `c` for the way out (or `c`
+## itself, if none).
 func _lair_exit_spot(c: Vector2i) -> Vector3:
 	var best := c
 	var best_dist := INF
 	for d in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
 		var n: Vector2i = c + d
-		if not astar.is_in_boundsv(n) or astar.is_point_solid(n) or cell_char(n) != ".":
+		if not astar.is_in_boundsv(n) or astar.is_point_solid(n) or not cell_char(n) in [".", ","]:
 			continue
 		# The one nearest the stairs the hero came down, as a reminder of
 		# the way they came.

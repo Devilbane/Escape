@@ -4,7 +4,8 @@ extends SceneTree
 ## the hero can rest, up to a high valley with three mines. Mines 1 and 2
 ## each keep a stone tablet with one of two runes; only a hero who has read
 ## both gets past the seal in mine 3, down to the ember tunnels and the
-## heart of the mountain, where the Mountain King waits.
+## heart of the mountain, where the Mountain King waits; once he falls, a
+## golden way out leads back in front of the mine.
 ## Run with: godot --headless --fixed-fps 60 -s tests/mountains.gd
 
 var failures := 0
@@ -122,6 +123,28 @@ func _process(_delta: float) -> bool:
 			stage = 10
 		10:
 			_check_king()
+			# The golden way out shines up a moment after the king fell.
+			wait = 150
+			stage = 11
+		11:
+			var lvl: Level = game.level
+			check(is_instance_valid(lvl.lair_exit), "where the king fell, a golden way out opens")
+			if not is_instance_valid(lvl.lair_exit):
+				_finish()
+				return true
+			var hammer: Array = lvl._pickups.filter(func(p): return p.get("id", "") == Mines.TROPHY)
+			check(hammer.is_empty() or hammer[0].node.global_position.distance_to(lvl.lair_exit.global_position) > Level.LAIR_EXIT_RADIUS + 1.0,
+					"the way out does not lie on the king's hammer")
+			game.player.global_position = Vector3(lvl.lair_exit.global_position.x, game.player.global_position.y, lvl.lair_exit.global_position.z)
+			wait = 150
+			stage = 12
+		12:
+			var lvl: Level = game.level
+			check(lvl is Outdoor, "the way out leads out of the mine into the open")
+			if lvl is Outdoor:
+				var at: Vector3 = game.player.global_position
+				var door: Vector3 = lvl.doors["mine3"]
+				check(Vector2(at.x - door.x, at.z - door.z).length() < 1.0, "the hero stands in front of mine 3")
 			_finish()
 			return true
 	return false

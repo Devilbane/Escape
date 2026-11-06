@@ -177,6 +177,8 @@ var _quest_mark_timer := 0.0
 var inside_house := 0
 ## Village buildings with floors of their own: building letter -> level index.
 var interiors := {}
+## The floor above each deeper floor (its "up:" line): building -> building.
+var floor_above := {}
 ## The hero's money: copper coins (see Loot.MONEY; the gold coins of old
 ## were exchanged into them one for one).
 var coins := 0
@@ -509,9 +511,17 @@ func _ready() -> void:
 		level_files.append(playtest_file)
 	Training.keep = playtest_file == ""
 	for i in level_files.size():
+		var building := ""
+		var above := ""
 		for line in FileAccess.get_file_as_string(level_files[i]).split("\n"):
-			if line.begins_with("building:") and not interiors.has(line.substr(9).strip_edges()):
-				interiors[line.substr(9).strip_edges()] = i
+			if line.begins_with("building:"):
+				building = line.substr(9).strip_edges()
+				if not interiors.has(building):
+					interiors[building] = i
+			elif line.begins_with("up:"):
+				above = line.substr(3).strip_edges()
+		if building != "" and above != "" and not floor_above.has(building):
+			floor_above[building] = above
 	_setup_world()
 	# The event log's width is the player's (the slider in the pull-out menu).
 	EventLog.load_settings()
@@ -4803,7 +4813,8 @@ func _on_mine_boss_won() -> void:
 	Sfx.play(self, "level_done", -1.0)
 	player.train("weisheit", 10.0)
 	_shake = 1.2
-	show_message(Lang.t("Der Bergkönig ist besiegt! Das Herz des Berges gehört dir."), 5.0, GOLD)
+	show_message(Lang.t("Der Bergkönig ist besiegt! Das Herz des Berges gehört dir.") + "\n"
+			+ Lang.t("Wo er fiel, leuchtet gleich ein goldener Ausgang. Tritt hinein, und du stehst wieder vor der Mine."), 5.0, GOLD)
 
 
 func _on_lair_won() -> void:
@@ -4838,6 +4849,8 @@ const DRAGON_LEARN := "Rote Ringe am Boden zeigen, wo sein Feuer fällt: geh bei
 func leave_lair() -> void:
 	if state != State.PLAYING or not level.lair or player.dead:
 		return
+	var news := Lang.t("Du trittst mit dem Schatz des Drachen aus dem Steinbogen ins Freie.") if DragonLair.is_floor(level) \
+			else Lang.t("Du trittst aus dem Stollen der Mine ins Freie.")
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
@@ -4848,7 +4861,7 @@ func leave_lair() -> void:
 		_leave_building(true)
 		get_tree().create_timer(1.0).timeout.connect(func():
 			if state == State.PLAYING:
-				show_message(Lang.t("Du trittst mit dem Schatz des Drachen aus dem Steinbogen ins Freie."), 3.5)))
+				show_message(news, 3.5)))
 
 
 ## Training raised an attribute or a skill: say so, the attributes louder.
@@ -5432,6 +5445,16 @@ func _refresh_seals() -> void:
 			Mines.show_runes(st, lore)
 
 
+## The top floor of the building `building` lies under: the one whose door
+## stands in the open (see floor_above), e.g. "mine3" for "mine3c".
+func top_floor(building: String) -> String:
+	var seen := {}
+	while floor_above.has(building) and not seen.has(building):
+		seen[building] = true
+		building = floor_above[building]
+	return building
+
+
 ## Up the stairs of a building floor and out of its door into the village.
 ## A deeper floor of a mine leads up to the floor above instead, beside the
 ## way down the hero came by.
@@ -5453,6 +5476,9 @@ func _leave_building(all_the_way := false) -> void:
 	if from_lair:
 		# Every floor of the lair comes out of the one arch.
 		building = DragonLair.FLOORS[0]
+	else:
+		# All the way out from a deeper floor (a mine's): out of its door.
+		building = top_floor(building)
 	if inside_house > 0:
 		building += str(inside_house)
 	inside_house = 0

@@ -197,6 +197,12 @@ func _test() -> void:
 	_tick(0.1)
 	check(t.step == -1 and not t.card.visible, "leaving the cell takes the card away")
 
+	# The list of keys at the bottom left stays in the beginner dungeon only.
+	game.hints_shown.clear()
+	check(game.level.beginner_dungeon and game.help_shown(), "the keys show in the beginner dungeon")
+	game.load_level(game._outdoor_index(), false)
+	check(not game.level.beginner_dungeon and not game.help_shown(), "the keys are gone outside the beginner dungeon")
+
 
 ## Every step's title fits on one line and its text in the room the card
 ## keeps for it, in German and in English, so the card never changes size.

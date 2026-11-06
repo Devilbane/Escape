@@ -1375,9 +1375,9 @@ func _setup_hud() -> void:
 	_message = _message_line()
 	_message_box.add_child(_message)
 
-	# The keys at the bottom left help while the first steps are learned;
-	# after that they go, to keep the screen clear (all keys are in the
-	# compendium, H).
+	# The keys at the bottom left help while the first steps are learned in
+	# the beginner dungeon; after that, or outside it, they go, to keep the
+	# screen clear (all keys are in the compendium, H).
 	var help := _make_label(TEXT_FONT, 15, Color(1, 1, 1, 0.8))
 	_help = help
 	help.text = Lang.t("WASD: laufen   Leertaste: springen   F: Schlag   R: Messer   V: Fackel   M: Ton\nI: Inventar   H: Kompendium   P: Charakter   L: Laden   C/Doppelklick: schleichen   Dagegenlaufen: benutzen   Tab: Menü\nMaus: Klick gehen, halten rennen (Umschalt), Rechtsklick: Messer (im Lauf: Sprung)")
@@ -5837,7 +5837,7 @@ func _process(delta: float) -> void:
 	_update_run_meter()
 	place_message(delta)
 	tutorial.update(delta)
-	_help.visible = tutorial.pending()
+	_help.visible = help_shown()
 	if state == State.PLAYING:
 		fishing.tick(delta)
 	elif fishing.is_fishing():
@@ -5942,6 +5942,13 @@ func _process(delta: float) -> void:
 		if gift_prompt != "":
 			_prompt.text = gift_prompt if _prompt.text == "" else _prompt.text + "   " + gift_prompt
 	_count_hints()
+
+
+## Whether the list of keys shows at the bottom left: while a first step is
+## still to be learned, and only in the beginner dungeon. Once the hero is out
+## (open air, a building, a mine) it goes, even with a step still unlearned.
+func help_shown() -> bool:
+	return tutorial.pending() and level != null and level.beginner_dungeon
 
 
 ## An explanatory hint of one kind ("bett", "search", "fish", ...): shown the

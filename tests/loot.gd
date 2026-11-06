@@ -350,6 +350,8 @@ func _test_game() -> void:
 		held += int(out.share[part])
 	check(held == 100 and int(out.share.schlacke) >= 25 and int(out.share.schlacke) <= 60, "the fire shows what it held: %s" % str(out.share))
 	check(out.grams == Ore.metal_grams(4000, out.share), "it gives the grams of each metal it held: %s" % str(out.grams))
+	check(int(out.slag) == 4000 * int(out.share.schlacke) / 100 and int(out.slag) > 0, "the fire tells the slag it left: %d g" % int(out.slag))
+	check(Ore.guess("erzbrocken_gross", {"grams": 4000}).contains("25-60") and Ore.guess("erzbrocken_episch", {"grams": 3000}).contains("10-20"), "the smith tells how much slag a lump of that size holds")
 	var iron_g := int(out.grams.get("eisen", 0))
 	check(game.iron == iron_before + iron_g / Ore.GRAMS_PER_BAR and int(game.metal_grams.get("eisen", 0)) == iron_g % Ore.GRAMS_PER_BAR, "whole kilos of iron become bars, the rest waits in grams")
 	luck.seed = 12

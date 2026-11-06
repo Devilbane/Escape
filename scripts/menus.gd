@@ -3053,7 +3053,7 @@ func _sell_gem() -> void:
 
 func _melt_ore(id: String) -> void:
 	var out := Forge.melt_ore(game, id)
-	_note = out.why if out.why != "" else Lang.t("Eingeschmolzen: %s (%d %% Schlacke), %s") % [Crafting.ingredient_name(id), int(out.share.get(Ore.SLAG, 0)), Ore.grams_text(out.grams)]
+	_note = out.why if out.why != "" else Lang.t("Eingeschmolzen: %s, %d g Schlacke (%d %%), %s") % [Crafting.ingredient_name(id), int(out.slag), int(out.share.get(Ore.SLAG, 0)), Ore.grams_text(out.grams)]
 	if out.why == "" and not out.bars.is_empty():
 		_note += "  " + Forge.metals_text(out.bars, true)
 	if out.why == "" and not out.gems.is_empty():

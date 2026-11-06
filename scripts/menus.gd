@@ -14,7 +14,8 @@ const REPUTATION_COLOR := Color(0.78, 0.65, 1.0)
 const ABOUT_COLOR := Color(0.78, 0.8, 0.86)
 
 var game: Node
-## The open window: "", "inventar", "lager", "haendler", "bett", "laden",
+## The open window: "", "inventar", "lager", "haendler", "bett",
+## "nachtlager" (the camp with the bedroll, see Camp), "laden",
 ## "ueberschreiben" (asks before a new game overwrites a slot), "kompendium",
 ## "charakter", "beenden", "plan" (the day planned for the
 ## time away) or "rueckkehr" (what the hero did while the player was away).
@@ -78,6 +79,7 @@ const SHORTCUTS := [
 	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],
 	["Schleichen", "C oder Doppelklick"],
 	["Fackel anzünden oder löschen", "V oder die Fackel am rechten Rand, unter dem Haus"],
+	["Lager aufschlagen (speichern und schlafen)", "U, der Knopf „Lager“ im Menü, oder die Schlafrolle im Inventar"],
 	["Benutzen, durchsuchen, Fackel", "Dagegenlaufen"],
 	["Inventar", "I"],
 	["Kompendium", "H"],
@@ -333,6 +335,8 @@ func _rebuild() -> void:
 			_build_wanderer()
 		"bett":
 			_build_bed()
+		"nachtlager":
+			_build_camp()
 		"laden":
 			_build_load()
 		"ueberschreiben":
@@ -1047,6 +1051,10 @@ func _inventory_details() -> Control:
 			buttons.append(_item_button(Lang.t("Abstellen"), _put_down_selected))
 		elif Items.is_stone(id):
 			buttons.append(_item_button(Lang.t("Abstellen"), _place_stone_selected))
+		elif Items.is_bedroll(id):
+			buttons.append(_item_button(Lang.t("Lager aufschlagen"), func():
+				close()
+				game.camp_action()))
 		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id) or Items.is_light(id) or Items.is_ammo(id):
 			pass # Carried for a task, to the smith, for a fox, for the dark or as spare knives, not worn.
 		else:
@@ -1892,6 +1900,9 @@ func _build_shop() -> void:
 	# And torches for the pitch-black holes in the wild (see HandTorch).
 	while game.shop_stock.count(HandTorch.ITEM) < 3:
 		game.shop_stock.push_front(HandTorch.ITEM)
+	# And a bedroll for a camp in the wild, for a hero who has none (see Camp).
+	if not game.shop_stock.has(Camp.ITEM) and not p.bag.has(Camp.ITEM) and not game.storage.has(Camp.ITEM):
+		game.shop_stock.push_front(Camp.ITEM)
 	_add_label(Lang.t("Händler"), 38, game.GOLD, game.TITLE_FONT)
 	var gear := []
 	var goods := []
@@ -3741,6 +3752,7 @@ func _build_spoils() -> void:
 
 
 func _build_bed() -> void:
+	rest_window = "bett"
 	_add_label(Lang.t("Ein weiches Bett"), 38, game.GOLD, game.TITLE_FONT)
 	if game.level.inn:
 		# An inn on the way: rest till morning and carry on, or log out here.
@@ -3779,7 +3791,37 @@ func _build_bed() -> void:
 	row.add_child(awake)
 
 
+## The camp's window (see Camp): sleep by the fire and log out, or stay
+## awake and save, laid out like the bed's.
+func _build_camp() -> void:
+	rest_window = "nachtlager"
+	_add_label(Lang.t("Dein Lager"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Das Feuer knistert, die Schlafrolle liegt bereit. Schlaf hier und logg dich aus:\nBeim nächsten Mal wachst du an diesem Lager auf. Gehst du weg, packst du es wieder ein."), 20)
+	_add_label(Lang.t("Solange du weg bist, lebt dein Held nach seinem Tagesplan:"), 20, BLUE)
+	_add_label(_plan_summary(), 16, game.GOLD)
+	var plan_button: Button = game._make_button(Lang.t("Tagesplan ändern"), open.bind("plan"))
+	plan_button.custom_minimum_size = Vector2(300, 56)
+	plan_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(plan_button)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	_box.add_child(row)
+	var sleep: Button = game._make_button(Lang.t("Schlafen und ausloggen"), func():
+		close()
+		game.sleep(true))
+	sleep.custom_minimum_size = Vector2(300, 60)
+	row.add_child(sleep)
+	var awake: Button = game._make_button(Lang.t("Wach bleiben und speichern"), game.stay_awake)
+	awake.custom_minimum_size = Vector2(300, 60)
+	row.add_child(awake)
+
+
 # --- Time away (see Offline) ------------------------------------------------
+
+## The window the day plan was opened from, and goes back to: the bed
+## ("bett") or the camp ("nachtlager").
+var rest_window := "bett"
 
 ## The blocks of the day plan, as shown: block, heading.
 const PLAN_ROWS := [["job", "Arbeit"], ["train", "Training"], ["study", "Lernen"], ["craft", "Handwerk"], ["rest", "Ruhe"]]
@@ -3863,12 +3905,13 @@ func _build_plan() -> void:
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 12)
 	_box.add_child(buttons)
+	var at_camp := rest_window == "nachtlager"
 	var sleep: Button = game._make_button(Lang.t("Schlafen und ausloggen"), func():
 		close()
-		game.sleep())
+		game.sleep(at_camp))
 	sleep.custom_minimum_size = Vector2(300, 60)
 	buttons.add_child(sleep)
-	var back: Button = game._make_button(Lang.t("Zurück"), open.bind("bett"))
+	var back: Button = game._make_button(Lang.t("Zurück"), open.bind(rest_window))
 	back.custom_minimum_size = Vector2(200, 60)
 	buttons.add_child(back)
 

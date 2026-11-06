@@ -194,6 +194,9 @@ static var ALL := {
 	# where it fell until the hero walks over it.
 	"wurfmesser": {"name": "Wurfmesser", "slot": "munition", "weight": 0.2, "price": 1, "no_loot": true, "model": "res://assets/weapons/dagger.gltf", "material": "metal", "effect": "Ersatz für deinen Gürtel: Sobald kein Kampf mehr tobt, steckst du Wurfmesser aus dem Rucksack nach, bis wieder so viele griffbereit sind, wie du tragen kannst (3, und eines mehr je zwei Stufen Messerwurf)"},
 	"fackel": {"name": "Fackel", "slot": "licht", "weight": 0.5, "price": 3, "no_loot": true, "effect": "Zünde sie an, wenn du Licht brauchst (Taste V oder die Fackel am rechten Rand), dann brennt sie drei Minuten lang. In der Finsternis siehst du ohne sie kaum die eigene Hand"},
+	# A bedroll for a camp away from any bed (see Camp): the merchant keeps
+	# one for a hero who has none. Rolled out, never used up.
+	"schlafrolle": {"name": "Schlafrolle", "slot": "rast", "weight": 2, "price": 8, "no_loot": true, "effect": "Schlag damit ein Lager auf (Taste U, der Knopf „Lager“ im Menü oder hier im Inventar): Du rollst sie aus und machst ein Feuer. Am Lager kannst du speichern und schlafen wie im Bett. Nicht im Kampf und nicht mit Ungeheuern in der Nähe"},
 }
 
 
@@ -226,6 +229,11 @@ const KNIFE := "wurfmesser"
 ## carried, never worn.
 static func is_ammo(id: String) -> bool:
 	return ALL.has(id) and ALL[id].slot == "munition"
+
+
+## Whether an item is a bedroll for a camp (see Camp): carried, never worn.
+static func is_bedroll(id: String) -> bool:
+	return ALL.has(id) and ALL[id].slot == "rast"
 
 
 ## Whether an item is a hand torch (see HandTorch): carried, never worn.
@@ -482,7 +490,7 @@ const RARITY := {
 	"fechtbuch": "ungewoehnlich", "axtbuch": "ungewoehnlich", "wurfbuch": "ungewoehnlich",
 	"schildbuch": "ungewoehnlich", "ruestbuch": "ungewoehnlich", "schleichbuch": "ungewoehnlich",
 	# Everyday things, tasks and materials.
-	"kiste": "normal", "steinblock": "normal", "fackel": "normal", "wurfmesser": "normal",
+	"kiste": "normal", "steinblock": "normal", "fackel": "normal", "wurfmesser": "normal", "schlafrolle": "normal",
 	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal", "koerner": "normal",
 	"banditendolch": "normal", "brief": "normal", "kuerbis": "normal", "wetzstein": "normal", "wassereimer": "normal",
 	"donnererz": "selten",

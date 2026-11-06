@@ -52,6 +52,7 @@ version, installs it and then starts the game, so the local copy is always as ne
 | Quests and what is worth doing | O | scroll icon on the right edge |
 | Run home (once you have a house) | X | house icon on the right edge, below the menu handle; any step, click or blow of your own stops it |
 | Light or put out a torch | V | torch icon on the right edge, below the house icon (shows while you carry a torch, with how many are left in the bag) |
+| Pitch a camp (save and sleep away from a bed) | U | “Camp” button, “Pitch camp” on the bedroll in the inventory |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button |
 | Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |
@@ -285,6 +286,15 @@ royal cloak, big backpack, war hammer, kite shield). Those come only from loot a
 Their windows have a Buy and a Sell page, categories that fold, and cards that compare an item with what
 you wear. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero falls later, the saved game is kept: a click on the “Fallen” screen continues the game from the refuge, N starts a new one.
 On the next start you continue from there with a click or a key. The saved game is stored in the browser.
+
+**Camp:** away from any bed you can save at a **camp**. Buy a **bedroll** from the merchant (who keeps one for a hero
+who has none), then press U, the “Camp” button in the menu or “Pitch camp” on the bedroll in the inventory: the
+hero rolls it out and lights a small campfire beside it. The camp's window works like the bed's: **Sleep and log
+out** (the day plan runs while you are away) or **Stay awake and save**. A game saved at a camp wakes up right
+there, on the bedroll by the fire, on a dungeon floor or out in the open. The bedroll is never used up. You cannot
+pitch a camp in a fight, with a monster within 12 m (nor where one still alive will stand again after a reload),
+indoors (sleep in a bed there), or on a grate or a trap. Walk more than 10 m away and you pack the camp up again.
+Saving at a camp on a dungeon floor keeps the floor as you left it (monsters slain, doors open, the key).
 
 **Hero or heroine:** a new game asks whether you play a hero or a heroine before it asks for your name.
 The heroine has a body and a face of her own, not just new colours: a narrower waist and jaw, larger eyes

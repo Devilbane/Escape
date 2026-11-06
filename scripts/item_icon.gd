@@ -107,6 +107,8 @@ static func kind_of(id: String) -> String:
 			return "crate"
 		"licht":
 			return "torch_out"
+		"rast":
+			return "bedroll"
 		"munition":
 			return "knife"
 		"futter":
@@ -260,6 +262,15 @@ func _draw() -> void:
 				draw_colored_polygon(PackedVector2Array([p.call(0.62, 0.18), p.call(0.72, 0.34), p.call(0.64, 0.42), p.call(0.54, 0.36)]), Color(1.0, 0.85, 0.3))
 			else:
 				draw_line(p.call(0.5, 0.36), p.call(0.66, 0.42), Color(0.45, 0.42, 0.4), u * 0.05)
+		"bedroll":
+			# A bedroll rolled up, seen from its end: the round roll with the
+			# spiral of the mat, and a leather strap round it.
+			var cloth := Color(0.42, 0.52, 0.34)
+			draw_rect(Rect2(p.call(0.12, 0.3), Vector2(u * 0.6, u * 0.44)), cloth.darkened(0.15))
+			draw_circle(p.call(0.68, 0.52), u * 0.24, cloth)
+			draw_arc(p.call(0.68, 0.52), u * 0.15, 0.0, TAU * 0.8, 16, cloth.darkened(0.35), u * 0.04)
+			draw_arc(p.call(0.68, 0.52), u * 0.07, 0.0, TAU * 0.8, 12, cloth.darkened(0.35), u * 0.035)
+			draw_line(p.call(0.34, 0.27), p.call(0.34, 0.77), LEATHER, u * 0.07)
 		"scissors":
 			draw_arc(p.call(0.28, 0.75), u * 0.14, 0, TAU, 20, GOLDEN, u * 0.06)
 			draw_arc(p.call(0.72, 0.75), u * 0.14, 0, TAU, 20, GOLDEN, u * 0.06)

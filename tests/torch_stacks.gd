@@ -55,11 +55,12 @@ func _torches_on_floor() -> int:
 	return game.level._pickups.filter(func(p): return p.kind == "item" and p.get("id", "") == TORCH).size()
 
 
-## The texts of the bag's cells in the open window.
+## The texts of the bag's cells in the open window (an item slot shows a
+## picture: its name and count are in its tooltip).
 func _cells(node: Node, out: Array) -> Array:
 	for c in node.get_children():
 		if c is Button and not c.disabled:
-			out.append(c.text)
+			out.append(c.text if c.text != "" else c.tooltip_text)
 		_cells(c, out)
 	return out
 

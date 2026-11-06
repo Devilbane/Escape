@@ -133,7 +133,7 @@ func _test() -> void:
 	await _wait()
 	var cells := _cells(menus._box, [])
 	check(cells.size() == 20, "the inventory shows 20 cells (%d)" % cells.size())
-	var texts := cells.map(func(b): return b.text)
+	var texts := cells.map(func(b): return b.tooltip_text)
 	check(texts.filter(func(t): return t.begins_with(Items.item_name(ring).left(6)) and "× 3" in t).size() == 1, "one cell shows the 3 rings")
 	check(texts.filter(func(t): return "× 4" in t).size() == 1, "one cell shows the 4 amulets")
 	check(texts.any(func(t): return "(18 / 20)" in t) or menus._box.find_children("*", "Button", true, false).any(func(b): return "(18 / 20)" in b.text), "the bag tab counts 18 / 20")

@@ -29,6 +29,15 @@ DEFS = """<defs>
 <radialGradient id="ruby" cx=".35" cy=".35" r=".7"><stop offset="0" stop-color="#ffb3b3"/><stop offset=".4" stop-color="#e0263a"/><stop offset="1" stop-color="#5e0610"/></radialGradient>
 <radialGradient id="red" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#ff9a7a"/><stop offset=".45" stop-color="#d0281c"/><stop offset="1" stop-color="#6a0c08"/></radialGradient>
 <radialGradient id="green" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#b8ffb0"/><stop offset=".5" stop-color="#3fa83a"/><stop offset="1" stop-color="#14401a"/></radialGradient>
+<radialGradient id="blue" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#bfe0ff"/><stop offset=".45" stop-color="#2f6fd6"/><stop offset="1" stop-color="#0c2560"/></radialGradient>
+<radialGradient id="slime" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#e6ffd0"/><stop offset=".5" stop-color="#6fcf3a"/><stop offset="1" stop-color="#2a6a14"/></radialGradient>
+<radialGradient id="ghost" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#bfeee0"/><stop offset="1" stop-color="#5aa898"/></radialGradient>
+<radialGradient id="ember" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#fff3b0"/><stop offset=".45" stop-color="#ff8a1e"/><stop offset="1" stop-color="#8a1a06"/></radialGradient>
+<linearGradient id="fur" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c9c3b8"/><stop offset="1" stop-color="#6d665c"/></linearGradient>
+<linearGradient id="snowfur" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#b7c7d4"/></linearGradient>
+<linearGradient id="carp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset=".5" stop-color="#f0a12a"/><stop offset="1" stop-color="#a0520e"/></linearGradient>
+<linearGradient id="perch" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a9a3a"/><stop offset="1" stop-color="#e3d48a"/></linearGradient>
+<linearGradient id="trout" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fb8d8"/><stop offset="1" stop-color="#eef2ff"/></linearGradient>
 <radialGradient id="flame" cx=".5" cy=".8" r=".8"><stop offset="0" stop-color="#fff6c0"/><stop offset=".4" stop-color="#ffb02e"/><stop offset="1" stop-color="#d23a0c"/></radialGradient>
 <radialGradient id="violet" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#f1dcff"/><stop offset=".5" stop-color="#a66cf0"/><stop offset="1" stop-color="#4b2286"/></radialGradient>
 <radialGradient id="ice" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#a9dcff"/><stop offset="1" stop-color="#3b7fb8"/></radialGradient>
@@ -39,6 +48,8 @@ DEFS = """<defs>
 
 # kind -> (picture, tinted part or None). The tinted part is drawn in greys
 # and lies under the picture.
+FISH = 'M6 32c8-12 24-16 38-8l12-10v36L44 40C30 48 14 44 6 32z'
+
 ICONS = {
     "sword": (f'<path d="M54 6l4 4-30 32-6-6z" fill="url(#steel)" {O}/><path d="M54 8L27 37" stroke="#fff" stroke-width="1.2" opacity=".7"/>'
               f'<path d="M14 34l16 16" stroke="#1b1108" stroke-width="8" stroke-linecap="round"/><path d="M14 34l16 16" stroke="url(#gold)" stroke-width="5" stroke-linecap="round"/>'
@@ -83,8 +94,12 @@ ICONS = {
     "bag": (f'<path d="M16 22c0-8 7-14 16-14s16 6 16 14v30a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4z" fill="none" {O}/><path d="M20 26h24v14H20z" fill="#000" fill-opacity=".2" {O}/>'
             f'<path d="M32 26v18" stroke="#1b1108" stroke-width="2"/><rect x="29" y="38" width="6" height="6" fill="url(#gold)" {O}/><path d="M24 10c0-4 4-6 8-6s8 2 8 6" fill="none" stroke="#3b200c" stroke-width="3"/>',
             '<path d="M16 22c0-8 7-14 16-14s16 6 16 14v30a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4z" fill="url(#grey)"/>'),
-    "book": (f'<path d="M12 10h34a6 6 0 0 1 6 6v38H18a6 6 0 0 1-6-6z" fill="#6b1a1a" {O}/><path d="M18 48h34v6H18a3 3 0 0 1 0-6z" fill="url(#parch)" {O}/>'
-             f'<rect x="22" y="18" width="22" height="18" rx="2" fill="none" stroke="url(#gold)" stroke-width="2.5"/><path d="M33 21v12M28 26h10" stroke="url(#gold)" stroke-width="2.5"/>', None),
+    # A leather tome with brass corners, a brass boss and a clasp: a book of
+    # lore, no sign of any faith on it.
+    "book": (f'<path d="M12 10h34a6 6 0 0 1 6 6v38H18a6 6 0 0 1-6-6z" fill="url(#leather)" {O}/><path d="M18 48h34v6H18a3 3 0 0 1 0-6z" fill="url(#parch)" {O}/>'
+             f'<path d="M12 10h8l-8 8z" fill="url(#gold)" {O}/><path d="M46 10a6 6 0 0 1 6 6v4l-10-10z" fill="url(#gold)" {O}/>'
+             f'<circle cx="33" cy="28" r="7" fill="url(#gold)" {O}/><circle cx="33" cy="28" r="3" fill="#6e3f1e" stroke="#3b200c" stroke-width="1"/>'
+             f'<path d="M20 20h26M20 37h26" stroke="#3b200c" stroke-width="1.5" stroke-opacity=".6"/><rect x="48" y="24" width="8" height="9" rx="1.5" fill="url(#gold)" {O}/>', None),
     "scroll": (f'<rect x="14" y="12" width="36" height="40" fill="url(#parch)" {O}/><rect x="10" y="6" width="44" height="9" rx="4.5" fill="url(#wood)" {O}/>'
                f'<rect x="10" y="49" width="44" height="9" rx="4.5" fill="url(#wood)" {O}/><path d="M20 24h24M20 30h24M20 36h18" stroke="#6e4a20" stroke-width="2"/>', None),
     "stone": (f'<path d="M8 26l10-10h40l-8 10z" fill="#e3dfd6" {O}/><path d="M8 26h42v26H8z" fill="url(#stone)" {O}/><path d="M50 26l8-10v26l-8 10z" fill="#77736b" {O}/>'
@@ -136,6 +151,19 @@ ICONS = {
                f'<rect x="24" y="4" width="16" height="7" rx="2" fill="url(#gold)" {O}/><path d="M20 30c2-4 4-6 6-7" stroke="#fff" stroke-width="2" fill="none" opacity=".8"/>', None),
     "map": (f'<path d="M8 14l16-6 16 6 16-6v42l-16 6-16-6-16 6z" fill="url(#parch)" {O}/><path d="M24 8v42M40 14v42" stroke="#8a6a3a" stroke-width="1.5"/>'
             f'<path d="M14 40c6-2 8-10 16-12s10-8 18-10" fill="none" stroke="#b02a1a" stroke-width="2.5" stroke-dasharray="3 3"/><path d="M44 16l4 4m0-4l-4 4" stroke="#b02a1a" stroke-width="2.5"/>', None),
+    # The character page: the three main attributes as balls in a triangle,
+    # red (strength), green (dexterity) and blue (intelligence).
+    "stats": (f'<path d="M32 18L16 44h32z" fill="none" stroke="url(#gold)" stroke-width="3"/>'
+              f'<circle cx="32" cy="16" r="10" fill="url(#red)" {O}/><circle cx="15" cy="45" r="10" fill="url(#green)" {O}/><circle cx="49" cy="45" r="10" fill="url(#blue)" {O}/>'
+              '<circle cx="29" cy="12" r="2.5" fill="#fff" fill-opacity=".7"/><circle cx="12" cy="41" r="2.5" fill="#fff" fill-opacity=".7"/><circle cx="46" cy="41" r="2.5" fill="#fff" fill-opacity=".7"/>', None),
+    # The inventory: a steel breastplate with brass trim.
+    "cuirass": (f'<path d="M18 8l8 4h12l8-4 10 8-4 10v24c-6 6-14 8-18 8s-12-2-18-8V26L8 16z" fill="url(#steel)" {O}/>'
+                f'<path d="M26 12c0 6 2 9 6 9s6-3 6-9" fill="none" stroke="url(#gold)" stroke-width="3"/><path d="M32 22v32" stroke="#5d6470" stroke-width="1.5"/>'
+                f'<path d="M14 28c6 3 12 4 18 4s12-1 18-4M14 38c6 3 12 4 18 4s12-1 18-4" fill="none" stroke="#5d6470" stroke-width="1.5"/>'
+                f'<path d="M8 16l10-8M56 16L46 8" stroke="url(#gold)" stroke-width="3"/>', None),
+    # Life: a red heart.
+    "heart": (f'<path d="M32 56C18 46 6 36 6 22c0-8 6-14 13-14 6 0 10 3 13 8 3-5 7-8 13-8 7 0 13 6 13 14 0 14-12 24-26 34z" fill="url(#red)" {O}/>'
+              '<ellipse cx="18" cy="20" rx="5" ry="3.5" fill="#fff" fill-opacity=".55" transform="rotate(-30 18 20)"/>', None),
     "hero": (f'<circle cx="32" cy="20" r="10" fill="url(#gold)" {O}/><path d="M12 56c0-12 9-20 20-20s20 8 20 20z" fill="url(#gold)" {O}/>', None),
     "house": (f'<path d="M6 30L32 8l26 22z" fill="#9a3a22" {O}/><path d="M12 30h40v26H12z" fill="url(#parch)" {O}/><path d="M28 40h8v16h-8z" fill="url(#wood)" {O}/>'
               f'<path d="M16 36h8v7h-8zM40 36h8v7h-8z" fill="#f2c46d" {O}/>', None),
@@ -155,6 +183,79 @@ ICONS = {
              f'<path d="M22 38c8 2 14 1 20-3" stroke="#5d6470" stroke-width="1.5" fill="none"/>', None),
     "key": (f'<circle cx="18" cy="22" r="11" fill="none" stroke="#1b1108" stroke-width="8"/><circle cx="18" cy="22" r="11" fill="none" stroke="url(#gold)" stroke-width="5"/>'
             f'<path d="M26 30l24 24M40 44l6-6M46 50l6-6" stroke="#1b1108" stroke-width="8" stroke-linecap="round"/><path d="M26 30l24 24M40 44l6-6M46 50l6-6" stroke="url(#gold)" stroke-width="5" stroke-linecap="round"/>', None),
+    # --- Ingredients, each its own picture.
+    "garlic": (f'<path d="M32 30c-3-10-4-18-2-26M32 30c4-10 9-16 16-20M32 30c-7-8-14-12-22-13" fill="none" stroke="#3f8a2e" stroke-width="4" stroke-linecap="round"/>'
+               f'<path d="M30 4c-6 6-6 16 2 26 8-10 6-20-2-26z" fill="url(#green)" {O}/><path d="M48 10c-10 0-16 10-16 20 10-2 16-10 16-20z" fill="url(#green)" {O}/>'
+               f'<path d="M10 17c4 8 12 13 22 13-4-9-12-13-22-13z" fill="url(#green)" {O}/><ellipse cx="32" cy="46" rx="12" ry="12" fill="#f4f0e2" {O}/>'
+               f'<path d="M26 40c2 8 2 12 0 16M38 40c-2 8-2 12 0 16" stroke="#c9c0a6" stroke-width="1.5" fill="none"/><path d="M28 58l-3 4M32 58v4M36 58l3 4" stroke="#8a7a5a" stroke-width="1.5"/>', None),
+    "moss": (f'<path d="M6 50c2-10 10-14 16-12 2-8 12-12 18-6 6-4 16 0 18 10 2 4 0 10-4 10H10c-4 0-5-1-4-2z" fill="url(#green)" {O}/>'
+             '<g fill="#d8ff9a"><circle cx="18" cy="44" r="1.8"/><circle cx="30" cy="38" r="2.2"/><circle cx="42" cy="42" r="1.8"/><circle cx="50" cy="48" r="1.6"/><circle cx="24" cy="52" r="1.4"/><circle cx="36" cy="50" r="1.6"/></g>'
+             '<g fill="#ffffff" fill-opacity=".8"><circle cx="30" cy="38" r=".9"/><circle cx="42" cy="42" r=".8"/></g>', None),
+    "moonflower": (''.join(f'<ellipse cx="32" cy="16" rx="7" ry="13" fill="url(#ice)" {O} transform="rotate({a} 32 28)"/>' for a in range(0, 360, 60))
+                   + f'<circle cx="32" cy="28" r="6" fill="#fffbe0" {O}/><path d="M32 40v20" stroke="#3f7a32" stroke-width="3"/>'
+                   '<path d="M46 6a6 6 0 1 0 6 8 5 5 0 1 1-6-8z" fill="#fff6c8"/>', None),
+    "porcini": (f'<path d="M24 34c0 10-2 18-4 22h24c-2-4-4-12-4-22z" fill="#efe2c4" {O}/><path d="M6 36C6 20 18 10 32 10s26 10 26 26c-6 2-46 2-52 0z" fill="url(#leather)" {O}/>'
+                '<path d="M14 22c4-6 10-8 16-8" stroke="#e6b47a" stroke-width="3" fill="none" stroke-linecap="round"/>', None),
+    "truffle": (f'<path d="M10 40c0-14 10-24 22-24s22 10 22 24-10 16-22 16-22-2-22-16z" fill="#3a2a22" {O}/>'
+                '<g fill="#5e4a3c"><circle cx="22" cy="30" r="3"/><circle cx="34" cy="26" r="3.5"/><circle cx="44" cy="36" r="3"/><circle cx="26" cy="44" r="3.5"/><circle cx="38" cy="46" r="3"/><circle cx="16" cy="42" r="2.5"/></g>'
+                '<path d="M24 22c4-3 10-3 14-1" stroke="#7a6452" stroke-width="2" fill="none"/>', None),
+    "cave_mushroom": (f'<path d="M20 36c0 8-1 14-3 18h12c-2-4-3-10-3-18z" fill="#cfe6ee" {O}/><path d="M6 38C6 26 14 18 23 18s17 8 17 20c-4 2-30 2-34 0z" fill="url(#ice)" {O}/>'
+                      f'<path d="M40 44c0 5-1 8-2 10h9c-1-2-2-5-2-10z" fill="#cfe6ee" {O}/><path d="M32 46c0-8 6-12 11-12s11 4 11 12c-3 1-19 1-22 0z" fill="url(#violet)" {O}/>'
+                      '<g fill="#ffffff" fill-opacity=".8"><circle cx="16" cy="28" r="2"/><circle cx="26" cy="25" r="1.6"/><circle cx="44" cy="39" r="1.4"/></g>', None),
+    "perch": (f'<path d="{FISH}" fill="url(#perch)" {O}/><path d="M18 18l4 6 4-7 4 6 4-6 3 7" fill="#c8442a" {O}/>'
+              '<path d="M18 26v12M24 24v16M30 24v16M36 26v12" stroke="#2e4a14" stroke-width="2.5" stroke-opacity=".7"/><circle cx="12" cy="30" r="2.2" fill="#1b1108"/>', None),
+    "carp": (f'<path d="M4 32c8-14 26-18 40-8l12-10v36L44 40C30 50 12 46 4 32z" fill="url(#carp)" {O}/>'
+             '<g fill="none" stroke="#a0520e" stroke-width="1.2" stroke-opacity=".7"><path d="M20 28c3 2 3 6 0 8M28 26c3 3 3 9 0 12M36 27c3 3 3 7 0 10"/></g>'
+             '<circle cx="12" cy="30" r="2.4" fill="#1b1108"/><path d="M6 36c-2 2-4 3-6 3" stroke="#a0520e" stroke-width="1.5"/>', None),
+    "pike": (f'<path d="M2 32c6-6 18-9 34-7l10-2 6-8v34l-6-8-10-2C20 41 8 38 2 32z" fill="url(#steel)" {O}/><path d="M2 32h12" stroke="#1b1108" stroke-width="1.5"/>'
+             '<g fill="#7f8a6e" fill-opacity=".6"><ellipse cx="22" cy="30" rx="3" ry="1.5"/><ellipse cx="30" cy="34" rx="3" ry="1.5"/><ellipse cx="38" cy="29" rx="3" ry="1.5"/></g><circle cx="10" cy="29" r="2" fill="#1b1108"/>', None),
+    "trout": (f'<path d="{FISH}" fill="url(#trout)" {O}/><path d="M10 33c10 3 22 3 34-1" stroke="#e98fae" stroke-width="3" fill="none"/>'
+              '<g fill="#3b4a6a"><circle cx="22" cy="26" r="1.3"/><circle cx="28" cy="24" r="1.3"/><circle cx="34" cy="26" r="1.3"/><circle cx="26" cy="30" r="1.1"/><circle cx="38" cy="29" r="1.3"/></g><circle cx="15" cy="29" r="2.4" fill="#1b1108"/>', None),
+    "meat": (f'<path d="M14 40c-6-10 0-26 16-30 14-3 24 6 22 18-2 14-16 22-28 20-4 0-8-3-10-8z" fill="#b2333a" {O}/>'
+             '<path d="M22 22c6-6 18-6 22 2M20 32c8-4 16-2 22 4" stroke="#f1c6c0" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
+             f'<path d="M18 44l-10 10" stroke="#efe7d4" stroke-width="5" stroke-linecap="round"/><circle cx="7" cy="53" r="4" fill="#efe7d4" {O}/><circle cx="11" cy="57" r="4" fill="#efe7d4" {O}/>', None),
+    "spider_egg": (f'<path d="M32 6c12 0 20 14 20 28s-8 24-20 24-20-10-20-24S20 6 32 6z" fill="#efe9d6" {O}/>'
+                   '<g fill="none" stroke="#a89f86" stroke-width="1.2"><path d="M14 22c10 4 26 4 36 0M12 34c12 4 28 4 40 0M14 46c10 4 26 4 36 0M32 6c-8 14-8 36 0 52M32 6c8 14 8 36 0 52"/></g>'
+                   '<ellipse cx="25" cy="20" rx="4" ry="6" fill="#fff" fill-opacity=".6"/>', None),
+    "slime_jelly": (f'<path d="M10 54c-4 0-4-4-2-8 2-10 4-26 24-28 20 2 22 18 24 28 2 4 2 8-2 8z" fill="url(#slime)" {O}/>'
+                    '<path d="M18 30c2-4 6-6 10-6" stroke="#fff" stroke-width="3" stroke-opacity=".7" fill="none" stroke-linecap="round"/>'
+                    '<g fill="#2a6a14" fill-opacity=".5"><circle cx="30" cy="40" r="3"/><circle cx="40" cy="46" r="2"/><circle cx="22" cy="46" r="2"/></g>', None),
+    "ectoplasm": (f'<path d="M22 6h20v6l-4 4v6c10 4 14 12 14 20 0 10-8 18-20 18s-20-8-20-18c0-8 4-16 14-20v-6l-4-4z" fill="url(#glass)" {O}/>'
+                  '<path d="M14 42c4-4 10-2 14 0s12 2 22-2c0 10-8 16-18 16s-18-6-18-14z" fill="url(#ghost)"/>'
+                  '<path d="M24 34c2 2 0 4 2 6M38 30c-2 2 0 4-2 6" stroke="#bfeee0" stroke-width="2" fill="none"/><rect x="22" y="4" width="20" height="6" rx="1" fill="url(#wood)" {O}/>', None),
+    "grave_dust": (f'<path d="M20 22c-6 6-10 16-10 24 0 8 6 12 22 12s22-4 22-12c0-8-4-18-10-24z" fill="url(#leather)" {O}/><path d="M20 22h24" stroke="#3b200c" stroke-width="3"/>'
+                   f'<path d="M22 22c2-6 6-10 10-10s8 4 10 10" fill="#8d8a84" {O}/><g fill="#cfccc4"><circle cx="28" cy="10" r="1.5"/><circle cx="36" cy="7" r="1.2"/><circle cx="32" cy="4" r="1"/></g>'
+                   f'<path d="M26 36l6 6 6-6M32 42v-10" stroke="#e6dccb" stroke-width="2" fill="none"/>', None),
+    "edelweiss": (''.join(f'<path d="M32 30l-5-14c2-6 8-6 10 0z" fill="#f6f8f2" {O} transform="rotate({a} 32 30)"/>' for a in range(0, 360, 45))
+                  + f'<circle cx="32" cy="30" r="6" fill="#e9e27a" {O}/><g fill="#b8a830"><circle cx="30" cy="29" r="1"/><circle cx="34" cy="31" r="1"/><circle cx="32" cy="27" r="1"/></g>', None),
+    "pelt": (f'<path d="M14 8c4 4 8 6 18 6s14-2 18-6c2 6 0 10-2 14 4 6 6 14 4 24l6 6-8 4c-6 4-12 6-18 6s-12-2-18-6l-8-4 6-6c-2-10 0-18 4-24-2-4-4-8-2-14z" fill="url(#fur)" {O}/>'
+             '<g stroke="#4a443c" stroke-width="1.2" stroke-opacity=".6" fill="none"><path d="M24 24l2 4M32 22v5M40 24l-2 4M22 36l3 3M42 36l-3 3M30 44l2 3M36 44l-2 3"/></g>', None),
+    "snow_pelt": (f'<path d="M14 8c4 4 8 6 18 6s14-2 18-6c2 6 0 10-2 14 4 6 6 14 4 24l6 6-8 4c-6 4-12 6-18 6s-12-2-18-6l-8-4 6-6c-2-10 0-18 4-24-2-4-4-8-2-14z" fill="url(#snowfur)" {O}/>'
+                  '<g stroke="#8aa0b4" stroke-width="1.2" stroke-opacity=".7" fill="none"><path d="M24 24l2 4M32 22v5M40 24l-2 4M22 36l3 3M42 36l-3 3M30 44l2 3M36 44l-2 3"/></g>', None),
+    "venom_gland": (f'<path d="M30 10c12 0 22 10 22 22s-8 20-20 20-20-8-20-18 6-24 18-24z" fill="url(#violet)" {O}/>'
+                    f'<path d="M30 50c0 4-2 6-4 8" stroke="#6a3a8a" stroke-width="3" fill="none"/><path d="M24 58c0-3 2-6 2-6s2 3 2 6a2 2 0 0 1-4 0z" fill="url(#slime)" {O}/>'
+                    '<ellipse cx="24" cy="22" rx="5" ry="3.5" fill="#fff" fill-opacity=".55" transform="rotate(-30 24 22)"/><path d="M36 26c4 4 4 10 0 14" stroke="#4b2286" stroke-width="1.5" fill="none"/>', None),
+    "bat_wing": (f'<path d="M6 20c8 0 16-6 22-14l4 6c6 2 12 6 16 12 4 6 6 14 10 20-6-4-10-2-12 2-4-6-8-6-12-2-2-6-8-8-12-4 0-8-6-12-16-14z" fill="#3a2e3a" {O}/>'
+                 '<g stroke="#7a6a7a" stroke-width="1.5" fill="none"><path d="M30 10c2 10 4 18 4 32M30 10c8 8 14 16 22 32M30 10c-4 8-10 14-20 16"/></g>', None),
+    "slime_core": (f'<circle cx="32" cy="32" r="20" fill="url(#slime)" fill-opacity=".55" {O}/><circle cx="32" cy="32" r="10" fill="url(#ember)" {O}/>'
+                   '<circle cx="28" cy="28" r="3" fill="#fff" fill-opacity=".8"/><path d="M18 22c2-4 6-7 10-8" stroke="#fff" stroke-width="2.5" stroke-opacity=".6" fill="none" stroke-linecap="round"/>', None),
+    "ghost_veil": (f'<path d="M14 8c6 4 12 6 18 6s12-2 18-6c4 10 4 22 2 34-1 6 2 12 6 16-6 0-10-4-12-8-2 6-6 8-10 8s-8-2-10-8c-2 4-6 8-12 8 4-4 7-10 6-16-2-12-2-24 4-34z" fill="url(#ghost)" fill-opacity=".85" {O}/>'
+                   '<path d="M22 20c0 14 2 26 4 34M32 18v38M42 20c0 14-2 26-4 34" stroke="#5aa898" stroke-width="1.2" stroke-opacity=".7" fill="none"/>', None),
+    "banshee_hair": (f'<path d="M24 6c-8 12-10 26-6 38 2 6 0 12-4 16M30 6c-4 14-4 28 0 40 2 6 2 10 0 14M36 6c0 14 2 26 6 36 2 6 4 12 8 16M42 6c2 12 6 22 10 30" fill="none" stroke="#1b1108" stroke-width="5" stroke-linecap="round"/>'
+                     '<path d="M24 6c-8 12-10 26-6 38 2 6 0 12-4 16M30 6c-4 14-4 28 0 40 2 6 2 10 0 14M36 6c0 14 2 26 6 36 2 6 4 12 8 16M42 6c2 12 6 22 10 30" fill="none" stroke="#e8eef6" stroke-width="2.5" stroke-linecap="round"/>'
+                     f'<rect x="20" y="4" width="26" height="7" rx="3" fill="url(#violet)" {O}/>', None),
+    "ghoul_claw": (f'<path d="M16 58c-2-10 0-18 6-24l8-6 10 2c6 4 6 10 2 14l-8 8c-4 4-10 6-18 6z" fill="#7d8a6a" {O}/>'
+                   f'<path d="M24 32C22 22 18 14 10 8c10 2 18 10 20 20z" fill="#e8e2cc" {O}/><path d="M32 30c2-10 2-18-2-26 8 6 10 16 8 26z" fill="#e8e2cc" {O}/>'
+                   f'<path d="M40 32c6-6 12-10 20-12-6 6-10 12-12 18z" fill="#e8e2cc" {O}/>', None),
+    "dragon_scale": (f'<path d="M32 6c14 6 22 18 22 30 0 12-10 22-22 22S10 48 10 36C10 24 18 12 32 6z" fill="url(#red)" {O}/>'
+                     '<path d="M32 12c-2 14-2 30 0 42" stroke="#6a0c08" stroke-width="2" fill="none"/><path d="M18 30c8 4 20 4 28 0M16 42c10 4 22 4 32 0" stroke="#6a0c08" stroke-width="1.5" stroke-opacity=".7" fill="none"/>'
+                     '<path d="M20 22c3-6 7-10 12-12" stroke="#ffb09a" stroke-width="3" stroke-opacity=".8" fill="none" stroke-linecap="round"/>', None),
+    "dragon_blood": (f'<path d="M24 4h16v8l-2 2v8c8 4 12 12 12 20 0 10-8 18-18 18s-18-8-18-18c0-8 4-16 12-20v-8l-2-2z" fill="url(#glass)" {O}/>'
+                     '<path d="M16 40c6-3 12-1 16 1s10 2 16-1c0 9-7 15-16 15s-16-6-16-15z" fill="url(#red)"/>'
+                     f'<rect x="24" y="2" width="16" height="6" rx="1" fill="url(#gold)" {O}/><path d="M42 30c2 4 2 8 0 12" stroke="#fff" stroke-width="2" stroke-opacity=".6" fill="none"/>', None),
+    "ember_heart": (f'<path d="M32 56C18 46 8 36 8 22c0-8 6-14 13-14 6 0 9 3 11 8 2-5 5-8 11-8 7 0 13 6 13 14 0 14-10 24-24 34z" fill="url(#ember)" {O}/>'
+                    '<path d="M20 24l6 6-2 8 8-6 6 8 2-10 6-2" stroke="#fff3b0" stroke-width="2" fill="none" stroke-opacity=".8"/>'
+                    '<ellipse cx="19" cy="18" rx="4" ry="2.5" fill="#fff" fill-opacity=".55" transform="rotate(-30 19 18)"/>', None),
 }
 
 

@@ -4,10 +4,12 @@ extends RefCounted
 ## Loot.ore_find): a lump of rock with metal in it that Gorm melts down at
 ## his forge (see Forge.melt_ore).
 ##
-## Each lump has its own weight and its own make-up, rolled when the hero
-## picks it up and kept with it in the pouch (Crafting.ores). The share of
-## each part is rolled in this order, each from what is still left of the
-## hundred: slag 25-60 %, iron 10-40 %, copper 5-40 %, silver 1-15 %, gold
+## Each lump has its own weight, rolled when the hero picks it up and kept
+## with it in the pouch (Crafting.ores). What is inside it is not known
+## until it melts: its make-up is rolled in Gorm's fire (see makeup and
+## Forge.melt_ore), so no one can tell beforehand what a lump will give. The
+## share of each part is rolled in this order, each from what is still left
+## of the hundred: slag 25-60 %, iron 10-40 %, copper 5-40 %, silver 1-15 %, gold
 ## 1-5 %; whatever is left over is an unknown metal with a light blue glow.
 ## Melted, a lump gives as many grams of each metal as it holds; the slag is
 ## thrown away. Every GRAMS_PER_BAR grams of one metal make one bar of it,
@@ -92,13 +94,23 @@ static func lump_of_tier(tier: String) -> String:
 	return ""
 
 
-## Rolls one lump of the size `id`: {"grams": weight, "share": part ->
-## percent}, the shares summing to 100.
+## Rolls one lump of the size `id`: {"grams": weight}. What is inside it is
+## rolled only when it melts (see makeup).
 static func roll(id: String, rng: RandomNumberGenerator = null) -> Dictionary:
 	if rng == null:
 		rng = RandomNumberGenerator.new()
 		rng.randomize()
 	var range_g: Array = LUMPS.get(id, LUMPS["erzbrocken_klein"]).grams
+	return {"grams": rng.randi_range(int(range_g[0]), int(range_g[1]))}
+
+
+## Rolls what a lump of the size `id` turns out to hold as it melts:
+## {"share": part -> percent, the shares summing to 100; "gems": the carats
+## of the uncut gems inside (noble ore only)}.
+static func makeup(id: String, rng: RandomNumberGenerator = null) -> Dictionary:
+	if rng == null:
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
 	var noble: bool = LUMPS.get(id, {}).get("noble", false)
 	var share := {}
 	var left := 100
@@ -111,7 +123,7 @@ static func roll(id: String, rng: RandomNumberGenerator = null) -> Dictionary:
 	if noble:
 		for i in rng.randi_range(NOBLE_GEMS[0], NOBLE_GEMS[1]):
 			gems.append(roll_carat(rng))
-	return {"grams": rng.randi_range(int(range_g[0]), int(range_g[1])), "share": share, "gems": gems}
+	return {"share": share, "gems": gems}
 
 
 ## The weight of a new uncut gem in carat: its tier rolled by CARAT_WEIGHTS,
@@ -156,12 +168,10 @@ static func gem_worth(carat: int) -> int:
 	return carat * GEM_GOLD_PER_CARAT[Level.tier_rank(gem_tier(carat))]
 
 
-## The grams of each metal a lump gives when melted (no slag): metal ->
-## grams, only the metals it holds.
-static func metal_grams(lump: Dictionary) -> Dictionary:
+## The grams of each metal a lump of `grams` gives when melted with the
+## make-up `share` (no slag): metal -> grams, only the metals it holds.
+static func metal_grams(grams: int, share: Dictionary) -> Dictionary:
 	var out := {}
-	var grams := int(lump.get("grams", 0))
-	var share: Dictionary = lump.get("share", {})
 	for metal in METALS:
 		var g := floori(grams * int(share.get(metal, 0)) / 100.0)
 		if g > 0:
@@ -169,17 +179,12 @@ static func metal_grams(lump: Dictionary) -> Dictionary:
 	return out
 
 
-## A lump's make-up in words: "1840 g: 41 % slag, 22 % iron, ..." (translated).
-static func describe(lump: Dictionary) -> String:
-	var share: Dictionary = lump.get("share", {})
-	var parts := ["%d %% %s" % [int(share.get(SLAG, 0)), Lang.t("Schlacke")]]
-	for metal in METALS:
-		if int(share.get(metal, 0)) > 0:
-			parts.append("%d %% %s" % [int(share[metal]), Lang.t(METALS[metal].name)])
-	var gems: Array = lump.get("gems", [])
-	if not gems.is_empty():
-		parts.append(Lang.t("%d ungeschliffene Edelsteine") % gems.size() if gems.size() > 1 else Lang.t("1 ungeschliffener Edelstein"))
-	return "%d g: %s" % [int(lump.get("grams", 0)), ", ".join(parts)]
+## What the smith can tell of a lump before it melts (translated): its
+## weight, and what lumps of its size tend to hold, never what this one does.
+static func guess(id: String, lump: Dictionary) -> String:
+	var hint := Lang.t("Edles Erz: viel Silber und Gold, dazu Edelsteine.") if LUMPS.get(id, {}).get("noble", false) \
+			else Lang.t("Meist Eisen und Kupfer, mit Glück etwas Silber oder Gold.")
+	return "%d g. %s %s" % [int(lump.get("grams", 0)), Lang.t("Was darin steckt, zeigt erst das Feuer."), hint]
 
 
 ## Grams per metal in words: "412 g Eisen, 96 g Kupfer" (translated).

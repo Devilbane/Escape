@@ -178,7 +178,7 @@ func _run() -> void:
 	game._apply_save(game._read_save())
 	check(HomeStores.take(game, "erzbrocken", 2) == 2 and HomeStores.take(game, "rohedelstein", 1) == 1, "and come back out after loading")
 	var back: Array = game.crafting.ores.get("erzbrocken", [])
-	check(back.size() == 2 and int(back[0].grams) == int(lumps[0].grams) and int(back[1].grams) == int(lumps[1].grams) and int(back[0].share.eisen) == int(lumps[0].share.eisen), "each lump as heavy and as rich as before (%s)" % str(back))
+	check(back.size() == 2 and int(back[0].grams) == int(lumps[0].grams) and int(back[1].grams) == int(lumps[1].grams), "each lump as heavy as before (%s)" % str(back))
 	check(game.crafting.gems.get("rohedelstein", []) == [13], "the gem as heavy as before")
 	check(not game.home_stores[HomeStores.PIECES].has("erzbrocken"), "the chest keeps no pieces of what left it")
 

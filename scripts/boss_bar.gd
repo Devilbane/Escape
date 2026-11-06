@@ -49,8 +49,8 @@ func _ready() -> void:
 	bar.show_percentage = false
 	bar.custom_minimum_size = Vector2(WIDTH, 18)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var back := StyleBoxFlat.new()
-	back.bg_color = Color(0.08, 0.05, 0.1, 0.78)
+	var back := BronzeStyle.new()
+	back.bg_color = UiKit.BUTTON_BG
 	back.border_color = Color(0.85, 0.66, 0.32, 0.9)
 	back.set_border_width_all(2)
 	back.set_corner_radius_all(6)

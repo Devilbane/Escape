@@ -3332,13 +3332,18 @@ func _build_overwrite() -> void:
 	row.add_child(back)
 
 
+## The widest a compendium tab gets, and the gap between tabs.
+const COMPENDIUM_TAB := 240.0
+const COMPENDIUM_TAB_GAP := 10
+
+
 ## Every control on one side, everything the hero has been told on the
 ## other; a second page holds the villagers' tasks (the quest log).
 func _build_compendium() -> void:
 	_add_label(Lang.t("Kompendium"), 38, game.GOLD, game.TITLE_FONT)
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
-	tabs.add_theme_constant_override("separation", 10)
+	tabs.add_theme_constant_override("separation", COMPENDIUM_TAB_GAP)
 	_box.add_child(tabs)
 	var open_tasks := 0
 	for id in Quests.ALL:
@@ -3351,11 +3356,19 @@ func _build_compendium() -> void:
 		tabs_shown.append(["rezepte", Lang.t("Rezeptbuch (%d)") % game.crafting.entries().size()])
 	elif compendium_page == "rezepte":
 		compendium_page = "wissen"
+	# Monster lore gets its page once the first monster has fallen.
+	if not MonsterLore.known_kinds().is_empty():
+		tabs_shown.append(["monster", Lang.t("Monsterkunde")])
+	elif compendium_page == "monster":
+		compendium_page = "wissen"
+	# All tabs share one width, narrower when there are more of them, so the
+	# row never grows past the window.
+	var tab_width := minf(COMPENDIUM_TAB, floorf((WINDOW_SIZES.kompendium.x - COMPENDIUM_TAB_GAP * (tabs_shown.size() - 1)) / tabs_shown.size()))
 	for tab in tabs_shown:
 		var b := _item_button(tab[1], func():
 			compendium_page = tab[0]
 			_rebuild())
-		b.custom_minimum_size = Vector2(240, 44)
+		b.custom_minimum_size = Vector2(tab_width, 44)
 		if compendium_page == tab[0]:
 			b.modulate = Color(1.0, 0.9, 0.6)
 		else:
@@ -3369,6 +3382,9 @@ func _build_compendium() -> void:
 		return
 	if compendium_page == "ruf":
 		_build_reputation_page()
+		return
+	if compendium_page == "monster":
+		_build_monster_lore()
 		return
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 36)
@@ -3612,6 +3628,60 @@ func quest_hints() -> Array[String]:
 
 ## The villagers' goodwill: everyone the hero has met, with their standing,
 ## how far to the next level, the discount, and the secret recipes learned.
+## The columns of the monster lore table: name, kills, rank, vital hit
+## chance, next rank. Numbers are right-aligned so they line up.
+const LORE_COLUMNS := [220, 80, 130, 110, 160]
+
+
+## Monster lore: every kind of monster the hero has slain, with how many,
+## the rank of knowledge, the chance of a vital hit and the kills to the
+## next rank (see MonsterLore). A fixed region that scrolls.
+func _build_monster_lore() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(760, 420)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 12)
+	scroll.add_child(list)
+	var intro: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intro.custom_minimum_size.x = 740
+	intro.text = Lang.t("Je mehr Monster einer Art du besiegst, desto öfter triffst du eine Schwachstelle (höchstens 50 %). Ein Treffer in die Schwachstelle macht doppelt so viel wie dein härtester Schlag und lässt das Monster manchmal bluten oder für den Rest des Kampfes langsamer angreifen.")
+	list.add_child(intro)
+	var grid := GridContainer.new()
+	grid.columns = LORE_COLUMNS.size()
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 6)
+	list.add_child(grid)
+	var heads := [Lang.t("Monster"), Lang.t("Besiegt"), Lang.t("Stufe"), Lang.t("Schwachstelle"), Lang.t("Nächste Stufe")]
+	for i in heads.size():
+		grid.add_child(_lore_cell(heads[i], i, game.GOLD))
+	for kind in MonsterLore.known_kinds():
+		var rank := MonsterLore.rank_of(kind)
+		var next := MonsterLore.kills_to_next(kind)
+		var chance := roundi(MonsterLore.vital_chance(kind) * 100.0)
+		grid.add_child(_lore_cell(Lang.t(MonsterLore.monster_name(kind)), 0, Color.WHITE))
+		grid.add_child(_lore_cell(str(MonsterLore.kill_count(kind)), 1, Color.WHITE))
+		grid.add_child(_lore_cell(Lang.t(MonsterLore.rank_name(rank)), 2, MonsterLore.VITAL_COLOR if rank > 0 else Color(0.75, 0.72, 0.68)))
+		grid.add_child(_lore_cell("%d %%" % chance, 3, MonsterLore.VITAL_COLOR if chance > 0 else Color(0.75, 0.72, 0.68)))
+		var to_next := Lang.t("noch %d bis %s") % [next, Lang.t(MonsterLore.rank_name(rank + 1))] if next > 0 else Lang.t("Höchste Stufe")
+		grid.add_child(_lore_cell(to_next, 4, Color(0.75, 0.72, 0.68)))
+
+
+## One cell of the monster lore table: fixed width, long text shortened.
+func _lore_cell(text: String, column: int, color: Color) -> Label:
+	var l: Label = game._make_label(game.TEXT_FONT, 16, color)
+	l.text = text
+	l.custom_minimum_size.x = LORE_COLUMNS[column]
+	l.clip_text = true
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	if column in [1, 3]:
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	return l
+
+
 func _build_reputation_page() -> void:
 	var rep: Reputation = game.reputation
 	var scroll := ScrollContainer.new()

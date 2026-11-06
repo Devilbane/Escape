@@ -71,6 +71,9 @@ signal secret_found(lever_pos: Vector3, wall_pos: Vector3)
 ## The hero picked up an ingredient: one the fox dug up, or `count` from a
 ## fallen foe (`from_loot`, see lay_find and drop_kill_loot).
 signal ingredient_collected(id: String, count: int, from_loot: bool)
+## The hero walked onto their own pack, dropped where they fell (see Rescue):
+## its floor entry, which the game empties into the hero as far as it fits.
+signal bundle_reached(entry: Array)
 ## How many of the level's pressure plates have a block on them changed.
 signal plates_changed(pressed: int, total: int)
 ## Every pressure plate is pressed: the iron gate at `pos` opens.
@@ -3539,6 +3542,9 @@ func is_spike_cell(c: Vector2i) -> bool:
 
 
 func _check_pickups() -> void:
+	if player.dead:
+		# Out cold, the hero picks nothing up: not even what they dropped.
+		return
 	for p in _pickups.duplicate():
 		var n: Node3D = p.node
 		var d := Vector2(player.global_position.x - n.global_position.x, player.global_position.z - n.global_position.z)
@@ -3566,6 +3572,9 @@ func _check_pickups() -> void:
 			if not p.has("warned"):
 				p.warned = true
 				hoard_guarded.emit()
+			continue
+		if p.kind == "bundle":
+			_open_bundle(p)
 			continue
 		if p.kind == "item" and not (player.can_take_knife() if p.id == Items.KNIFE else player.bag_fits(p.id)):
 			if not p.has("warned"):
@@ -4465,7 +4474,12 @@ func _remember_on_floor(kind: String, id: String, pos: Vector3) -> Array:
 	floor_items.append(entry)
 	while floor_items.size() > FLOOR_MAX:
 		var knife := floor_items.find_custom(func(e): return e is Array and e.size() >= 2 and e[1] == Items.KNIFE and not is_same(e, entry))
-		var oldest: Array = floor_items.pop_at(knife) if knife >= 0 else floor_items.pop_front()
+		if knife < 0:
+			# The hero's own pack (see Rescue) is never pushed off the floor.
+			knife = floor_items.find_custom(func(e): return not Rescue.is_bundle(e) and not is_same(e, entry))
+		if knife < 0:
+			break
+		var oldest: Array = floor_items.pop_at(knife)
 		for p in _pickups.duplicate():
 			if is_same(p.get("floor"), oldest):
 				_pickups.erase(p)
@@ -4491,6 +4505,8 @@ func restore_floor() -> void:
 		var pos := Vector3(float(entry[2]), 0, float(entry[3]))
 		if str(entry[0]) == "coin":
 			_coin_pile(pos, CoinPile.count_of(entry), CoinPile.metal_of(str(entry[1])), CoinPile.own_of(entry))
+		elif Rescue.is_bundle(entry):
+			_bundle_pickup(entry)
 		elif str(entry[1]) == Items.KNIFE:
 			lay_knife(pos)
 		elif Items.ALL.has(str(entry[1])):
@@ -4526,6 +4542,43 @@ func take_from_floor(p: Dictionary) -> Node3D:
 ## The pickups the dragon's helpers may take: what lies on the floor list.
 func floor_pickups() -> Array:
 	return _pickups.filter(func(p): return p.has("floor") and is_instance_valid(p.node) and DragonHoard.takes(p.floor))
+
+
+## The hero's pack, dropped where they fell (see Rescue): everything from
+## the bag and the ingredient pouch in one bundle, ["bundle", "", x, z,
+## contents]. It lies there (also after leaving, or a reload) until the
+## hero walks onto it again; the dragon's helpers leave it alone.
+func lay_bundle(pos: Vector3, contents: Dictionary) -> void:
+	var entry := _remember_on_floor("bundle", "", pos)
+	entry.append(contents)
+	_bundle_pickup(entry)
+	_pickups[-1].wait = true
+
+
+## The look of the pack on the floor and its pickup, for its floor entry.
+func _bundle_pickup(entry: Array) -> void:
+	var holder := Rescue.bundle_model()
+	holder.position = Vector3(float(entry[2]), 0.0, float(entry[3]))
+	add_child(holder)
+	_pickups.append({"node": holder, "kind": "bundle", "radius": 1.6, "flat": true, "floor": entry})
+
+
+## The hero stands on their pack: what fits goes back to them. An empty pack
+## is gone; one with gear still in it (a full bag) waits until they step
+## off and come back.
+func _open_bundle(p: Dictionary) -> void:
+	bundle_reached.emit(p.floor)
+	if not Rescue.is_empty(p.floor):
+		p.wait = true
+		bag_full.emit()
+		return
+	_pickups.erase(p)
+	floor_items.erase(p.floor)
+	var n: Node3D = p.node
+	var tween := create_tween()
+	tween.tween_property(n, "position:y", n.position.y + 1.2, 0.35).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(n, "scale", Vector3.ONE * 0.01, 0.35).set_ease(Tween.EASE_IN)
+	tween.tween_callback(n.queue_free)
 
 
 ## Sets an item from the bag down at the hero's feet. It stays there (also

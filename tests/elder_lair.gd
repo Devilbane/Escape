@@ -158,9 +158,11 @@ func _check_dragon() -> void:
 	p.hp = p.max_hp
 	p._invulnerable = 0.0
 	p.global_position = elder.global_position + Vector3(0, 0, 12.0)
+	# Life to spare, so the breath does not knock the hero out (see Rescue).
+	p.hp = 1000
 	var before: int = p.hp
 	elder._breathe(p)
-	check(p.hp < before - 4 or p.dead, "the breath burns hard (%d -> %d)" % [before, p.hp])
+	check(p.hp < before - 4 and not p.dead, "the breath burns hard (%d -> %d)" % [before, p.hp])
 	# Out of sight long enough, it goes back to sleep.
 	elder._unseen = ElderDragon.SETTLE_AFTER + 0.1
 	elder._windup = 0.0

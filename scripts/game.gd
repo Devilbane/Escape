@@ -2469,6 +2469,7 @@ func load_level(index: int, restock := true) -> void:
 	level.item_collected.connect(_on_item_collected)
 	level.secret_found.connect(_on_secret_found)
 	level.ingredient_collected.connect(_on_ingredient_collected)
+	level.bundle_reached.connect(_on_bundle_reached)
 	level.hide_ingredients()
 	_spawn_pet()
 	if has_fox:
@@ -3258,8 +3259,18 @@ func _apply_save(data: Dictionary) -> void:
 	# Games saved before there was weather wake up to clear skies.
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
 	puddle_water = clampf(float(data.get("puddles", 0.0)), 0.0, 1.0)
-	var index := clampi(int(data.level), 0, level_files.size() - 1)
-	inside_house = 0
+	_go_to_wake_place(_wake_place(data))
+	player.hp = clampi(int(data.hp), 1, player.max_hp)
+	player.cure()
+	_update_hud()
+
+
+## Where a saved game wakes up, by the hero's state as it is now (escaped,
+## their own house): {"index": level, "house": town house number inside or 0,
+## "inn": in an inn's bed, "camp": the camp (see Camp.from_save) or {}}.
+func _wake_place(data: Dictionary) -> Dictionary:
+	var index := clampi(int(data.get("level", 0)), 0, level_files.size() - 1)
+	var house := 0
 	var own_house := Homes.house_of(hero_name)
 	var at_inn: bool = data.get("inn", false) and _is_inn_file(index)
 	var camp_at := Camp.from_save(data.get("camp"))
@@ -3274,14 +3285,22 @@ func _apply_save(data: Dictionary) -> void:
 		# The hero's own town house is the place to come back to: every
 		# load wakes up beside its bed, wherever the game was saved.
 		index = interiors["^"]
-		inside_house = own_house
+		house = own_house
 	elif escaped and _outdoor_index() >= 0:
 		# Out of the dungeon, every load begins in the open air, wherever the
 		# game was saved: on the graveyard, or in the hero's own house.
 		index = _outdoor_index()
-	load_level(index, false)
+	return {"index": index, "house": house, "inn": at_inn, "camp": {} if at_inn else camp_at}
+
+
+## Loads the level of a wake place (see _wake_place) and puts the hero there:
+## at the camp, beside the bed, or where the level starts.
+func _go_to_wake_place(place: Dictionary) -> void:
+	inside_house = int(place.house)
+	load_level(int(place.index), false)
 	camp = null
-	if not camp_at.is_empty() and not at_inn:
+	var camp_at: Dictionary = place.camp
+	if not camp_at.is_empty():
 		camp = Camp.pitch(level, camp_at.pos, camp_at.rot)
 		Camp.clear_around(level, camp.global_position)
 		player.global_position = camp.stand_spot()
@@ -3292,9 +3311,6 @@ func _apply_save(data: Dictionary) -> void:
 	elif level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
 		# The hero's own house is the place to come back to: next to the bed.
 		player.global_position = level.home_spot
-	player.hp = clampi(int(data.hp), 1, player.max_hp)
-	player.cure()
-	_update_hud()
 
 
 func _leave_title(prepare: Callable) -> void:
@@ -5083,14 +5099,75 @@ func _on_player_hurt(_amount: int) -> void:
 	tween.tween_property(_fade, "color:a", 0.0, 0.35)
 
 
-## Death ends the run: it goes into the ranking with a skull.
+## Out of life, the hero is not dead but unconscious (see Rescue): what
+## they looted stays where they fell, an eagle (on the surface) or the
+## dwarves' emergency team (below ground) carries them to the bed they last
+## slept in, and they wake up there with full life. Only a playtest from the
+## workshop still ends, back in the workshop.
 func _on_player_defeated() -> void:
 	state = State.TRANSITION
-	show_message(Lang.t("Du wurdest besiegt..."), 2.0)
-	var tween := create_tween()
-	tween.tween_interval(1.6)
-	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.8)
-	tween.tween_callback(func(): _end_run(false))
+	if playtest_file != "":
+		show_message(Lang.t("Du wurdest besiegt..."), 2.0)
+		var tween := create_tween()
+		tween.tween_interval(1.6)
+		tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.8)
+		tween.tween_callback(func(): _end_run(false))
+		return
+	player.frozen = true
+	player.path.clear()
+	menus.close()
+	var fell_on := level
+	var lost := Rescue.drop_belongings(self)
+	_update_hud()
+	var eagle := Rescue.on_surface(level)
+	show_message(Lang.t("Du verlierst das Bewusstsein...") + "\n" + (Lang.t("Ein Adler stößt herab!") if eagle else Lang.t("Der Rettungstrupp der Zwerge ist unterwegs!")), 3.0)
+	Rescue.send(level, player,
+			func(seconds: float): create_tween().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), seconds),
+			func(): _wake_after_rescue(eagle, lost, fell_on.level_name))
+
+
+## The rescuers bring the hero to their latest safe spot: the bed of the
+## saved game (or its camp), else where this floor begins. They wake up
+## there, rested, and the game is saved.
+func _wake_after_rescue(eagle: bool, lost: Dictionary, fell_on: String) -> void:
+	if level.building == "" and not level.outdoor:
+		# The floor stays as the hero left it (monsters slain, doors open).
+		level.note_left()
+	elif DragonLair.is_floor(level):
+		level.note_left()
+	var data := _read_save() if has_slot_save() else {"level": level_index}
+	_go_to_wake_place(_wake_place(data))
+	player.hp = player.max_hp
+	player.cure()
+	_snap_camera()
+	_update_hud()
+	create_tween().tween_property(_fade, "color:a", 0.0, 1.2)
+	var asleep := {"away": {"rescued": true}, "camp": data.get("camp")}
+	var awake := func(): _rescued(eagle, lost, fell_on)
+	if not _wake_at_camp(asleep, awake) and not _wake_in_bed(asleep, awake):
+		state = State.PLAYING
+		awake.call()
+
+
+## Up again after a rescue: who brought the hero here, and where their
+## things lie.
+func _rescued(eagle: bool, lost: Dictionary, fell_on: String) -> void:
+	var text := Lang.t("Ein Riesenadler hat dich bewusstlos davongetragen und hierher gebracht.") if eagle \
+			else Lang.t("Der Rettungstrupp der Zwerge hat dich bewusstlos aus der Tiefe getragen und hierher gebracht.")
+	if int(lost.items) + int(lost.coins) + int(lost.ingredients) > 0:
+		text += "\n" + Lang.t("Deine Beute, %d Münzen und %d Zutaten liegen noch dort, wo du gefallen bist: %s.") % [int(lost.coins), int(lost.ingredients), Lang.t(fell_on)]
+	show_message(text, 6.0)
+	Events.tell(text.replace("\n", " "), Color(1.0, 0.85, 0.45), 8.0)
+	Events.teach(Rescue.LORE)
+	save_game()
+
+
+## The hero walked onto their pack (see Rescue): back with what fits.
+func _on_bundle_reached(entry: Array) -> void:
+	if Rescue.take_back(self, entry):
+		Sfx.play(self, "rummage", -3.0)
+		Events.found(Lang.t("Du nimmst dein Bündel wieder an dich."), GOLD)
+		_update_hud()
 
 
 ## Puts the finished run into the ranking and shows the list.

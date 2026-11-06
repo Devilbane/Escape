@@ -264,6 +264,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/boss_loot.gd | tee boss_loot.log
           grep -q PASS boss_loot.log
 
+      - name: Growing slimes test (colours, sizes, swallowing, corpses, Blobs)
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_growth.gd | tee slime_growth.log
+          grep -q PASS slime_growth.log
+
       - name: Floor items test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/floor_items.gd | tee floor_items.log

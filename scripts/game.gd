@@ -233,6 +233,12 @@ var builds := {}
 ## number: "haus.txt#2"), see Level.floor_items. Kept in the saved game, so
 ## dropped gear and unclaimed loot stay where they fell.
 var floors := {}
+## The slimes of the open air while the hero is elsewhere (see
+## SlimeGrowth.snapshot). Kept in the saved game, so they stay in the world.
+var wild_slimes: Array = []
+## Set when wild_slimes was just loaded or cleared: the level being left
+## then belongs to the game before, and its slimes are not kept.
+var _slimes_fresh := false
 ## Secret rooms found this run; each one sharpens the eye for the next lever.
 var secrets_found := 0
 ## Levels left in a row without finding their secret room.
@@ -2603,6 +2609,7 @@ func _on_lightning(at: Vector3) -> void:
 
 func load_level(index: int, restock := true) -> void:
 	if level:
+		_keep_slimes()
 		level.queue_free()
 	level_index = index
 	tutorial.restart()
@@ -2652,6 +2659,10 @@ func load_level(index: int, restock := true) -> void:
 	player.revive(level.cell_to_world(level.start_cell), false)
 	player.face(Vector3.BACK)
 	level.restore_taken()
+	if level is Outdoor:
+		SlimeGrowth.restore(level, wild_slimes)
+		wild_slimes = []
+	_slimes_fresh = false
 	Mines.refresh_crystals(level, day)
 	level.restore_floor()
 	level.restore_stones()
@@ -2989,6 +3000,8 @@ func begin_new_game() -> void:
 	looted.clear()
 	builds.clear()
 	floors.clear()
+	wild_slimes = []
+	_slimes_fresh = true
 	met.clear()
 	quests.clear()
 	journal.clear()
@@ -3418,6 +3431,9 @@ func _apply_save(data: Dictionary) -> void:
 		for file in saved_builds:
 			if saved_builds[file] is Array:
 				builds[str(file)] = (saved_builds[file] as Array).filter(func(e): return e is Array and e.size() >= 4)
+	var saved_slimes = data.get("slimes", [])
+	wild_slimes = saved_slimes if saved_slimes is Array else []
+	_slimes_fresh = true
 	floors.clear()
 	var saved_floors = data.get("floors", {})
 	if saved_floors is Dictionary:
@@ -3648,7 +3664,7 @@ func save_game(going_away := false) -> bool:
 		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
 		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(), "home_stores": HomeStores.for_save(home_stores),
 		"saved_at": Time.get_unix_time_from_system(),
-		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(), "floors": _floors_for_save(),
+		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(), "floors": _floors_for_save(), "slimes": _slimes_for_save(),
 		"quests": quests.for_save(),
 		"journal": journal.for_save(),
 		"day": day, "bounties": bounties.for_save(),
@@ -3700,6 +3716,21 @@ func _builds_for_save() -> Dictionary:
 
 
 ## What lies on each level's floor, levels with nothing left out.
+## Notes the open air's slimes as the hero leaves it (see wild_slimes).
+func _keep_slimes() -> void:
+	if _slimes_fresh:
+		_slimes_fresh = false
+		return
+	if level is Outdoor and is_instance_valid(level):
+		wild_slimes = SlimeGrowth.snapshot(level)
+
+
+## The slimes for the saved game: as they are now when the hero is in the
+## open air, else as they were left.
+func _slimes_for_save() -> Array:
+	return SlimeGrowth.snapshot(level) if level is Outdoor and is_instance_valid(level) else wild_slimes
+
+
 func _floors_for_save() -> Dictionary:
 	var out := {}
 	for key in floors:

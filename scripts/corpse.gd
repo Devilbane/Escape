@@ -178,6 +178,16 @@ func _process(delta: float) -> void:
 	enemy._model.scale = _scale0 * shape
 
 
+## Eaten by a slime (see SlimeGrowth): no end of its own and nothing left;
+## the slime takes the body away.
+func eaten() -> void:
+	_done = true
+	var level: Level = enemy.level
+	if level != null and is_instance_valid(level):
+		level.corpses.erase(self)
+	queue_free()
+
+
 ## Comes to its end: what is left stays on the floor, the body goes.
 func _finish() -> void:
 	_leave_remnant()

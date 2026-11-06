@@ -210,6 +210,10 @@ func _areas() -> void:
 		if report:
 			print("%s  %s  %d" % [area, e.kind, e.rated_level])
 		if HeroLevel.AREAS.has(area) and not HeroLevel.FIXED.has(e.kind):
+			# A slime may be born above its place and grows by eating (see SlimeGrowth).
+			if SlimeGrowth.grows(e.kind):
+				check(e.rated_level >= HeroLevel.AREAS[area].min, "%s in %s is level %d or more: %d" % [e.kind, area, HeroLevel.AREAS[area].min, e.rated_level])
+				continue
 			check(e.rated_level >= HeroLevel.AREAS[area].min and e.rated_level <= HeroLevel.AREAS[area].max, "%s in %s fits levels %d to %d: %d" % [e.kind, area, HeroLevel.AREAS[area].min, HeroLevel.AREAS[area].max, e.rated_level])
 	for building in ["loch1", "loch2", "loch2b", "grotte", "E", "E2", "E3", "mine1", "mine2", "mine3", "mine3b", "mine3c", "uralt1", "uralt2", "uralt3"]:
 		game.load_level(game.interiors[building], false)
@@ -219,6 +223,9 @@ func _areas() -> void:
 			if report:
 				print("%s  %s  %d" % [building, e.kind, e.rated_level])
 			if HeroLevel.FIXED.has(e.kind) or e.kind in Enemy.HORRORS:
+				continue
+			if SlimeGrowth.grows(e.kind):
+				check(e.rated_level >= HeroLevel.AREAS[area].min, "%s in %s is level %d or more: %d" % [e.kind, building, HeroLevel.AREAS[area].min, e.rated_level])
 				continue
 			check(e.rated_level >= HeroLevel.AREAS[area].min and e.rated_level <= HeroLevel.AREAS[area].max, "%s in %s fits levels %d to %d: %d" % [e.kind, building, HeroLevel.AREAS[area].min, HeroLevel.AREAS[area].max, e.rated_level])
 		game.load_level(game._outdoor_index(), false)

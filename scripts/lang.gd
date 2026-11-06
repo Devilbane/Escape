@@ -78,6 +78,7 @@ const PARTS := [
 	preload("res://scripts/lang/save_notice.gd"),
 	preload("res://scripts/lang/mountains.gd"),
 	preload("res://scripts/lang/hero_level.gd"),
+	preload("res://scripts/lang/slime_growth.gd"),
 	preload("res://scripts/lang/tutorial.gd"),
 	preload("res://scripts/lang/editor.gd"),
 	preload("res://scripts/lang/tentacles.gd"),

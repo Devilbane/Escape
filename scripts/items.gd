@@ -122,6 +122,8 @@ static var ALL := {
 	"amulett_leben": {"name": "Amulett des Lebens", "slot": "amulett", "weight": 0.3, "hp": 1, "magic": true, "price": 15},
 	"kupferring": {"name": "Kupferring", "slot": "ring", "weight": 0.1, "power": 1, "price": 16},
 	"rubinring": {"name": "Rubinring", "slot": "ring", "weight": 0.1, "hp": 1, "power": 1, "price": 32},
+	# Long lost in the village pond, fished up only once (see Fishing.RING).
+	"siegelring": {"name": "Verlorener Siegelring", "slot": "ring", "weight": 0.1, "hp": 1, "power": 1, "speed": 0.05, "magic": true, "price": 60, "no_loot": true},
 	"bronzearmreif": {"name": "Bronzearmreif", "slot": "armreif", "weight": 0.4, "hp": 1, "price": 12},
 	# Made at the fine metalwork bench from the wish recipes (see Crafting).
 	"klingenring": {"name": "Klingenring", "slot": "ring", "weight": 0.1, "power": 1, "skills": {"klingen": 1}, "magic": true, "price": 34, "no_loot": true, "crafted": true},
@@ -449,7 +451,7 @@ const LEVELS := {
 	"eilstiefel": 4, "zauberhut": 4, "silberarmreif": 4,
 	"kettenhemd": 5, "wappenschild": 5, "schattenumhang": 5,
 	"fechtbuch": 5, "axtbuch": 5, "wurfbuch": 5, "schildbuch": 5, "ruestbuch": 5, "schleichbuch": 6,
-	"ritterhelm": 6, "rubinring": 6, "baerenkappe": 6, "lederrucksack": 6,
+	"ritterhelm": 6, "rubinring": 6, "siegelring": 6, "baerenkappe": 6, "lederrucksack": 6,
 	"klingenring": 6, "axtreif": 6, "schildamulett": 6, "wurfring": 6, "schattenamulett": 6, "lastreif": 6,
 	"stachelschild": 7, "streitkolben": 7, "langschwert": 7,
 	"koenigsumhang": 8, "krummsaebel": 8, "vampirzahn": 8, "gluecksklee": 8,
@@ -496,6 +498,7 @@ const RARITY := {
 	"bronzearmreif": "normal", "kupferring": "normal",
 	"amulett_leben": "ungewoehnlich", "amulett_kraft": "ungewoehnlich",
 	"amulett_tempo": "selten", "silberarmreif": "selten", "rubinring": "selten",
+	"siegelring": "episch",
 	# Specials.
 	"vampirzahn": "selten", "gluecksklee": "episch", "dornenrune": "episch", "phoenixfeder": "gottgeboren",
 	# Backpacks.

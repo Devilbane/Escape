@@ -43,6 +43,7 @@ const EN := {
 	"Amulett des Lebens": "Amulet of Life",
 	"Kupferring": "Copper ring",
 	"Rubinring": "Ruby ring",
+	"Verlorener Siegelring": "Long-lost signet ring",
 	"Bronzearmreif": "Bronze bracelet",
 	"Silberarmreif": "Silver bracelet",
 	"Vampirzahn": "Vampire fang",

@@ -94,7 +94,7 @@ func _test() -> void:
 	check(Lang.EN.has(Fishing.HOW_TO), "the fishing how-to has an English text")
 	for kind in Fishing.WATERS:
 		for row in Fishing.WATERS[kind]:
-			check(row[0] in ["", "muenze"] or Crafting.INGREDIENTS.has(row[0]), "%s: %s is an ingredient" % [kind, row[0]])
+			check(row[0] in ["", "muenze", "flasche", Fishing.RING] or Crafting.INGREDIENTS.has(row[0]), "%s: %s is an ingredient" % [kind, row[0]])
 			check(row[2] in ["", "nacht", "daemmerung"], "%s: %s bites at a known time" % [kind, row[0]])
 	for text in ["Angeln", "G: Angeln", "G: Anschlagen!", "G: Leine einholen"]:
 		check(Lang.EN.has(text), "\"%s\" has an English text" % text)
@@ -283,10 +283,118 @@ func _test() -> void:
 			visits += 1
 		_key_g()
 	check(visits > 10 and visits < 60, "the monster turns up now and then (%d of 200 casts)" % visits)
+	# Drawing the line in does not send the monster away: it stays up on its
+	# own to the end of its visit, and casting again keeps it too.
+	_key_g()
+	fishing.monster_rises(false)
+	var stays := fishing.monster
+	_key_g()
+	check(not fishing.is_fishing() and is_instance_valid(stays) and fishing.monster == stays, "drawing the line in leaves the monster up")
+	_key_g()
+	check(fishing.is_fishing() and fishing.monster == stays, "casting again keeps the monster up")
+	fishing.timer = 0.05
+	fishing.tick(0.1)
+	check(fishing.state == Fishing.BITE, "a monster up on its own holds no fish off")
+	_key_g()
+	for i in int(up / 0.1) + 3:
+		fishing.tick(0.1)
+	check(fishing.monster == null and (not is_instance_valid(stays) or stays.is_queued_for_deletion()), "it sinks at the end of its visit")
+	# Its pranks; and after taking the bait it wears the float as a hat.
+	check(fishing.monster_hat, "the monster keeps the float it stole")
+	_key_g()
+	fishing.monster_rises(false)
+	check(fishing.monster.get_node_or_null("Hat") != null, "it wears the stolen float as a hat")
+	coins_before = game.coins
+	for gag in Fishing.MONSTER_GAGS:
+		fishing._gag(gag)
+	check(game.coins == coins_before + 1, "the coin it spits out is worth 1 copper")
+	var visits_before := fishing.monster_visits
+	_key_g()
+	_key_g()
+	fishing.monster_rises(false)
+	check(fishing.monster_visits >= visits_before and fishing.monster_visits >= 2, "casting again does not reset its visits")
+	_key_g()
+	for i in int(up / 0.1) + 3:
+		fishing.tick(0.1)
+	if fishing.is_fishing():
+		_key_g()
+	for text in ["Blubb?", "Pfft!", "Hihi!", "Rülps!", "Hier kommst du nicht ans Wasser.",
+			"Das kleine Teichungeheuer taucht auf. Auf dem Kopf trägt es deinen gestohlenen Schwimmer, wie einen Hut!",
+			"Das kleine Teichungeheuer taucht wieder auf. Es scheint dich zu kennen!",
+			"Das Teichungeheuer spuckt dir einen Wasserstrahl mitten ins Gesicht und kichert.",
+			"Das Teichungeheuer rülpst eine riesige Blase. Es schaut sehr verlegen drein.",
+			"Das Teichungeheuer spuckt dir eine alte Münze vor die Füße. +1 Kupfer"]:
+		check(Lang.EN.has(text), "\"%s\" has an English text" % text)
+
+	# Clicking the water of a pond casts the line toward the clicked spot.
+	var pond := _water("teich")
+	_stand_by(pond)
+	var aim := Fishing.float_spot(pond, player.global_position, game.level.fishing_waters)
+	check(not fishing.water_at(aim).is_empty(), "the clicked spot is pond water")
+	check(fishing.water_at(_water("brunnen").pos).is_empty(), "a click on the fountain still uses the fountain")
+	player._busy = 0.0
+	game._click(Vector3(aim.x, 0, aim.z))
+	check(fishing.state == Fishing.WAITING, "a click on the water casts the line")
+	check(Vector2(fishing._float_rest.x - aim.x, fishing._float_rest.z - aim.z).length() < 0.5, "the float lands where the water was clicked")
+	game._click(Vector3(aim.x, 0, aim.z))
+	check(not fishing.is_fishing(), "another click on the water draws the line in")
+	# A spot to one side lands to that side, not on the straight cast.
+	var side := Fishing.aim_spot(pond, player.global_position, aim + (aim - player.global_position).cross(Vector3.UP).normalized() * 2.0, game.level.fishing_waters)
+	check(Fishing.is_deep(game.level.fishing_waters, "teich", side), "an aimed float lands clear of the shore")
+	# From afar the hero walks to the shore first, then casts.
+	player.global_position = game.level.spots.square[0]
+	player.velocity = Vector3.ZERO
+	player._busy = 0.0
+	game._click(Vector3(aim.x, 0, aim.z))
+	check(not fishing.is_fishing() and fishing._walk_kind == "teich" and not player.path.is_empty(), "a click on a far pond walks the hero there")
+	var shore: Vector3 = player.path[-1]
+	check(Level.water_distance(game.level.nearest_water(shore, 99.0), shore) <= Fishing.RANGE and game.level.nearest_water(shore, 99.0).water == "teich", "the walk ends on the shore of the pond")
+	player.global_position = Vector3(shore.x, 0, shore.z)
+	player.path.clear()
+	fishing.tick(0.1)
+	check(fishing.state == Fishing.WAITING and fishing._walk_kind == "", "at the shore the line goes out")
+	_key_g()
+	# A click elsewhere on the way forgets the pond.
+	player.global_position = game.level.spots.square[0]
+	game._click(Vector3(aim.x, 0, aim.z))
+	game._click(game.level.spots.square[0] + Vector3(2, 0, 0))
+	check(fishing._walk_kind == "", "a click elsewhere forgets the pond")
+	player.path.clear()
+
 	for text in [Fishing.MONSTER_LORE, "Blubb!", "Neben dem Schwimmer taucht ein kleines Teichungeheuer auf!",
 			"Das kleine Teichungeheuer schnappt sich deinen Köder und taucht damit ab!",
 			"Das kleine Teichungeheuer taucht wieder ab. Du wartest weiter …"]:
 		check(Lang.EN.has(text), "\"%s\" has an English text" % text)
+
+	# Better odds in a row: after five bites weed is rare.
+	var row_weed := 0
+	for i in 1000:
+		if Fishing.roll("teich", 12.0, rng, Fishing.MAX_CHAIN) == "":
+			row_weed += 1
+	check(row_weed < 20, "after a long row of bites hardly any weed comes in (%d of 1000)" % row_weed)
+	# A message in a bottle: coins and a note.
+	coins_before = game.coins
+	fishing.take("flasche", player.global_position, game.level)
+	check(game.coins >= coins_before + Fishing.BOTTLE_COINS[0] and game.coins <= coins_before + Fishing.BOTTLE_COINS[1], "a bottle holds a few coins")
+	for note in Fishing.BOTTLE_NOTES:
+		check(Lang.EN.has(note), "the bottle note %s has English" % note)
+	# The long-lost ring: rare, once only, and kept in the saved game.
+	check(Fishing.is_rare(Fishing.RING) and Items.ALL.has(Fishing.RING) and Lang.EN.has(Items.ALL[Fishing.RING].name), "the long-lost ring is a rare item")
+	seen.clear()
+	for i in 3000:
+		seen[Fishing.roll("teich", 12.0, rng, 3)] = true
+	check(seen.has(Fishing.RING), "the ring can be fished up in the village pond")
+	fishing.ring_found = false
+	fishing.take(Fishing.RING, player.global_position, game.level)
+	check(fishing.ring_found and player.bag.has(Fishing.RING), "the ring goes into the bag")
+	var ring_again := false
+	for i in 3000:
+		if Fishing.roll("teich", 12.0, rng, 3, true) == Fishing.RING:
+			ring_again = true
+	check(not ring_again, "the ring is fished up only once")
+	game.save_game()
+	check(game._read_save(game.save_path()).get("fished_ring", false) == true, "the saved game remembers the ring")
+	player.bag.erase(Fishing.RING)
 
 	# Catches go into the pouch; a coin is gold.
 	game.crafting.clear()

@@ -24,4 +24,18 @@ const EN := {
 	"%s an einem Lagerfeuer im Freien mit %d Kupfer.": "%s at a campfire in the open with %d copper.",
 	"%s an einem Lagerfeuer auf Ebene %d mit %d Kupfer.": "%s at a campfire on level %d with %d copper.",
 	"Klicken oder eine Taste: an deinem Lager weiterspielen.  N: neues Spiel": "Click or press a key: carry on at your camp.  N: new game",
+	# Resting by the fire on a dungeon floor, and its ambushes.
+	"Ruh dich am Feuer aus: Danach hast du volles Leben, und dein Spiel ist gespeichert.\nAuch nach einer Ohnmacht wachst du dann an diesem Lager auf.":
+		"Rest by the fire: afterwards you have full life, and your game is saved.\nIf you black out, you will wake up at this camp too.",
+	"Am Feuer ausruhen": "Rest by the fire",
+	"Hier ist es ruhig: Kein Ungeheuer wird dich stören.": "It is quiet here: no monster will disturb you.",
+	"Gefahr eines Hinterhalts: %d %%. Ein Gefährte an deiner Seite würde Wache halten.": "Risk of an ambush: %d %%. A companion at your side would keep watch.",
+	"%s hält Wache: Kein Ungeheuer wagt sich heran.": "%s keeps watch: no monster dares come near.",
+	"%s hält Wache: Gefahr eines Hinterhalts nur %d %%.": "%s keeps watch: risk of an ambush only %d %%.",
+	"Mitten im Kampf kannst du dich nicht ausruhen.": "You cannot rest in the middle of a fight.",
+	"Ausgeruht! Du hast wieder volles Leben.": "Rested! You have full life again.",
+	"Ein Hinterhalt! Ungeheuer schleichen sich an dein Lager heran.": "An ambush! Monsters are creeping up on your camp.",
+	"%s schlägt Alarm und weckt dich: Ein Hinterhalt!": "%s raises the alarm and wakes you: an ambush!",
+	"Im Verlies kannst du dich an deinem Lager ausruhen: Du bekommst volles Leben, das Spiel wird gespeichert, und nach einer Ohnmacht wachst du dort auf. Doch manchmal schleichen sich Ungeheuer an (30 %) und wecken dich mit nur halb geheilten Wunden. Ein Gefährte hält Wache: Mit Fuchs (10 %) oder Reh (15 %) wird es seltener, an einen Hirsch wagt sich keiner heran.":
+		"In the dungeon you can rest at your camp: you get full life, the game is saved, and if you black out you wake up there. But sometimes monsters creep up (30 %) and wake you with your wounds only half healed. A companion keeps watch: with a fox (10 %) or a doe (15 %) it happens less often, and nobody dares come near a stag.",
 }

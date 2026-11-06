@@ -3900,6 +3900,17 @@ func _build_bed() -> void:
 func _build_camp() -> void:
 	rest_window = "nachtlager"
 	_add_label(Lang.t("Dein Lager"), 38, game.GOLD, game.TITLE_FONT)
+	if Camp.can_rest(game.level):
+		# Down in the dungeon: rest a while by the fire and carry on, at the
+		# risk of an ambush, laid out like the inn's rest till morning.
+		_add_label(Lang.t("Ruh dich am Feuer aus: Danach hast du volles Leben, und dein Spiel ist gespeichert.\nAuch nach einer Ohnmacht wachst du dann an diesem Lager auf."), 20)
+		_add_label(camp_risk_text(), 20, Color(1.0, 0.75, 0.5))
+		var rest: Button = game._make_button(Lang.t("Am Feuer ausruhen"), func():
+			close()
+			game.rest_at_camp())
+		rest.custom_minimum_size = Vector2(300, 60)
+		rest.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_box.add_child(rest)
 	_add_label(Lang.t("Das Feuer knistert, die Schlafrolle liegt bereit. Schlaf hier und logg dich aus:\nBeim nächsten Mal wachst du an diesem Lager auf. Gehst du weg, packst du es wieder ein."), 20)
 	_add_label(Lang.t("Solange du weg bist, lebt dein Held nach seinem Tagesplan:"), 20, BLUE)
 	_add_label(_plan_summary(), 16, game.GOLD)
@@ -3919,6 +3930,22 @@ func _build_camp() -> void:
 	var awake: Button = game._make_button(Lang.t("Wach bleiben und speichern"), game.stay_awake)
 	awake.custom_minimum_size = Vector2(300, 60)
 	row.add_child(awake)
+
+
+## The camp window's line on the danger of resting by the fire: the chance
+## of an ambush, and who keeps watch (see Camp.GUARDS).
+func camp_risk_text() -> String:
+	var guard: String = game.camp_guard()
+	var chance := Camp.ambush_chance(game.level, guard)
+	var percent := roundi(chance * 100.0)
+	if Camp.ambush_kinds(game.level).is_empty():
+		return Lang.t("Hier ist es ruhig: Kein Ungeheuer wird dich stören.")
+	if guard == "":
+		return Lang.t("Gefahr eines Hinterhalts: %d %%. Ein Gefährte an deiner Seite würde Wache halten.") % percent
+	var who: String = game.companion().get("name", Companions.species_name(guard))
+	if percent <= 0:
+		return Lang.t("%s hält Wache: Kein Ungeheuer wagt sich heran.") % who
+	return Lang.t("%s hält Wache: Gefahr eines Hinterhalts nur %d %%.") % [who, percent]
 
 
 # --- Time away (see Offline) ------------------------------------------------

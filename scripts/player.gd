@@ -79,6 +79,10 @@ const SPLASH_TARGETS := 3
 const SPLASH_SHARE := 0.5
 const STRIKE_ANIM := "1H_Melee_Attack_Slice_Horizontal"
 const SPLASH_ANIM := "2H_Melee_Attack_Spinning"
+## A strike that will find a vital point (see MonsterLore): a quick, precise
+## thrust instead of the slice, with a short lunge (VITAL_LUNGE metres).
+const VITAL_ANIM := "1H_Melee_Attack_Stab"
+const VITAL_LUNGE := 0.35
 ## Running into a skeleton starts a fight: the hero keeps swinging while
 ## standing next to it, and throws knives at it once the two are apart.
 const ENGAGE_RANGE := MELEE_RANGE
@@ -972,9 +976,18 @@ func melee() -> void:
 	_attack_cooldown = 0.5
 	Events.bus().hero_acted.emit("melee")
 	var splash := would_splash()
+	# Monster knowledge: a single strike rolls for a vital point as it starts,
+	# so a hit that will find one looks different from the first frame.
+	var vital_target: Enemy = null
+	if not splash and target and not target.open_to_backstab(global_position) and finds_vital(target):
+		vital_target = target
 	if splash:
 		play_once(SPLASH_ANIM, 0.55)
 		Sfx.play(self, "swing", 0.0, null, 0.8)
+	elif vital_target:
+		play_once(VITAL_ANIM, 0.45)
+		Sfx.play(self, "swing", 0.0, null, 1.25)
+		_lunge()
 	else:
 		play_once(STRIKE_ANIM, 0.45)
 		Sfx.play(self, "swing")
@@ -1001,7 +1014,7 @@ func melee() -> void:
 			train("schleichen", 4.0)
 		else:
 			# Monster knowledge: a blow may find a vital point (see MonsterLore).
-			var vital := finds_vital(e)
+			var vital := e == vital_target if not splash and e == target else finds_vital(e)
 			e.take_hit(vital_damage(power, weapon) if vital else damage, global_position)
 			if vital:
 				vital_struck(e)
@@ -1041,10 +1054,21 @@ func vital_damage(base: int, skill_id: String) -> int:
 	return MonsterLore.VITAL_FACTOR * (base + (1 if skill_chance(skill_id) > 0 else 0))
 
 
-## After a vital hit landed on `e`: the word over its head, and maybe a
-## crippled attack and a bleeding wound (see MonsterLore).
+## The short step into a vital strike: the hero's figure darts forward and
+## back while the thrust plays. Only the figure moves, not the body, so the
+## hero's place on the map stays where it was.
+func _lunge() -> void:
+	var ahead := facing() * VITAL_LUNGE
+	var tween := create_tween()
+	tween.tween_property(_model, "position", ahead, 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(_model, "position", Vector3.ZERO, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+
+
+## After a vital hit landed on `e`: a burst at the point struck, the word over
+## its head, and maybe a crippled attack and a bleeding wound (see MonsterLore).
 func vital_struck(e: Enemy) -> void:
 	Sfx.play(self, "hit", 2.0, e.global_position, 1.3)
+	e.vital_burst()
 	if e.dead:
 		Effects.head_text(level, e, 2.7, Lang.t("Schwachstelle!"), MonsterLore.VITAL_COLOR)
 		return

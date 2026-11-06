@@ -694,6 +694,11 @@ jobs:
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/flag_wind.gd | tee flags.log
           grep -q PASS flags.log
 
+      - name: The wood of the village buildings has its grain along every beam
+        run: |
+          timeout 60 ~/godot/godot --headless --fixed-fps 60 -s tests/kit_wood_grain.gd | tee kit_wood.log
+          grep -q PASS kit_wood.log
+
       - name: Export the browser version
         run: |
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd

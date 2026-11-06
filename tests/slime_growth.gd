@@ -5,7 +5,8 @@ extends SceneTree
 ## slime falls), grows a level or more per meal up to level 25 and is a
 ## sparkling, harder-hitting Blob from level 15 on; and it smells corpses
 ## and eats them, growing from them too and slurping up the loot by them;
-## and two slimes that notice each other come together and merge.
+## two slimes that notice each other come together and merge; and the
+## slimes stay in the world while the hero is away and in the saved game.
 ## Run with: godot --headless --fixed-fps 60 -s tests/slime_growth.gd
 
 var failures := 0
@@ -20,6 +21,7 @@ var corpse: Corpse
 var coins_before := 0
 var level_before := 0
 var spot := Vector3.INF
+var kept := {}
 
 
 func check(ok: bool, what: String) -> void:
@@ -59,6 +61,28 @@ func _spawn(kind: String, at: Vector3, custom := {}) -> Enemy:
 		lvl.drop_kill_loot(e, randi_range(purse[0], purse[1])))
 	lvl.enemies.append(e)
 	return e
+
+
+## The slime noted in `kept` is back on the open-air map: same spot, level,
+## colour, and the sword in its belly.
+func _kept_slime_back(when: String) -> bool:
+	var lvl: Level = game.level
+	check(lvl.slimes_about() >= int(kept.count), "every slime is back %s (%d of %d)" % [when, lvl.slimes_about(), kept.count])
+	for e in lvl.enemies:
+		if not is_instance_valid(e) or e.dead or not SlimeGrowth.grows(e.kind):
+			continue
+		if e.global_position.distance_to(kept.at) > 0.5:
+			continue
+		check(e.rated_level == int(kept.level), "it keeps its level %s (%d, was %d)" % [when, e.rated_level, kept.level])
+		var tint: Color = e._stats.get("tint", Color.BLACK)
+		check(tint.is_equal_approx(kept.tint) or tint.to_html() == (kept.tint as Color).to_html(), "it keeps its colour %s" % when)
+		var things := []
+		for meal in e.belly:
+			things.append_array(meal.loot)
+		check(things.any(func(t): return t[0] == "item" and t[1] == "schwert"), "the sword is still in its belly %s" % when)
+		check(things.any(func(t): return t[0] == "find" and int(t[3]) == 2), "the jelly is still in its belly %s" % when)
+		return true
+	return false
 
 
 ## The copper coins (the money) lying on the floor.
@@ -252,6 +276,17 @@ func _process(_delta: float) -> bool:
 			check(tint.r > 0.1 and tint.b > 0.1, "their colours mix (%s)" % tint)
 			check(tint.b > tint.r, "the bigger one's colour wins out")
 			check(wolf.fall_text() == Lang.t("Zwei Schleime fließen zusammen."), "the message says they flowed together")
+			# Lasting: the merged slime, with a sword in its belly, waits while
+			# the hero is in a dungeon, and in the saved game.
+			slime.belly.append({"victim": null, "loot": [["item", "schwert"], ["find", "schleimgelee", Color(0.5, 0.9, 0.4), 2]]})
+			kept = {"level": slime.rated_level, "tint": slime._stats.tint, "at": slime.global_position, "count": game.level.slimes_about()}
+			game.load_level(0, false)
+			game.load_level(game._outdoor_index(), false)
+			check(_kept_slime_back("after a dungeon"), "the slime is still there after the hero was in a dungeon")
+			check(game.save_game(), "the game saves")
+			game._apply_save(game._read_save(game.save_path()))
+			game.load_level(game._outdoor_index(), false)
+			check(_kept_slime_back("after loading"), "the slime is still there after saving and loading")
 			_finish()
 			return true
 	return false

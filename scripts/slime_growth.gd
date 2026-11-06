@@ -30,6 +30,9 @@ extends RefCounted
 ## - Wandering: in the open air a slime does not keep to its home but
 ##   wanders the whole map (WANDER_TILES at a go), the graveyard and the
 ##   mountains too.
+## - Lasting: the slimes of the open air stay in the world while the hero
+##   is in a dungeon or a house, and in the saved game (see snapshot and
+##   restore): where they are, their level, colour, life and belly.
 ## - Blob: from BLOB_LEVEL on a slime is a Blob. It sparkles, hits harder
 ##   (BLOB_DAMAGE), strikes faster (BLOB_PACE) and its touch poisons more
 ##   often (BLOB_POISON).
@@ -143,6 +146,15 @@ static func born(e: Enemy) -> void:
 		if colour != null:
 			e._stats.tint = colour
 	var fixed: bool = e.custom.has("hp") or e.custom.has("damage")
+	# A slime kept from before (see snapshot): back at its own level.
+	if e.custom.has("kept_level"):
+		var kept := clampi(int(e.custom.kept_level), 1, MAX_LEVEL)
+		e.rated_level = mini(Enemy.fit_level(e.kind, e._stats, e.hardening, kept, kept), MAX_LEVEL)
+		if is_blob_level(e.rated_level):
+			blob_up(e)
+		e._stats.size = size_of(e)
+		e.wanders = e.level != null and e.level.outdoor
+		return
 	var extra: int = BIRTH_GROWTH[randi() % BIRTH_GROWTH.size()]
 	if extra > 0 and not fixed:
 		e.rated_level = Enemy.fit_level(e.kind, e._stats, e.hardening, mini(MAX_LEVEL, e.rated_level + extra), MAX_LEVEL)
@@ -244,3 +256,68 @@ static func try_merge(e: Enemy) -> bool:
 static func _mergeable(e: Enemy, o) -> bool:
 	return is_instance_valid(o) and o is Enemy and o != e and not o.dead and o.kind == e.kind \
 			and o.swallowed_by == null and not o.is_friend()
+
+
+## The slimes of the open air as they are now, to keep while the hero is
+## away and in the saved game (JSON-safe): kind, spot, level, colour, size,
+## life and what is in the belly.
+static func snapshot(level: Level) -> Array:
+	var out := []
+	for e in level.enemies:
+		if not is_instance_valid(e) or e.dead or not grows(e.kind):
+			continue
+		var belly := []
+		for meal in e.belly:
+			for thing in meal.loot:
+				belly.append(_thing_to_save(thing))
+		var kept := {"kind": e.kind, "x": snappedf(e.global_position.x, 0.01), "z": snappedf(e.global_position.z, 0.01),
+			"level": e.rated_level, "hp": e.hp, "jitter": snappedf(float(e._stats.get("size_jitter", 1.0)), 0.001), "belly": belly}
+		if e._stats.has("tint"):
+			var tint: Color = e._stats.tint
+			kept.tint = [snappedf(tint.r, 0.001), snappedf(tint.g, 0.001), snappedf(tint.b, 0.001)]
+		out.append(kept)
+	return out
+
+
+## Brings back slimes kept by snapshot on `level` (an Outdoor): each where it
+## was, as it was. Entries it cannot read are skipped.
+static func restore(level: Outdoor, kept: Array) -> void:
+	for k in kept:
+		if not k is Dictionary or not grows(str(k.get("kind", ""))):
+			continue
+		var custom := {"kept_level": int(k.get("level", 1)), "size_jitter": float(k.get("jitter", 1.0))}
+		var tint = k.get("tint", null)
+		if tint is Array and tint.size() >= 3:
+			custom.tint = Color(float(tint[0]), float(tint[1]), float(tint[2]))
+		var at := Vector3(float(k.get("x", 0.0)), 0.0, float(k.get("z", 0.0)))
+		var e := level.spawn_slime(str(k.kind), at, custom)
+		e.hp = clampi(int(k.get("hp", e.max_hp())), 1, e.max_hp())
+		var loot := []
+		for thing in k.get("belly", []):
+			var t := _thing_from_save(thing)
+			if not t.is_empty():
+				loot.append(t)
+		if not loot.is_empty():
+			e.belly.append({"victim": null, "loot": loot})
+			e.show_swallowed(loot)
+
+
+static func _thing_to_save(thing: Array) -> Array:
+	if thing[0] == "find":
+		var c: Color = thing[2]
+		return ["find", thing[1], [c.r, c.g, c.b], thing[3]]
+	return thing.duplicate()
+
+
+static func _thing_from_save(thing) -> Array:
+	if not thing is Array or thing.is_empty():
+		return []
+	match str(thing[0]):
+		"coins":
+			return ["coins", str(thing[1]), int(thing[2])] if thing.size() >= 3 else []
+		"item":
+			return ["item", str(thing[1])] if thing.size() >= 2 and Items.ALL.has(str(thing[1])) else []
+		"find":
+			if thing.size() >= 4 and thing[2] is Array and thing[2].size() >= 3:
+				return ["find", str(thing[1]), Color(float(thing[2][0]), float(thing[2][1]), float(thing[2][2])), int(thing[3])]
+	return []

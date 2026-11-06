@@ -3446,6 +3446,25 @@ func _spawn_weather_foe(s: Dictionary) -> void:
 	enemies.append(e)
 
 
+## A slime kept from before (see SlimeGrowth.restore) back at `at`, with
+## its own colour and level in `custom`.
+func spawn_slime(kind: String, at: Vector3, custom: Dictionary) -> Enemy:
+	var e := Enemy.new()
+	e.kind = kind
+	e.night = night
+	e.level = self
+	e.custom = custom
+	add_child(e)
+	e.global_position = at
+	var purse: Array = Enemy.KINDS[kind].get("purse", [0, 2])
+	e.died.connect(func():
+		enemy_killed.emit(e)
+		drop_kill_loot(e, randi_range(purse[0], purse[1])))
+	enemies = enemies.filter(func(x): return is_instance_valid(x))
+	enemies.append(e)
+	return e
+
+
 ## How many slimes crawl about the open air right now.
 func slimes_about() -> int:
 	return enemies.filter(func(e): return is_instance_valid(e) and not e.dead and SlimeGrowth.grows(e.kind)).size()

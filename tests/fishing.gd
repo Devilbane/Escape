@@ -259,6 +259,14 @@ func _test() -> void:
 	check(is_instance_valid(fishing.monster) and fishing.monster.get_parent() == game.level, "the pond monster surfaces in the pond")
 	check(Fishing.is_deep(game.level.fishing_waters, "teich", fishing._monster_home, Fishing.MONSTER_SHORE_GAP), "it surfaces out on the water")
 	check(game.lore.has(Fishing.MONSTER_LORE), "the compendium tells of the pond monster")
+	var looks := fishing.monster
+	check(looks.find_children("Ear*", "", false, false).size() == 2, "the pond monster has two spiky ears")
+	var scaly := false
+	for mi: MeshInstance3D in looks.find_children("*", "MeshInstance3D", true, false):
+		var mat := mi.material_override as StandardMaterial3D
+		if mat and mat.normal_texture != null and mat.uv1_triplanar:
+			scaly = true
+	check(scaly, "the pond monster has scaly skin (see ScaleSkin)")
 	var up := Fishing.MONSTER_RISE + Fishing.MONSTER_STAY + Fishing.MONSTER_SINK
 	for i in int(up / 0.1) - 2:
 		fishing.tick(0.1)

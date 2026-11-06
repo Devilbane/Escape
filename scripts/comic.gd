@@ -30,6 +30,14 @@ const SOUNDS := {"ZACK!": "word_zack", "KLONK!": "word_klonk", "WUMM!": "word_wu
 const SOUNDS_EN := {"AUA!": "voice_autsch", "UFF!": "voice_uff", "AUTSCH!": "voice_au"}
 ## Loudness per kind; the whoosh of a miss sits quietly on top of the swing.
 const VOLUME := {"hurt": -3.0, "miss": -8.0, "rumble": -4.0, "lever": -2.0}
+## How much quieter a blow's word sounds when the hero's weapon already
+## sounds that blow (see under_weapon): the word stays a soft echo of it.
+const UNDER_WEAPON_DB := -9.0
+## The kinds of word a blow makes.
+const BLOW_KINDS := ["hit", "big", "break", "backstab", "block"]
+
+## The frame in which the hero's weapon last sounded a blow, see under_weapon.
+static var _weapon_frame := -1
 
 ## How much a bubble grows at most (with its tilt), so it is kept apart at full size.
 const GROWN := 1.5
@@ -54,6 +62,12 @@ func _ready() -> void:
 	layer = 5
 	# Drawn now, while the game loads, not at the first blow.
 	_burst_shape()
+
+
+## Called as the hero's weapon lands: the blow words popped in this same
+## frame play quietly, under the weapon's own impact (Sfx.play_weapon).
+static func under_weapon() -> void:
+	_weapon_frame = Engine.get_process_frames()
 
 
 ## Shows a word at a point in the world. Kind picks words and colours:
@@ -96,7 +110,10 @@ func _pop(world_pos: Vector3, kind: String) -> void:
 	var word: String = words.pick_random()
 	label.text = Lang.t(word)
 	var sound: String = SOUNDS_EN.get(word, SOUNDS[word]) if Lang.language == "en" else SOUNDS[word]
-	Sfx.play(self, sound, VOLUME.get(kind, 0.0), world_pos)
+	var volume: float = VOLUME.get(kind, 0.0)
+	if kind in BLOW_KINDS and _weapon_frame == Engine.get_process_frames():
+		volume += UNDER_WEAPON_DB
+	Sfx.play(self, sound, volume, world_pos)
 	label.add_theme_font_override("font", FONT)
 	label.add_theme_font_size_override("font_size", int(size * 0.34))
 	label.add_theme_color_override("font_color", Color(0.12, 0.05, 0.1) if kind != "miss" else Color(1, 1, 1))

@@ -132,7 +132,7 @@ func _process(delta: float) -> void:
 	if by_eagle:
 		_fly_eagle()
 	else:
-		_walk_dwarves()
+		_walk_dwarves(delta)
 
 
 # --- The eagle ------------------------------------------------------------------
@@ -208,7 +208,7 @@ func _build_eagle() -> void:
 
 # --- The dwarves ---------------------------------------------------------------
 
-func _walk_dwarves() -> void:
+func _walk_dwarves(delta: float) -> void:
 	var t := _time - LIE_STILL
 	var side := _away.cross(Vector3.UP).normalized()
 	var spots := [side * 1.25, -side * 1.25]
@@ -230,13 +230,19 @@ func _walk_dwarves() -> void:
 				_face(d, at, at + _away)
 			else:
 				_face(d, at, _from)
+		var moved := Vector2(at.x - d.global_position.x, at.z - d.global_position.z).length() / maxf(delta, 0.001)
 		d.global_position = at
 		var anim: AnimationPlayer = d.get_meta("anim")
 		var walking := t < WALK_UP or _carrying
-		if anim and walking and anim.current_animation != "Walking_A":
-			anim.play("Walking_A", 0.2)
+		if anim and walking:
+			# Walk, jog or run with the pace, the feet planted (see Stride).
+			var gait := Stride.gait("kaykit", Stride.GAITS.kaykit, 1.0, moved, anim.current_animation)
+			if anim.current_animation != gait:
+				anim.play(gait, 0.2)
+			anim.speed_scale = Stride.playback("kaykit", gait, 1.0, moved)
 		elif anim and not walking and anim.current_animation != "Idle":
 			anim.play("Idle", 0.2)
+			anim.speed_scale = 1.0
 	_stretcher.visible = t >= WALK_UP
 	if _stretcher.visible:
 		var drawn := SmoothMotion.drawn_at(hero)
@@ -271,7 +277,10 @@ func _build_dwarves() -> void:
 		lamp.omni_range = 6.0
 		lamp.position = Vector3(0, 1.6, -0.4)
 		holder.add_child(lamp)
-		holder.set_meta("anim", body.find_child("AnimationPlayer", true, false))
+		var anim: AnimationPlayer = body.find_child("AnimationPlayer", true, false)
+		for gait: String in Stride.GAITS.kaykit:
+			anim.get_animation(gait).loop_mode = Animation.LOOP_LINEAR
+		holder.set_meta("anim", anim)
 		_dwarves.append(holder)
 	_stretcher = Node3D.new()
 	_stretcher.name = "Stretcher"

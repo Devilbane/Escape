@@ -411,6 +411,20 @@ func play(anim_name: String, blend := 0.25) -> void:
 		return
 	_current_anim = anim_name
 	_anim.play(anim_name, blend)
+	# Off the toes (see _stride) when anything else begins.
+	_model.position.y = 0.0
+
+
+## Walks in `anim` at up to `speed`: no faster than its feet step (see
+## Stride), played just as fast as the planted foot must travel, rising
+## onto the toes at each push-off. Returns the speed really walked.
+func _stride(anim: String, speed: float) -> float:
+	var size := _model.scale.x
+	var walked := minf(speed, Stride.top_speed("kaykit", anim, size))
+	play(anim)
+	_anim.speed_scale = Stride.playback("kaykit", anim, size, walked)
+	_model.position.y = Stride.lift(_anim, anim, size)
+	return walked
 
 
 # --- The day's plan -----------------------------------------------------------
@@ -623,14 +637,14 @@ func _walk(delta: float, hero: Node3D) -> void:
 		_start("idle", 1.5)
 		return
 	_waiting = 0.0
-	var step := _speed * delta
+	var walked := _stride("Running_A" if _speed >= RUN_SPEED else ("Walking_B" if _speed < WALK_SPEED else "Walking_A"), _speed)
+	var step := walked * delta
 	if to.length() <= step:
 		global_position = Vector3(_path[0].x, 0, _path[0].z)
 		_path.pop_front()
 	else:
 		global_position += to.normalized() * step
 	_turn_to(to, delta)
-	play("Running_A" if _speed >= RUN_SPEED else ("Walking_B" if _speed < WALK_SPEED else "Walking_A"))
 
 
 ## Whether a point is too close to someone else who keeps their spot.
@@ -708,10 +722,9 @@ func _ready_to_chop(delta: float) -> bool:
 	var to := _chop_stand - global_position
 	to.y = 0.0
 	if to.length() > 0.05:
-		var step := minf(to.length(), WALK_SPEED * 0.6 * delta)
+		var step := minf(to.length(), _stride("Walking_B", WALK_SPEED * 0.6) * delta)
 		global_position += to.normalized() * step
 		_turn_to(to, delta)
-		play("Walking_B")
 		return false
 	_turn_to(_chop_face, delta)
 	var facing := Vector3(sin(rotation.y), 0, cos(rotation.y))

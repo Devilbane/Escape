@@ -61,3 +61,12 @@ Move those bodies only in physics ticks: a tween on one uses `set_process_mode(T
 and putting one somewhere new calls `reset_physics_interpolation()`. Anything moved per frame stays
 uninterpolated. Something that follows the hero per frame uses `SmoothMotion.drawn_at(player)`.
 `tests/smooth_motion.gd` checks it; `tests/profile_run.gd` and `tests/profile_nodes.gd` measure frame costs.
+
+## Planted feet
+
+Walks and runs play at the pace of their stride (`scripts/stride.gd`): `Stride.FEET` lists how fast each
+animation's planted foot travels, measured from the bones, and `Stride.playback` turns a body's ground speed
+into the animation's playback rate. A walker no faster than `Stride.top_speed` for a walk, or moved on to the
+next gait with `Stride.gait`, never slides its feet. Humans rise onto their toes at each push-off
+(`Stride.lift`). A new walking model or animation gets its rig and speed in `Stride`; `tests/stride.gd`
+measures them again and checks every walker's speeds.

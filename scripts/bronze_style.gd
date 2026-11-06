@@ -102,6 +102,7 @@ static var _rims := {}
 static var _grounds := {}
 static var _rivet: ImageTexture
 static var _glows := {}
+static var _shine: ImageTexture
 
 
 func set_border_width_all(width: int) -> void:
@@ -209,6 +210,8 @@ func _draw(item: RID, rect: Rect2) -> void:
 		for p in [rect.position + Vector2(inset, inset), Vector2(rect.end.x - inset, rect.position.y + inset),
 				Vector2(rect.position.x + inset, rect.end.y - inset), rect.end - Vector2(inset, inset)]:
 			rs.canvas_item_add_texture_rect(item, Rect2(p - Vector2(d, d) / 2.0, Vector2(d, d)), rivet.get_rid(), false, tint)
+			# Polished metal: a white glint and a faint reflected light, not tinted.
+			rs.canvas_item_add_texture_rect(item, Rect2(p - Vector2(d, d) / 2.0, Vector2(d, d)), _shine_texture().get_rid(), false, Color(1, 1, 1, border_color.a))
 
 
 ## The bronze's colour across the frame, as light falling over cast metal:
@@ -363,6 +366,17 @@ static func _rim(width: int, radius: int) -> ImageTexture:
 					# The outer edge catches the light on top, falls dark below.
 					var facing := away.normalized().dot(Vector2(0.0, -1.0))
 					shade += 0.18 * facing if facing > 0.0 else 0.3 * facing
+				# Polish: a bright line of reflected light running along the
+				# rim a third of the way in, brightest on the sides facing the
+				# light, and a slow sheen along each side.
+				var t := (d - line) / maxf(width - 2.0 * line, 1.0)
+				var gleam := clampf(1.0 - absf(t - 0.35) / 0.18, 0.0, 1.0)
+				var lit := 0.6
+				if away.length() > 0.0:
+					lit = 0.6 + 0.4 * away.normalized().dot(Vector2(-0.7071, -0.7071))
+				shade += 0.2 * gleam * lit
+				var along := (px if absf(out.y) > absf(out.x) else py) / size
+				shade += 0.06 * sin(along * TAU * 1.5 + (1.3 if out.y > 0.0 or out.x > 0.0 else 0.0))
 				# A faint grain, so the metal is not plastic.
 				shade += (_noise(x / 3, y / 3) - 0.5) * 0.05
 			var alpha := clampf(d, 0.0, 1.0) * clampf(width + 0.5 - d + 0.5, 0.0, 1.0)
@@ -418,6 +432,29 @@ static func _rivet_texture() -> ImageTexture:
 			img.set_pixel(x, y, Color(shade, shade, shade, 1.0))
 	_rivet = ImageTexture.create_from_image(img)
 	return _rivet
+
+
+## The polish on a rivet head: a bright glint at its lit top left and a
+## faint band of reflected light along its lower right, in white with alpha,
+## drawn over the tinted head.
+static func _shine_texture() -> ImageTexture:
+	if _shine:
+		return _shine
+	var size := 32
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	for y in size:
+		for x in size:
+			var p := Vector2(x + 0.5 - size / 2.0, y + 0.5 - size / 2.0) / (size / 2.0 - 1.0)
+			var r := p.length()
+			if r > 0.86:
+				img.set_pixel(x, y, Color(1, 1, 1, 0))
+				continue
+			var glint := clampf(1.0 - (p - Vector2(-0.32, -0.36)).length() / 0.3, 0.0, 1.0)
+			var reflect := clampf(1.0 - absf(r - 0.68) / 0.12, 0.0, 1.0) * clampf(p.normalized().dot(Vector2(0.7071, 0.7071)), 0.0, 1.0)
+			var a := clampf(pow(glint, 1.5) * 0.95 + reflect * 0.3, 0.0, 1.0)
+			img.set_pixel(x, y, Color(1, 0.98, 0.9, a))
+	_shine = ImageTexture.create_from_image(img)
+	return _shine
 
 
 ## A soft square glow that fades out over `size` pixels around the box.

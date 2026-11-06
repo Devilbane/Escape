@@ -7,7 +7,8 @@ extends RefCounted
 ##   Slimes of one colour are kin and leave each other be.
 ## - Size: a slime is as big as its level (see size_for), from a small lump
 ##   at level 1 to a hulk at MAX_LEVEL. Some are born a level or more above
-##   their place (BIRTH_GROWTH), so a group never looks all alike.
+##   their place (BIRTH_GROWTH, never above its area's top, see birth_top),
+##   so a group never looks all alike.
 ## - Hunger: a slime falls upon any other creature it could swallow (see
 ##   can_eat): a monster no more than PREY_MARGIN levels above it, or a
 ##   slime of another colour at least SLIME_GAP levels below it. Ghosts,
@@ -18,8 +19,10 @@ extends RefCounted
 ## - Growth: whatever a slime fells it swallows whole, body and belongings
 ##   (see Enemy.swallow): no corpse is left, the slime heals and grows by
 ##   gain() levels, up to MAX_LEVEL. What its prey carried stays in its belly
-##   (Enemy.belly) and spills out when the slime itself falls, with its own
-##   loot (see Level.spill_belly).
+##   (Enemy.belly), where it shows through the slime's body (SHOWN things
+##   at most), and spills out when the slime itself falls, with its own loot
+##   (see Level.spill_belly). Corpses carry nothing: their loot lies on the
+##   floor already.
 ## - Blob: from BLOB_LEVEL on a slime is a Blob. It sparkles, hits harder
 ##   (BLOB_DAMAGE), strikes faster (BLOB_PACE) and its touch poisons more
 ##   often (BLOB_POISON).
@@ -66,6 +69,10 @@ const GULP_COLOR := Color(0.6, 1.0, 0.45)
 ## it leaves its meal for the hero.
 const CORPSE_SCENT := 20.0
 const HERO_CLOSE := 3.5
+## How many swallowed things show inside a slime at most.
+const SHOWN := 8
+## How long a swallowed thing may be inside it, against its body's height.
+const INSIDE := 0.4
 ## Into the compendium the first time the hero sees a slime swallow something.
 const LEARN := "Schleime wachsen: Ein Schleim fällt über jedes Wesen her, das er verschlingen kann, auch über kleinere Schleime anderer Farbe, und er wittert die Toten von weitem und geht lieber an eine Leiche als an etwas Lebendiges. Was er erlegt, schluckt er ganz, samt allem, was es bei sich trug, und wird davon größer und stärker, bis Stufe 25. Ab Stufe 15 ist er ein Blob: Er funkelt, schlägt härter zu und vergiftet öfter. Fällt er, gibt er alles wieder her, was er verschluckt hat."
 
@@ -131,7 +138,25 @@ static func born(e: Enemy) -> void:
 	e._stats.size_jitter = randf_range(1.0 - SIZE_JITTER, 1.0 + SIZE_JITTER)
 	if is_blob_level(e.rated_level):
 		blob_up(e)
+	# Born a fair fight for its place: the extra growth and a Blob's edge
+	# stay within the place's levels (only what it eats lifts it above).
+	var top := birth_top(e)
+	if e.rated_level > top and not fixed:
+		e.rated_level = Enemy.fit_level(e.kind, e._stats, e.hardening, top, top)
 	e._stats.size = size_of(e)
+
+
+## The highest level a slime is born at where it lives: its area's top (see
+## HeroLevel.AREAS), the dungeon's top, or MAX_LEVEL.
+static func birth_top(e: Enemy) -> int:
+	if e.level == null:
+		return MAX_LEVEL
+	var area := HeroLevel.area_of(e.level, e.kind)
+	if area != "":
+		return mini(int(HeroLevel.AREAS[area].max), MAX_LEVEL)
+	if not e.level.outdoor and e.level.building == "":
+		return HeroLevel.DUNGEON_TOP
+	return MAX_LEVEL
 
 
 ## The size this slime has now.

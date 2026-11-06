@@ -4043,15 +4043,37 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 func spill_belly(e: Enemy) -> void:
 	var meals := e.belly.duplicate()
 	e.belly.clear()
+	var reach := maxf(1.0, float(e._stats.size))
 	for meal in meals:
-		var victim: Enemy = meal.victim
-		if not is_instance_valid(victim):
-			continue
-		var angle := randf() * TAU
-		victim.global_position = e.global_position + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.4, 1.0) * maxf(1.0, float(e._stats.size))
-		victim.swallowed_by = null
-		drop_kill_loot(victim, int(meal.gold))
-		victim.queue_free()
+		for thing in meal.loot:
+			var angle := randf() * TAU
+			_give_back(thing, e.global_position + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.5, 1.1) * reach)
+		if is_instance_valid(meal.victim):
+			meal.victim.queue_free()
+
+
+## What a slime swallowed (see drop_kill_loot): written down as it would
+## have been laid on the floor, [kind, ...], kind "coins", "item" or "find".
+var _swallowing := false
+var _swallowed: Array = []
+
+
+## Lays one swallowed thing (an entry of _swallowed) on the floor at `pos`.
+func _give_back(thing: Array, pos: Vector3) -> void:
+	# A slime swallowed by a slime: its belly goes into the bigger one.
+	if _swallowing:
+		_swallowed.append(thing)
+		return
+	match thing[0]:
+		"coins":
+			lay_coins(pos, int(thing[2]), thing[1])
+			Sfx.play_coins(self, int(thing[2]), 0.3, pos)
+		"item":
+			_drop_item(thing[1], pos)
+			Sfx.play_gear(self, thing[1], 0.0, pos)
+			Sfx.play_rarity(self, thing[1], 0.3, pos)
+		"find":
+			lay_find(thing[1], pos, thing[2], int(thing[3]), true)
 
 
 ## How limestone glows on the floor.
@@ -4075,11 +4097,18 @@ const LIMESTONE_COLOUR := Color(0.88, 0.86, 0.76)
 ## epic noble ore). Returns the gear or ingredient id
 ## dropped (not the ore; for a slime the gear, else its body's find), or "".
 func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0, body_roll := -1.0, knife_roll := -1.0) -> String:
-	# Swallowed by a slime (see SlimeGrowth): what it carried stays in the
-	# slime's belly until the slime falls. A slime gives back its belly.
-	if e.swallowed_by != null and is_instance_valid(e.swallowed_by):
-		e.swallowed_by.belly.append({"victim": e, "gold": gold})
-		return ""
+	# Swallowed by a slime (see SlimeGrowth): its loot is rolled as ever but
+	# goes into the slime's belly, where it shows through the slime, until
+	# the slime falls. A slime gives back its belly.
+	if e.swallowed_by != null and is_instance_valid(e.swallowed_by) and not _swallowing:
+		var eater := e.swallowed_by
+		_swallowing = true
+		_swallowed = []
+		var found := drop_kill_loot(e, gold, roll, ore_roll, body_roll)
+		_swallowing = false
+		eater.belly.append({"victim": e, "loot": _swallowed})
+		eater.show_swallowed(_swallowed)
+		return found
 	spill_belly(e)
 	var tough := Loot.toughness(e.max_hp(), e.elite, is_named_boss(e))
 	var tier := Loot.roll_tier(tough, "normal" if beginner_dungeon else Loot.TOP_TIER, roll)
@@ -4098,8 +4127,9 @@ func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0, body_ro
 				var spot := pos + Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
 				_drop_item(found, spot)
 				# It clatters onto the floor; an epic piece rings out as well.
-				Sfx.play_gear(self, found, 0.0, spot)
-				Sfx.play_rarity(self, found, 0.3, spot)
+				if not _swallowing:
+					Sfx.play_gear(self, found, 0.0, spot)
+					Sfx.play_rarity(self, found, 0.3, spot)
 		# A slime's own body: mostly its jelly, now and then a finer find.
 		if e.kind in Loot.SWALLOWS:
 			var body := Loot.slime_find(e.kind, tough, body_roll, "normal" if beginner_dungeon else Loot.TOP_TIER)
@@ -4218,6 +4248,9 @@ func _drop_boss_loot(e: Enemy) -> void:
 ## floor list (see floor_items) until picked up, then simply gone.
 func _drop_coins(pos: Vector3, amount: int, metal := CoinPile.MONEY) -> void:
 	if amount <= 0:
+		return
+	if _swallowing:
+		_swallowed.append(["coins", metal, amount])
 		return
 	var angle := randf() * TAU
 	lay_coins(Vector3(pos.x, 0, pos.z) + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.3, 0.7), amount, metal)
@@ -4353,6 +4386,9 @@ func fox_bed_near(pos: Vector3) -> Vector3:
 ## as one; `loot` marks the loot of a fallen foe (see drop_kill_loot), which
 ## puts no mark on the hero's map.
 func lay_find(id: String, pos: Vector3, colour := Color(0.55, 0.75, 0.35), count := 1, loot := false) -> void:
+	if _swallowing:
+		_swallowed.append(["find", id, colour, count])
+		return
 	var holder := Node3D.new()
 	var lump := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
@@ -4376,6 +4412,9 @@ func lay_find(id: String, pos: Vector3, colour := Color(0.55, 0.75, 0.35), count
 ## picked up, go into the pouch (copper, the money, into the purse).
 func _lay_pouch_coins(coin: String, count: int, pos: Vector3) -> void:
 	if count <= 0:
+		return
+	if _swallowing:
+		_swallowed.append(["coins", coin, count])
 		return
 	lay_coins(pos, count, coin)
 
@@ -4637,6 +4676,9 @@ func put_on_floor(id: String, pos: Vector3) -> void:
 ## `keep` false is for things meant to fade (thunder ore after the storm):
 ## they are not put on the floor list.
 func _drop_item(id: String, pos: Vector3, keep := true) -> void:
+	if _swallowing:
+		_swallowed.append(["item", id])
+		return
 	var holder := _item_model(id)
 	holder.position = Vector3(pos.x, 1.0, pos.z)
 	add_child(holder)
@@ -4653,6 +4695,10 @@ func _drop_item(id: String, pos: Vector3, keep := true) -> void:
 
 
 ## What an item looks like lying about: its own model, or a gem.
+func item_model(id: String) -> Node3D:
+	return _item_model(id)
+
+
 func _item_model(id: String) -> Node3D:
 	var item: Dictionary = Items.ALL[id]
 	var holder := Node3D.new()

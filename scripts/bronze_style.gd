@@ -93,8 +93,8 @@ extends StyleBox
 ## Kept for StyleBoxFlat's callers; the frame is always smooth.
 @export var anti_aliasing := true
 
-## Frames at least this thick get a rivet in each corner.
-const RIVET_FROM := 5
+## Frames at least this thick (the windows) get a rivet in each corner.
+const RIVET_FROM := 8
 ## The length of a rim texture's middle part, which is stretched along a side.
 const RIM_MIDDLE := 96
 ## The textures made so far, by their size, so each is made once.
@@ -200,9 +200,9 @@ func _draw(item: RID, rect: Rect2) -> void:
 	_draw_rim(item, rect, width, radius, corner)
 	if width >= RIVET_FROM and minf(rect.size.x, rect.size.y) >= width * 6:
 		var rivet := _rivet_texture()
-		var d := clampf(width * 1.6, 10.0, 20.0)
-		var inset := width / 2.0 + radius * 0.3 + 1.0
-		var tint := Color(minf(border_color.r * 1.15, 1.0), minf(border_color.g * 1.15, 1.0), minf(border_color.b * 1.15, 1.0), border_color.a)
+		var d := clampf(width * 0.85, 6.0, 11.0)
+		var inset := width / 2.0 + radius * 0.2
+		var tint := Color(metal_at(0.12) * METAL_FLAT, border_color.a)
 		for p in [rect.position + Vector2(inset, inset), Vector2(rect.end.x - inset, rect.position.y + inset),
 				Vector2(rect.position.x + inset, rect.end.y - inset), rect.end - Vector2(inset, inset)]:
 			rs.canvas_item_add_texture_rect(item, Rect2(p - Vector2(d, d) / 2.0, Vector2(d, d)), rivet.get_rid(), false, tint)
@@ -218,6 +218,9 @@ const METAL_STOPS := [
 ## The house bronze the bands are made for; another border colour shifts
 ## them by its ratio to this (a gold hover shines, a blue border is steel).
 const METAL_BASE := Color(0.88, 0.66, 0.36)
+## The rim texture's grey on the flat metal: the bands' colour divided by it
+## is drawn there exactly, and the lit top edge can still be brighter.
+const METAL_FLAT := 0.82
 ## How many pieces a side's middle is cut into, so the bands run smoothly.
 const METAL_STEPS := 10
 
@@ -232,13 +235,20 @@ func metal_at(t: float) -> Color:
 			var b: Array = METAL_STOPS[i]
 			c = (a[1] as Color).lerp(b[1], (t - a[0]) / (b[0] - a[0]))
 			break
-	var shifted := Color(c.r * border_color.r / METAL_BASE.r, c.g * border_color.g / METAL_BASE.g, c.b * border_color.b / METAL_BASE.b)
+	var shifted: Color
+	if absf(border_color.h - METAL_BASE.h) < 0.06 and border_color.s > 0.35:
+		# A bronze or gold border is bronze: the same copper-brown metal,
+		# only lighter or darker (a gold hover shines), never yellower.
+		var light := clampf(border_color.v / METAL_BASE.v, 0.6, 1.2)
+		shifted = Color(c.r * light, c.g * light, c.b * light)
+	else:
+		shifted = Color(c.r * border_color.r / METAL_BASE.r, c.g * border_color.g / METAL_BASE.g, c.b * border_color.b / METAL_BASE.b)
 	# Too bright for a channel: dim the whole colour, so the bands keep
 	# their light and dark instead of all turning flat white-gold.
 	var top := maxf(shifted.r, maxf(shifted.g, shifted.b))
 	if top > 1.0:
 		shifted = Color(shifted.r / top, shifted.g / top, shifted.b / top)
-	return Color(shifted, border_color.a)
+	return Color(shifted.r / METAL_FLAT, shifted.g / METAL_FLAT, shifted.b / METAL_FLAT, border_color.a)
 
 
 ## The rim, drawn as a mesh over the rim texture (corners kept, sides
@@ -323,32 +333,29 @@ static func _rim(width: int, radius: int) -> ImageTexture:
 				img.set_pixel(x, y, Color(0, 0, 0, 0))
 				continue
 			var shade: float
-			# Thick rims get a 2 px dark outline and groove, thinner ones 1 px.
+			# As in the mock-up: a dark outline outside (2 px on thick rims,
+			# 1 px on thin ones), a dark brown line inside, and between them
+			# cast metal that is flat but for a lit top edge and a shaded
+			# bottom edge; its colour comes from the bands (metal_at).
 			var line := 2.0 if width >= 7 else 1.0
-			if width >= 3 and (d < line or d > width - line):
-				# The dark outline outside and the groove inside.
-				shade = 0.08
+			if width >= 3 and d < line:
+				shade = 0.1
+			elif width >= 3 and d > width - line:
+				shade = 0.3
 			elif width < 3:
-				# A thin rim: just the lit metal.
-				shade = 0.9 + (_noise(x / 2, y / 2) - 0.5) * 0.12
+				# A thin rim: just the metal.
+				shade = METAL_FLAT
 			else:
-				var t := clampf((d - line) / maxf(width - 2.0 * line, 1.0), 0.0, 1.0)
-				# A raised bar: dark at its two feet, bright along its ridge; of its
-				# two slopes the one facing the light (top left) is lit, the other
-				# in shade.
-				shade = 0.55 + 0.45 * sin(t * PI)
+				shade = METAL_FLAT
 				var out := Vector2(px - half, py - half)
 				var away := Vector2(signf(out.x) * maxf(absf(out.x) - (half - corner), 0.0),
 					signf(out.y) * maxf(absf(out.y) - (half - corner), 0.0))
-				if away.length() > 0.0:
-					var facing := away.normalized().dot(Vector2(-0.7071, -0.7071))
-					shade += 0.22 * cos(t * PI) * facing + 0.06 * facing
-				# A slow sheen along each side, as light running over polished
-				# metal (the sides are stretched, so it spans the whole side).
-				var along := (px if absf(out.y) > absf(out.x) else py) / size
-				shade += 0.05 * sin(along * TAU + (1.3 if out.y > 0.0 or out.x > 0.0 else 0.0))
-				# Hammer dents: a soft blotch every few pixels.
-				shade += (_noise(x / 3, y / 3) - 0.5) * 0.14 + (_noise(x, y) - 0.5) * 0.05
+				if d < line + 1.0 and away.length() > 0.0:
+					# The outer edge catches the light on top, falls dark below.
+					var facing := away.normalized().dot(Vector2(0.0, -1.0))
+					shade += 0.18 * facing if facing > 0.0 else 0.3 * facing
+				# A faint grain, so the metal is not plastic.
+				shade += (_noise(x / 3, y / 3) - 0.5) * 0.05
 			var alpha := clampf(d, 0.0, 1.0) * clampf(width + 0.5 - d + 0.5, 0.0, 1.0)
 			shade = clampf(shade, 0.0, 1.0)
 			img.set_pixel(x, y, Color(shade, shade, shade, alpha))

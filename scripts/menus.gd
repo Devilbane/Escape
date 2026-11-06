@@ -979,7 +979,7 @@ const INVENTORY_WIDTH := 6 * 150 + 5 * 8
 const INVENTORY_CELL := Vector2(64, 64)
 const SLOT_COLUMNS := 10
 const SLOT_GAP := 8
-const SLOT_RIM := 4
+const SLOT_RIM := 5
 ## The width of a text button beside the grids (tabs, the picked item's actions).
 const ACTION_WIDTH := 150.0
 ## The worn slots: seven across, each with the name of its place under it.

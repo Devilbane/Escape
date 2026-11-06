@@ -294,7 +294,7 @@ const HP_BAR_REACH := 1.8
 ## The life bar's red, from its lit top to its dark foot (the mock-up's bar).
 const HP_REDS := [Color("ff6a4a"), Color("b81c12"), Color("6e0a06")]
 ## The rim of the HUD's bars, and the heart beside the life bar.
-const BAR_RIM := 3
+const BAR_RIM := 4
 const HEART_SIZE := 24.0
 ## The coin and key pictures in the purse plate at the top left.
 const PURSE_ICON := 22.0

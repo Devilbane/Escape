@@ -37,15 +37,21 @@ extends RefCounted
 ## What bites in each water: [catch, weight, when]. A catch is a fish (an
 ## ingredient id), "muenze" for an old coin (+1 copper), "flasche" for a
 ## message in a bottle (a few coins and a note, see BOTTLE_NOTES, or now and
-## then a treasure map, see TreasureMaps), RING for
+## then a treasure map, see TreasureMaps), SLIME_BOTTLE for an old bottle of
+## pond slime (a lump or two of slime jelly, see SLIME_LUMPS), RING for
 ## the long-lost signet ring (once only, see ring_found) or "" for weed.
 ## "when" limits the catch to an hour: "nacht" (see DayNight.is_night) or
 ## "daemmerung" (dawn and dusk, see is_dusk); "" is any time.
 const WATERS := {
 	"brunnen": [["", 25, ""], ["muenze", 50, ""], ["goldkarpfen", 10, ""]],
-	"teich": [["", 18, ""], ["barsch", 60, ""], ["silberhecht", 12, "daemmerung"], ["flasche", 7, ""], ["siegelring", 2, ""]],
-	"senke": [["", 15, ""], ["barsch", 60, ""], ["mondforelle", 15, "nacht"], ["flasche", 7, ""]],
+	"teich": [["", 18, ""], ["barsch", 60, ""], ["silberhecht", 12, "daemmerung"], ["flasche", 7, ""], ["schleimflasche", 12, ""], ["siegelring", 2, ""]],
+	"senke": [["", 15, ""], ["barsch", 60, ""], ["mondforelle", 15, "nacht"], ["flasche", 7, ""], ["schleimflasche", 12, ""]],
 }
+## An old bottle full of pond slime: the ponds' slimes leave it in the mud.
+## It holds SLIME_LUMPS lumps of slime jelly, the base of a healing potion.
+const SLIME_BOTTLE := "schleimflasche"
+const SLIME_JELLY := "schleimgelee"
+const SLIME_LUMPS := [1, 2]
 ## The long-lost signet ring at the bottom of the village pond (an item, see
 ## Items.ALL): it counts as a rare catch, and once fished up it is gone from
 ## the table (ring_found, kept in the saved game).
@@ -672,6 +678,12 @@ func take(caught: String, pos: Vector3, on: Node) -> void:
 		var note: String = BOTTLE_NOTES[rng.randi() % BOTTLE_NOTES.size()]
 		Events.found(Lang.t("Eine Flaschenpost! Darin %d Kupfer und ein Zettel:") % coins + "\n" + Lang.t(note), game.GOLD)
 		game.show_message(Lang.t("Eine Flaschenpost! Darin %d Kupfer und ein Zettel:") % coins + "\n" + Lang.t(note), 4.0)
+	elif caught == SLIME_BOTTLE:
+		var lumps := rng.randi_range(SLIME_LUMPS[0], SLIME_LUMPS[1])
+		game.crafting.add(SLIME_JELLY, lumps)
+		Sfx.play(game, "drip")
+		Effects.loot_text(on, pos + Vector3(0, 1.4, 0), "%d× %s" % [lumps, Crafting.ingredient_name(SLIME_JELLY)], Color(0.6, 0.85, 0.45), DamageNumber.item_worth(SLIME_JELLY))
+		Events.found(Lang.t("Eine alte Flasche voller Teichschleim! Darin %d Klumpen Schleimgelee, ab in den Zutatenbeutel.") % lumps, Color(0.6, 0.85, 0.45))
 	elif caught == RING:
 		if not game.player.bag_fits(RING):
 			Sfx.play(game, "drip", -4.0)

@@ -34,7 +34,8 @@ const EN := {
 	"Spinnen tragen sie unter dem Leib. Manchmal bleibt eines heil, wenn eine fällt.": "Spiders carry them under their bodies. Sometimes one stays whole when a spider falls.",
 	"Schleimgelee": "Slime jelly",
 	"Beute der Schleime": "loot of the slimes",
-	"Ein zäher, essbarer Klumpen, den manchmal ein Schleim zurücklässt.": "A tough, edible lump a slime sometimes leaves behind.",
+	"Ein zäher, essbarer Klumpen, den die meisten Schleime zurücklassen. Bei Regen kriechen sie am Waldteich aus dem Wasser. Wer im Dorfteich oder in der Wolfssenke angelt, zieht manchmal eine alte Flasche voller Teichschleim heraus, und Zarek hat auf seinem Karren immer ein paar Klumpen.": "A tough, edible lump most slimes leave behind. When it rains they crawl out of the forest pond. Fishing in the village pond or the wolf hollow sometimes brings up an old bottle full of pond slime, and Zarek always has a few lumps on his cart.",
+	"Beute der Schleime, Angeln, Zarek": "loot of the slimes, fishing, Zarek",
 	# Of the mountains.
 	"Edelweiß": "Edelweiss",
 	"Gebirge": "The mountains",

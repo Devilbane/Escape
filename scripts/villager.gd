@@ -43,7 +43,7 @@ const SKIN_ROSY := Color(0.97, 0.85, 0.88)
 
 ## name: shown above the head; model; show: extra parts; hair: a look for a
 ## Rogue (see HairLook); skin: a tint for a Rogue's face; sex: "female" for a woman built on the Rogue (see
-## BodyLook); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
+## BodyLook); cap: "post" for the postmaster's peaked cap (see PostCap); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
 ## animation at their spot; tool: something held in place of the model's own
 ## weapon ("hammer": the smith's hammer, see VillageProps.smith_hammer); lines:
 ## what they say, one after another.
@@ -87,7 +87,7 @@ const ROLES := {
 	"G": {"name": "Gildenmeisterin Ragna", "model": "Barbarian", "show": ["Barbarian_Round_Shield", "1H_Axe", "Barbarian_Cape"],
 		"colors": [Color(0.6, 0.25, 0.2), Color(0.3, 0.28, 0.26), Color(0.7, 0.2, 0.15)], "plan": "stay", "work": "Idle",
 		"lines": ["Die Gilde sucht Leute wie dich. Wer aus dem Verlies kommt, ist zäh.", "Bald gibt es Aufträge: Wölfe im Wald, Räuber am Pass.", "Zeig mir deine Narben, dann reden wir."]},
-	"M": {"name": "Postmeister Anselm", "model": "Rogue", "show": [], "hair": {"style": "short", "color": "black"},
+	"M": {"name": "Postmeister Anselm", "model": "Rogue", "show": [], "hair": {"style": "short", "color": "black"}, "cap": "post",
 		"colors": [Color(0.95, 0.8, 0.3), Color(0.35, 0.35, 0.5), Color(1, 1, 1)], "plan": "carry", "work": "PickUp",
 		"lines": ["Ein Brief für dich? Noch nicht, aber bald bestimmt.", "Ich bringe die Post zu jedem Haus im Dorf.", "Die Postkutsche kommt jeden dritten Tag."]},
 	"Z": {"name": "Barbier Benno", "model": "Rogue", "show": [], "hair": {"style": "mohawk", "color": "fire"},
@@ -302,6 +302,8 @@ func _ready() -> void:
 		HairLook.apply(_model, HairLook.checked(_info.get("hair", HairLook.DEFAULT)))
 		if _info.has("skin"):
 			HairLook.tint_skin(_model, _info.skin)
+	if _info.get("cap", "") == "post":
+		PostCap.put_on(_model)
 	# Weave, leather grain and scratched metal on the clothes (see GearLook).
 	GearLook.dress_body(_model, "outfit")
 	_anim = _model.find_child("AnimationPlayer", true, false)
@@ -1231,14 +1233,15 @@ func _top_of_head() -> float:
 			_head_top = maxf(_head_top, mi.get_aabb().end.y - head_y)
 			continue
 		# A hat, helmet, crest or bun fixed to the head bone: its box in the
-		# head's own space (a little below its very top, the tip of a hat).
+		# head's own space (a little below its very top, the tip of a hat,
+		# unless the hat is flat on top, like the postmaster's cap).
 		var xf := Transform3D.IDENTITY
 		var node: Node = mi
 		while node != bones and not node is BoneAttachment3D:
 			xf = (node as Node3D).transform * xf
 			node = node.get_parent()
 		if node is BoneAttachment3D and (node as BoneAttachment3D).bone_name == "head":
-			_head_top = maxf(_head_top, (xf * mi.get_aabb()).end.y * 0.92)
+			_head_top = maxf(_head_top, (xf * mi.get_aabb()).end.y * (1.0 if mi.has_meta("flat_top") else 0.92))
 	return _head_top
 
 

@@ -79,7 +79,7 @@ func _dry_ground() -> void:
 	_tick(1.0)
 	check(game.level is Outdoor and _puddles() != null, "the open air has its puddles")
 	var spots := _puddles().spots
-	check(spots.size() >= 300, "after rain there are puddles all over (%d)" % spots.size())
+	check(spots.size() >= 500, "after rain there are puddles all over (%d)" % spots.size())
 	var on_path := 0
 	var by_house := 0
 	var big := 0
@@ -94,14 +94,14 @@ func _dry_ground() -> void:
 		if Puddles._beside(game.level, c, Outdoor.BLOCK_CHARS):
 			by_house += 1
 			check(float(s.radius) <= Puddles.EDGE_RADIUS, "a puddle beside a house is a small one")
-		if float(s.radius) > 1.4:
+		if float(s.radius) > 3.0:
 			big += 1
 		for other in spots:
 			if other != s and Vector2(s.at.x - other.at.x, s.at.z - other.at.z).length() < float(s.radius) + float(other.radius):
 				apart = false
 	check(on_path >= 30, "the paths have puddles in their ruts (%d)" % on_path)
 	check(by_house >= 20, "the rain off the roofs leaves puddles by the houses (%d)" % by_house)
-	check(big >= 10, "the deep dips hold big puddles (%d)" % big)
+	check(big >= 10, "the deep dips hold sheets of water (%d)" % big)
 	check(apart, "no two puddles run into each other")
 	# The same map always gets the same puddles.
 	var again := Puddles.new(game.level, hash(game.level.level_name + "pfuetzen"))

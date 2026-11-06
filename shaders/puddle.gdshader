@@ -100,6 +100,6 @@ void fragment() {
 	float sheen = pow(clamp(dot(reflect(-normalize(VIEW), n), up), 0.0, 1.0), 6.0);
 	// Seen from above, the water mirrors the grey sky, brighter in soft
 	// streaks, so a puddle reads as water and not as a hole in the ground.
-	float mirror = 0.24 + 0.28 * smoothstep(0.5, 0.85, r1) + 0.2 * sheen + 0.3 * fresnel;
+	float mirror = 0.24 + 0.2 * smoothstep(0.25, 0.95, r1) + 0.2 * sheen + 0.3 * fresnel;
 	EMISSION = vec3(0.5, 0.55, 0.6) * sky * water * (mirror + 0.6 * max(wake, 0.0));
 }

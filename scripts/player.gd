@@ -79,10 +79,17 @@ const SPLASH_TARGETS := 3
 const SPLASH_SHARE := 0.5
 const STRIKE_ANIM := "1H_Melee_Attack_Slice_Horizontal"
 const SPLASH_ANIM := "2H_Melee_Attack_Spinning"
-## A strike that will find a vital point (see MonsterLore): a quick, precise
-## thrust instead of the slice, with a short lunge (VITAL_LUNGE metres).
-const VITAL_ANIM := "1H_Melee_Attack_Stab"
-const VITAL_LUNGE := 0.35
+## A strike that will find a vital point (see MonsterLore): a leap at the
+## foe, up VITAL_LEAP_UP and forward VITAL_LEAP_AHEAD metres, the weapon
+## raised and brought down in an overhead chop as the hero lands. The chop
+## plays VITAL_ANIM_SPEED times as fast; the blade lands VITAL_HIT seconds
+## after the leap starts (the top of the leap is at VITAL_TOP).
+const VITAL_ANIM := "1H_Melee_Attack_Chop"
+const VITAL_ANIM_SPEED := 1.6
+const VITAL_LEAP_UP := 0.6
+const VITAL_LEAP_AHEAD := 0.6
+const VITAL_TOP := 0.28
+const VITAL_HIT := 0.4
 ## Running into a skeleton starts a fight: the hero keeps swinging while
 ## standing next to it, and throws knives at it once the two are apart.
 const ENGAGE_RANGE := MELEE_RANGE
@@ -985,13 +992,16 @@ func melee() -> void:
 		play_once(SPLASH_ANIM, 0.55)
 		Sfx.play(self, "swing", 0.0, null, 0.8)
 	elif vital_target:
-		play_once(VITAL_ANIM, 0.45)
-		Sfx.play(self, "swing", 0.0, null, 1.25)
-		_lunge()
+		_attack_cooldown = VITAL_HIT + 0.35
+		play_once(VITAL_ANIM, VITAL_HIT + 0.35)
+		_anim.speed_scale = VITAL_ANIM_SPEED
+		_leap_strike()
 	else:
 		play_once(STRIKE_ANIM, 0.45)
 		Sfx.play(self, "swing")
-	await get_tree().create_timer(0.25 if splash else 0.18).timeout
+	await get_tree().create_timer(VITAL_HIT if vital_target else 0.25 if splash else 0.18).timeout
+	if vital_target and _current_anim == VITAL_ANIM:
+		_anim.speed_scale = 1.0
 	var weapon := weapon_skill()
 	# One roll for a heavy hit per swing; a sweep shares it out.
 	var full := power + heavy_hit(weapon)
@@ -1054,14 +1064,20 @@ func vital_damage(base: int, skill_id: String) -> int:
 	return MonsterLore.VITAL_FACTOR * (base + (1 if skill_chance(skill_id) > 0 else 0))
 
 
-## The short step into a vital strike: the hero's figure darts forward and
-## back while the thrust plays. Only the figure moves, not the body, so the
-## hero's place on the map stays where it was.
-func _lunge() -> void:
-	var ahead := facing() * VITAL_LUNGE
+## The leap of a vital strike: the hero's figure springs up and forward at
+## the foe while the weapon goes up, comes down with the chop as the blade
+## lands, and steps back to the hero's place. Only the figure moves, not the
+## body, so the hero's place on the map stays where it was.
+func _leap_strike() -> void:
+	var ahead := facing()
+	var top := ahead * VITAL_LEAP_AHEAD * 0.6 + Vector3.UP * VITAL_LEAP_UP
+	var landing := ahead * VITAL_LEAP_AHEAD
+	Sfx.play(self, "swing", -6.0, null, 0.7)
 	var tween := create_tween()
-	tween.tween_property(_model, "position", ahead, 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(_model, "position", Vector3.ZERO, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(_model, "position", top, VITAL_TOP).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(func(): Sfx.play(self, "swing", 0.0, null, 1.25))
+	tween.tween_property(_model, "position", landing, VITAL_HIT - VITAL_TOP).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(_model, "position", Vector3.ZERO, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 
 
 ## After a vital hit landed on `e`: a burst at the point struck, the word over

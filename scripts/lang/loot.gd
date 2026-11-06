@@ -76,6 +76,10 @@ const EN := {
 	"Keiner": "None",
 	"Je %d g eines Metalls werden ein Barren.": "Every %d g of one metal become a bar.",
 	"Übrig vom Schmelzen": "Left from melting",
+	"Was darin steckt, zeigt erst das Feuer.": "What is inside only the fire will show.",
+	"Meist Eisen und Kupfer, mit Glück etwas Silber oder Gold.": "Mostly iron and copper, with luck some silver or gold.",
+	"Edles Erz: viel Silber und Gold, dazu Edelsteine.": "Noble ore: much silver and gold, and gems besides.",
+	"Eingeschmolzen: %s (%d %% Schlacke), %s": "Melted down: %s (%d %% slag), %s",
 	# Noble ore and gems.
 	"Edelerz": "Noble ore",
 	"Ein sehr seltener Brocken, reich an Silber und Gold, mit ein bis fünf ungeschliffenen Edelsteinen darin.":
@@ -87,8 +91,6 @@ const EN := {
 	"Geschliffener Edelstein": "Cut gem",
 	"Ein Edelstein, von Gorm geschliffen. Je mehr Karat, desto seltener und wertvoller; Gorm kauft ihn dir ab.":
 		"A gem cut by Gorm. The more carats, the rarer and more valuable; Gorm buys it from you.",
-	"%d ungeschliffene Edelsteine": "%d uncut gems",
-	"1 ungeschliffener Edelstein": "1 uncut gem",
 	"+%d ungeschliffene Edelsteine": "+%d uncut gems",
 	"Du hast keinen ungeschliffenen Edelstein.": "You have no uncut gem.",
 	"Du hast keinen geschliffenen Edelstein.": "You have no cut gem.",

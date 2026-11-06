@@ -337,7 +337,7 @@ var purse := {}
 ## found in the ingredient book.
 var found := []
 ## The lumps of ore in the pouch, by size (see Ore.LUMPS): a list of
-## {"grams", "share"} each, oldest first, as many as the pouch counts.
+## {"grams"} each (what is inside is rolled as it melts, see Ore.makeup), oldest first, as many as the pouch counts.
 var ores := {}
 ## The gems in the purse (see Ore.GEMS), uncut and cut: their weights in
 ## carat, oldest first, as many as the purse counts.
@@ -505,7 +505,7 @@ func add(ingredient: String, count := 1, found_here := true) -> void:
 		set_count(ingredient, have(ingredient) + count)
 		var store := _pieces(ingredient)
 		if has_pieces(ingredient):
-			# Each lump of ore gets its own weight and make-up (see Ore.roll),
+			# Each lump of ore gets its own weight (see Ore.roll),
 			# each gem its own weight (see Ore.roll_carat).
 			if not store.has(ingredient):
 				store[ingredient] = []
@@ -609,8 +609,9 @@ func load_from(saved) -> void:
 				var count := int(saved_table[ingredient])
 				if INGREDIENTS.has(str(ingredient)) and count > 0:
 					set_count(str(ingredient), have(str(ingredient)) + count)
-	# The lumps of ore keep their make-up; a lump the pouch counts but the
-	# save lacks (an older game) is rolled anew.
+	# The lumps of ore keep their weight; a lump the pouch counts but the
+	# save lacks (an older game) is rolled anew. What older games kept of a
+	# lump's make-up is dropped: it is rolled as the lump melts.
 	var saved_ores = saved.get("ores", {})
 	if not (saved_ores is Dictionary):
 		saved_ores = {}
@@ -619,12 +620,8 @@ func load_from(saved) -> void:
 		var kept = saved_ores.get(id, [])
 		if kept is Array:
 			for lump in kept:
-				if lump is Dictionary and lump.has("grams") and lump.get("share") is Dictionary and lumps.size() < have(id):
-					var gems := []
-					if lump.get("gems", []) is Array:
-						for carat in lump.get("gems", []):
-							gems.append(int(carat))
-					lumps.append({"grams": int(lump.grams), "share": lump.share, "gems": gems})
+				if lump is Dictionary and lump.has("grams") and lumps.size() < have(id):
+					lumps.append({"grams": int(lump.grams)})
 		while lumps.size() < have(id):
 			lumps.append(Ore.roll(id))
 		if not lumps.is_empty():

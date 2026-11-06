@@ -173,7 +173,8 @@ func _test_ore() -> void:
 		for i in 300:
 			var lump := Ore.roll(id, rng)
 			check(int(lump.grams) >= weights[id][0] and int(lump.grams) <= weights[id][1], "%s weighs %d g" % [id, lump.grams])
-			var share: Dictionary = lump.share
+			check(not lump.has("share") and not lump.has("gems"), "a picked-up lump keeps only its weight: what is inside is unknown")
+			var share: Dictionary = Ore.makeup(id, rng).share
 			var total := 0
 			for part in share:
 				total += int(share[part])
@@ -182,14 +183,14 @@ func _test_ore() -> void:
 			check(share.eisen >= 10 and share.eisen <= 40, "iron 10-40 %")
 			check(share.kupfer <= 40 and share.silber <= 15 and share.gold <= 5, "copper, silver and gold within their shares")
 			unknown += 1 if int(share.unbekannt) > 0 else 0
-			var grams := Ore.metal_grams(lump)
+			var grams := Ore.metal_grams(int(lump.grams), share)
 			check(not grams.has(Ore.SLAG), "slag is thrown away")
 			check(int(grams.get("eisen", 0)) == floori(int(lump.grams) * int(share.eisen) / 100.0), "the iron is its share of the weight")
 	check(unknown > 0, "some lumps hold the unknown metal (%d)" % unknown)
 	# Noble ore: little slag, much silver and gold, one to five uncut gems.
 	check(Rarity.tier("erzbrocken_episch") == "episch", "noble ore is epic")
 	for i in 300:
-		var lump := Ore.roll("erzbrocken_episch", rng)
+		var lump := Ore.makeup("erzbrocken_episch", rng)
 		var share: Dictionary = lump.share
 		check(share.schlacke >= 10 and share.schlacke <= 20 and share.eisen >= 5 and share.eisen <= 15 and share.kupfer >= 5 and share.kupfer <= 15
 				and share.silber >= 10 and share.silber <= 20 and share.gold >= 20 and share.gold <= 30, "noble ore's shares: %s" % str(share))
@@ -307,24 +308,38 @@ func _test_game() -> void:
 	game._on_ingredient_collected("erzbrocken_gross", 1, true)
 	game._on_ingredient_collected("erzbrocken", 1, true)
 	check(game.crafting.have("erzbrocken_gross") == 1 and game.crafting.ores["erzbrocken_gross"].size() == 1, "the lump is in the pouch with its make-up")
-	game.crafting.ores["erzbrocken_gross"][0] = {"grams": 4000, "share": {"schlacke": 30, "eisen": 40, "kupfer": 20, "silber": 6, "gold": 3, "unbekannt": 1}}
+	game.crafting.ores["erzbrocken_gross"][0] = {"grams": 4000}
 	var saved: Dictionary = JSON.parse_string(JSON.stringify(game.crafting.for_save()))
 	game.crafting.load_from(saved)
-	check(int(game.crafting.ores["erzbrocken_gross"][0].grams) == 4000, "the lump keeps its make-up in the saved game")
+	check(int(game.crafting.ores["erzbrocken_gross"][0].grams) == 4000, "the lump keeps its weight in the saved game")
+	# What the lump holds is rolled only in the fire: the same lump melted
+	# twice (with other luck) gives different metal.
+	game.crafting.add("erzbrocken_gross", 1, false)
+	game.crafting.ores["erzbrocken_gross"][1] = {"grams": 4000}
 	game.metal_grams = {}
 	var iron_before: int = game.iron
-	var out := Forge.melt_ore(game, "erzbrocken_gross")
+	var luck := RandomNumberGenerator.new()
+	luck.seed = 11
+	var out := Forge.melt_ore(game, "erzbrocken_gross", luck)
 	check(out.why == "", "Gorm melts the lump")
-	check(out.grams == {"eisen": 1600, "kupfer": 800, "silber": 240, "gold": 120, "unbekannt": 40}, "it gives the grams of each metal: %s" % str(out.grams))
-	check(game.iron == iron_before + 1 and int(game.metal_grams.eisen) == 600, "1600 g of iron: one bar and 600 g left")
-	check(int(game.metal_grams.kupfer) == 800 and int(game.metal_grams.unbekannt) == 40, "the rest waits in grams")
+	var held := 0
+	for part in out.share:
+		held += int(out.share[part])
+	check(held == 100 and int(out.share.schlacke) >= 25 and int(out.share.schlacke) <= 60, "the fire shows what it held: %s" % str(out.share))
+	check(out.grams == Ore.metal_grams(4000, out.share), "it gives the grams of each metal it held: %s" % str(out.grams))
+	var iron_g := int(out.grams.get("eisen", 0))
+	check(game.iron == iron_before + iron_g / Ore.GRAMS_PER_BAR and int(game.metal_grams.get("eisen", 0)) == iron_g % Ore.GRAMS_PER_BAR, "whole kilos of iron become bars, the rest waits in grams")
+	luck.seed = 12
+	var again := Forge.melt_ore(game, "erzbrocken_gross", luck)
+	check(again.why == "" and again.share != out.share, "a lump of the same weight melts into something else: %s" % str(again.share))
 	check(game.crafting.have("erzbrocken_gross") == 0 and not game.crafting.ores.has("erzbrocken_gross"), "the lump is gone")
 	check(Forge.melt_ore(game, "erzbrocken_gross").why != "", "no lump, no melting")
 	# Noble ore gives its gems; Gorm cuts them and buys the cut ones.
 	game.crafting.add("erzbrocken_episch", 1, false)
-	game.crafting.ores["erzbrocken_episch"][0].gems = [20, 3]
 	var noble := Forge.melt_ore(game, "erzbrocken_episch")
-	check(noble.why == "" and game.crafting.have(Ore.UNCUT) == 2 and game.crafting.gems[Ore.UNCUT] == [20, 3], "two uncut gems from the noble ore")
+	check(noble.why == "" and noble.gems.size() >= 1 and noble.gems.size() <= 5 and game.crafting.gems[Ore.UNCUT] == noble.gems, "one to five uncut gems from the noble ore: %s" % str(noble.gems))
+	game.crafting.gems[Ore.UNCUT] = [20, 3]
+	game.crafting.set_count(Ore.UNCUT, 2)
 	var cut := Forge.cut_gem(game)
 	check(cut.why == "" and cut.from == 20 and cut.to >= 10 and cut.to <= 17, "the 20 ct gem is cut down to %d ct" % cut.to)
 	check(game.crafting.have(Ore.UNCUT) == 1 and game.crafting.gems[Ore.CUT] == [cut.to], "one cut gem, one still uncut")

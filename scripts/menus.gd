@@ -2842,7 +2842,7 @@ func _build_smithy() -> void:
 				var entry := {"key": "ore:" + lump_id, "icon": lump_id, "name": Crafting.ingredient_name(lump_id),
 						"price": "%d g" % int(next.grams) if not next.is_empty() else "", "price_ok": not next.is_empty(),
 						"button": Lang.t("Einschmelzen"), "action": _melt_ore.bind(lump_id), "enabled": not next.is_empty(), "count": lumps.size(),
-						"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Ore.describe(next) if not next.is_empty() else Lang.t("Keiner"), TradeWindow.BLUE],
+						"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Ore.guess(lump_id, next) if not next.is_empty() else Lang.t("Keiner"), TradeWindow.BLUE],
 							[Lang.t("Je %d g eines Metalls werden ein Barren.") % Ore.GRAMS_PER_BAR, TradeWindow.GREY]]},
 						"compare": {"title": Lang.t("Übrig vom Schmelzen"), "name": Ore.grams_text(game.metal_grams), "icon": "kind:ore"}}
 				if next.is_empty():
@@ -2990,7 +2990,7 @@ func _sell_gem() -> void:
 
 func _melt_ore(id: String) -> void:
 	var out := Forge.melt_ore(game, id)
-	_note = out.why if out.why != "" else Lang.t("Eingeschmolzen: %s, %s") % [Crafting.ingredient_name(id), Ore.grams_text(out.grams)]
+	_note = out.why if out.why != "" else Lang.t("Eingeschmolzen: %s (%d %% Schlacke), %s") % [Crafting.ingredient_name(id), int(out.share.get(Ore.SLAG, 0)), Ore.grams_text(out.grams)]
 	if out.why == "" and not out.bars.is_empty():
 		_note += "  " + Forge.metals_text(out.bars, true)
 	if out.why == "" and not out.gems.is_empty():

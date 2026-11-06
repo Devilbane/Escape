@@ -39,10 +39,20 @@ const BLOW_KINDS := ["hit", "big", "break", "backstab", "block"]
 ## The frame in which the hero's weapon last sounded a blow, see under_weapon.
 static var _weapon_frame := -1
 
-## How much a bubble grows at most (with its tilt), so it is kept apart at full size.
-const GROWN := 1.5
+## The room a bubble's star takes, as a share of its box. The star with its
+## rim fills 80 % of the box; while it wobbles it stretches to 1.3 times along
+## one side, and tilting barely widens it, as it is round. (The last swell
+## just before it bursts reaches a few pixels further for a twentieth of a
+## second, which the gap takes up.)
+const FOOTPRINT := Vector2(1.04, 1.04)
 ## Free pixels kept between a bubble and fighters or other bubbles.
 const GAP := 6.0
+## Spots below the fight count this much farther away, so a bubble likes to
+## sit above or beside the fighters rather than at their feet.
+const BELOW_COST := 1.3
+## How far from the fight a bubble may go before it takes the least crowded
+## spot instead.
+const REACH := 420.0
 ## Height of a fighter from the feet to the top of the hood or helmet.
 const BODY_HEIGHT := 2.3
 
@@ -51,7 +61,8 @@ static var current: Comic
 
 var camera: Camera3D
 ## Screen boxes the bubbles keep clear of besides the floating words: the
-## message lines over the hero's head (see Game.message_rects).
+## message lines over the hero's head and the life bar under him (see
+## Game.message_rects and Game.hero_hud_rects).
 var avoid := Callable()
 var _bursts := {}
 var _pops: Array = []
@@ -150,7 +161,7 @@ func _pop(world_pos: Vector3, kind: String) -> void:
 func _settle(pop: Dictionary) -> void:
 	if not is_instance_valid(pop.node) or camera == null:
 		return
-	pop.offset = _free_spot(pop.pos, pop.node.size * GROWN)
+	pop.offset = _free_spot(pop.pos, pop.node.size * FOOTPRINT)
 	pop.settled = true
 	_place(pop)
 
@@ -216,7 +227,7 @@ func _free_spot(anchor: Vector3, extent: Vector2) -> Vector2:
 	for p in _pops:
 		if is_instance_valid(p.node) and p.settled:
 			var other: Vector2 = camera.unproject_position(p.pos) + p.offset
-			var other_extent: Vector2 = p.node.size * GROWN
+			var other_extent: Vector2 = p.node.size * FOOTPRINT
 			blocked.append(Rect2(other - other_extent * 0.5, other_extent).grow(GAP))
 	blocked.append_array(text_columns(camera))
 	if avoid.is_valid():
@@ -224,27 +235,47 @@ func _free_spot(anchor: Vector3, extent: Vector2) -> Vector2:
 			blocked.append(rect.grow(GAP))
 	# Keep clear of the status line at the top and the buttons at the bottom.
 	var screen := get_viewport().get_visible_rect().grow_individual(-16, -100, -16, -110)
+	return closest_spot(center, extent, blocked, screen)
+
+
+## The offset from `center` of the closest box of size `extent` that lies
+## inside `screen` and touches none of `blocked`. The box is tried hugging
+## the edges of every blocked box (left, right, above, below), so it ends up
+## right beside a fighter instead of a ring step away. Spots below count
+## BELOW_COST times farther. With no free spot within REACH, the spot that
+## covers the least is taken.
+static func closest_spot(center: Vector2, extent: Vector2, blocked: Array[Rect2], screen: Rect2) -> Vector2:
+	var half := extent * 0.5
+	var xs: Array[float] = [center.x]
+	var ys: Array[float] = [center.y]
+	for b in blocked:
+		xs.append(b.position.x - half.x - 0.5)
+		xs.append(b.end.x + half.x + 0.5)
+		ys.append(b.position.y - half.y - 0.5)
+		ys.append(b.end.y + half.y + 0.5)
 	var best := Vector2.ZERO
-	var best_overlap := INF
-	# Try rings of spots around the fight, closest first and from above round.
-	var start := extent.length() * 0.3
-	for ring in 14:
-		var radius := start + ring * 20.0
-		for step in 16:
-			var angle := -PI / 2 + ceilf(step / 2.0) * TAU / 16.0 * (1.0 if step % 2 == 0 else -1.0)
-			var offset := Vector2(cos(angle), sin(angle)) * radius * Vector2(1.2, 1.0)
-			var rect := Rect2(center + offset - extent * 0.5, extent)
+	var best_cost := INF
+	var fallback := Vector2.ZERO
+	var fallback_overlap := INF
+	for x in xs:
+		for y in ys:
+			var offset := Vector2(x, y) - center
+			var cost := Vector2(offset.x, offset.y * (BELOW_COST if offset.y > 0.0 else 1.0)).length()
+			if cost >= best_cost or cost > REACH:
+				continue
+			var rect := Rect2(Vector2(x, y) - half, extent)
 			if not screen.encloses(rect):
 				continue
 			var overlap := 0.0
 			for b in blocked:
 				overlap += b.intersection(rect).get_area()
 			if overlap == 0.0:
-				return offset
-			if overlap < best_overlap:
-				best_overlap = overlap
 				best = offset
-	return best
+				best_cost = cost
+			elif overlap < fallback_overlap or (overlap == fallback_overlap and cost < fallback.length()):
+				fallback_overlap = overlap
+				fallback = offset
+	return best if best_cost < INF else fallback
 
 
 ## The screen boxes of the words floating over heads and at spots (damage

@@ -539,7 +539,10 @@ func _ready() -> void:
 	writing_card.setup(_hud)
 	var comic := Comic.new()
 	comic.camera = camera
-	comic.avoid = message_rects
+	comic.avoid = func() -> Array[Rect2]:
+		var rects := message_rects()
+		rects.append_array(hero_hud_rects())
+		return rects
 	add_child(comic)
 	menus = Menus.new()
 	add_child(menus)

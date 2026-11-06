@@ -195,6 +195,10 @@ func tint_of(kind: String) -> Color:
 			return Loot.COIN_COLORS.get(what, GOLDEN)
 		"iron":
 			return STEEL
+		"bag":
+			# A backpack of the shop in its own cloth or leather; the inventory
+			# button's backpack ("kind:bag") in plain leather.
+			return color_of(what) if Items.ALL.has(what) else LEATHER
 	if kind.begins_with("bar_"):
 		return Forge.METALS[kind.substr(4)].color
 	return color_of(what)

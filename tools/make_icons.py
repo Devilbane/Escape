@@ -50,6 +50,61 @@ DEFS = """<defs>
 # and lies under the picture.
 FISH = 'M6 32c8-12 24-16 38-8l12-10v36L44 40C30 48 14 44 6 32z'
 
+# The backpack ("bag"): its shapes are shared by the picture and its tinted part.
+BAG_BODY = 'M14 26c0-8 6-12 18-12s18 4 18 12v26c0 4-3 7-7 7H21c-4 0-7-3-7-7z'
+BAG_POCKET = 'M19 40h26v12c0 2-1 3-3 3H22c-2 0-3-1-3-3z'
+BAG_FLAP = 'M15 26c0-7 6-11 17-11s17 4 17 11v6c0 3-3 6-8 7l-9 1-9-1c-5-1-8-4-8-7z'
+STITCH = 'fill="none" stroke="#f3dcb0" stroke-opacity=".6" stroke-width=".9" stroke-dasharray="2 1.6"'
+# A strap of darker leather with a light edge (solid colours: a gradient
+# would vanish on a straight line).
+STRAP = ('<path d="{d}" stroke="#1b1108" stroke-width="6" stroke-linecap="round" fill="none"/>'
+         '<path d="{d}" stroke="#6b3a17" stroke-width="4" stroke-linecap="round" fill="none"/>'
+         '<path d="{d}" stroke="#a8693a" stroke-width="1.2" stroke-linecap="round" fill="none" transform="translate(-1 0)"/>')
+
+
+def _buckle(x: float, y: float) -> str:
+    """A brass buckle on a strap: a frame, its pin and a glint."""
+    return (f'<rect x="{x - 3.6}" y="{y - 3}" width="7.2" height="6" rx="1.2" fill="none" stroke="#1b1108" stroke-width="3.6"/>'
+            f'<rect x="{x - 3.6}" y="{y - 3}" width="7.2" height="6" rx="1.2" fill="none" stroke="url(#gold)" stroke-width="1.8"/>'
+            f'<path d="M{x} {y - 2.6}v5.2" stroke="#4a2a12" stroke-width="1.1"/>'
+            f'<path d="M{x - 2.8} {y - 2.2}h2" stroke="#fff6d0" stroke-width=".8" stroke-opacity=".9"/>')
+
+
+BAG_PICTURE = (
+    # Shoulder straps behind the body, showing at its sides.
+    STRAP.format(d='M14 22c-3.6 5-4.6 16-3.2 28') + STRAP.format(d='M50 22c3.6 5 4.6 16 3.2 28')
+    # The carrying loop on top.
+    + '<path d="M25 14.5c0-6 3-8.5 7-8.5s7 2.5 7 8.5" fill="none" stroke="#1b1108" stroke-width="5.5"/>'
+    + '<path d="M25 14.5c0-6 3-8.5 7-8.5s7 2.5 7 8.5" fill="none" stroke="#6b3a17" stroke-width="3.5"/>'
+    + '<path d="M26.5 13c.6-4 2.6-5.6 5.5-5.6" fill="none" stroke="#a8693a" stroke-width="1.2" stroke-linecap="round"/>'
+    # The body: shading over the tint, its outline and its seams.
+    + f'<path d="{BAG_BODY}" fill="none" {O}/>'
+    + '<path d="M47 30v22c0 3-2 5-5 6" fill="none" stroke="#000" stroke-opacity=".16" stroke-width="4"/>'
+    + '<path d="M17 30v20c0 3 1 4 3 5" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2.5" stroke-linecap="round"/>'
+    + f'<path d="M17 28v24c0 3 2 4.6 4 4.6h22c2 0 4-1.6 4-4.6V28" {STITCH}/>'
+    # The front pocket: a shadow under its lip, its outline and seam.
+    + '<path d="M19 41h26" stroke="#000" stroke-opacity=".3" stroke-width="3"/>'
+    + f'<path d="{BAG_POCKET}" fill="#fff" fill-opacity=".08" {O}/>'
+    + f'<path d="M21.5 43v8.5c0 1 .6 1.6 1.6 1.6h17.8c1 0 1.6-.6 1.6-1.6V43" {STITCH}/>'
+    # Grain in the leather, and a few creases.
+    + '<g fill="#000" fill-opacity=".22">' + ''.join(f'<circle cx="{x}" cy="{y}" r=".55"/>' for x, y in
+        [(18, 44), (20, 36), (29, 45), (33, 50), (43, 48), (46, 42), (36, 43), (26, 52), (31, 34), (44, 30), (19, 29), (37, 20)]) + '</g>'
+    + '<path d="M24 48c2 1 4 1 5 0M36 46c1.5 1 3 1 4.5 0" stroke="#000" stroke-opacity=".25" stroke-width="1" fill="none"/>'
+    # The flap: the shadow it casts, its darker leather, a sheen, a seam and
+    # a light worn edge.
+    + '<path d="M17 36c3 3 8 4.5 15 4.5s12-1.5 15-4.5" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="3"/>'
+    + f'<path d="{BAG_FLAP}" fill="#000" fill-opacity=".38" {O}/>'
+    + '<path d="M20 20c3-2.5 7-3.4 12-3.4" fill="none" stroke="#ffe2b8" stroke-opacity=".3" stroke-width="2" stroke-linecap="round"/>'
+    + f'<path d="M17.6 27c0-5.6 5-8.8 14.4-8.8s14.4 3.2 14.4 8.8v4.6c0 2.2-2.4 4.4-6.6 5.2l-7.8.9-7.8-.9c-4.2-.8-6.6-3-6.6-5.2z" {STITCH}/>'
+    + '<path d="M16.5 32.5c0 2.4 2.8 4.8 7.6 5.6l7.9.9 7.9-.9c4.8-.8 7.6-3.2 7.6-5.6" fill="none" stroke="#ffe2b8" stroke-opacity=".28" stroke-width="1.1"/>'
+    # Two straps from the flap down over the pocket, each with a buckle.
+    + STRAP.format(d='M24 24v30') + STRAP.format(d='M40 24v30')
+    + _buckle(24, 38) + _buckle(40, 38)
+    # Brass rivets where the straps meet the flap.
+    + ''.join(f'<circle cx="{x}" cy="25" r="1.7" fill="url(#gold)" stroke="#1b1108" stroke-width="1"/>' for x in (24, 40))
+)
+BAG_TINT = f'<path d="{BAG_BODY}" fill="url(#grey)"/>'
+
 ICONS = {
     "sword": (f'<path d="M54 6l4 4-30 32-6-6z" fill="url(#steel)" {O}/><path d="M54 8L27 37" stroke="#fff" stroke-width="1.2" opacity=".7"/>'
               f'<path d="M14 34l16 16" stroke="#1b1108" stroke-width="8" stroke-linecap="round"/><path d="M14 34l16 16" stroke="url(#gold)" stroke-width="5" stroke-linecap="round"/>'
@@ -91,9 +146,11 @@ ICONS = {
                  '<ellipse cx="32" cy="34" rx="22" ry="16" fill="none" stroke="#1b1108" stroke-width="12"/>'
                  '<ellipse cx="32" cy="34" rx="22" ry="16" fill="none" stroke="url(#grey)" stroke-width="8"/>'),
     "special": (f'<path d="M32 4l7 18 19 1-15 12 6 19-17-11-17 11 6-19L6 23l19-1z" fill="url(#violet)" {O}/><path d="M32 12l4 12" stroke="#fff" stroke-width="2" opacity=".6"/>', None),
-    "bag": (f'<path d="M16 22c0-8 7-14 16-14s16 6 16 14v30a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4z" fill="none" {O}/><path d="M20 26h24v14H20z" fill="#000" fill-opacity=".2" {O}/>'
-            f'<path d="M32 26v18" stroke="#1b1108" stroke-width="2"/><rect x="29" y="38" width="6" height="6" fill="url(#gold)" {O}/><path d="M24 10c0-4 4-6 8-6s8 2 8 6" fill="none" stroke="#3b200c" stroke-width="3"/>',
-            '<path d="M16 22c0-8 7-14 16-14s16 6 16 14v30a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4z" fill="url(#grey)"/>'),
+    # A leather backpack, seen from the front: the body and its front pocket
+    # in the bag's own colour (linen or leather), stitched seams, a rounded
+    # flap with a darker edge, two leather straps with brass buckles, the
+    # shoulder straps peeking out at the sides and a carrying loop on top.
+    "bag": (BAG_PICTURE, BAG_TINT),
     # A leather tome with brass corners, a brass boss and a clasp: a book of
     # lore, no sign of any faith on it.
     "book": (f'<path d="M12 10h34a6 6 0 0 1 6 6v38H18a6 6 0 0 1-6-6z" fill="url(#leather)" {O}/><path d="M18 48h34v6H18a3 3 0 0 1 0-6z" fill="url(#parch)" {O}/>'
@@ -156,7 +213,7 @@ ICONS = {
     "stats": (f'<path d="M32 18L16 44h32z" fill="none" stroke="url(#gold)" stroke-width="3"/>'
               f'<circle cx="32" cy="16" r="10" fill="url(#red)" {O}/><circle cx="15" cy="45" r="10" fill="url(#green)" {O}/><circle cx="49" cy="45" r="10" fill="url(#blue)" {O}/>'
               '<circle cx="29" cy="12" r="2.5" fill="#fff" fill-opacity=".7"/><circle cx="12" cy="41" r="2.5" fill="#fff" fill-opacity=".7"/><circle cx="46" cy="41" r="2.5" fill="#fff" fill-opacity=".7"/>', None),
-    # The inventory: a steel breastplate with brass trim.
+    # A steel breastplate with brass trim (the inventory button showed it before the backpack).
     "cuirass": (f'<path d="M18 8l8 4h12l8-4 10 8-4 10v24c-6 6-14 8-18 8s-12-2-18-8V26L8 16z" fill="url(#steel)" {O}/>'
                 f'<path d="M26 12c0 6 2 9 6 9s6-3 6-9" fill="none" stroke="url(#gold)" stroke-width="3"/><path d="M32 22v32" stroke="#5d6470" stroke-width="1.5"/>'
                 f'<path d="M14 28c6 3 12 4 18 4s12-1 18-4M14 38c6 3 12 4 18 4s12-1 18-4" fill="none" stroke="#5d6470" stroke-width="1.5"/>'

@@ -841,7 +841,7 @@ func _setup_drawer() -> void:
 const QUICK_WINDOWS := [
 	["karte", "Karte", "N", "kind:map"],
 	["kompendium", "Kompendium", "H", "kind:book"],
-	["inventar", "Inventar", "I", "kind:cuirass"],
+	["inventar", "Inventar", "I", "kind:bag"],
 	["charakter", "Charakter", "P", "kind:stats"],
 	["auftraege", "Aufträge", "O", "kind:scroll"],
 ]

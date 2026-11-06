@@ -13,7 +13,7 @@ var audit := OS.get_environment("AUDIT") != ""
 var shots := OS.get_environment("SHOTS")
 
 const KINDS := ["inventar", "lager", "bank", "barbier", "steinmetz", "ausbau", "hauswerkbank",
-	"trophaeen", "aushang", "schmied", "werkbank", "tresor", "haendler", "wanderhaendler", "bett",
+	"trophaeen", "aushang", "schmied", "werkbank", "tresor", "haendler", "wanderhaendler", "bett", "nachtlager",
 	"laden", "kompendium", "charakter", "beenden", "plan", "rueckkehr", "hoehle", "karte", "kampfstil", "wunsch",
 	"gefaehrten", "gefaehrte_name", "auftraege", "beute"]
 

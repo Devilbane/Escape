@@ -2910,6 +2910,7 @@ func begin_new_game() -> void:
 	home_stores = HomeStores.empty()
 	trophies.clear()
 	secrets_found = 0
+	fishing.ring_found = false
 	dry_levels = 0
 	bumped_person = false
 	hints_shown.clear()
@@ -3292,6 +3293,7 @@ func _apply_save(data: Dictionary) -> void:
 	following = friends.following
 	trust = friends.trust
 	secrets_found = int(data.get("secrets", 0))
+	fishing.ring_found = bool(data.get("fished_ring", false))
 	dry_levels = int(data.get("dry", 0))
 	bumped_person = bool(data.get("bumped_person", false))
 	hints_shown.clear()
@@ -3565,7 +3567,7 @@ func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	journal.catch_up()
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
@@ -6118,6 +6120,7 @@ func _steer_by_mouse(delta: float) -> void:
 		# Holding the button runs, for as long as the hero's breath lasts.
 		player.wants_run = true
 		_pending_search = {}
+		fishing.cancel_walk()
 		_pending_station = {}
 
 
@@ -6420,7 +6423,9 @@ func _mouse_to_floor(screen_pos: Vector2):
 func _click(point: Vector3) -> void:
 	# Clicking an enemy attacks it: a strike when it is in reach, else the
 	# hero walks up to it and strikes. Clicking an object searches it.
+	# Clicking the water of a pond casts the line there (see Fishing).
 	player.stop_hunt()
+	fishing.cancel_walk()
 	for e in level.enemies:
 		if is_instance_valid(e) and not e.dead and e.visible and Vector2(e.global_position.x - point.x, e.global_position.z - point.z).length() < 1.6:
 			if e.is_friend():
@@ -6446,6 +6451,10 @@ func _click(point: Vector3) -> void:
 		_pending_search = {}
 		_pending_station = {}
 		player.walk_to(crate.global_position, WALK_UP_TO)
+		return
+	if fishing.click_water(point):
+		_pending_search = {}
+		_pending_station = {}
 		return
 	var station := level.nearest_station(point, 2.2)
 	if not station.is_empty():

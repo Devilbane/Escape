@@ -1,7 +1,8 @@
 class_name Fishing
 extends RefCounted
 ## Fishing: stand by the water, cast the line (key G or the "Angeln" button)
-## and wait. When the float jerks under and a "!" shows, press again quickly
+## and wait. Or click the water of a pond: the hero walks to its shore when it
+## is too far away and casts toward the clicked spot (see click_water). When the float jerks under and a "!" shows, press again quickly
 ## to strike, and the catch comes in.
 ##
 ## Or wait: when the bite is let go, the fish may bite again a moment later,
@@ -21,8 +22,11 @@ extends RefCounted
 ##
 ## The line flies well out over a pond (CAST_REACH), and now and then a
 ## little pond monster surfaces near the float while the hero waits (see
-## MONSTER_WATERS): it peeks at the hero, says "Blubb!" and either sinks
-## again or snaps up the bait and takes the float under with it.
+## MONSTER_WATERS): it peeks at the hero, says "Blubb!", plays one of its
+## pranks (MONSTER_GAGS) and either sinks again or snaps up the bait and takes
+## the float under with it; from then on it wears that float as a hat. When
+## the line is drawn in or cast anew while it is up, it is not sent away: it
+## stays to the end of its visit on its own.
 ##
 ## While fishing the hero holds a rod (FishingRod) in the right hand instead
 ## of the weapon. A cast swings it back over the shoulder and whips it
@@ -31,31 +35,46 @@ extends RefCounted
 ## and bends down hard when a fish pulls the float under.
 
 ## What bites in each water: [catch, weight, when]. A catch is a fish (an
-## ingredient id), "muenze" for an old coin (+1 gold) or "" for weed.
+## ingredient id), "muenze" for an old coin (+1 copper), "flasche" for a
+## message in a bottle (a few coins and a note, see BOTTLE_NOTES), RING for
+## the long-lost signet ring (once only, see ring_found) or "" for weed.
 ## "when" limits the catch to an hour: "nacht" (see DayNight.is_night) or
 ## "daemmerung" (dawn and dusk, see is_dusk); "" is any time.
 const WATERS := {
-	"brunnen": [["", 40, ""], ["muenze", 50, ""], ["goldkarpfen", 10, ""]],
-	"teich": [["", 30, ""], ["barsch", 60, ""], ["silberhecht", 12, "daemmerung"]],
-	"senke": [["", 25, ""], ["barsch", 60, ""], ["mondforelle", 15, "nacht"]],
+	"brunnen": [["", 25, ""], ["muenze", 50, ""], ["goldkarpfen", 10, ""]],
+	"teich": [["", 18, ""], ["barsch", 60, ""], ["silberhecht", 12, "daemmerung"], ["flasche", 7, ""], ["siegelring", 2, ""]],
+	"senke": [["", 15, ""], ["barsch", 60, ""], ["mondforelle", 15, "nacht"], ["flasche", 7, ""]],
 }
+## The long-lost signet ring at the bottom of the village pond (an item, see
+## Items.ALL): it counts as a rare catch, and once fished up it is gone from
+## the table (ring_found, kept in the saved game).
+const RING := "siegelring"
+## Coins in a message in a bottle, and the notes rolled up inside.
+const BOTTLE_COINS := [3, 8]
+const BOTTLE_NOTES := [
+	"„Wer dies findet: Ich habe den Schlüssel unter die Fußmatte gelegt. Welche Fußmatte, sage ich nicht.“",
+	"„Liebe Mutter, das Verlies ist feucht, das Essen grau. Bitte schick Socken.“",
+	"„Ich war hier. Der Fisch auch. Der Fisch hat gewonnen.“",
+	"„Das Teichungeheuer schuldet mir drei Kupfer. Bitte eintreiben.“",
+	"„Mein Siegelring ist mir in den Dorfteich gefallen. Dem ehrlichen Finder winkt ewiger Ruhm, aber kein Finderlohn.“",
+]
 ## How far from the water's edge the hero can stand and still cast (metres).
 const RANGE := 2.4
 ## Seconds until a fish bites: a random time between these two.
 const WAIT_MIN := 2.5
 const WAIT_MAX := 6.5
 ## Seconds the hero has to strike once the float jerks under.
-const BITE_TIME := 1.2
+const BITE_TIME := 1.5
 ## Bites in a row: when a bite is let go, the fish bites again with this
 ## chance, after a pause of CHAIN_GAP_MIN to CHAIN_GAP_MAX seconds; never
 ## more than MAX_CHAIN times in a row.
-const CHAIN_CHANCE := 0.6
+const CHAIN_CHANCE := 0.8
 const MAX_CHAIN := 5
 const CHAIN_GAP_MIN := 0.7
 const CHAIN_GAP_MAX := 1.4
 ## For each bite in a row after the first, weed weighs this much in the
 ## catch (see roll), and a rare fish this much.
-const CHAIN_WEED := 0.5
+const CHAIN_WEED := 0.3
 const CHAIN_RARE := 2.0
 ## How far the line flies at most, from the hero out over a pond (metres).
 ## The float lands as far out as that, but always clear of the far shore.
@@ -82,7 +101,15 @@ const MONSTER_DEPTH := 1.4
 ## How far from the float the monster surfaces (metres).
 const MONSTER_DISTANCE := 1.6
 ## Explained in the compendium the first time the monster shows up.
-const MONSTER_LORE := "Das kleine Teichungeheuer: Im Dorfteich und im Tümpel der Wolfssenke lebt ein kleines grünes Ungeheuer. Manchmal taucht es beim Angeln neben dem Schwimmer auf und schaut neugierig. Es tut niemandem etwas, aber manchmal schnappt es sich den Köder."
+## The pranks the monster plays while it is up, one a visit (see _gag):
+## it spits a jet of water at the hero, burps up a big bubble, or spits an
+## old coin from the bottom of the pond onto the shore (+1 copper).
+const MONSTER_GAGS := ["spucken", "ruelpsen", "muenze"]
+## Seconds into its stay when it plays its prank.
+const GAG_AT := 1.3
+## From this many visits on it knows the hero.
+const MONSTER_FRIEND := 3
+const MONSTER_LORE := "Das kleine Teichungeheuer: Im Dorfteich und im Tümpel der Wolfssenke lebt ein kleines grünes Ungeheuer. Manchmal taucht es beim Angeln neben dem Schwimmer auf und schaut neugierig. Es tut niemandem etwas, aber es treibt gern Unfug: Es spuckt Wasser, rülpst Blasen oder spuckt eine alte Münze ans Ufer. Und schnappt es sich den Köder, trägt es den Schwimmer danach als Hut."
 ## The cast (seconds from the key press): the rod swings back over the
 ## shoulder, whips forward, lets the float go and settles. The float flies
 ## for FLY_TIME and splashes down.
@@ -104,7 +131,7 @@ const WHIP_BEND := 0.16
 const PULL_BEND := -0.9
 const BITE_BEND := -0.12
 ## Explained once in the compendium, the first time the line is cast.
-const HOW_TO := "Angeln (Taste G oder der Knopf „Angeln“): stell dich ans Wasser und wirf die Leine aus. Taucht der Schwimmer unter und erscheint ein !, drück schnell noch einmal. Oder warte ab: Manchmal beißt der Fisch gleich noch einmal, und je mehr Bisse in Folge, desto seltener der Fang. Reißt die Folge ab, ist der Fisch weg. Fische kommen in den Zutatenbeutel. Seltene Fische beißen nur in einem Gewässer, manche nur zu bestimmten Stunden."
+const HOW_TO := "Angeln (Taste G oder der Knopf „Angeln“): stell dich ans Wasser und wirf die Leine aus, oder klick einfach auf das Wasser eines Teichs: Dann gehst du ans Ufer und wirfst dorthin. Taucht der Schwimmer unter und erscheint ein !, drück schnell noch einmal. Oder warte ab: Manchmal beißt der Fisch gleich noch einmal, und je mehr Bisse in Folge, desto seltener der Fang. Reißt die Folge ab, ist der Fisch weg. Fische kommen in den Zutatenbeutel. Seltene Fische beißen nur in einem Gewässer, manche nur zu bestimmten Stunden."
 
 enum {IDLE, WAITING, BITE}
 
@@ -138,6 +165,21 @@ var _monster_age := 0.0
 var _monster_due := -1.0
 var _monster_steals := false
 var _monster_home := Vector3.ZERO
+## The level the monster is on; whether it is up on its own, after the line
+## was drawn in (it then holds no fish off and steals nothing); and its prank.
+var _monster_level: Node
+var _monster_alone := false
+var _monster_gag := ""
+## Whether the monster wears a stolen float as a hat, and how often it has
+## come up. Casting again resets neither.
+var monster_hat := false
+var monster_visits := 0
+## Whether the long-lost ring has been fished up (see RING).
+var ring_found := false
+## A pond clicked from afar (see click_water): the spot aimed at and which
+## water it is in ("" when the hero is not walking to a pond).
+var _walk_target := Vector3.ZERO
+var _walk_kind := ""
 var rng := RandomNumberGenerator.new()
 
 
@@ -155,6 +197,61 @@ func water_near() -> Dictionary:
 	if game == null or game.level == null or not game.level.has_method("nearest_water"):
 		return {}
 	return game.level.nearest_water(game.player.global_position, RANGE)
+
+
+## The pond water at a clicked spot (on the floor plane), or {}. The round
+## fountain basin is left out: a click on it uses the fountain.
+func water_at(point: Vector3) -> Dictionary:
+	if game == null or game.level == null:
+		return {}
+	for w in game.level.fishing_waters:
+		if not w.round and Level.water_distance(w, point) <= 0.0:
+			return w
+	return {}
+
+
+## A click on the floor at `point`: when it is the water of a pond, the hero
+## casts toward it, or walks to the shore first when the pond is out of
+## reach. While the line is out, a click on the water strikes or draws it
+## in, as G does. Returns whether the click was on water.
+func click_water(point: Vector3) -> bool:
+	cancel_walk()
+	var w := water_at(point)
+	if w.is_empty():
+		return false
+	if is_fishing():
+		press()
+		return true
+	if not game.player.can_act():
+		game.show_message(Lang.t("Nicht jetzt."), 1.4)
+		return true
+	var near := water_near()
+	if near.get("water", "") == w.water:
+		cast(near, point)
+		return true
+	_walk_target = point
+	_walk_kind = w.water
+	game.player.walk_to(point)
+	return true
+
+
+## Forgets a pond the hero was walking to.
+func cancel_walk() -> void:
+	_walk_kind = ""
+
+
+## The hero walked to a clicked pond: once there, the line goes out toward
+## the clicked spot.
+func _tick_walk() -> void:
+	if _walk_kind == "" or not game.player.path.is_empty() or not game.player.can_act():
+		return
+	var kind := _walk_kind
+	cancel_walk()
+	var near := water_near()
+	if near.get("water", "") == kind:
+		cast(near, _walk_target)
+	else:
+		game.show_message(Lang.t("Hier kommst du nicht ans Wasser."), 1.6)
 
 
 ## Key G or the button: casts the line, strikes when a fish bites, or draws
@@ -182,8 +279,9 @@ func press() -> String:
 	return ""
 
 
-## Casts the line into a water.
-func cast(w: Dictionary) -> void:
+## Casts the line into a water; toward `target` when one is given (a
+## clicked spot, see aim_spot).
+func cast(w: Dictionary, target := Vector3.INF) -> void:
 	stop()
 	water = w
 	_level = game.level
@@ -193,10 +291,13 @@ func cast(w: Dictionary) -> void:
 	_hp_at_cast = game.player.hp
 	var p: Vector3 = game.player.global_position
 	game.player.path.clear()
-	game.player.face(w.pos - p)
+	if target == Vector3.INF:
+		_float_rest = float_spot(w, p, _level.fishing_waters)
+	else:
+		_float_rest = aim_spot(w, p, target, _level.fishing_waters)
+	game.player.face(_float_rest - p)
 	game.player.play_once("Throw", 0.6)
 	Sfx.play(game, "swing", -6.0)
-	_float_rest = float_spot(w, p, _level.fishing_waters)
 	_cast_age = 0.0
 	_splashed = false
 	_take_rod()
@@ -242,6 +343,28 @@ static func float_spot(w: Dictionary, from: Vector3, waters: Array = []) -> Vect
 			break
 		t += 0.25
 	return best
+
+
+## Where the float lands when the hero aims at a clicked spot: on the way
+## from the hero to it, as far out as the line flies (CAST_REACH) and clear
+## of the shore. Where no such spot is on that way, as float_spot.
+static func aim_spot(w: Dictionary, from: Vector3, target: Vector3, waters: Array = []) -> Vector3:
+	if w.round:
+		return float_spot(w, from, waters)
+	var start := Vector3(from.x, 0, from.z)
+	var dir := Vector3(target.x, 0, target.z) - start
+	var reach := minf(dir.length(), CAST_REACH)
+	if reach < 0.01:
+		return float_spot(w, from, waters)
+	dir = dir.normalized()
+	var best := Vector3.INF
+	var t := 0.0
+	while t < reach + 0.25:
+		var p := start + dir * minf(t, reach)
+		if is_deep(waters, w.water, p):
+			best = Vector3(p.x, w.surface, p.z)
+		t += 0.25
+	return best if best != Vector3.INF else float_spot(w, from, waters)
 
 
 ## The spot just inside the edge of a water that is closest to the hero.
@@ -377,7 +500,7 @@ func _fly_float() -> void:
 		_splashed = true
 		_float.position = _float_rest
 		Sfx.play(game, "drip", -4.0, _float_rest, 1.2)
-		_ripple(_float_rest)
+		_ripple(_float_rest, _level)
 
 
 ## A red and white float, a little ball on the water.
@@ -435,6 +558,13 @@ func _draw_line() -> void:
 
 ## Called every frame by the game.
 func tick(delta: float) -> void:
+	_tick_walk()
+	if is_instance_valid(monster) and (_monster_alone or state == IDLE):
+		# Up on its own: it finishes its visit, whatever the line does.
+		if game.level != _monster_level:
+			_free_monster()
+		else:
+			_tick_monster(delta)
 	if state == IDLE:
 		return
 	if game.level != _level or not is_instance_valid(_float):
@@ -453,7 +583,7 @@ func tick(delta: float) -> void:
 	_cast_age += delta
 	if state == WAITING and _monster_due >= 0.0 and timer <= _monster_due:
 		monster_rises(_monster_steals)
-	if is_instance_valid(monster):
+	if is_instance_valid(monster) and not _monster_alone:
 		# No fish bites while the monster is about.
 		_tick_monster(delta)
 		_draw_line()
@@ -514,7 +644,7 @@ func let_go(again: bool) -> void:
 
 ## The hero strikes in time: what was on the hook comes in.
 func land() -> void:
-	var caught := roll(water.water, game.day_hour, rng, bites)
+	var caught := roll(water.water, game.day_hour, rng, bites, ring_found)
 	var pos: Vector3 = _float_rest
 	var on: Node = _level
 	stop()
@@ -528,6 +658,27 @@ func take(caught: String, pos: Vector3, on: Node) -> void:
 	if caught == "":
 		Sfx.play(game, "drip", -4.0)
 		Events.found(Lang.t("Nur Wasserkraut am Haken."), Color(0.8, 0.8, 0.85))
+	elif caught == "flasche":
+		var coins := rng.randi_range(BOTTLE_COINS[0], BOTTLE_COINS[1])
+		game.coins += coins
+		Sfx.play(game, "coin")
+		Effects.loot_text(on, pos + Vector3(0, 1.4, 0), Lang.t("+%d Kupfer") % coins, game.GOLD, DamageNumber.copper_worth(coins))
+		var note: String = BOTTLE_NOTES[rng.randi() % BOTTLE_NOTES.size()]
+		Events.found(Lang.t("Eine Flaschenpost! Darin %d Kupfer und ein Zettel:") % coins + "\n" + Lang.t(note), game.GOLD)
+		game.show_message(Lang.t("Eine Flaschenpost! Darin %d Kupfer und ein Zettel:") % coins + "\n" + Lang.t(note), 4.0)
+	elif caught == RING:
+		if not game.player.bag_fits(RING):
+			Sfx.play(game, "drip", -4.0)
+			game.show_message(Lang.t("Etwas Goldenes blitzt am Haken, aber deine Tasche ist voll: Es rutscht zurück ins Wasser."), 3.0)
+		else:
+			ring_found = true
+			game.player.bag.append(RING)
+			Sfx.play(game, "gift")
+			var shine := Effects.make_sparkles(Color(1.0, 0.85, 0.4), true)
+			shine.position = pos + Vector3(0, 0.5, 0)
+			on.add_child(shine)
+			Events.tell(Lang.t("Ein Siegelring, lange verloren im Schlamm des Dorfteichs! Er kommt in deine Tasche."), game.GOLD)
+			Events.found(Lang.t("Gefischt: %s!") % Rarity.marked(RING), game.GOLD)
 	elif caught == "muenze":
 		game.coins += 1
 		Sfx.play(game, "coin")
@@ -559,13 +710,26 @@ func stop() -> void:
 	water = {}
 	_level = null
 	_monster_due = -1.0
+	cancel_walk()
 	_put_rod_away()
-	for node in [_float, _line, monster]:
+	for node in [_float, _line]:
 		if is_instance_valid(node):
 			node.queue_free()
 	_float = null
 	_line = null
+	if is_instance_valid(monster) and not _monster_alone:
+		# The monster is not sent away with the line: it looks after the
+		# float, puzzled, and stays to the end of its visit.
+		_monster_alone = true
+		_monster_steals = false
+		Effects.float_text(_monster_level, monster.position + Vector3(0, 1.3, 0), Lang.t("Blubb?"), Color(0.6, 0.95, 0.75), true)
+
+
+func _free_monster() -> void:
+	if is_instance_valid(monster):
+		monster.queue_free()
 	monster = null
+	_monster_alone = false
 
 
 ## The little pond monster surfaces near the float. With `steals` it snaps
@@ -576,15 +740,31 @@ func monster_rises(steals: bool) -> void:
 		return
 	_monster_steals = steals
 	_monster_age = 0.0
+	_monster_alone = false
+	_monster_level = _level
+	_monster_gag = MONSTER_GAGS[rng.randi() % MONSTER_GAGS.size()]
+	monster_visits += 1
 	_monster_home = monster_spot(_level.fishing_waters, water, _float_rest, game.player.global_position)
 	monster = make_monster()
+	if monster_hat:
+		# The float it stole once, worn on its head ever since.
+		var hat := _make_float()
+		hat.name = "Hat"
+		hat.position = Vector3(0, 0.62, -0.02)
+		hat.rotation.z = 0.25
+		monster.add_child(hat)
 	monster.position = _monster_home + Vector3(0, -MONSTER_DEPTH, 0)
 	_level.add_child(monster)
 	_face_hero()
-	_ripple(_monster_home)
+	_ripple(_monster_home, _level)
 	Sfx.play(game, "drip", -2.0, _monster_home, 0.55)
 	Events.teach(MONSTER_LORE)
-	game.show_message(Lang.t("Neben dem Schwimmer taucht ein kleines Teichungeheuer auf!"), 2.5)
+	var news := Lang.t("Neben dem Schwimmer taucht ein kleines Teichungeheuer auf!")
+	if monster_hat:
+		news = Lang.t("Das kleine Teichungeheuer taucht auf. Auf dem Kopf trägt es deinen gestohlenen Schwimmer, wie einen Hut!")
+	elif monster_visits >= MONSTER_FRIEND:
+		news = Lang.t("Das kleine Teichungeheuer taucht wieder auf. Es scheint dich zu kennen!")
+	game.show_message(news, 2.5)
 
 
 ## Where the monster surfaces: MONSTER_DISTANCE from the float, out on the
@@ -603,7 +783,7 @@ static func monster_spot(waters: Array, w: Dictionary, float_at: Vector3, hero: 
 
 ## The monster's head turns toward the hero.
 func _face_hero() -> void:
-	var to: Vector3 = _level.to_local(game.player.global_position) - monster.position
+	var to: Vector3 = _monster_level.to_local(game.player.global_position) - monster.position
 	to.y = 0
 	if to.length() > 0.01:
 		monster.rotation.y = atan2(-to.x, -to.z)
@@ -637,8 +817,10 @@ func _tick_monster(delta: float) -> void:
 		if eyes:
 			eyes.scale.y = 0.15 if fmod(s, 1.6) > 1.45 else 1.0
 		if s - delta < 0.5 and s >= 0.5:
-			Effects.float_text(_level, up + Vector3(0, 1.3, 0), Lang.t("Blubb!"), Color(0.6, 0.95, 0.75), true)
+			Effects.float_text(_monster_level, up + Vector3(0, 1.3, 0), Lang.t("Blubb!"), Color(0.6, 0.95, 0.75), true)
 			Sfx.play(game, "drip", -4.0, up, 0.7)
+		if s - delta < GAG_AT and s >= GAG_AT and not _monster_steals:
+			_gag(_monster_gag)
 	elif t < MONSTER_RISE + MONSTER_STAY + MONSTER_SINK:
 		var k := (t - MONSTER_RISE - MONSTER_STAY) / MONSTER_SINK
 		var here := Vector3(monster.position.x, up.y, monster.position.z)
@@ -646,30 +828,84 @@ func _tick_monster(delta: float) -> void:
 		if _monster_steals:
 			float_y = -0.5 * k
 		if t - delta < MONSTER_RISE + MONSTER_STAY:
-			_ripple(here)
+			_ripple(here, _monster_level)
 			Sfx.play(game, "drip", -3.0, here, 0.6)
 	else:
 		if _monster_steals:
+			_free_monster()
 			stop()
+			monster_hat = true
 			game.show_message(Lang.t("Das kleine Teichungeheuer schnappt sich deinen Köder und taucht damit ab!"), 2.5)
 			return
-		monster.queue_free()
-		monster = null
+		var alone := _monster_alone
+		_free_monster()
+		if alone:
+			return
 		# The fish need a moment to come back.
 		timer = maxf(timer, 1.0)
 		game.show_message(Lang.t("Das kleine Teichungeheuer taucht wieder ab. Du wartest weiter …"), 2.0)
-	if is_instance_valid(_float):
+	if is_instance_valid(_float) and not _monster_alone:
 		_float.position = _float_rest + Vector3(0, float_y, 0)
 
 
+## The monster's prank of this visit (see MONSTER_GAGS).
+func _gag(kind: String) -> void:
+	var at: Vector3 = monster.position
+	var hero: Vector3 = _monster_level.to_local(game.player.global_position)
+	match kind:
+		"spucken":
+			var jet := Effects.make_sparkles(Color(0.65, 0.85, 1.0), true)
+			jet.position = hero + Vector3(0, 1.7, 0)
+			_monster_level.add_child(jet)
+			Sfx.play(game, "drip", -1.0, hero, 1.3)
+			Effects.float_text(_monster_level, hero + Vector3(0, 2.2, 0), Lang.t("Pfft!"), Color(0.65, 0.85, 1.0), true)
+			Effects.float_text(_monster_level, at + Vector3(0, 1.6, 0), Lang.t("Hihi!"), Color(0.6, 0.95, 0.75), true)
+			game.show_message(Lang.t("Das Teichungeheuer spuckt dir einen Wasserstrahl mitten ins Gesicht und kichert."), 2.4)
+		"ruelpsen":
+			_bubble(at + Vector3(0, 0.9, 0))
+			Sfx.play(game, "drip", 0.0, at, 0.4)
+			Effects.float_text(_monster_level, at + Vector3(0, 1.6, 0), Lang.t("Rülps!"), Color(0.6, 0.95, 0.75), true)
+			game.show_message(Lang.t("Das Teichungeheuer rülpst eine riesige Blase. Es schaut sehr verlegen drein."), 2.4)
+		"muenze":
+			game.coins += 1
+			Sfx.play(game, "coin")
+			Effects.loot_text(_monster_level, hero + Vector3(0, 1.4, 0), Lang.t("+%d Kupfer") % 1, game.GOLD, DamageNumber.copper_worth(1))
+			Events.found(Lang.t("Das Teichungeheuer spuckt dir eine alte Münze vor die Füße. +1 Kupfer"), game.GOLD)
+			game._update_hud()
+
+
+## A big see-through bubble that rises from the monster's mouth and pops.
+func _bubble(at: Vector3) -> void:
+	var ball := MeshInstance3D.new()
+	ball.mesh = _ball(0.25)
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.8, 0.95, 1.0, 0.45)
+	mat.roughness = 0.1
+	ball.material_override = mat
+	ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ball.position = at
+	ball.scale = Vector3.ONE * 0.3
+	_monster_level.add_child(ball)
+	var tw := ball.create_tween()
+	tw.tween_property(ball, "scale", Vector3.ONE * 2.2, 0.9).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(ball, "position", at + Vector3(0, 0.8, 0), 0.9)
+	tw.tween_property(ball, "scale", Vector3.ONE * 2.8, 0.08)
+	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.08)
+	tw.tween_callback(ball.queue_free)
+
+
 ## A small green pond monster, about knee high above the water: a round
-## head with big eyes and two stubby horns, and a hump and a tail tip
-## behind it. It looks along -Z.
+## head with big eyes and two spiky, fin-like ears, and a hump and a tail tip
+## behind it. Its skin, its ears and the ridge of plates down its back over
+## the hump to the tail are scaly (see ScaleSkin). It looks along -Z.
 static func make_monster() -> Node3D:
 	var root := Node3D.new()
 	root.name = "PondMonster"
-	var skin := _paint(Color(0.25, 0.55, 0.42))
-	var belly := _paint(Color(0.55, 0.78, 0.5))
+	var skin := ScaleSkin.apply(_paint(Color(0.3, 0.64, 0.48), 0.45), 1.0, 18.0)
+	var belly := _paint(Color(0.6, 0.84, 0.55))
+	var plate := ScaleSkin.apply(_paint(Color(0.5, 0.64, 0.3), 0.45), 1.0, 18.0)
+	var fin_skin := ScaleSkin.apply(_paint(Color(0.6, 0.84, 0.55), 0.45), 0.8, 18.0)
 	var parts := [
 		[_ball(0.3), skin, Vector3(0, 0.25, -0.05), Vector3(1.0, 1.0, 1.0)],
 		[_ball(0.2), belly, Vector3(0, 0.15, -0.2), Vector3(1.1, 0.8, 0.7)],
@@ -680,14 +916,37 @@ static func make_monster() -> Node3D:
 		var mi := _mesh_part(part[0], part[1], part[2])
 		mi.scale = part[3]
 		root.add_child(mi)
+	# The ears: a pointed fin each side, held up by three spiky rays that
+	# stick out past its edge.
 	for side in [-1.0, 1.0]:
-		var horn := CylinderMesh.new()
-		horn.top_radius = 0.0
-		horn.bottom_radius = 0.06
-		horn.height = 0.18
-		var h := _mesh_part(horn, belly, Vector3(side * 0.15, 0.55, 0.0))
-		h.rotation.z = -side * 0.35
-		root.add_child(h)
+		var ear := Node3D.new()
+		ear.name = "EarLeft" if side < 0.0 else "EarRight"
+		ear.position = Vector3(side * 0.2, 0.44, 0.04)
+		ear.rotation = Vector3(0.15, side * 0.3, -side * 0.85)
+		root.add_child(ear)
+		# A thin leaf with rounded edges, pointing out from the head.
+		var web := _mesh_part(_ball(0.12), fin_skin, Vector3(0, 0.16, 0))
+		web.scale = Vector3(0.8, 1.45, 0.14)
+		ear.add_child(web)
+		for i in 3:
+			var length: float = [0.3, 0.34, 0.3][i]
+			var ray := CylinderMesh.new()
+			ray.top_radius = 0.0
+			ray.bottom_radius = 0.028
+			ray.height = length
+			ray.radial_segments = 8
+			var pivot := Node3D.new()
+			pivot.rotation.z = (i - 1) * 0.42
+			ear.add_child(pivot)
+			pivot.add_child(_mesh_part(ray, skin, Vector3(0, length * 0.5, 0)))
+	# The ridge of plates from the back of the head to the tail tip.
+	var ridge := [[0.14, 0.5, 0.13], [0.27, 0.4, 0.15], [0.39, 0.24, 0.16], [0.52, 0.22, 0.15], [0.65, 0.18, 0.13], [0.78, 0.12, 0.1], [0.9, 0.09, 0.08]]
+	for r in ridge:
+		# A thin rounded plate, half sunk into the body, leaning to the tail.
+		var p := _mesh_part(_ball(r[2] * 0.75), plate, Vector3(0, r[1] - r[2] * 0.15, r[0]))
+		p.scale = Vector3(0.22, 1.45, 0.6)
+		p.rotation.x = 0.55
+		root.add_child(p)
 	# The eyes, in their own node so they can blink.
 	var eyes := Node3D.new()
 	eyes.name = "Eyes"
@@ -728,7 +987,7 @@ static func _mesh_part(mesh: Mesh, mat: Material, pos: Vector3) -> MeshInstance3
 
 ## A pale ring that spreads over the water and fades, where the monster
 ## rises or sinks.
-func _ripple(at: Vector3) -> void:
+func _ripple(at: Vector3, on: Node) -> void:
 	var ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
 	torus.inner_radius = 0.4
@@ -742,7 +1001,7 @@ func _ripple(at: Vector3) -> void:
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	ring.position = at + Vector3(0, 0.02, 0)
 	ring.scale = Vector3(1, 0.1, 1)
-	_level.add_child(ring)
+	on.add_child(ring)
 	var tw := ring.create_tween().set_parallel()
 	tw.tween_property(ring, "scale", Vector3(2.6, 0.1, 2.6), 1.0)
 	tw.tween_property(mat, "albedo_color:a", 0.0, 1.0)
@@ -766,6 +1025,8 @@ static func bites_at(when: String, hour: float) -> bool:
 
 ## Whether a catch is one of the rare fish.
 static func is_rare(caught: String) -> bool:
+	if caught == RING:
+		return true
 	return (Crafting.INGREDIENTS.get(caught, {}) as Dictionary).get("rare", false)
 
 
@@ -782,8 +1043,8 @@ static func weight(row: Array, bites := 1) -> float:
 
 ## What comes in from a water at an hour, picked by the weights in WATERS
 ## (see weight) after `bites` bites in a row.
-static func roll(water_id: String, hour: float, random: RandomNumberGenerator, bites := 1) -> String:
-	var table := (WATERS.get(water_id, []) as Array).filter(func(row): return bites_at(row[2], hour))
+static func roll(water_id: String, hour: float, random: RandomNumberGenerator, bites := 1, ring_gone := false) -> String:
+	var table := (WATERS.get(water_id, []) as Array).filter(func(row): return bites_at(row[2], hour) and not (ring_gone and row[0] == RING))
 	var total := 0.0
 	for row in table:
 		total += weight(row, bites)

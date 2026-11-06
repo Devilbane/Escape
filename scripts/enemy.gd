@@ -364,6 +364,9 @@ var foe: Enemy = null
 var _scan := 0.0
 ## Seconds a gift still keeps it calm (see calm).
 var _calmed := 0.0
+## A monster cowed by a far stronger hero (see cowed_by) still fights back
+## once the hero strikes it: set by a blow, cleared when the hunt is over.
+var _provoked := false
 ## Whether the blow that felled it came from another monster rather than
 ## the hero: such a kill counts for no task.
 var slain_by_rival := false
@@ -618,6 +621,22 @@ func max_hp() -> int:
 ## Whether this one's faction is the hero's friend (see Factions).
 func is_friend() -> bool:
 	return Factions.is_friendly(Factions.of(kind))
+
+
+## A hero of more than COWED_FACTOR times this monster's level is too strong
+## to pick a fight with: it lets the hero pass and only fights back when
+## struck (see _provoked). Bosses and other story foes with a fixed level
+## (HeroLevel.FIXED) always fight.
+const COWED_FACTOR := 2
+
+
+func cowed_by(hero_level: int) -> bool:
+	return hero_level > COWED_FACTOR * rated_level and not HeroLevel.FIXED.has(kind)
+
+
+## Whether it leaves the hero be because the hero is far above its level.
+func is_cowed() -> bool:
+	return not _provoked and level != null and level.player != null and cowed_by(level.player.hero_level())
 
 
 ## A gift calms it: it stops hunting the hero for a while.
@@ -1163,6 +1182,7 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	elif _stats.get("armored", false):
 		# Blades glance off the guardian's armour, and it turns to fight.
 		if wakes:
+			_provoked = true
 			_wake(from)
 		Effects.head_text(level, self, 2.2 * _stats.size, Lang.t("Nur ein Stich in den Rücken!"), Color(0.8, 0.85, 0.95))
 		Comic.pop(global_position, "block")
@@ -1170,6 +1190,7 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	hp -= damage
 	if wakes:
 		_calmed = 0.0
+		_provoked = true
 		_wake(from)
 	var away := global_position - from
 	away.y = 0.0
@@ -1403,12 +1424,16 @@ func _physics_process(delta: float) -> void:
 		_haunt(delta)
 	var friendly := is_friend()
 	_calmed = maxf(0.0, _calmed - delta)
-	if (friendly or _calmed > 0.0) and _awake:
-		# A friend, or one just calmed by a gift, lets the hero be.
+	if not _awake:
+		_provoked = false
+	var cowed := is_cowed()
+	if (friendly or _calmed > 0.0 or cowed) and _awake:
+		# A friend, one just calmed by a gift, or one far below the hero's
+		# level lets the hero be.
 		_awake = false
 		_path.clear()
 		_repath = 0.0
-	if not player.dead and not friendly and _calmed <= 0.0 and _notices(player, to_player, dist, sees):
+	if not player.dead and not friendly and _calmed <= 0.0 and not cowed and _notices(player, to_player, dist, sees):
 		if not _awake:
 			Effects.float_text(level, global_position + Vector3(0, 3.4 * _stats.size, 0), "!", Color(1.0, 0.3, 0.2))
 			if _stats.has("shriek") and _shriek_cool <= 0.0:

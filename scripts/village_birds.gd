@@ -11,8 +11,9 @@ extends Node3D
 ## take off together.
 ##
 ## Each bird is one of a few colourful kinds (robin, blue tit, goldfinch,
-## kingfisher, bullfinch, oriole, green finch): the kind sits in its custom
-## data and the shader paints its back, breast, wings, head and beak.
+## kingfisher, bullfinch, golden oriole, greenfinch): the kind sits in its
+## custom data and the shader gives it its beak and tail and paints its
+## plumage, with the kind's real markings (caps, masks, wing bars).
 ##
 ## All of them are one MultiMesh, their wings beating in the vertex shader
 ## (shaders/bird.gdshader), so they cost one draw and a few lines a frame;
@@ -63,8 +64,10 @@ const SHY := 3.5
 const FLOCK := 6.0
 ## How far apart birds on the ground keep (metres).
 const ROOM := 0.9
-## Where the worm hangs from, in the bird's own space (the tip of its beak).
-const BEAK := Vector3(0, 0.06, 0.25)
+## Where the worm hangs from, in the bird's own space (the tip of its beak,
+## as bird.gdshader draws it: flying, and sitting, when it leans back).
+const BEAK := Vector3(0, 0.104, 0.234)
+const BEAK_SITTING := Vector3(0, 0.159, 0.206)
 ## Beyond this distance from the hero (metres) the birds keep still.
 const AWAKE_RANGE := 90.0
 const SIZE := 1.9
@@ -752,75 +755,115 @@ func _show(i: int) -> void:
 	_mm.set_instance_transform(i, xform)
 	if worm > 0.0:
 		var wiggle := Basis(Vector3.FORWARD, sin(_clock * 18.0 + b.phase) * 0.6).scaled(Vector3(1.0, worm, 1.0))
-		_worms.set_instance_transform(i, xform * Transform3D(wiggle, BEAK))
+		_worms.set_instance_transform(i, xform * Transform3D(wiggle, BEAK if flying else BEAK_SITTING))
 	else:
 		_worms.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ZERO), at))
 
 
-## A small bird: a body, a head with a beak, a tail and two wings, flying
-## towards +z. COLOR.r says which part a vertex belongs to, for the shader to
-## paint in its kind's colours (0 back, 0.25 breast, 0.5 wings and tail,
-## 0.75 head, 1 beak); COLOR.a marks the wings (see bird.gdshader).
+## A small bird at rest, facing +z: a round body and head, two eyes, a beak,
+## a tail, two legs and two wings spread out flat. bird.gdshader shapes each
+## kind's beak and tail, beats or folds the wings, tucks the legs away in
+## flight and paints the plumage; COLOR.r says which part a vertex is (part /
+## 6: 0 body, 1 head, 2 beak, 3 wing, 4 tail, 5 eye, 6 legs) and COLOR.a
+## which wing (0 left, 1 right; 0.5 elsewhere).
 static func bird_mesh() -> Mesh:
+	# (Plain arrays: a lambda shares those with us, but would copy packed ones.)
+	var pts := []
+	var cols := []
+	var idx := []
+	var add := func(points: Array, tris: Array, part: int, alpha: float) -> void:
+		var first := pts.size()
+		for p: Vector3 in points:
+			pts.append(p)
+			cols.append(Color(part / 6.0, 0, 0, alpha))
+		for k: int in tris:
+			idx.append(first + k)
+	# The body: rings from the tail end to the neck (z, centre y, half
+	# width, height above and below the centre), plump at the breast.
+	var rings := [[-0.115, 0.04, 0.012, 0.01, 0.01], [-0.095, 0.036, 0.028, 0.022, 0.024],
+			[-0.07, 0.032, 0.042, 0.033, 0.038], [-0.035, 0.028, 0.053, 0.042, 0.052],
+			[0.0, 0.026, 0.058, 0.047, 0.06], [0.035, 0.028, 0.057, 0.048, 0.062],
+			[0.07, 0.034, 0.05, 0.046, 0.056], [0.1, 0.048, 0.04, 0.042, 0.044],
+			[0.125, 0.068, 0.03, 0.032, 0.03]]
+	var seg := 10
+	var body := []
+	var tris := []
+	for ring: Array in rings:
+		for k in seg:
+			var a := TAU * k / seg
+			body.append(Vector3(ring[2] * cos(a), ring[1] + (ring[3] if sin(a) > 0.0 else ring[4]) * sin(a), ring[0]))
+	for r in rings.size() - 1:
+		for k in seg:
+			var i0: int = r * seg + k
+			var i1: int = r * seg + (k + 1) % seg
+			tris.append_array([i0, i0 + seg, i1, i1, i0 + seg, i1 + seg])
+	body.append(Vector3(0, 0.04, -0.12))
+	body.append(Vector3(0, 0.075, 0.13))
+	var last := (rings.size() - 1) * seg
+	for k in seg:
+		tris.append_array([body.size() - 2, (k + 1) % seg, k, body.size() - 1, last + k, last + (k + 1) % seg])
+	add.call(body, tris, 0, 0.5)
+	# The head, and the eyes: small round balls.
+	var head_at := Vector3(0, 0.092, 0.152)
+	var ball := func(at: Vector3, radius: Vector3, around: int, rows: int) -> Array:
+		var points := []
+		var faces := []
+		for i in rows + 1:
+			var th := PI * i / rows
+			for k in around:
+				var ph := TAU * k / around
+				points.append(at + Vector3(radius.x * sin(th) * cos(ph), radius.y * cos(th), radius.z * sin(th) * sin(ph)))
+		for i in rows:
+			for k in around:
+				var i0: int = i * around + k
+				var i1: int = i * around + (k + 1) % around
+				faces.append_array([i0, i1, i0 + around, i1, i1 + around, i0 + around])
+		return [points, faces]
+	var h: Array = ball.call(head_at, Vector3(0.043, 0.042, 0.048), 10, 6)
+	add.call(h[0], h[1], 1, 0.5)
+	for side: float in [-1.0, 1.0]:
+		var e: Array = ball.call(head_at + Vector3(side * 0.036, 0.009, 0.02), Vector3.ONE * 0.009, 6, 4)
+		add.call(e[0], e[1], 5, 0.5)
+	# The beak: a four-sided cone (the shader gives it the kind's shape).
+	var base := Vector3(0, 0.086, 0.19)
+	add.call([base + Vector3(0, 0, 0.044), base + Vector3(0, 0.009, 0), base + Vector3(0.008, 0, 0),
+			base + Vector3(0, -0.009, 0), base + Vector3(-0.008, 0, 0)],
+			[0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 1, 1, 4, 3, 1, 3, 2], 2, 0.5)
+	# The tail: a fan, a little raised (the shader sets its length).
+	add.call([Vector3(0, 0.05, -0.085), Vector3(-0.022, 0.045, -0.09), Vector3(0.022, 0.045, -0.09),
+			Vector3(-0.045, 0.07, -0.22), Vector3(0, 0.07, -0.22), Vector3(0.045, 0.07, -0.22)],
+			[0, 1, 4, 1, 3, 4, 0, 4, 2, 2, 4, 5], 4, 0.5)
+	# The wings, spread out: the leading edge forward, the primaries at the
+	# tip, feather notches along the trailing edge. A fan round the middle,
+	# wound so that the upper side faces up.
+	var outline := [Vector2(0.13, -0.005), Vector2(0.035, 0.06), Vector2(0.09, 0.075), Vector2(0.15, 0.07),
+			Vector2(0.21, 0.045), Vector2(0.27, 0.01), Vector2(0.315, -0.035), Vector2(0.3, -0.06),
+			Vector2(0.285, -0.045), Vector2(0.27, -0.075), Vector2(0.25, -0.058), Vector2(0.23, -0.088),
+			Vector2(0.205, -0.068), Vector2(0.18, -0.093), Vector2(0.155, -0.075), Vector2(0.125, -0.09),
+			Vector2(0.095, -0.078), Vector2(0.065, -0.085), Vector2(0.035, -0.06)]
+	for side: float in [-1.0, 1.0]:
+		var wing := []
+		var fan := []
+		for o: Vector2 in outline:
+			wing.append(Vector3(side * o.x, 0.055, o.y))
+		for k in range(1, outline.size() - 1):
+			fan.append_array([0, k + 1, k] if side > 0.0 else [0, k, k + 1])
+		add.call(wing, fan, 3, 0.5 + side * 0.5)
+	# The legs, with three toes forward and one back.
+	for side: float in [-1.0, 1.0]:
+		var x := side * 0.02
+		var w := 0.004
+		var foot := Vector3(x, -0.08, 0.03)
+		add.call([Vector3(x - w, -0.02, 0.02), Vector3(x + w, -0.02, 0.02), foot - Vector3(w, 0, 0), foot + Vector3(w, 0, 0),
+				Vector3(x - 0.012, -0.081, 0.06), Vector3(x + 0.012, -0.081, 0.06), Vector3(x, -0.081, 0.065), Vector3(x, -0.081, 0.0)],
+				[0, 2, 1, 1, 2, 3, 2, 3, 4, 2, 3, 5, 2, 3, 6, 2, 3, 7], 6, 0.5)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var back := Color(0.0, 0, 0, 0.5)
-	var breast := Color(0.25, 0, 0, 0.5)
-	var wing := Color(0.5, 0, 0, 0.5)
-	var head := Color(0.75, 0, 0, 0.5)
-	var beak := Color(1.0, 0, 0, 0.5)
-	# Body: a stretched diamond, the breast underneath.
-	var nose := Vector3(0, 0.02, 0.17)
-	var tail := Vector3(0, 0.03, -0.14)
-	var top := Vector3(0, 0.08, 0.02)
-	var bottom := Vector3(0, -0.05, 0.03)
-	var left := Vector3(-0.055, 0.02, 0.02)
-	var right := Vector3(0.055, 0.02, 0.02)
-	for tri: Array in [[nose, top, right], [nose, right, bottom], [nose, bottom, left], [nose, left, top],
-			[tail, right, top], [tail, bottom, right], [tail, left, bottom], [tail, top, left]]:
-		for p: Vector3 in tri:
-			st.set_color(breast if p == bottom or (p == nose and tri.has(bottom)) else back)
-			st.add_vertex(p)
-	# The head: a smaller diamond up front.
-	var h_front := Vector3(0, 0.075, 0.21)
-	var h_back := Vector3(0, 0.08, 0.11)
-	var h_top := Vector3(0, 0.12, 0.16)
-	var h_bottom := Vector3(0, 0.03, 0.16)
-	var h_left := Vector3(-0.042, 0.075, 0.16)
-	var h_right := Vector3(0.042, 0.075, 0.16)
-	for tip: Vector3 in [h_front, h_back]:
-		for pair: Array in [[h_top, h_right], [h_right, h_bottom], [h_bottom, h_left], [h_left, h_top]]:
-			for p: Vector3 in [tip, pair[0], pair[1]]:
-				st.set_color(head)
-				st.add_vertex(p)
-	# The beak: a little pointed wedge.
-	var b_tip := BEAK
-	var b_top := Vector3(0, 0.085, 0.2)
-	var b_low := Vector3(0, 0.055, 0.2)
-	var b_left := Vector3(-0.018, 0.07, 0.2)
-	var b_right := Vector3(0.018, 0.07, 0.2)
-	for pair: Array in [[b_top, b_right], [b_right, b_low], [b_low, b_left], [b_left, b_top]]:
-		for p: Vector3 in [b_tip, pair[0], pair[1]]:
-			st.set_color(beak)
-			st.add_vertex(p)
-	# The tail fan.
-	for p: Vector3 in [Vector3(0, 0.04, -0.1), Vector3(-0.06, 0.03, -0.24), Vector3(0.06, 0.03, -0.24)]:
-		st.set_color(wing)
-		st.add_vertex(p)
-	# Wings: a swept triangle on each side, the tip marked by COLOR.a.
-	for side: float in [-1.0, 1.0]:
-		var tip_a := 0.5 + side * 0.5
-		var root_a := 0.5 + side * 0.04
-		var pts := [Vector3(side * 0.04, 0.04, 0.08), Vector3(side * 0.04, 0.04, -0.04), Vector3(side * 0.3, 0.05, -0.08)]
-		var alphas := [root_a, root_a, tip_a]
-		var inner := [Vector3(side * 0.04, 0.04, 0.08), Vector3(side * 0.3, 0.05, -0.08), Vector3(side * 0.18, 0.045, 0.06)]
-		var inner_a := [root_a, tip_a, 0.5 + side * 0.3]
-		for k in 3:
-			st.set_color(Color(wing.r, 0, 0, alphas[k]))
-			st.add_vertex(pts[k])
-		for k in 3:
-			st.set_color(Color(wing.r, 0, 0, inner_a[k]))
-			st.add_vertex(inner[k])
+	for i in pts.size():
+		st.set_color(cols[i])
+		st.add_vertex(pts[i])
+	for k: int in idx:
+		st.add_index(k)
 	st.generate_normals()
 	return st.commit()
 

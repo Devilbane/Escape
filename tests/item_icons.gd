@@ -47,7 +47,7 @@ func _test() -> void:
 	for kind in TINTED:
 		var art: Array = ItemIcon.art(kind)
 		check(art[0] != null and art[1] != null, "%s has a picture and a part to tint" % kind)
-	for kind in ["map", "book", "cuirass", "stats", "heart", "scroll", "house", "torch", "torch_out", "coin", "sword", "shield", "boots", "hammer_anvil", "stone", "flame"]:
+	for kind in ["map", "book", "cuirass", "bag", "stats", "heart", "scroll", "house", "torch", "torch_out", "coin", "sword", "shield", "boots", "hammer_anvil", "stone", "flame"]:
 		var art: Array = ItemIcon.art(kind)
 		check(art[0] != null, "the HUD's %s picture is painted" % kind)
 		if art[0] != null:

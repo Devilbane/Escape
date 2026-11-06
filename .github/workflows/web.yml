@@ -169,6 +169,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/save_notice.gd | tee save_notice.log
           grep -q PASS save_notice.log
 
+      - name: Bleeding test (cutting hits bleed the hit's life, faster on the move)
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/bleeding.gd | tee bleeding.log
+          grep -q PASS bleeding.log
+
       - name: Healing pause test (no regeneration right after a blow)
         run: |
           timeout 120 ~/godot/godot --headless -s tests/regen_pause.gd | tee regen.log
@@ -244,6 +249,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/looted_containers.gd | tee looted.log
           grep -q PASS looted.log
 
+      - name: Hero strikes back at attackers test
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/splash_attack.gd | tee splash.log
+          grep -q PASS splash.log
+
       - name: Rare loot does not repeat on a level test
         run: |
           timeout 300 ~/godot/godot --headless -s tests/rare_loot.gd | tee rare_loot.log
@@ -313,6 +323,11 @@ jobs:
         run: |
           timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log
           grep -q PASS barber.log
+
+      - name: Postmaster's cap test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/post_cap.gd | tee post_cap.log
+          grep -q "PASS: post cap" post_cap.log
 
       - name: Spider hole and Spider Queen test
         run: |

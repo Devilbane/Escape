@@ -180,11 +180,24 @@ static func metal_grams(grams: int, share: Dictionary) -> Dictionary:
 
 
 ## What the smith can tell of a lump before it melts (translated): its
-## weight, and what lumps of its size tend to hold, never what this one does.
+## weight, how much slag lumps of its size hold, and what metal they tend to
+## hold, never what this one does.
 static func guess(id: String, lump: Dictionary) -> String:
 	var hint := Lang.t("Edles Erz: viel Silber und Gold, dazu Edelsteine.") if LUMPS.get(id, {}).get("noble", false) \
 			else Lang.t("Meist Eisen und Kupfer, mit Glück etwas Silber oder Gold.")
-	return "%d g. %s %s" % [int(lump.get("grams", 0)), Lang.t("Was darin steckt, zeigt erst das Feuer."), hint]
+	var slag := slag_range(id)
+	return "%d g, %s. %s %s" % [int(lump.get("grams", 0)), Lang.t("%d-%d %% Schlacke") % slag, Lang.t("Was darin steckt, zeigt erst das Feuer."), hint]
+
+
+## The slag share a lump of the size `id` holds, [least, most] percent.
+static func slag_range(id: String) -> Array:
+	var parts: Array = NOBLE_PARTS if LUMPS.get(id, {}).get("noble", false) else PARTS
+	return [int(parts[0][1]), int(parts[0][2])]
+
+
+## The grams of slag a lump of `grams` leaves with the make-up `share`.
+static func slag_grams(grams: int, share: Dictionary) -> int:
+	return floori(grams * int(share.get(SLAG, 0)) / 100.0)
 
 
 ## Grams per metal in words: "412 g Eisen, 96 g Kupfer" (translated).

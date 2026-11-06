@@ -190,8 +190,12 @@ var _knife_settle := 0.0
 ## BURN_TICK seconds for a few seconds, never the last one either; a spider's
 ## web ("netz") makes the hero much slower for a few seconds; fear ("angst",
 ## see scare) makes the hero flee towards the nearest way out for FEAR_TIME.
+## Bleeding ("blut", see bleed and Bleeding) lasts as long as its wound has
+## life to bleed: 1 a second, 2 while the hero moves, never the last one.
 ## All wear off soon; a fountain, a shrine or a healing potion cures them.
 var ailments := {}
+## The hero's open wound (see bleed).
+var wound := Bleeding.new()
 var _poison_tick := 0.0
 var _burn_tick := 0.0
 ## A direction to run in, set every frame while the mouse button is held.
@@ -265,6 +269,20 @@ var _hunt_repath := 0.0
 ## How far from the enemy's middle the hunt stops: side by side, in reach.
 const HUNT_STOP := 1.6
 const HUNT_REPATH := 0.4
+## Struck by a foe the hero cannot answer from where they stand (out of reach,
+## and no knife can fly at it), the hero walks up to it on their own and
+## strikes back. Such a chase gives up after CHASE_TIME seconds, or when the foe
+## gets farther than CHASE_LEASH metres away, and the same foe is not chased
+## again for CHASE_REST seconds after that, so a foe that keeps backing off
+## cannot lead the hero across the map. A step or a click ends it at once.
+const CHASE_TIME := 5.0
+const CHASE_LEASH := 16.0
+const CHASE_REST := 4.0
+## Seconds left on the hero's own chase; 0 for a hunt that was clicked.
+var _chase_left := 0.0
+## The foe last given up on, and how long until it may be chased again.
+var _chase_quit: Enemy = null
+var _chase_rest := 0.0
 var _auto_cooldown := 0.0
 ## Time left on an animation that plays while the hero keeps moving.
 var _anim_hold := 0.0
@@ -1034,6 +1052,9 @@ func melee() -> void:
 			victims.push_front(_target)
 		victims.resize(1)
 	var hits := 0
+	# A blade or an axe cuts and may leave a bleeding wound; a mace or a
+	# hammer does not (see Bleeding).
+	var cuts := Bleeding.weapon_cuts(equipped.get("waffe", ""))
 	# The weapon's impact speaks for the blow (see blow_sound), so the comic
 	# words of these hits only add a quiet echo of it.
 	if not victims.is_empty():
@@ -1046,7 +1067,9 @@ func melee() -> void:
 			# A sneak attack never rolls: it lands SNEAK_ATTACK_FACTOR times
 			# the hardest blow the hero can deal.
 			this_blow = "sneak"
+			var had: int = e.hp
 			e.take_hit(sneak_attack_damage(), global_position, "backstab")
+			wound_foe(e, had - e.hp, cuts)
 			train("schleichen", 4.0)
 		else:
 			# Monster knowledge: a blow may find a vital point (see MonsterLore).
@@ -1057,9 +1080,11 @@ func melee() -> void:
 				this_blow = "glance"
 			elif heavy > 0:
 				this_blow = "heavy"
+			var had: int = e.hp
 			e.take_hit(vital_damage(power, weapon) if vital else damage, global_position)
 			if vital:
 				vital_struck(e, "")
+			wound_foe(e, had - e.hp, cuts, vital)
 		if blow == "" or BLOWS.find(this_blow) > BLOWS.find(blow):
 			blow = this_blow
 			blow_at = e.global_position
@@ -1124,8 +1149,8 @@ func _leap_strike(arms: String) -> void:
 
 
 ## After a vital hit landed on `e`: a burst at the point struck, the word over
-## its head, and maybe a crippled attack and a bleeding wound (see
-## MonsterLore). `sound` is the knife's impact; a melee blow passes "" and
+## its head, and maybe a crippled attack (see MonsterLore; the bleeding
+## wound is rolled in wound_foe). `sound` is the knife's impact; a melee blow passes "" and
 ## sounds its weapon instead.
 func vital_struck(e: Enemy, sound := "hit") -> void:
 	if sound != "":
@@ -1137,8 +1162,27 @@ func vital_struck(e: Enemy, sound := "hit") -> void:
 	e.vital_mark()
 	if randf() < MonsterLore.SLOW_CHANCE:
 		e.cripple()
-	if randf() < MonsterLore.BLEED_CHANCE:
-		e.bleed()
+
+
+## After a blow or a knife cost `e` `lost` life: a cutting hit opens a wound
+## with Bleeding.CHANCE, a vital hit with MonsterLore.BLEED_CHANCE whatever
+## the weapon (or the higher of the two). The wound bleeds as much life as
+## the hit cost (see Bleeding, Enemy.bleed). Returns whether it bleeds.
+func wound_foe(e: Enemy, lost: int, cutting: bool, vital := false) -> bool:
+	if e == null or e.dead:
+		return false
+	var chance := Bleeding.CHANCE if cutting else 0.0
+	if vital:
+		chance = maxf(chance, MonsterLore.BLEED_CHANCE)
+	if not Bleeding.rolls_wound(lost, chance):
+		return false
+	e.bleed(lost)
+	return true
+
+
+## What the compendium says about throwing knives: taught when one is picked
+## up again, or when the hero reaches for one and has none at all.
+const KNIFE_LORE := "Wurfmesser: Ein geworfenes Messer bleibt liegen, wo es landet, und du hebst es auf, wenn du darüberläufst. Bei einem von fünf Würfen zerbricht es allerdings. Griffbereit für den Kampf trägst du 3 Wurfmesser und eines mehr je zwei Stufen Messerwurf; weitere wandern in den Rucksack (10 auf einem Platz). Sobald kein Kampf mehr tobt, steckst du sie von dort nach. Neue verkauft der Händler im Dorf, Räuber tragen oft welche bei sich, und an der Werkbank im eigenen Haus schmiedest du sie aus Eisen."
 
 
 ## How many throwing knives the hero can keep ready for a fight:
@@ -1197,7 +1241,14 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 	if not can_act() or _attack_cooldown > 0.0:
 		return
 	if knives <= 0:
-		Effects.float_text(level, global_position + Vector3(0, 3.2, 0), Lang.t("Keine Wurfmesser"), Color(1, 1, 1, 0.8))
+		# Spares in the bag go into the belt once the fight is over; with
+		# none at all, the compendium says where to get more.
+		var why := Lang.t("Keine Wurfmesser")
+		if spare_knives() > 0:
+			why = Lang.t("Gürtel leer: Nachschub nach dem Kampf")
+		else:
+			Events.teach(KNIFE_LORE)
+		Effects.float_text(level, global_position + Vector3(0, 3.2, 0), why, Color(1, 1, 1, 0.8))
 		return
 	path.clear()
 	var dir := facing()
@@ -1243,6 +1294,7 @@ func charge(enemy: Enemy) -> void:
 	_engage(enemy)
 	_hunt = enemy
 	_hunt_repath = 0.0
+	_chase_left = 0.0
 
 
 ## Gives up a hunt, when the hero is sent somewhere else.
@@ -1265,6 +1317,11 @@ func _pursue(delta: float) -> void:
 		path.clear()
 		_hunt = null
 		return
+	if _chase_left > 0.0:
+		_chase_left -= delta
+		if _chase_left <= 0.0 or to.length() > CHASE_LEASH:
+			_give_up_chase()
+			return
 	_hunt_repath -= delta
 	if _hunt_repath <= 0.0:
 		_hunt_repath = HUNT_REPATH
@@ -1280,6 +1337,40 @@ func defend_against(attacker: Node) -> void:
 		return
 	if _target == null or not is_instance_valid(_target) or _target.dead:
 		_engage(enemy)
+	if _target == enemy and _should_chase(enemy):
+		_hunt = enemy
+		_hunt_repath = 0.0
+		_chase_left = CHASE_TIME
+
+
+## Whether a blow or a shot from `enemy` sends the hero after it: only when the
+## hero is idle (no step, no errand, no hunt), cannot strike or throw at it from
+## here, and it is near enough and was not just given up on.
+func _should_chase(enemy: Enemy) -> bool:
+	if not controllable or frozen or is_afraid() or _hunt != null or not path.is_empty():
+		return false
+	if _keyboard_direction() != Vector3.ZERO or steer != Vector3.ZERO:
+		return false
+	if _chase_rest > 0.0 and is_instance_valid(_chase_quit) and enemy == _chase_quit:
+		return false
+	var d := global_position.distance_to(enemy.global_position)
+	if d <= ENGAGE_RANGE or d > CHASE_LEASH:
+		return false
+	return not _can_throw_at(enemy, d)
+
+
+## Whether _auto_attack would answer `enemy`, `d` metres away, with a knife.
+func _can_throw_at(enemy: Enemy, d: float) -> bool:
+	return d <= AUTO_THROW_RANGE and knives > 0 and level.has_clear_shot(global_position, enemy.global_position)
+
+
+## Ends the hero's own chase without reaching the foe: they stop where they are.
+func _give_up_chase() -> void:
+	_chase_quit = _hunt
+	_chase_rest = CHASE_REST
+	_chase_left = 0.0
+	_hunt = null
+	path.clear()
 
 
 ## Keeps fighting the current target: blade while next to it, knives from afar.
@@ -1295,7 +1386,7 @@ func _auto_attack() -> void:
 	if d <= ENGAGE_RANGE:
 		_auto_cooldown = AUTO_MELEE_INTERVAL
 		melee()
-	elif _hunt == null and d <= AUTO_THROW_RANGE and knives > 0 and level.has_clear_shot(global_position, _target.global_position):
+	elif _hunt == null and _can_throw_at(_target, d):
 		_auto_cooldown = AUTO_THROW_INTERVAL
 		throw_knife(_target.global_position, true)
 
@@ -1699,7 +1790,7 @@ func _show_tint(slot: String, parts: Array) -> void:
 const AILMENT_TIME := 20.0
 const POISON_TICK := 8.0
 const CURSE_SLOW := 0.85
-const AILMENT_COLORS := {"gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0), "brand": Color(1.0, 0.5, 0.15), "netz": Color(0.93, 0.93, 0.86),
+const AILMENT_COLORS := {"blut": Bleeding.COLOR, "gift": Color(0.45, 1.0, 0.35), "fluch": Color(0.75, 0.4, 1.0), "brand": Color(1.0, 0.5, 0.15), "netz": Color(0.93, 0.93, 0.86),
 	"angst": Color(0.7, 0.85, 1.0)}
 ## Burning is short but fierce.
 const BURN_TIME := 4.5
@@ -1707,7 +1798,7 @@ const BURN_TICK := 1.5
 ## A spider's web sticks only briefly, but slows the hero a lot.
 const WEB_TIME := 3.0
 const WEB_SLOW := 0.55
-const AILMENT_WORDS := {"gift": "Vergiftet!", "fluch": "Verflucht!", "brand": "Brennt!", "netz": "Eingesponnen!", "angst": "Verängstigt!"}
+const AILMENT_WORDS := {"blut": "Blutet!", "gift": "Vergiftet!", "fluch": "Verflucht!", "brand": "Brennt!", "netz": "Eingesponnen!", "angst": "Verängstigt!"}
 ## Fear (see scare): the hero runs for the nearest way out for FEAR_TIME
 ## seconds, and cannot be frightened again for FEAR_CALM seconds after.
 const FEAR_TIME := 3.0
@@ -1733,6 +1824,27 @@ func afflict(kind: String) -> void:
 			_burn_tick = BURN_TICK
 		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t(AILMENT_WORDS[kind]), AILMENT_COLORS[kind])
 		_ailments_changed()
+
+
+## A cutting hit opened a wound (see Bleeding): the hero bleeds `amount`
+## more life, 1 a second, twice as fast while moving, never the last one.
+## A second wound adds to the first.
+func bleed(amount: int) -> void:
+	if dead or amount <= 0:
+		return
+	var fresh := wound.open(amount)
+	ailments["blut"] = wound.seconds_left()
+	if fresh:
+		Effects.float_text(level, global_position + Vector3(0, 3.0, 0), Lang.t(AILMENT_WORDS.blut), AILMENT_COLORS.blut)
+		_ailments_changed()
+	else:
+		ailments_changed.emit()
+
+
+## Whether the hero moves on purpose (not just pushed back by a blow): a
+## bleeding hero then bleeds twice as fast (see Bleeding).
+func is_moving() -> bool:
+	return (Vector3(velocity.x, 0, velocity.z) - Vector3(_knockback.x, 0, _knockback.z)).length() > Bleeding.MOVING_SPEED
 
 
 ## The hero's nerve against a ghost's fright (see scare): Weisheit, Intuition
@@ -1848,6 +1960,8 @@ func _tick_ailments(delta: float) -> void:
 		return
 	var changed := false
 	for kind in ailments.keys():
+		if kind == "blut":
+			continue # Lasts as long as the wound bleeds (below).
 		ailments[kind] -= delta
 		if ailments[kind] <= 0.0:
 			ailments.erase(kind)
@@ -1861,6 +1975,24 @@ func _tick_ailments(delta: float) -> void:
 				train("konstitution", 1.0)
 				Effects.head_text(level, self, 2.2, "-1", AILMENT_COLORS.gift)
 				hurt.emit(1)
+	# Bleeding: the ailment lasts as long as the wound has life to bleed.
+	if ailments.has("blut"):
+		var lost := wound.run(delta, is_moving())
+		if lost > 0:
+			var taken := mini(lost, hp - 1)
+			if taken > 0:
+				hp -= taken
+				train("konstitution", taken)
+				Effects.head_text(level, self, 2.2, "-%d" % taken, AILMENT_COLORS.blut)
+				hurt.emit(taken)
+		if wound.active():
+			ailments["blut"] = maxf(wound.seconds_left(), 0.01)
+		else:
+			ailments.erase("blut")
+			changed = true
+	elif wound.active():
+		# Cured (a fountain, a shrine, a potion): the wound closes.
+		wound.stop()
 	if ailments.has("brand"):
 		_burn_tick -= delta
 		if _burn_tick <= 0.0:
@@ -1880,7 +2012,9 @@ func _ailments_changed() -> void:
 	var old := get_node_or_null("AilmentHaze")
 	if old:
 		old.free()
-	for kind in ["angst", "netz", "brand", "gift", "fluch"]:
+	if not ailments.has("blut"):
+		wound.stop()
+	for kind in ["angst", "netz", "brand", "blut", "gift", "fluch"]:
 		if ailments.has(kind):
 			var haze := Effects.make_sparkles(AILMENT_COLORS[kind])
 			haze.name = "AilmentHaze"
@@ -2377,6 +2511,7 @@ func _physics_process(delta: float) -> void:
 		_knife_settle = KNIFE_SETTLE_EVERY
 		if _settle_knives():
 			knives_settled.emit()
+	_chase_rest = maxf(0.0, _chase_rest - delta)
 	_pursue(delta)
 	_auto_attack()
 	if _stay_seated(delta):

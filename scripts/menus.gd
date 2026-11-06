@@ -1993,6 +1993,10 @@ func _build_shop() -> void:
 	# And torches for the pitch-black holes in the wild (see HandTorch).
 	while game.shop_stock.count(HandTorch.ITEM) < 3:
 		game.shop_stock.push_front(HandTorch.ITEM)
+	# And throwing knives, a full stack topped up after every sale, so the
+	# belt can always be filled again (see Player.knives).
+	while game.shop_stock.count(Items.KNIFE) < Items.stack_size(Items.KNIFE):
+		game.shop_stock.push_front(Items.KNIFE)
 	# And a bedroll for a camp in the wild, for a hero who has none (see Camp).
 	if not game.shop_stock.has(Camp.ITEM) and not p.bag.has(Camp.ITEM) and not game.storage.has(Camp.ITEM):
 		game.shop_stock.push_front(Camp.ITEM)
@@ -2004,8 +2008,9 @@ func _build_shop() -> void:
 	if _shop_page == "kaufen":
 		for id in _kinds(game.shop_stock):
 			var entry := _ware_entry("ware:" + id, id, game.trader_price(Items.buy_price(id)), _buy.bind(game.shop_stock.find(id)))
-			# Animal food never runs out (see Companions), so it shows no count.
-			entry.count = 1 if Items.is_food(id) else game.shop_stock.count(id)
+			# Animal food and throwing knives never run out (see above), so
+			# they show no count.
+			entry.count = 1 if Items.is_food(id) or id == Items.KNIFE else game.shop_stock.count(id)
 			(goods if _is_consumable(id) else gear).append(entry)
 	else:
 		for id in _kinds(p.bag):
@@ -3053,7 +3058,7 @@ func _sell_gem() -> void:
 
 func _melt_ore(id: String) -> void:
 	var out := Forge.melt_ore(game, id)
-	_note = out.why if out.why != "" else Lang.t("Eingeschmolzen: %s (%d %% Schlacke), %s") % [Crafting.ingredient_name(id), int(out.share.get(Ore.SLAG, 0)), Ore.grams_text(out.grams)]
+	_note = out.why if out.why != "" else Lang.t("Eingeschmolzen: %s, %d g Schlacke (%d %%), %s") % [Crafting.ingredient_name(id), int(out.slag), int(out.share.get(Ore.SLAG, 0)), Ore.grams_text(out.grams)]
 	if out.why == "" and not out.bars.is_empty():
 		_note += "  " + Forge.metals_text(out.bars, true)
 	if out.why == "" and not out.gems.is_empty():

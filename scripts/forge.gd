@@ -328,20 +328,22 @@ static func melt_coins(game: Node, coin: String) -> String:
 ## or gold become a bar of it (the unknown metal stays in grams); the uncut
 ## gems in noble ore go into the purse. Returns {"why": "" on success, else
 ## why not; "share": part -> percent it held; "grams": metal -> grams it
-## gave; "bars": metal -> new bars; "gems": their carats}.
+## gave; "slag": grams of slag thrown away; "bars": metal -> new bars;
+## "gems": their carats}.
 static func melt_ore(game: Node, id: String, rng: RandomNumberGenerator = null) -> Dictionary:
 	var lumps: Array = game.crafting.ores.get(id, [])
 	if not Ore.is_ore(id) or lumps.is_empty():
-		return {"why": Lang.t("Davon hast du kein Erz."), "share": {}, "grams": {}, "bars": {}, "gems": []}
+		return {"why": Lang.t("Davon hast du kein Erz."), "share": {}, "grams": {}, "slag": 0, "bars": {}, "gems": []}
 	var inside := Ore.makeup(id, rng)
-	var grams := Ore.metal_grams(int(lumps[0].get("grams", 0)), inside.share)
+	var weight := int(lumps[0].get("grams", 0))
+	var grams := Ore.metal_grams(weight, inside.share)
 	var gems: Array = inside.gems
 	game.crafting.take(id, 1)
 	for carat in gems:
 		game.crafting.add_gem(Ore.UNCUT, int(carat))
 	var bars := add_grams(game, grams)
 	game.player.train(STEEL_MAKING, MELT_XP, false)
-	return {"why": "", "share": inside.share, "grams": grams, "bars": bars, "gems": gems}
+	return {"why": "", "share": inside.share, "grams": grams, "slag": Ore.slag_grams(weight, inside.share), "bars": bars, "gems": gems}
 
 
 ## Cuts the hero's oldest uncut gem: it loses 15-50 % of its weight (see

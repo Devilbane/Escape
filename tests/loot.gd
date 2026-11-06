@@ -253,8 +253,15 @@ func _test_game() -> void:
 	check(added.any(func(p): return p.kind == "item" and p.id == found), "the epic piece lies on the floor")
 	# A plain roll leaves coins only.
 	before = lvl._pickups.size()
-	check(lvl.drop_kill_loot(bandit, 0, 0.99) == "", "an unlucky roll drops no gear")
+	check(lvl.drop_kill_loot(bandit, 0, 0.99, -1.0, -1.0, 0.99) == "", "an unlucky roll drops no gear")
 	check(lvl._pickups.slice(before).all(func(p): return p.kind == "coin" and Loot.is_coin(p.metal)), "only coins")
+	# Bandits carry throwing knives: on a lucky roll they lie on the floor.
+	before = lvl._pickups.size()
+	lvl.drop_kill_loot(bandit, 0, 0.99, -1.0, -1.0, 0.0)
+	var knives: Array = lvl._pickups.slice(before).filter(func(p): return p.kind == "item" and p.id == Items.KNIFE)
+	check(knives.size() >= Loot.KNIVES[0] and knives.size() <= Loot.KNIVES[1], "a bandit leaves throwing knives (%d)" % knives.size())
+	check(Loot.knife_find("halsabschneider", 0.99) == 0, "but not always")
+	check(Loot.knife_find("wolf", 0.0) == 0 and Loot.knife_find("krieger", 0.0) == 0, "only bandits carry them")
 	bandit.queue_free()
 	# A beast: no coins, but its rare part on a rare roll.
 	var wolf := Enemy.new()
@@ -350,6 +357,8 @@ func _test_game() -> void:
 		held += int(out.share[part])
 	check(held == 100 and int(out.share.schlacke) >= 25 and int(out.share.schlacke) <= 60, "the fire shows what it held: %s" % str(out.share))
 	check(out.grams == Ore.metal_grams(4000, out.share), "it gives the grams of each metal it held: %s" % str(out.grams))
+	check(int(out.slag) == 4000 * int(out.share.schlacke) / 100 and int(out.slag) > 0, "the fire tells the slag it left: %d g" % int(out.slag))
+	check(Ore.guess("erzbrocken_gross", {"grams": 4000}).contains("25-60") and Ore.guess("erzbrocken_episch", {"grams": 3000}).contains("10-20"), "the smith tells how much slag a lump of that size holds")
 	var iron_g := int(out.grams.get("eisen", 0))
 	check(game.iron == iron_before + iron_g / Ore.GRAMS_PER_BAR and int(game.metal_grams.get("eisen", 0)) == iron_g % Ore.GRAMS_PER_BAR, "whole kilos of iron become bars, the rest waits in grams")
 	luck.seed = 12

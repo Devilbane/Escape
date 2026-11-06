@@ -71,7 +71,7 @@ func _ready_up(foe: Enemy) -> void:
 	foe._awake = false
 	foe._cooldown = 99.0
 	foe._knockback = Vector3.ZERO
-	foe._bleed_ticks = 0
+	foe.wound.stop()
 	foe.global_position = player.global_position + Vector3(0, 0, 1.8)
 	foe.velocity = Vector3.ZERO
 	foe._model.rotation.y = PI
@@ -125,7 +125,7 @@ func _test() -> void:
 	for i in 60:
 		_ready_up(foe)
 		foe.attack_slow = 1.0
-		foe._bleed_ticks = 0
+		foe.wound.stop()
 		player.melee()
 		# The strike shows at once whether it will find a vital point.
 		var thrust: bool = player._current_anim == Player.VITAL_ANIM
@@ -173,24 +173,24 @@ func _test() -> void:
 	await physics_frame
 	check(foe.attack_slow == 1.0 or foe.is_hunting(), "after the fight the slow wears off")
 
-	# Bleeding: three drops of life, and bleeding to death is the hero's
-	# kill. The hero steps away, so nobody else strikes it.
+	# Bleeding: as much life as the hit cost, and bleeding to death is the
+	# hero's kill. The hero steps away, so nobody else strikes it.
 	player.global_position += Vector3(30, 0, 0)
 	player.reset_physics_interpolation()
 	foe.hp = 10
-	foe.bleed()
+	foe.bleed(3)
 	check(foe.is_bleeding(), "a vital hit can make it bleed")
 	var t := 0.0
 	while foe.is_bleeding() and t < 8.0:
 		await physics_frame
 		t += 1.0 / 60.0
-	check(foe.hp == 10 - MonsterLore.BLEED_TICKS, "it bled %d life: %d left" % [MonsterLore.BLEED_TICKS, foe.hp])
+	check(foe.hp == 7, "it bled the 3 life of its wound: %d left" % foe.hp)
 	# Felled by its wound, it dies as from the hero's blow (no rival's kill),
 	# so the level hands it on like any other kill (see Level enemy_killed).
 	var fell := [false]
 	foe.died.connect(func(): fell[0] = true)
 	foe.hp = 1
-	foe.bleed()
+	foe.bleed(2)
 	t = 0.0
 	while not foe.dead and t < 3.0:
 		await physics_frame

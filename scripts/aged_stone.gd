@@ -12,6 +12,8 @@ class_name AgedStone
 
 const SHADER := preload("res://shaders/aged_stone.gdshader")
 const TRIM := "res://assets/chapel/trim_sheet.png"
+## The grain of the timber: the villagers' beams (VillageHouse.WOOD_TEX).
+const WOOD_TEX := "res://assets/house/wood_floor.jpg"
 
 ## Stone tints for the villagers' houses: grey, sandstone, a warmer and a
 ## cooler one, picked per house.
@@ -71,6 +73,7 @@ const NEST_HEIGHT := 3.5
 const NEST_LEDGE := 0.2
 
 static var _mats := {}
+static var _grained := {}
 
 
 ## The aged stone for a KayKit building, from its palette texture. Its
@@ -87,8 +90,91 @@ static func kit_material(palette: Texture2D, windows: Texture2D) -> ShaderMateri
 		mat.set_shader_parameter("glow_mask", windows)
 		mat.set_shader_parameter("soft_joints", 1.0)
 		mat.set_shader_parameter("uneven_roofs", 1.0)
+		mat.set_shader_parameter("wood_tex", load(WOOD_TEX))
+		mat.set_shader_parameter("wood_grain", 1.0)
 		_mats[key] = mat
 	return _mats[key]
+
+
+## A KayKit building's mesh with the direction of its wood's grain: each
+## triangle's vertex colour holds the way its beam runs (rgb, as dir * 0.5 +
+## 0.5; alpha 0.5 marks it), which the shader lays the grain along. A beam's
+## face is a long rectangle cut into two triangles; the longer of the two
+## edges that are not the diagonal runs along the beam, on its sides as well
+## as on its front. Made once per mesh and shared.
+static func grained_mesh(mesh: Mesh) -> Mesh:
+	if mesh == null:
+		return mesh
+	var key := mesh.get_instance_id()
+	if _grained.has(key):
+		return _grained[key]
+	var out := ArrayMesh.new()
+	for s in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(s)
+		var mat := mesh.surface_get_material(s)
+		if arrays[Mesh.ARRAY_BONES] != null or mesh.surface_get_blend_shape_arrays(s).size() > 0:
+			out.add_surface_from_arrays(mesh.surface_get_primitive_type(s), arrays)
+			out.surface_set_material(out.get_surface_count() - 1, mat)
+			continue
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var count := idx.size() if idx.size() > 0 else verts.size()
+		var order := PackedInt32Array()
+		order.resize(count)
+		for i in count:
+			order[i] = idx[i] if idx.size() > 0 else i
+		var flat := []
+		flat.resize(Mesh.ARRAY_MAX)
+		flat[Mesh.ARRAY_VERTEX] = _pick_v3(verts, order)
+		if arrays[Mesh.ARRAY_NORMAL] != null:
+			flat[Mesh.ARRAY_NORMAL] = _pick_v3(arrays[Mesh.ARRAY_NORMAL], order)
+		if arrays[Mesh.ARRAY_TANGENT] != null:
+			var tan: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+			var t2 := PackedFloat32Array()
+			t2.resize(count * 4)
+			for i in count:
+				for k in 4:
+					t2[i * 4 + k] = tan[order[i] * 4 + k]
+			flat[Mesh.ARRAY_TANGENT] = t2
+		for uv_slot in [Mesh.ARRAY_TEX_UV, Mesh.ARRAY_TEX_UV2]:
+			if arrays[uv_slot] != null:
+				var uvs: PackedVector2Array = arrays[uv_slot]
+				var u2 := PackedVector2Array()
+				u2.resize(count)
+				for i in count:
+					u2[i] = uvs[order[i]]
+				flat[uv_slot] = u2
+		var cols := PackedColorArray()
+		cols.resize(count)
+		var pos: PackedVector3Array = flat[Mesh.ARRAY_VERTEX]
+		for t in range(0, count - 2, 3):
+			var d := grain_of(pos[t], pos[t + 1], pos[t + 2])
+			var c := Color(d.x * 0.5 + 0.5, d.y * 0.5 + 0.5, d.z * 0.5 + 0.5, 0.5)
+			cols[t] = c
+			cols[t + 1] = c
+			cols[t + 2] = c
+		flat[Mesh.ARRAY_COLOR] = cols
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, flat)
+		out.surface_set_material(out.get_surface_count() - 1, mat)
+	_grained[key] = out
+	return out
+
+
+## The way the grain runs on a triangle: along the longer of its two edges
+## that are not the longest one (the diagonal of a rectangle).
+static func grain_of(a: Vector3, b: Vector3, c: Vector3) -> Vector3:
+	var edges := [b - a, c - b, a - c]
+	edges.sort_custom(func(x: Vector3, y: Vector3) -> bool: return x.length_squared() > y.length_squared())
+	var e: Vector3 = edges[1]
+	return e.normalized() if e.length_squared() > 0.0 else Vector3.RIGHT
+
+
+static func _pick_v3(src: PackedVector3Array, order: PackedInt32Array) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	out.resize(order.size())
+	for i in order.size():
+		out[i] = src[order[i]]
+	return out
 
 
 ## The aged stone of a villager's house walls, in one tint.

@@ -1651,6 +1651,8 @@ func _age_kit_building(node: Node) -> void:
 		if not _window_mats.has(mat):
 			_window_mats[mat] = AgedStone.kit_material((mat as StandardMaterial3D).albedo_texture, _window_mask)
 		mi.material_override = _window_mats[mat]
+		# The way each beam runs, for the grain of its wood.
+		mi.mesh = AgedStone.grained_mesh(mi.mesh)
 
 
 ## Whether a building's block stands on its own: no paving of the square

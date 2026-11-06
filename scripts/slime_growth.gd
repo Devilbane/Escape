@@ -18,8 +18,10 @@ extends RefCounted
 ## - Growth: whatever a slime fells it swallows whole, body and belongings
 ##   (see Enemy.swallow): no corpse is left, the slime heals and grows by
 ##   gain() levels, up to MAX_LEVEL. What its prey carried stays in its belly
-##   (Enemy.belly) and spills out when the slime itself falls, with its own
-##   loot (see Level.spill_belly).
+##   (Enemy.belly), where it shows through the slime's body (SHOWN things
+##   at most), and spills out when the slime itself falls, with its own loot
+##   (see Level.spill_belly). Corpses carry nothing: their loot lies on the
+##   floor already.
 ## - Blob: from BLOB_LEVEL on a slime is a Blob. It sparkles, hits harder
 ##   (BLOB_DAMAGE), strikes faster (BLOB_PACE) and its touch poisons more
 ##   often (BLOB_POISON).
@@ -66,6 +68,10 @@ const GULP_COLOR := Color(0.6, 1.0, 0.45)
 ## it leaves its meal for the hero.
 const CORPSE_SCENT := 20.0
 const HERO_CLOSE := 3.5
+## How many swallowed things show inside a slime at most.
+const SHOWN := 8
+## How long a swallowed thing may be inside it, against its body's height.
+const INSIDE := 0.4
 ## Into the compendium the first time the hero sees a slime swallow something.
 const LEARN := "Schleime wachsen: Ein Schleim fällt über jedes Wesen her, das er verschlingen kann, auch über kleinere Schleime anderer Farbe, und er wittert die Toten von weitem und geht lieber an eine Leiche als an etwas Lebendiges. Was er erlegt, schluckt er ganz, samt allem, was es bei sich trug, und wird davon größer und stärker, bis Stufe 25. Ab Stufe 15 ist er ein Blob: Er funkelt, schlägt härter zu und vergiftet öfter. Fällt er, gibt er alles wieder her, was er verschluckt hat."
 

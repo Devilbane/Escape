@@ -1550,6 +1550,85 @@ func _eat_corpse(c: Corpse) -> void:
 	body._slide_into(self, true)
 
 
+## Shows what it swallowed (see Level.drop_kill_loot) floating inside its
+## see-through body, turning slowly: each piece of gear as itself, finds as
+## lumps of their colour and coins as a few coins of their metal. At most
+## SlimeGrowth.SHOWN things show at once.
+func show_swallowed(loot: Array) -> void:
+	if _model == null or level == null:
+		return
+	for thing in loot:
+		if _model.get_meta("shown", 0) >= SlimeGrowth.SHOWN:
+			return
+		var piece: Node3D
+		match thing[0]:
+			"item":
+				piece = level.item_model(thing[1])
+			"find":
+				piece = _lump(thing[2], 0.09)
+			"coins":
+				var metal: Dictionary = CoinPile.METALS.get(CoinPile.metal_of(thing[1]), CoinPile.METALS[CoinPile.MONEY])
+				piece = Node3D.new()
+				for i in mini(int(thing[2]), 4):
+					var coin := _lump(metal.tint, 0.07, true)
+					coin.position = Vector3(randf_range(-0.05, 0.05), i * 0.025, randf_range(-0.05, 0.05))
+					piece.add_child(coin)
+		if piece == null:
+			continue
+		_model.set_meta("shown", _model.get_meta("shown", 0) + 1)
+		piece.position = Vector3(randf_range(-0.22, 0.22), randf_range(0.22, 0.5) * _slime_height, randf_range(-0.22, 0.22))
+		piece.rotation = Vector3(randf() * TAU, randf() * TAU, randf() * TAU)
+		_model.add_child(piece)
+		_fit_inside(piece)
+		var turn := piece.create_tween().set_loops()
+		turn.tween_property(piece, "rotation:y", TAU, randf_range(5.0, 9.0)).as_relative()
+
+
+## Shrinks a swallowed piece until its longest side fits well inside the
+## body (SlimeGrowth.INSIDE of the body's height), so a sword never pokes out.
+func _fit_inside(piece: Node3D) -> void:
+	var box := AABB()
+	var first := true
+	for mesh: MeshInstance3D in piece.find_children("*", "MeshInstance3D", true, false):
+		var part: AABB = mesh.global_transform * mesh.get_aabb()
+		box = part if first else box.merge(part)
+		first = false
+	if piece is MeshInstance3D:
+		box = piece.global_transform * (piece as MeshInstance3D).get_aabb()
+		first = false
+	var longest := box.get_longest_axis_size()
+	var room := SlimeGrowth.INSIDE * _slime_height * float(_stats.size)
+	if not first and longest > room:
+		piece.scale *= room / longest
+
+
+## A small glowing lump (a find) or a coin (`flat`) of `colour`, `r` wide.
+static func _lump(colour: Color, r: float, flat := false) -> MeshInstance3D:
+	var lump := MeshInstance3D.new()
+	if flat:
+		var disc := CylinderMesh.new()
+		disc.top_radius = r
+		disc.bottom_radius = r
+		disc.height = r * 0.25
+		disc.radial_segments = 12
+		lump.mesh = disc
+	else:
+		var ball := SphereMesh.new()
+		ball.radius = r
+		ball.height = r * 1.6
+		ball.radial_segments = 8
+		ball.rings = 4
+		lump.mesh = ball
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = colour
+	mat.metallic = 0.6 if flat else 0.0
+	mat.roughness = 0.3
+	mat.emission_enabled = true
+	mat.emission = colour * 0.5
+	lump.material_override = mat
+	return lump
+
+
 ## Swells (or shrinks) to `size`: its model, its body for blows and walls,
 ## its glow and its shader's measure of it, over SlimeGrowth.GULP_TIME.
 func _resize(size: float) -> void:

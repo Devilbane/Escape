@@ -161,6 +161,7 @@ func _process(_delta: float) -> bool:
 				check(slime.belly.size() == 1, "the bandit is in the slime's belly")
 				check(not game.level.corpses.any(func(c): return is_instance_valid(c) and c.enemy == bandit), "a swallowed one leaves no corpse")
 				check(_money_on_floor() == coins_before, "the bandit's coins stay inside the slime")
+				check(int(slime._model.get_meta("shown", 0)) > 0, "the bandit's coins show inside the slime")
 				check(slime.rated_level >= SlimeGrowth.BLOB_LEVEL, "the meal lifts the slime to level 15 (now %d)" % slime.rated_level)
 				check(slime.blob and slime._sparkles != null, "at level 15 the slime is a sparkling Blob")
 				check(slime.fall_text() == Lang.t("Der Blob zerplatzt."), "a Blob bursts when it falls")

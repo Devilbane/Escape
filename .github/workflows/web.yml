@@ -294,6 +294,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/camp.gd | tee camp.log
           grep -q PASS camp.log
 
+      - name: Rescue test (out of life, carried to the bed; the loot stays where the hero fell)
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/rescue.gd | tee rescue.log
+          grep -q PASS rescue.log
+
       - name: Barber test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log

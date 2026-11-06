@@ -1,7 +1,7 @@
 extends SceneTree
 ## Headless test for the rescue (see Rescue): a hero whose life runs out on a
-## dungeon floor is not dead. The bag as a whole (with the backpack and the
-## ingredients) and the coins stay where they fell; other worn gear stays
+## dungeon floor is not dead. The bag as a whole (with the backpack), the
+## ingredient pouch as a whole and the coins stay where they fell; other worn gear stays
 ## on, and the progress towards the next hero level is forgotten. The
 ## dwarves' emergency team carries the hero to the bed of the saved game,
 ## where they wake up with full life and the run goes on. Back at the spot,
@@ -77,7 +77,7 @@ func _process(delta: float) -> bool:
 			for text in [Rescue.LORE, "Du verlierst das Bewusstsein...", "Ein Adler stößt herab!", "Der Rettungstrupp der Zwerge ist unterwegs!",
 					"Bergrettung!", "Ein Riesenadler hat dich bewusstlos davongetragen und hierher gebracht.",
 					"Der Rettungstrupp der Zwerge hat dich bewusstlos aus der Tiefe getragen und hierher gebracht.",
-					"Deine Tasche mit allem darin und %d Münzen liegen noch dort, wo du gefallen bist: %s.", "Du nimmst deine Tasche wieder an dich.",
+					"Deine Tasche, dein Zutatenbeutel und %d Münzen liegen noch dort, wo du gefallen bist: %s.", "Du nimmst deine Tasche wieder an dich.", "Du nimmst deinen Zutatenbeutel wieder an dich.",
 					"Gedächtnisverlust: %d Erfahrung vergessen."]:
 				check(Lang.EN.has(text), "'%s' has English" % text)
 			game.hero_name = HERO
@@ -108,8 +108,13 @@ func _process(delta: float) -> bool:
 			check(player.hero_level() == 3 and player.hero_xp == HeroLevel.total_for(3), "amnesia: the progress towards the next level is forgotten, the level stays (%d)" % player.hero_xp)
 			var here: Array = game.level.floor_items
 			var packs := _bundles(here)
-			check(packs.size() == 1, "the pack lies on the floor")
-			check(packs.size() == 1 and _flat(Vector3(float(packs[0][2]), 0, float(packs[0][3])), fell_at) < 0.5, "the pack lies where the hero fell")
+			check(packs.size() == 2, "the bag and the ingredient pouch lie on the floor (%d)" % packs.size())
+			var bags := packs.filter(func(e): return not Rescue.is_pouch(e))
+			var pouches := packs.filter(func(e): return Rescue.is_pouch(e))
+			check(bags.size() == 1 and _flat(Vector3(float(bags[0][2]), 0, float(bags[0][3])), fell_at) < 0.5, "the bag lies where the hero fell")
+			check(bags.size() == 1 and str(bags[0][4].get("backpack", "")) == "leinenrucksack" and bags[0][4].get("bag", []).size() == 3, "the bag holds the backpack and the gear")
+			check(pouches.size() == 1 and _flat(Vector3(float(pouches[0][2]), 0, float(pouches[0][3])), fell_at) < 1.5, "the ingredient pouch lies beside it")
+			check(pouches.size() == 1 and int(pouches[0][4].pouch.get(HERB, 0)) == 3, "the pouch holds the ingredients")
 			var piles := here.filter(func(e): return e is Array and str(e[0]) == "coin")
 			check(piles.size() == 1 and CoinPile.count_of(piles[0]) == 57, "the coins lie in a pile beside it")
 			var rescue: Rescue = game.level.get_node_or_null("Rescue")
@@ -131,14 +136,15 @@ func _process(delta: float) -> bool:
 			check(game.level_index == 0, "the hero wakes on the floor of the bed (%d)" % game.level_index)
 			check(not player.dead and player.hp == player.max_hp, "with full life")
 			check(game.lore.has(Rescue.LORE), "the compendium explains the rescue")
-			check(_bundles(game.floors.get(fell_file, [])).size() == 1, "the pack still lies on the floor where the hero fell")
+			check(_bundles(game.floors.get(fell_file, [])).size() == 2, "the bag and the pouch still lies on the floor where the hero fell")
 			var saved: Dictionary = game._read_save()
 			check(int(saved.get("coins", -1)) == 0, "the game is saved after the rescue")
-			check(_bundles(saved.get("floors", {}).get(fell_file, [])).size() == 1, "the saved game keeps the pack")
+			check(_bundles(saved.get("floors", {}).get(fell_file, [])).size() == 2, "the saved game keeps the bag and the pouch")
 			# Back to the spot.
 			game.load_level(2, false)
 			game.state = game.State.PLAYING
-			check(game.level.find_children("Bundle", "", true, false).size() == 1, "the pack is laid out again")
+			check(game.level.find_children("Bundle", "", true, false).size() == 1, "the bag is laid out again")
+			check(game.level.find_children("Pouch", "", true, false).size() == 1, "the pouch is laid out again")
 			_put_hero(fell_at + Vector3(6, 0, 0))
 			clock = 0.0
 			stage = 3

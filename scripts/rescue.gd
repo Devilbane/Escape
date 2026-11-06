@@ -12,8 +12,8 @@ extends Node3D
 ## The rescuers carry the hero, not their loot. Everything in the bag, every
 ## coin in the purse and every ingredient in the pouch stays where they fell:
 ## the coins as piles (see CoinPile), the bag as a whole (with a worn
-## backpack and the pouch in it), the hero's "bundle" on the floor list (see
-## Level.lay_bundle). Other worn gear stays worn, and so do the knives in the
+## backpack) and the ingredient pouch as a whole beside it, each a "bundle"
+## on the floor list (see Level.lay_bundle). Other worn gear stays worn, and so do the knives in the
 ## belt. And the blow to the head costs all experience gathered towards the
 ## next hero level (see forget). Walking onto the pack gives it all
 ## back (as much as the bag holds). The dragon's helpers leave the pack alone,
@@ -25,7 +25,7 @@ extends Node3D
 ## the hero is drawn (SmoothMotion.drawn_at).
 
 ## Explained once in the compendium, the first time it happens.
-const LORE := "Sinkt dein Leben auf null, wirst du bewusstlos, aber nicht tot. An der Oberfläche trägt dich ein Riesenadler fort, unter der Erde holt dich der Rettungstrupp der Zwerge. Du wachst in dem Bett auf, in dem du zuletzt geschlafen hast (oder an deinem Lager), mit vollem Leben. Aber der Schlag auf den Kopf kostet dich alle Erfahrung, die du seit deiner letzten Heldenstufe gesammelt hast; die Stufe selbst bleibt. Deine Rüstung und deine Waffen behältst du. Deine Tasche fällt als Ganzes zu Boden, mit allem darin (auch dein Rucksack und deine Zutaten), und deine Münzen liegen als Haufen daneben. Geh hin und hol dir alles zurück. Aber beeil dich: Nachts tragen die Helfer des Drachen liegende Münzen in seinen Hort."
+const LORE := "Sinkt dein Leben auf null, wirst du bewusstlos, aber nicht tot. An der Oberfläche trägt dich ein Riesenadler fort, unter der Erde holt dich der Rettungstrupp der Zwerge. Du wachst in dem Bett auf, in dem du zuletzt geschlafen hast (oder an deinem Lager), mit vollem Leben. Aber der Schlag auf den Kopf kostet dich alle Erfahrung, die du seit deiner letzten Heldenstufe gesammelt hast; die Stufe selbst bleibt. Deine Rüstung und deine Waffen behältst du. Deine Tasche (mit dem Rucksack) und dein Zutatenbeutel fallen als Ganzes zu Boden, mit allem darin, und deine Münzen liegen als Haufen daneben. Geh hin und hol dir alles zurück. Aber beeil dich: Nachts tragen die Helfer des Drachen liegende Münzen in seinen Hort."
 
 ## The pack's floor entry kind (see Level.floor_items).
 const BUNDLE := "bundle"
@@ -341,6 +341,15 @@ static func forget(hero: Player) -> int:
 	return lost
 
 
+## Whether a pack on the floor is the ingredient pouch (nothing but
+## ingredients in it), not the bag.
+static func is_pouch(entry) -> bool:
+	if not is_bundle(entry):
+		return false
+	var c: Dictionary = entry[4]
+	return str(c.get("backpack", "")) == "" and (c.get("bag", []) as Array).is_empty()
+
+
 ## Whether a floor entry is the hero's pack.
 static func is_bundle(entry) -> bool:
 	return entry is Array and entry.size() >= 5 and str(entry[0]) == BUNDLE and entry[4] is Dictionary
@@ -356,13 +365,17 @@ static func is_empty(entry) -> bool:
 
 ## The pack on the floor: a tied-up leather sack with a strap, glowing a
 ## little so it can be found in the dark.
-static func bundle_model() -> Node3D:
+## `pouch`: the ingredient pouch, smaller, green-brown and tied with a cord,
+## instead of the bag.
+static func bundle_model(pouch := false) -> Node3D:
 	var holder := Node3D.new()
-	holder.name = "Bundle"
-	var sack := _part(holder, _sphere(0.42), Color(0.45, 0.3, 0.17), Vector3(0, 0.36, 0))
+	holder.name = "Pouch" if pouch else "Bundle"
+	var size := 0.6 if pouch else 1.0
+	var leather := Color(0.36, 0.38, 0.2) if pouch else Color(0.45, 0.3, 0.17)
+	var sack := _part(holder, _sphere(0.42 * size), leather, Vector3(0, 0.36 * size, 0))
 	sack.scale = Vector3(1.0, 0.85, 0.8)
-	_part(holder, _cone(0.22, 0.3), Color(0.4, 0.26, 0.14), Vector3(0, 0.82, 0))
-	var strap := _part(holder, _box(Vector3(0.9, 0.05, 0.08)), DARK_BROWN, Vector3(0, 0.62, 0))
+	_part(holder, _cone(0.22 * size, 0.3 * size), leather.darkened(0.12), Vector3(0, 0.82 * size, 0))
+	var strap := _part(holder, _box(Vector3(0.9 * size, 0.05, 0.08)), Color(0.75, 0.62, 0.35) if pouch else DARK_BROWN, Vector3(0, 0.62 * size, 0))
 	strap.rotation.z = 0.5
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.85, 0.55)
@@ -375,8 +388,9 @@ static func bundle_model() -> Node3D:
 
 
 ## Takes from the hero everything they looted and lays it down where they
-## lie on `game`'s level: the coins of the purse as piles, the bag and the
-## ingredient pouch in one pack. Worn gear and the knives in the belt stay.
+## lie on `game`'s level: the coins of the purse as piles, the bag (with a
+## worn backpack) and the ingredient pouch each as a whole. Other worn gear
+## and the knives in the belt stay.
 ## Returns what went down: {"items", "coins", "ingredients"}.
 static func drop_belongings(game: Node) -> Dictionary:
 	var level: Level = game.level
@@ -419,8 +433,14 @@ static func drop_belongings(game: Node) -> Dictionary:
 	for metal in coins:
 		level.lay_coins(spill, coins[metal], metal, coins[metal])
 		lost.coins += int(coins[metal])
+	# The bag and the ingredient pouch go down side by side, each whole.
+	var pouch := {"bag": [], "pouch": contents.pouch, "pieces": contents.pieces, "backpack": ""}
+	contents.pouch = {}
+	contents.pieces = {}
 	if not is_empty([BUNDLE, "", 0, 0, contents]):
 		level.lay_bundle(at, contents)
+	if not is_empty([BUNDLE, "", 0, 0, pouch]):
+		level.lay_bundle(at + Vector3(-0.9, 0, 0.4), pouch)
 	hero.refresh_stats()
 	return lost
 

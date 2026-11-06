@@ -301,9 +301,9 @@ house, an inn) a **giant eagle** swoops down and carries you off; below ground (
 the **dwarves' emergency team** comes with lanterns and a stretcher. You wake up in the bed you last saved in (or at
 your camp) with full life, and the game is saved. The blow to the head costs you **all the experience you gathered
 towards your next hero level** (the level itself stays). You keep your armour, your weapons and the knives in your
-belt, but **your bag drops to the ground as a whole** where you fell, with everything in it, your backpack and your
-ingredients too, and **all your coins** lie in piles beside it. Walk back to the spot and onto the bag to take it
-all back (gear only while the bag has room). The dragon's helpers leave the bag alone, but at night they carry coins lying about off to the
+belt, but **your bag (with your backpack) and your ingredient pouch drop to the ground whole** where you fell,
+with everything in them, and **all your coins** lie in piles beside them. Walk back to the spot and onto the bag and
+the pouch to take it all back (gear only while the bag has room). The dragon's helpers leave both alone, but at night they carry coins lying about off to the
 dragon's hoard like any others, so do not leave them there overnight. A test run from the map workshop still ends
 and goes back to the workshop.
 

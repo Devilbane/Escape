@@ -4557,7 +4557,7 @@ func lay_bundle(pos: Vector3, contents: Dictionary) -> void:
 
 ## The look of the pack on the floor and its pickup, for its floor entry.
 func _bundle_pickup(entry: Array) -> void:
-	var holder := Rescue.bundle_model()
+	var holder := Rescue.bundle_model(Rescue.is_pouch(entry))
 	holder.position = Vector3(float(entry[2]), 0.0, float(entry[3]))
 	add_child(holder)
 	_pickups.append({"node": holder, "kind": "bundle", "radius": 1.6, "flat": true, "floor": entry})

@@ -24,7 +24,6 @@ signal phase_changed(phase: int)
 const TITLE := "Glutschlund, der Hortdrache"
 ## Share of its life at which phase 2 and phase 3 begin.
 const PHASE_AT := [0.6, 0.3]
-const BACKSTAB_FACTOR := 3
 ## Off the hunt this long, it is whole again.
 const RECOVER_AFTER := 15.0
 ## How far from its hoard it follows the hero (metres).
@@ -97,11 +96,6 @@ func is_breathing() -> bool:
 func take_hit(damage: int, from: Vector3, hit_kind := "hit", wakes := true) -> void:
 	if dead:
 		return
-	if hit_kind == "backstab":
-		# No single stab ends a dragon, but it hurts.
-		damage *= BACKSTAB_FACTOR
-		hit_kind = "hit"
-		Comic.pop(global_position, "backstab")
 	if _winded > 0.0:
 		damage *= 2
 	super.take_hit(damage, from, hit_kind, wakes)

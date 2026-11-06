@@ -83,7 +83,7 @@ const GOSSIP := {
 	"O": ["Ein verwundeter Hauptmann bindet seine Wunden, wenn du fliehst. Bleib dran, wenn du ihn schwächst.",
 		"Wer im Tempel betet, findet Ruhe. Wer im Bett schläft, auch, und sein Spiel ist gespeichert."],
 	"G": ["Der Drache in der Höhle spuckt Feuer. Stell dich hinter eine Statue.",
-		"Ein Stich in den Rücken fällt jedes Skelett, das dich noch nicht bemerkt hat."],
+		"Hat dich ein Feind noch nicht bemerkt, trifft ihn ein Stich in den Rücken dreimal so hart wie dein härtester Schlag."],
 	"M": ["Ich trage die Post in jedes Haus. Bei Gorm riecht es immer nach Öl, nicht nach Wasser. Merkwürdig, oder?",
 		"Der Bankier vermietet Schließfächer im Tresorkeller. Dort sieht man, was andere Helden besitzen."],
 	"Z": ["Die Glatze zeigt deine Tätowierung am besten. Nur so als Hinweis.",

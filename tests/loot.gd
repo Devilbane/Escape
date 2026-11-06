@@ -99,8 +99,8 @@ func _test_creatures() -> void:
 	check(Loot.creature_find("wolf", "selten") == "wolfsfell", "a wolf may leave its pelt")
 	check(Loot.creature_find("wolf", "episch") == "", "a beast has no epic find")
 	check(Loot.creature_find("krieger", "normal") == "", "an intelligent foe has no beast table")
-	# Slimes: their body leaves jelly about one kill in four, besides what
-	# they swallowed.
+	# Slimes: their body leaves jelly more than every second kill, besides
+	# what they swallowed.
 	for kind in Loot.SWALLOWS:
 		check(Loot.slime_find(kind, 0.1, Loot.SLIME_JELLY - 0.01) != "", "a %s leaves something on a jelly roll" % kind)
 		check(Loot.slime_find(kind, 0.1, 0.99) == "", "most %s kills leave nothing of the body" % kind)
@@ -111,7 +111,7 @@ func _test_creatures() -> void:
 	var jelly := 0
 	for i in 2000:
 		jelly += 1 if Loot.slime_find("schleim", 0.1, rng.randf()) == "schleimgelee" else 0
-	check(jelly > 400 and jelly < 600, "about one plain slime in four leaves jelly (%d of 2000)" % jelly)
+	check(jelly > 1100 and jelly < 1300, "about three plain slimes in five leave jelly (%d of 2000)" % jelly)
 
 
 ## Intelligent foes always carry iron coins, tough ones copper and silver

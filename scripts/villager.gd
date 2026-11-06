@@ -75,7 +75,7 @@ const ROLES := {
 	"8": {"name": "Gelehrter Odo", "model": "Mage", "show": ["Mage_Hat", "Spellbook_open"],
 		"colors": [Color(0.35, 0.3, 0.45), Color(0.3, 0.3, 0.35), Color(0.3, 0.25, 0.4)], "plan": "stroll", "work": "Spellcast_Raise",
 		"lines": ["Faszinierend, du lebst! Das Verlies gilt als unentrinnbar.", "In meinen Büchern steht etwas über Wächter in Rüstung...", "Ruhe, bitte. Ich lese."]},
-	"9": {"name": "Wasserträgerin Hanna", "model": "Knight", "show": [],
+	"9": {"name": "Wasserträgerin Hanna", "model": "Rogue", "show": [], "sex": "female", "hair": {"style": "natural", "color": "blond"},
 		"colors": [Color(0.4, 0.65, 0.75), Color(0.45, 0.4, 0.35), Color(1, 1, 1)], "plan": "carry", "work": "PickUp",
 		"lines": ["Frisches Wasser vom Brunnen!", "Puh, die Eimer sind schwer.", "Der Brunnen ist so alt wie das Dorf."]},
 	"K": {"name": "Herold Konrad", "model": "Knight", "show": ["Knight_Cape", "Badge_Shield"],

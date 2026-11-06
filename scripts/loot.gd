@@ -58,8 +58,9 @@ const SWALLOWS := ["schleim", "kristallschleim", "glutschleim", "schlund"]
 ## A slime holds each kind of coin only this often.
 const SWALLOWED_COINS := 0.5
 ## How often a slime leaves at least a lump of its jelly (or a finer find
-## of its table): about one kill in four, as healing potions need it.
-const SLIME_JELLY := 0.25
+## of its table): more than every second kill, as every healing potion
+## needs a lump.
+const SLIME_JELLY := 0.6
 
 ## The coins -> the metal their bar is of (see Forge.METALS). Iron and
 ## silver coins go into the purse (see Crafting.purse); copper coins

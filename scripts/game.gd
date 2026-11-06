@@ -448,6 +448,7 @@ func _bus_links() -> Array:
 		[bus.lore_learned, learn],
 		[bus.enemy_slain, Callable(Factions, "on_hero_kill")],
 		[bus.enemy_slain, bounties.on_kill],
+		[bus.enemy_slain, Callable(MonsterLore, "on_hero_kill")],
 		[bus.quest_done, quest_reward],
 		[bus.quest_done, reputation.on_quest_done],
 		[bus.quest_item_given, update_after_quest],
@@ -2815,6 +2816,7 @@ func begin_new_game() -> void:
 	crafting.clear()
 	wishes.clear()
 	Factions.clear()
+	MonsterLore.clear()
 	fishing.stop()
 	reputation.clear()
 	village_talk.clear()
@@ -3251,6 +3253,7 @@ func _apply_save(data: Dictionary) -> void:
 	village_talk.load_from(data.get("ties", []))
 	village_rumours.load_from(data.get("rumours", {}))
 	Factions.load_from(data.get("factions", {}))
+	MonsterLore.load_from(data.get("monster_lore", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
 	player.bag.assign(data.bag)
@@ -3440,6 +3443,7 @@ func save_game(going_away := false) -> bool:
 		"ties": village_talk.for_save(),
 		"rumours": village_rumours.for_save(),
 		"factions": Factions.for_save(),
+		"monster_lore": MonsterLore.for_save(),
 		"companions": {"list": companions, "following": following, "trust": trust},
 		"hour": day_hour,
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,

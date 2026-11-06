@@ -994,7 +994,11 @@ func melee() -> void:
 			e.take_hit(power, global_position, "backstab")
 			train("schleichen", 4.0)
 		else:
-			e.take_hit(damage, global_position)
+			# Monster knowledge: a blow may find a vital point (see MonsterLore).
+			var vital := finds_vital(e)
+			e.take_hit(vital_damage(power, weapon) if vital else damage, global_position)
+			if vital:
+				vital_struck(e)
 			if not e.dead and randf() < shock_chance():
 				e.shock()
 		hits += 1
@@ -1012,6 +1016,36 @@ func melee() -> void:
 ## (a thunder weapon, see Items "shock" and Enemy.shock), else 0.
 func shock_chance() -> float:
 	return float(Items.ALL.get(equipped.get("waffe", ""), {}).get("shock", 0.0))
+
+
+## Whether a blow (or a knife) at `e` finds a vital point: a roll on the
+## hero's knowledge of its kind (see MonsterLore). Armour that only a stab in
+## the back gets through hides every vital point.
+func finds_vital(e: Enemy) -> bool:
+	if e == null or e.dead or e.is_armored():
+		return false
+	return MonsterLore.roll_vital(e.kind)
+
+
+## What a vital hit deals: MonsterLore.VITAL_FACTOR times the hardest blow of
+## `base` (power for the blade, throw_power for a knife), that is with the
+## heavy hit of `skill_id` whenever the skill can roll one at all. No roll.
+func vital_damage(base: int, skill_id: String) -> int:
+	return MonsterLore.VITAL_FACTOR * (base + (1 if skill_chance(skill_id) > 0 else 0))
+
+
+## After a vital hit landed on `e`: the word over its head, and maybe a
+## crippled attack and a bleeding wound (see MonsterLore).
+func vital_struck(e: Enemy) -> void:
+	Sfx.play(self, "hit", 2.0, e.global_position, 1.3)
+	if e.dead:
+		Effects.head_text(level, e, 2.7, Lang.t("Schwachstelle!"), MonsterLore.VITAL_COLOR)
+		return
+	e.vital_mark()
+	if randf() < MonsterLore.SLOW_CHANCE:
+		e.cripple()
+	if randf() < MonsterLore.BLEED_CHANCE:
+		e.bleed()
 
 
 ## How many throwing knives the hero can keep ready for a fight:

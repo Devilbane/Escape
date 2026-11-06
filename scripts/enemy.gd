@@ -592,6 +592,11 @@ func is_ghost() -> bool:
 	return _stats.has("ghost")
 
 
+## Whether only a stab in the back gets through its armour (the guardian).
+func is_armored() -> bool:
+	return _stats.get("armored", false)
+
+
 ## Whether this is one of the nameless horrors (see Horrors).
 func is_horror() -> bool:
 	return _stats.get("horror", false)
@@ -1205,6 +1210,67 @@ func shock() -> bool:
 	return true
 
 
+## Struck in a vital point (see MonsterLore and Player.melee): a word over
+## its head in the vital colour, apart from the damage number below it.
+func vital_mark() -> void:
+	if dead:
+		return
+	Effects.head_text(level, self, 2.7 * _stats.size, Lang.t("Schwachstelle!"), MonsterLore.VITAL_COLOR)
+
+
+## How much longer it needs between attacks while crippled (1.0: not).
+var attack_slow := 1.0
+
+
+## A vital hit crippled it: it attacks SLOW_FACTOR times slower for the rest
+## of the fight, that is until it stops hunting the hero (see
+## _physics_process). A horror or a boss shrugs it off. Returns whether it
+## was crippled.
+func cripple() -> bool:
+	if dead or attack_slow > 1.0 or is_horror() or _stats.get("big", false):
+		return false
+	attack_slow = MonsterLore.SLOW_FACTOR
+	Effects.head_text(level, self, 3.1 * _stats.size, Lang.t("Verlangsamt!"), MonsterLore.VITAL_COLOR)
+	return true
+
+
+## Bleeding left from a vital hit: ticks still to come and the time to the next.
+var _bleed_ticks := 0
+var _bleed_time := 0.0
+
+
+## A vital hit opened a wound: it loses 1 life every BLEED_EVERY seconds,
+## BLEED_TICKS times (a new wound starts the count again). Bleeding to
+## death counts as the hero's kill.
+func bleed() -> void:
+	if dead or is_ghost():
+		return
+	if _bleed_ticks <= 0:
+		Effects.head_text(level, self, 3.1 * _stats.size, Lang.t("Blutet!"), Color(0.9, 0.15, 0.15))
+	_bleed_ticks = MonsterLore.BLEED_TICKS
+	_bleed_time = MonsterLore.BLEED_EVERY
+
+
+func is_bleeding() -> bool:
+	return _bleed_ticks > 0 and not dead
+
+
+func _tick_bleeding(delta: float) -> void:
+	if _bleed_ticks <= 0:
+		return
+	_bleed_time -= delta
+	if _bleed_time > 0.0:
+		return
+	_bleed_ticks -= 1
+	_bleed_time = MonsterLore.BLEED_EVERY
+	if hp <= 1:
+		# The last drop: it falls as from the hero's blow.
+		take_hit(hp, global_position, "pierce", false)
+		return
+	hp -= 1
+	Effects.head_text(level, self, 2.2 * _stats.size, "-1", Color(0.9, 0.15, 0.15))
+
+
 ## A blow (or a shot) from a rival monster. It fights back; armour that
 ## stops the hero's blade stops a rival's just as well.
 func hit_by_rival(damage: int, attacker: Enemy) -> void:
@@ -1303,7 +1369,11 @@ func _physics_process(delta: float) -> void:
 		_home = global_position
 	_busy = maxf(0.0, _busy - delta)
 	_trap_cool = maxf(0.0, _trap_cool - delta)
-	_cooldown = maxf(0.0, _cooldown - delta)
+	# Crippled by a vital hit, it needs longer between attacks.
+	_cooldown = maxf(0.0, _cooldown - delta / attack_slow)
+	_tick_bleeding(delta)
+	if dead:
+		return
 	_web_cool = maxf(0.0, _web_cool - delta)
 	_shriek_cool = maxf(0.0, _shriek_cool - delta)
 	_scare_cool = maxf(0.0, _scare_cool - delta)
@@ -1340,6 +1410,9 @@ func _physics_process(delta: float) -> void:
 			_awake = false
 			_path.clear()
 			_repath = 0.0
+	if not _awake:
+		# The fight is over: a crippling vital hit wears off.
+		attack_slow = 1.0
 	var leash := LEASH if _watch != Vector3.INF else LEASH_ROAM if _stats.get("roam", false) else INF
 	if _awake and _home != Vector3.INF and global_position.distance_to(_home) > leash:
 		_awake = false

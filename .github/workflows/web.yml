@@ -434,6 +434,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/splash_attack.gd | tee splash.log
           grep -q PASS splash.log
 
+      - name: Monster lore test
+        run: |
+          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/monster_lore.gd | tee monster_lore.log
+          grep -q PASS monster_lore.log
+
       - name: Hero or heroine test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/heroine.gd | tee heroine.log

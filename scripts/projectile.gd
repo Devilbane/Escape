@@ -143,7 +143,11 @@ func _physics_process(delta: float) -> void:
 		for e in level.enemies:
 			# Knives fly past the hero's friends (see Factions).
 			if is_instance_valid(e) and not e.dead and not e.is_friend() and _hits(e.global_position):
-				e.take_hit(damage, global_position - direction, "knife")
+				# Monster knowledge: a knife may find a vital point (see MonsterLore).
+				var vital: bool = level.player.finds_vital(e)
+				e.take_hit(level.player.vital_damage(level.player.throw_power(), "werfen") if vital else damage, global_position - direction, "knife")
+				if vital:
+					level.player.vital_struck(e)
 				level.player.mark_fight()
 				level.player.train("werfen", 1.0)
 				if e.dead and e.kind == "magier":

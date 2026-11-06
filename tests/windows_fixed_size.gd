@@ -100,6 +100,11 @@ func _fill(full: bool) -> void:
 	game.home_upgrades = {"truhe": true} if full else {}
 	game.home_stores = HomeStores.empty()
 	game.bars = {}
+	# Monster lore: nothing slain, or a long count of every kind there is.
+	MonsterLore.clear()
+	if full:
+		for kind in Creations.MONSTER_NAMES:
+			MonsterLore.kills[kind] = 9999
 	if not full:
 		return
 	p.equipped["rucksack"] = "reiserucksack"
@@ -167,7 +172,7 @@ func _tabs(kind: String) -> Array:
 		"schmied":
 			return Menus.FORGE_TABS.map(func(t): return t[0])
 		"kompendium":
-			return ["wissen", "auftraege", "ruf", "rezepte"]
+			return ["wissen", "auftraege", "ruf", "rezepte", "monster"]
 		"karte":
 			return ["karte", "tagebuch"]
 	return [""]

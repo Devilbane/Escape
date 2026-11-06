@@ -68,18 +68,19 @@ def scree(src, r):
 
 
 def wood(src, r):
-    # A step on planks: duller than stone, with the hollow knock of the
-    # boards ringing under it.
-    x = lowpass(src, 2600) * 0.7
+    # A step on planks: a little duller than stone, with a short, dry knock of
+    # the boards under it. The knock dies away fast, so it sounds solid, not
+    # hollow or echoing.
+    x = lowpass(src, 3000) * 0.85
     at = onset(src)
     n = len(x) - at
     d = np.arange(n) / SR
     hit = np.abs(src[at:at + int(SR * 0.03)]).max()
-    base = r.uniform(115, 150)
+    base = r.uniform(170, 210)
     knock = np.zeros(n)
-    for ratio, decay, amp in ((1.0, 0.09, 1.0), (2.3, 0.05, 0.6), (3.9, 0.03, 0.35), (6.1, 0.018, 0.2)):
+    for ratio, decay, amp in ((1.0, 0.022, 1.0), (2.4, 0.012, 0.5), (4.1, 0.007, 0.3)):
         knock += np.sin(2 * np.pi * base * ratio * r.uniform(0.97, 1.03) * d) * np.exp(-d / decay) * amp
-    knock *= np.minimum(1, d / 0.002) * hit * 0.55
+    knock *= np.minimum(1, d / 0.002) * hit * 0.3
     x[at:] += knock
     return x
 

@@ -34,7 +34,7 @@ const PACE := {
 ## Each ground and the footsteps heard on it: the sounds step_<name>_0 to
 ## step_<name>_5 (an empty name is the plain step_0 to step_5, the stone steps).
 ## Paving and stone ring hard, the paths and soil crunch softly, grass swishes,
-## scree crackles and planks knock hollow. A puddle splashes instead (see
+## scree crackles and planks give a short, dry knock. A puddle splashes instead (see
 ## Player._footsteps). Built by tools/make_ground_steps.py.
 const STEPS := {
 	STONE: "",

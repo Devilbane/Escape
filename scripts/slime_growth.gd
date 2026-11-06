@@ -27,6 +27,9 @@ extends RefCounted
 ##   better to do (no prey, no corpse, no hero). When two touch (MERGE_GAP),
 ##   the higher level takes the other in: their colours mix by their levels,
 ##   and it grows as from a meal, belly and all.
+## - Wandering: in the open air a slime does not keep to its home but
+##   wanders the whole map (WANDER_TILES at a go), the graveyard and the
+##   mountains too.
 ## - Blob: from BLOB_LEVEL on a slime is a Blob. It sparkles, hits harder
 ##   (BLOB_DAMAGE), strikes faster (BLOB_PACE) and its touch poisons more
 ##   often (BLOB_POISON).
@@ -75,6 +78,8 @@ const CORPSE_SCENT := 20.0
 const HERO_CLOSE := 3.5
 ## How many swallowed things show inside a slime at most.
 const SHOWN := 8
+## How far (tiles) a slime in the open air sets out each time it wanders on.
+const WANDER_TILES := 24
 ## How far round an eaten corpse a slime slurps up the loot lying there.
 const SLURP_REACH := 1.6
 ## How long a swallowed thing may be inside it, against its body's height.
@@ -151,6 +156,9 @@ static func born(e: Enemy) -> void:
 	if e.rated_level > top and not fixed:
 		e.rated_level = Enemy.fit_level(e.kind, e._stats, e.hardening, top, top)
 	e._stats.size = size_of(e)
+	# Under the open sky a slime wanders the whole map, the graveyard and
+	# the mountains too.
+	e.wanders = e.level != null and e.level.outdoor
 
 
 ## The highest level a slime is born at where it lives: its area's top (see

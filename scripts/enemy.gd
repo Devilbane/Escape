@@ -399,6 +399,9 @@ var meal: Corpse = null
 ## SlimeGrowth.nearest_slime), and whether it merged into a bigger one.
 var drawn_to: Enemy = null
 var merged := false
+## Wanders the whole map instead of roaming round its home (slimes in the
+## open air, see SlimeGrowth.WANDER_TILES).
+var wanders := false
 var _puddle_mat: StandardMaterial3D
 var _drops_mat: StandardMaterial3D
 
@@ -2180,15 +2183,20 @@ func _roam(delta: float) -> Vector3:
 		_look_around(delta)
 		return Vector3.ZERO
 	if _path.is_empty():
-		var home_cell := level.world_to_cell(_home)
 		var here := level.world_to_cell(global_position)
+		# A wanderer sets out from where it is, far and wide, and makes each
+		# goal its new home (so it is not pulled back).
+		var home_cell := here if wanders else level.world_to_cell(_home)
+		var span := SlimeGrowth.WANDER_TILES if wanders else ROAM_TILES
 		for attempt in 8:
-			var c := home_cell + Vector2i(randi_range(-ROAM_TILES, ROAM_TILES), randi_range(-ROAM_TILES, ROAM_TILES))
+			var c := home_cell + Vector2i(randi_range(-span, span), randi_range(-span, span))
 			if c == here or not level.astar.is_in_boundsv(c) or level.astar.is_point_solid(c):
 				continue
 			for p in level.grid_path(here, c).slice(1):
 				_path.append(level.cell_to_world(p) + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8)))
 			if not _path.is_empty():
+				if wanders:
+					_home = level.cell_to_world(c)
 				break
 		if _path.is_empty():
 			_roam_pause = 2.0

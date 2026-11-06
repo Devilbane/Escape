@@ -139,6 +139,7 @@ func _process(_delta: float) -> bool:
 			slime.rated_level = 14
 			bandit.rated_level = 6
 			check(SlimeGrowth.can_eat(slime, bandit), "a slime of level 14 would eat a bandit of level 6")
+			check(slime.wanders, "in the open air a slime wanders the whole map")
 			check(not SlimeGrowth.can_eat(bandit, slime), "a bandit does not eat slimes")
 			var other := _spawn("schleim", spot + Vector3(0, -50, 0), {"tint": Color(0.1, 0.2, 0.9)})
 			other.rated_level = 13

@@ -7,7 +7,8 @@ extends RefCounted
 ##   Slimes of one colour are kin and leave each other be.
 ## - Size: a slime is as big as its level (see size_for), from a small lump
 ##   at level 1 to a hulk at MAX_LEVEL. Some are born a level or more above
-##   their place (BIRTH_GROWTH), so a group never looks all alike.
+##   their place (BIRTH_GROWTH, never above its area's top, see birth_top),
+##   so a group never looks all alike.
 ## - Hunger: a slime falls upon any other creature it could swallow (see
 ##   can_eat): a monster no more than PREY_MARGIN levels above it, or a
 ##   slime of another colour at least SLIME_GAP levels below it. Ghosts,
@@ -137,7 +138,25 @@ static func born(e: Enemy) -> void:
 	e._stats.size_jitter = randf_range(1.0 - SIZE_JITTER, 1.0 + SIZE_JITTER)
 	if is_blob_level(e.rated_level):
 		blob_up(e)
+	# Born a fair fight for its place: the extra growth and a Blob's edge
+	# stay within the place's levels (only what it eats lifts it above).
+	var top := birth_top(e)
+	if e.rated_level > top and not fixed:
+		e.rated_level = Enemy.fit_level(e.kind, e._stats, e.hardening, top, top)
 	e._stats.size = size_of(e)
+
+
+## The highest level a slime is born at where it lives: its area's top (see
+## HeroLevel.AREAS), the dungeon's top, or MAX_LEVEL.
+static func birth_top(e: Enemy) -> int:
+	if e.level == null:
+		return MAX_LEVEL
+	var area := HeroLevel.area_of(e.level, e.kind)
+	if area != "":
+		return mini(int(HeroLevel.AREAS[area].max), MAX_LEVEL)
+	if not e.level.outdoor and e.level.building == "":
+		return HeroLevel.DUNGEON_TOP
+	return MAX_LEVEL
 
 
 ## The size this slime has now.

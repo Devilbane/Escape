@@ -200,9 +200,12 @@ func _draw(item: RID, rect: Rect2) -> void:
 	_draw_rim(item, rect, width, radius, corner)
 	if width >= RIVET_FROM and minf(rect.size.x, rect.size.y) >= width * 6:
 		var rivet := _rivet_texture()
-		var d := clampf(width * 0.85, 6.0, 11.0)
-		var inset := width / 2.0 + radius * 0.2
-		var tint := Color(metal_at(0.12) * METAL_FLAT, border_color.a)
+		# As in the mock-up: a bead of about 14 px (on a window's rim) over
+		# the corner, a little out past the rim's outer edge.
+		var d := clampf(width * 1.35, 7.0, 16.0)
+		var inset := width * 0.42
+		# The mock-up's bead: pale gold at its lit top, copper around it.
+		var tint := Color(RIVET.r * COPPER.r, RIVET.g * COPPER.g, RIVET.b * COPPER.b, border_color.a)
 		for p in [rect.position + Vector2(inset, inset), Vector2(rect.end.x - inset, rect.position.y + inset),
 				Vector2(rect.position.x + inset, rect.end.y - inset), rect.end - Vector2(inset, inset)]:
 			rs.canvas_item_add_texture_rect(item, Rect2(p - Vector2(d, d) / 2.0, Vector2(d, d)), rivet.get_rid(), false, tint)
@@ -221,6 +224,11 @@ const METAL_BASE := Color(0.88, 0.66, 0.36)
 ## The rim texture's grey on the flat metal: the bands' colour divided by it
 ## is drawn there exactly, and the lit top edge can still be brighter.
 const METAL_FLAT := 0.82
+## A warmer, more intense copper over the mock-up's bands (the owner's wish):
+## each band's red lifted a little, its blue taken down.
+const COPPER := Color(1.08, 0.93, 0.78)
+## The rivets' metal: a richer, deeper copper-gold than the rim (the owner's wish), before COPPER.
+const RIVET := Color(1.0, 0.66, 0.3)
 ## How many pieces a side's middle is cut into, so the bands run smoothly.
 const METAL_STEPS := 10
 
@@ -235,6 +243,7 @@ func metal_at(t: float) -> Color:
 			var b: Array = METAL_STOPS[i]
 			c = (a[1] as Color).lerp(b[1], (t - a[0]) / (b[0] - a[0]))
 			break
+	c = Color(c.r * COPPER.r, c.g * COPPER.g, c.b * COPPER.b)
 	var shifted: Color
 	if absf(border_color.h - METAL_BASE.h) < 0.06 and border_color.s > 0.35:
 		# A bronze or gold border is bronze: the same copper-brown metal,

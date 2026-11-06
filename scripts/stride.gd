@@ -64,6 +64,10 @@ const PUSH_OFF := {"Walking_A": [0.47, 0.955], "Walking_B": [0.48, 0.955]}
 const LIFT_HEIGHT := 0.05
 const LIFT_RISE := 0.16
 const LIFT_SETTLE := 0.09
+## Below this ground speed (m/s) a body stands still and stays flat-footed;
+## from LIFT_MOVING on it lifts fully.
+const LIFT_STILL := 0.15
+const LIFT_MOVING := 0.6
 
 
 ## The rig of a model file name ("Rogue", "Wolf"), or "" for one without feet.
@@ -110,17 +114,21 @@ static func gait(rig: String, gaits: Array, size: float, speed: float, current: 
 	return pick
 
 
-## How far a human walking in `anim` is lifted onto the toes right now
-## (metres, for a model of `size`): a soft rise as the back heel peels off
-## the ground, highest at the push-off, settling as the front heel lands.
-## 0 for any other animation.
-static func lift(player: AnimationPlayer, anim: String, size: float) -> float:
+## How far a human walking in `anim` at `ground_speed` (m/s) is lifted
+## onto the toes right now (metres, for a model of `size`): a soft rise as
+## the back heel peels off the ground, highest at the push-off, settling as
+## the front heel lands. 0 for any other animation, and for a body standing
+## still, even if its walk is still playing (held up, waiting, talking).
+static func lift(player: AnimationPlayer, anim: String, size: float, ground_speed: float) -> float:
 	if not PUSH_OFF.has(anim) or player == null or player.current_animation != anim:
+		return 0.0
+	var moving := smoothstep(LIFT_STILL, LIFT_MOVING, ground_speed)
+	if moving <= 0.0:
 		return 0.0
 	var length := player.current_animation_length
 	if length <= 0.0:
 		return 0.0
-	return LIFT_HEIGHT * size * lift_at(anim, player.current_animation_position / length)
+	return LIFT_HEIGHT * size * moving * lift_at(anim, player.current_animation_position / length)
 
 
 ## The share (0..1) of the full lift at `phase` (0..1) of the walk cycle.

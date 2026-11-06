@@ -192,6 +192,8 @@ var _task := ""
 var _task_time := 0.0
 var _work_pause := 0.0
 var _speed := WALK_SPEED
+## Where the villager stood at the last tick (see _lift_onto_toes).
+var _last_spot := Vector3.INF
 var _waiting := 0.0
 var _bubble: Label3D
 var _bubble_time := 0.0
@@ -423,8 +425,17 @@ func _stride(anim: String, speed: float) -> float:
 	var walked := minf(speed, Stride.top_speed("kaykit", anim, size))
 	play(anim)
 	_anim.speed_scale = Stride.playback("kaykit", anim, size, walked)
-	_model.position.y = Stride.lift(_anim, anim, size)
 	return walked
+
+
+## Up on the toes at each push-off while really walking (see Stride.lift),
+## flat-footed while standing, whatever is playing. From how far the
+## villager got since the last tick.
+func _lift_onto_toes(delta: float) -> void:
+	var moved := Vector2(global_position.x - _last_spot.x, global_position.z - _last_spot.z).length()
+	_last_spot = global_position
+	var speed := moved / delta if delta > 0.0 and moved < 1.0 else 0.0
+	_model.position.y = Stride.lift(_anim, _current_anim, _model.scale.x, speed)
 
 
 # --- The day's plan -----------------------------------------------------------
@@ -565,6 +576,7 @@ func _walk_to(target: Vector3, speed: float, then: String) -> void:
 func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
+	_lift_onto_toes(delta)
 	_keep_apart()
 	_mind_torch(delta)
 	station.pos = global_position

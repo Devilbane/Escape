@@ -4619,6 +4619,37 @@ func take_from_floor(p: Dictionary) -> Node3D:
 	return p.node if is_instance_valid(p.node) else null
 
 
+## A slime eating a corpse slurps up the loot lying within `reach` of `pos`
+## (see SlimeGrowth): gear, coin piles and finds, never the hero's pack.
+## They are off the floor, as if taken; returns them as swallowed things
+## (see _swallowed), for the slime's belly.
+func slurp_loot(pos: Vector3, reach: float) -> Array:
+	var got := []
+	for p in _pickups.duplicate():
+		if not is_instance_valid(p.node) or _flat_distance(pos, p.node.global_position) > reach:
+			continue
+		var thing := []
+		match p.kind:
+			"item":
+				if p.has("floor"):
+					thing = ["item", p.id]
+			"coin":
+				if p.has("floor"):
+					thing = ["coins", str(p.floor[1]), CoinPile.count_of(p.floor)]
+			"ingredient":
+				var lump := p.node.get_child(0) as MeshInstance3D
+				var colour: Color = (lump.material_override as StandardMaterial3D).albedo_color if lump != null else Color(0.55, 0.75, 0.35)
+				thing = ["find", p.ingredient, colour, int(p.get("count", 1))]
+		if thing.is_empty():
+			continue
+		var node: Node3D = take_from_floor(p) if p.has("floor") else p.node
+		_pickups.erase(p)
+		if node != null:
+			node.queue_free()
+		got.append(thing)
+	return got
+
+
 ## The pickups the dragon's helpers may take: what lies on the floor list.
 func floor_pickups() -> Array:
 	return _pickups.filter(func(p): return p.has("floor") and is_instance_valid(p.node) and DragonHoard.takes(p.floor))

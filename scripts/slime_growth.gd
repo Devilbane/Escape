@@ -21,8 +21,8 @@ extends RefCounted
 ##   gain() levels, up to MAX_LEVEL. What its prey carried stays in its belly
 ##   (Enemy.belly), where it shows through the slime's body (SHOWN things
 ##   at most), and spills out when the slime itself falls, with its own loot
-##   (see Level.spill_belly). Corpses carry nothing: their loot lies on the
-##   floor already.
+##   (see Level.spill_belly). A corpse's loot lies on the floor beside it:
+##   a slime eating the corpse slurps up what lies within SLURP_REACH.
 ## - Blob: from BLOB_LEVEL on a slime is a Blob. It sparkles, hits harder
 ##   (BLOB_DAMAGE), strikes faster (BLOB_PACE) and its touch poisons more
 ##   often (BLOB_POISON).
@@ -71,6 +71,8 @@ const CORPSE_SCENT := 20.0
 const HERO_CLOSE := 3.5
 ## How many swallowed things show inside a slime at most.
 const SHOWN := 8
+## How far round an eaten corpse a slime slurps up the loot lying there.
+const SLURP_REACH := 1.6
 ## How long a swallowed thing may be inside it, against its body's height.
 const INSIDE := 0.4
 ## Into the compendium the first time the hero sees a slime swallow something.

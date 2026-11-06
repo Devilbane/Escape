@@ -265,7 +265,13 @@ var _hud: CanvasLayer
 ## The "Game saved" plate in the top right corner (see SaveNotice).
 var save_notice: SaveNotice
 var _level_label: Label
+## The copper coins (the money) on the HUD; the silver and gold coins of the
+## purse are counted after it (see _update_purse).
 var _coin_label: Label
+var _silver_label: Label
+var _gold_label: Label
+## The coin pictures before the counts, by coin id (see Loot.COINS).
+var _coin_icons := {}
 var _key_label: Label
 ## The key's picture before its line: bright once the key is found.
 var _key_icon: ItemIcon
@@ -1335,16 +1341,25 @@ func _setup_hud() -> void:
 	left.add_child(purse_plate)
 	var purse_row := HBoxContainer.new()
 	purse_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	purse_row.add_theme_constant_override("separation", 8)
+	purse_row.add_theme_constant_override("separation", 4)
 	purse_plate.add_child(purse_row)
-	purse_row.add_child(ItemIcon.make("kind:coin", PURSE_ICON, true))
-	_coin_label = _make_label(TEXT_FONT, 18, GOLD)
-	_coin_label.mouse_filter = Control.MOUSE_FILTER_PASS
-	purse_row.add_child(_coin_label)
-	var space := Control.new()
-	space.custom_minimum_size.x = 10
-	space.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	purse_row.add_child(space)
+	# A copper, a silver and a gold coin, each with its count right after it:
+	# the picture sits closer to its own count than to the next coin.
+	var counts := {}
+	for id in PURSE_COINS:
+		if not counts.is_empty():
+			purse_row.add_child(_purse_gap(10))
+		var icon := ItemIcon.make(id, PURSE_ICON, true)
+		_coin_icons[id] = icon
+		purse_row.add_child(icon)
+		var count := _make_label(TEXT_FONT, 18, Loot.COIN_COLORS[id].lerp(Color.WHITE, 0.3))
+		count.mouse_filter = Control.MOUSE_FILTER_PASS
+		purse_row.add_child(count)
+		counts[id] = count
+	_coin_label = counts[Loot.MONEY]
+	_silver_label = counts["silbermuenze"]
+	_gold_label = counts["goldmuenze"]
+	purse_row.add_child(_purse_gap(18))
 	_key_icon = ItemIcon.make("kind:key", PURSE_ICON, true)
 	purse_row.add_child(_key_icon)
 	_key_label = _make_label(TEXT_FONT, 18)
@@ -2234,8 +2249,7 @@ func _update_hud() -> void:
 	_hp_hover.tooltip_text = hp_tip()
 	_update_status_icons()
 	_show_hero_level()
-	_coin_label.text = Lang.t("Kupfer: %d") % coins
-	_coin_label.tooltip_text = Lang.t("Dein Kupfer: Damit bezahlst du bei Händlern und Handwerkern.")
+	_update_purse()
 	_update_ammo()
 	_key_label.text = Lang.t("Schlüssel gefunden") if level.has_key else Lang.t("Kein Schlüssel")
 	# The lair's floors have locked doors too.
@@ -2245,6 +2259,42 @@ func _update_hud() -> void:
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
 	_key_label.tooltip_text = Lang.t("Mit dem Schlüssel öffnest du die verschlossene Tür zur nächsten Ebene.") if level.has_key \
 			else Lang.t("Irgendwo auf dieser Ebene liegt der Schlüssel zur verschlossenen Tür.")
+
+
+## The coins on the HUD, in this order: copper (the money), silver, gold.
+const PURSE_COINS := ["kupfermuenze", "silbermuenze", "goldmuenze"]
+
+
+## A fixed gap in the purse line.
+func _purse_gap(width: float) -> Control:
+	var gap := Control.new()
+	gap.custom_minimum_size.x = width
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return gap
+
+
+## Counts the copper, silver and gold coins on the HUD, each after its
+## picture. A metal the hero has none of is dimmed, like the missing key.
+func _update_purse() -> void:
+	if _coin_label == null:
+		return
+	var labels := {"kupfermuenze": _coin_label, "silbermuenze": _silver_label, "goldmuenze": _gold_label}
+	var names := {"kupfermuenze": "Kupfermünzen: %d", "silbermuenze": "Silbermünzen: %d", "goldmuenze": "Goldmünzen: %d"}
+	for id in PURSE_COINS:
+		var held := coins_held(id)
+		var label: Label = labels[id]
+		label.text = str(held)
+		var shade := 1.0 if held > 0 else 0.45
+		label.modulate.a = shade
+		_coin_icons[id].modulate.a = shade
+		var tip := Lang.t(names[id]) % held + "\n"
+		if id == Loot.MONEY:
+			tip += Lang.t("Dein Kupfer: Damit bezahlst du bei Händlern und Handwerkern.")
+		elif id == "silbermuenze":
+			tip += Lang.t("Eine Silbermünze ist %d Kupfer wert.") % Loot.COIN_VALUE[id]
+		else:
+			tip += Lang.t("Eine Goldmünze ist %d Kupfer wert.") % Loot.COIN_VALUE[id]
+		label.tooltip_text = tip
 
 
 ## The hero's level and the experience towards the next one on the HUD.
@@ -6010,6 +6060,8 @@ func _process(delta: float) -> void:
 	update_potion_button()
 	_update_drag(delta)
 	_update_run_meter()
+	# Silver and gold coins come and go in many places (loot, trade, the forge).
+	_update_purse()
 	place_message(delta)
 	tutorial.update(delta)
 	_help.visible = help_shown()

@@ -172,6 +172,17 @@ func _run() -> void:
 		check(str(step.y) in xp.tooltip_text, "the experience tooltip names what the level takes: %s" % xp.tooltip_text)
 	var gold := _check_hover(game._coin_label, "the gold")
 	check(gold == game._coin_label, "the pointer on the gold is over the gold")
+	# Copper, silver and gold coins each show a picture and their count.
+	game.crafting.set_count("silbermuenze", 3)
+	game.crafting.set_count("goldmuenze", 0)
+	game._update_hud()
+	check(game._coin_label.text == str(game.coins), "the copper count is a plain number: %s" % game._coin_label.text)
+	check(game._silver_label.text == "3", "three silver coins are counted: %s" % game._silver_label.text)
+	check(game._gold_label.text == "0" and game._gold_label.modulate.a < 1.0, "no gold coins: a dimmed 0")
+	for id in game.PURSE_COINS:
+		check(game._coin_icons[id].what == id, "the %s coin has its own picture" % id)
+	check(_check_hover(game._silver_label, "the silver") == game._silver_label, "the silver count takes the pointer")
+	game.crafting.set_count("silbermuenze", 0)
 	if game._key_label.visible:
 		_check_hover(game._key_label, "the key")
 

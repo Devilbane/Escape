@@ -54,7 +54,7 @@ version, installs it and then starts the game, so the local copy is always as ne
 | Light or put out a torch | V | torch icon on the right edge, below the house icon (shows while you carry a torch, with how many are left in the bag) |
 | Drink a healing potion | 1 | potion icon left of the torch icon (shows while you carry a potion, with how many are left; shaded with the seconds left while the next one waits), or "Drink" in the inventory |
 | Pitch a camp (save and sleep away from a bed) | U | “Camp” button, “Pitch camp” on the bedroll in the inventory |
-| Fish (cast, strike, draw in) | G, by the water | “Fish” button |
+| Fish (cast, strike, draw in) | G, by the water | “Fish” button, or click the water of a pond |
 | Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |
 | Pause, quit game | Esc (again to play on) | “Quit” button, top right |
@@ -531,16 +531,21 @@ rings, bracelets and amulets that each add a level to one combat skill. Recipes 
 (the Moonsilver Ring still has faded lines) cannot be made yet.
 
 **Fishing.** Stand by the water and press **G** (or the **Fish** button in the pull-out menu) to cast a
-line. After a few seconds the float goes under and a **!** shows: press again quickly to strike, or the
+line, or simply **click the water of a pond**: you walk to the shore if it is out of reach and cast toward
+the spot you clicked, and another click on the water strikes or draws the line in. After a few seconds the float goes under and a **!** shows: press again quickly to strike, or the
 fish gets away. Pressing while you wait draws the line in; walking off, getting hit or opening a window
 does too. There are three waters: the **fountain** on the village square, the **village pond** by the path into
 the village and a small **pond in the wolf hollow** (mind the wolves). Most bites are a **perch**, and in the
-fountain often an old coin someone threw in for luck (+1 gold). Each water also has one **rare fish**:
-the **golden carp** in the fountain, the **silver pike** in the village pond, but only at dawn and dusk,
+fountain often an old coin someone threw in for luck (+1 gold). In the ponds a **message in a bottle** sometimes bites (a few copper and a note), and somewhere in the
+mud of the village pond lies a **long-lost signet ring** that can be fished up once. A fish that is let go
+often bites again; the longer the row, the less weed and the likelier a rare catch. Each water also has
+one rare fish: the **golden carp** in the fountain, the **silver pike** in the village pond, but only at dawn and dusk,
 and the **moon trout** in the wolf hollow, but only at night. Every fish goes into the ingredient pouch.
 Hanna the water carrier has a recipe that needs them: the **Amulet of the Deep** (all three rare fish and
 three perch). One of its lines is smudged until you catch a silver pike. What bites where is set in
-`Fishing.WATERS` (`scripts/fishing.gd`).
+`Fishing.WATERS` (`scripts/fishing.gd`). In the two ponds the **little pond monster** sometimes surfaces
+by the float: it spits water at you, burps a bubble or spits an old coin onto the shore, sometimes takes the
+bait, and then wears your float as a hat. Drawing the line in does not chase it away.
 
 **Reputation.** Every villager has their own opinion of you, and helping them improves it. A finished task
 counts the most: 25 points with whoever gave it, 15 with whoever received a delivery, and 5 with everyone

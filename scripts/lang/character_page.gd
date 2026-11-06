@@ -5,6 +5,7 @@ const EN := {
 	"Charakter": "Character",
 	"Leben": "Life",
 	"Gegen Menschen deiner Stufe:": "Against people of your level:",
+	"Gegen die stärksten Menschen:": "Against the strongest people:",
 	"Treffer": "Hit",
 	"Block": "Block",
 	"Treffer und Block": "Hit and block",

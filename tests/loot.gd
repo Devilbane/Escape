@@ -99,6 +99,19 @@ func _test_creatures() -> void:
 	check(Loot.creature_find("wolf", "selten") == "wolfsfell", "a wolf may leave its pelt")
 	check(Loot.creature_find("wolf", "episch") == "", "a beast has no epic find")
 	check(Loot.creature_find("krieger", "normal") == "", "an intelligent foe has no beast table")
+	# Slimes: their body leaves jelly about one kill in four, besides what
+	# they swallowed.
+	for kind in Loot.SWALLOWS:
+		check(Loot.slime_find(kind, 0.1, Loot.SLIME_JELLY - 0.01) != "", "a %s leaves something on a jelly roll" % kind)
+		check(Loot.slime_find(kind, 0.1, 0.99) == "", "most %s kills leave nothing of the body" % kind)
+	check(Loot.slime_find("schleim", 0.1, 0.2) == "schleimgelee", "a plain slime leaves its jelly")
+	check(Loot.slime_find("krieger", 0.1, 0.0) == "", "only slimes have a slime body")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var jelly := 0
+	for i in 2000:
+		jelly += 1 if Loot.slime_find("schleim", 0.1, rng.randf()) == "schleimgelee" else 0
+	check(jelly > 400 and jelly < 600, "about one plain slime in four leaves jelly (%d of 2000)" % jelly)
 
 
 ## Intelligent foes always carry iron coins, tough ones copper and silver
@@ -256,6 +269,16 @@ func _test_game() -> void:
 	check(added.size() == 1 and added[0].kind == "ingredient" and added[0].loot, "only the pelt, and no gold")
 	check(lvl.drop_kill_loot(wolf, 5, 0.99) == "", "most wolves leave nothing")
 	wolf.queue_free()
+	# A slime: no gear on a plain roll, but its jelly on a lucky body roll.
+	var slime := Enemy.new()
+	slime.kind = "schleim"
+	slime.level = lvl
+	lvl.add_child(slime)
+	slime.global_position = game.player.global_position + Vector3(0, 0, 30)
+	before = lvl._pickups.size()
+	check(lvl.drop_kill_loot(slime, 0, 0.99, -1.0, 0.2) == "schleimgelee", "a slime leaves its jelly")
+	check(lvl._pickups.slice(before).any(func(p): return p.kind == "ingredient" and p.ingredient == "schleimgelee"), "the jelly lies on the floor")
+	slime.queue_free()
 	# Picked up: the coins go into the pouch, with no mark on the map.
 	game._on_ingredient_collected("eisenmuenze", 250, true)
 	check(game.crafting.have("eisenmuenze") == 250, "250 iron coins in the pouch")

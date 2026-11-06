@@ -1,7 +1,7 @@
 """Builds the weather sounds from noise, like tools/make_sounds.py (whose
 helpers it uses): the rain that patters in a loop while it rains, the
-thunder after a stroke of lightning, and the splash of a step into a rain
-puddle (splash_*, see Puddles). Run: python3 tools/make_weather_sounds.py"""
+thunder after a stroke of lightning, and the burst of splashes of a step into
+a puddle (splash_*, see Puddles). Run: python3 tools/make_weather_sounds.py"""
 import os, subprocess
 import numpy as np
 from make_sounds import SR, OUT, t, noise, lowpass, highpass, env, save
@@ -42,27 +42,50 @@ def thunder():
     return crack * 0.8 + rumble
 
 
-def splash(k):
-    # A boot landing in a puddle: a wet slap of water, a short spray hissing
-    # out and a few drops plopping back. Each one has its own random draw
-    # (its own seed), so the rain and thunder above stay as they were.
-    r = np.random.default_rng(101 + k)
-    sec = 0.42
+def _slosh(r, sec, size):
+    # One splash of a boot in water: a wet slap, a deep slosh of water pushed
+    # aside, a fizz of spray and a few drops and bubbles plopping back.
+    # size (0..1) makes the later splashes of a burst smaller and shorter.
     n = r.uniform(-1, 1, int(SR * sec))
     tt = t(sec)
-    slap = (lowpass(n, r.uniform(1300, 1900)) - lowpass(n, 180)) * env(len(n), 0.003, r.uniform(0.03, 0.045))
-    thud = lowpass(r.uniform(-1, 1, len(n)), 160) * env(len(n), 0.004, 0.05) * 2.5
-    spray = highpass(r.uniform(-1, 1, len(n)), 2600) * env(len(n), 0.01, 0.07) * 0.35
-    x = slap * 1.4 + thud + spray
-    for _ in range(r.integers(3, 6)):
-        at = int(r.uniform(0.04, 0.26) * SR)
-        f0 = r.uniform(500, 1100)
-        d = t(r.uniform(0.025, 0.05))
-        # A drop: a little tone that glides up, like a bubble popping.
-        f = f0 * (1 + 2.2 * d / d[-1])
-        blip = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(d), 0.001, 0.012) * r.uniform(0.15, 0.4)
+    slap = (lowpass(n, r.uniform(1100, 1700)) - lowpass(n, 220)) * env(len(n), 0.002, r.uniform(0.025, 0.04) * (0.6 + 0.4 * size))
+    # The slosh: low water noise that wobbles, like water rolling back in.
+    wob = 1 + 0.6 * np.sin(2 * np.pi * r.uniform(18, 30) * tt + r.uniform(0, 6.3))
+    slosh = (lowpass(r.uniform(-1, 1, len(n)), 650) - lowpass(r.uniform(-1, 1, len(n)), 90)) * wob * env(len(n), 0.006, 0.04 * (0.6 + 0.4 * size)) * 1.6
+    thud = lowpass(r.uniform(-1, 1, len(n)), 150) * env(len(n), 0.004, 0.045) * 2.0 * size
+    spray = highpass(r.uniform(-1, 1, len(n)), 2800) * env(len(n), 0.01, 0.04 + 0.03 * size) * 0.45
+    x = slap * 1.3 + slosh + thud + spray
+    for _ in range(r.integers(4, 8)):
+        at = int(r.uniform(0.02, sec * 0.6) * SR)
+        f0 = r.uniform(450, 1300)
+        d = t(r.uniform(0.02, 0.05))
+        # A drop or a bubble: a little tone that glides up as it pops.
+        f = f0 * (1 + r.uniform(1.6, 2.8) * d / d[-1])
+        blip = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(d), 0.001, 0.01) * r.uniform(0.15, 0.4)
         x[at:at + len(blip)] += blip[: len(x) - at]
-    return x * np.minimum(1, (sec - tt) / 0.05)
+    return x * size
+
+
+def splash(k):
+    # A step into a puddle: not one dull slap but a burst of three or four
+    # splashes in a row, each a little smaller, like water kicked up and
+    # slopping back. Each sound has its own random draw (its own seed), so the
+    # four differ in timing, pitch and size, and the rain and thunder above
+    # stay as they were.
+    r = np.random.default_rng(211 + k)
+    count = 3 + k % 2
+    sec = 0.64
+    x = np.zeros(int(SR * sec))
+    at = 0.0
+    size = 1.0
+    for i in range(count):
+        one = _slosh(r, 0.24, size)
+        a = int(at * SR)
+        x[a:a + len(one)] += one[: len(x) - a]
+        at += r.uniform(0.1, 0.13)
+        size *= r.uniform(0.7, 0.82)
+    tt = t(sec)
+    return x * np.minimum(1, (sec - tt) / 0.06)
 
 
 if __name__ == "__main__":

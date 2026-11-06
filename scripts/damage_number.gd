@@ -145,10 +145,12 @@ static func copper_worth(copper: float) -> float:
 
 
 ## The worth of `amount` experience for a hero of `hero_level`, measured by a
-## kill at the hero's own level: a quarter of one is small, one is middling,
+## kill at the hero's own level (no higher than the world's top, see
+## HeroLevel.measured): a quarter of one is small, one is middling,
 ## eight (a boss, a big task) the most.
 static func xp_worth(amount: int, hero_level: int) -> float:
-	var kill := float(HeroLevel.kill_xp(hero_level, hero_level))
+	var measured := HeroLevel.measured(hero_level)
+	var kill := float(HeroLevel.kill_xp(measured, measured))
 	return clampf(0.4 + 0.2 * log(maxf(amount, 1) / kill) / log(2.0), 0.0, 1.0)
 
 

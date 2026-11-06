@@ -18,9 +18,9 @@ const BUTTON_HOVER_TEXT := Color(1.0, 0.92, 0.66)
 const BRONZE := Color(0.88, 0.66, 0.36)
 const PANEL_BG := Color(0.085, 0.062, 0.045, 0.93)
 const BUTTON_BG := Color(0.13, 0.085, 0.05, 0.85)
-const PANEL_RIM := 7
+const PANEL_RIM := 12
 const PANEL_RADIUS := 8
-const BUTTON_RIM := 3
+const BUTTON_RIM := 4
 const BUTTON_RADIUS := 6
 ## The game draws all its text at this share of the size it was designed at
 ## (the owner found it a quarter too big): use sized() wherever a font size

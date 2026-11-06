@@ -95,6 +95,8 @@ extends StyleBox
 
 ## Frames at least this thick get a rivet in each corner.
 const RIVET_FROM := 5
+## The length of a rim texture's middle part, which is stretched along a side.
+const RIM_MIDDLE := 96
 ## The textures made so far, by their size, so each is made once.
 static var _rims := {}
 static var _grounds := {}
@@ -197,11 +199,11 @@ func _draw(item: RID, rect: Rect2) -> void:
 		return
 	var rim := _rim(width, radius)
 	rs.canvas_item_add_nine_patch(item, rect, Rect2(Vector2.ZERO, rim.get_size()), rim.get_rid(), Vector2(corner, corner), Vector2(corner, corner),
-		RenderingServer.NINE_PATCH_TILE_FIT, RenderingServer.NINE_PATCH_TILE_FIT, false, border_color)
+		RenderingServer.NINE_PATCH_STRETCH, RenderingServer.NINE_PATCH_STRETCH, false, border_color)
 	if width >= RIVET_FROM and minf(rect.size.x, rect.size.y) >= width * 6:
 		var rivet := _rivet_texture()
-		var d := clampf(width + 4.0, 9.0, 16.0)
-		var inset := width / 2.0 + radius * 0.3
+		var d := clampf(width * 1.6, 10.0, 20.0)
+		var inset := width / 2.0 + radius * 0.3 + 1.0
 		var tint := Color(minf(border_color.r * 1.15, 1.0), minf(border_color.g * 1.15, 1.0), minf(border_color.b * 1.15, 1.0), border_color.a)
 		for p in [rect.position + Vector2(inset, inset), Vector2(rect.end.x - inset, rect.position.y + inset),
 				Vector2(rect.position.x + inset, rect.end.y - inset), rect.end - Vector2(inset, inset)]:
@@ -233,7 +235,7 @@ static func _rim(width: int, radius: int) -> ImageTexture:
 	if _rims.has(key):
 		return _rims[key]
 	var corner := maxi(width, radius) + 2
-	var size := corner * 2 + 16
+	var size := corner * 2 + RIM_MIDDLE
 	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
 	var half := size / 2.0
 	for y in size:
@@ -245,23 +247,32 @@ static func _rim(width: int, radius: int) -> ImageTexture:
 				img.set_pixel(x, y, Color(0, 0, 0, 0))
 				continue
 			var shade: float
-			if width >= 3 and (d < 1.0 or d > width - 1.0):
+			# Thick rims get a 2 px dark outline and groove, thinner ones 1 px.
+			var line := 2.0 if width >= 7 else 1.0
+			if width >= 3 and (d < line or d > width - line):
 				# The dark outline outside and the groove inside.
-				shade = 0.1
+				shade = 0.08
 			elif width < 3:
 				# A thin rim: just the lit metal.
 				shade = 0.8 + (_noise(x / 2, y / 2) - 0.5) * 0.12
 			else:
-				var t := clampf((d - 1.0) / maxf(width - (2.0 if width >= 3 else 1.0), 1.0), 0.0, 1.0)
-				shade = 0.55 + 0.4 * sin(t * PI)
-				# Light from the top left: the outward direction of this spot.
+				var t := clampf((d - line) / maxf(width - 2.0 * line, 1.0), 0.0, 1.0)
+				# A raised bar: dark at its two feet, bright along its ridge; of its
+				# two slopes the one facing the light (top left) is lit, the other
+				# in shade.
+				shade = 0.3 + 0.66 * sin(t * PI)
 				var out := Vector2(px - half, py - half)
 				var away := Vector2(signf(out.x) * maxf(absf(out.x) - (half - corner), 0.0),
 					signf(out.y) * maxf(absf(out.y) - (half - corner), 0.0))
 				if away.length() > 0.0:
-					shade += 0.18 * away.normalized().dot(Vector2(-0.7071, -0.7071))
+					var facing := away.normalized().dot(Vector2(-0.7071, -0.7071))
+					shade += 0.32 * cos(t * PI) * facing + 0.1 * facing
+				# A slow sheen along each side, as light running over polished
+				# metal (the sides are stretched, so it spans the whole side).
+				var along := (px if absf(out.y) > absf(out.x) else py) / size
+				shade += 0.12 * sin(along * TAU + (1.3 if out.y > 0.0 or out.x > 0.0 else 0.0))
 				# Hammer dents: a soft blotch every few pixels.
-				shade += (_noise(x / 3, y / 3) - 0.5) * 0.16 + (_noise(x, y) - 0.5) * 0.05
+				shade += (_noise(x / 3, y / 3) - 0.5) * 0.14 + (_noise(x, y) - 0.5) * 0.05
 			var alpha := clampf(d, 0.0, 1.0) * clampf(width + 0.5 - d + 0.5, 0.0, 1.0)
 			shade = clampf(shade, 0.0, 1.0)
 			img.set_pixel(x, y, Color(shade, shade, shade, alpha))

@@ -194,7 +194,7 @@ func _areas() -> void:
 			print("%s  %s  %d" % [area, e.kind, e.rated_level])
 		if HeroLevel.AREAS.has(area) and not HeroLevel.FIXED.has(e.kind):
 			check(e.rated_level >= HeroLevel.AREAS[area].min and e.rated_level <= HeroLevel.AREAS[area].max, "%s in %s fits levels %d to %d: %d" % [e.kind, area, HeroLevel.AREAS[area].min, HeroLevel.AREAS[area].max, e.rated_level])
-	for building in ["loch1", "loch2", "loch2b", "E", "E2", "E3", "mine1", "mine2", "mine3", "mine3b", "mine3c", "uralt1", "uralt2", "uralt3"]:
+	for building in ["loch1", "loch2", "loch2b", "grotte", "E", "E2", "E3", "mine1", "mine2", "mine3", "mine3b", "mine3c", "uralt1", "uralt2", "uralt3"]:
 		game.load_level(game.interiors[building], false)
 		await _wait()
 		var area: String = HeroLevel.BUILDING_AREAS[building]

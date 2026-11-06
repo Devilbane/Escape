@@ -34,6 +34,9 @@ signal bounty_paid(id: String)
 ## room), "writing" (a wall writing) or "rune" (a dwarves' rune tablet), at a
 ## place of this level (see HeroLevel.RIDDLES). It earns experience.
 signal riddle_solved(kind: String, place_level: int)
+## The hero fished up a bottle with a treasure map in it (see Fishing and
+## TreasureMaps): the map's id. Its spot shows in the world from now on.
+signal treasure_map_found(id: String)
 ## A villager's task is done and its reward handed over (see Quests).
 signal quest_done(id: String)
 ## Something went into or out of the bag because of a task.

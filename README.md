@@ -547,6 +547,15 @@ three perch). One of its lines is smudged until you catch a silver pike. What bi
 by the float: it spits water at you, burps a bubble or spits an old coin onto the shore, sometimes takes the
 bait, and then wears your float as a hat. Drawing the line in does not chase it away.
 
+**Treasure maps.** Now and then a message in a bottle holds an old **treasure map** instead of a note. There
+are two, each found once: the **Map of the Mill Cross** marks a spot just south of the windmill, where a cross
+of stones now lies on fresh earth: run into it to dig up a chest with copper and a rare piece of gear. The
+**Map of the Boulder** tells of a boulder at the western edge of the woods, where the path from the graveyard
+bends east: run into it to roll it aside, and climb down the hole beneath into the **hidden grotto** (a few
+bats, slimes and a spider, and a treasure chest at the back). Both spots carry a red cross on your map in the
+journal until you have found them, and the maps' text stays in the compendium. See `TreasureMaps`
+(`scripts/treasure_maps.gd`); on the map the spots are the letters `?` and `>`.
+
 **Reputation.** Every villager has their own opinion of you, and helping them improves it. A finished task
 counts the most: 25 points with whoever gave it, 15 with whoever received a delivery, and 5 with everyone
 else you have met, because word gets around. Buying from a villager who trades (Mira, Gorm, Hagen, Benno)

@@ -89,7 +89,7 @@ static func tile_color(ch: String, outdoor: bool) -> Color:
 			"z": return Color(0.3, 0.27, 0.25)
 			"g": return Color(0.48, 0.47, 0.45)
 			"y", "p": return Color(0.62, 0.48, 0.25)
-			"r": return Color(0.5, 0.5, 0.5)
+			"r", ">": return Color(0.5, 0.5, 0.5)
 			"T", "d", "t": return Color(0.25, 0.42, 0.22)
 			"N", "f", "C": return Color(0.5, 0.4, 0.3)
 			"I": return Color(0.45, 0.4, 0.36)
@@ -162,6 +162,8 @@ func _draw() -> void:
 			var fs := int(r * 1.2)
 			var w := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 			draw_string(_font, p + Vector2(-w * 0.5, fs * 0.38), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.05, 0.03, 0.05))
+	for c in journal.treasure_spots(file):
+		_draw_cross(o + (Vector2(c) + Vector2(0.5, 0.5)) * t, r)
 	if hero_at != Vector2.INF:
 		var p := o + (hero_at + Vector2(0.5, 0.5)) * t
 		var fwd := hero_facing.normalized() if hero_facing.length() > 0.01 else Vector2.DOWN
@@ -178,6 +180,18 @@ func _secret_open(c: Vector2i) -> bool:
 		if absi(s[0] - c.x) + absi(s[1] - c.y) <= 1:
 			return true
 	return false
+
+
+## The red cross of a treasure map (see Journal.treasure_spots), with a dark
+## edge so it shows on grass and forest alike.
+func _draw_cross(p: Vector2, r: float) -> void:
+	if not Rect2(Vector2.ZERO, size).has_point(p):
+		return
+	var k := r * 1.1
+	for arm in [[Vector2(-k, -k), Vector2(k, k)], [Vector2(-k, k), Vector2(k, -k)]]:
+		draw_line(p + arm[0], p + arm[1], Color(0, 0, 0, 0.85), 6.0)
+	for arm in [[Vector2(-k, -k), Vector2(k, k)], [Vector2(-k, k), Vector2(k, -k)]]:
+		draw_line(p + arm[0], p + arm[1], TreasureMaps.MAP_RED, 3.5)
 
 
 func _draw_star(p: Vector2, r: float, color: Color) -> void:

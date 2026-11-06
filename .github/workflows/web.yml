@@ -624,6 +624,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/fishing.gd | tee fishing.log
           grep -q PASS fishing.log
 
+      - name: Treasure maps test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/treasure_maps.gd | tee treasure.log
+          grep -q PASS treasure.log
+
       - name: Home upgrades test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/home_upgrades.gd | tee upgrades.log

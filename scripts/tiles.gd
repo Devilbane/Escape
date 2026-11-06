@@ -128,6 +128,8 @@ const OUTDOOR := {
 	"!": "bounty board",
 	"@": "the wandering merchant's pitch",
 	"(": "dark hole down into a cave of its own",
+	"?": "buried treasure: plain grass until a treasure map from a bottle marks it (see TreasureMaps)",
+	">": "boulder over the hidden grotto: rolls aside once its treasure map is read, leads to \"building: grotte\"",
 	# Buildings, each a rectangular block of the same letter (Outdoor.BLOCK_CHARS).
 	"h": "house (half-timbered, see VillageHouse)",
 	"j": "smithy",

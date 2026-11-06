@@ -56,14 +56,15 @@ const FOLD := 0.5
 const GLIDE_EVERY := 2.6
 ## How high over the ground the shadow lies (over the paving and the grass).
 const LIFT := 0.12
-## How dark the shadow is in full daylight (its alpha), and its colour.
-const DARK := 0.5
-const TINT := Color(0.04, 0.05, 0.09)
+## How dark the shadow is in full daylight (its alpha), and its colour: a
+## dense, near-black shade, plainly a huge thing passing over.
+const DARK := 0.72
+const TINT := Color(0.01, 0.01, 0.02)
 ## How dark it is under a clear full moon (its alpha), and its colour then:
 ## black, as a shadow takes away the moon's blue light (a bluish tint would
 ## melt into the bluish night ground). Darker than by day, since a dim
 ## picture needs more to stand out.
-const MOON_DARK := 0.6
+const MOON_DARK := 0.8
 const MOON_TINT := Color(0, 0, 0)
 ## The picture resolution: pixels per metre.
 const PIXELS := 12.0

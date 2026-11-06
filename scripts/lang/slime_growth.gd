@@ -10,4 +10,8 @@ const EN := {
 	"Hilfe! Ein Schleim!": "Help! A slime!",
 	"Weg mit dir, Schleim!": "Away with you, slime!",
 	"Puh! Wieder draußen!": "Phew! Out again!",
+	"Zu den Waffen! Ein Schleim ist im Dorf! Frauen und Kinder, in die Häuser!": "To arms! A slime is in the village! Women and children, into the houses!",
+	"Entwarnung! Der Schleim ist fort, das Dorf ist wieder sicher.": "All clear! The slime is gone, the village is safe again.",
+	"Der Herold ruft das Dorf zu den Waffen: Ein Schleim ist im Dorf!": "The herald calls the village to arms: a slime is in the village!",
+	"Rettet euch! Ein riesiger Schleim! Alle in die Häuser!": "Run for your lives! A giant slime! Everyone into the houses!",
 }

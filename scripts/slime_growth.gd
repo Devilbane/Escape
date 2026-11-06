@@ -88,7 +88,8 @@ const GULP_COLOR := Color(0.6, 1.0, 0.45)
 const CORPSE_SCENT := 20.0
 ## The townsfolk and animals a slime hunts: [life, level]. Their life only
 ## counts the slime's blows; their level is what they are worth as a meal.
-const SNACKS := {"fuchs": [3, 2], "reh": [4, 3], "hirsch": [6, 4], "villager": [8, 5]}
+## A villager's life and level are their own (Villager.fight_level).
+const SNACKS := {"fuchs": [3, 2], "reh": [4, 3], "hirsch": [6, 4], "villager": [12, 12]}
 ## How far a slime notices a villager or an animal it could eat.
 const SNACK_SIGHT := 14.0
 const HERO_CLOSE := 3.5
@@ -275,11 +276,18 @@ static func nearest_snack(slime: Enemy) -> Node3D:
 	return best
 
 
+## How much life a villager or an animal has against a slime's blows.
+static func snack_life(n: Node3D) -> int:
+	if n is Villager:
+		return (n as Villager).max_life()
+	return int(SNACKS[snack_key(n)][0])
+
+
 ## A slime's blow on a villager or an animal: some of its life, a cover of
 ## goo, and it runs or cries for help. At no life left the slime eats it.
 static func bite(slime: Enemy, n: Node3D) -> void:
 	var key := snack_key(n)
-	var life: int = n.get_meta("slime_life", SNACKS[key][0]) - maxi(1, int(slime._stats.damage))
+	var life: int = n.get_meta("slime_life", snack_life(n)) - maxi(1, int(slime._stats.damage))
 	n.set_meta("slime_life", life)
 	var colour := slime.slime_colour()
 	Effects.head_text(slime.level, n, 2.2, "-%d" % maxi(1, int(slime._stats.damage)), Color(1, 0.45, 0.35))
@@ -312,7 +320,7 @@ static func goo_for_a_while(n: Node3D, colour: Color) -> void:
 ## inside (see release_folk).
 static func gulp(slime: Enemy, n: Node3D) -> void:
 	var key := snack_key(n)
-	slime.grow_from(int(SNACKS[key][1]))
+	slime.grow_from((n as Villager).fight_level() if n is Villager else int(SNACKS[key][1]))
 	n.remove_meta("slime_life")
 	var model: Node3D = n.get("_model")
 	var outdoor := slime.level as Outdoor

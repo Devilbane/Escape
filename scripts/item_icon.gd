@@ -1,23 +1,30 @@
 class_name ItemIcon
 extends Control
-## A small drawn picture for the trading windows: what kind of thing an item
-## is (a sword, a shield, boots, a book ...), in the item's own colour, on a
-## dark tile with a golden frame. Also draws the little up and down arrows of
-## the comparison card ("up", "down") and the category emblems.
+## A small picture for the windows and the HUD: what kind of thing an item
+## is (a sword, a shield, boots, a book ...), in the item's own colour, in a
+## small bronze slot. Most kinds are painted pictures (assets/ui/icons, made by
+## tools/make_icons.py); the rest, and the little up and down arrows of the
+## comparison card ("up", "down") and the category emblems, are drawn here.
 
 ## What to draw: an item id, or one of the plain kinds below with "kind:".
 var what := ""
 ## Draws only the picture, without the tile and frame (for arrows and emblems).
 var bare := false
 
-const FRAME := Color(0.85, 0.66, 0.32, 0.85)
-const TILE := Color(0.07, 0.06, 0.09, 1.0)
+const FRAME := Color(0.88, 0.66, 0.36)
+const TILE := Color(0.09, 0.065, 0.045, 1.0)
 const STEEL := Color(0.78, 0.8, 0.86)
 const WOOD := Color(0.55, 0.34, 0.17)
 const LEATHER := Color(0.55, 0.33, 0.16)
 const GOLDEN := Color(1.0, 0.8, 0.35)
 const UP := Color(0.35, 0.9, 0.35)
 const DOWN := Color(0.95, 0.3, 0.25)
+
+
+func _init() -> void:
+	# The painted pictures are drawn smaller than they are made: mipmaps keep
+	# them smooth.
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 
 
 static func make(id: String, size := 44.0, plain := false) -> ItemIcon:
@@ -139,18 +146,81 @@ static func color_of(id: String) -> Color:
 	return GOLDEN
 
 
+## Where the painted pictures are (see tools/make_icons.py): <kind>.svg, and
+## for a picture in the item's own colour <kind>__tint.svg, the part in grey
+## that is tinted and drawn under it.
+const ART_DIR := "res://assets/ui/icons/"
+## The pictures loaded so far, by kind ([picture, tinted part], either may be
+## null); a kind without a picture is drawn with shapes below.
+static var _art := {}
+## The bronze slot a tile sits in (see BronzeStyle), by its rim width.
+static var _slots := {}
+
+
+## The painted picture of a kind and its tinted part, loaded once.
+static func art(kind: String) -> Array:
+	if not _art.has(kind):
+		var picture: Texture2D = null
+		var tinted: Texture2D = null
+		if ResourceLoader.exists(ART_DIR + kind + ".svg"):
+			picture = load(ART_DIR + kind + ".svg")
+		if ResourceLoader.exists(ART_DIR + kind + "__tint.svg"):
+			tinted = load(ART_DIR + kind + "__tint.svg")
+		_art[kind] = [picture, tinted]
+	return _art[kind]
+
+
+## The kind of painted picture an item gets: the bars of metal share one,
+## tinted with their metal.
+static func art_kind(kind: String) -> String:
+	if kind == "iron" or kind.begins_with("bar_"):
+		return "bar"
+	return kind
+
+
+## The colour the tinted part of a picture takes.
+func tint_of(kind: String) -> Color:
+	match kind:
+		"ring":
+			return Color(0.95, 0.25, 0.3) if what == "rubinring" else GOLDEN.darkened(0.2)
+		"heal_potion":
+			return color_of(what) if Items.ALL.has(what) else Color(0.92, 0.2, 0.25)
+		"coin":
+			return Loot.COIN_COLORS.get(what, GOLDEN)
+		"iron":
+			return STEEL
+	if kind.begins_with("bar_"):
+		return Forge.METALS[kind.substr(4)].color
+	return color_of(what)
+
+
+static func _slot(width: int) -> StyleBox:
+	if not _slots.has(width):
+		_slots[width] = UiKit.frame_style(TILE, FRAME, width, 3)
+	return _slots[width]
+
+
 func _draw() -> void:
 	var s := size
 	if not bare:
-		draw_rect(Rect2(Vector2.ZERO, s), TILE)
-		draw_rect(Rect2(Vector2.ONE, s - Vector2.ONE * 2), FRAME, false, 1.5)
+		# A small bronze slot, its rim thicker on the bigger tiles.
+		_slot(3 if s.x >= 40.0 else 2).draw(get_canvas_item(), Rect2(Vector2.ZERO, s))
 	# All shapes are drawn on a 0..1 square scaled into the control.
 	var pad := 0.0 if bare else s.x * 0.12
 	var u := (minf(s.x, s.y) - pad * 2.0)
 	var o := (s - Vector2(u, u)) / 2.0
 	var p := func(x: float, y: float) -> Vector2: return o + Vector2(x, y) * u
 	var c := color_of(what)
-	match kind_of(what):
+	var kind := kind_of(what)
+	var painted := art(art_kind(kind))
+	if painted[0] != null:
+		var square := Rect2(o, Vector2(u, u))
+		if painted[1] != null:
+			draw_texture_rect(painted[1], square, false, tint_of(kind))
+		draw_texture_rect(painted[0], square, false)
+		_draw_marks(kind, p, u)
+		return
+	match kind:
 		"sword":
 			draw_line(p.call(0.25, 0.75), p.call(0.82, 0.18), STEEL, u * 0.09)
 			draw_line(p.call(0.15, 0.6), p.call(0.4, 0.85), GOLDEN, u * 0.07)
@@ -413,6 +483,27 @@ func _draw() -> void:
 			draw_rect(Rect2(p.call(0.25, 0.15), Vector2(u * 0.5, u * 0.7)), Color(0.9, 0.82, 0.62))
 			for y in [0.35, 0.5, 0.65]:
 				draw_line(p.call(0.33, y), p.call(0.67, y), WOOD, u * 0.03)
+
+
+## What a painted picture still needs on top: the potency dots of a potion
+## of the bag (so it never hangs on the red alone), and how a coin's metal
+## looks (iron dull and pitted, gold with a glint).
+func _draw_marks(kind: String, p: Callable, u: float) -> void:
+	match kind:
+		"heal_potion":
+			for i in int(Items.ALL.get(what, {}).get("pips", 0)):
+				draw_circle(p.call(0.84, 0.18 + i * 0.2), u * 0.07, GOLDEN)
+				draw_arc(p.call(0.84, 0.18 + i * 0.2), u * 0.07, 0.0, TAU, 12, Color(0.1, 0.06, 0.02), u * 0.02)
+		"coin":
+			var metal: Color = Loot.COIN_COLORS.get(what, GOLDEN)
+			if what == "eisenmuenze":
+				for pit in [[0.4, 0.42], [0.6, 0.56], [0.46, 0.64]]:
+					draw_circle(p.call(pit[0], pit[1]), u * 0.035, metal.darkened(0.45))
+			elif what == "goldmuenze" or not Loot.COIN_COLORS.has(what):
+				var g: Vector2 = p.call(0.72, 0.28)
+				var glint := Color(1.0, 0.97, 0.85)
+				draw_colored_polygon(PackedVector2Array([g + Vector2(0, -u * 0.16), g + Vector2(u * 0.035, 0), g + Vector2(0, u * 0.16), g + Vector2(-u * 0.035, 0)]), glint)
+				draw_colored_polygon(PackedVector2Array([g + Vector2(-u * 0.16, 0), g + Vector2(0, -u * 0.035), g + Vector2(u * 0.16, 0), g + Vector2(0, u * 0.035)]), glint)
 
 
 ## The colour of a hair swatch ("kind:hair:<colour id>", see HairLook).

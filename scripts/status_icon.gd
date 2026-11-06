@@ -1,7 +1,7 @@
 class_name StatusIcon
 extends Control
 ## A little icon for a condition the hero is in (see
-## Game._update_status_icons): a dark tile with a coloured frame and a drawn
+## Game._update_status_icons): a dark tile in a metal frame of its colour and a drawn
 ## picture, with a number in its corner where the condition has one.
 ## Passing troubles, with a red frame, in a row under the life bar
 ## (Game.hero_ailments):
@@ -31,7 +31,7 @@ const BOON_FRAME := Color(0.4, 0.92, 0.4)
 const NOTICES := ["repair", "upgrade"]
 ## The kinds that are boons (green frame) rather than troubles.
 const BOONS := ["power", "fast", "hardening"]
-const TILE := Color(0.07, 0.05, 0.07, 0.9)
+const TILE := Color(0.09, 0.065, 0.045, 0.92)
 const FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 
 var kind := ""
@@ -107,8 +107,8 @@ static func log_color(what: String) -> Color:
 
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
-	draw_rect(r, TILE)
-	draw_rect(r.grow(-1), frame_color(kind), false, 2.0)
+	# A small slot of metal tinted with the kind's colour (see BronzeStyle).
+	UiKit.frame_style(TILE, frame_color(kind), 2, 3).draw(get_canvas_item(), r)
 	var c := size / 2.0
 	match kind:
 		"gift":

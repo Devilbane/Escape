@@ -53,6 +53,13 @@ const LAND_SPEED := 1.2
 const BEND := 0.3
 const BEND_MAX := 7.0
 const BANK := 0.18
+## Wing beats: radians a second cruising (BEATS), and how much faster and
+## wider they flutter setting off and coming in to land (FLUTTER, FLUTTER_SWING),
+## over the first and last FLUTTER_REACH metres of a flight.
+const BEATS := 16.0
+const FLUTTER := 2.8
+const FLUTTER_SWING := 1.05
+const FLUTTER_REACH := 2.5
 const PECK := Vector2(3.0, 8.0)
 ## How many kinds of bird there are (their colours are in bird.gdshader).
 const KINDS := 7
@@ -143,7 +150,8 @@ static var _hinted := false
 ## speed is changing), "bank" (its roll into a turn), "wait",
 ## "state" ("sit", "fly", "peck"), "phase", "yaw", "next", "kind",
 ## "market" (pecking on the market square), "dip" (seconds to the next dip),
-## "dipping" (seconds left of this one), "worm" (seconds left with a worm)}.
+## "dipping" (seconds left of this one), "worm" (seconds left with a worm),
+## "wing" (where its wings are in their beat, radians; see _beat)}.
 var birds: Array = []
 var nests: Array[Vector3] = []
 ## Each nest's brood, if it has one: {"nest" (index), "chicks" (or eggs),
@@ -203,7 +211,8 @@ func _init(level_node: Node3D, nest_spots: Array[Vector3], ground_spots: Array[V
 					"phase": _rng.randf() * TAU, "yaw": _rng.randf() * TAU, "next": "out",
 					"kind": _rng.randi() % KINDS, "market": false, "dip": 0.0, "dipping": 0.0, "worm": 0.0,
 						"nest": n, "carry": false, "feed": 0.0, "id": birds.size(), "seeds": false, "perch": -1,
-						"turn": 0.0, "size": 1.0, "size_from": 1.0})
+						"turn": 0.0, "size": 1.0, "size_from": 1.0, "wing": 0.0})
+			birds[-1].wing = birds[-1].phase
 	_mm = MultiMesh.new()
 	_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_mm.use_custom_data = true
@@ -263,6 +272,7 @@ func _process(delta: float) -> void:
 	_fly_grains(delta)
 	for i in birds.size():
 		_think(birds[i], delta, night)
+		_beat(birds[i], delta)
 		_show(i)
 	for brood: Dictionary in broods:
 		_tend(brood, delta, night, hero_at)
@@ -787,6 +797,22 @@ static func _flat_distance(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
+## How hard a flying bird flutters (0 to 1): fully just after take-off and
+## just before it lands, easing off over FLUTTER_REACH metres.
+static func _flutter(b: Dictionary) -> float:
+	if b.state != "fly":
+		return 0.0
+	var gone := float(b.t) * float(b.length)
+	var left := (1.0 - float(b.t)) * float(b.length)
+	return 1.0 - smoothstep(0.0, FLUTTER_REACH, minf(gone, left))
+
+
+## Moves a bird's wing beat on: the shader draws the wings at sin("wing"),
+## so it can beat faster without its wings jumping.
+func _beat(b: Dictionary, delta: float) -> void:
+	b.wing = fmod(float(b.wing) + delta * BEATS * lerpf(1.0, FLUTTER, _flutter(b)), TAU)
+
+
 func _show(i: int) -> void:
 	var b: Dictionary = birds[i]
 	var flying: bool = b.state == "fly"
@@ -807,7 +833,9 @@ func _show(i: int) -> void:
 		var climbing: bool = b.t < 0.5
 		var landing: bool = b.t > 0.8 and float(b.accel) < -0.5
 		var beat := 0.9 if climbing or float(b.accel) > 0.5 or landing else 0.45
-		_mm.set_instance_custom_data(i, Color(b.phase, beat, 0.0, kind))
+		# Fluttering hard as it sets off and as it comes in to land.
+		beat = lerpf(beat, FLUTTER_SWING, _flutter(b))
+		_mm.set_instance_custom_data(i, Color(b.wing, beat, 0.0, kind))
 		var pitch := -0.35 if landing else (-0.25 if climbing else 0.15)
 		basis = basis * Basis(Vector3.RIGHT, pitch) * Basis(Vector3.FORWARD, float(b.bank))
 	else:

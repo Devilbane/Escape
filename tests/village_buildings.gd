@@ -247,6 +247,13 @@ func _check_aged(lvl: Outdoor) -> void:
 		check(nest.y > AgedStone.NEST_HEIGHT, "a nest sits up high (%.1f m)" % nest.y)
 	var birds: VillageBirds = lvl.birds
 	check(birds != null and birds.birds.size() == lvl.nests.size() * VillageBirds.PER_NEST, "two birds live in each nest")
+	# Fluttering hard setting off and landing, beating calmly between.
+	var flight := {"state": "fly", "t": 0.0, "length": 20.0}
+	check(is_equal_approx(VillageBirds._flutter(flight), 1.0), "a bird flutters hard as it takes off")
+	flight.t = 0.5
+	check(VillageBirds._flutter(flight) == 0.0, "half way along a long flight it beats calmly")
+	flight.t = 0.99
+	check(VillageBirds._flutter(flight) > 0.9, "it flutters hard again coming in to land")
 	if birds:
 		lvl.player = game.player
 		game.player.global_position = lvl.nests[0] - Vector3(0, lvl.nests[0].y, 0)

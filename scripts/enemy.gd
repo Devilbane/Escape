@@ -266,6 +266,9 @@ const GIFT_CALM := 10.0
 ## A stab counts as from behind when it comes from outside this angle either
 ## side of where the skeleton looks.
 const BEHIND := deg_to_rad(100.0)
+## The colour of a sneak attack's words over the head: the red of the
+## comic "backstab" word, a little lighter to read on dark floors.
+const SNEAK_ATTACK_COLOR := Color(1.0, 0.25, 0.35)
 ## Depth scaling (see _ready): +1 life every HP_EVERY_LEVELS levels down and
 ## +1 damage every DAMAGE_EVERY_LEVELS, counted up to DEEPEST (the open wild
 ## lies past the dungeon and gets the full bonus).
@@ -1127,10 +1130,12 @@ func open_to_backstab(from: Vector3) -> bool:
 
 
 ## Kind is "hit" for a blade, "knife" for a thrown knife, "backstab" for a
-## stab in the back or "thorns" for the hero's thorn rune; it picks the comic
-## word. Hardening softens every hit but a stab in the back, and swallows
-## thorns whole. "pierce" is a plain hit that goes through the hardening
-## (a boss caught off guard, see BanditChief).
+## sneak attack (a stab in the back) or "thorns" for the hero's thorn rune; it
+## picks the comic word. Hardening softens every hit but a sneak attack, and
+## swallows thorns whole. "pierce" is a plain hit that goes through the
+## hardening (a boss caught off guard, see BanditChief). A sneak attack's
+## damage is already tripled by the hero (see Player.sneak_attack_damage), and
+## it is the one blow that gets past a guardian's armour.
 func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	if dead:
 		return
@@ -1143,10 +1148,10 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		kind = "hit"
 	elif kind != "backstab":
 		damage = Player.soak(damage, hardening)
-	if kind == "backstab":
-		# A horror, a rock troll or a boss is too big to fall to one stab:
-		# it only hurts more.
-		damage = damage * 3 if is_horror() or _stats.get("big", false) else hp
+	if kind == "backstab" and _stats.get("armored", false):
+		# The guardian's armour has one gap, and a sneak attack finds it:
+		# it always falls to a single stab in the back.
+		damage = maxi(damage, hp)
 	elif _stats.get("armored", false):
 		# Blades glance off the guardian's armour, and it turns to fight.
 		if wakes:
@@ -1161,7 +1166,11 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	var away := global_position - from
 	away.y = 0.0
 	_knockback = away.normalized() * 9.0 / (_stats.size * _stats.size)
-	Effects.head_text(level, self, 2.2 * _stats.size, "-%d" % damage, Color(1, 0.45, 0.35))
+	if kind == "backstab":
+		# Readable at a glance: the word, then the big number.
+		Effects.head_text(level, self, 2.2 * _stats.size, "%s -%d" % [Lang.t("Hinterhalt!"), damage], SNEAK_ATTACK_COLOR)
+	else:
+		Effects.head_text(level, self, 2.2 * _stats.size, "-%d" % damage, Color(1, 0.45, 0.35))
 	# The comic word below makes the sound of the blow.
 	if hp <= 0:
 		if is_ghost():
@@ -1177,7 +1186,7 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 			Sfx.play(self, "bones", 0.0, global_position)
 		_die()
 	else:
-		Comic.pop(global_position, "big" if damage >= 2 else kind)
+		Comic.pop(global_position, "backstab" if kind == "backstab" else ("big" if damage >= 2 else kind))
 		_play_once("Hit_A", 0.45)
 
 

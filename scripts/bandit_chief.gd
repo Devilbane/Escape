@@ -42,8 +42,6 @@ const DAZED_TIME := 1.8
 ## How much quicker he gets once enraged.
 const RAGE_SPEED := 1.25
 const RAGE_COOLDOWN := 0.8
-## Backstabs hit this many times as hard instead of killing outright.
-const BACKSTAB_FACTOR := 3
 ## Off the hunt this long, he binds his wounds: full life, phase 1 again.
 const RECOVER_AFTER := 12.0
 
@@ -88,15 +86,13 @@ func is_charging() -> bool:
 func take_hit(damage: int, from: Vector3, hit_kind := "hit", wakes := true) -> void:
 	if dead:
 		return
-	if hit_kind == "backstab":
-		# Not one stab ends the chief, but it hurts.
-		damage *= BACKSTAB_FACTOR
-		hit_kind = "pierce"
-		Comic.pop(global_position, "backstab")
+	# A sneak attack is no instant kill for him: it deals what the hero
+	# deals (three times the hardest blow, see Player.sneak_attack_damage).
 	if _dazed > 0.0:
 		# Dazed, the chief's armour does not help him either.
 		damage *= 2
-		hit_kind = "pierce"
+		if hit_kind != "backstab":
+			hit_kind = "pierce"
 	super.take_hit(damage, from, hit_kind, wakes)
 	if dead:
 		_windup = 0.0

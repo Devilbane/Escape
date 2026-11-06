@@ -991,7 +991,9 @@ func melee() -> void:
 	var hits := 0
 	for e in victims:
 		if e.open_to_backstab(global_position):
-			e.take_hit(power, global_position, "backstab")
+			# A sneak attack never rolls: it lands SNEAK_ATTACK_FACTOR times
+			# the hardest blow the hero can deal.
+			e.take_hit(sneak_attack_damage(), global_position, "backstab")
 			train("schleichen", 4.0)
 		else:
 			e.take_hit(damage, global_position)
@@ -1405,6 +1407,22 @@ func weapon_skill() -> String:
 ## A heavy hit (+1 damage) is a roll on the weapon's skill.
 func heavy_hit(skill_id: String) -> int:
 	return 1 if skill_check(skill_id) else 0
+
+
+## A sneak attack (a stab in the back of a foe that has not noticed the
+## hero) deals this many times the hero's maximum hit.
+const SNEAK_ATTACK_FACTOR := 3
+
+
+## The hardest single blow the hero can deal right now: the power, plus the
+## heavy hit when the weapon's skill can roll one at all.
+func max_hit() -> int:
+	return power + (1 if skill_chance(weapon_skill()) > 0 else 0)
+
+
+## What a sneak attack deals: SNEAK_ATTACK_FACTOR times max_hit, no roll.
+func sneak_attack_damage() -> int:
+	return SNEAK_ATTACK_FACTOR * max_hit()
 
 
 ## The average of the attributes that govern a skill.

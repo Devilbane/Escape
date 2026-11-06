@@ -86,8 +86,8 @@ func _process(_delta: float) -> bool:
 				check(lvl.boss_bar.wanted(), "the health bar shows during the fight")
 				# A backstab is no instant kill for him.
 				var before := chief.hp
-				chief.take_hit(1, player.global_position, "backstab")
-				check(not chief.dead and chief.hp == before - BanditChief.BACKSTAB_FACTOR, "a stab in the back hurts the chief but does not end him")
+				chief.take_hit(3, player.global_position, "backstab")
+				check(not chief.dead and chief.hp == before - 3, "a stab in the back hurts the chief but does not end him")
 				# Phase 2: below two thirds he calls his cutthroats.
 				chief.take_hit(chief.hp - int(chief.max_hp() * 0.6), player.global_position)
 				check(chief.phase == 2, "below two thirds of his life the chief enters phase 2")

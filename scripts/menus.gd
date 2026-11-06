@@ -17,7 +17,7 @@ var game: Node
 ## The open window: "", "inventar", "lager", "haendler", "bett",
 ## "nachtlager" (the camp with the bedroll, see Camp), "laden",
 ## "ueberschreiben" (asks before a new game overwrites a slot), "kompendium",
-## "charakter", "beenden", "plan" (the day planned for the
+## "charakter", "beenden" (the pause window with the quit button), "plan" (the day planned for the
 ## time away) or "rueckkehr" (what the hero did while the player was away).
 var current := ""
 var _holder: Control
@@ -94,7 +94,7 @@ const SHORTCUTS := [
 	["Steinblock aufheben", "E neben dem Block, oder ihn kurz anklicken"],
 	["Schwere Steinblöcke schieben", "E neben dem Block, oder ihn kurz anklicken; ziehen setzt ihn ab, bis zu 5 Felder von seinem Platz"],
 	["Zoom", "+ und −, Mausrad"],
-	["Spiel beenden", "Esc"],
+	["Pause, Spiel beenden", "Esc (noch einmal Esc spielt weiter)"],
 	["In Fenstern wählen", "Pfeiltasten oder Tab, Eingabe drückt den Knopf, Esc schließt"],
 ]
 
@@ -3654,20 +3654,24 @@ func _villager_about(role: String) -> String:
 
 
 func _build_quit() -> void:
-	_add_label(Lang.t("Spiel beenden"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Was seit dem letzten Schlaf im Bett geschah, geht verloren."), 20, Color(1.0, 0.75, 0.5))
+	_add_label(Lang.t("Pause"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Die Welt steht still, bis du weiterspielst."), 20)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
 	_box.add_child(row)
-	var quit: Button = game._make_button(Lang.t("Beenden"), func():
+	# Going on is the main way out of a pause, so it comes first; Esc does
+	# the same.
+	var resume: Button = game._make_button(Lang.t("Weiterspielen"), close)
+	resume.custom_minimum_size = Vector2(220, 60)
+	row.add_child(resume)
+	var quit: Button = game._make_button(Lang.t("Spiel beenden"), func():
 		close()
 		game.quit_game())
 	quit.custom_minimum_size = Vector2(220, 60)
 	row.add_child(quit)
-	var cancel: Button = game._make_button(Lang.t("Abbrechen"), close)
-	cancel.custom_minimum_size = Vector2(220, 60)
-	row.add_child(cancel)
+	# What quitting costs sits right under the buttons.
+	_add_label(Lang.t("Was seit dem letzten Schlaf im Bett geschah, geht verloren."), 16, Color(1.0, 0.75, 0.5))
 
 
 ## The dragon has fallen: the lair is won. Says so, counts the fallen

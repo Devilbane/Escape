@@ -1672,6 +1672,11 @@ func life_regen() -> float:
 	return attribute("konstitution") / REGEN_PER_CON_DIVISOR / REGEN_INTERVAL
 
 
+## Whether a fresh hit is holding the healing back for now.
+func regen_paused() -> bool:
+	return _regen_pause > 0.0
+
+
 ## Heals the hero once every REGEN_INTERVAL seconds, more with more Konstitution.
 func _regenerate(delta: float) -> void:
 	if dead or hp >= max_hp:

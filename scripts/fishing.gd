@@ -531,7 +531,7 @@ func take(caught: String, pos: Vector3, on: Node) -> void:
 	elif caught == "muenze":
 		game.coins += 1
 		Sfx.play(game, "coin")
-		Effects.float_text(on, pos + Vector3(0, 1.4, 0), Lang.t("+%d Kupfer") % 1, game.GOLD, true)
+		Effects.loot_text(on, pos + Vector3(0, 1.4, 0), Lang.t("+%d Kupfer") % 1, game.GOLD, DamageNumber.copper_worth(1))
 		Events.found(Lang.t("Eine alte Münze, die jemand für sein Glück hineingeworfen hat. +1 Kupfer"), game.GOLD)
 	else:
 		game.crafting.add(caught)
@@ -545,7 +545,7 @@ func take(caught: String, pos: Vector3, on: Node) -> void:
 			Events.found(Lang.t("Ein seltener Fang: %s!") % Rarity.marked(caught), Color(0.6, 0.85, 1.0))
 		else:
 			Sfx.play(game, "drip")
-			Effects.float_text(on, pos + Vector3(0, 1.4, 0), fish, Color(0.75, 0.9, 1.0), true)
+			Effects.loot_text(on, pos + Vector3(0, 1.4, 0), fish, Color(0.75, 0.9, 1.0), DamageNumber.item_worth(caught))
 			Events.found(Lang.t("Gefangen: %s! Ab in den Zutatenbeutel.") % Rarity.marked(caught))
 		for id in game.crafting.caught_fish(caught):
 			game.show_message(Lang.t("Jetzt verstehst du eine verwischte Zeile im Rezept „%s“.") % Lang.t(Crafting.RECIPES[id].name), 3.5)

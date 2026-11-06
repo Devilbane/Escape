@@ -1495,7 +1495,7 @@ func _mine_crystals(s: Dictionary) -> void:
 	Sfx.play(self, "word_zing", -4.0, s.pos, 1.2)
 	var first := crafting.have(Mines.CRYSTAL_ID) == 0 and not crafting.found.has(Mines.CRYSTAL_ID)
 	crafting.add(Mines.CRYSTAL_ID, count)
-	Effects.float_text(level, s.pos + Vector3(0, 2.0, 0), "+%d %s" % [count, Crafting.ingredient_name(Mines.CRYSTAL_ID)], Mines.CRYSTAL, true)
+	Effects.loot_text(level, s.pos + Vector3(0, 2.0, 0), "+%d %s" % [count, Crafting.ingredient_name(Mines.CRYSTAL_ID)], Mines.CRYSTAL, DamageNumber.item_worth(Mines.CRYSTAL_ID))
 	Events.found(Lang.t("%d Grottenkristalle kommen in deinen Zutatenbeutel.") % count, Mines.CRYSTAL)
 	learn(Mines.CRYSTAL_LEARN)
 	var learned := crafting.learn_from_find(Mines.CRYSTAL_ID)
@@ -1647,7 +1647,7 @@ func _on_animal_fed(animal: Animal) -> void:
 ## The fox dug up a hidden ingredient: it lies there for the hero to take.
 func _on_fox_dug_up(id: String, pos: Vector3) -> void:
 	level.lay_find(id, pos)
-	Effects.float_text(level, pos + Vector3(0, 2.0, 0), Crafting.ingredient_name(id), Color(0.75, 0.9, 1.0), true)
+	Effects.loot_text(level, pos + Vector3(0, 2.0, 0), Crafting.ingredient_name(id), Color(0.75, 0.9, 1.0), DamageNumber.item_worth(id))
 	var fox_name: String = pet.given_name if is_instance_valid(pet) and pet.given_name != "" else Lang.t("Dein Fuchs")
 	Events.found(Lang.t("%s hat etwas ausgegraben: %s!") % [fox_name, Rarity.marked(id)])
 
@@ -1659,12 +1659,13 @@ func _on_ingredient_collected(id: String, count := 1, from_loot := false) -> voi
 	crafting.add(id, count, not from_loot)
 	if Loot.is_coin(id):
 		Sfx.play_coins(self, mini(count, 5))
-		Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), "+%d %s" % [count, Crafting.ingredient_name(id)], Rarity.color(id), true)
+		Effects.loot_text(level, player.global_position + Vector3(0, 3.0, 0), "+%d %s" % [count, Crafting.ingredient_name(id)], Rarity.color(id),
+				DamageNumber.copper_worth(count * Loot.COIN_VALUE.get(id, 1)))
 		Events.found(Lang.t("Gefunden: %s") % ("%d× %s" % [count, Rarity.marked(id)]))
 		_update_hud()
 		return
 	Sfx.play(self, "key", -3.0)
-	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Rarity.color(id) if from_loot else Color(0.7, 0.95, 0.5), true)
+	Effects.loot_text(level, player.global_position + Vector3(0, 3.0, 0), Crafting.ingredient_name(id), Rarity.color(id) if from_loot else Color(0.7, 0.95, 0.5), DamageNumber.item_worth(id))
 	if Crafting.in_purse(id):
 		# Gems go in the purse, like the coins (see Crafting.purse).
 		Events.found(Lang.t("%s kommt in deinen Geldbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
@@ -4690,7 +4691,7 @@ func _on_item_collected(id: String) -> void:
 		# A thrown knife picked up again: into the belt while it has room.
 		give_knives(1)
 		Sfx.play(self, "gear_metal_%d" % (randi() % 3), -10.0)
-		Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Lang.t("+%d Wurfmesser") % 1, AMMO_COLOR)
+		Effects.loot_text(level, player.global_position + Vector3(0, 3.0, 0), Lang.t("+%d Wurfmesser") % 1, AMMO_COLOR, 0.0)
 		Events.teach(KNIFE_LORE)
 		return
 	player.bag.append(id)
@@ -4698,7 +4699,7 @@ func _on_item_collected(id: String) -> void:
 		# Where ore turned up goes on the map (see Journal).
 		note_find("ore", id, Items.ALL[id].name, player.global_position)
 	Sfx.play(self, "key", -3.0)
-	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Rarity.color(id), true)
+	Effects.loot_text(level, player.global_position + Vector3(0, 3.0, 0), Items.item_name(id), Rarity.color(id), DamageNumber.item_worth(id))
 	Events.found(Lang.t("Gefunden: %s (%s)") % [Rarity.marked(id), Items.describe(id)])
 	_update_hud()
 
@@ -4884,7 +4885,8 @@ func earn_xp(amount: int, big := false) -> void:
 	# A clever hero gets more out of everything (see Player.clever_xp).
 	amount = player.clever_xp(amount)
 	if level != null and player.is_inside_tree():
-		Effects.float_text(level, player.global_position + Vector3(0, 2.8 if big else 2.4, 0), Lang.t("+%d EP") % amount, XP_COLOR)
+		Effects.loot_text(level, player.global_position + Vector3(0, 2.8 if big else 2.4, 0), Lang.t("+%d EP") % amount, XP_COLOR,
+				DamageNumber.xp_worth(amount, player.hero_level()))
 	player.gain_xp(amount)
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	_update_hud()
@@ -5018,17 +5020,21 @@ func _search(obj: Dictionary) -> void:
 	player.train("intuition", 1.0)
 	var text := Lang.t("%s: leer") % Lang.t(obj.label)
 	var color := Color(0.8, 0.8, 0.85)
+	# How big the words over it are: the best of what was in it.
+	var worth := 0.0
 	if loot.has("gold"):
 		Sfx.play_coins(self, _gold(loot.gold), found_after)
 		coins += _gold(loot.gold)
 		text = Lang.t("+%d Kupfer") % _gold(loot.gold)
 		color = GOLD
+		worth = DamageNumber.copper_worth(_gold(loot.gold))
 		Events.found(text, GOLD)
 	elif loot.has("knives"):
 		give_knives(loot.knives)
 		Sfx.play_after(self, found_after, "gear_metal_%d" % (randi() % 3), -8.0)
 		text = Lang.t("+%d Wurfmesser") % loot.knives
 		color = Color(0.8, 0.9, 1.0)
+		worth = 0.1
 		Events.found(text, color)
 	elif loot.has("potion"):
 		Sfx.play(self, "drink")
@@ -5037,6 +5043,7 @@ func _search(obj: Dictionary) -> void:
 		if player.cure():
 			text += "\n" + Lang.t("Dein Leiden ist geheilt.")
 		color = Color(1.0, 0.5, 0.55)
+		worth = 0.3
 		Events.found(text, color)
 	if loot.has("item"):
 		player.bag.append(loot.item)
@@ -5045,6 +5052,7 @@ func _search(obj: Dictionary) -> void:
 		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
 		# The words over the chest take the colour of the piece found.
 		color = Rarity.color(loot.item)
+		worth = maxf(worth, DamageNumber.item_worth(loot.item))
 		Events.found(found)
 	# An eye trained in exploring (Erkunden) finds a torch tucked away.
 	var torch := player.bag_fits(HandTorch.ITEM) and randi_range(1, 100) <= player.explore_bonus(Training.EXPLORE_TORCH)
@@ -5053,12 +5061,13 @@ func _search(obj: Dictionary) -> void:
 		if loot.is_empty():
 			color = Color(1.0, 0.75, 0.4)
 		Sfx.play_gear(self, HandTorch.ITEM, found_after + 0.25)
+		worth = maxf(worth, DamageNumber.item_worth(HandTorch.ITEM))
 		text = Items.item_name(HandTorch.ITEM) if text.ends_with("leer") else text + "  +" + Items.item_name(HandTorch.ITEM)
 		if not loot.has("item"):
 			Events.found(Lang.t("Dein geübtes Auge findet eine Fackel, die hier versteckt lag."), Color(1.0, 0.75, 0.4))
 		else:
 			Events.found(Lang.t("Gefunden: %s") % Items.item_name(HandTorch.ITEM), Color(1.0, 0.75, 0.4))
-	Effects.float_text(level, obj.icon_pos, text, color, true)
+	Effects.loot_text(level, obj.icon_pos, text, color, worth)
 	if loot.is_empty() and not torch:
 		Events.found(Lang.t("Du durchsuchst %s... nichts.") % Lang.t(_with_article(obj.label)), Color(0.8, 0.8, 0.85))
 	_update_hud()

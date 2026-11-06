@@ -27,6 +27,17 @@ const MOST := 4
 ## The pop: a new number starts this much bigger and settles in POP_TIME.
 const POP := 1.4
 const POP_TIME := 0.14
+## The letters of numbers and news, before UiKit.sized.
+const FONT_SIZE := 64
+## Finds and experience (see Effects.loot_text) are sized by their worth: a
+## copper coin or a few points of experience in small letters, a godborn
+## piece or a boss's experience in big ones (see worth_size).
+const WORTH_MIN_SIZE := 34
+const WORTH_MAX_SIZE := 68
+## How much each rarity tier is worth on that scale (0 to 1).
+const TIER_WORTH := {"normal": 0.15, "ungewoehnlich": 0.35, "selten": 0.55, "episch": 0.8, "gottgeboren": 1.0, "gefertigt": 0.55}
+## As many copper coins as this are worth the most (two gold coins).
+const COPPER_MOST := 500.0
 
 ## The numbers alive over each head, oldest first, keyed by the target's id.
 static var _stacks := {}
@@ -82,8 +93,10 @@ static func show_over(parent: Node, target: Node3D, offset: Vector3, text: Strin
 ## other; elsewhere it joins the texts already floating at that spot, or
 ## those it would otherwise start on (loot right beside the hero's head).
 ## With `above_fog` it is drawn over walls and the fog of war.
-static func show_at(parent: Node, pos: Vector3, text: String, color: Color, above_fog := false) -> DamageNumber:
-	var label := _make(text, color)
+## `size` is the font size before UiKit.sized (finds and experience go by
+## their worth, see worth_size).
+static func show_at(parent: Node, pos: Vector3, text: String, color: Color, above_fog := false, size := FONT_SIZE) -> DamageNumber:
+	var label := _make(text, color, size)
 	label.life = NEWS_LIFE
 	label.rise = NEWS_RISE
 	label.fade_at = NEWS_FADE_AT
@@ -116,13 +129,37 @@ static func show_at(parent: Node, pos: Vector3, text: String, color: Color, abov
 	return label
 
 
-static func _make(text: String, color: Color) -> DamageNumber:
+## The font size for a find or experience of `worth` (0 to 1).
+static func worth_size(worth: float) -> int:
+	return roundi(lerpf(WORTH_MIN_SIZE, WORTH_MAX_SIZE, clampf(worth, 0.0, 1.0)))
+
+
+## The worth of an item or ingredient, by its rarity tier (see Rarity.tier).
+static func item_worth(id: String) -> float:
+	return TIER_WORTH.get(Rarity.tier(id), 0.15)
+
+
+## The worth of `copper` coins: one is next to nothing, COPPER_MOST the most.
+static func copper_worth(copper: float) -> float:
+	return clampf(log(maxf(copper, 1.0)) / log(COPPER_MOST), 0.0, 1.0)
+
+
+## The worth of `amount` experience for a hero of `hero_level`, measured by a
+## kill at the hero's own level: a quarter of one is small, one is middling,
+## eight (a boss, a big task) the most.
+static func xp_worth(amount: int, hero_level: int) -> float:
+	var kill := float(HeroLevel.kill_xp(hero_level, hero_level))
+	return clampf(0.4 + 0.2 * log(maxf(amount, 1) / kill) / log(2.0), 0.0, 1.0)
+
+
+static func _make(text: String, color: Color, size := FONT_SIZE) -> DamageNumber:
 	var label := DamageNumber.new()
 	label.text = text
 	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
-	label.font_size = UiKit.sized(64)
+	label.font_size = UiKit.sized(size)
 	label.pixel_size = 0.012
-	label.outline_size = 14
+	# The dark outline keeps its share of the letters, so small loot stays as readable.
+	label.outline_size = roundi(14.0 * size / FONT_SIZE)
 	label.outline_modulate = Color(0.05, 0.02, 0.06)
 	label.modulate = color
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED

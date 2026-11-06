@@ -262,6 +262,8 @@ var _zoom := 0.0
 var _zoom_target := 0.0
 
 var _hud: CanvasLayer
+## The "Game saved" plate in the top right corner (see SaveNotice).
+var save_notice: SaveNotice
 var _level_label: Label
 var _coin_label: Label
 var _key_label: Label
@@ -1444,6 +1446,9 @@ func _setup_hud() -> void:
 	_hud.add_child(mark)
 
 	_setup_drawer()
+
+	save_notice = SaveNotice.new()
+	add_child(save_notice)
 
 	_setup_shrine_panel()
 
@@ -3627,7 +3632,10 @@ func save_game(going_away := false) -> bool:
 		return false
 	file.store_string(JSON.stringify(data))
 	file.close()
-	return FileAccess.file_exists(path)
+	var saved := FileAccess.file_exists(path)
+	if saved and save_notice != null:
+		save_notice.flash()
+	return saved
 
 
 ## The stone blocks per level file, levels without any left out.
@@ -3724,7 +3732,7 @@ func rest_at_inn() -> void:
 		var saved := save_game()
 		player.frozen = false
 		state = State.PLAYING
-		show_message(Lang.t("Ausgeruht! Ein neuer Morgen in den Bergen.") + "\n" + (Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")), 3.5))
+		show_message(Lang.t("Ausgeruht! Ein neuer Morgen in den Bergen.") + ("" if saved else "\n" + Lang.t("Speichern fehlgeschlagen!")), 3.5))
 	tween.tween_property(_fade, "color:a", 0.0, 1.0)
 
 
@@ -3774,7 +3782,7 @@ func rest_at_camp(roll := -1.0) -> void:
 		var saved := save_game()
 		player.frozen = false
 		state = State.PLAYING
-		show_message(Lang.t("Ausgeruht! Du hast wieder volles Leben.") + "\n" + (Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")), 3.5))
+		show_message(Lang.t("Ausgeruht! Du hast wieder volles Leben.") + ("" if saved else "\n" + Lang.t("Speichern fehlgeschlagen!")), 3.5))
 	tween.tween_property(_fade, "color:a", 0.0, 1.0)
 
 
@@ -3860,8 +3868,9 @@ func sleep(at_camp_now := false) -> void:
 		player.hp = player.max_hp
 		player.cure()
 	var saved := save_game(true)
-	# Say so at once, so nobody has to wonder whether the save went through.
-	show_message(Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"), 2.4)
+	# A failed save says so at once (a good one shows the save notice).
+	if not saved:
+		show_message(Lang.t("Speichern fehlgeschlagen!"), 2.4)
 	state = State.TRANSITION
 	player.frozen = true
 	player.path.clear()
@@ -5634,9 +5643,10 @@ func _step_out_of_crypt() -> void:
 			_update_hud()
 			Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+%d" % healed, Color(0.5, 1.0, 0.5))
 		var text := Lang.t("Frei! %s ist entkommen und hat %d Kupfer erbeutet.") % [hero_name, coins] if first else ""
-		text += ("\n" if text != "" else "") + (Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"))
+		if not saved:
+			text += ("\n" if text != "" else "") + Lang.t("Speichern fehlgeschlagen!")
 		get_tree().create_timer(4.8).timeout.connect(func():
-			if state == State.PLAYING:
+			if state == State.PLAYING and text != "":
 				show_message(text, 3.5)))
 
 
@@ -5648,7 +5658,7 @@ func _on_home_claimed() -> void:
 	home_claimed = true
 	home_given = true
 	var saved := save_game()
-	var text := Lang.t("Dein Haus ist jetzt dein Startpunkt. Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")
+	var text := Lang.t("Dein Haus ist jetzt dein Startpunkt.") if saved else Lang.t("Speichern fehlgeschlagen!")
 	get_tree().create_timer(4.2).timeout.connect(func():
 		if state == State.PLAYING:
 			show_message(text, 3.0))
@@ -5885,10 +5895,11 @@ func _show_lair_spoils() -> void:
 ## lost. The notice waits until the level message has had its say.
 func _autosave() -> void:
 	var saved := save_game()
-	var text := Lang.t("Spiel gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")
+	if saved:
+		return
 	get_tree().create_timer(4.2).timeout.connect(func():
 		if state == State.PLAYING and level != null and level.safe:
-			show_message(text, 2.4))
+			show_message(Lang.t("Speichern fehlgeschlagen!"), 2.4))
 
 
 # --- Per frame --------------------------------------------------------------

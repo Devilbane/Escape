@@ -423,6 +423,21 @@ func finds_on(file: String) -> Array:
 	return finds.filter(func(f): return f.file == file)
 
 
+## The tiles of a level file that a treasure map read but not yet done
+## marks (see TreasureMaps.marked): a red cross on the map.
+func treasure_spots(file: String) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if game == null:
+		return out
+	var info := map_of(file)
+	if info.is_empty() or not info.outdoor:
+		return out
+	for id in TreasureMaps.MAPS:
+		if game.treasure_maps.marked(id):
+			out.append_array(TreasureMaps.cells_on(info.grid, id))
+	return out
+
+
 static func find_color(kind: String) -> Color:
 	return FIND_COLORS.get(kind, FIND_COLOR)
 

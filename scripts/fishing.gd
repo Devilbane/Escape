@@ -36,7 +36,8 @@ extends RefCounted
 
 ## What bites in each water: [catch, weight, when]. A catch is a fish (an
 ## ingredient id), "muenze" for an old coin (+1 copper), "flasche" for a
-## message in a bottle (a few coins and a note, see BOTTLE_NOTES), RING for
+## message in a bottle (a few coins and a note, see BOTTLE_NOTES, or now and
+## then a treasure map, see TreasureMaps), RING for
 ## the long-lost signet ring (once only, see ring_found) or "" for weed.
 ## "when" limits the catch to an hour: "nacht" (see DayNight.is_night) or
 ## "daemmerung" (dawn and dusk, see is_dusk); "" is any time.
@@ -659,6 +660,11 @@ func take(caught: String, pos: Vector3, on: Node) -> void:
 		Sfx.play(game, "drip", -4.0)
 		Events.found(Lang.t("Nur Wasserkraut am Haken."), Color(0.8, 0.8, 0.85))
 	elif caught == "flasche":
+		var map_id: String = game.treasure_maps.pick(rng)
+		if map_id != "":
+			_take_map(map_id, pos, on)
+			game._update_hud()
+			return
 		var coins := rng.randi_range(BOTTLE_COINS[0], BOTTLE_COINS[1])
 		game.coins += coins
 		Sfx.play(game, "coin")
@@ -701,6 +707,21 @@ func take(caught: String, pos: Vector3, on: Node) -> void:
 		for id in game.crafting.caught_fish(caught):
 			game.show_message(Lang.t("Jetzt verstehst du eine verwischte Zeile im Rezept „%s“.") % Lang.t(Crafting.RECIPES[id].name), 3.5)
 	game._update_hud()
+
+
+## A bottle with an old treasure map rolled up inside (see TreasureMaps):
+## where it leads goes up as a message, and the map is reported on the bus,
+## so its spot shows from now on.
+func _take_map(id: String, pos: Vector3, on: Node) -> void:
+	var map: Dictionary = TreasureMaps.MAPS[id]
+	Sfx.play(game, "gift")
+	var shine := Effects.make_sparkles(Color(1.0, 0.85, 0.4), true)
+	shine.position = pos + Vector3(0, 0.5, 0)
+	on.add_child(shine)
+	var text := Lang.t("Eine Flaschenpost, und darin eine alte Schatzkarte: „%s“!") % Lang.t(map.title)
+	Events.found(text, game.GOLD)
+	game.show_message(text + "\n" + Lang.t(map.where) + "\n" + Lang.t("Die Stelle ist jetzt auf deiner Karte im Tagebuch markiert."), 6.0)
+	Events.bus().treasure_map_found.emit(id)
 
 
 ## Draws the line in, without a catch.

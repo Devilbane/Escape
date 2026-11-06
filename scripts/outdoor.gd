@@ -69,6 +69,11 @@ extends Level
 ##   @  the wandering merchant's pitch: an empty patch of grass, but on his
 ##      nights (see Wanderer) Zarek stands here from nightfall to dawn,
 ##      with his covered cart on the tile north of him.
+##   ?  plain grass, where a chest lies buried; a treasure map from a
+##      bottle marks it (see TreasureMaps)
+##   >  a boulder at the forest's edge with a hidden cave beneath it; a
+##      treasure map from a bottle tells of it, and then it rolls aside
+##      (see TreasureMaps), down to the floor "building: grotte"
 
 ## A notice for the message line, e.g. when the house is handed over.
 signal notice(text: String, duration: float)
@@ -86,7 +91,7 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@'{}-/"
+const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@'{}-/?"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
@@ -237,6 +242,13 @@ var _aabbs := {}
 var interiors := {}
 ## Where each building's door is, by building letter.
 var doors := {}
+## The treasure maps' state (see TreasureMaps): the game hands in its own,
+## so a map read while the hero is out here shows at once.
+var treasure := {}
+## The tiles of the treasure spots, by map id, and what is built there
+## (see TreasureMaps.build).
+var treasure_cells := {}
+var treasure_parts := {}
 var _herald: Node3D
 var _herald_timer := randf_range(HERALD_FIRST_MIN, HERALD_FIRST_MAX)
 ## The bandits' spots: cell, kind, the bandit standing there (or null while
@@ -709,6 +721,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_fence(c, true)
 		"(":
 			_build_hole(c)
+		"?", ">":
+			TreasureMaps.place(self, c, ch)
 		"~", ";":
 			_add_solid(pos, Vector3(TILE, 1, TILE))
 			fishing_waters.append({"water": "teich" if ch == "~" else "senke", "pos": pos,
@@ -2619,6 +2633,10 @@ func _setup_astar() -> void:
 		for x in width:
 			var c := Vector2i(x, y)
 			astar.set_point_solid(c, not WALK.contains(cell_char(c)))
+	# A marked treasure spot or its dug-up chest stands in the way.
+	for id in treasure_cells:
+		if TreasureMaps.blocks(self, id):
+			astar.set_point_solid(treasure_cells[id], true)
 	# Villagers and the hero keep to the paths where they can.
 	for y in height:
 		for x in width:

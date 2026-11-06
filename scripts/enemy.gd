@@ -97,8 +97,9 @@ const KINDS := {
 	# The beasts of the wild (Quaternius models in assets/wild): "beast"
 	# kinds bite or claw instead of holding a weapon. "anims" maps the
 	# animation names played here to the model's own, "model_scale" and
-	# "turn" fit the model to the hero's size and facing, "run_anim" is the
-	# ground speed (m/s) the run animation was made for, "voice" is a growl
+	# "turn" fit the model to the hero's size and facing, "run_anim" sets the
+	# beat of the run for a model without feet on the ground (bats, slimes,
+	# dragons; walkers follow Stride), "voice" is a growl
 	# (sound, pitch, comic word), "purse" the gold a fallen one leaves and
 	# "gear_chance" how likely it carries a piece of gear.
 	"wolf": {"model": "Wolf", "dir": "wild", "hp": 2, "speed": 6.2, "damage": 1, "reach": 2.0, "size": 1.0, "cooldown": 1.2,
@@ -310,6 +311,11 @@ var tall := 2.4
 
 var _model: Node3D
 var _anim: AnimationPlayer
+## The rig the model's walk belongs to and the model's size for its strides
+## (see Stride), and how fast it means to move this tick.
+var _rig := ""
+var _stride_size := 1.0
+var _meant_speed := 0.0
 var _current_anim := ""
 var _busy := 0.0
 var _cooldown := 0.0
@@ -537,6 +543,8 @@ func _ready() -> void:
 	add_child(_model)
 	_model.rotation.y = PI
 	_model.scale = Vector3.ONE * size
+	_rig = Stride.rig_of(_stats.model)
+	_stride_size = size * (float(_stats.model_scale) if is_beast() else 1.0)
 	if _stats.has("title"):
 		_add_title(str(_stats.title), size)
 	if is_human():
@@ -1526,7 +1534,14 @@ func _physics_process(delta: float) -> void:
 	# Walkers feel the ground (see Surfaces); flyers and ghosts skim over it.
 	if _stats.get("lift", 0.0) <= 0.0 and not is_ghost():
 		surface_pace = Surfaces.ease_pace(surface_pace, level, global_position, delta)
-	velocity = move * float(_stats.speed) * surface_pace + _knockback
+	# Off the hunt, a bandit strolls; skeletons shuffle back to their post.
+	var strolling: bool = move != Vector3.ZERO and move.length() < 0.7 and (is_human() or _stats.get("roam", false))
+	var walk: String = "Walking_D_Skeletons" if not is_human() and _anim.has_animation("Walking_D_Skeletons") else "Walking_A"
+	_meant_speed = move.length() * float(_stats.speed) * surface_pace
+	if strolling:
+		# No faster than the walk's feet can step (see Stride).
+		_meant_speed = minf(_meant_speed, Stride.top_speed(_rig, _anim_of(walk), _stride_size))
+	velocity = (move.normalized() * _meant_speed if move != Vector3.ZERO else Vector3.ZERO) + _knockback
 	velocity.y = 0.0 if is_ghost() else -9.0
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 40.0)
 	move_and_slide()
@@ -1534,17 +1549,59 @@ func _physics_process(delta: float) -> void:
 		_face(move, delta)
 	_check_stuck(delta, move)
 	if _busy > 0.0:
+		_model.position.y = _hover_y()
 		return
-	# Off the hunt, a bandit strolls; skeletons shuffle back to their post.
-	var strolling: bool = move != Vector3.ZERO and move.length() < 0.7 and (is_human() or _stats.get("roam", false))
-	var walk: String = "Walking_D_Skeletons" if not is_human() and _anim.has_animation("Walking_D_Skeletons") else "Walking_A"
-	_play(walk if strolling else "Running_A" if move != Vector3.ZERO else "Idle")
+	if move == Vector3.ZERO:
+		_play("Idle")
+	elif strolling:
+		_play(walk)
+	else:
+		_play(_hunting_gait(walk, _meant_speed))
 	_footfalls(delta, move != Vector3.ZERO, dist)
 	_voice(delta, dist)
-	# Feet keep pace with the ground; bigger skeletons take longer strides.
+	# Feet keep pace with the ground (see Stride): every walk and run plays
+	# just as fast as its planted foot must travel, bigger bodies taking
+	# longer strides. A walking bandit rises onto the toes at each push-off.
 	var ground_speed := SmoothMotion.ground_speed(self)
-	var run_anim: float = _stats.get("run_anim", Player.RUN_ANIM_SPEED)
-	_anim.speed_scale = clampf(ground_speed / (run_anim * float(_stats.size)), 0.5, 2.5) if _current_anim == "Running_A" else 1.0
+	if _current_anim == "Idle":
+		_anim.speed_scale = 1.0
+	elif _rig != "":
+		_anim.speed_scale = Stride.playback(_rig, _anim_of(_current_anim), _stride_size, ground_speed)
+	elif _current_anim == "Running_A":
+		# No feet on the ground (bats, slimes): the beat follows the speed.
+		_anim.speed_scale = clampf(ground_speed / (float(_stats.get("run_anim", 4.0)) * float(_stats.size)), 0.5, 2.5)
+	else:
+		_anim.speed_scale = 1.0
+	_model.position.y = _hover_y() + (Stride.lift(_anim, _anim_of(_current_anim), _stride_size) if is_human() and not is_ghost() else 0.0)
+
+
+## The model's own animation for one of the skeleton names (see _play).
+func _anim_of(anim_name: String) -> String:
+	return _stats.get("anims", {}).get(anim_name, anim_name)
+
+
+## Where the model floats above the body: ghosts hover (see _ghostly).
+func _hover_y() -> float:
+	return _model.position.y if is_ghost() else 0.0
+
+
+## The walk, jog or run that fits a monster on the hunt at `speed` (see
+## Stride.gait), as a skeleton animation name.
+func _hunting_gait(walk: String, speed: float) -> String:
+	if _rig == "":
+		return "Running_A"
+	var names: Array = ["Walking_A", "Running_A"] if is_beast() else [walk, "Running_B", "Running_A"]
+	var own: Array = []
+	var picked: Array[String] = []
+	for n: String in names:
+		var a := _anim_of(n)
+		if Stride.pace(_rig, a, _stride_size) > 0.0 and _anim.has_animation(a) and not own.has(a):
+			own.append(a)
+			picked.append(n)
+	if own.is_empty():
+		return "Running_A"
+	var choice := Stride.gait(_rig, own, _stride_size, speed, _anim_of(_current_anim))
+	return picked[own.find(choice)]
 
 
 func _flat_distance(other: Node3D) -> float:
@@ -1663,7 +1720,7 @@ func _voice(delta: float, dist: float) -> void:
 ## look for a new way.
 func _check_stuck(delta: float, move: Vector3) -> void:
 	var ground_speed := SmoothMotion.ground_speed(self)
-	if move == Vector3.ZERO or ground_speed > float(_stats.speed) * surface_pace * 0.3:
+	if move == Vector3.ZERO or ground_speed > _meant_speed * 0.3:
 		_stuck = maxf(0.0, _stuck - delta)
 		return
 	_stuck += delta

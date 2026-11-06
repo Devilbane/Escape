@@ -20,17 +20,18 @@ signal leveled_up(level: int)
 
 ## The hero's reference speed in m/s (100 % Tempo); walking is a share of it.
 const SPEED := 5.2
-## Walking pace as a share of SPEED.
-const WALK_FACTOR := 0.5
-## Running speeds up to this many times the walking pace...
-const RUN_TOP := 2.5
+## Walking pace as a share of SPEED: about 1.8 m/s, as fast as the short
+## legs of the walk animation step without sliding (see Stride).
+const WALK_FACTOR := 0.34
+## Running speeds up to this many times the walking pace (6.5 m/s)...
+const RUN_TOP := 3.68
 ## ...over this many seconds of holding the run,
 const RUN_RAMP_UP := 2.0
 ## and slows back down to walking within this many seconds once let go.
 const RUN_RAMP_DOWN := 1.0
 const WALK_ANIM := "Walking_A"
-## The ground speed at which the walk animation's feet keep pace (m/s).
-const WALK_ANIM_SPEED := 1.7
+## Between the walk and the run, a jog (see Stride.gait).
+const JOG_ANIM := "Running_B"
 ## Where in the walk cycle each foot touches the ground (left, right).
 const WALK_LANDINGS := [0.02, 0.52]
 ## Seconds of running per point of Konstitution: 10 points run for 20 seconds.
@@ -40,13 +41,11 @@ const RUN_SECONDS_PER_CON := 2.0
 const RUN_RECOVERY_PER_CON := 0.1
 ## Out of breath, the hero walks until this share of the meter has come back.
 const RUN_RESTART := 0.5
-## From this many times the walking pace on, the hero shows the run animation.
-const RUN_ANIM_FROM := 1.4
+## From this many times the walking pace on (about 3.6 m/s), the hero is in
+## a full run (see in_full_run).
+const RUN_ANIM_FROM := 2.05
 const JUMP_VELOCITY := 9.0
 const GRAVITY := 26.0
-## How fast the feet travel over the ground in the run animation at normal
-## playback (metres per second, measured from the foot bone).
-const RUN_ANIM_SPEED := 3.5
 const MAX_HP := 5
 ## The spot the hero takes up: no skeleton may stand inside it (see
 ## Level.push_apart).
@@ -210,7 +209,8 @@ var in_shadow := false
 ## every blow given or taken, and every skeleton hunting them, resets it.
 var fight_cooldown := 0.0
 const FIGHT_SNEAK_BLOCK := 2.0
-const SNEAK_SPEED := 0.4
+## Sneaking pace as a share of SPEED, and what each level of Schleichen adds.
+const SNEAK_SPEED := 0.16
 const SNEAK_ANIM := "Walking_C"
 var _lantern: OmniLight3D
 ## See set_night_dim: how far the night closes in on the lantern, and what
@@ -229,6 +229,8 @@ var _model: Node3D
 var _anim: AnimationPlayer
 ## Where in the run cycle each foot touches the ground (left, right).
 const FOOT_LANDINGS := [0.17, 0.67]
+## The same for the jog.
+const JOG_LANDINGS := [0.11, 0.61]
 ## The same for the sneaking walk, whose feet land later in its cycle.
 const SNEAK_LANDINGS := [0.29, 0.79]
 var _last_phase := -1.0
@@ -301,7 +303,7 @@ func _ready() -> void:
 		GearLook.apply(_model.find_child(arm, true, false) as MeshInstance3D, "outfit")
 	set_hair(hair)
 	_anim = _model.find_child("AnimationPlayer", true, false)
-	for a in ["Idle", "Running_A", "Walking_A", "Jump_Idle", SNEAK_ANIM]:
+	for a in ["Idle", "Running_A", JOG_ANIM, "Walking_A", "Jump_Idle", SNEAK_ANIM]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	play("Idle")
 
@@ -648,6 +650,8 @@ func play(anim_name: String, blend := 0.2) -> void:
 		return
 	_current_anim = anim_name
 	_anim.play(anim_name, blend)
+	# Off the toes (see Stride.lift) when anything else begins.
+	_model.position.y = 0.0
 
 
 ## Plays a one-off animation and pauses movement for its duration.
@@ -864,7 +868,7 @@ func _breathe(delta: float, moving: bool) -> void:
 
 ## True while the hero is moving under its own steam.
 func is_running() -> bool:
-	return not sneaking and Vector2(velocity.x, velocity.z).length() > SPEED * 0.4
+	return not sneaking and Vector2(velocity.x, velocity.z).length() > SPEED * 0.25
 
 
 ## A jump from a run keeps its momentum and flies further the faster the
@@ -908,12 +912,13 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 func _footsteps(ground_speed: float) -> void:
 	var sneak := _current_anim == SNEAK_ANIM
 	var walk := _current_anim == WALK_ANIM
-	if not (sneak or walk or _current_anim == "Running_A") or not is_on_floor() or ground_speed < 0.3:
+	var jog := _current_anim == JOG_ANIM
+	if not (sneak or walk or jog or _current_anim == "Running_A") or not is_on_floor() or ground_speed < 0.3:
 		_last_phase = -1.0
 		return
 	var phase := _anim.current_animation_position / _anim.current_animation_length
 	if _last_phase >= 0.0:
-		for landing: float in (SNEAK_LANDINGS if sneak else (WALK_LANDINGS if walk else FOOT_LANDINGS)):
+		for landing: float in (SNEAK_LANDINGS if sneak else (WALK_LANDINGS if walk else (JOG_LANDINGS if jog else FOOT_LANDINGS))):
 			var crossed: bool = _last_phase < landing and phase >= landing
 			if phase < _last_phase:
 				crossed = _last_phase < landing or phase >= landing
@@ -1253,7 +1258,7 @@ func _auto_attack() -> void:
 
 const BLOCK_PER_LEVEL := 0.02
 const ARMOR_LIGHTER_PER_LEVEL := 0.06
-const SNEAK_PER_LEVEL := 0.03
+const SNEAK_PER_LEVEL := 0.008
 
 
 const SECRET_PER_INTUITION := 2
@@ -2407,17 +2412,17 @@ func _physics_process(delta: float) -> void:
 		_model.rotation.y = lerp_angle(_model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-14.0 * delta))
 	# Blink while invulnerable after a hit.
 	_model.visible = dead or _invulnerable <= 0.0 or int(_invulnerable * 12.0) % 2 == 0
-	# Feet keep pace with the ground: the run and the walk play faster or
-	# slower with the speed.
+	# Feet keep pace with the ground: the walk, the jog and the run play just
+	# as fast as the planted foot must travel (see Stride), and the hero rises
+	# onto the toes as each back foot rolls off.
 	var ground_speed := SmoothMotion.ground_speed(self)
-	if _current_anim == "Running_A":
-		_anim.speed_scale = clampf(ground_speed / RUN_ANIM_SPEED, 0.5, 2.5)
-	elif _current_anim == WALK_ANIM:
-		_anim.speed_scale = clampf(ground_speed / WALK_ANIM_SPEED, 0.5, 2.5)
+	if _current_anim in Stride.GAITS.kaykit or _current_anim == SNEAK_ANIM:
+		_anim.speed_scale = Stride.playback("kaykit", _current_anim, _model.scale.x, ground_speed)
 	elif _current_anim == GET_UP_ANIM:
 		_anim.speed_scale = GET_UP_SPEED
 	else:
 		_anim.speed_scale = 1.0
+	_model.position.y = Stride.lift(_anim, _current_anim, _model.scale.x)
 	_footsteps(ground_speed)
 	_update_sneak_look()
 	# A flourish shows only while the hero stands still; moving ends it.
@@ -2432,4 +2437,4 @@ func _physics_process(delta: float) -> void:
 	if dir == Vector3.ZERO:
 		play("Idle")
 	else:
-		play(SNEAK_ANIM if sneaking else ("Running_A" if run_boost > RUN_ANIM_FROM else WALK_ANIM))
+		play(SNEAK_ANIM if sneaking else Stride.gait("kaykit", Stride.GAITS.kaykit, _model.scale.x, pace, _current_anim))

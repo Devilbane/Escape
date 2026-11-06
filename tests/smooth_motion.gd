@@ -56,20 +56,22 @@ func _process(_delta: float) -> bool:
 		lamp.free()
 		start_x = hero.global_position.x
 		Input.action_press("ui_right")
-	if frames == 70:
+	if frames == 100:
 		var hero: Player = game.player
 		Input.action_release("ui_right")
-		check(hero.global_position.x > start_x + 1.0, "the hero ran")
+		# A second at walking pace (about 1.8 m/s, see Stride) is near two
+		# metres; half a metre shows the hero moved.
+		check(hero.global_position.x > start_x + 0.5, "the hero walked (%.2f m)" % (hero.global_position.x - start_x))
 		# The camera follows where the hero is drawn.
 		var drawn := SmoothMotion.drawn_at(hero)
 		check(drawn.distance_to(hero.global_position) < 1.0, "the hero is drawn close to where they are (%.2f apart)" % drawn.distance_to(hero.global_position))
 		# Put somewhere new: drawn there at once, no slide across the map.
 		hero.global_position += Vector3(12, 0, 0)
 		game._snap_camera()
-	if frames == 71:
+	if frames == 101:
 		var hero: Player = game.player
 		check(SmoothMotion.drawn_at(hero).distance_to(hero.global_position) < 0.01, "a hero put somewhere new is drawn there at once, not sliding over (%.2f off)" % SmoothMotion.drawn_at(hero).distance_to(hero.global_position))
-	if frames == 72:
+	if frames == 102:
 		# A new colour only fills the ready star in: same size as the others.
 		var tex: Texture2D = Comic.current._burst_texture(Color(0.3, 0.6, 0.4))
 		check(tex.get_size() == Vector2(260, 200), "a bubble of a new colour still gets its star")

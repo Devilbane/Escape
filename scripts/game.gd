@@ -160,6 +160,8 @@ var crafting := Crafting.new(self)
 var wishes := Wishes.new(self)
 ## The line in the water, when the hero is fishing (see Fishing).
 var fishing := Fishing.new(self)
+## Treasure maps from messages in a bottle and where they lead (see TreasureMaps).
+var treasure_maps := TreasureMaps.new(self)
 ## The way home at a press of the home button or X (see HomeRun).
 var home_run := HomeRun.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
@@ -477,6 +479,7 @@ func _bus_links() -> Array:
 		[bus.loot_carried_off, _on_loot_carried_off],
 		[bus.scare_happened, village_worries.on_scare],
 		[bus.enemy_slain, village_rumours.on_slain],
+		[bus.treasure_map_found, treasure_maps.read],
 	]
 
 
@@ -1547,6 +1550,8 @@ func _use_station(s: Dictionary) -> void:
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building, s.get("house", 0))
+	elif s.kind == TreasureMaps.DIG or s.kind == TreasureMaps.BOULDER:
+		treasure_maps.use(s)
 	elif s.kind == "schacht":
 		_go_down_shaft(s)
 	elif s.kind == "figur":
@@ -2573,6 +2578,7 @@ func load_level(index: int, restock := true) -> void:
 		# Bandits who take their spots at night are tougher (see Outdoor.set_hour).
 		level.night = DayNight.is_night(day_hour)
 		level.interiors = interiors
+		level.treasure = treasure_maps.state
 		level.house_given = home_given
 		level._entered_once = home_claimed
 		level.met = met
@@ -2920,6 +2926,7 @@ func begin_new_game() -> void:
 	trophies.clear()
 	secrets_found = 0
 	fishing.ring_found = false
+	treasure_maps.clear()
 	dry_levels = 0
 	bumped_person = false
 	hints_shown.clear()
@@ -3303,6 +3310,7 @@ func _apply_save(data: Dictionary) -> void:
 	trust = friends.trust
 	secrets_found = int(data.get("secrets", 0))
 	fishing.ring_found = bool(data.get("fished_ring", false))
+	treasure_maps.load_from(data.get("treasure_maps", {}))
 	dry_levels = int(data.get("dry", 0))
 	bumped_person = bool(data.get("bumped_person", false))
 	hints_shown.clear()
@@ -3576,7 +3584,7 @@ func save_game(going_away := false) -> bool:
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	journal.catch_up()
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "bag": player.bag, "storage": storage, "shop": shop_stock,
@@ -5321,6 +5329,8 @@ func _search(obj: Dictionary) -> void:
 		Sfx.play(self, "rummage", -3.0)
 	var found_after := 0.55 if chest else 0.2
 	var loot := level.search(obj)
+	if obj.has("treasure"):
+		treasure_maps.opened(obj)
 	# Searching every nook trains a feeling for where things hide.
 	player.train("intuition", 1.0)
 	var text := Lang.t("%s: leer") % Lang.t(obj.label)
@@ -6047,7 +6057,7 @@ func _process(delta: float) -> void:
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"bank": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
-			"eingang": Lang.t("Dagegenlaufen, um in das dunkle Loch hinabzusteigen") if String(station.get("building", "")).begins_with("loch") else Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
+			"eingang": Lang.t("Dagegenlaufen, um in das dunkle Loch hinabzusteigen") if String(station.get("building", "")).begins_with("loch") or station.get("building", "") == TreasureMaps.CAVE else Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
@@ -6059,6 +6069,8 @@ func _process(delta: float) -> void:
 			"gefaehrten": Lang.t("Dagegenlaufen, um nach deinen Gefährten zu sehen"),
 			"schacht": Lang.t("Dagegenlaufen, um in die Tiefe hinabzusteigen"),
 			"tafel": Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
+			TreasureMaps.DIG: Lang.t("Dagegenlaufen, um nach dem Schatz zu graben"),
+			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 		}.get(station.kind, ""))

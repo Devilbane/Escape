@@ -380,7 +380,10 @@ func _test() -> void:
 		if Fishing.roll("teich", 12.0, rng, Fishing.MAX_CHAIN) == "":
 			row_weed += 1
 	check(row_weed < 20, "after a long row of bites hardly any weed comes in (%d of 1000)" % row_weed)
-	# A message in a bottle: coins and a note.
+	# A message in a bottle: coins and a note (once every treasure map is
+	# found; see tests/treasure_maps.gd for the maps).
+	for id in TreasureMaps.MAPS:
+		game.treasure_maps.state[id] = TreasureMaps.DONE
 	coins_before = game.coins
 	fishing.take("flasche", player.global_position, game.level)
 	check(game.coins >= coins_before + Fishing.BOTTLE_COINS[0] and game.coins <= coins_before + Fishing.BOTTLE_COINS[1], "a bottle holds a few coins")

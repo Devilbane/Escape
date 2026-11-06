@@ -142,6 +142,7 @@ func _build() -> bool:
 	lvl.hero = _game.hero_name
 	lvl.night = DayNight.is_night(_game.day_hour)
 	lvl.interiors = _game.interiors.duplicate(true)
+	lvl.treasure = _game.treasure_maps.state.duplicate()
 	lvl.house_given = _game.home_given
 	lvl._entered_once = _game.home_claimed
 	lvl.met = _game.met.duplicate(true)

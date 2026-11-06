@@ -2249,12 +2249,21 @@ func _version_text() -> String:
 
 ## Shows how many seconds the hero can still run. Turns red while out of
 ## breath, until enough has come back to run again.
+## What the run meter's texts were last made for (seconds left, winded, language),
+## so the strings are built when one changes, not every frame.
+var _run_meter_key := []
+
+
 func _update_run_meter() -> void:
 	var full := player.max_stamina()
 	var left := full if player.stamina < 0.0 else player.stamina
 	_run_bar.max_value = full
 	_run_bar.value = left
 	_run_fill.modulate_color = Color(0.85, 0.3, 0.25) if player.winded else Color(0.55, 0.85, 0.4)
+	var key := [ceili(left), player.winded, Lang.language]
+	if key == _run_meter_key:
+		return
+	_run_meter_key = key
 	_run_label.text = Lang.t("Rennen: %d s") % ceili(left)
 	var run_tip := Lang.t("So lange kannst du noch rennen. Im Gehen und Stehen kommt die Puste zurück.")
 	if player.winded:
@@ -2296,11 +2305,19 @@ func _purse_gap(width: float) -> Control:
 	return gap
 
 
+## The coins the HUD was last drawn for; it is redrawn only when they change.
+var _purse_key := []
+
+
 ## Counts the copper, silver and gold coins on the HUD, each after its
 ## picture. A metal the hero has none of is dimmed, like the missing key.
 func _update_purse() -> void:
 	if _coin_label == null:
 		return
+	var key := [coins_held(PURSE_COINS[0]), coins_held(PURSE_COINS[1]), coins_held(PURSE_COINS[2]), Lang.language]
+	if key == _purse_key:
+		return
+	_purse_key = key
 	var labels := {"kupfermuenze": _coin_label, "silbermuenze": _silver_label, "goldmuenze": _gold_label}
 	var names := {"kupfermuenze": "Kupfermünzen: %d", "silbermuenze": "Silbermünzen: %d", "goldmuenze": "Goldmünzen: %d"}
 	for id in PURSE_COINS:
@@ -5391,7 +5408,7 @@ func _on_player_trained(id: String, value: int) -> void:
 func _toggle_sneak() -> void:
 	if player.dead or not player.controllable:
 		return
-	if not player.sneaking and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):
+	if not player.sneaking and _anyone_hunting():
 		show_message(Lang.t("Zu spät zum Schleichen: Du wurdest entdeckt!"), 1.6)
 		return
 	if not player.sneaking and player.fight_cooldown > 0.0:
@@ -6064,6 +6081,14 @@ func _guardian_intro() -> void:
 	learn(GUARDIAN_TIPS[_guardian_tip])
 	show_message(Lang.t(GUARDIAN_TIPS[_guardian_tip]), 6.5)
 	_guardian_tip += 1
+
+
+## Whether any foe has noticed the hero (a loop, so no closure is made per frame).
+func _anyone_hunting() -> bool:
+	for e in level.enemies:
+		if is_instance_valid(e) and e.is_hunting():
+			return true
+	return false
 
 
 func _process(delta: float) -> void:

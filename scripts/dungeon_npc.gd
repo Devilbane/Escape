@@ -39,6 +39,7 @@ func _ready() -> void:
 	BodyLook.apply(_model, look.sex)
 	if look.model == "Rogue":
 		HairLook.apply(_model, HairLook.checked(HairLook.DEFAULT))
+	GearLook.dress_body(_model, "outfit")
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	var pose: String = spec.get("pose", "Idle")
 	if _anim and _anim.has_animation(pose):

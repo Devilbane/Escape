@@ -143,12 +143,14 @@ func _test() -> void:
 		var vbody := v.find_child("Rogue_Body", true, false) as MeshInstance3D
 		if v._info.get("sex", "") == "female":
 			women += 1
-			check(vbody.mesh != vbody.get_meta("body_source"), "%s has a woman's body" % v._info.name)
+			var own: Mesh = vbody.get_meta("body_source")
+			check(vbody.mesh != own and vbody.mesh != GearLook.with_rest_positions(own), "%s has a woman's body" % v._info.name)
 			check(v.find_child("Lashes", true, false).visible, "%s has lashes" % v._info.name)
 			check(vbody.material_override != null, "%s keeps her dyed clothes" % v._info.name)
 		else:
 			men += 1
-			check(vbody.mesh == vbody.get_meta("body_source"), "%s has a man's body" % v._info.name)
+			var source: Mesh = vbody.get_meta("body_source")
+			check(vbody.mesh == source or vbody.mesh == GearLook.with_rest_positions(source), "%s has a man's body" % v._info.name)
 	check(women >= 2 and men >= 1, "the village has women and men built on the Rogue")
 
 

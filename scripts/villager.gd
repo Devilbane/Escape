@@ -299,6 +299,8 @@ func _ready() -> void:
 		HairLook.apply(_model, HairLook.checked(_info.get("hair", HairLook.DEFAULT)))
 		if _info.has("skin"):
 			HairLook.tint_skin(_model, _info.skin)
+	# Weave, leather grain and scratched metal on the clothes (see GearLook).
+	GearLook.dress_body(_model, "outfit")
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walking_A", "Walking_B", "Running_A", "Sit_Floor_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR

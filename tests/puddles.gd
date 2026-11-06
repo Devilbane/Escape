@@ -1,8 +1,10 @@
 extends SceneTree
 ## Headless test for the rain puddles above ground (see Puddles): they lie on
 ## open grass, path or square, fill up while it rains, stay a while after
-## the rain and then dry up, the small ones first; the water level goes into
-## the saved game and dries overnight; and a step into a puddle splashes.
+## the rain and then dry up, the small ones first; there are hundreds of
+## them, in the dips, in the ruts of the paths and along the houses; the
+## water level goes into the saved game and dries overnight; and a step
+## into a puddle splashes.
 ## Run with: godot --headless --fixed-fps 60 -s tests/puddles.gd
 
 var failures := 0
@@ -76,11 +78,35 @@ func _dry_ground() -> void:
 	game.state = game.State.PLAYING
 	_tick(1.0)
 	check(game.level is Outdoor and _puddles() != null, "the open air has its puddles")
-	check(_puddles().spots.size() >= 20, "there are plenty of hollows for puddles (%d)" % _puddles().spots.size())
-	for s in _puddles().spots:
+	var spots := _puddles().spots
+	check(spots.size() >= 300, "after rain there are puddles all over (%d)" % spots.size())
+	var on_path := 0
+	var by_house := 0
+	var big := 0
+	var apart := true
+	for s in spots:
 		var c: Vector2i = game.level.world_to_cell(s.at)
 		check(Puddles.GROUND.contains(game.level.cell_char(c)), "a puddle lies on grass, path or square")
-		check(float(s.radius) >= Puddles.RADIUS.x * 0.99, "a puddle is a large one")
+		check(float(s.radius) >= Puddles.RADIUS.x * 0.99 and float(s.radius) <= Puddles.RADIUS.y, "a puddle is of a puddle's size")
+		check(not Puddles._beside(game.level, c, Puddles.WET), "no puddle runs into a pond or the well")
+		if game.level.cell_char(c) == Puddles.PATH:
+			on_path += 1
+		if Puddles._beside(game.level, c, Outdoor.BLOCK_CHARS):
+			by_house += 1
+			check(float(s.radius) <= Puddles.EDGE_RADIUS, "a puddle beside a house is a small one")
+		if float(s.radius) > 1.4:
+			big += 1
+		for other in spots:
+			if other != s and Vector2(s.at.x - other.at.x, s.at.z - other.at.z).length() < float(s.radius) + float(other.radius):
+				apart = false
+	check(on_path >= 30, "the paths have puddles in their ruts (%d)" % on_path)
+	check(by_house >= 20, "the rain off the roofs leaves puddles by the houses (%d)" % by_house)
+	check(big >= 10, "the deep dips hold big puddles (%d)" % big)
+	check(apart, "no two puddles run into each other")
+	# The same map always gets the same puddles.
+	var again := Puddles.new(game.level, hash(game.level.level_name + "pfuetzen"))
+	check(again.spots.size() == spots.size() and again.spots[7].at == spots[7].at, "the puddles form in the same places every time")
+	again.free()
 	check(_shown() == 0, "no puddles on a dry day")
 	check(not game.level.in_puddle(_puddles().spots[0].at), "nothing splashes on dry ground")
 
@@ -107,7 +133,7 @@ func _they_stay_then_dry() -> void:
 	_tick(DayNight.DAY_LENGTH / 24.0)
 	check(game.puddle_water > 0.6, "the puddles stay a while after the rain")
 	check(_shown() > _puddles().spots.size() / 2, "most puddles are still there an hour after the rain")
-	var sizes := _puddles().spots.map(func(s: Dictionary) -> float: return (s.node as Node3D).scale.x)
+	var sizes := _puddles().spots.map(func(s: Dictionary) -> float: return (s.node as Node3D).scale.x / float(s.radius))
 	check(sizes.max() < 1.0, "the puddles shrink as they dry")
 	_tick(DayNight.DAY_LENGTH / 24.0 * 1.3)
 	var mid := _shown()

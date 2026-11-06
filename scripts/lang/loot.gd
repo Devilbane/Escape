@@ -80,7 +80,8 @@ const EN := {
 	"Was darin steckt, zeigt erst das Feuer.": "What is inside only the fire will show.",
 	"Meist Eisen und Kupfer, mit Glück etwas Silber oder Gold.": "Mostly iron and copper, with luck some silver or gold.",
 	"Edles Erz: viel Silber und Gold, dazu Edelsteine.": "Noble ore: much silver and gold, and gems besides.",
-	"Eingeschmolzen: %s (%d %% Schlacke), %s": "Melted down: %s (%d %% slag), %s",
+	"Eingeschmolzen: %s, %d g Schlacke (%d %%), %s": "Melted down: %s, %d g slag (%d %%), %s",
+	"%d-%d %% Schlacke": "%d-%d %% slag",
 	# Noble ore and gems.
 	"Edelerz": "Noble ore",
 	"Ein sehr seltener Brocken, reich an Silber und Gold, mit ein bis fünf ungeschliffenen Edelsteinen darin.":

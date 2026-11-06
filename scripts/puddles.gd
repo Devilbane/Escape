@@ -1,35 +1,53 @@
 class_name Puddles
 extends Node3D
-## Rain puddles in the open air. While it rains (or storms), large puddles
-## of see-through water fill up in the hollows of the grass, the paths and
-## the square (see puddle.gdshader); when the rain stops they stay a while
-## and then dry up, the small ones first. A hero who walks or runs through
-## one splashes with every step (see Player._footsteps and splash).
+## Rain puddles in the open air. While it rains (or storms), puddles of
+## see-through water fill up all over the open ground (see puddle.gdshader):
+## big ones in the dips of the grass and the square, long ones in the ruts of
+## the dirt paths, and small ones along the walls of the houses where the
+## rain runs off the roofs. When the rain stops they stay a while and then
+## dry up, the small ones first. A hero who walks or runs through one
+## splashes with every step (see Player._footsteps and splash).
 ##
 ## How much water lies about is kept by the game, since the rain falls on
 ## while the hero is down in the dungeon too (see Weather.puddle_water); the
-## puddles only show it. The hollows come from a seed of the map, so the
+## puddles only show it. The dips come from a seed of the map, so the
 ## puddles form in the same places every time it rains.
 
 ## The ground they form on: grass, dirt path, the square.
 const GROUND := ".,:"
+## The dirt paths, where cart ruts and footprints hold the water.
+const PATH := ","
+## Water that is there already (ponds, the well, the fountain, holes): no
+## puddle runs into it.
+const WET := "~;(>qF"
 ## One puddle for about this many tiles of open ground, at most MAX.
-const TILES_PER_PUDDLE := 18
-const MAX := 90
-## How far (in tiles) two puddles stay apart.
-const APART := 2
-## A puddle's radius in metres (a tile is 4 m), smallest and largest.
-const RADIUS := Vector2(1.0, 1.85)
+const TILES_PER_PUDDLE := 3.5
+const MAX := 480
+## A puddle's radius in metres (a tile is 4 m), smallest and largest, and
+## the largest beside a wall, a fence or a house, so it stays on its tile.
+const RADIUS := Vector2(0.55, 1.85)
+const EDGE_RADIUS := 1.0
+## How much further a long puddle in a rut reaches (of its radius).
+const LONG_REACH := 1.5
+## How far apart two puddles stay, as a share of their radii added up.
+const APART := 1.25
+## How big a dip in the ground is (metres across, roughly).
+const DIP_SIZE := 22.0
 ## Just above the ground and the paving, so nothing flickers through.
 const LIFT := 0.035
 ## The wet soil reaches this far past the water's edge (of the radius).
 const SOIL := 0.28
 ## How deep a puddle has to be (of its full size) to splash in.
 const SPLASH_FILL := 0.2
+## How far the water has to rise or sink before the puddles grow or shrink.
+const WATER_STEP := 0.004
 ## How long the waves of a step run over the water (seconds), and how many
 ## steps can send waves at once (see puddle.gdshader).
 const STEP_WAVE := 1.2
 const STEP_WAVES := 3
+## How many shapes the puddles share (round ones and long ones for the
+## ruts); each puddle turns and sizes one of them.
+const SHAPES := 16
 
 const SHADER := preload("res://shaders/puddle.gdshader")
 
@@ -37,14 +55,21 @@ const SHADER := preload("res://shaders/puddle.gdshader")
 ## needs before it starts to fill, and how full it is now.
 var spots: Array[Dictionary] = []
 var water := 0.0
+## The water level the puddles show now (see set_water).
+var _shown := -1.0
 var _material: ShaderMaterial
 ## The last steps into the puddles: where, and how long ago (w).
 var _steps: Array[Vector4] = []
+## Which puddles reach into each tile, for finding the one underfoot fast.
+var _by_tile := {}
 static var _drop_mesh: SphereMesh
+## The shared shapes, of radius 1: round ones, then long ones.
+static var _round: Array[ArrayMesh] = []
+static var _long: Array[ArrayMesh] = []
 
 
-## Picks the hollows on `level`'s open ground and lays a puddle in each,
-## dry to begin with.
+## Finds the dips on `level`'s open ground and lays a puddle in each, dry to
+## begin with.
 func _init(level: Level, seed_value: int) -> void:
 	name = "Puddles"
 	_material = ShaderMaterial.new()
@@ -55,50 +80,135 @@ func _init(level: Level, seed_value: int) -> void:
 	set_process(false)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
-	var cells: Array[Vector2i] = []
+	_make_shapes()
+	var dips := FastNoiseLite.new()
+	dips.seed = seed_value
+	dips.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	dips.frequency = 1.0 / DIP_SIZE
+	dips.fractal_octaves = 2
+	# Every tile of open ground, ranked by how much water it would hold: the
+	# low ground first, the paths and the eaves of the houses before the
+	# open grass, with a little chance mixed in.
+	var ranked: Array = []
 	for y in level.height:
 		for x in level.width:
 			var c := Vector2i(x, y)
-			if _hollow(level, c):
-				cells.append(c)
-	# A shuffle of our own, so the same map always gets the same puddles.
-	for i in range(cells.size() - 1, 0, -1):
-		var j := rng.randi_range(0, i)
-		var swap := cells[i]
-		cells[i] = cells[j]
-		cells[j] = swap
-	var want := mini(MAX, cells.size() / TILES_PER_PUDDLE)
-	var picked: Array[Vector2i] = []
-	for c in cells:
-		if picked.size() >= want:
+			if not GROUND.contains(level.cell_char(c)) or _beside(level, c, WET):
+				continue
+			var at := level.cell_to_world(c)
+			var depth := 0.5 - 0.5 * dips.get_noise_2d(at.x, at.z)
+			var score := depth + rng.randf() * 0.6
+			if level.cell_char(c) == PATH:
+				score += 0.3
+			if _beside(level, c, Outdoor.BLOCK_CHARS):
+				score += 0.2
+			ranked.append([score, c, depth])
+	ranked.sort_custom(func(a: Array, b: Array) -> bool: return a[0] > b[0] or (a[0] == b[0] and (a[1].y < b[1].y or (a[1].y == b[1].y and a[1].x < b[1].x))))
+	var want := mini(MAX, roundi(ranked.size() / TILES_PER_PUDDLE))
+	for entry: Array in ranked:
+		if spots.size() >= want:
 			break
-		if picked.any(func(p: Vector2i) -> bool: return maxi(absi(p.x - c.x), absi(p.y - c.y)) < APART):
+		var c: Vector2i = entry[1]
+		var depth: float = entry[2]
+		# Deep dips hold big puddles, the rest small ones.
+		var radius := lerpf(RADIUS.x, RADIUS.y, clampf(depth * depth * 1.4 + rng.randf_range(-0.3, 0.2), 0.0, 1.0))
+		var away := _away_from_walls(level, c)
+		var shift := Vector2(rng.randf_range(-1.1, 1.1), rng.randf_range(-1.1, 1.1))
+		if away != Vector2.INF:
+			# Beside a wall: a small one, pushed out from under the eaves.
+			radius = minf(radius, EDGE_RADIUS * rng.randf_range(0.6, 1.0))
+			shift = away * 0.45
+		var at := level.cell_to_world(c) + Vector3(shift.x, LIFT, shift.y)
+		var long := level.cell_char(c) == PATH
+		# How far it reaches, for keeping the next one clear of it.
+		var span := radius * (LONG_REACH if long else 1.0)
+		if _crowded(at, span):
 			continue
-		picked.append(c)
-	for c in picked:
-		var radius := rng.randf_range(RADIUS.x, RADIUS.y)
-		var at := level.cell_to_world(c) + Vector3(rng.randf_range(-0.6, 0.6), LIFT, rng.randf_range(-0.6, 0.6))
+		var turn := rng.randf() * TAU
+		if long:
+			# Along the path, as a rut runs.
+			var along_x := PATH.contains(level.cell_char(c + Vector2i.LEFT)) or PATH.contains(level.cell_char(c + Vector2i.RIGHT))
+			var along_z := PATH.contains(level.cell_char(c + Vector2i.UP)) or PATH.contains(level.cell_char(c + Vector2i.DOWN))
+			if along_x != along_z:
+				turn = (0.0 if along_x else PI / 2.0) + rng.randf_range(-0.2, 0.2) + (PI if rng.randf() < 0.5 else 0.0)
+		var shapes := _long if long else _round
 		var mi := MeshInstance3D.new()
-		mi.mesh = _shape(rng, radius)
+		mi.mesh = shapes[rng.randi() % shapes.size()]
 		mi.material_override = _material
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.position = at
-		mi.rotation.y = rng.randf() * TAU
+		mi.rotation.y = turn
+		mi.scale = Vector3(radius, 0.01, radius)
 		mi.visible = false
 		add_child(mi)
 		# Big puddles fill first and dry last; small ones need more rain.
-		var needs := remap(radius, RADIUS.x, RADIUS.y, 0.45, 0.0) + rng.randf_range(0.0, 0.1)
-		spots.append({"node": mi, "at": at, "radius": radius, "needs": needs, "fill": 0.0})
+		var needs := remap(radius, RADIUS.x, RADIUS.y, 0.45, 0.0) + rng.randf_range(0.0, 0.06)
+		var s := {"node": mi, "at": at, "radius": radius, "needs": needs, "fill": 0.0, "span": span}
+		spots.append(s)
+		for t in _tiles_under(at, span):
+			if not _by_tile.has(t):
+				_by_tile[t] = []
+			_by_tile[t].append(s)
 
 
-## Open ground with open ground all round, so no puddle runs under a wall,
-## a fence or a house.
-static func _hollow(level: Level, c: Vector2i) -> bool:
+## Whether any of the eight tiles round `c` is one of `chars`.
+static func _beside(level: Level, c: Vector2i, chars: String) -> bool:
 	for dy in range(-1, 2):
 		for dx in range(-1, 2):
-			if not GROUND.contains(level.cell_char(c + Vector2i(dx, dy))):
-				return false
-	return true
+			if (dx != 0 or dy != 0) and chars.contains(level.cell_char(c + Vector2i(dx, dy))):
+				return true
+	return false
+
+
+## Which way (on the ground) leads away from the walls, fences and houses
+## round `c`, or Vector2.INF when there is open ground all round.
+static func _away_from_walls(level: Level, c: Vector2i) -> Vector2:
+	var away := Vector2.ZERO
+	var walled := false
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			if (dx != 0 or dy != 0) and not GROUND.contains(level.cell_char(c + Vector2i(dx, dy))):
+				walled = true
+				away -= Vector2(dx, dy)
+	if not walled:
+		return Vector2.INF
+	return away.normalized() if away.length_squared() > 0.01 else Vector2.ZERO
+
+
+## Whether a puddle reaching `span` round `at` would run into one already
+## laid.
+func _crowded(at: Vector3, span: float) -> bool:
+	for t in _tiles_under(at, (span + RADIUS.y * LONG_REACH) * APART):
+		for s: Dictionary in _by_tile.get(t, []):
+			var d := Vector2(at.x - s.at.x, at.z - s.at.z)
+			var room := (span + float(s.span)) * APART
+			if d.length_squared() < room * room:
+				return true
+	return false
+
+
+## The tiles a circle of `reach` round `at` touches.
+static func _tiles_under(at: Vector3, reach: float) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	var lo := Vector2i(floori((at.x - reach) / Level.TILE), floori((at.z - reach) / Level.TILE))
+	var hi := Vector2i(floori((at.x + reach) / Level.TILE), floori((at.z + reach) / Level.TILE))
+	for y in range(lo.y, hi.y + 1):
+		for x in range(lo.x, hi.x + 1):
+			tiles.append(Vector2i(x, y))
+	return tiles
+
+
+## The shapes the puddles share, made once.
+static func _make_shapes() -> void:
+	if not _round.is_empty():
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7151
+	for i in SHAPES:
+		var long := i >= SHAPES * 5 / 8
+		var stretch := Vector2(rng.randf_range(1.5, 1.9), rng.randf_range(0.55, 0.7)) if long \
+				else Vector2(rng.randf_range(1.0, 1.45), rng.randf_range(0.75, 1.0))
+		(_long if long else _round).append(_shape(rng, stretch))
 
 
 ## Shows `level` of water (0 to 1): each puddle fills or shrinks with it.
@@ -108,6 +218,11 @@ func set_water(level: float, rain := 0.0, sky := 1.0) -> void:
 	water = clampf(level, 0.0, 1.0)
 	_material.set_shader_parameter("rain", clampf(rain, 0.0, 1.0))
 	_material.set_shader_parameter("sky", clampf(sky, 0.0, 1.0))
+	# The water rises and sinks slowly: the puddles follow it in small steps,
+	# not every frame.
+	if water == _shown or (absf(water - _shown) < WATER_STEP and water > 0.0 and water < 1.0):
+		return
+	_shown = water
 	for s in spots:
 		var fill := clampf((water - float(s.needs)) / (1.0 - float(s.needs)), 0.0, 1.0)
 		s.fill = fill
@@ -115,14 +230,15 @@ func set_water(level: float, rain := 0.0, sky := 1.0) -> void:
 		mi.visible = fill > 0.01
 		if mi.visible:
 			# It shrinks towards its deepest point as it dries.
-			var size := 0.3 + 0.7 * sqrt(fill)
-			mi.scale = Vector3(size, 1.0, size)
-			mi.set_instance_shader_parameter("fill", fill)
+			var size := (0.3 + 0.7 * sqrt(fill)) * float(s.radius)
+			# The height of the scale tells the shader how full it is.
+			mi.scale = Vector3(size, fill, size)
 
 
 ## The puddle a spot on the ground stands in, or {} for dry ground.
 func puddle_at(p: Vector3) -> Dictionary:
-	for s in spots:
+	var tile := Vector2i(floori(p.x / Level.TILE), floori(p.z / Level.TILE))
+	for s: Dictionary in _by_tile.get(tile, []):
 		if float(s.fill) < SPLASH_FILL:
 			continue
 		var reach: float = float(s.radius) * (0.3 + 0.7 * sqrt(float(s.fill))) * 0.85
@@ -205,12 +321,11 @@ func splash(at: Vector3, hard := true) -> void:
 ## is deepest in the middle. One fan, so no part of it is drawn twice (the
 ## water is see-through). COLOR.r runs from 0 at the soil's outer edge to 1
 ## in the middle (see puddle.gdshader).
-static func _shape(rng: RandomNumberGenerator, radius: float) -> ArrayMesh:
+static func _shape(rng: RandomNumberGenerator, stretch: Vector2, radius := 1.0) -> ArrayMesh:
 	var sides := 40
 	var waves: Array = []
 	for w in 4:
 		waves.append([rng.randi_range(1, 4), rng.randf() * TAU, rng.randf_range(0.25, 1.0)])
-	var stretch := Vector2(rng.randf_range(1.0, 1.45), rng.randf_range(0.75, 1.0))
 	# Rings from the outside in: soil edge, water's edge, the shallows, the middle.
 	var rings := [[1.0 + SOIL, 0.0], [1.0, 0.3], [0.55, 0.75]]
 	var points: Array = []

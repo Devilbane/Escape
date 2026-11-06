@@ -4037,6 +4037,23 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 	return gear
 
 
+## A fallen slime gives back all it swallowed (see SlimeGrowth): each
+## victim's loot, as if it had fallen here, and what that one had swallowed
+## in turn. The swallowed bodies go.
+func spill_belly(e: Enemy) -> void:
+	var meals := e.belly.duplicate()
+	e.belly.clear()
+	for meal in meals:
+		var victim: Enemy = meal.victim
+		if not is_instance_valid(victim):
+			continue
+		var angle := randf() * TAU
+		victim.global_position = e.global_position + Vector3(cos(angle), 0, sin(angle)) * randf_range(0.4, 1.0) * maxf(1.0, float(e._stats.size))
+		victim.swallowed_by = null
+		drop_kill_loot(victim, int(meal.gold))
+		victim.queue_free()
+
+
 ## How limestone glows on the floor.
 const LIMESTONE_COLOUR := Color(0.88, 0.86, 0.76)
 
@@ -4058,6 +4075,12 @@ const LIMESTONE_COLOUR := Color(0.88, 0.86, 0.76)
 ## epic noble ore). Returns the gear or ingredient id
 ## dropped (not the ore; for a slime the gear, else its body's find), or "".
 func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0, body_roll := -1.0) -> String:
+	# Swallowed by a slime (see SlimeGrowth): what it carried stays in the
+	# slime's belly until the slime falls. A slime gives back its belly.
+	if e.swallowed_by != null and is_instance_valid(e.swallowed_by):
+		e.swallowed_by.belly.append({"victim": e, "gold": gold})
+		return ""
+	spill_belly(e)
 	var tough := Loot.toughness(e.max_hp(), e.elite, is_named_boss(e))
 	var tier := Loot.roll_tier(tough, "normal" if beginner_dungeon else Loot.TOP_TIER, roll)
 	var pos := e.global_position
@@ -4172,6 +4195,8 @@ func roll_boss_loot(e: Enemy, roll := -1.0) -> String:
 ## Drops a named boss's rare loot, if the roll hits, beside where it fell,
 ## and tells the event log.
 func _drop_boss_loot(e: Enemy) -> void:
+	if e.swallowed_by != null:
+		return
 	var id := roll_boss_loot(e)
 	if id == "":
 		return

@@ -379,6 +379,22 @@ var slain_by_rival := false
 ## The hero level this one is a fair fight for (see HeroLevel), set when it
 ## is ready; what felling it is worth goes by it.
 var rated_level := 1
+## Growing slimes (see SlimeGrowth): whether it is a Blob yet, the slime
+## that swallowed this one, what it has swallowed itself (entries of
+## {"victim": Enemy, "gold": int}, see Level.spill_belly) and the rival
+## whose blow struck last.
+var blob := false
+var swallowed_by: Enemy = null
+var belly: Array = []
+var _last_rival: Enemy = null
+var _shape: CollisionShape3D
+var _slime_mat: ShaderMaterial
+## The slime's height in the world per unit of size, for its shader.
+var _slime_height := 1.0
+var _sparkles: CPUParticles3D
+var _glow_light: OmniLight3D
+## The corpse a slime is going for (see SlimeGrowth.nearest_corpse).
+var meal: Corpse = null
 
 
 ## Balances a monster to the area it lives in (see HeroLevel.AREAS): a
@@ -510,6 +526,8 @@ func _ready() -> void:
 	_stats.cooldown /= 1.0 + 0.2 * power
 	_stats.damage += power / 2
 	_fit_area()
+	if SlimeGrowth.grows(kind):
+		SlimeGrowth.born(self)
 	ranged = _stats.get("ranged", false)
 	hp = _stats.hp
 	add_to_group("combatant")
@@ -524,6 +542,7 @@ func _ready() -> void:
 	shape.shape = capsule
 	shape.position.y = 1.2 * size
 	add_child(shape)
+	_shape = shape
 	if _stats.has("ghost"):
 		# A ghost bumps into nothing: walls and closed doors do not stop it
 		# (see _physics_process), and it floats, so it needs no floor.
@@ -671,7 +690,7 @@ func fall_text() -> String:
 		"fledermaus":
 			return Lang.t("Die Fledermaus fällt zu Boden.")
 		"schleim":
-			return Lang.t("Der Schleim zerfließt.")
+			return Lang.t("Der Blob zerplatzt.") if blob else Lang.t("Der Schleim zerfließt.")
 		"drache":
 			return Lang.t("Der Drache stürzt brüllend zu Boden!")
 		"fog_wraith":
@@ -691,7 +710,7 @@ func fall_text() -> String:
 		"klippenschuetze":
 			return Lang.t("Der Klippenschütze fällt.")
 		"kristallschleim", "glutschleim":
-			return Lang.t("Der Schleim zerfließt.")
+			return Lang.t("Der Blob zerplatzt.") if blob else Lang.t("Der Schleim zerfließt.")
 		"bergkoenig":
 			return Lang.t("Der Bergkönig stürzt! Der ganze Berg erbebt.")
 		"brutdrache":
@@ -720,6 +739,9 @@ func _ready_beast() -> void:
 		glow.omni_range = 2.2 * float(_stats.size)
 		glow.position = Vector3(0, 0.6 * float(_stats.size), 0.4 * float(_stats.size))
 		add_child(glow)
+		_glow_light = glow
+	if blob:
+		_blob_look()
 	var anims: Dictionary = _stats.anims
 	for a in ["Idle", "Walking_A", "Running_A"]:
 		if _anim.has_animation(anims[a]):
@@ -846,6 +868,8 @@ func _slime() -> void:
 		mat.set_shader_parameter("glow_color", _stats.glow)
 		mat.set_shader_parameter("glow", 0.35)
 	var box := mesh.global_transform * _slime_body.get_aabb()
+	_slime_height = box.size.y / float(_stats.size)
+	_slime_mat = mat
 	mat.set_shader_parameter("height", box.size.y)
 	mat.set_shader_parameter("phase", randf() * 100.0)
 	mesh.material_override = mat
@@ -1360,6 +1384,7 @@ func hit_by_rival(damage: int, attacker: Enemy) -> void:
 		Comic.pop(global_position, "block")
 		return
 	var from: Vector3 = attacker.global_position if attacker != null and is_instance_valid(attacker) else global_position
+	_last_rival = attacker
 	slain_by_rival = true
 	take_hit(damage, from, "hit", false)
 	if not dead:
@@ -1432,9 +1457,152 @@ func _die() -> void:
 	if is_ghost():
 		# A ghost fades out as it blows apart (see Corpse "wisp").
 		create_tween().tween_method(_set_ghost_alpha, _ghost_alpha, 0.0, 1.6)
+	# Felled by a slime: it is swallowed whole, with all it carried (see
+	# SlimeGrowth); the level keeps its loot in the slime's belly.
+	if slain_by_rival and SlimeGrowth.swallows(_last_rival, self):
+		swallowed_by = _last_rival
 	died.emit()
+	if swallowed_by != null:
+		remove_from_group("combatant")
+		swallowed_by.swallow(self)
+		_slide_into(swallowed_by)
+		return
 	# The body stays where it fell and rots away (see Corpse).
 	Corpse.lay(self)
+
+
+## A slime swallows what it felled (see SlimeGrowth): it heals, grows by
+## the meal's worth up to SlimeGrowth.MAX_LEVEL and swells to its new size;
+## from SlimeGrowth.BLOB_LEVEL on it is a Blob.
+func swallow(victim: Enemy) -> void:
+	var was_max := max_hp()
+	var was_level := rated_level
+	var target := mini(SlimeGrowth.MAX_LEVEL, rated_level + SlimeGrowth.gain(victim.rated_level))
+	if target > rated_level:
+		rated_level = mini(fit_level(kind, _stats, hardening, target, SlimeGrowth.MAX_LEVEL), SlimeGrowth.MAX_LEVEL)
+	var became_blob := not blob and SlimeGrowth.is_blob_level(rated_level)
+	if became_blob:
+		SlimeGrowth.blob_up(self)
+	# The meal heals it: its new life, and half of what it lacked.
+	hp = mini(max_hp(), hp + maxi(0, max_hp() - was_max))
+	hp = mini(max_hp(), hp + (max_hp() - hp + 1) / 2)
+	var height := 2.2 * float(_stats.size)
+	Effects.head_text(level, self, height, Lang.t("Schluck!"), SlimeGrowth.GULP_COLOR)
+	if rated_level > was_level:
+		_resize(SlimeGrowth.size_of(self))
+		Effects.head_text(level, self, height + 0.6, Lang.t("Stufe %d") % rated_level, SlimeGrowth.GULP_COLOR)
+	if became_blob:
+		_blob_look()
+		Effects.head_text(level, self, height + 1.2, Lang.t("Ein Blob!"), SlimeGrowth.BLOB_SPARKLE)
+		Sfx.play(level, "voice_koloss_0", -6.0, global_position, 0.6)
+	if level != null and level.player != null and _flat_distance(level.player) < SIGHT and visible:
+		Events.teach(SlimeGrowth.LEARN)
+
+
+## Goes for the corpse it wants to eat, and gulps it down once in reach.
+func _go_feed() -> Vector3:
+	var at := meal.enemy.global_position
+	var to := at - global_position
+	to.y = 0.0
+	if to.length() < float(_stats.reach) + meal.enemy.girth():
+		_face(to)
+		if _cooldown <= 0.0:
+			_eat_corpse(meal)
+		return Vector3.ZERO
+	return _head_for(at)
+
+
+## The next step towards `at`: straight on with nothing in the way, else
+## along a path round the walls.
+func _head_for(at: Vector3) -> Vector3:
+	if _repath <= 0.0 or _path.is_empty():
+		_repath = 0.5
+		_path.clear()
+		if level.has_line_of_sight(global_position, at):
+			_path.append(at)
+		else:
+			for c in level.grid_path(level.world_to_cell(global_position), level.world_to_cell(at)).slice(1):
+				_path.append(level.cell_to_world(c))
+	if _path.is_empty():
+		return Vector3.ZERO
+	var step := _path[0] - global_position
+	step.y = 0.0
+	if step.length() < 0.4:
+		_path.remove_at(0)
+		return Vector3.ZERO
+	return step.normalized()
+
+
+## Lunges at a corpse and swallows it: it grows as from a kill (see
+## swallow), and the body is gone. Its loot already lay on the floor.
+func _eat_corpse(c: Corpse) -> void:
+	_cooldown = _stats.cooldown
+	var slow: float = minf(float(_stats.size), 1.6)
+	_play_once("1H_Melee_Attack_Chop", 0.9 * slow)
+	await get_tree().create_timer(0.45 * slow).timeout
+	if dead or not is_inside_tree() or not SlimeGrowth.still_food(c):
+		return
+	meal = null
+	_path.clear()
+	var body := c.enemy
+	c.eaten()
+	body.swallowed_by = self
+	swallow(body)
+	body._slide_into(self, true)
+
+
+## Swells (or shrinks) to `size`: its model, its body for blows and walls,
+## its glow and its shader's measure of it, over SlimeGrowth.GULP_TIME.
+func _resize(size: float) -> void:
+	_stats.size = size
+	radius = 0.6 * minf(size, 1.25)
+	tall = 2.4 * size
+	if _shape != null:
+		var capsule := _shape.shape as CapsuleShape3D
+		capsule.radius = radius
+		capsule.height = tall
+		_shape.position.y = 1.2 * size
+	if _slime_mat != null:
+		_slime_mat.set_shader_parameter("height", _slime_height * size)
+	if _glow_light != null:
+		_glow_light.omni_range = 2.2 * size
+		_glow_light.position = Vector3(0, 0.6 * size, 0.4 * size)
+	if _model != null:
+		var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+		tween.tween_property(_model, "scale", Vector3.ONE * size, SlimeGrowth.GULP_TIME) \
+				.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+
+
+## A Blob sparkles all over and shines a little from within.
+func _blob_look() -> void:
+	if _sparkles != null or _model == null:
+		return
+	var tint: Color = _stats.get("tint", Corpse.SLIME)
+	_sparkles = Effects.make_sparkles(tint.lerp(SlimeGrowth.BLOB_SPARKLE, 0.8))
+	# Glints all over its skin, rising slowly off it.
+	_sparkles.amount = 40
+	_sparkles.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE_SURFACE
+	_sparkles.emission_sphere_radius = 0.95
+	_sparkles.scale_amount_min = 1.2
+	_sparkles.scale_amount_max = 2.0
+	_sparkles.position.y = 0.7
+	_model.add_child(_sparkles)
+	if _slime_mat != null:
+		_slime_mat.set_shader_parameter("glow_color", tint.lerp(Color.WHITE, 0.3))
+		_slime_mat.set_shader_parameter("glow", 0.45)
+
+
+## Swallowed by a slime: it slides into the slime, shrinking away, and is
+## hidden; the node stays until the slime spills its belly (Level.spill_belly).
+func _slide_into(eater: Enemy, gone := false) -> void:
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS).set_parallel()
+	tween.tween_property(self, "global_position", eater.global_position + Vector3(0, 0.4, 0), SlimeGrowth.GULP_TIME)
+	tween.tween_property(_model, "scale", Vector3.ONE * 0.05, SlimeGrowth.GULP_TIME).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(func():
+		visible = false
+		process_mode = Node.PROCESS_MODE_DISABLED
+		if gone:
+			queue_free())
 
 
 func _physics_process(delta: float) -> void:
@@ -1504,6 +1672,8 @@ func _physics_process(delta: float) -> void:
 	if _scan <= 0.0:
 		_scan = RIVAL_SCAN
 		_look_for_foe(friendly, leash)
+		if SlimeGrowth.grows(kind) and meal == null:
+			meal = SlimeGrowth.nearest_corpse(self)
 	if foe != null and (not is_instance_valid(foe) or foe.dead):
 		foe = null
 		_path.clear()
@@ -1515,11 +1685,20 @@ func _physics_process(delta: float) -> void:
 		_last_known = player.global_position
 	# A rival nearer than the hero is fought first.
 	var fights_foe := foe != null and (not _awake or player.dead or _flat_distance(foe) < dist)
+	# A slime would rather eat a corpse than fight the living, unless the
+	# hero is right next to it (see SlimeGrowth).
+	if meal != null and not SlimeGrowth.still_food(meal):
+		meal = null
+		_path.clear()
+	var feeds := meal != null and (not _awake or player.dead or dist > SlimeGrowth.HERO_CLOSE)
 
 	var through_walls := is_ghost() and _awake
 	var move := _step_out() if _busy <= 0.0 and not through_walls else Vector3.ZERO
 	if move != Vector3.ZERO:
 		pass # Out of the furniture first.
+	elif feeds:
+		if _busy <= 0.0:
+			move = _go_feed()
 	elif fights_foe:
 		if _busy <= 0.0:
 			move = _fight_foe()
@@ -1661,7 +1840,8 @@ func _look_for_foe(friendly: bool, leash: float) -> void:
 		# A friend of the hero leaves the hero's other friends alone.
 		if d >= best_d or (friendly and e.is_friend()):
 			continue
-		var rival: bool = d < RIVAL_SIGHT and Factions.kinds_are_rivals(kind, e.kind)
+		# A slime hunts whatever it could swallow (see SlimeGrowth).
+		var rival: bool = d < RIVAL_SIGHT and (Factions.kinds_are_rivals(kind, e.kind) or SlimeGrowth.can_eat(self, e))
 		var helps: bool = friendly and e.is_hunting()
 		if (rival or helps) and level.has_line_of_sight(global_position, e.global_position):
 			best = e

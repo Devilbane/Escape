@@ -246,6 +246,9 @@ static func _set_color(mat: ShaderMaterial, color: String) -> void:
 ## drawn once, letter by letter, in a straight line or along a half circle.
 ## The shader lays it onto the side of the head.
 const INK_SIZE := Vector2(512, 390)
+## The tattoo's letter sizes in the ink texture: short words get the biggest.
+const INK_FONT_MAX := 200
+const INK_FONT_MIN := 40
 
 static func _ink(head: MeshInstance3D, word: String, arch: bool) -> Texture2D:
 	var view := head.get_node_or_null("TattooInk") as SubViewport
@@ -262,17 +265,25 @@ static func _ink(head: MeshInstance3D, word: String, arch: bool) -> Texture2D:
 	var word_node := view.get_node("Word") as Node2D
 	for old in word_node.get_children():
 		old.free()
-	# Short words big, long words smaller, so every word fits.
-	var font_size := clampi(int(640.0 / maxf(word.length(), 3.0)), 40, 150)
+	# As big as the word fits: short words fill the side of the head, long
+	# words shrink until they fit the line or the half circle.
+	const RADIUS := 180.0
+	var room := RADIUS * PI * 0.9 / 1.15 if arch else INK_SIZE.x * 0.88
+	var font_size := INK_FONT_MAX
 	var widths: Array[float] = []
 	var total := 0.0
-	for ch in word:
-		var w := TATTOO_FONT.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-		widths.append(w)
-		total += w
+	for attempt in 2:
+		widths.clear()
+		total = 0.0
+		for ch in word:
+			var w := TATTOO_FONT.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+			widths.append(w)
+			total += w
+		if total <= room or attempt == 1:
+			break
+		font_size = maxi(int(font_size * room / total), INK_FONT_MIN)
 	# A half circle at most; a short word takes only part of it, so its
 	# letters stay close together and easy to read.
-	const RADIUS := 180.0
 	var span := clampf(total * 1.15 / RADIUS, 0.0, PI * 0.9) if arch else 0.0
 	var centre := Vector2(INK_SIZE.x * 0.5, INK_SIZE.y * 0.5 + (RADIUS * 0.45 if arch else 0.0))
 	var x := -total * 0.5

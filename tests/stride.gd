@@ -169,6 +169,11 @@ func _measure_push_off() -> void:
 			# comes half a cycle later, its heel strike just after).
 			check(Stride.lift_at(anim, fposmod(listed + 0.12, 1.0)) == 0.0, "%s: off the toes again after push-off %d" % [anim, side])
 			check(Stride.lift_at(anim, fposmod(listed - 0.25, 1.0)) == 0.0, "%s: flat-footed at mid-stance before push-off %d" % [anim, side])
+			# Walking lifts; the same walk playing on a body that stands still
+			# (held up, waiting, talking) stays flat-footed.
+			player.seek(player.get_animation(anim).length * listed, true, true)
+			check(Stride.lift(player, anim, 1.0, 1.5) > Stride.LIFT_HEIGHT * 0.9, "%s: walking lifts onto the toes at push-off %d" % [anim, side])
+			check(Stride.lift(player, anim, 1.0, 0.0) == 0.0, "%s: standing still stays flat-footed at push-off %d" % [anim, side])
 	check(Stride.LIFT_HEIGHT > 0.0 and Stride.LIFT_HEIGHT <= 0.08, "the lift onto the toes is only a little")
 	model.queue_free()
 

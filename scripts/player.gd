@@ -2468,7 +2468,7 @@ func _physics_process(delta: float) -> void:
 		_anim.speed_scale = GET_UP_SPEED
 	else:
 		_anim.speed_scale = 1.0
-	var lift := Stride.lift(_anim, _current_anim, _model.scale.x)
+	var lift := Stride.lift(_anim, _current_anim, _model.scale.x, ground_speed)
 	if lift > 0.0 or _on_toes:
 		_model.position.y = lift
 		_on_toes = lift > 0.0

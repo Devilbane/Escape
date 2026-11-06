@@ -1610,7 +1610,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		_anim.speed_scale = 1.0
 	if walker:
-		_model.position.y = Stride.lift(_anim, _anim_of(_current_anim), _stride_size)
+		_model.position.y = Stride.lift(_anim, _anim_of(_current_anim), _stride_size, ground_speed)
 
 
 ## The model's own animation for one of the skeleton names (see _play).

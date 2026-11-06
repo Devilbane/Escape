@@ -137,6 +137,14 @@ func _check_rivals() -> void:
 	check(ghost.slimed <= 0.0 and other.slimed <= 0.0, "slime does not stick to a ghost or a slime")
 	bandit._tick_slime(SlimeCoat.TIME + 0.1)
 	check(bandit.slimed <= 0.0, "the slime wears off a bandit")
+	# A slime's blow leaves a clear cover of goo, which only shows.
+	bandit._tick_slime(0.1)
+	check(not _coated(bandit), "and its coat is gone")
+	bandit.goo(Color(0, 1, 0))
+	check(_coated(bandit) and bandit.slimed <= 0.0, "a slime's victim is under its goo, but not slowed")
+	bandit._tick_slime(SlimeCoat.GOO_TIME + 0.1)
+	bandit._tick_slime(0.1)
+	check(not _coated(bandit), "the goo wears off")
 	for e in [bandit, ghost, other]:
 		_gone(e)
 
@@ -213,6 +221,19 @@ func _process(_delta: float) -> bool:
 			if player.ailments.has(SlimeCoat.KIND) or stage_frames > 180:
 				check(player.ailments.has(SlimeCoat.KIND), "the gob slimes the hero")
 				check(player.hp >= hp_before, "the gob does no harm (%d, was %d)" % [player.hp, hp_before])
+				# The hero struck by a slime: under its goo, no slower.
+				player.ailments.erase(SlimeCoat.KIND)
+				player._ailments_changed()
+				check(not _coated(player), "the hero is clean again")
+				player.goo(Color(1, 0.4, 0.75))
+				check(_coated(player), "a slime's blow leaves the hero under its goo")
+				check(not player.ailments.has(SlimeCoat.KIND) and absf(player.speed - speed_before) < 0.01, "the goo does not slow the hero")
+				player.goo_left = 0.05
+				stage = 3
+				stage_frames = 0
+		3:
+			if stage_frames > 10:
+				check(not _coated(player), "the goo wears off the hero")
 				_finish()
 				return true
 	return false

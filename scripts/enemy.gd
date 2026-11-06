@@ -408,6 +408,8 @@ var slimed := 0.0
 ## What of the last little shots a slime let through, carried on (see SlimeCoat.absorb).
 var absorbed := 0.0
 var _spit_cool := 0.0
+## Seconds left under a slime's gooey cover after its blow (see goo).
+var goo_left := 0.0
 var _puddle_mat: StandardMaterial3D
 var _drops_mat: StandardMaterial3D
 
@@ -2274,6 +2276,9 @@ func _strike(target: Node3D) -> void:
 	if rival != null:
 		if not rival.dead and d.length() < float(_stats.reach) + 0.6 + rival.girth() and not level.stacked(self, rival):
 			rival.hit_by_rival(_stats.damage, self)
+			# A slime's blow leaves its goo on the victim (see SlimeCoat).
+			if SlimeCoat.is_slime(self) and not rival.dead:
+				rival.goo(slime_colour())
 			# Close up, a slime sticks to whoever strikes it (see SlimeCoat).
 			if SlimeCoat.sticks(rival):
 				get_slimed(rival.slime_colour())
@@ -2283,6 +2288,8 @@ func _strike(target: Node3D) -> void:
 			and (is_ghost() or not level.door_between(global_position, player.global_position)):
 		var before := player.hp
 		player.take_damage(_stats.damage, global_position, self)
+		if SlimeCoat.is_slime(self) and player.hp < before:
+			player.goo(slime_colour())
 		# Minion blades and spider bites are sometimes poisoned.
 		if player.hp < before and randf() < _stats.get("poison", POISON_CHANCE if kind == "wicht" else 0.0):
 			player.afflict("gift")
@@ -2306,12 +2313,21 @@ func get_slimed(colour: Color) -> void:
 
 
 func _tick_slime(delta: float) -> void:
-	if slimed <= 0.0:
+	if slimed <= 0.0 and goo_left <= 0.0:
 		return
-	slimed -= delta
-	if slimed <= 0.0:
-		slimed = 0.0
+	slimed = maxf(0.0, slimed - delta)
+	goo_left = maxf(0.0, goo_left - delta)
+	if slimed <= 0.0 and goo_left <= 0.0:
 		SlimeCoat.wipe(self, _model)
+
+
+## Struck by a slime: under a clear cover of its goo for a few seconds
+## (see SlimeCoat). It only shows.
+func goo(colour: Color) -> void:
+	if not SlimeCoat.can_coat(self) or _model == null:
+		return
+	goo_left = SlimeCoat.GOO_TIME
+	SlimeCoat.coat(self, _model, colour)
 
 
 ## The colour of this slime's water, for the coat it leaves (see SlimeCoat).

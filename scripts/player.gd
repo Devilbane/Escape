@@ -1779,7 +1779,7 @@ func refresh_stats() -> void:
 	BloatedBelly.swell(_model, ailments.has(BloatedBelly.KIND))
 	_shown_alpha = -1.0 # New parts: fade them too if sneaking.
 	# New parts: slimed too, if the hero is (see SlimeCoat).
-	if ailments.has(SlimeCoat.KIND) and _model != null:
+	if slime_covered() and _model != null:
 		SlimeCoat.coat(self, _model, slime_tint)
 
 
@@ -1842,6 +1842,23 @@ func afflict(kind: String) -> void:
 
 ## The colour of the slime the hero is coated in (see get_slimed).
 var slime_tint := SlimeCoat.COLOR
+## Seconds left under a slime's gooey cover after its blow (see goo).
+var goo_left := 0.0
+
+
+## Struck by a slime: under a clear cover of its goo for a few seconds
+## (see SlimeCoat). It only shows; it does not slow.
+func goo(colour: Color) -> void:
+	if dead or _model == null:
+		return
+	goo_left = SlimeCoat.GOO_TIME
+	slime_tint = colour
+	SlimeCoat.coat(self, _model, slime_tint)
+
+
+## Whether slime covers the hero now: slimed, or goo from a slime's blow.
+func slime_covered() -> bool:
+	return ailments.has(SlimeCoat.KIND) or goo_left > 0.0
 
 
 ## Coated in slime of `colour` (a blow on a slime, or its gob, see
@@ -2045,7 +2062,7 @@ func _ailments_changed() -> void:
 		old.free()
 	if not ailments.has("blut"):
 		wound.stop()
-	if not ailments.has(SlimeCoat.KIND) and get_node_or_null(SlimeCoat.NODE) != null:
+	if not slime_covered() and get_node_or_null(SlimeCoat.NODE) != null:
 		SlimeCoat.wipe(self, _model)
 	for kind in ["angst", "netz", "brand", "blut", "gift", "fluch"]:
 		if ailments.has(kind):
@@ -2539,6 +2556,10 @@ func _physics_process(delta: float) -> void:
 	_clock += delta
 	_get_up(delta)
 	_tick_ailments(delta)
+	if goo_left > 0.0:
+		goo_left -= delta
+		if not slime_covered():
+			SlimeCoat.wipe(self, _model)
 	_regenerate(delta)
 	potions.tick(delta)
 	_knife_settle -= delta

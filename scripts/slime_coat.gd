@@ -14,6 +14,9 @@ extends RefCounted
 ##   The hero shows it as the ailment KIND, with an icon under the life bar;
 ##   a fountain, a shrine or a healing potion washes it off, like the others.
 ##   Ghosts have no body to coat, and slime does not stick to slime.
+## - Goo: whoever a slime itself strikes is left under a clear, gooey cover
+##   of its slime for GOO_TIME seconds (see Enemy.goo, Player.goo). It only
+##   shows; it does not slow.
 ## - Spit: a slime spits a gob of itself at whoever it hunts, from
 ##   SPIT_MIN to SPIT_REACH away (an archer reaches much further) and only
 ##   every SPIT_COOL seconds (BLOB_SPIT_COOL for a Blob). The gob does no
@@ -22,6 +25,7 @@ extends RefCounted
 ## The hero's ailment (see Player.afflict).
 const KIND := "schleimig"
 const TIME := 6.0
+const GOO_TIME := 5.0
 ## How fast the slimed still move, and how much longer they need between blows.
 const SLOW := 0.7
 const ATTACK_SLOW := 1.5
@@ -39,6 +43,8 @@ const SPIT_SPEED := 9.0
 ## The coat's colour on the hero's icon and words.
 const COLOR := Color(0.45, 0.95, 0.35)
 const NODE := "SlimeCoat"
+## How far the goo stands off the body, in metres.
+const GOO_SHELL := 0.035
 ## The compendium's entry, the first time the hero meets one of these tricks.
 const LEARN := "Schleim ist zäh: Kleine Geschosse wie Messer, Bolzen und Pfeile schluckt ein Schleim zur Hälfte, Magie und Feuer treffen ihn voll. Wer ihn mit der Klinge schlägt, wird leicht verschleimt und ist dann ein paar Sekunden lang langsamer, zu Fuß und beim Schlagen. Aus kurzer Entfernung spuckt ein Schleim auch Schleim, seltener und weniger weit, als ein Bogenschütze schießt."
 
@@ -68,18 +74,23 @@ static func absorb(e: Enemy, damage: int) -> int:
 	return out
 
 
-## Coats `model` (the body under `holder`) in slime of `colour`: a wet,
-## glossy skin over every part and drops running off it.
+## Coats `model` (the body under `holder`) in slime of `colour`: a clear,
+## gooey cover a little outside every part (the body shows through it), wet
+## and glossy, with drops running off it.
 static func coat(holder: Node3D, model: Node3D, colour: Color) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(colour, 0.42)
-	mat.roughness = 0.03
+	mat.albedo_color = Color(colour, 0.3)
+	mat.roughness = 0.02
 	mat.metallic_specular = 1.0
 	mat.rim_enabled = true
-	mat.rim = 0.7
+	mat.rim = 1.0
+	mat.rim_tint = 0.2
 	mat.emission_enabled = true
-	mat.emission = colour * 0.12
+	mat.emission = colour * 0.08
+	# A shell just outside the body: goo lying on it, not paint.
+	mat.grow = true
+	mat.grow_amount = GOO_SHELL / maxf(model.scale.x, 0.01)
 	for mesh in model.find_children("*", "MeshInstance3D", true, false):
 		(mesh as MeshInstance3D).material_overlay = mat
 	var old := holder.get_node_or_null(NODE)

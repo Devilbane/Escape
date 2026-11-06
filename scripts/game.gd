@@ -5161,7 +5161,7 @@ func _on_leveled_up(new_level: int) -> void:
 	var text := Lang.t("Heldenstufe %d! +1 Leben") % new_level
 	if new_level % HeroLevel.CON_EVERY == 0:
 		text += ", " + Lang.t("+1 Konstitution")
-	if new_level % HeroLevel.SPEED_EVERY == 0:
+	if HeroLevel.gives_speed(new_level):
 		text += ", " + Lang.t("+1 % Tempo")
 	if new_level % HeroLevel.POINT_EVERY == 0:
 		text += "\n" + Lang.t("Ein Punkt für Stärke, Geschick oder Intelligenz: Taste P öffnet den Charakter.")
@@ -5179,7 +5179,7 @@ func _on_leveled_up(new_level: int) -> void:
 ## Seconds the level-up waits for a message already on screen.
 const LEVEL_MESSAGE_WAIT := 3.0
 ## Explained once in the compendium, at the first level-up.
-const LEVEL_LEARN := "Erfahrung (EP) bekommst du für besiegte Gegner, erfüllte Aufträge, Kopfgelder und gelöste Rätsel. Gegner weit unter deiner Heldenstufe bringen wenig. Jede Stufe gibt +1 Leben, jede 2. Stufe +1 % Tempo, jede 3. Stufe einen Punkt für Stärke, Geschick oder Intelligenz (im Charakter, Taste P) und jede 5. Stufe +1 Konstitution."
+const LEVEL_LEARN := "Erfahrung (EP) bekommst du für besiegte Gegner, erfüllte Aufträge, Kopfgelder und gelöste Rätsel. Gegner weit unter deiner Heldenstufe bringen wenig. Jede Stufe gibt +1 Leben, jede 2. Stufe bis Stufe 20 +1 % Tempo, jede 3. Stufe einen Punkt für Stärke, Geschick oder Intelligenz (im Charakter, Taste P) und jede 5. Stufe +1 Konstitution."
 
 
 func _on_player_trained(id: String, value: int) -> void:

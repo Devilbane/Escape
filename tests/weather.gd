@@ -113,14 +113,14 @@ func _fog() -> void:
 	game.set_weather(Weather.FOG, 4.0)
 	_settle()
 	for e in slimes:
-		check(not is_instance_valid(e) or e.dead or e._dawn, "the slimes go back when the rain stops")
+		check(is_instance_valid(e) and not e._dawn, "the slimes stay and wander on when the rain stops")
 	check(game._env.fog_enabled and game._env.fog_density > 0.01, "fog hangs over the open air")
 	check(game._mist.emitting and not game._rain.emitting, "mist drifts, and no rain falls in fog")
-	check(_kinds() == ["fog_wraith"], "in fog the fog wraiths get their spots")
+	check(_kinds() == ["fog_wraith", "schleim"], "in fog the fog wraiths and slimes get their spots")
 	_call_out()
 	check(game.level.weather_foes_alive() > 0, "fog wraiths drift among the dead trees")
 	for s in game.level._weather_foes:
-		if s.enemy != null:
+		if s.enemy != null and s.kind == "fog_wraith":
 			check(s.enemy._stats.get("roam", false), "a fog wraith roams")
 			check(s.enemy.fall_text() == Lang.t("Der Nebelgeist verweht."), "a fog wraith drifts apart when it falls")
 	check(not game.level.night, "noon is not night")
@@ -131,7 +131,7 @@ func _fog() -> void:
 func _storm() -> void:
 	game.set_weather(Weather.STORM, 4.0)
 	_settle()
-	check(_kinds() == ["fledermaus"], "in a storm bats get their spots")
+	check(_kinds() == ["fledermaus", "schleim"], "in a storm bats and slimes get their spots")
 	check(game._env.ambient_light_energy < 0.45, "a storm is darker than rain")
 	check(game._rain.emitting, "rain pours in a storm")
 	var dark: float = game._env.ambient_light_energy
@@ -155,6 +155,8 @@ func _clears_up() -> void:
 	_settle()
 	check(game.level.ore_lying() == 0, "thunder ore fades once the storm has passed")
 	check(game.level._weather_foes.is_empty(), "the weather's creatures go when the sky clears")
+	check(game.level.slimes_about() > 0, "the slimes stay and wander on under a clear sky")
+	check(game.level.slimes_about() <= Outdoor.SLIMES_AT_MOST, "no more than %d slimes crawl about" % Outdoor.SLIMES_AT_MOST)
 	check(not game._env.fog_enabled, "the fog lifts")
 	check(absf(game._env.ambient_light_energy - 0.52) < 0.01, "the daylight comes back")
 

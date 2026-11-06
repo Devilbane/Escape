@@ -72,8 +72,9 @@ func _check_open_air() -> void:
 	check(not families.is_empty(), "the open-air map names no families")
 	var spawned: Array = ["wolf", "halsabschneider"]  # the wolf pack, the chief's call
 	spawned.append_array(Outdoor.NIGHT_DEAD_KINDS)
-	for w in Outdoor.WEATHER_FOES.values():
-		spawned.append(w.kind)
+	for groups in Outdoor.WEATHER_FOES.values():
+		for w in groups:
+			spawned.append(w.kind)
 	for kind in spawned:
 		check(MonsterFamilies.fits(kind, families), "the open air spawns a %s, but its families are %s" % [kind, families])
 

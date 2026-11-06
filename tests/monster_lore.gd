@@ -193,8 +193,11 @@ func _test() -> void:
 		MonsterLore.kills[kind] = 9999
 	MonsterLore.kills["krieger"] = 12
 	game.crafting.learn_recipe(Crafting.RECIPES.keys()[0])
+	var old_language := Lang.language
 	for lang in ["de", "en"]:
-		Lang.choose(lang)
+		# Switched for this run only (Lang.choose would save it for later tests).
+		Lang.language = lang
+		Lang._apply()
 		game.menus.compendium_page = "monster"
 		game.menus.open("kompendium")
 		await _wait(4)
@@ -211,6 +214,8 @@ func _test() -> void:
 			await _wait(4)
 			root.get_texture().get_image().save_png(shots.path_join("monster_lore_%s.png" % lang))
 		game.menus.close()
+	Lang.language = old_language
+	Lang._apply()
 	_finish()
 
 

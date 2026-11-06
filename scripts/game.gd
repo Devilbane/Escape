@@ -2247,13 +2247,13 @@ func _version_text() -> String:
 	return "Version " + VERSION + ("." + BUILD if BUILD != "" else "") + " · © 2026 devilbane · " + Lang.t("Alle Rechte vorbehalten")
 
 
-## Shows how many seconds the hero can still run. Turns red while out of
-## breath, until enough has come back to run again.
 ## What the run meter's texts were last made for (seconds left, winded, language),
 ## so the strings are built when one changes, not every frame.
 var _run_meter_key := []
 
 
+## Shows how many seconds the hero can still run. Turns red while out of
+## breath, until enough has come back to run again.
 func _update_run_meter() -> void:
 	var full := player.max_stamina()
 	var left := full if player.stamina < 0.0 else player.stamina
@@ -6098,7 +6098,7 @@ func _process(delta: float) -> void:
 	_show_weather()
 	# A skeleton on the hero's heels keeps the fight going, and a hero who
 	# has been spotted cannot stay hidden.
-	if state == State.PLAYING and level and level.enemies.any(func(e): return is_instance_valid(e) and e.is_hunting()):
+	if state == State.PLAYING and level and _anyone_hunting():
 		player.mark_fight()
 		if player.sneaking:
 			player.set_sneaking(false)

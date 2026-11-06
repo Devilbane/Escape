@@ -265,6 +265,20 @@ var _hunt_repath := 0.0
 ## How far from the enemy's middle the hunt stops: side by side, in reach.
 const HUNT_STOP := 1.6
 const HUNT_REPATH := 0.4
+## Struck by a foe the hero cannot answer from where they stand (out of reach,
+## and no knife can fly at it), the hero walks up to it on their own and
+## strikes back. Such a chase gives up after CHASE_TIME seconds, or when the foe
+## gets farther than CHASE_LEASH metres away, and the same foe is not chased
+## again for CHASE_REST seconds after that, so a foe that keeps backing off
+## cannot lead the hero across the map. A step or a click ends it at once.
+const CHASE_TIME := 5.0
+const CHASE_LEASH := 16.0
+const CHASE_REST := 4.0
+## Seconds left on the hero's own chase; 0 for a hunt that was clicked.
+var _chase_left := 0.0
+## The foe last given up on, and how long until it may be chased again.
+var _chase_quit: Enemy = null
+var _chase_rest := 0.0
 var _auto_cooldown := 0.0
 ## Time left on an animation that plays while the hero keeps moving.
 var _anim_hold := 0.0
@@ -1243,6 +1257,7 @@ func charge(enemy: Enemy) -> void:
 	_engage(enemy)
 	_hunt = enemy
 	_hunt_repath = 0.0
+	_chase_left = 0.0
 
 
 ## Gives up a hunt, when the hero is sent somewhere else.
@@ -1265,6 +1280,11 @@ func _pursue(delta: float) -> void:
 		path.clear()
 		_hunt = null
 		return
+	if _chase_left > 0.0:
+		_chase_left -= delta
+		if _chase_left <= 0.0 or to.length() > CHASE_LEASH:
+			_give_up_chase()
+			return
 	_hunt_repath -= delta
 	if _hunt_repath <= 0.0:
 		_hunt_repath = HUNT_REPATH
@@ -1280,6 +1300,40 @@ func defend_against(attacker: Node) -> void:
 		return
 	if _target == null or not is_instance_valid(_target) or _target.dead:
 		_engage(enemy)
+	if _target == enemy and _should_chase(enemy):
+		_hunt = enemy
+		_hunt_repath = 0.0
+		_chase_left = CHASE_TIME
+
+
+## Whether a blow or a shot from `enemy` sends the hero after it: only when the
+## hero is idle (no step, no errand, no hunt), cannot strike or throw at it from
+## here, and it is near enough and was not just given up on.
+func _should_chase(enemy: Enemy) -> bool:
+	if not controllable or frozen or is_afraid() or _hunt != null or not path.is_empty():
+		return false
+	if _keyboard_direction() != Vector3.ZERO or steer != Vector3.ZERO:
+		return false
+	if _chase_rest > 0.0 and is_instance_valid(_chase_quit) and enemy == _chase_quit:
+		return false
+	var d := global_position.distance_to(enemy.global_position)
+	if d <= ENGAGE_RANGE or d > CHASE_LEASH:
+		return false
+	return not _can_throw_at(enemy, d)
+
+
+## Whether _auto_attack would answer `enemy`, `d` metres away, with a knife.
+func _can_throw_at(enemy: Enemy, d: float) -> bool:
+	return d <= AUTO_THROW_RANGE and knives > 0 and level.has_clear_shot(global_position, enemy.global_position)
+
+
+## Ends the hero's own chase without reaching the foe: they stop where they are.
+func _give_up_chase() -> void:
+	_chase_quit = _hunt
+	_chase_rest = CHASE_REST
+	_chase_left = 0.0
+	_hunt = null
+	path.clear()
 
 
 ## Keeps fighting the current target: blade while next to it, knives from afar.
@@ -1295,7 +1349,7 @@ func _auto_attack() -> void:
 	if d <= ENGAGE_RANGE:
 		_auto_cooldown = AUTO_MELEE_INTERVAL
 		melee()
-	elif _hunt == null and d <= AUTO_THROW_RANGE and knives > 0 and level.has_clear_shot(global_position, _target.global_position):
+	elif _hunt == null and _can_throw_at(_target, d):
 		_auto_cooldown = AUTO_THROW_INTERVAL
 		throw_knife(_target.global_position, true)
 
@@ -2377,6 +2431,7 @@ func _physics_process(delta: float) -> void:
 		_knife_settle = KNIFE_SETTLE_EVERY
 		if _settle_knives():
 			knives_settled.emit()
+	_chase_rest = maxf(0.0, _chase_rest - delta)
 	_pursue(delta)
 	_auto_attack()
 	if _stay_seated(delta):

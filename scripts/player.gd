@@ -79,6 +79,17 @@ const SPLASH_TARGETS := 3
 const SPLASH_SHARE := 0.5
 const STRIKE_ANIM := "1H_Melee_Attack_Slice_Horizontal"
 const SPLASH_ANIM := "2H_Melee_Attack_Spinning"
+## A strike that will find a vital point (see MonsterLore): a leap at the
+## foe, up VITAL_LEAP_UP and forward VITAL_LEAP_AHEAD metres, the weapon
+## raised and brought down in an overhead chop as the hero lands. The chop
+## plays VITAL_ANIM_SPEED times as fast; the blade lands VITAL_HIT seconds
+## after the leap starts (the top of the leap is at VITAL_TOP).
+const VITAL_ANIM := "1H_Melee_Attack_Chop"
+const VITAL_ANIM_SPEED := 1.6
+const VITAL_LEAP_UP := 0.6
+const VITAL_LEAP_AHEAD := 0.6
+const VITAL_TOP := 0.28
+const VITAL_HIT := 0.4
 ## Running into a skeleton starts a fight: the hero keeps swinging while
 ## standing next to it, and throws knives at it once the two are apart.
 const ENGAGE_RANGE := MELEE_RANGE
@@ -977,15 +988,27 @@ func melee() -> void:
 	_attack_cooldown = 0.5
 	Events.bus().hero_acted.emit("melee")
 	var splash := would_splash()
+	# Monster knowledge: a single strike rolls for a vital point as it starts,
+	# so a hit that will find one looks different from the first frame.
+	var vital_target: Enemy = null
+	if not splash and target and not target.open_to_backstab(global_position) and finds_vital(target):
+		vital_target = target
 	# A blade swishes, an axe (or a mace or hammer) whooms (see Sfx.play_weapon).
 	var arms := Sfx.weapon_family(weapon_skill())
 	if splash:
 		play_once(SPLASH_ANIM, 0.55)
 		Sfx.play_weapon(self, arms, "sweep")
+	elif vital_target:
+		_attack_cooldown = VITAL_HIT + 0.35
+		play_once(VITAL_ANIM, VITAL_HIT + 0.35)
+		_anim.speed_scale = VITAL_ANIM_SPEED
+		_leap_strike(arms)
 	else:
 		play_once(STRIKE_ANIM, 0.45)
 		Sfx.play_weapon(self, arms, "swing")
-	await get_tree().create_timer(0.25 if splash else 0.18).timeout
+	await get_tree().create_timer(VITAL_HIT if vital_target else 0.25 if splash else 0.18).timeout
+	if vital_target and _current_anim == VITAL_ANIM:
+		_anim.speed_scale = 1.0
 	var weapon := weapon_skill()
 	# One roll for a heavy hit per swing; a sweep shares it out.
 	var heavy := heavy_hit(weapon)
@@ -1017,7 +1040,7 @@ func melee() -> void:
 			train("schleichen", 4.0)
 		else:
 			# Monster knowledge: a blow may find a vital point (see MonsterLore).
-			var vital := finds_vital(e)
+			var vital := e == vital_target if not splash and e == target else finds_vital(e)
 			if vital:
 				this_blow = "vital"
 			elif e.is_armored():
@@ -1074,12 +1097,30 @@ func vital_damage(base: int, skill_id: String) -> int:
 	return MonsterLore.VITAL_FACTOR * (base + (1 if skill_chance(skill_id) > 0 else 0))
 
 
-## After a vital hit landed on `e`: the word over its head, and maybe a
-## crippled attack and a bleeding wound (see MonsterLore). `sound` is the
-## knife's impact; a melee blow passes "" and sounds its weapon instead.
+## The leap of a vital strike: the hero's figure springs up and forward at
+## the foe while the weapon goes up, comes down with the chop as the blade
+## lands, and steps back to the hero's place. Only the figure moves, not the
+## body, so the hero's place on the map stays where it was. `arms` is the
+## weapon family, whose swing sounds as the blade comes down.
+func _leap_strike(arms: String) -> void:
+	var ahead := facing()
+	var top := ahead * VITAL_LEAP_AHEAD * 0.6 + Vector3.UP * VITAL_LEAP_UP
+	var landing := ahead * VITAL_LEAP_AHEAD
+	var tween := create_tween()
+	tween.tween_property(_model, "position", top, VITAL_TOP).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(func(): Sfx.play_weapon(self, arms, "swing"))
+	tween.tween_property(_model, "position", landing, VITAL_HIT - VITAL_TOP).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(_model, "position", Vector3.ZERO, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+
+
+## After a vital hit landed on `e`: a burst at the point struck, the word over
+## its head, and maybe a crippled attack and a bleeding wound (see
+## MonsterLore). `sound` is the knife's impact; a melee blow passes "" and
+## sounds its weapon instead.
 func vital_struck(e: Enemy, sound := "hit") -> void:
 	if sound != "":
 		Sfx.play(self, sound, 2.0, e.global_position, 1.3)
+	e.vital_burst()
 	if e.dead:
 		Effects.head_text(level, e, 2.7, Lang.t("Schwachstelle!"), MonsterLore.VITAL_COLOR)
 		return

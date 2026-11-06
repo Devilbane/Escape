@@ -80,6 +80,7 @@ func _test() -> void:
 	check(_mesh("Rogue_Body") != _source("Rogue_Body"), "the heroine has her own body")
 	check(_mesh("Rogue_Head") != male_head, "the heroine has her own head")
 	check(_mesh("Rogue_ArmLeft") != _source("Rogue_ArmLeft") and _mesh("Rogue_LegLeft") != _source("Rogue_LegLeft"), "her arms and legs are her own")
+	_check_bust()
 	check(_shown("Lashes") and _shown("Lips"), "the heroine has lashes and a mouth")
 	check(is_equal_approx(_model_scale(), BodyLook.FEMALE_SCALE), "the heroine is a little shorter")
 	var female_head := _mesh("Rogue_Head")
@@ -142,10 +143,40 @@ func _test() -> void:
 		var vbody := v.find_child("Rogue_Body", true, false) as MeshInstance3D
 		if v._info.get("sex", "") == "female":
 			women += 1
-			check(vbody.mesh != vbody.get_meta("body_source"), "%s has a woman's body" % v._info.name)
+			var own: Mesh = vbody.get_meta("body_source")
+			check(vbody.mesh != own and vbody.mesh != GearLook.with_rest_positions(own), "%s has a woman's body" % v._info.name)
 			check(v.find_child("Lashes", true, false).visible, "%s has lashes" % v._info.name)
 			check(vbody.material_override != null, "%s keeps her dyed clothes" % v._info.name)
 		else:
 			men += 1
-			check(vbody.mesh == vbody.get_meta("body_source"), "%s has a man's body" % v._info.name)
+			var source: Mesh = vbody.get_meta("body_source")
+			check(vbody.mesh == source or vbody.mesh == GearLook.with_rest_positions(source), "%s has a man's body" % v._info.name)
 	check(women >= 2 and men >= 1, "the village has women and men built on the Rogue")
+
+
+## Her chest has a small bust: finer triangles there, rounded forward, and
+## every new vertex is skinned like its neighbours so it follows the run.
+func _check_bust() -> void:
+	var source := _source("Rogue_Body").surface_get_arrays(0)
+	var body := _mesh("Rogue_Body").surface_get_arrays(0)
+	var verts: PackedVector3Array = body[Mesh.ARRAY_VERTEX]
+	var weights: PackedFloat32Array = body[Mesh.ARRAY_WEIGHTS]
+	var bones: PackedInt32Array = body[Mesh.ARRAY_BONES]
+	check(verts.size() > (source[Mesh.ARRAY_VERTEX] as PackedVector3Array).size(), "her chest is cut into finer triangles")
+	check(bones.size() == verts.size() * 4 and weights.size() == verts.size() * 4, "every vertex of her body is skinned")
+	var front := func(vs: PackedVector3Array) -> float:
+		var most := -INF
+		for p in vs:
+			if absf(absf(p.x) - BodyLook.BUST_SIDE) < 0.04 and absf(p.y - BodyLook.BUST_HEIGHT) < 0.04:
+				most = maxf(most, p.z)
+		return most
+	var rise: float = front.call(verts) - front.call(source[Mesh.ARRAY_VERTEX])
+	check(rise > BodyLook.BUST_OUT * 0.5 and rise < BodyLook.BUST_OUT * 1.5, "her bust comes forward a little (%.3f)" % rise)
+	var loose := 0
+	for v in verts.size():
+		var total := 0.0
+		for j in 4:
+			total += weights[v * 4 + j]
+		if absf(total - 1.0) > 0.01:
+			loose += 1
+	check(loose == 0, "every vertex's skin weights add up (%d do not)" % loose)

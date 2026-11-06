@@ -34,6 +34,8 @@ func _ready() -> void:
 ## The crate model, squeezed into a SIZE cube standing on the ground.
 static func _make_model() -> Node3D:
 	var scene: Node3D = load(MODEL).instantiate()
+	# Old, weathered wood like the other props (see WeatheredProps).
+	WeatheredProps.weather_model(scene, "crate_A_big")
 	if _model_box.size == Vector3.ZERO:
 		var first := true
 		for mi in scene.find_children("*", "MeshInstance3D", true, false):

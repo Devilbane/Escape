@@ -44,6 +44,7 @@ func _run() -> void:
 	game.player.level_points = {}
 	_curve()
 	_rewards()
+	_attribute_effects()
 	await _dungeon()
 	await _areas()
 	await _sources()
@@ -62,6 +63,23 @@ func _curve() -> void:
 	check(HeroLevel.total_for(5) == 1000, "level 5 takes 1000 XP in all: %d" % HeroLevel.total_for(5))
 	check(HeroLevel.level_for(10 ** 7) == HeroLevel.MAX, "level %d is the top" % HeroLevel.MAX)
 	check(HeroLevel.progress(150) == Vector2i(50, 200), "progress within level 2: %s" % HeroLevel.progress(150))
+	# Above the world's top (level 20) the hero keeps growing, up to MAX.
+	check(HeroLevel.MAX > HeroLevel.WORLD_TOP, "the hero can rise above the world's top")
+	check(HeroLevel.level_for(HeroLevel.total_for(21)) == 21 and HeroLevel.level_for(HeroLevel.total_for(21) - 1) == 20, "level 21 takes 2000 XP after level 20")
+	check(HeroLevel.progress(HeroLevel.total_for(30) + 10) == Vector2i(10, 3000), "progress within level 30")
+	check(HeroLevel.progress(HeroLevel.total_for(HeroLevel.MAX) + 10).y == 0, "nothing beyond the top level")
+	check(HeroLevel.points_earned(30) == 10 and HeroLevel.constitution_bonus(30) == 6 and HeroLevel.life_bonus(30) == 29, "levels above 20 still give life, Konstitution and points")
+	check(is_equal_approx(HeroLevel.speed_bonus(40), HeroLevel.speed_bonus(HeroLevel.SPEED_TOP)) and HeroLevel.speed_bonus(HeroLevel.SPEED_TOP) > HeroLevel.speed_bonus(18), "Tempo grows up to level %d, then stops" % HeroLevel.SPEED_TOP)
+	check(HeroLevel.gives_speed(20) and not HeroLevel.gives_speed(22), "the level-up message tells Tempo only up to level 20")
+	check(HeroLevel.rate("troll", 100000, 1000, 50, 0.5) == HeroLevel.MAX, "monsters are rated up to the top level")
+	var top := 0
+	for area in HeroLevel.AREAS:
+		top = maxi(top, HeroLevel.AREAS[area].max)
+	for kind in HeroLevel.FIXED:
+		top = maxi(top, HeroLevel.FIXED[kind])
+	check(top == HeroLevel.WORLD_TOP, "WORLD_TOP is the strongest place or boss there is: %d" % top)
+	check(HeroLevel.kill_xp(19, 40) == HeroLevel.kill_xp(19, 20), "the top areas pay a hero above 20 like one of level 20")
+	check(HeroLevel.kill_xp(5, 40) < HeroLevel.kill_xp(19, 40), "small fry still pays little")
 	# The owner's seasoned character is the yardstick at level 18.
 	check(HeroLevel.expected_power(18) == Mines.BENCHMARK.power, "power at level 18 is the benchmark's")
 	check(HeroLevel.expected_hardening(18) == Mines.BENCHMARK.hardening, "hardening at level 18 is the benchmark's")
@@ -111,6 +129,42 @@ func _rewards() -> void:
 	p.refresh_stats()
 
 
+## What a level point in each main attribute gives (see Player): Stärke
+## melee damage, Geschick knife damage and dodging, Intelligenz quicker
+## skills and more experience. The character page shows these numbers.
+func _attribute_effects() -> void:
+	var p: Player = game.player
+	var keep_xp: Dictionary = p.xp.duplicate()
+	p.xp = {}
+	p.hero_xp = 0
+	p.level_points = {}
+	p.refresh_stats()
+	var power := p.power
+	check(p.throw_power() == power and p.dodge_chance() == 0.0, "a fresh hero throws as hard as they strike and does not dodge")
+	check(p.clever_xp(100) == 100, "a fresh hero gets plain experience")
+	p.level_points = {"staerke": 2}
+	p.refresh_stats()
+	check(p.power == power + 2 and p.throw_power() == power, "Stärke adds to blows, not to knives: %d, %d" % [p.power, p.throw_power()])
+	p.level_points = {"geschick": 3}
+	p.refresh_stats()
+	check(p.power == power and p.throw_power() == power + 3, "Geschick adds to knives, not to blows: %d, %d" % [p.power, p.throw_power()])
+	check(is_equal_approx(p.dodge_chance(), 0.12), "Geschick 13 dodges 12 %%: %s" % p.dodge_chance())
+	p.level_points = {"geschick": 20}
+	check(is_equal_approx(p.dodge_chance(), Player.DODGE_MAX), "dodging stops at %s" % Player.DODGE_MAX)
+	p.level_points = {"intelligenz": 2}
+	p.refresh_stats()
+	check(p.clever_xp(100) == 106, "Intelligenz 12 earns 6 %% more experience: %d" % p.clever_xp(100))
+	p.equipped["waffe"] = "schwert"
+	p.train("klingen", 1.0)
+	check(is_equal_approx(p.xp.get("klingen", 0.0), 1.2), "Intelligenz 12 trains skills 20 %% quicker: %s" % p.xp.get("klingen", 0.0))
+	p.train("staerke", 1.0)
+	check(is_equal_approx(p.xp.get("staerke", 0.0), 1.0), "but not attributes: %s" % p.xp.get("staerke", 0.0))
+	p.equipped.erase("waffe")
+	p.xp = keep_xp
+	p.level_points = {}
+	p.refresh_stats()
+
+
 ## All the monsters on a floor and the XP each is worth to a hero of `hero`.
 func _floor_xp(hero: int) -> int:
 	var total := 0
@@ -132,6 +186,10 @@ func _dungeon() -> void:
 		var place := HeroLevel.place_level(game.level)
 		xp += HeroLevel.time_xp(HeroLevel.RIDDLES.writing, place, hero) + HeroLevel.time_xp(HeroLevel.RIDDLES.secret, place, hero)
 		for e in game.level.enemies:
+			# A horror may lurk on any deep floor by chance (Level._spawn_horror):
+			# it is meant to be far above the hero and is left out, as in _floor_xp.
+			if e.kind in Enemy.HORRORS:
+				continue
 			check(e.rated_level <= 7, "dungeon monsters stay low: %s on floor %d is %d" % [e.kind, i + 1, e.rated_level])
 			if report:
 				print("floor %d  %s  %d" % [i + 1, e.kind, e.rated_level])
@@ -153,7 +211,7 @@ func _areas() -> void:
 			print("%s  %s  %d" % [area, e.kind, e.rated_level])
 		if HeroLevel.AREAS.has(area) and not HeroLevel.FIXED.has(e.kind):
 			check(e.rated_level >= HeroLevel.AREAS[area].min and e.rated_level <= HeroLevel.AREAS[area].max, "%s in %s fits levels %d to %d: %d" % [e.kind, area, HeroLevel.AREAS[area].min, HeroLevel.AREAS[area].max, e.rated_level])
-	for building in ["loch1", "E", "mine1", "mine2", "mine3", "mine3b", "mine3c"]:
+	for building in ["loch1", "loch2", "loch2b", "grotte", "E", "E2", "E3", "mine1", "mine2", "mine3", "mine3b", "mine3c", "uralt1", "uralt2", "uralt3"]:
 		game.load_level(game.interiors[building], false)
 		await _wait()
 		var area: String = HeroLevel.BUILDING_AREAS[building]
@@ -253,7 +311,7 @@ func _shown() -> void:
 	p.level_points = {}
 	p.refresh_stats()
 	game._update_hud()
-	check(game._xp_label.text.contains(Lang.t("Heldenstufe %d") % 3), "the HUD shows the level: %s" % game._xp_label.text)
+	check(game._xp_label.text.contains(Lang.t("Stufe %d") % 3), "the HUD shows the level: %s" % game._xp_label.text)
 	check(game._xp_bar.value == 50 and game._xp_bar.max_value == 300, "the HUD bar shows the way to the next level")
 	check(game._xp_label.text.contains(Lang.t("Punkt frei (P)")), "the HUD tells of a free point")
 	menus.open("charakter")

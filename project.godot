@@ -7,7 +7,8 @@ config_version=5
 config/name="Escape!"
 config/description="Entkomme aus dem Verlies."
 run/main_scene="res://scenes/main.tscn"
-config/features=PackedStringArray("4.5", "GL Compatibility")
+run/main_scene.launcher="res://scenes/launcher.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
 boot_splash/bg_color=Color(0.05, 0.035, 0.08, 1)
 boot_splash/show_image=false
 
@@ -15,8 +16,17 @@ boot_splash/show_image=false
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
+window/size/viewport_width.launcher=960
+window/size/viewport_height.launcher=540
+window/size/resizable.launcher=false
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[physics]
+
+common/physics_interpolation=true
+common/physics_interpolation.launcher=false
+common/physics_jitter_fix=0.0
 
 [rendering]
 
@@ -24,3 +34,4 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=2
+limits/opengl/max_lights_per_object=16

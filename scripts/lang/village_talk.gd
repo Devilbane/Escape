@@ -163,7 +163,7 @@ const EN := {
 	"Bring Steinmetz Hagens Wetzstein zu Schmied Gorm an seiner Esse.": "Bring stonemason Hagen's whetstone to smith Gorm at his forge.",
 	"Gorm und ich streiten seit Jahren. Bring ihm diesen Wetzstein aus meinem Bruch. Vielleicht ist dann endlich Ruhe.": "Gorm and I have quarrelled for years. Take him this whetstone from my quarry. Maybe then there'll finally be peace.",
 	"Der Wetzstein ist für Schmied Gorm an seiner Esse.": "The whetstone is for smith Gorm at his forge.",
-	"Von Hagen? Ein Wetzstein aus seinem Bruch... Der ist gut. Sag ihm Danke von mir. Hier sind 12 Gold.": "From Hagen? A whetstone from his quarry... That's a good one. Tell him thanks from me. Here are 12 gold.",
+	"Von Hagen? Ein Wetzstein aus seinem Bruch... Der ist gut. Sag ihm Danke von mir. Hier sind 12 Kupfer.": "From Hagen? A whetstone from his quarry... That's a good one. Tell him thanks from me. Here are 12 copper.",
 	"Wetzstein": "Whetstone",
 	"Für Schmied Gorm an seiner Esse": "For smith Gorm at his forge",
 }

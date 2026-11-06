@@ -17,20 +17,32 @@ extends RefCounted
 ## A level-up gives (see Player): +1 Leben, +1 Konstitution every
 ## CON_EVERY levels, one point for Stärke, Geschick or Intelligenz every
 ## POINT_EVERY levels (the player picks on the character page) and +1 % Tempo
-## every SPEED_EVERY levels. Attributes and skills still grow by use; level
+## every SPEED_EVERY levels up to SPEED_TOP. Attributes and skills still grow by use; level
 ## points come on top.
 ##
 ## Level and XP belong to the hero's name and are kept with the training
 ## (see Training.save_hero), from one run to the next.
 
-const MAX := 20
+const MAX := 50
+## The world is made for heroes up to this level: the deep mine, the Great
+## Old One's hoard and the bosses are its top (see AREAS and FIXED). The
+## levels above it are the hero's own growth: they give the same rewards
+## (but no more Tempo, see SPEED_TOP), the monsters of the top areas keep
+## paying full XP (see low_factor) and the character page measures the odds
+## against the world's strongest (see measured). Monsters are rated up to
+## MAX, so a place made later for higher levels (or a strong monster from
+## the map workshop) is worth it; raise WORLD_TOP with such a place.
+const WORLD_TOP := 20
 ## XP for one level is STEP times the level the hero has now: 100 from level
-## 1 to 2, 1900 from 19 to 20.
+## 1 to 2, 1900 from 19 to 20, 4900 from 49 to 50.
 const STEP := 100
 const CON_EVERY := 5
 const POINT_EVERY := 3
 const SPEED_EVERY := 2
 const SPEED_PER_STEP := 0.01
+## The last level that adds Tempo (+10 % in all): faster still would make
+## the fights too easy to dodge.
+const SPEED_TOP := 20
 ## The attributes a level point can go into.
 const POINT_ATTRIBUTES := ["staerke", "geschick", "intelligenz"]
 
@@ -51,16 +63,20 @@ const SWING := 0.8
 
 ## Monsters whose level is set by hand: the guardian falls only to a stab in
 ## the back, and the bosses are long fights made for dodging.
-const FIXED := {"waechter": 3, "hauptmann": 9, "drache": 11, "bergkoenig": 20}
-const BOSSES := ["hauptmann", "drache", "bergkoenig"]
+const FIXED := {"waechter": 3, "hauptmann": 9, "drache": 11, "bergkoenig": 20, "grosser_alter": 20, "spinnenkoenigin": 11}
+const BOSSES := ["hauptmann", "drache", "bergkoenig", "spinnenkoenigin"]
 
 ## The areas of the world and the levels they are made for. A monster in an
 ## area is balanced to fit it (see Enemy and area_target): its natural level,
 ## anywhere from from[0] to from[1], is spread over min..max, and one that is
 ## stronger than the area's top is toned down to it. The dungeon is not lifted: its floors go from level 1 to 5 by
 ## their own depth, so the hero leaves the crypt at about level 5. The areas
-## after it lead up to about level 15, and the deep mine is the top, 16 to 20.
+## after it lead up to about level 15, and the deep mine is the top, 16 to 20
+## (WORLD_TOP).
 ## "name" is for the compendium and the docs.
+## The strongest a monster of the dungeon's floors may be: one whose rolled
+## gear lifts it higher is toned down to it (see Enemy._fit_area).
+const DUNGEON_TOP := 7
 const AREAS := {
 	"dorf": {"name": "Dorf und Friedhof", "min": 5, "max": 7, "from": [1, 6]},
 	"pass": {"name": "Räuberpass", "min": 5, "max": 7, "from": [2, 5]},
@@ -71,12 +87,14 @@ const AREAS := {
 	"mine1": {"name": "Kupfergrube", "min": 11, "max": 13, "from": [3, 13]},
 	"mine2": {"name": "Kristallgrotte", "min": 13, "max": 15, "from": [4, 13]},
 	"mine3": {"name": "Zwergenbinge, Glutstollen und Herz des Berges", "min": 16, "max": 19, "from": [3, 13]},
+	"uralt": {"name": "Hort des Großen Alten", "min": 17, "max": 19, "from": [3, 13]},
 }
 ## Which area a building (Level.building) belongs to.
 const BUILDING_AREAS := {
-	"b": "dorf", "^": "dorf", "loch1": "loecher", "loch2": "loecher", "loch3": "loecher",
-	"E": "hoehle", "[": "berge", "mine1": "mine1", "mine2": "mine2",
+	"b": "dorf", "^": "dorf", "loch1": "loecher", "loch2": "loecher", "loch2b": "loecher", "loch3": "loecher", "grotte": "senke",
+	"E": "hoehle", "E2": "hoehle", "E3": "hoehle", "[": "berge", "mine1": "mine1", "mine2": "mine2",
 	"mine3": "mine3", "mine3b": "mine3", "mine3c": "mine3",
+	"uralt1": "uralt", "uralt2": "uralt", "uralt3": "uralt",
 }
 
 ## Every task and how long it likely takes: minutes and the level of the
@@ -93,6 +111,8 @@ const TASKS := {
 }
 ## Riddles: minutes each takes; they are done where the hero stands.
 const RIDDLES := {"puzzle": 6, "secret": 3, "writing": 1, "rune": 5}
+## A hidden trap spotted (see Traps) is worth this many minutes at its place.
+const TRAP_MINUTES := 0.5
 ## A task nobody listed above: this long, in the village.
 const TASK_MINUTES := 5
 const VILLAGE_LEVEL := 5
@@ -134,7 +154,12 @@ static func points_earned(level: int) -> int:
 
 
 static func speed_bonus(level: int) -> float:
-	return SPEED_PER_STEP * (level / SPEED_EVERY)
+	return SPEED_PER_STEP * (mini(level, SPEED_TOP) / SPEED_EVERY)
+
+
+## Whether reaching `level` adds Tempo.
+static func gives_speed(level: int) -> bool:
+	return level % SPEED_EVERY == 0 and level <= SPEED_TOP
 
 
 ## The hero a monster of `level` is a fair fight for: life (level rewards,
@@ -208,9 +233,15 @@ static func rate(kind: String, hp: int, damage: int, hardening: int, cooldown: f
 	return mini(monster_level(hp, damage, hardening, cooldown), MAX)
 
 
+## The hero level the world measures a hero of `hero` by: their own, but no
+## more than WORLD_TOP, so the top areas stay worth it above it.
+static func measured(hero: int) -> int:
+	return mini(hero, WORLD_TOP)
+
+
 ## How much XP shrinks for something `level` that a hero of `hero` does.
 static func low_factor(level: int, hero: int) -> float:
-	var below := hero - level - LOW_GAP
+	var below := measured(hero) - level - LOW_GAP
 	return 1.0 if below <= 0 else maxf(LOW_FLOOR, 1.0 - LOW_STEP * below)
 
 

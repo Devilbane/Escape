@@ -2,6 +2,10 @@ Footsteps (step_0 to step_5): "Fantozzi's Footsteps (Grass/Sand & Stone)",
 the stone steps, recorded by Fantozzi (freesound.org/people/Fantozzi),
 https://opengameart.org/content/fantozzis-footsteps-grasssand-stone
 License: CC0 (public domain).
+The steps on sand and soil from the same pack (step_dirt_0 to step_dirt_5)
+are the paths, dirt floors and soil. The steps on grass, scree and wooden
+floors (step_grass_*, step_scree_*, step_wood_*) are made from these
+recordings by tools/make_ground_steps.py.
 
 Sneaking steps (sneak_0 to sneak_3): the cloth steps from
 "Footsteps Leather, Cloth, Armor",
@@ -32,7 +36,7 @@ Thorsten Müller, https://github.com/thorstenMueller/Thorsten-Voice
 License: CC0 (public domain).
 
 Loot sounds, built by tools/make_loot_sounds.py from CC0 recordings:
-coins (coins_small_*, coins_big_*), chest lids (chest_open_*) and gear
+chest lids (chest_open_*) and gear
 falling to the floor (gear_*) and the lever torch (lever_pull), layered and trimmed from
 "50 RPG sound effects" by Kenney (www.kenney.nl),
 https://opengameart.org/content/50-rpg-sound-effects
@@ -41,6 +45,46 @@ https://opengameart.org/content/rpg-sound-pack
 "80 CC0 RPG SFX" by rubberduck,
 https://opengameart.org/content/80-cc0-rpg-sfx
 License: CC0 (public domain).
+
+The coin sounds (coin, coins_small_*, coins_big_*) are synthesized from scratch
+by tools/make_coin_sounds.py, no recordings.
+
+The eerie dungeon sounds (dungeon_drip_*, dungeon_moan_*, dungeon_chains_*,
+dungeon_whisper_*, dungeon_creak_*, dungeon_wind_*, dungeon_skitter_*) are made
+from scratch by tools/make_dungeon_sounds.py.
+
+The windmill's sails in the wind and its groaning wood (windmill_whoosh_*,
+windmill_groan_*) are made from scratch by tools/make_windmill_sounds.py.
+
+The fanfares for loot finer than rare (loot_epic, loot_godborn) are made
+from scratch by tools/make_rarity_sounds.py.
+
+The splashes of a step into a rain puddle (splash_*) are made from scratch
+by tools/make_weather_sounds.py, like the rain and the thunder.
+
+The hero's sword and axe sounds (sword_* and axe_*: swings, sweeps and the
+impacts of a plain, heavy, vital, sneak and glancing blow) are cut, pitched
+and layered by tools/make_weapon_sounds.py from these recordings, all
+License: CC0 (public domain), from opengameart.org:
+- "Medieval sound effects - Weapon textures" and "Medieval sound effects -
+  Weapon impacts" (swings, steel on steel, steel into a wooden haft),
+  https://opengameart.org/content/medieval-sound-effects-weapon-textures
+  https://opengameart.org/content/medieval-sound-effects-weapon-impacts
+- "80 CC0 RPG SFX" by rubberduck (blade slices, metal rings, wood knocks),
+  https://opengameart.org/content/80-cc0-rpg-sfx
+- "8 wet squish, slurp impacts", "2 wooden squish splatter sequences" (bone
+  cracks) and "37 hits/punches" from independent.nu ljudbank,
+  https://opengameart.org/content/8-wet-squish-slurp-impacts
+  https://opengameart.org/content/2-wooden-squish-splatter-sequences
+  https://opengameart.org/content/37-hitspunches
+- "Impact" by qubodup (meat and wood impacts),
+  https://opengameart.org/content/impact
+- "Ripping Into Meat" by Eldritch Grim,
+  https://opengameart.org/content/ripping-into-meat
+- "Squish Sounds Effects" by ezduzziteh,
+  https://opengameart.org/content/squish-sounds-effects
+- "Swishes Sound Pack" by artisticdude,
+  https://opengameart.org/content/swishes-sound-pack
 
 All other sounds, including the comic word noises (word_*), are made by
 tools/make_sounds.py.

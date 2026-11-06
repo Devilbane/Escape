@@ -32,10 +32,15 @@ const ROW_WIDTH := 300.0
 ## The list: two columns of rows and room for the scroll bar.
 const LIST_WIDTH := ROW_WIDTH * 2 + 8.0 + 14.0
 const ROW_HEIGHT := 60.0
+## The button in a row (Buy, Sell, Melt down...): wide enough for the
+## longest word in both languages ("Einschmelzen").
+const ROW_BUTTON_WIDTH := 100.0
 const CARD_WIDTH := 255.0
 ## Everything under the gold line: the list and the two cards beside it.
 const BODY_WIDTH := LIST_WIDTH + 2.0 * (CARD_WIDTH + 12.0)
-const BORDER := Color(0.85, 0.66, 0.32, 0.55)
+## The row of tabs (Buy / Sell, Gorm's work) under the gold line.
+const TABS_HEIGHT := 40.0
+const BORDER := Color(0.88, 0.66, 0.36, 0.9)
 const BLUE := Color(0.55, 0.75, 1.0)
 const ORANGE := Color(1.0, 0.6, 0.25)
 const GREY := Color(0.75, 0.72, 0.68)
@@ -132,8 +137,13 @@ func build(box: VBoxContainer, gold_text: String, sections: Array, extra: Contro
 		standing.custom_minimum_size.x = 420
 		gold.add_child(standing)
 	box.add_child(gold)
-	if extra:
-		box.add_child(extra)
+	# The tabs' row is there in every merchant's window, empty where he has
+	# no tabs, so all of them share one size and one layout.
+	if extra == null:
+		extra = Control.new()
+		extra.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	extra.custom_minimum_size.y = maxf(extra.custom_minimum_size.y, TABS_HEIGHT)
+	box.add_child(extra)
 	var body := HBoxContainer.new()
 	body.alignment = BoxContainer.ALIGNMENT_CENTER
 	body.add_theme_constant_override("separation", 12)
@@ -141,7 +151,8 @@ func build(box: VBoxContainer, gold_text: String, sections: Array, extra: Contro
 	# The list and the panel always keep the same size, so nothing jumps
 	# when a category folds or a row is picked.
 	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# Never scrolled sideways, and never widened by a row either.
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	scroll.custom_minimum_size = Vector2(LIST_WIDTH, LIST_HEIGHT)
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 6)
@@ -181,7 +192,7 @@ func _keep_selection() -> void:
 func _add_section(list: VBoxContainer, section: Dictionary) -> void:
 	var folded: bool = collapsed.get(section.key, false)
 	var header := PanelContainer.new()
-	header.add_theme_stylebox_override("panel", _style(Color(0.1, 0.08, 0.1, 0.95), BORDER, 8, 6))
+	header.add_theme_stylebox_override("panel", _style(Color(0.13, 0.09, 0.055, 0.95), BORDER, 8, 6))
 	header.mouse_filter = Control.MOUSE_FILTER_STOP
 	header.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	header.gui_input.connect(_on_header_input.bind(section.key))
@@ -204,7 +215,7 @@ func _add_section(list: VBoxContainer, section: Dictionary) -> void:
 		# An empty category keeps the shape of a row, so it lines up with the rest.
 		var empty := PanelContainer.new()
 		empty.custom_minimum_size = Vector2(0, ROW_HEIGHT * 0.7)
-		empty.add_theme_stylebox_override("panel", _style(Color(0.07, 0.06, 0.08, 0.6), Color(0.85, 0.66, 0.32, 0.15), 8, 6))
+		empty.add_theme_stylebox_override("panel", _style(Color(0.09, 0.065, 0.045, 0.6), Color(0.85, 0.66, 0.32, 0.15), 8, 6))
 		var text := _label(section.get("empty", Lang.t("Nichts im Angebot.")), 15, GREY)
 		text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -224,7 +235,7 @@ func _row(entry: Dictionary) -> Control:
 	var picked: bool = entry.key == selected
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(ROW_WIDTH, ROW_HEIGHT)
-	panel.add_theme_stylebox_override("panel", _style(Color(0.12, 0.09, 0.1, 0.95) if picked else Color(0.07, 0.06, 0.08, 0.95),
+	panel.add_theme_stylebox_override("panel", _style(Color(0.17, 0.115, 0.06, 0.95) if picked else Color(0.09, 0.065, 0.045, 0.95),
 			game.GOLD if picked else Color(0.85, 0.66, 0.32, 0.3), 8, 6, 2 if picked else 1))
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -239,7 +250,7 @@ func _row(entry: Dictionary) -> Control:
 	text.add_theme_constant_override("separation", 0)
 	text.alignment = BoxContainer.ALIGNMENT_CENTER
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var name_label := _label(entry.name, 16, Color.WHITE)
+	var name_label := _label(entry.name, 16, name_color(entry.get("id", ""), Color.WHITE))
 	name_label.clip_text = true
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.custom_minimum_size.x = 120
@@ -268,8 +279,12 @@ func _row(entry: Dictionary) -> Control:
 		now.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(now)
 	elif entry.has("action"):
-		var b := _button(entry.get("button", Lang.t("Kaufen")), entry.action, entry.get("enabled", true), Vector2(80, 36), 16)
+		var b := _button(entry.get("button", Lang.t("Kaufen")), entry.action, entry.get("enabled", true), Vector2(ROW_BUTTON_WIDTH, 36), 16)
 		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		# A long word ("Einschmelzen") ends in "…" rather than widen the row;
+		# the card beside the list shows it in full.
+		b.clip_text = true
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.mouse_entered.connect(_on_row_hover.bind(entry.key))
 		# With the keys, the focus on a row's button shows that row's cards.
 		b.focus_entered.connect(_on_row_hover.bind(entry.key))
@@ -312,7 +327,8 @@ func _on_row_hover(key: String) -> void:
 ## size, so only what it shows changes.
 func _slot() -> Control:
 	var slot := ScrollContainer.new()
-	slot.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# A card never widens its place (its lines wrap, see _wrapped).
+	slot.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	slot.custom_minimum_size = Vector2(CARD_WIDTH, LIST_HEIGHT)
 	return slot
 
@@ -366,10 +382,16 @@ func _detail_card(entry: Dictionary, upgrade := false) -> Control:
 	var names := VBoxContainer.new()
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var title := _label(entry.name, 18, game.GOLD)
+	var title := _label(entry.name, 18, name_color(id, game.GOLD))
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	names.add_child(title)
-	names.add_child(_label(detail.get("subtitle", subtitle(id)), 16, ORANGE))
+	# Under the name, the rarity in words beside the kind of thing ("Rare ·
+	# Shield"), in the rarity's colour, so the colour is never the only cue.
+	var kind: String = detail.get("subtitle", subtitle(id))
+	if Items.ALL.has(id) and not detail.has("subtitle"):
+		names.add_child(_beside(_label("%s · %s" % [Rarity.label(id), kind], 16, Rarity.color(id))))
+	else:
+		names.add_child(_beside(_label(kind, 16, ORANGE)))
 	head.add_child(names)
 	box.add_child(head)
 	if upgrade:
@@ -395,11 +417,13 @@ func _detail_card(entry: Dictionary, upgrade := false) -> Control:
 	if entry.has("action") and not entry.get("current", false):
 		box.add_child(HSeparator.new())
 		if entry.get("price", "") != "":
-			var cost := _price_line(Lang.t("Kosten: %s") % entry.price, entry.get("price_ok", true), 17)
+			var cost := _price_line(Lang.t("Kosten: %s") % entry.price, entry.get("price_ok", true), 17, true)
 			cost.alignment = BoxContainer.ALIGNMENT_CENTER
 			box.add_child(cost)
 		var b := _button(entry.get("gone", entry.get("button", Lang.t("Kaufen"))), entry.action, entry.get("enabled", true), Vector2(150, 42), 18)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		b.clip_text = true
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		box.add_child(b)
 	elif entry.get("current", false):
 		box.add_child(HSeparator.new())
@@ -428,11 +452,11 @@ func _compare_card(compare: Dictionary) -> Control:
 	var names := VBoxContainer.new()
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var name_label := _label(compare.get("name", ""), 17, Color.WHITE)
+	var name_label := _label(compare.get("name", ""), 17, name_color(compare.get("icon", ""), Color.WHITE))
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	names.add_child(name_label)
 	if compare.get("subtitle", "") != "":
-		names.add_child(_label(compare.subtitle, 15, GREY))
+		names.add_child(_beside(_label(compare.subtitle, 15, GREY)))
 	head.add_child(names)
 	box.add_child(head)
 	# With a comparison the differences say it all; the worn item's own
@@ -455,12 +479,21 @@ func _compare_card(compare: Dictionary) -> Control:
 			var arrow := ItemIcon.make("kind:up" if diff[0] else "kind:down", 13, true)
 			arrow.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			row.add_child(arrow)
-			row.add_child(_label(diff[1], 16, GREEN if diff[0] else RED))
+			row.add_child(_beside(_label(diff[1], 16, GREEN if diff[0] else RED)))
 			box.add_child(row)
 	return card
 
 
 # --- What items say ----------------------------------------------------------
+
+## The colour of a thing's name: an item's or an ingredient's is the colour
+## of its rarity (see Rarity); anything else (a service, a hair style, iron
+## bars) keeps `other`.
+static func name_color(id: String, other: Color) -> Color:
+	if Items.ALL.has(id) or Crafting.INGREDIENTS.has(id):
+		return Rarity.color(id)
+	return other
+
 
 ## What kind of thing an item is, e.g. "Shield" or "Gorm's work: weapon".
 static func subtitle(id: String) -> String:
@@ -516,6 +549,8 @@ static func stat_lines(id: String, worn := 0) -> Array:
 		lines.append([Lang.t("Platz für %d Dinge") % item.bag, BLUE])
 	if item.has("uses"):
 		lines.append([Lang.t("Fertigkeit: %s") % Lang.t(Training.SKILLS[item.uses].name), BLUE])
+	if item.get("shock", 0.0) > 0.0:
+		lines.append([Lang.t("%d%% Blitzschlag: betäubt den Gegner kurz") % roundi(item.shock * 100.0), BLUE])
 	for skill_id in item.get("skills", {}):
 		lines.append([Lang.t("+%d %s") % [item.skills[skill_id], Lang.t(Training.SKILLS[skill_id].name)], BLUE])
 	if item.has("teaches"):
@@ -536,6 +571,7 @@ const COMPARED := [
 	["hp", "Leben", 1.0, "", true],
 	["armor", "Härtung", 1.0, "", true],
 	["block", "Blockchance", 100.0, "%", true],
+	["shock", "Blitzschlag", 100.0, "%", true],
 	["speed", "Tempo", 100.0, "%", true],
 	["durability", "Haltbarkeit", 1.0, "", true],
 	["bag", "Taschenplätze", 1.0, "", true],
@@ -553,7 +589,7 @@ static func compare_with_worn(p: Player, id: String) -> Dictionary:
 		var have := p.bag.count(id)
 		return {"title": Lang.t("In deiner Tasche"), "name": Items.item_name(id), "icon": id,
 				"subtitle": Lang.t("%d Stück") % have,
-				"lines": [[Lang.t("Tasche: %d / %d") % [p.bag.size(), p.bag_size()], GREY]]}
+				"lines": [[Lang.t("Tasche: %d / %d") % [p.bag_used(), p.bag_size()], GREY]]}
 	var worn_slot := slot
 	if slot == "spezial":
 		# A free place for a special makes it a new thing; else it would take
@@ -617,6 +653,14 @@ func _label(text: String, size: int, color: Color, font: Font = null) -> Label:
 	return l
 
 
+## A label beside an icon in a card: it breaks over lines in the room left,
+## so a long kind or comparison never widens the card.
+func _beside(l: Label) -> Label:
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return l
+
+
 func _wrapped(text: String, size: int, color: Color) -> Label:
 	var l := _label(text, size, color)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -624,20 +668,32 @@ func _wrapped(text: String, size: int, color: Color) -> Label:
 	return l
 
 
-func _price_line(text: String, ok: bool, size: int) -> HBoxContainer:
+## A price with its coin. It never widens its row or card: in a row a long
+## price ("12 Iron, 300 Gold") ends in "…", in a card (`wrap`) it breaks
+## over two lines.
+func _price_line(text: String, ok: bool, size: int, wrap := false) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 5)
 	var coin := ItemIcon.make("kind:coin", size - 2, true)
 	coin.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(coin)
-	row.add_child(_label(text, size, game.GOLD if ok else RED))
+	var l := _label(text, size, game.GOLD if ok else RED)
+	if wrap:
+		var width := minf(l.get_minimum_size().x, CARD_WIDTH - 60.0)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size.x = width
+	else:
+		l.clip_text = true
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(l)
 	return row
 
 
 func _button(text: String, action: Callable, enabled: bool, min_size: Vector2, font_size: int) -> Button:
 	var b: Button = game._make_button(text, action)
 	b.custom_minimum_size = min_size
-	b.add_theme_font_size_override("font_size", font_size)
+	b.add_theme_font_size_override("font_size", UiKit.sized(font_size))
 	b.disabled = not enabled
 	return b
 
@@ -645,7 +701,7 @@ func _button(text: String, action: Callable, enabled: bool, min_size: Vector2, f
 func _card(glow: bool) -> PanelContainer:
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(CARD_WIDTH, LIST_HEIGHT)
-	var style := _style(Color(0.07, 0.05, 0.07, 0.97), game.GOLD if glow else BORDER, 10, 12, 2)
+	var style := _style(Color(0.1, 0.07, 0.045, 0.97), game.GOLD if glow else BORDER, 10, 12, 2)
 	if glow:
 		style.shadow_color = Color(1.0, 0.7, 0.25, 0.35)
 		style.shadow_size = 10
@@ -656,8 +712,8 @@ func _card(glow: bool) -> PanelContainer:
 	return card
 
 
-static func _style(bg: Color, border: Color, radius: int, margin: int, width := 1) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
+static func _style(bg: Color, border: Color, radius: int, margin: int, width := 1) -> BronzeStyle:
+	var style := BronzeStyle.new()
 	style.bg_color = bg
 	style.border_color = border
 	style.set_border_width_all(width)

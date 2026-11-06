@@ -1,0 +1,17 @@
+name: Die verborgene Grotte
+hint: Unter dem Findling im Westwald: eine stille Grotte, die seit Jahren niemand betreten hat. Fledermäuse hängen an der Decke, Schleime kriechen über den Boden, und ganz hinten wartet, was der Kartenzeichner versteckt hat.
+monsters: wildlife
+building: grotte
+floor: cellar
+lair: yes
+####################
+##E#################
+##P..,.....#....v..#
+##...,,,,..#..,,...#
+###..v..,,,,,,,..s.#
+###.....#...#..,...#
+#####.###...###,.###
+#k..s.#...u...#,...#
+#...,,,,,,,,,,,,.c.#
+#.c...#..v....#..C.#
+####################

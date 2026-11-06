@@ -17,7 +17,7 @@ const EN := {
 	"Bergschenke": "Mountain Tavern",
 	"die Bergschenke": "the mountain tavern",
 	"Die Bergschenke": "The Mountain Tavern",
-	"Die letzte Schenke vor den Minen, mitten im Schartenpass. Am Feuer ist es warm, im Bett ruhst du dich bis zum Morgen aus, und der Wirt hat, was ein Wanderer braucht.": "The last tavern before the mines, right in the Notch Pass. It is warm by the fire, in the bed you rest till morning, and the landlord has what a traveller needs.",
+	"Die letzte Schenke vor den Minen, mitten im Schartenpass. Am Feuer ist es warm, im Bett ruhst du dich bis zum Morgen aus, in der Truhe wartet, was du eingelagert hast, und der Wirt hat, was ein Wanderer braucht.": "The last tavern before the mines, right in the Notch Pass. It is warm by the fire, in the bed you rest till morning, the chest holds what you have stored, and the landlord has what a traveller needs.",
 	"Ruh dich bis zum Morgen aus: Danach hast du volles Leben,\nGift und Flüche sind fort, und dein Spiel ist gespeichert.": "Rest till morning: afterwards your life is full,\npoison and curses are gone, and your game is saved.",
 	"Bis zum Morgen ausruhen": "Rest till morning",
 	"Oder schlaf hier und logg dich aus. Beim nächsten Mal\nwachst du in diesem Bett auf, ausgeruht.": "Or sleep here and log out. Next time\nyou wake up in this bed, rested.",
@@ -47,6 +47,8 @@ const EN := {
 	"Der Bergkönig": "The Mountain King",
 	"Der Bergkönig tobt!": "The Mountain King rages!",
 	"Der Bergkönig ist besiegt! Das Herz des Berges gehört dir.": "The Mountain King is defeated! The heart of the mountain is yours.",
+	"Wo er fiel, leuchtet gleich ein goldener Ausgang. Tritt hinein, und du stehst wieder vor der Mine.": "Where he fell, a golden way out is about to shine. Step into it and you stand in front of the mine again.",
+	"Du trittst aus dem Stollen der Mine ins Freie.": "You step out of the mine's tunnel into the open.",
 	"Runenhammer des Bergkönigs": "The Mountain King's Rune Hammer",
 	"Einzigartig: der Hammer des Bergkönigs aus dem Herzen des Berges": "Unique: the Mountain King's hammer from the heart of the mountain",
 }

@@ -4,6 +4,8 @@ extends Node
 ## Each window is rebuilt from scratch whenever something in it changes.
 
 const STORAGE_SIZE := 16
+## Lines kept for the info line of the storage chest and the vault.
+const STORAGE_INFO_LINES := 3
 const BLUE := Color(0.65, 0.85, 1.0)
 ## The colour of everything about the villagers' goodwill (see Reputation).
 const REPUTATION_COLOR := Color(0.78, 0.65, 1.0)
@@ -12,9 +14,10 @@ const REPUTATION_COLOR := Color(0.78, 0.65, 1.0)
 const ABOUT_COLOR := Color(0.78, 0.8, 0.86)
 
 var game: Node
-## The open window: "", "inventar", "lager", "haendler", "bett", "laden",
+## The open window: "", "inventar", "lager", "haendler", "bett",
+## "nachtlager" (the camp with the bedroll, see Camp), "laden",
 ## "ueberschreiben" (asks before a new game overwrites a slot), "kompendium",
-## "charakter", "beenden", "plan" (the day planned for the
+## "charakter", "beenden" (the pause window with the quit button), "plan" (the day planned for the
 ## time away) or "rueckkehr" (what the hero did while the player was away).
 var current := ""
 var _holder: Control
@@ -38,6 +41,9 @@ var wish_master := ""
 var _style_from_wishes := false
 ## The saved game whose delete button was clicked once; a second click deletes.
 var _delete_asked := ""
+## The load window opened from the bed's "stay awake" right after saving:
+## "ok" or "failed", "" when it was opened to load a game.
+var saved_now := ""
 ## Which page of the compendium shows: "wissen" (controls and everything
 ## learned), "auftraege" (the villagers' tasks), "ruf" (the villagers'
 ## opinion of the hero) or "rezepte" (the recipes found and the ingredient pouch).
@@ -56,8 +62,9 @@ const MOON_COLOR := Color(0.78, 0.84, 1.0)
 const MOON_LINE_HEIGHT := 52.0
 ## How many saved games the load window shows before the list scrolls.
 const LOAD_ROWS_SHOWN := 5
-## Shows the stats of the item under the mouse (or last tapped).
-var _info: Label
+## Shows the stats of the item under the mouse (or last tapped), its name in
+## the colour of its rarity (see Rarity).
+var _info: RichTextLabel
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## The windows built as a TradeWindow.
 const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "barbier"]
@@ -71,20 +78,24 @@ const SHORTCUTS := [
 	["Nahkampf", "F oder J, gegen das Skelett laufen oder es anklicken"],
 	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],
 	["Schleichen", "C oder Doppelklick"],
+	["Fackel anzünden oder löschen", "V oder die Fackel am rechten Rand, unter dem Haus"],
+	["Heiltrank trinken", "1 oder der Trank links neben der Fackel, einmal pro Minute; „Trinken“ im Inventar wählt einen bestimmten"],
+	["Lager aufschlagen (speichern und schlafen)", "U, der Knopf „Lager“ im Menü, oder die Schlafrolle im Inventar"],
 	["Benutzen, durchsuchen, Fackel", "Dagegenlaufen"],
 	["Inventar", "I"],
 	["Kompendium", "H"],
 	["Charakter", "P"],
 	["Karte und Tagebuch", "N"],
 	["Aufträge", "O"],
+	["Nach Hause laufen", "X oder das Haus am rechten Rand, sobald du ein Zuhause hast; jeder eigene Schritt hält an"],
 	["Spielstand laden", "L"],
 	["Ton an/aus", "M"],
 	["Steinblock abstellen", "B, oder „Abstellen“ im Inventar"],
 	["Steinblock verschieben", "Block mit der linken Maustaste greifen, ziehen und loslassen (Rechtsklick dabei dreht ihn)"],
 	["Steinblock aufheben", "E neben dem Block, oder ihn kurz anklicken"],
-	["Schwere Steinblöcke schieben", "E neben dem Block, oder ihn kurz anklicken; ziehen lässt ihn geradeaus rutschen"],
+	["Schwere Steinblöcke schieben", "E neben dem Block, oder ihn kurz anklicken; ziehen setzt ihn ab, bis zu 5 Felder von seinem Platz"],
 	["Zoom", "+ und −, Mausrad"],
-	["Spiel beenden", "Esc"],
+	["Pause, Spiel beenden", "Esc (noch einmal Esc spielt weiter)"],
 	["In Fenstern wählen", "Pfeiltasten oder Tab, Eingabe drückt den Knopf, Esc schließt"],
 ]
 
@@ -104,6 +115,9 @@ func setup(owner_game: Node, hud: CanvasLayer) -> void:
 	center.add_child(_holder)
 	_panel = PanelContainer.new()
 	_panel.add_theme_stylebox_override("panel", panel_style(Color(0.85, 0.66, 0.32, 0.7)))
+	# Slim gold scroll bars in every window (chest, bag, trade lists...)
+	# instead of the engine's wide grey ones.
+	_panel.theme = UiKit.scroll_theme()
 	_holder.add_child(_panel)
 	_panel.minimum_size_changed.connect(_place_panel)
 	# Everything in the window sits in a scroll region. It is exactly as big as
@@ -127,14 +141,8 @@ func setup(owner_game: Node, hud: CanvasLayer) -> void:
 	trade.rebuild = _rebuild
 
 
-static func panel_style(border: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.03, 0.08, 0.9)
-	style.border_color = border
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(18)
-	style.set_content_margin_all(26)
-	return style
+static func panel_style(border: Color) -> BronzeStyle:
+	return UiKit.panel_style(border)
 
 
 ## Gap between a window and the edge of the screen.
@@ -156,6 +164,11 @@ func _fit() -> void:
 	var screen: Vector2 = _panel.get_viewport_rect().size - Vector2.ONE * 2.0 * SCREEN_MARGIN
 	var frame: Vector2 = _panel.get_theme_stylebox("panel").get_minimum_size()
 	var content: Vector2 = _box.get_combined_minimum_size()
+	var fixed := fixed_size(current)
+	if fixed != Vector2.ZERO:
+		# A window the player works in has one size, whatever it holds:
+		# its content sits in the middle of it (and would scroll in it).
+		content = fixed
 	if _rescale:
 		_rescale = false
 		var need := content + frame
@@ -163,6 +176,10 @@ func _fit() -> void:
 		_panel.scale = Vector2.ONE * maxf(s, MIN_SCALE)
 	var room: Vector2 = screen / _panel.scale.x - frame
 	var view := content
+	if fixed != Vector2.ZERO:
+		_scroll.custom_minimum_size = Vector2(minf(view.x, room.x), minf(view.y, room.y)).floor()
+		_place_panel()
+		return
 	if view.y > room.y:
 		view.y = room.y
 		view.x += _scroll.get_v_scroll_bar().get_combined_minimum_size().x
@@ -171,6 +188,49 @@ func _fit() -> void:
 		view.y = minf(view.y + _scroll.get_h_scroll_bar().get_combined_minimum_size().y, room.y)
 	_scroll.custom_minimum_size = view.floor()
 	_place_panel()
+
+
+## The fixed size of the content of each window the player works in
+## (trading, equipment, chests, workbenches...), by kind; "trade" is every
+## merchant's (see TRADE_WINDOWS). These windows never change their size:
+## not when the player points at something, picks, folds, switches a tab,
+## buys or sells, and not from one visit to the next with more or less in
+## the bag. Each is as big as its fullest content in either language
+## (`tests/windows_fixed_size.gd` checks that nothing outgrows it). Dialogs
+## not listed here (bed, load, quit...) fit their content.
+const WINDOW_SIZES := {
+	"trade": Vector2(1156, 584),
+	"inventar": Vector2(940, 720),
+	"lager": Vector2(1256, 764),
+	"metalltruhe": Vector2(880, 580),
+	"zutatenbord": Vector2(880, 580),
+	"tresor": Vector2(940, 652),
+	"bank": Vector2(780, 460),
+	"werkbank": Vector2(780, 536),
+	"hauswerkbank": Vector2(560, 360),
+	"ausbau": Vector2(780, 400),
+	"aushang": Vector2(780, 400),
+	"trophaeen": Vector2(560, 360),
+	"charakter": Vector2(1024, 642),
+	"gefaehrten": Vector2(960, 530),
+	"wunsch": Vector2(760, 560),
+	"kampfstil": Vector2(700, 330),
+	"kompendium": Vector2(990, 600),
+	"karte": Vector2(980, 616),
+	"auftraege": Vector2(760, 532),
+}
+
+
+## The windows (besides the merchants') that can leave a note after a
+## click; they keep its line from the start.
+const NOTE_WINDOWS := ["inventar", "lager", "metalltruhe", "zutatenbord", "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
+	"aushang", "gefaehrten", "wunsch"]
+
+
+## The fixed content size of a kind of window, or zero for one that fits
+## its content.
+static func fixed_size(kind: String) -> Vector2:
+	return WINDOW_SIZES.get("trade" if kind in TRADE_WINDOWS else kind, Vector2.ZERO)
 
 
 ## Sizes the window to its content and tells the holder its scaled size.
@@ -191,8 +251,11 @@ func is_open() -> bool:
 
 func open(kind: String) -> void:
 	current = kind
+	if kind != "laden":
+		saved_now = ""
 	_forge_tab = "waffen"
 	inventory_tab = "tasche"
+	_store_scroll = 0
 	_map_file = ""
 	_shop_page = "kaufen"
 	trade.reset()
@@ -218,6 +281,7 @@ func close() -> void:
 			game.show_message.call_deferred(naming_message, 6.0)
 			naming_message = ""
 	current = ""
+	saved_now = ""
 	game.trader_role = ""
 	_holder.visible = false
 	game.set_world_paused(false)
@@ -238,6 +302,10 @@ func _rebuild() -> void:
 			_build_inventory()
 		"lager":
 			_build_storage()
+		"metalltruhe":
+			_build_home_store(HomeStores.METAL)
+		"zutatenbord":
+			_build_home_store(HomeStores.PANTRY)
 		"bank":
 			_build_bank()
 		"barbier":
@@ -268,6 +336,8 @@ func _rebuild() -> void:
 			_build_wanderer()
 		"bett":
 			_build_bed()
+		"nachtlager":
+			_build_camp()
 		"laden":
 			_build_load()
 		"ueberschreiben":
@@ -288,27 +358,32 @@ func _rebuild() -> void:
 			_build_return()
 		"hoehle":
 			_build_lair_won()
+		"beute":
+			_build_spoils()
 		"gefaehrten":
 			_build_companions()
 		"gefaehrte_name":
 			_build_naming()
 	if current in ["lager", "tresor"]:
-		_info = _add_label(Lang.t(INFO_HINT), 16, BLUE)
-		_info.custom_minimum_size.y = 26
-	if _note != "" or current in TRADE_WINDOWS or current in ["werkbank", "inventar", "gefaehrten"]:
-		# The trading windows and the inventory keep a line for the note, so a
-		# purchase or a dropped item does not make the window grow.
+		# The info line of the chest and the vault has a fixed box as wide as
+		# the window: a long description (a torch, say) wraps or scrolls in it
+		# instead of widening the window. A window that changed its size on
+		# hover moved the item away from the pointer, which reset the line,
+		# which shrank the window again: it flickered.
+		var info_box := _info_box(STORAGE_INFO_LINES)
+		_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_info.custom_minimum_size.y = info_box.custom_minimum_size.y
+		_box.add_child(info_box)
+		_show_info("")
+	if _note != "" or current in TRADE_WINDOWS or current in NOTE_WINDOWS:
+		# Every window the player works in keeps a line for the note, so a
+		# purchase or a dropped item does not make the window grow. One line
+		# at most, as wide as the window, never wider: a long note ends in "…".
 		var note := _add_label(_note, 16, Color(1.0, 0.75, 0.5))
-		note.custom_minimum_size.y = 26
-		if current == "gefaehrten":
-			note.clip_text = true
-			note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-			note.custom_minimum_size.x = COMPANION_ROW.x
-		if current in TRADE_WINDOWS or current == "inventar":
-			# One line at most, never wider than the window.
-			note.clip_text = true
-			note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-			note.custom_minimum_size.x = INVENTORY_WIDTH if current == "inventar" else TradeWindow.BODY_WIDTH
+		note.custom_minimum_size = Vector2(0, 26)
+		note.clip_text = true
+		note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	# The inventory has its own "Back to game" button at the top instead.
 	if not current in ["inventar", "bett", "laden", "ueberschreiben", "beenden", "plan", "rueckkehr", "hoehle", "gefaehrte_name"]:
 		var close_button: Button = game._make_button(Lang.t("Schließen"), close)
@@ -426,7 +501,7 @@ func _done_label(text: String, size: int, color: Color, width: float, tag := "",
 	l.custom_minimum_size.x = width
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.add_theme_font_override("normal_font", game.TEXT_FONT)
-	l.add_theme_font_size_override("normal_font_size", size)
+	l.add_theme_font_size_override("normal_font_size", UiKit.sized(size))
 	l.add_theme_color_override("default_color", color)
 	l.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
 	l.add_theme_constant_override("outline_size", maxi(4, size / 6))
@@ -449,36 +524,182 @@ func _add_label(text: String, size: int, color := Color.WHITE, font: Font = null
 	return l
 
 
+## The line that shows an item's details: like a label (see
+## Game._make_label), but its item name can have a colour of its own.
+func _make_info() -> RichTextLabel:
+	var l := RichTextLabel.new()
+	l.bbcode_enabled = true
+	l.fit_content = true
+	l.scroll_active = false
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_override("normal_font", game.TEXT_FONT)
+	l.add_theme_font_size_override("normal_font_size", UiKit.sized(16))
+	l.add_theme_color_override("default_color", BLUE)
+	l.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
+	l.add_theme_constant_override("outline_size", 4)
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+	l.add_theme_constant_override("shadow_offset_y", 3)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+## A box of fixed size for the info line (`_info`, made here): `lines` lines
+## high, measured on a label of the same font, and `width` wide (0: as wide
+## as its container makes it, the text never widens it). A longer text
+## scrolls inside, so pointing at an item never resizes the window.
+func _info_box(lines: int, width := 0.0) -> ScrollContainer:
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_info = _make_info()
+	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Pass, so the mouse wheel scrolls a long description.
+	_info.mouse_filter = Control.MOUSE_FILTER_PASS
+	scroll.add_child(_info)
+	var measure: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	scroll.custom_minimum_size = Vector2(width,
+			ceilf(measure.get_line_height() * lines + measure.get_theme_constant("line_spacing") * (lines - 1.0)))
+	measure.free()
+	return scroll
+
+
 func _item_button(text: String, action: Callable, enabled := true, id := "") -> Button:
 	var b: Button = game._make_button(text, action)
 	if id != "":
+		# An item's name shows in the colour of its rarity (see Rarity).
+		var c := Rarity.color(id)
+		for state in ["font_color", "font_pressed_color", "font_hover_pressed_color"]:
+			b.add_theme_color_override(state, c)
+		for state in ["font_hover_color", "font_focus_color"]:
+			b.add_theme_color_override(state, Rarity.hover(c))
 		# Pointing at an item (or tapping it) shows its stats right away.
 		b.mouse_entered.connect(_show_info.bind(id))
 		b.focus_entered.connect(_show_info.bind(id))
 		b.mouse_exited.connect(_show_info.bind(""))
 	b.custom_minimum_size = Vector2(160, 54)
-	b.add_theme_font_size_override("font_size", 16)
+	b.add_theme_font_size_override("font_size", UiKit.sized(16))
 	b.disabled = not enabled
 	return b
 
 
-## A grid of item buttons; empty places up to `size` are shown as dashes.
-func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callable, columns := 4, parent: Control = null) -> void:
+## A grid of item slots (pictures, see _item_slot); empty places up to
+## `size` are shown as empty slots. `columns` is kept for the callers; the
+## slots always run SLOT_COLUMNS across.
+## With `bundle` (the hero's bag) items that bundle (Items.stack_size: torches, jewellery, food)
+## share one cell that shows how many, like the ingredient pouch; a click
+## acts on one of them.
+func _add_item_grid(items: Array, size: int, label_of: Callable, action: Callable, columns := 4, parent: Control = null, bundle := false) -> void:
 	var grid := GridContainer.new()
-	grid.columns = columns
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 8)
+	grid.columns = maxi(columns, SLOT_COLUMNS)
+	grid.add_theme_constant_override("h_separation", SLOT_GAP)
+	grid.add_theme_constant_override("v_separation", SLOT_GAP)
 	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	(parent if parent else _box).add_child(grid)
+	var cells: Array = Items.stacks(items) if bundle else []
+	if not bundle:
+		for i in items.size():
+			cells.append({"id": items[i], "count": 1, "indices": [i]})
 	for i in size:
-		if i < items.size():
-			var b := _item_button(label_of.call(items[i]), action.bind(i), true, items[i])
-			if current == "inventar" and i == _selected:
-				b.modulate = Color(0.7, 1.0, 0.7)
-			grid.add_child(_inventory_cell(b) if current == "inventar" else b)
+		if i < cells.size():
+			var cell: Dictionary = cells[i]
+			var count: int = cell.count if bundle and Items.stack_size(cell.id) > 1 else 0
+			# The last of a bundle is the one taken, so the others keep their places.
+			var b := _item_slot(cell.id, label_of.call(cell.id), count, action.bind(cell.indices.back()))
+			if current == "inventar" and _selected in cell.indices:
+				_mark_picked(b)
+			grid.add_child(b)
 		else:
-			var empty := _item_button("-", func(): pass, false)
-			grid.add_child(_inventory_cell(empty) if current == "inventar" else empty)
+			grid.add_child(_item_slot("", "", 0, func(): pass, false))
+
+
+## The picked cell of the inventory: a bright gold frame on a lighter
+## ground, as a picked row in the trade window. A frame rather than a tint,
+## so the name keeps the colour of its rarity.
+func _mark_picked(b: Button) -> void:
+	for state in ["normal", "hover"]:
+		var style: BronzeStyle = b.get_theme_stylebox(state).duplicate()
+		# The cell keeps its size and its picture its place.
+		for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+			style.set_content_margin(side, style.get_margin(side))
+		style.bg_color = Color(0.2, 0.14, 0.1, 1.0)
+		style.border_color = Color(1.0, 0.9, 0.62)
+		style.shadow_color = Color(1.0, 0.8, 0.4, 0.55)
+		style.shadow_size = 5
+		b.add_theme_stylebox_override(state, style)
+
+
+## The ground of an item slot: a dark well under the picture.
+const SLOT_WELL := Color(0.075, 0.053, 0.036, 1.0)
+
+
+## One slot of an item grid: a bronze box with the item's picture, and how
+## many in its corner when there are several. The name and the details show
+## when the pointer is on it (the tooltip and the details box), so the slot
+## needs no text. The rim takes the item's rarity colour (the details name
+## the rarity in words, so colour is never the only cue); an empty slot is
+## a dim, empty box, or with `ghost` (a kind) a faint picture of what goes there.
+func _item_slot(id: String, name: String, count: int, action: Callable, enabled := true, cell := INVENTORY_CELL, ghost := "") -> Button:
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if enabled else Control.CURSOR_ARROW
+	b.custom_minimum_size = cell
+	b.set_meta("item", id)
+	b.tooltip_text = ("%s  × %d" % [name, count]) if count > 1 else name
+	var rim: Color = UiKit.BRONZE
+	if id != "" and Rarity.tier(id) != "normal":
+		rim = Rarity.color(id)
+	var normal: BronzeStyle = UiKit.frame_style(SLOT_WELL, rim, SLOT_RIM, 5)
+	var hover: BronzeStyle = normal.duplicate()
+	hover.bg_color = Color(0.15, 0.1, 0.06, 1.0)
+	hover.border_color = rim.lerp(Color.WHITE, 0.35)
+	var disabled: BronzeStyle = normal.duplicate()
+	disabled.bg_color = Color(0.06, 0.045, 0.032, 1.0)
+	disabled.border_color = Color(UiKit.BRONZE, 0.5)
+	var focus := UiKit.Bronze.new()
+	focus.draw_center = false
+	focus.border_color = Color(1, 1, 1, 0.95)
+	focus.set_border_width_all(3)
+	focus.set_corner_radius_all(7)
+	focus.set_expand_margin_all(4)
+	for state in ["normal", "pressed", "hover_pressed"]:
+		b.add_theme_stylebox_override(state, normal if state == "normal" else hover)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("disabled", disabled)
+	b.add_theme_stylebox_override("focus", focus)
+	var art := ""
+	if id != "":
+		art = id
+	elif ghost != "":
+		art = "kind:" + ghost
+	if art != "":
+		var pad := SLOT_RIM + 6.0
+		var icon := ItemIcon.make(art, cell.x - 2.0 * pad, true)
+		icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+		icon.offset_left = pad
+		icon.offset_top = pad
+		icon.offset_right = -pad
+		icon.offset_bottom = -pad
+		if id == "":
+			icon.modulate = Color(1, 1, 1, 0.16)
+		b.add_child(icon)
+	if count > 1:
+		var n: Label = game._make_label(game.TEXT_FONT, 20, Color(1.0, 0.95, 0.81))
+		n.text = "×%d" % count
+		n.add_theme_constant_override("outline_size", 5)
+		n.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		n.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		n.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		n.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		n.offset_right = -SLOT_RIM - 2.0
+		n.offset_bottom = -SLOT_RIM + 2.0
+		b.add_child(n)
+	if id != "":
+		# Pointing at an item (or tapping it) shows its stats right away.
+		b.mouse_entered.connect(_show_info.bind(id))
+		b.focus_entered.connect(_show_info.bind(id))
+		b.mouse_exited.connect(_show_info.bind(""))
+	b.pressed.connect(action)
+	b.disabled = not enabled
+	return b
 
 
 func _show_info(id: String) -> void:
@@ -488,17 +709,29 @@ func _show_info(id: String) -> void:
 		# Off an item, the inventory shows the picked one again.
 		id = game.player.bag[_selected]
 	if id == "":
-		_info.text = Lang.t(INFO_HINT)
+		_info.text = _bb(Lang.t(INFO_HINT))
 	elif not Items.ALL.has(id) and (Crafting.INGREDIENTS.has(id) or id == "eisen"):
-		_info.text = game.crafting.describe_ingredient(id)
+		_info.text = _bb(game.crafting.describe_ingredient(id))
 	else:
-		_info.text = "%s: %s" % [Items.item_name(id), Items.describe(id, game.player.wear.get(id, 0))]
+		_info.text = info_text(id, game.player.wear.get(id, 0))
+
+
+## An item's details for the info line: its name in the colour of its
+## rarity, the rarity in words (so the colour is never the only cue), then
+## its values.
+static func info_text(id: String, worn := 0) -> String:
+	return "%s %s: %s" % [Rarity.bbcode(id), _bb("(%s)" % Rarity.label(id)), _bb(Items.describe(id, worn))]
+
+
+## Plain text made safe for a RichTextLabel.
+static func _bb(text: String) -> String:
+	return text.replace("[", "[lb]")
 
 
 func _stats_text() -> String:
 	var p: Player = game.player
-	return Lang.t("Leben %d / %d (+%.1f/s)    Kampfkraft %d    Härtung %d    Tempo %d%%    Messer %d    Gold %d") % [
-		p.hp, p.max_hp, p.life_regen(), p.power, p.hardening, roundi(p.speed / Player.SPEED * 100.0), p.knives, game.coins]
+	return Lang.t("Leben %d / %d (+%.1f/s)    Kampfkraft %d    Härtung %d    Rüstungswert %d%%    Tempo %d%%    Messer %d    Kupfer %d") % [
+		p.hp, p.max_hp, p.life_regen(), p.power, p.hardening, p.armour_value, roundi(p.speed / Player.SPEED * 100.0), p.knives, game.coins]
 
 
 ## The hero's attributes, each with how far it is to the next point.
@@ -530,20 +763,26 @@ func _skills_text() -> String:
 
 # --- Character page -------------------------------------------------------
 
-## The crafts, each with its level, for the character page.
+## The crafts, each with its level, for the character page: two to a line,
+## so four crafts still take two lines in the column beside the wheel.
 func _crafts_text() -> String:
 	var parts := []
 	for id in Training.CRAFTS:
 		parts.append("%s %d" % [Lang.t(Training.CRAFTS[id].name), Training.skill_level(game.player.xp.get(id, 0.0), id)])
-	return Lang.t("Handwerk:") + " " + "   ".join(parts)
+	var lines := []
+	for i in range(0, parts.size(), 2):
+		lines.append("   ".join(parts.slice(i, i + 2)))
+	return Lang.t("Handwerk:") + " " + "\n".join(lines)
 
 
 ## The width of the column beside the character wheel.
-const CHARACTER_SIDE := 340
+const CHARACTER_SIDE := 420
 ## The details card beside the wheel has a fixed height that fits the longest
 ## details in both languages, so pointing at another entry moves nothing.
 const CHARACTER_CARD_HEIGHT := 262
 const CHARACTER_TEXT := Color(0.85, 0.87, 0.92)
+## The column for the hit and block chances, beside the list of attributes.
+const CHARACTER_ODDS_WIDTH := 160
 ## The button that puts a free level point into the picked main attribute
 ## (for tests).
 var _character_spend: Button = null
@@ -551,6 +790,8 @@ var _character_keep := ""
 var _character_level: Label = null
 ## The width kept for the hero level and experience in the bottom row.
 const CHARACTER_LEVEL_WIDTH := 200
+## The armour set line (for tests).
+var _character_set: Label = null
 
 
 ## The wheel of attributes and skills (see CharacterPage). Beside it: what
@@ -570,25 +811,75 @@ func _build_character() -> void:
 	var side := VBoxContainer.new()
 	side.custom_minimum_size.x = CHARACTER_SIDE
 	side.alignment = BoxContainer.ALIGNMENT_CENTER
-	side.add_theme_constant_override("separation", 14)
+	side.add_theme_constant_override("separation", 10)
 	row.add_child(side)
 	var title: Label = game._make_label(game.TITLE_FONT, 38, game.GOLD)
 	title.text = Lang.t("Charakter")
 	side.add_child(title)
+	# The list of what is not on the wheel, and beside it the hero's odds
+	# against a person of the same level, as the fight rolls them; pointing
+	# at the odds explains them in the card below.
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 14)
+	side.add_child(top)
 	var grid := GridContainer.new()
 	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.add_theme_constant_override("h_separation", 14)
 	grid.add_theme_constant_override("v_separation", 6)
-	side.add_child(grid)
+	top.add_child(grid)
 	_character_row(grid, wheel, "", Lang.t("Leben"), "%d / %d   %+.1f/s" % [p.hp, p.max_hp, p.life_regen()], Color(1.0, 0.55, 0.5))
 	for id in Training.ATTRIBUTES:
 		if not id in Training.MAIN_ATTRIBUTES:
 			_character_row(grid, wheel, id, Lang.t(Training.ATTRIBUTES[id].name),
 					("%d %%" % p.attribute(id)) if id == "tempo" else str(p.attribute(id)), Color.WHITE)
+	var odds: Dictionary = wheel.odds()
+	var odds_box := VBoxContainer.new()
+	odds_box.custom_minimum_size.x = CHARACTER_ODDS_WIDTH
+	odds_box.add_theme_constant_override("separation", 6)
+	top.add_child(odds_box)
+	var odds_title: Label = game._make_label(game.TEXT_FONT, 16, game.GOLD)
+	# Above the world's top the yardstick is its strongest (HeroLevel.measured).
+	odds_title.text = Lang.t("Gegen Menschen deiner Stufe:") if p.hero_level() <= HeroLevel.WORLD_TOP \
+			else Lang.t("Gegen die stärksten Menschen:")
+	odds_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	odds_title.custom_minimum_size.x = CHARACTER_ODDS_WIDTH
+	_character_point(odds_title, wheel, CharacterPage.ODDS)
+	odds_box.add_child(odds_title)
+	var odds_grid := GridContainer.new()
+	odds_grid.columns = 2
+	odds_grid.add_theme_constant_override("h_separation", 14)
+	odds_grid.add_theme_constant_override("v_separation", 6)
+	odds_box.add_child(odds_grid)
+	_character_row(odds_grid, wheel, CharacterPage.ODDS, Lang.t("Treffer"), CharacterPage.percent(odds.hit), Color.WHITE)
+	_character_row(odds_grid, wheel, CharacterPage.ODDS, Lang.t("Block"), CharacterPage.percent(odds.block), Color.WHITE)
+	# Below the odds, the two kinds of protection: a flat amount and a share
+	# off every hit. Pointing at them explains them in the card.
+	var guard_title: Label = game._make_label(game.TEXT_FONT, 16, game.GOLD)
+	guard_title.text = Lang.t("Schutz:")
+	odds_box.add_child(guard_title)
+	var guard_grid := GridContainer.new()
+	guard_grid.columns = 2
+	guard_grid.add_theme_constant_override("h_separation", 14)
+	guard_grid.add_theme_constant_override("v_separation", 6)
+	odds_box.add_child(guard_grid)
+	_character_row(guard_grid, wheel, CharacterPage.HARDENING, Lang.t("Härtung"), str(p.hardening), Color.WHITE)
+	_character_row(guard_grid, wheel, CharacterPage.ARMOUR, Lang.t("Rüstungswert"), "%d %%" % p.armour_value, Color.WHITE)
+	# The armour set worn and what it gives, in one line that keeps its
+	# height; pointing at it explains sets in the card below.
+	var set_kind := ArmourSets.worn(p.equipped)
+	var set_line: Label = game._make_label(game.TEXT_FONT, 16, TradeWindow.GREEN if set_kind != "" else TradeWindow.GREY)
+	set_line.text = ArmourSets.summary(p.equipped)
+	set_line.clip_text = true
+	set_line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	set_line.custom_minimum_size.x = CHARACTER_SIDE
+	_character_point(set_line, wheel, CharacterPage.ARMOUR_SET)
+	_character_set = set_line
+	side.add_child(set_line)
 	# The details card: what the wheel points at, else how a roll works.
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(CHARACTER_SIDE, CHARACTER_CARD_HEIGHT)
-	card.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.07, 0.05, 0.07, 0.97), TradeWindow.BORDER, 8, 12, 2))
+	card.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.1, 0.07, 0.045, 0.97), TradeWindow.BORDER, 8, 12, 2))
 	side.add_child(card)
 	var lines := VBoxContainer.new()
 	lines.add_theme_constant_override("separation", 6)
@@ -619,7 +910,7 @@ func _build_character() -> void:
 			game._update_hud()
 			_rebuild())
 	spend.custom_minimum_size = Vector2(CHARACTER_SIDE + 40, 52)
-	spend.add_theme_font_size_override("font_size", 16)
+	spend.add_theme_font_size_override("font_size", UiKit.sized(16))
 	var label_spend := func(_id: String) -> void:
 		var free := p.free_points()
 		var id: String = wheel.picked
@@ -641,7 +932,7 @@ func _build_character() -> void:
 	_character_level.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_character_spend = spend
 	for entry in [
-		[Lang.t("Innen: Grundfertigkeiten. Außen: fortgeschrittene Fertigkeiten."), CHARACTER_TEXT],
+		[Lang.t("Innen Grundfertigkeiten, außen fortgeschrittene."), CHARACTER_TEXT],
 		[_crafts_text(), game.GOLD],
 	]:
 		var l: Label = game._make_label(game.TEXT_FONT, 16, entry[1])
@@ -662,16 +953,21 @@ func _character_row(grid: GridContainer, wheel: CharacterPage, id: String, name:
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	for l in [name_label, value_label]:
 		grid.add_child(l)
-		if id == "":
-			continue
-		# Pass, so the mouse wheel still scrolls the window.
-		l.mouse_filter = Control.MOUSE_FILTER_PASS
-		l.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		l.mouse_entered.connect(wheel.point.bind(id))
-		l.mouse_exited.connect(wheel.point.bind(""))
-		l.gui_input.connect(func(event: InputEvent) -> void:
-			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-				wheel.pick(id))
+		if id != "":
+			_character_point(l, wheel, id)
+
+
+## Makes a label beside the wheel show `id` in the details card when pointed
+## at, and keep it there when clicked or tapped.
+func _character_point(l: Label, wheel: CharacterPage, id: String) -> void:
+	# Pass, so the mouse wheel still scrolls the window.
+	l.mouse_filter = Control.MOUSE_FILTER_PASS
+	l.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	l.mouse_entered.connect(wheel.point.bind(id))
+	l.mouse_exited.connect(wheel.point.bind(""))
+	l.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			wheel.pick(id))
 
 
 # --- Inventory --------------------------------------------------------------
@@ -679,12 +975,29 @@ func _character_row(grid: GridContainer, wheel: CharacterPage, id: String, name:
 ## The inventory's fixed width: six item cells and the gaps between them.
 ## Every line and region of the window is this wide, so nothing the player
 ## picks or points at can make the window wider or narrower.
-const INVENTORY_CELL := Vector2(150, 48)
 const INVENTORY_WIDTH := 6 * 150 + 5 * 8
+## An item slot (a picture in a bronze box) and how they are laid out: ten
+## across, a little apart, in every item grid (bag, pouch, chest, vault).
+const INVENTORY_CELL := Vector2(64, 64)
+const SLOT_COLUMNS := 10
+const SLOT_GAP := 8
+const SLOT_RIM := 5
+## The width of a text button beside the grids (tabs, the picked item's actions).
+const ACTION_WIDTH := 150.0
+## The worn slots: seven across, each with the name of its place under it.
+const WORN_COLUMNS := 7
+const WORN_CELL := INVENTORY_CELL
+const WORN_GAP := floori((SLOT_COLUMNS * INVENTORY_CELL.x + (SLOT_COLUMNS - 1) * SLOT_GAP - WORN_COLUMNS * INVENTORY_CELL.x) / float(WORN_COLUMNS - 1))
 ## The details of the picked item or the one under the pointer: lines of
 ## text kept for them, and the font size. Longer texts scroll in that box.
 const INVENTORY_DETAIL_LINES := 4
 const INVENTORY_TEXT := 15
+
+
+## The faint picture in an empty worn place: what goes there.
+const WORN_GHOSTS := {"kopf": "helmet", "waffe": "sword", "schild": "shield", "umhang": "cloak",
+	"ruestung": "armour", "handschuhe": "gloves", "schuhe": "boots", "amulett": "amulet", "ring": "ring",
+	"armreif": "bracelet", "spezial_1": "special", "spezial_2": "special", "rucksack": "bag"}
 
 
 func _build_inventory() -> void:
@@ -695,39 +1008,57 @@ func _build_inventory() -> void:
 	_add_inventory_line(_skills_text(), Color(0.8, 0.85, 0.9))
 	_add_worn_heading(p)
 	var row := GridContainer.new()
-	# Six across keeps all eleven slots in two rows, so the window fits the screen.
-	row.columns = 6
-	row.add_theme_constant_override("h_separation", 8)
-	row.add_theme_constant_override("v_separation", 8)
+	# Seven across keeps all thirteen slots in two rows, as wide as the bag's
+	# six cells, so the window fits the screen.
+	row.columns = WORN_COLUMNS
+	row.add_theme_constant_override("h_separation", WORN_GAP)
+	row.add_theme_constant_override("v_separation", SLOT_GAP)
 	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_box.add_child(row)
 	for slot in Items.SLOTS:
 		var id: String = p.equipped.get(slot, "")
-		var text: String = "%s\n%s" % [Lang.t(Items.SLOT_NAMES[slot]), Items.item_name(id) if id != "" else "-"]
-		row.add_child(_inventory_cell(_item_button(text, _unequip.bind(slot), id != "", id)))
+		var place := VBoxContainer.new()
+		place.add_theme_constant_override("separation", 2)
+		var name := Lang.t(Items.SLOT_NAMES[slot])
+		var b := _item_slot(id, ("%s: %s" % [name, Items.item_name(id)]) if id != "" else name, 0, _unequip.bind(slot), id != "", WORN_CELL, WORN_GHOSTS.get(slot, ""))
+		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		place.add_child(b)
+		var label: Label = game._make_label(game.TEXT_FONT, 13, Color(0.75, 0.65, 0.48))
+		label.text = name
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.custom_minimum_size.x = WORN_CELL.x
+		place.add_child(label)
+		row.add_child(place)
 	# Two tabs share the space below: the bag and the ingredient pouch.
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
 	tabs.add_theme_constant_override("separation", 8)
 	_box.add_child(tabs)
-	var bag_tab := Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag.size(), p.bag_size(), Items.weight_text(p.carried_weight())]
+	var bag_tab := Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag_used(), p.bag_size(), Items.weight_text(p.carried_weight())]
 	var pouch_tab := Lang.t("Zutatenbeutel (%d)") % _pouch_ids().size()
-	for tab in [["tasche", bag_tab], ["beutel", pouch_tab]]:
+	# The bag is three cells wide, the pouch two, the purse (coins and gems)
+	# one: together as wide as the bag's grid.
+	for tab in [["tasche", bag_tab, 3], ["beutel", pouch_tab, 2], ["muenzen", Lang.t("Geldbeutel"), 1]]:
 		var b := _item_button(tab[1], _show_inventory_tab.bind(tab[0]))
-		b.custom_minimum_size = Vector2(3 * INVENTORY_CELL.x + 2 * 8, 44)
+		b.custom_minimum_size = Vector2(tab[2] * ACTION_WIDTH + (tab[2] - 1) * 8, 44)
+		b.clip_text = true
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.modulate = Color(1.0, 0.9, 0.6) if inventory_tab == tab[0] else Color(0.75, 0.75, 0.8)
 		tabs.add_child(b)
 	# The bag's page is always built: it sets the size the pouch's page gets,
 	# so switching tabs does not resize the window.
 	var page := VBoxContainer.new()
 	page.add_theme_constant_override("separation", 6)
+	# At least two rows of slots, as a full bag of twenty has, so a small
+	# bag still leaves the pouch room for its slots.
+	page.custom_minimum_size.y = 2 * INVENTORY_CELL.y + SLOT_GAP
 	_box.add_child(page)
-	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, 6, page)
-	if inventory_tab == "beutel":
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _select, SLOT_COLUMNS, page, true)
+	if inventory_tab != "tasche":
 		var room := page.get_combined_minimum_size()
 		_box.remove_child(page)
 		page.queue_free()
-		_box.add_child(_pouch_page(room, 6))
+		_box.add_child(_pouch_page(room, 6) if inventory_tab == "beutel" else _purse_page(room))
 	_box.add_child(_inventory_details())
 
 
@@ -740,19 +1071,6 @@ func _add_inventory_line(text: String, color: Color) -> Label:
 	return l
 
 
-## Makes an item button one cell of the inventory's grid: always the same
-## size. A long name breaks over two lines, and what does not fit even then
-## ends in "…" (the details box shows it in full).
-func _inventory_cell(b: Button) -> Button:
-	b.custom_minimum_size = INVENTORY_CELL
-	if not "\n" in b.text:
-		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	b.clip_text = true
-	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	b.add_theme_font_size_override("font_size", INVENTORY_TEXT)
-	return b
-
-
 ## "Worn" with the helmet's show/hide button beside it. The button's place is
 ## kept when no helmet is worn, so putting one on does not move anything.
 func _add_worn_heading(p: Player) -> void:
@@ -761,11 +1079,13 @@ func _add_worn_heading(p: Player) -> void:
 	heading.custom_minimum_size = Vector2(INVENTORY_WIDTH, 44)
 	_box.add_child(heading)
 	const SIDE := 2 * 150 + 8
-	var balance := Control.new()
+	# Bronze rules lead to the heading from both sides (the right one gives
+	# way to the helmet's button when a helmet is worn).
+	var balance := UiKit.rule()
 	balance.custom_minimum_size.x = SIDE
-	balance.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	balance.size_flags_horizontal = Control.SIZE_FILL
 	heading.add_child(balance)
-	var title: Label = game._make_label(game.TEXT_FONT, 16)
+	var title: Label = game._make_label(game.TEXT_FONT, 16, game.GOLD)
 	title.text = Lang.t("Angelegt (anklicken zum Ablegen)")
 	title.clip_text = true
 	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -780,10 +1100,11 @@ func _add_worn_heading(p: Player) -> void:
 		toggle.custom_minimum_size = Vector2(SIDE, 44)
 		toggle.clip_text = true
 		toggle.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		toggle.add_theme_font_size_override("font_size", INVENTORY_TEXT)
+		toggle.add_theme_font_size_override("font_size", UiKit.sized(INVENTORY_TEXT))
 		heading.add_child(toggle)
 	else:
-		var keep := Control.new()
+		var keep := UiKit.rule()
+		keep.size_flags_horizontal = Control.SIZE_FILL
 		keep.custom_minimum_size.x = SIDE
 		keep.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		heading.add_child(keep)
@@ -800,18 +1121,8 @@ func _inventory_details() -> Control:
 	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	var actions := VBoxContainer.new()
 	actions.add_theme_constant_override("separation", 4)
-	actions.custom_minimum_size = Vector2(INVENTORY_CELL.x, 0)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_info = game._make_label(game.TEXT_FONT, 16, BLUE)
-	_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Pass, so the mouse wheel scrolls a long description.
-	_info.mouse_filter = Control.MOUSE_FILTER_PASS
-	scroll.add_child(_info)
-	var lines := float(INVENTORY_DETAIL_LINES)
-	scroll.custom_minimum_size = Vector2(INVENTORY_WIDTH - INVENTORY_CELL.x - 10,
-			ceilf(_info.get_line_height() * lines + _info.get_theme_constant("line_spacing") * (lines - 1.0)))
+	actions.custom_minimum_size = Vector2(ACTION_WIDTH, 0)
+	var scroll := _info_box(INVENTORY_DETAIL_LINES, INVENTORY_WIDTH - ACTION_WIDTH - 10)
 	row.add_child(scroll)
 	row.add_child(actions)
 	_show_info("")
@@ -822,23 +1133,29 @@ func _inventory_details() -> Control:
 			buttons.append(_item_button(Lang.t("Abstellen"), _put_down_selected))
 		elif Items.is_stone(id):
 			buttons.append(_item_button(Lang.t("Abstellen"), _place_stone_selected))
-		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id) or Items.is_light(id):
-			pass # Carried for a task, to the smith, for a fox or for the dark, not worn.
+		elif Items.is_bedroll(id):
+			buttons.append(_item_button(Lang.t("Lager aufschlagen"), func():
+				close()
+				game.camp_action()))
+		elif Items.is_potion(id):
+			buttons.append(_item_button(Lang.t("Trinken"), _drink_selected))
+		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id) or Items.is_light(id) or Items.is_ammo(id):
+			pass # Carried for a task, to the smith, for a fox, for the dark or as spare knives, not worn.
 		else:
 			buttons.append(_item_button(Lang.t("Anlegen"), _equip_selected))
 		buttons.append(_item_button(Lang.t("Wegwerfen"), _drop_selected))
 		for b in buttons:
-			b.custom_minimum_size = Vector2(INVENTORY_CELL.x, 44)
+			b.custom_minimum_size = Vector2(ACTION_WIDTH, 44)
 			actions.add_child(b)
 	return row
 
 
 ## The ingredients the hero carries, in the order of the ingredient book,
-## with the smith's iron bars last.
+## with the smith's iron bars last. Coins and gems are in the purse, not here.
 func _pouch_ids() -> Array:
 	var ids := []
 	for id in Crafting.INGREDIENTS:
-		if game.crafting.have(id) > 0:
+		if game.crafting.have(id) > 0 and not Crafting.in_purse(id):
 			ids.append(id)
 	if game.crafting.have("eisen") > 0:
 		ids.append("eisen")
@@ -865,18 +1182,202 @@ func _pouch_page(room: Vector2, columns: int) -> Control:
 		list.add_child(empty)
 		return scroll
 	var grid := GridContainer.new()
-	grid.columns = columns
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 8)
+	grid.columns = maxi(columns, SLOT_COLUMNS)
+	grid.add_theme_constant_override("h_separation", SLOT_GAP)
+	grid.add_theme_constant_override("v_separation", SLOT_GAP)
 	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	list.add_child(grid)
 	for id in ids:
 		# Ingredients are not worn or dropped: a click shows what the book says.
-		var b := _item_button("%s\n× %d" % [Crafting.ingredient_name(id), game.crafting.have(id)], _show_info.bind(id), true, id)
-		# Long names end in "…" rather than widen the page; the details box
-		# under it shows the full name and what the book says.
-		grid.add_child(_inventory_cell(b))
+		# The details box under it shows the name and what the book says.
+		grid.add_child(_item_slot(id, Crafting.ingredient_name(id), game.crafting.have(id), _show_info.bind(id)))
+	# More kinds than rows in the room: the region scrolls (the grid is
+	# narrower than the room, so the scroll bar takes nothing from it).
 	return scroll
+
+
+## How many coins of each metal the coin tab puts down (metal -> count).
+var coin_amounts := {}
+## The quick amounts on the coin tab ("Alle" is everything carried).
+const COIN_STEPS := [1, 10, 100]
+
+
+## The purse tab: a row per metal the hero carries (copper always), with how
+## many, a few quick amounts, a field to type any amount and the button to
+## put them down at the hero's feet, where they join a pile of the same
+## metal (see CoinPile); below them a row per kind of gem carried, cut and
+## uncut, with their weights. Nothing in it takes a place in the bag or the
+## pouch (see Crafting.purse). As big as the bag's page; it scrolls if it
+## ever holds more.
+func _purse_page(room: Vector2) -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = room
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 6)
+	scroll.add_child(list)
+	var hint: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	hint.text = Lang.t("Münzen einer Art am selben Fleck bilden einen Haufen (bis %d).") % CoinPile.MAX
+	hint.clip_text = true
+	hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.custom_minimum_size = Vector2(room.x - 12, 26)
+	list.add_child(hint)
+	for metal in game.coin_metals():
+		list.add_child(_coin_row(metal, room.x - 12))
+	for id in Ore.GEMS:
+		if game.crafting.have(id) > 0:
+			list.add_child(_gem_row(id, room.x - 12))
+	return scroll
+
+
+## One kind of gem in the purse: how many, and the weight and rarity of each
+## (oldest first, as Gorm takes them). A click shows what the book says.
+func _gem_row(id: String, width: float) -> Control:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _purse_row_style())
+	panel.custom_minimum_size.x = width
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	var icon := ItemIcon.make(id, 36)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(icon)
+	var names := VBoxContainer.new()
+	names.add_theme_constant_override("separation", 0)
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	names.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(names)
+	var carats: Array = game.crafting.gems.get(id, [])
+	var title: Label = game._make_label(game.TEXT_FONT, 18, Rarity.color(id))
+	title.text = "%s  ×%d" % [Crafting.ingredient_name(id), game.crafting.have(id)]
+	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	names.add_child(title)
+	var each: Label = game._make_label(game.TEXT_FONT, 16, TradeWindow.GREY)
+	each.text = ", ".join(carats.map(func(c): return _carat_text(int(c))))
+	each.tooltip_text = each.text
+	each.clip_text = true
+	each.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	names.add_child(each)
+	var info := _item_button(Lang.t("Infos"), _show_info.bind(id))
+	info.custom_minimum_size = Vector2(150, 44)
+	info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(info)
+	return panel
+
+
+## The frame of one row on the purse tab.
+static func _purse_row_style() -> BronzeStyle:
+	var style := BronzeStyle.new()
+	style.bg_color = Color(0.12, 0.085, 0.05, 0.85)
+	style.border_color = Color(0.85, 0.66, 0.32, 0.55)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(8)
+	return style
+
+
+func _coin_row(metal: String, width: float) -> Control:
+	var info: Dictionary = CoinPile.METALS[metal]
+	var held: int = game.coins_held(metal)
+	var amount := clampi(int(coin_amounts.get(metal, 1)), 0, held)
+	if held > 0 and amount == 0:
+		amount = 1
+	coin_amounts[metal] = amount
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _purse_row_style())
+	panel.custom_minimum_size.x = width
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	var icon := ItemIcon.make("kind:coin", 36)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if metal != CoinPile.GOLD:
+		# The coin picture made grey, then coloured like the metal.
+		icon.modulate = Color(info.tint.r * 1.15, info.tint.g * 1.25, info.tint.b * 2.2)
+	row.add_child(icon)
+	var names := VBoxContainer.new()
+	names.add_theme_constant_override("separation", 0)
+	names.custom_minimum_size.x = 250
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	names.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(names)
+	var title: Label = game._make_label(game.TEXT_FONT, 18, info.tint)
+	title.text = Lang.t(info.name)
+	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	names.add_child(title)
+	var count: Label = game._make_label(game.TEXT_FONT, 16, TradeWindow.GREY)
+	count.text = Lang.t("Dabei: %d") % held if held > 0 else Lang.t("Keine dabei")
+	count.clip_text = true
+	count.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	names.add_child(count)
+	for step in COIN_STEPS + [-1]:
+		var n: int = held if step < 0 else step
+		var b := _item_button(Lang.t("Alle") if step < 0 else str(step), _set_coin_amount.bind(metal, n), held > 0 and (step < 0 or step <= held))
+		b.custom_minimum_size = Vector2(64, 44)
+		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		if held > 0 and n == amount:
+			_mark_picked(b)
+		row.add_child(b)
+	var edit := LineEdit.new()
+	edit.name = "Amount"
+	edit.text = str(amount)
+	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	edit.max_length = 5
+	edit.editable = held > 0
+	edit.custom_minimum_size = Vector2(100, 44)
+	edit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	edit.tooltip_text = Lang.t("Wie viele Münzen (1 bis %d)") % mini(held, CoinPile.MAX) if held > 0 else ""
+	edit.add_theme_font_override("font", game.TEXT_FONT)
+	edit.add_theme_font_size_override("font_size", UiKit.sized(18))
+	edit.add_theme_color_override("font_color", game.GOLD)
+	edit.add_theme_stylebox_override("normal", panel_style(Color(0.85, 0.66, 0.32, 0.8)))
+	edit.add_theme_stylebox_override("focus", panel_style(game.GOLD))
+	edit.add_theme_stylebox_override("read_only", panel_style(Color(0.5, 0.45, 0.4, 0.5)))
+	for st in ["normal", "focus", "read_only"]:
+		edit.get_theme_stylebox(st).set_content_margin_all(6)
+	# Digits only; the amount is kept as it is typed, and Enter puts them down.
+	edit.text_changed.connect(func(t: String):
+		var digits := ""
+		for ch in t:
+			if ch >= "0" and ch <= "9":
+				digits += ch
+		if digits != t:
+			var at := edit.caret_column
+			edit.text = digits
+			edit.caret_column = mini(at, digits.length())
+		coin_amounts[metal] = int(digits) if digits != "" else 0)
+	edit.text_submitted.connect(func(_t): _put_coins_down(metal))
+	row.add_child(edit)
+	var put := _item_button(Lang.t("Ablegen"), _put_coins_down.bind(metal), held > 0)
+	put.custom_minimum_size = Vector2(150, 44)
+	put.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(put)
+	return panel
+
+
+func _set_coin_amount(metal: String, n: int) -> void:
+	coin_amounts[metal] = n
+	_note = ""
+	_rebuild()
+
+
+## Puts the chosen number of coins down at the hero's feet (a typed amount
+## is kept within what is carried and what one pile holds).
+func _put_coins_down(metal: String) -> void:
+	var held: int = game.coins_held(metal)
+	var n := clampi(int(coin_amounts.get(metal, 0)), 0, mini(held, CoinPile.MAX))
+	if n <= 0:
+		_note = Lang.t("Keine Münzen zum Ablegen.") if held <= 0 else Lang.t("Gib an, wie viele Münzen du ablegen willst.")
+		_rebuild()
+		return
+	var done: int = game.put_coins_down(metal, n)
+	_note = Lang.t("%d %s abgelegt.") % [done, Lang.t(CoinPile.METALS[metal].name)]
+	coin_amounts[metal] = mini(n, game.coins_held(metal))
+	_rebuild()
 
 
 func _show_inventory_tab(tab: String) -> void:
@@ -894,15 +1395,8 @@ func _add_inventory_header() -> void:
 	_box.add_child(header)
 	var back: Button = game._make_button(Lang.t("Zurück zum Spiel"), close)
 	back.custom_minimum_size = Vector2(190, 44)
-	back.add_theme_font_size_override("font_size", 16)
+	back.add_theme_font_size_override("font_size", UiKit.sized(16))
 	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var style: StyleBoxFlat = back.get_theme_stylebox("normal").duplicate()
-	style.bg_color = Color(0.2, 0.42, 0.18, 0.9)
-	style.border_color = game.GOLD
-	style.set_border_width_all(3)
-	back.add_theme_stylebox_override("normal", style)
-	back.add_theme_stylebox_override("hover", style)
-	back.add_theme_color_override("font_color", Color.WHITE)
 	# An empty box as wide as the button keeps the title in the middle.
 	var balance := Control.new()
 	balance.custom_minimum_size.x = back.custom_minimum_size.x
@@ -937,7 +1431,7 @@ func _equip_selected() -> void:
 		var attr: String = requires.keys()[0]
 		_note = Lang.t("Dafür brauchst du %s %d.") % [Lang.t(Training.ATTRIBUTES[attr].name), requires[attr]]
 	elif not p.equip(id):
-		_note = Lang.t("In diesen Rucksack passt nicht alles aus deiner Tasche.")
+		_note = Lang.t("In diesen Rucksack passt nicht alles aus deiner Tasche.") if Items.ALL[id].slot == "rucksack" else Lang.t("Deine Tasche ist voll.")
 	_selected = -1
 	_rebuild()
 
@@ -963,11 +1457,34 @@ func _place_stone_selected() -> void:
 		game.show_message(why, 1.6)
 
 
+## Drinks the picked potion (see HealingPotions); during the cooldown the
+## note says how long to wait. The rest of the bundle stays picked.
+func _drink_selected() -> void:
+	var p: Player = game.player
+	var id: String = p.bag[_selected]
+	var why: String = game.drink_potion(id)
+	_note = why if why != "" else Lang.t("%s getrunken.") % Items.item_name(id)
+	_selected = -1
+	for cell in Items.stacks(p.bag):
+		if cell.id == id:
+			_selected = cell.indices.back()
+			break
+	_rebuild()
+
+
 func _drop_selected() -> void:
 	var p: Player = game.player
-	_note = Lang.t("%s weggeworfen.") % Items.item_name(p.bag[_selected])
+	var id: String = p.bag[_selected]
+	_note = Lang.t("%s abgelegt.") % Items.item_name(id)
 	p.bag.remove_at(_selected)
+	game.drop_on_floor(id)
 	_selected = -1
+	# From a bundle (torches) one is dropped and the rest stays picked, so
+	# "Drop" can be pressed again for the next.
+	for cell in Items.stacks(p.bag):
+		if cell.id == id and Items.stack_size(id) > 1:
+			_selected = cell.indices.back()
+			break
 	_rebuild()
 
 
@@ -991,15 +1508,18 @@ func _build_storage() -> void:
 	var p: Player = game.player
 	_add_label(Lang.t("Lagertruhe"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 16, BLUE)
-	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
-	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag_used(), p.bag_size()], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6, null, true)
 	var size := HomeUpgrades.storage_size(game.home_upgrades)
-	_add_label(Lang.t("Truhe (%d / %d)") % [game.storage.size(), size], 20)
-	_add_item_grid(game.storage, maxi(size, game.storage.size()), Items.item_name, _take, 8 if size > STORAGE_SIZE else 6)
+	var used := HomeUpgrades.storage_used(game.storage)
+	_add_label(Lang.t("Truhe (%d / %d)") % [used, size], 20)
+	# Eight across, with or without the second chest, so the window keeps
+	# its width when the chest grows.
+	_add_item_grid(game.storage, maxi(size, used), Items.item_name, _take, 8, null, true)
 
 
 func _store(index: int) -> void:
-	if game.storage.size() >= HomeUpgrades.storage_size(game.home_upgrades):
+	if not HomeUpgrades.storage_fits(game.home_upgrades, game.storage, game.player.bag[index]):
 		_note = Lang.t("Die Truhe ist voll.")
 	else:
 		game.storage.append(game.player.bag[index])
@@ -1009,12 +1529,187 @@ func _store(index: int) -> void:
 
 
 func _take(index: int) -> void:
-	if game.player.bag.size() >= game.player.bag_size():
+	if not game.player.bag_fits(game.storage[index]):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.player.bag.append(game.storage[index])
 		game.storage.remove_at(index)
 		_note = ""
+	_rebuild()
+
+
+# --- The steel-banded chest and the ingredient board (see HomeStores) -------
+
+## The rows of the two stores' windows: how tall one is, and how many show
+## before the list scrolls. The columns: the name, what the hero carries,
+## the two buttons that store, the two that take, what lies at home.
+const STORE_ROW_HEIGHT := 56.0
+const STORE_ROWS := 5
+const STORE_NAME_WIDTH := 250.0
+const STORE_COUNT_WIDTH := 92.0
+const STORE_BUTTON := Vector2(76, 44)
+const STORE_WIDTH := 840.0
+const STORE_GREY := Color(0.75, 0.72, 0.68)
+## Where the list of the open store was scrolled to, kept over rebuilds.
+var _store_scroll := 0
+var _store_list: ScrollContainer = null
+
+
+## The window of the steel-banded chest ("metall") or the ingredient board
+## ("zutaten"): one row for every kind the hero carries or keeps there, with
+## buttons to store or take one (ten coins) or all of it, and two buttons
+## below for everything at once.
+func _build_home_store(store: String) -> void:
+	Events.teach(HomeStores.LEARN)
+	if _store_list != null and is_instance_valid(_store_list):
+		_store_scroll = _store_list.scroll_vertical
+	var metal := store == HomeStores.METAL
+	_add_label(Lang.t("Stahlbeschlagene Truhe") if metal else Lang.t("Zutatenbord"), 38, game.GOLD, game.TITLE_FONT)
+	var about := _add_label(Lang.t("Münzen, Barren, Erz und rohe Edelsteine. Sie fasst beliebig viel.") if metal
+			else Lang.t("Kräuter, Pilze, Fische, Phiolen und Tierfutter. Es fasst beliebig viel."), 16, BLUE)
+	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	about.custom_minimum_size.x = STORE_WIDTH
+	_box.add_child(_store_columns([Lang.t("Bei dir"), Lang.t("Einlagern"), Lang.t("Nehmen"), Lang.t("Im Haus")]))
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(STORE_WIDTH, STORE_ROWS * STORE_ROW_HEIGHT + (STORE_ROWS - 1) * 6)
+	scroll.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(scroll)
+	_store_list = scroll
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 6)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	var ids := HomeStores.shown(game, store)
+	if ids.is_empty():
+		var empty: Label = game._make_label(game.TEXT_FONT, 16, STORE_GREY)
+		empty.text = Lang.t("Noch nichts davon bei dir oder hier. Münzen, Barren, Erz und Edelsteine kommen hier hinein, sobald du welche hast.") if metal \
+				else Lang.t("Noch nichts davon bei dir oder hier. Zutaten aus deinem Beutel und Tierfutter aus der Tasche kommen hier hinein, sobald du welche hast.")
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.custom_minimum_size.x = STORE_WIDTH - 40
+		list.add_child(empty)
+	for id in ids:
+		list.add_child(_store_row(id))
+	if _store_scroll > 0:
+		scroll.set_deferred("scroll_vertical", _store_scroll)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	_box.add_child(row)
+	var any_carried := ids.any(func(id): return HomeStores.carried(game, id) > 0)
+	var any_stored := ids.any(func(id): return HomeStores.stored(game, id) > 0)
+	for b in [[Lang.t("Alles einlagern"), func(): _store_all(store, true), any_carried],
+			[Lang.t("Alles nehmen"), func(): _store_all(store, false), any_stored]]:
+		var button := _item_button(b[0], b[1], b[2])
+		button.custom_minimum_size = Vector2(220, 52)
+		row.add_child(button)
+
+
+## The line over the list naming its columns, laid out as a row is.
+func _store_columns(titles: Array) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	row.custom_minimum_size.x = STORE_WIDTH
+	var lead := Control.new()
+	lead.custom_minimum_size.x = 6 + 40 + 10 + STORE_NAME_WIDTH
+	row.add_child(lead)
+	var widths := [STORE_COUNT_WIDTH, STORE_BUTTON.x * 2 + 6, STORE_BUTTON.x * 2 + 6, STORE_COUNT_WIDTH]
+	for i in titles.size():
+		var l: Label = game._make_label(game.TEXT_FONT, 16, STORE_GREY)
+		l.text = titles[i]
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.custom_minimum_size.x = widths[i]
+		l.clip_text = true
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		row.add_child(l)
+	return row
+
+
+## One kind in a store's window: picture and name, how many the hero has,
+## store one or all, take one or all, how many lie at home.
+func _store_row(id: String) -> Control:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(STORE_WIDTH - 14, STORE_ROW_HEIGHT)
+	panel.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.09, 0.065, 0.045, 0.95), Color(0.85, 0.66, 0.32, 0.3), 8, 6))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	row.add_child(ItemIcon.make(id, 40))
+	var name_label: Label = game._make_label(game.TEXT_FONT, 16, TradeWindow.name_color(id, Color.WHITE))
+	name_label.text = store_kind_name(id)
+	name_label.custom_minimum_size.x = STORE_NAME_WIDTH
+	name_label.clip_text = true
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(name_label)
+	var have := HomeStores.carried(game, id)
+	var kept := HomeStores.stored(game, id)
+	row.add_child(_store_count(have))
+	var small := str(HomeStores.step(id))
+	row.add_child(_store_pair([[small, func(): _store_move(id, HomeStores.step(id), true), have > 0],
+			[Lang.t("Alle"), func(): _store_move(id, have, true), have > 0]]))
+	row.add_child(_store_pair([[small, func(): _store_move(id, HomeStores.step(id), false), kept > 0],
+			[Lang.t("Alle"), func(): _store_move(id, kept, false), kept > 0]]))
+	row.add_child(_store_count(kept))
+	return panel
+
+
+func _store_count(n: int) -> Label:
+	var l: Label = game._make_label(game.TEXT_FONT, 18, Color.WHITE if n > 0 else STORE_GREY)
+	l.text = str(n)
+	l.custom_minimum_size.x = STORE_COUNT_WIDTH
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.clip_text = true
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	return l
+
+
+func _store_pair(buttons: Array) -> Control:
+	var pair := HBoxContainer.new()
+	pair.add_theme_constant_override("separation", 6)
+	for b in buttons:
+		var button := _item_button(b[0], b[1], b[2])
+		button.custom_minimum_size = STORE_BUTTON
+		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		pair.add_child(button)
+	return pair
+
+
+## The name of a kind in the stores: coins, bars, ingredients or items.
+static func store_kind_name(id: String) -> String:
+	if id == HomeStores.COINS:
+		return Lang.t("Kupfermünzen")
+	if Items.ALL.has(id):
+		return Items.item_name(id)
+	return Crafting.ingredient_name(id)
+
+
+## Moves `count` of a kind into its store (`in` true) or out of it.
+func _store_move(id: String, count: int, into: bool) -> void:
+	var moved := HomeStores.put(game, id, count) if into else HomeStores.take(game, id, count)
+	if moved > 0:
+		_note = (Lang.t("%d × %s eingelagert.") if into else Lang.t("%d × %s genommen.")) % [moved, store_kind_name(id)]
+		if id == HomeStores.COINS:
+			Sfx.play(game, "coin")
+	elif not into:
+		_note = Lang.t("Deine Tasche ist voll.")
+	_after_store_move()
+
+
+func _store_all(store: String, into: bool) -> void:
+	var moved := HomeStores.put_all(game, store) if into else HomeStores.take_all(game, store)
+	if moved > 0:
+		_note = Lang.t("%d Dinge eingelagert.") % moved if into else Lang.t("%d Dinge genommen.") % moved
+	elif not into:
+		_note = Lang.t("Deine Tasche ist voll.")
+	_after_store_move()
+
+
+func _after_store_move() -> void:
+	game._update_hud()
 	_rebuild()
 
 
@@ -1079,6 +1774,9 @@ func _bench_row(id: String) -> Control:
 	row.add_child(text)
 	var title: Label = game._make_label(game.TEXT_FONT, 20, game.GOLD)
 	title.text = Lang.t(r.name) + (("  ·  " + Lang.t(r.effect)) if r.has("effect") else "")
+	# A long name and effect wrap instead of widening the window.
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.custom_minimum_size.x = 560
 	text.add_child(title)
 	var parts := []
 	for ingredient in r.ingredients:
@@ -1090,6 +1788,14 @@ func _bench_row(id: String) -> Control:
 	needs.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	needs.custom_minimum_size.x = 560
 	text.add_child(needs)
+	# A potion says what the hero brews now and when it gets stronger.
+	var potency: String = c.potency_line(id)
+	if potency != "":
+		var brew: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+		brew.text = potency
+		brew.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		brew.custom_minimum_size.x = 560
+		text.add_child(brew)
 	var why: String = c.why_not(id)
 	var state: Label = game._make_label(game.TEXT_FONT, 16, Color(1.0, 0.75, 0.5) if why != "" else Color(0.4, 0.92, 0.4))
 	state.text = why if why != "" else Lang.t("Alles da: du kannst es herstellen.")
@@ -1108,7 +1814,7 @@ func _make_recipe(id: String) -> void:
 	if why != "":
 		_note = why
 	else:
-		var item: String = Crafting.RECIPES[id].result
+		var item: String = game.crafting.last_made
 		var p: Player = game.player
 		var where := Lang.t("in deiner Tasche") if p.bag.has(item) else Lang.t("in deiner Truhe, die Tasche ist voll")
 		_note = Lang.t("Hergestellt: %s, %s.") % [Items.item_name(item), where]
@@ -1127,7 +1833,7 @@ const MADE_LEARN := "An den Werkbänken auf dem Handwerkerplatz stellst du her, 
 func _build_bank() -> void:
 	var hero: String = game.hero_name
 	_add_label(Lang.t("Bank der Krone"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Im Beutel: %d Gold      Auf der Bank: %d Gold") % [game.coins, Bank.gold(hero)], 22)
+	_add_label(Lang.t("Im Beutel: %d Kupfer      Auf der Bank: %d Kupfer") % [game.coins, Bank.gold(hero)], 22)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
@@ -1137,10 +1843,21 @@ func _build_bank() -> void:
 			[Lang.t("10 abheben"), func(): _pay_out(10), Bank.gold(hero) > 0],
 			[Lang.t("Alles abheben"), func(): _pay_out(Bank.gold(hero)), Bank.gold(hero) > 0]]:
 		row.add_child(_item_button(b[0], b[1], b[2]))
+	# Silver coins from the pouch, changed into copper (see Loot.COIN_VALUE;
+	# new gold coins are never changed).
+	var change := HBoxContainer.new()
+	change.alignment = BoxContainer.ALIGNMENT_CENTER
+	change.add_theme_constant_override("separation", 12)
+	_box.add_child(change)
+	for coin in Loot.CHANGED:
+		var have: int = game.crafting.have(coin)
+		var b := _item_button(Lang.t("%d× %s wechseln (je %d Kupfer)") % [have, Crafting.ingredient_name(coin), Loot.COIN_VALUE[coin]], _exchange.bind(coin), have > 0)
+		b.custom_minimum_size = Vector2(340, 44)
+		change.add_child(b)
 	if Bank.has_vault(hero):
 		_add_label(Lang.t("Dein Schließfach im Tresorkeller hat Platz für %d Schätze.") % Bank.VAULT_SIZE, 16, BLUE)
 	else:
-		_add_label(Lang.t("Ein Schließfach im Tresorkeller kostet einmalig %d Gold (vom Bankkonto).") % Bank.VAULT_PRICE, 16, BLUE)
+		_add_label(Lang.t("Ein Schließfach im Tresorkeller kostet einmalig %d Kupfer (vom Bankkonto).") % Bank.VAULT_PRICE, 16, BLUE)
 		var rent := _item_button(Lang.t("Schließfach mieten"), _rent_vault, Bank.gold(hero) >= Bank.VAULT_PRICE)
 		rent.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		rent.custom_minimum_size = Vector2(300, 54)
@@ -1151,6 +1868,17 @@ func _build_bank() -> void:
 	down.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	down.custom_minimum_size = Vector2(320, 54)
 	_box.add_child(down)
+
+
+func _exchange(coin: String) -> void:
+	var n: int = game.crafting.have(coin)
+	var got := Loot.exchange(game, coin)
+	_note = Lang.t("Gewechselt: %d× %s gegen %d Kupfer") % [n, Crafting.ingredient_name(coin), got]
+	Sfx.play_coins(game, mini(got, 20))
+	game._update_hud()
+	# Bank and saved game must agree.
+	game.save_game()
+	_rebuild()
 
 
 func _pay_in(amount: int) -> void:
@@ -1188,8 +1916,8 @@ func _build_vault() -> void:
 	var hero: String = game.hero_name
 	_add_label(Lang.t("Dein Schließfach"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 16, BLUE)
-	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag.size(), p.bag_size()], 20)
-	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _to_vault, 6)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag_used(), p.bag_size()], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _to_vault, 6, null, true)
 	var items := Bank.vault_items(hero)
 	_add_label(Lang.t("Schließfach (%d / %d)") % [items.size(), Bank.VAULT_SIZE], 20)
 	_add_item_grid(items, Bank.VAULT_SIZE, Items.item_name, _from_vault, 6)
@@ -1208,7 +1936,7 @@ func _to_vault(index: int) -> void:
 
 
 func _from_vault(index: int) -> void:
-	if game.player.bag.size() >= game.player.bag_size():
+	if not game.player.bag_fits(Bank.vault_items(game.hero_name)[index]):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.player.bag.append(Bank.take(game.hero_name, index))
@@ -1259,9 +1987,15 @@ func _build_shop() -> void:
 		var food: String = Companions.SPECIES[kind].food
 		while game.shop_stock.count(food) < 2:
 			game.shop_stock.push_front(food)
+	# Grain for the hungry chicks in the village nests (see VillageBirds).
+	while game.shop_stock.count(VillageBirds.SEEDS) < 2:
+		game.shop_stock.push_front(VillageBirds.SEEDS)
 	# And torches for the pitch-black holes in the wild (see HandTorch).
 	while game.shop_stock.count(HandTorch.ITEM) < 3:
 		game.shop_stock.push_front(HandTorch.ITEM)
+	# And a bedroll for a camp in the wild, for a hero who has none (see Camp).
+	if not game.shop_stock.has(Camp.ITEM) and not p.bag.has(Camp.ITEM) and not game.storage.has(Camp.ITEM):
+		game.shop_stock.push_front(Camp.ITEM)
 	_add_label(Lang.t("Händler"), 38, game.GOLD, game.TITLE_FONT)
 	var gear := []
 	var goods := []
@@ -1269,21 +2003,21 @@ func _build_shop() -> void:
 	# by the item, so buying or selling one never moves the others.
 	if _shop_page == "kaufen":
 		for id in _kinds(game.shop_stock):
-			var entry := _ware_entry("ware:" + id, id, game.trader_price(Items.ALL[id].price), _buy.bind(game.shop_stock.find(id)))
+			var entry := _ware_entry("ware:" + id, id, game.trader_price(Items.buy_price(id)), _buy.bind(game.shop_stock.find(id)))
 			# Animal food never runs out (see Companions), so it shows no count.
 			entry.count = 1 if Items.is_food(id) else game.shop_stock.count(id)
 			(goods if _is_consumable(id) else gear).append(entry)
 	else:
 		for id in _kinds(p.bag):
-			var entry := {"key": "sell:" + id, "id": id, "name": Items.item_name(id), "price": "+" + Lang.t("%d Gold") % sell_price(id),
+			var entry := {"key": "sell:" + id, "id": id, "name": Items.item_name(id), "price": "+" + Lang.t("%d Kupfer") % sell_price(id),
 					"button": Lang.t("Verkaufen"), "action": _sell.bind(p.bag.find(id)), "count": p.bag.count(id)}
 			(goods if _is_consumable(id) else gear).append(entry)
 	var gone := Lang.t("Ausverkauft") if _shop_page == "kaufen" else Lang.t("Verkauft")
 	var empty := Lang.t("Nichts im Angebot.") if _shop_page == "kaufen" else Lang.t("Nichts davon in deiner Tasche.")
-	_trade(Lang.t("Dein Gold: %d") % game.coins, [
+	_trade(Lang.t("Dein Kupfer: %d") % game.coins, [
 		{"key": "gear", "title": Lang.t("Ausrüstung"), "icon": "kind:helmet", "entries": gear, "empty": empty, "gone": gone},
 		{"key": "goods", "title": Lang.t("Verbrauchsgüter"), "icon": "kind:potion", "entries": goods, "empty": empty, "gone": gone},
-	], _shop_pages(Lang.t("Verkaufen (%d / %d)") % [p.bag.size(), p.bag_size()]))
+	], _shop_pages(Lang.t("Verkaufen (%d / %d)") % [p.bag_used(), p.bag_size()]))
 
 
 ## Each item of a list once, in the order it first appears.
@@ -1324,8 +2058,8 @@ func _show_shop_page(page: String) -> void:
 ## A row for something on sale: grey when the gold or the bag falls short.
 func _ware_entry(key: String, id: String, price: int, action: Callable) -> Dictionary:
 	var p: Player = game.player
-	return {"key": key, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Gold") % price, "price_ok": game.coins >= price,
-			"button": Lang.t("Kaufen"), "action": action, "enabled": game.coins >= price and p.bag.size() < p.bag_size()}
+	return {"key": key, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price,
+			"button": Lang.t("Kaufen"), "action": action, "enabled": game.coins >= price and p.bag_fits(id)}
 
 
 ## Books, stone, ore and the like: things that are not worn.
@@ -1336,10 +2070,10 @@ static func _is_consumable(id: String) -> bool:
 
 func _buy(index: int) -> void:
 	var id: String = game.shop_stock[index]
-	var price: int = game.trader_price(Items.ALL[id].price)
+	var price: int = game.trader_price(Items.buy_price(id))
 	if game.coins < price:
-		_note = Lang.t("Dafür reicht dein Gold nicht.")
-	elif game.player.bag.size() >= game.player.bag_size():
+		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
+	elif not game.player.bag_fits(id):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.coins -= price
@@ -1359,6 +2093,9 @@ func _buy(index: int) -> void:
 			else:
 				_note = Lang.t("Gekauft: %s. %s äsen auf den Lichtungen zwischen Friedhof und Dorf.") % [Items.item_name(id), Lang.t(Companions.SPECIES[eater].plural)]
 				Events.teach(Companions.WHERE_DEER)
+		elif id == VillageBirds.SEEDS:
+			_note = Lang.t("Gekauft: Körner. Hungrige Küken piepsen in manchen Nestern auf den Dächern.")
+			Events.teach(VillageBirds.LEARN)
 	_rebuild()
 
 
@@ -1367,7 +2104,7 @@ func _sell(index: int) -> void:
 	game.coins += sell_price(id)
 	game.player.bag.remove_at(index)
 	game.shop_stock.append(id)
-	_note = Lang.t("Verkauft: %s für %d Gold") % [Items.item_name(id), sell_price(id)]
+	_note = Lang.t("Verkauft: %s für %d Kupfer") % [Items.item_name(id), sell_price(id)]
 	_rebuild()
 
 
@@ -1401,7 +2138,7 @@ func _build_wanderer() -> void:
 			herbs.append(_ingredient_entry(id, wares.count(id), i))
 	var empty := Lang.t("Nichts im Angebot.")
 	var note := Lang.t("Zutaten aus fernen Gegenden, nur heute Nacht. Im Morgengrauen zieht Zarek weiter; in %d Nächten kommt er wieder.") % Wanderer.EVERY
-	_trade(Lang.t("Dein Gold: %d") % game.coins, [
+	_trade(Lang.t("Dein Kupfer: %d") % game.coins, [
 		{"key": "herbs", "title": Lang.t("Zutaten"), "icon": "kind:ore", "entries": herbs, "empty": empty},
 		{"key": "gear", "title": Lang.t("Ausrüstung"), "icon": "kind:helmet", "entries": gear, "empty": empty},
 		{"key": "goods", "title": Lang.t("Verbrauchsgüter"), "icon": "kind:potion", "entries": goods, "empty": empty},
@@ -1417,7 +2154,7 @@ func _ingredient_entry(id: String, left: int, index: int) -> Dictionary:
 	for line in game.crafting.describe_ingredient(id).split("\n").slice(1):
 		lines.append([line, TradeWindow.BLUE])
 	return {"key": "herb:%s" % id, "id": id, "icon": icon, "name": Wanderer.ware_name(id),
-			"price": Lang.t("%d Gold") % price, "price_ok": game.coins >= price, "action": _buy_from_wanderer.bind(index),
+			"price": Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price, "action": _buy_from_wanderer.bind(index),
 			"enabled": game.coins >= price,
 			"detail": {"subtitle": Lang.t("Zutat für Rezepte, noch %d da") % left, "lines": lines},
 			"compare": {"title": Lang.t("In deinem Zutatenbeutel"), "name": "%s: %d" % [Wanderer.ware_name(id), game.crafting.have(id)], "icon": icon}}
@@ -1431,8 +2168,8 @@ func _buy_from_wanderer(index: int) -> void:
 	var cost := Wanderer.price(id)
 	var ingredient := Wanderer.is_ingredient(id)
 	if game.coins < cost:
-		_note = Lang.t("Dafür reicht dein Gold nicht.")
-	elif not ingredient and game.player.bag.size() >= game.player.bag_size():
+		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
+	elif not ingredient and not game.player.bag_fits(id):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
 		game.coins -= cost
@@ -1457,8 +2194,8 @@ const STONE := "steinblock"
 ## them back for half the price.
 func _build_stonemason() -> void:
 	var p: Player = game.player
-	var price: int = game.trader_price(Items.ALL[STONE].price)
-	var room: int = p.bag_size() - p.bag.size()
+	var price: int = game.trader_price(Items.buy_price(STONE))
+	var room: int = p.bag_size() - p.bag_used()
 	_add_label(Lang.t("Steinmetz"), 38, game.GOLD, game.TITLE_FONT)
 	var all := mini(room, game.coins / price) if price > 0 else room
 	var have := p.bag.count(STONE)
@@ -1466,14 +2203,14 @@ func _build_stonemason() -> void:
 			[Lang.t("Behauene Steinblöcke zum Bauen: Mauern, Stufen, Türme. Abstellen mit B oder im Inventar, verschieben mit der Maus: greifen, ziehen, loslassen."), TradeWindow.BLUE]]}
 	var compare := {"title": Lang.t("In deiner Tasche"), "name": Lang.t("Steinblöcke: %d") % have, "icon": STONE,
 			"subtitle": Lang.t("Platz für %d weitere") % room}
-	_trade(Lang.t("Dein Gold: %d") % game.coins, [
+	_trade(Lang.t("Dein Kupfer: %d") % game.coins, [
 		{"key": "stone", "title": Lang.t("Bausteine"), "icon": "kind:stone", "entries": [
-			{"key": "back", "id": STONE, "name": Lang.t("1 zurückgeben"), "price": "+" + Lang.t("%d Gold") % sell_price(STONE),
+			{"key": "back", "id": STONE, "name": Lang.t("1 zurückgeben"), "price": "+" + Lang.t("%d Kupfer") % sell_price(STONE),
 					"button": Lang.t("Verkaufen"), "action": _sell_stone, "enabled": have > 0, "detail": detail, "compare": compare},
 		] if _shop_page == "verkaufen" else [
-			{"key": "one", "id": STONE, "name": Lang.t("1 Steinblock"), "price": Lang.t("%d Gold") % price, "price_ok": game.coins >= price,
+			{"key": "one", "id": STONE, "name": Lang.t("1 Steinblock"), "price": Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price,
 					"action": _buy_stones.bind(1), "enabled": room > 0 and game.coins >= price, "detail": detail, "compare": compare},
-			{"key": "all", "id": STONE, "name": Lang.t("%d Steinblöcke") % maxi(all, 1), "price": Lang.t("%d Gold") % (maxi(all, 1) * price),
+			{"key": "all", "id": STONE, "name": Lang.t("%d Steinblöcke") % maxi(all, 1), "price": Lang.t("%d Kupfer") % (maxi(all, 1) * price),
 					"price_ok": all > 0, "action": _buy_stones.bind(all), "enabled": all > 0, "detail": detail, "compare": compare},
 		]},
 	], _stonemason_tabs())
@@ -1481,10 +2218,10 @@ func _build_stonemason() -> void:
 
 func _buy_stones(count: int) -> void:
 	var p: Player = game.player
-	var price: int = game.trader_price(Items.ALL[STONE].price)
+	var price: int = game.trader_price(Items.buy_price(STONE))
 	var bought := 0
 	for i in count:
-		if game.coins < price or p.bag.size() >= p.bag_size():
+		if game.coins < price or p.bag_used() >= p.bag_size():
 			break
 		game.coins -= price
 		p.bag.append(STONE)
@@ -1493,10 +2230,10 @@ func _buy_stones(count: int) -> void:
 		Events.bus().traded.emit(game.trader_role)
 		_note = Lang.t("Gekauft: %d Steinblöcke") % bought
 		Sfx.play(game, "gear_soft_0", -2.0)
-	elif p.bag.size() >= p.bag_size():
+	elif p.bag_used() >= p.bag_size():
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
-		_note = Lang.t("Dafür reicht dein Gold nicht.")
+		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
 	game._update_hud()
 	_rebuild()
 
@@ -1506,7 +2243,7 @@ func _sell_stone() -> void:
 	if p.bag.has(STONE):
 		p.bag.erase(STONE)
 		game.coins += sell_price(STONE)
-		_note = Lang.t("Verkauft: %s für %d Gold") % [Items.item_name(STONE), sell_price(STONE)]
+		_note = Lang.t("Verkauft: %s für %d Kupfer") % [Items.item_name(STONE), sell_price(STONE)]
 	game._update_hud()
 	_rebuild()
 
@@ -1536,7 +2273,7 @@ func _build_upgrades() -> void:
 	var p: Player = game.player
 	Events.teach(HomeUpgrades.LEARN)
 	_add_label(Lang.t("Haus ausbauen"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Dein Gold: %d      Steinblöcke in Tasche und Truhe: %d") % [game.coins, HomeUpgrades.stones_owned(p.bag, game.storage)], 20, game.GOLD)
+	_add_label(Lang.t("Dein Kupfer: %d      Steinblöcke in Tasche und Truhe: %d") % [game.coins, HomeUpgrades.stones_owned(p.bag, game.storage)], 20, game.GOLD)
 	_add_label(Lang.t("Steinmetz Hagen baut dir an, was du bezahlst. Steinblöcke verkauft er auch."), 16, BLUE)
 	for id in HomeUpgrades.ALL:
 		var up: Dictionary = HomeUpgrades.ALL[id]
@@ -1550,7 +2287,7 @@ func _build_upgrades() -> void:
 		text.custom_minimum_size = Vector2(560, 0)
 		row.add_child(text)
 		var built := HomeUpgrades.has(game.home_upgrades, id)
-		var label := Lang.t("Gebaut") if built else Lang.t("Bauen\n%d Steine, %d Gold") % [up.stones, up.gold]
+		var label := Lang.t("Gebaut") if built else Lang.t("Bauen\n%d Steine, %d Kupfer") % [up.stones, up.gold]
 		var ok := HomeUpgrades.why_not(id, game.home_upgrades, p.bag, game.storage, game.coins) == ""
 		var b := _item_button(label, _build_upgrade.bind(id), ok)
 		b.custom_minimum_size = Vector2(200, 58)
@@ -1578,7 +2315,7 @@ func _build_bounty_board() -> void:
 	Events.teach(Bounties.HOW_TO)
 	_add_label(Lang.t("Aushang: Kopfgelder"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Tag %d. Neue Aushänge gibt es jeden Morgen; was bis dahin nicht erledigt ist, verfällt.") % (game.day + 1), 16, BLUE)
-	_add_label(Lang.t("Dein Gold: %d") % game.coins, 20, game.GOLD)
+	_add_label(Lang.t("Dein Kupfer: %d") % game.coins, 20, game.GOLD)
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 10)
 	list.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -1592,7 +2329,7 @@ func _build_bounty_board() -> void:
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text.custom_minimum_size = Vector2(520, 0)
 		text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		text.text = Lang.t(hunt.title) + "  ·  " + Lang.t("%d Gold") % hunt.gold + "\n" + Lang.t(hunt.goal)
+		text.text = Lang.t(hunt.title) + "  ·  " + Lang.t("%d Kupfer") % hunt.gold + "\n" + Lang.t(hunt.goal)
 		row.add_child(text)
 		var button: Button
 		if b.is_paid(id):
@@ -1600,7 +2337,7 @@ func _build_bounty_board() -> void:
 			button = _item_button(Lang.t("Abgeholt"), func(): pass, false)
 		elif b.is_ready(id):
 			text.add_theme_color_override("font_color", Color(0.6, 1.0, 0.6))
-			button = _item_button(Lang.t("Kopfgeld abholen\n+%d Gold") % hunt.gold, _claim_bounty.bind(id))
+			button = _item_button(Lang.t("Kopfgeld abholen\n+%d Kupfer") % hunt.gold, _claim_bounty.bind(id))
 		elif b.is_taken(id):
 			button = _item_button(Lang.t("Auf der Jagd\n%s") % b.progress(id), func(): pass, false)
 		else:
@@ -1637,7 +2374,7 @@ func _build_style() -> void:
 	for id in Wishes.STYLES:
 		var b: Button = game._make_button(Lang.t(Wishes.STYLES[id].name), _choose_style.bind(id))
 		b.custom_minimum_size = Vector2(220, 60)
-		b.add_theme_font_size_override("font_size", 18)
+		b.add_theme_font_size_override("font_size", UiKit.sized(18))
 		if id == w.style:
 			# The style named before: marked by a word too, not only by colour.
 			b.text = Lang.t(Wishes.STYLES[id].name) + "  ✓"
@@ -1756,7 +2493,7 @@ func _claim_bounty(id: String) -> void:
 	if gold > 0:
 		game.coins += gold
 		Sfx.play_coins(game, gold)
-		_note = Lang.t("Kopfgeld erhalten: %d Gold") % gold
+		_note = Lang.t("Kopfgeld erhalten: %d Kupfer") % gold
 	game._update_hud()
 	_rebuild()
 
@@ -1765,7 +2502,7 @@ func _claim_bounty(id: String) -> void:
 func _build_workbench() -> void:
 	var p: Player = game.player
 	_add_label(Lang.t("Werkbank"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Eisenbarren: %d      Wurfmesser: %d") % [game.iron, p.knives], 20, game.GOLD)
+	_add_label(Lang.t("Eisenbarren: %d      Wurfmesser: %d") % [game.iron, p.knives + p.spare_knives()], 20, game.GOLD)
 	_add_label(Lang.t("Eisenbarren gibt es bei Schmied Gorm, oder du schmilzt dort alte Ausrüstung ein."), 16, BLUE)
 	var make := _item_button(Lang.t("%d Wurfmesser schmieden\n%d Eisenbarren") % [HomeUpgrades.KNIVES_PER_IRON, 1], _make_knives, game.iron >= 1)
 	make.custom_minimum_size = Vector2(320, 58)
@@ -1789,7 +2526,7 @@ func _make_knives() -> void:
 		_note = Lang.t("Dafür brauchst du einen Eisenbarren.")
 	else:
 		game.iron -= 1
-		game.player.knives += HomeUpgrades.KNIVES_PER_IRON
+		game.give_knives(HomeUpgrades.KNIVES_PER_IRON)
 		_note = Lang.t("Geschmiedet: %d Wurfmesser") % HomeUpgrades.KNIVES_PER_IRON
 		Sfx.play(game, "gear_metal_0", -2.0)
 	game._update_hud()
@@ -1874,8 +2611,8 @@ func _companion_row(kind: String) -> Control:
 	var tame := index >= 0
 	var at_side: bool = tame and index == game.following
 	var row := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.1, 0.16, 0.9) if tame else Color(0.08, 0.07, 0.1, 0.7)
+	var style := BronzeStyle.new()
+	style.bg_color = Color(0.14, 0.1, 0.06, 0.9) if tame else Color(0.09, 0.07, 0.05, 0.7)
 	style.border_color = game.GOLD if at_side else Color(0.4, 0.34, 0.25, 0.6)
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(8)
@@ -1993,7 +2730,7 @@ func _build_naming() -> void:
 	edit.custom_minimum_size = Vector2(320, 52)
 	edit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	edit.add_theme_font_override("font", game.TEXT_FONT)
-	edit.add_theme_font_size_override("font_size", 22)
+	edit.add_theme_font_size_override("font_size", UiKit.sized(22))
 	edit.add_theme_stylebox_override("normal", panel_style(Color(0.85, 0.66, 0.32, 0.8)))
 	edit.add_theme_stylebox_override("focus", panel_style(game.GOLD))
 	for style in ["normal", "focus"]:
@@ -2045,13 +2782,14 @@ func _end_naming(note := "") -> void:
 
 ## The smith's window shows one of four tabs: "waffen" (buy Gorm's own
 ## weapons), "schmieden" (forge new gear),
-## "einschmelzen" (melt gear down into iron) or "ausbessern" (mend worn gear).
+## "einschmelzen" (melt gear down into metal, and sell the fine bars) or
+## "ausbessern" (mend worn gear).
 var _forge_tab := "waffen"
 const FORGE_ABOUT := {
 	"waffen": "Gorms eigene Arbeit: bessere Waffen, die es sonst nirgends gibt. Kriegshammer und Drachenschild schmiedet er nur aus deinem Eisen.",
-	"schmieden": "Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen.",
-	"einschmelzen": "Metall aus deiner Tasche wird zu Eisenbarren. Stoff, Leder, Fell und Knochen schmelzen nicht.",
-	"ausbessern": "Gorm hämmert Beulen aus: jeder Punkt Haltbarkeit kostet etwas Gold.",
+	"schmieden": "Aus Eisen und etwas Kupfer schmiedet Gorm dir neue Waffen, Schilde und Rüstungen. Mit Donnererz vom Gewitter schmiedet er Donnerwaffen, deren Treffer Gegner kurz betäuben können.",
+	"einschmelzen": "Waffen und Rüstungen werden zu Eisen, feine Stücke und Schmuck zu Bronze, Silber oder Gold, je seltener, desto edler; Zauberdinge lassen Mondsilber. Je hundert Münzen einer Sorte werden zu einem Barren. Die edlen Barren kauft Gorm dir ab. Stoff, Leder, Fell und Knochen schmelzen nicht.",
+	"ausbessern": "Gorm hämmert Beulen aus: jeder Punkt Haltbarkeit kostet etwas Kupfer.",
 }
 const FORGE_TABS := [["waffen", "Waffen kaufen"], ["schmieden", "Schmieden"], ["einschmelzen", "Einschmelzen"], ["ausbessern", "Ausbessern"]]
 
@@ -2059,6 +2797,7 @@ const FORGE_TABS := [["waffen", "Waffen kaufen"], ["schmieden", "Schmieden"], ["
 func _build_smithy() -> void:
 	var p: Player = game.player
 	Events.teach(Forge.LEARN)
+	Events.teach(Forge.STEEL_LEARN)
 	_add_label(Lang.t("Schmiede"), 38, game.GOLD, game.TITLE_FONT)
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -2069,7 +2808,7 @@ func _build_smithy() -> void:
 		if tab[0] == _forge_tab:
 			b.modulate = Color(0.7, 1.0, 0.7)
 		tabs.add_child(b)
-	var room: bool = p.bag.size() < p.bag_size()
+	var room: bool = p.bag_used() < p.bag_size()
 	var sections := []
 	match _forge_tab:
 		"waffen":
@@ -2087,39 +2826,153 @@ func _build_smithy() -> void:
 			var forged := []
 			for id in Forge.recipes():
 				var cost := Forge.forge_cost(id, game)
-				var ok: bool = game.iron >= cost.iron and game.coins >= cost.gold
-				forged.append({"key": id, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Eisen, %d Gold") % [cost.iron, cost.gold],
-						"price_ok": ok, "button": Lang.t("Schmieden"), "action": _forge.bind(id), "enabled": ok and room})
+				var ok := Forge.can_afford(game, id)
+				var entry := {"key": id, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Eisen, %d Kupfer") % [cost.iron, cost.gold],
+						"price_ok": game.iron >= cost.iron and game.coins >= cost.gold, "button": Lang.t("Schmieden"), "action": _forge.bind(id), "enabled": ok and room}
+				if Forge.is_steel(id):
+					# Steel gear: steel bars in place of iron, and a level of
+					# Schmiedekunst. Until the hero has it, the price line
+					# says so; the details always tell both.
+					var level := Forge.craft_level(game, Forge.FORGING)
+					var need := Forge.forge_level(id)
+					var steel := int(game.bars.get(Forge.STEEL, 0))
+					entry.price = Lang.t("%d Stahl, %d Kupfer") % [cost.steel, cost.gold] if level >= need else Lang.t("Braucht Schmiedekunst %d") % need
+					entry.price_ok = level >= need and steel >= int(cost.steel) and game.coins >= cost.gold
+					var lines := TradeWindow.stat_lines(id)
+					lines.append([Lang.t("Schmiedekunst Stufe %d nötig, du hast %d") % [need, level], TradeWindow.GREEN if level >= need else TradeWindow.RED])
+					lines.append([Lang.t("Braucht %d Stahlbarren, du hast %d") % [cost.steel, steel], TradeWindow.GREEN if steel >= int(cost.steel) else TradeWindow.RED])
+					entry.detail = {"subtitle": TradeWindow.subtitle(id), "lines": lines}
+				if int(cost.ore) > 0:
+					# The row has no room for a third cost: the ore is told
+					# in the details, green when the bag holds enough.
+					var have: int = p.bag.count(Forge.THUNDER_ORE)
+					var lines := TradeWindow.stat_lines(id)
+					lines.append([Lang.t("Braucht %d Donnererz, du hast %d") % [cost.ore, have], TradeWindow.GREEN if have >= int(cost.ore) else TradeWindow.RED])
+					entry.detail = {"subtitle": TradeWindow.subtitle(id), "lines": lines}
+				forged.append(entry)
 			var iron := []
 			for count in [1, 5]:
 				var price: int = count * Forge.iron_price(game)
-				iron.append({"key": "iron%d" % count, "icon": "kind:iron", "name": Lang.t("%d Eisenbarren") % count, "price": Lang.t("%d Gold") % price,
+				iron.append({"key": "iron%d" % count, "icon": "kind:iron", "name": Lang.t("%d Eisenbarren") % count, "price": Lang.t("%d Kupfer") % price,
 						"price_ok": game.coins >= price, "action": _buy_iron.bind(count), "enabled": game.coins >= price,
-						"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t("Aus Eisen und etwas Gold schmiedet Gorm dir neue Waffen, Schilde und Rüstungen."), TradeWindow.BLUE]]},
+						"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t("Aus Eisen und etwas Kupfer schmiedet Gorm dir neue Waffen, Schilde und Rüstungen."), TradeWindow.BLUE]]},
 						"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("Eisen: %d") % game.iron, "icon": "kind:iron"}})
 			sections = [
 				{"key": "forge", "title": Lang.t("Schmieden"), "icon": "kind:hammer_anvil", "entries": forged},
+				{"key": "steel", "title": Lang.t("Stahl"), "icon": "kind:bar_" + Forge.STEEL, "entries": _steel_entries()},
 				{"key": "iron", "title": Lang.t("Eisenbarren"), "icon": "kind:iron", "entries": iron},
 			]
 		"einschmelzen":
 			var melt := []
 			for id in _kinds(p.bag):
 				var can := Forge.can_melt(id)
-				melt.append({"key": "melt:" + id, "id": id, "name": Items.item_name(id), "price": Lang.t("+%d Eisen") % Forge.melt_yield(id) if can else Lang.t("Schmilzt nicht"), "price_ok": can,
+				melt.append({"key": "melt:" + id, "id": id, "name": Items.item_name(id), "price": Forge.metals_text(Forge.melt_into(id), true) if can else Lang.t("Schmilzt nicht"), "price_ok": can,
 						"button": Lang.t("Einschmelzen"), "action": _melt.bind(p.bag.find(id)), "enabled": can, "count": p.bag.count(id)})
+			# The fine bars the hero has: Gorm buys them, one bar at a time.
+			var fine := []
+			for metal in Forge.FINE:
+				if not Forge.METALS[metal].has("worth"):
+					continue
+				var have := int(game.bars.get(metal, 0))
+				var worth: int = Forge.METALS[metal].worth
+				var entry := {"key": "bar:" + metal, "icon": "kind:bar_" + metal, "name": Lang.t(Forge.METALS[metal].name), "price": "+" + Lang.t("%d Kupfer") % worth,
+						"price_ok": have > 0, "button": Lang.t("Verkaufen"), "action": _sell_bar.bind(metal), "enabled": have > 0, "count": have,
+						"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t("Aus fein gearbeiteten Stücken und Schmuck geschmolzen. Gorm kauft jeden Barren für %d Kupfer.") % worth, TradeWindow.BLUE]]},
+						"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("%s: %d") % [Lang.t(Forge.METALS[metal].name), have], "icon": "kind:bar_" + metal}}
+				if have <= 0:
+					entry.gone = Lang.t("Keine")
+				fine.append(entry)
+			# The pouch coins from fallen foes (see Loot.COINS): a hundred of
+			# one metal melt into one bar of it.
+			var coins := []
+			for coin in Loot.COINS:
+				var have: int = game.crafting.have(coin)
+				var metal: String = Loot.COINS[coin]
+				var bar := Lang.t(Forge.METALS[metal].name)
+				var icon: String = "kind:iron" if metal == "eisen" else "kind:bar_" + metal
+				var ok := have >= Loot.COINS_PER_BAR
+				coins.append({"key": "coins:" + coin, "icon": coin, "name": Crafting.ingredient_name(coin), "price": Lang.t("%d Münzen: 1 %s") % [Loot.COINS_PER_BAR, bar],
+						"price_ok": ok, "button": Lang.t("Einschmelzen"), "action": _melt_coins.bind(coin), "enabled": ok, "count": have,
+						"detail": {"subtitle": Lang.t("Münzen"), "lines": [[Lang.t("Gorm schmilzt je %d Münzen zu einem %s ein.") % [Loot.COINS_PER_BAR, bar], TradeWindow.BLUE],
+							[Lang.t("Du hast %d, genug für %d.") % [have, have / Loot.COINS_PER_BAR], TradeWindow.GREEN if ok else TradeWindow.GREY]]},
+						"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("%s: %d") % [bar, game.crafting.have(metal)], "icon": icon}})
+			# Raw ore from the mountains (see Ore): the oldest lump of each
+			# size melts first, into grams of the metals in it.
+			var ore := []
+			for lump_id in Ore.LUMPS:
+				var lumps: Array = game.crafting.ores.get(lump_id, [])
+				var next: Dictionary = lumps[0] if not lumps.is_empty() else {}
+				var entry := {"key": "ore:" + lump_id, "icon": lump_id, "name": Crafting.ingredient_name(lump_id),
+						"price": "%d g" % int(next.grams) if not next.is_empty() else "", "price_ok": not next.is_empty(),
+						"button": Lang.t("Einschmelzen"), "action": _melt_ore.bind(lump_id), "enabled": not next.is_empty(), "count": lumps.size(),
+						"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Ore.guess(lump_id, next) if not next.is_empty() else Lang.t("Keiner"), TradeWindow.BLUE],
+							[Lang.t("Je %d g eines Metalls werden ein Barren.") % Ore.GRAMS_PER_BAR, TradeWindow.GREY]]},
+						"compare": {"title": Lang.t("Übrig vom Schmelzen"), "name": Ore.grams_text(game.metal_grams), "icon": "kind:ore"}}
+				if next.is_empty():
+					entry.gone = Lang.t("Keiner")
+				ore.append(entry)
 			sections = [{"key": "melt", "title": Lang.t("Einschmelzen"), "icon": "kind:flame", "entries": melt,
-					"empty": Lang.t("Deine Tasche ist leer."), "gone": Lang.t("Eingeschmolzen")}]
+					"empty": Lang.t("Deine Tasche ist leer."), "gone": Lang.t("Eingeschmolzen")},
+					{"key": "ore", "title": Lang.t("Erz einschmelzen"), "icon": "kind:ore", "entries": ore},
+					{"key": "gems", "title": Lang.t("Edelsteine"), "icon": "kind:crystal", "entries": _gem_entries()},
+					{"key": "coins", "title": Lang.t("Münzen einschmelzen"), "icon": "kind:coin", "entries": coins},
+					{"key": "bars", "title": Lang.t("Barren verkaufen"), "icon": "kind:bar_gold", "entries": fine}]
 		"ausbessern":
 			var mend := []
 			for id in Forge.worn_down(p):
 				var durability: int = Items.ALL[id].durability
 				var left: int = durability - int(p.wear[id])
 				mend.append({"key": id, "id": id, "name": "%s  %d / %d" % [Items.item_name(id), left, durability],
-						"price": Lang.t("%d Gold") % Forge.mend_cost(p, id, game), "price_ok": game.coins >= Forge.mend_price(id, game),
+						"price": Lang.t("%d Kupfer") % Forge.mend_cost(p, id, game), "price_ok": game.coins >= Forge.mend_price(id, game),
 						"button": Lang.t("Ausbessern"), "action": _mend.bind(id), "enabled": game.coins >= Forge.mend_price(id, game)})
 			sections = [{"key": "mend", "title": Lang.t("Ausbessern"), "icon": "kind:hammer_anvil", "entries": mend, "gone": Lang.t("Wie neu"),
 					"empty": Lang.t("Deine Ausrüstung ist heil.")}]
-	_trade(Lang.t("Dein Gold: %d    Eisen: %d") % [game.coins, game.iron], sections, tabs, Lang.t(FORGE_ABOUT[_forge_tab]))
+	_trade(Lang.t("Dein Kupfer: %d    Eisen: %d    Stahl: %d") % [game.coins, game.iron, int(game.bars.get(Forge.STEEL, 0))], sections, tabs, Lang.t(FORGE_ABOUT[_forge_tab]))
+
+
+## The forge's steel rows: make a steel bar (iron, charcoal, limestone, and a
+## level of Stahlkochen, see Forge.make_steel), and buy charcoal.
+func _steel_entries() -> Array:
+	var out := []
+	var level := Forge.craft_level(game, Forge.STEEL_MAKING)
+	var need := Forge.STEEL_MAKING_LEVEL
+	var why := Forge.why_no_steel(game)
+	var steel := int(game.bars.get(Forge.STEEL, 0))
+	var lines := [[Lang.t("Ein Eisenbarren, mit Holzkohle und Kalkstein gekocht, wird ein Stahlbarren. Stahlrüstung schmiedet Gorm nur aus Stahl."), TradeWindow.BLUE],
+			[Lang.t("Stahlkochen Stufe %d nötig, du hast %d") % [need, level], TradeWindow.GREEN if level >= need else TradeWindow.RED]]
+	for ingredient in Forge.STEEL_RECIPE:
+		var have: int = game.crafting.have(ingredient)
+		lines.append([Lang.t("%s: %d nötig, du hast %d") % [Crafting.ingredient_name(ingredient), int(Forge.STEEL_RECIPE[ingredient]), have], TradeWindow.GREEN if have >= int(Forge.STEEL_RECIPE[ingredient]) else TradeWindow.RED])
+	out.append({"key": "steel:make", "icon": "kind:bar_" + Forge.STEEL, "name": Lang.t("Stahlbarren"), "count": steel,
+			"price": Lang.t("1 Eisen, 1 Holzkohle, 1 Kalkstein") if level >= need else Lang.t("Braucht Stahlkochen %d") % need, "price_ok": why == "",
+			"button": Lang.t("Kochen"), "action": _make_steel, "enabled": why == "",
+			"detail": {"subtitle": Lang.t("Rohstoff"), "lines": lines},
+			"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("%s: %d") % [Lang.t("Stahlbarren"), steel], "icon": "kind:bar_" + Forge.STEEL}})
+	for count in [1, 5]:
+		var price: int = count * Forge.charcoal_price(game)
+		out.append({"key": "charcoal%d" % count, "icon": Forge.CHARCOAL, "name": Lang.t("%d Holzkohle") % count, "price": Lang.t("%d Kupfer") % price,
+				"price_ok": game.coins >= price, "action": _buy_charcoal.bind(count), "enabled": game.coins >= price,
+				"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t(Crafting.INGREDIENTS[Forge.CHARCOAL].where), TradeWindow.BLUE]]},
+				"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("%s: %d") % [Crafting.ingredient_name(Forge.CHARCOAL), game.crafting.have(Forge.CHARCOAL)], "icon": Forge.CHARCOAL}})
+	return out
+
+
+func _make_steel() -> void:
+	var why := Forge.make_steel(game)
+	_note = why if why != "" else Lang.t("Gekocht: 1 Stahlbarren")
+	if why == "":
+		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
+	game._update_hud()
+	_rebuild()
+
+
+func _buy_charcoal(count: int) -> void:
+	var why := Forge.buy_charcoal(game, count)
+	if why == "":
+		Events.bus().traded.emit(game.trader_role)
+	_note = why if why != "" else Lang.t("Gekauft: %d Holzkohle") % count
+	game._update_hud()
+	_rebuild()
 
 
 func _show_forge_tab(tab: String) -> void:
@@ -2142,10 +2995,90 @@ func _forge(id: String) -> void:
 func _melt(index: int) -> void:
 	var id: String = game.player.bag[index]
 	var why := Forge.melt(game, index)
-	_note = why if why != "" else Lang.t("Eingeschmolzen: %s, +%d Eisen") % [Items.item_name(id), Forge.melt_yield(id)]
+	_note = why if why != "" else Lang.t("Eingeschmolzen: %s, %s") % [Items.item_name(id), Forge.metals_text(Forge.melt_into(id), true)]
 	if why == "":
 		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
 	game.player.refresh_stats()
+	game._update_hud()
+	_rebuild()
+
+
+## The forge's gem rows (see Ore.GEMS): cut the oldest uncut gem, sell the
+## oldest cut one. A gem's rarity follows its weight, named in words.
+func _gem_entries() -> Array:
+	var out := []
+	var uncut: Array = game.crafting.gems.get(Ore.UNCUT, [])
+	var cut: Array = game.crafting.gems.get(Ore.CUT, [])
+	var a := {"key": "gem:cut", "icon": Ore.UNCUT, "name": Crafting.ingredient_name(Ore.UNCUT), "count": uncut.size(),
+			"price": _carat_text(int(uncut[0])) if not uncut.is_empty() else "", "price_ok": not uncut.is_empty(),
+			"button": Lang.t("Schleifen"), "action": _cut_gem, "enabled": not uncut.is_empty(),
+			"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t("Gorm schleift ihn. Dabei verliert er 15 bis 50 Prozent seines Gewichts, und seine Seltenheit richtet sich nach dem, was bleibt."), TradeWindow.BLUE]]}}
+	if uncut.is_empty():
+		a.gone = Lang.t("Keiner")
+	out.append(a)
+	var worth := Ore.gem_worth(int(cut[0])) if not cut.is_empty() else 0
+	var b := {"key": "gem:sell", "icon": Ore.CUT, "name": Crafting.ingredient_name(Ore.CUT), "count": cut.size(),
+			"price": "%s, +%s" % [_carat_text(int(cut[0])), Lang.t("%d Kupfer") % worth] if not cut.is_empty() else "", "price_ok": not cut.is_empty(),
+			"button": Lang.t("Verkaufen"), "action": _sell_gem, "enabled": not cut.is_empty(),
+			"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t("Je mehr Karat, desto seltener und wertvoller. Gorm kauft geschliffene Edelsteine."), TradeWindow.BLUE]]}}
+	if cut.is_empty():
+		b.gone = Lang.t("Keiner")
+	out.append(b)
+	return out
+
+
+## A gem's weight and rarity in words: "14 ct, Rare".
+static func _carat_text(carat: int) -> String:
+	return "%d ct, %s" % [carat, Lang.t(Rarity.TIERS[Ore.gem_tier(carat)].name)]
+
+
+func _cut_gem() -> void:
+	var out := Forge.cut_gem(game)
+	_note = out.why if out.why != "" else Lang.t("Geschliffen: %d ct werden %d ct (%s)") % [out.from, out.to, Lang.t(Rarity.TIERS[Ore.gem_tier(out.to)].name)]
+	if out.why == "":
+		Sfx.play(game, "hit")
+	_rebuild()
+
+
+func _sell_gem() -> void:
+	var carat := int(game.crafting.gems.get(Ore.CUT, [0])[0])
+	var why := Forge.sell_gem(game)
+	_note = why if why != "" else Lang.t("Verkauft: %s für %d Kupfer") % [_carat_text(carat), Ore.gem_worth(carat)]
+	if why == "":
+		Events.bus().traded.emit(game.trader_role)
+		Sfx.play_coins(game, Ore.gem_worth(carat))
+	game._update_hud()
+	_rebuild()
+
+
+func _melt_ore(id: String) -> void:
+	var out := Forge.melt_ore(game, id)
+	_note = out.why if out.why != "" else Lang.t("Eingeschmolzen: %s (%d %% Schlacke), %s") % [Crafting.ingredient_name(id), int(out.share.get(Ore.SLAG, 0)), Ore.grams_text(out.grams)]
+	if out.why == "" and not out.bars.is_empty():
+		_note += "  " + Forge.metals_text(out.bars, true)
+	if out.why == "" and not out.gems.is_empty():
+		_note += "  " + Lang.t("+%d ungeschliffene Edelsteine") % out.gems.size()
+	if out.why == "":
+		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
+	game._update_hud()
+	_rebuild()
+
+
+func _melt_coins(coin: String) -> void:
+	var why := Forge.melt_coins(game, coin)
+	_note = why if why != "" else Lang.t("Eingeschmolzen: %d× %s, +1 %s") % [Loot.COINS_PER_BAR, Crafting.ingredient_name(coin), Lang.t(Forge.METALS[Loot.COINS[coin]].name)]
+	if why == "":
+		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
+	game._update_hud()
+	_rebuild()
+
+
+func _sell_bar(metal: String) -> void:
+	var why := Forge.sell_bars(game, metal, 1)
+	_note = why if why != "" else Lang.t("Verkauft: %s für %d Kupfer") % [Lang.t(Forge.METALS[metal].name), int(Forge.METALS[metal].worth)]
+	if why == "":
+		Events.bus().traded.emit(game.trader_role)
+		Sfx.play_coins(game, int(Forge.METALS[metal].worth))
 	game._update_hud()
 	_rebuild()
 
@@ -2188,7 +3121,8 @@ func _buy_iron(count: int) -> void:
 # --- Barber -----------------------------------------------------------------
 
 ## What the barber offers: id, name, price in gold (see HairLook).
-const BARBER_STYLES := [["natural", "Natürlich", 5], ["mohawk", "Irokese", 15], ["bald", "Glatze", 10]]
+const BARBER_STYLES := [["natural", "Natürlich", 5], ["short", "Kurzhaarschnitt", 10], ["spiky", "Stachelkopf", 15],
+		["mohawk", "Irokese", 15], ["bald", "Glatze", 10]]
 const BARBER_COLORS := [["natural", "Naturfarbe", 5], ["black", "Schwarz", 10], ["blond", "Blond", 10],
 		["silver", "Silber", 10], ["red", "Rot", 10], ["green", "Grün", 10], ["blue", "Blau", 10],
 		["pink", "Pink", 10], ["purple", "Lila", 10], ["rainbow", "Regenbogen", 25], ["fire", "Feuer", 30]]
@@ -2214,14 +3148,14 @@ func _build_barber() -> void:
 			[Lang.t("Tätowierung an der rechten Kopfseite (nur auf geschorenem Kopf zu sehen)"), TradeWindow.BLUE],
 			[Lang.t("Wort: %s") % _tattoo_word, Color.WHITE]]}
 	var ink_compare := {"title": Lang.t("Derzeit"), "name": tattoo, "icon": "kind:needle", "subtitle": Lang.t("Tätowierung")}
-	_trade(Lang.t("Dein Gold: %d") % game.coins, [
+	_trade(Lang.t("Dein Kupfer: %d") % game.coins, [
 		{"key": "style", "title": Lang.t("Frisur"), "icon": "kind:scissors", "entries": _barber_entries(BARBER_STYLES, "style")},
 		{"key": "color", "title": Lang.t("Farbe"), "icon": "kind:hair:fire", "entries": _barber_entries(BARBER_COLORS, "color")},
 		{"key": "tattoo", "title": Lang.t("Tätowierung"), "icon": "kind:needle", "extra": _tattoo_editor, "entries": [
-			{"key": "ink", "icon": "kind:needle", "name": Lang.t("Stechen"), "price": Lang.t("%d Gold") % ink,
+			{"key": "ink", "icon": "kind:needle", "name": Lang.t("Stechen"), "price": Lang.t("%d Kupfer") % ink,
 					"price_ok": game.coins >= ink, "button": Lang.t("Stechen"), "action": _ink_tattoo,
 					"enabled": game.coins >= ink, "detail": ink_detail, "compare": ink_compare},
-			{"key": "remove", "icon": "kind:needle", "name": Lang.t("Entfernen"), "price": Lang.t("%d Gold") % remove,
+			{"key": "remove", "icon": "kind:needle", "name": Lang.t("Entfernen"), "price": Lang.t("%d Kupfer") % remove,
 					"price_ok": game.coins >= remove, "button": Lang.t("Entfernen"), "action": _remove_tattoo,
 					"enabled": p.hair.tattoo != "" and game.coins >= remove,
 					"detail": {"subtitle": Lang.t("Tätowierung"), "lines": [[Lang.t("Die Tätowierung ist weg."), TradeWindow.BLUE]]}, "compare": ink_compare},
@@ -2241,7 +3175,7 @@ func _tattoo_editor() -> Control:
 	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	edit.custom_minimum_size = Vector2(220, 44)
 	edit.add_theme_font_override("font", game.TEXT_FONT)
-	edit.add_theme_font_size_override("font_size", 18)
+	edit.add_theme_font_size_override("font_size", UiKit.sized(18))
 	edit.add_theme_stylebox_override("normal", panel_style(Color(0.85, 0.66, 0.32, 0.8)))
 	edit.add_theme_stylebox_override("focus", panel_style(game.GOLD))
 	for style in ["normal", "focus"]:
@@ -2275,7 +3209,7 @@ func _barber_entries(choices: Array, field: String) -> Array:
 		var price: int = game.trader_price(c[2])
 		var line := Lang.t("Sieht man nur ohne Hut.") if field == "style" else Lang.t("Färbt dein Haar.")
 		entries.append({"key": field + ":" + c[0], "icon": "kind:scissors" if field == "style" else "kind:hair:" + String(c[0]), "name": Lang.t(c[1]),
-				"price": Lang.t("%d Gold") % price, "price_ok": game.coins >= price, "action": _restyle.bind(field, c[0], price),
+				"price": Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price, "action": _restyle.bind(field, c[0], price),
 				"enabled": game.coins >= price, "current": current,
 				"detail": {"subtitle": kind, "lines": [[line, TradeWindow.BLUE]]}, "compare": compare})
 	return entries
@@ -2283,7 +3217,7 @@ func _barber_entries(choices: Array, field: String) -> Array:
 
 func _restyle(field: String, id: String, price: int) -> void:
 	if game.coins < price:
-		_note = Lang.t("Dafür reicht dein Gold nicht.")
+		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
 		_rebuild()
 		return
 	game.coins -= price
@@ -2293,7 +3227,7 @@ func _restyle(field: String, id: String, price: int) -> void:
 	game.player.set_hair(look)
 	Sfx.play(game, "coin")
 	_note = Lang.t("Schnipp, schnapp! Steht dir gut.")
-	if field == "style" and id != "natural" and look.tattoo != "":
+	if field == "style" and HairLook.shows_scalp(id) and look.tattoo != "":
 		_note = Lang.t("Schnipp, schnapp! Jetzt sieht man auch deine Tätowierung.")
 	_rebuild()
 
@@ -2309,7 +3243,7 @@ func _ink_tattoo() -> void:
 	if word == "":
 		_note = Lang.t("Sag mir erst, welches Wort ich stechen soll.")
 	elif game.coins < game.trader_price(TATTOO_PRICE):
-		_note = Lang.t("Dafür reicht dein Gold nicht.")
+		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
 	else:
 		game.coins -= game.trader_price(TATTOO_PRICE)
 		Events.bus().traded.emit(game.trader_role)
@@ -2319,14 +3253,14 @@ func _ink_tattoo() -> void:
 		game.player.set_hair(look)
 		Sfx.play(game, "coin")
 		_note = Lang.t("Gestochen: %s") % word
-		if look.style == "natural":
+		if not HairLook.shows_scalp(look.style):
 			_note += " " + Lang.t("Unter deinen Haaren sieht man sie erst, wenn du dir den Kopf scheren lässt.")
 	_rebuild()
 
 
 func _remove_tattoo() -> void:
 	if game.coins < game.trader_price(TATTOO_REMOVE_PRICE):
-		_note = Lang.t("Dafür reicht dein Gold nicht.")
+		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
 	else:
 		game.coins -= game.trader_price(TATTOO_REMOVE_PRICE)
 		var look: Dictionary = game.player.hair.duplicate()
@@ -2340,12 +3274,18 @@ func _remove_tattoo() -> void:
 
 ## Every saved game, one per slot, the one saved last on top. In the middle
 ## of a run it warns first that the run so far is lost. A saved game can be
-## deleted too, after a second click to make sure.
+## deleted too, after a second click to make sure. Opened from the bed right
+## after saving, it says the game was saved instead and lets the player carry on.
 func _build_load() -> void:
-	_add_label(Lang.t("Spielstand laden"), 38, game.GOLD, game.TITLE_FONT)
+	var after_save := saved_now != ""
+	_add_label(Lang.t("Spielstände") if after_save else Lang.t("Spielstand laden"), 38, game.GOLD, game.TITLE_FONT)
 	var saves: Array = game.save_list()
 	var playing: bool = game.state == game.State.PLAYING
-	if saves.is_empty():
+	if saved_now == "ok":
+		_add_label(Lang.t("Spiel gespeichert auf Platz %d.") % game.save_slot, 20, Color(0.6, 1.0, 0.6))
+	elif saved_now == "failed":
+		_add_label(Lang.t("Speichern fehlgeschlagen!"), 20, Color(1.0, 0.5, 0.4))
+	elif saves.is_empty():
 		_add_label(Lang.t("Es gibt noch keinen Spielstand. Gespeichert wird beim Betreten der Zuflucht und in ihrem Bett."), 20)
 	elif playing:
 		_add_label(Lang.t("Was du seitdem erlebt hast, geht verloren."), 20, Color(1.0, 0.75, 0.5))
@@ -2366,7 +3306,7 @@ func _build_load() -> void:
 	if _note != "":
 		_add_label(_note, 16, Color(1.0, 0.75, 0.5))
 		_note = ""
-	var cancel: Button = game._make_button(Lang.t("Abbrechen"), func():
+	var cancel: Button = game._make_button(Lang.t("Weiterspielen") if after_save else Lang.t("Abbrechen"), func():
 		_delete_asked = ""
 		close())
 	cancel.custom_minimum_size = Vector2(220, 60)
@@ -2455,13 +3395,18 @@ func _build_overwrite() -> void:
 	row.add_child(back)
 
 
+## The widest a compendium tab gets, and the gap between tabs.
+const COMPENDIUM_TAB := 240.0
+const COMPENDIUM_TAB_GAP := 10
+
+
 ## Every control on one side, everything the hero has been told on the
 ## other; a second page holds the villagers' tasks (the quest log).
 func _build_compendium() -> void:
 	_add_label(Lang.t("Kompendium"), 38, game.GOLD, game.TITLE_FONT)
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
-	tabs.add_theme_constant_override("separation", 10)
+	tabs.add_theme_constant_override("separation", COMPENDIUM_TAB_GAP)
 	_box.add_child(tabs)
 	var open_tasks := 0
 	for id in Quests.ALL:
@@ -2474,11 +3419,19 @@ func _build_compendium() -> void:
 		tabs_shown.append(["rezepte", Lang.t("Rezeptbuch (%d)") % game.crafting.entries().size()])
 	elif compendium_page == "rezepte":
 		compendium_page = "wissen"
+	# Monster lore gets its page once the first monster has fallen.
+	if not MonsterLore.known_kinds().is_empty():
+		tabs_shown.append(["monster", Lang.t("Monsterkunde")])
+	elif compendium_page == "monster":
+		compendium_page = "wissen"
+	# All tabs share one width, narrower when there are more of them, so the
+	# row never grows past the window.
+	var tab_width := minf(COMPENDIUM_TAB, floorf((WINDOW_SIZES.kompendium.x - COMPENDIUM_TAB_GAP * (tabs_shown.size() - 1)) / tabs_shown.size()))
 	for tab in tabs_shown:
 		var b := _item_button(tab[1], func():
 			compendium_page = tab[0]
 			_rebuild())
-		b.custom_minimum_size = Vector2(240, 44)
+		b.custom_minimum_size = Vector2(tab_width, 44)
 		if compendium_page == tab[0]:
 			b.modulate = Color(1.0, 0.9, 0.6)
 		else:
@@ -2492,6 +3445,9 @@ func _build_compendium() -> void:
 		return
 	if compendium_page == "ruf":
 		_build_reputation_page()
+		return
+	if compendium_page == "monster":
+		_build_monster_lore()
 		return
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 36)
@@ -2650,7 +3606,7 @@ func _build_quest_log() -> void:
 		var text: Label = game._make_label(game.TEXT_FONT, 16)
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text.custom_minimum_size.x = 740
-		text.text = Lang.t(hunt.goal) + "\n" + Lang.t("Belohnung: %s") % (Lang.t("%d Gold") % hunt.gold)
+		text.text = Lang.t(hunt.goal) + "\n" + Lang.t("Belohnung: %s") % (Lang.t("%d Kupfer") % hunt.gold)
 		list.add_child(text)
 	if entries.is_empty() and hunts.is_empty():
 		var none: Label = game._make_label(game.TEXT_FONT, 16)
@@ -2735,6 +3691,60 @@ func quest_hints() -> Array[String]:
 
 ## The villagers' goodwill: everyone the hero has met, with their standing,
 ## how far to the next level, the discount, and the secret recipes learned.
+## The columns of the monster lore table: name, kills, rank, vital hit
+## chance, next rank. Numbers are right-aligned so they line up.
+const LORE_COLUMNS := [220, 80, 130, 110, 160]
+
+
+## Monster lore: every kind of monster the hero has slain, with how many,
+## the rank of knowledge, the chance of a vital hit and the kills to the
+## next rank (see MonsterLore). A fixed region that scrolls.
+func _build_monster_lore() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(760, 420)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 12)
+	scroll.add_child(list)
+	var intro: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intro.custom_minimum_size.x = 740
+	intro.text = Lang.t("Je mehr Monster einer Art du besiegst, desto öfter triffst du eine Schwachstelle (höchstens 50 %). Ein Treffer in die Schwachstelle macht doppelt so viel wie dein härtester Schlag und lässt das Monster manchmal bluten oder für den Rest des Kampfes langsamer angreifen.")
+	list.add_child(intro)
+	var grid := GridContainer.new()
+	grid.columns = LORE_COLUMNS.size()
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 6)
+	list.add_child(grid)
+	var heads := [Lang.t("Monster"), Lang.t("Besiegt"), Lang.t("Stufe"), Lang.t("Schwachstelle"), Lang.t("Nächste Stufe")]
+	for i in heads.size():
+		grid.add_child(_lore_cell(heads[i], i, game.GOLD))
+	for kind in MonsterLore.known_kinds():
+		var rank := MonsterLore.rank_of(kind)
+		var next := MonsterLore.kills_to_next(kind)
+		var chance := roundi(MonsterLore.vital_chance(kind) * 100.0)
+		grid.add_child(_lore_cell(Lang.t(MonsterLore.monster_name(kind)), 0, Color.WHITE))
+		grid.add_child(_lore_cell(str(MonsterLore.kill_count(kind)), 1, Color.WHITE))
+		grid.add_child(_lore_cell(Lang.t(MonsterLore.rank_name(rank)), 2, MonsterLore.VITAL_COLOR if rank > 0 else Color(0.75, 0.72, 0.68)))
+		grid.add_child(_lore_cell("%d %%" % chance, 3, MonsterLore.VITAL_COLOR if chance > 0 else Color(0.75, 0.72, 0.68)))
+		var to_next := Lang.t("noch %d bis %s") % [next, Lang.t(MonsterLore.rank_name(rank + 1))] if next > 0 else Lang.t("Höchste Stufe")
+		grid.add_child(_lore_cell(to_next, 4, Color(0.75, 0.72, 0.68)))
+
+
+## One cell of the monster lore table: fixed width, long text shortened.
+func _lore_cell(text: String, column: int, color: Color) -> Label:
+	var l: Label = game._make_label(game.TEXT_FONT, 16, color)
+	l.text = text
+	l.custom_minimum_size.x = LORE_COLUMNS[column]
+	l.clip_text = true
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	if column in [1, 3]:
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	return l
+
+
 func _build_reputation_page() -> void:
 	var rep: Reputation = game.reputation
 	var scroll := ScrollContainer.new()
@@ -2807,20 +3817,24 @@ func _villager_about(role: String) -> String:
 
 
 func _build_quit() -> void:
-	_add_label(Lang.t("Spiel beenden"), 38, game.GOLD, game.TITLE_FONT)
-	_add_label(Lang.t("Was seit dem letzten Schlaf im Bett geschah, geht verloren."), 20, Color(1.0, 0.75, 0.5))
+	_add_label(Lang.t("Pause"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Die Welt steht still, bis du weiterspielst."), 20)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
 	_box.add_child(row)
-	var quit: Button = game._make_button(Lang.t("Beenden"), func():
+	# Going on is the main way out of a pause, so it comes first; Esc does
+	# the same.
+	var resume: Button = game._make_button(Lang.t("Weiterspielen"), close)
+	resume.custom_minimum_size = Vector2(220, 60)
+	row.add_child(resume)
+	var quit: Button = game._make_button(Lang.t("Spiel beenden"), func():
 		close()
 		game.quit_game())
 	quit.custom_minimum_size = Vector2(220, 60)
 	row.add_child(quit)
-	var cancel: Button = game._make_button(Lang.t("Abbrechen"), close)
-	cancel.custom_minimum_size = Vector2(220, 60)
-	row.add_child(cancel)
+	# What quitting costs sits right under the buttons.
+	_add_label(Lang.t("Was seit dem letzten Schlaf im Bett geschah, geht verloren."), 16, Color(1.0, 0.75, 0.5))
 
 
 ## The dragon has fallen: the lair is won. Says so, counts the fallen
@@ -2828,7 +3842,7 @@ func _build_quit() -> void:
 func _build_lair_won() -> void:
 	_add_label(Lang.t("Höhle bezwungen!"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Der Drache ist tot, und sein Schatz gehört dir."), 22)
-	# A fallen monster sinks away and is gone: only the living still count.
+	# A fallen monster may already have rotted away: only the living still count.
 	var monsters: Array = game.level.enemies
 	var fallen := monsters.filter(func(e): return not is_instance_valid(e) or e.dead).size()
 	_add_label(Lang.t("Besiegte Monster: %d von %d") % [fallen, monsters.size()], 20, BLUE)
@@ -2849,7 +3863,63 @@ func _build_lair_won() -> void:
 	row.add_child(stay)
 
 
+## The spoils of the won lair (see DragonLair.spoils): gold, bars,
+## ingredients and gear, each with its picture, in a list of fixed size
+## that scrolls when it is long, so the window keeps one size.
+const SPOILS_LIST := Vector2(660, 252)
+const SPOILS_CELL := 318
+
+
+func _build_spoils() -> void:
+	var s: Dictionary = game.lair_spoils
+	_add_label(Lang.t("Glutschlunds Hort"), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Das hast du aus der Drachenhöhle getragen:"), 20)
+	var entries := []
+	if int(s.get("gold", 0)) > 0:
+		entries.append(["kind:coin", Lang.t("%d Kupfer") % int(s.gold), game.GOLD])
+	var bars: Dictionary = s.get("bars", {})
+	for metal in Forge.METALS:
+		if int(bars.get(metal, 0)) > 0:
+			var icon: String = "kind:iron" if metal == "eisen" else ("kind:ore" if metal == "mondsilbererz" else "kind:bar_" + metal)
+			entries.append([icon, "%d× %s" % [int(bars[metal]), Lang.t(Forge.METALS[metal].name)], Forge.METALS[metal].color])
+	var found: Dictionary = s.get("ingredients", {})
+	for id in found:
+		entries.append([id, "%d× %s" % [int(found[id]), Crafting.ingredient_name(id)], Rarity.color(id)])
+	var items: Dictionary = s.get("items", {})
+	for id in items:
+		var label: String = Items.item_name(id) if int(items[id]) == 1 else "%d× %s" % [int(items[id]), Items.item_name(id)]
+		entries.append([id, label, Rarity.color(id)])
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = SPOILS_LIST
+	scroll.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(scroll)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 24)
+	grid.add_theme_constant_override("v_separation", 6)
+	scroll.add_child(grid)
+	if entries.is_empty():
+		var none := _add_label(Lang.t("Nichts. Der Drache ist tot, aber sein Gold liegt noch unten."), 18, BLUE)
+		none.reparent(grid)
+	for e in entries:
+		var row := HBoxContainer.new()
+		row.custom_minimum_size.x = SPOILS_CELL
+		row.add_theme_constant_override("separation", 10)
+		row.add_child(ItemIcon.make(e[0], 40.0))
+		var l: Label = game._make_label(game.TEXT_FONT, 18, e[2])
+		l.text = e[1]
+		l.clip_text = true
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(l)
+		grid.add_child(row)
+	_add_label(Lang.t("Aus Drachenschuppe, Drachenblut und Glutherz machst du am Feinschmiedetisch Drachenschmuck."), 16, Color(1.0, 0.85, 0.55))
+
+
 func _build_bed() -> void:
+	rest_window = "bett"
 	_add_label(Lang.t("Ein weiches Bett"), 38, game.GOLD, game.TITLE_FONT)
 	if game.level.inn:
 		# An inn on the way: rest till morning and carry on, or log out here.
@@ -2881,12 +3951,71 @@ func _build_bed() -> void:
 		game.sleep())
 	sleep.custom_minimum_size = Vector2(300, 60)
 	row.add_child(sleep)
-	var cancel: Button = game._make_button(Lang.t("Weiter wach bleiben"), close)
-	cancel.custom_minimum_size = Vector2(260, 60)
-	row.add_child(cancel)
+	# Staying up saves the game here as well and shows the saved games, so
+	# the player sees it went through and can keep playing straight away.
+	var awake: Button = game._make_button(Lang.t("Wach bleiben und speichern"), game.stay_awake)
+	awake.custom_minimum_size = Vector2(300, 60)
+	row.add_child(awake)
+
+
+## The camp's window (see Camp): sleep by the fire and log out, or stay
+## awake and save, laid out like the bed's.
+func _build_camp() -> void:
+	rest_window = "nachtlager"
+	_add_label(Lang.t("Dein Lager"), 38, game.GOLD, game.TITLE_FONT)
+	if Camp.can_rest(game.level):
+		# Down in the dungeon: rest a while by the fire and carry on, at the
+		# risk of an ambush, laid out like the inn's rest till morning.
+		_add_label(Lang.t("Ruh dich am Feuer aus: Danach hast du volles Leben, und dein Spiel ist gespeichert.\nAuch nach einer Ohnmacht wachst du dann an diesem Lager auf."), 20)
+		_add_label(camp_risk_text(), 20, Color(1.0, 0.75, 0.5))
+		var rest: Button = game._make_button(Lang.t("Am Feuer ausruhen"), func():
+			close()
+			game.rest_at_camp())
+		rest.custom_minimum_size = Vector2(300, 60)
+		rest.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_box.add_child(rest)
+	_add_label(Lang.t("Das Feuer knistert, die Schlafrolle liegt bereit. Schlaf hier und logg dich aus:\nBeim nächsten Mal wachst du an diesem Lager auf. Gehst du weg, packst du es wieder ein."), 20)
+	_add_label(Lang.t("Solange du weg bist, lebt dein Held nach seinem Tagesplan:"), 20, BLUE)
+	_add_label(_plan_summary(), 16, game.GOLD)
+	var plan_button: Button = game._make_button(Lang.t("Tagesplan ändern"), open.bind("plan"))
+	plan_button.custom_minimum_size = Vector2(300, 56)
+	plan_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(plan_button)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	_box.add_child(row)
+	var sleep: Button = game._make_button(Lang.t("Schlafen und ausloggen"), func():
+		close()
+		game.sleep(true))
+	sleep.custom_minimum_size = Vector2(300, 60)
+	row.add_child(sleep)
+	var awake: Button = game._make_button(Lang.t("Wach bleiben und speichern"), game.stay_awake)
+	awake.custom_minimum_size = Vector2(300, 60)
+	row.add_child(awake)
+
+
+## The camp window's line on the danger of resting by the fire: the chance
+## of an ambush, and who keeps watch (see Camp.GUARDS).
+func camp_risk_text() -> String:
+	var guard: String = game.camp_guard()
+	var chance := Camp.ambush_chance(game.level, guard)
+	var percent := roundi(chance * 100.0)
+	if Camp.ambush_kinds(game.level).is_empty():
+		return Lang.t("Hier ist es ruhig: Kein Ungeheuer wird dich stören.")
+	if guard == "":
+		return Lang.t("Gefahr eines Hinterhalts: %d %%. Ein Gefährte an deiner Seite würde Wache halten.") % percent
+	var who: String = game.companion().get("name", Companions.species_name(guard))
+	if percent <= 0:
+		return Lang.t("%s hält Wache: Kein Ungeheuer wagt sich heran.") % who
+	return Lang.t("%s hält Wache: Gefahr eines Hinterhalts nur %d %%.") % [who, percent]
 
 
 # --- Time away (see Offline) ------------------------------------------------
+
+## The window the day plan was opened from, and goes back to: the bed
+## ("bett") or the camp ("nachtlager").
+var rest_window := "bett"
 
 ## The blocks of the day plan, as shown: block, heading.
 const PLAN_ROWS := [["job", "Arbeit"], ["train", "Training"], ["study", "Lernen"], ["craft", "Handwerk"], ["rest", "Ruhe"]]
@@ -2911,7 +4040,7 @@ func _choice_name(block: String, id: String) -> String:
 		return Lang.t("nichts")
 	match block:
 		"job":
-			return Lang.t("%s (%d Gold/Std.)") % [Lang.t(Offline.JOBS[id].name), Offline.JOBS[id].gold]
+			return Lang.t("%s (%d Kupfer/Std.)") % [Lang.t(Offline.JOBS[id].name), Offline.JOBS[id].gold]
 		"train":
 			return game._training_name(id)
 		"study":
@@ -2970,12 +4099,13 @@ func _build_plan() -> void:
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 12)
 	_box.add_child(buttons)
+	var at_camp := rest_window == "nachtlager"
 	var sleep: Button = game._make_button(Lang.t("Schlafen und ausloggen"), func():
 		close()
-		game.sleep())
+		game.sleep(at_camp))
 	sleep.custom_minimum_size = Vector2(300, 60)
 	buttons.add_child(sleep)
-	var back: Button = game._make_button(Lang.t("Zurück"), open.bind("bett"))
+	var back: Button = game._make_button(Lang.t("Zurück"), open.bind(rest_window))
 	back.custom_minimum_size = Vector2(200, 60)
 	buttons.add_child(back)
 

@@ -13,9 +13,9 @@ var audit := OS.get_environment("AUDIT") != ""
 var shots := OS.get_environment("SHOTS")
 
 const KINDS := ["inventar", "lager", "bank", "barbier", "steinmetz", "ausbau", "hauswerkbank",
-	"trophaeen", "aushang", "schmied", "werkbank", "tresor", "haendler", "wanderhaendler", "bett",
+	"trophaeen", "aushang", "schmied", "werkbank", "tresor", "haendler", "wanderhaendler", "bett", "nachtlager",
 	"laden", "kompendium", "charakter", "beenden", "plan", "rueckkehr", "hoehle", "karte", "kampfstil", "wunsch",
-	"gefaehrten", "gefaehrte_name", "auftraege"]
+	"gefaehrten", "gefaehrte_name", "auftraege", "beute"]
 
 
 func check(ok: bool, what: String) -> void:
@@ -56,7 +56,7 @@ func _fill() -> void:
 	game.coins = 99999
 	p.bag.clear()
 	p.equipped.clear()
-	p.equipped["rucksack"] = "grosser_rucksack"
+	p.equipped["rucksack"] = "reiserucksack"
 	for slot in Items.SLOTS:
 		if p.equipped.has(slot):
 			continue
@@ -83,6 +83,15 @@ func _fill() -> void:
 	game.companions = Companions.ORDER.map(func(k): return Companions.make(k, "Wwwwwwwwwwwwwwwwww"))
 	game.following = 0
 	game.wishes.style = "schleichen"
+	# The spoils of a rich visit to the dragon's lair: every metal, every
+	# ingredient and a pile of gear (see DragonLair.spoils).
+	var gear := {}
+	for id in Items.ALL.keys().slice(0, 12):
+		gear[id] = 2
+	var parts := {}
+	for ingredient in Crafting.INGREDIENTS:
+		parts[ingredient] = 3
+	game.lair_spoils = {"gold": 12345, "bars": {"eisen": 9, "bronze": 4, "silber": 3, "gold": 2}, "ingredients": parts, "items": gear}
 
 
 func _test() -> void:
@@ -123,7 +132,7 @@ func _check_window(kind: String, where: String) -> void:
 		menus._show_inventory_tab("beutel")
 		await _check_rect("inventar/beutel", where)
 		check(menus._panel.size == bag_size, "the pouch tab keeps the inventory's size (%s): %s, bag %s" % [where, menus._panel.size, bag_size])
-		check(_has_text(menus._box, Crafting.ingredient_name("baerlauch") + "\n× 7"), "the pouch tab lists the wild garlic (%s)" % where)
+		check(_has_text(menus._box, Crafting.ingredient_name("baerlauch") + "  × 7"), "the pouch tab lists the wild garlic (%s)" % where)
 	elif kind == "karte":
 		for page in ["karte", "tagebuch"]:
 			menus.map_page = page
@@ -140,7 +149,7 @@ func _check_window(kind: String, where: String) -> void:
 
 
 func _has_text(node: Node, text: String) -> bool:
-	if (node is Label or node is Button) and node.text.contains(text):
+	if (node is Label or node is Button) and (node.text.contains(text) or (node is Button and node.tooltip_text.contains(text))):
 		return true
 	for child in node.get_children():
 		if _has_text(child, text):

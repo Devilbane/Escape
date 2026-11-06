@@ -2,7 +2,7 @@ extends RefCounted
 ## English texts: The compact trading window (see TradeWindow). Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
-	"%d Eisen, %d Gold": "%d iron, %d gold",
+	"%d Eisen, %d Kupfer": "%d iron, %d copper",
 	"%d Eisenbarren": "%d iron bars",
 	"%d Steinblöcke": "%d stone blocks",
 	"+%d Eisen": "+%d iron",
@@ -76,12 +76,12 @@ const EN := {
 	"Tasche: %d / %d": "Bag: %d / %d",
 	"Vergleich": "Comparison",
 	"Von weit her: %s": "From afar: %s",
-	"Dafür reicht dein Gold nicht.": "You don't have enough gold for that.",
+	"Dafür reicht dein Kupfer nicht.": "You don't have enough copper for that.",
 	"Gekauft: %s (%s)": "Bought: %s (%s)",
-	"Verkauft: %s für %d Gold": "Sold: %s for %d gold",
+	"Verkauft: %s für %d Kupfer": "Sold: %s for %d copper",
 	"Ein weiches Bett": "A soft bed",
 	"Hier kannst du dich ausruhen. Dein Spiel wird gespeichert\nund du loggst dich aus. Später geht es genau hier weiter.":
 		"You can rest here. Your game is saved\nand you log out. Later you carry on right here.",
 	"Schlafen und ausloggen": "Sleep and log out",
-	"Weiter wach bleiben": "Stay awake",
+	"Wach bleiben und speichern": "Stay awake and save",
 }

@@ -17,7 +17,7 @@ extends Level
 ##   Buildings, each a rectangular block of the same letter:
 ##   h  house (half-timbered, see VillageHouse)   j  smithy   n  tavern   m  market   u  windmill
 ##   y  pumpkin field
-##   ^  Weavers' Lane: a row of narrow three-storey town houses, one per
+##   ^  Weavers' Lane: a row of narrow two-storey town houses, one per
 ##      tile across the front (see VillageHouse.build_narrow), numbered from
 ##      west to east. Every one is a home for a hero (see Homes), entered by
 ##      its own door; inside, all of them share the building floor with the
@@ -44,7 +44,9 @@ extends Level
 ##   The world has weather too (see Weather): rain brings slimes out of the
 ##   pond, fog sends fog wraiths drifting among the dead trees (d) and hides
 ##   a sneaking hero, and in a thunderstorm bats swarm around the rocks (r)
-##   while lightning leaves glowing thunder ore beside them.
+##   while lightning leaves glowing thunder ore beside them. Rain leaves
+##   puddles on the grass, the paths and the square that splash underfoot
+##   and dry up a while after it (see Puddles).
 ##   The wolf hollow north of the pass, where beasts roam and come back the
 ##   same way: W wolf, H orc, J yeti, U spider.   ;  the hollow's pond,
 ##   where the moon trout bites at night (see Fishing).
@@ -67,6 +69,11 @@ extends Level
 ##   @  the wandering merchant's pitch: an empty patch of grass, but on his
 ##      nights (see Wanderer) Zarek stands here from nightfall to dawn,
 ##      with his covered cart on the tile north of him.
+##   ?  plain grass, where a chest lies buried; a treasure map from a
+##      bottle marks it (see TreasureMaps)
+##   >  a boulder at the forest's edge with a hidden cave beneath it; a
+##      treasure map from a bottle tells of it, and then it rolls aside
+##      (see TreasureMaps), down to the floor "building: grotte"
 
 ## A notice for the message line, e.g. when the house is handed over.
 signal notice(text: String, duration: float)
@@ -84,11 +91,11 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@'{}-/"
+const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@'{}-/?"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
-const BLOCK_CHARS := "RhjnmuskowbE^[]"
+const BLOCK_CHARS := "RhjnmuskowbE^[])"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
 	"m": "building_market_green", "u": "building_windmill_red",
@@ -99,7 +106,7 @@ const BLOCK_MODELS := {
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
 	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
-	"E": "die Drachenhöhle", "[": "die Bergschenke",
+	"E": "die Drachenhöhle", "[": "die Bergschenke", ")": "den Hort des Großen Alten",
 }
 ## The mine entrances in the mountains (see "]" and Mines), west to east:
 ## the floor of mine n has the line "building: mine<n>".
@@ -152,18 +159,19 @@ const CHAPEL_FOOT_MID := 3.0
 ## Where the bricks sit on the kit's trim sheet (v from top to bottom of four
 ## rows of bricks).
 const GABLE_BRICK_V := Vector2(0.6, 0.92)
+## The candlelight behind the temple's stained glass at night: dimmer than
+## the houses' windows, so the colours glow softly instead of burning white.
+const CHAPEL_GLASS_LIGHT := Color(0.42, 0.37, 0.3)
 
 const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
 ## The elder calls the hero over from this far (metres).
 const GREET_RANGE := 11.0
-## Bandits: how likely each piece of gear is on them, how likely a worn
-## piece drops when they fall, and the gold in their purse. The chief has
+## Bandits: how likely each piece of gear is on them (what they drop when
+## they fall goes by Loot's odds, see Level.drop_kill_loot). The chief has
 ## more of everything.
 const BANDIT_GEAR_CHANCE := 0.45
-const BANDIT_DROP_CHANCE := 0.35
 const CHIEF_GEAR_CHANCE := 0.6
-const CHIEF_DROP_CHANCE := 0.5
 ## Seconds after a bandit falls until another takes its place, and how far
 ## away the hero must be for that to happen out of sight.
 const BANDIT_RESPAWN := 150.0
@@ -206,15 +214,22 @@ var met := {}
 ## Where the hero wakes up in the house: next to the bed.
 var home_spot := Vector3.ZERO
 ## Fronts of the village buildings: where villagers walk to.
-var spots := {"houses": [], "square": [], "well": []}
+var spots := {"houses": [], "square": [], "well": [], "market": []}
+## The village houses' chimneys: each house's door spot (as in spots.houses)
+## and the plume of smoke over its roof (see ChimneySmoke).
+var chimneys: Array[Dictionary] = []
 ## The narrow town houses of Weavers' Lane, by number - 1 (see _build_terrace).
 var town_houses: Array[Node3D] = []
+## The windmills (see "u" and Windmill), whose sails turn in the wind.
+var windmills: Array[Windmill] = []
 
 var _plants := {}
 var _house_rect := Rect2i()
 var _door_cell := Vector2i(-1, -1)
 var _roof: Node3D
-var _south_walls: Array = []
+## The south walls of the house: full height, but see-through in front of
+## the hero while the hero is inside (see WallFade).
+var _house_fade := WallFade.new()
 var _inside := false
 var _entered_once := false
 var _marker: Node3D
@@ -227,6 +242,13 @@ var _aabbs := {}
 var interiors := {}
 ## Where each building's door is, by building letter.
 var doors := {}
+## The treasure maps' state (see TreasureMaps): the game hands in its own,
+## so a map read while the hero is out here shows at once.
+var treasure := {}
+## The tiles of the treasure spots, by map id, and what is built there
+## (see TreasureMaps.build).
+var treasure_cells := {}
+var treasure_parts := {}
 var _herald: Node3D
 var _herald_timer := randf_range(HERALD_FIRST_MIN, HERALD_FIRST_MAX)
 ## The bandits' spots: cell, kind, the bandit standing there (or null while
@@ -257,6 +279,8 @@ var _lamps: Array[OmniLight3D] = []
 var _fires: Array[Vector3] = []
 var _candles: Array[MeshInstance3D] = []
 var _candle_mat: StandardMaterial3D
+## The glass of the street lamps' lanterns, glowing at night.
+var _pane_mat: StandardMaterial3D
 ## Where the window panes of the village houses sit in the kit's palette
 ## texture: one small patch colours every pane. A mask over that patch lets
 ## the windows glow without touching walls or roofs.
@@ -266,6 +290,65 @@ const WINDOW_GLOW := 2.6
 ## The kit's material -> its copy with glowing windows.
 var _window_mats := {}
 var _window_mask: ImageTexture
+## The old stone look (see AgedStone): the leaves of all the ivy, the nests
+## on the roofs, the doors (and the way they look out) that get a paved way,
+## and the ground's mask, which those ways are painted into.
+var _ivy := {"xforms": [], "colours": []}
+var nests: Array[Vector3] = []
+var birds: VillageBirds
+## The dragon that now and then flies over, seen only as its shadow.
+var flyover: DragonFlyover
+var _entrances: Array = []
+var _ground_img: Image
+var _ground_tex: ImageTexture
+var _village_near := {}
+## What the dressing found for each building (see _dress_building), kept
+## for the session.
+static var _dressed := {}
+## Nests at most, and how likely one of Weavers' Lane's town houses gets ivy
+## and a nest (the other buildings all have ivy, and most of them a nest).
+const MAX_NESTS := 10
+const LANE_NEST := 0.15
+## Ivy patches on each town house of Weavers' Lane (narrow, many of them).
+const LANE_PATCHES := 2
+## Dirt paths this close to a village building (tiles) are cobbled like the
+## square, and shrubs grow on the grass beside the buildings.
+const VILLAGE_REACH := 6
+const VILLAGE_BLOCKS := "hjnmuskowb^["
+const BUSH_CHANCE := 0.8
+const BUSH_OPEN := 0.3
+## The graveyard (see _age_graveyard): ivy patches on the crypt, how much of
+## the fence has ivy on its low wall, how many graves have a grave light (a
+## small lantern with a candle, lit at night), and where the light stands.
+const CRYPT_IVY := 6
+## A building with no paving of the square (":") this many tiles round its
+## block stands on its own, out of the village's busy middle: old ivy grows
+## all over it, up to and on to its roof (see AgedStone.grow_ivy).
+const SQUARE_GAP := 2
+const FENCE_IVY := 0.3
+const GRAVE_LIGHTS := 0.35
+const GRAVE_LIGHT_AT := Vector3(1.25, 0, -0.35)
+## Where the grave light's panes sit on the Halloween kit's palette (UV).
+const GRAVE_PANES := Rect2(0.25, 0.75, 0.125, 0.25)
+var _grave_glow: ImageTexture
+## The paved ways to the doors: how wide (in quarter tiles, the ground
+## mask's pixels) and how far they look for the square or a path (tiles).
+const WAY_WIDTH := 1.4
+## The graveyard's path is wider: it covers the whole dirt path.
+const GRAVE_WAY_WIDTH := 2.2
+## Wide entrances (the caves and the mines) get a paved forecourt as wide
+## as the entrance, reaching out to the path that arrives there (see
+## _pave_forecourts): how far it looks for that path (tiles), how far the
+## arriving path is paved on from it (tiles), and how much narrower than
+## the entrance's block the forecourt is (metres).
+const FORECOURT_REACH := 3
+const FORECOURT_PATH := 1
+const FORECOURT_MARGIN := 1.0
+## The wide entrances, each {"block", "front"}, for _pave_forecourts.
+var _forecourts: Array[Dictionary] = []
+## The grey of the boulders fallen from the lair's mountain.
+const LAIR_BOULDER := Color(0.5, 0.48, 0.45)
+const WAY_SEARCH := 14
 ## The hour the world was last lit for, and whether it is night.
 var hour := -1.0
 var night := false
@@ -274,7 +357,7 @@ var night := false
 ## night, and sink back into the earth at dawn. They never rise within
 ## sight of the hero.
 const NIGHT_DEAD := 5
-const NIGHT_DEAD_KINDS := ["krieger", "wicht", "krieger", "schuetze", "wicht"]
+const NIGHT_DEAD_KINDS := ["krieger", "schuetze", "wicht", "krieger", "schuetze"]
 const NIGHT_DEAD_RESPAWN := 90.0
 const NIGHT_DEAD_FAR := 14.0
 ## At night fallen bandits are replaced this much sooner.
@@ -317,6 +400,10 @@ const ORE_NOTICE_RANGE := 36.0
 ## The weather's creatures on their spots: cell, kind, the creature (or
 ## null while it is gone) and the seconds until the next one comes.
 var _weather_foes: Array = []
+## The rain puddles on the open ground (see Puddles).
+var puddles: Puddles
+## The bounds of the square and the graveyard fence, found once (see ground_at).
+var _ground_rects := {}
 var _strike_timer := 0.0
 var _rock_cells: Array[Vector2i] = []
 ## Where the mountain over the dragon's lair stands (the foot of the arch),
@@ -356,19 +443,45 @@ func build() -> void:
 			var c := Vector2i(x, y)
 			_build_outdoor_cell(c, cell_char(c))
 	_build_blocks()
+	_pave_entrances()
+	_plant_bushes()
+	if not _ivy.xforms.is_empty():
+		add_child(AgedStone.ivy_node(_ivy))
+	if not nests.is_empty():
+		var pecking: Array[Vector3] = []
+		pecking.assign(spots.square)
+		var market: Array[Vector3] = []
+		market.assign(spots.market)
+		birds = VillageBirds.new(self, nests, pecking, market, hash(level_name + "voegel"))
+		add_child(birds)
 	Mountains.build(self, hash(level_name + "berge"))
 	_build_forest()
 	_build_house()
 	_build_wall_collision()
 	_build_rock_collision()
 	_setup_astar()
+	if birds:
+		# Not where the fountain, a bench or a stall stands.
+		var free: Array[Vector3] = []
+		free.assign(birds.market.filter(func(m: Vector3): return is_open(world_to_cell(m))))
+		birds.market = free
 	_flush_plants()
+	# Leaves, twigs, rubble and little crawling creatures on the ground.
+	add_child(SurfaceLife.new(self))
+	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
+	add_child(puddles)
 	var floor_shape := CollisionShape3D.new()
 	floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(floor_shape)
 	_spawn_villagers()
 	_spawn_wild()
 	_spawn_animals()
+	# The old dragon's little helpers, who gather the loot at night.
+	if doors.has("E"):
+		add_child(DragonHelpers.new(self, doors.E))
+	# Now and then the dragon's shadow sweeps over the land (see DragonFlyover).
+	flyover = DragonFlyover.new(self, _lair_mountain_at)
+	add_child(flyover)
 	for y in height:
 		for x in width:
 			if cell_char(Vector2i(x, y)) == "r":
@@ -402,12 +515,18 @@ func _build_ground() -> void:
 	# A smoother mask gives softer edges between the tiles.
 	mask.resize(width * 4, height * 4, Image.INTERPOLATE_BILINEAR)
 	stones.resize(width * 4, height * 4, Image.INTERPOLATE_BILINEAR)
+	_ground_img = mask
+	_ground_tex = ImageTexture.create_from_image(mask)
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/meadow.gdshader")
-	mat.set_shader_parameter("ground_mask", ImageTexture.create_from_image(mask))
+	mat.set_shader_parameter("ground_mask", _ground_tex)
 	mat.set_shader_parameter("stone_mask", ImageTexture.create_from_image(stones))
 	mat.set_shader_parameter("grid_size", Vector2(width, height))
 	mat.set_shader_parameter("tile", TILE)
+	# The graveyard's paving is older than the village's (see _pave_graveyard).
+	if fence.size != Vector2i.ZERO:
+		mat.set_shader_parameter("old_paving", Vector4((fence.position.x - 0.5) * TILE, (fence.position.y - 0.5) * TILE,
+				(fence.end.x - 0.5) * TILE, (fence.end.y - 0.5) * TILE))
 	var margin := 10
 	var size := GROUND_CHUNK * TILE
 	for cy in range(-margin, height + margin, GROUND_CHUNK):
@@ -453,9 +572,14 @@ func _put(name: String, pos: Vector3, rot := 0.0, s := 1.0, parent: Node = self)
 	node.position = pos
 	node.rotation.y = rot
 	node.scale = Vector3.ONE * s
-	if name.begins_with("tree"):
+	if name.begins_with("tree") and not WeatheredProps.MODELS.has(name):
 		for mi in node.find_children("*", "MeshInstance3D", true, false):
 			mi.material_override = _tree_material(mi.get_active_material(0), not name.ends_with("_cut"))
+	# The old props (barrels, crates, lumber, stone heaps, pumpkins, tents)
+	# weathered to match the aged stone (see WeatheredProps).
+	WeatheredProps.weather_model(node, name)
+	# Flags flutter in the wind (see FlagWind).
+	FlagWind.attach(node, name, self)
 	parent.add_child(node)
 	return node
 
@@ -476,29 +600,39 @@ func _tree_material(mat: Material, wind := true) -> Material:
 	return _scenes[key]
 
 
-## Many copies of one model (trees) are drawn together in one go.
+## Many copies of one model (trees) are drawn together in one go, one batch
+## per GROUND_CHUNK patch of the map. The renderer lights each batch with at
+## most a handful of lights (rendering/limits/opengl/max_lights_per_object),
+## so one batch for every tree of a kind on the whole map left nearly all of
+## them blind to the lanterns, fires and torches near them.
 func _plant(name: String, pos: Vector3, rot: float, s: float) -> void:
-	if not _plants.has(name):
-		_plants[name] = []
-	_plants[name].append(Transform3D(Basis(Vector3.UP, rot).scaled(Vector3.ONE * s), pos))
+	var patch := Vector2i(floori(pos.x / (GROUND_CHUNK * TILE)), floori(pos.z / (GROUND_CHUNK * TILE)))
+	var key := [name, patch]
+	if not _plants.has(key):
+		_plants[key] = []
+	_plants[key].append(Transform3D(Basis(Vector3.UP, rot).scaled(Vector3.ONE * s), pos))
 
 
 func _flush_plants() -> void:
-	for name in _plants:
-		var scene: Node3D = load(_model_path(name)).instantiate()
-		for part in _meshes_of(scene, Transform3D()):
+	var parts := {}
+	for key in _plants:
+		var name: String = key[0]
+		if not parts.has(name):
+			var scene: Node3D = load(_model_path(name)).instantiate()
+			parts[name] = _meshes_of(scene, Transform3D())
+			scene.free()
+		for part in parts[name]:
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
 			mm.mesh = part[0]
-			mm.instance_count = _plants[name].size()
+			mm.instance_count = _plants[key].size()
 			for i in mm.instance_count:
-				mm.set_instance_transform(i, _plants[name][i] * part[1])
+				mm.set_instance_transform(i, _plants[key][i] * part[1])
 			var mmi := MultiMeshInstance3D.new()
 			mmi.multimesh = mm
 			if name.begins_with("tree"):
 				mmi.material_override = _tree_material((part[0] as Mesh).surface_get_material(0))
 			add_child(mmi)
-		scene.free()
 
 
 ## Every mesh in a model, with where it sits inside the model.
@@ -544,9 +678,11 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_wanderer_cell = c
 		"g":
 			var grave: String = GRAVES[_rng.randi() % GRAVES.size()]
-			_put(grave, pos + Vector3(0, 0, -0.6) + _jitter(0.3), _rng.randf_range(-0.15, 0.15))
+			var stone := _put(grave, pos + Vector3(0, 0, -0.6) + _jitter(0.3), _rng.randf_range(-0.15, 0.15))
+			_age_graveyard(stone, true, absi(hash(c)) % AgedStone.GRAVE_TINTS.size())
 			_graves.append(c)
 			_add_solid(pos + Vector3(0, 0, -0.6), Vector3(2.0, 1.6, 1.0))
+			_grave_light(c, pos)
 		"d":
 			var tree: String = ["tree_dead_large", "tree_dead_medium", "tree_dead_small"][_rng.randi() % 3]
 			_put(tree, pos + _jitter(0.5), _rng.randf() * TAU, _rng.randf_range(1.1, 1.4))
@@ -560,8 +696,9 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_lantern(pos)
 		"r":
 			var rock: String = ["rock_single_A", "rock_single_C", "rock_single_E"][_rng.randi() % 3]
-			_put(rock, pos + _jitter(0.4), _rng.randf() * TAU, _rng.randf_range(7.0, 9.0))
-			_add_solid(pos, Vector3(2.8, 1.6, 2.8))
+			# Blocked where the boulder is drawn: some reach well past the
+			# middle of their tile, and the hero must not squeeze in between.
+			_add_turned_solid(_put(rock, pos + _jitter(0.4), _rng.randf() * TAU, _rng.randf_range(7.0, 9.0)), 1.6)
 		"T":
 			_build_tree(pos, true)
 			_add_solid(pos, Vector3(1.8, 4, 1.8))
@@ -584,6 +721,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_fence(c, true)
 		"(":
 			_build_hole(c)
+		"?", ">":
+			TreasureMaps.place(self, c, ch)
 		"~", ";":
 			_add_solid(pos, Vector3(TILE, 1, TILE))
 			fishing_waters.append({"water": "teich" if ch == "~" else "senke", "pos": pos,
@@ -597,6 +736,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_add_solid(pos, Vector3(TILE * 0.9, 1, TILE * 0.9))
 		":":
 			spots.square.append(pos)
+			spots.market.append(pos)
 		"F":
 			_build_fountain(c)
 			spots.well.append(pos + Vector3(0, 0, 2.6))
@@ -615,7 +755,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			# The robbers' hoard: richer than a chest in the dungeon.
 			var loot_rng := RandomNumberGenerator.new()
 			loot_rng.seed = hash("%s:hoard:%d:%d" % [level_name, c.x, c.y])
-			interactables[-1].loot = {"gold": 20, "item": Items.random_item(loot_rng, 20, "", HeroLevel.AREAS.pass.max)}
+			clear_loot(interactables[-1])
+			interactables[-1].loot = {"gold": 20, "item": loot_item(loot_rng, Level.tier_rank("ungewoehnlich"), HeroLevel.AREAS.pass.max)}
 		_:
 			if CraftingSquare.LETTERS.contains(ch):
 				CraftingSquare.build(self, c, ch)
@@ -625,16 +766,12 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 				_animal_spots.append({"cell": c, "kind": Animal.LETTERS[ch]})
 
 
-## A tall stone pedestal with a basket of bread, cheese and apples on top,
-## and the crates to climb up to it lying close by.
+## A tall pedestal of old, hewn stone (see VillageProps.build_pedestal) with
+## a basket of bread, cheese and apples on top, and the crates to climb up to
+## it lying close by.
 func _build_pedestal(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.66, 0.63, 0.58)
-	stone.roughness = 0.95
-	_add_mesh_box(pos + Vector3(0, 0.15, 0), Vector3(1.7, 0.3, 1.7), stone)
-	_add_mesh_box(pos + Vector3(0, PEDESTAL_HEIGHT * 0.5, 0), Vector3(1.25, PEDESTAL_HEIGHT - 0.5, 1.25), stone)
-	_add_mesh_box(pos + Vector3(0, PEDESTAL_HEIGHT - 0.12, 0), Vector3(1.7, 0.24, 1.7), stone)
+	VillageProps.build_pedestal(self, pos, PEDESTAL_HEIGHT)
 	_add_solid(pos, Vector3(1.7, PEDESTAL_HEIGHT, 1.7))
 	# The basket: an open crate, filled with food that glints.
 	var box := _aabb_of("crate_open")
@@ -655,12 +792,8 @@ func _build_pedestal(c: Vector2i) -> void:
 ## notices pinned to it, facing south. Run into it to read the hunts.
 func _build_bounty_board(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.42, 0.28, 0.17)
-	wood.roughness = 0.9
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.3, 0.19, 0.12)
-	dark.roughness = 0.95
+	var wood := WeatheredProps.colour_material(Color(0.42, 0.28, 0.17))
+	var dark := WeatheredProps.colour_material(Color(0.3, 0.19, 0.12))
 	var paper := StandardMaterial3D.new()
 	paper.albedo_color = Color(0.93, 0.88, 0.74)
 	paper.roughness = 1.0
@@ -728,21 +861,20 @@ func board_mark() -> String:
 	return _board_mark.text if _board_mark and _board_mark.visible else ""
 
 
-## A loaf, a wedge of cheese and a few apples, heaped in the basket.
+## A loaf, a wedge of cheese and a few apples, heaped in the basket: fresh,
+## but no longer shining like wax (see WeatheredProps.FRESH).
 func _add_food(parent: Node3D) -> void:
-	var bread := StandardMaterial3D.new()
-	bread.albedo_color = Color(0.72, 0.45, 0.2)
 	var loaf := MeshInstance3D.new()
 	var loaf_mesh := CapsuleMesh.new()
 	loaf_mesh.radius = 0.16
 	loaf_mesh.height = 0.6
+	loaf_mesh.radial_segments = 12
+	loaf_mesh.rings = 4
 	loaf.mesh = loaf_mesh
-	loaf.material_override = bread
+	loaf.material_override = WeatheredProps.colour_material(Color(0.7, 0.44, 0.2), WeatheredProps.FRESH)
 	loaf.rotation = Vector3(0, 0.5, PI * 0.5)
 	loaf.position = Vector3(-0.1, 0.05, 0.05)
 	parent.add_child(loaf)
-	var cheese_mat := StandardMaterial3D.new()
-	cheese_mat.albedo_color = Color(0.98, 0.8, 0.3)
 	var cheese := MeshInstance3D.new()
 	var wedge := CylinderMesh.new()
 	wedge.top_radius = 0.2
@@ -750,16 +882,17 @@ func _add_food(parent: Node3D) -> void:
 	wedge.height = 0.14
 	wedge.radial_segments = 3
 	cheese.mesh = wedge
-	cheese.material_override = cheese_mat
+	cheese.material_override = WeatheredProps.colour_material(Color(0.92, 0.74, 0.32), WeatheredProps.FRESH)
 	cheese.position = Vector3(0.2, 0.05, -0.15)
 	parent.add_child(cheese)
-	var apple_mat := StandardMaterial3D.new()
-	apple_mat.albedo_color = Color(0.8, 0.1, 0.08)
+	var ball := SphereMesh.new()
+	ball.radius = 0.1
+	ball.height = 0.2
+	ball.radial_segments = 10
+	ball.rings = 6
+	var apple_mat := WeatheredProps.colour_material(Color(0.72, 0.12, 0.08), WeatheredProps.FRESH)
 	for spot in [Vector3(0.22, 0.08, 0.2), Vector3(0.05, 0.1, -0.25), Vector3(-0.28, 0.06, -0.18)]:
 		var apple := MeshInstance3D.new()
-		var ball := SphereMesh.new()
-		ball.radius = 0.1
-		ball.height = 0.2
 		apple.mesh = ball
 		apple.material_override = apple_mat
 		apple.position = spot
@@ -832,7 +965,8 @@ func _build_campfire(pos: Vector3) -> void:
 	_add_solid(pos, Vector3(2.2, 1.5, 2.2))
 
 
-## A bench on the square, its seat turned to the fountain.
+## A bench on the square, its seat turned to the fountain. The hero can sit
+## on it (see Seats).
 func _build_bench(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	var to := Vector3.ZERO
@@ -841,13 +975,29 @@ func _build_bench(c: Vector2i) -> void:
 			if cell_char(Vector2i(x, y)) == "F":
 				to = cell_to_world(Vector2i(x, y)) - pos
 	var rot := atan2(to.x, to.z) if to.length() > 0.1 else 0.0
-	_put("bench", pos, rot, 1.3)
-	_add_solid(pos, Vector3(2.4, 1, 2.4))
+	_put("bench", pos, rot, Seats.BENCH_SCALE)
+	# Blocked where the bench is drawn: a long, narrow box turned with it, so
+	# the hero can walk right up to the seat (see Seats).
+	var box := _add_box(_walls_body, pos + Vector3(0, 0.5, 0), Vector3(Seats.BENCH_SIZE.x, 1.0, Seats.BENCH_SIZE.z))
+	box.rotation.y = rot
+	stations.append(Seats.station(c, pos, rot))
 
 
-## A post with a lantern hanging from its arm, glowing warm.
+## A street lamp: an old timber post on a stone foot with an iron lantern
+## hanging from its arm (see VillageProps.build_lamp), its panes and the
+## candle in it glowing at night.
 func _build_lantern(pos: Vector3) -> void:
-	_put("post_lantern", pos, 0.0, 1.0)
+	if _pane_mat == null:
+		_pane_mat = StandardMaterial3D.new()
+		_pane_mat.albedo_color = Color(0.32, 0.3, 0.24, 0.55)
+		_pane_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_pane_mat.roughness = 0.25
+		_pane_mat.emission_enabled = true
+		_pane_mat.emission = Color(1.0, 0.68, 0.34)
+		_pane_mat.emission_energy_multiplier = 0.0
+		# Lit at nightfall with the windows of the village.
+		_window_mats[_pane_mat] = _pane_mat
+	VillageProps.build_lamp(self, pos, _pane_mat)
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.68, 0.38)
 	light.light_energy = 2.2
@@ -864,12 +1014,12 @@ func _build_lantern(pos: Vector3) -> void:
 		_candle_mat.emission_energy_multiplier = 0.0
 	var candle := MeshInstance3D.new()
 	var ball := SphereMesh.new()
-	ball.radius = 0.15
-	ball.height = 0.3
+	ball.radius = 0.06
+	ball.height = 0.12
 	candle.mesh = ball
 	candle.material_override = _candle_mat
 	candle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	candle.position = pos + Vector3(0, 2.05, 1.0)
+	candle.position = pos + VillageProps.LANTERN_AT
 	candle.visible = false
 	add_child(candle)
 	_candles.append(candle)
@@ -929,16 +1079,20 @@ func _build_fence(c: Vector2i, gate: bool) -> void:
 	var rot := 0.0 if across else PI * 0.5
 	var along := Vector3(1, 0, 0) if across else Vector3(0, 0, 1)
 	if gate:
-		_put("arch_gate", pos, rot)
+		_age_graveyard(_put("arch_gate", pos, rot), false)
 		_add_solid(pos + along * 1.9, Vector3(0.5, 4, 0.5))
 		_add_solid(pos - along * 1.9, Vector3(0.5, 4, 0.5))
 		return
-	_put("fence" if _rng.randf() < 0.85 else "fence_broken", pos, rot)
+	var piece := _put("fence" if _rng.randf() < 0.85 else "fence_broken", pos, rot)
+	_age_graveyard(piece, false)
+	# Ivy over the low wall of some of the fence.
+	if absi(hash("%s|zaun|%s" % [level_name, c])) % 1000 < FENCE_IVY * 1000.0:
+		_dress_building(piece, pos, [], 0.0, 1)
 	for end in [-1, 1]:
 		var key := "pillar_%d_%d" % [roundi((pos.x + along.x * 2 * end) * 10), roundi((pos.z + along.z * 2 * end) * 10)]
 		if not _scenes.has(key):
 			_scenes[key] = true
-			_put("fence_pillar", pos + along * 2.0 * end, rot)
+			_age_graveyard(_put("fence_pillar", pos + along * 2.0 * end, rot), false)
 	_add_solid(pos, Vector3(4, 2.2, 0.5) if across else Vector3(0.5, 2.2, 4))
 
 
@@ -974,6 +1128,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch == "]":
 		_build_mine_entrance(block)
 		return
+	if ch == ")":
+		_build_elder_cave(block)
+		return
 	var facing := _block_facing(block) if ch != "R" else Vector2i(0, 1)
 	var rot := atan2(float(facing.x), float(facing.y))
 	var turned := facing.x != 0
@@ -987,6 +1144,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		node.position = center
 		node.rotation.y = rot
 		add_child(node)
+		var door: Vector3 = node.transform * (node.get_meta("door") as Vector3)
+		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
+		_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
 	else:
 		var model: String = BLOCK_MODELS[ch]
 		var box := _aabb_of(model)
@@ -995,12 +1155,22 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		var foot := (Vector3(box.position.x + box.size.x * 0.5, 0, box.position.z + box.size.z * 0.5) * s).rotated(Vector3.UP, rot)
 		node = _put(model, center - foot, rot, s)
 		if ch != "R":
-			_light_windows(node)
+			_age_kit_building(node)
+		if ch == "u":
+			var mill := Windmill.attach(self, node)
+			if mill:
+				windmills.append(mill)
+		else:
+			_age_graveyard(node, false)
 	var solid := Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86)
 	_add_solid(center, solid)
 	var reach := Vector2(block.size) * TILE * 0.5 + Vector2(2.0, 2.0)
 	var front := center + Vector3(facing.x * reach.x, 0, facing.y * reach.y)
 	doors[ch] = front
+	if ch != "R" and ch != "h":
+		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
+		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
+		_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
 	if interiors.has(ch):
 		# Run into the door to go in.
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
@@ -1008,7 +1178,18 @@ func _build_block(ch: String, block: Rect2i) -> void:
 				"cell": world_to_cell(door - Vector3(facing.x, 0, facing.y) * 0.5), "pos": door, "used": false})
 	if ch == "h":
 		spots.houses.append(front)
+		var plume := ChimneySmoke.make()
+		plume.position = node.transform * (node.get_meta("chimney") as Vector3)
+		add_child(plume)
+		chimneys.append({"door": front, "smoke": plume})
 	elif ch == "R":
+		# Ivy up the old crypt (never over its door), and no nest on it.
+		# The door is set back into the front, so the spots run back to it.
+		var door_spots := []
+		for x in [-1.2, 0.0, 1.2]:
+			for z in [0.0, -1.5, -3.0]:
+				door_spots.append(center + Vector3(x, 0, reach.y - 2.0 + z))
+		_dress_building(node, center, door_spots, 0.0, CRYPT_IVY)
 		# A faint cold glow in the crypt door the hero came out of.
 		var light := OmniLight3D.new()
 		light.light_color = Color(0.6, 0.75, 1.0)
@@ -1063,6 +1244,8 @@ func _build_terrace(block: Rect2i) -> void:
 		town_houses.append(house)
 		var door := at + Vector3(float(house.get_meta("door_x")), 0, 0).rotated(Vector3.UP, rot) + out * deep * TILE * 0.5
 		doors["^" + str(number)] = door + out * 2.0
+		_entrances.append({"door": door, "out": out})
+		_dress_building(house, at, [door], LANE_NEST, LANE_PATCHES)
 		if interiors.has("^"):
 			stations.append({"kind": "eingang", "building": "^", "house": number, "reach": 1.6,
 					"name": Lang.t("das Haus Nr. %d") % number,
@@ -1073,15 +1256,18 @@ func _build_terrace(block: Rect2i) -> void:
 ## The way down into the dragon's lair: an old stone arch from Quaternius'
 ## dungeon kit set into the foot of a rocky mountain (see LairMountain) with
 ## its door hanging open, a black hole and stairs going down behind it,
-## columns either side, skulls in the grass and a red glow from below. Run
-## into the arch to go down.
+## columns either side, skulls in the grass and a red glow from below. Arch,
+## columns and stairs are in weathered old stone like the graveyard's, and
+## the forecourt is paved (see _pave_forecourts). Run into the arch to go
+## down.
 func _build_lair_entrance(block: Rect2i) -> void:
 	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
 	var depth := block.size.y * TILE * 0.5
 	var front := center + Vector3(0, 0, depth - 0.6)
 	var arch := _put("lair/Arch", front, 0.0, 1.0)
+	_age_ruin(arch)
 	# The door swung open against the arch's side.
-	_put("lair/Arch_Door", front + Vector3(-1.2, 0, 0.2), -PI * 0.55, 1.0)
+	_age_ruin(_put("lair/Arch_Door", front + Vector3(-1.2, 0, 0.2), -PI * 0.55, 1.0))
 	# Darkness in the opening, and the top steps sinking into it.
 	var hole := MeshInstance3D.new()
 	var quad := QuadMesh.new()
@@ -1094,9 +1280,9 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	hole.position = front + Vector3(0, 1.65, -0.35)
 	add_child(hole)
 	for i in 2:
-		_put("lair/Stairs_Modular", front + Vector3(0, -0.55 - i * 0.9, 0.55 - i * 0.9), PI, 1.3)
+		_age_ruin(_put("lair/Stairs_Modular", front + Vector3(0, -0.55 - i * 0.9, 0.55 - i * 0.9), PI, 1.3))
 	for side in [-1.0, 1.0]:
-		_put("lair/Column2", front + Vector3(side * 2.9, 0, -0.1), 0.0, 0.9)
+		_age_ruin(_put("lair/Column2", front + Vector3(side * 2.9, 0, -0.1), 0.0, 0.9))
 		_put("lair/Skull", front + Vector3(side * 2.2 + _rng.randf_range(-0.4, 0.4), 0, 1.6 + _rng.randf_range(0.0, 0.8)), _rng.randf() * TAU, 0.8)
 	# The mountain the lair is dug into, rising behind the arch, and a few
 	# boulders fallen from it at its foot either side.
@@ -1104,9 +1290,10 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	mountain.position = front
 	add_child(mountain)
 	_lair_mountain_at = front
+	_forecourts.append({"block": block, "front": front})
 	for side in [-1.0, 1.0]:
-		_put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0)
-		_put("rock_single_C", front + Vector3(side * 3.6, 0, -1.9), side * 2.1, 3.5)
+		_age_ruin(_put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0), LAIR_BOULDER)
+		_age_ruin(_put("rock_single_C", front + Vector3(side * 3.6, 0, -1.9), side * 2.1, 3.5), LAIR_BOULDER)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(1.0, 0.35, 0.15)
 	glow.light_energy = 1.8
@@ -1119,6 +1306,22 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	if interiors.has("E"):
 		stations.append({"kind": "eingang", "building": "E", "name": BUILDING_NAMES.E,
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.6), "used": false})
+
+
+## The dungeon kit's pieces at the lair (plain colours, one per surface) in
+## old, weathered stone to match the graveyard (see AgedStone.ruin_material).
+## With `colour`, every surface is that stone instead (the fallen boulders,
+## in the mountain's grey).
+func _age_ruin(node: Node, colour := Color(0, 0, 0, 0)) -> void:
+	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for s in mi.mesh.get_surface_count():
+			var mat := mi.get_active_material(s)
+			if colour.a > 0.0:
+				mi.material_override = AgedStone.ruin_material(colour)
+			elif mat is StandardMaterial3D:
+				mi.set_surface_override_material(s, AgedStone.ruin_material((mat as StandardMaterial3D).albedo_color))
 
 
 ## A mine entrance in the mountains (see Mines): a timber frame set into
@@ -1136,6 +1339,7 @@ func _build_mine_entrance(block: Rect2i) -> void:
 	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
 	var front := center + Vector3(0, 0, block.size.y * TILE * 0.5 - 0.4)
 	mines.append(front)
+	_forecourts.append({"block": block, "front": front})
 	var wood := StandardMaterial3D.new()
 	wood.albedo_color = Color(0.34, 0.23, 0.14)
 	wood.roughness = 0.9
@@ -1180,6 +1384,79 @@ func _build_mine_entrance(block: Rect2i) -> void:
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.5), "used": false})
 
 
+## The way down to the Great Old One (see ElderLair): a huge black cave
+## mouth at the foot of the rock face, fanged with stone teeth all round,
+## scorched black in front, a giant skull and old bones at its feet and a
+## faint violet glow breathing out of the dark. Run into it to go down.
+const ELDER_CAVE := "uralt1"
+
+
+func _build_elder_cave(block: Rect2i) -> void:
+	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
+	var front := center + Vector3(0, 0, block.size.y * TILE * 0.5 - 0.4)
+	var width := block.size.x * TILE
+	var black := StandardMaterial3D.new()
+	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	black.albedo_color = Color(0.015, 0.01, 0.02)
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.3, 0.28, 0.3)
+	stone.roughness = 0.95
+	var soot := StandardMaterial3D.new()
+	soot.albedo_color = Color(0.06, 0.05, 0.05, 0.55)
+	soot.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	soot.roughness = 1.0
+	# The black mouth, wide and tall, set back into the rock.
+	_add_mesh_box(front + Vector3(0, 3.2, -2.6), Vector3(width * 0.78, 6.4, 2.0), black)
+	# Stone teeth hanging from the top and rising from the floor.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level_name + "uralt")
+	for i in 9:
+		var x := lerpf(-width * 0.36, width * 0.36, i / 8.0)
+		for up in [true, false]:
+			var tooth := MeshInstance3D.new()
+			var cone := CylinderMesh.new()
+			cone.radial_segments = 5
+			cone.rings = 1
+			cone.top_radius = 0.02 if not up else rng.randf_range(0.35, 0.6)
+			cone.bottom_radius = rng.randf_range(0.35, 0.6) if not up else 0.02
+			cone.height = rng.randf_range(1.2, 2.4) if up else rng.randf_range(0.6, 1.4)
+			tooth.mesh = cone
+			tooth.material_override = stone
+			tooth.position = front + Vector3(x, (6.4 - cone.height * 0.5) if up else cone.height * 0.5, -1.5)
+			add_child(tooth)
+	# The brow of rock over the mouth.
+	_add_mesh_box(front + Vector3(0, 6.8, -1.9), Vector3(width * 0.9, 1.0, 1.6), stone)
+	for side in [-1.0, 1.0]:
+		_add_mesh_box(front + Vector3(side * width * 0.43, 3.4, -1.9), Vector3(1.4, 6.8, 1.6), stone)
+	# Scorched ground in front, a giant skull and bones.
+	var scorch := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = width * 0.32
+	disc.bottom_radius = width * 0.32
+	disc.height = 0.02
+	scorch.mesh = disc
+	scorch.material_override = soot
+	scorch.position = front + Vector3(0, 0.03, 1.2)
+	scorch.scale = Vector3(1.0, 1.0, 0.55)
+	add_child(scorch)
+	_put("lair/Skull", front + Vector3(-width * 0.3, 0, 1.6), 0.6, 3.2)
+	for i in 4:
+		_put("lair/Skull", front + Vector3(rng.randf_range(-width * 0.35, width * 0.35), 0, rng.randf_range(2.0, 4.5)), rng.randf() * TAU, 0.9)
+	var glow := OmniLight3D.new()
+	glow.light_color = ElderLair.VIOLET
+	glow.light_energy = 1.8
+	glow.omni_range = 9.0
+	glow.position = front + Vector3(0, 1.6, -1.0)
+	add_child(glow)
+	_add_solid(center, Vector3(block.size.x * TILE * 0.9, 4, block.size.y * TILE * 0.9))
+	glow.set_meta("block", block)
+	doors[ELDER_CAVE] = front + Vector3(0, 0, 2.4)
+	_forecourts.append({"block": block, "front": front})
+	if interiors.has(ELDER_CAVE):
+		stations.append({"kind": "eingang", "building": ELDER_CAVE, "name": BUILDING_NAMES[")"],
+				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.5), "used": false})
+
+
 ## The mountain rock is as solid as the forest: a wall along every rock
 ## tile that borders walkable ground.
 func _build_rock_collision() -> void:
@@ -1201,38 +1478,27 @@ func _build_hole(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
 	holes.append(pos)
 	var id := "loch%d" % holes.size()
-	var earth := MeshInstance3D.new()
-	var ring := CylinderMesh.new()
-	ring.top_radius = 1.9
-	ring.bottom_radius = 2.1
-	ring.height = 0.08
-	ring.radial_segments = 14
-	earth.mesh = ring
-	var soil := StandardMaterial3D.new()
-	soil.albedo_color = Color(0.17, 0.12, 0.09)
-	soil.roughness = 1.0
-	earth.material_override = soil
-	earth.position = pos + Vector3(0, 0.03, 0)
-	add_child(earth)
+	# The ragged lip of torn earth round the opening (see VillageProps).
+	VillageProps.build_hole_rim(self, pos, 1.3)
 	var pit := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
-	disc.top_radius = 1.35
-	disc.bottom_radius = 1.35
+	disc.top_radius = 1.32
+	disc.bottom_radius = 1.32
 	disc.height = 0.02
-	disc.radial_segments = 11
+	disc.radial_segments = 18
 	pit.mesh = disc
 	var black := StandardMaterial3D.new()
 	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	black.albedo_color = Color(0.0, 0.0, 0.0)
 	pit.material_override = black
-	pit.position = pos + Vector3(0, 0.08, 0)
+	pit.position = pos + Vector3(0, 0.03, 0)
 	pit.rotation.y = _rng.randf() * TAU
 	add_child(pit)
 	# Torn-up rocks round the rim, and what is left of those who went down.
 	for i in 6:
 		var angle: float = TAU * i / 6.0 + _rng.randf_range(-0.3, 0.3)
 		var rock: String = ["rock_single_A", "rock_single_C", "rock_single_E"][_rng.randi() % 3]
-		_put(rock, pos + Vector3(cos(angle), 0, sin(angle)) * _rng.randf_range(1.6, 1.9), _rng.randf() * TAU, _rng.randf_range(2.0, 3.4))
+		_put(rock, pos + Vector3(cos(angle), 0, sin(angle)) * _rng.randf_range(1.9, 2.3), _rng.randf() * TAU, _rng.randf_range(2.0, 3.4))
 	for i in 2:
 		var angle: float = _rng.randf() * TAU
 		_put("lair/Skull", pos + Vector3(cos(angle), 0, sin(angle)) * 2.3, _rng.randf() * TAU, 0.6)
@@ -1299,13 +1565,15 @@ func _skin_chapel(chapel: Node) -> void:
 		var trim := StandardMaterial3D.new()
 		trim.albedo_texture = load(CHAPEL_DIR + "trim_sheet.png")
 		trim.roughness = 0.9
+		# Coloured panes in lead, painted over the kit's clear glass (see
+		# tools/make_stained_glass.py).
 		var glass := StandardMaterial3D.new()
-		glass.albedo_texture = load(CHAPEL_DIR + "window_diffuse.png")
+		glass.albedo_texture = load(CHAPEL_DIR + "stained_glass.png")
 		glass.emission_enabled = true
-		# The stained glass itself glows, in its own colours (multiplied,
-		# so the tint does not wash the panes out to white).
-		glass.emission = Color(1.0, 0.92, 0.8)
-		glass.emission_texture = load(CHAPEL_DIR + "window_diffuse.png")
+		# At night only the panes glow, each in its own colour, lit warm from
+		# within; the stone round them stays dark.
+		glass.emission = CHAPEL_GLASS_LIGHT
+		glass.emission_texture = load(CHAPEL_DIR + "stained_glass_glow.png")
 		glass.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
 		glass.emission_energy_multiplier = 0.0
 		var wood := StandardMaterial3D.new()
@@ -1375,31 +1643,357 @@ func _chapel_gable() -> Mesh:
 	return mesh
 
 
-## Gives a building windows that can glow: its kit material is swapped for
-## a copy with an emission mask over the window panes (dark by day).
-func _light_windows(node: Node) -> void:
+## The mask over the window panes on the KayKit palette.
+func _window_mask_texture() -> void:
 	if _window_mask == null:
 		# Image.create starts black: only the window patch shines.
 		var img := Image.create(256, 256, false, Image.FORMAT_RGB8)
 		var at := Vector2i(WINDOW_UV * 256.0)
 		img.fill_rect(Rect2i(at - Vector2i(3, 3), Vector2i(7, 7)), Color.WHITE)
 		_window_mask = ImageTexture.create_from_image(img)
+
+
+## Builds a KayKit building of the temple's old stone instead of its toy
+## colours (see AgedStone): its light walls become stone blocks, its roofs
+## faded tiles, and its windows still glow at night.
+func _age_kit_building(node: Node) -> void:
+	_window_mask_texture()
 	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
 		var mat := mi.get_active_material(0)
 		if not mat is StandardMaterial3D:
 			continue
 		if not _window_mats.has(mat):
-			var lit: StandardMaterial3D = mat.duplicate()
-			lit.emission_enabled = true
-			lit.emission = WINDOW_LIGHT
-			lit.emission_texture = _window_mask
-			# Multiply, not the default add: with "add" the emission colour
-			# shines over the whole building and the mask only adds to it,
-			# so every house glowed white at night.
-			lit.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
-			lit.emission_energy_multiplier = 0.0
-			_window_mats[mat] = lit
+			_window_mats[mat] = AgedStone.kit_material((mat as StandardMaterial3D).albedo_texture, _window_mask)
 		mi.material_override = _window_mats[mat]
+		# The way each beam runs, for the grain of its wood.
+		mi.mesh = AgedStone.grained_mesh(mi.mesh)
+
+
+## Whether a building's block stands on its own: no paving of the square
+## within SQUARE_GAP tiles of it (see SQUARE_GAP).
+func _standalone(block: Rect2i) -> bool:
+	var round := block.grow(SQUARE_GAP)
+	for y in range(round.position.y, round.end.y):
+		for x in range(round.position.x, round.end.x):
+			if cell_char(Vector2i(x, y)) == ":":
+				return false
+	return true
+
+
+## Ivy up the walls of a building, and maybe a nest up on it (see AgedStone).
+## `middle` is the middle of its foot, `door_spots` where its doors are.
+## Each building has its own random numbers, so it is dressed the same every
+## time; and what was found is kept, so when the hero steps out of the crypt
+## the village built behind the title screen (see WorldPreload) has already
+## done the work.
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false) -> void:
+	if old:
+		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
+	var key := "%s|%s|%s|%s" % [level_name, middle, _bounds_in(node), old]
+	if not _dressed.has(key):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash(key)
+		# The meshes are read in world space (a copy of the village is built
+		# far below, see WorldPreload); the ivy and the nest are kept in the
+		# village's own.
+		var offset := global_position
+		var tris := AgedStone.triangles(node)
+		var ground := node.global_position.y
+		var doors_at := door_spots.map(func(d: Vector3): return d + offset)
+		var leaves := {"xforms": [], "colours": []}
+		# Window panes the house builder noted (see VillageHouse), in world space.
+		var panes: Array = (node.get_meta("windows", []) as Array).map(func(w: Vector3): return node.global_transform * w)
+		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes)
+		for i in leaves.xforms.size():
+			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
+		var spot := Vector3.INF
+		if rng.randf() < nest_chance:
+			spot = AgedStone.nest_spot(tris, ground)
+		_dressed[key] = {"leaves": leaves, "nest": spot - offset if spot != Vector3.INF else spot, "turn": rng.randf() * TAU}
+	var done: Dictionary = _dressed[key]
+	_ivy.xforms.append_array(done.leaves.xforms)
+	_ivy.colours.append_array(done.leaves.colours)
+	if done.nest == Vector3.INF or nests.size() >= MAX_NESTS:
+		return
+	var nest := MeshInstance3D.new()
+	nest.name = "Nest"
+	nest.mesh = AgedStone.nest_mesh()
+	nest.rotation.y = done.turn
+	nest.position = done.nest
+	add_child(nest)
+	nests.append(done.nest)
+
+
+## The box round a building's meshes, as it stands in the village.
+func _bounds_in(node: Node3D) -> AABB:
+	var box := AABB()
+	var first := true
+	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		var b: AABB = (global_transform.affine_inverse() * mi.global_transform) * mi.mesh.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return box
+
+
+## The graveyard's models (crypt, gravestones, fence; the KayKit Halloween
+## kit, all on one palette) in old, weathered stone to match the village (see
+## AgedStone.grave_material). `hewn`: a gravestone, cut from one piece.
+## `glowing`: a mask of what glows at night (the panes of a grave light).
+func _age_graveyard(node: Node, hewn: bool, shade := 0, glowing: Texture2D = null) -> void:
+	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		var mat := mi.get_active_material(0)
+		if mat is StandardMaterial3D:
+			var aged := AgedStone.grave_material((mat as StandardMaterial3D).albedo_texture, hewn, shade, glowing)
+			mi.material_override = aged
+			if glowing:
+				# Lit at nightfall with the windows of the village.
+				_window_mats[aged] = aged
+
+
+## A small lantern beside some of the graves, its panes aglow at night like
+## the windows of the village (no light of its own, so it costs nothing).
+func _grave_light(c: Vector2i, pos: Vector3) -> void:
+	var roll := absi(hash("%s|licht|%s" % [level_name, c]))
+	if roll % 1000 >= GRAVE_LIGHTS * 1000.0:
+		return
+	if _grave_glow == null:
+		# The panes are the one patch of the kit's palette at GRAVE_PANES.
+		var img := Image.create(256, 256, false, Image.FORMAT_RGB8)
+		img.fill_rect(Rect2i(Vector2i(GRAVE_PANES.position * 256.0), Vector2i(GRAVE_PANES.size * 256.0)), Color.WHITE)
+		_grave_glow = ImageTexture.create_from_image(img)
+	var at := pos + GRAVE_LIGHT_AT * Vector3(1 if roll % 2 == 0 else -1, 1, 1)
+	_age_graveyard(_put("lantern_standing", at, float(roll % 628) * 0.01), false, 0, _grave_glow)
+	_add_solid(at, Vector3(0.6, 1.0, 0.6))
+
+
+## The graveyard's path, from the crypt door through the gate, paved with old
+## stones like the village's (sunk, mossy and gappy there, see meadow.gdshader).
+func _pave_graveyard() -> void:
+	var yard := _bounds_of("z")
+	if yard.size == Vector2i.ZERO:
+		return
+	for y in range(yard.position.y, yard.end.y):
+		for x in range(yard.position.x, yard.end.x):
+			var c := Vector2i(x, y)
+			if not ",Pa".contains(cell_char(c)):
+				continue
+			_pave_line(cell_to_world(c), cell_to_world(c), GRAVE_WAY_WIDTH)
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var n := c + d
+				if ",Pa".contains(cell_char(n)) and yard.has_point(n):
+					_pave_line(cell_to_world(c), cell_to_world(n), GRAVE_WAY_WIDTH)
+				elif d.y < 0 and cell_char(n) == "R":
+					# Up to the crypt's door.
+					_pave_line(cell_to_world(c), cell_to_world(c) + Vector3(0, 0, -TILE * 0.5), GRAVE_WAY_WIDTH)
+
+
+## The forecourts of the wide entrances (the dragon's lair, the Great Old
+## One's cave, the mines), paved like the graveyard's path: the whole width
+## of the entrance from its front out to the path that arrives there, and
+## that path paved on for a few tiles, so the way coming in covers the
+## forecourt instead of meeting it as a narrow strip.
+func _pave_forecourts() -> void:
+	for f: Dictionary in _forecourts:
+		var block: Rect2i = f.block
+		var front: Vector3 = f.front
+		var half := block.size.x * TILE * 0.5 - FORECOURT_MARGIN
+		# The first row in front of the block that the arriving path touches
+		# (the row right in front of it when no path is close).
+		var row := block.end.y
+		var arriving: Array[Vector2i] = []
+		for k in FORECOURT_REACH:
+			for x in range(block.position.x - 1, block.end.x + 1):
+				if cell_char(Vector2i(x, block.end.y + k)) == ",":
+					arriving.append(Vector2i(x, block.end.y + k))
+			if not arriving.is_empty():
+				row = block.end.y + k
+				break
+		var far := maxf(cell_to_world(Vector2i(block.position.x, row)).z, front.z + TILE * 0.5)
+		var z := front.z + 0.3
+		while z <= far + 0.01:
+			_pave_line(Vector3(front.x - half, 0, z), Vector3(front.x + half, 0, z), WAY_WIDTH)
+			z += 1.0
+		# The arriving path, paved on for a few tiles, tile to tile.
+		var seen := {}
+		var reach := {}
+		for c in arriving:
+			reach[c] = 0
+			seen[c] = true
+		var queue := arriving.duplicate()
+		while not queue.is_empty():
+			var c: Vector2i = queue.pop_front()
+			_pave_line(cell_to_world(c), cell_to_world(c), WAY_WIDTH)
+			if reach[c] >= FORECOURT_PATH:
+				continue
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var n := c + d
+				if seen.has(n) or cell_char(n) != "," or block.has_point(n):
+					continue
+				seen[n] = true
+				reach[n] = reach[c] + 1
+				_pave_line(cell_to_world(c), cell_to_world(n), WAY_WIDTH)
+				queue.append(n)
+
+
+## A way paved like the market square from each door to the square or the
+## nearest path (only drawn into the ground: the tiles stay as they are).
+func _pave_entrances() -> void:
+	if _ground_img == null:
+		return
+	for e: Dictionary in _entrances:
+		var door: Vector3 = e.door
+		var out: Vector3 = e.out
+		var start := world_to_cell(door + out * 2.0)
+		var route := _way_to_road(start)
+		var points: Array[Vector3] = [door - out * 0.3, door + out * 1.4]
+		for c in route:
+			points.append(cell_to_world(c))
+		for i in points.size() - 1:
+			_pave_line(points[i], points[i + 1])
+	_pave_graveyard()
+	_pave_forecourts()
+	# The dirt paths in the village are cobbled too, joined tile to tile.
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if cell_char(c) != "," or not _in_village(c):
+				continue
+			_pave_line(cell_to_world(c), cell_to_world(c))
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1)]:
+				if ",:".contains(cell_char(c + d)) and (cell_char(c + d) == ":" or _in_village(c + d)):
+					_pave_line(cell_to_world(c), cell_to_world(c + d))
+	_ground_tex.update(_ground_img)
+
+
+## Whether a tile lies within the village: close to one of its buildings.
+func _in_village(c: Vector2i) -> bool:
+	if _village_near.is_empty():
+		for y in height:
+			for x in width:
+				if VILLAGE_BLOCKS.contains(cell_char(Vector2i(x, y))):
+					for dy in range(-VILLAGE_REACH, VILLAGE_REACH + 1):
+						for dx in range(-VILLAGE_REACH, VILLAGE_REACH + 1):
+							_village_near[Vector2i(x + dx, y + dy)] = true
+	return _village_near.has(c)
+
+
+## Shrubs on the grass beside the village buildings and between them, but
+## never in front of a door or on a paved way.
+func _plant_bushes() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level_name + "bueschen")
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if cell_char(c) != "." or rng.randf() > BUSH_CHANCE:
+				continue
+			# Beside a building: the side towards it.
+			var toward := Vector3.ZERO
+			for d: Vector2i in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+				if VILLAGE_BLOCKS.contains(cell_char(c + d)):
+					toward += Vector3(d.x, 0, d.y)
+			var count := rng.randi_range(1, 3)
+			if toward == Vector3.ZERO:
+				# Out on the grass between the buildings, now and then.
+				if not _in_village(c) or rng.randf() > BUSH_OPEN:
+					continue
+				toward = Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1))
+				count = 1
+			toward = toward.normalized()
+			var side := Vector3(-toward.z, 0, toward.x)
+			for k in count:
+				var at := cell_to_world(c) + toward * rng.randf_range(0.6, 1.3) + side * rng.randf_range(-1.6, 1.6)
+				if _paved_at(at) or _entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < 3.0):
+					continue
+				AgedStone.grow_bush(at, rng, _ivy)
+
+
+## Whether the ground at a spot is paved (the square or a paved way).
+func _paved_at(at: Vector3) -> bool:
+	var px := Vector2i(floori((at.x / TILE + 0.5) * 4.0), floori((at.z / TILE + 0.5) * 4.0))
+	if px.x < 0 or px.y < 0 or px.x >= _ground_img.get_width() or px.y >= _ground_img.get_height():
+		return false
+	var m := _ground_img.get_pixelv(px)
+	return minf(m.r, m.g) > 0.35
+
+
+## The shortest way over open ground from a tile to the square or a path:
+## the tiles in between, string-pulled into as few straight runs as can be.
+func _way_to_road(start: Vector2i) -> Array[Vector2i]:
+	var none: Array[Vector2i] = []
+	if not _open_ground(start):
+		return none
+	var came := {start: start}
+	var queue: Array[Vector2i] = [start]
+	var goal := Vector2i(-1, -1)
+	while not queue.is_empty():
+		var c: Vector2i = queue.pop_front()
+		if ":,".contains(cell_char(c)):
+			goal = c
+			break
+		if absi(c.x - start.x) + absi(c.y - start.y) >= WAY_SEARCH:
+			continue
+		for d: Vector2i in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+			var n := c + d
+			if not came.has(n) and _open_ground(n):
+				came[n] = c
+				queue.append(n)
+	if goal.x < 0:
+		return none
+	var path: Array[Vector2i] = [goal]
+	while path[-1] != start:
+		path.append(came[path[-1]])
+	path.reverse()
+	# Straight on wherever the way between stays on open ground.
+	var pulled: Array[Vector2i] = [path[0]]
+	var i := 0
+	while i < path.size() - 1:
+		var j := path.size() - 1
+		while j > i + 1 and not _clear_between(path[i], path[j]):
+			j -= 1
+		pulled.append(path[j])
+		i = j
+	return pulled
+
+
+func _open_ground(c: Vector2i) -> bool:
+	if c.x < 0 or c.y < 0 or c.x >= width or c.y >= height:
+		return false
+	var ch := cell_char(c)
+	return ".,:'".contains(ch) or (WALK.contains(ch) and not BLOCK_CHARS.contains(ch) and ch != "a")
+
+
+func _clear_between(a: Vector2i, b: Vector2i) -> bool:
+	var steps := maxi(absi(b.x - a.x), absi(b.y - a.y)) * 3
+	for k in steps + 1:
+		var p := Vector2(a).lerp(Vector2(b), float(k) / maxf(steps, 1))
+		if not _open_ground(Vector2i(roundi(p.x), roundi(p.y))):
+			return false
+	return true
+
+
+## Paints a straight run of paving into the ground's mask (red and green
+## together are the square's stones, see _build_ground).
+func _pave_line(from: Vector3, to: Vector3, r := WAY_WIDTH) -> void:
+	var a := Vector2(from.x / TILE + 0.5, from.z / TILE + 0.5) * 4.0
+	var b := Vector2(to.x / TILE + 0.5, to.z / TILE + 0.5) * 4.0
+	var steps := maxi(1, ceili(a.distance_to(b) * 2.0))
+	for k in steps + 1:
+		var p := a.lerp(b, float(k) / steps)
+		for y in range(floori(p.y - r - 1.0), ceili(p.y + r + 1.0)):
+			for x in range(floori(p.x - r - 1.0), ceili(p.x + r + 1.0)):
+				if x < 0 or y < 0 or x >= _ground_img.get_width() or y >= _ground_img.get_height():
+					continue
+				var dist := Vector2(x + 0.5, y + 0.5).distance_to(p)
+				var paved := clampf(r + 0.5 - dist, 0.0, 1.0)
+				if paved <= 0.0:
+					continue
+				var m := _ground_img.get_pixel(x, y)
+				m.r = maxf(m.r, paved)
+				m.g = maxf(m.g, paved)
+				_ground_img.set_pixel(x, y, m)
 
 
 ## Which way a building's door looks: towards the square if it borders it,
@@ -1430,8 +2024,8 @@ func _block_facing(block: Rect2i) -> Vector2i:
 # --- The hero's house ---------------------------------------------------------
 
 ## Stone walls from the dungeon kit around a wooden floor, under a tiled
-## roof. Inside, the roof lifts off and the south wall drops low, like the
-## walls in the dungeon, so the camera can look in.
+## roof. Inside, the roof lifts off and the south wall turns see-through in
+## front of the hero, like the near walls in the dungeon (see WallFade).
 func _build_house() -> void:
 	_house_rect = _bounds_of("I")
 	if _house_rect.size == Vector2i.ZERO:
@@ -1464,7 +2058,7 @@ func _build_house() -> void:
 				home_spot = cell_to_world(c + Vector2i(0, 1))
 				fox_beds.append(home_spot + Vector3(1.2, 0, -0.6))
 			elif ch == "L":
-				_place("chest", cell_to_world(c), 0.0)
+				_place("chest", cell_to_world(c), _back_to_wall(c))
 				_add_solid(cell_to_world(c), Vector3(2.4, 1.5, 2.4))
 				stations.append({"kind": "lager", "cell": c, "pos": cell_to_world(c), "used": false})
 	_build_house_pillars()
@@ -1483,8 +2077,8 @@ func _build_house_walls(c: Vector2i) -> void:
 		# back: a second wall faces out.
 		var outer := _place("wall", pos + Vector3(d.x, 0, d.y) * 0.02, atan2(float(d.x), float(d.y)))
 		if d == Vector2i(0, 1) or c == _door_cell:
-			_south_walls.append(wall)
-			_south_walls.append(outer)
+			_house_fade.add(wall)
+			_house_fade.add(outer)
 
 
 func _build_house_pillars() -> void:
@@ -1495,7 +2089,7 @@ func _build_house_pillars() -> void:
 			if walls == 1 or walls == 3:
 				var pillar := _place("pillar", Vector3(vx * TILE - TILE * 0.5, 0, vy * TILE - TILE * 0.5))
 				if vy == _house_rect.end.y - 1:
-					_south_walls.append(pillar)
+					_house_fade.add(pillar)
 
 
 func _build_roof() -> void:
@@ -1610,21 +2204,28 @@ func _spawn_villagers() -> void:
 				_build_stone_yard(c + Vector2i(0, -1))
 			elif ch == "1":
 				_build_forge(c + Vector2i(-1, 0))
+				_build_anvil(v, c, Vector3.LEFT)
+			elif ch == "3":
+				_build_chopping_log(v, c)
 
 
 ## The barber's stall on the tile behind him: a market tent with a striped
 ## barber's pole and a hanging sign with scissors at its front, so the shop
-## is easy to spot on the square.
+## is easy to spot on the square. A barber keeps things clean: the tent is of
+## fresh woven linen, not the stained canvas of the bandits' tents.
 func _build_barber_shop(cell: Vector2i) -> void:
 	var pos := cell_to_world(cell)
 	var box := _aabb_of("tent")
-	_put("tent", pos, 0.0, 3.6 / maxf(box.size.x, box.size.z))
+	var tent := _put("tent", pos, 0.0, 3.6 / maxf(box.size.x, box.size.z))
+	tent.name = "BarberTent"
+	WeatheredProps.clean_linen(tent)
 	_add_solid(pos, Vector3(3.4, 2.6, 3.4))
 	astar.set_point_solid(cell, true)
 	var pole := Effects.barber_pole()
 	pole.position = pos + Vector3(-2.0, 0, 1.9)
 	add_child(pole)
 	var board := Effects.shop_sign(Lang.t("Barbier"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	WeatheredProps.weather_plain(board)
 	board.position = pos + Vector3(1.4, 0, 1.9)
 	add_child(board)
 	_add_solid(pos + Vector3(-2.0, 0, 1.9), Vector3(0.5, 2.6, 0.5))
@@ -1649,37 +2250,21 @@ func _build_stone_yard(cell: Vector2i) -> void:
 	_add_solid(pos + Vector3(0.2, 0, 0), Vector3(3.4, StoneBlock.HEIGHT * 2.0, 2.6))
 	astar.set_point_solid(cell, true)
 	var board := Effects.shop_sign(Lang.t("Steinmetz"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	WeatheredProps.weather_plain(board)
 	board.position = pos + Vector3(-1.6, 0, 1.9)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.6, 0, 1.9), Vector3(0.5, 2.6, 0.5))
 
 
-## The smith's forge on the tile beside him: a stone hearth with glowing
-## coals and a warm light, an anvil on a tree stump, and a sign.
+## The smith's forge on the tile beside him: a hearth of rough stones with
+## glowing coals under a sooty hood and chimney, bellows, a quench tub and a
+## sign (see VillageProps.build_forge), with a flame and a warm light over the
+## coals. His anvil stands on his own tile (see _build_anvil).
 func _build_forge(cell: Vector2i) -> void:
 	var pos := cell_to_world(cell)
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.42, 0.4, 0.38)
-	stone.roughness = 0.95
-	var iron := StandardMaterial3D.new()
-	iron.albedo_color = Color(0.2, 0.2, 0.22)
-	iron.metallic = 0.7
-	iron.roughness = 0.45
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.4, 0.27, 0.16)
-	wood.roughness = 0.9
-	var coals := StandardMaterial3D.new()
-	coals.albedo_color = Color(0.3, 0.06, 0.02)
-	coals.emission_enabled = true
-	coals.emission = Color(1.0, 0.35, 0.08)
-	coals.emission_energy_multiplier = 1.5
-	# The hearth: a low stone block with glowing coals on top and a chimney.
-	var hearth := pos + Vector3(-0.5, 0, -0.7)
-	_add_mesh_box(hearth + Vector3(0, 0.45, 0), Vector3(2.0, 0.9, 1.5), stone)
-	_add_mesh_box(hearth + Vector3(0, 0.93, 0), Vector3(1.5, 0.08, 1.0), coals)
-	_add_mesh_box(hearth + Vector3(0, 2.0, -0.55), Vector3(0.8, 2.2, 0.5), stone)
+	var coals := VillageProps.build_forge(self, pos)
 	var flame := Effects.make_flame()
-	flame.position = hearth + Vector3(0, 1.0, 0)
+	flame.position = coals
 	flame.scale = Vector3.ONE * 2.0
 	add_child(flame)
 	var light := OmniLight3D.new()
@@ -1687,20 +2272,123 @@ func _build_forge(cell: Vector2i) -> void:
 	light.light_energy = 3.0
 	light.omni_range = 9.0
 	light.omni_attenuation = 1.4
-	light.position = hearth + Vector3(0, 1.8, 0.4)
+	light.position = coals + Vector3(0, 0.8, 0.6)
 	add_child(light)
-	# The anvil on its stump, in front of the hearth.
-	var anvil := pos + Vector3(0.8, 0, 0.8)
-	_add_mesh_box(anvil + Vector3(0, 0.3, 0), Vector3(0.6, 0.6, 0.6), wood)
-	_add_mesh_box(anvil + Vector3(0, 0.68, 0), Vector3(0.3, 0.16, 0.28), iron)
-	_add_mesh_box(anvil + Vector3(0, 0.85, 0), Vector3(0.85, 0.2, 0.36), iron)
-	_add_mesh_box(anvil + Vector3(0.52, 0.88, 0), Vector3(0.22, 0.12, 0.2), iron)
 	_add_solid(pos, Vector3(3.2, 1.2, 3.0))
 	astar.set_point_solid(cell, true)
 	var board := Effects.shop_sign(Lang.t("Schmiede"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	WeatheredProps.weather_plain(board)
 	board.position = pos + Vector3(-1.5, 0, 1.6)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))
+
+
+## The smith's anvil on his own tile, between him and his forge (`face`
+## points there), with a bar of glowing iron on it, so his hammer lands on
+## iron and not in the air (see Villager.set_chopping). The sparks that fly at
+## each blow wait at the spot where the hammer strikes.
+func _build_anvil(v: Villager, cell: Vector2i, face: Vector3) -> void:
+	var stand := cell_to_world(cell)
+	var spot := Node3D.new()
+	spot.name = "SmithAnvil"
+	spot.position = stand
+	spot.rotation.y = atan2(face.x, face.z)
+	add_child(spot)
+	VillageProps.build_anvil(spot, Villager.ANVIL_AT)
+	var sparks := Effects.make_forge_sparks()
+	sparks.position = Villager.HAMMER_POINT
+	spot.add_child(sparks)
+	# The anvil with its heel and horn reaches further across his way than
+	# ahead of him.
+	var foot := spot.to_global(Villager.ANVIL_AT)
+	var size := Vector3(1.1, VillageProps.ANVIL_TOP, 0.8)
+	if absf(face.x) > 0.5:
+		size = Vector3(0.8, VillageProps.ANVIL_TOP, 1.1)
+	_add_solid(foot, size)
+	v.global_position = stand
+	v.rotation.y = spot.rotation.y
+	v.set_chopping(stand, face, sparks)
+
+
+## The woodcutter's trunk: a felled tree lying across his way on his own
+## tile, so his axe lands on wood and not in the air (see
+## Villager.set_chopping). He faces the stump with the logs ("t") when one is
+## near, as if the trunk came from there; otherwise east. The chips that fly
+## at each blow wait at the spot where the blade bites.
+func _build_chopping_log(v: Villager, cell: Vector2i) -> void:
+	var face := Vector3.RIGHT
+	var best := INF
+	for y in range(-3, 4):
+		for x in range(-3, 4):
+			if cell_char(cell + Vector2i(x, y)) == "t" and Vector2(x, y).length() < best:
+				best = Vector2(x, y).length()
+				face = Vector3(signf(x), 0, 0) if absi(x) >= absi(y) else Vector3(0, 0, signf(y))
+	var stand := cell_to_world(cell)
+	var spot := Node3D.new()
+	spot.name = "ChoppingLog"
+	spot.position = stand
+	spot.rotation.y = atan2(face.x, face.z)
+	add_child(spot)
+	var bark := StandardMaterial3D.new()
+	bark.albedo_color = Color(0.4, 0.27, 0.17)
+	bark.roughness = 1.0
+	var sapwood := StandardMaterial3D.new()
+	sapwood.albedo_color = Color(0.86, 0.7, 0.48)
+	sapwood.roughness = 0.9
+	var heartwood := StandardMaterial3D.new()
+	heartwood.albedo_color = Color(0.68, 0.48, 0.28)
+	heartwood.roughness = 0.9
+	# The trunk lies along the woodcutter's left and right (his own x).
+	var r := Villager.LOG_RADIUS
+	var trunk := MeshInstance3D.new()
+	var round_mesh := CylinderMesh.new()
+	round_mesh.top_radius = r
+	round_mesh.bottom_radius = r * 1.08
+	round_mesh.height = Villager.LOG_LENGTH
+	round_mesh.radial_segments = 14
+	round_mesh.rings = 1
+	trunk.mesh = round_mesh
+	trunk.material_override = bark
+	trunk.position = Villager.LOG_CENTRE
+	trunk.rotation.z = PI * 0.5
+	spot.add_child(trunk)
+	# The sawn ends: pale wood with a darker heart.
+	for side in [-1.0, 1.0]:
+		var radius: float = r * (1.08 if side < 0.0 else 1.0)
+		for ring in [[radius * 0.94, sapwood, 0.012], [radius * 0.45, heartwood, 0.02]]:
+			var disc := MeshInstance3D.new()
+			var disc_mesh := CylinderMesh.new()
+			disc_mesh.top_radius = ring[0]
+			disc_mesh.bottom_radius = ring[0]
+			disc_mesh.height = 0.02
+			disc_mesh.radial_segments = 14
+			disc_mesh.rings = 1
+			disc.mesh = disc_mesh
+			disc.material_override = ring[1]
+			disc.position = Villager.LOG_CENTRE + Vector3(-side * (Villager.LOG_LENGTH * 0.5 + ring[2]), 0, 0)
+			disc.rotation.z = PI * 0.5
+			spot.add_child(disc)
+	# Chips from earlier blows on the ground around the cut.
+	var chip_mesh := BoxMesh.new()
+	chip_mesh.size = Vector3(0.14, 0.025, 0.08)
+	for at in [Vector3(0.35, 0, 1.1), Vector3(-0.6, 0, 1.15), Vector3(0.1, 0, 2.05), Vector3(-0.45, 0, 2.15), Vector3(0.7, 0, 1.95), Vector3(-0.15, 0, 0.95)]:
+		var chip := MeshInstance3D.new()
+		chip.mesh = chip_mesh
+		chip.material_override = sapwood
+		chip.position = at + Vector3(0, 0.0125, 0)
+		chip.rotation.y = at.x * 7.0 + at.z * 3.0
+		spot.add_child(chip)
+	var chips := Effects.make_wood_chips()
+	chips.position = Villager.BITE_POINT
+	spot.add_child(chips)
+	var centre := spot.to_global(Villager.LOG_CENTRE)
+	var size := Vector3(Villager.LOG_LENGTH, 0.5, r * 2.0)
+	if absf(face.x) > 0.5:
+		size = Vector3(r * 2.0, 0.5, Villager.LOG_LENGTH)
+	_add_solid(Vector3(centre.x, 0, centre.z), size)
+	v.global_position = stand
+	v.rotation.y = spot.rotation.y
+	v.set_chopping(stand, face, chips)
 
 
 # --- Bandits ------------------------------------------------------------------
@@ -1710,9 +2398,10 @@ func _spawn_wild() -> void:
 	for s in _wild:
 		if s.kind == "hauptmann" and chief_defeated():
 			# He fell in this game already. If his blade was left lying
-			# there, it still waits where he fell.
+			# there, it still waits where he fell (games saved before the
+			# floor was kept get it back here).
 			s.timer = INF
-			if not taken.has(BanditChief.TROPHY):
+			if not taken.has(BanditChief.TROPHY) and not lies_on_floor(BanditChief.TROPHY):
 				_drop_item(BanditChief.TROPHY, cell_to_world(s.cell))
 			continue
 		_spawn_bandit(s)
@@ -1737,10 +2426,10 @@ func chief_defeated() -> bool:
 	return taken.has(CHIEF_DEFEATED)
 
 
-## Puts a bandit (or a beast) on its spot. When it falls it leaves gold and
-## maybe a piece of its gear, and after a while another comes to take its
-## place. Beasts carry what their kind says (see "purse" and "gear_chance"
-## in Enemy.KINDS): a wolf hardly anything, an orc or the yeti more.
+## Puts a bandit (or a beast) on its spot. When it falls it leaves its loot
+## (see Level.drop_kill_loot): a bandit or an orc coins and maybe a piece of
+## gear, a wolf or a yeti maybe meat, an ingredient or its fur. After a while
+## another comes to take its place.
 func _spawn_bandit(s: Dictionary) -> void:
 	var stats: Dictionary = Enemy.KINDS[s.kind]
 	var is_chief: bool = s.kind == "hauptmann"
@@ -1756,8 +2445,8 @@ func _spawn_bandit(s: Dictionary) -> void:
 	e.global_position = cell_to_world(s.cell)
 	e.died.connect(func():
 		enemy_killed.emit(e)
-		_drop_gear(e, CHIEF_DROP_CHANCE if is_chief else BANDIT_DROP_CHANCE)
-		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
+		drop_kill_loot(e, randi_range(purse[0], purse[1]))
+		_drop_boss_loot(e)
 		s.enemy = null
 		s.timer = BANDIT_RESPAWN * (NIGHT_RESPAWN_FACTOR if night else 1.0)
 		if is_chief:
@@ -1781,7 +2470,7 @@ func _on_chief_fallen(e: BanditChief) -> void:
 			s.timer = INF
 	chief = null
 	_drop_item(BanditChief.TROPHY, e.global_position + Vector3(0.8, 0, 0.8))
-	Sfx.play_gear(self, BanditChief.TROPHY, 0.4, e.global_position)
+	Sfx.play_find(self, BanditChief.TROPHY, 0.4, e.global_position)
 	notice.emit(Lang.t("Rabenherz ist besiegt! Seine Klinge gehört dir."), 5.0)
 
 
@@ -1813,7 +2502,7 @@ func call_reinforcements(from: Enemy, count: int) -> void:
 		e.alert(hero)
 		e.died.connect(func():
 			enemy_killed.emit(e)
-			_drop_coins(e.global_position, randi_range(0, 2)))
+			drop_kill_loot(e, randi_range(0, 2)))
 		enemies = enemies.filter(func(x): return is_instance_valid(x))
 		enemies.append(e)
 		_called.append(e)
@@ -1944,6 +2633,10 @@ func _setup_astar() -> void:
 		for x in width:
 			var c := Vector2i(x, y)
 			astar.set_point_solid(c, not WALK.contains(cell_char(c)))
+	# A marked treasure spot or its dug-up chest stands in the way.
+	for id in treasure_cells:
+		if TreasureMaps.blocks(self, id):
+			astar.set_point_solid(treasure_cells[id], true)
 	# Villagers and the hero keep to the paths where they can.
 	for y in height:
 		for x in width:
@@ -1986,8 +2679,8 @@ func _process(delta: float) -> void:
 	if inside != _inside:
 		_inside = inside
 		_roof.visible = not inside
-		for wall in _south_walls:
-			create_tween().tween_property(wall, "scale:y", LOW_WALL_SCALE if inside else 1.0, 0.35)
+		if not inside:
+			_house_fade.reset(self)
 		if inside and house_given and not _entered_once:
 			_entered_once = true
 			notice.emit(Lang.t("Dein neues Zuhause! Im Bett speicherst du, in der Truhe lagerst du deine Schätze."), 4.0)
@@ -1995,6 +2688,8 @@ func _process(delta: float) -> void:
 		if inside and _marker:
 			_marker.queue_free()
 			_marker = null
+	if inside:
+		_house_fade.update(self, player, get_viewport().get_camera_3d())
 	_mind_the_wild(delta)
 	_whisper_from_holes(delta)
 	_mind_the_night(delta)
@@ -2062,14 +2757,21 @@ func set_hour(new_hour: float) -> void:
 	for candle in _candles:
 		candle.visible = glow > 0.02
 	for mat in _window_mats.values():
-		mat.emission_energy_multiplier = WINDOW_GLOW * glow
+		if mat is ShaderMaterial:
+			mat.set_shader_parameter("glow", WINDOW_GLOW * glow)
+		else:
+			mat.emission_energy_multiplier = WINDOW_GLOW * glow
 	var dark := DayNight.is_night(hour)
 	var came := _mind_the_wanderer()
+	if not first:
+		_mind_chimneys()
 	if dark == night and not first:
 		return
 	night = dark
 	for v in villagers:
 		v.set_night(night, first)
+	if first:
+		_mind_chimneys(true)
 	if night:
 		_raise_dead()
 	else:
@@ -2089,6 +2791,26 @@ func set_hour(new_hour: float) -> void:
 			text += "\n" + Lang.t("Neumond. Die dunklen Löcher atmen, und etwas Großes kriecht näher ans Dorf.")
 			lines += 1
 		notice.emit(text, 4.5 + 1.5 * (lines - 1))
+		# The village takes fright at what the night brings (see VillageWorries).
+		if night:
+			Events.scare("grauen" if Moon.is_new(day) else "woelfe" if Moon.is_full(day) else "tote")
+
+
+## Lights the fire in every house someone has come home to in the evening,
+## and lets it burn down late at night or once the house is empty (see
+## ChimneySmoke). `at_once` settles it on the spot.
+func _mind_chimneys(at_once := false) -> void:
+	if chimneys.is_empty():
+		return
+	var burns := ChimneySmoke.fire_burns(hour)
+	var home := {}
+	if burns:
+		for v in villagers:
+			if v.at_home:
+				var door: Vector3 = v.house_door()
+				home[door] = int(home.get(door, 0)) + 1
+	for c in chimneys:
+		ChimneySmoke.light(c.smoke, ChimneySmoke.smokes(hour, int(home.get(c.door, 0))), at_once)
 
 
 # --- The wandering merchant ---------------------------------------------------
@@ -2273,7 +2995,7 @@ func _spawn_risen(s: Dictionary) -> void:
 	add_child(dust)
 	e.died.connect(func():
 		enemy_killed.emit(e)
-		_drop_coins(e.global_position, randi_range(0, 2))
+		drop_kill_loot(e, randi_range(0, 2))
 		s.enemy = null
 		s.timer = NIGHT_DEAD_RESPAWN)
 	s.enemy = e
@@ -2534,7 +3256,7 @@ func _spawn_pack_wolf(s: Dictionary) -> void:
 	var purse: Array = Enemy.KINDS[s.kind].get("purse", [0, 1])
 	e.died.connect(func():
 		enemy_killed.emit(e)
-		_drop_coins(e.global_position, randi_range(purse[0], purse[1]) + (3 if s.leader else 0))
+		drop_kill_loot(e, randi_range(purse[0], purse[1]) + (3 if s.leader else 0))
 		s.timer = INF)
 	s.enemy = e
 	enemies = enemies.filter(func(x): return is_instance_valid(x))
@@ -2555,7 +3277,7 @@ func _spawn_moon_horror() -> void:
 	e.died.connect(func():
 		enemy_killed.emit(e)
 		taken["neumond:%d" % int(s.night)] = true
-		_drop_coins(e.global_position, randi_range(8, 14))
+		drop_kill_loot(e, randi_range(8, 14))
 		s.timer = INF)
 	s.enemy = e
 	enemies = enemies.filter(func(x): return is_instance_valid(x))
@@ -2607,6 +3329,45 @@ func set_weather(kind: String) -> void:
 	else:
 		notice.emit(Lang.t("Das Gewitter zieht ab. Liegengebliebenes Donnererz verglimmt.") if was == Weather.STORM
 				else Lang.t("Der Himmel klart auf."), 4.0)
+
+
+## How much water lies in the rain puddles (see Puddles.set_water).
+func set_puddles(water: float, rain := 0.0, sky := 1.0) -> void:
+	if puddles:
+		puddles.set_water(water, rain, sky)
+
+
+## Whether a spot on the ground is in a rain puddle deep enough to splash.
+## The ground of an open-air tile, as _build_ground lays it (see Surfaces):
+## paving on the square, the dirt paths, the floor of the hero's old house,
+## loose scree in the mountains, dark soil in the graveyard, the pumpkin
+## field and the robbers' camp, and grass everywhere else.
+func ground_at(c: Vector2i) -> String:
+	if _ground_rects.is_empty():
+		_ground_rects = {"square": _bounds_of(":"), "fence": _bounds_of("z")}
+	var ch := cell_char(c)
+	if ",aP".contains(ch):
+		return Surfaces.PATH
+	if ch == "i" or ch == "B" or ch == "L":
+		return Surfaces.WOOD
+	if "'=]{}-/".contains(ch):
+		return Surfaces.SCREE
+	var square: Rect2i = _ground_rects.square
+	if ch == ":" or (square.has_point(c) and not BLOCK_CHARS.contains(ch)):
+		return Surfaces.PAVING
+	var fence: Rect2i = _ground_rects.fence
+	if fence.has_point(c) or ch == "y" or CAMP.contains(ch):
+		return Surfaces.SOIL
+	return Surfaces.GRASS
+
+
+func in_puddle(p: Vector3) -> bool:
+	return puddles != null and p.y < 0.3 and puddles.wet_at(p)
+
+
+func splash_puddle(at: Vector3, hard := true) -> void:
+	if puddles:
+		puddles.splash(at, hard)
 
 
 ## Spots for the creatures of a weather: open ground right next to the map
@@ -2665,7 +3426,7 @@ func _spawn_weather_foe(s: Dictionary) -> void:
 	var purse: Array = Enemy.KINDS[s.kind].get("purse", [0, 2])
 	e.died.connect(func():
 		enemy_killed.emit(e)
-		_drop_coins(e.global_position, randi_range(purse[0], purse[1]))
+		drop_kill_loot(e, randi_range(purse[0], purse[1]))
 		s.enemy = null
 		s.timer = WEATHER_RESPAWN)
 	s.enemy = e
@@ -2699,9 +3460,10 @@ func strike() -> Vector3:
 	at.y = 0.0
 	_show_bolt(at)
 	lightning.emit(at)
+	Events.scare("blitz")
 	if ore_spot.x >= 0:
 		var pos := cell_to_world(ore_spot).lerp(at, 0.35)
-		_drop_item(ORE, pos)
+		_drop_item(ORE, pos, false)
 		_pickups[-1]["weather"] = true
 		if player and _flat_distance(player.global_position, pos) < ORE_NOTICE_RANGE:
 			notice.emit(Lang.t("Der Blitz schlägt in einen Felsen ein! Daneben glimmt Donnererz."), 3.5)

@@ -18,13 +18,13 @@ extends Node3D
 ## assets/animals/LICENSE.txt).
 
 ## model: file in assets/animals; scale fits it to the hero's size; walk and
-## run: speeds (m/s); run_anim: the ground speed the gallop was made for;
+## run: speeds (m/s; the legs keep pace with them, see Stride);
 ## shy: how close the hero may come before it bolts (metres); roam: how far
 ## from home it strolls (tiles).
 const KINDS := {
-	"reh": {"model": "Deer", "scale": 0.45, "walk": 1.3, "run": 7.5, "run_anim": 6.0, "shy": 11.0, "roam": 4},
-	"hirsch": {"model": "Stag", "scale": 0.45, "walk": 1.2, "run": 7.0, "run_anim": 6.0, "shy": 9.0, "roam": 4},
-	"fuchs": {"model": "Fox", "scale": 0.4, "walk": 1.5, "run": 6.5, "run_anim": 5.0, "shy": 8.0, "roam": 5},
+	"reh": {"model": "Deer", "scale": 0.45, "walk": 1.3, "run": 7.5, "shy": 11.0, "roam": 4},
+	"hirsch": {"model": "Stag", "scale": 0.45, "walk": 1.2, "run": 7.0, "shy": 9.0, "roam": 4},
+	"fuchs": {"model": "Fox", "scale": 0.4, "walk": 1.5, "run": 6.5, "shy": 8.0, "roam": 5},
 }
 ## Which map letter places which animal (see Outdoor).
 const LETTERS := {"D": "reh", "V": "hirsch", "&": "fuchs"}
@@ -65,6 +65,7 @@ func setup(owner_level: Level, animal_kind: String, cell: Vector2i) -> void:
 
 
 func _ready() -> void:
+	SmoothMotion.follow_ticks(self)
 	_model = load("res://assets/animals/%s.glb" % _stats.model).instantiate()
 	_model.scale = Vector3.ONE * float(_stats.scale)
 	add_child(_model)
@@ -192,9 +193,8 @@ func _come_for_food(hero: Node3D, delta: float) -> void:
 			_path.append(level.cell_to_world(c))
 	if _path.is_empty():
 		# Same tile or the next one: straight to the hero.
-		global_position += to.normalized() * minf(_speed * delta, to.length() - reach * 0.9)
+		global_position += to.normalized() * minf(_stride("Walk", _speed) * delta, to.length() - reach * 0.9)
 		_turn_to(to, delta)
-		play("Walk")
 	else:
 		_walk(delta)
 
@@ -245,19 +245,25 @@ func _walk(delta: float) -> void:
 	if _path.is_empty():
 		return
 	var to := _flat(_path[0] - global_position)
-	var step := _speed * delta
+	var step := _stride("Gallop" if state == "flee" else "Walk", _speed) * delta
 	if to.length() <= step:
 		global_position = Vector3(_path[0].x, global_position.y, _path[0].z)
 		_path.pop_front()
 	else:
 		global_position += to.normalized() * step
 	_turn_to(to, delta)
-	if state == "flee":
-		play("Gallop")
-		_anim.speed_scale = clampf(_speed / float(_stats.run_anim), 0.6, 2.0)
-	else:
-		play("Walk")
-		_anim.speed_scale = 1.0
+
+
+## Moves in `anim` at up to `speed`: a walk no faster than its legs step,
+## every gait played just as fast as its planted hooves must travel (see
+## Stride). Returns the speed really moved.
+func _stride(anim: String, speed: float) -> float:
+	var rig := Stride.rig_of(str(_stats.model))
+	var size := _model.scale.x
+	var moved := minf(speed, Stride.top_speed(rig, anim, size)) if anim == "Walk" else speed
+	play(anim)
+	_anim.speed_scale = Stride.playback(rig, anim, size, moved)
+	return moved
 
 
 func _set_path(target: Vector3) -> bool:

@@ -1,7 +1,8 @@
 """Builds the game's sound effects (and one sound per comic word) from scratch (noise, tones and envelopes),
 so there are no licences to worry about. Run: python3 tools/make_sounds.py
 The footsteps (step_*, sneak_*) and the door are real recordings instead, see
-assets/sounds/CREDITS.txt; the loot sounds come from tools/make_loot_sounds.py."""
+assets/sounds/CREDITS.txt; the loot sounds come from tools/make_loot_sounds.py and the coins
+from tools/make_coin_sounds.py."""
 import os, subprocess, wave
 import numpy as np
 
@@ -110,14 +111,6 @@ def throw():
     n = noise(0.18)
     tt = t(0.18)
     return (lowpass(n, 3500) - lowpass(n, 1200)) * np.sin(np.pi * tt / 0.18) ** 3
-
-
-def coin():
-    tt = t(0.45)
-    a = np.sin(2 * np.pi * 1975 * tt) * env(len(tt), 0.001, 0.08)
-    b = np.sin(2 * np.pi * 2637 * tt) * env(len(tt), 0.001, 0.12)
-    b[: int(SR * 0.07)] = 0
-    return a + b
 
 
 def key():
@@ -444,6 +437,87 @@ WORDS = ["zack", "klonk", "wumm", "krach", "boing", "wamm", "zing", "tschak", "k
          "klong", "plong"]
 
 
+def trap_spikes():
+    # Rusty iron spikes scraping up out of their holes: stick-slip grinding
+    # (jittered bursts that ring a few out-of-tune metal partials), rising in
+    # pitch as the spikes come up, then a dull iron clank when they stop.
+    r = np.random.default_rng(31)
+    sec = 0.5
+    n = int(SR * sec)
+    tt = np.arange(n) / SR
+    rise = 0.3  # Traps.SPIKES_RISE
+    excite = np.zeros(n)
+    pos = 0.0
+    while pos < rise:
+        rate = 70 + 160 * (pos / rise) ** 1.4
+        i = int(pos * SR)
+        burst = int(SR * r.uniform(0.002, 0.006))
+        excite[i:i + burst] += r.uniform(-1, 1, min(burst, n - i)) * r.uniform(0.4, 1.0)
+        pos += (1.0 / rate) * r.uniform(0.6, 1.5)
+    excite += r.uniform(-1, 1, n) * 0.12 * (tt < rise)
+    kt = np.arange(int(SR * 0.04)) / SR
+    kernel = np.zeros(len(kt))
+    for f, a in [(1130, 1.0), (1870, 0.8), (2740, 0.6), (3910, 0.45), (5230, 0.3)]:
+        kernel += np.sin(2 * np.pi * f * kt) * a * np.exp(-kt / 0.009)
+    grind = np.convolve(excite, kernel)[:n]
+    grind = highpass(grind, 600)
+    grind *= np.clip(tt / 0.03, 0, 1) * np.clip((rise + 0.03 - tt) / 0.06, 0, 1)
+    out = grind * 0.8
+    at(out, ring([(410, 0.7), (980, 0.5), (1720, 0.35), (2650, 0.2)], 0.2, 0.07) * 0.9, rise - 0.01)
+    at(out, thud(140, 0.12, 4, 0.04) * 0.6, rise - 0.01)
+    return out
+
+
+def chop():
+    # An axe biting into a log: a dry, hollow "tock" of the wood, the crisp
+    # bite of the blade and a few small splinters. Its own random numbers,
+    # so the other sounds stay as they are.
+    r = np.random.default_rng(23)
+    n = lambda sec: r.uniform(-1, 1, int(SR * sec))
+    out = np.zeros(int(SR * 0.4))
+    tt = t(0.25)
+    tock = (np.sin(2 * np.pi * 210 * tt) + 0.5 * np.sin(2 * np.pi * 395 * tt) + 0.25 * np.sin(2 * np.pi * 710 * tt))
+    at(out, tock * env(len(tt), 0.001, 0.035), 0.002)
+    at(out, lowpass(n(0.12), 1400) * env(int(SR * 0.12), 0.0005, 0.02) * 2.5, 0)
+    at(out, highpass(n(0.03), 2500) * env(int(SR * 0.03), 0.0002, 0.004) * 1.2, 0)
+    for i in range(4):
+        c = highpass(n(0.015), 1800) * env(int(SR * 0.015), 0.0002, 0.003) * r.uniform(0.25, 0.5)
+        at(out, c, 0.04 + i * 0.035 + r.uniform(0, 0.02))
+    return out
+
+
+def cheep():
+    # Hungry chicks in a nest: a few thin, high peeps tumbling over each
+    # other, each a quick rising sweep. Its own random numbers, so the other
+    # sounds stay as they are.
+    r = np.random.default_rng(31)
+    out = np.zeros(int(SR * 0.75))
+    start = 0.0
+    for i in range(5):
+        sec = r.uniform(0.06, 0.09)
+        tt = t(sec)
+        low = r.uniform(3000, 3600)
+        high = low + r.uniform(700, 1200)
+        sweep = low + (high - low) * np.sin(np.pi * 0.5 * tt / sec)
+        phase = 2 * np.pi * np.cumsum(sweep) / SR
+        peep = np.sin(phase) + 0.25 * np.sin(2 * phase)
+        e = np.sin(np.pi * tt / sec) ** 1.5
+        at(out, peep * e * r.uniform(0.6, 1.0), start)
+        start += r.uniform(0.08, 0.15)
+def anvil():
+    # A smith's hammer on hot iron over the anvil: a bright, short "ting" of
+    # the anvil's steel, a dull knock of the blow through the soft iron, and
+    # a faint after-ring. Its own random numbers, so the other sounds stay as
+    # they are.
+    r = np.random.default_rng(31)
+    n = lambda sec: r.uniform(-1, 1, int(SR * sec))
+    out = np.zeros(int(SR * 0.7))
+    at(out, ring([(1180, 1.0), (2640, 0.55), (3910, 0.35), (5350, 0.18)], 0.6, 0.16), 0.001)
+    at(out, thud(170, 0.12, 4, 0.03) * 0.9, 0)
+    at(out, highpass(n(0.02), 3000) * env(int(SR * 0.02), 0.0002, 0.003) * 1.1, 0)
+    return out
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     save("swing", swing(), 0.6)
@@ -451,7 +525,6 @@ if __name__ == "__main__":
     save("bones", bones(), 0.7)
     save("hurt", hurt(), 0.8)
     save("throw", throw(), 0.5)
-    save("coin", coin(), 0.45)
     save("key", key(), 0.5)
     save("rummage", rummage(), 0.5)
     save("lever", lever(), 0.8)
@@ -471,3 +544,7 @@ if __name__ == "__main__":
     save("drip", drip(), 0.45)
     save("snore", snore(), 0.5)
     save("ui_click", ui_click(), 0.35)
+    save("trap_spikes", trap_spikes(), 0.7)
+    save("chop", chop(), 0.75)
+    save("cheep", cheep(), 0.4)
+    save("anvil", anvil(), 0.7)

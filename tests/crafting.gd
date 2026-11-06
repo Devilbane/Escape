@@ -84,7 +84,7 @@ func _test() -> void:
 			check(r.has("effect") and Lang.EN.has(r.effect), "%s, a wish's reward, says what it does in both languages" % id)
 		check(Training.CRAFTS.has(r.craft) and Lang.EN.has(Training.CRAFTS[r.craft].name), "%s needs a craft that exists" % id)
 		for ingredient in r.ingredients:
-			check(ingredient == "eisen" or Crafting.INGREDIENTS.has(ingredient), "%s: %s is an ingredient" % [id, ingredient])
+			check(ingredient == "eisen" or ingredient in Forge.FINE or Crafting.INGREDIENTS.has(ingredient), "%s: %s is an ingredient" % [id, ingredient])
 		for line in r.lines:
 			check(Lang.EN.has(line.text), "%s: line %s has an English text" % [id, line.id])
 			if line.get("hidden", false):
@@ -109,7 +109,7 @@ func _test() -> void:
 	# The scroll: faded lines show their fragment until they are read.
 	var text: String = game.crafting.describe("mondsilberring")
 	check(text.contains("Ein stilles … ohne …") and not text.contains("Gemüt"), "a faded line shows only its fragment")
-	check(text.contains("Mondsilbererz 0 / 2") and text.contains("Eisenbarren 0 / 1"), "the ingredients are counted")
+	check(text.contains("Mondsilbererz 0 / 2") and text.contains("Eisenbarren 0 / 2"), "the ingredients are counted")
 	check(text.contains("Feinschmieden 0 / 3"), "the craft level is shown")
 	check(game.crafting.read_line("mondsilberring", "gemuet"), "a faded line can be read")
 	check(not game.crafting.read_line("mondsilberring", "gemuet"), "a line is read only once")
@@ -129,9 +129,11 @@ func _test() -> void:
 	game.crafting.add("unbekannt")
 	check(game.crafting.have("mondsilbererz") == 2 and game.crafting.have("unbekannt") == 0, "known ingredients go into the pouch")
 	check(game.crafting.describe_ingredient("mondsilbererz").contains("2 dabei") and game.crafting.describe_ingredient("mondsilbererz").contains("Fundort entdeckt."), "gathering marks the place as found")
-	check(not game.crafting.has_ingredients("mondsilberring"), "an iron bar is still missing")
+	check(not game.crafting.has_ingredients("mondsilberring"), "the iron bars are still missing")
 	game.iron = 1
-	check(game.crafting.has_ingredients("mondsilberring"), "with an iron bar everything is there")
+	check(not game.crafting.has_ingredients("mondsilberring"), "one iron bar is not enough")
+	game.iron = 2
+	check(game.crafting.has_ingredients("mondsilberring"), "with two iron bars everything is there")
 	check(game.player.bag.is_empty() or not game.player.bag.has("mondstein"), "ingredients do not fill the bag")
 
 	# The compendium page and the character page.

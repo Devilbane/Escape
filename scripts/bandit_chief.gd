@@ -34,7 +34,7 @@ const CHARGE_SPEED := 15.0
 const CHARGE_TIME := 1.1
 const CHARGE_FROM := 5.0
 const CHARGE_UP_TO := 18.0
-const CHARGE_DAMAGE := 2
+const CHARGE_DAMAGE := 3
 const CHARGE_EVERY := 5.0
 const CHARGE_HITS_AT := 1.7
 ## How long a missed charge leaves him dazed.
@@ -42,8 +42,6 @@ const DAZED_TIME := 1.8
 ## How much quicker he gets once enraged.
 const RAGE_SPEED := 1.25
 const RAGE_COOLDOWN := 0.8
-## Backstabs hit this many times as hard instead of killing outright.
-const BACKSTAB_FACTOR := 3
 ## Off the hunt this long, he binds his wounds: full life, phase 1 again.
 const RECOVER_AFTER := 12.0
 
@@ -64,7 +62,8 @@ func _init() -> void:
 
 ## His name and the shares of his life where his phases begin (see BossBar).
 func boss_title() -> String:
-	return TITLE
+	# One made in the map workshop goes by the name it was given there.
+	return str(custom.get("title", TITLE))
 
 
 func phase_marks() -> Array:
@@ -87,15 +86,13 @@ func is_charging() -> bool:
 func take_hit(damage: int, from: Vector3, hit_kind := "hit", wakes := true) -> void:
 	if dead:
 		return
-	if hit_kind == "backstab":
-		# Not one stab ends the chief, but it hurts.
-		damage *= BACKSTAB_FACTOR
-		hit_kind = "pierce"
-		Comic.pop(global_position, "backstab")
+	# A sneak attack is no instant kill for him: it deals what the hero
+	# deals (three times the hardest blow, see Player.sneak_attack_damage).
 	if _dazed > 0.0:
 		# Dazed, the chief's armour does not help him either.
 		damage *= 2
-		hit_kind = "pierce"
+		if hit_kind != "backstab":
+			hit_kind = "pierce"
 	super.take_hit(damage, from, hit_kind, wakes)
 	if dead:
 		_windup = 0.0
@@ -112,11 +109,13 @@ func _enter_phase(next: int) -> void:
 	var head := global_position + Vector3(0, 3.6 * _stats.size, 0)
 	if phase == 2:
 		Effects.float_text(level, head, Lang.t("Zu mir, Jungs!"), Color(1.0, 0.75, 0.4))
+		Events.say(Lang.t(boss_title()), Lang.t("Zu mir, Jungs!"), global_position)
 		_play_once("Cheer", 1.0)
 		if level.has_method("call_reinforcements"):
 			level.call_reinforcements(self, CALL_COUNT)
 	elif phase == 3:
 		Effects.float_text(level, head, Lang.t("Genug gespielt!"), Color(1.0, 0.35, 0.25))
+		Events.say(Lang.t(boss_title()), Lang.t("Genug gespielt!"), global_position)
 		_stats.speed *= RAGE_SPEED
 		_stats.cooldown *= RAGE_COOLDOWN
 		_charge_timer = 1.0
@@ -208,7 +207,7 @@ func _shield_bash(player: Player) -> void:
 		return
 	var d := player.global_position - global_position
 	d.y = 0.0
-	if d.length() < BASH_RANGE + 0.6 and not level.stacked(self, player):
+	if d.length() < BASH_RANGE + 0.6 and not level.stacked(self, player) and not level.door_between(global_position, player.global_position):
 		# The shield sends a running hero sprawling even when the blow
 		# itself finds them still reeling from the last one.
 		player.take_damage(BASH_DAMAGE, global_position, self, false)
@@ -245,7 +244,8 @@ func _charge(delta: float, player: Player) -> void:
 	move_and_slide()
 	var d := player.global_position - global_position
 	d.y = 0.0
-	if not player.dead and d.length() < CHARGE_HITS_AT and absf(player.global_position.y - global_position.y) < 1.4:
+	if not player.dead and d.length() < CHARGE_HITS_AT and absf(player.global_position.y - global_position.y) < 1.4 \
+			and not level.door_between(global_position, player.global_position):
 		_charging = 0.0
 		_anim.speed_scale = 1.0
 		var before := player.hp
@@ -268,3 +268,8 @@ func _daze() -> void:
 	_play_once("Hit_B", DAZED_TIME)
 	Effects.float_text(level, global_position + Vector3(0, 3.0 * _stats.size, 0), Lang.t("Benommen!"), Color(1.0, 0.95, 0.5))
 	Comic.pop(global_position, "rumble")
+
+
+## A boss shrugs off a thunder weapon's crack (see Enemy.shock).
+func can_be_stunned() -> bool:
+	return false

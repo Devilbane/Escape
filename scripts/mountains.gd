@@ -1,7 +1,8 @@
 class_name Mountains
 ## The high mountains far east of the wolf hollow: every "=" tile of the
 ## open-air map is solid rock, and this builds the rock as low-poly,
-## flat-shaded meshes in the style of the dragon's mountain (LairMountain).
+## flat-shaded meshes in the style of the dragon's mountain (LairMountain),
+## weathered like the village stone (AgedStone.rock_material).
 ##
 ## The rock rises steeply right where the walkable ground ends, then climbs
 ## on into peaks with snow on their tops. One rule keeps the hero in view:
@@ -34,6 +35,8 @@ const CRAG_SCALE := 0.045
 const SOUTH_SLOPE := 1.05
 const SOUTH_LOOK := 8
 const SINK := 0.25
+## How many tiles the distance field reaches past the mesh.
+const FIELD_MARGIN := 2
 
 const ROCK := Color(0.47, 0.45, 0.43)
 const ROCK_DARK := Color(0.3, 0.29, 0.29)
@@ -69,7 +72,11 @@ static func build(level: Level, seed_value: int) -> void:
 		return
 	# Past the edge of the map the rock goes on a little way.
 	area = area.grow(4)
-	var dist := _distance_field(level, area)
+	# The distance field reaches a little further than the mesh: a point at
+	# the mesh's edge blends the tiles either side of it, and a tile missing
+	# from the field counts as deep rock, which stood up a seam of rock on
+	# open ground wherever the mesh's edge crossed it.
+	var dist := _distance_field(level, area.grow(FIELD_MARGIN))
 	var north := {}
 	for y in range(area.position.y, area.end.y):
 		for x in range(area.position.x, area.end.x):
@@ -100,10 +107,8 @@ static func build(level: Level, seed_value: int) -> void:
 				h = maxf(0.6, h + rng.randf_range(-0.6, 0.6) * minf(1.0, h / 5.0))
 			row.append(Vector3(x, h - SINK, z))
 		points.append(row)
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.95
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	# Weathered like the village stone (see AgedStone.rock_material).
+	var mat := AgedStone.rock_material()
 	var per := int(CHUNK * tile / STEP)
 	for cz in range(0, nz, per):
 		for cx in range(0, nx, per):

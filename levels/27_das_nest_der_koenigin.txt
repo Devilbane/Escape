@@ -1,0 +1,23 @@
+name: Das Nest der Königin
+hint: Unter dem Spinnenloch: eine Höhle voller Seide und Eiersäcke. Hier wacht die Spinnenkönigin über ihre Brut.
+monsters: wildlife
+building: loch2b
+floor: cellar
+lair: yes
+dark: yes
+up: loch2
+##########################
+##E#######################
+##P....,,.....#.....u....#
+##.....,..u...#..c.......#
+###....,,,,,,,,,,,..u....#
+###..u.......#.......k...#
+#######,######,###########
+#.....#,#....u,.....#....#
+#.u...,,,,,,,,,,,,..,,.u.#
+#...c.#...u...#.....#....#
+###,###########,######,###
+#.........#.....,.......u#
+#..u......,,,,,,,,...q...#
+#.....v...#.....,....C...#
+##########################

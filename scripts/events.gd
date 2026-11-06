@@ -34,6 +34,9 @@ signal bounty_paid(id: String)
 ## room), "writing" (a wall writing) or "rune" (a dwarves' rune tablet), at a
 ## place of this level (see HeroLevel.RIDDLES). It earns experience.
 signal riddle_solved(kind: String, place_level: int)
+## The hero fished up a bottle with a treasure map in it (see Fishing and
+## TreasureMaps): the map's id. Its spot shows in the world from now on.
+signal treasure_map_found(id: String)
 ## A villager's task is done and its reward handed over (see Quests).
 signal quest_done(id: String)
 ## Something went into or out of the bag because of a task.
@@ -47,9 +50,39 @@ signal map_grew(names: Array)
 ## The hero has seen the whole of a map, the level file named (see
 ## Journal.note_full_map). It trains the Erkunden skill.
 signal map_explored(file: String)
+## The hero spotted a hidden trap (see Traps) at a place of this level; text
+## is what the hero makes of it, already translated. It trains Erkunden and
+## earns a little experience.
+signal trap_spotted(text: String, place_level: int)
+
+## The hero struck with the blade ("melee"), threw a knife ("throw") or
+## jumped ("jump"). The first steps' cards listen (see Tutorial).
+signal hero_acted(action: String)
+## The hero found something (loot): the line for the event log at the left
+## edge of the screen, already translated (see EventLog). Item names in it
+## may be marked with Rarity.marked, to show in their rarity's colour.
+## Use Events.found.
+signal loot_found(text: String, color: Color)
+## Someone said a line out loud at `pos` (a villager, a dungeon dweller, a
+## boss); the event log writes it down when the hero is near enough to hear
+## it. Text and name are already translated. Use Events.say.
+signal speech_said(speaker: String, text: String, pos: Vector3)
 ## The hero noticed a writing on a wall (see Level, WallWritings): its
 ## German text, for the compendium and the journal.
 signal writing_found(text: String)
+
+## Something frightening happened above ground: "blitz" (lightning struck),
+## "drache" (a dragon flew over), "woelfe" (a full-moon night fell),
+## "grauen" (a new-moon night fell) or "tote" (night fell and the dead rise).
+## The villagers near the hero cry out and talk about it (see
+## VillageWorries). Use Events.scare.
+signal scare_happened(kind: String)
+
+## The old dragon's little helpers carried something off the open ground
+## into its lair (see DragonHelpers): a floor entry's kind ("item" or
+## "coin") and item id (a coin's metal), and how many (a pile of coins).
+## The hoard counts it (see DragonHoard). Use Events.carried_off.
+signal loot_carried_off(kind: String, id: String, count: int)
 
 
 static var _bus: Events = null
@@ -65,6 +98,26 @@ static func bus() -> Events:
 ## News for the hero to read (see news_told).
 static func tell(text: String, color: Color, duration := 4.0) -> void:
 	bus().news_told.emit(text, color, duration)
+
+
+## Loot for the event log (see loot_found).
+static func found(text: String, color := EventLog.LOOT_COLOR) -> void:
+	bus().loot_found.emit(text, color)
+
+
+## A spoken line for the event log (see speech_said).
+static func say(speaker: String, text: String, pos: Vector3) -> void:
+	bus().speech_said.emit(speaker, text, pos)
+
+
+## Something frightening happened (see scare_happened).
+static func scare(kind: String) -> void:
+	bus().scare_happened.emit(kind)
+
+
+## The dragon's helpers carried this off (see loot_carried_off).
+static func carried_off(kind: String, id: String, count := 1) -> void:
+	bus().loot_carried_off.emit(kind, id, count)
 
 
 ## Something new for the compendium (see lore_learned).

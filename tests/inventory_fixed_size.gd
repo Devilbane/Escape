@@ -75,7 +75,7 @@ func _run(lang: String) -> void:
 	var menus: Menus = game.menus
 	p.bag.clear()
 	p.equipped.clear()
-	p.equipped["rucksack"] = "grosser_rucksack"
+	p.equipped["rucksack"] = "reiserucksack"
 	var ids := _by_description()
 	# The longest descriptions and the longest names, then the shortest.
 	var names := Items.ALL.keys()
@@ -87,6 +87,10 @@ func _run(lang: String) -> void:
 	await _wait()
 	var start := _rect()
 	await _shot("inventory_none_" + lang)
+	# A name too long for two lines ends in "…"; its cell does not grow a third line.
+	for b in menus._box.find_children("*", "Button", true, false):
+		if b.custom_minimum_size == Menus.INVENTORY_CELL:
+			check(b.size == Menus.INVENTORY_CELL, "the cell %s keeps its size (%s): %s" % [b.text.replace("\n", " "), lang, b.size])
 	for i in p.bag.size():
 		menus._select(i)
 		await _wait()
@@ -108,6 +112,9 @@ func _run(lang: String) -> void:
 	menus._show_inventory_tab("beutel")
 	await _wait()
 	check(_rect() == start, "the pouch tab keeps the window (%s): %s, was %s" % [lang, _rect(), start])
+	menus._show_inventory_tab("muenzen")
+	await _wait()
+	check(_rect() == start, "the coin tab keeps the window (%s): %s, was %s" % [lang, _rect(), start])
 	menus._show_inventory_tab("tasche")
 	# Equipping a weapon with a long name keeps the slot buttons' width.
 	for i in p.bag.size():

@@ -38,10 +38,12 @@ var cell := Vector2i.ZERO
 var along_x := true
 var layer := 0
 ## An old block that belongs to the dungeon (a puzzle room's, see Level's
-## pressure plates): too heavy for the bag and never stacked. It only slides
-## along the floor in a straight line, pushed with E or dragged with the
-## mouse, and is not kept in the saved game.
+## pressure plates): too heavy for the bag and never stacked. It moves over
+## the floor, pushed with E or dragged with the mouse, but no further than
+## Level.HEAVY_RANGE from `home`, and is not kept in the saved game.
 var heavy := false
+## Where a heavy block lay when the level began (the middle of its bottom).
+var home := Vector3.ZERO
 
 
 func _ready() -> void:

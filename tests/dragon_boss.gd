@@ -62,7 +62,8 @@ func _process(_delta: float) -> bool:
 			game.load_level(game._outdoor_index(), false)
 			game.state = game.State.PLAYING
 			game.player.global_position = game.level.doors.E
-			game.go_inside("E")
+			# The dragon sleeps on the lair's third floor (see DragonLair).
+			game.go_inside("E3")
 			stage = 1
 		1:
 			stage_frames += 1
@@ -75,14 +76,18 @@ func _process(_delta: float) -> bool:
 			if dragon == null:
 				_finish()
 				return true
-			check(dragon.max_hp() >= 30, "the dragon is tough (%d life)" % dragon.max_hp())
+			check(dragon.max_hp() >= 72, "the dragon is tough (%d life)" % dragon.max_hp())
 			check(lvl.dragon_bar != null and not lvl.dragon_bar.wanted(), "its health bar waits until the fight starts")
 			lvl.dragon_awakened.connect(func(_d): awakened += 1)
+			# These checks are about the dragon's own rules: leave out the
+			# hardening of whatever gear it rolled (see Level._roll_gear, which
+			# picks from every item, so new armour pieces change what it wears).
+			dragon.hardening = 0
 			# A stab in the back of the sleeping dragon only hurts it.
 			var behind := dragon.global_position - dragon.ahead() * 2.0
 			check(dragon.open_to_backstab(behind), "the sleeping dragon can be stabbed in the back")
-			dragon.take_hit(2, behind, "backstab")
-			check(not dragon.dead and dragon.hp == dragon.max_hp() - 2 * Dragon.BACKSTAB_FACTOR, "a stab in the back no longer kills the dragon (%d life left)" % dragon.hp)
+			dragon.take_hit(6, behind, "backstab")
+			check(not dragon.dead and dragon.hp == dragon.max_hp() - 6, "a stab in the back no longer kills the dragon (%d life left)" % dragon.hp)
 			player.knives = 0
 			player.global_position = dragon.global_position + Vector3(-7.0, 0, 0)
 			player.hp = player.max_hp
@@ -93,6 +98,11 @@ func _process(_delta: float) -> bool:
 			# It wakes with a roar and soon draws breath: red rings on the
 			# floor, which catch fire.
 			stage_frames += 1
+			# Keep the hero in breath range: blows from the lair's other
+			# monsters push it around, and this stage is about the fire.
+			if player.global_position.distance_to(dragon.global_position) > Dragon.BREATH_RANGE - 3.0:
+				player.global_position = dragon.global_position + Vector3(-7.0, 0, 0)
+				player.velocity = Vector3.ZERO
 			if stage_frames == 30:
 				check(awakened == 1, "the dragon wakes with a roar (intro)")
 				check(game.level.dragon_bar.wanted(), "the health bar shows during the fight")

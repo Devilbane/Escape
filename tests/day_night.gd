@@ -1,8 +1,9 @@
 extends SceneTree
 ## Headless test for the day and night above ground: the clock runs in the
-## open and stands still in the dungeon, the sky follows the hour with the
+## open and in the dungeon alike, the sky follows the hour with the
 ## old daylight as the daytime look, lanterns and windows glow at night,
-## most villagers go home to sleep, the dead rise on the graveyard and sink
+## most villagers go home to sleep (with a torch while still out, like the
+## guard on his rounds), the dead rise on the graveyard and sink
 ## back at dawn, bandits are tougher at night, a night in the bed skips to
 ## the morning, and the hour is kept in the saved game.
 ## Run with: godot --headless --fixed-fps 60 -s tests/day_night.gd
@@ -50,6 +51,8 @@ func _lamp_energy() -> float:
 
 func _window_glow() -> float:
 	for mat in game.level._window_mats.values():
+		if mat is ShaderMaterial:
+			return float(mat.get_shader_parameter("glow"))
 		return mat.emission_energy_multiplier
 	return -1.0
 
@@ -132,8 +135,8 @@ func _load_at_night() -> void:
 	check(_window_glow() > 1.0, "windows glow at night")
 	# Only the panes may shine: a textured window mask must multiply the
 	# glow colour, never add to it, or the whole building turns white.
-	for mat: StandardMaterial3D in game.level._window_mats.values():
-		if mat.emission_texture:
+	for mat in game.level._window_mats.values():
+		if mat is StandardMaterial3D and mat.emission_texture:
 			check(mat.emission_operator == BaseMaterial3D.EMISSION_OP_MULTIPLY, "only the window panes glow, not the whole building")
 	for v in game.level.villagers:
 		if v.goes_to_bed():
@@ -174,6 +177,24 @@ func _at_night() -> void:
 	mira.global_position = game.level.cell_to_world(mira.home)
 	game.level.set_hour(22.0)
 	check(mira.visible and mira._task == "walk", "at nightfall the shopkeeper walks home")
+	# Out in the dark on honest business, villagers carry torches.
+	mira._mind_torch(0.1)
+	check(mira.carries_torch() and mira._torch.visible and mira._torch_light.visible, "the shopkeeper walks home with a torch")
+	var guard := _villager("4")
+	if guard != null:
+		guard._mind_torch(0.1)
+		check(guard.carries_torch() and guard._torch_light.visible and guard._torch_light.light_energy > 1.0, "the guard keeps watch with a burning torch")
+		check(guard._torch_hidden.all(func(n): return not n.visible), "the guard puts away his shield to hold the torch")
+	var drinker := _villager("5")
+	if drinker != null:
+		drinker._mind_torch(0.1)
+		check(not drinker.carries_torch(), "the drinker on his bench needs no torch")
+	game.level.set_hour(12.0)
+	if guard != null:
+		guard._mind_torch(0.1)
+		check(not guard.carries_torch() and not guard._torch.visible and not guard._torch_light.visible, "by day the torch is put out")
+		check(guard._torch_hidden.all(func(n): return n.visible), "and the guard takes up his shield again")
+	game.level.set_hour(22.0)
 	game.level.set_hour(23.0)
 	game.day_hour = 23.0
 
@@ -195,11 +216,14 @@ func _clock_and_saving() -> void:
 	game.day_hour = 23.9
 	game._tick_clock(30.0)
 	check(game.day_hour < 1.0, "the clock goes round past midnight")
-	# Down in the dungeon time stands still.
+	# Down in the dungeon the clock runs on, and the HUD shows the hour.
 	game.load_level(0, false)
+	game.state = game.State.PLAYING
 	game.day_hour = 15.0
-	game._tick_clock(120.0)
-	check(is_equal_approx(game.day_hour, 15.0), "time stands still in the dungeon")
+	game._tick_clock(60.0)
+	check(is_equal_approx(game.day_hour, 15.0 + 24.0 / 20.0), "time goes on in the dungeon")
+	check(game._clock_text().begins_with(DayNight.clock_text(game.day_hour)), "the HUD shows the hour in the dungeon")
+	check(not game._clock_text().contains(Lang.t(Moon.word(game.day))), "but no moon down there")
 	game.state = before_state
 
 	# The hour goes into the saved game and comes back from it.
@@ -227,3 +251,40 @@ func _clock_and_saving() -> void:
 	check(DayNight.clock_text(13.6) == "13:30", "the clock shows quarter hours")
 	var dusk: Dictionary = DayNight.sky_at(19.0)
 	check(dusk.amb_e < 0.52 and dusk.amb_e > 0.3, "dusk is between day and night")
+
+	# The sun stands still through a part of the day, so its shadows do not
+	# shimmer; it only swings, briefly, from one part of the day to the next.
+	check(DayNight.sun_angles_at(8.0).is_equal_approx(DayNight.sun_angles_at(17.0)), "the sun stands still all day")
+	check(DayNight.sun_angles_at(22.0).is_equal_approx(DayNight.sun_angles_at(3.0)), "the moon stands still all night")
+	check(not DayNight.sun_angles_at(12.0).is_equal_approx(DayNight.sun_angles_at(0.0)), "the moon lights from elsewhere than the sun")
+	var mid_swing := DayNight.sun_angles_at(7.0 + DayNight.SUN_SWING * 0.5)
+	check(not mid_swing.is_equal_approx(DayNight.sun_angles_at(6.5)) and not mid_swing.is_equal_approx(DayNight.sun_angles_at(8.0)), "between two parts of the day the sun swings across")
+	check(DayNight.SUN_SWING * DayNight.DAY_LENGTH / 24.0 < 3.0, "and the swing takes only a moment")
+
+	# The ground never grows brighter as the evening goes on, not even when
+	# the dusk's low sun gives way to the high moon at nightfall (as bright
+	# as the eye sees the light's colours, under the full moon).
+	var ground := func(h: float) -> float:
+		var sky: Dictionary = DayNight.sky_at(h)
+		var sun_on_ground := DayNight.sun_strength(h) * sin(deg_to_rad(-DayNight.sun_angles_at(h).x))
+		return sun_on_ground * (sky.sun as Color).get_luminance() + float(sky.amb_e) * (sky.amb as Color).get_luminance()
+	var was: float = ground.call(17.5)
+	var darker := true
+	var h := 17.5
+	while h <= 23.0:
+		var now: float = ground.call(h)
+		darker = darker and now <= was + 0.0001
+		was = now
+		h += 0.005
+	check(darker, "the ground only darkens from evening into the night")
+	check(is_equal_approx(DayNight.sun_strength(12.0), 0.88), "by day the sun shines as strongly as ever")
+
+	# The night is dark, lit only by the moon: even the full moon lights the
+	# ground far less than the dusk, and each smaller moon less again.
+	var night_ground := func(phase: int) -> float:
+		return float(ground.call(23.0)) * Moon.light(posmod(phase - Moon.FIRST_PHASE, Moon.CYCLE))
+	check(float(night_ground.call(Moon.FULL)) < float(ground.call(19.5)) * 0.6, "a full-moon night is much darker than the dusk")
+	var by_phase := true
+	for p in range(Moon.NEW, Moon.FULL):
+		by_phase = by_phase and float(night_ground.call(p)) < float(night_ground.call(p + 1))
+	check(by_phase, "the fuller the moon, the brighter the night")

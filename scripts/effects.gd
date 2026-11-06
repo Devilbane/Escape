@@ -15,6 +15,23 @@ static func _glow_material(color: Color) -> StandardMaterial3D:
 	return mat
 
 
+## Starts a particle effect cold (not emitting) without a stray flash.
+## A CPUParticles3D draws all its particles from the moment it is made, out
+## of a GPU buffer the engine only fills once it first emits. Until then the
+## buffer holds whatever the graphics driver left in that memory: on some
+## machines a cold chimney's smoke showed as a handful of glaring green and
+## yellow balls. Camera-facing particles ignore the scale, so even the empty
+## (zero) transforms would be drawn; a blank buffer (no colour, no alpha)
+## draws nothing. Call it once the amount is set.
+static func start_cold(p: CPUParticles3D) -> void:
+	p.emitting = false
+	var blank := PackedFloat32Array()
+	# Per particle: a 3D transform (12), its colour (4) and custom data (4).
+	blank.resize(p.amount * 20)
+	blank.fill(0.0)
+	RenderingServer.multimesh_set_buffer(p.get_base(), blank)
+
+
 static var _dot: Texture2D
 
 static func _soft_dot() -> Texture2D:
@@ -115,28 +132,25 @@ static func make_dust() -> CPUParticles3D:
 ## Text that floats up from a point in the world and fades away.
 ## With `above_fog`, it is drawn even over walls and the fog of war, so
 ## what you just looted can never hide behind a wall.
+## Texts at one spot, or over one creature, stack like damage numbers and
+## never cover each other (see DamageNumber.show_at).
 static func float_text(parent: Node, pos: Vector3, text: String, color: Color, above_fog := false) -> void:
-	var label := Label3D.new()
-	label.text = text
-	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
-	label.font_size = 64
-	label.pixel_size = 0.012
-	label.outline_size = 14
-	label.outline_modulate = Color(0.05, 0.02, 0.06)
-	label.modulate = color
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
-	# The fog of war draws at priority 100 and covers anything below it.
-	label.render_priority = 110 if above_fog else 20
-	label.outline_render_priority = label.render_priority - 1
-	parent.add_child(label)
-	label.global_position = pos
-	var tween := label.create_tween()
-	tween.tween_property(label, "global_position", pos + Vector3(0, 1.6, 0), 2.6).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(label, "modulate:a", 0.0, 1.2).set_delay(1.8)
-	# The outline ignores `modulate`, so it has to fade on its own.
-	tween.parallel().tween_property(label, "outline_modulate:a", 0.0, 1.2).set_delay(1.8)
-	tween.tween_callback(label.queue_free)
+	DamageNumber.show_at(parent, pos, text, color, above_fog)
+
+
+## What the hero just found or earned (an item, coins, an ingredient, a catch,
+## experience), floating up like float_text, in letters sized by its `worth`
+## from 0 to 1 (see DamageNumber.worth_size, item_worth, copper_worth and
+## xp_worth): a small find reads as a note, a great one stands out. Drawn over
+## walls and the fog of war.
+static func loot_text(parent: Node, pos: Vector3, text: String, color: Color, worth: float) -> void:
+	DamageNumber.show_at(parent, pos, text, color, true, DamageNumber.worth_size(worth))
+
+
+## A damage number or a short word over `target`'s head. Unlike float_text it
+## follows the head, and numbers over one head stack without overlapping.
+static func head_text(parent: Node, target: Node3D, height: float, text: String, color: Color) -> void:
+	DamageNumber.show_over(parent, target, Vector3(0, height, 0), text, color)
 
 
 ## A round cord following a list of line segments ([from, to] pairs).
@@ -171,10 +185,22 @@ static func cord_mesh(segments: Array, radius: float, material: Material) -> Arr
 ## so the facets catch the light like cut stone. UVs run in metres along the
 ## circumference and up the height. The mesh's origin is the ring's centre at
 ## the floor.
-static func ring_mesh(inner: float, outer: float, y0: float, y1: float, sides: int, material: Material) -> ArrayMesh:
+static func ring_mesh(inner: float, outer: float, y0: float, y1: float, sides: int, material: Material, gaps: Array = []) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in sides:
+		if i in gaps:
+			# A side left out (a broken-off piece): close the cut ends.
+			for k in 2:
+				var a := TAU * (i + k) / sides
+				var turn := 1.0 if k == 0 else -1.0
+				var d := Vector3(cos(a), 0, sin(a))
+				var n := Vector3(-sin(a), 0, cos(a)) * turn
+				var c := [d * inner + Vector3(0, y0, 0), d * inner + Vector3(0, y1, 0), d * outer + Vector3(0, y1, 0), d * outer + Vector3(0, y0, 0)]
+				if k == 0:
+					c.reverse()
+				_face(st, c, n, [Vector2(0, y0), Vector2(0, y1), Vector2(1, y1), Vector2(1, y0)])
+			continue
 		var a0 := TAU * i / sides
 		var a1 := TAU * (i + 1) / sides
 		var d0 := Vector3(cos(a0), 0, sin(a0))
@@ -230,6 +256,74 @@ static func make_spray(color: Color) -> CPUParticles3D:
 	ramp.add_point(0.7, Color(color, 0.7))
 	ramp.set_color(ramp.get_point_count() - 1, Color(color, 0.0))
 	p.color_ramp = ramp
+	return p
+
+
+## Wood chips that fly off where an axe bites into a trunk: a burst of pale
+## splinters thrown up and to the sides, tumbling down again. Waits until
+## restart() is called for each blow.
+static func make_wood_chips() -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = 12
+	p.lifetime = 0.75
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.emitting = false
+	p.local_coords = false
+	var chip := BoxMesh.new()
+	chip.size = Vector3(0.1, 0.02, 0.06)
+	chip.material = _paint(Color(0.86, 0.7, 0.48), 0.9)
+	p.mesh = chip
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.08
+	p.direction = Vector3.UP
+	p.spread = 55.0
+	p.gravity = Vector3(0, -9.8, 0)
+	p.initial_velocity_min = 1.8
+	p.initial_velocity_max = 3.4
+	p.particle_flag_rotate_y = true
+	p.angle_min = 0.0
+	p.angle_max = 360.0
+	p.angular_velocity_min = -540.0
+	p.angular_velocity_max = 540.0
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.3
+	var shrink := Curve.new()
+	shrink.add_point(Vector2(0, 1))
+	shrink.add_point(Vector2(0.75, 1))
+	shrink.add_point(Vector2(1, 0))
+	p.scale_amount_curve = shrink
+	start_cold(p)
+	return p
+
+
+## Sparks that fly off hot iron under the smith's hammer: a quick burst of
+## tiny glowing bits, thrown out low and wide, that fall and fade. Waits until
+## restart() is called for each blow.
+static func make_forge_sparks() -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = 16
+	p.lifetime = 0.45
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.emitting = false
+	p.local_coords = false
+	p.mesh = _quad(0.06, Color(1, 1, 1))
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.04
+	p.direction = Vector3.UP
+	p.spread = 80.0
+	p.gravity = Vector3(0, -9.8, 0)
+	p.initial_velocity_min = 2.0
+	p.initial_velocity_max = 4.2
+	p.scale_amount_min = 0.5
+	p.scale_amount_max = 1.2
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1.0, 0.95, 0.6))
+	ramp.add_point(0.4, Color(1.0, 0.6, 0.15))
+	ramp.set_color(ramp.get_point_count() - 1, Color(0.9, 0.25, 0.05, 0.0))
+	p.color_ramp = ramp
+	start_cold(p)
 	return p
 
 

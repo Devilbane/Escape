@@ -1,6 +1,7 @@
 name: Die Gruft
 hint: Hier ruhen die alten Wächter. Einer trägt den Schlüssel, und nur ein Stich in den Rücken bezwingt ihn.
-secret: selten
+secret: ungewoehnlich
+monsters: undead, ghosts
 ########################
 #########E##############
 #######C...C############
@@ -13,10 +14,10 @@ secret: selten
 #..x....#.....H....?...#
 ###.#####...A......#k.C#
 #...#####.o.....b..#####
-#.#######......c...#####
+#.#######..r...c...#####
 #.......################
 #.......################
-#.......################
+#....r..################
 #.......################
 #.......################
 #...f...################

@@ -4,7 +4,8 @@ extends SceneTree
 ## the hero can rest, up to a high valley with three mines. Mines 1 and 2
 ## each keep a stone tablet with one of two runes; only a hero who has read
 ## both gets past the seal in mine 3, down to the ember tunnels and the
-## heart of the mountain, where the Mountain King waits.
+## heart of the mountain, where the Mountain King waits; once he falls, a
+## golden way out leads back in front of the mine.
 ## Run with: godot --headless --fixed-fps 60 -s tests/mountains.gd
 
 var failures := 0
@@ -12,6 +13,7 @@ var game: Node
 var frames := 0
 var stage := 0
 var wait := 0
+var stage_frames := 0
 
 
 func check(ok: bool, what: String) -> void:
@@ -122,6 +124,42 @@ func _process(_delta: float) -> bool:
 			stage = 10
 		10:
 			_check_king()
+			# The golden way out shines up a moment after the king fell.
+			wait = 150
+			stage = 11
+		11:
+			var lvl: Level = game.level
+			check(is_instance_valid(lvl.lair_exit), "where the king fell, a golden way out opens")
+			if not is_instance_valid(lvl.lair_exit):
+				_finish()
+				return true
+			var hammer: Array = lvl._pickups.filter(func(p): return p.get("id", "") == Mines.TROPHY)
+			check(hammer.is_empty() or hammer[0].node.global_position.distance_to(lvl.lair_exit.global_position) > Level.LAIR_EXIT_RADIUS + 1.0,
+					"the way out does not lie on the king's hammer")
+			game.player.global_position = Vector3(lvl.lair_exit.global_position.x, game.player.global_position.y, lvl.lair_exit.global_position.z)
+			game.player.velocity = Vector3.ZERO
+			wait = 0
+			stage_frames = 0
+			stage = 12
+		12:
+			# Out through the fade, then a moment to settle (as in tests/dragon_lair.gd).
+			stage_frames += 1
+			var lvl: Level = game.level
+			if not lvl is Outdoor:
+				if stage_frames > 200:
+					check(false, "the way out leads out of the mine into the open")
+					_finish()
+					return true
+				return false
+			if stage_frames < 60:
+				return false
+			var at: Vector3 = game.player.global_position
+			var door: Vector3 = lvl.doors["mine3"]
+			check(Vector2(at.x - door.x, at.z - door.z).length() < 3.0,
+					"the hero stands in front of mine 3 (%.1f m away)" % Vector2(at.x - door.x, at.z - door.z).length())
+			for id in ["mine1", "mine2"]:
+				var other: Vector3 = lvl.doors[id]
+				check(at.distance_to(other) > at.distance_to(door), "the way out leads to mine 3, not %s" % id)
 			_finish()
 			return true
 	return false
@@ -194,6 +232,19 @@ func _check_tavern() -> void:
 	check(lvl.building == "[" and lvl.inn and lvl.safe, "the tavern is a safe inn (%s)" % lvl.level_name)
 	check(not _station(lvl, "bett").is_empty() and lvl.bed_side != Vector3.ZERO, "the tavern has a bed")
 	check(not _station(lvl, "haendler").is_empty(), "the landlord trades")
+	# The hero's storage chest stands in the tavern too, out in the room where
+	# the hero can walk up to it and open it.
+	var chest := _station(lvl, "lager")
+	check(not chest.is_empty(), "the tavern has a storage chest")
+	if not chest.is_empty():
+		var reach := lvl._reachable()
+		var beside := false
+		for d in Level.DIRS:
+			beside = beside or reach.has(chest.cell + d)
+		check(beside, "the tavern's chest can be walked up to (%s)" % chest.cell)
+		game._use_station(chest)
+		check(game.menus.current == "lager", "bumping the tavern's chest opens the storage (%s)" % game.menus.current)
+		game.menus.close()
 	game.player.hp = 1
 	game.player.global_position = lvl.bed_side
 	game.rest_at_inn()
@@ -231,7 +282,7 @@ func _check_king() -> void:
 	check(lvl.mine_boss_bar != null, "the Mountain King has a health bar")
 	if not king is MountainKing:
 		return
-	check(king.max_hp() >= 100, "the Mountain King takes a long fight (%d)" % king.max_hp())
+	check(king.max_hp() >= 300, "the Mountain King takes a long fight (%d)" % king.max_hp())
 	king.take_hit(king.max_hp() / 2 + 6, king.global_position + Vector3(2, 0, 0), "pierce")
 	check(king.phase == 2, "at half his life the Mountain King rages")
 	king.take_hit(9999, king.global_position + Vector3(2, 0, 0), "pierce")

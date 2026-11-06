@@ -44,9 +44,11 @@ const DUNGEON := {
 	"s": "slime (dragon's lair)",
 	"R": "dragon (dragon's lair)",
 	"y": "stone horse statue (dragon's lair)",
-	"H": "shrine: one gift (more life, strength or speed)",
+	"H": "shrine: one gift (+5 life, +1 attribute point or +1 Konstitution, +2 in the beginner dungeon)",
 	"B": "bed (save and log out)",
 	"L": "storage chest",
+	"m": "steel-banded chest for metal, ore and raw gems (homes, see HomeStores)",
+	"h": "ingredient board: shelves of herbs, phials and flasks (homes, see HomeStores)",
 	"V": "merchant",
 	"F": "fountain: refills life, cures poison and curses",
 	"?": "secret wall, opened by a lever torch",
@@ -60,6 +62,13 @@ const DUNGEON := {
 	"+": "free floor kept for furniture (homes)",
 	"N": "the companions' corner: straw where the companions who stay home rest (homes)",
 	"X": "a horror's den (see Horrors)",
+	# The spider hole (see SpiderQueen).
+	"u": "spider (throws webs), see Enemy.LETTERS",
+	"q": "the Spider Queen (the boss at the bottom of the spider hole)",
+	# The ghosts and ghouls of the deep dungeon (see Enemy._ghostly).
+	"r": "wraith (see-through until it notices the hero, its touch curses), see Enemy.LETTERS",
+	"n": "banshee (wailing orbs from afar, her shriek wakes the monsters nearby)",
+	"l": "ghoul (quick, poisoned claws)",
 	# The mountain mines (see Mines).
 	"J": "rock troll (big, slow, hits very hard), see Enemy.LETTERS",
 	"O": "mountain orc (armoured)",
@@ -72,6 +81,23 @@ const DUNGEON := {
 	"~": "a crack of glowing embers in the floor (mines, cannot be crossed)",
 	"T": "a stone tablet with an old inscription (a hint, see Mines)",
 	"^": "the way down to the next floor of a mine (see the header \"down:\")",
+	# The Great Old One's dungeon (see ElderLair).
+	"d": "brood drake (hovers, spits fire from afar), see Enemy.LETTERS",
+	"@": "the Great Old One (cannot be slain, sleeps until noise wakes it, see ElderDragon)",
+	"$": "the Great Old One's hoard: walk onto it to take it (see ElderLair)",
+	"&": "epic treasure chest (an epic piece of gear and gold)",
+	# Made in the map workshop: what each digit places is written in the
+	# map's own header (see Creations).
+	"1": "your own creation (header \"custom: 1 {...}\", see Creations)",
+	"2": "your own creation",
+	"3": "your own creation",
+	"4": "your own creation",
+	"5": "your own creation",
+	"6": "your own creation",
+	"7": "your own creation",
+	"8": "your own creation",
+	"9": "your own creation",
+	"0": "your own creation",
 }
 
 ## Letters of the open-air map built by Outdoor.
@@ -102,6 +128,8 @@ const OUTDOOR := {
 	"!": "bounty board",
 	"@": "the wandering merchant's pitch",
 	"(": "dark hole down into a cave of its own",
+	"?": "buried treasure: plain grass until a treasure map from a bottle marks it (see TreasureMaps)",
+	">": "boulder over the hidden grotto: rolls aside once its treasure map is read, leads to \"building: grotte\"",
 	# Buildings, each a rectangular block of the same letter (Outdoor.BLOCK_CHARS).
 	"h": "house (half-timbered, see VillageHouse)",
 	"j": "smithy",
@@ -164,6 +192,7 @@ const OUTDOOR := {
 	"'": "scree: stony mountain ground",
 	"[": "the mountain tavern (a block of tiles, see the floor \"building: [\")",
 	"]": "a mine entrance (a block of tiles); numbered west to east, mine n leads to \"building: mine<n>\"",
+	")": "the cave mouth of the Great Old One (a block of tiles), leads to \"building: uralt1\"",
 	"{": "rock troll",
 	"}": "mountain orc",
 	"-": "ice wolf",

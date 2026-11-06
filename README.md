@@ -6,6 +6,30 @@ The game can be played in English or German; you choose the language on the titl
 
 **Play in the browser:** https://devilbane.github.io/Escape/
 
+## Playing on your own computer (Windows)
+
+**Download:** https://github.com/devilbane/escape/releases/download/windows/Escape-Windows.zip
+
+Unpack the zip anywhere and start **`Escape.exe`**. It opens the launcher: it looks for a newer version,
+downloads it with a progress bar (only the game data, `game\Escape.pck`, and a new `Escape.exe` only when the
+launcher itself has changed) and starts the game with **Play** (or Enter). Without an internet connection the
+installed version starts. Saved games live in `%APPDATA%\Godot\app_userdata\Escape!` and are never touched.
+A new download is built after every change to `main` (`.github/workflows/desktop.yml`).
+
+### Playing from the source folder
+
+Double-click **`Play Escape.bat`** in the game folder. On every start it looks on GitHub for a newer
+version, installs it and then starts the game, so the local copy is always as new as the browser version.
+
+- A folder cloned with git (or GitHub Desktop) is updated with a fast-forward pull; your own changes are never
+  overwritten. If they clash with the update, the game starts in its current version and says so.
+- Any other copy, such as a downloaded ZIP, is updated by downloading the new version and copying it over the
+  folder. The batch file alone is enough: put it in an empty folder and it downloads the whole game.
+- Godot 4.7 is found on its own (the `GODOT` environment variable, the PATH, the desktop or downloads).
+  If there is none, the right version is downloaded once into `.launcher\`.
+- Without an internet connection the game simply starts as it is. Saved games are never touched.
+- `Play Escape.bat -NoUpdate` starts without looking for updates, `Play Escape.bat -Editor` opens the Godot editor.
+
 ## Controls
 
 | Action | Keyboard | Mouse / touch |
@@ -20,16 +44,20 @@ The game can be played in English or German; you choose the language on the titl
 | Set a stone block down | B | “Stone” button, “Set down” in the inventory |
 | Move a stone block | | grab it with the left mouse button, drag, let go (right click while dragging turns it) |
 | Pick up a stone block | E | click it briefly, “Stone” button |
-| Push a heavy stone block | E | click it briefly; drag it and it slides straight on |
+| Push a heavy stone block | E | click it briefly; drag it onto any free spot nearby (right click turns it), up to 5 tiles from where it lay |
 | Inventory | I | bag icon on the right edge |
 | Compendium | H | book icon on the right edge |
 | Character page | P | figure icon on the right edge |
 | Map and journal | N | map icon on the right edge |
 | Quests and what is worth doing | O | scroll icon on the right edge |
-| Fish (cast, strike, draw in) | G, by the water | “Fish” button |
+| Run home (once you have a house) | X | house icon on the right edge, below the menu handle; any step, click or blow of your own stops it |
+| Light or put out a torch | V | torch icon on the right edge, below the house icon (shows while you carry a torch, with how many are left in the bag) |
+| Drink a healing potion | 1 | potion icon left of the torch icon (shows while you carry a potion, with how many are left; shaded with the seconds left while the next one waits), or "Drink" in the inventory |
+| Pitch a camp (save and sleep away from a bed) | U | “Camp” button, “Pitch camp” on the bedroll in the inventory |
+| Fish (cast, strike, draw in) | G, by the water | “Fish” button, or click the water of a pond |
 | Offer a monster a gift | T, next to it | “Give gift” button |
 | Load saved game | L | “Load” button (also on the title screen) |
-| Quit game | Esc | “Quit” button, top right |
+| Pause, quit game | Esc (again to play on) | “Quit” button, top right |
 | Sound on/off | M | “Sound” button, top right |
 | Music on/off, music volume | | “Music” button and the volume slider in the pull-out menu (Tab) |
 | Choose in a window | arrow keys or Tab, then Enter; Esc closes | click the button |
@@ -48,6 +76,10 @@ You and the skeletons each take up your own spot: nobody can stand inside or on 
 If you land on a skeleton's head, you are pushed apart, and no blow lands until you stand side by side again.
 Step back and you throw knives at the skeleton you attacked last, as long as you can see it
 and have knives.
+A thrown knife lies where it lands (flat on the floor, with a faint glint) until you walk over it to pick it up,
+also after leaving the level and coming back. You keep **3 knives ready** for a fight, plus one for every two
+levels of Knife throwing (the HUD count under the life bar). Any more go into the backpack as spares
+(10 to a slot) and are slipped back into the belt once no fight is on; if the bag is full, a knife stays on the floor.
 
 Add `?level=3` to the address to start the game directly on level 3.
 
@@ -57,7 +89,7 @@ Find the **key**, open the **door** and climb the **stairs** up to the next leve
 Barrels, crates, tables, chests and wall shelves can be searched: inside there may be gold,
 throwing knives, a healing potion or nothing at all. Searched objects get a tick.
 Skeletons attack with blades or crossbows. You can jump over **spikes**. Skeletons avoid spike traps, wait until the spikes are down, and hurt themselves on them.
-At a **shrine** you choose one gift: +1 life, +1 power or +7% speed (a wise hero also gets +1 hardening).
+At a **shrine** you choose one gift: +5 life, +1 attribute point (to put into Strength, Dexterity or Intelligence on the character page) or +1 Constitution (+2 in the beginner dungeon; a wise hero also gets +1 hardening).
 Gifts last until the end of the game.
 
 Sometimes you find **gear**: helmets and hats (bone helmet, wizard hat, knight's helmet, bear cap) sit visibly on your head, sword and axe give power, shields give life,
@@ -117,8 +149,10 @@ You step over a wall one block high.
 
 Deep in the **Labyrinth** (level 3) lies a **stone chamber** with three old, heavy, mossy blocks, three
 **pressure plates** and an iron gate in front of a treasure chest. Heavy blocks do not fit in your bag and
-cannot be stacked: E (or a click) pushes one a little away from you, and dragged with the mouse it slides
-straight on until it hits something. Pillars stand in the way. Once a block lies on every plate, the
+cannot be stacked: E (or a click) pushes one a little away from you, and with the mouse you drag it onto
+any free spot of floor nearby, turned either way with a right click. No block moves more than 5 tiles from
+where it lay when you entered (a pale ring on the floor shows the limit while you drag), never through a
+wall or the gate, so none can be lost. Pillars stand in the way. Once a block lies on every plate, the
 gate sinks into the floor for good, and the chest behind it is as rich as a rare secret room.
 Your own blocks from the stonemason press the plates too.
 
@@ -128,14 +162,55 @@ backpack, or swap it for a smaller one, while everything you carry still fits.
 Hard armour (knight's helmet, crest shield, chain mail, plate armour) has **hardening**: it takes a fixed amount off every
 hit (at least 1 damage always gets through). Every hit has a 5 % chance to wear off one point of
 **durability**; once that is used up, the piece breaks.
+**Armour sets**: wear a helmet, an armour, gloves and shoes all of one material and you get a set bonus to
+**dexterity** and **hardening** (your cloak does not count). Hardening takes a fixed amount off every hit; the
+**armour value** of your pieces then takes a share (in %) off what is left, so light hits are sometimes caught
+whole. Cloth (+2 / +1, 3 kg for the set) is light but protects little; leather (+3 / +1, 9 kg) protects more;
+iron (+1 / +3, 35 kg) and steel (+1 / +4, 25 kg) protect a lot but their weight slows you down. The scale
+sets of the great beasts give both: hydra scales +3 / +3 and wyrm scales +2 / +4 turn up deep in the dungeon,
+and dragon scales (+3 / +4, the best) are made at the fine metalwork bench from the scales Embermaw leaves
+(one, sometimes two each time it falls). The character page shows the set you wear, your hardening and your
+armour value.
 At the **forge** beside the smithy in the village, Gorm the **smith** works your gear (walk into him):
 *melt down* metal gear from your bag (weapons, shields, knight's helmet, chain mail, plate armour, rings,
-bracelets, amulets) into **iron bars**, one bar per 8 gold of the piece's price (plate armour gives 6;
+bracelets, amulets) into **iron bars**, one bar per kilo of a metal weapon or armour (a sword gives 3, chain mail 18;
 cloth, leather, fur and bone do not melt); *forge* any metal weapon, shield or armour from iron and a
-little gold (plate armour: 8 iron and 16 gold), so you pick exactly the piece you want; and *mend* worn
+little copper (a bar per kilo and copper for the work), so you pick exactly the piece you want; and *mend* worn
 armour and shields, a few gold per point of durability. He also sells iron bars for 4 gold each, so
 forging from bought iron costs about what the merchant asks; iron from melted loot makes it cheaper.
 Iron is counted like gold, weighs nothing and stays in your saved game.
+
+**Loot and rarity.** Every item name shows in the colour of its rarity: **common** white, **uncommon**
+blue, **rare** yellow, **epic** violet, **god-born** orange (not lootable for now) and **self-crafted**
+light blue for what you made from a recipe. Each fallen monster rolls once for a find, with these odds
+per kill: common 1 in 20 to 1 in 40, uncommon 1 in 80 to 1 in 160, rare 1 in 320 to 1 in 640, epic 1 in
+1000 to 1 in 2500. The tougher the monster (and every elite or boss), the better its odds. Intelligent
+foes, and those who use gear like yours (skeletons, bandits, orcs, trolls, dragons), always carry
+**coins**: copper coins, your money, into your purse, iron and silver coins into the ingredient pouch,
+and a find is a piece of gear of that rarity. (The gold coins of old are now called **ancient gold
+coins**; every one you had is exchanged automatically into a copper coin, one for one, and every price
+in the game is paid in copper. Wherever this README still says gold for money, read copper.) New **gold
+coins**, freshly minted, drop only from rare foes and bosses (elites, horrors, named bosses) of level 25
+and up, one to three at a time. Beasts without a mind (wolves, spiders, bats, yetis) carry no
+coins; a find is food such as meat (common), an ingredient of the place they live in (uncommon) or a
+part of their body for a trophy or a craft (rare), and mostly they leave nothing. Slimes are beasts too,
+but they swallow what their victims carried, so they also drop coins and gear. At the forge Gorm melts
+every **100 coins** of one metal into **one bar** of it (copper coins come out of your purse); he buys
+silver bars like the others, but not copper ones, which are a hundred of your coins.
+Trolls and the other creatures of the mountains also carry **raw ore**, on a roll of its own with the
+same odds. Its weight sets its rarity: 500 to 999 g common, 1 to 2 kg uncommon, 2.5 to 5 kg rare. Each
+lump has its own make-up, rolled in order: 25-60 % slag, 10-40 % iron, 5-40 % copper, 1-15 % silver,
+1-5 % gold, and whatever is left an unknown metal with a light blue glow. Gorm melts it down and you get
+every gram of metal in it; a bar is one kilo (as heavy as 100 coins of 10 g), so every 1000 g of one
+metal become a bar and the rest waits for the next lump. Epic **noble ore** holds only 10-20 % slag,
+5-15 % iron, 5-15 % copper, 10-20 % silver and 20-30 % gold (the rest unknown metal) and one to five
+**uncut gems**. A gem's weight sets its rarity: 2-4 carat common, 5-11 uncommon, 12-18 rare, 19-22
+epic, 23-24 god-born. Gorm cuts them, which grinds off 15-50 % of their weight, and buys the cut ones.
+**Metal gear** (weapons, shields, helmets, mail, plate, metal gloves and shoes) is priced by the iron in it:
+one bar per kilo it weighs, worth 10 copper a bar, plus the smith's work, set high. A full armour set costs
+about 60 copper in cloth, 120 in leather, 500 in iron, 890 in steel, and 1,600 to 2,400 in hydra, wyrm or
+dragon scales. It melts back into that many
+bars, and forging it takes that many bars and gold for the work.
 Gorm also *sells his own work*, which is found nowhere else (not as loot, not at the merchant), and
 he can forge it from iron too. The kite shield and the war hammer, the top of their kinds, he does not
 sell: you have him forge them from your iron. The window opens on this tab:
@@ -167,7 +242,7 @@ needs a quarter more practice than the one before:
 | Constitution | 10 to 30 | losing life (hits, spikes, poison) | +1 life per point |
 | Speed | 100 % to 150 %, in steps of 5 | walking and jumping | walk faster |
 | Dexterity | 10 to 30 | jumping, throwing knives, spike traps | jumps from a run 2 % longer per point, 4 % per point to dodge spikes shooting up |
-| Intuition | 10 to 30 | searching, getting past secret levers, finding secret rooms | +2 % per point to notice a secret lever |
+| Intuition | 10 to 30 | searching, getting past secret levers, finding secret rooms | +2 % per point to notice a secret lever or a hidden trap |
 | Wisdom | 10 to 30 | experience, whatever the outcome: finishing levels, finding keys and secret rooms, choosing at a shrine, every finished run, even a deadly one | all other attributes and skills learn 5 % faster per point; from Wisdom 12 every shrine offers a fourth gift (+1 hardening) |
 | Intelligence | 10 to 30 | understanding new things (every new entry in the compendium), defeating skeleton mages | things of the mind need it: the wizard hat from Intelligence 11, later scrolls, wands and skills of the mind |
 
@@ -178,9 +253,13 @@ With Blades, Axes and Knife throwing, every heavy hit (+1 damage) is a skill rol
 Each level of Blocking adds 2 % block chance, Wearing armour makes hard armour 6 % lighter, Sneaking makes you 3 % faster.
 **Exploring** grows when you explore a map fully (95 % of the ground you can stand on, see the map), and a little
 with every secret room and wall writing you find. Each level adds 3 % to notice a secret lever, 4 % to find a
-torch when you search a chest, barrel, crate, shelf or table, and 8 % to notice the writing on a wall.
-Every level of the dungeon has one writing scratched into a plain wall: you get one chance to notice it each
-time you walk past it (25 % plus Exploring). Found writings go into the compendium and the journal.
+torch when you search a chest, barrel, crate, shelf or table, 8 % to notice the writing on a wall and 3 % to
+spot a hidden trap.
+Every level of the dungeon has one writing smeared in blood on a plain wall, with blood running down from its
+letters; bloodstains on the floor in front of it form an arrow that points at it. You get one chance to notice it from a
+distance each time you walk past it (50 % plus Exploring), and you always notice it when you walk right up to it.
+A noticed writing pops up on a card with its word and what it says; run into the wall to read it again.
+Found writings stay visible on later visits and go into the compendium and the journal.
 Some items add levels themselves (shadow cloak +2 Sneaking, crest shield +1 Blocking,
 chain mail +1 Wearing armour, silver bracelet +1 Knife throwing). Everything is shown in the inventory, with the progress
 towards the next point. What your hero has learned stays saved with their name, even across new games.
@@ -201,13 +280,33 @@ Example: Blades 2 with Strength 12 and Dexterity 10 gives (12 + 10) / 2 × 3 = 3
 chance next to every skill.
 
 After every 4 levels you reach a **safe room** without enemies, the refuge. It has a **fountain**
-that refills your life and cures poison and curses, a storage chest, a merchant who buys and sells for gold, and a bed.
+that gives back 5 life per drink and cures poison and curses, a storage chest, a merchant who buys and sells for gold, and a bed.
 Merchants sell only plain, basic gear: no specials, no unique or magic items (wizard's hat, shadow cloak,
 amulets, silver bracelet) and not the top tier of any kind (plate armour, swift boots, ruby ring, bear cap,
 royal cloak, big backpack, war hammer, kite shield). Those come only from loot and your own crafting.
 Their windows have a Buy and a Sell page, categories that fold, and cards that compare an item with what
-you wear. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero falls later, the saved game is kept: a click on the “Fallen” screen continues the game from the refuge, N starts a new one.
+you wear. The game saves automatically when you enter the refuge; the bed saves once more and logs you out. If the hero's life runs out later, they are rescued and carried back there (see **Out cold** below).
 On the next start you continue from there with a click or a key. The saved game is stored in the browser.
+
+**Camp:** away from any bed you can save at a **camp**. Buy a **bedroll** from the merchant (who keeps one for a hero
+who has none), then press U, the “Camp” button in the menu or “Pitch camp” on the bedroll in the inventory: the
+hero rolls it out and lights a small campfire beside it. The camp's window works like the bed's: **Sleep and log
+out** (the day plan runs while you are away) or **Stay awake and save**. A game saved at a camp wakes up right
+there, on the bedroll by the fire, on a dungeon floor or out in the open. The bedroll is never used up. You cannot
+pitch a camp in a fight, with a monster within 12 m (nor where one still alive will stand again after a reload),
+indoors (sleep in a bed there), or on a grate or a trap. Walk more than 10 m away and you pack the camp up again.
+Saving at a camp on a dungeon floor keeps the floor as you left it (monsters slain, doors open, the key).
+
+**Out cold:** when your life drops to zero you do not die, you fall unconscious. On the surface (the open air, a
+house, an inn) a **giant eagle** swoops down and carries you off; below ground (the dungeon, the mines, the lairs)
+the **dwarves' emergency team** comes with lanterns and a stretcher. You wake up in the bed you last saved in (or at
+your camp) with full life, and the game is saved. The blow to the head costs you **all the experience you gathered
+towards your next hero level** (the level itself stays). You keep your armour, your weapons and the knives in your
+belt, but **your bag (with your backpack) and your ingredient pouch drop to the ground whole** where you fell,
+with everything in them, and **all your coins** lie in piles beside them. Walk back to the spot and onto the bag and
+the pouch to take it all back (gear only while the bag has room). The dragon's helpers leave both alone, but at night they carry coins lying about off to the
+dragon's hoard like any others, so do not leave them there overnight. A test run from the map workshop still ends
+and goes back to the workshop.
 
 **Hero or heroine:** a new game asks whether you play a hero or a heroine before it asks for your name.
 The heroine has a body and a face of her own, not just new colours: a narrower waist and jaw, larger eyes
@@ -229,6 +328,25 @@ run. The first time you walk past it, you may discover it with some luck (d100),
 Normal 55 %, Uncommon 40 %, Rare 28 %, Epic 18 %, Godborn 10 %. Every secret room you find
 raises the chance by 1. The lever rolls only once. If you have not found one by level 3,
 the one there is certain; after that, never more than 4 levels go by without a secret room.
+
+From the labyrinth (level 3) on, and in the dragon's lair, the dark holes and the mines, **hidden traps** lie
+unseen in the floor: **spike traps**, **teleporter traps** that fling you to another part of the level, and
+**trapdoors** that drop you to the level below (on dungeon levels 3 to 9, and in the dwarves' hall once its seal
+is open). Each visit, the first time you come near one and can see it, you get one chance to spot it: 40 %
+minus 2 % per level of the place, plus Intuition and Exploring. Every trap also has modifiers of its own: it may
+be poorly hidden (+15 %) or well hidden (−20 %), and weak (−1 damage) or vicious (+1 damage, more in deep places;
+a vicious teleporter hurts too). A spotted trap shows faintly on the floor, its sign (holes, a rune ring or a
+hatch) in a thin frame, and the better your roll, the clearer it shows: a narrow roll leaves only a ghost of a
+mark and you merely sense a trap, a good one shows it plainly and names its modifiers. Spotting trains Exploring
+and gives a little experience; your path goes around a known trap, and a jump (Space) carries you over it
+safely. A trap you step on unawares shows itself plainly. Known traps stay marked on later visits.
+
+In the catacombs, the blade hall, the gate, the dragon's lair and the scorched halls, iron **flame jets** sit in
+the walls. They are never hidden: a strip of soot on the floor shows the lane each one fires across, straight to
+the wall opposite (2 to 5 tiles). Each runs on its own steady beat: 3 seconds quiet, 1 second of warning (the
+nozzle and the soot strip glow red and the mechanism clicks), then 1.5 seconds of fire. The fire hurts once per
+blast, as much as the place's spike traps, and sets you burning. Jumping does not help, but Dexterity may still
+let you twist aside: read the warning and cross while the jet is quiet.
 
 You only see what lies in your line of sight and has light: a burning torch nearby or
 your own lantern. Dark corners stay black; skeletons in them you only hear by their footsteps.
@@ -262,17 +380,47 @@ has no wall torches. A guardian in a level without `K` drops the key when it die
 
 Searched barrels, crates, tables and chests can be recognised by coins and a torn sheet in front of them.
 
+### Ghosts and ghouls
+
+Deeper down the dead do not rest. In **the crypt**, **the catacombs**, **the bone pit** and **the open
+grave** under the graveyard you meet:
+
+- **Wraiths**: see-through white spirits with a neon green glow, hovering without feet. A wraith that has
+  not noticed you is only a faint shimmer with two glowing eyes. Once it spots you it flares up, and its
+  cold touch can **curse** you (slower for a while).
+- **Banshees**: wailing spirits that keep their distance and throw wailing orbs that follow you, like the
+  skeleton mages. When a banshee first sees you she **shrieks** and wakes every monster nearby.
+- **Ghouls**: hunched, grey corpse-eaters. Quick, and their claws can **poison** you.
+
+Ghosts (wraiths, banshees and the fog wraiths above ground) float over spike traps and make no footsteps.
+Once one has spotted you, **walls and closed doors no longer stop it**: it drifts straight through them
+at you. A ghost can also **frighten** you: its fright (stronger for a stronger kind, a higher level and an
+elite) is rolled against your nerve, which is your **Wisdom**, **Intuition** and twice your **Exploring**
+skill. If your nerve fails you are **frightened** for 3 seconds: you run for the nearest way out (the
+stairs) and cannot fight. A hero who stands firm grows a little wiser. Ghosts carry no coins: they leave
+ectoplasm, a crypt herb or, rarely, a wraith's veil or a banshee's hair; ghouls leave grave dust, a crypt
+herb or a ghoul's claw.
+
 ## Beyond the gate: freedom
 
-Whoever climbs the last stairs steps out of a **crypt** onto a graveyard under the evening sky. That counts
+Whoever climbs the last stairs steps out of a **crypt** onto an old graveyard under the evening sky. The crypt,
+the gravestones and the low wall of the fence are of the same weathered stone as the village, only older and
+greyer: moss, lichen on the gravestones, ivy up the crypt and over parts of the fence. A sunken, overgrown path
+of old cobbles leads from the crypt door to the gate, leaves lie on the turf, and at night small grave lights
+burn beside some of the graves. Getting out counts
 as an escape: it goes into the ranking and the game is saved at once. From then on the **graveyard** is your
 new starting point: every load, and every new try after a fall, begins in front of the crypt door, wherever
 you saved last. But the game goes on. A long path leads
 through the autumn forest, past a pond and a woodcutter, to the village of **Lindenhain**. Run into anyone
 to hear what they have to say. The **village elder** gives you your own house on **Weavers' Lane**, and a golden
 light shows the door. Weavers' Lane runs along the northern edge of the village: a row of twenty narrow,
-three-storey town houses wall to wall, each with its own colours and a number over the door, so the village has
-a home for many heroes. Inside, the **ground floor** has the **chest** (your storage), the **upper floor** the
+two-storey town houses wall to wall, each with its own colours and a number over the door, so the village has
+a home for many heroes. Inside, the **ground floor** has the **chest** (your storage) and the stairs down
+to the **cellar**, which holds a **steel-banded chest** for your metal (gold coins, iron bars, the fine bars from the forge, ore and raw gems such
+as moon silver, moonstone, grotto crystals and thunder ore) and an **ingredient board** on the wall (shelves of
+phials and flasks, bundles of herbs and a filled bucket) for everything else of your ingredient pouch (herbs,
+mushrooms, fish, the dragon's parts) and the animal food from your bag. Both hold as much as you like: in their
+windows, store or take one of a kind (ten coins), all of it, or everything at once. The **upper floor** has the
 **bed** (save and log out), and the **attic** is free. Walk onto the stairs to go up or down a storey. Chalked
 squares on the floorboards keep room for furniture on every storey. The moment you first step inside, the house
 is yours: the game saves, and from then on your house replaces the graveyard as the starting point. Every load,
@@ -294,8 +442,11 @@ In the middle of the village lies the paved **market square** with a fountain th
 lanterns. Around it stand the **smithy**, the **temple** (a small stone chapel with a spire and stained-glass
 windows), the **office of the crown**, the **post office**, the
 **adventurers' guild**, the **general store** (Mira, the shopkeeper, buys and sells), the **tavern** and the
-**bank**. The villagers live in half-timbered houses with jutting upper floors, shuttered windows and tiled
-roofs, each one a little different. Sixteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
+**bank**. The villagers live in stone houses with jutting upper floors, shuttered windows and tiled
+roofs, each one a little different. Every building in the village is built of the same old, weathered stone as
+the temple: grime at the foot of the walls, rain streaks, moss, faded roofs and ivy climbing up the walls. Birds
+nest on the chimneys and towers and fly back and forth between their nests, the roofs and the square by day,
+and a way paved like the market square leads to every door. Sixteen villagers go about their day: the smith hammers, the farmer harvests pumpkins, the guard
 makes the rounds, the postmaster carries letters, the priestess tends the temple. Every so often the
 **herald** rings the bell and calls out the news, and the whole village gathers on the square to listen.
 
@@ -306,6 +457,22 @@ green over a small fire. Between them stands **your chest**: it opens the same s
 your house, so you can fetch ingredients and put away what you made without walking home. Each bench
 belongs to one craft, and a recipe made with that craft is made at its bench. Until you know such a
 recipe, a bench tells you what is done there. The benches are built in `scripts/crafting_square.gd`.
+
+**Healing potions** are brewed at the alchemist's table. **Priestess Elsbeth** at the temple hands out the
+recipe: one **wild garlic** (your fox sniffs it out on the meadows) and one **slime jelly** (left by slimes in
+the dungeon). How strong a brew turns out depends on the brewer: Intelligence + 2 × your level in the new
+**alchemy** craft gives the brewing points. Below 16 points you brew a **weak** potion (low potency, heals
+15–20 % of your life at once), from 16 a **healing potion** (medium, 25–35 %), from 26 a **strong** one (high,
+40–60 %). Whatever the potency, every potion then heals 1 life per second for 20 seconds, and cures poison
+and curses like the fountain. Potions stack 5 to a bag slot. Drink with the potion icon left of the torch icon
+on the right edge, the key 1 (the strongest one you carry) or "Drink" in the inventory (a certain one); after
+a potion the icon is shaded and counts down the minute until the next. See `scripts/healing_potions.gd`.
+
+The glowing **crystal clusters** in the mines can be mined: run into one and the hero knocks two **grotto
+crystals** off it into the ingredient pouch. A mined cluster stays dull until the next morning, then it has
+grown back. The first crystals teach two recipes for the gem cutter's wheel: a **crystal ring** (three
+crystals and a silver bar) and a **crystal amulet** (five crystals and a gold bar); the bars come from
+melting jewellery and fine gear at Gorm's forge. See `scripts/mines.gd` and `scripts/crafting.gd`.
 
 At the **bank** the banker keeps your gold safe (deposit and withdraw) and rents you a **vault** for
 50 gold. The vaults are in the **cellar**: small cells behind iron bars, each with its holder's name, their
@@ -364,16 +531,30 @@ rings, bracelets and amulets that each add a level to one combat skill. Recipes 
 (the Moonsilver Ring still has faded lines) cannot be made yet.
 
 **Fishing.** Stand by the water and press **G** (or the **Fish** button in the pull-out menu) to cast a
-line. After a few seconds the float goes under and a **!** shows: press again quickly to strike, or the
+line, or simply **click the water of a pond**: you walk to the shore if it is out of reach and cast toward
+the spot you clicked, and another click on the water strikes or draws the line in. After a few seconds the float goes under and a **!** shows: press again quickly to strike, or the
 fish gets away. Pressing while you wait draws the line in; walking off, getting hit or opening a window
 does too. There are three waters: the **fountain** on the village square, the **village pond** by the path into
 the village and a small **pond in the wolf hollow** (mind the wolves). Most bites are a **perch**, and in the
-fountain often an old coin someone threw in for luck (+1 gold). Each water also has one **rare fish**:
-the **golden carp** in the fountain, the **silver pike** in the village pond, but only at dawn and dusk,
+fountain often an old coin someone threw in for luck (+1 gold). In the ponds a **message in a bottle** sometimes bites (a few copper and a note), and somewhere in the
+mud of the village pond lies a **long-lost signet ring** that can be fished up once. A fish that is let go
+often bites again; the longer the row, the less weed and the likelier a rare catch. Each water also has
+one rare fish: the **golden carp** in the fountain, the **silver pike** in the village pond, but only at dawn and dusk,
 and the **moon trout** in the wolf hollow, but only at night. Every fish goes into the ingredient pouch.
 Hanna the water carrier has a recipe that needs them: the **Amulet of the Deep** (all three rare fish and
 three perch). One of its lines is smudged until you catch a silver pike. What bites where is set in
-`Fishing.WATERS` (`scripts/fishing.gd`).
+`Fishing.WATERS` (`scripts/fishing.gd`). In the two ponds the **little pond monster** sometimes surfaces
+by the float: it spits water at you, burps a bubble or spits an old coin onto the shore, sometimes takes the
+bait, and then wears your float as a hat. Drawing the line in does not chase it away.
+
+**Treasure maps.** Now and then a message in a bottle holds an old **treasure map** instead of a note. There
+are two, each found once: the **Map of the Mill Cross** marks a spot just south of the windmill, where a cross
+of stones now lies on fresh earth: run into it to dig up a chest with copper and a rare piece of gear. The
+**Map of the Boulder** tells of a boulder at the western edge of the woods, where the path from the graveyard
+bends east: run into it to roll it aside, and climb down the hole beneath into the **hidden grotto** (a few
+bats, slimes and a spider, and a treasure chest at the back). Both spots carry a red cross on your map in the
+journal until you have found them, and the maps' text stays in the compendium. See `TreasureMaps`
+(`scripts/treasure_maps.gd`); on the map the spots are the letters `?` and `>`.
 
 **Reputation.** Every villager has their own opinion of you, and helping them improves it. A finished task
 counts the most: 25 points with whoever gave it, 15 with whoever received a delivery, and 5 with everyone
@@ -412,12 +593,14 @@ computing time and nothing to run.
 
 ## Day and night
 
-Above ground the world keeps the **time of day**: one full day takes **20 real minutes**, about 13 of them
-daylight and 7 of them night (21:00 to 05:00). The clock in the top left shows the hour. It runs in the open
-and inside the village buildings; down in the dungeon time stands still. A new hero steps out at 08:00.
+The world keeps the **time of day**: one full day takes **20 real minutes**, about 13 of them daylight and
+7 of them night (21:00 to 05:00). The clock in the top left shows the hour. It runs everywhere, down in the
+dungeon too (there the HUD shows only the hour). A new hero steps out at 08:00.
 
-The light follows the hour: a pink dawn, the warm autumn daylight, a golden-red dusk and a cool blue
-moonlit night. At night the **lanterns** burn bright and the **windows** of the houses glow. Most villagers
+The light follows the hour: a pink dawn, the warm autumn daylight, a golden-red dusk and the night. At night
+the **moon** is the only natural light, and its phase decides how much: a full moon lays a light bluish
+sheen over everything, a half moon a faint one, and a moonless night is nearly pitch black. At night the
+**lanterns** burn bright, the **windows** of the houses glow, and villagers still out carry torches. Most villagers
 walk home and go to sleep; only the guard, the drinker at the tavern and the priestess stay up. Shops and
 the bank are closed until morning, and the herald keeps quiet.
 
@@ -474,8 +657,18 @@ leave again when it changes:
 | Thunderstorm | dark sky, pouring rain, lightning and thunder | **bats** swarm around the rocks; where lightning strikes a rock, a lump of glowing **thunder ore** may be left beside it |
 
 **Thunder ore** is only ever found in a thunderstorm, and only until the storm passes: whatever is left
-lying fades away. Pick it up and take it to Gorm the smith, who melts each lump into 4 iron bars, or sell it
-to the merchant.
+lying fades away. Picked up, it bundles five lumps to a bag slot and keeps. Take it to Gorm the smith, who
+forges it into the two **thunder weapons**, found and sold nowhere else:
+
+| Weapon | Forged from | Stats | Lightning |
+|---|---|---|---|
+| Thunder blade (Donnerklinge) | 11 iron, 21 gold, 2 thunder ore | +2 power, +1 Klingen | 20 % per blow |
+| Thunder hammer (Donnerhammer) | 14 iron, 26 gold, 3 thunder ore | +3 power, +1 Äxte | 25 % per blow |
+
+A thunder weapon crackles with blue sparks in the hero's hand. A melee blow that lands may crack with
+lightning: the enemy is **stunned** for 1.5 s (no moving, no striking) and "Stunned!" shows over its head.
+That is the whole effect, one readable chance per blow. Bosses, horrors and big brutes shrug it off. Gorm can
+still melt a lump into 4 iron bars, and the merchant still pays well for it.
 
 ## The robbers' pass
 
@@ -500,7 +693,7 @@ more gold and sometimes a piece of gear.
 Not all monsters are on the same side. Every kind belongs to a **faction**, and some factions hate each
 other: when rivals meet, they fight, and whoever wins leaves the loser's loot lying for you.
 
-- **The dead** (skeletons, fog wraiths) hate everything that lives.
+- **The dead** (skeletons, fog wraiths, wraiths, banshees and ghouls) hate everything that lives.
 - **The bandits** of the pass and **the beasts of the wolf hollow** (wolves, orcs, spiders, the yeti)
   are at war. Lure a wolf onto the pass, or let it find a bandit on its own, and watch them go at it.
   The beasts share their hollow in peace.
@@ -538,11 +731,12 @@ at the rim and a cold mist rising out of it. Come close and the holes **whisper*
 Run into one to climb down into a small cave of its own: **The Open Grave**, **The Spider Hole** and **The Pale Deep**.
 
 Down there it is **pitch black**. No torch burns on the walls, and without a light of your own you see hardly
-more than the tile you stand on. **Torches** are sold by the shopkeeper (3 gold, she always has some): in the
-dark one lights itself from your bag and burns for three minutes, then the next one is lit, and when the last
-one gutters out the darkness closes in again. Even a torch only lights a few steps around you, and a burning
-torch cannot be hooded: every monster down there sees you coming. Back in the open the torch goes out and keeps
-what is left of it for next time.
+more than the tile you stand on. **Torches** are sold by the shopkeeper (3 gold, she always has some). A torch
+never lights itself: light one when you need it with the **torch icon** on the right edge (below the house
+icon) or **V**. It burns for three minutes wherever you go, also on a dark night, until you put it out the same
+way; what is left of it burns on the next time you light it. When it burns down the darkness closes in again
+until you light the next one. Even a torch only lights a few steps around you, and a burning torch cannot be
+hooded: every monster sees you coming.
 
 Somewhere in each cave lies a **den**, and every other time you come down something lives in it: a **horror**,
 a huge monster nobody has a name for. At first you only hear it breathing in the dark. The moment you see it,
@@ -556,13 +750,23 @@ the gear it swallowed. Very rarely a horror also lurks in the far end of a level
 
 In a clearing in the woods, north of the path from the graveyard to the village, an old **stone arch**
 stands over stairs that lead down into the dark. Run into the arch to climb down into the **dragon's lair**,
-a dungeon of its own: **bats** flutter about, quick but frail; green **slimes** creep along, tough and
-sometimes poisonous; skeleton warriors, archers, minions and a brute haunt the crypts; and in the great hall
-at the bottom the **dragon** guards its hoard. Every monster of the lair carries some gold, and the dragon a heap of it and usually a piece
+a dungeon of its own, **three floors deep**, each a maze of narrow passages with loops, dead ends and
+spike traps: **bats** flutter about, quick but frail; green **slimes** creep along, tough and
+sometimes poisonous; skeleton warriors, archers, mages, minions and brutes haunt the crypts; and in the great hall
+at the bottom the **dragon** guards its hoard.
+
+| Floor | Name | The way down |
+|---|---|---|
+| 1 | The Dragon's Lair | a **key** at the far end of a side branch opens the door to the shaft |
+| 2 | The Sulphur Passages | an **iron gate** bars the shaft; push the two old stone blocks onto the pressure plates |
+| 3 | Embermaw's Hoard | a **skeleton brute** guards the key to the locked door of the dragon's hall |
+
+Run into the shaft to climb down a floor; the stairs of a floor lead back up. While you are down there every
+floor stays as you left it (fallen monsters, open doors, the key, pushed blocks), so climbing back up costs no progress. Every monster of the lair carries some gold, and the dragon a heap of it and usually a piece
 of gear. Behind it waits the hoard's treasure chest among piles of coins.
 The halls are dressed with cobwebs, skulls, banners and a stone horse statue from the dungeon kit.
-The stairs you came down lead back out of the arch. The monsters stand ready again every time you come
-down, so there is always something to fight; searched chests and barrels stay empty.
+The stairs of the first floor lead back out of the arch. The monsters stand ready again (and the doors are
+locked again) every time you come down through the arch, so there is always something to fight; searched chests and barrels stay empty.
 **Embermaw, the Hoard Dragon** is the boss of the lair. When it spots you, it wakes with a roar that shakes
 the lair, and its **health bar** shows at the top of the screen, with marks where its next phase begins.
 It hovers over its gold, spits **fireballs** from afar (they follow you like a mage's orb and burn for 2)
@@ -585,6 +789,14 @@ Slay the dragon and the lair is **complete**: a fanfare plays, a window says so,
 have slain and offers to **leave the lair** at once (or stay and collect the loot). Where the dragon fell, a
 **golden way out** shines up on the floor: step into it and you stand in front of the stone arch again.
 
+The fallen dragon also leaves **parts of its body**: always a **dragon scale** and **dragon blood**, and half the
+time its glowing **ember heart**. They go into the ingredient pouch, and the first of each teaches a recipe for the
+fine metalwork bench on the crafting square: the **scale bracelet** (2 scales, 2 iron bars: +3 life, armour +1), the
+**dragon blood ring** (2 dragon blood, a silver bar: +2 life, +2 power) and the **ember heart amulet** (the heart,
+dragon blood, a scale and a gold bar: +4 life, +2 power, faster).
+When you leave the won lair, a window, **Embermaw's Hoard**, sums up what you carried out of it this visit:
+the gold, the bars from the hoard, the dragon's parts and any gear you found down there.
+
 By the campfire waits the boss of the pass: **Ravenheart, the bandit chief**. Once he takes up the fight, his
 **health bar** shows at the top of the screen, with marks where his next phase begins:
 
@@ -603,6 +815,29 @@ If you leave the blade lying there, it still waits for you after a reload.
 The **compendium** (key H) shows all keys and mouse commands and collects every hint and every
 explanation you have been given so far: the introduction of every level, the tips on sneaking and on the
 guardian, the secret lever. It is saved with the game.
+
+## The hoard of the Great Old One
+
+South of the high valley in the mountains a narrow ravine winds down to a fanged black **cave mouth**. Below it
+lie three floors, made for a hero of about **level 18** (the monsters are lifted to levels 17 to 19):
+
+1. **The Scorched Halls**: brood drakes (young dragons that hover and spit fire), rock trolls, mountain orcs
+   and ember slimes, and the first **epic treasure room** behind a locked door.
+2. **The Bone Gallery**: the second epic treasure room at the end of the gallery; its key lies with the
+   brood's guards. Each treasure room holds two **epic chests** (a violet piece of gear and 60 gold each).
+3. **The Lair of the Great Old One**: a dragon older than the mountain, asleep on its bed of gold.
+
+The **Great Old One** is not there to be slain: no blade or knife gets through its scales. Asleep it is
+blind but it hears. Walking, running or jumping near it makes it restless ("Zzz?", then "It stirs!"), and
+bumping into it wakes it at once. **Sneaking** (key C) makes no noise at all. Awake, it rears up and every
+few seconds marks a cone of **red rings** in front of it and then breathes fire there: stay in it and it burns
+for most of your life. It never leaves its bed, so run out of its sight; after a while it falls asleep again.
+
+Its **hoard** lies right in front of it. Sneak onto the heap to take it: the first time it holds the old
+dragon's own treasure (250 gold, an epic and a god-born piece of gear), and later whatever the **dragon's
+helpers** brought. Of every three things they carry off the open ground at night, two go down to the Great Old
+One, coins and **whole gear**, so what you lost can be taken back. The clink of the gold makes the dragon stir,
+so leave quietly. See `scripts/elder_lair.gd` and `scripts/elder_dragon.gd`.
 
 ## Map and journal
 
@@ -645,6 +880,39 @@ Training follows the same slow growth as in the dungeon: eight days of eight hou
 attribute up by one point and most of a second, and every further point costs a quarter more.
 Six books (one per skill) can turn up in chests and at the merchant. The rules are in `scripts/offline.gd`.
 
+## The map workshop
+
+Click **Map workshop** on the title screen to build maps of your own with the game's tiles, monsters and
+rules. The workshop reads and writes the very files in `levels/`, so a map made there plays in the game as it is.
+
+- **Tiles** (left): every tile of the dungeon in groups (floor and walls, ways, traps and puzzles, treasure,
+  furnishings, monsters, your creations). Paint with the left mouse button; the right button paints wall.
+  Tools: **Brush**, **Area** (drag a rectangle) and **Fill** (fills the patch of the same tile).
+  The mouse wheel zooms, the middle button (or Space and the left button) or the arrow keys move the map.
+- **Map** (right): name, hint, size, how rich the secret room is, elite skeletons, pitch dark, safe room,
+  hidden traps (how many, which kinds) and a wall writing of your own.
+- **Creations**: each digit `1` to `9` and `0` on a map is a creation of that map: a **monster** (a base kind
+  with your own name, life, damage, hardening, speed, pace, size, gold and colour), a **person** (body, clothes,
+  colours, pose and up to six lines they say when the hero runs into them) or **gear** (looks and is worn like an
+  existing piece, with your own name and values; never sold or found as loot).
+- **Checks**: after every change the workshop checks the map: exactly one start, an exit, the exit reachable
+  from the start (with the key in front of its door, or a guardian who carries it), enough stone blocks for the
+  pressure plates, no unknown letters, every digit set up as a creation. Click a line to see its tile.
+- **Test** (F5) plays the map at once with a new hero; nothing is saved. The stairs (or Esc) lead back to the workshop.
+- **The open air**: the workshop also opens the world under the open sky (`levels/11_die_freiheit.txt`, a map with
+  `outdoor: yes`, up to 240 × 120 tiles). The palette then shows its own tiles (terrain, nature, ways and entrances,
+  buildings, village and camp, villagers, wild foes, animals); its digits are villagers, not creations. Its checks
+  look for one start and unknown letters, and testing it starts the hero in front of the crypt.
+- **Save** puts the map into *My maps* (`user://karten/`); run from the Godot editor, it can also save straight
+  into `levels/`. On the web, where there is no folder, *To the clipboard* and *From the clipboard* move a map as text.
+
+| Workshop key | Action |
+|---|---|
+| Ctrl+Z / Ctrl+Y | undo / redo a stroke |
+| Ctrl+S / Ctrl+O | save / open |
+| F5 | test the map |
+| Esc | close a window, or back to the title screen |
+
 ## Building new levels
 
 Every level is a simple text file in the `levels/` folder. The levels are
@@ -668,7 +936,8 @@ played in the order of their file names. One character stands for one tile:
 | `?`       | secret wall       | `f`       | brazier           |
 | `v`       | bat               | `s`       | slime             |
 | `R`       | dragon            | `y`       | horse statue      |
-| `X`       | a horror's den    |           |                   |
+| `X`       | a horror's den    | `m`       | steel-banded chest (homes) |
+| `h`       | ingredient board (homes) |    |                   |
 
 The lines `name:` and `hint:` give the level's name and the introduction shown when it starts.
 A line `lair: yes` on a building floor makes it a dungeon of its own instead of a safe room, with monsters,
@@ -705,6 +974,16 @@ counted from west to east. `<` are stairs up to the `>` of the next storey and b
 for furniture (the game lists these spots per storey in `Level.furniture_slots`), and the exit `E` is the
 front door in the south wall.
 
+Maps made in the map workshop may also use these lines (the game's own maps can too):
+`traps: 3 stacheln, teleport, falltuer` lays that many hidden traps of those kinds, `writing: WORD | text` is the
+level's wall writing, and `custom: <digit> {...}` sets up a creation for that digit (see `scripts/creations.gd`):
+
+```
+custom: 1 {"type": "monster", "base": "krieger", "name": "Bone Lord", "hp": 9, "damage": 2, "tint": "#aa3322"}
+custom: 2 {"type": "npc", "name": "Brother Anselm", "model": "Mage", "show": ["Mage_Hat"], "lines": ["Peace be with you."]}
+custom: 3 {"type": "item", "id": "eigen_bone_crown", "base": "knochenhelm", "name": "Bone Crown", "power": 2}
+```
+
 The exit `E` needs a wall to the north (top) and is entered from the south.
 A door `D` stands in a passage one tile wide.
 
@@ -719,7 +998,7 @@ or a file is not listed.
 
 ## Technology
 
-- Engine: [Godot 4.5](https://godotengine.org) with the Compatibility renderer, so it runs in the browser
+- Engine: [Godot 4.7](https://godotengine.org) with the Compatibility renderer, so it runs in the browser
 - Graphics: KayKit Dungeon Remastered, Adventurers and Skeletons by Kay Lousberg (CC0)
 - Graveyard, crypt and autumn trees: KayKit Halloween Bits; village buildings, trees and rocks: KayKit Medieval Hexagon Pack, both by Kay Lousberg (CC0)
 - Wooden floor and roof tiles of the house: "Wood 062" and "Roofing Tiles 014 C" by ambientCG (CC0)
@@ -729,7 +1008,7 @@ or a file is not listed.
 - Wolves, orcs, yeti and spiders: Ultimate Animated Animals, Ultimate Monsters and Easy Animated Enemy Pack by Quaternius (CC0, see `assets/wild/LICENSE.txt`)
 - Does, stags and foxes: Ultimate Animated Animals by Quaternius (CC0, see `assets/animals/LICENSE.txt`)
 - Bats, slimes and the dragon: Animated Monster Pack; arch, stairs, cobwebs, skulls, banners, coin piles and the horse statue of the dragon's lair: Modular Dungeon kit (May 2019), both by Quaternius (CC0, see `assets/lair/LICENSE.txt`)
-- Sounds: made from scratch with `tools/make_sounds.py`; footsteps and door: recordings by Fantozzi, “Footsteps Leather, Cloth, Armor” and qubodup; creatures, skeleton voices and chains by rubberduck; crossbow shots from “Medieval sound effects - Weapon Textures” (CC0, see `assets/sounds/CREDITS.txt`)
+- Sounds: made from scratch with `tools/make_sounds.py` (the eerie dungeon sounds with `tools/make_dungeon_sounds.py`); footsteps and door: recordings by Fantozzi, “Footsteps Leather, Cloth, Armor” and qubodup; creatures, skeleton voices and chains by rubberduck; crossbow shots from “Medieval sound effects - Weapon Textures” (CC0, see `assets/sounds/CREDITS.txt`)
 - Music: “Abeth” by Audibert jd, from Eleryan Tales volume 1 (2010), www.eleryantales.com (see `assets/music/CREDITS.txt`)
 - Font: Cinzel and Cinzel Decorative (SIL Open Font License)
 - Comic font of the fight bubbles: Bangers by Vernon Adams (SIL Open Font License)

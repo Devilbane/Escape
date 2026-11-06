@@ -71,7 +71,7 @@ func _process(_delta: float) -> bool:
 			if chief == null:
 				_finish()
 				return true
-			check(chief.max_hp() >= 20, "the chief has a boss's life (%d)" % chief.max_hp())
+			check(chief.max_hp() >= 60, "the chief has a boss's life (%d)" % chief.max_hp())
 			check(lvl.boss_bar != null and not lvl.boss_bar.wanted(), "his health bar waits until the fight starts")
 			check(Items.ALL.has(BanditChief.TROPHY) and Items.ALL[BanditChief.TROPHY].get("no_loot", false), "his blade is unique, never found elsewhere")
 			check(not lvl.chief_defeated(), "a new game starts with the chief standing")
@@ -86,8 +86,8 @@ func _process(_delta: float) -> bool:
 				check(lvl.boss_bar.wanted(), "the health bar shows during the fight")
 				# A backstab is no instant kill for him.
 				var before := chief.hp
-				chief.take_hit(1, player.global_position, "backstab")
-				check(not chief.dead and chief.hp == before - BanditChief.BACKSTAB_FACTOR, "a stab in the back hurts the chief but does not end him")
+				chief.take_hit(3, player.global_position, "backstab")
+				check(not chief.dead and chief.hp == before - 3, "a stab in the back hurts the chief but does not end him")
 				# Phase 2: below two thirds he calls his cutthroats.
 				chief.take_hit(chief.hp - int(chief.max_hp() * 0.6), player.global_position)
 				check(chief.phase == 2, "below two thirds of his life the chief enters phase 2")
@@ -159,7 +159,7 @@ func _process(_delta: float) -> bool:
 			check(lvl.chief_defeated() and game._looted_for_save().values().any(func(ids): return Outdoor.CHIEF_DEFEATED in ids), "his fall is kept in the saved game")
 			var drops: Array = lvl._pickups.slice(pickups_before)
 			check(drops.any(func(p): return p.get("id", "") == BanditChief.TROPHY), "he drops his unique blade")
-			check(drops.filter(func(p): return p.kind == "coin").size() >= Outdoor.CHIEF_GOLD, "his purse spills plenty of gold")
+			check(CoinPile.coins_in(drops) >= Outdoor.CHIEF_GOLD, "his purse spills plenty of gold")
 			var spot: Array = lvl._wild.filter(func(s): return s.kind == "hauptmann")
 			check(spot.size() == 1 and spot[0].timer == INF, "nobody takes the chief's place")
 			print("the chief fell at ", where)

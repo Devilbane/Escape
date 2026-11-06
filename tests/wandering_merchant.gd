@@ -55,7 +55,7 @@ func _rules() -> void:
 	check(Wanderer.is_here(1, 22.0) and Wanderer.is_here(1, 4.5), "on his night he is there from nightfall to dawn (the day turns at dawn)")
 	check(not Wanderer.is_here(2, 6.0) and not Wanderer.is_here(1, 12.0), "by day he is not there")
 	check(Wanderer.nights_until(2) == 2 and Wanderer.nights_until(4) == 0, "the nights until his next visit")
-	check(Wanderer.price("schwert") == 15 and Wanderer.price("rundschild") == 12, "gear costs a fifth more, rounded up")
+	check(Wanderer.price("schwert") == 152 and Wanderer.price("rundschild") == 234, "gear costs a fifth more than the merchant asks, rounded up")
 	check(Wanderer.price("mondstein") == Wanderer.INGREDIENT_PRICES.mondstein, "an ingredient costs its own price")
 
 
@@ -66,7 +66,7 @@ func _items() -> void:
 		check(not Crafting.INGREDIENTS[id].get("rare", false) and id != "trueffel", "%s is not one of the rarest finds" % id)
 	# Merchants sell nothing magic, special or top of its kind.
 	for id in ["vampirzahn", "phoenixfeder", "gluecksklee", "dornenrune", "amulett_kraft", "zauberhut",
-			"plattenpanzer", "eilstiefel", "rubinring", "grosser_rucksack", "langschwert", "rabenklinge", "schattenumhang"]:
+			"plattenpanzer", "stahlstiefel", "rubinring", "reiserucksack", "langschwert", "rabenklinge", "schattenumhang"]:
 		check(not Wanderer.is_gear_for_sale(id), "%s is not for sale at his cart" % id)
 	for id in ["schwert", "rundschild", "lederwams", "lederstiefel", "wollumhang", "kupferring", "leinenrucksack", "fechtbuch"]:
 		check(Wanderer.is_gear_for_sale(id), "%s may be on his cart" % id)

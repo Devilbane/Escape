@@ -1,12 +1,14 @@
 name: Die Zuflucht
 hint: Ein sicherer Ort. Der Brunnen heilt deine Wunden und jedes Gift, und du kannst Dinge lagern, handeln und im Bett speichern.
 safe: ja
+fountain: 5
 secret: ungewoehnlich
+monsters: humans
 #################
 ######E##########
 ####.....########
 #B.........L.#c.#
 #.......F....?.C#
-#....P.....V.#k.#
+#....P.....V.#..#
 #..t.........####
 #################

@@ -378,6 +378,7 @@ Further rules:
   | Note / warning | (1.0, 0.75, 0.5) | Notes after an action, quit warning |
   | Secondary | `GREY` (0.75, 0.72, 0.68) | Counts, empty states, fine print |
   | Lives | (1.0, 0.45, 0.42) | HP in the HUD |
+  | Item rarity | `Rarity.color(id)`: common white (0.92, 0.92, 0.9), uncommon blue (0.3, 0.58, 1.0), rare yellow (1.0, 0.95, 0.2), epic violet (0.75, 0.42, 1.0), god-born orange (1.0, 0.5, 0.1), self-crafted light blue (0.45, 0.92, 1.0) | Every item name: inventory, chest, vault, trade rows and cards, event log, words over a find |
 
 - **Never colour alone.** About 8 % of men and 0.5 % of women have a colour vision deficiency; red
   and green are the most commonly confused. Pair every colour meaning with a second cue: an icon
@@ -595,27 +596,36 @@ Use these helpers and values; do not re-create them.
 
 | What | Where | Notes |
 |---|---|---|
-| Window frame | `Menus.panel_style(border)` | Dark background (0.04, 0.03, 0.08, 0.9), 2 px border, radius 18, margin 26. |
+| Window frame | `Menus.panel_style(border)` (`UiKit.panel_style`) | Forged bronze (`BronzeStyle`): a 12 px cast-metal rim (dark outline, flat metal with a lit top edge, dark inner line), shaded in diagonal bands of light and dark bronze across the whole box (`BronzeStyle.METAL_STOPS`), with rivets in the corners, radius 8, around an opaque dark leather-brown ground (`UiKit.PANEL_BG`), margin 26. `border` tints the metal: the house gold gives bronze. |
+| Bronze frames | `BronzeStyle`, `UiKit.frame_style(bg, border, width, radius)` | Every frame of the game (windows, buttons, rows, cards, tooltips, the drawer) is a `BronzeStyle`, not a `StyleBoxFlat`. It takes the same settings (`bg_color`, `border_color`, `set_border_width_all`, `set_corner_radius_all`, `shadow_size`...), so tint a copy of it for hover or a pick; never swap in a flat box. Rims of 8 px or more (windows) get small rivets. `tests/bronze_frames.gd` checks it. |
 | Window host | `Menus.setup` | `CenterContainer` over the HUD, a holder `Control`, one `PanelContainer`, a `ScrollContainer`, one `VBoxContainer` (`separation` 10, 6 in the inventory). |
 | Fitting the screen | `Menus._fit` | Every window fits the screen: when it opens (and when the screen changes size) it shrinks to fit, down to `MIN_SCALE` 0.8, and beyond that its content scrolls. Still keep windows within 1280 × 720 at scale 1: long lists go into a fixed scroll region of their own. `tests/windows_fit_screen.gd` checks every window. |
+| Fixed window sizes | `Menus.WINDOW_SIZES`, `Menus.fixed_size(kind)` | Every window the player works in (all merchants share `"trade"`, inventory, chests, workbenches, character, compendium, map...) has one content size, whatever it holds; its content sits in the middle. A new such window gets an entry, sized for its fullest content in both languages. Long names, prices and notes are shortened with "…" or wrap; they never widen a window. `tests/windows_fixed_size.gd` opens each one empty and full and checks it. |
+| Scroll bars | `UiKit.scroll_theme()`, set on `Menus._panel` | Every window's scroll bars are slim (`SCROLL_BAR_WIDTH` 6): a faint dark track and a dim gold handle that brightens on hover and when dragged. Do not style scroll bars per window. |
 | Opening/closing | `Menus.open(kind)` / `Menus.close()` | Pauses and resumes the world, resets per-visit state. |
 | Labels | `game._make_label(font, size, color)` | Adds outline and shadow; mouse ignored. |
-| Buttons | `game._make_button(text, action, on_press = false)` | 118 × 64 default, `TEXT_FONT` 18, gold text, radius 14. Close buttons 180 × 52; dialog buttons 220 × 60. Hover: bright gold border, lighter background and text, hand cursor. Pressed: dark amber. Disabled: dimmed. Focus: white outline outside the border. Acts on release; `on_press = true` only for the drawer's game actions. Do not override these states per button. |
+| Buttons | `game._make_button(text, action, on_press = false)` | 118 × 64 default, `TEXT_FONT` 18, gold text, a 5 px bronze rim, radius 6. Close buttons 180 × 52; dialog buttons 220 × 60. Hover: bright gold border, lighter background and text, hand cursor. Pressed: dark amber. Disabled: dimmed. Focus: white outline outside the border. Acts on release; `on_press = true` only for the drawer's game actions. Do not override these states per button. |
 | Keyboard focus | `Menus._input`, `_focusables`, `_focus_at` | Arrow keys or Tab show the focus in the open window, a click hides it, `_rebuild` keeps it. Buttons stay `FOCUS_NONE` outside windows, so a key never presses a HUD button. |
-| Merchant / list-with-details | `TradeWindow` (`scripts/trade_window.gd`) | Sections, rows 350 × 60, cards 290 wide, list height 400. |
+| Merchant / list-with-details | `TradeWindow` (`scripts/trade_window.gd`) | Sections, rows 300 × 60 (their button 100 wide), cards 255 wide, list height 380; a row for tabs in every merchant's window, empty where he has none. |
 | Book pages | `Menus._book_column`, `BOOK_COLUMN` = 470 | Compendium, recipes, quest log, reputation. |
-| Item pictures | `ItemIcon.make(id_or_kind, size, flat)` | Use `kind:*` icons (coin, chev_up, chev_down, up, …) for UI symbols. |
+| Item slots | `Menus._item_slot(id, name, count, action)` | Every item grid (bag, pouch, worn gear, chest, vault) shows pictures, not text: a 64 × 64 bronze box (`INVENTORY_CELL`, 5 px rim, ten across, gap 8) with the item's picture and `×n` in its corner. The rim takes the rarity colour (common keeps bronze); the name is the tooltip and the details box shows the rest on mouse-over. Worn places carry their name under the box and a faint picture of what goes there. |
+| Section headings | `UiKit.rule()` | A heading inside a window sits between two bronze rules that fade out at their ends. |
+| HUD bars | `game.bar_back()`, `bar_fill(colors)`, `bar_rim()` | Life, running and experience bars: a glossy band (lit top, dark foot) in a 4 px bronze rim laid just around the bar. Life is red with a heart at its left end. |
+| Item pictures | `ItemIcon.make(id_or_kind, size, flat)` | Use `kind:*` icons (coin, chev_up, chev_down, up, …) for UI symbols. Things are painted SVGs in `assets/ui/icons` (made by `tools/make_icons.py`; a `<kind>__tint.svg` holds the part tinted with the item's colour), drawn in a bronze slot. A new kind gets a painting there, not new shapes in `_draw`. |
 | Fonts | `game.TITLE_FONT` (Cinzel Decorative Black), `game.TEXT_FONT` (Cinzel Bold) | Titles vs everything else. |
 | Colours | `game.GOLD`, `TradeWindow.GREEN/RED/GREY/BLUE/ORANGE`, `Menus.BLUE`, `Menus.REPUTATION_COLOR` | See section 7. |
+| Item names | `Rarity` (`scripts/rarity.gd`) | An item's name is always in its rarity colour: `_item_button(…, id)` and `TradeWindow.name_color` do it for buttons and rows, `Rarity.bbcode(id)` for a RichTextLabel, `Rarity.marked(id)` inside an `Events.found` text. Where there is room, name the tier in words too (`Rarity.label(id)`). |
 | Translations | `Lang.t()`, `Lang.EN` | Every new player-facing string. |
 | Pull-out menu | `game._setup_drawer()` | Right edge, Tab toggles; window buttons push it away. |
-| Quick window icons | `game._setup_quick_bar()`, `QUICK_WINDOWS` | Map, compendium, inventory, character and quests as 70 × 48 picture buttons on the drawer's rail above its handle (8 apart, 20 to the handle); tooltip "Name (key X)" in `_tooltip_theme()`; the open window's icon stays pressed. Add a window there rather than a second icon row. |
+| Quick window icons | `game._setup_quick_bar()`, `QUICK_WINDOWS` | Map, compendium, inventory, character and quests as 70 × 48 picture buttons on the drawer's rail above its 70 × 88 handle (8 apart, 16 to the handle); below the handle, 16 apart, the home and torch buttons (8 apart, each slot kept while hidden); tooltip "Name (key X)" in `_tooltip_theme()`; the open window's icon stays pressed. Add a window there rather than a second icon row. |
 | Shortcut list | `Menus.SHORTCUTS` | Add every new key. |
+| HUD tooltips | `game._setup_hud()`, `_tooltip_theme()` | Every HUD value explains itself on hover in the house tooltip style: the life bar (through `_hp_hover`, a strip taller than the 16 px bar), ammunition, trouble, notice and boon icons, the run meter, the experience row, gold and key. A new HUD value takes the pointer with `MOUSE_FILTER_PASS` (clicks still reach the game) and sets its `tooltip_text` where it is updated; `tests/hud_tooltips.gd` checks each is reachable. The values themselves stay on screen, so nothing depends on hover. |
 
 Spacing scale (keep to these steps): **4, 6, 8, 10, 12, 14, 24, 26, 28**. Within a row 8 to 10;
 between rows 6; between groups 12 to 14; window margin 26; HUD edge margin 24.
 
-Corner radius: 18 for windows, 14 for buttons and the drawer, 8 for rows, cards and headers.
+Corner radius: 8 for windows, 6 for buttons and the drawer, 8 for rows, cards and headers (forged frames
+have small, hard corners). Grounds are warm dark browns (`UiKit.PANEL_BG`, `UiKit.BUTTON_BG`), not purple.
 
 ### Tests
 
@@ -680,7 +690,10 @@ windows, window buttons acting on release, and 16 px for prices and comparisons 
 (the "window buttons" PR, tested by `tests/window_buttons.gd`); the character wheel's small text:
 the wheel is 580 px across with all its text at 16 px or more, long skill names break over two
 lines, and the details (how a roll is made up, what an attribute does, why a skill is dimmed) show
-in a card of fixed size beside it on hover or tap (tested by `tests/character_page.gd`).
+in a card of fixed size beside it on hover or tap (tested by `tests/character_page.gd`); one fixed
+size per window for every window the player works in, the same for all merchants, with chest cells,
+row buttons, prices, card lines and notes that shorten or wrap instead of widening it (tested by
+`tests/windows_fixed_size.gd`).
 
 1. **Trade rows and folding headers take no keyboard focus.** With the keys, the player reaches
    each row's button (which shows that row's cards) but cannot pick a row or fold a category.

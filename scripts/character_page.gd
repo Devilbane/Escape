@@ -24,10 +24,11 @@ const INNER := 124.0
 ## Where the ring of basic skills ends and the ring of advanced skills starts.
 const MIDDLE := 204.0
 const OUTER := 262.0
-## Text sizes: names and values the player reads (16 px or more, see the ux-ui
-## guide), and the main attributes' values as the wheel's focal point.
-const TEXT_SIZE := 16
-const VALUE_SIZE := 28
+## Text sizes: names and values the player reads, and the main attributes'
+## values as the wheel's focal point. Designed at 16 and 28 px, drawn at the
+## game's text scale (see UiKit.TEXT_SCALE).
+const TEXT_SIZE := 12
+const VALUE_SIZE := 21
 ## A skill's plate: its name and level, and under it the chance of a roll.
 const LINE := 19.0
 const PLATE_PAD := Vector2(8.0, 5.0)
@@ -366,7 +367,7 @@ func _draw_skills(i: int, places: Dictionary) -> void:
 		if lines.detail != "":
 			_text(Vector2(plate.get_center().x, baseline), lines.detail, TEXT_SIZE, GOLD)
 	if not has_basic:
-		_text(c + _dir(sector_angle(i)) * ((INNER + MIDDLE) / 2.0 + 2.0) + Vector2(0, 6), "—", 20, DIM)
+		_text(c + _dir(sector_angle(i)) * ((INNER + MIDDLE) / 2.0 + 2.0) + Vector2(0, 6), "—", UiKit.sized(20), DIM)
 
 
 ## A line of text centred on a point (the point is on the baseline).
@@ -378,15 +379,13 @@ func _text(at: Vector2, text: String, font_size: int, color: Color) -> void:
 # --- The details card ---------------------------------------------------------
 
 ## What each attribute does, and what makes it grow (see Player and the
-## compendium's text on attributes).
+## compendium's text on attributes). The three main attributes show their
+## real numbers instead (live_effects).
 const ATTRIBUTE_EFFECTS := {
-	"staerke": "+1 Kampfkraft je Punkt; Lasten wiegen weniger.",
 	"konstitution": "+1 Leben je Punkt; länger rennen und schneller heilen.",
 	"tempo": "Wie schnell du gehst und rennst.",
 	"intuition": "+2 % je Punkt, einen Geheimraum zu entdecken.",
-	"geschick": "Weiter springen; +4 % je Punkt, Stacheln auszuweichen.",
 	"weisheit": "5 % schneller lernen je Punkt; ab 12 bieten Schreine eine vierte Gabe.",
-	"intelligenz": "Manche Dinge, wie der Zauberhut, brauchen sie.",
 }
 const ATTRIBUTE_GROWTH := {
 	"staerke": "Wächst durch Kämpfen.",
@@ -399,8 +398,19 @@ const ATTRIBUTE_GROWTH := {
 }
 ## What a skill does, for skills whose use is not plain from their name.
 const SKILL_EFFECTS := {
-	"erkunden": "Je Stufe: +3 % Geheimräume, +4 % Fackeln beim Durchsuchen, +8 % Inschriften. Wächst mit jeder ganz erkundeten Karte.",
+	"erkunden": "Je Stufe: +3 % Geheimräume, +3 % Fallen, +4 % Fackeln, +8 % Inschriften. Wächst mit jeder ganz erkundeten Karte.",
 }
+## The entry for the hit and block chances beside the wheel (see
+## Menus._build_character): against a person of the hero's own level.
+const ODDS := "odds"
+## The entries for the hero's protection beside the wheel: Härtung (a flat
+## amount off every hit) and Rüstungswert (a share off every hit).
+const HARDENING := "haertung"
+const ARMOUR := "ruestungswert"
+## The entry for the armour set worn (see ArmourSets).
+const ARMOUR_SET := "ruestungsset"
+
+
 ## Why a skill is dimmed: the gear it needs.
 const GEAR_HINTS := {
 	"klingen": "Gedimmt: braucht eine Klinge in der Hand.",
@@ -414,6 +424,12 @@ const GEAR_HINTS := {
 ## (in another colour) for how a roll works or why a skill is dimmed. With no
 ## entry, how a roll on a skill works.
 func details(id: String) -> Dictionary:
+	if id == ODDS:
+		return odds_details()
+	if id == HARDENING or id == ARMOUR:
+		return protection_details(id)
+	if id == ARMOUR_SET:
+		return set_details()
 	if Training.ATTRIBUTES.has(id):
 		return _attribute_details(id)
 	if Training.SKILLS.has(id):
@@ -427,11 +443,50 @@ func details(id: String) -> Dictionary:
 	}
 
 
+## What Härtung or Rüstungswert does, with the hero's numbers, and how much
+## of it the worn armour set gives (see ArmourSets).
+func protection_details(id: String) -> Dictionary:
+	var kind := ArmourSets.worn(player.equipped)
+	if id == HARDENING:
+		var lines := [Lang.t("Wert %d: Jeder Treffer gegen dich wird um so viel schwächer.") % player.hardening,
+			Lang.t("Ein Treffer behält aber mindestens die Hälfte seiner Wucht.")]
+		if kind != "":
+			lines.append(Lang.t("Davon +%d aus dem %s.") % [ArmourSets.hardening(player.equipped), ArmourSets.title(kind)])
+		return {"title": Lang.t("Härtung"), "lines": lines,
+			"note": Lang.t("Kommt von harter Rüstung, Schilden und Rüstungssets.")}
+	return {"title": Lang.t("Rüstungswert"),
+		"lines": [Lang.t("%d %%: Was nach der Härtung von einem Treffer übrig ist, wird um diesen Anteil kleiner.") % player.armour_value,
+			Lang.t("Leichte Treffer fängt die Rüstung so manchmal ganz ab."),
+			Lang.t("Höchstens %d %%.") % Player.ARMOUR_VALUE_MAX],
+		"note": Lang.t("Kommt von Helm, Rüstung, Handschuhen und Schuhen. Stoff schützt wenig, Stahl und Schuppen viel.")}
+
+
+## The armour set worn and what it gives, or how close the hero is to one.
+func set_details() -> Dictionary:
+	var kind := ArmourSets.worn(player.equipped)
+	var lines := []
+	if kind != "":
+		lines.append(Lang.t("Du trägst das %s: %s.") % [ArmourSets.title(kind), ArmourSets.bonus_text(kind)])
+	else:
+		var near := ArmourSets.closest(player.equipped)
+		lines.append(Lang.t("Du trägst kein ganzes Set.") if near == "" else
+				Lang.t("%s: %d von %d Teilen.") % [ArmourSets.title(near), ArmourSets.pieces_worn(player.equipped, near), ArmourSets.PIECES.size()])
+	lines.append(Lang.t("Helm, Rüstung, Handschuhe und Schuhe aus einem Material ergeben ein Set. Der Umhang zählt nicht."))
+	lines.append(Lang.t("Stoff und Leder geben mehr Geschick, Eisen und Stahl mehr Härtung, Schuppen beides."))
+	return {"title": Lang.t("Rüstungsset"), "lines": lines,
+		"note": Lang.t("Das beste Set: Drachenschuppen, +3 Geschick und +4 Härtung.")}
+
+
 func _attribute_details(id: String) -> Dictionary:
 	var a: Dictionary = Training.ATTRIBUTES[id]
 	var value := player.attribute(id)
 	var unit := "%" if id == "tempo" else ""
-	var lines := [Lang.t("Wert %d%s, höchstens %d%s") % [value, unit, a.max, unit], Lang.t(ATTRIBUTE_EFFECTS[id])]
+	var lines := [Lang.t("Wert %d%s, höchstens %d%s") % [value, unit, a.max, unit]]
+	if id == "geschick" and ArmourSets.dexterity(player.equipped) > 0:
+		var kind := ArmourSets.worn(player.equipped)
+		lines[0] += " " + Lang.t("(+%d aus dem %s)") % [ArmourSets.dexterity(player.equipped), ArmourSets.title(kind)]
+	var live := live_effects(id)
+	lines.append_array(live if not live.is_empty() else [Lang.t(ATTRIBUTE_EFFECTS.get(id, ""))])
 	var governs := []
 	for skill in Training.SKILLS:
 		if Training.SKILLS[skill].attributes.has(id):
@@ -442,6 +497,25 @@ func _attribute_details(id: String) -> Dictionary:
 	if value < a.max:
 		note += " " + Lang.t("Noch %d %% bis zum nächsten Punkt.") % (100 - floori(Training.attribute_progress(id, player.xp.get(id, 0.0)) * 100.0))
 	return {"title": Lang.t(a.name), "lines": lines, "note": note}
+
+
+## What a main attribute does for the hero right now, with the real numbers
+## and what one more point adds (see Player); empty for the others.
+func live_effects(id: String) -> Array:
+	match id:
+		"staerke":
+			return [Lang.t("Nahkampf: +%d Schaden, Hieb %d (+1 je Punkt)") % [player.strength_points(), player.power],
+				Lang.t("Lasten wiegen für dich nur %d %%") % roundi(100.0 * Training.ATTRIBUTES.staerke.start / player.attribute("staerke"))]
+		"geschick":
+			var dodge := roundi(player.dodge_chance() * 100.0)
+			var per := roundi(Player.DODGE_PER_DEXTERITY * 100.0)
+			return [Lang.t("Messerwurf: +%d Schaden, Wurf %d (+1 je Punkt)") % [player.dexterity_points(), player.throw_power()],
+				Lang.t("Ausweichen: %d %% (+%d %% je Punkt, bis %d %%)") % [dodge, per, roundi(Player.DODGE_MAX * 100.0)],
+				Lang.t("Stacheln: %d %% ausweichen; Sprünge +%d %%") % [mini(100, per * player.dexterity_points()), roundi(Player.JUMP_PER_DEXTERITY * 100.0 * player.dexterity_points())]]
+		"intelligenz":
+			return [Lang.t("Fertigkeiten lernen +%d %% schneller (+%d %% je Punkt)") % [roundi(player.skill_learning_bonus() * 100.0), roundi(Player.SKILL_LEARNING_PER_INTELLIGENCE * 100.0)],
+				Lang.t("Erfahrung, auch aus Rätseln: +%d %% (+%d %% je Punkt)") % [roundi(Player.XP_PER_INTELLIGENCE * 100.0 * player.intelligence_points()), roundi(Player.XP_PER_INTELLIGENCE * 100.0)]]
+	return []
 
 
 func _skill_details(id: String) -> Dictionary:
@@ -465,6 +539,8 @@ func _skill_details(id: String) -> Dictionary:
 	lines.append(Lang.t("Bestimmt von: %s") % ", ".join(names))
 	if SKILL_EFFECTS.has(id):
 		lines.append(Lang.t(SKILL_EFFECTS[id]))
+	elif id == "werfen":
+		lines.append(Lang.t("Griffbereit: %d Wurfmesser (3, und eines mehr je zwei Stufen)") % player.knife_cap())
 	if Training.skill_level(xp, id) < Training.skill_max(id):
 		lines.append(Lang.t("Noch %d %% Übung bis zur nächsten Stufe.") % (100 - floori(Training.skill_progress(xp, id) * 100.0)))
 	var note := ""
@@ -489,3 +565,38 @@ func _dimmed_reason(id: String) -> String:
 		if Training.skill_level(player.xp.get(basic, 0.0), basic) < int(needs[basic]):
 			return Lang.t("Gedimmt: braucht erst %s %d.") % [Lang.t(Training.SKILLS[basic].name), int(needs[basic])]
 	return Lang.t(GEAR_HINTS.get(id, "Gedimmt: braucht passende Ausrüstung"))
+
+
+## The hero's odds against a person of the hero's own level, or of the
+## world's top above it (see HeroLevel.measured, Enemy.reference_foe and
+## Player.odds_against).
+func odds() -> Dictionary:
+	var foe := Enemy.reference_foe(HeroLevel.measured(player.hero_level()))
+	var o := player.odds_against(foe)
+	o.foe = foe
+	return o
+
+
+static func percent(chance: float) -> String:
+	return "%d %%" % roundi(chance * 100.0)
+
+
+## The details card for the hit and block chances: what the reference foe
+## has, and how each chance is made up.
+func odds_details() -> Dictionary:
+	var o := odds()
+	var foe: Dictionary = o.foe
+	var lines := [
+		Lang.t("Halsabschneider, Stufe %d: %d Leben, %d Schaden je Hieb.") % [foe.level, foe.hp, foe.damage],
+		Lang.t("Treffer: %s, in Reichweite immer.") % percent(o.hit),
+		Lang.t("Wuchttreffer (+1): %s, Probe auf %s.") % [percent(o.heavy), Lang.t(Training.SKILLS[o.weapon].name)],
+		(Lang.t("Block: %s mit deinem Schild.") % percent(o.block)) if player.equipped.has("schild")
+				else Lang.t("Block: 0 %, du trägst keinen Schild."),
+		Lang.t("Ausweichen: %s der übrigen Hiebe.") % percent(o.dodge),
+	]
+	return {
+		"title": Lang.t("Treffer und Block"),
+		"lines": lines,
+		"note": (Lang.t("Er trifft dich bei %s seiner Hiebe nicht. Du fällst ihn mit einem Hieb.") % percent(o.unharmed)) if o.blows <= 1
+				else Lang.t("Er trifft dich bei %s seiner Hiebe nicht. Du fällst ihn in höchstens %d Hieben.") % [percent(o.unharmed), o.blows],
+	}

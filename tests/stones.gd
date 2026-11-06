@@ -77,14 +77,16 @@ func _run() -> void:
 
 	# Buying: as many as the gold pays for and the bag holds.
 	p.bag.clear()
-	game.coins = 3 * 5 + 2
+	var block := Items.buy_price("steinblock")
+	game.coins = block * 5 + 2
 	game.menus.open("steinmetz")
 	game.menus._buy_stones(1)
-	check(p.bag.count("steinblock") == 1 and game.coins == 14, "one block bought for 3 gold")
+	check(p.bag.count("steinblock") == 1 and game.coins == block * 4 + 2, "one block bought for %d gold" % block)
 	game.menus._buy_stones(10)
 	check(p.bag.count("steinblock") == 5 and game.coins == 2, "the rest of the gold buys four more")
 	game.menus._sell_stone()
 	check(p.bag.count("steinblock") == 4 and game.coins == 3, "a block given back brings 1 gold")
+	game.coins = block
 	game.menus._buy_stones(1)
 	check(p.bag.count("steinblock") == 5 and game.coins == 0, "and can be bought again")
 	game.menus.close()

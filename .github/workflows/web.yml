@@ -409,6 +409,11 @@ jobs:
           timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/factions.gd | tee factions.log
           grep -q PASS factions.log
 
+      - name: Weak monsters leave a far stronger hero alone test
+        run: |
+          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/cowed_monsters.gd | tee cowed.log
+          grep -q PASS cowed.log
+
       - name: Peaceful animals of the woods test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/animals.gd | tee animals.log

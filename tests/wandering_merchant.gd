@@ -75,10 +75,15 @@ func _items() -> void:
 		var ingredients := wares.filter(Wanderer.is_ingredient)
 		var gear := wares.filter(func(id): return not Wanderer.is_ingredient(id))
 		var kinds := {}
+		var staple := 0
 		for id in ingredients:
-			kinds[id] = true
+			if id == Wanderer.STAPLE:
+				staple += 1
+			else:
+				kinds[id] = true
 		check(kinds.size() == Wanderer.INGREDIENT_KINDS, "three kinds of ingredient on night %d" % night)
-		check(ingredients.size() <= Wanderer.INGREDIENT_KINDS * Wanderer.MAX_EACH, "a few pieces of each on night %d" % night)
+		check(ingredients.size() - staple <= Wanderer.INGREDIENT_KINDS * Wanderer.MAX_EACH, "a few pieces of each on night %d" % night)
+		check(staple >= Wanderer.STAPLE_COUNT[0] and staple <= Wanderer.STAPLE_COUNT[1], "slime jelly for healing potions every visit (%d on night %d)" % [staple, night])
 		check(gear.size() == Wanderer.GEAR_COUNT, "two pieces of gear on night %d" % night)
 		for id in gear:
 			check(Wanderer.is_gear_for_sale(id), "%s on night %d is basic gear or a book" % [id, night])

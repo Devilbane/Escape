@@ -94,7 +94,7 @@ func _test() -> void:
 	check(Lang.EN.has(Fishing.HOW_TO), "the fishing how-to has an English text")
 	for kind in Fishing.WATERS:
 		for row in Fishing.WATERS[kind]:
-			check(row[0] in ["", "muenze", "flasche", Fishing.RING] or Crafting.INGREDIENTS.has(row[0]), "%s: %s is an ingredient" % [kind, row[0]])
+			check(row[0] in ["", "muenze", "flasche", Fishing.SLIME_BOTTLE, Fishing.RING] or Crafting.INGREDIENTS.has(row[0]), "%s: %s is an ingredient" % [kind, row[0]])
 			check(row[2] in ["", "nacht", "daemmerung"], "%s: %s bites at a known time" % [kind, row[0]])
 	for text in ["Angeln", "G: Angeln", "G: Anschlagen!", "G: Leine einholen"]:
 		check(Lang.EN.has(text), "\"%s\" has an English text" % text)
@@ -121,6 +121,7 @@ func _test() -> void:
 	check(not seen.has("teich silberhecht 12") and not seen.has("teich silberhecht 23"), "the silver pike hides at noon and midnight")
 	check(seen.has("brunnen goldkarpfen 12") and seen.has("brunnen muenze 12"), "the fountain holds the golden carp and old coins")
 	check(seen.has("teich barsch 12") and seen.has("senke barsch 12"), "perch bite in both ponds")
+	check(seen.has("teich schleimflasche 12") and seen.has("senke schleimflasche 23"), "both ponds give up bottles of slime")
 	for key in seen:
 		check(not (key.begins_with("brunnen") and key.contains("barsch")), "no perch in the fountain")
 		check(not key.contains("mondforelle") or key.begins_with("senke"), "the moon trout lives only in the wolf hollow")
@@ -389,6 +390,12 @@ func _test() -> void:
 	check(game.coins >= coins_before + Fishing.BOTTLE_COINS[0] and game.coins <= coins_before + Fishing.BOTTLE_COINS[1], "a bottle holds a few coins")
 	for note in Fishing.BOTTLE_NOTES:
 		check(Lang.EN.has(note), "the bottle note %s has English" % note)
+	# A bottle of pond slime: a lump or two of slime jelly for healing potions.
+	var jelly_before: int = game.crafting.have(Fishing.SLIME_JELLY)
+	fishing.take(Fishing.SLIME_BOTTLE, player.global_position, game.level)
+	var lumps: int = game.crafting.have(Fishing.SLIME_JELLY) - jelly_before
+	check(lumps >= Fishing.SLIME_LUMPS[0] and lumps <= Fishing.SLIME_LUMPS[1], "a bottle of slime holds a lump or two of slime jelly (%d)" % lumps)
+	check(not Fishing.is_rare(Fishing.SLIME_BOTTLE), "a bottle of slime is no rare catch")
 	# The long-lost ring: rare, once only, and kept in the saved game.
 	check(Fishing.is_rare(Fishing.RING) and Items.ALL.has(Fishing.RING) and Lang.EN.has(Items.ALL[Fishing.RING].name), "the long-lost ring is a rare item")
 	seen.clear()

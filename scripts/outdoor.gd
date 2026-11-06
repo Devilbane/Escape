@@ -381,7 +381,7 @@ var weather := ""
 ## gather around, how long until a fallen one is replaced, and how far from
 ## the hero they appear (never within sight).
 const WEATHER_FOES := {
-	Weather.RAIN: {"kind": "schleim", "count": 4, "near": "~"},
+	Weather.RAIN: {"kind": "schleim", "count": 6, "near": "~"},
 	Weather.FOG: {"kind": "fog_wraith", "count": 6, "near": "d"},
 	Weather.STORM: {"kind": "fledermaus", "count": 5, "near": "r"},
 }

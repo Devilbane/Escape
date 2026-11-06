@@ -37,6 +37,21 @@ const PER_NEST := 2
 const SPEED := 7.5
 const RANGE := 34.0
 const SIT := Vector2(2.5, 7.0)
+## How a bird flies: each one cruises at its own pace (times SPEED), and on
+## the way that speed swells and ebbs by up to SURGE; it speeds up at most
+## ACCEL m/s² (setting off slowly, at TAKE_OFF times its pace) and brakes at
+## most BRAKE m/s², so it slows down coming in to land and touches down at
+## LAND_SPEED. Its path bends sideways by up to BEND of its length (at most
+## BEND_MAX metres), now in one arc, now in an S, and it banks into the turns.
+const PACE := Vector2(0.8, 1.2)
+const SURGE := 0.3
+const ACCEL := 6.0
+const BRAKE := 4.5
+const TAKE_OFF := 0.35
+const LAND_SPEED := 1.2
+const BEND := 0.3
+const BEND_MAX := 7.0
+const BANK := 0.18
 const PECK := Vector2(3.0, 8.0)
 ## How many kinds of bird there are (their colours are in bird.gdshader).
 const KINDS := 7
@@ -119,7 +134,10 @@ const LEARN := "Küken: In manchen Nestern auf den Dächern des Dorfes liegen Ei
 ## Whether the hero was told how to feed the chicks (once a game).
 static var _hinted := false
 
-## Each bird: {"home", "at", "from", "to", "lift", "t", "time", "wait",
+## Each bird: {"home", "at", "from", "to", "lift", "bend" (the sideways pull
+## of the path's two middle points, metres), "t" (0 to 1 along it), "length"
+## (metres), "speed" (m/s), "pace" (its own cruising speed), "accel" (how its
+## speed is changing), "bank" (its roll into a turn), "wait",
 ## "state" ("sit", "fly", "peck"), "phase", "yaw", "next", "kind",
 ## "market" (pecking on the market square), "dip" (seconds to the next dip),
 ## "dipping" (seconds left of this one), "worm" (seconds left with a worm)}.
@@ -177,7 +195,8 @@ func _init(level_node: Node3D, nest_spots: Array[Vector3], ground_spots: Array[V
 		for i in PER_NEST:
 			var perch := nest + Vector3(0.28 * (i * 2 - 1), 0.24, 0.05)
 			birds.append({"home": perch, "at": perch, "from": perch, "to": perch, "lift": 0.0, "t": 0.0,
-					"time": 1.0, "wait": _rng.randf_range(0.5, SIT.y), "state": "sit",
+					"bend": Vector2.ZERO, "length": 1.0, "speed": 0.0, "accel": 0.0, "bank": 0.0,
+					"pace": SPEED * _rng.randf_range(PACE.x, PACE.y), "wait": _rng.randf_range(0.5, SIT.y), "state": "sit",
 					"phase": _rng.randf() * TAU, "yaw": _rng.randf() * TAU, "next": "out",
 					"kind": _rng.randi() % KINDS, "market": false, "dip": 0.0, "dipping": 0.0, "worm": 0.0,
 						"nest": n, "carry": false, "feed": 0.0, "id": birds.size(), "seeds": false, "perch": -1,
@@ -269,8 +288,10 @@ func _take_off(b: Dictionary) -> void:
 	b.seeds = false
 	_leave_perch(b)
 	_fly(b, b.home, "home")
-	# Startled: they burst up steeply.
+	# Startled: they burst up steeply and fast.
 	b.lift = float(b.lift) + 3.0
+	b.speed = float(b.pace) * 0.7
+	b.length = _path_length(b)
 
 
 func _think(b: Dictionary, delta: float, night: bool) -> void:
@@ -284,8 +305,10 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 					_fly(b, b.home, "home")
 				else:
 					b.to = _perch_at(int(b.perch))
-			b.t += delta / b.time
+			_pick_speed(b, delta)
+			b.t += float(b.speed) * delta / float(b.length)
 			if b.t >= 1.0:
+				b.bank = 0.0
 				b.at = b.to
 				if b.next == "perch":
 					b.state = "perch"
@@ -311,15 +334,15 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 					b.state = "sit"
 					b.wait = _rng.randf_range(SIT.x, SIT.y) * 0.6
 				return
-			var t: float = b.t
-			var from: Vector3 = b.from
-			var to: Vector3 = b.to
-			var lift := Vector3.UP * float(b.lift)
-			var mid := (from + to) * 0.5 + lift
-			var p := from.lerp(mid, t).lerp(mid.lerp(to, t), t)
+			var p := _path_at(b, b.t)
 			var dir := p - (b.at as Vector3)
-			if dir.length() > 0.001:
-				b.yaw = atan2(dir.x, dir.z)
+			if dir.length() > 0.001 and delta > 0.0:
+				var yaw := atan2(dir.x, dir.z)
+				# Banking into the turn, the harder the sharper it turns.
+				# (Not while it first swings round off the perch.)
+				var turn := wrapf(yaw - float(b.yaw), -PI, PI) / delta if b.t > 0.05 else 0.0
+				b.bank = lerpf(b.bank, clampf(turn * BANK, -0.6, 0.6), minf(1.0, delta * 6.0))
+				b.yaw = yaw
 			b.at = p
 		"peck":
 			b.wait -= delta
@@ -490,10 +513,61 @@ func _fly(b: Dictionary, to: Vector3, next: String) -> void:
 	b.next = next
 	b.t = 0.0
 	var dist := (b.from as Vector3).distance_to(to)
-	b.time = maxf(0.6, dist / SPEED)
 	# Short hops stay low, long flights arc up over the roofs.
 	b.lift = minf(2.0, dist * 0.4) + dist * 0.25
+	# And they swing round to one side, or weave in an S; short hops hardly.
+	var bend := minf(dist * BEND, BEND_MAX) * clampf((dist - 1.0) / 4.0, 0.0, 1.0)
+	var first := _rng.randf_range(-bend, bend)
+	var second := _rng.randf_range(0.3, 1.0) * bend * (-signf(first) if _rng.randf() < 0.35 else signf(first))
+	b.bend = Vector2(first, second)
+	b.length = _path_length(b)
+	# Setting off slowly from a standstill (one turning round in the air keeps
+	# its speed), a little faster or slower this time.
+	if b.state != "fly":
+		b.speed = float(b.pace) * TAKE_OFF
+	b.pace = clampf(float(b.pace) * _rng.randf_range(0.9, 1.1), SPEED * PACE.x, SPEED * PACE.y)
 	b.state = "fly"
+
+
+## Where on its path a bird flying from "from" to "to" is at t (0 to 1): a
+## curve rising by "lift" and swung sideways by "bend". Worked out from the
+## ends each time, as the end may move (a feeder walking on).
+static func _path_at(b: Dictionary, t: float) -> Vector3:
+	var from: Vector3 = b.from
+	var to: Vector3 = b.to
+	var flat := Vector3(to.x - from.x, 0.0, to.z - from.z)
+	var side := Vector3(-flat.z, 0.0, flat.x).normalized() if flat.length() > 0.01 else Vector3.ZERO
+	var up := Vector3.UP * float(b.lift) * 0.67
+	var bend: Vector2 = b.bend
+	var c1 := from.lerp(to, 1.0 / 3.0) + up + side * bend.x
+	var c2 := from.lerp(to, 2.0 / 3.0) + up + side * bend.y
+	var u := 1.0 - t
+	return from * (u * u * u) + c1 * (3.0 * u * u * t) + c2 * (3.0 * u * t * t) + to * (t * t * t)
+
+
+## The length of a bird's path (metres), near enough.
+static func _path_length(b: Dictionary) -> float:
+	var length := 0.0
+	var last := _path_at(b, 0.0)
+	for k in range(1, 9):
+		var p := _path_at(b, k / 8.0)
+		length += last.distance_to(p)
+		last = p
+	return maxf(0.3, length)
+
+
+## A flying bird's speed: its own pace swelling and ebbing, eased in at the
+## start and braking so it comes in slowly to land.
+func _pick_speed(b: Dictionary, delta: float) -> void:
+	var phase: float = b.phase
+	var surge := sin(_clock * 0.9 + phase) * 0.6 + sin(_clock * 2.3 + phase * 1.7) * 0.4
+	var want := float(b.pace) * (1.0 + SURGE * surge)
+	var left := maxf(0.0, 1.0 - float(b.t)) * float(b.length)
+	want = minf(want, sqrt(LAND_SPEED * LAND_SPEED + 2.0 * BRAKE * left))
+	var was: float = b.speed
+	var now := move_toward(was, want, (ACCEL if want > was else BRAKE * 1.5) * delta)
+	b.speed = maxf(LAND_SPEED, now)
+	b.accel = (b.speed - was) / delta if delta > 0.0 else 0.0
 
 
 # --- Fed by the villagers ------------------------------------------------------
@@ -725,10 +799,14 @@ func _show(i: int) -> void:
 		if b.dipping > 0.0:
 			basis = basis * Basis(Vector3.RIGHT, sin(PI * (1.0 - float(b.dipping) / (DIP_TIME * 1.5))) * 0.45)
 	elif flying:
-		# Gliding down the last stretch, beating hard on the way up.
+		# Beating hard on the way up and when speeding up, gliding when it
+		# eases off, and flaring nose up to brake for the landing.
 		var climbing: bool = b.t < 0.5
-		_mm.set_instance_custom_data(i, Color(b.phase, 0.9 if climbing else 0.45, 0.0, kind))
-		basis = basis * Basis(Vector3.RIGHT, -0.25 if climbing else 0.15)
+		var landing: bool = b.t > 0.8 and float(b.accel) < -0.5
+		var beat := 0.9 if climbing or float(b.accel) > 0.5 or landing else 0.45
+		_mm.set_instance_custom_data(i, Color(b.phase, beat, 0.0, kind))
+		var pitch := -0.35 if landing else (-0.25 if climbing else 0.15)
+		basis = basis * Basis(Vector3.RIGHT, pitch) * Basis(Vector3.FORWARD, float(b.bank))
 	else:
 		_mm.set_instance_custom_data(i, Color(b.phase, 0.0, 1.0, kind))
 		if b.feed > 0.0:

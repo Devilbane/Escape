@@ -14,6 +14,7 @@ var stage_frames := 0
 var slime: Enemy
 var villager: Villager
 var hp_before := 0
+var at_square := Vector3.ZERO
 
 
 func check(ok: bool, what: String) -> void:
@@ -52,7 +53,7 @@ func _spawn(at: Vector3, custom := {}) -> Enemy:
 ## Bites until the slime has eaten `n` (at most 20 blows).
 func _eat(n: Node3D) -> int:
 	var blows := 0
-	while SlimeGrowth.can_snack(n) and blows < 20:
+	while SlimeGrowth.can_snack(n) and blows < 60:
 		SlimeGrowth.bite(slime, n)
 		blows += 1
 	return blows
@@ -76,6 +77,8 @@ func _process(_delta: float) -> bool:
 			game.load_level(game._outdoor_index(), false)
 			game.state = game.State.PLAYING
 			out = game.level as Outdoor
+			# The village's call to arms is tried on its own at the end.
+			out.village_alarm._check = 1e9
 			# The hero far off, so nobody minds them.
 			game.player.global_position += Vector3(0, 0, 0)
 			var fox: Animal = null
@@ -105,10 +108,30 @@ func _process(_delta: float) -> bool:
 				return true
 			slime.global_position = villager.global_position + Vector3(1.6, 0, 0)
 			slime.reset_physics_interpolation()
+			# Small enough to stand up to (see VillageAlarm.FLEE_LEVEL).
+			slime.rated_level = 8
 			villager.brave = true
 			villager.alarm(slime)
 			check(villager._task == "fight", "a brave villager stands and fights")
 			check(_blade(villager), "and draws a blade")
+			# The priestess mends a villager a slime has hurt.
+			var priestess: Villager = null
+			for v in out.villagers:
+				if v.role == "O":
+					priestess = v
+			check(priestess != null and priestess.brave and priestess.heals(), "the priestess answers the call and heals")
+			if priestess != null:
+				var hurt: Villager = null
+				for v in out.villagers:
+					if v != priestess and v != villager and not v.at_home:
+						hurt = v
+						break
+				hurt.global_position = priestess.global_position + Vector3(2.0, 0, 0)
+				hurt.set_meta("slime_life", 2)
+				check(priestess._heal_someone(), "she finds someone to heal")
+				check(int(hurt.get_meta("slime_life", hurt.max_life())) == 2 + Villager.HEAL, "and heals them")
+				hurt.remove_meta("slime_life")
+			check(Villager.LEVELS.values().min() >= 10 and Villager.LEVELS.values().max() <= 20, "townsfolk are level 10 to 20")
 			hp_before = slime.hp
 			stage = 1
 			stage_frames = 0
@@ -161,6 +184,75 @@ func _process(_delta: float) -> bool:
 		3:
 			if stage_frames == 5:
 				check(not villager.eaten and villager.visible, "a slime that vanishes lets the villager out")
+				# A slime in the village: the herald calls to arms.
+				var herald: Villager = null
+				for v in out.villagers:
+					if v.role == "K":
+						herald = v
+				check(herald != null, "there is a herald")
+				var at := herald.global_position + Vector3(4.0, 0, 0)
+				at_square = at
+				check(out._in_village(out.world_to_cell(at)), "the herald stands in the village")
+				slime = _spawn(at, {"hp": 400})
+				slime.set_physics_process(false)
+				slime.rated_level = 10
+				out.village_alarm._check = 0.0
+				stage = 4
+				stage_frames = 0
+		4:
+			if stage_frames == 90:
+				check(out.village_alarm.raised, "a slime in the village raises the alarm")
+				var men := 0
+				var sheltered := 0
+				var stray := []
+				for v in out.villagers:
+					if v.at_home and not v._task in ["hide"] or v.eaten:
+						continue
+					var hides: bool = v._task == "hide" or (v._task == "walk" and v.get_meta("then", "") == "hide")
+					if v.shelters():
+						if hides:
+							sheltered += 1
+						else:
+							stray.append(v.role)
+					elif v._task == "fight":
+						men += 1
+				check(men >= 3, "the men take up arms (%d)" % men)
+				check(sheltered >= 2 and stray.is_empty(), "the women and children run indoors (%d, not: %s)" % [sheltered, stray])
+				slime.hit_by_rival(slime.hp + 5, null)
+			if stage_frames == 90 + int((VillageAlarm.CALM_AFTER + 2.5) * 60):
+				check(not out.village_alarm.raised, "the herald gives the all-clear")
+			if stage_frames == 90 + int((VillageAlarm.CALM_AFTER + 5.0) * 60):
+				var inside := []
+				for v in out.villagers:
+					if v.shelters() and v._task == "hide":
+						inside.append(v.role)
+				check(inside.is_empty(), "after the all-clear they come back out: %s" % [inside])
+				# A slime too big for the village: everyone runs indoors.
+				slime = _spawn(at_square, {"hp": 4000})
+				slime.set_physics_process(false)
+				slime.rated_level = VillageAlarm.FLEE_LEVEL + 1
+				stage = 5
+				stage_frames = 0
+		5:
+			if stage_frames == 90:
+				var fighting := []
+				for v in out.villagers:
+					if v._task == "fight":
+						fighting.append(v.role)
+				check(fighting.is_empty(), "nobody fights a slime too big for the village: %s" % [fighting])
+				var guard: Villager = null
+				for v in out.villagers:
+					if v.role == "4":
+						guard = v
+				check(guard == null or guard._task == "hide" or guard.get_meta("then", "") == "hide", "even the guard runs indoors")
+				# Out of the village it goes, but they stay in until it is killed.
+				slime.global_position += Vector3(200, 0, 0)
+				slime.reset_physics_interpolation()
+			if stage_frames == 90 + int((VillageAlarm.CALM_AFTER + 3.0) * 60):
+				check(out.village_alarm.raised, "they stay indoors until it is killed")
+				slime.hit_by_rival(slime.hp + 5, null)
+			if stage_frames == 90 + int((VillageAlarm.CALM_AFTER * 2.0 + 6.0) * 60):
+				check(not out.village_alarm.raised, "once it is killed, the all-clear")
 				_finish()
 				return true
 	return false

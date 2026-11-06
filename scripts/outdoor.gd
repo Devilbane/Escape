@@ -201,6 +201,8 @@ const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 
 var villagers: Array = []
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
+## The herald's call to arms against slimes in the village (see VillageAlarm).
+var village_alarm := VillageAlarm.new()
 ## The kinds of animal the hero has a companion of already: no second one
 ## of them can be won over (set by the game, see Companions).
 var owned_companions: Array = []
@@ -2678,6 +2680,7 @@ func _process(delta: float) -> void:
 	super(delta)
 	if player == null:
 		return
+	village_alarm.tick(self, delta)
 	var cell := world_to_cell(player.global_position)
 	var inside := _in_house(cell)
 	if inside != _inside:

@@ -138,6 +138,11 @@ func _run() -> void:
 	var strip: Rect2 = game._hp_hover.get_global_rect()
 	check(strip.end.y <= game._ammo_row.get_global_rect().position.y,
 			"the hover strip stops above the ammunition row")
+	hero.hp -= 1
+	hero._regen_pause = Player.REGEN_PAUSE_AFTER_HIT
+	game._update_hud()
+	check(hero.regen_paused() and game._hp_hover.tooltip_text != Lang.t("Leben: %d von %d") % [hero.hp, hero.max_hp],
+			"freshly hit, the life tooltip says the healing waits: %s" % game._hp_hover.tooltip_text)
 	hero.hp = hero.max_hp
 	game._update_hud()
 	check(game._hp_hover.tooltip_text == Lang.t("Leben: %d von %d") % [hero.max_hp, hero.max_hp],
@@ -147,6 +152,9 @@ func _run() -> void:
 	var knives := _check_hover(game._ammo_counts["knives"], "the throwing knives")
 	if knives != null:
 		check("2" in knives.tooltip_text, "the knives tooltip names the count: %s" % knives.tooltip_text)
+		check(str(hero.throw_power()) in knives.tooltip_text and "%d%%" % roundi(Projectile.KNIFE_BREAK_CHANCE * 100.0) in knives.tooltip_text,
+				"the knives tooltip names the damage and the break chance: %s" % knives.tooltip_text)
+		check(" R " in knives.tooltip_text, "the knives tooltip names the key to throw: %s" % knives.tooltip_text)
 
 	# A trouble icon under the bar.
 	check(game._status_row.get_child_count() > 0, "poison shows an icon under the bar")
@@ -167,13 +175,25 @@ func _run() -> void:
 	if game._key_label.visible:
 		_check_hover(game._key_label, "the key")
 
+	# Carrying on from the title fades it out: its language buttons must not
+	# stay behind, unseen, over the life bar and take the pointer from it.
+	game._show_start_title("Escape!", "")
+	check(game._lang_row.visible, "the title offers the languages")
+	game._leave_title(func(): pass)
+	await _wait(40)
+	game.state = game.State.PLAYING
+	game._place_hp_bar()
+	check(not game._lang_row.visible, "the language buttons are gone once the game goes on")
+	_check_hover(game._hp_bar, "the life bar after leaving the title")
+	_check_hover(game._ammo_counts["knives"], "the knives after leaving the title")
+
 	# Every tooltip has English.
 	var was := Lang.language
 	Lang.language = "en"
 	Lang._apply()
 	game._update_hud()
 	game._update_run_meter()
-	for c in [game._hp_hover, game._xp_row, game._run_row, game._coin_label]:
+	for c in [game._hp_hover, game._xp_row, game._run_row, game._coin_label, game._ammo_counts["knives"].get_parent()]:
 		check(not ("ä" in c.tooltip_text or "ü" in c.tooltip_text or " von " in c.tooltip_text),
 				"in English: %s" % c.tooltip_text)
 	Lang.language = was

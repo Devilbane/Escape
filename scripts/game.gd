@@ -319,7 +319,7 @@ var _ammo_counts := {}
 ## slot of AMMO_SLOT, shown at 0 too (dimmed), so a count changing never
 ## moves anything.
 const AMMO := [
-	["knives", "kind:knife", "Wurfmesser griffbereit: %d von %d\nIm Rucksack: %d"],
+	["knives", "kind:knife", "Wurfmesser griffbereit: %d von %d\nIm Rucksack: %d\nSchaden: %d je Treffer\nZerbricht bei %d%% der Würfe\nWerfen: Taste R oder rechte Maustaste"],
 ]
 const AMMO_SLOT := Vector2(62, 26)
 const AMMO_ICON := 20.0
@@ -2142,11 +2142,16 @@ func _show_hero_level() -> void:
 	_xp_row.tooltip_text = tip
 
 
-## The life bar's tooltip: life in numbers, and how it comes back.
+## The life bar's tooltip: life in numbers, and while some is missing how
+## fast it comes back now (or that a fresh hit has paused it).
 func hp_tip() -> String:
 	var tip := Lang.t("Leben: %d von %d") % [clampi(player.hp, 0, player.max_hp), player.max_hp]
-	if player.hp < player.max_hp:
-		tip += "\n" + Lang.t("Es kommt von selbst zurück: %.1f pro Sekunde, nach einem Treffer erst nach einer kurzen Pause.") % player.life_regen()
+	if player.hp >= player.max_hp:
+		return tip
+	if player.regen_paused():
+		tip += "\n" + Lang.t("Erholung: nach dem Treffer kurz unterbrochen, dann %.1f pro Sekunde") % player.life_regen()
+	else:
+		tip += "\n" + Lang.t("Erholung: %.1f pro Sekunde") % player.life_regen()
 	return tip
 
 
@@ -3311,6 +3316,10 @@ func _apply_save(data: Dictionary) -> void:
 func _leave_title(prepare: Callable) -> void:
 	state = State.TRANSITION
 	_title_buttons.visible = false
+	# The language buttons too: left in the faded title, they would lie
+	# unseen across the middle of the screen and take the pointer from the
+	# life bar and the knives under it.
+	_lang_row.visible = false
 	var tween := create_tween()
 	tween.tween_property(_title, "modulate:a", 0.0, 0.4)
 	tween.tween_callback(func():
@@ -4226,10 +4235,12 @@ func _update_ammo() -> void:
 
 
 ## The numbers for an ammunition tooltip (see AMMO): for knives the ready
-## count, how many can be ready and the spares in the bag.
+## count, how many can be ready, the spares in the bag, the damage of a
+## throw and the chance in percent that a thrown knife breaks.
 func _ammo_tip_values(field: String, n: int) -> Array:
 	if field == "knives":
-		return [n, player.knife_cap(), player.spare_knives()]
+		return [n, player.knife_cap(), player.spare_knives(), player.throw_power(),
+				roundi(Projectile.KNIFE_BREAK_CHANCE * 100.0)]
 	return [n]
 
 

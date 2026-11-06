@@ -16,11 +16,11 @@ const BUTTON_HOVER_TEXT := Color(1.0, 0.92, 0.66)
 ## The forged-bronze look (see BronzeStyle): the tint of the metal rims, the
 ## dark leather-brown grounds of windows and buttons, and the rims' sizes.
 const BRONZE := Color(0.88, 0.66, 0.36)
-const PANEL_BG := Color(0.085, 0.062, 0.045, 0.93)
-const BUTTON_BG := Color(0.13, 0.085, 0.05, 0.85)
+const PANEL_BG := Color(0.085, 0.062, 0.045, 1.0)
+const BUTTON_BG := Color(0.16, 0.1, 0.055, 0.97)
 const PANEL_RIM := 12
 const PANEL_RADIUS := 8
-const BUTTON_RIM := 4
+const BUTTON_RIM := 5
 const BUTTON_RADIUS := 6
 ## The game draws all its text at this share of the size it was designed at
 ## (the owner found it a quarter too big): use sized() wherever a font size
@@ -127,6 +127,27 @@ static func frame_style(bg: Color, border := BRONZE, width := 3, radius := 4) ->
 	style.set_border_width_all(width)
 	style.set_corner_radius_all(radius)
 	return style
+
+
+## A bronze rule beside a heading: a thin bar that is bright in its middle
+## and fades out at both ends (the section lines of the mock-up).
+static func rule() -> TextureRect:
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.2, 0.5, 0.8, 1.0])
+	gradient.colors = PackedColorArray([Color("a8682c", 0.0), Color("a8682c"), Color("e8b46a"), Color("a8682c"), Color("a8682c", 0.0)])
+	var tex := GradientTexture2D.new()
+	tex.gradient = gradient
+	tex.width = 256
+	tex.height = 3
+	var r := TextureRect.new()
+	r.texture = tex
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_SCALE
+	r.custom_minimum_size = Vector2(24, 3)
+	r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
 
 
 ## Width of the scroll bars in the windows: slim, so a bar is a quiet hint at

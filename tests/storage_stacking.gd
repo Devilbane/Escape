@@ -42,12 +42,13 @@ func _finish() -> void:
 	quit(1 if failures > 0 else 0)
 
 
-## The texts of the item buttons in the chest's window that show a bundle.
+## The names of the item slots in the chest's window that show a bundle.
 func _bundle_texts() -> Array:
 	var out := []
 	for b in game.menus._box.find_children("*", "Button", true, false):
-		if b.text.contains("× "):
-			out.append(b.text)
+		# An item slot shows a picture: its name and count are in its tooltip.
+		if b.tooltip_text.contains("× "):
+			out.append(b.tooltip_text)
 	return out
 
 

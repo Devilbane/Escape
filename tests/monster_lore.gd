@@ -1,10 +1,11 @@
 extends SceneTree
 ## Headless test: monster knowledge (see MonsterLore). Slain monsters are
 ## counted per kind through the event bus; the count climbs named ranks whose
-## chance of a vital hit never passes 50 %. A vital hit deals twice the
-## hero's hardest blow with no roll, may slow the monster's attacks for the
-## rest of the fight and may make it bleed; bleeding to death is the hero's
-## kill. The counts go into the saved game, and the compendium shows them on
+## chance of a vital hit never passes 50 %. A vital strike is a leap at the
+## foe ending in an overhead chop, with a flash on the monster; it deals
+## twice the hero's hardest blow with no roll, may slow the monster's attacks
+## for the rest of the fight and may make it bleed; bleeding to death is the
+## hero's kill. The counts go into the saved game, and the compendium shows them on
 ## a page of their own whose tabs still fit the window.
 ## Run with: godot --headless --fixed-fps 60 -s tests/monster_lore.gd
 ## With SHOTS=<folder> and a display it saves the compendium page.
@@ -126,12 +127,20 @@ func _test() -> void:
 		foe.attack_slow = 1.0
 		foe._bleed_ticks = 0
 		player.melee()
-		await _wait(20)
+		# The strike shows at once whether it will find a vital point.
+		var thrust: bool = player._current_anim == Player.VITAL_ANIM
+		await _wait(10)
+		# Mid-leap the figure is off the ground and closer to the foe.
+		var lunged: bool = player._model.position.y > 0.2 and player._model.position.z > 0.1
+		await _wait(25)
 		var lost := BIG_HP - foe.hp
 		if lost == player.vital_damage(POWER, player.weapon_skill()):
 			vitals += 1
+			check(thrust and lunged, "a vital strike is a leap and an overhead chop")
+			check(_has_flash(foe), "the vital point flashes")
 		elif lost in [POWER, POWER + 1]:
 			plain += 1
+			check(not thrust and player._current_anim != Player.VITAL_ANIM, "a plain strike is the usual slice")
 		else:
 			check(false, "a blow is either plain or vital: %d (hp %d, bleeding %s)" % [lost, foe.hp, foe.is_bleeding()])
 	print("vital hits: %d of 60, plain: %d" % [vitals, plain])
@@ -217,6 +226,15 @@ func _test() -> void:
 	Lang.language = old_language
 	Lang._apply()
 	_finish()
+
+
+## Whether a vital hit's flash (a billboard quad, see Enemy.vital_burst) or
+## its sparks are still on the foe.
+func _has_flash(foe: Enemy) -> bool:
+	for c in foe.get_children():
+		if c is CPUParticles3D or (c is MeshInstance3D and c.mesh is QuadMesh):
+			return true
+	return false
 
 
 func _finish() -> void:

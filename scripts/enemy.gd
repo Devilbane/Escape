@@ -1261,6 +1261,41 @@ func vital_mark() -> void:
 	Effects.head_text(level, self, 2.7 * _stats.size, Lang.t("Schwachstelle!"), MonsterLore.VITAL_COLOR)
 
 
+## The flash where a vital point was struck: a bright amber star that blooms
+## and fades in VITAL_FLASH seconds, and a spray of amber sparks, at the
+## height of its chest. Plays even on the blow that fells it.
+const VITAL_FLASH := 0.3
+
+
+func vital_burst() -> void:
+	var at := Vector3(0, 1.2 * _stats.size, 0)
+	var sparks := Effects.make_sparkles(MonsterLore.VITAL_COLOR, true)
+	sparks.lifetime = 0.6
+	sparks.position = at
+	add_child(sparks)
+	var flash := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.4, 1.4) * _stats.size
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.no_depth_test = true
+	mat.albedo_texture = Effects._soft_dot()
+	mat.albedo_color = Color(1.0, 0.85, 0.5, 1.0)
+	quad.material = mat
+	flash.mesh = quad
+	flash.position = at
+	flash.scale = Vector3.ONE * 0.2
+	flash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(flash)
+	var tween := flash.create_tween().set_parallel()
+	tween.tween_property(flash, "scale", Vector3.ONE, VITAL_FLASH).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mat, "albedo_color:a", 0.0, VITAL_FLASH).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(flash.queue_free)
+
+
 ## How much longer it needs between attacks while crippled (1.0: not).
 var attack_slow := 1.0
 

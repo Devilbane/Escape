@@ -5,7 +5,8 @@ shader_type spatial;
 // part a vertex is (part / 6: 0 body, 1 head, 2 beak, 3 wing, 4 tail,
 // 5 eye, 6 legs); COLOR.a is 0.5, or on a wing 0 (left) or 1 (right).
 //
-// Each bird's INSTANCE_CUSTOM holds its wing beat's phase (x), how wide the
+// Each bird's INSTANCE_CUSTOM holds where its wings are in their beat (x, an
+// angle: VillageBirds moves it on, faster on take-off and landing), how wide the
 // wings swing (y), whether it sits (z: 0 flying, 1 sitting, wings folded,
 // legs down and leaning back a little) and its kind (w: (kind + 0.5) / KINDS).
 // The vertex shader shapes the kind's beak and tail, beats or folds the
@@ -14,8 +15,6 @@ shader_type spatial;
 // instance colours, all white: without them the compatibility renderer hands
 // the vertex shader a COLOR of zero.)
 render_mode cull_disabled;
-
-uniform float beats = 16.0;
 
 const int KINDS = 7;
 const vec3 HEAD = vec3(0.0, 0.092, 0.152);
@@ -82,7 +81,7 @@ void vertex() {
 		float x = abs(p.x);
 		float d = x - 0.035;
 		// Spread: turned up or down about the shoulder, the hand lagging further.
-		float angle = sin(TIME * beats + INSTANCE_CUSTOM.x) * INSTANCE_CUSTOM.y;
+		float angle = sin(INSTANCE_CUSTOM.x) * INSTANCE_CUSTOM.y;
 		angle *= 1.0 + 0.6 * ss(0.12, 0.28, x);
 		float camber = 0.008 * sin(3.14159 * clamp((p.z + 0.09) / 0.165, 0.0, 1.0));
 		vec3 spread = vec3(side * (0.035 + d * cos(angle)), WING_Y + d * sin(angle) + camber, p.z);

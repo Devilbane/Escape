@@ -53,6 +53,22 @@ const LAND_SPEED := 1.2
 const BEND := 0.3
 const BEND_MAX := 7.0
 const BANK := 0.18
+## Wing beats: radians a second cruising (BEATS), and how much faster and
+## wider they flutter setting off and coming in to land (FLUTTER, FLUTTER_SWING),
+## over the first and last FLUTTER_REACH metres of a flight.
+const BEATS := 16.0
+const FLUTTER := 2.8
+const FLUTTER_SWING := 1.05
+const FLUTTER_REACH := 2.5
+## On the ground a bird hops (HOP metres, taking HOP_TIME seconds, HOP_HEIGHT
+## high) and turns smoothly (TURN: how quickly it swings round to the way it
+## wants to face); landing, it folds its wings and settles over 1 / SETTLE
+## seconds instead of snapping into its sitting pose.
+const HOP := Vector2(0.15, 0.4)
+const HOP_TIME := 0.2
+const HOP_HEIGHT := 0.07
+const TURN := 9.0
+const SETTLE := 4.0
 const PECK := Vector2(3.0, 8.0)
 ## How many kinds of bird there are (their colours are in bird.gdshader).
 const KINDS := 7
@@ -143,7 +159,11 @@ static var _hinted := false
 ## speed is changing), "bank" (its roll into a turn), "wait",
 ## "state" ("sit", "fly", "peck"), "phase", "yaw", "next", "kind",
 ## "market" (pecking on the market square), "dip" (seconds to the next dip),
-## "dipping" (seconds left of this one), "worm" (seconds left with a worm)}.
+## "dipping" (seconds left of this one), "worm" (seconds left with a worm),
+## "wing" (where its wings are in their beat, radians; see _beat), "face"
+## (the way it is turning to on the ground), "hop" (seconds left of a hop,
+## from "hop_from" to "hop_to"), "fold" (0 flying to 1 settled, wings folded),
+## "pitch" (its nose up or down in flight, eased off as it settles)}.
 var birds: Array = []
 var nests: Array[Vector3] = []
 ## Each nest's brood, if it has one: {"nest" (index), "chicks" (or eggs),
@@ -203,7 +223,10 @@ func _init(level_node: Node3D, nest_spots: Array[Vector3], ground_spots: Array[V
 					"phase": _rng.randf() * TAU, "yaw": _rng.randf() * TAU, "next": "out",
 					"kind": _rng.randi() % KINDS, "market": false, "dip": 0.0, "dipping": 0.0, "worm": 0.0,
 						"nest": n, "carry": false, "feed": 0.0, "id": birds.size(), "seeds": false, "perch": -1,
-						"turn": 0.0, "size": 1.0, "size_from": 1.0})
+						"turn": 0.0, "size": 1.0, "size_from": 1.0, "wing": 0.0, "face": 0.0,
+						"hop": 0.0, "hop_from": perch, "hop_to": perch, "fold": 1.0, "pitch": 0.0})
+			birds[-1].wing = birds[-1].phase
+			birds[-1].face = birds[-1].yaw
 	_mm = MultiMesh.new()
 	_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_mm.use_custom_data = true
@@ -263,6 +286,7 @@ func _process(delta: float) -> void:
 	_fly_grains(delta)
 	for i in birds.size():
 		_think(birds[i], delta, night)
+		_beat(birds[i], delta)
 		_show(i)
 	for brood: Dictionary in broods:
 		_tend(brood, delta, night, hero_at)
@@ -311,8 +335,10 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 			_pick_speed(b, delta)
 			b.t += float(b.speed) * delta / float(b.length)
 			if b.t >= 1.0:
-				b.bank = 0.0
+				# Down where it landed, facing on the way it came in (the
+				# landing pose eases off in _show as it settles).
 				b.at = b.to
+				b.face = b.yaw
 				if b.next == "perch":
 					b.state = "perch"
 					b.wait = _rng.randf_range(PERCH_STAY.x, PERCH_STAY.y)
@@ -326,13 +352,12 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 						# Down to the chicks with the worm.
 						b.feed = FEED_TIME
 						var mid := nests[int(b.nest)] - (b.at as Vector3)
-						b.yaw = atan2(mid.x, mid.z)
+						b.face = atan2(mid.x, mid.z)
 				elif b.next == "peck":
 					b.state = "peck"
 					var stay := MARKET_STAY if b.market else PECK
 					b.wait = _rng.randf_range(stay.x, stay.y)
 					b.dip = _rng.randf_range(DIP_EVERY.x, DIP_EVERY.y)
-					_make_room(b)
 				else:
 					b.state = "sit"
 					b.wait = _rng.randf_range(SIT.x, SIT.y) * 0.6
@@ -351,6 +376,13 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 			b.wait -= delta
 			if night:
 				_take_off(b)
+				return
+			_turn(b, delta)
+			if b.hop > 0.0:
+				# In the middle of a hop: up and over, then on with pecking.
+				b.hop = maxf(0.0, float(b.hop) - delta)
+				var k := 1.0 - float(b.hop) / HOP_TIME
+				b.at = (b.hop_from as Vector3).lerp(b.hop_to, k) + Vector3.UP * sin(PI * k) * HOP_HEIGHT
 				return
 			if b.worm > 0.0:
 				# Tugging the worm out, then gulping it down, or off home
@@ -390,11 +422,9 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 				b.dipping = DIP_TIME
 				b.dip = _rng.randf_range(DIP_EVERY.x, DIP_EVERY.y)
 			elif _rng.randf() < delta * 1.2:
-				# Little hops about on the ground.
-				b.at += Vector3(_rng.randf_range(-0.4, 0.4), 0, _rng.randf_range(-0.4, 0.4))
-				b.yaw = _rng.randf() * TAU
-				_make_room(b)
+				_hop(b)
 		"sit":
+			_turn(b, delta)
 			if b.feed > 0.0:
 				b.feed -= delta
 				if b.feed <= 0.0:
@@ -439,7 +469,8 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 				_take_off(b)
 				return
 			b.at = _perch_at(int(b.perch))
-			b.yaw = _feeder_yaw() + float(b.turn)
+			b.face = _feeder_yaw() + float(b.turn)
+			_turn(b, delta)
 			b.wait -= delta
 			if b.dipping > 0.0:
 				b.dipping -= delta
@@ -460,17 +491,49 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 					b.wait = _rng.randf_range(PERCH_STAY.x, PERCH_STAY.y)
 
 
-## A bird on the ground keeps a little room between itself and the others.
-func _make_room(b: Dictionary) -> void:
+## Where near "spot" a bird can come down or hop to: a little room (ROOM)
+## from the others pecking about, or on their way down to peck.
+func _room_at(b: Dictionary, spot: Vector3) -> Vector3:
+	var at := spot
 	for o: Dictionary in birds:
-		if is_same(o, b) or o.state != "peck":
+		var there: Vector3
+		if is_same(o, b):
 			continue
-		var away := Vector3(b.at.x - o.at.x, 0, b.at.z - o.at.z)
+		elif o.state == "peck":
+			there = o.hop_to if o.hop > 0.0 else o.at
+		elif o.state == "fly" and o.next == "peck":
+			there = o.to
+		else:
+			continue
+		var away := Vector3(at.x - there.x, 0, at.z - there.z)
 		var d := away.length()
 		if d < ROOM:
 			if d < 0.01:
 				away = Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1))
-			b.at += away.normalized() * (ROOM - d)
+			at += away.normalized() * (ROOM - d)
+	return at
+
+
+## A bird on the ground turns a little and hops a short way that way, or
+## only looks round (never closer to another bird than ROOM).
+func _hop(b: Dictionary) -> void:
+	b.face = float(b.yaw) + _rng.randf_range(-1.3, 1.3)
+	if _rng.randf() < 0.35:
+		return
+	var from: Vector3 = b.at
+	var to := _room_at(b, from + Vector3(sin(b.face), 0, cos(b.face)) * _rng.randf_range(HOP.x, HOP.y))
+	var step := to - from
+	if step.length() > HOP.y * 1.75 or step.length() < 0.05:
+		return
+	b.face = atan2(step.x, step.z)
+	b.hop_from = from
+	b.hop_to = to
+	b.hop = HOP_TIME
+
+
+## Swings a bird on the ground smoothly round to the way it wants to face.
+func _turn(b: Dictionary, delta: float) -> void:
+	b.yaw = lerp_angle(float(b.yaw), float(b.face), minf(1.0, delta * TURN))
 
 
 ## Down to the market square: to one of its few gathering spots (where
@@ -512,7 +575,11 @@ func _wants_worm(b: Dictionary) -> bool:
 func _fly(b: Dictionary, to: Vector3, next: String) -> void:
 	b.size_from = b.size
 	b.from = b.at
-	b.to = to
+	# Coming down to peck, it picks a spot with room around it, so it never
+	# has to jump aside after landing.
+	b.to = _room_at(b, to) if next == "peck" else to
+	to = b.to
+	b.hop = 0.0
 	b.next = next
 	b.t = 0.0
 	var dist := (b.from as Vector3).distance_to(to)
@@ -528,6 +595,7 @@ func _fly(b: Dictionary, to: Vector3, next: String) -> void:
 	# its speed), a little faster or slower this time.
 	if b.state != "fly":
 		b.speed = float(b.pace) * TAKE_OFF
+		b.bank = 0.0
 	b.pace = clampf(float(b.pace) * _rng.randf_range(0.9, 1.1), SPEED * PACE.x, SPEED * PACE.y)
 	b.state = "fly"
 
@@ -787,6 +855,25 @@ static func _flat_distance(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
+## How hard a flying bird flutters (0 to 1): fully just after take-off and
+## just before it lands, easing off over FLUTTER_REACH metres.
+static func _flutter(b: Dictionary) -> float:
+	if b.state != "fly":
+		return 0.0
+	var gone := float(b.t) * float(b.length)
+	var left := (1.0 - float(b.t)) * float(b.length)
+	return 1.0 - smoothstep(0.0, FLUTTER_REACH, minf(gone, left))
+
+
+## Moves a bird's wing beat on: the shader draws the wings at sin("wing"),
+## so it can beat faster without its wings jumping.
+func _beat(b: Dictionary, delta: float) -> void:
+	var flying: bool = b.state == "fly"
+	b.fold = move_toward(float(b.fold), 0.0 if flying else 1.0, delta * SETTLE)
+	var hard := maxf(_flutter(b), 0.0 if flying else 1.0 - float(b.fold))
+	b.wing = fmod(float(b.wing) + delta * BEATS * lerpf(1.0, FLUTTER, hard), TAU)
+
+
 func _show(i: int) -> void:
 	var b: Dictionary = birds[i]
 	var flying: bool = b.state == "fly"
@@ -797,8 +884,14 @@ func _show(i: int) -> void:
 	var basis := Basis(Vector3.UP, b.yaw).scaled(Vector3.ONE * SIZE * float(b.size))
 	var at: Vector3 = b.at
 	var worm := 0.0
+	# Just landed: the last few wing beats as the wings fold, and the
+	# landing flare and bank easing off, instead of snapping to sitting.
+	var settling := 0.0 if flying else 1.0 - float(b.fold)
+	var landed := Color(b.wing, settling * FLUTTER_SWING, b.fold, kind)
+	if settling > 0.0:
+		basis = basis * Basis(Vector3.RIGHT, float(b.pitch) * settling) * Basis(Vector3.FORWARD, float(b.bank) * settling)
 	if b.state == "perch":
-		_mm.set_instance_custom_data(i, Color(b.phase, 0.0, 1.0, kind))
+		_mm.set_instance_custom_data(i, landed)
 		if b.dipping > 0.0:
 			basis = basis * Basis(Vector3.RIGHT, sin(PI * (1.0 - float(b.dipping) / (DIP_TIME * 1.5))) * 0.45)
 	elif flying:
@@ -807,11 +900,14 @@ func _show(i: int) -> void:
 		var climbing: bool = b.t < 0.5
 		var landing: bool = b.t > 0.8 and float(b.accel) < -0.5
 		var beat := 0.9 if climbing or float(b.accel) > 0.5 or landing else 0.45
-		_mm.set_instance_custom_data(i, Color(b.phase, beat, 0.0, kind))
+		# Fluttering hard as it sets off and as it comes in to land.
+		beat = lerpf(beat, FLUTTER_SWING, _flutter(b))
+		_mm.set_instance_custom_data(i, Color(b.wing, beat, b.fold, kind))
 		var pitch := -0.35 if landing else (-0.25 if climbing else 0.15)
+		b.pitch = pitch
 		basis = basis * Basis(Vector3.RIGHT, pitch) * Basis(Vector3.FORWARD, float(b.bank))
 	else:
-		_mm.set_instance_custom_data(i, Color(b.phase, 0.0, 1.0, kind))
+		_mm.set_instance_custom_data(i, landed)
 		if b.feed > 0.0:
 			# Leaning down into the nest, the worm going into a gaping beak.
 			var done := 1.0 - float(b.feed) / FEED_TIME

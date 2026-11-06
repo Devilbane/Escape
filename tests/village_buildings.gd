@@ -247,6 +247,43 @@ func _check_aged(lvl: Outdoor) -> void:
 		check(nest.y > AgedStone.NEST_HEIGHT, "a nest sits up high (%.1f m)" % nest.y)
 	var birds: VillageBirds = lvl.birds
 	check(birds != null and birds.birds.size() == lvl.nests.size() * VillageBirds.PER_NEST, "two birds live in each nest")
+	# Fluttering hard setting off and landing, beating calmly between.
+	var flight := {"state": "fly", "t": 0.0, "length": 20.0}
+	check(is_equal_approx(VillageBirds._flutter(flight), 1.0), "a bird flutters hard as it takes off")
+	flight.t = 0.5
+	check(VillageBirds._flutter(flight) == 0.0, "half way along a long flight it beats calmly")
+	flight.t = 0.99
+	check(VillageBirds._flutter(flight) > 0.9, "it flutters hard again coming in to land")
+	# On the ground they hop and turn smoothly, never jumping aside.
+	if birds:
+		var bird: Dictionary = birds.birds[0]
+		var start: Vector3 = bird.at
+		bird.state = "peck"
+		bird.wait = 99.0
+		bird.dip = 99.0
+		bird.yaw = 0.0
+		bird.face = 0.0
+		var steps := 0
+		var widest := 0.0
+		var sharpest := 0.0
+		while steps < 600 and bird.hop <= 0.0:
+			birds._hop(bird)
+			steps += 1
+		check(bird.hop > 0.0, "a bird on the ground hops now and then")
+		var last: Vector3 = bird.at
+		var last_yaw: float = bird.yaw
+		for k in 30:
+			birds._think(bird, 1.0 / 60.0, false)
+			widest = maxf(widest, (bird.at as Vector3).distance_to(last))
+			sharpest = maxf(sharpest, absf(wrapf(float(bird.yaw) - last_yaw, -PI, PI)))
+			last = bird.at
+			last_yaw = bird.yaw
+		check(widest < 0.1, "a hop moves it smoothly, a little each frame (%.2f m)" % widest)
+		check(sharpest < 0.3, "it turns smoothly, never snapping round (%.2f rad a frame)" % sharpest)
+		check(bird.hop <= 0.0 and (bird.at as Vector3).distance_to(start) <= VillageBirds.HOP.y * 1.75 + 0.01, "the hop ends a short way off")
+		bird.state = "sit"
+		bird.at = start
+		bird.wait = 1.0
 	if birds:
 		lvl.player = game.player
 		game.player.global_position = lvl.nests[0] - Vector3(0, lvl.nests[0].y, 0)

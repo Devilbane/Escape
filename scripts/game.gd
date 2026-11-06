@@ -263,8 +263,10 @@ var _hud: CanvasLayer
 var _level_label: Label
 var _coin_label: Label
 var _key_label: Label
+## The key's picture before its line: bright once the key is found.
+var _key_icon: ItemIcon
 var _hp_bar: ProgressBar
-var _hp_fill: StyleBoxFlat
+var _hp_fill: StyleBoxTexture
 ## An invisible strip over the slim life bar, a little taller than it, that
 ## takes the pointer and shows the life in numbers (see _update_hud).
 var _hp_hover: Control
@@ -284,19 +286,18 @@ var _notice_row: HBoxContainer
 ## The life bar: its size, and where its top sits on screen, as a share of
 ## the screen's height (centred across). It stays at that one spot, under
 ## where the hero stands in the normal view, whatever the camera does.
-const HP_BAR_SIZE := Vector2(96, 8)
+const HP_BAR_SIZE := Vector2(120, 16)
 const HP_BAR_Y := 0.68
 ## How far the hero's arms and blade reach out from the feet, in metres: in
 ## the normal view the bar sits below all of it (tests/event_log.gd).
 const HP_BAR_REACH := 1.8
-## The bar's colour by the share of life left: green when whole, yellow at
-## two thirds, red at one third, deep red near the end, blended between.
-const HP_COLORS := [
-	[1.0, Color(0.3, 0.8, 0.3)],
-	[0.66, Color(0.95, 0.82, 0.2)],
-	[0.33, Color(0.85, 0.2, 0.15)],
-	[0.0, Color(0.42, 0.02, 0.05)],
-]
+## The life bar's red, from its lit top to its dark foot (the mock-up's bar).
+const HP_REDS := [Color("ff6a4a"), Color("b81c12"), Color("6e0a06")]
+## The rim of the HUD's bars, and the heart beside the life bar.
+const BAR_RIM := 4
+const HEART_SIZE := 24.0
+## The coin and key pictures in the purse plate at the top left.
+const PURSE_ICON := 22.0
 ## The run meter: seconds of running left, as a bar and in numbers.
 var _run_bar: ProgressBar
 var _xp_bar: ProgressBar
@@ -306,7 +307,7 @@ var _run_row: HBoxContainer
 var _xp_row: HBoxContainer
 var _xp_label: Label
 var _run_label: Label
-var _run_fill: StyleBoxFlat
+var _run_fill: StyleBoxTexture
 var _shrine_panel: Control
 ## The fourth shrine gift, offered only to a wise hero.
 var _wise_gift: Button
@@ -829,8 +830,8 @@ func _setup_drawer() -> void:
 const QUICK_WINDOWS := [
 	["karte", "Karte", "N", "kind:map"],
 	["kompendium", "Kompendium", "H", "kind:book"],
-	["inventar", "Inventar", "I", "kind:bag"],
-	["charakter", "Charakter", "P", "kind:hero"],
+	["inventar", "Inventar", "I", "kind:cuirass"],
+	["charakter", "Charakter", "P", "kind:stats"],
 	["auftraege", "Aufträge", "O", "kind:scroll"],
 ]
 const QUICK_SIZE := Vector2(70, 48)
@@ -1213,23 +1214,21 @@ func _setup_hud() -> void:
 	row.add_child(left)
 	_level_label = _make_label(TEXT_FONT, 26, GOLD)
 	left.add_child(_level_label)
-	# Life as a slim bar under the hero's feet, its fill the share of life left,
-	# MMO-style. It has one fixed size, so nothing moves as life changes.
+	# Life as a bar under the hero's feet, its fill the share of life left,
+	# MMO-style: a glossy red in a bronze rim, a heart at its left end. It
+	# has one fixed size, so nothing moves as life changes.
 	_hp_bar = ProgressBar.new()
 	_hp_bar.show_percentage = false
 	_hp_bar.custom_minimum_size = HP_BAR_SIZE
 	_hp_bar.size = HP_BAR_SIZE
 	_hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var hp_back := StyleBoxFlat.new()
-	hp_back.bg_color = Color(0.06, 0.04, 0.08, 0.55)
-	hp_back.border_color = Color(0.05, 0.02, 0.06, 0.6)
-	hp_back.set_border_width_all(1)
-	hp_back.set_corner_radius_all(3)
-	_hp_fill = StyleBoxFlat.new()
-	_hp_fill.bg_color = hp_color(1.0)
-	_hp_fill.set_corner_radius_all(3)
-	_hp_bar.add_theme_stylebox_override("background", hp_back)
+	_hp_fill = bar_fill(HP_REDS)
+	_hp_bar.add_theme_stylebox_override("background", bar_back())
 	_hp_bar.add_theme_stylebox_override("fill", _hp_fill)
+	_hp_bar.add_child(bar_rim())
+	var heart := ItemIcon.make("kind:heart", HEART_SIZE, true)
+	heart.position = Vector2(-HEART_SIZE + 4.0, (HP_BAR_SIZE.y - HEART_SIZE) / 2.0)
+	_hp_bar.add_child(heart)
 	_hp_bar.visible = false
 	_hp_bar.theme = tips
 	_hud.add_child(_hp_bar)
@@ -1290,15 +1289,10 @@ func _setup_hud() -> void:
 	_run_bar.custom_minimum_size = Vector2(170, 14)
 	_run_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_run_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var back := BronzeStyle.new()
-	back.bg_color = UiKit.BUTTON_BG
-	back.border_color = Color(0.85, 0.66, 0.32, 0.8)
-	back.set_border_width_all(2)
-	back.set_corner_radius_all(6)
-	_run_fill = StyleBoxFlat.new()
-	_run_fill.set_corner_radius_all(6)
-	_run_bar.add_theme_stylebox_override("background", back)
+	_run_fill = bar_fill([Color.WHITE, Color(0.72, 0.72, 0.72), Color(0.42, 0.42, 0.42)])
+	_run_bar.add_theme_stylebox_override("background", bar_back())
 	_run_bar.add_theme_stylebox_override("fill", _run_fill)
+	_run_bar.add_child(bar_rim())
 	run_row.add_child(_run_bar)
 	_run_label = _make_label(TEXT_FONT, 18, Color(0.75, 0.95, 0.6))
 	run_row.add_child(_run_label)
@@ -1314,24 +1308,40 @@ func _setup_hud() -> void:
 	_xp_bar.custom_minimum_size = Vector2(170, 14)
 	_xp_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_xp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var xp_fill := StyleBoxFlat.new()
-	xp_fill.bg_color = XP_COLOR
-	xp_fill.set_corner_radius_all(6)
-	_xp_bar.add_theme_stylebox_override("background", back.duplicate())
-	_xp_bar.add_theme_stylebox_override("fill", xp_fill)
+	_xp_bar.add_theme_stylebox_override("background", bar_back())
+	_xp_bar.add_theme_stylebox_override("fill", bar_fill([Color("ffe58a"), Color("e0b33a"), Color("a87a18")]))
+	_xp_bar.add_child(bar_rim())
 	xp_row.add_child(_xp_bar)
 	_xp_label = _make_label(TEXT_FONT, 18, XP_COLOR)
 	xp_row.add_child(_xp_label)
 	# The gold (first, on the left edge) and the key (in a dungeon) on one line
 	# under the experience bar, in the bars' label size. (Ammunition sits under
 	# the life bar.)
+	# They sit in a small bronze-framed plate, each after its picture.
+	var purse_plate := PanelContainer.new()
+	purse_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	purse_plate.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	var plate := UiKit.frame_style(Color(0.09, 0.066, 0.047, 0.92), UiKit.BRONZE, BAR_RIM, 6)
+	plate.content_margin_left = 12
+	plate.content_margin_right = 14
+	plate.content_margin_top = 4
+	plate.content_margin_bottom = 4
+	purse_plate.add_theme_stylebox_override("panel", plate)
+	left.add_child(purse_plate)
 	var purse_row := HBoxContainer.new()
 	purse_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	purse_row.add_theme_constant_override("separation", 24)
-	left.add_child(purse_row)
+	purse_row.add_theme_constant_override("separation", 8)
+	purse_plate.add_child(purse_row)
+	purse_row.add_child(ItemIcon.make("kind:coin", PURSE_ICON, true))
 	_coin_label = _make_label(TEXT_FONT, 18, GOLD)
 	_coin_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	purse_row.add_child(_coin_label)
+	var space := Control.new()
+	space.custom_minimum_size.x = 10
+	space.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	purse_row.add_child(space)
+	_key_icon = ItemIcon.make("kind:key", PURSE_ICON, true)
+	purse_row.add_child(_key_icon)
 	_key_label = _make_label(TEXT_FONT, 18)
 	_key_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	purse_row.add_child(_key_label)
@@ -2196,7 +2206,7 @@ func _update_run_meter() -> void:
 	var left := full if player.stamina < 0.0 else player.stamina
 	_run_bar.max_value = full
 	_run_bar.value = left
-	_run_fill.bg_color = Color(0.85, 0.3, 0.25) if player.winded else Color(0.55, 0.85, 0.4)
+	_run_fill.modulate_color = Color(0.85, 0.3, 0.25) if player.winded else Color(0.55, 0.85, 0.4)
 	_run_label.text = Lang.t("Rennen: %d s") % ceili(left)
 	var run_tip := Lang.t("So lange kannst du noch rennen. Im Gehen und Stehen kommt die Puste zurück.")
 	if player.winded:
@@ -2211,9 +2221,6 @@ func _update_hud() -> void:
 		_level_label.text += "    " + _clock_shown
 	_hp_bar.max_value = maxi(1, player.max_hp)
 	_hp_bar.value = clampi(player.hp, 0, player.max_hp)
-	# Green when whole, through yellow and red to deep red as life is lost
-	# (poison shows as its icon under the bar).
-	_hp_fill.bg_color = hp_color(float(player.hp) / maxf(1.0, player.max_hp))
 	_hp_hover.tooltip_text = hp_tip()
 	_update_status_icons()
 	_show_hero_level()
@@ -2223,6 +2230,8 @@ func _update_hud() -> void:
 	_key_label.text = Lang.t("Schlüssel gefunden") if level.has_key else Lang.t("Kein Schlüssel")
 	# The lair's floors have locked doors too.
 	_key_label.visible = not level.outdoor and (level.building == "" or (DragonLair.is_floor(level) and level.has_doors()))
+	_key_icon.visible = _key_label.visible
+	_key_icon.modulate.a = 1.0 if level.has_key else 0.4
 	_key_label.add_theme_color_override("font_color", GOLD if level.has_key else Color(1, 1, 1, 0.45))
 	_key_label.tooltip_text = Lang.t("Mit dem Schlüssel öffnest du die verschlossene Tür zur nächsten Ebene.") if level.has_key \
 			else Lang.t("Irgendwo auf dieser Ebene liegt der Schlüssel zur verschlossenen Tür.")
@@ -4436,15 +4445,45 @@ func _fill_icon_row(row: HBoxContainer, wanted: Array) -> void:
 			Events.found(text, StatusIcon.log_color(c[0]))
 
 
-## The life bar's colour for `share` of life left (0 to 1), see HP_COLORS.
-static func hp_color(share: float) -> Color:
-	share = clampf(share, 0.0, 1.0)
-	for i in range(1, HP_COLORS.size()):
-		var upper: Array = HP_COLORS[i - 1]
-		var lower: Array = HP_COLORS[i]
-		if share >= lower[0]:
-			return (lower[1] as Color).lerp(upper[1], (share - lower[0]) / (upper[0] - lower[0]))
-	return HP_COLORS.back()[1]
+
+## The dark well of a HUD bar (life, running, experience).
+static func bar_back() -> StyleBoxFlat:
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(0.07, 0.035, 0.02, 0.9)
+	back.set_corner_radius_all(4)
+	return back
+
+
+## A HUD bar's fill: a glossy band from `colors` (top, middle, foot).
+static func bar_fill(colors: Array) -> StyleBoxTexture:
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.6, 1.0])
+	gradient.colors = PackedColorArray(colors)
+	var tex := GradientTexture2D.new()
+	tex.gradient = gradient
+	tex.fill_from = Vector2(0, 0)
+	tex.fill_to = Vector2(0, 1)
+	tex.width = 4
+	tex.height = 32
+	var fill := StyleBoxTexture.new()
+	fill.texture = tex
+	return fill
+
+
+## The bronze rim of a HUD bar: a frame with an empty middle, laid just
+## around the bar, so the bar keeps its size and its fill shows whole.
+static func bar_rim() -> Panel:
+	var rim := Panel.new()
+	rim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rim.offset_left = -BAR_RIM
+	rim.offset_top = -BAR_RIM
+	rim.offset_right = BAR_RIM
+	rim.offset_bottom = BAR_RIM
+	rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := UiKit.frame_style(Color.TRANSPARENT, UiKit.BRONZE, BAR_RIM, 5)
+	style.draw_center = false
+	rim.add_theme_stylebox_override("panel", style)
+	return rim
 
 
 ## Keeps the life bar and the icons under it at one fixed spot on screen:

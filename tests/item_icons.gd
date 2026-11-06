@@ -37,10 +37,17 @@ func _test() -> void:
 		if ItemIcon.art(kind)[0] == null and not kind in DRAWN:
 			unpainted.append("%s (%s)" % [id, kind])
 	check(unpainted.is_empty(), "every item has a painted picture: %s" % [unpainted])
+	# Every ingredient has a picture of its own, not the bag's.
+	var plain := []
+	for id in Crafting.INGREDIENTS:
+		var kind := ItemIcon.art_kind(ItemIcon.kind_of(id))
+		if kind == "bag" or ItemIcon.art(kind)[0] == null:
+			plain.append("%s (%s)" % [id, kind])
+	check(plain.is_empty(), "every ingredient has its own picture: %s" % [plain])
 	for kind in TINTED:
 		var art: Array = ItemIcon.art(kind)
 		check(art[0] != null and art[1] != null, "%s has a picture and a part to tint" % kind)
-	for kind in ["map", "book", "bag", "hero", "scroll", "house", "torch", "torch_out", "coin", "sword", "shield", "boots", "hammer_anvil", "stone", "flame"]:
+	for kind in ["map", "book", "cuirass", "stats", "heart", "scroll", "house", "torch", "torch_out", "coin", "sword", "shield", "boots", "hammer_anvil", "stone", "flame"]:
 		var art: Array = ItemIcon.art(kind)
 		check(art[0] != null, "the HUD's %s picture is painted" % kind)
 		if art[0] != null:

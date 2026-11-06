@@ -26,7 +26,12 @@ const FIRST := 1
 const INGREDIENT_PRICES := {
 	"mondsilbererz": 30, "mondstein": 35, "glimmermoos": 18,
 	"baerlauch": 8, "steinpilz": 10, "hoehlenpilz": 10,
+	"schleimgelee": 6,
 }
+## What he brings every visit, besides the kinds he picks at random: slime
+## jelly, the base of every healing potion, STAPLE_COUNT lumps of it.
+const STAPLE := "schleimgelee"
+const STAPLE_COUNT := [2, 4]
 ## Each visit he brings this many kinds of ingredient, one to MAX_EACH pieces
 ## of each, and this many pieces of basic gear.
 const INGREDIENT_KINDS := 3
@@ -57,17 +62,20 @@ static func nights_until(night: int) -> int:
 
 
 ## What he brings on a night: a few kinds of ingredient (one entry per
-## piece) and some basic gear or a book. The same hero gets the same wares for the same
+## piece), always some slime jelly (STAPLE) and some basic gear or a book. The same hero gets the same wares for the same
 ## night, so loading a saved game does not shuffle them.
 static func stock_for(night: int, hero := "") -> Array[String]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("%s/%d" % [hero, night])
 	var out: Array[String] = []
-	var kinds: Array = INGREDIENT_PRICES.keys().filter(func(id): return Crafting.INGREDIENTS.has(id))
+	var kinds: Array = INGREDIENT_PRICES.keys().filter(func(id): return id != STAPLE and Crafting.INGREDIENTS.has(id))
 	for i in mini(INGREDIENT_KINDS, kinds.size()):
 		var id: String = kinds.pop_at(rng.randi() % kinds.size())
 		for n in rng.randi_range(1, MAX_EACH):
 			out.append(id)
+	if Crafting.INGREDIENTS.has(STAPLE):
+		for n in rng.randi_range(STAPLE_COUNT[0], STAPLE_COUNT[1]):
+			out.append(STAPLE)
 	var gear: Array = Items.ALL.keys().filter(is_gear_for_sale)
 	for i in mini(GEAR_COUNT, gear.size()):
 		out.append(gear.pop_at(rng.randi() % gear.size()))

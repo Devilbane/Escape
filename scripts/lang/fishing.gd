@@ -2,6 +2,7 @@ extends RefCounted
 ## English texts: Fishing (see Fishing) and the fish in the ingredient pouch. Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
+	"Eine alte Flasche voller Teichschleim! Darin %d Klumpen Schleimgelee, ab in den Zutatenbeutel.": "An old bottle full of pond slime! Inside, %d lumps of slime jelly, into the ingredient pouch they go.",
 	"Barsch": "Perch",
 	"Beißt im Dorfteich und im Tümpel der Wolfssenke.": "Bites in the village pond and in the pond of the wolf hollow.",
 	"Goldkarpfen": "Golden carp",

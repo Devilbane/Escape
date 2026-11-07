@@ -24,6 +24,10 @@ const int WOOD = 7;
 const int AUTO = 8;
 // A skeleton: the same, but light warm tones are bone.
 const int REMAINS = 9;
+// A creature's own skin: the wrinkled, pitted, scarred hide of an orc or a
+// troll, and the matted coat of a yeti, a wolf or a spider (see CreatureSkin).
+const int HIDE = 10;
+const int PELT = 11;
 
 uniform sampler2D tex : source_color, filter_linear_mipmap;
 // recolor: keep the light and dark of the texture but swap its colour for the tint.
@@ -37,6 +41,9 @@ uniform bool metal_where_grey = false;
 uniform float grey_metal = 0.3;
 // Multiplies the colour, as a plain material's albedo colour does (villagers' and bandits' dyed clothes).
 uniform vec3 dye : source_color = vec3(1.0);
+// Moves the marks of a hide or a pelt around, so that not every creature of
+// a kind has its scars in the same places.
+uniform vec3 seed = vec3(0.0);
 #ifdef FADE
 uniform float fade = 0.0;
 #endif
@@ -104,6 +111,36 @@ vec3 grain(int kind, vec3 p, float px, float shine) {
 		h = (strands - 0.5) * b * 0.0016 + tufts * band(6.0, px) * 0.005;
 		shade = 1.0 + 0.3 * (tufts - 0.5) + 0.16 * (strands - 0.5) * b;
 		rough = 1.0;
+	} else if (kind == HIDE) {
+		// Thick skin: deep folds across the body, a leathery web of fine
+		// wrinkles, pores, mottled colour, and a few old scars that healed paler.
+		float fold = 1.0 - smoothstep(0.0, 0.16, abs(vnoise(p * vec3(4.0, 7.0, 4.0) + 3.0) - 0.5));
+		float wrinkle = 1.0 - smoothstep(0.0, 0.12, abs(vnoise(p * 30.0 + 9.0) - 0.5));
+		float pores = smoothstep(0.55, 0.85, vnoise(p * 70.0));
+		float mottle = fbm(p * 3.5 + 1.7);
+		float bf = band(5.0, px);
+		float bw = band(30.0, px);
+		float bp = band(70.0, px);
+		float scar = (1.0 - smoothstep(0.0, 0.012, abs(vnoise(p * 2.4 + 21.0) - 0.5)))
+				* smoothstep(0.58, 0.72, vnoise(p * 1.3 + 40.0)) * band(2.4, px);
+		h = -fold * bf * 0.006 - wrinkle * bw * 0.003 - pores * bp * 0.0012 + scar * 0.0035;
+		shade = 1.0 + 0.5 * (mottle - 0.5) - 0.16 * fold * bf - 0.16 * wrinkle * bw
+				- 0.1 * pores * bp + 0.3 * scar;
+		rough = 0.78 - 0.16 * scar + 0.1 * (mottle - 0.5);
+	} else if (kind == PELT) {
+		// Fine hairs running down, matted into clumps and dark where the coat
+		// is thick, with the odd bare scar where no hair grows.
+		float hair = vnoise(p * vec3(120.0, 26.0, 120.0));
+		float clump = vnoise(p * vec3(34.0, 7.0, 34.0) + 5.0);
+		float tufts = fbm(p * 5.0 + 2.0);
+		float bh = band(120.0, px);
+		float bc = band(34.0, px);
+		float bare = (1.0 - smoothstep(0.0, 0.015, abs(vnoise(p * 2.6 + 31.0) - 0.5)))
+				* smoothstep(0.6, 0.74, vnoise(p * 1.4 + 60.0)) * band(2.6, px);
+		h = (hair - 0.5) * bh * 0.0016 + (clump - 0.5) * bc * 0.006 + tufts * band(5.0, px) * 0.006 - bare * 0.004;
+		shade = 1.0 + 0.4 * (tufts - 0.5) + 0.22 * (hair - 0.5) * bh + 0.2 * (clump - 0.5) * bc
+				+ 0.18 * (fbm(p * 2.0 + 8.0) - 0.5) + 0.22 * bare;
+		rough = 0.95;
 	} else if (kind == BONE) {
 		// Mottled, stained and cracked.
 		float mottle = fbm(p * 5.0);
@@ -138,6 +175,7 @@ void fragment() {
 	float specular = 0.5;
 	if (stuff != NONE) {
 		float px = length(fwidth(rest_pos));
+		vec3 q = rest_pos + seed;
 		// Read what a texel shows from its colour (roughly as it looks on screen).
 		vec3 s = sqrt(c);
 		float hi = max(s.r, max(s.g, s.b));
@@ -161,8 +199,8 @@ void fragment() {
 			pale = skin;
 			specular = mix(0.25, 0.5, max(warm * 0.6, skin));
 		} else {
-			g = grain(stuff, rest_pos, px, metal);
-			specular = (stuff == CLOTH || stuff == FUR) ? 0.25 : 0.4;
+			g = grain(stuff, q, px, metal);
+			specular = (stuff == CLOTH || stuff == FUR || stuff == PELT) ? 0.25 : (stuff == HIDE ? 0.3 : 0.4);
 		}
 		if (metal_where_grey) {
 			// Grey and not too dark means metal: blades, buckles, shield rims.

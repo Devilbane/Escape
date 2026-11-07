@@ -191,7 +191,7 @@ const KINDS := {
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
 		"tint": Color(0.62, 0.6, 0.72),
 		"voice": ["voice_krieger", 0.6, "grunz"], "purse": [4, 9], "gear_chance": 0.6},
-	"felstroll": {"model": "Yeti", "dir": "wild", "hp": 34, "speed": 3.4, "damage": 5, "reach": 3.0, "size": 1.8, "cooldown": 2.4, "armor": 3,
+	"felstroll": {"model": "Yeti", "dir": "wild", "skin": "hide", "hp": 34, "speed": 3.4, "damage": 5, "reach": 3.0, "size": 1.8, "cooldown": 2.4, "armor": 3,
 		"beast": true, "roam": true, "mountain": true, "big": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
 		"tint": Color(0.5, 0.46, 0.42),
@@ -214,7 +214,7 @@ const KINDS := {
 	# The boss deep down in the third mine (see Mines): a rock troll grown
 	# huge on the mountain's heat. A plain fight, but a long one: big, slow
 	# blows to step away from, and a health bar at the top.
-	"bergkoenig": {"model": "Yeti", "dir": "wild", "hp": 300, "speed": 3.6, "damage": 9, "reach": 4.0, "size": 2.6, "cooldown": 2.6, "armor": 3,
+	"bergkoenig": {"model": "Yeti", "dir": "wild", "skin": "hide", "hp": 300, "speed": 3.6, "damage": 9, "reach": 4.0, "size": 2.6, "cooldown": 2.6, "armor": 3,
 		"beast": true, "mountain": true, "boss": true, "big": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
 		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
 		"tint": Color(0.36, 0.28, 0.26), "glow": Color(1.0, 0.4, 0.12),
@@ -763,6 +763,7 @@ func _ready_beast() -> void:
 		_rot_skin()
 	elif _stats.has("tint"):
 		_darken(_stats.tint)
+	CreatureSkin.dress(_model, _stats.get("skin", ""), _stats.model)
 	if _stats.has("glow"):
 		var glow := OmniLight3D.new()
 		glow.light_color = _stats.glow

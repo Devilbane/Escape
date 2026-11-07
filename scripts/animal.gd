@@ -69,6 +69,7 @@ func _ready() -> void:
 	_model = load("res://assets/animals/%s.glb" % _stats.model).instantiate()
 	_model.scale = Vector3.ONE * float(_stats.scale)
 	add_child(_model)
+	CreatureSkin.dress(_model, "", String(_stats.model))
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walk", "Gallop", "Eating"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR

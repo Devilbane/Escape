@@ -721,6 +721,10 @@ func heals() -> bool:
 func alarm(slime: Enemy, called := false) -> void:
 	if eaten or at_home or slime == null or not is_instance_valid(slime) or slime.dead:
 		return
+	# A slime sniffing at a defender over the wall does not scare them off their post; only the
+	# call to arms after a breach (`called`) does.
+	if defends() and not called:
+		return
 	if (threat == slime or not brave) and _task in ["fight", "hide"] or (_task == "walk" and get_meta("then", "") == "hide"):
 		return
 	# Too big for anyone in the village: all run indoors.

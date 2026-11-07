@@ -471,9 +471,17 @@ const FIGHTING_WOMEN := ["O", "G"]
 const LEVELS := {"4": 20, "G": 20, "1": 18, "O": 18, "0": 17, "K": 16, "3": 16, "S": 16, "8": 15, "%": 15,
 	"Y": 12, "5": 12, "Z": 12, "M": 12, "2": 11, "6": 11, "9": 11, "7": 10}
 const DEFAULT_LEVEL := 12
+## Townsfolk are made to put up a real fight against a slime of level 20 and
+## more (a Blob of about 200 life and 22 damage a blow, every 1.5 seconds):
+## a fighter has LIFE_PER_LEVEL life for each level (the guard 100, so five
+## blows fell even him) and strikes for 1 + level / BLOW_DIVISOR (the guard
+## 11). One alone is beaten, but not before he has taken a third of its life;
+## three of them bring it down, and one of them may fall.
+const LIFE_PER_LEVEL := 5
+const BLOW_DIVISOR := 2
 const HEALERS := ["O"]
 ## How much the priestess heals, how often and how far she reaches.
-const HEAL := 3
+const HEAL := 8
 const HEAL_TIME := 3.0
 const HEAL_REACH := 9.0
 var _reach := GIVE_UP
@@ -498,17 +506,17 @@ func shelters() -> bool:
 
 
 ## How strong a villager is (10 to 20, see LEVELS): their life against a
-## slime (max_life) and how hard they strike one (blow).
+## slime (max_life, LIFE_PER_LEVEL a level) and how hard they strike one (blow).
 func fight_level() -> int:
 	return int(LEVELS.get(role, DEFAULT_LEVEL))
 
 
 func max_life() -> int:
-	return fight_level()
+	return fight_level() * LIFE_PER_LEVEL
 
 
 func blow() -> int:
-	return 1 + fight_level() / 8
+	return 1 + fight_level() / BLOW_DIVISOR
 
 
 ## The priestess mends the hurt in her reach (see _fight).

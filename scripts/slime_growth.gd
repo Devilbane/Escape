@@ -99,7 +99,7 @@ const GULP_COLOR := Color(0.6, 1.0, 0.45)
 const CORPSE_SCENT := 20.0
 ## The townsfolk and animals a slime hunts: [life, level]. Their life only
 ## counts the slime's blows; their level is what they are worth as a meal.
-## A villager's life and level are their own (Villager.fight_level).
+## A villager's life and level are their own (Villager.max_life, fight_level).
 const SNACKS := {"fuchs": [3, 2], "reh": [4, 3], "hirsch": [6, 4], "villager": [12, 12]}
 ## How far a slime notices a villager or an animal it could eat.
 const SNACK_SIGHT := 14.0
@@ -343,7 +343,9 @@ static func goo_for_a_while(n: Node3D, colour: Color) -> void:
 ## inside (see release_folk).
 static func gulp(slime: Enemy, n: Node3D) -> void:
 	var key := snack_key(n)
-	slime.grow_from((n as Villager).fight_level() if n is Villager else int(SNACKS[key][1]), false, snack_life(n))
+	var worth: int = (n as Villager).fight_level() if n is Villager else int(SNACKS[key][1])
+	# A meal feeds a slime by the prey's level, not by the extra life townsfolk have.
+	slime.grow_from(worth, false, worth if n is Villager else snack_life(n))
 	n.remove_meta("slime_life")
 	var model: Node3D = n.get("_model")
 	var outdoor := slime.level as Outdoor

@@ -54,7 +54,7 @@ func _spawn(at: Vector3, custom := {}) -> Enemy:
 ## Bites until the slime has eaten `n` (at most 20 blows).
 func _eat(n: Node3D) -> int:
 	var blows := 0
-	while SlimeGrowth.can_snack(n) and blows < 60:
+	while SlimeGrowth.can_snack(n) and blows < 300:
 		SlimeGrowth.bite(slime, n)
 		blows += 1
 	return blows
@@ -123,6 +123,9 @@ func _process(_delta: float) -> bool:
 			slime.reset_physics_interpolation()
 			# Small enough to stand up to (see VillageAlarm.FLEE_LEVEL).
 			slime.rated_level = 8
+			# Tough enough to outlast the villager's blows for the length of the test.
+			slime.life_bonus += 400
+			slime.hp = slime.max_hp()
 			villager.brave = true
 			villager.alarm(slime)
 			check(villager._task == "fight", "a brave villager stands and fights")

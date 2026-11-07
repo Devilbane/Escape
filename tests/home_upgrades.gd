@@ -142,8 +142,9 @@ func _run() -> void:
 	var old_chest := lvl._home_chest_cell()
 	check(lvl.storey_of(lvl._upgrade_cells.truhe) == lvl.storey_of(old_chest) and Vector2(lvl._upgrade_cells.truhe - old_chest).length() < 2.0,
 			"the second chest stands next to the first")
-	check(lvl.storey_of(lvl._upgrade_cells.werkstatt) == 2 and lvl.storey_of(lvl._upgrade_cells.trophaeen) == 2, "the workbench and the trophy wall are in the attic")
-	check(lvl._against_back_wall(lvl._upgrade_cells.trophaeen), "the trophy wall hangs on a wall")
+	check(lvl.storey_of(lvl._upgrade_cells.werkstatt) == 2, "the workbench is in the attic")
+	check(lvl.storey_of(lvl._upgrade_cells.trophaeen) == 0, "the trophy wall is on the ground floor, in the entrance room")
+	check(lvl._wall_side(lvl._upgrade_cells.trophaeen) != Vector2i.ZERO, "the trophy wall hangs on a wall")
 	for storey in lvl.storey_count():
 		# Where the hero arrives on this storey: the front door or the stairs.
 		var start := lvl.exit_cell

@@ -3928,10 +3928,20 @@ func _is_inn_file(index: int) -> bool:
 	return false
 
 
-## Rests in the bed of an inn till the next morning without logging out:
-## life full, poison and curses gone, and the game saved right there.
+## Rests in the bed of an inn till the next morning without logging out
+## (see rest_till_morning).
 func rest_at_inn() -> void:
-	if state != State.PLAYING or not level.inn:
+	if level.inn:
+		rest_till_morning()
+
+
+## Sleeps in a bed till the next morning without logging out: the one world
+## clock jumps to WAKE_HOUR (a new day if dawn passes, with fresh weather,
+## dry puddles and the respawn timers of every level moved on by the hours
+## slept), life is full, poison and curses are gone, and the game is saved
+## right there. Works in any bed: an inn, the hero's house, the refuge.
+func rest_till_morning() -> void:
+	if state != State.PLAYING:
 		return
 	state = State.TRANSITION
 	player.frozen = true

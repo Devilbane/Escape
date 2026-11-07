@@ -252,6 +252,55 @@ func _consolidate(level: Level, rng: RandomNumberGenerator) -> void:
 		for s: Dictionary in spots.duplicate():
 			if not s.has("gone") and not s.has("keep") and float(s.radius) <= SMALL_RADIUS:
 				_merge_one(level, s, gap)
+	_drop_lonely_small(level)
+
+
+## Small puddles that found no neighbour to join (by the houses, mostly) are
+## taken away, bar the few kept ones, and their water goes to the other
+## puddles, which grow a little where they have the room.
+func _drop_lonely_small(level: Level) -> void:
+	for s: Dictionary in spots.duplicate():
+		if not s.has("keep") and float(s.radius) <= SMALL_RADIUS:
+			_unregister(s)
+			(s.node as Node).queue_free()
+			s["gone"] = true
+			spots.erase(s)
+	for pass_no in 3:
+		var deficit := laid_area - total_area()
+		var base := 0.0
+		for s: Dictionary in spots:
+			if not s.has("keep"):
+				base += float(s.span) * float(s.span)
+		if deficit <= laid_area * 0.01 or base <= 0.0:
+			return
+		var grow := sqrt(1.0 + deficit / base)
+		for s: Dictionary in spots:
+			if not s.has("keep"):
+				_grow(level, s, float(s.span) * grow)
+
+
+## Lets `s` reach `span` instead, if it has the room: on open ground, clear of
+## the other puddles and, beside a house, not too wide.
+func _grow(level: Level, s: Dictionary, span: float) -> void:
+	var long: bool = s.long
+	var radius := span / (LONG_REACH if long else 1.0)
+	if radius > RADIUS.y or not _fits(level, s.at, radius * (REACH_LONG if long else REACH) * 0.7):
+		return
+	if radius > EDGE_MERGED and _beside(level, level.world_to_cell(s.at), Outdoor.BLOCK_CHARS):
+		return
+	for t in _tiles_under(s.at, (span + RADIUS.y * LONG_REACH) * APART):
+		for o: Dictionary in _by_tile.get(t, []):
+			if o != s:
+				var d := Vector2(o.at.x - s.at.x, o.at.z - s.at.z)
+				var room := (span + float(o.span)) * APART
+				if d.length_squared() < room * room:
+					return
+	_unregister(s)
+	s.span = span
+	s.radius = radius
+	s.needs = remap(radius, RADIUS.x, RADIUS.y, 0.45, 0.0)
+	(s.node as MeshInstance3D).scale = Vector3(radius, 0.01, radius)
+	_register(s)
 
 
 ## A merged puddle can still touch one that was too big to join: the smaller

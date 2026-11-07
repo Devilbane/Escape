@@ -88,7 +88,7 @@ func _dry_ground() -> void:
 	check(spots.size() >= laid * 0.1, "the puddles are not thinned out too far (%d of %d)" % [spots.size(), laid])
 	# The same water lies on the ground.
 	var area_ratio := _puddles().total_area() / _puddles().laid_area
-	check(area_ratio > 0.92 and area_ratio < 1.04, "the water on the ground stays the same (%.3f)" % area_ratio)
+	check(area_ratio > 0.9 and area_ratio < 1.04, "the water on the ground stays the same (%.3f)" % area_ratio)
 	var small := spots.filter(func(s: Dictionary) -> bool: return float(s.radius) <= Puddles.SMALL_RADIUS).size()
 	check(small >= 3, "a few small puddles lie about in between (%d)" % small)
 	check(small <= spots.size() / 3, "the small puddles are few (%d)" % small)

@@ -79,13 +79,6 @@ static func runs_along_x(o: Outdoor, c: Vector2i) -> bool:
 	return sides.call(Vector2i(-1, 0), Vector2i(1, 0)) and not sides.call(Vector2i(0, -1), Vector2i(0, 1))
 
 
-## After the map is built: a gate tile is a path (the ground the gate stands
-## on), and the path finding knows which bricks stop the way.
-func finish(o: Outdoor) -> void:
-	for g in gates:
-		o._set_cell(g.cell, ",")
-
-
 ## Tells the path finding which bricks block (called after the astar is set up).
 func sync(o: Outdoor) -> void:
 	for c in bricks:

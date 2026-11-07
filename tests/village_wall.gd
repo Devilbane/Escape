@@ -75,8 +75,7 @@ func _run() -> void:
 	check(not west.shut and not lvl.astar.is_point_solid(west.cell), "an open gate is no obstacle to the path finding")
 	check(lvl.astar.is_point_solid(brick.cell), "a brick is an obstacle to the path finding")
 	check(lvl.grid_path(Vector2i(25, 33), Vector2i(31, 33)).back() == Vector2i(31, 33), "the way through the open gate leads into the village")
-	check(lvl.is_open(west.cell), "the gate stands on a path tile")
-
+	
 	# Damage shows, a broken brick lets everyone through, a mended one blocks again.
 	var stones_before := brick._stones.map(func(s: MeshInstance3D): return s.position)
 	check(not brick.hurt(250) and brick.hp == 750, "a brick takes damage")

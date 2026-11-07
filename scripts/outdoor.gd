@@ -470,7 +470,6 @@ func build() -> void:
 	_build_house()
 	_build_wall_collision()
 	_build_rock_collision()
-	village_wall.finish(self)
 	_setup_astar()
 	if birds:
 		# Not where the fountain, a bench or a stall stands.

@@ -104,6 +104,10 @@ func _run() -> void:
 			reachable = reachable or open.has(w.cell + d)
 		check(reachable, "the wardrobe can be walked up to")
 		check(lvl.storey_of(bed.cell) == 1 and bed.cell != w.cell, "it is not on the bed's tile")
+		# It stands right beside the bed, along the same wall.
+		var gap: Vector2i = w.cell - bed.cell
+		check(absi(gap.x) + absi(gap.y) == 1, "it stands directly next to the bed (gap %s)" % gap)
+		check(gap.x == 0 and lvl.cell_char(bed.cell + Vector2i(-1, 0)) == "#", "it shares the bed's wall")
 		var next_to_stairs := false
 		for s in up:
 			next_to_stairs = next_to_stairs or s.cell == w.cell

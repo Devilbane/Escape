@@ -532,6 +532,31 @@ func puddle_at(p: Vector3) -> Dictionary:
 	return {}
 
 
+## Below this fill a puddle is only a wet film: a step makes a soft squelch
+## (splash_soft_*) instead of a splash, and a quieter one the drier it is.
+const SOFT_FILL := 0.5
+
+
+## The sound of a step into a puddle that is `fill` full (0 to 1): the burst of
+## splashes (splash_0 to 3) in deep water, a soft squelch (splash_soft_0 to 2)
+## in a nearly dried-out one.
+static func splash_sound(fill: float) -> String:
+	if fill < SOFT_FILL:
+		return "splash_soft_%d" % (randi() % 3)
+	return "splash_%d" % (randi() % 4)
+
+
+## How much louder or quieter (in dB) a step into a puddle that is `fill` full
+## sounds: a drying puddle fades out gently, never with a sharp click.
+static func splash_volume(fill: float) -> float:
+	return -9.0 * (1.0 - clampf(fill / SOFT_FILL, 0.0, 1.0)) if fill < SOFT_FILL else 0.0
+
+
+## How full the puddle at a spot is (0 to 1), 0 on dry ground.
+func fill_at(p: Vector3) -> float:
+	return float(puddle_at(p).get("fill", 0.0))
+
+
 ## Whether a spot on the ground is in a puddle deep enough to splash.
 func wet_at(p: Vector3) -> bool:
 	return not puddle_at(p).is_empty()

@@ -1009,7 +1009,9 @@ func _footsteps(ground_speed: float) -> void:
 				# In a puddle every step splashes: rain puddles above ground
 				# (see Puddles), drip puddles below (see DungeonLife).
 				if level.in_puddle(global_position):
-					Sfx.play(self, "splash_%d" % (randi() % 4), -21.0 if sneak else (-15.0 if walk else -11.0))
+					# A nearly dried-out puddle gives a soft squelch, not a splash.
+					var fill: float = level.puddle_fill(global_position)
+					Sfx.play(self, Puddles.splash_sound(fill), (-21.0 if sneak else (-15.0 if walk else -11.0)) + Puddles.splash_volume(fill))
 					level.splash_puddle(global_position, not sneak)
 				else:
 					# Every ground has its own steps (see Surfaces.STEPS). Sneaking

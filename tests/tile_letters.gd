@@ -133,5 +133,6 @@ func _match_letters(path: String, func_name: String) -> Array:
 	var out := []
 	for m in arm.search_all(body):
 		for l in letter.search_all(m.get_string(1)):
-			out.append(l.get_string(1))
+			# As written in the script: "\\" is the letter \.
+			out.append(l.get_string(1).c_unescape())
 	return out

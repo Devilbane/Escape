@@ -9,10 +9,10 @@ extends RefCounted
 ## Tiles.DUNGEON is in exactly one group, so a new tile shows up here too.
 const GROUPS := [
 	["Boden und Wände", "#.,?=~j%"],
-	["Wege", "PEDK<>^|"],
-	["Fallen und Rätsel", "S_QTaz"],
+	["Wege", "PEDK<>^|/`)"],
+	["Fallen und Rätsel", "S_QTaz]}{-:["],
 	["Schätze", "cCkU&$"],
-	["Einrichtung", "bxotfHFBLmhV+NXyp*!I;"],
+	["Einrichtung", "bxotfHFBLmhV+NXyp*!I;\\'"],
 	["Monster", "MAZwGWrnlvsuqJOeigRYd@"],
 	["Eigene Geschöpfe", "1234567890"],
 ]
@@ -34,6 +34,9 @@ const NAMES := {
 	"J": "Felstroll", "O": "Bergork", "e": "Eiswolf", "i": "Kristallschleim", "g": "Glutschleim",
 	"R": "Drache", "Y": "Bergkönig",
 	"&": "Epische Schatztruhe", "$": "Hort des Großen Alten", "d": "Brutdrache", "@": "Der Große Alte",
+	"]": "Sternrelief", "}": "Hohes Sternrelief", "{": "Schuttwall", "-": "Abgrund", ":": "Bröckelnde Steinplatte",
+	"[": "Lauschendes Auge", ")": "Alter Abfluss", "\\": "Lesepult mit Foliant", "'": "Trankregal",
+	"/": "Gittertür", "`": "Fallgitter",
 }
 
 ## What a few tiles need to work, shown under the palette when picked.
@@ -61,6 +64,10 @@ const NOTES := {
 	"&": "Enthält ein episches Stück und viel Kupfer.",
 	"m": "Nur in Häusern: Münzen, Barren, Erz und rohe Edelsteine.",
 	"h": "Nur in Häusern: Kräuter, Pilze, Fische, Phiolen und Tierfutter. Gehört an eine Wand.",
+	"]": "Gehört in eine Wand: öffnet die nächste geheime Wand (?).",
+	"}": "Gehört in eine Wand: nur wer auf zwei Kisten steht, reicht hinauf.",
+	"/": "Öffnet sich, wenn der Held den Schlüsselbund des Wärters dieser Ebene aufhebt.",
+	"`": "Steht offen, bis jemand den Folianten (\\) nimmt.",
 }
 
 ## Colours on the grid. Letters not listed take their group's colour.
@@ -80,7 +87,7 @@ const GROUP_COLORS := [Color(0.42, 0.4, 0.38), Color(0.8, 0.7, 0.4), Color(0.75,
 const OUTDOOR_GROUPS := [
 	["Gelände", "#.,:~;='"],
 	["Natur", "Tdrtpy"],
-	["Wege und Eingänge", "PREa([])><"],
+	["Wege und Eingänge", "PREa([])><|`"],
 	["Gebäude", "hjnmuskowb^IiBL"],
 	["Dorf und Lager", "gzlexqFv!@NfC+%*$?"],
 	["Dorfbewohner", "0123456789KOGMYZS"],
@@ -94,6 +101,7 @@ const OUTDOOR_NAMES := {
 	"T": "Baum", "d": "Toter Baum", "r": "Felsen", "t": "Baumstumpf mit Holz", "p": "Kürbisse", "y": "Kürbisfeld",
 	"P": "Start vor der Gruft", "R": "Die Gruft", "E": "Weg in die Drachenhöhle", "a": "Tor im Zaun",
 	"(": "Dunkles Loch", ">": "Findling über der verborgenen Grotte", "?": "Vergrabener Schatz", "[": "Bergschenke", "]": "Mineneingang", ")": "Höhle des Großen Alten", "<": "Tor der Aschenzinne",
+	"|": "Tor der Feste Sternhall", "`": "Rostiges Abflussgitter",
 	"h": "Haus", "j": "Schmiede", "n": "Wirtshaus", "m": "Markt", "u": "Windmühle", "s": "Tempel",
 	"k": "Amt der Krone", "o": "Post", "w": "Abenteurergilde", "b": "Bank", "^": "Weberzeile",
 	"I": "Hauswand", "i": "Holzboden", "B": "Bett", "L": "Truhe",

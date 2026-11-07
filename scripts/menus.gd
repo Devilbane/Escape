@@ -80,6 +80,7 @@ const SHORTCUTS := [
 	["Schleichen", "C oder Doppelklick"],
 	["Fackel anzünden oder löschen", "V oder die Fackel am rechten Rand, unter dem Haus"],
 	["Heiltrank trinken", "1 oder der Trank links neben der Fackel, einmal pro Minute; „Trinken“ im Inventar wählt einen bestimmten"],
+	["Entfesselte Kraft (Zauber)", "2 oder der Stern links neben dem Heiltrank, sobald du den Folianten aus Sternhall gelesen hast"],
 	["Lager aufschlagen (speichern und schlafen)", "U, der Knopf „Lager“ im Menü, oder die Schlafrolle im Inventar"],
 	["Benutzen, durchsuchen, Fackel", "Dagegenlaufen"],
 	["Inventar", "I"],

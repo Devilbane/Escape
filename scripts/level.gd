@@ -133,7 +133,7 @@ const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_sh
 ## shelves, chests and the wall decorations.
 const WORN_SETS := ["props", "chests", "wallprops"]
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "#bxotkCDHBLmhVF?f=U|N%~T^&aI*!;"
+const SOLID := "#bxotkCDHBLmhVF?f=U|N%~T^&aI*!;{-:[\\')/`"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 const SPIKE_PERIOD := 3.0
@@ -165,6 +165,8 @@ var grid: Array[String] = []
 var width := 0
 var height := 0
 var start_cell := Vector2i.ZERO
+## The keep of Sternhall runs its floors (see SternHall), or null.
+var stern: SternHall = null
 var exit_cell := Vector2i(-1, -1)
 var astar := AStarGrid2D.new()
 var player: Node3D
@@ -585,6 +587,9 @@ func load_from_file(path: String) -> void:
 
 func build() -> void:
 	_rng.seed = hash(level_name)
+	if SternHall.is_floor(self):
+		stern = SternHall.new(self)
+		stern.prepare()
 	_find_storeys()
 	_clear_passages()
 	add_child(_walls_body)
@@ -603,10 +608,14 @@ func build() -> void:
 	furniture_slots.sort_custom(func(a, b): return a.storey < b.storey)
 	if is_home:
 		_light_storeys()
-	_pick_levers()
+	if stern == null:
+		# Sternhall's secret walls open with the stars in its walls instead.
+		_pick_levers()
 	_place_writing()
 	_build_wall_collision()
 	_setup_astar()
+	if stern:
+		stern.finish()
 	for c in _heavy_starts:
 		var heavy := add_stone(StoneBlock.cell_for(cell_to_world(c), true), true, 0, true)
 		heavy.home = heavy.global_position
@@ -619,6 +628,8 @@ func build() -> void:
 	add_child(fog)
 	_spawn_enemies()
 	_restore_left()
+	if stern:
+		add_child(stern)
 	if lair and theme == "":
 		_decorate_lair()
 	if ElderLair.is_floor(self):
@@ -1033,6 +1044,8 @@ func _build_floor(c: Vector2i, ch: String) -> void:
 	if is_home:
 		_build_home_floor(c, ch)
 		return
+	if stern and not SternHall.builds_floor(ch):
+		return
 	if ch == "S":
 		var tile := _place("floor_tile_big_spikes", pos)
 		var spikes: Node3D = tile.find_child("spikes", true, false)
@@ -1383,6 +1396,9 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"p":
 			# A loose crate to carry (E) and set down (Q) where it is needed.
 			add_crate(pos)
+		"{", "-", ":", "[", ")", "\\", "'", "/", "`":
+			if stern:
+				stern.build_cell(c, ch)
 
 
 func _has_cell(ch: String) -> bool:
@@ -2204,6 +2220,34 @@ func secret_opened() -> bool:
 	return _secrets.any(func(s): return s.open)
 
 
+## Opens the secret wall on tile c without its lever (see SternHall's star
+## reliefs): the false walls grind down into the floor, or are gone at once.
+## False if there is no closed secret wall there.
+func open_secret_wall(c: Vector2i, at_once := false) -> bool:
+	for s in _secrets:
+		if s.cell != c or s.open:
+			continue
+		s.open = true
+		for inner in s.inner:
+			inner.visible = true
+		var gone := func():
+			for wall in s.walls:
+				if is_instance_valid(wall):
+					wall.queue_free()
+			s.body.queue_free()
+			astar.set_point_solid(c, false)
+			_set_cell(c, ".")
+		if at_once:
+			gone.call()
+			return true
+		var tween := create_tween()
+		for wall in s.walls:
+			tween.parallel().tween_property(wall, "position:y", wall.position.y - 4.6, 1.6).set_ease(Tween.EASE_IN)
+		tween.tween_callback(gone)
+		return true
+	return false
+
+
 func _open_secret(s: Dictionary) -> void:
 	s.open = true
 	var torch: Node3D = s.lever
@@ -2342,6 +2386,9 @@ func note_left() -> void:
 	for m in _map_enemies:
 		var e = m.enemy
 		if not is_instance_valid(e) or e.dead:
+			if stern and taken.has(slain_key(m.cell)):
+				# Sternhall noted when it fell (see SternHall._on_killed).
+				continue
 			taken[slain_key(m.cell)] = _died_at.get(m.cell, world_hours) if respawn else true
 	var any_open := false
 	for d in _doors:
@@ -3412,6 +3459,13 @@ func _build_plate_frame(pos: Vector3) -> void:
 
 
 func _build_gate(c: Vector2i) -> void:
+	_gates.append(add_grating(c).merged({"open": false}))
+
+
+## An iron grating across the gap at c, shut: {"cell", "node" (the bars,
+## to sink into the floor), "body" (what stops the way)}. The puzzle's gates
+## are these; so are Sternhall's barred doors (see SternHall).
+func add_grating(c: Vector2i) -> Dictionary:
 	var pos := cell_to_world(c)
 	var across_x := cell_char(c + Vector2i(-1, 0)) == "#" and cell_char(c + Vector2i(1, 0)) == "#"
 	var rot := 0.0 if across_x else PI * 0.5
@@ -3421,7 +3475,7 @@ func _build_gate(c: Vector2i) -> void:
 	body.rotation.y = rot
 	add_child(body)
 	_add_box(body, Vector3(0, 2, 0), Vector3(TILE, 4, 0.6))
-	_gates.append({"cell": c, "node": bars, "body": body, "open": false})
+	return {"cell": c, "node": bars, "body": body}
 
 
 func plate_count() -> int:
@@ -3924,12 +3978,12 @@ func _tick_respawn(delta: float) -> void:
 
 
 func _spawn_enemies() -> void:
+	if stern:
+		# In Sternhall the fallen rise again after a while (see SternHall).
+		stern.forget_old_kills()
 	for y in height:
 		for x in width:
 			var c := Vector2i(x, y)
-			var ch := cell_char(c)
-			if not (Enemy.LETTERS.has(ch) or creations.has(ch) and creations[ch].type == "monster" and not safe):
-				continue
 			if taken.has(slain_key(c)):
 				# Slain before the hero left this floor (see note_left), unless
 				# the floor's monsters come back and the time is up.
@@ -3937,39 +3991,53 @@ func _spawn_enemies() -> void:
 				if not (respawn and fell is float and world_hours - fell >= RESPAWN_HOURS):
 					continue
 				taken.erase(slain_key(c))
-			var kind: String = Enemy.LETTERS[ch] if Enemy.LETTERS.has(ch) else creations[ch].base
-			if not monster_families.is_empty() and not MonsterFamilies.fits(kind, monster_families):
-				# Still placed, but the map's "monsters:" header should name its family.
-				push_warning("%s: a %s (%s) does not live here (monsters: %s)" % [file, kind,
-						MonsterFamilies.family_of(kind), ", ".join(monster_families)])
-			var e: Enemy
-			if Enemy.LETTERS.has(ch):
-				e = _spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")
-			else:
-				e = _spawn_enemy(creations[ch].base, c, elite, Creations.monster_stats(creations[ch]), true)
-			_map_enemies.append({"enemy": e, "cell": c})
+			spawn_map_enemy(c)
 	_spawn_horror()
+
+
+## The monster the map puts on tile c (a letter of Enemy.LETTERS or a
+## monster made in the map workshop), or null if there is none.
+func spawn_map_enemy(c: Vector2i) -> Enemy:
+	var ch := cell_char(c)
+	if not (Enemy.LETTERS.has(ch) or creations.has(ch) and creations[ch].type == "monster" and not safe):
+		return null
+	var kind: String = Enemy.LETTERS[ch] if Enemy.LETTERS.has(ch) else creations[ch].base
+	if not monster_families.is_empty() and not MonsterFamilies.fits(kind, monster_families):
+		# Still placed, but the map's "monsters:" header should name its family.
+		push_warning("%s: a %s (%s) does not live here (monsters: %s)" % [file, kind,
+				MonsterFamilies.family_of(kind), ", ".join(monster_families)])
+	var e: Enemy
+	if Enemy.LETTERS.has(ch):
+		e = _spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")
+	else:
+		var made_as: Enemy = SternHall.make_boss(creations[ch]) if stern else null
+		e = _spawn_enemy(creations[ch].base, c, elite, Creations.monster_stats(creations[ch]), true, made_as)
+	_map_enemies.append({"enemy": e, "cell": c})
+	if stern:
+		stern.on_spawned(e, c)
+	return e
 
 
 ## A monster of a kind on a cell. "made" is a monster made in the map
 ## workshop (see Creations): a boss made there fights like the real one and
 ## shows its health bar, but none of the real one's rewards come with it.
-func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, made := false) -> Enemy:
-	# The bosses each fight with a script of their own.
-	var e: Enemy
-	match kind:
-		"drache":
-			e = Dragon.new()
-		"bergkoenig":
-			e = MountainKing.new()
-		"grosser_alter":
-			e = ElderDragon.new()
-		"hauptmann":
-			e = BanditChief.new()
-		"spinnenkoenigin":
-			e = SpiderQueen.new()
-		_:
-			e = Enemy.new()
+func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, made := false, made_as: Enemy = null) -> Enemy:
+	# The bosses each fight with a script of their own (`made_as` brings one).
+	var e: Enemy = made_as
+	if e == null:
+		match kind:
+			"drache":
+				e = Dragon.new()
+			"bergkoenig":
+				e = MountainKing.new()
+			"grosser_alter":
+				e = ElderDragon.new()
+			"hauptmann":
+				e = BanditChief.new()
+			"spinnenkoenigin":
+				e = SpiderQueen.new()
+			_:
+				e = Enemy.new()
 	e.kind = kind
 	e.custom = custom
 	e.elite = is_elite
@@ -4022,7 +4090,7 @@ func _spawn_enemy(kind: String, c: Vector2i, is_elite := false, custom := {}, ma
 			_drop_dragon_parts(e.global_position)
 			_win_lair(e.global_position)
 		# A guardian on a level without a key carries it.
-		if e.kind == "waechter" and not has_key and not _has_cell("K"):
+		if e.kind == "waechter" and not has_key and not _has_cell("K") and stern == null:
 			_build_key(Vector3(e.global_position.x, 0, e.global_position.z)))
 	enemies.append(e)
 	return e

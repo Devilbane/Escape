@@ -10,7 +10,10 @@ extends RefCounted
 ## think well of the hero first (`standing`, a Reputation level). The reward is
 ## `gold` and maybe an `item`, or a `recipe` (see Crafting). A task with
 ## "wish": true is never offered by running into its giver: it starts when
-## the hero picks that wish in the master's wish window (see Wishes). Every text is German and has an English entry
+## the hero picks that wish in the master's wish window (see Wishes). A task
+## with "found": true is found out in the world instead (Sternhall's
+## prisoner, see SternHall) and starts with Events.quest_found; its giver is
+## who rewards it. Every text is German and has an English entry
 ## in Lang; `remind` may hold one %d (how many are still missing).
 ## The state of every task is kept in the hero's saved game (see Game).
 
@@ -111,6 +114,13 @@ const ALL := {
 		"offer": "Zeig mir, dass deine Rüstung hält: Besiege zwei Kolosse im Verlies. Dann bekommst du das Rezept für den Armreif der leichten Last.",
 		"remind": "Noch %d Kolosse im Verlies.",
 		"done": "Deine Rüstung hat gehalten. Hier ist das Rezept für den Armreif der leichten Last."},
+	# Found in the jail under Sternhall (see SternHall): Alrik the scribe.
+	"sternhall_alrik": {"giver": "8", "found": true, "kind": "deliver", "item": "alriks_siegelring", "to": "8", "gold": 60, "reward": "heiltrank_stark",
+		"title": "Der Schreiber im Kerker",
+		"goal": "Bring Alriks Siegelring zum Gelehrten im Dorf. Alrik sitzt im Kerker unter Sternhall.",
+		"offer": "Bring meinen Siegelring dem Gelehrten im Dorf. Er soll wissen, dass ich noch lebe.",
+		"remind": "Der Siegelring ist für den Gelehrten im Dorf.",
+		"done": "Alriks Ring! Er lebt? Im Kerker von Sternhall... Ich schicke sofort nach der Akademie. Nimm 60 Kupfer und diesen starken Heiltrank."},
 }
 
 ## Explained once in the compendium, the first time a villager hands out a task.
@@ -140,7 +150,7 @@ func is_done(id: String) -> bool:
 
 ## Whether a villager has this task for the hero right now.
 func is_available(id: String) -> bool:
-	if state.has(id) or ALL[id].get("wish", false):
+	if state.has(id) or ALL[id].get("wish", false) or ALL[id].get("found", false):
 		return false
 	var after: String = ALL[id].get("after", "")
 	if after != "" and not is_done(after):
@@ -254,7 +264,7 @@ func talk(v: Villager, trader := false) -> bool:
 	# A task this villager gave.
 	for id in ALL:
 		var q: Dictionary = ALL[id]
-		if q.giver != role or not is_active(id):
+		if q.giver != role or not is_active(id) or q.get("found", false):
 			continue
 		match q.kind:
 			"kill", "fetch":
@@ -304,6 +314,23 @@ func start_wish(id: String, v: Villager) -> bool:
 	v.say(Lang.t(ALL[id].offer), game.player.global_position, 6.5)
 	Events.teach(HOW_TO)
 	Events.tell(Lang.t("Neuer Auftrag: %s") % Lang.t(ALL[id].title) + "\n" + Lang.t(ALL[id].goal), Color(1.0, 0.82, 0.4))
+	return true
+
+
+## A task found out in the world starts (see Events.quest_found): a delivery
+## puts its item into the bag. False if it was taken already or the bag is full.
+func start_found(id: String) -> bool:
+	if not ALL.has(id) or state.has(id) or not ALL[id].get("found", false) or game == null:
+		return false
+	var q: Dictionary = ALL[id]
+	if q.kind == "deliver":
+		if _bag_free() <= 0:
+			return false
+		game.player.bag.append(q.item)
+		Events.bus().quest_item_given.emit()
+	state[id] = {"state": "active", "count": 0}
+	Events.teach(HOW_TO)
+	Events.tell(Lang.t("Neuer Auftrag: %s") % Lang.t(q.title) + "\n" + Lang.t(q.goal), Color(1.0, 0.82, 0.4))
 	return true
 
 

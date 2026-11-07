@@ -48,8 +48,11 @@ func _test() -> void:
 	check(a.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] != b.surface_get_arrays(0)[Mesh.ARRAY_VERTEX], "the star wobbles over time")
 	check(VitalStrike.STAR_COLOR.r > 0.5 and VitalStrike.STAR_COLOR.g < 0.15 and VitalStrike.STAR_COLOR.b < 0.15, "the star is blood red")
 	var before := level.get_child_count()
-	VitalStrike._ring(level, Vector3.ZERO)
+	VitalStrike._ring(level, Vector3(2, 0, 3))
 	check(level.get_child_count() == before + 1, "showing the star adds one node")
+	var star := level.get_child(level.get_child_count() - 1) as Node3D
+	check(absf(star.global_position.x - 2.0) < 0.001 and absf(star.global_position.z - 3.0) < 0.001, "the star is centred on the given point, the hero")
+	check(VitalStrike.STAR_END_SCALE * VitalStrike.STAR_INNER > 0.4, "the star ends wide enough to ring the character")
 	await create_timer(VitalStrike.RING_TIME + 0.3, true, false, true).timeout
 	check(level.get_child_count() == before, "the star frees itself")
 	print("PASS" if failures == 0 else "FAILED: %d" % failures)

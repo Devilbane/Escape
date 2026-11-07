@@ -30,27 +30,32 @@ const LORE := "Sinkt dein Leben auf null, wirst du bewusstlos, aber nicht tot. A
 ## The pack's floor entry kind (see Level.floor_items).
 const BUNDLE := "bundle"
 ## Seconds the hero lies there before help comes.
-const LIE_STILL := 1.3
-## The eagle: how long it swoops down, holds on, and climbs away with the hero.
-const SWOOP := 1.7
-const GRIP := 0.45
-const CLIMB := 2.4
+const LIE_STILL := 1.6
+## The eagle: how long it glides down (a long curve from far off, braking to
+## hover), takes hold, and carries the hero away over the landscape: rising
+## slowly with heavy wing beats, then soaring.
+const SWOOP := 4.6
+const GRIP := 1.5
+const CLIMB := 11.0
+## The carry's path: how far it goes, how high it ends, and how far it swings
+## to one side in its S-curve (metres).
+const CARRY_LENGTH := 70.0
+const CARRY_HEIGHT := 12.0
+const CARRY_SWING := 9.0
+## Where the glide starts: this far off, this high.
+const APPROACH_FAR := 34.0
+const APPROACH_HIGH := 17.0
 ## The dwarves: how long they walk up, lift the hero onto the stretcher, and
 ## carry them off.
 const WALK_UP := 1.9
 const LIFT := 0.7
 const CARRY := 2.4
 ## How long the screen takes to go dark while the hero is carried off.
-const FADE := 1.4
-## How big the giant eagle is.
-const EAGLE_SIZE := 1.7
+const FADE := 2.0
 ## The stretcher's height above the floor.
 const STRETCHER_HIGH := 0.75
 
-const BROWN := Color(0.33, 0.21, 0.11)
 const DARK_BROWN := Color(0.22, 0.14, 0.08)
-const WHITE := Color(0.95, 0.93, 0.87)
-const YELLOW := Color(0.95, 0.72, 0.15)
 
 var hero: Player
 var by_eagle := true
@@ -58,8 +63,16 @@ var by_eagle := true
 var _time := 0.0
 var _from := Vector3.ZERO
 var _away := Vector3.FORWARD
-var _eagle: Node3D
-var _wings: Array[Node3D] = []
+var _eagle: Eagle
+var _shadow: MeshInstance3D
+## Which way the carry's S-curve swings first (1 or -1), and the eagle's
+## heading, pitch and bank, eased so it turns and banks like a bird.
+var _swing := 1.0
+var _yaw := 0.0
+var _pitch := 0.0
+var _roll := 0.0
+var _turning := 0.0
+var _heard_cry := 0
 var _dwarves: Array[Node3D] = []
 var _stretcher: Node3D
 var _carrying := false
@@ -96,6 +109,7 @@ func _start(fade: Callable, done: Callable) -> void:
 	# They come from (and leave towards) the way the camera looks into the
 	# scene, so they are seen arriving.
 	_away = Vector3(randf_range(-0.6, 0.6), 0.0, -1.0).normalized()
+	_swing = 1.0 if randf() < 0.5 else -1.0
 	if by_eagle:
 		_build_eagle()
 	else:
@@ -130,50 +144,148 @@ func _start(fade: Callable, done: Callable) -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	if by_eagle:
-		_fly_eagle()
+		_fly_eagle(delta)
 	else:
 		_walk_dwarves(delta)
 
 
 # --- The eagle ------------------------------------------------------------------
 
-func _fly_eagle() -> void:
+## Where the carried hero is, k (0 to 1) of the way along the carry: a long
+## S-curve over the landscape. They start slowly, and the speed builds as the
+## eagle gets into its stride; the height comes up slowly at first (heavy
+## wing beats, a hero hanging from its claws) and then eases off.
+func _carry_at(k: float) -> Vector3:
+	var along := pow(k, 1.45)
+	var side := _away.cross(Vector3.UP).normalized() * _swing
+	var p0 := _from
+	var p3 := _from + _away * CARRY_LENGTH
+	var c1 := _from + _away * CARRY_LENGTH * 0.3 + side * CARRY_SWING
+	var c2 := _from + _away * CARRY_LENGTH * 0.7 - side * CARRY_SWING * 0.8
+	var u := 1.0 - along
+	var flat := p0 * (u * u * u) + c1 * (3.0 * u * u * along) + c2 * (3.0 * u * along * along) + p3 * (along * along * along)
+	var rise := 1.0 - pow(1.0 - k, 1.7)
+	return Vector3(flat.x, _from.y + CARRY_HEIGHT * rise, flat.z)
+
+
+func _fly_eagle(delta: float) -> void:
 	var t := _time - LIE_STILL
-	var hold := Vector3(0, 2.4, 0)
-	var beat_speed := 9.0
 	if t < 0.0:
 		_eagle.visible = false
+		_shadow.visible = false
 		return
 	_eagle.visible = true
+	_shadow.visible = true
+	var hold := Vector3(0, 1.3 + Eagle.HANG * Eagle.SIZE, 0)
+	var at: Vector3
+	var heading := Vector3.ZERO
+	# How the wings beat (amp 0 soars), the beats a second, braking, tucked
+	# legs, closed toes and the head turned down.
+	var amp := 0.0
+	var freq := 0.7
+	var flare := 0.0
+	var tuck := 0.0
+	var grip := 0.0
+	var look := 0.0
+	var climb := 0.0
+	var old := _eagle.global_position
 	if t < SWOOP:
-		# Down in a long glide from high up behind the hero, wings spread.
+		# A long glide down from high up and far off, curving in an S: wings
+		# spread and still, a few strong beats to brake, then a hard flutter
+		# as it flares to hover over the hero.
 		var k := t / SWOOP
-		var high := _from + _away * 26.0 + Vector3(0, 18.0, 0)
+		var u := 1.0 - pow(1.0 - k, 1.7)
+		var high := _from + _away * APPROACH_FAR + Vector3(0, APPROACH_HIGH, 0)
 		var low := _from + hold
-		var at := high.lerp(low, 1.0 - pow(1.0 - k, 2.0))
-		_face(_eagle, at, low)
-		_eagle.global_position = at
-		beat_speed = 3.0 if k < 0.7 else 12.0
+		var side := _away.cross(Vector3.UP).normalized() * _swing
+		var c1 := high.lerp(low, 0.33) + side * 12.0
+		var c2 := high.lerp(low, 0.7) - side * 6.0
+		var w := 1.0 - u
+		at = high * (w * w * w) + c1 * (3.0 * w * w * u) + c2 * (3.0 * w * u * u) + low * (u * u * u)
+		# It sinks faster than the curve alone: a bird dips into its landing.
+		at.y = lerpf(low.y, high.y, pow(1.0 - u, 1.25))
+		var brake := smoothstep(0.45, 0.9, k)
+		amp = lerpf(0.04, 1.0, brake)
+		freq = lerpf(0.75, 2.5, brake)
+		flare = smoothstep(0.62, 1.0, k)
+		tuck = 1.0 - smoothstep(0.5, 0.9, k)
+		look = smoothstep(0.55, 1.0, k)
+		climb = -0.2 * (1.0 - flare)
+		heading = old.direction_to(at) if at.distance_to(old) > 0.001 else Vector3.ZERO
+		if k > 0.9:
+			# Turning on the spot, to face where it will fly off.
+			heading = _away
 	else:
-		# Hovering above the hero, then climbing away with them in its claws.
-		var at := SmoothMotion.drawn_at(hero) + hold
-		_face(_eagle, _eagle.global_position, at + _away * 4.0 if _carrying else at - _away)
-		_eagle.global_position = at
-		beat_speed = 13.0
-	var angle := sin(_time * beat_speed) * (0.25 if beat_speed < 5.0 else 0.7)
-	_wings[0].rotation.z = angle
-	_wings[1].rotation.z = -angle
-	# A heavy wingbeat now and then, and one cry as it comes down.
-	var beat := int(_time * beat_speed / TAU)
-	if beat != _last_beat and beat_speed > 5.0:
-		_last_beat = beat
-		Sfx.play(self, "dragon_wingbeat_%d" % (beat % 3), -10.0, _eagle.global_position, 1.7)
-	if t >= SWOOP * 0.35 and not has_meta("cried"):
-		set_meta("cried", true)
-		Sfx.play(self, "dragon_shriek", -12.0, _eagle.global_position, 2.3)
+		at = SmoothMotion.drawn_at(hero) + hold
+		look = 0.8
+		heading = _away
+		if t < SWOOP + GRIP:
+			# Hovering over the hero, beating hard, the toes closing on them.
+			var g := (t - SWOOP) / GRIP
+			amp = 1.0
+			freq = 2.4
+			flare = lerpf(0.6, 0.15, g)
+			grip = smoothstep(0.35, 0.8, g)
+			climb = 0.3
+		else:
+			# Off with the hero: rising slowly on heavy beats, later a few
+			# beats and then a long soar, again and again.
+			var c := (t - SWOOP - GRIP) / CLIMB
+			var bursts := smoothstep(0.35, 0.7, 0.5 + 0.5 * sin(c * 14.0 - 1.0))
+			var work := 1.0 - smoothstep(0.25, 0.6, c)
+			amp = clampf(work + (1.0 - work) * bursts * 0.85 + 0.06, 0.06, 1.0)
+			freq = lerpf(0.85, 1.9, amp)
+			grip = 1.0
+			flare = 0.0
+			var v := at - old
+			heading = Vector3(v.x, 0.0, v.z) if Vector2(v.x, v.z).length() > 0.002 else _away
+			climb = clampf(atan2(v.y, maxf(Vector2(v.x, v.z).length(), 0.001)), -0.3, 0.45) * 0.8
+	_steer(delta, heading, climb, flare)
+	_eagle.pose(amp, flare, tuck, grip, look)
+	var heard := _eagle.beat(delta, freq)
+	_eagle.global_transform = Transform3D(Basis(Vector3.UP, _yaw) * Basis(Vector3.RIGHT, _pitch) \
+			* Basis(Vector3.BACK, _roll) * Basis.from_scale(Vector3.ONE * Eagle.SIZE), at)
+	_lay_shadow(at)
+	# A heavy wingbeat on each downstroke, and a cry as it comes down and
+	# another with its catch over the landscape.
+	if heard and amp > 0.3:
+		Sfx.play(self, "dragon_wingbeat_%d" % (int(_eagle.phase) % 3), -10.0 + 4.0 * amp - 4.0, at, 1.7)
+	if t >= SWOOP * 0.4 and _heard_cry == 0:
+		_heard_cry = 1
+		Sfx.play(self, "dragon_shriek", -12.0, at, 2.3)
+	elif t >= SWOOP + GRIP + CLIMB * 0.45 and _heard_cry == 1:
+		_heard_cry = 2
+		Sfx.play(self, "dragon_shriek", -14.0, at, 2.1)
 
 
-## Turns a flyer (built facing -Z) towards where it goes, upright.
+## Eases the eagle's heading, pitch and bank: it turns smoothly towards where
+## it goes and banks into the turn, nose up when braking.
+func _steer(delta: float, heading: Vector3, climb: float, flare: float) -> void:
+	heading.y = 0.0
+	if heading.length() > 0.001:
+		var want := atan2(-heading.x, -heading.z)
+		var old := _yaw
+		_yaw = lerp_angle(_yaw, want, 1.0 - exp(-2.2 * delta))
+		var rate := angle_difference(old, _yaw) / maxf(delta, 0.001)
+		_turning = lerpf(_turning, rate, 1.0 - exp(-3.0 * delta))
+	else:
+		_turning = lerpf(_turning, 0.0, 1.0 - exp(-3.0 * delta))
+	_roll = lerpf(_roll, clampf(_turning * 0.9, -0.55, 0.55), 1.0 - exp(-3.0 * delta))
+	_pitch = lerpf(_pitch, climb + 0.45 * flare, 1.0 - exp(-3.0 * delta))
+
+
+## A soft round shadow on the ground under the eagle, so its flight over the
+## land can be read: bigger and fainter the higher it is.
+func _lay_shadow(at: Vector3) -> void:
+	var height := maxf(at.y - _from.y, 0.0)
+	_shadow.global_position = Vector3(at.x, _from.y + 0.06, at.z)
+	_shadow.rotation = Vector3(-PI * 0.5, _yaw, 0.0)
+	var size := Eagle.SIZE * 5.4 * (1.0 + height * 0.03)
+	_shadow.scale = Vector3(size, size * 0.6, 1.0)
+	(_shadow.material_override as StandardMaterial3D).albedo_color.a = clampf(0.62 - height * 0.025, 0.12, 0.62)
+
+
+## Turns a walker (built facing -Z) towards where it goes, upright.
 static func _face(node: Node3D, from: Vector3, to: Vector3) -> void:
 	var dir := to - from
 	dir.y = 0.0
@@ -182,28 +294,32 @@ static func _face(node: Node3D, from: Vector3, to: Vector3) -> void:
 
 
 func _build_eagle() -> void:
-	_eagle = Node3D.new()
-	_eagle.name = "Eagle"
+	_eagle = Eagle.new()
 	add_child(_eagle)
-	_eagle.scale = Vector3.ONE * EAGLE_SIZE
 	_eagle.visible = false
-	var body := _part(_eagle, _capsule(0.32, 1.3), BROWN, Vector3.ZERO)
-	body.rotation.x = PI * 0.5
-	_part(_eagle, _sphere(0.26), WHITE, Vector3(0, 0.12, -0.72))
-	var beak := _part(_eagle, _cone(0.09, 0.28), YELLOW, Vector3(0, 0.08, -1.0))
-	beak.rotation.x = -PI * 0.5
-	_part(_eagle, _box(Vector3(0.55, 0.06, 0.55)), DARK_BROWN, Vector3(0, 0.02, 0.82))
-	# Talons, hanging ready to grip.
-	for side in [-1.0, 1.0]:
-		_part(_eagle, _box(Vector3(0.09, 0.32, 0.09)), YELLOW, Vector3(0.16 * side, -0.4, -0.05))
-	for side in [-1.0, 1.0]:
-		var pivot := Node3D.new()
-		pivot.position = Vector3(0.26 * side, 0.08, -0.05)
-		_eagle.add_child(pivot)
-		_part(pivot, _box(Vector3(1.9, 0.06, 0.75)), BROWN, Vector3(0.95 * side, 0, 0))
-		# Darker flight feathers at the tips.
-		_part(pivot, _box(Vector3(0.7, 0.05, 0.9)), DARK_BROWN, Vector3(2.15 * side, 0, 0.05))
-		_wings.append(pivot)
+	_eagle.global_position = _from + _away * APPROACH_FAR + Vector3(0, APPROACH_HIGH, 0)
+	_yaw = atan2(_away.x, _away.z)
+	_shadow = MeshInstance3D.new()
+	_shadow.name = "EagleShadow"
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	_shadow.mesh = quad
+	var fade := GradientTexture2D.new()
+	fade.fill = GradientTexture2D.FILL_RADIAL
+	fade.fill_from = Vector2(0.5, 0.5)
+	fade.fill_to = Vector2(1.0, 0.5)
+	fade.gradient = Gradient.new()
+	fade.gradient.colors = PackedColorArray([Color(0, 0, 0, 1), Color(0, 0, 0, 0)])
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_texture = fade
+	mat.albedo_color = Color(0, 0, 0, 0.6)
+	_shadow.material_override = mat
+	_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_shadow.visible = false
+	add_child(_shadow)
 
 
 # --- The dwarves ---------------------------------------------------------------

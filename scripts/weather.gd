@@ -54,11 +54,13 @@ const CHANCES := {
 ## The look of each weather, laid over the light of the hour: how much of
 ## the sun (or moon) and of the ambient light is left, the colour
 ## saturation, how thick the fog is, how hard it rains (0 to 1) and how much
-## mist drifts over the ground (0 to 1).
+## mist drifts over the ground (0 to 1). The fog is only a thin haze all
+## over; the thick part of it hangs in drifting clouds (see FogClouds), which
+## `mist` sets the thickness of.
 const LOOKS := {
 	CLEAR: {"sun": 1.0, "amb": 1.0, "sat": 1.0, "fog": 0.0, "rain": 0.0, "mist": 0.0},
 	RAIN: {"sun": 0.5, "amb": 0.85, "sat": 0.8, "fog": 0.006, "rain": 0.55, "mist": 0.0},
-	FOG: {"sun": 0.55, "amb": 1.05, "sat": 0.7, "fog": 0.022, "rain": 0.0, "mist": 1.0},
+	FOG: {"sun": 0.55, "amb": 1.05, "sat": 0.7, "fog": 0.007, "rain": 0.0, "mist": 1.0},
 	STORM: {"sun": 0.3, "amb": 0.7, "sat": 0.62, "fog": 0.01, "rain": 1.0, "mist": 0.0},
 }
 ## The colour of fog and haze in full daylight; at night it darkens with
@@ -244,8 +246,8 @@ static func make_mist() -> CPUParticles3D:
 	p.scale_amount_max = 1.4
 	var ramp := Gradient.new()
 	ramp.set_color(0, Color(HAZE, 0.0))
-	ramp.add_point(0.35, Color(HAZE, 0.22))
-	ramp.add_point(0.7, Color(HAZE, 0.22))
+	ramp.add_point(0.35, Color(HAZE, 0.1))
+	ramp.add_point(0.7, Color(HAZE, 0.1))
 	ramp.set_color(ramp.get_point_count() - 1, Color(HAZE, 0.0))
 	p.color_ramp = ramp
 	Effects.start_cold(p)

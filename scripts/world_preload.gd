@@ -199,6 +199,9 @@ func _add_samples(at: Vector3) -> void:
 	var number := DamageNumber._make("12", Color(1, 0.3, 0.2))
 	_level.add_child(number)
 	number.global_position = at + Vector3(0, 2, 0)
+	var clouds := FogClouds.new()
+	_holder.add_child(clouds)
+	clouds.set_look(1.0, Weather.HAZE)
 	# Particles move only where time runs: beside the frozen village.
 	var moving := Node3D.new()
 	_holder.add_child(moving)

@@ -114,7 +114,10 @@ func _fog() -> void:
 	_settle()
 	for e in slimes:
 		check(is_instance_valid(e) and not e._dawn, "the slimes stay and wander on when the rain stops")
-	check(game._env.fog_enabled and game._env.fog_density > 0.01, "fog hangs over the open air")
+	check(game._env.fog_enabled and game._env.fog_density > 0.003, "a thin haze hangs over the open air")
+	check(game._env.fog_density < 0.01, "the haze is thin: the fog is in the clouds, not an even blanket")
+	check(game._clouds.visible and game._clouds.strength() > 0.8, "fog clouds drift over the open air")
+	check(game._clouds._mat.render_priority < 0, "the clouds draw before every label and particle")
 	check(game._mist.emitting and not game._rain.emitting, "mist drifts, and no rain falls in fog")
 	check(_kinds() == ["fog_wraith", "schleim"], "in fog the fog wraiths and slimes get their spots")
 	_call_out()
@@ -158,6 +161,8 @@ func _clears_up() -> void:
 	check(game.level.slimes_about() > 0, "the slimes stay and wander on under a clear sky")
 	check(game.level.slimes_about() <= Outdoor.SLIMES_AT_MOST, "no more than %d slimes crawl about" % Outdoor.SLIMES_AT_MOST)
 	check(not game._env.fog_enabled, "the fog lifts")
+	check(not game._clouds.visible, "the clouds are gone with the fog")
+	check(DamageNumber.show_at(game, Vector3.ZERO, "1", Color.WHITE).render_priority > game._clouds._mat.render_priority, "combat and news texts draw over the clouds")
 	check(absf(game._env.ambient_light_energy - 0.52) < 0.01, "the daylight comes back")
 
 
@@ -222,4 +227,5 @@ func _dungeon() -> void:
 	game._tick_clock(1.0)
 	game._show_weather()
 	check(not game._env.fog_enabled, "no fog down in the dungeon")
+	check(not game._clouds.visible, "no clouds down in the dungeon")
 	check(not game._rain.emitting and not game._rain.visible, "no rain down in the dungeon")

@@ -104,7 +104,11 @@ func _test_window() -> void:
 				await process_frame
 				root.get_texture().get_image().save_png(shots.path_join("launcher_%s_%s.png" % [c[0], code]))
 	# The title must not run into the language buttons.
-	var title: Label = l.get_child(1).get_child(0).get_child(0)
+	var box: Node = l.get_child(1).get_child(0)
+	var emblem: TextureRect = box.get_child(0)
+	check(emblem.texture != null and Rect2(Vector2.ZERO, Vector2(960, 540)).encloses(emblem.get_global_rect()),
+		"the emblem is on screen")
+	var title: Label = box.get_child(1)
 	check(not title.get_global_rect().intersects(l._lang_buttons.en.get_parent().get_global_rect()),
 		"the title keeps clear of the language buttons")
 	Texts.language = ""

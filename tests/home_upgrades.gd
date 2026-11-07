@@ -2,7 +2,7 @@ extends SceneTree
 ## Headless test for upgrading the hero's town house on Weavers' Lane: the upgrade
 ## window opens from the bed at home and from the stonemason, upgrades cost
 ## stone blocks (bag first, then the chest) and gold, each is built once, its
-## furniture stands on the chalked furniture spots of the house without
+## furniture stands on the free furniture spots of the house without
 ## blocking the ways between the door, the stairs, the bed and the chest, the second chest doubles the
 ## storage, the workbench makes knives from iron and mends gear (and speeds up
 ## crafting while away), the trophy wall gives +1 life per trophy won, and
@@ -70,7 +70,7 @@ func _run() -> void:
 	check(lvl.is_home, "the hero is in their town house")
 	check(_station(lvl, "hauswerkbank").is_empty() and _station(lvl, "trophaeen").is_empty() and _station(lvl, "lager").size() == 1,
 			"a fresh house has only its bed and chest")
-	check(lvl.chalk_marks.size() == lvl.furniture_slots.size(), "every free furniture spot is chalked on the floor")
+	check(lvl.find_children("Chalk_*", "", true, false).is_empty(), "no white chalk squares are drawn on the floor")
 
 	# Every text has its English.
 	for id in HomeUpgrades.ALL:
@@ -130,7 +130,7 @@ func _run() -> void:
 	check(game.home_upgrades.has("werkstatt") and game.home_upgrades.has("trophaeen") and p.bag.is_empty(), "the workshop and the trophy wall are built")
 	check(_station(lvl, "hauswerkbank").size() == 1 and _station(lvl, "trophaeen").size() == 1, "a workbench and a trophy wall stand in the house")
 
-	# All of it on the chalked furniture spots, each on its own, and the ways
+	# All of it on the free furniture spots, each on its own, and the ways
 	# on every storey stay open: door, stairs, bed, chests and workbench.
 	var cells := {}
 	var spots := lvl.furniture_slots.map(func(slot): return slot.cell)
@@ -217,9 +217,7 @@ func _run() -> void:
 	check(_station(lvl, "hauswerkbank").size() == 1 and _station(lvl, "trophaeen").size() == 1 and _station(lvl, "lager").size() == 2,
 			"a loaded game rebuilds the furniture")
 	check(p.max_hp == base_hp + 2, "the trophies' life is back after loading")
-	for id in lvl._upgrade_cells:
-		check(not lvl.chalk_marks.has(lvl._upgrade_cells[id]), "no chalk square is left under the %s" % id)
-	check(lvl.chalk_marks.size() == lvl.furniture_slots.size() - 3, "the free spots keep their chalk squares")
+	check(lvl.find_children("Chalk_*", "", true, false).is_empty(), "still no chalk squares after loading")
 
 	# A trophy won before the wall stands gives no life until it is built.
 	game.home_upgrades.erase("trophaeen")

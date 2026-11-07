@@ -1239,6 +1239,11 @@ func ahead() -> Vector3:
 	return Vector3(sin(_model.rotation.y), 0, cos(_model.rotation.y))
 
 
+## Whether the skeleton has not noticed the hero yet.
+func is_unaware() -> bool:
+	return not _awake and not dead
+
+
 ## Whether a blade from `from` would be a stab in the back: from behind,
 ## and the skeleton has not noticed the hero.
 func open_to_backstab(from: Vector3) -> bool:

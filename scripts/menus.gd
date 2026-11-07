@@ -3954,7 +3954,15 @@ func _build_bed() -> void:
 		_box.add_child(rest)
 		_add_label(Lang.t("Oder schlaf hier und logg dich aus. Beim nächsten Mal\nwachst du in diesem Bett auf, ausgeruht."), 20)
 	else:
-		_add_label(Lang.t("Hier kannst du dich ausruhen. Dein Spiel wird gespeichert\nund du loggst dich aus. Später geht es genau hier weiter."), 20)
+		# Sleep through to the next morning and carry on, or log out.
+		_add_label(Lang.t("Schlaf bis zum Morgen und mach gleich weiter: Du hast volles Leben,\ndie Uhr springt auf 7 Uhr früh, und dein Spiel ist gespeichert."), 20)
+		var till_morning: Button = game._make_button(Lang.t("Bis zum Morgen schlafen"), func():
+			close()
+			game.rest_till_morning())
+		till_morning.custom_minimum_size = Vector2(300, 60)
+		till_morning.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_box.add_child(till_morning)
+		_add_label(Lang.t("Oder schlaf hier und logg dich aus. Dein Spiel wird gespeichert,\nspäter geht es genau hier weiter."), 20)
 	_add_label(Lang.t("Solange du weg bist, lebt dein Held nach seinem Tagesplan:"), 20, BLUE)
 	_add_label(_plan_summary(), 16, game.GOLD)
 	var plan_button: Button = game._make_button(Lang.t("Tagesplan ändern"), open.bind("plan"))

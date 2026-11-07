@@ -11,7 +11,8 @@ const EN := {
 	"Ein Riesenadler hat dich bewusstlos davongetragen und hierher gebracht.": "A giant eagle carried you off, unconscious, and brought you here.",
 	"Der Rettungstrupp der Zwerge hat dich bewusstlos aus der Tiefe getragen und hierher gebracht.": "The dwarves' emergency team carried you up from the depths, unconscious, and brought you here.",
 	"Deine Tasche, dein Zutatenbeutel und %d Münzen liegen noch dort, wo du gefallen bist: %s.": "Your bag, your ingredient pouch and %d coins still lie where you fell: %s.",
-	"Du nimmst deinen Zutatenbeutel wieder an dich.": "You take your ingredient pouch back.",
-	"Du nimmst deine Tasche wieder an dich.": "You take your bag back.",
+	"Du hast deinen verlorenen Zutatenbeutel wiedergefunden! Zutaten zurück: %d.": "You found your lost ingredient pouch! Ingredients recovered: %d.",
+	"Du hast deine verlorene Tasche wiedergefunden! Gegenstände zurück: %d.": "You found your lost bag! Items recovered: %d.",
+	"Dein Rucksack ist voll, %d Gegenstände bleiben liegen.": "Your backpack is full, %d items stay on the ground.",
 	"Gedächtnisverlust: %d Erfahrung vergessen.": "Amnesia: %d experience forgotten.",
 }

@@ -5618,9 +5618,18 @@ func _rescued(eagle: bool, lost: Dictionary, fell_on: String) -> void:
 ## The hero walked onto their pack (see Rescue): back with what fits.
 func _on_bundle_reached(entry: Array) -> void:
 	var pouch := Rescue.is_pouch(entry)
+	var before := Rescue.contents(entry)
 	if Rescue.take_back(self, entry):
+		var after := Rescue.contents(entry)
+		var items := int(before.items) - int(after.items)
+		var ingredients := int(before.ingredients) - int(after.ingredients)
+		var text := Lang.t("Du hast deinen verlorenen Zutatenbeutel wiedergefunden! Zutaten zurück: %d.") % ingredients if pouch \
+				else Lang.t("Du hast deine verlorene Tasche wiedergefunden! Gegenstände zurück: %d.") % items
+		if int(after.items) > 0:
+			text += " " + Lang.t("Dein Rucksack ist voll, %d Gegenstände bleiben liegen.") % int(after.items)
 		Sfx.play(self, "rummage", -3.0)
-		Events.found(Lang.t("Du nimmst deinen Zutatenbeutel wieder an dich.") if pouch else Lang.t("Du nimmst deine Tasche wieder an dich."), GOLD)
+		Events.found(text, GOLD)
+		show_message(text, 4.0)
 		_update_hud()
 
 

@@ -77,7 +77,7 @@ func _process(delta: float) -> bool:
 			for text in [Rescue.LORE, "Du verlierst das Bewusstsein...", "Ein Adler stößt herab!", "Der Rettungstrupp der Zwerge ist unterwegs!",
 					"Bergrettung!", "Ein Riesenadler hat dich bewusstlos davongetragen und hierher gebracht.",
 					"Der Rettungstrupp der Zwerge hat dich bewusstlos aus der Tiefe getragen und hierher gebracht.",
-					"Deine Tasche, dein Zutatenbeutel und %d Münzen liegen noch dort, wo du gefallen bist: %s.", "Du nimmst deine Tasche wieder an dich.", "Du nimmst deinen Zutatenbeutel wieder an dich.",
+					"Deine Tasche, dein Zutatenbeutel und %d Münzen liegen noch dort, wo du gefallen bist: %s.", "Du hast deine verlorene Tasche wiedergefunden! Gegenstände zurück: %d.", "Du hast deinen verlorenen Zutatenbeutel wiedergefunden! Zutaten zurück: %d.", "Dein Rucksack ist voll, %d Gegenstände bleiben liegen.",
 					"Gedächtnisverlust: %d Erfahrung vergessen."]:
 				check(Lang.EN.has(text), "'%s' has English" % text)
 			game.hero_name = HERO

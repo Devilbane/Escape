@@ -454,6 +454,18 @@ static func drop_belongings(game: Node) -> Dictionary:
 	return lost
 
 
+## How much a pack still holds: {"items" (gear, a backpack included), "ingredients"}.
+static func contents(entry: Array) -> Dictionary:
+	var out := {"items": 0, "ingredients": 0}
+	if not is_bundle(entry):
+		return out
+	var c: Dictionary = entry[4]
+	out.items = (c.get("bag", []) as Array).size() + (1 if str(c.get("backpack", "")) != "" else 0)
+	for id in (c.get("pouch", {}) as Dictionary):
+		out.ingredients += int(c.pouch[id])
+	return out
+
+
 ## Puts back into the hero what fits from their pack (a floor entry, changed
 ## in place): the ingredients always, gear while the bag has room. True when
 ## anything came back.

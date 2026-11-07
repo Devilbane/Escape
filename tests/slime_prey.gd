@@ -112,7 +112,8 @@ func _process(_delta: float) -> bool:
 			blob.queue_free()
 			# A brave villager fights it off.
 			for v in out.villagers:
-				if not v.at_home and v.visible:
+				# One that fights with a drawn blade (not the priestess, the smith or Pip).
+				if not v.at_home and v.visible and v.role not in ["O", "1", "7"]:
 					villager = v
 					break
 			check(villager != null, "there is a villager about")

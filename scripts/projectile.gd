@@ -96,6 +96,22 @@ static func spawn(owner_level: Level, origin: Vector3, dir: Vector3, by_player: 
 	return p
 
 
+## A knife thrown by a villager at a slime (see VillageArms): it flies at
+## `target` only and does `dmg`.
+static func village_knife(owner_level: Level, origin: Vector3, dir: Vector3, target: Enemy, dmg: int) -> Projectile:
+	var p := spawn(owner_level, origin, dir, false)
+	p.get_child(0).queue_free()
+	var model: Node3D = load("res://assets/weapons/dagger.gltf").instantiate()
+	model.rotation.x = -PI * 0.5
+	model.scale = Vector3.ONE * 1.4
+	p.add_child(model)
+	p.add_child(Effects.make_sparkles(Color(0.8, 0.9, 1.0)))
+	p.foe = target
+	p.at_rival = true
+	p.damage = dmg
+	return p
+
+
 ## A spider's web in flight: a pale, see-through ball of silk with a few
 ## threads trailing behind it and a faint glimmer, so it reads in the dark too.
 static func _web_ball() -> Node3D:

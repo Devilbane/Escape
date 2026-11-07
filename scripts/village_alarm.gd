@@ -5,7 +5,9 @@ extends RefCounted
 ## Once a slime crawls within the village (Outdoor._in_village), the herald
 ## (or, without him, the guard) calls the village to arms: the men take up
 ## blades and go for the nearest slime in the village, even from across the
-## square (CALL_REACH), while the women and the children run into the
+## square (CALL_REACH), each with a weapon that suits them (see VillageArms:
+## Pip throws knives, the priestess heals instead of striking), while the
+## other women and children run into the
 ## houses (Villager.shelters) and stay there until the herald gives the
 ## all-clear, CALM_AFTER seconds after the last slime has left or fallen.
 ## Each look (CHECK_EVERY) also rallies whoever was not yet roused.

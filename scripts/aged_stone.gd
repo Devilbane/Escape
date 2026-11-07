@@ -259,6 +259,26 @@ static func ruin_material(colour: Color) -> ShaderMaterial:
 	return _mats[key]
 
 
+## Old timber for a plain-coloured wooden piece (the mine entrances' frames):
+## the villagers' grain laid over the colour, faded and weathered like the
+## rest of the old stone.
+static func timber_material(colour: Color) -> ShaderMaterial:
+	var key := "timber_%s" % colour.to_html()
+	if not _mats.has(key):
+		var mat := ShaderMaterial.new()
+		mat.shader = SHADER
+		mat.set_shader_parameter("use_palette", false)
+		mat.set_shader_parameter("tint", colour)
+		mat.set_shader_parameter("trim", load(TRIM))
+		mat.set_shader_parameter("age", GRAVE_AGE)
+		mat.set_shader_parameter("blocks", 0.0)
+		mat.set_shader_parameter("lichen", 0.0)
+		mat.set_shader_parameter("wood_tex", load(WOOD_TEX))
+		mat.set_shader_parameter("wood_grain", 1.0)
+		_mats[key] = mat
+	return _mats[key]
+
+
 # --- Finding walls and ledges -----------------------------------------------
 
 ## Every triangle a building shows, in world space: corners, normal, area.

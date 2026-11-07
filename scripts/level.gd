@@ -1115,7 +1115,9 @@ func _build_walls(c: Vector2i) -> void:
 		# A bookcase right beside another one is left out: a plain wall
 		# instead. The piece stays as rolled, so the rolls after it, and the
 		# rest of the map, stay as they were.
-		var shelves := piece == "wall_shelves" and not by_stairs and not by_store and not _wall_piece_near("shelves", pos)
+		# A hero's own house has no bookcases to search: nothing in it gives
+		# loot, it only stores and crafts (the chests, the boards, the benches).
+		var shelves := piece == "wall_shelves" and not is_home and not by_stairs and not by_store and not _wall_piece_near("shelves", pos)
 		var wall := _place("wall" if by_stairs or (piece == "wall_shelves" and not shelves) else piece, pos, rot)
 		if (c.x + c.y + d.x + d.y) % 2 != 0:
 			wall.position.y += 0.02

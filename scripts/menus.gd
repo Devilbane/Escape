@@ -209,7 +209,7 @@ const WINDOW_SIZES := {
 	"bank": Vector2(780, 460),
 	"werkbank": Vector2(780, 536),
 	"hauswerkbank": Vector2(560, 360),
-	"ausbau": Vector2(780, 400),
+	"ausbau": Vector2(780, 540),
 	"aushang": Vector2(780, 400),
 	"trophaeen": Vector2(560, 360),
 	"charakter": Vector2(1024, 642),
@@ -2283,12 +2283,23 @@ func _build_upgrades() -> void:
 	_add_label(Lang.t("Haus ausbauen"), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Dein Kupfer: %d      Steinblöcke in Tasche und Truhe: %d") % [game.coins, HomeUpgrades.stones_owned(p.bag, game.storage)], 20, game.GOLD)
 	_add_label(Lang.t("Steinmetz Hagen baut dir an, was du bezahlst. Steinblöcke verkauft er auch."), 16, BLUE)
+	# The upgrades scroll in a region of fixed size, so the window keeps its frame however many
+	# there are.
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = UPGRADE_LIST_SIZE
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 10)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
 	for id in HomeUpgrades.ALL:
 		var up: Dictionary = HomeUpgrades.ALL[id]
 		var row := HBoxContainer.new()
 		row.alignment = BoxContainer.ALIGNMENT_CENTER
 		row.add_theme_constant_override("separation", 14)
-		_box.add_child(row)
+		list.add_child(row)
 		var text: Label = game._make_label(game.TEXT_FONT, 16, Color.WHITE)
 		text.text = Lang.t(up.name) + "\n" + Lang.t(up.text)
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -2300,6 +2311,10 @@ func _build_upgrades() -> void:
 		var b := _item_button(label, _build_upgrade.bind(id), ok)
 		b.custom_minimum_size = Vector2(200, 58)
 		row.add_child(b)
+
+
+## The fixed size of the list of house upgrades.
+const UPGRADE_LIST_SIZE := Vector2(770, 330)
 
 
 func _build_upgrade(id: String) -> void:

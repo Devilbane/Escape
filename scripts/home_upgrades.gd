@@ -12,6 +12,12 @@ extends RefCounted
 ##               hero has felled (Game.trophies, counted from the start, even
 ##               before the wall is built). Each trophy on the wall gives
 ##               +1 life, as long as the wall stands.
+##   feinbank    the fine metalwork bench of the crafting square, at home
+##   schleifrad  the gem cutter's wheel, at home
+##   alchemie    the alchemist's table, at home
+##   hort        a growing hoard of coins that shows the hero's wealth (HomeHoard)
+## The three crafting benches are the very same ones as in the village (CraftingSquare.build):
+## the same recipes, the same craft levels, the same window.
 ## The furniture is placed by Level.show_home_upgrades on the chalked
 ## furniture spots of the house (Level.furniture_slots): the second chest
 ## beside the first, the workbench and the trophy wall up in the attic. The
@@ -21,7 +27,7 @@ extends RefCounted
 ## Everything here is pure: the game's state goes in, a result comes out.
 
 ## What the compendium says about home upgrades, once the hero has seen them.
-const LEARN := "Dein Haus in der Weberzeile lässt sich ausbauen: Mit Steinblöcken und etwas Kupfer baut dir Steinmetz Hagen eine Werkstatt (Wurfmesser aus Eisen, Ausrüstung flicken, schnelleres Handwerk während du weg bist), eine zweite Truhe (doppelt so viel Platz) und eine Trophäenwand (jede Trophäe eines besiegten mächtigen Gegners gibt +1 Leben). Das Ausbau-Fenster öffnest du am Bett in deinem Haus oder beim Steinmetz."
+const LEARN := "Dein Haus in der Weberzeile lässt sich ausbauen: Mit Steinblöcken und etwas Kupfer baut dir Steinmetz Hagen eine Werkstatt (Wurfmesser aus Eisen, Ausrüstung flicken, schnelleres Handwerk während du weg bist), eine zweite Truhe (doppelt so viel Platz), eine Trophäenwand (jede Trophäe eines besiegten mächtigen Gegners gibt +1 Leben), dieselben Werkbänke wie auf dem Handwerkerplatz (Feinschmieden, Edelsteinschleifen, Alchemie) und einen Hort, der dein Vermögen in Münzen zeigt. Das Ausbau-Fenster öffnest du am Bett in deinem Haus oder beim Steinmetz."
 
 ## The upgrades, in the order they are shown: name, what it does, and its
 ## price in stone blocks and gold.
@@ -32,6 +38,14 @@ const ALL := {
 		"text": "Eine zweite Truhe neben der ersten: Deine Truhen fassen doppelt so viel."},
 	"trophaeen": {"name": "Trophäenwand", "stones": 5, "gold": 20,
 		"text": "Eine Wand für die Trophäen mächtiger Gegner, die du besiegt hast. Jede Trophäe gibt +1 Leben."},
+	"feinbank": {"name": "Werkbank des Feinschmieds", "stones": 6, "gold": 40, "bench": "+",
+		"text": "Dieselbe Werkbank wie auf dem Handwerkerplatz: Ringe, Ketten und feiner Draht, jetzt zu Hause."},
+	"schleifrad": {"name": "Schleifrad", "stones": 6, "gold": 40, "bench": "%",
+		"text": "Dasselbe Schleifrad wie auf dem Handwerkerplatz: rohe Edelsteine schleifen, jetzt zu Hause."},
+	"alchemie": {"name": "Alchemistentisch", "stones": 6, "gold": 40, "bench": "*",
+		"text": "Derselbe Tisch wie auf dem Handwerkerplatz: Tränke und Tinkturen brauen, jetzt zu Hause."},
+	"hort": {"name": "Hort", "stones": 8, "gold": 50,
+		"text": "Ein wachsender Hort, der dein Vermögen zeigt: In 20 Stufen von ein paar Münzen bis zum Berg aus Münzen, und die Haufen zeigen, welche Münzen du bei dir trägst: Hast du 200 Kupfer und 50 Silber, liegt dort vier Mal so viel Kupfer wie Silber."},
 }
 
 ## Trophies: enemy kind -> name of the trophy. Only the first foe of each kind

@@ -60,6 +60,7 @@ const PARTS := [
 	preload("res://scripts/lang/horrors.gd"),
 	preload("res://scripts/lang/ghosts.gd"),
 	preload("res://scripts/lang/home_upgrades.gd"),
+	preload("res://scripts/lang/home_hoard.gd"),
 	preload("res://scripts/lang/healing_potions.gd"),
 	preload("res://scripts/lang/home_stores.gd"),
 	preload("res://scripts/lang/factions.gd"),

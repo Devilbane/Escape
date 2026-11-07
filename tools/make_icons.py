@@ -169,6 +169,11 @@ ICONS = {
     "gem": (f'<path d="M14 24l8-12h20l8 12-18 30z" fill="url(#ice)" {O}/><path d="M14 24h36M22 12l6 12 4 30M42 12l-6 12-4 30" stroke="#fff" stroke-width="1.2" fill="none" opacity=".75"/>', None),
     "crystal": (f'<path d="M8 56l4-8h40l4 8z" fill="#5f6370" {O}/><path d="M14 50l6-28 8 28z" fill="url(#ice)" {O}/><path d="M26 50l8-44 8 44z" fill="url(#ice)" {O}/>'
                 f'<path d="M40 50l6-24 6 24z" fill="url(#ice)" {O}/><path d="M34 12l-3 30" stroke="#fff" stroke-width="1.5" opacity=".85"/>', None),
+    # The spell of the tome of Sternhall (see ArcaneBolt): a violet star of force.
+    "arcane": (f'<circle cx="32" cy="32" r="20" fill="url(#violet)" fill-opacity=".35"/>'
+               f'<path d="M32 6l6.5 17.5L57 24l-14.5 11.5L48 54 32 43 16 54l5.5-18.5L7 24l18.5-.5z" fill="url(#violet)" {O}/>'
+               f'<path d="M32 18l3 9 9 .3-7 5.6 2.6 9L32 37l-7.6 4.9 2.6-9-7-5.6 9-.3z" fill="#f6eaff" opacity=".9"/>'
+               f'<path d="M10 10l3 3M54 10l-3 3M32 60v-4" stroke="#e4ccff" stroke-width="2.5" stroke-linecap="round"/>', None),
     "crate": (f'<rect x="10" y="12" width="44" height="42" fill="url(#woodv)" {O}/><path d="M10 12l44 42M10 26h44M10 40h44" stroke="#3b200c" stroke-width="2"/>'
               f'<path d="M10 12h44v42H10z" fill="none" stroke="url(#steel)" stroke-width="3"/>', None),
     "bar": (f'<path d="M6 46l10-14h46l-8 14z" fill="none" {O}/><path d="M16 32l4-8h36l6 8z" fill="none" {O}/><path d="M22 26h30" stroke="#fff" stroke-width="1.5" opacity=".7"/>'

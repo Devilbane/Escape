@@ -176,6 +176,10 @@ static var ALL := {
 	"banditendolch": {"name": "Banditendolch", "slot": "auftrag", "weight": 0.5, "price": 2, "no_loot": true, "model": "res://assets/weapons/dagger.gltf", "material": "mixed", "effect": "Für Krämerin Miras Auftrag"},
 	"brief": {"name": "Brief aus der Hauptstadt", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Für Dorfvorsteher Aldo"},
 	"kuerbis": {"name": "Kürbis", "slot": "auftrag", "weight": 3, "price": 1, "no_loot": true, "effect": "Für Zecher Fritz im Wirtshaus"},
+	"alriks_siegelring": {"name": "Alriks Siegelring", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Für den Gelehrten im Dorf"},
+	# The tome from Sternhall's vault (see SternHall): read once, its spell is
+	# the hero's for good (see ArcaneBolt); the book itself is a keepsake.
+	"foliant_der_kraft": {"name": "Foliant der Entfesselten Kraft", "slot": "buch", "weight": 2, "price": 300, "no_loot": true, "unique": true, "effect": "Einzigartig: aus dem Sternengewölbe. Wer ihn gelesen hat, beherrscht die Entfesselte Kraft (Taste 2)"},
 	"wetzstein": {"name": "Wetzstein", "slot": "auftrag", "weight": 1, "price": 1, "no_loot": true, "effect": "Für Schmied Gorm an seiner Esse"},
 	# Thunder ore: lightning leaves it glowing beside the rocks in a storm, and
 	# it fades once the storm has passed (see Weather). Never found as loot.
@@ -510,6 +514,7 @@ const RARITY := {
 	"kiste": "normal", "steinblock": "normal", "fackel": "normal", "wurfmesser": "normal", "schlafrolle": "normal",
 	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal", "koerner": "normal",
 	"banditendolch": "normal", "brief": "normal", "kuerbis": "normal", "wetzstein": "normal", "wassereimer": "normal",
+	"alriks_siegelring": "normal", "foliant_der_kraft": "episch",
 	"donnererz": "selten",
 }
 

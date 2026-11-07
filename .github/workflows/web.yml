@@ -707,6 +707,11 @@ jobs:
           timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/elder_lair.gd | tee elder.log
           grep -q PASS elder.log
 
+      - name: Sternhall (star reliefs, wardens, eyes, the chasm, the tome and the drain)
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/sternhall.gd | tee sternhall.log
+          grep -q PASS sternhall.log
+
       - name: Hero level and experience test
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/hero_level.gd | tee hero_level.log

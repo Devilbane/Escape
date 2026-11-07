@@ -53,6 +53,7 @@ version, installs it and then starts the game, so the local copy is always as ne
 | Run home (once you have a house) | X | house icon on the right edge, below the menu handle; any step, click or blow of your own stops it |
 | Light or put out a torch | V | torch icon on the right edge, below the house icon (shows while you carry a torch, with how many are left in the bag) |
 | Drink a healing potion | 1 | potion icon left of the torch icon (shows while you carry a potion, with how many are left; shaded with the seconds left while the next one waits), or "Drink" in the inventory |
+| Cast Unleashed Power (once you have read the tome from Sternhall) | 2 | star button left of the potion button (shaded with the seconds left while the power gathers) |
 | Pitch a camp (save and sleep away from a bed) | U | “Camp” button, “Pitch camp” on the bedroll in the inventory |
 | Fish (cast, strike, draw in) | G, by the water | “Fish” button, or click the water of a pond |
 | Offer a monster a gift | T, next to it | “Give gift” button |

@@ -9,8 +9,14 @@ class_name EmberCracks
 ## Layers, from the outside in: scorched stone, a dull red rim and the
 ## glowing embers, with dark plates of crust floating on them and bright
 ## seams between the plates. Each layer
-## is one mesh for the whole floor. A crack tile stays solid, has a flame
-## and a light, as before.
+## is one mesh for the whole floor. A crack tile stays solid and has a flame.
+##
+## The cracks light their surroundings like a torch (same colour, energy and
+## reach as a wall torch, see Level.TORCH_COLOUR) and flicker the same way.
+## Real lights are expensive, so crack tiles that lie close together share one
+## light (see _cluster), and only the lights nearest to the hero shine at all
+## (see MAX_LIT, update). The crack surface itself is emissive, so it stays
+## bright whatever the light.
 
 const GROUP := "ember_cracks"
 ## Heat above which the floor glows (the edge of a crack proper).
@@ -37,6 +43,11 @@ const GAP := 0.1
 const SEAM := 0.035
 
 const META := "ember_cracks"
+const LIGHTS_META := "ember_lights"
+## Crack tiles within this many tiles of a cluster's first tile share its light.
+const CLUSTER_TILES := 3.0
+## Most ember lights that shine at once: the ones nearest to the hero.
+const MAX_LIT := 6
 
 
 ## Builds crack tile `c` of `level`: its flame, light and solid block. The
@@ -44,13 +55,13 @@ const META := "ember_cracks"
 static func build(level: Level, c: Vector2i, pos: Vector3) -> void:
 	if not level.has_meta(META):
 		_draw(level)
+		_light(level)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(c)
 	var flame := Effects.make_flame()
 	flame.position = pos + Vector3(rng.randf_range(-0.5, 0.5), 0.4, rng.randf_range(-0.5, 0.5))
 	flame.scale = Vector3.ONE * rng.randf_range(1.0, 1.4)
 	level.add_child(flame)
-	Mines._light(level, pos + Vector3(0, 1.2, 0), Mines.EMBER, 2.4, 8.0)
 	level._add_solid(pos, Vector3(Level.TILE * 0.9, 1.0, Level.TILE * 0.9))
 
 
@@ -59,6 +70,67 @@ static func build(level: Level, c: Vector2i, pos: Vector3) -> void:
 static func heat(level: Level, p: Vector3) -> float:
 	var data := _data(level)
 	return _heat(data, p.x, p.z)
+
+
+## Groups the crack tiles of `level` into clusters of tiles lying close
+## together, greedily: each unassigned tile opens a cluster that takes every
+## unassigned tile within CLUSTER_TILES of it. Returns the clusters' centres.
+static func clusters(cells: Array) -> Array[Vector2]:
+	var left := cells.duplicate()
+	left.sort_custom(func(a, b): return a.y < b.y or (a.y == b.y and a.x < b.x))
+	var centres: Array[Vector2] = []
+	while not left.is_empty():
+		var seed_cell: Vector2i = left[0]
+		var sum := Vector2.ZERO
+		var rest := []
+		var n := 0
+		for c in left:
+			if Vector2(c - seed_cell).length() <= CLUSTER_TILES:
+				sum += Vector2(c)
+				n += 1
+			else:
+				rest.append(c)
+		centres.append(sum / n * Level.TILE)
+		left = rest
+	return centres
+
+
+## Adds one torch-like light per cluster of cracks (all dark until `update`
+## switches the nearest on) and lets the fog see by them.
+static func _light(level: Level) -> void:
+	var lights := []
+	for centre in clusters(_data(level).cells.keys()):
+		var light := OmniLight3D.new()
+		light.light_color = Level.TORCH_COLOUR
+		light.light_energy = Level.TORCH_ENERGY
+		light.omni_range = Level.TORCH_RANGE
+		light.omni_attenuation = Level.TORCH_ATTENUATION
+		light.shadow_enabled = false
+		light.position = Vector3(centre.x, 1.2, centre.y)
+		level.add_child(light)
+		level._light_spots.append(Vector3(centre.x, 0, centre.y))
+		lights.append({"light": light, "seed": hash(centre) % 1000 / 10.0})
+	level.set_meta(LIGHTS_META, lights)
+
+
+## Per frame: flickers the ember lights like torches and keeps only the
+## MAX_LIT ones nearest to `focus` switched on.
+static func update(level: Level, focus: Vector3, time: float) -> void:
+	if not level.has_meta(LIGHTS_META):
+		return
+	var lights: Array = level.get_meta(LIGHTS_META)
+	var order := range(lights.size())
+	order.sort_custom(func(a, b): return _flat(lights[a].light, focus) < _flat(lights[b].light, focus))
+	for rank in order.size():
+		var l: Dictionary = lights[order[rank]]
+		var light: OmniLight3D = l.light
+		light.visible = rank < MAX_LIT
+		var s: float = l.seed + time * 9.0
+		light.light_energy = Level.TORCH_ENERGY + sin(s) * 0.25 + sin(s * 2.3) * 0.15
+
+
+static func _flat(light: Node3D, p: Vector3) -> float:
+	return Vector2(light.position.x - p.x, light.position.z - p.z).length_squared()
 
 
 static func _data(level: Level) -> Dictionary:

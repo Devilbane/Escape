@@ -183,6 +183,11 @@ var _light_spots: Array[Vector3] = []
 const TORCH_LIT_CHANCE := 0.5
 ## How far a light reaches far enough to see someone by.
 const LIGHT_REACH := 8.0
+## The light of a wall torch, shared by everything that burns like one (the ember cracks).
+const TORCH_COLOUR := Color(1.0, 0.56, 0.24)
+const TORCH_ENERGY := 3.4
+const TORCH_RANGE := 22.5
+const TORCH_ATTENUATION := 1.3
 ## How close to a torch's wall the hero must run to reach it.
 const TORCH_TOUCH := 1.6
 var _spikes: Array = []
@@ -1454,12 +1459,12 @@ func _maybe_add_torch(wall_pos: Vector3, rot: float, forced := false) -> Node3D:
 	flame.position = Vector3(0, 0.78, 0.45)
 	holder.add_child(flame)
 	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.56, 0.24)
-	light.light_energy = 3.4
+	light.light_color = TORCH_COLOUR
+	light.light_energy = TORCH_ENERGY
 	# The glow reaches a bit further than LIGHT_REACH, which alone decides
 	# what the torch reveals through the fog (so secret rooms stay hidden).
-	light.omni_range = 22.5
-	light.omni_attenuation = 1.3
+	light.omni_range = TORCH_RANGE
+	light.omni_attenuation = TORCH_ATTENUATION
 	light.position = Vector3(0, 1.0, 1.0)
 	holder.add_child(light)
 	# Some torches burn, some are cold: a new mix every run.
@@ -3543,7 +3548,8 @@ func _process(delta: float) -> void:
 		if not is_instance_valid(t.light):
 			continue
 		var s: float = t.seed + _time * 9.0
-		t.light.light_energy = 3.4 + sin(s) * 0.25 + sin(s * 2.3) * 0.15
+		t.light.light_energy = TORCH_ENERGY + sin(s) * 0.25 + sin(s * 2.3) * 0.15
+	EmberCracks.update(self, player.global_position if player != null else Vector3.ZERO, _time)
 	for s in stations:
 		if s.kind != "schrein":
 			continue

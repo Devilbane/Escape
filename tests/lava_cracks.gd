@@ -153,6 +153,35 @@ func _run() -> void:
 			solid[level.world_to_cell(shape.position)] = true
 	check(solid.size() == cracks.size(), "every crack is still solid")
 
+	# The cracks shine like torches, with few real lights.
+	var lights: Array = level.get_meta(EmberCracks.LIGHTS_META)
+	check(lights.size() > 0 and lights.size() < cracks.size(), "cracks share lights: %d lights for %d tiles" % [lights.size(), cracks.size()])
+	for l in lights:
+		var light: OmniLight3D = l.light
+		check(light.light_color == Level.TORCH_COLOUR and light.omni_range == Level.TORCH_RANGE, "an ember light has the torch's colour and reach")
+	for c in cracks:
+		var near := false
+		for l in lights:
+			near = near or Vector2(l.light.position.x, l.light.position.z).distance_to(Vector2(level.cell_to_world(c).x, level.cell_to_world(c).z)) <= (EmberCracks.CLUSTER_TILES + 0.01) * Level.TILE
+		check(near, "crack %s is lit by a nearby light" % c)
+		check(level.is_lit(level.cell_to_world(c)), "crack %s is lit for the fog" % c)
+	# Only the nearest MAX_LIT lights shine, and they flicker.
+	EmberCracks.update(level, level.cell_to_world(cracks[0]), 1.0)
+	var shining := lights.filter(func(l): return l.light.visible)
+	check(shining.size() == mini(lights.size(), EmberCracks.MAX_LIT), "at most MAX_LIT ember lights shine")
+	var e1: float = shining[0].light.light_energy
+	EmberCracks.update(level, level.cell_to_world(cracks[0]), 1.3)
+	check(not is_equal_approx(e1, shining[0].light.light_energy), "an ember light flickers")
+	# Many tiles still make few lights.
+	var many := []
+	for i in 40:
+		many.append(Vector2i(i % 8 * 2, i / 8 * 2))
+	check(EmberCracks.clusters(many).size() <= 14, "40 spread-out tiles need far fewer lights")
+	var emissive := true
+	for n in meshes:
+		emissive = emissive and (n.material_override as StandardMaterial3D).emission_enabled == (n.name != "EmberCracks_scorched")
+	check(emissive, "the glowing layers are self-lit")
+
 	if shots != "":
 		_look_from(Vector2i(10, 6), 0.45)
 		await _shot("lava_cracks_close")

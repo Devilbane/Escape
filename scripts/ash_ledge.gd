@@ -1,4 +1,4 @@
-class_name Ledge
+class_name AshLedge
 extends Crate
 ## A ledge ("a" on a dungeon map): a block of old masonry that fills a whole
 ## tile and stands HEIGHT metres high, three crates tall. A hero's jump alone

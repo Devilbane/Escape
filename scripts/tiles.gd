@@ -62,6 +62,10 @@ const DUNGEON := {
 	"+": "free floor kept for furniture (homes)",
 	"N": "the companions' corner: straw where the companions who stay home rest (homes)",
 	"X": "a horror's den (see Horrors)",
+	# The Ashen Spire (see Spire).
+	"a": "ledge: a block three crates high, climbed with a crate or a stone block as a step (see AshLedge)",
+	"p": "a loose crate to carry and set down (E, Q)",
+	"z": "blade sweeper: a low blade turning round a post, jumped over (see AshBlades)",
 	# The spider hole (see SpiderQueen).
 	"u": "spider (throws webs), see Enemy.LETTERS",
 	"q": "the Spider Queen (the boss at the bottom of the spider hole)",
@@ -193,6 +197,7 @@ const OUTDOOR := {
 	"[": "the mountain tavern (a block of tiles, see the floor \"building: [\")",
 	"]": "a mine entrance (a block of tiles); numbered west to east, mine n leads to \"building: mine<n>\"",
 	")": "the cave mouth of the Great Old One (a block of tiles), leads to \"building: uralt1\"",
+	"<": "the gate of the Ashen Spire (a block of tiles), leads to \"building: spire1\" (see Spire)",
 	"{": "rock troll",
 	"}": "mountain orc",
 	"-": "ice wolf",

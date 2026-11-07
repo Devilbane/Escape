@@ -69,12 +69,12 @@ func _run() -> void:
 	check(wall.gates.size() == 2, "the village has two gates, got %d" % wall.gates.size())
 	for b: WallBrick in wall.bricks.values():
 		check(b.hp == WallBrick.MAX_HP and WallBrick.MAX_HP == 1000, "a brick has 1000 HP")
-	var west: WallBrick = wall.brick_at(Vector2i(28, 33))
-	var brick: WallBrick = wall.brick_at(Vector2i(28, 32))
+	var west: WallBrick = wall.brick_at(Vector2i(37, 27))
+	var brick: WallBrick = wall.brick_at(Vector2i(37, 26))
 	check(west != null and west.gate and brick != null and not brick.gate, "the west gate sits in the path, bricks beside it")
 	check(not west.shut and not lvl.astar.is_point_solid(west.cell), "an open gate is no obstacle to the path finding")
 	check(lvl.astar.is_point_solid(brick.cell), "a brick is an obstacle to the path finding")
-	check(lvl.grid_path(Vector2i(25, 33), Vector2i(31, 33)).back() == Vector2i(31, 33), "the way through the open gate leads into the village")
+	check(lvl.grid_path(Vector2i(34, 27), Vector2i(40, 27)).back() == Vector2i(40, 27), "the way through the open gate leads into the village")
 	
 	# Damage shows, a broken brick lets everyone through, a mended one blocks again.
 	var stones_before := brick._stones.map(func(s: MeshInstance3D): return s.position)
@@ -101,7 +101,7 @@ func _run() -> void:
 	check(wall.shut_wanted, "a slime near the gate has the villagers shut it")
 	await _wait(2)
 	check(west.shut and lvl.astar.is_point_solid(west.cell), "the gate is shut and blocks the way")
-	check(not lvl.grid_path(Vector2i(25, 33), Vector2i(31, 33)).has(Vector2i(31, 33)), "no way into the village while the gates are shut")
+	check(not lvl.grid_path(Vector2i(34, 27), Vector2i(40, 27)).has(Vector2i(40, 27)), "no way into the village while the gates are shut")
 	check(west._leaf_shape != null and not west._leaf_shape.disabled, "a shut gate has a body")
 	slime.dead = true
 	for i in int(VillageWall.OPEN_AFTER) + 2:

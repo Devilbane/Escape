@@ -103,6 +103,13 @@ func _dry_ground() -> void:
 	check(by_house >= 20, "the rain off the roofs leaves puddles by the houses (%d)" % by_house)
 	check(big >= 10, "the deep dips hold sheets of water (%d)" % big)
 	check(apart, "no two puddles run into each other")
+	# Puddles that lay close together have run into one.
+	var close := 0
+	for s in spots:
+		for other in spots:
+			if other != s and Vector2(s.at.x - other.at.x, s.at.z - other.at.z).length() < (float(s.span) + float(other.span)) * Puddles.MERGE_GAP * 0.8:
+				close += 1
+	check(close <= spots.size() / 10, "close puddles are merged into one (%d pairs left)" % close)
 	# The same map always gets the same puddles.
 	var again := Puddles.new(game.level, hash(game.level.level_name + "pfuetzen"))
 	check(again.spots.size() == spots.size() and again.spots[7].at == spots[7].at, "the puddles form in the same places every time")

@@ -1,8 +1,9 @@
 extends SceneTree
 ## Headless test for the rain puddles above ground (see Puddles): they lie on
 ## open grass, path or square, fill up while it rains, stay a while after
-## the rain and then dry up, the small ones first; there are hundreds of
-## them, in the dips, in the ruts of the paths and along the houses; the
+## the rain and then dry up, the small ones first; there are few, big ones
+## (a quarter of those laid, with the same water) and a few small ones between,
+## in the dips, in the ruts of the paths and along the houses; the
 ## water level goes into the saved game and dries overnight; and a step
 ## into a puddle splashes.
 ## Run with: godot --headless --fixed-fps 60 -s tests/puddles.gd
@@ -79,7 +80,18 @@ func _dry_ground() -> void:
 	_tick(1.0)
 	check(game.level is Outdoor and _puddles() != null, "the open air has its puddles")
 	var spots := _puddles().spots
-	check(spots.size() >= 500, "after rain there are puddles all over (%d)" % spots.size())
+	var laid := _puddles().laid_count
+	check(laid >= 400, "many puddles are laid at first (%d)" % laid)
+	# A quarter of them is left: fewer, much bigger puddles.
+	check(spots.size() >= 60, "there are still puddles all over (%d)" % spots.size())
+	check(spots.size() <= laid * 0.33, "about a quarter of the puddles is left (%d of %d)" % [spots.size(), laid])
+	check(spots.size() >= laid * 0.18, "the puddles are not thinned out too far (%d of %d)" % [spots.size(), laid])
+	# The same water lies on the ground.
+	var area_ratio := _puddles().total_area() / _puddles().laid_area
+	check(area_ratio > 0.92 and area_ratio < 1.04, "the water on the ground stays the same (%.3f)" % area_ratio)
+	var small := spots.filter(func(s: Dictionary) -> bool: return float(s.radius) <= Puddles.SMALL_RADIUS).size()
+	check(small >= 3, "a few small puddles lie about in between (%d)" % small)
+	check(small <= spots.size() / 3, "the small puddles are few (%d)" % small)
 	var on_path := 0
 	var by_house := 0
 	var big := 0
@@ -93,15 +105,15 @@ func _dry_ground() -> void:
 			on_path += 1
 		if Puddles._beside(game.level, c, Outdoor.BLOCK_CHARS):
 			by_house += 1
-			check(float(s.radius) <= Puddles.EDGE_RADIUS, "a puddle beside a house is a small one")
+			check(float(s.radius) <= Puddles.EDGE_MERGED, "a puddle beside a house stays within its cap")
 		if float(s.radius) > 3.0:
 			big += 1
 		for other in spots:
 			if other != s and Vector2(s.at.x - other.at.x, s.at.z - other.at.z).length() < float(s.radius) + float(other.radius):
 				apart = false
-	check(on_path >= 30, "the paths have puddles in their ruts (%d)" % on_path)
-	check(by_house >= 20, "the rain off the roofs leaves puddles by the houses (%d)" % by_house)
-	check(big >= 10, "the deep dips hold sheets of water (%d)" % big)
+	check(on_path >= 8, "the paths have puddles in their ruts (%d)" % on_path)
+	check(by_house >= 5, "the rain off the roofs leaves puddles by the houses (%d)" % by_house)
+	check(big >= 25, "the deep dips hold sheets of water (%d)" % big)
 	check(apart, "no two puddles run into each other")
 	# Puddles that lay close together have run into one.
 	var close := 0
@@ -109,7 +121,7 @@ func _dry_ground() -> void:
 		for other in spots:
 			if other != s and Vector2(s.at.x - other.at.x, s.at.z - other.at.z).length() < (float(s.span) + float(other.span)) * Puddles.MERGE_GAP * 0.8:
 				close += 1
-	check(close <= spots.size() / 10, "close puddles are merged into one (%d pairs left)" % close)
+	check(close <= spots.size() / 3, "close puddles are merged into one (%d pairs left)" % close)
 	# The same map always gets the same puddles.
 	var again := Puddles.new(game.level, hash(game.level.level_name + "pfuetzen"))
 	check(again.spots.size() == spots.size() and again.spots[7].at == spots[7].at, "the puddles form in the same places every time")

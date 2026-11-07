@@ -45,6 +45,12 @@ const RUN_RESTART := 0.5
 ## a full run (see in_full_run).
 const RUN_ANIM_FROM := 2.05
 const JUMP_VELOCITY := 9.0
+## A jump starts with half a step: the hero pushes off into a stride and leaves
+## the ground JUMP_WINDUP seconds after the key. A runner is mid-stride
+## already, so the push-off is shorter (JUMP_WINDUP_RUN) and a timed jump at
+## a ledge shifts by well under a metre.
+const JUMP_WINDUP := 0.12
+const JUMP_WINDUP_RUN := 0.05
 const GRAVITY := 26.0
 const MAX_HP := 5
 ## The spot the hero takes up: no skeleton may stand inside it (see
@@ -288,6 +294,7 @@ var _chase_rest := 0.0
 var _auto_cooldown := 0.0
 ## Time left on an animation that plays while the hero keeps moving.
 var _anim_hold := 0.0
+var _jump_windup := 0.0 ## Seconds left of the half step before a jump.
 ## Recent hits taken while running, as [time, damage], and a clock for them.
 var _run_hits: Array = []
 var _clock := 0.0
@@ -911,8 +918,39 @@ func is_running() -> bool:
 ## hero runs; a standing jump goes straight up.
 func jump() -> void:
 	stand_up()
-	if not controllable or frozen or dead or not is_on_floor() or is_climbing():
+	if _jump_windup > 0.0 or not _can_jump():
 		return
+	_jump_windup = JUMP_WINDUP_RUN if is_running() else JUMP_WINDUP
+	_anim_hold = _jump_windup
+	_current_anim = ""
+	play(WALK_ANIM, 0.04)
+	Events.bus().hero_acted.emit("jump")
+
+
+## True while the hero is in the half step before a jump leaves the ground.
+func is_winding_up() -> bool:
+	return _jump_windup > 0.0
+
+
+func _can_jump() -> bool:
+	return controllable and not frozen and not dead and is_on_floor() and not is_climbing()
+
+
+## Counts the push-off down and launches the jump; a hit, a fall off a ledge,
+## a climb or anything that takes the controls calls it off and frees the hold.
+func _tick_jump(delta: float) -> void:
+	if _jump_windup <= 0.0:
+		return
+	_jump_windup = maxf(0.0, _jump_windup - delta)
+	if not _can_jump():
+		_jump_windup = 0.0
+		_anim_hold = 0.0
+	elif _jump_windup == 0.0:
+		_anim_hold = 0.0
+		_launch_jump()
+
+
+func _launch_jump() -> void:
 	_air_momentum = Vector3.ZERO
 	var jump_boost := 1.0
 	if is_running():
@@ -920,7 +958,6 @@ func jump() -> void:
 		jump_boost = clampf(run.length() / SPEED, 0.6, 1.6)
 		_air_momentum = run * (1.0 + 0.15 * jump_boost) * (1.0 + JUMP_PER_DEXTERITY * dexterity_points())
 	velocity.y = JUMP_VELOCITY * (0.85 + 0.15 * jump_boost)
-	Events.bus().hero_acted.emit("jump")
 	train("tempo", 3.0)
 	train("geschick", 2.0)
 	_current_anim = ""
@@ -2304,6 +2341,9 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 		return
 	# A blow or a trap never finds the hero sitting idly.
 	stand_up()
+	if _jump_windup > 0.0:
+		_jump_windup = 0.0
+		_anim_hold = 0.0
 	if blockable:
 		mark_fight() # A blow or a shot, blocked or not; spikes are no fight.
 		defend_against(attacker)
@@ -2569,6 +2609,7 @@ func _physics_process(delta: float) -> void:
 	_attack_cooldown = maxf(0.0, _attack_cooldown - arms)
 	_auto_cooldown = maxf(0.0, _auto_cooldown - arms)
 	_anim_hold = maxf(0.0, _anim_hold - delta)
+	_tick_jump(delta)
 	_clock += delta
 	_get_up(delta)
 	_tick_ailments(delta)
@@ -2662,7 +2703,7 @@ func _physics_process(delta: float) -> void:
 					bumped.emit(hit.get_position() - hit.get_normal() * 0.2)
 	if controllable and not dead and _busy <= 0.0 and _down <= 0.0 and _falling <= 0.0 and _try_climb(dir):
 		return
-	if dir != Vector3.ZERO and _anim_hold <= 0.0:
+	if dir != Vector3.ZERO and (_anim_hold <= 0.0 or _jump_windup > 0.0):
 		_model.rotation.y = lerp_angle(_model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-14.0 * delta))
 	# Blink while invulnerable after a hit.
 	_model.visible = dead or _invulnerable <= 0.0 or int(_invulnerable * 12.0) % 2 == 0

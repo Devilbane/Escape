@@ -3,7 +3,7 @@ extends Node
 ## The windows that pause the dungeon: inventory, storage chest, merchant and bed.
 ## Each window is rebuilt from scratch whenever something in it changes.
 
-const STORAGE_SIZE := 16
+const STORAGE_SIZE := HomeUpgrades.STORAGE_SIZE
 ## Lines kept for the info line of the storage chest and the vault.
 const STORAGE_INFO_LINES := 3
 const BLUE := Color(0.65, 0.85, 1.0)
@@ -1516,8 +1516,7 @@ func _build_storage() -> void:
 	var size := HomeUpgrades.storage_size(game.home_upgrades)
 	var used := HomeUpgrades.storage_used(game.storage)
 	_add_label(Lang.t("Truhe (%d / %d)") % [used, size], 20)
-	# Eight across, with or without the second chest, so the window keeps
-	# its width when the chest grows.
+	# Eight across, so the window keeps its width when the chest grows.
 	_add_item_grid(game.storage, maxi(size, used), Items.item_name, _take, 8, null, true)
 
 

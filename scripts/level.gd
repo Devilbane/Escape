@@ -5433,11 +5433,10 @@ func _against_side_wall(c: Vector2i) -> bool:
 
 
 ## The furniture spot for an upgrade, or {} when every spot is taken. The
-## second chest goes next to the first; the trophy wall hangs on a back wall,
+## trophy wall hangs on a back wall,
 ## high up in the house; the workbench stands against a side wall up there.
 func _upgrade_slot(id: String) -> Dictionary:
 	var taken: Array = _upgrade_cells.values()
-	var chest := _home_chest_cell()
 	var best := {}
 	var best_score := -INF
 	for slot in furniture_slots:
@@ -5447,8 +5446,6 @@ func _upgrade_slot(id: String) -> Dictionary:
 		var storey: int = slot.storey
 		var score := 0.0
 		match id:
-			"truhe":
-				score = -Vector2(c - chest).length() if chest.x >= 0 and storey_of(chest) == storey else -100.0 - storey
 			"trophaeen":
 				score = storey * 10.0 + (5.0 if _against_back_wall(c) else 0.0) + c.x * 0.01
 			"feinbank", "schleifrad", "alchemie":
@@ -5502,10 +5499,6 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 			_add_fitted_solid(bench, pos, 1.2, Vector2(2.6, 2.6))
 			astar.set_point_solid(c, true)
 			stations.append({"kind": "hauswerkbank", "cell": c, "pos": pos, "used": false, "upgrade": true})
-		"truhe":
-			_add_fitted_solid(_place("chest", pos, _back_to_wall(c, rot), root), pos, 1.5)
-			astar.set_point_solid(c, true)
-			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"trophaeen":
 			_build_trophy_wall(root, pos)
 			stations.append({"kind": "trophaeen", "cell": c, "pos": pos + Vector3(0, 0, -TILE * 0.5 + 0.6), "used": false, "upgrade": true})

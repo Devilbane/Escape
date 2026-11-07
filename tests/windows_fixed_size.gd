@@ -97,7 +97,7 @@ func _fill(full: bool) -> void:
 	game.menus.bench = CraftingSquare.BENCHES.values()[0].craft
 	game.menus.wish_master = Wishes.STYLE_ASKER
 	game.companions = []
-	game.home_upgrades = {"truhe": true} if full else {}
+	game.home_upgrades = {"werkstatt": true} if full else {}
 	game.home_stores = HomeStores.empty()
 	game.bars = {}
 	# Monster lore: nothing slain, or a long count of every kind there is.

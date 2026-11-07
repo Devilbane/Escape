@@ -6,8 +6,6 @@ extends RefCounted
 ## in the saved game (Game.home_upgrades):
 ##   werkstatt   a workbench: turns iron bars into throwing knives and mends
 ##               worn gear, and the hero's craft hours away go faster there.
-##   truhe       a second storage chest beside the first: the chests hold
-##               twice as much.
 ##   trophaeen   a trophy wall: one trophy for every kind of mighty foe the
 ##               hero has felled (Game.trophies, counted from the start, even
 ##               before the wall is built). Each trophy on the wall gives
@@ -19,23 +17,22 @@ extends RefCounted
 ## The three crafting benches are the very same ones as in the village (CraftingSquare.build):
 ## the same recipes, the same craft levels, the same window.
 ## The furniture is placed by Level.show_home_upgrades on the chalked
-## furniture spots of the house (Level.furniture_slots): the second chest
-## beside the first, the workbench and the trophy wall up in the attic. The
+## furniture spots of the house (Level.furniture_slots): the workbench and the
+## trophy wall up in the attic. There is only one storage chest (the one on the
+## house's map); it holds STORAGE_SIZE things, the room of the two old chests. The
 ## upgrade window opens from the bed in the house and from the stonemason
 ## (see Menus._build_upgrades).
 ##
 ## Everything here is pure: the game's state goes in, a result comes out.
 
 ## What the compendium says about home upgrades, once the hero has seen them.
-const LEARN := "Dein Haus in der Weberzeile lässt sich ausbauen: Mit Steinblöcken und etwas Kupfer baut dir Steinmetz Hagen eine Werkstatt (Wurfmesser aus Eisen, Ausrüstung flicken, schnelleres Handwerk während du weg bist), eine zweite Truhe (doppelt so viel Platz), eine Trophäenwand (jede Trophäe eines besiegten mächtigen Gegners gibt +1 Leben), dieselben Werkbänke wie auf dem Handwerkerplatz (Feinschmieden, Edelsteinschleifen, Alchemie) und einen Hort, der dein Vermögen in Münzen zeigt. Das Ausbau-Fenster öffnest du am Bett in deinem Haus oder beim Steinmetz."
+const LEARN := "Dein Haus in der Weberzeile lässt sich ausbauen: Mit Steinblöcken und etwas Kupfer baut dir Steinmetz Hagen eine Werkstatt (Wurfmesser aus Eisen, Ausrüstung flicken, schnelleres Handwerk während du weg bist), eine Trophäenwand (jede Trophäe eines besiegten mächtigen Gegners gibt +1 Leben), dieselben Werkbänke wie auf dem Handwerkerplatz (Feinschmieden, Edelsteinschleifen, Alchemie) und einen Hort, der dein Vermögen in Münzen zeigt. Das Ausbau-Fenster öffnest du am Bett in deinem Haus oder beim Steinmetz."
 
 ## The upgrades, in the order they are shown: name, what it does, and its
 ## price in stone blocks and gold.
 const ALL := {
 	"werkstatt": {"name": "Werkstatt", "stones": 6, "gold": 30,
 		"text": "Eine Werkbank: Eisenbarren werden zu Wurfmessern, abgenutzte Ausrüstung wird geflickt, und Handwerk während du weg bist geht schneller."},
-	"truhe": {"name": "Zweite Truhe", "stones": 4, "gold": 10,
-		"text": "Eine zweite Truhe neben der ersten: Deine Truhen fassen doppelt so viel."},
 	"trophaeen": {"name": "Trophäenwand", "stones": 5, "gold": 20,
 		"text": "Eine Wand für die Trophäen mächtiger Gegner, die du besiegt hast. Jede Trophäe gibt +1 Leben."},
 	"feinbank": {"name": "Werkbank des Feinschmieds", "stones": 6, "gold": 40, "bench": "+",
@@ -78,9 +75,9 @@ const TROPHY_COLORS := {
 ## Life each trophy on the wall gives.
 const TROPHY_HP := 1
 
-## The storage chest's size, and how much the second chest adds.
-const STORAGE_SIZE := 16
-const SECOND_CHEST := 16
+## The storage chest's size: one chest with the room of the former two (16 + 16).
+## Older saves that built the second chest keep their things in the same list.
+const STORAGE_SIZE := 32
 
 ## At the workbench: throwing knives made from one iron bar, and iron bars
 ## to mend one worn piece completely.
@@ -96,9 +93,9 @@ static func has(built: Dictionary, id: String) -> bool:
 	return bool(built.get(id, false))
 
 
-## How many slots the storage chest has with these upgrades.
-static func storage_size(built: Dictionary) -> int:
-	return STORAGE_SIZE + (SECOND_CHEST if has(built, "truhe") else 0)
+## How many slots the storage chest has (the upgrades no longer change it).
+static func storage_size(_built: Dictionary = {}) -> int:
+	return STORAGE_SIZE
 
 
 ## How many of the storage chest's slots these items take: torches bundle

@@ -105,9 +105,9 @@ func _process(_delta: float) -> bool:
 			check(slime.meals == 1 and slime.life_bonus == 1, "it keeps half the fox's life and counts the meal (%d, %d)" % [slime.meals, slime.life_bonus])
 			check(SlimeGrowth.move_pace(1) > 1.0 and SlimeGrowth.strike_pace(1) > 1.0, "every meal makes it faster")
 			check(SlimeGrowth.move_pace(999) <= SlimeGrowth.MOVE_PACE_TOP and SlimeGrowth.strike_pace(999) <= SlimeGrowth.STRIKE_PACE_TOP, "up to a cap")
-			# A Blob has fifteen times the life of a plain slime of its make.
+			# A Blob has seven and a half times the life of a plain slime of its make.
 			var blob := _spawn(fox_spot + Vector3(0, -50, 0), {"kept_level": 18})
-			check(blob.blob and blob.max_hp() == int(blob._stats.hp) * SlimeGrowth.BLOB_LIFE and blob.hp == blob.max_hp(), "a Blob has %d times the life (%d)" % [SlimeGrowth.BLOB_LIFE, blob.max_hp()])
+			check(blob.blob and blob.max_hp() == int(int(blob._stats.hp) * SlimeGrowth.BLOB_LIFE) and blob.hp == blob.max_hp(), "a Blob has %s times the life (%d)" % [SlimeGrowth.BLOB_LIFE, blob.max_hp()])
 			game.level.enemies.erase(blob)
 			blob.queue_free()
 			# A brave villager fights it off.

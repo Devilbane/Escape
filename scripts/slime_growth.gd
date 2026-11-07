@@ -52,8 +52,8 @@ extends RefCounted
 const GROWERS := ["schleim", "kristallschleim", "glutschleim"]
 const MAX_LEVEL := 25
 const BLOB_LEVEL := 15
-## How many times the life a Blob has.
-const BLOB_LIFE := 15
+## How many times the life a Blob has (half of the former 15).
+const BLOB_LIFE := 7.5
 ## Each creature a slime eats makes it MEAL_PACE faster on its feet and in
 ## its blows, up to MOVE_PACE_TOP and STRIKE_PACE_TOP (so it never outruns
 ## the hero).

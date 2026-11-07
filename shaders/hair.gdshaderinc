@@ -25,6 +25,9 @@ uniform sampler2D tex : source_color, filter_linear_mipmap;
 uniform bool crest = false;
 // Head: the hair is shaved off (the mesh is too; this switches the look).
 uniform bool shaved = false;
+// Head with spikes: the sides below the tufts are shaved (the mesh is too).
+// The vertex colour's red marks them, so the stubble shows there only.
+uniform bool shaved_sides = false;
 // The hair knot of a woman: the strands are wound round it (COLOR is the
 // point on a unit ball, z outwards).
 uniform bool bun = false;
@@ -225,7 +228,8 @@ void fragment() {
 		albedo = c;
 		roughness = 0.95;
 		specular = 0.12;
-		if (shaved) {
+		bool bald = shaved || (shaved_sides && COLOR.r > 0.5);
+		if (bald) {
 			float px = length(fwidth(p));
 			// The dark stubble of short hairs, thinning out at the nape.
 			float grow = smoothstep(1.35, 1.55, p.y);
@@ -251,7 +255,7 @@ void fragment() {
 			roughness = mix(0.95, 0.6, hair);
 			specular = mix(0.12, 0.3, hair);
 		}
-		if (!shaved && (recolor || mode != 0)) {
+		if (!bald && (recolor || mode != 0)) {
 			// Dyed natural hair: the texture's light and dark in the new colour.
 			float light = clamp(dot(c, vec3(0.3, 0.59, 0.11)) / NATURAL_LIGHT, 0.4, 1.6);
 			float along = clamp((2.2 - p.y) / 1.0, 0.0, 1.0);
@@ -268,7 +272,7 @@ void fragment() {
 			emission = dyed * glow * hair * 0.5;
 		}
 		// The skin: the face, the ears and a shaved scalp.
-		albedo *= mix(skin_tint, vec3(1.0), shaved ? 0.0 : hair);
+		albedo *= mix(skin_tint, vec3(1.0), bald ? 0.0 : hair);
 	}
 	ALBEDO = albedo;
 	EMISSION = emission;

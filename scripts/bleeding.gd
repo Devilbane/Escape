@@ -38,6 +38,11 @@ const CLAWED := ["wolf", "eiswolf", "spinne", "spinnenkoenigin", "hohle_mutter",
 ## Life still to bleed away, and the share of the next life already lost.
 var left := 0
 var _flow := 0.0
+var _drip := 0.0
+## Seconds between two drops of blood that fall to the floor (see
+## BloodDrops), standing and moving.
+const DRIP_STANDING := 0.8
+const DRIP_MOVING := 0.3
 
 
 ## Whether the hero's weapon `id` cuts ("" is the hero's own dagger).
@@ -79,6 +84,19 @@ func active() -> bool:
 func stop() -> void:
 	left = 0
 	_flow = 0.0
+	_drip = 0.0
+
+
+## Whether a drop of blood falls in this `delta`: one at once, then one every
+## DRIP_STANDING seconds, or DRIP_MOVING while the bleeder moves.
+func drips(delta: float, moving: bool) -> bool:
+	if left <= 0:
+		return false
+	_drip -= delta
+	if _drip > 0.0:
+		return false
+	_drip = DRIP_MOVING if moving else DRIP_STANDING
+	return true
 
 
 ## Lets `delta` seconds of blood run, faster while `moving`; returns the

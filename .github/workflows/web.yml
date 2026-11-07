@@ -277,6 +277,11 @@ jobs:
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_prey.gd | tee slime_prey.log
           grep -q PASS slime_prey.log
 
+      - name: Slime belly test
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_belly.gd | tee slime_belly.log
+          grep -q PASS slime_belly.log
+
       - name: Floor items test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/floor_items.gd | tee floor_items.log

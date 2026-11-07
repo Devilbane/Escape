@@ -140,5 +140,31 @@ func _run() -> void:
 		foe._tick_bleeding(0.05)
 	check(foe.dead and not foe.slain_by_rival, "it can bleed to death, as the hero's kill")
 
+	# Blood on the floor: drops fall, leave spots, stains grow, the count is capped.
+	var lv: Level = game.level
+	var floor_at: Vector3 = p.global_position
+	var blood := BloodDrops.of(lv)
+	check(BloodDrops.of(lv) == blood, "a level keeps one BloodDrops")
+	var bw := Bleeding.new()
+	check(not bw.drips(1.0, false), "no wound, no drops")
+	bw.open(3)
+	check(bw.drips(0.0, false) and not bw.drips(0.5, false) and bw.drips(0.4, false), "a standing wound drips every 0.8 s")
+	var before := 0
+	for sp: Dictionary in blood._splats:
+		before += 1 if sp.node.visible else 0
+	for i in 3:
+		BloodDrops.drip(lv, floor_at + Vector3(i * 2.0, 0, 0), 1.0)
+	for i in 40:
+		blood._process(0.05)
+	var down := 0
+	for sp: Dictionary in blood._splats:
+		if sp.node.visible:
+			down += 1
+	check(down - before == 3, "falling drops leave spots: %d" % down)
+	for i in 300:
+		BloodDrops.pool(lv, floor_at + Vector3(i * 0.01, 0, 0), 0.4)
+	check(blood._splats.size() == BloodDrops.MAX_SPLATS, "spots are capped and reused: %d" % blood._splats.size())
+	check(blood._drops.size() <= BloodDrops.MAX_DROPS, "falling drops are capped")
+
 	print("PASS: bleeding" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)

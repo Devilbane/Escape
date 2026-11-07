@@ -1425,11 +1425,16 @@ func is_bleeding() -> bool:
 
 
 func _tick_bleeding(delta: float) -> void:
-	var lost := wound.run(delta, _meant_speed > Bleeding.MOVING_SPEED)
+	var moving := _meant_speed > Bleeding.MOVING_SPEED
+	if wound.drips(delta, moving):
+		var way := Vector3(velocity.x, 0, velocity.z) if moving else Vector3.ZERO
+		BloodDrops.drip(level, global_position, 1.0 * _stats.size, way, _stats.size)
+	var lost := wound.run(delta, moving)
 	if lost <= 0:
 		return
 	if hp <= lost:
-		# The last drop: it falls as from the hero's blow.
+		# The last drop: it falls as from the hero's blow, and pools.
+		BloodDrops.pool(level, global_position, 0.5 * _stats.size)
 		wound.stop()
 		take_hit(hp, global_position, "pierce", false)
 		return
@@ -1511,6 +1516,8 @@ func _sink() -> void:
 
 func _die() -> void:
 	dead = true
+	if wound.active() and not is_ghost():
+		BloodDrops.pool(level, global_position, 0.5 * _stats.size)
 	collision_layer = 0
 	collision_mask = 0
 	_play_once("Death_A", 99.0)

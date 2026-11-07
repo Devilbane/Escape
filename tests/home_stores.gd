@@ -76,10 +76,11 @@ func _run() -> void:
 	for s in chest + metal + board:
 		var want := 0 if s.kind == "lager" else -1
 		check(lvl.storey_of(s.cell) == want, "%s stands on storey %d (%d)" % [s.kind, want, lvl.storey_of(s.cell)])
+		# A chalked furniture spot ("+") is plain floor until furniture stands on it.
 		var reachable := false
 		for d in Level.DIRS:
 			var n: Vector2i = s.cell + d
-			if ".P".contains(lvl.cell_char(n)):
+			if ".P+".contains(lvl.cell_char(n)):
 				reachable = true
 		check(reachable, "%s has plain floor beside it to walk up to" % s.kind)
 		check(lvl.station_at(s.pos).get("kind", "") == s.kind, "running into %s finds it" % s.kind)

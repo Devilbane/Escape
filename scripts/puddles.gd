@@ -26,8 +26,11 @@ const MAX := 700
 ## A puddle's radius in metres (a tile is 4 m), smallest and largest (a
 ## sheet of water across a whole dip), and the largest beside a wall, a
 ## fence or a house, so it stays on its tile.
-const RADIUS := Vector2(0.9, 5.2)
+const RADIUS := Vector2(0.9, 9.0)
 const EDGE_RADIUS := 1.2
+## Where several puddles by a house run together, the one big puddle may be
+## this wide (it still has to stay on open ground).
+const EDGE_MERGED := 3.2
 ## How far the wet ground of a puddle reaches at most (of its radius), for a
 ## round one and a long one, with its ragged edge and the soaked soil.
 const REACH := 1.7
@@ -39,8 +42,20 @@ const APART := 1.05
 ## Two puddles whose edges lie closer than this (as a share of their reaches
 ## added up) run together into one bigger puddle, if that one still fits.
 const MERGE_GAP := 1.4
-## How much bigger than their two waters the merged puddle is (the gap).
-const MERGE_GROWTH := 1.12
+## How much bigger than their two waters the merged puddle is: none, so the
+## water on the ground stays the same.
+const MERGE_GROWTH := 1.0
+## Only about this share of the puddles laid is kept: the rest of them run
+## together into big ones.
+const KEEP_SHARE := 0.25
+## A few small puddles stay alone (this share of the puddles kept), no bigger
+## than SMALL_RADIUS and at least SMALL_APART metres from each other.
+const SMALL_SHARE := 0.14
+const SMALL_RADIUS := 1.5
+const SMALL_APART := 26.0
+## How far (of their reaches added up) puddles may lie apart and still be
+## joined, tried one after the other until few enough are left.
+const JOIN_GAPS := [MERGE_GAP, 2.5, 4.0, 6.0]
 ## How big a dip in the ground is (metres across, roughly).
 const DIP_SIZE := 22.0
 ## Just above the ground and the paving, so nothing flickers through.
@@ -64,6 +79,10 @@ const SHADER := preload("res://shaders/puddle.gdshader")
 ## Each puddle: its node, centre, full radius, the water level (0 to 1) it
 ## needs before it starts to fill, and how full it is now.
 var spots: Array[Dictionary] = []
+## How many puddles, and how much water (the spans squared), were laid before
+## they ran together (for the tests).
+var laid_count := 0
+var laid_area := 0.0
 var water := 0.0
 ## The water level the puddles show now (see set_water).
 var _shown := -1.0
@@ -163,7 +182,9 @@ func _init(level: Level, seed_value: int) -> void:
 		var s := {"node": mi, "at": at, "radius": radius, "needs": needs, "fill": 0.0, "span": span, "long": long}
 		spots.append(s)
 		_register(s)
-	_merge_close(level)
+	laid_count = spots.size()
+	laid_area = total_area()
+	_consolidate(level, rng)
 	_clear_overlaps()
 
 
@@ -181,19 +202,105 @@ func _unregister(s: Dictionary) -> void:
 			_by_tile[t].erase(s)
 
 
-## Puddles that lie close together run into one: the two are replaced by one
-## puddle that covers both, as long as it stays of a puddle's size and stays on
-## open ground. It goes on until nothing is left to
-## merge, so a string of small puddles becomes one big one.
-func _merge_close(level: Level) -> void:
-	var again := true
-	while again:
-		again = false
+## The water on the ground, as the spans squared (the same for a round and
+## a long puddle).
+func total_area() -> float:
+	var area := 0.0
+	for s: Dictionary in spots:
+		area += float(s.span) * float(s.span)
+	return area
+
+
+## Many small puddles in a row become a few big ones: a handful of small ones
+## are set aside, spread far apart, and the rest run together (the nearest
+## first, then ever farther ones) until a quarter of the puddles is left. The
+## water stays the same, only the number of puddles drops.
+func _consolidate(level: Level, rng: RandomNumberGenerator) -> void:
+	var target := ceili(laid_count * KEEP_SHARE)
+	var smalls := 0
+	var kept: Array[Vector3] = []
+	for s: Dictionary in spots:
+		if smalls >= int(target * SMALL_SHARE):
+			break
+		if float(s.radius) > SMALL_RADIUS or rng.randf() > 0.15:
+			continue
+		var far := true
+		for at in kept:
+			if Vector2(at.x - s.at.x, at.z - s.at.z).length() < SMALL_APART:
+				far = false
+				break
+		if far:
+			s["keep"] = true
+			kept.append(s.at)
+			smalls += 1
+	for gap: float in JOIN_GAPS:
+		var again := true
+		while again and spots.size() > target:
+			again = false
+			var order := spots.duplicate()
+			order.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a.span) < float(b.span) or (float(a.span) == float(b.span) and (a.at.z < b.at.z or (a.at.z == b.at.z and a.at.x < b.at.x))))
+			for s: Dictionary in order:
+				if spots.size() <= target:
+					break
+				if s.has("gone") or s.has("keep"):
+					continue
+				if _merge_one(level, s, gap):
+					again = true
+	# Small puddles that still have a neighbour to join do so, even when that
+	# leaves fewer than the target: only the few kept ones stay small.
+	for gap: float in JOIN_GAPS:
 		for s: Dictionary in spots.duplicate():
-			if s.has("gone"):
-				continue
-			while _merge_one(level, s):
-				again = true
+			if not s.has("gone") and not s.has("keep") and float(s.radius) <= SMALL_RADIUS:
+				_merge_one(level, s, gap)
+	_drop_lonely_small(level)
+
+
+## Small puddles that found no neighbour to join (by the houses, mostly) are
+## taken away, bar the few kept ones, and their water goes to the other
+## puddles, which grow a little where they have the room.
+func _drop_lonely_small(level: Level) -> void:
+	for s: Dictionary in spots.duplicate():
+		if not s.has("keep") and float(s.radius) <= SMALL_RADIUS:
+			_unregister(s)
+			(s.node as Node).queue_free()
+			s["gone"] = true
+			spots.erase(s)
+	for pass_no in 3:
+		var deficit := laid_area - total_area()
+		var base := 0.0
+		for s: Dictionary in spots:
+			if not s.has("keep"):
+				base += float(s.span) * float(s.span)
+		if deficit <= laid_area * 0.01 or base <= 0.0:
+			return
+		var grow := sqrt(1.0 + deficit / base)
+		for s: Dictionary in spots:
+			if not s.has("keep"):
+				_grow(level, s, float(s.span) * grow)
+
+
+## Lets `s` reach `span` instead, if it has the room: on open ground, clear of
+## the other puddles and, beside a house, not too wide.
+func _grow(level: Level, s: Dictionary, span: float) -> void:
+	var long: bool = s.long
+	var radius := span / (LONG_REACH if long else 1.0)
+	if radius > RADIUS.y or not _fits(level, s.at, radius * (REACH_LONG if long else REACH) * 0.7):
+		return
+	if radius > EDGE_MERGED and _beside(level, level.world_to_cell(s.at), Outdoor.BLOCK_CHARS):
+		return
+	for t in _tiles_under(s.at, (span + RADIUS.y * LONG_REACH) * APART):
+		for o: Dictionary in _by_tile.get(t, []):
+			if o != s:
+				var d := Vector2(o.at.x - s.at.x, o.at.z - s.at.z)
+				var room := (span + float(o.span)) * APART
+				if d.length_squared() < room * room:
+					return
+	_unregister(s)
+	s.span = span
+	s.radius = radius
+	s.needs = remap(radius, RADIUS.x, RADIUS.y, 0.45, 0.0)
+	(s.node as MeshInstance3D).scale = Vector3(radius, 0.01, radius)
+	_register(s)
 
 
 ## A merged puddle can still touch one that was too big to join: the smaller
@@ -209,49 +316,80 @@ func _clear_overlaps() -> void:
 				var d := Vector2(o.at.x - s.at.x, o.at.z - s.at.z)
 				var room := (float(s.span) + float(o.span)) * APART
 				if d.length_squared() < room * room:
-					var small: Dictionary = o if float(o.radius) <= float(s.radius) else s
-					_unregister(small)
-					(small.node as Node).queue_free()
-					small["gone"] = true
-					spots.erase(small)
+					# The smaller one gives way: it shrinks until it clears the
+					# bigger one, or goes if nothing is left of it.
+					var small: Dictionary = o if float(o.span) <= float(s.span) else s
+					var large: Dictionary = s if small == o else o
+					var span := d.length() / APART - float(large.span)
+					var reach_small := LONG_REACH if small.long else 1.0
+					if span / reach_small < RADIUS.x or small.has("keep"):
+						_unregister(small)
+						(small.node as Node).queue_free()
+						small["gone"] = true
+						spots.erase(small)
+					else:
+						small.span = span
+						small.radius = span / reach_small
+						small.needs = remap(float(small.radius), RADIUS.x, RADIUS.y, 0.45, 0.0)
+						(small.node as MeshInstance3D).scale = Vector3(small.radius, 0.01, small.radius)
 
 
-## Merges `s` with the closest puddle near enough, if the result is allowed.
-func _merge_one(level: Level, s: Dictionary) -> bool:
-	for t in _tiles_under(s.at, (float(s.span) + RADIUS.y * LONG_REACH) * MERGE_GAP):
+## Merges `s` with the closest puddle lying within `gap` (of their reaches
+## added up), if the result is allowed.
+func _merge_one(level: Level, s: Dictionary, gap: float) -> bool:
+	var best: Dictionary = {}
+	var best_d := INF
+	for t in _tiles_under(s.at, (float(s.span) + RADIUS.y * LONG_REACH) * gap):
 		for o: Dictionary in _by_tile.get(t, []):
-			if o == s:
+			if o == s or o.has("keep") or o.has("gone"):
 				continue
 			var d := Vector2(o.at.x - s.at.x, o.at.z - s.at.z)
-			var room := (float(s.span) + float(o.span)) * MERGE_GAP
-			if d.length_squared() >= room * room:
+			var room := (float(s.span) + float(o.span)) * gap
+			if d.length_squared() >= room * room or d.length() >= best_d:
 				continue
-			if _join(level, s, o, d.length()):
-				return true
-	return false
+			if _join_ok(level, s, o):
+				best = o
+				best_d = d.length()
+	if best.is_empty():
+		return false
+	return _join(level, s, best, best_d)
+
+
+## Whether `s` and `o` may run into one puddle: it is not too big, it stays on
+## open ground, and beside a house it is not too wide.
+func _join_ok(level: Level, s: Dictionary, o: Dictionary) -> bool:
+	# Long ones only join into a long one; anything else makes a round one.
+	var long: bool = s.long and o.long
+	var reach := LONG_REACH if long else 1.0
+	# One puddle of the water of both, standing where the bigger weighs most.
+	var area_s := float(s.span) * float(s.span)
+	var area_o := float(o.span) * float(o.span)
+	var radius := sqrt(area_s + area_o) * MERGE_GROWTH / reach
+	if radius > RADIUS.y:
+		return false
+	var at: Vector3 = s.at.lerp(o.at, area_o / (area_s + area_o))
+	# The middle of the puddle stands on open ground itself.
+	if not GROUND.contains(level.cell_char(level.world_to_cell(at))):
+		return false
+	if not _fits(level, at, radius * (REACH_LONG if long else REACH) * 0.7):
+		return false
+	if radius > EDGE_MERGED and _beside(level, level.world_to_cell(at), Outdoor.BLOCK_CHARS):
+		return false
+	return true
 
 
 ## Folds `o` (`gap` metres from `s`) into `s`; false when the one big puddle
 ## would be too big, or would leave the open ground.
-func _join(level: Level, s: Dictionary, o: Dictionary, gap: float) -> bool:
-	# Long ones only join into a long one; anything else makes a round one.
+func _join(level: Level, s: Dictionary, o: Dictionary, _gap: float) -> bool:
+	if not _join_ok(level, s, o):
+		return false
 	var long: bool = s.long and o.long
 	var reach := LONG_REACH if long else 1.0
-	# One puddle of about the water of both, a little more for the gap
-	# between them, standing where the bigger of the two weighs most.
 	var area_s := float(s.span) * float(s.span)
 	var area_o := float(o.span) * float(o.span)
 	var span := sqrt(area_s + area_o) * MERGE_GROWTH
 	var radius := span / reach
-	if radius > RADIUS.y:
-		return false
-	var share := area_o / (area_s + area_o)
-	var at: Vector3 = s.at.lerp(o.at, share)
-	if not _fits(level, at, radius * (REACH_LONG if long else REACH) * 0.7):
-		return false
-	# Beside a house a puddle stays a small one.
-	if radius > EDGE_RADIUS and _beside(level, level.world_to_cell(at), Outdoor.BLOCK_CHARS):
-		return false
+	var at: Vector3 = s.at.lerp(o.at, area_o / (area_s + area_o))
 	_unregister(s)
 	_unregister(o)
 	# The bigger of the two lends its shape and turn (a round one, unless both

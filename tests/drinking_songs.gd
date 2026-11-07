@@ -82,6 +82,7 @@ func _run(seconds: float, sung := [], step := 0.1) -> Array:
 var sheet_lines := []
 var sheet_sizes := {}
 var sheet_in_step := true
+var bubble_over_song := false
 
 
 func _sheet_seen(fritz: Villager) -> void:
@@ -90,6 +91,8 @@ func _sheet_seen(fritz: Villager) -> void:
 		return
 	sheet_sizes[sheet.size] = true
 	if fritz._bubble_time > 0.0 and fritz.singing:
+		if fritz._bubble.is_shown():
+			bubble_over_song = true
 		var said: String = fritz._bubble.text.get_slice("\n", 1)
 		var shown: String = DrinkingSongs.MARK % sheet.lines()[sheet.line()]
 		if said != shown:
@@ -168,6 +171,7 @@ func _test() -> void:
 	check(sheet != null, "the game has a song sheet")
 	check(sheet_lines == _verse(0), "the sheet showed each line as he sang it: %s" % [sheet_lines])
 	check(sheet_in_step, "the sheet marks the line he is singing, never another")
+	check(not bubble_over_song, "no speech bubble shows over the song sheet while he sings")
 	check(sheet_sizes.size() == 1, "the sheet keeps one size for the whole verse: %s" % [sheet_sizes.keys()])
 	_run(SongSheet.LINGER + SongSheet.FADE_OUT + 0.3, [])
 	check(not sheet.shows() and not sheet.visible, "after the verse the sheet goes")

@@ -120,6 +120,8 @@ func _check_wall_pieces() -> void:
 		check(lv.interactables.filter(func(o): return o.label == "Regal").size()
 				== pieces.filter(func(w): return w.kind == "shelves").size(),
 				"%s: every searchable bookcase is a counted one" % file)
+		if lv.is_home:
+			check(lv.interactables.is_empty(), "%s: a hero's house has nothing to search" % file)
 		for i in pieces.size():
 			for j in range(i + 1, pieces.size()):
 				var a: Dictionary = pieces[i]

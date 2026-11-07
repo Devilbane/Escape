@@ -603,18 +603,29 @@ const SAFE_DISTANCE := 12.0
 ## A fighter gives up a slime that gets this far away (CALL_REACH when
 ## the village was called to arms).
 const GIVE_UP := 14.0
-## The women who answer the call to arms all the same: the priestess and
-## the guild master.
-const FIGHTING_WOMEN := ["O", "G"]
+## The women and the child who answer the call to arms all the same: the
+## priestess (she heals, see VillageArms), the guild master and Pip (he
+## throws knives).
+const FIGHTING_SHELTERERS := ["O", "G", "7"]
 ## The villagers' levels: the guard, the guild master and the smith at the
 ## top, the mages and the priestess close behind, the women and the child
 ## at the bottom.
 const LEVELS := {"4": 20, "G": 20, "1": 18, "O": 18, "0": 17, "K": 16, "3": 16, "S": 16, "8": 15, "%": 15,
 	"Y": 12, "5": 12, "Z": 12, "M": 12, "2": 11, "6": 11, "9": 11, "7": 10}
 const DEFAULT_LEVEL := 12
-const HEALERS := ["O"]
-## How much the priestess heals, how often and how far she reaches.
-const HEAL := 3
+## Townsfolk are made to put up a real fight against a slime of level 20 and
+## more (a Blob of about 200 life and 22 damage a blow, every 1.5 seconds):
+## a fighter has LIFE_PER_LEVEL life for each level (the guard 100, so five
+## blows fell even him) and strikes for 1 + level / BLOW_DIVISOR (the guard
+## 11). One alone is beaten, but not before he has taken a third of its life;
+## three of them bring it down, and one of them may fall.
+const LIFE_PER_LEVEL := 5
+const BLOW_DIVISOR := 2
+const HEALERS := VillageArms.HEALERS
+## How much the priestess heals, how often and how far she reaches. The
+## hero is mended too, by HERO_HEAL (his life is counted in smaller steps).
+const HEAL := 8
+const HERO_HEAL := 3
 const HEAL_TIME := 3.0
 const HEAL_REACH := 9.0
 var _reach := GIVE_UP
@@ -633,23 +644,23 @@ func call_to_arms(text: String) -> void:
 ## The women and the children, who run indoors from a slime while the
 ## men, the mages and the priestess (see brave) take up arms.
 func shelters() -> bool:
-	if role in FIGHTING_WOMEN:
+	if role in FIGHTING_SHELTERERS:
 		return false
 	return _info.get("sex", "") == "female" or float(_info.get("scale", 1.0)) < 0.9
 
 
 ## How strong a villager is (10 to 20, see LEVELS): their life against a
-## slime (max_life) and how hard they strike one (blow).
+## slime (max_life, LIFE_PER_LEVEL a level) and how hard they strike one (blow).
 func fight_level() -> int:
 	return int(LEVELS.get(role, DEFAULT_LEVEL))
 
 
 func max_life() -> int:
-	return fight_level()
+	return fight_level() * LIFE_PER_LEVEL
 
 
 func blow() -> int:
-	return 1 + fight_level() / 8
+	return 1 + fight_level() / BLOW_DIVISOR
 
 
 ## The priestess mends the hurt in her reach (see _fight).
@@ -697,6 +708,10 @@ func calm_down() -> void:
 
 
 func _draw_blade(on: bool) -> void:
+	# The priestess keeps her staff and strikes no blow; the smith fights
+	# with the hammer already in his hand.
+	if heals() or VillageArms.weapon(role) == VillageArms.HAMMER:
+		return
 	var hand := _model.find_child("handslot_r", true, false) if _model != null else null
 	if hand == null:
 		return
@@ -713,9 +728,7 @@ func _draw_blade(on: bool) -> void:
 				c.remove_meta("put_away")
 				(c as Node3D).visible = true
 	if on:
-		var blade: Node3D = load("res://assets/weapons/sword_1handed.gltf").instantiate()
-		blade.name = "SlimeBlade"
-		hand.add_child(blade)
+		VillageArms.arm(hand, role)
 
 
 ## Fights the slime: up to it, then a blow every BLOW_TIME (which may leave
@@ -727,15 +740,14 @@ func _fight(delta: float) -> void:
 		calm_down()
 		return
 	if heals():
-		_heal_cool -= delta
-		if _heal_cool <= 0.0 and _heal_someone():
-			_heal_cool = HEAL_TIME
-			return
+		_support(delta)
+		return
 	var to := threat.global_position - global_position
 	to.y = 0.0
 	_turn_to(to, delta)
-	var reach := BLOW_REACH + threat.radius
-	if to.length() > reach:
+	var throws := VillageArms.style(role) == "throw"
+	var reach := VillageArms.THROW_RANGE if throws else BLOW_REACH + threat.radius
+	if to.length() > reach or (throws and not level.has_line_of_sight(global_position, threat.global_position)):
 		# Round the houses on the village's ways when it is further off.
 		_fight_repath -= delta
 		if _fight_repath <= 0.0:
@@ -752,7 +764,7 @@ func _fight(delta: float) -> void:
 		var step := aim - global_position
 		step.y = 0.0
 		var walked := _stride("Running_A", RUN_SPEED)
-		var room := step.length() if not _fight_path.is_empty() else to.length() - reach + 0.1
+		var room := step.length() if not _fight_path.is_empty() else maxf(to.length() - reach + 0.1, 0.0)
 		global_position += step.normalized() * minf(walked * delta, room)
 		_turn_to(step, delta)
 		return
@@ -760,6 +772,9 @@ func _fight(delta: float) -> void:
 	if _blow_cool > 0.0:
 		if not _anim.is_playing() or _current_anim != "1H_Melee_Attack_Chop":
 			play("Idle")
+		return
+	if throws:
+		_throw_knife()
 		return
 	_blow_cool = BLOW_TIME
 	_current_anim = "1H_Melee_Attack_Chop"
@@ -776,8 +791,40 @@ func _fight(delta: float) -> void:
 			SlimeGrowth.goo_for_a_while(self, slime.slime_colour()))
 
 
+## Pip's throw: a knife at the slime, then a pause (see VillageArms).
+func _throw_knife() -> void:
+	_blow_cool = VillageArms.THROW_TIME
+	_current_anim = "Throw"
+	_anim.play("Throw", 0.1)
+	var slime := threat
+	get_tree().create_timer(0.3, false, true).timeout.connect(func():
+		if eaten or not is_inside_tree() or slime == null or not is_instance_valid(slime) or slime.dead:
+			return
+		var origin := global_position + Vector3(0, 1.0, 0)
+		Sfx.play(self, "swing", -8.0, global_position)
+		Projectile.village_knife(level, origin, slime.global_position - origin, slime, blow() + VillageArms.KNIFE_BONUS))
+
+
+## The priestess strikes no blow: she mends whoever is hurt in her reach
+## and otherwise stays near the slime, within SUPPORT_DISTANCE of it.
+func _support(delta: float) -> void:
+	_heal_cool -= delta
+	if _heal_cool <= 0.0 and _heal_someone():
+		_heal_cool = HEAL_TIME
+		return
+	var to := threat.global_position - global_position
+	to.y = 0.0
+	_turn_to(to, delta)
+	if to.length() > VillageArms.SUPPORT_DISTANCE:
+		var step := to.normalized() * _stride("Running_A", RUN_SPEED) * delta
+		global_position += step
+	elif not _anim.is_playing() or _current_anim != "Spellcast_Raise":
+		play("Idle")
+
+
 ## The priestess heals the most hurt villager within HEAL_REACH (herself
-## too). Returns whether there was anyone to heal.
+## too), and the hero when no villager is hurt. Returns whether there was
+## anyone to heal.
 func _heal_someone() -> bool:
 	var best: Villager = null
 	var best_lost := 0
@@ -791,7 +838,7 @@ func _heal_someone() -> bool:
 			best = v
 			best_lost = lost
 	if best == null:
-		return false
+		return _heal_hero()
 	var life := mini(best.max_life(), int(best.get_meta("slime_life")) + HEAL)
 	if life >= best.max_life():
 		best.remove_meta("slime_life")
@@ -802,6 +849,23 @@ func _heal_someone() -> bool:
 	_turn_to(best.global_position - global_position, 1.0)
 	Effects.head_text(level, best, best.tag_height(), "+%d" % mini(HEAL, best_lost), Color(0.5, 1.0, 0.55))
 	best.add_child(Effects.make_sparkles(Color(1.0, 0.95, 0.6), true))
+	Sfx.play(self, "magic", -10.0, global_position, 1.3)
+	return true
+
+
+## The hero, if hurt and within HEAL_REACH, is mended by HERO_HEAL.
+func _heal_hero() -> bool:
+	var hero: Player = level.player
+	if hero == null or hero.dead or hero.hp >= hero.max_hp \
+			or hero.global_position.distance_to(global_position) > HEAL_REACH:
+		return false
+	var before := hero.hp
+	hero.hp = mini(hero.max_hp, hero.hp + HERO_HEAL)
+	_current_anim = "Spellcast_Raise"
+	_anim.play("Spellcast_Raise", 0.15)
+	_turn_to(hero.global_position - global_position, 1.0)
+	Effects.head_text(level, hero, 2.2, "+%d" % (hero.hp - before), Color(0.5, 1.0, 0.55))
+	hero.add_child(Effects.make_sparkles(Color(1.0, 0.95, 0.6), true))
 	Sfx.play(self, "magic", -10.0, global_position, 1.3)
 	return true
 

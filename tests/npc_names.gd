@@ -71,10 +71,10 @@ func _test() -> void:
 	check(not _tag(mira).visible, "the shopkeeper is still unknown")
 	check(game.met.has("Z") and not game.met.has("6"), "the game remembers who the hero has met")
 
-	# Speech goes into the event log, not over the head: no bubble shows, and
-	# the name tag stays while the barber talks and after.
+	# Speech shows in a bubble over the head (and goes into the event log); the
+	# name tag stays while the barber talks and after.
 	benno._update_bubble(1.0)
-	check(not benno._bubble.visible, "no speech bubble over the head")
+	check(benno._bubble.is_shown(), "a speech bubble shows over the head")
 	check(_tag(benno).visible and _tag(benno).modulate.a > 0.95, "the name tag stays while he talks")
 	benno._bubble_time = 0.0
 	for i in 10:

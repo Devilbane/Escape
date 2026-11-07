@@ -205,7 +205,7 @@ var _speed := WALK_SPEED
 ## Where the villager stood at the last tick (see _lift_onto_toes).
 var _last_spot := Vector3.INF
 var _waiting := 0.0
-var _bubble: Label3D
+var _bubble: SpeechBubble
 var _bubble_time := 0.0
 ## How long the current line still holds before a new bump may replace it.
 var _bubble_hold := 0.0
@@ -319,25 +319,12 @@ func _ready() -> void:
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walking_A", "Walking_B", "Running_A", "Sit_Floor_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
-	_bubble = Label3D.new()
-	_bubble.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
-	_bubble.font_size = UiKit.sized(44)
-	_bubble.pixel_size = 0.011
-	_bubble.outline_size = 12
-	_bubble.outline_modulate = Color(0.05, 0.03, 0.06, 0)
-	_bubble.modulate = Color(1, 0.95, 0.85, 0)
-	_bubble.visible = false
-	_bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_bubble.no_depth_test = true
-	_bubble.render_priority = 20
-	_bubble.outline_render_priority = 19
-	_bubble.width = 520
-	_bubble.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_bubble.position.y = 3.3 * _info.get("scale", 1.0) + 0.4
+	_bubble = SpeechBubble.new()
+	_bubble.position.y = 3.0 * _info.get("scale", 1.0) + 0.15
 	add_child(_bubble)
 	_name_tag = Label3D.new()
 	_name_tag.text = display_name
-	_name_tag.font = _bubble.font
+	_name_tag.font = SpeechBubble.FONT
 	_name_tag.font_size = 30
 	_name_tag.pixel_size = 0.011
 	_name_tag.outline_size = 10
@@ -351,7 +338,7 @@ func _ready() -> void:
 	_name_tag.visible = is_known()
 	add_child(_name_tag)
 	_quest_mark = Label3D.new()
-	_quest_mark.font = _bubble.font
+	_quest_mark.font = SpeechBubble.FONT
 	_quest_mark.font_size = 140
 	_quest_mark.pixel_size = 0.011
 	_quest_mark.outline_size = 26
@@ -1282,7 +1269,7 @@ func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := fals
 	# cover each other and neither could be read.
 	for other in _neighbours():
 		other.hush()
-	_bubble.text = "%s:\n%s" % [display_name, text]
+	_bubble.show_line(display_name, text)
 	Events.say(display_name, text, global_position)
 	_bubble_time = time
 	_bubble_hold = minf(time, MIN_SAY_TIME)
@@ -1322,9 +1309,7 @@ func is_talking() -> bool:
 func hush() -> void:
 	_bubble_time = 0.0
 	_bubble_hold = 0.0
-	_bubble.modulate.a = 0.0
-	_bubble.outline_modulate.a = 0.0
-	_bubble.visible = false
+	_bubble.hide_line(true)
 	_look_at = Vector3.INF
 
 
@@ -1359,17 +1344,19 @@ func _neighbours() -> Array:
 func _update_bubble(delta: float) -> void:
 	_bubble_time = maxf(0.0, _bubble_time - delta)
 	_bubble_hold = maxf(0.0, _bubble_hold - delta)
-	# What is said is written into the event log at the left edge of the
-	# screen (see Events.say), not shown over the head: the bubble only keeps
-	# the line and stays hidden, and the name tag and quest mark stay on.
-	_bubble.visible = false
+	# The line shows in a speech bubble over the head (and is also written
+	# into the event log, see Events.say). When it runs out the bubble fades.
+	if _bubble_time <= 0.0 and _bubble.is_shown():
+		_bubble.hide_line()
+	# The bubble takes the place of the quest mark while we talk.
 	if _name_tag and _name_tag.visible:
 		_name_tag.modulate.a = 1.0
 		_name_tag.outline_modulate.a = 0.85
 	# The quest mark bobs gently while it shows.
 	if _quest_mark and _quest_mark.visible:
-		_quest_mark.modulate.a = 1.0
-		_quest_mark.outline_modulate.a = 0.9
+		var shown := 0.0 if _bubble_time > 0.0 else 1.0
+		_quest_mark.modulate.a = shown
+		_quest_mark.outline_modulate.a = 0.9 * shown
 		_mark_time += delta
 		_quest_mark.position.y = _mark_base + 0.08 * sin(_mark_time * 3.0)
 	if _bubble_time <= 0.0:

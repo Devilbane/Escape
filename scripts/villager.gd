@@ -1288,6 +1288,9 @@ func tag_height() -> float:
 ## we stay in our seat until it is sung.
 func sing(text: String, time: float) -> void:
 	say(text, Vector3.INF, time)
+	# The song sheet already shows the words; a speech bubble over it would
+	# say them twice. The bubble's text stays as the line being sung.
+	_bubble.hide_line(true)
 	singing = true
 	if _task == "sit":
 		_task_time = maxf(_task_time, time + 1.0)

@@ -57,6 +57,21 @@ def master():
     glow_layer.paste(pic, (S // 2 - sx, top // 2 - sy))
     lit = ImageChops.screen(tile.convert("RGB"), glow_layer)
     tile = Image.composite(lit.convert("RGBA"), tile, mask)
+    # the thin line between the letters rises 3/4 of the way to the sun; its tip is lit by it
+    x0, y0, y1 = S // 2, 440, round(440 - 0.75 * (440 - top // 2))
+    beam = Image.new("RGB", (S, S), (0, 0, 0))
+    bd = ImageDraw.Draw(beam)
+    for y in range(y1, y0):
+        t = (y - y1) / (y0 - y1)  # 0 at the sunlit tip, 1 where the line is cyan
+        warm = (1 - t) ** 0.9
+        col = (round(20 + 235 * warm), round(225 - 40 * warm), round(255 - 150 * warm))
+        a = min(1.0, 0.35 + 0.65 * min(1.0, (y - y1) / 5 + 0.6))  # a pointed tip
+        bd.line((x0 - 1, y, x0 + 1, y), fill=tuple(round(c * a) for c in col), width=1)
+    flare = Image.new("RGB", (S, S), (0, 0, 0))
+    ImageDraw.Draw(flare).ellipse((x0 - 9, y1 - 9, x0 + 9, y1 + 9), fill=(255, 190, 90))
+    soft = ImageChops.add(beam.filter(ImageFilter.GaussianBlur(5)), flare.filter(ImageFilter.GaussianBlur(10)))
+    lit = ImageChops.screen(ImageChops.screen(tile.convert("RGB"), beam), soft)
+    tile = Image.composite(lit.convert("RGBA"), tile, mask)
     border = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     ImageDraw.Draw(border).rounded_rectangle((6, 6, S - 7, S - 7), radius=186, outline=(90, 150, 255, 200), width=10)
     return Image.alpha_composite(tile, border)

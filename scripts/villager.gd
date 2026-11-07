@@ -882,7 +882,7 @@ func _cast_fireball(delta: float) -> void:
 	var best: Enemy = null
 	var best_d := Ignition.VILLAGE_RANGE
 	for e in level.enemies:
-		if not Ignition.can_ignite(e) or e.is_friend():
+		if not is_instance_valid(e) or not Ignition.can_ignite(e) or e.is_friend():
 			continue
 		var d: float = e.global_position.distance_to(global_position)
 		if d < best_d and level.has_line_of_sight(global_position, e.global_position):

@@ -63,6 +63,9 @@ func _run() -> void:
 	var lvl: Outdoor = game.level as Outdoor
 	var wall: VillageWall = lvl.village_wall
 	lvl.night = false
+	# The village mages stand nearer the wall now and would burn the slimes before they reach it.
+	for v in lvl.villagers:
+		v._fire_cool = 1.0e9
 
 	# The map: four bricks and a gate in the west, a gate in the east.
 	check(wall.bricks.size() == 6, "the map has six wall tiles, got %d" % wall.bricks.size())

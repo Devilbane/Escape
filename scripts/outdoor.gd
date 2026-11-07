@@ -1364,9 +1364,7 @@ func _build_mine_entrance(block: Rect2i) -> void:
 	var front := center + Vector3(0, 0, block.size.y * TILE * 0.5 - 0.4)
 	mines.append(front)
 	_forecourts.append({"block": block, "front": front})
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.34, 0.23, 0.14)
-	wood.roughness = 0.9
+	var wood := AgedStone.timber_material(Color(0.34, 0.23, 0.14))
 	var black := StandardMaterial3D.new()
 	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	black.albedo_color = Color(0.02, 0.015, 0.015)
@@ -1422,9 +1420,7 @@ func _build_elder_cave(block: Rect2i) -> void:
 	var black := StandardMaterial3D.new()
 	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	black.albedo_color = Color(0.015, 0.01, 0.02)
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.3, 0.28, 0.3)
-	stone.roughness = 0.95
+	var stone := AgedStone.ruin_material(Color(0.3, 0.28, 0.3))
 	var soot := StandardMaterial3D.new()
 	soot.albedo_color = Color(0.06, 0.05, 0.05, 0.55)
 	soot.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -1492,12 +1488,8 @@ func _build_spire_gate(block: Rect2i) -> void:
 	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
 	var front := center + Vector3(0, 0, block.size.y * TILE * 0.5 - 0.4)
 	var width := block.size.x * TILE
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.36, 0.34, 0.37)
-	stone.roughness = 0.95
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.2, 0.19, 0.22)
-	dark.roughness = 1.0
+	var stone := AgedStone.ruin_material(Color(0.36, 0.34, 0.37))
+	var dark := AgedStone.ruin_material(Color(0.2, 0.19, 0.22))
 	var black := StandardMaterial3D.new()
 	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	black.albedo_color = Color(0.015, 0.01, 0.025)

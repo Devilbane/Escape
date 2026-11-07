@@ -69,6 +69,11 @@ jobs:
           timeout 60 ~/godot/godot --headless -s tests/chest_facing.gd | tee chests.log
           grep -q PASS chests.log
 
+      - name: Dungeon entrances are aged and textured
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/entrance_textures.gd | tee entrances.log
+          grep -q PASS entrances.log
+
       - name: Merchants stand in the open middle of their room
         run: |
           timeout 60 ~/godot/godot --headless -s tests/merchant_placement.gd | tee merchants.log

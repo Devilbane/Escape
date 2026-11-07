@@ -4043,6 +4043,7 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 func spill_belly(e: Enemy) -> void:
 	var meals := e.belly.duplicate()
 	e.belly.clear()
+	e.clear_swallowed()
 	var reach := maxf(1.0, float(e._stats.size))
 	for meal in meals:
 		for thing in meal.loot:

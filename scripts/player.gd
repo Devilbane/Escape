@@ -85,7 +85,7 @@ const SPLASH_ANIM := "2H_Melee_Attack_Spinning"
 ## after the leap starts (the top of the leap is at VITAL_TOP).
 const VITAL_ANIM := "1H_Melee_Attack_Chop"
 const VITAL_ANIM_SPEED := 1.6
-const VITAL_LEAP_UP := 0.6
+const VITAL_LEAP_UP := 1.1
 const VITAL_LEAP_AHEAD := 0.6
 const VITAL_TOP := 0.28
 const VITAL_HIT := 0.4
@@ -1143,6 +1143,7 @@ func _leap_strike(arms: String) -> void:
 	var ahead := facing()
 	var top := ahead * VITAL_LEAP_AHEAD * 0.6 + Vector3.UP * VITAL_LEAP_UP
 	var landing := ahead * VITAL_LEAP_AHEAD
+	VitalStrike.takeoff(level, global_position)
 	var tween := create_tween()
 	tween.tween_property(_model, "position", top, VITAL_TOP).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_callback(func(): Sfx.play_weapon(self, arms, "swing"))
@@ -1158,6 +1159,10 @@ func vital_struck(e: Enemy, sound := "hit") -> void:
 	if sound != "":
 		Sfx.play(self, sound, 2.0, e.global_position, 1.3)
 	e.vital_burst()
+	if sound == "":
+		# A leap strike (see _leap_strike): the full show of the landing.
+		VitalStrike.impact(level, self, e)
+		Comic.pop(e.global_position, "vital")
 	if e.dead:
 		Effects.head_text(level, e, 2.7, Lang.t("Schwachstelle!"), MonsterLore.VITAL_COLOR)
 		return

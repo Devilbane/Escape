@@ -488,6 +488,7 @@ func _bus_links() -> Array:
 		[bus.riddle_solved, xp_for_riddle],
 		[bus.hero_acted, tutorial.on_hero_acted],
 		[bus.hero_acted, home_run.on_hero_acted],
+		[bus.camera_punched, punch_camera],
 		[bus.loot_found, event_log.add_loot],
 		[bus.speech_said, heard],
 		[bus.loot_carried_off, _on_loot_carried_off],
@@ -495,6 +496,12 @@ func _bus_links() -> Array:
 		[bus.enemy_slain, village_rumours.on_slain],
 		[bus.treasure_map_found, treasure_maps.read],
 	]
+
+
+## A short jolt of the camera (see Events.camera_punched): it never cuts a
+## longer shake that is already running.
+func punch_camera(strength: float) -> void:
+	_shake = maxf(_shake, strength)
 
 
 func _enter_tree() -> void:

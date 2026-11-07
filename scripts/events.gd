@@ -58,6 +58,9 @@ signal trap_spotted(text: String, place_level: int)
 ## The hero struck with the blade ("melee"), threw a knife ("throw") or
 ## jumped ("jump"). The first steps' cards listen (see Tutorial).
 signal hero_acted(action: String)
+## Something struck hard enough to jolt the camera: `strength` in seconds of
+## shake (see Game.punch_camera). A vital leap strike sends it (VitalStrike).
+signal camera_punched(strength: float)
 ## The hero found something (loot): the line for the event log at the left
 ## edge of the screen, already translated (see EventLog). Item names in it
 ## may be marked with Rarity.marked, to show in their rarity's colour.

@@ -3,6 +3,8 @@ extends RefCounted
 
 const EN := {
 	"ZACK!": "WHACK!",
+	"KRAWUMM!": "KA-BOOM!",
+	"KABAMM!": "KA-BAM!",
 	"KLONK!": "CLONK!",
 	"WUMM!": "WHUMP!",
 	"KRACH!": "CRASH!",

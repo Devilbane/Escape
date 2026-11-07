@@ -177,22 +177,21 @@ func _run() -> void:
 	check(slime2.dead or slime2.hp < life, "a defender strikes a slime at the wall over the wall")
 
 	# Defenders hold the wall whatever the slime's level; only a breach changes that.
-	slime2.dead = false
-	slime2.hp = slime2.max_hp()
-	slime2.rated_level = VillageAlarm.FLEE_LEVEL + 10
-	slime2.global_position = west.global_position + Vector3(-2.2, 0, 0)
-	slime2._awake = false
+	var giant := _slime(lvl, west.global_position + Vector3(-2.2, 0, 0))
+	giant.rated_level = VillageAlarm.FLEE_LEVEL + 10
+	giant._awake = false
 	check(wall.threatened_brick(lvl) != null and wall.slime_at_the_wall(lvl), "the wall knows where the slime is")
+	wall.tick(lvl, 1.1)
+	check(wall.shut_wanted, "a huge slime at the wall has the gate shut")
 	defender.global_position = west.global_position + Vector3(1.8, 0, 0)
 	defender._task = "defend"
 	defender.defend_post = defender.global_position
-	wall.tick(lvl, 1.1)
-	check(lvl.village_alarm.intruders(lvl).is_empty(), "a slime outside the wall is no intruder, however big")
-	check(defender._task == "defend" or defender.defends(), "a defender does not flee from a huge slime at the wall")
-	life = slime2.hp
+	check(VillageAlarm.intruders(lvl).is_empty(), "a slime outside the wall is no intruder, however big")
+	var giant_life := giant.hp
 	await _wait(400)
-	check(slime2.dead or slime2.hp < life, "a defender strikes a huge slime at the wall")
-	slime2.dead = true
+	check(defender.defends() or giant.dead, "a defender does not flee from a huge slime at the wall")
+	check(giant.dead or giant.hp < giant_life, "a defender strikes a huge slime at the wall")
+	giant.dead = true
 
 	# The mason builds hurt bricks up.
 	slime2.dead = true

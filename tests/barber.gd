@@ -102,7 +102,7 @@ func _test() -> void:
 	var short_head := _head_mesh()
 	check(short_head != natural_head and not _crest_shown(), "a short crop cuts the hair without a crest")
 	p.set_hair({"style": "spiky", "color": "blond"})
-	check(_head_mesh() == short_head and _crest_shown(), "spikes stand on a short crop")
+	check(_head_mesh() != short_head and _crest_shown(), "spikes stand on a crop shaved below the tufts")
 	p.equip("knochenhelm")
 	check(not _crest_shown(), "a helmet hides the spikes")
 	p.unequip("kopf")

@@ -24,6 +24,8 @@ extends Control
 ## no dependency.
 const Kit := preload("res://scripts/ui_kit.gd")
 const Texts := preload("res://scripts/lang.gd")
+const EMBLEM := preload("res://assets/logo/app_icon_1024.png")
+const EMBLEM_SIZE := 128
 
 const SOURCE := "https://github.com/devilbane/escape/releases/download/windows/"
 const MANIFEST := "version.json"
@@ -427,6 +429,17 @@ func _build_ui() -> void:
 	box.add_theme_constant_override("separation", 12)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	centre.add_child(box)
+
+	# The emblem, from its 1024 px master with mipmaps so it stays sharp when shrunk.
+	var emblem := TextureRect.new()
+	emblem.texture = EMBLEM
+	emblem.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	emblem.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	emblem.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	emblem.custom_minimum_size = Vector2(EMBLEM_SIZE, EMBLEM_SIZE)
+	emblem.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(emblem)
 
 	var title := Kit.label(Kit.TITLE_FONT, 120, Kit.GOLD)
 	title.text = "Escape!"

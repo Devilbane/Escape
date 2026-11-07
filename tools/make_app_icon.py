@@ -79,5 +79,6 @@ def master():
 
 if __name__ == "__main__":
     m = master()
+    m.save("assets/logo/app_icon_1024.png")  # the best resolution: the launcher's load screen
     m.resize((256, 256), Image.LANCZOS).save("assets/logo/app_icon.png")
     m.save("assets/logo/app_icon.ico", sizes=[(s, s) for s in SIZES])

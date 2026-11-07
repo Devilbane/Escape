@@ -35,6 +35,9 @@ const HEARING := 10.0
 const TOUCH := 2.2
 ## Seconds a hunting skeleton searches after losing the hero before it gives up.
 const GIVE_UP := 5.0
+## How long a monster that cannot get at its target waits before it plans a new
+## way (seconds).
+const STRANDED_REPATH := 2.0
 ## A guardian never strays farther than this from its post: it breaks off
 ## the hunt and walks back, so running out of its hall always works.
 const LEASH := 14.0
@@ -339,6 +342,9 @@ var _detour := Vector3.ZERO
 var _detour_time := 0.0
 var _path: Array[Vector3] = []
 var _repath := 0.0
+## Set while the target cannot be got at: the monster waits at the nearest point
+## (see _plan_route).
+var _stranded := false
 var _knockback := Vector3.ZERO
 ## The post, taken where the skeleton stands on its first frame (the level
 ## places it only after it is ready).
@@ -1984,12 +1990,9 @@ func _physics_process(delta: float) -> void:
 			# Straight at the hero, through stone and doors alike.
 			move = to_player.normalized()
 		else:
-			if _repath <= 0.0 or _path.is_empty():
-				_repath = 0.5
-				_path.clear()
-				for c in level.grid_path(level.world_to_cell(global_position), level.world_to_cell(_last_known)).slice(1):
-					_path.append(level.cell_to_world(c))
-				if _lost <= 0.0 and sees and _path.size() <= 1:
+			if _repath <= 0.0 or (_path.is_empty() and not _stranded):
+				var whole := _plan_route(_last_known, float(_stats.reach))
+				if whole and _lost <= 0.0 and sees and _path.size() <= 1:
 					_path.clear()
 					_path.append(player.global_position)
 			if not _path.is_empty():
@@ -2118,6 +2121,36 @@ func _look_for_foe(friendly: bool, leash: float) -> void:
 		_set_foe(best)
 
 
+## Plans the walk to `goal` into `_path` and returns whether it leads all the
+## way there. When the goal's own tile cannot be reached (the target stands
+## behind a crate, in a pocket, or on a blocked tile), a melee monster picks
+## another tile from which its blow lands (see MeleePath) and walks there
+## instead of pushing against the obstacle. With no such tile it goes to the
+## nearest reachable one and waits, planning again only every STRANDED_REPATH
+## seconds so a crowd of stranded monsters costs next to nothing. Archers and
+## mages keep the plain route: they shoot from where they stand.
+func _plan_route(goal: Vector3, reach: float) -> bool:
+	_repath = 0.5
+	_stranded = false
+	_path.clear()
+	var here := level.world_to_cell(global_position)
+	var there := level.world_to_cell(goal)
+	var cells := level.grid_path(here, there).slice(1)
+	var whole: bool = here == there or (not cells.is_empty() and cells[-1] == there)
+	if not whole and not ranged:
+		var strike := func(c: Vector2i) -> bool:
+			var at := level.cell_to_world(c)
+			return level.has_line_of_sight(at, goal) and not level.door_between(at, goal)
+		var found := MeleePath.approach(level.astar, here, there, reach / Level.TILE + 0.5, strike)
+		cells = found.path
+		if not found.reached:
+			_repath = STRANDED_REPATH
+			_stranded = true
+	for c in cells:
+		_path.append(level.cell_to_world(c))
+	return whole
+
+
 ## Goes for the rival: a blow or a shot once it is in reach, else closer.
 func _fight_foe() -> Vector3:
 	var to := foe.global_position - global_position
@@ -2140,14 +2173,13 @@ func _fight_foe() -> Vector3:
 		_face(to)
 		_spit(foe)
 		return Vector3.ZERO
-	if _repath <= 0.0 or _path.is_empty():
+	if _repath <= 0.0 or (_path.is_empty() and not _stranded):
 		_repath = 0.5
 		_path.clear()
 		if level.has_line_of_sight(global_position, foe.global_position):
 			_path.append(foe.global_position)
 		else:
-			for c in level.grid_path(level.world_to_cell(global_position), level.world_to_cell(foe.global_position)).slice(1):
-				_path.append(level.cell_to_world(c))
+			_plan_route(foe.global_position, float(_stats.reach) + foe.girth())
 	if _path.is_empty():
 		return Vector3.ZERO
 	var step := _path[0] - global_position

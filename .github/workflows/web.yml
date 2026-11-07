@@ -104,6 +104,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/world_preload.gd | tee preload.log
           grep -q PASS preload.log
 
+      - name: Melee pathfinding (monsters walk round what blocks their blow)
+        run: |
+          timeout 60 ~/godot/godot --headless -s tests/melee_path.gd | tee melee.log
+          grep -q PASS melee.log && ! grep -q FAIL melee.log
+
       - name: Smooth running (bodies drawn between physics ticks)
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/smooth_motion.gd | tee smooth.log

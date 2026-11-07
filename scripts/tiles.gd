@@ -60,6 +60,7 @@ const DUNGEON := {
 	"<": "stairs up to the next storey",
 	">": "stairs down to the storey below",
 	"+": "free floor kept for furniture (homes)",
+	"(": "cape wardrobe: where the hero picks the picture on the back of their cape (homes, see CapeWardrobe)",
 	"N": "the companions' corner: straw where the companions who stay home rest (homes)",
 	"X": "a horror's den (see Horrors)",
 	# The Ashen Spire (see Spire).

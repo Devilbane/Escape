@@ -381,7 +381,7 @@ func _check_editor() -> void:
 			check(not LevelMap.has_errors(editor.issues), "%s shows errors in the workshop" % entry[0])
 	await _check_outdoor()
 	editor.open_file("res://levels/04_die_gruft.txt")
-	check(editor._tile_buttons.has("_") and not editor._tile_buttons.has("("), "a dungeon after the open air keeps the outdoor tiles")
+	check(editor._tile_buttons.has("_") and editor._tile_buttons.has("("), "a dungeon after the open air shows the dungeon tiles again")
 	editor.show_page(0)
 	await process_frame
 	await _shot("editor_gruft")

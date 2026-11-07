@@ -22,7 +22,7 @@ var shots := OS.get_environment("SHOTS")
 const KINDS := {
 	"inventar": "", "lager": "", "metalltruhe": "", "zutatenbord": "", "tresor": "", "bank": "", "haendler": "6", "schmied": "1",
 	"steinmetz": "S", "barbier": "Z", "wanderhaendler": "", "werkbank": "", "hauswerkbank": "",
-	"ausbau": "", "aushang": "", "trophaeen": "", "charakter": "", "gefaehrten": "", "wunsch": "",
+	"ausbau": "", "aushang": "", "trophaeen": "", "charakter": "", "gefaehrten": "", "umhangschrank": "", "wunsch": "",
 	"kampfstil": "", "kompendium": "", "karte": "", "auftraege": "",
 }
 

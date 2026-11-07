@@ -367,6 +367,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log
           grep -q PASS barber.log
 
+      - name: Cape wardrobe test (the house's wardrobe, the cape back designs, saved choice)
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/cape_wardrobe.gd | tee cape_wardrobe.log
+          grep -q PASS cape_wardrobe.log
+
       - name: Postmaster's cap test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/post_cap.gd | tee post_cap.log

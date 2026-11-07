@@ -134,8 +134,8 @@ func _run() -> void:
 	check(HomeUpgrades.storage_used(game.storage) <= HomeUpgrades.storage_size(kept), "thirty things from the two old chests still fit")
 	game.storage.clear()
 
-	# The workshop and the trophy wall.
-	for i in 11:
+	# The trophy wall (the workshop is built already).
+	for i in 5:
 		p.bag.append("steinblock")
 	game.coins = 100
 	game.menus._build_upgrade("werkstatt")
@@ -222,13 +222,13 @@ func _run() -> void:
 	game.inside_house = house
 	game.load_level(game.interiors["^"], false)
 	lvl = game.level
-	check(game.home_upgrades.size() == 3 and game.trophies.size() == 2, "the upgrades and trophies are loaded again")
-	check(_station(lvl, "hauswerkbank").size() == 1 and _station(lvl, "trophaeen").size() == 1 and _station(lvl, "lager").size() == 2,
+	check(game.home_upgrades.size() == 2 and game.trophies.size() == 2, "the upgrades and trophies are loaded again")
+	check(_station(lvl, "hauswerkbank").size() == 1 and _station(lvl, "trophaeen").size() == 1 and _station(lvl, "lager").size() == 1,
 			"a loaded game rebuilds the furniture")
 	check(p.max_hp == base_hp + 2, "the trophies' life is back after loading")
 	for id in lvl._upgrade_cells:
 		check(not lvl.chalk_marks.has(lvl._upgrade_cells[id]), "no chalk square is left under the %s" % id)
-	check(lvl.chalk_marks.size() == lvl.furniture_slots.size() - 3, "the free spots keep their chalk squares")
+	check(lvl.chalk_marks.size() == lvl.furniture_slots.size() - 2, "the free spots keep their chalk squares")
 
 	# A trophy won before the wall stands gives no life until it is built.
 	game.home_upgrades.erase("trophaeen")

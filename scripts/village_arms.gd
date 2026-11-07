@@ -24,7 +24,7 @@ const HEALERS := ["O"]
 ## on top of the thrower's own blow (a little shot, see SlimeCoat.absorb).
 const THROW_RANGE := 8.0
 const THROW_TIME := 1.6
-const KNIFE_BONUS := 1
+const KNIFE_BONUS := 0
 ## The priestess keeps this far from the slime, near enough to reach the
 ## fighters around it.
 const SUPPORT_DISTANCE := 7.0

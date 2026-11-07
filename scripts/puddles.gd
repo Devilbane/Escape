@@ -48,11 +48,14 @@ const MERGE_GROWTH := 1.0
 ## Only about this share of the puddles laid is kept: the rest of them run
 ## together into big ones.
 const KEEP_SHARE := 0.25
-## A few small puddles stay alone (this share of the puddles kept), no bigger
-## than SMALL_RADIUS and at least SMALL_APART metres from each other.
-const SMALL_SHARE := 0.14
+## Very few small puddles stay alone (this share of the puddles kept), no
+## bigger than SMALL_RADIUS and at least SMALL_APART metres from each other.
+## They lie on the open grass only, never on a walkway (path or square).
+const SMALL_SHARE := 0.05
 const SMALL_RADIUS := 1.5
-const SMALL_APART := 26.0
+const SMALL_APART := 40.0
+## The tiles people walk on: no small puddle stays alone there.
+const WALKWAY := ",:"
 ## How far (of their reaches added up) puddles may lie apart and still be
 ## joined, tried one after the other until few enough are left.
 const JOIN_GAPS := [MERGE_GAP, 2.5, 4.0, 6.0]
@@ -223,6 +226,8 @@ func _consolidate(level: Level, rng: RandomNumberGenerator) -> void:
 		if smalls >= int(target * SMALL_SHARE):
 			break
 		if float(s.radius) > SMALL_RADIUS or rng.randf() > 0.15:
+			continue
+		if WALKWAY.contains(level.cell_char(level.world_to_cell(s.at))):
 			continue
 		var far := true
 		for at in kept:

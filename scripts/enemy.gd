@@ -386,6 +386,8 @@ var rated_level := 1
 var blob := false
 var swallowed_by: Enemy = null
 var belly: Array = []
+## Marks the swallowed things showing inside a slime (see show_swallowed).
+const BELLY_PIECE := "belly_piece"
 var _last_rival: Enemy = null
 var _shape: CollisionShape3D
 var _slime_mat: ShaderMaterial
@@ -1698,12 +1700,26 @@ func show_swallowed(loot: Array) -> void:
 		if piece == null:
 			continue
 		_model.set_meta("shown", _model.get_meta("shown", 0) + 1)
+		piece.set_meta(BELLY_PIECE, true)
 		piece.position = Vector3(randf_range(-0.22, 0.22), randf_range(0.22, 0.5) * _slime_height, randf_range(-0.22, 0.22))
 		piece.rotation = Vector3(randf() * TAU, randf() * TAU, randf() * TAU)
 		_model.add_child(piece)
 		_fit_inside(piece)
 		var turn := piece.create_tween().set_loops()
 		turn.tween_property(piece, "rotation:y", TAU, randf_range(5.0, 9.0)).as_relative()
+
+
+## The belly is spilled (see Level.spill_belly): what showed inside is gone
+## from its body too, so a melting or swallowed slime shows nothing it no
+## longer carries.
+func clear_swallowed() -> void:
+	if _model == null:
+		return
+	for piece in _model.get_children():
+		if piece.has_meta(BELLY_PIECE):
+			_model.remove_child(piece)
+			piece.queue_free()
+	_model.set_meta("shown", 0)
 
 
 ## Shrinks a swallowed piece until its longest side fits well inside the

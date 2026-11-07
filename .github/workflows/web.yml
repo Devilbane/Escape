@@ -532,6 +532,11 @@ jobs:
           timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/vital_circle.gd | tee vital_circle.log
           grep -q PASS vital_circle.log
 
+      - name: Vital blow star (blood-red wobbling star, short-lived)
+        run: |
+          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/vital_star.gd | tee vital_star.log
+          grep -q PASS vital_star.log
+
       - name: Hero or heroine test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/heroine.gd | tee heroine.log

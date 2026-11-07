@@ -13,6 +13,12 @@ const HIT_STOP_SCALE := 0.12
 ## How long the crescent and the ring last, in seconds.
 const SLASH_TIME := 0.26
 const RING_TIME := 0.45
+## The blood star: spikes, outer and inner radius (metres), wobble of the spike length.
+const STAR_POINTS := 9
+const STAR_OUTER := 1.0
+const STAR_INNER := 0.42
+const STAR_WOBBLE := 0.2
+const STAR_COLOR := Color(0.72, 0.03, 0.05, 0.9)
 ## The camera punch, in seconds of Game's shake (see Events.camera_punched).
 const PUNCH := 0.32
 
@@ -97,26 +103,47 @@ static func _crescent(level: Node, at: Vector3, ahead: Vector3) -> void:
 	tween.chain().tween_callback(slash.queue_free)
 
 
-## A flat ring of force that spreads over the ground where the hero lands.
+## A flat, spiky star of blood that wobbles over the ground where the hero
+## lands, grows a little and fades. It replaces the old plain ring of force.
 static func _ring(level: Node, at: Vector3) -> void:
-	var mesh := Effects.ring_mesh(0.85, 1.0, 0.0, 0.0, 32, null)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.albedo_color = Color(1.0, 0.85, 0.5, 0.8)
-	var ring := MeshInstance3D.new()
-	ring.mesh = mesh
-	ring.material_override = mat
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	level.add_child(ring)
-	ring.global_position = at + Vector3(0, 0.08, 0)
-	ring.scale = Vector3(0.3, 1.0, 0.3)
-	var tween := ring.create_tween().set_parallel()
-	tween.tween_property(ring, "scale", Vector3(2.6, 1.0, 2.6), RING_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(mat, "albedo_color:a", 0.0, RING_TIME).set_ease(Tween.EASE_IN)
-	tween.chain().tween_callback(ring.queue_free)
+	mat.albedo_color = STAR_COLOR
+	var star := MeshInstance3D.new()
+	star.mesh = star_mesh(0.0)
+	star.material_override = mat
+	star.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	level.add_child(star)
+	star.global_position = at + Vector3(0, 0.08, 0)
+	star.scale = Vector3(0.4, 1.0, 0.4)
+	var tween := star.create_tween().set_parallel()
+	tween.tween_method(func(t: float): star.mesh = star_mesh(t), 0.0, RING_TIME, RING_TIME)
+	tween.tween_property(star, "scale", Vector3(1.8, 1.0, 1.8), RING_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mat, "albedo_color:a", 0.0, RING_TIME * 0.5).set_delay(RING_TIME * 0.5)
+	tween.chain().tween_callback(star.queue_free)
+
+
+## The star `t` seconds in, flat in the XZ plane around the origin: STAR_POINTS
+## long spikes between short dents, every point's length and the whole star's
+## turn jittering with `t` so it wobbles. Always has 3 vertices per spike side.
+static func star_mesh(t: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := STAR_POINTS * 2
+	var spin := 0.25 * sin(t * 22.0)
+	var ring: Array[Vector3] = []
+	for i in n:
+		var outer := i % 2 == 0
+		var r := STAR_OUTER * (1.0 + STAR_WOBBLE * sin(t * 34.0 + i * 2.3)) if outer else STAR_INNER
+		var a := TAU * i / n + spin
+		ring.append(Vector3(cos(a) * r, 0.0, sin(a) * r))
+	for i in n:
+		st.add_vertex(Vector3.ZERO)
+		st.add_vertex(ring[i])
+		st.add_vertex(ring[(i + 1) % n])
+	return st.commit()
 
 
 ## Dust kicked up at the ground: a one-shot cloud of pale puffs that spreads

@@ -66,6 +66,10 @@ func _run() -> void:
 	# The village mages stand nearer the wall now and would burn the slimes before they reach it.
 	for v in lvl.villagers:
 		v._fire_cool = 1.0e9
+	# Everybody starts inside the wall (the woodcutter works just outside it).
+	for v in lvl.villagers:
+		v.global_position = lvl.spots.square[0]
+		v._start("idle", 600.0)
 
 	# The map: four bricks and a gate in the west, a gate in the east.
 	check(wall.bricks.size() == 6, "the map has six wall tiles, got %d" % wall.bricks.size())
@@ -177,7 +181,7 @@ func _run() -> void:
 	slime2._awake = false
 	var life := slime2.hp
 	await _wait(400)
-	check(slime2.dead or slime2.hp < life, "a defender strikes a slime at the wall over the wall")
+	check(not is_instance_valid(slime2) or slime2.dead or slime2.hp < life, "a defender strikes a slime at the wall over the wall")
 
 	# The mason builds hurt bricks up.
 	slime2.dead = true

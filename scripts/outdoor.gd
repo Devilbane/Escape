@@ -244,6 +244,8 @@ var _aabbs := {}
 var interiors := {}
 ## Where each building's door is, by building letter.
 var doors := {}
+## The swinging plank doors of the village houses (see HouseDoor).
+var house_doors: Array[HouseDoor] = []
 ## The treasure maps' state (see TreasureMaps): the game hands in its own,
 ## so a map read while the hero is out here shows at once.
 var treasure := {}
@@ -1154,6 +1156,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		node.rotation.y = rot
 		add_child(node)
 		var door: Vector3 = node.transform * (node.get_meta("door") as Vector3)
+		house_doors.append(node.get_meta("door_leaf"))
 		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
 		_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
 	else:
@@ -1254,9 +1257,10 @@ func _build_terrace(block: Rect2i) -> void:
 		var door := at + Vector3(float(house.get_meta("door_x")), 0, 0).rotated(Vector3.UP, rot) + out * deep * TILE * 0.5
 		doors["^" + str(number)] = door + out * 2.0
 		_entrances.append({"door": door, "out": out})
+		house_doors.append(house.get_meta("door_leaf"))
 		_dress_building(house, at, [door], LANE_NEST, LANE_PATCHES)
 		if interiors.has("^"):
-			stations.append({"kind": "eingang", "building": "^", "house": number, "reach": 1.6,
+			stations.append({"kind": "eingang", "building": "^", "house": number, "reach": 1.6, "leaf": house.get_meta("door_leaf"),
 					"name": Lang.t("das Haus Nr. %d") % number,
 					"cell": world_to_cell(door - out * 0.5), "pos": door, "used": false})
 	_add_solid(center, Vector3(block.size.x * TILE, 4, block.size.y * TILE) * Vector3(1.0 if across.x != 0 else 0.86, 1, 1.0 if across.y != 0 else 0.86))
@@ -2638,6 +2642,24 @@ const TRADER_FIRST := 0.6
 ## comes, the wandering merchant.
 func people() -> Array:
 	return villagers + [wanderer] if wanderer != null else villagers
+
+
+## Swings open the village house door nearest to a point, if one is within
+## `reach` metres, and tells whether there was one.
+func swing_door_near(point: Vector3, reach := 3.5) -> bool:
+	var best: HouseDoor = null
+	var best_d := reach
+	for d in house_doors:
+		if not is_instance_valid(d):
+			continue
+		var dist := _flat_distance(point, d.global_position)
+		if dist < best_d:
+			best = d
+			best_d = dist
+	if best == null:
+		return false
+	best.swing()
+	return true
 
 
 ## Bumping into a villager: they walk around, so their tile is not enough.

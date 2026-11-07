@@ -1602,7 +1602,7 @@ func _use_station(s: Dictionary) -> void:
 		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not wishes.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc) and not village_rumours.tell(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
-		go_inside(s.building, s.get("house", 0))
+		go_inside(s.building, s.get("house", 0), s.get("leaf"))
 	elif s.kind == TreasureMaps.DIG or s.kind == TreasureMaps.BOULDER:
 		treasure_maps.use(s)
 	elif s.kind == "schacht":
@@ -5824,7 +5824,8 @@ func _on_home_claimed() -> void:
 ## Walks in at a village building's door, to its own floor. A town house
 ## on Weavers' Lane (`house` is its number) only lets in the hero who lives
 ## there; a hero without a house moves into the first empty one.
-func go_inside(building: String, house := 0) -> void:
+## `leaf`: the door of a village house, which swings open before the fade starts.
+func go_inside(building: String, house := 0, leaf: HouseDoor = null) -> void:
 	if state != State.PLAYING or not interiors.has(building):
 		return
 	if house > 0 and not _may_enter_house(house):
@@ -5846,6 +5847,9 @@ func go_inside(building: String, house := 0) -> void:
 		# Through the door at the hero's heels.
 		pet.climb([player.global_position], 0.0, 0.0)
 	var tween := create_tween()
+	if is_instance_valid(leaf):
+		leaf.swing()
+		tween.tween_interval(HouseDoor.OPEN_TIME)
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.5)
 	tween.tween_callback(func():
 		load_level(interiors[building], false)

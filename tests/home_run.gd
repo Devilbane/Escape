@@ -74,10 +74,22 @@ func _load(index: int) -> void:
 	await _wait(3)
 
 
+## The way home leads through the narrow neck by the village gate, where the woodcutter works:
+## nobody stands in the way here (bumping into a villager would stop to talk, not run).
+func _clear_the_way() -> void:
+	var villagers = game.level.get("villagers")
+	if villagers == null:
+		return
+	for v in villagers:
+		if is_instance_valid(v):
+			v.collision_layer = 0
+
+
 ## Waits until the hero is home, or the run ends, or time runs out.
 func _wait_home() -> void:
 	for i in MAX_FRAMES:
 		await process_frame
+		_clear_the_way()
 		if game.level.is_home or (not game.home_run.active and game.state == game.State.PLAYING):
 			break
 	# Through the door: let the fade finish.

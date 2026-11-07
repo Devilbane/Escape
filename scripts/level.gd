@@ -4513,7 +4513,16 @@ func _add_fox_bed(c: Vector2i) -> void:
 	if o == c:
 		return
 	var d := o - c
-	fox_beds.append(cell_to_world(o) - Vector3(d.x, 0, d.y) * 0.6 + Vector3(d.y, 0, -d.x) * 1.2)
+	# Sideways towards the neighbour that is open floor, and kept a hand's
+	# breadth inside the tile, so the basket never pokes into a wall.
+	var side := Vector2i(d.y, -d.x)
+	var sign_side := 1.0
+	if not ".P+".contains(cell_char(o + side)) and ".P+".contains(cell_char(o - side)):
+		sign_side = -1.0
+	var shift := 1.0
+	if not ".P+".contains(cell_char(o + side)) and not ".P+".contains(cell_char(o - side)):
+		shift = 0.0
+	fox_beds.append(cell_to_world(o) - Vector3(d.x, 0, d.y) * 0.4 + Vector3(side.x, 0, side.y) * shift * sign_side)
 
 
 ## Sets the fox's basket down beside every bed of the level (once).

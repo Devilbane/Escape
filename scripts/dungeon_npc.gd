@@ -10,7 +10,7 @@ var spec := {}
 var display_name := ""
 var _model: Node3D
 var _anim: AnimationPlayer
-var _bubble: Label3D
+var _bubble: SpeechBubble
 var _name_tag: Label3D
 var _bubble_time := 0.0
 var _bubble_hold := 0.0
@@ -48,12 +48,9 @@ func _ready() -> void:
 	_name_tag = _label(30, 2.75)
 	_name_tag.text = display_name
 	_name_tag.outline_modulate = Color(0.05, 0.03, 0.06, 0.85)
-	_bubble = _label(UiKit.sized(44), 3.7)
-	_bubble.width = 520
-	_bubble.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_bubble.modulate.a = 0.0
-	_bubble.outline_modulate = Color(0.05, 0.03, 0.06, 0.0)
-	_bubble.visible = false
+	_bubble = SpeechBubble.new()
+	_bubble.position.y = 3.0 + 0.15
+	add_child(_bubble)
 
 
 func _label(font_size: int, height: float) -> Label3D:
@@ -82,7 +79,7 @@ func talk(hero: Node3D) -> void:
 	if lines.is_empty():
 		return
 	var said := Lang.t(lines[_line % lines.size()])
-	_bubble.text = "%s:\n%s" % [display_name, said]
+	_bubble.show_line(display_name, said)
 	Events.say(display_name, said, global_position)
 	_line += 1
 	_bubble_time = Villager.SAY_TIME
@@ -97,9 +94,9 @@ func is_talking() -> bool:
 func _process(delta: float) -> void:
 	_bubble_time = maxf(0.0, _bubble_time - delta)
 	_bubble_hold = maxf(0.0, _bubble_hold - delta)
-	# What is said goes into the event log (see Events.say), not over the
-	# head: the bubble only keeps the line and stays hidden.
-	_bubble.visible = false
+	# The line shows in a speech bubble (and in the event log, see Events.say).
+	if _bubble_time <= 0.0 and _bubble.is_shown():
+		_bubble.hide_line()
 	_name_tag.modulate.a = 1.0
 	_name_tag.outline_modulate.a = 0.85
 	if _turn_to != Vector3.INF:

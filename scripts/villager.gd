@@ -552,6 +552,16 @@ func defend(post: Vector3) -> void:
 	_walk_to(post, RUN_SPEED, "defend")
 
 
+## Moves a defender to a new post along the wall, unless a slime is at them.
+func repost(post: Vector3) -> void:
+	if _task != "defend" or Vector2(post.x - defend_post.x, post.z - defend_post.z).length() < POST_ROOM:
+		return
+	if VillageWall.slime_near(level, global_position, WALL_REACH + 2.0):
+		return
+	defend_post = post
+	_walk_to(post, RUN_SPEED, "defend")
+
+
 func _defend(delta: float) -> void:
 	if not level.village_wall.shut_wanted or defend_post == Vector3.INF:
 		defend_post = Vector3.INF

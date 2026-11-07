@@ -12,6 +12,10 @@ extends RefCounted
 ## all-clear, CALM_AFTER seconds after the last slime has left or fallen.
 ## Each look (CHECK_EVERY) also rallies whoever was not yet roused.
 ##
+## A slime still outside the wall is no business of the alarm: the defenders
+## hold the wall against it whatever its level (see VillageWall._muster). Only
+## once it has broken through (see intruders) does the call to arms below begin.
+##
 ## A slime too big for the village (FLEE_LEVEL, above its strongest, see
 ## Villager.LEVELS) sends everyone indoors, the men too, and they stay there
 ## until it is killed: only the hero can deal with that one.

@@ -3,8 +3,8 @@ extends SceneTree
 ## window opens from the bed at home and from the stonemason, upgrades cost
 ## stone blocks (bag first, then the chest) and gold, each is built once, its
 ## furniture stands on the free furniture spots of the house without
-## blocking the ways between the door, the stairs, the bed and the chest, the second chest doubles the
-## storage, the workbench makes knives from iron and mends gear (and speeds up
+## blocking the ways between the door, the stairs, the bed and the chest, the one chest holds the room of
+## the two former chests (and old saves with the second chest lose nothing), the workbench makes knives from iron and mends gear (and speeds up
 ## crafting while away), the trophy wall gives +1 life per trophy won, and
 ## everything is kept in the saved game.
 ## Run with: godot --headless --fixed-fps 60 -s tests/home_upgrades.gd
@@ -91,38 +91,51 @@ func _run() -> void:
 	# Not enough stones or gold: nothing is built.
 	p.bag.clear()
 	game.coins = 100
-	game.menus._build_upgrade("truhe")
-	check(not game.home_upgrades.has("truhe") and game.coins == 100, "without stone blocks nothing is built")
+	game.menus._build_upgrade("werkstatt")
+	check(not game.home_upgrades.has("werkstatt") and game.coins == 100, "without stone blocks nothing is built")
 	for i in 2:
 		p.bag.append("steinblock")
-	for i in 3:
+	for i in 5:
 		game.storage.append("steinblock")
 	game.coins = 5
-	game.menus._build_upgrade("truhe")
-	check(not game.home_upgrades.has("truhe") and p.bag.count("steinblock") == 2, "without the gold nothing is built")
+	game.menus._build_upgrade("werkstatt")
+	check(not game.home_upgrades.has("werkstatt") and p.bag.count("steinblock") == 2, "without the gold nothing is built")
 
-	# The second chest: stones from the bag first, then from the chest.
+	# The workshop: stones from the bag first, then from the chest.
 	game.coins = 100
-	game.menus._build_upgrade("truhe")
-	check(game.home_upgrades.has("truhe"), "the second chest is built")
+	game.menus._build_upgrade("werkstatt")
+	check(game.home_upgrades.has("werkstatt"), "the workshop is built")
 	check(p.bag.count("steinblock") == 0 and game.storage.count("steinblock") == 1, "the bag's stones went first, then the chest's")
-	check(game.coins == 100 - HomeUpgrades.ALL.truhe.gold, "the gold is paid")
-	game.menus._build_upgrade("truhe")
-	check(game.coins == 100 - HomeUpgrades.ALL.truhe.gold, "an upgrade is built only once")
-	var chests := _station(lvl, "lager")
-	check(chests.size() == 2, "a second chest stands in the house")
-	check(HomeUpgrades.storage_size(game.home_upgrades) == 32, "the chests hold twice as much")
+	check(game.coins == 100 - HomeUpgrades.ALL.werkstatt.gold, "the gold is paid")
+	game.menus._build_upgrade("werkstatt")
+	check(game.coins == 100 - HomeUpgrades.ALL.werkstatt.gold, "an upgrade is built only once")
+
+	# One chest only, holding the room of the former two.
+	check(not HomeUpgrades.ALL.has("truhe"), "there is no second chest to build any more")
+	check(_station(lvl, "lager").size() == 1, "a single storage chest stands in the house")
+	check(HomeUpgrades.storage_size(game.home_upgrades) == 32 and HomeUpgrades.storage_size({}) == 32, "the one chest holds 32 things")
 	game.storage.clear()
 	for i in 20:
 		game.storage.append("lederwams")
 	p.bag.assign(["kupferring"])
 	game.menus.open("lager")
 	game.menus._store(0)
-	check(game.storage.size() == 21 and p.bag.is_empty(), "more than 16 things fit into the chests now")
+	check(game.storage.size() == 21 and p.bag.is_empty(), "more than 16 things fit into the chest")
 	game.storage.clear()
 
-	# The workshop and the trophy wall.
-	for i in 11:
+	# An old save that had built the second chest: the upgrade key is dropped, the things stay.
+	var old := {"upgrades": ["truhe", "trophaeen"], "storage": []}
+	var kept: Dictionary = game._known_keys(old.upgrades, HomeUpgrades.ALL)
+	check(not kept.has("truhe") and kept.has("trophaeen"), "an old save's second-chest upgrade is dropped, the others stay")
+	var things: Array = []
+	for i in 30:
+		things.append("lederwams")
+	game.storage.assign(things)
+	check(HomeUpgrades.storage_used(game.storage) <= HomeUpgrades.storage_size(kept), "thirty things from the two old chests still fit")
+	game.storage.clear()
+
+	# The trophy wall (the workshop is built already).
+	for i in 5:
 		p.bag.append("steinblock")
 	game.coins = 100
 	game.menus._build_upgrade("werkstatt")
@@ -139,9 +152,6 @@ func _run() -> void:
 		check(spots.has(c), "%s stands on a furniture spot" % id)
 		check(not cells.has(c), "%s has a spot of its own" % id)
 		cells[c] = true
-	var old_chest := lvl._home_chest_cell()
-	check(lvl.storey_of(lvl._upgrade_cells.truhe) == lvl.storey_of(old_chest) and Vector2(lvl._upgrade_cells.truhe - old_chest).length() < 2.0,
-			"the second chest stands next to the first")
 	check(lvl.storey_of(lvl._upgrade_cells.werkstatt) == 2, "the workbench is in the attic")
 	check(lvl.storey_of(lvl._upgrade_cells.trophaeen) == 0, "the trophy wall is on the ground floor, in the entrance room")
 	check(lvl._wall_side(lvl._upgrade_cells.trophaeen) != Vector2i.ZERO, "the trophy wall hangs on a wall")
@@ -213,8 +223,8 @@ func _run() -> void:
 	game.inside_house = house
 	game.load_level(game.interiors["^"], false)
 	lvl = game.level
-	check(game.home_upgrades.size() == 3 and game.trophies.size() == 2, "the upgrades and trophies are loaded again")
-	check(_station(lvl, "hauswerkbank").size() == 1 and _station(lvl, "trophaeen").size() == 1 and _station(lvl, "lager").size() == 2,
+	check(game.home_upgrades.size() == 2 and game.trophies.size() == 2, "the upgrades and trophies are loaded again")
+	check(_station(lvl, "hauswerkbank").size() == 1 and _station(lvl, "trophaeen").size() == 1 and _station(lvl, "lager").size() == 1,
 			"a loaded game rebuilds the furniture")
 	check(p.max_hp == base_hp + 2, "the trophies' life is back after loading")
 	check(lvl.find_children("Chalk_*", "", true, false).is_empty(), "still no chalk squares after loading")

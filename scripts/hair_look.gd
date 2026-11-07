@@ -70,6 +70,8 @@ const CREST_BACK := 1.5
 const SPIKES := 110
 ## How high up the head (0 at the ears, 1 on top) the tufts begin.
 const TUFTS_FROM := 0.2
+## The crop is shaved below this height, so no hair shows outside the tufts.
+const FADE_FROM := 0.15
 
 ## The hair knot: where it sits (a direction from the skull's centre), how far
 ## out of the skull its middle is, and its size (across, up, and outwards).
@@ -106,8 +108,8 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 		style = "natural"
 	var shaved := shows_scalp(style)
 	var heads: Dictionary = _heads[source]
-	# Spikes stand on a short crop.
-	head.mesh = heads.shaved if shaved else heads.short if style in ["short", "spiky"] else heads.natural
+	# Spikes stand on a short crop whose sides are shaved off.
+	head.mesh = heads.shaved if shaved else heads.fade if style == "spiky" else heads.short if style == "short" else heads.natural
 	var crest := slot.get_node_or_null("Crest") as MeshInstance3D
 	if crest == null:
 		crest = MeshInstance3D.new()
@@ -149,6 +151,7 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 	var head_mat := head.material_override as ShaderMaterial
 	head_mat.set_shader_parameter("shaved", shaved)
 	head_mat.set_shader_parameter("short_hair", style in ["short", "spiky"])
+	head_mat.set_shader_parameter("shaved_sides", style == "spiky")
 	var word: String = look.get("tattoo", "")
 	head_mat.set_shader_parameter("show_tattoo", shaved and word != "")
 	if word != "":
@@ -332,7 +335,7 @@ static func _build_heads(source: Mesh) -> Dictionary:
 	var result := {}
 	# The hair's triangles on the short crop, corner by corner, for the spikes.
 	var crop := PackedVector3Array()
-	for cut in ["natural", "short", "shaved"]:
+	for cut in ["natural", "short", "fade", "shaved"]:
 		var shaved: bool = cut == "shaved"
 		var a := arrays.duplicate()
 		var v2: PackedVector3Array = verts.duplicate()
@@ -340,20 +343,26 @@ static func _build_heads(source: Mesh) -> Dictionary:
 		var uv2: PackedVector2Array = uvs.duplicate()
 		var custom := PackedFloat32Array()
 		custom.resize(verts.size() * 4)
+		# Red marks the vertices the fade shaves.
+		var marks := PackedColorArray()
+		marks.resize(verts.size())
 		for v in verts.size():
 			var p := verts[v]
-			if hair[v] and shaved:
+			var bare: bool = hair[v] and (shaved or (cut == "fade" and _low_on_crop(p, shape)))
+			if bare:
 				var top := skull_point(p, shape)
 				n2[v] = skull_point_normal(p, shape)
 				p = top
 				v2[v] = p
 				uv2[v] = SCALP_UV
-			elif hair[v] and cut == "short":
+				if cut == "fade":
+					marks[v] = Color(1, 0, 0)
+			elif hair[v] and cut in ["short", "fade"]:
 				var top := skull_point(p, shape)
 				n2[v] = normals[v].lerp(skull_point_normal(p, shape), SHORT_CUT).normalized()
 				p = p.lerp(top, SHORT_CUT)
 				v2[v] = p
-			elif shaved and blend[v] > 0.0:
+			elif (shaved or cut == "fade") and blend[v] > 0.0:
 				# The rim of the face grows into the skull, so the face is part
 				# of the head instead of a mask on the front of it.
 				n2[v] = normals[v].lerp(skull_point_normal(p, shape), blend[v]).normalized()
@@ -368,6 +377,8 @@ static func _build_heads(source: Mesh) -> Dictionary:
 		a[Mesh.ARRAY_TEX_UV] = uv2
 		a[Mesh.ARRAY_TANGENT] = null
 		a[Mesh.ARRAY_CUSTOM0] = custom
+		if cut == "fade":
+			a[Mesh.ARRAY_COLOR] = marks
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, flags)
 		result[cut] = mesh
@@ -381,6 +392,12 @@ static func _build_heads(source: Mesh) -> Dictionary:
 	result.spiky = spikes_mesh(crop)
 	result.bun = bun_mesh(shape)
 	return result
+
+
+## Whether a hair vertex lies below the tufts once cropped: the fade shaves it.
+static func _low_on_crop(p: Vector3, shape: Array) -> bool:
+	var cropped := p.lerp(skull_point(p, shape), SHORT_CUT)
+	return ((cropped - SKULL_CENTER) / SKULL_RADII).normalized().y < FADE_FROM
 
 
 ## The hair knot: a squashed ball on the back of the head, sunk a little into

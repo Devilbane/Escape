@@ -1699,6 +1699,12 @@ func _use_station(s: Dictionary) -> void:
 		player.play("Idle")
 		bumped_person = true
 		s.figure.talk(player)
+	elif s.kind == "hort":
+		player.face(s.pos - player.global_position)
+		player.play("Idle")
+		var held := _held_coins()
+		level.show_hoard(held)
+		show_message(HomeHoard.describe(HomeHoard.stage_of(HomeHoard.wealth(held.kupfermuenze, held.silbermuenze, held.goldmuenze)), held), 3.5, GOLD)
 	elif s.kind == "tafel":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
@@ -2414,6 +2420,8 @@ func _update_purse() -> void:
 	if key == _purse_key:
 		return
 	_purse_key = key
+	if level != null and level.is_home:
+		level.show_hoard(_held_coins())
 	var labels := {"kupfermuenze": _coin_label, "silbermuenze": _silver_label, "goldmuenze": _gold_label}
 	var names := {"kupfermuenze": "Kupfermünzen: %d", "silbermuenze": "Silbermünzen: %d", "goldmuenze": "Goldmünzen: %d"}
 	for id in PURSE_COINS:
@@ -2853,6 +2861,7 @@ func load_level(index: int, restock := true) -> void:
 		level.lightning.connect(_on_lightning)
 	if level.is_home:
 		level.show_home_upgrades(home_upgrades, trophies)
+		level.show_hoard(_held_coins())
 	_pending_crate = null
 	_end_drag()
 	_set_atmosphere(level.outdoor)
@@ -5280,6 +5289,14 @@ func coins_held(metal: String) -> int:
 	return crafting.have(metal) if Crafting.INGREDIENTS.has(metal) else 0
 
 
+## The copper, silver and gold coins the hero holds, by metal (what the hoard at home shows).
+func _held_coins() -> Dictionary:
+	var out := {}
+	for m in PURSE_COINS:
+		out[m] = coins_held(m)
+	return out
+
+
 ## The coin metals the hero can put down: gold always, the others while
 ## carried.
 func coin_metals() -> Array:
@@ -6370,6 +6387,7 @@ func _process(delta: float) -> void:
 			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
+			"hort": Lang.t("Dagegenlaufen, um deinen Hort zu betrachten"),
 			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
 			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
 			"hauswerkbank": Lang.t("Werkbank: Dagegenlaufen, um Wurfmesser zu schmieden oder Ausrüstung zu flicken"),
@@ -6905,5 +6923,6 @@ func build_home_upgrade(id: String) -> String:
 	apply_home_bonus()
 	if level.is_home:
 		level.show_home_upgrades(home_upgrades, trophies)
+		level.show_hoard(_held_coins())
 	save_game()
 	return ""

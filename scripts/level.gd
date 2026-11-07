@@ -5440,6 +5440,11 @@ func _upgrade_slot(id: String) -> Dictionary:
 				score = -Vector2(c - chest).length() if chest.x >= 0 and storey_of(chest) == storey else -100.0 - storey
 			"trophaeen":
 				score = storey * 10.0 + (5.0 if _against_back_wall(c) else 0.0) + c.x * 0.01
+			"feinbank", "schleifrad", "alchemie":
+				# A crafting bench keeps its back to the west (see CraftingSquare.build).
+				score = storey * 10.0 + (6.0 if cell_char(c + Vector2i(-1, 0)) == "#" else 0.0) + (-4.0 if _against_back_wall(c) else 0.0) - c.y * 0.1
+			"hort":
+				score = storey * 10.0 + (2.0 if _against_back_wall(c) else 0.0) - c.y * 0.1
 			_:
 				score = storey * 10.0 + (3.0 if _against_side_wall(c) else 0.0) - (4.0 if _against_back_wall(c) else 0.0) - c.y * 0.1
 		if score > best_score:
@@ -5464,7 +5469,19 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 		rot = PI * 0.5
 	elif cell_char(c + Vector2i(1, 0)) == "#":
 		rot = -PI * 0.5
+	if HomeUpgrades.ALL[id].has("bench"):
+		# The very bench of the crafting square, with its own station (same craft, same window).
+		var before := stations.size()
+		CraftingSquare.build(self, c, HomeUpgrades.ALL[id].bench)
+		astar.set_point_solid(c, true)
+		for i in range(before, stations.size()):
+			stations[i]["upgrade"] = true
+		return
 	match id:
+		"hort":
+			_build_coin_hoard(root, pos)
+			astar.set_point_solid(c, true)
+			stations.append({"kind": "hort", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"werkstatt":
 			var bench := Node3D.new()
 			root.add_child(bench)
@@ -5481,6 +5498,67 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 		"trophaeen":
 			_build_trophy_wall(root, pos)
 			stations.append({"kind": "trophaeen", "cell": c, "pos": pos + Vector3(0, 0, -TILE * 0.5 + 0.6), "used": false, "upgrade": true})
+
+
+## The hoard's heaps of coins, by metal, and what they last showed (see HomeHoard): a change in
+## the hero's purse redraws only when the mix changes.
+var _hoard_root: Node3D
+var _hoard_shown := {}
+## The hoard's heaps sit on a low round plinth of this radius (metres).
+const HOARD_PLINTH := 1.7
+
+
+## A low round plinth of old stone where the hoard's coin heaps are laid.
+func _build_coin_hoard(root: Node3D, pos: Vector3) -> void:
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.38, 0.36, 0.34)
+	stone.roughness = 0.95
+	var plinth := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = HOARD_PLINTH
+	disc.bottom_radius = HOARD_PLINTH + 0.1
+	disc.height = 0.14
+	plinth.mesh = disc
+	plinth.material_override = stone
+	plinth.position = pos + Vector3(0, 0.07, 0)
+	root.add_child(plinth)
+	_hoard_root = Node3D.new()
+	_hoard_root.position = pos + Vector3(0, 0.14, 0)
+	root.add_child(_hoard_root)
+	_hoard_shown = {}
+	_add_solid(pos, Vector3(HOARD_PLINTH * 1.6, 0.6, HOARD_PLINTH * 1.6))
+
+
+## Lays the hoard's heaps for the coins the hero holds (metal -> count): the heaps follow
+## HomeHoard.mix, the biggest in front, the others behind it.
+func show_hoard(held: Dictionary) -> void:
+	if _hoard_root == null:
+		return
+	var mix := HomeHoard.mix(HomeHoard.stage_of(HomeHoard.wealth(int(held.get("kupfermuenze", 0)),
+			int(held.get("silbermuenze", 0)), int(held.get("goldmuenze", 0)))), held)
+	if mix == _hoard_shown:
+		return
+	_hoard_shown = mix
+	for child in _hoard_root.get_children():
+		_hoard_root.remove_child(child)
+		child.queue_free()
+	var metals: Array = mix.keys()
+	metals.sort_custom(func(a, b): return mix[a] > mix[b])
+	var biggest := 0.0
+	for m in metals:
+		biggest = maxf(biggest, CoinPile.radius(mix[m]))
+	# The heaps shrink together so that three of them fit on the plinth.
+	var fit := clampf((0.85 if metals.size() > 1 else 1.3) / maxf(biggest, 0.01), 0.35, 1.0)
+	var spots := [Vector3(0, 0, 0.35), Vector3(-0.85, 0, -0.7), Vector3(0.85, 0, -0.7)]
+	if metals.size() == 1:
+		spots = [Vector3.ZERO]
+	for i in metals.size():
+		var holder := Node3D.new()
+		holder.name = "Heap_" + metals[i]
+		holder.position = spots[i]
+		holder.scale = Vector3.ONE * fit
+		_hoard_root.add_child(holder)
+		CoinPile.dress(holder, mix[metals[i]], metals[i], self)
 
 
 ## A dark oak board on the back wall with a long shelf in front of it: the

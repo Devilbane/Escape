@@ -702,6 +702,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/home_upgrades.gd | tee upgrades.log
           grep -q PASS upgrades.log
 
+      - name: Home hoard and benches test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/home_hoard.gd | tee home_hoard.log
+          grep -q PASS home_hoard.log
+
       - name: Home stores test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/home_stores.gd | tee home_stores.log

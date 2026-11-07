@@ -131,6 +131,17 @@ func _process(_delta: float) -> bool:
 			villager.alarm(slime)
 			check(villager._task == "fight", "a brave villager stands and fights")
 			check(_blade(villager), "and draws a blade")
+			# The morale test when the wall breaks: strength + intuition + intelligence + level on a d100.
+			check(villager.nerve() == villager.strength() + villager.intuition() + villager.intelligence() + villager.fight_level(), "nerve is strength + intuition + intelligence + level")
+			check(villager.test_nerve(villager.nerve()) and not villager.shaken, "a roll at the sum holds")
+			check(not villager.test_nerve(villager.nerve() + 1) and villager.shaken, "a roll above the sum loses nerve")
+			villager.calm_down()
+			villager.alarm(slime)
+			check(villager._task != "fight", "a shaken villager runs to safety instead of fighting")
+			villager.shaken = false
+			villager.calm_down()
+			villager.alarm(slime)
+			check(villager._task == "fight", "one who holds keeps fighting")
 			# The priestess mends a villager a slime has hurt.
 			var priestess: Villager = null
 			for v in out.villagers:

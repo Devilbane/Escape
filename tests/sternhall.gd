@@ -166,7 +166,7 @@ func _check_safe_rooms() -> void:
 	var lvl: Level = game.level
 	check(not stern.safe_cells.is_empty(), "the cellars have a safe room")
 	for c: Vector2i in stern.safe_cells:
-		check(lvl.cell_char(c) not in "?/`*:", "a safe tile is no secret wall, bar or chasm")
+		check(lvl.cell_char(c) not in "?/`-:", "a safe tile is no secret wall, bar or chasm")
 	for e in lvl.enemies:
 		check(not stern.is_safe(e.global_position), "no monster starts in a safe room (%s)" % e.kind)
 	# A monster that walks in is put back at the threshold.
@@ -276,7 +276,7 @@ func _check_respawn() -> void:
 	foe.take_hit(9999, foe.global_position + Vector3(0, 0, 1))
 	var key := Level.slain_key(c)
 	check(lvl.taken.get(key, null) is float, "a fallen monster remembers when it fell")
-	lvl.taken[key] = lvl.world_hours() - SternHall.RESPAWN_HOURS - 1.0
+	lvl.taken[key] = lvl.world_hours - SternHall.RESPAWN_HOURS - 1.0
 	var p := _hero()
 	p.global_position = lvl.cell_to_world(c)
 	stern._respawn()
@@ -369,12 +369,16 @@ func _check_stations() -> void:
 	var stern := _stern()
 	var lvl: Level = game.level
 	var p := _hero()
-	var anvils: Array = lvl.stations.filter(func(s): return s.kind == SternHall.ANVIL)
-	check(anvils.size() == 1, "the forge has an anvil")
+	var anvils: Array = lvl.stations.filter(func(s): return s.kind == AshSpire.ANVIL)
+	check(anvils.size() == 1, "the forge has an anvil (the Ashen Spire's, see AshSpire)")
 	check(lvl.stations.any(func(s): return s.kind == "bett"), "the forge has a bed to save and rest")
 	if not anvils.is_empty():
 		check(stern.is_safe(anvils[0].pos), "the forge is a safe room")
-		stern.use(anvils[0], p)
+		p.bag.append("schwert")
+		p.wear["schwert"] = 5
+		var worn: int = p.wear.values().reduce(func(a, b): return a + b, 0)
+		game._use_station(anvils[0])
+		check(p.wear.values().reduce(func(a, b): return a + b, 0) < worn, "the anvil mends worn gear")
 
 
 ## The jail's guard room: a bed, the fountain and a shelf with a potion a day.

@@ -2221,21 +2221,6 @@ func _tell_set_change(was: String) -> void:
 
 
 ## Everything the hero carries, worn or in the bag, in kg.
-## Mends up to `points` of wear on the worn gear first, then on the gear in
-## the bag (an anvil, a smith). Returns how many points it mended.
-func mend_gear(points: int) -> int:
-	var done := 0
-	var order: Array = equipped.values()
-	order.append_array(bag)
-	for id in order:
-		while done < points and wear.get(id, 0) > 0:
-			wear[id] -= 1
-			done += 1
-			if wear[id] <= 0:
-				wear.erase(id)
-	return done
-
-
 func carried_weight() -> float:
 	var total := 0.0
 	for slot in equipped:

@@ -15,19 +15,19 @@ extends Node3D
 ##        wall (?) for good. A high one (}) is out of reach unless the hero
 ##        stands on something HIGH_FEET high (two crates, see Crate).
 ##   {    a heap of rubble as high as a man (SternLedge): climbed from a crate.
-##   * :  the chasm and its crumbling flagstones. A stone falls CRUMBLE_AFTER
+##   - :  the chasm and its crumbling flagstones. A stone falls CRUMBLE_AFTER
 ##        seconds after it is stepped on and rises again CRUMBLE_DOWN later.
 ##        A hero who steps into the chasm falls, loses FALL_SHARE of their
 ##        life and is back where they last stood on firm ground.
-##   !    a listening eye: it hears a hero who does not sneak (Player.is_noisy)
+##   [    a listening eye: it hears a hero who does not sneak (Player.is_noisy)
 ##        within EYE_RANGE, glows for EYE_WARN seconds and, if the noise goes
 ##        on, strikes for EYE_SHARE of their life and wakes the monsters near.
 ##   /    barred doors: open once the hero picks up the key ring of the
 ##        floor's warden (a SternBoss with "keys").
 ##   `    the vault's portcullis: open until the tome is taken.
-##   I ; ' )  the tome's lectern, an anvil (mends gear), a shelf with a
-##        healing potion every day, and the drain out into the open.
-##   -    a loose crate.
+##   \ ' )  the tome's lectern, a shelf with a healing potion every day,
+##        and the drain out into the open.
+## Its anvil (!) and loose crates (p) are the Ashen Spire's (see AshSpire).
 ## The rooms with a bed are safe: no monster sets foot in them (they stop
 ## at the threshold), nothing rises again there and the keep leaves the hero
 ## in peace there. Monsters that fell rise again RESPAWN_HOURS game hours
@@ -47,16 +47,15 @@ const MOODS := {
 ## Letters that sit in the wall (they are walls to everything else).
 const IN_WALL := "]}"
 ## Letters with no floor tile of their own.
-const NO_FLOOR := "*:"
+const NO_FLOOR := "-:"
 
 ## Station kinds (see Game._use_station).
 const RELIEF := "stern_relief"
-const ANVIL := "stern_amboss"
 const SHELF := "stern_regal"
 const BARS := "stern_gitter"
 const PRISONER := "stern_gefangener"
 const DRAIN := "stern_abfluss"
-const KINDS := [RELIEF, ANVIL, SHELF, BARS, PRISONER]
+const KINDS := [RELIEF, SHELF, BARS, PRISONER]
 ## The outdoor door the drain comes out of (see SternGate).
 const OUTLET := "stern_abfluss"
 
@@ -83,7 +82,6 @@ const EYE_WARN := 0.7
 const EYE_SHARE := 0.25
 const EYE_REST := 3.0
 const EYE_WAKES := 18.0
-const MEND_POINTS := 40
 const RESPAWN_HOURS := 8.0
 const RESPAWN_FAR := 28.0
 const RESPAWN_CHECK := 5.0
@@ -185,7 +183,7 @@ static func builds_floor(ch: String) -> bool:
 func build_cell(c: Vector2i, ch: String) -> void:
 	var pos := level.cell_to_world(c)
 	match ch:
-		"*":
+		"-":
 			pits[c] = true
 		":":
 			flagstones.append({"cell": c, "node": SternParts.flagstone(level, c), "state": "solid", "t": 0.0})
@@ -196,15 +194,12 @@ func build_cell(c: Vector2i, ch: String) -> void:
 			level.add_child(ledge)
 			_ledges.append(ledge)
 			SternParts.rubble(level, c, not across_x)
-		"!":
+		"[":
 			var eye := SternParts.eye(level, pos)
 			eye.merge({"cell": c, "pos": pos + Vector3(0, 1.85, 0), "charge": 0.0, "rest": 0.0, "dead": false})
 			eyes.append(eye)
-		"I":
+		"\\":
 			lectern = {"cell": c, "pos": pos, "glow": SternParts.lectern(level, pos)}
-		";":
-			SternParts.anvil(level, c)
-			level.stations.append({"kind": ANVIL, "cell": c, "pos": pos, "used": false})
 		"'":
 			SternParts.shelf(level, c)
 			level.stations.append({"kind": SHELF, "cell": c, "pos": pos, "used": false})
@@ -219,8 +214,6 @@ func build_cell(c: Vector2i, ch: String) -> void:
 		"`":
 			portcullis = level.add_grating(c)
 			portcullis.merge({"down": true})
-		"-":
-			level.add_crate(pos + Vector3(0.3, 0, -0.2))
 
 
 ## After the tiles are built and the paths are laid (see Level.build): the
@@ -389,7 +382,7 @@ func _find_safe_cells() -> void:
 				for d in Level.DIRS:
 					var n: Vector2i = c + d
 					var ch := level.cell_char(n)
-					if steps.has(n) or ch == "" or "#?{/`*:".contains(ch):
+					if steps.has(n) or ch == "" or "#?{/`-:".contains(ch):
 						continue
 					steps[n] = steps[c] + 1
 					todo.append(n)
@@ -431,7 +424,7 @@ static func make_boss(spec: Dictionary) -> Enemy:
 ## Forgets the monsters that fell long enough ago (see Level._spawn_enemies):
 ## they are back. The wardens stay dead ("true").
 func forget_old_kills() -> void:
-	var now := level.world_hours()
+	var now := level.world_hours
 	for key in level.taken.keys():
 		var when = level.taken[key]
 		if str(key).begins_with("slain:") and (when is float or when is int) and now - float(when) >= RESPAWN_HOURS:
@@ -463,7 +456,7 @@ func _on_killed(e: Enemy) -> void:
 		if warden_cells.has(c) and not level.taken.has(KEYS_TAKEN):
 			_drop_key_ring(e.global_position)
 	else:
-		level.taken[Level.slain_key(c)] = level.world_hours()
+		level.taken[Level.slain_key(c)] = level.world_hours
 
 
 ## Monsters that fell long enough ago rise again where the map put them,
@@ -472,7 +465,7 @@ func _respawn() -> void:
 	var hero := level.player.global_position
 	if is_safe(hero):
 		return
-	var now := level.world_hours()
+	var now := level.world_hours
 	for key in level.taken.keys():
 		var when = level.taken[key]
 		if not str(key).begins_with("slain:") or not (when is float or when is int) or now - float(when) < RESPAWN_HOURS:
@@ -597,16 +590,8 @@ func use(s: Dictionary, player: Player) -> void:
 		BARS:
 			Sfx.play(self, "door", -10.0, s.pos)
 			Effects.float_text(level, s.pos + Vector3(0, 2.4, 0), Lang.t("Verschlossen. Den Schlüsselbund trägt der Wärter dieser Ebene."), Color(0.85, 0.85, 0.85))
-		ANVIL:
-			player.play_once("Interact", 0.6)
-			var mended := player.mend_gear(MEND_POINTS)
-			Sfx.play(self, "word_klack", -4.0, s.pos)
-			if mended > 0:
-				Events.found(Lang.t("Am alten Amboss klopfst du deine Ausrüstung wieder zurecht."), SternParts.STAR_GOLD)
-			else:
-				Effects.float_text(level, s.pos + Vector3(0, 2.0, 0), Lang.t("Deine Ausrüstung ist heil."), Color(0.85, 0.85, 0.85))
 		SHELF:
-			var today := int(level.world_hours() / 24.0)
+			var today := int(level.world_hours / 24.0)
 			if int(level.taken.get(shelf_key(s.cell), -1)) == today:
 				Effects.float_text(level, s.pos + Vector3(0, 2.0, 0), Lang.t("Das Regal ist leer. Morgen steht hier ein neuer Trank."), Color(0.85, 0.85, 0.85))
 				return

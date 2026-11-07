@@ -9,10 +9,10 @@ extends RefCounted
 ## Tiles.DUNGEON is in exactly one group, so a new tile shows up here too.
 const GROUPS := [
 	["Boden und Wände", "#.,?=~j%"],
-	["Wege", "PEDK<>^|/`)-"],
-	["Fallen und Rätsel", "S_QT]}{*:!"],
+	["Wege", "PEDK<>^|/`)"],
+	["Fallen und Rätsel", "S_QTaz]}{-:["],
 	["Schätze", "cCkU&$"],
-	["Einrichtung", "bxotfHFBLmhV+NXyI;'"],
+	["Einrichtung", "bxotfHFBLmhV+NXyp*!I;\\'"],
 	["Monster", "MAZwGWrnlvsuqJOeigRYd@"],
 	["Eigene Geschöpfe", "1234567890"],
 ]
@@ -22,7 +22,7 @@ const NAMES := {
 	"~": "Glutspalte", "j": "Grubenstempel", "%": "Kristalle",
 	"P": "Start", "E": "Ausgang (Treppe)", "D": "Verschlossene Tür", "K": "Schlüssel",
 	"<": "Treppe hinauf", ">": "Treppe hinab", "^": "Weg nach unten", "|": "Eisentor",
-	"S": "Stachelfalle", "_": "Druckplatte", "Q": "Schwerer Steinblock", "T": "Steintafel",
+	"S": "Stachelfalle", "a": "Mauerabsatz", "z": "Klingenfeger", "p": "Lose Kiste", "I": "Lesepult mit dem Grimoire", "*": "Vorrat mit Heiltränken", "!": "Zwergenamboss", ";": "Luke mit Leiter", "_": "Druckplatte", "Q": "Schwerer Steinblock", "T": "Steintafel",
 	"c": "Münze", "C": "Schatztruhe", "k": "Kleine Truhe", "U": "Tresor hinter Gittern",
 	"b": "Fässer", "x": "Kisten", "o": "Säule", "t": "Tisch", "f": "Feuerschale",
 	"H": "Schrein", "F": "Brunnen", "B": "Bett", "L": "Lagertruhe", "m": "Stahlbeschlagene Truhe", "h": "Zutatenbord", "V": "Händler",
@@ -34,9 +34,9 @@ const NAMES := {
 	"J": "Felstroll", "O": "Bergork", "e": "Eiswolf", "i": "Kristallschleim", "g": "Glutschleim",
 	"R": "Drache", "Y": "Bergkönig",
 	"&": "Epische Schatztruhe", "$": "Hort des Großen Alten", "d": "Brutdrache", "@": "Der Große Alte",
-	"]": "Sternrelief", "}": "Hohes Sternrelief", "{": "Schuttwall", "*": "Abgrund", ":": "Bröckelnde Steinplatte",
-	"!": "Lauschendes Auge", ")": "Alter Abfluss", "I": "Lesepult mit Foliant", ";": "Amboss", "'": "Trankregal",
-	"/": "Gittertür", "`": "Fallgitter", "-": "Lose Kiste",
+	"]": "Sternrelief", "}": "Hohes Sternrelief", "{": "Schuttwall", "-": "Abgrund", ":": "Bröckelnde Steinplatte",
+	"[": "Lauschendes Auge", ")": "Alter Abfluss", "\\": "Lesepult mit Foliant", "'": "Trankregal",
+	"/": "Gittertür", "`": "Fallgitter",
 }
 
 ## What a few tiles need to work, shown under the palette when picked.
@@ -46,6 +46,9 @@ const NOTES := {
 	"D": "Öffnet sich mit dem Schlüssel (K) oder dem eines Wächters.",
 	"K": "Öffnet die verschlossene Tür (D).",
 	"?": "Öffnet sich mit einer Fackel in der Nähe als Hebel.",
+	"a": "Drei Kisten hoch: Nur mit einer Kiste oder einem Steinblock als Stufe zu erklimmen.",
+	"z": "Eine kreisende Klinge knapp über dem Boden: Man springt darüber.",
+	"p": "Eine Kiste zum Tragen (E) und Abstellen (Q).",
 	"_": "Jede Platte braucht einen schweren Steinblock (Q).",
 	"Q": "Der Held schiebt ihn auf eine Druckplatte (_), höchstens 5 Felder weit.",
 	"|": "Senkt sich, wenn alle Druckplatten belegt sind.",
@@ -64,7 +67,7 @@ const NOTES := {
 	"]": "Gehört in eine Wand: öffnet die nächste geheime Wand (?).",
 	"}": "Gehört in eine Wand: nur wer auf zwei Kisten steht, reicht hinauf.",
 	"/": "Öffnet sich, wenn der Held den Schlüsselbund des Wärters dieser Ebene aufhebt.",
-	"`": "Steht offen, bis jemand den Folianten (I) nimmt.",
+	"`": "Steht offen, bis jemand den Folianten (\\) nimmt.",
 }
 
 ## Colours on the grid. Letters not listed take their group's colour.
@@ -84,7 +87,7 @@ const GROUP_COLORS := [Color(0.42, 0.4, 0.38), Color(0.8, 0.7, 0.4), Color(0.75,
 const OUTDOOR_GROUPS := [
 	["Gelände", "#.,:~;='"],
 	["Natur", "Tdrtpy"],
-	["Wege und Eingänge", "PREa([])>|`"],
+	["Wege und Eingänge", "PREa([])><|`"],
 	["Gebäude", "hjnmuskowb^IiBL"],
 	["Dorf und Lager", "gzlexqFv!@NfC+%*$?"],
 	["Dorfbewohner", "0123456789KOGMYZS"],
@@ -97,7 +100,7 @@ const OUTDOOR_NAMES := {
 	";": "Teich in der Wolfsmulde", "=": "Fels der Berge", "'": "Geröll",
 	"T": "Baum", "d": "Toter Baum", "r": "Felsen", "t": "Baumstumpf mit Holz", "p": "Kürbisse", "y": "Kürbisfeld",
 	"P": "Start vor der Gruft", "R": "Die Gruft", "E": "Weg in die Drachenhöhle", "a": "Tor im Zaun",
-	"(": "Dunkles Loch", ">": "Findling über der verborgenen Grotte", "?": "Vergrabener Schatz", "[": "Bergschenke", "]": "Mineneingang", ")": "Höhle des Großen Alten",
+	"(": "Dunkles Loch", ">": "Findling über der verborgenen Grotte", "?": "Vergrabener Schatz", "[": "Bergschenke", "]": "Mineneingang", ")": "Höhle des Großen Alten", "<": "Tor der Aschenzinne",
 	"|": "Tor der Feste Sternhall", "`": "Rostiges Abflussgitter",
 	"h": "Haus", "j": "Schmiede", "n": "Wirtshaus", "m": "Markt", "u": "Windmühle", "s": "Tempel",
 	"k": "Amt der Krone", "o": "Post", "w": "Abenteurergilde", "b": "Bank", "^": "Weberzeile",

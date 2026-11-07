@@ -769,6 +769,8 @@ func _skills_text() -> String:
 func _crafts_text() -> String:
 	var parts := []
 	for id in Training.CRAFTS:
+		if id == AshSpire.SPELL and not AshSpire.knows_spell(game.player):
+			continue
 		parts.append("%s %d" % [Lang.t(Training.CRAFTS[id].name), Training.skill_level(game.player.xp.get(id, 0.0), id)])
 	var lines := []
 	for i in range(0, parts.size(), 2):

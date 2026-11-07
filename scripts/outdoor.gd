@@ -95,7 +95,7 @@ const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@'{}-/?"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
-const BLOCK_CHARS := "RhjnmuskowbE^[])"
+const BLOCK_CHARS := "RhjnmuskowbE^[])<"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
 	"m": "building_market_green", "u": "building_windmill_red",
@@ -106,7 +106,7 @@ const BLOCK_MODELS := {
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
 	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
-	"E": "die Drachenhöhle", "[": "die Bergschenke", ")": "den Hort des Großen Alten",
+	"E": "die Drachenhöhle", "[": "die Bergschenke", ")": "den Hort des Großen Alten", "<": "die Aschenzinne",
 	"|": "die Ruinen von Sternhall",
 }
 ## The mine entrances in the mountains (see "]" and Mines), west to east:
@@ -1142,6 +1142,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch == ")":
 		_build_elder_cave(block)
 		return
+	if ch == "<":
+		_build_spire_gate(block)
+		return
 	var facing := _block_facing(block) if ch != "R" else Vector2i(0, 1)
 	var rot := atan2(float(facing.x), float(facing.y))
 	var turned := facing.x != 0
@@ -1465,6 +1468,67 @@ func _build_elder_cave(block: Rect2i) -> void:
 	_forecourts.append({"block": block, "front": front})
 	if interiors.has(ELDER_CAVE):
 		stations.append({"kind": "eingang", "building": ELDER_CAVE, "name": BUILDING_NAMES[")"],
+				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.5), "used": false})
+
+
+## The gate of the Ashen Spire (see AshSpire): the foot of a mage's tower
+## that fell long ago, a stone arch left standing between two broken
+## pillars, black inside with a violet glow breathing out of it, rubble and
+## a few scorched stones in front. Run into it to climb down.
+const SPIRE_GATE := "spire1"
+
+
+func _build_spire_gate(block: Rect2i) -> void:
+	var center := cell_to_world(block.position) + Vector3(block.size.x - 1, 0, block.size.y - 1) * TILE * 0.5
+	var front := center + Vector3(0, 0, block.size.y * TILE * 0.5 - 0.4)
+	var width := block.size.x * TILE
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.36, 0.34, 0.37)
+	stone.roughness = 0.95
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color(0.2, 0.19, 0.22)
+	dark.roughness = 1.0
+	var black := StandardMaterial3D.new()
+	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	black.albedo_color = Color(0.015, 0.01, 0.025)
+	var rune := StandardMaterial3D.new()
+	rune.albedo_color = Color(0.6, 0.4, 1.0)
+	rune.emission_enabled = true
+	rune.emission = Color(0.6, 0.4, 1.0)
+	rune.emission_energy_multiplier = 1.6
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level_name + "spire")
+	# The dark doorway, and the arch round it: two pillars, one broken short.
+	_add_mesh_box(front + Vector3(0, 2.2, -1.6), Vector3(3.2, 4.4, 1.0), black)
+	_add_mesh_box(front + Vector3(-2.2, 3.4, -1.4), Vector3(1.4, 6.8, 1.6), stone)
+	_add_mesh_box(front + Vector3(2.2, 2.4, -1.4), Vector3(1.4, 4.8, 1.6), stone)
+	_add_mesh_box(front + Vector3(-0.6, 4.9, -1.4), Vector3(4.6, 1.0, 1.6), stone)
+	# The step in front and a carved rune on the lintel.
+	_add_mesh_box(front + Vector3(0, 0.12, 0.3), Vector3(4.6, 0.25, 1.2), dark)
+	_add_mesh_box(front + Vector3(-0.6, 4.9, -0.58), Vector3(1.4, 0.4, 0.06), rune)
+	_add_mesh_box(front + Vector3(-0.6, 4.9, -0.58), Vector3(0.4, 1.0, 0.06), rune)
+	# Fallen stones strewn in front, black with old fire.
+	for i in 7:
+		var rock := MeshInstance3D.new()
+		var chunk := BoxMesh.new()
+		chunk.size = Vector3(rng.randf_range(0.5, 1.3), rng.randf_range(0.3, 0.8), rng.randf_range(0.5, 1.2))
+		rock.mesh = chunk
+		rock.material_override = stone if i % 2 == 0 else dark
+		rock.position = front + Vector3(rng.randf_range(-width * 0.45, width * 0.45), chunk.size.y * 0.5, rng.randf_range(1.2, 4.0))
+		rock.rotation.y = rng.randf() * TAU
+		add_child(rock)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(0.62, 0.4, 1.0)
+	glow.light_energy = 1.6
+	glow.omni_range = 8.0
+	glow.position = front + Vector3(0, 1.8, -0.4)
+	add_child(glow)
+	_add_solid(center, Vector3(block.size.x * TILE * 0.9, 4, block.size.y * TILE * 0.9))
+	glow.set_meta("block", block)
+	doors[SPIRE_GATE] = front + Vector3(0, 0, 2.4)
+	_forecourts.append({"block": block, "front": front})
+	if interiors.has(SPIRE_GATE):
+		stations.append({"kind": "eingang", "building": SPIRE_GATE, "name": BUILDING_NAMES["<"],
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.5), "used": false})
 
 

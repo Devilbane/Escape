@@ -260,21 +260,6 @@ static func shelf(level: Level, c: Vector2i) -> void:
 	level._add_solid(pos - facing * 0.6, Vector3(2.4, 2.2, 1.6))
 
 
-## An old anvil on its stump, with a forge's glow beside it.
-static func anvil(level: Level, c: Vector2i) -> void:
-	var pos := level.cell_to_world(c)
-	var holder := Node3D.new()
-	holder.position = pos
-	holder.rotation.y = level._facing_room(c)
-	level.add_child(holder)
-	var scale := Node3D.new()
-	scale.scale = Vector3.ONE * 1.6
-	holder.add_child(scale)
-	VillageProps.build_anvil(scale, Vector3.ZERO)
-	_light(holder, Color(1.0, 0.5, 0.2), 1.6, 6.0, Vector3(0, 1.4, 0))
-	level._add_solid(pos, Vector3(1.8, 1.4, 1.8))
-
-
 ## A heap of rubble that fills the gap at c (the hero climbs it from a
 ## crate, see SternLedge), its long side across the gap.
 static func rubble(level: Level, c: Vector2i, across_x: bool) -> void:

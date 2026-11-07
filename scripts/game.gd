@@ -3867,7 +3867,8 @@ func rest_at_inn() -> void:
 		var saved := save_game()
 		player.frozen = false
 		state = State.PLAYING
-		show_message(Lang.t("Ausgeruht! Ein neuer Morgen in den Bergen.") + ("" if saved else "\n" + Lang.t("Speichern fehlgeschlagen!")), 3.5))
+		var woke := Lang.t("Ausgeruht! Hier unten ist es immer Nacht, aber du bist wieder bei Kräften.") if AshSpire.is_floor(level) else Lang.t("Ausgeruht! Ein neuer Morgen in den Bergen.")
+		show_message(woke + ("" if saved else "\n" + Lang.t("Speichern fehlgeschlagen!")), 3.5))
 	tween.tween_property(_fade, "color:a", 0.0, 1.0)
 
 

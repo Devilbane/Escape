@@ -95,6 +95,7 @@ func _run() -> void:
 	check(lvl.hatch_side != Vector3.ZERO and _stations(AshSpire.HATCH).is_empty(), "the hatch only lets the hero out up here")
 	check(_stations("schacht").size() == 1, "floor 1 has the way down")
 	check(lvl.enemies.size() >= 10, "floor 1 is held by monsters (%d)" % lvl.enemies.size())
+	await _find_lever(lvl)
 
 	# Floor 2: sneak past the guardians, the hidden bed.
 	lvl = _load("spire2")
@@ -102,6 +103,8 @@ func _run() -> void:
 	check(_stations("bett").size() == 1 and lvl._secrets.size() == 1, "the bed lies behind a secret wall")
 	check(lvl.enemies.filter(func(e): return e.kind == "waechter").size() >= 3, "guardians watch the cistern")
 	check(lvl._doors.size() == 1, "a locked door closes the way on")
+	await _find_lever(lvl)
+	await _rest_in_bed()
 
 	# Floor 3: blades, ledge, crate, cache, anvil, the first sub boss.
 	lvl = _load("spire3")
@@ -115,6 +118,7 @@ func _run() -> void:
 	# Floor 4: the prisoner, the second bed, the puzzle gate, the second sub boss.
 	lvl = _load("spire4")
 	check(lvl.inn and _stations("bett").size() == 1, "floor 4 has the second hidden bed")
+	await _find_lever(lvl)
 	check(_stations(AshSpire.PRISONER).size() == 1, "floor 4 has the prisoner")
 	check(lvl._gates.size() == 1 and lvl.stones.size() == 2, "floor 4 has a block puzzle")
 	check(lvl.enemies.any(func(e): return e.kind == "magier" and e.hp >= 60), "the archivist waits behind the gate")
@@ -259,3 +263,27 @@ func _respawn() -> void:
 	lvl = _load("spire1")
 	back = lvl._map_enemies.filter(func(e): return e.cell == cell)
 	check(not back.is_empty(), "it is back after the hours")
+
+
+## Standing by the lever torch in view opens the secret wall (sure: ja).
+func _find_lever(lvl: Level) -> void:
+	var sec: Dictionary = lvl._secrets[0]
+	check(sec.lever != null, "%s: the secret wall has a lever torch" % lvl.building)
+	if sec.lever == null:
+		return
+	var lever_at: Vector3 = lvl.cell_to_world(sec.lever_cell)
+	var spot := lever_at
+	game.player.global_position = spot
+	await _wait(40)
+	check(sec.open, "%s: standing by the lever opens the secret wall at once" % lvl.building)
+
+
+## Resting in the hidden bed heals and saves.
+func _rest_in_bed() -> void:
+	var p: Player = game.player
+	p.hp = 1
+	game.state = game.State.PLAYING
+	game.hero_name = HERO
+	game.rest_at_inn()
+	await _wait(600)
+	check(p.hp == p.max_hp, "a night in the hidden bed heals (hp %d/%d, state %s)" % [p.hp, p.max_hp, game.state])

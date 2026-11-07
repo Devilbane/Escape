@@ -562,6 +562,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/stone_puzzle.gd | tee puzzle.log
           grep -q PASS puzzle.log
 
+      - name: Ashen Spire test (floors, sweepers, ledge, grimoire, respawn)
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/ash_spire.gd | tee ashspire.log
+          grep -q PASS ashspire.log
+
       - name: Pull-out button menu test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_drawer.gd | tee drawer.log

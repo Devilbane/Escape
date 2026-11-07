@@ -287,7 +287,7 @@ const PRISONER_LINES := [
 	"Das Grimoire liegt ganz unten, im Allerheiligsten. Der Weg dorthin ist verflucht mit Fallen, die man nur im Sprung überlebt.",
 	"Ich bin wund. Ein Heiltrank, und ich verrate Euch ein Geheimnis dieser Zelle.",
 ]
-const PRISONER_THANKS := "Dank sei Euch! Hört: In der langen Halle des Archivs, in der Südwand, ist hinter einem Mauerstück ein Bett versteckt. Und ganz unten, hinter dem Allerheiligsten, führt eine Leiter ungesehen zurück in den Hof."
+const PRISONER_THANKS := "Dank sei Euch! Hört: Am Westende der langen Halle des Archivs ist hinter einem Mauerstück ein Bett versteckt. Und ganz unten, hinter dem Allerheiligsten, führt eine Leiter ungesehen zurück in den Hof."
 
 
 static func _talk_prisoner(game: Node, s: Dictionary) -> void:

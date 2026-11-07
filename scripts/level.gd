@@ -133,7 +133,7 @@ const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_sh
 ## shelves, chests and the wall decorations.
 const WORN_SETS := ["props", "chests", "wallprops"]
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "#bxotkCDHBLmhVF?f=U|N%~T^&aI*!;{-:[\\')/`"
+const SOLID := "(#bxotkCDHBLmhVF?f=U|N%~T^&aI*!;{-:[\\')/`"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 const SPIKE_PERIOD := 3.0
@@ -1370,6 +1370,8 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			HomeStoreFurniture.build_metal_chest(self, c)
 		"h":
 			HomeStoreFurniture.build_board(self, c)
+		"(":
+			CapeWardrobe.build(self, c)
 		"V":
 			_build_merchant(c)
 		"=":

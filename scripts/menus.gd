@@ -214,6 +214,7 @@ const WINDOW_SIZES := {
 	"trophaeen": Vector2(560, 360),
 	"charakter": Vector2(1024, 642),
 	"gefaehrten": Vector2(960, 530),
+	"umhangschrank": Vector2(780, 640),
 	"wunsch": Vector2(760, 560),
 	"kampfstil": Vector2(700, 330),
 	"kompendium": Vector2(990, 600),
@@ -225,7 +226,7 @@ const WINDOW_SIZES := {
 ## The windows (besides the merchants') that can leave a note after a
 ## click; they keep its line from the start.
 const NOTE_WINDOWS := ["inventar", "lager", "metalltruhe", "zutatenbord", "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
-	"aushang", "gefaehrten", "wunsch"]
+	"aushang", "gefaehrten", "wunsch", "umhangschrank"]
 
 
 ## The fixed content size of a kind of window, or zero for one that fits
@@ -363,6 +364,8 @@ func _rebuild() -> void:
 			_build_spoils()
 		"gefaehrten":
 			_build_companions()
+		"umhangschrank":
+			_build_wardrobe()
 		"gefaehrte_name":
 			_build_naming()
 	if current in ["lager", "tresor"]:
@@ -2582,6 +2585,90 @@ func _build_trophies() -> void:
 			_box.add_child(row)
 		else:
 			_add_label(line, 18)
+
+
+# --- Cape wardrobe (see CapeWardrobe, CapeDesigns) ---------------------------------
+
+## Size of one design's card in the cape wardrobe, and of its picture.
+const CAPE_CARD := Vector2(236, 372)
+const CAPE_PICTURE := Vector2(200, 214)
+
+
+## The cape wardrobe's window: one card for every design with a picture of the cape's back, its
+## name, a line about it and a button to wear it. The design worn now is marked (a green "Worn" tag
+## and a gold border, so colour is not the only cue) and its button is dimmed. Every card has the
+## same size whatever its state, so picking one moves nothing.
+func _build_wardrobe() -> void:
+	_add_label(Lang.t("Umhangschrank"), 38, game.GOLD, game.TITLE_FONT)
+	var intro := _add_label(Lang.t("Wähle das Bild auf dem Rücken deines Umhangs. Du kannst es jederzeit wechseln."), 18, ABOUT_COLOR)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intro.custom_minimum_size.x = 3 * CAPE_CARD.x + 2 * 14
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(row)
+	for i in CapeDesigns.DESIGNS.size():
+		row.add_child(_cape_card(i))
+
+
+func _cape_card(design: int) -> Control:
+	var info: Dictionary = CapeDesigns.DESIGNS[design]
+	var worn: bool = game.player.cape_design == design
+	var card := PanelContainer.new()
+	card.custom_minimum_size = CAPE_CARD
+	var style := BronzeStyle.new()
+	style.bg_color = Color(0.14, 0.1, 0.06, 0.9)
+	style.border_color = game.GOLD if worn else Color(0.4, 0.34, 0.25, 0.6)
+	style.set_border_width_all(3 if worn else 2)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(10)
+	card.add_theme_stylebox_override("panel", style)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	card.add_child(col)
+	# The cape's back: a dark cloth with the picture on it (none on a blank cape).
+	var cloth := PanelContainer.new()
+	cloth.custom_minimum_size = CAPE_PICTURE
+	var cloth_style := StyleBoxFlat.new()
+	cloth_style.bg_color = Color(0.2, 0.1, 0.12)
+	cloth_style.set_corner_radius_all(6)
+	cloth.add_theme_stylebox_override("panel", cloth_style)
+	col.add_child(cloth)
+	var tex := CapeDesigns.texture(design)
+	if tex != null:
+		var picture := TextureRect.new()
+		picture.texture = tex
+		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cloth.add_child(picture)
+	var name_label := _make_wardrobe_label(Lang.t(info.name), 20, game.GOLD)
+	name_label.clip_text = true
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	col.add_child(name_label)
+	var text := _make_wardrobe_label(Lang.t(info.text), 16, ABOUT_COLOR)
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.custom_minimum_size.y = 70
+	text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	col.add_child(text)
+	var button: Button = game._make_button(Lang.t("Getragen") if worn else Lang.t("Tragen"), _wear_cape.bind(design))
+	button.custom_minimum_size = Vector2(0, 48)
+	button.disabled = worn
+	col.add_child(button)
+	return card
+
+
+func _make_wardrobe_label(text: String, size: int, color: Color) -> Label:
+	var l: Label = game._make_label(game.TEXT_FONT, size, color)
+	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return l
+
+
+func _wear_cape(design: int) -> void:
+	game.player.set_cape_design(design)
+	_note = Lang.t("Du trägst jetzt: %s") % Lang.t(CapeDesigns.DESIGNS[design].name)
+	_rebuild()
 
 
 # --- Companions (see Companions) -------------------------------------------------

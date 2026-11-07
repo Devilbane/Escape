@@ -160,6 +160,9 @@ var wear := {}
 ## The hero's hair style, hair colour and head tattoo (see HairLook); the
 ## barber in the village changes them.
 var hair := HairLook.DEFAULT.duplicate()
+## The picture on the back of the cape (index into CapeDesigns.DESIGNS) and its quad.
+var cape_design := CapeDesigns.DEFAULT
+var _cape_logo: MeshInstance3D
 ## The hero's body, "male" or "female" (see BodyLook).
 var sex := BodyLook.DEFAULT
 ## Chance per hit that a worn armour piece loses a point of durability.
@@ -669,7 +672,20 @@ func set_hair(look: Dictionary) -> void:
 	_show_headgear()
 
 
-## The glowing devilbane emblem on the back of the cape.
+## Puts another picture on the back of the cape (see CapeDesigns): the blank
+## cape shows none.
+func set_cape_design(design: int) -> void:
+	cape_design = CapeDesigns.checked(design)
+	if _cape_logo == null:
+		return # Not built yet: _add_cape_logo puts it on.
+	var tex := CapeDesigns.texture(cape_design)
+	_cape_logo.visible = tex != null
+	if tex != null:
+		(_cape_logo.mesh.material as StandardMaterial3D).albedo_texture = tex
+
+
+## The picture on the back of the cape: the glowing devilbane emblem unless the
+## hero picked another at the cape wardrobe.
 func _add_cape_logo() -> void:
 	var cape := _model.find_child("Rogue_Cape", true, false) as Node3D
 	if cape == null:
@@ -684,11 +700,14 @@ func _add_cape_logo() -> void:
 	quad.material = mat
 	var logo := MeshInstance3D.new()
 	logo.mesh = quad
+	logo.name = "CapeLogo"
 	logo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# Up near the shoulders, tilted to follow the cape's slope towards the hood.
 	logo.position = Vector3(0, -0.36, -0.39)
 	logo.rotation = Vector3(-0.3, PI, 0)
 	cape.add_child(logo)
+	_cape_logo = logo
+	set_cape_design(cape_design)
 
 
 func play(anim_name: String, blend := 0.2) -> void:

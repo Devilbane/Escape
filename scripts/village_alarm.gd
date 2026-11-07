@@ -49,9 +49,9 @@ func tick(o: Outdoor, delta: float) -> void:
 	for s in slimes:
 		if too_big(s) and monster == null:
 			monster = s
-			var caller := _caller(o)
-			if caller != null:
-				caller.call_to_arms(Lang.t(FLEE))
+			var herald := caller(o)
+			if herald != null:
+				herald.call_to_arms(Lang.t(FLEE))
 			Events.tell(Lang.t(FLEE), COLOR)
 	if monster != null and not monster in slimes:
 		slimes.append(monster)
@@ -60,18 +60,18 @@ func tick(o: Outdoor, delta: float) -> void:
 		if not raised:
 			raised = true
 			if monster == null:
-				var caller := _caller(o)
-				if caller != null:
-					caller.call_to_arms(Lang.t(CALL))
+				var herald := caller(o)
+				if herald != null:
+					herald.call_to_arms(Lang.t(CALL))
 				Events.tell(Lang.t(NEWS), COLOR)
 		_rally(o, slimes)
 	elif raised:
 		_clear += CHECK_EVERY
 		if _clear >= CALM_AFTER:
 			raised = false
-			var caller := _caller(o)
-			if caller != null:
-				caller.say(Lang.t(ALL_CLEAR))
+			var herald := caller(o)
+			if herald != null:
+				herald.say(Lang.t(ALL_CLEAR))
 
 
 static func too_big(slime: Enemy) -> bool:
@@ -83,13 +83,14 @@ static func intruders(o: Outdoor) -> Array:
 	var out := []
 	for e in o.enemies:
 		if is_instance_valid(e) and not e.dead and e.is_inside_tree() and SlimeGrowth.grows(e.kind) \
-				and o._in_village(o.world_to_cell(e.global_position)):
+				and o._in_village(o.world_to_cell(e.global_position)) \
+				and o.village_wall.is_inside(o.world_to_cell(e.global_position)):
 			out.append(e)
 	return out
 
 
 ## Who calls the alarm: the herald, else the guard, if out and about.
-static func _caller(o: Outdoor) -> Villager:
+static func caller(o: Outdoor) -> Villager:
 	for role in CALLERS:
 		for v in o.villagers:
 			if v.role == role and not v.eaten and not v.at_home and v.visible:

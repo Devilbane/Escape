@@ -345,6 +345,11 @@ var _repath := 0.0
 ## Set while the target cannot be got at: the monster waits at the nearest point
 ## (see _plan_route).
 var _stranded := false
+## The brick of the village wall a slime that cannot get past it is eating into
+## (see VillageWall), and how long it keeps at it without a fresh reason.
+var _wall_target: WallBrick = null
+var _wall_clock := 0.0
+const WALL_PATIENCE := 5.0
 var _knockback := Vector3.ZERO
 ## The post, taken where the skeleton stands on its first frame (the level
 ## places it only after it is ready).
@@ -1884,6 +1889,7 @@ func _physics_process(delta: float) -> void:
 	_shriek_cool = maxf(0.0, _shriek_cool - delta)
 	_scare_cool = maxf(0.0, _scare_cool - delta)
 	_repath -= delta
+	_wall_clock = maxf(0.0, _wall_clock - delta)
 	var player: Player = level.player
 	var to_player := player.global_position - global_position
 	to_player.y = 0.0
@@ -1969,6 +1975,9 @@ func _physics_process(delta: float) -> void:
 	var move := _step_out() if _busy <= 0.0 and not through_walls else Vector3.ZERO
 	if move != Vector3.ZERO:
 		pass # Out of the furniture first.
+	elif _wall_target != null:
+		if _busy <= 0.0:
+			move = _batter_wall()
 	elif feeds:
 		if _busy <= 0.0:
 			move = _go_feed()
@@ -2040,6 +2049,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	if move != Vector3.ZERO:
 		_face(move, delta)
+		_note_wall()
 	_check_stuck(delta, move)
 	var walker := is_human() and not is_ghost()
 	if _busy > 0.0:
@@ -2157,9 +2167,70 @@ func _plan_route(goal: Vector3, reach: float) -> bool:
 		if not found.reached:
 			_repath = STRANDED_REPATH
 			_stranded = true
+			# A slime walled out of the village by its wall eats into it.
+			_aim_at_wall(goal)
 	for c in cells:
 		_path.append(level.cell_to_world(c))
 	return whole
+
+
+## A slime hunting something it cannot reach for the village wall is in the way:
+## it goes for the brick that stands between (see VillageWall.target_for).
+func _aim_at_wall(goal: Vector3) -> void:
+	if not SlimeGrowth.grows(kind) or not level is Outdoor:
+		return
+	var brick: WallBrick = (level as Outdoor).village_wall.target_for(self, goal)
+	if brick != null:
+		_wall_target = brick
+		_wall_clock = WALL_PATIENCE
+
+
+## A slime that runs into a brick of the wall while it hunts goes for the brick.
+func _note_wall() -> void:
+	if not SlimeGrowth.grows(kind) or _wall_target != null or not (_awake or foe != null or snack != null):
+		return
+	for i in get_slide_collision_count():
+		var brick := get_slide_collision(i).get_collider() as WallBrick
+		if brick != null and brick.blocks():
+			_wall_target = brick
+			_wall_clock = WALL_PATIENCE
+			return
+
+
+## Eats into the wall: walks up to the brick and strikes it, until it falls,
+## the slime has nothing to hunt, or a while has passed (then it looks for a
+## way round again, see _plan_route).
+func _batter_wall() -> Vector3:
+	var brick := _wall_target
+	if brick == null or not is_instance_valid(brick) or not brick.blocks() or _wall_clock <= 0.0 \
+			or not (_awake or foe != null or snack != null):
+		_wall_target = null
+		_repath = 0.0
+		return Vector3.ZERO
+	var to := brick.nearest_point(global_position) - global_position
+	to.y = 0.0
+	if to.length() <= float(_stats.reach):
+		_face(to)
+		if _cooldown <= 0.0:
+			_strike_wall(brick)
+		return Vector3.ZERO
+	return to.normalized()
+
+
+func _strike_wall(brick: WallBrick) -> void:
+	_cooldown = _stats.cooldown
+	var slow: float = _stats.size
+	_play_once("1H_Melee_Attack_Chop", 0.9 * slow)
+	SlimeSounds.attack(self)
+	_anim.speed_scale = 1.0 / slow
+	await get_tree().create_timer(0.45 * slow).timeout
+	_anim.speed_scale = 1.0
+	if dead or not is_inside_tree() or not is_instance_valid(brick) or not level is Outdoor:
+		return
+	if brick.distance_from(global_position) > float(_stats.reach) + 0.6:
+		return
+	_wall_clock = WALL_PATIENCE
+	(level as Outdoor).village_wall.gnaw(level as Outdoor, brick, int(_stats.damage))
 
 
 ## Goes for the rival: a blow or a shot once it is in reach, else closer.

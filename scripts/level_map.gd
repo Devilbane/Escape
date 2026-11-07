@@ -210,6 +210,9 @@ func find_all(ch: String) -> Array[Vector2i]:
 ## (Q) can reach the plates within 5 tiles of it (middle to middle), and
 ## one block serves one plate. Empty when every plate can be pressed.
 func plates_out_of_reach() -> Array[Vector2i]:
+	# On the open-air map "_" is the village wall, not a pressure plate.
+	if is_outdoor():
+		return []
 	var plates := find_all("_")
 	var blocks := find_all("Q")
 	var holder := {}
@@ -297,8 +300,9 @@ func validate() -> Array:
 	if doors.is_empty() and not keys.is_empty():
 		add.call(false, "Ein Schlüssel (K), aber keine Tür (D).", keys[0])
 	# The block puzzle: gates sink once every plate holds a heavy block.
-	var plates := count("_")
-	var gates := find_all("|")
+	# (On the open-air map "_" is the village wall and "|" the gate of Sternhall.)
+	var plates := 0 if is_outdoor() else count("_")
+	var gates: Array[Vector2i] = [] if is_outdoor() else find_all("|")
 	if not gates.is_empty() and plates == 0:
 		add.call(true, "Ein Gitter (|), aber keine Druckplatte (_), die es öffnet.", gates[0])
 	if plates > 0 and gates.is_empty():

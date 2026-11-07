@@ -446,10 +446,151 @@ var _settling := false
 
 func _start(task: String, time: float) -> void:
 	_task = task
-	_task_time = time
+	# Mending goes on until the brick is whole (see _mend), not for a set time.
+	_task_time = 600.0 if task in ["mend", "defend"] else time
 	_work_pause = 0.0
 	if task in ["home", "hide"] and not at_home:
 		_hide_inside(true, true)
+
+
+# --- Mending the village wall -------------------------------------------------
+
+## The brick of the village wall the stonemason is on his way to or mending.
+var mend_brick: WallBrick = null
+
+
+## Whether the stonemason is free to see to the wall: out at his work or just
+## standing about, not running from a slime or listening to the herald.
+func can_mend() -> bool:
+	if role != "S" or eaten or at_home or not visible or threat != null:
+		return false
+	if mend_brick != null and _task in ["walk", "mend"]:
+		return false
+	return _task in ["work", "idle"] or (_task == "walk" and get_meta("then", "") in ["work", "idle"])
+
+
+## Walks up to a hurt brick of the wall and builds it up (see VillageWall).
+func mend(brick: WallBrick) -> void:
+	mend_brick = brick
+	_walk_to(level.village_wall.stand_of(level, brick), WALK_SPEED * 1.3, "mend")
+
+
+func _mend(delta: float) -> void:
+	var brick := mend_brick
+	var wall := level.village_wall
+	if brick == null or not is_instance_valid(brick) or not brick.is_damaged() or wall.shut_wanted \
+			or level.village_alarm.raised or level.night or VillageWall.slime_near(level, brick.global_position, VillageWall.MEND_SAFE):
+		_finish_mending()
+		return
+	# Shoved off his place: back to the wall.
+	var spot := wall.stand_of(level, brick)
+	if Vector2(global_position.x - spot.x, global_position.z - spot.z).length() > 1.6:
+		_walk_to(spot, WALK_SPEED, "mend")
+		return
+	_turn_to(brick.nearest_point(global_position) - global_position, delta)
+	var work: String = _info.work
+	if not (_anim.is_playing() and _current_anim == work):
+		_current_anim = work
+		_anim.play(work, 0.15)
+		get_tree().create_timer(0.45).timeout.connect(func():
+			if is_inside_tree() and _task == "mend":
+				Sfx.play(self, "hit", -14.0, global_position, 0.8))
+	if brick.mend(VillageWall.MEND_PER_SECOND * delta):
+		_finish_mending()
+
+
+## The brick is whole (or the work cannot go on): the next hurt brick, else back to his stand.
+func _finish_mending() -> void:
+	mend_brick = null
+	var next := level.village_wall.job(level)
+	if next != null and can_mend_next():
+		mend(next)
+	else:
+		_start("idle", 0.5)
+
+
+func can_mend_next() -> bool:
+	return not eaten and not at_home and threat == null
+
+
+# --- Defending the wall -------------------------------------------------------
+
+## How far over the wall a defender strikes (metres, from his hands), how far
+## he sees a slime outside, and how far from his post he steps to meet it.
+const WALL_REACH := 3.4
+const DEFEND_SIGHT := 16.0
+const POST_ROOM := 5.0
+var defend_post := Vector3.INF
+
+
+func defends() -> bool:
+	return _task == "defend" or (_task == "walk" and get_meta("then", "") == "defend")
+
+
+## Whether a brave villager can be sent to a post: at his work, not running or fighting.
+func can_defend() -> bool:
+	if not brave or eaten or at_home or threat != null or defends():
+		return false
+	return _task in ["work", "idle", "listen"] or (_task == "walk" and get_meta("then", "") in ["work", "idle", "listen"])
+
+
+## Out of the wall's reach: run in through the gate before it shuts.
+func go_inside(way_in: Vector3) -> void:
+	if _task in ["fight", "hide"] or at_home or eaten:
+		return
+	_walk_to(way_in, RUN_SPEED, "idle")
+
+
+## Draws a blade and takes a post by the wall (see VillageWall).
+func defend(post: Vector3) -> void:
+	mend_brick = null
+	leave_chat()
+	_listen_to = Vector3.INF
+	defend_post = post
+	_draw_blade(true)
+	say(Lang.t(VillageWall.MUSTER_CALL))
+	_walk_to(post, RUN_SPEED, "defend")
+
+
+func _defend(delta: float) -> void:
+	if not level.village_wall.shut_wanted or defend_post == Vector3.INF:
+		defend_post = Vector3.INF
+		_draw_blade(false)
+		_start("idle", _rng.randf_range(0.5, 2.0))
+		return
+	var slime := VillageWall.nearest_slime(level, global_position, DEFEND_SIGHT)
+	if slime == null:
+		play("Idle")
+		return
+	var to := slime.global_position - global_position
+	to.y = 0.0
+	_turn_to(to, delta)
+	var reach := WALL_REACH + slime.radius
+	if to.length() > reach:
+		# Along the inside of the wall towards it, never out through it.
+		var next := global_position + to.normalized() * _stride("Running_A", RUN_SPEED) * delta
+		var cell := level.world_to_cell(next)
+		if level.village_wall.is_inside(cell) and not level.astar.is_point_solid(cell) \
+				and Vector2(next.x - defend_post.x, next.z - defend_post.z).length() < POST_ROOM:
+			global_position = Vector3(next.x, 0, next.z)
+			return
+		play("Idle")
+		return
+	_blow_cool -= delta
+	if _blow_cool > 0.0:
+		if not _anim.is_playing() or _current_anim != "1H_Melee_Attack_Chop":
+			play("Idle")
+		return
+	_blow_cool = BLOW_TIME
+	_current_anim = "1H_Melee_Attack_Chop"
+	_anim.play("1H_Melee_Attack_Chop", 0.1)
+	get_tree().create_timer(0.4, false, true).timeout.connect(func():
+		if eaten or not is_inside_tree() or slime == null or not is_instance_valid(slime) or slime.dead:
+			return
+		if slime.global_position.distance_to(global_position) > WALL_REACH + slime.radius + 0.6:
+			return
+		Sfx.play(self, "hit", -8.0, global_position)
+		slime.hit_by_rival(blow(), null))
 
 
 # --- A slime in the village ----------------------------------------------------
@@ -540,6 +681,8 @@ func alarm(slime: Enemy, called := false) -> void:
 	if too_big and _task == "hide":
 		return
 	_reach = VillageAlarm.CALL_REACH if called else GIVE_UP
+	mend_brick = null
+	defend_post = Vector3.INF
 	_fight_path.clear()
 	_fight_repath = 0.0
 	threat = slime
@@ -934,6 +1077,10 @@ func _physics_process(delta: float) -> void:
 			return
 		"walk":
 			_walk(delta, hero)
+		"mend":
+			_mend(delta)
+		"defend":
+			_defend(delta)
 		"work", "sit", "idle":
 			_do(_task, delta)
 		"listen":

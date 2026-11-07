@@ -204,6 +204,8 @@ var villagers: Array = []
 var animals: Array[Animal] = []
 ## The herald's call to arms against slimes in the village (see VillageAlarm).
 var village_alarm := VillageAlarm.new()
+## The wall round the village and its gates, mended by the stonemason (see VillageWall).
+var village_wall := VillageWall.new()
 ## The kinds of animal the hero has a companion of already: no second one
 ## of them can be won over (set by the game, see Companions).
 var owned_companions: Array = []
@@ -510,8 +512,8 @@ func _build_ground() -> void:
 		for x in width:
 			var c := Vector2i(x, y)
 			var ch := cell_char(c)
-			var path := 1.0 if ",aP".contains(ch) else 0.0
-			var soil := 1.0 if (fence.has_point(c) and not ",aP".contains(ch)) or ch == "y" or CAMP.contains(ch) else 0.0
+			var path := 1.0 if ",aP\\".contains(ch) else 0.0
+			var soil := 1.0 if (fence.has_point(c) and not ",aP\\".contains(ch)) or ch == "y" or CAMP.contains(ch) else 0.0
 			# Paving stones: path and soil together mean the square.
 			if square.has_point(c) and not BLOCK_CHARS.contains(ch):
 				path = 1.0
@@ -685,6 +687,10 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			start_cell = c
 		"@":
 			_wanderer_cell = c
+		"_":
+			village_wall.add(self, c, false)
+		"\\":
+			village_wall.add(self, c, true)
 		"g":
 			var grave: String = GRAVES[_rng.randi() % GRAVES.size()]
 			var stone := _put(grave, pos + Vector3(0, 0, -0.6) + _jitter(0.3), _rng.randf_range(-0.15, 0.15))
@@ -2740,6 +2746,7 @@ func _setup_astar() -> void:
 			var c := Vector2i(x, y)
 			if cell_char(c) == ".":
 				astar.set_point_weight_scale(c, 1.6)
+	village_wall.sync(self)
 
 
 ## By day everything is lit. At night, and in fog, only the lanterns and
@@ -2772,6 +2779,7 @@ func _process(delta: float) -> void:
 	if player == null:
 		return
 	village_alarm.tick(self, delta)
+	village_wall.tick(self, delta)
 	var cell := world_to_cell(player.global_position)
 	var inside := _in_house(cell)
 	if inside != _inside:

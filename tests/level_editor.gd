@@ -396,7 +396,7 @@ func _check_outdoor() -> void:
 	await process_frame
 	await process_frame
 	check(editor.map.is_outdoor() and editor.map.width() == 172, "the open-air map does not open")
-	check(editor._tile_buttons.has("&") and editor._tile_buttons.has("h") and not editor._tile_buttons.has("_"), "the palette does not show the open air's tiles")
+	check(editor._tile_buttons.has("&") and editor._tile_buttons.has("h") and editor._tile_buttons.has("_") and editor._tile_buttons.has("\\"), "the palette does not show the open air's tiles")
 	check(not LevelMap.has_errors(editor.issues), "the open-air map shows errors: %s" % [editor.issues])
 	check(_rect(side) == side_rect, "the open-air map resizes the side panel")
 	for page in LevelEditor.PAGES.size():

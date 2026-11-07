@@ -292,6 +292,11 @@ jobs:
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_prey.gd | tee slime_prey.log
           grep -q PASS slime_prey.log
 
+      - name: Village arms test (weapons for each villager, Pip's knives, the priestess heals)
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/village_arms.gd | tee village_arms.log
+          grep -q PASS village_arms.log
+
       - name: Slime belly test
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_belly.gd | tee slime_belly.log
@@ -531,6 +536,11 @@ jobs:
         run: |
           timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/vital_circle.gd | tee vital_circle.log
           grep -q PASS vital_circle.log
+
+      - name: Vital blow star (blood-red wobbling star, short-lived)
+        run: |
+          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/vital_star.gd | tee vital_star.log
+          grep -q PASS vital_star.log
 
       - name: Hero or heroine test
         run: |

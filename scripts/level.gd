@@ -302,9 +302,6 @@ var house_number := 0
 ## Free spots kept for furniture: {"cell", "pos", "storey"}, from the "+"
 ## tiles of a home, lowest storey first.
 var furniture_slots: Array = []
-## The chalked frame on each furniture spot (cell -> its node), wiped away
-## once a piece of furniture stands there (see _build_upgrade).
-var chalk_marks := {}
 ## Every stairs tile of a home: {"cell", "up", "storey"}.
 var stairs: Array = []
 ## Where the hero stands beside the bed of a home.
@@ -1115,7 +1112,9 @@ func _build_walls(c: Vector2i) -> void:
 		# A bookcase right beside another one is left out: a plain wall
 		# instead. The piece stays as rolled, so the rolls after it, and the
 		# rest of the map, stay as they were.
-		var shelves := piece == "wall_shelves" and not by_stairs and not by_store and not _wall_piece_near("shelves", pos)
+		# A hero's own house has no bookcases to search: nothing in it gives
+		# loot, it only stores and crafts (the chests, the boards, the benches).
+		var shelves := piece == "wall_shelves" and not is_home and not by_stairs and not by_store and not _wall_piece_near("shelves", pos)
 		var wall := _place("wall" if by_stairs or (piece == "wall_shelves" and not shelves) else piece, pos, rot)
 		if (c.x + c.y + d.x + d.y) % 2 != 0:
 			wall.position.y += 0.02
@@ -5277,8 +5276,7 @@ func _light_storeys() -> void:
 
 
 ## Wooden planks, as in the houses of the village. The stairs down leave a
-## hole in the floor, and the tiles kept for furniture are marked with
-## chalk on the boards.
+## hole in the floor. The tiles kept for furniture stay plain boards.
 func _build_home_floor(c: Vector2i, ch: String) -> void:
 	if ch == ">":
 		return
@@ -5291,33 +5289,11 @@ func _build_home_floor(c: Vector2i, ch: String) -> void:
 		var plank := PlaneMesh.new()
 		plank.size = Vector2(TILE, TILE)
 		_scenes["mesh_home_plank"] = plank
-		var chalk := StandardMaterial3D.new()
-		chalk.albedo_color = Color(0.92, 0.88, 0.78, 0.55)
-		chalk.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		chalk.roughness = 1.0
-		_scenes["mat_home_chalk"] = chalk
 	var floor_piece := MeshInstance3D.new()
 	floor_piece.mesh = _scenes["mesh_home_plank"]
 	floor_piece.material_override = _scenes["mat_home_wood"]
 	floor_piece.position = cell_to_world(c) + Vector3(0, 0.02, 0)
 	add_child(floor_piece)
-	if ch != "+":
-		return
-	# A chalked frame: room for a piece of furniture.
-	var frame := Node3D.new()
-	frame.name = "Chalk_%d_%d" % [c.x, c.y]
-	add_child(frame)
-	chalk_marks[c] = frame
-	var inner := TILE * 0.62
-	for side in 4:
-		var strip := MeshInstance3D.new()
-		var quad := PlaneMesh.new()
-		quad.size = Vector2(inner, 0.07) if side < 2 else Vector2(0.07, inner)
-		strip.mesh = quad
-		strip.material_override = _scenes["mat_home_chalk"]
-		var off := inner * 0.5 * (1.0 if side % 2 == 0 else -1.0)
-		strip.position = cell_to_world(c) + (Vector3(0, 0.04, off) if side < 2 else Vector3(off, 0.04, 0))
-		frame.add_child(strip)
 
 
 ## Stairs up rise against the north wall, stairs down sink into a dark
@@ -5397,7 +5373,7 @@ var _trophy_shelf: Node3D
 const TROPHY_STATUE := 0.9
 
 
-## Builds the furniture of every upgrade built so far on the chalked spots of
+## Builds the furniture of every upgrade built so far on the free spots of
 ## a home (each only once), and puts the trophies won on the trophy wall.
 func show_home_upgrades(built: Dictionary, won: Dictionary) -> void:
 	if not is_home:
@@ -5427,14 +5403,23 @@ func _against_back_wall(c: Vector2i) -> bool:
 	return cell_char(c + Vector2i(0, -1)) == "#"
 
 
+## The direction (north, west, east, south, in that order of liking) in which a
+## tile has a wall right behind it, or (0, 0) when it stands free.
+func _wall_side(c: Vector2i) -> Vector2i:
+	for d: Vector2i in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+		if cell_char(c + d) == "#":
+			return d
+	return Vector2i.ZERO
+
+
 ## Whether a tile has a wall at its side (west or east).
 func _against_side_wall(c: Vector2i) -> bool:
 	return cell_char(c + Vector2i(-1, 0)) == "#" or cell_char(c + Vector2i(1, 0)) == "#"
 
 
 ## The furniture spot for an upgrade, or {} when every spot is taken. The
-## trophy wall hangs on a back wall,
-## high up in the house; the workbench stands against a side wall up there.
+## trophy wall hangs on a back wall
+## of the entrance room, on the ground floor; the workbench stands against a side wall up there.
 func _upgrade_slot(id: String) -> Dictionary:
 	var taken: Array = _upgrade_cells.values()
 	var best := {}
@@ -5447,7 +5432,10 @@ func _upgrade_slot(id: String) -> Dictionary:
 		var score := 0.0
 		match id:
 			"trophaeen":
-				score = storey * 10.0 + (5.0 if _against_back_wall(c) else 0.0) + c.x * 0.01
+				# Down in the entrance room, where the hero sees it on coming in: the
+				# ground floor, on a back wall, and the nearest to the front door.
+				score = (0.0 if storey == 0 else -50.0 - absf(storey)) + (5.0 if _wall_side(c) != Vector2i.ZERO else 0.0) + (1.0 if _against_back_wall(c) else 0.0) \
+						- Vector2(c - exit_cell).length() * 0.1
 			"feinbank", "schleifrad", "alchemie":
 				# A crafting bench keeps its back to the west (see CraftingSquare.build).
 				score = storey * 10.0 + (6.0 if cell_char(c + Vector2i(-1, 0)) == "#" else 0.0) + (-4.0 if _against_back_wall(c) else 0.0) - c.y * 0.1
@@ -5466,10 +5454,6 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 	root.name = "Upgrade_" + id
 	add_child(root)
 	_upgrade_nodes[id] = root
-	# The spot is taken now: the chalk frame is wiped away.
-	if chalk_marks.has(c):
-		chalk_marks[c].queue_free()
-		chalk_marks.erase(c)
 	var pos := cell_to_world(c)
 	# Furniture beside a side wall turns its back to that wall.
 	var rot := 0.0
@@ -5500,8 +5484,9 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 			astar.set_point_solid(c, true)
 			stations.append({"kind": "hauswerkbank", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"trophaeen":
-			_build_trophy_wall(root, pos)
-			stations.append({"kind": "trophaeen", "cell": c, "pos": pos + Vector3(0, 0, -TILE * 0.5 + 0.6), "used": false, "upgrade": true})
+			var wall := _wall_side(c)
+			_build_trophy_wall(root, pos, wall)
+			stations.append({"kind": "trophaeen", "cell": c, "pos": pos + Vector3(wall.x, 0, wall.y) * (TILE * 0.5 - 0.6), "used": false, "upgrade": true})
 
 
 ## The hoard's heaps of coins, by metal, and what they last showed (see HomeHoard): a change in
@@ -5569,33 +5554,42 @@ func show_hoard(held: Dictionary) -> void:
 ## statuettes of the trophies stand on the shelf, two shields hang beside
 ## them. The shelf is solid, so the hero runs into it to look at the
 ## trophies, but shallow enough to leave the rest of the tile free to walk.
-func _build_trophy_wall(root: Node3D, pos: Vector3) -> void:
+func _build_trophy_wall(root: Node3D, pos: Vector3, wall := Vector2i(0, -1)) -> void:
 	var oak := StandardMaterial3D.new()
 	oak.albedo_texture = load("res://assets/house/wood_floor.jpg")
 	oak.albedo_color = Color(0.55, 0.38, 0.26)
 	oak.roughness = 0.8
-	var back := pos.z - TILE * 0.5 + 0.12
+	# Built facing north in a pivot of its own, turned to the wall it hangs on.
+	var pivot := Node3D.new()
+	pivot.position = pos
+	if wall != Vector2i.ZERO:
+		pivot.rotation.y = atan2(-float(wall.x), -float(wall.y))
+	root.add_child(pivot)
+	var back := -TILE * 0.5 + 0.12
 	var board := MeshInstance3D.new()
 	var board_mesh := BoxMesh.new()
 	board_mesh.size = Vector3(TILE - 0.6, 2.4, 0.1)
 	board.mesh = board_mesh
 	board.material_override = oak
-	board.position = Vector3(pos.x, 2.1, back)
-	root.add_child(board)
+	board.position = Vector3(0, 2.1, back)
+	pivot.add_child(board)
 	var shelf := MeshInstance3D.new()
 	var shelf_mesh := BoxMesh.new()
 	shelf_mesh.size = Vector3(TILE - 0.8, 0.9, 0.7)
 	shelf.mesh = shelf_mesh
 	shelf.material_override = oak
-	shelf.position = Vector3(pos.x, 0.45, back + 0.4)
-	root.add_child(shelf)
-	_add_solid(Vector3(pos.x, 0, back + 0.4), Vector3(TILE - 0.8, 0.9, 0.8))
+	shelf.position = Vector3(0, 0.45, back + 0.4)
+	pivot.add_child(shelf)
+	var along_x := wall.y != 0 or wall == Vector2i.ZERO
+	var solid_size := Vector3(TILE - 0.8, 0.9, 0.8) if along_x else Vector3(0.8, 0.9, TILE - 0.8)
+	var shelf_at := pos + Vector3(wall.x, 0, wall.y) * (TILE * 0.5 - 0.12 - 0.4) if wall != Vector2i.ZERO else pos + Vector3(0, 0, back + 0.4)
+	_add_solid(Vector3(shelf_at.x, 0, shelf_at.z), solid_size)
 	for side in [-1.0, 1.0]:
-		var banner := _place("banner_shield_brown", Vector3(pos.x + side * 1.25, 1.2, back + 0.1), 0.0, root)
+		var banner := _place("banner_shield_brown", Vector3(side * 1.25, 1.2, back + 0.1), 0.0, pivot)
 		banner.scale = Vector3.ONE * 0.6
 	_trophy_shelf = Node3D.new()
-	_trophy_shelf.position = Vector3(pos.x, 0.9, back + 0.4)
-	root.add_child(_trophy_shelf)
+	_trophy_shelf.position = Vector3(0, 0.9, back + 0.4)
+	pivot.add_child(_trophy_shelf)
 
 
 ## One small statuette of each foe felled, side by side on the shelf.

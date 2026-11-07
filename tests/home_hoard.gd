@@ -118,7 +118,7 @@ func _run() -> void:
 	check(benches.size() == 3 and "feinschmieden" in crafts and "edelsteinschleifen" in crafts and "alchemie" in crafts,
 			"the three crafting benches stand in the house, each with its craft")
 	for b in benches:
-		check(b.get("upgrade", false) and not lvl.chalk_marks.has(b.cell), "a bench at home sits on a furniture spot, its chalk gone")
+		check(b.get("upgrade", false), "a bench at home sits on a furniture spot")
 	game.menus.bench = "alchemie"
 	game.menus.open("werkbank")
 	check(game.menus.current == "werkbank" and game.menus.bench == "alchemie", "a home bench opens the village bench's window")

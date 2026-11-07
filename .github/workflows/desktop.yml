@@ -17,6 +17,7 @@ on:
       - ".github/workflows/desktop.yml"
       - "export_presets.cfg"
       - "project.godot"
+      - "assets/logo/app_icon.*"
       - "scenes/launcher.tscn"
       - "scripts/launcher.gd"
       - "scripts/ui_kit.gd"
@@ -100,6 +101,19 @@ jobs:
           test -s build/Escape/Escape.exe && test -s build/Escape/game/Escape.exe && test -s build/Escape/game/Escape.pck
           # The game data must start with Godot's pack header.
           head -c 4 build/Escape/game/Escape.pck | grep -q GDPC
+
+      - name: Both exe files carry the application icon
+        run: |
+          pip install -q pefile
+          python3 - <<'PY'
+          import pefile
+          for path in ("build/Escape/Escape.exe", "build/Escape/game/Escape.exe"):
+              pe = pefile.PE(path, fast_load=True)
+              pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_RESOURCE"]])
+              kinds = {e.id for e in pe.DIRECTORY_ENTRY_RESOURCE.entries}
+              assert pefile.RESOURCE_TYPE["RT_GROUP_ICON"] in kinds, path + " has no icon"
+              print(path, "has the icon")
+          PY
 
       - name: Start the exported launcher (with the Linux engine of the same build)
         run: |

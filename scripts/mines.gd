@@ -102,7 +102,8 @@ static func seal_text(lore: Array) -> String:
 
 ## The light of a setting, or {} for none.
 static func mood(theme: String) -> Dictionary:
-	return MOODS.get(theme, ElderLair.mood(theme))
+	var elder := ElderLair.mood(theme)
+	return MOODS.get(theme, elder if not elder.is_empty() else SternHall.mood(theme))
 
 
 ## Builds the mine tiles of `level` (see Tiles.DUNGEON). True if `ch` was one.

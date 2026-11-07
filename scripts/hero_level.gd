@@ -88,6 +88,7 @@ const AREAS := {
 	"mine2": {"name": "Kristallgrotte", "min": 13, "max": 15, "from": [4, 13]},
 	"mine3": {"name": "Zwergenbinge, Glutstollen und Herz des Berges", "min": 16, "max": 19, "from": [3, 13]},
 	"uralt": {"name": "Hort des Großen Alten", "min": 17, "max": 19, "from": [3, 13]},
+	"sternhall": {"name": "Sternhall", "min": 18, "max": 20, "from": [3, 13]},
 }
 ## Which area a building (Level.building) belongs to.
 const BUILDING_AREAS := {
@@ -95,6 +96,7 @@ const BUILDING_AREAS := {
 	"E": "hoehle", "E2": "hoehle", "E3": "hoehle", "[": "berge", "mine1": "mine1", "mine2": "mine2",
 	"mine3": "mine3", "mine3b": "mine3", "mine3c": "mine3",
 	"uralt1": "uralt", "uralt2": "uralt", "uralt3": "uralt",
+	"stern1": "sternhall", "stern2": "sternhall", "stern3": "sternhall", "stern4": "sternhall",
 }
 
 ## Every task and how long it likely takes: minutes and the level of the
@@ -108,6 +110,7 @@ const TASKS := {
 	"bounty:woelfe": [6, 6], "bounty:spinnen": [6, 6], "bounty:untote": [8, 5],
 	"bounty:orks": [6, 7], "bounty:halsabschneider": [6, 6], "bounty:wilderer": [6, 5],
 	"bounty:schlaeger": [6, 7], "bounty:yeti": [8, 8], "bounty:bestien": [10, 7],
+	"sternhall_alrik": [40, 19],
 }
 ## Riddles: minutes each takes; they are done where the hero stands.
 const RIDDLES := {"puzzle": 6, "secret": 3, "writing": 1, "rune": 5}

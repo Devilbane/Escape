@@ -86,6 +86,20 @@ const DUNGEON := {
 	"@": "the Great Old One (cannot be slain, sleeps until noise wakes it, see ElderDragon)",
 	"$": "the Great Old One's hoard: walk onto it to take it (see ElderLair)",
 	"&": "epic treasure chest (an epic piece of gear and gold)",
+	# The ruins of Sternhall, the star-mages' keep (see SternHall).
+	"]": "a star relief in the wall: pressed, it opens the nearest secret wall (Sternhall)",
+	"}": "a star relief set high in the wall: only a hero standing on something high reaches it (Sternhall)",
+	"{": "a heap of rubble as high as a man: climbed from a crate (Sternhall)",
+	"*": "a bottomless chasm (Sternhall)",
+	":": "a crumbling flagstone over the chasm: it falls soon after it is stepped on (Sternhall)",
+	"!": "a listening eye: it hears footsteps that do not sneak and strikes (Sternhall)",
+	")": "an old drain that leads up into the open (Sternhall, see the outdoor \"`\")",
+	"I": "the lectern with the tome of unleashed power (Sternhall)",
+	";": "an anvil: mends the hero's gear (Sternhall)",
+	"'": "a shelf of healing potions, refilled every day (Sternhall)",
+	"/": "a barred door: opens with the key ring of the floor's warden (Sternhall)",
+	"`": "a portcullis: open until the tome is taken (Sternhall)",
+	"-": "a loose wooden crate to carry and climb (Sternhall)",
 	# Made in the map workshop: what each digit places is written in the
 	# map's own header (see Creations).
 	"1": "your own creation (header \"custom: 1 {...}\", see Creations)",
@@ -197,4 +211,7 @@ const OUTDOOR := {
 	"}": "mountain orc",
 	"-": "ice wolf",
 	"/": "cliff archer (crossbow)",
+	# The ruins of Sternhall (see SternGate).
+	"|": "the gate of Sternhall's ruined keep, leads to \"building: stern1\"",
+	"`": "a rusty drain grate: the hidden way out of Sternhall's vault",
 }

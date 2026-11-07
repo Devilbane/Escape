@@ -72,6 +72,10 @@ var _potion_button: Button
 var _potion_count: Label
 var _potion_shade: ColorRect
 var _potion_wait: Label
+## The spell button (see ArcaneBolt): a star, left of the potion button.
+var _spell_button: Button
+var _spell_shade: ColorRect
+var _spell_wait: Label
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
@@ -474,6 +478,7 @@ func _bus_links() -> Array:
 		[bus.enemy_slain, bounties.on_kill],
 		[bus.enemy_slain, Callable(MonsterLore, "on_hero_kill")],
 		[bus.quest_done, quest_reward],
+		[bus.quest_found, quests.start_found],
 		[bus.quest_done, reputation.on_quest_done],
 		[bus.quest_item_given, update_after_quest],
 		[bus.reputation_rose, reputation_rose],
@@ -786,6 +791,7 @@ func _setup_drawer() -> void:
 	_setup_home_button()
 	_setup_torch_button()
 	_setup_potion_button()
+	_setup_spell_button()
 
 	var panel := PanelContainer.new()
 	var back := BronzeStyle.new()
@@ -1020,6 +1026,80 @@ func _setup_potion_button() -> void:
 	_potion_button.add_child(_potion_count)
 	_potion_button.visible = false
 	slot.add_child(_potion_button)
+
+
+## The spell button stands left of the potion button, on the same line and
+## as big: a violet star. It shows once the hero knows the spell from the
+## tome of Sternhall (see ArcaneBolt). After a cast it is shaded from the top
+## like the potion button, with the seconds left in its middle. Its place is
+## kept outside the rail, so nothing moves when it appears.
+func _setup_spell_button() -> void:
+	var slot: Control = _torch_button.get_parent()
+	_spell_button = _make_button("", spell_action)
+	_spell_button.custom_minimum_size = QUICK_SIZE
+	_spell_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
+	_spell_button.position = Vector2(-2.0 * (QUICK_SIZE.x + QUICK_GAP), 0)
+	_spell_button.size = QUICK_SIZE
+	_spell_button.tooltip_text = Lang.t("%s (Taste %s)") % [Lang.t("Entfesselte Kraft wirken"), "2"]
+	var icon := ItemIcon.make("kind:arcane", QUICK_ICON, true)
+	icon.set_anchors_preset(Control.PRESET_CENTER)
+	icon.offset_left = -QUICK_ICON / 2.0
+	icon.offset_top = -QUICK_ICON / 2.0
+	icon.offset_right = QUICK_ICON / 2.0
+	icon.offset_bottom = QUICK_ICON / 2.0
+	_spell_button.add_child(icon)
+	_spell_shade = ColorRect.new()
+	_spell_shade.color = Color(0.0, 0.0, 0.0, 0.62)
+	_spell_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_spell_shade.anchor_right = 1.0
+	_spell_shade.offset_left = 3
+	_spell_shade.offset_right = -3
+	_spell_shade.offset_top = 3
+	_spell_shade.visible = false
+	_spell_button.add_child(_spell_shade)
+	_spell_wait = _make_label(TEXT_FONT, 18)
+	_spell_wait.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_spell_wait.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_spell_wait.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_spell_button.add_child(_spell_wait)
+	_spell_button.visible = false
+	slot.add_child(_spell_button)
+
+
+## Whether the hero learned the spell from the tome of Sternhall.
+func knows_spell() -> bool:
+	return lore.has(SternHall.SPELL_LORE)
+
+
+## The spell button or 2: casts the arcane bolt at the nearest foe.
+func spell_action() -> void:
+	if state != State.PLAYING or player == null or not knows_spell():
+		return
+	var why := ArcaneBolt.cast(player)
+	if why != "":
+		show_message(why, 2.0)
+	update_spell_button()
+
+
+## Shows the spell button once the spell is known, shaded while the power
+## gathers again.
+func update_spell_button() -> void:
+	if _spell_button == null or player == null:
+		return
+	var known := knows_spell()
+	if _spell_button.visible != known:
+		_spell_button.visible = known
+	if not known:
+		return
+	var waiting := player.spell_wait > 0.0
+	if _spell_shade.visible != waiting:
+		_spell_shade.visible = waiting
+	if waiting:
+		var inner := QUICK_SIZE.y - 6.0
+		_spell_shade.offset_bottom = 3.0 + inner * player.spell_wait / ArcaneBolt.COOLDOWN
+	var wait := str(ceili(player.spell_wait)) if waiting else ""
+	if _spell_wait.text != wait:
+		_spell_wait.text = wait
 
 
 ## Drinks a healing potion from the bag (the strongest, or the one named).
@@ -1604,6 +1684,10 @@ func _use_station(s: Dictionary) -> void:
 		treasure_maps.use(s)
 	elif s.kind == "schacht":
 		_go_down_shaft(s)
+	elif s.kind == SternHall.DRAIN:
+		_climb_out_of_drain()
+	elif SternHall.KINDS.has(s.kind) and level.stern:
+		level.stern.use(s, player)
 	elif s.kind == "figur":
 		# A person made in the map workshop (see DungeonNpc).
 		player.face(s.pos - player.global_position)
@@ -2686,6 +2770,7 @@ func load_level(index: int, restock := true) -> void:
 		level._entered_once = home_claimed
 		level.met = met
 	level.secret_bonus = secrets_found
+	level.clock = world_hours
 	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
 	add_child(level)
 	level.build()
@@ -4396,16 +4481,7 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 
 ## Takes away up to `points` of wear, worn gear first; returns how many.
 func _repair_gear(points: int) -> int:
-	var done := 0
-	var order: Array = player.equipped.values()
-	order.append_array(player.bag)
-	for id in order:
-		while done < points and player.wear.get(id, 0) > 0:
-			player.wear[id] -= 1
-			done += 1
-			if player.wear[id] <= 0:
-				player.wear.erase(id)
-	return done
+	return player.mend_gear(points)
 
 
 func _training_name(id: String) -> String:
@@ -5952,6 +6028,33 @@ func _go_down_shaft(s: Dictionary) -> void:
 const MINES_SEAL_OPEN := "mines:seal_open"
 
 
+## The game's clock in hours since the first day began (see Level.clock).
+func world_hours() -> float:
+	return day * 24.0 + day_hour
+
+
+## Up the rungs at the end of Sternhall's old drain (see SternHall): out
+## through a rusty grate into the wolf hollow, the vault's hidden way out.
+func _climb_out_of_drain() -> void:
+	if state != State.PLAYING:
+		return
+	level.taken[SternHall.DRAIN_FOUND] = true
+	Events.teach(SternHall.DRAIN_LORE)
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	player.play("Jump_Idle", 0.1)
+	Sfx.play(self, "door", -4.0)
+	var tween := create_tween()
+	tween.tween_property(_fade, "color", Color(0.85, 0.9, 1.0, 1.0), 0.7)
+	tween.tween_callback(func():
+		player.frozen = false
+		_leave_building(true, SternHall.OUTLET)
+		get_tree().create_timer(1.0).timeout.connect(func():
+			if state == State.PLAYING:
+				show_message(Lang.t("Du stemmst das rostige Gitter auf und kriechst hinaus in die Wolfssenke."), 4.0)))
+
+
 ## Whether something is marked as done on this level (see Level.taken).
 func taken_here(key: String) -> bool:
 	return level != null and level.taken.has(key)
@@ -5977,7 +6080,7 @@ func top_floor(building: String) -> String:
 ## Up the stairs of a building floor and out of its door into the village.
 ## A deeper floor of a mine leads up to the floor above instead, beside the
 ## way down the hero came by.
-func _leave_building(all_the_way := false) -> void:
+func _leave_building(all_the_way := false, door := "") -> void:
 	if not all_the_way and level.up_to != "" and interiors.has(level.up_to):
 		if DragonLair.is_floor(level):
 			level.note_left()
@@ -6002,7 +6105,10 @@ func _leave_building(all_the_way := false) -> void:
 		building += str(inside_house)
 	inside_house = 0
 	load_level(_outdoor_index(), false)
-	if level is Outdoor and level.doors.has(building):
+	if door != "" and level is Outdoor and level.doors.has(door):
+		player.global_position = level.doors[door]
+		player.face(Vector3.BACK)
+	elif level is Outdoor and level.doors.has(building):
 		player.global_position = level.doors[building]
 		player.face(Vector3.BACK)
 	_snap_camera()
@@ -6158,6 +6264,7 @@ func _process(delta: float) -> void:
 	update_home_button()
 	update_torch_button()
 	update_potion_button()
+	update_spell_button()
 	_update_drag(delta)
 	_update_run_meter()
 	# Silver and gold coins come and go in many places (loot, trade, the forge).
@@ -6435,6 +6542,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						torch_action()
 					KEY_1:
 						potion_action()
+					KEY_2:
+						spell_action()
 					KEY_U:
 						camp_action()
 					KEY_G:

@@ -1,0 +1,46 @@
+name: Die Kellergewölbe
+hint: Unter der Kapelle: Knochenhallen, ein Saal voller lauschender Augen und der Kerker. Wer hier nicht schleicht, wird gehört.
+monsters: undead, ghosts
+building: stern2
+theme: sterngruft
+lair: ja
+up: stern1
+down: stern3
+fountain: 6
+custom: 6 {"type": "monster", "base": "waechter", "damage": 7, "tint": "#6b7280"}
+custom: 7 {"type": "monster", "base": "koloss", "name": "Der Kerkermeister", "hp": 300, "damage": 8, "armor": 3, "speed": 3.6, "cooldown": 1.9, "size": 1.9, "gold": 70, "tint": "#5c3a2e", "boss": true, "keys": true, "calls": "wicht"}
+custom: 9 {"type": "npc", "name": "Alrik der Schreiber", "model": "Mage", "sex": "male", "pose": "Sit_Floor_Idle", "colors": ["#6b5a7a", "#4a4038", "#8c7a5a"], "show": ["Mage_Cape"], "prisoner": true, "lines": ["Du hast den Kerkermeister erschlagen? Den Sternen sei Dank! Ich bin Alrik, Schreiber der Akademie.", "Bring meinen Siegelring dem Gelehrten im Dorf. Er soll wissen, dass ich noch lebe.", "Im Archiv hinter dem Kerker zeigt ein Stern in der Südwand den Weg nach unten. Drück ihn.", "Unter uns liegt der Sternenschlund. Die Platten über dem Abgrund bröckeln: Lauf, spring, bleib nie stehen!", "Die Erbauer hatten immer einen zweiten Weg hinaus. Und sie liebten ihre Sterne in den Wänden."]}
+##################################################
+####E#################]###########################
+##..P...x.##.x..................##################
+##........##.......M..t.......A.###'......B#######
+##..............o..........o....###........#######
+##........##............G.......???........#######
+##b.......##....................###...F....#######
+############.........l..........###........#######
+############....................###.......k#######
+############....o.......M..o....##################
+############.l................A.##################
+############...................b##################
+#############..###################################
+#############..###################################
+#############..###################################
+############......6...............6...........####
+############..................................####
+############....!...!...!...!...!...!...!.......##
+############...................................###
+############..............6...............6....###
+##############################################.###
+###############..........x...........#........f.##
+###############.t..................t.#.M........##
+###.......b####.......Z............../....7.....##
+###........####....o............o....#..........##
+###........####......................#..t....w..##
+###........????...M......r........n..#=/=#=/=#=/##
+###...^....####......................#...#...#..##
+###........####....o............o....#...#.9.#.l##
+###........####..............Z.......#k..#...#..##
+###k.......####......................#############
+###############.t.........k........t.#############
+#########################]########################
+##################################################

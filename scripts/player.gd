@@ -238,6 +238,8 @@ var torch: HandTorch
 ## The hero's healing potions: the cooldown and the life over time of the
 ## last one drunk (see HealingPotions).
 var potions := HealingPotions.new()
+## Seconds until the arcane bolt can be cast again (see ArcaneBolt).
+var spell_wait := 0.0
 var _shown_alpha := -1.0
 
 var _model: Node3D
@@ -923,6 +925,11 @@ func jump() -> void:
 	train("geschick", 2.0)
 	_current_anim = ""
 	play("Jump_Full_Short", 0.1)
+
+
+## The nearest foe within `max_distance` metres that the hero can see, or null.
+func nearest_foe(max_distance: float) -> Enemy:
+	return _nearest_enemy(max_distance, true)
 
 
 func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
@@ -2214,6 +2221,21 @@ func _tell_set_change(was: String) -> void:
 
 
 ## Everything the hero carries, worn or in the bag, in kg.
+## Mends up to `points` of wear on the worn gear first, then on the gear in
+## the bag (an anvil, a smith). Returns how many points it mended.
+func mend_gear(points: int) -> int:
+	var done := 0
+	var order: Array = equipped.values()
+	order.append_array(bag)
+	for id in order:
+		while done < points and wear.get(id, 0) > 0:
+			wear[id] -= 1
+			done += 1
+			if wear[id] <= 0:
+				wear.erase(id)
+	return done
+
+
 func carried_weight() -> float:
 	var total := 0.0
 	for slot in equipped:
@@ -2571,6 +2593,7 @@ func _physics_process(delta: float) -> void:
 			SlimeCoat.wipe(self, _model)
 	_regenerate(delta)
 	potions.tick(delta)
+	spell_wait = maxf(0.0, spell_wait - delta)
 	_knife_settle -= delta
 	if _knife_settle <= 0.0:
 		_knife_settle = KNIFE_SETTLE_EVERY

@@ -107,6 +107,7 @@ const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
 	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
 	"E": "die Drachenhöhle", "[": "die Bergschenke", ")": "den Hort des Großen Alten",
+	"|": "die Ruinen von Sternhall",
 }
 ## The mine entrances in the mountains (see "]" and Mines), west to east:
 ## the floor of mine n has the line "building: mine<n>".
@@ -727,6 +728,10 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_fence(c, true)
 		"(":
 			_build_hole(c)
+		"|":
+			SternGate.build_gate(self, c)
+		"`":
+			SternGate.build_outlet(self, c)
 		"?", ">":
 			TreasureMaps.place(self, c, ch)
 		"~", ";":

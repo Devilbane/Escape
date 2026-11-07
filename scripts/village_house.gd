@@ -93,6 +93,7 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMate
 	house.set_meta("chimney", Vector3(cx, eaves + ridge * 1.2 + 0.55, -ud * 0.22))
 	house.set_meta("windows", _panes.duplicate())
 	house.add_child(_mesh_of(parts, _materials(rng, glass)))
+	_hang_door(house, Vector3(door_x, PLINTH, d * 0.5))
 	return house
 
 
@@ -164,6 +165,7 @@ static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator,
 	# Clear of the board (its face is at +0.58), so the two never fight.
 	plate.position = Vector3(door_x, PLINTH + 2.55, d * 0.5 + 0.63)
 	house.add_child(plate)
+	_hang_door(house, Vector3(door_x, PLINTH, d * 0.5))
 	return house
 
 
@@ -219,13 +221,35 @@ static func _beams(parts: Dictionary, w: float, d: float, y0: float, z0 := 0.0) 
 const DOOR_POST := 0.66
 
 
-## A plank door under a beam, with a step of stone before it.
+## A plank door under a beam, with a step of stone before it. The plank itself
+## is not part of the house's mesh: it is a HouseDoor that swings open (see
+## _hang_door).
 static func _door(parts: Dictionary, at: Vector3) -> void:
-	_box(parts, "door", at + Vector3(0, 1.05, 0.06), Vector3(1.1, 2.1, 0.1))
 	_box(parts, "timber", at + Vector3(0, 2.2, 0.08), Vector3(1.5, BEAM, BEAM))
 	for s: float in [-1.0, 1.0]:
 		_box(parts, "timber", at + Vector3(s * DOOR_POST, 1.1, 0.08), Vector3(BEAM, 2.2, BEAM))
 	_box(parts, "stone", Vector3(at.x, 0.1, at.z + 0.4), Vector3(1.5, 0.2, 0.7))
+
+
+## Hangs the plank door of the doorway at `at` on its hinge (the left side) and
+## keeps it on the house as meta "door_leaf".
+static func _hang_door(house: Node3D, at: Vector3) -> void:
+	var w := HouseDoor.WIDTH
+	var h := HouseDoor.HEIGHT
+	var leaf := {}
+	_box(leaf, "door", Vector3(w * 0.5, h * 0.5, 0), Vector3(w, h, 0.1))
+	# The dark doorway behind the leaf, on the face of the wall.
+	var recess := {}
+	_box(recess, "recess", Vector3(w * 0.5, h * 0.5, -0.05), Vector3(w, h, 0.02))
+	if not _mats.has("recess"):
+		var dark := StandardMaterial3D.new()
+		dark.albedo_color = Color(0.03, 0.02, 0.02)
+		dark.roughness = 1.0
+		_mats["recess"] = dark
+	var door := HouseDoor.new().setup(_mesh_of(recess, _mats), _mesh_of(leaf, {"door": _textured("door", DOOR_TEX, Color.WHITE)}))
+	door.position = at + Vector3(-w * 0.5, 0, 0.06)
+	house.add_child(door)
+	house.set_meta("door_leaf", door)
 
 
 ## A window: a glowing pane in a frame, with open shutters either side.

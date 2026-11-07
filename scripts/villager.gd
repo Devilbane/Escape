@@ -440,12 +440,16 @@ func _lift_onto_toes(delta: float) -> void:
 
 # --- The day's plan -----------------------------------------------------------
 
+## Set while a game loaded at night puts the village to bed: no doors swing.
+var _settling := false
+
+
 func _start(task: String, time: float) -> void:
 	_task = task
 	_task_time = time
 	_work_pause = 0.0
 	if task in ["home", "hide"] and not at_home:
-		_hide_inside(true)
+		_hide_inside(true, true)
 
 
 # --- A slime in the village ----------------------------------------------------
@@ -1074,11 +1078,13 @@ func set_night(on: bool, at_once := false) -> void:
 		_bubble_time = 0.0
 		if at_once:
 			global_position = _house_door()
+			_settling = true
 			_start("home", 10.0)
+			_settling = false
 		elif _task != "home":
 			_walk_to(_house_door(), WALK_SPEED * 1.15, "home")
 	elif at_home:
-		_hide_inside(false)
+		_hide_inside(false, true)
 		_start("idle", _rng.randf_range(0.5, 4.0))
 	elif _task == "walk" and get_meta("then", "") == "home":
 		_start("idle", 0.5)
@@ -1178,12 +1184,22 @@ func _house_door() -> Vector3:
 	return best
 
 
-## In through the door (gone from the street) or back out of it.
-func _hide_inside(inside: bool) -> void:
+## In through the door (gone from the street) or back out of it. With
+## `at_the_door` the door of the house swings open for them (see HouseDoor), and
+## a villager going in is gone from the street only once it is open.
+func _hide_inside(inside: bool, at_the_door := false) -> void:
 	if eaten and not inside:
 		return # Inside a slime, not at home: morning does not bring them out.
 	at_home = inside
-	visible = not inside
+	if at_the_door and not _settling and is_inside_tree() and level != null and level.swing_door_near(global_position):
+		if inside:
+			get_tree().create_timer(HouseDoor.OPEN_TIME).timeout.connect(func():
+				if at_home:
+					visible = false)
+		else:
+			visible = true
+	else:
+		visible = not inside
 	if inside:
 		_layer = collision_layer if collision_layer != 0 else _layer
 		collision_layer = 0

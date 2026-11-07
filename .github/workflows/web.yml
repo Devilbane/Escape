@@ -632,6 +632,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/village_buildings.gd | tee village.log
           grep -q PASS village.log
 
+      - name: House doors swing open before anyone goes in
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/house_doors.gd | tee doors.log
+          grep -q PASS doors.log
+
       - name: Eggs and chicks in the village nests (begging, fed by parents and the hero)
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/nest_chicks.gd | tee chicks.log

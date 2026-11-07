@@ -91,7 +91,7 @@ func _process(_delta: float) -> bool:
 				_finish()
 				return true
 			fox_spot = fox.global_position
-			slime = _spawn(fox.global_position + Vector3(2.0, 0, 0), {"hp": 40, "damage": 1})
+			slime = _spawn(fox.global_position + Vector3(2.0, 0, 0), {"hp": 400, "damage": 1})
 			slime.set_physics_process(false)
 			check(SlimeGrowth.nearest_snack(slime) == fox or SlimeGrowth.nearest_snack(slime) is Node3D, "a slime notices the fox")
 			var lvl := slime.rated_level
@@ -123,6 +123,8 @@ func _process(_delta: float) -> bool:
 			slime.reset_physics_interpolation()
 			# Small enough to stand up to (see VillageAlarm.FLEE_LEVEL).
 			slime.rated_level = 8
+			# Tough enough to outlast the villager's blows for the length of the test.
+			slime.hp = slime.max_hp()
 			villager.brave = true
 			villager.alarm(slime)
 			check(villager._task == "fight", "a brave villager stands and fights")

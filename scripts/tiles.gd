@@ -147,6 +147,8 @@ const OUTDOOR := {
 	"x": "bench",
 	"v": "stone pedestal with a food basket, crates close by",
 	"!": "bounty board",
+	"_": "village wall: a low stone wall, one brick per tile (1000 HP, see WallBrick and VillageWall)",
+	"\\": "village gate: a path tile with a gate the villagers shut during a slime alarm (see VillageWall)",
 	"@": "the wandering merchant's pitch",
 	"(": "dark hole down into a cave of its own",
 	"?": "buried treasure: plain grass until a treasure map from a bottle marks it (see TreasureMaps)",

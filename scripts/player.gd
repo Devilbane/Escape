@@ -2025,7 +2025,11 @@ func _tick_ailments(delta: float) -> void:
 				hurt.emit(1)
 	# Bleeding: the ailment lasts as long as the wound has life to bleed.
 	if ailments.has("blut"):
-		var lost := wound.run(delta, is_moving())
+		var moving := is_moving()
+		if wound.drips(delta, moving):
+			var way := Vector3(velocity.x, 0, velocity.z) if moving else Vector3.ZERO
+			BloodDrops.drip(level, global_position, 1.0, way)
+		var lost := wound.run(delta, moving)
 		if lost > 0:
 			var taken := mini(lost, hp - 1)
 			if taken > 0:

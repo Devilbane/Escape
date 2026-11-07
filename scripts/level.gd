@@ -1049,6 +1049,10 @@ func _build_walls(c: Vector2i) -> void:
 		# the steps. The rolls below still run, so the rest of the house keeps
 		# the same shelves, windows, torches and banners.
 		var by_stairs := is_home and "<>".contains(cell_char(c))
+		# The steel-banded chest and the ingredient board of a home stand
+		# against their wall: no bookcase may hide behind them, or the plain
+		# shelf shows where the board should be.
+		var by_store := is_home and "mh".contains(cell_char(c))
 		var piece := "wall"
 		var roll := _rng.randf()
 		if not low and d == Vector2i(0, -1):
@@ -1064,7 +1068,7 @@ func _build_walls(c: Vector2i) -> void:
 		# A bookcase right beside another one is left out: a plain wall
 		# instead. The piece stays as rolled, so the rolls after it, and the
 		# rest of the map, stay as they were.
-		var shelves := piece == "wall_shelves" and not by_stairs and not _wall_piece_near("shelves", pos)
+		var shelves := piece == "wall_shelves" and not by_stairs and not by_store and not _wall_piece_near("shelves", pos)
 		var wall := _place("wall" if by_stairs or (piece == "wall_shelves" and not shelves) else piece, pos, rot)
 		if (c.x + c.y + d.x + d.y) % 2 != 0:
 			wall.position.y += 0.02

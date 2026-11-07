@@ -1,11 +1,12 @@
 """Builds the application icon from the devilbane logo: assets/logo/app_icon.png and
 assets/logo/app_icon.ico (16, 32, 48, 64, 128, 256). Only the "db" emblem is used, on a dark
 rounded tile: the HARDCORE lettering is unreadable at 16 px. The logo's star is erased and
-tools/app_icon_sunrise.png (sun 50% larger, with its lit landscape) rises halfway between the top of
+tools/app_icon_sunrise.png (sun 2.4 times larger, with its lit landscape) rises halfway between the top of
 the letters and the top edge of the tile. Run: python3 tools/make_app_icon.py"""
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 SIZES = [16, 32, 48, 64, 128, 256]
+SUN_ZOOM = 1.5 * 1.6  # the sunrise picture: enlarged 50%, then another 60%
 S = 1024  # master size
 
 
@@ -23,11 +24,11 @@ def without_star(logo):
 
 
 def sunrise(width):
-    """The sunrise picture, enlarged 50% around the sun, as wide as the tile."""
+    """The sunrise picture, enlarged around the sun, as wide as the tile."""
     img = Image.open("tools/app_icon_sunrise.png").convert("RGB")
     sun = (530, 230)
     w, h = img.size
-    box = (sun[0] - sun[0] / 1.5, sun[1] - sun[1] / 1.5, sun[0] + (w - sun[0]) / 1.5, sun[1] + (h - sun[1]) / 1.5)
+    box = (sun[0] - sun[0] / SUN_ZOOM, sun[1] - sun[1] / SUN_ZOOM, sun[0] + (w - sun[0]) / SUN_ZOOM, sun[1] + (h - sun[1]) / SUN_ZOOM)
     img = img.resize((w, h), Image.LANCZOS, box=box)
     k = width / w
     return img.resize((width, round(h * k)), Image.LANCZOS), (round(sun[0] * k), round(sun[1] * k))

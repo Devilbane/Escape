@@ -5427,14 +5427,23 @@ func _against_back_wall(c: Vector2i) -> bool:
 	return cell_char(c + Vector2i(0, -1)) == "#"
 
 
+## The direction (north, west, east, south, in that order of liking) in which a
+## tile has a wall right behind it, or (0, 0) when it stands free.
+func _wall_side(c: Vector2i) -> Vector2i:
+	for d: Vector2i in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+		if cell_char(c + d) == "#":
+			return d
+	return Vector2i.ZERO
+
+
 ## Whether a tile has a wall at its side (west or east).
 func _against_side_wall(c: Vector2i) -> bool:
 	return cell_char(c + Vector2i(-1, 0)) == "#" or cell_char(c + Vector2i(1, 0)) == "#"
 
 
 ## The furniture spot for an upgrade, or {} when every spot is taken. The
-## second chest goes next to the first; the trophy wall hangs on a back wall,
-## high up in the house; the workbench stands against a side wall up there.
+## second chest goes next to the first; the trophy wall hangs on a back wall
+## of the entrance room, on the ground floor; the workbench stands against a side wall up there.
 func _upgrade_slot(id: String) -> Dictionary:
 	var taken: Array = _upgrade_cells.values()
 	var chest := _home_chest_cell()
@@ -5450,7 +5459,10 @@ func _upgrade_slot(id: String) -> Dictionary:
 			"truhe":
 				score = -Vector2(c - chest).length() if chest.x >= 0 and storey_of(chest) == storey else -100.0 - storey
 			"trophaeen":
-				score = storey * 10.0 + (5.0 if _against_back_wall(c) else 0.0) + c.x * 0.01
+				# Down in the entrance room, where the hero sees it on coming in: the
+				# ground floor, on a back wall, and the nearest to the front door.
+				score = (0.0 if storey == 0 else -50.0 - absf(storey)) + (5.0 if _wall_side(c) != Vector2i.ZERO else 0.0) + (1.0 if _against_back_wall(c) else 0.0) \
+						- Vector2(c - exit_cell).length() * 0.1
 			"feinbank", "schleifrad", "alchemie":
 				# A crafting bench keeps its back to the west (see CraftingSquare.build).
 				score = storey * 10.0 + (6.0 if cell_char(c + Vector2i(-1, 0)) == "#" else 0.0) + (-4.0 if _against_back_wall(c) else 0.0) - c.y * 0.1
@@ -5507,8 +5519,9 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 			astar.set_point_solid(c, true)
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false, "upgrade": true})
 		"trophaeen":
-			_build_trophy_wall(root, pos)
-			stations.append({"kind": "trophaeen", "cell": c, "pos": pos + Vector3(0, 0, -TILE * 0.5 + 0.6), "used": false, "upgrade": true})
+			var wall := _wall_side(c)
+			_build_trophy_wall(root, pos, wall)
+			stations.append({"kind": "trophaeen", "cell": c, "pos": pos + Vector3(wall.x, 0, wall.y) * (TILE * 0.5 - 0.6), "used": false, "upgrade": true})
 
 
 ## The hoard's heaps of coins, by metal, and what they last showed (see HomeHoard): a change in
@@ -5576,33 +5589,42 @@ func show_hoard(held: Dictionary) -> void:
 ## statuettes of the trophies stand on the shelf, two shields hang beside
 ## them. The shelf is solid, so the hero runs into it to look at the
 ## trophies, but shallow enough to leave the rest of the tile free to walk.
-func _build_trophy_wall(root: Node3D, pos: Vector3) -> void:
+func _build_trophy_wall(root: Node3D, pos: Vector3, wall := Vector2i(0, -1)) -> void:
 	var oak := StandardMaterial3D.new()
 	oak.albedo_texture = load("res://assets/house/wood_floor.jpg")
 	oak.albedo_color = Color(0.55, 0.38, 0.26)
 	oak.roughness = 0.8
-	var back := pos.z - TILE * 0.5 + 0.12
+	# Built facing north in a pivot of its own, turned to the wall it hangs on.
+	var pivot := Node3D.new()
+	pivot.position = pos
+	if wall != Vector2i.ZERO:
+		pivot.rotation.y = atan2(-float(wall.x), -float(wall.y))
+	root.add_child(pivot)
+	var back := -TILE * 0.5 + 0.12
 	var board := MeshInstance3D.new()
 	var board_mesh := BoxMesh.new()
 	board_mesh.size = Vector3(TILE - 0.6, 2.4, 0.1)
 	board.mesh = board_mesh
 	board.material_override = oak
-	board.position = Vector3(pos.x, 2.1, back)
-	root.add_child(board)
+	board.position = Vector3(0, 2.1, back)
+	pivot.add_child(board)
 	var shelf := MeshInstance3D.new()
 	var shelf_mesh := BoxMesh.new()
 	shelf_mesh.size = Vector3(TILE - 0.8, 0.9, 0.7)
 	shelf.mesh = shelf_mesh
 	shelf.material_override = oak
-	shelf.position = Vector3(pos.x, 0.45, back + 0.4)
-	root.add_child(shelf)
-	_add_solid(Vector3(pos.x, 0, back + 0.4), Vector3(TILE - 0.8, 0.9, 0.8))
+	shelf.position = Vector3(0, 0.45, back + 0.4)
+	pivot.add_child(shelf)
+	var along_x := wall.y != 0 or wall == Vector2i.ZERO
+	var solid_size := Vector3(TILE - 0.8, 0.9, 0.8) if along_x else Vector3(0.8, 0.9, TILE - 0.8)
+	var shelf_at := pos + Vector3(wall.x, 0, wall.y) * (TILE * 0.5 - 0.12 - 0.4) if wall != Vector2i.ZERO else pos + Vector3(0, 0, back + 0.4)
+	_add_solid(Vector3(shelf_at.x, 0, shelf_at.z), solid_size)
 	for side in [-1.0, 1.0]:
-		var banner := _place("banner_shield_brown", Vector3(pos.x + side * 1.25, 1.2, back + 0.1), 0.0, root)
+		var banner := _place("banner_shield_brown", Vector3(side * 1.25, 1.2, back + 0.1), 0.0, pivot)
 		banner.scale = Vector3.ONE * 0.6
 	_trophy_shelf = Node3D.new()
-	_trophy_shelf.position = Vector3(pos.x, 0.9, back + 0.4)
-	root.add_child(_trophy_shelf)
+	_trophy_shelf.position = Vector3(0, 0.9, back + 0.4)
+	pivot.add_child(_trophy_shelf)
 
 
 ## One small statuette of each foe felled, side by side on the shelf.

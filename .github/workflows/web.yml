@@ -69,6 +69,11 @@ jobs:
           timeout 60 ~/godot/godot --headless -s tests/chest_facing.gd | tee chests.log
           grep -q PASS chests.log
 
+      - name: Merchants stand in the open middle of their room
+        run: |
+          timeout 60 ~/godot/godot --headless -s tests/merchant_placement.gd | tee merchants.log
+          grep -q PASS merchants.log
+
       - name: Furniture blocks only where it is drawn (nobody gets stuck on it)
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/furniture_stuck.gd | tee stuck.log

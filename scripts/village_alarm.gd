@@ -12,6 +12,13 @@ extends RefCounted
 ## all-clear, CALM_AFTER seconds after the last slime has left or fallen.
 ## Each look (CHECK_EVERY) also rallies whoever was not yet roused.
 ##
+## A slime still outside the wall is no business of the alarm: the defenders
+## hold the wall against it whatever its level (see VillageWall._muster). Only
+## once it has broken through (see intruders) does the call to arms below begin.
+##
+## When the slime breaks through, each fighter first tests their nerve
+## (see _test_nerve).
+##
 ## A slime too big for the village (FLEE_LEVEL, above its strongest, see
 ## Villager.LEVELS) sends everyone indoors, the men too, and they stay there
 ## until it is killed: only the hero can deal with that one.
@@ -59,6 +66,7 @@ func tick(o: Outdoor, delta: float) -> void:
 		_clear = 0.0
 		if not raised:
 			raised = true
+			_test_nerve(o)
 			if monster == null:
 				var herald := caller(o)
 				if herald != null:
@@ -69,9 +77,20 @@ func tick(o: Outdoor, delta: float) -> void:
 		_clear += CHECK_EVERY
 		if _clear >= CALM_AFTER:
 			raised = false
+			for v in o.villagers:
+				v.shaken = false
 			var herald := caller(o)
 			if herald != null:
 				herald.say(Lang.t(ALL_CLEAR))
+
+
+## The wall has broken: every fighter in the street rolls a d100 against
+## strength + intuition + intelligence + level (Villager.nerve). Those who
+## fail lose their nerve and run indoors instead of fighting (Villager.alarm).
+func _test_nerve(o: Outdoor) -> void:
+	for v in o.villagers:
+		if v.brave and not v.eaten and not v.at_home and v.visible:
+			v.test_nerve()
 
 
 static func too_big(slime: Enemy) -> bool:

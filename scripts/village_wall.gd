@@ -32,8 +32,8 @@ const GATE_ROOM := 2.0
 const SIEGE_REACH := 6.0
 ## How long the gates wait for villagers still outside to come in (seconds).
 const GRACE := 7.0
-## The most villagers that take up a post at the wall at a time.
-const MOST_DEFENDERS := 6
+## The most villagers that take up a post at the wall at a time: everyone who can fight.
+const MOST_DEFENDERS := 12
 const MUSTER_CALL := "Alle hinter die Mauer! Wir verteidigen das Dorf!"
 const SHUT_CALL := "Tor zu! Ein Schleim kommt!"
 const OPEN_CALL := "Das Tor ist wieder offen. Die Gefahr ist vorbei."
@@ -136,7 +136,7 @@ func tick(o: Outdoor, delta: float) -> void:
 	if _check > 0.0 or gates.is_empty():
 		return
 	_check = CHECK_EVERY
-	var threat := o.village_alarm.raised or slime_near_a_gate(o)
+	var threat := o.village_alarm.raised or slime_near_a_gate(o) or slime_at_the_wall(o)
 	if threat:
 		_calm = 0.0
 		if not shut_wanted:
@@ -163,13 +163,17 @@ func tick(o: Outdoor, delta: float) -> void:
 		Events.tell(Lang.t(MENDED), COLOR)
 
 
-## The villagers outside the wall come in, and the brave ones take up posts
-## on the inside, by the gate the slimes are nearest to.
+## The villagers outside the wall come in, and everyone who can fight takes
+## a post on the inside, at the stretch of wall the nearest slime is at. They
+## hold it whatever the slime's level (see Villager.defend): only a slime that
+## has broken through (VillageAlarm.intruders) sends them after it into the
+## village, or indoors if it is too big (VillageAlarm.too_big). Defenders whose
+## slime has moved along the wall follow it to a new post.
 func _muster(o: Outdoor) -> void:
-	var gate := threatened_gate(o)
-	if gate == null:
+	var anchor := threatened_brick(o)
+	if anchor == null:
 		return
-	var way_in := stand_of(o, gate)
+	var way_in := stand_of(o, anchor)
 	var posts := 0
 	for v in o.villagers:
 		if v.eaten or v.at_home or not v.visible:
@@ -177,9 +181,10 @@ func _muster(o: Outdoor) -> void:
 		if not is_inside(o.world_to_cell(v.global_position)):
 			v.go_inside(way_in)
 		elif v.brave and posts < MOST_DEFENDERS and v.can_defend():
-			v.defend(post_of(o, gate, posts))
+			v.defend(post_of(o, anchor, posts))
 			posts += 1
 		elif v.brave and v.defends():
+			v.repost(post_of(o, anchor, posts))
 			posts += 1
 
 
@@ -193,25 +198,40 @@ func stragglers(o: Outdoor) -> int:
 	return n
 
 
-## The gate with a slime closest to it.
-func threatened_gate(o: Outdoor) -> WallBrick:
+## The piece of standing wall (or gate) closest to the slime nearest to the
+## wall: where the defenders gather. Null when no slime is about.
+func threatened_brick(o: Outdoor) -> WallBrick:
 	var best: WallBrick = null
 	var best_d := INF
-	for g in gates:
-		var slime := nearest_slime(o, g.global_position, INF)
-		var d := slime.global_position.distance_to(g.global_position) if slime != null else INF
-		if best == null or d < best_d:
-			best = g
-			best_d = d
+	for e in o.enemies:
+		if not (is_instance_valid(e) and not e.dead and e.is_inside_tree() and SlimeGrowth.grows(e.kind)):
+			continue
+		for b: WallBrick in bricks.values():
+			if b.hp <= 0:
+				continue
+			var d := b.distance_from(e.global_position)
+			if d < best_d:
+				best = b
+				best_d = d
 	return best
 
 
-## The `k`th post inside the wall by a gate: close to the wall, spread along it.
-func post_of(o: Outdoor, gate: WallBrick, k: int) -> Vector3:
-	var inward := (stand_of(o, gate) - gate.global_position).normalized()
-	var along := Vector3(1, 0, 0) if gate.along_x else Vector3(0, 0, 1)
+## The `k`th post inside the wall by a brick: close to the wall, spread along it.
+func post_of(o: Outdoor, brick: WallBrick, k: int) -> Vector3:
+	var inward := (stand_of(o, brick) - brick.global_position).normalized()
+	var along := Vector3(1, 0, 0) if brick.along_x else Vector3(0, 0, 1)
 	var offset := (((k + 1) / 2) * (1.0 if k % 2 == 0 else -1.0)) * 1.4
-	return gate.global_position + inward * 2.0 + along * offset
+	return brick.global_position + inward * 2.0 + along * offset
+
+
+## Whether a living slime is within WATCH_RANGE of any stretch of the wall.
+func slime_at_the_wall(o: Outdoor) -> bool:
+	for e in o.enemies:
+		if is_instance_valid(e) and not e.dead and e.is_inside_tree() and SlimeGrowth.grows(e.kind):
+			for b: WallBrick in bricks.values():
+				if b.hp > 0 and b.distance_from(e.global_position) < WATCH_RANGE:
+					return true
+	return false
 
 
 ## The living slime nearest to a point within `within` metres, or null.

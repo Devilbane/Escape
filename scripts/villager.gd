@@ -552,6 +552,16 @@ func defend(post: Vector3) -> void:
 	_walk_to(post, RUN_SPEED, "defend")
 
 
+## Moves a defender to a new post along the wall, unless a slime is at them.
+func repost(post: Vector3) -> void:
+	if _task != "defend" or Vector2(post.x - defend_post.x, post.z - defend_post.z).length() < POST_ROOM:
+		return
+	if VillageWall.slime_near(level, global_position, WALL_REACH + 2.0):
+		return
+	defend_post = post
+	_walk_to(post, RUN_SPEED, "defend")
+
+
 func _defend(delta: float) -> void:
 	if not level.village_wall.shut_wanted or defend_post == Vector3.INF:
 		defend_post = Vector3.INF
@@ -663,6 +673,43 @@ func blow() -> int:
 	return 1 + fight_level() / BLOW_DIVISOR
 
 
+## Townsfolk have no attributes of their own, so each starts at the hero's
+## 10 (Training) and the strong and the wise are better at it.
+const BASE_ATTRIBUTE := 10
+const STRONG_ROLES := ["4", "S", "G", "1"]
+const WISE_ROLES := ["K", "O", "0"]
+const ATTRIBUTE_GIFT := 5
+## After a breach (see VillageAlarm) each fighter keeps or loses their nerve.
+var shaken := false
+
+
+func strength() -> int:
+	return BASE_ATTRIBUTE + (ATTRIBUTE_GIFT if role in STRONG_ROLES else 0)
+
+
+func intuition() -> int:
+	return BASE_ATTRIBUTE + (ATTRIBUTE_GIFT if role in WISE_ROLES else 0)
+
+
+func intelligence() -> int:
+	return BASE_ATTRIBUTE + (ATTRIBUTE_GIFT if role in WISE_ROLES else 0)
+
+
+## The nerve test when the wall breaks: strength + intuition + intelligence +
+## level. A d100 at or below it holds.
+func nerve() -> int:
+	return strength() + intuition() + intelligence() + fight_level()
+
+
+## Rolls a d100 against nerve() (`roll` fixes it for tests). Returns whether they hold.
+func test_nerve(roll := -1) -> bool:
+	if roll < 0:
+		roll = _rng.randi_range(1, 100)
+	shaken = roll > nerve()
+	say(Lang.t("Ich halte stand!") if not shaken else Lang.t("Das ist zu viel! Weg hier!"))
+	return not shaken
+
+
 ## The priestess mends the hurt in her reach (see _fight).
 func heals() -> bool:
 	return role in HEALERS
@@ -688,7 +735,7 @@ func alarm(slime: Enemy, called := false) -> void:
 	threat = slime
 	leave_chat()
 	_listen_to = Vector3.INF
-	if brave and not too_big:
+	if brave and not too_big and not shaken:
 		_draw_blade(true)
 		say(Lang.t("Weg mit dir, Schleim!"))
 		_task = "fight"

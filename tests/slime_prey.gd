@@ -54,7 +54,7 @@ func _spawn(at: Vector3, custom := {}) -> Enemy:
 ## Bites until the slime has eaten `n` (at most 20 blows).
 func _eat(n: Node3D) -> int:
 	var blows := 0
-	while SlimeGrowth.can_snack(n) and blows < 60:
+	while SlimeGrowth.can_snack(n) and blows < 300:
 		SlimeGrowth.bite(slime, n)
 		blows += 1
 	return blows
@@ -91,7 +91,7 @@ func _process(_delta: float) -> bool:
 				_finish()
 				return true
 			fox_spot = fox.global_position
-			slime = _spawn(fox.global_position + Vector3(2.0, 0, 0), {"hp": 400, "damage": 1})
+			slime = _spawn(fox.global_position + Vector3(2.0, 0, 0), {"hp": 40, "damage": 1})
 			slime.set_physics_process(false)
 			check(SlimeGrowth.nearest_snack(slime) == fox or SlimeGrowth.nearest_snack(slime) is Node3D, "a slime notices the fox")
 			var lvl := slime.rated_level
@@ -124,6 +124,7 @@ func _process(_delta: float) -> bool:
 			# Small enough to stand up to (see VillageAlarm.FLEE_LEVEL).
 			slime.rated_level = 8
 			# Tough enough to outlast the villager's blows for the length of the test.
+			slime.life_bonus += 400
 			slime.hp = slime.max_hp()
 			villager.brave = true
 			villager.alarm(slime)

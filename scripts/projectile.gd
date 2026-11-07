@@ -2,7 +2,8 @@ class_name Projectile
 extends Node3D
 ## A thrown dagger (from the hero), a crossbow bolt or a magic orb (from a
 ## skeleton). Orbs fly slower but curve after the hero. The dragon's fire
-## flies like an orb, burns for two and never curses. A spider's web ("web")
+## flies like an orb, burns for two, sets flammable monsters alight (see
+## Ignition) and never curses. A skeleton mage casts the same fireball at them. A spider's web ("web")
 ## is a pale ball of silk: it does no harm but sticks to the hero and slows
 ## them for a moment (Player.afflict "netz"). A slime's gob ("gob") does no
 ## harm either, but slimes whoever it hits (see SlimeCoat).
@@ -23,6 +24,8 @@ var at_rival := false
 var damage := 1
 var magic := false
 var fire := false
+## What a fireball costs a monster it hits.
+var fire_damage := 2
 ## Where it was thrown from: a knife that ends inside a wall falls back
 ## towards here (see Level.knife_rest).
 var thrown_from := Vector3.ZERO
@@ -175,7 +178,7 @@ func _physics_process(delta: float) -> void:
 					foe.provoke(shooter as Enemy)
 			else:
 				# A bolt or an arrow is a little shot a slime swallows (see SlimeCoat).
-				foe.hit_by_rival(2 if fire else damage, shooter as Enemy if is_instance_valid(shooter) else null, not magic and not fire)
+				foe.hit_by_rival(fire_damage if fire else damage, shooter as Enemy if is_instance_valid(shooter) else null, not magic and not fire)
 			queue_free()
 	else:
 		var player: Player = level.player

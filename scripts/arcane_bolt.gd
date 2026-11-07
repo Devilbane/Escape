@@ -21,6 +21,8 @@ var level: Level
 var target: Enemy
 var direction := Vector3.FORWARD
 var damage := 4
+## A fireball: cast at a foe that can ignite (see Ignition); it sets it alight.
+var fiery := false
 var _age := 0.0
 
 
@@ -53,6 +55,7 @@ static func cast(player: Player) -> String:
 	var bolt := ArcaneBolt.new()
 	bolt.level = player.level
 	bolt.target = foe
+	bolt.fiery = Ignition.wants_fireball(foe)
 	bolt.damage = damage_of(player)
 	bolt.direction = dir.normalized()
 	player.level.add_child(bolt)
@@ -63,6 +66,7 @@ static func cast(player: Player) -> String:
 
 func _ready() -> void:
 	SmoothMotion.follow_ticks(self)
+	var colour := Ignition.COLOR if fiery else COLOR
 	var core := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = 0.26
@@ -72,15 +76,15 @@ func _ready() -> void:
 	add_child(core)
 	var star := MeshInstance3D.new()
 	star.mesh = SternParts.star_mesh(0.42, 0.18, 0.04)
-	star.material_override = SternParts.material(COLOR, 2.5, 0.9, true)
+	star.material_override = SternParts.material(colour, 2.5, 0.9, true)
 	star.name = "Star"
 	add_child(star)
 	var glow := OmniLight3D.new()
-	glow.light_color = COLOR
+	glow.light_color = colour
 	glow.light_energy = 2.6
 	glow.omni_range = 5.0
 	add_child(glow)
-	add_child(Effects.make_sparkles(COLOR))
+	add_child(Effects.make_sparkles(colour))
 
 
 func _physics_process(delta: float) -> void:
@@ -113,7 +117,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _burst() -> void:
-	var spark := Effects.make_sparkles(COLOR, true)
+	var spark := Effects.make_sparkles(Ignition.COLOR if fiery else COLOR, true)
 	spark.position = global_position
 	spark.amount = 30
 	level.add_child(spark)

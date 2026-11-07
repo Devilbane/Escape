@@ -663,6 +663,39 @@ func _heal_someone() -> bool:
 	return true
 
 
+var _fire_cool := 0.0
+
+
+## Aldo and Odo, the village's mages, hurl a fireball at the nearest monster
+## in sight that can ignite (see Ignition). Aldo's hit far harder.
+func _cast_fireball(delta: float) -> void:
+	_fire_cool = maxf(0.0, _fire_cool - delta)
+	if _fire_cool > 0.0 or not Ignition.VILLAGE_MAGES.has(role) or eaten or at_home or not visible or _task == "hide":
+		return
+	var best: Enemy = null
+	var best_d := Ignition.VILLAGE_RANGE
+	for e in level.enemies:
+		if not Ignition.can_ignite(e) or e.is_friend():
+			continue
+		var d: float = e.global_position.distance_to(global_position)
+		if d < best_d and level.has_line_of_sight(global_position, e.global_position):
+			best = e
+			best_d = d
+	if best == null:
+		return
+	_fire_cool = Ignition.VILLAGE_COOL
+	var aim := best.global_position - global_position
+	_turn_to(aim, 1.0)
+	_current_anim = "Spellcast_Shoot"
+	_anim.play("Spellcast_Shoot", 0.1)
+	Sfx.play(self, "magic", -4.0, global_position)
+	var origin := global_position + Vector3(0, 1.4, 0)
+	var shot := Projectile.spawn(level, origin, best.global_position + Vector3(0, 1.2, 0) - origin, false, true, true)
+	shot.fire_damage = int(Ignition.VILLAGE_MAGES[role])
+	shot.foe = best
+	shot.at_rival = true
+
+
 ## Hiding indoors: out again once no slime is near the door.
 func _hide(delta: float) -> void:
 	_calm_check -= delta
@@ -820,6 +853,7 @@ func _physics_process(delta: float) -> void:
 	station.cell = level.world_to_cell(global_position)
 	_update_bubble(delta)
 	var hero: Node3D = level.player
+	_cast_fireball(delta)
 	if _bubble_time > 0.0 and _look_at != Vector3.INF:
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:

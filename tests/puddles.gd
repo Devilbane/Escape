@@ -90,8 +90,14 @@ func _dry_ground() -> void:
 	var area_ratio := _puddles().total_area() / _puddles().laid_area
 	check(area_ratio > 0.9 and area_ratio < 1.04, "the water on the ground stays the same (%.3f)" % area_ratio)
 	var small := spots.filter(func(s: Dictionary) -> bool: return float(s.radius) <= Puddles.SMALL_RADIUS).size()
-	check(small >= 3, "a few small puddles lie about in between (%d)" % small)
-	check(small <= spots.size() / 3, "the small puddles are few (%d)" % small)
+	var small_on_walk := 0
+	for s in spots:
+		if float(s.radius) <= Puddles.SMALL_RADIUS and Puddles.WALKWAY.contains(game.level.cell_char(game.level.world_to_cell(s.at))):
+			small_on_walk += 1
+	print("puddles: laid %d, left %d, small %d, small on walkways %d, water ratio %.3f" % [laid, spots.size(), small, small_on_walk, _puddles().total_area() / _puddles().laid_area])
+	check(small >= 1, "a few small puddles lie about in between (%d)" % small)
+	check(small <= spots.size() / 10, "the small puddles are very few (%d)" % small)
+	check(small_on_walk == 0, "no small puddle lies on a path or a square (%d)" % small_on_walk)
 	var on_path := 0
 	var by_house := 0
 	var big := 0

@@ -3475,6 +3475,11 @@ func in_puddle(p: Vector3) -> bool:
 	return puddles != null and p.y < 0.3 and puddles.wet_at(p)
 
 
+## How full the puddle at a spot is, 0 to 1 (see Puddles.fill_at).
+func puddle_fill(p: Vector3) -> float:
+	return puddles.fill_at(p) if puddles != null else 0.0
+
+
 func splash_puddle(at: Vector3, hard := true) -> void:
 	if puddles:
 		puddles.splash(at, hard)

@@ -88,10 +88,34 @@ def splash(k):
     return x * np.minimum(1, (sec - tt) / 0.06)
 
 
+def soft_splash(k):
+    # A step into a nearly dried-out puddle: a thin film of water, so no slap
+    # and no spray (their sharp, bright edge read as a little firecracker),
+    # only a soft, low squelch and one or two tiny drops, all rolled off above
+    # 1.2 kHz. Quiet in the game too (see Puddles.splash_volume).
+    r = np.random.default_rng(311 + k)
+    sec = 0.3
+    n = r.uniform(-1, 1, int(SR * sec))
+    tt = t(sec)
+    wob = 1 + 0.4 * np.sin(2 * np.pi * r.uniform(14, 22) * tt + r.uniform(0, 6.3))
+    squelch = (lowpass(n, 1000) - lowpass(n, 140)) * wob * env(len(n), 0.012, 0.07) * 1.4
+    x = squelch
+    for _ in range(r.integers(1, 3)):
+        at = int(r.uniform(0.04, 0.16) * SR)
+        d = t(r.uniform(0.03, 0.05))
+        f = r.uniform(400, 800) * (1 + r.uniform(0.6, 1.2) * d / d[-1])
+        blip = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(d), 0.004, 0.015) * r.uniform(0.1, 0.2)
+        x[at:at + len(blip)] += blip[: len(x) - at]
+    x = lowpass(x, 1200)
+    return x * np.minimum(1, (sec - tt) / 0.05)
+
+
 if __name__ == "__main__":
     if "--splash" in os.sys.argv:
         for k in range(4):
             save("splash_%d" % k, splash(k), 0.85)
+        for k in range(3):
+            save("splash_soft_%d" % k, soft_splash(k), 0.6)
         raise SystemExit
     os.makedirs(OUT, exist_ok=True)
     save("thunder", thunder(), 0.9)
@@ -101,3 +125,5 @@ if __name__ == "__main__":
     os.remove(wav)
     for k in range(4):
         save("splash_%d" % k, splash(k), 0.85)
+    for k in range(3):
+        save("splash_soft_%d" % k, soft_splash(k), 0.6)

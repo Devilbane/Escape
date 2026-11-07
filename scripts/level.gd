@@ -2523,6 +2523,11 @@ func in_puddle(p: Vector3) -> bool:
 	return life != null and life.in_puddle(p)
 
 
+## Drip puddles below ground stay full.
+func puddle_fill(_p: Vector3) -> float:
+	return 1.0
+
+
 ## A foot lands in the water at a spot (see in_puddle); a soft step when not hard.
 func splash_puddle(at: Vector3, _hard := true) -> void:
 	if life:

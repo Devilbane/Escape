@@ -19,6 +19,9 @@ const STAR_OUTER := 1.0
 const STAR_INNER := 0.42
 const STAR_WOBBLE := 0.2
 const STAR_COLOR := Color(0.72, 0.03, 0.05, 0.9)
+## The star rings the hero: it starts snug round the feet and swells to this scale.
+const STAR_START_SCALE := 0.6
+const STAR_END_SCALE := 1.3
 ## The camera punch, in seconds of Game's shake (see Events.camera_punched).
 const PUNCH := 0.32
 
@@ -43,7 +46,7 @@ static func impact(level: Node, hero: Node3D, foe: Node3D) -> void:
 	var ahead := to.normalized() if to.length() > 0.01 else Vector3.FORWARD
 	var chest := foe.global_position + Vector3(0, 1.2, 0)
 	_crescent(level, chest, ahead)
-	_ring(level, hero.global_position + ahead * 0.6)
+	_ring(level, hero.global_position)
 	_dust(level, hero.global_position + ahead * 0.6, 1.0)
 	Sfx.play(level, "rumble", -3.0, chest, 1.6)
 	Sfx.play(level, "anvil", -8.0, chest, 1.3)
@@ -103,8 +106,8 @@ static func _crescent(level: Node, at: Vector3, ahead: Vector3) -> void:
 	tween.chain().tween_callback(slash.queue_free)
 
 
-## A flat, spiky star of blood that wobbles over the ground where the hero
-## lands, grows a little and fades. It replaces the old plain ring of force.
+## A flat, spiky star of blood that wobbles around the hero, centred on the
+## character's feet, grows a little and fades. It replaces the old plain ring of force.
 static func _ring(level: Node, at: Vector3) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -117,10 +120,10 @@ static func _ring(level: Node, at: Vector3) -> void:
 	star.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	level.add_child(star)
 	star.global_position = at + Vector3(0, 0.08, 0)
-	star.scale = Vector3(0.4, 1.0, 0.4)
+	star.scale = Vector3(STAR_START_SCALE, 1.0, STAR_START_SCALE)
 	var tween := star.create_tween().set_parallel()
 	tween.tween_method(func(t: float): star.mesh = star_mesh(t), 0.0, RING_TIME, RING_TIME)
-	tween.tween_property(star, "scale", Vector3(1.8, 1.0, 1.8), RING_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(star, "scale", Vector3(STAR_END_SCALE, 1.0, STAR_END_SCALE), RING_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(mat, "albedo_color:a", 0.0, RING_TIME * 0.5).set_delay(RING_TIME * 0.5)
 	tween.chain().tween_callback(star.queue_free)
 

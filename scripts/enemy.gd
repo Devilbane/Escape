@@ -671,7 +671,7 @@ func is_horror() -> bool:
 func max_hp() -> int:
 	# A Blob is far harder to bring down (see SlimeGrowth.BLOB_LIFE), and a
 	# slime keeps half the life of all it ate (life_bonus).
-	return int(_stats.hp) * (SlimeGrowth.BLOB_LIFE if blob else 1) + life_bonus
+	return int(int(_stats.hp) * (SlimeGrowth.BLOB_LIFE if blob else 1.0)) + life_bonus
 
 
 ## Whether this one's faction is the hero's friend (see Factions).

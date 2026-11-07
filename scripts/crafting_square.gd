@@ -29,6 +29,7 @@ const BENCHES := {
 		"name": "Werkbank des Feinschmieds",
 		"craft_line": "Handwerk: Feinschmieden",
 		"sign": "Feinschmied",
+		"icon": "ring",
 		"prompt": "Dagegenlaufen, um an der Werkbank des Feinschmieds zu arbeiten",
 		"text": "Ringe, Ketten, Fassungen und feiner Draht aus Silber, Gold und Eisen.",
 	},
@@ -37,6 +38,7 @@ const BENCHES := {
 		"name": "Schleifrad",
 		"craft_line": "Handwerk: Edelsteinschleifen",
 		"sign": "Edelsteine",
+		"icon": "gem",
 		"prompt": "Dagegenlaufen, um am Schleifrad Edelsteine zu schleifen",
 		"text": "Rohe Steine werden hier geschliffen, bis sie Licht und Kraft fangen.",
 	},
@@ -45,6 +47,7 @@ const BENCHES := {
 		"name": "Alchemistentisch",
 		"craft_line": "Handwerk: Alchemie",
 		"sign": "Alchemie",
+		"icon": "flask",
 		"prompt": "Dagegenlaufen, um am Alchemistentisch zu brauen",
 		"text": "Kräuter, Pulver und seltene Zutaten werden hier zu Tränken und Tinkturen gebraut.",
 	},
@@ -90,7 +93,7 @@ static func build(level: Level, c: Vector2i, ch: String) -> void:
 			_dress_alchemy(level, pos)
 	b.finish(level, pos)
 	var bench: Dictionary = BENCHES[ch]
-	_add_sign(level, pos, Lang.t(bench.sign))
+	_add_sign(level, pos, Lang.t(bench.sign), bench.icon)
 	level._add_solid(pos + Vector3(-0.5, 0, 0), Vector3(2.0, 1.2, 3.0))
 	level.stations.append({"kind": "werkbank", "craft": bench.craft, "cell": c, "pos": pos, "used": false})
 
@@ -114,7 +117,7 @@ static func _build_chest(level: Level, c: Vector2i, pos: Vector3) -> void:
 		b.box(Vector3(-0.4, 0, z), Vector3(1.9, 0.12, 1.12), WeatheredProps.vary(WeatheredProps.STONES[3], rng),
 				WeatheredProps.STONE, Basis(Vector3.UP, rng.randf_range(-0.03, 0.03)))
 	b.finish(level, pos)
-	_add_sign(level, pos, Lang.t("Deine Truhe"))
+	_add_sign(level, pos, Lang.t("Deine Truhe"), "chest")
 	level._add_solid(pos + Vector3(-0.4, 0, 0), Vector3(2.0, 1.5, 2.4))
 	level.stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
 
@@ -221,8 +224,8 @@ static func _dress_alchemy(level: Level, pos: Vector3) -> void:
 	level.add_child(light)
 
 
-static func _add_sign(level: Level, pos: Vector3, text: String) -> void:
-	var board := Effects.shop_sign(text, SIGN_FONT)
+static func _add_sign(level: Level, pos: Vector3, text: String, icon: String) -> void:
+	var board := Effects.shop_sign(text, SIGN_FONT, icon)
 	WeatheredProps.weather_plain(board)
 	board.position = pos + Vector3(-1.6, 0, 1.75)
 	level.add_child(board)

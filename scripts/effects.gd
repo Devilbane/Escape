@@ -454,9 +454,31 @@ static func barber_pole() -> Node3D:
 	return pole
 
 
-## A hanging shop sign: a wooden board on a post with the shop's name and a
-## pair of scissors above it, facing +Z. About 2.6 m high.
-static func shop_sign(text: String, font: Font) -> Node3D:
+## The width of a hanging shop sign's board, in metres.
+const SIGN_BOARD_WIDTH := 1.1
+## Room left free at both ends of the board, so writing never touches the edge.
+const SIGN_MARGIN := 0.08
+const SIGN_FONT_SIZE := 56
+const SIGN_PIXEL_SIZE := 0.004
+## The pictures a sign can show instead of its writing (see sign_icon).
+const SIGN_ICONS := ["scissors", "anvil", "stone", "ring", "gem", "flask", "chest", "coin"]
+
+
+## How wide `text` is on a shop sign's board, in metres.
+static func sign_text_width(text: String, font: Font) -> float:
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, SIGN_FONT_SIZE).x * SIGN_PIXEL_SIZE
+
+
+## Whether `text` fits on a shop sign's board, margins kept free.
+static func sign_text_fits(text: String, font: Font) -> bool:
+	return sign_text_width(text, font) <= SIGN_BOARD_WIDTH - SIGN_MARGIN * 2.0
+
+
+## A hanging shop sign: a wooden board on a post facing +Z, about 2.6 m high.
+## It shows a small picture (`icon`, one of SIGN_ICONS, a coin if unknown) with
+## the shop's name under it. A name that does not fit on the board is left
+## off, and the picture alone is shown larger in its place.
+static func shop_sign(text: String, font: Font, icon := "coin") -> Node3D:
 	var board_sign := Node3D.new()
 	board_sign.name = "ShopSign"
 	var wood := _paint(Color(0.3, 0.2, 0.12))
@@ -470,7 +492,7 @@ static func shop_sign(text: String, font: Font) -> Node3D:
 	arm.size = Vector3(1.2, 0.08, 0.08)
 	board_sign.add_child(_part(arm, wood, Vector3(0.5, 2.55, 0)))
 	var board := BoxMesh.new()
-	board.size = Vector3(1.1, 0.7, 0.06)
+	board.size = Vector3(SIGN_BOARD_WIDTH, 0.7, 0.06)
 	board_sign.add_child(_part(board, board_wood, Vector3(0.55, 2.05, 0)))
 	for x in [0.15, 0.95]:
 		var chain := CylinderMesh.new()
@@ -478,26 +500,127 @@ static func shop_sign(text: String, font: Font) -> Node3D:
 		chain.bottom_radius = 0.015
 		chain.height = 0.16
 		board_sign.add_child(_part(chain, _paint(Color(0.5, 0.5, 0.55), 0.4, 0.8), Vector3(x, 2.47, 0)))
-	var label := Label3D.new()
-	label.text = text
-	label.font = font
-	label.font_size = 56
-	label.pixel_size = 0.004
-	label.modulate = Color(0.1, 0.06, 0.03)
-	label.position = Vector3(0.55, 1.9, 0.035)
-	label.no_depth_test = false
-	board_sign.add_child(label)
-	# Scissors: two crossed blades with a ring handle each, painted on the board.
-	var steel := _paint(Color(0.8, 0.82, 0.86), 0.3, 0.9)
-	var blade := BoxMesh.new()
-	blade.size = Vector3(0.05, 0.3, 0.02)
-	var handle := TorusMesh.new()
-	handle.inner_radius = 0.04
-	handle.outer_radius = 0.07
-	handle.rings = 16
-	handle.ring_segments = 6
-	for side in [-1.0, 1.0]:
-		var a: float = side * 0.35
-		board_sign.add_child(_part(blade, steel, Vector3(0.55 + sin(a) * 0.03, 2.24, 0.04), Vector3(0, 0, a)))
-		board_sign.add_child(_part(handle, steel, Vector3(0.55 - sin(a) * 0.17, 2.1, 0.04), Vector3(PI * 0.5, 0, 0)))
+	var fits := text != "" and sign_text_fits(text, font)
+	board_sign.set_meta("text_shown", fits)
+	board_sign.set_meta("icon", icon if icon in SIGN_ICONS else "coin")
+	var picture := sign_icon(icon)
+	picture.name = "SignIcon"
+	if fits:
+		picture.position = Vector3(0.55, 2.18, 0.03)
+		picture.scale = Vector3.ONE * 0.8
+		var label := Label3D.new()
+		label.text = text
+		label.font = font
+		label.font_size = SIGN_FONT_SIZE
+		label.pixel_size = SIGN_PIXEL_SIZE
+		label.modulate = Color(0.1, 0.06, 0.03)
+		label.position = Vector3(0.55, 1.88, 0.035)
+		label.no_depth_test = false
+		board_sign.add_child(label)
+	else:
+		picture.position = Vector3(0.55, 2.05, 0.03)
+		picture.scale = Vector3.ONE * 1.6
+	board_sign.add_child(picture)
 	return board_sign
+
+
+## A little picture for a shop sign, about 0.3 m across, painted on the board
+## and facing +Z. `kind` is one of SIGN_ICONS; anything else gives a coin.
+static func sign_icon(kind: String) -> Node3D:
+	var pic := Node3D.new()
+	var steel := _paint(Color(0.8, 0.82, 0.86), 0.3, 0.9)
+	var dark := _paint(Color(0.16, 0.15, 0.17), 0.5, 0.6)
+	var gold := _paint(Color(1.0, 0.78, 0.3), 0.35, 0.7)
+	var stone := _paint(Color(0.62, 0.6, 0.57), 0.9)
+	match kind:
+		"scissors":
+			var blade := BoxMesh.new()
+			blade.size = Vector3(0.05, 0.3, 0.02)
+			var handle := TorusMesh.new()
+			handle.inner_radius = 0.04
+			handle.outer_radius = 0.07
+			handle.rings = 16
+			handle.ring_segments = 6
+			for side in [-1.0, 1.0]:
+				var a: float = side * 0.35
+				pic.add_child(_part(blade, steel, Vector3(sin(a) * 0.03, 0.1, 0.01), Vector3(0, 0, a)))
+				pic.add_child(_part(handle, steel, Vector3(-sin(a) * 0.17, -0.05, 0.01), Vector3(PI * 0.5, 0, 0)))
+		"anvil":
+			pic.add_child(_part(_box(Vector3(0.14, 0.1, 0.05)), dark, Vector3(0, -0.12, 0)))
+			pic.add_child(_part(_box(Vector3(0.2, 0.08, 0.05)), dark, Vector3(0, -0.03, 0)))
+			pic.add_child(_part(_box(Vector3(0.42, 0.1, 0.05)), dark, Vector3(0.02, 0.06, 0)))
+			var horn := CylinderMesh.new()
+			horn.top_radius = 0.0
+			horn.bottom_radius = 0.05
+			horn.height = 0.14
+			pic.add_child(_part(horn, dark, Vector3(-0.27, 0.06, 0), Vector3(0, 0, PI * 0.5)))
+		"stone":
+			pic.add_child(_part(_box(Vector3(0.34, 0.22, 0.05)), stone, Vector3(0, -0.04, 0)))
+			pic.add_child(_part(_box(Vector3(0.05, 0.2, 0.04)), steel, Vector3(0.07, 0.1, 0.02), Vector3(0, 0, -0.5)))
+			pic.add_child(_part(_box(Vector3(0.1, 0.08, 0.05)), dark, Vector3(0.13, 0.2, 0.02), Vector3(0, 0, -0.5)))
+		"ring":
+			var band := TorusMesh.new()
+			band.inner_radius = 0.09
+			band.outer_radius = 0.125
+			band.rings = 20
+			band.ring_segments = 8
+			pic.add_child(_part(band, gold, Vector3(0, -0.03, 0), Vector3(PI * 0.5, 0, 0)))
+			pic.add_child(_part(_gem(0.12, Color(0.9, 0.2, 0.3)), _paint(Color(0.9, 0.2, 0.3), 0.15), Vector3(0, 0.1, 0.01), Vector3(PI * 0.5, 0, PI * 0.25)))
+		"gem":
+			var cut := _paint(Color(0.3, 0.75, 0.95), 0.1)
+			pic.add_child(_part(_gem(0.34, Color.WHITE), cut, Vector3(0, 0, 0.02), Vector3(PI * 0.5, 0, PI * 0.25)))
+			pic.add_child(_part(_gem(0.16, Color.WHITE), _paint(Color(0.8, 0.95, 1.0), 0.1), Vector3(0, 0.02, 0.04), Vector3(PI * 0.5, 0, PI * 0.25)))
+		"flask":
+			var glass := _paint(Color(0.45, 0.95, 0.5), 0.15)
+			var belly := SphereMesh.new()
+			belly.radius = 0.13
+			belly.height = 0.26
+			belly.radial_segments = 16
+			belly.rings = 8
+			pic.add_child(_part(belly, glass, Vector3(0, -0.06, 0), Vector3.ZERO))
+			pic.get_child(0).scale = Vector3(1, 1, 0.3)
+			var neck := CylinderMesh.new()
+			neck.top_radius = 0.04
+			neck.bottom_radius = 0.05
+			neck.height = 0.16
+			pic.add_child(_part(neck, glass, Vector3(0, 0.12, 0)))
+			pic.add_child(_part(_box(Vector3(0.1, 0.05, 0.05)), _paint(Color(0.5, 0.33, 0.18)), Vector3(0, 0.22, 0)))
+		"chest":
+			var oak := _paint(Color(0.42, 0.27, 0.14))
+			pic.add_child(_part(_box(Vector3(0.36, 0.2, 0.05)), oak, Vector3(0, -0.07, 0)))
+			var lid := CylinderMesh.new()
+			lid.top_radius = 0.1
+			lid.bottom_radius = 0.1
+			lid.height = 0.36
+			pic.add_child(_part(lid, oak, Vector3(0, 0.03, 0), Vector3(0, 0, PI * 0.5)))
+			pic.get_child(1).scale = Vector3(1, 1, 0.5)
+			pic.add_child(_part(_box(Vector3(0.05, 0.3, 0.06)), dark, Vector3(-0.1, -0.02, 0)))
+			pic.add_child(_part(_box(Vector3(0.05, 0.3, 0.06)), dark, Vector3(0.1, -0.02, 0)))
+			pic.add_child(_part(_box(Vector3(0.06, 0.07, 0.07)), gold, Vector3(0, 0.0, 0)))
+		_:
+			var coin := CylinderMesh.new()
+			coin.top_radius = 0.16
+			coin.bottom_radius = 0.16
+			coin.height = 0.04
+			pic.add_child(_part(coin, gold, Vector3.ZERO, Vector3(PI * 0.5, 0, 0)))
+			var rim := TorusMesh.new()
+			rim.inner_radius = 0.11
+			rim.outer_radius = 0.14
+			pic.add_child(_part(rim, _paint(Color(0.85, 0.6, 0.2), 0.4, 0.8), Vector3(0, 0, 0.01), Vector3(PI * 0.5, 0, 0)))
+	return pic
+
+
+static func _box(size: Vector3) -> BoxMesh:
+	var m := BoxMesh.new()
+	m.size = size
+	return m
+
+
+## A cut gem: a flat diamond shape, `size` across.
+static func _gem(size: float, _colour: Color) -> Mesh:
+	var m := CylinderMesh.new()
+	m.radial_segments = 4
+	m.top_radius = size * 0.5
+	m.bottom_radius = size * 0.5
+	m.height = size * 0.3
+	return m

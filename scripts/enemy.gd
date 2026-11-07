@@ -413,6 +413,9 @@ var wanders := false
 ## Seconds left coated in slime (see SlimeCoat): slower on its feet and
 ## between blows.
 var slimed := 0.0
+## Seconds left burning (see Ignition).
+var burning := 0.0
+var _burn_tick := 0.0
 ## What of the last little shots a slime let through, carried on (see SlimeCoat.absorb).
 var absorbed := 0.0
 var _spit_cool := 0.0
@@ -1870,6 +1873,9 @@ func _physics_process(delta: float) -> void:
 	# Crippled by a vital hit, it needs longer between attacks.
 	_cooldown = maxf(0.0, _cooldown - delta / attack_slow / (SlimeCoat.ATTACK_SLOW if slimed > 0.0 else 1.0) * SlimeGrowth.strike_pace(meals))
 	_tick_slime(delta)
+	_tick_burning(delta)
+	if dead:
+		return
 	_tick_bleeding(delta)
 	if dead:
 		return
@@ -2439,6 +2445,35 @@ func _strike(target: Node3D) -> void:
 			player.afflict("fluch")
 
 
+## Set alight by a fireball (see Ignition): a few seconds of burning, with
+## flames and "Burning!" over its head.
+func ignite() -> void:
+	if not Ignition.can_ignite(self):
+		return
+	burning = Ignition.BURN_TIME
+	_burn_tick = Ignition.BURN_TICK
+	add_child(Ignition.make_flames(float(_stats.size)))
+	Effects.head_text(level, self, 2.2 * _stats.size, Lang.t("Brennt!"), Ignition.COLOR)
+
+
+func _tick_burning(delta: float) -> void:
+	if burning <= 0.0:
+		return
+	burning = maxf(0.0, burning - delta)
+	_burn_tick -= delta
+	if _burn_tick <= 0.0:
+		_burn_tick = Ignition.BURN_TICK
+		hp -= Ignition.BURN_DAMAGE
+		Effects.head_text(level, self, 2.2 * _stats.size, "-%d" % Ignition.BURN_DAMAGE, Ignition.COLOR)
+		if hp <= 0:
+			_die()
+	if burning <= 0.0 or dead:
+		burning = 0.0
+		var flames := get_node_or_null("BurnFlames")
+		if flames:
+			flames.queue_free()
+
+
 ## Coated in slime of `colour` (see SlimeCoat): slower for SlimeCoat.TIME
 ## seconds, wet and dripping. A ghost or a slime it does not stick to.
 func get_slimed(colour: Color) -> void:
@@ -2537,7 +2572,8 @@ func _throw_web(target: Node3D) -> void:
 func _shoot(target: Node3D) -> void:
 	_cooldown = _stats.cooldown
 	var magic: bool = kind == "magier" or _stats.get("magic", false)
-	var fire: bool = _stats.get("fire", false)
+	# A caster throws a fireball at a target that can ignite.
+	var fire: bool = _stats.get("fire", false) or (magic and Ignition.wants_fireball(target))
 	_play_once("Spellcast_Shoot" if magic else "1H_Ranged_Shoot", 0.9 if magic or fire else 0.7)
 	await get_tree().create_timer(0.5 if magic or fire else 0.3).timeout
 	if dead or not is_inside_tree() or not is_instance_valid(target) or level.stacked(self, target):

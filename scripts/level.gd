@@ -5448,7 +5448,8 @@ func _upgrade_slot(id: String) -> Dictionary:
 		var score := 0.0
 		match id:
 			"truhe":
-				score = -Vector2(c - chest).length() if chest.x >= 0 and storey_of(chest) == storey else -100.0 - storey
+				# Beside the first chest, along the same wall rather than in front of it.
+				score = -Vector2(c - chest).length() + (0.5 if c.y == chest.y else 0.0) if chest.x >= 0 and storey_of(chest) == storey else -100.0 - storey
 			"trophaeen":
 				score = storey * 10.0 + (5.0 if _against_back_wall(c) else 0.0) + c.x * 0.01
 			"feinbank", "schleifrad", "alchemie":

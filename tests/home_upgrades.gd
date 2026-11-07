@@ -142,6 +142,8 @@ func _run() -> void:
 	var old_chest := lvl._home_chest_cell()
 	check(lvl.storey_of(lvl._upgrade_cells.truhe) == lvl.storey_of(old_chest) and Vector2(lvl._upgrade_cells.truhe - old_chest).length() < 2.0,
 			"the second chest stands next to the first")
+	check(lvl._upgrade_cells.truhe == old_chest + Vector2i(1, 0) and lvl._against_back_wall(lvl._upgrade_cells.truhe),
+			"the second chest stands beside the first along the north wall")
 	check(lvl.storey_of(lvl._upgrade_cells.werkstatt) == 2 and lvl.storey_of(lvl._upgrade_cells.trophaeen) == 2, "the workbench and the trophy wall are in the attic")
 	check(lvl._against_back_wall(lvl._upgrade_cells.trophaeen), "the trophy wall hangs on a wall")
 	for storey in lvl.storey_count():

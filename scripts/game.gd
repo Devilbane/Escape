@@ -1607,6 +1607,8 @@ func _use_station(s: Dictionary) -> void:
 		treasure_maps.use(s)
 	elif s.kind == "schacht":
 		_go_down_shaft(s)
+	elif s.kind in [AshSpire.BOOK, AshSpire.CACHE, AshSpire.ANVIL, AshSpire.HATCH, AshSpire.PRISONER]:
+		AshSpire.use(self, s)
 	elif s.kind == "figur":
 		# A person made in the map workshop (see DungeonNpc).
 		player.face(s.pos - player.global_position)
@@ -4444,6 +4446,8 @@ func _start_playing() -> void:
 func _announce_level() -> void:
 	_guardian_tip = -1
 	learn("#%d" % level_index)
+	if level.building == "spire1":
+		Events.teach(AshSpire.LEARN_SPIRE)
 	if level.outdoor or level.building != "":
 		show_message("%s\n%s" % [Lang.t(level.level_name), Lang.t(level.hint)], 4.5)
 		return
@@ -5962,6 +5966,22 @@ func _go_down_shaft(s: Dictionary) -> void:
 const MINES_SEAL_OPEN := "mines:seal_open"
 
 
+## Up a hidden hatch (see AshSpire): the hero comes out beside the hatch of
+## the floor above.
+func use_hatch(s: Dictionary) -> void:
+	if not interiors.has(s.building):
+		return
+	level.note_left()
+	load_level(interiors[s.building], false)
+	if level.hatch_side != Vector3.ZERO:
+		player.global_position = level.hatch_side
+		player.face(Vector3.BACK)
+	_snap_camera()
+	state = State.PLAYING
+	create_tween().tween_property(_fade, "color:a", 0.0, 0.8)
+	_announce_level()
+
+
 ## Whether something is marked as done on this level (see Level.taken).
 func taken_here(key: String) -> bool:
 	return level != null and level.taken.has(key)
@@ -6246,7 +6266,7 @@ func _process(delta: float) -> void:
 			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
-		}.get(station.kind, ""))
+		}.get(station.kind, AshSpire.prompt(station.kind)))
 	elif _prompt.text == "" and at_camp():
 		_prompt.text = _hint("camp", Lang.t("U: Lager"))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
@@ -6449,6 +6469,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						camp_action()
 					KEY_G:
 						fish_action()
+					KEY_Z:
+						AshSpire.cast(player)
 					KEY_T:
 						gift_action()
 					KEY_E:

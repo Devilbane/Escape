@@ -12,7 +12,7 @@ const GROUPS := [
 	["Wege", "PEDK<>^|"],
 	["Fallen und Rätsel", "S_QTaz"],
 	["Schätze", "cCkU&$"],
-	["Einrichtung", "bxotfHFBLmhV+NXyp"],
+	["Einrichtung", "bxotfHFBLmhV+NXyp*!I;"],
 	["Monster", "MAZwGWrnlvsuqJOeigRYd@"],
 	["Eigene Geschöpfe", "1234567890"],
 ]
@@ -22,7 +22,7 @@ const NAMES := {
 	"~": "Glutspalte", "j": "Grubenstempel", "%": "Kristalle",
 	"P": "Start", "E": "Ausgang (Treppe)", "D": "Verschlossene Tür", "K": "Schlüssel",
 	"<": "Treppe hinauf", ">": "Treppe hinab", "^": "Weg nach unten", "|": "Eisentor",
-	"S": "Stachelfalle", "a": "Mauerabsatz", "z": "Klingenfeger", "p": "Lose Kiste", "_": "Druckplatte", "Q": "Schwerer Steinblock", "T": "Steintafel",
+	"S": "Stachelfalle", "a": "Mauerabsatz", "z": "Klingenfeger", "p": "Lose Kiste", "I": "Lesepult mit dem Grimoire", "*": "Vorrat mit Heiltränken", "!": "Zwergenamboss", ";": "Luke mit Leiter", "_": "Druckplatte", "Q": "Schwerer Steinblock", "T": "Steintafel",
 	"c": "Münze", "C": "Schatztruhe", "k": "Kleine Truhe", "U": "Tresor hinter Gittern",
 	"b": "Fässer", "x": "Kisten", "o": "Säule", "t": "Tisch", "f": "Feuerschale",
 	"H": "Schrein", "F": "Brunnen", "B": "Bett", "L": "Lagertruhe", "m": "Stahlbeschlagene Truhe", "h": "Zutatenbord", "V": "Händler",

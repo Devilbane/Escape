@@ -65,6 +65,10 @@ const DUNGEON := {
 	# The Ashen Spire (see Spire).
 	"a": "ledge: a block three crates high, climbed with a crate or a stone block as a step (see AshLedge)",
 	"p": "a loose crate to carry and set down (E, Q)",
+	"I": "lectern with the grimoire: the goal of the Ashen Spire (see AshSpire)",
+	"*": "supply cache: healing potions, full again after some hours (see AshSpire)",
+	"!": "dwarven anvil: mends gear, hot again after some hours (see AshSpire)",
+	";": "hatch: a ladder up, with the header \"hatch:\" a hidden way out (see AshSpire)",
 	"z": "blade sweeper: a low blade turning round a post, jumped over (see AshBlades)",
 	# The spider hole (see SpiderQueen).
 	"u": "spider (throws webs), see Enemy.LETTERS",

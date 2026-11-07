@@ -4,7 +4,7 @@ extends SceneTree
 ## Homes). Each house has its own number and door; a hero without a house
 ## moves into the first empty one, the others' doors stay shut. Inside, the
 ## home has three floors (the attic under the roof the third) linked by stairs: the chest on the ground floor,
-## the bed upstairs, and chalked spots for furniture on every storey. The
+## the bed upstairs, and free spots for furniture on every storey. The
 ## hero walks up and down the stairs and out of the front door, back to the
 ## door of their own house.
 ## Run with: godot --headless --fixed-fps 60 -s tests/player_houses.gd

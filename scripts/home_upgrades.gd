@@ -18,7 +18,7 @@ extends RefCounted
 ##   hort        a growing hoard of coins that shows the hero's wealth (HomeHoard)
 ## The three crafting benches are the very same ones as in the village (CraftingSquare.build):
 ## the same recipes, the same craft levels, the same window.
-## The furniture is placed by Level.show_home_upgrades on the chalked
+## The furniture is placed by Level.show_home_upgrades on the free
 ## furniture spots of the house (Level.furniture_slots): the second chest
 ## beside the first, the workbench and the trophy wall up in the attic. The
 ## upgrade window opens from the bed in the house and from the stonemason

@@ -302,9 +302,6 @@ var house_number := 0
 ## Free spots kept for furniture: {"cell", "pos", "storey"}, from the "+"
 ## tiles of a home, lowest storey first.
 var furniture_slots: Array = []
-## The chalked frame on each furniture spot (cell -> its node), wiped away
-## once a piece of furniture stands there (see _build_upgrade).
-var chalk_marks := {}
 ## Every stairs tile of a home: {"cell", "up", "storey"}.
 var stairs: Array = []
 ## Where the hero stands beside the bed of a home.
@@ -5277,8 +5274,7 @@ func _light_storeys() -> void:
 
 
 ## Wooden planks, as in the houses of the village. The stairs down leave a
-## hole in the floor, and the tiles kept for furniture are marked with
-## chalk on the boards.
+## hole in the floor. The tiles kept for furniture stay plain boards.
 func _build_home_floor(c: Vector2i, ch: String) -> void:
 	if ch == ">":
 		return
@@ -5291,33 +5287,11 @@ func _build_home_floor(c: Vector2i, ch: String) -> void:
 		var plank := PlaneMesh.new()
 		plank.size = Vector2(TILE, TILE)
 		_scenes["mesh_home_plank"] = plank
-		var chalk := StandardMaterial3D.new()
-		chalk.albedo_color = Color(0.92, 0.88, 0.78, 0.55)
-		chalk.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		chalk.roughness = 1.0
-		_scenes["mat_home_chalk"] = chalk
 	var floor_piece := MeshInstance3D.new()
 	floor_piece.mesh = _scenes["mesh_home_plank"]
 	floor_piece.material_override = _scenes["mat_home_wood"]
 	floor_piece.position = cell_to_world(c) + Vector3(0, 0.02, 0)
 	add_child(floor_piece)
-	if ch != "+":
-		return
-	# A chalked frame: room for a piece of furniture.
-	var frame := Node3D.new()
-	frame.name = "Chalk_%d_%d" % [c.x, c.y]
-	add_child(frame)
-	chalk_marks[c] = frame
-	var inner := TILE * 0.62
-	for side in 4:
-		var strip := MeshInstance3D.new()
-		var quad := PlaneMesh.new()
-		quad.size = Vector2(inner, 0.07) if side < 2 else Vector2(0.07, inner)
-		strip.mesh = quad
-		strip.material_override = _scenes["mat_home_chalk"]
-		var off := inner * 0.5 * (1.0 if side % 2 == 0 else -1.0)
-		strip.position = cell_to_world(c) + (Vector3(0, 0.04, off) if side < 2 else Vector3(off, 0.04, 0))
-		frame.add_child(strip)
 
 
 ## Stairs up rise against the north wall, stairs down sink into a dark
@@ -5397,7 +5371,7 @@ var _trophy_shelf: Node3D
 const TROPHY_STATUE := 0.9
 
 
-## Builds the furniture of every upgrade built so far on the chalked spots of
+## Builds the furniture of every upgrade built so far on the free spots of
 ## a home (each only once), and puts the trophies won on the trophy wall.
 func show_home_upgrades(built: Dictionary, won: Dictionary) -> void:
 	if not is_home:
@@ -5469,10 +5443,6 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 	root.name = "Upgrade_" + id
 	add_child(root)
 	_upgrade_nodes[id] = root
-	# The spot is taken now: the chalk frame is wiped away.
-	if chalk_marks.has(c):
-		chalk_marks[c].queue_free()
-		chalk_marks.erase(c)
 	var pos := cell_to_world(c)
 	# Furniture beside a side wall turns its back to that wall.
 	var rot := 0.0

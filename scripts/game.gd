@@ -103,6 +103,7 @@ var _flash := 0.0
 ## patter of the rain.
 var _rain: CPUParticles3D
 var _mist: CPUParticles3D
+var _clouds: FogClouds
 var _rain_sound: AudioStreamPlayer
 var _ambience: AudioStreamPlayer
 ## Set once the hero has stepped out of the crypt into the open air: the run
@@ -709,6 +710,8 @@ func _setup_world() -> void:
 	add_child(_rain)
 	_mist = Weather.make_mist()
 	add_child(_mist)
+	_clouds = FogClouds.new()
+	add_child(_clouds)
 
 
 ## Dark dungeon air, or in the open the sky of the hour (see DayNight:
@@ -2713,11 +2716,13 @@ func _show_weather() -> void:
 		_rain.visible = false
 		_mist.emitting = false
 		_mist.visible = false
+		_clouds.set_look(0.0, Weather.HAZE)
 		if _rain_sound and _rain_sound.playing:
 			_rain_sound.stop()
 		return
 	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
+	_clouds.set_look(_weather_look.mist, _env.fog_light_color)
 	Weather.show_particles(_rain, _mist, _weather_look, 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3)
 	if _rain_sound:
 		var r: float = _weather_look.rain

@@ -85,7 +85,7 @@ func _dry_ground() -> void:
 	# A quarter of them is left: fewer, much bigger puddles.
 	check(spots.size() >= 60, "there are still puddles all over (%d)" % spots.size())
 	check(spots.size() <= laid * 0.33, "about a quarter of the puddles is left (%d of %d)" % [spots.size(), laid])
-	check(spots.size() >= laid * 0.18, "the puddles are not thinned out too far (%d of %d)" % [spots.size(), laid])
+	check(spots.size() >= laid * 0.1, "the puddles are not thinned out too far (%d of %d)" % [spots.size(), laid])
 	# The same water lies on the ground.
 	var area_ratio := _puddles().total_area() / _puddles().laid_area
 	check(area_ratio > 0.92 and area_ratio < 1.04, "the water on the ground stays the same (%.3f)" % area_ratio)

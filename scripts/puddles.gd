@@ -246,6 +246,12 @@ func _consolidate(level: Level, rng: RandomNumberGenerator) -> void:
 					continue
 				if _merge_one(level, s, gap):
 					again = true
+	# Small puddles that still have a neighbour to join do so, even when that
+	# leaves fewer than the target: only the few kept ones stay small.
+	for gap: float in JOIN_GAPS:
+		for s: Dictionary in spots.duplicate():
+			if not s.has("gone") and not s.has("keep") and float(s.radius) <= SMALL_RADIUS:
+				_merge_one(level, s, gap)
 
 
 ## A merged puddle can still touch one that was too big to join: the smaller
@@ -266,15 +272,15 @@ func _clear_overlaps() -> void:
 					var small: Dictionary = o if float(o.span) <= float(s.span) else s
 					var large: Dictionary = s if small == o else o
 					var span := d.length() / APART - float(large.span)
-					if span < RADIUS.x * 0.5 or small.has("keep"):
+					var reach_small := LONG_REACH if small.long else 1.0
+					if span / reach_small < RADIUS.x or small.has("keep"):
 						_unregister(small)
 						(small.node as Node).queue_free()
 						small["gone"] = true
 						spots.erase(small)
 					else:
-						var reach := LONG_REACH if small.long else 1.0
 						small.span = span
-						small.radius = span / reach
+						small.radius = span / reach_small
 						small.needs = remap(float(small.radius), RADIUS.x, RADIUS.y, 0.45, 0.0)
 						(small.node as MeshInstance3D).scale = Vector3(small.radius, 0.01, small.radius)
 
@@ -313,6 +319,9 @@ func _join_ok(level: Level, s: Dictionary, o: Dictionary) -> bool:
 	if radius > RADIUS.y:
 		return false
 	var at: Vector3 = s.at.lerp(o.at, area_o / (area_s + area_o))
+	# The middle of the puddle stands on open ground itself.
+	if not GROUND.contains(level.cell_char(level.world_to_cell(at))):
+		return false
 	if not _fits(level, at, radius * (REACH_LONG if long else REACH) * 0.7):
 		return false
 	if radius > EDGE_MERGED and _beside(level, level.world_to_cell(at), Outdoor.BLOCK_CHARS):

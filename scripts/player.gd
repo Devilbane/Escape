@@ -1145,12 +1145,16 @@ func vital_damage(base: int, skill_id: String) -> int:
 ## the foe while the weapon goes up, comes down with the chop as the blade
 ## lands, and steps back to the hero's place. Only the figure moves, not the
 ## body, so the hero's place on the map stays where it was. `arms` is the
-## weapon family, whose swing sounds as the blade comes down.
+## weapon family, whose swing sounds as the blade comes down. A weapon that
+## cannot be found (nothing in hand) just skips the circle.
 func _leap_strike(arms: String) -> void:
 	var ahead := facing()
 	var top := ahead * VITAL_LEAP_AHEAD * 0.6 + Vector3.UP * VITAL_LEAP_UP
 	var landing := ahead * VITAL_LEAP_AHEAD
 	VitalStrike.takeoff(level, global_position)
+	# The weapon swings down and round in a full circle as the hero rises, with
+	# a streak of light, and is overhead again as the chop begins (VitalCircle).
+	VitalCircle.start(self, level, ahead)
 	var tween := create_tween()
 	tween.tween_property(_model, "position", top, VITAL_TOP).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_callback(func(): Sfx.play_weapon(self, arms, "swing"))

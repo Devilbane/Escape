@@ -512,6 +512,11 @@ jobs:
           timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/monster_lore.gd | tee monster_lore.log
           grep -q PASS monster_lore.log
 
+      - name: Vital blow circle (the weapon swings a full circle, streak follows, no time lost)
+        run: |
+          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/vital_circle.gd | tee vital_circle.log
+          grep -q PASS vital_circle.log
+
       - name: Hero or heroine test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/heroine.gd | tee heroine.log

@@ -112,6 +112,8 @@ const CRAFTS := {
 	# At the alchemist's table on the crafting square: brewing healing
 	# potions (see HealingPotions), stronger with more of it.
 	"alchemie": {"name": "Alchemie", "attributes": ["intelligenz"]},
+	# From the grimoire in the Ashen Spire (see AshSpire): the arcane bolt.
+	"magie": {"name": "Arkane Energie", "attributes": ["intelligenz"]},
 }
 ## The three main attributes, clockwise from the top of the character page.
 const MAIN_ATTRIBUTES := ["staerke", "geschick", "intelligenz"]

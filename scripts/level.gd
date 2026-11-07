@@ -133,7 +133,7 @@ const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_sh
 ## shelves, chests and the wall decorations.
 const WORN_SETS := ["props", "chests", "wallprops"]
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "#bxotkCDHBLmhVF?f=U|N%~T^&"
+const SOLID := "#bxotkCDHBLmhVF?f=U|N%~T^&aI*!;"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 const SPIKE_PERIOD := 3.0
@@ -188,6 +188,24 @@ var _spikes: Array = []
 var traps: Traps = null
 ## The flame jets in the walls of this level (see FlameJets), or null.
 var flame_jets: FlameJets = null
+## The blade sweepers ("z", see AshBlades), or null.
+var sweepers: AshBlades = null
+## Whether the map's monsters come back some time after they fell (header
+## "respawn:", see RESPAWN_HOURS), the world's clock in hours (set by the
+## game) and when each fallen monster of the map died ({cell: hours}).
+var respawn := false
+## Levers always work (header "sure:"), and the hatch (";") of the floor and where it leads ("hatch:").
+var sure_levers := false
+var hatch_to := ""
+## Where the hero stands after coming up a hatch.
+var hatch_side := Vector3.ZERO
+var world_hours := 0.0
+var _died_at := {}
+## Hours of the world (50 seconds each) before a fallen monster comes back.
+const RESPAWN_HOURS := 8.0
+## A fallen monster comes back only while the hero is this far from its spot (metres).
+const RESPAWN_AWAY := 30.0
+var _respawn_timer := 0.0
 var _pickups: Array = []
 var interactables: Array = []
 ## What the hero already took here: ids of searched furniture and picked up
@@ -500,6 +518,14 @@ func load_from_file(path: String) -> void:
 			safe = true
 		elif line.begins_with("lair:"):
 			lair = true
+		elif line.begins_with("respawn:"):
+			respawn = true
+		elif line.begins_with("sure:"):
+			# Every lever of this floor works as soon as the hero stands by it.
+			sure_levers = true
+		elif line.begins_with("hatch:"):
+			# A hidden hatch (";") that leads up to this floor's building.
+			hatch_to = line.substr(6).strip_edges()
 		elif line.begins_with("dark:"):
 			pitch_dark = true
 		elif line.begins_with("horror:"):
@@ -613,6 +639,9 @@ func build() -> void:
 	flame_jets = FlameJets.make(self)
 	if flame_jets:
 		add_child(flame_jets)
+	sweepers = AshBlades.make(self)
+	if sweepers:
+		add_child(sweepers)
 
 
 # --- Keeping the way free ---------------------------------------------------
@@ -1345,6 +1374,15 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_add_interactable("Tisch", pos, pos + Vector3(0, 2.8, 0), c)
 		"j", "%", "~", "T", "^":
 			Mines.build_cell(self, c, ch)
+		"I", "*", "!", ";":
+			AshSpire.build_cell(self, c, ch)
+		"a":
+			var ledge := AshLedge.new()
+			ledge.position = pos
+			add_child(ledge)
+		"p":
+			# A loose crate to carry (E) and set down (Q) where it is needed.
+			add_crate(pos)
 
 
 func _has_cell(ch: String) -> bool:
@@ -1941,7 +1979,8 @@ func _build_creation(c: Vector2i, spec: Dictionary) -> void:
 			npc.setup(spec)
 			add_child(npc)
 			npc.global_position = pos
-			stations.append({"kind": "figur", "cell": c, "pos": pos, "used": false, "figure": npc})
+			var kind := AshSpire.PRISONER if spec.get("quest", "") == "prisoner" else "figur"
+			stations.append({"kind": kind, "cell": c, "pos": pos, "used": false, "figure": npc})
 		"item":
 			var key := "custom:%d:%d" % [c.x, c.y]
 			if Items.ALL.has(spec.id) and not taken.has(key):
@@ -2157,7 +2196,7 @@ func reveal_writing() -> void:
 
 ## Chance in percent to notice this level's lever.
 func secret_chance() -> int:
-	return 100 if secret_sure else TIERS[secret_tier].chance + secret_bonus + player.intuition_bonus() + player.explore_bonus(Training.EXPLORE_SECRET)
+	return 100 if secret_sure or sure_levers else TIERS[secret_tier].chance + secret_bonus + player.intuition_bonus() + player.explore_bonus(Training.EXPLORE_SECRET)
 
 
 ## Whether the hero found this level's secret room.
@@ -2303,7 +2342,7 @@ func note_left() -> void:
 	for m in _map_enemies:
 		var e = m.enemy
 		if not is_instance_valid(e) or e.dead:
-			taken[slain_key(m.cell)] = true
+			taken[slain_key(m.cell)] = _died_at.get(m.cell, world_hours) if respawn else true
 	var any_open := false
 	for d in _doors:
 		if d.open:
@@ -3466,6 +3505,8 @@ func _process(delta: float) -> void:
 	_update_spikes(delta)
 	if player == null or finished:
 		return
+	if respawn:
+		_tick_respawn(delta)
 	player.in_shadow = not is_lit(player.global_position)
 	_check_pickups()
 	_check_doors()
@@ -3856,6 +3897,32 @@ func _torn_page(rng: RandomNumberGenerator) -> Mesh:
 
 # --- Enemies ----------------------------------------------------------------
 
+## On a floor with "respawn:" every monster of the map that fell comes back
+## RESPAWN_HOURS later, on its own spot, but only while the hero is far from
+## it and cannot see it, so nothing pops up in front of their eyes.
+func _tick_respawn(delta: float) -> void:
+	_respawn_timer -= delta
+	if _respawn_timer > 0.0:
+		return
+	_respawn_timer = 2.0
+	for m in _map_enemies:
+		var e = m.enemy
+		if is_instance_valid(e) and not e.dead:
+			continue
+		if not _died_at.has(m.cell):
+			_died_at[m.cell] = world_hours
+			continue
+		if world_hours - _died_at[m.cell] < RESPAWN_HOURS:
+			continue
+		var spot := cell_to_world(m.cell)
+		if _flat_distance(player.global_position, spot) < RESPAWN_AWAY or has_line_of_sight(player.global_position, spot):
+			continue
+		_died_at.erase(m.cell)
+		var ch := cell_char(m.cell)
+		if Enemy.LETTERS.has(ch):
+			m.enemy = _spawn_enemy(Enemy.LETTERS[ch], m.cell, elite and ch in "MA")
+
+
 func _spawn_enemies() -> void:
 	for y in height:
 		for x in width:
@@ -3864,8 +3931,12 @@ func _spawn_enemies() -> void:
 			if not (Enemy.LETTERS.has(ch) or creations.has(ch) and creations[ch].type == "monster" and not safe):
 				continue
 			if taken.has(slain_key(c)):
-				# Slain before the hero left this floor (see note_left).
-				continue
+				# Slain before the hero left this floor (see note_left), unless
+				# the floor's monsters come back and the time is up.
+				var fell = taken[slain_key(c)]
+				if not (respawn and fell is float and world_hours - fell >= RESPAWN_HOURS):
+					continue
+				taken.erase(slain_key(c))
 			var kind: String = Enemy.LETTERS[ch] if Enemy.LETTERS.has(ch) else creations[ch].base
 			if not monster_families.is_empty() and not MonsterFamilies.fits(kind, monster_families):
 				# Still placed, but the map's "monsters:" header should name its family.

@@ -56,6 +56,7 @@ const MOODS := {
 	"kupfer": {"ambient": Color(0.55, 0.4, 0.28), "energy": 0.32, "light": Color(1.0, 0.78, 0.55)},
 	"kristall": {"ambient": Color(0.32, 0.45, 0.62), "energy": 0.36, "light": Color(0.7, 0.85, 1.0)},
 	"zwerge": {"ambient": Color(0.48, 0.44, 0.38), "energy": 0.3, "light": Color(0.95, 0.85, 0.7)},
+	"zinne": {"ambient": Color(0.6, 0.58, 0.7), "energy": 0.5, "light": Color(1.0, 0.92, 0.82)},
 	"glut": {"ambient": Color(0.6, 0.28, 0.18), "energy": 0.34, "light": Color(1.0, 0.55, 0.35)},
 }
 

@@ -138,6 +138,9 @@ var writing_card := WritingCard.new(self)
 ## too, still counts as day d: that is when the wandering merchant comes
 ## (see Wanderer).
 var day := 0
+## Hours that passed in the world since the game began, sleep included (the
+## clock of the floors whose monsters come back, see Level.respawn).
+var world_hours := 0.0
 ## The gold the old dragon's helpers heaped up in its lair, from the loot
 ## they gather on the open ground at night (see DragonHoard). Kept in the
 ## saved game.
@@ -1604,6 +1607,8 @@ func _use_station(s: Dictionary) -> void:
 		treasure_maps.use(s)
 	elif s.kind == "schacht":
 		_go_down_shaft(s)
+	elif s.kind in [AshSpire.BOOK, AshSpire.CACHE, AshSpire.ANVIL, AshSpire.HATCH, AshSpire.PRISONER]:
+		AshSpire.use(self, s)
 	elif s.kind == "figur":
 		# A person made in the map workshop (see DungeonNpc).
 		player.face(s.pos - player.global_position)
@@ -2401,6 +2406,8 @@ func _tick_clock(delta: float) -> void:
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		var before := day_hour
 		day_hour = DayNight.advance(day_hour, delta)
+		world_hours += delta * 24.0 / DayNight.DAY_LENGTH
+		level.world_hours = world_hours
 		if _dawn_between(before, day_hour):
 			_new_day()
 		_tick_weather(delta)
@@ -2685,6 +2692,7 @@ func load_level(index: int, restock := true) -> void:
 		level.house_given = home_given
 		level._entered_once = home_claimed
 		level.met = met
+	level.world_hours = world_hours
 	level.secret_bonus = secrets_found
 	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
 	add_child(level)
@@ -3066,6 +3074,7 @@ func begin_new_game() -> void:
 	hoard.clear()
 	away_plan = Offline.empty_plan()
 	day_hour = DayNight.START_HOUR
+	world_hours = 0.0
 	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
 	puddle_water = 0.0
 	player.knives = 5
@@ -3514,6 +3523,7 @@ func _apply_save(data: Dictionary) -> void:
 	player.refresh_stats()
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
+	world_hours = float(data.get("world_hours", 0.0))
 	wanderer_night = int(data.get("wanderer_night", -1))
 	hoard.load_from(data.get("hoard", {}))
 	wanderer_stock.clear()
@@ -3717,7 +3727,7 @@ func save_game(going_away := false) -> bool:
 		"factions": Factions.for_save(),
 		"monster_lore": MonsterLore.for_save(),
 		"companions": {"list": companions, "following": following, "trust": trust},
-		"hour": day_hour,
+		"hour": day_hour, "world_hours": world_hours,
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
 		"hoard": hoard.for_save(),
 		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water,
@@ -3842,6 +3852,7 @@ func rest_at_inn() -> void:
 		_stop_snoozing()
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
+		world_hours += fposmod(DayNight.WAKE_HOUR - day_hour, 24.0)
 		day_hour = DayNight.WAKE_HOUR
 		set_weather(Weather.roll(day_hour, _weather_rng))
 		# The puddles dried up overnight.
@@ -3856,7 +3867,8 @@ func rest_at_inn() -> void:
 		var saved := save_game()
 		player.frozen = false
 		state = State.PLAYING
-		show_message(Lang.t("Ausgeruht! Ein neuer Morgen in den Bergen.") + ("" if saved else "\n" + Lang.t("Speichern fehlgeschlagen!")), 3.5))
+		var woke := Lang.t("Ausgeruht! Hier unten ist es immer Nacht, aber du bist wieder bei Kräften.") if AshSpire.is_floor(level) else Lang.t("Ausgeruht! Ein neuer Morgen in den Bergen.")
+		show_message(woke + ("" if saved else "\n" + Lang.t("Speichern fehlgeschlagen!")), 3.5))
 	tween.tween_property(_fade, "color:a", 0.0, 1.0)
 
 
@@ -3983,6 +3995,7 @@ func sleep(at_camp_now := false) -> void:
 	if level.outdoor or level.building != "":
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
+		world_hours += fposmod(DayNight.WAKE_HOUR - day_hour, 24.0)
 		day_hour = DayNight.WAKE_HOUR
 		# A new morning brings new weather, and the puddles dried up overnight.
 		set_weather(Weather.roll(day_hour, _weather_rng))
@@ -4434,6 +4447,8 @@ func _start_playing() -> void:
 func _announce_level() -> void:
 	_guardian_tip = -1
 	learn("#%d" % level_index)
+	if level.building == "spire1":
+		Events.teach(AshSpire.LEARN_SPIRE)
 	if level.outdoor or level.building != "":
 		show_message("%s\n%s" % [Lang.t(level.level_name), Lang.t(level.hint)], 4.5)
 		return
@@ -5952,6 +5967,22 @@ func _go_down_shaft(s: Dictionary) -> void:
 const MINES_SEAL_OPEN := "mines:seal_open"
 
 
+## Up a hidden hatch (see AshSpire): the hero comes out beside the hatch of
+## the floor above.
+func use_hatch(s: Dictionary) -> void:
+	if not interiors.has(s.building):
+		return
+	level.note_left()
+	load_level(interiors[s.building], false)
+	if level.hatch_side != Vector3.ZERO:
+		player.global_position = level.hatch_side
+		player.face(Vector3.BACK)
+	_snap_camera()
+	state = State.PLAYING
+	create_tween().tween_property(_fade, "color:a", 0.0, 0.8)
+	_announce_level()
+
+
 ## Whether something is marked as done on this level (see Level.taken).
 func taken_here(key: String) -> bool:
 	return level != null and level.taken.has(key)
@@ -6236,7 +6267,7 @@ func _process(delta: float) -> void:
 			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
-		}.get(station.kind, ""))
+		}.get(station.kind, AshSpire.prompt(station.kind)))
 	elif _prompt.text == "" and at_camp():
 		_prompt.text = _hint("camp", Lang.t("U: Lager"))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
@@ -6439,6 +6470,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						camp_action()
 					KEY_G:
 						fish_action()
+					KEY_Z:
+						AshSpire.cast(player)
 					KEY_T:
 						gift_action()
 					KEY_E:

@@ -342,6 +342,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/stay_awake.gd | tee stay_awake.log
           grep -q PASS stay_awake.log
 
+      - name: Sleep till morning test
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/sleep_till_morning.gd | tee sleep_morning.log
+          grep -q PASS sleep_morning.log
+
       - name: Camp with bedroll and campfire test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/camp.gd | tee camp.log

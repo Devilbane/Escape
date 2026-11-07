@@ -6795,7 +6795,10 @@ func _click(point: Vector3) -> void:
 				# The hero's friends are not attacked (see Factions).
 				show_message(Lang.t(Factions.FACTIONS[Factions.of(e.kind)].friend), 1.6)
 				return
-			if player.global_position.distance_to(e.global_position) < Player.MELEE_RANGE + 1.0:
+			# A foe that has not noticed the hero is gone round to its back
+			# first (see Player.charge); one already open to a stab is struck.
+			var in_reach := player.global_position.distance_to(e.global_position) < Player.MELEE_RANGE + 1.0
+			if in_reach and (not e.is_unaware() or e.open_to_backstab(player.global_position)):
 				player.melee()
 			else:
 				player.charge(e)

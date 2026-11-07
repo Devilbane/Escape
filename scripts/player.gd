@@ -274,6 +274,11 @@ var _target: Enemy = null
 ## sent elsewhere.
 var _hunt: Enemy = null
 var _hunt_repath := 0.0
+## Whether the hunt is a sneak: the hero goes round to the back of a foe that
+## has not noticed them, and strikes once there (see charge).
+var _sneak_hunt := false
+## How far behind a foe's middle the hero aims to stand for a sneak attack.
+const SNEAK_BEHIND := 1.1
 ## How far from the enemy's middle the hunt stops: side by side, in reach.
 const HUNT_STOP := 1.6
 const HUNT_REPATH := 0.4
@@ -1345,12 +1350,17 @@ func charge(enemy: Enemy) -> void:
 	_engage(enemy)
 	_hunt = enemy
 	_hunt_repath = 0.0
-	_chase_left = 0.0
+	# A foe that has not noticed the hero is circled to its back first, so the
+	# opening blow is a sneak attack (see Enemy.open_to_backstab). The circling
+	# is timed, so a foe that keeps turning cannot lead the hero round forever.
+	_sneak_hunt = enemy.is_unaware()
+	_chase_left = CHASE_TIME if _sneak_hunt else 0.0
 
 
 ## Gives up a hunt, when the hero is sent somewhere else.
 func stop_hunt() -> void:
 	_hunt = null
+	_sneak_hunt = false
 
 
 ## Keeps the hunt's path on the enemy while it moves, and ends it in reach.
@@ -1359,14 +1369,20 @@ func _pursue(delta: float) -> void:
 		return
 	if not is_instance_valid(_hunt) or _hunt.dead or _target != _hunt:
 		_hunt = null
+		_sneak_hunt = false
 		return
 	if not can_act():
 		return # Mid-swing or getting up: the hunt goes on afterwards.
+	# The foe noticed the hero: the sneak is off, and the hunt goes on as a plain one.
+	if _sneak_hunt and not _hunt.is_unaware():
+		_sneak_hunt = false
+		_chase_left = 0.0
 	var to := _hunt.global_position - global_position
 	to.y = 0.0
-	if to.length() <= ENGAGE_RANGE:
+	if to.length() <= ENGAGE_RANGE and not (_sneak_hunt and not _hunt.open_to_backstab(global_position)):
 		path.clear()
 		_hunt = null
+		_sneak_hunt = false
 		return
 	if _chase_left > 0.0:
 		_chase_left -= delta
@@ -1376,7 +1392,18 @@ func _pursue(delta: float) -> void:
 	_hunt_repath -= delta
 	if _hunt_repath <= 0.0:
 		_hunt_repath = HUNT_REPATH
-		walk_to(_hunt.global_position, HUNT_STOP)
+		if _sneak_hunt:
+			_walk_behind(_hunt)
+		else:
+			walk_to(_hunt.global_position, HUNT_STOP)
+
+
+## Walks to the spot behind `foe`; where that cannot be reached (a wall there),
+## straight at the foe instead.
+func _walk_behind(foe: Enemy) -> void:
+	walk_to(foe.global_position - foe.ahead() * SNEAK_BEHIND)
+	if path.is_empty():
+		walk_to(foe.global_position, HUNT_STOP)
 
 
 ## Attacked without a command, the hero fights back on their own: the
@@ -1421,6 +1448,7 @@ func _give_up_chase() -> void:
 	_chase_rest = CHASE_REST
 	_chase_left = 0.0
 	_hunt = null
+	_sneak_hunt = false
 	path.clear()
 
 
@@ -1439,6 +1467,8 @@ func _auto_attack() -> void:
 		return
 	if not can_act() or _auto_cooldown > 0.0 or _attack_cooldown > 0.0 or level.stacked(self, _target):
 		return
+	if _sneak_hunt:
+		return # Still going round to the foe's back: no blow until there.
 	var d := global_position.distance_to(_target.global_position)
 	if d <= ENGAGE_RANGE:
 		_auto_cooldown = AUTO_MELEE_INTERVAL

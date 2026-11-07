@@ -145,7 +145,8 @@ func _run() -> void:
 
 	# Defence: those outside are called in before the gate shuts, the brave take
 	# posts inside, and a slime at the wall is struck over it.
-	slime2.dead = true
+	if is_instance_valid(slime2):
+		slime2.dead = true
 	for i in int(VillageWall.OPEN_AFTER) + 2:
 		wall.tick(lvl, 1.1)
 	check(not west.shut, "the gate is open before the defence test")
@@ -175,6 +176,7 @@ func _run() -> void:
 	check(west.shut, "the gate shuts once everyone is in")
 	var defender: Villager = lvl.villagers.filter(func(v: Villager): return v.defends())[0]
 	defender.global_position = west.global_position + Vector3(1.8, 0, 0)
+	defender.threat = null
 	defender._task = "defend"
 	defender.defend_post = defender.global_position
 	slime2.global_position = west.global_position + Vector3(-2.2, 0, 0)
@@ -183,6 +185,11 @@ func _run() -> void:
 	await _wait(400)
 	check(not is_instance_valid(slime2) or slime2.dead or slime2.hp < life, "a defender strikes a slime at the wall over the wall")
 
+	# The first slime is done with: it must not swallow, or be swallowed by, the huge one below.
+	if is_instance_valid(slime2):
+		slime2.dead = true
+		slime2.global_position = Vector3(0, -50, 0)
+
 	# Defenders hold the wall whatever the slime's level; only a breach changes that.
 	var giant := _slime(lvl, west.global_position + Vector3(-2.2, 0, 0))
 	giant.rated_level = VillageAlarm.FLEE_LEVEL + 10
@@ -190,7 +197,8 @@ func _run() -> void:
 	check(wall.threatened_brick(lvl) != null and wall.slime_at_the_wall(lvl), "the wall knows where the slime is")
 	wall.tick(lvl, 1.1)
 	check(wall.shut_wanted, "a huge slime at the wall has the gate shut")
-	defender.global_position = west.global_position + Vector3(1.8, 0, 0)
+	defender.global_position = wall.post_of(lvl, wall.threatened_brick(lvl), 0)  # a real post, inside the wall
+	defender.threat = null
 	defender._task = "defend"
 	defender.defend_post = defender.global_position
 	check(VillageAlarm.intruders(lvl).is_empty(), "a slime outside the wall is no intruder, however big")
@@ -198,10 +206,12 @@ func _run() -> void:
 	await _wait(400)
 	check(defender.defends() or giant.dead, "a defender does not flee from a huge slime at the wall")
 	check(giant.dead or giant.hp < giant_life, "a defender strikes a huge slime at the wall")
-	giant.dead = true
+	if is_instance_valid(giant):
+		giant.dead = true
 
 	# The mason builds hurt bricks up.
-	slime2.dead = true
+	if is_instance_valid(slime2):
+		slime2.dead = true
 	for i in int(VillageWall.OPEN_AFTER) + 2:
 		wall.tick(lvl, 1.1)
 	await _wait(2)

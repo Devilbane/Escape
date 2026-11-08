@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- Forging at Gorm's forge is now a d100 roll: your chance rises with Strength, Intelligence, Intuition, Dexterity and your forging skill. A failed attempt spoils half the bars, but you still learn.
 - Ghostly voices (moans, a banshee's shriek, the whispers out of the holes) and bandit taunts now also appear in the event log.
 - New dungeon level: the Great Old One's lair (level 25) with traps, secret rooms, bones and a spread-out hoard.
 - Townsfolk now hold the village wall against slimes until it breaks, and the wall sits in the narrow neck by the village.

@@ -1231,7 +1231,7 @@ func _purse_page(room: Vector2) -> Control:
 	hint.custom_minimum_size = Vector2(room.x - 12, 26)
 	list.add_child(hint)
 	# What the coins are worth counted up into silver and gold; the coins stay as they are.
-	var held := game._held_coins()
+	var held: Dictionary = game._held_coins()
 	var worth: Label = game._make_label(game.TEXT_FONT, 18, game.GOLD)
 	worth.text = Lang.t("Zusammen wert: %s") % Loot.worth_text(
 			int(held.get("kupfermuenze", 0)), int(held.get("silbermuenze", 0)), int(held.get("goldmuenze", 0)))

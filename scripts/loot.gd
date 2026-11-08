@@ -83,6 +83,30 @@ const MONEY := "kupfermuenze"
 ## rate (see exchange); gold coins it leaves alone (see GOLD_COIN). Iron coins are small change for the smith:
 ## they are only melted.
 const COIN_VALUE := {"kupfermuenze": 1, "silbermuenze": 25, "goldmuenze": 250}
+## What the coins held are worth when counted up into the next higher metal
+## (25 copper make a silver, 10 silver a gold): {"goldmuenze", "silbermuenze",
+## "kupfermuenze"} counts. Only a way of showing the purse; nothing is converted.
+static func counted_up(copper: int, silver: int, gold: int) -> Dictionary:
+	var total := maxi(copper, 0) + maxi(silver, 0) * int(COIN_VALUE["silbermuenze"]) + maxi(gold, 0) * int(COIN_VALUE["goldmuenze"])
+	var g := int(COIN_VALUE["goldmuenze"])
+	var s := int(COIN_VALUE["silbermuenze"])
+	return {"goldmuenze": total / g, "silbermuenze": (total % g) / s, "kupfermuenze": total % s}
+
+
+## The counted-up worth as a line: "2 gold, 3 silver, 4 copper" (translated),
+## leaving out a metal that counts none.
+static func worth_text(copper: int, silver: int, gold: int) -> String:
+	var up := counted_up(copper, silver, gold)
+	var parts := []
+	if up["goldmuenze"] > 0:
+		parts.append(Lang.t("%d Gold") % up["goldmuenze"])
+	if up["silbermuenze"] > 0:
+		parts.append(Lang.t("%d Silber") % up["silbermuenze"])
+	if up["kupfermuenze"] > 0 or parts.is_empty():
+		parts.append(Lang.t("%d Kupfer") % up["kupfermuenze"])
+	return ", ".join(parts)
+
+
 ## The coins the bank changes into copper.
 const CHANGED := ["silbermuenze"]
 ## How many coins of one metal melt into one bar.

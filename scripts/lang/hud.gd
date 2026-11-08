@@ -19,6 +19,9 @@ const EN := {
 	"Goldmünzen: %d": "Gold coins: %d",
 	"Eine Silbermünze ist %d Kupfer wert.": "A silver coin is worth %d copper.",
 	"Eine Goldmünze ist %d Kupfer wert.": "A gold coin is worth %d copper.",
+	"Zusammen wert: %s": "Altogether worth: %s",
+	"%d Gold": "%d gold",
+	"%d Silber": "%d silver",
 	"Mit dem Schlüssel öffnest du die verschlossene Tür zur nächsten Ebene.": "The key opens the locked door to the next level.",
 	"Irgendwo auf dieser Ebene liegt der Schlüssel zur verschlossenen Tür.": "Somewhere on this level lies the key to the locked door.",
 }

@@ -2443,6 +2443,7 @@ func _update_purse() -> void:
 		level.show_hoard(_held_coins())
 	var labels := {"kupfermuenze": _coin_label, "silbermuenze": _silver_label, "goldmuenze": _gold_label}
 	var names := {"kupfermuenze": "Kupfermünzen: %d", "silbermuenze": "Silbermünzen: %d", "goldmuenze": "Goldmünzen: %d"}
+	var worth := Loot.worth_text(key[0], key[1], key[2])
 	for id in PURSE_COINS:
 		var held := coins_held(id)
 		var label: Label = labels[id]
@@ -2457,6 +2458,8 @@ func _update_purse() -> void:
 			tip += Lang.t("Eine Silbermünze ist %d Kupfer wert.") % Loot.COIN_VALUE[id]
 		else:
 			tip += Lang.t("Eine Goldmünze ist %d Kupfer wert.") % Loot.COIN_VALUE[id]
+		# All three coins counted up into the higher metals; the coins stay as they are.
+		tip += "\n" + Lang.t("Zusammen wert: %s") % worth
 		label.tooltip_text = tip
 
 

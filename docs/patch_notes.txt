@@ -5,6 +5,7 @@
 
 ## Latest changes
 - The town guard now checks the west gate for slimes much more often at night and in or after rain, and calls the alarm when he spots one.
+- Every slime outside the village now eats into the village wall, and at least one attempt in three breaks a stretch of it.
 - The event log has a slim scroll bar you can drag to read older messages.
 - New cave looks for walls and floors: bone (with skulls and bones), rock, obsidian and glowing crystal, in three seamless variants each, with matching torches, braziers and candelabra. Bone Pit, Bone Gallery, Copper Mine, Crystal Grotto and Ember Tunnels wear them.
 - Forging at Gorm's forge is now a d100 roll: your chance rises with Strength, Intelligence, Intuition, Dexterity and your forging skill. A failed attempt spoils half the bars, but you still learn.

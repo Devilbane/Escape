@@ -24,10 +24,14 @@ func _initialize() -> void:
 		var caps := 0
 		var tris := 0
 		for mi: MeshInstance3D in level.find_children("*", "MeshInstance3D", false, false):
-			if mi.mesh is ArrayMesh and mi.material_override == level._kit_material("walls") and mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			if mi.mesh is ArrayMesh and mi.material_override is StandardMaterial3D and mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
 				caps += 1
 				tris += (mi.mesh as ArrayMesh).surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size() / 3
 		check(caps > 0, "%s has wall caps" % n)
+		var fill: MeshInstance3D = level.get_node_or_null("VoidFill")
+		check(fill != null and fill.mesh is PlaneMesh, "%s has a fill under the void" % n)
+		if fill:
+			check(fill.position.y < 0.0 and fill.mesh.size.x > level.width * level.TILE, "%s fill lies under the floor and reaches past the map" % n)
 		check(tris > 0 and tris < 40000, "%s caps stay cheap (%d triangles)" % [n, tris])
 		var solid := 0
 		for b in level.find_children("*", "CollisionObject3D", false, false):

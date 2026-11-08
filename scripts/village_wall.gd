@@ -15,7 +15,7 @@ extends RefCounted
 ## slime's blow does ACID times its damage to stone. Afterwards the village's
 ## stonemason (Villager "S") walks to the hurt bricks, one by one, and
 ## builds them up again, MEND_PER_SECOND HP a second, as long as no slime
-## is about, and no more than DAILY_MEND HP a day.
+## is about. There is no limit to his work: he mends as long as a brick is hurt.
 
 const CHECK_EVERY := 1.0
 ## How near to a gate a slime sets the villagers shutting it (metres).
@@ -25,10 +25,8 @@ const OPEN_AFTER := 8.0
 const ACID := 24
 ## The stonemason's work: HP built up per second, and how near a slime
 ## may be (metres) before he leaves the wall alone.
-const MEND_PER_SECOND := 25.0
+const MEND_PER_SECOND := 4.0
 const MEND_SAFE := 24.0
-## The most HP of wall the stonemason builds up in one day; the rest waits for the morning.
-const DAILY_MEND := 300
 ## Nobody stands within this distance of a gate that is about to shut (metres).
 const GATE_ROOM := 2.0
 ## A slime this close to a brick (metres, to its body) goes for it when blocked.
@@ -48,7 +46,6 @@ const OPEN_NEWS := "Die Dörfler öffnen das Tor wieder."
 const GNAWED := "Ein Schleim frisst sich in die Dorfmauer!"
 const BROKEN := "Ein Schleim hat ein Stück der Dorfmauer eingerissen!"
 const MENDED := "Der Steinmetz hat die Dorfmauer wieder instand gesetzt."
-const MASON_SPENT := "Der Steinmetz ist für heute erschöpft. Morgen mauert er weiter."
 const COLOR := Color(1.0, 0.75, 0.3)
 ## Wall tiles on the map, and gate tiles.
 const WALL_LETTER := "_"
@@ -66,9 +63,6 @@ var _check := 0.0
 var _calm := 0.0
 var _gnawed_news := 0.0
 var _hurt_since_mended := false
-## The HP the mason has built up on day `_mend_day` (see Outdoor.day); a new day starts at zero.
-var _mended_today := 0.0
-var _mend_day := -1
 
 
 ## Puts up the brick of a wall or gate tile (called while the map is built).
@@ -369,7 +363,7 @@ func _send_mason(o: Outdoor) -> void:
 ## The brick the mason mends next: the worst hurt one that is safe to work on.
 ## Null when there is none, or while the gates are shut (a slime is near).
 func job(o: Outdoor) -> WallBrick:
-	if shut_wanted or o.village_alarm.raised or o.night or mend_left(o) <= 0:
+	if shut_wanted or o.village_alarm.raised or o.night:
 		return null
 	var best: WallBrick = null
 	for b: WallBrick in bricks.values():
@@ -378,25 +372,6 @@ func job(o: Outdoor) -> WallBrick:
 		if best == null or b.hp < best.hp:
 			best = b
 	return best
-
-
-## The HP of wall the mason can still build up today.
-func mend_left(o: Outdoor) -> int:
-	if o.day != _mend_day:
-		_mend_day = o.day
-		_mended_today = 0.0
-	return maxi(0, DAILY_MEND - int(_mended_today))
-
-
-## Takes up to `amount` HP from today's work and returns what he may build. When
-## that uses the day up, the village hears of it.
-func take_mend(o: Outdoor, amount: float) -> float:
-	mend_left(o)
-	var given := clampf(float(DAILY_MEND) - _mended_today, 0.0, amount)
-	_mended_today += given
-	if given > 0.0 and mend_left(o) <= 0 and not damaged().is_empty():
-		Events.tell(Lang.t(MASON_SPENT), COLOR)
-	return given
 
 
 ## Where the mason stands to work on a brick: the open tile beside it that is

@@ -495,10 +495,7 @@ func _mend(delta: float) -> void:
 		get_tree().create_timer(0.45).timeout.connect(func():
 			if is_inside_tree() and _task == "mend":
 				Sfx.play(self, "hit", -14.0, global_position, 0.8))
-	var strength := wall.take_mend(level, VillageWall.MEND_PER_SECOND * delta)
-	if strength > 0.0 and brick.mend(strength):
-		_finish_mending()
-	elif wall.mend_left(level) <= 0:
+	if brick.mend(VillageWall.MEND_PER_SECOND * delta):
 		_finish_mending()
 
 

@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- A book now teaches for 100 hours of reading, then it is used up: it stays in your bag or chest, but you learn nothing more from it. Its details and the day plan show the hours left.
 - New cave monsters: fire elementals, obsidian, stone and crystal golems, each with telegraphed special moves (fire bolts and scorched floor, shard throws, quakes, a mirror ward and a prismatic burst).
 - Cracks now spread over the stones of the village wall as slimes eat into it, in three clear stages (light, medium, heavy), so you can see how close a brick is to breaking.
 - The town guard now checks the west gate for slimes much more often at night and in or after rain, and calls the alarm when he spots one.

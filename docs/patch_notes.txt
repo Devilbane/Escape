@@ -55,10 +55,6 @@
 
 ## Earlier this week
 - The village is built of aged stone with ivy and paved paths; nights can be nearly pitch black and moonlight changes with the moon's phase. Light your torch with V.
-- Crystal mining in the Crystal Grotto, cut into jewellery, and a new dungeon: sneak into the Great Old One's lair.
-- Loot has a rarity by usefulness; shrines offer an attribute point and Constitution; the refuge fountain heals 5 life per drink.
 - A new HUD: life bar with condition icons, ammo under it, gold under the XP bar, messages over the hero's head and a scrollable event log.
-- Combat: hit and block chances on the character page, thunder weapons that can stun, and a short regeneration pause after a blow.
-- Walk or run with a stamina meter; a running hero hit hard gets knocked down; sneaking turns you grey and see-through.
 - Walk or run with a stamina meter; a running hero hit hard gets knocked down; sneaking turns you grey and see-through.
 - A 20-slot backpack, several save games, a storage chest in the mountain tavern and the new map workshop for building your own levels.

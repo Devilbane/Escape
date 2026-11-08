@@ -98,17 +98,23 @@ func _run() -> void:
 	_place(p, field, Vector3.LEFT)
 	await _wait(3)
 	check(game.place_stone() == "", "setting a block down works")
-	await _wait(20)
+	await _wait(40)
 	check(lvl.stones.size() == 1, "one block stands on the level")
 	var bottom: StoneBlock = lvl.stones[0]
 	check(bottom.layer == 0 and not bottom.along_x, "it lies on the floor, across the hero's way")
-	check(bottom.global_position.x < p.global_position.x - 0.8, "it lies in front of the hero")
+	check(absf(bottom.global_position.x - field.x) < StoneBlock.CELL and absf(bottom.global_position.z - field.z) < StoneBlock.CELL, "it lies right under the hero")
+	check(p.on_crate() and absf(p.global_position.y - StoneBlock.HEIGHT) < 0.1, "the hero stands on top of it")
 	check(game.place_stone() == "", "setting a second block down works")
-	await _wait(20)
+	await _wait(40)
 	var upper: StoneBlock = lvl.stones[-1]
 	check(upper.layer == 1 and upper.cell == bottom.cell, "the second block lies on top of the first")
 	check(absf(upper.global_position.y - StoneBlock.HEIGHT) < 0.01, "one block high up")
-	check(not lvl.stone_free(bottom) and lvl.stone_free(upper), "only the top block is free")
+	check(absf(p.global_position.y - StoneBlock.HEIGHT * 2.0) < 0.1, "the hero stands on the top block")
+	check(not lvl.stone_free(bottom) and not lvl.stone_free(upper), "no block is free while the hero stands on the stack")
+	# Step off the side: the top block is free again.
+	_place(p, field + Vector3(2.0, 0, 0))
+	await _wait(10)
+	check(lvl.stone_free(upper), "the top block is free once the hero steps off")
 	check(p.bag.count("steinblock") == 3, "two blocks left the bag")
 	check(lvl.built.size() == 2 and game.builds[game.level_files[game.level_index].get_file()].size() == 2, "the level and the game keep a list of its blocks")
 

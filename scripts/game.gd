@@ -2079,20 +2079,21 @@ func pick_up_crate(near := Vector3.INF) -> String:
 	return ""
 
 
-## Sets a crate from the bag down in front of the hero, on top of a crate
-## standing there if there is one. Returns "" on success, else why not.
+## Sets a crate from the bag down right under the hero, who ends up standing
+## on top of it. Returns "" on success, else why not.
 func put_down_crate() -> String:
 	if not player.can_act() or player.is_climbing() or not player.is_on_floor():
 		return Lang.t("Gerade nicht.")
 	if not player.bag.has("kiste"):
 		return Lang.t("Du trägst keine Kiste.")
-	var spot := level.crate_spot(player, player.facing())
-	if spot == Vector3.INF:
+	var spot := level.crate_spot(player)
+	var up := Vector3(spot.x, spot.y + Crate.SIZE + 0.02, spot.z)
+	if spot == Vector3.INF or not player.has_room_at(up):
 		return Lang.t("Hier ist kein Platz für die Kiste.")
 	player.path.clear()
-	player.play_once("Interact", 0.3)
 	player.bag.erase("kiste")
 	level.put_crate(spot)
+	player.lift_onto(up)
 	Sfx.play(self, "gear_book", -2.0, spot)
 	_update_hud()
 	return ""
@@ -2100,21 +2101,25 @@ func put_down_crate() -> String:
 
 # --- Stone blocks -------------------------------------------------------------
 
-## Sets a stone block from the bag down in front of the hero, lying across
-## their way, on the floor or on the blocks there. Returns "" on success,
-## else why not.
+## Sets a stone block from the bag down right under the hero, lying across
+## the way they face; they end up standing on top of it. Returns "" on
+## success, else why not.
 func place_stone() -> String:
 	if not player.can_act() or player.is_climbing() or not player.is_on_floor():
 		return Lang.t("Gerade nicht.")
 	if not player.bag.has(Menus.STONE):
 		return Lang.t("Du trägst keinen Steinblock. Der Steinmetz im Dorf verkauft welche.")
-	var spot := level.stone_spot_ahead(player, player.facing())
+	var spot := level.stone_spot_under(player, player.facing())
 	if spot.is_empty():
 		return Lang.t("Hier ist kein Platz für den Steinblock.")
+	var base := StoneBlock.spot_of(spot.cell, spot.along_x, spot.layer)
+	var up := base + Vector3(0, StoneBlock.HEIGHT + 0.02, 0)
+	if not player.has_room_at(up):
+		return Lang.t("Hier ist kein Platz für den Steinblock.")
 	player.path.clear()
-	player.play_once("Interact", 0.3)
 	player.bag.erase(Menus.STONE)
 	var stone := level.put_stone(spot.cell, spot.along_x, spot.layer)
+	player.lift_onto(up)
 	Sfx.play(self, "gear_book", -1.0, stone.global_position)
 	learn(STONE_LEARN)
 	_update_hud()

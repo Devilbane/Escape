@@ -2626,6 +2626,23 @@ func _try_climb(dir: Vector3) -> bool:
 	return false
 
 
+## Lifts the hero onto the top of a crate or block set down under them: the
+## same pull-up as a climb, to `target` (feet there).
+func lift_onto(target: Vector3) -> void:
+	_climb_from = global_position
+	_climb_to = target
+	_climb = 0.0
+	_air_momentum = Vector3.ZERO
+	velocity = Vector3.ZERO
+	_current_anim = ""
+	play("Jump_Idle", 0.1)
+
+
+## Whether the hero would fit standing at `spot` (feet there).
+func has_room_at(spot: Vector3) -> bool:
+	return _room_at(spot)
+
+
 ## Whether the hero fits standing at `spot` (feet there): nothing in the way.
 func _room_at(spot: Vector3) -> bool:
 	var capsule := CapsuleShape3D.new()

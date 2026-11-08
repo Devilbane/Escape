@@ -2761,10 +2761,8 @@ func _free_side(body: CharacterBody3D) -> Vector3:
 var crates: Array = []
 ## How far the hero reaches to pick up a crate (metres, from their middle).
 const CRATE_REACH := 2.4
-## How far in front of the hero's middle a crate is set down.
-const CRATE_AHEAD := 1.2
-## The hero can set a crate on a stack whose top is up to this far above
-## their feet.
+## The hero can climb up to this far above their feet (pulling up onto a
+## crate or block).
 const CRATE_LIFT := 1.8
 
 
@@ -2847,55 +2845,47 @@ func take_crate(crate: Crate) -> void:
 	tween.tween_callback(crate.queue_free)
 
 
-## Where a crate set down by a hero facing `ahead` goes: on top of the
-## stack in front of them, else onto whatever is in front of them (the
-## floor, mostly). Vector3.INF when there is no room there.
-func crate_spot(hero: Node3D, ahead: Vector3) -> Vector3:
-	ahead.y = 0.0
-	ahead = ahead.normalized() if ahead.length() > 0.01 else Vector3.BACK
-	var feet := hero.global_position.y
-	var spot := hero.global_position + ahead * CRATE_AHEAD
-	# A stack right in front: the new crate goes on top of it.
-	var column: Array = crates.filter(func(c): return is_instance_valid(c) and c.covers(spot, 0.35) and c.top() > feet - Crate.SIZE * Crate.MAX_STACK - 0.1)
-	if not column.is_empty():
-		var top: Crate = column[0]
-		for c in column:
-			if c.top() > top.top():
-				top = c
-		var count := 1
-		var below := top
-		while count < Crate.MAX_STACK + 1:
-			var under: Crate = null
-			for c in column:
-				if c != below and absf(c.top() - below.global_position.y) < 0.1:
-					under = c
-			if under == null:
-				break
-			below = under
-			count += 1
-		if count >= Crate.MAX_STACK or top.top() > feet + CRATE_LIFT:
+## Where a crate set down by the hero goes: right under their feet, on top of
+## the crate stack they stand on if there is one (centred on it). Vector3.INF
+## when the stack is full or there is no room (the hero themself does not
+## count: they are lifted onto the crate, see Player.lift_onto).
+func crate_spot(hero: Node3D) -> Vector3:
+	var spot := hero.global_position
+	var under := crate_at(spot, 0.0)
+	if under != null and absf(under.top() - spot.y) < 0.15:
+		if crate_depth(under) >= Crate.MAX_STACK:
 			return Vector3.INF
-		spot = Vector3(top.global_position.x, top.top(), top.global_position.z)
-	else:
-		# Onto whatever lies in front: the floor, or a lower crate stack's
-		# side does not count (the room check below catches that).
-		var space := get_world_3d().direct_space_state
-		var ray := PhysicsRayQueryParameters3D.create(Vector3(spot.x, feet + 0.5, spot.z), Vector3(spot.x, -1.0, spot.z))
-		if hero is CollisionObject3D:
-			ray.exclude = [(hero as CollisionObject3D).get_rid()]
-		var hit := space.intersect_ray(ray)
-		spot.y = hit.position.y if not hit.is_empty() else 0.0
-	return spot if crate_fits(spot) else Vector3.INF
+		spot = Vector3(under.global_position.x, under.top(), under.global_position.z)
+	return spot if crate_fits(spot, hero) else Vector3.INF
+
+
+## How many crates stand in the stack up to and including `top`.
+func crate_depth(top: Crate) -> int:
+	var count := 1
+	var below := top
+	while count < Crate.MAX_STACK + 1:
+		var under: Crate = null
+		for c in crates:
+			if is_instance_valid(c) and c != below and absf(c.top() - below.global_position.y) < 0.1 and c.covers(below.global_position, -0.1):
+				under = c
+		if under == null:
+			break
+		below = under
+		count += 1
+	return count
 
 
 ## Whether a crate standing at `spot` (the middle of its bottom) would
-## touch nothing: no wall, furniture, hero, skeleton or other crate.
-func crate_fits(spot: Vector3) -> bool:
+## touch nothing: no wall, furniture, skeleton or other crate (and not
+## `ignore`, the hero it is set down under).
+func crate_fits(spot: Vector3, ignore: Node3D = null) -> bool:
 	var box := BoxShape3D.new()
 	box.size = Vector3.ONE * (Crate.SIZE - 0.08)
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = box
 	query.transform = Transform3D(Basis(), spot + Vector3(0, Crate.SIZE * 0.5, 0))
+	if ignore is CollisionObject3D:
+		query.exclude = [(ignore as CollisionObject3D).get_rid()]
 	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
@@ -2916,12 +2906,10 @@ var stones: Array = []
 ## game; restore_stones() builds them again after build().
 var built: Array = []
 ## How far the hero reaches to take a block back into the bag (metres from
-## their middle to the block's middle), how far from them a block can be
-## grabbed with the mouse and dragged to, and how far ahead a block from the
-## bag is set down.
+## their middle to the block's middle) and how far from them a block can be
+## grabbed with the mouse and dragged to.
 const STONE_REACH := 2.6
 const STONE_DRAG_RANGE := 7.0
-const STONE_AHEAD := 1.6
 
 
 func add_stone(first: Vector2i, x_wise: bool, on_layer: int, is_heavy := false) -> StoneBlock:
@@ -2980,7 +2968,7 @@ func stone_free(stone: StoneBlock) -> bool:
 
 ## Whether a block would fit there: not too high, and touching no wall,
 ## furniture, crate, hero, skeleton or other block.
-func stone_fits(first: Vector2i, x_wise: bool, on_layer: int, except: StoneBlock = null) -> bool:
+func stone_fits(first: Vector2i, x_wise: bool, on_layer: int, except: StoneBlock = null, ignore: Node3D = null) -> bool:
 	if on_layer >= StoneBlock.MAX_LAYERS:
 		return false
 	var box := BoxShape3D.new()
@@ -2989,24 +2977,29 @@ func stone_fits(first: Vector2i, x_wise: bool, on_layer: int, except: StoneBlock
 	query.shape = box
 	var basis := Basis() if x_wise else Basis(Vector3.UP, PI * 0.5)
 	query.transform = Transform3D(basis, StoneBlock.spot_of(first, x_wise, on_layer) + Vector3(0, StoneBlock.HEIGHT * 0.5, 0))
+	var skip: Array[RID] = []
 	if except != null:
-		query.exclude = [except.get_rid()]
+		skip.append(except.get_rid())
+	if ignore is CollisionObject3D:
+		skip.append((ignore as CollisionObject3D).get_rid())
+	query.exclude = skip
 	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
-## Where a block from the bag goes when the hero facing `ahead` sets it
-## down: on the grid in front of them, lying across their way (a wall in
-## front), on the floor or on top of the blocks there. Empty when there is
-## no room or it would lie too high to lift there.
-func stone_spot_ahead(hero: Node3D, ahead: Vector3) -> Dictionary:
+## Where a block from the bag goes when the hero sets it down: on the grid
+## right under their feet, lying across the way they face, at the height they
+## stand at (on the floor, or on the blocks they stand on). Empty when there
+## is no room or the hero does not stand at the top of the blocks there (the
+## hero themself does not count: they are lifted onto the block).
+func stone_spot_under(hero: Node3D, ahead: Vector3) -> Dictionary:
 	ahead.y = 0.0
 	ahead = ahead.normalized() if ahead.length() > 0.01 else Vector3.BACK
 	var x_wise := absf(ahead.z) >= absf(ahead.x)
-	var first := StoneBlock.cell_for(hero.global_position + ahead * STONE_AHEAD, x_wise)
+	var first := StoneBlock.cell_for(hero.global_position, x_wise)
 	var on_layer := stone_layer_for(first, x_wise)
-	if on_layer * StoneBlock.HEIGHT > hero.global_position.y + CRATE_LIFT:
+	if absf(on_layer * StoneBlock.HEIGHT - hero.global_position.y) > 0.25:
 		return {}
-	if not stone_fits(first, x_wise, on_layer):
+	if not stone_fits(first, x_wise, on_layer, null, hero):
 		return {}
 	return {"cell": first, "along_x": x_wise, "layer": on_layer}
 

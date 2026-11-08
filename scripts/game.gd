@@ -5626,6 +5626,9 @@ func _search(obj: Dictionary) -> void:
 	player.train("intuition", 1.0)
 	var text := Lang.t("%s: leer") % Lang.t(obj.label)
 	var color := Color(0.8, 0.8, 0.85)
+	# "Empty" is only the text while nothing at all has been found; the check must not
+	# compare the (translated) words, which broke in English.
+	var nothing_yet := not (loot.has("gold") or loot.has("knives") or loot.has("potion"))
 	# How big the words over it are: the best of what was in it.
 	var worth := 0.0
 	if loot.has("gold"):
@@ -5655,7 +5658,8 @@ func _search(obj: Dictionary) -> void:
 		player.bag.append(loot.item)
 		Sfx.play_find(self, loot.item, found_after + (0.25 if loot.has("gold") else 0.0))
 		var found := Lang.t("Gefunden: %s (%s)") % [Rarity.marked(loot.item), Items.describe(loot.item)]
-		text = Items.item_name(loot.item) if text.ends_with("leer") else text + "  +" + Items.item_name(loot.item)
+		text = Items.item_name(loot.item) if nothing_yet else text + "  +" + Items.item_name(loot.item)
+		nothing_yet = false
 		# The words over the chest take the colour of the piece found.
 		color = Rarity.color(loot.item)
 		worth = maxf(worth, DamageNumber.item_worth(loot.item))
@@ -5668,7 +5672,7 @@ func _search(obj: Dictionary) -> void:
 			color = Color(1.0, 0.75, 0.4)
 		Sfx.play_gear(self, HandTorch.ITEM, found_after + 0.25)
 		worth = maxf(worth, DamageNumber.item_worth(HandTorch.ITEM))
-		text = Items.item_name(HandTorch.ITEM) if text.ends_with("leer") else text + "  +" + Items.item_name(HandTorch.ITEM)
+		text = Items.item_name(HandTorch.ITEM) if nothing_yet else text + "  +" + Items.item_name(HandTorch.ITEM)
 		if not loot.has("item"):
 			Events.found(Lang.t("Dein geübtes Auge findet eine Fackel, die hier versteckt lag."), Color(1.0, 0.75, 0.4))
 		else:

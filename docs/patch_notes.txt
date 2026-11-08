@@ -6,6 +6,7 @@
 ## Latest changes
 - The glowing ember cracks in the deep mines can be crossed now, but they burn: 1 life a second near them, 3 while standing on one.
 - Ghostly voices (moans, a banshee's shriek, the whispers out of the holes) and bandit taunts now also appear in the event log.
+- Falling rocks in Sternhall's vaults hit harder: a direct hit now takes about a quarter of your life.
 - New dungeon level: the Great Old One's lair (level 25) with traps, secret rooms, bones and a spread-out hoard.
 - Townsfolk now hold the village wall against slimes until it breaks, and the wall sits in the narrow neck by the village.
 - Monsters with over 100 health show a health bar and their level, like slimes do.

@@ -13,6 +13,9 @@ extends PanelContainer
 ## lines. Its width is the player's: a slider in the pull-out menu sets it
 ## between MIN_WIDTH and MAX_WIDTH, kept in the settings file. The height
 ## stays, so the first-steps card below it never moves.
+## A slim scroll bar is drawn in the box's right margin (so it takes no room
+## from the text or the box): it shows while the dark box shows and as long as
+## the log is scrolled back, and its handle can be dragged.
 
 ## Where the box sits: below the status block at the top left, and well
 ## above the message line at the bottom (see Game.MESSAGE_BOTTOM).
@@ -49,6 +52,15 @@ const FRAME_BORDER := Color(0.85, 0.66, 0.32, 0.35)
 ## The same line from the same speaker again within this many seconds (the
 ## hero bumping into someone twice) is written once.
 const REPEAT_TIME := 6.0
+## The scroll bar: its drawn width, its distance from the box's right edge, the
+## width of the strip that grabs it, and the shortest handle.
+const BAR_WIDTH := 5.0
+const BAR_INSET := 3.0
+const BAR_GRAB := 18.0
+const BAR_MIN_HANDLE := 20.0
+## How strongly the bar shows while the log is scrolled back but the dark box
+## has faded.
+const BAR_HELD := 0.6
 
 const LOOT_COLOR := Color(0.75, 0.9, 1.0)
 const SPEECH_COLOR := Color(0.93, 0.91, 0.86)
@@ -67,6 +79,7 @@ var _style: StyleBoxFlat
 ## the bottom shows).
 var _scroll := 0.0
 var _last := ""
+var _bar_drag := false
 
 ## The width the player picked (see set_width), shared by every log.
 static var width := DEFAULT_WIDTH
@@ -193,6 +206,7 @@ func _add(speaker: String, text: String, color: Color) -> void:
 	visible = true
 	_idle = 0.0
 	modulate.a = 1.0
+	queue_redraw.call_deferred()
 
 
 func _keep_view(line: Control) -> void:
@@ -206,6 +220,7 @@ func scroll_to(pixels: float) -> void:
 	_scroll = clampf(pixels, 0.0, most)
 	_lines.offset_top = _scroll
 	_lines.offset_bottom = _scroll
+	queue_redraw()
 
 
 ## How far back the log is scrolled, in pixels (for tests).
@@ -213,7 +228,79 @@ func scrolled() -> float:
 	return _scroll
 
 
+## The room the lines can scroll back through, in pixels.
+func _scroll_range() -> float:
+	return maxf(0.0, _lines.get_combined_minimum_size().y - _clip.size.y)
+
+
+## The bar's track: the strip in the right margin, as long as the text area.
+func _bar_track() -> Rect2:
+	var top := _clip.position.y
+	return Rect2(size.x - BAR_INSET - BAR_WIDTH, top, BAR_WIDTH, _clip.size.y)
+
+
+## The handle inside the track (empty when there is nothing to scroll).
+func _bar_handle() -> Rect2:
+	var track := _bar_track()
+	var most := _scroll_range()
+	if most <= 0.0:
+		return Rect2()
+	var total := most + _clip.size.y
+	var h := clampf(track.size.y * _clip.size.y / total, BAR_MIN_HANDLE, track.size.y)
+	var y := track.position.y + (track.size.y - h) * (1.0 - clampf(_scroll / most, 0.0, 1.0))
+	return Rect2(track.position.x, y, track.size.x, h)
+
+
+## The handle's rectangle in the box's own coordinates (for tests).
+func bar_handle() -> Rect2:
+	return _bar_handle()
+
+
+func _bar_strength() -> float:
+	return maxf(_frame, BAR_HELD if _scroll > 0.0 or _bar_drag else 0.0)
+
+
+func _draw() -> void:
+	var handle := _bar_handle()
+	var strength := _bar_strength()
+	if handle.size == Vector2.ZERO or strength <= 0.0:
+		return
+	var track := _bar_track()
+	draw_rect(track, Color(0, 0, 0, 0.3 * strength))
+	var alpha := (1.0 if _bar_drag else 0.7) * strength
+	draw_rect(handle, Color(UiKit.GOLD, alpha))
+
+
+## Scrolls so the handle's middle sits at `y` (box coordinates).
+func _scroll_to_bar(y: float) -> void:
+	var track := _bar_track()
+	var handle := _bar_handle()
+	var room := track.size.y - handle.size.y
+	if room <= 0.0:
+		return
+	var share := clampf((y - handle.size.y / 2.0 - track.position.y) / room, 0.0, 1.0)
+	scroll_to((1.0 - share) * _scroll_range())
+
+
 func _gui_input(event: InputEvent) -> void:
+	# The bar's strip takes a press and a drag along it.
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed and event.position.x >= size.x - BAR_GRAB and _scroll_range() > 0.0:
+			_bar_drag = true
+			_since_touch = 0.0
+			_scroll_to_bar(event.position.y)
+			accept_event()
+			return
+		if not event.pressed and _bar_drag:
+			_bar_drag = false
+			queue_redraw()
+			accept_event()
+			return
+	elif event is InputEventMouseMotion and _bar_drag:
+		_since_touch = 0.0
+		_scroll_to_bar(event.position.y)
+		accept_event()
+		return
 	if event is InputEventMouseButton and event.pressed:
 		# A click on the box or a turn of the wheel shows the dark box.
 		_since_touch = 0.0
@@ -253,6 +340,7 @@ func _show_frame(strength: float) -> void:
 	_frame = strength
 	_style.bg_color = Color(FRAME_BG, FRAME_BG.a * strength)
 	_style.border_color = Color(FRAME_BORDER, FRAME_BORDER.a * strength)
+	queue_redraw()
 
 
 func _process(delta: float) -> void:

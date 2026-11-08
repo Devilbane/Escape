@@ -62,6 +62,19 @@ func _ready() -> void:
 	_set_alpha(0.0)
 
 
+## A monster other than a slime gets this bar when its life is over this (see for_big).
+const BIG_LIFE := 100
+## Metres between a big monster's head and its bar, and its name tag above the bar.
+const HEAD_GAP := 0.15
+const NAME_LIFT := 0.45
+
+
+## Whether a monster that is not a slime or a boss (they have their own bar) has a bar of its own.
+static func for_big(e: Enemy) -> bool:
+	return e._stats.get("model", "") != "Slime" and e.max_hp() > BIG_LIFE and not e.is_level_boss() \
+			and not e._stats.get("boss", false) and e.get_script() == Enemy
+
+
 ## The bosses' red.
 static func fill_colour() -> Color:
 	return BossBar.FILL[0]
@@ -119,7 +132,10 @@ func _process(delta: float) -> void:
 		global_basis = cam.global_basis
 	# Over the head, following the slime as it swells (its model's scale).
 	var grown: float = slime._model.scale.x if slime._model != null else float(slime._stats.size)
-	position.y = slime._slime_height * grown + 0.35
+	if slime._stats.get("model", "") == "Slime":
+		position.y = slime._slime_height * grown + 0.35
+	else:
+		position.y = slime.tall + HEAD_GAP
 	var max_hp := maxi(1, slime.max_hp())
 	var hp := clampi(slime.hp, 0, max_hp)
 	_fill.scale.x = maxf(0.001, float(hp) / float(max_hp))

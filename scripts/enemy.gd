@@ -548,7 +548,7 @@ func _add_title(text: String, size: float) -> void:
 	tag.no_depth_test = true
 	tag.render_priority = 18
 	tag.outline_render_priority = 17
-	tag.position.y = tall + 0.5
+	tag.position.y = tall + 0.5 + (SlimeBar.NAME_LIFT if SlimeBar.for_big(self) else 0.0)
 	add_child(tag)
 
 
@@ -637,6 +637,9 @@ func _ready() -> void:
 	_stride_size = size * (float(_stats.model_scale) if is_beast() else 1.0)
 	if _stats.has("title"):
 		_add_title(str(_stats.title), size)
+	# A big monster shows its life and level like a slime does (see SlimeBar).
+	if SlimeBar.for_big(self):
+		add_child(SlimeBar.new(self))
 	if is_human():
 		_dress()
 	if is_beast():

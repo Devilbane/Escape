@@ -1228,6 +1228,7 @@ func _shriek(player: Player) -> void:
 	var color: Color = _stats.get("aura", _stats.ghost)
 	Sfx.play(self, "banshee_shriek", 4.0, global_position)
 	Effects.head_text(level, self, 3.0, Lang.t("KREISCH!"), color)
+	Events.say(_speaker_name(), Lang.t("KREISCH!"), global_position)
 	Events.tell(Lang.t("Eine Banshee kreischt! Ihr Schrei weckt alles in der Nähe."), color)
 	var reach: float = _stats.shriek
 	for e in level.enemies:
@@ -2336,7 +2337,9 @@ func _voice(delta: float, dist: float) -> void:
 	if is_human():
 		# A bandit has no groan of its own: it shouts while it hunts.
 		if _awake:
-			Effects.float_text(level, global_position + Vector3(0, 3.0 * _stats.size, 0), Lang.t(TAUNTS[randi() % TAUNTS.size()]), Color(1.0, 0.85, 0.6, 0.9))
+			var taunt := Lang.t(TAUNTS[randi() % TAUNTS.size()])
+			Effects.float_text(level, global_position + Vector3(0, 3.0 * _stats.size, 0), taunt, Color(1.0, 0.85, 0.6, 0.9))
+			Events.say(_speaker_name(), taunt, global_position)
 		return
 	var db := lerpf(-28.0, 2.0, pow(near, 1.4)) + (3.0 if _awake else 0.0)
 	# A beast growls with a skeleton's voice, pitched to its size.
@@ -2350,6 +2353,21 @@ func _voice(delta: float, dist: float) -> void:
 		if near > 0.6:
 			word = word.to_upper() + "!"
 		Effects.float_text(level, global_position + Vector3(0, 1.6, 0), word, Color(0.75, 0.72, 0.8, lerpf(0.4, 0.9, near)))
+	# A ghost's moan is words out of the dark: the event log writes it down too.
+	if is_ghost() and word_of(voice) != "":
+		Events.say(_speaker_name(), word_of(voice), global_position)
+
+
+## The word a monster's voice makes, translated ("" when it has none).
+func word_of(voice: Array) -> String:
+	return Lang.t(str(voice[2])) if str(voice[2]) != "" else ""
+
+
+## The name the event log writes before this monster's spoken words.
+func _speaker_name() -> String:
+	if _stats.has("title"):
+		return Lang.t(str(_stats.title))
+	return Lang.t(MonsterLore.monster_name(kind))
 
 
 ## Caught on a table corner or a door frame: step aside for a moment and

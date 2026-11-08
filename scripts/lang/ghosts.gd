@@ -12,6 +12,7 @@ const EN := {
 	"KREISCH!": "SHRIEK!",
 	"Eine Banshee kreischt! Ihr Schrei weckt alles in der Nähe.": "A banshee shrieks! Her scream wakes everything nearby.",
 	"uuuh": "ooooh",
+	"Ein Flüstern": "A whisper",
 	# Fear (see Player.scare).
 	"Verängstigt!": "Frightened!",
 	"Standhaft!": "Steadfast!",

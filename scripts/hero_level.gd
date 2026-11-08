@@ -32,7 +32,7 @@ const MAX := 50
 ## against the world's strongest (see measured). Monsters are rated up to
 ## MAX, so a place made later for higher levels (or a strong monster from
 ## the map workshop) is worth it; raise WORLD_TOP with such a place.
-const WORLD_TOP := 20
+const WORLD_TOP := 25
 ## XP for one level is STEP times the level the hero has now: 100 from level
 ## 1 to 2, 1900 from 19 to 20, 4900 from 49 to 50.
 const STEP := 100
@@ -71,8 +71,8 @@ const BOSSES := ["hauptmann", "drache", "bergkoenig", "spinnenkoenigin"]
 ## anywhere from from[0] to from[1], is spread over min..max, and one that is
 ## stronger than the area's top is toned down to it. The dungeon is not lifted: its floors go from level 1 to 5 by
 ## their own depth, so the hero leaves the crypt at about level 5. The areas
-## after it lead up to about level 15, and the deep mine is the top, 16 to 20
-## (WORLD_TOP).
+## after it lead up to about level 15, and the deep mine leads to 20 and the Great Old One's
+## lair, the deepest floor, is the top at 25 (WORLD_TOP).
 ## "name" is for the compendium and the docs.
 ## The strongest a monster of the dungeon's floors may be: one whose rolled
 ## gear lifts it higher is toned down to it (see Enemy._fit_area).
@@ -88,6 +88,8 @@ const AREAS := {
 	"mine2": {"name": "Kristallgrotte", "min": 13, "max": 15, "from": [4, 13]},
 	"mine3": {"name": "Zwergenbinge, Glutstollen und Herz des Berges", "min": 16, "max": 19, "from": [3, 13]},
 	"uralt": {"name": "Hort des Großen Alten", "min": 17, "max": 19, "from": [3, 13]},
+	# The deepest floor of the Great Old One's dungeon: the world's top.
+	"uralt3": {"name": "Das Lager des Großen Alten", "min": 25, "max": 25, "from": [3, 13]},
 	"zinne": {"name": "Aschenzinne und ihre Keller", "min": 18, "max": 20, "from": [3, 13]},
 	"sternhall": {"name": "Sternhall", "min": 18, "max": 20, "from": [3, 13]},
 }
@@ -96,7 +98,7 @@ const BUILDING_AREAS := {
 	"b": "dorf", "^": "dorf", "loch1": "loecher", "loch2": "loecher", "loch2b": "loecher", "loch3": "loecher", "grotte": "senke",
 	"E": "hoehle", "E2": "hoehle", "E3": "hoehle", "[": "berge", "mine1": "mine1", "mine2": "mine2",
 	"mine3": "mine3", "mine3b": "mine3", "mine3c": "mine3",
-	"uralt1": "uralt", "uralt2": "uralt", "uralt3": "uralt",
+	"uralt1": "uralt", "uralt2": "uralt", "uralt3": "uralt3",
 	"spire1": "zinne", "spire2": "zinne", "spire3": "zinne", "spire4": "zinne", "spire5": "zinne",
 	"stern1": "sternhall", "stern2": "sternhall", "stern3": "sternhall", "stern4": "sternhall",
 }

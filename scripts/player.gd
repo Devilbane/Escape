@@ -23,8 +23,8 @@ const SPEED := 5.2
 ## Walking pace as a share of SPEED: about 1.8 m/s, as fast as the short
 ## legs of the walk animation step without sliding (see Stride).
 const WALK_FACTOR := 0.34
-## Running speeds up to this many times the walking pace (6.5 m/s)...
-const RUN_TOP := 3.68
+## Running speeds up to this many times the walking pace (twice: 3.6 m/s)...
+const RUN_TOP := 2.0
 ## ...over this many seconds of holding the run,
 const RUN_RAMP_UP := 2.0
 ## and slows back down to walking within this many seconds once let go.
@@ -41,9 +41,9 @@ const RUN_SECONDS_PER_CON := 2.0
 const RUN_RECOVERY_PER_CON := 0.1
 ## Out of breath, the hero walks until this share of the meter has come back.
 const RUN_RESTART := 0.5
-## From this many times the walking pace on (about 3.6 m/s), the hero is in
+## From this many times the walking pace on (about 3.4 m/s), the hero is in
 ## a full run (see in_full_run).
-const RUN_ANIM_FROM := 2.05
+const RUN_ANIM_FROM := 1.9
 const JUMP_VELOCITY := 9.0
 ## A jump starts with half a step: the hero pushes off into a stride and leaves
 ## the ground JUMP_WINDUP seconds after the key. A runner is mid-stride
@@ -220,6 +220,8 @@ var _stuck_time := 0.0
 var _sidestepped := false
 ## Speed carried through the air by a running jump.
 var _air_momentum := Vector3.ZERO
+## Horizontal speed a jump may never exceed: the run speed it left the ground at.
+var _air_speed_cap := 0.0
 var path: Array[Vector3] = []
 ## Set every frame while the player asks to run (the mouse button held).
 var wants_run := false
@@ -990,6 +992,9 @@ func _launch_jump() -> void:
 		var run := Vector3(velocity.x, 0, velocity.z) - Vector3(_knockback.x, 0, _knockback.z)
 		jump_boost = clampf(run.length() / SPEED, 0.6, 1.6)
 		_air_momentum = run * (1.0 + 0.15 * jump_boost) * (1.0 + JUMP_PER_DEXTERITY * dexterity_points())
+		# A jump is never faster than the run it started from.
+		_air_speed_cap = run.length()
+		_air_momentum = _air_momentum.limit_length(_air_speed_cap)
 	velocity.y = JUMP_VELOCITY * (0.85 + 0.15 * jump_boost)
 	train("tempo", 3.0)
 	train("geschick", 2.0)

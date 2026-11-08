@@ -4,6 +4,7 @@ monsters: wildlife, fable, elementals
 building: mine3b
 lair: ja
 theme: glut
+walls: obsidian
 up: mine3
 down: mine3c
 custom: 1 {"type": "monster", "base": "obsidiangolem"}

@@ -49,6 +49,28 @@ func _process(_delta: float) -> bool:
 	return false
 
 
+## A left press (or, with press false, a drag motion) on the bar at (x, y).
+func _bar_click(x: float, y: float, press: bool) -> InputEvent:
+	if press:
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_LEFT
+		e.pressed = true
+		e.position = Vector2(x, y)
+		return e
+	var m := InputEventMouseMotion.new()
+	m.position = Vector2(x, y)
+	m.button_mask = MOUSE_BUTTON_MASK_LEFT
+	return m
+
+
+func _bar_release(x: float) -> InputEvent:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = false
+	e.position = Vector2(x, 0.0)
+	return e
+
+
 func _fill() -> void:
 	var elog: EventLog = game.event_log
 	var hero: Player = game.player
@@ -106,6 +128,18 @@ func _check_layout() -> void:
 	elog.scroll_to(1e9)
 	check(elog.scrolled() > 0.0, "the log scrolls back to older lines")
 	check(elog.scrolled() <= elog._lines.get_combined_minimum_size().y, "but not past the oldest")
+	# The scroll bar sits in the box's margin: handle at the top when scrolled
+	# to the oldest, at the bottom at the newest, and dragging it scrolls.
+	var top_handle := elog.bar_handle()
+	check(top_handle.size.y > 0.0 and top_handle.end.x <= elog.size.x, "the scroll bar handle lies inside the box: %s" % top_handle)
+	elog._gui_input(_bar_click(elog.size.x - 6.0, top_handle.get_center().y, true))
+	elog._gui_input(_bar_click(elog.size.x - 6.0, elog.size.y, false))
+	check(elog.scrolled() < 1.0, "dragging the bar to the bottom shows the newest line: %s" % elog.scrolled())
+	elog._gui_input(_bar_click(elog.size.x - 6.0, 0.0, false))
+	elog._gui_input(_bar_release(elog.size.x - 6.0))
+	check(elog.scrolled() > 0.0, "dragging the bar up scrolls back: %s" % elog.scrolled())
+	elog.scroll_to(1e9)
+	check(elog.bar_handle().position.y < top_handle.position.y + 1.0, "the handle is at the top at the oldest line")
 	elog.scroll_to(-50.0)
 	check(is_zero_approx(elog.scrolled()), "and back down to the newest")
 	var box := elog.get_global_rect()

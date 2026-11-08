@@ -5,6 +5,7 @@ building: mine1
 lair: ja
 elite: ja
 theme: kupfer
+walls: rock
 custom: 1 {"type": "monster", "base": "steingolem"}
 ##############################
 ##E###########################

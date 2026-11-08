@@ -4,6 +4,7 @@ monsters: wildlife, fable, elementals
 building: mine2
 lair: ja
 theme: kristall
+walls: crystal
 custom: 1 {"type": "monster", "base": "kristallgolem"}
 ################################
 ##E#############################

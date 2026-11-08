@@ -531,13 +531,43 @@ func _watch(delta: float) -> void:
 	var gate := GuardWatch.west_gate(level)
 	if gate != null:
 		_turn_to(gate.global_position - global_position, delta)
-	play("Idle")
+	if _horn_left > 0.0:
+		# Blowing the alarm horn: arms up, facing the way the horn points.
+		_horn_left -= delta
+		_task_time = maxf(_task_time, 1.0)
+		_turn_to(_horn_at - global_position, delta)
+		play("Cheer")
+	else:
+		play("Idle")
 	if slime != null and _watch_pause <= 0.0:
 		_watch_pause = GuardWatch.CALL_PAUSE
 		say(Lang.t(GuardWatch.CALL))
 		Events.alarm("gate")
 		Events.tell(Lang.t(GuardWatch.NEWS), GuardWatch.COLOR)
 		_task_time = maxf(_task_time, GuardWatch.STAND_MIN)
+
+
+## Seconds the guard still blows the alarm horn, and where it stands (see WarHorn).
+var _horn_left := 0.0
+var _horn_at := Vector3.INF
+
+
+## Whether the guard can run to the alarm horn and blow it now: at his round or
+## at the gate, not fighting, hiding, at home or eaten, and not too far away.
+func can_blow_horn(at: Vector3) -> bool:
+	if role != "4" or eaten or at_home or not visible or threat != null or defends():
+		return false
+	return global_position.distance_to(at) <= WarHorn.REACH
+
+
+## The guard runs to the alarm horn and blows it for `seconds` (see WarHorn.blow).
+func sound_alarm(at: Vector3, seconds: float) -> void:
+	_horn_at = at
+	_horn_left = seconds
+	if _task != "watch":
+		say(Lang.t("Ins Horn! Alarm, Alarm!"))
+		_walk_to(GuardWatch.post(level), WALK_SPEED * 1.6, "watch")
+	_task_time = maxf(_task_time, seconds)
 
 
 # --- Defending the wall -------------------------------------------------------

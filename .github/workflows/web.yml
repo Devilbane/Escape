@@ -91,6 +91,13 @@ jobs:
           timeout 60 ~/godot/godot --headless -s tests/lang_keys.gd | tee lang.log
           grep -q PASS lang.log
 
+      - name: Village alarm (bell and guard's horn)
+        run: |
+          timeout 60 ~/godot/godot --headless -s tests/village_bell.gd | tee bell.log
+          grep -q PASS bell.log
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/war_horn.gd | tee horn.log
+          grep -q PASS horn.log && ! grep -q FAIL horn.log
+
       - name: Loot and experience text sized by worth
         run: |
           timeout 60 ~/godot/godot --headless -s tests/loot_text_size.gd | tee lootsize.log

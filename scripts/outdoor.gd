@@ -206,6 +206,8 @@ var animals: Array[Animal] = []
 var village_alarm := VillageAlarm.new()
 ## The wall round the village and its gates, mended by the stonemason (see VillageWall).
 var village_wall := VillageWall.new()
+## Where the alarm horn stands by the west gate (see WarHorn), INF when there is none.
+var war_horn_at := Vector3.INF
 ## The kinds of animal the hero has a companion of already: no second one
 ## of them can be won over (set by the game, see Companions).
 var owned_companions: Array = []
@@ -485,6 +487,7 @@ func build() -> void:
 	floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(floor_shape)
 	_spawn_villagers()
+	_build_war_horn()
 	_spawn_wild()
 	_spawn_animals()
 	# The old dragon's little helpers, who gather the loot at night.
@@ -2253,6 +2256,13 @@ func _show_house_marker() -> void:
 func wake_at_home() -> void:
 	house_given = true
 	_entered_once = true
+
+
+## The alarm horn the guard blows, just inside the west gate (see WarHorn).
+func _build_war_horn() -> void:
+	war_horn_at = WarHorn.spot(self)
+	if war_horn_at != Vector3.INF:
+		VillageProps.build_war_horn(self, war_horn_at, WarHorn.facing(self, war_horn_at))
 
 
 # --- Villagers ----------------------------------------------------------------

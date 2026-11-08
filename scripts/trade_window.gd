@@ -406,6 +406,8 @@ func _detail_card(entry: Dictionary, upgrade := false) -> Control:
 		box.add_child(badge)
 	box.add_child(HSeparator.new())
 	var lines: Array = detail.get("lines", stat_lines(id, game.player.wear.get(id, 0) if game.player.equipped.values().has(id) else 0))
+	if not detail.has("lines") and Items.is_book(id):
+		lines = lines + book_lines(id, game.book_hours)
 	for line in lines:
 		box.add_child(_wrapped(line[0], 16, line[1]))
 	if lines.is_empty():
@@ -523,6 +525,14 @@ static func subtitle(id: String) -> String:
 	if item.get("wanderer", false):
 		return Lang.t("Von weit her: %s") % kind
 	return kind
+
+
+## How much reading a book still holds (see Offline.BOOK_HOURS), as detail
+## lines: the hours left in blue, a warning in red once it is used up.
+static func book_lines(id: String, read: Dictionary) -> Array:
+	if Offline.book_used_up(read, id):
+		return [[Lang.t("✗ Ausgelesen: du kannst nichts mehr daraus lernen"), RED]]
+	return [[Lang.t("Lesestoff: noch %d von %d Std.") % [ceili(Offline.book_left(read, id)), Offline.BOOK_HOURS], BLUE]]
 
 
 ## An item's values, one per line: plain numbers in white, skills and

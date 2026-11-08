@@ -214,3 +214,4 @@ wall_themes.gd | 120 | fixed | :_ok | cave styles of walls and floors (WallTheme
 sneak_charge.gd | 120 | fixed | passfail | Charging an unaware foe: sneak attack on the opening blow, no auto-attack while sneaking
 bounties.gd | 120 | free | passfail | Bounty board (taken, counted and paid once; kept in the saved game)
 named_monsters.gd | 60 | free | passfail | Named monsters are tougher than plain ones, bosses and maker-set numbers are left alone
+prison_bars.gd | 60 | free | passfail | Prison bars (a cell's wall of bars is turned with it and closes the gap)

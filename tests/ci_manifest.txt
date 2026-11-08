@@ -162,3 +162,4 @@ smith.gd | 200 | fixed | pass | The smith hammers iron on his anvil, not the air
 windmill.gd | 200 | fixed | pass | Windmill sails turn with the wind and whoosh test
 flag_wind.gd | 200 | fixed | pass | Flags and banners flutter in the wind, more in a storm
 kit_wood_grain.gd | 60 | fixed | pass | The wood of the village buildings has its grain along every beam
+secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out

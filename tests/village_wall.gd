@@ -235,21 +235,22 @@ func _run() -> void:
 	var before := brick.hp
 	await _wait(120)
 	check(brick.hp >= before + int(VillageWall.MEND_PER_SECOND), "the mason builds the brick up over time (%d to %d)" % [before, brick.hp])
-	for i in 80:
+	for i in 200:
 		await _wait(30)
 		if wall.damaged().is_empty():
 			break
 	check(wall.damaged().is_empty(), "the mason mends every hurt brick in the end")
 
-	# He builds no more than DAILY_MEND HP in a day; a new day starts afresh.
-	var left := wall.mend_left(lvl)
-	check(absi(left - (VillageWall.DAILY_MEND - 250)) <= 2, "the mason's day is used up by what he mended (%d left)" % left)
-	brick.hurt(500)
-	check(wall.job(lvl) != null, "he still has work in him")
-	check(absf(wall.take_mend(lvl, 1000.0) - left) < 1.0 and wall.mend_left(lvl) == 0, "he mends no more than 300 HP in a day")
-	check(wall.job(lvl) == null, "he takes no job once the day is used up")
-	lvl.day += 1
-	check(wall.mend_left(lvl) == VillageWall.DAILY_MEND and wall.job(lvl) != null, "he is rested the next day")
+	# No limit: he mends hurt bricks at 4 HP a second, day after day.
+	check(VillageWall.MEND_PER_SECOND == 4.0, "the mason mends 4 HP a second")
+	for day in 3:
+		brick.hurt(900)
+		check(wall.job(lvl) != null, "he has work in him on day %d" % day)
+		var hp := brick.hp
+		brick.mend(VillageWall.MEND_PER_SECOND * 10.0)
+		check(brick.hp == hp + 40, "ten seconds of work mend 40 HP on day %d (%d to %d)" % [day, hp, brick.hp])
+		brick.mend(1000.0)
+		lvl.day += 1
 	brick.mend(1000.0)
 
 	# A slime near the wall keeps him from it.

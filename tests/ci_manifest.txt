@@ -208,9 +208,9 @@ wall_caps.gd | 120 | fixed | passfail | wall caps (WallCaps): every dungeon wall
 war_horn.gd | 120 | fixed | passfail | village's alarm horn (tools/make_horn_sounds.py,
 weathered_props.gd | 120 | fixed | passfail | weathered props of the village (see WeatheredProps
 windows_fit_screen.gd | 120 | fixed | passfail | every window (see Menus) stays inside the screen at small
-coins_counted_up.gd | 120 | fixed | coins_counted_up:_ok | the purse shows its coins counted up into silver and gold
+coins_counted_up.gd | 120 | fixed | :_ok | the purse shows its coins counted up into silver and gold
 lava_cracks.gd | 120 | fixed | lava_cracks:_all_checks_passed | glowing ember cracks ("~") of the ember tunnels
-townsfolk_strength.gd | 120 | fixed | townsfolk_strength:_OK | the townsfolk can put up a real fight against a Blob of
-wall_themes.gd | 120 | fixed | wall_themes:_ok | cave styles of walls and floors (WallThemes, header
+townsfolk_strength.gd | 120 | fixed | :_OK | the townsfolk can put up a real fight against a Blob of
+wall_themes.gd | 120 | fixed | :_ok | cave styles of walls and floors (WallThemes, header
 # Fixed in this change:
 sneak_charge.gd | 120 | fixed | passfail | Charging an unaware foe: sneak attack on the opening blow, no auto-attack while sneaking

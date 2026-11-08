@@ -1183,6 +1183,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			var mill := Windmill.attach(self, node)
 			if mill:
 				windmills.append(mill)
+				# The sails: woven canvas, shaded where the frame holds it.
+				SailCloth.apply(mill.sails as MeshInstance3D, _window_mask)
 		else:
 			_age_graveyard(node, false)
 	var solid := Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86)

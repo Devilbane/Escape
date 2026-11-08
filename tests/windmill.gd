@@ -67,6 +67,9 @@ func _turning() -> void:
 		return
 	var mill: Windmill = level.windmills[0]
 	check(mill.sails != null and mill.sails.name.contains("fan"), "the mill turns its sails, not the whole tower")
+	var sail_mat := (mill.sails as MeshInstance3D).material_override as ShaderMaterial
+	check(sail_mat != null and sail_mat.get_shader_parameter("canvas") == true, "the sails are woven canvas")
+	check(sail_mat != null and sail_mat.get_shader_parameter("canvas_shadow") is Texture2D, "the canvas is shaded along its frame")
 	var tower := mill.sails.get_parent() as Node3D
 	var tower_basis := tower.global_transform.basis
 	level.set_weather(Weather.CLEAR)

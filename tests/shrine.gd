@@ -127,8 +127,21 @@ func _test() -> void:
 	check(p.attribute("konstitution") == con_before + 1, "+1 Konstitution elsewhere raises it by 1 (%d -> %d)" % [con_before, p.attribute("konstitution")])
 	game.level.beginner_dungeon = true
 
+	# The beginner dungeon allows 9 shrine uses in total, then shrines stay quiet.
+	p.reset_gifts()
+	for i in Player.SHRINE_CAP_BEGINNER:
+		shrine.used = false
+		game._open_shrine(shrine)
+		check(not game._shrine.is_empty(), "shrine use %d is still allowed" % (i + 1))
+		game._choose_gift(0)
+	check(p.beginner_shrines_used == 9 and game.shrines_left() == 0, "nine uses are counted (%d)" % p.beginner_shrines_used)
+	shrine.used = false
+	game._open_shrine(shrine)
+	check(game._shrine.is_empty() and not game._shrine_panel.visible, "the tenth shrine stays quiet")
+
 	# A new run takes the shrine's gifts away again.
 	p.reset_gifts()
+	check(p.beginner_shrines_used == 0, "a new run resets the shrine count")
 	check(p.gift_points == 0 and p.gift_spent.is_empty() and p.gift_constitution == 0, "a new run starts without shrine gifts")
 	check(p.attribute("staerke") == strength_before, "the spent shrine point goes with the run")
 	_finish()

@@ -82,12 +82,13 @@ func _initialize() -> void:
 		level.add_child(holder)
 		var made := CaveLights.wall_torch(style, holder)
 		check(made.flame != null and holder.get_child_count() > 2, "%s: the wall torch is empty" % style)
-		var torch := {"flame": made.flame, "glow": made.glow, "light": OmniLight3D.new(), "on": true}
+		var lamp := OmniLight3D.new()
+		holder.add_child(lamp)
+		var torch := {"flame": made.flame, "glow": made.glow, "light": lamp, "on": true}
 		level.set_torch(torch, false)
 		check(not made.flame.visible, "%s: the torch does not go out" % style)
 		level.set_torch(torch, true)
 		check(made.flame.visible, "%s: the torch does not burn again" % style)
-		torch.light.free()
 		check(CaveLights.brazier(style, holder, Vector3.ZERO) != null, "%s: no brazier" % style)
 		check(CaveLights.candelabra(style, holder, Vector3.ZERO, 0.0).get_child_count() > 8, "%s: no candelabra" % style)
 		check(CaveLights.energy(style, 3.4) > 0.0, "%s: no light" % style)

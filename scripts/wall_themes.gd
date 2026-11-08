@@ -19,8 +19,8 @@ const ROUGH_FLOOR := 2
 ## rough floor ("base" is the light colour, "dark" the shade in the crevices),
 ## plus the glow of crystal.
 const STYLES := {
-	"bone": {"id": 0, "wall": [Color(0.62, 0.57, 0.45), Color(0.22, 0.18, 0.12)],
-			"floor": [Color(0.5, 0.45, 0.35), Color(0.2, 0.16, 0.11)],
+	"bone": {"id": 0, "wall": [Color(0.46, 0.42, 0.33), Color(0.17, 0.14, 0.09)],
+			"floor": [Color(0.64, 0.58, 0.46), Color(0.26, 0.21, 0.14)],
 			"rough": [Color(0.42, 0.37, 0.28), Color(0.17, 0.13, 0.09)]},
 	"rock": {"id": 1, "wall": [Color(0.34, 0.31, 0.28), Color(0.14, 0.12, 0.11)],
 			"floor": [Color(0.46, 0.42, 0.37), Color(0.2, 0.18, 0.15)],

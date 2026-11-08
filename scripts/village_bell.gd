@@ -7,7 +7,8 @@ extends RefCounted
 ##
 ## The bell is rung for the whole village, not from one spot: the hero hears it
 ## anywhere on the open ground, but not in a dungeon. It rings at most once
-## every COOLDOWN seconds, however many alarms come in, so it never spams.
+## every COOLDOWN seconds, however many alarms come in, so it never spams. The
+## town guard's alarm horn (WarHorn) shares this cooldown and sounds first.
 
 const SOUND := "village_bell"
 ## The loudness of the bell, in dB.
@@ -39,5 +40,7 @@ static func reset() -> void:
 static func ring(game: Node, reason: String, now := Time.get_ticks_msec() / 1000.0) -> bool:
 	if not game.level is Outdoor or not may_ring(now, reason):
 		return false
-	Sfx.play(game, SOUND, VOLUME_DB)
+	# The guard blows the alarm horn first (see WarHorn); the bell tolls once it has
+	# died away. Without a guard to blow it, the bell tolls at once.
+	Sfx.play_after(game, WarHorn.blow(game.level), SOUND, VOLUME_DB)
 	return true

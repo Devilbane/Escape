@@ -82,6 +82,6 @@ static func mix(stage: int, held: Dictionary) -> Dictionary:
 ## The text told when the hero walks up to the hoard.
 static func describe(stage: int, held: Dictionary) -> String:
 	if stage <= 0:
-		return Lang.t("Dein Hort ist noch leer. Münzen in deiner Börse lassen ihn wachsen.")
+		return Lang.t("Dein Hort ist noch leer. Münzen in deiner Börse und in der Truhe lassen ihn wachsen.")
 	return Lang.t("Dein Hort: Stufe %d von %d. Kupfer %d, Silber %d, Gold %d.") % [stage, STAGES,
 			int(held.get("kupfermuenze", 0)), int(held.get("silbermuenze", 0)), int(held.get("goldmuenze", 0))]

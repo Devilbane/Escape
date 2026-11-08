@@ -5609,8 +5609,8 @@ func _build_coin_hoard(root: Node3D, pos: Vector3) -> void:
 	_add_solid(pos, Vector3(HOARD_PLINTH * 1.6, 0.6, HOARD_PLINTH * 1.6))
 
 
-## Lays the hoard's heaps for the coins the hero holds (metal -> count): the heaps follow
-## HomeHoard.mix, the biggest in front, the others behind it.
+## Lays the hoard's heaps for the coins it counts (metal -> count): at home the coins the hero
+## carries plus those in the chest, see Game.hoard_coins.
 func show_hoard(held: Dictionary) -> void:
 	if _hoard_root == null:
 		return
@@ -5619,15 +5619,20 @@ func show_hoard(held: Dictionary) -> void:
 	if mix == _hoard_shown:
 		return
 	_hoard_shown = mix
-	for child in _hoard_root.get_children():
-		_hoard_root.remove_child(child)
+	_lay_heaps(_hoard_root, mix)
+
+
+## Lays the heaps of a mix (see HomeHoard.mix) on a holder, the biggest in front, the others behind
+## it. They shrink together so that three of them fit on a plinth or in a vault cell.
+func _lay_heaps(holder_root: Node3D, mix: Dictionary) -> void:
+	for child in holder_root.get_children():
+		holder_root.remove_child(child)
 		child.queue_free()
 	var metals: Array = mix.keys()
 	metals.sort_custom(func(a, b): return mix[a] > mix[b])
 	var biggest := 0.0
 	for m in metals:
 		biggest = maxf(biggest, CoinPile.radius(mix[m]))
-	# The heaps shrink together so that three of them fit on the plinth.
 	var fit := clampf((0.85 if metals.size() > 1 else 1.3) / maxf(biggest, 0.01), 0.35, 1.0)
 	var spots := [Vector3(0, 0, 0.35), Vector3(-0.85, 0, -0.7), Vector3(0.85, 0, -0.7)]
 	if metals.size() == 1:
@@ -5637,7 +5642,7 @@ func show_hoard(held: Dictionary) -> void:
 		holder.name = "Heap_" + metals[i]
 		holder.position = spots[i]
 		holder.scale = Vector3.ONE * fit
-		_hoard_root.add_child(holder)
+		holder_root.add_child(holder)
 		CoinPile.dress(holder, mix[metals[i]], metals[i], self)
 
 
@@ -5792,8 +5797,14 @@ func refresh_vaults() -> void:
 			continue
 		var gold := Bank.gold(owner)
 		if gold > 0:
-			var stack := _place("coin_stack_large", Vector3(1.1, 0, -1.0), 0.4, show)
-			stack.scale = Vector3.ONE * clampf(0.6 + gold / 200.0, 0.6, 1.6)
+			# The same hoard as at home, but of the coins in this vault only (copper, as the bank keeps it).
+			var heap_root := Node3D.new()
+			heap_root.name = "VaultHoard"
+			heap_root.position = Vector3(1.0, 0, -1.0)
+			heap_root.scale = Vector3.ONE * 0.7
+			show.add_child(heap_root)
+			var vault_coins := {"kupfermuenze": gold}
+			_lay_heaps(heap_root, HomeHoard.mix(HomeHoard.stage_of(HomeHoard.wealth(gold, 0, 0)), vault_coins))
 		var items := Bank.vault_items(owner)
 		for k in items.size():
 			if not Items.ALL.has(items[k]):

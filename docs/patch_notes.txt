@@ -5,6 +5,8 @@
 
 ## Latest changes
 - The event log has a slim scroll bar you can drag to read older messages.
+- Sneaking no longer makes the hero strike back on their own; only a foe you click is attacked.
+- The hoard at home now counts the coins you carry plus those in your chest, and your bank vault shows its own hoard of the coins stored there.
 - Stairs down are now real stone steps that fade into the dark, in houses, mines and the dragon's lair, instead of a black hole.
 - The glowing ember cracks in the deep mines can be crossed now, but they burn: 1 life a second near them, 3 while standing on one.
 - Ghostly voices (moans, a banshee's shriek, the whispers out of the holes) and bandit taunts now also appear in the event log.

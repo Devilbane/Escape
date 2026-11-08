@@ -87,7 +87,7 @@ const DUNGEON := {
 	"Y": "the Mountain King (the boss deep in the third mine)",
 	"j": "pit prop: a timber frame against the wall (mines)",
 	"%": "a glowing crystal cluster (mines)",
-	"~": "a crack of glowing embers in the floor (mines, cannot be crossed)",
+	"~": "a crack of glowing embers in the floor (mines, walkable but it burns)",
 	"T": "a stone tablet with an old inscription (a hint, see Mines)",
 	"^": "the way down to the next floor of a mine (see the header \"down:\")",
 	# The Great Old One's dungeon (see ElderLair).

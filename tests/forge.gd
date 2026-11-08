@@ -134,7 +134,11 @@ func _run() -> void:
 		sum += p.attribute(a)
 	check(Forge.chance(game) == clampi(roundi(sum / 15.0 * Forge.skill(game)), Forge.MIN_CHANCE, Forge.MAX_CHANCE), "the chance follows the four attributes and the skill (%d%%)" % Forge.chance(game))
 	p.xp[Forge.FORGING] = 1.0e9
-	check(Forge.chance(game) == Forge.MAX_CHANCE, "the chance is capped at %d%%" % Forge.MAX_CHANCE)
+	for a in Forge.CHANCE_ATTRIBUTES:
+		p.xp[a] = 1.0e9
+	check(Forge.chance(game) == 80 and Forge.chance(game) <= Forge.MAX_CHANCE, "at the highest skill and attributes the chance is 120 / 15 x 10 = 80%%, within the %d%% cap (%d%%)" % [Forge.MAX_CHANCE, Forge.chance(game)])
+	for a in Forge.CHANCE_ATTRIBUTES:
+		p.xp.erase(a)
 	p.xp[Forge.FORGING] = 0.0
 	check(Forge.chance(game) >= Forge.MIN_CHANCE and Forge.skill(game) == 1, "a beginner counts as skill 1")
 	game.iron = 6

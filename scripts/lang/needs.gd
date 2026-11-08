@@ -7,7 +7,7 @@ const EN := {
 	"Schmiedekunst Stufe": "Forging level",
 	"Stahlkochen Stufe": "Steel making level",
 	"✗ Deine Tasche ist voll": "✗ Your bag is full",
-	"Fertig vom Schmied": "Ready-made from the smith",
+	"Fertig vom Schmied": "Ready-made by the smith",
 	"Davon hat Gorm gerade keins fertig.": "Gorm has none ready right now.",
 	"Gorm hat gerade nichts Fertiges da. Jeden Morgen legt er ein paar Stücke nach.": "Gorm has nothing ready-made right now. Every morning he adds a few pieces.",
 	"%s Stufe": "%s level",

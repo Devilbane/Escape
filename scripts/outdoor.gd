@@ -1294,14 +1294,14 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	_age_ruin(arch)
 	# The door swung open against the arch's side.
 	_age_ruin(_put("lair/Arch_Door", front + Vector3(-1.2, 0, 0.2), -PI * 0.55, 1.0))
-	# Darkness in the opening, and the top steps sinking into it.
+	# The opening: steps going down, fading into the dark.
 	var hole := MeshInstance3D.new()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(3.0, 3.3)
 	hole.mesh = quad
 	var black := StandardMaterial3D.new()
 	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	black.albedo_color = Color(0.02, 0.01, 0.015)
+	black.albedo_texture = StairsDown.doorway_texture()
 	hole.material_override = black
 	hole.position = front + Vector3(0, 1.65, -0.35)
 	add_child(hole)

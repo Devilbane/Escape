@@ -1738,7 +1738,7 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == "hort":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		var held := _held_coins()
+		var held := hoard_coins()
 		level.show_hoard(held)
 		show_message(HomeHoard.describe(HomeHoard.stage_of(HomeHoard.wealth(held.kupfermuenze, held.silbermuenze, held.goldmuenze)), held), 3.5, GOLD)
 	elif s.kind == "tafel":
@@ -2474,7 +2474,7 @@ func _update_purse() -> void:
 		return
 	_purse_key = key
 	if level != null and level.is_home:
-		level.show_hoard(_held_coins())
+		level.show_hoard(hoard_coins())
 	var labels := {"kupfermuenze": _coin_label, "silbermuenze": _silver_label, "goldmuenze": _gold_label}
 	var names := {"kupfermuenze": "Kupfermünzen: %d", "silbermuenze": "Silbermünzen: %d", "goldmuenze": "Goldmünzen: %d"}
 	var worth := Loot.worth_text(key[0], key[1], key[2])
@@ -2920,7 +2920,7 @@ func load_level(index: int, restock := true) -> void:
 		level.lightning.connect(_on_lightning)
 	if level.is_home:
 		level.show_home_upgrades(home_upgrades, trophies)
-		level.show_hoard(_held_coins())
+		level.show_hoard(hoard_coins())
 	_pending_crate = null
 	_end_drag()
 	_set_atmosphere(level.outdoor)
@@ -5494,6 +5494,16 @@ func _held_coins() -> Dictionary:
 	return out
 
 
+## The coins the hoard at home shows: the ones the hero carries together with the ones lying in
+## the metal chest of the house (see HomeStores).
+func hoard_coins() -> Dictionary:
+	var out := _held_coins()
+	out["kupfermuenze"] = int(out["kupfermuenze"]) + HomeStores.stored(self, HomeStores.COINS)
+	for m in ["silbermuenze", "goldmuenze"]:
+		out[m] = int(out[m]) + HomeStores.stored(self, m)
+	return out
+
+
 ## The coin metals the hero can put down: gold always, the others while
 ## carried.
 func coin_metals() -> Array:
@@ -7141,6 +7151,6 @@ func build_home_upgrade(id: String) -> String:
 	apply_home_bonus()
 	if level.is_home:
 		level.show_home_upgrades(home_upgrades, trophies)
-		level.show_hoard(_held_coins())
+		level.show_hoard(hoard_coins())
 	save_game()
 	return ""

@@ -9,8 +9,6 @@ const EN := {
 	"Ein Schleim frisst sich in die Dorfmauer!": "A slime is eating into the village wall!",
 	"Ein Schleim hat ein Stück der Dorfmauer eingerissen!": "A slime has broken a piece of the village wall!",
 	"Der Steinmetz hat die Dorfmauer wieder instand gesetzt.": "The stonemason has mended the village wall.",
-	"Der Steinmetz ist für heute erschöpft. Morgen mauert er weiter.": "The stonemason is worn out for today. He will build again tomorrow.",
-	"Mauerarbeit heute: %d von %d": "Wall work today: %d of %d",
 	"Alle hinter die Mauer! Wir verteidigen das Dorf!": "Everyone behind the wall! We defend the village!",
 	"Dorfmauer": "Village wall",
 	"Dorftor": "Village gate",

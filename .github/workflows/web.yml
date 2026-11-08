@@ -1,4 +1,4 @@
-name: Browser version
+name: Tests
 
 on:
   push:
@@ -8,936 +8,106 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages-${{ github.ref }}
+  group: tests-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   GODOT_VERSION: 4.7.2
 
 jobs:
-  # The tests run in their own job, in parallel with the export, so a pull request
-  # gets its pass or fail without waiting for the export (and the export is not slowed down).
+  # The fast checks: the gate for pull requests, and what the Windows build on main waits for
+  # (desktop.yml). The browser export is optional and lives in browser.yml.
+  # The tests are split into parallel shards (tests/ci_shard.sh, the list is tests/ci_manifest.txt).
+  # `tests` at the end gathers them into one check: that single name is what branch protection requires
+  # and what the Windows build waits for, however many shards there are.
+  shard:
+    name: tests-shard (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore Godot from the cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-web
+
+      - name: Install Godot
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          unzip -q Godot_v*_linux.x86_64.zip && mv Godot_v*_linux.x86_64 godot && rm Godot_v*_linux.x86_64.zip
+          templates=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p $templates
+          unzip -qj Godot_v*_export_templates.tpz templates/web_nothreads_release.zip templates/web_nothreads_debug.zip templates/version.txt -d $templates
+          rm Godot_v*_export_templates.tpz
+
+      - name: Import the project
+        run: ~/godot/godot --headless --import
+
+      - name: Tests of this shard
+        run: tests/ci_shard.sh blocking ${{ matrix.shard }} 8
+
+  # Every test in tests/ that the manifest does not list. A new test runs from the day it is added, but
+  # only warns until it is listed (see docs/testing.md). Not part of `tests`, so it never blocks a merge.
+  extra:
+    name: extra-tests (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore Godot from the cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-web
+
+      - name: Install Godot
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          unzip -q Godot_v*_linux.x86_64.zip && mv Godot_v*_linux.x86_64 godot && rm Godot_v*_linux.x86_64.zip
+          templates=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p $templates
+          unzip -qj Godot_v*_export_templates.tpz templates/web_nothreads_release.zip templates/web_nothreads_debug.zip templates/version.txt -d $templates
+          rm Godot_v*_export_templates.tpz
+
+      - name: Import the project
+        run: ~/godot/godot --headless --import
+
+      - name: Extra tests of this shard (a failure is only a warning)
+        run: tests/ci_shard.sh extra ${{ matrix.shard }} 4
+
+  # The one required check. It passes when every blocking shard passed.
   tests:
+    if: always()
+    needs: [shard]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Restore Godot from the cache
-        id: cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/godot
-            ~/.local/share/godot/export_templates
-          key: godot-${{ env.GODOT_VERSION }}-web
-
-      - name: Install Godot
-        if: steps.cache.outputs.cache-hit != 'true'
+      - name: All shards must have passed
         run: |
-          mkdir -p ~/godot && cd ~/godot
-          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
-          wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
-          wget -q $base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
-          unzip -q Godot_v*_linux.x86_64.zip && mv Godot_v*_linux.x86_64 godot && rm Godot_v*_linux.x86_64.zip
-          templates=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-          mkdir -p $templates
-          unzip -qj Godot_v*_export_templates.tpz templates/web_nothreads_release.zip templates/web_nothreads_debug.zip templates/version.txt -d $templates
-          rm Godot_v*_export_templates.tpz
-
-      - name: Import the project
-        run: ~/godot/godot --headless --import
-
-      - name: Map letters (no two things share a letter)
-        run: |
-          timeout 60 ~/godot/godot --headless -s tests/tile_letters.gd | tee tiles.log
-          grep -q PASS tiles.log
-
-      - name: Monster families (every map names who lives there, every monster fits)
-        run: |
-          timeout 60 ~/godot/godot --headless -s tests/monster_families.gd | tee families.log
-          grep -q PASS families.log
-
-      - name: Furniture spacing (no two chests or boards side by side)
-        run: |
-          timeout 60 ~/godot/godot --headless -s tests/furniture_spacing.gd | tee spacing.log
-          grep -q PASS spacing.log
-
-      - name: Chests rest their back on the wall and open towards the room
-        run: |
-          timeout 60 ~/godot/godot --headless -s tests/chest_facing.gd | tee chests.log
-          grep -q PASS chests.log
-
-      - name: Dungeon entrances are aged and textured
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/entrance_textures.gd | tee entrances.log
-          grep -q PASS entrances.log
-
-      - name: Merchants stand in the open middle of their room
-        run: |
-          timeout 60 ~/godot/godot --headless -s tests/merchant_placement.gd | tee merchants.log
-          grep -q PASS merchants.log
-
-      - name: Furniture blocks only where it is drawn (nobody gets stuck on it)
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/furniture_stuck.gd | tee stuck.log
-          grep -q PASS stuck.log && ! grep -q FAIL stuck.log
-
-      - name: English texts (no German text translated twice)
-        run: |
-          timeout 60 ~/godot/godot --headless -s tests/lang_keys.gd | tee lang.log
-          grep -q PASS lang.log
-
-      - name: Loot and experience text sized by worth
-        run: |
-          timeout 60 ~/godot/godot --headless -s tests/loot_text_size.gd | tee lootsize.log
-          grep -q PASS lootsize.log
-
-      - name: Jump wind-up (half a step first, called off by a hit)
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/jump_windup.gd | tee jumpwindup.log
-          grep -q PASS jumpwindup.log && ! grep -q FAIL jumpwindup.log
-
-      - name: Cobwebs (spread out, off grates, doors and corridor floors)
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/cobwebs.gd | tee cobwebs.log
-          grep -q PASS cobwebs.log
-
-      - name: Walls at full height (only the stretch in front of the hero turns see-through)
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/wall_height.gd | tee walls.log
-          grep -q PASS walls.log && ! grep -q FAIL walls.log
-
-      - name: Level warm-up (no hitch when a level starts)
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/level_warmup.gd | tee warmup.log
-          grep -q PASS warmup.log
-
-      - name: Village preload (ready behind the title screen)
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/world_preload.gd | tee preload.log
-          grep -q PASS preload.log
-
-      - name: Melee pathfinding (monsters walk round what blocks their blow)
-        run: |
-          timeout 60 ~/godot/godot --headless -s tests/melee_path.gd | tee melee.log
-          grep -q PASS melee.log && ! grep -q FAIL melee.log
-
-      - name: Smooth running (bodies drawn between physics ticks)
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/smooth_motion.gd | tee smooth.log
-          grep -q PASS smooth.log
-
-      - name: Inventory keeps its size (picking, tabs, equipping; both languages)
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/inventory_fixed_size.gd | tee inventory.log
-          grep -q PASS inventory.log
-
-      - name: Storage chest keeps its size (pointing at torches and other items; both languages)
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/storage_fixed_size.gd | tee storage.log
-          grep -q PASS storage.log
-
-      - name: Every window keeps one fixed size (trading, equipment, chests, workbenches; empty and full; both languages)
-        run: |
-          timeout 300 ~/godot/godot --headless -s tests/windows_fixed_size.gd | tee fixed_size.log
-          grep -q PASS fixed_size.log
-
-      - name: Loot fanfares (epic and god-born gear ring out)
-        run: |
-          timeout 60 ~/godot/godot --headless -s tests/loot_fanfare.gd | tee fanfare.log
-          grep -q PASS fanfare.log
-
-      - name: Rarity colours (item names in the colour of their tier)
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/rarity_colours.gd | tee rarity.log
-          grep -q PASS rarity.log
-
-      - name: Coins look like their metal (copper, iron, polished silver, blinking gold)
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/coin_metals.gd | tee coin_metals.log
-          grep -q PASS coin_metals.log
-
-      - name: Villagers grumble about the weather and take fright test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/village_worries.gd | tee worries.log
-          grep -q PASS worries.log
-
-      - name: Fritz sings drinking songs test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/drinking_songs.gd | tee songs.log
-          grep -q PASS songs.log
-
-      - name: Townsfolk small talk, rumours and stories test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/village_rumours.gd | tee rumours.log
-          grep -q PASS rumours.log
-
-      - name: Event bus test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/events.gd | tee events.log
-          grep -q PASS events.log
-
-      - name: Save notice test ("Game saved" after every save)
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/save_notice.gd | tee save_notice.log
-          grep -q PASS save_notice.log
-
-      - name: Bleeding test (cutting hits bleed the hit's life, faster on the move)
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/bleeding.gd | tee bleeding.log
-          grep -q PASS bleeding.log
-
-      - name: Healing pause test (no regeneration right after a blow)
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/regen_pause.gd | tee regen.log
-          grep -q PASS regen.log
-
-      - name: Grate tentacles test
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/grate_tentacles.gd | tee tentacles.log
-          grep -q PASS tentacles.log
-
-      - name: Locked doors (no getting stuck, no blows through them) test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/door_safety.gd | tee doors.log
-          grep -q PASS doors.log
-
-      - name: Pillars stop shots test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/pillar_shots.gd | tee pillar_shots.log
-          grep -q PASS pillar_shots.log && ! grep -q FAIL pillar_shots.log
-
-      - name: Time away (offline activities) test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/offline_schedule.gd | tee offline.log
-          grep -q PASS offline.log
-
-      - name: Villager reputation test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/reputation.gd | tee reputation.log
-          grep -q PASS reputation.log
-
-      - name: Crafting square test
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/crafting_square.gd | tee crafting_square.log
-          grep -q PASS crafting_square.log
-
-      - name: Fox companion test
-        run: |
-          timeout 400 ~/godot/godot --headless --fixed-fps 60 -s tests/fox.gd | tee fox.log
-          grep -q PASS fox.log
-
-      - name: Waking up in bed after loading test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wake_up.gd | tee wake.log
-          grep -q PASS wake.log
-
-      - name: Shrine gifts hand control straight back test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/shrine.gd | tee shrine.log
-          grep -q PASS shrine.log
-
-      - name: Refuge fountain gives 5 life per drink test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/fountain.gd | tee fountain.log
-          grep -q PASS fountain.log
-
-      - name: Drinking too much at the village fountain swells the belly test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/bloated_belly.gd | tee belly.log
-          grep -q PASS belly.log
-
-      - name: Sitting on the benches of the market square test
-        run: |
-          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/seats.gd | tee seats.log
-          grep -q PASS seats.log && ! grep -q FAIL seats.log
-
-      - name: Graveyard start after the escape test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/graveyard_start.gd | tee graveyard.log
-          grep -q PASS graveyard.log
-
-      - name: Looted containers stay empty test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/looted_containers.gd | tee looted.log
-          grep -q PASS looted.log
-
-      - name: Hero strikes back at attackers test
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/splash_attack.gd | tee splash.log
-          grep -q PASS splash.log
-
-      - name: Rare loot does not repeat on a level test
-        run: |
-          timeout 300 ~/godot/godot --headless -s tests/rare_loot.gd | tee rare_loot.log
-          grep -q PASS rare_loot.log
-
-      - name: Named bosses' rare loot test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/boss_loot.gd | tee boss_loot.log
-          grep -q PASS boss_loot.log
-
-      - name: Growing slimes test (colours, sizes, swallowing, corpses, Blobs)
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_growth.gd | tee slime_growth.log
-          grep -q PASS slime_growth.log
-      - name: Slime tricks test (half damage from shots, slimed attackers, spit)
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_tricks.gd | tee slime_tricks.log
-          grep -q PASS slime_tricks.log
-      - name: Slime prey test (townsfolk and animals, fighting back, hiding, coming back out)
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_prey.gd | tee slime_prey.log
-          grep -q PASS slime_prey.log
-
-      - name: Village wall test (gates, slimes eating the wall, the stonemason mending it)
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/village_wall.gd | tee village_wall.log
-          grep -q PASS village_wall.log
-
-      - name: Wall cracks test (three crack stages that grow with a brick's damage)
-        run: |
-          timeout 300 ~/godot/godot --headless -s tests/wall_cracks.gd | tee wall_cracks.log
-          grep -q PASS wall_cracks.log
-
-      - name: Village arms test (weapons for each villager, Pip's knives, the priestess heals)
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/village_arms.gd | tee village_arms.log
-          grep -q PASS village_arms.log
-
-      - name: Slime belly test
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/slime_belly.gd | tee slime_belly.log
-          grep -q PASS slime_belly.log
-
-      - name: Floor items test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/floor_items.gd | tee floor_items.log
-          grep -q PASS floor_items.log
-
-      - name: Floor packs test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/floor_packs.gd | tee floor_packs.log
-          grep -q PASS floor_packs.log
-
-      - name: Thrown knives test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/thrown_knives.gd | tee thrown_knives.log
-          grep -q PASS thrown_knives.log
-
-      - name: Dragon's helpers and hoard test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/dragon_hoard.gd | tee dragon_hoard.log
-          grep -q PASS dragon_hoard.log
-
-      - name: Torch stacks test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/torch_stacks.gd | tee torch_stacks.log
-          grep -q PASS torch_stacks.log
-
-      - name: Torch button test (lit on request only)
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/torch_button.gd | tee torch_button.log
-          grep -q PASS torch_button.log
-
-      - name: Healing potions test (brewed by potency, button left of the torch, once a minute)
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/healing_potions.gd | tee healing_potions.log
-          grep -q "PASS: healing potions" healing_potions.log
-
-      - name: Several saved games test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/save_slots.gd | tee slots.log
-          grep -q PASS slots.log
-
-      - name: Drip puddles test (a step into one splashes)
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/drip_puddles.gd | tee drip_puddles.log
-          grep -q PASS drip_puddles.log
-
-      - name: Stay awake and save test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/stay_awake.gd | tee stay_awake.log
-          grep -q PASS stay_awake.log
-
-      - name: Sleep till morning test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/sleep_till_morning.gd | tee sleep_morning.log
-          grep -q PASS sleep_morning.log
-
-      - name: Camp with bedroll and campfire test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/camp.gd | tee camp.log
-          grep -q PASS camp.log
-
-      - name: Rescue test (out of life, carried to the bed; the loot stays where the hero fell)
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/rescue.gd | tee rescue.log
-          grep -q PASS rescue.log
-
-      - name: Barber test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/barber.gd | tee barber.log
-          grep -q PASS barber.log
-
-      - name: Cape wardrobe test (the house's wardrobe, the cape back designs, saved choice)
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/cape_wardrobe.gd | tee cape_wardrobe.log
-          grep -q PASS cape_wardrobe.log
-
-      - name: Postmaster's cap test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/post_cap.gd | tee post_cap.log
-          grep -q "PASS: post cap" post_cap.log
-
-      - name: Spider hole and Spider Queen test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/spider_hole.gd | tee spider_hole.log
-          grep -q PASS spider_hole.log
-
-      - name: Item comparison in the inventories' details box
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/item_compare.gd | tee item_compare.log
-          grep -q PASS item_compare.log
-
-      - name: Merchant trading window test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/merchant_window.gd | tee merchant_window.log
-          grep -q PASS merchant_window.log
-
-      - name: Map workshop test
-        run: |
-          timeout 180 ~/godot/godot --headless -s tests/level_editor.gd | tee level_editor.log
-          grep -q PASS level_editor.log
-
-      - name: Testing a map from the workshop
-        run: |
-          timeout 180 ~/godot/godot --headless -s tests/playtest_map.gd | tee playtest_map.log
-          grep -q PASS playtest_map.log
-
-      - name: Window buttons, hover and keyboard focus test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/window_buttons.gd | tee window_buttons.log
-          grep -q PASS window_buttons.log
-
-      - name: Bronze frames test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/bronze_frames.gd | tee bronze_frames.log
-          grep -q PASS bronze_frames.log
-
-      - name: Item icons test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/item_icons.gd | tee item_icons.log
-          grep -q PASS item_icons.log
-
-      - name: Character page test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/character_page.gd | tee character_page.log
-          grep -q PASS character_page.log
-
-      - name: Armour sets test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/armour_sets.gd | tee armour_sets.log
-          grep -q PASS armour_sets.log
-
-      - name: Villager quests test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/quests.gd | tee quests.log
-          grep -q PASS quests.log
-
-      - name: Villager names after a talk test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/npc_names.gd | tee names.log
-          grep -q PASS names.log
-
-      - name: Explanatory hints shown only twice test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/bump_hint.gd | tee hints.log
-          grep -q PASS hints.log
-
-      - name: First steps in the cell (tutorial cards) test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/tutorial.gd | tee tutorial.log
-          grep -q PASS tutorial.log
-
-      - name: Villager speech cooldown test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/npc_speech_cooldown.gd | tee speech.log
-          grep -q PASS speech.log
-
-      - name: Villager speech overlap test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/npc_speech_overlap.gd | tee overlap.log
-          grep -q PASS overlap.log
-
-      - name: Wild bandits on the robbers' pass test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_bandits.gd | tee bandits.log
-          grep -q PASS bandits.log
-
-      - name: Beasts of the wolf hollow test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wild_beasts.gd | tee beasts.log
-          grep -q PASS beasts.log
-
-      - name: Spider webs test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/spider_webs.gd | tee webs.log
-          grep -q PASS webs.log
-
-      - name: Ghosts and ghouls test
-        run: |
-          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/ghosts.gd | tee ghosts.log
-          grep -q PASS ghosts.log
-
-      - name: Monster rivals and befriending test
-        run: |
-          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/factions.gd | tee factions.log
-          grep -q PASS factions.log
-
-      - name: Weak monsters leave a far stronger hero alone test
-        run: |
-          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/cowed_monsters.gd | tee cowed.log
-          grep -q PASS cowed.log
-
-      - name: Peaceful animals of the woods test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/animals.gd | tee animals.log
-          grep -q PASS animals.log
-
-      - name: Dragon's lair test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_lair.gd | tee lair.log
-          grep -q PASS lair.log
-
-      - name: Dragon boss fight test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_boss.gd | tee dragon.log
-          grep -q PASS dragon.log
-
-      - name: Dragon flies over the open air test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dragon_flyover.gd | tee dragon_flyover.log
-          grep -q PASS dragon_flyover.log && ! grep -q FAIL dragon_flyover.log
-
-      - name: Corpses stay and rot away test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/corpses.gd | tee corpses.log
-          grep -q PASS corpses.log
-
-      - name: Crossed-out eyes of the dead test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dead_eyes.gd | tee dead_eyes.log
-          grep -q PASS dead_eyes.log
-
-      - name: Dark holes, torches and horrors test
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/horrors.gd | tee horrors.log
-          grep -q PASS horrors.log
-
-      - name: Elementals and golems test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/elementals.gd | tee elementals.log
-          grep -q PASS elementals.log
-
-      - name: Elementals and golems fight test
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/elemental_fights.gd | tee elemental_fights.log
-          grep -q PASS elemental_fights.log
-
-      - name: Bandit chief boss fight test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/bandit_chief.gd | tee chief.log
-          grep -q PASS chief.log
-
-      - name: Strike, sweep and fighting back test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/splash_attack.gd | tee splash.log
-          grep -q PASS splash.log
-
-      - name: Sneak attack test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/sneak_attack.gd | tee sneak.log
-          grep -q PASS sneak.log
-
-      - name: Monster lore test
-        run: |
-          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/monster_lore.gd | tee monster_lore.log
-          grep -q PASS monster_lore.log
-
-      - name: Vital blow circle (the weapon swings a full circle, streak follows, no time lost)
-        run: |
-          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/vital_circle.gd | tee vital_circle.log
-          grep -q PASS vital_circle.log
-
-      - name: Vital blow star (blood-red wobbling star, short-lived)
-        run: |
-          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/vital_star.gd | tee vital_star.log
-          grep -q PASS vital_star.log
-
-      - name: Hero or heroine test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/heroine.gd | tee heroine.log
-          grep -q PASS heroine.log
-
-      - name: Damage numbers over the head test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/damage_numbers.gd | tee damage_numbers.log
-          grep -q PASS damage_numbers.log
-
-      - name: Messages never cover each other test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/message_overlap.gd | tee message_overlap.log
-          grep -q PASS message_overlap.log
-
-      - name: Event log test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/event_log.gd | tee event_log.log
-          grep -q PASS event_log.log
-
-      - name: Hero and skeletons cannot stack test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/no_stacking.gd | tee stacking.log
-          grep -q PASS stacking.log
-
-      - name: Crates and food basket test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/crates.gd | tee crates.log
-          grep -q PASS crates.log
-
-      - name: Building with stone blocks test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/stones.gd | tee stones.log
-          grep -q PASS stones.log
-
-      - name: Smith's forge test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/forge.gd | tee forge.log
-          grep -q PASS forge.log
-
-      - name: Forge shows needed and missing materials, Gorm's shelf
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/smith_stock.gd | tee smith_stock.log
-          grep -q PASS smith_stock.log && ! grep -q FAIL smith_stock.log
-
-      - name: Steel test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/steel.gd | tee steel.log
-          grep -q PASS steel.log
-
-      - name: Purse test (coins and gems take no bag or pouch slot)
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/purse.gd | tee purse.log
-          grep -q PASS purse.log
-
-      - name: Stone walls and the block-pushing puzzle test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/stone_puzzle.gd | tee puzzle.log
-          grep -q PASS puzzle.log
-
-      - name: Ashen Spire test (floors, sweepers, ledge, grimoire, respawn)
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/ash_spire.gd | tee ashspire.log
-          grep -q PASS ashspire.log
-
-      - name: Pull-out button menu test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_drawer.gd | tee drawer.log
-          grep -q PASS drawer.log
-
-      - name: HUD tooltips test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/hud_tooltips.gd | tee hud_tooltips.log
-          grep -q PASS hud_tooltips.log
-
-      - name: Quick window icons and quests window test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/quick_bar.gd | tee quick_bar.log
-          grep -q PASS quick_bar.log
-
-      - name: Background music test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/music.gd | tee music.log
-          grep -q PASS music.log
-
-      - name: Eerie dungeon sounds test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/dungeon_sounds.gd | tee dungeon_sounds.log
-          grep -q PASS dungeon_sounds.log
-
-      - name: Sword and axe sounds test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/weapon_sounds.gd | tee weapon_sounds.log
-          grep -q PASS weapon_sounds.log
-
-      - name: Day and night test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/day_night.gd | tee daynight.log
-          grep -q PASS daynight.log
-
-      - name: Wandering merchant test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/wandering_merchant.gd | tee wanderer.log
-          grep -q PASS wanderer.log
-
-      - name: Weather test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/weather.gd | tee weather.log
-          grep -q PASS weather.log
-
-      - name: Rain puddles test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/puddles.gd | tee puddles.log
-          grep -q PASS puddles.log
-
-      - name: Walking speed by ground test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/surfaces.gd | tee surfaces.log
-          grep -q PASS surfaces.log
-
-      - name: Village houses and chapel test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/village_buildings.gd | tee village.log
-          grep -q PASS village.log
-
-      - name: House doors swing open before anyone goes in
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/house_doors.gd | tee doors.log
-          grep -q PASS doors.log
-
-      - name: Eggs and chicks in the village nests (begging, fed by parents and the hero)
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/nest_chicks.gd | tee chicks.log
-          grep -q PASS chicks.log
-
-      - name: Villagers feed the birds (seed scattered, birds peck and perch on the feeder)
-        run: |
-          timeout 180 ~/godot/godot --headless --fixed-fps 60 -s tests/bird_feeding.gd | tee feeding.log
-          grep -q PASS feeding.log
-
-      - name: Map and journal test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/journal.gd | tee journal.log
-          grep -q PASS journal.log
-
-      - name: Town houses for many heroes test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/player_houses.gd | tee houses.log
-          grep -q PASS houses.log
-
-      - name: Run home test (the home button and the way home)
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/home_run.gd | tee home_run.log
-          grep -q PASS home_run.log && ! grep -q FAIL home_run.log
-
-      - name: Recipes and ingredient pouch test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/crafting.gd | tee crafting.log
-          grep -q PASS crafting.log
-
-      - name: Wishes and fighting style test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/wishes.gd | tee wishes.log
-          grep -q PASS wishes.log
-
-      - name: Workbench crafting test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/workbench_crafting.gd | tee workbench.log
-          grep -q PASS workbench.log
-
-      - name: Crystal mining test
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/crystals.gd | tee crystals.log
-          grep -q PASS crystals.log && ! grep -q FAIL crystals.log
-
-      - name: Fishing test
-        run: |
-          timeout 120 ~/godot/godot --headless -s tests/fishing.gd | tee fishing.log
-          grep -q PASS fishing.log
-
-      - name: Treasure maps test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/treasure_maps.gd | tee treasure.log
-          grep -q PASS treasure.log
-
-      - name: Home upgrades test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/home_upgrades.gd | tee upgrades.log
-          grep -q PASS upgrades.log
-
-      - name: Home hoard and benches test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/home_hoard.gd | tee home_hoard.log
-          grep -q PASS home_hoard.log
-
-      - name: Home stores test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/home_stores.gd | tee home_stores.log
-          grep -q PASS home_stores.log
-
-      - name: Mountains, tavern and mines test
-        run: |
-          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/mountains.gd | tee mountains.log
-          grep -q PASS mountains.log
-
-      - name: The Great Old One's dungeon (sneak to the hoard, epic treasure rooms)
-        run: |
-          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/elder_lair.gd | tee elder.log
-          grep -q PASS elder.log
-
-      - name: Sternhall (star reliefs, wardens, eyes, the chasm, the tome and the drain)
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/sternhall.gd | tee sternhall.log
-          grep -q PASS sternhall.log
-
-      - name: Hero level and experience test
-        run: |
-          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/hero_level.gd | tee hero_level.log
-          grep -q PASS hero_level.log
-
-      - name: Shrine gifts test
-        run: |
-          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/shrine.gd | tee shrine.log
-          grep -q PASS shrine.log
-
-      - name: Hidden traps test
-        run: |
-          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/traps.gd | tee traps.log
-          grep -q PASS traps.log
-
-      - name: Flame jets test
-        run: |
-          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/flame_jets.gd | tee flame_jets.log
-          grep -q PASS flame_jets.log
-
-      - name: Life on the ground above test
-        run: |
-          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/surface_life.gd | tee surface_life.log
-          grep -q PASS surface_life.log
-
-      - name: Tree light (the trees are lit by the lanterns near them)
-        run: |
-          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/tree_light.gd | tee tree_light.log
-          grep -q PASS tree_light.log
-
-      - name: The woodcutter chops a trunk, not the air
-        run: |
-          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/woodcutter.gd | tee woodcutter.log
-          grep -q PASS woodcutter.log
-
-      - name: The smith hammers iron on his anvil, not the air
-        run: |
-          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/smith.gd | tee smith.log
-          grep -q PASS smith.log
-
-      - name: Windmill sails turn with the wind and whoosh test
-        run: |
-          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/windmill.gd | tee windmill.log
-          grep -q PASS windmill.log
-
-      - name: Flags and banners flutter in the wind, more in a storm
-        run: |
-          timeout 200 ~/godot/godot --headless --fixed-fps 60 -s tests/flag_wind.gd | tee flags.log
-          grep -q PASS flags.log
-
-      - name: The wood of the village buildings has its grain along every beam
-        run: |
-          timeout 60 ~/godot/godot --headless --fixed-fps 60 -s tests/kit_wood_grain.gd | tee kit_wood.log
-          grep -q PASS kit_wood.log
-
-      - name: Every other test in tests/ (the ones not named above; not blocking yet)
-        # A new test runs from the day it is added. Until the tests that were never in CI are
-        # known to be green, a failure here is only a warning; see docs/testing.md.
-        continue-on-error: true
-        run: |
-          fail=0
-          for t in tests/*.gd; do
-            n=$(basename "$t")
-            case "$n" in play_all_levels.gd|profile_*.gd) continue;; esac
-            grep -q "tests/$n" .github/workflows/web.yml && continue
-            echo "== $n"
-            timeout 120 ~/godot/godot --headless --fixed-fps 60 -s "$t" > "extra_$n.log" 2>&1 || true
-            if grep -q PASS "extra_$n.log" && ! grep -q FAIL "extra_$n.log"; then
-              echo "ok $n"
-            else
-              echo "::warning::tests/$n did not pass"; tail -n 5 "extra_$n.log"; fail=1
-            fi
-          done
-          exit $fail
-
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Restore Godot from the cache
-        id: cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/godot
-            ~/.local/share/godot/export_templates
-          key: godot-${{ env.GODOT_VERSION }}-web
-
-      - name: Install Godot
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p ~/godot && cd ~/godot
-          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
-          wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
-          wget -q $base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
-          unzip -q Godot_v*_linux.x86_64.zip && mv Godot_v*_linux.x86_64 godot && rm Godot_v*_linux.x86_64.zip
-          templates=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-          mkdir -p $templates
-          unzip -qj Godot_v*_export_templates.tpz templates/web_nothreads_release.zip templates/web_nothreads_debug.zip templates/version.txt -d $templates
-          rm Godot_v*_export_templates.tpz
-
-      - name: Import the project
-        run: ~/godot/godot --headless --import
-
-      - name: Export the browser version
-        run: |
-          sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd
-          grep -q 'const BUILD := "${{ github.run_number }}"' scripts/game.gd
-          mkdir -p build/web
-          ~/godot/godot --headless --export-release Web build/web/index.html
-          # A new file name for the game data on every build, so browsers
-          # cannot keep showing an old version from their cache.
-          v=${{ github.run_number }}
-          # The plain index.pck stays too: a page still cached from an
-          # older release asks for that name.
-          cp build/web/index.pck build/web/index-$v.pck
-          sed -i "s/\"executable\":\"index\"/\"executable\":\"index\",\"mainPack\":\"index-$v.pck\"/; s/\"index.pck\":/\"index-$v.pck\":/" build/web/index.html
-          grep -q "\"mainPack\":\"index-$v.pck\"" build/web/index.html
-          # A page still cached from an older build would ask for a pck that
-          # is gone. version.txt names the live build; the page checks it
-          # without the cache and reloads itself when it is out of date.
-          echo "$v" > build/web/version.txt
-          python3 - "$v" <<'PY'
-          import sys
-          v = sys.argv[1]
-          guard = open("tools/web/version_check.html").read().replace("__BUILD__", v)
-          page = open("build/web/index.html").read()
-          assert "</head>" in page
-          open("build/web/index.html", "w").write(page.replace("</head>", guard + "</head>", 1))
-          PY
-          grep -q "var build = \"$v\"" build/web/index.html
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: build/web
-
-  deploy:
-    if: github.ref == 'refs/heads/main'
-    needs: [tests, build]
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          echo "shards: ${{ needs.shard.result }}"
+          test "${{ needs.shard.result }}" = success

@@ -2300,9 +2300,6 @@ func _build_stonemason() -> void:
 	var room: int = p.bag_size() - p.bag_used()
 	_add_label(Lang.t("Steinmetz"), 38, game.GOLD, game.TITLE_FONT)
 	var header := Lang.t("Dein Kupfer: %d") % game.coins
-	if game.level is Outdoor and not game.level.village_wall.bricks.is_empty():
-		var left: int = game.level.village_wall.mend_left(game.level)
-		header += "  ·  " + Lang.t("Mauerarbeit heute: %d von %d") % [VillageWall.DAILY_MEND - left, VillageWall.DAILY_MEND]
 	var all := mini(room, game.coins / price) if price > 0 else room
 	var have := p.bag.count(STONE)
 	var detail := {"subtitle": TradeWindow.subtitle(STONE), "lines": TradeWindow.stat_lines(STONE) + [

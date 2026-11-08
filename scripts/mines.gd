@@ -112,7 +112,9 @@ static func build_cell(level: Level, c: Vector2i, ch: String) -> bool:
 	var pos := level.cell_to_world(c)
 	match ch:
 		"j":
-			_build_prop(level, c, pos)
+			# The bare timber frame that stood here is gone (plain, unlit boxes);
+			# the letter stays valid on old maps and builds nothing.
+			pass
 		"%":
 			_build_crystals(level, c, pos)
 		"~":
@@ -158,18 +160,6 @@ static func _light(level: Level, pos: Vector3, colour: Color, energy: float, rea
 	light.position = pos
 	level.add_child(light)
 	return light
-
-
-## A timber frame over the tunnel: two posts against the walls and a beam
-## across, so the hero walks under it.
-static func _build_prop(level: Level, c: Vector2i, pos: Vector3) -> void:
-	var wood := _material(WOOD)
-	var across_x := level.cell_char(c + Vector2i(-1, 0)) == "#" or level.cell_char(c + Vector2i(1, 0)) == "#"
-	var half := Level.TILE * 0.5 - 0.3
-	for side in [-1.0, 1.0]:
-		var at := pos + (Vector3(side * half, 1.9, 0) if across_x else Vector3(0, 1.9, side * half))
-		_box(level, at, Vector3(0.4, 3.8, 0.4), wood)
-	_box(level, pos + Vector3(0, 3.7, 0), Vector3(Level.TILE, 0.4, 0.45) if across_x else Vector3(0.45, 0.4, Level.TILE), wood)
 
 
 ## A cluster of glowing crystals growing out of the floor, lighting the cave

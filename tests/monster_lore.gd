@@ -68,7 +68,8 @@ func _ready_up(foe: Enemy) -> void:
 	player._busy = 0.0
 	foe.hp = BIG_HP
 	foe.hardening = 0
-	foe._awake = false
+	foe._awake = true # Aware of the hero, so a blow is never a sneak attack (x3) when the foe has turned.
+	foe.attack_slow = 1.0
 	foe._cooldown = 99.0
 	foe._knockback = Vector3.ZERO
 	foe.wound.stop()
@@ -174,7 +175,8 @@ func _test() -> void:
 	await physics_frame
 	await physics_frame
 	check(foe._cooldown > 1.0 - 2.0 / 60.0 / MonsterLore.SLOW_FACTOR - 0.01 and foe._cooldown < 1.0, "its attacks come round slower: %.3f" % foe._cooldown)
-	foe._awake = false
+	foe._awake = true # Aware of the hero, so a blow is never a sneak attack (x3) when the foe has turned.
+	foe.attack_slow = 1.0
 	foe._lost = 999.0
 	await physics_frame
 	await physics_frame

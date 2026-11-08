@@ -1,20 +1,22 @@
 name: Die Glutstollen
 hint: Unter dem Siegel: Stollen voller Glut, wo der Berg selbst brennt. Halte dich von den glühenden Spalten fern.
-monsters: wildlife, fable
+monsters: wildlife, fable, elementals
 building: mine3b
 lair: ja
 theme: glut
 walls: obsidian
 up: mine3
 down: mine3c
+custom: 1 {"type": "monster", "base": "obsidiangolem"}
+custom: 2 {"type": "monster", "base": "feuerelementar"}
 ################################
 ##E#############################
-##P.,,,~~,,,,g,,,,~~,,,,,,,,f,##
-##.,,,,,~,,,,,,,,,,~,,,J,,,,,,##
+##P.,,,~~,,,,2,,,,~~,,,,,,,,f,##
+##.,,,,,~,,,,,,,,,,~,,,1,,,,,,##
 ##,,g,,,,,,~~~,,,,,,,,,,,~~,,,##
 ####,,,,,,,,~,,,,O,,,,~,,,,,,,##
 ##,,,,~,,,,,,,,,,,,,,,~~,,g,,,##
 ##,J,,~~,,,,O,,,,~,,,,,,,,,,,,##
 ##,,,,,,,,,,,,,,~~~,,,,,,,,^,,##
-##f,,,g,,,,~,,,,,,,,,,J,,,,.,C##
+##f,,,2,,,,~,,,,,,,,,,1,,,,.,C##
 ################################

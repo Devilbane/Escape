@@ -1,10 +1,11 @@
 name: Die versengten Hallen
 hint: Unter dem Hochtal, tief im Fels: Hier haust die Brut des Großen Alten. Hinter einer verschlossenen Tür liegt ein Schatz, und weiter unten schläft der Drache selbst.
-monsters: wildlife, fable
+monsters: wildlife, fable, elementals
 building: uralt1
 lair: ja
 theme: uralt
 down: uralt2
+custom: 2 {"type": "monster", "base": "feuerelementar"}
 ################################
 ##E#############################
 ##P......#######.......d.....###
@@ -13,7 +14,7 @@ down: uralt2
 ##.......#######.......d.....###
 ####,##################,########
 ####,##################,########
-##.....O.....######.....g....K##
+##.....O.....######.....2....K##
 ##..o.....o..,,,,,,,..o....d.###
 ##.....d.....######.....J....###
 ####D####################,######

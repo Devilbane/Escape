@@ -1,15 +1,16 @@
 name: Das Herz des Berges
 hint: Ganz unten, wo die Glut am hellsten ist, thront der Bergkönig auf dem Gold der Zwerge. Weich seinen schweren Schlägen aus.
-monsters: wildlife, fable
+monsters: wildlife, fable, elementals
 building: mine3c
 lair: ja
 theme: glut
 up: mine3b
+custom: 2 {"type": "monster", "base": "feuerelementar"}
 ##########################
 ##E#######################
 ##P.,,,,~~,,,,,,~~,,,,,f##
 ##.,,,,,,,,,,,,,,,,,,,,,##
-##,,g,,,,,,,,,,,,,,,,,g,##
+##,,2,,,,,,,,,,,,,,,,,2,##
 ##~,,,,,,,,,,Y,,,,,,,,,~##
 ##~~,,,,,,,,,,,,,,,,,,~~##
 ##,,,,,,,,,,,,,,,,,,,,,,##

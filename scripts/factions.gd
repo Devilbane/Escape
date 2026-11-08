@@ -36,6 +36,7 @@ const KINDS := {
 	# and cannot be won over.
 	"eiswolf": "mountain", "bergork": "mountain", "felstroll": "mountain", "klippenschuetze": "mountain",
 	"kristallschleim": "mountain", "glutschleim": "mountain", "bergkoenig": "mountain",
+	"feuerelementar": "mountain", "obsidiangolem": "mountain", "steingolem": "mountain", "kristallgolem": "mountain",
 	# The Great Old One and its brood below the high valley (see ElderLair).
 	"brutdrache": "elder", "grosser_alter": "elder",
 }

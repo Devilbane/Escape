@@ -73,6 +73,7 @@ func _fresh() -> void:
 
 
 func _run() -> void:
+	GrateTentacles.everywhere = true
 	var p: Player = game.player
 	p.xp.clear()
 	p.equipped.clear()

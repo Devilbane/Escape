@@ -20,11 +20,17 @@ extends Node3D
 ##      that grate rests for REST seconds.
 ##
 ## Only one tentacle stirs on a level at a time. None live under the grates
-## of the first cell, of safe places, homes or the open air (see make).
+## of the first cell, of safe places, homes or the open air, and none at all
+## unless the level is listed in LAIR_FILES (see make).
 
 ## Level files without tentacles (the cell the hero wakes in: let them learn
 ## to walk first).
 const CALM_FILES := ["01_die_zelle.txt"]
+## Level files whose grates hide tentacles. Ordinary floor grates are only decoration,
+## so none by default: a level opts in by being listed here.
+const LAIR_FILES: Array[String] = []
+## Overridden by the test: every level with grates gets tentacles.
+static var everywhere := false
 ## How close (metres, flat) the hero must be to a grate's middle for a roll.
 ## A grate tile is Level.TILE (4 m) across.
 const NEAR := 2.4
@@ -99,6 +105,8 @@ static func make(owner_level: Level) -> GrateTentacles:
 	if owner_level.grates.is_empty() or owner_level.outdoor or owner_level.is_home or owner_level.safe:
 		return null
 	if owner_level.file in CALM_FILES:
+		return null
+	if not everywhere and not owner_level.file.get_file() in LAIR_FILES:
 		return null
 	var g := GrateTentacles.new()
 	g.level = owner_level

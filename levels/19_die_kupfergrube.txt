@@ -5,6 +5,7 @@ building: mine1
 lair: ja
 elite: ja
 theme: kupfer
+walls: rock
 ##############################
 ##E###########################
 ##P..,j,,,,f##########,,,,,f##

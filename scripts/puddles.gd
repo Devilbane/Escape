@@ -667,7 +667,7 @@ func _ring(at: Vector3, reach: float) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.9, 0.96, 1.0, 0.7)
+	mat.albedo_color = Color(0.8, 0.88, 0.95, 0.4)
 	torus.material = mat
 	mi.mesh = torus
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

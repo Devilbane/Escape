@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- Four new cave styles for walls and floors: bone, rock, obsidian and glowing crystal. The Bone Pit and Bone Gallery, Copper Mine, Crystal Grotto and Ember Tunnels now wear them.
 - Ghostly voices (moans, a banshee's shriek, the whispers out of the holes) and bandit taunts now also appear in the event log.
 - New dungeon level: the Great Old One's lair (level 25) with traps, secret rooms, bones and a spread-out hoard.
 - Townsfolk now hold the village wall against slimes until it breaks, and the wall sits in the narrow neck by the village.

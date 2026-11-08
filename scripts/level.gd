@@ -311,6 +311,9 @@ var inn := false
 ## The setting of a mine floor (header "theme:", see Mines): its light and
 ## look. "" for every other level.
 var theme := ""
+## The cave style of this map's walls and floors (header "walls:", see
+## WallThemes): "bone", "rock", "obsidian" or "crystal". "" for the stone dungeon.
+var wall_style := ""
 ## The families of monsters that naturally live here (header "monsters:",
 ## see MonsterFamilies).
 var monster_families: Array[String] = []
@@ -538,6 +541,8 @@ func load_from_file(path: String) -> void:
 			is_home = true
 		elif line.begins_with("theme:"):
 			theme = line.substr(6).strip_edges()
+		elif line.begins_with("walls:"):
+			wall_style = line.substr(6).strip_edges()
 		elif line.begins_with(MonsterFamilies.HEADER + ":"):
 			monster_families = MonsterFamilies.parse(line.substr(MonsterFamilies.HEADER.length() + 1))
 		elif line.begins_with("down:"):
@@ -907,7 +912,14 @@ func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
 	kit.scale = part[3]
 	kit.rotation.y = part[4]
 	parent.add_child(kit)
-	var mat := _kit_material(part[1])
+	var set_name: String = part[1]
+	if WallThemes.known(wall_style):
+		# A cave style dresses walls, pillars and floors alike.
+		if model == "SM_Pillar":
+			set_name = "walls"
+		elif model == "SM_RockyFloor":
+			set_name = "floor_rough"
+	var mat := _kit_material(set_name)
 	if model.ends_with("Flag"):
 		mat = WornLook.material(load(KIT_DIR + part[1] + "_albedo.png"), load(KIT_DIR + part[1] + "_normal.png"), _wear(), true)
 	for mi: MeshInstance3D in kit.find_children("*", "MeshInstance3D", true, false):
@@ -1013,6 +1025,12 @@ const STONE_SHADER := preload("res://shaders/stone.gdshader")
 
 func _kit_material(set_name: String) -> Material:
 	var key := "mat_" + set_name
+	if WallThemes.known(wall_style) and set_name in ["walls", "floor", "floor_rough"]:
+		key = "mat_%s_%s" % [wall_style, set_name]
+		if not _scenes.has(key):
+			var surface := WallThemes.WALL if set_name == "walls" else (WallThemes.ROUGH_FLOOR if set_name == "floor_rough" else WallThemes.FLOOR)
+			_scenes[key] = WallThemes.material(wall_style, surface)
+		return _scenes[key]
 	if not _scenes.has(key) and set_name == "walls":
 		# Walls get rough, stained stone instead of the kit's smooth brick faces.
 		var stone := ShaderMaterial.new()

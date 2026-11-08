@@ -8,7 +8,7 @@ extends RefCounted
 ## The header lines the game reads (see Level.load_from_file, Creations,
 ## Traps.parse_header). Any other line is a row of the map.
 const KEYS := ["name", "hint", "secret", "monsters", "safe", "elite", "building", "lair", "dark", "horror",
-		"home", "theme", "down", "up", "seal", "inn", "floor", "outdoor", "fountain", "traps", "writing", "custom",
+		"home", "theme", "walls", "down", "up", "seal", "inn", "floor", "outdoor", "fountain", "traps", "writing", "custom",
 		"respawn", "sure", "hatch"]
 ## Tiles the hero cannot walk through (walls and Level.FURNITURE); "?" (a
 ## secret wall), "Q" (a block that can be pushed) and "x" (crates, which the

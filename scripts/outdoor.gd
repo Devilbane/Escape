@@ -1605,7 +1605,9 @@ func _whisper_from_holes(delta: float) -> void:
 		if d < reach:
 			var near := 1.0 - d / reach
 			Sfx.play(self, "eerie_%d" % (randi() % 6), lerpf(-20.0, -8.0, near), pos, 0.8)
-			Effects.float_text(self, pos + Vector3(0, 1.4, 0), Lang.t(WHISPERS[randi() % WHISPERS.size()]), Color(0.62, 0.64, 0.8, lerpf(0.4, 0.85, near)))
+			var whisper := Lang.t(WHISPERS[randi() % WHISPERS.size()])
+			Effects.float_text(self, pos + Vector3(0, 1.4, 0), whisper, Color(0.62, 0.64, 0.8, lerpf(0.4, 0.85, near)))
+			Events.say(Lang.t("Ein Flüstern"), whisper, pos)
 			return
 
 

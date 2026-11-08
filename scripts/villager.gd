@@ -495,7 +495,10 @@ func _mend(delta: float) -> void:
 		get_tree().create_timer(0.45).timeout.connect(func():
 			if is_inside_tree() and _task == "mend":
 				Sfx.play(self, "hit", -14.0, global_position, 0.8))
-	if brick.mend(VillageWall.MEND_PER_SECOND * delta):
+	var strength := wall.take_mend(level, VillageWall.MEND_PER_SECOND * delta)
+	if strength > 0.0 and brick.mend(strength):
+		_finish_mending()
+	elif wall.mend_left(level) <= 0:
 		_finish_mending()
 
 
@@ -1581,7 +1584,7 @@ func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := fals
 	# cover each other and neither could be read.
 	for other in _neighbours():
 		other.hush()
-	_bubble.show_line(display_name, text)
+	_bubble.show_line(display_name, text, true)
 	Events.say(display_name, text, global_position)
 	_bubble_time = time
 	_bubble_hold = minf(time, MIN_SAY_TIME)

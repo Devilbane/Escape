@@ -74,6 +74,19 @@ static func brewed(brew_points: int) -> String:
 	return best
 
 
+## Odds of a potion found in furniture: weak up to the first share, medium up
+## to the second, strong beyond.
+const LOOT_WEAK := 0.70
+const LOOT_MEDIUM := 0.95
+
+
+## The potion a rolled number (0 to 1) turns into when found in furniture.
+static func loot_potion(roll: float) -> String:
+	if roll < LOOT_WEAK:
+		return "heiltrank_schwach"
+	return "heiltrank" if roll < LOOT_MEDIUM else "heiltrank_stark"
+
+
 ## The next stronger potion after this one, or "" for the strongest.
 static func next_of(id: String) -> String:
 	var ids := POTIONS.keys()

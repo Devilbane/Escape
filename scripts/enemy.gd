@@ -462,6 +462,33 @@ func _fit_area() -> void:
 	rated_level = fit_level(kind, _stats, hardening, HeroLevel.area_target(area, rated_level), HeroLevel.AREAS[area].max)
 
 
+## A named monster (one given a name in the map workshop, shown over its head)
+## that is not a warden or a boss is a step above its plain kin: NAMED_HP_MULT
+## times the life, NAMED_DAMAGE_MULT times the blow (at least one more) and
+## NAMED_ARMOR_BONUS more hardening. The one place to tune them. A number its
+## maker set by hand ("hp", "damage", "armor") is the maker's call and stays.
+const NAMED_HP_MULT := 1.75
+const NAMED_DAMAGE_MULT := 1.25
+const NAMED_ARMOR_BONUS := 1
+
+
+## Whether this is a named monster that gets the NAMED_* step up.
+func is_named_elite() -> bool:
+	return str(custom.get("title", "")) != "" and not is_level_boss() and not self is SternBoss
+
+
+func _toughen_named() -> void:
+	if not is_named_elite():
+		return
+	if not custom.has("hp"):
+		_stats.hp = ceili(float(_stats.hp) * NAMED_HP_MULT)
+	if not custom.has("damage"):
+		_stats.damage = maxi(int(_stats.damage) + 1, roundi(float(_stats.damage) * NAMED_DAMAGE_MULT))
+	if not custom.has("armor"):
+		hardening += NAMED_ARMOR_BONUS
+	rated_level = _rating()
+
+
 func _rating() -> int:
 	return HeroLevel.rate(kind, int(_stats.hp), int(_stats.damage), hardening, float(_stats.cooldown))
 
@@ -521,7 +548,7 @@ func _add_title(text: String, size: float) -> void:
 	tag.no_depth_test = true
 	tag.render_priority = 18
 	tag.outline_render_priority = 17
-	tag.position.y = tall + 0.5
+	tag.position.y = tall + 0.5 + (SlimeBar.NAME_LIFT if SlimeBar.for_big(self) else 0.0)
 	add_child(tag)
 
 
@@ -569,6 +596,7 @@ func _ready() -> void:
 	_stats.cooldown /= 1.0 + 0.2 * power
 	_stats.damage += power / 2
 	_fit_area()
+	_toughen_named()
 	if SlimeGrowth.grows(kind):
 		SlimeGrowth.born(self)
 	ranged = _stats.get("ranged", false)
@@ -609,6 +637,9 @@ func _ready() -> void:
 	_stride_size = size * (float(_stats.model_scale) if is_beast() else 1.0)
 	if _stats.has("title"):
 		_add_title(str(_stats.title), size)
+	# A big monster shows its life and level like a slime does (see SlimeBar).
+	if SlimeBar.for_big(self):
+		add_child(SlimeBar.new(self))
 	if is_human():
 		_dress()
 	if is_beast():
@@ -1200,6 +1231,7 @@ func _shriek(player: Player) -> void:
 	var color: Color = _stats.get("aura", _stats.ghost)
 	Sfx.play(self, "banshee_shriek", 4.0, global_position)
 	Effects.head_text(level, self, 3.0, Lang.t("KREISCH!"), color)
+	Events.say(_speaker_name(), Lang.t("KREISCH!"), global_position)
 	Events.tell(Lang.t("Eine Banshee kreischt! Ihr Schrei weckt alles in der Nähe."), color)
 	var reach: float = _stats.shriek
 	for e in level.enemies:
@@ -2308,7 +2340,9 @@ func _voice(delta: float, dist: float) -> void:
 	if is_human():
 		# A bandit has no groan of its own: it shouts while it hunts.
 		if _awake:
-			Effects.float_text(level, global_position + Vector3(0, 3.0 * _stats.size, 0), Lang.t(TAUNTS[randi() % TAUNTS.size()]), Color(1.0, 0.85, 0.6, 0.9))
+			var taunt := Lang.t(TAUNTS[randi() % TAUNTS.size()])
+			Effects.float_text(level, global_position + Vector3(0, 3.0 * _stats.size, 0), taunt, Color(1.0, 0.85, 0.6, 0.9))
+			Events.say(_speaker_name(), taunt, global_position)
 		return
 	var db := lerpf(-28.0, 2.0, pow(near, 1.4)) + (3.0 if _awake else 0.0)
 	# A beast growls with a skeleton's voice, pitched to its size.
@@ -2322,6 +2356,21 @@ func _voice(delta: float, dist: float) -> void:
 		if near > 0.6:
 			word = word.to_upper() + "!"
 		Effects.float_text(level, global_position + Vector3(0, 1.6, 0), word, Color(0.75, 0.72, 0.8, lerpf(0.4, 0.9, near)))
+	# A ghost's moan is words out of the dark: the event log writes it down too.
+	if is_ghost() and word_of(voice) != "":
+		Events.say(_speaker_name(), word_of(voice), global_position)
+
+
+## The word a monster's voice makes, translated ("" when it has none).
+func word_of(voice: Array) -> String:
+	return Lang.t(str(voice[2])) if str(voice[2]) != "" else ""
+
+
+## The name the event log writes before this monster's spoken words.
+func _speaker_name() -> String:
+	if _stats.has("title"):
+		return Lang.t(str(_stats.title))
+	return Lang.t(MonsterLore.monster_name(kind))
 
 
 ## Caught on a table corner or a door frame: step aside for a moment and

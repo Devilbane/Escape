@@ -41,16 +41,9 @@
 - Falling rocks in Sternhall's vaults hit harder: a direct hit now takes about a quarter of your life.
 - New dungeon level: the Great Old One's lair (level 25) with traps, secret rooms, bones and a spread-out hoard.
 - Townsfolk now hold the village wall against slimes until it breaks, and the wall sits in the narrow neck by the village.
-- Monsters with over 100 health show a health bar and their level, like slimes do.
-- Slimes show a health bar and level; a monster's name and level appear on your first hit, and its level, XP and health when it falls.
-- Throwing knives refill automatically when your belt runs empty.
-- Your purse is counted up into silver and gold without converting the coins.
-- A vital blow rings a star around the hero.
-- Steps through puddles are splashier and wetter.
-- The moon's shadows reach further, so mountain shadows no longer jump.
-- The event log has an always-visible chat line beneath it.
 
 ## Earlier this week
+- Smaller touches: knives refill from the belt, purses count up into silver and gold, a star rings a vital blow, splashier puddles, steadier moon shadows, a chat line under the event log and health bars with levels on slimes and big monsters.
 - A cape wardrobe in the house, a new app icon and aged entrances for the mine, the Great Old One's lair and the Ashen Spire.
 - The village is built of aged stone with ivy and paved paths; nights can be nearly pitch black and moonlight changes with the moon's phase. Light your torch with V.
 - Crystal mining in the Crystal Grotto, cut into jewellery, and a new dungeon: sneak into the Great Old One's lair.

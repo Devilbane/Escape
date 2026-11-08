@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- The event log has a slim scroll bar you can drag to read older messages.
 - New dungeon level: the Great Old One's lair (level 25) with traps, secret rooms, bones and a spread-out hoard.
 - Townsfolk now hold the village wall against slimes until it breaks, and the wall sits in the narrow neck by the village.
 - Slimes show a health bar and level; a monster's name and level appear on your first hit, and its level, XP and health when it falls.

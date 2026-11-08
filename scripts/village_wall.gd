@@ -9,7 +9,8 @@ extends RefCounted
 ## open them again OPEN_AFTER seconds after the last slime has left or
 ## fallen. A gate is never shut while somebody stands in it.
 ##
-## A slime that cannot get at what it hunts because the wall is in the way
+## Every slime outside the wall with nothing else to hunt makes for the nearest
+## brick (see siege_brick); one that cannot get at what it hunts because the wall is in the way
 ## attacks the wall (see Enemy._plan_route). Each brick has 1000 HP and a
 ## slime's blow does ACID times its damage to stone. Afterwards the village's
 ## stonemason (Villager "S") walks to the hurt bricks, one by one, and
@@ -21,7 +22,7 @@ const CHECK_EVERY := 1.0
 const WATCH_RANGE := 36.0
 const OPEN_AFTER := 8.0
 ## A slime's blow does this many times its damage to the wall.
-const ACID := 12
+const ACID := 24
 ## The stonemason's work: HP built up per second, and how near a slime
 ## may be (metres) before he leaves the wall alone.
 const MEND_PER_SECOND := 25.0
@@ -32,6 +33,9 @@ const DAILY_MEND := 300
 const GATE_ROOM := 2.0
 ## A slime this close to a brick (metres, to its body) goes for it when blocked.
 const SIEGE_REACH := 6.0
+## A slime outside the wall that has nothing else to hunt makes for the nearest
+## brick within this distance (metres) and eats into it (see Enemy._scout_wall).
+const SIEGE_SIGHT := 30.0
 ## How long the gates wait for villagers still outside to come in (seconds).
 const GRACE := 7.0
 ## The most villagers that take up a post at the wall at a time: everyone who can fight.
@@ -312,6 +316,21 @@ func target_for(slime: Node3D, goal: Vector3) -> WallBrick:
 			continue
 		var d := b.nearest_point(goal).distance_to(goal)
 		if d < best_d:
+			best = b
+			best_d = d
+	return best
+
+
+## The standing brick a slime outside the wall besieges: the nearest within
+## SIEGE_SIGHT. Null when it is inside the wall, or none is near.
+func siege_brick(slime: Node3D) -> WallBrick:
+	if bricks.is_empty() or is_inside(slime.level.world_to_cell(slime.global_position)):
+		return null
+	var best: WallBrick = null
+	var best_d := SIEGE_SIGHT
+	for b: WallBrick in bricks.values():
+		var d := b.distance_from(slime.global_position)
+		if b.blocks() and d < best_d:
 			best = b
 			best_d = d
 	return best

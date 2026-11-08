@@ -9,7 +9,7 @@ class_name EmberCracks
 ## Layers, from the outside in: scorched stone, a dull red rim and the
 ## glowing embers, with dark plates of crust floating on them and bright
 ## seams between the plates. Each layer
-## is one mesh for the whole floor. A crack tile stays solid and has a flame.
+## is one mesh for the whole floor. A crack tile can be walked on but burns the hero (see scorch) and has a flame.
 ##
 ## The cracks light their surroundings like a torch (same colour, energy and
 ## reach as a wall torch, see Level.TORCH_COLOUR) and flicker the same way.
@@ -42,8 +42,19 @@ const LAYERS := {
 const GAP := 0.1
 const SEAM := 0.035
 
+## Damage in life per second: on a crack tile, and merely close to one.
+const DAMAGE_ON := 3.0
+const DAMAGE_NEAR := 1.0
+## How close to a crack's edge, in tiles, the hero feels its heat.
+const NEAR_RADIUS := 1.0
+## Walkers' path finding counts a crack tile as this many steps.
+const DETOUR := 8.0
+const BURN_COLOUR := Color(1.0, 0.5, 0.15)
+
 const META := "ember_cracks"
 const LIGHTS_META := "ember_lights"
+const OWED := "ember_owed"
+const TOLD := "ember_told"
 ## Crack tiles within this many tiles of a cluster's first tile share its light.
 const CLUSTER_TILES := 3.0
 ## Most ember lights that shine at once: the ones nearest to the hero.
@@ -62,7 +73,53 @@ static func build(level: Level, c: Vector2i, pos: Vector3) -> void:
 	flame.position = pos + Vector3(rng.randf_range(-0.5, 0.5), 0.4, rng.randf_range(-0.5, 0.5))
 	flame.scale = Vector3.ONE * rng.randf_range(1.0, 1.4)
 	level.add_child(flame)
-	level._add_solid(pos, Vector3(Level.TILE * 0.9, 1.0, Level.TILE * 0.9))
+
+
+## Life per second lost at `p` (in the level's space): DAMAGE_ON on a crack
+## tile, DAMAGE_NEAR within NEAR_RADIUS tiles of one, else 0.
+static func damage_rate(level: Level, p: Vector3) -> float:
+	var cells: Dictionary = _data(level).cells
+	var home := Vector2i(roundi(p.x / Level.TILE), roundi(p.z / Level.TILE))
+	if cells.has(home):
+		return DAMAGE_ON
+	var reach := int(ceil(NEAR_RADIUS)) + 1
+	for dy in range(-reach, reach + 1):
+		for dx in range(-reach, reach + 1):
+			var c := home + Vector2i(dx, dy)
+			if not cells.has(c):
+				continue
+			var gap := Vector2(absf(p.x - c.x * Level.TILE), absf(p.z - c.y * Level.TILE)) - Vector2.ONE * Level.TILE * 0.5
+			if Vector2(maxf(gap.x, 0.0), maxf(gap.y, 0.0)).length() <= NEAR_RADIUS * Level.TILE:
+				return DAMAGE_NEAR
+	return 0.0
+
+
+## Burns the hero for `delta` seconds at damage_rate. Fractions of a life add
+## up until a whole one is lost. The first burn of a visit is told once.
+## Like other burns it never takes the last life, so a lost hero can walk out.
+static func scorch(level: Level, hero: Player, delta: float) -> void:
+	if hero.dead or not level.has_meta(LIGHTS_META):
+		return
+	var rate := damage_rate(level, hero.global_position)
+	var owed: float = hero.get_meta(OWED, 0.0) + rate * delta
+	if rate <= 0.0:
+		hero.set_meta(OWED, 0.0)
+		return
+	if not level.has_meta(TOLD):
+		level.set_meta(TOLD, true)
+		Events.tell(Lang.t("Die Glut versengt dich! Nahe der Risse brennt es, auf ihnen noch mehr."), BURN_COLOUR, 5.0)
+	var lost := mini(int(owed), hero.hp - 1)
+	hero.set_meta(OWED, owed - int(owed))
+	if lost > 0:
+		hero.scorched(lost, BURN_COLOUR)
+
+
+## Makes path finding avoid the crack tiles without forbidding them.
+static func detour(level: Level) -> void:
+	if not level.has_meta(LIGHTS_META):
+		return
+	for c in _data(level).cells:
+		level.astar.set_point_weight_scale(c, DETOUR)
 
 
 ## The heat of the floor at `p` (in the level's space): about 1 in the

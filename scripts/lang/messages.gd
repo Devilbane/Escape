@@ -2,6 +2,7 @@ extends RefCounted
 ## English texts: Messages. Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
+	"Die Glut versengt dich! Nahe der Risse brennt es, auf ihnen noch mehr.": "The embers scorch you! It burns near the cracks, and more on them.",
 	"Die Tür öffnet sich knarrend...": "The door creaks open...",
 	"Verschlossen. Finde den Schlüssel!": "Locked. Find the key!",
 	"Du hast den Schlüssel gefunden!": "You found the key!",

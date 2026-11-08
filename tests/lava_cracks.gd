@@ -2,7 +2,7 @@ extends SceneTree
 ## Headless test for the glowing ember cracks ("~") of the ember tunnels
 ## below mine 3 (see EmberCracks): they are drawn as one rough, uneven shape
 ## over the whole floor, with no square tile showing, and cracks on
-## neighbouring tiles run together into one crack. They stay solid.
+## neighbouring tiles run together into one crack. They can be walked on and burn.
 ## Run with: godot --headless --fixed-fps 60 -s tests/lava_cracks.gd
 ## With SHOTS=<folder> and a display it also saves screenshots there.
 
@@ -146,12 +146,31 @@ func _run() -> void:
 	check(reaches.max() - reaches.min() > Level.TILE * 0.12, "the edge of a crack is rough, not round or square")
 	check(reaches.max() < Level.TILE * 0.85, "a crack's glow stays near its tile")
 
-	# Still too hot to cross.
-	var solid := {}
+	# Walkable, but they burn: 3 life a second on one, 1 near one.
+	var solid := 0
 	for shape in level._walls_body.get_children():
 		if shape is CollisionShape3D and cracks.has(level.world_to_cell(shape.position)):
-			solid[level.world_to_cell(shape.position)] = true
-	check(solid.size() == cracks.size(), "every crack is still solid")
+			solid += 1
+	check(solid == 0, "no crack blocks the way")
+	for c in cracks:
+		check(not level.astar.is_point_solid(c), "crack %s is not solid for path finding" % c)
+		check(level.astar.get_point_weight_scale(c) > 1.0, "walkers avoid crack %s when they can" % c)
+		check(is_equal_approx(EmberCracks.damage_rate(level, level.cell_to_world(c)), EmberCracks.DAMAGE_ON), "standing on crack %s burns for DAMAGE_ON" % c)
+	check(EmberCracks.DAMAGE_ON == 3.0 and EmberCracks.DAMAGE_NEAR == 1.0, "3 life a second on a crack, 1 near")
+	check(is_equal_approx(EmberCracks.damage_rate(level, level.cell_to_world(lone) + Vector3(Level.TILE * 0.9, 0, 0)), EmberCracks.DAMAGE_NEAR) or cracks.has(lone + Vector2i(1, 0)), "next to a crack burns for DAMAGE_NEAR")
+	check(EmberCracks.damage_rate(level, level.cell_to_world(lone) + Vector3(Level.TILE * (0.5 + EmberCracks.NEAR_RADIUS + 0.3), 0, 0)) < EmberCracks.DAMAGE_NEAR or cracks.has(lone + Vector2i(2, 0)) or cracks.has(lone + Vector2i(1, 0)), "far from a crack it does not burn")
+	var hero: Player = game.player
+	hero.hp = hero.max_hp
+	hero.global_position = level.cell_to_world(lone)
+	hero.set_meta(EmberCracks.OWED, 0.0)
+	for i in 60:
+		EmberCracks.scorch(level, hero, 1.0 / 60.0)
+	check(hero.hp == hero.max_hp - 3, "a second on a crack costs 3 life (hp %d of %d)" % [hero.hp, hero.max_hp])
+	hero.hp = 2
+	for i in 120:
+		EmberCracks.scorch(level, hero, 1.0 / 60.0)
+	check(hero.hp == 1 and not hero.dead, "the embers never take the last life")
+	check(level.has_meta(EmberCracks.TOLD), "the first burn is told once")
 
 	# The cracks shine like torches, with few real lights.
 	var lights: Array = level.get_meta(EmberCracks.LIGHTS_META)

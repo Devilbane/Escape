@@ -135,7 +135,7 @@ func _run() -> void:
 	var far := lvl.stone_drop_spot(upper, p.global_position + Vector3(0, 0, Level.STONE_DRAG_RANGE + 3.0), true, p)
 	check(not far.ok, "a block cannot be thrown too far")
 	# (Stepped back first: the hero would stand in the way of a block lying along x.)
-	_place(p, field + Vector3(2.0, 0, 0))
+	_place(p, field + Vector3(3.5, 0, 0))
 	await _wait(3)
 	var onto := lvl.stone_drop_spot(upper, bottom.global_position, true, p)
 	check(onto.ok and onto.layer == 1, "a dragged block turned along x lands on top of another")

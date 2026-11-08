@@ -126,6 +126,9 @@ func _run() -> void:
 	check(game.put_down_crate() != "", "without a crate there is nothing to set down")
 
 	# Walk at the pedestal: up the step, up the stack, and eat.
+	# (The hero already ate from the basket while standing on the stack: refill it.)
+	lvl._basket.full = true
+	lvl._basket.food.visible = true
 	p.hp = 1
 	_place(p, base + Vector3(step_x + 2.6, 0, 0))
 	await _wait(3)

@@ -1,11 +1,12 @@
 name: Die Kupfergrube
 hint: Die erste Mine: alte Kupferstollen, von Balken gestützt. Bergorks schürfen hier, und die toten Bergleute gehen noch um. Ganz hinten steht eine Tafel der Zwerge.
-monsters: undead, fable
+monsters: undead, fable, elementals
 building: mine1
 lair: ja
 elite: ja
 theme: kupfer
 walls: rock
+custom: 1 {"type": "monster", "base": "steingolem"}
 ##############################
 ##E###########################
 ##P..,j,,,,f##########,,,,,f##
@@ -14,7 +15,7 @@ walls: rock
 ###,####,,,,#######,,,j,######
 ###,####,,O,,,,,M,,,,,,,,,C###
 ###j####,,,,###########,,,,,##
-##,,,,,,,,,,###########,,O,,##
+##,,,,,,,,,,###########,,1,,##
 ##x,M,,,,,,j,,,,,,A,,,,,,,,b##
 ##,,,,,b,,,,###########,,,,,##
 ##############################

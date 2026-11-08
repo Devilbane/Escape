@@ -1,11 +1,12 @@
 name: Die Zwergenbinge
 hint: Die dritte Mine: die alten Hallen der Zwerge. Bergorks und Felstrolle haben sie besetzt, und untote Schützen halten die Galerien. Ein Siegel mit zwei Runen verschließt den Schacht in die Tiefe.
-monsters: undead, fable
+monsters: undead, fable, elementals
 building: mine3
 lair: ja
 theme: zwerge
 down: mine3b
 seal: runen
+custom: 1 {"type": "monster", "base": "steingolem"}
 #################################
 ##E##############################
 ##P..o...f...o..##..O...o...f..##
@@ -17,5 +18,5 @@ seal: runen
 ##..............##.............##
 ##f...o.....o..,,,,,O...o..k..f##
 ##..............##.......^.....##
-##.......J......##.......,.....##
+##.......1......##.......,.....##
 #################################

@@ -10,6 +10,14 @@ instead of half an hour. The tests that block are listed in `tests/ci_manifest.t
 it needs `--fixed-fps 60`, how it counts as passed); `tests/ci_shard.sh` runs every n-th one, 8 shards in a
 matrix. The same script runs locally: `tests/ci_shard.sh blocking 0 1` runs them all.
 
+A test that fails is run once more. If it passes the second time it is reported as **flaky** (a warning on the run
+and a line in the job summary) and does not block; a test that fails twice blocks. Treat every flaky report as a
+bug in the test: seed the randomness (`seed(n)` in `_initialize`), wait for events or physics frames instead of
+wall time, and read values such as `max_hit()` before the blow that trains a skill.
+
+A pull request that changes only documentation (`docs/`, `balance/`, `*.md`) skips the shards; `tests` still
+reports green. The full suite, extra shards included, also runs every night on main.
+
 Every other `tests/*.gd` (not `profile_*.gd` and not the play-through) runs in 4 non-blocking `extra` shards.
 A new test therefore runs from the day it is added without an entry anywhere; it only warns until it has
 been run in CI for a while. Fix it and add a line to `tests/ci_manifest.txt` to make it block.
@@ -45,3 +53,15 @@ workflow, `.github/workflows/playthrough.yml`. It runs
 - by hand: Actions > Full play-through > Run workflow.
 
 On any other pull request the job starts, finds nothing to do and ends within seconds.
+
+## Merge safety: test every pull request on current main
+
+Two pull requests that each pass alone can break main together. In the repository settings
+(Settings > Branches > branch protection rule for `main`, or Settings > Rules > Rulesets) turn on:
+
+1. **Require status checks to pass before merging**, with the single check `tests` (never `build`, `tests-shard (n)` or `extra-tests (n)`).
+2. **Require branches to be up to date before merging** ("strict" status checks). A pull request that is behind main
+   then has to be updated and re-tested before it can merge. Or, better when several pull requests land at once,
+   **Require merge queue**: GitHub merges each pull request on top of the queue and tests that result.
+
+`web.yml` already listens to `merge_group`, so `tests` runs for queued merges.

@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  merge_group:
+  # The full suite every night on main, so that a slow regression shows up even on a quiet day.
+  schedule:
+    - cron: "43 2 * * *"
 
 permissions:
   contents: read
@@ -17,6 +21,30 @@ env:
   GODOT_VERSION: 4.7.2
 
 jobs:
+  # Decides whether the tests have to run. A pull request that changes only documentation (docs/, *.md,
+  # the balance sheets) cannot break a headless test, so its shards are skipped and `tests` still reports
+  # green. Everything else (pushes to main, the nightly run, manual runs, any other change) runs in full.
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      full: ${{ steps.scope.outputs.full }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then echo "full=true" >> "$GITHUB_OUTPUT"; echo "Full run ($EVENT)."; exit 0; fi
+          other=$(git diff --name-only "$BASE"...HEAD | grep -Ev '^(docs/|balance/|.*\.md$|\.gitattributes$|LICENSE)' || true)
+          if [ -n "$other" ]; then
+            echo "full=true" >> "$GITHUB_OUTPUT"; echo "Code changed, full run:"; echo "$other"
+          else
+            echo "full=false" >> "$GITHUB_OUTPUT"; echo "Only documentation changed: the tests are skipped."
+          fi
+
   # The fast checks: the gate for pull requests, and what the Windows build on main waits for
   # (desktop.yml). The browser export is optional and lives in browser.yml.
   # The tests are split into parallel shards (tests/ci_shard.sh, the list is tests/ci_manifest.txt).
@@ -24,6 +52,8 @@ jobs:
   # and what the Windows build waits for, however many shards there are.
   shard:
     name: tests-shard (${{ matrix.shard }})
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -64,6 +94,8 @@ jobs:
   # only warns until it is listed (see docs/testing.md). Not part of `tests`, so it never blocks a merge.
   extra:
     name: extra-tests (${{ matrix.shard }})
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
@@ -101,13 +133,15 @@ jobs:
       - name: Extra tests of this shard (a failure is only a warning)
         run: tests/ci_shard.sh extra ${{ matrix.shard }} 4
 
-  # The one required check. It passes when every blocking shard passed.
+  # The one required check. It passes when every blocking shard passed, or when the shards were skipped
+  # on purpose (a documentation-only pull request).
   tests:
     if: always()
-    needs: [shard]
+    needs: [scope, shard]
     runs-on: ubuntu-latest
     steps:
       - name: All shards must have passed
         run: |
-          echo "shards: ${{ needs.shard.result }}"
-          test "${{ needs.shard.result }}" = success
+          echo "scope: full=${{ needs.scope.outputs.full }}, shards: ${{ needs.shard.result }}"
+          if [ "${{ needs.scope.result }}" != success ]; then exit 1; fi
+          if [ "${{ needs.scope.outputs.full }}" = false ]; then test "${{ needs.shard.result }}" = skipped; else test "${{ needs.shard.result }}" = success; fi

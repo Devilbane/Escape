@@ -64,6 +64,7 @@ func _line_up(count: int) -> bool:
 	for i in crowd.size():
 		var e := crowd[i]
 		e.hp = BIG_HP
+		e.wound.stop() # An open wound from an earlier blow would bleed away life and fake a hit.
 		e._cooldown = 99.0
 		e.global_position = player.global_position + Vector3(0.9 * (i - (count - 1) * 0.5), 0, 1.8)
 		e.velocity = Vector3.ZERO

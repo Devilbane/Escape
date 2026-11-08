@@ -40,6 +40,9 @@ const TRAIN_ATTRIBUTE_RATE := 0.03
 const TRAIN_SKILL_RATE := 0.06
 const STUDY_SKILL_RATE := 0.05
 const STUDY_MIND_RATE := 0.004
+## A book teaches for this many in-game hours of reading, then it is used up:
+## it stays an item (the bookshelf keeps it) but teaches nothing more.
+const BOOK_HOURS := 100
 
 ## The attributes that can be trained on purpose. Weisheit only grows from
 ## real experience, Intuition from searching in the dungeon, Intelligenz from
@@ -100,6 +103,15 @@ static func free_hours(plan: Dictionary) -> int:
 	return DAY_HOURS - planned_hours(plan)
 
 
+## Hours of reading a book still has in it; `used` maps book id -> hours read.
+static func book_left(used: Dictionary, id: String) -> float:
+	return maxf(0.0, float(BOOK_HOURS) - float(used.get(id, 0.0)))
+
+
+static func book_used_up(used: Dictionary, id: String) -> bool:
+	return book_left(used, id) <= 0.0001
+
+
 ## Training gained per hour of a rate, for an attribute or a skill.
 static func xp_per_hour(id: String, rate: float) -> float:
 	if Training.is_skill(id):
@@ -140,9 +152,11 @@ static func normalized(plan: Dictionary, allowed: Dictionary) -> Dictionary:
 ##   xp: training id -> amount, before the hero's Weisheit bonus
 ##   study_xp: training id -> amount that needs no gear (from books)
 ##   knives, repairs, stones: pieces crafted
+##   study_read: hours of the book that really counted (a book holds only
+##   BOOK_HOURS in all; `book_read` is how many it has already given)
 ## With `workshop` (the workbench at home, see HomeUpgrades), every crafted
 ## piece takes only HomeUpgrades.WORKSHOP_CRAFT of its hours.
-static func simulate(plan: Dictionary, hours: float, workshop := false) -> Dictionary:
+static func simulate(plan: Dictionary, hours: float, workshop := false, book_read := 0.0) -> Dictionary:
 	var spent := {"job": 0.0, "train": 0.0, "study": 0.0, "craft": 0.0, "rest": 0.0, "free": 0.0}
 	var left := maxf(0.0, hours)
 	var day: Array = []
@@ -158,7 +172,7 @@ static func simulate(plan: Dictionary, hours: float, workshop := false) -> Dicti
 				break
 	var result := {
 		"hours": hours, "days": floori(hours / DAY_HOURS), "spent": spent,
-		"gold": 0, "xp": {}, "study_xp": {}, "knives": 0, "repairs": 0, "stones": 0,
+		"gold": 0, "xp": {}, "study_xp": {}, "study_read": 0.0, "knives": 0, "repairs": 0, "stones": 0,
 	}
 	if plan.get("job", "") != "" and JOBS.has(plan.job):
 		var job: Dictionary = JOBS[plan.job]
@@ -170,9 +184,11 @@ static func simulate(plan: Dictionary, hours: float, workshop := false) -> Dicti
 		_add(result.xp, id, xp_per_hour(id, rate) * spent.train)
 	if plan.get("study", "") != "" and Items.ALL.has(plan.study):
 		var teaches := String(Items.ALL[plan.study].get("teaches", ""))
-		if teaches != "":
-			_add(result.study_xp, teaches, xp_per_hour(teaches, STUDY_SKILL_RATE) * spent.study)
-		_add(result.xp, "intelligenz", xp_per_hour("intelligenz", STUDY_MIND_RATE) * spent.study)
+		var read := minf(spent.study, maxf(0.0, BOOK_HOURS - book_read))
+		if teaches != "" and read > 0.0:
+			result.study_read = read
+			_add(result.study_xp, teaches, xp_per_hour(teaches, STUDY_SKILL_RATE) * read)
+			_add(result.xp, "intelligenz", xp_per_hour("intelligenz", STUDY_MIND_RATE) * read)
 	if plan.get("craft", "") != "" and RECIPES.has(plan.craft):
 		var recipe: Dictionary = RECIPES[plan.craft]
 		var piece_hours: float = recipe.hours * (HomeUpgrades.WORKSHOP_CRAFT if workshop else 1.0)

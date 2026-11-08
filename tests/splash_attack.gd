@@ -68,6 +68,8 @@ func _line_up(count: int) -> bool:
 		e.global_position = player.global_position + Vector3(0.9 * (i - (count - 1) * 0.5), 0, 1.8)
 		e.velocity = Vector3.ZERO
 		e._model.rotation.y = PI # Looking back at the hero: no backstab.
+		e._awake = true # Aware of the hero. Unaware and turned away, a foe is stabbed in the back (x3):
+		e.set_physics_process(count <= 1) # so a crowd for the sweep stands still, with its heading and mind fixed.
 		start_hp.append(e.hp)
 	player.power = POWER
 	player.hp = player.max_hp
@@ -183,6 +185,8 @@ func _process(_delta: float) -> bool:
 						hit += 1
 						check(_lost(i) in [POWER / 2, (POWER + 1) / 2 + 1], "a sweep does half the damage")
 				check(hit == mini(3, crowd.size()), "a sweep hits up to three enemies, got %d" % hit)
+				for e in crowd:
+					e.set_physics_process(true)
 				stage += 1
 		4:
 			# Attacked with no command, the hero fights back.

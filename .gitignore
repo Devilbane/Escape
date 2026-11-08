@@ -2,3 +2,4 @@ build/
 .godot/
 tools/.voices/
 .launcher/
+ci_logs/

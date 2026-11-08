@@ -45,18 +45,61 @@ static func cap_material(style: String) -> StandardMaterial3D:
 
 
 ## Adds the fill to `level` (not to open-air maps, nor to the home with its storeys).
+## The floor grates stay open: the pit under a grate lies below the fill, so a fill
+## across it would hide the pit (its dirt, its remains and whatever stirs in it).
 static func build(level: Level) -> void:
 	if level.outdoor or level.is_home:
 		return
-	var size := Vector2(level.width, level.height) * level.TILE + Vector2.ONE * MARGIN * 2.0
-	var mesh := PlaneMesh.new()
-	mesh.size = size
 	var mi := MeshInstance3D.new()
 	mi.name = "VoidFill"
-	mi.mesh = mesh
-	mi.material_override = flat(tone(level.wall_style))
+	mi.mesh = fill_mesh(level)
+	var mat := flat(tone(level.wall_style))
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position.y = DEPTH
+	level.add_child(mi)
+
+
+## The fill's flat face as rectangles in the level's own space (y = 0): the whole map
+## and its margin, less one tile for every floor grate.
+static func fill_mesh(level: Level) -> ArrayMesh:
+	var half := level.TILE * 0.5
 	var first := level.cell_to_world(Vector2i.ZERO)
 	var last := level.cell_to_world(Vector2i(level.width - 1, level.height - 1))
-	mi.position = Vector3((first.x + last.x) * 0.5, DEPTH, (first.z + last.z) * 0.5)
-	level.add_child(mi)
+	var x0 := first.x - half
+	var x1 := last.x + half
+	var z0 := first.z - half
+	var z1 := last.z + half
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	# The margin on all four sides.
+	_quad(st, x0 - MARGIN, z0 - MARGIN, x1 + MARGIN, z0)
+	_quad(st, x0 - MARGIN, z1, x1 + MARGIN, z1 + MARGIN)
+	_quad(st, x0 - MARGIN, z0, x0, z1)
+	_quad(st, x1, z0, x1 + MARGIN, z1)
+	# The map, row by row, with a gap at each grate.
+	for y in level.height:
+		var za := z0 + y * level.TILE
+		var run_from := x0
+		for x in level.width:
+			if not level.grates.has(Vector2i(x, y)):
+				continue
+			var xa := x0 + x * level.TILE
+			_quad(st, run_from, za, xa, za + level.TILE)
+			run_from = xa + level.TILE
+		_quad(st, run_from, za, x1, za + level.TILE)
+	return st.commit()
+
+
+## One upward-facing rectangle (nothing when it has no area).
+static func _quad(st: SurfaceTool, xa: float, za: float, xb: float, zb: float) -> void:
+	if xb - xa < 0.001 or zb - za < 0.001:
+		return
+	var a := Vector3(xa, 0, za)
+	var b := Vector3(xb, 0, za)
+	var c := Vector3(xb, 0, zb)
+	var d := Vector3(xa, 0, zb)
+	for v: Vector3 in [a, b, c, a, c, d]:
+		st.add_vertex(v)

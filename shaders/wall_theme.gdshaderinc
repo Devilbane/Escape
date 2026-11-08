@@ -112,15 +112,15 @@ void fragment() {
 		vec3 cell = floor(p * 1.7 * kf);
 		vec3 f = fract(p * 1.7 * kf);
 		vec3 tilt = vec3(hash3(cell) - 0.5, hash3(cell + 9.1) - 0.5, hash3(cell + 4.7) - 0.5);
-		h = dot(tilt, f) * 0.05 * band(1.7, px) + grit * 0.002 * band(5.0, px);
+		h = dot(tilt, f) * 0.03 * band(1.7, px) + grit * 0.002 * band(5.0, px);
 		float flow = smoothstep(0.55, 0.9, vnoise(vec3(p.x * 1.5 + p.z * 1.5, p.y * 9.0, p.z * 0.7 + p.x * 0.7))) * band(9.0, px);
 		col = mix(basec, darkc, 0.5 + 0.3 * (stains - 0.5));
 		col += vec3(0.05, 0.04, 0.08) * flow;
 		col *= mix(0.8, 1.15, blocks - 0.35);
-		rough = 0.28 + 0.08 * grit;
-		spec = 0.8;
+		rough = 0.62 + 0.12 * grit;
+		spec = 0.35;
 		// A violet sheen along the edges seen at a slant, so a black wall keeps its outline.
-		glow = vec3(0.32, 0.18, 0.55) * pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0) * 0.4;
+		glow = vec3(0.32, 0.18, 0.55) * pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0) * 0.25;
 	} else {
 		// Crystal: bluish facets, pale flecks, glowing veins.
 		vec3 cell = floor(p * 2.4 * kf);

@@ -387,6 +387,8 @@ var _provoked := false
 ## Whether the blow that felled it came from another monster rather than
 ## the hero: such a kill counts for no task.
 var slain_by_rival := false
+## Whether the hero has struck it already (see Events.enemy_engaged).
+var _engaged := false
 ## The hero level this one is a fair fight for (see HeroLevel), set when it
 ## is ready; what felling it is worth goes by it.
 var rated_level := 1
@@ -1272,6 +1274,11 @@ func open_to_backstab(from: Vector3) -> bool:
 func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	if dead:
 		return
+	# Only the hero's own blows wake a monster this way (rivals and traps pass
+	# wakes = false); the first one is reported once.
+	if wakes and not _engaged and not slain_by_rival and kind != "thorns":
+		_engaged = true
+		Events.bus().enemy_engaged.emit(self)
 	if kind == "thorns":
 		damage -= hardening
 		if damage <= 0 or _stats.get("armored", false):

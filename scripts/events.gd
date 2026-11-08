@@ -25,6 +25,9 @@ signal lore_learned(entry: String)
 ## The hero slew an enemy of this kind (a rival monster's kill does not
 ## count). Factions and bounties count it.
 signal enemy_slain(kind: String)
+## The hero struck this monster for the first time (a rival's blow, a trap
+## or a bleed does not count); the game tells its name and level.
+signal enemy_engaged(enemy: Node)
 ## The hero felled a monster rated at this hero level (see HeroLevel and
 ## Enemy.rated_level); bosses are worth more. It earns experience.
 signal enemy_felled(level: int, boss: bool)

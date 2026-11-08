@@ -2,6 +2,8 @@ extends RefCounted
 ## English texts: Monster knowledge, vital hits from kill counts (see MonsterLore). Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
+	"%s, Stufe %d": "%s, level %d",
+	"%s besiegt: Stufe %d, %d EP, %d Leben.": "%s slain: level %d, %d XP, %d max health.",
 	"Monsterkunde": "Monster lore",
 	"Monsterkunde: %s, %s": "Monster lore: %s, %s",
 	"%d %% Chance auf Treffer in eine Schwachstelle.": "%d %% chance to hit a vital point.",

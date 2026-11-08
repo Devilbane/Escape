@@ -113,7 +113,7 @@ void fragment() {
 		vec3 f = fract(p * 1.7 * kf);
 		vec3 tilt = vec3(hash3(cell) - 0.5, hash3(cell + 9.1) - 0.5, hash3(cell + 4.7) - 0.5);
 		h = dot(tilt, f) * 0.05 * band(1.7, px) + grit * 0.002 * band(5.0, px);
-		float flow = smoothstep(0.55, 0.9, vnoise(vec3(p.x * 1.5 + p.z * 1.5, p.y * 9.0, p.z * 0.7 + p.x * 0.7)));
+		float flow = smoothstep(0.55, 0.9, vnoise(vec3(p.x * 1.5 + p.z * 1.5, p.y * 9.0, p.z * 0.7 + p.x * 0.7))) * band(9.0, px);
 		col = mix(basec, darkc, 0.5 + 0.3 * (stains - 0.5));
 		col += vec3(0.05, 0.04, 0.08) * flow;
 		col *= mix(0.8, 1.15, blocks - 0.35);
@@ -127,8 +127,8 @@ void fragment() {
 		vec3 f = fract(p * 2.4 * kf);
 		vec3 tilt = vec3(hash3(cell) - 0.5, hash3(cell + 9.1) - 0.5, hash3(cell + 4.7) - 0.5);
 		h = dot(tilt, f) * 0.03 * band(2.4, px) + grit * 0.004 * band(5.0, px);
-		float vein = smoothstep(0.06, 0.0, abs(vnoise(p * 2.2 * kf + 5.0) - 0.5)) * band(2.2, px);
-		float fleck = smoothstep(0.75, 0.9, vnoise(p * 22.0)) * band(22.0, px);
+		float vein = smoothstep(0.1, 0.0, abs(vnoise(p * 2.2 * kf + 5.0) - 0.5)) * band(2.2, px);
+		float fleck = smoothstep(0.75, 0.9, vnoise(p * 14.0)) * band(14.0, px);
 		col = mix(basec, darkc, 0.5 * (1.0 - stains) + 0.2 * hash3(cell));
 		col += vec3(0.25, 0.3, 0.35) * fleck;
 		col *= mix(0.75, 1.1, blocks - 0.35);
@@ -141,7 +141,7 @@ void fragment() {
 	ALBEDO = col * tone;
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
 	NORMAL_MAP = texture(normal_tex, UV).rgb;
-	NORMAL_MAP_DEPTH = style == 2 ? 0.5 : 1.0;
+	NORMAL_MAP_DEPTH = style >= 2 ? 0.4 : 1.0;
 	ROUGHNESS = rough;
 	SPECULAR = spec;
 	METALLIC = metal;

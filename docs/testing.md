@@ -9,7 +9,9 @@ Tests are headless Godot scripts in `tests/`: `godot --headless -s tests/<name>.
 loop (not `profile_*.gd` and not the play-through). A new test therefore runs from the day it is
 added; it does not need an entry in the workflow. The loop only warns for now, because many of those
 tests were never run in CI; fix or list them one by one in `web.yml` to make them blocking.
-The browser export and the Windows build follow on main and do not wait for anything slower.
+The tests are their own job (`tests`), running in parallel with the browser export (`build`), so a
+pull request gets its pass or fail without waiting for the export. Deploy and the Windows build on main
+wait for both and never for the play-through.
 
 ## Full play-through: only when it matters
 

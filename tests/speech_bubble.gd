@@ -35,6 +35,9 @@ func _test() -> void:
 	check(SpeechBubble.rows_of("Hello") == 1, "a short line is one row")
 	var rows := SpeechBubble.rows_of(long)
 	check(rows >= 2 and rows <= SpeechBubble.MAX_ROWS + 1, "a long line wraps into a few rows (%d)" % rows)
+	check(SpeechBubble.split_speaker("Hagen the Stonemason") == PackedStringArray(["Hagen", "the Stonemason"]), "English name and title split")
+	check(SpeechBubble.split_speaker("Steinmetz Hagen") == PackedStringArray(["Hagen", "Steinmetz"]), "German name and title split")
+	check(SpeechBubble.split_speaker("Pip") == PackedStringArray(["Pip", ""]), "a lone name has no title")
 	game.load_level(game._outdoor_index(), false)
 	var v: Villager = game.level.villagers[0]
 	v.hush()

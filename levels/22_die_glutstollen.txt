@@ -4,6 +4,7 @@ monsters: wildlife, fable
 building: mine3b
 lair: ja
 theme: glut
+walls: obsidian
 up: mine3
 down: mine3c
 ################################

@@ -311,6 +311,12 @@ var inn := false
 ## The setting of a mine floor (header "theme:", see Mines): its light and
 ## look. "" for every other level.
 var theme := ""
+## The cave style of this map's walls and floors (header "walls:", see
+## WallThemes): "bone", "rock", "obsidian" or "crystal". "" for the stone dungeon.
+var wall_style := ""
+## Which of the style's three variants the map uses alone (header "walls: crystal 2",
+## 0 to 2), or -1 for all three, mixed in patches.
+var wall_variant := -1
 ## The families of monsters that naturally live here (header "monsters:",
 ## see MonsterFamilies).
 var monster_families: Array[String] = []
@@ -538,6 +544,10 @@ func load_from_file(path: String) -> void:
 			is_home = true
 		elif line.begins_with("theme:"):
 			theme = line.substr(6).strip_edges()
+		elif line.begins_with("walls:"):
+			var parsed := WallThemes.parse(line.substr(6))
+			wall_style = parsed.style
+			wall_variant = parsed.variant
 		elif line.begins_with(MonsterFamilies.HEADER + ":"):
 			monster_families = MonsterFamilies.parse(line.substr(MonsterFamilies.HEADER.length() + 1))
 		elif line.begins_with("down:"):
@@ -613,6 +623,7 @@ func build() -> void:
 	if stern == null:
 		# Sternhall's secret walls open with the stars in its walls instead.
 		_pick_levers()
+	_place_candelabra()
 	_place_writing()
 	_build_wall_collision()
 	_setup_astar()
@@ -909,7 +920,14 @@ func _add_kit_part(part: Array, parent: Node3D) -> Node3D:
 	kit.scale = part[3]
 	kit.rotation.y = part[4]
 	parent.add_child(kit)
-	var mat := _kit_material(part[1])
+	var set_name: String = part[1]
+	if WallThemes.known(wall_style):
+		# A cave style dresses walls, pillars and floors alike.
+		if model == "SM_Pillar":
+			set_name = "walls"
+		elif model == "SM_RockyFloor":
+			set_name = "floor_rough"
+	var mat := _kit_material(set_name)
 	if model.ends_with("Flag"):
 		mat = WornLook.material(load(KIT_DIR + part[1] + "_albedo.png"), load(KIT_DIR + part[1] + "_normal.png"), _wear(), true)
 	for mi: MeshInstance3D in kit.find_children("*", "MeshInstance3D", true, false):
@@ -1015,6 +1033,12 @@ const STONE_SHADER := preload("res://shaders/stone.gdshader")
 
 func _kit_material(set_name: String) -> Material:
 	var key := "mat_" + set_name
+	if WallThemes.known(wall_style) and set_name in ["walls", "floor", "floor_rough"]:
+		key = "mat_%s_%s" % [wall_style, set_name]
+		if not _scenes.has(key):
+			var surface := WallThemes.WALL if set_name == "walls" else (WallThemes.ROUGH_FLOOR if set_name == "floor_rough" else WallThemes.FLOOR)
+			_scenes[key] = WallThemes.material(wall_style, surface, wall_variant)
+		return _scenes[key]
 	if not _scenes.has(key) and set_name == "walls":
 		# Walls get rough, stained stone instead of the kit's smooth brick faces.
 		var stone := ShaderMaterial.new()
@@ -1133,6 +1157,10 @@ func _build_walls(c: Vector2i) -> void:
 			var facing := Vector3(sin(rot), 0, cos(rot))
 			var shelf := _add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
 			shelf.touch_cell = n
+		if WallShapes.styled(wall_style) and not low and piece != "wall_shelves":
+			# Jagged shards out of the wall (the near walls stay flat, so the
+			# view of the room stays clear).
+			WallShapes.dress(wall, wall_style, wall_variant, hash(pos) + int(rot * 100.0))
 		if low:
 			_near_walls.add(wall)
 			continue
@@ -1431,6 +1459,12 @@ func _near_guardian(c: Vector2i) -> bool:
 ## A standing fire bowl: a low stone base with a burning fire that always
 ## lights the tiles around it.
 func _build_fire_bowl(pos: Vector3) -> void:
+	if WallThemes.known(wall_style):
+		# A bone tripod, iron brazier, glass bowl or crystal cluster.
+		CaveLights.brazier(wall_style, self, pos)
+		_add_solid(pos, Vector3(1.8, 2, 1.8))
+		_light_spots.append(pos)
+		return
 	var base := _place("pillar", pos)
 	base.scale = Vector3(1.0, 0.28, 1.0)
 	var flame := Effects.make_flame()
@@ -1460,13 +1494,23 @@ func _maybe_add_torch(wall_pos: Vector3, rot: float, forced := false) -> Node3D:
 	holder.position = wall_pos + facing * 0.5 + Vector3(0, 2.3, 0)
 	holder.rotation.y = rot
 	add_child(holder)
-	_place("torch_mounted", Vector3.ZERO, 0.0, holder)
-	var flame := Effects.make_flame()
-	flame.position = Vector3(0, 0.78, 0.45)
-	holder.add_child(flame)
+	var styled := WallThemes.known(wall_style)
+	var flame: Node3D
+	var glow := []
+	if styled:
+		# Bone torch, fire basket, glass bowl or glowing crystal (see CaveLights).
+		var made := CaveLights.wall_torch(wall_style, holder)
+		flame = made.flame
+		glow = made.glow
+	else:
+		_place("torch_mounted", Vector3.ZERO, 0.0, holder)
+		flame = Effects.make_flame()
+		flame.position = Vector3(0, 0.78, 0.45)
+		holder.add_child(flame)
 	var light := OmniLight3D.new()
-	light.light_color = TORCH_COLOUR
-	light.light_energy = TORCH_ENERGY
+	light.light_color = CaveLights.light_colour(wall_style) if styled else TORCH_COLOUR
+	var energy := CaveLights.energy(wall_style, TORCH_ENERGY) if styled else TORCH_ENERGY
+	light.light_energy = energy
 	# The glow reaches a bit further than LIGHT_REACH, which alone decides
 	# what the torch reveals through the fog (so secret rooms stay hidden).
 	light.omni_range = TORCH_RANGE
@@ -1474,7 +1518,7 @@ func _maybe_add_torch(wall_pos: Vector3, rot: float, forced := false) -> Node3D:
 	light.position = Vector3(0, 1.0, 1.0)
 	holder.add_child(light)
 	# Some torches burn, some are cold: a new mix every run.
-	var torch := {"light": light, "flame": flame, "holder": holder, "wall_pos": wall_pos, "seed": _rng.randf() * 100.0, "on": true, "touched": -10.0}
+	var torch := {"light": light, "flame": flame, "holder": holder, "wall_pos": wall_pos, "seed": _rng.randf() * 100.0, "on": true, "touched": -10.0, "glow": glow, "energy": energy}
 	_torches.append(torch)
 	set_torch(torch, randf() < TORCH_LIT_CHANCE)
 	return holder
@@ -1486,6 +1530,7 @@ func set_torch(torch: Dictionary, on: bool) -> void:
 	torch.light.visible = on
 	torch.flame.visible = on
 	torch.flame.emitting = on
+	CaveLights.dim(torch, on)
 
 
 ## The torch on the wall the hero runs into, only when the run against the
@@ -1894,6 +1939,26 @@ func _steps_from_secret(s: Dictionary) -> Dictionary:
 
 ## Picks each secret wall's lever from the torches around it, at random, so
 ## it is a different one every run. With no torch near, the wall gets one.
+## Candelabra of the map's cave style against some of the bare walls, a few
+## tiles apart. A random generator of their own keeps the other rolls as they were.
+func _place_candelabra() -> void:
+	if not WallThemes.known(wall_style):
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level_name) + 17
+	var stood: Array[Vector3] = []
+	for w in _bare_walls:
+		if rng.randf() > 0.1:
+			continue
+		if stood.any(func(p): return p.distance_to(w.pos) < TILE * 3.0) or _torch_spots.any(func(p): return p.distance_to(w.pos) < TILE * 1.5):
+			continue
+		var facing := Vector3(sin(w.rot), 0, cos(w.rot))
+		var at: Vector3 = w.pos + facing * 1.1
+		stood.append(w.pos)
+		CaveLights.candelabra(wall_style, self, at, w.rot)
+		_add_solid(at, Vector3(0.8, 2, 0.8))
+
+
 func _pick_levers() -> void:
 	for s in _secrets:
 		var steps := _steps_from_secret(s)
@@ -3566,7 +3631,7 @@ func _process(delta: float) -> void:
 		if not is_instance_valid(t.light):
 			continue
 		var s: float = t.seed + _time * 9.0
-		t.light.light_energy = TORCH_ENERGY + sin(s) * 0.25 + sin(s * 2.3) * 0.15
+		t.light.light_energy = t.energy + sin(s) * 0.25 + sin(s * 2.3) * 0.15
 	EmberCracks.update(self, player.global_position if player != null else Vector3.ZERO, _time)
 	for s in stations:
 		if s.kind != "schrein":

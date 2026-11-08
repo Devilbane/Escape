@@ -4,6 +4,7 @@ monsters: wildlife, fable
 building: uralt2
 lair: ja
 theme: uralt
+walls: bone
 up: uralt1
 down: uralt3
 ##################################

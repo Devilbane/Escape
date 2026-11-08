@@ -608,12 +608,12 @@ func _build_ui() -> void:
 	add_child(langs)
 	for entry in [["Deutsch", "de"], ["English", "en"]]:
 		var b := Kit.button(entry[0], _choose_language.bind(entry[1]))
-		b.custom_minimum_size = Vector2(118, 44)
+		b.custom_minimum_size = Vector2(104, 44)
 		b.add_theme_font_size_override("font_size", 16)
 		b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		langs.add_child(b)
 		_lang_buttons[entry[1]] = b
-	langs.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 24)
+	langs.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 24)
 
 	_version = Kit.label(Kit.TEXT_FONT, 14, GREY)
 	_version.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED

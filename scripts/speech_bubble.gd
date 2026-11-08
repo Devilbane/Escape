@@ -16,6 +16,8 @@ const PIXEL_SIZE := 0.011
 ## Text size (at the game's text scale) of the line and of the name heading.
 const TEXT_SIZE := 34
 const NAME_SIZE := 26
+## A title ("the Smith") sits under the name in a smaller size.
+const TITLE_SIZE := 20
 ## Text widths (pixels) tried from the narrowest: the first that fits the line
 ## in at most MAX_ROWS rows wins, so short lines stay compact and long ones
 ## grow wider rather than taller.
@@ -73,6 +75,7 @@ void fragment() {
 var _panel: MeshInstance3D
 var _material: ShaderMaterial
 var _name: Label3D
+var _title: Label3D
 var _text: Label3D
 ## What is said, as "Name:\nline" (the log and the tests read it).
 var text := ""
@@ -104,6 +107,7 @@ func _ready() -> void:
 	_panel.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_panel)
 	_name = _label(NAME_SIZE, NAME_INK)
+	_title = _label(TITLE_SIZE, NAME_INK)
 	_text = _label(TEXT_SIZE, INK)
 
 
@@ -156,9 +160,24 @@ static func rows_of(text: String) -> int:
 	return rows_for(text).size()
 
 
-## Shows `text` said by `speaker`.
-func show_line(speaker: String, text: String) -> void:
+## A villager's display name as [name, title]: "Hagen the Stonemason" (English)
+## gives ["Hagen", "the Stonemason"], "Steinmetz Hagen" (German, title first)
+## gives ["Hagen", "Steinmetz"]. A single word has an empty title.
+static func split_speaker(speaker: String) -> PackedStringArray:
+	var i := speaker.find(" the ")
+	if i > 0:
+		return PackedStringArray([speaker.substr(0, i), speaker.substr(i + 1)])
+	i = speaker.find(" ")
+	if i > 0:
+		return PackedStringArray([speaker.substr(i + 1), speaker.substr(0, i)])
+	return PackedStringArray([speaker, ""])
+
+
+## Shows `text` said by `speaker`. With `titled` the speaker's name and title
+## (see split_speaker) are set on two rows, which keeps the bubble narrow.
+func show_line(speaker: String, text: String, titled := false) -> void:
 	self.text = "%s:\n%s" % [speaker, text]
+	var parts := split_speaker(speaker) if titled else PackedStringArray([speaker, ""])
 	var rows := rows_for(text)
 	var tsize := UiKit.sized(TEXT_SIZE)
 	var nsize := UiKit.sized(NAME_SIZE)
@@ -168,20 +187,28 @@ func show_line(speaker: String, text: String) -> void:
 		widest = maxf(widest, FONT.get_string_size(r, HORIZONTAL_ALIGNMENT_LEFT, -1, tsize).x)
 	var text_w := widest * PIXEL_SIZE
 	var text_h := FONT.get_height(tsize) * rows.size() * PIXEL_SIZE
-	_name.text = speaker
-	var name_w := FONT.get_string_size(speaker, HORIZONTAL_ALIGNMENT_LEFT, -1, nsize).x * PIXEL_SIZE
+	_name.text = parts[0]
+	_title.text = parts[1]
+	_title.visible = parts[1] != ""
+	var name_w := FONT.get_string_size(parts[0], HORIZONTAL_ALIGNMENT_LEFT, -1, nsize).x * PIXEL_SIZE
 	var name_h := FONT.get_height(nsize) * PIXEL_SIZE
-	var inner_w := maxf(text_w, name_w)
-	_size = Vector2(inner_w + PAD.x * 2.0, name_h + NAME_GAP + text_h + PAD.y * 2.0)
+	var tisize := UiKit.sized(TITLE_SIZE)
+	var title_w := FONT.get_string_size(parts[1], HORIZONTAL_ALIGNMENT_LEFT, -1, tisize).x * PIXEL_SIZE
+	var title_h := FONT.get_height(tisize) * PIXEL_SIZE if parts[1] != "" else 0.0
+	var inner_w := maxf(text_w, maxf(name_w, title_w))
+	_size = Vector2(inner_w + PAD.x * 2.0, name_h + title_h + NAME_GAP + text_h + PAD.y * 2.0)
 	_material.set_shader_parameter("body", _size)
 	(_panel.mesh as QuadMesh).size = Vector2(_size.x, _size.y + TAIL.y)
 	_panel.position.y = (_size.y + TAIL.y) * 0.5
 	var top := TAIL.y + _size.y - PAD.y
 	_name.position.y = top
-	_text.position.y = top - name_h - NAME_GAP
+	_title.position.y = top - name_h
+	_text.position.y = top - name_h - title_h - NAME_GAP
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_name.position.x = -name_w * 0.5
+	_title.position.x = -title_w * 0.5
 	_text.position.x = -text_w * 0.5
 	visible = true
 	_face_camera()
@@ -228,4 +255,5 @@ func _face_camera() -> void:
 func _apply() -> void:
 	_material.set_shader_parameter("alpha", _alpha)
 	_name.modulate.a = _alpha
+	_title.modulate.a = _alpha
 	_text.modulate.a = _alpha

@@ -317,6 +317,11 @@ jobs:
           timeout 120 ~/godot/godot --headless -s tests/floor_items.gd | tee floor_items.log
           grep -q PASS floor_items.log
 
+      - name: Floor packs test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/floor_packs.gd | tee floor_packs.log
+          grep -q PASS floor_packs.log
+
       - name: Thrown knives test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/thrown_knives.gd | tee thrown_knives.log

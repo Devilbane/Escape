@@ -2168,6 +2168,8 @@ func stone_action() -> void:
 	var why := ""
 	if player.bag.has(Menus.STONE):
 		why = place_stone()
+	elif level.stone_in_reach(player) == null and level.pack_in_reach(player) != null:
+		why = push_floor_pack()
 	else:
 		why = take_stone()
 	if why != "":
@@ -2185,6 +2187,21 @@ func _ray_from_camera(screen_pos: Vector2, exclude: Array[RID]) -> Dictionary:
 	var ray := PhysicsRayQueryParameters3D.create(origin, origin + camera.project_ray_normal(screen_pos) * 200.0)
 	ray.exclude = exclude
 	return get_world_3d().direct_space_state.intersect_ray(ray)
+
+
+## A click on a backpack lying on the floor opens it, when the hero is close
+## enough. Returns whether it was a click on a pack.
+func _click_floor_pack(screen_pos: Vector2) -> bool:
+	if level == null or level.packs.is_empty() or not player.can_act() or player.is_climbing():
+		return false
+	var hit := _ray_from_camera(screen_pos, [player.get_rid()])
+	var pack := hit.get("collider") as FloorPack if not hit.is_empty() else null
+	if pack == null:
+		return false
+	var why := open_floor_pack(pack)
+	if why != "":
+		show_message(why, 1.4)
+	return true
 
 
 ## Grabs a stone block with the mouse, if the hero can: it lies free and
@@ -3935,11 +3952,91 @@ func _floors_for_save() -> Dictionary:
 func drop_on_floor(id: String) -> void:
 	if level == null or player == null:
 		return
+	if Items.is_backpack(id):
+		var at := pack_spot()
+		if at != Vector3.INF and level.put_pack(id, at) != null:
+			Sfx.play_gear(level, id, 0.0, at)
+			return
+		# No room for a pack here: it falls at the hero's feet like any item.
 	var ahead := -player.global_transform.basis.z
 	ahead.y = 0.0
 	var spot := player.global_position + (ahead.normalized() * 0.6 if ahead.length() > 0.01 else Vector3.ZERO)
 	level.put_on_floor(id, spot)
 	Sfx.play_gear(level, id, 0.0, spot)
+
+
+## Where a backpack can be set down in front of the hero (it is solid, so it
+## must not stand on them or in a wall): straight ahead, else to the sides.
+## Vector3.INF when there is no room.
+func pack_spot() -> Vector3:
+	if level == null or player == null:
+		return Vector3.INF
+	var ahead := -player.global_transform.basis.z
+	ahead.y = 0.0
+	ahead = ahead.normalized() if ahead.length() > 0.01 else Vector3.FORWARD
+	for turn in [0.0, 0.8, -0.8, 1.6, -1.6]:
+		for reach in [1.4, 1.8]:
+			var at: Vector3 = player.global_position + ahead.rotated(Vector3.UP, turn) * reach
+			at.y = 0.0
+			if not level.pack_blocked(at):
+				return at
+	return Vector3.INF
+
+
+## The floor pack being worked in its window (see FloorPack), or null.
+var open_pack: FloorPack = null
+
+
+## Opens the window of the pack in reach (or `pack`). Returns "" on success,
+## else why not.
+func open_floor_pack(pack: FloorPack = null) -> String:
+	if not player.can_act() or player.is_climbing():
+		return Lang.t("Gerade nicht.")
+	if pack == null:
+		pack = level.pack_in_reach(player)
+	elif level._flat_distance(player.global_position, pack.global_position) > FloorPack.REACH:
+		return Lang.t("Der Rucksack ist zu weit weg.")
+	if pack == null:
+		return Lang.t("Kein Rucksack in Reichweite.")
+	player.path.clear()
+	player.face(pack.global_position - player.global_position)
+	player.play("Idle")
+	open_pack = pack
+	menus.open("bodenrucksack")
+	return ""
+
+
+## Pushes the pack in reach one step away from the hero. "" on success.
+func push_floor_pack() -> String:
+	var pack := level.pack_in_reach(player)
+	if pack == null:
+		return Lang.t("Kein Rucksack in Reichweite.")
+	if not player.can_act() or player.is_climbing():
+		return Lang.t("Gerade nicht.")
+	player.path.clear()
+	player.face(pack.global_position - player.global_position)
+	player.play_once("Interact", 0.3)
+	if not level.push_pack(pack, player.global_position):
+		return Lang.t("Der Rucksack rührt sich nicht: Etwas ist im Weg.")
+	Sfx.play(self, "gear_soft_%d" % (randi() % 2), -2.0)
+	return ""
+
+
+## Takes the open pack back into the bag; it must be empty.
+func take_floor_pack(pack: FloorPack) -> String:
+	if pack == null or not is_instance_valid(pack):
+		return ""
+	if not pack.is_empty():
+		return Lang.t("Leere den Rucksack zuerst: Was darin liegt, bleibt darin.")
+	if not player.bag_fits(pack.backpack()):
+		return Lang.t("Deine Tasche ist voll.")
+	var id := pack.backpack()
+	if not level.take_pack(pack):
+		return ""
+	player.bag.append(id)
+	Sfx.play(self, "gear_soft_%d" % (randi() % 2), -2.0)
+	_update_hud()
+	return ""
 
 
 ## Gives the hero throwing knives: ready in the belt up to Player.knife_cap,
@@ -5715,7 +5812,7 @@ func _search(obj: Dictionary) -> void:
 	var color := Color(0.8, 0.8, 0.85)
 	# "Empty" is only the text while nothing at all has been found; the check must not
 	# compare the (translated) words, which broke in English.
-	var nothing_yet := not (loot.has("gold") or loot.has("knives") or loot.has("potion"))
+	var nothing_yet := not (loot.has("gold") or loot.has("knives"))
 	# How big the words over it are: the best of what was in it.
 	var worth := 0.0
 	if loot.has("gold"):
@@ -5731,15 +5828,6 @@ func _search(obj: Dictionary) -> void:
 		text = Lang.t("+%d Wurfmesser") % loot.knives
 		color = Color(0.8, 0.9, 1.0)
 		worth = 0.1
-		Events.found(text, color)
-	elif loot.has("potion"):
-		Sfx.play(self, "drink")
-		player.hp = mini(player.max_hp, player.hp + 2)
-		text = Lang.t("Heiltrank! +2 Leben")
-		if player.cure():
-			text += "\n" + Lang.t("Dein Leiden ist geheilt.")
-		color = Color(1.0, 0.5, 0.55)
-		worth = 0.3
 		Events.found(text, color)
 	if loot.has("item"):
 		player.bag.append(loot.item)
@@ -6537,6 +6625,8 @@ func _process(delta: float) -> void:
 			_prompt.text = _hint("drag_heavy", Lang.t("Loslassen: Block dorthin   Rechtsklick: drehen"))
 		else:
 			_prompt.text = _hint("drag", Lang.t("Loslassen: Steinblock dorthin   Rechtsklick: drehen"))
+	elif _prompt.text == "" and level.stone_in_reach(player) == null and level.pack_in_reach(player) != null:
+		_prompt.text = _hint("floor_pack", Lang.t("Klick: Rucksack öffnen   E: Rucksack schieben"))
 	elif _prompt.text == "" and level.stone_in_reach(player) != null:
 		if level.stone_in_reach(player).heavy:
 			_prompt.text = _hint("stone_heavy", Lang.t("E oder Klick: Block schieben   Ziehen: verschieben"))
@@ -6746,6 +6836,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						var why_not := ""
 						if level.crate_in_reach(player) == null and level.stone_in_reach(player) != null:
 							why_not = take_stone()
+						elif level.crate_in_reach(player) == null and level.pack_in_reach(player) != null:
+							why_not = push_floor_pack()
 						else:
 							why_not = pick_up_crate()
 						if why_not != "":
@@ -6781,7 +6873,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					else:
 						player.throw_knife(point)
 				elif event.button_index == MOUSE_BUTTON_LEFT:
-					if _grab_stone(event.position):
+					if _click_floor_pack(event.position):
+						_mouse_held = false
+					elif _grab_stone(event.position):
 						_mouse_held = false
 					elif event.double_click:
 						_toggle_sneak()

@@ -11,6 +11,9 @@ var stage := 0
 var stage_frames := 0
 var foe: Enemy
 const BIG_HP := 80
+## The sneak attack's damage, read before the blow lands: the blow trains a skill,
+## which can raise max_hit() afterwards.
+var expected_blow := 0
 
 
 func check(ok: bool, what: String) -> void:
@@ -20,6 +23,7 @@ func check(ok: bool, what: String) -> void:
 
 
 func _initialize() -> void:
+	seed(7)
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 
@@ -34,6 +38,7 @@ func _place() -> void:
 		game.level.enemies.append(foe)
 	foe.hp = BIG_HP
 	foe.hardening = 0
+	foe.wound.stop() # A wound from the last blow would bleed into the next check.
 	foe._awake = false
 	foe._cooldown = 99.0
 	foe.global_position = player.global_position + Vector3(0, 0, 4.0)
@@ -56,6 +61,7 @@ func _process(_delta: float) -> bool:
 		0:
 			_place()
 			check(foe.is_unaware(), "a fresh foe is unaware")
+			expected_blow = player.sneak_attack_damage()
 			player.charge(foe)
 			check(player._sneak_hunt, "charging an unaware foe starts a sneak hunt")
 			stage_frames = 0
@@ -64,7 +70,7 @@ func _process(_delta: float) -> bool:
 			foe._awake = false
 			foe.velocity = Vector3.ZERO
 			if foe.hp < BIG_HP:
-				check(foe.hp == BIG_HP - player.sneak_attack_damage(), "the opening blow is a sneak attack")
+				check(foe.hp == BIG_HP - expected_blow, "the opening blow is a sneak attack (hp %d, expected %d)" % [foe.hp, BIG_HP - expected_blow])
 				stage += 1
 				stage_frames = 0
 			elif stage_frames > 600:
@@ -80,6 +86,9 @@ func _process(_delta: float) -> bool:
 		3:
 			check(not player._sneak_hunt, "a foe that wakes ends the sneak")
 			player.stop_hunt()
+			# Without a target the hero throws no knife at the far foe: one thrown now would
+			# land in the next stage's check.
+			player._target = null
 			check(not player._sneak_hunt, "stopping the hunt clears the sneak")
 			stage += 1
 		4:
@@ -88,6 +97,7 @@ func _process(_delta: float) -> bool:
 			foe._awake = true
 			foe.global_position = player.global_position + Vector3(0, 0, 1.0)
 			player._engage(foe)
+			player._target_chosen = false # Bumped into, not picked by a click.
 			stage_frames = 0
 			stage += 1
 		5:
@@ -95,7 +105,7 @@ func _process(_delta: float) -> bool:
 			player._auto_cooldown = 0.0
 			player._attack_cooldown = 0.0
 			if stage_frames > 90:
-				check(foe.hp == BIG_HP, "no automatic attack while sneaking")
+				check(foe.hp == BIG_HP, "no automatic attack while sneaking (hp %d, hunt %s, sneak_hunt %s, chosen %s, sneaking %s)" % [foe.hp, player._hunt, player._sneak_hunt, player._target_chosen, player.sneaking])
 				player.set_sneaking(false)
 				stage += 1
 				stage_frames = 0

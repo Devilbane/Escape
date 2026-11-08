@@ -164,3 +164,53 @@ windmill.gd | 200 | fixed | pass | Windmill sails turn with the wind and whoosh 
 flag_wind.gd | 200 | fixed | pass | Flags and banners flutter in the wind, more in a storm
 kit_wood_grain.gd | 60 | fixed | pass | The wood of the village buildings has its grain along every beam
 secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out
+# Promoted from the extra shards after three clean runs in a row (the retry in ci_shard.sh covers the odd slow runner).
+bookshelf.gd | 120 | fixed | passfail | bookshelf in the cellar of every town house (see Bookshelf and
+button_click.gd | 120 | fixed | passfail | UI button click: pressing any button, including one
+camp_rest.gd | 120 | fixed | passfail | Headless test for resting by the camp's fire on a dungeon floor (see
+chat_line.gd | 120 | fixed | passfail | hero's chat line under the event log (see ChatLine,
+chimney_smoke.gd | 120 | fixed | passfail | evening smoke from the village chimneys (see
+coin_piles.gd | 120 | fixed | passfail | coin piles (CoinPile). Coins of one metal that come down on
+coin_shine.gd | 120 | fixed | passfail | gold glints (CoinShine). Coins on the floor, the heaps of
+comic_placement.gd | 120 | fixed | passfail | comic bubbles sit close to the fight without covering it
+companions.gd | 120 | fixed | passfail | hero's companions (see Companions): a doe and a stag
+creature_skin.gd | 120 | fixed | passfail | the wild's creatures get a skin of their own
+effects_volume.gd | 120 | fixed | passfail | sound effects volume: the effects play through their
+event_log_frame.gd | 120 | fixed | passfail | the event log shows only its text over the world. Its dark
+event_log_width.gd | 120 | fixed | passfail | event log's width slider in the pull-out menu (see
+exploration.gd | 120 | fixed | passfail | Erkunden (exploring) skill: it needs no gear, a
+grates_clear.gd | 120 | fixed | passfail | floor grates: nothing is placed on one. On every
+guard_watch.gd | 120 | fixed | passfail | town guard's watch on the west gate (see GuardWatch):
+hero_name_tag.gd | 120 | fixed | passfail | hero's name over the head: a new game shows the
+house_faces.gd | 120 | fixed | passfail | village houses (see VillageHouse): every face of a
+ignition.gd | 120 | fixed | passfail | Headless test for fireballs (see Ignition): flammable monsters catch fire
+jewellery_stacks.gd | 120 | fixed | passfail | small things stack and the biggest backpack holds 20
+launcher.gd | 120 | fixed | passfail | Windows launcher (scripts/launcher.gd): what it does with the
+loot.gd | 120 | fixed | passfail | loot of fallen monsters (see Loot and
+message_over_head.gd | 120 | fixed | passfail | messages float just over the hero's head and are written
+moon.gd | 120 | fixed | passfail | moon: its phases run on the game's day counter
+npc_personal_space.gd | 120 | fixed | passfail | villagers who walk about (the village kid Pip) never stand
+pause_menu.gd | 120 | fixed | passfail | pause window on Esc: Esc in the game stops the world
+puddle_sound.gd | 120 | fixed | passfail | a step into a nearly dried-out puddle gives a soft squelch
+shop_signs.gd | 120 | fixed | passfail | shop signs: a name that fits on the board is written
+slime_bar.gd | 120 | fixed | passfail | slime's health bar and level (see SlimeBar): a calm
+slime_sounds.gd | 120 | fixed | passfail | slimes' sounds (tools/make_slime_sounds.py,
+speech_bubble.gd | 120 | fixed | passfail | Headless test that spoken lines show in a compact multi-row speech bubble
+stairs_down.gd | 120 | fixed | passfail | Headless test for StairsDown: the stairs down are a flight of steps that
+storage_stacking.gd | 120 | fixed | passfail | Headless test for torches bundling in the storage chest just as in the bag:
+stride.gd | 120 | fixed | passfail | feet stay planted (Stride)
+surface_detail.gd | 120 | fixed | passfail | villagers, bandits and skeletons show what they are made
+thunder_ore.gd | 120 | fixed | passfail | uses of thunder ore: Gorm forges the thunder weapons
+ui_wheel.gd | 120 | fixed | passfail | the mouse wheel over an open window scrolls the window, never
+village_bell.gd | 120 | fixed | passfail | village's warning bell (tools/make_bell_sounds.py,
+village_talk.gd | 120 | fixed | passfail | villagers talking to each other (see VillageTalk):
+wall_caps.gd | 120 | fixed | passfail | wall caps (WallCaps): every dungeon wall that touches a room gets
+war_horn.gd | 120 | fixed | passfail | village's alarm horn (tools/make_horn_sounds.py,
+weathered_props.gd | 120 | fixed | passfail | weathered props of the village (see WeatheredProps
+windows_fit_screen.gd | 120 | fixed | passfail | every window (see Menus) stays inside the screen at small
+coins_counted_up.gd | 120 | fixed | coins_counted_up:_ok | the purse shows its coins counted up into silver and gold
+lava_cracks.gd | 120 | fixed | lava_cracks:_all_checks_passed | glowing ember cracks ("~") of the ember tunnels
+townsfolk_strength.gd | 120 | fixed | townsfolk_strength:_OK | the townsfolk can put up a real fight against a Blob of
+wall_themes.gd | 120 | fixed | wall_themes:_ok | cave styles of walls and floors (WallThemes, header
+# Fixed in this change:
+sneak_charge.gd | 120 | fixed | passfail | Charging an unaware foe: sneak attack on the opening blow, no auto-attack while sneaking

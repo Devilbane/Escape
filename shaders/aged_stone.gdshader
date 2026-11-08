@@ -55,6 +55,14 @@ uniform float glow = 0.0;
 uniform sampler2D wood_tex : hint_default_white, filter_linear_mipmap, repeat_enable;
 // How strongly the grain shows on the KayKit wood (0: flat colour).
 uniform float wood_grain = 0.0;
+// The windmill's sails (see SailCloth): the pale walls are woven canvas, not
+// stone, and lie in shadow along the wooden frame. canvas_shadow is a picture
+// of that shadow over the sail's flat shape, canvas_rect (x, y, width, height)
+// where it sits on the mesh, canvas_dark how dark it gets.
+uniform bool canvas = false;
+uniform sampler2D canvas_shadow : hint_default_black, filter_linear;
+uniform vec4 canvas_rect = vec4(-0.5, -0.5, 1.0, 1.0);
+uniform float canvas_dark = 0.55;
 
 // The four rows of stone blocks on the trim sheet (v, top and bottom), the
 // metres one copy of them covers across and up, and the red roof tiles.
@@ -72,8 +80,12 @@ varying vec3 wnrm;
 varying float foot;
 varying vec3 grain_dir;
 varying float has_dir;
+varying vec3 obj_pos;
+varying float obj_scale;
 
 void vertex() {
+	obj_pos = VERTEX;
+	obj_scale = length(MODEL_MATRIX[0].xyz);
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	wnrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	foot = NODE_POSITION_WORLD.y;
@@ -197,7 +209,32 @@ void fragment() {
 	vec3 timber = mix(base, vec3(l) * vec3(1.08, 0.96, 0.8), fade * 0.85) * 0.92 * rings;
 	faded = mix(faded, timber, woody);
 
-	vec3 col = mix(faded, stone, wall);
+	// Sail canvas: threads crossing over and under each other (a plain weave,
+	// as on the barber's tent), laid out in the sail's own flat shape so they
+	// turn with it, and a few thicker threads. Its colour is natural linen,
+	// a little weathered, and it is darker in the shade of the frame.
+	float weave_h = 0.0;
+	float sail = canvas ? smoothstep(0.68, 0.74, l) : 0.0;
+	vec3 woven = stone;
+	float frame_shade = 0.0;
+	if (canvas) {
+		vec2 wp = obj_pos.xy * obj_scale;
+		vec2 t = wp * 36.0;
+		vec2 f = fract(t);
+		float over = mod(floor(t.x) + floor(t.y), 2.0);
+		float warp = sin(3.14159 * f.x) * (0.65 + 0.35 * sin(3.14159 * f.y));
+		float weft = sin(3.14159 * f.y) * (0.65 + 0.35 * sin(3.14159 * f.x));
+		weave_h = mix(warp, weft, over) * band(36.0, px);
+		float slub = smoothstep(0.7, 0.9, vnoise(vec3(wp.x * 24.0, wp.y * 2.5, 3.0))) * band(24.0, px)
+				+ smoothstep(0.7, 0.9, vnoise(vec3(wp.x * 2.5, wp.y * 24.0, 7.0))) * band(24.0, px);
+		float yarn = vnoise(vec3(wp * 3.0, 11.0));
+		woven = vec3(0.9, 0.86, 0.76) * (0.9 + 0.1 * weave_h + 0.05 * slub + 0.1 * (yarn - 0.5));
+		vec2 suv = (obj_pos.xy - canvas_rect.xy) / canvas_rect.zw;
+		frame_shade = clamp(texture(canvas_shadow, suv).r * 1.8, 0.0, 1.0);
+		woven *= 1.0 - canvas_dark * frame_shade;
+	}
+
+	vec3 col = canvas ? mix(mix(faded, stone, wall), woven, sail) : mix(faded, stone, wall);
 
 	// Weather.
 	vec3 p = wpos * 0.5;
@@ -225,7 +262,7 @@ void fragment() {
 	ROUGHNESS = mix(0.95, 0.82, moss);
 	// Relief: the joints between the blocks sink in.
 	float bump = mix(0.6, 0.3, soft_joints);
-	float height = (relief * wall + tiles * 0.15 * roof * (1.0 - woody)) * band(2.0, px) + woody * wl * 0.6 * band(30.0, px);
+	float height = weave_h * 0.4 * sail + (relief * wall + tiles * 0.15 * roof * (1.0 - woody)) * band(2.0, px) + woody * wl * 0.6 * band(30.0, px);
 	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * bump, dFdy(height) * bump), 0.0)).xyz);
 	EMISSION = glow_colour * window * glow;
 }

@@ -61,6 +61,8 @@ func _process(_delta: float) -> bool:
 			# Stage 0: right inside the skeleton. Stage 2: standing on its skull.
 			player.global_position = enemy.global_position + (Vector3(0, enemy.tall + 0.1, 0) if stage == 2 else Vector3(0.05, 0, 0))
 			player.velocity = Vector3.ZERO
+			# A weak skeleton would ignore the hero (see Enemy.cowed_by); this test needs it to fight.
+			enemy._provoked = true
 			enemy._wake(player.global_position)
 			enemy._cooldown = 0.0
 			start_hp = enemy.hp

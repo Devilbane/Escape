@@ -92,8 +92,10 @@ func _process(_delta: float) -> bool:
 			var probe := Enemy.new()
 			probe.kind = "wolf"
 			probe.rated_level = 4
-			check(not probe.cowed_by(8), "a hero of exactly double its level is still attacked")
-			check(probe.cowed_by(9), "a hero of more than double its level is left alone")
+			# Cowed when its level < hero level / 2 + 2, so level 4 needs a hero above 4.
+			check(not probe.cowed_by(4), "a hero at the boundary (monster level = half + 2) is still attacked")
+			check(probe.cowed_by(5), "a hero just above the boundary is left alone")
+			check(not probe.cowed_by(1), "a weak hero is attacked")
 			probe.kind = "hauptmann"
 			probe.rated_level = 4
 			check(not probe.cowed_by(20), "a boss always fights")
@@ -136,19 +138,23 @@ func _process(_delta: float) -> bool:
 				return false
 			check(wolf.dead or wolf.is_hunting(), "a struck wolf fights back")
 			check(wolf.dead or not wolf.is_cowed(), "a struck wolf is no longer cowed")
-			# A hero only twice its level is hunted as before.
+			# A hero right at the boundary (wolf level = half + 2) is hunted as before.
 			if is_instance_valid(wolf) and not wolf.dead:
 				game.level.enemies.erase(wolf)
 				wolf.queue_free()
 			wolf = _spawn("wolf", spot)
-			_set_hero_level(maxi(1, weak_level * 2))
+			_set_hero_level(maxi(1, weak_level * 2 - 4))
 			stage_frames = 0
 			stage = 4
 		4:
 			stage_frames += 1
 			if stage_frames < 3:
 				return false
-			check(not wolf.is_cowed(), "a hero of double its level does not cow the wolf")
+			if weak_level < 3:
+				# Even a level-1 hero is above the boundary of such a weak wolf.
+				_finish()
+				return true
+			check(not wolf.is_cowed(), "a hero at the boundary does not cow the wolf")
 			_face_off()
 			stage_frames = 0
 			stage = 5

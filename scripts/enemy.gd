@@ -918,6 +918,8 @@ func _slime() -> void:
 	# Both sit in the model, so they shrink and spread with it as it melts.
 	_slime_puddle(murk[1], box.size / _model.scale.x)
 	_slime_drops(murk[1], box.size / _model.scale.x)
+	# Its life and level over its head (see SlimeBar).
+	add_child(SlimeBar.new(self))
 
 
 ## The water it is made of: deep, shallow and scum colours. A kind with a

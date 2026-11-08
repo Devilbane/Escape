@@ -4,6 +4,8 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- The faint "db" watermark in the bottom-right corner now shows the new db logo, with the same size and transparency.
+- The logo above the title on the play screen is gone; it stays on the launcher's loading screen.
 - The dark void around every dungeon is now filled with a plain, dark version of the dungeon's own wall material (stone, bone, rock, obsidian or crystal), and the wall tops and outer sides are plain and flat instead of busy, so no black gap shows, not even beside a hidden secret passage. Nothing else changes.
 - Stairs going down now open towards the open floor of the room instead of lining up with a wall.
 - A secret room can always be opened from the inside: if a loaded game or a night slept in its bed leaves you behind a closed secret wall, the wall slides open by itself.

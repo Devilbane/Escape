@@ -1583,13 +1583,11 @@ func _setup_hud() -> void:
 	version.offset_bottom = -4
 	_hud.add_child(version)
 
-	# The "db" of the devilbane logo as a faint watermark in the corner
-	# (the "HARDCORE" lettering below it is cut off).
+	# The new "db" logo (the app icon's 1024 px master, with mipmaps so it stays sharp at every
+	# window size) as a faint watermark in the corner.
 	var mark := TextureRect.new()
-	var db := AtlasTexture.new()
-	db.atlas = preload("res://assets/logo/devilbane_logo.png")
-	db.region = Rect2(0, 0, 480, 388)
-	mark.texture = db
+	mark.texture = preload("res://assets/logo/app_icon_1024.png")
+	mark.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	mark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	mark.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -1621,22 +1619,6 @@ func _setup_hud() -> void:
 	_title.alignment = BoxContainer.ALIGNMENT_CENTER
 	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(_title)
-	# The emblem above the title, from its 1024 px master with mipmaps so it stays sharp. It is a
-	# top-level child, so the container ignores it: the title's rows keep their places, and it
-	# shows and fades with the title.
-	var emblem := TextureRect.new()
-	emblem.texture = preload("res://assets/logo/app_icon_1024.png")
-	emblem.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	emblem.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	emblem.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	emblem.top_level = true
-	emblem.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	emblem.offset_left = -64
-	emblem.offset_right = 64
-	emblem.offset_top = 16
-	emblem.offset_bottom = 144
-	_title.add_child(emblem)
 	_title_text = _make_label(TITLE_FONT, 120, GOLD)
 	_title_sub = _make_label(TEXT_FONT, 34)
 	_title_prompt = _make_label(TEXT_FONT, 22, Color(1, 1, 1, 0.75))

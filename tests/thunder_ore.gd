@@ -50,6 +50,7 @@ func _wait(n: int) -> void:
 
 
 func _run() -> void:
+	Forge.rigged_roll = 1  # the forging is a d100 roll; these tests want it to succeed
 	var p: Player = game.player
 	game.hero_name = HERO
 

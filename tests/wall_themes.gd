@@ -16,7 +16,7 @@ func check(ok: bool, what: String) -> void:
 
 
 const MAP := "name: Stiltest\nhint: x\nsecret: normal\nwalls: %s\n" + """##########
-#P.......#
+#P...f...#
 #........#
 #,,,.....#
 #.......E#
@@ -77,6 +77,20 @@ func _initialize() -> void:
 		check(level._near_walls.size() > 0, "%s: no near walls to fade" % style)
 		var fadeable := WallFade._fadeable(level._near_walls._pieces[0].node)
 		check(fadeable.any(func(e): return e.stone), "%s: the walls do not fade" % style)
+		# Lights and decor of the style: wall torch, brazier, candelabra.
+		var holder := Node3D.new()
+		level.add_child(holder)
+		var made := CaveLights.wall_torch(style, holder)
+		check(made.flame != null and holder.get_child_count() > 2, "%s: the wall torch is empty" % style)
+		var torch := {"flame": made.flame, "glow": made.glow, "light": OmniLight3D.new(), "on": true}
+		level.set_torch(torch, false)
+		check(not made.flame.visible, "%s: the torch does not go out" % style)
+		level.set_torch(torch, true)
+		check(made.flame.visible, "%s: the torch does not burn again" % style)
+		torch.light.free()
+		check(CaveLights.brazier(style, holder, Vector3.ZERO) != null, "%s: no brazier" % style)
+		check(CaveLights.candelabra(style, holder, Vector3.ZERO, 0.0).get_child_count() > 8, "%s: no candelabra" % style)
+		check(CaveLights.energy(style, 3.4) > 0.0, "%s: no light" % style)
 		level.queue_free()
 	# A plain map keeps the stone.
 	var plain := Level.new()

@@ -618,6 +618,7 @@ func build() -> void:
 	if stern == null:
 		# Sternhall's secret walls open with the stars in its walls instead.
 		_pick_levers()
+	_place_candelabra()
 	_place_writing()
 	_build_wall_collision()
 	_setup_astar()
@@ -1445,6 +1446,12 @@ func _near_guardian(c: Vector2i) -> bool:
 ## A standing fire bowl: a low stone base with a burning fire that always
 ## lights the tiles around it.
 func _build_fire_bowl(pos: Vector3) -> void:
+	if WallThemes.known(wall_style):
+		# A bone tripod, iron brazier, glass bowl or crystal cluster.
+		CaveLights.brazier(wall_style, self, pos)
+		_add_solid(pos, Vector3(1.8, 2, 1.8))
+		_light_spots.append(pos)
+		return
 	var base := _place("pillar", pos)
 	base.scale = Vector3(1.0, 0.28, 1.0)
 	var flame := Effects.make_flame()
@@ -1474,13 +1481,23 @@ func _maybe_add_torch(wall_pos: Vector3, rot: float, forced := false) -> Node3D:
 	holder.position = wall_pos + facing * 0.5 + Vector3(0, 2.3, 0)
 	holder.rotation.y = rot
 	add_child(holder)
-	_place("torch_mounted", Vector3.ZERO, 0.0, holder)
-	var flame := Effects.make_flame()
-	flame.position = Vector3(0, 0.78, 0.45)
-	holder.add_child(flame)
+	var styled := WallThemes.known(wall_style)
+	var flame: Node3D
+	var glow := []
+	if styled:
+		# Bone torch, fire basket, glass bowl or glowing crystal (see CaveLights).
+		var made := CaveLights.wall_torch(wall_style, holder)
+		flame = made.flame
+		glow = made.glow
+	else:
+		_place("torch_mounted", Vector3.ZERO, 0.0, holder)
+		flame = Effects.make_flame()
+		flame.position = Vector3(0, 0.78, 0.45)
+		holder.add_child(flame)
 	var light := OmniLight3D.new()
-	light.light_color = TORCH_COLOUR
-	light.light_energy = TORCH_ENERGY
+	light.light_color = CaveLights.light_colour(wall_style) if styled else TORCH_COLOUR
+	var energy := CaveLights.energy(wall_style, TORCH_ENERGY) if styled else TORCH_ENERGY
+	light.light_energy = energy
 	# The glow reaches a bit further than LIGHT_REACH, which alone decides
 	# what the torch reveals through the fog (so secret rooms stay hidden).
 	light.omni_range = TORCH_RANGE
@@ -1488,7 +1505,7 @@ func _maybe_add_torch(wall_pos: Vector3, rot: float, forced := false) -> Node3D:
 	light.position = Vector3(0, 1.0, 1.0)
 	holder.add_child(light)
 	# Some torches burn, some are cold: a new mix every run.
-	var torch := {"light": light, "flame": flame, "holder": holder, "wall_pos": wall_pos, "seed": _rng.randf() * 100.0, "on": true, "touched": -10.0}
+	var torch := {"light": light, "flame": flame, "holder": holder, "wall_pos": wall_pos, "seed": _rng.randf() * 100.0, "on": true, "touched": -10.0, "glow": glow, "energy": energy}
 	_torches.append(torch)
 	set_torch(torch, randf() < TORCH_LIT_CHANCE)
 	return holder
@@ -1500,6 +1517,7 @@ func set_torch(torch: Dictionary, on: bool) -> void:
 	torch.light.visible = on
 	torch.flame.visible = on
 	torch.flame.emitting = on
+	CaveLights.dim(torch, on)
 
 
 ## The torch on the wall the hero runs into, only when the run against the
@@ -1908,6 +1926,26 @@ func _steps_from_secret(s: Dictionary) -> Dictionary:
 
 ## Picks each secret wall's lever from the torches around it, at random, so
 ## it is a different one every run. With no torch near, the wall gets one.
+## Candelabra of the map's cave style against some of the bare walls, a few
+## tiles apart. A random generator of their own keeps the other rolls as they were.
+func _place_candelabra() -> void:
+	if not WallThemes.known(wall_style):
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level_name) + 17
+	var stood: Array[Vector3] = []
+	for w in _bare_walls:
+		if rng.randf() > 0.1:
+			continue
+		if stood.any(func(p): return p.distance_to(w.pos) < TILE * 3.0) or _torch_spots.any(func(p): return p.distance_to(w.pos) < TILE * 1.5):
+			continue
+		var facing := Vector3(sin(w.rot), 0, cos(w.rot))
+		var at: Vector3 = w.pos + facing * 1.1
+		stood.append(w.pos)
+		CaveLights.candelabra(wall_style, self, at, w.rot)
+		_add_solid(at, Vector3(0.8, 2, 0.8))
+
+
 func _pick_levers() -> void:
 	for s in _secrets:
 		var steps := _steps_from_secret(s)
@@ -3578,7 +3616,7 @@ func _process(delta: float) -> void:
 		if not is_instance_valid(t.light):
 			continue
 		var s: float = t.seed + _time * 9.0
-		t.light.light_energy = TORCH_ENERGY + sin(s) * 0.25 + sin(s * 2.3) * 0.15
+		t.light.light_energy = t.energy + sin(s) * 0.25 + sin(s * 2.3) * 0.15
 	EmberCracks.update(self, player.global_position if player != null else Vector3.ZERO, _time)
 	for s in stations:
 		if s.kind != "schrein":

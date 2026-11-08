@@ -419,6 +419,13 @@ var _calmed := 0.0
 ## A monster cowed by a far stronger hero (see cowed_by) still fights back
 ## once the hero strikes it: set by a blow, cleared when the hunt is over.
 var _provoked := false
+## Seconds a slime keeps the hero as its priority target after the hero hit it:
+## it drops the villagers and the wall for them (see SLIME_AGGRO).
+var _hero_aggro := 0.0
+## How long a slime stays on the hero after a blow, and how far the hero may
+## get before it gives up and goes back to villagers and the wall.
+const SLIME_AGGRO := 6.0
+const SLIME_AGGRO_RANGE := 14.0
 ## Whether the blow that felled it came from another monster rather than
 ## the hero: such a kill counts for no task.
 var slain_by_rival := false
@@ -1400,6 +1407,8 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		Elementals.reflect(self, damage, kind)
 		_calmed = 0.0
 		_provoked = true
+		if SlimeCoat.is_slime(self):
+			_hero_aggro = SLIME_AGGRO
 		_wake(from)
 	var away := global_position - from
 	away.y = 0.0
@@ -1993,6 +2002,7 @@ func _physics_process(delta: float) -> void:
 		_haunt(delta)
 	var friendly := is_friend()
 	_calmed = maxf(0.0, _calmed - delta)
+	_hero_aggro = maxf(0.0, _hero_aggro - delta)
 	if not _awake:
 		_provoked = false
 	var cowed := is_cowed()
@@ -2013,6 +2023,10 @@ func _physics_process(delta: float) -> void:
 			_frighten(player)
 		_wake(player.global_position)
 	elif _awake:
+		# A slime the hero is hitting keeps the hero in mind.
+		if _hero_aggro > 0.0 and not player.dead:
+			_lost = 0.0
+			_last_known = player.global_position
 		_lost += delta
 		if _lost > GIVE_UP or player.dead:
 			_awake = false
@@ -2064,6 +2078,15 @@ func _physics_process(delta: float) -> void:
 	if snack != null and not SlimeGrowth.can_snack(snack):
 		snack = null
 		_path.clear()
+	# A slime the hero is hitting turns on the hero before any villager or wall.
+	var hunts_hero := _hero_aggro > 0.0 and not player.dead and dist < SLIME_AGGRO_RANGE
+	if hunts_hero:
+		_awake = true
+		_lost = 0.0
+		_last_known = player.global_position
+		snack = null
+		_wall_target = null
+		_siege = false
 	var snacks := snack != null and not fights_foe and (not _awake or player.dead or _flat_distance(snack) < dist)
 
 	var through_walls := is_ghost() and _awake
@@ -2075,7 +2098,7 @@ func _physics_process(delta: float) -> void:
 		_siege = false
 		if _busy <= 0.0:
 			move = _go_snack()
-	elif _wall_target != null or _scout_wall(sees or fights_foe or snacks or feeds, delta):
+	elif not hunts_hero and (_wall_target != null or _scout_wall(sees or fights_foe or snacks or feeds, delta)):
 		if _busy <= 0.0:
 			move = _batter_wall()
 	elif feeds:

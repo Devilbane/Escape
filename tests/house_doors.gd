@@ -82,11 +82,22 @@ func _run() -> void:
 	check(not station.is_empty(), "the doors of Weavers' Lane carry their leaf")
 	if not station.is_empty():
 		var leaf: HouseDoor = station.leaf
+		# The deeds live on disk and earlier tests leave their own in them: a hero
+		# with another house, or a house of someone else, would find the door shut.
+		# So this hero gets the house to themself, and the deeds are put back after.
+		var house: int = station.house
+		var former := Homes.owner_of(house)
+		game.hero_name = "Doortester"
+		Homes.release(house)
+		Homes.release(Homes.house_of(game.hero_name))
 		game.state = game.State.PLAYING
 		game.go_inside(station.building, station.house, leaf)
 		await _wait(int((HouseDoor.OPEN_TIME + 0.1) * 60))
 		check(game.state == game.State.TRANSITION, "the hero goes in")
 		check(leaf.is_open(), "the door opens as the hero goes in")
+		Homes.release(house)
+		if former != "" and Homes.house_of(former) == 0:
+			Homes.claim(former, house)
 
 	# A villager going home and coming out again.
 	var v: Villager = lvl.villagers[0]

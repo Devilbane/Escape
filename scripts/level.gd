@@ -618,7 +618,9 @@ func build() -> void:
 				_build_creation(c, creations[ch])
 	_build_corner_pillars()
 	# Wall tops and the outer sides toward the void, in the map's own wall look.
-	WallCaps.build(self, _kit_material("walls"), _near_walls)
+	WallCaps.build(self, VoidFill.cap_material(wall_style), _near_walls)
+	# And a plain fill of the whole void around the map.
+	VoidFill.build(self)
 	furniture_slots.sort_custom(func(a, b): return a.storey < b.storey)
 	if is_home:
 		_light_storeys()

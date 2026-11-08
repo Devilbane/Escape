@@ -35,26 +35,59 @@ static func shard_mesh(style: String, variant: int) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(key)
 	var sides: int = look.sides
-	var ring := []
-	for i in sides:
-		var a := TAU * i / sides + rng.randf_range(-0.2, 0.2)
-		var r := rng.randf_range(0.75, 1.1)
-		ring.append(Vector3(cos(a) * r, 0.0, sin(a) * r))
-	# Unit size: base radius 1, height 1; the shard is scaled when placed.
-	var apex := Vector3(rng.randf_range(-0.25, 0.25), 1.0, rng.randf_range(-0.25, 0.25))
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in sides:
-		var a: Vector3 = ring[i]
-		var b: Vector3 = ring[(i + 1) % sides]
-		for v in [a, apex, b]:
-			st.set_uv(Vector2(v.x * 0.25 + 0.5, v.y * 0.25 + 0.5))
-			st.add_vertex(v)
-	# Flat normals: no smoothing groups were set.
+	if style == "rock":
+		# A boulder: a ring of corners up to one point.
+		var ring := []
+		for i in sides:
+			var a := TAU * i / sides + rng.randf_range(-0.2, 0.2)
+			var r := rng.randf_range(0.75, 1.1)
+			ring.append(Vector3(cos(a) * r, 0.0, sin(a) * r))
+		var apex := Vector3(rng.randf_range(-0.25, 0.25), 1.0, rng.randf_range(-0.25, 0.25))
+		for i in sides:
+			_tri(st, ring[i], apex, ring[(i + 1) % sides])
+	else:
+		# A crystal: an uneven ring at the foot, a second one higher up that has
+		# shifted and shrunk, a ragged tip of corners at different heights, and a
+		# point. Every face is flat, none is like its neighbour.
+		var foot := []
+		var mid := []
+		var tip := []
+		var shift := Vector3(rng.randf_range(-0.35, 0.35), 0.0, rng.randf_range(-0.35, 0.35))
+		var top_shift := shift + Vector3(rng.randf_range(-0.3, 0.3), 0.0, rng.randf_range(-0.3, 0.3))
+		for i in sides:
+			var a := TAU * i / sides + rng.randf_range(-0.4, 0.4)
+			var r := rng.randf_range(0.55, 1.25)
+			foot.append(Vector3(cos(a) * r, 0.0, sin(a) * r))
+			mid.append(Vector3(cos(a) * r * rng.randf_range(0.6, 0.95), rng.randf_range(0.55, 0.8), sin(a) * r * rng.randf_range(0.6, 0.95)) + shift)
+			tip.append(Vector3(cos(a) * r * rng.randf_range(0.12, 0.35), rng.randf_range(0.88, 1.08), sin(a) * r * rng.randf_range(0.12, 0.35)) + top_shift)
+		var point := Vector3(top_shift.x + rng.randf_range(-0.1, 0.1), rng.randf_range(1.12, 1.3), top_shift.z + rng.randf_range(-0.1, 0.1))
+		for i in sides:
+			var j := (i + 1) % sides
+			_tri(st, foot[i], mid[i], foot[j])
+			_tri(st, foot[j], mid[i], mid[j])
+			_tri(st, mid[i], tip[i], mid[j])
+			_tri(st, mid[j], tip[i], tip[j])
+			_tri(st, tip[i], point, tip[j])
 	st.generate_normals()
 	var mesh := st.commit()
 	_meshes[key] = mesh
 	return mesh
+
+
+static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
+	# Godot draws the clockwise side of a triangle: turn it so that side faces
+	# away from the shard's middle.
+	var centre := (a + b + c) / 3.0
+	var outward := centre - Vector3(0.0, minf(centre.y, 0.5), 0.0)
+	if (b - a).cross(c - a).dot(outward) > 0.0:
+		var t := b
+		b = c
+		c = t
+	for v in [a, b, c]:
+		st.set_uv(Vector2(v.x * 0.25 + 0.5, v.y * 0.25 + 0.5))
+		st.add_vertex(v)
 
 
 ## Adds shards to a wall piece `wall` (local +z points into the room, x runs
@@ -77,7 +110,11 @@ static func dress(wall: Node3D, style: String, material: Material, seed_value: i
 			# Further boulders lower down, where rock piles up at a wall's foot.
 			x = rng.randf_range(-1.8, 1.8)
 		var y := rng.randf_range(0.5, 3.4) if i < 3 else rng.randf_range(0.25, 1.1)
-		_add(wall, style, material, rng, Vector3(x, y, 0.3), look, true)
+		# Crystals grow in clusters of two or three, each its own size and way.
+		var cluster := 1 + (rng.randi() % 3 if style == "crystal" else 0)
+		for k in cluster:
+			var spot := Vector3(x, y, 0.3) + (Vector3(rng.randf_range(-0.3, 0.3), rng.randf_range(-0.3, 0.3), 0.0) if k > 0 else Vector3.ZERO)
+			_add(wall, style, material, rng, spot, look, true)
 	for i in look.top:
 		var x := rng.randf_range(-1.7, 1.7)
 		_add(wall, style, material, rng, Vector3(x, 3.85, 0.0), look, false)

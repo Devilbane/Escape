@@ -209,7 +209,7 @@ const WINDOW_SIZES := {
 	"tresor": Vector2(940, 652),
 	"bank": Vector2(780, 460),
 	"werkbank": Vector2(780, 536),
-	"hauswerkbank": Vector2(560, 360),
+	"hauswerkbank": Vector2(560, 420),
 	"ausbau": Vector2(780, 540),
 	"aushang": Vector2(780, 400),
 	"trophaeen": Vector2(560, 360),
@@ -1794,16 +1794,17 @@ func _bench_row(id: String) -> Control:
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.custom_minimum_size.x = 560
 	text.add_child(title)
-	var parts := []
-	for ingredient in r.ingredients:
-		var need := int(r.ingredients[ingredient])
-		var has := c.have(ingredient)
-		parts.append("%s %s %d / %d" % ["✓" if has >= need else "✗", Crafting.ingredient_name(ingredient), mini(has, need), need])
-	var needs: Label = game._make_label(game.TEXT_FONT, 16)
-	needs.text = "   ".join(parts)
-	needs.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Each material on a line of its own colour: green when there is enough,
+	# red with the number that is missing (see Needs).
+	var needs := HFlowContainer.new()
+	needs.add_theme_constant_override("h_separation", 18)
+	needs.add_theme_constant_override("v_separation", 2)
 	needs.custom_minimum_size.x = 560
 	text.add_child(needs)
+	for ingredient in r.ingredients:
+		needs.add_child(Needs.label(game, Crafting.ingredient_name(ingredient), c.have(ingredient), int(r.ingredients[ingredient])))
+	if c.craft_level(r.craft) < int(r.craft_level):
+		needs.add_child(Needs.label(game, Lang.t("%s Stufe") % Lang.t(Training.CRAFTS[r.craft].name), c.craft_level(r.craft), int(r.craft_level)))
 	# A potion says what the hero brews now and when it gets stronger.
 	var potency: String = c.potency_line(id)
 	if potency != "":
@@ -2316,9 +2317,22 @@ func _build_upgrades() -> void:
 		var text: Label = game._make_label(game.TEXT_FONT, 16, Color.WHITE)
 		text.text = Lang.t(up.name) + "\n" + Lang.t(up.text)
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		text.custom_minimum_size = Vector2(560, 0)
-		row.add_child(text)
 		var built := HomeUpgrades.has(game.home_upgrades, id)
+		if built:
+			text.custom_minimum_size = Vector2(560, 0)
+			row.add_child(text)
+		else:
+			# What it takes, and what is still missing (see Needs).
+			var info := VBoxContainer.new()
+			info.add_theme_constant_override("separation", 2)
+			info.custom_minimum_size = Vector2(560, 0)
+			row.add_child(info)
+			info.add_child(text)
+			var needs := HFlowContainer.new()
+			needs.add_theme_constant_override("h_separation", 18)
+			info.add_child(needs)
+			needs.add_child(Needs.label(game, Lang.t("Steinblöcke"), HomeUpgrades.stones_owned(p.bag, game.storage), int(up.stones)))
+			needs.add_child(Needs.label(game, Lang.t("Kupfer"), game.coins, int(up.gold)))
 		var label := Lang.t("Gebaut") if built else Lang.t("Bauen\n%d Steine, %d Kupfer") % [up.stones, up.gold]
 		var ok := HomeUpgrades.why_not(id, game.home_upgrades, p.bag, game.storage, game.coins) == ""
 		var b := _item_button(label, _build_upgrade.bind(id), ok)
@@ -2544,11 +2558,17 @@ func _build_workbench() -> void:
 	make.custom_minimum_size = Vector2(320, 58)
 	make.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_box.add_child(make)
+	var knife_need := Needs.label(game, Lang.t("Eisenbarren"), game.iron, 1)
+	knife_need.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_box.add_child(knife_need)
 	var worn := Forge.worn_down(p)
 	if worn.is_empty():
 		_add_label(Lang.t("Nichts ist abgenutzt."), 16)
 		return
 	_add_label(Lang.t("Abgenutzte Ausrüstung flicken (je %d Eisenbarren):") % HomeUpgrades.MEND_IRON, 16)
+	var mend_need := Needs.label(game, Lang.t("Eisenbarren"), game.iron, HomeUpgrades.MEND_IRON)
+	mend_need.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_box.add_child(mend_need)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 10)
@@ -2949,27 +2969,46 @@ func _build_smithy() -> void:
 				var ok := Forge.can_afford(game, id)
 				var entry := {"key": id, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Eisen, %d Kupfer") % [cost.iron, cost.gold],
 						"price_ok": game.iron >= cost.iron and game.coins >= cost.gold, "button": Lang.t("Schmieden"), "action": _forge.bind(id), "enabled": ok and room}
+				var level := Forge.craft_level(game, Forge.FORGING)
+				var need := Forge.forge_level(id)
 				if Forge.is_steel(id):
 					# Steel gear: steel bars in place of iron, and a level of
-					# Schmiedekunst. Until the hero has it, the price line
-					# says so; the details always tell both.
-					var level := Forge.craft_level(game, Forge.FORGING)
-					var need := Forge.forge_level(id)
-					var steel := int(game.bars.get(Forge.STEEL, 0))
+					# Schmiedekunst. Until the hero has it, the price line says so.
 					entry.price = Lang.t("%d Stahl, %d Kupfer") % [cost.steel, cost.gold] if level >= need else Lang.t("Braucht Schmiedekunst %d") % need
-					entry.price_ok = level >= need and steel >= int(cost.steel) and game.coins >= cost.gold
-					var lines := TradeWindow.stat_lines(id)
-					lines.append([Lang.t("Schmiedekunst Stufe %d nötig, du hast %d") % [need, level], TradeWindow.GREEN if level >= need else TradeWindow.RED])
-					lines.append([Lang.t("Braucht %d Stahlbarren, du hast %d") % [cost.steel, steel], TradeWindow.GREEN if steel >= int(cost.steel) else TradeWindow.RED])
-					entry.detail = {"subtitle": TradeWindow.subtitle(id), "lines": lines}
+					entry.price_ok = level >= need and int(game.bars.get(Forge.STEEL, 0)) >= int(cost.steel) and game.coins >= cost.gold
+				# Every piece lists what it takes and what is still missing, the same
+				# lines for all (see Needs).
+				var lines := TradeWindow.stat_lines(id)
+				if int(cost.iron) > 0:
+					lines.append(Needs.line(Lang.t("Eisen"), game.iron, int(cost.iron)))
+				if int(cost.steel) > 0:
+					lines.append(Needs.line(Lang.t("Stahl"), int(game.bars.get(Forge.STEEL, 0)), int(cost.steel)))
+				lines.append(Needs.line(Lang.t("Kupfer"), game.coins, int(cost.gold)))
 				if int(cost.ore) > 0:
-					# The row has no room for a third cost: the ore is told
-					# in the details, green when the bag holds enough.
-					var have: int = p.bag.count(Forge.THUNDER_ORE)
-					var lines := TradeWindow.stat_lines(id)
-					lines.append([Lang.t("Braucht %d Donnererz, du hast %d") % [cost.ore, have], TradeWindow.GREEN if have >= int(cost.ore) else TradeWindow.RED])
-					entry.detail = {"subtitle": TradeWindow.subtitle(id), "lines": lines}
+					lines.append(Needs.line(Lang.t("Donnererz"), p.bag.count(Forge.THUNDER_ORE), int(cost.ore)))
+				if need > 0:
+					lines.append(Needs.line(Lang.t("Schmiedekunst Stufe"), level, need))
+				if not room:
+					lines.append([Lang.t("✗ Deine Tasche ist voll"), TradeWindow.RED])
+				if Forge.in_stock(game, id) > 0:
+					lines.append([Lang.t("Gorm hat %d fertig, zum Kaufen unten") % Forge.in_stock(game, id), TradeWindow.BLUE])
+				entry.detail = {"subtitle": TradeWindow.subtitle(id), "lines": lines}
 				forged.append(entry)
+			# The pieces Gorm has finished on his shelf: bought as they are.
+			var ready := []
+			for id in Forge.recipes():
+				var n := Forge.in_stock(game, id)
+				if n <= 0:
+					continue
+				var ready_price := Forge.ware_price(game, id)
+				var lines := TradeWindow.stat_lines(id)
+				lines.append(Needs.line(Lang.t("Kupfer"), game.coins, ready_price))
+				if not room:
+					lines.append([Lang.t("✗ Deine Tasche ist voll"), TradeWindow.RED])
+				ready.append({"key": "ready:" + id, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Kupfer") % ready_price,
+						"price_ok": game.coins >= ready_price, "button": Lang.t("Kaufen"), "action": _buy_finished.bind(id),
+						"enabled": game.coins >= ready_price and room, "count": n,
+						"detail": {"subtitle": TradeWindow.subtitle(id), "lines": lines}})
 			var iron := []
 			for count in [1, 5]:
 				var price: int = count * Forge.iron_price(game)
@@ -2979,6 +3018,8 @@ func _build_smithy() -> void:
 						"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("Eisen: %d") % game.iron, "icon": "kind:iron"}})
 			sections = [
 				{"key": "forge", "title": Lang.t("Schmieden"), "icon": "kind:hammer_anvil", "entries": forged},
+				{"key": "ready", "title": Lang.t("Fertig vom Schmied"), "icon": "kind:sword", "entries": ready,
+						"empty": Lang.t("Gorm hat gerade nichts Fertiges da. Jeden Morgen legt er ein paar Stücke nach.")},
 				{"key": "steel", "title": Lang.t("Stahl"), "icon": "kind:bar_" + Forge.STEEL, "entries": _steel_entries()},
 				{"key": "iron", "title": Lang.t("Eisenbarren"), "icon": "kind:iron", "entries": iron},
 			]
@@ -3044,7 +3085,8 @@ func _build_smithy() -> void:
 				var left: int = durability - int(p.wear[id])
 				mend.append({"key": id, "id": id, "name": "%s  %d / %d" % [Items.item_name(id), left, durability],
 						"price": Lang.t("%d Kupfer") % Forge.mend_cost(p, id, game), "price_ok": game.coins >= Forge.mend_price(id, game),
-						"button": Lang.t("Ausbessern"), "action": _mend.bind(id), "enabled": game.coins >= Forge.mend_price(id, game)})
+						"button": Lang.t("Ausbessern"), "action": _mend.bind(id), "enabled": game.coins >= Forge.mend_price(id, game),
+						"detail": {"subtitle": TradeWindow.subtitle(id), "lines": TradeWindow.stat_lines(id, int(p.wear[id])) + [Needs.line(Lang.t("Kupfer"), game.coins, Forge.mend_cost(p, id, game))]}})
 			sections = [{"key": "mend", "title": Lang.t("Ausbessern"), "icon": "kind:hammer_anvil", "entries": mend, "gone": Lang.t("Wie neu"),
 					"empty": Lang.t("Deine Ausrüstung ist heil.")}]
 	_trade(Lang.t("Dein Kupfer: %d    Eisen: %d    Stahl: %d") % [game.coins, game.iron, int(game.bars.get(Forge.STEEL, 0))], sections, tabs, Lang.t(FORGE_ABOUT[_forge_tab]))
@@ -3059,10 +3101,9 @@ func _steel_entries() -> Array:
 	var why := Forge.why_no_steel(game)
 	var steel := int(game.bars.get(Forge.STEEL, 0))
 	var lines := [[Lang.t("Ein Eisenbarren, mit Holzkohle und Kalkstein gekocht, wird ein Stahlbarren. Stahlrüstung schmiedet Gorm nur aus Stahl."), TradeWindow.BLUE],
-			[Lang.t("Stahlkochen Stufe %d nötig, du hast %d") % [need, level], TradeWindow.GREEN if level >= need else TradeWindow.RED]]
+			Needs.line(Lang.t("Stahlkochen Stufe"), level, need)]
 	for ingredient in Forge.STEEL_RECIPE:
-		var have: int = game.crafting.have(ingredient)
-		lines.append([Lang.t("%s: %d nötig, du hast %d") % [Crafting.ingredient_name(ingredient), int(Forge.STEEL_RECIPE[ingredient]), have], TradeWindow.GREEN if have >= int(Forge.STEEL_RECIPE[ingredient]) else TradeWindow.RED])
+		lines.append(Needs.line(Crafting.ingredient_name(ingredient), game.crafting.have(ingredient), int(Forge.STEEL_RECIPE[ingredient])))
 	out.append({"key": "steel:make", "icon": "kind:bar_" + Forge.STEEL, "name": Lang.t("Stahlbarren"), "count": steel,
 			"price": Lang.t("1 Eisen, 1 Holzkohle, 1 Kalkstein") if level >= need else Lang.t("Braucht Stahlkochen %d") % need, "price_ok": why == "",
 			"button": Lang.t("Kochen"), "action": _make_steel, "enabled": why == "",
@@ -3108,6 +3149,16 @@ func _forge(id: String) -> void:
 	if why == "":
 		Events.bus().traded.emit(game.trader_role)
 		Sfx.play(game, "hit")
+	game._update_hud()
+	_rebuild()
+
+
+func _buy_finished(id: String) -> void:
+	var why := Forge.buy_finished(game, id)
+	if why == "":
+		Events.bus().traded.emit(game.trader_role)
+		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
+	_note = why if why != "" else Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 	game._update_hud()
 	_rebuild()
 

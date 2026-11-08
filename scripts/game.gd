@@ -406,6 +406,8 @@ var shop_stock: Array[String] = []
 ## for (-1: not rolled yet). A new visit brings new wares (see Wanderer).
 var wanderer_stock: Array[String] = []
 var wanderer_night := -1
+## Finished pieces Gorm has on the shelf, id -> count (see Forge.restock): a few more each morning.
+var smith_stock := {}
 var _title_buttons: Control
 var _name_note: Label
 ## The hero's name, asked for when a new game starts; it goes into the ranking
@@ -2596,6 +2598,7 @@ static func _dawn_between(from: float, to: float) -> bool:
 ## finished in time are over.
 func _new_day(quiet := false) -> void:
 	day += 1
+	Forge.restock(smith_stock, day, hero_name)
 	if level != null:
 		# Mined crystal clusters grow back with the morning.
 		Mines.refresh_crystals(level, day, true)
@@ -3203,6 +3206,8 @@ func begin_new_game() -> void:
 	shop_stock.clear()
 	wanderer_stock.clear()
 	wanderer_night = -1
+	smith_stock.clear()
+	Forge.restock(smith_stock, day, hero_name)
 	hoard.clear()
 	away_plan = Offline.empty_plan()
 	day_hour = DayNight.START_HOUR
@@ -3659,6 +3664,7 @@ func _apply_save(data: Dictionary) -> void:
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
 	world_hours = float(data.get("world_hours", 0.0))
 	wanderer_night = int(data.get("wanderer_night", -1))
+	_load_smith_stock(data.get("smith_stock", null))
 	hoard.load_from(data.get("hoard", {}))
 	wanderer_stock.clear()
 	var wares = data.get("wanderer", [])
@@ -3862,7 +3868,7 @@ func save_game(going_away := false) -> bool:
 		"monster_lore": MonsterLore.for_save(),
 		"companions": {"list": companions, "following": following, "trust": trust},
 		"hour": day_hour, "world_hours": world_hours,
-		"wanderer": wanderer_stock, "wanderer_night": wanderer_night,
+		"wanderer": wanderer_stock, "wanderer_night": wanderer_night, "smith_stock": smith_stock,
 		"hoard": hoard.for_save(),
 		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water,
 		"inn": level.inn,
@@ -5047,6 +5053,18 @@ func note_find(kind: String, id: String, name: String, pos: Vector3) -> bool:
 ## Remembers an explanation for the compendium, once.
 ## The wandering merchant's wares for tonight: a new visit brings new ones,
 ## and what was bought stays gone until then.
+## Gorm's shelf from a saved game. An older save has none: it gets the shelf
+## of its day, so Gorm has something from the start.
+func _load_smith_stock(saved) -> void:
+	smith_stock.clear()
+	if saved is Dictionary:
+		for id in saved:
+			if Items.ALL.has(str(id)) and int(saved[id]) > 0:
+				smith_stock[str(id)] = mini(int(saved[id]), Forge.STOCK_CAP)
+	else:
+		Forge.restock(smith_stock, day, hero_name)
+
+
 func wanderer_wares() -> Array[String]:
 	if day != wanderer_night:
 		wanderer_night = day

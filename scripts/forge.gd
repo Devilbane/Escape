@@ -466,6 +466,50 @@ static func can_afford(game: Node, id: String) -> bool:
 
 
 
+## Gorm keeps a few finished pieces on the shelf (Game.smith_stock): each
+## morning RESTOCK_PER_DAY of the pieces he can forge get one more, up to
+## STOCK_CAP of a kind.
+const STOCK_CAP := 2
+const RESTOCK_PER_DAY := 3
+
+
+## Adds the morning's pieces to Gorm's shelf. The pieces follow the day and
+## the hero, so a day always brings the same ones.
+static func restock(stock: Dictionary, day: int, hero: String) -> void:
+	var ids := recipes().filter(func(id): return not is_steel(id) and int(Items.ALL[id].get("thunder", 0)) == 0)
+	if ids.is_empty():
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%s:%d:smith" % [hero, day])
+	for _i in RESTOCK_PER_DAY:
+		var id: String = ids[rng.randi_range(0, ids.size() - 1)]
+		stock[id] = mini(int(stock.get(id, 0)) + 1, STOCK_CAP)
+
+
+## How many of a piece Gorm has finished on his shelf.
+static func in_stock(game: Node, id: String) -> int:
+	return int(game.smith_stock.get(id, 0))
+
+
+## Buys a finished piece off Gorm's shelf into the bag. Returns "" on
+## success, else why not.
+static func buy_finished(game: Node, id: String) -> String:
+	var p: Player = game.player
+	if in_stock(game, id) <= 0:
+		return Lang.t("Davon hat Gorm gerade keins fertig.")
+	var price := ware_price(game, id)
+	if game.coins < price:
+		return Lang.t("Dafür reicht dein Kupfer nicht.")
+	if not p.bag_fits(id):
+		return Lang.t("Deine Tasche ist voll.")
+	game.coins -= price
+	game.smith_stock[id] = in_stock(game, id) - 1
+	if int(game.smith_stock[id]) <= 0:
+		game.smith_stock.erase(id)
+	p.bag.append(id)
+	return ""
+
+
 ## Gold for mending one point of durability of a piece.
 static func mend_price(id: String, game: Node = null) -> int:
 	return _discounted(game, maxi(MIN_MEND_PRICE, int(Items.ALL[id].price) / 10))

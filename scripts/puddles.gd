@@ -609,26 +609,106 @@ func splash(at: Vector3, hard := true) -> void:
 		# Unlit, so the spray reads against the dark water by day and night.
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		_drop_mesh.material = mat
+	var origin := Vector3(at.x, LIFT + 0.03, at.z)
+	# Big drops thrown up, a fine mist of small ones, and a crown of drops
+	# flung out sideways: running through a puddle is a proper splash.
+	_spray(origin, 30 if hard else 8, 0.7, 2.6 if hard else 1.0, 5.2 if hard else 1.8, 55.0, 0.09, 0.8, 1.6)
+	_spray(origin, 46 if hard else 10, 0.5, 1.2, 3.4 if hard else 1.4, 85.0, 0.035, 0.6, 1.0)
+	if hard:
+		_spray(origin, 12, 0.45, 2.4, 3.8, 88.0, 0.06, 0.7, 1.3)
+	_ring(origin, 1.4 if hard else 0.8)
+
+
+## One burst of CPU particles: `amount` drops of `size` metres that fly up
+## to `v_min` to `v_max` metres a second within `spread` degrees of straight up.
+func _spray(at: Vector3, amount: int, life: float, v_min: float, v_max: float, spread: float, size: float, s_min: float, s_max: float) -> void:
+	if _drop_mesh == null:
+		_drop_mesh = SphereMesh.new()
+		_drop_mesh.radius = 1.0
+		_drop_mesh.height = 2.0
+		_drop_mesh.radial_segments = 6
+		_drop_mesh.rings = 3
+		var mat := StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(0.88, 0.94, 1.0, 0.85)
+		# Unlit, so the spray reads against the dark water by day and night.
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_drop_mesh.material = mat
 	var drops := CPUParticles3D.new()
 	drops.mesh = _drop_mesh
 	drops.one_shot = true
 	drops.explosiveness = 0.95
-	drops.amount = 18 if hard else 7
-	drops.lifetime = 0.6
+	drops.amount = amount
+	drops.lifetime = life
 	drops.direction = Vector3.UP
-	drops.spread = 70.0
-	drops.initial_velocity_min = 2.0 if hard else 0.9
-	drops.initial_velocity_max = 3.6 if hard else 1.6
+	drops.spread = spread
+	drops.initial_velocity_min = v_min
+	drops.initial_velocity_max = v_max
 	drops.gravity = Vector3(0, -14.0, 0)
-	drops.scale_amount_min = 0.5
-	drops.scale_amount_max = 1.2
+	drops.scale_amount_min = size * s_min
+	drops.scale_amount_max = size * s_max
 	drops.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	drops.emission_sphere_radius = 0.25
+	drops.emission_sphere_radius = 0.3
 	drops.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(drops)
-	drops.global_position = Vector3(at.x, LIFT + 0.03, at.z)
+	drops.global_position = at
 	drops.finished.connect(drops.queue_free)
 	drops.emitting = true
+
+
+## A pale ring of foam that spreads out over the water from a step and fades.
+func _ring(at: Vector3, reach: float) -> void:
+	var mi := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.9
+	torus.outer_radius = 1.0
+	torus.rings = 20
+	torus.ring_segments = 4
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.9, 0.96, 1.0, 0.7)
+	torus.material = mat
+	mi.mesh = torus
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	mi.global_position = at
+	mi.scale = Vector3(0.2, 0.02, 0.2)
+	var tw := mi.create_tween().set_parallel(true)
+	tw.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	tw.tween_property(mi, "scale", Vector3(reach, 0.02, reach), 0.55).set_ease(Tween.EASE_OUT)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 0.55)
+	tw.chain().tween_callback(mi.queue_free)
+
+
+## How many wet footprints a hero leaves after climbing out of a puddle, and
+## how long each one takes to dry (seconds).
+const PRINTS := 4
+const PRINT_DRY := 2.5
+
+
+## A dark, wet footprint on dry ground that fades as it dries.
+func wet_print(at: Vector3, heading: float) -> void:
+	if not is_inside_tree():
+		return
+	var mi := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.22, 0.34)
+	quad.orientation = PlaneMesh.FACE_Y
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.05, 0.07, 0.1, 0.45)
+	quad.material = mat
+	mi.mesh = quad
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	mi.global_position = Vector3(at.x, LIFT + 0.01, at.z)
+	mi.rotation.y = heading
+	var tw := mi.create_tween()
+	tw.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	tw.tween_property(mat, "albedo_color:a", 0.0, PRINT_DRY)
+	tw.tween_callback(mi.queue_free)
 
 
 ## One puddle: a ragged, lobed ring of wet soil round a pool of water that

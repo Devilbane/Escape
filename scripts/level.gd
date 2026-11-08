@@ -2535,6 +2535,11 @@ func splash_puddle(at: Vector3, _hard := true) -> void:
 		life.splash(at)
 
 
+## A wet footprint on dry ground (only the open air shows them).
+func wet_print(_at: Vector3, _heading: float) -> void:
+	pass
+
+
 ## Whether `a` and `b` (the hero or skeletons) stand inside each other or on
 ## top of each other.
 func stacked(a, b) -> bool:

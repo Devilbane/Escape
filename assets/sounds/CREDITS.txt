@@ -98,3 +98,6 @@ is not used.)
 
 The village's warning bell (village_bell) is made by tools/make_bell_sounds.py;
 it is synthesised from scratch, nothing is downloaded.
+
+The guard's alarm horn (war_horn) is made by tools/make_horn_sounds.py;
+it is synthesised from scratch, nothing is downloaded.

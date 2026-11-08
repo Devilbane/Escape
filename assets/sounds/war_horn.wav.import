@@ -2,12 +2,13 @@
 
 importer="wav"
 type="AudioStreamWAV"
-path="res://.godot/imported/war_horn.wav-7a1d3c9e4b2f4a68b5c0d9e8f7a6b5c4.sample"
+uid="uid://vqvrvtjavx4h"
+path="res://.godot/imported/war_horn.wav-c3a1a8ff7f642293d79f619f5f4a25fe.sample"
 
 [deps]
 
 source_file="res://assets/sounds/war_horn.wav"
-dest_files=["res://.godot/imported/war_horn.wav-7a1d3c9e4b2f4a68b5c0d9e8f7a6b5c4.sample"]
+dest_files=["res://.godot/imported/war_horn.wav-c3a1a8ff7f642293d79f619f5f4a25fe.sample"]
 
 [params]
 

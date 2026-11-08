@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- Crates and stone blocks are no longer dropped in front of you: they are always set down right under your feet and you end up standing on top of them, so you can stack up and step off as usual.
 - The faint "db" watermark in the bottom-right corner now shows the new db logo, with the same size and transparency.
 - The logo above the title on the play screen is gone; it stays on the launcher's loading screen.
 - The dark void around every dungeon is now filled with a plain, dark version of the dungeon's own wall material (stone, bone, rock, obsidian or crystal), and the wall tops and outer sides are plain and flat instead of busy, so no black gap shows, not even beside a hidden secret passage. Nothing else changes.

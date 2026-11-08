@@ -94,31 +94,41 @@ func _run() -> void:
 	check(lvl.crates.filter(func(c): return is_instance_valid(c) and c.global_position.distance_to(base) < 4.5).is_empty(), "the crates are gone from the floor")
 	check(game.pick_up_crate() != "", "no crate in reach: nothing to pick up")
 
-	# Two crates on top of each other beside the pedestal...
+	# A crate is set down right under the hero, who ends up standing on it.
 	var stack_x := 1.7 * 0.5 + Crate.SIZE * 0.5 + 0.2
-	_place(p, base + Vector3(stack_x + Level.CRATE_AHEAD, 0, 0), Vector3.LEFT)
+	_place(p, base + Vector3(stack_x, 0, 0), Vector3.LEFT)
 	await _wait(3)
 	check(game.put_down_crate() == "", "setting a crate down works")
-	await _wait(30)
+	await _wait(40)
 	var bottom: Crate = lvl.crates[-1]
-	check(absf(bottom.global_position.y) < 0.05 and absf(bottom.global_position.x - (base.x + stack_x)) < 0.05, "the crate stands on the floor in front of the hero")
+	check(absf(bottom.global_position.y) < 0.05 and absf(bottom.global_position.x - (base.x + stack_x)) < 0.05, "the crate stands on the floor right under the hero")
+	check(p.on_crate() and absf(p.global_position.y - Crate.SIZE) < 0.1, "the hero stands on top of it")
 	check(game.put_down_crate() == "", "setting a second crate down works")
-	await _wait(30)
+	await _wait(40)
 	var upper: Crate = lvl.crates[-1]
-	check(absf(upper.global_position.y - Crate.SIZE) < 0.05 and lvl.crate_on(bottom) == upper, "the second crate is stacked on the first")
+	check(absf(upper.global_position.y - Crate.SIZE) < 0.05 and lvl.crate_on(bottom) == upper, "the second crate is stacked under the hero's feet")
+	check(p.on_crate() and absf(p.global_position.y - Crate.SIZE * 2.0) < 0.1, "the hero stands on the stack")
+	check(lvl.crate_in_reach(p) == null, "a crate someone stands on cannot be picked up")
+	# The hero steps off the side and can pick the top crate up again.
+	_place(p, base + Vector3(stack_x + Crate.SIZE, 0, 0))
+	await _wait(10)
+	check(not p.on_crate() and absf(p.global_position.y) < 0.1, "the hero steps off the crates")
 	check(lvl.crate_in_reach(p) == upper, "only the top crate of a stack can be picked up")
 	# ...and a step crate in front of them.
 	var step_x := stack_x + Crate.SIZE + 0.25
-	_place(p, base + Vector3(step_x + Level.CRATE_AHEAD, 0, 0), Vector3.LEFT)
+	_place(p, base + Vector3(step_x, 0, 0), Vector3.LEFT)
 	await _wait(3)
 	check(game.put_down_crate() == "", "setting the step crate down works")
-	await _wait(30)
+	await _wait(40)
 	var step: Crate = lvl.crates[-1]
 	check(absf(step.global_position.y) < 0.05, "the step crate stands on the floor")
 	check(not p.bag.has("kiste"), "the bag holds no more crates")
 	check(game.put_down_crate() != "", "without a crate there is nothing to set down")
 
 	# Walk at the pedestal: up the step, up the stack, and eat.
+	# (The hero already ate from the basket while standing on the stack: refill it.)
+	lvl._basket.full = true
+	lvl._basket.food.visible = true
 	p.hp = 1
 	_place(p, base + Vector3(step_x + 2.6, 0, 0))
 	await _wait(3)

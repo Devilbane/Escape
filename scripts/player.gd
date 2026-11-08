@@ -23,8 +23,8 @@ const SPEED := 5.2
 ## Walking pace as a share of SPEED: about 1.8 m/s, as fast as the short
 ## legs of the walk animation step without sliding (see Stride).
 const WALK_FACTOR := 0.34
-## Running speeds up to this many times the walking pace (6.5 m/s)...
-const RUN_TOP := 3.68
+## Running speeds up to this many times the walking pace (twice: 3.6 m/s)...
+const RUN_TOP := 2.0
 ## ...over this many seconds of holding the run,
 const RUN_RAMP_UP := 2.0
 ## and slows back down to walking within this many seconds once let go.
@@ -41,9 +41,9 @@ const RUN_SECONDS_PER_CON := 2.0
 const RUN_RECOVERY_PER_CON := 0.1
 ## Out of breath, the hero walks until this share of the meter has come back.
 const RUN_RESTART := 0.5
-## From this many times the walking pace on (about 3.6 m/s), the hero is in
+## From this many times the walking pace on (about 3.4 m/s), the hero is in
 ## a full run (see in_full_run).
-const RUN_ANIM_FROM := 2.05
+const RUN_ANIM_FROM := 1.9
 const JUMP_VELOCITY := 9.0
 ## A jump starts with half a step: the hero pushes off into a stride and leaves
 ## the ground JUMP_WINDUP seconds after the key. A runner is mid-stride

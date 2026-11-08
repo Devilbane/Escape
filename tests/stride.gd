@@ -249,8 +249,9 @@ func _check_speeds() -> void:
 	check(_fits("kaykit", "Walking_A", 1.0, walk_pace), "the hero's walk keeps the feet planted")
 	check(_fits("kaykit", "Walking_C", 1.0, Player.SPEED * Player.SNEAK_SPEED), "the hero's sneak keeps the feet planted")
 	check(_fits("kaykit", "Walking_C", 1.0, Player.SPEED * (Player.SNEAK_SPEED + Player.SNEAK_PER_LEVEL * 13)), "a master sneak too, cloak and amulet on")
-	check(_fits("kaykit", "Running_A", 1.0, walk_pace * Player.RUN_TOP), "the hero's full run keeps the feet planted")
-	check(walk_pace * Player.RUN_TOP > 6.0, "running stays as fast as before")
+	check(is_equal_approx(Player.RUN_TOP, 2.0), "running is twice the walking pace")
+	check(Stride.gait("kaykit", Stride.GAITS.kaykit, 1.0, walk_pace * Player.RUN_TOP, "") == Player.JOG_ANIM, "the hero's full run plays the jog")
+	check(_fits("kaykit", Player.JOG_ANIM, 1.0, walk_pace * Player.RUN_TOP), "the hero's full run keeps the feet planted")
 
 
 # --- In play ---------------------------------------------------------------------
@@ -322,6 +323,6 @@ func _hero_in_play() -> void:
 	check(jog[2] > 10, "the hero jogged (%d frames)" % jog[2])
 	check(jog[0] < 0.2, "a jogging hero's planted foot stays put (slides %.0f %% of the way)" % (jog[0] * 100.0))
 	check(jog[1] == 0.0, "no toe lift in the jog")
-	var run: Array = await _hero_stride(Player.RUN_TOP, "Running_A")
+	var run: Array = await _hero_stride(Player.RUN_TOP, Player.JOG_ANIM)
 	check(run[2] > 10, "the hero ran (%d frames)" % run[2])
 	check(run[0] < 0.25, "a running hero's planted foot stays put (slides %.0f %% of the way)" % (run[0] * 100.0))

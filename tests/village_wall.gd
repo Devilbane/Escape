@@ -211,6 +211,8 @@ func _run() -> void:
 
 	# The mason builds hurt bricks up (on a fresh day: earlier mending in this test used up the last one).
 	lvl.day += 1
+	for b: WallBrick in wall.bricks.values():
+		b.mend(float(WallBrick.MAX_HP))
 	if is_instance_valid(slime2):
 		slime2.dead = true
 	for i in int(VillageWall.OPEN_AFTER) + 2:

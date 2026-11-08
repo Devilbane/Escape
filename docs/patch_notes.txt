@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- The faint "db" watermark in the bottom-right corner now shows the new db logo, with the same size and transparency.
 - A secret room can always be opened from the inside: if a loaded game or a night slept in its bed leaves you behind a closed secret wall, the wall slides open by itself.
 - A great Norse horn now stands by the west gate. When the village is alarmed the town guard runs to it and blows two long, deep blasts like a ship's fog horn; the church bell tolls once the horn has died away, so the two never sound over each other.
 - A classic church bell now tolls over the village when something hostile happens: a slime at the gate or the wall, a broken stretch of wall, a slime inside, or a villager eaten. It rings at most once every 30 seconds.

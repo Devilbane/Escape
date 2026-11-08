@@ -1583,13 +1583,11 @@ func _setup_hud() -> void:
 	version.offset_bottom = -4
 	_hud.add_child(version)
 
-	# The "db" of the devilbane logo as a faint watermark in the corner
-	# (the "HARDCORE" lettering below it is cut off).
+	# The new "db" logo (the app icon's 1024 px master, with mipmaps so it stays sharp at every
+	# window size) as a faint watermark in the corner.
 	var mark := TextureRect.new()
-	var db := AtlasTexture.new()
-	db.atlas = preload("res://assets/logo/devilbane_logo.png")
-	db.region = Rect2(0, 0, 480, 388)
-	mark.texture = db
+	mark.texture = preload("res://assets/logo/app_icon_1024.png")
+	mark.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	mark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	mark.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)

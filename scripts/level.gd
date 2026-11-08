@@ -5542,7 +5542,26 @@ func _build_stairs(c: Vector2i, up: bool) -> void:
 	if up:
 		_place("stairs", pos + Vector3(0, 0, -TILE * 0.5))
 		return
-	StairsDown.build(self, pos, TILE)
+	var away := stairs_down_dir(c)
+	StairsDown.build(self, pos, TILE, Vector3(away.x, 0, away.y))
+
+
+## The way a flight of stairs down at `c` runs: away from the open floor, so the top step
+## faces the room and the hero walks down from it. With several open sides the one with the
+## longest run of floor wins (ties keep the order of _open_side). Only the picture turns.
+func stairs_down_dir(c: Vector2i) -> Vector2:
+	var best := Vector2i.ZERO
+	var best_run := 0
+	for d: Vector2i in [Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1)]:
+		var run := 0
+		while ".P+".contains(cell_char(c + d * (run + 1))) and run < 6:
+			run += 1
+		if run > best_run:
+			best_run = run
+			best = d
+	if best_run == 0:
+		return Vector2(0, -1)
+	return Vector2(-best.x, -best.y)
 
 
 ## How deep the stairs down of a home reach below the floor.

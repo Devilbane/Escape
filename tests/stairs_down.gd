@@ -26,6 +26,17 @@ func _initialize() -> void:
 	check(flight.get_parent() == holder, "the flight hangs in the parent")
 	var tex := StairsDown.doorway_texture()
 	check(tex != null and tex.get_height() > 0, "the doorway picture exists")
+	# The flight runs away from the open floor, never along a wall.
+	var lvl := Level.new()
+	var rows: Array[String] = ["###", "#.#", "#>#", "###"]
+	lvl.grid = rows
+	lvl.height = 4
+	check(lvl.stairs_down_dir(Vector2i(1, 2)) == Vector2(0, 1), "open floor to the north: the flight runs south, into the wall")
+	var wide: Array[String] = ["######", "#.>..#", "######"]
+	lvl.grid = wide
+	lvl.height = 3
+	check(lvl.stairs_down_dir(Vector2i(2, 1)) == Vector2(-1, 0), "the longer open side (east) wins: the flight runs west")
+	lvl.free()
 	if failures == 0:
 		print("PASS: stairs down")
 	else:

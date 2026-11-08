@@ -286,6 +286,9 @@ func _process(_delta: float) -> bool:
 		15:
 			# An empty belt with spares in the bag is refilled, at the cost of two throws.
 			player._attack_cooldown = 0.0
+			player._busy = 0.0
+			player.frozen = false
+			player.ailments.erase("angst")
 			player.knives = 0
 			player.bag.append(Items.KNIFE)
 			player.throw_knife()

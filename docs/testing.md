@@ -9,9 +9,19 @@ Tests are headless Godot scripts in `tests/`: `godot --headless -s tests/<name>.
 loop (not `profile_*.gd` and not the play-through). A new test therefore runs from the day it is
 added; it does not need an entry in the workflow. The loop only warns for now, because many of those
 tests were never run in CI; fix or list them one by one in `web.yml` to make them blocking.
-The tests are their own job (`tests`), running in parallel with the browser export (`build`), so a
-pull request gets its pass or fail without waiting for the export. Deploy and the Windows build on main
-wait for both and never for the play-through.
+The workflow is called "Tests" and has one job, `tests`: that is the check to require on pull requests.
+Nothing else gates a merge, and the Windows build on main waits only for it (never for the play-through
+or the browser export).
+
+## Releases: Windows first
+
+The Windows client is the main release. Every push to main that passes the fast checks makes
+`.github/workflows/desktop.yml` ("Windows download") build the launcher and the game and publish them on
+the release "windows" (Escape-Windows.zip, `version.json`, ...), which is what the launcher and players use.
+
+The browser version is optional. `.github/workflows/browser.yml` ("Browser version") only runs by hand
+(Actions > Browser version > Run workflow) and, when run on main, deploys to GitHub Pages. It does not
+run on pull requests or pushes and nothing waits for it.
 
 ## Full play-through: only when it matters
 

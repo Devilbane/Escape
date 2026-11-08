@@ -209,7 +209,8 @@ func _run() -> void:
 	if is_instance_valid(giant):
 		giant.dead = true
 
-	# The mason builds hurt bricks up.
+	# The mason builds hurt bricks up (on a fresh day: earlier mending in this test used up the last one).
+	lvl.day += 1
 	if is_instance_valid(slime2):
 		slime2.dead = true
 	for i in int(VillageWall.OPEN_AFTER) + 2:

@@ -62,7 +62,6 @@ const EN := {
 	"%s: leer": "%s: empty",
 	"+%d Kupfer": "+%d copper",
 	"+%d Wurfmesser": "+%d throwing knives",
-	"Heiltrank! +2 Leben": "Healing potion! +2 life",
 	"Gefunden: %s (%s)": "Found: %s (%s)",
 	"\nTaste I öffnet das Inventar.": "\nKey I opens the inventory.",
 	"Du durchsuchst %s... nichts.": "You search %s... nothing.",

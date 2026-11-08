@@ -123,6 +123,9 @@ func _run() -> void:
 	check(Items.slots_used(["heiltrank", "heiltrank", "heiltrank", "heiltrank", "heiltrank"]) == 1, "five potions share one slot")
 	check(Items.slots_used(["heiltrank", "heiltrank", "heiltrank", "heiltrank", "heiltrank", "heiltrank"]) == 2, "a sixth opens a second slot")
 	check(Items.slots_used(["heiltrank", "heiltrank_stark"]) == 2, "different potencies do not share a slot")
+	# Furniture gives potions to keep, mostly the weakest kind.
+	check(HealingPotions.loot_potion(0.0) == "heiltrank_schwach" and HealingPotions.loot_potion(0.69) == "heiltrank_schwach", "furniture mostly holds weak potions")
+	check(HealingPotions.loot_potion(0.8) == "heiltrank" and HealingPotions.loot_potion(0.99) == "heiltrank_stark", "medium ones are rarer, strong ones rarest")
 	check(Training.CRAFTS.has("alchemie") and Lang.EN.has(Training.CRAFTS.alchemie.name), "alchemy is a craft")
 
 	# Potency from Intelligenz + 2 x Alchemie.

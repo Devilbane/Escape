@@ -25,6 +25,7 @@ func _initialize() -> void:
 
 func _test() -> void:
 	_test_plan()
+	_test_notes()
 	await _test_window()
 	print("PASS" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
@@ -52,9 +53,21 @@ func _test_plan() -> void:
 		"a version.json without build is not used")
 
 
+func _test_notes() -> void:
+	var lines: Array = LauncherScript.parse_notes("# a comment\n\n## New\n- First thing\n-  Second thing \nplain\n## Fixes\n- Bug")
+	check(lines == [["h", "New"], ["li", "First thing"], ["li", "Second thing"], ["p", "plain"], ["h", "Fixes"], ["li", "Bug"]],
+		"patch notes are split into headings, changes and text, comments left out")
+	check(LauncherScript.parse_notes("").is_empty(), "no notes, no lines")
+	check(LauncherScript.parse_notes("- x".repeat(LauncherScript.NOTES_MAX)).size() <= 1, "huge notes are cut off")
+	var shipped := FileAccess.get_file_as_string("res://docs/patch_notes.txt")
+	var parsed: Array = LauncherScript.parse_notes(shipped)
+	check(not parsed.is_empty() and parsed[0][0] == "h", "docs/patch_notes.txt starts with a heading")
+	check(shipped.length() < LauncherScript.NOTES_MAX, "docs/patch_notes.txt fits the launcher's limit")
+
+
 ## Rectangles of everything the player looks at or clicks.
 func _rects(l) -> Array:
-	return [l._status.get_global_rect(), l._progress.get_global_rect(), l._play.get_global_rect(),
+	return [l._notes_scroll.get_global_rect(), l._status.get_global_rect(), l._progress.get_global_rect(), l._play.get_global_rect(),
 		l._quit.get_global_rect(), l._lang_buttons.de.get_global_rect(), l._lang_buttons.en.get_global_rect()]
 
 
@@ -77,7 +90,19 @@ func _test_window() -> void:
 		["offline", LauncherScript.Step.OFFLINE, {"version": "0.5", "build": "41", "engine": "e"}, "Keine Verbindung zum Server. Du spielst die installierte Version.", []],
 		["failed", LauncherScript.Step.FAILED, {}, "Das Spiel konnte nicht geladen werden. Prüfe die Internetverbindung und versuche es erneut.", []],
 	]
+	var long_notes := "## Big update\n" + "- A change with enough words to wrap onto a second line in the notes box.\n".repeat(40)
 	for code in ["de", "en"]:
+		# Short and very long notes must leave the window exactly as it is; long ones scroll.
+		l.show_notes("")
+		await process_frame
+		var empty_rect: Rect2 = l._notes_scroll.get_global_rect()
+		l.show_notes(long_notes)
+		await process_frame
+		await process_frame
+		check(l._notes_scroll.get_global_rect() == empty_rect, "long notes keep the notes box in place (%s)" % code)
+		check(l._notes_list.get_combined_minimum_size().y > l._notes_scroll.size.y, "long notes scroll (%s)" % code)
+		check(l._notes_list.get_combined_minimum_size().x <= l._notes_scroll.size.x, "notes never scroll sideways (%s)" % code)
+		l.show_notes(FileAccess.get_file_as_string("res://docs/patch_notes.txt"))
 		Texts.language = code
 		Texts._apply()
 		for c in cases:
@@ -105,10 +130,11 @@ func _test_window() -> void:
 				root.get_texture().get_image().save_png(shots.path_join("launcher_%s_%s.png" % [c[0], code]))
 	# The title must not run into the language buttons.
 	var box: Node = l.get_child(1).get_child(0)
-	var emblem: TextureRect = box.get_child(0)
+	var header: Node = box.get_child(0)
+	var emblem: TextureRect = header.get_child(0)
 	check(emblem.texture != null and Rect2(Vector2.ZERO, Vector2(960, 540)).encloses(emblem.get_global_rect()),
 		"the emblem is on screen")
-	var title: Label = box.get_child(1)
+	var title: Label = header.get_child(1)
 	check(not title.get_global_rect().intersects(l._lang_buttons.en.get_parent().get_global_rect()),
 		"the title keeps clear of the language buttons")
 	Texts.language = ""

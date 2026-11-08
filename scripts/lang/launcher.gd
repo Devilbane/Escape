@@ -3,6 +3,8 @@ extends RefCounted
 
 const EN := {
 	"Spielen": "Play",
+	"Das ist neu": "What's new",
+	"Noch keine Neuigkeiten.": "No news yet.",
 	"Erneut versuchen": "Try again",
 	"Suche nach einer neuen Version …": "Looking for a new version …",
 	"Lade den neuen Starter: %s von %s MB": "Downloading the new launcher: %s of %s MB",

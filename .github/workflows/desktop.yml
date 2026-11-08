@@ -23,6 +23,7 @@ on:
       - "scripts/ui_kit.gd"
       - "scripts/bronze_style.gd"
       - "scripts/lang/launcher.gd"
+      - "docs/patch_notes.txt"
       - "tests/launcher.gd"
   workflow_dispatch:
 
@@ -140,6 +141,8 @@ jobs:
           cd build
           engine=$(sha256sum Escape/game/Escape.exe | cut -d' ' -f1)
           echo "{\"version\":\"$VERSION\",\"build\":\"$BUILD\",\"engine\":\"$engine\"}" > Escape/game/installed.json
+          # The patch notes also travel inside the zip, for the launcher's first start.
+          cp ../docs/patch_notes.txt Escape/game/patch_notes.txt
           cp Escape/Escape.exe Escape/game/Escape.pck release/
           cp Escape/game/Escape.exe release/EscapeGame.exe
           zip -qr9 release/Escape-Windows.zip Escape
@@ -152,8 +155,10 @@ jobs:
                       h.update(chunk)
               return h.hexdigest()
           env = os.environ
+          # The launcher shows these patch notes while it downloads (docs/patch_notes.txt).
+          notes = open("../docs/patch_notes.txt", encoding="utf-8").read()
           manifest = {
-              "version": env["VERSION"], "build": env["BUILD"],
+              "version": env["VERSION"], "build": env["BUILD"], "notes": notes,
               "pack_size": os.path.getsize("release/Escape.pck"), "pack_sha256": sha("release/Escape.pck"),
               "launcher": env["REV"], "launcher_file": "Escape.exe",
               "launcher_size": os.path.getsize("release/Escape.exe"), "launcher_sha256": sha("release/Escape.exe"),

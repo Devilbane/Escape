@@ -10,7 +10,9 @@ extends Control
 ##   2. downloads a newer Escape.exe first when the launcher itself has changed (and
 ##      restarts), then a newer game/Escape.exe when the engine changed, then a newer
 ##      game/Escape.pck, with a progress bar, checking every file,
-##   3. starts game/Escape.exe on "Play". (Exported Godot cannot be told on the command
+##   3. shows the patch notes while it works (the "notes" text in version.json, kept in
+##      game/patch_notes.txt for the next start, see docs/patch_notes.txt),
+##   4. starts game/Escape.exe on "Play". (Exported Godot cannot be told on the command
 ##      line which data to load, so the game needs an engine file of its own.)
 ## Without an internet connection the installed version simply starts. Saved games live in
 ## the player's user folder and are never touched.
@@ -25,13 +27,19 @@ extends Control
 const Kit := preload("res://scripts/ui_kit.gd")
 const Texts := preload("res://scripts/lang.gd")
 const EMBLEM := preload("res://assets/logo/app_icon_1024.png")
-const EMBLEM_SIZE := 128
+const EMBLEM_SIZE := 84
 
 const SOURCE := "https://github.com/devilbane/escape/releases/download/windows/"
 const MANIFEST := "version.json"
 const PACK := "Escape.pck"
 const GAME_EXE := "Escape.exe"
 const INSTALLED := "installed.json"
+## The last patch notes seen, so they show even before (or without) a connection.
+const NOTES_FILE := "patch_notes.txt"
+const NOTES_MAX := 8000
+const NO_NEWS := "Noch keine Neuigkeiten."
+const NOTES_HEIGHT := 168.0
+const NOTES_TEXT := Color(0.86, 0.83, 0.78)
 ## Changed by the build (desktop.yml) to a fingerprint of the launcher and the engine. When the
 ## release names another one, this launcher is out of date and fetches the new Escape.exe.
 ## Empty in the editor: no self-update there.
@@ -43,6 +51,9 @@ const NOTE := Color(1.0, 0.75, 0.5)
 const TEXT := Color(0.92, 0.9, 0.86)
 const BACKGROUND := Color(0.05, 0.035, 0.08)
 const STATUS_WIDTH := 620.0
+const NOTES_PAD := 10.0
+## Room kept for the scroll bar, so the text never shifts when the bar appears.
+const SCROLL_ROOM := 14.0
 
 enum Step { CHECKING, DOWNLOADING, VERIFYING, READY, OFFLINE, FAILED, STARTING }
 
@@ -72,6 +83,8 @@ var _play: Button
 var _quit: Button
 var _version: Label
 var _lang_buttons := {}
+var _notes_list: VBoxContainer
+var _notes_scroll: ScrollContainer
 
 
 func _ready() -> void:
@@ -80,6 +93,7 @@ func _ready() -> void:
 	_remove_old_exe()
 	installed = read_installed(game_dir)
 	_build_ui()
+	show_notes(read_notes(game_dir))
 	if auto_check:
 		_check()
 	else:
@@ -113,6 +127,66 @@ static func playable(have: Dictionary) -> bool:
 static func valid_manifest(data) -> bool:
 	return data is Dictionary and String(data.get("build", "")) != "" \
 		and String(data.get("pack_sha256", "")).length() == 64 and int(data.get("pack_size", 0)) > 0
+
+
+## Turns the patch notes text into lines to show: ["h", "Heading"], ["li", "A change"] or
+## ["p", "Plain text"]. "## Heading" and "- change" start those lines; a line starting
+## with a single "#" is a comment for the people who write the file; the text is cut off
+## at NOTES_MAX characters.
+static func parse_notes(text: String) -> Array:
+	var lines := []
+	for raw in text.substr(0, NOTES_MAX).split("\n"):
+		var line := raw.strip_edges()
+		if line == "" or (line.begins_with("#") and not line.begins_with("##")):
+			continue
+		if line.begins_with("##"):
+			lines.append(["h", line.trim_prefix("##").strip_edges()])
+		elif line.begins_with("- "):
+			lines.append(["li", line.substr(2).strip_edges()])
+		else:
+			lines.append(["p", line])
+	return lines
+
+
+static func read_notes(dir: String) -> String:
+	var file := dir.path_join(NOTES_FILE)
+	return FileAccess.get_file_as_string(file) if FileAccess.file_exists(file) else ""
+
+
+func _save_notes(text: String) -> void:
+	var file := FileAccess.open(game_dir.path_join(NOTES_FILE), FileAccess.WRITE)
+	if file:
+		file.store_string(text)
+		file.close()
+
+
+## Fills the notes box. It always keeps its size: long notes scroll, short ones leave
+## room, none at all say so.
+func show_notes(text: String) -> void:
+	if _notes_list == null:
+		return
+	for child in _notes_list.get_children():
+		_notes_list.remove_child(child)
+		child.queue_free()
+	_notes_scroll.scroll_vertical = 0
+	var lines := parse_notes(text)
+	if lines.is_empty():
+		lines = [["none", NO_NEWS]]
+	var width := STATUS_WIDTH - 2.0 * NOTES_PAD - SCROLL_ROOM
+	for entry in lines:
+		var heading: bool = entry[0] == "h"
+		var label := Kit.label(Kit.TEXT_FONT, 17 if heading else 15, Kit.GOLD if heading else NOTES_TEXT)
+		# The notes are English as written; only the placeholder is translated.
+		if entry[0] != "none":
+			label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		label.text = ("\u2022  " if entry[0] == "li" else "") + entry[1]
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.custom_minimum_size.x = width
+		if heading and _notes_list.get_child_count() > 0:
+			var gap := Control.new()
+			gap.custom_minimum_size.y = 6
+			_notes_list.add_child(gap)
+		_notes_list.add_child(label)
 
 
 static func read_installed(dir: String) -> Dictionary:
@@ -221,6 +295,10 @@ func _on_manifest(ok: bool, body: PackedByteArray) -> void:
 		_offline()
 		return
 	manifest = data
+	var notes := String(data.get("notes", "")).strip_edges()
+	if notes != "":
+		show_notes(notes)
+		_save_notes(notes)
 	_continue(REV)
 
 
@@ -426,37 +504,69 @@ func _build_ui() -> void:
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(centre)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 12)
+	box.add_theme_constant_override("separation", 8)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	centre.add_child(box)
 
-	# The emblem, from its 1024 px master with mipmaps so it stays sharp when shrunk.
+	# The emblem, from its 1024 px master with mipmaps so it stays sharp when shrunk, next to
+	# the title: a low header leaves the room below for the patch notes.
+	var header := HBoxContainer.new()
+	header.alignment = BoxContainer.ALIGNMENT_CENTER
+	header.add_theme_constant_override("separation", 16)
+	box.add_child(header)
 	var emblem := TextureRect.new()
 	emblem.texture = EMBLEM
 	emblem.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	emblem.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	emblem.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	emblem.custom_minimum_size = Vector2(EMBLEM_SIZE, EMBLEM_SIZE)
-	emblem.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	emblem.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(emblem)
+	header.add_child(emblem)
 
-	var title := Kit.label(Kit.TITLE_FONT, 120, Kit.GOLD)
+	var title := Kit.label(Kit.TITLE_FONT, 100, Kit.GOLD)
 	title.text = "Escape!"
 	title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(title)
-	var sub := Kit.label(Kit.TEXT_FONT, 20, GREY)
+	header.add_child(title)
+	var sub := Kit.label(Kit.TEXT_FONT, 18, GREY)
 	sub.text = "Entkomme aus dem Verlies"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
+
+	# The patch notes: a framed box of fixed size; its text scrolls when it is longer.
+	var notes := VBoxContainer.new()
+	notes.add_theme_constant_override("separation", 4)
+	box.add_child(notes)
+	var notes_title := Kit.label(Kit.TEXT_FONT, 15, Kit.BRONZE)
+	notes_title.text = "Das ist neu"
+	notes.add_child(notes_title)
+	var frame := PanelContainer.new()
+	frame.add_theme_stylebox_override("panel", Kit.frame_style(Color(0.06, 0.045, 0.035, 0.85)))
+	frame.custom_minimum_size = Vector2(STATUS_WIDTH, NOTES_HEIGHT)
+	frame.theme = Kit.scroll_theme()
+	notes.add_child(frame)
+	var pad := MarginContainer.new()
+	pad.add_theme_constant_override("margin_left", int(NOTES_PAD))
+	pad.add_theme_constant_override("margin_right", 4)
+	pad.add_theme_constant_override("margin_top", 6)
+	pad.add_theme_constant_override("margin_bottom", 6)
+	frame.add_child(pad)
+	_notes_scroll = ScrollContainer.new()
+	_notes_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_notes_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+	pad.add_child(_notes_scroll)
+	_notes_list = VBoxContainer.new()
+	_notes_list.add_theme_constant_override("separation", 3)
+	_notes_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_notes_scroll.add_child(_notes_list)
 
 	_status = Kit.label(Kit.TEXT_FONT, 18, TEXT)
 	_status.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.custom_minimum_size = Vector2(STATUS_WIDTH, 56)
+	_status.custom_minimum_size = Vector2(STATUS_WIDTH, 48)
 	# The status and its progress bar are one group, set apart from the buttons below.
 	var news := VBoxContainer.new()
 	news.add_theme_constant_override("separation", 6)

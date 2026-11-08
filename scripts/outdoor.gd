@@ -338,6 +338,8 @@ const FENCE_IVY := 0.55
 ## The adventurers' guild, the castle and the temple are smothered in old ivy: this many patches, every
 ## wall and up on to its roof, even though it stands in the square.
 const GUILD_IVY := 20
+## Patches on the other stone buildings (tavern, smithy, market, tower, ...).
+const STONE_IVY := 14
 const CASTLE_IVY := 24
 ## The temple too, but its doorway is kept bare: no ivy roots within a few
 ## metres of it, to the sides and back along the steps.
@@ -1218,7 +1220,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		elif ch == "w" or ch == "k":
 			_dress_building(node, center, [door], 0.75, GUILD_IVY if ch == "w" else CASTLE_IVY, true)
 		else:
-			_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
+			# Every stone building wears old ivy, so it is as green as the
+			# wooden houses (which ordinary ivy suits).
+			_dress_building(node, center, [door], 0.75, STONE_IVY, true)
 	if interiors.has(ch):
 		# Run into the door to go in.
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
@@ -1237,7 +1241,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		for x in [-1.2, 0.0, 1.2]:
 			for z in [0.0, -1.5, -3.0]:
 				door_spots.append(center + Vector3(x, 0, reach.y - 2.0 + z))
-		_dress_building(node, center, door_spots, 0.0, CRYPT_IVY)
+		_dress_building(node, center, door_spots, 0.0, CRYPT_IVY, true)
 		# A faint cold glow in the crypt door the hero came out of.
 		var light := OmniLight3D.new()
 		light.light_color = Color(0.6, 0.75, 1.0)

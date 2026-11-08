@@ -337,6 +337,8 @@ var _xp_label: Label
 var _run_label: Label
 var _run_fill: StyleBoxTexture
 var _shrine_panel: Control
+## "Blessings left" line on the shrine panel (beginner dungeon only).
+var _shrine_left_label: Label
 ## The fourth shrine gift, offered only to a wise hero.
 var _wise_gift: Button
 ## The Konstitution gift, whose amount depends on the dungeon.
@@ -1671,6 +1673,9 @@ func _setup_shrine_panel() -> void:
 	sub.text = Lang.t("Wähle eine Gabe")
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
+	_shrine_left_label = _make_label(TEXT_FONT, 18, Color(0.65, 0.85, 1.0))
+	_shrine_left_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_shrine_left_label)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
@@ -2338,8 +2343,19 @@ func crate_action() -> void:
 		show_message(why, 1.6)
 
 
+## Shrine blessings the hero has left in the beginner dungeon.
+func shrines_left() -> int:
+	return maxi(0, Player.SHRINE_CAP_BEGINNER - player.beginner_shrines_used)
+
+
 func _open_shrine(s: Dictionary) -> void:
+	if level.beginner_dungeon and shrines_left() <= 0:
+		_pending_station = {}
+		show_message(Lang.t("Die Schreine sind verstummt."), 2.0)
+		return
 	_shrine = s
+	_shrine_left_label.visible = level.beginner_dungeon
+	_shrine_left_label.text = Lang.t("Segen übrig: %d") % shrines_left()
 	_pending_station = {}
 	player.face(s.pos - player.global_position)
 	set_world_paused(true)
@@ -2379,6 +2395,12 @@ func _choose_gift(index: int) -> void:
 				return
 			player.gift_armor += 1
 			text = Lang.t("Deine Haut wird hart wie Rinde: +1 Härtung")
+	if level.beginner_dungeon:
+		player.beginner_shrines_used += 1
+		if shrines_left() <= 0:
+			text += "\n" + Lang.t("Die Schreine sind verstummt.")
+		else:
+			text += "\n" + Lang.t("Segen übrig: %d") % shrines_left()
 	player.train("weisheit", 5.0)
 	set_world_paused(false)
 	Sfx.play(self, "gift")
@@ -3598,6 +3620,7 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_armor = int(data.get("gift_armor", 0))
 	player.gift_points = int(data.get("gift_points", 0))
 	player.gift_constitution = int(data.get("gift_constitution", 0))
+	player.beginner_shrines_used = int(data.get("beginner_shrines_used", 0))
 	player.gift_spent = {}
 	var gift_spent = data.get("gift_spent", {})
 	if gift_spent is Dictionary:
@@ -3874,7 +3897,7 @@ func save_game(going_away := false) -> bool:
 	var data := {
 		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
-		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution,
+		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution, "beginner_shrines_used": player.beginner_shrines_used,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "cape": player.cape_design, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "book_hours": book_hours, "escaped": escaped, "village_run": snappedf(player.ailments.get(VillageRun.KIND, 0.0), 0.1), "home": _home_given_now(), "claimed": home_claimed,
 		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(), "home_stores": HomeStores.for_save(home_stores),

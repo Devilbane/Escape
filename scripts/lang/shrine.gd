@@ -11,4 +11,6 @@ const EN := {
 	"Die Ahnen schenken dir einen Attributpunkt: verteile ihn auf der Charakterseite (P).": "The ancestors give you an attribute point: spend it on the character page (P).",
 	"Du fühlst dich zäher: +%d Konstitution": "You feel tougher: +%d Constitution",
 	"+%d Konstitution": "+%d Constitution",
+	"Die Schreine sind verstummt.": "The shrines have gone quiet.",
+	"Segen übrig: %d": "Blessings left: %d",
 }

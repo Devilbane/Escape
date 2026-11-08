@@ -5,6 +5,7 @@
 # history, so nothing needs trimming. Keep those two sections well under 16000 characters.
 
 ## Latest changes
+- You can use at most 9 shrines in the whole beginner dungeon; the shrine window shows how many blessings are left, and after the ninth the shrines go quiet.
 - The dark fill around the dungeon no longer covers the floor grates or the stairs going down: you see the pits below the grates again, and the stairs are open.
 - The launcher now shows only the newest two sections of the patch notes, so old notes no longer need trimming.
 - A slime you hit now turns on you first: it drops villagers and the wall as targets while you fight it, and goes back to them after about 6 seconds without a blow or when you get far away.

@@ -119,6 +119,8 @@ const SHRINE_POINTS := 1
 const SHRINE_CONSTITUTION := 1
 ## In the beginner dungeon a shrine's Konstitution gift is bigger.
 const SHRINE_CONSTITUTION_BEGINNER := 2
+## The most shrines a hero can use in the whole beginner dungeon; after that they stay quiet.
+const SHRINE_CAP_BEGINNER := 9
 # Gifts from shrines, kept for the whole run.
 var gift_hp := 0
 ## Life from the trophy wall at home (see HomeUpgrades), set by the game.
@@ -132,6 +134,8 @@ var gift_points := 0
 var gift_spent := {}
 ## Konstitution from shrines this run.
 var gift_constitution := 0
+## Shrines used so far in the beginner dungeon (counts against SHRINE_CAP_BEGINNER).
+var beginner_shrines_used := 0
 ## From the fourth shrine gift, which only a wise hero is offered.
 var gift_armor := 0
 ## What the companion at the hero's side gives (Companions.SPECIES of its
@@ -1863,6 +1867,7 @@ func reset_gifts() -> void:
 	gift_points = 0
 	gift_spent = {}
 	gift_constitution = 0
+	beginner_shrines_used = 0
 	gift_armor = 0
 	companion_perks = {}
 	equipped = {}

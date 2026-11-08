@@ -5687,7 +5687,7 @@ func _search(obj: Dictionary) -> void:
 	var color := Color(0.8, 0.8, 0.85)
 	# "Empty" is only the text while nothing at all has been found; the check must not
 	# compare the (translated) words, which broke in English.
-	var nothing_yet := not (loot.has("gold") or loot.has("knives") or loot.has("potion"))
+	var nothing_yet := not (loot.has("gold") or loot.has("knives"))
 	# How big the words over it are: the best of what was in it.
 	var worth := 0.0
 	if loot.has("gold"):
@@ -5703,15 +5703,6 @@ func _search(obj: Dictionary) -> void:
 		text = Lang.t("+%d Wurfmesser") % loot.knives
 		color = Color(0.8, 0.9, 1.0)
 		worth = 0.1
-		Events.found(text, color)
-	elif loot.has("potion"):
-		Sfx.play(self, "drink")
-		player.hp = mini(player.max_hp, player.hp + 2)
-		text = Lang.t("Heiltrank! +2 Leben")
-		if player.cure():
-			text += "\n" + Lang.t("Dein Leiden ist geheilt.")
-		color = Color(1.0, 0.5, 0.55)
-		worth = 0.3
 		Events.found(text, color)
 	if loot.has("item"):
 		player.bag.append(loot.item)

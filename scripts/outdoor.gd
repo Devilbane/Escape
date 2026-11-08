@@ -768,6 +768,10 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			spots.market.append(pos)
 		"F":
 			_build_fountain(c)
+			# A little ivy up the basin's outside, a bit of it over the rim.
+			var ivy_rng := RandomNumberGenerator.new()
+			ivy_rng.seed = hash("%s|brunnen|%s" % [level_name, c])
+			AgedStone.grow_basin_ivy(pos, 1.55, 1.0, ivy_rng, _ivy, 3)
 			spots.well.append(pos + Vector3(0, 0, 2.6))
 		"x":
 			_build_bench(c)

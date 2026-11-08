@@ -648,6 +648,31 @@ static func grow_bush(at: Vector3, rng: RandomNumberGenerator, leaves: Dictionar
 		leaves.colours.append(c)
 
 
+## A little ivy on a round basin (the village fountain) standing on the ground
+## at `at`: a few light clumps that cling to the outside of the wall from the
+## foot up, and one or two that spill over the rim. Its leaves join the ivy's.
+static func grow_basin_ivy(at: Vector3, wall_radius: float, wall_top: float, rng: RandomNumberGenerator, leaves: Dictionary, clumps := 3) -> void:
+	var start := rng.randf() * TAU
+	for k in clumps:
+		var a := start + TAU * float(k) / clumps + rng.randf_range(-0.4, 0.4)
+		var spread := rng.randf_range(0.18, 0.3)
+		var height := rng.randf_range(0.45, 1.0) * wall_top
+		for i in rng.randi_range(22, 36):
+			# Thickest at the foot, thinning out up the wall; the odd leaf
+			# over the rim.
+			var h := wall_top * pow(rng.randf(), 1.6) * (height / wall_top)
+			var over := rng.randf() < 0.08
+			var ang := a + rng.randf_range(-spread, spread) * (1.0 - h / (wall_top + 0.01) * 0.5)
+			var out := Vector3(cos(ang), 0.0, sin(ang))
+			var normal := (out + Vector3(0, 0.15 if not over else 0.8, 0)).normalized()
+			var p := at + out * (wall_radius + 0.04) + Vector3(0, h + 0.1 if not over else wall_top + 0.05, 0)
+			var across := Vector3.UP.cross(normal).normalized()
+			var s := rng.randf_range(LEAF_SIZE.x, LEAF_SIZE.y)
+			var b := Basis(across, normal.cross(across), normal).rotated(normal, rng.randf_range(-PI, PI))
+			leaves.xforms.append(Transform3D(b.scaled(Vector3(s, s, s)), p))
+			leaves.colours.append(LEAF_COLOURS[rng.randi() % (LEAF_COLOURS.size() - 1)] * rng.randf_range(0.8, 1.1))
+
+
 ## The leaves (ivy and shrubs) are drawn in square tiles of the map, one
 ## MultiMesh each, so a tile off screen or far from the camera is skipped
 ## whole instead of every leaf of the village being drawn every frame.

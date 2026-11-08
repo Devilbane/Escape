@@ -1,15 +1,15 @@
 name: Windows download
 
 # Builds the Windows version: Escape.exe (the launcher, see scripts/launcher.gd) and the game,
-# game/Escape.exe (the bare engine) with its data game/Escape.pck. After every browser build
-# of main that passed its tests, they are published on the GitHub release "windows", always under the same links:
+# game/Escape.exe (the bare engine) with its data game/Escape.pck. After every run of the fast tests
+# on main that passed, they are published on the GitHub release "windows", always under the same links:
 #   https://github.com/devilbane/escape/releases/download/windows/Escape-Windows.zip  (for players)
 #   .../windows/version.json, Escape.exe, EscapeGame.exe, Escape.pck                 (for the launcher)
 # A pull request that touches the launcher builds it too, as a download on the workflow run.
 
 on:
   workflow_run:
-    workflows: ["Browser version"]
+    workflows: ["Tests"]
     types: [completed]
     branches: [main]
   pull_request:

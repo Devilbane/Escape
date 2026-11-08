@@ -514,7 +514,13 @@ func _bus_links() -> Array:
 		[bus.scare_happened, village_worries.on_scare],
 		[bus.enemy_slain, village_rumours.on_slain],
 		[bus.treasure_map_found, treasure_maps.read],
+		[bus.village_alarmed, _ring_bell],
 	]
+
+
+## The warning bell tolls (see Events.village_alarmed, VillageBell).
+func _ring_bell(reason: String) -> void:
+	VillageBell.ring(self, reason)
 
 
 ## A short jolt of the camera (see Events.camera_punched): it never cuts a

@@ -282,6 +282,62 @@ static func build_lamp(parent: Node3D, pos: Vector3, panes: Material) -> void:
 	parent.add_child(glass)
 
 
+# --- The alarm horn ---------------------------------------------------------------
+
+## The big Norse alarm horn the town guard blows (see WarHorn): a great curved
+## horn of yellowed bone with iron bands and a rope, lying in a timber cradle
+## of two forked posts. Its wide bell points towards -x (turn it with `yaw`),
+## its mouthpiece towards +x. The mouth of the bell is at WarHorn.MOUTH_AT.
+static func build_war_horn(parent: Node3D, pos: Vector3, yaw := 0.0) -> MeshInstance3D:
+	var rng := _rng_at(pos, "horn")
+	var b := WeatheredProps.Builder.new()
+	var turn := Basis(Vector3.UP, yaw)
+	var bone := Color(0.84, 0.78, 0.62)
+	# The cradle: two posts with a fork each, and a cross beam low between them.
+	for z in [-0.45, 0.45]:
+		b.box(turn * Vector3(0.1, 0, z), Vector3(0.2, 1.05, 0.2), W.vary(W.TIMBER[1], rng), W.WOOD, turn * _turn(rng, 0.05))
+		b.bar(turn * Vector3(0.1, 0.95, z), turn * Vector3(-0.15, 1.35, z), 0.06, W.TIMBER[3], W.WOOD, 5)
+		b.bar(turn * Vector3(0.1, 0.95, z), turn * Vector3(0.45, 1.3, z), 0.06, W.TIMBER[3], W.WOOD, 5)
+	b.bar(turn * Vector3(0.1, 0.3, -0.45), turn * Vector3(0.1, 0.3, 0.45), 0.05, W.TIMBER[0], W.WOOD, 5)
+	# The horn: a curve of cones, narrow at the mouthpiece (+x), flaring to the bell (-x), swinging
+	# across z as it goes so the bell sits up and to one side.
+	var steps := 14
+	var last_p := _horn_point(0.0)
+	var last_r := _horn_radius(0.0)
+	for i in range(1, steps + 1):
+		var f := float(i) / steps
+		var p := _horn_point(f)
+		var r := _horn_radius(f)
+		_cone(b, turn * last_p, turn * p, last_r, r, bone * Color(1, 1, 1 - 0.1 * f))
+		last_p = p
+		last_r = r
+	# Iron bands, the mouthpiece rim and a rope slung over the cradle.
+	for f in [0.3, 0.6, 0.9]:
+		_cone(b, turn * _horn_point(f), turn * _horn_point(f + 0.04), _horn_radius(f) + 0.025, _horn_radius(f + 0.04) + 0.025, W.IRON_COLOUR * 0.8)
+	b.bar(turn * Vector3(0.95, 1.14, -0.1), turn * Vector3(0.85, 1.14, -0.1), 0.1, W.IRON_COLOUR * 0.75, W.IRON, 8)
+	b.bar(turn * Vector3(0.1, 1.38, -0.45), turn * Vector3(0.1, 1.36, 0.45), 0.02, Color(0.55, 0.42, 0.28), W.WOOD, 4)
+	return b.finish(parent, pos)
+
+
+## Where the horn's centre line is at `f` (0 mouthpiece, 1 bell), in the horn's own space.
+static func _horn_point(f: float) -> Vector3:
+	return Vector3(lerpf(0.9, -1.5, f), 1.15 + 0.35 * sin(f * PI) + 0.25 * f, 0.45 * sin(f * PI * 0.9) - 0.1)
+
+
+## How wide the horn is at `f`: a narrow throat flaring into a wide bell.
+static func _horn_radius(f: float) -> float:
+	return 0.07 + 0.3 * pow(f, 2.2)
+
+
+## A cone of the horn from `a` (radius `ra`) to `b` (radius `rb`).
+static func _cone(b: WeatheredProps.Builder, a: Vector3, to: Vector3, ra: float, rb: float, colour: Color) -> void:
+	var axis := to - a
+	var y := axis.normalized()
+	var x := y.cross(Vector3.UP if absf(y.y) < 0.95 else Vector3.RIGHT).normalized()
+	var z := x.cross(y)
+	b.cylinder(a, ra, rb, axis.length(), colour, W.WOOD, 10, Basis(x, y, z), false)
+
+
 # --- The food pedestal ----------------------------------------------------------
 
 ## A tall pedestal of hewn stone (`height` metres, its top flat at that

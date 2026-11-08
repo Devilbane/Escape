@@ -1,0 +1,95 @@
+name: Browser version
+
+# OPTIONAL: exports the browser version and publishes it on GitHub Pages. The Windows client
+# (desktop.yml) is the main release; nothing waits for this workflow. Run it by hand:
+# Actions > Browser version > Run workflow (a deploy only happens when run on main).
+# See docs/testing.md.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore Godot from the cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-web
+
+      - name: Install Godot
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          unzip -q Godot_v*_linux.x86_64.zip && mv Godot_v*_linux.x86_64 godot && rm Godot_v*_linux.x86_64.zip
+          templates=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p $templates
+          unzip -qj Godot_v*_export_templates.tpz templates/web_nothreads_release.zip templates/web_nothreads_debug.zip templates/version.txt -d $templates
+          rm Godot_v*_export_templates.tpz
+
+      - name: Import the project
+        run: ~/godot/godot --headless --import
+
+      - name: Export the browser version
+        run: |
+          sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd
+          grep -q 'const BUILD := "${{ github.run_number }}"' scripts/game.gd
+          mkdir -p build/web
+          ~/godot/godot --headless --export-release Web build/web/index.html
+          # A new file name for the game data on every build, so browsers
+          # cannot keep showing an old version from their cache.
+          v=${{ github.run_number }}
+          # The plain index.pck stays too: a page still cached from an
+          # older release asks for that name.
+          cp build/web/index.pck build/web/index-$v.pck
+          sed -i "s/\"executable\":\"index\"/\"executable\":\"index\",\"mainPack\":\"index-$v.pck\"/; s/\"index.pck\":/\"index-$v.pck\":/" build/web/index.html
+          grep -q "\"mainPack\":\"index-$v.pck\"" build/web/index.html
+          # A page still cached from an older build would ask for a pck that
+          # is gone. version.txt names the live build; the page checks it
+          # without the cache and reloads itself when it is out of date.
+          echo "$v" > build/web/version.txt
+          python3 - "$v" <<'PY'
+          import sys
+          v = sys.argv[1]
+          guard = open("tools/web/version_check.html").read().replace("__BUILD__", v)
+          page = open("build/web/index.html").read()
+          assert "</head>" in page
+          open("build/web/index.html", "w").write(page.replace("</head>", guard + "</head>", 1))
+          PY
+          grep -q "var build = \"$v\"" build/web/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

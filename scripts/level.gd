@@ -2328,6 +2328,60 @@ func open_secret_wall(c: Vector2i, at_once := false) -> bool:
 	return false
 
 
+## How often (in seconds) the hero is checked for being sealed in.
+const SEALED_CHECK := 0.5
+var _sealed_timer := 0.0
+
+
+## The hero never stays shut in behind a closed secret wall. A secret room is
+## sealed again every time its level is built: a game loaded or a night slept
+## in a bed inside it starts there with the wall closed. When the hero stands
+## in a part of the map with no way to the rest, the wall around it opens at
+## once, with a message that says why.
+func _check_sealed_in(delta: float) -> void:
+	if _secrets.is_empty():
+		return
+	_sealed_timer -= delta
+	if _sealed_timer > 0.0:
+		return
+	_sealed_timer = SEALED_CHECK
+	free_if_sealed_in(player.global_position)
+
+
+## Opens every closed secret wall of the part of the map the position is in,
+## if that part has no way out. True if it did.
+func free_if_sealed_in(pos: Vector3) -> bool:
+	var start := world_to_cell(pos)
+	var outer := _outer_side()
+	if outer.has(start) or _secrets.is_empty():
+		return false
+	var seen := {start: true}
+	var walls: Array[Vector2i] = []
+	var todo: Array[Vector2i] = [start]
+	while not todo.is_empty():
+		var c: Vector2i = todo.pop_back()
+		for d in DIRS:
+			var n := c + d
+			if seen.has(n):
+				continue
+			var ch := cell_char(n)
+			if ch == "" or ch == "#":
+				continue
+			seen[n] = true
+			if _secrets.any(func(s): return s.cell == n and not s.open):
+				walls.append(n)
+			elif ch != "?":
+				if outer.has(n):
+					return false # Some way out is open (a secret wall already sank).
+				todo.append(n)
+	var opened := false
+	for w in walls:
+		opened = open_secret_wall(w, true) or opened
+	if opened:
+		Events.tell(Lang.t("Hinter dir klickt ein verborgener Hebel: die Geheimwand gleitet auf. Von innen lässt sich der Raum immer öffnen."), Color(1.0, 0.85, 0.45))
+	return opened
+
+
 func _open_secret(s: Dictionary) -> void:
 	s.open = true
 	var torch: Node3D = s.lever
@@ -3651,6 +3705,7 @@ func _process(delta: float) -> void:
 	_check_pickups()
 	_check_doors()
 	_check_secrets()
+	_check_sealed_in(delta)
 	_check_writing()
 	_check_plates()
 	if is_home:
@@ -5480,7 +5535,26 @@ func _build_stairs(c: Vector2i, up: bool) -> void:
 	if up:
 		_place("stairs", pos + Vector3(0, 0, -TILE * 0.5))
 		return
-	StairsDown.build(self, pos, TILE)
+	var away := stairs_down_dir(c)
+	StairsDown.build(self, pos, TILE, Vector3(away.x, 0, away.y))
+
+
+## The way a flight of stairs down at `c` runs: away from the open floor, so the top step
+## faces the room and the hero walks down from it. With several open sides the one with the
+## longest run of floor wins (ties keep the order of _open_side). Only the picture turns.
+func stairs_down_dir(c: Vector2i) -> Vector2:
+	var best := Vector2i.ZERO
+	var best_run := 0
+	for d: Vector2i in [Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1)]:
+		var run := 0
+		while ".P+".contains(cell_char(c + d * (run + 1))) and run < 6:
+			run += 1
+		if run > best_run:
+			best_run = run
+			best = d
+	if best_run == 0:
+		return Vector2(0, -1)
+	return Vector2(-best.x, -best.y)
 
 
 ## How deep the stairs down of a home reach below the floor.

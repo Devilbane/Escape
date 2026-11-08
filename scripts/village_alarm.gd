@@ -66,6 +66,7 @@ func tick(o: Outdoor, delta: float) -> void:
 		_clear = 0.0
 		if not raised:
 			raised = true
+			Events.alarm("slime")
 			_test_nerve(o)
 			if monster == null:
 				var herald := caller(o)

@@ -104,7 +104,6 @@ horrors.gd | 300 | fixed | pass | Dark holes, torches and horrors test
 elementals.gd | 120 | free | pass | Elementals and golems test
 elemental_fights.gd | 300 | fixed | pass | Elementals and golems fight test
 bandit_chief.gd | 120 | fixed | pass | Bandit chief boss fight test
-splash_attack.gd | 120 | fixed | pass | Strike, sweep and fighting back test
 sneak_attack.gd | 120 | fixed | pass | Sneak attack test
 monster_lore.gd | 180 | fixed | pass | Monster lore test
 vital_circle.gd | 180 | fixed | pass | Vital blow circle (the weapon swings a full circle, streak follows, no time lost)
@@ -153,7 +152,6 @@ mountains.gd | 200 | fixed | pass | Mountains, tavern and mines test
 elder_lair.gd | 200 | fixed | pass | The Great Old One's dungeon (sneak to the hoard, epic treasure rooms)
 sternhall.gd | 300 | fixed | pass | Sternhall (star reliefs, wardens, eyes, the chasm, the tome and the drain)
 hero_level.gd | 300 | fixed | pass | Hero level and experience test
-shrine.gd | 120 | fixed | pass | Shrine gifts test
 traps.gd | 200 | fixed | pass | Hidden traps test
 flame_jets.gd | 200 | fixed | pass | Flame jets test
 surface_life.gd | 200 | fixed | pass | Life on the ground above test

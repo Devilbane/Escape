@@ -88,18 +88,18 @@ void fragment() {
 	ALBEDO = mix(mud_color, col, water);
 	// Clear in the middle like the slimes, mirroring more at a flat angle;
 	// the soaked soil only darkens the ground a little.
-	float see = mix(mix(0.72, 1.0 - clear, inner), 0.97, fresnel);
+	float see = mix(mix(0.45, 0.62, inner), 0.8, fresnel);
 	float soil = smoothstep(0.0, 0.24, inner) * 0.6;
 	ALPHA = mix(soil, see, water) * smoothstep(0.0, 0.3, fill);
-	ROUGHNESS = mix(0.7, 0.12 + 0.1 * r2, water);
+	ROUGHNESS = mix(0.7, 0.3 + 0.15 * r2, water);
 	// Not too mirror-like: a grey sky mirrored in full would wash the
 	// puddle out to the colour of the ground around it.
-	SPECULAR = mix(0.2, 0.25, water);
+	SPECULAR = mix(0.2, 0.12, water);
 	// The grey sky mirrored in the water.
 	vec3 up = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
-	float sheen = pow(clamp(dot(reflect(-normalize(VIEW), n), up), 0.0, 1.0), 6.0);
+	float sheen = pow(clamp(dot(reflect(-normalize(VIEW), n), up), 0.0, 1.0), 3.0);
 	// Seen from above, the water mirrors the grey sky, brighter in soft
 	// streaks, so a puddle reads as water and not as a hole in the ground.
-	float mirror = 0.24 + 0.2 * smoothstep(0.25, 0.95, r1) + 0.2 * sheen + 0.3 * fresnel;
-	EMISSION = vec3(0.5, 0.55, 0.6) * sky * water * (mirror + 0.6 * max(wake, 0.0));
+	float mirror = 0.16 + 0.1 * smoothstep(0.25, 0.95, r1) + 0.08 * sheen + 0.15 * fresnel;
+	EMISSION = vec3(0.5, 0.55, 0.6) * sky * water * (mirror + 0.2 * clamp(wake, 0.0, 1.0));
 }

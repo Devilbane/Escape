@@ -66,16 +66,44 @@ def _slosh(r, sec, size):
     return x * size
 
 
+def _plunge(r, sec):
+    # The boot driving into deep water: a low "gloop" whose pitch falls as the
+    # water closes over it, with a wet hiss of foam on top.
+    tt = t(sec)
+    f = r.uniform(190, 260) * np.exp(-tt * r.uniform(7, 10)) + 70
+    gloop = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(tt), 0.004, 0.09) * 0.9
+    foam = (highpass(r.uniform(-1, 1, len(tt)), 1800) - highpass(r.uniform(-1, 1, len(tt)), 6500)) * env(len(tt), 0.01, 0.12) * 0.5
+    return gloop + foam
+
+
+def _patter(r, start, sec, x):
+    # The drops thrown up fall back on the water: a patter of tiny plinks that
+    # thins out and fades, each a short tone gliding up like a bubble.
+    n = int(r.integers(9, 15))
+    for i in range(n):
+        at = int((start + (sec - start) * (i / n) ** 1.4 * r.uniform(0.85, 1.0)) * SR)
+        d = t(r.uniform(0.015, 0.035))
+        f0 = r.uniform(900, 2600)
+        f = f0 * (1 + r.uniform(0.8, 1.6) * d / d[-1])
+        amp = r.uniform(0.1, 0.3) * (1 - i / (n + 2))
+        blip = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(d), 0.0008, 0.008) * amp
+        if at + len(blip) < len(x):
+            x[at:at + len(blip)] += blip
+
+
 def splash(k):
-    # A step into a puddle: not one dull slap but a burst of three or four
-    # splashes in a row, each a little smaller, like water kicked up and
-    # slopping back. Each sound has its own random draw (its own seed), so the
-    # four differ in timing, pitch and size, and the rain and thunder above
+    # A step into a puddle, layered like a foley splash: a deep plunge, then a
+    # burst of three or four splashes in a row, each a little smaller, like
+    # water kicked up and slopping back, and last a patter of drops falling
+    # back onto the water. Each sound has its own random draw (its own seed), so
+    # the four differ in timing, pitch and size, and the rain and thunder above
     # stay as they were.
     r = np.random.default_rng(211 + k)
     count = 3 + k % 2
-    sec = 0.64
+    sec = 0.9
     x = np.zeros(int(SR * sec))
+    plunge = _plunge(r, 0.3)
+    x[:len(plunge)] += plunge
     at = 0.0
     size = 1.0
     for i in range(count):
@@ -84,8 +112,9 @@ def splash(k):
         x[a:a + len(one)] += one[: len(x) - a]
         at += r.uniform(0.1, 0.13)
         size *= r.uniform(0.7, 0.82)
+    _patter(r, 0.18, 0.85, x)
     tt = t(sec)
-    return x * np.minimum(1, (sec - tt) / 0.06)
+    return x * np.minimum(1, (sec - tt) / 0.08)
 
 
 def soft_splash(k):

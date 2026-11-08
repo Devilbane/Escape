@@ -260,6 +260,8 @@ const JOG_LANDINGS := [0.11, 0.61]
 ## The same for the sneaking walk, whose feet land later in its cycle.
 const SNEAK_LANDINGS := [0.29, 0.79]
 var _last_phase := -1.0
+## How many more dry steps leave a wet footprint, after a step in a puddle.
+var _wet_steps := 0
 ## Lifted onto the toes by the walk (see Stride.lift); anything else that
 ## moves the model (the leap of a vital strike) is left alone.
 var _on_toes := false
@@ -1030,9 +1032,13 @@ func _footsteps(ground_speed: float) -> void:
 				if level.in_puddle(global_position):
 					# A nearly dried-out puddle gives a soft squelch, not a splash.
 					var fill: float = level.puddle_fill(global_position)
-					Sfx.play(self, Puddles.splash_sound(fill), (-21.0 if sneak else (-15.0 if walk else -11.0)) + Puddles.splash_volume(fill))
+					Sfx.play(self, Puddles.splash_sound(fill), (-21.0 if sneak else (-15.0 if walk else -8.0)) + Puddles.splash_volume(fill))
 					level.splash_puddle(global_position, not sneak)
+					_wet_steps = Puddles.PRINTS
 				else:
+					if _wet_steps > 0:
+						_wet_steps -= 1
+						level.wet_print(global_position, _model.rotation.y)
 					# Every ground has its own steps (see Surfaces.STEPS). Sneaking
 					# is only a very soft touch, barely to be heard: a brush of
 					# cloth on hard floors, a hushed step on anything softer.

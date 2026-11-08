@@ -3476,6 +3476,12 @@ func splash_puddle(at: Vector3, hard := true) -> void:
 		puddles.splash(at, hard)
 
 
+## A wet footprint on dry ground, left by a hero fresh out of a puddle.
+func wet_print(at: Vector3, heading: float) -> void:
+	if puddles:
+		puddles.wet_print(at, heading)
+
+
 ## Spots for the creatures of a weather: open ground right next to the map
 ## letter they gather around, spread out so they do not come in a heap.
 func _place_weather_foes(foes: Dictionary) -> void:

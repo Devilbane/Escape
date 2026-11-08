@@ -5,6 +5,7 @@
 
 ## Latest changes
 - A slime you hit now turns on you first: it drops villagers and the wall as targets while you fight it, and goes back to them after about 6 seconds without a blow or when you get far away.
+- Much more ivy in the village, always clear of doors: thick on the guild hall, castle and temple, a little on the fountain.
 - Stepping out of the crypt now starts a two-minute run to the village: nothing can hurt you (blows, traps, poison, bleeding, fire) while the shield countdown shows, and it ends early when you reach the village.
 - The plain, unlit timber frames in the mine tunnels (bare brown beams with no texture or lighting) are gone.
 - A backpack you lost (your bag after being carried off) or set down on the floor now shows on the map as an orange backpack mark, with "Lost backpack" in the legend. The mark is gone once the pack is picked up, emptied or swept away.
@@ -46,8 +47,6 @@
 - Smaller touches: knives refill from the belt, purses count up into silver and gold, a star rings a vital blow, splashier puddles, steadier moon shadows, a chat line under the event log and health bars with levels on slimes and big monsters.
 - A cape wardrobe in the house, a new app icon and aged entrances for the mine, the Great Old One's lair and the Ashen Spire.
 - The village is built of aged stone with ivy and paved paths; nights can be nearly pitch black and moonlight changes with the moon's phase. Light your torch with V.
-- Crystal mining in the Crystal Grotto, cut into jewellery, and a new dungeon: sneak into the Great Old One's lair.
-- Loot has a rarity by usefulness; shrines offer an attribute point and Constitution; the refuge fountain heals 5 life per drink.
 - A new HUD: life bar with condition icons, ammo under it, gold under the XP bar, messages over the hero's head and a scrollable event log.
 - Combat: hit and block chances on the character page, thunder weapons that can stun, and a short regeneration pause after a blow.
 - Walk or run with a stamina meter; a running hero hit hard gets knocked down; sneaking turns you grey and see-through.

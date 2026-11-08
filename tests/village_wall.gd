@@ -215,8 +215,8 @@ func _run() -> void:
 	for i in int(VillageWall.OPEN_AFTER) + 2:
 		wall.tick(lvl, 1.1)
 	await _wait(2)
-	west.hurt(300)
-	brick.hurt(400)
+	west.hurt(100)
+	brick.hurt(150)
 	var mason: Villager = null
 	for v in lvl.villagers:
 		if v.role == "S":
@@ -237,6 +237,16 @@ func _run() -> void:
 		if wall.damaged().is_empty():
 			break
 	check(wall.damaged().is_empty(), "the mason mends every hurt brick in the end")
+
+	# He builds no more than DAILY_MEND HP in a day; a new day starts afresh.
+	check(wall.mend_left(lvl) == VillageWall.DAILY_MEND - 250, "the mason's day is used up by what he mended (%d left)" % wall.mend_left(lvl))
+	brick.hurt(500)
+	check(wall.job(lvl) != null, "he still has work in him")
+	check(wall.take_mend(lvl, 1000.0) == 50.0 and wall.mend_left(lvl) == 0, "he mends no more than 300 HP in a day")
+	check(wall.job(lvl) == null, "he takes no job once the day is used up")
+	lvl.day += 1
+	check(wall.mend_left(lvl) == VillageWall.DAILY_MEND and wall.job(lvl) != null, "he is rested the next day")
+	brick.mend(1000.0)
 
 	# A slime near the wall keeps him from it.
 	west.hurt(100)

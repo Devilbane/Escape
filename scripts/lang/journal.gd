@@ -9,6 +9,7 @@ const EN := {
 	"Orte": "Places",
 	"Noch keine entdeckt.": "None discovered yet.",
 	"Geheimraum": "Secret room",
+	"Verlorener Rucksack": "Lost backpack",
 	"Funde": "Finds",
 	"(%d Stellen)": "(%d spots)",
 	"Erkundet: %d %%": "Explored: %d %%",

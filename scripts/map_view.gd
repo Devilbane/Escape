@@ -3,11 +3,14 @@ extends Control
 ## Draws the hero's map of one level (see Journal): explored tiles in the
 ## colours of the ground, unexplored ones dark, numbered marks on the
 ## landmarks that have been seen, small diamonds where something was found,
-## and an arrow where the hero stands when it is the level they are on.
+## a backpack mark where the hero's bag or a backpack lies on the floor, and an
+## arrow where the hero stands when it is the level they are on.
 
 const PAPER := Color(0.09, 0.07, 0.1)
 const UNSEEN := Color(0.13, 0.11, 0.14)
 const GRID_LINE := Color(0, 0, 0, 0.18)
+## The colour of the backpack mark (also its dot in the map window's legend).
+const PACK_COLOR := Color(0.95, 0.55, 0.15)
 
 var journal: Journal
 var file := ""
@@ -164,6 +167,8 @@ func _draw() -> void:
 			draw_string(_font, p + Vector2(-w * 0.5, fs * 0.38), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.05, 0.03, 0.05))
 	for c in journal.treasure_spots(file):
 		_draw_cross(o + (Vector2(c) + Vector2(0.5, 0.5)) * t, r)
+	for c in lost_packs():
+		_draw_pack(o + (c + Vector2(0.5, 0.5)) * t, r)
 	if hero_at != Vector2.INF:
 		var p := o + (hero_at + Vector2(0.5, 0.5)) * t
 		var fwd := hero_facing.normalized() if hero_facing.length() > 0.01 else Vector2.DOWN
@@ -173,6 +178,36 @@ func _draw() -> void:
 		draw_colored_polygon(arrow, Color(1.0, 0.82, 0.4))
 		arrow.append(arrow[0])
 		draw_polyline(arrow, Color(0.1, 0.05, 0.0), 2.0)
+
+
+## Where a backpack lies on this level's floor, in tiles: the hero's bag
+## dropped after a rescue (see Rescue) and a backpack set down on the floor
+## (see FloorPack). The list is the game's saved floor list, so a pack that is
+## picked up, emptied or swept away is gone from here at once.
+func lost_packs() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	if journal == null or journal.game == null:
+		return out
+	for e in journal.game.floors.get(file, []):
+		if FloorPack.is_pack(e) or (Rescue.is_bundle(e) and not Rescue.is_pouch(e)):
+			out.append(Vector2(float(e[2]), float(e[3])) / Level.TILE)
+	return out
+
+
+## A small backpack: body, flap and straps, in a bright colour with a dark
+## edge so it shows on every ground.
+func _draw_pack(p: Vector2, r: float) -> void:
+	if not Rect2(Vector2.ZERO, size).has_point(p):
+		return
+	var k := r * 1.15
+	var body := Rect2(p + Vector2(-k * 0.8, -k * 0.55), Vector2(k * 1.6, k * 1.5))
+	draw_rect(body.grow(1.5), Color(0, 0, 0, 0.85))
+	draw_rect(body, PACK_COLOR)
+	var flap := Rect2(p + Vector2(-k * 0.8, -k * 0.55), Vector2(k * 1.6, k * 0.55))
+	draw_rect(flap, PACK_COLOR.darkened(0.3))
+	var pocket := Rect2(p + Vector2(-k * 0.4, k * 0.25), Vector2(k * 0.8, k * 0.45))
+	draw_rect(pocket, PACK_COLOR.darkened(0.2))
+	draw_arc(p + Vector2(0, -k * 0.55), k * 0.4, PI, TAU, 10, Color(0, 0, 0, 0.85), 2.5)
 
 
 func _secret_open(c: Vector2i) -> bool:

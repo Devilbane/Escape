@@ -49,7 +49,7 @@ func _run() -> void:
 	check(slime._hero_aggro > 0.0, "a blow from the hero sets the slime on the hero")
 	for i in 30:
 		await physics_frame
-	check(slime.snack == null, "the slime drops the villager while it fights the hero")
+	check(slime.snack == null, "the slime drops the villager while it fights the hero (awake %s, aggro %.2f, dist %.1f, dead %s, physics %s)" % [slime._awake, slime._hero_aggro, slime._flat_distance(lvl.player), slime.dead, slime.is_physics_processing()])
 	check(slime._wall_target == null, "and the wall")
 	# A hit that does not come from the hero (wakes = false) changes nothing.
 	var other := lvl.spawn_slime("schleim", spot + Vector3(-3, 0, 0), {"hp": 80})

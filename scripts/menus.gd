@@ -5,7 +5,7 @@ extends Node
 
 const STORAGE_SIZE := HomeUpgrades.STORAGE_SIZE
 ## Lines kept for the info line of the storage chest and the vault.
-const STORAGE_INFO_LINES := 3
+const STORAGE_INFO_LINES := 4
 const BLUE := Color(0.65, 0.85, 1.0)
 ## The colour of everything about the villagers' goodwill (see Reputation).
 const REPUTATION_COLOR := Color(0.78, 0.65, 1.0)
@@ -202,8 +202,8 @@ func _fit() -> void:
 ## not listed here (bed, load, quit...) fit their content.
 const WINDOW_SIZES := {
 	"trade": Vector2(1156, 584),
-	"inventar": Vector2(940, 720),
-	"lager": Vector2(1256, 764),
+	"inventar": Vector2(940, 729),
+	"lager": Vector2(1256, 774),
 	"bodenrucksack": Vector2(1256, 700),
 	"metalltruhe": Vector2(880, 580),
 	"zutatenbord": Vector2(880, 580),
@@ -648,7 +648,7 @@ const SLOT_WELL := Color(0.075, 0.053, 0.036, 1.0)
 ## needs no text. The rim takes the item's rarity colour (the details name
 ## the rarity in words, so colour is never the only cue); an empty slot is
 ## a dim, empty box, or with `ghost` (a kind) a faint picture of what goes there.
-func _item_slot(id: String, name: String, count: int, action: Callable, enabled := true, cell := INVENTORY_CELL, ghost := "") -> Button:
+func _item_slot(id: String, name: String, count: int, action: Callable, enabled := true, cell := INVENTORY_CELL, ghost := "", compare := true) -> Button:
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if enabled else Control.CURSOR_ARROW
@@ -705,15 +705,15 @@ func _item_slot(id: String, name: String, count: int, action: Callable, enabled 
 		b.add_child(n)
 	if id != "":
 		# Pointing at an item (or tapping it) shows its stats right away.
-		b.mouse_entered.connect(_show_info.bind(id))
-		b.focus_entered.connect(_show_info.bind(id))
+		b.mouse_entered.connect(_show_info.bind(id, compare))
+		b.focus_entered.connect(_show_info.bind(id, compare))
 		b.mouse_exited.connect(_show_info.bind(""))
 	b.pressed.connect(action)
 	b.disabled = not enabled
 	return b
 
 
-func _show_info(id: String) -> void:
+func _show_info(id: String, compare := true) -> void:
 	if _info == null or not is_instance_valid(_info):
 		return
 	if id == "" and current == "inventar" and _selected >= 0 and _selected < game.player.bag.size():
@@ -725,6 +725,11 @@ func _show_info(id: String) -> void:
 		_info.text = _bb(game.crafting.describe_ingredient(id))
 	else:
 		_info.text = info_text(id, game.player.wear.get(id, 0))
+		# A bag item shows how it compares with what is worn in its place; a
+		# worn item is not compared with itself.
+		var versus := TradeWindow.compare_bbcode(game.player, id) if compare else ""
+		if versus != "":
+			_info.text += "\n" + versus
 
 
 ## An item's details for the info line: its name in the colour of its
@@ -1003,7 +1008,7 @@ const WORN_CELL := INVENTORY_CELL
 const WORN_GAP := floori((SLOT_COLUMNS * INVENTORY_CELL.x + (SLOT_COLUMNS - 1) * SLOT_GAP - WORN_COLUMNS * INVENTORY_CELL.x) / float(WORN_COLUMNS - 1))
 ## The details of the picked item or the one under the pointer: lines of
 ## text kept for them, and the font size. Longer texts scroll in that box.
-const INVENTORY_DETAIL_LINES := 4
+const INVENTORY_DETAIL_LINES := 5
 const INVENTORY_TEXT := 15
 
 
@@ -1033,7 +1038,7 @@ func _build_inventory() -> void:
 		var place := VBoxContainer.new()
 		place.add_theme_constant_override("separation", 2)
 		var name := Lang.t(Items.SLOT_NAMES[slot])
-		var b := _item_slot(id, ("%s: %s" % [name, Items.item_name(id)]) if id != "" else name, 0, _unequip.bind(slot), id != "", WORN_CELL, WORN_GHOSTS.get(slot, ""))
+		var b := _item_slot(id, ("%s: %s" % [name, Items.item_name(id)]) if id != "" else name, 0, _unequip.bind(slot), id != "", WORN_CELL, WORN_GHOSTS.get(slot, ""), false)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		place.add_child(b)
 		var label: Label = game._make_label(game.TEXT_FONT, 13, Color(0.75, 0.65, 0.48))

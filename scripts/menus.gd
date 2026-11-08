@@ -202,8 +202,8 @@ func _fit() -> void:
 ## not listed here (bed, load, quit...) fit their content.
 const WINDOW_SIZES := {
 	"trade": Vector2(1156, 584),
-	"inventar": Vector2(940, 720),
-	"lager": Vector2(1256, 764),
+	"inventar": Vector2(940, 729),
+	"lager": Vector2(1256, 774),
 	"bodenrucksack": Vector2(1256, 700),
 	"metalltruhe": Vector2(880, 580),
 	"zutatenbord": Vector2(880, 580),

@@ -103,18 +103,41 @@ func _check_floor(building: String, up: String, down: String) -> void:
 			continue
 		# A slime may be born a few levels above its place and grows by
 		# eating (see SlimeGrowth), so only its floor is checked.
+		var low := 25 if building == "uralt3" else 17
+		var high := 25 if building == "uralt3" else 19
 		if SlimeGrowth.grows(e.kind):
-			check(e.rated_level >= 17 and e.rated_level <= SlimeGrowth.MAX_LEVEL, "%s on %s is a fight for level 17 or more (%d)" % [e.kind, building, e.rated_level])
+			check(e.rated_level >= low and e.rated_level <= SlimeGrowth.MAX_LEVEL, "%s on %s is a fight for level %d or more (%d)" % [e.kind, building, low, e.rated_level])
 			continue
-		check(e.rated_level >= 17 and e.rated_level <= 19, "%s on %s is a fight for level 17 to 19 (%d)" % [e.kind, building, e.rated_level])
+		check(e.rated_level >= low and e.rated_level <= high, "%s on %s is a fight for level %d to %d (%d)" % [e.kind, building, low, high, e.rated_level])
 	# Treasure chests hold gold beside their epic piece; a plain crate may
 	# hold an epic piece too (a beast trophy, see ArmourSets).
 	var epic := lvl.interactables.filter(func(o): return o.has("loot") and o.loot.has("gold") and str(o.loot.get("item", "")) != "" and Rarity.tier(str(o.loot.item)) == "episch")
+	if building == "uralt3":
+		_check_deep_floor(lvl)
 	if building != "uralt3":
 		check(epic.size() >= 2, "%s has an epic treasure room with two epic chests (%d)" % [building, epic.size()])
 		check(lvl._has_cell("D") and (lvl._has_cell("K")), "%s's treasure room lies behind a locked door with a key" % building)
 		for o in epic:
 			check(lvl._in_secret_room(o.cell) == false and int(o.loot.gold) == ElderLair.EPIC_GOLD, "an epic chest holds gold too")
+
+
+## The deepest floor: a level 25 area with many traps, two secret rooms that
+## hold monsters, and a hoard spread over several piles.
+func _check_deep_floor(lvl: Level) -> void:
+	check(HeroLevel.place_level(lvl) == 25, "the lair is a level 25 place (%d)" % HeroLevel.place_level(lvl))
+	check(lvl.traps != null and lvl.traps.traps.size() >= 6, "the lair is full of traps (%d)" % (lvl.traps.traps.size() if lvl.traps else 0))
+	check(lvl.traps != null and lvl.traps.traps.all(func(t): return t.kind != "falltuer"), "no trapdoor on the last floor")
+	var walls := 0
+	for y in lvl.height:
+		for x in lvl.width:
+			if lvl.cell_char(Vector2i(x, y)) == "?":
+				walls += 1
+	check(walls == 2, "two secret walls lead to two secret rooms (%d)" % walls)
+	var hidden := lvl.enemies.filter(func(e): return lvl._in_secret_room(lvl.world_to_cell(e.global_position)))
+	check(hidden.size() >= 6, "the secret rooms hold monsters (%d)" % hidden.size())
+	check(ElderLair.pile_cells(lvl).size() >= 3, "the hoard lies in several piles (%d)" % ElderLair.pile_cells(lvl).size())
+	var strong := lvl.enemies.filter(func(e): return not (e is ElderDragon))
+	check(strong.size() >= 15, "many monsters live on the last floor (%d)" % strong.size())
 
 
 func _check_dragon() -> void:
@@ -182,7 +205,7 @@ func _check_hoard() -> void:
 	var p: Player = game.player
 	p.revive(p.global_position, false)
 	var heap: Array = lvl._pickups.filter(func(q): return q.kind == "elder_hoard")
-	check(heap.size() == 1, "the hoard lies in front of the Great Old One")
+	check(heap.size() >= 3, "the hoard lies in several piles (%d)" % heap.size())
 	if heap.is_empty():
 		return
 	var coins_before: int = game.coins
@@ -205,7 +228,7 @@ func _check_hoard() -> void:
 	game.load_level(game.interiors.uralt3, false)
 	lvl = game.level
 	heap = lvl._pickups.filter(func(q): return q.kind == "elder_hoard")
-	check(heap.size() == 1, "the hoard is back once the helpers brought more")
+	check(heap.size() >= 3, "the hoard is back once the helpers brought more")
 	if heap.is_empty():
 		return
 	p.bag.clear()

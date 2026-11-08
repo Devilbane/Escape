@@ -63,7 +63,7 @@ func _curve() -> void:
 	check(HeroLevel.total_for(5) == 1000, "level 5 takes 1000 XP in all: %d" % HeroLevel.total_for(5))
 	check(HeroLevel.level_for(10 ** 7) == HeroLevel.MAX, "level %d is the top" % HeroLevel.MAX)
 	check(HeroLevel.progress(150) == Vector2i(50, 200), "progress within level 2: %s" % HeroLevel.progress(150))
-	# Above the world's top (level 20) the hero keeps growing, up to MAX.
+	# Above the world's top (level 25) the hero keeps growing, up to MAX.
 	check(HeroLevel.MAX > HeroLevel.WORLD_TOP, "the hero can rise above the world's top")
 	check(HeroLevel.level_for(HeroLevel.total_for(21)) == 21 and HeroLevel.level_for(HeroLevel.total_for(21) - 1) == 20, "level 21 takes 2000 XP after level 20")
 	check(HeroLevel.progress(HeroLevel.total_for(30) + 10) == Vector2i(10, 3000), "progress within level 30")
@@ -78,7 +78,7 @@ func _curve() -> void:
 	for kind in HeroLevel.FIXED:
 		top = maxi(top, HeroLevel.FIXED[kind])
 	check(top == HeroLevel.WORLD_TOP, "WORLD_TOP is the strongest place or boss there is: %d" % top)
-	check(HeroLevel.kill_xp(19, 40) == HeroLevel.kill_xp(19, 20), "the top areas pay a hero above 20 like one of level 20")
+	check(HeroLevel.kill_xp(25, 40) == HeroLevel.kill_xp(25, 25), "the top areas pay a hero above 25 like one of level 25")
 	check(HeroLevel.kill_xp(5, 40) < HeroLevel.kill_xp(19, 40), "small fry still pays little")
 	# The owner's seasoned character is the yardstick at level 18.
 	check(HeroLevel.expected_power(18) == Mines.BENCHMARK.power, "power at level 18 is the benchmark's")
@@ -231,6 +231,7 @@ func _areas() -> void:
 		game.load_level(game._outdoor_index(), false)
 		await _wait()
 	check(HeroLevel.FIXED.bergkoenig == 20, "the Mountain King is the top")
+	check(HeroLevel.AREAS.uralt3.min == 25 and HeroLevel.AREAS.uralt3.max == 25 and HeroLevel.BUILDING_AREAS.uralt3 == "uralt3", "the Great Old One's lair is a level 25 area")
 	check(HeroLevel.AREAS.mine3.min == 16, "the deep mine starts at 16")
 	check(HeroLevel.AREAS.mine2.max == 15, "the areas before it lead up to 15")
 	var bergork := HeroLevel.rate("bergork", 17 + 3, 3 + 2, 2, 1.4)

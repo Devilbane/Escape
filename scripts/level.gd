@@ -634,8 +634,6 @@ func build() -> void:
 		add_child(stern)
 	if lair and theme == "":
 		_decorate_lair()
-	if ElderLair.is_floor(self):
-		ElderLair.decorate(self)
 	if not outdoor and (building == "" or lair):
 		life = DungeonLife.new(self)
 		add_child(life)
@@ -649,6 +647,9 @@ func build() -> void:
 	traps = Traps.make(self)
 	if traps:
 		add_child(traps)
+	# After the traps, so no bones lie over a trap's mark.
+	if ElderLair.is_floor(self):
+		ElderLair.decorate(self)
 	flame_jets = FlameJets.make(self)
 	if flame_jets:
 		add_child(flame_jets)
@@ -3676,10 +3677,15 @@ func _check_pickups() -> void:
 		if p.kind == "elder_hoard":
 			# The hoard of the Great Old One is for whoever dares: the gold
 			# clinks, though, and the dragon stirs.
-			_pickups.erase(p)
-			var t := create_tween()
-			t.tween_property(n, "scale", Vector3.ONE * 0.01, 0.5).set_ease(Tween.EASE_IN)
-			t.tween_callback(n.queue_free)
+			# The hoard lies in several piles: whichever one is taken, the
+			# whole hoard goes.
+			for q in _pickups.duplicate():
+				if q.kind != "elder_hoard":
+					continue
+				_pickups.erase(q)
+				var t := create_tween()
+				t.tween_property(q.node, "scale", Vector3.ONE * 0.01, 0.5).set_ease(Tween.EASE_IN)
+				t.tween_callback(q.node.queue_free)
 			elder_hoard_taken.emit()
 			if is_instance_valid(elder):
 				elder.disturb(ElderLair.GRAB_STIR)

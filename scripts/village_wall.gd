@@ -145,6 +145,7 @@ func tick(o: Outdoor, delta: float) -> void:
 		_calm = 0.0
 		if not shut_wanted:
 			shut_wanted = true
+			Events.alarm("wall" if slime_at_the_wall(o) else "gate")
 			_grace = GRACE
 			_call(o, SHUT_CALL, SHUT_NEWS)
 		_grace -= CHECK_EVERY

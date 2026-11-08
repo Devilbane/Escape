@@ -97,6 +97,13 @@ signal scare_happened(kind: String)
 signal loot_carried_off(kind: String, id: String, count: int)
 
 
+## Something hostile happens at the village that the villagers must be alarmed
+## about: "gate" (a slime at a gate), "wall" (a slime at the wall), "breach"
+## (a stretch of wall broke), "slime" (a slime inside the village) or "eaten"
+## (a villager was eaten). The warning bell tolls (see VillageBell). Use Events.alarm.
+signal village_alarmed(reason: String)
+
+
 static var _bus: Events = null
 
 
@@ -125,6 +132,11 @@ static func say(speaker: String, text: String, pos: Vector3) -> void:
 ## The hero said this out loud (see hero_spoke).
 static func hero_says(text: String, pos: Vector3) -> void:
 	bus().hero_spoke.emit(text, pos)
+
+
+## Something hostile happens at the village (see village_alarmed).
+static func alarm(reason: String) -> void:
+	bus().village_alarmed.emit(reason)
 
 
 ## Something frightening happened (see scare_happened).

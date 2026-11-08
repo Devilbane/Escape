@@ -431,6 +431,8 @@ var _slot_buttons := {}
 ## The day the hero lives over and over while the player is away (see
 ## Offline), planned at the refuge's bed and kept in the saved game.
 var away_plan := Offline.empty_plan()
+## Hours of reading each book id has given so far (see Offline.BOOK_HOURS).
+var book_hours := {}
 ## What the hero did while the player was away, line by line, for the
 ## welcome-back window.
 var away_report: Array[String] = []
@@ -3228,6 +3230,7 @@ func begin_new_game() -> void:
 	Forge.restock(smith_stock, day, hero_name)
 	hoard.clear()
 	away_plan = Offline.empty_plan()
+	book_hours.clear()
 	day_hour = DayNight.START_HOUR
 	world_hours = 0.0
 	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
@@ -3675,6 +3678,11 @@ func _apply_save(data: Dictionary) -> void:
 	MonsterLore.load_from(data.get("monster_lore", {}))
 	var plan = data.get("plan", {})
 	away_plan = plan if plan is Dictionary and not plan.is_empty() else Offline.empty_plan()
+	book_hours.clear()
+	var read = data.get("book_hours", {})
+	if read is Dictionary:
+		for id in read:
+			book_hours[String(id)] = clampf(float(read[id]), 0.0, float(Offline.BOOK_HOURS))
 	player.bag.assign(data.bag)
 	player.home_hp = HomeUpgrades.trophy_hp(home_upgrades, trophies)
 	player.refresh_stats()
@@ -3870,7 +3878,7 @@ func save_game(going_away := false) -> bool:
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "cape": player.cape_design, "bag": player.bag, "storage": storage, "shop": shop_stock,
-		"lore": lore, "plan": away_plan, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
+		"lore": lore, "plan": away_plan, "book_hours": book_hours, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
 		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(), "home_stores": HomeStores.for_save(home_stores),
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(), "floors": _floors_for_save(), "slimes": _slimes_for_save(),
@@ -4569,7 +4577,7 @@ func away_choices() -> Dictionary:
 	owned.append_array(storage)
 	owned.append_array(home_stores.get(HomeStores.BOOKS, {}).keys())
 	for id in owned:
-		if Items.is_book(id) and not id in books:
+		if Items.is_book(id) and not id in books and not Offline.book_used_up(book_hours, id):
 			books.append(id)
 	var crafts := Offline.RECIPES.keys().filter(reputation.can_craft)
 	return {"job": jobs, "train": train, "study": books, "craft": crafts}
@@ -4585,7 +4593,8 @@ func _return_from_away(data: Dictionary) -> void:
 	var real_seconds := maxf(0.0, Time.get_unix_time_from_system() - float(away.get("since", 0.0)))
 	var plan := Offline.normalized(away.get("plan", {}), away_choices())
 	var hours := Offline.game_hours(real_seconds)
-	var result := Offline.simulate(plan, hours, HomeUpgrades.has(home_upgrades, "werkstatt"))
+	var read := float(book_hours.get(String(plan.study), 0.0))
+	var result := Offline.simulate(plan, hours, HomeUpgrades.has(home_upgrades, "werkstatt"), read)
 	away_report = _apply_away(plan, result)
 	away_report.push_front(Lang.t("Du warst %s weg, für %s vergingen %s.") % [
 			_real_time_text(real_seconds), hero_name, Offline.duration_text(hours)])
@@ -4628,7 +4637,13 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 	if spent.train > 0.0:
 		lines.append(Lang.t("Training (%s): %s") % [_training_name(plan.train), Offline.duration_text(spent.train)])
 	if spent.study > 0.0:
-		lines.append(Lang.t("Gelesen (%s): %s") % [Items.item_name(plan.study), Offline.duration_text(spent.study)])
+		var book := String(plan.study)
+		book_hours[book] = minf(float(Offline.BOOK_HOURS), float(book_hours.get(book, 0.0)) + float(result.study_read))
+		lines.append(Lang.t("Gelesen (%s): %s") % [Items.item_name(book), Offline.duration_text(result.study_read)])
+		if Offline.book_used_up(book_hours, book):
+			lines.append(Lang.t("%s ist ausgelesen: du kannst nichts mehr daraus lernen.") % Items.item_name(book))
+		else:
+			lines.append(Lang.t("%s: noch %d Std. Lesestoff") % [Items.item_name(book), ceili(Offline.book_left(book_hours, book))])
 	if spent.craft > 0.0:
 		var made := ""
 		if Offline.RECIPES[plan.craft].makes == "knife":

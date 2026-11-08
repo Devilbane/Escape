@@ -4308,7 +4308,7 @@ func _choice_name(block: String, id: String) -> String:
 		"train":
 			return game._training_name(id)
 		"study":
-			return "%s (%s)" % [Items.item_name(id), Lang.t(Training.SKILLS[Items.ALL[id].teaches].name)]
+			return Lang.t("%s (%s, noch %d Std.)") % [Items.item_name(id), Lang.t(Training.SKILLS[Items.ALL[id].teaches].name), ceili(Offline.book_left(game.book_hours, id))]
 		"craft":
 			return Lang.t(Offline.RECIPES[id].name)
 	return id

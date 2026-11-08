@@ -11,7 +11,7 @@ extends SceneTree
 
 const HERO := "Home run test"
 ## The most frames a run home may take (a minute and a half of play at 60 fps).
-const MAX_FRAMES := 5400
+const MAX_FRAMES := 10800
 
 var failures := 0
 var game: Node

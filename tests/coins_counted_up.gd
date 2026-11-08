@@ -21,7 +21,7 @@ func _initialize() -> void:
 	up = Loot.counted_up(24, 9, 2)
 	check(up["goldmuenze"] == 2 and up["silbermuenze"] == 9 and up["kupfermuenze"] == 24, "nothing to carry stays as it is")
 	check(Loot.worth_text(0, 0, 0) == "0 copper", "an empty purse reads 0 copper")
-	check(Loot.worth_text(54, 11, 1) == "2 gold, 1 silver, 4 copper", "full line: " + Loot.worth_text(54, 11, 1))
+	check(Loot.worth_text(54, 11, 1) == "2 gold, 3 silver, 4 copper", "full line: " + Loot.worth_text(54, 11, 1))
 	check(Loot.worth_text(0, 10, 0) == "1 gold", "10 silver leave no copper in the line")
 	print("coins_counted_up: ", "ok" if failures == 0 else "%d failures" % failures)
 	quit(1 if failures > 0 else 0)

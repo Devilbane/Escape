@@ -5,6 +5,9 @@
 
 ## Latest changes
 - The Windows download is now the main release: every update of the game builds it automatically, and the browser version is only published on request.
+- Slimes now go for villagers first: a slime with a way to reach a villager hunts them instead of eating into the village wall, and only attacks the wall when no villager is within reach.
+- Your house now has a bookshelf in the cellar: put your books on it and the shelf shows how many you keep, with a count on its plaque.
+- Pointing at an item in your bag, a chest or the vault now compares it with what you wear in that place: green numbers where it is better, red where it is worse.
 - A book now teaches for 100 hours of reading, then it is used up: it stays in your bag or chest, but you learn nothing more from it. Its details and the day plan show the hours left.
 - New cave monsters: fire elementals, obsidian, stone and crystal golems, each with telegraphed special moves (fire bolts and scorched floor, shard throws, quakes, a mirror ward and a prismatic burst).
 - Cracks now spread over the stones of the village wall as slimes eat into it, in three clear stages (light, medium, heavy), so you can see how close a brick is to breaking.

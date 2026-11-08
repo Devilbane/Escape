@@ -103,6 +103,8 @@ const CORPSE_SCENT := 20.0
 const SNACKS := {"fuchs": [3, 2], "reh": [4, 3], "hirsch": [6, 4], "villager": [12, 12]}
 ## How far a slime notices a villager or an animal it could eat.
 const SNACK_SIGHT := 14.0
+## How far (metres) a slime smells a villager it has a way to.
+const VILLAGER_SCENT := 40.0
 const HERO_CLOSE := 3.5
 ## How many swallowed things show inside a slime at most.
 const SHOWN := 8
@@ -295,6 +297,30 @@ static func nearest_snack(slime: Enemy) -> Node3D:
 		var d: float = slime._flat_distance(n)
 		if d < best_d and slime.level.has_line_of_sight(slime.global_position, n.global_position):
 			best = n
+			best_d = d
+	return best
+
+
+## The nearest villager a slime can walk to (the village wall and its closed
+## gates count as blocked), within VILLAGER_SCENT, or null. A slime prefers
+## such a villager to any wall.
+static func reachable_villager(slime: Enemy) -> Villager:
+	var outdoor := slime.level as Outdoor
+	if outdoor == null:
+		return null
+	var here := outdoor.world_to_cell(slime.global_position)
+	var best: Villager = null
+	var best_d := VILLAGER_SCENT
+	for v: Villager in outdoor.villagers:
+		if not can_snack(v):
+			continue
+		var d: float = slime._flat_distance(v)
+		if d >= best_d:
+			continue
+		var there := outdoor.world_to_cell(v.global_position)
+		var cells := outdoor.grid_path(here, there)
+		if here == there or (not cells.is_empty() and cells[-1] == there):
+			best = v
 			best_d = d
 	return best
 

@@ -397,6 +397,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/spider_hole.gd | tee spider_hole.log
           grep -q PASS spider_hole.log
 
+      - name: Item comparison in the inventories' details box
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/item_compare.gd | tee item_compare.log
+          grep -q PASS item_compare.log
+
       - name: Merchant trading window test
         run: |
           timeout 120 ~/godot/godot --headless -s tests/merchant_window.gd | tee merchant_window.log

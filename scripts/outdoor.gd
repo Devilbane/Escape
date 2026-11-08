@@ -319,7 +319,7 @@ static var _dressed := {}
 const MAX_NESTS := 10
 const LANE_NEST := 0.15
 ## Ivy patches on each town house of Weavers' Lane (narrow, many of them).
-const LANE_PATCHES := 2
+const LANE_PATCHES := 3
 ## Dirt paths this close to a village building (tiles) are cobbled like the
 ## square, and shrubs grow on the grass beside the buildings.
 const VILLAGE_REACH := 6
@@ -334,7 +334,16 @@ const CRYPT_IVY := 6
 ## block stands on its own, out of the village's busy middle: old ivy grows
 ## all over it, up to and on to its roof (see AgedStone.grow_ivy).
 const SQUARE_GAP := 2
-const FENCE_IVY := 0.3
+const FENCE_IVY := 0.55
+## The adventurers' guild, the castle and the temple are smothered in old ivy: this many patches, every
+## wall and up on to its roof, even though it stands in the square.
+const GUILD_IVY := 20
+## Patches on the other stone buildings (tavern, smithy, market, tower, ...).
+const STONE_IVY := 14
+const CASTLE_IVY := 24
+## The temple too, but its doorway is kept bare: no ivy roots within a few
+## metres of it, to the sides and back along the steps.
+const TEMPLE_IVY := 20
 const GRAVE_LIGHTS := 0.35
 const GRAVE_LIGHT_AT := Vector3(1.25, 0, -0.35)
 ## Where the grave light's panes sit on the Halloween kit's palette (UV).
@@ -761,6 +770,10 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			spots.market.append(pos)
 		"F":
 			_build_fountain(c)
+			# A little ivy up the basin's outside, a bit of it over the rim.
+			var ivy_rng := RandomNumberGenerator.new()
+			ivy_rng.seed = hash("%s|brunnen|%s" % [level_name, c])
+			AgedStone.grow_basin_ivy(pos, 1.55, 1.0, ivy_rng, _ivy, 3)
 			spots.well.append(pos + Vector3(0, 0, 2.6))
 		"x":
 			_build_bench(c)
@@ -1198,7 +1211,18 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch != "R" and ch != "h":
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
 		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
-		_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
+		if ch == "s":
+			var door_spots := []
+			for x in [-2.0, 0.0, 2.0]:
+				for z in [0.0, -1.5, -3.0]:
+					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
+			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true)
+		elif ch == "w" or ch == "k":
+			_dress_building(node, center, [door], 0.75, GUILD_IVY if ch == "w" else CASTLE_IVY, true)
+		else:
+			# Every stone building wears old ivy, so it is as green as the
+			# wooden houses (which ordinary ivy suits).
+			_dress_building(node, center, [door], 0.75, STONE_IVY, true)
 	if interiors.has(ch):
 		# Run into the door to go in.
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
@@ -1217,7 +1241,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		for x in [-1.2, 0.0, 1.2]:
 			for z in [0.0, -1.5, -3.0]:
 				door_spots.append(center + Vector3(x, 0, reach.y - 2.0 + z))
-		_dress_building(node, center, door_spots, 0.0, CRYPT_IVY)
+		_dress_building(node, center, door_spots, 0.0, CRYPT_IVY, true)
 		# A faint cold glow in the crypt door the hero came out of.
 		var light := OmniLight3D.new()
 		light.light_color = Color(0.6, 0.75, 1.0)

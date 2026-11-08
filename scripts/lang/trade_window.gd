@@ -15,6 +15,8 @@ const EN := {
 	"Derzeit": "Currently",
 	"Eisen: %d": "Iron: %d",
 	"Entfernen": "Remove",
+	"Statt %s:": "Instead of %s:",
+	"Nichts angelegt:": "Nothing worn:",
 	"Färbt dein Haar.": "Dyes your hair.",
 	"Haarfarbe": "Hair colour",
 	"In deiner Tasche": "In Your Bag",

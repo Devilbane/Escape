@@ -1405,6 +1405,8 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			HomeStoreFurniture.build_board(self, c)
 		"(":
 			CapeWardrobe.build(self, c)
+		"§":
+			Bookshelf.build(self, c)
 		"V":
 			_build_merchant(c)
 		"=":

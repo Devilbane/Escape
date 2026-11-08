@@ -20,7 +20,7 @@ var shots := OS.get_environment("SHOTS")
 
 ## The windows and the villager each belongs to (for the goodwill line).
 const KINDS := {
-	"inventar": "", "lager": "", "metalltruhe": "", "zutatenbord": "", "tresor": "", "bank": "", "haendler": "6", "schmied": "1",
+	"inventar": "", "lager": "", "metalltruhe": "", "zutatenbord": "", "buecherregal": "", "tresor": "", "bank": "", "haendler": "6", "schmied": "1",
 	"steinmetz": "S", "barbier": "Z", "wanderhaendler": "", "werkbank": "", "hauswerkbank": "",
 	"ausbau": "", "aushang": "", "trophaeen": "", "charakter": "", "gefaehrten": "", "umhangschrank": "", "wunsch": "",
 	"kampfstil": "", "kompendium": "", "karte": "", "auftraege": "",
@@ -257,8 +257,8 @@ func _work(kind: String, where: String) -> void:
 				_step = "taking"
 				menus._take(0)
 				await _same(kind, where)
-		"metalltruhe", "zutatenbord":
-			var store := HomeStores.METAL if kind == "metalltruhe" else HomeStores.PANTRY
+		"metalltruhe", "zutatenbord", "buecherregal":
+			var store := HomeStores.METAL if kind == "metalltruhe" else HomeStores.BOOKS if kind == "buecherregal" else HomeStores.PANTRY
 			var ids := HomeStores.shown(game, store)
 			if not ids.is_empty():
 				_step = "storing one"

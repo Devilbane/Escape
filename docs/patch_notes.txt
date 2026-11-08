@@ -6,6 +6,7 @@
 
 ## Latest changes
 - The launcher now shows only the newest two sections of the patch notes, so old notes no longer need trimming.
+- Much more ivy in the village, always clear of doors: thick on the guild hall, castle and temple, a little on the fountain.
 - Stepping out of the crypt now starts a two-minute run to the village: nothing can hurt you (blows, traps, poison, bleeding, fire) while the shield countdown shows, and it ends early when you reach the village.
 - The plain, unlit timber frames in the mine tunnels (bare brown beams with no texture or lighting) are gone.
 - A backpack you lost (your bag after being carried off) or set down on the floor now shows on the map as an orange backpack mark, with "Lost backpack" in the legend. The mark is gone once the pack is picked up, emptied or swept away.
@@ -56,8 +57,6 @@
 
 ## Earlier this week
 - The village is built of aged stone with ivy and paved paths; nights can be nearly pitch black and moonlight changes with the moon's phase. Light your torch with V.
-- Crystal mining in the Crystal Grotto, cut into jewellery, and a new dungeon: sneak into the Great Old One's lair.
-- Loot has a rarity by usefulness; shrines offer an attribute point and Constitution; the refuge fountain heals 5 life per drink.
 - A new HUD: life bar with condition icons, ammo under it, gold under the XP bar, messages over the hero's head and a scrollable event log.
 - Walk or run with a stamina meter; a running hero hit hard gets knocked down; sneaking turns you grey and see-through.
 - A 20-slot backpack, several save games, a storage chest in the mountain tavern and the new map workshop for building your own levels.

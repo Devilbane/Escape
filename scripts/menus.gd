@@ -209,7 +209,7 @@ const WINDOW_SIZES := {
 	"tresor": Vector2(940, 652),
 	"bank": Vector2(780, 460),
 	"werkbank": Vector2(780, 536),
-	"hauswerkbank": Vector2(560, 360),
+	"hauswerkbank": Vector2(560, 420),
 	"ausbau": Vector2(780, 540),
 	"aushang": Vector2(780, 400),
 	"trophaeen": Vector2(560, 360),

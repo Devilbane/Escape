@@ -75,7 +75,7 @@ func _run() -> void:
 	game.menus.open("schmied")
 	game.menus._forge_tab = "schmieden"
 	game.menus._rebuild()
-	check(game.menus.get_child_count() > 0, "the forge window builds with the needs lines and the ready-made section")
+	check(game.menus._box != null and game.menus._box.get_child_count() > 0, "the forge window builds with the needs lines and the ready-made section")
 	game.menus.close()
 
 	game.delete_save(game.save_path())

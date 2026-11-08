@@ -36,7 +36,7 @@ func _ready() -> void:
 	_box.modulate.a = 0.0
 	add_child(_box)
 	_name = Label.new()
-	_name.text = Lang.t(boss.boss_title())
+	_name.text = boss.named_with_level(Lang.t(boss.boss_title()))
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name.add_theme_font_override("font", FONT)
 	_name.add_theme_font_size_override("font_size", 22)

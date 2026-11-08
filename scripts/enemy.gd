@@ -504,10 +504,16 @@ static func reference_foe(hero_level: int) -> Dictionary:
 	return {"hp": int(stats.hp), "damage": int(stats.damage), "armor": armour, "level": rated}
 
 
+## A monster's name with the level it rates at, "Wolf (Level 5)": the one
+## form every name label of a monster uses (the workshop tag, the boss bar).
+func named_with_level(text: String) -> String:
+	return Lang.t("%s (Stufe %d)") % [text, rated_level]
+
+
 ## The name of a monster made in the map workshop, over its head in red.
 func _add_title(text: String, size: float) -> void:
 	var tag := Label3D.new()
-	tag.text = text
+	tag.text = named_with_level(text)
 	tag.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	tag.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
 	tag.font_size = 30

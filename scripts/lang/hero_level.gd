@@ -6,6 +6,7 @@ const EN := {
 	"+%d EP": "+%d XP",
 	"Heldenstufe %d": "Hero level %d",
 	"Stufe %d": "Level %d",
+	"%s (Stufe %d)": "%s (Level %d)",
 	"Heldenstufe %d! +1 Leben": "Hero level %d! +1 life",
 	"+1 Konstitution": "+1 Constitution",
 	"+1 % Tempo": "+1 % speed",

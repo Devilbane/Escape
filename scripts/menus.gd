@@ -2218,16 +2218,17 @@ func _build_stonemason() -> void:
 	var price: int = game.trader_price(Items.buy_price(STONE))
 	var room: int = p.bag_size() - p.bag_used()
 	_add_label(Lang.t("Steinmetz"), 38, game.GOLD, game.TITLE_FONT)
+	var header := Lang.t("Dein Kupfer: %d") % game.coins
 	if game.level is Outdoor and not game.level.village_wall.bricks.is_empty():
 		var left: int = game.level.village_wall.mend_left(game.level)
-		_add_label(Lang.t("Mauerarbeit heute: %d von %d") % [VillageWall.DAILY_MEND - left, VillageWall.DAILY_MEND], 16, BLUE)
+		header += "  ·  " + Lang.t("Mauerarbeit heute: %d von %d") % [VillageWall.DAILY_MEND - left, VillageWall.DAILY_MEND]
 	var all := mini(room, game.coins / price) if price > 0 else room
 	var have := p.bag.count(STONE)
 	var detail := {"subtitle": TradeWindow.subtitle(STONE), "lines": TradeWindow.stat_lines(STONE) + [
 			[Lang.t("Behauene Steinblöcke zum Bauen: Mauern, Stufen, Türme. Abstellen mit B oder im Inventar, verschieben mit der Maus: greifen, ziehen, loslassen."), TradeWindow.BLUE]]}
 	var compare := {"title": Lang.t("In deiner Tasche"), "name": Lang.t("Steinblöcke: %d") % have, "icon": STONE,
 			"subtitle": Lang.t("Platz für %d weitere") % room}
-	_trade(Lang.t("Dein Kupfer: %d") % game.coins, [
+	_trade(header, [
 		{"key": "stone", "title": Lang.t("Bausteine"), "icon": "kind:stone", "entries": [
 			{"key": "back", "id": STONE, "name": Lang.t("1 zurückgeben"), "price": "+" + Lang.t("%d Kupfer") % sell_price(STONE),
 					"button": Lang.t("Verkaufen"), "action": _sell_stone, "enabled": have > 0, "detail": detail, "compare": compare},

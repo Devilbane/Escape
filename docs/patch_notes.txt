@@ -5,7 +5,6 @@
 # history, so nothing needs trimming. Keep those two sections well under 16000 characters.
 
 ## Latest changes
-- Tentacles no longer lurk under ordinary floor grates; the grates are plain decoration again.
 - The dark fill around the dungeon no longer covers the floor grates: you see the pits below them again, with their bones, dirt and whatever stirs there.
 - The launcher now shows only the newest two sections of the patch notes, so old notes no longer need trimming.
 - A slime you hit now turns on you first: it drops villagers and the wall as targets while you fight it, and goes back to them after about 6 seconds without a blow or when you get far away.

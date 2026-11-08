@@ -1,5 +1,5 @@
 extends SceneTree
-## Every slime outside the village wall eats into it (see VillageWall.siege_brick,
+## Every slime of level 15 or more (slimes reach that in play by eating corpses, monsters and villagers) outside the village wall eats into it (see VillageWall.siege_brick,
 ## Enemy._scout_wall), with nobody to hunt: slimes of every level, left to the
 ## wall's defenders, must break through in at least one attempt of three, and
 ## each of them must at least leave a mark on the wall.
@@ -40,7 +40,7 @@ func _run() -> void:
 	var wall: VillageWall = lvl.village_wall
 	lvl.night = false
 	lvl.player.global_position = Vector3(160, 0, 160)
-	var levels := [1, 4, 8, 12]
+	var levels := [15, 18, 22, 26]
 	var west: WallBrick = wall.brick_at(Vector2i(37, 27))
 	var wins := 0
 	var tries := 0

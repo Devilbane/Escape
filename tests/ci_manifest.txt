@@ -214,3 +214,5 @@ townsfolk_strength.gd | 120 | fixed | :_OK | the townsfolk can put up a real fig
 wall_themes.gd | 120 | fixed | :_ok | cave styles of walls and floors (WallThemes, header
 # Fixed in this change:
 sneak_charge.gd | 120 | fixed | passfail | Charging an unaware foe: sneak attack on the opening blow, no auto-attack while sneaking
+bounties.gd | 120 | free | passfail | Bounty board (taken, counted and paid once; kept in the saved game)
+named_monsters.gd | 60 | free | passfail | Named monsters are tougher than plain ones, bosses and maker-set numbers are left alone

@@ -19,7 +19,19 @@ func _enemy(kind: String, custom := {}) -> Enemy:
 	return e
 
 
-func _init() -> void:
+var frames := 0
+
+
+## Runs once the tree is up, so that each enemy's _ready (which builds its stats) has run.
+func _process(_delta: float) -> bool:
+	frames += 1
+	if frames < 3:
+		return false
+	_test()
+	return true
+
+
+func _test() -> void:
 	var plain := _enemy("schlaeger")
 	var named := _enemy("schlaeger", {"title": "Grom"})
 	check(named.is_named_elite() and not plain.is_named_elite(), "only the named one is an elite")
@@ -33,5 +45,5 @@ func _init() -> void:
 	check(unnamed.max_hp() == 40, "a monster without a name is not toughened")
 	var chief := _enemy("hauptmann", {"title": "Chef"})
 	check(not chief.is_named_elite(), "a boss gets no step up")
-	print("named_monsters: %s" % ("OK" if failures == 0 else "%d failed" % failures))
+	print("PASS: named_monsters" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures else 0)

@@ -287,14 +287,14 @@ static func _build_tablet(level: Level, c: Vector2i, pos: Vector3) -> void:
 			"text": TABLETS.get(level.theme, RUNE_ORE)})
 
 
-## The way down to the next floor: a black shaft with a timber frame round
+## The way down to the next floor: stone steps sinking into the dark, a timber frame round
 ## it and the warm breath of the deep rising out of it. On a sealed floor a
 ## stone slab lies over it, with a place for each of the two runes.
 static func _build_shaft(level: Level, c: Vector2i, pos: Vector3) -> void:
-	var black := StandardMaterial3D.new()
-	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	black.albedo_color = Color(0.015, 0.01, 0.01)
-	_box(level, pos + Vector3(0, 0.03, 0), Vector3(3.0, 0.04, 3.0), black)
+	# Steps going down, away from the side the hero comes from.
+	var away := pos - level.cell_to_world(level._open_side(c))
+	away.y = 0.0
+	StairsDown.build(level, pos, Level.TILE, away.normalized() if away.length() > 0.1 else Vector3(0, 0, -1))
 	var wood := _material(WOOD)
 	for side in [-1.0, 1.0]:
 		_box(level, pos + Vector3(side * 1.65, 0.15, 0), Vector3(0.35, 0.3, 3.6), wood)

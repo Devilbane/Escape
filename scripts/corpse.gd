@@ -86,8 +86,10 @@ static func lay(who: Enemy) -> Corpse:
 
 ## How a kind rots away.
 static func style_of(who: Enemy) -> String:
-	if who.kind == "fog_wraith" or who.is_ghost():
+	if who.kind == "fog_wraith" or who.is_ghost() or who.kind == "feuerelementar":
 		return "wisp"
+	if Elementals.GOLEMS.has(who.kind):
+		return "bones"
 	if who.kind.contains("schleim"):
 		return "melt"
 	if who.is_human() or who.is_beast():

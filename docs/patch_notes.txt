@@ -5,6 +5,8 @@
 
 ## Latest changes
 - Your house now has a bookshelf in the cellar: put your books on it and the shelf shows how many you keep, with a count on its plaque.
+- New cave monsters: fire elementals, obsidian, stone and crystal golems, each with telegraphed special moves (fire bolts and scorched floor, shard throws, quakes, a mirror ward and a prismatic burst).
+- Cracks now spread over the stones of the village wall as slimes eat into it, in three clear stages (light, medium, heavy), so you can see how close a brick is to breaking.
 - The town guard now checks the west gate for slimes much more often at night and in or after rain, and calls the alarm when he spots one.
 - Every slime outside the village now eats into the village wall, and at least one attempt in three breaks a stretch of it.
 - The event log has a slim scroll bar you can drag to read older messages.

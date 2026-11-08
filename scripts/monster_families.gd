@@ -23,6 +23,7 @@ const FAMILIES := {
 	"wildlife": "Wildtiere",
 	"fable": "Sagenwesen",
 	"humans": "Menschen",
+	"elementals": "Elementare",
 }
 ## A horror's family: it fits everywhere (see above).
 const HORRORS := "horrors"
@@ -48,6 +49,8 @@ const KINDS := {
 	# The creatures of legend: dragons and their brood, orcs, trolls, the yeti.
 	"drache": "fable", "brutdrache": "fable", "grosser_alter": "fable",
 	"ork": "fable", "bergork": "fable", "felstroll": "fable", "bergkoenig": "fable", "yeti": "fable",
+	# Fire and stone given shape: elementals and golems of the caves.
+	"feuerelementar": "elementals", "obsidiangolem": "elementals", "steingolem": "elementals", "kristallgolem": "elementals",
 	# The nameless horrors.
 	"hohle_mutter": HORRORS, "bleicher_waechter": HORRORS, "schlund": HORRORS,
 }

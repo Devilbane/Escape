@@ -27,7 +27,7 @@ extends Control
 const Kit := preload("res://scripts/ui_kit.gd")
 const Texts := preload("res://scripts/lang.gd")
 const EMBLEM := preload("res://assets/logo/app_icon_1024.png")
-const EMBLEM_SIZE := 84
+const EMBLEM_SIZE := 72
 
 const SOURCE := "https://github.com/devilbane/escape/releases/download/windows/"
 const MANIFEST := "version.json"
@@ -38,7 +38,7 @@ const INSTALLED := "installed.json"
 const NOTES_FILE := "patch_notes.txt"
 const NOTES_MAX := 8000
 const NO_NEWS := "Noch keine Neuigkeiten."
-const NOTES_HEIGHT := 168.0
+const NOTES_HEIGHT := 160.0
 const NOTES_TEXT := Color(0.86, 0.83, 0.78)
 ## Changed by the build (desktop.yml) to a fingerprint of the launcher and the engine. When the
 ## release names another one, this launcher is out of date and fetches the new Escape.exe.
@@ -524,7 +524,7 @@ func _build_ui() -> void:
 	emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header.add_child(emblem)
 
-	var title := Kit.label(Kit.TITLE_FONT, 100, Kit.GOLD)
+	var title := Kit.label(Kit.TITLE_FONT, 80, Kit.GOLD)
 	title.text = "Escape!"
 	title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -566,7 +566,7 @@ func _build_ui() -> void:
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.custom_minimum_size = Vector2(STATUS_WIDTH, 48)
+	_status.custom_minimum_size = Vector2(STATUS_WIDTH, 56)
 	# The status and its progress bar are one group, set apart from the buttons below.
 	var news := VBoxContainer.new()
 	news.add_theme_constant_override("separation", 6)

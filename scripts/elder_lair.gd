@@ -122,19 +122,10 @@ static func epic_item(level: Level, rng: RandomNumberGenerator, tier := "episch"
 
 
 ## Dresses the floors: skulls and bones on the floor, cobwebs in the
-## corners, scorch marks where the brood breathed fire, and a few lost
-## coins. None of it is in the way. Fixed per floor, like the walls.
+## corners and a few lost coins. None of it is in the way. Fixed per floor, like the walls.
 static func decorate(level: Level) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(level.level_name + THEME)
-	var scorch := StandardMaterial3D.new()
-	scorch.albedo_color = Color(0.06, 0.04, 0.05, 0.75)
-	scorch.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	var disc := CylinderMesh.new()
-	disc.top_radius = 1.2
-	disc.bottom_radius = 1.2
-	disc.height = 0.02
-	disc.material = scorch
 	for y in level.height:
 		for x in level.width:
 			var c := Vector2i(x, y)
@@ -152,9 +143,3 @@ static func decorate(level: Level) -> void:
 			var roll := rng.randf()
 			if roll < 0.12 and not north:
 				level._place_lair("Skull", pos + Vector3(rng.randf_range(-1.3, 1.3), 0, rng.randf_range(-1.3, 1.3)), rng.randf() * TAU, rng.randf_range(0.7, 1.1))
-			elif roll < 0.22:
-				var mark := MeshInstance3D.new()
-				mark.mesh = disc
-				mark.position = pos + Vector3(rng.randf_range(-1.0, 1.0), 0.02, rng.randf_range(-1.0, 1.0))
-				mark.scale = Vector3(rng.randf_range(0.6, 1.3), 1.0, rng.randf_range(0.6, 1.3))
-				level.add_child(mark)

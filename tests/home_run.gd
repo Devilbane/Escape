@@ -10,7 +10,7 @@ extends SceneTree
 ## With SHOTS=<folder> and a display it also saves screenshots there.
 
 const HERO := "Home run test"
-## The most frames a run home may take (a minute and a half of play at 60 fps).
+## The most frames a run home may take (three minutes of play at 60 fps).
 const MAX_FRAMES := 10800
 
 var failures := 0

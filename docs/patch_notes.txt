@@ -5,6 +5,9 @@
 
 ## Latest changes
 - New cave monsters: fire elementals, obsidian, stone and crystal golems, each with telegraphed special moves (fire bolts and scorched floor, shard throws, quakes, a mirror ward and a prismatic burst).
+- Forging at Gorm's forge is now a d100 roll: your chance rises with Strength, Intelligence, Intuition, Dexterity and your forging skill. A failed attempt spoils half the bars, but you still learn.
+- Sneaking no longer makes the hero strike back on their own; only a foe you click is attacked.
+- The hoard at home now counts the coins you carry plus those in your chest, and your bank vault shows its own hoard of the coins stored there.
 - Stairs down are now real stone steps that fade into the dark, in houses, mines and the dragon's lair, instead of a black hole.
 - The glowing ember cracks in the deep mines can be crossed now, but they burn: 1 life a second near them, 3 while standing on one.
 - Ghostly voices (moans, a banshee's shriek, the whispers out of the holes) and bandit taunts now also appear in the event log.

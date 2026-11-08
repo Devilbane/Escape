@@ -13,4 +13,7 @@ const EN := {
 	"%s Stufe": "%s level",
 	"Gorm hat %d fertig, zum Kaufen unten": "Gorm has %d ready, to buy below",
 	"Gorm hat ein paar fertige Stücke im Regal. Du kannst sie kaufen, statt sie selbst zu schmieden. Jeden Morgen legt er ein paar nach.": "Gorm has a few finished pieces on the shelf. You can buy them instead of forging them yourself. Every morning he adds a few.",
+	"Wurf %d gegen %d%%: Geschmiedet! %s (%s)": "Rolled %d against %d%%: Forged! %s (%s)",
+	"Wurf %d gegen %d%%: Fehlschlag! %d Barren sind verdorben.": "Rolled %d against %d%%: Failed! %d bars are spoiled.",
+	"Chance %d%% (W100). Bei Fehlschlag ist die Hälfte der Barren verloren.": "Chance %d%% (d100). On a failure half of the bars are lost.",
 }

@@ -547,7 +547,43 @@ static func melt(game: Node, index: int) -> String:
 	return ""
 
 
-## Forges a new piece into the bag. Returns "" on success, else why not.
+## Forging is a roll of a d100 against FORGE_CHANCE: the four attributes
+## (Stärke, Intelligenz, Intuition, Geschick) added up, divided by
+## CHANCE_DIVISOR and multiplied by the hero's forging skill, in percent.
+## A beginner (level 0) counts as skill 1. The chance stays between
+## MIN_CHANCE and MAX_CHANCE, so no forging is certain and none is hopeless.
+## Schmiedekunst grows with every attempt (see FORGE_XP, FAIL_XP).
+const CHANCE_ATTRIBUTES := ["staerke", "intelligenz", "intuition", "geschick"]
+const CHANCE_DIVISOR := 15.0
+const MIN_CHANCE := 5
+const MAX_CHANCE := 95
+## A failed attempt teaches half as much, and spoils half of the metal bars
+## (rounded up): the gold for the work is spent, the thunder ore is kept.
+const FAIL_XP := 5.0
+## For tests: when above 0, every forging rolls this (1 to 100). Not saved.
+static var rigged_roll := 0
+## What the last forging was: {"roll": d100, "chance": percent, "success": bool,
+## "lost": metal bars lost on a failure}. Empty until something is forged.
+static var last := {}
+
+
+## The hero's forging skill for the chance: the Schmiedekunst level, at
+## least 1.
+static func skill(game: Node) -> int:
+	return maxi(1, craft_level(game, FORGING))
+
+
+## The chance, in percent, that forging succeeds right now.
+static func chance(game: Node) -> int:
+	var sum := 0
+	for a in CHANCE_ATTRIBUTES:
+		sum += game.player.attribute(a)
+	return clampi(roundi(sum / CHANCE_DIVISOR * skill(game)), MIN_CHANCE, MAX_CHANCE)
+
+
+## Forges a new piece: pays for it, rolls a d100 (see chance) and puts the
+## piece into the bag on a success. Returns "" when the hero went through
+## with it, success or not (see `last` for which), else why not.
 static func forge(game: Node, id: String) -> String:
 	var p: Player = game.player
 	var cost := forge_cost(id, game)
@@ -568,14 +604,24 @@ static func forge(game: Node, id: String) -> String:
 		for _i in cost.ore:
 			p.bag.append(THUNDER_ORE)
 		return Lang.t("Deine Tasche ist voll.")
-	game.iron -= cost.iron
-	if cost.steel > 0:
-		game.bars[STEEL] = int(game.bars[STEEL]) - cost.steel
+	var percent := chance(game)
+	var roll := rigged_roll if rigged_roll > 0 else randi_range(1, 100)
+	var success := roll <= percent
+	var lost_iron: int = cost.iron if success else ceili(cost.iron / 2.0)
+	var lost_steel: int = cost.steel if success else ceili(cost.steel / 2.0)
+	game.iron -= lost_iron
+	if lost_steel > 0:
+		game.bars[STEEL] = int(game.bars[STEEL]) - lost_steel
 		if int(game.bars[STEEL]) <= 0:
 			game.bars.erase(STEEL)
 	game.coins -= cost.gold
-	p.bag.append(id)
-	p.train(FORGING, FORGE_XP, false)
+	if success:
+		p.bag.append(id)
+	else:
+		for _i in cost.ore:
+			p.bag.append(THUNDER_ORE)
+	p.train(FORGING, FORGE_XP if success else FAIL_XP, false)
+	last = {"roll": roll, "chance": percent, "success": success, "lost": lost_iron + lost_steel}
 	return ""
 
 

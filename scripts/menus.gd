@@ -91,6 +91,7 @@ const SHORTCUTS := [
 	["Nach Hause laufen", "X oder das Haus am rechten Rand, sobald du ein Zuhause hast; jeder eigene Schritt hält an"],
 	["Spielstand laden", "L"],
 	["Ton an/aus", "M"],
+	["Etwas sagen", "Enter oder ein Klick auf die Zeile unter dem Ereignisprotokoll; Enter schickt, Esc oder leere Zeile geht zurück. Wer in der Nähe ist, antwortet"],
 	["Steinblock abstellen", "B, oder „Abstellen“ im Inventar"],
 	["Steinblock verschieben", "Block mit der linken Maustaste greifen, ziehen und loslassen (Rechtsklick dabei dreht ihn)"],
 	["Steinblock aufheben", "E neben dem Block, oder ihn kurz anklicken"],

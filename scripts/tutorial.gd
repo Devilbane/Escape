@@ -16,7 +16,7 @@ extends RefCounted
 ## gets the whole tutorial.
 ##
 ## The card has one fixed size for every step and language, at the lower
-## left under the event log, out of the way of the HUD, the hero, the prompts
+## left under the event log and its chat line, out of the way of the HUD, the hero, the prompts
 ## in the middle and the messages at the bottom.
 
 ## The steps in order: id, title and text (German, translated with Lang.t),
@@ -57,7 +57,7 @@ const TEXT_SIZE := 16
 ## The step's title and the top line ("First steps 3 / 7", "Done!").
 const TITLE_SIZE := 18
 const TOP_SIZE := 15
-## Space between the event log and the card below it.
+## Space between the chat line under the event log and the card below it.
 const CARD_GAP := 8.0
 const DONE_COLOR := Color(0.55, 0.95, 0.5)
 
@@ -105,7 +105,7 @@ func setup(hud: CanvasLayer) -> void:
 	# At the lower left, right under the event log and on its left edge,
 	# clear of the messages in the middle and the hero.
 	card.custom_minimum_size = Vector2(CARD_WIDTH, 0)
-	card.position = Vector2(EventLog.LEFT, EventLog.TOP + EventLog.HEIGHT + CARD_GAP)
+	card.position = Vector2(EventLog.LEFT, ChatLine.BOTTOM + CARD_GAP)
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.modulate.a = 0.0
 	card.visible = false

@@ -135,6 +135,10 @@ var journal := Journal.new(self)
 var tutorial := Tutorial.new(self)
 ## Loot and speech at the left edge of the screen (see EventLog).
 var event_log := EventLog.new()
+## The hero's chat line under the event log, and the villagers' answers
+## (see ChatLine, HeroChat).
+var chat_line := ChatLine.new()
+var hero_chat := HeroChat.new(self)
 ## The card that shows a wall writing the hero noticed (see WritingCard).
 var writing_card := WritingCard.new(self)
 ## How many mornings have dawned in the world above ground since the game
@@ -501,6 +505,7 @@ func _bus_links() -> Array:
 		[bus.camera_punched, punch_camera],
 		[bus.loot_found, event_log.add_loot],
 		[bus.speech_said, heard],
+		[bus.hero_spoke, hero_chat.on_hero_spoke],
 		[bus.loot_carried_off, _on_loot_carried_off],
 		[bus.scare_happened, village_worries.on_scare],
 		[bus.enemy_slain, village_rumours.on_slain],
@@ -1547,6 +1552,7 @@ func _setup_hud() -> void:
 	_hud.add_child(help)
 
 	_hud.add_child(event_log)
+	_setup_chat_line()
 
 	# The words of Fritz's drinking songs over his head, under the rest of
 	# the HUD (see SongSheet).
@@ -4610,6 +4616,37 @@ func level_hint(index: int) -> Dictionary:
 	return info
 
 
+## The chat line under the event log: on screen while the game is played,
+## usable while no window or shrine is open. While the hero types, the walking
+## keys stop (Player.typing).
+func _setup_chat_line() -> void:
+	chat_line.shown = func() -> bool: return state in [State.PLAYING, State.TRANSITION]
+	chat_line.allowed = chat_allowed
+	chat_line.set_hint()
+	chat_line.said.connect(_hero_says)
+	chat_line.opened.connect(func() -> void: player.typing = true)
+	chat_line.closed.connect(func() -> void: player.typing = false)
+	_hud.add_child(chat_line)
+
+
+## Whether the hero may chat now.
+func chat_allowed() -> bool:
+	return state == State.PLAYING and not menus.is_open() and _shrine.is_empty() and player != null and not player.dead
+
+
+## The hero said `text` through the chat line: it floats over the hero's head
+## and goes into the event log (as every spoken line does), and whoever is
+## near may answer (see HeroChat).
+func _hero_says(text: String) -> void:
+	var pos := player.global_position
+	Effects.float_text(level, pos + Vector3(0, 3.0, 0), text, HERO_SAY_COLOR)
+	Events.say(hero_name, text, pos)
+	Events.hero_says(text, pos)
+
+
+const HERO_SAY_COLOR := Color(1.0, 0.95, 0.8)
+
+
 ## How far from the hero a spoken line is still heard and written into the
 ## event log, in metres.
 const HEAR_RANGE := 14.0
@@ -6564,6 +6601,13 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Typing in the chat line: no key of the game fires, and a click on the
+	# world leaves the line (and then does what it does).
+	if chat_line.is_typing():
+		if event is InputEventKey:
+			return
+		if event is InputEventMouseButton and event.pressed:
+			chat_line.leave()
 	# Mouse wheel or + and - zoom the camera, but only while no window is open:
 	# a list that is already scrolled to its end lets the wheel fall through to
 	# here, and the camera behind the window must not move then.
@@ -6618,6 +6662,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				home_run.stop()
 			if event is InputEventKey:
 				match event.physical_keycode:
+					KEY_ENTER, KEY_KP_ENTER:
+						chat_line.open()
 					KEY_X:
 						home_action()
 					KEY_SPACE:

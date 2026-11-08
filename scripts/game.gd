@@ -3697,6 +3697,11 @@ func _apply_save(data: Dictionary) -> void:
 	_go_to_wake_place(_wake_place(data))
 	player.hp = clampi(int(data.hp), 1, player.max_hp)
 	player.cure()
+	player.ailments.erase(VillageRun.KIND)
+	var run_left := minf(float(data.get("village_run", 0.0)), VillageRun.TIME)
+	if run_left > 0.0:
+		player.ailments[VillageRun.KIND] = run_left
+	_village_run_on = run_left > 0.0
 	_update_hud()
 
 
@@ -3871,7 +3876,7 @@ func save_game(going_away := false) -> bool:
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution,
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "cape": player.cape_design, "bag": player.bag, "storage": storage, "shop": shop_stock,
-		"lore": lore, "plan": away_plan, "book_hours": book_hours, "escaped": escaped, "home": _home_given_now(), "claimed": home_claimed,
+		"lore": lore, "plan": away_plan, "book_hours": book_hours, "escaped": escaped, "village_run": snappedf(player.ailments.get(VillageRun.KIND, 0.0), 0.1), "home": _home_given_now(), "claimed": home_claimed,
 		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(), "home_stores": HomeStores.for_save(home_stores),
 		"saved_at": Time.get_unix_time_from_system(),
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(), "floors": _floors_for_save(), "slimes": _slimes_for_save(),
@@ -4803,6 +4808,8 @@ func hero_boons() -> Array:
 		out.append(["power", str(player.power)])
 	if _hero_fast():
 		out.append(["fast", ""])
+	if player.protected():
+		out.append([VillageRun.KIND, VillageRun.countdown(player.ailments[VillageRun.KIND])])
 	if player.hardening > 0 or player.armour_value > 0:
 		out.append(["hardening", str(player.hardening)])
 	return out
@@ -4837,6 +4844,7 @@ func icon_text(kind: String, number: String) -> String:
 		SlimeCoat.KIND: return Lang.t("Verschleimt: Schleim klebt an dir. Ein paar Sekunden lang läufst und schlägst du langsamer. Ein Brunnen, ein Schrein oder ein Heiltrank wäscht ihn ab.")
 		"angst": return Lang.t("Verängstigt: Ein Geist hat dich in Panik versetzt. Ein paar Sekunden lang rennst du zum nächsten Ausgang. Weisheit, Intuition und Erkunden helfen, standhaft zu bleiben.")
 		BloatedBelly.KIND: return Lang.t("Zu viel Wasser getrunken: Dein Bauch ist prall und du bist viel langsamer. Noch %s, dann geht es von selbst vorbei.") % BloatedBelly.long_countdown(player.ailments.get(BloatedBelly.KIND, 0.0))
+		VillageRun.KIND: return Lang.t("Protected: nothing can hurt you for %s more. Run to the village and follow the way!") % VillageRun.long_countdown(player.ailments.get(VillageRun.KIND, 0.0))
 		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
 		"fast": return Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
 		"slow": return Lang.t("Schwer beladen: Du läufst langsamer. Leg im Inventar (I) etwas ab.")
@@ -6119,6 +6127,7 @@ func _step_out_of_crypt() -> void:
 		player.play("Idle")
 		state = State.PLAYING
 		_announce_level()
+		_start_village_run()
 		if healed > 0:
 			_update_hud()
 			Effects.float_text(level, player.global_position + Vector3(0, 2.6, 0), "+%d" % healed, Color(0.5, 1.0, 0.5))
@@ -6128,6 +6137,35 @@ func _step_out_of_crypt() -> void:
 		get_tree().create_timer(4.8).timeout.connect(func():
 			if state == State.PLAYING and text != "":
 				show_message(text, 3.5)))
+
+
+## The run to the village (see VillageRun): starts the protection with the
+## shout, as the hero steps out of the crypt. A new exit starts it again; it
+## never stacks.
+func _start_village_run() -> void:
+	player.ailments[VillageRun.KIND] = VillageRun.TIME
+	_village_run_on = true
+	player._ailments_changed()
+	show_message(Lang.t(VillageRun.START_TEXT), 7.0, VillageRun.COLOR)
+
+
+## Whether the protection was running at the last look (to tell its end once).
+var _village_run_on := false
+
+
+## Ends the protection early at the village, and tells when it is over.
+func _watch_village_run() -> void:
+	if player == null or state != State.PLAYING:
+		return
+	var on := player.protected()
+	if on and level is Outdoor and level._in_village(level.world_to_cell(player.global_position)):
+		player.cure(VillageRun.KIND)
+		show_message(Lang.t(VillageRun.END_VILLAGE_TEXT), 4.0, VillageRun.COLOR)
+		_village_run_on = false
+		return
+	if _village_run_on and not on:
+		show_message(Lang.t(VillageRun.END_TIME_TEXT), 4.0, Color(1.0, 0.75, 0.4))
+	_village_run_on = on
 
 
 ## The hero has walked into the house the elder gave and made it their own:
@@ -6504,8 +6542,9 @@ func _process(delta: float) -> void:
 			show_message(Lang.t("Entdeckt! Du kannst nicht mehr schleichen."), 1.6)
 	_guardian_intro()
 	# A swollen belly and a bleeding wound count down under the life bar.
-	if player != null and (player.ailments.has(BloatedBelly.KIND) or player.ailments.has("blut")):
+	if player != null and (player.ailments.has(BloatedBelly.KIND) or player.ailments.has("blut") or player.protected()):
 		_update_status_icons()
+	_watch_village_run()
 	if state == State.PLAYING and level != null and not menus.is_open():
 		journal.update(delta)
 	_quest_mark_timer -= delta

@@ -5,6 +5,7 @@
 
 ## Latest changes
 - Much more ivy in the village, always clear of doors: thick on the guild hall, castle and temple, a little on the fountain.
+- Stepping out of the crypt now starts a two-minute run to the village: nothing can hurt you (blows, traps, poison, bleeding, fire) while the shield countdown shows, and it ends early when you reach the village.
 - The plain, unlit timber frames in the mine tunnels (bare brown beams with no texture or lighting) are gone.
 - A backpack you lost (your bag after being carried off) or set down on the floor now shows on the map as an orange backpack mark, with "Lost backpack" in the legend. The mark is gone once the pack is picked up, emptied or swept away.
 - Bone Pit (level 8): the visible spike traps now sit on the same bone-coloured floor as the rest, the rough floor patches match it, and the skulls and bones in the walls no longer shimmer or hang in the air when a wall fades out as you walk by.
@@ -59,3 +60,5 @@
 - A new HUD: life bar with condition icons, ammo under it, gold under the XP bar, messages over the hero's head and a scrollable event log.
 - Combat: hit and block chances on the character page, thunder weapons that can stun, and a short regeneration pause after a blow.
 - Walk or run with a stamina meter; a running hero hit hard gets knocked down; sneaking turns you grey and see-through.
+- Walk or run with a stamina meter; a running hero hit hard gets knocked down; sneaking turns you grey and see-through.
+- A 20-slot backpack, several save games, a storage chest in the mountain tavern and the new map workshop for building your own levels.

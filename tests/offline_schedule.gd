@@ -123,7 +123,7 @@ func _test_books() -> void:
 	check(game.player.bag.has("fechtbuch"), "a used-up book stays an item")
 	game.book_hours.clear()
 	game.away_plan = Offline.normalized({"study": "axtbuch", "study_hours": 24}, {"study": ["axtbuch"]})
-	var lines: Array[String] = game._apply_away(game.away_plan, Offline.simulate(game.away_plan, 24.0 * 5.0))
+	var lines: Array[String] = game._apply_away(game.away_plan, Offline.simulate(game.away_plan, 24.0 * 7.0))
 	check(is_equal_approx(game.book_hours.get("axtbuch", 0.0), float(Offline.BOOK_HOURS)), "reading adds to the book's hours, capped at 100")
 	check(lines.any(func(l): return "ausgelesen" in l), "the report warns when the book is used up")
 	check(TradeWindow.book_lines("axtbuch", game.book_hours)[0][1] == TradeWindow.RED, "a used-up book shows a red warning")

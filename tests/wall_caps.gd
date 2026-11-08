@@ -67,6 +67,22 @@ func _initialize() -> void:
 		check(_covers(forced, level.cell_to_world(neighbour)), "%s fill covers the tile next to a grate" % n)
 		level.grates.erase(hole)
 		forced.free()
+		# Stairs down stay open too: the exit and its tile behind, and every mine shaft.
+		var open := VoidFill.open_cells(level)
+		var shafts := 0
+		for y in level.height:
+			for x in level.width:
+				var c := Vector2i(x, y)
+				var ch := level.cell_char(c)
+				if ch == "E" or ch == "^":
+					shafts += 1
+					check(open.has(c), "%s: stairs at %s stay open" % [n, c])
+					var cover := MeshInstance3D.new()
+					cover.mesh = VoidFill.fill_mesh(level)
+					check(not _covers(cover, level.cell_to_world(c)), "%s: the fill leaves the stairs at %s uncovered" % [n, c])
+					cover.free()
+		if level.exit_cell != Vector2i(-1, -1) and level.cell_char(level.exit_cell) == "E":
+			check(open.has(level.exit_cell + Vector2i(0, -1)), "%s: the exit's tile behind stays open" % n)
 		var solid := 0
 		for b in level.find_children("*", "CollisionObject3D", false, false):
 			solid += 1

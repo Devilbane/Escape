@@ -45,8 +45,8 @@ static func cap_material(style: String) -> StandardMaterial3D:
 
 
 ## Adds the fill to `level` (not to open-air maps, nor to the home with its storeys).
-## The floor grates stay open: the pit under a grate lies below the fill, so a fill
-## across it would hide the pit (its dirt, its remains and whatever stirs in it).
+## Floor grates and stairs going down stay open: they lie below the fill, so a fill
+## across them would hide them (see open_cells).
 static func build(level: Level) -> void:
 	if level.outdoor or level.is_home:
 		return
@@ -61,8 +61,27 @@ static func build(level: Level) -> void:
 	level.add_child(mi)
 
 
+## The tiles the fill leaves open, because something lies below the floor there: the
+## floor grates (their pits), the way down of a mine ("^") and the exit stairs ("E"),
+## which also reach into the tile behind them (the one to the north).
+static func open_cells(level: Level) -> Dictionary:
+	var open := {}
+	for c: Vector2i in level.grates:
+		open[c] = true
+	for y in level.height:
+		for x in level.width:
+			var c := Vector2i(x, y)
+			var ch := level.cell_char(c)
+			if ch == "^":
+				open[c] = true
+			elif ch == "E":
+				open[c] = true
+				open[c + Vector2i(0, -1)] = true
+	return open
+
+
 ## The fill's flat face as rectangles in the level's own space (y = 0): the whole map
-## and its margin, less one tile for every floor grate.
+## and its margin, less one tile for every open cell (see open_cells).
 static func fill_mesh(level: Level) -> ArrayMesh:
 	var half := level.TILE * 0.5
 	var first := level.cell_to_world(Vector2i.ZERO)
@@ -71,6 +90,7 @@ static func fill_mesh(level: Level) -> ArrayMesh:
 	var x1 := last.x + half
 	var z0 := first.z - half
 	var z1 := last.z + half
+	var open := open_cells(level)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_normal(Vector3.UP)
@@ -84,7 +104,7 @@ static func fill_mesh(level: Level) -> ArrayMesh:
 		var za := z0 + y * level.TILE
 		var run_from := x0
 		for x in level.width:
-			if not level.grates.has(Vector2i(x, y)):
+			if not open.has(Vector2i(x, y)):
 				continue
 			var xa := x0 + x * level.TILE
 			_quad(st, run_from, za, xa, za + level.TILE)

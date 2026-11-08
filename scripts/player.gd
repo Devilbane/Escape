@@ -190,6 +190,10 @@ var knives := 5
 ## KNIFE_CAP_STEP levels of the skill add one more.
 const KNIFE_CAP_BASE := 3
 const KNIFE_CAP_STEP := 2
+## Seconds one throw keeps the hero busy, and how many throws an empty belt's
+## refill from the bag costs.
+const THROW_COOLDOWN := 0.6
+const KNIFE_REFILL_ATTACKS := 2
 ## Seconds between looks at the belt and the bag (see _settle_knives).
 const KNIFE_SETTLE_EVERY := 0.5
 var _knife_settle := 0.0
@@ -1295,6 +1299,16 @@ func add_knives(count: int) -> int:
 	return left
 
 
+## Fills the belt from the bag up to knife_cap(). Returns whether anything moved.
+func _refill_knives() -> bool:
+	var moved := false
+	while knives < knife_cap() and bag.has(Items.KNIFE):
+		bag.erase(Items.KNIFE)
+		knives += 1
+		moved = true
+	return moved
+
+
 ## Out of a fight, the belt is filled from the bag up to knife_cap(), and
 ## knives over it (the skill dropped, an old save) go back into the bag
 ## while it has room. In a fight only what is ready can be thrown.
@@ -1303,11 +1317,7 @@ func _settle_knives() -> bool:
 	if fight_cooldown > 0.0 or dead:
 		return false
 	var cap := knife_cap()
-	var moved := false
-	while knives < cap and bag.has(Items.KNIFE):
-		bag.erase(Items.KNIFE)
-		knives += 1
-		moved = true
+	var moved := _refill_knives()
 	while knives > cap and bag_fits(Items.KNIFE):
 		bag.append(Items.KNIFE)
 		knives -= 1
@@ -1322,11 +1332,14 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 	if not can_act() or _attack_cooldown > 0.0:
 		return
 	if knives <= 0:
-		# Spares in the bag go into the belt once the fight is over; with
-		# none at all, the compendium says where to get more.
+		# With spares in the bag the belt is refilled on the spot, which costs
+		# the time of two throws; with none at all, the compendium says where
+		# to get more.
 		var why := Lang.t("Keine Wurfmesser")
 		if spare_knives() > 0:
-			why = Lang.t("Gürtel leer: Nachschub nach dem Kampf")
+			why = Lang.t("Wurfmesser werden nachgesteckt")
+			_refill_knives()
+			_attack_cooldown = KNIFE_REFILL_ATTACKS * THROW_COOLDOWN
 		else:
 			Events.teach(KNIFE_LORE)
 		Effects.float_text(level, global_position + Vector3(0, 3.2, 0), why, Color(1, 1, 1, 0.8))
@@ -1346,7 +1359,7 @@ func throw_knife(aim = null, on_the_move := false) -> void:
 	knives -= 1
 	train("geschick", 0.5)
 	Events.bus().hero_acted.emit("throw")
-	_attack_cooldown = 0.6
+	_attack_cooldown = THROW_COOLDOWN
 	if on_the_move:
 		_current_anim = ""
 		play("Throw", 0.1)
@@ -1464,7 +1477,7 @@ func _should_chase(enemy: Enemy) -> bool:
 
 ## Whether _auto_attack would answer `enemy`, `d` metres away, with a knife.
 func _can_throw_at(enemy: Enemy, d: float) -> bool:
-	return d <= AUTO_THROW_RANGE and knives > 0 and level.has_clear_shot(global_position, enemy.global_position)
+	return d <= AUTO_THROW_RANGE and (knives > 0 or spare_knives() > 0) and level.has_clear_shot(global_position, enemy.global_position)
 
 
 ## Ends the hero's own chase without reaching the foe: they stop where they are.

@@ -5,6 +5,7 @@
 
 ## Latest changes
 - A slime you hit now turns on you first: it drops villagers and the wall as targets while you fight it, and goes back to them after about 6 seconds without a blow or when you get far away.
+- Stepping out of the crypt now starts a two-minute run to the village: nothing can hurt you (blows, traps, poison, bleeding, fire) while the shield countdown shows, and it ends early when you reach the village.
 - The plain, unlit timber frames in the mine tunnels (bare brown beams with no texture or lighting) are gone.
 - A backpack you lost (your bag after being carried off) or set down on the floor now shows on the map as an orange backpack mark, with "Lost backpack" in the legend. The mark is gone once the pack is picked up, emptied or swept away.
 - Bone Pit (level 8): the visible spike traps now sit on the same bone-coloured floor as the rest, the rough floor patches match it, and the skulls and bones in the walls no longer shimmer or hang in the air when a wall fades out as you walk by.

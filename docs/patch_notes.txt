@@ -1,0 +1,29 @@
+# Patch notes shown by the Windows launcher while the game downloads (scripts/launcher.gd).
+# Written for players, in English: new features, fixes and balance changes, one short line each.
+# "## Heading" starts a section, "- text" is a change, a line starting with a single "#" is a
+# comment. Newest section first; fold older sections together to stay well under 8000 characters.
+
+## Latest changes
+- New dungeon level: the Great Old One's lair (level 25) with traps, secret rooms, bones and a spread-out hoard.
+- Townsfolk now hold the village wall against slimes until it breaks, and the wall sits in the narrow neck by the village.
+- Slimes show a health bar and level; a monster's name and level appear on your first hit, and its level, XP and health when it falls.
+- Throwing knives refill automatically when your belt runs empty.
+- Your purse is counted up into silver and gold without converting the coins.
+- A vital blow rings a star around the hero.
+- Steps through puddles are splashier and wetter.
+- The moon's shadows reach further, so mountain shadows no longer jump.
+- The event log has an always-visible chat line beneath it.
+- The mine, Great Old One and Ashen Spire entrances got the aged, textured look.
+- A cape wardrobe stands next to the bed on the first floor of the house.
+- New app icon on the exe, the window and the web page; the emblem shows on the title and launcher screens.
+
+## Earlier this week
+- The village is built of aged stone with ivy and paved paths; nights can be nearly pitch black and moonlight changes with the moon's phase. Light your torch with V.
+- Crystal mining in the Crystal Grotto, cut into jewellery, and a new dungeon: sneak into the Great Old One's lair.
+- Loot has a rarity by usefulness; shrines offer an attribute point and Constitution; the refuge fountain heals 5 life per drink.
+- A new HUD: life bar with condition icons, ammo under it, gold under the XP bar, messages over the hero's head and a scrollable event log.
+- Hazards: trapdoors drop you a floor and tentacles reach out of floor grates.
+- Combat: hit and block chances on the character page, thunder weapons that can stun, and a short regeneration pause after a blow.
+- Walk or run with a stamina meter; a running hero hit hard gets knocked down; sneaking turns you grey and see-through.
+- A 20-slot backpack, several save games, a storage chest in the mountain tavern and the new map workshop for building your own levels.
+- Fixes: no more getting stuck in doorways or furniture, no shots through pillars, smoother running and level starts.

@@ -3835,7 +3835,8 @@ func _add_interactable(label: String, pos: Vector3, icon_pos: Vector3, c: Vector
 	elif roll < 0.75:
 		loot = {"knives": 2}
 	elif roll < 0.87:
-		loot = {"potion": 1}
+		# A healing potion to keep and drink later, mostly the weakest kind.
+		loot = {"item": HealingPotions.loot_potion(loot_rng.randf())}
 	else:
 		loot = {"item": loot_item(loot_rng, 0, HeroLevel.place_level(self))}
 	var obj := {"label": label, "pos": pos, "icon_pos": icon_pos, "cell": c, "touch_cell": c, "searched": false, "loot": loot, "lid": null,

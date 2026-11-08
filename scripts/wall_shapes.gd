@@ -12,8 +12,8 @@ extends RefCounted
 ## thin they are (length is the base width times it), and how far they lean.
 const LOOKS := {
 	"rock": {"face": 6, "top": 2, "base": [0.45, 0.85], "long": [0.7, 1.2], "lean": 35.0, "sides": 6, "out": [68.0, 95.0]},
-	"obsidian": {"face": 3, "top": 2, "base": [0.15, 0.3], "long": [3.5, 6.0], "lean": 28.0, "sides": 4},
-	"crystal": {"face": 3, "top": 2, "base": [0.18, 0.34], "long": [3.0, 5.5], "lean": 30.0, "sides": 6},
+	"obsidian": {"face": 3, "top": 2, "base": [0.15, 0.3], "long": [2.4, 4.2], "lean": 28.0, "sides": 4, "out": [20.0, 55.0]},
+	"crystal": {"face": 3, "top": 2, "base": [0.18, 0.34], "long": [2.2, 3.8], "lean": 30.0, "sides": 6, "out": [20.0, 55.0]},
 }
 ## How many differently shaped shards a style has; each is shared by many.
 const VARIANTS := 6
@@ -113,11 +113,11 @@ static func dress(wall: Node3D, style: String, material: Material, seed_value: i
 		# Crystals grow in clusters of two or three, each its own size and way.
 		var cluster := 1 + (rng.randi() % 3 if style == "crystal" else 0)
 		for k in cluster:
-			var spot := Vector3(x, y, 0.3) + (Vector3(rng.randf_range(-0.3, 0.3), rng.randf_range(-0.3, 0.3), 0.0) if k > 0 else Vector3.ZERO)
+			var spot := Vector3(x, y, 0.5) + (Vector3(rng.randf_range(-0.3, 0.3), rng.randf_range(-0.3, 0.3), 0.0) if k > 0 else Vector3.ZERO)
 			_add(wall, style, material, rng, spot, look, true)
 	for i in look.top:
 		var x := rng.randf_range(-1.7, 1.7)
-		_add(wall, style, material, rng, Vector3(x, 3.85, 0.0), look, false)
+		_add(wall, style, material, rng, Vector3(x, 3.85, 0.3), look, false)
 
 
 static func _add(wall: Node3D, style: String, material: Material, rng: RandomNumberGenerator, at: Vector3, look: Dictionary, outward: bool) -> void:
@@ -147,7 +147,7 @@ static func _dress_bone(wall: Node3D, rng: RandomNumberGenerator) -> void:
 		var skull := MeshInstance3D.new()
 		skull.mesh = skull_mesh()
 		skull.material_override = mat
-		skull.position = Vector3(rng.randf_range(-1.6, 1.6) if rng.randf() < 0.7 else rng.randf_range(0.9, 1.7), rng.randf_range(0.5, 3.3), 0.12)
+		skull.position = Vector3(rng.randf_range(-1.6, 1.6) if rng.randf() < 0.7 else rng.randf_range(0.9, 1.7), rng.randf_range(0.5, 3.3), 0.5)
 		skull.rotation_degrees = Vector3(rng.randf_range(-12.0, 12.0), rng.randf_range(-30.0, 30.0), rng.randf_range(-15.0, 15.0))
 		skull.scale = Vector3.ONE * rng.randf_range(0.9, 1.3)
 		wall.add_child(skull)
@@ -157,7 +157,7 @@ static func _dress_bone(wall: Node3D, rng: RandomNumberGenerator) -> void:
 		bone.mesh = bone_mesh()
 		bone.material_override = mat
 		var x := rng.randf_range(0.9, 1.8) * (1.0 if i % 2 == 0 else -1.0)
-		bone.position = Vector3(x, rng.randf_range(0.4, 3.5), 0.18)
+		bone.position = Vector3(x, rng.randf_range(0.4, 3.5), 0.55)
 		bone.rotation_degrees = Vector3(rng.randf_range(-20.0, 20.0), rng.randf_range(-30.0, 30.0), rng.randf_range(0.0, 180.0))
 		bone.scale = Vector3.ONE * rng.randf_range(0.8, 1.3)
 		wall.add_child(bone)

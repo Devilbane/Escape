@@ -65,15 +65,16 @@ void fragment() {
 		wc = 1.0;
 	}
 	float wa = 1.0 - wb - wc;
-	vec3 basec = basec * wa + base_b * wb + base_c * wc;
-	vec3 darkc = darkc * wa + dark_b * wb + dark_c * wc;
+	vec3 basec = base_color * wa + base_b * wb + base_c * wc;
+	vec3 darkc = dark_color * wa + dark_b * wb + dark_c * wc;
 	float kf = wa + scale_b * wb + scale_c * wc;
 	float stains = fbm(p * 0.8);
 	float grit = fbm(p * 5.0);
 	float pits = smoothstep(0.62, 0.8, vnoise(p * 16.0)) * band(16.0, px);
 	// The kit's block pattern as light and dark: joints stay dark.
 	float blocks = dot(texture(albedo_tex, UV).rgb, vec3(0.3, 0.59, 0.11));
-	blocks = clamp(blocks * 1.6, 0.35, 1.2);
+	// Half the kit's block pattern: its stone is dark, and the styles bring their own colour.
+	blocks = mix(0.85, clamp(blocks * 2.2, 0.3, 1.3), 0.5);
 
 	vec3 col = basec;
 	float h = grit * 0.02 * band(5.0, px) - pits * 0.004;
@@ -110,19 +111,19 @@ void fragment() {
 		vec3 cell = floor(p * 1.7 * kf);
 		vec3 f = fract(p * 1.7 * kf);
 		vec3 tilt = vec3(hash3(cell) - 0.5, hash3(cell + 9.1) - 0.5, hash3(cell + 4.7) - 0.5);
-		h = dot(tilt, f) * 0.09 + grit * 0.004 * band(5.0, px);
+		h = dot(tilt, f) * 0.05 * band(1.7, px) + grit * 0.004 * band(5.0, px);
 		float flow = smoothstep(0.55, 0.9, vnoise(vec3(p.x * 1.5 + p.z * 1.5, p.y * 9.0, p.z * 0.7 + p.x * 0.7)));
 		col = mix(basec, darkc, 0.5 + 0.3 * (stains - 0.5));
 		col += vec3(0.05, 0.04, 0.08) * flow;
 		col *= mix(0.8, 1.15, blocks - 0.35);
-		rough = 0.1 + 0.08 * grit;
+		rough = 0.18 + 0.08 * grit;
 		spec = 1.0;
 	} else {
 		// Crystal: bluish facets, pale flecks, glowing veins.
 		vec3 cell = floor(p * 2.4 * kf);
 		vec3 f = fract(p * 2.4 * kf);
 		vec3 tilt = vec3(hash3(cell) - 0.5, hash3(cell + 9.1) - 0.5, hash3(cell + 4.7) - 0.5);
-		h = dot(tilt, f) * 0.05 + grit * 0.004 * band(5.0, px);
+		h = dot(tilt, f) * 0.03 * band(2.4, px) + grit * 0.004 * band(5.0, px);
 		float vein = smoothstep(0.06, 0.0, abs(vnoise(p * 2.2 * kf + 5.0) - 0.5)) * band(2.2, px);
 		float fleck = smoothstep(0.75, 0.9, vnoise(p * 22.0)) * band(22.0, px);
 		col = mix(basec, darkc, 0.5 * (1.0 - stains) + 0.2 * hash3(cell));

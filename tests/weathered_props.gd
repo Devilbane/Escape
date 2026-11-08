@@ -63,7 +63,9 @@ func _run() -> void:
 		props += 1
 		# The boulders at the dragon's lair wear the lair's old stone instead.
 		var aged := mi.material_override is ShaderMaterial and (mi.material_override as ShaderMaterial).shader == AgedStone.SHADER
-		if not _weathered(mi) and not aged:
+		# Flags keep their weathering inside the flutter materials of FlagWind (per surface).
+		var fluttering := mi.get_surface_override_material_count() > 0 and mi.get_surface_override_material(0) is ShaderMaterial
+		if not _weathered(mi) and not aged and not fluttering:
 			plain += 1
 	check(props > 30, "the village has its barrels, crates, rocks and pumpkins (%d)" % props)
 	check(plain == 0, "every old prop is weathered (%d still plain)" % plain)

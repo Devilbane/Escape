@@ -68,7 +68,8 @@ func _ready_up(foe: Enemy) -> void:
 	player._busy = 0.0
 	foe.hp = BIG_HP
 	foe.hardening = 0
-	foe._awake = false
+	foe._awake = true # Aware of the hero, so a blow is never a sneak attack (x3) when the foe has turned.
+	foe.attack_slow = 1.0
 	foe._cooldown = 99.0
 	foe._knockback = Vector3.ZERO
 	foe.wound.stop()
@@ -133,6 +134,13 @@ func _test() -> void:
 		# Mid-leap the figure is off the ground and closer to the foe.
 		var lunged: bool = player._model.position.y > 0.2 and player._model.position.z > 0.1
 		await _wait(25)
+		# On a slow runner the blow can land late: wait for it, and for the
+		# strike to be over, so it never spills into the next round.
+		var waited := 0
+		while (foe.hp == BIG_HP or player._attack_cooldown > 0.0) and waited < 300:
+			await process_frame
+			waited += 1
+		await _wait(3)
 		var lost := BIG_HP - foe.hp
 		if lost == player.vital_damage(POWER, player.weapon_skill()):
 			vitals += 1
@@ -167,7 +175,8 @@ func _test() -> void:
 	await physics_frame
 	await physics_frame
 	check(foe._cooldown > 1.0 - 2.0 / 60.0 / MonsterLore.SLOW_FACTOR - 0.01 and foe._cooldown < 1.0, "its attacks come round slower: %.3f" % foe._cooldown)
-	foe._awake = false
+	foe._awake = true # Aware of the hero, so a blow is never a sneak attack (x3) when the foe has turned.
+	foe.attack_slow = 1.0
 	foe._lost = 999.0
 	await physics_frame
 	await physics_frame

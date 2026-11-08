@@ -4572,6 +4572,8 @@ func _build_map_page(journal: Journal) -> void:
 		_legend_line(legend, Journal.MARK_COLORS.get(places[i].kind, Color.WHITE), "%d  %s" % [i + 1, journal.place_name(places[i])])
 	if not journal.secrets.get(_map_file, []).is_empty():
 		_legend_line(legend, Journal.MARK_COLORS.secret, Lang.t("Geheimraum"))
+	if not view.lost_packs().is_empty():
+		_legend_line(legend, MapView.PACK_COLOR, Lang.t("Verlorener Rucksack"))
 	var finds := journal.finds_on(_map_file)
 	if not finds.is_empty():
 		_legend_title(legend, Lang.t("Funde"))

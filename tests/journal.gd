@@ -148,6 +148,31 @@ func _test() -> void:
 	var view: MapView = game.menus._box.find_child("MapView", true, false)
 	check(view != null and view.hero_at != Vector2.INF, "the map shows where the hero stands")
 	check(view != null and view.numbered_places().size() >= 2, "the map numbers the landmarks seen")
+	# A bag lying on this level's floor is marked on the map, and only there.
+	check(view != null and view.lost_packs().is_empty(), "no backpack mark while nothing lies on the floor")
+	var pack_at: Vector3 = game.player.global_position + Vector3(2, 0, 0)
+	game.level.lay_bundle(pack_at, {"bag": [Items.KNIFE], "pouch": {}, "pieces": {}, "backpack": ""})
+	game.menus._rebuild()
+	view = game.menus._box.find_child("MapView", true, false)
+	var marks: Array[Vector2] = view.lost_packs()
+	check(marks.size() == 1, "a lost bag is marked on the map once")
+	check(marks.size() == 1 and marks[0].distance_to(Vector2(pack_at.x, pack_at.z) / Level.TILE) < 0.05, "the mark sits where the bag lies")
+	var legend_has := false
+	for l in game.menus._box.find_children("*", "Label", true, false):
+		if (l as Label).text == Lang.t("Verlorener Rucksack"):
+			legend_has = true
+	check(legend_has, "the legend names the backpack mark")
+	game.menus.map_page = "tagebuch"
+	game.menus._rebuild()
+	game.menus.map_page = "karte"
+	game.menus._rebuild()
+	view = game.menus._box.find_child("MapView", true, false)
+	var other_view := MapView.new()
+	other_view.setup(j, cell, game.TEXT_FONT)
+	check(other_view.lost_packs().is_empty(), "another level's map has no mark for it")
+	other_view.free()
+	game.level.floor_items.clear()
+	check(view.lost_packs().is_empty(), "the mark is gone with the pack")
 	var map_size: Vector2 = game.menus._panel.get_combined_minimum_size()
 	game.menus.map_page = "tagebuch"
 	game.menus._rebuild()

@@ -24,10 +24,17 @@ uniform vec3 glow_color : source_color = vec3(0.4, 0.8, 1.0);
 // See stone.gdshader: how see-through a near wall in front of the hero is.
 instance uniform float fade = 0.0;
 
+// The relief meshes (see WallShapes) paint their dark parts, such as a skull's
+// eye sockets, in the red channel of their vertex colour. The kit's walls leave
+// it alone.
+uniform bool use_tone = false;
+
 varying vec3 world_pos;
+varying float tone;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	tone = use_tone ? COLOR.r : 1.0;
 }
 
 void fragment() {
@@ -100,7 +107,7 @@ void fragment() {
 		spec = 0.7;
 	}
 
-	ALBEDO = col;
+	ALBEDO = col * tone;
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
 	NORMAL_MAP = texture(normal_tex, UV).rgb;
 	NORMAL_MAP_DEPTH = style == 2 ? 0.5 : 1.0;

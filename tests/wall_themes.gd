@@ -92,16 +92,15 @@ func _initialize() -> void:
 		check(CaveLights.brazier(style, holder, Vector3.ZERO) != null, "%s: no brazier" % style)
 		check(CaveLights.candelabra(style, holder, Vector3.ZERO, 0.0).get_child_count() > 8, "%s: no candelabra" % style)
 		check(CaveLights.energy(style, 3.4) > 0.0, "%s: no light" % style)
-		var shard_meshes := []
-		for v in WallShapes.VARIANTS:
-			if WallShapes.styled(style):
-				shard_meshes.append(WallShapes.shard_mesh(style, v))
-		var shards := level.find_children("*", "MeshInstance3D", true, false).filter(func(mi): return mi.mesh in shard_meshes).size()
-		if WallShapes.styled(style):
-			check(shards > 0, "%s: no shards on the walls" % style)
-			check(WallShapes.shard_mesh(style, 0).get_surface_count() == 1, "%s: the shard has no surface" % style)
+		var relief := []
+		if style == "bone":
+			relief = [WallShapes.skull_mesh(), WallShapes.bone_mesh()]
 		else:
-			check(shards == 0, "%s: the walls got shards" % style)
+			for v in WallShapes.VARIANTS:
+				relief.append(WallShapes.shard_mesh(style, v))
+		var shards := level.find_children("*", "MeshInstance3D", true, false).filter(func(mi): return mi.mesh in relief).size()
+		check(shards > 0, "%s: no relief (shards, skulls, bones) on the walls" % style)
+		check((relief[0] as ArrayMesh).get_surface_count() == 1, "%s: the relief has no surface" % style)
 		level.queue_free()
 	# A plain map keeps the stone.
 	var plain := Level.new()

@@ -124,6 +124,15 @@ func _run() -> void:
 	check(game.menus.current == "werkbank" and game.menus.bench == "alchemie", "a home bench opens the village bench's window")
 	game.menus.close()
 
+	# The hoard counts the purse and the chest together; the vault counts only its own coins.
+	game.coins = 30
+	game.crafting.purse["silbermuenze"] = 2
+	game.home_stores = {HomeStores.METAL: {HomeStores.COINS: 70, "silbermuenze": 3, "goldmuenze": 1}}
+	var both: Dictionary = game.hoard_coins()
+	check(both.kupfermuenze == 100 and both.silbermuenze == 5 and both.goldmuenze == 1, "the home hoard adds carried and chest coins")
+	game.home_stores = HomeStores.empty()
+	game.crafting.purse.erase("silbermuenze")
+
 	# The hoard: empty plinth at first, then it follows the purse.
 	check(_station_count(lvl, "hort") == 1, "the hoard is a station")
 	game.coins = 0

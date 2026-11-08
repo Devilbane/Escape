@@ -2189,6 +2189,16 @@ func _tick_ailments(delta: float) -> void:
 		_ailments_changed()
 
 
+## A burn from the floor (see EmberCracks): `amount` lives lost, no knock-back,
+## armour or grace. The caller keeps the last life.
+func scorched(amount: int, colour: Color) -> void:
+	hp = maxi(hp - amount, 1)
+	_regen_pause = REGEN_PAUSE_AFTER_HIT
+	train("konstitution", amount)
+	Effects.head_text(level, self, 2.2, "-%d" % amount, colour)
+	hurt.emit(amount)
+
+
 ## Updates strength and speed, and shows a coloured haze while ailing.
 func _ailments_changed() -> void:
 	refresh_stats()

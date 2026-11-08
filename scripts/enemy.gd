@@ -2023,6 +2023,10 @@ func _physics_process(delta: float) -> void:
 			_frighten(player)
 		_wake(player.global_position)
 	elif _awake:
+		# A slime the hero is hitting keeps the hero in mind.
+		if _hero_aggro > 0.0 and not player.dead:
+			_lost = 0.0
+			_last_known = player.global_position
 		_lost += delta
 		if _lost > GIVE_UP or player.dead:
 			_awake = false

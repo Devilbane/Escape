@@ -22,8 +22,8 @@ static func build_gate(outdoor: Outdoor, c: Vector2i) -> void:
 	var black := SternParts.material(Color(0.015, 0.01, 0.03), 0.0, 1.0, true)
 	SternParts._box(outdoor, Vector3(4.6, 4.8, 0.6), black, pos + Vector3(0, 2.4, -0.9))
 	# What is left of the wall on both sides: broken, mossy stone.
-	var stone := SternParts.material(Color(0.44, 0.43, 0.42))
-	var moss := SternParts.material(Color(0.3, 0.38, 0.26))
+	var stone := AgedStone.ruin_material(Color(0.44, 0.43, 0.42))
+	var moss := AgedStone.ruin_material(Color(0.3, 0.38, 0.26))
 	for side in [-1.0, 1.0]:
 		SternParts._box(outdoor, Vector3(5.0, rng.randf_range(2.6, 3.6), 1.4), stone, pos + Vector3(side * 5.4, 1.5, -0.9))
 		SternParts._box(outdoor, Vector3(2.0, 0.3, 1.5), moss, pos + Vector3(side * 4.4, rng.randf_range(2.8, 3.2), -0.9))
@@ -58,7 +58,7 @@ static func build_outlet(outdoor: Outdoor, c: Vector2i) -> void:
 	rim.top_radius = 1.1
 	rim.bottom_radius = 1.2
 	rim.height = 0.2
-	SternParts._mesh(outdoor, rim, SternParts.material(Color(0.4, 0.4, 0.38)), pos + Vector3(0, 0.08, 0))
+	SternParts._mesh(outdoor, rim, AgedStone.ruin_material(Color(0.4, 0.4, 0.38)), pos + Vector3(0, 0.08, 0))
 	var hole := CylinderMesh.new()
 	hole.top_radius = 0.9
 	hole.bottom_radius = 0.9
@@ -68,7 +68,7 @@ static func build_outlet(outdoor: Outdoor, c: Vector2i) -> void:
 	for i in 5:
 		SternParts._box(outdoor, Vector3(0.08, 0.08, 1.8), rust, pos + Vector3(-0.7 + 0.35 * i, 0.22, 0))
 	SternParts._box(outdoor, Vector3(1.8, 0.08, 0.08), rust, pos + Vector3(0, 0.24, 0))
-	var moss := SternParts.material(Color(0.3, 0.38, 0.26))
+	var moss := AgedStone.ruin_material(Color(0.3, 0.38, 0.26))
 	for a in [0.4, 2.1, 3.6, 5.0]:
 		SternParts._box(outdoor, Vector3(0.7, 0.4, 0.5), moss, pos + Vector3(cos(a), 0.2, sin(a)) * 1.5, Vector3(0, a, 0))
 	outdoor._add_solid(pos, Vector3(2.4, 0.6, 2.4))

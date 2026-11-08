@@ -1,7 +1,7 @@
 extends SceneTree
 ## Headless test: every dungeon entrance on the open-air map is built from the
 ## aged, textured materials (AgedStone), not from plain colours: the lair's
-## arch, the mines' timber, the Great Old One's cave and the Ashen Spire's gate.
+## arch, the mines' timber, the Great Old One's cave the Ashen Spire's gate and Sternhall's ruined courtyard gate.
 ## Run with: godot --headless -s tests/entrance_textures.gd
 
 var failures := 0
@@ -50,9 +50,9 @@ func _run() -> void:
 	var out: Outdoor = game.level
 	var ids: Array = []
 	for id: String in out.doors:
-		if id.begins_with("mine") or id in [Outdoor.ELDER_CAVE, Outdoor.SPIRE_GATE]:
+		if id.begins_with("mine") or id in [Outdoor.ELDER_CAVE, Outdoor.SPIRE_GATE, SternGate.BUILDING]:
 			ids.append(id)
-	check(ids.size() >= 4, "the map has mines, the cave and the spire gate (%d)" % ids.size())
+	check(ids.size() >= 5, "the map has mines, the cave, the spire gate and the Sternhall gate (%d)" % ids.size())
 	for id in ids:
 		var near := _plain_boxes_near(out, out.doors[id], 8.0)
 		check(near == 0, "%s has no plain-coloured stone or timber (%d)" % [id, near])

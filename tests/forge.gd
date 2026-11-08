@@ -50,6 +50,7 @@ func _wait(n: int) -> void:
 
 
 func _run() -> void:
+	Forge.rigged_roll = 1  # the forging is a d100 roll; these tests want it to succeed
 	var p: Player = game.player
 	game.hero_name = HERO
 
@@ -125,6 +126,33 @@ func _run() -> void:
 		p.bag.append("lederwams")
 	game.menus._forge("schwert")
 	check(game.iron == 5 and not p.bag.has("schwert"), "nothing is forged into a full bag")
+	p.bag.assign(["ritterhelm"])
+
+	# The roll: chance = (Stärke + Intelligenz + Intuition + Geschick) / 15 x skill, % on a d100.
+	var sum := 0
+	for a in Forge.CHANCE_ATTRIBUTES:
+		sum += p.attribute(a)
+	check(Forge.chance(game) == clampi(roundi(sum / 15.0 * Forge.skill(game)), Forge.MIN_CHANCE, Forge.MAX_CHANCE), "the chance follows the four attributes and the skill (%d%%)" % Forge.chance(game))
+	p.xp[Forge.FORGING] = 1.0e9
+	check(Forge.chance(game) == Forge.MAX_CHANCE, "the chance is capped at %d%%" % Forge.MAX_CHANCE)
+	p.xp[Forge.FORGING] = 0.0
+	check(Forge.chance(game) >= Forge.MIN_CHANCE and Forge.skill(game) == 1, "a beginner counts as skill 1")
+	game.iron = 6
+	game.coins = 300
+	p.bag.clear()
+	var xp0 := float(p.xp.get(Forge.FORGING, 0.0))
+	Forge.rigged_roll = 100
+	Forge.last = {}
+	game.menus._forge("eisenhaube")
+	check(not p.bag.has("eisenhaube") and not Forge.last.success and Forge.last.roll == 100, "a roll above the chance fails")
+	check(game.iron == 3 and game.coins == 300 - Forge.forge_cost("eisenhaube").gold, "a failure spoils half the iron and the gold is spent")
+	check(float(p.xp.get(Forge.FORGING, 0.0)) - xp0 == Forge.FAIL_XP, "a failure still trains the skill")
+	check(game.menus._note.contains("100"), "the note tells the roll: %s" % game.menus._note)
+	Forge.rigged_roll = 1
+	game.iron = 6
+	game.menus._forge("eisenhaube")
+	check(p.bag.has("eisenhaube") and Forge.last.success and Forge.last.roll == 1, "a roll within the chance succeeds")
+	game.coins = 300
 	p.bag.assign(["ritterhelm"])
 
 	# Mending.

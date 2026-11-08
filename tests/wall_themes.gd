@@ -102,6 +102,19 @@ func _initialize() -> void:
 		check(shards > 0, "%s: no relief (shards, skulls, bones) on the walls" % style)
 		check((relief[0] as ArrayMesh).get_surface_count() == 1, "%s: the relief has no surface" % style)
 		level.queue_free()
+	# Three variants of each style: the header names one or mixes all three.
+	check(WallThemes.parse("crystal").variant == -1, "a plain style mixes the variants")
+	check(WallThemes.parse("crystal 2").variant == 1 and WallThemes.parse("crystal 2").style == "crystal", "'crystal 2' is not variant 2")
+	check(WallThemes.parse("bone 9").variant == 2, "variant 9 is not held to 3")
+	for style in WallThemes.names():
+		var plain_mat := WallThemes.material(style, WallThemes.WALL)
+		for v in 3:
+			var one := WallThemes.material(style, WallThemes.WALL, v)
+			check(one.get_shader_parameter("variant") == v, "%s: variant %d not set" % [style, v])
+		check(plain_mat.get_shader_parameter("base_b") != plain_mat.get_shader_parameter("base_color"), "%s: the variants look alike" % style)
+		var dif: Color = plain_mat.get_shader_parameter("base_b")
+		var org: Color = plain_mat.get_shader_parameter("base_color")
+		check(absf(dif.get_luminance() - org.get_luminance()) < 0.3 * maxf(org.get_luminance(), 0.1) + 0.05, "%s: variant b is too far from the first (it would show a seam)" % style)
 	# A plain map keeps the stone.
 	var plain := Level.new()
 	check(plain.wall_style == "", "a plain map has a style")
@@ -114,7 +127,7 @@ func _initialize() -> void:
 		var style := ""
 		for h in map.headers:
 			if h[0] == "walls":
-				style = h[1]
+				style = WallThemes.parse(h[1]).style
 		check(style == "" or WallThemes.known(style), "%s: unknown walls style '%s'" % [file, style])
 	print("wall_themes: ", "ok" if failures == 0 else "%d failures" % failures)
 	quit(1 if failures > 0 else 0)

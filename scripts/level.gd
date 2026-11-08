@@ -314,6 +314,9 @@ var theme := ""
 ## The cave style of this map's walls and floors (header "walls:", see
 ## WallThemes): "bone", "rock", "obsidian" or "crystal". "" for the stone dungeon.
 var wall_style := ""
+## Which of the style's three variants the map uses alone (header "walls: crystal 2",
+## 0 to 2), or -1 for all three, mixed in patches.
+var wall_variant := -1
 ## The families of monsters that naturally live here (header "monsters:",
 ## see MonsterFamilies).
 var monster_families: Array[String] = []
@@ -542,7 +545,9 @@ func load_from_file(path: String) -> void:
 		elif line.begins_with("theme:"):
 			theme = line.substr(6).strip_edges()
 		elif line.begins_with("walls:"):
-			wall_style = line.substr(6).strip_edges()
+			var parsed := WallThemes.parse(line.substr(6))
+			wall_style = parsed.style
+			wall_variant = parsed.variant
 		elif line.begins_with(MonsterFamilies.HEADER + ":"):
 			monster_families = MonsterFamilies.parse(line.substr(MonsterFamilies.HEADER.length() + 1))
 		elif line.begins_with("down:"):
@@ -1030,7 +1035,7 @@ func _kit_material(set_name: String) -> Material:
 		key = "mat_%s_%s" % [wall_style, set_name]
 		if not _scenes.has(key):
 			var surface := WallThemes.WALL if set_name == "walls" else (WallThemes.ROUGH_FLOOR if set_name == "floor_rough" else WallThemes.FLOOR)
-			_scenes[key] = WallThemes.material(wall_style, surface)
+			_scenes[key] = WallThemes.material(wall_style, surface, wall_variant)
 		return _scenes[key]
 	if not _scenes.has(key) and set_name == "walls":
 		# Walls get rough, stained stone instead of the kit's smooth brick faces.

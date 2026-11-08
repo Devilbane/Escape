@@ -35,6 +35,31 @@ const STYLES := {
 }
 
 
+## How the two other variants differ from the first: a shift of the colour
+## (hue towards, brightness) and how fine the pattern is. They stay close, so
+## the three meet without a visible edge, and the shader mixes them smoothly
+## in world space (see shaders/wall_theme.gdshader).
+const VARIANTS := [
+	{"shift": Color(0.04, 0.0, -0.03), "bright": 1.12, "scale": 1.35},
+	{"shift": Color(-0.03, 0.02, 0.04), "bright": 0.9, "scale": 0.75},
+]
+
+
+## Splits a header value such as "crystal" or "crystal 2" into the style and the
+## variant (-1: all three mixed; 0..2 one alone).
+static func parse(text: String) -> Dictionary:
+	var parts := text.strip_edges().split(" ", false)
+	var style: String = parts[0] if parts.size() > 0 else ""
+	var variant := -1
+	if parts.size() > 1 and parts[1].is_valid_int():
+		variant = clampi(parts[1].to_int() - 1, 0, 2)
+	return {"style": style, "variant": variant}
+
+
+static func _varied(c: Color, v: Dictionary) -> Color:
+	return Color(clampf((c.r + v.shift.r) * v.bright, 0.0, 1.0), clampf((c.g + v.shift.g) * v.bright, 0.0, 1.0), clampf((c.b + v.shift.b) * v.bright, 0.0, 1.0))
+
+
 static func known(style: String) -> bool:
 	return STYLES.has(style)
 
@@ -45,7 +70,7 @@ static func names() -> Array:
 
 ## The material of `surface` (WALL, FLOOR or ROUGH_FLOOR) in `style`, (the level shares
 ## each one among its tiles).
-static func material(style: String, surface: int) -> ShaderMaterial:
+static func material(style: String, surface: int, variant := -1) -> ShaderMaterial:
 	var def: Dictionary = STYLES[style]
 	var key: String = ["wall", "floor", "rough"][surface]
 	var colours: Array = def[key]
@@ -58,5 +83,12 @@ static func material(style: String, surface: int) -> ShaderMaterial:
 	m.set_shader_parameter("surface", surface)
 	m.set_shader_parameter("base_color", colours[0])
 	m.set_shader_parameter("dark_color", colours[1])
+	m.set_shader_parameter("variant", variant)
+	for i in 2:
+		var v: Dictionary = VARIANTS[i]
+		var tag := "b" if i == 0 else "c"
+		m.set_shader_parameter("base_" + tag, _varied(colours[0], v))
+		m.set_shader_parameter("dark_" + tag, _varied(colours[1], v))
+		m.set_shader_parameter("scale_" + tag, v.scale)
 	m.set_shader_parameter("glow_color", def.get("glow", Color(0, 0, 0)))
 	return m

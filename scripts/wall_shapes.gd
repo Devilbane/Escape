@@ -11,7 +11,7 @@ extends RefCounted
 ## Per style: how many shards on the face, how many on top, how long and how
 ## thin they are (length is the base width times it), and how far they lean.
 const LOOKS := {
-	"rock": {"face": 6, "top": 2, "base": [0.45, 0.85], "long": [0.9, 1.7], "lean": 35.0, "sides": 6, "out": [68.0, 95.0]},
+	"rock": {"face": 6, "top": 2, "base": [0.45, 0.85], "long": [0.7, 1.2], "lean": 35.0, "sides": 6, "out": [68.0, 95.0]},
 	"obsidian": {"face": 3, "top": 2, "base": [0.15, 0.3], "long": [3.5, 6.0], "lean": 28.0, "sides": 4},
 	"crystal": {"face": 3, "top": 2, "base": [0.18, 0.34], "long": [3.0, 5.5], "lean": 30.0, "sides": 6},
 }

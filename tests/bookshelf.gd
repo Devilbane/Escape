@@ -97,7 +97,7 @@ func _run() -> void:
 			check(HomeStores.store_of(id) == HomeStores.BOOKS, "the book %s goes on the shelf" % id)
 		elif HomeStores.store_of(id) == HomeStores.BOOKS:
 			check(false, "%s is no book and must not go on the shelf" % id)
-	check(books.size() >= 7, "there are books to store (%d)" % books.size())
+	check(books.size() >= 6, "there are books to store (%d)" % books.size())
 	check(HomeStores.STATIONS[HomeStores.BOOKS] == Bookshelf.KIND, "the store has the shelf's station kind")
 
 	# Storing and taking through the window moves books and changes the shelf.

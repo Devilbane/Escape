@@ -1051,6 +1051,8 @@ func _build_floor(c: Vector2i, ch: String) -> void:
 		return
 	if stern and not SternHall.builds_floor(ch):
 		return
+	if ch == "^":
+		return # The stairs down of a mine are sunk into the ground (see Mines).
 	if ch == "S":
 		var tile := _place("floor_tile_big_spikes", pos)
 		var spikes: Node3D = tile.find_child("spikes", true, false)
@@ -5408,38 +5410,15 @@ func _build_home_floor(c: Vector2i, ch: String) -> void:
 	add_child(floor_piece)
 
 
-## Stairs up rise against the north wall, stairs down sink into a dark
-## shaft through the floor.
+## Stairs up rise against the north wall, stairs down are a flight of stone
+## steps sinking into the floor, darker with every step (see StairsDown).
 func _build_stairs(c: Vector2i, up: bool) -> void:
 	var pos := cell_to_world(c)
 	stairs.append({"cell": c, "up": up, "storey": storey_of(c)})
 	if up:
 		_place("stairs", pos + Vector3(0, 0, -TILE * 0.5))
 		return
-	_place("stairs", pos + Vector3(0, -WALL_DEPTH, -TILE * 0.5))
-	var shaft := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(TILE, WALL_DEPTH, TILE)
-	shaft.mesh = box
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.08, 0.06, 0.05)
-	dark.cull_mode = BaseMaterial3D.CULL_FRONT
-	dark.roughness = 1.0
-	shaft.material_override = dark
-	shaft.position = pos + Vector3(0, -WALL_DEPTH * 0.5, 0)
-	add_child(shaft)
-	# A rim of planks round the hole.
-	var rim := StandardMaterial3D.new()
-	rim.albedo_color = Color(0.36, 0.25, 0.17)
-	rim.roughness = 0.9
-	for side: Vector3 in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1)]:
-		var beam := MeshInstance3D.new()
-		var b := BoxMesh.new()
-		b.size = Vector3(0.2, 0.12, TILE) if side.x != 0.0 else Vector3(TILE, 0.12, 0.2)
-		beam.mesh = b
-		beam.material_override = rim
-		beam.position = pos + side * (TILE * 0.5 - 0.1) + Vector3(0, 0.06, 0)
-		add_child(beam)
+	StairsDown.build(self, pos, TILE)
 
 
 ## How deep the stairs down of a home reach below the floor.
@@ -5630,8 +5609,8 @@ func _build_coin_hoard(root: Node3D, pos: Vector3) -> void:
 	_add_solid(pos, Vector3(HOARD_PLINTH * 1.6, 0.6, HOARD_PLINTH * 1.6))
 
 
-## Lays the hoard's heaps for the coins the hero holds (metal -> count): the heaps follow
-## HomeHoard.mix, the biggest in front, the others behind it.
+## Lays the hoard's heaps for the coins it counts (metal -> count): at home the coins the hero
+## carries plus those in the chest, see Game.hoard_coins.
 func show_hoard(held: Dictionary) -> void:
 	if _hoard_root == null:
 		return
@@ -5640,15 +5619,20 @@ func show_hoard(held: Dictionary) -> void:
 	if mix == _hoard_shown:
 		return
 	_hoard_shown = mix
-	for child in _hoard_root.get_children():
-		_hoard_root.remove_child(child)
+	_lay_heaps(_hoard_root, mix)
+
+
+## Lays the heaps of a mix (see HomeHoard.mix) on a holder, the biggest in front, the others behind
+## it. They shrink together so that three of them fit on a plinth or in a vault cell.
+func _lay_heaps(holder_root: Node3D, mix: Dictionary) -> void:
+	for child in holder_root.get_children():
+		holder_root.remove_child(child)
 		child.queue_free()
 	var metals: Array = mix.keys()
 	metals.sort_custom(func(a, b): return mix[a] > mix[b])
 	var biggest := 0.0
 	for m in metals:
 		biggest = maxf(biggest, CoinPile.radius(mix[m]))
-	# The heaps shrink together so that three of them fit on the plinth.
 	var fit := clampf((0.85 if metals.size() > 1 else 1.3) / maxf(biggest, 0.01), 0.35, 1.0)
 	var spots := [Vector3(0, 0, 0.35), Vector3(-0.85, 0, -0.7), Vector3(0.85, 0, -0.7)]
 	if metals.size() == 1:
@@ -5658,7 +5642,7 @@ func show_hoard(held: Dictionary) -> void:
 		holder.name = "Heap_" + metals[i]
 		holder.position = spots[i]
 		holder.scale = Vector3.ONE * fit
-		_hoard_root.add_child(holder)
+		holder_root.add_child(holder)
 		CoinPile.dress(holder, mix[metals[i]], metals[i], self)
 
 
@@ -5813,8 +5797,14 @@ func refresh_vaults() -> void:
 			continue
 		var gold := Bank.gold(owner)
 		if gold > 0:
-			var stack := _place("coin_stack_large", Vector3(1.1, 0, -1.0), 0.4, show)
-			stack.scale = Vector3.ONE * clampf(0.6 + gold / 200.0, 0.6, 1.6)
+			# The same hoard as at home, but of the coins in this vault only (copper, as the bank keeps it).
+			var heap_root := Node3D.new()
+			heap_root.name = "VaultHoard"
+			heap_root.position = Vector3(1.0, 0, -1.0)
+			heap_root.scale = Vector3.ONE * 0.7
+			show.add_child(heap_root)
+			var vault_coins := {"kupfermuenze": gold}
+			_lay_heaps(heap_root, HomeHoard.mix(HomeHoard.stage_of(HomeHoard.wealth(gold, 0, 0)), vault_coins))
 		var items := Bank.vault_items(owner)
 		for k in items.size():
 			if not Items.ALL.has(items[k]):

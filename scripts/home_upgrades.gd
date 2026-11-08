@@ -42,7 +42,7 @@ const ALL := {
 	"alchemie": {"name": "Alchemistentisch", "stones": 6, "gold": 40, "bench": "*",
 		"text": "Derselbe Tisch wie auf dem Handwerkerplatz: Tränke und Tinkturen brauen, jetzt zu Hause."},
 	"hort": {"name": "Hort", "stones": 8, "gold": 50,
-		"text": "Ein wachsender Hort, der dein Vermögen zeigt: In 20 Stufen von ein paar Münzen bis zum Berg aus Münzen, und die Haufen zeigen, welche Münzen du bei dir trägst: Hast du 200 Kupfer und 50 Silber, liegt dort vier Mal so viel Kupfer wie Silber."},
+		"text": "Ein wachsender Hort, der dein Vermögen zeigt: In 20 Stufen von ein paar Münzen bis zum Berg aus Münzen, und die Haufen zeigen, welche Münzen du bei dir trägst und in der Truhe im Keller liegen hast: Hast du 200 Kupfer und 50 Silber, liegt dort vier Mal so viel Kupfer wie Silber."},
 }
 
 ## Trophies: enemy kind -> name of the trophy. Only the first foe of each kind

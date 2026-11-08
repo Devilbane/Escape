@@ -5,6 +5,7 @@
 
 ## Latest changes
 - A slime you hit now turns on you first: it drops villagers and the wall as targets while you fight it, and goes back to them after about 6 seconds without a blow or when you get far away.
+- Bone Pit (level 8): the visible spike traps now sit on the same bone-coloured floor as the rest, the rough floor patches match it, and the skulls and bones in the walls no longer shimmer or hang in the air when a wall fades out as you walk by.
 - Weak monsters now ignore you when their level is below half your level plus 2: they no longer notice, chase or attack you, but still defend themselves if you hit them. Bosses always fight.
 - Crates and stone blocks are no longer dropped in front of you: they are always set down right under your feet and you end up standing on top of them, so you can stack up and step off as usual.
 - The faint "db" watermark in the bottom-right corner now shows the new db logo, with the same size and transparency.

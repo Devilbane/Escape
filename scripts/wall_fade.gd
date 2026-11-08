@@ -105,8 +105,16 @@ static func _fadeable(node: Node) -> Array:
 	var meshes: Array = node.find_children("*", "MeshInstance3D", true, false)
 	if node is MeshInstance3D:
 		meshes.append(node)
+	# The skulls, bones and shards set into a themed wall have no fade of their
+	# own (see WallThemes.relief_material): they vanish with the wall, so they
+	# never hang in the air where the wall has dissolved.
+	for extra in node.find_children("*", "MultiMeshInstance3D", true, false):
+		out.append({"mesh": extra, "stone": false, "relief": true, "plain": [], "alpha": []})
 	for mi: MeshInstance3D in meshes:
 		if mi.mesh == null:
+			continue
+		if mi.material_override is ShaderMaterial and (mi.material_override as ShaderMaterial).shader == WallThemes.RELIEF_SHADER:
+			out.append({"mesh": mi, "stone": false, "relief": true, "plain": [], "alpha": []})
 			continue
 		var stone := false
 		var plain := []
@@ -131,6 +139,8 @@ func _apply(amount: float, p: Dictionary) -> void:
 	for m in p.meshes:
 		if not is_instance_valid(m.mesh):
 			continue
+		if m.get("relief", false):
+			(m.mesh as Node3D).visible = amount < 0.5
 		if m.stone:
 			(m.mesh as GeometryInstance3D).set_instance_shader_parameter("fade", amount)
 		for i in m.plain.size():

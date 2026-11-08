@@ -901,7 +901,11 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 				# An old wooden door with rusty fittings.
 				WornLook.wear_mesh(mi, _wear(), false, STONE_TINT)
 			else:
-				mi.material_override = _rough_stone(mi.get_active_material(0), piece in ["floor_tile_big_spikes", "floor_tile_big_grate"])
+				if WallThemes.known(wall_style) and piece == "floor_tile_big_spikes":
+					# The tile under the spikes is the map's own floor, not the kit's grey.
+					mi.material_override = _kit_material("floor")
+				else:
+					mi.material_override = _rough_stone(mi.get_active_material(0), piece in ["floor_tile_big_spikes", "floor_tile_big_grate"])
 	return node
 
 

@@ -23,7 +23,7 @@ const ROUGH_FLOOR := 2
 const STYLES := {
 	"bone": {"id": 0, "wall": [Color(0.56, 0.51, 0.41), Color(0.22, 0.18, 0.12)],
 			"floor": [Color(0.7, 0.64, 0.52), Color(0.28, 0.23, 0.16)],
-			"rough": [Color(0.42, 0.37, 0.28), Color(0.17, 0.13, 0.09)]},
+			"rough": [Color(0.6, 0.54, 0.43), Color(0.24, 0.19, 0.13)]},
 	"rock": {"id": 1, "wall": [Color(0.34, 0.31, 0.28), Color(0.14, 0.12, 0.11)],
 			"floor": [Color(0.46, 0.42, 0.37), Color(0.2, 0.18, 0.15)],
 			"rough": [Color(0.4, 0.34, 0.27), Color(0.17, 0.14, 0.11)]},

@@ -87,7 +87,8 @@ void fragment() {
 	if (style == 0) {
 		// Bone: grain along the bones (stretched upright on walls), stains, pits.
 		vec3 q = surface == 0 ? vec3((p.x + p.z) * 28.0, p.y * 2.5, 0.0) * kf : vec3(p.x * 6.0, 0.0, p.z * 28.0) * kf;
-		float fibre = vnoise(q + vec3(0.0, 0.0, 3.0));
+		// The fine grain fades out before it gets too small to hold still on thin bones.
+		float fibre = mix(0.6, vnoise(q + vec3(0.0, 0.0, 3.0)), band(28.0 * kf, px));
 		float yellow = smoothstep(0.35, 0.8, stains);
 		col = mix(basec, darkc, 0.55 * (1.0 - yellow) * stains + 0.25 * (1.0 - fibre));
 		col *= 1.0 + 0.14 * (grit - 0.5) - 0.2 * pits;

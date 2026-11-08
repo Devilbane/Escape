@@ -535,6 +535,7 @@ func _watch(delta: float) -> void:
 	if slime != null and _watch_pause <= 0.0:
 		_watch_pause = GuardWatch.CALL_PAUSE
 		say(Lang.t(GuardWatch.CALL))
+		Events.alarm("gate")
 		Events.tell(Lang.t(GuardWatch.NEWS), GuardWatch.COLOR)
 		_task_time = maxf(_task_time, GuardWatch.STAND_MIN)
 

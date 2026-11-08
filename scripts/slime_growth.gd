@@ -352,6 +352,7 @@ static func gulp(slime: Enemy, n: Node3D) -> void:
 	if n is Villager:
 		var v := n as Villager
 		v.eaten = true
+		Events.alarm("eaten")
 		v.calm_down()
 		v.hush()
 		v._hide_inside(true)

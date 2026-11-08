@@ -95,3 +95,6 @@ made by tools/make_slime_sounds.py from the eight slime recordings
 https://opengameart.org/content/80-cc0-creture-sfx-2
 License: CC0 (public domain). (The "Slime Squelch" pack there is CC-BY-SA and
 is not used.)
+
+The village's warning bell (village_bell) is made by tools/make_bell_sounds.py;
+it is synthesised from scratch, nothing is downloaded.

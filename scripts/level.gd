@@ -5903,8 +5903,27 @@ func _trophy_statue(kind: String) -> Node3D:
 ## Iron bars across a one tile gap: solid, but you can see through.
 func _build_bars(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
-	_build_iron_gate(pos, 0.0)
-	_add_solid(pos, Vector3(TILE, 4, 0.6))
+	var rot := bars_rotation(cell_char(c + Vector2i(-1, 0)), cell_char(c + Vector2i(1, 0)), cell_char(c + Vector2i(0, -1)), cell_char(c + Vector2i(0, 1)))
+	_build_iron_gate(pos, rot)
+	# The wall of bars is only 0.6 deep, so it has to be turned with the bars:
+	# a column of bars stopped by a box lying across it would leave gaps between
+	# the tiles that a hero (or a prisoner) can walk through.
+	var body := StaticBody3D.new()
+	body.position = pos
+	body.rotation.y = rot
+	add_child(body)
+	_add_box(body, Vector3(0, 2, 0), Vector3(TILE, 4, 0.6))
+
+
+## Which way a run of iron bars (a prison cell wall) is turned, from the
+## letters of the tiles left, right, above and below it: 0 when it spans the
+## tile from west to east, PI / 2 when it runs north to south. It follows the
+## neighbouring walls and bars; with none to follow it keeps the old default.
+static func bars_rotation(left: String, right: String, up: String, down: String) -> float:
+	var closed := func(ch: String) -> bool: return ch == "#" or ch == "=" or ch == "?"
+	var along_x := int(closed.call(left)) + int(closed.call(right))
+	var along_z := int(closed.call(up)) + int(closed.call(down))
+	return PI * 0.5 if along_z > along_x else 0.0
 
 
 ## Fills the vaults behind the bars: one for every hero who rented one, in

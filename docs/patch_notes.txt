@@ -5,6 +5,7 @@
 # history, so nothing needs trimming. Keep those two sections well under 16000 characters.
 
 ## Latest changes
+- Prison cells now really hold: the iron bars of a cell are turned with its wall, so a column of bars is solid from end to end and nobody walks through the gaps between the tiles.
 - The dark fill around the dungeon no longer covers the floor grates or the stairs going down: you see the pits below the grates again, and the stairs are open.
 - The launcher now shows only the newest two sections of the patch notes, so old notes no longer need trimming.
 - A slime you hit now turns on you first: it drops villagers and the wall as targets while you fight it, and goes back to them after about 6 seconds without a blow or when you get far away.

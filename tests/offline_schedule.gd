@@ -28,6 +28,7 @@ func _process(_delta: float) -> bool:
 	if frames < 5:
 		return false
 	_test_game()
+	_test_books()
 	if failures == 0:
 		print("PASS: time away")
 	else:
@@ -61,6 +62,16 @@ func _test_results() -> void:
 	check(day.gold == 12 * Offline.JOBS.wache.gold, "a guard's day pays 12 hours")
 	check(day.knives == 1, "4 hours of smithing make one knife")
 	check(is_equal_approx(day.spent.rest, 8.0), "the day has its rest")
+	# A book holds BOOK_HOURS of reading, then it is used up.
+	var read_plan := Offline.normalized({"study": "fechtbuch", "study_hours": 10}, {"study": ["fechtbuch"]})
+	var fresh := Offline.simulate(read_plan, 24.0)
+	check(is_equal_approx(fresh.study_read, 10.0), "a fresh book counts every hour read")
+	var nearly := Offline.simulate(read_plan, 24.0, false, 95.0)
+	check(is_equal_approx(nearly.study_read, 5.0), "only the 5 hours left in a book count")
+	check(is_equal_approx(nearly.study_xp.klingen, fresh.study_xp.klingen / 2.0), "a book nearly used up teaches half as much")
+	var spent_book := Offline.simulate(read_plan, 24.0, false, 100.0)
+	check(spent_book.study_read == 0.0 and spent_book.study_xp.is_empty(), "a used-up book teaches nothing")
+	check(Offline.book_used_up({"fechtbuch": 100.0}, "fechtbuch") and not Offline.book_used_up({}, "fechtbuch"), "used-up check")
 	# A day cut short: the job comes first.
 	var short := Offline.simulate(plan, 5.0)
 	check(is_equal_approx(short.spent.job, 5.0) and short.spent.rest == 0.0, "a short absence starts with the job")
@@ -102,3 +113,18 @@ func _test_game() -> void:
 	for line in game.away_report:
 		print("  ", line)
 	game.menus.close()
+
+
+func _test_books() -> void:
+	game.book_hours["fechtbuch"] = 100.0
+	game.player.bag.assign(["fechtbuch", "axtbuch"])
+	var books: Array = game.away_choices().study
+	check(not "fechtbuch" in books and "axtbuch" in books, "a used-up book is no choice for studying, the other still is")
+	check(game.player.bag.has("fechtbuch"), "a used-up book stays an item")
+	game.book_hours.clear()
+	game.away_plan = Offline.normalized({"study": "axtbuch", "study_hours": 24}, {"study": ["axtbuch"]})
+	var lines: Array[String] = game._apply_away(game.away_plan, Offline.simulate(game.away_plan, 24.0 * 7.0))
+	check(is_equal_approx(game.book_hours.get("axtbuch", 0.0), float(Offline.BOOK_HOURS)), "reading adds to the book's hours, capped at 100")
+	check(lines.any(func(l): return "ausgelesen" in l), "the report warns when the book is used up")
+	check(TradeWindow.book_lines("axtbuch", game.book_hours)[0][1] == TradeWindow.RED, "a used-up book shows a red warning")
+	check(TradeWindow.book_lines("axtbuch", {})[0][1] == TradeWindow.BLUE, "a fresh book shows the hours left in blue")

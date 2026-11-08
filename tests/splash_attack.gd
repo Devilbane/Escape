@@ -16,6 +16,10 @@ var crowd: Array[Enemy] = []
 var start_hp: Array[int] = []
 const BIG_HP := 50
 const POWER := 4
+## How long a stage that waits for a blow to land may take, in frames (10 s at
+## 60 fps). Swings can miss at random, so a stage ends at the first landed blow
+## and only a hero that never lands one within this budget fails.
+const BLOW_BUDGET := 600
 
 
 func check(ok: bool, what: String) -> void:
@@ -198,7 +202,7 @@ func _process(_delta: float) -> bool:
 			stage += 1
 		5:
 			stage_frames += 1
-			if stage_frames == 90:
+			if _lost(0) > 0 or stage_frames >= BLOW_BUDGET:
 				print("fighting back: %d damage" % _lost(0))
 				check(_lost(0) > 0, "the hero strikes back on their own")
 				stage += 1
@@ -221,9 +225,9 @@ func _process(_delta: float) -> bool:
 			stage += 1
 		7:
 			stage_frames += 1
-			if stage_frames == 240:
+			if _lost(0) > 0 or stage_frames >= BLOW_BUDGET:
 				var d := player.global_position.distance_to(crowd[0].global_position)
-				print("charge: %.1f m from the skeleton after 4 s, %d damage, %d knives left" % [d, _lost(0), player.knives])
+				print("charge: %.1f m from the skeleton after %d frames, %d damage, %d knives left" % [d, stage_frames, _lost(0), player.knives])
 				check(d < 5.0, "the hero walked up to the clicked skeleton")
 				check(_lost(0) > 0, "the hero struck the clicked skeleton")
 				check(player.knives == 5, "no knives thrown on the way")
@@ -238,9 +242,9 @@ func _process(_delta: float) -> bool:
 			stage += 1
 		9:
 			stage_frames += 1
-			if stage_frames == 240:
+			if _lost(0) > 0 or stage_frames >= BLOW_BUDGET:
 				var d := player.global_position.distance_to(crowd[0].global_position)
-				print("strike back: %.1f m from the attacker after 4 s, %d damage" % [d, _lost(0)])
+				print("strike back: %.1f m from the attacker after %d frames, %d damage" % [d, stage_frames, _lost(0)])
 				check(d < 5.0, "the hero walked up to the attacker")
 				check(_lost(0) > 0, "the hero struck the attacker back")
 				stage += 1

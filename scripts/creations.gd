@@ -38,6 +38,7 @@ const MONSTER_FAMILIES := [
 	["Tiere der Wildnis", ["wolf", "ork", "yeti", "spinne", "spinnenkoenigin"]],
 	["Drachenhöhle", ["fledermaus", "schleim", "drache"]],
 	["Berge und Minen", ["eiswolf", "bergork", "felstroll", "kristallschleim", "glutschleim", "bergkoenig"]],
+	["Elementare und Golems", ["feuerelementar", "obsidiangolem", "steingolem", "kristallgolem"]],
 	["Grauen", ["hohle_mutter", "bleicher_waechter", "schlund"]],
 	["Hort des Großen Alten", ["brutdrache", "grosser_alter"]],
 ]
@@ -48,6 +49,7 @@ const MONSTER_BASES := ["krieger", "schuetze", "magier", "wicht", "koloss", "wae
 		"wolf", "ork", "yeti", "spinne", "spinnenkoenigin",
 		"fledermaus", "schleim", "drache",
 		"eiswolf", "bergork", "felstroll", "kristallschleim", "glutschleim", "bergkoenig",
+		"feuerelementar", "obsidiangolem", "steingolem", "kristallgolem",
 		"hohle_mutter", "bleicher_waechter", "schlund",
 		"brutdrache", "grosser_alter"]
 ## The bosses among them: each fights with a script of its own (see
@@ -64,6 +66,7 @@ const MONSTER_NAMES := {
 	"fledermaus": "Fledermaus", "schleim": "Schleim", "drache": "Drache",
 	"eiswolf": "Eiswolf", "bergork": "Bergork", "felstroll": "Felstroll",
 	"kristallschleim": "Kristallschleim", "glutschleim": "Glutschleim", "bergkoenig": "Bergkönig",
+	"feuerelementar": "Feuerelementar", "obsidiangolem": "Obsidiangolem", "steingolem": "Steingolem", "kristallgolem": "Kristallgolem",
 	"hohle_mutter": "Die Hohle Mutter", "bleicher_waechter": "Der Bleiche Wächter", "schlund": "Der Schlund",
 	"brutdrache": "Brutdrache", "grosser_alter": "Der Große Alte",
 }

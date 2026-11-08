@@ -240,6 +240,32 @@ const KINDS := {
 			"Hit_A": "DragonArmature|Dragon_Hit", "Death_A": "DragonArmature|Dragon_Death"},
 		"tint": Color(0.62, 0.5, 0.66), "glow": Color(0.7, 0.3, 1.0),
 		"voice": ["voice_koloss", 0.3, "BRÜLL"], "purse": [0, 0], "gear_chance": 0.0},
+	# The elementals and golems of the caves (see Elementals): each one is at
+	# home in one kind of rock and has special moves of its own. Golems are
+	# constructs ("bloodless", not stunned or crippled); a stone golem is very
+	# slow and tough, an obsidian one is armoured black glass, a crystal one
+	# is brittle but throws back what hits it. The fire elemental burns what
+	# touches it ("burn": the chance per blow) and is immune to fire.
+	"feuerelementar": {"model": "Orc", "dir": "wild", "hp": 22, "speed": 5.0, "damage": 3, "reach": 2.1, "size": 1.25, "cooldown": 1.5,
+		"beast": true, "roam": true, "bloodless": true, "burn": 0.6, "model_scale": 0.9, "turn": 0.0, "run_anim": 4.5, "hide": ["Orc_Weapon"],
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
+		"tint": Color(1.0, 0.42, 0.08), "glow": Color(1.0, 0.5, 0.12),
+		"voice": ["voice_krieger", 0.5, "FFFSCH"], "purse": [3, 6], "gear_chance": 0.0},
+	"obsidiangolem": {"model": "Yeti", "dir": "wild", "skin": "hide", "hp": 34, "speed": 3.2, "damage": 5, "reach": 2.8, "size": 1.65, "cooldown": 2.2, "armor": 4,
+		"beast": true, "roam": true, "big": true, "bloodless": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
+		"tint": Color(0.1, 0.09, 0.13), "glow": Color(0.75, 0.15, 0.4),
+		"voice": ["voice_koloss", 0.5, "KLIRR"], "purse": [6, 12], "gear_chance": 0.0},
+	"steingolem": {"model": "Yeti", "dir": "wild", "skin": "hide", "hp": 46, "speed": 2.5, "damage": 5, "reach": 3.0, "size": 1.95, "cooldown": 2.8, "armor": 3,
+		"beast": true, "roam": true, "big": true, "bloodless": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
+		"tint": Color(0.58, 0.57, 0.53),
+		"voice": ["voice_koloss", 0.35, "GRUMM"], "purse": [5, 10], "gear_chance": 0.0},
+	"kristallgolem": {"model": "Yeti", "dir": "wild", "skin": "hide", "hp": 28, "speed": 3.6, "damage": 4, "reach": 2.6, "size": 1.5, "cooldown": 2.0, "armor": 2,
+		"beast": true, "roam": true, "big": true, "bloodless": true, "model_scale": 0.75, "turn": 0.0, "run_anim": 4.5,
+		"anims": {"Idle": "Idle", "Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch", "Hit_A": "HitReact", "Death_A": "Death"},
+		"tint": Color(0.6, 0.88, 1.0), "glow": Color(0.4, 0.85, 1.0),
+		"voice": ["voice_koloss", 1.2, "KLING"], "purse": [6, 12], "gear_chance": 0.0},
 }
 ## Every horror there is (see Horrors).
 const HORRORS := ["hohle_mutter", "bleicher_waechter", "schlund"]
@@ -324,6 +350,12 @@ var _busy := 0.0
 var _cooldown := 0.0
 ## Seconds before a spider can throw its next web.
 var _web_cool := 0.0
+## An elemental's or golem's special moves (see Elementals): seconds before
+## each can be used again (by id), how long a mirror ward still holds and when
+## a fire elemental drops its next burning patch.
+var move_cools := {}
+var ward_left := 0.0
+var trail_left := 0.0
 ## A ghost's see-through materials (see _ghostly), how much of it shows
 ## now (0..1, see _haunt) and its glow.
 var _ghost_mats: Array[ShaderMaterial] = []
@@ -796,6 +828,14 @@ func fall_text() -> String:
 			return Lang.t("Der Bergkönig stürzt! Der ganze Berg erbebt.")
 		"brutdrache":
 			return Lang.t("Der Brutdrache stürzt zu Boden.")
+		"feuerelementar":
+			return Lang.t("Das Feuerelementar flackert und erlischt in einer letzten Glut.")
+		"obsidiangolem":
+			return Lang.t("Der Obsidiangolem zerspringt in schwarze Splitter.")
+		"steingolem":
+			return Lang.t("Der Steingolem stürzt in einem Haufen Geröll zusammen.")
+		"kristallgolem":
+			return Lang.t("Der Kristallgolem zerspringt in tausend Scherben.")
 	if is_horror():
 		return Lang.t("Das Ungeheuer bricht zusammen. Die Stille danach ist fast schlimmer.")
 	return Lang.t("Der Räuber geht zu Boden.") if is_human() else Lang.t("Das Skelett zerfällt zu Staub.")
@@ -822,6 +862,7 @@ func _ready_beast() -> void:
 		glow.position = Vector3(0, 0.6 * float(_stats.size), 0.4 * float(_stats.size))
 		add_child(glow)
 		_glow_light = glow
+	Elementals.dress(self)
 	if blob:
 		_blob_look()
 	var anims: Dictionary = _stats.anims
@@ -1352,6 +1393,7 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		return
 	hp -= damage
 	if wakes:
+		Elementals.reflect(self, damage, kind)
 		_calmed = 0.0
 		_provoked = true
 		_wake(from)
@@ -1480,7 +1522,7 @@ func cuts() -> bool:
 ## MonsterLore): it bleeds `amount` more life, 1 a second, 2 while it
 ## moves. Bleeding to death counts as the hero's kill. A ghost has no blood.
 func bleed(amount: int) -> void:
-	if dead or is_ghost():
+	if dead or is_ghost() or _stats.get("bloodless", false):
 		return
 	if wound.open(amount):
 		Effects.head_text(level, self, 3.1 * _stats.size, Lang.t("Blutet!"), Bleeding.COLOR)
@@ -1608,6 +1650,7 @@ func _die() -> void:
 		_slide_into(swallowed_by)
 		return
 	SlimeGrowth.release_folk(self)
+	Elementals.on_death(self)
 	# The body stays where it fell and rots away (see Corpse).
 	Corpse.lay(self)
 
@@ -1929,6 +1972,7 @@ func _physics_process(delta: float) -> void:
 	if dead:
 		return
 	_web_cool = maxf(0.0, _web_cool - delta)
+	Elementals.tick(self, delta)
 	_spit_cool = maxf(0.0, _spit_cool - delta)
 	_shriek_cool = maxf(0.0, _shriek_cool - delta)
 	_scare_cool = maxf(0.0, _scare_cool - delta)
@@ -2035,6 +2079,9 @@ func _physics_process(delta: float) -> void:
 		if level.stacked(self, player):
 			pass # Inside the hero's spot: no blow or shot until pushed apart.
 		# With a pillar in the way an archer or mage walks round it first.
+		elif not Elementals.pick(self, dist, sees).is_empty():
+			_face(to_player)
+			Elementals.use(self, Elementals.pick(self, dist, sees), player)
 		elif ranged and sees and _lost <= 0.0 and dist < _stats.reach \
 				and level.has_clear_shot(global_position, player.global_position):
 			_face(to_player)
@@ -2593,6 +2640,9 @@ func _strike(target: Node3D) -> void:
 		# A blade, a bolt or claws that cut may leave the hero bleeding (see Bleeding).
 		if cuts() and Bleeding.rolls_wound(before - player.hp):
 			player.bleed(before - player.hp)
+		# A fire elemental's touch burns.
+		if player.hp < before and _stats.has("burn") and randf() < float(_stats.burn):
+			player.afflict("brand")
 		# A wraith's touch is cold as the grave: it curses.
 		if player.hp < before and _stats.has("curse") and randf() < float(_stats.curse):
 			player.afflict("fluch")

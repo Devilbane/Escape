@@ -204,6 +204,7 @@ const WINDOW_SIZES := {
 	"trade": Vector2(1156, 584),
 	"inventar": Vector2(940, 720),
 	"lager": Vector2(1256, 764),
+	"bodenrucksack": Vector2(1256, 700),
 	"metalltruhe": Vector2(880, 580),
 	"zutatenbord": Vector2(880, 580),
 	"tresor": Vector2(940, 652),
@@ -226,7 +227,7 @@ const WINDOW_SIZES := {
 
 ## The windows (besides the merchants') that can leave a note after a
 ## click; they keep its line from the start.
-const NOTE_WINDOWS := ["inventar", "lager", "metalltruhe", "zutatenbord", "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
+const NOTE_WINDOWS := ["inventar", "lager", "bodenrucksack", "metalltruhe", "zutatenbord", "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
 	"aushang", "gefaehrten", "wunsch", "umhangschrank"]
 
 
@@ -305,6 +306,8 @@ func _rebuild() -> void:
 			_build_inventory()
 		"lager":
 			_build_storage()
+		"bodenrucksack":
+			_build_floor_pack()
 		"metalltruhe":
 			_build_home_store(HomeStores.METAL)
 		"zutatenbord":
@@ -369,7 +372,7 @@ func _rebuild() -> void:
 			_build_wardrobe()
 		"gefaehrte_name":
 			_build_naming()
-	if current in ["lager", "tresor"]:
+	if current in ["lager", "tresor", "bodenrucksack"]:
 		# The info line of the chest and the vault has a fixed box as wide as
 		# the window: a long description (a torch, say) wraps or scrolls in it
 		# instead of widening the window. A window that changed its size on
@@ -1492,6 +1495,10 @@ func _drink_selected() -> void:
 func _drop_selected() -> void:
 	var p: Player = game.player
 	var id: String = p.bag[_selected]
+	if Items.is_backpack(id) and game.pack_spot() == Vector3.INF:
+		_note = Lang.t("Hier ist kein Platz für den Rucksack.")
+		_rebuild()
+		return
 	_note = Lang.t("%s abgelegt.") % Items.item_name(id)
 	p.bag.remove_at(_selected)
 	game.drop_on_floor(id)
@@ -1532,6 +1539,64 @@ func _build_storage() -> void:
 	_add_label(Lang.t("Truhe (%d / %d)") % [used, size], 20)
 	# Eight across, so the window keeps its width when the chest grows.
 	_add_item_grid(game.storage, maxi(size, used), Items.item_name, _take, 8, null, true)
+
+
+# --- A backpack on the floor (see FloorPack) -----------------------------------
+
+## Like the storage chest: the bag above, the backpack below; a click moves an
+## item across. A button takes the backpack back once it is empty.
+func _build_floor_pack() -> void:
+	var p: Player = game.player
+	var pack: FloorPack = game.open_pack
+	if pack == null or not is_instance_valid(pack):
+		close()
+		return
+	_add_label(Items.item_name(pack.backpack()), 38, game.GOLD, game.TITLE_FONT)
+	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 16, BLUE)
+	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag_used(), p.bag_size()], 20)
+	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _pack_store, 6, null, true)
+	_add_label(Lang.t("Rucksack (%d / %d)") % [pack.used(), pack.capacity()], 20)
+	_add_item_grid(pack.contents(), pack.capacity(), Items.item_name, _pack_take, 8, null, true)
+	var take := _item_button(Lang.t("Rucksack aufheben"), _pack_pick_up)
+	take.custom_minimum_size = Vector2(220, 44)
+	take.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(take)
+
+
+func _pack_store(index: int) -> void:
+	var pack: FloorPack = game.open_pack
+	var id: String = game.player.bag[index]
+	var why := pack.why_not(id)
+	if why != "":
+		_note = why
+	else:
+		pack.contents().append(id)
+		game.player.bag.remove_at(index)
+		_note = ""
+	_rebuild()
+
+
+func _pack_take(index: int) -> void:
+	var pack: FloorPack = game.open_pack
+	var id: String = pack.contents()[index]
+	if not game.player.bag_fits(id):
+		_note = Lang.t("Deine Tasche ist voll.")
+	else:
+		game.player.bag.append(id)
+		pack.contents().remove_at(index)
+		_note = ""
+	_rebuild()
+
+
+func _pack_pick_up() -> void:
+	var pack: FloorPack = game.open_pack
+	var why: String = game.take_floor_pack(pack)
+	if why != "":
+		_note = why
+		_rebuild()
+		return
+	game.open_pack = null
+	close()
 
 
 func _store(index: int) -> void:

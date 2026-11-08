@@ -4733,7 +4733,7 @@ func _remember_on_floor(kind: String, id: String, pos: Vector3) -> Array:
 		var knife := floor_items.find_custom(func(e): return e is Array and e.size() >= 2 and e[1] == Items.KNIFE and not is_same(e, entry))
 		if knife < 0:
 			# The hero's own pack (see Rescue) is never pushed off the floor.
-			knife = floor_items.find_custom(func(e): return not Rescue.is_bundle(e) and not is_same(e, entry))
+			knife = floor_items.find_custom(func(e): return not Rescue.is_bundle(e) and not FloorPack.is_pack(e) and not is_same(e, entry))
 		if knife < 0:
 			break
 		var oldest: Array = floor_items.pop_at(knife)
@@ -4759,6 +4759,12 @@ func restore_floor() -> void:
 			continue
 		if not (entry is Array and entry.size() >= 4):
 			continue
+		if FloorPack.is_pack(entry):
+			# A backpack set down: back where it stood, with what is in it.
+			FloorPack.clean(entry)
+			floor_items.append(entry)
+			_spawn_pack(entry)
+			continue
 		var pos := Vector3(float(entry[2]), 0, float(entry[3]))
 		if str(entry[0]) == "coin":
 			_coin_pile(pos, CoinPile.count_of(entry), CoinPile.metal_of(str(entry[1])), CoinPile.own_of(entry))
@@ -4773,6 +4779,85 @@ func restore_floor() -> void:
 		var n: Node3D = _pickups[-1].node
 		if player and _flat_distance(player.global_position, n.global_position) <= _pickups[-1].radius:
 			_pickups[-1].wait = true
+
+
+# --- Backpacks set down (see FloorPack) -------------------------------------------
+
+## The packs standing in this level.
+var packs: Array = []
+
+
+## Sets a backpack down at `pos` (empty). Null when that spot is blocked.
+func put_pack(id: String, pos: Vector3) -> FloorPack:
+	if pack_blocked(pos):
+		return null
+	var entry := _remember_on_floor(FloorPack.KIND, id, pos)
+	entry.append([])
+	return _spawn_pack(entry)
+
+
+func _spawn_pack(entry: Array) -> FloorPack:
+	var pack := FloorPack.new()
+	pack.entry = entry
+	add_child(pack)
+	packs.append(pack)
+	return pack
+
+
+## Whether something solid (a wall, a crate, a stone, another pack, a person
+## or a monster) stands where a pack would.
+func pack_blocked(at: Vector3, except: FloorPack = null) -> bool:
+	if not is_inside_tree():
+		return false
+	var box := BoxShape3D.new()
+	box.size = Vector3(FloorPack.BOX.x, 0.5, FloorPack.BOX.z)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = box
+	query.transform = Transform3D(Basis(), Vector3(at.x, 0.5, at.z))
+	query.collision_mask = 1
+	if except != null:
+		query.exclude = [except.get_rid()]
+	return not get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+## The nearest pack the hero can reach, or null.
+func pack_in_reach(hero: Node3D) -> FloorPack:
+	var best: FloorPack = null
+	var best_d := INF
+	for pack in packs:
+		if not is_instance_valid(pack):
+			continue
+		var d := _flat_distance(hero.global_position, pack.global_position)
+		if d <= FloorPack.REACH and d < best_d:
+			best = pack
+			best_d = d
+	return best
+
+
+## Pushes a pack one step along x or z, away from `from`. False when
+## something is in the way.
+func push_pack(pack: FloorPack, from: Vector3) -> bool:
+	var away := pack.global_position - from
+	var dir := Vector3(signf(away.x), 0, 0) if absf(away.x) >= absf(away.z) else Vector3(0, 0, signf(away.z))
+	var spot := pack.global_position + dir * FloorPack.PUSH_STEP
+	if pack_blocked(spot, pack):
+		return false
+	pack.slide_to(spot)
+	return true
+
+
+## Lifts an empty pack off the floor (into the hero's bag). False otherwise.
+func take_pack(pack: FloorPack) -> bool:
+	if not is_instance_valid(pack) or not pack.is_empty() or not packs.has(pack):
+		return false
+	packs.erase(pack)
+	floor_items.erase(pack.entry)
+	pack.collision_layer = 0
+	var tween := create_tween()
+	tween.tween_property(pack.model, "position:y", 1.0, 0.25).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(pack.model, "scale", Vector3.ONE * 0.01, 0.25).set_ease(Tween.EASE_IN)
+	tween.tween_callback(pack.queue_free)
+	return true
 
 
 ## Whether an item lies on this level's floor list (see floor_items).

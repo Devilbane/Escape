@@ -13,7 +13,7 @@ const KEYS := ["name", "hint", "secret", "monsters", "safe", "elite", "building"
 ## Tiles the hero cannot walk through (walls and Level.FURNITURE); "?" (a
 ## secret wall), "Q" (a block that can be pushed) and "x" (crates, which the
 ## hero can pick up) are left out.
-const SOLID := "(#botkCHBLmhVFfy=U~"
+const SOLID := "(#botkCHBLmhVFfy=U"
 ## The biggest map the workshop makes: a dungeon, and the open air (the
 ## village map is 172 x 46).
 const MAX_SIZE := Vector2i(80, 60)

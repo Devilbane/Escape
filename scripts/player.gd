@@ -217,6 +217,8 @@ var _stuck_time := 0.0
 var _sidestepped := false
 ## Speed carried through the air by a running jump.
 var _air_momentum := Vector3.ZERO
+## Horizontal speed a jump may never exceed: the run speed it left the ground at.
+var _air_speed_cap := 0.0
 var path: Array[Vector3] = []
 ## Set every frame while the player asks to run (the mouse button held).
 var wants_run := false
@@ -987,6 +989,9 @@ func _launch_jump() -> void:
 		var run := Vector3(velocity.x, 0, velocity.z) - Vector3(_knockback.x, 0, _knockback.z)
 		jump_boost = clampf(run.length() / SPEED, 0.6, 1.6)
 		_air_momentum = run * (1.0 + 0.15 * jump_boost) * (1.0 + JUMP_PER_DEXTERITY * dexterity_points())
+		# A jump is never faster than the run it started from.
+		_air_speed_cap = run.length()
+		_air_momentum = _air_momentum.limit_length(_air_speed_cap)
 	velocity.y = JUMP_VELOCITY * (0.85 + 0.15 * jump_boost)
 	train("tempo", 3.0)
 	train("geschick", 2.0)

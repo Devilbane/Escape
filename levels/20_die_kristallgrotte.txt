@@ -4,6 +4,7 @@ monsters: wildlife, fable
 building: mine2
 lair: ja
 theme: kristall
+walls: crystal
 ################################
 ##E#############################
 ##P.,,%,,,,,,###,,,,,%,,,,,,,,##

@@ -3,6 +3,7 @@ hint: Ein Koloss! Er ist langsam, aber er schlägt doppelt hart.
 elite: ja
 secret: ungewoehnlich
 monsters: undead, ghosts
+walls: bone
 #######################
 #########E#############
 #######C...C###########

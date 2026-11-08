@@ -133,7 +133,7 @@ const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_sh
 ## shelves, chests and the wall decorations.
 const WORN_SETS := ["props", "chests", "wallprops"]
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "(#bxotkCDHBLmhVF?f=U|N%~T^&aI*!;{-:[\\')/`"
+const SOLID := "(#bxotkCDHBLmhVF?f=U|N%T^&aI*!;{-:[\\')/`"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 const SPIKE_PERIOD := 3.0
@@ -849,6 +849,8 @@ func _setup_astar() -> void:
 	# Skeletons go around spike traps when there is another way.
 	for s in _spikes:
 		astar.set_point_weight_scale(s.cell, SPIKE_DETOUR)
+	# Ember cracks can be crossed but burn: walkers go round them when they can.
+	EmberCracks.detour(self)
 
 
 # --- Building ---------------------------------------------------------------
@@ -2557,6 +2559,8 @@ func stacked(a, b) -> bool:
 
 func _physics_process(delta: float) -> void:
 	_push_apart(delta)
+	if player is Player:
+		EmberCracks.scorch(self, player, delta)
 
 
 ## Pushes overlapping hero and skeletons apart; the lighter one moves more,

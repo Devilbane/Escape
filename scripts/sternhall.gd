@@ -88,7 +88,8 @@ const RESPAWN_CHECK := 5.0
 const SAFE_STEPS := 14
 const EVENT_EVERY := Vector2(90.0, 180.0)
 const FIRST_EVENT := 60.0
-const ROCKFALL_SHARE := 0.15
+## Share of the hero's maximum life a stone takes when it lands on them (was 0.15).
+const ROCKFALL_SHARE := 0.27
 const ROCK_RADIUS := 1.7
 const ROCK_WARN := 1.3
 const KEY_REACH := 1.5

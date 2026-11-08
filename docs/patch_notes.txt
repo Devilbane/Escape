@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- Cracks now spread over the stones of the village wall as slimes eat into it, in three clear stages (light, medium, heavy), so you can see how close a brick is to breaking.
 - The event log has a slim scroll bar you can drag to read older messages.
 - New cave looks for walls and floors: bone (with skulls and bones), rock, obsidian and glowing crystal, in three seamless variants each, with matching torches, braziers and candelabra. Bone Pit, Bone Gallery, Copper Mine, Crystal Grotto and Ember Tunnels wear them.
 - Forging at Gorm's forge is now a d100 roll: your chance rises with Strength, Intelligence, Intuition, Dexterity and your forging skill. A failed attempt spoils half the bars, but you still learn.

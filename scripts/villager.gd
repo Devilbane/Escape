@@ -516,6 +516,29 @@ func can_mend_next() -> bool:
 	return not eaten and not at_home and threat == null
 
 
+# --- The guard at the west gate -----------------------------------------------
+
+## Seconds until the guard may call out a slime at the gate again.
+var _watch_pause := 0.0
+
+
+## The guard stands inside the west gate and looks out. At the first slime he
+## sees he calls out once; the gate then shuts and he takes his post with the
+## other fighters (see GuardWatch, VillageWall._muster).
+func _watch(delta: float) -> void:
+	_watch_pause = maxf(0.0, _watch_pause - delta)
+	var slime := GuardWatch.slime_in_sight(level)
+	var gate := GuardWatch.west_gate(level)
+	if gate != null:
+		_turn_to(gate.global_position - global_position, delta)
+	play("Idle")
+	if slime != null and _watch_pause <= 0.0:
+		_watch_pause = GuardWatch.CALL_PAUSE
+		say(Lang.t(GuardWatch.CALL))
+		Events.tell(Lang.t(GuardWatch.NEWS), GuardWatch.COLOR)
+		_task_time = maxf(_task_time, GuardWatch.STAND_MIN)
+
+
 # --- Defending the wall -------------------------------------------------------
 
 ## How far over the wall a defender strikes (metres, from his hands), how far
@@ -534,7 +557,7 @@ func defends() -> bool:
 func can_defend() -> bool:
 	if not brave or eaten or at_home or threat != null or defends():
 		return false
-	return _task in ["work", "idle", "listen"] or (_task == "walk" and get_meta("then", "") in ["work", "idle", "listen"])
+	return _task in ["work", "idle", "listen", "watch"] or (_task == "walk" and get_meta("then", "") in ["work", "idle", "listen", "watch"])
 
 
 ## Out of the wall's reach: run in through the gate before it shuts.
@@ -1004,6 +1027,9 @@ func _next_task() -> void:
 		"patrol":
 			if _task == "walk":
 				_start("idle", _rng.randf_range(3.0, 6.0))
+			elif role == "4" and GuardWatch.goes_to_gate(level, _rng.randf()):
+				# The slimes come from the pond beyond the west gate (see GuardWatch).
+				_walk_to(GuardWatch.post(level), WALK_SPEED, "watch")
 			else:
 				_walk_to(_nearby(9), WALK_SPEED, "idle")
 		"stroll":
@@ -1135,6 +1161,8 @@ func _physics_process(delta: float) -> void:
 			_mend(delta)
 		"defend":
 			_defend(delta)
+		"watch":
+			_watch(delta)
 		"work", "sit", "idle":
 			_do(_task, delta)
 		"listen":
@@ -1165,6 +1193,8 @@ func _walk(delta: float, hero: Node3D) -> void:
 			time = _rng.randf_range(8.0, 16.0)
 		elif then == "listen":
 			time = LISTEN_TIME + _rng.randf_range(-2.0, 2.0)
+		elif then == "watch":
+			time = _rng.randf_range(GuardWatch.STAND_MIN, GuardWatch.STAND_MAX)
 		elif then == "chat":
 			time = CHAT_WAIT
 		_start(then, time)

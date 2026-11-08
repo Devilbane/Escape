@@ -768,7 +768,11 @@ func is_friend() -> bool:
 const COWED_BONUS := 2
 
 
+## Slimes never ignore the hero: they also hunt villagers and the village wall,
+## and an ignored hero would put them to sleep.
 func cowed_by(hero_level: int) -> bool:
+	if kind == "schleim":
+		return false
 	return float(rated_level) < hero_level / 2.0 + COWED_BONUS and not HeroLevel.FIXED.has(kind)
 
 

@@ -149,6 +149,7 @@ func _process(_delta: float) -> bool:
 					return true
 				archer.process_mode = Node.PROCESS_MODE_INHERIT
 				archer._stats = archer._stats.duplicate()
+				archer._provoked = true  # a weak archer would ignore the hero (see Enemy.cowed_by)
 				archer._stats.speed = 0.0
 				archer.global_position = west
 				archer.velocity = Vector3.ZERO

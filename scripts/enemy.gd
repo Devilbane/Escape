@@ -350,6 +350,9 @@ var _stranded := false
 var _wall_target: WallBrick = null
 var _wall_clock := 0.0
 const WALL_PATIENCE := 5.0
+## A slime that sets out to eat into the wall on its own (see _scout_wall).
+var _siege := false
+var _siege_look := 0.0
 var _knockback := Vector3.ZERO
 ## The post, taken where the skeleton stands on its first frame (the level
 ## places it only after it is ready).
@@ -2016,7 +2019,7 @@ func _physics_process(delta: float) -> void:
 	var move := _step_out() if _busy <= 0.0 and not through_walls else Vector3.ZERO
 	if move != Vector3.ZERO:
 		pass # Out of the furniture first.
-	elif _wall_target != null:
+	elif _wall_target != null or _scout_wall(sees or fights_foe or snacks or feeds, delta):
 		if _busy <= 0.0:
 			move = _batter_wall()
 	elif feeds:
@@ -2226,6 +2229,26 @@ func _aim_at_wall(goal: Vector3) -> void:
 		_wall_clock = WALL_PATIENCE
 
 
+## Every slime outside the village wall eats into it: one with nothing else to
+## hunt (no hero in sight, no rival, meal or villager) makes for the nearest
+## brick. Looks about once a second. Returns whether it now has a brick.
+func _scout_wall(busy: bool, delta: float) -> bool:
+	if busy or not SlimeGrowth.grows(kind) or not level is Outdoor:
+		return false
+	_siege_look -= delta
+	if _siege_look > 0.0:
+		return false
+	_siege_look = 1.0
+	var brick: WallBrick = (level as Outdoor).village_wall.siege_brick(self)
+	if brick == null:
+		return false
+	_wall_target = brick
+	# Time enough to crawl to it from afar.
+	_wall_clock = WALL_PATIENCE + VillageWall.SIEGE_SIGHT / maxf(0.5, float(_stats.speed))
+	_siege = true
+	return true
+
+
 ## A slime that runs into a brick of the wall while it hunts goes for the brick.
 func _note_wall() -> void:
 	if not SlimeGrowth.grows(kind) or _wall_target != null or not (_awake or foe != null or snack != null):
@@ -2244,8 +2267,9 @@ func _note_wall() -> void:
 func _batter_wall() -> Vector3:
 	var brick := _wall_target
 	if brick == null or not is_instance_valid(brick) or not brick.blocks() or _wall_clock <= 0.0 \
-			or not (_awake or foe != null or snack != null):
+			or not (_siege or _awake or foe != null or snack != null):
 		_wall_target = null
+		_siege = false
 		_repath = 0.0
 		return Vector3.ZERO
 	var to := brick.nearest_point(global_position) - global_position

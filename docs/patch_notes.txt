@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- Every slime outside the village now eats into the village wall, and at least one attempt in three breaks a stretch of it.
 - Forging at Gorm's forge is now a d100 roll: your chance rises with Strength, Intelligence, Intuition, Dexterity and your forging skill. A failed attempt spoils half the bars, but you still learn.
 - Sneaking no longer makes the hero strike back on their own; only a foe you click is attacked.
 - The hoard at home now counts the coins you carry plus those in your chest, and your bank vault shows its own hoard of the coins stored there.

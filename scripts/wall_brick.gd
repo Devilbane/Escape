@@ -210,6 +210,7 @@ func hurt(amount: int) -> bool:
 	_refresh()
 	if hp == 0:
 		level.village_wall.changed(self)
+		Events.alarm("breach")
 		return true
 	return false
 

@@ -42,6 +42,7 @@ wake_up.gd | 120 | fixed | pass | Waking up in bed after loading test
 shrine.gd | 120 | fixed | pass | Shrine gifts hand control straight back test
 fountain.gd | 120 | fixed | pass | Refuge fountain gives 5 life per drink test
 bloated_belly.gd | 120 | fixed | pass | Drinking too much at the village fountain swells the belly test
+village_run.gd | 120 | free | pass | The protected run from the crypt to the village (two minutes, ends at the village)
 seats.gd | 200 | fixed | passfail | Sitting on the benches of the market square test
 graveyard_start.gd | 120 | free | pass | Graveyard start after the escape test
 looted_containers.gd | 120 | free | pass | Looted containers stay empty test

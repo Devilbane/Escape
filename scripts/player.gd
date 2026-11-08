@@ -2070,16 +2070,26 @@ func is_afraid() -> bool:
 	return ailments.has("angst") and not dead
 
 
+## Whether nothing can hurt the hero now: the run to the village after the
+## crypt (see VillageRun).
+func protected() -> bool:
+	return ailments.has(VillageRun.KIND)
+
+
 ## Cures one ailment, or all of them; true if there was anything to cure.
 ## A belly swollen with water (see BloatedBelly) is no ailment to cure: it
 ## only goes down with time, so curing all of them leaves it.
 func cure(kind := "") -> bool:
 	var belly: Variant = ailments.get(BloatedBelly.KIND)
-	var had := ailments.has(kind) if kind != "" else ailments.size() > (0 if belly == null else 1)
+	var shield: Variant = ailments.get(VillageRun.KIND)
+	var kept := (0 if belly == null else 1) + (0 if shield == null else 1)
+	var had := ailments.has(kind) if kind != "" else ailments.size() > kept
 	if kind == "":
 		ailments.clear()
 		if belly != null:
 			ailments[BloatedBelly.KIND] = belly
+		if shield != null:
+			ailments[VillageRun.KIND] = shield
 	else:
 		ailments.erase(kind)
 	if had:
@@ -2157,7 +2167,7 @@ func _tick_ailments(delta: float) -> void:
 		_poison_tick -= delta
 		if _poison_tick <= 0.0:
 			_poison_tick = POISON_TICK
-			if hp > 1:
+			if hp > 1 and not protected():
 				hp -= 1
 				train("konstitution", 1.0)
 				Effects.head_text(level, self, 2.2, "-1", AILMENT_COLORS.gift)
@@ -2170,7 +2180,7 @@ func _tick_ailments(delta: float) -> void:
 			BloodDrops.drip(level, global_position, 1.0, way)
 		var lost := wound.run(delta, moving)
 		if lost > 0:
-			var taken := mini(lost, hp - 1)
+			var taken := 0 if protected() else mini(lost, hp - 1)
 			if taken > 0:
 				hp -= taken
 				train("konstitution", taken)
@@ -2188,7 +2198,7 @@ func _tick_ailments(delta: float) -> void:
 		_burn_tick -= delta
 		if _burn_tick <= 0.0:
 			_burn_tick = BURN_TICK
-			if hp > 1:
+			if hp > 1 and not protected():
 				hp -= 1
 				train("konstitution", 1.0)
 				Effects.head_text(level, self, 2.2, "-1", AILMENT_COLORS.brand)
@@ -2200,6 +2210,8 @@ func _tick_ailments(delta: float) -> void:
 ## A burn from the floor (see EmberCracks): `amount` lives lost, no knock-back,
 ## armour or grace. The caller keeps the last life.
 func scorched(amount: int, colour: Color) -> void:
+	if protected():
+		return
 	hp = maxi(hp - amount, 1)
 	_regen_pause = REGEN_PAUSE_AFTER_HIT
 	train("konstitution", amount)
@@ -2437,7 +2449,7 @@ const THORNS_DAMAGE := 1
 ## Blows and shots can be blocked with a shield; spikes from below (blockable
 ## false) cannot.
 func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable := true) -> void:
-	if dead or _invulnerable > 0.0 or _down > 0.0 or frozen:
+	if dead or _invulnerable > 0.0 or _down > 0.0 or frozen or protected():
 		return
 	# A blow or a trap never finds the hero sitting idly.
 	stand_up()

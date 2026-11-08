@@ -335,9 +335,10 @@ const CRYPT_IVY := 6
 ## all over it, up to and on to its roof (see AgedStone.grow_ivy).
 const SQUARE_GAP := 2
 const FENCE_IVY := 0.3
-## The adventurers' guild is smothered in old ivy: this many patches, every
+## The adventurers' guild and the castle are smothered in old ivy: this many patches, every
 ## wall and up on to its roof, even though it stands in the square.
 const GUILD_IVY := 20
+const CASTLE_IVY := 24
 const GRAVE_LIGHTS := 0.35
 const GRAVE_LIGHT_AT := Vector3(1.25, 0, -0.35)
 ## Where the grave light's panes sit on the Halloween kit's palette (UV).
@@ -1201,8 +1202,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch != "R" and ch != "h":
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
 		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
-		if ch == "w":
-			_dress_building(node, center, [door], 0.75, GUILD_IVY, true)
+		if ch == "w" or ch == "k":
+			_dress_building(node, center, [door], 0.75, GUILD_IVY if ch == "w" else CASTLE_IVY, true)
 		else:
 			_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
 	if interiors.has(ch):

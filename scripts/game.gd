@@ -687,7 +687,15 @@ func _setup_world() -> void:
 	moon.light_color = Color(0.82, 0.84, 0.9)
 	moon.light_energy = 0.28
 	moon.shadow_enabled = true
-	moon.directional_shadow_max_distance = 70.0
+	# Shadows reach all the way to the camera's far plane, so the mountains'
+	# shadows are always fully drawn instead of building up (or fading in)
+	# as the hero walks towards them. The splits keep the near cascades as
+	# sharp as they were when the range was 70 m; only the last one is wide.
+	moon.directional_shadow_max_distance = 200.0
+	moon.directional_shadow_fade_start = 1.0
+	moon.directional_shadow_split_1 = 0.04
+	moon.directional_shadow_split_2 = 0.1
+	moon.directional_shadow_split_3 = 0.25
 	add_child(moon)
 
 	camera = Camera3D.new()

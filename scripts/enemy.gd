@@ -761,15 +761,15 @@ func is_friend() -> bool:
 	return Factions.is_friendly(Factions.of(kind))
 
 
-## A hero of more than COWED_FACTOR times this monster's level is too strong
-## to pick a fight with: it lets the hero pass and only fights back when
+## A monster whose level is below half the hero's level plus COWED_BONUS is
+## no match for the hero: it lets the hero pass and only fights back when
 ## struck (see _provoked). Bosses and other story foes with a fixed level
 ## (HeroLevel.FIXED) always fight.
-const COWED_FACTOR := 2
+const COWED_BONUS := 2
 
 
 func cowed_by(hero_level: int) -> bool:
-	return hero_level > COWED_FACTOR * rated_level and not HeroLevel.FIXED.has(kind)
+	return float(rated_level) < hero_level / 2.0 + COWED_BONUS and not HeroLevel.FIXED.has(kind)
 
 
 ## Whether it leaves the hero be because the hero is far above its level.

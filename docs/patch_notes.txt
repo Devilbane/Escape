@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- Weak monsters now ignore you when their level is below half your level plus 2: they no longer notice, chase or attack you, but still defend themselves if you hit them. Bosses always fight.
 - Crates and stone blocks are no longer dropped in front of you: they are always set down right under your feet and you end up standing on top of them, so you can stack up and step off as usual.
 - The faint "db" watermark in the bottom-right corner now shows the new db logo, with the same size and transparency.
 - The logo above the title on the play screen is gone; it stays on the launcher's loading screen.

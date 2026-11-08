@@ -14,6 +14,7 @@ func check(ok: bool, what: String) -> void:
 
 func _initialize() -> void:
 	Lang.language = "en"
+	Lang._apply()
 	var up := Loot.counted_up(250, 0, 0)
 	check(up["goldmuenze"] == 1 and up["silbermuenze"] == 0 and up["kupfermuenze"] == 0, "250 copper count up to 1 gold")
 	up = Loot.counted_up(60, 3, 0)

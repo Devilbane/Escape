@@ -11,7 +11,7 @@ extends RefCounted
 ## Per style: how many shards on the face, how many on top, how long and how
 ## thin they are (length is the base width times it), and how far they lean.
 const LOOKS := {
-	"rock": {"face": 3, "top": 1, "base": [0.35, 0.6], "long": [1.1, 2.0], "lean": 35.0, "sides": 5},
+	"rock": {"face": 6, "top": 2, "base": [0.45, 0.85], "long": [0.9, 1.7], "lean": 35.0, "sides": 6, "out": [68.0, 95.0]},
 	"obsidian": {"face": 3, "top": 2, "base": [0.15, 0.3], "long": [3.5, 6.0], "lean": 28.0, "sides": 4},
 	"crystal": {"face": 3, "top": 2, "base": [0.18, 0.34], "long": [3.0, 5.5], "lean": 30.0, "sides": 6},
 }
@@ -70,7 +70,10 @@ static func dress(wall: Node3D, style: String, material: Material, seed_value: i
 	for i in look.face:
 		# Not in the middle: that is where a wall torch hangs.
 		var x := rng.randf_range(0.85, 1.85) * (1.0 if i % 2 == 0 else -1.0)
-		var y := rng.randf_range(0.5, 3.4)
+		if i >= 3:
+			# Further boulders lower down, where rock piles up at a wall's foot.
+			x = rng.randf_range(-1.8, 1.8)
+		var y := rng.randf_range(0.5, 3.4) if i < 3 else rng.randf_range(0.25, 1.1)
 		_add(wall, style, material, rng, Vector3(x, y, 0.3), look, true)
 	for i in look.top:
 		var x := rng.randf_range(-1.7, 1.7)
@@ -89,7 +92,7 @@ static func _add(wall: Node3D, style: String, material: Material, rng: RandomNum
 	if outward:
 		# Pointing out of the wall and up, a bit to the side.
 		# (A turn about x tips the shard's tip from up (+y) towards the room (+z).)
-		mi.rotation_degrees = Vector3(rng.randf_range(45.0, 80.0), rng.randf_range(-25.0, 25.0), 0.0)
+		mi.rotation_degrees = Vector3(rng.randf_range(look.get("out", [45.0, 80.0])[0], look.get("out", [45.0, 80.0])[1]), rng.randf_range(-25.0, 25.0), 0.0)
 	else:
 		mi.rotation_degrees = Vector3(rng.randf_range(-lean, lean), rng.randf_range(0.0, 360.0), rng.randf_range(-lean, lean))
 		mi.scale = Vector3(base, length * 1.2, base)

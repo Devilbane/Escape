@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- Your house now has a bookshelf in the cellar: put your books on it and the shelf shows how many you keep, with a count on its plaque.
 - The town guard now checks the west gate for slimes much more often at night and in or after rain, and calls the alarm when he spots one.
 - Every slime outside the village now eats into the village wall, and at least one attempt in three breaks a stretch of it.
 - The event log has a slim scroll bar you can drag to read older messages.

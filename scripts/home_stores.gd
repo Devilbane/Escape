@@ -11,11 +11,14 @@ extends RefCounted
 ##            flasks, bundles of herbs and a filled bucket, for everything
 ##            else of the ingredient pouch (herbs, mushrooms, fish, the parts
 ##            of the dragon) and the animal food from the bag.
-## Both count what they hold, like the pouch: kind -> how many. Coins, bars
+## A third store is the bookshelf ("§", see Bookshelf) in the cellar, for every book the
+## hero carries (an item that teaches something, see Items.is_book). It counts them the same way
+## and shows one book on its shelves for every book kept.
+## All three count what they hold, like the pouch: kind -> how many. Coins, bars
 ## and ingredients are counted on the hero too (game.coins, game.iron,
 ## game.bars, the pouch); the bag's items (thunder ore, food) leave the bag
 ## one by one and need a free place in it to come back. Nothing is lost from
-## either store, and neither has a limit. Kept in the saved game
+## any of them, and none has a limit. Kept in the saved game
 ## (Game.home_stores).
 ##
 ## Item types added later join by themselves: an item with "store": "metall"
@@ -25,8 +28,9 @@ extends RefCounted
 
 const METAL := "metall"
 const PANTRY := "zutaten"
-## The station kinds of the two (see Level and Menus).
-const STATIONS := {METAL: "metalltruhe", PANTRY: "zutatenbord"}
+## The station kinds of the three (see Level and Menus).
+const BOOKS := "buecher"
+const STATIONS := {METAL: "metalltruhe", PANTRY: "zutatenbord", BOOKS: Bookshelf.KIND}
 ## The coins in the chest, by this id (no item or ingredient has it).
 const COINS := "muenzen"
 ## Ore and gems keep each piece as it is (its weight, make-up and gems, see
@@ -42,6 +46,9 @@ const MINERALS := ["mondsilbererz", "mondstein", "grottenkristall"]
 ## What the compendium says about the two, once the hero has opened one.
 const LEARN := "In deinem Haus in der Weberzeile stehen neben der Lagertruhe zwei besondere Vorräte: eine stahlbeschlagene Truhe für Münzen, Barren, Erz und rohe Edelsteine, und ein Zutatenbord für Kräuter, Pilze, Fische, Phiolen und Tierfutter. Beide fassen beliebig viel."
 
+## What the compendium says about the bookshelf, once the hero has opened it.
+const BOOKS_LEARN := "Im Keller deines Hauses steht ein Bücherregal. Jedes Buch, das du nicht bei dir tragen willst, kannst du dort einstellen, und das Regal zeigt dir, wie viele Bücher darauf stehen. Es fasst beliebig viel."
+
 
 ## The store a kind belongs in, or "" for neither.
 static func store_of(id: String) -> String:
@@ -53,6 +60,8 @@ static func store_of(id: String) -> String:
 			return str(item.store) if str(item.store) in STATIONS else ""
 		if Items.is_quest(id) or item.get("custom", false):
 			return ""
+		if Items.is_book(id):
+			return BOOKS
 		if item.slot == "erz":
 			return METAL
 		if item.slot == "futter":
@@ -100,6 +109,16 @@ static func carried(game: Node, id: String) -> int:
 ## How many of a kind lie in the store at home.
 static func stored(game: Node, id: String) -> int:
 	return int(game.home_stores.get(store_of(id), {}).get(id, 0))
+
+
+## How many things lie in a store altogether (the books on the shelf).
+static func total(stores: Dictionary, store: String) -> int:
+	var sum := 0
+	var box = stores.get(store, {})
+	if box is Dictionary:
+		for id in box:
+			sum += int(box[id])
+	return sum
 
 
 ## The kinds the window shows: those the hero carries or has stored. A kind
@@ -206,7 +225,7 @@ static func _change_carried(game: Node, id: String, n: int) -> void:
 
 ## The empty stores of a new game.
 static func empty() -> Dictionary:
-	return {METAL: {}, PANTRY: {}, PIECES: {}}
+	return {METAL: {}, PANTRY: {}, BOOKS: {}, PIECES: {}}
 
 
 ## What is kept in the saved game: only plain values.

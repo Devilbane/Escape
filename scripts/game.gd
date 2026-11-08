@@ -2923,6 +2923,7 @@ func load_level(index: int, restock := true) -> void:
 	if level.is_home:
 		level.show_home_upgrades(home_upgrades, trophies)
 		level.show_hoard(hoard_coins())
+		refresh_bookshelf()
 	_pending_crate = null
 	_end_drag()
 	_set_atmosphere(level.outdoor)
@@ -4560,8 +4561,8 @@ func _bedside(bed: Dictionary, foot: Vector3) -> Vector3:
 
 ## What the hero can do while the player is away, right now: block -> ids.
 ## Jobs the hero is fit for, attributes and skills that can still grow (a
-## skill only with its gear worn), books the hero owns (in the bag or the
-## storage chest) and every recipe.
+## skill only with its gear worn), books the hero owns (in the bag, the
+## storage chest or on the bookshelf) and every recipe.
 func away_choices() -> Dictionary:
 	var jobs := Offline.JOBS.keys().filter(func(id): return player.can_use(Offline.JOBS[id].get("requires", {})))
 	var train := []
@@ -4574,6 +4575,7 @@ func away_choices() -> Dictionary:
 	var books := []
 	var owned: Array = player.bag.duplicate()
 	owned.append_array(storage)
+	owned.append_array(home_stores.get(HomeStores.BOOKS, {}).keys())
 	for id in owned:
 		if Items.is_book(id) and not id in books and not Offline.book_used_up(book_hours, id):
 			books.append(id)
@@ -6604,6 +6606,7 @@ func _process(delta: float) -> void:
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
 			"metalltruhe": Lang.t("Dagegenlaufen, um die stahlbeschlagene Truhe für Metall und Edelsteine zu öffnen"),
 			"zutatenbord": Lang.t("Dagegenlaufen, um ans Zutatenbord zu gehen"),
+			Bookshelf.KIND: Lang.t("Dagegenlaufen, um Bücher ins Regal zu stellen oder zu nehmen"),
 			"haendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else Lang.t("Dagegenlaufen, um mit dem Händler zu handeln"),
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
@@ -7145,6 +7148,12 @@ func _win_trophy(kind: String) -> void:
 	apply_home_bonus()
 	if level.is_home:
 		level.show_home_upgrades(home_upgrades, trophies)
+
+
+## Puts as many books on the bookshelf of the house as the hero keeps there.
+func refresh_bookshelf() -> void:
+	if level != null and level.is_home:
+		Bookshelf.refresh(level, HomeStores.total(home_stores, HomeStores.BOOKS))
 
 
 ## The life the trophy wall gives goes into the hero's stats.

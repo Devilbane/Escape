@@ -207,6 +207,7 @@ const WINDOW_SIZES := {
 	"bodenrucksack": Vector2(1256, 700),
 	"metalltruhe": Vector2(880, 580),
 	"zutatenbord": Vector2(880, 580),
+	"buecherregal": Vector2(880, 580),
 	"tresor": Vector2(940, 652),
 	"bank": Vector2(780, 460),
 	"werkbank": Vector2(780, 536),
@@ -227,7 +228,7 @@ const WINDOW_SIZES := {
 
 ## The windows (besides the merchants') that can leave a note after a
 ## click; they keep its line from the start.
-const NOTE_WINDOWS := ["inventar", "lager", "bodenrucksack", "metalltruhe", "zutatenbord", "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
+const NOTE_WINDOWS := ["inventar", "lager", "bodenrucksack", "metalltruhe", "zutatenbord", "buecherregal", "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
 	"aushang", "gefaehrten", "wunsch", "umhangschrank"]
 
 
@@ -312,6 +313,8 @@ func _rebuild() -> void:
 			_build_home_store(HomeStores.METAL)
 		"zutatenbord":
 			_build_home_store(HomeStores.PANTRY)
+		"buecherregal":
+			_build_home_store(HomeStores.BOOKS)
 		"bank":
 			_build_bank()
 		"barbier":
@@ -1641,18 +1644,23 @@ var _store_scroll := 0
 var _store_list: ScrollContainer = null
 
 
-## The window of the steel-banded chest ("metall") or the ingredient board
-## ("zutaten"): one row for every kind the hero carries or keeps there, with
-## buttons to store or take one (ten coins) or all of it, and two buttons
-## below for everything at once.
+## The window of the steel-banded chest ("metall"), the ingredient board
+## ("zutaten") or the bookshelf ("buecher"): one row for every kind the hero
+## carries or keeps there, with buttons to store or take one (ten coins) or all
+## of it, and two buttons below for everything at once. The bookshelf's window
+## says how many books stand on the shelf.
 func _build_home_store(store: String) -> void:
-	Events.teach(HomeStores.LEARN)
+	Events.teach(HomeStores.BOOKS_LEARN if store == HomeStores.BOOKS else HomeStores.LEARN)
 	if _store_list != null and is_instance_valid(_store_list):
 		_store_scroll = _store_list.scroll_vertical
 	var metal := store == HomeStores.METAL
-	_add_label(Lang.t("Stahlbeschlagene Truhe") if metal else Lang.t("Zutatenbord"), 38, game.GOLD, game.TITLE_FONT)
-	var about := _add_label(Lang.t("Münzen, Barren, Erz und rohe Edelsteine. Sie fasst beliebig viel.") if metal
-			else Lang.t("Kräuter, Pilze, Fische, Phiolen und Tierfutter. Es fasst beliebig viel."), 16, BLUE)
+	var books := store == HomeStores.BOOKS
+	_add_label(Lang.t("Bücherregal") if books else Lang.t("Stahlbeschlagene Truhe") if metal else Lang.t("Zutatenbord"), 38, game.GOLD, game.TITLE_FONT)
+	var about_text := Lang.t("Münzen, Barren, Erz und rohe Edelsteine. Sie fasst beliebig viel.") if metal \
+			else Lang.t("Kräuter, Pilze, Fische, Phiolen und Tierfutter. Es fasst beliebig viel.")
+	if books:
+		about_text = Lang.t("Alle Bücher, die du nicht bei dir trägst. Im Regal stehen: %d. Es fasst beliebig viel.") % HomeStores.total(game.home_stores, HomeStores.BOOKS)
+	var about := _add_label(about_text, 16, BLUE)
 	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	about.custom_minimum_size.x = STORE_WIDTH
 	_box.add_child(_store_columns([Lang.t("Bei dir"), Lang.t("Einlagern"), Lang.t("Nehmen"), Lang.t("Im Haus")]))
@@ -1670,6 +1678,7 @@ func _build_home_store(store: String) -> void:
 	if ids.is_empty():
 		var empty: Label = game._make_label(game.TEXT_FONT, 16, STORE_GREY)
 		empty.text = Lang.t("Noch nichts davon bei dir oder hier. Münzen, Barren, Erz und Edelsteine kommen hier hinein, sobald du welche hast.") if metal \
+				else Lang.t("Noch kein Buch bei dir oder hier. Bücher aus deiner Tasche kommen hier hinein, sobald du welche hast.") if books \
 				else Lang.t("Noch nichts davon bei dir oder hier. Zutaten aus deinem Beutel und Tierfutter aus der Tasche kommen hier hinein, sobald du welche hast.")
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1795,6 +1804,7 @@ func _store_all(store: String, into: bool) -> void:
 
 
 func _after_store_move() -> void:
+	game.refresh_bookshelf()
 	game._update_hud()
 	_rebuild()
 

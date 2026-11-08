@@ -41,9 +41,9 @@ const RUIN_WOOD := 0.3
 ## Ivy: how many patches a building gets at most, how high they climb
 ## (metres above the ground), how far from the door they keep, and the
 ## leaves' size.
-const IVY_PATCHES := 4
+const IVY_PATCHES := 7
 const IVY_HEIGHT := Vector2(3.0, 7.5)
-const IVY_DOOR_GAP := 1.9
+const IVY_DOOR_GAP := 2.4
 ## Leaves in one patch at most, so the whole village's ivy stays cheap.
 const PATCH_LEAVES := 280
 ## Old ivy on the buildings that stand on their own, away from the square

@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- Ivy is much more common in the village: more patches on every house, more on the lane's town houses and on the graveyard fence, always kept clear of doors.
 - The adventurers' guild hall, the castle and the temple are now covered in thick old ivy on every wall, climbing up to the roof; the temple doorway stays clear. A little ivy also grows on the village fountain.
 - Bone Pit (level 8): the visible spike traps now sit on the same bone-coloured floor as the rest, the rough floor patches match it, and the skulls and bones in the walls no longer shimmer or hang in the air when a wall fades out as you walk by.
 - Weak monsters now ignore you when their level is below half your level plus 2: they no longer notice, chase or attack you, but still defend themselves if you hit them. Bosses always fight.

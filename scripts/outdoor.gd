@@ -319,7 +319,7 @@ static var _dressed := {}
 const MAX_NESTS := 10
 const LANE_NEST := 0.15
 ## Ivy patches on each town house of Weavers' Lane (narrow, many of them).
-const LANE_PATCHES := 2
+const LANE_PATCHES := 3
 ## Dirt paths this close to a village building (tiles) are cobbled like the
 ## square, and shrubs grow on the grass beside the buildings.
 const VILLAGE_REACH := 6
@@ -334,7 +334,7 @@ const CRYPT_IVY := 6
 ## block stands on its own, out of the village's busy middle: old ivy grows
 ## all over it, up to and on to its roof (see AgedStone.grow_ivy).
 const SQUARE_GAP := 2
-const FENCE_IVY := 0.3
+const FENCE_IVY := 0.55
 ## The adventurers' guild, the castle and the temple are smothered in old ivy: this many patches, every
 ## wall and up on to its roof, even though it stands in the square.
 const GUILD_IVY := 20

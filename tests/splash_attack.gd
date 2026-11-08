@@ -114,6 +114,9 @@ func _far_attacker(knife_count: int) -> bool:
 	player._target = null
 	player._chase_rest = 0.0
 	player.knives = knife_count
+	if knife_count == 0:
+		while player.bag.has(Items.KNIFE): # Spares would be put into the belt at once.
+			player.bag.erase(Items.KNIFE)
 	player._auto_cooldown = 0.0
 	_strike(crowd[0])
 	return true
@@ -279,6 +282,18 @@ func _process(_delta: float) -> bool:
 				check(player._hunt == null, "with knives in hand, the hero throws instead of chasing")
 			else:
 				print("no clear shot at the spot, the knife answer is not checked")
+			stage += 1
+		15:
+			# An empty belt with spares in the bag is refilled, at the cost of two throws.
+			player._attack_cooldown = 0.0
+			player._busy = 0.0
+			player.frozen = false
+			player.ailments.erase("angst")
+			player.knives = 0
+			player.bag.append(Items.KNIFE)
+			player.throw_knife()
+			check(player.knives == 1 and player.spare_knives() == 0, "the empty belt is refilled from the bag")
+			check(is_equal_approx(player._attack_cooldown, Player.KNIFE_REFILL_ATTACKS * Player.THROW_COOLDOWN), "the refill costs two throws")
 			stage += 1
 		_:
 			_finish()

@@ -89,6 +89,8 @@ func _process(_delta: float) -> bool:
 			dragon.take_hit(6, behind, "backstab")
 			check(not dragon.dead and dragon.hp == dragon.max_hp() - 6, "a stab in the back no longer kills the dragon (%d life left)" % dragon.hp)
 			player.knives = 0
+			while player.bag.has(Items.KNIFE): # Spares would be refilled and thrown at the dragon.
+				player.bag.erase(Items.KNIFE)
 			player.global_position = dragon.global_position + Vector3(-7.0, 0, 0)
 			player.hp = player.max_hp
 			dragon._wake(player.global_position)

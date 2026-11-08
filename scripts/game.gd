@@ -491,6 +491,7 @@ func _bus_links() -> Array:
 		[bus.map_explored, map_explored],
 		[bus.writing_found, writing_found],
 		[bus.trap_spotted, trap_spotted],
+		[bus.enemy_engaged, _on_enemy_engaged],
 		[bus.enemy_felled, xp_for_kill],
 		[bus.quest_done, xp_for_task],
 		[bus.bounty_paid, xp_for_bounty],
@@ -5368,6 +5369,13 @@ const VAMPIRE_KILLS := 3
 var _vampire_kills := 0
 
 
+## The hero strikes a monster for the first time: its name and level.
+func _on_enemy_engaged(enemy: Enemy) -> void:
+	if enemy.merged:
+		return
+	Events.tell(Lang.t("%s, Stufe %d") % [Lang.t(MonsterLore.monster_name(enemy.kind)), enemy.rated_level], XP_COLOR, 2.5)
+
+
 func _on_enemy_killed(enemy: Enemy) -> void:
 	# A boss falls only once: if a rival lands the last blow in the hero's
 	# fight, it still counts for the hero, or the task could never be done.
@@ -5377,6 +5385,9 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 			show_message(enemy.fall_text(), 2.5)
 		return
 	show_message(enemy.fall_text(), 2.5)
+	if not enemy.merged:
+		var xp := player.clever_xp(HeroLevel.kill_xp(enemy.rated_level, player.hero_level(), enemy.is_level_boss()))
+		Events.tell(Lang.t("%s besiegt: Stufe %d, %d EP, %d Leben.") % [Lang.t(MonsterLore.monster_name(enemy.kind)), enemy.rated_level, xp, enemy.max_hp()], XP_COLOR, 3.0)
 	_win_trophy(enemy.kind)
 	var drop := quests.on_kill(enemy.kind)
 	# Factions and bounties count it, and it is worth experience (see _bus_links).

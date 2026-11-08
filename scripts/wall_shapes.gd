@@ -94,15 +94,16 @@ static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 ## along the wall, the wall is 4 m wide and 4 m high). `material` is the
 ## style's wall material; `seed_value` makes each wall different but the same
 ## every time.
-static func dress(wall: Node3D, style: String, material: Material, seed_value: int) -> void:
+static func dress(wall: Node3D, style: String, variant: int, seed_value: int) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	if style == "bone":
-		_dress_bone(wall, rng)
+		_dress_bone(wall, rng, variant)
 		return
 	if not LOOKS.has(style):
 		return
 	var look: Dictionary = LOOKS[style]
+	var material := WallThemes.relief_material(style, variant)
 	for i in look.face:
 		# Not in the middle: that is where a wall torch hangs.
 		var x := rng.randf_range(0.85, 1.85) * (1.0 if i % 2 == 0 else -1.0)
@@ -140,8 +141,8 @@ static func _add(wall: Node3D, style: String, material: Material, rng: RandomNum
 
 
 ## The bone walls: skulls and long bones set into the face, half sunk in it.
-static func _dress_bone(wall: Node3D, rng: RandomNumberGenerator) -> void:
-	var mat := bone_material()
+static func _dress_bone(wall: Node3D, rng: RandomNumberGenerator, variant: int) -> void:
+	var mat := bone_material(variant)
 	# A skull in about every second piece, looking out into the room.
 	if rng.randf() < 0.55:
 		var skull := MeshInstance3D.new()
@@ -164,14 +165,13 @@ static func _dress_bone(wall: Node3D, rng: RandomNumberGenerator) -> void:
 
 
 ## Paler bone than the wall's, with the dark parts (tone) that the meshes paint.
-static func bone_material() -> ShaderMaterial:
-	if not _meshes.has("bone_material"):
-		var m := WallThemes.material("bone", WallThemes.WALL)
+static func bone_material(variant := -1) -> ShaderMaterial:
+	var key := "bone_material_%d" % variant
+	if not _meshes.has(key):
+		var m := WallThemes.relief_material("bone", variant).duplicate() as ShaderMaterial
 		m.set_shader_parameter("use_tone", true)
-		m.set_shader_parameter("base_color", Color(0.72, 0.66, 0.52))
-		m.set_shader_parameter("dark_color", Color(0.3, 0.25, 0.17))
-		_meshes["bone_material"] = m
-	return _meshes["bone_material"]
+		_meshes[key] = m
+	return _meshes[key]
 
 
 ## Adds `mesh` to `st` moved by `at`, with every vertex coloured `tone` (1 stays

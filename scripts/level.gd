@@ -1156,7 +1156,7 @@ func _build_walls(c: Vector2i) -> void:
 		if WallShapes.styled(wall_style) and not low and piece != "wall_shelves":
 			# Jagged shards out of the wall (the near walls stay flat, so the
 			# view of the room stays clear).
-			WallShapes.dress(wall, wall_style, _kit_material("walls"), hash(pos) + int(rot * 100.0))
+			WallShapes.dress(wall, wall_style, wall_variant, hash(pos) + int(rot * 100.0))
 		if low:
 			_near_walls.add(wall)
 			continue

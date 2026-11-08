@@ -8,6 +8,8 @@ extends RefCounted
 ## every style, so the two stay apart.
 
 const SHADER := preload("res://shaders/wall_theme.gdshader")
+## The same look without the fade, for the relief on the walls (see WallShapes).
+const RELIEF_SHADER := preload("res://shaders/wall_theme_relief.gdshader")
 const KIT_DIR := "res://assets/kit/"
 
 ## The surfaces: 0 wall, 1 floor tile, 2 rough floor.
@@ -92,3 +94,22 @@ static func material(style: String, surface: int, variant := -1) -> ShaderMateri
 		m.set_shader_parameter("scale_" + tag, v.scale)
 	m.set_shader_parameter("glow_color", def.get("glow", Color(0, 0, 0)))
 	return m
+
+
+static var _relief := {}
+
+
+## The material of the shards, skulls and bones that stick out of the walls: the
+## wall's, a little lighter so they stand out from it, on the shader without the
+## fade (hundreds of them would exceed the engine's limit of meshes with an
+## instance uniform). Shared per style and variant.
+static func relief_material(style: String, variant := -1) -> ShaderMaterial:
+	var key := "%s_%d" % [style, variant]
+	if not _relief.has(key):
+		var m := material(style, WALL, variant)
+		m.shader = RELIEF_SHADER
+		for tag in ["base_color", "base_b", "base_c"]:
+			var c: Color = m.get_shader_parameter(tag)
+			m.set_shader_parameter(tag, Color(minf(c.r * 1.35 + 0.02, 1.0), minf(c.g * 1.35 + 0.02, 1.0), minf(c.b * 1.35 + 0.02, 1.0)))
+		_relief[key] = m
+	return _relief[key]

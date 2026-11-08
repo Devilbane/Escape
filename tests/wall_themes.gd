@@ -48,6 +48,7 @@ func _initialize() -> void:
 			var m := WallThemes.material(style, surface)
 			check(m.shader == WallThemes.SHADER, "%s %d has no shader" % [style, surface])
 			check(m.get_shader_parameter("albedo_tex") != null, "%s %d has no kit texture" % [style, surface])
+		check(WallThemes.relief_material(style).shader == WallThemes.RELIEF_SHADER, "%s: the relief has the fading shader" % style)
 		# Walls are darker than the floor, so the two stay apart.
 		var wall: Color = WallThemes.material(style, WallThemes.WALL).get_shader_parameter("base_color")
 		var floor_c: Color = WallThemes.material(style, WallThemes.FLOOR).get_shader_parameter("base_color")

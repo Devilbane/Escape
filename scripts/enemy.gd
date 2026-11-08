@@ -2079,8 +2079,11 @@ func _physics_process(delta: float) -> void:
 		snack = null
 		_path.clear()
 	# A slime the hero is hitting turns on the hero before any villager or wall.
-	var hunts_hero := _hero_aggro > 0.0 and _awake and not player.dead and dist < SLIME_AGGRO_RANGE
+	var hunts_hero := _hero_aggro > 0.0 and not player.dead and dist < SLIME_AGGRO_RANGE
 	if hunts_hero:
+		_awake = true
+		_lost = 0.0
+		_last_known = player.global_position
 		snack = null
 		_wall_target = null
 		_siege = false

@@ -44,6 +44,7 @@ const BORDER := Color(0.88, 0.66, 0.36, 0.9)
 const BLUE := Color(0.55, 0.75, 1.0)
 const ORANGE := Color(1.0, 0.6, 0.25)
 const GREY := Color(0.75, 0.72, 0.68)
+const GOLD_HEX := "ffd166"
 const GREEN := Color(0.4, 0.92, 0.4)
 const RED := Color(1.0, 0.38, 0.32)
 
@@ -595,10 +596,10 @@ static func compare_with_worn(p: Player, id: String) -> Dictionary:
 		# A free place for a special makes it a new thing; else it would take
 		# the first one's place.
 		if not p.equipped.has("spezial_1") or not p.equipped.has("spezial_2"):
-			return {"title": Lang.t("Nichts angelegt"), "empty": Lang.t("Das ist ein neuer Gegenstand (für diesen Platz).")}
+			return {"title": Lang.t("Nichts angelegt"), "empty": Lang.t("Das ist ein neuer Gegenstand (für diesen Platz)."), "gains": gains(id)}
 		worn_slot = "spezial_1"
 	if not p.equipped.has(worn_slot):
-		return {"title": Lang.t("Nichts angelegt"), "empty": Lang.t("Das ist ein neuer Gegenstand (für diesen Platz).")}
+		return {"title": Lang.t("Nichts angelegt"), "empty": Lang.t("Das ist ein neuer Gegenstand (für diesen Platz)."), "gains": gains(id)}
 	var worn: String = p.equipped[worn_slot]
 	return {"title": Lang.t("Derzeit angelegt"), "name": Items.item_name(worn), "icon": worn,
 			"subtitle": subtitle(worn), "lines": stat_lines(worn, p.wear.get(worn, 0)), "diffs": diffs(id, worn)}
@@ -606,8 +607,16 @@ static func compare_with_worn(p: Player, id: String) -> Dictionary:
 
 ## What changes when `id` is worn instead of `worn`, e.g. [true, "+1 Power"].
 static func diffs(id: String, worn: String) -> Array:
-	var a: Dictionary = Items.ALL[id]
-	var b: Dictionary = Items.ALL[worn]
+	return _diffs_between(Items.ALL[id], Items.ALL[worn])
+
+
+## What `id` brings into a free place: every value it has, as a gain (the
+## weight aside, which is no gain).
+static func gains(id: String) -> Array:
+	return _diffs_between(Items.ALL[id], {}).filter(func(d): return d.size() < 3)
+
+
+static func _diffs_between(a: Dictionary, b: Dictionary) -> Array:
 	var out := []
 	for c in COMPARED:
 		var d: float = (float(a.get(c[0], 0)) - float(b.get(c[0], 0))) * c[2]
@@ -627,6 +636,30 @@ static func diffs(id: String, worn: String) -> Array:
 		# The third value says it does not count towards "better".
 		out.append([weight < 0.0, ("+" if weight > 0.0 else "-") + Lang.t("%s Gewicht") % Items.weight_text(absf(weight)), false])
 	return out
+
+
+## The comparison of `id` with the worn item in its place as one line of
+## BBCode for the details box of an inventory: green numbers where `id` is
+## better, red where it is worse (each with its sign, so colour is never the
+## only cue), plain words when equal. Empty for things that are not worn.
+static func compare_bbcode(p: Player, id: String) -> String:
+	var compare := compare_with_worn(p, id)
+	var diffs: Array
+	var head: String
+	if compare.has("diffs"):
+		diffs = compare.diffs
+		head = Lang.t("Statt %s:") % compare.name
+	elif compare.has("gains"):
+		diffs = compare.gains
+		head = Lang.t("Nichts angelegt:")
+	else:
+		return ""
+	var parts := ["[color=#%s]%s[/color]" % [GOLD_HEX, head.replace("[", "[lb]")]]
+	if diffs.is_empty():
+		parts.append(Lang.t("Gleiche Werte").replace("[", "[lb]"))
+	for d in diffs:
+		parts.append("[color=#%s]%s[/color]" % [(GREEN if d[0] else RED).to_html(false), d[1]])
+	return " ".join(parts)
 
 
 ## Better in something and worse in nothing (the weight aside).

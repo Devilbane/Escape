@@ -73,6 +73,9 @@ signal loot_found(text: String, color: Color)
 ## boss); the event log writes it down when the hero is near enough to hear
 ## it. Text and name are already translated. Use Events.say.
 signal speech_said(speaker: String, text: String, pos: Vector3)
+## The hero said something through the chat line (see ChatLine) at `pos`:
+## the people near answer (see HeroChat). Use Events.hero_says.
+signal hero_spoke(text: String, pos: Vector3)
 ## The hero noticed a writing on a wall (see Level, WallWritings): its
 ## German text, for the compendium and the journal.
 signal writing_found(text: String)
@@ -114,6 +117,11 @@ static func found(text: String, color := EventLog.LOOT_COLOR) -> void:
 ## A spoken line for the event log (see speech_said).
 static func say(speaker: String, text: String, pos: Vector3) -> void:
 	bus().speech_said.emit(speaker, text, pos)
+
+
+## The hero said this out loud (see hero_spoke).
+static func hero_says(text: String, pos: Vector3) -> void:
+	bus().hero_spoke.emit(text, pos)
 
 
 ## Something frightening happened (see scare_happened).

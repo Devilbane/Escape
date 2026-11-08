@@ -105,6 +105,9 @@ const HIDDEN_PARTS := ["Knife_Offhand", "1H_Crossbow", "2H_Crossbow", "Throwable
 
 var level: Level
 var controllable := true
+## The hero is typing in the chat line (see ChatLine): the walking and
+## running keys are not read then.
+var typing := false
 ## While frozen, the game moves the hero itself (e.g. up the exit stairs).
 var frozen := false
 var dead := false
@@ -913,7 +916,7 @@ func _breathe(delta: float, moving: bool) -> void:
 	var full := max_stamina()
 	if stamina < 0.0:
 		stamina = full
-	var run_key := Input.is_physical_key_pressed(KEY_SHIFT)
+	var run_key := not typing and Input.is_physical_key_pressed(KEY_SHIFT)
 	sprinting = (wants_run or run_key) and moving and not sneaking and not winded and stamina > 0.0
 	if sprinting:
 		stamina = maxf(0.0, stamina - delta)
@@ -2633,6 +2636,8 @@ func _keep_off_furniture(before: Vector3, dir: Vector3) -> void:
 
 
 func _keyboard_direction() -> Vector3:
+	if typing:
+		return Vector3.ZERO
 	var x := 0.0
 	var z := 0.0
 	if Input.is_action_pressed("ui_left") or Input.is_physical_key_pressed(KEY_A):

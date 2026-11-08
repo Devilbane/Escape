@@ -133,6 +133,13 @@ func _test() -> void:
 		# Mid-leap the figure is off the ground and closer to the foe.
 		var lunged: bool = player._model.position.y > 0.2 and player._model.position.z > 0.1
 		await _wait(25)
+		# On a slow runner the blow can land late: wait for it, and for the
+		# strike to be over, so it never spills into the next round.
+		var waited := 0
+		while (foe.hp == BIG_HP or player._attack_cooldown > 0.0) and waited < 300:
+			await process_frame
+			waited += 1
+		await _wait(3)
 		var lost := BIG_HP - foe.hp
 		if lost == player.vital_damage(POWER, player.weapon_skill()):
 			vitals += 1

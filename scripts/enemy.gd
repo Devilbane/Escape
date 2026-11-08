@@ -2035,6 +2035,9 @@ func _physics_process(delta: float) -> void:
 				return
 			drawn_to = SlimeGrowth.nearest_slime(self) if foe == null and meal == null else null
 			snack = SlimeGrowth.nearest_snack(self) if foe == null and meal == null else null
+			# A villager it can walk to is worth more than any wall.
+			if snack == null and foe == null and meal == null:
+				snack = SlimeGrowth.reachable_villager(self)
 			if snack is Villager:
 				(snack as Villager).alarm(self)
 	if foe != null and (not is_instance_valid(foe) or foe.dead):
@@ -2063,6 +2066,11 @@ func _physics_process(delta: float) -> void:
 	var move := _step_out() if _busy <= 0.0 and not through_walls else Vector3.ZERO
 	if move != Vector3.ZERO:
 		pass # Out of the furniture first.
+	elif snacks and snack is Villager:
+		_wall_target = null
+		_siege = false
+		if _busy <= 0.0:
+			move = _go_snack()
 	elif _wall_target != null or _scout_wall(sees or fights_foe or snacks or feeds, delta):
 		if _busy <= 0.0:
 			move = _batter_wall()

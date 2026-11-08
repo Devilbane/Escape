@@ -86,6 +86,42 @@ func _run() -> void:
 	if wins * 3 < tries:
 		failures += 1
 		print("FAIL: fewer than one attempt in three broke the wall")
+	await _villager_first(lvl, wall, west)
 	game.delete_save(game.save_path())
 	print("PASS: slime siege" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
+
+
+## A villager standing out in the open, 25 m from the slime and out of its sight
+## range, is hunted instead of the wall: the slime closes in on it and the wall
+## stays whole.
+func _villager_first(lvl: Outdoor, wall: VillageWall, west: WallBrick) -> void:
+	for b: WallBrick in wall.bricks.values():
+		b.mend(float(WallBrick.MAX_HP))
+	for e in lvl.enemies:
+		if is_instance_valid(e):
+			e.dead = true
+			e.global_position = Vector3(0, -50, 0)
+	var v: Villager = lvl.villagers[0]
+	var start := west.global_position + Vector3(-12, 0, 0)
+	var s := lvl.spawn_slime("schleim", start, {})
+	v.global_position = start + Vector3(-25, 0, 0)
+	v._start("idle", 600.0)
+	var reach := SlimeGrowth.reachable_villager(s)
+	if reach == null:
+		print("SKIP: no villager reachable from the test spot")
+		s.dead = true
+		return
+	var d0 := s._flat_distance(v)
+	await _wait(240)
+	var low := 1000
+	for b: WallBrick in wall.bricks.values():
+		low = mini(low, b.hp)
+	if low < WallBrick.MAX_HP:
+		failures += 1
+		print("FAIL: a slime with a villager to reach still ate into the wall")
+	if is_instance_valid(s) and not s.dead and s._flat_distance(v) >= d0 - 2.0 and not v.has_meta("slime_life"):
+		failures += 1
+		print("FAIL: the slime did not go for the villager")
+	if is_instance_valid(s):
+		s.dead = true

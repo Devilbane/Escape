@@ -14,6 +14,7 @@ const SETTINGS_FILE := "user://einstellungen.json"
 ## The English texts, one script per feature, each with its own `EN` table.
 const PARTS := [
 	preload("res://scripts/lang/title.gd"),
+	preload("res://scripts/lang/floor_packs.gd"),
 	preload("res://scripts/lang/ash_spire.gd"),
 	preload("res://scripts/lang/hud.gd"),
 	preload("res://scripts/lang/compendium.gd"),
@@ -106,6 +107,7 @@ const PARTS := [
 	preload("res://scripts/lang/bleeding.gd"),
 	preload("res://scripts/lang/sternhall.gd"),
 	preload("res://scripts/lang/sleep_till_morning.gd"),
+	preload("res://scripts/lang/needs.gd"),
 ]
 
 ## German text -> English text, all features together. Read it, never write it.

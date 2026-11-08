@@ -130,6 +130,12 @@ const CREATURES := {
 	"schlund": {"food": "schleimgelee", "biome": ["glimmermoos", "hoehlenpilz"], "part": "schleimkern"},
 	"kristallschleim": {"food": "schleimgelee", "biome": ["grottenkristall"], "part": "schleimkern"},
 	"glutschleim": {"food": "schleimgelee", "biome": ["grottenkristall"], "part": "schleimkern"},
+	# The elementals and golems of the caves: dust, crystal and the residue
+	# they are made of (no ingredient of their own yet).
+	"feuerelementar": {"food": "ektoplasma", "biome": ["glimmermoos", "hoehlenpilz"], "part": "geisterschleier"},
+	"obsidiangolem": {"food": "grabstaub", "biome": ["grottenkristall"], "part": "schleimkern"},
+	"steingolem": {"food": "grabstaub", "biome": ["hoehlenpilz", "glimmermoos"], "part": "ghulkralle"},
+	"kristallgolem": {"food": "grabstaub", "biome": ["grottenkristall"], "part": "schleimkern"},
 	# The ghosts and ghouls of the deep dungeon.
 	"totengeist": {"food": "ektoplasma", "biome": ["hoehlenpilz", "glimmermoos"], "part": "geisterschleier"},
 	"banshee": {"food": "ektoplasma", "biome": ["glimmermoos", "hoehlenpilz"], "part": "bansheehaar"},
@@ -240,7 +246,7 @@ static func coins(kind: String, tough: float, rng: RandomNumberGenerator = null)
 ## Whether a fallen one of this kind may leave raw ore (see Ore): the trolls
 ## and every other creature of the mountains.
 static func drops_ore(kind: String) -> bool:
-	return kind in TROLLS or Enemy.KINDS.get(kind, {}).get("mountain", false)
+	return kind in TROLLS or Elementals.GOLEMS.has(kind) or Enemy.KINDS.get(kind, {}).get("mountain", false)
 
 
 ## The ore a fallen one leaves on a roll of its own (with the same odds per

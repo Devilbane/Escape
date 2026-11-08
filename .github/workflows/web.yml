@@ -532,6 +532,16 @@ jobs:
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/horrors.gd | tee horrors.log
           grep -q PASS horrors.log
 
+      - name: Elementals and golems test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/elementals.gd | tee elementals.log
+          grep -q PASS elementals.log
+
+      - name: Elementals and golems fight test
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/elemental_fights.gd | tee elemental_fights.log
+          grep -q PASS elemental_fights.log
+
       - name: Bandit chief boss fight test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/bandit_chief.gd | tee chief.log

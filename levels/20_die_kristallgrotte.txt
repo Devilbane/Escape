@@ -1,9 +1,10 @@
 name: Die Kristallgrotte
 hint: Die zweite Mine: kalte Höhlen voller leuchtender Kristalle. Kristallschleime, Eiswölfe und Fledermäuse hausen hier. Tief drinnen glänzt eine Tafel aus Eis.
-monsters: wildlife, fable
+monsters: wildlife, fable, elementals
 building: mine2
 lair: ja
 theme: kristall
+custom: 1 {"type": "monster", "base": "kristallgolem"}
 ################################
 ##E#############################
 ##P.,,%,,,,,,###,,,,,%,,,,,,,,##
@@ -13,6 +14,6 @@ theme: kristall
 ####,,%,###,e,,,,,#####,,,,,,,##
 ##,,,,,,###,,,,,,,,,,,,,,v,,,,##
 ##,e,,,,,,,,,,i,,###,,,,,##,,,##
-##,,,%,,,,,,,,,,,###,,%,,##,J.T#
+##,,,%,,,,,,,,,,,###,,%,,##,1.T#
 ##,,,,,,,,v,,,,C,###,,,,,,,,,,##
 ################################

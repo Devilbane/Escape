@@ -47,11 +47,9 @@
 - Steps through puddles are splashier and wetter.
 - The moon's shadows reach further, so mountain shadows no longer jump.
 - The event log has an always-visible chat line beneath it.
-- The mine, Great Old One and Ashen Spire entrances got the aged, textured look.
-- A cape wardrobe stands next to the bed on the first floor of the house.
-- New app icon on the exe, the window and the web page; the emblem shows on the title and launcher screens.
 
 ## Earlier this week
+- A cape wardrobe in the house, a new app icon and aged entrances for the mine, the Great Old One's lair and the Ashen Spire.
 - The village is built of aged stone with ivy and paved paths; nights can be nearly pitch black and moonlight changes with the moon's phase. Light your torch with V.
 - Crystal mining in the Crystal Grotto, cut into jewellery, and a new dungeon: sneak into the Great Old One's lair.
 - Loot has a rarity by usefulness; shrines offer an attribute point and Constitution; the refuge fountain heals 5 life per drink.

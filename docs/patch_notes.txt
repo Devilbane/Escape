@@ -5,6 +5,7 @@
 
 ## Latest changes
 - Four new cave styles for walls and floors: bone, rock, obsidian and glowing crystal. The Bone Pit and Bone Gallery, Copper Mine, Crystal Grotto and Ember Tunnels now wear them.
+- Rock, obsidian and crystal walls bristle with jagged shards and stand crowned with spikes.
 - Matching lights for each cave style: bone torches, iron and glass braziers, glowing crystal clusters and candelabra.
 - Ghostly voices (moans, a banshee's shriek, the whispers out of the holes) and bandit taunts now also appear in the event log.
 - New dungeon level: the Great Old One's lair (level 25) with traps, secret rooms, bones and a spread-out hoard.

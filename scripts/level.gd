@@ -1148,6 +1148,10 @@ func _build_walls(c: Vector2i) -> void:
 			var facing := Vector3(sin(rot), 0, cos(rot))
 			var shelf := _add_interactable("Regal", pos + facing * 1.2, pos + facing * 0.9 + Vector3(0, 3.4, 0), c)
 			shelf.touch_cell = n
+		if WallShapes.styled(wall_style) and not low and piece != "wall_shelves":
+			# Jagged shards out of the wall (the near walls stay flat, so the
+			# view of the room stays clear).
+			WallShapes.dress(wall, wall_style, _kit_material("walls"), hash(pos) + int(rot * 100.0))
 		if low:
 			_near_walls.add(wall)
 			continue

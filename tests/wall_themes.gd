@@ -100,6 +100,7 @@ func _initialize() -> void:
 			for v in WallShapes.VARIANTS:
 				relief.append(WallShapes.shard_mesh(style, v))
 		var shards := level.find_children("*", "MeshInstance3D", true, false).filter(func(mi): return mi.mesh in relief).size()
+		shards += level.find_children("*", "MultiMeshInstance3D", true, false).filter(func(mi): return mi.multimesh.mesh in relief).size()
 		check(shards > 0, "%s: no relief (shards, skulls, bones) on the walls" % style)
 		check((relief[0] as ArrayMesh).get_surface_count() == 1, "%s: the relief has no surface" % style)
 		level.queue_free()

@@ -140,28 +140,44 @@ static func _add(wall: Node3D, style: String, material: Material, rng: RandomNum
 	wall.add_child(mi)
 
 
-## The bone walls: skulls and long bones set into the face, half sunk in it.
-static func _dress_bone(wall: Node3D, rng: RandomNumberGenerator, variant: int) -> void:
-	var mat := bone_material(variant)
-	# A skull in about every second piece, looking out into the room.
-	if rng.randf() < 0.55:
-		var skull := MeshInstance3D.new()
-		skull.mesh = skull_mesh()
-		skull.material_override = mat
-		skull.position = Vector3(rng.randf_range(-1.6, 1.6) if rng.randf() < 0.7 else rng.randf_range(0.9, 1.7), rng.randf_range(0.5, 3.3), 0.5)
-		skull.rotation_degrees = Vector3(rng.randf_range(-12.0, 12.0), rng.randf_range(-30.0, 30.0), rng.randf_range(-15.0, 15.0))
-		skull.scale = Vector3.ONE * rng.randf_range(0.9, 1.3)
-		wall.add_child(skull)
-	# Two or three bones jutting out, crossing the wall at all angles.
-	for i in 2 + (rng.randi() % 2):
-		var bone := MeshInstance3D.new()
-		bone.mesh = bone_mesh()
-		bone.material_override = mat
-		var x := rng.randf_range(0.9, 1.8) * (1.0 if i % 2 == 0 else -1.0)
-		bone.position = Vector3(x, rng.randf_range(0.4, 3.5), 0.55)
-		bone.rotation_degrees = Vector3(rng.randf_range(-20.0, 20.0), rng.randf_range(-30.0, 30.0), rng.randf_range(0.0, 180.0))
-		bone.scale = Vector3.ONE * rng.randf_range(0.8, 1.3)
-		wall.add_child(bone)
+## The bone walls: skulls and long bones set into the face, half sunk in it. All
+## the skulls of a wall piece are drawn in one go (a MultiMesh), and all its bones
+## in another, so a wall full of them costs two draws.
+static func _dress_bone(wall: Node3D, rng: RandomNumberGenerator, _variant: int) -> void:
+	var skulls: Array[Transform3D] = []
+	var bones: Array[Transform3D] = []
+	for i in 1 + (rng.randi() % 3):
+		var at := _free_spot(rng)
+		var basis := Basis.from_euler(Vector3(deg_to_rad(rng.randf_range(-12.0, 12.0)), deg_to_rad(rng.randf_range(-30.0, 30.0)), deg_to_rad(rng.randf_range(-15.0, 15.0))))
+		skulls.append(Transform3D(basis.scaled(Vector3.ONE * rng.randf_range(0.9, 1.35)), Vector3(at.x, at.y, 0.5)))
+	for i in 4 + (rng.randi() % 3):
+		var at := _free_spot(rng)
+		var basis := Basis.from_euler(Vector3(deg_to_rad(rng.randf_range(-20.0, 20.0)), deg_to_rad(rng.randf_range(-30.0, 30.0)), deg_to_rad(rng.randf_range(0.0, 180.0))))
+		bones.append(Transform3D(basis.scaled(Vector3.ONE * rng.randf_range(0.8, 1.35)), Vector3(at.x, at.y, 0.55)))
+	_multi(wall, skull_mesh(), skulls)
+	_multi(wall, bone_mesh(), bones)
+
+
+## A spot on the wall face that keeps clear of the middle, where a torch hangs.
+static func _free_spot(rng: RandomNumberGenerator) -> Vector2:
+	for attempt in 8:
+		var at := Vector2(rng.randf_range(-1.8, 1.8), rng.randf_range(0.35, 3.6))
+		if absf(at.x) > 0.65 or at.y < 1.5 or at.y > 3.1:
+			return at
+	return Vector2(1.5, 1.0)
+
+
+static func _multi(wall: Node3D, mesh: Mesh, transforms: Array[Transform3D]) -> void:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = transforms.size()
+	for i in transforms.size():
+		mm.set_instance_transform(i, transforms[i])
+	var inst := MultiMeshInstance3D.new()
+	inst.multimesh = mm
+	inst.material_override = bone_material()
+	wall.add_child(inst)
 
 
 ## Paler bone than the wall's, with the dark parts (tone) that the meshes paint.
@@ -170,6 +186,11 @@ static func bone_material(variant := -1) -> ShaderMaterial:
 	if not _meshes.has(key):
 		var m := WallThemes.relief_material("bone", variant).duplicate() as ShaderMaterial
 		m.set_shader_parameter("use_tone", true)
+		# White bone: pale ivory, shaded to a warm grey in the hollows.
+		for tag in ["base_color", "base_b", "base_c"]:
+			m.set_shader_parameter(tag, Color(0.93, 0.89, 0.78))
+		for tag in ["dark_color", "dark_b", "dark_c"]:
+			m.set_shader_parameter(tag, Color(0.6, 0.55, 0.45))
 		_meshes[key] = m
 	return _meshes[key]
 
@@ -209,10 +230,10 @@ static func skull_mesh() -> ArrayMesh:
 	jaw.size = Vector3(0.3, 0.14, 0.26)
 	_merge(st, jaw, Transform3D(Basis(), Vector3(0, -0.27, 0.07)), 0.9)
 	for side in [-1.0, 1.0]:
-		_merge(st, _ball(0.085), Transform3D(Basis.from_scale(Vector3(1.0, 1.1, 0.7)), Vector3(side * 0.12, -0.02, 0.27)), 0.04)
+		_merge(st, _ball(0.085), Transform3D(Basis.from_scale(Vector3(1.0, 1.1, 0.7)), Vector3(side * 0.12, -0.02, 0.27)), 0.42)
 	var nose := BoxMesh.new()
 	nose.size = Vector3(0.05, 0.09, 0.05)
-	_merge(st, nose, Transform3D(Basis(), Vector3(0, -0.14, 0.31)), 0.04)
+	_merge(st, nose, Transform3D(Basis(), Vector3(0, -0.14, 0.31)), 0.45)
 	var teeth := BoxMesh.new()
 	teeth.size = Vector3(0.24, 0.04, 0.05)
 	_merge(st, teeth, Transform3D(Basis(), Vector3(0, -0.2, 0.28)), 0.35)

@@ -1,9 +1,11 @@
 # Patch notes shown by the Windows launcher while the game downloads (scripts/launcher.gd).
 # Written for players, in English: new features, fixes and balance changes, one short line each.
 # "## Heading" starts a section, "- text" is a change, a line starting with a single "#" is a
-# comment. Newest section first; fold older sections together to stay well under 8000 characters.
+# comment. Newest section first. Only the newest two sections ship in the client; older ones stay here as
+# history, so nothing needs trimming. Keep those two sections well under 16000 characters.
 
 ## Latest changes
+- The launcher now shows only the newest two sections of the patch notes, so old notes no longer need trimming.
 - A slime you hit now turns on you first: it drops villagers and the wall as targets while you fight it, and goes back to them after about 6 seconds without a blow or when you get far away.
 - Much more ivy in the village, always clear of doors: thick on the guild hall, castle and temple, a little on the fountain.
 - Stepping out of the crypt now starts a two-minute run to the village: nothing can hurt you (blows, traps, poison, bleeding, fire) while the shield countdown shows, and it ends early when you reach the village.

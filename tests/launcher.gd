@@ -62,7 +62,9 @@ func _test_notes() -> void:
 	var shipped := FileAccess.get_file_as_string("res://docs/patch_notes.txt")
 	var parsed: Array = LauncherScript.parse_notes(shipped)
 	check(not parsed.is_empty() and parsed[0][0] == "h", "docs/patch_notes.txt starts with a heading")
-	check(shipped.length() < LauncherScript.NOTES_MAX, "docs/patch_notes.txt fits the launcher's limit")
+	var recent: String = LauncherScript.recent_notes(shipped)
+	check(recent.length() < LauncherScript.NOTES_MAX, "the shipped patch notes (newest two sections) fit the launcher's limit")
+	check(LauncherScript.recent_notes("# c\n## A\n- 1\n## B\n- 2\n## C\n- 3\n").count("## ") == 2, "only the newest two sections ship")
 
 
 ## Rectangles of everything the player looks at or clicks.

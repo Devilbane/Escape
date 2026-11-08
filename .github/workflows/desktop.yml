@@ -142,7 +142,7 @@ jobs:
           engine=$(sha256sum Escape/game/Escape.exe | cut -d' ' -f1)
           echo "{\"version\":\"$VERSION\",\"build\":\"$BUILD\",\"engine\":\"$engine\"}" > Escape/game/installed.json
           # The patch notes also travel inside the zip, for the launcher's first start.
-          cp ../docs/patch_notes.txt Escape/game/patch_notes.txt
+          python3 ../tools/recent_notes.py ../docs/patch_notes.txt > Escape/game/patch_notes.txt
           cp Escape/Escape.exe Escape/game/Escape.pck release/
           cp Escape/game/Escape.exe release/EscapeGame.exe
           zip -qr9 release/Escape-Windows.zip Escape
@@ -156,7 +156,8 @@ jobs:
               return h.hexdigest()
           env = os.environ
           # The launcher shows these patch notes while it downloads (docs/patch_notes.txt).
-          notes = open("../docs/patch_notes.txt", encoding="utf-8").read()
+          import subprocess
+          notes = subprocess.check_output(["python3", "../tools/recent_notes.py", "../docs/patch_notes.txt"], text=True)
           manifest = {
               "version": env["VERSION"], "build": env["BUILD"], "notes": notes,
               "pack_size": os.path.getsize("release/Escape.pck"), "pack_sha256": sha("release/Escape.pck"),

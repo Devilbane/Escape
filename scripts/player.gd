@@ -311,6 +311,10 @@ var _chase_left := 0.0
 var _chase_quit: Enemy = null
 var _chase_rest := 0.0
 var _auto_cooldown := 0.0
+## Whether the current target was picked by the player (a click), not by the
+## hero fighting back or bumping into a foe. Only then does the hero keep
+## striking while sneaking.
+var _target_chosen := false
 ## Time left on an animation that plays while the hero keeps moving.
 var _anim_hold := 0.0
 var _jump_windup := 0.0 ## Seconds left of the half step before a jump.
@@ -1390,6 +1394,7 @@ func _engage(enemy: Enemy) -> void:
 		return
 	if _target != enemy:
 		_auto_cooldown = 0.0
+		_target_chosen = false
 	_target = enemy
 
 
@@ -1400,6 +1405,7 @@ func charge(enemy: Enemy) -> void:
 	if enemy == null or enemy.dead or enemy.is_friend() or dead:
 		return
 	_engage(enemy)
+	_target_chosen = true
 	_hunt = enemy
 	_hunt_repath = 0.0
 	# A foe that has not noticed the hero is circled to its back first, so the
@@ -1519,6 +1525,8 @@ func _auto_attack() -> void:
 		return
 	if not can_act() or _auto_cooldown > 0.0 or _attack_cooldown > 0.0 or level.stacked(self, _target):
 		return
+	if sneaking and not _target_chosen:
+		return # Sneaking stays quiet: only a foe the player picked is struck.
 	if _sneak_hunt:
 		return # Still going round to the foe's back: no blow until there.
 	var d := global_position.distance_to(_target.global_position)

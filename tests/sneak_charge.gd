@@ -82,6 +82,30 @@ func _process(_delta: float) -> bool:
 			player.stop_hunt()
 			check(not player._sneak_hunt, "stopping the hunt clears the sneak")
 			stage += 1
+		4:
+			# A foe the hero merely bumped into or fought back against is not struck while sneaking.
+			_place()
+			foe._awake = true
+			foe.global_position = player.global_position + Vector3(0, 0, 1.0)
+			player._engage(foe)
+			stage_frames = 0
+			stage += 1
+		5:
+			foe._cooldown = 99.0
+			player._auto_cooldown = 0.0
+			player._attack_cooldown = 0.0
+			if stage_frames > 90:
+				check(foe.hp == BIG_HP, "no automatic attack while sneaking")
+				player.set_sneaking(false)
+				stage += 1
+				stage_frames = 0
+		6:
+			foe._cooldown = 99.0
+			if foe.hp < BIG_HP:
+				stage += 1
+			elif stage_frames > 120:
+				check(false, "the hero should strike automatically once not sneaking")
+				stage += 1
 		_:
 			if failures == 0:
 				print("PASS: sneak charge")

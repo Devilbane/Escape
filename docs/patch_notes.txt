@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- Sneaking no longer makes the hero strike back on their own; only a foe you click is attacked.
 - The hoard at home now counts the coins you carry plus those in your chest, and your bank vault shows its own hoard of the coins stored there.
 - Stairs down are now real stone steps that fade into the dark, in houses, mines and the dragon's lair, instead of a black hole.
 - The glowing ember cracks in the deep mines can be crossed now, but they burn: 1 life a second near them, 3 while standing on one.

@@ -3682,6 +3682,12 @@ func _build_compendium() -> void:
 		tabs_shown.append(["monster", Lang.t("Monsterkunde")])
 	elif compendium_page == "monster":
 		compendium_page = "wissen"
+	# Places get their page once the hero has entered one (every floor
+	# counts on the first visit, see Game._announce_level).
+	if not _visited_places().is_empty():
+		tabs_shown.append(["orte", Lang.t("Orte (%d)") % _visited_places().size()])
+	elif compendium_page == "orte":
+		compendium_page = "wissen"
 	# All tabs share one width, narrower when there are more of them, so the
 	# row never grows past the window.
 	var tab_width := minf(COMPENDIUM_TAB, floorf((WINDOW_SIZES.kompendium.x - COMPENDIUM_TAB_GAP * (tabs_shown.size() - 1)) / tabs_shown.size()))
@@ -3706,6 +3712,9 @@ func _build_compendium() -> void:
 		return
 	if compendium_page == "monster":
 		_build_monster_lore()
+		return
+	if compendium_page == "orte":
+		_build_places()
 		return
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 36)
@@ -3756,25 +3765,56 @@ func _build_compendium() -> void:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 10)
 	scroll.add_child(list)
-	if game.lore.is_empty():
+	# The floors have a page of their own (Places).
+	var tips: Array = game.lore.filter(func(entry: String) -> bool: return not entry.begins_with("#"))
+	if tips.is_empty():
 		var none: Label = game._make_label(game.TEXT_FONT, 16)
 		none.text = Lang.t("Noch nichts. Hinweise und Erklärungen sammeln sich hier.")
 		list.add_child(none)
 	# Newest first: the latest hint or explanation sits at the top.
-	for i in range(game.lore.size() - 1, -1, -1):
-		var entry: String = game.lore[i]
+	for i in range(tips.size() - 1, -1, -1):
 		var l: Label = game._make_label(game.TEXT_FONT, 16)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size.x = 410
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		if entry.begins_with("#"):
-			var index := int(entry.substr(1))
-			var info: Dictionary = game.level_hint(index)
-			l.text = Lang.t("Ebene %d: %s") % [index + 1, Lang.t(info.name)] + "\n" + Lang.t(info.hint)
-			l.add_theme_color_override("font_color", game.GOLD)
-		else:
-			l.text = Lang.t(entry)
+		l.text = Lang.t(tips[i])
 		list.add_child(l)
+
+
+## The floors and places the hero has entered, by their number in the game.
+func _visited_places() -> Array:
+	var out := []
+	for entry in game.lore:
+		if entry.begins_with("#"):
+			out.append(int(entry.substr(1)))
+	out.sort()
+	return out
+
+
+## The Places page: the description every floor showed on the first visit,
+## kept here to read again (the event log also writes it on every entry).
+func _build_places() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(760, 420)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 14)
+	scroll.add_child(list)
+	for index in _visited_places():
+		var info: Dictionary = game.level_hint(index)
+		var card := VBoxContainer.new()
+		card.add_theme_constant_override("separation", 2)
+		list.add_child(card)
+		var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
+		title.text = Lang.t("Ebene %d: %s") % [index + 1, Lang.t(info.name)]
+		card.add_child(title)
+		var text: Label = game._make_label(game.TEXT_FONT, 16)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.custom_minimum_size.x = 740
+		text.text = Lang.t(info.hint)
+		card.add_child(text)
 
 
 ## The recipe and ingredient book: every recipe found, its scroll with the

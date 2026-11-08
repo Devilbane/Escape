@@ -4,6 +4,7 @@
 # comment. Newest section first; fold older sections together to stay well under 8000 characters.
 
 ## Latest changes
+- The compendium has a new Places page with the description of every floor you have entered, so you can read it again after it fades from the screen.
 - The Windows download is now the main release: every update of the game builds it automatically, and the browser version is only published on request.
 - The village stonemason now mends the wall at 4 HP a second and never tires: there is no daily limit on his work any more.
 - Dungeon walls now have tops and outer sides in their own stone, bone, rock, obsidian or crystal look, so no black void shows right beside them. Nothing else changes: walls block you exactly as before.

@@ -6,6 +6,7 @@ const EN := {
 	"Steuerung": "Controls",
 	"Zoom": "Zoom",
 	"Gelerntes": "Learned",
+	"Orte (%d)": "Places (%d)",
 	"Noch nichts. Hinweise und Erklärungen sammeln sich hier.": "Nothing yet. Hints and explanations collect here.",
 	"Gehen": "Walk",
 	"WASD / Pfeiltasten oder Klick auf den Boden": "WASD / arrow keys or click on the floor",

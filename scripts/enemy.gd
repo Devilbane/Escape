@@ -462,6 +462,33 @@ func _fit_area() -> void:
 	rated_level = fit_level(kind, _stats, hardening, HeroLevel.area_target(area, rated_level), HeroLevel.AREAS[area].max)
 
 
+## A named monster (one given a name in the map workshop, shown over its head)
+## that is not a warden or a boss is a step above its plain kin: NAMED_HP_MULT
+## times the life, NAMED_DAMAGE_MULT times the blow (at least one more) and
+## NAMED_ARMOR_BONUS more hardening. The one place to tune them. A number its
+## maker set by hand ("hp", "damage", "armor") is the maker's call and stays.
+const NAMED_HP_MULT := 1.75
+const NAMED_DAMAGE_MULT := 1.25
+const NAMED_ARMOR_BONUS := 1
+
+
+## Whether this is a named monster that gets the NAMED_* step up.
+func is_named_elite() -> bool:
+	return str(custom.get("title", "")) != "" and not is_level_boss() and not self is SternBoss
+
+
+func _toughen_named() -> void:
+	if not is_named_elite():
+		return
+	if not custom.has("hp"):
+		_stats.hp = ceili(float(_stats.hp) * NAMED_HP_MULT)
+	if not custom.has("damage"):
+		_stats.damage = maxi(int(_stats.damage) + 1, roundi(float(_stats.damage) * NAMED_DAMAGE_MULT))
+	if not custom.has("armor"):
+		hardening += NAMED_ARMOR_BONUS
+	rated_level = _rating()
+
+
 func _rating() -> int:
 	return HeroLevel.rate(kind, int(_stats.hp), int(_stats.damage), hardening, float(_stats.cooldown))
 
@@ -569,6 +596,7 @@ func _ready() -> void:
 	_stats.cooldown /= 1.0 + 0.2 * power
 	_stats.damage += power / 2
 	_fit_area()
+	_toughen_named()
 	if SlimeGrowth.grows(kind):
 		SlimeGrowth.born(self)
 	ranged = _stats.get("ranged", false)

@@ -302,6 +302,11 @@ jobs:
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/village_wall.gd | tee village_wall.log
           grep -q PASS village_wall.log
 
+      - name: Wall cracks test (three crack stages that grow with a brick's damage)
+        run: |
+          timeout 300 ~/godot/godot --headless -s tests/wall_cracks.gd | tee wall_cracks.log
+          grep -q PASS wall_cracks.log
+
       - name: Village arms test (weapons for each villager, Pip's knives, the priestess heals)
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/village_arms.gd | tee village_arms.log
@@ -536,6 +541,16 @@ jobs:
         run: |
           timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/horrors.gd | tee horrors.log
           grep -q PASS horrors.log
+
+      - name: Elementals and golems test
+        run: |
+          timeout 120 ~/godot/godot --headless -s tests/elementals.gd | tee elementals.log
+          grep -q PASS elementals.log
+
+      - name: Elementals and golems fight test
+        run: |
+          timeout 300 ~/godot/godot --headless --fixed-fps 60 -s tests/elemental_fights.gd | tee elemental_fights.log
+          grep -q PASS elemental_fights.log
 
       - name: Bandit chief boss fight test
         run: |

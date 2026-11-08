@@ -4,9 +4,15 @@ A review of the user interface, item handling, general usability and code struct
 measured against what World of Warcraft, Tibia, RuneScape (Old School and RuneScape 3), Dark Age of
 Camelot and Ultima Online do, and against the open-source servers and clients built around them
 (The Forgotten Server, RuneLite, ModernUO and ServUO, ClassicUO, Dawn of Light, AzerothCore).
+The second round adds Guild Wars 2, Final Fantasy XIV, The Elder Scrolls Online, The Lord of the
+Rings Online and Path of Exile, and reads more open-source code: Veloren's item definitions and
+Fluent translations, Canary (OpenTibia), ClassicUO's grid loot window, RuneLite's ground-item
+settings and Godot's own key-remapping demo.
 
-Written in November 2026 against `main` at commit `588569b`. Every claim about Escape points at the
-code it was read from; every claim about another game has a source at the end.
+First written in November 2026 against `main` at commit `588569b`; revised on 8 November 2026
+against `76eaaaf`. Every claim about Escape points at the code it was read from; every claim about
+another game has a source at the end. Section 7 lists what changed in between, and section 6 now
+carries the state of every roadmap step.
 
 ## How to read this
 
@@ -43,6 +49,9 @@ Several MMO best practices are already in the game. They are listed so nobody "a
 | Fixed window sizes, nothing jumps | — (most MMOs do worse here) | `Menus.WINDOW_SIZES`, `tests/windows_fixed_size.gd` |
 | Features talk through events, not each other | RuneLite's `EventBus` with `@Subscribe` | `Events.bus()`, `Game._bus_links()` |
 | Map data that is checked by tests | TFS map and item validators | `LevelMap.validate()`, `tests/tile_letters.gd` |
+| Crafting materials and coins do not take bag slots | GW2's Material Storage and Wallet, ESO's craft bag, LOTRO's wallet | `Crafting.pouch` and `Crafting.purse` (`scripts/crafting.gd`), the inventory's "Beutel" tab |
+| "Deposit all" at home | GW2's *Deposit All Materials* button | `HomeStores.put_all` / `take_all` behind the stores' "Alle" buttons (`Menus._store_all`) |
+| Recipes say what is missing | GW2 and WoW crafting windows | needed and missing materials in the forge, workbench and building menus (`d0539e7`) |
 
 ---
 
@@ -63,6 +72,11 @@ Several MMO best practices are already in the game. They are listed so nobody "a
   log, chat line, tutorial card). Keep every element's place fixed so the layout guide still holds.
 - **Effort:** M. **Risk:** low to medium; every HUD test that measures positions must run at more than
   one scale (`tests/hud_drawer.gd`, `tests/message_overlap.gd`).
+- **Second round:** Final Fantasy XIV is the strongest counter-example: its *HUD Layout* moves nearly
+  every element, keeps four saved layouts, and must be saved explicitly. But even there the two
+  settings players reach for most are per-element *size* (Ctrl+Home cycles through fixed steps) and
+  *Display Element* (hide). Those are exactly the scale steps and show/hide switches suggested here,
+  so the advice stands: fixed steps, not a free slider, and no dragging.
 
 ### 1.2 A small minimap or compass
 
@@ -140,6 +154,19 @@ Several MMO best practices are already in the game. They are listed so nobody "a
   so nothing valuable is missed.
 - **Effort:** M. **Risk:** low; the rule only filters the pickup loop. Save the two settings with the
   game (they are about this hero), and test that quest items are never skipped.
+- **Second round, from the code:** RuneLite's `GroundItemsConfig` shows how small a good rule set can
+  be. It is two name lists (`highlightedItems`, `hiddenItems`, with a default hidden list of junk such as
+  "Vial, Ashes, Bones"), one value floor (`hideUnderValue`), four value tiers with one colour each, and a
+  safety switch `dontHideUntradeables` (default on). Path of Exile goes the whole way to a filter
+  language: ordered `Show` / `Hide` blocks whose conditions (`Rarity`, `BaseType`, `ItemLevel`, ...)
+  must all match, first match wins unless a block says `Continue`, with actions such as
+  `SetTextColor`, `PlayAlertSound` and `MinimapIcon`. For Escape, RuneLite's size is right and PoE's
+  is a warning: a filter language is a hobby of its own. Two details carry over directly:
+  1. the floor label's colour should come from the existing rarity colours (`Rarity.bbcode`) rather
+     than from price, so floor, bag and shop agree;
+  2. the "always take" exceptions should be one predicate (`Items.always_picked(id)`: coins, keys,
+     quest items, ammunition), the counterpart of RuneLite's `dontHideUntradeables`, so a new quest
+     item can never be filtered out by accident.
 
 ### 2.2 Compare in the bag, not only in the shop
 
@@ -234,6 +261,50 @@ Several MMO best practices are already in the game. They are listed so nobody "a
   kind.
 - **Effort:** M. **Risk:** low if done with the schema test first; ids stay the same, so saves stay
   valid.
+- **Second round, from the code:** Veloren is the closest open-source match to what this asks for.
+  Every item is one data file (`assets/common/items/consumable/potion_minor.ron`) with `name`,
+  `description`, `kind`, `quality` and `tags`; the item's id is its path, so ids cannot drift from
+  files. Stacking is *derived* from the kind, not stored beside it: `ItemDef::is_stackable()` is true
+  only for consumables, ingredients, quest items, utilities and throwables, and `max_amount()` is 1
+  for everything else, an invariant written down in its doc comment. Escape keeps its single
+  `Items.ALL` table (one file is easier to review than hundreds), but should copy the two ideas: the
+  `kind` decides whether something stacks, and `STACK` only holds the exceptions that stack in
+  smaller piles (torches 5, knives 10). The schema test then checks the invariant: nothing with a
+  slot stacks unless `STACK_SLOTS` says so. Veloren's `Quality` enum (Low, Common, Moderate, High,
+  Epic, Legendary, Artifact) is also ordered, so "rare and up" (2.1) is one comparison; `Rarity`
+  should offer the same (`Rarity.rank(id) >= Rarity.rank("selten")`).
+
+### 2.9 Buy back what was just sold (new)
+
+- **Others:** WoW's merchants keep the last twelve items the player sold on a *Buyback* tab, at the
+  price they were sold for, until logout. Guild Wars 2's merchants have the same tab.
+- **Escape today:** `Menus._sell` pays the sell price and appends the item to `game.shop_stock`, so
+  a sold item does come back, but only at the shop's buying price (`Items.BUY_MARKUP` is 3), mixed in
+  with everything else the shop sells. A misclick on a good ring costs three times what it paid.
+- **Suggestion:** remember the items sold in the current visit (a short list on `Menus`, cleared
+  when the window closes) and show them as a "Zurückkaufen" section at the bottom of the shop's
+  list, at the price paid. `TradeWindow` already has sections, so it is one more section with a
+  fixed height, not a new window.
+- **Effort:** S. **Risk:** low; the list is not saved, so saves are untouched. A test that sells
+  and buys back keeps the coin count unchanged.
+
+### 2.10 Bulk actions for the common stuff (new)
+
+- **Others:** Guild Wars 2 salvages a whole bag at once: "Salvage all Fine and lower", "Salvage all
+  Masterwork and lower", "Salvage all Rares". Its *Compact* button tidies the bag, and *Deposit All
+  Materials* empties the bag of anything that has a place in storage. WoW's merchant window has a
+  *Sell All Junk Items* button for the grey items.
+- **Escape today:** the forge's "Einschmelzen" tab has one button per item (`_melt` on one bag
+  index, `menus.gd:3101`); selling is one click per item (`_sell`). The home stores already have
+  "Alle" (above), so the pattern is in the game.
+- **Suggestion:** one button above the forge's melt list, "Alles Gewöhnliche einschmelzen", and one
+  above the merchant's sell list, "Alles Gewöhnliche verkaufen". Both act only on common items
+  (`Items.is_common`) that are not worn, not quest items and not marked as kept, and both use the
+  two-click confirmation of 2.7 with the sum in the label ("Really sell 7 things for 84 copper?").
+  Rarer items stay one at a time on purpose.
+- **Effort:** S. **Risk:** low; both reuse the single-item functions in a loop. Add a "keep" mark
+  later if players ask for it (GW2's answer is the *Invisible Bag*, whose items never show in sell
+  lists).
 
 ---
 
@@ -254,6 +325,15 @@ Several MMO best practices are already in the game. They are listed so nobody "a
   `SHORTCUTS` read the current binding (`ux-ui` §11 already asks for this).
 - **Effort:** M (step one), M (step two). **Risk:** medium; input is central. A test that presses each
   default key and checks the action, written before the change, keeps it safe.
+- **Second round, from the code:** Godot's own demo (`gui/input_mapping/ActionRemapButton.gd` in
+  `godot-demo-projects`) is almost exactly step two and is about 40 lines: a toggle button per action
+  shows `InputMap.action_get_events(action)[0].as_text()`, turns yellow with "<press a key>" while
+  listening in `_unhandled_key_input`, ignores Enter so the menu can still be used with the keyboard,
+  then calls `action_erase_events` and `action_add_event` and saves through a small autoload. Copy
+  that shape, with Escape's own `ConfigFile` instead of the autoload. One thing the demo does not do
+  and Escape needs: refuse (or swap) a key that another action already uses, and say so in the row.
+  The current movement code already mixes the two worlds (`Input.is_action_pressed("ui_left") or
+  Input.is_physical_key_pressed(KEY_A)`, `player.gd:2679`), so step one starts there.
 
 ### 3.2 Text size, motion and flashes
 
@@ -280,6 +360,14 @@ Several MMO best practices are already in the game. They are listed so nobody "a
   compendium: tabs at the top, all pages one size. Pages: Sound, Display (3.2), Controls (3.1), Loot
   (2.1). The drawer keeps its two volume sliders as a shortcut.
 - **Effort:** M. **Risk:** low; a new window with an entry in `Menus.WINDOW_SIZES`.
+- **Second round, from the code:** RuneLite never builds a settings panel by hand. Each plugin
+  declares its options once (`@ConfigItem(keyName, name, description, position, section)` on a
+  default method, `@ConfigSection` for groups) and one generic panel draws them. Escape's settings
+  are spread over `music.gd`, `sfx.gd` and `event_log.gd`, each with its own `ConfigFile` section and
+  keys. A `Settings` script with one table (`key`, `page`, `kind` such as switch, steps or slider,
+  `default`, German label) would let the window build itself, give every option one place to read
+  from (`Settings.get("anzeige", "text")`), emit `settings_changed` (4.2) on every write, and let a
+  test check that every label has an English entry.
 
 ### 3.4 Say what is new, once
 
@@ -355,6 +443,12 @@ Several MMO best practices are already in the game. They are listed so nobody "a
   Make every remaining part save itself with `for_save()` / `from_save()` so `save_game` becomes a list.
 - **Effort:** S (the chain and the test), M (the `for_save` cleanup). **Risk:** low, and it lowers the
   risk of every later change to saved data.
+- **Second round, from the code:** Canary (the current OpenTibia server) stores item attributes with
+  fixed, explicit numbers (`ATTR_QUICKLOOTCONTAINER = 38`, `ATTR_STORE_INBOX_CATEGORY = 42`,
+  `ATTR_OBTAINCONTAINER = 44` in `src/items/items_definitions.hpp`): new attributes get new numbers,
+  old numbers are never reused, so an old save always means the same thing. Escape's save uses names
+  rather than numbers, which is just as safe, as long as a key is never reused with a new meaning;
+  that is the rule to write at the top of `SaveMigrations`.
 
 ### 4.4 Simulation apart from presentation
 
@@ -393,6 +487,13 @@ Several MMO best practices are already in the game. They are listed so nobody "a
   (`Lang.tn("1 Fackel", "%d Fackeln", n)`), so counts read right in both languages. If a third language
   ever comes, export the tables to `.po` with a small tool instead of changing the code.
 - **Effort:** S. **Risk:** low.
+- **Second round:** the gap is real today. `Menus._store_all` writes "%d Dinge eingelagert." and
+  "%d Dinge genommen." (`menus.gd:1786`), so storing one thing reads "1 Dinge"; `game.gd:5957` has
+  the same shape with "Gegenstände". Veloren's Fluent files show the pattern in its plainest form
+  (`hud/bag.ftl`): `{ $slot_deficit -> [1] ... 1 item ... *[other] ... { $slot_deficit } items ... }`,
+  the starred variant being the default. `Lang.tn(one, many, n)` is the same thing for two
+  languages that both have just "one" and "other"; `tests/lang_keys.gd` should check that both forms
+  have English entries.
 
 ---
 
@@ -416,33 +517,68 @@ Ranked by what the player gains per day of work, with the risk to saves and layo
 Close behind: sort button (2.4), event log filters (1.4), visible target ring (1.3), minimap (1.2),
 new-item dot (3.4).
 
+Second round: two new small wins join the list just below the top three, because each is an
+afternoon and saves real frustration: **buy back** (2.9, S, low risk) and **bulk melt and sell of
+common items** (2.10, S, low risk). The plural fix (4.6) is an hour and repairs visible text today.
+Nothing in the original top ten has been done yet, and none of it has become less important (see 6).
+
 ## 6. Roadmap: follow-up threads
 
 Each line is one thread with one pull request (or a short series), in an order where each step
 prepares the next. The first three are groundwork the player does not see.
 
-1. **Run all tests in CI** (4.5). Loop over `tests/*.gd` with a skip list; fix or skip today's
-   failures with reasons.
-2. **Save migrations** (4.3). `SaveMigrations`, `CURRENT := 2`, a frozen version-1 save and its test.
-3. **Item kinds in the item table** (2.8). `kind` and `stack` on every entry, predicates read them,
-   `tests/item_schema.gd`.
-4. **Compare in the bag** (2.2). Reuse the `TradeWindow` cards in the inventory's details area.
-5. **Fast item actions and sort** (2.3, 2.4). Double-click, right-click, Shift-click, a Sort button;
-   update `SHORTCUTS` and the README.
-6. **Loot rules** (2.1). "Leave on the floor", the rarity switch, floor labels; a test that quest items
-   are always taken.
-7. **Input actions** (3.1, step one). Every key as an `InputMap` action, no visible change, a test per
-   default key.
-8. **Settings window** (3.3, 3.2, 3.1 step two). Sound, Display (text size, shake, solid backgrounds),
-   Controls (rebinding), Loot.
-9. **Quick slots** (2.5). Three slots on 1–3, power on 4, save migration v2 → v3, patch note.
-10. **Split `game.gd`** (4.1). `SaveGame`, `Hud`, `InputRouter`, one PR each.
-11. **Split `menus.gd`** (4.1). One script per window under `scripts/windows/`.
-12. **HUD polish** (1.2, 1.3, 1.4, 3.4). Minimap, target ring, log filters, new-item dot; one thread
-    each if preferred.
+**State on 8 November 2026** (checked against `76eaaaf`, the open pull requests #499, #501 and
+#502, and the project's threads): none of the twelve steps has been started. The 47 commits since
+the first review were cave styles, slimes, forging, stairs and the event log's scroll bar; they
+touched `game.gd` and `menus.gd` in only 22 lines. The reasons for each step still hold, and two have
+grown, as the table shows.
+
+| # | Thread | Sections | State | What the repo shows today |
+|---|---|---|---|---|
+| 1 | **Run all tests in CI.** Loop over `tests/*.gd` with a skip list; fix or skip today's failures with reasons. | 4.5 | Not started; **gap grew** | 204 tests, still the same 156 named in `.github/workflows/web.yml`; 48 never run (was 45; two are the profile runs, rightly skipped), including the three added since: `slime_siege.gd`, `stairs_down.gd`, `wall_themes.gd`. Every new test is missed by default. |
+| 2 | **Save migrations.** `SaveMigrations`, `CURRENT := 2`, a frozen version-1 save and its test. | 4.3 | Not started | `"version": 1` unchanged (`game.gd:3868`). |
+| 3 | **Item kinds in the item table.** `kind` on every entry, stacking derived from it, predicates read it, `tests/item_schema.gd`. | 2.8 | Not started | Still 13 `is_*` predicates in `items.gd`, `STACK` and `STACK_SLOTS` as side tables. |
+| 4 | **Compare in the bag.** Reuse the `TradeWindow` cards in the inventory's details area. | 2.2 | Not started | `TradeWindow.compare_with_worn` and `diffs` are static and ready to reuse. |
+| 5 | **Fast item actions, sort, and the small shop wins.** Double-click, right-click, Shift-click, a Sort button; buy back; bulk melt and sell of common items; plural forms. | 2.3, 2.4, 2.9, 2.10, 4.6 | Not started; **widened** | No `_get_drag_data`, no double-click handling in `menus.gd`; "1 Dinge" still shows. |
+| 6 | **Loot rules.** "Leave on the floor", the rarity switch, floor labels in rarity colours, `Items.always_picked`; a test that quest items are always taken. | 2.1 | Not started | Walk-over pickup unchanged. |
+| 7 | **Input actions.** Every key as an `InputMap` action, no visible change, a test per default key. | 3.1 | Not started | Still no `[input]` section in `project.godot`; 34 `KEY_*` checks in `game.gd`. |
+| 8 | **Settings window.** One declared `Settings` table; pages Sound, Display (text size, shake, solid backgrounds), Controls (rebinding after Godot's demo), Loot. | 3.1–3.3 | Not started | Settings still in three files (`music.gd`, `sfx.gd`, `event_log.gd`). |
+| 9 | **Quick slots.** Three slots on 1–3, power on 4, save migration v2 → v3, patch note. | 2.5 | Not started | `game._setup_quick_bar` unchanged. |
+| 10 | **Split `game.gd`.** `SaveGame`, `Hud`, `InputRouter`, one PR each. | 4.1 | Not started; **gap grew** | 7,156 lines, 326 functions (was 7,146 and 308). |
+| 11 | **Split `menus.gd`.** One script per window under `scripts/windows/`. | 4.1 | Not started; **gap grew** | 4,602 lines, 562 references to `game.` (was 4,596 and about 560). |
+| 12 | **HUD polish.** Minimap, target ring, log filters, new-item dot; one thread each if preferred. | 1.2–1.4, 3.4 | Not started; one neighbour done | The event log got a slim scroll bar (#490), which the filter chips of 1.4 must sit beside without moving it. |
+
+The order still holds with one change: step 1 should go first and soon, because every new feature
+thread adds a test that CI then skips. Steps 2 and 3 are the base for steps 6 and 9.
 
 Every visible change in 4 to 12 follows the `ux-ui` checklist and adds a line to
 `docs/patch_notes.txt`.
+
+## 7. What changed since the first review
+
+- **New in the game, relevant here:** the event log's scroll bar (#490), auto-attack paused while
+  sneaking (#493), the forging roll with a skill-based chance (#481), and the home hoard counted in
+  the bank (#481). None of them changes a recommendation. The first round missed three things the
+  game already did (the pouch and purse, the stores' "Alle" buttons, and the crafting menus' missing
+  materials); they are now in "What Escape already does well".
+- **Corrections to the first round:** the stores' "Alle" buttons already do what GW2's *Deposit All
+  Materials* does, so 2.4's "tidy" part is only about the bag. Selling is not lost for good (sold
+  items go back into `shop_stock`), which 2.9 now builds on rather than treating selling as final.
+- **New suggestions:** 2.9 buy back, 2.10 bulk actions on common items, and a concrete plural bug
+  for 4.6.
+- **Deeper code notes:** Veloren (2.8), RuneLite's ground-item settings (2.1) and declared settings
+  (3.3), Path of Exile's filters (2.1), Godot's remapping demo (3.1), Canary's fixed attribute
+  numbers (4.3), FFXIV's HUD layouts (1.1), and ClassicUO's grid loot window, below.
+- **ClassicUO, for the chest and corpse grids:** `GridLootGump` shows non-stackable items first and
+  stacks after them, in 50 px cells with fixed gaps inside a fixed 300 × 420 window, and pages
+  instead of growing; a stack gets a small amount slider before it is taken. Escape's grids already
+  keep a fixed size; the ordering (gear first, stacks after) is a cheap rule for the Sort button of
+  2.4, and the amount slider is the answer if moving part of a stack between bag and chest is ever
+  needed (today the chest moves single items, `Menus._store` and `_take`).
+- **Looked at and left out:** GW2's account-wide wardrobe and FFXIV's free HUD layouts (no account,
+  one hero; see 1.1), ESO's craft bag as a subscription perk (Escape's pouch already gives it to
+  everyone), Veloren's entity-component system (a rewrite, not a step; Godot's nodes plus the event
+  bus serve the same purpose here).
 
 ---
 
@@ -497,6 +633,43 @@ Every visible change in 4 to 12 follows the `ux-ui` checklist and adds a line to
 **World of Warcraft emulators**
 - AzerothCore, `ItemTemplate` (stackable, quality, predicates):
   https://azerothcore.org/doxygen/d4/d69/structItemTemplate.html
+
+**Guild Wars 2**
+- Guild Wars 2 Wiki, *Inventory* (Compact, Deposit All Materials, salvage all by rarity, special
+  bags, new-item highlights): https://wiki.guildwars2.com/wiki/Inventory
+- Guild Wars 2 Wiki, *Material Storage*: https://wiki.guildwars2.com/wiki/Material_Storage
+- ArenaNet, *Updating Your Wallet*: https://www.guildwars2.com/en/news/updating-your-wallet/
+- Guild Wars 2 Wiki, *Merchant* (buyback): https://wiki.guildwars2.com/wiki/Merchant
+
+**Final Fantasy XIV**
+- Square Enix, *UI Guide: HUD Layout* (four layouts, Display Element, size steps with Ctrl+Home):
+  https://na.finalfantasyxiv.com/uiguide/know/know-hud/hud-layout.html
+
+**The Elder Scrolls Online and The Lord of the Rings Online**
+- ESO-Hub, *Craft Bag (ESO Plus feature)*: https://eso-hub.com/en/guides/craft-bag-eso-plus-feature
+- LOTRO Wiki, *Wallet*: https://lotro-wiki.com/wiki/Wallet
+
+**Path of Exile**
+- Grinding Gear Games, *About Item Filters* (Show and Hide blocks, conditions, actions,
+  `Continue`): https://www.pathofexile.com/item-filter/about
+
+**Open-source code read in the second round**
+- Veloren, `common/src/comp/inventory/item/mod.rs` (`ItemKind`, `Quality`, `is_stackable`,
+  `max_amount`): https://github.com/veloren/veloren/blob/master/common/src/comp/inventory/item/mod.rs
+- Veloren, `assets/common/items/consumable/potion_minor.ron`:
+  https://github.com/veloren/veloren/blob/master/assets/common/items/consumable/potion_minor.ron
+- Veloren, `assets/voxygen/i18n/en/hud/bag.ftl` (Fluent plural selectors):
+  https://github.com/veloren/veloren/blob/master/assets/voxygen/i18n/en/hud/bag.ftl
+- Veloren book, *ECS*: https://book.veloren.net/contributors/developers/ecs.html
+- Canary (OpenTibia), `src/items/items_definitions.hpp`:
+  https://github.com/opentibiabr/canary/blob/main/src/items/items_definitions.hpp
+- ClassicUO, `GridLootGump.cs`:
+  https://github.com/ClassicUO/ClassicUO/blob/main/src/ClassicUO.Client/Game/UI/Gumps/GridLootGump.cs
+- RuneLite, `GroundItemsConfig.java`:
+  https://github.com/runelite/runelite/blob/master/runelite-client/src/main/java/net/runelite/client/plugins/grounditems/GroundItemsConfig.java
+- Godot demo projects, `gui/input_mapping/ActionRemapButton.gd`:
+  https://github.com/godotengine/godot-demo-projects/blob/master/gui/input_mapping/ActionRemapButton.gd
+- Warcraft Wiki, *Buyback*: https://warcraft.wiki.gg/wiki/Buyback
 
 **Accessibility and Godot**
 - *Game Accessibility Guidelines*, basic level: https://gameaccessibilityguidelines.com/basic/

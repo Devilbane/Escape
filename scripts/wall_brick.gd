@@ -5,7 +5,7 @@ extends StaticBody3D
 ## slime can eat into it (hurt) and the stonemason builds it up again (mend).
 ##
 ## The wall shows what has happened to it: the stones go darker and greener
-## where slime has been at them, fall off one after another as the HP run
+## where slime has been at them, crack in three stages (see WallCracks), fall off one after another as the HP run
 ## down (a gap in the wall before the brick is gone), and a destroyed brick
 ## is a heap of rubble that lets everyone through until it is mended. A
 ## number over the brick tells its HP while it is hurt.
@@ -51,6 +51,8 @@ var shut := true
 
 var _visual := Node3D.new()
 var _stones: Array[MeshInstance3D] = []
+## The cracks of each stone (see WallCracks), in the order of `_stones`.
+var _cracks: Array = []
 var _leaves: Array[Node3D] = []
 var _body_shape: CollisionShape3D
 var _leaf_shape: CollisionShape3D
@@ -98,6 +100,7 @@ func _block(parent: Node3D, pos: Vector3, half: bool, shade: Color) -> MeshInsta
 	if half:
 		mi.scale.x = 0.5
 	parent.add_child(mi)
+	_cracks.append(WallCracks.add_to(mi, _cracks.size() + cell.x * 3 + cell.y))
 	return mi
 
 
@@ -262,6 +265,7 @@ func _refresh() -> void:
 	if _leaf_shape != null:
 		_leaf_shape.disabled = not blocks()
 	var damage := 1.0 - frac
+	var crack_stage := WallCracks.stage(frac)
 	# The stones darken and take on the goo's green as the wall is eaten away.
 	var step := roundi(damage * SHADE_STEPS) / float(SHADE_STEPS)
 	for i in _stones.size():
@@ -269,6 +273,7 @@ func _refresh() -> void:
 		var base: Color = StoneBlock.SHADES[(cell.x * 7 + cell.y * 3 + i) % StoneBlock.SHADES.size()]
 		var shade := base.darkened(0.45 * step).lerp(GOO, 0.3 * step)
 		stone.material_override = StoneBlock.stone_material(shade)
+		WallCracks.show_stage(_cracks[i], crack_stage)
 		if gate:
 			continue
 		var share: float = STONES[i][3]

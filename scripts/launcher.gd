@@ -36,7 +36,7 @@ const GAME_EXE := "Escape.exe"
 const INSTALLED := "installed.json"
 ## The last patch notes seen, so they show even before (or without) a connection.
 const NOTES_FILE := "patch_notes.txt"
-const NOTES_MAX := 8000
+const NOTES_MAX := 16000
 const NO_NEWS := "Noch keine Neuigkeiten."
 const NOTES_HEIGHT := 160.0
 const NOTES_TEXT := Color(0.86, 0.83, 0.78)
@@ -127,6 +127,21 @@ static func playable(have: Dictionary) -> bool:
 static func valid_manifest(data) -> bool:
 	return data is Dictionary and String(data.get("build", "")) != "" \
 		and String(data.get("pack_sha256", "")).length() == 64 and int(data.get("pack_size", 0)) > 0
+
+
+## The part of the patch notes that ships: the header comments and the newest `keep` sections, so
+## older history stays in docs/patch_notes.txt without growing the download (tools/recent_notes.py
+## does the same for the release).
+static func recent_notes(text: String, keep: int = 2) -> String:
+	var out := []
+	var seen := 0
+	for line in text.split("\n"):
+		if line.begins_with("##"):
+			seen += 1
+			if seen > keep:
+				break
+		out.append(line)
+	return "\n".join(out).strip_edges(false, true) + "\n"
 
 
 ## Turns the patch notes text into lines to show: ["h", "Heading"], ["li", "A change"] or

@@ -1,9 +1,11 @@
 # Patch notes shown by the Windows launcher while the game downloads (scripts/launcher.gd).
 # Written for players, in English: new features, fixes and balance changes, one short line each.
 # "## Heading" starts a section, "- text" is a change, a line starting with a single "#" is a
-# comment. Newest section first; fold older sections together to stay well under 8000 characters.
+# comment. Newest section first. Only the newest two sections ship in the client; older ones stay here as
+# history, so nothing needs trimming. Keep those two sections well under 16000 characters.
 
 ## Latest changes
+- The launcher now shows only the newest two sections of the patch notes, so old notes no longer need trimming.
 - Stepping out of the crypt now starts a two-minute run to the village: nothing can hurt you (blows, traps, poison, bleeding, fire) while the shield countdown shows, and it ends early when you reach the village.
 - The plain, unlit timber frames in the mine tunnels (bare brown beams with no texture or lighting) are gone.
 - A backpack you lost (your bag after being carried off) or set down on the floor now shows on the map as an orange backpack mark, with "Lost backpack" in the legend. The mark is gone once the pack is picked up, emptied or swept away.

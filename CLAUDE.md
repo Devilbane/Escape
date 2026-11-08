@@ -74,6 +74,6 @@ measures them again and checks every walker's speeds.
 ## Patch notes
 
 The Windows launcher shows `docs/patch_notes.txt` while it downloads (the release workflow puts it into
-`version.json` as `notes`). When you change something a player will notice (a feature, a fix, a balance
+`version.json` as `notes`); only its newest two sections ship (`tools/recent_notes.py`). When you change something a player will notice (a feature, a fix, a balance
 change), add one short English line to the top section there; the format is described in the file's header.
 `tests/launcher.gd` checks that the file parses and fits.

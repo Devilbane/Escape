@@ -359,6 +359,11 @@ static func is_crate(id: String) -> bool:
 	return ALL.has(id) and ALL[id].slot == "kiste"
 
 
+## Whether an item is a backpack (see FloorPack for one set down).
+static func is_backpack(id: String) -> bool:
+	return ALL.has(id) and ALL[id].slot == "rucksack"
+
+
 ## Whether an item is a stone block to build with (see StoneBlock).
 static func is_stone(id: String) -> bool:
 	return ALL.has(id) and ALL[id].slot == "stein"

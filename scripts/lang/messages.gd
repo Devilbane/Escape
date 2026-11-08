@@ -2,6 +2,7 @@ extends RefCounted
 ## English texts: Messages. Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
+	"Die Glut versengt dich! Nahe der Risse brennt es, auf ihnen noch mehr.": "The embers scorch you! It burns near the cracks, and more on them.",
 	"Die Tür öffnet sich knarrend...": "The door creaks open...",
 	"Verschlossen. Finde den Schlüssel!": "Locked. Find the key!",
 	"Du hast den Schlüssel gefunden!": "You found the key!",
@@ -62,7 +63,6 @@ const EN := {
 	"%s: leer": "%s: empty",
 	"+%d Kupfer": "+%d copper",
 	"+%d Wurfmesser": "+%d throwing knives",
-	"Heiltrank! +2 Leben": "Healing potion! +2 life",
 	"Gefunden: %s (%s)": "Found: %s (%s)",
 	"\nTaste I öffnet das Inventar.": "\nKey I opens the inventory.",
 	"Du durchsuchst %s... nichts.": "You search %s... nothing.",

@@ -597,6 +597,11 @@ jobs:
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/forge.gd | tee forge.log
           grep -q PASS forge.log
 
+      - name: Forge shows needed and missing materials, Gorm's shelf
+        run: |
+          timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/smith_stock.gd | tee smith_stock.log
+          grep -q PASS smith_stock.log && ! grep -q FAIL smith_stock.log
+
       - name: Steel test
         run: |
           timeout 120 ~/godot/godot --headless --fixed-fps 60 -s tests/steel.gd | tee steel.log

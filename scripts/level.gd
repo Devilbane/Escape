@@ -1051,6 +1051,8 @@ func _build_floor(c: Vector2i, ch: String) -> void:
 		return
 	if stern and not SternHall.builds_floor(ch):
 		return
+	if ch == "^":
+		return # The stairs down of a mine are sunk into the ground (see Mines).
 	if ch == "S":
 		var tile := _place("floor_tile_big_spikes", pos)
 		var spikes: Node3D = tile.find_child("spikes", true, false)
@@ -5408,38 +5410,15 @@ func _build_home_floor(c: Vector2i, ch: String) -> void:
 	add_child(floor_piece)
 
 
-## Stairs up rise against the north wall, stairs down sink into a dark
-## shaft through the floor.
+## Stairs up rise against the north wall, stairs down are a flight of stone
+## steps sinking into the floor, darker with every step (see StairsDown).
 func _build_stairs(c: Vector2i, up: bool) -> void:
 	var pos := cell_to_world(c)
 	stairs.append({"cell": c, "up": up, "storey": storey_of(c)})
 	if up:
 		_place("stairs", pos + Vector3(0, 0, -TILE * 0.5))
 		return
-	_place("stairs", pos + Vector3(0, -WALL_DEPTH, -TILE * 0.5))
-	var shaft := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(TILE, WALL_DEPTH, TILE)
-	shaft.mesh = box
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.08, 0.06, 0.05)
-	dark.cull_mode = BaseMaterial3D.CULL_FRONT
-	dark.roughness = 1.0
-	shaft.material_override = dark
-	shaft.position = pos + Vector3(0, -WALL_DEPTH * 0.5, 0)
-	add_child(shaft)
-	# A rim of planks round the hole.
-	var rim := StandardMaterial3D.new()
-	rim.albedo_color = Color(0.36, 0.25, 0.17)
-	rim.roughness = 0.9
-	for side: Vector3 in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1)]:
-		var beam := MeshInstance3D.new()
-		var b := BoxMesh.new()
-		b.size = Vector3(0.2, 0.12, TILE) if side.x != 0.0 else Vector3(TILE, 0.12, 0.2)
-		beam.mesh = b
-		beam.material_override = rim
-		beam.position = pos + side * (TILE * 0.5 - 0.1) + Vector3(0, 0.06, 0)
-		add_child(beam)
+	StairsDown.build(self, pos, TILE)
 
 
 ## How deep the stairs down of a home reach below the floor.

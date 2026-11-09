@@ -169,7 +169,11 @@ func _process(_delta: float) -> bool:
 				slime.global_position += Vector3(40, 0, 0)
 				slime.reset_physics_interpolation()
 			if stage_frames == 260:
-				check(villager._task != "fight" and not _blade(villager), "with the slime gone the villager puts the blade away")
+				check(villager._task != "fight", "with the slime gone the villager stops fighting")
+			# The blade goes back a moment after the danger (Villager.SHEATHE_DELAY).
+			if stage_frames == 260 + int(Villager.SHEATHE_DELAY * 60.0) + 60:
+				check(not _blade(villager), "then the villager puts the blade away")
+			if stage_frames == 260 + int(Villager.SHEATHE_DELAY * 60.0) + 60:
 				# A timid one runs indoors.
 				villager.brave = false
 				slime.global_position = villager.global_position + Vector3(3.0, 0, 0)

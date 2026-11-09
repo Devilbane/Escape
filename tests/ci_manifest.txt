@@ -218,4 +218,5 @@ prison_bars.gd | 60 | free | passfail | Prison bars (a cell's wall of bars is tu
 woods_life.gd | 180 | fixed | pass | Woods wildlife (birds in the treetops, squirrels that run up their trees)
 village_farm.gd | 300 | fixed | pass | Village geese, goats and dogs (wander, never block a door, bolt or greet, rest at night, Pip minds the goats)
 pips_friend.gd | 300 | fixed | pass | Pippi, Pip's red-haired friend with pigtails and freckles (herds geese and goats, plays and chats with Pip, blocks no way)
+villager_walls.gd | 120 | fixed | pass | Villagers never cross walls or shut gates
 red_goat.gd | 120 | fixed | passfail | Red-horned goat (winds up and shouts, bumps without harm, retreats after 3 bumps, 10 minute cooldown, cannot be hurt)

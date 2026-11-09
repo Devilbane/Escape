@@ -187,6 +187,11 @@ const HAMMER_RAISED := 0.5
 ## After the last blow of a few the swing plays backwards all the way down
 ## to where it started, the hammer hanging as it does at rest.
 const HAMMER_LOWERED := 0.04
+## Weapon parts of the models; hidden while all is quiet (see sheathe_weapons).
+const WEAPON_PARTS := ["1H_Sword", "1H_Axe", "2H_Axe"]
+## How long a drawn blade stays out after the danger is gone, so it does not
+## flicker when a slime wavers at the edge of sight.
+const SHEATHE_DELAY := 1.5
 
 var level: Outdoor
 var role := "7"
@@ -200,6 +205,8 @@ var eaten := false
 var threat: Enemy = null
 var brave := false
 var _blow_cool := 0.0
+## Counts down after the danger; at zero the blade is sheathed. -1: not waiting.
+var _sheathe_in := -1.0
 var _calm_check := 0.0
 var display_name := ""
 var _info: Dictionary
@@ -371,6 +378,19 @@ func _ready() -> void:
 ## Hats, capes and tools for the role, and clothes in the role's colours.
 func _dress() -> void:
 	dress_model(_model, _info)
+	sheathe_weapons(_model, _info)
+
+
+## Blades and axes are put away until there is danger (see _draw_blade): the
+## model's own weapon is hidden, except for the tool of a trade that swings it
+## all day (the woodcutter's and the mason's axe). Shields and helmets stay.
+static func sheathe_weapons(model: Node3D, info: Dictionary) -> void:
+	if String(info.get("work", "")).contains("Chop"):
+		return
+	for part in WEAPON_PARTS:
+		var mesh := model.find_child(part, true, false)
+		if mesh is Node3D:
+			(mesh as Node3D).visible = false
 
 
 ## Shows the parts in info.show (and the body), hides the rest, puts
@@ -646,7 +666,7 @@ func repost(post: Vector3) -> void:
 func _defend(delta: float) -> void:
 	if not level.village_wall.shut_wanted or defend_post == Vector3.INF:
 		defend_post = Vector3.INF
-		_draw_blade(false)
+		_sheathe_later()
 		_start("idle", _rng.randf_range(0.5, 2.0))
 		return
 	var slime := VillageWall.nearest_slime(level, global_position, DEFEND_SIGHT)
@@ -663,7 +683,7 @@ func _defend(delta: float) -> void:
 		var cell := level.world_to_cell(next)
 		if level.village_wall.is_inside(cell) and not level.astar.is_point_solid(cell) \
 				and Vector2(next.x - defend_post.x, next.z - defend_post.z).length() < POST_ROOM:
-			global_position = Vector3(next.x, 0, next.z)
+			_move_to(Vector3(next.x, 0, next.z))
 			return
 		play("Idle")
 		return
@@ -834,12 +854,28 @@ func alarm(slime: Enemy, called := false) -> void:
 ## The danger is over (the slime fell, went off, or swallowed them).
 func calm_down() -> void:
 	threat = null
-	_draw_blade(false)
+	_sheathe_later()
 	if not at_home:
 		_start("idle", _rng.randf_range(0.5, 2.0))
 
 
+## The blade goes back after SHEATHE_DELAY (see _physics_process).
+func _sheathe_later() -> void:
+	if drawn():
+		_sheathe_in = SHEATHE_DELAY
+
+
+## Whether a blade is out of its sheath right now.
+func drawn() -> bool:
+	var hand := _model.find_child("handslot_r", true, false) if _model != null else null
+	if hand == null:
+		return false
+	var blade := hand.get_node_or_null("SlimeBlade")
+	return blade != null and not blade.is_queued_for_deletion()
+
+
 func _draw_blade(on: bool) -> void:
+	_sheathe_in = -1.0
 	# The priestess keeps her staff and strikes no blow; the smith fights
 	# with the hammer already in his hand.
 	if heals() or VillageArms.weapon(role) == VillageArms.HAMMER:
@@ -849,6 +885,8 @@ func _draw_blade(on: bool) -> void:
 		return
 	var old := hand.get_node_or_null("SlimeBlade")
 	if old:
+		# Out of the tree at once, so the new blade can take its name.
+		hand.remove_child(old)
 		old.queue_free()
 	# The tool in that hand (a hammer, a mug) is put away meanwhile.
 	for c in hand.get_children():
@@ -897,7 +935,7 @@ func _fight(delta: float) -> void:
 		step.y = 0.0
 		var walked := _stride("Running_A", RUN_SPEED)
 		var room := step.length() if not _fight_path.is_empty() else maxf(to.length() - reach + 0.1, 0.0)
-		global_position += step.normalized() * minf(walked * delta, room)
+		_move_to(global_position + step.normalized() * minf(walked * delta, room))
 		_turn_to(step, delta)
 		return
 	_blow_cool -= delta
@@ -949,7 +987,7 @@ func _support(delta: float) -> void:
 	_turn_to(to, delta)
 	if to.length() > VillageArms.SUPPORT_DISTANCE:
 		var step := to.normalized() * _stride("Running_A", RUN_SPEED) * delta
-		global_position += step
+		_move_to(global_position + step)
 	elif not _anim.is_playing() or _current_anim != "Spellcast_Raise":
 		play("Idle")
 
@@ -1187,7 +1225,7 @@ func _keep_apart() -> void:
 		# Two walking about share the step; from a shopkeeper the walker
 		# steps away all by himself.
 		var share := 1.0 if o.keeps_spot() else 0.5
-		global_position += away.normalized() * (room - away.length()) * share
+		_move_to(global_position + away.normalized() * (room - away.length()) * share)
 
 
 func _walk_to(target: Vector3, speed: float, then: String) -> void:
@@ -1209,6 +1247,10 @@ func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
 	_lift_onto_toes(delta)
+	if _sheathe_in >= 0.0:
+		_sheathe_in -= delta
+		if _sheathe_in < 0.0:
+			_draw_blade(false)
 	bump_cool = maxf(0.0, bump_cool - delta)
 	_keep_apart()
 	_mind_torch(delta)
@@ -1299,12 +1341,36 @@ func _walk(delta: float, hero: Node3D) -> void:
 	_waiting = 0.0
 	var walked := _stride("Running_A" if _speed >= RUN_SPEED else ("Walking_B" if _speed < WALK_SPEED else "Walking_A"), _speed)
 	var step := walked * delta
+	var target := Vector3(_path[0].x, 0, _path[0].z) if to.length() <= step else global_position + to.normalized() * step
+	if blocked_at(target) and not blocked_at(global_position):
+		# A gate was shut (or a wall stands) ahead: wait, then find the way again.
+		play("Idle")
+		_waiting += delta
+		if _waiting >= MAKE_WAY:
+			_waiting = 0.0
+			var goal: Vector3 = _path[_path.size() - 1]
+			_walk_to(goal, _speed, get_meta("then", "idle"))
+		return
+	global_position = target
 	if to.length() <= step:
-		global_position = Vector3(_path[0].x, 0, _path[0].z)
 		_path.pop_front()
-	else:
-		global_position += to.normalized() * step
 	_turn_to(to, delta)
+
+
+## Whether a point is inside a wall brick that stops everyone: a standing wall or a shut gate.
+func blocked_at(point: Vector3) -> bool:
+	if level == null or level.village_wall == null:
+		return false
+	var brick := level.village_wall.brick_at(level.world_to_cell(point))
+	return brick != null and brick.blocks()
+
+
+## Moves to a point unless a wall or a shut gate is there. Returns whether it moved.
+func _move_to(point: Vector3) -> bool:
+	if blocked_at(point) and not blocked_at(global_position):
+		return false
+	global_position = Vector3(point.x, global_position.y, point.z)
+	return true
 
 
 ## Whether a point is too close to someone else who keeps their spot.
@@ -1383,7 +1449,7 @@ func _ready_to_chop(delta: float) -> bool:
 	to.y = 0.0
 	if to.length() > 0.05:
 		var step := minf(to.length(), _stride("Walking_B", WALK_SPEED * 0.6) * delta)
-		global_position += to.normalized() * step
+		_move_to(global_position + to.normalized() * step)
 		_turn_to(to, delta)
 		return false
 	_turn_to(_chop_face, delta)

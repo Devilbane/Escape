@@ -95,18 +95,44 @@ static func monster_name(kind: String) -> String:
 	return Creations.MONSTER_NAMES.get(kind, kind)
 
 
-## The hero slew a monster of this kind (the event bus's enemy_slain). When
-## the count reaches a new rank, the hero is told (Events.tell).
+## How many percent of the way to the next rank one more kill takes the hero
+## (0 at the last rank), e.g. 20 at "Unbekannt" and 1 at "Meister".
+static func gain_percent(kind: String) -> float:
+	var rank := rank_of(kind)
+	if rank >= RANKS.size() - 1:
+		return 0.0
+	return 100.0 / float(int(RANKS[rank + 1][0]) - int(RANKS[rank][0]))
+
+
+## A percentage for the word over the hero: whole when it is whole, else one place.
+static func percent_text(pct: float) -> String:
+	return str(int(pct)) if is_equal_approx(pct, roundf(pct)) else str(snappedf(pct, 0.1))
+
+
+## The hero slew a monster of this kind (the event bus's enemy_slain). A brief
+## word over the hero's head tells the gain ("Skeleton lore +5%"), or the new
+## rank when one is reached; the event log only gets one explanation, with
+## the very first kill (Events.gain, Events.found).
 static func on_hero_kill(kind: String) -> void:
 	if kind == "":
 		return
+	var first := known_kinds().is_empty()
 	var before := rank_of(kind)
+	var pct := gain_percent(kind)
 	kills[kind] = kill_count(kind) + 1
 	var after := rank_of(kind)
+	var label := Lang.t(monster_name(kind))
 	if after > before:
-		Events.tell(Lang.t("Monsterkunde: %s, %s") % [Lang.t(monster_name(kind)), Lang.t(rank_name(after))] + "\n"
-				+ Lang.t("%d %% Chance auf Treffer in eine Schwachstelle.") % roundi(vital_chance(kind) * 100.0), VITAL_COLOR)
+		Events.gain(Lang.t("%s-Kunde: %s (%d %% Schwachstellen)") % [label, Lang.t(rank_name(after)), roundi(vital_chance(kind) * 100.0)], VITAL_COLOR)
 		Events.teach(LEARN)
+	elif pct > 0.0:
+		Events.gain(Lang.t("%s-Kunde +%s %%") % [label, percent_text(pct)], VITAL_COLOR)
+	if first:
+		Events.found(Lang.t(EXPLAIN), VITAL_COLOR)
+
+
+## Said once in the event log, at the very first kill.
+const EXPLAIN := "Monsterkunde: Mit jedem besiegten Monster einer Art wächst deine Kunde von ihm. Die Zahl über deinem Kopf zeigt den Fortschritt zur nächsten Stufe."
 
 
 ## What the compendium learns the first time the hero gets to know a kind.

@@ -19,6 +19,9 @@ extends RefCounted
 ## a message and a word over the hero's head (see Game.quest_news).
 ## Use Events.tell.
 signal news_told(text: String, color: Color, duration: float)
+## A skill or monster lore grew: a brief word over the hero's head, such as
+## "Skeleton lore +5%" (see Game.show_gain). Use Events.gain.
+signal gain_shown(text: String, color: Color)
 ## The hero understood something new: it goes into the compendium, once
 ## (see Game.learn). Use Events.teach.
 signal lore_learned(entry: String)
@@ -117,6 +120,12 @@ static func bus() -> Events:
 ## News for the hero to read (see news_told).
 static func tell(text: String, color: Color, duration := 4.0) -> void:
 	bus().news_told.emit(text, color, duration)
+
+
+## A brief word over the hero's head for a gain in a skill or in monster lore
+## (see gain_shown). It does not go into the event log.
+static func gain(text: String, color: Color) -> void:
+	bus().gain_shown.emit(text, color)
 
 
 ## Loot for the event log (see loot_found).

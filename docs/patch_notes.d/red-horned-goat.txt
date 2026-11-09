@@ -1,0 +1,1 @@
+- A red-horned goat among Pip's goats now picks fights: it paws the ground, shouts, charges and bumps you (no damage). It cannot be hurt, gives up after 3 bumps and sulks for 10 minutes.

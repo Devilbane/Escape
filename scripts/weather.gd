@@ -51,6 +51,11 @@ const CHANCES := {
 	"evening": {CLEAR: 8.0, RAIN: 1.25, FOG: 0.5, STORM: 1.5},
 }
 
+## Rain is only a third as common as the weights above would make it: a roll
+## that lands on rain keeps it with this chance, and otherwise goes on to
+## another weather (fog, a storm, or clear skies after bad weather).
+const RAIN_KEEP := 1.0 / 3.0
+
 ## The look of each weather, laid over the light of the hour: how much of
 ## the sun (or moon) and of the ambient light is left, the colour
 ## saturation, how thick the fog is, how hard it rains (0 to 1) and how much
@@ -98,18 +103,26 @@ static func part_of_day(hour: float) -> String:
 ## the weather before, so every change can be seen.
 static func roll(hour: float, rng: RandomNumberGenerator, before := "") -> String:
 	var chances: Dictionary = CHANCES[part_of_day(hour)]
+	var pick := _pick(chances, rng, before, "")
+	if pick == RAIN and rng.randf() >= RAIN_KEEP:
+		pick = _pick(chances, rng, before, RAIN)
+	return pick
+
+
+## One weighted pick among the weathers that are not `before` or `skip`.
+static func _pick(chances: Dictionary, rng: RandomNumberGenerator, before: String, skip: String) -> String:
 	var total := 0.0
 	for kind in chances:
-		if kind != before:
+		if kind != before and kind != skip:
 			total += chances[kind]
 	var pick := rng.randf() * total
 	for kind in chances:
-		if kind == before:
+		if kind == before or kind == skip:
 			continue
 		pick -= chances[kind]
 		if pick <= 0.0:
 			return kind
-	return CLEAR if before != CLEAR else RAIN
+	return CLEAR if before != CLEAR else FOG
 
 
 ## How many hours a new spell of weather lasts: clear skies stay longer

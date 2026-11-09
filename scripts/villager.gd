@@ -878,6 +878,8 @@ func _draw_blade(on: bool) -> void:
 		return
 	var old := hand.get_node_or_null("SlimeBlade")
 	if old:
+		# Out of the tree at once, so the new blade can take its name.
+		hand.remove_child(old)
 		old.queue_free()
 	# The tool in that hand (a hammer, a mug) is put away meanwhile.
 	for c in hand.get_children():

@@ -23,6 +23,9 @@ const SPEED := 5.2
 ## Walking pace as a share of SPEED: about 1.8 m/s, as fast as the short
 ## legs of the walk animation step without sliding (see Stride).
 const WALK_FACTOR := 0.34
+## The most the base speed (Tempo, gear, gifts, level, companions) can reach, as a
+## share of SPEED. The run's boost and the slowing ailments are counted after it.
+const BASE_SPEED_CAP := 1.5
 ## Running speeds up to this many times the walking pace (twice: 3.6 m/s)...
 const RUN_TOP := 2.0
 ## ...over this many seconds of holding the run,
@@ -180,6 +183,10 @@ var block_chance := 0.0
 const BLOCK_WEAR_CHANCE := 0.2
 ## Speed from gifts, worn items and ailments, before the load is counted.
 var base_speed := SPEED
+## Whether the Tempo, gear, gifts and level would give more than BASE_SPEED_CAP.
+var base_speed_capped := false
+## The base speed they add up to before the cap, as a share of SPEED (1.0 = 100 %).
+var base_speed_wanted := 1.0
 ## The speed the hero really runs at: everything carried (worn or in the bag)
 ## weighs them down.
 var speed: float:
@@ -1900,7 +1907,9 @@ func refresh_stats() -> void:
 	speed_bonus += HeroLevel.speed_bonus(hero)
 	max_hp = MAX_HP + hp_bonus + attribute("konstitution") - Training.ATTRIBUTES.konstitution.start
 	power = 1 + power_bonus + attribute("staerke") - Training.ATTRIBUTES.staerke.start
-	base_speed = SPEED * (1.0 + speed_bonus) * attribute("tempo") / 100.0
+	base_speed_wanted = (1.0 + speed_bonus) * attribute("tempo") / 100.0
+	base_speed_capped = base_speed_wanted > BASE_SPEED_CAP + 0.0001
+	base_speed = SPEED * minf(base_speed_wanted, BASE_SPEED_CAP)
 	if ailments.has("fluch"):
 		base_speed *= CURSE_SLOW
 	if ailments.has("netz"):

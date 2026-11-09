@@ -147,6 +147,9 @@ func _run() -> void:
 	# on every storey stay open: door, stairs, bed, chests and workbench.
 	var cells := {}
 	var spots := lvl.furniture_slots.map(func(slot): return slot.cell)
+	for slot in lvl.furniture_slots:
+		var hung := lvl._wall_pieces.any(func(w): return str(w.kind).begins_with("decor") and w.pos.distance_to(slot.pos) < Level.TILE * 0.6)
+		check(not hung, "no banner or sword and shield hangs behind the furniture spot %s" % slot.cell)
 	for id in lvl._upgrade_cells:
 		var c: Vector2i = lvl._upgrade_cells[id]
 		check(spots.has(c), "%s stands on a furniture spot" % id)

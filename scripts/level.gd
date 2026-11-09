@@ -1190,7 +1190,10 @@ func _build_walls(c: Vector2i) -> void:
 			_wall_torches.append({"holder": torch, "cell": c, "pos": pos, "rot": rot})
 		elif piece == "wall" and _rng.randf() < 0.18:
 			var pick := _rng.randi() % WALL_DECOR.size()
-			if not by_stairs:
+			# No banner or sword and shield behind a furniture spot of the hero's house: the trophy wall
+			# or a bench stands there. (The roll is made first, so the other rolls stay as they were.)
+			var spot_of_house := is_home and cell_char(c) == "+"
+			if not by_stairs and not spot_of_house:
 				# The same banner or sword close by: another one, or none.
 				for i in WALL_DECOR.size():
 					var k := (pick + i) % WALL_DECOR.size()

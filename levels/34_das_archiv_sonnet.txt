@@ -11,7 +11,7 @@ up: spire3
 down: spire5
 secret: selten
 custom: 2 {"type":"npc","name":"Bruder Orlan","model":"Mage","sex":"male","show":["Mage_Hat","Spellbook_open"],"colors":["#7a6a8c","#594d40","#8c7340"],"pose":"Sit_Floor_Idle","lines":["Psst. Hier drüben, hinter den Gittern."],"quest":"prisoner"}
-custom: 3 {"type":"monster","base":"magier","name":"Archivar Veth","hp":80,"damage":4,"armor":2,"size":1.4,"speed":3.8,"cooldown":2.2,"gold":60,"tint":"#6a5aa0"}
+custom: 3 {"type":"monster","base":"magier","name":"Archivar Veth","hp":800,"damage":4,"armor":2,"size":1.4,"speed":3.8,"cooldown":2.2,"gold":60,"tint":"#6a5aa0","special":"nova"}
 ####################################################
 ##E#################################################
 #.P...f..###########################################

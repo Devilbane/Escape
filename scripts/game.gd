@@ -6587,6 +6587,9 @@ func _process(delta: float) -> void:
 	if _quest_mark_timer <= 0.0:
 		_quest_mark_timer = 0.25
 		refresh_quest_marks()
+		# Tasks bound to this place stay pinned in the event log.
+		if player != null and level != null:
+			event_log.set_tasks(quests.board())
 	# The villagers chat with each other while the world runs.
 	if level is Outdoor and state == State.PLAYING and not menus.is_open() and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		village_talk.update(delta, level)

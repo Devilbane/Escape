@@ -2,6 +2,12 @@ extends RefCounted
 ## English texts: The Ashen Spire (see AshSpire). Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
+	"Zwei verborgene Orte im Aschenturm": "Two hidden places in the Ashen Spire",
+	"Bruder Orlan im Archiv des Aschenturms": "Brother Orlan in the Ashen Spire's archive",
+	"Ein Trank für Bruder Orlan": "A potion for Brother Orlan",
+	"Bring Bruder Orlan im Archiv des Aschenturms einen Heiltrank. Er sitzt hinter den Gittern seiner Zelle.": "Bring Brother Orlan in the Ashen Spire's archive a healing potion. He sits behind the bars of his cell.",
+	"Bruder Orlan wartet im Archiv auf einen Heiltrank.": "Brother Orlan is waiting in the archive for a healing potion.",
+	"Bring Bruder Orlan einen Heiltrank: %s": "Bring Brother Orlan a healing potion: %s",
 	"Dagegenlaufen, um das Grimoire an dich zu nehmen": "Run into it to take the grimoire",
 	"Dagegenlaufen, um dich am Vorrat zu bedienen": "Run into it to help yourself to the supplies",
 	"Dagegenlaufen, um deine Ausrüstung am Amboss auszubessern": "Run into it to mend your gear at the anvil",

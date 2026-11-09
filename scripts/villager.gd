@@ -178,6 +178,11 @@ const HAMMER_RAISED := 0.5
 ## After the last blow of a few the swing plays backwards all the way down
 ## to where it started, the hammer hanging as it does at rest.
 const HAMMER_LOWERED := 0.04
+## Weapon parts of the models; hidden while all is quiet (see sheathe_weapons).
+const WEAPON_PARTS := ["1H_Sword", "1H_Axe", "2H_Axe"]
+## How long a drawn blade stays out after the danger is gone, so it does not
+## flicker when a slime wavers at the edge of sight.
+const SHEATHE_DELAY := 1.5
 
 var level: Outdoor
 var role := "7"
@@ -191,6 +196,8 @@ var eaten := false
 var threat: Enemy = null
 var brave := false
 var _blow_cool := 0.0
+## Counts down after the danger; at zero the blade is sheathed. -1: not waiting.
+var _sheathe_in := -1.0
 var _calm_check := 0.0
 var display_name := ""
 var _info: Dictionary
@@ -359,6 +366,19 @@ func _ready() -> void:
 ## Hats, capes and tools for the role, and clothes in the role's colours.
 func _dress() -> void:
 	dress_model(_model, _info)
+	sheathe_weapons(_model, _info)
+
+
+## Blades and axes are put away until there is danger (see _draw_blade): the
+## model's own weapon is hidden, except for the tool of a trade that swings it
+## all day (the woodcutter's and the mason's axe). Shields and helmets stay.
+static func sheathe_weapons(model: Node3D, info: Dictionary) -> void:
+	if String(info.get("work", "")).contains("Chop"):
+		return
+	for part in WEAPON_PARTS:
+		var mesh := model.find_child(part, true, false)
+		if mesh is Node3D:
+			(mesh as Node3D).visible = false
 
 
 ## Shows the parts in info.show (and the body), hides the rest, puts
@@ -634,7 +654,7 @@ func repost(post: Vector3) -> void:
 func _defend(delta: float) -> void:
 	if not level.village_wall.shut_wanted or defend_post == Vector3.INF:
 		defend_post = Vector3.INF
-		_draw_blade(false)
+		_sheathe_later()
 		_start("idle", _rng.randf_range(0.5, 2.0))
 		return
 	var slime := VillageWall.nearest_slime(level, global_position, DEFEND_SIGHT)
@@ -822,12 +842,28 @@ func alarm(slime: Enemy, called := false) -> void:
 ## The danger is over (the slime fell, went off, or swallowed them).
 func calm_down() -> void:
 	threat = null
-	_draw_blade(false)
+	_sheathe_later()
 	if not at_home:
 		_start("idle", _rng.randf_range(0.5, 2.0))
 
 
+## The blade goes back after SHEATHE_DELAY (see _physics_process).
+func _sheathe_later() -> void:
+	if drawn():
+		_sheathe_in = SHEATHE_DELAY
+
+
+## Whether a blade is out of its sheath right now.
+func drawn() -> bool:
+	var hand := _model.find_child("handslot_r", true, false) if _model != null else null
+	if hand == null:
+		return false
+	var blade := hand.get_node_or_null("SlimeBlade")
+	return blade != null and not blade.is_queued_for_deletion()
+
+
 func _draw_blade(on: bool) -> void:
+	_sheathe_in = -1.0
 	# The priestess keeps her staff and strikes no blow; the smith fights
 	# with the hammer already in his hand.
 	if heals() or VillageArms.weapon(role) == VillageArms.HAMMER:
@@ -1180,6 +1216,10 @@ func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
 	_lift_onto_toes(delta)
+	if _sheathe_in >= 0.0:
+		_sheathe_in -= delta
+		if _sheathe_in < 0.0:
+			_draw_blade(false)
 	_keep_apart()
 	_mind_torch(delta)
 	station.pos = global_position

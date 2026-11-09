@@ -56,6 +56,15 @@ func _held(v: Villager) -> Node:
 	return blade if blade != null and not blade.is_queued_for_deletion() else null
 
 
+## Whether a weapon part of the model itself is in sight.
+func _visible_weapon(v: Villager) -> bool:
+	for part in Villager.WEAPON_PARTS:
+		var m := v._model.find_child(part, true, false)
+		if m is Node3D and (m as Node3D).visible:
+			return true
+	return false
+
+
 func _process(_delta: float) -> bool:
 	frames += 1
 	if frames < 5:
@@ -109,6 +118,22 @@ func _process(_delta: float) -> bool:
 			check(not priestess._heal_someone(), "and nobody who is whole")
 			priestess.calm_down()
 			guard.calm_down()
+			# Danger over: the blade stays out a moment, then goes back.
+			check(guard.drawn(), "the guard's blade is still out right after the danger")
+			guard._physics_process(Villager.SHEATHE_DELAY + 0.1)
+			check(not guard.drawn(), "and is sheathed after the short delay")
+			# At peace the guard shows no weapon, the woodcutter keeps his working axe.
+			check(not _visible_weapon(guard), "the calm guard carries no visible weapon")
+			check(_visible_weapon(_villager(out, "3")), "the woodcutter's working axe stays in sight")
+			check(not _visible_weapon(_villager(out, "G")), "the guild master's axe is put away")
+			guard.alarm(slime)
+			check(guard.drawn() and not _visible_weapon(guard), "danger draws only the fighting blade")
+			guard.calm_down()
+			guard.alarm(slime)
+			guard._physics_process(Villager.SHEATHE_DELAY + 0.1)
+			check(guard.drawn(), "a new alarm cancels the sheathing")
+			guard.calm_down()
+			guard._physics_process(Villager.SHEATHE_DELAY + 0.1)
 			# Pip throws knives from afar.
 			_out_and_about(pip)
 			slime.global_position = pip.global_position + Vector3(5.0, 0, 0)

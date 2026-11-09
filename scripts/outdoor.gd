@@ -202,6 +202,8 @@ const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 
 var villagers: Array = []
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
+## The village's geese, goats and dogs (see VillageFarm and FarmAnimal).
+var farm_animals: Array[FarmAnimal] = []
 ## The herald's call to arms against slimes in the village (see VillageAlarm).
 var village_alarm := VillageAlarm.new()
 ## The wall round the village and its gates, mended by the stonemason (see VillageWall).
@@ -499,6 +501,7 @@ func build() -> void:
 	_build_war_horn()
 	_spawn_wild()
 	_spawn_animals()
+	farm_animals = VillageFarm.spawn(self)
 	# The old dragon's little helpers, who gather the loot at night.
 	if doors.has("E"):
 		add_child(DragonHelpers.new(self, doors.E))

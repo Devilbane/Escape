@@ -1221,14 +1221,11 @@ func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
 	_lift_onto_toes(delta)
-<<<<<<< HEAD
 	if _sheathe_in >= 0.0:
 		_sheathe_in -= delta
 		if _sheathe_in < 0.0:
 			_draw_blade(false)
-=======
 	bump_cool = maxf(0.0, bump_cool - delta)
->>>>>>> origin/main
 	_keep_apart()
 	_mind_torch(delta)
 	station.pos = global_position

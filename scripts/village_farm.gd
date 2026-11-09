@@ -2,8 +2,9 @@ class_name VillageFarm
 extends RefCounted
 ## Puts the village's animals out on its meadows (see FarmAnimal): a flock of
 ## geese on the south meadow, a few goats on the west meadow with the boy Pip,
-## who looks after them (see Villager, "herds"), and two dogs: one that keeps
-## Pip's goats company, one at the farm in the south-east corner.
+## who looks after them (see Villager, "herds"), sheep on the north-west
+## meadow, two cows and a bull on the east meadow, and two dogs: a Shiba Inu
+## that keeps Pip's goats company and a Husky at the farm in the south-east corner.
 ##
 ## The spots are given as tiles of the village map; each one is moved to the
 ## nearest tile where an animal may stand (see FarmAnimal.may_stand), and
@@ -14,8 +15,11 @@ extends RefCounted
 const HERDS := [
 	{"kind": "goose", "at": Vector2i(46, 40), "count": 6, "coats": ["", "", "", "", "", "grey"]},
 	{"kind": "goat", "at": Vector2i(40, 30), "count": 4, "coats": ["", "brown", "", "black"]},
+	{"kind": "sheep", "at": Vector2i(40, 23), "count": 4, "coats": [""]},
 	{"kind": "dog", "at": Vector2i(41, 33), "count": 1, "coats": [""]},
 	{"kind": "dog", "at": Vector2i(57, 40), "count": 1, "coats": ["black"]},
+	{"kind": "cow", "at": Vector2i(59, 27), "count": 2, "coats": [""]},
+	{"kind": "bull", "at": Vector2i(58, 31), "count": 1, "coats": [""]},
 ]
 ## Where Pip stands to mind the goats, next to the herd's home tile.
 const PIP_AT := Vector2i(42, 31)

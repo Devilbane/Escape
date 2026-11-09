@@ -3,6 +3,7 @@ The peaceful animals of the woods (between the graveyard and the village)
 Deer.glb    "Deer" from "Ultimate Animated Animals" (July 2021) by Quaternius
 Stag.glb    "Stag" from "Ultimate Animated Animals" (July 2021) by Quaternius
 Fox.glb     "Fox" from "Ultimate Animated Animals" (July 2021) by Quaternius
+Husky.glb, ShibaInu.glb, Cow.glb, Bull.glb   the same pack (the village's dogs, cows and bull)
 
 https://quaternius.com
 License: Creative Commons Zero (CC0 1.0), public domain.

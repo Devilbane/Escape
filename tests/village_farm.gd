@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless test for the village's animals (see VillageFarm and FarmAnimal):
-## the geese, goats and dogs are out on the meadows, never stand on a front
+## the geese, goats, sheep, cows, bull and dogs are out on the meadows, never stand on a front
 ## step or at a gate, geese and goats bolt from the hero (the flock together),
 ## a dog comes over to say hello, and Pip, who looks after the goats, has a
 ## spot beside them and lines about the animals with an English text.
@@ -95,6 +95,9 @@ func _run() -> void:
 	check(geese.size() == 6, "a flock of six geese (%d)" % geese.size())
 	check(goats.size() == 4, "four goats (%d)" % goats.size())
 	check(dogs.size() == 2, "two dogs (%d)" % dogs.size())
+	check(_kinds(lvl, "sheep").size() == 4, "four sheep (%d)" % _kinds(lvl, "sheep").size())
+	check(_kinds(lvl, "cow").size() == 2, "two cows (%d)" % _kinds(lvl, "cow").size())
+	check(_kinds(lvl, "bull").size() == 1, "a bull (%d)" % _kinds(lvl, "bull").size())
 	if geese.is_empty() or goats.is_empty() or dogs.is_empty():
 		_finish()
 		return
@@ -159,7 +162,7 @@ func _run() -> void:
 	_hero_to(lvl, far)
 	await _wait(60 * 45)
 	var resting := lvl.farm_animals.filter(func(a: FarmAnimal): return a.state == "rest").size()
-	check(resting >= 8, "most of them lie down at night (%d of 12)" % resting)
+	check(resting >= 12, "most of them settle down at night (%d of %d)" % [resting, lvl.farm_animals.size()])
 
 	# Pip minds the goats.
 	check(VillageFarm.pip_spot(lvl) != Vector3.INF, "Pip has a spot beside the goats")

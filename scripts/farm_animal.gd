@@ -10,6 +10,7 @@ extends Node3D
 ##   hero comes close (less close while the hero sneaks), they flap off in a
 ##   body, and one that is startled startles the rest of the flock.
 ## - Goats graze and trot away from a hero who comes close.
+## - Cows and the bull graze and walk off from a hero who comes close. Sheep act like goats.
 ## - Dogs are friendly: one that notices the hero trots over, stops a few steps
 ##   away with a wagging tail, and goes back to its patch when the hero leaves.
 ##
@@ -26,7 +27,19 @@ extends Node3D
 const KINDS := {
 	"goose": {"name": "goose", "shy": 4.5, "walk": 0.9, "run": 4.2, "roam": 3, "stride": 0.55, "scale": 1.15},
 	"goat": {"name": "goat", "shy": 4.0, "walk": 1.1, "run": 5.0, "roam": 4, "stride": 0.8, "scale": 1.0},
+	"sheep": {"name": "sheep", "shy": 4.0, "walk": 1.0, "run": 4.5, "roam": 3, "stride": 0.7, "scale": 1.0},
+	# The ones with a model of their own (see MODELS): the legs keep pace through Stride.
 	"dog": {"name": "dog", "shy": 0.0, "walk": 1.6, "run": 5.5, "roam": 7, "stride": 0.8, "scale": 1.0, "notice": 11.0},
+	"cow": {"name": "cow", "shy": 5.0, "walk": 1.0, "run": 4.5, "roam": 3, "stride": 1.0, "scale": 1.0},
+	"bull": {"name": "bull", "shy": 6.5, "walk": 1.0, "run": 4.5, "roam": 2, "stride": 1.0, "scale": 1.0},
+}
+## The models of "Ultimate Animated Animals" by Quaternius (CC0, see
+## assets/animals/LICENSE.txt), by kind and coat: file and scale. The model's own
+## colours are kept.
+const MODELS := {
+	"dog": {"": ["ShibaInu", 0.26], "black": ["Husky", 0.3]},
+	"cow": {"": ["Cow", 0.3]},
+	"bull": {"": ["Bull", 0.32]},
 }
 ## A sneaking hero is noticed only this much closer.
 const SNEAK_FACTOR := 0.5
@@ -44,7 +57,7 @@ const GREET_LOSE := 15.0
 const ACTIVE_RANGE := 100.0
 const HIDE_RANGE := 80.0
 ## How far a body drops when it lies down (its legs' length), per kind.
-const LEG := {"goose": 0.22, "goat": 0.36, "dog": 0.3}
+const LEG := {"goose": 0.22, "goat": 0.36, "sheep": 0.3}
 
 static var _meshes := {}
 static var _mats := {}
@@ -73,6 +86,9 @@ var _legs: Array[Node3D] = []
 var _head: Node3D
 var _tail: Node3D
 var _wings: Array[Node3D] = []
+var _model_name := ""
+var _anim: AnimationPlayer
+var _playing := ""
 
 
 func setup(owner_level: Outdoor, animal_kind: String, cell: Vector2i, look := "") -> void:
@@ -89,13 +105,16 @@ func _ready() -> void:
 	_rig = Node3D.new()
 	add_child(_rig)
 	_rig.scale = Vector3.ONE * float(_stats.scale)
-	match kind:
-		"goose":
-			_build_goose()
-		"goat":
-			_build_goat()
-		_:
-			_build_dog()
+	if MODELS.has(kind):
+		_build_model()
+	else:
+		match kind:
+			"goose":
+				_build_goose()
+			"goat":
+				_build_goat()
+			_:
+				_build_sheep()
 	rotation.y = _rng.randf() * TAU
 	_phase = _rng.randf() * TAU
 	_begin("graze" if _rng.randf() < 0.5 else "idle", _rng.randf_range(0.5, 5.0))
@@ -200,9 +219,9 @@ func _mind_hero(gap: float) -> void:
 func _greet(away: Vector3, delta: float) -> void:
 	var to := -away
 	if to.length() > GREET_GAP + 0.6:
-		_speed = float(_stats.walk) * (2.2 if to.length() > 7.0 else 1.4)
+		_speed = 2.2 if to.length() > 7.0 else 1.0
 		_path.clear()
-		var step := _speed * delta
+		var step := _pace("Gallop" if _speed > 1.5 else "Walk", _speed) * delta
 		_swing = 1.0
 		global_position += to.normalized() * minf(step, to.length() - GREET_GAP)
 		_turn_to(to, delta)
@@ -313,7 +332,7 @@ func _walk(delta: float) -> void:
 	if _path.is_empty():
 		return
 	var to := _flat(_path[0] - global_position)
-	var step := _speed * delta
+	var step := _pace("Gallop" if (state == "flee" or _speed > 3.0) else "Walk", _speed) * delta
 	_swing = 1.0
 	_phase += step / float(_stats.stride) * TAU * 0.5
 	if to.length() <= step:
@@ -344,6 +363,9 @@ func _process(delta: float) -> void:
 	var moving := _swing > 0.05
 	var fleeing := state == "flee"
 	var greeting := state == "greet" and _swing > 0.05
+	if _anim != null:
+		_pose_model(moving)
+		return
 	# Legs swing with the stride.
 	var amp := 0.7 if (fleeing or greeting) else 0.5
 	for i in _legs.size():
@@ -357,10 +379,8 @@ func _process(delta: float) -> void:
 	match kind:
 		"goose":
 			_pose_goose(moving, fleeing)
-		"goat":
-			_pose_goat(moving)
 		_:
-			_pose_dog(moving, state == "greet")
+			_pose_goat(moving)
 
 
 func _pose_goose(moving: bool, fleeing: bool) -> void:
@@ -392,16 +412,31 @@ func _pose_goat(moving: bool) -> void:
 	_tail.rotation.z = sin(_clock * 6.0 + _phase) * 0.1 if not _resting else 0.0
 
 
-func _pose_dog(moving: bool, greeting: bool) -> void:
-	var want := 0.0
-	if _resting:
-		want = 0.6
-	elif state == "graze":
-		# Sniffing the ground.
-		want = 0.7 + sin(_clock * 4.0 + _phase) * 0.12
-	_head.rotation.x = lerpf(_head.rotation.x, want, 0.2)
-	var wag := 0.9 if (greeting and not moving) else (0.35 if moving else 0.08)
-	_tail.rotation.y = sin(_clock * (16.0 if greeting else 8.0)) * wag if not _resting else 0.0
+## A model animal plays its walk, gallop, grazing or idle animation.
+func _pose_model(moving: bool) -> void:
+	if moving:
+		return
+	_play("Eating" if state == "graze" else "Idle", 1.0)
+
+
+func _play(anim: String, rate: float) -> void:
+	if _playing != anim:
+		_playing = anim
+		_anim.play(anim, 0.25)
+	_anim.speed_scale = rate
+
+
+## The ground speed a model animal really moves in `anim` when it means to go at
+## `speed`: a walk no faster than its legs step, every gait played just fast
+## enough that its planted feet stay put (see Stride).
+func _pace(anim: String, speed: float) -> float:
+	if _anim == null:
+		return speed
+	var rig := Stride.rig_of(_model_name)
+	var size := _rig.scale.x
+	var moved := minf(speed, Stride.top_speed(rig, anim, size)) if anim == "Walk" else speed
+	_play(anim, Stride.playback(rig, anim, size, moved))
+	return moved
 
 
 func _set_lying(on: bool) -> void:
@@ -539,27 +574,35 @@ func _build_goat() -> void:
 			_leg(Vector3(lx, 0.46, lz), 0.46, 0.07, fur, dark)
 
 
-func _build_dog() -> void:
-	var fur := Color(0.72, 0.5, 0.28)
-	var patch := Color(0.95, 0.9, 0.8)
-	var dark := Color(0.12, 0.1, 0.1)
-	var ear := Color(0.42, 0.26, 0.14)
-	if coat == "black":
-		fur = Color(0.17, 0.15, 0.15)
-		patch = Color(0.92, 0.9, 0.85)
-		ear = Color(0.1, 0.09, 0.09)
-	_part(_rig, "ball", fur, Vector3(0, 0.46, 0), Vector3(0.3, 0.3, 0.68))
-	_part(_rig, "ball", patch, Vector3(0, 0.4, 0.2), Vector3(0.24, 0.2, 0.3))
-	_tail = _pivot(_rig, Vector3(0, 0.55, -0.32))
-	_part(_tail, "stick", fur, Vector3(0, 0.1, -0.05), Vector3(0.06, 0.3, 0.06), Vector3(-0.6, 0, 0))
-	_head = _pivot(_rig, Vector3(0, 0.58, 0.3))
-	var skull := _pivot(_head, Vector3(0, 0.1, 0.12))
-	_part(skull, "ball", fur, Vector3.ZERO, Vector3(0.22, 0.22, 0.26))
-	_part(skull, "box", patch, Vector3(0, -0.04, 0.17), Vector3(0.12, 0.1, 0.18))
-	_part(skull, "ball", dark, Vector3(0, -0.01, 0.27), Vector3(0.06, 0.05, 0.05))
+func _build_model() -> void:
+	var pick: Array = MODELS[kind].get(coat, MODELS[kind][""])
+	_model_name = pick[0]
+	var model: Node3D = load("res://assets/animals/%s.glb" % _model_name).instantiate()
+	_rig.add_child(model)
+	_rig.scale = Vector3.ONE * float(pick[1])
+	_anim = model.find_child("AnimationPlayer", true, false)
+	for a in ["Idle", "Walk", "Gallop", "Eating"]:
+		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+	_play("Idle", 1.0)
+
+
+## A sheep: a round, woolly body, a dark face and dark legs.
+func _build_sheep() -> void:
+	var wool := Color(0.93, 0.9, 0.82)
+	var dark := Color(0.2, 0.17, 0.15)
+	_part(_rig, "ball", wool, Vector3(0, 0.62, 0), Vector3(0.62, 0.52, 0.92))
+	_part(_rig, "ball", wool, Vector3(0.14, 0.72, -0.18), Vector3(0.42, 0.38, 0.5))
+	_part(_rig, "ball", wool, Vector3(-0.14, 0.72, 0.16), Vector3(0.42, 0.38, 0.5))
+	_tail = _pivot(_rig, Vector3(0, 0.66, -0.46))
+	_part(_tail, "ball", wool, Vector3(0, 0, -0.04), Vector3(0.16, 0.16, 0.16))
+	_head = _pivot(_rig, Vector3(0, 0.72, 0.4))
+	_part(_head, "stick", dark, Vector3(0, 0.08, 0.07), Vector3(0.13, 0.22, 0.13), Vector3(0.5, 0, 0))
+	var skull := _pivot(_head, Vector3(0, 0.2, 0.15))
+	_part(skull, "ball", dark, Vector3.ZERO, Vector3(0.2, 0.22, 0.28))
+	_part(skull, "ball", wool, Vector3(0, 0.12, -0.04), Vector3(0.2, 0.1, 0.16))
 	for side in [1.0, -1.0]:
-		_part(skull, "box", ear, Vector3(side * 0.12, 0.05, -0.02), Vector3(0.05, 0.16, 0.1), Vector3(0, 0, side * 0.4))
-		_part(skull, "ball", dark, Vector3(side * 0.07, 0.05, 0.1), Vector3(0.035, 0.035, 0.035))
-	for lx in [0.1, -0.1]:
-		for lz in [0.22, -0.22]:
-			_leg(Vector3(lx, 0.34, lz), 0.34, 0.06, fur, patch)
+		_part(skull, "box", dark, Vector3(side * 0.13, 0.02, -0.04), Vector3(0.13, 0.04, 0.08), Vector3(0, 0, side * -0.3))
+		_part(skull, "ball", Color(0.9, 0.9, 0.85), Vector3(side * 0.08, 0.05, 0.1), Vector3(0.035, 0.035, 0.035))
+	for lx in [0.15, -0.15]:
+		for lz in [0.3, -0.3]:
+			_leg(Vector3(lx, 0.4, lz), 0.4, 0.07, dark, dark)

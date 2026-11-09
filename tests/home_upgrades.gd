@@ -152,6 +152,15 @@ func _run() -> void:
 		check(spots.has(c), "%s stands on a furniture spot" % id)
 		check(not cells.has(c), "%s has a spot of its own" % id)
 		cells[c] = true
+		# Not squeezed between the door and a stair well: one side is plain floor the hero walks on to.
+		check(lvl._slot_has_open_side(c), "%s can be walked up to from a side" % id)
+		var open := false
+		for d: Vector2i in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+			var n := c + d
+			if lvl.storey_of(n) == lvl.storey_of(c) and lvl._walkable(n) and not lvl.astar.is_point_solid(n) \
+					and not ["E", "<", ">"].has(lvl.cell_char(n)):
+				open = true
+		check(open, "%s has a free floor tile at one of its sides" % id)
 	check(lvl.storey_of(lvl._upgrade_cells.werkstatt) == 2, "the workbench is in the attic")
 	check(lvl.storey_of(lvl._upgrade_cells.trophaeen) == 0, "the trophy wall is on the ground floor, in the entrance room")
 	check(lvl._wall_side(lvl._upgrade_cells.trophaeen) != Vector2i.ZERO, "the trophy wall hangs on a wall")

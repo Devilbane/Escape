@@ -760,7 +760,7 @@ func _attributes_text(two_lines := false) -> String:
 		var shown := ("%d%%" % value) if id == "tempo" else str(value)
 		var at_cap: bool = value >= Training.ATTRIBUTES[id].max
 		parts.append("%s %s%s" % [Lang.t(Training.ATTRIBUTES[id].name), shown,
-				Lang.t(" (höchster Wert)") if at_cap else " (%d%%)" % floori(Training.attribute_progress(id, p.xp.get(id, 0.0)) * 100.0)])
+				Lang.t(" (höchster Wert)") if at_cap else " (" + Lang.t("%d%% zum nächsten Punkt") % floori(Training.attribute_progress(id, p.xp.get(id, 0.0)) * 100.0) + ")"])
 	if two_lines and parts.size() > 1:
 		var half := ceili(parts.size() / 2.0)
 		return "    ".join(parts.slice(0, half)) + "\n" + "    ".join(parts.slice(half))

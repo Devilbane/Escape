@@ -191,6 +191,8 @@ func gain(role: String, amount: int, from_trade := false) -> void:
 func on_quest_done(id: String) -> void:
 	var q: Dictionary = Quests.ALL[id]
 	var receiver: String = q.get("to", "")
+	if q.giver == "":
+		return
 	gain(q.giver, QUEST_GIVER)
 	if receiver != "":
 		gain(receiver, QUEST_RECEIVER)

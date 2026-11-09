@@ -287,21 +287,24 @@ const PRISONER_LINES := [
 	"Das Grimoire liegt ganz unten, im Allerheiligsten. Der Weg dorthin ist verflucht mit Fallen, die man nur im Sprung überlebt.",
 	"Ich bin wund. Ein Heiltrank, und ich verrate Euch ein Geheimnis dieser Zelle.",
 ]
+## His task in the quest log (see Quests.ALL).
+const PRISONER_QUEST := "ash_orlan"
 const PRISONER_THANKS := "Dank sei Euch! Hört: Am Westende der langen Halle des Archivs ist hinter einem Mauerstück ein Bett versteckt. Und ganz unten, hinter dem Allerheiligsten, führt eine Leiter ungesehen zurück in den Hof."
 
 
 static func _talk_prisoner(game: Node, s: Dictionary) -> void:
 	var player: Player = game.player
 	var level: Level = game.level
+	# Talking to him takes the task on, so it is noted in the quest log.
+	if not level.taken.has("ash:prisoner") and not game.quests.state.has(PRISONER_QUEST):
+		Events.bus().quest_found.emit(PRISONER_QUEST)
 	if level.taken.has("ash:prisoner"):
 		game.show_message(Lang.t(PRISONER_THANKS), 7.0)
 		return
 	if player.bag.has("heiltrank") or player.bag.has("heiltrank_schwach") or player.bag.has("heiltrank_stark"):
-		for id in ["heiltrank_schwach", "heiltrank", "heiltrank_stark"]:
-			if player.bag.has(id):
-				player.bag.erase(id)
-				break
+		player.bag.erase(game.quests.potion_in_bag())
 		level.taken["ash:prisoner"] = true
+		game.quests.finish_found(PRISONER_QUEST)
 		Sfx.play(game, "drink")
 		player.train("weisheit", 6.0)
 		Events.found(Lang.t("Bruder Orlan trinkt den Trank und erzählt dir von zwei verborgenen Orten."), Color(0.8, 0.9, 1.0))

@@ -4774,6 +4774,12 @@ func chat_allowed() -> bool:
 ## and goes into the event log (as every spoken line does), and whoever is
 ## near may answer (see HeroChat).
 func _hero_says(text: String) -> void:
+	var typed: Variant = Teleport.parse(text)
+	if typed != null:
+		_teleport_command(String(typed))
+		return
+	if _teleport_waits_for(text):
+		return
 	var pos := player.global_position
 	Effects.float_text(level, pos + Vector3(0, 3.0, 0), text, HERO_SAY_COLOR)
 	Events.say(hero_name, text, pos)
@@ -4781,6 +4787,82 @@ func _hero_says(text: String) -> void:
 
 
 const HERO_SAY_COLOR := Color(1.0, 0.95, 0.8)
+const TELEPORT_COLOR := Color(0.75, 0.85, 1.0)
+
+
+## The chat line's teleport command (see Teleport). "teleport" lists every
+## place with its five-letter code in the event log and waits for the code as
+## the next line; "teleport <code>" goes at once.
+func _teleport_command(typed: String) -> void:
+	var all := Teleport.areas(level_files)
+	if typed == "":
+		Events.tell(Lang.t("Teleport: Orte und ihre Codes. Schreibe einen Code und drücke Enter."), TELEPORT_COLOR)
+		for area in all:
+			Events.tell("%s  %s" % [String(area.code).to_upper(), Lang.t(area.name)], TELEPORT_COLOR)
+		_teleport_waiting = true
+		return
+	_teleport_code(typed, all)
+
+
+var _teleport_waiting := false
+
+
+## Whether `text` was taken as a code while the list is waiting for one.
+func _teleport_waits_for(text: String) -> bool:
+	if not _teleport_waiting:
+		return false
+	if not Teleport.looks_like_code(text):
+		_teleport_waiting = false
+		return false
+	_teleport_code(text, Teleport.areas(level_files))
+	return true
+
+
+func _teleport_code(code: String, all: Array) -> void:
+	var area := Teleport.by_code(all, code)
+	if area.is_empty():
+		Events.tell(Lang.t("Kein Ort hat den Code \"%s\". Schreibe \"teleport\" für die Liste.") % code.strip_edges().to_upper(), TELEPORT_COLOR)
+		return
+	if teleport_to(int(area.index)):
+		_teleport_waiting = false
+
+
+## Puts the hero at the entrance (the start) of level `index`, behind a short
+## fade, as walking in would. Only while the hero can act (not in a
+## transition, a shrine or a window): then nothing else is half done. The
+## hero's camp is packed up, as it belongs to the place they leave.
+func teleport_to(index: int) -> bool:
+	if index < 0 or index >= level_files.size() or not chat_allowed():
+		return false
+	var name := Lang.t(level_hint(index).name)
+	state = State.TRANSITION
+	player.frozen = true
+	player.path.clear()
+	var tween := create_tween()
+	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.4)
+	tween.tween_callback(func():
+		if index == level_index:
+			# Already there: back to the entrance, the map stays as it is.
+			player.global_position = level.cell_to_world(level.start_cell)
+			player.velocity = Vector3.ZERO
+			player.face(Vector3.BACK)
+		else:
+			if DragonLair.is_floor(level):
+				level.note_left()
+			inside_house = 0
+			pack_camp(false)
+			load_level(index, false)
+		_snap_camera()
+		if is_instance_valid(pet):
+			pet.arrive()
+		player.frozen = false
+		state = State.PLAYING
+		create_tween().tween_property(_fade, "color:a", 0.0, 0.5)
+		_announce_level()
+		if level.pitch_dark:
+			_warn_of_darkness()
+		Events.tell(Lang.t("Teleportiert: %s") % name, TELEPORT_COLOR))
+	return true
 
 
 ## How far from the hero a spoken line is still heard and written into the

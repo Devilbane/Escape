@@ -55,7 +55,7 @@ const OLD_PATCH_LEAVES := 420
 const OLD_IVY_FOOT := 1.8
 const OLD_IVY_FILL := 0.5
 ## Half the size of the clear middle of a window (across, up), in metres.
-const WINDOW_CLEAR := Vector2(0.42, 0.5)
+const WINDOW_CLEAR := Vector2(0.6, 0.7)
 ## How far (metres, along the slope) old ivy creeps up a roof, and the
 ## steepest a roof may be (its normal's y at least) to be crept on.
 const ROOF_CREEP := Vector2(0.5, 2.0)
@@ -294,6 +294,7 @@ static func triangles(node: Node3D) -> Array:
 			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
 			var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+			var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] if arrays[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
 			var count := idx.size() if idx.size() > 0 else verts.size()
 			for t in range(0, count - 2, 3):
 				var i0 := idx[t] if idx.size() > 0 else t
@@ -311,7 +312,10 @@ static func triangles(node: Node3D) -> Array:
 				var n := -cr.normalized()
 				if normals.size() > 0 and (xf.basis * (normals[i0] + normals[i1] + normals[i2])).dot(n) < 0.0:
 					n = -n
-				out.append({"a": a, "b": b, "c": c, "n": n, "area": area})
+				var tri := {"a": a, "b": b, "c": c, "n": n, "area": area}
+				if uvs.size() > 0:
+					tri["uv"] = (uvs[i0] + uvs[i1] + uvs[i2]) / 3.0
+				out.append(tri)
 	return out
 
 
@@ -405,27 +409,39 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 	var roofs: Array = []
 	if old:
 		roofs = tris.filter(func(t): return (t.n as Vector3).y > ROOF_SLOPE and (t.n as Vector3).y < 0.97 and t.c.y > ground + 2.0)
-	var total := 0.0
+	# The sides of the building (walls looking the same way), the one facing
+	# the camera (south) first: the patches are dealt round them one by one, so
+	# every side of the building gets its share, not only the front.
+	var sides: Array = []
 	for w: Dictionary in found:
-		total += w.area
+		var side: Array = []
+		for s: Array in sides:
+			if ((s[0] as Dictionary).n as Vector3).dot(w.n) > 0.9:
+				side = s
+				break
+		if side.is_empty():
+			sides.append([w])
+		else:
+			side.append(w)
+	sides.sort_custom(func(a: Array, b: Array): return (a[0].n as Vector3).z > (b[0].n as Vector3).z)
+	# Every side gets as many patches as a building had on its one side before.
+	patches *= sides.size()
 	var grown := 0
 	for attempt in patches * 6:
 		if grown >= patches:
 			break
-		# A wall, by its size; the first tries go to the walls that look
-		# south, the way the camera looks at the village.
-		var pick := rng.randf() * total
-		var wall: Dictionary = found[-1]
-		for w: Dictionary in found:
+		# A wall of the side whose turn it is, by its size.
+		var side: Array = sides[attempt % sides.size()]
+		var side_area := 0.0
+		for w: Dictionary in side:
+			side_area += w.area
+		var pick := rng.randf() * side_area
+		var wall: Dictionary = side[-1]
+		for w: Dictionary in side:
 			pick -= w.area
 			if pick <= 0.0:
 				wall = w
 				break
-		var facing := found.filter(func(w): return (w.n as Vector3).z > 0.4)
-		# Old ivy gives the camera's side a few more of its patches.
-		var first := 3 if old else 1
-		if grown < first and attempt < 6 * first and not facing.is_empty():
-			wall = facing[rng.randi() % facing.size()]
 		var root: Vector3 = _root_on(wall, ground, rng)
 		if root == Vector3.INF:
 			continue
@@ -561,6 +577,21 @@ static func _creep_roof(p: Vector3, n: Vector3, roofs: Array, rng: RandomNumberG
 		at = still.p
 		rn = still.n
 		went += 0.16
+
+
+## The middles of the window panes of a building that has no list of them
+## (the KayKit buildings): the pane triangles are the ones whose texture
+## coordinates lie on the palette's window patch (`window_uv`); those close
+## together are one pane.
+static func window_panes(tris: Array, window_uv: Vector2) -> Array:
+	var panes: Array = []
+	for t: Dictionary in tris:
+		if not t.has("uv") or (t.uv as Vector2).distance_to(window_uv) > 0.03:
+			continue
+		var centre: Vector3 = (t.a + t.b + t.c) / 3.0
+		if not panes.any(func(p: Vector3): return p.distance_to(centre) < 0.9):
+			panes.append(centre)
+	return panes
 
 
 ## Whether a spot on a wall facing `n` lies over the middle of a window

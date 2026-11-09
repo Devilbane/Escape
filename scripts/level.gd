@@ -904,6 +904,9 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 				if WallThemes.known(wall_style) and piece == "floor_tile_big_spikes":
 					# The tile under the spikes is the map's own floor, not the kit's grey.
 					mi.material_override = _kit_material("floor")
+				elif WallThemes.known(wall_style) and piece == "stairs":
+					# The steps out are hewn from the map's own stone, not the kit's grey.
+					mi.material_override = _kit_material("floor")
 				else:
 					mi.material_override = _rough_stone(mi.get_active_material(0), piece in ["floor_tile_big_spikes", "floor_tile_big_grate"])
 	return node
@@ -5555,7 +5558,7 @@ func _build_stairs(c: Vector2i, up: bool) -> void:
 		_place("stairs", pos + Vector3(0, 0, -TILE * 0.5))
 		return
 	var away := stairs_down_dir(c)
-	StairsDown.build(self, pos, TILE, Vector3(away.x, 0, away.y))
+	StairsDown.build(self, pos, TILE, Vector3(away.x, 0, away.y), StairsDown.look(wall_style, theme))
 
 
 ## The way a flight of stairs down at `c` runs: away from the open floor, so the top step

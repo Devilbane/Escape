@@ -14,6 +14,14 @@ extends Node3D
 ## - Dogs are friendly: one that notices the hero trots over, stops a few steps
 ##   away with a wagging tail, and goes back to its patch when the hero leaves.
 ##
+## - The red-horned goat (kind "billy") is the village's bully. From time to time
+##   it paws the ground, shouts its war cry and charges at the hero in a straight
+##   line (it locks on when the wind-up ends, so a sidestep makes it miss). A bump
+##   shoves the hero but does no harm. After BUMPS bumps it trots off and sulks for
+##   COOLDOWN seconds of game time (the timer runs on physics ticks, like the
+##   hero's spell and fight cooldowns, so a paused game does not count). It has no
+##   life points, so it cannot be hurt or killed.
+##
 ## At night they settle down: legs tucked, head folded away.
 ##
 ## The bodies are built from a few primitive shapes, which share their meshes
@@ -28,6 +36,8 @@ const KINDS := {
 	"goose": {"name": "goose", "shy": 4.5, "walk": 0.9, "run": 4.2, "roam": 3, "stride": 0.55, "scale": 1.15},
 	"goat": {"name": "goat", "shy": 4.0, "walk": 1.1, "run": 5.0, "roam": 4, "stride": 0.8, "scale": 1.0},
 	"sheep": {"name": "sheep", "shy": 4.0, "walk": 1.0, "run": 4.5, "roam": 3, "stride": 0.7, "scale": 1.0},
+	# Never shy: it picks fights instead (see the BILLY constants).
+	"billy": {"name": "red-horned goat", "shy": 0.0, "walk": 1.2, "run": 5.0, "roam": 4, "stride": 0.8, "scale": 1.12},
 	# The ones with a model of their own (see MODELS): the legs keep pace through Stride.
 	"dog": {"name": "dog", "shy": 0.0, "walk": 1.6, "run": 5.5, "roam": 7, "stride": 0.8, "scale": 1.0, "notice": 11.0},
 	"cow": {"name": "cow", "shy": 5.0, "walk": 1.0, "run": 4.5, "roam": 3, "stride": 1.0, "scale": 1.0},
@@ -52,12 +62,28 @@ const ALARM_RANGE := 14.0
 ## A dog stops this far from the hero, and loses interest this far away.
 const GREET_GAP := 2.4
 const GREET_LOSE := 15.0
+## The red-horned goat: it picks a fight with a hero within BILLY_RANGE metres,
+## waits BILLY_WAIT seconds (random) before the first wind-up, shows its wind-up
+## for WINDUP seconds, then charges at CHARGE_SPEED for at most CHARGE_TIME
+## seconds, bumping the hero within BUMP_RANGE metres. After BUMPS bumps it
+## retreats and rests COOLDOWN seconds (10 minutes); between two bumps it
+## catches its breath for RECOVER seconds. The war cry is its speech line.
+const BILLY_RANGE := 14.0
+const BILLY_WAIT := Vector2(4.0, 9.0)
+const WINDUP := 1.4
+const CHARGE_SPEED := 7.5
+const CHARGE_TIME := 1.6
+const BUMP_RANGE := 1.3
+const BUMPS := 3
+const RECOVER := 2.5
+const COOLDOWN := 600.0
+const CRY := "mähhhhh, feeeeellll maaaiiiii  hoooooorrrrnsss!!!"
 ## Farther from the hero than this the animal does not move, farther than
 ## HIDE_RANGE it is not drawn.
 const ACTIVE_RANGE := 100.0
 const HIDE_RANGE := 80.0
 ## How far a body drops when it lies down (its legs' length), per kind.
-const LEG := {"goose": 0.22, "goat": 0.36, "sheep": 0.3}
+const LEG := {"goose": 0.22, "goat": 0.36, "billy": 0.36, "sheep": 0.3}
 
 static var _meshes := {}
 static var _mats := {}
@@ -71,6 +97,14 @@ var state := "idle"
 var mates: Array[FarmAnimal] = []
 ## What it looks like: a colour name (see _coat), "" for the kind's usual one.
 var coat := ""
+## The red-horned goat: bumps so far in this round, seconds of cooldown left,
+## seconds until the next wind-up, the line of the charge and its speech bubble.
+var bumps := 0
+var cooldown := 0.0
+var _charge_wait := -1.0
+var _dir := Vector3.ZERO
+var _bubble: SpeechBubble
+var _bubble_time := 0.0
 var _stats: Dictionary
 var _rng := RandomNumberGenerator.new()
 var _path: Array[Vector3] = []
@@ -111,10 +145,14 @@ func _ready() -> void:
 		match kind:
 			"goose":
 				_build_goose()
-			"goat":
+			"goat", "billy":
 				_build_goat()
 			_:
 				_build_sheep()
+	if kind == "billy":
+		_bubble = SpeechBubble.new()
+		_bubble.position.y = 2.3
+		add_child(_bubble)
 	rotation.y = _rng.randf() * TAU
 	_phase = _rng.randf() * TAU
 	_begin("graze" if _rng.randf() < 0.5 else "idle", _rng.randf_range(0.5, 5.0))
@@ -163,6 +201,8 @@ func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
 	var hero: Node3D = level.player
+	if kind == "billy":
+		_tick_billy(delta)
 	_check -= delta
 	var away := global_position - hero.global_position
 	away.y = 0.0
@@ -184,6 +224,8 @@ func _physics_process(delta: float) -> void:
 		_mind_hero(away.length())
 	if _resting:
 		return
+	if kind == "billy" and alive and state in ["graze", "idle", "stroll"]:
+		_pick_fight(delta, away.length(), hero)
 	match state:
 		"graze", "idle":
 			if shy > 0.0 and away.length() < shy * CALM_FACTOR:
@@ -201,6 +243,92 @@ func _physics_process(delta: float) -> void:
 					_begin("idle", _rng.randf_range(1.0, 3.0))
 		"greet":
 			_greet(away, delta)
+		"windup":
+			_windup(delta, hero)
+		"charge":
+			_charge(delta, hero)
+		"recover":
+			_turn_to(-away, delta)
+			_timer -= delta
+			if _timer <= 0.0:
+				_begin("idle", 0.5)
+
+
+## The cooldown and the speech bubble run all the time, even far from the hero.
+func _tick_billy(delta: float) -> void:
+	cooldown = maxf(0.0, cooldown - delta)
+	_bubble_time = maxf(0.0, _bubble_time - delta)
+	if _bubble_time <= 0.0 and _bubble.is_shown():
+		_bubble.hide_line()
+
+
+## True while the red-horned goat may start a fight.
+func can_fight() -> bool:
+	return kind == "billy" and cooldown <= 0.0 and not level.night and not _resting
+
+
+## Near a hero and not on cooldown, it waits a few seconds and then winds up.
+func _pick_fight(delta: float, gap: float, hero: Node3D) -> void:
+	var busy: bool = hero.has_method("protected") and hero.protected()
+	if not can_fight() or gap > BILLY_RANGE or busy:
+		_charge_wait = -1.0
+		return
+	if _charge_wait < 0.0:
+		_charge_wait = _rng.randf_range(BILLY_WAIT.x, BILLY_WAIT.y)
+	_charge_wait -= delta
+	if _charge_wait <= 0.0:
+		_start_windup()
+
+
+## It stops, lowers its head, paws the ground and shouts: a clear sign to step aside.
+func _start_windup() -> void:
+	_charge_wait = -1.0
+	_path.clear()
+	_begin("windup", WINDUP)
+	_bubble.show_line(Lang.t("Rothorn-Ziege"), Lang.t(CRY), true)
+	_bubble_time = WINDUP + 2.0
+	Effects.head_text(level, self, 2.0, "!", Color(1.0, 0.25, 0.2))
+
+
+func _windup(delta: float, hero: Node3D) -> void:
+	_turn_to(hero.global_position - global_position, delta * 1.5)
+	_timer -= delta
+	if _timer <= 0.0:
+		# It locks on now: a sidestep makes it miss.
+		_dir = _flat(hero.global_position - global_position).normalized()
+		_begin("charge", CHARGE_TIME)
+
+
+func _charge(delta: float, hero: Node3D) -> void:
+	var step := CHARGE_SPEED * delta
+	var next := global_position + _dir * step
+	if not level.is_open(level.world_to_cell(next)):
+		_begin("recover", RECOVER)
+		return
+	global_position = next
+	rotation.y = atan2(_dir.x, _dir.z)
+	_swing = 1.0
+	_phase += step / float(_stats.stride) * TAU * 0.5
+	if not hero.get("dead") and _flat(hero.global_position - global_position).length() < BUMP_RANGE:
+		_bump(hero)
+		return
+	_timer -= delta
+	if _timer <= 0.0:
+		_begin("recover", RECOVER)
+
+
+## A bump shoves the hero and does no harm. The third one sends the goat off to sulk.
+func _bump(hero: Node3D) -> void:
+	bumps += 1
+	if hero.has_method("shove"):
+		hero.shove(global_position)
+	Comic.pop(hero.global_position, "hit")
+	if bumps >= BUMPS:
+		bumps = 0
+		cooldown = COOLDOWN
+		_flee_from(hero.global_position)
+	else:
+		_begin("recover", RECOVER)
 
 
 ## A dog that notices the hero trots over, and goes home when the hero leaves.
@@ -408,6 +536,14 @@ func _pose_goat(moving: bool) -> void:
 		want = 0.95 + sin(_clock * 3.0 + _phase) * 0.1
 	elif state == "idle":
 		want = sin(_clock * 0.7 + _phase) * 0.15
+	if state == "windup":
+		# Head down, shaking, and the whole body rocks as it paws.
+		want = 0.9 + sin(_clock * 22.0) * 0.12
+		_rig.rotation.z = sin(_clock * 22.0) * 0.04
+	elif _rig.rotation.z != 0.0:
+		_rig.rotation.z = 0.0
+	if state == "charge":
+		want = 0.7
 	_head.rotation.x = lerpf(_head.rotation.x, want, 0.15)
 	_tail.rotation.z = sin(_clock * 6.0 + _phase) * 0.1 if not _resting else 0.0
 
@@ -566,7 +702,10 @@ func _build_goat() -> void:
 	_part(skull, "ball", dark, Vector3(0, -0.04, 0.24), Vector3(0.07, 0.06, 0.06))
 	_part(skull, "cone", Color(0.95, 0.93, 0.85), Vector3(0, -0.17, 0.12), Vector3(0.06, 0.16, 0.06), Vector3(0.15, 0, 0))
 	for side in [1.0, -1.0]:
-		_part(skull, "cone", Color(0.8, 0.74, 0.6), Vector3(side * 0.07, 0.17, -0.07), Vector3(0.05, 0.22, 0.05), Vector3(-0.7, 0, side * 0.2))
+		if kind == "billy":
+			_part(skull, "cone", Color(0.85, 0.1, 0.08), Vector3(side * 0.08, 0.2, -0.05), Vector3(0.07, 0.34, 0.07), Vector3(-0.6, 0, side * 0.35))
+		else:
+			_part(skull, "cone", Color(0.8, 0.74, 0.6), Vector3(side * 0.07, 0.17, -0.07), Vector3(0.05, 0.22, 0.05), Vector3(-0.7, 0, side * 0.2))
 		_part(skull, "box", fur, Vector3(side * 0.14, 0.07, -0.05), Vector3(0.14, 0.04, 0.09), Vector3(0, 0, side * 0.2))
 		_part(skull, "ball", dark, Vector3(side * 0.1, 0.04, 0.1), Vector3(0.035, 0.035, 0.035))
 	for lx in [0.14, -0.14]:

@@ -43,7 +43,13 @@ const RUIN_WOOD := 0.3
 ## leaves' size.
 const IVY_PATCHES := 7
 const IVY_HEIGHT := Vector2(3.0, 7.5)
-const IVY_DOOR_GAP := 2.4
+const IVY_DOOR_GAP := 1.5
+## The doorway itself stays free of leaves up to this height (metres) and
+## this far (metres) from the door's spot, so the ivy frames a door.
+const DOOR_CLEAR := Vector2(1.4, 3.6)
+## The side facing the camera (south) is dealt this many turns of patches
+## where every other side gets one, so the fronts wear the most ivy.
+const FRONT_TURNS := 3
 ## Leaves in one patch at most, so the whole village's ivy stays cheap.
 const PATCH_LEAVES := 280
 ## Old ivy on the buildings that stand on their own, away from the square
@@ -56,6 +62,8 @@ const OLD_IVY_FOOT := 1.8
 const OLD_IVY_FILL := 0.5
 ## Half the size of the clear middle of a window (across, up), in metres.
 const WINDOW_CLEAR := Vector2(0.6, 0.7)
+## How far (metres) round a glass window the ivy keeps off.
+const GLASS_CLEAR := 0.45
 ## How far (metres, along the slope) old ivy creeps up a roof, and the
 ## steepest a roof may be (its normal's y at least) to be crept on.
 const ROOF_CREEP := Vector2(0.5, 2.0)
@@ -292,6 +300,8 @@ static func triangles(node: Node3D) -> Array:
 			continue
 		var xf := mi.global_transform
 		for s in mi.mesh.get_surface_count():
+			var mat := mi.mesh.surface_get_material(s)
+			var glass := mat != null and mat.resource_name.begins_with("window")
 			var arrays := mi.mesh.surface_get_arrays(s)
 			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
@@ -315,6 +325,8 @@ static func triangles(node: Node3D) -> Array:
 				if normals.size() > 0 and (xf.basis * (normals[i0] + normals[i1] + normals[i2])).dot(n) < 0.0:
 					n = -n
 				var tri := {"a": a, "b": b, "c": c, "n": n, "area": area}
+				if glass:
+					tri["glass"] = true
 				if uvs.size() > 0:
 					tri["uv"] = (uvs[i0] + uvs[i1] + uvs[i2]) / 3.0
 				out.append(tri)
@@ -360,8 +372,8 @@ static func walls(tris: Array, middle: Vector3, ground: float) -> Array:
 ## Old ivy also roots on walls that stand on a stone base (the KayKit
 ## buildings' walls start this high over the ground), growing out of the
 ## base's ledge.
-static func rooted(planes: Array, ground: float, old := false) -> Array:
-	var foot := OLD_IVY_FOOT if old else 0.9
+static func rooted(planes: Array, ground: float, old := false, foot_max := 0.0) -> Array:
+	var foot := maxf(foot_max, OLD_IVY_FOOT if old else 0.9)
 	return planes.filter(func(p): return p.area >= IVY_WALL and p.foot < ground + foot and p.top > ground + 1.6)
 
 
@@ -396,14 +408,16 @@ static func _on_wall(wall: Dictionary, p: Vector3) -> bool:
 ## Grows ivy up a building's outer walls: leaves (transforms and colours) are
 ## added to `leaves`. `doors` are the spots in front of its doors, where no
 ## ivy grows. `old` ivy climbs much higher, up to the roof and on to it.
-## `windows` are the middles of window panes (world space): their middle
+## `proud` holds the leaves out from walls whose stones stand proud of their plane (the castle's).
+## `foot_max` lets ivy root on walls standing that high (the castle's towers
+## start well above the ground). `windows` are the middles of window panes (world space): their middle
 ## stays clear of leaves, so the ivy frames a window but never covers it.
-static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = []) -> void:
+static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = [], foot_max := 0.0, proud := 0.0) -> void:
 	var all_walls := walls(tris, middle, ground)
-	var found := rooted(all_walls, ground, old)
+	var found := rooted(all_walls, ground, old, foot_max)
 	# A wall up on a stone base that looks the way a door does holds that
 	# door up there too (the KayKit buildings): no ivy grows from its foot.
-	found = found.filter(func(w): return float(w.foot) < ground + 0.9 or not doors.any(
+	found = found.filter(func(w): return float(w.foot) < ground + 0.9 or foot_max > 0.0 or not doors.any(
 			func(d: Vector3): return Vector2(d.x - middle.x, d.z - middle.z).normalized().dot(Vector2(w.n.x, w.n.z)) > 0.7))
 	if found.is_empty():
 		return
@@ -436,13 +450,23 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 	# Every side gets its patches, but each patch is thinner (fewer, larger
 	# leaves), so the whole building wears about 1.2 times the leaves it had
 	# on its one side and the village's leaf count stays near its old budget.
-	var thin := minf(1.0, IVY_TOTAL_SHARE / float(sides.size()))
+	# The turns: every side once, the front side (sorted first, if it faces
+	# the camera) FRONT_TURNS times.
+	var deal: Array = []
+	for i in sides.size():
+		var side0: Array = sides[i]
+		deal.append(i)
+		if i == 0 and (side0[0].n as Vector3).z > 0.5:
+			for k in FRONT_TURNS - 1:
+				deal.append(0)
+	patches = patches * deal.size() / maxi(sides.size(), 1)
+	var thin := minf(1.0, IVY_TOTAL_SHARE * 1.25 / float(deal.size()))
 	var grown := 0
 	for attempt in patches * 6:
 		if grown >= patches:
 			break
 		# A wall of the side whose turn it is, by its size.
-		var side: Array = sides[attempt % sides.size()]
+		var side: Array = sides[deal[attempt % deal.size()]]
 		var side_area := 0.0
 		for w: Dictionary in side:
 			side_area += w.area
@@ -456,9 +480,10 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 		var root: Vector3 = _root_on(wall, ground, rng)
 		if root == Vector3.INF:
 			continue
-		if doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
+		# (Only a root down by the door is kept away: one high up on a tower above it is fine.)
+		if root.y < ground + DOOR_CLEAR.y and doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
 			continue
-		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin)
+		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors, proud)
 		grown += 1
 
 
@@ -486,11 +511,13 @@ static func _root_on(wall: Dictionary, ground: float, rng: RandomNumberGenerator
 ## and then branching; leaves grow along them, thickest near the ground.
 ## Old ivy climbs higher, and a tendril that runs out of wall below its
 ## reach creeps on up the roof above it.
-static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = [], thin := 1.0) -> void:
+static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = [], thin := 1.0, doors: Array = [], proud := 0.0) -> void:
 	var n: Vector3 = root_wall.n
 	var across := Vector3.UP.cross(n).normalized()
 	var height: Vector2 = OLD_IVY_HEIGHT if old else IVY_HEIGHT
-	var reach := ground + rng.randf_range(height.x, height.y)
+	# Ivy rooted high up a wall (the castle's towers) climbs on from there.
+	var base := root.y - 0.15 if root.y > ground + OLD_IVY_FOOT else ground
+	var reach := base + rng.randf_range(height.x, height.y)
 	var most: int = int((OLD_PATCH_LEAVES if old else PATCH_LEAVES) * thin)
 	var bigger := 1.0 / sqrt(thin)
 	# The walls in line with this one: the ivy climbs on up them where one
@@ -524,16 +551,24 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 					next = next + n * (float(wall.d) - n.dot(next))
 			p = next
 			# Fuller near the ground, sparse at the top.
-			var fill := clampf(1.0 - (p.y - ground) / maxf(reach - ground, 0.5), 0.0, 1.0)
+			var fill := clampf(1.0 - (p.y - base) / maxf(reach - base, 0.5), 0.0, 1.0)
 			# Old ivy stays thick a long way up.
 			if old:
 				fill = maxf(fill, OLD_IVY_FILL)
 			for k in rng.randi_range(1, 1 + int(fill * 1.6)):
 				var at := p + across * rng.randf_range(-0.2, 0.2) + Vector3.UP * rng.randf_range(-0.08, 0.08)
-				if rng.randf() < thin and _on_wall(wall, at) and not _on_pane(at, n, windows):
-					_leaf(at, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
+				if rng.randf() < thin and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_doorway(at, doors, ground):
+					_leaf(at + n * proud, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
 			if rng.randf() < 0.08 and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
+
+
+## Whether a leaf's spot is in a doorway (see DOOR_CLEAR).
+static func _in_doorway(at: Vector3, doors: Array, ground: float) -> bool:
+	for d: Vector3 in doors:
+		if Vector2(at.x - d.x, at.z - d.z).length() < DOOR_CLEAR.x and at.y - ground < DOOR_CLEAR.y:
+			return true
+	return false
 
 
 ## Old ivy over the eaves: from the top of a wall (`p`, the wall looking
@@ -606,11 +641,36 @@ static func window_panes(tris: Array, window_uv: Vector2) -> Array:
 	return panes
 
 
+## The boxes round the windows that are modelled as glass surfaces (the
+## temple's tall windows): the glass triangles, grouped by where they touch.
+## Leaves keep out of them (see _on_pane).
+static func glass_boxes(tris: Array) -> Array:
+	var boxes: Array = []
+	for t: Dictionary in tris:
+		if not t.has("glass"):
+			continue
+		var box := AABB(t.a, Vector3.ZERO).expand(t.b).expand(t.c)
+		var merged := false
+		for i in boxes.size():
+			if (boxes[i] as AABB).grow(0.3).intersects(box):
+				boxes[i] = (boxes[i] as AABB).merge(box)
+				merged = true
+				break
+		if not merged:
+			boxes.append(box)
+	return boxes
+
+
 ## Whether a spot on a wall facing `n` lies over the middle of a window
 ## pane (a leaf there would hide it; the frame and shutters may be grown
 ## over). The leaf's own size reaches a little further.
 static func _on_pane(at: Vector3, n: Vector3, windows: Array) -> bool:
-	for w: Vector3 in windows:
+	for win in windows:
+		if win is AABB:
+			if (win as AABB).grow(GLASS_CLEAR).has_point(at):
+				return true
+			continue
+		var w: Vector3 = win
 		var d := at - w
 		if absf(d.dot(n)) > 0.5:
 			continue

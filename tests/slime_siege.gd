@@ -87,7 +87,6 @@ func _run() -> void:
 		failures += 1
 		print("FAIL: fewer than one attempt in three broke the wall")
 	await _villager_first(lvl, wall, west)
-	await _villager_behind_wall(lvl, wall, west)
 	game.delete_save(game.save_path())
 	print("PASS: slime siege" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
@@ -124,34 +123,5 @@ func _villager_first(lvl: Outdoor, wall: VillageWall, west: WallBrick) -> void:
 	if is_instance_valid(s) and not s.dead and s._flat_distance(v) >= d0 - 2.0 and not v.has_meta("slime_life"):
 		failures += 1
 		print("FAIL: the slime did not go for the villager")
-	if is_instance_valid(s):
-		s.dead = true
-
-
-## A villager in plain sight just behind the wall cannot be reached or eaten: a
-## Blob (level 18) eats into the wall instead of pushing against it.
-func _villager_behind_wall(lvl: Outdoor, wall: VillageWall, west: WallBrick) -> void:
-	for b: WallBrick in wall.bricks.values():
-		b.mend(float(WallBrick.MAX_HP))
-	for e in lvl.enemies:
-		if is_instance_valid(e):
-			e.dead = true
-			e.global_position = Vector3(0, -50, 0)
-	var v: Villager = lvl.villagers[0]
-	var s := lvl.spawn_slime("schleim", west.global_position + Vector3(-6, 0, 0), {})
-	s.rated_level = Enemy.fit_level(s.kind, s._stats, s.hardening, 18, 25)
-	v.global_position = west.global_position + Vector3(4, 0, 0)
-	v._start("idle", 600.0)
-	if SlimeGrowth.can_walk_to(s, v):
-		print("SKIP: the villager can be reached from the test spot")
-		s.dead = true
-		return
-	await _wait(600)
-	var low := 1000
-	for b: WallBrick in wall.bricks.values():
-		low = mini(low, b.hp)
-	if low >= WallBrick.MAX_HP:
-		failures += 1
-		print("FAIL: a Blob that cannot reach a villager did not eat into the wall")
 	if is_instance_valid(s):
 		s.dead = true

@@ -2414,6 +2414,19 @@ func _wear_down(slot: String) -> void:
 		Sfx.play(self, "bones")
 
 
+## A shove with no harm: a goat's bump (see FarmAnimal). The hero stumbles back a
+## few steps and loses no life; one lying down is left alone.
+func shove(from: Vector3, force := 9.0) -> void:
+	if dead or _down > 0.0 or frozen:
+		return
+	stand_up()
+	var away := global_position - from
+	away.y = 0.0
+	_knockback = away.normalized() * force
+	path.clear()
+	play_once("Hit_A", 0.35)
+
+
 ## The worn shield stops a whole hit: no harm, only a short shove.
 func _block(from: Vector3) -> void:
 	if randf() < BLOCK_WEAR_CHANCE:

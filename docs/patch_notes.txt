@@ -6,13 +6,6 @@
 # comment. Newest section first. Only the newest two sections ship in the client; older ones stay here as
 # history, so nothing needs trimming. Keep those two sections well under 16000 characters.
 
-## Latest changes
-- More ivy on the fronts of village buildings, most of all on the temple, the castle and the guild hall; it frames doors and windows without covering them, so you can still see where to go in.
-- The armoured guardian now has 20 times a skeleton's life, so it can also be fought in normal combat (long and hard), while a stab in the back still kills it in one blow and it then never respawns.
-- Base movement speed (Tempo, gear, gifts, level and companions together) is now capped at 150%; running still speeds you up on top of that cap, and the Tempo details and speed icon tell you when you are at the cap.
-- Stairs now fit the place they stand in: the stairs out of bone, rock and crystal caves are hewn from the cave's own stone, and the shafts down in the mines are cut from rock, bone, obsidian, crystal or ember stone with uneven steps, a rough lip and faint glowing edges where the setting has them. Their steps are lit a little so they read as steps, not a black pit.
-- A soft see-through circle now opens around the hero in the wall tops and walls that stand between the camera and the hero, so the hero and the floor around them are no longer hidden behind stone, above all in narrow corridors. The fog of war and the lighting stay as they were.
-- Tasks tied to a place (the bandit pass, the dungeon, Sternhall, the Ashen Spire) now show pinned at the top of the event log with a short line while you are there, until done. Brother Orlan in the archive gives a new one: bring him a healing potion.
 ## Recent changes
 - The wandering merchant's ingredients now show their own pictures (a mushroom, a tuft of moss, a blob of jelly ...) instead of a backpack.
 - Village ivy now grows on every side of a building (each side as thick as the front used to be), and it never fully covers a window any more, including on the stone buildings.

@@ -56,6 +56,22 @@ func _held(v: Villager) -> Node:
 	return blade if blade != null and not blade.is_queued_for_deletion() else null
 
 
+## Whether a weapon part of the model itself is in sight.
+func _visible_weapon(v: Villager) -> bool:
+	for part in Villager.WEAPON_PARTS:
+		for m in v._model.find_children(part, "Node3D", true, false):
+			# The blade being drawn (SlimeBlade) brings a part of that name too.
+			var drawn_blade := false
+			var n: Node = m
+			while n != null and n != v._model:
+				if n.name == "SlimeBlade":
+					drawn_blade = true
+				n = n.get_parent()
+			if not drawn_blade and (m as Node3D).visible:
+				return true
+	return false
+
+
 func _process(_delta: float) -> bool:
 	frames += 1
 	if frames < 5:
@@ -109,6 +125,25 @@ func _process(_delta: float) -> bool:
 			check(not priestess._heal_someone(), "and nobody who is whole")
 			priestess.calm_down()
 			guard.calm_down()
+			# Danger over: the blade stays out a moment, then goes back.
+			check(guard.drawn(), "the guard's blade is still out right after the danger")
+			guard._physics_process(Villager.SHEATHE_DELAY + 0.1)
+			check(not guard.drawn(), "and is sheathed after the short delay")
+			# At peace the guard shows no weapon, the woodcutter keeps his working axe.
+			check(not _visible_weapon(guard), "the calm guard carries no visible weapon")
+			check(_visible_weapon(_villager(out, "3")), "the woodcutter's working axe stays in sight")
+			check(not _visible_weapon(_villager(out, "G")), "the guild master's axe is put away")
+			_out_and_about(guard)
+			slime.global_position = guard.global_position + Vector3(1.5, 0, 0)
+			guard.alarm(slime)
+			check(guard.drawn() and not _visible_weapon(guard), "danger draws only the fighting blade")
+			guard.calm_down()
+			_out_and_about(guard)
+			slime.global_position = guard.global_position + Vector3(1.5, 0, 0)
+			guard.alarm(slime)
+			check(guard.drawn() and guard._sheathe_in < 0.0, "a new alarm cancels the sheathing")
+			guard.calm_down()
+			guard._physics_process(Villager.SHEATHE_DELAY + 0.1)
 			# Pip throws knives from afar.
 			_out_and_about(pip)
 			slime.global_position = pip.global_position + Vector3(5.0, 0, 0)

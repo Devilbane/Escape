@@ -72,13 +72,15 @@ func _run() -> void:
 	v._speed = Villager.WALK_SPEED
 	v._task = "walk"
 	v.set_meta("then", "idle")
-	for i in 240:
+	# Within the time it waits before looking for another way, it stands in front of the gate.
+	for i in 60:
 		await physics_frame
-		check(not v.blocked_at(v.global_position) or v._task != "walk", "the walker never stands in the shut gate")
-		if v.blocked_at(v.global_position):
-			break
-	check(not v.blocked_at(v.global_position), "a shut gate was never crossed (%s)" % v.global_position)
-	check(v.global_position.x < at_gate.x - 0.2, "the villager is still on the outer side of the shut gate")
+		check(not v.blocked_at(v.global_position), "the walker never stands in the shut gate (%s)" % v.global_position)
+	check(v.global_position.x < at_gate.x, "the villager waits on the outer side of the shut gate (%s)" % v.global_position)
+	# Later it may go round another way, but still never through a wall or the shut gate.
+	for i in 300:
+		await physics_frame
+		check(not v.blocked_at(v.global_position), "a shut gate was never crossed (%s)" % v.global_position)
 
 	# Someone caught inside a block can still step out of it.
 	v.global_position = at_gate

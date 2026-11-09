@@ -5,7 +5,7 @@ const EN := {
 	"%s, Stufe %d": "%s, level %d",
 	"%s besiegt: Stufe %d, %d EP, %d Leben.": "%s slain: level %d, %d XP, %d max health.",
 	"Monsterkunde": "Monster lore",
-	"%s-Kunde +%s %%": "%s lore +%s%%",
+	"%s-Kunde %d %%": "%s lore %d%%",
 	"%s-Kunde: %s (%d %% Schwachstellen)": "%s lore: %s (%d%% vital hits)",
 	"Monsterkunde: Mit jedem besiegten Monster einer Art wächst deine Kunde von ihm. Die Zahl über deinem Kopf zeigt den Fortschritt zur nächsten Stufe.": "Monster lore: every monster of a kind you slay adds to what you know of it. The number over your head shows the progress to the next rank.",
 	"Monsterkunde: Je mehr Monster einer Art du besiegst, desto öfter triffst du ihre Schwachstellen (bis zu 50 %). Ein solcher Treffer würfelt nicht: Er macht doppelt so viel wie dein härtester Schlag, und manchmal blutet das Monster danach oder greift für den Rest des Kampfes langsamer an. Alles steht im Kompendium (H) unter „Monsterkunde“.":

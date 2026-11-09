@@ -5,6 +5,7 @@
 # history, so nothing needs trimming. Keep those two sections well under 16000 characters.
 
 ## Latest changes
+- The bookshelf in your house now stands on the ground floor against the north wall, and the wall torch beside it hangs one wall to the west.
 - Rain now falls only a third as often; fog, storms and clear skies take its place, and each spell of rain lasts as long as before.
 - Fixed being shut in the archive's bed room after sleeping there: the iron bars of the prisoner's cell no longer count as a way out, so the secret wall opens from inside.
 - You can use at most 9 shrines in the whole beginner dungeon; the shrine window shows how many blessings are left, and after the ninth the shrines go quiet.

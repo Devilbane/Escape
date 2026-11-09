@@ -15,12 +15,15 @@ extends RefCounted
 const TOP := WallFade.WALL_HEIGHT - 0.04
 ## World metres to one repeat of the wall texture.
 const UV_SCALE := 0.25
+## The caps' shader: the same flat look, with the see-through circle around the hero.
+const CAP_SHADER := preload("res://shaders/cap_flat.gdshader")
 
 
 ## Builds the caps for `level` in `material` (its wall material, so a stone,
 ## bone, rock, obsidian or crystal dungeon is covered in its own look). Near
 ## walls are added to `near` so that they fade like the wall pieces.
-static func build(level: Level, material: Material, near: WallFade) -> void:
+static func build(level: Level, plain: Material, near: WallFade) -> void:
+	var material := _cap_material(plain)
 	var cap := _cap_cells(level)
 	if cap.is_empty():
 		return
@@ -45,6 +48,17 @@ static func build(level: Level, material: Material, near: WallFade) -> void:
 			any_far = true
 	if any_far:
 		level.add_child(_mesh_node(far_tool, material, Vector3.ZERO))
+
+
+## `plain`'s flat colour, drawn by the shader that also opens the see-through circle around the hero
+## (see HeroReveal). A material that is not a plain one is kept as it is.
+static func _cap_material(plain: Material) -> Material:
+	if not plain is StandardMaterial3D:
+		return plain
+	var m := ShaderMaterial.new()
+	m.shader = CAP_SHADER
+	m.set_shader_parameter("albedo_color", (plain as StandardMaterial3D).albedo_color)
+	return m
 
 
 ## The wall tiles that get a cap: every wall tile touching a room (also

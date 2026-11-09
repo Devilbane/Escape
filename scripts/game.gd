@@ -99,13 +99,14 @@ var _weather_rng := RandomNumberGenerator.new()
 ## of lightning as it fades (1 to 0).
 var _weather_look := Weather.look(Weather.CLEAR)
 var _flash := 0.0
-## The rain that falls and the mist that drifts around the hero, and the
-## patter of the rain.
+## The rain that falls and the mist that drifts around the hero (its patter is
+## part of the Soundscape).
 var _rain: CPUParticles3D
 var _mist: CPUParticles3D
 var _clouds: FogClouds
-var _rain_sound: AudioStreamPlayer
 var _ambience: AudioStreamPlayer
+## The ambient soundscape of the place the hero is in (see Soundscape).
+var _soundscape: Soundscape
 ## Set once the hero has stepped out of the crypt into the open air: the run
 ## is in the ranking as an escape, and goes on in the village.
 var escaped := false
@@ -488,6 +489,7 @@ func _bus_links() -> Array:
 	return [
 		[bus.news_told, quest_news],
 		[bus.lore_learned, learn],
+		[bus.gain_shown, show_gain],
 		[bus.enemy_slain, Callable(Factions, "on_hero_kill")],
 		[bus.enemy_slain, bounties.on_kill],
 		[bus.enemy_slain, Callable(MonsterLore, "on_hero_kill")],
@@ -607,7 +609,8 @@ func _ready() -> void:
 	Sfx.click_on_buttons(get_tree())
 	_update_sound_button()
 	_ambience = Sfx.start_ambience(self)
-	_rain_sound = Sfx.start_loop(self, "rain")
+	_soundscape = Soundscape.new()
+	add_child(_soundscape)
 	Music.load_settings()
 	Music.start(self)
 	_update_music_controls()
@@ -762,7 +765,8 @@ func _set_atmosphere(outdoor: bool) -> void:
 		_moon.light_energy = 0.28
 	# No dripping cave water under the open sky.
 	if _ambience:
-		_ambience.volume_db = -30.0 if outdoor else -8.0
+		# A floor with a loop of its own (see Soundscape) lets the old cave air rest.
+		_ambience.volume_db = -30.0 if outdoor else (-80.0 if Soundscape.covers_dungeon(level) else -8.0)
 
 
 ## A label with outline and shadow (see UiKit.label).
@@ -2568,6 +2572,7 @@ func _clock_text() -> String:
 func _tick_clock(delta: float) -> void:
 	if level == null:
 		return
+	_soundscape.tick(self, delta)
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		var before := day_hour
 		day_hour = DayNight.advance(day_hour, delta)
@@ -2796,21 +2801,11 @@ func _show_weather() -> void:
 		_mist.emitting = false
 		_mist.visible = false
 		_clouds.set_look(0.0, Weather.HAZE)
-		if _rain_sound and _rain_sound.playing:
-			_rain_sound.stop()
 		return
 	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
 	_clouds.set_look(_weather_look.mist, _env.fog_light_color)
 	Weather.show_particles(_rain, _mist, _weather_look, 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3)
-	if _rain_sound:
-		var r: float = _weather_look.rain
-		if r > 0.02:
-			_rain_sound.volume_db = linear_to_db(r) - 10.0
-			if not _rain_sound.playing:
-				_rain_sound.play()
-		elif _rain_sound.playing:
-			_rain_sound.stop()
 
 
 ## Lightning struck (see Outdoor.strike): the sky flashes, and the thunder
@@ -5754,6 +5749,18 @@ const LEVEL_MESSAGE_WAIT := 3.0
 const LEVEL_LEARN := "Erfahrung (EP) bekommst du für besiegte Gegner, erfüllte Aufträge, Kopfgelder und gelöste Rätsel. Gegner weit unter deiner Heldenstufe bringen wenig. Jede Stufe gibt +1 Leben, jede 2. Stufe bis Stufe 20 +1 % Tempo, jede 3. Stufe einen Punkt für Stärke, Geschick oder Intelligenz (im Charakter, Taste P) und jede 5. Stufe +1 Konstitution."
 
 
+## The colour of the brief word over the hero when a skill grows.
+const SKILL_GAIN_COLOR := Color(0.65, 0.85, 1.0)
+
+
+## A skill or monster lore grew: a brief word over the hero's head. Words over
+## one head stack, so several gains at once never cover each other.
+func show_gain(text: String, color: Color) -> void:
+	if player == null or level == null:
+		return
+	Effects.float_text(level, player.global_position + Vector3(0, 3.0, 0), text, color)
+
+
 func _on_player_trained(id: String, value: int) -> void:
 	var text := ""
 	match id:
@@ -5774,7 +5781,7 @@ func _on_player_trained(id: String, value: int) -> void:
 			if value == Training.WISE_SHRINE:
 				text += "\n" + Lang.t("Die Schreine zeigen dir nun eine vierte Gabe.")
 		_:
-			text = Lang.t("Du wirst geübter: %s, Stufe %d") % [Lang.t(_skill_or_craft_name(id)), value]
+			text = Lang.t("%s +1") % Lang.t(_skill_or_craft_name(id))
 	var attribute := Training.ATTRIBUTES.has(id)
 	if attribute:
 		# A stronger body is rare and big: a word over the hero and a message.
@@ -5782,9 +5789,9 @@ func _on_player_trained(id: String, value: int) -> void:
 		Sfx.play(self, "secret", -6.0)
 		show_message(text, 3.5)
 	else:
-		# A skill grows often: one quiet line in the event log keeps the
-		# screen clear for the game.
-		Events.found(text, Color(0.65, 0.85, 1.0))
+		# A skill grows often: a brief word over the hero's head, not a line
+		# in the event log.
+		Events.gain(text, SKILL_GAIN_COLOR)
 	learn("Eigenschaften wachsen sehr langsam durch Tun: Kämpfen macht stärker (Stärke: +1 Schaden im Nahkampf je Punkt, Lasten wiegen weniger), Treffer einstecken macht zäher (Konstitution, +1 Leben je Punkt), Laufen und Springen machen schneller (Tempo bis 150 %), Springen, Werfen und Fallen machen geschickter (Geschick: +1 Schaden mit Wurfmessern und +4 % Ausweichen je Punkt, weiter springen), Durchsuchen und Geheimnisse schärfen das Gespür (Intuition, +2 % je Punkt, Geheimräume zu entdecken), und alles, was du durchstehst, macht dich weiser (Weisheit: du lernst 5 % schneller je Punkt, ab 12 bieten Schreine eine vierte Gabe), und Neues zu verstehen macht klüger (Intelligenz: Fertigkeiten lernen 10 % schneller und 3 % mehr Erfahrung je Punkt; manche Dinge wie der Zauberhut brauchen sie). Fertigkeiten wachsen schneller, aber nur mit der passenden Ausrüstung. Alles bleibt deinem Helden über alle Läufe.")
 	_update_hud()
 

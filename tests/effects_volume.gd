@@ -79,7 +79,7 @@ func _run() -> void:
 	check(AudioServer.bus_count == 2, "the effects bus comes from the bus layout, none is added at runtime")
 	check(AudioServer.get_bus_send(bus) == &"Master", "the effects bus sends to Master")
 	check(game._ambience.bus == Sfx.BUS, "the ambience plays through the effects bus")
-	check(game._rain_sound.bus == Sfx.BUS, "the rain plays through the effects bus")
+	check(Sfx.start_loop(game, "rain").bus == Sfx.BUS, "the rain (and every soundscape loop) plays through the effects bus")
 	Sfx.play(game, "step_0")
 	var played := false
 	for c in root.get_children():

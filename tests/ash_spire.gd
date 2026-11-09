@@ -121,7 +121,7 @@ func _run() -> void:
 	await _find_lever(lvl)
 	check(_stations(AshSpire.PRISONER).size() == 1, "floor 4 has the prisoner")
 	check(lvl._gates.size() == 1 and lvl.stones.size() == 2, "floor 4 has a block puzzle")
-	check(lvl.enemies.any(func(e): return e.kind == "magier" and e.hp >= 60), "the archivist waits behind the gate")
+	check(lvl.enemies.any(func(e): return e.kind == "magier" and e is Archivist and e.hp >= 800), "the archivist waits behind the gate")
 	await _prisoner(lvl)
 	await _cache_and_anvil()
 

@@ -4192,11 +4192,13 @@ func spawn_map_enemy(c: Vector2i) -> Enemy:
 	if Enemy.LETTERS.has(ch):
 		e = _spawn_enemy(Enemy.LETTERS[ch], c, elite and ch in "MA")
 	else:
-		var made_as: Enemy = SternHall.make_boss(creations[ch]) if stern else null
+		var made_as: Enemy = SternHall.make_boss(creations[ch]) if stern else Archivist.make(creations[ch])
 		e = _spawn_enemy(creations[ch].base, c, elite, Creations.monster_stats(creations[ch]), true, made_as)
 	_map_enemies.append({"enemy": e, "cell": c})
 	if stern:
 		stern.on_spawned(e, c)
+	if e is Archivist:
+		add_child(BossBar.new(e))
 	return e
 
 

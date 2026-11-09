@@ -1,0 +1,2 @@
+- New sounds: all sword and axe blows, hits, swings and spells now use a combat sound pack, and the woodcutters' chopping and the village's church bell use new, richer recordings.
+- Every place now has its own ambient soundscape: the village by day and night, the market chatter, the forge, the fields, campfires, the woods by day and night, light, steady and heavy rain, and a fitting loop on every dungeon floor (dungeon, cave, mine, crystal, fire, ancient halls, the spire). They fade into each other as you move.

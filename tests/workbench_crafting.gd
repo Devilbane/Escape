@@ -40,6 +40,16 @@ func _process(_delta: float) -> bool:
 	return true
 
 
+## Every material line (starting with a tick or a cross) under a node.
+func _needs_labels(node: Node) -> Array:
+	var out: Array = []
+	if node is Label and (node.text.begins_with("✓") or node.text.begins_with("✗")):
+		out.append(node)
+	for child in node.get_children():
+		out.append_array(_needs_labels(child))
+	return out
+
+
 func _test() -> void:
 	game.hero_name = HERO
 	game.crafting.clear()
@@ -77,6 +87,9 @@ func _test() -> void:
 	game.menus.bench = "feinschmieden"
 	game.menus.open("werkbank")
 	check(game.menus.current == "werkbank", "the bench window opens")
+	# Each ingredient line is one readable row, never a column of single letters.
+	for line in _needs_labels(game.menus._box):
+		check(line.get_minimum_size().x >= 60.0 and line.get_minimum_size().y < 40.0, "an ingredient line stays on one row: " + line.text)
 	game.menus._make_recipe("klingenring")
 	check(game.menus._note == why, "trying without the ingredients says what is missing")
 	check(game.player.bag.is_empty(), "nothing is made without the ingredients")

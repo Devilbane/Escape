@@ -43,6 +43,7 @@ const EN := {
 	"Das Allerheiligste": "The Sanctum",
 	"Gorrak der Torbrecher": "Gorrak the Gatebreaker",
 	"Archivar Veth": "Archivist Veth",
+	"Das Archiv vergisst nichts!": "The archive forgets nothing!",
 	"Bruder Orlan": "Brother Orlan",
 	"Ashkarans Schatten": "Ashkaran's Shade",
 	"Psst. Hier drüben, hinter den Gittern.": "Psst. Over here, behind the bars.",

@@ -656,7 +656,7 @@ func _defend(delta: float) -> void:
 		var cell := level.world_to_cell(next)
 		if level.village_wall.is_inside(cell) and not level.astar.is_point_solid(cell) \
 				and Vector2(next.x - defend_post.x, next.z - defend_post.z).length() < POST_ROOM:
-			global_position = Vector3(next.x, 0, next.z)
+			_move_to(Vector3(next.x, 0, next.z))
 			return
 		play("Idle")
 		return
@@ -890,7 +890,7 @@ func _fight(delta: float) -> void:
 		step.y = 0.0
 		var walked := _stride("Running_A", RUN_SPEED)
 		var room := step.length() if not _fight_path.is_empty() else maxf(to.length() - reach + 0.1, 0.0)
-		global_position += step.normalized() * minf(walked * delta, room)
+		_move_to(global_position + step.normalized() * minf(walked * delta, room))
 		_turn_to(step, delta)
 		return
 	_blow_cool -= delta
@@ -942,7 +942,7 @@ func _support(delta: float) -> void:
 	_turn_to(to, delta)
 	if to.length() > VillageArms.SUPPORT_DISTANCE:
 		var step := to.normalized() * _stride("Running_A", RUN_SPEED) * delta
-		global_position += step
+		_move_to(global_position + step)
 	elif not _anim.is_playing() or _current_anim != "Spellcast_Raise":
 		play("Idle")
 
@@ -1163,7 +1163,7 @@ func _keep_apart() -> void:
 		# Two walking about share the step; from a shopkeeper the walker
 		# steps away all by himself.
 		var share := 1.0 if o.keeps_spot() else 0.5
-		global_position += away.normalized() * (room - away.length()) * share
+		_move_to(global_position + away.normalized() * (room - away.length()) * share)
 
 
 func _walk_to(target: Vector3, speed: float, then: String) -> void:
@@ -1275,12 +1275,36 @@ func _walk(delta: float, hero: Node3D) -> void:
 	_waiting = 0.0
 	var walked := _stride("Running_A" if _speed >= RUN_SPEED else ("Walking_B" if _speed < WALK_SPEED else "Walking_A"), _speed)
 	var step := walked * delta
+	var target := Vector3(_path[0].x, 0, _path[0].z) if to.length() <= step else global_position + to.normalized() * step
+	if blocked_at(target) and not blocked_at(global_position):
+		# A gate was shut (or a wall stands) ahead: wait, then find the way again.
+		play("Idle")
+		_waiting += delta
+		if _waiting >= MAKE_WAY:
+			_waiting = 0.0
+			var goal: Vector3 = _path[_path.size() - 1]
+			_walk_to(goal, _speed, get_meta("then", "idle"))
+		return
+	global_position = target
 	if to.length() <= step:
-		global_position = Vector3(_path[0].x, 0, _path[0].z)
 		_path.pop_front()
-	else:
-		global_position += to.normalized() * step
 	_turn_to(to, delta)
+
+
+## Whether a point is inside a wall brick that stops everyone: a standing wall or a shut gate.
+func blocked_at(point: Vector3) -> bool:
+	if level == null or level.village_wall == null:
+		return false
+	var brick := level.village_wall.brick_at(level.world_to_cell(point))
+	return brick != null and brick.blocks()
+
+
+## Moves to a point unless a wall or a shut gate is there. Returns whether it moved.
+func _move_to(point: Vector3) -> bool:
+	if blocked_at(point) and not blocked_at(global_position):
+		return false
+	global_position = Vector3(point.x, global_position.y, point.z)
+	return true
 
 
 ## Whether a point is too close to someone else who keeps their spot.
@@ -1359,7 +1383,7 @@ func _ready_to_chop(delta: float) -> bool:
 	to.y = 0.0
 	if to.length() > 0.05:
 		var step := minf(to.length(), _stride("Walking_B", WALK_SPEED * 0.6) * delta)
-		global_position += to.normalized() * step
+		_move_to(global_position + to.normalized() * step)
 		_turn_to(to, delta)
 		return false
 	_turn_to(_chop_face, delta)

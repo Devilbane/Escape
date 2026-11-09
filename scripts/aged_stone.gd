@@ -55,7 +55,7 @@ const OLD_PATCH_LEAVES := 420
 const OLD_IVY_FOOT := 1.8
 const OLD_IVY_FILL := 0.5
 ## Half the size of the clear middle of a window (across, up), in metres.
-const WINDOW_CLEAR := Vector2(0.42, 0.5)
+const WINDOW_CLEAR := Vector2(0.6, 0.7)
 ## How far (metres, along the slope) old ivy creeps up a roof, and the
 ## steepest a roof may be (its normal's y at least) to be crept on.
 const ROOF_CREEP := Vector2(0.5, 2.0)
@@ -63,6 +63,8 @@ const ROOF_SLOPE := 0.25
 const LEAF_SIZE := Vector2(0.3, 0.46)
 ## The smallest wall (square metres) ivy grows on.
 const IVY_WALL := 0.6
+## How many times the leaves of a building's one side all its sides together get.
+const IVY_TOTAL_SHARE := 1.2
 ## Shades of the leaves: mostly dark green, now and then an autumn red.
 const LEAF_COLOURS := [Color(0.22, 0.36, 0.14), Color(0.17, 0.29, 0.11), Color(0.28, 0.42, 0.16),
 		Color(0.20, 0.33, 0.17), Color(0.36, 0.40, 0.14), Color(0.48, 0.22, 0.12)]
@@ -294,6 +296,7 @@ static func triangles(node: Node3D) -> Array:
 			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
 			var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+			var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] if arrays[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
 			var count := idx.size() if idx.size() > 0 else verts.size()
 			for t in range(0, count - 2, 3):
 				var i0 := idx[t] if idx.size() > 0 else t
@@ -311,7 +314,10 @@ static func triangles(node: Node3D) -> Array:
 				var n := -cr.normalized()
 				if normals.size() > 0 and (xf.basis * (normals[i0] + normals[i1] + normals[i2])).dot(n) < 0.0:
 					n = -n
-				out.append({"a": a, "b": b, "c": c, "n": n, "area": area})
+				var tri := {"a": a, "b": b, "c": c, "n": n, "area": area}
+				if uvs.size() > 0:
+					tri["uv"] = (uvs[i0] + uvs[i1] + uvs[i2]) / 3.0
+				out.append(tri)
 	return out
 
 
@@ -405,33 +411,54 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 	var roofs: Array = []
 	if old:
 		roofs = tris.filter(func(t): return (t.n as Vector3).y > ROOF_SLOPE and (t.n as Vector3).y < 0.97 and t.c.y > ground + 2.0)
-	var total := 0.0
+	# The sides of the building (walls looking the same way), the one facing
+	# the camera (south) first: the patches are dealt round them one by one, so
+	# every side of the building gets its share, not only the front.
+	var sides: Array = []
 	for w: Dictionary in found:
-		total += w.area
+		var side: Array = []
+		for s: Array in sides:
+			if ((s[0] as Dictionary).n as Vector3).dot(w.n) > 0.9:
+				side = s
+				break
+		if side.is_empty():
+			sides.append([w])
+		else:
+			side.append(w)
+	# The camera looks north from the south: a side turned right away from it
+	# is never seen, so it grows no ivy (unless it is all there is).
+	var seen := sides.filter(func(s: Array): return ((s[0] as Dictionary).n as Vector3).z > -0.7)
+	if not seen.is_empty():
+		sides = seen
+	sides.sort_custom(func(a: Array, b: Array): return (a[0].n as Vector3).z > (b[0].n as Vector3).z)
+	# Every side gets as many patches as a building had on its one side before.
+	patches *= sides.size()
+	# Every side gets its patches, but each patch is thinner (fewer, larger
+	# leaves), so the whole building wears about 1.2 times the leaves it had
+	# on its one side and the village's leaf count stays near its old budget.
+	var thin := minf(1.0, IVY_TOTAL_SHARE / float(sides.size()))
 	var grown := 0
 	for attempt in patches * 6:
 		if grown >= patches:
 			break
-		# A wall, by its size; the first tries go to the walls that look
-		# south, the way the camera looks at the village.
-		var pick := rng.randf() * total
-		var wall: Dictionary = found[-1]
-		for w: Dictionary in found:
+		# A wall of the side whose turn it is, by its size.
+		var side: Array = sides[attempt % sides.size()]
+		var side_area := 0.0
+		for w: Dictionary in side:
+			side_area += w.area
+		var pick := rng.randf() * side_area
+		var wall: Dictionary = side[-1]
+		for w: Dictionary in side:
 			pick -= w.area
 			if pick <= 0.0:
 				wall = w
 				break
-		var facing := found.filter(func(w): return (w.n as Vector3).z > 0.4)
-		# Old ivy gives the camera's side a few more of its patches.
-		var first := 3 if old else 1
-		if grown < first and attempt < 6 * first and not facing.is_empty():
-			wall = facing[rng.randi() % facing.size()]
 		var root: Vector3 = _root_on(wall, ground, rng)
 		if root == Vector3.INF:
 			continue
 		if doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
 			continue
-		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows)
+		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin)
 		grown += 1
 
 
@@ -459,12 +486,13 @@ static func _root_on(wall: Dictionary, ground: float, rng: RandomNumberGenerator
 ## and then branching; leaves grow along them, thickest near the ground.
 ## Old ivy climbs higher, and a tendril that runs out of wall below its
 ## reach creeps on up the roof above it.
-static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = []) -> void:
+static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = [], thin := 1.0) -> void:
 	var n: Vector3 = root_wall.n
 	var across := Vector3.UP.cross(n).normalized()
 	var height: Vector2 = OLD_IVY_HEIGHT if old else IVY_HEIGHT
 	var reach := ground + rng.randf_range(height.x, height.y)
-	var most: int = OLD_PATCH_LEAVES if old else PATCH_LEAVES
+	var most: int = int((OLD_PATCH_LEAVES if old else PATCH_LEAVES) * thin)
+	var bigger := 1.0 / sqrt(thin)
 	# The walls in line with this one: the ivy climbs on up them where one
 	# ends (a jutting upper floor, a ledge).
 	var line := all_walls.filter(func(w): return (w.n as Vector3).dot(n) > 0.99)
@@ -502,8 +530,8 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 				fill = maxf(fill, OLD_IVY_FILL)
 			for k in rng.randi_range(1, 1 + int(fill * 1.6)):
 				var at := p + across * rng.randf_range(-0.2, 0.2) + Vector3.UP * rng.randf_range(-0.08, 0.08)
-				if _on_wall(wall, at) and not _on_pane(at, n, windows):
-					_leaf(at, n, across, rng, leaves, 0.75 + fill * 0.35)
+				if rng.randf() < thin and _on_wall(wall, at) and not _on_pane(at, n, windows):
+					_leaf(at, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
 			if rng.randf() < 0.08 and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
 
@@ -561,6 +589,21 @@ static func _creep_roof(p: Vector3, n: Vector3, roofs: Array, rng: RandomNumberG
 		at = still.p
 		rn = still.n
 		went += 0.16
+
+
+## The middles of the window panes of a building that has no list of them
+## (the KayKit buildings): the pane triangles are the ones whose texture
+## coordinates lie on the palette's window patch (`window_uv`); those close
+## together are one pane.
+static func window_panes(tris: Array, window_uv: Vector2) -> Array:
+	var panes: Array = []
+	for t: Dictionary in tris:
+		if not t.has("uv") or (t.uv as Vector2).distance_to(window_uv) > 0.03:
+			continue
+		var centre: Vector3 = (t.a + t.b + t.c) / 3.0
+		if not panes.any(func(p: Vector3): return p.distance_to(centre) < 0.9):
+			panes.append(centre)
+	return panes
 
 
 ## Whether a spot on a wall facing `n` lies over the middle of a window

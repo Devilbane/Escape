@@ -3682,9 +3682,14 @@ func _open_gates() -> void:
 		gate_opened.emit(g.node.global_position)
 
 
+func _exit_tree() -> void:
+	HeroReveal.off()
+
+
 func _process(delta: float) -> void:
 	_time += delta
 	_near_walls.update(self, player, get_viewport().get_camera_3d())
+	HeroReveal.follow(player)
 	for t in _torches:
 		if not is_instance_valid(t.light):
 			continue

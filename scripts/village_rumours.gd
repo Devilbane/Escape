@@ -75,7 +75,7 @@ const RUMOURS := {
 		"chat": [["Mein Großvater sprach vom Großen Alten in den Bergen.", "Ein Märchen, um Kinder zu erschrecken.", "Dann erklär mir, warum die Erde manchmal bebt."]],
 		"after_tell": ["{hero} hat den Großen Alten in den Bergen bezwungen! Wer hätte das gedacht."],
 		"after_chat": [["Seit {hero} in den Bergen war, ist es dort oben still.", "Der Große Alte ist fort. Ich hätte nie gedacht, dass ich das erlebe."]]},
-	"teich": {"who": ["2", "5", "7", "9"],
+	"teich": {"who": ["2", "5", "7", "9", "pippi"],
 		"tell": ["Im Dorfteich lebt ein kleines grünes Ungeheuer. Wenn du angelst, schnappt es dir manchmal den Köder weg.",
 			"Auch im Tümpel der Wolfssenke lebt so ein Teichungeheuer. Es taucht auf, macht „Blubb!“ und schaut dich an."],
 		"chat": [["Ich schwöre, im Teich hat mich etwas angeschaut!", "Das kleine Ungeheuer? Das klaut nur Köder.", "Es hatte Augen so groß wie Teller!", "Es hatte Augen so groß wie Erbsen. Ich hab's selbst gesehen."]]},

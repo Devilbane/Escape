@@ -382,8 +382,8 @@ In the dark a word shows where it came from; very close it becomes a cry.
 
 **Stab in the back:** a blow from behind on a skeleton that has not noticed you yet
 fells it at once. If you sneak up from behind, it will not notice you even up close. In the crypt
-(level 4) an armoured **guardian** carries the key: blades and knives bounce off it,
-only a stab in the back defeats it, with a single blow. It stands still in its hall next to the
+(level 4) an armoured **guardian** carries the key: it has twenty times a skeleton's life, so a fair fight is long and hard,
+but a stab in the back defeats it at once, with a single blow. It stands still in its hall next to the
 brazier, which lights only the middle; the edge stays dark. In the corridor before it you learn how
 it is done: sneak (C), go around it in the shadows along the edge, strike from behind. A hall with a guardian
 has no wall torches. A guardian in a level without `K` drops the key when it dies.

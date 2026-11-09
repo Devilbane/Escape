@@ -6548,7 +6548,7 @@ func _snap_camera() -> void:
 ## Tips on sneaking, shown one after another the first time the hero sees
 ## an armoured guardian on a level; -1 until then.
 const GUARDIAN_TIPS := [
-	"Vor dir wacht ein gepanzerter Wächter mit dem Schlüssel.\nKlingen und Messer prallen an ihm ab.\nNur ein Stich in den Rücken tötet ihn, mit einem einzigen Schlag.",
+	"Vor dir wacht ein gepanzerter Wächter mit dem Schlüssel.\nEr hat zwanzigmal so viel Leben wie ein Skelett.\nNur ein Stich in den Rücken tötet ihn, mit einem einzigen Schlag.",
 	"Drück C (oder Doppelklick), um zu schleichen, bevor du eintrittst.\nEr sieht nur, was im Licht seiner Feuerschale steht.\nAm dunklen Rand des Saals bist du unsichtbar.",
 	"Schleich im Schatten um ihn herum, bis du in seinem Rücken stehst.\nDann tritt heran und schlag zu (F).\nEntdeckt er dich, lauf hinaus: Er gibt bald auf.",
 ]

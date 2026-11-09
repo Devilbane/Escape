@@ -2031,7 +2031,8 @@ func _outer_side() -> Dictionary:
 			var c: Vector2i = todo.pop_back()
 			for d in DIRS:
 				var n := c + d
-				if cell_char(n) != "#" and cell_char(n) != "?" and not _outer.has(n):
+				# Iron bars are solid: a cell behind them is not part of the way in.
+				if not "#?=".contains(cell_char(n)) and not _outer.has(n):
 					_outer[n] = true
 					todo.append(n)
 	return _outer
@@ -2371,7 +2372,7 @@ func free_if_sealed_in(pos: Vector3) -> bool:
 			if seen.has(n):
 				continue
 			var ch := cell_char(n)
-			if ch == "" or ch == "#":
+			if ch == "" or ch == "#" or ch == "=":
 				continue
 			seen[n] = true
 			if _secrets.any(func(s): return s.cell == n and not s.open):

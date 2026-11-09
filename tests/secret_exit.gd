@@ -72,3 +72,28 @@ func _test() -> void:
 				rounds += 1
 			check(not lv.free_if_sealed_in(spot), "%s: in the end nothing is left to open" % name)
 	check(tested > 0, "some level has a secret room to test")
+	_test_archive_bed_room()
+
+
+## The archive's bed room lies beside the prisoner's cell, parted from it by
+## iron bars. The bars are solid, so the room is a secret room: a hero who
+## sleeps in its bed and wakes in a rebuilt level is let out, not shut in.
+func _test_archive_bed_room() -> void:
+	var idx: int = game.level_files.find("res://levels/34_das_archiv_sonnet.txt")
+	if idx < 0:
+		for i in game.level_files.size():
+			if str(game.level_files[i]).contains("34_das_archiv"):
+				idx = i
+	check(idx >= 0, "the archive map is in the list")
+	if idx < 0:
+		return
+	game.load_level(idx)
+	var lv: Level = game.level
+	var bed := Vector2i(-1, -1)
+	for st in lv.stations:
+		if st.kind == "bett":
+			bed = st.cell
+	check(bed.x >= 0, "the archive has a bed")
+	check(not lv._outer_side().has(bed), "the bed room is not reached through the cell's bars")
+	var spot := lv.cell_to_world(bed + Vector2i(-1, 0))
+	check(lv.free_if_sealed_in(spot), "a hero waking in the archive's bed room is let out")

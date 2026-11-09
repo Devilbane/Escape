@@ -487,6 +487,9 @@ func _attribute_details(id: String) -> Dictionary:
 		lines[0] += " " + Lang.t("(+%d aus dem %s)") % [ArmourSets.dexterity(player.equipped), ArmourSets.title(kind)]
 	var live := live_effects(id)
 	lines.append_array(live if not live.is_empty() else [Lang.t(ATTRIBUTE_EFFECTS.get(id, ""))])
+	if id == "tempo":
+		lines.append(Lang.t("Grundtempo mit Ausrüstung: %d %%") % roundi(minf(player.base_speed_wanted, Player.BASE_SPEED_CAP) * 100.0)
+				+ (" " + Lang.t("(Höchstgrenze %d %%, Rennen zählt obendrauf)") % roundi(Player.BASE_SPEED_CAP * 100.0) if player.base_speed_capped else ""))
 	var governs := []
 	for skill in Training.SKILLS:
 		if Training.SKILLS[skill].attributes.has(id):

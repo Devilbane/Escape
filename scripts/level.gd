@@ -1190,7 +1190,10 @@ func _build_walls(c: Vector2i) -> void:
 			_wall_torches.append({"holder": torch, "cell": c, "pos": pos, "rot": rot})
 		elif piece == "wall" and _rng.randf() < 0.18:
 			var pick := _rng.randi() % WALL_DECOR.size()
-			if not by_stairs:
+			# No banner or sword and shield behind a furniture spot of the hero's house: the trophy wall
+			# or a bench stands there. (The roll is made first, so the other rolls stay as they were.)
+			var spot_of_house := is_home and cell_char(c) == "+"
+			if not by_stairs and not spot_of_house:
 				# The same banner or sword close by: another one, or none.
 				for i in WALL_DECOR.size():
 					var k := (pick + i) % WALL_DECOR.size()
@@ -5681,6 +5684,17 @@ func _against_side_wall(c: Vector2i) -> bool:
 	return cell_char(c + Vector2i(-1, 0)) == "#" or cell_char(c + Vector2i(1, 0)) == "#"
 
 
+## Whether the hero can walk up to the furniture on a spot: at least one of its four sides is
+## plain floor, not a wall, the front door or a stair well. (A spot squeezed between the door and a
+## stair well can only be reached by cutting the corner, so nothing is put there.)
+func _slot_has_open_side(c: Vector2i) -> bool:
+	for d: Vector2i in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+		var ch := cell_char(c + d)
+		if ch != "#" and ch != "E" and ch != "<" and ch != ">" and _walkable(c + d):
+			return true
+	return false
+
+
 ## The furniture spot for an upgrade, or {} when every spot is taken. The
 ## trophy wall hangs on a back wall
 ## of the entrance room, on the ground floor; the workbench stands against a side wall up there.
@@ -5690,7 +5704,7 @@ func _upgrade_slot(id: String) -> Dictionary:
 	var best_score := -INF
 	for slot in furniture_slots:
 		var c: Vector2i = slot.cell
-		if taken.has(c):
+		if taken.has(c) or not _slot_has_open_side(c):
 			continue
 		var storey: int = slot.storey
 		var score := 0.0

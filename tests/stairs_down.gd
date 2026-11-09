@@ -37,6 +37,21 @@ func _initialize() -> void:
 	lvl.height = 3
 	check(lvl.stairs_down_dir(Vector2i(2, 1)) == Vector2(-1, 0), "the longer open side (east) wins: the flight runs west")
 	lvl.free()
+	# Every setting has a look of its own, and the wall style wins over the mine setting.
+	check(StairsDown.look("", "") == StairsDown.LOOKS[""], "a plain dungeon gets the plain stone")
+	check(StairsDown.look("crystal", "kristall") != StairsDown.look("rock", "kupfer"), "crystal and rock stairs differ")
+	check(StairsDown.look("", "glut") == StairsDown.LOOKS["glut"], "a mine setting without a wall style gets its own look")
+	check(StairsDown.look("bone", "uralt") == StairsDown.LOOKS["bone"], "the wall style wins over the mine setting")
+	for name: String in StairsDown.LOOKS:
+		var look: Dictionary = StairsDown.LOOKS[name]
+		check(look.has_all(["stone", "bottom", "rim", "rough", "glow", "gloss"]), "look '%s' is complete" % name)
+		var rough_holder := Node3D.new()
+		root.add_child(rough_holder)
+		var built := StairsDown.build(rough_holder, Vector3(3, 0, 5), 4.0, Vector3(0, 0, -1), look)
+		check(built.get_child_count() >= StairsDown.STEPS * 2, "'%s' builds every step" % name)
+		rough_holder.queue_free()
+	for style: String in WallThemes.names():
+		check(StairsDown.LOOKS.has(style), "every wall style (%s) has stairs of its own" % style)
 	if failures == 0:
 		print("PASS: stairs down")
 	else:

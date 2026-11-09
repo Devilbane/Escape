@@ -3,6 +3,9 @@ extends PanelContainer
 ## The event log at the left edge of the screen: what the hero finds (loot),
 ## what the people around say and every message shown over the hero's head
 ## (to read again later), newest at the bottom, in small type.
+## Tasks bound to the place the hero is in (see Quests.board) stay pinned at
+## the top of the box, one short line each, for as long as the hero is there
+## and the task is open; the log scrolls beneath them in the room that is left.
 ## The box has one fixed size and place, so a new line never moves or
 ## resizes anything else on screen: older lines slide up and out at its top.
 ## Only the text shows over the world: the dark box behind it fades in while
@@ -62,6 +65,10 @@ const BAR_MIN_HANDLE := 20.0
 ## has faded.
 const BAR_HELD := 0.6
 
+## Most pinned tasks at once, and their colour.
+const MAX_TASKS := 3
+const TASK_COLOR := Color(1.0, 0.82, 0.4)
+
 const LOOT_COLOR := Color(0.75, 0.9, 1.0)
 const SPEECH_COLOR := Color(0.93, 0.91, 0.86)
 const NAME_COLOR := Color(1.0, 0.82, 0.4)
@@ -69,6 +76,9 @@ const FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 
 var _lines: VBoxContainer
 var _clip: Control
+var _body: VBoxContainer
+var _tasks: VBoxContainer
+var _task_texts: Array[String] = []
 var _idle := 0.0
 ## How strongly the dark box shows (0: only the text), and the seconds since
 ## the player last clicked on the box or scrolled it.
@@ -112,7 +122,16 @@ func _init() -> void:
 	var clip := Control.new()
 	clip.clip_contents = true
 	clip.mouse_filter = MOUSE_FILTER_IGNORE
-	add_child(clip)
+	clip.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_body = VBoxContainer.new()
+	_body.mouse_filter = MOUSE_FILTER_IGNORE
+	_body.add_theme_constant_override("separation", GAP)
+	add_child(_body)
+	_tasks = VBoxContainer.new()
+	_tasks.mouse_filter = MOUSE_FILTER_IGNORE
+	_tasks.add_theme_constant_override("separation", GAP)
+	_body.add_child(_tasks)
+	_body.add_child(clip)
 	_clip = clip
 	_lines = VBoxContainer.new()
 	_lines.mouse_filter = MOUSE_FILTER_IGNORE
@@ -173,27 +192,11 @@ func _add(speaker: String, text: String, color: Color) -> void:
 	if key == _last and _idle < REPEAT_TIME:
 		return
 	_last = key
-	var line := RichTextLabel.new()
-	line.bbcode_enabled = true
-	line.fit_content = true
-	line.scroll_active = false
-	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	line.mouse_filter = MOUSE_FILTER_IGNORE
-	line.add_theme_font_override("normal_font", FONT)
-	line.add_theme_font_size_override("normal_font_size", UiKit.sized(FONT_SIZE))
-	line.add_theme_color_override("default_color", color)
-	line.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
-	line.add_theme_constant_override("outline_size", 3)
-	# Without the dark box behind it the text stands on the world: an outline
-	# and a shadow keep it readable there (as Game._make_label does).
-	line.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
-	line.add_theme_constant_override("shadow_offset_y", 2)
-	line.add_theme_constant_override("shadow_offset_x", 1)
 	# Item names marked by Rarity.marked show in the colour of their rarity.
 	var body := Rarity.to_bbcode(_escape(text))
 	if speaker != "":
 		body = "[color=#%s]%s:[/color] %s" % [NAME_COLOR.to_html(false), _escape(speaker), body]
-	line.text = body
+	var line := _make_line(body, color)
 	_lines.add_child(line)
 	while _lines.get_child_count() > KEEP:
 		var old := _lines.get_child(0)
@@ -207,6 +210,49 @@ func _add(speaker: String, text: String, color: Color) -> void:
 	_idle = 0.0
 	modulate.a = 1.0
 	queue_redraw.call_deferred()
+
+
+## The tasks pinned at the top, already translated (an empty list takes them
+## away). Called every moment, so nothing changes unless the lines do.
+func set_tasks(texts: Array[String]) -> void:
+	texts = texts.slice(0, MAX_TASKS)
+	if texts == _task_texts:
+		return
+	_task_texts = texts
+	for old in _tasks.get_children():
+		_tasks.remove_child(old)
+		old.queue_free()
+	for text in texts:
+		var line := _make_line(Rarity.to_bbcode(_escape(text)), TASK_COLOR)
+		_tasks.add_child(line)
+	if not texts.is_empty():
+		visible = true
+	scroll_to(_scroll)
+	queue_redraw.call_deferred()
+
+
+## The pinned tasks as plain text (for tests).
+func tasks() -> Array[String]:
+	return _task_texts.duplicate()
+
+
+func _make_line(body: String, color: Color) -> RichTextLabel:
+	var line := RichTextLabel.new()
+	line.bbcode_enabled = true
+	line.fit_content = true
+	line.scroll_active = false
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line.mouse_filter = MOUSE_FILTER_IGNORE
+	line.add_theme_font_override("normal_font", FONT)
+	line.add_theme_font_size_override("normal_font_size", UiKit.sized(FONT_SIZE))
+	line.add_theme_color_override("default_color", color)
+	line.add_theme_color_override("font_outline_color", Color(0.05, 0.02, 0.06))
+	line.add_theme_constant_override("outline_size", 3)
+	line.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+	line.add_theme_constant_override("shadow_offset_y", 2)
+	line.add_theme_constant_override("shadow_offset_x", 1)
+	line.text = body
+	return line
 
 
 func _keep_view(line: Control) -> void:
@@ -235,7 +281,7 @@ func _scroll_range() -> float:
 
 ## The bar's track: the strip in the right margin, as long as the text area.
 func _bar_track() -> Rect2:
-	var top := _clip.position.y
+	var top := _clip.position.y + _body.position.y
 	return Rect2(size.x - BAR_INSET - BAR_WIDTH, top, BAR_WIDTH, _clip.size.y)
 
 
@@ -350,7 +396,7 @@ func _process(delta: float) -> void:
 	var want := 1.0 if _since_touch < FRAME_STAY else 0.0
 	if _frame != want:
 		_show_frame(move_toward(_frame, want, delta * FRAME_FADE))
-	elif want == 0.0 and _lines.get_child_count() == 0:
+	elif want == 0.0 and _lines.get_child_count() == 0 and _task_texts.is_empty():
 		# Shown only to preview its width (set_width): hidden again until the
 		# first line comes.
 		visible = false

@@ -75,7 +75,7 @@ const KINDS := {
 		"ghost": Color(0.95, 1.0, 0.97), "aura": Color(0.3, 1.0, 0.45), "fade": true, "curse": 0.3, "scare": 14, "gear_chance": 0.0, "voice": ["voice_totengeist", 1.0, "huuu"]},
 	"banshee": {"model": "Skeleton_Mage", "hp": 2, "speed": 3.8, "damage": 1, "reach": 18.0, "size": 1.0, "cooldown": 3.0, "ranged": true, "magic": true,
 		"ghost": Color(0.95, 1.0, 0.97), "aura": Color(0.45, 1.0, 0.3), "shriek": 16.0, "scare": 18, "hide": ["_Hat"], "gear_chance": 0.0, "voice": ["voice_banshee", 1.0, "uuuh"]},
-	"waechter": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Axe", "shield": "Skeleton_Shield_Large_A", "hp": 1, "speed": 3.0, "damage": 2, "reach": 2.3, "size": 1.25, "cooldown": 1.6, "tint": Color(0.46, 0.5, 0.58), "armored": true},
+	"waechter": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Axe", "shield": "Skeleton_Shield_Large_A", "hp": 20, "speed": 3.0, "damage": 2, "reach": 2.3, "size": 1.25, "cooldown": 1.6, "tint": Color(0.46, 0.5, 0.58), "armored": true},
 	# The bandits of the open wild: "human" kinds use the adventurer models
 	# ("dir"), keep only the body parts in "parts", wear clothes in "colors"
 	# (body, legs, hat or cape) and "roam" around where they were placed.
@@ -1357,7 +1357,8 @@ func open_to_backstab(from: Vector3) -> bool:
 ## swallows thorns whole. "pierce" is a plain hit that goes through the
 ## hardening (a boss caught off guard, see BanditChief). A sneak attack's
 ## damage is already tripled by the hero (see Player.sneak_attack_damage), and
-## it is the one blow that gets past a guardian's armour.
+## it is the one blow that kills a guardian outright, whatever its life; any
+## other blow just wears down its long life bar.
 func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 	if dead:
 		return
@@ -1391,17 +1392,13 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		if kind == "shot":
 			kind = "hit"
 	if kind == "backstab" and _stats.get("armored", false):
-		# The guardian's armour has one gap, and a sneak attack finds it:
-		# it always falls to a single stab in the back.
+		# The guardian has 20 times a skeleton's life, but its armour has one
+		# gap, and a sneak attack finds it: a single stab in the back always
+		# kills it, whatever its life.
 		damage = maxi(damage, hp)
-	elif _stats.get("armored", false):
-		# Blades glance off the guardian's armour, and it turns to fight.
-		if wakes:
-			_provoked = true
-			_wake(from)
-		Effects.head_text(level, self, 2.2 * _stats.size, Lang.t("Nur ein Stich in den Rücken!"), Color(0.8, 0.85, 0.95))
-		Comic.pop(global_position, "block")
-		return
+		# A guardian felled by a stab in the back stays dead, even on a floor
+		# where the monsters come back (see Level.note_sneak_kill).
+		level.note_sneak_kill(self)
 	hp -= damage
 	if wakes:
 		Elementals.reflect(self, damage, kind)

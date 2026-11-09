@@ -552,7 +552,7 @@ The order still holds with one change: step 1 should go first and soon, because 
 thread adds a test that CI then skips. Steps 2 and 3 are the base for steps 6 and 9.
 
 Every visible change in 4 to 12 follows the `ux-ui` checklist and adds a line to
-`docs/patch_notes.txt`.
+a file in `docs/patch_notes.d/`.
 
 ## 7. What changed since the first review
 

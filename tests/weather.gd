@@ -177,6 +177,17 @@ func _rolls() -> void:
 			check(next in Weather.KINDS and next != before, "the next weather is a real change")
 			seen[next] = true
 	check(seen.size() == Weather.KINDS.size(), "every weather comes now and then")
+	# Rain is a third as common as the raw weights would make it.
+	var raw := 0
+	var kept := 0
+	for i in 6000:
+		var hr: float = [2.0, 8.0, 13.0, 19.0][i % 4]
+		if Weather.roll(hr, rng, Weather.CLEAR) == Weather.RAIN:
+			kept += 1
+		var chances: Dictionary = Weather.CHANCES[Weather.part_of_day(hr)]
+		if Weather._pick(chances, rng, Weather.CLEAR, "") == Weather.RAIN:
+			raw += 1
+	check(absf(float(kept) / float(raw) - 1.0 / 3.0) < 0.06, "rain comes a third as often (%d of %d)" % [kept, raw])
 	for i in 50:
 		var h := Weather.spell(rng, Weather.RAIN)
 		check(h >= Weather.MIN_HOURS and h <= Weather.MAX_HOURS, "a spell of bad weather lasts a few hours")

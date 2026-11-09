@@ -2,6 +2,17 @@ extends RefCounted
 ## English texts: Villagers' quests (see Quests). Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
+	"Aufgabe: %s": "Task: %s",
+	"Räuber am Pass besiegen": "Defeat bandits at the pass",
+	"Banditendolche von Halsabschneidern holen": "Take bandit daggers from the cutthroats",
+	"Schläger am Pass besiegen": "Defeat the brutes at the pass",
+	"Wilderer am Pass besiegen": "Defeat the poachers at the pass",
+	"Räuberhauptmann am Lagerfeuer besiegen": "Defeat the bandit chief at the campfire",
+	"Skelettkrieger im Verlies besiegen": "Defeat skeleton warriors in the dungeon",
+	"Halsabschneider am Pass besiegen": "Defeat the cutthroats at the pass",
+	"Kolosse im Verlies besiegen": "Defeat colossi in the dungeon",
+	"Alriks Siegelring zum Gelehrten bringen": "Take Alrik's signet ring to the scholar",
+	"Heiltrank zu Bruder Orlan bringen": "Bring a healing potion to Brother Orlan",
 	"Räuberplage": "Bandit trouble",
 	"Besiege 5 Räuber am Räuberpass, östlich des Marktplatzes.": "Defeat 5 bandits on the robbers' pass, east of the market square.",
 	"Die Räuber am Pass werden frech. Besiege fünf von ihnen, und die Krone zahlt dir 25 Kupfer.": "The bandits on the pass are getting bold. Defeat five of them and the crown pays you 25 copper.",

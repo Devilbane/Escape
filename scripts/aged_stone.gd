@@ -480,7 +480,8 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 		var root: Vector3 = _root_on(wall, ground, rng)
 		if root == Vector3.INF:
 			continue
-		if doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
+		# (Only a root down by the door is kept away: one high up on a tower above it is fine.)
+		if root.y < ground + DOOR_CLEAR.y and doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
 			continue
 		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors, proud)
 		grown += 1
@@ -514,7 +515,9 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 	var n: Vector3 = root_wall.n
 	var across := Vector3.UP.cross(n).normalized()
 	var height: Vector2 = OLD_IVY_HEIGHT if old else IVY_HEIGHT
-	var reach := ground + rng.randf_range(height.x, height.y)
+	# Ivy rooted high up a wall (the castle's towers) climbs on from there.
+	var base := root.y - 0.15 if root.y > ground + OLD_IVY_FOOT else ground
+	var reach := base + rng.randf_range(height.x, height.y)
 	var most: int = int((OLD_PATCH_LEAVES if old else PATCH_LEAVES) * thin)
 	var bigger := 1.0 / sqrt(thin)
 	# The walls in line with this one: the ivy climbs on up them where one
@@ -548,22 +551,22 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 					next = next + n * (float(wall.d) - n.dot(next))
 			p = next
 			# Fuller near the ground, sparse at the top.
-			var fill := clampf(1.0 - (p.y - ground) / maxf(reach - ground, 0.5), 0.0, 1.0)
+			var fill := clampf(1.0 - (p.y - base) / maxf(reach - base, 0.5), 0.0, 1.0)
 			# Old ivy stays thick a long way up.
 			if old:
 				fill = maxf(fill, OLD_IVY_FILL)
 			for k in rng.randi_range(1, 1 + int(fill * 1.6)):
 				var at := p + across * rng.randf_range(-0.2, 0.2) + Vector3.UP * rng.randf_range(-0.08, 0.08)
-				if rng.randf() < thin and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_doorway(at, doors):
+				if rng.randf() < thin and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_doorway(at, doors, ground):
 					_leaf(at + n * proud, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
 			if rng.randf() < 0.08 and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
 
 
 ## Whether a leaf's spot is in a doorway (see DOOR_CLEAR).
-static func _in_doorway(at: Vector3, doors: Array) -> bool:
+static func _in_doorway(at: Vector3, doors: Array, ground: float) -> bool:
 	for d: Vector3 in doors:
-		if Vector2(at.x - d.x, at.z - d.z).length() < DOOR_CLEAR.x and at.y - d.y < DOOR_CLEAR.y:
+		if Vector2(at.x - d.x, at.z - d.z).length() < DOOR_CLEAR.x and at.y - ground < DOOR_CLEAR.y:
 			return true
 	return false
 

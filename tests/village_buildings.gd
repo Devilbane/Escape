@@ -177,7 +177,7 @@ func _check_aged(lvl: Outdoor) -> void:
 	check(lit, "the stone buildings' windows glow at night")
 	lvl.set_hour(12.0)
 
-	# Ivy: plenty of it, all of it close to a wall and no higher than old
+	# Ivy: plenty of it, all of it close to a wall and no higher than old (the castle towers: from their ledge)
 	# ivy climbs, none in front of a door. (The leaves are read from the
 	# village's own list: a headless MultiMesh keeps no transforms.)
 	var ivy: Node3D = lvl.get_node_or_null("Ivy")
@@ -201,7 +201,7 @@ func _check_aged(lvl: Outdoor) -> void:
 		var near_door := 0
 		for i in lvl._ivy.xforms.size():
 			var at := (lvl._ivy.xforms[i] as Transform3D).origin
-			if at.y > AgedStone.OLD_IVY_HEIGHT.y + 1.0 or at.y < 0.0:
+			if at.y > AgedStone.OLD_IVY_HEIGHT.y + Outdoor.CASTLE_TOWER_FOOT + 1.0 or at.y < 0.0:
 				check(false, "a leaf grows from the ground up (%.1f m)" % at.y)
 				break
 			for e: Dictionary in lvl._entrances:

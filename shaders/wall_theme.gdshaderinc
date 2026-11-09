@@ -9,6 +9,7 @@
 // - crystal: blue facets with glowing veins that breathe faintly.
 
 #include "res://shaders/detail.gdshaderinc"
+#include "res://shaders/reveal.gdshaderinc"
 
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -152,6 +153,10 @@ void fragment() {
 		ivec2 q = ivec2(FRAGCOORD.xy) % 4;
 		int bayer[16] = int[](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
 		if ((float(bayer[q.y * 4 + q.x]) + 0.5) / 16.0 < fade) {
+			discard;
+		}
+		// And in the see-through circle around the hero, the wall is gone altogether.
+		if (reveal_cut(VERTEX, VIEW_MATRIX, FRAGCOORD.xy)) {
 			discard;
 		}
 	}

@@ -382,8 +382,6 @@ var _stranded := false
 var _wall_target: WallBrick = null
 var _wall_clock := 0.0
 const WALL_PATIENCE := 5.0
-## How close (metres) a slime eating into the wall presses up to the brick.
-const WALL_CLOSE := 1.0
 ## A slime that sets out to eat into the wall on its own (see _scout_wall).
 var _siege := false
 var _siege_look := 0.0
@@ -2380,10 +2378,7 @@ func _batter_wall() -> Vector3:
 		_face(to)
 		if _cooldown <= 0.0:
 			_strike_wall(brick)
-			return Vector3.ZERO
-		# Between blows it presses up against the brick, within the village
-		# defenders' reach over the wall, however long its own reach is.
-		return to.normalized() if to.length() > WALL_CLOSE else Vector3.ZERO
+		return Vector3.ZERO
 	return to.normalized()
 
 

@@ -282,6 +282,12 @@ func chat_for(a: String, b: String) -> Array:
 	return result
 
 
+## A short bit of small talk for two villagers who bump into each other
+## (see VillageTalk.start_bump_chat): same shape as chat_for.
+func bump_chat_for(a: String, b: String) -> Array:
+	return _small_talk(a, b)
+
+
 func _small_talk(a: String, b: String) -> Array:
 	var options := []
 	for entry in SMALL_TALK:

@@ -1,9 +1,9 @@
 extends RefCounted
-## English texts: the bookshelf in the cellar of the hero's house (see Bookshelf, HomeStores).
+## English texts: the bookshelf on the ground floor of the hero's house (see Bookshelf, HomeStores).
 ## Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
-	"Im Keller deines Hauses steht ein Bücherregal. Jedes Buch, das du nicht bei dir tragen willst, kannst du dort einstellen, und das Regal zeigt dir, wie viele Bücher darauf stehen. Es fasst beliebig viel.": "In the cellar of your house stands a bookshelf. Any book you do not want to carry can go there, and the shelf shows you how many books stand on it. It holds as much as you like.",
+	"Im Erdgeschoss deines Hauses steht ein Bücherregal. Jedes Buch, das du nicht bei dir tragen willst, kannst du dort einstellen, und das Regal zeigt dir, wie viele Bücher darauf stehen. Es fasst beliebig viel.": "On the ground floor of your house stands a bookshelf. Any book you do not want to carry can go there, and the shelf shows you how many books stand on it. It holds as much as you like.",
 	"Dagegenlaufen, um Bücher ins Regal zu stellen oder zu nehmen": "Run into it to put books on the shelf or take them",
 	"Bücherregal": "Bookshelf",
 	"Bücher: %d": "Books: %d",

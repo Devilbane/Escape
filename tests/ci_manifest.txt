@@ -215,4 +215,5 @@ sneak_charge.gd | 120 | fixed | passfail | Charging an unaware foe: sneak attack
 bounties.gd | 120 | free | passfail | Bounty board (taken, counted and paid once; kept in the saved game)
 named_monsters.gd | 60 | free | passfail | Named monsters are tougher than plain ones, bosses and maker-set numbers are left alone
 prison_bars.gd | 60 | free | passfail | Prison bars (a cell's wall of bars is turned with it and closes the gap)
+woods_life.gd | 180 | fixed | pass | Woods wildlife (birds in the treetops, squirrels that run up their trees)
 village_farm.gd | 300 | fixed | pass | Village geese, goats and dogs (wander, never block a door, bolt or greet, rest at night, Pip minds the goats)

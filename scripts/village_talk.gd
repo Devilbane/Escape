@@ -42,6 +42,10 @@ const CHAT_NEAR := 3.2
 const WALK_LIMIT := 50.0
 ## The pause between two lines, after the last bubble has faded.
 const LINE_GAP := 0.45
+## Two walkers this close (metres, on the ground) have bumped into each other.
+const BUMP_DISTANCE := 1.1
+## How often the village looks for walkers who bumped, in seconds.
+const BUMP_CHECK := 0.25
 ## Word of mouth for family, friends and sweethearts of the one the hero
 ## helped (the usual word of mouth is Reputation.WORD_OF_MOUTH).
 const CLOSE_WORD := 10
@@ -173,6 +177,7 @@ var known := {}
 ## How many chats each pair had this session, to take turns with the lines.
 var _talks := {}
 var _timer := 0.0
+var _bump_timer := 0.0
 ## The chat going on right now ({} when none): the tie, the two villagers,
 ## the lines still to come and the pause before the next one.
 var _chat := {}
@@ -300,6 +305,11 @@ func update(delta: float, village: Outdoor) -> void:
 	if not _chat.is_empty():
 		_run_chat(delta)
 		return
+	_bump_timer -= delta
+	if _bump_timer <= 0.0:
+		_bump_timer = BUMP_CHECK
+		if start_bump_chat(village):
+			return
 	_timer -= delta
 	if _timer > 0.0:
 		return
@@ -363,6 +373,46 @@ func start_chat(village: Outdoor, only := "") -> bool:
 	for i in chosen[1].size():
 		lines.append([first if i % 2 == 0 else second, chosen[1][i]])
 	return _begin(village, key, a, b, lines)
+
+
+## Two villagers walking their own routes who run into each other both stop,
+## face each other and swap a few lines of small talk (see VillageRumours),
+## then walk on; each has a cooldown afterwards (Villager.BUMP_COOLDOWN).
+## Only pairs within hearing of the hero stop, so nobody is held up unseen.
+## Returns whether a chat began.
+func start_bump_chat(village: Outdoor) -> bool:
+	if not _chat.is_empty() or village == null or game == null or not ("village_rumours" in game):
+		return false
+	var hero: Vector3 = game.player.global_position
+	var walkers := []
+	for v in village.villagers:
+		if is_instance_valid(v) and v.can_bump_chat():
+			walkers.append(v)
+	for i in walkers.size():
+		for j in range(i + 1, walkers.size()):
+			var a: Villager = walkers[i]
+			var b: Villager = walkers[j]
+			if _flat(a.global_position, b.global_position) > BUMP_DISTANCE:
+				continue
+			if minf(_flat(a.global_position, hero), _flat(b.global_position, hero)) > HEAR_RANGE:
+				continue
+			if not _free_of_stories(a) or not _free_of_stories(b):
+				continue
+			var said: Array = game.village_rumours.bump_chat_for(a.role, b.role)
+			if said.is_empty():
+				continue
+			var lines := []
+			for entry in said:
+				lines.append([entry[0], game.village_rumours.fill(entry[1])])
+			a.stand_for_chat(b)
+			b.stand_for_chat(a)
+			_chat = {"key": RUMOUR_KEY + "bump:" + key_of({"a": a.role, "b": b.role}), "a": a, "b": b, "lines": lines.map(func(l): return [a if l[0] == "a" else b, l[1]]), "wait": 0.0, "time": 0.0}
+			return true
+	return false
+
+
+func _free_of_stories(v: Villager) -> bool:
+	return not game.village_rumours.is_telling(v)
 
 
 ## Any two free villagers, one of them near the hero and the other close

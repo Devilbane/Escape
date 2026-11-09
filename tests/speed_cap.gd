@@ -55,5 +55,5 @@ func _run() -> void:
 	check(run > walk * 1.9 and run > top * Player.WALK_FACTOR, "running (%.2f m/s) exceeds the capped walk (%.2f)" % [run, walk])
 	p.gift_speed = 0.0
 	p.refresh_stats()
-	print("speed_cap: ", "OK" if failures == 0 else "%d failure(s)" % failures)
+	print("PASS: speed_cap" if failures == 0 else "FAILED: %d" % failures)
 	quit(failures)

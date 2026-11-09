@@ -120,7 +120,7 @@ static func _fadeable(node: Node) -> Array:
 		var plain := []
 		for i in mi.mesh.get_surface_count():
 			var mat := mi.get_active_material(i)
-			if mat is ShaderMaterial and ((mat as ShaderMaterial).shader == STONE_SHADER or (mat as ShaderMaterial).shader == WallThemes.SHADER):
+			if mat is ShaderMaterial and ((mat as ShaderMaterial).shader == STONE_SHADER or (mat as ShaderMaterial).shader == WallThemes.SHADER or (mat as ShaderMaterial).shader == WallCaps.CAP_SHADER):
 				stone = true
 			elif mat is BaseMaterial3D:
 				var copy := (mat as BaseMaterial3D).duplicate() as BaseMaterial3D

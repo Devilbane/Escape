@@ -78,7 +78,7 @@ const ROLES := {
 	# the geese and the goats with him. She is not on the map: Outdoor puts her
 	# beside Pip (see VillageFarm.pippi_home), so she needs no map letter.
 	"pippi": {"name": "Pippi", "model": "Rogue", "show": [], "scale": 0.7,
-		"hair": {"style": "short", "color": "ginger", "tails": true, "freckles": true}, "skin": SKIN_ROSY,
+		"hair": {"style": "short", "color": "ginger", "tails": true, "freckles": true, "smile": true, "ear_gem": true}, "skin": SKIN_ROSY,
 		"colors": [Color(0.8, 0.35, 0.4), Color(0.45, 0.35, 0.3), Color(1, 1, 1)], "plan": "wander", "work": "Cheer", "herds": true, "pal": "7",
 		"lines": ["Hallo! Ich bin Pippi. Pip und ich hüten die Gänse und die Ziegen.", "Pip ist mein bester Freund. Wir spielen Fangen auf der Wiese!", "Die Gänse zwicken, wenn man ihnen den Rücken zudreht.", "Die Ziegen mögen dich, wenn du ruhig bleibst.", "Die Gänse und Ziegen weiden an der Wiese südlich und westlich vom Dorf."]},
 	"8": {"name": "Gelehrter Odo", "model": "Mage", "show": ["Mage_Hat", "Spellbook_open"],

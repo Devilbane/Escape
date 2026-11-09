@@ -173,12 +173,21 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 	if plaited:
 		bun.set_meta("wanted", false)
 		bun.visible = false
+	# A smile on the face of a child who has one (the lips of BodyLook are a woman's).
+	var smile := slot.get_node_or_null("Smile") as MeshInstance3D
+	if smile == null:
+		smile = BodyLook.smile_mesh()
+		smile.name = "Smile"
+		smile.transform = slot.get_meta("bind")
+		slot.add_child(smile)
+	smile.visible = bool(look.get("smile", false))
 	var color: String = look.get("color", "natural")
 	for mat: ShaderMaterial in [head.material_override, crest.material_override, bun.material_override, tails.material_override]:
 		_set_color(mat, color)
 	var head_mat := head.material_override as ShaderMaterial
 	head_mat.set_shader_parameter("shaved", shaved)
 	head_mat.set_shader_parameter("freckles", bool(look.get("freckles", false)))
+	head_mat.set_shader_parameter("ear_gem", bool(look.get("ear_gem", false)))
 	head_mat.set_shader_parameter("short_hair", style in ["short", "spiky"])
 	head_mat.set_shader_parameter("shaved_sides", style == "spiky")
 	var word: String = look.get("tattoo", "")
@@ -262,6 +271,10 @@ static func checked(look) -> Dictionary:
 			result.tails = true
 		if look.get("freckles", false):
 			result.freckles = true
+		if look.get("smile", false):
+			result.smile = true
+		if look.get("ear_gem", false):
+			result.ear_gem = true
 	return result
 
 

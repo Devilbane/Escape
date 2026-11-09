@@ -131,6 +131,12 @@ static func _face(model: Node3D, female: bool) -> void:
 	slot.get_node("Lips").visible = female
 
 
+## A wide, happy smile for a face that asks for one (look key "smile", see
+## HairLook): the same cord as the lips, wider and curled up at the corners.
+static func smile_mesh() -> MeshInstance3D:
+	return _lips(0.04, 0.1, 0.03, Color(0.62, 0.2, 0.2))
+
+
 ## The reshaped mesh of a part.
 static func _female(part: String, source: Mesh) -> Mesh:
 	if _shaped.has(source):
@@ -375,24 +381,24 @@ static func _lashes(verts: PackedVector3Array) -> MeshInstance3D:
 
 
 ## A small rosy mouth under the nose, a touch fuller in the middle.
-static func _lips() -> MeshInstance3D:
+static func _lips(lift := 0.012, half := 0.07, thick := 0.016, color := LIP_COLOR) -> MeshInstance3D:
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = LIP_COLOR
+	mat.albedo_color = color
 	mat.roughness = 0.6
 	var segments := []
 	var y := LIP_HEIGHT
 	var points := []
 	for k in 9:
 		var t := k / 8.0
-		var x := lerpf(-0.07, 0.07, t)
+		var x := lerpf(-half, half, t)
 		# The corners turn up a little: a quiet smile.
-		var py := y + 0.012 * pow(absf(x) / 0.07, 2.0)
+		var py := y + lift * pow(absf(x) / half, 2.0)
 		# The face is nearly flat here, just under the nose, and curves back
 		# a touch towards the corners of the mouth.
-		points.append(Vector3(x, py, LIP_FRONT - 0.8 * x * x))
+		points.append(Vector3(x, py, LIP_FRONT - 0.8 * x * x * (0.07 / half) * (0.07 / half)))
 	for k in points.size() - 1:
 		segments.append([points[k], points[k + 1]])
 	var lips := MeshInstance3D.new()
-	lips.mesh = Effects.cord_mesh(segments, 0.016, mat)
+	lips.mesh = Effects.cord_mesh(segments, thick, mat)
 	lips.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return lips

@@ -36,6 +36,10 @@ func _wait(n := 3) -> void:
 		await process_frame
 
 
+func smile_of(v: Villager) -> MeshInstance3D:
+	return v._model.find_child("Smile", true, false) as MeshInstance3D
+
+
 func _flat(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
 
@@ -61,13 +65,16 @@ func _run() -> void:
 
 	# Her look: pigtails, ginger hair, freckles, a child's size.
 	var info: Dictionary = Villager.ROLES["pippi"]
-	check(info.hair.tails and info.hair.freckles and info.hair.color == "ginger", "she has pigtails, red hair and freckles")
+	check(info.hair.tails and info.hair.freckles and info.hair.smile and info.hair.ear_gem and info.hair.color == "ginger", "she has pigtails, red hair and freckles")
 	check(HairLook.COLORS.has("ginger") and float(info.scale) < 0.9, "ginger hair exists and she is a child")
 	var tails := pippi._model.find_child("Tails", true, false) as MeshInstance3D
 	check(tails != null and tails.visible, "her pigtails hang from her head")
 	check(tails != null and tails.mesh.get_faces().size() > 0, "the pigtails have a shape")
 	var head := pippi._model.find_child("Rogue_Head", true, false) as MeshInstance3D
 	check((head.material_override as ShaderMaterial).get_shader_parameter("freckles") == true, "her face is freckled")
+	var smile := smile_of(pippi)
+	check(smile != null and smile.visible, "she is smiling")
+	check((head.material_override as ShaderMaterial).get_shader_parameter("ear_gem") == true, "she wears a purple diamond at her ear")
 	var plain := pip._model.find_child("Tails", true, false) as MeshInstance3D
 	check(plain == null or not plain.visible, "Pip has no pigtails")
 

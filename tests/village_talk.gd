@@ -307,8 +307,18 @@ func _bump_chat_test(a: Villager, b: Villager) -> void:
 	check(a.in_chat_place() and b.in_chat_place(), "both stand still for it")
 	check(a.chat_partner == b and b.chat_partner == a, "they are each other's partners")
 	var at_a := a.global_position
-	var said := _run(30.0)
-	check(a.global_position.distance_to(at_a) < 1.0 and a._path.is_empty(), "they did not walk while chatting (%.2f m)" % a.global_position.distance_to(at_a))
+	# Watch the chat to its end: once it is over, the two walk on (and Pip may
+	# run off to his friend Pippi), so the distance counts only while they talk.
+	var said := []
+	var strayed := 0.0
+	var waited := 0.0
+	while talk.is_chatting() and waited < 30.0:
+		said += _run(0.5)
+		waited += 0.5
+		if talk.is_chatting():
+			strayed = maxf(strayed, a.global_position.distance_to(at_a))
+	said += _run(0.5)
+	check(strayed < 1.0, "they did not walk while chatting (%.2f m)" % strayed)
 	var ours := said.filter(func(l): return l.begins_with(a.display_name + ":") or l.begins_with(b.display_name + ":"))
 	check(ours.any(func(l): return l.begins_with(a.display_name + ":")) and ours.any(func(l): return l.begins_with(b.display_name + ":")), "they trade lines in turn: %s" % [ours])
 	check(not talk.is_chatting() and a.chat_partner == null and b.chat_partner == null, "the chat ends and both are free")

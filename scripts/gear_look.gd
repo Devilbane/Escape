@@ -13,7 +13,7 @@ const SHADER := preload("res://shaders/tint.gdshader")
 ## Material names as items use them, and the shader's number for each.
 ## "scale" (the beast scale armour of ArmourSets) has the grain of chain.
 ## "remains" is a skeleton's whole model: like an outfit, but pale parts are bone.
-const KINDS := {"cloth": 1, "leather": 2, "metal": 3, "chain": 4, "scale": 4, "fur": 5, "bone": 6, "wood": 7, "mixed": 7, "outfit": 8, "remains": 9, "hide": 10, "pelt": 11}
+const KINDS := {"cloth": 1, "leather": 2, "metal": 3, "chain": 4, "scale": 4, "fur": 5, "bone": 6, "wood": 7, "mixed": 7, "outfit": 8, "remains": 9, "hide": 10, "pelt": 11, "bristle": 12}
 ## How metallic metal is when an item does not say.
 const DEFAULT_METAL := {"metal": 0.45, "chain": 0.4, "scale": 0.35}
 

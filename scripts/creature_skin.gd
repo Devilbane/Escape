@@ -6,13 +6,15 @@ extends RefCounted
 ## of GearLook adds what the skin is made of (shaders/gear_material.gdshaderinc):
 ## - "hide": the thick skin of an orc or a rock troll, with deep folds, fine
 ##   wrinkles, pores, mottled colour and old scars,
-## - "pelt": the coat of a yeti, wolf, deer, fox or spider, with hairs running
-##   down, matted clumps, darker and lighter patches and bare scars.
+## - "pelt": the coat of a yeti, wolf, deer or fox, with hairs running
+##   down, matted clumps, darker and lighter patches and bare scars,
+## - "bristle": the coat of a spider (and its queen and the hollow mother), with
+##   stiff pale-tipped bristles over a dark fuzz.
 ## Every creature of a kind shares a few materials (VARIANTS of them, which
 ## differ in where the marks lie), so this costs no more to draw than before.
 
 ## The skin each model has, unless a kind names another ("skin").
-const SKINS := {"Orc": "hide", "Yeti": "pelt", "Wolf": "pelt", "Spider": "pelt", "Deer": "pelt", "Stag": "pelt", "Fox": "pelt"}
+const SKINS := {"Orc": "hide", "Yeti": "pelt", "Wolf": "pelt", "Spider": "bristle", "Deer": "pelt", "Stag": "pelt", "Fox": "pelt"}
 ## Surfaces that are not skin: eyes, noses, hooves and horns.
 const BARE := ["eye", "nose", "hoof", "horn", "weapon"]
 ## How many different patterns of marks a skin comes in.
@@ -22,8 +24,8 @@ static var _materials := {}
 static var _white: Texture2D
 
 
-## Dresses every skin surface of a creature's model: `skin` is "hide" or
-## "pelt" (empty: the model's usual skin).
+## Dresses every skin surface of a creature's model: `skin` is "hide", "pelt" or
+## "bristle" (empty: the model's usual skin).
 static func dress(model: Node, skin: String, model_name: String) -> void:
 	if skin == "":
 		skin = SKINS.get(model_name, "")

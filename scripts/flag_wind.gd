@@ -23,35 +23,35 @@ extends Node
 const SHAPES := {
 	# A pennant on a pole, flying out sideways from it.
 	"flag_red": {"mesh": "flag_red", "surfaces": [0], "root": Vector3(0, 0, -0.02),
-			"reach": Vector3(0, 0, -0.222), "push": Vector3(1, 0, 0), "flutter": 0.07},
+			"reach": Vector3(0, 0, -0.222), "push": Vector3(1, 0, 0), "flutter": 0.16},
 	"flag_blue": {"mesh": "flag_blue", "surfaces": [0], "root": Vector3(0, 0, -0.02),
-			"reach": Vector3(0, 0, -0.222), "push": Vector3(1, 0, 0), "flutter": 0.07},
+			"reach": Vector3(0, 0, -0.222), "push": Vector3(1, 0, 0), "flutter": 0.16},
 	# Wall flags hanging from a rod (Level.WALL_DECOR).
 	"SM_RedFlag": {"mesh": "SM_RedFlag", "surfaces": [0], "root": Vector3(0, 0.05, 0),
-			"reach": Vector3(0, -1.21, 0), "push": Vector3(0, 0, 1), "flutter": 0.05},
+			"reach": Vector3(0, -1.21, 0), "push": Vector3(0, 0, 1), "flutter": 0.12},
 	"SM_BlueFlag": {"mesh": "SM_BlueFlag", "surfaces": [0], "root": Vector3(0, 0.05, 0),
-			"reach": Vector3(0, -1.21, 0), "push": Vector3(0, 0, 1), "flutter": 0.05},
+			"reach": Vector3(0, -1.21, 0), "push": Vector3(0, 0, 1), "flutter": 0.12},
 	# The lair's banner on its stand: only the cloth (the model stands on its
 	# z axis); the pole and the iron stay still.
 	"Banner": {"mesh": "Banner", "surfaces": [2], "root": Vector3(0, 0, 0.031),
-			"reach": Vector3(0, 0, -0.029), "push": Vector3(0, 1, 0), "flutter": 0.05},
+			"reach": Vector3(0, 0, -0.029), "push": Vector3(0, 1, 0), "flutter": 0.12},
 	# The banners behind the shields in the hero's home: the shield and its
 	# swords are fixed to the cloth, so only the hem below them stirs.
 	"banner_shield_brown": {"mesh": "banner_shield_brown", "surfaces": [0], "root": Vector3(0, 1.3, 0),
-			"reach": Vector3(0, -0.77, 0), "push": Vector3(0, 0, 1), "flutter": 0.1},
+			"reach": Vector3(0, -0.77, 0), "push": Vector3(0, 0, 1), "flutter": 0.22},
 }
 ## The wind in each weather: how hard it blows (1 is a breeze) and how fast
 ## its waves run through the cloth (radians per second).
 const WINDS := {
-	Weather.CLEAR: Vector2(1.0, 3.6),
-	Weather.RAIN: Vector2(1.6, 5.0),
-	Weather.FOG: Vector2(0.4, 2.0),
-	Weather.STORM: Vector2(2.6, 7.0),
+	Weather.CLEAR: Vector2(1.0, 4.5),
+	Weather.RAIN: Vector2(1.6, 6.2),
+	Weather.FOG: Vector2(0.4, 2.5),
+	Weather.STORM: Vector2(2.6, 8.5),
 }
 ## The shader for cloth that had a plain material.
 const CLOTH := preload("res://shaders/flutter_cloth.gdshader")
 ## The soft draught down in the dungeon.
-const DRAUGHT := Vector2(0.5, 2.4)
+const DRAUGHT := Vector2(0.6, 3.0)
 ## How long the wind takes to come most of the way to a new weather's (seconds).
 const EASE := 6.0
 ## The cloth is cut until a strip spans at most this share of its length.

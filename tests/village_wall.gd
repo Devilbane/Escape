@@ -191,7 +191,9 @@ func _run() -> void:
 		slime2.global_position = Vector3(0, -50, 0)
 
 	# Defenders hold the wall whatever the slime's level; only a breach changes that.
-	var giant := _slime(lvl, west.global_position + Vector3(-2.2, 0, 0))
+	# Close to the brick: a slime eating into the wall stands off at its own blow reach (see
+	# Enemy._batter_wall), and a defender's blow reaches over the wall only so far.
+	var giant := _slime(lvl, west.global_position + Vector3(-1.4, 0, 0))
 	giant.rated_level = VillageAlarm.FLEE_LEVEL + 10
 	giant._awake = false
 	check(wall.threatened_brick(lvl) != null and wall.slime_at_the_wall(lvl), "the wall knows where the slime is")

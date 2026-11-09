@@ -44,6 +44,14 @@ func _test() -> void:
 		if kind == "bag" or ItemIcon.art(kind)[0] == null:
 			plain.append("%s (%s)" % [id, kind])
 	check(plain.is_empty(), "every ingredient has its own picture: %s" % [plain])
+	# The backpack picture belongs to real backpacks only, and the wandering merchant's wares
+	# (his rows draw their ingredient by its id) never fall back to it.
+	for id in Items.ALL:
+		var is_pack: bool = Items.ALL[id].get("slot", "") == "rucksack"
+		check((ItemIcon.kind_of(id) == "bag") == is_pack, "%s shows the backpack only if it is a backpack" % id)
+	for id in Wanderer.INGREDIENT_PRICES:
+		check(ItemIcon.kind_of(id) != "bag", "the wandering merchant's %s does not show a backpack" % id)
+	check(ItemIcon.kind_of("hoehlenpilz") == "cave_mushroom" and ItemIcon.kind_of("glimmermoos") == "moss" and ItemIcon.kind_of("schleimgelee") == "slime_jelly", "mushroom, moss and jelly have their own pictures")
 	for kind in TINTED:
 		var art: Array = ItemIcon.art(kind)
 		check(art[0] != null and art[1] != null, "%s has a picture and a part to tint" % kind)

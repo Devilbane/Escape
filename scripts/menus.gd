@@ -2251,7 +2251,8 @@ func _build_wanderer() -> void:
 ## what the ingredient book says about it, and how many are in the pouch.
 func _ingredient_entry(id: String, left: int, index: int) -> Dictionary:
 	var price := Wanderer.price(id)
-	var icon := "kind:ore" if id == "mondsilbererz" else ("kind:stone" if id == "mondstein" else "kind:bag")
+	# The ingredient's own picture (see ItemIcon.INGREDIENT_ICONS), never the backpack.
+	var icon := id
 	var lines := []
 	for line in game.crafting.describe_ingredient(id).split("\n").slice(1):
 		lines.append([line, TradeWindow.BLUE])
@@ -3915,7 +3916,8 @@ func _build_quest_log() -> void:
 	for id in entries:
 		var q: Dictionary = Quests.ALL[id]
 		var done: bool = game.quests.is_done(id)
-		var goal := Lang.t("Von %s: %s") % [Quests.villager_name(q.giver), Lang.t(q.goal)] + "\n" + Lang.t("Belohnung: %s") % Quests.reward_text(id)
+		var giver_name: String = Quests.villager_name(q.giver) if q.giver != "" else Lang.t(q.get("source", ""))
+		var goal := Lang.t("Von %s: %s") % [giver_name, Lang.t(q.goal)] + "\n" + Lang.t("Belohnung: %s") % Quests.reward_text(id)
 		if done:
 			# Finished: struck through in green, and the word "done" as well.
 			list.add_child(_done_label(Lang.t(q.title), 21, TradeWindow.GREEN, 740, Lang.t("erledigt")))
@@ -3949,7 +3951,10 @@ func quest_hints() -> Array[String]:
 		if not quests.is_active(id):
 			continue
 		var q: Dictionary = Quests.ALL[id]
-		if q.kind == "deliver":
+		if q.kind == "potion":
+			if quests.missing(id) == 0:
+				hints.append(Lang.t("Bring Bruder Orlan einen Heiltrank: %s") % Lang.t(q.title))
+		elif q.kind == "deliver":
 			if game.player.bag.has(q.item):
 				hints.append(Lang.t("Bring es zu %s: %s") % [Quests.villager_name(q.to), Lang.t(q.title)])
 		elif quests.missing(id) == 0:

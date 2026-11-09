@@ -73,7 +73,7 @@ Every loop is cut to one loudness, mono, 24 kHz ogg, and fades in and out over 3
 | Ember tunnels and the mountain's heart (`glut`) | `amb_fire_glow` (`Fire_Loop_02`) |
 | Ancient halls (`uralt`) | `amb_astral_0..1` (`Astral_Plane_Loop_01..02`) |
 | Ashen Spire floors (`zinne`) | `amb_magic_0` (`Magical_Aura_Loop_01`) |
-| Sternhall courtyard (`sternhof`) | `amb_astral_0` |
+| Sternhall courtyard (`sternhof`, open sky) | `amb_forest_deep` (`Forest_Loop_02`) |
 | Houses, inns, shops | none (old cave air) |
 
 Not used: `Forest_Burning_Loop_01` (nothing burns in the game), `Chopping_Wood_With_Whoosh_Loop_01` (the single chop covers it), `Church_Bells_Loop_01` (made into the bell), `Village_Loop_01` and `Village_Loop_No_Chatter_01` (they contain a bell and chatter, covered by the day loop plus the market layer).

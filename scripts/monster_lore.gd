@@ -104,9 +104,14 @@ static func gain_percent(kind: String) -> float:
 	return 100.0 / float(int(RANKS[rank + 1][0]) - int(RANKS[rank][0]))
 
 
-## A percentage for the word over the hero: whole when it is whole, else one place.
-static func percent_text(pct: float) -> String:
-	return str(int(pct)) if is_equal_approx(pct, roundf(pct)) else str(snappedf(pct, 0.1))
+## How many percent of the way to the next rank the hero is with this many kills
+## (0 at the last rank); the whole part is the lore value the hero sees.
+static func progress_percent(count: int) -> float:
+	var rank := rank_for(count)
+	if rank >= RANKS.size() - 1:
+		return 0.0
+	var start := float(int(RANKS[rank][0]))
+	return 100.0 * (float(count) - start) / (float(int(RANKS[rank + 1][0])) - start)
 
 
 ## The hero slew a monster of this kind (the event bus's enemy_slain). A brief
@@ -118,15 +123,18 @@ static func on_hero_kill(kind: String) -> void:
 		return
 	var first := known_kinds().is_empty()
 	var before := rank_of(kind)
-	var pct := gain_percent(kind)
+	var old_whole := floori(progress_percent(kill_count(kind)))
 	kills[kind] = kill_count(kind) + 1
+	var new_whole := floori(progress_percent(kill_count(kind)))
 	var after := rank_of(kind)
 	var label := Lang.t(monster_name(kind))
 	if after > before:
 		Events.gain(Lang.t("%s-Kunde: %s (%d %% Schwachstellen)") % [label, Lang.t(rank_name(after)), roundi(vital_chance(kind) * 100.0)], VITAL_COLOR)
 		Events.teach(LEARN)
-	elif pct > 0.0:
-		Events.gain(Lang.t("%s-Kunde +%s %%") % [label, percent_text(pct)], VITAL_COLOR)
+	elif new_whole > old_whole:
+		# Only a new whole number is worth a word; a gain that crosses several
+		# shows the new value once.
+		Events.gain(Lang.t("%s-Kunde %d %%") % [label, new_whole], VITAL_COLOR)
 	if first:
 		Events.found(Lang.t(EXPLAIN), VITAL_COLOR)
 

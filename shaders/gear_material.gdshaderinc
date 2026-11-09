@@ -28,6 +28,9 @@ const int REMAINS = 9;
 // troll, and the matted coat of a yeti, a wolf or a spider (see CreatureSkin).
 const int HIDE = 10;
 const int PELT = 11;
+// A spider's coat: coarse bristles that stand out, pale at the tips and dark at
+// the roots, over a fine fuzz (see CreatureSkin).
+const int BRISTLE = 12;
 
 uniform sampler2D tex : source_color, filter_linear_mipmap;
 // recolor: keep the light and dark of the texture but swap its colour for the tint.
@@ -141,6 +144,23 @@ vec3 grain(int kind, vec3 p, float px, float shine) {
 		shade = 1.0 + 0.4 * (tufts - 0.5) + 0.22 * (hair - 0.5) * bh + 0.2 * (clump - 0.5) * bc
 				+ 0.18 * (fbm(p * 2.0 + 8.0) - 0.5) + 0.22 * bare;
 		rough = 0.95;
+	} else if (kind == BRISTLE) {
+		// Stiff bristles, each a short streak, pale at the tip and dark at the
+		// root, over a fine fuzz and darker clumps. The spider's mesh is tiny
+		// (a body is about 0.06 units across before the rig scales it up), so
+		// the marks are counted per body, not per unit: about 40 bristles across
+		// it, and they fade out when they would be smaller than a few pixels.
+		float k = 50.0;
+		float stiff = vnoise(p * k * vec3(40.0, 5.0, 40.0) + 3.0);
+		float strand = smoothstep(0.48, 0.78, stiff);
+		float fuzz = vnoise(p * k * vec3(70.0, 10.0, 70.0));
+		float clump = fbm(p * k * 9.0 + 4.0);
+		float bs = band(40.0 * k, px);
+		float bf = band(70.0 * k, px);
+		float bc = band(9.0 * k, px);
+		h = (strand * bs * 0.012 + (fuzz - 0.5) * bf * 0.004 + clump * bc * 0.01) / k;
+		shade = 0.7 + 0.75 * strand * bs + 0.3 * (fuzz - 0.5) * bf + 0.5 * (clump - 0.5) * bc;
+		rough = 0.95;
 	} else if (kind == BONE) {
 		// Mottled, stained and cracked.
 		float mottle = fbm(p * 5.0);
@@ -200,7 +220,7 @@ void fragment() {
 			specular = mix(0.25, 0.5, max(warm * 0.6, skin));
 		} else {
 			g = grain(stuff, q, px, metal);
-			specular = (stuff == CLOTH || stuff == FUR || stuff == PELT) ? 0.25 : (stuff == HIDE ? 0.3 : 0.4);
+			specular = (stuff == CLOTH || stuff == FUR || stuff == PELT || stuff == BRISTLE) ? 0.25 : (stuff == HIDE ? 0.3 : 0.4);
 		}
 		if (metal_where_grey) {
 			// Grey and not too dark means metal: blades, buckles, shield rims.
@@ -214,6 +234,12 @@ void fragment() {
 		albedo *= g.y;
 		roughness = clamp(g.z, 0.25, 1.0);
 		NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(g.x), dFdy(g.x));
+	}
+	if (stuff == BRISTLE) {
+		// Hairs catch the light along the edge: a soft fuzzy halo that still
+		// shows when the bristles are too small to see.
+		RIM = 0.7;
+		RIM_TINT = 0.6;
 	}
 	ALBEDO = albedo * dye;
 	METALLIC = metallic;

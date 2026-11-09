@@ -4870,7 +4870,11 @@ func icon_text(kind: String, number: String) -> String:
 		BloatedBelly.KIND: return Lang.t("Zu viel Wasser getrunken: Dein Bauch ist prall und du bist viel langsamer. Noch %s, dann geht es von selbst vorbei.") % BloatedBelly.long_countdown(player.ailments.get(BloatedBelly.KIND, 0.0))
 		VillageRun.KIND: return Lang.t("Protected: nothing can hurt you for %s more. Run to the village and follow the way!") % VillageRun.long_countdown(player.ailments.get(VillageRun.KIND, 0.0))
 		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
-		"fast": return Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
+		"fast":
+			var text := Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
+			if player.base_speed_capped:
+				text += "\n" + Lang.t("Höchstgrenze erreicht: Das Grundtempo steigt nicht über %d %%. Rennen macht dich trotzdem schneller.") % roundi(Player.BASE_SPEED_CAP * 100.0)
+			return text
 		"slow": return Lang.t("Schwer beladen: Du läufst langsamer. Leg im Inventar (I) etwas ab.")
 		"hardening": return Lang.t("Härtung %s: Jeder Treffer gegen dich wird um so viel schwächer, bleibt aber mindestens halb so stark.") % number \
 				+ ("\n" + Lang.t("Rüstungswert %d %%: Was übrig bleibt, wird um diesen Anteil kleiner.") % player.armour_value if player.armour_value > 0 else "")

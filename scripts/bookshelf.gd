@@ -1,6 +1,6 @@
 class_name Bookshelf
 extends RefCounted
-## The bookshelf in the cellar of the hero's house (map letter "§", see Tiles.DUNGEON). It is part of
+## The bookshelf on the ground floor of the hero's house, on the north wall (map letter "§", see Tiles.DUNGEON). It is part of
 ## every home from the start: nothing to buy or unlock. The hero runs into it to open the window of the
 ## book store (see HomeStores.BOOKS) and keeps every book there that they do not carry.
 ##

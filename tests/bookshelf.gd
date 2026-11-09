@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless test for the bookshelf in the cellar of every town house (see Bookshelf and
+## Headless test for the bookshelf in the ground floor of every town house (see Bookshelf and
 ## HomeStores.BOOKS): it stands in the house from the start, is a station the hero can reach, keeps
 ## every book the hero puts on it (and nothing else), shows one book per book kept up to its
 ## capacity with the count on its plaque, is kept in the saved game and comes back on the
@@ -73,12 +73,16 @@ func _run() -> void:
 	var lvl: Level = game.level
 	check(lvl.is_home, "the hero is in their town house")
 
-	# The shelf is in the house from the start, in the cellar, with floor beside it.
+	# The shelf is in the house from the start, on the ground floor, with floor beside it.
 	var shelf: Array = lvl.stations.filter(func(s): return s.kind == Bookshelf.KIND)
 	check(shelf.size() == 1, "every house has one bookshelf")
 	if shelf.size() == 1:
 		var s: Dictionary = shelf[0]
-		check(lvl.storey_of(s.cell) == -1, "it stands in the cellar")
+		check(lvl.storey_of(s.cell) == 0, "it stands on the ground floor")
+		check(lvl.cell_char(s.cell + Vector2i(0, -1)) == "#", "its back is on the north wall")
+		var west: Vector2i = s.cell + Vector2i(-1, 0)
+		check(lvl._wall_torches.any(func(t): return t.cell == west), "a torch hangs one tile west of it")
+		check(not lvl._wall_torches.any(func(t): return t.cell == s.cell), "none hangs behind it")
 		var reachable := false
 		for d in Level.DIRS:
 			if ".P".contains(lvl.cell_char(s.cell + d)):

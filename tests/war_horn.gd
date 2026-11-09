@@ -57,8 +57,12 @@ func _run() -> void:
 	await _wait(3)
 	var lvl: Outdoor = game.level as Outdoor
 	var gate := GuardWatch.west_gate(lvl)
+	var post := GuardWatch.post(lvl)
 	check(lvl.war_horn_at != Vector3.INF, "the village has an alarm horn")
-	check(gate != null and lvl.war_horn_at.distance_to(gate.global_position) < WarHorn.GATE_MAX * Level.TILE + 0.1, "the horn stands near the west gate")
+	check(lvl.war_horn_at.distance_to(post) <= Level.TILE * 1.01, "the horn stands right beside the guard's post at the west gate")
+	check(gate != null and lvl.village_wall.bricks.has(lvl.world_to_cell(lvl.war_horn_at)) == false, "the horn does not stand in the wall")
+	var centre: Vector3 = lvl.spots.square[0]
+	check(gate != null and lvl.war_horn_at.distance_to(centre) < gate.global_position.distance_to(centre), "the horn stands inside the wall")
 	var guard: Villager = null
 	for v in lvl.villagers:
 		v._fire_cool = 1.0e9
@@ -66,22 +70,33 @@ func _run() -> void:
 			guard = v
 	check(guard != null, "the village has a guard")
 
-	# The guard on his round blows the horn; the bell is held back until it has died away.
+	# At his post he blows it at once; the bell is held back until the horn has died away.
 	VillageBell.reset()
-	guard.global_position = GuardWatch.post(lvl)
+	guard.global_position = post
 	guard._start("watch", 30.0)
 	check(WarHorn.guard(lvl) == guard, "the guard can blow the horn")
 	check(VillageBell.ring(game, "slime", 1000.0), "an alarm rings")
-	check(guard._horn_left > 0.0, "the guard blows the horn")
+	check(guard._horn_left > 0.0 and not guard._horn_wait, "the guard blows the horn from his post")
 	check(not VillageBell.ring(game, "wall", 1001.0), "the horn and the bell share one cooldown")
 	check(not VillageBell.ring(game, "breach", 1000.0 + VillageBell.COOLDOWN - 1.0), "no second alarm while the cooldown lasts")
-	check(VillageBell.ring(game, "gate", 1000.0 + VillageBell.COOLDOWN + 1.0), "it sounds again after the cooldown")
+
+	# Away from it he walks to the horn first and blows it there.
+	VillageBell.reset()
+	guard._horn_left = 0.0
+	guard.global_position = post + Vector3(12, 0, 0)
+	guard._start("idle", 30.0)
+	check(VillageBell.ring(game, "gate", 2000.0), "a second alarm rings after the cooldown")
+	check(guard._horn_wait and guard._task == "walk" and guard.get_meta("then", "") == "watch", "the guard walks to the horn")
+	guard.global_position = post
+	guard._start("watch", 30.0)
+	await _wait(3)
+	check(guard._horn_left > 0.0 and not guard._horn_wait, "he blows the horn once he is at it")
 
 	# Without a guard able to blow it, only the bell tolls.
 	VillageBell.reset()
 	guard.eaten = true
 	check(WarHorn.guard(lvl) == null, "an eaten guard blows no horn")
-	check(WarHorn.blow(lvl) == 0.0, "no horn, no wait before the bell")
+	check(not WarHorn.blow(lvl), "no guard, no horn: the bell tolls alone")
 	guard.eaten = false
 	guard.global_position = lvl.war_horn_at + Vector3(WarHorn.REACH + 10.0, 0, 0)
 	check(WarHorn.guard(lvl) == null, "a guard too far from the horn does not blow it")

@@ -528,6 +528,10 @@ func _watch(delta: float) -> void:
 	var gate := GuardWatch.west_gate(level)
 	if gate != null:
 		_turn_to(gate.global_position - global_position, delta)
+	if _horn_wait and global_position.distance_to(GuardWatch.post(level)) < HORN_ARRIVED:
+		_horn_wait = false
+		_horn_left = WarHorn.LENGTH
+		WarHorn.sound(level)
 	if _horn_left > 0.0:
 		# Blowing the alarm horn: arms up, facing the way the horn points.
 		_horn_left -= delta
@@ -546,6 +550,9 @@ func _watch(delta: float) -> void:
 
 ## Seconds the guard still blows the alarm horn, and where it stands (see WarHorn).
 var _horn_left := 0.0
+## Whether he is on his way to the horn to blow it, and how close counts as there (metres).
+var _horn_wait := false
+const HORN_ARRIVED := 2.5
 var _horn_at := Vector3.INF
 
 
@@ -557,14 +564,22 @@ func can_blow_horn(at: Vector3) -> bool:
 	return global_position.distance_to(at) <= WarHorn.REACH
 
 
-## The guard runs to the alarm horn and blows it for `seconds` (see WarHorn.blow).
-func sound_alarm(at: Vector3, seconds: float) -> void:
+## The guard walks to the alarm horn (it stands beside his post at the gate)
+## and blows it from there (see WarHorn.blow).
+func sound_alarm(at: Vector3) -> void:
 	_horn_at = at
-	_horn_left = seconds
-	if _task != "watch":
-		say(Lang.t("Ins Horn! Alarm, Alarm!"))
-		_walk_to(GuardWatch.post(level), WALK_SPEED * 1.6, "watch")
-	_task_time = maxf(_task_time, seconds)
+	_horn_wait = true
+	_horn_left = 0.0
+	if _task == "watch" and global_position.distance_to(GuardWatch.post(level)) < HORN_ARRIVED:
+		# Already at his post: he blows it now.
+		_horn_wait = false
+		_horn_left = WarHorn.LENGTH
+		_task_time = maxf(_task_time, WarHorn.LENGTH)
+		WarHorn.sound(level)
+		return
+	say(Lang.t("Ins Horn! Alarm, Alarm!"))
+	_walk_to(GuardWatch.post(level), WALK_SPEED * 1.6, "watch")
+	_task_time = maxf(_task_time, WarHorn.LENGTH)
 
 
 # --- Defending the wall -------------------------------------------------------

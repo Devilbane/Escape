@@ -59,9 +59,16 @@ func _held(v: Villager) -> Node:
 ## Whether a weapon part of the model itself is in sight.
 func _visible_weapon(v: Villager) -> bool:
 	for part in Villager.WEAPON_PARTS:
-		var m := v._model.find_child(part, true, false)
-		if m is Node3D and (m as Node3D).visible:
-			return true
+		for m in v._model.find_children(part, "Node3D", true, false):
+			# The blade being drawn (SlimeBlade) brings a part of that name too.
+			var drawn_blade := false
+			var n: Node = m
+			while n != null and n != v._model:
+				if n.name == "SlimeBlade":
+					drawn_blade = true
+				n = n.get_parent()
+			if not drawn_blade and (m as Node3D).visible:
+				return true
 	return false
 
 
@@ -134,8 +141,7 @@ func _process(_delta: float) -> bool:
 			_out_and_about(guard)
 			slime.global_position = guard.global_position + Vector3(1.5, 0, 0)
 			guard.alarm(slime)
-			guard._physics_process(Villager.SHEATHE_DELAY + 0.1)
-			check(guard.drawn(), "a new alarm cancels the sheathing")
+			check(guard.drawn() and guard._sheathe_in < 0.0, "a new alarm cancels the sheathing")
 			guard.calm_down()
 			guard._physics_process(Villager.SHEATHE_DELAY + 0.1)
 			# Pip throws knives from afar.

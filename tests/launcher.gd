@@ -60,6 +60,15 @@ func _test_notes() -> void:
 	check(LauncherScript.parse_notes("").is_empty(), "no notes, no lines")
 	check(LauncherScript.parse_notes("- x".repeat(LauncherScript.NOTES_MAX)).size() <= 1, "huge notes are cut off")
 	var shipped := FileAccess.get_file_as_string("res://docs/patch_notes.txt")
+	var dir := DirAccess.open("res://docs/patch_notes.d")
+	var fragments_ok := dir != null
+	if dir != null:
+		for f in dir.get_files():
+			if f.ends_with(".txt"):
+				var frag_lines: Array = LauncherScript.parse_notes(FileAccess.get_file_as_string("res://docs/patch_notes.d/" + f))
+				fragments_ok = fragments_ok and not frag_lines.is_empty() and frag_lines.all(func(l): return l[0] == "li")
+				shipped = "## Latest changes\n" + FileAccess.get_file_as_string("res://docs/patch_notes.d/" + f) + "\n" + shipped
+	check(fragments_ok, "every patch note fragment holds only '- ' change lines")
 	var parsed: Array = LauncherScript.parse_notes(shipped)
 	check(not parsed.is_empty() and parsed[0][0] == "h", "docs/patch_notes.txt starts with a heading")
 	var recent: String = LauncherScript.recent_notes(shipped)

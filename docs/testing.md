@@ -27,9 +27,8 @@ shard passed. That is the single check to require on pull requests, and the Wind
 for it (never for the play-through, the extra shards or the browser export). Adding or removing shards never
 changes that name.
 
-`docs/patch_notes.txt` is marked `merge=union` in `.gitattributes`, so two branches that each add a line at the
-top merge without a conflict when git does the merge (rebase, `git merge`). GitHub's web "resolve conflicts"
-view ignores that setting; update the branch locally in that case.
+Patch notes do not conflict: every PR adds its own file in `docs/patch_notes.d/` and the release workflow
+combines them with `docs/patch_notes.txt` (`tools/patch_notes.py`).
 
 ## Releases: Windows first
 

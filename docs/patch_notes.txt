@@ -6,6 +6,7 @@
 
 ## Latest changes
 - Tasks tied to a place (the bandit pass, the dungeon, Sternhall, the Ashen Spire) now show pinned at the top of the event log with a short line while you are there, until done. Brother Orlan in the archive gives a new one: bring him a healing potion.
+- The wandering merchant's ingredients now show their own pictures (a mushroom, a tuft of moss, a blob of jelly ...) instead of a backpack.
 - Village ivy now grows on every side of a building (each side as thick as the front used to be), and it never fully covers a window any more, including on the stone buildings.
 - The village warning bell now uses a real recording of church bells ringing in a tower.
 - The bookshelf in your house now stands on the ground floor against the north wall, and the wall torch beside it hangs one wall to the west.

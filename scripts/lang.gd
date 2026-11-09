@@ -34,6 +34,7 @@ const PARTS := [
 	preload("res://scripts/lang/homes.gd"),
 	preload("res://scripts/lang/barber.gd"),
 	preload("res://scripts/lang/village_farm.gd"),
+	preload("res://scripts/lang/village_pippi.gd"),
 	preload("res://scripts/lang/offline.gd"),
 	preload("res://scripts/lang/comic.gd"),
 	preload("res://scripts/lang/crates.gd"),

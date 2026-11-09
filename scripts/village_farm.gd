@@ -1,8 +1,8 @@
 class_name VillageFarm
 extends RefCounted
 ## Puts the village's animals out on its meadows (see FarmAnimal): a flock of
-## geese on the south meadow, a few goats on the west meadow with the boy Pip,
-## who looks after them (see Villager, "herds"), sheep on the north-west
+## geese on the south meadow, a few goats on the west meadow with the boy Pip
+## and his friend Pippi, who look after them together (see Villager, "herds"), sheep on the north-west
 ## meadow, two cows and a bull on the east meadow, and two dogs: a Shiba Inu
 ## that keeps Pip's goats company and a Husky at the farm in the south-east corner.
 ##
@@ -23,6 +23,9 @@ const HERDS := [
 ]
 ## Where Pip stands to mind the goats, next to the herd's home tile.
 const PIP_AT := Vector2i(42, 31)
+## Where Pippi stands beside Pip at the goats, and where she minds the geese.
+const PIPPI_AT := Vector2i(43, 32)
+const GEESE_AT := Vector2i(46, 38)
 ## How far from its tile the nearest standing place is looked for.
 const SEARCH := 5
 
@@ -68,7 +71,34 @@ static func _place(lvl: Outdoor, at: Vector2i, taken: Array[Vector2i]) -> Vector
 
 ## Where Pip stands to mind the goats, or INF when the village has none.
 static func pip_spot(lvl: Outdoor) -> Vector3:
-	if lvl.farm_animals.filter(func(a: FarmAnimal): return a.kind == "goat").is_empty():
+	if lvl.farm_animals.filter(func(a: FarmAnimal): return a.kind in GOATS).is_empty():
 		return Vector3.INF
-	var c := _place(lvl, PIP_AT, [])
+	return _spot(lvl, PIP_AT)
+
+
+## The goats' kinds: the herd's own and any grumpier one that lives with it.
+const GOATS := ["goat", "billy"]
+
+
+## The tile where Pippi starts her day, beside Pip, or (-1, -1) without one.
+static func pippi_home(lvl: Outdoor) -> Vector2i:
+	return _place(lvl, PIPPI_AT, [])
+
+
+## Where a child who herds goes next, for a roll between 0 and 1: Pip mostly
+## to the goats, Pippi half and half to the goats and the geese. INF when the
+## animal they mind is not there. Always a place no door or way is blocked at.
+static func herd_spot(lvl: Outdoor, role: String, roll: float) -> Vector3:
+	var geese := lvl.farm_animals.filter(func(a: FarmAnimal): return a.kind == "goose")
+	var to_geese: bool = roll < (0.4 if role == "pippi" else 0.25) and not geese.is_empty()
+	if to_geese:
+		return _spot(lvl, GEESE_AT)
+	if role == "pippi":
+		var c := _place(lvl, PIPPI_AT, [])
+		return lvl.cell_to_world(c) if c != Vector2i(-1, -1) and pip_spot(lvl) != Vector3.INF else Vector3.INF
+	return pip_spot(lvl)
+
+
+static func _spot(lvl: Outdoor, at: Vector2i) -> Vector3:
+	var c := _place(lvl, at, [])
 	return lvl.cell_to_world(c) if c != Vector2i(-1, -1) else Vector3.INF

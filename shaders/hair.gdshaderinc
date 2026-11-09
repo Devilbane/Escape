@@ -33,6 +33,8 @@ uniform bool shaved_sides = false;
 uniform bool bun = false;
 // Head: the hair is cut short (the mesh is too; this makes the strands finer).
 uniform bool short_hair = false;
+// Freckles scattered over the cheeks and the bridge of the nose.
+uniform bool freckles = false;
 // Head with natural hair: dye it (false keeps the texture's own colour).
 uniform bool recolor = false;
 // 0: the colours below, 1: rainbow, 2: fire.
@@ -270,6 +272,11 @@ void fragment() {
 			}
 			albedo = mix(c, dyed, hair);
 			emission = dyed * glow * hair * 0.5;
+		}
+		if (freckles && !bald) {
+			float area = smoothstep(0.3, 0.42, p.z) * smoothstep(1.3, 1.38, p.y) * smoothstep(1.62, 1.54, p.y) * smoothstep(0.4, 0.3, abs(p.x));
+			float spots = smoothstep(0.66, 0.8, vnoise(p * 120.0));
+			albedo = mix(albedo, vec3(0.6, 0.31, 0.16), spots * area * (1.0 - hair) * 0.7);
 		}
 		// The skin: the face, the ears and a shaved scalp.
 		albedo *= mix(skin_tint, vec3(1.0), bald ? 0.0 : hair);

@@ -70,8 +70,15 @@ const ROLES := {
 		"colors": [Color(0.7, 0.35, 0.6), Color(0.35, 0.3, 0.45), Color(0.6, 0.3, 0.5)], "plan": "shop", "work": "Interact",
 		"lines": ["Brot, Käse, Seile, Fackeln: alles für den Alltag!", "Ich kaufe auch, was du aus dem Verlies mitbringst.", "Für einen Helden mache ich einen guten Preis.", "Wurst für die Füchse? Die leben auf der Wiese am Waldteich, westlich vom Dorf."]},
 	"7": {"name": "Pip", "model": "Rogue", "show": [], "scale": 0.72, "hair": {"style": "spiky", "color": "blond"}, "skin": SKIN_ROSY,
-		"colors": [Color(0.45, 0.6, 0.9), Color(0.6, 0.45, 0.3), Color(0.9, 0.8, 0.3)], "plan": "wander", "work": "Cheer", "herds": true,
-		"lines": ["Fang mich doch!", "Bist du ein echter Abenteurer?", "Mama sagt, in der Gruft spukt es!", "Das sind meine Ziegen! Ich passe auf sie auf.", "Die Gänse hören auf niemanden. Nicht mal auf mich.", "Der Hund bleibt bei den Ziegen, wo ich bin."]},
+		"colors": [Color(0.45, 0.6, 0.9), Color(0.6, 0.45, 0.3), Color(0.9, 0.8, 0.3)], "plan": "wander", "work": "Cheer", "herds": true, "pal": "pippi",
+		"lines": ["Fang mich doch!", "Bist du ein echter Abenteurer?", "Mama sagt, in der Gruft spukt es!", "Das sind meine Ziegen! Ich passe auf sie auf.", "Die Gänse hören auf niemanden. Nicht mal auf mich.", "Der Hund bleibt bei den Ziegen, wo ich bin.", "Das ist meine Freundin Pippi! Sie hütet die Gänse und die Ziegen mit mir."]},
+	# Pip's friend: a red-haired girl with long pigtails and freckles who minds
+	# the geese and the goats with him. She is not on the map: Outdoor puts her
+	# beside Pip (see VillageFarm.pippi_home), so she needs no map letter.
+	"pippi": {"name": "Pippi", "model": "Rogue", "show": [], "scale": 0.7,
+		"hair": {"style": "short", "color": "ginger", "tails": true, "freckles": true}, "skin": SKIN_ROSY,
+		"colors": [Color(0.8, 0.35, 0.4), Color(0.45, 0.35, 0.3), Color(1, 1, 1)], "plan": "wander", "work": "Cheer", "herds": true, "pal": "7",
+		"lines": ["Hallo! Ich bin Pippi. Pip und ich hüten die Gänse und die Ziegen.", "Pip ist mein bester Freund. Wir spielen Fangen auf der Wiese!", "Die Gänse zwicken, wenn man ihnen den Rücken zudreht.", "Die Ziegen mögen dich, wenn du ruhig bleibst.", "Die Gänse und Ziegen weiden an der Wiese südlich und westlich vom Dorf."]},
 	"8": {"name": "Gelehrter Odo", "model": "Mage", "show": ["Mage_Hat", "Spellbook_open"],
 		"colors": [Color(0.35, 0.3, 0.45), Color(0.3, 0.3, 0.35), Color(0.3, 0.25, 0.4)], "plan": "stroll", "work": "Spellcast_Raise",
 		"lines": ["Faszinierend, du lebst! Das Verlies gilt als unentrinnbar.", "In meinen Büchern steht etwas über Wächter in Rüstung...", "Ruhe, bitte. Ich lese."]},
@@ -1083,9 +1090,12 @@ func _next_task() -> void:
 		"wander":
 			if _task == "walk" or _rng.randf() < 0.5:
 				_start("work" if _rng.randf() < 0.4 else "idle", _rng.randf_range(1.5, 4.0))
-			elif _info.get("herds", false) and _rng.randf() < 0.45 and VillageFarm.pip_spot(level) != Vector3.INF:
-				# Off to mind the goats (see VillageFarm).
-				_walk_to(VillageFarm.pip_spot(level), WALK_SPEED * 1.4, "work")
+			elif _info.has("pal") and _rng.randf() < 0.3 and _play_spot() != Vector3.INF:
+				# Off to play with the friend: a run to their side.
+				_walk_to(_play_spot(), RUN_SPEED, "work")
+			elif _info.get("herds", false) and _rng.randf() < 0.45 and VillageFarm.herd_spot(level, role, _rng.randf()) != Vector3.INF:
+				# Off to mind the goats and the geese (see VillageFarm).
+				_walk_to(VillageFarm.herd_spot(level, role, _rng.randf()), WALK_SPEED * 1.4, "work")
 			else:
 				_walk_to(_nearby(5), RUN_SPEED, "idle")
 		"carry":
@@ -1098,6 +1108,20 @@ func _next_task() -> void:
 				_walk_to(houses[_rng.randi() % houses.size()] if not houses.is_empty() else _nearby(6), WALK_SPEED, "idle")
 			else:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
+
+
+## A free tile beside the friend (see "pal" in ROLES), or INF when they are
+## indoors or not in the village. Open ground only, so nobody plays in a wall.
+func _play_spot() -> Vector3:
+	for v: Villager in level.villagers:
+		if v.role != _info.get("pal", "") or v.at_home or not v.visible:
+			continue
+		var at := level.world_to_cell(v.global_position)
+		for i in 12:
+			var c := at + Vector2i(_rng.randi_range(-2, 2), _rng.randi_range(-2, 2))
+			if c != at and FarmAnimal.may_stand(level, c) and not _spot_taken(c):
+				return level.cell_to_world(c)
+	return Vector3.INF
 
 
 ## Somewhere in the village worth a visit: the well, the square, a house.

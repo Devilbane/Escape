@@ -340,7 +340,9 @@ const FENCE_IVY := 0.55
 const GUILD_IVY := 28
 ## Patches on the other stone buildings (tavern, smithy, market, tower, ...).
 const STONE_IVY := 14
-const CASTLE_IVY := 32
+const CASTLE_IVY := 48
+## The castle's stones stand this far (metres) proud of their wall planes: its leaves are held out by that much.
+const CASTLE_PROUD := 0.3
 ## The castle's towers stand on a ledge this high (metres): ivy roots there too and climbs the towers.
 const CASTLE_TOWER_FOOT := 5.2
 ## The temple too, but its doorway is kept bare: no ivy roots within a few
@@ -1220,9 +1222,10 @@ func _build_block(ch: String, block: Rect2i) -> void:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
 			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true)
 		elif ch == "w" or ch == "k":
-			# The castle's gate wears ivy round and partly over its arch, but its middle stays open.
-			var gate := [front.lerp(center, 0.25)]
-			_dress_building(node, center, gate, 0.75, GUILD_IVY if ch == "w" else CASTLE_IVY, true, CASTLE_TOWER_FOOT if ch == "k" else 0.0)
+			# The gate's passage runs from the front in to the middle: all of it stays free of ivy.
+			var gate := [0.0, 0.25, 0.5, 0.75, 1.0].map(func(t: float): return front.lerp(center, t))
+			gate.append(door)
+			_dress_building(node, center, gate, 0.75, GUILD_IVY if ch == "w" else CASTLE_IVY, true, CASTLE_TOWER_FOOT if ch == "k" else 0.0, CASTLE_PROUD if ch == "k" else 0.0)
 		else:
 			# Every stone building wears old ivy, so it is as green as the
 			# wooden houses (which ordinary ivy suits).
@@ -1798,10 +1801,10 @@ func _standalone(block: Rect2i) -> bool:
 ## time; and what was found is kept, so when the hero steps out of the crypt
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
-func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0) -> void:
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0) -> void:
 	if old:
 		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
-	var key := "%s|%s|%s|%s|%s" % [level_name, middle, _bounds_in(node), old, foot_max]
+	var key := "%s|%s|%s|%s|%s|%s" % [level_name, middle, _bounds_in(node), old, foot_max, proud]
 	if not _dressed.has(key):
 		var rng := RandomNumberGenerator.new()
 		rng.seed = hash(key)
@@ -1818,7 +1821,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		if panes.is_empty():
 			panes = AgedStone.window_panes(tris, WINDOW_UV)
 		panes.append_array(AgedStone.glass_boxes(tris))
-		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max)
+		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud)
 		for i in leaves.xforms.size():
 			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
 		var spot := Vector3.INF

@@ -6,6 +6,7 @@ extends SceneTree
 const TARGETS := {
 	"temple": ["s", Vector3(0, 7.5, 13), Vector3(0, 3.5, -3)],
 	"castle": ["k", Vector3(0, 7.5, 13), Vector3(0, 3.5, -3)],
+	"castle_close": ["k", Vector3(0, 6, 8), Vector3(0, 8, -6)],
 	"guild": ["w", Vector3(0, 7.5, 13), Vector3(0, 3.5, -3)],
 	"house": ["h", Vector3(0, 7.5, 13), Vector3(0, 3.5, -3)],
 }

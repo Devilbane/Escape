@@ -408,15 +408,16 @@ static func _on_wall(wall: Dictionary, p: Vector3) -> bool:
 ## Grows ivy up a building's outer walls: leaves (transforms and colours) are
 ## added to `leaves`. `doors` are the spots in front of its doors, where no
 ## ivy grows. `old` ivy climbs much higher, up to the roof and on to it.
+## `proud` holds the leaves out from walls whose stones stand proud of their plane (the castle's).
 ## `foot_max` lets ivy root on walls standing that high (the castle's towers
 ## start well above the ground). `windows` are the middles of window panes (world space): their middle
 ## stays clear of leaves, so the ivy frames a window but never covers it.
-static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = [], foot_max := 0.0) -> void:
+static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = [], foot_max := 0.0, proud := 0.0) -> void:
 	var all_walls := walls(tris, middle, ground)
 	var found := rooted(all_walls, ground, old, foot_max)
 	# A wall up on a stone base that looks the way a door does holds that
 	# door up there too (the KayKit buildings): no ivy grows from its foot.
-	found = found.filter(func(w): return float(w.foot) < ground + 0.9 or not doors.any(
+	found = found.filter(func(w): return float(w.foot) < ground + 0.9 or foot_max > 0.0 or not doors.any(
 			func(d: Vector3): return Vector2(d.x - middle.x, d.z - middle.z).normalized().dot(Vector2(w.n.x, w.n.z)) > 0.7))
 	if found.is_empty():
 		return
@@ -481,7 +482,7 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 			continue
 		if doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
 			continue
-		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors)
+		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors, proud)
 		grown += 1
 
 
@@ -509,7 +510,7 @@ static func _root_on(wall: Dictionary, ground: float, rng: RandomNumberGenerator
 ## and then branching; leaves grow along them, thickest near the ground.
 ## Old ivy climbs higher, and a tendril that runs out of wall below its
 ## reach creeps on up the roof above it.
-static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = [], thin := 1.0, doors: Array = []) -> void:
+static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = [], thin := 1.0, doors: Array = [], proud := 0.0) -> void:
 	var n: Vector3 = root_wall.n
 	var across := Vector3.UP.cross(n).normalized()
 	var height: Vector2 = OLD_IVY_HEIGHT if old else IVY_HEIGHT
@@ -554,7 +555,7 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 			for k in rng.randi_range(1, 1 + int(fill * 1.6)):
 				var at := p + across * rng.randf_range(-0.2, 0.2) + Vector3.UP * rng.randf_range(-0.08, 0.08)
 				if rng.randf() < thin and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_doorway(at, doors):
-					_leaf(at, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
+					_leaf(at + n * proud, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
 			if rng.randf() < 0.08 and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
 

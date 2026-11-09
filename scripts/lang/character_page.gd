@@ -65,7 +65,7 @@ const EN := {
 	"Sonderwissen": "Special knowledge",
 	"In Klammern: braucht passende Ausrüstung": "In brackets: needs the right gear",
 	" (höchster Wert)": " (highest)",
-	"%d%% zum nächsten Punkt": "%d%% to next point",
+	"%d%% bis +1": "%d%% to +1",
 	"Die vielen Kämpfe machen dich stärker: Stärke %d, +1 Kampfkraft": "All the fighting makes you stronger: Strength %d, +1 power",
 	"Dein Körper wird zäher: Konstitution %d, +1 Leben": "Your body grows tougher: Constitution %d, +1 life",
 	"Deine Beine werden schneller: Tempo %d%%": "Your legs grow faster: Speed %d%%",

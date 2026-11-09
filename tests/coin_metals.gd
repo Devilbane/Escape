@@ -72,6 +72,11 @@ func _run() -> void:
 	await _wait()
 	_on_the_floor(lvl)
 	await _shot("metals_heaps", at, Vector3(0.0, 3.6, 5.0))
+	# The house chest's coins are copper: its icon takes copper's look, not gold's.
+	var chest_icon := ItemIcon.make(HomeStores.COINS)
+	check(chest_icon.what == "kupfermuenze", "the chest's coin icon is copper")
+	check(chest_icon.tint_of("coin") == Loot.COIN_COLORS["kupfermuenze"], "the chest's coin icon is tinted copper")
+	chest_icon.free()
 	game.delete_save(game.save_path())
 	print("PASS: coin metals" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)

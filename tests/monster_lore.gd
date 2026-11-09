@@ -103,16 +103,20 @@ func _test() -> void:
 	var catch_gain := func(text: String, _c: Color): gains.append(text)
 	Events.bus().gain_shown.connect(catch_gain)
 	check(is_equal_approx(MonsterLore.gain_percent("wolf"), 20.0), "a first kill is 20 % of the way to the first rank")
-	check(MonsterLore.percent_text(20.0) == "20" and MonsterLore.percent_text(0.5) == "0.5", "percentages read whole or with one place")
+	check(is_equal_approx(MonsterLore.progress_percent(11), 100.0 / 15.0) and MonsterLore.progress_percent(300) == 0.0, "lore progress counts from the rank's start")
 	for i in 4:
 		Events.bus().enemy_slain.emit("wolf")
 	check(MonsterLore.kill_count("wolf") == 4 and MonsterLore.rank_of("wolf") == 0, "four wolves: counted, no rank yet")
-	check(gains.size() == 4 and str(gains[0]).contains("+20"), "each kill floats its gain: %s" % str(gains))
+	check(gains.size() == 4 and str(gains[0]).contains("20"), "each kill floats the new value: %s" % str(gains))
 	check(game.player != null and not DamageNumber.over(game.player).is_empty(), "the gain shows over the hero's head")
 	Events.bus().enemy_slain.emit("wolf")
 	check(MonsterLore.rank_of("wolf") == 1 and is_equal_approx(MonsterLore.vital_chance("wolf"), 0.05), "the fifth wolf reaches the first rank (5 %)")
 	check(gains.size() == 5 and str(gains[4]).contains(Lang.t(MonsterLore.rank_name(1))) and str(gains[4]).contains("5"), "the new rank floats too: %s" % str(gains.back()))
 	MonsterLore.kills["fledermaus"] = 100000
+	# A fractional step (6.67 % per kill here) shows its whole part, once.
+	MonsterLore.kills["ratte"] = 10
+	Events.bus().enemy_slain.emit("ratte")
+	check(str(gains.back()).contains(" 6 %") or str(gains.back()).contains(" 6%"), "a fractional gain shows the whole number reached: %s" % str(gains.back()))
 	var count := gains.size()
 	Events.bus().enemy_slain.emit("fledermaus")
 	check(gains.size() == count, "no gain at the last rank")

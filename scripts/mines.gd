@@ -284,7 +284,7 @@ static func _build_shaft(level: Level, c: Vector2i, pos: Vector3) -> void:
 	# Steps going down, away from the side the hero comes from.
 	var away := pos - level.cell_to_world(level._open_side(c))
 	away.y = 0.0
-	StairsDown.build(level, pos, Level.TILE, away.normalized() if away.length() > 0.1 else Vector3(0, 0, -1))
+	StairsDown.build(level, pos, Level.TILE, away.normalized() if away.length() > 0.1 else Vector3(0, 0, -1), StairsDown.look(level.wall_style, level.theme))
 	var wood := _material(WOOD)
 	for side in [-1.0, 1.0]:
 		_box(level, pos + Vector3(side * 1.65, 0.15, 0), Vector3(0.35, 0.3, 3.6), wood)

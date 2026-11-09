@@ -182,8 +182,18 @@ func _blades_and_ledge(lvl: Level) -> void:
 
 func _prisoner(lvl: Level) -> void:
 	var s: Dictionary = _stations(AshSpire.PRISONER)[0]
-	game.player.bag.assign(["heiltrank"])
+	game.player.bag.assign([])
+	game.quests.clear()
 	AshSpire.use(game, s)
+	check(game.quests.is_active(AshSpire.PRISONER_QUEST), "talking to the prisoner notes his task in the quest log")
+	check(game.quests.log_entries() == [AshSpire.PRISONER_QUEST] and game.quests.missing(AshSpire.PRISONER_QUEST) == 1, "it is open and still needs a potion")
+	check(game.menus.quest_hints().any(func(t): return t.contains("Orlan")) == false, "no hint to hand in before a potion is carried")
+	AshSpire.use(game, s)
+	check(game.quests.is_active(AshSpire.PRISONER_QUEST), "talking again does not restart or finish it")
+	game.player.bag.assign(["heiltrank"])
+	check(game.menus.quest_hints().any(func(t): return t.contains("Orlan")), "with a potion in the bag, the hints say to bring it to Orlan")
+	AshSpire.use(game, s)
+	check(game.quests.is_done(AshSpire.PRISONER_QUEST), "the potion finishes his task, which is marked done")
 	check(lvl.taken.has("ash:prisoner") and not game.player.bag.has("heiltrank"), "a healing potion buys the prisoner's secret")
 
 

@@ -13,7 +13,10 @@ extends RefCounted
 ## the hero picks that wish in the master's wish window (see Wishes). A task
 ## with "found": true is found out in the world instead (Sternhall's
 ## prisoner, see SternHall) and starts with Events.quest_found; its giver is
-## who rewards it. Every text is German and has an English entry
+## who rewards it. A found task with an empty giver and a `source` text has
+## no villager behind it (Brother Orlan in the Ashen Spire's archive, see
+## AshSpire): its kind "potion" is done by handing him a healing potion, and its
+## `note` stands for the reward. Every text is German and has an English entry
 ## in Lang; `remind` may hold one %d (how many are still missing).
 ## The state of every task is kept in the hero's saved game (see Game).
 
@@ -121,6 +124,14 @@ const ALL := {
 		"offer": "Bring meinen Siegelring dem Gelehrten im Dorf. Er soll wissen, dass ich noch lebe.",
 		"remind": "Der Siegelring ist für den Gelehrten im Dorf.",
 		"done": "Alriks Ring! Er lebt? Im Kerker von Sternhall... Ich schicke sofort nach der Akademie. Nimm 60 Kupfer und diesen starken Heiltrank."},
+	# Found in the archive of the Ashen Spire (see AshSpire): Brother Orlan.
+	"ash_orlan": {"giver": "", "found": true, "kind": "potion", "gold": 0, "note": "Zwei verborgene Orte im Aschenturm",
+		"source": "Bruder Orlan im Archiv des Aschenturms",
+		"title": "Ein Trank für Bruder Orlan",
+		"goal": "Bring Bruder Orlan im Archiv des Aschenturms einen Heiltrank. Er sitzt hinter den Gittern seiner Zelle.",
+		"offer": "Ich bin wund. Ein Heiltrank, und ich verrate Euch ein Geheimnis dieser Zelle.",
+		"remind": "Bruder Orlan wartet im Archiv auf einen Heiltrank.",
+		"done": "Bruder Orlan trinkt den Trank und erzählt dir von zwei verborgenen Orten."},
 }
 
 ## Explained once in the compendium, the first time a villager hands out a task.
@@ -203,6 +214,8 @@ func missing(id: String) -> int:
 			return maxi(0, q.count - int(state.get(id, {}).get("count", 0)))
 		"fetch":
 			return maxi(0, q.count - _carried(q.item))
+	if q.kind == "potion":
+		return 0 if potion_in_bag() != "" else 1
 	return 0 if not game.player.bag.has(q.item) else 1
 
 
@@ -214,9 +227,29 @@ static func reward_text(id: String) -> String:
 		parts.append(Lang.t("%d Kupfer") % q.gold)
 	if q.has("reward"):
 		parts.append(Items.item_name(q.reward))
+	if q.has("note"):
+		parts.append(Lang.t(q.note))
 	if q.has("recipe"):
 		parts.append(Lang.t("Rezept: %s") % Lang.t(Crafting.RECIPES[q.recipe].name))
 	return ", ".join(parts)
+
+
+## The weakest healing potion in the bag, "" for none (what Brother Orlan takes).
+func potion_in_bag() -> String:
+	for id in ["heiltrank_schwach", "heiltrank", "heiltrank_stark"]:
+		if game.player.bag.has(id):
+			return id
+	return ""
+
+
+## Brother Orlan's task is done: the hero handed him a potion (see AshSpire).
+## False when it was not taken on or is done already.
+func finish_found(id: String) -> bool:
+	if not is_active(id) or not ALL[id].get("found", false):
+		return false
+	state[id] = {"state": "done", "count": 1}
+	Events.bus().quest_done.emit(id)
+	return true
 
 
 func _carried(item: String) -> int:

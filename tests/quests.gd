@@ -73,7 +73,7 @@ func _test() -> void:
 		check(_villager(role) != null, "villager %s lives in the village" % role)
 	for id in Quests.ALL:
 		var q: Dictionary = Quests.ALL[id]
-		check(Villager.ROLES.has(q.giver), "%s has a giver who exists" % id)
+		check(Villager.ROLES.has(q.giver) or (q.giver == "" and Lang.EN.has(q.get("source", ""))), "%s has a giver who exists" % id)
 		for key in ["title", "goal", "offer", "remind", "done"]:
 			check(Lang.EN.has(q[key]), "%s: the %s has an English text" % [id, key])
 		if q.has("item"):

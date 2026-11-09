@@ -5,6 +5,7 @@
 # history, so nothing needs trimming. Keep those two sections well under 16000 characters.
 
 ## Latest changes
+- Brother Orlan in the Ashen Spire's archive now gives you a task: talk to him and "A potion for Brother Orlan" appears in the quests window until you bring him a healing potion, then it is marked done.
 - Fixed being shut in the archive's bed room after sleeping there: the iron bars of the prisoner's cell no longer count as a way out, so the secret wall opens from inside.
 - You can use at most 9 shrines in the whole beginner dungeon; the shrine window shows how many blessings are left, and after the ninth the shrines go quiet.
 - Prison cells now really hold: the iron bars of a cell are turned with its wall, so a column of bars is solid from end to end and nobody walks through the gaps between the tiles.

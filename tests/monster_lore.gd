@@ -96,13 +96,35 @@ func _test() -> void:
 	check(MonsterLore.kills_to_next("krieger") == 0, "the last rank has no next")
 	MonsterLore.clear()
 
-	# Kills arrive through the bus, and a new rank is told.
+	# Kills arrive through the bus. Every gain is a brief word over the hero's
+	# head, not a line in the event log; the log only explains, once.
+	var log_before: int = game.event_log.entries().size()
+	var gains: Array = []
+	var catch_gain := func(text: String, _c: Color): gains.append(text)
+	Events.bus().gain_shown.connect(catch_gain)
+	check(is_equal_approx(MonsterLore.gain_percent("wolf"), 20.0), "a first kill is 20 % of the way to the first rank")
+	check(MonsterLore.percent_text(20.0) == "20" and MonsterLore.percent_text(0.5) == "0.5", "percentages read whole or with one place")
 	for i in 4:
 		Events.bus().enemy_slain.emit("wolf")
 	check(MonsterLore.kill_count("wolf") == 4 and MonsterLore.rank_of("wolf") == 0, "four wolves: counted, no rank yet")
+	check(gains.size() == 4 and str(gains[0]).contains("+20"), "each kill floats its gain: %s" % str(gains))
+	check(game.player != null and not DamageNumber.over(game.player).is_empty(), "the gain shows over the hero's head")
+	var xs: Array = DamageNumber.over(game.player).map(func(n): return n.global_position.y)
+	xs.sort()
+	var gap_ok := true
+	for i in range(1, xs.size()):
+		gap_ok = gap_ok and xs[i] - xs[i - 1] >= DamageNumber.STEP * 0.5
+	check(gap_ok, "gains over the hero stack without overlapping")
 	Events.bus().enemy_slain.emit("wolf")
 	check(MonsterLore.rank_of("wolf") == 1 and is_equal_approx(MonsterLore.vital_chance("wolf"), 0.05), "the fifth wolf reaches the first rank (5 %)")
-	check(game._message.text.contains(Lang.t(MonsterLore.monster_name("wolf"))), "the new rank is told: %s" % game._message.text)
+	check(gains.size() == 5 and str(gains[4]).contains(Lang.t(MonsterLore.rank_name(1))) and str(gains[4]).contains("5"), "the new rank floats too: %s" % str(gains.back()))
+	MonsterLore.kills["fledermaus"] = 100000
+	var count := gains.size()
+	Events.bus().enemy_slain.emit("fledermaus")
+	check(gains.size() == count, "no gain at the last rank")
+	Events.bus().gain_shown.disconnect(catch_gain)
+	var added: Array = game.event_log.entries().slice(log_before)
+	check(added.size() <= 1, "the event log got at most one explanation, not a line per gain: %s" % str(added))
 	check(game.lore.has(MonsterLore.LEARN), "the compendium learns how monster lore works")
 
 	# Saved and loaded.

@@ -1173,8 +1173,6 @@ func melee() -> void:
 			var vital := e == vital_target if not splash and e == target else finds_vital(e)
 			if vital:
 				this_blow = "vital"
-			elif e.is_armored():
-				this_blow = "glance"
 			elif heavy > 0:
 				this_blow = "heavy"
 			var had: int = e.hp

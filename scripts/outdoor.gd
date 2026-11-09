@@ -341,8 +341,6 @@ const GUILD_IVY := 28
 ## Patches on the other stone buildings (tavern, smithy, market, tower, ...).
 const STONE_IVY := 14
 const CASTLE_IVY := 32
-## The castle's towers stand on a ledge this high (metres): ivy roots there too and climbs the towers.
-const CASTLE_TOWER_FOOT := 5.2
 ## The temple too, but its doorway is kept bare: no ivy roots within a few
 ## metres of it, to the sides and back along the steps.
 const TEMPLE_IVY := 16
@@ -1220,10 +1218,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
 			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true)
 		elif ch == "w" or ch == "k":
-			# The gate's passage runs from the front in to the middle: all of it stays free.
-			var gate := [0.0, 0.25, 0.5, 0.75, 1.0].map(func(t: float): return front.lerp(center, t))
-			gate.append(door)
-			_dress_building(node, center, gate, 0.75, GUILD_IVY if ch == "w" else CASTLE_IVY, true, CASTLE_TOWER_FOOT if ch == "k" else 0.0)
+			# The castle's gate wears ivy round and partly over its arch, but its middle stays open.
+			var gate := [front.lerp(center, 0.25)]
+			_dress_building(node, center, gate, 0.75, GUILD_IVY if ch == "w" else CASTLE_IVY, true, 0.0)
 		else:
 			# Every stone building wears old ivy, so it is as green as the
 			# wooden houses (which ordinary ivy suits).

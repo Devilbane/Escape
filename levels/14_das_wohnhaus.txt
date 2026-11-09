@@ -1,11 +1,11 @@
 name: Dein Haus
-hint: Dein eigenes Haus in der Weberzeile: unten die Truhe, im Keller die Stahltruhe, das Zutatenbord und das Bücherregal, oben das Bett, unterm Dach viel Platz. Genug Platz für Möbel.
+hint: Dein eigenes Haus in der Weberzeile: unten die Truhe und das Bücherregal, im Keller die Stahltruhe und das Zutatenbord, oben das Bett, unterm Dach viel Platz. Genug Platz für Möbel.
 monsters: humans
 building: ^
 home: ja
 #####################
-#<.h##L.<##B.<##+.+##
+#<.h##L§<##B.<##+.+##
 #...##+P+##(.+##+.+##
-#m.§##>.+##...##...##
+#m..##>.+##...##...##
 #...##+EN##+>.##+>+##
 #####################

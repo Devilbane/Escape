@@ -20,6 +20,8 @@ var backstabs := 0
 ## Where the hero stood a moment ago, to notice it walking into a corner.
 var _last_spot := Vector3.INF
 var _still := 0.0
+## The last decisions the bot took, printed when it times out.
+var _log: Array = []
 
 
 func _initialize() -> void:
@@ -33,6 +35,12 @@ func _initialize() -> void:
 	Input.parse_input_event(shift)
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
+
+
+func _note(what: String) -> void:
+	_log.append("t=%d %s" % [int(total), what])
+	if _log.size() > 12:
+		_log.pop_front()
 
 
 func _cell_of(ch: String) -> Vector3:
@@ -65,6 +73,9 @@ func _process(delta: float) -> bool:
 		var p: Player = game.player
 		print("FAIL: timeout at level ", game.level_index + 1, " after ", p.knockdowns, " knockdowns")
 		print("  state=%d cell=%s hp=%d path=%d can_act=%s controllable=%s frozen=%s dead=%s busy=%.1f down=%.1f anim=%s menus=%s" % [game.state, game.level.world_to_cell(p.global_position), p.hp, p.path.size(), p.can_act(), p.controllable, p.frozen, p.dead, p._busy, p._down, p._current_anim, game.menus.is_open()])
+		for l in _log:
+			print("  last decision ", l)
+		print("  hero tile '%s', solid=%s" % [game.level.cell_char(game.level.world_to_cell(p.global_position)), game.level.astar.is_point_solid(game.level.world_to_cell(p.global_position))])
 		print("  key=%s doors=%s target=%s" % [game.level.has_key, game.level._doors.map(func(d): return [d.cell, d.open]), p._target.kind if is_instance_valid(p._target) else "-"])
 		for e in game.level.enemies:
 			if is_instance_valid(e) and not e.dead:
@@ -206,22 +217,30 @@ func _process(delta: float) -> bool:
 	# A little extra reach, since walking stops up to 0.3 m short of a path point.
 	var near := lvl.nearest_interactable(player.global_position, Level.SEARCH_RANGE + 0.5)
 	if not near.is_empty() and not near.searched:
+		_note("search %s at %s" % [near.label, near.cell])
 		game._search(near)
 		searched += 1
 		return false
 	# Run into the shrine, like a player would.
 	var shrine := lvl.nearest_station(player.global_position)
-	if not shrine.is_empty() and shrine.kind == "schrein":
+	# Only while the shrines still bless: the beginner dungeon allows a few gifts in
+	# all (shrines_left), and a trapdoor fall sends the hero back to shrines that are
+	# new again. Running into a silent shrine does nothing, however often.
+	var blessing: bool = not (lvl.beginner_dungeon and game.shrines_left() <= 0)
+	if blessing and not shrine.is_empty() and shrine.kind == "schrein" and not shrine.used:
+		_note("run into the shrine at %s" % [shrine.cell])
 		player.path.assign([shrine.pos])
 		return false
 	for s in lvl.stations:
-		if s.kind == "schrein" and not s.used:
+		if blessing and s.kind == "schrein" and not s.used:
+			_note("walk to the shrine at %s" % [s.cell])
 			player.walk_to(s.pos)
 			return false
 	for obj in lvl.interactables:
 		if not obj.searched:
 			var path := lvl.astar.get_id_path(lvl.world_to_cell(player.global_position), obj.cell, true)
 			if not path.is_empty() and lvl.cell_to_world(path[-1]).distance_to(obj.pos) <= Level.SEARCH_RANGE:
+				_note("walk to %s at %s" % [obj.label, obj.cell])
 				player.walk_to(obj.pos)
 				if player.path.is_empty():
 					# Right next to it but off to one side: run into it like a player.
@@ -239,17 +258,20 @@ func _process(delta: float) -> bool:
 				for p in lvl._pickups:
 					if p.kind == "key" and is_instance_valid(p.node):
 						key_cell = p.node.global_position
+		_note("walk to the key at %s" % [lvl.world_to_cell(key_cell)])
 		player.walk_to(key_cell)
 	elif not lvl._doors.all(func(d): return d.open):
 		# Head for the door first: from a secret room the stairs can seem
 		# closer than the way round to them.
 		var door := _cell_of("D")
+		_note("walk to the door at %s" % [lvl.world_to_cell(door)])
 		if player.global_position.distance_to(door) < 8.0:
 			# Path finding stops a step short: run into it like a player.
 			player.path.assign([door])
 		else:
 			player.walk_to(door)
 	else:
+		_note("walk to the stairs")
 		player.walk_to(_cell_of("E"))
 	return false
 

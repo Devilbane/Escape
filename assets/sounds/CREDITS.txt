@@ -96,8 +96,12 @@ https://opengameart.org/content/80-cc0-creture-sfx-2
 License: CC0 (public domain). (The "Slime Squelch" pack there is CC-BY-SA and
 is not used.)
 
-The village's warning bell (village_bell) is made by tools/make_bell_sounds.py;
-it is synthesised from scratch, nothing is downloaded.
+The village's warning bell (village_bell) is a 9.5 second cut of "Church Bells, Near
+Distance, In Church Tower" (take 04) by Ivo Vicic, from the Soniss bundle. Soniss
+licence: commercial use is allowed and no attribution is required (credited here
+anyway). Cut, mixed down to mono, resampled to 22.05 kHz, faded in and out. It plays
+once per alarm, so it is not looped. (tools/make_bell_sounds.py, the old synthesised
+bell, is no longer used by the game.)
 
 The guard's alarm horn (war_horn) is made by tools/make_horn_sounds.py;
 it is synthesised from scratch, nothing is downloaded.

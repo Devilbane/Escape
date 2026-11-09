@@ -14,7 +14,7 @@ Five floors, chained like the mines (`building: spire1` .. `spire5`, headers `do
 | Floor | Needs |
 | --- | --- |
 | 1 Aschenzinne (courtyard) | fighting (orcs, wolves, archers, skeletons), the **block puzzle** (two blocks on two plates open the iron gate), a **secret wall** in front of the way down |
-| 2 Zisterne (cistern) | **sneaking**: dark hall, armoured guardians that only fall to a stab in the back (one carries the key), **hidden bed** (safe spot 1) |
+| 2 Zisterne (cistern) | **sneaking**: dark hall, armoured guardians with 20 times a skeleton's life that fall to a single stab in the back (one carries the key), **hidden bed** (safe spot 1) |
 | 3 Räderwerk (clockwork) | **timed jumps** over eight blade sweepers with archers and mages shooting along the corridors, a **crate** (carried through the second gauntlet) to climb the **ledge**, **supply cache** (healing potions) and **anvil** (mends gear), **sub boss 1** Gorrak the Gatebreaker |
 | 4 Archiv (archive) | **prisoner** Brother Orlan (quest: a healing potion for his secret), second block puzzle, **hidden bed** (safe spot 2), **sub boss 2** Archivist Veth |
 | 5 Allerheiligste (sanctum) | sneak the guardians, third sweeper gauntlet, crate + ledge, the **grimoire** on its lectern (stealing it wakes the floor), optional **boss** Ashkaran's Shade behind an iron door, **hidden hatch** (a ladder back up to the courtyard, no teleport) |

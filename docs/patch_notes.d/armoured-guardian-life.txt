@@ -1,0 +1,1 @@
+- The armoured guardian now has 20 times a skeleton's life, so it can also be fought in normal combat (long and hard), while a stab in the back still kills it in one blow and it then never respawns.

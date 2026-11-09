@@ -9,6 +9,7 @@ const EN := {
 	"Du brennst: Ein paar Sekunden lang verlierst du Leben, nie das letzte.": "Burning: for a few seconds you lose life, never the last one.",
 	"Kampfkraft %s: Deine Schläge treffen härter.": "Fighting power %s: your blows hit harder.",
 	"Schneller als sonst: Tempo %d%%": "Faster than usual: speed %d%%",
+	"Höchstgrenze erreicht: Das Grundtempo steigt nicht über %d %%. Rennen macht dich trotzdem schneller.": "Cap reached: your base speed does not rise above %d %%. Running still makes you faster.",
 	"Schwer beladen: Du läufst langsamer. Leg im Inventar (I) etwas ab.": "Heavily loaded: you walk slower. Put something down in the inventory (I).",
 	"Härtung %s: Jeder Treffer gegen dich wird um so viel schwächer, bleibt aber mindestens halb so stark.": "Hardening %s: every hit on you is that much weaker, but keeps at least half its force.",
 	"Abgenutzt: %s Teil(e) deiner Ausrüstung. Plane beim Schlafen „Ausrüstung ausbessern“ ein, sonst zerbrechen sie.": "Worn: %s piece(s) of your gear. Plan \"Mend gear\" when you sleep, or they will break.",

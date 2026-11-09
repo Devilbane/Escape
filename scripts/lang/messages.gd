@@ -6,7 +6,7 @@ const EN := {
 	"Die Tür öffnet sich knarrend...": "The door creaks open...",
 	"Verschlossen. Finde den Schlüssel!": "Locked. Find the key!",
 	"Du hast den Schlüssel gefunden!": "You found the key!",
-	"Vor dir wacht ein gepanzerter Wächter mit dem Schlüssel.\nKlingen und Messer prallen an ihm ab.\nNur ein Stich in den Rücken tötet ihn, mit einem einzigen Schlag.": "Ahead stands an armoured guardian with the key.\nBlades and knives bounce off it.\nOnly a stab in the back kills it, with a single blow.",
+	"Vor dir wacht ein gepanzerter Wächter mit dem Schlüssel.\nEr hat zwanzigmal so viel Leben wie ein Skelett.\nNur ein Stich in den Rücken tötet ihn, mit einem einzigen Schlag.": "Ahead stands an armoured guardian with the key.\nIt has twenty times a skeleton's life.\nOnly a stab in the back kills it, with a single blow.",
 	"Drück C (oder Doppelklick), um zu schleichen, bevor du eintrittst.\nEr sieht nur, was im Licht seiner Feuerschale steht.\nAm dunklen Rand des Saals bist du unsichtbar.": "Press C (or double click) to sneak before you enter.\nIt only sees what stands in the light of its fire bowl.\nAlong the dark rim of the hall you are invisible.",
 	"Schleich im Schatten um ihn herum, bis du in seinem Rücken stehst.\nDann tritt heran und schlag zu (F).\nEntdeckt er dich, lauf hinaus: Er gibt bald auf.": "Sneak through the shadows around it until you stand at its back.\nThen step up and strike (F).\nIf it spots you, run out: it soon gives up.",
 	"Nur ein Stich in den Rücken!": "Only a stab in the back!",

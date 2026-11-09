@@ -200,6 +200,11 @@ const BASKET_REFILL := 180.0
 const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 1.6), Vector3(-1.4, 0, 3.0)]
 
 var villagers: Array = []
+## Every living tree of the woods, for the birds and squirrels in them (see
+## WoodsLife): where it stands and how tall it is.
+var _wood_trees: Array = []
+## The birds and squirrels of the woods (see WoodsLife).
+var woods: WoodsLife
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
 ## The herald's call to arms against slimes in the village (see VillageAlarm).
@@ -488,6 +493,7 @@ func build() -> void:
 		free.assign(birds.market.filter(func(m: Vector3): return is_open(world_to_cell(m))))
 		birds.market = free
 	_flush_plants()
+	_build_woods_life()
 	# Leaves, twigs, rubble and little crawling creatures on the ground.
 	add_child(SurfaceLife.new(self))
 	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
@@ -1067,14 +1073,52 @@ func _build_tree(pos: Vector3, single := false) -> void:
 	var roll := _rng.randf()
 	var rot := _rng.randf() * TAU
 	var at := pos + _jitter(0.9 if not single else 0.3)
+	# How tall it stands (metres), for the woods' wildlife (see WoodsLife).
+	var height := 0.0
+	var leafy := false
 	if near_crypt and roll < 0.45:
 		_plant(["tree_dead_large", "tree_dead_medium"][_rng.randi() % 2], at, rot, _rng.randf_range(1.2, 1.6))
 	elif roll < 0.35 or (near_crypt and roll < 0.8):
-		_plant(["tree_pine_orange_large", "tree_pine_yellow_large", "tree_pine_orange_medium", "tree_pine_yellow_medium"][_rng.randi() % 4], at, rot, _rng.randf_range(0.9, 1.25))
+		var scale_of := _rng.randf_range(0.9, 1.25)
+		var pine: String = ["tree_pine_orange_large", "tree_pine_yellow_large", "tree_pine_orange_medium", "tree_pine_yellow_medium"][_rng.randi() % 4]
+		_plant(pine, at, rot, scale_of)
+		height = (6.9 if pine.ends_with("large") else 5.4) * scale_of
 	elif roll < 0.75 or single:
-		_plant(["tree_single_A", "tree_single_B"][_rng.randi() % 2], at, rot, _rng.randf_range(5.5, 7.5))
+		var scale_of := _rng.randf_range(5.5, 7.5)
+		_plant(["tree_single_A", "tree_single_B"][_rng.randi() % 2], at, rot, scale_of)
+		height = 1.1 * scale_of
+		leafy = true
 	else:
-		_plant(["trees_A_medium", "trees_B_medium"][_rng.randi() % 2], at, rot, _rng.randf_range(3.0, 3.8))
+		var scale_of := _rng.randf_range(3.0, 3.8)
+		_plant(["trees_A_medium", "trees_B_medium"][_rng.randi() % 2], at, rot, scale_of)
+		height = 1.2 * scale_of
+	if height > 0.0 and not near_crypt:
+		_wood_trees.append({"pos": Vector3(at.x, 0.0, at.z), "height": height, "leafy": leafy})
+
+
+## The birds and squirrels in the trees along the forest's edge: only trees
+## that have open ground beside them (a free tile next to the tree's tile, in
+## the village or out of it) are used, so every one can be reached.
+func _build_woods_life() -> void:
+	var trees := []
+	for t: Dictionary in _wood_trees:
+		var cell := world_to_cell(t.pos)
+		# The open tile closest to the trunk.
+		var best := Vector2i(-1, -1)
+		var best_d := INF
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				var c := cell + Vector2i(dx, dy)
+				if (dx != 0 or dy != 0) and is_open(c) and cell_to_world(c).distance_to(t.pos) < best_d:
+					best_d = cell_to_world(c).distance_to(t.pos)
+					best = c
+		if best.x < 0:
+			continue
+		trees.append({"pos": t.pos, "height": t.height, "leafy": t.leafy, "cell": best, "edge": true,
+				"in_village": _in_village(cell) or _in_village(best)})
+	_wood_trees.clear()
+	woods = WoodsLife.new(self, trees, level_name)
+	add_child(woods)
 
 
 ## Trees on every forest tile close to the open ground. Further in there

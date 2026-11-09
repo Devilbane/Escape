@@ -1,0 +1,1 @@
+- Gains in monster lore and skills now show as a brief word over your head ("Skeleton lore +5%", "Swordplay +1") instead of lines in the event log; the log keeps one explanation of monster lore.

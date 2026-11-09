@@ -18,5 +18,8 @@ static func label(game: Node, material: String, have: int, need: int, size := 16
 	var l: Array = line(material, have, need)
 	var out: Label = game._make_label(game.TEXT_FONT, size, l[1])
 	out.text = l[0]
-	out.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# A line is short and never wraps: a wrapping label inside a flow container
+	# collapses to a single letter per line (the flow gives it no width to wrap
+	# at), so the flow moves a whole line to the next row instead.
+	out.autowrap_mode = TextServer.AUTOWRAP_OFF
 	return out

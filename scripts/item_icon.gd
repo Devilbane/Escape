@@ -29,7 +29,8 @@ func _init() -> void:
 
 static func make(id: String, size := 44.0, plain := false) -> ItemIcon:
 	var icon := ItemIcon.new()
-	icon.what = id
+	# The house chest's coin kind is the money, copper: it must not fall back to gold's look.
+	icon.what = CoinPile.MONEY if id == HomeStores.COINS else id
 	icon.bare = plain
 	icon.custom_minimum_size = Vector2(size, size)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE

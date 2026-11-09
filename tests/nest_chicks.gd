@@ -125,9 +125,13 @@ func _run() -> void:
 	check(not hero.bag.has(VillageBirds.SEEDS), "the hero tosses up the grain")
 	check(brood.full >= VillageBirds.HERO_FULL - 1.0 and birds.fed_by_hero == 1, "the hero's grain fills the chicks")
 	check(game.lore.has(VillageBirds.LEARN), "the compendium tells about the chicks")
-	for i in 60:
+	# (A parent that happens to sit by the nest keeps them begging a while, so
+	# give it a few seconds to fly off; which nests have parents shifts with the ivy.)
+	var settled := false
+	for i in 30 * 20:
 		birds._process(1.0 / 30.0)
-	check(brood.beg < 0.1, "fed chicks settle down (%.2f)" % brood.beg)
+		settled = settled or brood.beg < 0.1
+	check(settled, "fed chicks settle down (%.2f)" % brood.beg)
 
 	# At night the chicks sleep.
 	for b: Dictionary in chicks:

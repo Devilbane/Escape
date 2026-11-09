@@ -46,7 +46,7 @@ const IVY_HEIGHT := Vector2(3.0, 7.5)
 const IVY_DOOR_GAP := 1.5
 ## The doorway itself stays free of leaves up to this height (metres) and
 ## this far (metres) from the door's spot, so the ivy frames a door.
-const DOOR_CLEAR := Vector2(1.1, 2.5)
+const DOOR_CLEAR := Vector2(1.4, 3.6)
 ## The side facing the camera (south) is dealt this many turns of patches
 ## where every other side gets one, so the fronts wear the most ivy.
 const FRONT_TURNS := 3
@@ -366,8 +366,8 @@ static func walls(tris: Array, middle: Vector3, ground: float) -> Array:
 ## Old ivy also roots on walls that stand on a stone base (the KayKit
 ## buildings' walls start this high over the ground), growing out of the
 ## base's ledge.
-static func rooted(planes: Array, ground: float, old := false) -> Array:
-	var foot := OLD_IVY_FOOT if old else 0.9
+static func rooted(planes: Array, ground: float, old := false, foot_max := 0.0) -> Array:
+	var foot := maxf(foot_max, OLD_IVY_FOOT if old else 0.9)
 	return planes.filter(func(p): return p.area >= IVY_WALL and p.foot < ground + foot and p.top > ground + 1.6)
 
 
@@ -402,11 +402,12 @@ static func _on_wall(wall: Dictionary, p: Vector3) -> bool:
 ## Grows ivy up a building's outer walls: leaves (transforms and colours) are
 ## added to `leaves`. `doors` are the spots in front of its doors, where no
 ## ivy grows. `old` ivy climbs much higher, up to the roof and on to it.
-## `windows` are the middles of window panes (world space): their middle
+## `foot_max` lets ivy root on walls standing that high (the castle's towers
+## start well above the ground). `windows` are the middles of window panes (world space): their middle
 ## stays clear of leaves, so the ivy frames a window but never covers it.
-static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = []) -> void:
+static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = [], foot_max := 0.0) -> void:
 	var all_walls := walls(tris, middle, ground)
-	var found := rooted(all_walls, ground, old)
+	var found := rooted(all_walls, ground, old, foot_max)
 	# A wall up on a stone base that looks the way a door does holds that
 	# door up there too (the KayKit buildings): no ivy grows from its foot.
 	found = found.filter(func(w): return float(w.foot) < ground + 0.9 or not doors.any(

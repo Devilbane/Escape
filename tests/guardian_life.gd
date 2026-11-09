@@ -60,3 +60,14 @@ func _test() -> void:
 	check(stabbed.hp >= 20, "a second guardian has the full life")
 	stabbed.take_hit(1, from, "backstab")
 	check(stabbed.dead, "a stab in the back kills it in one blow, whatever its life")
+
+	# Felled by a stab in the back it never respawns, even on a respawning floor.
+	var lvl: Level = game.level
+	lvl.respawn = true
+	var g := _guardian()
+	var cell := Vector2i(1, 1)
+	lvl._map_enemies.append({"enemy": g, "cell": cell})
+	g.take_hit(1, from, "backstab")
+	check(g.dead and lvl._sneak_slain.has(cell), "a sneak kill is remembered")
+	check(lvl.taken.get(lvl.slain_key(cell)) == true, "and never expires")
+	lvl.respawn = false

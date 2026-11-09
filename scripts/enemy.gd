@@ -1396,6 +1396,9 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		# gap, and a sneak attack finds it: a single stab in the back always
 		# kills it, whatever its life.
 		damage = maxi(damage, hp)
+		# A guardian felled by a stab in the back stays dead, even on a floor
+		# where the monsters come back (see Level.note_sneak_kill).
+		level.note_sneak_kill(self)
 	hp -= damage
 	if wakes:
 		Elementals.reflect(self, damage, kind)

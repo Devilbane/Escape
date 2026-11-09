@@ -2530,7 +2530,7 @@ func note_left() -> void:
 			if stern and taken.has(slain_key(m.cell)):
 				# Sternhall noted when it fell (see SternHall._on_killed).
 				continue
-			taken[slain_key(m.cell)] = _died_at.get(m.cell, world_hours) if respawn else true
+			taken[slain_key(m.cell)] = true if _sneak_slain.has(m.cell) or not respawn else _died_at.get(m.cell, world_hours)
 	var any_open := false
 	for d in _doors:
 		if d.open:
@@ -4117,6 +4117,8 @@ func _tick_respawn(delta: float) -> void:
 		var e = m.enemy
 		if is_instance_valid(e) and not e.dead:
 			continue
+		if _sneak_slain.has(m.cell):
+			continue
 		if not _died_at.has(m.cell):
 			_died_at[m.cell] = world_hours
 			continue
@@ -4129,6 +4131,19 @@ func _tick_respawn(delta: float) -> void:
 		var ch := cell_char(m.cell)
 		if Enemy.LETTERS.has(ch):
 			m.enemy = _spawn_enemy(Enemy.LETTERS[ch], m.cell, elite and ch in "MA")
+
+
+## Map guardians killed by a stab in the back never come back, even on a
+## floor with "respawn:" (cells of the map).
+var _sneak_slain := {}
+
+
+## Remembers that map monster `e` fell to a sneak attack: it never respawns.
+func note_sneak_kill(e: Enemy) -> void:
+	for m in _map_enemies:
+		if m.enemy == e:
+			_sneak_slain[m.cell] = true
+			taken[slain_key(m.cell)] = true
 
 
 func _spawn_enemies() -> void:

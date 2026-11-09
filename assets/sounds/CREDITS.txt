@@ -114,3 +114,6 @@ sound it replaced):
   Church_Bells_Loop_01), the rain (rain.ogg, from Rain_Medium_Loop_01) and the village at
   night (village_night.ogg, from Village_Night_Loop_01, played outdoors at night).
 The packs were bought by the project owner; the licence terms are those of the sellers.
+The ambient soundscapes (rain, rain_light, rain_heavy, village_night, amb_*.ogg, played by
+scripts/soundscape.gd) are loops of "Fantasy Ambience Sounds Pack V2", brought to one loudness,
+mono, 24 kHz (tools/make_pack_sounds.py). Which loop plays where is listed in docs/sound_replacements.md.

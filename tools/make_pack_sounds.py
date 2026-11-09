@@ -97,6 +97,30 @@ def build_combat(folder):
 		save(name, cut(read(os.path.join(folder, src + ".wav"), 22050), 22050, kind, length), 22050, peak)
 
 
+# Ambient loops: file (without .ogg) -> pack file. Played by Soundscape (scripts/soundscape.gd).
+LOOPS = {
+	"rain_light": "Rain_Light_Loop_01", "rain_heavy": "Rain_Heavy_Loop_01",
+	"amb_village_day": "Village_Loop_No_Chatter_No_ChurchBell_01", "amb_townspeople": "Townspeople_Chatter_Loop_01",
+	"amb_blacksmith": "Blacksmith_Loop_01", "amb_farm": "Farm_Loop_01",
+	"amb_fire_camp": "Fire_Loop_01", "amb_fire_glow": "Fire_Loop_02",
+	"amb_forest_day": "Forest_Loop_01", "amb_forest_deep": "Forest_Loop_02", "amb_forest_night": "Enchanted_Forest_Loop_01",
+	"amb_dungeon_0": "Dungeon_Loop_01", "amb_dungeon_1": "Dungeon_Loop_02", "amb_dungeon_2": "Dungeon_Loop_03",
+	"amb_cave_0": "Cave_Loop_01", "amb_cave_1": "Cave_Loop_02", "amb_cave_2": "Cave_Loop_03",
+	"amb_mine_0": "Rockfall_Loop_01", "amb_mine_1": "Rockfall_Loop_02",
+	"amb_magic_0": "Magical_Aura_Loop_01", "amb_magic_1": "Magical_Aura_Loop_02",
+	"amb_astral_0": "Astral_Plane_Loop_01", "amb_astral_1": "Astral_Plane_Loop_02",
+}
+# Every loop is brought to the same loudness, so Soundscape.LOOPS can set the mix in dB.
+LOOP_RMS = 0.05
+
+
+def loop_ogg(src, dest):
+	x = read(src, 24000)
+	x = x * min(LOOP_RMS / max(1e-6, float(np.sqrt((x * x).mean()))), 0.95 / max(1e-6, float(np.abs(x).max())))
+	subprocess.run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-f", "f32le", "-ac", "1", "-ar", "24000", "-i", "-",
+					"-c:a", "libvorbis", "-q:a", "0", dest], input=x.astype("<f4").tobytes(), check=True)
+
+
 def build_ambience(folder):
 	d = lambda n: os.path.join(folder, n + ".wav")
 	# One chop of the woodcutter: the first stroke of the loop, wood on wood.
@@ -108,12 +132,11 @@ def build_ambience(folder):
 	x[:fin] *= np.linspace(0, 1, fin)
 	x[-fout:] *= np.linspace(1, 0, fout)
 	save("village_bell", x, 22050, 0.7)
-	# The rain: the medium loop, mono, as ogg (it loops as a whole).
-	subprocess.run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", d("Rain_Medium_Loop_01"), "-ac", "1", "-ar", "32000",
-					"-c:a", "libvorbis", "-q:a", "1", os.path.join(OUT, "rain.ogg")], check=True)
-	# The village at night : the night loop, mono, as ogg.
-	subprocess.run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", d("Village_Night_Loop_01"), "-ac", "1", "-ar", "32000",
-					"-c:a", "libvorbis", "-q:a", "1", os.path.join(OUT, "village_night.ogg")], check=True)
+	# The loops: the rain (medium is rain.ogg), the village at night and every soundscape.
+	loop_ogg(d("Rain_Medium_Loop_01"), os.path.join(OUT, "rain.ogg"))
+	loop_ogg(d("Village_Night_Loop_01"), os.path.join(OUT, "village_night.ogg"))
+	for name, src in LOOPS.items():
+		loop_ogg(d(src), os.path.join(OUT, name + ".ogg"))
 
 
 if __name__ == "__main__":

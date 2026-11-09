@@ -423,6 +423,11 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 			sides.append([w])
 		else:
 			side.append(w)
+	# The camera looks north from the south: a side turned right away from it
+	# is never seen, so it grows no ivy (unless it is all there is).
+	var seen := sides.filter(func(s: Array): return ((s[0] as Dictionary).n as Vector3).z > -0.7)
+	if not seen.is_empty():
+		sides = seen
 	sides.sort_custom(func(a: Array, b: Array): return (a[0].n as Vector3).z > (b[0].n as Vector3).z)
 	# Every side gets as many patches as a building had on its one side before.
 	patches *= sides.size()

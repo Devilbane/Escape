@@ -43,7 +43,13 @@ const RUIN_WOOD := 0.3
 ## leaves' size.
 const IVY_PATCHES := 7
 const IVY_HEIGHT := Vector2(3.0, 7.5)
-const IVY_DOOR_GAP := 2.4
+const IVY_DOOR_GAP := 1.5
+## The doorway itself stays free of leaves up to this height (metres) and
+## this far (metres) from the door's spot, so the ivy frames a door.
+const DOOR_CLEAR := Vector2(1.1, 2.5)
+## The side facing the camera (south) is dealt this many turns of patches
+## where every other side gets one, so the fronts wear the most ivy.
+const FRONT_TURNS := 3
 ## Leaves in one patch at most, so the whole village's ivy stays cheap.
 const PATCH_LEAVES := 280
 ## Old ivy on the buildings that stand on their own, away from the square
@@ -436,13 +442,23 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 	# Every side gets its patches, but each patch is thinner (fewer, larger
 	# leaves), so the whole building wears about 1.2 times the leaves it had
 	# on its one side and the village's leaf count stays near its old budget.
-	var thin := minf(1.0, IVY_TOTAL_SHARE / float(sides.size()))
+	# The turns: every side once, the front side (sorted first, if it faces
+	# the camera) FRONT_TURNS times.
+	var deal: Array = []
+	for i in sides.size():
+		var side0: Array = sides[i]
+		deal.append(i)
+		if i == 0 and (side0[0].n as Vector3).z > 0.5:
+			for k in FRONT_TURNS - 1:
+				deal.append(0)
+	patches = patches * deal.size() / maxi(sides.size(), 1)
+	var thin := minf(1.0, IVY_TOTAL_SHARE * 1.25 / float(deal.size()))
 	var grown := 0
 	for attempt in patches * 6:
 		if grown >= patches:
 			break
 		# A wall of the side whose turn it is, by its size.
-		var side: Array = sides[attempt % sides.size()]
+		var side: Array = sides[deal[attempt % deal.size()]]
 		var side_area := 0.0
 		for w: Dictionary in side:
 			side_area += w.area
@@ -458,7 +474,7 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 			continue
 		if doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
 			continue
-		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin)
+		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors)
 		grown += 1
 
 
@@ -486,7 +502,7 @@ static func _root_on(wall: Dictionary, ground: float, rng: RandomNumberGenerator
 ## and then branching; leaves grow along them, thickest near the ground.
 ## Old ivy climbs higher, and a tendril that runs out of wall below its
 ## reach creeps on up the roof above it.
-static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = [], thin := 1.0) -> void:
+static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = [], thin := 1.0, doors: Array = []) -> void:
 	var n: Vector3 = root_wall.n
 	var across := Vector3.UP.cross(n).normalized()
 	var height: Vector2 = OLD_IVY_HEIGHT if old else IVY_HEIGHT
@@ -530,10 +546,18 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 				fill = maxf(fill, OLD_IVY_FILL)
 			for k in rng.randi_range(1, 1 + int(fill * 1.6)):
 				var at := p + across * rng.randf_range(-0.2, 0.2) + Vector3.UP * rng.randf_range(-0.08, 0.08)
-				if rng.randf() < thin and _on_wall(wall, at) and not _on_pane(at, n, windows):
+				if rng.randf() < thin and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_doorway(at, doors):
 					_leaf(at, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
 			if rng.randf() < 0.08 and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
+
+
+## Whether a leaf's spot is in a doorway (see DOOR_CLEAR).
+static func _in_doorway(at: Vector3, doors: Array) -> bool:
+	for d: Vector3 in doors:
+		if Vector2(at.x - d.x, at.z - d.z).length() < DOOR_CLEAR.x and at.y - d.y < DOOR_CLEAR.y:
+			return true
+	return false
 
 
 ## Old ivy over the eaves: from the top of a wall (`p`, the wall looking

@@ -337,13 +337,13 @@ const SQUARE_GAP := 2
 const FENCE_IVY := 0.55
 ## The adventurers' guild, the castle and the temple are smothered in old ivy: this many patches, every
 ## wall and up on to its roof, even though it stands in the square.
-const GUILD_IVY := 20
+const GUILD_IVY := 28
 ## Patches on the other stone buildings (tavern, smithy, market, tower, ...).
 const STONE_IVY := 14
-const CASTLE_IVY := 24
+const CASTLE_IVY := 32
 ## The temple too, but its doorway is kept bare: no ivy roots within a few
 ## metres of it, to the sides and back along the steps.
-const TEMPLE_IVY := 20
+const TEMPLE_IVY := 30
 const GRAVE_LIGHTS := 0.35
 const GRAVE_LIGHT_AT := Vector3(1.25, 0, -0.35)
 ## Where the grave light's panes sit on the Halloween kit's palette (UV).

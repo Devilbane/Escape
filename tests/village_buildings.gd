@@ -193,8 +193,8 @@ func _check_aged(lvl: Outdoor) -> void:
 	check(count > 1000, "ivy climbs the walls")
 	if ivy:
 		# Ivy grows on every visible side, in thinner patches of larger leaves,
-		# so the total stays near the old budget (110000).
-		check(count < 150000, "the ivy and shrubs stay cheap (%d leaves)" % count)
+		# so the total stays near the old budget (about 100000, a third more now the fronts wear more).
+		check(count < 140000, "the ivy and shrubs stay cheap (%d leaves)" % count)
 		# In tiles of the map, so those off screen are skipped (see
 		# AgedStone.ivy_node); no tile holds a large share of the leaves.
 		check(tiles > 10, "the leaves are drawn in tiles of the map (%d)" % tiles)

@@ -29,6 +29,13 @@ common/physics_interpolation=true
 common/physics_interpolation.launcher=false
 common/physics_jitter_fix=0.0
 
+[shader_globals]
+
+hero_reveal={
+"type": "vec4",
+"value": Color(0, 0, 0, 0)
+}
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

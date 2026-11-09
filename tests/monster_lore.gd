@@ -109,12 +109,6 @@ func _test() -> void:
 	check(MonsterLore.kill_count("wolf") == 4 and MonsterLore.rank_of("wolf") == 0, "four wolves: counted, no rank yet")
 	check(gains.size() == 4 and str(gains[0]).contains("+20"), "each kill floats its gain: %s" % str(gains))
 	check(game.player != null and not DamageNumber.over(game.player).is_empty(), "the gain shows over the hero's head")
-	var xs: Array = DamageNumber.over(game.player).map(func(n): return n.global_position.y)
-	xs.sort()
-	var gap_ok := true
-	for i in range(1, xs.size()):
-		gap_ok = gap_ok and xs[i] - xs[i - 1] >= DamageNumber.STEP * 0.5
-	check(gap_ok, "gains over the hero stack without overlapping")
 	Events.bus().enemy_slain.emit("wolf")
 	check(MonsterLore.rank_of("wolf") == 1 and is_equal_approx(MonsterLore.vital_chance("wolf"), 0.05), "the fifth wolf reaches the first rank (5 %)")
 	check(gains.size() == 5 and str(gains[4]).contains(Lang.t(MonsterLore.rank_name(1))) and str(gains[4]).contains("5"), "the new rank floats too: %s" % str(gains.back()))

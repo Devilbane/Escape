@@ -11,7 +11,7 @@ extends RefCounted
 ##            flasks, bundles of herbs and a filled bucket, for everything
 ##            else of the ingredient pouch (herbs, mushrooms, fish, the parts
 ##            of the dragon) and the animal food from the bag.
-## A third store is the bookshelf ("§", see Bookshelf) in the cellar, for every book the
+## A third store is the bookshelf ("§", see Bookshelf) on the ground floor, for every book the
 ## hero carries (an item that teaches something, see Items.is_book). It counts them the same way
 ## and shows one book on its shelves for every book kept.
 ## All three count what they hold, like the pouch: kind -> how many. Coins, bars
@@ -47,7 +47,7 @@ const MINERALS := ["mondsilbererz", "mondstein", "grottenkristall"]
 const LEARN := "In deinem Haus in der Weberzeile stehen neben der Lagertruhe zwei besondere Vorräte: eine stahlbeschlagene Truhe für Münzen, Barren, Erz und rohe Edelsteine, und ein Zutatenbord für Kräuter, Pilze, Fische, Phiolen und Tierfutter. Beide fassen beliebig viel."
 
 ## What the compendium says about the bookshelf, once the hero has opened it.
-const BOOKS_LEARN := "Im Keller deines Hauses steht ein Bücherregal. Jedes Buch, das du nicht bei dir tragen willst, kannst du dort einstellen, und das Regal zeigt dir, wie viele Bücher darauf stehen. Es fasst beliebig viel."
+const BOOKS_LEARN := "Im Erdgeschoss deines Hauses steht ein Bücherregal. Jedes Buch, das du nicht bei dir tragen willst, kannst du dort einstellen, und das Regal zeigt dir, wie viele Bücher darauf stehen. Es fasst beliebig viel."
 
 
 ## The store a kind belongs in, or "" for neither.

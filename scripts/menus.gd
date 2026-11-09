@@ -2251,7 +2251,8 @@ func _build_wanderer() -> void:
 ## what the ingredient book says about it, and how many are in the pouch.
 func _ingredient_entry(id: String, left: int, index: int) -> Dictionary:
 	var price := Wanderer.price(id)
-	var icon := "kind:ore" if id == "mondsilbererz" else ("kind:stone" if id == "mondstein" else "kind:bag")
+	# The ingredient's own picture (see ItemIcon.INGREDIENT_ICONS), never the backpack.
+	var icon := id
 	var lines := []
 	for line in game.crafting.describe_ingredient(id).split("\n").slice(1):
 		lines.append([line, TradeWindow.BLUE])

@@ -42,5 +42,6 @@ static func ring(game: Node, reason: String, now := Time.get_ticks_msec() / 1000
 		return false
 	# The guard blows the alarm horn first (see WarHorn); the bell tolls once it has
 	# died away. Without a guard to blow it, the bell tolls at once.
-	Sfx.play_after(game, WarHorn.blow(game.level), SOUND, VOLUME_DB)
+	if not WarHorn.blow(game.level):
+		Sfx.play(game, SOUND, VOLUME_DB)
 	return true

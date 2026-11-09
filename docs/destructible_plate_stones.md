@@ -52,12 +52,14 @@ Without a supply the puzzle could end in a dead end, so every destructible-block
 
 ## Where it would be used
 
-- **28 Die Schwefelgänge** is the natural first one: skeleton archers already hold the guard hall, the gate is the way down.
-- **34 Das Archiv** (undead and ghosts): the gate leads to the archivist, so a strong place for a long, guarded push.
-- **31 Die Aschenzinne**: the block already sits with a hidden wall; a second route would add a choice rather than replace it.
-- **03 Das Labyrinth**: keep as it is. It is an early puzzle and teaches the push controls (plain blocks, no attackers).
+**Only in future maps and dungeons.** No existing map is redrawn or changed: 03, 28, 31 and 34 keep the old pressure-plate
+behaviour (a plain block that nothing attacks, with the 5-tile push limit). The destructible block is an extra choice for a map's
+designer next to it, picked per puzzle room, so a new dungeon can use either kind (or both).
+
+- It suits a dungeon where the gate is the way down and a monster family is on hand to guard the long push (undead, bandits).
 - A choice in keeping with the project rules: a block can be pushed and guarded (safe but slow), or the hero can clear the
   guards first and push in peace (fast but risky). Both are clear, and neither adds a new system.
+- The first map to use it is the new test room (see the decisions below), which is not part of the story.
 
 ## Risks
 
@@ -71,11 +73,23 @@ Without a supply the puzzle could end in a dead end, so every destructible-block
 - **Saves.** `heavy_key` stores the cell of each block; a gone block and a pending respawn need their own marker.
 - **Editor and tests.** `LevelMap.validate()`, `plates_out_of_reach`, `tests/stone_puzzle.gd` and `tests/tile_letters.gd` all need updates.
 
-## Open questions
+## Decisions (from the project owner, 9 November 2026)
 
-1. Should it replace the current block puzzles, or be an extra kind of room (so 03, 28, 31 and 34 stay as they are)?
-2. Which monsters smash blocks: a few chosen kinds only, or every melee monster of the room?
-3. How far is "distant": raise the 5-tile leash for source blocks, or chain several rest stops along the way?
-4. Should a block resting on a plate be immune, or can monsters still break it and re-close the puzzle? (The gate stays open today.)
-5. One stone at a time from the source, or can the hero stock several, and should the hero be able to fight the respawn with a cooldown or a cost?
-6. Do you want the first test room to be 28 (the Sulphur Passages), or a new small map made only for this?
+1. **A separate kind of room, only for future maps.** The block puzzles in maps 03, 28, 31 and 34 stay exactly as they are and are not redrawn. The new mechanic is an option beside the old pressure-plate behaviour, and gets its own test room first.
+2. **Every monster can attack the block**, not a chosen few. (The hero stays their priority target, see rule 2 above.)
+3. **One map, a long way apart.** The stone source and the plate are in the same map or dungeon, far from each other, so the hero has to
+   push the block the whole way and protect it on the journey. This replaces the 5-tile leash for source blocks: a block from the source
+   is free to travel all the way, and `plates_out_of_reach()` must instead check that a walkable route from the source to the plate exists.
+4. **A block on a plate is immune.** Only the way there is dangerous.
+5. **The source can give more blocks, but the hero cannot store them.** Each one has to be pushed separately, so a lost block costs one trip
+   and never the puzzle. The source keeps spawning while it has free room next to it (cooldown as above); there is no bag, quick bar or
+   carrying of blocks.
+6. **The test room is the cheapest one to check the mechanic:** a new small map for the feature alone (undead family), one long corridor
+   with a bend: the source at one end, the plate and its gate at the other, and two or three melee monsters on the way. A hit-points number
+   low enough to see a block break within a minute makes the test quick. It needs no story or loot: one chest behind the gate is enough.
+
+## Still to decide when it is built
+
+- The block's HP and the damage a monster does to it (a balance pass with the combat sheet in `balance/`).
+- The source's cooldown and how many blocks may stand at once.
+- The name of the new tile letter for the source (claim it in `Tiles.DUNGEON` first).

@@ -6,6 +6,7 @@
 
 ## Latest changes
 - Stairs now fit the place they stand in: the stairs out of bone, rock and crystal caves are hewn from the cave's own stone, and the shafts down in the mines are cut from rock, bone, obsidian, crystal or ember stone with uneven steps, a rough lip and faint glowing edges where the setting has them. Their steps are lit a little so they read as steps, not a black pit.
+- A soft see-through circle now opens around the hero in the wall tops and walls that stand between the camera and the hero, so the hero and the floor around them are no longer hidden behind stone, above all in narrow corridors. The fog of war and the lighting stay as they were.
 - Tasks tied to a place (the bandit pass, the dungeon, Sternhall, the Ashen Spire) now show pinned at the top of the event log with a short line while you are there, until done. Brother Orlan in the archive gives a new one: bring him a healing potion.
 - The wandering merchant's ingredients now show their own pictures (a mushroom, a tuft of moss, a blob of jelly ...) instead of a backpack.
 - Village ivy now grows on every side of a building (each side as thick as the front used to be), and it never fully covers a window any more, including on the stone buildings.

@@ -23,6 +23,8 @@ const EN := {
 	"W100 ≤ (Summe der Eigenschaften / ihre Anzahl) × (Stufe + 1)": "d100 ≤ (sum of the attributes / their number) × (level + 1)",
 	"Zeig auf eine Fertigkeit oder Eigenschaft, um mehr zu sehen.": "Point at a skill or attribute to see more.",
 	"Wert %d%s, höchstens %d%s": "Value %d%s, at most %d%s",
+	"Grundtempo mit Ausrüstung: %d %%": "Base speed with gear: %d %%",
+	"(Höchstgrenze %d %%, Rennen zählt obendrauf)": "(capped at %d %%, running comes on top)",
 	"Bestimmt: %s": "Governs: %s",
 	"Bestimmt von: %s": "Governed by: %s",
 	"Noch %d %% bis zum nächsten Punkt.": "%d %% more to the next point.",

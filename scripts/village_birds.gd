@@ -20,6 +20,11 @@ extends Node3D
 ## the worms in their beaks are a second, tiny one.
 ## They only fly while the hero is near enough to see them.
 ##
+## The same flock also lives in the woods (`wild`, see WoodsLife): one bird to
+## a tree, perched in the treetop, with no nests, chicks or feeding. They flit
+## between the trees and down to the glades, and fly off to another tree when
+## the hero comes close (WILD_SHY).
+##
 ## Some nests hold a clutch of eggs (now and then one rocks, as if about to
 ## hatch), others a brood of chicks. Hungry chicks stretch up, gape and
 ## cheep; their parents bring them the worms they find (see "carry"), and
@@ -148,6 +153,10 @@ const PERCH_CHANCE := 0.5
 const PERCH_STAY := Vector2(6.0, 14.0)
 const PERCH_SHY := 1.8
 const PERCH_SIZE := 0.72
+## Woods birds: how close the hero may come (metres) before one in a tree
+## flies off, or one pecking on the ground does.
+const WILD_SHY := 9.0
+const WILD_PECK_SHY := 6.0
 ## For the compendium.
 const LEARN := "Küken: In manchen Nestern auf den Dächern des Dorfes liegen Eier, in anderen sitzen junge Vögel. Hungrige Küken recken sich, sperren die Schnäbel auf und piepsen, bis ihre Eltern mit einem Wurm kommen. Trägst du Körner bei dir (bei der Krämerin), stell dich unter so ein Nest: Du wirfst den Küken eine Handvoll hinauf."
 ## Whether the hero was told how to feed the chicks (once a game).
@@ -181,6 +190,9 @@ var ground: Array[Vector3] = []
 var market: Array[Vector3] = []
 var _gather: Array[Vector3] = []
 var level: Node3D
+## A flock of the woods (see WoodsLife): one bird to a tree, no broods.
+var wild := false
+var _hero_at := Vector3.INF
 var _mm: MultiMesh
 var _worms: MultiMesh
 var _chick_body: MultiMesh
@@ -206,8 +218,9 @@ var feedings := 0
 var perched := 0
 
 
-func _init(level_node: Node3D, nest_spots: Array[Vector3], ground_spots: Array[Vector3], market_spots: Array[Vector3], seed_value: int) -> void:
-	name = "VillageBirds"
+func _init(level_node: Node3D, nest_spots: Array[Vector3], ground_spots: Array[Vector3], market_spots: Array[Vector3], seed_value: int, wild_flock := false) -> void:
+	name = "WoodsBirds" if wild_flock else "VillageBirds"
+	wild = wild_flock
 	level = level_node
 	nests = nest_spots
 	ground = ground_spots
@@ -215,8 +228,8 @@ func _init(level_node: Node3D, nest_spots: Array[Vector3], ground_spots: Array[V
 	_rng.seed = seed_value
 	for n in nests.size():
 		var nest := nests[n]
-		for i in PER_NEST:
-			var perch := nest + Vector3(0.28 * (i * 2 - 1), 0.24, 0.05)
+		for i in (1 if wild else PER_NEST):
+			var perch := nest + (Vector3(0.0, 0.24, 0.0) if wild else Vector3(0.28 * (i * 2 - 1), 0.24, 0.05))
 			birds.append({"home": perch, "at": perch, "from": perch, "to": perch, "lift": 0.0, "t": 0.0,
 					"bend": Vector2.ZERO, "length": 1.0, "speed": 0.0, "accel": 0.0, "bank": 0.0,
 					"pace": SPEED * _rng.randf_range(PACE.x, PACE.y), "wait": _rng.randf_range(0.5, SIT.y), "state": "sit",
@@ -260,10 +273,14 @@ func _init(level_node: Node3D, nest_spots: Array[Vector3], ground_spots: Array[V
 	add_child(worms)
 	for i in birds.size():
 		_show(i)
-	_make_broods(seed_value)
+	if wild:
+		_brood_of.resize(nests.size())
+		_brood_of.fill({})
+	else:
+		_make_broods(seed_value)
 	_grains = _brood_multimesh("Seeds", grain_mesh(), SEED_GRAINS * Villager.SEED_TOSSES)
 	_hide_grains()
-	_seed_wait = _rng.randf_range(SEED_FIRST.x, SEED_FIRST.y)
+	_seed_wait = INF if wild else _rng.randf_range(SEED_FIRST.x, SEED_FIRST.y)
 
 
 func _process(delta: float) -> void:
@@ -280,6 +297,7 @@ func _process(delta: float) -> void:
 			return
 	_clock += delta
 	var night: bool = level.get("night") == true
+	_hero_at = hero_at
 	if hero_at != Vector3.INF:
 		_shy_away(hero_at)
 	_mind_feeding(delta, night)
@@ -295,6 +313,9 @@ func _process(delta: float) -> void:
 ## Birds on the ground take off when the hero walks up to them, and the
 ## others pecking near them go with them.
 func _shy_away(hero_at: Vector3) -> void:
+	if wild:
+		_shy_away_wild(hero_at)
+		return
 	for b: Dictionary in birds:
 		if b.state == "perch":
 			if _flat_distance(b.at, hero_at) < PERCH_SHY:
@@ -308,7 +329,39 @@ func _shy_away(hero_at: Vector3) -> void:
 				_take_off(other)
 
 
+## Woods birds: one in a tree (or on the ground) startles when the hero comes
+## within reach, and so do the others pecking near it.
+func _shy_away_wild(hero_at: Vector3) -> void:
+	for b: Dictionary in birds:
+		if b.state == "sit" and _flat_distance(b.at, hero_at) < WILD_SHY:
+			_take_off(b)
+		elif b.state == "peck" and _flat_distance(b.at, hero_at) < WILD_PECK_SHY:
+			var from: Vector3 = b.at
+			for other: Dictionary in birds:
+				if other.state == "peck" and _flat_distance(other.at, from) < FLOCK:
+					_take_off(other)
+
+
+## A startled woods bird makes for another tree, one farther from the hero
+## than the one it is in, and that tree is its home from then on.
+func _rehome(b: Dictionary) -> void:
+	if _hero_at == Vector3.INF:
+		return
+	var options := []
+	for n in nests.size():
+		var spot := nests[n]
+		if n != int(b.nest) and _flat_distance(spot, _hero_at) > WILD_SHY + 3.0 and _flat_distance(spot, b.at) < RANGE * 1.5:
+			options.append(n)
+	if options.is_empty():
+		return
+	var pick: int = options[_rng.randi() % options.size()]
+	b.nest = pick
+	b.home = nests[pick] + Vector3(0.0, 0.24, 0.0)
+
+
 func _take_off(b: Dictionary) -> void:
+	if wild:
+		_rehome(b)
 	b.worm = 0.0
 	b.dipping = 0.0
 	b.market = false

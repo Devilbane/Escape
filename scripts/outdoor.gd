@@ -200,6 +200,11 @@ const BASKET_REFILL := 180.0
 const PEDESTAL_CRATES: Array[Vector3] = [Vector3(-2.6, 0, 1.0), Vector3(2.5, 0, 1.6), Vector3(-1.4, 0, 3.0)]
 
 var villagers: Array = []
+## Every living tree of the woods, for the birds and squirrels in them (see
+## WoodsLife): where it stands and how tall it is.
+var _wood_trees: Array = []
+## The birds and squirrels of the woods (see WoodsLife).
+var woods: WoodsLife
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
 ## The village's geese, goats and dogs (see VillageFarm and FarmAnimal).
@@ -339,13 +344,17 @@ const SQUARE_GAP := 2
 const FENCE_IVY := 0.55
 ## The adventurers' guild, the castle and the temple are smothered in old ivy: this many patches, every
 ## wall and up on to its roof, even though it stands in the square.
-const GUILD_IVY := 20
+const GUILD_IVY := 28
 ## Patches on the other stone buildings (tavern, smithy, market, tower, ...).
 const STONE_IVY := 14
-const CASTLE_IVY := 24
+const CASTLE_IVY := 48
+## The castle's stones stand this far (metres) proud of their wall planes: its leaves are held out by that much.
+const CASTLE_PROUD := 0.3
+## The castle's towers stand on a ledge this high (metres): ivy roots there too and climbs the towers.
+const CASTLE_TOWER_FOOT := 5.2
 ## The temple too, but its doorway is kept bare: no ivy roots within a few
 ## metres of it, to the sides and back along the steps.
-const TEMPLE_IVY := 20
+const TEMPLE_IVY := 16
 const GRAVE_LIGHTS := 0.35
 const GRAVE_LIGHT_AT := Vector3(1.25, 0, -0.35)
 ## Where the grave light's panes sit on the Halloween kit's palette (UV).
@@ -490,6 +499,7 @@ func build() -> void:
 		free.assign(birds.market.filter(func(m: Vector3): return is_open(world_to_cell(m))))
 		birds.market = free
 	_flush_plants()
+	_build_woods_life()
 	# Leaves, twigs, rubble and little crawling creatures on the ground.
 	add_child(SurfaceLife.new(self))
 	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
@@ -1070,14 +1080,52 @@ func _build_tree(pos: Vector3, single := false) -> void:
 	var roll := _rng.randf()
 	var rot := _rng.randf() * TAU
 	var at := pos + _jitter(0.9 if not single else 0.3)
+	# How tall it stands (metres), for the woods' wildlife (see WoodsLife).
+	var height := 0.0
+	var leafy := false
 	if near_crypt and roll < 0.45:
 		_plant(["tree_dead_large", "tree_dead_medium"][_rng.randi() % 2], at, rot, _rng.randf_range(1.2, 1.6))
 	elif roll < 0.35 or (near_crypt and roll < 0.8):
-		_plant(["tree_pine_orange_large", "tree_pine_yellow_large", "tree_pine_orange_medium", "tree_pine_yellow_medium"][_rng.randi() % 4], at, rot, _rng.randf_range(0.9, 1.25))
+		var scale_of := _rng.randf_range(0.9, 1.25)
+		var pine: String = ["tree_pine_orange_large", "tree_pine_yellow_large", "tree_pine_orange_medium", "tree_pine_yellow_medium"][_rng.randi() % 4]
+		_plant(pine, at, rot, scale_of)
+		height = (6.9 if pine.ends_with("large") else 5.4) * scale_of
 	elif roll < 0.75 or single:
-		_plant(["tree_single_A", "tree_single_B"][_rng.randi() % 2], at, rot, _rng.randf_range(5.5, 7.5))
+		var scale_of := _rng.randf_range(5.5, 7.5)
+		_plant(["tree_single_A", "tree_single_B"][_rng.randi() % 2], at, rot, scale_of)
+		height = 1.1 * scale_of
+		leafy = true
 	else:
-		_plant(["trees_A_medium", "trees_B_medium"][_rng.randi() % 2], at, rot, _rng.randf_range(3.0, 3.8))
+		var scale_of := _rng.randf_range(3.0, 3.8)
+		_plant(["trees_A_medium", "trees_B_medium"][_rng.randi() % 2], at, rot, scale_of)
+		height = 1.2 * scale_of
+	if height > 0.0 and not near_crypt:
+		_wood_trees.append({"pos": Vector3(at.x, 0.0, at.z), "height": height, "leafy": leafy})
+
+
+## The birds and squirrels in the trees along the forest's edge: only trees
+## that have open ground beside them (a free tile next to the tree's tile, in
+## the village or out of it) are used, so every one can be reached.
+func _build_woods_life() -> void:
+	var trees := []
+	for t: Dictionary in _wood_trees:
+		var cell := world_to_cell(t.pos)
+		# The open tile closest to the trunk.
+		var best := Vector2i(-1, -1)
+		var best_d := INF
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				var c := cell + Vector2i(dx, dy)
+				if (dx != 0 or dy != 0) and is_open(c) and cell_to_world(c).distance_to(t.pos) < best_d:
+					best_d = cell_to_world(c).distance_to(t.pos)
+					best = c
+		if best.x < 0:
+			continue
+		trees.append({"pos": t.pos, "height": t.height, "leafy": t.leafy, "cell": best, "edge": true,
+				"in_village": _in_village(cell) or _in_village(best)})
+	_wood_trees.clear()
+	woods = WoodsLife.new(self, trees, level_name)
+	add_child(woods)
 
 
 ## Trees on every forest tile close to the open ground. Further in there
@@ -1221,7 +1269,10 @@ func _build_block(ch: String, block: Rect2i) -> void:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
 			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true)
 		elif ch == "w" or ch == "k":
-			_dress_building(node, center, [door], 0.75, GUILD_IVY if ch == "w" else CASTLE_IVY, true)
+			# The gate's passage runs from the front in to the middle: all of it stays free of ivy.
+			var gate := [0.0, 0.25, 0.5, 0.75, 1.0].map(func(t: float): return front.lerp(center, t))
+			gate.append(door)
+			_dress_building(node, center, gate, 0.75, GUILD_IVY if ch == "w" else CASTLE_IVY, true, CASTLE_TOWER_FOOT if ch == "k" else 0.0, CASTLE_PROUD if ch == "k" else 0.0)
 		else:
 			# Every stone building wears old ivy, so it is as green as the
 			# wooden houses (which ordinary ivy suits).
@@ -1797,10 +1848,10 @@ func _standalone(block: Rect2i) -> bool:
 ## time; and what was found is kept, so when the hero steps out of the crypt
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
-func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false) -> void:
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0) -> void:
 	if old:
 		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
-	var key := "%s|%s|%s|%s" % [level_name, middle, _bounds_in(node), old]
+	var key := "%s|%s|%s|%s|%s|%s" % [level_name, middle, _bounds_in(node), old, foot_max, proud]
 	if not _dressed.has(key):
 		var rng := RandomNumberGenerator.new()
 		rng.seed = hash(key)
@@ -1816,7 +1867,8 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		var panes: Array = (node.get_meta("windows", []) as Array).map(func(w: Vector3): return node.global_transform * w)
 		if panes.is_empty():
 			panes = AgedStone.window_panes(tris, WINDOW_UV)
-		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes)
+		panes.append_array(AgedStone.glass_boxes(tris))
+		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud)
 		for i in leaves.xforms.size():
 			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
 		var spot := Vector3.INF

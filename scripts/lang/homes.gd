@@ -14,7 +14,7 @@ const EN := {
 	"Dachkammer": "Attic",
 	"Keller": "Cellar",
 	"Dein Haus": "Your house",
-	"Dein eigenes Haus in der Weberzeile: unten die Truhe, im Keller die Stahltruhe, das Zutatenbord und das Bücherregal, oben das Bett, unterm Dach viel Platz. Genug Platz für Möbel.": "Your own house on Weavers' Lane: the chest on the ground floor, the steel-banded chest, the ingredient board and the bookshelf in the cellar, the bed upstairs, plenty of room under the roof. Plenty of room for furniture.",
+	"Dein eigenes Haus in der Weberzeile: unten die Truhe und das Bücherregal, im Keller die Stahltruhe und das Zutatenbord, oben das Bett, unterm Dach viel Platz. Genug Platz für Möbel.": "Your own house on Weavers' Lane: the chest and the bookshelf on the ground floor, the steel-banded chest and the ingredient board in the cellar, the bed upstairs, plenty of room under the roof. Plenty of room for furniture.",
 	"Willkommen, Fremder! Du kommst aus der alten Gruft? In der Weberzeile steht ein Haus für dich bereit.": "Welcome, stranger! You came out of the old crypt? A house on Weavers' Lane is waiting for you.",
 	"Dorfvorsteher Aldo": "Aldo the Elder",
 	"Krämerin Mira": "Mira the Shopkeeper",

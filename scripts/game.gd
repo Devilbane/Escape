@@ -99,13 +99,14 @@ var _weather_rng := RandomNumberGenerator.new()
 ## of lightning as it fades (1 to 0).
 var _weather_look := Weather.look(Weather.CLEAR)
 var _flash := 0.0
-## The rain that falls and the mist that drifts around the hero, and the
-## patter of the rain.
+## The rain that falls and the mist that drifts around the hero (its patter is
+## part of the Soundscape).
 var _rain: CPUParticles3D
 var _mist: CPUParticles3D
 var _clouds: FogClouds
-var _rain_sound: AudioStreamPlayer
 var _ambience: AudioStreamPlayer
+## The ambient soundscape of the place the hero is in (see Soundscape).
+var _soundscape: Soundscape
 ## Set once the hero has stepped out of the crypt into the open air: the run
 ## is in the ranking as an escape, and goes on in the village.
 var escaped := false
@@ -607,7 +608,8 @@ func _ready() -> void:
 	Sfx.click_on_buttons(get_tree())
 	_update_sound_button()
 	_ambience = Sfx.start_ambience(self)
-	_rain_sound = Sfx.start_loop(self, "rain")
+	_soundscape = Soundscape.new()
+	add_child(_soundscape)
 	Music.load_settings()
 	Music.start(self)
 	_update_music_controls()
@@ -762,7 +764,8 @@ func _set_atmosphere(outdoor: bool) -> void:
 		_moon.light_energy = 0.28
 	# No dripping cave water under the open sky.
 	if _ambience:
-		_ambience.volume_db = -30.0 if outdoor else -8.0
+		# A floor with a loop of its own (see Soundscape) lets the old cave air rest.
+		_ambience.volume_db = -30.0 if outdoor else (-80.0 if Soundscape.covers_dungeon(level) else -8.0)
 
 
 ## A label with outline and shadow (see UiKit.label).
@@ -2568,6 +2571,7 @@ func _clock_text() -> String:
 func _tick_clock(delta: float) -> void:
 	if level == null:
 		return
+	_soundscape.tick(self, delta)
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		var before := day_hour
 		day_hour = DayNight.advance(day_hour, delta)
@@ -2796,21 +2800,11 @@ func _show_weather() -> void:
 		_mist.emitting = false
 		_mist.visible = false
 		_clouds.set_look(0.0, Weather.HAZE)
-		if _rain_sound and _rain_sound.playing:
-			_rain_sound.stop()
 		return
 	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
 	_clouds.set_look(_weather_look.mist, _env.fog_light_color)
 	Weather.show_particles(_rain, _mist, _weather_look, 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3)
-	if _rain_sound:
-		var r: float = _weather_look.rain
-		if r > 0.02:
-			_rain_sound.volume_db = linear_to_db(r) - 10.0
-			if not _rain_sound.playing:
-				_rain_sound.play()
-		elif _rain_sound.playing:
-			_rain_sound.stop()
 
 
 ## Lightning struck (see Outdoor.strike): the sky flashes, and the thunder

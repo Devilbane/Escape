@@ -1179,7 +1179,12 @@ func _build_walls(c: Vector2i) -> void:
 		var torch: Node3D = null
 		# A guardian's hall has no wall torches: only its fire bowl lights
 		# the middle, and the rim stays dark for the hero to creep along.
-		if not FURNITURE.contains(cell_char(c)) and not _near_guardian(c) and not by_stairs:
+		if cell_char(c) == "§":
+			pass # The bookshelf is taller than a torch hangs: it would hide behind it.
+		elif is_home and d == Vector2i(0, -1) and cell_char(c + Vector2i(1, 0)) == "§":
+			# The torch of the wall the bookshelf stands on hangs one tile to its west.
+			torch = _maybe_add_torch(pos, rot, true)
+		elif not FURNITURE.contains(cell_char(c)) and not _near_guardian(c) and not by_stairs:
 			torch = _maybe_add_torch(pos, rot)
 		if torch != null:
 			_wall_torches.append({"holder": torch, "cell": c, "pos": pos, "rot": rot})

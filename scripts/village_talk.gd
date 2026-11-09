@@ -71,6 +71,7 @@ const GOALS := {
 	"5": "Will trinken, Geschichten hören und eines Tages seine Zeche zahlen.",
 	"6": "Will ihre Schulden bei der Bank loswerden und ihren Laden vergrößern.",
 	"7": "Will ein echter Abenteurer werden, wie der Held aus der Gruft.",
+	"pippi": "Will mit Pip die Gänse und Ziegen hüten und nie wieder von einer Gans gezwickt werden.",
 	"8": "Will das Rätsel der Gruft lösen, mit Büchern, nicht mit Gebeten.",
 	"9": "Will den alten Brunnen rein halten und abends Ulrich sehen.",
 	"K": "Will jede Neuigkeit als Erster ausrufen, vor allem vor dem Postmeister.",
@@ -157,6 +158,13 @@ const TIES := [
 		["Bruno, deine Axt klingt stumpf.", "Dann schärf sie mir, Gorm. Ich zahle mit Holz für deine Esse.", "Abgemacht. Holz kann ich immer brauchen."]]},
 	{"a": "K", "b": "Y", "kind": "freunde", "talks": [
 		["Goldwin, die Krone lässt grüßen.", "Und fragt sicher nach ihrem Gold.", "Wie immer."]]},
+	{"a": "7", "b": "pippi", "kind": "freunde", "talks": [
+		["Pippi, fang mich doch!", "Gleich hab ich dich, Pip!", "Nie im Leben! Ich bin der Schnellste im Dorf!"],
+		["Pippi, die graue Gans hat mich schon wieder gezwickt.", "Du hast ihr ja auch den Rücken zugedreht, Pip.", "Sie hat angefangen!"],
+		["Meine Ziegen mögen dich lieber als mich.", "Das liegt an den Möhren, Pip.", "Wo hast du Möhren her?", "Das sage ich nicht."],
+		["Pippi, wollen wir Abenteurer spielen?", "Ich bin der Held, du bist der Drache!", "Aber der Drache muss immer verlieren!"]]},
+	{"a": "pippi", "b": "2", "kind": "freunde", "talks": [
+		["Lene, hast du heute eine Möhre für die Ziegen?", "Für dich immer, Pippi. Aber nicht alle auf einmal.", "Danke! Die Ziegen werden dich lieben."]]},
 	{"a": "7", "b": "G", "kind": "freunde", "talks": [
 		["Ragna, nimmst du mich in die Gilde auf?", "Zeig mir zuerst deine Narben.", "Ich hab mir gestern das Knie aufgeschlagen!", "Ein Anfang. Komm in zehn Jahren wieder."]]},
 ]

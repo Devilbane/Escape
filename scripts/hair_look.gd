@@ -36,6 +36,7 @@ const COLORS := {
 	"black": [Color(0.05, 0.05, 0.06), Color(0.13, 0.12, 0.13), Color(0.26, 0.24, 0.26)],
 	"blond": [Color(0.55, 0.4, 0.2), Color(0.88, 0.74, 0.45), Color(0.98, 0.9, 0.66)],
 	"silver": [Color(0.45, 0.46, 0.5), Color(0.78, 0.8, 0.84), Color(0.97, 0.97, 1.0)],
+	"ginger": [Color(0.38, 0.09, 0.03), Color(0.78, 0.29, 0.1), Color(0.95, 0.55, 0.26)],
 	"red": [Color(0.35, 0.02, 0.03), Color(0.8, 0.08, 0.08), Color(1.0, 0.35, 0.3)],
 	"green": [Color(0.04, 0.25, 0.06), Color(0.2, 0.75, 0.2), Color(0.65, 1.0, 0.45)],
 	"blue": [Color(0.03, 0.08, 0.35), Color(0.15, 0.4, 0.95), Color(0.55, 0.85, 1.0)],
@@ -78,6 +79,14 @@ const FADE_FROM := 0.15
 const BUN_AT := Vector3(0.0, 0.3, -0.95)
 const BUN_OUT := 0.13
 const BUN_SIZE := Vector3(0.17, 0.15, 0.12)
+
+## The two pigtails (look key "tails"): where each grows out of the skull (a
+## direction from its centre, the left one; the right one mirrors it), how far
+## out and down its middle hangs, and its size (across, along, outwards).
+const TAIL_AT := Vector3(0.9, 0.22, -0.3)
+const TAIL_OUT := 0.1
+const TAIL_DROP := 0.24
+const TAIL_SIZE := Vector3(0.17, 0.46, 0.17)
 
 ## The head meshes (natural, short, shaved), the locks (mohawk, spiky) and
 ## the hair knot (bun), by source mesh: built once.
@@ -145,11 +154,40 @@ static func apply(model: Node3D, look: Dictionary) -> void:
 	var knot: bool = model.get_meta("sex", "male") == "female" and style == "natural"
 	bun.set_meta("wanted", knot)
 	bun.visible = knot and not slot.get_meta("covered", false)
+	# Pigtails hang from both sides of the head; a girl who wears them has no knot.
+	var tails := slot.get_node_or_null("Tails") as MeshInstance3D
+	if tails == null:
+		tails = MeshInstance3D.new()
+		tails.name = "Tails"
+		var tail_mat := ShaderMaterial.new()
+		tail_mat.shader = SHADER
+		tail_mat.set_shader_parameter("bun", true)
+		tail_mat.set_shader_parameter("tex", (head.material_override as ShaderMaterial).get_shader_parameter("tex"))
+		tails.material_override = tail_mat
+		tails.transform = slot.get_meta("bind")
+		slot.add_child(tails)
+	tails.mesh = heads.tails
+	var plaited: bool = bool(look.get("tails", false)) and style in ["natural", "short"]
+	tails.set_meta("wanted", plaited)
+	tails.visible = plaited and not slot.get_meta("covered", false)
+	if plaited:
+		bun.set_meta("wanted", false)
+		bun.visible = false
+	# A smile on the face of a child who has one (the lips of BodyLook are a woman's).
+	var smile := slot.get_node_or_null("Smile") as MeshInstance3D
+	if smile == null:
+		smile = BodyLook.smile_mesh()
+		smile.name = "Smile"
+		smile.transform = slot.get_meta("bind")
+		slot.add_child(smile)
+	smile.visible = bool(look.get("smile", false))
 	var color: String = look.get("color", "natural")
-	for mat: ShaderMaterial in [head.material_override, crest.material_override, bun.material_override]:
+	for mat: ShaderMaterial in [head.material_override, crest.material_override, bun.material_override, tails.material_override]:
 		_set_color(mat, color)
 	var head_mat := head.material_override as ShaderMaterial
 	head_mat.set_shader_parameter("shaved", shaved)
+	head_mat.set_shader_parameter("freckles", bool(look.get("freckles", false)))
+	head_mat.set_shader_parameter("ear_gem", bool(look.get("ear_gem", false)))
 	head_mat.set_shader_parameter("short_hair", style in ["short", "spiky"])
 	head_mat.set_shader_parameter("shaved_sides", style == "spiky")
 	var word: String = look.get("tattoo", "")
@@ -178,7 +216,7 @@ static func cover(model: Node3D, covered: bool) -> void:
 	if slot == null:
 		return
 	slot.set_meta("covered", covered)
-	for part in ["Crest", "Bun"]:
+	for part in ["Crest", "Bun", "Tails"]:
 		var locks := slot.get_node_or_null(part) as Node3D
 		if locks:
 			locks.visible = locks.get_meta("wanted", false) and not covered
@@ -228,6 +266,15 @@ static func checked(look) -> Dictionary:
 		if look.get("tattoo_shape", "") in TATTOO_SHAPES:
 			result.tattoo_shape = look.tattoo_shape
 		result.show_helmet = bool(look.get("show_helmet", true))
+		# Only a look that asks for them carries pigtails and freckles.
+		if look.get("tails", false):
+			result.tails = true
+		if look.get("freckles", false):
+			result.freckles = true
+		if look.get("smile", false):
+			result.smile = true
+		if look.get("ear_gem", false):
+			result.ear_gem = true
 	return result
 
 
@@ -391,6 +438,7 @@ static func _build_heads(source: Mesh) -> Dictionary:
 	result.mohawk = crest_mesh(shape)
 	result.spiky = spikes_mesh(crop)
 	result.bun = bun_mesh(shape)
+	result.tails = tails_mesh(shape)
 	return result
 
 
@@ -407,38 +455,68 @@ static func _low_on_crop(p: Vector3, shape: Array) -> bool:
 static func bun_mesh(shape: Array) -> ArrayMesh:
 	var root := skull_point(SKULL_CENTER + BUN_AT.normalized() * SKULL_RADII, shape)
 	var out := skull_point_normal(root, shape)
-	var side := Vector3.UP.cross(out).normalized()
-	var up := out.cross(side).normalized()
-	var centre := root + out * BUN_OUT
-	var ball := SphereMesh.new()
-	ball.radial_segments = 16
-	ball.rings = 8
-	var arrays := ball.get_mesh_arrays()
-	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	return _hair_ball([[root, out, BUN_OUT, 0.0]], BUN_SIZE)
+
+
+## The two pigtails: long balls of wound hair, one on each side of the head,
+## hanging down past the cheeks (same strands as the knot).
+static func tails_mesh(shape: Array) -> ArrayMesh:
+	var balls := []
+	for mirror in [1.0, -1.0]:
+		var dir := Vector3(TAIL_AT.x * mirror, TAIL_AT.y, TAIL_AT.z).normalized()
+		var root := skull_point(SKULL_CENTER + dir * SKULL_RADII, shape)
+		balls.append([root, skull_point_normal(root, shape), TAIL_OUT, TAIL_DROP])
+	return _hair_ball(balls, TAIL_SIZE)
+
+
+## Squashed balls of hair, each [root on the skull, outward normal, how far out
+## its middle sits, how far it hangs down], sunk a little into the hair.
+## CUSTOM0 carries the position and marks it all as hair; COLOR the point on a
+## unit ball (0..1 per axis, z outwards), for the wound strands; the UV is a
+## texel of hair in the texture.
+static func _hair_ball(balls: Array, size: Vector3) -> ArrayMesh:
+	var all := PackedVector3Array()
+	var all_normals := PackedVector3Array()
 	var colors := PackedColorArray()
 	var uvs := PackedVector2Array()
 	var custom := PackedFloat32Array()
-	# The ball's own y is its axis: it points out of the head.
-	for v in verts.size():
-		var q := verts[v] / 0.5
-		var local := Vector3(q.x, q.z, q.y)
-		var p := centre + side * local.x * BUN_SIZE.x + up * local.y * BUN_SIZE.y + out * local.z * BUN_SIZE.z
-		var n := normals[v]
-		n = (side * n.x / BUN_SIZE.x + up * n.z / BUN_SIZE.y + out * n.y / BUN_SIZE.z).normalized()
-		verts[v] = p
-		normals[v] = n
-		colors.append(Color(local.x * 0.5 + 0.5, local.y * 0.5 + 0.5, local.z * 0.5 + 0.5))
-		uvs.append(HAIR_UV.get_center())
-		custom.append_array([p.x, p.y, p.z, 1.0])
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_TANGENT] = null
-	arrays[Mesh.ARRAY_COLOR] = colors
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_CUSTOM0] = custom
+	var indices := PackedInt32Array()
+	for b in balls:
+		var out: Vector3 = b[1]
+		var side := Vector3.UP.cross(out).normalized()
+		var up := out.cross(side).normalized()
+		var centre: Vector3 = b[0] + out * b[2] + Vector3.DOWN * b[3]
+		var ball := SphereMesh.new()
+		ball.radial_segments = 16
+		ball.rings = 8
+		var arrays := ball.get_mesh_arrays()
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var first := all.size()
+		# The ball's own y is its axis: it points out of the head.
+		for v in verts.size():
+			var q := verts[v] / 0.5
+			var local := Vector3(q.x, q.z, q.y)
+			var p := centre + side * local.x * size.x + up * local.y * size.y + out * local.z * size.z
+			var n := normals[v]
+			n = (side * n.x / size.x + up * n.z / size.y + out * n.y / size.z).normalized()
+			all.append(p)
+			all_normals.append(n)
+			colors.append(Color(local.x * 0.5 + 0.5, local.y * 0.5 + 0.5, local.z * 0.5 + 0.5))
+			uvs.append(HAIR_UV.get_center())
+			custom.append_array([p.x, p.y, p.z, 1.0])
+		for i in arrays[Mesh.ARRAY_INDEX]:
+			indices.append(first + i)
+	var data := []
+	data.resize(Mesh.ARRAY_MAX)
+	data[Mesh.ARRAY_VERTEX] = all
+	data[Mesh.ARRAY_NORMAL] = all_normals
+	data[Mesh.ARRAY_COLOR] = colors
+	data[Mesh.ARRAY_TEX_UV] = uvs
+	data[Mesh.ARRAY_CUSTOM0] = custom
+	data[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, data, [], {}, Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
 	return mesh
 
 

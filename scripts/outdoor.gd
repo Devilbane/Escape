@@ -2379,6 +2379,25 @@ func _spawn_villagers() -> void:
 				_build_anvil(v, c, Vector3.LEFT)
 			elif ch == "3":
 				_build_chopping_log(v, c)
+	_spawn_pips_friend()
+
+
+## Pip's friend Pippi stands beside him at the goats. She has no map letter:
+## she comes with Pip, so a village without him has no friend either.
+func _spawn_pips_friend() -> void:
+	if not villagers.any(func(v: Villager): return v.role == "7"):
+		return
+	var c := VillageFarm.pippi_home(self)
+	if c == Vector2i(-1, -1):
+		return
+	var v := Villager.new()
+	v.setup(self, "pippi", c)
+	add_child(v)
+	v.global_position = cell_to_world(c)
+	villagers.append(v)
+	var station := {"kind": "npc", "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
+	v.station = station
+	stations.append(station)
 
 
 ## The barber's stall on the tile behind him: a market tent with a striped

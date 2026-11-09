@@ -33,6 +33,10 @@ uniform bool shaved_sides = false;
 uniform bool bun = false;
 // Head: the hair is cut short (the mesh is too; this makes the strands finer).
 uniform bool short_hair = false;
+// Freckles scattered over the cheeks and the bridge of the nose.
+uniform bool freckles = false;
+// The grey stud of the Rogue's ear turns into a purple diamond.
+uniform bool ear_gem = false;
 // Head with natural hair: dye it (false keeps the texture's own colour).
 uniform bool recolor = false;
 // 0: the colours below, 1: rainbow, 2: fire.
@@ -270,6 +274,17 @@ void fragment() {
 			}
 			albedo = mix(c, dyed, hair);
 			emission = dyed * glow * hair * 0.5;
+		}
+		if (ear_gem && abs(p.x) > 0.45 && max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b)) < 0.14 && dot(c, vec3(0.3, 0.59, 0.11)) > 0.3) {
+			float shine = dot(c, vec3(0.3, 0.59, 0.11));
+			albedo = mix(vec3(0.38, 0.1, 0.62), vec3(0.78, 0.5, 1.0), clamp(shine * 1.2 - 0.3, 0.0, 1.0));
+			roughness = 0.25;
+			specular = 0.8;
+		}
+		if (freckles && !bald) {
+			float area = smoothstep(0.3, 0.42, p.z) * smoothstep(1.3, 1.38, p.y) * smoothstep(1.62, 1.54, p.y) * smoothstep(0.4, 0.3, abs(p.x));
+			float spots = smoothstep(0.72, 0.8, vnoise(p * 45.0));
+			albedo = mix(albedo, vec3(0.6, 0.31, 0.16), spots * area * (1.0 - hair) * 0.7);
 		}
 		// The skin: the face, the ears and a shaved scalp.
 		albedo *= mix(skin_tint, vec3(1.0), bald ? 0.0 : hair);

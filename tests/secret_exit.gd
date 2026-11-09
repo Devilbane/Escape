@@ -116,7 +116,8 @@ func _test_every_bed_has_a_way_out() -> void:
 			var lv: Level = game.level
 			var bed: Dictionary = lv.stations.filter(func(st): return st.kind == "bett")[k]
 			var side := lv._open_side(bed.cell)
-			if lv.outdoor or side == bed.cell:
+			# A home's storeys are parted by stairs, not by secret walls.
+			if lv.outdoor or lv.is_home or side == bed.cell:
 				continue
 			beds += 1
 			var name: String = game.level_files[i]

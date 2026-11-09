@@ -216,3 +216,4 @@ bounties.gd | 120 | free | passfail | Bounty board (taken, counted and paid once
 named_monsters.gd | 60 | free | passfail | Named monsters are tougher than plain ones, bosses and maker-set numbers are left alone
 prison_bars.gd | 60 | free | passfail | Prison bars (a cell's wall of bars is turned with it and closes the gap)
 village_farm.gd | 300 | fixed | pass | Village geese, goats and dogs (wander, never block a door, bolt or greet, rest at night, Pip minds the goats)
+red_goat.gd | 120 | fixed | passfail | Red-horned goat (winds up and shouts, bumps without harm, retreats after 3 bumps, 10 minute cooldown, cannot be hurt)

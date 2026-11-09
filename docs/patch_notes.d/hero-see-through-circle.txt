@@ -1,0 +1,1 @@
+- A soft see-through circle now opens around the hero in the wall tops and walls that stand between the camera and the hero, so the hero and the floor around them are no longer hidden behind stone, above all in narrow corridors. The fog of war and the lighting stay as they were.

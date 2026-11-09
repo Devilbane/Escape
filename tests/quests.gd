@@ -73,12 +73,17 @@ func _test() -> void:
 		check(_villager(role) != null, "villager %s lives in the village" % role)
 	for id in Quests.ALL:
 		var q: Dictionary = Quests.ALL[id]
-		check(Villager.ROLES.has(q.giver), "%s has a giver who exists" % id)
+		check(Villager.ROLES.has(q.giver) or (q.giver == "" and Lang.EN.has(q.get("source", ""))), "%s has a giver who exists" % id)
 		for key in ["title", "goal", "offer", "remind", "done"]:
 			check(Lang.EN.has(q[key]), "%s: the %s has an English text" % [id, key])
 		if q.has("item"):
 			check(Items.ALL.has(q.item) and Lang.EN.has(Items.ALL[q.item].name), "%s: its item exists and has an English name" % id)
+	for id in Quests.ALL:
+		var q2: Dictionary = Quests.ALL[id]
+		if q2.has("area"):
+			check(Quests.AREAS.has(q2.area) and Lang.EN.has(q2.get("brief", "")), "%s: its area exists and its brief has an English text" % id)
 	check(game.quests.log_entries().is_empty(), "a new hero has no quests")
+	check(game.quests.board().is_empty(), "no quests, nothing on the event board")
 	game.refresh_quest_marks()
 	check(_villager("4").quest_mark() == "!", "the guard shows a ! while he has a task")
 	check(_villager("G").quest_mark() == "", "the guild master shows nothing while his task waits")

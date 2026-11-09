@@ -63,6 +63,8 @@ const ROOF_SLOPE := 0.25
 const LEAF_SIZE := Vector2(0.3, 0.46)
 ## The smallest wall (square metres) ivy grows on.
 const IVY_WALL := 0.6
+## How many times the leaves of a building's one side all its sides together get.
+const IVY_TOTAL_SHARE := 1.2
 ## Shades of the leaves: mostly dark green, now and then an autumn red.
 const LEAF_COLOURS := [Color(0.22, 0.36, 0.14), Color(0.17, 0.29, 0.11), Color(0.28, 0.42, 0.16),
 		Color(0.20, 0.33, 0.17), Color(0.36, 0.40, 0.14), Color(0.48, 0.22, 0.12)]
@@ -431,6 +433,10 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 	sides.sort_custom(func(a: Array, b: Array): return (a[0].n as Vector3).z > (b[0].n as Vector3).z)
 	# Every side gets as many patches as a building had on its one side before.
 	patches *= sides.size()
+	# Every side gets its patches, but each patch is thinner (fewer, larger
+	# leaves), so the whole building wears about 1.2 times the leaves it had
+	# on its one side and the village's leaf count stays near its old budget.
+	var thin := minf(1.0, IVY_TOTAL_SHARE / float(sides.size()))
 	var grown := 0
 	for attempt in patches * 6:
 		if grown >= patches:
@@ -452,7 +458,7 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 			continue
 		if doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
 			continue
-		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows)
+		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin)
 		grown += 1
 
 
@@ -480,12 +486,13 @@ static func _root_on(wall: Dictionary, ground: float, rng: RandomNumberGenerator
 ## and then branching; leaves grow along them, thickest near the ground.
 ## Old ivy climbs higher, and a tendril that runs out of wall below its
 ## reach creeps on up the roof above it.
-static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = []) -> void:
+static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = [], thin := 1.0) -> void:
 	var n: Vector3 = root_wall.n
 	var across := Vector3.UP.cross(n).normalized()
 	var height: Vector2 = OLD_IVY_HEIGHT if old else IVY_HEIGHT
 	var reach := ground + rng.randf_range(height.x, height.y)
-	var most: int = OLD_PATCH_LEAVES if old else PATCH_LEAVES
+	var most: int = int((OLD_PATCH_LEAVES if old else PATCH_LEAVES) * thin)
+	var bigger := 1.0 / sqrt(thin)
 	# The walls in line with this one: the ivy climbs on up them where one
 	# ends (a jutting upper floor, a ledge).
 	var line := all_walls.filter(func(w): return (w.n as Vector3).dot(n) > 0.99)
@@ -523,8 +530,8 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 				fill = maxf(fill, OLD_IVY_FILL)
 			for k in rng.randi_range(1, 1 + int(fill * 1.6)):
 				var at := p + across * rng.randf_range(-0.2, 0.2) + Vector3.UP * rng.randf_range(-0.08, 0.08)
-				if _on_wall(wall, at) and not _on_pane(at, n, windows):
-					_leaf(at, n, across, rng, leaves, 0.75 + fill * 0.35)
+				if rng.randf() < thin and _on_wall(wall, at) and not _on_pane(at, n, windows):
+					_leaf(at, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
 			if rng.randf() < 0.08 and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
 

@@ -2053,6 +2053,11 @@ func _physics_process(delta: float) -> void:
 			# A villager it can walk to is worth more than any wall.
 			if snack == null and foe == null and meal == null:
 				snack = SlimeGrowth.reachable_villager(self)
+			# A villager in sight that it cannot reach to eat (behind the wall):
+			# it eats into the wall instead of pushing against it.
+			if snack is Villager and not SlimeGrowth.can_walk_to(self, snack):
+				_siege_wall_for(snack.global_position)
+				snack = null
 			if snack is Villager:
 				(snack as Villager).alarm(self)
 	if foe != null and (not is_instance_valid(foe) or foe.dead):
@@ -2306,6 +2311,22 @@ func _aim_at_wall(goal: Vector3) -> void:
 	if brick != null:
 		_wall_target = brick
 		_wall_clock = WALL_PATIENCE
+
+
+## Sets out to eat into the wall towards a villager that cannot be reached: the
+## brick nearest to them, else the nearest one in sight.
+func _siege_wall_for(goal: Vector3) -> void:
+	if not SlimeGrowth.grows(kind) or not level is Outdoor:
+		return
+	var wall := (level as Outdoor).village_wall
+	var brick: WallBrick = wall.target_for(self, goal)
+	if brick == null:
+		brick = wall.siege_brick(self)
+	if brick == null:
+		return
+	_wall_target = brick
+	_wall_clock = WALL_PATIENCE + VillageWall.SIEGE_SIGHT / maxf(0.5, float(_stats.speed))
+	_siege = true
 
 
 ## Every slime outside the village wall eats into it: one with nothing else to

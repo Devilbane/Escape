@@ -308,7 +308,6 @@ static func reachable_villager(slime: Enemy) -> Villager:
 	var outdoor := slime.level as Outdoor
 	if outdoor == null:
 		return null
-	var here := outdoor.world_to_cell(slime.global_position)
 	var best: Villager = null
 	var best_d := VILLAGER_SCENT
 	for v: Villager in outdoor.villagers:
@@ -317,12 +316,22 @@ static func reachable_villager(slime: Enemy) -> Villager:
 		var d: float = slime._flat_distance(v)
 		if d >= best_d:
 			continue
-		var there := outdoor.world_to_cell(v.global_position)
-		var cells := outdoor.grid_path(here, there)
-		if here == there or (not cells.is_empty() and cells[-1] == there):
+		if can_walk_to(slime, v):
 			best = v
 			best_d = d
 	return best
+
+
+## Whether a slime has a way on foot to `n` (the village wall and its closed
+## gates count as blocked).
+static func can_walk_to(slime: Enemy, n: Node3D) -> bool:
+	var outdoor := slime.level as Outdoor
+	if outdoor == null:
+		return false
+	var here := outdoor.world_to_cell(slime.global_position)
+	var there := outdoor.world_to_cell(n.global_position)
+	var cells := outdoor.grid_path(here, there)
+	return here == there or (not cells.is_empty() and cells[-1] == there)
 
 
 ## How much life a villager or an animal has against a slime's blows.

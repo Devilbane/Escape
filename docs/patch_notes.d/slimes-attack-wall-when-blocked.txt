@@ -1,0 +1,1 @@
+- Slimes and Blobs that cannot reach a villager they see behind the village wall now eat into the wall instead of pushing against it.

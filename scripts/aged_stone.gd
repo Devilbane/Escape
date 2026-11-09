@@ -62,6 +62,8 @@ const OLD_IVY_FOOT := 1.8
 const OLD_IVY_FILL := 0.5
 ## Half the size of the clear middle of a window (across, up), in metres.
 const WINDOW_CLEAR := Vector2(0.6, 0.7)
+## How far (metres) round a glass window the ivy keeps off.
+const GLASS_CLEAR := 0.45
 ## How far (metres, along the slope) old ivy creeps up a roof, and the
 ## steepest a roof may be (its normal's y at least) to be crept on.
 const ROOF_CREEP := Vector2(0.5, 2.0)
@@ -298,6 +300,8 @@ static func triangles(node: Node3D) -> Array:
 			continue
 		var xf := mi.global_transform
 		for s in mi.mesh.get_surface_count():
+			var mat := mi.mesh.surface_get_material(s)
+			var glass := mat != null and mat.resource_name.begins_with("window")
 			var arrays := mi.mesh.surface_get_arrays(s)
 			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
@@ -321,6 +325,8 @@ static func triangles(node: Node3D) -> Array:
 				if normals.size() > 0 and (xf.basis * (normals[i0] + normals[i1] + normals[i2])).dot(n) < 0.0:
 					n = -n
 				var tri := {"a": a, "b": b, "c": c, "n": n, "area": area}
+				if glass:
+					tri["glass"] = true
 				if uvs.size() > 0:
 					tri["uv"] = (uvs[i0] + uvs[i1] + uvs[i2]) / 3.0
 				out.append(tri)
@@ -631,11 +637,36 @@ static func window_panes(tris: Array, window_uv: Vector2) -> Array:
 	return panes
 
 
+## The boxes round the windows that are modelled as glass surfaces (the
+## temple's tall windows): the glass triangles, grouped by where they touch.
+## Leaves keep out of them (see _on_pane).
+static func glass_boxes(tris: Array) -> Array:
+	var boxes: Array = []
+	for t: Dictionary in tris:
+		if not t.has("glass"):
+			continue
+		var box := AABB(t.a, Vector3.ZERO).expand(t.b).expand(t.c)
+		var merged := false
+		for i in boxes.size():
+			if (boxes[i] as AABB).grow(0.3).intersects(box):
+				boxes[i] = (boxes[i] as AABB).merge(box)
+				merged = true
+				break
+		if not merged:
+			boxes.append(box)
+	return boxes
+
+
 ## Whether a spot on a wall facing `n` lies over the middle of a window
 ## pane (a leaf there would hide it; the frame and shutters may be grown
 ## over). The leaf's own size reaches a little further.
 static func _on_pane(at: Vector3, n: Vector3, windows: Array) -> bool:
-	for w: Vector3 in windows:
+	for win in windows:
+		if win is AABB:
+			if (win as AABB).grow(GLASS_CLEAR).has_point(at):
+				return true
+			continue
+		var w: Vector3 = win
 		var d := at - w
 		if absf(d.dot(n)) > 0.5:
 			continue

@@ -341,6 +341,8 @@ const GUILD_IVY := 28
 ## Patches on the other stone buildings (tavern, smithy, market, tower, ...).
 const STONE_IVY := 14
 const CASTLE_IVY := 32
+## The castle's towers stand on a ledge this high (metres): ivy roots there too and climbs the towers.
+const CASTLE_TOWER_FOOT := 5.2
 ## The temple too, but its doorway is kept bare: no ivy roots within a few
 ## metres of it, to the sides and back along the steps.
 const TEMPLE_IVY := 16
@@ -1220,7 +1222,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		elif ch == "w" or ch == "k":
 			# The castle's gate wears ivy round and partly over its arch, but its middle stays open.
 			var gate := [front.lerp(center, 0.25)]
-			_dress_building(node, center, gate, 0.75, GUILD_IVY if ch == "w" else CASTLE_IVY, true, 0.0)
+			_dress_building(node, center, gate, 0.75, GUILD_IVY if ch == "w" else CASTLE_IVY, true, CASTLE_TOWER_FOOT if ch == "k" else 0.0)
 		else:
 			# Every stone building wears old ivy, so it is as green as the
 			# wooden houses (which ordinary ivy suits).
@@ -1815,6 +1817,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		var panes: Array = (node.get_meta("windows", []) as Array).map(func(w: Vector3): return node.global_transform * w)
 		if panes.is_empty():
 			panes = AgedStone.window_panes(tris, WINDOW_UV)
+		panes.append_array(AgedStone.glass_boxes(tris))
 		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max)
 		for i in leaves.xforms.size():
 			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)

@@ -6,6 +6,8 @@
 
 ## Latest changes
 - A soft see-through circle now opens around the hero in the wall tops and walls that stand between the camera and the hero, so the hero and the floor around them are no longer hidden behind stone, above all in narrow corridors. The fog of war and the lighting stay as they were.
+- Village ivy now grows on every side of a building (each side as thick as the front used to be), and it never fully covers a window any more, including on the stone buildings.
+- The village warning bell now uses a real recording of church bells ringing in a tower.
 - The bookshelf in your house now stands on the ground floor against the north wall, and the wall torch beside it hangs one wall to the west.
 - Rain now falls only a third as often; fog, storms and clear skies take its place, and each spell of rain lasts as long as before.
 - Fixed being shut in the archive's bed room after sleeping there: the iron bars of the prisoner's cell no longer count as a way out, so the secret wall opens from inside.

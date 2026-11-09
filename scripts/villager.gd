@@ -70,8 +70,8 @@ const ROLES := {
 		"colors": [Color(0.7, 0.35, 0.6), Color(0.35, 0.3, 0.45), Color(0.6, 0.3, 0.5)], "plan": "shop", "work": "Interact",
 		"lines": ["Brot, Käse, Seile, Fackeln: alles für den Alltag!", "Ich kaufe auch, was du aus dem Verlies mitbringst.", "Für einen Helden mache ich einen guten Preis.", "Wurst für die Füchse? Die leben auf der Wiese am Waldteich, westlich vom Dorf."]},
 	"7": {"name": "Pip", "model": "Rogue", "show": [], "scale": 0.72, "hair": {"style": "spiky", "color": "blond"}, "skin": SKIN_ROSY,
-		"colors": [Color(0.45, 0.6, 0.9), Color(0.6, 0.45, 0.3), Color(0.9, 0.8, 0.3)], "plan": "wander", "work": "Cheer",
-		"lines": ["Fang mich doch!", "Bist du ein echter Abenteurer?", "Mama sagt, in der Gruft spukt es!"]},
+		"colors": [Color(0.45, 0.6, 0.9), Color(0.6, 0.45, 0.3), Color(0.9, 0.8, 0.3)], "plan": "wander", "work": "Cheer", "herds": true,
+		"lines": ["Fang mich doch!", "Bist du ein echter Abenteurer?", "Mama sagt, in der Gruft spukt es!", "Das sind meine Ziegen! Ich passe auf sie auf.", "Die Gänse hören auf niemanden. Nicht mal auf mich.", "Der Hund bleibt bei den Ziegen, wo ich bin."]},
 	"8": {"name": "Gelehrter Odo", "model": "Mage", "show": ["Mage_Hat", "Spellbook_open"],
 		"colors": [Color(0.35, 0.3, 0.45), Color(0.3, 0.3, 0.35), Color(0.3, 0.25, 0.4)], "plan": "stroll", "work": "Spellcast_Raise",
 		"lines": ["Faszinierend, du lebst! Das Verlies gilt als unentrinnbar.", "In meinen Büchern steht etwas über Wächter in Rüstung...", "Ruhe, bitte. Ich lese."]},
@@ -1083,6 +1083,9 @@ func _next_task() -> void:
 		"wander":
 			if _task == "walk" or _rng.randf() < 0.5:
 				_start("work" if _rng.randf() < 0.4 else "idle", _rng.randf_range(1.5, 4.0))
+			elif _info.get("herds", false) and _rng.randf() < 0.45 and VillageFarm.pip_spot(level) != Vector3.INF:
+				# Off to mind the goats (see VillageFarm).
+				_walk_to(VillageFarm.pip_spot(level), WALK_SPEED * 1.4, "work")
 			else:
 				_walk_to(_nearby(5), RUN_SPEED, "idle")
 		"carry":

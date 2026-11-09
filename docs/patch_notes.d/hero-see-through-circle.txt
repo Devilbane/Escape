@@ -1,1 +1,1 @@
-- Tasks tied to a place (the bandit pass, the dungeon, Sternhall, the Ashen Spire) now show pinned at the top of the event log with a short line while you are there, until done. Brother Orlan in the archive gives a new one: bring him a healing potion.
+- A soft see-through circle now opens around the hero in the wall tops and walls that stand between the camera and the hero, so the hero and the floor around them are no longer hidden behind stone, above all in narrow corridors. The fog of war and the lighting stay as they were.

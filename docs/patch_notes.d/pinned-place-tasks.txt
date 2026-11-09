@@ -1,1 +1,1 @@
-- The wandering merchant's ingredients now show their own pictures (a mushroom, a tuft of moss, a blob of jelly ...) instead of a backpack.
+- Tasks tied to a place (the bandit pass, the dungeon, Sternhall, the Ashen Spire) now show pinned at the top of the event log with a short line while you are there, until done. Brother Orlan in the archive gives a new one: bring him a healing potion.

@@ -187,6 +187,9 @@ func _prisoner(lvl: Level) -> void:
 	AshSpire.use(game, s)
 	check(game.quests.is_active(AshSpire.PRISONER_QUEST), "talking to the prisoner notes his task in the quest log")
 	check(game.quests.log_entries() == [AshSpire.PRISONER_QUEST] and game.quests.missing(AshSpire.PRISONER_QUEST) == 1, "it is open and still needs a potion")
+	check(game.quests.board().size() == 1 and game.quests.board()[0].contains("Orlan"), "in the archive, his task is on the event board: %s" % str(game.quests.board()))
+	game.event_log.set_tasks(game.quests.board())
+	check(game.event_log.tasks().size() == 1, "the event log pins it")
 	check(game.menus.quest_hints().any(func(t): return t.contains("Orlan")) == false, "no hint to hand in before a potion is carried")
 	AshSpire.use(game, s)
 	check(game.quests.is_active(AshSpire.PRISONER_QUEST), "talking again does not restart or finish it")
@@ -194,6 +197,8 @@ func _prisoner(lvl: Level) -> void:
 	check(game.menus.quest_hints().any(func(t): return t.contains("Orlan")), "with a potion in the bag, the hints say to bring it to Orlan")
 	AshSpire.use(game, s)
 	check(game.quests.is_done(AshSpire.PRISONER_QUEST), "the potion finishes his task, which is marked done")
+	check(game.quests.board().is_empty(), "a finished task leaves the event board")
+	check(not game.quests.in_area("pass") and not game.quests.in_area("dungeon"), "the archive is neither the pass nor the dungeon")
 	check(lvl.taken.has("ash:prisoner") and not game.player.bag.has("heiltrank"), "a healing potion buys the prisoner's secret")
 
 

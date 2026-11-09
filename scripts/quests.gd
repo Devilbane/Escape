@@ -16,7 +16,8 @@ extends RefCounted
 ## who rewards it. A found task with an empty giver and a `source` text has
 ## no villager behind it (Brother Orlan in the Ashen Spire's archive, see
 ## AshSpire): its kind "potion" is done by handing him a healing potion, and its
-## `note` stands for the reward. Every text is German and has an English entry
+## `note` stands for the reward. A task with an "area" (see AREAS) and a short
+## "brief" also shows in the event log while the hero is in that area. Every text is German and has an English entry
 ## in Lang; `remind` may hold one %d (how many are still missing).
 ## The state of every task is kept in the hero's saved game (see Game).
 
@@ -24,14 +25,28 @@ const BANDITS := ["halsabschneider", "wilderer", "schlaeger", "hauptmann"]
 ## How likely a cutthroat drops a bandit dagger while someone still wants them.
 const DAGGER_DROP := 0.6
 
+## Places a task can be bound to (its "area"): while the hero is there, an open
+## task shows pinned in the event log with its "brief" (see board).
+## "outdoor": a named area of the open air (Journal.OUTDOOR_AREAS), "building":
+## the building of a level, "prefix": every floor whose building starts so,
+## "dungeon": any level of the dungeon.
+const AREAS := {
+	"pass": {"outdoor": "Räuberpass"},
+	"spire4": {"building": "spire4"},
+	"sternhall": {"prefix": "stern"},
+	"dungeon": {"dungeon": true},
+}
+
 const ALL := {
 	"raeuberplage": {"giver": "4", "kind": "kill", "targets": BANDITS, "count": 5, "gold": 25,
+		"area": "pass", "brief": "Räuber am Pass besiegen",
 		"title": "Räuberplage",
 		"goal": "Besiege 5 Räuber am Räuberpass, östlich des Marktplatzes.",
 		"offer": "Die Räuber am Pass werden frech. Besiege fünf von ihnen, und die Krone zahlt dir 25 Kupfer.",
 		"remind": "Noch %d Räuber, dann ist der Pass ruhiger.",
 		"done": "Fünf Räuber weniger! Hier ist dein Sold von der Krone."},
 	"dolche": {"giver": "6", "kind": "fetch", "item": "banditendolch", "count": 3, "gold": 30,
+		"area": "pass", "brief": "Banditendolche von Halsabschneidern holen",
 		"title": "Gestohlene Dolche",
 		"goal": "Bring Krämerin Mira 3 Banditendolche. Die Halsabschneider am Räuberpass tragen sie.",
 		"offer": "Die Halsabschneider vom Pass haben mir eine Kiste Dolche gestohlen. Bring mir drei zurück, dann zahle ich 30 Kupfer.",
@@ -56,18 +71,21 @@ const ALL := {
 		"remind": "Der Eimer ist für Priesterin Elsbeth am Tempel.",
 		"done": "Frisches Wasser für den Tempel. Die Götter danken dir, und ich auch: 8 Kupfer."},
 	"schlaeger": {"giver": "1", "kind": "kill", "targets": ["schlaeger"], "count": 3, "gold": 10, "reward": "kettenhemd",
+		"area": "pass", "brief": "Schläger am Pass besiegen",
 		"title": "Grobe Schläger",
 		"goal": "Besiege 3 Schläger mit Äxten am Räuberpass.",
 		"offer": "Die Schläger vom Pass tragen Äxte, die sie mir nie bezahlt haben. Besiege drei von ihnen, dann bekommst du ein Kettenhemd.",
 		"remind": "Noch %d Schläger. Dann schmiede ich dir dein Kettenhemd.",
 		"done": "Das wird ihnen eine Lehre sein! Hier, ein Kettenhemd aus meiner Esse, und 10 Kupfer."},
 	"wilderer": {"giver": "3", "kind": "kill", "targets": ["wilderer"], "count": 2, "gold": 18,
+		"area": "pass", "brief": "Wilderer am Pass besiegen",
 		"title": "Wilderer im Wald",
 		"goal": "Besiege 2 Wilderer mit Armbrüsten am Räuberpass.",
 		"offer": "Wilderer schießen im Wald auf alles, was sich bewegt. Besiege zwei von ihnen, dann zahle ich 18 Kupfer.",
 		"remind": "Noch %d Wilderer. Pass auf ihre Bolzen auf!",
 		"done": "Endlich kann ich wieder in Ruhe Holz hacken. Hier sind 18 Kupfer."},
 	"hauptmann": {"giver": "G", "kind": "kill", "targets": ["hauptmann"], "count": 1, "after": "raeuberplage", "gold": 40, "reward": "schattenumhang",
+		"area": "pass", "brief": "Räuberhauptmann am Lagerfeuer besiegen",
 		"title": "Der Räuberhauptmann",
 		"goal": "Besiege den Räuberhauptmann am Lagerfeuer im Räuberlager.",
 		"offer": "Die Wache sagt, du hast am Pass aufgeräumt. Jetzt der Hauptmann am Lagerfeuer! Besiege ihn, und die Gilde zahlt 40 Kupfer und einen Schattenumhang.",
@@ -82,12 +100,14 @@ const ALL := {
 		"done": "Von Hagen? Ein Wetzstein aus seinem Bruch... Der ist gut. Sag ihm Danke von mir. Hier sind 12 Kupfer."},
 	# Wishes Guild Master Ragna helps with (see Wishes): each earns a recipe.
 	"wunsch_klingen": {"giver": "G", "wish": true, "kind": "kill", "targets": ["krieger"], "count": 5, "gold": 5, "recipe": "klingenring",
+		"area": "dungeon", "brief": "Skelettkrieger im Verlies besiegen",
 		"title": "Ein Ring für die Klinge",
 		"goal": "Besiege 5 Skelettkrieger im Verlies. Ragna will sehen, wie du die Klinge führst.",
 		"offer": "Zeig mir erst, wie du die Klinge führst: Besiege fünf Skelettkrieger im Verlies. Dann verrate ich dir, wie man den Ring macht.",
 		"remind": "Noch %d Skelettkrieger. Ich will sehen, wie du die Klinge führst.",
 		"done": "So führt man eine Klinge! Hier ist das Rezept für den Klingenring."},
 	"wunsch_aexte": {"giver": "G", "wish": true, "kind": "kill", "targets": ["schlaeger"], "count": 3, "gold": 5, "recipe": "axtreif",
+		"area": "pass", "brief": "Schläger am Pass besiegen",
 		"title": "Ein Armreif für die Axt",
 		"goal": "Besiege 3 Schläger am Räuberpass. Sie tragen Äxte wie du.",
 		"offer": "Die Schläger am Pass schwingen Äxte. Besiege drei von ihnen, dann zeige ich dir, wie man den Armreif schmiedet.",
@@ -100,18 +120,21 @@ const ALL := {
 		"remind": "Noch %d Skelettschützen. Halt den Schild hoch!",
 		"done": "Kein Bolzen kam durch, sehr gut. Hier ist das Rezept für das Amulett des Walls."},
 	"wunsch_werfen": {"giver": "G", "wish": true, "kind": "kill", "targets": ["wilderer"], "count": 3, "gold": 5, "recipe": "wurfring",
+		"area": "pass", "brief": "Wilderer am Pass besiegen",
 		"title": "Ein Ring für den Wurf",
 		"goal": "Besiege 3 Wilderer am Räuberpass. Sie schießen aus der Ferne, wie du.",
 		"offer": "Die Wilderer am Pass kämpfen aus der Ferne. Besiege drei von ihnen, dann zeige ich dir den Ring für einen ruhigen Wurf.",
 		"remind": "Noch %d Wilderer am Pass.",
 		"done": "Ferne gegen Ferne, und du warst schneller. Hier ist das Rezept für den Wurfring."},
 	"wunsch_schleichen": {"giver": "G", "wish": true, "kind": "kill", "targets": ["halsabschneider"], "count": 3, "gold": 5, "recipe": "schattenamulett",
+		"area": "pass", "brief": "Halsabschneider am Pass besiegen",
 		"title": "Ein Amulett für die Schatten",
 		"goal": "Besiege 3 Halsabschneider am Räuberpass. Sie lauern im Schatten wie du.",
 		"offer": "Die Halsabschneider am Pass lauern im Schatten. Besiege drei von ihnen, dann erzähle ich dir vom Amulett der stillen Schritte.",
 		"remind": "Noch %d Halsabschneider am Pass.",
 		"done": "Leise und schnell. Hier ist das Rezept für das Amulett der stillen Schritte."},
 	"wunsch_ruestung": {"giver": "G", "wish": true, "kind": "kill", "targets": ["koloss"], "count": 2, "gold": 5, "recipe": "lastreif",
+		"area": "dungeon", "brief": "Kolosse im Verlies besiegen",
 		"title": "Ein Armreif für schwere Rüstung",
 		"goal": "Besiege 2 Kolosse im Verlies. Ihre Schläge prüfen deine Rüstung.",
 		"offer": "Zeig mir, dass deine Rüstung hält: Besiege zwei Kolosse im Verlies. Dann bekommst du das Rezept für den Armreif der leichten Last.",
@@ -119,6 +142,7 @@ const ALL := {
 		"done": "Deine Rüstung hat gehalten. Hier ist das Rezept für den Armreif der leichten Last."},
 	# Found in the jail under Sternhall (see SternHall): Alrik the scribe.
 	"sternhall_alrik": {"giver": "8", "found": true, "kind": "deliver", "item": "alriks_siegelring", "to": "8", "gold": 60, "reward": "heiltrank_stark",
+		"area": "sternhall", "brief": "Alriks Siegelring zum Gelehrten bringen",
 		"title": "Der Schreiber im Kerker",
 		"goal": "Bring Alriks Siegelring zum Gelehrten im Dorf. Alrik sitzt im Kerker unter Sternhall.",
 		"offer": "Bring meinen Siegelring dem Gelehrten im Dorf. Er soll wissen, dass ich noch lebe.",
@@ -127,6 +151,7 @@ const ALL := {
 	# Found in the archive of the Ashen Spire (see AshSpire): Brother Orlan.
 	"ash_orlan": {"giver": "", "found": true, "kind": "potion", "gold": 0, "note": "Zwei verborgene Orte im Aschenturm",
 		"source": "Bruder Orlan im Archiv des Aschenturms",
+		"area": "spire4", "brief": "Heiltrank zu Bruder Orlan bringen",
 		"title": "Ein Trank für Bruder Orlan",
 		"goal": "Bring Bruder Orlan im Archiv des Aschenturms einen Heiltrank. Er sitzt hinter den Gittern seiner Zelle.",
 		"offer": "Ich bin wund. Ein Heiltrank, und ich verrate Euch ein Geheimnis dieser Zelle.",
@@ -232,6 +257,44 @@ static func reward_text(id: String) -> String:
 	if q.has("recipe"):
 		parts.append(Lang.t("Rezept: %s") % Lang.t(Crafting.RECIPES[q.recipe].name))
 	return ", ".join(parts)
+
+
+## Whether the hero stands in the area `key` of AREAS right now.
+func in_area(key: String) -> bool:
+	if game == null or game.level == null or game.player == null or not AREAS.has(key):
+		return false
+	var level: Level = game.level
+	var a: Dictionary = AREAS[key]
+	if a.has("outdoor"):
+		if not level.outdoor:
+			return false
+		var chars := ""
+		for area in Journal.OUTDOOR_AREAS:
+			if area[1] == a.outdoor:
+				chars = area[0]
+		return chars != "" and chars.contains(level.cell_char(level.world_to_cell(game.player.global_position)))
+	if a.has("building"):
+		return level.building == a.building
+	if a.has("prefix"):
+		return level.building.begins_with(a.prefix)
+	return not level.outdoor and level.building == ""
+
+
+## The open tasks bound to where the hero is, one short line each, for the
+## event log: their brief and, for a count, how far along they are. A task
+## with nothing left to do here (the kills counted, to be handed in in the
+## village) is not listed.
+func board() -> Array[String]:
+	var out: Array[String] = []
+	for id in ALL:
+		var q: Dictionary = ALL[id]
+		if not is_active(id) or not q.has("area") or not in_area(q.area):
+			continue
+		if q.kind in ["kill", "fetch"] and missing(id) == 0:
+			continue
+		var status := progress(id)
+		out.append(Lang.t("Aufgabe: %s") % Lang.t(q.brief) + ("  (%s)" % status if status != "" else ""))
+	return out
 
 
 ## The weakest healing potion in the bag, "" for none (what Brother Orlan takes).

@@ -130,7 +130,7 @@ static func valid_manifest(data) -> bool:
 
 
 ## The part of the patch notes that ships: the header comments and the newest `keep` sections, so
-## older history stays in docs/patch_notes.txt without growing the download (tools/recent_notes.py
+## older history stays in docs/patch_notes.txt without growing the download (tools/patch_notes.py
 ## does the same for the release).
 static func recent_notes(text: String, keep: int = 2) -> String:
 	var out := []

@@ -254,6 +254,9 @@ func _test() -> void:
 	game.menus.close()
 	game.menus.compendium_page = "wissen"
 
+	# Two walkers who bump into each other stop and chat, then walk on.
+	_bump_chat_test(lene, pip)
+
 	# Kept in the saved game.
 	var saved := talk.for_save()
 	talk.clear()
@@ -263,3 +266,67 @@ func _test() -> void:
 	check(game.save_game(), "the game saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(game.save_path(1)))
 	check(data.get("ties", []).has("2-7"), "the saved game keeps the overheard ties")
+
+
+## Puts a villager on a plain walk across the village.
+func _send_walking(v: Villager, from: Vector3) -> void:
+	v.global_position = from
+	v.chat_partner = null
+	v.bump_cool = 0.0
+	v._bubble_time = 0.0
+	v._path = [from + Vector3(30, 0, 0)]
+	v._speed = Villager.WALK_SPEED
+	v._task = "walk"
+	v.set_meta("then", "idle")
+
+
+func _bump_chat_test(a: Villager, b: Villager) -> void:
+	var talk: VillageTalk = game.village_talk
+	talk.stop()
+	for v in game.level.villagers:
+		v._start("idle", 30.0)
+	var spot := a.global_position
+	var shopkeeper: Villager = null
+	for v in game.level.villagers:
+		if v != a and v != b and v.keeps_spot():
+			shopkeeper = v
+			break
+	# Far apart: nothing happens.
+	_send_walking(a, spot)
+	_send_walking(b, spot + Vector3(6, 0, 0))
+	game.player.global_position = spot + Vector3(3, 0, 3)
+	talk._bump_timer = 0.0
+	check(not talk.start_bump_chat(game.level), "walkers far apart do not stop")
+	# A shopkeeper at his post never joins a bump-chat.
+	if shopkeeper != null:
+		check(not shopkeeper.can_bump_chat(), "a shopkeeper at his post does not stop for a chat")
+	# Bumping: both stop, face each other and talk.
+	_send_walking(b, spot + Vector3(0.6, 0, 0))
+	check(a.can_bump_chat() and b.can_bump_chat(), "two walkers can stop")
+	check(talk.start_bump_chat(game.level), "walkers who bump begin a chat")
+	check(a.in_chat_place() and b.in_chat_place(), "both stand still for it")
+	check(a.chat_partner == b and b.chat_partner == a, "they are each other's partners")
+	var at_a := a.global_position
+	var said := _run(30.0)
+	check(a.global_position.distance_to(at_a) < 1.0 and a._path.is_empty(), "they did not walk while chatting (%.2f m)" % a.global_position.distance_to(at_a))
+	var ours := said.filter(func(l): return l.begins_with(a.display_name + ":") or l.begins_with(b.display_name + ":"))
+	check(ours.any(func(l): return l.begins_with(a.display_name + ":")) and ours.any(func(l): return l.begins_with(b.display_name + ":")), "they trade lines in turn: %s" % [ours])
+	check(not talk.is_chatting() and a.chat_partner == null and b.chat_partner == null, "the chat ends and both are free")
+	# The cooldown stops the pair from chatting again right away.
+	_send_walking(a, spot)
+	a.bump_cool = Villager.BUMP_COOLDOWN
+	_send_walking(b, spot + Vector3(0.6, 0, 0))
+	b.bump_cool = Villager.BUMP_COOLDOWN
+	check(not a.can_bump_chat() and not talk.start_bump_chat(game.level), "no new chat during the cooldown")
+	# Not for someone on the way to a stall, a post or a chat of their own.
+	_send_walking(a, spot)
+	a.set_meta("then", "chat")
+	check(not a.can_bump_chat(), "someone walking to a chat is not stopped")
+	a.set_meta("then", "defend")
+	check(not a.can_bump_chat(), "a defender is not stopped")
+	a.set_meta("then", "idle")
+	a._bubble_time = 3.0
+	check(not a.can_bump_chat(), "someone talking to the hero is not stopped")
+	a._bubble_time = 0.0
+	for v in game.level.villagers:
+		v._start("idle", 30.0)

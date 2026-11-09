@@ -10,6 +10,7 @@ Two bought packs were added: **Anime Combat Sounds** (The Sound Guild) and **Fan
 | `chop.wav` (woodcutters, treasure-map digging) | synthesised | Fantasy Ambience: `Chopping_Wood_Without_Whoosh_Loop_01` (one stroke) |
 | `village_bell.wav` | Ivo Vicic church bells (Soniss) | Fantasy Ambience: `Church_Bells_Loop_01` (first 9.5 s) |
 | `rain.ogg` | synthesised 8 s loop | Fantasy Ambience: `Rain_Medium_Loop_01` (44 s loop) |
+| `village_night.ogg` (new) | none | Fantasy Ambience: `Village_Night_Loop_01`, fades in at night on the open ground (4 s), out at dawn or underground |
 | `sword_swing_0..2` | CC0 mix | `Anime_Combat_Whoosh_01..03` |
 | `sword_sweep_0..1` | CC0 mix | `Anime_Whirlwind_High_Pitch_01..02` |
 | `sword_hit_0..3` | CC0 mix | `Anime_Slash_01_Variation_01/02`, `Anime_Slash_02`, `Anime_Slash_03` |

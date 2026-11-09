@@ -111,6 +111,9 @@ def build_ambience(folder):
 	# The rain: the medium loop, mono, as ogg (it loops as a whole).
 	subprocess.run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", d("Rain_Medium_Loop_01"), "-ac", "1", "-ar", "32000",
 					"-c:a", "libvorbis", "-q:a", "1", os.path.join(OUT, "rain.ogg")], check=True)
+	# The village at night : the night loop, mono, as ogg.
+	subprocess.run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", d("Village_Night_Loop_01"), "-ac", "1", "-ar", "32000",
+					"-c:a", "libvorbis", "-q:a", "1", os.path.join(OUT, "village_night.ogg")], check=True)
 
 
 if __name__ == "__main__":

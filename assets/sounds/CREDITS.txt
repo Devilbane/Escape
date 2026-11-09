@@ -111,5 +111,6 @@ sound it replaced):
   swing, throw, hurt and magic sounds. Cut to the blow, mono, faded.
 - "Fantasy Ambience Sounds Pack V2": the woodcutter's chop (chop, from
   Chopping_Wood_Without_Whoosh_Loop_01), the village bell (village_bell, from
-  Church_Bells_Loop_01) and the rain (rain.ogg, from Rain_Medium_Loop_01).
+  Church_Bells_Loop_01), the rain (rain.ogg, from Rain_Medium_Loop_01) and the village at
+  night (village_night.ogg, from Village_Night_Loop_01, played outdoors at night).
 The packs were bought by the project owner; the licence terms are those of the sellers.

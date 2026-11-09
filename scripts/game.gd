@@ -106,6 +106,12 @@ var _mist: CPUParticles3D
 var _clouds: FogClouds
 var _rain_sound: AudioStreamPlayer
 var _ambience: AudioStreamPlayer
+## The village at night: the ambient night sound of the village (see _tick_night_ambience).
+var _night_sound: AudioStreamPlayer
+var _night_level := 0.0
+## Seconds the night sound takes to fade in or out, and how loud it sits.
+const NIGHT_FADE := 4.0
+const NIGHT_DB := -8.0
 ## Set once the hero has stepped out of the crypt into the open air: the run
 ## is in the ranking as an escape, and goes on in the village.
 var escaped := false
@@ -608,6 +614,7 @@ func _ready() -> void:
 	_update_sound_button()
 	_ambience = Sfx.start_ambience(self)
 	_rain_sound = Sfx.start_loop(self, "rain")
+	_night_sound = Sfx.start_loop(self, "village_night")
 	Music.load_settings()
 	Music.start(self)
 	_update_music_controls()
@@ -2568,6 +2575,7 @@ func _clock_text() -> String:
 func _tick_clock(delta: float) -> void:
 	if level == null:
 		return
+	_tick_night_ambience(delta)
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		var before := day_hour
 		day_hour = DayNight.advance(day_hour, delta)
@@ -2784,6 +2792,22 @@ func _tick_weather(delta: float) -> void:
 func set_weather(kind: String, hours := -1.0) -> void:
 	weather = kind if kind in Weather.KINDS else Weather.CLEAR
 	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng, weather)
+
+
+## The village at night has its own ambience: the loop fades in when night falls
+## on the open ground and out at dawn, or when the hero goes below ground.
+func _tick_night_ambience(delta: float) -> void:
+	if _night_sound == null:
+		return
+	var want: float = 1.0 if level is Outdoor and DayNight.is_night(day_hour) else 0.0
+	_night_level = move_toward(_night_level, want, delta / NIGHT_FADE)
+	if _night_level <= 0.001:
+		if _night_sound.playing:
+			_night_sound.stop()
+		return
+	_night_sound.volume_db = NIGHT_DB + linear_to_db(_night_level)
+	if not _night_sound.playing:
+		_night_sound.play()
 
 
 ## Rain and mist fall and drift around the hero in the open air only, and

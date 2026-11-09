@@ -28,6 +28,8 @@ const MAKE_WAY := 1.4
 ## one who stays put waits this long at most for the other to arrive.
 const CHAT_GAP := 1.6
 const CHAT_WAIT := 60.0
+## After a chat nobody stops for another bump-chat for this long (seconds).
+const BUMP_COOLDOWN := 45.0
 ## How close (centre to centre, metres) anyone else may come to a villager
 ## who keeps to their spot (a shopkeeper, the elder, the herald). Without
 ## it the village kid Pip ran right into Mira and stood inside her, and a
@@ -237,6 +239,9 @@ var at_home := false
 var _layer := 1
 ## The villager we are chatting with (see VillageTalk), or null.
 var chat_partner: Villager = null
+## Seconds until we may stop for a chat after bumping into someone again (set
+## when any chat ends), so a pair does not re-trigger endlessly.
+var bump_cool := 0.0
 ## Set when someone else (the hero, mostly) speaks to us during a chat: the
 ## chat is over.
 var chat_broken := false
@@ -1216,10 +1221,14 @@ func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
 	_lift_onto_toes(delta)
+<<<<<<< HEAD
 	if _sheathe_in >= 0.0:
 		_sheathe_in -= delta
 		if _sheathe_in < 0.0:
 			_draw_blade(false)
+=======
+	bump_cool = maxf(0.0, bump_cool - delta)
+>>>>>>> origin/main
 	_keep_apart()
 	_mind_torch(delta)
 	station.pos = global_position
@@ -1929,6 +1938,20 @@ func can_chat() -> bool:
 	return _task in ["work", "idle", "sit"] and _bubble_time <= 0.0 and _listen_to == Vector3.INF
 
 
+## Whether we may stop for a chat when someone walking bumps into us: out on
+## a plain walk of our own (not to a stall, a post, a house, the herald or a
+## chat), awake, not saying anything, not afraid or fighting, and not a
+## shopkeeper or guard on duty.
+func can_bump_chat() -> bool:
+	if chat_partner != null or at_home or not visible or role == "%" or singing or night:
+		return false
+	if bump_cool > 0.0 or keeps_spot() or threat != null or eaten or defends() or shaken:
+		return false
+	if _task != "walk" or get_meta("then", "") in ["chat", "watch", "defend", "listen", "home", "hide"]:
+		return false
+	return _bubble_time <= 0.0 and _listen_to == Vector3.INF
+
+
 ## Whether we can speak up on our own about the weather or a fright (see
 ## VillageWorries): out in the street and awake, walking home too, but not in
 ## a chat, listening to the herald or saying something already.
@@ -1969,6 +1992,17 @@ func join_chat(partner: Villager, walk: bool) -> bool:
 	return true
 
 
+## Stops where we stand and faces `partner`: a bump-chat (see
+## VillageTalk.start_bump_chat). The walk is dropped; the day's plan picks up
+## again when the chat ends (see leave_chat).
+func stand_for_chat(partner: Villager) -> void:
+	_path.clear()
+	_chat_sitting = false
+	_start("chat", CHAT_WAIT)
+	chat_partner = partner
+	chat_broken = false
+
+
 ## Standing with the partner, ready to talk.
 func in_chat_place() -> bool:
 	return chat_partner != null and _task == "chat"
@@ -1990,6 +2024,7 @@ func leave_chat() -> void:
 	var waiting := _task == "chat" or heading_to_chat()
 	chat_partner = null
 	chat_broken = false
+	bump_cool = BUMP_COOLDOWN
 	if waiting:
 		_path.clear()
 		_start("sit" if _chat_sitting else "idle", _rng.randf_range(1.0, 2.5))

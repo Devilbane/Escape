@@ -35,7 +35,7 @@ func _initialize() -> void:
 		var caps := 0
 		var tris := 0
 		for mi: MeshInstance3D in level.find_children("*", "MeshInstance3D", false, false):
-			if mi.mesh is ArrayMesh and mi.material_override is StandardMaterial3D and mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			if mi.mesh is ArrayMesh and mi.material_override is ShaderMaterial and mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
 				caps += 1
 				tris += (mi.mesh as ArrayMesh).surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size() / 3
 		check(caps > 0, "%s has wall caps" % n)

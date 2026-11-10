@@ -1157,6 +1157,8 @@ func _inventory_details() -> Control:
 				game.camp_action()))
 		elif Items.is_potion(id):
 			buttons.append(_item_button(Lang.t("Trinken"), _drink_selected))
+		elif Items.is_recipe_scroll(id):
+			buttons.append(_item_button(Lang.t("Lesen"), _read_selected))
 		elif Items.is_quest(id) or Items.is_material(id) or Items.is_food(id) or Items.is_light(id) or Items.is_ammo(id):
 			pass # Carried for a task, to the smith, for a fox, for the dark or as spare knives, not worn.
 		else:
@@ -1497,6 +1499,16 @@ func _drink_selected() -> void:
 		if cell.id == id:
 			_selected = cell.indices.back()
 			break
+	_rebuild()
+
+
+## Reads the selected recipe scroll: it teaches its recipe and is used up.
+func _read_selected() -> void:
+	var p: Player = game.player
+	var id: String = p.bag[_selected]
+	var why: String = game.crafting.read_scroll(id)
+	_note = why if why != "" else Lang.t("Du hast das Rezept gelernt: %s.") % Lang.t(Crafting.RECIPES[Items.ALL[id].recipe].name)
+	_selected = -1
 	_rebuild()
 
 
@@ -2094,6 +2106,8 @@ func _build_shop() -> void:
 	# belt can always be filled again (see Player.knives).
 	while game.shop_stock.count(Items.KNIFE) < Items.stack_size(Items.KNIFE):
 		game.shop_stock.push_front(Items.KNIFE)
+	# And a backpack of each kind, so a lost one can always be replaced.
+	Items.restock_backpacks(game.shop_stock)
 	# And a bedroll for a camp in the wild, for a hero who has none (see Camp).
 	if not game.shop_stock.has(Camp.ITEM) and not p.bag.has(Camp.ITEM) and not game.storage.has(Camp.ITEM):
 		game.shop_stock.push_front(Camp.ITEM)

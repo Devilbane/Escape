@@ -1,0 +1,2 @@
+- When you are knocked out, your backpack drops as a single bundle with everything in it, so one step gets it all back (the backpack first).
+- Dug-up finds and ingredients dropped by foes no longer vanish when you leave a place and come back.

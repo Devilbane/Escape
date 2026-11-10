@@ -75,6 +75,10 @@ const HAZE := Color(0.66, 0.68, 0.72)
 ## (real seconds).
 const FADE := 5.0
 
+## Every night is a little dusty: the mist at its thinnest, this share of
+## the thickness of real fog, fading in at dusk and out at dawn.
+const NIGHT_DUST := 0.3
+
 ## Rain drops at full strength, and the box around the hero they fall in.
 const RAIN_DROPS := 700
 const RAIN_BOX := Vector3(22, 0.5, 16)
@@ -86,6 +90,12 @@ const MIST_PATCHES := 28
 ## they take to dry up again.
 const PUDDLE_FILL_HOURS := 0.8
 const PUDDLE_DRY_HOURS := 3.0
+
+
+## The mist of a look with the night's dust added (see NIGHT_DUST). The dust
+## never piles on real fog: the thicker of the two wins.
+static func dusty_mist(weather_look: Dictionary, hour: float) -> float:
+	return maxf(float(weather_look.mist), NIGHT_DUST * DayNight.glow_at(hour))
 
 
 ## The part of the day the chances go by.

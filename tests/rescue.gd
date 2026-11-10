@@ -108,12 +108,12 @@ func _process(delta: float) -> bool:
 			check(player.hero_level() == 3 and player.hero_xp == HeroLevel.total_for(3), "amnesia: the progress towards the next level is forgotten, the level stays (%d)" % player.hero_xp)
 			var here: Array = game.level.floor_items
 			var packs := _bundles(here)
-			check(packs.size() == 2, "the bag and the ingredient pouch lie on the floor (%d)" % packs.size())
-			var bags := packs.filter(func(e): return not Rescue.is_pouch(e))
-			var pouches := packs.filter(func(e): return Rescue.is_pouch(e))
+			check(packs.size() == 1, "the backpack, bag and pouch lie on the floor as ONE bundle (%d)" % packs.size())
+			var bags := packs
+			var pouches := packs
 			check(bags.size() == 1 and _flat(Vector3(float(bags[0][2]), 0, float(bags[0][3])), fell_at) < 0.5, "the bag lies where the hero fell")
 			check(bags.size() == 1 and str(bags[0][4].get("backpack", "")) == "leinenrucksack" and bags[0][4].get("bag", []).size() == 3, "the bag holds the backpack and the gear")
-			check(pouches.size() == 1 and _flat(Vector3(float(pouches[0][2]), 0, float(pouches[0][3])), fell_at) < 1.5, "the ingredient pouch lies beside it")
+			check(pouches.size() == 1 and not Rescue.is_pouch(pouches[0]), "the pouch is inside the same bundle")
 			check(pouches.size() == 1 and int(pouches[0][4].pouch.get(HERB, 0)) == 3, "the pouch holds the ingredients")
 			var piles := here.filter(func(e): return e is Array and str(e[0]) == "coin")
 			check(piles.size() == 1 and CoinPile.count_of(piles[0]) == 57, "the coins lie in a pile beside it")
@@ -136,15 +136,14 @@ func _process(delta: float) -> bool:
 			check(game.level_index == 0, "the hero wakes on the floor of the bed (%d)" % game.level_index)
 			check(not player.dead and player.hp == player.max_hp, "with full life")
 			check(game.lore.has(Rescue.LORE), "the compendium explains the rescue")
-			check(_bundles(game.floors.get(fell_file, [])).size() == 2, "the bag and the pouch still lies on the floor where the hero fell")
+			check(_bundles(game.floors.get(fell_file, [])).size() == 1, "the bundle still lies on the floor where the hero fell")
 			var saved: Dictionary = game._read_save()
 			check(int(saved.get("coins", -1)) == 0, "the game is saved after the rescue")
-			check(_bundles(saved.get("floors", {}).get(fell_file, [])).size() == 2, "the saved game keeps the bag and the pouch")
+			check(_bundles(saved.get("floors", {}).get(fell_file, [])).size() == 1, "the saved game keeps the bundle")
 			# Back to the spot.
 			game.load_level(2, false)
 			game.state = game.State.PLAYING
-			check(game.level.find_children("Bundle", "", true, false).size() == 1, "the bag is laid out again")
-			check(game.level.find_children("Pouch", "", true, false).size() == 1, "the pouch is laid out again")
+			check(game.level.find_children("Bundle", "", true, false).size() == 1, "the bundle is laid out again")
 			_put_hero(fell_at + Vector3(6, 0, 0))
 			clock = 0.0
 			stage = 3
@@ -163,6 +162,12 @@ func _process(delta: float) -> bool:
 			check(game.coins == 57, "the coins come back, not doubled (%d)" % game.coins)
 			check(player.equipped.get("rucksack", "") == "leinenrucksack", "the backpack is worn again")
 			check(_bundles(game.level.floor_items).is_empty(), "the empty pack is gone")
+			# A find on the ground is still there after leaving and coming back.
+			game.level.lay_find(HERB, player.global_position + Vector3(8, 0, 0), Color(0.5, 0.8, 0.3), 2)
+			check(game.level.floor_items.any(func(e): return e is Array and str(e[0]) == "find"), "a find lies on the floor list")
+			game.load_level(2, false)
+			game.state = game.State.PLAYING
+			check(game.level._pickups.any(func(q): return q.kind == "ingredient" and q.ingredient == HERB and int(q.count) == 2), "the find is laid out again after a revisit")
 			# On the surface an eagle comes.
 			game.escaped = true
 			game.load_level(game._outdoor_index(), false)

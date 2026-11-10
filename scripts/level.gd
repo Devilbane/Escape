@@ -224,7 +224,8 @@ var taken := {}
 ## props, chests, people, traps or hidden finds.
 var grates := {}
 ## What lies about on the floor here: gear the hero dropped, loot from the
-## fallen and spilt coins, as [kind ("item" or "coin"), item id, x, z] each;
+## fallen and spilt coins, as [kind ("item" or "coin"), item id, x, z] each, a dug-up
+## find or a foe's ingredients as ["find", id, x, z, count, loot, colour];
 ## a pile of coins also has its count and how many the hero put down
 ## (["coin", metal, x, z, count, own], see CoinPile).
 ## The game hands in its own list for this level and keeps it in the saved
@@ -4361,7 +4362,7 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 			# Gear that suits the place; the bosses' own fights stay as they were made.
 			var id := Items.random_item(rng, 0, "", 0 if HeroLevel.FIXED.has(kind) else HeroLevel.place_level(self), {}, 0 if beginner_dungeon else tier_rank("gottgeboren"))
 			var slot: String = Items.ALL[id].slot
-			if slot != "spezial" and slot != "buch" and not gear.any(func(g): return Items.ALL[g].slot == slot):
+			if slot != "spezial" and slot != "buch" and slot != "rolle" and not gear.any(func(g): return Items.ALL[g].slot == slot):
 				gear.append(id)
 				break
 	return gear
@@ -4744,7 +4745,13 @@ func lay_find(id: String, pos: Vector3, colour := Color(0.55, 0.75, 0.35), count
 	holder.position = Vector3(pos.x, 0.8, pos.z)
 	add_child(holder)
 	holder.add_child(Effects.make_sparkles(colour.lightened(0.4)))
-	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6, "count": count, "loot": loot})
+	var pickup := {"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6, "count": count, "loot": loot}
+	# Kept on the floor list, so it is still there after the hero walks off
+	# and comes back: ["find", id, x, z, count, loot, colour as html].
+	var entry := _remember_on_floor("find", id, pos)
+	entry.append_array([count, loot, colour.to_html()])
+	pickup.floor = entry
+	_pickups.append(pickup)
 
 
 ## The pouch coins of one metal (see Loot.COINS) a fallen foe leaves: they
@@ -4931,6 +4938,11 @@ func restore_floor() -> void:
 		var pos := Vector3(float(entry[2]), 0, float(entry[3]))
 		if str(entry[0]) == "coin":
 			_coin_pile(pos, CoinPile.count_of(entry), CoinPile.metal_of(str(entry[1])), CoinPile.own_of(entry))
+		elif str(entry[0]) == "find":
+			# A dug-up find or a foe's ingredients: back on the ground as it lay.
+			if entry.size() < 7 or not Crafting.INGREDIENTS.has(str(entry[1])):
+				continue
+			lay_find(str(entry[1]), pos, Color.html(str(entry[6])), int(entry[4]), bool(entry[5]))
 		elif Rescue.is_bundle(entry):
 			_bundle_pickup(entry)
 		elif str(entry[1]) == Items.KNIFE:

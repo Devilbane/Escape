@@ -62,6 +62,7 @@ floor_packs.gd | 120 | free | pass | Floor packs test
 thrown_knives.gd | 120 | free | pass | Thrown knives test
 dragon_hoard.gd | 120 | free | pass | Dragon's helpers and hoard test
 torch_stacks.gd | 120 | fixed | pass | Torch stacks test
+shop_backpacks.gd | 60 | free | pass | The shopkeeper always has backpacks for sale
 torch_button.gd | 120 | fixed | pass | Torch button test (lit on request only)
 healing_potions.gd | 300 | fixed | PASS:_healing_potions | Healing potions test (brewed by potency, button left of the torch, once a minute)
 save_slots.gd | 120 | free | pass | Several saved games test
@@ -184,6 +185,7 @@ hero_name_tag.gd | 120 | fixed | passfail | hero's name over the head: a new gam
 house_faces.gd | 120 | fixed | passfail | village houses (see VillageHouse): every face of a
 ignition.gd | 120 | fixed | passfail | Headless test for fireballs (see Ignition): flammable monsters catch fire
 jewellery_stacks.gd | 120 | fixed | passfail | small things stack and the biggest backpack holds 20
+epic_backpack.gd | 120 | fixed | passfail | the epic 24-slot satchel: scroll loot, recipe, 24 slots
 launcher.gd | 120 | fixed | passfail | Windows launcher (scripts/launcher.gd): what it does with the
 loot.gd | 120 | fixed | passfail | loot of fallen monsters (see Loot and
 message_over_head.gd | 120 | fixed | passfail | messages float just over the hero's head and are written
@@ -226,4 +228,5 @@ goat_model.gd | 60 | free | passfail | The village goats are the sheep model dre
 red_goat.gd | 120 | fixed | passfail | Red-horned goat (winds up and shouts, bumps without harm, retreats after 3 bumps, 10 minute cooldown, cannot be hurt)
 townsfolk_steps.gd | 60 | free | pass | Townsfolk footsteps (ground, volume, distance and crowd cap)
 log_out_quits.gd | 120 | fixed | passfail | Sleep and log out saves first, then closes the game
+window_spill.gd | 60 | free | pass | Lit windows throw a pool of light on the ground (see WindowSpill)
 glowworm_swarms.gd | 120 | fixed | passfail | glowworm swarms roaming the open air at night (more in the village, none by day or indoors)

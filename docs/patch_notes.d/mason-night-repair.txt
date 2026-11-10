@@ -1,0 +1,2 @@
+- The stonemason now repairs a damaged village wall at night too, and goes back to bed once it is whole.
+- The stonemason's wall repair now makes a soft, short stony tap instead of a harsh blow.

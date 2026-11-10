@@ -1,0 +1,1 @@
+- Townsfolk now make quiet footsteps that fit the ground they walk on, and splash in puddles; far away ones stay silent.

@@ -1,0 +1,1 @@
+- Write "teleport" in the chat line to list every place with a 5-letter code, then write a code to be taken to that place's entrance.

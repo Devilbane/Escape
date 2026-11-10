@@ -1,0 +1,1 @@
+- Only slimes and blobs of level 20 or higher eat into the village wall now; smaller ones leave it alone.

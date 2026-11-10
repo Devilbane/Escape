@@ -583,8 +583,10 @@ static func chance(game: Node) -> int:
 
 ## Forges a new piece: pays for it, rolls a d100 (see chance) and puts the
 ## piece into the bag on a success. Returns "" when the hero went through
-## with it, success or not (see `last` for which), else why not.
-static func forge(game: Node, id: String) -> String:
+## with it, success or not (see `last` for which), else why not. Gorm's own
+## work (`by_smith`) never fails: he knows his craft, so there is no roll; the
+## chance is for the hero forging by hand.
+static func forge(game: Node, id: String, by_smith := false) -> String:
 	var p: Player = game.player
 	var cost := forge_cost(id, game)
 	if craft_level(game, FORGING) < forge_level(id):
@@ -604,9 +606,9 @@ static func forge(game: Node, id: String) -> String:
 		for _i in cost.ore:
 			p.bag.append(THUNDER_ORE)
 		return Lang.t("Deine Tasche ist voll.")
-	var percent := chance(game)
-	var roll := rigged_roll if rigged_roll > 0 else randi_range(1, 100)
-	var success := roll <= percent
+	var percent := 100 if by_smith else chance(game)
+	var roll := 1 if by_smith else (rigged_roll if rigged_roll > 0 else randi_range(1, 100))
+	var success := by_smith or roll <= percent
 	var lost_iron: int = cost.iron if success else ceili(cost.iron / 2.0)
 	var lost_steel: int = cost.steel if success else ceili(cost.steel / 2.0)
 	game.iron -= lost_iron

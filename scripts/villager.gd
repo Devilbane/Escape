@@ -524,8 +524,18 @@ func _mend(delta: float) -> void:
 		return
 	# Shoved off his place: back to the wall.
 	var spot := wall.stand_of(level, brick)
-	if Vector2(global_position.x - spot.x, global_position.z - spot.z).length() > 1.6:
-		_walk_to(spot, WALK_SPEED, "mend")
+	var off := Vector2(global_position.x - spot.x, global_position.z - spot.z)
+	if off.length() > 1.6:
+		if level.world_to_cell(global_position) == level.world_to_cell(spot):
+			# Already on the spot's tile there is no path to walk (see _walk_to):
+			# step straight to the spot, or he would stand there doing nothing.
+			var to := spot - global_position
+			to.y = 0.0
+			play("Walking_A")
+			_move_to(global_position + to.normalized() * minf(to.length(), _stride("Walking_A", WALK_SPEED) * delta))
+			_turn_to(to, delta)
+		else:
+			_walk_to(spot, WALK_SPEED, "mend")
 		return
 	_turn_to(brick.nearest_point(global_position) - global_position, delta)
 	var work: String = _info.work

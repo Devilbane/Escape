@@ -274,6 +274,18 @@ func _run() -> void:
 	lvl.night = false
 	mason.set_night(false)
 
+	# A mason on the right tile but too far from his spot still goes to work (he used to stand there walking on the spot).
+	brick.hurt(300)
+	west.mend(float(WallBrick.MAX_HP))
+	mason.mend(brick)
+	var spot := wall.stand_of(lvl, brick)
+	mason.global_position = spot + Vector3(1.9, 0, 0)
+	var hp_then := brick.hp
+	await _wait(150)
+	check(brick.hp > hp_then and mason.global_position.distance_to(spot) < 1.7, "a mason on the spot's tile but off his spot steps to it and mends")
+	brick.mend(float(WallBrick.MAX_HP))
+	mason._finish_mending()
+
 	# The woodcutter lends a hand by day, on a different brick from the mason's.
 	var cutter: Villager = null
 	for v in lvl.villagers:

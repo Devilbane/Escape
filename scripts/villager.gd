@@ -480,6 +480,8 @@ var _settling := false
 
 func _start(task: String, time: float) -> void:
 	_task = task
+	if task != "mend":
+		_wield_wall_hammer(false)
 	# Mending goes on until the brick is whole (see _mend), not for a set time.
 	_task_time = 600.0 if task in ["mend", "defend"] else time
 	_work_pause = 0.0
@@ -489,17 +491,18 @@ func _start(task: String, time: float) -> void:
 
 # --- Mending the village wall -------------------------------------------------
 
-## The brick of the village wall the stonemason is on his way to or mending.
+## The brick of the village wall the stonemason (or the woodcutter, who lends a hand, 50% faster together) is on his way to or mending.
 var mend_brick: WallBrick = null
 
 
-## Whether the stonemason is free to see to the wall: out at his work or just
+## Whether the villager is free to see to the wall: out at his work or just
 ## standing about, not running from a slime or listening to the herald.
+## The stonemason and the woodcutter mend; only the mason is called out of bed.
 func can_mend() -> bool:
-	if role != "S" or eaten or threat != null:
+	if not role in VillageWall.MENDERS or eaten or threat != null:
 		return false
-	# Asleep at night he is called out for a hurt wall (see works_late).
-	if (at_home or not visible) and not (night and at_home and level.village_wall.job(level) != null):
+	# Asleep at night the mason is called out for a hurt wall (see works_late).
+	if (at_home or not visible) and not (role == "S" and night and at_home and level.village_wall.job(level) != null):
 		return false
 	if mend_brick != null and _task in ["walk", "mend"]:
 		return false
@@ -525,25 +528,63 @@ func _mend(delta: float) -> void:
 		return
 	# Shoved off his place: back to the wall.
 	var spot := wall.stand_of(level, brick)
-	if Vector2(global_position.x - spot.x, global_position.z - spot.z).length() > 1.6:
-		_walk_to(spot, WALK_SPEED, "mend")
+	var off := Vector2(global_position.x - spot.x, global_position.z - spot.z)
+	if off.length() > 1.6:
+		if level.world_to_cell(global_position) == level.world_to_cell(spot):
+			# Already on the spot's tile there is no path to walk (see _walk_to):
+			# step straight to the spot, or he would stand there doing nothing.
+			var to := spot - global_position
+			to.y = 0.0
+			play("Walking_A")
+			_move_to(global_position + to.normalized() * minf(to.length(), _stride("Walking_A", WALK_SPEED) * delta))
+			_turn_to(to, delta)
+		else:
+			_walk_to(spot, WALK_SPEED, "mend")
 		return
 	_turn_to(brick.nearest_point(global_position) - global_position, delta)
 	var work: String = _info.work
+	# The woodcutter lends a hand with a hammer, not his axe: the one-handed
+	# hammer blow, the same swing the smith's hammer makes.
+	if role == "3":
+		work = "1H_Melee_Attack_Chop"
+		_wield_wall_hammer(true)
 	if not (_anim.is_playing() and _current_anim == work):
 		_current_anim = work
 		_anim.play(work, 0.15)
 		get_tree().create_timer(0.45).timeout.connect(func():
 			if is_inside_tree() and _task == "mend":
 				Sfx.play(self, "step_scree_%d" % _rng.randi_range(0, 5), -17.0, global_position, 1.5))
-	if brick.mend(VillageWall.MEND_PER_SECOND * delta):
+	if brick.mend(VillageWall.MEND_PER_SECOND * wall.pace(level, self) * delta):
 		_finish_mending()
+
+
+## The woodcutter swaps his axe for a hammer while he mends the wall, and back.
+func _wield_wall_hammer(on: bool) -> void:
+	if role != "3" or _model == null:
+		return
+	var hammer := _model.find_child("WallHammer", true, false) as Node3D
+	var axe := _model.find_child("2H_Axe", true, false) as Node3D
+	if on and hammer == null:
+		var slot := _model.find_child("1H_Axe", true, false) as Node3D
+		if slot == null:
+			return
+		hammer = VillageProps.smith_hammer(slot.get_parent())
+		hammer.name = "WallHammer"
+		hammer.transform = slot.transform
+	if hammer != null:
+		hammer.visible = on
+	if axe != null:
+		axe.visible = not on
 
 
 ## The brick is whole (or the work cannot go on): the next hurt brick, else back to his stand.
 func _finish_mending() -> void:
 	mend_brick = null
-	var next := level.village_wall.job(level)
+	var taken: Array[WallBrick] = []
+	for v: Villager in level.villagers:
+		if v != self and v.mend_brick != null and is_instance_valid(v.mend_brick):
+			taken.append(v.mend_brick)
+	var next := level.village_wall.job_for(level, role, taken)
 	if next != null and can_mend_next():
 		mend(next)
 	else:

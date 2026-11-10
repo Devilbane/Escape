@@ -25,12 +25,12 @@ const STONE := 1.0
 const WOOD := 1.0
 
 ## The KayKit models that are weathered when placed (see Outdoor._put), and
-## what grey is on each. Models not listed keep their own look.
+## what grey is on each (the bench is stone, so its grey is lichen and moss, not rust). Models not listed keep their own look.
 const MODELS := {
 	"barrel": IRON, "crate_A_big": IRON, "crate_long_A": IRON, "crate_open": IRON,
 	"sack": IRON, "wheelbarrow": IRON, "bucket_water": IRON, "resource_lumber": IRON,
 	"tree_single_A_cut": IRON, "weaponrack": IRON, "flag_red": IRON, "flag_blue": IRON,
-	"tent": IRON, "bench": IRON,
+	"tent": IRON, "bench": STONE,
 	"resource_stone": STONE, "rock_single_A": STONE, "rock_single_C": STONE, "rock_single_E": STONE,
 	"pumpkin_orange": FRESH, "pumpkin_orange_jackolantern": FRESH, "pumpkin_yellow_small": FRESH,
 }

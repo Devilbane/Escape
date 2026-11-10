@@ -1,0 +1,1 @@
+- Slimes and blobs now do 80% less damage to the village wall.

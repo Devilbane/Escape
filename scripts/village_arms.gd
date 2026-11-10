@@ -13,12 +13,31 @@ const AXE := "res://assets/weapons/axe_1handed.gltf"
 const DAGGER := "res://assets/weapons/dagger.gltf"
 ## The smith keeps the hammer already in his hand (see Villager._draw_blade).
 const HAMMER := "hammer"
+## Zarek's staff: a level 50 mage who fights from a distance (see CASTERS).
+const STAFF := "res://assets/weapons/Skeleton_Staff.gltf"
 
 ## Roles with their own weapon; everyone else takes a sword.
-const WEAPONS := {"4": SWORD, "K": SWORD, "1": HAMMER, "3": AXE, "S": AXE, "G": AXE, "0": DAGGER, "8": DAGGER, "7": DAGGER}
+const WEAPONS := {"4": SWORD, "K": SWORD, "1": HAMMER, "3": AXE, "S": AXE, "G": AXE, "0": DAGGER, "8": DAGGER, "7": DAGGER, "%": STAFF}
 ## Roles that do not stand toe to toe: Pip throws knives, the priestess heals.
 const THROWERS := ["7"]
 const HEALERS := ["O"]
+## Zarek the wandering merchant is a level 50 mage: he hurls spells at every
+## slime he sees (see Villager._cast_spell) and keeps his distance.
+const CASTERS := ["%"]
+## How far he sees a slime to attack, how far he casts from, how close a
+## slime may come before he steps back, and the pause between two spells.
+const CAST_HUNT := 13.0
+const CAST_RANGE := 10.0
+const CAST_KEEP_AWAY := 4.0
+const CAST_TIME := 2.0
+## Zarek stays near his wagon: he steps at most this far from his pitch to
+## cast, and only goes for slimes within CAST_HUNT of it.
+const CAST_LEASH := 5.0
+## An arcane bolt costs a slime this many times his blow (Villager.blow);
+## every CAST_FIRE_EVERY-th spell is a fireball worth FIRE_FACTOR blows.
+const BOLT_FACTOR := 2
+const FIRE_FACTOR := 3
+const CAST_FIRE_EVERY := 3
 
 ## How far a knife is thrown from, how often, and what it costs the slime
 ## on top of the thrower's own blow (a little shot, see SlimeCoat.absorb).
@@ -30,12 +49,14 @@ const KNIFE_BONUS := 0
 const SUPPORT_DISTANCE := 7.0
 
 
-## How `role` fights: "melee", "throw" or "heal".
+## How `role` fights: "melee", "throw", "cast" or "heal".
 static func style(role: String) -> String:
 	if role in HEALERS:
 		return "heal"
 	if role in THROWERS:
 		return "throw"
+	if role in CASTERS:
+		return "cast"
 	return "melee"
 
 

@@ -2,6 +2,8 @@ extends RefCounted
 ## English texts: The wandering merchant. Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
+	"Feuerball!": "Fireball!",
+	"Arkanblitz!": "Arcane bolt!",
 	"Wanderhändler Zarek": "Zarek the Wandering Merchant",
 	"Wanderhändler": "Wandering Merchant",
 	"Psst! Waren aus fernen Ländern, nur heute Nacht!": "Psst! Wares from faraway lands, tonight only!",

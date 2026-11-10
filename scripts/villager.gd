@@ -720,8 +720,9 @@ const GIVE_UP := 14.0
 const FIGHTING_SHELTERERS := ["O", "G", "7"]
 ## The villagers' levels: the guard, the guild master and the smith at the
 ## top, the mages and the priestess close behind, the women and the child
-## at the bottom.
-const LEVELS := {"4": 20, "G": 20, "1": 18, "O": 18, "0": 17, "K": 16, "3": 16, "S": 16, "8": 15, "%": 15,
+## at the bottom. Zarek the wandering merchant (level 50) is a mage far above
+## them all: 250 life and spells that cost a slime dozens of points.
+const LEVELS := {"4": 20, "G": 20, "1": 18, "O": 18, "0": 17, "K": 16, "3": 16, "S": 16, "8": 15, "%": 50,
 	"Y": 12, "5": 12, "Z": 12, "M": 12, "2": 11, "6": 11, "9": 11, "7": 10}
 const DEFAULT_LEVEL := 12
 ## Townsfolk are made to put up a real fight against a slime of level 20 and
@@ -829,7 +830,7 @@ func alarm(slime: Enemy, called := false) -> void:
 	if (threat == slime or not brave) and _task in ["fight", "hide"] or (_task == "walk" and get_meta("then", "") == "hide"):
 		return
 	# Too big for anyone in the village: all run indoors.
-	var too_big := VillageAlarm.too_big(slime)
+	var too_big := VillageAlarm.too_big(slime) and VillageArms.style(role) != "cast"
 	if too_big and _task == "hide":
 		return
 	_reach = VillageAlarm.CALL_REACH if called else GIVE_UP
@@ -916,8 +917,18 @@ func _fight(delta: float) -> void:
 	to.y = 0.0
 	_turn_to(to, delta)
 	var throws := VillageArms.style(role) == "throw"
-	var reach := VillageArms.THROW_RANGE if throws else BLOW_REACH + threat.radius
-	if to.length() > reach or (throws and not level.has_line_of_sight(global_position, threat.global_position)):
+	var casts := VillageArms.style(role) == "cast"
+	var reach := VillageArms.CAST_RANGE if casts else VillageArms.THROW_RANGE if throws else BLOW_REACH + threat.radius
+	if casts and to.length() < VillageArms.CAST_KEEP_AWAY:
+		# The mage steps back from a slime that gets too close.
+		var back := -to.normalized() * _stride("Running_A", RUN_SPEED) * delta
+		_move_to(global_position + back)
+		_turn_to(to, delta)
+	if casts and to.length() > reach and _past_the_leash():
+		# Out of range and he will not leave his wagon: let it go.
+		calm_down()
+		return
+	if to.length() > reach or ((throws or casts) and not level.has_line_of_sight(global_position, threat.global_position)):
 		# Round the houses on the village's ways when it is further off.
 		_fight_repath -= delta
 		if _fight_repath <= 0.0:
@@ -943,6 +954,9 @@ func _fight(delta: float) -> void:
 		if not _anim.is_playing() or _current_anim != "1H_Melee_Attack_Chop":
 			play("Idle")
 		return
+	if casts:
+		_cast_spell()
+		return
 	if throws:
 		_throw_knife()
 		return
@@ -959,6 +973,63 @@ func _fight(delta: float) -> void:
 		slime.hit_by_rival(blow(), null)
 		if SlimeCoat.sticks(slime):
 			SlimeGrowth.goo_for_a_while(self, slime.slime_colour()))
+
+
+var _casts := 0
+
+
+## Whether the mage is as far from his wagon (his pitch, see home) as he goes.
+func _past_the_leash() -> bool:
+	var post := level.cell_to_world(home)
+	return Vector2(global_position.x - post.x, global_position.z - post.z).length() >= VillageArms.CAST_LEASH
+
+
+## Zarek's spell at the slime he fights: an arcane bolt, every third time a
+## fireball (see VillageArms). They fly as magic shots with their own glow and
+## the game's magic sound, and cost the slime a multiple of his blow.
+func _cast_spell() -> void:
+	_blow_cool = VillageArms.CAST_TIME
+	_casts += 1
+	var fiery := _casts % VillageArms.CAST_FIRE_EVERY == 0
+	_current_anim = "Spellcast_Shoot"
+	_anim.play("Spellcast_Shoot", 0.1)
+	say(Lang.t("Feuerball!") if fiery else Lang.t("Arkanblitz!"), Vector3.INF, 1.5)
+	var slime := threat
+	get_tree().create_timer(0.3, false, true).timeout.connect(func():
+		if eaten or not is_inside_tree() or slime == null or not is_instance_valid(slime) or slime.dead:
+			return
+		Sfx.play(self, "magic", -2.0, global_position, 0.8 if fiery else 1.0)
+		var origin := global_position + Vector3(0, 1.4, 0)
+		var shot := Projectile.spawn(level, origin, slime.global_position + Vector3(0, 1.2, 0) - origin, false, true, fiery)
+		shot.damage = blow() * VillageArms.BOLT_FACTOR
+		shot.fire_damage = blow() * VillageArms.FIRE_FACTOR
+		shot.foe = slime
+		shot.at_rival = true)
+
+
+## Zarek goes for every slime he sees, not only for one that goes for him
+## (see alarm): a level 50 mage does not wait to be bitten.
+func _hunt_slimes(delta: float) -> void:
+	if VillageArms.style(role) != "cast" or threat != null or eaten or at_home or not visible or _task in ["fight", "hide"]:
+		return
+	_calm_check -= delta
+	if _calm_check > 0.0:
+		return
+	_calm_check = 0.5
+	var best: Enemy = null
+	var best_d := VillageArms.CAST_HUNT
+	for e in level.enemies:
+		if not is_instance_valid(e) or e.dead or not e.is_inside_tree() or not SlimeGrowth.grows(e.kind):
+			continue
+		var d: float = e.global_position.distance_to(global_position)
+		var post := level.cell_to_world(home)
+		if Vector2(e.global_position.x - post.x, e.global_position.z - post.z).length() > VillageArms.CAST_HUNT:
+			continue
+		if d < best_d and level.has_line_of_sight(global_position, e.global_position):
+			best = e
+			best_d = d
+	if best != null:
+		alarm(best, true)
 
 
 ## Pip's throw: a knife at the slime, then a pause (see VillageArms).
@@ -1259,6 +1330,7 @@ func _physics_process(delta: float) -> void:
 	_update_bubble(delta)
 	var hero: Node3D = level.player
 	_cast_fireball(delta)
+	_hunt_slimes(delta)
 	if _bubble_time > 0.0 and _look_at != Vector3.INF:
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:

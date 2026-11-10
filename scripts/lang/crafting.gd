@@ -2,6 +2,10 @@ extends RefCounted
 ## English texts: Recipes, ingredients and crafts (see Crafting). Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
+	"Platz für 24 Dinge: der größte Rucksack": "Room for 24 things: the biggest backpack",
+	"Drei Drachenschuppen, übereinandergelegt wie Dachziegel.": "Three dragon scales, laid over each other like roof tiles.",
+	"Vier Barren Eisen für Rahmen, Schnallen und Riemen.": "Four iron bars for the frame, buckles and straps.",
+	"Eine geübte Hand: Feinschmieden, Stufe 4.": "A practised hand: Fine metalwork, level 4.",
 	"Mondsilbererz": "Moonsilver ore",
 	"Eine Ader in der Wildnis, die nur bei Nacht schimmert.": "A vein in the wild that only shimmers at night.",
 	"Mondstein": "Moonstone",

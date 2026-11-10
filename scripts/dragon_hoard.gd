@@ -32,7 +32,7 @@ extends RefCounted
 ## One's share, and what tonight brought (for the line at dawn).
 
 ## Slots of things that burn in the dragon's fire, and gear materials that do.
-const BURNS_SLOTS := ["buch", "kiste", "futter", "licht"]
+const BURNS_SLOTS := ["buch", "rolle", "kiste", "futter", "licht"]
 const BURNS_MATERIALS := ["cloth", "leather", "fur"]
 ## Slots of things the dragon does not melt or burn: things carried for a
 ## villager's task go whole to the Great Old One (like the unique pieces),

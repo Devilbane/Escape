@@ -50,7 +50,10 @@ extends RefCounted
 
 ## The kinds that grow. The Maw ("schlund") is a horror: it stays as it is.
 const GROWERS := ["schleim", "kristallschleim", "glutschleim"]
-const MAX_LEVEL := 25
+## The highest level a slime can grow to, by eating and merging.
+const MAX_LEVEL := 40
+## The highest level a slime is born at; only eating and merging lift it above.
+const BIRTH_MAX := 25
 const BLOB_LEVEL := 15
 ## How many times the life a Blob has (half of the former 15).
 const BLOB_LIFE := 7.5
@@ -121,7 +124,7 @@ const PLAIN := Color(0.36, 0.78, 0.26)
 ## How close two slimes' bodies come before they flow into one.
 const MERGE_GAP := 0.5
 ## Into the compendium the first time the hero sees a slime swallow something.
-const LEARN := "Schleime wachsen: Ein Schleim fällt über jedes Wesen her, das er verschlingen kann, und er wittert die Toten von weitem und geht lieber an eine Leiche als an etwas Lebendiges. Was er erlegt, schluckt er ganz, samt allem, was es bei sich trug, und wird davon größer und stärker, bis Stufe 25. Ab Stufe 15 ist er ein Blob: Er funkelt, schlägt härter zu und vergiftet öfter. Fällt er, gibt er alles wieder her, was er verschluckt hat. Zwei Schleime, die einander bemerken, kriechen zueinander und fließen zu einem zusammen."
+const LEARN := "Schleime wachsen: Ein Schleim fällt über jedes Wesen her, das er verschlingen kann, und er wittert die Toten von weitem und geht lieber an eine Leiche als an etwas Lebendiges. Was er erlegt, schluckt er ganz, samt allem, was es bei sich trug, und wird davon größer und stärker, bis Stufe 40. Ab Stufe 15 ist er ein Blob: Er funkelt, schlägt härter zu und vergiftet öfter. Fällt er, gibt er alles wieder her, was er verschluckt hat. Zwei Schleime, die einander bemerken, kriechen zueinander und fließen zu einem zusammen."
 
 
 static func grows(kind: String) -> bool:
@@ -202,8 +205,8 @@ static func born(e: Enemy) -> void:
 		return
 	var extra: int = BIRTH_GROWTH[randi() % BIRTH_GROWTH.size()]
 	if extra > 0 and not fixed:
-		e.rated_level = Enemy.fit_level(e.kind, e._stats, e.hardening, mini(MAX_LEVEL, e.rated_level + extra), MAX_LEVEL)
-	e.rated_level = mini(e.rated_level, MAX_LEVEL)
+		e.rated_level = Enemy.fit_level(e.kind, e._stats, e.hardening, mini(BIRTH_MAX, e.rated_level + extra), BIRTH_MAX)
+	e.rated_level = mini(e.rated_level, BIRTH_MAX)
 	e._stats.size_jitter = randf_range(1.0 - SIZE_JITTER, 1.0 + SIZE_JITTER)
 	if is_blob_level(e.rated_level):
 		blob_up(e)
@@ -219,16 +222,16 @@ static func born(e: Enemy) -> void:
 
 
 ## The highest level a slime is born at where it lives: its area's top (see
-## HeroLevel.AREAS), the dungeon's top, or MAX_LEVEL.
+## HeroLevel.AREAS), the dungeon's top, or BIRTH_MAX.
 static func birth_top(e: Enemy) -> int:
 	if e.level == null:
-		return MAX_LEVEL
+		return BIRTH_MAX
 	var area := HeroLevel.area_of(e.level, e.kind)
 	if area != "":
-		return mini(int(HeroLevel.AREAS[area].max), MAX_LEVEL)
+		return mini(int(HeroLevel.AREAS[area].max), BIRTH_MAX)
 	if not e.level.outdoor and e.level.building == "":
 		return HeroLevel.DUNGEON_TOP
-	return MAX_LEVEL
+	return BIRTH_MAX
 
 
 ## The size this slime has now.

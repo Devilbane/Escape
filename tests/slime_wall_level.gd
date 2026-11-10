@@ -48,7 +48,7 @@ func _run() -> void:
 				e.global_position = Vector3(0, -50, 0)
 		lvl.day += 1
 		var s := lvl.spawn_slime("schleim", west.global_position + Vector3(-6, 0, 0), {})
-		s.rated_level = Enemy.fit_level(s.kind, s._stats, s.hardening, L, 25)
+		s.rated_level = Enemy.fit_level(s.kind, s._stats, s.hardening, L, SlimeGrowth.MAX_LEVEL)
 		var expect: bool = s.rated_level >= SlimeGrowth.WALL_LEVEL
 		if SlimeGrowth.can_besiege(s) != expect:
 			failures += 1

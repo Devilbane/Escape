@@ -9,6 +9,7 @@ chest_facing.gd | 60 | free | pass | Chests rest their back on the wall and open
 entrance_textures.gd | 120 | free | pass | Dungeon entrances are aged and textured
 merchant_placement.gd | 60 | free | pass | Merchants stand in the open middle of their room
 furniture_stuck.gd | 300 | fixed | passfail | Furniture blocks only where it is drawn (nobody gets stuck on it)
+village_clutter.gd | 60 | free | pass | Village heaps (barrels, crates, planks and carts never overlap)
 lang_keys.gd | 60 | free | pass | English texts (no German text translated twice)
 loot_text_size.gd | 60 | free | pass | Loot and experience text sized by worth
 jump_windup.gd | 120 | fixed | passfail | Jump wind-up (half a step first, called off by a hit)
@@ -220,4 +221,5 @@ woods_life.gd | 180 | fixed | pass | Woods wildlife (birds in the treetops, squi
 village_farm.gd | 300 | fixed | pass | Village geese, goats and dogs (wander, never block a door, bolt or greet, rest at night, Pip minds the goats)
 pips_friend.gd | 300 | fixed | pass | Pippi, Pip's red-haired friend with pigtails and freckles (herds geese and goats, plays and chats with Pip, blocks no way)
 villager_walls.gd | 120 | fixed | pass | Villagers never cross walls or shut gates
+goat_model.gd | 60 | free | passfail | The village goats are the sheep model dressed as goats (horns, red horns for the red-horned one, smooth coat)
 red_goat.gd | 120 | fixed | passfail | Red-horned goat (winds up and shouts, bumps without harm, retreats after 3 bumps, 10 minute cooldown, cannot be hurt)

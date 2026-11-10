@@ -125,7 +125,6 @@ const HERALD_EVERY_MAX := 240.0
 const HERALD_FIRST_MIN := 50.0
 const HERALD_FIRST_MAX := 75.0
 const GRAVES := ["grave_A", "grave_B", "gravestone", "gravemarker_A", "gravemarker_B", "grave_A_destroyed"]
-const PROPS := ["barrel", "crate_A_big", "sack", "wheelbarrow", "bucket_water", "resource_lumber", "resource_stone"]
 ## The village props come as table-top miniatures: this blows them up to
 ## the hero's size.
 const PROP_SCALE := 6.0
@@ -707,6 +706,16 @@ func _aabb_of(name: String) -> AABB:
 	return _aabbs[name]
 
 
+## Puts down a tidy arrangement of village goods on the tile at `pos` (see
+## VillageClutter) and blocks the ground it covers, `height` high.
+func _put_layout(pos: Vector3, layout: Array, height: float) -> void:
+	for item: Array in layout:
+		_put(item[0], pos + Vector3(item[1], 0, item[2]), item[3], item[4])
+	var box := VillageClutter.bounds(layout)
+	var middle := box.get_center()
+	_add_solid(pos + Vector3(middle.x, 0, middle.y), Vector3(box.size.x, height, box.size.y))
+
+
 func _jitter(amount: float) -> Vector3:
 	return Vector3(_rng.randf_range(-amount, amount), 0, _rng.randf_range(-amount, amount))
 
@@ -736,10 +745,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_put(tree, pos + _jitter(0.5), _rng.randf() * TAU, _rng.randf_range(1.1, 1.4))
 			_add_solid(pos, Vector3(1.4, 4, 1.4))
 		"p":
-			_put("pumpkin_orange_jackolantern", pos + Vector3(-0.4, 0, 0.2), _rng.randf_range(-0.5, 0.5))
-			_put("pumpkin_orange", pos + Vector3(0.9, 0, -0.5), _rng.randf() * TAU)
-			_put("pumpkin_yellow_small", pos + Vector3(0.6, 0, 0.9), _rng.randf() * TAU)
-			_add_solid(pos, Vector3(2.4, 1.2, 2.2))
+			_put_layout(pos, VillageClutter.PUMPKINS, 1.2)
 		"l":
 			_build_lantern(pos)
 		"r":
@@ -751,14 +757,9 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_tree(pos, true)
 			_add_solid(pos, Vector3(1.8, 4, 1.8))
 		"t":
-			_put("tree_single_A_cut", pos + Vector3(-0.6, 0, 0), _rng.randf() * TAU, PROP_SCALE)
-			_put("resource_lumber", pos + Vector3(0.9, 0, 0.6), 0.4, PROP_SCALE * 0.8)
-			_add_solid(pos, Vector3(2.6, 1.2, 2.6))
+			_put_layout(pos, VillageClutter.STUMP, 1.2)
 		"e":
-			for i in 3:
-				var prop: String = PROPS[_rng.randi() % PROPS.size()]
-				_put(prop, pos + Vector3(-1.0 + i, 0, _rng.randf_range(-0.8, 0.8)), _rng.randf() * TAU, PROP_SCALE)
-			_add_solid(pos, Vector3(3.2, 1.5, 2.6))
+			_put_layout(pos, VillageClutter.heap_for(level_name, c), 1.5)
 		"q":
 			_put("building_well_yellow", pos, 0.0, 5.0)
 			_add_solid(pos, Vector3(3.2, 2, 3.2))

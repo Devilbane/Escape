@@ -614,7 +614,7 @@ static func _in_doorway(at: Vector3, doors: Array, ground: float) -> bool:
 	return false
 
 
-## A vine across the roof (see `roof_vines`): it roots at the eaves, climbs the
+## A vine across the roof (see `roof_vines`): it roots at the ridge or the eaves, hugs that edge, climbs the
 ## slope and sends runners out sideways that then climb on, so the roof is
 ## covered in branching patterns with the tiles showing between, not in a carpet.
 static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Dictionary, windows: Array) -> void:
@@ -629,14 +629,21 @@ static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Diction
 		r2 = 1.0 - r2
 	var at: Vector3 = t.a + (t.b - t.a) * r1 + (t.c - t.a) * r2
 	var rn: Vector3 = t.n
-	var downhill := -(Vector3.UP - rn * rn.y).normalized()
+	# Ivy likes edges: a third of the vines root at the ridge and run along it, the
+	# rest at the eaves, where they first run along the edge before they climb.
+	var ridge := rng.randf() < 0.33
+	var slope := (Vector3.UP - rn * rn.y).normalized()
+	var step := slope if ridge else -slope
 	for i in 80:
-		var lower := _roof_at(roofs, at + downhill * 0.12, at.y - 0.5, at.y + 0.1)
-		if lower.is_empty():
+		var next_at := _roof_at(roofs, at + step * 0.12, at.y - 0.5, at.y + 0.5)
+		if next_at.is_empty():
 			break
-		at = lower.p
-		rn = lower.n
-	var tips: Array = [{"p": at, "n": rn, "drift": rng.randf_range(-0.5, 0.5), "run": 0, "dir": 1.0, "left": rng.randf_range(ROOF_VINE_LENGTH.x, ROOF_VINE_LENGTH.y)}]
+		at = next_at.p
+		rn = next_at.n
+		step = (Vector3.UP - rn * rn.y).normalized() * (1.0 if ridge else -1.0)
+	var run0 := rng.randi_range(BRANCH_RUN.x * 2, BRANCH_RUN.y * 2) if ridge else rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y)
+	var tips: Array = [{"p": at, "n": rn, "drift": rng.randf_range(-0.5, 0.5), "run": run0, "dir": 1.0 if rng.randf() < 0.5 else -1.0,
+			"left": run0 * 0.16 + (1.0 if ridge else rng.randf_range(ROOF_VINE_LENGTH.x, ROOF_VINE_LENGTH.y))}]
 	var done := 0
 	while done < tips.size() and done < 8:
 		var tip: Dictionary = tips[done]

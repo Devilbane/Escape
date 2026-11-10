@@ -51,6 +51,8 @@ func _bounds(node: Node3D) -> AABB:
 	var box := AABB()
 	var first := true
 	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		if mi.name == "WindowSpill":
+			continue # light on the ground, not part of the building (see WindowSpill)
 		var b: AABB = mi.global_transform * mi.get_aabb()
 		box = b if first else box.merge(b)
 		first = false

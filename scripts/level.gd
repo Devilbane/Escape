@@ -2703,6 +2703,8 @@ func stacked(a, b) -> bool:
 
 func _physics_process(delta: float) -> void:
 	_push_apart(delta)
+	if Engine.get_physics_frames() % Footprint.EVERY == 0:
+		Footprint.resolve(self)
 	if player is Player:
 		EmberCracks.scorch(self, player, delta)
 

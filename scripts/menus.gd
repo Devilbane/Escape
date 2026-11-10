@@ -3084,7 +3084,7 @@ func _build_smithy() -> void:
 					lines.append(Needs.line(Lang.t("Donnererz"), p.bag.count(Forge.THUNDER_ORE), int(cost.ore)))
 				if need > 0:
 					lines.append(Needs.line(Lang.t("Schmiedekunst Stufe"), level, need))
-				lines.append([Lang.t("Chance %d%% (W100). Bei Fehlschlag ist die Hälfte der Barren verloren.") % Forge.chance(game), TradeWindow.BLUE])
+				lines.append([Lang.t("Gorm schmiedet es dir sicher, ohne Fehlschlag."), TradeWindow.BLUE])
 				if not room:
 					lines.append([Lang.t("✗ Deine Tasche ist voll"), TradeWindow.RED])
 				if Forge.in_stock(game, id) > 0:
@@ -3241,13 +3241,11 @@ func _show_forge_tab(tab: String) -> void:
 
 
 func _forge(id: String) -> void:
-	var why := Forge.forge(game, id)
+	var why := Forge.forge(game, id, true)
 	if why != "":
 		_note = why
-	elif Forge.last.success:
-		_note = Lang.t("Wurf %d gegen %d%%: Geschmiedet! %s (%s)") % [Forge.last.roll, Forge.last.chance, Items.item_name(id), Items.describe(id)]
 	else:
-		_note = Lang.t("Wurf %d gegen %d%%: Fehlschlag! %d Barren sind verdorben.") % [Forge.last.roll, Forge.last.chance, Forge.last.lost]
+		_note = Lang.t("Geschmiedet: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 	if why == "":
 		Events.bus().traded.emit(game.trader_role)
 		Sfx.play(game, "hit" if Forge.last.success else "gear_metal_%d" % (randi() % 3))

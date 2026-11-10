@@ -147,15 +147,20 @@ func _run() -> void:
 	var xp0 := float(p.xp.get(Forge.FORGING, 0.0))
 	Forge.rigged_roll = 100
 	Forge.last = {}
-	game.menus._forge("eisenhaube")
+	Forge.forge(game, "eisenhaube")  # the hero's own hand: Gorm's menu never fails
 	check(not p.bag.has("eisenhaube") and not Forge.last.success and Forge.last.roll == 100, "a roll above the chance fails")
 	check(game.iron == 3 and game.coins == 300 - Forge.forge_cost("eisenhaube").gold, "a failure spoils half the iron and the gold is spent")
 	check(float(p.xp.get(Forge.FORGING, 0.0)) - xp0 == Forge.FAIL_XP, "a failure still trains the skill")
-	check(game.menus._note.contains("100"), "the note tells the roll: %s" % game.menus._note)
 	Forge.rigged_roll = 1
 	game.iron = 6
 	game.menus._forge("eisenhaube")
-	check(p.bag.has("eisenhaube") and Forge.last.success and Forge.last.roll == 1, "a roll within the chance succeeds")
+	check(p.bag.has("eisenhaube") and Forge.last.success, "a roll within the chance succeeds")
+	p.bag.clear()
+	game.iron = 6
+	Forge.rigged_roll = 100  # even a hopeless roll: at Gorm's menu forging always succeeds
+	game.menus._forge("eisenhaube")
+	check(p.bag.has("eisenhaube") and Forge.last.success and game.iron == 6 - Forge.forge_cost("eisenhaube").iron, "Gorm's forging never fails and costs the full price")
+	Forge.rigged_roll = 1
 	game.coins = 300
 	p.bag.assign(["ritterhelm"])
 

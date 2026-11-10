@@ -1919,6 +1919,9 @@ func refresh_stats() -> void:
 		base_speed *= SlimeCoat.SLOW
 	if ailments.has(BloatedBelly.KIND):
 		base_speed *= BloatedBelly.SLOW
+	# Last, so it stacks on everything above (gear, gifts, ailments).
+	if godmode:
+		base_speed *= Godmode.SPEED_FACTOR
 	hp = mini(hp, max_hp)
 	# The tunic is dressed on the plain body; the belly swells over it after.
 	BloatedBelly.swell(_model, false)
@@ -2085,6 +2088,15 @@ func is_afraid() -> bool:
 
 ## Whether nothing can hurt the hero now: the run to the village after the
 ## crypt (see VillageRun).
+## Godmode (the chat command, see Godmode): no harm lands and the pace is tripled.
+var godmode := false
+
+
+## Whether no harm can land: the village run's shield or godmode.
+func shielded() -> bool:
+	return godmode or protected()
+
+
 func protected() -> bool:
 	return ailments.has(VillageRun.KIND)
 
@@ -2180,7 +2192,7 @@ func _tick_ailments(delta: float) -> void:
 		_poison_tick -= delta
 		if _poison_tick <= 0.0:
 			_poison_tick = POISON_TICK
-			if hp > 1 and not protected():
+			if hp > 1 and not shielded():
 				hp -= 1
 				train("konstitution", 1.0)
 				Effects.head_text(level, self, 2.2, "-1", AILMENT_COLORS.gift)
@@ -2193,7 +2205,7 @@ func _tick_ailments(delta: float) -> void:
 			BloodDrops.drip(level, global_position, 1.0, way)
 		var lost := wound.run(delta, moving)
 		if lost > 0:
-			var taken := 0 if protected() else mini(lost, hp - 1)
+			var taken := 0 if shielded() else mini(lost, hp - 1)
 			if taken > 0:
 				hp -= taken
 				train("konstitution", taken)
@@ -2211,7 +2223,7 @@ func _tick_ailments(delta: float) -> void:
 		_burn_tick -= delta
 		if _burn_tick <= 0.0:
 			_burn_tick = BURN_TICK
-			if hp > 1 and not protected():
+			if hp > 1 and not shielded():
 				hp -= 1
 				train("konstitution", 1.0)
 				Effects.head_text(level, self, 2.2, "-1", AILMENT_COLORS.brand)
@@ -2223,7 +2235,7 @@ func _tick_ailments(delta: float) -> void:
 ## A burn from the floor (see EmberCracks): `amount` lives lost, no knock-back,
 ## armour or grace. The caller keeps the last life.
 func scorched(amount: int, colour: Color) -> void:
-	if protected():
+	if shielded():
 		return
 	hp = maxi(hp - amount, 1)
 	_regen_pause = REGEN_PAUSE_AFTER_HIT
@@ -2475,7 +2487,7 @@ const THORNS_DAMAGE := 1
 ## Blows and shots can be blocked with a shield; spikes from below (blockable
 ## false) cannot.
 func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable := true) -> void:
-	if dead or _invulnerable > 0.0 or _down > 0.0 or frozen or protected():
+	if dead or _invulnerable > 0.0 or _down > 0.0 or frozen or shielded():
 		return
 	# A blow or a trap never finds the hero sitting idly.
 	stand_up()

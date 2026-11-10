@@ -23,6 +23,9 @@ const ARTICLES := ["die", "der", "das", "den", "dem"]
 ## Areas that are no place to appear in by name: the hero's own town house
 ## (it needs its number, see Game.go_inside) and the dragon's lair floors
 ## (the lair is set up on its way in, see DragonLair).
+## The village square on the open-air map has a place of its own.
+const VILLAGE_CODE := "dorfx"
+const VILLAGE_NAME := "Das Dorf"
 const SKIPPED_BUILDINGS := ["^", "E", "E2", "E3"]
 
 
@@ -55,7 +58,13 @@ static func areas(files: Array[String]) -> Array:
 		if name == "" or building in SKIPPED_BUILDINGS:
 			continue
 		out.append({"index": i, "name": name, "file": files[i].get_file()})
-	return with_codes(out)
+	out = with_codes(out)
+	# The village is the open-air map's square, not its forest entrance.
+	for area in out.duplicate():
+		if Level.is_outdoor_file(files[int(area.index)]):
+			out.append({"index": area.index, "name": VILLAGE_NAME, "file": area.file, "code": VILLAGE_CODE, "square": true})
+			break
+	return out
 
 
 ## Gives each area its "code" (see above), in level order.

@@ -33,16 +33,17 @@ const PACE := {
 
 ## Each ground and the footsteps heard on it: the sounds step_<name>_0 to
 ## step_<name>_5 (an empty name is the plain step_0 to step_5, the stone steps).
-## Paving and stone ring hard, the paths and soil crunch softly, grass swishes,
-## scree crackles and planks give a short, dry knock. A puddle splashes instead (see
-## Player._footsteps). Built by tools/make_ground_steps.py.
+## Stone (step_0 to step_5, recorded by Fantozzi) and dirt floors keep their own steps; paving rings
+## brighter, paths and fields crunch softly, grass swishes, scree (gravel) crackles and planks give a
+## short, dry knock. A puddle splashes instead (see Player._footsteps). Grass, scree, wood, paving,
+## path and soil are cut from the Soundza recordings by tools/make_soundza_steps.py.
 const STEPS := {
 	STONE: "",
-	PAVING: "",
+	PAVING: "paving",
 	WOOD: "wood",
-	PATH: "dirt",
+	PATH: "path",
 	DIRT: "dirt",
-	SOIL: "dirt",
+	SOIL: "soil",
 	GRASS: "grass",
 	SCREE: "scree",
 }
@@ -84,4 +85,4 @@ static func step_sound(kind: String) -> String:
 
 ## Whether a ground is hard (stone, paving): the plain stone steps.
 static func hard(kind: String) -> bool:
-	return String(STEPS.get(kind, "")).is_empty()
+	return kind == STONE or kind == PAVING

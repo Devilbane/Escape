@@ -85,14 +85,15 @@ func _table() -> void:
 		for i in 12:
 			var sound := Surfaces.step_sound(kind)
 			check(ResourceLoader.exists(Sfx.DIR + sound + ".wav"), "the step %s on %s exists" % [sound, kind])
-	for kind in [Surfaces.GRASS, Surfaces.WOOD, Surfaces.SCREE, Surfaces.PATH]:
+	for kind in [Surfaces.GRASS, Surfaces.WOOD, Surfaces.SCREE, Surfaces.PATH, Surfaces.SOIL, Surfaces.DIRT]:
 		check(not Surfaces.hard(kind), "%s does not sound like stone" % kind)
 		check(Surfaces.step_sound(kind).begins_with("step_" + Surfaces.STEPS[kind] + "_"), "%s plays its own steps" % kind)
 	check(Surfaces.hard(Surfaces.STONE) and Surfaces.hard(Surfaces.PAVING), "stone and paving ring hard")
+	check(Surfaces.step_sound(Surfaces.PAVING).begins_with("step_paving_"), "paving plays its own steps")
 	var kinds := {}
 	for kind: String in Surfaces.STEPS:
 		kinds[Surfaces.STEPS[kind]] = true
-	check(kinds.size() >= 5, "grass, earth, scree, wood and stone each sound different (%d)" % kinds.size())
+	check(kinds.size() >= 8, "grass, earth, scree, wood, stone, paving, path and soil each sound different (%d)" % kinds.size())
 
 
 func _easing() -> void:

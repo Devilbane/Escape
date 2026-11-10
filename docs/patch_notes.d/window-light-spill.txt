@@ -1,0 +1,1 @@
+- Lit windows now cast a soft pool of their own light onto the ground in front of them at night.

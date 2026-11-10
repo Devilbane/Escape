@@ -50,8 +50,8 @@ const MODELS := {
 	"dog": {"": ["ShibaInu", 0.26], "black": ["Husky", 0.3]},
 	"cow": {"": ["Cow", 0.3]},
 	"bull": {"": ["Bull", 0.32]},
-	# The alpaca, stockier and shorter in the leg (a Vector3 scales each axis): see _fleece.
-	"sheep": {"": ["Alpaca", Vector3(0.3, 0.19, 0.28)]},
+	# The alpaca, scaled evenly (a Vector3 scales each axis); _fleece shortens its neck and legs.
+	"sheep": {"": ["Alpaca", Vector3(0.3, 0.3, 0.28)]},
 }
 ## A sneaking hero is noticed only this much closer.
 const SNEAK_FACTOR := 0.5
@@ -85,7 +85,7 @@ const CRY := "mähhhhh, feeeeellll maaaiiiii  hoooooorrrrnsss!!!"
 const ACTIVE_RANGE := 100.0
 const HIDE_RANGE := 80.0
 ## How far a body drops when it lies down (its legs' length), per kind.
-const LEG := {"goose": 0.22, "goat": 0.36, "billy": 0.36, "sheep": 0.3}
+const LEG := {"goose": 0.22, "goat": 0.36, "billy": 0.36, "sheep": 0.2}
 
 static var _meshes := {}
 static var _mats := {}
@@ -739,11 +739,20 @@ func _build_model() -> void:
 	_play("Idle", 1.0)
 
 
+## How much of its length a sheep keeps of the alpaca's neck and legs (bone scale along the
+## bone), and how far the whole model sinks so the shorter hooves still meet the ground. The
+## hind leg keeps more of its upper bone's length, which the zigzag of the hock makes up for.
+const SHEEP_NECK := 0.5
+const SHEEP_FRONT_LEG := 0.5
+const SHEEP_BACK_LEG := 0.55
+const SHEEP_SINK := 0.93
+
 ## A sheep is the pack's alpaca made woolly. The model file has a puffed-up fleece
 ## (clumpy and cream, with dark stockings; its vertex colours carry the clumps), and
 ## here it gets the fleece material, a dark face and dark hooves. The materials are
-## built once and shared by the whole flock.
+## built once and shared by the whole flock. Its neck and legs are shortened to a sheep's.
 func _fleece(model: Node3D) -> void:
+	_shorten(model)
 	if _sheep_mats.is_empty():
 		var wool := StandardMaterial3D.new()
 		wool.vertex_color_use_as_albedo = true
@@ -764,6 +773,28 @@ func _fleece(model: Node3D) -> void:
 			var m := mi.mesh.surface_get_material(s)
 			if m != null and _sheep_mats.has(m.resource_name):
 				mi.set_surface_override_material(s, _sheep_mats[m.resource_name])
+
+
+## Shortens the neck and legs through the bones' scale (the animations only move and turn
+## bones, so the walk, gallop and grazing keep working). The head is scaled back, across
+## its own axis that points along the neck, so it keeps its shape.
+func _shorten(model: Node3D) -> void:
+	var skeleton: Skeleton3D = model.find_child("Skeleton3D", true, false)
+	if skeleton == null:
+		return
+	_scale_bone(skeleton, "Neck1", SHEEP_NECK)
+	_scale_bone(skeleton, "Head", 1.0 / SHEEP_NECK, Vector3.BACK)
+	for side in ["L", "R"]:
+		_scale_bone(skeleton, "FrontUpperLeg." + side, SHEEP_FRONT_LEG)
+		_scale_bone(skeleton, "BackLeg." + side, SHEEP_BACK_LEG)
+	model.position.y = -SHEEP_SINK
+
+
+## Scales one bone by `amount` along `axis` (the bone's own length by default).
+static func _scale_bone(skeleton: Skeleton3D, bone: String, amount: float, axis := Vector3.UP) -> void:
+	var i := skeleton.find_bone(bone)
+	if i >= 0:
+		skeleton.set_bone_pose_scale(i, Vector3.ONE + axis * (amount - 1.0))
 
 
 ## A small tiling texture of soft clumps, light and dark, for the fleece.

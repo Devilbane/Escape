@@ -183,4 +183,6 @@ func _run() -> void:
 	await _shot("geese", (geese[0] as FarmAnimal).global_position, Vector3(0.0, 4.0, 6.5))
 	await _shot("goats", (goats[0] as FarmAnimal).global_position, Vector3(0.0, 4.0, 6.5))
 	await _shot("dog", (dogs[0] as FarmAnimal).global_position, Vector3(0.0, 3.0, 5.0))
+	var sheep := _kinds(lvl, "sheep")
+	await _shot("sheep", (sheep[0] as FarmAnimal).global_position, Vector3(3.0, 1.6, 3.0))
 	_finish()

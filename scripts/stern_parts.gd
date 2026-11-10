@@ -334,6 +334,113 @@ static func warning_ring(level: Level, pos: Vector3, radius: float, colour: Colo
 	return mi
 
 
+## Gives a falling stone a rough, faceted body: a flat-faced lump of rock with
+## grainy, cracked stone and a varied grey-brown tint. The three meshes and
+## materials are built once and shared by every stone.
+static var _rock_meshes: Array[Mesh] = []
+static var _rock_mats: Array[StandardMaterial3D] = []
+
+
+static func rocky(rock: Node3D) -> void:
+	if _rock_meshes.is_empty():
+		_build_rocks()
+	for child in rock.get_children():
+		child.queue_free()
+	var pick := randi() % _rock_meshes.size()
+	var mi := MeshInstance3D.new()
+	mi.mesh = _rock_meshes[pick]
+	mi.material_override = _rock_mats[pick]
+	mi.scale = Vector3(randf_range(0.9, 1.3), randf_range(0.8, 1.1), randf_range(0.9, 1.3))
+	mi.rotation = Vector3(randf_range(-0.3, 0.3), 0.0, randf_range(-0.3, 0.3))
+	mi.position.y = 0.55
+	rock.add_child(mi)
+
+
+static func _build_rocks() -> void:
+	var grain := FastNoiseLite.new()
+	grain.noise_type = FastNoiseLite.TYPE_CELLULAR
+	grain.cellular_return_type = FastNoiseLite.RETURN_DISTANCE2_SUB
+	grain.frequency = 0.07
+	grain.seed = 41
+	var speckle := FastNoiseLite.new()
+	speckle.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	speckle.frequency = 0.12
+	speckle.fractal_octaves = 4
+	speckle.seed = 17
+	var height := Image.create(64, 64, false, Image.FORMAT_L8)
+	var colour := Image.create(64, 64, false, Image.FORMAT_RGB8)
+	for y in 64:
+		for x in 64:
+			var crack := clampf(grain.get_noise_2d(x, y) * 0.5 + 0.5, 0.0, 1.0)
+			var fine := speckle.get_noise_2d(x, y) * 0.5 + 0.5
+			var h := clampf(crack * 0.6 + fine * 0.4, 0.0, 1.0)
+			height.set_pixel(x, y, Color(h, h, h))
+			var v := 0.55 + 0.45 * h
+			colour.set_pixel(x, y, Color(v, v * 0.97, v * 0.92))
+	height.bump_map_to_normal_map(5.0)
+	var normal_tex := ImageTexture.create_from_image(height)
+	var colour_tex := ImageTexture.create_from_image(colour)
+	var tints := [Color(0.62, 0.58, 0.52), Color(0.5, 0.48, 0.47), Color(0.68, 0.6, 0.5)]
+	for i in tints.size():
+		_rock_meshes.append(_rock_mesh(100 + i))
+		var m := StandardMaterial3D.new()
+		m.albedo_color = tints[i]
+		m.albedo_texture = colour_tex
+		m.normal_enabled = true
+		m.normal_texture = normal_tex
+		m.normal_scale = 1.3
+		m.roughness = 0.95
+		m.uv1_triplanar = true
+		m.uv1_scale = Vector3.ONE * 1.4
+		_rock_mats.append(m)
+
+
+## An irregular lump about a metre across: a squashed sphere whose corners are
+## pushed in and out, every face flat.
+static func _rock_mesh(seed_value: int) -> Mesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var rings := 6
+	var segs := 8
+	var grid: Array = []
+	for r in rings + 1:
+		var row: Array[Vector3] = []
+		var pitch := PI * r / rings
+		for sg in segs:
+			var a := TAU * sg / segs
+			var rad := 0.5 * rng.randf_range(0.7, 1.2)
+			if r == 0 or r == rings:
+				rad = 0.5 * rng.randf_range(0.8, 1.0)
+			var p := Vector3(sin(pitch) * cos(a), cos(pitch) * 0.8, sin(pitch) * sin(a)) * rad
+			row.append(p)
+		grid.append(row)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for r in rings:
+		for sg in segs:
+			var s2 := (sg + 1) % segs
+			var a: Vector3 = grid[r][sg]
+			var b: Vector3 = grid[r][s2]
+			var c: Vector3 = grid[r + 1][s2]
+			var d: Vector3 = grid[r + 1][sg]
+			for tri: Array in [[a, b, c], [a, c, d]]:
+				var n: Vector3 = (tri[1] - tri[0]).cross(tri[2] - tri[0])
+				if n.length() < 0.0001:
+					continue
+				n = n.normalized()
+				var centre: Vector3 = (tri[0] + tri[1] + tri[2]) / 3.0
+				# The normal points out of the rock; Godot wants the corners
+				# clockwise seen from outside, which makes the cross product point in.
+				if n.dot(centre) < 0.0:
+					n = -n
+				else:
+					tri = [tri[0], tri[2], tri[1]]
+				for v: Vector3 in tri:
+					st.set_normal(n)
+					st.add_vertex(v)
+	return st.commit()
+
+
 ## Makes every mesh under `node` a pale, see-through glow: a ghost.
 static func ghostly(node: Node, colour: Color) -> void:
 	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):

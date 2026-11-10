@@ -206,7 +206,10 @@ func _check_aged(lvl: Outdoor) -> void:
 				break
 			for e: Dictionary in lvl._entrances:
 				var door: Vector3 = e.door
-				if Vector2(at.x - door.x, at.z - door.z).length() < 1.0 and at.y < 2.4:
+				var out: Vector3 = e.out
+				var rel := Vector3(at.x - door.x, 0, at.z - door.z)
+				var along := rel.dot(out)
+				if absf(rel.dot(Vector3.UP.cross(out))) < AgedStone.DOOR_SWEEP and along > -AgedStone.DOOR_SWEEP_DEPTH.x and along < AgedStone.DOOR_SWEEP_DEPTH.y and at.y - door.y < AgedStone.DOOR_CLEAR.y:
 					near_door += 1
 		check(near_door == 0, "no ivy grows over a door (%d leaves)" % near_door)
 		# Old ivy on the houses that stand away from the square: up to the

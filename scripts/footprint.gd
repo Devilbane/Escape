@@ -49,6 +49,9 @@ static func counts(body: Node) -> bool:
 		return false
 	if "eaten" in body and body.eaten:
 		return false
+	# A pet curled up in its basket by the bed, or waking there, stays where it lies.
+	if body is Pet and body.state in ["bed", "wake"]:
+		return false
 	return (body as Node3D).visible
 
 
@@ -165,6 +168,9 @@ static func resolve(level: Level) -> int:
 			for dx in range(-1, 2):
 				for o in grid.get(c + Vector2i(dx, dy), []):
 					if o == b or done.has(b) or done.has(o) or not stacked(b, o):
+						continue
+					# A pet keeps its own gap to the hero (see Pet.FOLLOW_GAP): hopping out of its basket beside the hero is no stacking.
+					if (b is Player and o is Pet) or (b is Pet and o is Player):
 						continue
 					# The newest gives way; the hero never does.
 					var mover: Node3D = b if newer(b, o) else o

@@ -4831,6 +4831,9 @@ func _hero_says(text: String) -> void:
 	if typed != null:
 		_teleport_command(String(typed))
 		return
+	if Godmode.is_command(text):
+		_toggle_godmode()
+		return
 	if _teleport_waits_for(text):
 		return
 	var pos := player.global_position
@@ -4841,6 +4844,16 @@ func _hero_says(text: String) -> void:
 
 const HERO_SAY_COLOR := Color(1.0, 0.95, 0.8)
 const TELEPORT_COLOR := Color(0.75, 0.85, 1.0)
+
+
+## The chat line's "godmode": the hero cannot be harmed and runs three times
+## as fast (see Godmode). Typing it again turns it off.
+func _toggle_godmode() -> void:
+	player.godmode = not player.godmode
+	player.refresh_stats()
+	if player.godmode:
+		player.hp = player.max_hp
+	Events.tell(Lang.t(Godmode.ON_TEXT) if player.godmode else Lang.t(Godmode.OFF_TEXT), TELEPORT_COLOR)
 
 
 ## The chat line's teleport command (see Teleport). "teleport" lists every
@@ -4878,7 +4891,7 @@ func _teleport_code(code: String, all: Array) -> void:
 	if area.is_empty():
 		Events.tell(Lang.t("Kein Ort hat den Code \"%s\". Schreibe \"teleport\" für die Liste.") % code.strip_edges().to_upper(), TELEPORT_COLOR)
 		return
-	if teleport_to(int(area.index)):
+	if teleport_to(int(area.index), bool(area.get("square", false))):
 		_teleport_waiting = false
 
 
@@ -4886,7 +4899,13 @@ func _teleport_code(code: String, all: Array) -> void:
 ## fade, as walking in would. Only while the hero can act (not in a
 ## transition, a shrine or a window): then nothing else is half done. The
 ## hero's camp is packed up, as it belongs to the place they leave.
-func teleport_to(index: int) -> bool:
+func _to_village_square(wanted: bool) -> void:
+	if wanted and level.get("spots") != null and not level.spots.square.is_empty():
+		player.global_position = level.spots.square[0]
+		player.reset_physics_interpolation()
+
+
+func teleport_to(index: int, to_square := false) -> bool:
 	if index < 0 or index >= level_files.size() or not chat_allowed():
 		return false
 	var name := Lang.t(level_hint(index).name)
@@ -4901,12 +4920,14 @@ func teleport_to(index: int) -> bool:
 			player.global_position = level.cell_to_world(level.start_cell)
 			player.velocity = Vector3.ZERO
 			player.face(Vector3.BACK)
+			_to_village_square(to_square)
 		else:
 			if DragonLair.is_floor(level):
 				level.note_left()
 			inside_house = 0
 			pack_camp(false)
 			load_level(index, false)
+			_to_village_square(to_square)
 		_snap_camera()
 		if is_instance_valid(pet):
 			pet.arrive()

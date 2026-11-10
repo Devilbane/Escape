@@ -1,0 +1,1 @@
+- Chat commands: "teleport dorfx" goes to the village square, and "godmode" toggles invulnerability with triple speed (for testing).

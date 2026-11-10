@@ -165,8 +165,8 @@ func _run() -> void:
 				open = true
 		check(open, "%s has a free floor tile at one of its sides" % id)
 	check(lvl.storey_of(lvl._upgrade_cells.werkstatt) == 2, "the workbench is in the attic")
-	check(lvl.storey_of(lvl._upgrade_cells.trophaeen) == 0, "the trophy wall is on the ground floor, in the entrance room")
-	check(lvl._wall_side(lvl._upgrade_cells.trophaeen) != Vector2i.ZERO, "the trophy wall hangs on a wall")
+	check(lvl.storey_of(lvl._upgrade_cells.trophaeen) == lvl.storey_count() - 1, "the trophy wall is on the top floor")
+	check(lvl._wall_side(lvl._upgrade_cells.trophaeen) == Vector2i(0, -1), "the trophy wall hangs on the north wall")
 	for storey in lvl.storey_count():
 		# Where the hero arrives on this storey: the front door or the stairs.
 		var start := lvl.exit_cell

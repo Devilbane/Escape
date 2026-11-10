@@ -159,9 +159,10 @@ const CHAPEL_FOOT_MID := 3.0
 ## Where the bricks sit on the kit's trim sheet (v from top to bottom of four
 ## rows of bricks).
 const GABLE_BRICK_V := Vector2(0.6, 0.92)
-## The candlelight behind the temple's stained glass at night: dimmer than
-## the houses' windows, so the colours glow softly instead of burning white.
-const CHAPEL_GLASS_LIGHT := Color(0.42, 0.37, 0.3)
+## The candlelight behind the temple's stained glass at night: still a little
+## dimmer than the houses' windows, but bright enough that the panes shine in
+## their own saturated colours without burning out to white.
+const CHAPEL_GLASS_LIGHT := Color(0.78, 0.68, 0.54)
 
 const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0

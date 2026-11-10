@@ -232,3 +232,4 @@ townsfolk_steps.gd | 60 | free | pass | Townsfolk footsteps (ground, volume, dis
 log_out_quits.gd | 120 | fixed | passfail | Sleep and log out saves first, then closes the game
 window_spill.gd | 60 | free | pass | Lit windows throw a pool of light on the ground (see WindowSpill)
 glowworm_swarms.gd | 120 | fixed | passfail | glowworm swarms roaming the open air at night (more in the village, none by day or indoors)
+home_fireplace.gd | 60 | free | pass | Hero's house: a fireplace with flames and light on every storey but the cellar

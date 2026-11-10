@@ -303,6 +303,10 @@ var house_number := 0
 ## Free spots kept for furniture: {"cell", "pos", "storey"}, from the "+"
 ## tiles of a home, lowest storey first.
 var furniture_slots: Array = []
+## The fireplace of each storey of a home (storey -> node), none in the cellar.
+var fireplaces := {}
+## The wall each storey's fireplace is built on (see HomeFireplace.pick).
+var _hearth_walls := {}
 ## Every stairs tile of a home: {"cell", "up", "storey"}.
 var stairs: Array = []
 ## Where the hero stands beside the bed of a home.
@@ -604,6 +608,8 @@ func build() -> void:
 		stern = SternHall.new(self)
 		stern.prepare()
 	_find_storeys()
+	if is_home:
+		_hearth_walls = HomeFireplace.pick(self)
 	_clear_passages()
 	add_child(_walls_body)
 	for y in height:
@@ -625,6 +631,7 @@ func build() -> void:
 	furniture_slots.sort_custom(func(a, b): return a.storey < b.storey)
 	if is_home:
 		_light_storeys()
+		_build_fireplaces()
 	if stern == null:
 		# Sternhall's secret walls open with the stars in its walls instead.
 		_pick_levers()
@@ -1159,6 +1166,8 @@ func _build_walls(c: Vector2i) -> void:
 		var wall := _place("wall" if by_stairs or (piece == "wall_shelves" and not shelves) else piece, pos, rot)
 		if (c.x + c.y + d.x + d.y) % 2 != 0:
 			wall.position.y += 0.02
+		if is_home and _hearth_walls.values().any(func(h): return h.cell == c and h.wall == d):
+			continue # A fireplace is built into this wall (see _build_fireplaces).
 		if cell_char(c) == "?":
 			# The passage's own side walls stay hidden until it opens.
 			wall.visible = false
@@ -5558,6 +5567,12 @@ func _light_storeys() -> void:
 		lamp.position = sums[k][0] / float(sums[k][1]) + Vector3(0, 3.6, 0)
 		add_child(lamp)
 		_light_spots.append(sums[k][0] / float(sums[k][1]))
+
+
+## Every storey of a home but the cellar gets a fireplace (see HomeFireplace).
+func _build_fireplaces() -> void:
+	for storey in _hearth_walls:
+		fireplaces[storey] = HomeFireplace.build(self, _hearth_walls[storey])
 
 
 ## Wooden planks, as in the houses of the village. The stairs down leave a

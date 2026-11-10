@@ -226,6 +226,7 @@ kid_play.gd | 600 | fixed | passfail | Pip and Pippi play (chase, cartwheels, so
 villager_walls.gd | 120 | fixed | pass | Villagers never cross walls or shut gates
 goat_model.gd | 60 | free | passfail | The village goats are the sheep model dressed as goats (horns, red horns for the red-horned one, smooth coat)
 red_goat.gd | 120 | fixed | passfail | Red-horned goat (winds up and shouts, bumps without harm, retreats after 3 bumps, 10 minute cooldown, cannot be hurt)
+footprint.gd | 120 | fixed | passfail | every creature claims its own place; stacked ones: the newest moves to the nearest open spot
 townsfolk_steps.gd | 60 | free | pass | Townsfolk footsteps (ground, volume, distance and crowd cap)
 log_out_quits.gd | 120 | fixed | passfail | Sleep and log out saves first, then closes the game
 window_spill.gd | 60 | free | pass | Lit windows throw a pool of light on the ground (see WindowSpill)

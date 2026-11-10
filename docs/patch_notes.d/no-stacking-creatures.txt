@@ -1,0 +1,1 @@
+- Monsters, villagers, figures and animals no longer stand inside each other: whoever arrives later is moved to the nearest open spot.

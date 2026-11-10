@@ -152,7 +152,8 @@ func _run() -> void:
 	var after := dog.global_position.distance_to(game.player.global_position)
 	check(dog.state == "greet" and after < before, "the dog trots over (%.1f m to %.1f m)" % [before, after])
 	check(after >= FarmAnimal.GREET_GAP - 0.5, "it stops a few steps away (%.1f m)" % after)
-	_hero_to(lvl, far)
+	# Well out of its sight, wherever it stands (it may have been given room, see Footprint).
+	_hero_to(lvl, dog.global_position + Vector3(FarmAnimal.GREET_LOSE * 3.0, 0, 0))
 	await _wait(240)
 	check(not dog.state == "greet", "it loses interest when the hero leaves")
 

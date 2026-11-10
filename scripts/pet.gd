@@ -130,7 +130,13 @@ func has_nose() -> bool:
 	return Companions.SPECIES[kind].get("nose", false)
 
 
+## Called after the footprint pass moved this animal to a free spot: the way on from there is found again.
+func footprint_moved() -> void:
+	_path.clear()
+
+
 func _ready() -> void:
+	add_to_group(Footprint.GROUP)
 	SmoothMotion.follow_ticks(self)
 	var species: Dictionary = Companions.SPECIES[kind]
 	_model = load("res://assets/animals/%s.glb" % species.model).instantiate()

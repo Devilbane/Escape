@@ -109,6 +109,8 @@ func _run() -> void:
 		return
 	check(KidPlay.pal_of(pip) == pippi and KidPlay.pal_of(pippi) == pip, "they are each other's pal")
 	_hero_to(lvl.spots.square[0] + Vector3(20, 0, 0))
+	# The herald's call (a random time) would gather the children on the square mid-test.
+	lvl._herald_timer = 1.0e9
 
 	# A game: the chase, the tricks, the rules of the ground.
 	_kick_off(lvl, pip, pippi)

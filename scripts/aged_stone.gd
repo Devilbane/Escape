@@ -650,6 +650,24 @@ static func _stem(a: Vector3, b: Vector3, n: Vector3, wall: Dictionary, base: fl
 	(leaves.stem_colours as Array).append(STEM_COLOUR * rng.randf_range(0.8, 1.2))
 
 
+## A woody stem lying on a roof face (normal `n`) from `a` to `b`: the roof vines' branches, drawn as
+## the wall ivy's are (see _stem), thinner the further the vine has run.
+static func _roof_stem(a: Vector3, b: Vector3, n: Vector3, frac: float, branch: bool, windows: Array, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
+	var mid := (a + b) * 0.5
+	var dir := b - a
+	var length := dir.length()
+	if length < 0.001 or _on_pane(mid, n, windows):
+		return
+	if not leaves.has("stems"):
+		leaves["stems"] = []
+		leaves["stem_colours"] = []
+	dir /= length
+	var thick := STEM_THICK.x if branch else lerpf(STEM_THICK.x, STEM_THICK.y * 0.8, frac)
+	var x := dir.cross(n).normalized()
+	(leaves.stems as Array).append(Transform3D(Basis(x * thick, dir * (length + 0.03), n), mid + n * 0.03))
+	(leaves.stem_colours as Array).append(STEM_COLOUR * rng.randf_range(0.8, 1.2))
+
+
 ## Whether a leaf already lies this close to `at` among the patch's own
 ## leaves (from index `first` on), so leaves never pile up.
 static func _crowded(at: Vector3, leaves: Dictionary, first: int) -> bool:
@@ -726,7 +744,7 @@ static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Diction
 		rn = next_at.n
 		step = (Vector3.UP - rn * rn.y).normalized() * (1.0 if ridge else -1.0)
 	var run0 := rng.randi_range(BRANCH_RUN.x * 2, BRANCH_RUN.y * 2) if ridge else rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y)
-	var tips: Array = [{"p": at, "n": rn, "drift": rng.randf_range(-0.5, 0.5), "run": run0, "dir": 1.0 if rng.randf() < 0.5 else -1.0,
+	var tips: Array = [{"p": at, "n": rn, "drift": rng.randf_range(-0.5, 0.5), "run": run0, "dir": 1.0 if rng.randf() < 0.5 else -1.0, "dir_branch": false,
 			"left": run0 * 0.16 + (1.0 if ridge else rng.randf_range(ROOF_VINE_LENGTH.x, ROOF_VINE_LENGTH.y))}]
 	var done := 0
 	while done < tips.size() and done < 8:
@@ -738,6 +756,8 @@ static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Diction
 		var run: int = tip.run
 		var left: float = tip.left
 		var total := left
+		var anchor := pos
+		var reach_steps := 0
 		while left > 0.0:
 			var along := Vector3.UP.cross(tn)
 			along = along.normalized() if along.length() > 0.01 else Vector3.RIGHT
@@ -755,10 +775,16 @@ static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Diction
 				next = pos + along * float(tip.dir) * 0.16 + up * rng.randf_range(0.0, 0.05)
 			elif rng.randf() < ROOF_BRANCH_CHANCE and tips.size() < 8:
 				# A runner out sideways; it climbs on from the end of its run.
-				tips.append({"p": pos, "n": tn, "drift": 0.0, "run": rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y), "dir": 1.0 if rng.randf() < 0.5 else -1.0, "left": left * 0.7})
+				tips.append({"p": pos, "n": tn, "drift": 0.0, "run": rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y), "dir": 1.0 if rng.randf() < 0.5 else -1.0, "left": left * 0.7, "dir_branch": true})
 			var still := _roof_at(roofs, next, next.y - 0.3, next.y + 0.3)
 			if still.is_empty():
 				break
+			# One bar per STEM_STEPS steps, from the last one to here.
+			reach_steps += 1
+			if reach_steps >= STEM_STEPS:
+				_roof_stem(anchor, still.p, still.n, left / total, run > 0 or tip.dir_branch, windows, rng, leaves)
+				anchor = still.p
+				reach_steps = 0
 			pos = still.p
 			tn = still.n
 			left -= 0.16

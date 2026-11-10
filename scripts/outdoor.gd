@@ -349,6 +349,8 @@ const GUILD_IVY := 28
 const GUILD_WINDOW_ROOM := 2.6
 ## Patches on the other stone buildings (tavern, smithy, market, tower, ...).
 const STONE_IVY := 14
+## The windmill (stone foot, wooden body) wears as many leaves per square metre as the other stone buildings.
+const MILL_IVY := 30
 const CASTLE_IVY := 48
 ## The castle's stones stand this far (metres) proud of their wall planes: its leaves are held out by that much.
 const CASTLE_PROUD := 0.3
@@ -1277,8 +1279,14 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			_dress_building(node, center, gate, 0.75, GUILD_IVY if ch == "w" else CASTLE_IVY, true, CASTLE_TOWER_FOOT if ch == "k" else 0.0, CASTLE_PROUD if ch == "k" else 0.0, GUILD_WINDOW_ROOM if ch == "w" else 1.0)
 		else:
 			# Every stone building wears old ivy, so it is as green as the
-			# wooden houses (which ordinary ivy suits).
-			_dress_building(node, center, [door], 0.75, STONE_IVY, true)
+			# wooden houses (which ordinary ivy suits). The door and its frame
+			# stay clear: a ring of spots round the doorway (the windmill's
+			# door is wide, and its frame sits a little in front and behind).
+			var door_spots := []
+			for x in [-1.8, -0.9, 0.0, 0.9, 1.8]:
+				for z in [1.0, 0.0, -1.5, -3.0]:
+					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
+			_dress_building(node, center, door_spots, 0.75, MILL_IVY if ch == "u" else STONE_IVY, true)
 	if interiors.has(ch):
 		# Run into the door to go in.
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))

@@ -115,6 +115,7 @@ var _phase := 0.0
 var _clock := 0.0
 var _swing := 0.0
 var _resting := false
+var _waiting := 0.0
 var _rig: Node3D
 var _legs: Array[Node3D] = []
 var _head: Node3D
@@ -211,8 +212,9 @@ func _physics_process(delta: float) -> void:
 		visible = away.length() < HIDE_RANGE
 	if away.length() > ACTIVE_RANGE:
 		return
-	# A walk or a trot sets the swing to 1 again every tick.
-	_swing = move_toward(_swing, 0.0, delta * 6.0)
+	# A walk or a trot sets the swing to 1 again every tick. A model's legs stop at once
+	# (no gliding on a walk cycle); the primitive bodies let theirs settle.
+	_swing = 0.0 if _anim != null else move_toward(_swing, 0.0, delta * 6.0)
 	var alive: bool = not hero.get("dead")
 	var shy := shy_distance()
 	var near: bool = alive and shy > 0.0 and away.length() < shy
@@ -302,11 +304,11 @@ func _windup(delta: float, hero: Node3D) -> void:
 func _charge(delta: float, hero: Node3D) -> void:
 	var step := CHARGE_SPEED * delta
 	var next := global_position + _dir * step
-	if not level.is_open(level.world_to_cell(next)):
+	if not WalkRules.can_step(level, global_position, next, true):
 		_begin("recover", RECOVER)
 		return
 	global_position = next
-	rotation.y = atan2(_dir.x, _dir.z)
+	_turn_to(_dir, delta)
 	_swing = 1.0
 	_phase += step / float(_stats.stride) * TAU * 0.5
 	if not hero.get("dead") and _flat(hero.global_position - global_position).length() < BUMP_RANGE:
@@ -351,9 +353,14 @@ func _greet(away: Vector3, delta: float) -> void:
 		_path.clear()
 		var step := _pace("Gallop" if _speed > 1.5 else "Walk", _speed) * delta
 		_swing = 1.0
-		global_position += to.normalized() * minf(step, to.length() - GREET_GAP)
+		var next := global_position + to.normalized() * minf(step, to.length() - GREET_GAP)
+		if WalkRules.can_step(level, global_position, next, true):
+			global_position = next
+			_phase += step / float(_stats.stride) * TAU * 0.5
+		else:
+			# A wall or a shut gate between them: it stands and looks.
+			_swing = 0.0
 		_turn_to(to, delta)
-		_phase += step / float(_stats.stride) * TAU * 0.5
 	else:
 		_turn_to(to, delta)
 
@@ -448,11 +455,7 @@ func _ok(c: Vector2i) -> bool:
 
 
 func _set_path(target: Vector3) -> bool:
-	_path.clear()
-	var from := level.world_to_cell(global_position)
-	var cells: Array[Vector2i] = level.grid_path(from, level.world_to_cell(target))
-	for c in cells.slice(1):
-		_path.append(level.cell_to_world(c) + Vector3(_rng.randf_range(-0.8, 0.8), 0, _rng.randf_range(-0.8, 0.8)))
+	_path.assign(WalkRules.path(level, global_position, target, _rng))
 	return not _path.is_empty()
 
 
@@ -461,21 +464,28 @@ func _walk(delta: float) -> void:
 		return
 	var to := _flat(_path[0] - global_position)
 	var step := _pace("Gallop" if (state == "flee" or _speed > 3.0) else "Walk", _speed) * delta
+	var target := Vector3(_path[0].x, global_position.y, _path[0].z) if to.length() <= step else global_position + to.normalized() * step
+	if not WalkRules.can_step(level, global_position, target):
+		# A gate was shut (or a wall stands) ahead: stand, then find the way again.
+		_swing = 0.0
+		_waiting += delta
+		if _waiting >= WalkRules.MAKE_WAY:
+			_waiting = 0.0
+			var goal: Vector3 = _path[_path.size() - 1]
+			if not _set_path(goal):
+				_begin("idle", 1.0)
+		return
+	_waiting = 0.0
 	_swing = 1.0
 	_phase += step / float(_stats.stride) * TAU * 0.5
+	global_position = target
 	if to.length() <= step:
-		global_position = Vector3(_path[0].x, global_position.y, _path[0].z)
 		_path.pop_front()
-	else:
-		global_position += to.normalized() * step
 	_turn_to(to, delta)
 
 
 func _turn_to(direction: Vector3, delta: float) -> void:
-	direction.y = 0.0
-	if direction.length() < 0.01:
-		return
-	rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), minf(1.0, delta * (9.0 if state == "flee" else 6.0)))
+	WalkRules.turn(self, direction, delta, WalkRules.TURN_RATE * (1.25 if state in ["flee", "charge"] else 1.0))
 
 
 static func _flat(v: Vector3) -> Vector3:

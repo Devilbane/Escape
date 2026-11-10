@@ -44,6 +44,12 @@ const RUIN_WOOD := 0.3
 const IVY_PATCHES := 7
 const IVY_HEIGHT := Vector2(3.0, 7.5)
 const IVY_DOOR_GAP := 1.5
+## Share of the leaves a vine keeps (the ivy is thinned by 30%), the least
+## distance (metres) between two leaves, and how often a vine forks.
+const IVY_KEEP := 0.62
+const IVY_CAP := 0.7
+const IVY_SPACING := 0.14
+const IVY_BRANCHING := 0.12
 ## The doorway itself stays free of leaves up to this height (metres) and
 ## this far (metres) from the door's spot, so the ivy frames a door.
 const DOOR_CLEAR := Vector2(1.4, 3.6)
@@ -520,7 +526,7 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 	# Ivy rooted high up a wall (the castle's towers) climbs on from there.
 	var base := root.y - 0.15 if root.y > ground + OLD_IVY_FOOT else ground
 	var reach := base + rng.randf_range(height.x, height.y)
-	var most: int = int((OLD_PATCH_LEAVES if old else PATCH_LEAVES) * thin)
+	var most: int = int((OLD_PATCH_LEAVES if old else PATCH_LEAVES) * thin * IVY_CAP)
 	var bigger := 1.0 / sqrt(thin)
 	# The walls in line with this one: the ivy climbs on up them where one
 	# ends (a jutting upper floor, a ledge).
@@ -529,6 +535,7 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 	for i in (rng.randi_range(4, 7) if old else rng.randi_range(3, 5)):
 		tips.append({"p": root + across * rng.randf_range(-0.6, 0.6), "drift": rng.randf_range(-0.6, 0.6), "wall": root_wall})
 	var steps := 0
+	var side_flip := 1.0
 	var first: int = leaves.xforms.size()
 	while not tips.is_empty() and steps < 600 and leaves.xforms.size() - first < most:
 		steps += 1
@@ -557,12 +564,25 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 			# Old ivy stays thick a long way up.
 			if old:
 				fill = maxf(fill, OLD_IVY_FILL)
-			for k in rng.randi_range(1, 1 + int(fill * 1.6)):
-				var at := p + across * rng.randf_range(-0.2, 0.2) + Vector3.UP * rng.randf_range(-0.08, 0.08)
-				if rng.randf() < thin and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_window_room(at, n, windows, window_room, rng) and not _in_doorway(at, doors, ground):
+			# Leaves sit along the vine, alternately to its left and right like
+			# the leaves on a real shoot, and never on top of one another.
+			side_flip = -side_flip
+			for k in (2 if rng.randf() < fill * 0.5 else 1):
+				var at := p + across * (side_flip * rng.randf_range(0.06, 0.22)) + Vector3.UP * (rng.randf_range(-0.05, 0.05) + k * 0.08)
+				if rng.randf() < thin * IVY_KEEP and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_window_room(at, n, windows, window_room, rng) and not _in_doorway(at, doors, ground) and not _crowded(at, leaves, first):
 					_leaf(at + n * proud, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
-			if rng.randf() < 0.08 and tips.size() < 8:
+			if rng.randf() < IVY_BRANCHING and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
+
+
+## Whether a leaf already lies this close to `at` among the patch's own
+## leaves (from index `first` on), so leaves never pile up.
+static func _crowded(at: Vector3, leaves: Dictionary, first: int) -> bool:
+	var xf: Array = leaves.xforms
+	for i in range(xf.size() - 1, maxi(first, xf.size() - 40) - 1, -1):
+		if ((xf[i] as Transform3D).origin).distance_squared_to(at) < IVY_SPACING * IVY_SPACING:
+			return true
+	return false
 
 
 ## Whether a leaf's spot is in a doorway (see DOOR_CLEAR).

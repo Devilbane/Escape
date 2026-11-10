@@ -8,6 +8,7 @@ const TARGETS := {
 	"castle": ["k", Vector3(0, 7.5, 13), Vector3(0, 3.5, -3)],
 	"castle_close": ["k", Vector3(0, 6, 8), Vector3(0, 8, -6)],
 	"guild": ["w", Vector3(0, 7.5, 13), Vector3(0, 3.5, -3)],
+	"mill": ["u", Vector3(0, 5.5, 10), Vector3(0, 3.0, -2)],
 	"house": ["h", Vector3(0, 7.5, 13), Vector3(0, 3.5, -3)],
 }
 

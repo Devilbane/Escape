@@ -156,7 +156,7 @@ static var ALL := {
 	"grosser_rucksack": {"name": "Großer Rucksack", "slot": "rucksack", "bag": 12, "weight": 2, "price": 60, "model": "res://assets/village/sack.gltf", "model_scale": 7.0, "material": "leather"},
 	# The biggest: 20 places, found only deep down (the merchant never sells
 	# the top of a kind, see merchant_sells).
-	"reiserucksack": {"name": "Reiserucksack", "slot": "rucksack", "bag": 20, "weight": 2.5, "price": 95, "model": "res://assets/village/sack.gltf", "model_scale": 8.0, "material": "leather"},
+	"reiserucksack": {"name": "Reiserucksack", "slot": "rucksack", "bag": 20, "weight": 2.5, "armor": 1, "speed": 0.05, "price": 95, "model": "res://assets/village/sack.gltf", "model_scale": 8.0, "material": "leather"},
 	# The epic one: 24 places, made from a recipe (see Crafting "tornister") whose
 	# scroll is epic loot (see "tornisterschnitt"). A "crafted" piece that keeps its epic
 	# colour ("keeps_tier" overrides the self-made tier, see Rarity.tier); "crafted" keeps it out of

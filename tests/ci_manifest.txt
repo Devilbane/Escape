@@ -185,6 +185,7 @@ hero_name_tag.gd | 120 | fixed | passfail | hero's name over the head: a new gam
 house_faces.gd | 120 | fixed | passfail | village houses (see VillageHouse): every face of a
 ignition.gd | 120 | fixed | passfail | Headless test for fireballs (see Ignition): flammable monsters catch fire
 jewellery_stacks.gd | 120 | fixed | passfail | small things stack and the biggest backpack holds 20
+godborn_backpack.gd | 30 | fixed | passfail | the god-born Traveller backpack gives +1 hardening and +5 % speed
 epic_backpack.gd | 120 | fixed | passfail | the epic 24-slot satchel: scroll loot, recipe, 24 slots
 launcher.gd | 120 | fixed | passfail | Windows launcher (scripts/launcher.gd): what it does with the
 loot.gd | 120 | fixed | passfail | loot of fallen monsters (see Loot and

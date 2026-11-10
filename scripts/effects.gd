@@ -82,6 +82,36 @@ static func make_flame() -> CPUParticles3D:
 	return p
 
 
+## Embers that lift off the forge's coals: few, slow, glowing orange specks
+## that drift up on the heat and go dark. They stay where they were let out.
+static func make_forge_embers() -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.name = "ForgeEmbers"
+	p.amount = 12
+	p.lifetime = 2.6
+	p.local_coords = false
+	p.mesh = _quad(0.07, Color(1, 1, 1))
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = Vector3(0.6, 0.02, 0.4)
+	p.direction = Vector3.UP
+	p.spread = 25.0
+	p.gravity = Vector3(0.18, 0.5, 0.05)
+	p.initial_velocity_min = 0.3
+	p.initial_velocity_max = 0.9
+	p.damping_min = 0.2
+	p.damping_max = 0.4
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.3
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1.0, 0.8, 0.35, 0.0))
+	ramp.add_point(0.1, Color(1.0, 0.7, 0.25, 0.9))
+	ramp.add_point(0.6, Color(1.0, 0.4, 0.1, 0.6))
+	ramp.set_color(ramp.get_point_count() - 1, Color(0.6, 0.12, 0.04, 0.0))
+	p.color_ramp = ramp
+	p.preprocess = p.lifetime
+	return p
+
+
 static func make_sparkles(color: Color, one_shot := false) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.amount = 40 if one_shot else 14

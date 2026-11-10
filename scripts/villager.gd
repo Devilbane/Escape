@@ -23,7 +23,7 @@ const BUBBLE_ROOM := 7.0
 ## The gold of the quest marks over the heads of villagers with a task.
 const MARK_COLOR := Color(1.0, 0.82, 0.3)
 ## Waits this long for the hero to step aside before walking on.
-const MAKE_WAY := 1.4
+const MAKE_WAY := WalkRules.MAKE_WAY
 ## Two villagers chatting (see VillageTalk) stand this far apart, and the
 ## one who stays put waits this long at most for the other to arrive.
 const CHAT_GAP := 1.6
@@ -1232,7 +1232,7 @@ func _walk_to(target: Vector3, speed: float, then: String) -> void:
 	_path.clear()
 	var from := level.world_to_cell(global_position)
 	for c in level.grid_path(from, level.world_to_cell(target)).slice(1):
-		_path.append(level.cell_to_world(c) + Vector3(_rng.randf_range(-0.6, 0.6), 0, _rng.randf_range(-0.6, 0.6)))
+		_path.append(level.cell_to_world(c) + Vector3(_rng.randf_range(-WalkRules.JITTER, WalkRules.JITTER), 0, _rng.randf_range(-WalkRules.JITTER, WalkRules.JITTER)))
 	if _path.is_empty():
 		_start(then, 3.0)
 		return
@@ -1359,10 +1359,7 @@ func _walk(delta: float, hero: Node3D) -> void:
 
 ## Whether a point is inside a wall brick that stops everyone: a standing wall or a shut gate.
 func blocked_at(point: Vector3) -> bool:
-	if level == null or level.village_wall == null:
-		return false
-	var brick := level.village_wall.brick_at(level.world_to_cell(point))
-	return brick != null and brick.blocks()
+	return WalkRules.blocked_at(level, point)
 
 
 ## Moves to a point unless a wall or a shut gate is there. Returns whether it moved.
@@ -1525,8 +1522,7 @@ func _turn_to(direction: Vector3, delta: float) -> void:
 	direction.y = 0.0
 	if direction.length() < 0.01:
 		return
-	var target := atan2(direction.x, direction.z)
-	rotation.y = lerp_angle(rotation.y, target, minf(1.0, delta * 8.0))
+	WalkRules.turn(self, direction, delta)
 
 
 # --- Night -------------------------------------------------------------------
@@ -2020,7 +2016,7 @@ func join_chat(partner: Villager, walk: bool) -> bool:
 		_path.clear()
 		# Every tile on the way but our own and theirs, then a spot beside them.
 		for c in cells.slice(1, maxi(1, cells.size() - 1)):
-			_path.append(level.cell_to_world(c) + Vector3(_rng.randf_range(-0.6, 0.6), 0, _rng.randf_range(-0.6, 0.6)))
+			_path.append(level.cell_to_world(c) + Vector3(_rng.randf_range(-WalkRules.JITTER, WalkRules.JITTER), 0, _rng.randf_range(-WalkRules.JITTER, WalkRules.JITTER)))
 		var last: Vector3 = _path.back() if not _path.is_empty() else global_position
 		var side := last - at
 		side.y = 0.0

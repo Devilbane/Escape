@@ -1,0 +1,1 @@
+- Choosing "Sleep and log out" now saves and then closes the game.

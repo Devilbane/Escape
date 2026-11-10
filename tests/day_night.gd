@@ -241,6 +241,7 @@ func _clock_and_saving() -> void:
 	# A night in the bed skips to the morning.
 	game.load_level(game._outdoor_index(), false)
 	game.day_hour = 23.5
+	game.quit_on_log_out = false
 	game.sleep()
 	check(is_equal_approx(game.day_hour, DayNight.WAKE_HOUR), "sleeping in the bed skips to the morning")
 	data = game._read_save(game.save_path())

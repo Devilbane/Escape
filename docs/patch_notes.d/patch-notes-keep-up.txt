@@ -1,0 +1,1 @@
+- The patch notes now list only what is new in the build you are downloading, and they keep up with every update.

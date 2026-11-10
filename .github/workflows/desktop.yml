@@ -47,6 +47,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0 # the patch notes list the fragments added since the last published build (tag "windows")
 
       - name: Restore Godot from the cache
         id: cache
@@ -144,7 +145,7 @@ jobs:
           engine=$(sha256sum Escape/game/Escape.exe | cut -d' ' -f1)
           echo "{\"version\":\"$VERSION\",\"build\":\"$BUILD\",\"engine\":\"$engine\"}" > Escape/game/installed.json
           # The patch notes also travel inside the zip, for the launcher's first start.
-          python3 ../tools/patch_notes.py recent > Escape/game/patch_notes.txt
+          python3 ../tools/patch_notes.py build "$(git rev-parse -q --verify refs/tags/windows || true)" > Escape/game/patch_notes.txt
           cp Escape/Escape.exe Escape/game/Escape.pck release/
           cp Escape/game/Escape.exe release/EscapeGame.exe
           zip -qr9 release/Escape-Windows.zip Escape
@@ -159,7 +160,7 @@ jobs:
           env = os.environ
           # The launcher shows these patch notes while it downloads (docs/patch_notes.txt + docs/patch_notes.d, tools/patch_notes.py).
           import subprocess
-          notes = subprocess.check_output(["python3", "../tools/patch_notes.py", "recent"], text=True)
+          notes = subprocess.check_output(["python3", "../tools/patch_notes.py", "build", subprocess.run(["git", "rev-parse", "-q", "--verify", "refs/tags/windows"], capture_output=True, text=True).stdout.strip()], text=True)
           manifest = {
               "version": env["VERSION"], "build": env["BUILD"], "notes": notes,
               "pack_size": os.path.getsize("release/Escape.pck"), "pack_sha256": sha("release/Escape.pck"),

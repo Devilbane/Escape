@@ -1,12 +1,15 @@
 extends SceneTree
-## Renders a squirrel's bound as a strip of frames (needs a display).
-## Run with: SHOTS=<folder> godot --rendering-driver opengl3 -s tests/squirrel_shots.gd
-## STATE=hop|flee|climb picks the gait.
+## Headless test of the squirrel's bound: the body stretches and gathers, and every leg joins
+## its paw to the body. With SHOTS=<folder> and a display it also saves a strip of one bound
+## there (STATE=hop|flee|climb picks the gait).
+## Run with: godot --headless -s tests/squirrel_shots.gd
 
 var frames := 0
 var shots := OS.get_environment("SHOTS")
 var strip: Array[Image] = []
 var s: Squirrel
+var failures := 0
+var stretches: Array[float] = []
 
 
 ## A squirrel that builds itself but skips its tree and level.
@@ -39,8 +42,7 @@ func _initialize() -> void:
 	s.rotation.y = PI * 0.5  # faces +x
 	var cam := Camera3D.new()
 	root.add_child(cam)
-	cam.position = Vector3(0, 0.5, 3.0)
-	cam.look_at(Vector3(0, 0.4, 0))
+	cam.look_at_from_position(Vector3(0, 0.5, 3.0), Vector3(0, 0.4, 0))
 	cam.fov = 30
 
 
@@ -50,6 +52,9 @@ func _process(_delta: float) -> bool:
 	s.state = st
 	if frames < 4:
 		return false
+	if shots == "":
+		_check_bound()
+		return true
 	var n := 6
 	# Run the pose to a steady state at six points of one bound.
 	var idx := (frames - 4) / 8
@@ -70,3 +75,29 @@ func _process(_delta: float) -> bool:
 	out.save_png("%s/%s.png" % [shots, st])
 	quit()
 	return true
+
+
+## Steps through one bound without drawing it.
+func _check_bound() -> void:
+	for step in 12:
+		s._phase = float(step) / 12.0 * PI + 0.01
+		s._hop_height = Squirrel.HOP_HEIGHT.x
+		for i in 8:
+			s._pose(0.2)
+		stretches.append(s._body.scale.z)
+		for i in 2:
+			for pair: Array in [[s._hand_legs[i], s._hands[i]], [s._foot_legs[i], s._feet[i]]]:
+				var leg: Node3D = pair[0]
+				var paw: Node3D = pair[1]
+				var tip := leg.position + leg.basis * Vector3(0, 0, 1)
+				if tip.distance_to(paw.position + Vector3(0, 0.02, 0)) > 0.005:
+					failures += 1
+					print("FAIL: a leg ends away from its paw (%.3f)" % tip.distance_to(paw.position))
+					return
+	var lo: float = stretches.min()
+	var hi: float = stretches.max()
+	if hi - lo < 0.3 * Squirrel.SIZE:
+		failures += 1
+		print("FAIL: the body should stretch and gather over a bound (%.2f to %.2f)" % [lo, hi])
+	print("PASS: squirrel bound" if failures == 0 else "FAILED: %d" % failures)
+	quit(1 if failures > 0 else 0)

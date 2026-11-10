@@ -47,11 +47,15 @@ const IVY_PATCHES := 7
 ## for a barer one, 0 for none. Each vine is rooted at the foot of a wall, never in a doorway,
 ## and always carries leaves and at least one bunch of grapes.
 const IVY_DENSITY := 1.0
+## How far up (metres) a vine looks for the next face of the wall where one ends (a ledge, the next
+## storey of a tower), and how far (metres) that face may stand behind or in front of the last.
+const HOP_RISES := [0.16, 0.4, 0.7, 1.1, 1.6, 2.2]
+const HOP_DEPTH := 1.8
 const IVY_HEIGHT := Vector2(3.0, 7.5)
 const IVY_DOOR_GAP := 1.5
 ## Share of the leaves a vine keeps (the ivy is thinned by 30%), the least
 ## distance (metres) between two leaves, and how often a vine forks.
-const IVY_KEEP := 0.62
+const IVY_KEEP := 0.36
 const IVY_CAP := 0.7
 const IVY_SPACING := 0.14
 ## Branchy ivy (the guild hall): how often a vine sends a branch out sideways,
@@ -61,7 +65,7 @@ const BRANCH_RUN := Vector2i(10, 22)
 ## Ivy prefers edges: the share of roots set within EDGE_ZONE metres of a wall's
 ## end, and how often a vine that reached its height runs on along the eaves.
 ## The woody stems: thickness (metres) of a thin and of a thick one, and their colour.
-const STEM_THICK := Vector2(0.06, 0.17)
+const STEM_THICK := Vector2(0.1, 0.26)
 ## A stem piece spans STEM_STEPS steps (short pieces follow the vine's wandering path, so it curves
 ## instead of running straight). It wavers sideways by up to STEM_WAVE metres, tapers along its length
 ## (the far end is STEM_TAPER of the near end's width), and is only drawn where a leaf lies within
@@ -69,25 +73,25 @@ const STEM_THICK := Vector2(0.06, 0.17)
 ## Vines never pile up: a cell of STEM_CELL metres holds at most STEM_CELL_LENGTH metres of stem.
 ## A tendril is a short curling side shoot ending in a leaf; it sprouts with TENDRIL_CHANCE per step.
 const STEM_STEPS := 2
-const STEM_WAVE := 0.09
+const STEM_WAVE := 0.16
 const STEM_TAPER := 0.55
-const STEM_LEAF_REACH := 0.3
+const STEM_LEAF_REACH := 0.5
 const STEM_CELL := 0.8
-const STEM_CELL_LENGTH := 2.0
-const TENDRIL_CHANCE := 0.1
+const STEM_CELL_LENGTH := 3.2
+const TENDRIL_CHANCE := 0.16
 ## Bunches of blue grapes hang from the vine now and then (GRAPE_CHANCE per stem piece), never closer
 ## than GRAPE_SPACING metres to one another, for a splash of colour among the leaves.
 const GRAPE_CHANCE := 0.12
 const GRAPE_SPACING := 0.9
 ## Blue and red grapes, one in GRAPE_RED_SHARE bunches red.
-const GRAPE_COLOUR := Color(0.17, 0.21, 0.5)
-const GRAPE_RED := Color(0.62, 0.1, 0.16)
+const GRAPE_COLOUR := Color(0.08, 0.1, 0.3)
+const GRAPE_RED := Color(0.4, 0.04, 0.09)
 const GRAPE_RED_SHARE := 0.4
 const STEM_COLOUR := Color(0.42, 0.3, 0.2)
 const EDGE_ROOTS := 0.75
 const EDGE_ZONE := 0.9
 const EAVES_RUN_CHANCE := 0.7
-const IVY_BRANCHING := 0.12
+const IVY_BRANCHING := 0.16
 ## Vines across a roof: how far (metres) up the slope one climbs, and how often it sends a runner out.
 const ROOF_VINE_LENGTH := Vector2(2.5, 6.0)
 const ROOF_BRANCH_CHANCE := 0.08
@@ -596,12 +600,13 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 	var bigger := 1.0 / sqrt(thin)
 	# The walls in line with this one: the ivy climbs on up them where one
 	# ends (a jutting upper floor, a ledge).
-	var line := all_walls.filter(func(w): return (w.n as Vector3).dot(n) > 0.99)
+	var line := all_walls.filter(func(w): return (w.n as Vector3).dot(n) > 0.9)
 	var tips: Array = []
 	for i in (rng.randi_range(4, 7) if old else rng.randi_range(3, 5)):
 		tips.append({"p": root + across * rng.randf_range(-0.6, 0.6), "drift": rng.randf_range(-0.6, 0.6), "wall": root_wall})
 	var steps := 0
 	var side_flip := 1.0
+	var clump_seed := rng.randf() * TAU
 	var first: int = leaves.xforms.size()
 	var first_stem: int = (leaves.get("stems", []) as Array).size()
 	var first_grape: int = (leaves.get("grapes", []) as Array).size()
@@ -632,7 +637,14 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 				# then on to a wall in line just above.
 				next = p + Vector3.UP * 0.16
 				if not _on_wall(wall, next):
-					var hop := _wall_at(line, next)
+					# A ledge or a jutting floor may lie in the way: look on up the wall for the
+					# next face that goes on (a tower is climbed section by section).
+					var hop := {}
+					for rise: float in HOP_RISES:
+						hop = _wall_at(line, p + Vector3.UP * rise)
+						if not hop.is_empty():
+							next = p + Vector3.UP * rise
+							break
 					if hop.is_empty():
 						if not roofs.is_empty() and p.y > ground + 3.0:
 							_creep_roof(p, n, roofs, rng, leaves)
@@ -651,7 +663,7 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 			side_flip = -side_flip
 			for k in (2 if rng.randf() < fill * 0.5 else 1):
 				var at := p + across * (side_flip * rng.randf_range(0.06, 0.22)) + Vector3.UP * (rng.randf_range(-0.05, 0.05) + k * 0.08)
-				if rng.randf() < thin * IVY_KEEP and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_window_room(at, n, windows, window_room, rng) and not _in_doorway(at, doors, ground) and not _crowded(at, leaves, first):
+				if rng.randf() < thin * IVY_KEEP * _clump(at, across, clump_seed) and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_window_room(at, n, windows, window_room, rng) and not _in_doorway(at, doors, ground) and not _crowded(at, leaves, first):
 					_leaf(at + n * proud, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
 			# The stem piece comes after the leaves, so it only joins where there is foliage.
 			if reach_steps >= STEM_STEPS:
@@ -672,6 +684,13 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 			elif rng.randf() < IVY_BRANCHING and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
 	_finish_vine(first, first_stem, first_grape, n, root_wall, windows, window_room, doors, ground, rng, leaves)
+
+
+## How thick the leaves grow at `at`, 0.2 to 2.2 times the usual: they gather in clumps along the vine
+## with the bare vine and wall showing in between, like the leaf clusters on a real grapevine.
+static func _clump(at: Vector3, across: Vector3, seed_value: float) -> float:
+	var wave := sin(at.y * 2.3 + seed_value) * sin(at.dot(across) * 1.9 + seed_value * 1.7)
+	return clampf(0.2 + 2.0 * maxf(wave, 0.0), 0.2, 2.2)
 
 
 ## The last word on a vine that was just grown (its leaves from index `first`, its stems from
@@ -778,7 +797,7 @@ static func _grapes(spot: Vector3, n: Vector3, wall: Dictionary, windows: Array,
 		for g: Transform3D in leaves.grapes:
 			if g.origin.distance_squared_to(spot) < GRAPE_SPACING * GRAPE_SPACING:
 				return
-	var size := rng.randf_range(1.5, 2.0)
+	var size := rng.randf_range(1.0, 1.35)
 	(leaves.grapes as Array).append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * size), spot))
 	(leaves.grape_colours as Array).append((GRAPE_RED if rng.randf() < GRAPE_RED_SHARE else GRAPE_COLOUR) * rng.randf_range(0.85, 1.25))
 
@@ -1140,7 +1159,7 @@ static func _wall_at(line: Array, p: Vector3) -> Dictionary:
 	for w: Dictionary in line:
 		var n: Vector3 = w.n
 		var on := p + n * (float(w.d) - n.dot(p))
-		if on.distance_to(p) < 0.7 and _on_wall(w, on):
+		if on.distance_to(p) < HOP_DEPTH and _on_wall(w, on):
 			return w
 	return {}
 
@@ -1252,6 +1271,27 @@ static func ivy_node(leaves: Dictionary) -> Node3D:
 	return root
 
 
+## Twisted bark for the stems: slanting ropes of light and dark, darker at the edges, so a vine reads
+## as a thick twisted grape stem and not as a flat brown bar. Tinted by each stem's own colour.
+static func bark_texture() -> ImageTexture:
+	if _mats.has("bark"):
+		return _mats["bark"]
+	var img := Image.create(32, 64, true, Image.FORMAT_RGBA8)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	for y in 64:
+		for x in 32:
+			var u := float(x) / 31.0
+			var rope := 0.5 + 0.5 * sin((u * 2.0 + float(y) / 64.0 * 1.0) * TAU)
+			var edge := 1.0 - 0.55 * pow(absf(u - 0.5) * 2.0, 3.0)
+			var v := (0.62 + 0.38 * rope) * edge * rng.randf_range(0.86, 1.0)
+			img.set_pixel(x, y, Color(v, v, v, 1.0))
+	img.generate_mipmaps()
+	var tex := ImageTexture.create_from_image(img)
+	_mats["bark"] = tex
+	return tex
+
+
 ## One bunch of grapes: ten small berries, wide at the stalk and narrowing to the tip.
 static func grape_mesh() -> ArrayMesh:
 	var ball := SphereMesh.new()
@@ -1318,12 +1358,14 @@ static func _stems_into(root: Node3D, leaves: Dictionary) -> void:
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(-0.5, -0.5, 0), Vector3(0.5, -0.5, 0), Vector3(0.5 * STEM_TAPER, 0.5, 0), Vector3(-0.5 * STEM_TAPER, 0.5, 0)])
 	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
 	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 0, 2, 3])
 	bar.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 1.0
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_texture = bark_texture()
 	bar.surface_set_material(0, mat)
 	var tiles := {}
 	for i in xf.size():

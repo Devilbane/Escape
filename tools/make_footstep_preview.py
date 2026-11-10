@@ -1,10 +1,10 @@
 """Builds the footstep listening page: one card per ground with the steps the game plays now, the six it played
 before the Soundza recordings (read from git at the commit given) and every other single step of the library as an
-alternative with a "Use" button. Picks are saved in the browser and can be copied back into the chat.
+alternative with a "Use" button. Ratings are saved in the browser and can be copied back into the chat.
 
   python3 make_footstep_preview.py "<audio library folder>" <commit before the Soundza steps> <output.html> [copied picks text]
 
-Give the text copied from an earlier page as the last argument and the steps it lists under "Nothing fits" are left out.
+Give the text copied from an earlier page as the last argument and the steps it lists under RED are left out.
 Needs ffmpeg, numpy and git."""
 import base64, glob, io, json, os, subprocess, sys, wave
 import numpy as np
@@ -67,9 +67,12 @@ def candidates(folder, folders, used, excluded=()):
 def main(folder, before, out, exclusions=None):
 	excluded = set()
 	if exclusions:
-		# The "Copy picks" text: every line ending in "(<id>)" under a "Nothing fits" heading is left out.
+		# The text copied from the page: the lines under a "RED" heading are left out.
+		red = False
 		for line in open(exclusions):
-			if line.startswith("- ") and line.rstrip().endswith(")") and "#" in line:
+			if line.strip().endswith(":") and not line.startswith("-"):
+				red = line.startswith("RED")
+			elif red and line.startswith("- ") and line.rstrip().endswith(")"):
 				excluded.add(line.rstrip()[line.rindex("(") + 1:-1])
 	cards = []
 	for key, title, subs in CARDS + SPARE:
@@ -84,7 +87,7 @@ def main(folder, before, out, exclusions=None):
 	print(out, round(len(html) / 1e6, 1), "MB")
 
 
-TEMPLATE = """<!doctype html>
+TEMPLATE = r"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Escape! Footstep Preview</title>
 <style>
@@ -97,44 +100,54 @@ h4{margin:10px 0 4px;font-size:12px;color:var(--dim);text-transform:uppercase;le
 p.intro{color:var(--dim)}.row{display:flex;flex-wrap:wrap;gap:6px}.alt{display:flex;gap:2px}
 button{font:inherit;font-size:13px;background:var(--btn);color:var(--text);border:1px solid var(--line);border-radius:4px;cursor:pointer;padding:6px 10px}
 button:hover{border-color:var(--gold)}button.on{background:var(--on)}button.v{width:210px;text-align:left;display:flex;justify-content:space-between}
-button.nf{margin-left:8px}button.nf.sel{background:#8a2f23;color:#fff}.gone{display:none}button.use{width:64px;color:var(--dim)}button.use.sel{background:#2f5a2f;color:#fff}.used{border-color:#4c8a4c}.d{color:var(--dim);font-size:12px}
+button.nf{margin-left:8px}.gone{display:none}.used{border-left:3px solid #4c8a4c}button.v.green{background:#2f5a2f}button.v.yellow{background:#8a6a1c}button.v.red{background:#6e2a22;text-decoration:line-through;opacity:.7}button.v.on{outline:2px solid var(--gold)}.menu{display:none;position:absolute;z-index:20;flex-direction:column;width:226px;background:#120f0c;border:1px solid var(--gold);border-radius:6px;padding:4px;gap:3px}.menu .green{background:#2f5a2f}.menu .yellow{background:#8a6a1c}.menu .red{background:#6e2a22}.d{color:var(--dim);font-size:12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:10px 14px;margin:12px 0}.rate button.sel{background:#8a6a1c;color:#fff}
 </style></head><body>
 <header><h1>Escape! Footstep Preview</h1><div class="now" id="now">Nothing playing</div>
 <label>Volume <input id="vol" type="range" min="0" max="1" step="0.05" value="0.8"></label>
-<button id="all">Play the six in a row</button><button id="stop">Stop</button><button id="copy">Copy picks</button></header>
-<main><p class="intro">Each ground shows the six steps the game plays now, the six it played before, and every other single step of the library.
-Alternatives with a green outline are already in the game. "Nothing fits" removes every proposal of a ground and keeps them out of future versions of this page (the copied text lists them). Press "Use" next to the ones you want instead (press again to undo), mark a ground
-"Needs another" if it still sounds wrong, then "Copy picks" and paste the text back into the chat.</p><div id="root"></div></main>
+<span id="count" style="color:var(--dim)"></span><button id="all">Play the six in a row</button><button id="hide">Hide red sounds</button><button id="stop">Stop</button><button id="copy">Copy ratings</button></header>
+<main><p class="intro">Each ground shows the six steps the game plays now, the six it played before, and every other single step of the library. Click a sound to hear it; <b>right-click</b> it (touch screens: press and hold) to rate it: <b>green</b> = use this, <b>yellow</b> = a considered alternative, <b>red</b> = exclude from future proposals. "Nothing fits" marks every unrated proposal of a ground red. Ratings are saved in this browser; "Copy ratings" gives all three lists to paste into the chat, and the generator leaves the red ones out of the next version of the page.</p><div id="root"></div></main>
 <script>
 /*DATA*/
 const root=document.getElementById('root'),now=document.getElementById('now');
-let excl={};try{excl=JSON.parse(localStorage.getItem('escape-step-excluded')||'{}')}catch(e){}
-let picks={};try{picks=JSON.parse(localStorage.getItem('escape-step-picks')||'{}')}catch(e){}
-const audio=new Audio();audio.volume=.8;let cur=null,queue=[];
+const KEY='escape-step-rates';let rates={};try{rates=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+const NAMES={green:'Green: use this',yellow:'Yellow: considered alternative',red:'Red: exclude from future proposals'};
+const audio=new Audio();audio.volume=.8;let cur=null,queue=[],hideRed=false;
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e};
-function save(){try{localStorage.setItem('escape-step-excluded',JSON.stringify(excl))}catch(e){}try{localStorage.setItem('escape-step-picks',JSON.stringify(picks))}catch(e){}}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(rates))}catch(e){}};
 function stop(){queue=[];audio.pause();if(cur)cur.classList.remove('on');cur=null;now.textContent='Nothing playing'}
 function play(b,v,name){if(cur===b){stop();return}audio.pause();if(cur)cur.classList.remove('on');audio.src=v.src;audio.currentTime=0;audio.play().catch(()=>{});cur=b;b.classList.add('on');now.textContent='Playing: '+name}
 audio.onended=()=>{if(queue.length){const q=queue.shift();play(q[0],q[1],q[2])}else stop()};
-function mk(v,name){const b=el('button','v');b.append(el('span',0,v.label),el('span','d',v.dur+' s'));b.onclick=()=>{queue=[];play(b,v,name+' '+v.label)};return b}
+const all=[];
+function paint(x){x.b.classList.remove('green','yellow','red');const r=rates[x.id];if(r)x.b.classList.add(r);x.b.parentElement.classList.toggle('gone',hideRed&&r==='red')}
+function rate(x,r){if(r)rates[x.id]=r;else delete rates[x.id];save();paint(x);counts()}
+function counts(){const n={green:0,yellow:0,red:0};for(const k in rates)n[rates[k]]++;document.getElementById('count').textContent='Green '+n.green+' · Yellow '+n.yellow+' · Red '+n.red}
+const menu=el('div','menu');document.body.append(menu);
+for(const r of ['green','yellow','red',null]){const m=el('button',r||'clear',r?NAMES[r]:'Clear rating');m.onclick=()=>{rate(menu.x,r);menu.style.display='none'};menu.append(m)}
+document.addEventListener('click',()=>menu.style.display='none');document.addEventListener('scroll',()=>menu.style.display='none');
+function mk(v,id,name,box){const w=el('span','snd'),b=el('button','v');b.append(el('span',0,v.label),el('span','d',v.dur+' s'));
+ const x={id,b,v};b.onclick=()=>{queue=[];play(b,v,name+' '+v.label)};
+ b.oncontextmenu=e=>{e.preventDefault();menu.x=x;menu.style.display='flex';menu.style.left=Math.min(e.pageX,innerWidth-230)+'px';menu.style.top=e.pageY+'px'};
+ let t;b.ontouchstart=e=>{t=setTimeout(()=>{const q=e.touches[0];menu.x=x;menu.style.display='flex';menu.style.left=Math.min(q.pageX,innerWidth-230)+'px';menu.style.top=q.pageY+'px'},600)};b.ontouchend=b.ontouchmove=()=>clearTimeout(t);
+ w.append(b);box.append(w);all.push(x);paint(x);return b}
 for(const c of DATA){
- root.append(el('h2',0,c.title));const card=el('div','card');
- if(c.now.length){for(const [h,list] of [['In game now',c.now],['Before (the older steps)',c.old]]){card.append(el('h4',0,h));const r=el('div','row');const bs=list.map(v=>mk(v,c.key));bs.forEach(b=>r.append(b));card.append(r);
-  if(h==='In game now')c.btns=bs.map((b,i)=>[b,list[i]])}}
- const hd=el('h4',0,'Other steps in the library (press Use to choose)');const nf=el('button','nf','Nothing fits');nf.title='Remove all these proposals for this ground and never propose them again';
- const rr=el('button','nf','Restore proposals');rr.style.display='none';hd.append(nf,rr);card.append(hd);const r=el('div','row');
- for(const a of c.alts){const w=el('div','alt'),b=mk(a,c.key);if(a.used)b.classList.add('used');const u=el('button','use','Use');
-  u.onclick=()=>{const k=c.key;picks[k]=picks[k]||{};if(picks[k][a.id])delete picks[k][a.id];else picks[k][a.id]=a.label;save();u.classList.toggle('sel',!!picks[k][a.id])};
-  if(picks[c.key]&&picks[c.key][a.id])u.classList.add('sel');w.append(b,u);r.append(w);a.w=w;if(excl[c.key]&&excl[c.key][a.id])w.classList.add('gone')}
- const refresh=()=>{const on=!!(excl[c.key]&&Object.keys(excl[c.key]).length);nf.style.display=on?'none':'';rr.style.display=on?'':'none'};
- nf.onclick=()=>{excl[c.key]={};for(const a of c.alts){excl[c.key][a.id]=a.label;a.w.classList.add('gone')}delete picks[c.key];r.querySelectorAll('button.use').forEach(u=>u.classList.remove('sel'));save();refresh()};
- rr.onclick=()=>{delete excl[c.key];c.alts.forEach(a=>a.w.classList.remove('gone'));save();refresh()};refresh();
- card.append(r);root.append(card)}
+ root.append(el('h2',0,c.title));const card=el('div','card');c.items=[];
+ for(const [h,list,tag] of [['In game now',c.now,'now'],['Before (the older steps)',c.old,'old']]){if(!list.length)continue;card.append(el('h4',0,h));const r=el('div','row');
+  list.forEach((v,i)=>{const b=mk(v,tag+':'+c.key+':'+i,c.key,r);if(tag==='now')c.items.push([b,v])});card.append(r)}
+ const hd=el('h4',0,'Other steps in the library (right-click a sound to rate it)');const nf=el('button','nf','Nothing fits');nf.title='Mark every unrated proposal for this ground red';hd.append(nf);card.append(hd);
+ const r=el('div','row');for(const a of c.alts){const b=mk(a,a.id,c.key,r);if(a.used)b.classList.add('used')}
+ nf.onclick=()=>{for(const a of c.alts)if(!rates[a.id])rates[a.id]='red';save();all.forEach(paint);counts()};
+ card.append(r);root.append(card);c.firstRow=card}
 document.getElementById('stop').onclick=stop;
 document.getElementById('vol').oninput=e=>audio.volume=+e.target.value;
-document.getElementById('all').onclick=()=>{const c=DATA.find(d=>d.btns&&d.btns.some(([b])=>b.getBoundingClientRect().top>=0))||DATA[0];if(!c.btns)return;stop();queue=c.btns.slice(1).map(([b,v])=>[b,v,c.key+' '+v.label]);const f=c.btns[0];play(f[0],f[1],c.key+' '+f[1].label)};
-document.getElementById('copy').onclick=async e=>{let t='Escape! footstep picks\\n';for(const c of DATA){const p=picks[c.key]||{};const ids=Object.keys(p);const x=excl[c.key]?Object.keys(excl[c.key]):[];if(x.length)t+='\\n'+c.title+' - NOTHING FITS (these are never proposed again):\\n'+x.map(i=>'- '+excl[c.key][i]+'  ('+i+')').join('\\n')+'\\n';if(ids.length)t+='\\n'+c.title+':\\n'+ids.map(i=>'- '+p[i]+'  ('+i+')').join('\\n')+'\\n'}try{await navigator.clipboard.writeText(t)}catch(x){const a=document.createElement('textarea');a.value=t;document.body.append(a);a.select();document.execCommand('copy');a.remove()}e.target.textContent='Copied!';setTimeout(()=>e.target.textContent='Copy picks',1500)};
+document.getElementById('hide').onclick=e=>{hideRed=!hideRed;e.target.textContent=hideRed?'Show red sounds':'Hide red sounds';all.forEach(paint)};
+document.getElementById('all').onclick=()=>{const c=DATA.find(d=>d.items.length&&d.firstRow.getBoundingClientRect().bottom>0)||DATA[0];if(!c.items.length)return;stop();queue=c.items.slice(1).map(([b,v])=>[b,v,c.key+' '+v.label]);const f=c.items[0];play(f[0],f[1],c.key+' '+f[1].label)};
+function report(){let t='Escape! footstep ratings\n';const L=[['green','GREEN (use these)'],['yellow','YELLOW (considered alternatives)'],['red','RED (exclude from future proposals)']];
+ for(const c of DATA){const ids=[...c.alts.map(a=>[a.id,a.label]),...c.now.map((v,i)=>['now:'+c.key+':'+i,'in game: '+v.label]),...c.old.map((v,i)=>['old:'+c.key+':'+i,'before: '+v.label])];
+  let s='';for(const [r,h] of L){const m=ids.filter(([i])=>rates[i]===r);if(m.length)s+=h+':\n'+m.map(([i,l])=>'- '+l+'  ('+i+')').join('\n')+'\n'}
+  if(s)t+='\n== '+c.title+'\n'+s}return t}
+document.getElementById('copy').onclick=async e=>{const t=report();try{await navigator.clipboard.writeText(t)}catch(x){const a=document.createElement('textarea');a.value=t;document.body.append(a);a.select();document.execCommand('copy');a.remove()}e.target.textContent='Copied!';setTimeout(()=>e.target.textContent='Copy ratings',1500)};
+counts();
 </script></body></html>"""
 
 if __name__ == "__main__":

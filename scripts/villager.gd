@@ -546,7 +546,7 @@ func _finish_mending() -> void:
 	for v: Villager in level.villagers:
 		if v != self and v.mend_brick != null and is_instance_valid(v.mend_brick):
 			taken.append(v.mend_brick)
-	var next := level.village_wall.job(level, taken)
+	var next := level.village_wall.job_for(level, role, taken)
 	if next != null and can_mend_next():
 		mend(next)
 	else:

@@ -363,12 +363,21 @@ func _send_mason(o: Outdoor) -> void:
 			if v.role != role:
 				continue
 			if v.can_mend():
-				var work := job(o, taken)
+				var work := job_for(o, role, taken)
 				if work == null:
 					return
 				v.mend(work)
 				taken.append(work)
 			break
+
+
+## The brick a mender takes next: one nobody else is on, else (for the mason, who
+## must see the wall whole whatever happens to his helper) the worst hurt one.
+func job_for(o: Outdoor, role: String, taken: Array[WallBrick]) -> WallBrick:
+	var work := job(o, taken)
+	if work == null and role == "S":
+		work = job(o)
+	return work
 
 
 ## The brick the mason mends next: the worst hurt one that is safe to work on.

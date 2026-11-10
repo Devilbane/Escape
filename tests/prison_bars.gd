@@ -25,6 +25,9 @@ func _initialize() -> void:
 	check(Level.bars_rotation("=", "=", ".", ".") == across, "bars in a row of bars span west to east")
 	check(Level.bars_rotation(".", ".", ".", ".") == across, "lone bars keep the old default")
 
+	# A barred door between two stretches of cell bars ("=/=") lies across them.
+	check(Level.bars_rotation("=", "=", ".", ".") == across, "a barred door between cell bars spans west to east")
+
 	# The prisoner's cell of the archive (Brother Orlan): a column of bars on each side.
 	var rows := _map_rows("res://levels/34_das_archiv_sonnet.txt")
 	check(rows.size() > 13, "the archive map was read")

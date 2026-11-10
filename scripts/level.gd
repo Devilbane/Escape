@@ -3627,8 +3627,9 @@ func _build_gate(c: Vector2i) -> void:
 ## are these; so are Sternhall's barred doors (see SternHall).
 func add_grating(c: Vector2i) -> Dictionary:
 	var pos := cell_to_world(c)
-	var across_x := cell_char(c + Vector2i(-1, 0)) == "#" and cell_char(c + Vector2i(1, 0)) == "#"
-	var rot := 0.0 if across_x else PI * 0.5
+	# Turned like the run of bars it belongs to: a barred door between two
+	# stretches of cell bars ("=/=") must lie across them, not stand crosswise.
+	var rot := bars_rotation(cell_char(c + Vector2i(-1, 0)), cell_char(c + Vector2i(1, 0)), cell_char(c + Vector2i(0, -1)), cell_char(c + Vector2i(0, 1)))
 	var bars := _build_iron_gate(pos, rot)
 	var body := StaticBody3D.new()
 	body.position = pos

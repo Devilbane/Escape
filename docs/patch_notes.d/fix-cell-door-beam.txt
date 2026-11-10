@@ -1,0 +1,1 @@
+- Fixed the cell doors in the cellar vaults jail: no more lone stone bar standing crosswise in the gap.

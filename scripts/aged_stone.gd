@@ -49,6 +49,10 @@ const IVY_DOOR_GAP := 1.5
 const IVY_KEEP := 0.62
 const IVY_CAP := 0.7
 const IVY_SPACING := 0.14
+## Branchy ivy (the guild hall): how often a vine sends a branch out sideways,
+## and for how many steps (of 0.16 m) it runs along the wall before it climbs on.
+const BRANCH_RUN_CHANCE := 0.07
+const BRANCH_RUN := Vector2i(10, 22)
 const IVY_BRANCHING := 0.12
 ## The doorway itself stays free of leaves up to this height (metres) and
 ## this far (metres) from the door's spot, so the ivy frames a door.
@@ -420,12 +424,13 @@ static func _on_wall(wall: Dictionary, p: Vector3) -> bool:
 ## `foot_max` lets ivy root on walls standing that high (the castle's towers
 ## start well above the ground). `windows` are the middles of window panes (world space): their middle
 ## stays clear of leaves, so the ivy frames a window but never covers it.
-static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = [], foot_max := 0.0, proud := 0.0, window_room := 1.0) -> void:
+static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = [], foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false) -> void:
 	var all_walls := walls(tris, middle, ground)
 	var found := rooted(all_walls, ground, old, foot_max)
 	# A wall up on a stone base that looks the way a door does holds that
 	# door up there too (the KayKit buildings): no ivy grows from its foot.
-	found = found.filter(func(w): return float(w.foot) < ground + 0.9 or foot_max > 0.0 or not doors.any(
+	# (`all_sides`, the guild hall: its entrance wall wears ivy too, the gate itself stays clear.)
+	found = found.filter(func(w): return all_sides or float(w.foot) < ground + 0.9 or foot_max > 0.0 or not doors.any(
 			func(d: Vector3): return Vector2(d.x - middle.x, d.z - middle.z).normalized().dot(Vector2(w.n.x, w.n.z)) > 0.7))
 	if found.is_empty():
 		return
@@ -449,7 +454,7 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 			side.append(w)
 	# The camera looks north from the south: a side turned right away from it
 	# is never seen, so it grows no ivy (unless it is all there is).
-	var seen := sides.filter(func(s: Array): return ((s[0] as Dictionary).n as Vector3).z > -0.7)
+	var seen := sides.filter(func(s: Array): return all_sides or ((s[0] as Dictionary).n as Vector3).z > -0.7)
 	if not seen.is_empty():
 		sides = seen
 	sides.sort_custom(func(a: Array, b: Array): return (a[0].n as Vector3).z > (b[0].n as Vector3).z)
@@ -464,7 +469,7 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 	for i in sides.size():
 		var side0: Array = sides[i]
 		deal.append(i)
-		if i == 0 and (side0[0].n as Vector3).z > 0.5:
+		if i == 0 and not all_sides and (side0[0].n as Vector3).z > 0.5:
 			for k in FRONT_TURNS - 1:
 				deal.append(0)
 	patches = patches * deal.size() / maxi(sides.size(), 1)
@@ -491,7 +496,7 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 		# (Only a root down by the door is kept away: one high up on a tower above it is fine.)
 		if root.y < ground + DOOR_CLEAR.y and doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
 			continue
-		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors, proud, window_room)
+		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors, proud, window_room, all_sides)
 		grown += 1
 
 
@@ -519,7 +524,7 @@ static func _root_on(wall: Dictionary, ground: float, rng: RandomNumberGenerator
 ## and then branching; leaves grow along them, thickest near the ground.
 ## Old ivy climbs higher, and a tendril that runs out of wall below its
 ## reach creeps on up the roof above it.
-static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = [], thin := 1.0, doors: Array = [], proud := 0.0, window_room := 1.0) -> void:
+static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = [], thin := 1.0, doors: Array = [], proud := 0.0, window_room := 1.0, branchy := false) -> void:
 	var n: Vector3 = root_wall.n
 	var across := Vector3.UP.cross(n).normalized()
 	var height: Vector2 = OLD_IVY_HEIGHT if old else IVY_HEIGHT
@@ -543,9 +548,16 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 		var p: Vector3 = tip.p
 		var drift: float = tip.drift
 		var wall: Dictionary = tip.wall
+		# A runner (see BRANCH_RUN) first creeps sideways along the wall, rising a
+		# little, then climbs on like any tendril.
+		var run: int = tip.get("run", 0)
+		var run_dir: float = tip.get("dir", 1.0)
 		while p.y < reach:
 			drift = clampf(drift + rng.randf_range(-0.35, 0.35), -0.9, 0.9)
 			var next := p + Vector3.UP * 0.16 + across * drift * 0.1
+			if run > 0:
+				run -= 1
+				next = p + across * run_dir * 0.16 + Vector3.UP * rng.randf_range(0.02, 0.07)
 			if not _on_wall(wall, next):
 				# Round the edge of a window or the wall: try straight up,
 				# then on to a wall in line just above.
@@ -571,7 +583,10 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 				var at := p + across * (side_flip * rng.randf_range(0.06, 0.22)) + Vector3.UP * (rng.randf_range(-0.05, 0.05) + k * 0.08)
 				if rng.randf() < thin * IVY_KEEP and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_window_room(at, n, windows, window_room, rng) and not _in_doorway(at, doors, ground) and not _crowded(at, leaves, first):
 					_leaf(at + n * proud, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
-			if rng.randf() < IVY_BRANCHING and tips.size() < 8:
+			if branchy and run == 0 and rng.randf() < BRANCH_RUN_CHANCE and tips.size() < 10:
+				# A branch growing out sideways, and a tendril going up from its end.
+				tips.append({"p": p, "drift": 0.0, "wall": wall, "run": rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y), "dir": 1.0 if rng.randf() < 0.5 else -1.0})
+			elif rng.randf() < IVY_BRANCHING and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
 
 

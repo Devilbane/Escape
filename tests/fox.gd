@@ -314,6 +314,7 @@ func _process(delta: float) -> bool:
 			check(lvl._flat_distance(basket, bed.pos) < 5.0, "the basket stands beside the bed")
 			check(lvl._walkable(lvl.world_to_cell(basket)) and not lvl.astar.is_point_solid(lvl.world_to_cell(basket)), "the basket stands on open floor")
 			game.player.global_position = bed.pos + Vector3(0, 0, 3.0)
+			game.quit_on_log_out = false
 			game.sleep()
 			_next_stage()
 			stage = 11

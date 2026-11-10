@@ -9,6 +9,7 @@ chest_facing.gd | 60 | free | pass | Chests rest their back on the wall and open
 entrance_textures.gd | 120 | free | pass | Dungeon entrances are aged and textured
 merchant_placement.gd | 60 | free | pass | Merchants stand in the open middle of their room
 furniture_stuck.gd | 300 | fixed | passfail | Furniture blocks only where it is drawn (nobody gets stuck on it)
+village_clutter.gd | 60 | free | pass | Village heaps (barrels, crates, planks and carts never overlap)
 lang_keys.gd | 60 | free | pass | English texts (no German text translated twice)
 loot_text_size.gd | 60 | free | pass | Loot and experience text sized by worth
 jump_windup.gd | 120 | fixed | passfail | Jump wind-up (half a step first, called off by a hit)

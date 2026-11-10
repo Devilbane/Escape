@@ -59,8 +59,10 @@ windmill_groan_*) are made from scratch by tools/make_windmill_sounds.py.
 The fanfares for loot finer than rare (loot_epic, loot_godborn) are made
 from scratch by tools/make_rarity_sounds.py.
 
-The splashes of a step into a rain puddle (splash_*) are made from scratch
-by tools/make_weather_sounds.py, like the rain and the thunder.
+The sounds of a step into a rain puddle (splash_0 to splash_3 and the softer
+splash_soft_0 to splash_soft_2) are single steps cut from "Running Through
+Puddle" by soundza (soundza.com), trimmed, compressed a little, levelled to
+match the other footsteps and faded at the ends.
 
 The hero's sword and axe sounds (sword_* and axe_*: swings, sweeps and the
 impacts of a plain, heavy, vital, sneak and glancing blow) are cut, pitched

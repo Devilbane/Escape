@@ -1803,14 +1803,9 @@ func _spill_material() -> ShaderMaterial:
 
 ## The window panes of the villagers' houses: dark by day, warm at night
 ## (see set_hour).
-func _house_glass() -> StandardMaterial3D:
+func _house_glass() -> ShaderMaterial:
 	if not _scenes.has("mat_house_glass"):
-		var glass := StandardMaterial3D.new()
-		glass.albedo_color = Color(0.16, 0.18, 0.22)
-		glass.roughness = 0.25
-		glass.emission_enabled = true
-		glass.emission = WINDOW_LIGHT
-		glass.emission_energy_multiplier = 0.0
+		var glass := WindowLights.glass_material(WINDOW_LIGHT)
 		_scenes["mat_house_glass"] = glass
 		_window_mats[glass] = glass
 	return _scenes["mat_house_glass"]
@@ -3085,6 +3080,7 @@ func set_hour(new_hour: float) -> void:
 	for mat in _window_mats.values():
 		if mat is ShaderMaterial:
 			mat.set_shader_parameter("glow", WINDOW_GLOW * glow)
+			mat.set_shader_parameter("hour", hour)
 		else:
 			mat.emission_energy_multiplier = WINDOW_GLOW * glow
 	var dark := DayNight.is_night(hour)

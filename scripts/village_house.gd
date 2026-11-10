@@ -44,12 +44,14 @@ static var _mats := {}
 static var _panes: Array = []
 ## Which way each of those panes faces (meta "window_outs"), so the light can fall in front of it.
 static var _outs: Array = []
+## The place of the pane being built, which its glass carries (see WindowLights).
+static var _pane_key := Vector2.ZERO
 
 
 ## A house that fits into a footprint of `room` metres (x across the front,
 ## y deep). Its glowing window panes use `glass`, so the village can light
 ## them at night.
-static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMaterial3D) -> Node3D:
+static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material) -> Node3D:
 	_panes = []
 	_outs = []
 	var w := clampf(room.x - 1.2 - JETTY * 2.0, 4.5, 7.0) - rng.randf_range(0.0, 0.6)
@@ -107,7 +109,7 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMate
 ## street, with an attic under the roof. The gable faces the lane, the roof slopes down
 ## to the neighbours on either side, and a small sign over the door carries
 ## the house number. Built facing south (+z) like `build`.
-static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator, glass: StandardMaterial3D) -> Node3D:
+static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator, glass: Material) -> Node3D:
 	_panes = []
 	_outs = []
 	var w := room.x - 0.06
@@ -180,7 +182,7 @@ static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator,
 const NARROW_STOREYS := 2
 
 
-static func _materials(rng: RandomNumberGenerator, glass: StandardMaterial3D) -> Dictionary:
+static func _materials(rng: RandomNumberGenerator, glass: Material) -> Dictionary:
 	return {
 		"plaster": AgedStone.house_material(AgedStone.HOUSE_TINTS[rng.randi() % AgedStone.HOUSE_TINTS.size()]),
 		"timber": _textured("timber", WOOD_TEX, TIMBER),
@@ -261,6 +263,7 @@ static func _hang_door(house: Node3D, at: Vector3) -> void:
 ## A window: a glowing pane in a frame, with open shutters either side.
 static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 	_panes.append(at)
+	_pane_key = WindowLights.key(at)
 	var b := Basis(Vector3.UP, turn)
 	var out := b * Vector3(0, 0, 1)
 	_outs.append(out)
@@ -356,6 +359,8 @@ static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3,
 		# the other way the camera saw the far insides of every box, dark and
 		# flickering through each other (tests/house_faces.gd).
 		for k in [0, 2, 1, 0, 3, 2]:
+			if key == "glass":
+				st.set_uv2(_pane_key)
 			st.set_normal(basis * n)
 			st.set_uv(_uv(key, uvs[k], center, tile))
 			st.add_vertex(center + basis * corners[k])

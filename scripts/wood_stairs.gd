@@ -10,7 +10,12 @@ const BASE := Color(0.5, 0.33, 0.19)
 const DARK := Color(0.24, 0.14, 0.08)
 const WORN := Color(0.66, 0.5, 0.32)
 
+## How far the dark tones of the house floor are lifted towards its mid wood (0 = the stairs'
+## picture unchanged, 1 = the darkest grain as light as the mid wood). Only the floor uses it.
+const FLOOR_LIFT := 0.6
+
 static var _tex: Texture2D = null
+static var _floor_tex: Texture2D = null
 
 
 ## The picture of one tread or riser: boards running across it (left to right), each a little
@@ -65,6 +70,23 @@ static func texture() -> Texture2D:
 					img.set_pixel(kx + dx, ky + dy, DARK.lerp(BASE, 0.15))
 	_tex = ImageTexture.create_from_image(img)
 	return _tex
+
+
+## The stairs' picture with its dark tones lifted, for the floor of a house, where large
+## areas of the dark grain and gaps looked heavy next to the walls. The mid and light wood
+## stay as they are, so it is still the same worn wood.
+static func floor_texture() -> Texture2D:
+	if _floor_tex:
+		return _floor_tex
+	var img := texture().get_image()
+	var mid := BASE.get_luminance()
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			var dark := clampf((mid - c.get_luminance()) / (mid - DARK.get_luminance()), 0.0, 1.0)
+			img.set_pixel(x, y, c.lerp(c.lerp(BASE, 0.85), dark * FLOOR_LIFT))
+	_floor_tex = ImageTexture.create_from_image(img)
+	return _floor_tex
 
 
 ## A matt, worn wood material. `triplanar` for the kit's mesh (no fitting picture

@@ -77,7 +77,7 @@ func _process(delta: float) -> bool:
 			for text in [Rescue.LORE, "Du verlierst das Bewusstsein...", "Ein Adler stößt herab!", "Der Rettungstrupp der Zwerge ist unterwegs!",
 					"Bergrettung!", "Ein Riesenadler hat dich bewusstlos davongetragen und hierher gebracht.",
 					"Der Rettungstrupp der Zwerge hat dich bewusstlos aus der Tiefe getragen und hierher gebracht.",
-					"Deine Tasche, dein Zutatenbeutel und %d Münzen liegen noch dort, wo du gefallen bist: %s.", "Du hast deine verlorene Tasche wiedergefunden! Gegenstände zurück: %d.", "Du hast deinen verlorenen Zutatenbeutel wiedergefunden! Zutaten zurück: %d.", "Dein Rucksack ist voll, %d Gegenstände bleiben liegen.",
+					"Deine Tasche, dein Zutatenbeutel und %d Münzen liegen noch dort, wo du gefallen bist: %s.", "Du hast deine verlorene Tasche wiedergefunden! Gegenstände zurück: %d.", "Du hast deinen verlorenen Zutatenbeutel wiedergefunden! Zutaten zurück: %d.", "Dein Rucksack ist voll, %d Gegenstände bleiben liegen.", "Du hast deinen Rucksack wieder angelegt: %s",
 					"Gedächtnisverlust: %d Erfahrung vergessen."]:
 				check(Lang.EN.has(text), "'%s' has English" % text)
 			game.hero_name = HERO
@@ -111,8 +111,10 @@ func _process(delta: float) -> bool:
 			check(packs.size() == 2, "the bag and the ingredient pouch lie on the floor (%d)" % packs.size())
 			var bags := packs.filter(func(e): return not Rescue.is_pouch(e))
 			var pouches := packs.filter(func(e): return Rescue.is_pouch(e))
-			check(bags.size() == 1 and _flat(Vector3(float(bags[0][2]), 0, float(bags[0][3])), fell_at) < 0.5, "the bag lies where the hero fell")
-			check(bags.size() == 1 and str(bags[0][4].get("backpack", "")) == "leinenrucksack" and bags[0][4].get("bag", []).size() == 3, "the bag holds the backpack and the gear")
+			check(bags.size() == 1 and _flat(Vector3(float(bags[0][2]), 0, float(bags[0][3])), fell_at) < 1.5, "the bag lies where the hero fell")
+			check(bags.size() == 1 and str(bags[0][4].get("backpack", "")) == "" and bags[0][4].get("bag", []).size() == 3, "the bag holds the gear, not the backpack")
+			var sacks := here.filter(func(e): return e is Array and str(e[0]) == "item" and Items.is_backpack(str(e[1])))
+			check(sacks.size() == 1 and str(sacks[0][1]) == "leinenrucksack" and _flat(Vector3(float(sacks[0][2]), 0, float(sacks[0][3])), fell_at) < 0.5, "the backpack lies on its own where the hero fell")
 			check(pouches.size() == 1 and _flat(Vector3(float(pouches[0][2]), 0, float(pouches[0][3])), fell_at) < 1.5, "the ingredient pouch lies beside it")
 			check(pouches.size() == 1 and int(pouches[0][4].pouch.get(HERB, 0)) == 3, "the pouch holds the ingredients")
 			var piles := here.filter(func(e): return e is Array and str(e[0]) == "coin")
@@ -157,6 +159,9 @@ func _process(delta: float) -> bool:
 		4:
 			if clock < 0.6:
 				return false
+			# The backpack is picked up first: the bag waits for it, then opens.
+			check(player.equipped.get("rucksack", "") == "leinenrucksack", "the backpack is the first thing picked up and goes on")
+			check(not (game.level.floor_items.any(func(e): return e is Array and str(e[0]) == "item")), "the backpack is off the floor")
 			check(player.bag.count("knochenhelm") == 2 and player.bag.has("lederkappe"), "the gear comes back (%s)" % [player.bag])
 			check(game.crafting.have(HERB) == 3 and game.crafting.have(ORE) == 2, "the ingredients come back")
 			check(game.crafting.ores.get(ORE, []).size() == 2, "the ore keeps its lumps")

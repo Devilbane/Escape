@@ -1,0 +1,1 @@
+- When you are knocked out, your backpack now lies on the ground by itself, and it is always the first thing you pick up (it goes straight back on).

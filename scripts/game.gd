@@ -5619,6 +5619,14 @@ func _on_item_collected(id: String) -> void:
 		Effects.loot_text(level, player.global_position + Vector3(0, 3.0, 0), Lang.t("+%d Wurfmesser") % 1, AMMO_COLOR, 0.0)
 		Events.teach(KNIFE_LORE)
 		return
+	if Items.is_backpack(id) and not player.equipped.has("rucksack"):
+		# A backpack picked up goes straight on (the first thing after a rescue).
+		player.equipped["rucksack"] = id
+		player.refresh_stats()
+		Sfx.play(self, "rummage", -3.0)
+		Events.found(Lang.t("Du hast deinen Rucksack wieder angelegt: %s") % Items.item_name(id), GOLD)
+		_update_hud()
+		return
 	player.bag.append(id)
 	if Items.ALL.get(id, {}).get("slot", "") == "erz":
 		# Where ore turned up goes on the map (see Journal).

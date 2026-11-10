@@ -30,8 +30,8 @@ const FEET := {
 	"shiba": {"Walk": 2.38, "Gallop": 5.87},
 	# Cow and bull (the village herd).
 	"cow": {"Walk": 2.63, "Gallop": 9.56},
-	# Alpaca, played as the village sheep.
-	"alpaca": {"Walk": 2.11, "Gallop": 9.73},
+	# The village sheep (its animations were made for it, tools/build_sheep.gd).
+	"sheep": {"Walk": 5.33, "Gallop": 18.88},
 }
 ## Which rig each model file uses. A model not listed (the slime, bats,
 ## dragons) has no feet on the ground and plays at its own pace.
@@ -39,7 +39,7 @@ const RIGS := {
 	"Rogue": "kaykit", "Knight": "kaykit", "Barbarian": "kaykit", "Mage": "kaykit",
 	"Skeleton_Warrior": "kaykit", "Skeleton_Rogue": "kaykit", "Skeleton_Mage": "kaykit", "Skeleton_Minion": "kaykit",
 	"Orc": "brute", "Yeti": "brute", "Wolf": "hound", "Fox": "hound", "Deer": "deer", "Stag": "deer",
-	"Spider": "spider", "Husky": "husky", "ShibaInu": "shiba", "Cow": "cow", "Bull": "cow", "Alpaca": "alpaca",
+	"Spider": "spider", "Husky": "husky", "ShibaInu": "shiba", "Cow": "cow", "Bull": "cow", "Sheep": "sheep",
 }
 ## The walk, jog and run of each rig, slowest first (see gait).
 const GAITS := {
@@ -51,7 +51,7 @@ const GAITS := {
 	"husky": ["Walk", "Gallop"],
 	"shiba": ["Walk", "Gallop"],
 	"cow": ["Walk", "Gallop"],
-	"alpaca": ["Walk", "Gallop"],
+	"sheep": ["Walk", "Gallop"],
 }
 ## A walk plays at most this many times its normal pace; a body that walks
 ## faster is held back to it (see top_speed), or takes up the next gait.

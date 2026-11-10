@@ -67,18 +67,21 @@ const FOOT_BONES := {
 	"husky": ["FF_L", "FF_R", "FFB_L", "FFB_R"],
 	"shiba": ["FF_L", "FF_R", "FFB_L", "FFB_R"],
 	"cow": ["FF_L", "FF_R", "FFB_L", "FFB_R"],
-	"alpaca": ["FF.L", "FF.R", "FFB.L", "FFB.R"],
+	"sheep": ["FrontLowLeg_R_end", "FrontLowLeg_L_end", "BackLowLeg_R_end", "BackLowLeg_L_end"],
 	"deer": ["FF.L", "FF.R", "FFB.L", "FFB.R"],
 	"spider": ["FrontFoot_L", "MidFrontFoot_L", "BackFoot_L", "MidBackFoot_L",
 		"FrontFoot2_R", "MidFrontFoot_R", "BackFoot_R", "MidBackFoot_R"],
 }
+## Where the sheep's hooves are: the length of each lower leg bone, down to its tip.
+const TIPS := {"FrontLowLeg_R_end": 0.01079, "FrontLowLeg_L_end": 0.01079,
+	"BackLowLeg_R_end": 0.01414, "BackLowLeg_L_end": 0.01414}
 const MODEL_FILES := {
 	"Rogue": "characters/Rogue.glb", "Knight": "characters/Knight.glb", "Barbarian": "characters/Barbarian.glb",
 	"Mage": "characters/Mage.glb", "Skeleton_Warrior": "enemies/Skeleton_Warrior.glb",
 	"Skeleton_Minion": "enemies/Skeleton_Minion.glb", "Orc": "wild/Orc.glb", "Yeti": "wild/Yeti.glb",
 	"Wolf": "wild/Wolf.glb", "Fox": "animals/Fox.glb", "Deer": "animals/Deer.glb", "Stag": "animals/Stag.glb",
 	"Spider": "wild/Spider.glb", "Husky": "animals/Husky.glb", "ShibaInu": "animals/ShibaInu.glb",
-	"Cow": "animals/Cow.glb", "Bull": "animals/Bull.glb", "Alpaca": "animals/Alpaca.glb",
+	"Cow": "animals/Cow.glb", "Bull": "animals/Bull.glb", "Sheep": "animals/Sheep.glb",
 }
 
 
@@ -91,7 +94,13 @@ func _posed(model: Node3D, anim: String, phase: float, bones: Array) -> Array:
 	var to_model := model.global_transform.affine_inverse() * skel.global_transform
 	var out := []
 	for b: String in bones:
-		out.append(to_model * skel.get_bone_global_pose(skel.find_bone(b)).origin)
+		var at := skel.find_bone(b)
+		if at < 0 and TIPS.has(b):
+			# A tip bone the glTF export dropped: the end of its parent's length.
+			var parent := skel.get_bone_global_pose(skel.find_bone(b.trim_suffix("_end")))
+			out.append(to_model * (parent.origin + parent.basis.y * TIPS[b]))
+		else:
+			out.append(to_model * skel.get_bone_global_pose(at).origin)
 	return out
 
 

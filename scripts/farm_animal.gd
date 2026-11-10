@@ -50,8 +50,8 @@ const MODELS := {
 	"dog": {"": ["ShibaInu", 0.26], "black": ["Husky", 0.3]},
 	"cow": {"": ["Cow", 0.3]},
 	"bull": {"": ["Bull", 0.32]},
-	# The alpaca, scaled evenly (a Vector3 scales each axis); _fleece shortens its neck and legs.
-	"sheep": {"": ["Alpaca", Vector3(0.3, 0.3, 0.28)]},
+	# The sheep of the Farm Animals pack, with a Walk, Gallop and Eating made for it (tools/build_sheep.gd).
+	"sheep": {"": ["Sheep", 0.25]},
 }
 ## A sneaking hero is noticed only this much closer.
 const SNEAK_FACTOR := 0.5
@@ -85,7 +85,7 @@ const CRY := "mähhhhh, feeeeellll maaaiiiii  hoooooorrrrnsss!!!"
 const ACTIVE_RANGE := 100.0
 const HIDE_RANGE := 80.0
 ## How far a body drops when it lies down (its legs' length), per kind.
-const LEG := {"goose": 0.22, "goat": 0.36, "billy": 0.36, "sheep": 0.24}
+const LEG := {"goose": 0.22, "goat": 0.36, "billy": 0.36, "sheep": 0.3}
 
 static var _meshes := {}
 static var _mats := {}
@@ -739,40 +739,24 @@ func _build_model() -> void:
 	_play("Idle", 1.0)
 
 
-## How much of its length a sheep keeps of the alpaca's neck and legs (bone scale along the
-## bone), and how far the whole model sinks so the shorter hooves still meet the ground. The
-## hind leg keeps more of its upper bone's length, which the zigzag of the hock makes up for.
-const SHEEP_NECK := 0.5
-const SHEEP_FRONT_LEG := 0.62
-const SHEEP_BACK_LEG := 0.67
-const SHEEP_SINK := 0.73
-## The head: a shorter, broader face (scale along the skull, across it), and the carriage of
-## SheepPosture: neck leaning forward, head level, ears out to the side (degrees).
-const SHEEP_HEAD := Vector2(0.75, 1.1)
-const SHEEP_NECK_LEAN := -42.0
-const SHEEP_HEAD_LEAN := -8.0
-const SHEEP_EAR_ROLL := -50.0
-
-## A sheep is the pack's alpaca made woolly. The model file has a puffed-up fleece
-## (clumpy and cream, with dark stockings; its vertex colours carry the clumps), and
-## here it gets the fleece material, a dark face and dark hooves. The materials are
-## built once and shared by the whole flock. Its neck and legs are shortened to a sheep's.
+## A sheep is woolly: the model's white body gets the fleece material (soft clumps, lit by a
+## bump map so the wool looks curly), its black head and legs a dark one. The materials
+## are built once and shared by the whole flock.
 func _fleece(model: Node3D) -> void:
-	_shorten(model)
 	if _sheep_mats.is_empty():
+		var noise := _fleece_noise()
 		var wool := StandardMaterial3D.new()
-		wool.vertex_color_use_as_albedo = true
-		wool.albedo_texture = _fleece_texture()
+		wool.albedo_color = Color(0.97, 0.93, 0.84)
+		wool.albedo_texture = _fleece_texture(noise)
+		wool.normal_enabled = true
+		wool.normal_texture = _fleece_normals(noise)
+		wool.normal_scale = 2.2
 		wool.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		wool.uv1_triplanar = true
-		wool.uv1_scale = Vector3.ONE * 1.6
+		wool.uv1_scale = Vector3.ONE * 18.0
 		wool.roughness = 1.0
-		wool.cull_mode = BaseMaterial3D.CULL_DISABLED
-		_sheep_mats["Main"] = wool
-		_sheep_mats["Main_Light"] = wool
-		_sheep_mats["Main_Dark"] = _mat(Color(0.19, 0.15, 0.12))
-		_sheep_mats["Hooves"] = _mat(Color(0.09, 0.07, 0.06))
-		_sheep_mats["Muzzle"] = _mat(Color(0.1, 0.08, 0.07))
+		_sheep_mats["White"] = wool
+		_sheep_mats["Black"] = _mat(Color(0.14, 0.11, 0.1))
 	for node in model.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		for s in mi.mesh.get_surface_count():
@@ -781,47 +765,32 @@ func _fleece(model: Node3D) -> void:
 				mi.set_surface_override_material(s, _sheep_mats[m.resource_name])
 
 
-## Shortens the neck and legs through the bones' scale (the animations only move and turn
-## bones, so the walk, gallop and grazing keep working). The head is scaled back, across
-## its own axis that points along the neck, so it keeps its shape.
-func _shorten(model: Node3D) -> void:
-	var skeleton: Skeleton3D = model.find_child("Skeleton3D", true, false)
-	if skeleton == null:
-		return
-	_scale_bone(skeleton, "Neck1", SHEEP_NECK)
-	skeleton.set_bone_pose_scale(skeleton.find_bone("Head"),
-			Vector3(SHEEP_HEAD.y, SHEEP_HEAD.x, SHEEP_HEAD.y / SHEEP_NECK))
-	for side in ["L", "R"]:
-		_scale_bone(skeleton, "FrontUpperLeg." + side, SHEEP_FRONT_LEG)
-		_scale_bone(skeleton, "BackLeg." + side, SHEEP_BACK_LEG)
-	model.position.y = -SHEEP_SINK
-	var posture := SheepPosture.new()
-	skeleton.add_child(posture)
-	posture.setup(skeleton)
-	posture.neck_pitch = SHEEP_NECK_LEAN
-	posture.head_pitch = SHEEP_HEAD_LEAN
-	posture.ear_roll = SHEEP_EAR_ROLL
-
-
-## Scales one bone by `amount` along `axis` (the bone's own length by default).
-static func _scale_bone(skeleton: Skeleton3D, bone: String, amount: float, axis := Vector3.UP) -> void:
-	var i := skeleton.find_bone(bone)
-	if i >= 0:
-		skeleton.set_bone_pose_scale(i, Vector3.ONE + axis * (amount - 1.0))
-
-
-## A small tiling texture of soft clumps, light and dark, for the fleece.
-static func _fleece_texture() -> ImageTexture:
+## Soft curly clumps (a seamless height map, 128 px) for the fleece.
+static func _fleece_noise() -> Image:
 	var noise := FastNoiseLite.new()
 	noise.noise_type = FastNoiseLite.TYPE_CELLULAR
 	noise.cellular_return_type = FastNoiseLite.RETURN_DISTANCE
-	noise.frequency = 0.09
+	noise.frequency = 0.07
 	noise.seed = 11
-	var src := noise.get_seamless_image(64, 64)
-	var img := Image.create(64, 64, false, Image.FORMAT_RGB8)
-	for y in 64:
-		for x in 64:
-			var v := 0.7 + 0.3 * (1.0 - src.get_pixel(x, y).r)
+	return noise.get_seamless_image(128, 128)
+
+
+## The clumps' colour, light on top and dark in the cracks between them.
+static func _fleece_texture(noise: Image) -> ImageTexture:
+	var size := noise.get_width()
+	var img := Image.create(size, size, false, Image.FORMAT_RGB8)
+	for y in size:
+		for x in size:
+			var v := 0.86 + 0.14 * (1.0 - noise.get_pixel(x, y).r)
 			img.set_pixel(x, y, Color(v, v, v * 0.97))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+## The same clumps as a normal map, so the light catches each curl.
+static func _fleece_normals(noise: Image) -> ImageTexture:
+	var img := noise.duplicate() as Image
+	img.convert(Image.FORMAT_RGB8)
+	img.bump_map_to_normal_map(10.0)
 	img.generate_mipmaps()
 	return ImageTexture.create_from_image(img)

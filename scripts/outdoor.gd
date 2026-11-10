@@ -358,6 +358,8 @@ const CASTLE_TOWER_FOOT := 5.2
 ## The temple too, but its doorway is kept bare: no ivy roots within a few
 ## metres of it, to the sides and back along the steps.
 const TEMPLE_IVY := 16
+## Branching vines across the temple's roof (a patchwork, the tiles still show between).
+const TEMPLE_ROOF_VINES := 9
 const GRAVE_LIGHTS := 0.35
 const GRAVE_LIGHT_AT := Vector3(1.25, 0, -0.35)
 ## Where the grave light's panes sit on the Halloween kit's palette (UV).
@@ -1278,7 +1280,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for x in [-2.0, 0.0, 2.0]:
 				for z in [0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
-			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true)
+			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES)
 		elif ch == "w" or ch == "k":
 			# The gate's passage runs from the front in to the middle: all of it stays free of ivy.
 			var gate := [0.0, 0.25, 0.5, 0.75, 1.0].map(func(t: float): return front.lerp(center, t))
@@ -1865,7 +1867,7 @@ func _standalone(block: Rect2i) -> bool:
 ## time; and what was found is kept, so when the hero steps out of the crypt
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
-func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false) -> void:
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0) -> void:
 	if old:
 		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
 	var key := "%s|%s|%s|%s|%s|%s" % [level_name, middle, _bounds_in(node), old, foot_max, proud]
@@ -1885,7 +1887,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		if panes.is_empty():
 			panes = AgedStone.window_panes(tris, WINDOW_UV)
 		panes.append_array(AgedStone.glass_boxes(tris))
-		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud, window_room, all_sides)
+		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud, window_room, all_sides, roof_vines)
 		for i in leaves.xforms.size():
 			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
 		var spot := Vector3.INF

@@ -228,4 +228,5 @@ red_goat.gd | 120 | fixed | passfail | Red-horned goat (winds up and shouts, bum
 footprint.gd | 120 | fixed | passfail | every creature claims its own place; stacked ones: the newest moves to the nearest open spot
 townsfolk_steps.gd | 60 | free | pass | Townsfolk footsteps (ground, volume, distance and crowd cap)
 log_out_quits.gd | 120 | fixed | passfail | Sleep and log out saves first, then closes the game
+window_spill.gd | 60 | free | pass | Lit windows throw a pool of light on the ground (see WindowSpill)
 glowworm_swarms.gd | 120 | fixed | passfail | glowworm swarms roaming the open air at night (more in the village, none by day or indoors)

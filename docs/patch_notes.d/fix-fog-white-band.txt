@@ -1,0 +1,1 @@
+- Fixed a flat white band that showed on the village street in fog.

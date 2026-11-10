@@ -2,7 +2,7 @@ class_name WoodStairs
 extends RefCounted
 ## The look of the stairs inside the player's houses: old, well-used wooden boards with
 ## dark grain, scuffs, a worn pale strip down the middle of every tread and dark edges.
-## Used for the flight up (the kit's steps, wood-skinned, see Level._build_stairs) and for
+## Used for the flight up (see build_up and Level._build_stairs) and for
 ## the flight down (see StairsDown.build with the "wood" look).
 
 const SIZE := Vector2i(128, 64)
@@ -79,3 +79,42 @@ static func material(colour := Color.WHITE, triplanar := false) -> StandardMater
 		mat.uv1_triplanar = true
 		mat.uv1_scale = Vector3(0.7, 0.7, 0.7)
 	return mat
+
+
+## Steps of the flight up, how much each rises and how deep it is (metres). They fill the
+## tile's depth (4 m) the way the kit's stone stairs do, the top step against the north wall.
+const UP_STEPS := 8
+const UP_RISE := 0.5
+const UP_RUN := 0.5
+const UP_WIDTH := 4.0
+const UP_TREAD_WIDTH := 3.5
+
+
+## The flight up for a house, built from boards: every step is the same size and carries the
+## same picture, so all treads (and all risers) match. The kit's mesh has no picture
+## coordinates a wood skin could use, and spreading boards over it by position gave each step a
+## different cut of the wood. `pos` is the middle of the tile; the flight climbs to the north.
+static func build_up(parent: Node3D, pos: Vector3, tile: float) -> Node3D:
+	var holder := Node3D.new()
+	holder.position = pos
+	parent.add_child(holder)
+	var tread_mat := material(Color(1.0, 0.97, 0.92))
+	var riser_mat := material(Color(0.62, 0.56, 0.5))
+	for i in UP_STEPS:
+		var top := UP_RISE * float(i + 1)
+		# The south edge of step i; the first step meets the floor at the front of the tile.
+		var front := tile * 0.5 - UP_RUN * float(i) - 0.1 * float(i == 0)
+		var z := front - UP_RUN * 0.5
+		_box(holder, Vector3(UP_WIDTH, top, UP_RUN), Vector3(0, top * 0.5, z), riser_mat)
+		_box(holder, Vector3(UP_TREAD_WIDTH, 0.06, UP_RUN + 0.04), Vector3(0, top + 0.03, z - 0.02), tread_mat)
+	return holder
+
+
+static func _box(parent: Node3D, size: Vector3, at: Vector3, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.position = at
+	parent.add_child(mi)

@@ -183,8 +183,12 @@ func _check_aged(lvl: Outdoor) -> void:
 	var ivy: Node3D = lvl.get_node_or_null("Ivy")
 	var count := 0
 	var tiles := 0
+	var stems := 0
 	if ivy:
 		for part: MultiMeshInstance3D in ivy.get_children():
+			if part.name.begins_with("Stems_"):
+				stems += part.multimesh.instance_count
+				continue
 			count += part.multimesh.instance_count
 			tiles += 1
 			# (While the level warms up, LevelWarmup keeps the range aside.)
@@ -195,6 +199,7 @@ func _check_aged(lvl: Outdoor) -> void:
 		# Ivy grows on every visible side, in thinner patches of larger leaves,
 		# so the total stays near the old budget (about 100000, a third more now the fronts wear more; the random layout moves it by a few thousand when a map changes).
 		check(count < 145000, "the ivy and shrubs stay cheap (%d leaves)" % count)
+		check(stems < 120000, "the ivy's woody stems stay cheap (%d bars)" % stems)
 		# In tiles of the map, so those off screen are skipped (see
 		# AgedStone.ivy_node); no tile holds a large share of the leaves.
 		check(tiles > 10, "the leaves are drawn in tiles of the map (%d)" % tiles)

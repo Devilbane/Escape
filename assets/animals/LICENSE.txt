@@ -13,6 +13,7 @@ The models were converted from glTF to binary glTF (.glb) for the game and
 only the animations it plays were kept (Idle, Walk, Gallop, Eating).
 Nothing else was changed.
 
-Alpaca.glb additionally has a puffed-up, clumpy fleece (the torso and neck were
-pushed outwards a little and given cream vertex colours with dark stockings) so
-that it can serve as the village sheep. Its other animations were kept.
+Sheep.glb   "Sheep" from "Farm Animals Pack" (2018) by Quaternius, also CC0
+            (https://opengameart.org/content/lowpoly-animated-farm-animal-pack).
+            The pack's sheep only has an Idle and a Jump; its Walk, Gallop and Eating
+            were made for the game by turning the bones (tools/build_sheep.gd).

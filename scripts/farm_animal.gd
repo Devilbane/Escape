@@ -50,8 +50,8 @@ const MODELS := {
 	"dog": {"": ["ShibaInu", 0.26], "black": ["Husky", 0.3]},
 	"cow": {"": ["Cow", 0.3]},
 	"bull": {"": ["Bull", 0.32]},
-	# The alpaca, stockier and shorter in the leg (a Vector3 scales each axis): see _fleece.
-	"sheep": {"": ["Alpaca", Vector3(0.3, 0.19, 0.28)]},
+	# The sheep of the Farm Animals pack, with a Walk, Gallop and Eating made for it (tools/build_sheep.gd).
+	"sheep": {"": ["Sheep", 0.25]},
 }
 ## A sneaking hero is noticed only this much closer.
 const SNEAK_FACTOR := 0.5
@@ -745,25 +745,24 @@ func _build_model() -> void:
 	_play("Idle", 1.0)
 
 
-## A sheep is the pack's alpaca made woolly. The model file has a puffed-up fleece
-## (clumpy and cream, with dark stockings; its vertex colours carry the clumps), and
-## here it gets the fleece material, a dark face and dark hooves. The materials are
-## built once and shared by the whole flock.
+## A sheep is woolly: the model's white body gets the fleece material (soft clumps, lit by a
+## bump map so the wool looks curly), its black head and legs a dark one. The materials
+## are built once and shared by the whole flock.
 func _fleece(model: Node3D) -> void:
 	if _sheep_mats.is_empty():
+		var noise := _fleece_noise()
 		var wool := StandardMaterial3D.new()
-		wool.vertex_color_use_as_albedo = true
-		wool.albedo_texture = _fleece_texture()
+		wool.albedo_color = Color(0.97, 0.93, 0.84)
+		wool.albedo_texture = _fleece_texture(noise)
+		wool.normal_enabled = true
+		wool.normal_texture = _fleece_normals(noise)
+		wool.normal_scale = 2.2
 		wool.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		wool.uv1_triplanar = true
-		wool.uv1_scale = Vector3.ONE * 1.6
+		wool.uv1_scale = Vector3.ONE * 18.0
 		wool.roughness = 1.0
-		wool.cull_mode = BaseMaterial3D.CULL_DISABLED
-		_sheep_mats["Main"] = wool
-		_sheep_mats["Main_Light"] = wool
-		_sheep_mats["Main_Dark"] = _mat(Color(0.19, 0.15, 0.12))
-		_sheep_mats["Hooves"] = _mat(Color(0.09, 0.07, 0.06))
-		_sheep_mats["Muzzle"] = _mat(Color(0.1, 0.08, 0.07))
+		_sheep_mats["White"] = wool
+		_sheep_mats["Black"] = _mat(Color(0.14, 0.11, 0.1))
 	for node in model.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		for s in mi.mesh.get_surface_count():
@@ -772,18 +771,32 @@ func _fleece(model: Node3D) -> void:
 				mi.set_surface_override_material(s, _sheep_mats[m.resource_name])
 
 
-## A small tiling texture of soft clumps, light and dark, for the fleece.
-static func _fleece_texture() -> ImageTexture:
+## Soft curly clumps (a seamless height map, 128 px) for the fleece.
+static func _fleece_noise() -> Image:
 	var noise := FastNoiseLite.new()
 	noise.noise_type = FastNoiseLite.TYPE_CELLULAR
 	noise.cellular_return_type = FastNoiseLite.RETURN_DISTANCE
-	noise.frequency = 0.09
+	noise.frequency = 0.07
 	noise.seed = 11
-	var src := noise.get_seamless_image(64, 64)
-	var img := Image.create(64, 64, false, Image.FORMAT_RGB8)
-	for y in 64:
-		for x in 64:
-			var v := 0.7 + 0.3 * (1.0 - src.get_pixel(x, y).r)
+	return noise.get_seamless_image(128, 128)
+
+
+## The clumps' colour, light on top and dark in the cracks between them.
+static func _fleece_texture(noise: Image) -> ImageTexture:
+	var size := noise.get_width()
+	var img := Image.create(size, size, false, Image.FORMAT_RGB8)
+	for y in size:
+		for x in size:
+			var v := 0.86 + 0.14 * (1.0 - noise.get_pixel(x, y).r)
 			img.set_pixel(x, y, Color(v, v, v * 0.97))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+## The same clumps as a normal map, so the light catches each curl.
+static func _fleece_normals(noise: Image) -> ImageTexture:
+	var img := noise.duplicate() as Image
+	img.convert(Image.FORMAT_RGB8)
+	img.bump_map_to_normal_map(10.0)
 	img.generate_mipmaps()
 	return ImageTexture.create_from_image(img)

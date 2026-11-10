@@ -207,6 +207,7 @@ func _counting_days() -> void:
 	check(game.day == 4, "only dawn starts a new day")
 	game.state = before_state
 	game.day_hour = 23.0
+	game.quit_on_log_out = false
 	game.sleep()
 	check(game.day == 5, "a night in the bed ends on the next day")
 	var data: Dictionary = game._read_save(game.save_path())

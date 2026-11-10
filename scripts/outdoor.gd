@@ -483,6 +483,8 @@ func build() -> void:
 		Corral.build_props(self)
 	_pave_entrances()
 	_plant_bushes()
+	# No leaf covers any door, whichever building grew it.
+	AgedStone.clear_doors(_ivy, _entrances)
 	if not _ivy.xforms.is_empty():
 		add_child(AgedStone.ivy_node(_ivy))
 	if not nests.is_empty():

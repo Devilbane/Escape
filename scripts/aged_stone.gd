@@ -57,6 +57,10 @@ const IVY_BRANCHING := 0.12
 ## The doorway itself stays free of leaves up to this height (metres) and
 ## this far (metres) from the door's spot, so the ivy frames a door.
 const DOOR_CLEAR := Vector2(1.4, 3.6)
+## The final sweep over every entrance (see clear_doors): half the width, and how far
+## (metres) behind and in front of the door's spot it reaches.
+const DOOR_SWEEP := 1.9
+const DOOR_SWEEP_DEPTH := Vector2(3.5, 2.6)
 ## The side facing the camera (south) is dealt this many turns of patches
 ## where every other side gets one, so the fronts wear the most ivy.
 const FRONT_TURNS := 3
@@ -598,6 +602,36 @@ static func _crowded(at: Vector3, leaves: Dictionary, first: int) -> bool:
 		if ((xf[i] as Transform3D).origin).distance_squared_to(at) < IVY_SPACING * IVY_SPACING:
 			return true
 	return false
+
+
+## The last word on doors: drops every leaf standing in the doorway of any entrance
+## (`doors`: dictionaries with `door` and `out`, in the same space as the leaves), whichever
+## building grew it. The box is DOOR_SWEEP wide on each side, reaches DOOR_SWEEP_DEPTH
+## behind the door's spot and in front of it, and DOOR_CLEAR.y high. Returns how many it dropped.
+static func clear_doors(leaves: Dictionary, doors: Array) -> int:
+	var dropped := 0
+	var keep_x := []
+	var keep_c := []
+	for i in leaves.xforms.size():
+		var at: Vector3 = (leaves.xforms[i] as Transform3D).origin
+		var blocked := false
+		for e: Dictionary in doors:
+			var d: Vector3 = e.door
+			var out: Vector3 = e.out
+			var rel := Vector3(at.x - d.x, 0, at.z - d.z)
+			var along := rel.dot(out)
+			var across := absf(rel.dot(Vector3.UP.cross(out)))
+			if across < DOOR_SWEEP and along > -DOOR_SWEEP_DEPTH.x and along < DOOR_SWEEP_DEPTH.y and at.y - d.y < DOOR_CLEAR.y:
+				blocked = true
+				break
+		if blocked:
+			dropped += 1
+		else:
+			keep_x.append(leaves.xforms[i])
+			keep_c.append(leaves.colours[i])
+	leaves.xforms = keep_x
+	leaves.colours = keep_c
+	return dropped
 
 
 ## Whether a leaf's spot is in a doorway (see DOOR_CLEAR).

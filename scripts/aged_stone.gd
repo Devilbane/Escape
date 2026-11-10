@@ -57,7 +57,8 @@ const BRANCH_RUN := Vector2i(10, 22)
 ## end, and how often a vine that reached its height runs on along the eaves.
 ## The woody stems: thickness (metres) of a thin and of a thick one, and their colour.
 const STEM_THICK := Vector2(0.04, 0.11)
-const STEM_COLOUR := Color(0.45, 0.32, 0.21)
+const STEM_STEPS := 6
+const STEM_COLOUR := Color(0.36, 0.26, 0.17)
 const EDGE_ROOTS := 0.75
 const EDGE_ZONE := 0.9
 const EAVES_RUN_CHANCE := 0.7
@@ -573,6 +574,8 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 		var wall: Dictionary = tip.wall
 		# A runner (see BRANCH_RUN) first creeps sideways along the wall, rising a
 		# little, then climbs on like any tendril.
+		var anchor := p
+		var reach_steps := 0
 		var run: int = tip.get("run", 0)
 		var run_dir: float = tip.get("dir", 1.0)
 		while p.y < reach:
@@ -593,7 +596,12 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 						break
 					wall = hop
 					next = next + n * (float(wall.d) - n.dot(next))
-			_stem(p, next, n, wall, base, reach, run > 0, windows, window_room, doors, ground, rng, leaves)
+			# One bar per STEM_STEPS steps keeps the stems cheap.
+			reach_steps += 1
+			if reach_steps >= STEM_STEPS:
+				_stem(anchor, next, n, wall, base, reach, run > 0, windows, window_room, doors, ground, rng, leaves)
+				anchor = next
+				reach_steps = 0
 			p = next
 			# Fuller near the ground, sparse at the top.
 			var fill := clampf(1.0 - (p.y - base) / maxf(reach - base, 0.5), 0.0, 1.0)
@@ -636,7 +644,8 @@ static func _stem(a: Vector3, b: Vector3, n: Vector3, wall: Dictionary, base: fl
 	var frac := clampf(1.0 - (mid.y - base) / maxf(reach - base, 0.5), 0.0, 1.0)
 	var thick := STEM_THICK.x if branch else lerpf(STEM_THICK.x, STEM_THICK.y, frac)
 	var x := dir.cross(n).normalized()
-	var basis := Basis(x * thick, dir.cross(x) * thick, dir * (length + 0.03))
+	# A flat strip facing out from the wall (two triangles): x across, y along the stem.
+	var basis := Basis(x * thick, dir * (length + 0.03), n)
 	(leaves.stems as Array).append(Transform3D(basis, mid + n * 0.03))
 	(leaves.stem_colours as Array).append(STEM_COLOUR * rng.randf_range(0.8, 1.2))
 
@@ -1032,10 +1041,12 @@ static func _stems_into(root: Node3D, leaves: Dictionary) -> void:
 	var xf: Array = leaves.get("stems", [])
 	if xf.is_empty():
 		return
-	var bar := BoxMesh.new()
+	var bar := QuadMesh.new()
+	bar.size = Vector2.ONE
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 1.0
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	bar.material = mat
 	var tiles := {}
 	for i in xf.size():

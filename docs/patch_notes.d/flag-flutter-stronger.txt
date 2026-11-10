@@ -1,1 +1,0 @@
-- Flags and banners now flutter much stronger (about twice as far, and a bit livelier), in the village, the dungeon and the dragon's lair.

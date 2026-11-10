@@ -1,1 +1,0 @@
-- Monster lore only floats a word when it reaches a new whole percent.

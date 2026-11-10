@@ -1,1 +1,0 @@
-- Ivy now grows along the edges and corners of buildings and runs along the eaves, branching out from there.

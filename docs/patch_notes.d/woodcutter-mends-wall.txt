@@ -1,1 +1,0 @@
-- The woodcutter now helps the stonemason repair the village wall.

@@ -1,1 +1,0 @@
-- Villagers can no longer walk through walls or shut gates: they wait and find another way round.

@@ -1,1 +1,0 @@
-- Footsteps on grass, gravel, wooden floors, paving, paths and fields now use real recorded steps, each ground with its own sound.

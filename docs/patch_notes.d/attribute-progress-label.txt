@@ -1,1 +1,0 @@
-- The attribute line now says how far each attribute is to its next point ("Speed 145% (87% to +1)") instead of a bare percentage.

@@ -1,1 +1,0 @@
-- Base movement speed (Tempo, gear, gifts, level and companions together) is now capped at 150%; running still speeds you up on top of that cap, and the Tempo details and speed icon tell you when you are at the cap.

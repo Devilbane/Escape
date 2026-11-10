@@ -1,1 +1,0 @@
-- Animals (geese, goats, sheep, cows, dogs, deer, squirrels, hopping birds) keep out of walls and shut gates, wait and find another way like villagers, and stop their legs the moment they stop.

@@ -1,1 +1,0 @@
-- Fixed the stonemason standing idle in a walking pose beside a hurt wall brick.

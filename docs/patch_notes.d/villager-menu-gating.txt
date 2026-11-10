@@ -1,1 +1,0 @@
-- Villagers no longer open their trade window during an alarm or away from their post; they say so instead.

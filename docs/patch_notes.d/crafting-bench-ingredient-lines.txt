@@ -1,1 +1,0 @@
-- Fixed the recipe lists at the fine metalwork bench, the alchemist's table and the gem cutter's table: the ingredients now show on one readable line each instead of one letter per line.

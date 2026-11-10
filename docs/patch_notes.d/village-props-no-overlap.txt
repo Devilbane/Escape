@@ -1,1 +1,0 @@
-- Barrels, crates, planks, handcarts, stones and pumpkins in the village now sit in tidy heaps instead of overlapping and clipping into each other.

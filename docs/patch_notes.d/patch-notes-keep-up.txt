@@ -1,0 +1,1 @@
+- The patch notes shown while the game downloads now keep up with every update (the Windows build was being skipped after each quick merge).

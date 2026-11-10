@@ -1,1 +1,0 @@
-- Villagers who bump into each other on the street now stop, face each other and chat for a few seconds before walking on.

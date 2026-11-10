@@ -1,1 +1,0 @@
-- Villagers keep their swords and axes sheathed and only draw them when a slime or other danger threatens, putting them away again shortly after.

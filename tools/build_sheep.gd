@@ -45,15 +45,34 @@ func _rest(bone: String) -> Basis:
 
 ## Turns a chain of bones (each the child of the one before, the first one's parent staying
 ## at rest) about X by the running sum of `angles` and adds a rotation key to each.
-func _key_chain(anim: Animation, tracks: Dictionary, t: float, bones: Array, angles: Array) -> void:
-	var parent := sk.get_bone_global_rest(sk.get_bone_parent(sk.find_bone(bones[0]))).basis
+##
+## `foot` names a bone that is no child of the chain but must ride on its last bone (the model
+## skins its hooves partly to these bones, so a still one stretches the hoof): it keeps its
+## place relative to that bone.
+func _key_chain(anim: Animation, tracks: Dictionary, t: float, bones: Array, angles: Array, foot := "", shift := Vector3.ZERO) -> void:
+	var parent_index := sk.get_bone_parent(sk.find_bone(bones[0]))
+	var parent := sk.get_bone_global_rest(parent_index).basis
+	var global := Transform3D(Basis(), shift) * sk.get_bone_global_rest(parent_index)
 	var total := 0.0
 	for i in bones.size():
 		total += angles[i]
 		var want := Basis(Quaternion(Vector3.RIGHT, total)) * _rest(bones[i])
 		var local := parent.inverse() * want
 		anim.rotation_track_insert_key(_track(anim, tracks, bones[i]), t, local.get_rotation_quaternion())
+		global = global * Transform3D(local, sk.get_bone_rest(sk.find_bone(bones[i])).origin)
 		parent = want
+	if foot != "":
+		var low := sk.get_bone_global_rest(sk.find_bone(bones[-1]))
+		var foot_rest := sk.get_bone_global_rest(sk.find_bone(foot))
+		var moved := global * (low.affine_inverse() * foot_rest)
+		var up := sk.get_bone_global_rest(sk.get_bone_parent(sk.find_bone(foot))).affine_inverse() * moved
+		anim.rotation_track_insert_key(_track(anim, tracks, foot), t, up.basis.get_rotation_quaternion())
+		if not tracks.has(foot + "#p"):
+			var added := anim.add_track(Animation.TYPE_POSITION_3D)
+			anim.track_set_path(added, NodePath(PATH + foot))
+			tracks[foot + "#p"] = added
+		var pos: int = tracks[foot + "#p"]
+		anim.position_track_insert_key(pos, t, up.origin)
 
 
 func _track(anim: Animation, tracks: Dictionary, bone: String) -> int:
@@ -80,17 +99,19 @@ func _gait(length: float, phase: Array, swing: Array, lift: float, bob: float) -
 	anim.track_set_path(body, NodePath(PATH + "Body"))
 	var legs := [["FrontUpLeg.R", "FrontLowLeg.R"], ["FrontUpLeg.L", "FrontLowLeg.L"],
 		["BackUpLeg.R", "BackLowLeg.R"], ["BackUpLeg.L", "BackLowLeg.L"]]
+	var feet := ["FrontFoot.R", "FrontFoot.L", "BackFoot.R", "BackFoot.L"]
 	var steps := 24
 	for s in steps + 1:
 		var t := length * s / steps
 		var u := float(s) / steps
+		var rise := bob * absf(sin(TAU * u * 2.0))
 		for i in 4:
 			var phi: float = TAU * (u + float(phase[i]))
 			# Foot back while it is on the ground (a long, even push), forward and folded in the air.
 			var hip: float = swing[i] * sin(phi)
 			var fold: float = lift * maxf(0.0, -cos(phi)) * (1.0 if i < 2 else 1.3)
-			_key_chain(anim, tracks, t, legs[i], [hip, fold])
-		_bob(anim, t, bob * absf(sin(TAU * u * 2.0)), body)
+			_key_chain(anim, tracks, t, legs[i], [hip, fold], feet[i], Vector3(0, 0, rise))
+		_bob(anim, t, rise, body)
 	return anim
 
 

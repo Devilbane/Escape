@@ -906,6 +906,7 @@ func _rockfall(player: Player) -> void:
 	for at in spots:
 		var ring := SternParts.warning_ring(level, at, ROCK_RADIUS, Color(1.0, 0.4, 0.2))
 		var rock := level._place("rubble_half", Vector3(at.x, 9.0, at.z), randf() * TAU)
+		SternParts.rocky(rock)
 		var tween: Tween = rock.create_tween()
 		tween.tween_interval(ROCK_WARN - 0.35)
 		tween.tween_property(rock, "position:y", 0.0, 0.35).set_ease(Tween.EASE_IN)

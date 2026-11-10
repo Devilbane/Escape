@@ -644,6 +644,7 @@ func _ready() -> void:
 	ranged = _stats.get("ranged", false)
 	hp = max_hp()
 	add_to_group("combatant")
+	add_to_group(Footprint.GROUP)
 	var size: float = _stats.size
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()

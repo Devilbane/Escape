@@ -145,6 +145,7 @@ func setup(owner_level: Outdoor, animal_kind: String, cell: Vector2i, look := ""
 
 
 func _ready() -> void:
+	add_to_group(Footprint.GROUP)
 	SmoothMotion.follow_ticks(self)
 	_rig = Node3D.new()
 	add_child(_rig)

@@ -243,6 +243,8 @@ var _news := 0
 ## (hidden, and nobody to talk to or trade with until morning).
 var night := false
 var at_home := false
+## The room this villager takes up (metres, see Footprint): half a body width.
+var radius := 0.5
 var _layer := 1
 ## The villager we are chatting with (see VillageTalk), or null.
 var chat_partner: Villager = null
@@ -312,9 +314,11 @@ func setup(owner_level: Outdoor, role_char: String, cell: Vector2i) -> void:
 
 func _ready() -> void:
 	SmoothMotion.follow_ticks(self)
+	add_to_group(Footprint.GROUP)
+	radius = 0.5 * _info.get("scale", 1.0)
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.5 * _info.get("scale", 1.0)
+	capsule.radius = radius
 	capsule.height = 2.2 * _info.get("scale", 1.0)
 	shape.shape = capsule
 	shape.position.y = capsule.height * 0.5
@@ -1443,6 +1447,12 @@ func _walk(delta: float, hero: Node3D) -> void:
 
 
 ## Whether a point is inside a wall brick that stops everyone: a standing wall or a shut gate.
+## Called after the footprint pass (see Footprint.settle) moved this villager to a free
+## spot: the way on from there is found again.
+func footprint_moved() -> void:
+	_path.clear()
+
+
 func blocked_at(point: Vector3) -> bool:
 	return WalkRules.blocked_at(level, point)
 

@@ -354,6 +354,7 @@ var _on_crate := false
 func _ready() -> void:
 	SmoothMotion.follow_ticks(self)
 	add_to_group("combatant")
+	add_to_group(Footprint.GROUP)
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = radius

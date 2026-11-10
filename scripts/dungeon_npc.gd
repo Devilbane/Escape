@@ -24,6 +24,7 @@ func setup(creation: Dictionary) -> void:
 
 
 func _ready() -> void:
+	add_to_group(Footprint.GROUP)
 	var look := Creations.npc_look(spec)
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()

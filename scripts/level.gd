@@ -5573,10 +5573,15 @@ func _build_stairs(c: Vector2i, up: bool) -> void:
 	var pos := cell_to_world(c)
 	stairs.append({"cell": c, "up": up, "storey": storey_of(c)})
 	if up:
-		_place("stairs", pos + Vector3(0, 0, -TILE * 0.5))
+		var flight := _place("stairs", pos + Vector3(0, 0, -TILE * 0.5))
+		if is_home:
+			# The stairs of a house are worn wooden boards (see WoodStairs).
+			for mi: MeshInstance3D in flight.find_children("*", "MeshInstance3D", true, false):
+				mi.material_override = WoodStairs.material(Color.WHITE, true)
 		return
 	var away := stairs_down_dir(c)
-	StairsDown.build(self, pos, TILE, Vector3(away.x, 0, away.y), StairsDown.look(wall_style, theme))
+	var look: Dictionary = StairsDown.LOOKS["wood"] if is_home else StairsDown.look(wall_style, theme)
+	StairsDown.build(self, pos, TILE, Vector3(away.x, 0, away.y), look)
 
 
 ## The way a flight of stairs down at `c` runs: away from the open floor, so the top step

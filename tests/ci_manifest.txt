@@ -202,6 +202,7 @@ thunder_ore.gd | 120 | fixed | passfail | uses of thunder ore: Gorm forges the t
 ui_wheel.gd | 120 | fixed | passfail | the mouse wheel over an open window scrolls the window, never
 village_bell.gd | 120 | fixed | passfail | village's warning bell (tools/make_bell_sounds.py,
 village_talk.gd | 120 | fixed | passfail | villagers talking to each other (see VillageTalk):
+villager_post.gd | 120 | fixed | passfail | villager windows stay shut during an alarm or away from the post (VillagerPost)
 wall_caps.gd | 120 | fixed | passfail | wall caps (WallCaps): every dungeon wall that touches a room gets
 war_horn.gd | 120 | fixed | passfail | village's alarm horn (tools/make_horn_sounds.py,
 weathered_props.gd | 120 | fixed | passfail | weathered props of the village (see WeatheredProps

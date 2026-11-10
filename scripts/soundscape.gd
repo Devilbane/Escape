@@ -31,6 +31,10 @@ const LOOPS := {
 ## How strong the hearth's crackle is inside the hero's own house (0 to 1): a soft
 ## fire in the next corner, and the only sound there (the old cave air rests).
 const HOME_FIRE := 0.5
+## How much of the washy, echoing night-woods loop (Enchanted Forest, with its reverb baked in)
+## stays in the night woods (0 to 1). The rest is replaced by the drier daytime woods bed
+## (`amb_forest_deep`) so the night sounds less reverberant. Lower it for less reverb.
+const NIGHT_WOODS_REVERB := 0.7
 ## Words in a floor's name that make it a cave.
 const CAVE_NAMES := ["hoehle", "loch", "grotte", "tiefe", "nest"]
 
@@ -79,9 +83,8 @@ static func outdoor_mix(village: bool, night: bool, near: Dictionary, rain: floa
 			mix["amb_townspeople"] = float(near.get("market", 0.0))
 		mix["amb_blacksmith"] = float(near.get("forge", 0.0)) * (0.0 if night else 1.0)
 	else:
-		mix["amb_forest_night" if night else "amb_forest_day"] = 1.0
-		if not night:
-			mix["amb_forest_deep"] = 0.4
+		mix["amb_forest_night" if night else "amb_forest_day"] = NIGHT_WOODS_REVERB if night else 1.0
+		mix["amb_forest_deep"] = (1.0 - NIGHT_WOODS_REVERB) * 0.5 if night else 0.4
 	mix["amb_farm"] = float(near.get("fields", 0.0)) * (0.0 if night else 1.0)
 	mix["amb_fire_camp"] = float(near.get("fire", 0.0))
 	if rain > 0.02:

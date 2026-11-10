@@ -143,7 +143,9 @@ func _run() -> void:
 		await _wait(10)
 		waited += 10
 	check(west.hp < hp_before, "a slime blocked by the gate eats into it (%d frames)" % waited)
-	check(hp_before - west.hp >= VillageWall.ACID * maxi(1, int(slime2._stats.damage)), "a slime's blow does ACID times its damage")
+	check(hp_before - west.hp >= VillageWall.wall_damage(int(slime2._stats.damage)), "a slime's blow does ACID times its damage, less what the stone shrugs off")
+	check(VillageWall.wall_damage(10) == roundi(10 * VillageWall.ACID * 0.2), "slimes do 20% of the damage to the wall they did before (80% less)")
+	check(VillageWall.wall_damage(0) == VillageWall.wall_damage(1) and VillageWall.wall_damage(1) >= 1, "a blow always scratches the wall")
 
 	# Defence: those outside are called in before the gate shuts, the brave take
 	# posts inside, and a slime at the wall is struck over it.

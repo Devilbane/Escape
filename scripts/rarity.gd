@@ -56,7 +56,7 @@ const MARK_CLOSE := ""
 ## are rare; anything else in Items goes by Items.RARITY (see Level.tier_of).
 static func tier(id: String) -> String:
 	if Items.ALL.has(id):
-		if Items.ALL[id].get("crafted", false):
+		if Items.ALL[id].get("crafted", false) and not Items.ALL[id].get("keeps_tier", false):
 			return SELF_MADE
 		return Level.tier_of(id)
 	var ingredient: Dictionary = Crafting.INGREDIENTS.get(id, {})

@@ -4362,7 +4362,7 @@ func _roll_gear(kind: String, c: Vector2i, chance := -1.0, salt := 0) -> Array[S
 			# Gear that suits the place; the bosses' own fights stay as they were made.
 			var id := Items.random_item(rng, 0, "", 0 if HeroLevel.FIXED.has(kind) else HeroLevel.place_level(self), {}, 0 if beginner_dungeon else tier_rank("gottgeboren"))
 			var slot: String = Items.ALL[id].slot
-			if slot != "spezial" and slot != "buch" and not gear.any(func(g): return Items.ALL[g].slot == slot):
+			if slot != "spezial" and slot != "buch" and slot != "rolle" and not gear.any(func(g): return Items.ALL[g].slot == slot):
 				gear.append(id)
 				break
 	return gear

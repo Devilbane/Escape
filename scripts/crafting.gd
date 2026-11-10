@@ -303,6 +303,15 @@ const RECIPES := {
 			{"id": "schuppe", "text": "Eine Drachenschuppe für die Handrücken."},
 			{"id": "eisen", "text": "Ein Barren Eisen für die Fingerglieder."},
 		]},
+	# Epic loot: the scroll "tornisterschnitt" (see Items) teaches it. The biggest backpack.
+	"tornister": {"name": "Schuppentornister", "giver": "", "craft": "feinschmieden", "craft_level": 4, "result": "tornister",
+		"effect": "Platz für 24 Dinge: der größte Rucksack",
+		"ingredients": {"drachenschuppe": 3, "eisen": 4},
+		"lines": [
+			{"id": "schuppe", "text": "Drei Drachenschuppen, übereinandergelegt wie Dachziegel."},
+			{"id": "eisen", "text": "Vier Barren Eisen für Rahmen, Schnallen und Riemen."},
+			{"id": "hand", "text": "Eine geübte Hand: Feinschmieden, Stufe 4."},
+		]},
 	# Priestess Elsbeth tends the wounded at the temple; she hands out the
 	# healing potion, brewed at the alchemist's table (see HealingPotions).
 	"heiltrank": {"name": "Heiltrank", "giver": "O",
@@ -529,6 +538,22 @@ func learn_from_find(ingredient: String) -> Array:
 	if not learned.is_empty():
 		Events.teach(HOW_TO)
 	return learned
+
+
+## Reads the recipe scroll `id` from the bag: the hero learns its recipe and
+## the scroll is used up. Returns "" on success, else why not (a recipe the hero
+## knows already is not read, and the scroll stays).
+func read_scroll(id: String) -> String:
+	var p: Player = game.player
+	if not Items.is_recipe_scroll(id) or not p.bag.has(id):
+		return Lang.t("Das kannst du nicht lesen.")
+	var recipe: String = Items.ALL[id].recipe
+	if not learn_recipe(recipe):
+		return Lang.t("Dieses Rezept kennst du schon.")
+	p.bag.erase(id)
+	Events.teach(HOW_TO)
+	Events.tell(Lang.t("Neue Rezepte: %s") % Lang.t(RECIPES[recipe].name), Color(1.0, 0.85, 0.3))
+	return ""
 
 
 ## Whether every ingredient of a recipe is in the pouch.

@@ -1,1 +1,1 @@
-- The windmill's door (and the doors of the other stone buildings) is no longer covered by ivy leaves.
+- Ivy keeps off the windmill's door and the doors of other stone buildings, covers the mill like other buildings, and is about 30% thinner everywhere, growing along vines without piled-up leaves.

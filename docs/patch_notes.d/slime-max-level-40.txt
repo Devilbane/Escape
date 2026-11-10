@@ -1,0 +1,1 @@
+- Slimes and blobs can now grow up to level 40 by eating and merging (they are still born no higher than level 25).

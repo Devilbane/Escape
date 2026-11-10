@@ -2,7 +2,7 @@ extends SceneTree
 ## Headless test for growing slimes (see SlimeGrowth): plain slimes come in
 ## many colours and sizes; a slime hunts what it can swallow, swallows what
 ## it fells (no corpse, and the prey's loot stays in its belly until the
-## slime falls), grows a level or more per meal up to level 25 and is a
+## slime falls), grows a level or more per meal up to level 40 and is a
 ## sparkling, harder-hitting Blob from level 15 on; and it smells corpses
 ## and eats them, growing from them too and slurping up the loot by them;
 ## two slimes that notice each other come together and merge; and the
@@ -126,10 +126,10 @@ func _check_looks() -> void:
 		slimes.append(e)
 		tints[str(e._stats.get("tint", "plain"))] = true
 		sizes[snappedf(float(e._stats.size), 0.01)] = true
-		check(e.rated_level <= SlimeGrowth.MAX_LEVEL, "a slime is born at level 25 at most")
+		check(e.rated_level <= SlimeGrowth.BIRTH_MAX, "a slime is born at level 25 at most")
 	check(tints.size() >= 5, "plain slimes come in many colours (%d seen)" % tints.size())
 	check(sizes.size() >= 8, "plain slimes come in many sizes (%d seen)" % sizes.size())
-	check(SlimeGrowth.size_for(1.0, 25) > SlimeGrowth.size_for(1.0, 15) and SlimeGrowth.size_for(1.0, 15) > SlimeGrowth.size_for(1.0, 1),
+	check(SlimeGrowth.MAX_LEVEL == 40 and SlimeGrowth.size_for(1.0, 25) > SlimeGrowth.size_for(1.0, 15) and SlimeGrowth.size_for(1.0, 15) > SlimeGrowth.size_for(1.0, 1),
 		"a slime is bigger the higher its level")
 	for e in slimes:
 		game.level.enemies.erase(e)
@@ -205,12 +205,20 @@ func _process(_delta: float) -> bool:
 			check(slime.dead, "the Blob falls")
 			check(_money_on_floor() >= coins_before + 40, "the Blob gives back the bandit's 40 coins")
 			check(bandit.is_queued_for_deletion(), "the bandit's body goes once spilt")
-			# The cap: a slime of level 25 eats and stays at 25.
+			# Past the birth cap: a slime of level 25 keeps growing by eating.
+			var grown := _spawn("schleim", spot + Vector3(0, -50, 0))
+			grown.rated_level = SlimeGrowth.BIRTH_MAX
+			var meal := _spawn("fledermaus", spot + Vector3(0, -50, 3))
+			meal.hit_by_rival(999, grown)
+			check(grown.rated_level > SlimeGrowth.BIRTH_MAX, "a slime grows past level 25 by eating")
+			game.level.enemies.erase(grown)
+			grown.queue_free()
+			# The cap: a slime of the top level eats and stays there.
 			var big := _spawn("schleim", spot + Vector3(0, -50, 0))
-			big.rated_level = 25
+			big.rated_level = SlimeGrowth.MAX_LEVEL
 			var snack := _spawn("fledermaus", spot + Vector3(0, -50, 3))
 			snack.hit_by_rival(999, big)
-			check(big.rated_level == SlimeGrowth.MAX_LEVEL, "a slime grows no higher than level 25")
+			check(big.rated_level == SlimeGrowth.MAX_LEVEL, "a slime grows no higher than level 40")
 			game.level.enemies.erase(big)
 			big.queue_free()
 			# Corpses: a wolf falls to the hero; a new slime goes for it.

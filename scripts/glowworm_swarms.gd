@@ -5,7 +5,8 @@ extends Node3D
 ## fading in and out as they glow. They gather most thickly in the village
 ## (VILLAGE_SWARMS) and are scarcer elsewhere (WILD_SWARMS).
 ##
-## Purely decorative: no collision, no light, no effect on the game. Each swarm
+## Purely decorative: no collision, no effect on the game. Each swarm also
+## carries one small, soft light so the glow lights the lane around it. Each swarm
 ## is one small CPUParticles3D made like the other glows (see Effects), and
 ## only a handful exist, always around the hero: a swarm that falls behind is
 ## carried to a new spot ahead, out of sight. They keep clear of the hero and
@@ -14,8 +15,8 @@ extends Node3D
 ## Tested by tests/glowworm_swarms.gd.
 
 ## How many swarms drift near the hero in the village, and elsewhere.
-const VILLAGE_SWARMS := 9
-const WILD_SWARMS := 4
+const VILLAGE_SWARMS := 4
+const WILD_SWARMS := 3
 ## Swarms are placed this far from the hero (metres), and carried to a new
 ## spot once they are farther than LOSE.
 const NEAR := 7.0
@@ -33,6 +34,10 @@ const SHY := 3.5
 const GROUND := ".,Pai:"
 ## The glow of a glowworm: a yellow-green.
 const GLOW := Color(0.72, 1.0, 0.34)
+## The soft light a swarm casts: faint and short, so a lane is only touched by
+## it. Few swarms exist, so these few omni lights stay cheap.
+const LIGHT_ENERGY := 0.45
+const LIGHT_RANGE := 4.5
 
 var level: Outdoor
 var _swarms: Array[Dictionary] = []
@@ -86,6 +91,15 @@ static func make_swarm() -> CPUParticles3D:
 	ramp.set_color(ramp.get_point_count() - 1, Color(GLOW, 0.0))
 	p.color_ramp = ramp
 	Effects.start_cold(p)
+	var light := OmniLight3D.new()
+	light.name = "Glow"
+	light.light_color = GLOW
+	light.light_energy = LIGHT_ENERGY
+	light.omni_range = LIGHT_RANGE
+	light.omni_attenuation = 2.0
+	light.shadow_enabled = false
+	light.light_specular = 0.0
+	p.add_child(light)
 	return p
 
 
@@ -195,6 +209,9 @@ func _fade_out(i: int) -> void:
 	swarm.fading = true
 	swarm.life = (swarm.node as CPUParticles3D).lifetime
 	swarm.node.emitting = false
+	var glow := (swarm.node as CPUParticles3D).get_node_or_null("Glow") as OmniLight3D
+	if glow:
+		create_tween().tween_property(glow, "light_energy", 0.0, swarm.life)
 
 
 static func _flat(a: Vector3, b: Vector3) -> float:

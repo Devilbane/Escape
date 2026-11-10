@@ -31,6 +31,8 @@ const LOOKS := {
 	"uralt": {"stone": Color(0.68, 0.6, 0.45), "bottom": Color(0.03, 0.02, 0.012), "rim": Color(0.55, 0.47, 0.34), "rough": 0.05, "glow": null, "gloss": 0.1},
 	"zinne": {"stone": Color(0.58, 0.55, 0.64), "bottom": Color(0.015, 0.012, 0.025), "rim": Color(0.45, 0.42, 0.5), "rough": 0.0, "glow": null, "gloss": 0.25},
 	"sternhof": {"stone": Color(0.5, 0.52, 0.6), "bottom": Color(0.012, 0.014, 0.025), "rim": Color(0.38, 0.4, 0.5), "rough": 0.05, "glow": null, "gloss": 0.2},
+	# The stairs inside the player's houses: old, worn boards (see WoodStairs).
+	"wood": {"stone": Color(0.9, 0.85, 0.8), "bottom": BOTTOM, "rim": Color(0.42, 0.28, 0.17), "rough": 0.0, "glow": null, "gloss": 0.0, "wood": true},
 	"sterngruft": {"stone": Color(0.4, 0.42, 0.56), "bottom": Color(0.01, 0.012, 0.03), "rim": Color(0.3, 0.32, 0.46), "rough": 0.05, "glow": Color(0.5, 0.6, 1.0), "gloss": 0.3},
 }
 
@@ -54,6 +56,7 @@ static func build(parent: Node3D, pos: Vector3, tile: float, dir: Vector3 = Vect
 	var rough: float = style["rough"]
 	var gloss: float = style["gloss"]
 	var glow = style["glow"]
+	var wooden: bool = style.get("wood", false)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(Vector2i(int(pos.x * 10.0), int(pos.z * 10.0)))
 	var holder := Node3D.new()
@@ -72,7 +75,8 @@ static func build(parent: Node3D, pos: Vector3, tile: float, dir: Vector3 = Vect
 		# Hewn steps are a little uneven: each is wider or narrower than its neighbours.
 		var w := width - rough * rng.randf() * 0.9
 		var shift := (rng.randf() - 0.5) * rough * 0.9
-		_box(holder, Vector3(w, 0.14, run), Vector3(shift, top - 0.07, z), _stone(colour, gloss, 0.55))
+		var tread_mat := WoodStairs.material(colour.lightened(0.1)) if wooden else _stone(colour, gloss, 0.55)
+		_box(holder, Vector3(w, 0.14, run), Vector3(shift, top - 0.07, z), tread_mat)
 		if glow != null:
 			# A faint glowing edge on the lip of every tread, so the flight shows up
 			# in the dark and reads as steps from far away.
@@ -81,7 +85,8 @@ static func build(parent: Node3D, pos: Vector3, tile: float, dir: Vector3 = Vect
 		# The riser under the previous step's edge, a shade darker than its
 		# tread so the steps read as steps from above.
 		var riser := colour.lerp(bottom_colour, 0.35)
-		_box(holder, Vector3(w, RISE, 0.06), Vector3(shift, top + RISE * 0.5, z + run * 0.5), _stone(riser, gloss, 0.4))
+		var riser_mat := WoodStairs.material(riser.darkened(0.15)) if wooden else _stone(riser, gloss, 0.4)
+		_box(holder, Vector3(w, RISE, 0.06), Vector3(shift, top + RISE * 0.5, z + run * 0.5), riser_mat)
 	# The wall at the far end and the dark below, fading out.
 	_box(holder, Vector3(width, depth + 1.0, 0.2), Vector3(0, -depth * 0.5 - 0.5, -tile * 0.5 - 0.1), _unshaded(bottom_colour))
 	_box(holder, Vector3(width, 0.1, tile), Vector3(0, -depth - 0.05, 0), _unshaded(bottom_colour))
@@ -92,10 +97,12 @@ static func build(parent: Node3D, pos: Vector3, tile: float, dir: Vector3 = Vect
 			var h := (depth + 0.4) / float(bands)
 			var y0 := 0.4 - h * (float(b) + 0.5)
 			var wall_colour := stone_colour.lerp(bottom_colour, darkness(b, bands) * 0.9).darkened(0.25)
-			_box(holder, Vector3(WALL_THICK, h, tile), Vector3(side * (tile - WALL_THICK) * 0.5, y0, 0), _stone(wall_colour, gloss))
+			# In a house the sides are upright boards: stringers that darken with the depth.
+			var wall_mat := WoodStairs.material(Color(0.8, 0.75, 0.7).lerp(bottom_colour, darkness(b, bands) * 0.9)) if wooden else _stone(wall_colour, gloss)
+			_box(holder, Vector3(WALL_THICK, h, tile), Vector3(side * (tile - WALL_THICK) * 0.5, y0, 0), wall_mat)
 	# The rim round the opening, standing a little above the floor: a straight lip of cut
 	# stone, or in rough settings a ring of uneven chunks, as if the flight was hewn out.
-	var rim := _stone(style["rim"], gloss)
+	var rim := WoodStairs.material(Color(0.7, 0.62, 0.55)) if wooden else _stone(style["rim"], gloss)
 	if rough <= 0.0:
 		_box(holder, Vector3(tile, 0.18, 0.3), Vector3(0, 0.09, tile * 0.5 - 0.15), rim)
 		_box(holder, Vector3(tile, 0.18, 0.3), Vector3(0, 0.09, -tile * 0.5 + 0.15), rim)

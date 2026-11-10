@@ -38,7 +38,7 @@ const CLIMB_TO := Vector2(0.15, 0.18)
 const CALM_FACTOR := 1.6
 ## Length of one bound (metres) and its height, walking and running.
 const HOP := Vector2(0.9, 1.7)
-const HOP_HEIGHT := Vector2(0.12, 0.15)
+const HOP_HEIGHT := Vector2(0.2, 0.3)
 
 ## "sit", "hop", "flee", "climb", "perch" (up in the leaves, hidden),
 ## "descend" or "den" (asleep in the tree, hidden).
@@ -53,6 +53,9 @@ var _tail: MeshInstance3D
 ## Its two hands and two hind feet (left, right), which bound and climb (see _limbs).
 var _hands: Array[MeshInstance3D] = []
 var _feet: Array[MeshInstance3D] = []
+## The thin legs that join each hand and foot to the body, in the same order.
+var _hand_legs: Array[Node3D] = []
+var _foot_legs: Array[Node3D] = []
 var _path: Array[Vector3] = []
 var _waiting := 0.0
 var _timer := 0.0
@@ -103,9 +106,44 @@ func _build() -> void:
 	_tail.position = Vector3(0, 0.13, -0.14)
 	_tail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_body.add_child(_tail)
+	# The legs are plain cylinders (no vertex colours), so they get a plain fur colour.
+	var leg_fur := StandardMaterial3D.new()
+	leg_fur.albedo_color = FUR.lerp(FUR_DARK, 0.4)
+	leg_fur.roughness = 0.95
 	for side: float in [-1.0, 1.0]:
 		_hands.append(_limb(hand_mesh(), fur, Vector3(side * 0.04, 0.035, 0.1)))
 		_feet.append(_limb(foot_mesh(), fur, Vector3(side * 0.055, 0.035, -0.07)))
+		_hand_legs.append(_leg(leg_fur, 0.012))
+		_foot_legs.append(_leg(leg_fur, 0.017))
+
+
+## A thin leg of unit length along +Z from its own origin: `_join_leg` stretches it
+## between the body and a paw, so a paw never floats free of the squirrel.
+func _leg(material: Material, radius: float) -> Node3D:
+	var leg := Node3D.new()
+	var shape := CylinderMesh.new()
+	shape.top_radius = radius * 0.8
+	shape.bottom_radius = radius
+	shape.height = 1.0
+	shape.radial_segments = 5
+	shape.rings = 1
+	var m := MeshInstance3D.new()
+	m.mesh = shape
+	m.material_override = material
+	m.rotation.x = PI * 0.5
+	m.position.z = 0.5
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	leg.add_child(m)
+	_body.add_child(leg)
+	return leg
+
+
+## Stretches `leg` from the body point `from` to the paw at `to`.
+static func _join_leg(leg: Node3D, from: Vector3, to: Vector3) -> void:
+	var d := to - from
+	var len := maxf(d.length(), 0.001)
+	leg.position = from
+	leg.basis = Basis.looking_at(-d / len, Vector3.UP if absf(d.y / len) < 0.95 else Vector3.RIGHT).scaled_local(Vector3(1, 1, len))
 
 
 func _limb(shape: Mesh, material: Material, at: Vector3) -> MeshInstance3D:
@@ -310,7 +348,7 @@ func _pose(delta: float) -> void:
 			var arc := absf(sin(_phase))
 			lift = arc * _hop_height
 			# Nose up at take-off, down on landing.
-			pitch = -cos(_phase) * (0.12 if state == "flee" else 0.25)
+			pitch = -cos(_phase) * (0.3 if state == "flee" else 0.4)
 			tail_up = 0.25 if state == "hop" else -0.45
 		"sit":
 			pitch = -0.95 * _sit_up
@@ -358,7 +396,7 @@ static func _stride_of(t: float, down: float, travel: float, reach: float) -> Ve
 	var swing := smoothstep(0.0, 1.0, u)
 	# `reach`: how far the limb is thrown out (hands ahead, hind feet behind) in the middle of
 	# the swing, as in a squirrel's long, flat leaps.
-	return Vector2(lerpf(-0.4 * travel, 0.6 * travel, swing) + reach * sin(u * PI), 0.055 * sin(u * PI))
+	return Vector2(lerpf(-0.4 * travel, 0.6 * travel, swing) + reach * sin(u * PI), 0.09 * sin(u * PI))
 
 
 ## The hands and hind feet: bounding on the ground (hands land together, the hind feet swing
@@ -371,7 +409,7 @@ func _limbs(k: float) -> void:
 	var t := fposmod(_phase, PI) / PI
 	# The body stretches in the air and gathers up on landing.
 	var arc := absf(sin(_phase))
-	_stretch = lerpf(_stretch, (0.9 + 0.32 * arc) if bounding else 1.0, k)
+	_stretch = lerpf(_stretch, (0.84 + 0.5 * arc) if bounding else 1.0, k)
 	_body.scale = Vector3(SIZE, SIZE, SIZE * _stretch)
 	for i in 2:
 		var side := -1.0 if i == 0 else 1.0
@@ -379,8 +417,8 @@ func _limbs(k: float) -> void:
 		var foot: Vector3 = FOOT_REST * Vector3(side, 1.0, 1.0)
 		var sway := 0.03 * side
 		if _gait > 0.01:
-			var h := _stride_of(fposmod(t + sway, 1.0), HAND_DOWN, long * HAND_DOWN, 0.14)
-			var f := _stride_of(fposmod(t - FOOT_LANDS + 0.04 * side, 1.0), FOOT_DOWN, long * FOOT_DOWN, -0.26)
+			var h := _stride_of(fposmod(t + sway, 1.0), HAND_DOWN, long * HAND_DOWN, 0.1)
+			var f := _stride_of(fposmod(t - FOOT_LANDS + 0.04 * side, 1.0), FOOT_DOWN, long * FOOT_DOWN, -0.34)
 			var hand_to := hand + Vector3(0.0, h.y, h.x)
 			var foot_to := foot + Vector3(0.0, f.y, f.x + 0.1)
 			# Down on the ground while the body is up in the arc: reach for it.
@@ -399,6 +437,8 @@ func _limbs(k: float) -> void:
 		var follow := 1.0 if (bounding or climbing) else minf(1.0, k * 2.0)
 		_hands[i].position = _hands[i].position.lerp(hand, follow)
 		_feet[i].position = _feet[i].position.lerp(foot, follow)
+		_join_leg(_hand_legs[i], Vector3(side * 0.04, 0.1, 0.07), _hands[i].position + Vector3(0, 0.02, 0))
+		_join_leg(_foot_legs[i], Vector3(side * 0.06, 0.1, -0.085), _feet[i].position + Vector3(0, 0.02, 0))
 
 
 ## Fills the path from the tile it stands on to `target`; `exact` keeps to the

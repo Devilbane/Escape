@@ -218,6 +218,8 @@ var _task := ""
 var _task_time := 0.0
 var _work_pause := 0.0
 var _speed := WALK_SPEED
+## Ground walked since the last footstep sounded (see TownsfolkSteps).
+var _stepped := 0.0
 ## Where the villager stood at the last tick (see _lift_onto_toes).
 var _last_spot := Vector3.INF
 var _waiting := 0.0
@@ -1436,7 +1438,9 @@ func _walk(delta: float, hero: Node3D) -> void:
 			var goal: Vector3 = _path[_path.size() - 1]
 			_walk_to(goal, _speed, get_meta("then", "idle"))
 		return
+	var before := global_position
 	global_position = target
+	_stepped = TownsfolkSteps.walk(self, level, _stepped, before.distance_to(target), _speed >= RUN_SPEED)
 	if to.length() <= step:
 		_path.pop_front()
 	_turn_to(to, delta)

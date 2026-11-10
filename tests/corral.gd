@@ -89,6 +89,9 @@ func _run() -> void:
 	ray = PhysicsRayQueryParameters3D.create(gate_at + Vector3(0, 0.8, -3.0), gate_at + Vector3(0, 0.8, 3.0))
 	check(space.intersect_ray(ray).is_empty(), "the gate lets the hero through")
 
+	# Nobody who walks the village steps into the fence (see WalkRules).
+	check(WalkRules.blocked_at(lvl, fence_at), "the shared walk rules block the fence")
+	check(not WalkRules.blocked_at(lvl, gate_at), "the shared walk rules let the gate through")
 	# A villager does not step into the fence.
 	var v: Villager = lvl.villagers[0]
 	check(v.blocked_at(fence_at), "a villager is blocked by the fence")

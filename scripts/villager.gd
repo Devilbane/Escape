@@ -1366,17 +1366,7 @@ func _walk(delta: float, hero: Node3D) -> void:
 
 ## Whether a point is inside a wall brick that stops everyone: a standing wall or a shut gate.
 func blocked_at(point: Vector3) -> bool:
-<<<<<<< HEAD
-	if level == null or level.village_wall == null:
-		return false
-	var cell := level.world_to_cell(point)
-	if level.cell_char(cell) == Corral.FENCE:
-		return true
-	var brick := level.village_wall.brick_at(cell)
-	return brick != null and brick.blocks()
-=======
 	return WalkRules.blocked_at(level, point)
->>>>>>> origin/main
 
 
 ## Moves to a point unless a wall or a shut gate is there. Returns whether it moved.

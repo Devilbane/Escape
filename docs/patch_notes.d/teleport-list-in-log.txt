@@ -1,0 +1,1 @@
+- The teleport list of places and codes now goes into the event log in its own colour instead of flashing line by line over the hero.

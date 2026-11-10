@@ -2094,6 +2094,8 @@ func _build_shop() -> void:
 	# belt can always be filled again (see Player.knives).
 	while game.shop_stock.count(Items.KNIFE) < Items.stack_size(Items.KNIFE):
 		game.shop_stock.push_front(Items.KNIFE)
+	# And a backpack of each kind, so a lost one can always be replaced.
+	Items.restock_backpacks(game.shop_stock)
 	# And a bedroll for a camp in the wild, for a hero who has none (see Camp).
 	if not game.shop_stock.has(Camp.ITEM) and not p.bag.has(Camp.ITEM) and not game.storage.has(Camp.ITEM):
 		game.shop_stock.push_front(Camp.ITEM)

@@ -33,5 +33,6 @@ func _init() -> void:
 			if mi.mesh.surface_get_material(s) == glass:
 				found = (mi.mesh.surface_get_arrays(s)[Mesh.ARRAY_TEX_UV2] as PackedVector2Array).size() > 0
 	check(found, "the glass of a house carries its panes' places")
-	print("window_lights: ", "ok" if failed == 0 else "%d failed" % failed)
+	if failed == 0:
+		print("PASS: window lights")
 	quit(1 if failed > 0 else 0)

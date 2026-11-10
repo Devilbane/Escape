@@ -1741,6 +1741,11 @@ func _use_station(s: Dictionary) -> void:
 		var held := hoard_coins()
 		level.show_hoard(held)
 		show_message(HomeHoard.describe(HomeHoard.stage_of(HomeHoard.wealth(held.kupfermuenze, held.silbermuenze, held.goldmuenze)), held), 3.5, GOLD)
+	elif s.kind == VillageWall.GATE_STATION:
+		player.face(s.pos - player.global_position)
+		if s.gate.let_through(player):
+			Sfx.play(self, "swing", -6.0)
+			show_message(Lang.t(VillageWall.PASS_LINE), 2.4)
 	elif s.kind == "tafel":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
@@ -6825,6 +6830,7 @@ func _process(delta: float) -> void:
 			CapeWardrobe.KIND: Lang.t("Dagegenlaufen, um den Umhangschrank zu öffnen"),
 			"schacht": Lang.t("Dagegenlaufen, um in die Tiefe hinabzusteigen"),
 			"tafel": Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
+			VillageWall.GATE_STATION: Lang.t("Dagegenlaufen, um das Tor zu öffnen"),
 			TreasureMaps.DIG: Lang.t("Dagegenlaufen, um nach dem Schatz zu graben"),
 			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),

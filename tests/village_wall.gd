@@ -128,6 +128,18 @@ func _run() -> void:
 	wall.tick(lvl, 1.1)
 	check(west.shut, "the gate shuts once the way is clear")
 
+	# The hero opens the shut gate by running into it, and it shuts again behind him.
+	check(not west.station.used, "a shut gate offers to be opened")
+	check(west.station.kind == VillageWall.GATE_STATION and lvl.stations.has(west.station), "the gate is a station")
+	lvl.player.global_position = west.global_position + Vector3(4.5, 0, 0)
+	check(west.let_through(lvl.player) and not west.shut and not west.blocks(), "running into a shut gate opens it")
+	check(west.station.used and not lvl.astar.is_point_solid(west.cell), "an opened gate is no obstacle")
+	wall.tick(lvl, 1.1)
+	check(not west.shut and west.passage_open, "the villagers do not shut it in the hero's face")
+	lvl.player.global_position = west.global_position + Vector3(-4.5, 0, 0)
+	west._physics_process(0.1)
+	check(west.shut and not west.passage_open and not west.station.used, "it shuts again once the hero is through")
+
 	# A slime walled out eats into the wall: the hero stands just inside.
 	slime2.global_position = west.global_position + Vector3(-5.0, 0, 0)
 	lvl.player.global_position = west.global_position + Vector3(4.5, 0, 0)

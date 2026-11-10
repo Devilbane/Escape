@@ -10,6 +10,8 @@ const EN := {
 	"Ein Schleim hat ein Stück der Dorfmauer eingerissen!": "A slime has broken a piece of the village wall!",
 	"Der Steinmetz hat die Dorfmauer wieder instand gesetzt.": "The stonemason has mended the village wall.",
 	"Alle hinter die Mauer! Wir verteidigen das Dorf!": "Everyone behind the wall! We defend the village!",
+	"Dagegenlaufen, um das Tor zu öffnen": "Run into it to open the gate",
+	"Du öffnest das Tor einen Spalt. Es schließt sich hinter dir wieder.": "You open the gate a crack. It shuts again behind you.",
 	"Dorfmauer": "Village wall",
 	"Dorftor": "Village gate",
 }

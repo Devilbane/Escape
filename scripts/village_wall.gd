@@ -46,6 +46,7 @@ const SIEGE_SIGHT := 30.0
 const GRACE := 7.0
 ## The most villagers that take up a post at the wall at a time: everyone who can fight.
 const MOST_DEFENDERS := 12
+const PASS_LINE := "Du öffnest das Tor einen Spalt. Es schließt sich hinter dir wieder."
 const MUSTER_CALL := "Alle hinter die Mauer! Wir verteidigen das Dorf!"
 const SHUT_CALL := "Tor zu! Ein Schleim kommt!"
 const OPEN_CALL := "Das Tor ist wieder offen. Die Gefahr ist vorbei."
@@ -58,6 +59,8 @@ const COLOR := Color(1.0, 0.75, 0.3)
 ## Wall tiles on the map, and gate tiles.
 const WALL_LETTER := "_"
 const GATE_LETTER := "\\"
+## The station kind of a gate (the hero opens it by running into it while it is shut).
+const GATE_STATION := "stadttor"
 
 ## Every brick by its tile.
 var bricks: Dictionary = {}
@@ -81,6 +84,9 @@ func add(o: Outdoor, c: Vector2i, is_gate: bool) -> void:
 	bricks[c] = brick
 	if is_gate:
 		gates.append(brick)
+		# Running into the shut gate opens it for the hero (see Game._use_station).
+		brick.station = {"kind": GATE_STATION, "cell": c, "pos": o.cell_to_world(c), "used": true, "gate": brick}
+		o.stations.append(brick.station)
 
 
 ## Whether the wall at a tile runs west to east (else north to south): it does
@@ -124,6 +130,8 @@ func is_inside(c: Vector2i) -> bool:
 func changed(brick: WallBrick) -> void:
 	var o := brick.level
 	var open_ground := not brick.blocks()
+	if brick.gate:
+		brick.station["used"] = open_ground
 	if not brick.gate:
 		o._set_cell(brick.cell, "." if brick.hp <= 0 else WALL_LETTER)
 	if o.astar != null and o.astar.is_in_boundsv(brick.cell):
@@ -164,7 +172,7 @@ func tick(o: Outdoor, delta: float) -> void:
 			shut_wanted = false
 			_call(o, OPEN_CALL, OPEN_NEWS)
 	for g in gates:
-		if g.shut == shut_wanted:
+		if g.shut == shut_wanted or (g.passage_open and shut_wanted):
 			continue
 		# Never shut a gate on somebody standing in it.
 		if shut_wanted and (g.hp <= 0 or someone_in(o, g) or (_grace > 0.0 and stragglers(o) > 0)):

@@ -1,1 +1,2 @@
 - Sheep now have a short neck and short, sturdy legs instead of the alpaca's long ones.
+- Sheep carry their head forward like real sheep, with a shorter face and ears out to the side.

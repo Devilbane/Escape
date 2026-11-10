@@ -85,7 +85,7 @@ const CRY := "mähhhhh, feeeeellll maaaiiiii  hoooooorrrrnsss!!!"
 const ACTIVE_RANGE := 100.0
 const HIDE_RANGE := 80.0
 ## How far a body drops when it lies down (its legs' length), per kind.
-const LEG := {"goose": 0.22, "goat": 0.36, "billy": 0.36, "sheep": 0.2}
+const LEG := {"goose": 0.22, "goat": 0.36, "billy": 0.36, "sheep": 0.24}
 
 static var _meshes := {}
 static var _mats := {}
@@ -743,9 +743,15 @@ func _build_model() -> void:
 ## bone), and how far the whole model sinks so the shorter hooves still meet the ground. The
 ## hind leg keeps more of its upper bone's length, which the zigzag of the hock makes up for.
 const SHEEP_NECK := 0.5
-const SHEEP_FRONT_LEG := 0.5
-const SHEEP_BACK_LEG := 0.55
-const SHEEP_SINK := 0.93
+const SHEEP_FRONT_LEG := 0.62
+const SHEEP_BACK_LEG := 0.67
+const SHEEP_SINK := 0.73
+## The head: a shorter, broader face (scale along the skull, across it), and the carriage of
+## SheepPosture: neck leaning forward, head level, ears out to the side (degrees).
+const SHEEP_HEAD := Vector2(0.75, 1.1)
+const SHEEP_NECK_LEAN := -42.0
+const SHEEP_HEAD_LEAN := -8.0
+const SHEEP_EAR_ROLL := -50.0
 
 ## A sheep is the pack's alpaca made woolly. The model file has a puffed-up fleece
 ## (clumpy and cream, with dark stockings; its vertex colours carry the clumps), and
@@ -783,11 +789,18 @@ func _shorten(model: Node3D) -> void:
 	if skeleton == null:
 		return
 	_scale_bone(skeleton, "Neck1", SHEEP_NECK)
-	_scale_bone(skeleton, "Head", 1.0 / SHEEP_NECK, Vector3.BACK)
+	skeleton.set_bone_pose_scale(skeleton.find_bone("Head"),
+			Vector3(SHEEP_HEAD.y, SHEEP_HEAD.x, SHEEP_HEAD.y / SHEEP_NECK))
 	for side in ["L", "R"]:
 		_scale_bone(skeleton, "FrontUpperLeg." + side, SHEEP_FRONT_LEG)
 		_scale_bone(skeleton, "BackLeg." + side, SHEEP_BACK_LEG)
 	model.position.y = -SHEEP_SINK
+	var posture := SheepPosture.new()
+	skeleton.add_child(posture)
+	posture.setup(skeleton)
+	posture.neck_pitch = SHEEP_NECK_LEAN
+	posture.head_pitch = SHEEP_HEAD_LEAN
+	posture.ear_roll = SHEEP_EAR_ROLL
 
 
 ## Scales one bone by `amount` along `axis` (the bone's own length by default).

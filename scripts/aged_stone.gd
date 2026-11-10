@@ -64,6 +64,8 @@ const OLD_IVY_FILL := 0.5
 const WINDOW_CLEAR := Vector2(0.6, 0.7)
 ## How far (metres) round a glass window the ivy keeps off.
 const GLASS_CLEAR := 0.45
+## The share of leaves kept in the outer ring of a window's extra clear room.
+const STRAND_KEEP := 0.25
 ## How far (metres, along the slope) old ivy creeps up a roof, and the
 ## steepest a roof may be (its normal's y at least) to be crept on.
 const ROOF_CREEP := Vector2(0.5, 2.0)
@@ -412,7 +414,7 @@ static func _on_wall(wall: Dictionary, p: Vector3) -> bool:
 ## `foot_max` lets ivy root on walls standing that high (the castle's towers
 ## start well above the ground). `windows` are the middles of window panes (world space): their middle
 ## stays clear of leaves, so the ivy frames a window but never covers it.
-static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = [], foot_max := 0.0, proud := 0.0) -> void:
+static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = [], foot_max := 0.0, proud := 0.0, window_room := 1.0) -> void:
 	var all_walls := walls(tris, middle, ground)
 	var found := rooted(all_walls, ground, old, foot_max)
 	# A wall up on a stone base that looks the way a door does holds that
@@ -483,7 +485,7 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 		# (Only a root down by the door is kept away: one high up on a tower above it is fine.)
 		if root.y < ground + DOOR_CLEAR.y and doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
 			continue
-		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors, proud)
+		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors, proud, window_room)
 		grown += 1
 
 
@@ -511,7 +513,7 @@ static func _root_on(wall: Dictionary, ground: float, rng: RandomNumberGenerator
 ## and then branching; leaves grow along them, thickest near the ground.
 ## Old ivy climbs higher, and a tendril that runs out of wall below its
 ## reach creeps on up the roof above it.
-static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = [], thin := 1.0, doors: Array = [], proud := 0.0) -> void:
+static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, old := false, roofs: Array = [], windows: Array = [], thin := 1.0, doors: Array = [], proud := 0.0, window_room := 1.0) -> void:
 	var n: Vector3 = root_wall.n
 	var across := Vector3.UP.cross(n).normalized()
 	var height: Vector2 = OLD_IVY_HEIGHT if old else IVY_HEIGHT
@@ -557,7 +559,7 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 				fill = maxf(fill, OLD_IVY_FILL)
 			for k in rng.randi_range(1, 1 + int(fill * 1.6)):
 				var at := p + across * rng.randf_range(-0.2, 0.2) + Vector3.UP * rng.randf_range(-0.08, 0.08)
-				if rng.randf() < thin and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_doorway(at, doors, ground):
+				if rng.randf() < thin and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_window_room(at, n, windows, window_room, rng) and not _in_doorway(at, doors, ground):
 					_leaf(at + n * proud, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
 			if rng.randf() < 0.08 and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
@@ -677,6 +679,29 @@ static func _on_pane(at: Vector3, n: Vector3, windows: Array) -> bool:
 		var side := d - n * d.dot(n)
 		if absf(side.y) < WINDOW_CLEAR.y and Vector2(side.x, side.z).length() < WINDOW_CLEAR.x:
 			return true
+	return false
+
+
+## Extra room round the windows (`room` times the usual clearance): leaves keep
+## off the inner part completely, and only now and then reach into the outer
+## ring, so a window is left free with a few strands at its edges.
+static func _in_window_room(at: Vector3, n: Vector3, windows: Array, room: float, rng: RandomNumberGenerator) -> bool:
+	if room <= 1.0:
+		return false
+	for win in windows:
+		if win is AABB:
+			var outer := (win as AABB).grow(GLASS_CLEAR * room)
+			if outer.has_point(at):
+				return (win as AABB).grow(GLASS_CLEAR * (1.0 + (room - 1.0) * 0.5)).has_point(at) or rng.randf() > STRAND_KEEP
+			continue
+		var d: Vector3 = at - (win as Vector3)
+		if absf(d.dot(n)) > 0.5:
+			continue
+		var side := d - n * d.dot(n)
+		var across := Vector2(side.x, side.z).length() / (WINDOW_CLEAR.x * room)
+		var up := absf(side.y) / (WINDOW_CLEAR.y * room)
+		if across < 1.0 and up < 1.0:
+			return maxf(across, up) < 0.6 or rng.randf() > STRAND_KEEP
 	return false
 
 

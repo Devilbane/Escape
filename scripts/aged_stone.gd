@@ -53,6 +53,11 @@ const IVY_SPACING := 0.14
 ## and for how many steps (of 0.16 m) it runs along the wall before it climbs on.
 const BRANCH_RUN_CHANCE := 0.07
 const BRANCH_RUN := Vector2i(10, 22)
+## Ivy prefers edges: the share of roots set within EDGE_ZONE metres of a wall's
+## end, and how often a vine that reached its height runs on along the eaves.
+const EDGE_ROOTS := 0.75
+const EDGE_ZONE := 0.9
+const EAVES_RUN_CHANCE := 0.7
 const IVY_BRANCHING := 0.12
 ## The doorway itself stays free of leaves up to this height (metres) and
 ## this far (metres) from the door's spot, so the ivy frames a door.
@@ -500,7 +505,7 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 		# (Only a root down by the door is kept away: one high up on a tower above it is fine.)
 		if root.y < ground + DOOR_CLEAR.y and doors.any(func(d: Vector3): return Vector2(d.x - root.x, d.z - root.z).length() < IVY_DOOR_GAP):
 			continue
-		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors, proud, window_room, all_sides)
+		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors, proud, window_room, true)
 		grown += 1
 
 
@@ -517,6 +522,11 @@ static func _root_on(wall: Dictionary, ground: float, rng: RandomNumberGenerator
 	var on_plane: Vector3 = n * float(wall.d)
 	for i in 8:
 		var s := rng.randf_range(lo + 0.4, hi - 0.4)
+		# Ivy prefers the edges of a building (its corners and the timber
+		# framing along them): most roots sit close to the end of a wall.
+		if rng.randf() < EDGE_ROOTS:
+			var reach_in := minf(EDGE_ZONE, (hi - lo) * 0.5 - 0.4)
+			s = lo + 0.4 + rng.randf() * reach_in if rng.randf() < 0.5 else hi - 0.4 - rng.randf() * reach_in
 		var p := on_plane - across * on_plane.dot(across) + across * s
 		p.y = maxf(float(wall.foot), ground) + 0.15
 		if _on_wall(wall, p):
@@ -587,7 +597,10 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 				var at := p + across * (side_flip * rng.randf_range(0.06, 0.22)) + Vector3.UP * (rng.randf_range(-0.05, 0.05) + k * 0.08)
 				if rng.randf() < thin * IVY_KEEP and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_window_room(at, n, windows, window_room, rng) and not _in_doorway(at, doors, ground) and not _crowded(at, leaves, first):
 					_leaf(at + n * proud, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
-			if branchy and run == 0 and rng.randf() < BRANCH_RUN_CHANCE and tips.size() < 10:
+			if branchy and run == 0 and p.y >= reach - 0.2 and rng.randf() < EAVES_RUN_CHANCE and tips.size() < 10:
+				# At the top the vine turns and runs along the eaves, like a framing beam.
+				tips.append({"p": p - Vector3.UP * 0.35, "drift": 0.0, "wall": wall, "run": rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y), "dir": 1.0 if rng.randf() < 0.5 else -1.0})
+			elif branchy and run == 0 and rng.randf() < BRANCH_RUN_CHANCE and tips.size() < 10:
 				# A branch growing out sideways, and a tendril going up from its end.
 				tips.append({"p": p, "drift": 0.0, "wall": wall, "run": rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y), "dir": 1.0 if rng.randf() < 0.5 else -1.0})
 			elif rng.randf() < IVY_BRANCHING and tips.size() < 8:

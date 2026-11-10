@@ -635,6 +635,12 @@ func defends() -> bool:
 	return _task == "defend" or (_task == "walk" and get_meta("then", "") == "defend")
 
 
+## Whether this villager is running, fighting or sheltering right now (no time for
+## customers, see VillagerPost).
+func endangered() -> bool:
+	return threat != null or defends() or _task in ["fight", "hide"]
+
+
 ## Whether a brave villager can be sent to a post: at his work, not running or fighting.
 func can_defend() -> bool:
 	if not brave or eaten or at_home or threat != null or defends():

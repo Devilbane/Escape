@@ -519,6 +519,7 @@ func _bus_links() -> Array:
 		[bus.enemy_slain, village_rumours.on_slain],
 		[bus.treasure_map_found, treasure_maps.read],
 		[bus.village_alarmed, _ring_bell],
+		[bus.village_alarmed, _close_villager_window],
 	]
 
 
@@ -1747,6 +1748,8 @@ func _use_station(s: Dictionary) -> void:
 		_refresh_seals()
 	elif s.kind == Mines.CLUSTER:
 		_mine_crystals(s)
+	elif s.has("npc") and _villager_unavailable(s):
+		pass
 	elif s.has("npc"):
 		# A villager who trades: a word, then the goods. A task handed out or
 		# finished comes first; the goods wait until the next time. While the
@@ -1772,6 +1775,26 @@ func _use_station(s: Dictionary) -> void:
 		player.face(s.pos - player.global_position)
 		menus.bench = s.get("craft", "")
 		menus.open(s.kind)
+
+
+## A villager whose window must not open now (alarm, or away from their post, see
+## VillagerPost): they say a short line instead. True when the window stays shut.
+func _villager_unavailable(s: Dictionary) -> bool:
+	var line := VillagerPost.for_station(level, s)
+	if line == "":
+		return false
+	player.face(s.pos - player.global_position)
+	player.play("Idle")
+	if not s.npc.is_busy_talking():
+		s.npc.say(Lang.t(line), player.global_position)
+	return true
+
+
+## The village is in danger: a villager's window that is open closes (see _bus_links).
+func _close_villager_window(_reason: String) -> void:
+	if trader_role != "" and menus != null and menus.is_open():
+		menus.close()
+		show_message(Lang.t(VillagerPost.ALARM_LINE), 2.4)
 
 
 ## How long the hero knocks at a crystal cluster before the crystals come off:

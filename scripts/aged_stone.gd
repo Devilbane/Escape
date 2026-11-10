@@ -57,7 +57,24 @@ const BRANCH_RUN := Vector2i(10, 22)
 ## end, and how often a vine that reached its height runs on along the eaves.
 ## The woody stems: thickness (metres) of a thin and of a thick one, and their colour.
 const STEM_THICK := Vector2(0.04, 0.11)
-const STEM_STEPS := 6
+## A stem piece spans STEM_STEPS steps (short pieces follow the vine's wandering path, so it curves
+## instead of running straight). It wavers sideways by up to STEM_WAVE metres, tapers along its length
+## (the far end is STEM_TAPER of the near end's width), and is only drawn where a leaf lies within
+## STEM_LEAF_REACH metres, so no bare brown stem ever runs away from the foliage.
+## Vines never pile up: a cell of STEM_CELL metres holds at most STEM_CELL_LENGTH metres of stem.
+## A tendril is a short curling side shoot ending in a leaf; it sprouts with TENDRIL_CHANCE per step.
+const STEM_STEPS := 2
+const STEM_WAVE := 0.09
+const STEM_TAPER := 0.55
+const STEM_LEAF_REACH := 0.3
+const STEM_CELL := 0.8
+const STEM_CELL_LENGTH := 2.0
+const TENDRIL_CHANCE := 0.1
+## Bunches of blue grapes hang from the vine now and then (GRAPE_CHANCE per stem piece), never closer
+## than GRAPE_SPACING metres to one another, for a splash of colour among the leaves.
+const GRAPE_CHANCE := 0.06
+const GRAPE_SPACING := 1.1
+const GRAPE_COLOUR := Color(0.2, 0.22, 0.5)
 const STEM_COLOUR := Color(0.36, 0.26, 0.17)
 const EDGE_ROOTS := 0.75
 const EDGE_ZONE := 0.9
@@ -576,6 +593,7 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 		# little, then climbs on like any tendril.
 		var anchor := p
 		var reach_steps := 0
+		var phase := rng.randf() * TAU
 		var run: int = tip.get("run", 0)
 		var run_dir: float = tip.get("dir", 1.0)
 		while p.y < reach:
@@ -584,6 +602,9 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 			if run > 0:
 				run -= 1
 				next = p + across * run_dir * 0.16 + Vector3.UP * rng.randf_range(0.02, 0.07)
+			# A gentle wave, so the stem winds like a vine and not like a rod.
+			phase += 0.9
+			next += (across if run == 0 else Vector3.UP) * cos(phase) * STEM_WAVE * 0.5
 			if not _on_wall(wall, next):
 				# Round the edge of a window or the wall: try straight up,
 				# then on to a wall in line just above.
@@ -596,12 +617,7 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 						break
 					wall = hop
 					next = next + n * (float(wall.d) - n.dot(next))
-			# One bar per STEM_STEPS steps keeps the stems cheap.
 			reach_steps += 1
-			if reach_steps >= STEM_STEPS:
-				_stem(anchor, next, n, wall, base, reach, run > 0, windows, window_room, doors, ground, rng, leaves)
-				anchor = next
-				reach_steps = 0
 			p = next
 			# Fuller near the ground, sparse at the top.
 			var fill := clampf(1.0 - (p.y - base) / maxf(reach - base, 0.5), 0.0, 1.0)
@@ -615,7 +631,17 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 				var at := p + across * (side_flip * rng.randf_range(0.06, 0.22)) + Vector3.UP * (rng.randf_range(-0.05, 0.05) + k * 0.08)
 				if rng.randf() < thin * IVY_KEEP and _on_wall(wall, at) and not _on_pane(at, n, windows) and not _in_window_room(at, n, windows, window_room, rng) and not _in_doorway(at, doors, ground) and not _crowded(at, leaves, first):
 					_leaf(at + n * proud, n, across, rng, leaves, (0.75 + fill * 0.35) * bigger)
-			if branchy and run == 0 and p.y >= reach - 0.2 and rng.randf() < EAVES_RUN_CHANCE and tips.size() < 10:
+			# The stem piece comes after the leaves, so it only joins where there is foliage.
+			if reach_steps >= STEM_STEPS:
+				_stem(anchor, p, n, wall, base, reach, run > 0, windows, window_room, doors, ground, rng, leaves, first)
+				anchor = p
+				reach_steps = 0
+			# A small curling tendril with a leaf at its tip.
+			if run == 0 and rng.randf() < TENDRIL_CHANCE:
+				_tendril(p, n, across, wall, base, reach, windows, window_room, doors, ground, rng, leaves, first, proud)
+			if not _stem_room(p, leaves):
+				pass  # the vines here are crowded enough: no new branch
+			elif branchy and run == 0 and p.y >= reach - 0.2 and rng.randf() < EAVES_RUN_CHANCE and tips.size() < 10:
 				# At the top the vine turns and runs along the eaves, like a framing beam.
 				tips.append({"p": p - Vector3.UP * 0.35, "drift": 0.0, "wall": wall, "run": rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y), "dir": 1.0 if rng.randf() < 0.5 else -1.0})
 			elif branchy and run == 0 and rng.randf() < BRANCH_RUN_CHANCE and tips.size() < 10:
@@ -629,7 +655,7 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 ## `n`), a thin brown bar: thick near the ground and thin up high, thinnest on
 ## a branch. Real ivy shows its stems, the leaves grow along them. It is left
 ## out wherever a leaf would be (windows, doorways).
-static func _stem(a: Vector3, b: Vector3, n: Vector3, wall: Dictionary, base: float, reach: float, branch: bool, windows: Array, window_room: float, doors: Array, ground: float, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
+static func _stem(a: Vector3, b: Vector3, n: Vector3, wall: Dictionary, base: float, reach: float, branch: bool, windows: Array, window_room: float, doors: Array, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, first: int) -> void:
 	var mid := (a + b) * 0.5
 	if not _on_wall(wall, mid) or _on_pane(mid, n, windows) or _in_window_room(mid, n, windows, window_room, rng) or _in_doorway(mid, doors, ground):
 		return
@@ -638,7 +664,7 @@ static func _stem(a: Vector3, b: Vector3, n: Vector3, wall: Dictionary, base: fl
 		leaves["stem_colours"] = []
 	var dir := b - a
 	var length := dir.length()
-	if length < 0.001:
+	if length < 0.001 or not _leaf_near(mid, leaves, first) or not _stem_take(mid, length, leaves):
 		return
 	dir /= length
 	var frac := clampf(1.0 - (mid.y - base) / maxf(reach - base, 0.5), 0.0, 1.0)
@@ -648,15 +674,90 @@ static func _stem(a: Vector3, b: Vector3, n: Vector3, wall: Dictionary, base: fl
 	var basis := Basis(x * thick, dir * (length + 0.03), n)
 	(leaves.stems as Array).append(Transform3D(basis, mid + n * 0.03))
 	(leaves.stem_colours as Array).append(STEM_COLOUR * rng.randf_range(0.8, 1.2))
+	if rng.randf() < GRAPE_CHANCE:
+		_grapes(mid + x * rng.randf_range(-0.08, 0.08), n, wall, windows, window_room, doors, ground, rng, leaves)
+
+
+## Whether a leaf of the current patch (from index `first` on) lies within STEM_LEAF_REACH of `at`.
+static func _leaf_near(at: Vector3, leaves: Dictionary, first: int) -> bool:
+	var xf: Array = leaves.xforms
+	var reach2 := STEM_LEAF_REACH * STEM_LEAF_REACH
+	for i in range(xf.size() - 1, maxi(first, xf.size() - 80) - 1, -1):
+		if ((xf[i] as Transform3D).origin).distance_squared_to(at) < reach2:
+			return true
+	return false
+
+
+## The cell of the stem density grid that holds `at`.
+static func _stem_cell(at: Vector3) -> Vector3i:
+	return Vector3i(floori(at.x / STEM_CELL), floori(at.y / STEM_CELL), floori(at.z / STEM_CELL))
+
+
+## Whether the cell around `at` still has room for stem (see STEM_CELL_LENGTH).
+static func _stem_room(at: Vector3, leaves: Dictionary) -> bool:
+	return float((leaves.get("stem_cells", {}) as Dictionary).get(_stem_cell(at), 0.0)) < STEM_CELL_LENGTH
+
+
+## Books `length` metres of stem in the cell around `at`; false, and nothing booked, when it is full.
+static func _stem_take(at: Vector3, length: float, leaves: Dictionary) -> bool:
+	if not leaves.has("stem_cells"):
+		leaves["stem_cells"] = {}
+	var cells: Dictionary = leaves.stem_cells
+	var key := _stem_cell(at)
+	var used: float = cells.get(key, 0.0)
+	if used >= STEM_CELL_LENGTH:
+		return false
+	cells[key] = used + length
+	return true
+
+
+## A bunch of blue grapes hanging from the stem at `at` (see GRAPE_CHANCE), kept clear of windows and
+## doors and of other bunches. `leaves.grapes` holds one transform per bunch.
+static func _grapes(at: Vector3, n: Vector3, wall: Dictionary, windows: Array, window_room: float, doors: Array, ground: float, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
+	var spot := at - Vector3.UP * 0.1 + n * 0.07
+	if not _on_wall(wall, spot) or _on_pane(spot, n, windows) or _in_window_room(spot, n, windows, window_room, rng) or _in_doorway(spot, doors, ground):
+		return
+	if not leaves.has("grapes"):
+		leaves["grapes"] = []
+		leaves["grape_colours"] = []
+	for g: Transform3D in leaves.grapes:
+		if g.origin.distance_squared_to(spot) < GRAPE_SPACING * GRAPE_SPACING:
+			return
+	var size := rng.randf_range(0.9, 1.25)
+	(leaves.grapes as Array).append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * size), spot))
+	(leaves.grape_colours as Array).append(GRAPE_COLOUR * rng.randf_range(0.8, 1.3))
+
+
+## A small tendril from `p`: a short side shoot that curls over and ends in a leaf, drawn as a few
+## thin stem pieces. Nothing is grown where the stems' cell is full or the leaf would not fit.
+static func _tendril(p: Vector3, n: Vector3, across: Vector3, wall: Dictionary, base: float, reach: float, windows: Array, window_room: float, doors: Array, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, first: int, proud: float) -> void:
+	if not _stem_room(p, leaves):
+		return
+	var side := 1.0 if rng.randf() < 0.5 else -1.0
+	var angle := rng.randf_range(0.5, 1.1)
+	var curl := rng.randf_range(0.35, 0.7) * side
+	var pts: Array = [p]
+	var q := p
+	for i in 3:
+		q += (Vector3.UP * cos(angle) + across * sin(angle) * side) * 0.09
+		angle += curl
+		if not _on_wall(wall, q) or _on_pane(q, n, windows) or _in_window_room(q, n, windows, window_room, rng) or _in_doorway(q, doors, ground):
+			return
+		pts.append(q)
+	if _crowded(q, leaves, first):
+		return
+	_leaf(q + n * proud, n, across, rng, leaves, 0.7)
+	for i in 3:
+		_stem(pts[i], pts[i + 1], n, wall, base, reach, true, windows, window_room, doors, ground, rng, leaves, first)
 
 
 ## A woody stem lying on a roof face (normal `n`) from `a` to `b`: the roof vines' branches, drawn as
 ## the wall ivy's are (see _stem), thinner the further the vine has run.
-static func _roof_stem(a: Vector3, b: Vector3, n: Vector3, frac: float, branch: bool, windows: Array, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
+static func _roof_stem(a: Vector3, b: Vector3, n: Vector3, frac: float, branch: bool, windows: Array, rng: RandomNumberGenerator, leaves: Dictionary, first: int) -> void:
 	var mid := (a + b) * 0.5
 	var dir := b - a
 	var length := dir.length()
-	if length < 0.001 or _on_pane(mid, n, windows):
+	if length < 0.001 or _on_pane(mid, n, windows) or not _leaf_near(mid, leaves, first) or not _stem_take(mid, length, leaves):
 		return
 	if not leaves.has("stems"):
 		leaves["stems"] = []
@@ -722,6 +823,7 @@ static func _in_doorway(at: Vector3, doors: Array, ground: float) -> bool:
 static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Dictionary, windows: Array) -> void:
 	if roofs.is_empty():
 		return
+	var first: int = leaves.xforms.size()
 	# Start anywhere on the roof and run downhill to its eaves: the vine's root.
 	var t: Dictionary = roofs[rng.randi() % roofs.size()]
 	var r1 := rng.randf()
@@ -773,7 +875,7 @@ static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Diction
 			if run > 0:
 				run -= 1
 				next = pos + along * float(tip.dir) * 0.16 + up * rng.randf_range(0.0, 0.05)
-			elif rng.randf() < ROOF_BRANCH_CHANCE and tips.size() < 8:
+			elif rng.randf() < ROOF_BRANCH_CHANCE and tips.size() < 8 and _stem_room(pos, leaves):
 				# A runner out sideways; it climbs on from the end of its run.
 				tips.append({"p": pos, "n": tn, "drift": 0.0, "run": rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y), "dir": 1.0 if rng.randf() < 0.5 else -1.0, "left": left * 0.7, "dir_branch": true})
 			var still := _roof_at(roofs, next, next.y - 0.3, next.y + 0.3)
@@ -782,7 +884,7 @@ static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Diction
 			# One bar per STEM_STEPS steps, from the last one to here.
 			reach_steps += 1
 			if reach_steps >= STEM_STEPS:
-				_roof_stem(anchor, still.p, still.n, left / total, run > 0 or tip.dir_branch, windows, rng, leaves)
+				_roof_stem(anchor, still.p, still.n, left / total, run > 0 or tip.dir_branch, windows, rng, leaves, first)
 				anchor = still.p
 				reach_steps = 0
 			pos = still.p
@@ -1059,7 +1161,63 @@ static func ivy_node(leaves: Dictionary) -> Node3D:
 		node.visibility_range_end = LEAF_RANGE
 		root.add_child(node)
 	_stems_into(root, leaves)
+	_grapes_into(root, leaves)
 	return root
+
+
+## One bunch of grapes: ten small berries, wide at the stalk and narrowing to the tip.
+static func grape_mesh() -> ArrayMesh:
+	var ball := SphereMesh.new()
+	ball.radius = 0.045
+	ball.height = 0.09
+	ball.radial_segments = 6
+	ball.rings = 3
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rows := [[0.0, 0.05, 3], [-0.07, 0.035, 3], [-0.13, 0.02, 3], [-0.18, 0.0, 1]]
+	for row: Array in rows:
+		var drop: float = row[0]
+		var ring: float = row[1]
+		var count: int = row[2]
+		for i in count:
+			var a := TAU * float(i) / float(count) + drop * 20.0
+			st.append_from(ball, 0, Transform3D(Basis(), Vector3(cos(a) * ring, drop, sin(a) * ring)))
+	return st.commit()
+
+
+## The grape bunches (see _grapes) as one MultiMesh per tile, under `root`.
+static func _grapes_into(root: Node3D, leaves: Dictionary) -> void:
+	var xf: Array = leaves.get("grapes", [])
+	if xf.is_empty():
+		return
+	var mesh := grape_mesh()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.45
+	mesh.surface_set_material(0, mat)
+	var tiles := {}
+	for i in xf.size():
+		var at: Vector3 = (xf[i] as Transform3D).origin
+		var key := Vector2i(floori(at.x / LEAF_TILE), floori(at.z / LEAF_TILE))
+		if not tiles.has(key):
+			tiles[key] = []
+		tiles[key].append(i)
+	for key: Vector2i in tiles:
+		var picked: Array = tiles[key]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = mesh
+		mm.instance_count = picked.size()
+		for k in picked.size():
+			mm.set_instance_transform(k, xf[picked[k]])
+			mm.set_instance_color(k, (leaves.grape_colours as Array)[picked[k]])
+		var node := MultiMeshInstance3D.new()
+		node.name = "Grapes_%d_%d" % [key.x, key.y]
+		node.multimesh = mm
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.visibility_range_end = LEAF_RANGE
+		root.add_child(node)
 
 
 ## The stems (see _stem) as one MultiMesh of bars per tile, under `root`.
@@ -1067,13 +1225,19 @@ static func _stems_into(root: Node3D, leaves: Dictionary) -> void:
 	var xf: Array = leaves.get("stems", [])
 	if xf.is_empty():
 		return
-	var bar := QuadMesh.new()
-	bar.size = Vector2.ONE
+	# A tapering strip (stem pieces run from the thick end at y = -0.5 to the thin one).
+	var bar := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(-0.5, -0.5, 0), Vector3(0.5, -0.5, 0), Vector3(0.5 * STEM_TAPER, 0.5, 0), Vector3(-0.5 * STEM_TAPER, 0.5, 0)])
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK])
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 0, 2, 3])
+	bar.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 1.0
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	bar.material = mat
+	bar.surface_set_material(0, mat)
 	var tiles := {}
 	for i in xf.size():
 		var at: Vector3 = (xf[i] as Transform3D).origin

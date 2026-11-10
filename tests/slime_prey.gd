@@ -159,7 +159,10 @@ func _process(_delta: float) -> bool:
 				check(priestess._heal_someone(), "she finds someone to heal")
 				check(int(hurt.get_meta("slime_life", hurt.max_life())) == 2 + Villager.HEAL, "and heals them")
 				hurt.remove_meta("slime_life")
-			check(Villager.LEVELS.values().min() >= 10 and Villager.LEVELS.values().max() <= 20, "townsfolk are level 10 to 20")
+			var townsfolk := Villager.LEVELS.duplicate()
+			townsfolk.erase(Wanderer.ROLE)
+			check(townsfolk.values().min() >= 10 and townsfolk.values().max() <= 20, "townsfolk are level 10 to 20")
+			check(Villager.LEVELS[Wanderer.ROLE] == 50, "only Zarek the wandering mage is level 50")
 			hp_before = slime.hp
 			stage = 1
 			stage_frames = 0

@@ -297,6 +297,8 @@ var _toss_clock := 0.0
 var _tossed := false
 var _seed_spot := Vector3.INF
 var _skeleton: Skeleton3D
+## The game of tag, cartwheels and somersaults this child plays (see KidPlay), once begun.
+var _kid: KidPlay
 var _head_top := -1.0
 
 
@@ -1217,9 +1219,9 @@ func _next_task() -> void:
 		"wander":
 			if _task == "walk" or _rng.randf() < 0.5:
 				_start("work" if _rng.randf() < 0.4 else "idle", _rng.randf_range(1.5, 4.0))
-			elif _info.has("pal") and _rng.randf() < 0.3 and _play_spot() != Vector3.INF:
-				# Off to play with the friend: a run to their side.
-				_walk_to(_play_spot(), RUN_SPEED, "work")
+			elif _info.has("pal") and _rng.randf() < 0.3 and KidPlay.fine_day(self) and _play_spot() != Vector3.INF:
+				# Off to play with the friend: a run to their side, then a game (see KidPlay).
+				_walk_to(_play_spot(), RUN_SPEED, "play")
 			elif _info.get("herds", false) and _rng.randf() < 0.45 and VillageFarm.herd_spot(level, role, _rng.randf()) != Vector3.INF:
 				# Off to mind the goats and the geese (see VillageFarm).
 				_walk_to(VillageFarm.herd_spot(level, role, _rng.randf()), WALK_SPEED * 1.4, "work")
@@ -1342,6 +1344,11 @@ func _physics_process(delta: float) -> void:
 	station.cell = level.world_to_cell(global_position)
 	_update_bubble(delta)
 	var hero: Node3D = level.player
+	# Play ends when anything else comes first: a task of another kind, or a word with the hero.
+	if _kid != null and _kid.active and (_task != "play" or _bubble_time > 0.0):
+		_kid.stop()
+		if _task == "play":
+			_start("idle", 1.5)
 	_cast_fireball(delta)
 	_hunt_slimes(delta)
 	if _bubble_time > 0.0 and _look_at != Vector3.INF:
@@ -1373,6 +1380,8 @@ func _physics_process(delta: float) -> void:
 			play("Idle")
 		"feed":
 			_feed(delta)
+		"play":
+			_play(delta)
 		"chat":
 			if chat_partner and is_instance_valid(chat_partner):
 				_turn_to(chat_partner.global_position - global_position, delta)
@@ -1388,12 +1397,35 @@ func _physics_process(delta: float) -> void:
 		_turn_to(hero.global_position - global_position, delta)
 
 
+## The children's game (see KidPlay): chasing each other, cartwheels and somersaults.
+func _play(delta: float) -> void:
+	if _kid == null:
+		_kid = KidPlay.new(self)
+	if not _kid.active and not _kid.begin():
+		_start("idle", _rng.randf_range(2.0, 4.0))
+		return
+	if not _kid.tick(delta):
+		_kid.stop()
+		_start("idle", _rng.randf_range(1.5, 3.0))
+
+
+## The friend started a game and we join in, chased first (see KidPlay.begin).
+func join_play(friend: Villager, at: Vector3, time: float) -> void:
+	_path.clear()
+	if _kid == null:
+		_kid = KidPlay.new(self)
+	_start("play", time)
+	_kid.join(friend, at)
+
+
 func _walk(delta: float, hero: Node3D) -> void:
 	if _path.is_empty():
 		var then: String = get_meta("then", "idle")
 		var time := _rng.randf_range(2.0, 5.0)
 		if then in ["work", "sit"]:
 			time = _rng.randf_range(8.0, 16.0)
+		elif then == "play":
+			time = _rng.randf_range(14.0, 24.0)
 		elif then == "listen":
 			time = LISTEN_TIME + _rng.randf_range(-2.0, 2.0)
 		elif then == "watch":

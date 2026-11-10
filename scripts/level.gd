@@ -5587,11 +5587,11 @@ func _build_stairs(c: Vector2i, up: bool) -> void:
 	var pos := cell_to_world(c)
 	stairs.append({"cell": c, "up": up, "storey": storey_of(c)})
 	if up:
-		var flight := _place("stairs", pos + Vector3(0, 0, -TILE * 0.5))
 		if is_home:
 			# The stairs of a house are worn wooden boards (see WoodStairs).
-			for mi: MeshInstance3D in flight.find_children("*", "MeshInstance3D", true, false):
-				mi.material_override = WoodStairs.material(Color.WHITE, true)
+			WoodStairs.build_up(self, pos, TILE)
+		else:
+			_place("stairs", pos + Vector3(0, 0, -TILE * 0.5))
 		return
 	var away := stairs_down_dir(c)
 	var look: Dictionary = StairsDown.LOOKS["wood"] if is_home else StairsDown.look(wall_style, theme)

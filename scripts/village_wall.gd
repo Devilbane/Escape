@@ -364,7 +364,7 @@ func _send_mason(o: Outdoor) -> void:
 ## The brick the mason mends next: the worst hurt one that is safe to work on.
 ## Null when there is none, or while the gates are shut (a slime is near).
 func job(o: Outdoor) -> WallBrick:
-	if shut_wanted or o.village_alarm.raised or o.night:
+	if shut_wanted or o.village_alarm.raised:
 		return null
 	var best: WallBrick = null
 	for b: WallBrick in bricks.values():

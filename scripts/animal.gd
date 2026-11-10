@@ -54,6 +54,7 @@ var _speed := 0.0
 var _timer := 0.0
 var _current_anim := ""
 var _repath := 0.0
+var _waiting := 0.0
 
 
 func setup(owner_level: Level, animal_kind: String, cell: Vector2i) -> void:
@@ -193,8 +194,12 @@ func _come_for_food(hero: Node3D, delta: float) -> void:
 		for c in cells.slice(1, cells.size() - 1):
 			_path.append(level.cell_to_world(c))
 	if _path.is_empty():
-		# Same tile or the next one: straight to the hero.
-		global_position += to.normalized() * minf(_stride("Walk", _speed) * delta, to.length() - reach * 0.9)
+		# Same tile or the next one: straight to the hero, unless a wall is in the way.
+		var next := global_position + to.normalized() * minf(_stride("Walk", _speed) * delta, to.length() - reach * 0.9)
+		if WalkRules.can_step(level, global_position, next, true):
+			global_position = next
+		else:
+			play("Idle")
 		_turn_to(to, delta)
 	else:
 		_walk(delta)
@@ -252,11 +257,22 @@ func _walk(delta: float) -> void:
 		return
 	var to := _flat(_path[0] - global_position)
 	var step := _stride("Gallop" if state == "flee" else "Walk", _speed) * delta
+	var target := Vector3(_path[0].x, global_position.y, _path[0].z) if to.length() <= step else global_position + to.normalized() * step
+	if not WalkRules.can_step(level, global_position, target):
+		# A gate was shut (or a wall stands) ahead: stand, then find the way again.
+		play("Idle")
+		_anim.speed_scale = 1.0
+		_waiting += delta
+		if _waiting >= WalkRules.MAKE_WAY:
+			_waiting = 0.0
+			var goal: Vector3 = _path[_path.size() - 1]
+			if not _set_path(goal):
+				_begin("idle", 1.0)
+		return
+	_waiting = 0.0
+	global_position = target
 	if to.length() <= step:
-		global_position = Vector3(_path[0].x, global_position.y, _path[0].z)
 		_path.pop_front()
-	else:
-		global_position += to.normalized() * step
 	_turn_to(to, delta)
 
 
@@ -273,11 +289,7 @@ func _stride(anim: String, speed: float) -> float:
 
 
 func _set_path(target: Vector3) -> bool:
-	_path.clear()
-	var from := level.world_to_cell(global_position)
-	var cells: Array[Vector2i] = level.grid_path(from, level.world_to_cell(target))
-	for c in cells.slice(1):
-		_path.append(level.cell_to_world(c) + Vector3(_rng.randf_range(-1.0, 1.0), 0, _rng.randf_range(-1.0, 1.0)))
+	_path.assign(WalkRules.path(level, global_position, target, _rng))
 	return not _path.is_empty()
 
 
@@ -297,10 +309,7 @@ func _open(c: Vector2i) -> bool:
 
 
 func _turn_to(direction: Vector3, delta: float) -> void:
-	direction.y = 0.0
-	if direction.length() < 0.01:
-		return
-	rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), minf(1.0, delta * 7.0))
+	WalkRules.turn(self, direction, delta)
 
 
 static func _flat(v: Vector3) -> Vector3:

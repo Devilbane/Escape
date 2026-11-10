@@ -255,6 +255,25 @@ func _run() -> void:
 		lvl.day += 1
 	brick.mend(1000.0)
 
+	# At night he gets up for a hurt wall, and sleeps again once it is whole.
+	lvl.night = true
+	mason.set_night(true, true)
+	check(mason.at_home, "the mason sleeps at night while the wall is whole")
+	brick.hurt(300)
+	check(wall.job(lvl) != null, "a hurt brick is work at night")
+	check(mason.can_mend(), "the sleeping mason may be called out for the wall")
+	wall.tick(lvl, 1.1)
+	check(mason.mend_brick == brick and not mason.at_home and mason.visible, "the mason gets up at night to mend the wall")
+	check(not mason.goes_to_bed(), "the mason does not go to bed while he has wall to mend")
+	lvl.village_alarm.raised = true
+	check(wall.job(lvl) == null, "no night work during an alarm")
+	lvl.village_alarm.raised = false
+	brick.mend(1000.0)
+	mason._finish_mending()
+	check(mason.goes_to_bed(), "the mason goes back to bed once the wall is whole")
+	lvl.night = false
+	mason.set_night(false)
+
 	# A slime near the wall keeps him from it.
 	west.hurt(100)
 	var slime3 := _slime(lvl, west.global_position + Vector3(-8, 0, 0))

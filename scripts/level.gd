@@ -5717,8 +5717,7 @@ func _slot_has_open_side(c: Vector2i) -> bool:
 
 
 ## The furniture spot for an upgrade, or {} when every spot is taken. The
-## trophy wall hangs on a back wall
-## of the entrance room, on the ground floor; the workbench stands against a side wall up there.
+## trophy wall hangs on the north wall of the top floor; the workbench stands against a side wall up there.
 func _upgrade_slot(id: String) -> Dictionary:
 	var taken: Array = _upgrade_cells.values()
 	var best := {}
@@ -5731,15 +5730,17 @@ func _upgrade_slot(id: String) -> Dictionary:
 		var score := 0.0
 		match id:
 			"trophaeen":
-				# Down in the entrance room, where the hero sees it on coming in: the
-				# ground floor, on a back wall, and the nearest to the front door.
-				score = (0.0 if storey == 0 else -50.0 - absf(storey)) + (5.0 if _wall_side(c) != Vector2i.ZERO else 0.0) + (1.0 if _against_back_wall(c) else 0.0) \
-						- Vector2(c - exit_cell).length() * 0.1
+				# Up on the top floor, on the north wall (the one the camera faces). The
+				# fireplace stands on that wall's middle tile, and the trophy wall takes a
+				# spot beside it: spots are always off the stairs, door and fireplace tile.
+				score = (0.0 if storey == storey_count() - 1 else -50.0 - absf(storey)) + (5.0 if _against_back_wall(c) else 0.0) \
+						+ (1.0 if _wall_side(c) != Vector2i.ZERO else 0.0) - c.y * 0.1
 			"feinbank", "schleifrad", "alchemie":
 				# A crafting bench keeps its back to the west (see CraftingSquare.build).
 				score = storey * 10.0 + (6.0 if cell_char(c + Vector2i(-1, 0)) == "#" else 0.0) + (-4.0 if _against_back_wall(c) else 0.0) - c.y * 0.1
 			"hort":
-				score = storey * 10.0 + (2.0 if _against_back_wall(c) else 0.0) - c.y * 0.1
+				# Not on the north wall: the trophy wall hangs there.
+				score = storey * 10.0 + (-4.0 if _against_back_wall(c) else 0.0) - c.y * 0.1
 			_:
 				score = storey * 10.0 + (3.0 if _against_side_wall(c) else 0.0) - (4.0 if _against_back_wall(c) else 0.0) - c.y * 0.1
 		if score > best_score:

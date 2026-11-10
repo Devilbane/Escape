@@ -18,7 +18,7 @@ extends RefCounted
 ## the same recipes, the same craft levels, the same window.
 ## The furniture is placed by Level.show_home_upgrades on the free
 ## furniture spots of the house (Level.furniture_slots): the workbench up in the
-## attic, the trophy wall in the entrance room. There is only one storage chest (the
+## attic, the trophy wall on the north wall of the top floor. There is only one storage chest (the
 ## one on the house's map); it holds STORAGE_SIZE things, the room of the two old chests. The
 ## upgrade window opens from the bed in the house and from the stonemason
 ## (see Menus._build_upgrades).

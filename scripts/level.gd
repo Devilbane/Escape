@@ -5560,16 +5560,17 @@ func _light_storeys() -> void:
 		_light_spots.append(sums[k][0] / float(sums[k][1]))
 
 
-## Wooden planks, as in the houses of the village. The stairs down leave a
+## Worn wooden boards, the same as the stairs of the house. The stairs down leave a
 ## hole in the floor. The tiles kept for furniture stay plain boards.
 func _build_home_floor(c: Vector2i, ch: String) -> void:
 	if ch == ">":
 		return
 	if not _scenes.has("mat_home_wood"):
-		var wood := StandardMaterial3D.new()
-		wood.albedo_texture = load("res://assets/house/wood_floor.jpg")
-		wood.uv1_scale = Vector3(2, 2, 2)
-		wood.roughness = 0.85
+		# The same worn boards as the stairs (see WoodStairs). Its picture is twice as wide as
+		# tall, so a tile repeats it 3 x 6 times (whole repeats keep the boards running
+		# unbroken over the tile edges): boards as wide as the stairs' and not stretched.
+		var wood := WoodStairs.material()
+		wood.uv1_scale = Vector3(3, 6, 1)
 		_scenes["mat_home_wood"] = wood
 		var plank := PlaneMesh.new()
 		plank.size = Vector2(TILE, TILE)

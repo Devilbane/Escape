@@ -67,6 +67,7 @@ const FOOT_BONES := {
 	"husky": ["FF_L", "FF_R", "FFB_L", "FFB_R"],
 	"shiba": ["FF_L", "FF_R", "FFB_L", "FFB_R"],
 	"cow": ["FF_L", "FF_R", "FFB_L", "FFB_R"],
+	"alpaca": ["FF.L", "FF.R", "FFB.L", "FFB.R"],
 	"deer": ["FF.L", "FF.R", "FFB.L", "FFB.R"],
 	"spider": ["FrontFoot_L", "MidFrontFoot_L", "BackFoot_L", "MidBackFoot_L",
 		"FrontFoot2_R", "MidFrontFoot_R", "BackFoot_R", "MidBackFoot_R"],
@@ -77,7 +78,7 @@ const MODEL_FILES := {
 	"Skeleton_Minion": "enemies/Skeleton_Minion.glb", "Orc": "wild/Orc.glb", "Yeti": "wild/Yeti.glb",
 	"Wolf": "wild/Wolf.glb", "Fox": "animals/Fox.glb", "Deer": "animals/Deer.glb", "Stag": "animals/Stag.glb",
 	"Spider": "wild/Spider.glb", "Husky": "animals/Husky.glb", "ShibaInu": "animals/ShibaInu.glb",
-	"Cow": "animals/Cow.glb", "Bull": "animals/Bull.glb",
+	"Cow": "animals/Cow.glb", "Bull": "animals/Bull.glb", "Alpaca": "animals/Alpaca.glb",
 }
 
 

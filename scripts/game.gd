@@ -4849,9 +4849,11 @@ const TELEPORT_COLOR := Color(0.75, 0.85, 1.0)
 func _teleport_command(typed: String) -> void:
 	var all := Teleport.areas(level_files)
 	if typed == "":
-		Events.tell(Lang.t("Teleport: Orte und ihre Codes. Schreibe einen Code und drücke Enter."), TELEPORT_COLOR)
+		# The list goes straight into the event log, in the teleport colour:
+		# as news each line would flash over the hero's head in turn.
+		Events.found(Lang.t("Teleport: Orte und ihre Codes. Schreibe einen Code und drücke Enter."), TELEPORT_COLOR)
 		for area in all:
-			Events.tell("%s  %s" % [String(area.code).to_upper(), Lang.t(area.name)], TELEPORT_COLOR)
+			Events.found("%s  %s" % [String(area.code).to_upper(), Lang.t(area.name)], TELEPORT_COLOR)
 		_teleport_waiting = true
 		return
 	_teleport_code(typed, all)

@@ -576,7 +576,7 @@ func _hop(b: Dictionary) -> void:
 	var from: Vector3 = b.at
 	var to := _room_at(b, from + Vector3(sin(b.face), 0, cos(b.face)) * _rng.randf_range(HOP.x, HOP.y))
 	var step := to - from
-	if step.length() > HOP.y * 1.75 or step.length() < 0.05:
+	if step.length() > HOP.y * 1.75 or step.length() < 0.05 or not WalkRules.can_step(level, from, to):
 		return
 	b.face = atan2(step.x, step.z)
 	b.hop_from = from

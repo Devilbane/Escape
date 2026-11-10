@@ -51,6 +51,7 @@ var _rng := RandomNumberGenerator.new()
 var _body: Node3D
 var _tail: MeshInstance3D
 var _path: Array[Vector3] = []
+var _waiting := 0.0
 var _timer := 0.0
 var _phase := 0.0
 var _clock := 0.0
@@ -250,11 +251,22 @@ func _walk(delta: float, speed: float, hop: float, height: float) -> void:
 		return
 	var to := _flat(_path[0] - global_position)
 	var step := speed * delta
+	var target := Vector3(_path[0].x, 0.0, _path[0].z) if to.length() <= step else global_position + to.normalized() * step
+	if not WalkRules.can_step(level, global_position, target):
+		# A gate was shut (or a wall stands) ahead: sit still, then find the way again.
+		_hop_height = 0.0
+		_waiting += delta
+		if _waiting >= WalkRules.MAKE_WAY:
+			_waiting = 0.0
+			var goal: Vector3 = _path[_path.size() - 1]
+			if not _set_path(goal, state == "flee"):
+				_path.clear()
+		return
+	_waiting = 0.0
+	global_position = target
 	if to.length() <= step:
-		global_position = Vector3(_path[0].x, 0.0, _path[0].z)
 		_path.pop_front()
 	else:
-		global_position += to.normalized() * step
 		_phase += step / hop * PI
 	_turn_to(to, delta)
 	_hop_height = height
@@ -304,15 +316,8 @@ func _pose(delta: float) -> void:
 ## Fills the path from the tile it stands on to `target`; `exact` keeps to the
 ## tile centres (running for the tree).
 func _set_path(target: Vector3, exact: bool) -> bool:
-	_path.clear()
-	var from := level.world_to_cell(global_position)
-	var cells: Array[Vector2i] = level.grid_path(from, level.world_to_cell(target))
-	for c in cells.slice(1):
-		var p := level.cell_to_world(c)
-		if not exact:
-			# Wandering about: not along the tile centres.
-			p += Vector3(_rng.randf_range(-1.0, 1.0), 0, _rng.randf_range(-1.0, 1.0))
-		_path.append(p)
+	# Wandering about: not along the tile centres.
+	_path.assign(WalkRules.path(level, global_position, target, _rng, exact))
 	return not _path.is_empty()
 
 
@@ -333,10 +338,7 @@ func _open(c: Vector2i) -> bool:
 
 
 func _turn_to(direction: Vector3, delta: float) -> void:
-	direction.y = 0.0
-	if direction.length() < 0.01:
-		return
-	rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), minf(1.0, delta * 12.0))
+	WalkRules.turn(self, direction, delta, WalkRules.TURN_RATE * 1.5)
 
 
 static func _flat(v: Vector3) -> Vector3:

@@ -24,8 +24,8 @@ extends Node3D
 ##
 ## At night they settle down: legs tucked, head folded away.
 ##
-## The goats and geese are built from a few primitive shapes, which share their meshes
-## and materials, so the whole herd costs little. Only bodies near the hero move
+## The geese are built from a few primitive shapes, which share their meshes and materials;
+## the goats are the sheep model dressed as goats (GoatModel). Both cost little. Only bodies near the hero move
 ## and animate, and the ones far from the camera are hidden.
 
 ## shy: how close the hero may come before it bolts (metres, 0: never);
@@ -52,6 +52,9 @@ const MODELS := {
 	"bull": {"": ["Bull", 0.32]},
 	# The sheep of the Farm Animals pack, with a Walk, Gallop and Eating made for it (tools/build_sheep.gd).
 	"sheep": {"": ["Sheep", 0.25]},
+	# The goats are that sheep turned into goats (see GoatModel); the red-horned one is a little bigger.
+	"goat": {"": ["Sheep", 0.22]},
+	"billy": {"": ["Sheep", 0.26]},
 }
 ## A sneaking hero is noticed only this much closer.
 const SNEAK_FACTOR := 0.5
@@ -85,7 +88,7 @@ const CRY := "mähhhhh, feeeeellll maaaiiiii  hoooooorrrrnsss!!!"
 const ACTIVE_RANGE := 100.0
 const HIDE_RANGE := 80.0
 ## How far a body drops when it lies down (its legs' length), per kind.
-const LEG := {"goose": 0.22, "goat": 0.36, "billy": 0.36, "sheep": 0.3}
+const LEG := {"goose": 0.22}
 
 static var _meshes := {}
 static var _mats := {}
@@ -125,7 +128,6 @@ var _waiting := 0.0
 var _rig: Node3D
 var _legs: Array[Node3D] = []
 var _head: Node3D
-var _tail: Node3D
 var _wings: Array[Node3D] = []
 var _model_name := ""
 var _anim: AnimationPlayer
@@ -150,11 +152,7 @@ func _ready() -> void:
 	if MODELS.has(kind):
 		_build_model()
 	else:
-		match kind:
-			"goose":
-				_build_goose()
-			_:
-				_build_goat()
+		_build_goose()
 	if kind == "billy":
 		_bubble = SpeechBubble.new()
 		_bubble.position.y = 2.3
@@ -521,11 +519,7 @@ func _process(delta: float) -> void:
 	var bob := absf(sin(_phase)) * 0.03 * _swing
 	var drop: float = float(LEG[kind]) if _resting else 0.0
 	_rig.position.y = lerpf(_rig.position.y, bob - drop, minf(1.0, delta * 8.0))
-	match kind:
-		"goose":
-			_pose_goose(moving, fleeing)
-		_:
-			_pose_goat(moving)
+	_pose_goose(moving, fleeing)
 
 
 func _pose_goose(moving: bool, fleeing: bool) -> void:
@@ -545,28 +539,15 @@ func _pose_goose(moving: bool, fleeing: bool) -> void:
 		_wings[i].rotation.z = lerpf(_wings[i].rotation.z, (1.0 if i == 0 else -1.0) * flap, 0.4)
 
 
-func _pose_goat(moving: bool) -> void:
-	var want := 0.0
-	if _resting:
-		want = 0.5
-	elif state == "graze":
-		want = 0.95 + sin(_clock * 3.0 + _phase) * 0.1
-	elif state == "idle":
-		want = sin(_clock * 0.7 + _phase) * 0.15
-	if state == "windup":
-		# Head down, shaking, and the whole body rocks as it paws.
-		want = 0.9 + sin(_clock * 22.0) * 0.12
-		_rig.rotation.z = sin(_clock * 22.0) * 0.04
-	elif _rig.rotation.z != 0.0:
-		_rig.rotation.z = 0.0
-	if state == "charge":
-		want = 0.7
-	_head.rotation.x = lerpf(_head.rotation.x, want, 0.15)
-	_tail.rotation.z = sin(_clock * 6.0 + _phase) * 0.1 if not _resting else 0.0
-
-
 ## A model animal plays its walk, gallop, grazing or idle animation.
 func _pose_model(moving: bool) -> void:
+	if state == "windup":
+		# The red-horned goat's wind-up: head down, shaking, the whole body rocks as it paws.
+		_play("Eating", 2.5)
+		_rig.rotation.z = sin(_clock * 22.0) * 0.04
+		return
+	elif _rig.rotation.z != 0.0:
+		_rig.rotation.z = 0.0
 	if moving:
 		return
 	_play("Eating" if state == "graze" else "Idle", 1.0)
@@ -697,39 +678,6 @@ func _build_goose() -> void:
 		_leg(Vector3(side * 0.08, 0.26, 0.02), 0.24, 0.035, orange, orange)
 
 
-func _build_goat() -> void:
-	var fur := Color(0.9, 0.87, 0.8)
-	var patch := Color(0.52, 0.4, 0.3)
-	var dark := Color(0.2, 0.16, 0.14)
-	if coat == "brown":
-		fur = Color(0.55, 0.4, 0.28)
-		patch = Color(0.85, 0.82, 0.75)
-	elif coat == "black":
-		fur = Color(0.28, 0.25, 0.24)
-		patch = Color(0.9, 0.88, 0.82)
-	_part(_rig, "ball", fur, Vector3(0, 0.62, 0), Vector3(0.44, 0.44, 0.9))
-	_part(_rig, "ball", patch, Vector3(0.1, 0.7, -0.2), Vector3(0.3, 0.3, 0.36))
-	_tail = _pivot(_rig, Vector3(0, 0.78, -0.42))
-	_part(_tail, "cone", fur, Vector3(0, 0.07, -0.02), Vector3(0.1, 0.18, 0.1), Vector3(-0.5, 0, 0))
-	_head = _pivot(_rig, Vector3(0, 0.78, 0.36))
-	_part(_head, "stick", fur, Vector3(0, 0.12, 0.1), Vector3(0.16, 0.3, 0.16), Vector3(0.55, 0, 0))
-	var skull := _pivot(_head, Vector3(0, 0.27, 0.2))
-	_part(skull, "ball", fur, Vector3.ZERO, Vector3(0.22, 0.24, 0.3))
-	_part(skull, "ball", patch, Vector3(0, -0.05, 0.14), Vector3(0.14, 0.14, 0.2))
-	_part(skull, "ball", dark, Vector3(0, -0.04, 0.24), Vector3(0.07, 0.06, 0.06))
-	_part(skull, "cone", Color(0.95, 0.93, 0.85), Vector3(0, -0.17, 0.12), Vector3(0.06, 0.16, 0.06), Vector3(0.15, 0, 0))
-	for side in [1.0, -1.0]:
-		if kind == "billy":
-			_part(skull, "cone", Color(0.85, 0.1, 0.08), Vector3(side * 0.08, 0.2, -0.05), Vector3(0.07, 0.34, 0.07), Vector3(-0.6, 0, side * 0.35))
-		else:
-			_part(skull, "cone", Color(0.8, 0.74, 0.6), Vector3(side * 0.07, 0.17, -0.07), Vector3(0.05, 0.22, 0.05), Vector3(-0.7, 0, side * 0.2))
-		_part(skull, "box", fur, Vector3(side * 0.14, 0.07, -0.05), Vector3(0.14, 0.04, 0.09), Vector3(0, 0, side * 0.2))
-		_part(skull, "ball", dark, Vector3(side * 0.1, 0.04, 0.1), Vector3(0.035, 0.035, 0.035))
-	for lx in [0.14, -0.14]:
-		for lz in [0.3, -0.3]:
-			_leg(Vector3(lx, 0.46, lz), 0.46, 0.07, fur, dark)
-
-
 func _build_model() -> void:
 	var pick: Array = MODELS[kind].get(coat, MODELS[kind][""])
 	_model_name = pick[0]
@@ -739,6 +687,8 @@ func _build_model() -> void:
 	_rig.scale = model_scale if model_scale is Vector3 else Vector3.ONE * float(model_scale)
 	if kind == "sheep":
 		_fleece(model)
+	elif kind in ["goat", "billy"]:
+		GoatModel.dress(model, coat, kind == "billy")
 	_anim = model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walk", "Gallop", "Eating"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR

@@ -15,6 +15,11 @@ const FARM := {"goose": 0.25, "goat": 0.4, "sheep": 0.45, "billy": 0.45, "dog": 
 ## Who stands in each other's place only when they come nearer than this share of both radii:
 ## brushing past and the small give of a crowd are fine, standing inside one another is not.
 const STACKED := 0.7
+## Standing nearer than this share of both radii is on top of someone: that one is moved to
+## a free spot at once. Between DEEP and STACKED the newest is only eased away (NUDGE m/s),
+## so a flock or a crowd brushing past each other does not jump about.
+const DEEP := 0.35
+const NUDGE := 1.5
 ## Bodies above or below each other by more than this (a hero on a crate, a bird) do not stack.
 const HEIGHT_GAP := 1.2
 ## How far (tiles) the search for a free spot reaches, and how often it runs (physics ticks).
@@ -182,7 +187,20 @@ static func resolve(level: Level) -> int:
 						mover = stayer
 					if not movable(mover):
 						continue
-					if settle(level, mover, bodies):
-						done[mover] = true
-						moved += 1
+					var gap := _flat(mover.global_position, stayer.global_position)
+					var room := (radius_of(mover) + radius_of(stayer)) * STACKED
+					if gap < (radius_of(mover) + radius_of(stayer)) * DEEP:
+						if settle(level, mover, bodies):
+							done[mover] = true
+							moved += 1
+					else:
+						# Eased away from the other, never into a wall.
+						var away := mover.global_position - stayer.global_position
+						away.y = 0.0
+						var step := minf(room - gap, NUDGE * EVERY / float(Engine.physics_ticks_per_second))
+						var to: Vector3 = mover.global_position + away.normalized() * step
+						if open_at(level, to):
+							mover.global_position = to
+							mover.reset_physics_interpolation()
+							done[mover] = true
 	return moved

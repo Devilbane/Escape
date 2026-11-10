@@ -7,7 +7,7 @@ extends Node3D
 ## out of sight, until the hero has gone, then comes down again. At night
 ## it sleeps in its tree and comes down at dawn.
 ##
-## It never fights, cannot be hurt and takes up no room, like the other
+## It never fights, cannot be hurt and has its own footprint, like the other
 ## animals of the woods (see Animal). A sneaking hero gets closer before it
 ## bolts.
 ##
@@ -73,7 +73,13 @@ func setup(owner_level: Level, home_tree: Dictionary) -> void:
 	_rng.seed = hash(Vector2(tree.pos.x, tree.pos.z))
 
 
+## Called after the footprint pass moved this animal to a free spot: the way on from there is found again.
+func footprint_moved() -> void:
+	_path.clear()
+
+
 func _ready() -> void:
+	add_to_group(Footprint.GROUP)
 	SmoothMotion.follow_ticks(self)
 	_build()
 	global_position = tree.pos

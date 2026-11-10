@@ -65,6 +65,11 @@ func setup(owner_level: Level, animal_kind: String, cell: Vector2i) -> void:
 	_rng.seed = hash(kind) + cell.x * 131 + cell.y * 7
 
 
+## Called after the footprint pass moved this animal to a free spot: the way on from there is found again.
+func footprint_moved() -> void:
+	_path.clear()
+
+
 func _ready() -> void:
 	SmoothMotion.follow_ticks(self)
 	add_to_group(Footprint.GROUP)

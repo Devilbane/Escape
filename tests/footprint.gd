@@ -77,3 +77,23 @@ func _run() -> void:
 	Footprint.resolve(level)
 	check(not Footprint.stacked(e, w), "a monster put on a villager is moved off")
 	e.queue_free()
+	# Every kind of animal around is in the pass and moves off a newer one stacked on it.
+	var squirrel := Squirrel.new()
+	check(Footprint.radius_of(squirrel) == Footprint.SQUIRREL, "a squirrel has a footprint")
+	squirrel.free()
+	var animals: Array = level.animals + level.farm_animals
+	var kinds := {}
+	for a in animals:
+		kinds[a.kind] = a
+	check(kinds.size() > 0, "animals live in the village")
+	var anchor: Villager = level.villagers[0]
+	anchor.set_meta("fp_born", 1)
+	for kind in kinds:
+		var a: Node3D = kinds[kind]
+		check(a.is_in_group(Footprint.GROUP), "%s is in the footprint pass" % kind)
+		check(Footprint.radius_of(a) > 0.0, "%s has a radius" % kind)
+		a.set_meta("fp_born", 5000)
+		a.visible = true
+		a.global_position = anchor.global_position
+		Footprint.resolve(level)
+		check(not Footprint.stacked(anchor, a), "%s put on a villager is moved off" % kind)

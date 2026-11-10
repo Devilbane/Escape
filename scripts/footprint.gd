@@ -9,6 +9,8 @@ extends RefCounted
 
 ## Radius (metres) of the animals, by kind (see Animal.KINDS and FarmAnimal.KINDS).
 const WILD := {"reh": 0.45, "hirsch": 0.5, "fuchs": 0.3}
+## The squirrel of the woods (see Squirrel); pets take the radius of their species (see Pet).
+const SQUIRREL := 0.15
 const FARM := {"goose": 0.25, "goat": 0.4, "sheep": 0.45, "billy": 0.45, "dog": 0.35, "cow": 0.75, "bull": 0.8}
 ## Who stands in each other's place only when they come nearer than this share of both radii:
 ## brushing past and the small give of a crowd are fine, standing inside one another is not.
@@ -26,8 +28,10 @@ const GROUP := "footprint"
 static func radius_of(body: Node) -> float:
 	if body is Enemy or body is Player:
 		return body.radius
-	if body is Animal:
+	if body is Animal or body is Pet:
 		return WILD.get(body.kind, 0.4)
+	if body is Squirrel:
+		return SQUIRREL
 	if body is FarmAnimal:
 		return FARM.get(body.kind, 0.4)
 	if body is Villager:
@@ -121,7 +125,7 @@ static func settle(level: Level, body: Node3D, others: Array) -> bool:
 		return false
 	body.global_position = spot
 	body.reset_physics_interpolation()
-	if body is Villager:
+	if body.has_method("footprint_moved"):
 		body.footprint_moved()
 	return true
 

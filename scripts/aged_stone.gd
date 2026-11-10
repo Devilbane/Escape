@@ -42,6 +42,11 @@ const RUIN_WOOD := 0.3
 ## (metres above the ground), how far from the door they keep, and the
 ## leaves' size.
 const IVY_PATCHES := 7
+## THE IVY DENSITY: how many vines grow per 10 square metres of wall (and per 10 square metres of
+## roof). Every building of the village gets the same, so raise it for a greener village, lower it
+## for a barer one, 0 for none. Each vine is rooted at the foot of a wall, never in a doorway,
+## and always carries leaves and at least one bunch of grapes.
+const IVY_DENSITY := 1.0
 const IVY_HEIGHT := Vector2(3.0, 7.5)
 const IVY_DOOR_GAP := 1.5
 ## Share of the leaves a vine keeps (the ivy is thinned by 30%), the least
@@ -56,7 +61,7 @@ const BRANCH_RUN := Vector2i(10, 22)
 ## Ivy prefers edges: the share of roots set within EDGE_ZONE metres of a wall's
 ## end, and how often a vine that reached its height runs on along the eaves.
 ## The woody stems: thickness (metres) of a thin and of a thick one, and their colour.
-const STEM_THICK := Vector2(0.04, 0.11)
+const STEM_THICK := Vector2(0.06, 0.17)
 ## A stem piece spans STEM_STEPS steps (short pieces follow the vine's wandering path, so it curves
 ## instead of running straight). It wavers sideways by up to STEM_WAVE metres, tapers along its length
 ## (the far end is STEM_TAPER of the near end's width), and is only drawn where a leaf lies within
@@ -72,10 +77,13 @@ const STEM_CELL_LENGTH := 2.0
 const TENDRIL_CHANCE := 0.1
 ## Bunches of blue grapes hang from the vine now and then (GRAPE_CHANCE per stem piece), never closer
 ## than GRAPE_SPACING metres to one another, for a splash of colour among the leaves.
-const GRAPE_CHANCE := 0.06
-const GRAPE_SPACING := 1.1
-const GRAPE_COLOUR := Color(0.2, 0.22, 0.5)
-const STEM_COLOUR := Color(0.36, 0.26, 0.17)
+const GRAPE_CHANCE := 0.12
+const GRAPE_SPACING := 0.9
+## Blue and red grapes, one in GRAPE_RED_SHARE bunches red.
+const GRAPE_COLOUR := Color(0.17, 0.21, 0.5)
+const GRAPE_RED := Color(0.62, 0.1, 0.16)
+const GRAPE_RED_SHARE := 0.4
+const STEM_COLOUR := Color(0.42, 0.3, 0.2)
 const EDGE_ROOTS := 0.75
 const EDGE_ZONE := 0.9
 const EAVES_RUN_CHANCE := 0.7
@@ -113,14 +121,15 @@ const STRAND_KEEP := 0.25
 ## steepest a roof may be (its normal's y at least) to be crept on.
 const ROOF_CREEP := Vector2(0.5, 2.0)
 const ROOF_SLOPE := 0.25
-const LEAF_SIZE := Vector2(0.3, 0.46)
+const LEAF_SIZE := Vector2(0.34, 0.52)
 ## The smallest wall (square metres) ivy grows on.
 const IVY_WALL := 0.6
 ## How many times the leaves of a building's one side all its sides together get.
 const IVY_TOTAL_SHARE := 1.2
-## Shades of the leaves: mostly dark green, now and then an autumn red.
-const LEAF_COLOURS := [Color(0.22, 0.36, 0.14), Color(0.17, 0.29, 0.11), Color(0.28, 0.42, 0.16),
-		Color(0.20, 0.33, 0.17), Color(0.36, 0.40, 0.14), Color(0.48, 0.22, 0.12)]
+## Shades of the leaves: sunlit yellow-greens and fresh greens like a grapevine on a sunny wall, a
+## few deeper greens, now and then an autumn red.
+const LEAF_COLOURS := [Color(0.34, 0.52, 0.17), Color(0.24, 0.42, 0.15), Color(0.42, 0.56, 0.18),
+		Color(0.30, 0.48, 0.2), Color(0.5, 0.58, 0.18), Color(0.48, 0.22, 0.12)]
 
 ## A nest needs a ledge at least this high over the ground (metres) and
 ## this large (square metres).
@@ -457,7 +466,12 @@ static func _on_wall(wall: Dictionary, p: Vector3) -> bool:
 ## `foot_max` lets ivy root on walls standing that high (the castle's towers
 ## start well above the ground). `windows` are the middles of window panes (world space): their middle
 ## stays clear of leaves, so the ivy frames a window but never covers it.
-static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = [], foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0) -> void:
+static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, _patches := IVY_PATCHES, _old := false, windows: Array = [], foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, _roof_vines := 0, density := IVY_DENSITY) -> void:
+	# All ivy is one kind now: it climbs from the foot of the walls up to the eaves and over the
+	# roof, and how much of it there is comes from `density` alone (see IVY_DENSITY).
+	var old := true
+	if density <= 0.0:
+		return
 	var all_walls := walls(tris, middle, ground)
 	var found := rooted(all_walls, ground, old, foot_max)
 	# A wall up on a stone base that looks the way a door does holds that
@@ -468,9 +482,7 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 	if found.is_empty():
 		return
 	# The roof's sloping faces, for old ivy to creep on to.
-	var roofs: Array = []
-	if old:
-		roofs = tris.filter(func(t): return (t.n as Vector3).y > ROOF_SLOPE and (t.n as Vector3).y < 0.97 and t.c.y > ground + 2.0)
+	var roofs: Array = tris.filter(func(t): return (t.n as Vector3).y > ROOF_SLOPE and (t.n as Vector3).y < 0.97 and t.c.y > ground + 2.0)
 	# The sides of the building (walls looking the same way), the one facing
 	# the camera (south) first: the patches are dealt round them one by one, so
 	# every side of the building gets its share, not only the front.
@@ -491,8 +503,12 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 	if not seen.is_empty():
 		sides = seen
 	sides.sort_custom(func(a: Array, b: Array): return (a[0].n as Vector3).z > (b[0].n as Vector3).z)
-	# Every side gets as many patches as a building had on its one side before.
-	patches *= sides.size()
+	# The vines: `density` per 10 square metres of the walls that wear ivy.
+	var wall_area := 0.0
+	for s: Array in sides:
+		for w: Dictionary in s:
+			wall_area += w.area
+	var patches := maxi(1, roundi(density * wall_area / 10.0))
 	# Every side gets its patches, but each patch is thinner (fewer, larger
 	# leaves), so the whole building wears about 1.2 times the leaves it had
 	# on its one side and the village's leaf count stays near its old budget.
@@ -505,8 +521,7 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 		if i == 0 and not all_sides and (side0[0].n as Vector3).z > 0.5:
 			for k in FRONT_TURNS - 1:
 				deal.append(0)
-	patches = patches * deal.size() / maxi(sides.size(), 1)
-	var thin := minf(1.0, IVY_TOTAL_SHARE * 1.25 / float(deal.size()))
+	var thin := 1.0
 	var grown := 0
 	for attempt in patches * 6:
 		if grown >= patches:
@@ -531,9 +546,14 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 			continue
 		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors, proud, window_room, true)
 		grown += 1
-	# Vines across the roof itself, in branching patterns (the temple).
-	for i in roof_vines:
-		_roof_vine(roofs, rng, leaves, windows)
+	# Vines across the roof itself, in branching patterns, at the same density.
+	# Roof vines belong to the roof faces within the wall vines' reach: ivy grows from the ground up.
+	var low_roofs := roofs.filter(func(t): return t.c.y < ground + OLD_IVY_HEIGHT.y * 0.6)
+	var roof_area := 0.0
+	for t: Dictionary in low_roofs:
+		roof_area += ((t.b - t.a) as Vector3).cross(t.c - t.a).length() * 0.5
+	for i in mini(roundi(density * roof_area / 10.0), 40):
+		_roof_vine(low_roofs, rng, leaves, windows)
 
 
 ## A spot at the foot of the wall, a little above the ground.
@@ -583,6 +603,8 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 	var steps := 0
 	var side_flip := 1.0
 	var first: int = leaves.xforms.size()
+	var first_stem: int = (leaves.get("stems", []) as Array).size()
+	var first_grape: int = (leaves.get("grapes", []) as Array).size()
 	while not tips.is_empty() and steps < 600 and leaves.xforms.size() - first < most:
 		steps += 1
 		var tip: Dictionary = tips.pop_back()
@@ -649,6 +671,38 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 				tips.append({"p": p, "drift": 0.0, "wall": wall, "run": rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y), "dir": 1.0 if rng.randf() < 0.5 else -1.0})
 			elif rng.randf() < IVY_BRANCHING and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
+	_finish_vine(first, first_stem, first_grape, n, root_wall, windows, window_room, doors, ground, rng, leaves)
+
+
+## The last word on a vine that was just grown (its leaves from index `first`, its stems from
+## `first_stem`, its grapes from `first_grape`): it must carry at least one bunch of grapes, so one
+## is hung from its stems if chance gave it none. A vine that cannot carry leaves, stems and grapes
+## all is taken back out, so none is ever drawn bare or without fruit. Kept vines are counted in
+## `leaves.vines`: dictionaries with their `leaves`, `stems` and `grapes`.
+static func _finish_vine(first: int, first_stem: int, first_grape: int, n: Vector3, wall: Dictionary, windows: Array, window_room: float, doors: Array, ground: float, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
+	var stems: Array = leaves.get("stems", [])
+	var grapes: Array = leaves.get("grapes", [])
+	if grapes.size() == first_grape:
+		for i in range(first_stem, stems.size()):
+			var at: Vector3 = (stems[i] as Transform3D).origin
+			_grapes(at - (Vector3.ZERO if wall.is_empty() else Vector3.UP * 0.1) + n * 0.04, n, wall, windows, window_room, doors, ground, rng, leaves, true)
+			grapes = leaves.get("grapes", [])
+			if grapes.size() > first_grape:
+				break
+	var kept: bool = grapes.size() > first_grape and stems.size() > first_stem and leaves.xforms.size() > first
+	if not kept:
+		leaves.xforms.resize(first)
+		leaves.colours.resize(first)
+		if leaves.has("stems"):
+			stems.resize(first_stem)
+			(leaves.stem_colours as Array).resize(first_stem)
+		if leaves.has("grapes"):
+			grapes.resize(first_grape)
+			(leaves.grape_colours as Array).resize(first_grape)
+		return
+	if not leaves.has("vines"):
+		leaves["vines"] = []
+	(leaves.vines as Array).append({"leaves": leaves.xforms.size() - first, "stems": stems.size() - first_stem, "grapes": grapes.size() - first_grape})
 
 
 ## A short piece of the vine's woody stem from `a` to `b` on the wall (normal
@@ -675,7 +729,7 @@ static func _stem(a: Vector3, b: Vector3, n: Vector3, wall: Dictionary, base: fl
 	(leaves.stems as Array).append(Transform3D(basis, mid + n * 0.03))
 	(leaves.stem_colours as Array).append(STEM_COLOUR * rng.randf_range(0.8, 1.2))
 	if rng.randf() < GRAPE_CHANCE:
-		_grapes(mid + x * rng.randf_range(-0.08, 0.08), n, wall, windows, window_room, doors, ground, rng, leaves)
+		_grapes(mid - Vector3.UP * 0.1 + n * 0.04 + x * rng.randf_range(-0.08, 0.08), n, wall, windows, window_room, doors, ground, rng, leaves)
 
 
 ## Whether a leaf of the current patch (from index `first` on) lies within STEM_LEAF_REACH of `at`.
@@ -713,19 +767,20 @@ static func _stem_take(at: Vector3, length: float, leaves: Dictionary) -> bool:
 
 ## A bunch of blue grapes hanging from the stem at `at` (see GRAPE_CHANCE), kept clear of windows and
 ## doors and of other bunches. `leaves.grapes` holds one transform per bunch.
-static func _grapes(at: Vector3, n: Vector3, wall: Dictionary, windows: Array, window_room: float, doors: Array, ground: float, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
-	var spot := at - Vector3.UP * 0.1 + n * 0.07
-	if not _on_wall(wall, spot) or _on_pane(spot, n, windows) or _in_window_room(spot, n, windows, window_room, rng) or _in_doorway(spot, doors, ground):
+static func _grapes(spot: Vector3, n: Vector3, wall: Dictionary, windows: Array, window_room: float, doors: Array, ground: float, rng: RandomNumberGenerator, leaves: Dictionary, force := false) -> void:
+	spot += n * 0.03
+	if (not force and not wall.is_empty() and not _on_wall(wall, spot)) or _on_pane(spot, n, windows) or _in_window_room(spot, n, windows, window_room, rng) or _in_sweep(spot, doors, ground):
 		return
 	if not leaves.has("grapes"):
 		leaves["grapes"] = []
 		leaves["grape_colours"] = []
-	for g: Transform3D in leaves.grapes:
-		if g.origin.distance_squared_to(spot) < GRAPE_SPACING * GRAPE_SPACING:
-			return
-	var size := rng.randf_range(0.9, 1.25)
+	if not force:
+		for g: Transform3D in leaves.grapes:
+			if g.origin.distance_squared_to(spot) < GRAPE_SPACING * GRAPE_SPACING:
+				return
+	var size := rng.randf_range(1.5, 2.0)
 	(leaves.grapes as Array).append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * size), spot))
-	(leaves.grape_colours as Array).append(GRAPE_COLOUR * rng.randf_range(0.8, 1.3))
+	(leaves.grape_colours as Array).append((GRAPE_RED if rng.randf() < GRAPE_RED_SHARE else GRAPE_COLOUR) * rng.randf_range(0.85, 1.25))
 
 
 ## A small tendril from `p`: a short side shoot that curls over and ends in a leaf, drawn as a few
@@ -767,6 +822,8 @@ static func _roof_stem(a: Vector3, b: Vector3, n: Vector3, frac: float, branch: 
 	var x := dir.cross(n).normalized()
 	(leaves.stems as Array).append(Transform3D(Basis(x * thick, dir * (length + 0.03), n), mid + n * 0.03))
 	(leaves.stem_colours as Array).append(STEM_COLOUR * rng.randf_range(0.8, 1.2))
+	if rng.randf() < GRAPE_CHANCE:
+		_grapes(mid + n * 0.06, n, {}, windows, 1.0, [], 0.0, rng, leaves)
 
 
 ## Whether a leaf already lies this close to `at` among the patch's own
@@ -806,7 +863,34 @@ static func clear_doors(leaves: Dictionary, doors: Array) -> int:
 			keep_c.append(leaves.colours[i])
 	leaves.xforms = keep_x
 	leaves.colours = keep_c
+	# Stems in the doorway go too (they would be bare without their leaves); grapes are kept clear already.
+	if leaves.has("stems"):
+		var keep_s := []
+		var keep_sc := []
+		for i in (leaves.stems as Array).size():
+			var at: Vector3 = (leaves.stems[i] as Transform3D).origin
+			var blocked := false
+			for e: Dictionary in doors:
+				var d: Vector3 = e.door
+				var rel := Vector3(at.x - d.x, 0, at.z - d.z)
+				if absf(rel.dot(Vector3.UP.cross(e.out))) < DOOR_SWEEP and rel.dot(e.out) > -DOOR_SWEEP_DEPTH.x and rel.dot(e.out) < DOOR_SWEEP_DEPTH.y and at.y - d.y < DOOR_CLEAR.y:
+					blocked = true
+					break
+			if not blocked:
+				keep_s.append(leaves.stems[i])
+				keep_sc.append(leaves.stem_colours[i])
+		leaves.stems = keep_s
+		leaves.stem_colours = keep_sc
 	return dropped
+
+
+## Whether a grape bunch's spot is within the doors' sweep (see DOOR_SWEEP), a little wider than a leaf's
+## doorway so that clear_doors never has to take a bunch away.
+static func _in_sweep(at: Vector3, doors: Array, ground: float) -> bool:
+	for d: Vector3 in doors:
+		if Vector2(at.x - d.x, at.z - d.z).length() < DOOR_SWEEP + 0.2 and at.y - ground < DOOR_CLEAR.y:
+			return true
+	return false
 
 
 ## Whether a leaf's spot is in a doorway (see DOOR_CLEAR).
@@ -824,6 +908,8 @@ static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Diction
 	if roofs.is_empty():
 		return
 	var first: int = leaves.xforms.size()
+	var first_stem: int = (leaves.get("stems", []) as Array).size()
+	var first_grape: int = (leaves.get("grapes", []) as Array).size()
 	# Start anywhere on the roof and run downhill to its eaves: the vine's root.
 	var t: Dictionary = roofs[rng.randi() % roofs.size()]
 	var r1 := rng.randf()
@@ -890,6 +976,7 @@ static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Diction
 			pos = still.p
 			tn = still.n
 			left -= 0.16
+	_finish_vine(first, first_stem, first_grape, Vector3.UP, {}, windows, 1.0, [], 0.0, rng, leaves)
 
 
 ## Old ivy over the eaves: from the top of a wall (`p`, the wall looking
@@ -1263,21 +1350,21 @@ static func _stems_into(root: Node3D, leaves: Dictionary) -> void:
 		root.add_child(node)
 
 
-## A three-lobed ivy leaf with pale veins, its colour from each leaf.
+## A five-lobed, finely toothed grape leaf with pale veins, its colour from each leaf.
 static func leaf_material() -> StandardMaterial3D:
 	if not _mats.has("leaf"):
 		var size := 64
 		var img := Image.create(size, size, true, Image.FORMAT_RGBA8)
 		for y in size:
 			for x in size:
-				# The stem at the bottom middle; lobes left, right and up.
+				# The stem at the bottom middle; five lobes fanning out, the edge finely toothed.
 				var p := Vector2(x + 0.5 - size * 0.5, size * 0.88 - y - 0.5) / size
 				var a := atan2(p.x, p.y)
 				var r := p.length()
-				var lobes := 0.3 + 0.17 * pow(absf(cos(a * 1.5)), 4.0)
+				var lobes := 0.27 + 0.2 * pow(absf(cos(a * 4.0)), 3.0) + 0.018 * sin(a * 30.0)
 				var edge := lobes * (1.0 if absf(a) < 2.2 else 0.0)
 				if r < edge and p.y > -0.06:
-					var vein := 1.0 - 0.25 * maxf(0.0, 1.0 - absf(fposmod(a + 0.5236, 1.0472) - 0.5236) * 40.0 * r)
+					var vein := 1.0 - 0.25 * maxf(0.0, 1.0 - absf(fposmod(a + 0.3927, 0.7854) - 0.3927) * 40.0 * r)
 					var shade := (0.8 + 0.2 * (1.0 - r / maxf(edge, 0.01))) * vein
 					img.set_pixel(x, y, Color(shade, shade, shade, 1.0))
 				else:

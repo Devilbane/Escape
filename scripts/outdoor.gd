@@ -2496,6 +2496,7 @@ func _build_forge(cell: Vector2i) -> void:
 	add_child(light)
 	# Embers lift off the coals.
 	var embers := Effects.make_forge_embers()
+	_fixed_seed(embers, 1)
 	embers.position = coals + Vector3(0, 0.1, 0)
 	add_child(embers)
 	# A fire in the chimney: a flickering glowing mouth and a small flame on
@@ -2504,6 +2505,7 @@ func _build_forge(cell: Vector2i) -> void:
 	_chimney_fire(top)
 	var plume := ChimneySmoke.make()
 	plume.position = top + Vector3(0, 0.25, 0)
+	_fixed_seed(plume, 3)
 	add_child(plume)
 	ChimneySmoke.light(plume, true, true)
 	_add_solid(pos, Vector3(3.2, 1.2, 3.0))
@@ -2513,6 +2515,14 @@ func _build_forge(cell: Vector2i) -> void:
 	board.position = pos + Vector3(-1.5, 0, 1.6)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))
+
+
+## Gives a particle effect its own fixed random seed. Particles otherwise draw their
+## seed from the global random stream, so adding one would shift every roll made
+## after it (and the headless tests that depend on them).
+func _fixed_seed(p: CPUParticles3D, seed_value: int) -> void:
+	p.use_fixed_seed = true
+	p.seed = seed_value
 
 
 ## The glow of the forge's fire in its chimney: an emissive mouth on the top
@@ -2535,6 +2545,7 @@ func _chimney_fire(top: Vector3) -> void:
 	var flame := Effects.make_flame()
 	flame.position = top + Vector3(0, 0.1, 0)
 	flame.scale = Vector3.ONE * 0.8
+	_fixed_seed(flame, 2)
 	add_child(flame)
 	var tween := mouth.create_tween().set_loops()
 	tween.tween_property(mat, "emission_energy_multiplier", 3.0, 0.35)

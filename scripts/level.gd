@@ -224,7 +224,8 @@ var taken := {}
 ## props, chests, people, traps or hidden finds.
 var grates := {}
 ## What lies about on the floor here: gear the hero dropped, loot from the
-## fallen and spilt coins, as [kind ("item" or "coin"), item id, x, z] each;
+## fallen and spilt coins, as [kind ("item" or "coin"), item id, x, z] each, a dug-up
+## find or a foe's ingredients as ["find", id, x, z, count, loot, colour];
 ## a pile of coins also has its count and how many the hero put down
 ## (["coin", metal, x, z, count, own], see CoinPile).
 ## The game hands in its own list for this level and keeps it in the saved
@@ -3842,13 +3843,10 @@ func _check_pickups() -> void:
 				p.warned = true
 				hoard_guarded.emit()
 			continue
-		if p.kind != "bundle" and not _is_backpack_pickup(p) and _backpack_comes_first(d.length()):
-			# A backpack in reach is picked up before anything else.
-			continue
 		if p.kind == "bundle":
 			_open_bundle(p)
 			continue
-		if p.kind == "item" and not _can_take_item(p.id):
+		if p.kind == "item" and not (player.can_take_knife() if p.id == Items.KNIFE else player.bag_fits(p.id)):
 			if not p.has("warned"):
 				p.warned = true
 				bag_full.emit()
@@ -3875,32 +3873,6 @@ func _check_pickups() -> void:
 			coins_collected.emit(CoinPile.count_of(p.floor), CoinPile.metal_of(str(p.floor[1])), CoinPile.own_of(p.floor))
 		else:
 			coins_collected.emit(1, CoinPile.MONEY, 0)
-
-
-## Whether a pickup is a backpack lying on the floor.
-func _is_backpack_pickup(p: Dictionary) -> bool:
-	return p.kind == "item" and Items.is_backpack(str(p.id))
-
-
-## Whether the hero can take this item now: a backpack goes on when none is
-## worn, and a knife goes to the belt.
-func _can_take_item(id: String) -> bool:
-	if id == Items.KNIFE:
-		return player.can_take_knife()
-	if Items.is_backpack(id) and not player.equipped.has("rucksack"):
-		return true
-	return player.bag_fits(id)
-
-
-## Whether a backpack the hero can take lies within reach (and not set down
-## just now): everything else waits for it.
-func _backpack_comes_first(_dist: float) -> bool:
-	for q in _pickups:
-		if not _is_backpack_pickup(q) or q.has("wait") or not is_instance_valid(q.node) or not _can_take_item(str(q.id)):
-			continue
-		if _flat_distance(player.global_position, q.node.global_position) <= q.radius:
-			return true
-	return false
 
 
 ## Whether this floor has a locked door (open or not).
@@ -4773,7 +4745,13 @@ func lay_find(id: String, pos: Vector3, colour := Color(0.55, 0.75, 0.35), count
 	holder.position = Vector3(pos.x, 0.8, pos.z)
 	add_child(holder)
 	holder.add_child(Effects.make_sparkles(colour.lightened(0.4)))
-	_pickups.append({"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6, "count": count, "loot": loot})
+	var pickup := {"node": holder, "kind": "ingredient", "ingredient": id, "radius": 1.6, "count": count, "loot": loot}
+	# Kept on the floor list, so it is still there after the hero walks off
+	# and comes back: ["find", id, x, z, count, loot, colour as html].
+	var entry := _remember_on_floor("find", id, pos)
+	entry.append_array([count, loot, colour.to_html()])
+	pickup.floor = entry
+	_pickups.append(pickup)
 
 
 ## The pouch coins of one metal (see Loot.COINS) a fallen foe leaves: they
@@ -4960,6 +4938,11 @@ func restore_floor() -> void:
 		var pos := Vector3(float(entry[2]), 0, float(entry[3]))
 		if str(entry[0]) == "coin":
 			_coin_pile(pos, CoinPile.count_of(entry), CoinPile.metal_of(str(entry[1])), CoinPile.own_of(entry))
+		elif str(entry[0]) == "find":
+			# A dug-up find or a foe's ingredients: back on the ground as it lay.
+			if entry.size() < 7 or not Crafting.INGREDIENTS.has(str(entry[1])):
+				continue
+			lay_find(str(entry[1]), pos, Color.html(str(entry[6])), int(entry[4]), bool(entry[5]))
 		elif Rescue.is_bundle(entry):
 			_bundle_pickup(entry)
 		elif str(entry[1]) == Items.KNIFE:
@@ -5085,7 +5068,7 @@ func slurp_loot(pos: Vector3, reach: float) -> Array:
 		var thing := []
 		match p.kind:
 			"item":
-				if p.has("floor") and not Items.is_backpack(p.id):
+				if p.has("floor"):
 					thing = ["item", p.id]
 			"coin":
 				if p.has("floor"):
@@ -5117,14 +5100,6 @@ func lay_bundle(pos: Vector3, contents: Dictionary) -> void:
 	var entry := _remember_on_floor("bundle", "", pos)
 	entry.append(contents)
 	_bundle_pickup(entry)
-	_pickups[-1].wait = true
-
-
-## The hero's backpack, taken off where they fell (see Rescue): a glowing item
-## on the floor that the hero always picks up before anything else (see
-## _check_pickups) and that goes straight back on.
-func lay_backpack(pos: Vector3, id: String) -> void:
-	_drop_item(id, pos)
 	_pickups[-1].wait = true
 
 

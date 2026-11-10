@@ -11,11 +11,10 @@ extends Node3D
 ##
 ## The rescuers carry the hero, not their loot. Everything in the bag, every
 ## coin in the purse and every ingredient in the pouch stays where they fell:
-## the coins as piles (see CoinPile), the bag as a whole and the ingredient
-## pouch as a whole beside it, each a "bundle"
+## the coins as piles (see CoinPile), the backpack with the bag and the
+## ingredient pouch inside it, all in one "bundle"
 ## on the floor list (see Level.lay_bundle). Other worn gear stays worn, and so do the knives in the
-## belt. The worn backpack comes off and lies on its own beside them (see Level.lay_backpack); it is always
-## the first thing the hero picks up, and goes straight back on. And the blow to the head costs all experience gathered towards the
+## belt. And the blow to the head costs all experience gathered towards the
 ## next hero level (see forget). Walking onto the pack gives it all
 ## back (as much as the bag holds). The dragon's helpers leave the pack alone,
 ## but at night they may carry the coin piles off to the hoard like any other
@@ -26,7 +25,7 @@ extends Node3D
 ## the hero is drawn (SmoothMotion.drawn_at).
 
 ## Explained once in the compendium, the first time it happens.
-const LORE := "Sinkt dein Leben auf null, wirst du bewusstlos, aber nicht tot. An der Oberfläche trägt dich ein Riesenadler fort, unter der Erde holt dich der Rettungstrupp der Zwerge. Du wachst in dem Bett auf, in dem du zuletzt geschlafen hast (oder an deinem Lager), mit vollem Leben. Aber der Schlag auf den Kopf kostet dich alle Erfahrung, die du seit deiner letzten Heldenstufe gesammelt hast; die Stufe selbst bleibt. Deine Rüstung und deine Waffen behältst du. Deine Tasche und dein Zutatenbeutel fallen als Ganzes zu Boden, mit allem darin, dein Rucksack liegt eigens daneben, und deine Münzen liegen als Haufen. Geh hin und hol dir alles zurück: Den Rucksack hebst du immer zuerst auf, damit die Tasche wieder Platz hat. Aber beeil dich: Nachts tragen die Helfer des Drachen liegende Münzen in seinen Hort."
+const LORE := "Sinkt dein Leben auf null, wirst du bewusstlos, aber nicht tot. An der Oberfläche trägt dich ein Riesenadler fort, unter der Erde holt dich der Rettungstrupp der Zwerge. Du wachst in dem Bett auf, in dem du zuletzt geschlafen hast (oder an deinem Lager), mit vollem Leben. Aber der Schlag auf den Kopf kostet dich alle Erfahrung, die du seit deiner letzten Heldenstufe gesammelt hast; die Stufe selbst bleibt. Deine Rüstung und deine Waffen behältst du. Dein Rucksack fällt mit Tasche und Zutatenbeutel als ein einziges Bündel zu Boden, mit allem darin, und deine Münzen liegen als Haufen daneben. Geh hin und hol dir alles mit einem Schritt zurück: Den Rucksack bekommst du dabei zuerst. Aber beeil dich: Nachts tragen die Helfer des Drachen liegende Münzen in seinen Hort."
 
 ## The pack's floor entry kind (see Level.floor_items).
 const BUNDLE := "bundle"
@@ -528,9 +527,10 @@ static func drop_belongings(game: Node) -> Dictionary:
 	bag.assign(hero.bag)
 	var contents := {"bag": bag, "pouch": {}, "pieces": {}, "backpack": ""}
 	hero.bag.clear()
-	# The worn backpack comes off and lies on its own (see Level.lay_backpack).
+	# The bag goes down as a whole: a worn backpack with it, and the pouch.
 	var backpack := str(hero.equipped.get("rucksack", ""))
 	if backpack != "":
+		contents.backpack = backpack
 		hero.equipped.erase("rucksack")
 		lost.items += 1
 	var coins := {}
@@ -558,16 +558,10 @@ static func drop_belongings(game: Node) -> Dictionary:
 	for metal in coins:
 		level.lay_coins(spill, coins[metal], metal, coins[metal])
 		lost.coins += int(coins[metal])
-	# The bag and the ingredient pouch go down side by side, each whole.
-	var pouch := {"bag": [], "pouch": contents.pouch, "pieces": contents.pieces, "backpack": ""}
-	contents.pouch = {}
-	contents.pieces = {}
-	if backpack != "":
-		level.lay_backpack(at, backpack)
+	# The backpack, the bag and the ingredient pouch go down as ONE bundle:
+	# a single pickup gives it all back (the backpack first, see take_back).
 	if not is_empty([BUNDLE, "", 0, 0, contents]):
-		level.lay_bundle(at + Vector3(0.7, 0, -0.6), contents)
-	if not is_empty([BUNDLE, "", 0, 0, pouch]):
-		level.lay_bundle(at + Vector3(-0.9, 0, 0.4), pouch)
+		level.lay_bundle(at, contents)
 	hero.refresh_stats()
 	return lost
 

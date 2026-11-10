@@ -96,9 +96,6 @@ static func fate(kind: String, id: String) -> String:
 	if kind != "item" or not Items.ALL.has(id):
 		return ""
 	var item: Dictionary = Items.ALL[id]
-	if Items.is_backpack(id):
-		# A backpack lying about is the hero's own (see Rescue): left alone.
-		return ""
 	if item.get("unique", false) or str(item.get("slot", "")) in KEPT_WHOLE_SLOTS:
 		return "keep"
 	if Items.is_book(id) or str(item.get("slot", "")) in BURNS_SLOTS or str(item.get("material", "")) in BURNS_MATERIALS:

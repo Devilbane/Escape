@@ -274,6 +274,51 @@ func _run() -> void:
 	lvl.night = false
 	mason.set_night(false)
 
+	# A mason on the right tile but too far from his spot still goes to work (he used to stand there walking on the spot).
+	brick.hurt(300)
+	west.mend(float(WallBrick.MAX_HP))
+	var spot := wall.stand_of(lvl, brick)
+	mason.global_position = spot + Vector3(1.9, 0, 0)
+	mason.mend(brick)
+	var hp_then := brick.hp
+	await _wait(150)
+	check(mason.global_position.distance_to(spot) < 1.85, "a mason on the spot's tile but off his spot steps up to it (%.2f m away, task %s)" % [mason.global_position.distance_to(spot), mason._task])
+	check(brick.hp > hp_then, "and mends from there (%d to %d)" % [hp_then, brick.hp])
+	brick.mend(float(WallBrick.MAX_HP))
+	mason._finish_mending()
+
+	# The woodcutter lends a hand by day, on a different brick from the mason's.
+	var cutter: Villager = null
+	for v in lvl.villagers:
+		if v.role == "3":
+			cutter = v
+	check(cutter != null, "the village has a woodcutter")
+	cutter._start("idle", 5.0)
+	mason._start("idle", 5.0)
+	lvl.day += 1
+	brick.hurt(300)
+	west.hurt(100)
+	check(cutter.can_mend(), "the woodcutter is free to mend the wall by day")
+	wall.tick(lvl, 1.1)
+	check(mason.mend_brick != null and cutter.mend_brick != null, "mason and woodcutter both go to the wall")
+	check(mason.mend_brick != cutter.mend_brick, "they take different bricks")
+	# Together they build 50% faster than a mason alone.
+	check(wall.pace(lvl, mason) == 1.0, "nobody works beside the mason yet (they are still walking)")
+	mason._task = "mend"
+	cutter._task = "mend"
+	check(is_equal_approx(wall.pace(lvl, mason), 1.5) and is_equal_approx(wall.pace(lvl, cutter), 1.5), "the mason and the woodcutter mend 50% faster together")
+	cutter._task = "idle"
+	cutter._wield_wall_hammer(true)
+	var hammer: Node3D = cutter._model.find_child("WallHammer", true, false)
+	check(hammer != null and hammer.visible and not cutter._model.find_child("2H_Axe", true, false).visible, "the woodcutter takes up a hammer to mend the wall")
+	cutter._start("idle", 1.0)
+	check(not hammer.visible and cutter._model.find_child("2H_Axe", true, false).visible, "he has his axe back when the mending is done")
+	check(wall.pace(lvl, mason) == 1.0, "the mason alone mends at the normal pace")
+	cutter._finish_mending()
+	mason._finish_mending()
+	for b: WallBrick in wall.bricks.values():
+		b.mend(float(WallBrick.MAX_HP))
+
 	# A slime near the wall keeps him from it.
 	west.hurt(100)
 	var slime3 := _slime(lvl, west.global_position + Vector3(-8, 0, 0))

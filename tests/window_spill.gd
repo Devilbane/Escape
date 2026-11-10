@@ -36,5 +36,6 @@ func _init() -> void:
 		for i in 6:
 			mid += verts[i] / 6.0
 		check((mid - first).dot(out) > 0.5, "the first pool lies in front of its window")
+	check(WindowSpill.SHADER.contains("fog_disabled"), "pools ignore fog (an additive quad would show as a white band)")
 	print("PASS" if failures == 0 else "FAILED: %d" % failures)
 	quit(failures)

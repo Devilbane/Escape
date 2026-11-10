@@ -4,7 +4,9 @@ extends RefCounted
 ## additive pool per pane, all of a house in a single mesh and all houses
 ## sharing one material. The material's "glow" parameter is driven by the
 ## village at night, just like the glass itself, so the pools are off by day
-## and while the panes are dark.
+## and while the panes are dark. Fog is off for them: an additive quad would
+## otherwise add the fog colour over its whole rectangle, even where the pool
+## itself is black, and show as a flat white band on foggy days.
 
 ## How far in front of the wall the middle of a pool lies, in metres.
 const REACH := 1.5
@@ -17,7 +19,7 @@ const GROUND_FLOOR := 2.4
 
 const SHADER := """
 shader_type spatial;
-render_mode blend_add, unshaded, depth_draw_never, cull_disabled, shadows_disabled;
+render_mode blend_add, unshaded, fog_disabled, depth_draw_never, cull_disabled, shadows_disabled;
 uniform vec3 colour : source_color = vec3(1.0, 0.7, 0.36);
 uniform float glow = 0.0;
 uniform float scale = 1.0;

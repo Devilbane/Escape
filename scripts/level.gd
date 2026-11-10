@@ -5586,6 +5586,7 @@ func _build_home_floor(c: Vector2i, ch: String) -> void:
 		# tall, so a tile repeats it 3 x 6 times (whole repeats keep the boards running
 		# unbroken over the tile edges): boards as wide as the stairs' and not stretched.
 		var wood := WoodStairs.material()
+		wood.albedo_texture = WoodStairs.floor_texture()
 		wood.uv1_scale = Vector3(3, 6, 1)
 		_scenes["mat_home_wood"] = wood
 		var plank := PlaneMesh.new()

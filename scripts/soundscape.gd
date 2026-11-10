@@ -8,7 +8,7 @@ extends Node
 ## Above ground, Game asks for the loops by where the hero stands (village,
 ## woods, beside the forge, the market, a campfire, the fields), the hour and the
 ## rain. Below ground, each floor has one loop by its setting (dungeon, cave,
-## mine, crystal, fire, ancient halls, the spire, the open Sternhall courtyard). The hero's own house has a quiet
+## mine, crystal, fire, ancient halls, the spire, the ruined Sternhall courtyard, which sounds like a cave and has no birds). The hero's own house has a quiet
 ## hearth fire and nothing else; other rooms and houses have none: there the old
 ## cave air (Game._ambience) keeps playing.
 
@@ -63,7 +63,7 @@ static func dungeon_loop(theme: String, walls: String, lair: bool, building: Str
 		"zinne":
 			return "amb_magic_0"
 		"sternhof":
-			return "amb_forest_deep"  # open sky over the ruins: wind and leaves, not a drone
+			return "amb_cave_%d" % (pick % 3)  # the ruined courtyard sounds like a cave: drips, low drone, echoes, no birds
 	if lair or walls in ["rock", "bone", "crystal", "obsidian"]:
 		return "amb_cave_%d" % (pick % 3)
 	for word in CAVE_NAMES:

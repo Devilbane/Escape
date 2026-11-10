@@ -456,6 +456,24 @@ static func is_top_tier(id: String) -> bool:
 	return true
 
 
+## The backpacks the shopkeeper sells (never the biggest, see merchant_sells), smallest first.
+static func shop_backpacks() -> Array[String]:
+	var ids: Array[String] = []
+	for id in ALL:
+		if is_backpack(id) and merchant_sells(id):
+			ids.append(id)
+	ids.sort_custom(func(a, b): return ALL[a].bag < ALL[b].bag)
+	return ids
+
+
+## Puts back any backpack missing from a merchant's stock: there is always one of each kind
+## to buy, so a hero who lost theirs can always get another.
+static func restock_backpacks(stock: Array) -> void:
+	for id in shop_backpacks():
+		if not stock.has(id):
+			stock.append(id)
+
+
 ## Something for the merchant's stock: only what merchant_sells allows (and
 ## not the smith's own work), cheaper things more often.
 static func random_ware(rng: RandomNumberGenerator, slot := "") -> String:

@@ -43,13 +43,14 @@ func _run() -> void:
 	game.player.global_position = middle + Vector3(-14, 0, 16)
 	await _wait(240)
 	if shots != "":
-		var views := {"pen": [Vector3(-10, 15, 17), Vector3(1, 0, 0)], "pen_close": [Vector3(-4, 8, 12), Vector3(1, 0, 0)]}
+		var views := {"pen": [Vector3(14, 22, -14), Vector3(0, 0, 1)], "pen_close": [Vector3(-9, 9, -9), Vector3(1, 0, 1)]}
 		for name: String in views:
 			var cam := Camera3D.new()
-			cam.fov = 55.0
+			cam.fov = 60.0
 			root.add_child(cam)
 			cam.global_position = middle + (views[name][0] as Vector3)
 			cam.look_at(middle + (views[name][1] as Vector3))
+			cam.make_current()
 			await _wait(5)
 			root.get_texture().get_image().save_png(shots.path_join(name + ".png"))
 			cam.queue_free()

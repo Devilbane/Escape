@@ -49,8 +49,8 @@ static func build_fence(lvl: Outdoor, c: Vector2i) -> void:
 			continue
 		var d := Vector3(dir.x, 0, dir.y)
 		var along_x: bool = dir.y == 0
-		for h in [POST_HEIGHT * 0.55, POST_HEIGHT * 0.9]:
-			var size := Vector3(half, 0.11, 0.07) if along_x else Vector3(0.07, 0.11, half)
+		for h in [POST_HEIGHT * 0.32, POST_HEIGHT * 0.62, POST_HEIGHT * 0.92]:
+			var size := Vector3(half, 0.17, 0.1) if along_x else Vector3(0.1, 0.17, half)
 			b.box(d * half * 0.5 + Vector3(0, h - 0.055 + rng.randf_range(-0.015, 0.015), 0), size, W.vary(W.TIMBER[rng.randi() % W.TIMBER.size()], rng, 0.08), W.WOOD)
 		lvl._add_solid(pos + d * half * 0.5, Vector3(half, 1.3, 0.35) if along_x else Vector3(0.35, 1.3, half))
 	lvl._add_solid(pos, Vector3(0.45, 1.5, 0.45))
@@ -75,7 +75,7 @@ static func build_gate(lvl: Outdoor, c: Vector2i) -> void:
 	for h in [0.3, 0.65, 1.0]:
 		var a := hinge + Vector3(0, h, 0)
 		var z := basis * Vector3(0.0, 0, 1.7)
-		b.bar(a, a + z, 0.045, W.vary(W.TIMBER[rng.randi() % W.TIMBER.size()], rng, 0.08), W.WOOD, 5)
+		b.bar(a, a + z, 0.07, W.vary(W.TIMBER[rng.randi() % W.TIMBER.size()], rng, 0.08), W.WOOD, 5)
 	b.bar(hinge + Vector3(0, 0.3, 0), hinge + basis * Vector3(0, 0, 1.7) + Vector3(0, 1.0, 0), 0.04, W.TIMBER[3], W.WOOD, 5)
 	b.finish(lvl, pos)
 	for side in [-1.0, 1.0]:
@@ -84,8 +84,8 @@ static func build_gate(lvl: Outdoor, c: Vector2i) -> void:
 
 static func _post(b: WeatheredProps.Builder, at: Vector3, rng: RandomNumberGenerator, extra := 0.0) -> void:
 	var height := POST_HEIGHT + extra
-	b.box(at, Vector3(0.2, height, 0.2), W.vary(W.TIMBER[1], rng, 0.08), W.WOOD, Basis.from_euler(Vector3(rng.randf_range(-0.03, 0.03), rng.randf_range(-0.2, 0.2), rng.randf_range(-0.03, 0.03))))
-	b.frustum(at + Vector3(0, height, 0), Vector2(0.24, 0.24), Vector2(0.1, 0.1), 0.09, W.TIMBER[3], W.WOOD)
+	b.box(at, Vector3(0.28, height, 0.28), W.vary(W.TIMBER[1], rng, 0.08), W.WOOD, Basis.from_euler(Vector3(rng.randf_range(-0.03, 0.03), rng.randf_range(-0.2, 0.2), rng.randf_range(-0.03, 0.03))))
+	b.frustum(at + Vector3(0, height, 0), Vector2(0.34, 0.34), Vector2(0.14, 0.14), 0.1, W.TIMBER[3], W.WOOD)
 
 
 ## What stands inside, along the south side where the guild's wall is (the

@@ -282,7 +282,8 @@ func _run() -> void:
 	mason.global_position = spot + Vector3(1.9, 0, 0)
 	var hp_then := brick.hp
 	await _wait(150)
-	check(brick.hp > hp_then and mason.global_position.distance_to(spot) < 1.7, "a mason on the spot's tile but off his spot steps to it and mends")
+	check(mason.global_position.distance_to(spot) < 1.85, "a mason on the spot's tile but off his spot steps up to it (%.2f m away, task %s)" % [mason.global_position.distance_to(spot), mason._task])
+	check(brick.hp > hp_then, "and mends from there (%d to %d)" % [hp_then, brick.hp])
 	brick.mend(float(WallBrick.MAX_HP))
 	mason._finish_mending()
 

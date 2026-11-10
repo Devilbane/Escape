@@ -38,7 +38,7 @@ const CLIMB_TO := Vector2(0.15, 0.18)
 const CALM_FACTOR := 1.6
 ## Length of one bound (metres) and its height, walking and running.
 const HOP := Vector2(0.9, 1.7)
-const HOP_HEIGHT := Vector2(0.12, 0.2)
+const HOP_HEIGHT := Vector2(0.12, 0.15)
 
 ## "sit", "hop", "flee", "climb", "perch" (up in the leaves, hidden),
 ## "descend" or "den" (asleep in the tree, hidden).
@@ -50,6 +50,9 @@ var level: Level
 var _rng := RandomNumberGenerator.new()
 var _body: Node3D
 var _tail: MeshInstance3D
+## Its two hands and two hind feet (left, right), which bound and climb (see _limbs).
+var _hands: Array[MeshInstance3D] = []
+var _feet: Array[MeshInstance3D] = []
 var _path: Array[Vector3] = []
 var _waiting := 0.0
 var _timer := 0.0
@@ -72,6 +75,15 @@ func setup(owner_level: Level, home_tree: Dictionary) -> void:
 
 func _ready() -> void:
 	SmoothMotion.follow_ticks(self)
+	_build()
+	global_position = tree.pos
+	_scatter()
+	rotation.y = _rng.randf() * TAU
+	_begin("sit", _rng.randf_range(0.5, 4.0))
+
+
+## The model: the body and tail, and the hands and hind feet that move on their own.
+func _build() -> void:
 	_body = Node3D.new()
 	_body.scale = Vector3.ONE * SIZE
 	add_child(_body)
@@ -91,10 +103,19 @@ func _ready() -> void:
 	_tail.position = Vector3(0, 0.13, -0.14)
 	_tail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_body.add_child(_tail)
-	global_position = tree.pos
-	_scatter()
-	rotation.y = _rng.randf() * TAU
-	_begin("sit", _rng.randf_range(0.5, 4.0))
+	for side: float in [-1.0, 1.0]:
+		_hands.append(_limb(hand_mesh(), fur, Vector3(side * 0.04, 0.035, 0.1)))
+		_feet.append(_limb(foot_mesh(), fur, Vector3(side * 0.055, 0.035, -0.07)))
+
+
+func _limb(shape: Mesh, material: Material, at: Vector3) -> MeshInstance3D:
+	var limb := MeshInstance3D.new()
+	limb.mesh = shape
+	limb.material_override = material
+	limb.position = at
+	limb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_body.add_child(limb)
+	return limb
 
 
 ## Where the squirrel stands on the ground (it starts somewhere about its tree).
@@ -289,8 +310,8 @@ func _pose(delta: float) -> void:
 			var arc := absf(sin(_phase))
 			lift = arc * _hop_height
 			# Nose up at take-off, down on landing.
-			pitch = -cos(_phase) * 0.25 * (1.5 if state == "flee" else 1.0)
-			tail_up = 0.25 if state == "hop" else -0.2
+			pitch = -cos(_phase) * (0.12 if state == "flee" else 0.25)
+			tail_up = 0.25 if state == "hop" else -0.45
 		"sit":
 			pitch = -0.95 * _sit_up
 			lift = 0.1 * _sit_up
@@ -303,6 +324,7 @@ func _pose(delta: float) -> void:
 			tail_up = 0.0
 	_body.rotation.x = lerp_angle(_body.rotation.x, pitch, k)
 	_body.position.y = lerpf(_body.position.y, lift, k)
+	_limbs(k)
 	_flick -= delta
 	var flick := 0.0
 	if _flick < 0.0:
@@ -311,6 +333,72 @@ func _pose(delta: float) -> void:
 			_flick = _rng.randf_range(1.0, 3.0)
 	var sway := sin(_clock * 3.0) * 0.1 + flick
 	_tail.rotation = Vector3(lerpf(_tail.rotation.x, tail_up, k), 0.0, sway)
+
+
+## A hand and foot are on the ground only for this share of a bound (the rest of it they swing
+## forward through the air): the hands land at the start of it, the hind feet just before the
+## end, so both are down about when the body is.
+const HAND_DOWN := 0.18
+const FOOT_DOWN := 0.18
+const FOOT_LANDS := 0.9
+const HAND_REST := Vector3(0.04, 0.035, 0.1)
+const FOOT_REST := Vector3(0.055, 0.035, -0.07)
+var _gait := 0.0
+var _stretch := 1.0
+
+
+## Where along a limb's cycle `t` (0 to 1, the bound) it is on the ground, `down` its share
+## of the bound: the limb reaches ahead, lands, and trails back as the body passes over it
+## (so it stays put on the ground), then swings forward again. Returns Vector2(forward, up)
+## relative to `rest`, with `travel` the body's way over the ground during the contact.
+static func _stride_of(t: float, down: float, travel: float, reach: float) -> Vector2:
+	if t < down:
+		return Vector2(travel * (0.6 - t / down), 0.0)
+	var u := (t - down) / (1.0 - down)
+	var swing := smoothstep(0.0, 1.0, u)
+	# `reach`: how far the limb is thrown out (hands ahead, hind feet behind) in the middle of
+	# the swing, as in a squirrel's long, flat leaps.
+	return Vector2(lerpf(-0.4 * travel, 0.6 * travel, swing) + reach * sin(u * PI), 0.055 * sin(u * PI))
+
+
+## The hands and hind feet: bounding on the ground (hands land together, the hind feet swing
+## forward past them and land ahead), pulling up and reaching on a trunk, rest otherwise.
+func _limbs(k: float) -> void:
+	var bounding := state in ["hop", "flee"]
+	var climbing := state in ["climb", "descend"]
+	_gait = lerpf(_gait, 1.0 if bounding else 0.0, minf(1.0, k * 1.5))
+	var long := (HOP.y if state == "flee" else HOP.x) / SIZE
+	var t := fposmod(_phase, PI) / PI
+	# The body stretches in the air and gathers up on landing.
+	var arc := absf(sin(_phase))
+	_stretch = lerpf(_stretch, (0.9 + 0.32 * arc) if bounding else 1.0, k)
+	_body.scale = Vector3(SIZE, SIZE, SIZE * _stretch)
+	for i in 2:
+		var side := -1.0 if i == 0 else 1.0
+		var hand: Vector3 = HAND_REST * Vector3(side, 1.0, 1.0)
+		var foot: Vector3 = FOOT_REST * Vector3(side, 1.0, 1.0)
+		var sway := 0.03 * side
+		if _gait > 0.01:
+			var h := _stride_of(fposmod(t + sway, 1.0), HAND_DOWN, long * HAND_DOWN, 0.14)
+			var f := _stride_of(fposmod(t - FOOT_LANDS + 0.04 * side, 1.0), FOOT_DOWN, long * FOOT_DOWN, -0.26)
+			var hand_to := hand + Vector3(0.0, h.y, h.x)
+			var foot_to := foot + Vector3(0.0, f.y, f.x + 0.1)
+			# Down on the ground while the body is up in the arc: reach for it.
+			if t < HAND_DOWN or t > 1.0 - 0.02:
+				hand_to.y -= _body.position.y / SIZE
+			if fposmod(t - FOOT_LANDS, 1.0) < FOOT_DOWN:
+				foot_to.y -= _body.position.y / SIZE
+			hand = hand.lerp(hand_to, _gait)
+			foot = foot.lerp(foot_to, _gait)
+		elif climbing:
+			# Up the trunk (the body stands on its tail end): paws pull and reach in turns.
+			var c := _height * 9.0 + (PI if i == 0 else 0.0)
+			hand += Vector3(0.0, 0.0, 0.05 * sin(c))
+			foot += Vector3(0.0, 0.0, 0.05 * sin(c + PI))
+		# On the move they follow the gait exactly; otherwise they ease to where they rest.
+		var follow := 1.0 if (bounding or climbing) else minf(1.0, k * 2.0)
+		_hands[i].position = _hands[i].position.lerp(hand, follow)
+		_feet[i].position = _feet[i].position.lerp(foot, follow)
 
 
 ## Fills the path from the tile it stands on to `target`; `exact` keeps to the
@@ -360,7 +448,6 @@ static func mesh() -> Mesh:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var fur := func(d: Vector3) -> Color:
 		return FUR.lerp(BELLY, clampf(-d.y * 1.6 - 0.2, 0.0, 1.0))
-	var dark := func(_d: Vector3) -> Color: return FUR_DARK
 	var black := func(_d: Vector3) -> Color: return Color(0.05, 0.04, 0.04)
 	var pale := func(_d: Vector3) -> Color: return BELLY
 	# Body, haunch and shoulders.
@@ -376,9 +463,24 @@ static func mesh() -> Mesh:
 		for p: Vector3 in [Vector3(side * 0.025, 0.245, 0.12), Vector3(side * 0.055, 0.25, 0.115), Vector3(side * 0.05, 0.31, 0.105)]:
 			st.set_color(FUR_DARK)
 			st.add_vertex(p)
-		# Hands and hind feet.
-		VillageBirds._ball(st, Vector3(side * 0.04, 0.035, 0.1), Vector3(0.022, 0.04, 0.024), dark, 3, 5)
-		VillageBirds._ball(st, Vector3(side * 0.055, 0.035, -0.07), Vector3(0.03, 0.04, 0.07), fur, 3, 6)
+	st.generate_normals()
+	return st.commit()
+
+
+## A hand (small, dark) and a hind foot (big), each a mesh of its own at the origin so the
+## gait can move them (see _limbs).
+static func hand_mesh() -> Mesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	VillageBirds._ball(st, Vector3.ZERO, Vector3(0.022, 0.04, 0.024), func(_d: Vector3) -> Color: return FUR_DARK, 3, 5)
+	st.generate_normals()
+	return st.commit()
+
+
+static func foot_mesh() -> Mesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	VillageBirds._ball(st, Vector3.ZERO, Vector3(0.03, 0.04, 0.07), func(_d: Vector3) -> Color: return FUR, 3, 6)
 	st.generate_normals()
 	return st.commit()
 

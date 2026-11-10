@@ -225,3 +225,4 @@ goat_model.gd | 60 | free | passfail | The village goats are the sheep model dre
 red_goat.gd | 120 | fixed | passfail | Red-horned goat (winds up and shouts, bumps without harm, retreats after 3 bumps, 10 minute cooldown, cannot be hurt)
 townsfolk_steps.gd | 60 | free | pass | Townsfolk footsteps (ground, volume, distance and crowd cap)
 log_out_quits.gd | 120 | fixed | passfail | Sleep and log out saves first, then closes the game
+window_spill.gd | 60 | free | pass | Lit windows throw a pool of light on the ground (see WindowSpill)

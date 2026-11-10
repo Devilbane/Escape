@@ -1251,6 +1251,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		node.position = center
 		node.rotation.y = rot
 		add_child(node)
+		WindowSpill.attach(node, _spill_material())
 		var door: Vector3 = node.transform * (node.get_meta("door") as Vector3)
 		house_doors.append(node.get_meta("door_leaf"))
 		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
@@ -1371,6 +1372,7 @@ func _build_terrace(block: Rect2i) -> void:
 		house.rotation.y = rot
 		house.set_meta("block", block)
 		add_child(house)
+		WindowSpill.attach(house, _spill_material())
 		town_houses.append(house)
 		var door := at + Vector3(float(house.get_meta("door_x")), 0, 0).rotated(Vector3.UP, rot) + out * deep * TILE * 0.5
 		doors["^" + str(number)] = door + out * 2.0
@@ -1780,6 +1782,16 @@ func _skin_chapel(chapel: Node) -> void:
 			elif kind == "door":
 				key = "mat_chapel_wood"
 			mi.set_surface_override_material(i, _scenes[key])
+
+
+## The soft pools of window light on the ground (see WindowSpill). set_hour
+## fades them in with the windows, like the panes' own glow.
+func _spill_material() -> ShaderMaterial:
+	if not _scenes.has("mat_window_spill"):
+		var mat := WindowSpill.material(WINDOW_LIGHT, WINDOW_GLOW)
+		_scenes["mat_window_spill"] = mat
+		_window_mats[mat] = mat
+	return _scenes["mat_window_spill"]
 
 
 ## The window panes of the villagers' houses: dark by day, warm at night

@@ -307,6 +307,11 @@ func _run() -> void:
 	cutter._task = "mend"
 	check(is_equal_approx(wall.pace(lvl, mason), 1.5) and is_equal_approx(wall.pace(lvl, cutter), 1.5), "the mason and the woodcutter mend 50% faster together")
 	cutter._task = "idle"
+	cutter._wield_wall_hammer(true)
+	var hammer: Node3D = cutter._model.find_child("WallHammer", true, false)
+	check(hammer != null and hammer.visible and not cutter._model.find_child("2H_Axe", true, false).visible, "the woodcutter takes up a hammer to mend the wall")
+	cutter._start("idle", 1.0)
+	check(not hammer.visible and cutter._model.find_child("2H_Axe", true, false).visible, "he has his axe back when the mending is done")
 	check(wall.pace(lvl, mason) == 1.0, "the mason alone mends at the normal pace")
 	cutter._finish_mending()
 	mason._finish_mending()

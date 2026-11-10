@@ -478,6 +478,8 @@ var _settling := false
 
 func _start(task: String, time: float) -> void:
 	_task = task
+	if task != "mend":
+		_wield_wall_hammer(false)
 	# Mending goes on until the brick is whole (see _mend), not for a set time.
 	_task_time = 600.0 if task in ["mend", "defend"] else time
 	_work_pause = 0.0
@@ -539,6 +541,11 @@ func _mend(delta: float) -> void:
 		return
 	_turn_to(brick.nearest_point(global_position) - global_position, delta)
 	var work: String = _info.work
+	# The woodcutter lends a hand with a hammer, not his axe: the one-handed
+	# hammer blow, the same swing the smith's hammer makes.
+	if role == "3":
+		work = "1H_Melee_Attack_Chop"
+		_wield_wall_hammer(true)
 	if not (_anim.is_playing() and _current_anim == work):
 		_current_anim = work
 		_anim.play(work, 0.15)
@@ -547,6 +554,25 @@ func _mend(delta: float) -> void:
 				Sfx.play(self, "step_scree_%d" % _rng.randi_range(0, 5), -17.0, global_position, 1.5))
 	if brick.mend(VillageWall.MEND_PER_SECOND * wall.pace(level, self) * delta):
 		_finish_mending()
+
+
+## The woodcutter swaps his axe for a hammer while he mends the wall, and back.
+func _wield_wall_hammer(on: bool) -> void:
+	if role != "3" or _model == null:
+		return
+	var hammer := _model.find_child("WallHammer", true, false) as Node3D
+	var axe := _model.find_child("2H_Axe", true, false) as Node3D
+	if on and hammer == null:
+		var slot := _model.find_child("1H_Axe", true, false) as Node3D
+		if slot == null:
+			return
+		hammer = VillageProps.smith_hammer(slot.get_parent())
+		hammer.name = "WallHammer"
+		hammer.transform = slot.transform
+	if hammer != null:
+		hammer.visible = on
+	if axe != null:
+		axe.visible = not on
 
 
 ## The brick is whole (or the work cannot go on): the next hurt brick, else back to his stand.

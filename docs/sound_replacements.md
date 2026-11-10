@@ -33,21 +33,44 @@ Two bought packs were added: **Anime Combat Sounds** (The Sound Guild) and **Fan
 
 Left as they were: `bow_*` (crossbow recordings, the pack has no bow), the comic words `word_*` and the hero's cries `voice_*`.
 
+## Chosen from the sound preview (applied in a later change)
+
+Built by `tools/make_chosen_sounds.py` (needs the sound libraries; pass the folder). Each file keeps its name, its
+length and the peak of the old sound. These rows replace the earlier ones for the same files above.
+
+| Sound | Before | After |
+|---|---|---|
+| `anvil.wav` | synthesised | Fantasy Ambience `Blacksmith_Loop_01` (one hammer strike) |
+| `rumble.wav` | CC0 mix | Fantasy Ambience `Rockfall_Loop_01` (2.25 s stretch) |
+| `loot_epic.wav` | synthesised | Cinematic Sound Design `Button Arp Twinkle` |
+| `secret.wav` | synthesised | CB Sounddesign `GAMEMisc_Magic Creation 23` |
+| `drink.wav` | synthesised | Cinematic Sound Design `Cartoon Bubbles Short` |
+| `bones.wav` | CC0 mix | Epic Stock Media Halloween Game `GORESplt Gore Designed Transient Heavy Impact Smash 01` |
+| `ui_click.wav` | synthesised | Epic Stock Media Board Game `UIClick Vintage Double Click 11` |
+| `sword_swing_0..2` | `Anime_Combat_Whoosh_01..03` | David Dumais MWP2 `SWING SCRAPE ... Long Blade 14`, three takes at pitch 1.0 / 0.93 / 1.08 |
+| `sword_hit_0..3` | `Anime_Slash_*` | David Dumais MWP2 `METAL SWING HIT 01`, four takes at pitch 1.0 / 0.92 / 1.08 / 0.86 |
+| `sword_glance_0..2` | `Anime_Clash_*` | the same metal swing-hit, shorter and pitched up (1.3 / 1.18 / 1.42) |
+| `axe_swing_0..2` | `Anime_Whoosh_04..06` | Epic Stock Media Tower Defense `Sword Slice Special Move Layered Swish 04`, pitched down (0.84 / 0.92 / 1.0) |
+| `hit.wav` | `Anime_Small_Impact` | `Anime_Attack_Slap_01` |
+| `hurt.wav` | `Anime_Punch_Normal` | 344 Audio Anime Fight Voices `Male Adventurer, Active Yell 19` |
+| `swing.wav` | `Anime_Whoosh_Attack` | `Anime_Whoosh_05` |
+| `throw.wav` | `Anime_Whoosh_Unarmed_Combat_01` | `Anime_Whoosh_03` |
+| `magic.wav` | `Anime_Aggressive_Spell_01` | `Anime_Laser_01` |
+| `village_bell.wav` | Fantasy Ambience `Church_Bells_Loop_01` | Ivo Vicic Church Bells `04 Near Distance, In Church Tower, 3 Different Bell 02` (9.5 s) |
+| `rain.ogg` | `Rain_Medium_Loop_01` | `Rain_Heavy_Loop_01` (the same loop as `rain_heavy.ogg`) |
+
+`anvil` and `rumble` are one-shots in the game (not looped), so they use one strike and one stretch of the pack loops.
+Still unchanged on purpose: the sounds rated "needs replacement" without a chosen alternative (market chatter, the
+Sternhall courtyard, windmill sails, steps in rain puddles).
+
 ## Candidates, not applied yet
 
 Old and new files to listen to are in the project folder `escape/sound-replacements/candidates/` (`<name>__old` and `<name>__new_<pack file>`).
 
 | Old file | Where it plays | Possible new sound |
 |---|---|---|
-| `anvil.wav` | smith's hammering | Fantasy Ambience `Blacksmith_Loop_01` |
-| `rumble.wav` | quakes, falling rubble | Fantasy Ambience `Rockfall_Loop_01` (now used as the mine soundscape, not for the rumble) |
 | `level_done.wav` | level cleared | `Anime_Energy_Up_02` |
-| `loot_epic.wav` | epic loot fanfare | `Anime_Power_Up` |
 | `loot_godborn.wav` | god-born loot fanfare | `Anime_Energy_Up_03` |
-| `secret.wav` | secret found | `Anime_Movement_Teleport_01` |
-| `drink.wav` | drinking a potion | `Anime_Bubbly_Sound_01` |
-| `bones.wav` | bones breaking | `Anime_Destruction_07` |
-| `ui_click.wav` | button click | `Anime_Hitmark_03` |
 
 Applied pairs (old and new) are in `escape/sound-replacements/applied/`.
 

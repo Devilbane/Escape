@@ -117,3 +117,21 @@ The packs were bought by the project owner; the licence terms are those of the s
 The ambient soundscapes (rain, rain_light, rain_heavy, village_night, amb_*.ogg, played by
 scripts/soundscape.gd) are loops of "Fantasy Ambience Sounds Pack V2", brought to one loudness,
 mono, 24 kHz (tools/make_pack_sounds.py). Which loop plays where is listed in docs/sound_replacements.md.
+
+Sounds chosen from the sound preview page (tools/make_chosen_sounds.py), all from packs bought by the project
+owner (the licence terms are those of the sellers); each keeps the name of the sound it replaced:
+- "Anime Combat Sounds" by The Sound Guild: hit, swing, throw and magic.
+- "Melee Weapons Sound Effects Pack 2" by David Dumais Audio: the sword swings (sword_swing_*, from one long-blade
+  swing) and the sword hits and glancing blows (sword_hit_*, sword_glance_*, from one metal swing-hit), each take
+  pitched a little differently.
+- "Tower Defense Game" by Epic Stock Media: the axe swings (axe_swing_*, from one layered sword swish, pitched down).
+- "Board Game" by Epic Stock Media: the button click (ui_click).
+- "Halloween Game" by Epic Stock Media: bones breaking (bones).
+- "Anime Fight Voices Vol. 1" by 344 Audio: the hero's hurt cry (hurt).
+- "User Interface" and "Cartoon & Animation Vol 2" by Cinematic Sound Design: the epic loot chime (loot_epic) and
+  drinking a potion (drink).
+- "Applicable Sounds - Organic UI and Building Games SFX" by CB Sounddesign: the secret found (secret).
+- "Church Bells" by Ivo Vicic: the village bell (village_bell, one bell strike series, from "Near Distance, In Church
+  Tower").
+- "Fantasy Ambience Sounds Pack V2": the smith's anvil (anvil, one hammer strike of Blacksmith_Loop_01), the
+  rumble (rumble, a stretch of Rockfall_Loop_01) and the rain (rain.ogg, Rain_Heavy_Loop_01).

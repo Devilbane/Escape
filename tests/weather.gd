@@ -26,6 +26,13 @@ func _initialize() -> void:
 
 
 func _finish() -> void:
+	# Night dust: about 30% of real fog on a clear night, none by day, and
+	# never more than real fog.
+	var clear := Weather.look(Weather.CLEAR)
+	var fog := Weather.look(Weather.FOG)
+	check(is_equal_approx(Weather.dusty_mist(clear, 0.0), Weather.NIGHT_DUST * fog.mist), "a clear night has 30% of fog's mist")
+	check(Weather.dusty_mist(clear, 12.0) == 0.0, "no dust by day")
+	check(Weather.dusty_mist(fog, 0.0) == fog.mist, "dust does not pile on fog")
 	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: weather")

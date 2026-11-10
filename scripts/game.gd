@@ -2827,8 +2827,10 @@ func _show_weather() -> void:
 		return
 	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
-	_clouds.set_look(_weather_look.mist, _env.fog_light_color)
-	Weather.show_particles(_rain, _mist, _weather_look, 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3)
+	var dusty := _weather_look.duplicate()
+	dusty.mist = Weather.dusty_mist(_weather_look, day_hour)
+	_clouds.set_look(dusty.mist, _env.fog_light_color)
+	Weather.show_particles(_rain, _mist, dusty, 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3)
 
 
 ## Lightning struck (see Outdoor.strike): the sky flashes, and the thunder

@@ -42,6 +42,8 @@ static var _mats := {}
 ## The middles of the window panes of the house being built (kept on the
 ## house as meta "windows", so the ivy can leave them clear).
 static var _panes: Array = []
+## Which way each of those panes faces (meta "window_outs"), so the light can fall in front of it.
+static var _outs: Array = []
 
 
 ## A house that fits into a footprint of `room` metres (x across the front,
@@ -49,6 +51,7 @@ static var _panes: Array = []
 ## them at night.
 static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMaterial3D) -> Node3D:
 	_panes = []
+	_outs = []
 	var w := clampf(room.x - 1.2 - JETTY * 2.0, 4.5, 7.0) - rng.randf_range(0.0, 0.6)
 	var d := clampf(room.y - 1.4 - JETTY * 2.0, 4.0, 6.0) - rng.randf_range(0.0, 0.5)
 	var ridge := rng.randf_range(2.6, 3.4)
@@ -92,6 +95,7 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMate
 	# The mouth of the chimney, where its evening smoke comes out (see ChimneySmoke).
 	house.set_meta("chimney", Vector3(cx, eaves + ridge * 1.2 + 0.55, -ud * 0.22))
 	house.set_meta("windows", _panes.duplicate())
+	house.set_meta("window_outs", _outs.duplicate())
 	house.add_child(_mesh_of(parts, _materials(rng, glass)))
 	_hang_door(house, Vector3(door_x, PLINTH, d * 0.5))
 	return house
@@ -105,6 +109,7 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: StandardMate
 ## the house number. Built facing south (+z) like `build`.
 static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator, glass: StandardMaterial3D) -> Node3D:
 	_panes = []
+	_outs = []
 	var w := room.x - 0.06
 	var d := clampf(room.y - 1.6 - JETTY * 2.0, 4.0, 6.0) - rng.randf_range(0.0, 0.3)
 	var ridge := w * rng.randf_range(0.62, 0.8)
@@ -147,6 +152,7 @@ static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator,
 	house.set_meta("town_house", number)
 	house.set_meta("door_x", door_x)
 	house.set_meta("windows", _panes.duplicate())
+	house.set_meta("window_outs", _outs.duplicate())
 	var mats := _materials(rng, glass)
 	house.add_child(_mesh_of(parts, mats))
 	var roof := _mesh_of(roof_parts, mats)
@@ -257,6 +263,7 @@ static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 	_panes.append(at)
 	var b := Basis(Vector3.UP, turn)
 	var out := b * Vector3(0, 0, 1)
+	_outs.append(out)
 	var side := b * Vector3(1, 0, 0)
 	_box(parts, "glass", at + out * 0.03, Vector3(0.8, 0.9, 0.06), b)
 	_box(parts, "timber", at + out * 0.07, Vector3(0.08, 0.9, 0.06), b)

@@ -55,6 +55,10 @@ const BRANCH_RUN_CHANCE := 0.07
 const BRANCH_RUN := Vector2i(10, 22)
 ## Ivy prefers edges: the share of roots set within EDGE_ZONE metres of a wall's
 ## end, and how often a vine that reached its height runs on along the eaves.
+## The woody stems: thickness (metres) of a thin and of a thick one, and their colour.
+const STEM_THICK := Vector2(0.04, 0.11)
+const STEM_STEPS := 6
+const STEM_COLOUR := Color(0.36, 0.26, 0.17)
 const EDGE_ROOTS := 0.75
 const EDGE_ZONE := 0.9
 const EAVES_RUN_CHANCE := 0.7
@@ -570,6 +574,8 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 		var wall: Dictionary = tip.wall
 		# A runner (see BRANCH_RUN) first creeps sideways along the wall, rising a
 		# little, then climbs on like any tendril.
+		var anchor := p
+		var reach_steps := 0
 		var run: int = tip.get("run", 0)
 		var run_dir: float = tip.get("dir", 1.0)
 		while p.y < reach:
@@ -590,6 +596,12 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 						break
 					wall = hop
 					next = next + n * (float(wall.d) - n.dot(next))
+			# One bar per STEM_STEPS steps keeps the stems cheap.
+			reach_steps += 1
+			if reach_steps >= STEM_STEPS:
+				_stem(anchor, next, n, wall, base, reach, run > 0, windows, window_room, doors, ground, rng, leaves)
+				anchor = next
+				reach_steps = 0
 			p = next
 			# Fuller near the ground, sparse at the top.
 			var fill := clampf(1.0 - (p.y - base) / maxf(reach - base, 0.5), 0.0, 1.0)
@@ -611,6 +623,49 @@ static func _grow_patch(root_wall: Dictionary, all_walls: Array, root: Vector3, 
 				tips.append({"p": p, "drift": 0.0, "wall": wall, "run": rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y), "dir": 1.0 if rng.randf() < 0.5 else -1.0})
 			elif rng.randf() < IVY_BRANCHING and tips.size() < 8:
 				tips.append({"p": p, "drift": -drift, "wall": wall})
+
+
+## A short piece of the vine's woody stem from `a` to `b` on the wall (normal
+## `n`), a thin brown bar: thick near the ground and thin up high, thinnest on
+## a branch. Real ivy shows its stems, the leaves grow along them. It is left
+## out wherever a leaf would be (windows, doorways).
+static func _stem(a: Vector3, b: Vector3, n: Vector3, wall: Dictionary, base: float, reach: float, branch: bool, windows: Array, window_room: float, doors: Array, ground: float, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
+	var mid := (a + b) * 0.5
+	if not _on_wall(wall, mid) or _on_pane(mid, n, windows) or _in_window_room(mid, n, windows, window_room, rng) or _in_doorway(mid, doors, ground):
+		return
+	if not leaves.has("stems"):
+		leaves["stems"] = []
+		leaves["stem_colours"] = []
+	var dir := b - a
+	var length := dir.length()
+	if length < 0.001:
+		return
+	dir /= length
+	var frac := clampf(1.0 - (mid.y - base) / maxf(reach - base, 0.5), 0.0, 1.0)
+	var thick := STEM_THICK.x if branch else lerpf(STEM_THICK.x, STEM_THICK.y, frac)
+	var x := dir.cross(n).normalized()
+	# A flat strip facing out from the wall (two triangles): x across, y along the stem.
+	var basis := Basis(x * thick, dir * (length + 0.03), n)
+	(leaves.stems as Array).append(Transform3D(basis, mid + n * 0.03))
+	(leaves.stem_colours as Array).append(STEM_COLOUR * rng.randf_range(0.8, 1.2))
+
+
+## A woody stem lying on a roof face (normal `n`) from `a` to `b`: the roof vines' branches, drawn as
+## the wall ivy's are (see _stem), thinner the further the vine has run.
+static func _roof_stem(a: Vector3, b: Vector3, n: Vector3, frac: float, branch: bool, windows: Array, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
+	var mid := (a + b) * 0.5
+	var dir := b - a
+	var length := dir.length()
+	if length < 0.001 or _on_pane(mid, n, windows):
+		return
+	if not leaves.has("stems"):
+		leaves["stems"] = []
+		leaves["stem_colours"] = []
+	dir /= length
+	var thick := STEM_THICK.x if branch else lerpf(STEM_THICK.x, STEM_THICK.y * 0.8, frac)
+	var x := dir.cross(n).normalized()
+	(leaves.stems as Array).append(Transform3D(Basis(x * thick, dir * (length + 0.03), n), mid + n * 0.03))
+	(leaves.stem_colours as Array).append(STEM_COLOUR * rng.randf_range(0.8, 1.2))
 
 
 ## Whether a leaf already lies this close to `at` among the patch's own
@@ -689,7 +744,7 @@ static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Diction
 		rn = next_at.n
 		step = (Vector3.UP - rn * rn.y).normalized() * (1.0 if ridge else -1.0)
 	var run0 := rng.randi_range(BRANCH_RUN.x * 2, BRANCH_RUN.y * 2) if ridge else rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y)
-	var tips: Array = [{"p": at, "n": rn, "drift": rng.randf_range(-0.5, 0.5), "run": run0, "dir": 1.0 if rng.randf() < 0.5 else -1.0,
+	var tips: Array = [{"p": at, "n": rn, "drift": rng.randf_range(-0.5, 0.5), "run": run0, "dir": 1.0 if rng.randf() < 0.5 else -1.0, "dir_branch": false,
 			"left": run0 * 0.16 + (1.0 if ridge else rng.randf_range(ROOF_VINE_LENGTH.x, ROOF_VINE_LENGTH.y))}]
 	var done := 0
 	while done < tips.size() and done < 8:
@@ -701,6 +756,8 @@ static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Diction
 		var run: int = tip.run
 		var left: float = tip.left
 		var total := left
+		var anchor := pos
+		var reach_steps := 0
 		while left > 0.0:
 			var along := Vector3.UP.cross(tn)
 			along = along.normalized() if along.length() > 0.01 else Vector3.RIGHT
@@ -718,10 +775,16 @@ static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Diction
 				next = pos + along * float(tip.dir) * 0.16 + up * rng.randf_range(0.0, 0.05)
 			elif rng.randf() < ROOF_BRANCH_CHANCE and tips.size() < 8:
 				# A runner out sideways; it climbs on from the end of its run.
-				tips.append({"p": pos, "n": tn, "drift": 0.0, "run": rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y), "dir": 1.0 if rng.randf() < 0.5 else -1.0, "left": left * 0.7})
+				tips.append({"p": pos, "n": tn, "drift": 0.0, "run": rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y), "dir": 1.0 if rng.randf() < 0.5 else -1.0, "left": left * 0.7, "dir_branch": true})
 			var still := _roof_at(roofs, next, next.y - 0.3, next.y + 0.3)
 			if still.is_empty():
 				break
+			# One bar per STEM_STEPS steps, from the last one to here.
+			reach_steps += 1
+			if reach_steps >= STEM_STEPS:
+				_roof_stem(anchor, still.p, still.n, left / total, run > 0 or tip.dir_branch, windows, rng, leaves)
+				anchor = still.p
+				reach_steps = 0
 			pos = still.p
 			tn = still.n
 			left -= 0.16
@@ -995,7 +1058,45 @@ static func ivy_node(leaves: Dictionary) -> Node3D:
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		node.visibility_range_end = LEAF_RANGE
 		root.add_child(node)
+	_stems_into(root, leaves)
 	return root
+
+
+## The stems (see _stem) as one MultiMesh of bars per tile, under `root`.
+static func _stems_into(root: Node3D, leaves: Dictionary) -> void:
+	var xf: Array = leaves.get("stems", [])
+	if xf.is_empty():
+		return
+	var bar := QuadMesh.new()
+	bar.size = Vector2.ONE
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 1.0
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	bar.material = mat
+	var tiles := {}
+	for i in xf.size():
+		var at: Vector3 = (xf[i] as Transform3D).origin
+		var key := Vector2i(floori(at.x / LEAF_TILE), floori(at.z / LEAF_TILE))
+		if not tiles.has(key):
+			tiles[key] = []
+		tiles[key].append(i)
+	for key: Vector2i in tiles:
+		var picked: Array = tiles[key]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = bar
+		mm.instance_count = picked.size()
+		for k in picked.size():
+			mm.set_instance_transform(k, xf[picked[k]])
+			mm.set_instance_color(k, (leaves.stem_colours as Array)[picked[k]])
+		var node := MultiMeshInstance3D.new()
+		node.name = "Stems_%d_%d" % [key.x, key.y]
+		node.multimesh = mm
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.visibility_range_end = LEAF_RANGE
+		root.add_child(node)
 
 
 ## A three-lobed ivy leaf with pale veins, its colour from each leaf.

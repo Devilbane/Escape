@@ -157,6 +157,14 @@ static var ALL := {
 	# The biggest: 20 places, found only deep down (the merchant never sells
 	# the top of a kind, see merchant_sells).
 	"reiserucksack": {"name": "Reiserucksack", "slot": "rucksack", "bag": 20, "weight": 2.5, "armor": 1, "speed": 0.05, "price": 95, "model": "res://assets/village/sack.gltf", "model_scale": 8.0, "material": "leather"},
+	# The epic one: 24 places, made from a recipe (see Crafting "tornister") whose
+	# scroll is epic loot (see "tornisterschnitt"). A "crafted" piece that keeps its epic
+	# colour ("keeps_tier" overrides the self-made tier, see Rarity.tier); "crafted" keeps it out of
+	# the merchants' top-tier check, and "no_loot" off their shelves and out of the loot.
+	"tornister": {"name": "Schuppentornister", "slot": "rucksack", "bag": 24, "weight": 3, "price": 180, "no_loot": true, "crafted": true, "keeps_tier": true, "model": "res://assets/village/sack.gltf", "model_scale": 9.0, "tint": Color(0.8, 0.25, 0.15), "material": "scale"},
+	# A recipe scroll: carried, not worn. Reading it ("Lesen" in the inventory) teaches the
+	# recipe named by "recipe" and uses the scroll up (see Crafting.read_scroll).
+	"tornisterschnitt": {"name": "Schnittmuster: Schuppentornister", "slot": "rolle", "recipe": "tornister", "weight": 0.1, "price": 150, "effect": "Eine Schriftrolle mit dem Rezept für den Schuppentornister, den größten Rucksack. Im Inventar lesen, dann am Werktisch des Feinschmieds fertigen"},
 	# Books are not worn. The hero reads them while the player is away
 	# (Offline, "study"): each "teaches" one skill.
 	"fechtbuch": {"name": "Buch der Klingen", "slot": "buch", "weight": 1, "teaches": "klingen", "price": 40},
@@ -359,6 +367,11 @@ static func is_crate(id: String) -> bool:
 	return ALL.has(id) and ALL[id].slot == "kiste"
 
 
+## Whether an item is a recipe scroll (see Crafting.read_scroll).
+static func is_recipe_scroll(id: String) -> bool:
+	return ALL.has(id) and ALL[id].has("recipe")
+
+
 ## Whether an item is a backpack (see FloorPack for one set down).
 static func is_backpack(id: String) -> bool:
 	return ALL.has(id) and ALL[id].slot == "rucksack"
@@ -486,7 +499,7 @@ const LEVELS := {
 	"phoenixfeder": 11, "grosser_rucksack": 11, "rabenklinge": 12, "kriegshammer": 12,
 	"schuppenreif": 11, "drachenblutring": 11, "glutherzamulett": 11,
 	"kristallring": 13, "kristallamulett": 13,
-	"reiserucksack": 14,
+	"reiserucksack": 14, "tornisterschnitt": 14, "tornister": 15,
 	"filzkappe": 1, "steppwams": 1, "stoffschuhe": 1, "lederkappe": 2,
 	"eisenhaube": 4, "eisenschuhe": 4, "stahlstiefel": 8,
 	"stoffhandschuhe": 1, "lederhandschuhe": 2,
@@ -529,7 +542,7 @@ const RARITY := {
 	# Specials.
 	"vampirzahn": "selten", "gluecksklee": "episch", "dornenrune": "episch", "phoenixfeder": "gottgeboren",
 	# Backpacks.
-	"leinenrucksack": "normal", "lederrucksack": "ungewoehnlich", "grosser_rucksack": "selten", "reiserucksack": "gottgeboren",
+	"leinenrucksack": "normal", "lederrucksack": "ungewoehnlich", "grosser_rucksack": "selten", "reiserucksack": "gottgeboren", "tornister": "episch", "tornisterschnitt": "episch",
 	# Books: useful, but sold in shops and only quicken training.
 	"fechtbuch": "ungewoehnlich", "axtbuch": "ungewoehnlich", "wurfbuch": "ungewoehnlich",
 	"schildbuch": "ungewoehnlich", "ruestbuch": "ungewoehnlich", "schleichbuch": "ungewoehnlich",

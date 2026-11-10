@@ -53,7 +53,7 @@ func _run() -> void:
 	# The guild hall seen from its four sides (orbiting its middle).
 	var front: Vector3 = lvl.doors["w"]
 	var mid := front + Vector3(8, 0, 0)  # the hall's middle (it faces west)
-	var views := {"west_entrance": Vector3(-17, 9, 0), "south": Vector3(0, 9, 17), "east": Vector3(17, 9, 0), "north": Vector3(0, 9, -17)}
+	var views := {"west_entrance": Vector3(-17, 9, 0), "south": Vector3(0, 9, 17), "east": Vector3(17, 9, 0), "north": Vector3(0, 9, -17), "close_east": Vector3(9, 4, 0)}
 	for name: String in views:
 		if shots == "":
 			break

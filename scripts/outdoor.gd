@@ -356,6 +356,8 @@ const MILL_IVY := 30
 ## The bank's tower wears branching ivy on every side (like the guild hall), clear of its door and windows.
 const BANK_IVY := 20
 const BANK_WINDOW_ROOM := 2.6
+## Vines across the bank tower's roof, branching like the temple's.
+const BANK_ROOF_VINES := 5
 const CASTLE_IVY := 48
 ## The castle's stones stand this far (metres) proud of their wall planes: its leaves are held out by that much.
 const CASTLE_PROUD := 0.3
@@ -1256,6 +1258,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		node.position = center
 		node.rotation.y = rot
 		add_child(node)
+		WindowSpill.attach(node, _spill_material())
 		var door: Vector3 = node.transform * (node.get_meta("door") as Vector3)
 		house_doors.append(node.get_meta("door_leaf"))
 		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
@@ -1305,7 +1308,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for x in [-1.8, -0.9, 0.0, 0.9, 1.8]:
 				for z in [1.0, 0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
-			_dress_building(node, center, door_spots, 0.75, MILL_IVY if ch == "u" else (BANK_IVY if ch == "b" else STONE_IVY), true, 0.0, 0.0, BANK_WINDOW_ROOM if ch == "b" else 1.0, ch == "b")
+			_dress_building(node, center, door_spots, 0.75, MILL_IVY if ch == "u" else (BANK_IVY if ch == "b" else STONE_IVY), true, 0.0, 0.0, BANK_WINDOW_ROOM if ch == "b" else 1.0, ch == "b", BANK_ROOF_VINES if ch == "b" else 0)
 	if interiors.has(ch):
 		# Run into the door to go in.
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
@@ -1376,6 +1379,7 @@ func _build_terrace(block: Rect2i) -> void:
 		house.rotation.y = rot
 		house.set_meta("block", block)
 		add_child(house)
+		WindowSpill.attach(house, _spill_material())
 		town_houses.append(house)
 		var door := at + Vector3(float(house.get_meta("door_x")), 0, 0).rotated(Vector3.UP, rot) + out * deep * TILE * 0.5
 		doors["^" + str(number)] = door + out * 2.0
@@ -1787,6 +1791,16 @@ func _skin_chapel(chapel: Node) -> void:
 			mi.set_surface_override_material(i, _scenes[key])
 
 
+## The soft pools of window light on the ground (see WindowSpill). set_hour
+## fades them in with the windows, like the panes' own glow.
+func _spill_material() -> ShaderMaterial:
+	if not _scenes.has("mat_window_spill"):
+		var mat := WindowSpill.material(WINDOW_LIGHT, WINDOW_GLOW)
+		_scenes["mat_window_spill"] = mat
+		_window_mats[mat] = mat
+	return _scenes["mat_window_spill"]
+
+
 ## The window panes of the villagers' houses: dark by day, warm at night
 ## (see set_hour).
 func _house_glass() -> StandardMaterial3D:
@@ -1900,6 +1914,9 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud, window_room, all_sides, roof_vines)
 		for i in leaves.xforms.size():
 			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
+		var stems: Array = leaves.get("stems", [])
+		for i in stems.size():
+			stems[i] = (stems[i] as Transform3D).translated(-offset)
 		var spot := Vector3.INF
 		if rng.randf() < nest_chance:
 			spot = AgedStone.nest_spot(tris, ground)
@@ -1907,6 +1924,12 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 	var done: Dictionary = _dressed[key]
 	_ivy.xforms.append_array(done.leaves.xforms)
 	_ivy.colours.append_array(done.leaves.colours)
+	if done.leaves.has("stems"):
+		if not _ivy.has("stems"):
+			_ivy["stems"] = []
+			_ivy["stem_colours"] = []
+		_ivy.stems.append_array(done.leaves.stems)
+		_ivy.stem_colours.append_array(done.leaves.stem_colours)
 	if done.nest == Vector3.INF or nests.size() >= MAX_NESTS:
 		return
 	var nest := MeshInstance3D.new()

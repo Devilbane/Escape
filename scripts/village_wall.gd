@@ -12,7 +12,7 @@ extends RefCounted
 ## Every slime outside the wall with nothing else to hunt makes for the nearest
 ## brick (see siege_brick); one that cannot get at what it hunts because the wall is in the way
 ## attacks the wall (see Enemy._plan_route). Each brick has 1000 HP and a
-## slime's blow does ACID times its damage to stone. Afterwards the village's
+## slime's blow does ACID times its damage to stone, less WALL_RESIST of it. Afterwards the village's
 ## stonemason (Villager "S") walks to the hurt bricks, one by one, and
 ## builds them up again, MEND_PER_SECOND HP a second, as long as no slime
 ## is about. There is no limit to his work: he mends as long as a brick is hurt.
@@ -24,6 +24,9 @@ const WATCH_RANGE := 36.0
 const OPEN_AFTER := 8.0
 ## A slime's blow does this many times its damage to the wall.
 const ACID := 24
+## The share of that which the stone shrugs off: slimes and blobs do only
+## 1 - WALL_RESIST (20%) of it to the wall.
+const WALL_RESIST := 0.8
 ## The stonemason's work: HP built up per second, and how near a slime
 ## may be (metres) before he leaves the wall alone.
 const MEND_PER_SECOND := 4.0
@@ -336,9 +339,14 @@ func siege_brick(slime: Node3D) -> WallBrick:
 	return best
 
 
+## What a slime's blow of `slime_damage` does to the stone (at least 1).
+static func wall_damage(slime_damage: int) -> int:
+	return maxi(1, roundi(maxi(1, slime_damage) * ACID * (1.0 - WALL_RESIST)))
+
+
 ## A slime's blow on a brick. Returns whether the brick is gone.
 func gnaw(o: Outdoor, brick: WallBrick, slime_damage: int) -> bool:
-	var damage := maxi(1, slime_damage) * ACID
+	var damage := wall_damage(slime_damage)
 	var at := brick.global_position + Vector3(0, WallBrick.COURSES * WallBrick.COURSE, 0)
 	Effects.float_text(o, at, "-%d" % damage, Color(0.6, 0.9, 0.4))
 	Sfx.play(o, "hit", -8.0, brick.global_position, 0.6)

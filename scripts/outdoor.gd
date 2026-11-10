@@ -159,9 +159,10 @@ const CHAPEL_FOOT_MID := 3.0
 ## Where the bricks sit on the kit's trim sheet (v from top to bottom of four
 ## rows of bricks).
 const GABLE_BRICK_V := Vector2(0.6, 0.92)
-## The candlelight behind the temple's stained glass at night: dimmer than
-## the houses' windows, so the colours glow softly instead of burning white.
-const CHAPEL_GLASS_LIGHT := Color(0.42, 0.37, 0.3)
+## The candlelight behind the temple's stained glass at night: still a little
+## dimmer than the houses' windows, but bright enough that the panes shine in
+## their own saturated colours without burning out to white.
+const CHAPEL_GLASS_LIGHT := Color(0.78, 0.68, 0.54)
 
 const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
@@ -204,6 +205,8 @@ var villagers: Array = []
 var _wood_trees: Array = []
 ## The birds and squirrels of the woods (see WoodsLife).
 var woods: WoodsLife
+## The glowworm swarms that roam the night (see GlowwormSwarms).
+var glowworms: GlowwormSwarms
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
 ## The village's geese, goats and dogs (see VillageFarm and FarmAnimal).
@@ -1144,6 +1147,8 @@ func _build_woods_life() -> void:
 	_wood_trees.clear()
 	woods = WoodsLife.new(self, trees, level_name)
 	add_child(woods)
+	glowworms = GlowwormSwarms.new(self, level_name)
+	add_child(glowworms)
 
 
 ## Trees on every forest tile close to the open ground. Further in there
@@ -2938,6 +2943,8 @@ func _process(delta: float) -> void:
 			_marker = null
 	if inside:
 		_house_fade.update(self, player, get_viewport().get_camera_3d())
+	if glowworms and hour >= 0.0:
+		glowworms.tick(delta, player.global_position, hour, inside)
 	_mind_the_wild(delta)
 	_whisper_from_holes(delta)
 	_mind_the_night(delta)

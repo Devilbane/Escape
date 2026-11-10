@@ -106,6 +106,21 @@ func _run() -> void:
 	check(goat.state not in ["windup", "charge"], "no charge on cooldown (%s)" % goat.state)
 	check(goat.cooldown < 590.0 and goat.cooldown > 0.0, "the cooldown runs (%.0f s)" % goat.cooldown)
 
+	# Asleep at night it stays put, and at dawn it gets up and picks fights again.
+	goat.cooldown = 0.0
+	goat._begin("idle", 0.01)
+	lvl.set_hour(23.0)
+	game.day_hour = 23.0
+	await _wait(60 * 25)
+	check(goat._resting, "it sleeps at night (%s)" % goat.state)
+	lvl.set_hour(13.0)
+	game.day_hour = 13.0
+	_hero_near(lvl, goat, 6.0)
+	var woke: bool = await _until(func(): return goat.state == "windup", 900)
+	check(not goat._resting and woke, "it wakes at dawn and winds up (%s)" % goat.state)
+	goat.cooldown = 0.0
+	goat._begin("idle", 30.0)
+
 	# When it is over, it may charge again.
 	goat.cooldown = 0.05
 	goat._begin("idle", 30.0)

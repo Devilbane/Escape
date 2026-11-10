@@ -62,6 +62,7 @@ floor_packs.gd | 120 | free | pass | Floor packs test
 thrown_knives.gd | 120 | free | pass | Thrown knives test
 dragon_hoard.gd | 120 | free | pass | Dragon's helpers and hoard test
 torch_stacks.gd | 120 | fixed | pass | Torch stacks test
+shop_backpacks.gd | 60 | free | pass | The shopkeeper always has backpacks for sale
 torch_button.gd | 120 | fixed | pass | Torch button test (lit on request only)
 healing_potions.gd | 300 | fixed | PASS:_healing_potions | Healing potions test (brewed by potency, button left of the torch, once a minute)
 save_slots.gd | 120 | free | pass | Several saved games test

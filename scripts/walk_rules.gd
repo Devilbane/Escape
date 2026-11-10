@@ -18,10 +18,13 @@ const MAKE_WAY := 1.4
 const TURN_RATE := 8.0
 
 
-## Whether a point is inside a wall brick that stops everyone: a standing wall or a shut gate.
+## Whether a point is inside a wall brick that stops everyone (a standing wall or a shut gate) or in the fence of the cattle pen.
 static func blocked_at(level: Object, point: Vector3) -> bool:
 	if level == null:
 		return false
+	# A post or rail of the cattle pen's fence (see Corral).
+	if level.has_method("cell_char") and level.cell_char(level.world_to_cell(point)) == Corral.FENCE:
+		return true
 	var wall = level.get("village_wall")
 	if wall == null:
 		return false

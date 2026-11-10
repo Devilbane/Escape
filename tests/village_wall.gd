@@ -277,9 +277,9 @@ func _run() -> void:
 	# A mason on the right tile but too far from his spot still goes to work (he used to stand there walking on the spot).
 	brick.hurt(300)
 	west.mend(float(WallBrick.MAX_HP))
-	mason.mend(brick)
 	var spot := wall.stand_of(lvl, brick)
 	mason.global_position = spot + Vector3(1.9, 0, 0)
+	mason.mend(brick)
 	var hp_then := brick.hp
 	await _wait(150)
 	check(mason.global_position.distance_to(spot) < 1.85, "a mason on the spot's tile but off his spot steps up to it (%.2f m away, task %s)" % [mason.global_position.distance_to(spot), mason._task])

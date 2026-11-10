@@ -52,6 +52,10 @@ func _initialize() -> void:
 		rough_holder.queue_free()
 	for style: String in WallThemes.names():
 		check(StairsDown.LOOKS.has(style), "every wall style (%s) has stairs of its own" % style)
+	# The stairs of a house are worn boards, with a picture that is the same every time.
+	check(StairsDown.LOOKS["wood"].get("wood", false), "the house look is wooden")
+	check(WoodStairs.texture() != null and WoodStairs.texture() == WoodStairs.texture(), "the board picture is made once")
+	check(WoodStairs.material().albedo_texture == WoodStairs.texture(), "wooden material carries the boards")
 	if failures == 0:
 		print("PASS: stairs down")
 	else:

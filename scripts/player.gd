@@ -25,7 +25,7 @@ const SPEED := 5.2
 const WALK_FACTOR := 0.34
 ## The most the base speed (Tempo, gear, gifts, level, companions) can reach, as a
 ## share of SPEED. The run's boost and the slowing ailments are counted after it.
-const BASE_SPEED_CAP := 1.5
+const BASE_SPEED_CAP := 1.75
 ## Running speeds up to this many times the walking pace (twice: 3.6 m/s)...
 const RUN_TOP := 2.0
 ## ...over this many seconds of holding the run,

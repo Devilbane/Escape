@@ -156,7 +156,7 @@ static var ALL := {
 	"grosser_rucksack": {"name": "Großer Rucksack", "slot": "rucksack", "bag": 12, "weight": 2, "price": 60, "model": "res://assets/village/sack.gltf", "model_scale": 7.0, "material": "leather"},
 	# The biggest: 20 places, found only deep down (the merchant never sells
 	# the top of a kind, see merchant_sells).
-	"reiserucksack": {"name": "Reiserucksack", "slot": "rucksack", "bag": 20, "weight": 2.5, "price": 95, "model": "res://assets/village/sack.gltf", "model_scale": 8.0, "material": "leather"},
+	"reiserucksack": {"name": "Reiserucksack", "slot": "rucksack", "bag": 20, "weight": 2.5, "armor": 1, "speed": 0.05, "price": 95, "model": "res://assets/village/sack.gltf", "model_scale": 8.0, "material": "leather"},
 	# Books are not worn. The hero reads them while the player is away
 	# (Offline, "study"): each "teaches" one skill.
 	"fechtbuch": {"name": "Buch der Klingen", "slot": "buch", "weight": 1, "teaches": "klingen", "price": 40},

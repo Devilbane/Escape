@@ -30,6 +30,7 @@ func _initialize() -> void:
 		check(loop.begins_with(n[5]), "%s sounds like %s (got %s)" % [n[4], n[5], loop])
 		check(Soundscape.LOOPS.has(loop), "%s is a listed loop" % loop)
 	check(Soundscape.dungeon_loop("", "", false, "haus", "x") == "", "a house has no loop of its own")
+	check(Soundscape.LOOPS.has("amb_fire_camp") and Soundscape.HOME_FIRE > 0.0 and Soundscape.HOME_FIRE < 1.0, "the home hearth fire is a quiet listed loop")
 	var day := Soundscape.outdoor_mix(true, false, {}, 0.0)
 	check(day.has("amb_village_day") and not day.has("village_night"), "the village by day")
 	var night := Soundscape.outdoor_mix(true, true, {}, 0.0)

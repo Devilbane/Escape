@@ -533,7 +533,7 @@ func _mend(delta: float) -> void:
 		_anim.play(work, 0.15)
 		get_tree().create_timer(0.45).timeout.connect(func():
 			if is_inside_tree() and _task == "mend":
-				Sfx.play(self, "hit", -14.0, global_position, 0.8))
+				Sfx.play(self, "step_scree_%d" % _rng.randi_range(0, 5), -17.0, global_position, 1.5))
 	if brick.mend(VillageWall.MEND_PER_SECOND * delta):
 		_finish_mending()
 

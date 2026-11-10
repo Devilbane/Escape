@@ -8,8 +8,9 @@ extends Node
 ## Above ground, Game asks for the loops by where the hero stands (village,
 ## woods, beside the forge, the market, a campfire, the fields), the hour and the
 ## rain. Below ground, each floor has one loop by its setting (dungeon, cave,
-## mine, crystal, fire, ancient halls, the spire, the open Sternhall courtyard). Rooms and houses have none:
-## there the old cave air (Game._ambience) keeps playing.
+## mine, crystal, fire, ancient halls, the spire, the open Sternhall courtyard). The hero's own house has a quiet
+## hearth fire and nothing else; other rooms and houses have none: there the old
+## cave air (Game._ambience) keeps playing.
 
 ## Seconds a loop takes to fade in or out.
 const FADE := 3.0
@@ -27,6 +28,9 @@ const LOOPS := {
 	"amb_magic_0": -4.0, "amb_magic_1": -4.0,
 	"amb_astral_0": -4.0, "amb_astral_1": -4.0,
 }
+## How strong the hearth's crackle is inside the hero's own house (0 to 1): a soft
+## fire in the next corner, and the only sound there (the old cave air rests).
+const HOME_FIRE := 0.5
 ## Words in a floor's name that make it a cave.
 const CAVE_NAMES := ["hoehle", "loch", "grotte", "tiefe", "nest"]
 
@@ -111,13 +115,15 @@ static func wanted(game: Node) -> Dictionary:
 			return {}
 		var village: bool = level._in_village(level.world_to_cell(game.player.global_position))
 		return outdoor_mix(village, DayNight.is_night(game.day_hour), nearness(level, game.player.global_position), float(game._weather_look.rain))
+	if level.is_home:
+		return {"amb_fire_camp": HOME_FIRE}
 	var loop := dungeon_loop(level.theme, level.wall_style, level.lair, level.building, level.level_name)
 	return {loop: 1.0} if loop != "" else {}
 
 
 ## Whether the floor below ground has a loop of its own (so the old cave air can rest).
 static func covers_dungeon(level: Level) -> bool:
-	return level != null and not level is Outdoor and dungeon_loop(level.theme, level.wall_style, level.lair, level.building, level.level_name) != ""
+	return level != null and not level is Outdoor and (level.is_home or dungeon_loop(level.theme, level.wall_style, level.lair, level.building, level.level_name) != "")
 
 
 ## Called every frame by Game: fades every loop to its strength.

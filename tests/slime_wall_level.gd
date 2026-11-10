@@ -53,22 +53,34 @@ func _run() -> void:
 		if SlimeGrowth.can_besiege(s) != expect:
 			failures += 1
 			print("FAIL: can_besiege is wrong for level %d" % s.rated_level)
-		var targeted := false
-		var low := 1000
-		for i in 60:
-			await _wait(30)
-			wall.tick(lvl, 0.5)
-			targeted = targeted or s._wall_target != null
-			for b: WallBrick in wall.bricks.values():
-				low = mini(low, b.hp)
-		var touched := low < WallBrick.MAX_HP
-		print("level %d: besieges=%s targeted=%s wall_touched=%s" % [s.rated_level, expect, targeted, touched])
-		if not expect and (targeted or touched):
+		# The three ways a slime picks the wall: scouting it, and being aimed at it
+		# when it cannot reach what it hunts.
+		s._wall_target = null
+		var scouted: bool = s._scout_wall(false, 2.0)
+		var scouted_target: bool = s._wall_target != null
+		s._wall_target = null
+		s._aim_at_wall(west.global_position + Vector3(8, 0, 0))
+		s._siege_wall_for(west.global_position + Vector3(8, 0, 0))
+		var aimed: bool = s._wall_target != null
+		print("level %d: besieges=%s scouted=%s aimed=%s" % [s.rated_level, expect, scouted, aimed])
+		if expect and not (scouted and scouted_target):
+			failures += 1
+			print("FAIL: a level %d slime does not scout the wall" % s.rated_level)
+		if not expect and (scouted or scouted_target or aimed):
 			failures += 1
 			print("FAIL: a level %d slime went for the wall" % s.rated_level)
-		if expect and not touched:
-			failures += 1
-			print("FAIL: a level %d slime left the wall alone" % s.rated_level)
+		if not expect:
+			# And left alone for a while, it does the wall no harm.
+			s._wall_target = null
+			var low := 1000
+			for i in 20:
+				await _wait(30)
+				wall.tick(lvl, 0.5)
+				for b: WallBrick in wall.bricks.values():
+					low = mini(low, b.hp)
+			if low < WallBrick.MAX_HP or s._wall_target != null:
+				failures += 1
+				print("FAIL: a level %d slime hurt the wall" % s.rated_level)
 		if is_instance_valid(s):
 			s.dead = true
 	game.delete_save(game.save_path())

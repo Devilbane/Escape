@@ -2517,6 +2517,20 @@ func _build_forge(cell: Vector2i) -> void:
 	light.omni_attenuation = 1.4
 	light.position = coals + Vector3(0, 0.8, 0.6)
 	add_child(light)
+	# Embers lift off the coals.
+	var embers := Effects.make_forge_embers()
+	_fixed_seed(embers, 1)
+	embers.position = coals + Vector3(0, 0.1, 0)
+	add_child(embers)
+	# A fire in the chimney: a flickering glowing mouth and a small flame on
+	# top of the stack, and the same thin smoke the houses' chimneys give.
+	var top := coals + Vector3(0, 2.52, -0.42)
+	_chimney_fire(top)
+	var plume := ChimneySmoke.make()
+	plume.position = top + Vector3(0, 0.25, 0)
+	_fixed_seed(plume, 3)
+	add_child(plume)
+	ChimneySmoke.light(plume, true, true)
 	_add_solid(pos, Vector3(3.2, 1.2, 3.0))
 	astar.set_point_solid(cell, true)
 	var board := Effects.shop_sign(Lang.t("Schmiede"), preload("res://assets/fonts/Cinzel-Bold.woff2"), "anvil")
@@ -2524,6 +2538,43 @@ func _build_forge(cell: Vector2i) -> void:
 	board.position = pos + Vector3(-1.5, 0, 1.6)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))
+
+
+## Gives a particle effect its own fixed random seed. Particles otherwise draw their
+## seed from the global random stream, so adding one would shift every roll made
+## after it (and the headless tests that depend on them).
+func _fixed_seed(p: CPUParticles3D, seed_value: int) -> void:
+	p.use_fixed_seed = true
+	p.seed = seed_value
+
+
+## The glow of the forge's fire in its chimney: an emissive mouth on the top
+## of the stack that flickers, with a small flame over it (`top` is the middle
+## of the stack's top). One material tween, no real light.
+func _chimney_fire(top: Vector3) -> void:
+	var mouth := MeshInstance3D.new()
+	var slab := BoxMesh.new()
+	slab.size = Vector3(0.55, 0.03, 0.3)
+	mouth.mesh = slab
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.3, 0.06, 0.02)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.45, 0.1)
+	mat.emission_energy_multiplier = 2.0
+	mouth.material_override = mat
+	mouth.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mouth.position = top + Vector3(0, 0.07, 0)
+	add_child(mouth)
+	var flame := Effects.make_flame()
+	flame.position = top + Vector3(0, 0.1, 0)
+	flame.scale = Vector3.ONE * 0.8
+	_fixed_seed(flame, 2)
+	add_child(flame)
+	var tween := mouth.create_tween().set_loops()
+	tween.tween_property(mat, "emission_energy_multiplier", 3.0, 0.35)
+	tween.tween_property(mat, "emission_energy_multiplier", 1.6, 0.5)
+	tween.tween_property(mat, "emission_energy_multiplier", 2.5, 0.25)
+	tween.tween_property(mat, "emission_energy_multiplier", 1.9, 0.4)
 
 
 ## The smith's anvil on his own tile, between him and his forge (`face`

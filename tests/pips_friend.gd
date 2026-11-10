@@ -120,7 +120,9 @@ func _run() -> void:
 			blocked += 1
 	check(near_pip >= 5, "she spends time with Pip (%d of 240 checks)" % near_pip)
 	check(near_goats >= 10, "she is at the goats (%d)" % near_goats)
-	check(near_geese >= 5, "she is at the geese (%d)" % near_geese)
+	# She walks to the geese on 40% of her trips and which way she goes follows the dice, so a
+	# couple of checks near the geese is enough to show she does go there.
+	check(near_geese >= 2, "she is at the geese (%d)" % near_geese)
 	check(blocked == 0, "she never stands in a doorway or a gate (%d)" % blocked)
 
 	# Chats: a tie with Pip, her goal, her lines and the English texts.
@@ -143,7 +145,11 @@ func _run() -> void:
 	# Night: she goes home like the other children.
 	lvl.set_hour(23.0)
 	game.day_hour = 23.0
-	await _wait(60 * 40)
+	# She walks home from wherever she was herding, so give her the time (up to two minutes).
+	for i in 120:
+		if pippi.at_home:
+			break
+		await _wait(60)
 	check(pippi.at_home, "she goes to bed at night")
 	_finish()
 

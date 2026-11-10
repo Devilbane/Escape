@@ -60,6 +60,8 @@ const BLOB_LIFE := 7.5
 const MEAL_PACE := 0.05
 const MOVE_PACE_TOP := 1.5
 const STRIKE_PACE_TOP := 2.0
+## The level from which a slime eats into the village wall.
+const WALL_LEVEL := 20
 ## How many levels above itself a slime still dares to hunt.
 const PREY_MARGIN := 2
 ## How many levels smaller another slime must be to look like food.
@@ -124,6 +126,12 @@ const LEARN := "Schleime wachsen: Ein Schleim fällt über jedes Wesen her, das 
 
 static func grows(kind: String) -> bool:
 	return kind in GROWERS
+
+
+## Whether this slime is big enough to eat into the village wall: a slime of
+## WALL_LEVEL or more. Smaller ones ignore the wall (no approach, no damage).
+static func can_besiege(slime: Enemy) -> bool:
+	return grows(slime.kind) and slime.rated_level >= WALL_LEVEL
 
 
 ## Whether a slime would make a meal of this one at all: not a ghost (no

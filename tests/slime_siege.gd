@@ -1,5 +1,5 @@
 extends SceneTree
-## Every slime of level 15 or more (slimes reach that in play by eating corpses, monsters and villagers) outside the village wall eats into it (see VillageWall.siege_brick,
+## Every slime of level 20 or more (SlimeGrowth.WALL_LEVEL; slimes reach that in play by eating corpses, monsters and villagers) outside the village wall eats into it (see VillageWall.siege_brick,
 ## Enemy._scout_wall), with nobody to hunt: slimes of every level, left to the
 ## wall's defenders, must break through in at least one attempt of three, and
 ## each of them must at least leave a mark on the wall.
@@ -40,7 +40,7 @@ func _run() -> void:
 	var wall: VillageWall = lvl.village_wall
 	lvl.night = false
 	lvl.player.global_position = Vector3(160, 0, 160)
-	var levels := [15, 18, 22, 26]
+	var levels := [20, 22, 25]
 	var west: WallBrick = wall.brick_at(Vector2i(37, 27))
 	var wins := 0
 	var tries := 0
@@ -139,7 +139,7 @@ func _villager_behind_wall(lvl: Outdoor, wall: VillageWall, west: WallBrick) -> 
 			e.global_position = Vector3(0, -50, 0)
 	var v: Villager = lvl.villagers[0]
 	var s := lvl.spawn_slime("schleim", west.global_position + Vector3(-6, 0, 0), {})
-	s.rated_level = Enemy.fit_level(s.kind, s._stats, s.hardening, 18, 25)
+	s.rated_level = Enemy.fit_level(s.kind, s._stats, s.hardening, SlimeGrowth.WALL_LEVEL, 25)
 	v.global_position = west.global_position + Vector3(4, 0, 0)
 	v._start("idle", 600.0)
 	if SlimeGrowth.can_walk_to(s, v):

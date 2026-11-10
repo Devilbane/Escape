@@ -148,10 +148,8 @@ func _ready() -> void:
 		match kind:
 			"goose":
 				_build_goose()
-			"goat", "billy":
-				_build_goat()
 			_:
-				_build_sheep()
+				_build_goat()
 	if kind == "billy":
 		_bubble = SpeechBubble.new()
 		_bubble.position.y = 2.3

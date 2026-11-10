@@ -350,6 +350,9 @@ const GUILD_WINDOW_ROOM := 2.6
 const STONE_IVY := 14
 ## The windmill (stone foot, wooden body) wears as many leaves per square metre as the other stone buildings.
 const MILL_IVY := 30
+## The bank's tower wears branching ivy on every side (like the guild hall), clear of its door and windows.
+const BANK_IVY := 20
+const BANK_WINDOW_ROOM := 2.6
 const CASTLE_IVY := 48
 ## The castle's stones stand this far (metres) proud of their wall planes: its leaves are held out by that much.
 const CASTLE_PROUD := 0.3
@@ -1293,7 +1296,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for x in [-1.8, -0.9, 0.0, 0.9, 1.8]:
 				for z in [1.0, 0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
-			_dress_building(node, center, door_spots, 0.75, MILL_IVY if ch == "u" else STONE_IVY, true)
+			_dress_building(node, center, door_spots, 0.75, MILL_IVY if ch == "u" else (BANK_IVY if ch == "b" else STONE_IVY), true, 0.0, 0.0, BANK_WINDOW_ROOM if ch == "b" else 1.0, ch == "b")
 	if interiors.has(ch):
 		# Run into the door to go in.
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))

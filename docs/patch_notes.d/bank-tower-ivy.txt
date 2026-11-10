@@ -1,0 +1,1 @@
+- Ivy now climbs the bank's tower in branching vines, keeping clear of its door and windows.

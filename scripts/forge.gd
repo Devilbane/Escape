@@ -563,7 +563,7 @@ const FAIL_XP := 5.0
 ## For tests: when above 0, every forging rolls this (1 to 100). Not saved.
 static var rigged_roll := 0
 ## What the last forging was: {"roll": d100, "chance": percent, "success": bool,
-## "lost": metal bars lost on a failure}. Empty until something is forged.
+## "lost": metal bars lost on a failure, "gold": copper spent}. Empty until something is forged.
 static var last := {}
 
 
@@ -623,8 +623,45 @@ static func forge(game: Node, id: String, by_smith := false) -> String:
 		for _i in cost.ore:
 			p.bag.append(THUNDER_ORE)
 	p.train(FORGING, FORGE_XP if success else FAIL_XP, false)
-	last = {"roll": roll, "chance": percent, "success": success, "lost": lost_iron + lost_steel}
+	last = {"roll": roll, "chance": percent, "success": success, "lost": lost_iron + lost_steel, "gold": cost.gold}
 	return ""
+
+
+## The craft whose bench on the crafting square is the hero's own forge.
+const BENCH_CRAFT := "feinschmieden"
+
+
+## Why the hero cannot forge a piece by hand right now, or "" when they can
+## (a full bag counts).
+static func why_not_by_hand(game: Node, id: String) -> String:
+	var cost := forge_cost(id, game)
+	if craft_level(game, FORGING) < forge_level(id):
+		return Lang.t("Für Stahl brauchst du Schmiedekunst Stufe %d.") % forge_level(id)
+	if game.iron < cost.iron:
+		return Lang.t("Dafür hast du zu wenig Eisen.")
+	if int(game.bars.get(STEEL, 0)) < cost.steel:
+		return Lang.t("Dafür hast du zu wenig Stahl.")
+	if game.coins < cost.gold:
+		return Lang.t("Dafür reicht dein Kupfer nicht.")
+	if game.player.bag.count(THUNDER_ORE) < cost.ore:
+		return Lang.t("Dafür hast du zu wenig Donnererz. Es glimmt nur bei Gewitter neben den Felsen.")
+	if not game.player.bag_fits(id):
+		return Lang.t("Deine Tasche ist voll.")
+	return ""
+
+
+## The chance and the price of failure, for a piece's row at the bench.
+static func odds_text(game: Node, id: String) -> String:
+	var cost := forge_cost(id, game)
+	return Lang.t("Chance: %d %%. Misslingt es: %d Barren verloren, %d Kupfer ausgegeben.") % [chance(game), ceili(cost.iron / 2.0) + ceili(cost.steel / 2.0), cost.gold]
+
+
+## What the hero is told after forging by hand (see `last`).
+static func result_text(id: String) -> String:
+	var roll := "%d / %d %%" % [int(last.roll), int(last.chance)]
+	if last.success:
+		return Lang.t("Geschmiedet: %s (%s). Wurf %s, gelungen.") % [Items.item_name(id), Items.describe(id), roll]
+	return Lang.t("Misslungen: %s. Wurf %s. %d Barren und %d Kupfer sind verloren.") % [Items.item_name(id), roll, int(last.lost), int(last.gold)]
 
 
 ## Mends a piece as far as the gold goes. Returns "" on success, else why not.

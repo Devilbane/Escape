@@ -1,0 +1,1 @@
+- You can now forge weapons and armour yourself at the fine metalwork bench on the crafting square; it can fail (see the chance on each piece), costing half the bars and the copper.

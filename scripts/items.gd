@@ -158,9 +158,10 @@ static var ALL := {
 	# the top of a kind, see merchant_sells).
 	"reiserucksack": {"name": "Reiserucksack", "slot": "rucksack", "bag": 20, "weight": 2.5, "price": 95, "model": "res://assets/village/sack.gltf", "model_scale": 8.0, "material": "leather"},
 	# The epic one: 24 places, made from a recipe (see Crafting "tornister") whose
-	# scroll is epic loot (see "tornisterschnitt"). Not "crafted", so it keeps its epic
-	# colour; "no_loot" keeps the finished pack off the merchants' shelves and out of the loot.
-	"tornister": {"name": "Schuppentornister", "slot": "rucksack", "bag": 24, "weight": 3, "price": 180, "no_loot": true, "model": "res://assets/village/sack.gltf", "model_scale": 9.0, "tint": Color(0.8, 0.25, 0.15), "material": "scale"},
+	# scroll is epic loot (see "tornisterschnitt"). A "crafted" piece that keeps its epic
+	# colour ("keeps_tier" overrides the self-made tier, see Rarity.tier); "crafted" keeps it out of
+	# the merchants' top-tier check, and "no_loot" off their shelves and out of the loot.
+	"tornister": {"name": "Schuppentornister", "slot": "rucksack", "bag": 24, "weight": 3, "price": 180, "no_loot": true, "crafted": true, "keeps_tier": true, "model": "res://assets/village/sack.gltf", "model_scale": 9.0, "tint": Color(0.8, 0.25, 0.15), "material": "scale"},
 	# A recipe scroll: carried, not worn. Reading it ("Lesen" in the inventory) teaches the
 	# recipe named by "recipe" and uses the scroll up (see Crafting.read_scroll).
 	"tornisterschnitt": {"name": "Schnittmuster: Schuppentornister", "slot": "rolle", "recipe": "tornister", "weight": 0.1, "price": 150, "effect": "Eine Schriftrolle mit dem Rezept für den Schuppentornister, den größten Rucksack. Im Inventar lesen, dann am Werktisch des Feinschmieds fertigen"},

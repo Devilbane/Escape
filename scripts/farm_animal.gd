@@ -89,6 +89,9 @@ const ACTIVE_RANGE := 100.0
 const HIDE_RANGE := 80.0
 ## How far a body drops when it lies down (its legs' length), per kind.
 const LEG := {"goose": 0.22}
+## Where a goose's wing joins its body (right side; the left mirrors x). The body is an
+## ellipsoid of radii (0.18, 0.17, 0.31) around (0, 0.36, 0); this point lies inside it.
+const WING_SHOULDER := Vector3(0.13, 0.46, 0.0)
 
 static var _meshes := {}
 static var _mats := {}
@@ -676,9 +679,10 @@ func _build_goose() -> void:
 	_part(top, "ball", eye, Vector3(0.05, 0.02, 0.04), Vector3(0.03, 0.03, 0.03))
 	_part(top, "ball", eye, Vector3(-0.05, 0.02, 0.04), Vector3(0.03, 0.03, 0.03))
 	# Wings folded along the sides; they open when the goose bolts.
+	# The shoulder sits just inside the body's surface, so the wing stays joined when it flaps.
 	for side in [1.0, -1.0]:
-		var w := _pivot(_rig, Vector3(side * 0.17, 0.46, 0.0))
-		_part(w, "ball", grey, Vector3(side * 0.06, -0.06, -0.04), Vector3(0.1, 0.24, 0.46))
+		var w := _pivot(_rig, Vector3(side * WING_SHOULDER.x, WING_SHOULDER.y, WING_SHOULDER.z))
+		_part(w, "ball", grey, Vector3(side * 0.04, -0.06, -0.04), Vector3(0.1, 0.24, 0.46))
 		_wings.append(w)
 	for side in [1.0, -1.0]:
 		_leg(Vector3(side * 0.08, 0.26, 0.02), 0.24, 0.035, orange, orange)

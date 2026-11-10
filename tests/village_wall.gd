@@ -274,6 +274,26 @@ func _run() -> void:
 	lvl.night = false
 	mason.set_night(false)
 
+	# The woodcutter lends a hand by day, on a different brick from the mason's.
+	var cutter: Villager = null
+	for v in lvl.villagers:
+		if v.role == "3":
+			cutter = v
+	check(cutter != null, "the village has a woodcutter")
+	cutter._start("idle", 5.0)
+	mason._start("idle", 5.0)
+	lvl.day += 1
+	brick.hurt(300)
+	west.hurt(100)
+	check(cutter.can_mend(), "the woodcutter is free to mend the wall by day")
+	wall.tick(lvl, 1.1)
+	check(mason.mend_brick != null and cutter.mend_brick != null, "mason and woodcutter both go to the wall")
+	check(mason.mend_brick != cutter.mend_brick, "they take different bricks")
+	cutter._finish_mending()
+	mason._finish_mending()
+	for b: WallBrick in wall.bricks.values():
+		b.mend(float(WallBrick.MAX_HP))
+
 	# A slime near the wall keeps him from it.
 	west.hurt(100)
 	var slime3 := _slime(lvl, west.global_position + Vector3(-8, 0, 0))

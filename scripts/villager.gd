@@ -487,17 +487,18 @@ func _start(task: String, time: float) -> void:
 
 # --- Mending the village wall -------------------------------------------------
 
-## The brick of the village wall the stonemason is on his way to or mending.
+## The brick of the village wall the stonemason (or the woodcutter, who lends a hand) is on his way to or mending.
 var mend_brick: WallBrick = null
 
 
-## Whether the stonemason is free to see to the wall: out at his work or just
+## Whether the villager is free to see to the wall: out at his work or just
 ## standing about, not running from a slime or listening to the herald.
+## The stonemason and the woodcutter mend; only the mason is called out of bed.
 func can_mend() -> bool:
-	if role != "S" or eaten or threat != null:
+	if not role in VillageWall.MENDERS or eaten or threat != null:
 		return false
-	# Asleep at night he is called out for a hurt wall (see works_late).
-	if (at_home or not visible) and not (night and at_home and level.village_wall.job(level) != null):
+	# Asleep at night the mason is called out for a hurt wall (see works_late).
+	if (at_home or not visible) and not (role == "S" and night and at_home and level.village_wall.job(level) != null):
 		return false
 	if mend_brick != null and _task in ["walk", "mend"]:
 		return false
@@ -541,7 +542,11 @@ func _mend(delta: float) -> void:
 ## The brick is whole (or the work cannot go on): the next hurt brick, else back to his stand.
 func _finish_mending() -> void:
 	mend_brick = null
-	var next := level.village_wall.job(level)
+	var taken: Array[WallBrick] = []
+	for v: Villager in level.villagers:
+		if v != self and v.mend_brick != null and is_instance_valid(v.mend_brick):
+			taken.append(v.mend_brick)
+	var next := level.village_wall.job(level, taken)
 	if next != null and can_mend_next():
 		mend(next)
 	else:

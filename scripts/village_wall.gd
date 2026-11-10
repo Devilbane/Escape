@@ -16,6 +16,7 @@ extends RefCounted
 ## stonemason (Villager "S") walks to the hurt bricks, one by one, and
 ## builds them up again, MEND_PER_SECOND HP a second, as long as no slime
 ## is about. There is no limit to his work: he mends as long as a brick is hurt.
+## The woodcutter (Villager "3") lends him a hand by day, on a different brick.
 
 const CHECK_EVERY := 1.0
 ## How near to a gate a slime sets the villagers shutting it (metres).
@@ -26,6 +27,8 @@ const ACID := 24
 ## The stonemason's work: HP built up per second, and how near a slime
 ## may be (metres) before he leaves the wall alone.
 const MEND_PER_SECOND := 4.0
+## The villagers (roles) who mend the wall.
+const MENDERS := ["S", "3"]
 const MEND_SAFE := 24.0
 ## Nobody stands within this distance of a gate that is about to shut (metres).
 const GATE_ROOM := 2.0
@@ -351,24 +354,32 @@ func gnaw(o: Outdoor, brick: WallBrick, slime_damage: int) -> bool:
 
 ## Sends the stonemason to the worst hurt brick, when he is free and it is safe.
 func _send_mason(o: Outdoor) -> void:
-	var work := job(o)
-	if work == null:
-		return
+	var taken: Array[WallBrick] = []
 	for v in o.villagers:
-		if v.role == "S":
+		if v.role in MENDERS and v.mend_brick != null and is_instance_valid(v.mend_brick):
+			taken.append(v.mend_brick)
+	for role in MENDERS:
+		for v in o.villagers:
+			if v.role != role:
+				continue
 			if v.can_mend():
+				var work := job(o, taken)
+				if work == null:
+					return
 				v.mend(work)
-			return
+				taken.append(work)
+			break
 
 
 ## The brick the mason mends next: the worst hurt one that is safe to work on.
 ## Null when there is none, or while the gates are shut (a slime is near).
-func job(o: Outdoor) -> WallBrick:
+## Bricks in `taken` are already being mended by somebody else.
+func job(o: Outdoor, taken: Array[WallBrick] = []) -> WallBrick:
 	if shut_wanted or o.village_alarm.raised:
 		return null
 	var best: WallBrick = null
 	for b: WallBrick in bricks.values():
-		if not b.is_damaged() or slime_near(o, b.global_position, MEND_SAFE):
+		if not b.is_damaged() or b in taken or slime_near(o, b.global_position, MEND_SAFE):
 			continue
 		if best == null or b.hp < best.hp:
 			best = b

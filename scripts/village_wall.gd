@@ -27,6 +27,8 @@ const ACID := 24
 ## The stonemason's work: HP built up per second, and how near a slime
 ## may be (metres) before he leaves the wall alone.
 const MEND_PER_SECOND := 4.0
+## While the woodcutter and the mason both work on the wall, the work goes this much faster.
+const TEAM_PACE := 1.5
 ## The villagers (roles) who mend the wall.
 const MENDERS := ["S", "3"]
 const MEND_SAFE := 24.0
@@ -369,6 +371,14 @@ func _send_mason(o: Outdoor) -> void:
 				v.mend(work)
 				taken.append(work)
 			break
+
+
+## How fast `who` builds: TEAM_PACE while another mender is at the wall too, else 1.
+func pace(o: Outdoor, who: Villager) -> float:
+	for v in o.villagers:
+		if v != who and v.role in MENDERS and v.mend_brick != null and v._task == "mend":
+			return TEAM_PACE
+	return 1.0
 
 
 ## The brick a mender takes next: one nobody else is on, else (for the mason, who

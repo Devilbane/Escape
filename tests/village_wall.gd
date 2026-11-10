@@ -301,6 +301,13 @@ func _run() -> void:
 	wall.tick(lvl, 1.1)
 	check(mason.mend_brick != null and cutter.mend_brick != null, "mason and woodcutter both go to the wall")
 	check(mason.mend_brick != cutter.mend_brick, "they take different bricks")
+	# Together they build 50% faster than a mason alone.
+	check(wall.pace(lvl, mason) == 1.0, "nobody works beside the mason yet (they are still walking)")
+	mason._task = "mend"
+	cutter._task = "mend"
+	check(is_equal_approx(wall.pace(lvl, mason), 1.5) and is_equal_approx(wall.pace(lvl, cutter), 1.5), "the mason and the woodcutter mend 50% faster together")
+	cutter._task = "idle"
+	check(wall.pace(lvl, mason) == 1.0, "the mason alone mends at the normal pace")
 	cutter._finish_mending()
 	mason._finish_mending()
 	for b: WallBrick in wall.bricks.values():

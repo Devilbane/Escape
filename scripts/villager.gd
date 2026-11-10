@@ -487,7 +487,7 @@ func _start(task: String, time: float) -> void:
 
 # --- Mending the village wall -------------------------------------------------
 
-## The brick of the village wall the stonemason (or the woodcutter, who lends a hand) is on his way to or mending.
+## The brick of the village wall the stonemason (or the woodcutter, who lends a hand, 50% faster together) is on his way to or mending.
 var mend_brick: WallBrick = null
 
 
@@ -545,7 +545,7 @@ func _mend(delta: float) -> void:
 		get_tree().create_timer(0.45).timeout.connect(func():
 			if is_inside_tree() and _task == "mend":
 				Sfx.play(self, "step_scree_%d" % _rng.randi_range(0, 5), -17.0, global_position, 1.5))
-	if brick.mend(VillageWall.MEND_PER_SECOND * delta):
+	if brick.mend(VillageWall.MEND_PER_SECOND * wall.pace(level, self) * delta):
 		_finish_mending()
 
 

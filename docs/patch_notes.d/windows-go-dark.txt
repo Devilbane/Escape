@@ -1,0 +1,1 @@
+- Window lights in the village now go out one by one between 20:00 and 23:00, together with their pools of light on the ground, until every house is dark. The temple stays lit all night.

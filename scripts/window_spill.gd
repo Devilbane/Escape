@@ -4,7 +4,8 @@ extends RefCounted
 ## additive pool per pane, all of a house in a single mesh and all houses
 ## sharing one material. The material's "glow" parameter is driven by the
 ## village at night, just like the glass itself, so the pools are off by day
-## and while the panes are dark. Fog is off for them: an additive quad would
+## and while the panes are dark, and each pool goes out with its own pane
+## (see WindowLights). Fog is off for them: an additive quad would
 ## otherwise add the fog colour over its whole rectangle, even where the pool
 ## itself is black, and show as a flat white band on foggy days.
 
@@ -23,12 +24,17 @@ render_mode blend_add, unshaded, fog_disabled, depth_draw_never, cull_disabled, 
 uniform vec3 colour : source_color = vec3(1.0, 0.7, 0.36);
 uniform float glow = 0.0;
 uniform float scale = 1.0;
+varying vec2 key;
+""" + WindowLights.LIT_FUNCTION + """
+void vertex() {
+	key = UV2 + MODEL_MATRIX[3].xz;
+}
 void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
 	float d = clamp(1.0 - dot(p, p), 0.0, 1.0);
 	// Brightest next to the wall (UV.y = 0), fading away from it.
 	float along = 1.0 - UV.y * 0.6;
-	ALBEDO = colour * d * d * along * COLOR.a * glow / scale * 0.16;
+	ALBEDO = colour * d * d * along * COLOR.a * glow * window_lit(key) / scale * 0.16;
 }
 """
 
@@ -54,6 +60,7 @@ static func attach(house: Node3D, mat: Material) -> void:
 		return
 	var verts := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	var keys := PackedVector2Array()
 	var cols := PackedColorArray()
 	for i in panes.size():
 		var at: Vector3 = panes[i]
@@ -71,11 +78,13 @@ static func attach(house: Node3D, mat: Material) -> void:
 		for k: int in [0, 1, 2, 0, 2, 3]:
 			verts.append(quad[k])
 			uvs.append(quv[k])
+			keys.append(WindowLights.key(at))
 			cols.append(Color(1, 1, 1, strength))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = keys
 	arrays[Mesh.ARRAY_COLOR] = cols
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

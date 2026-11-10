@@ -3,9 +3,13 @@ the stone steps, recorded by Fantozzi (freesound.org/people/Fantozzi),
 https://opengameart.org/content/fantozzis-footsteps-grasssand-stone
 License: CC0 (public domain).
 The steps on sand and soil from the same pack (step_dirt_0 to step_dirt_5)
-are the paths, dirt floors and soil. The steps on grass, scree and wooden
-floors (step_grass_*, step_scree_*, step_wood_*) are made from these
-recordings by tools/make_ground_steps.py.
+are the dirt floors (a dungeon's trodden earth).
+
+The steps on grass, scree, wooden floors, paving, paths and fields (step_grass_*,
+step_scree_*, step_wood_*, step_paving_*, step_path_*, step_soil_*) are single steps
+cut from "Footsteps Sound Effects" by soundza (soundza.com): grass, gravel, wood,
+pavement, dirt and mud recordings, faded at the ends and levelled to match the other
+footsteps by tools/make_soundza_steps.py.
 
 Sneaking steps (sneak_0 to sneak_3): the cloth steps from
 "Footsteps Leather, Cloth, Armor",

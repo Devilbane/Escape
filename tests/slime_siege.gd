@@ -1,8 +1,8 @@
 extends SceneTree
 ## Every slime of level 20 or more (SlimeGrowth.WALL_LEVEL; slimes reach that in play by eating corpses, monsters and villagers) outside the village wall eats into it (see VillageWall.siege_brick,
 ## Enemy._scout_wall), with nobody to hunt: slimes of every level, left to the
-## wall's defenders, must break through in at least one attempt of three, and
-## each of them must at least leave a mark on the wall.
+## wall's defenders (it now takes them longer: slimes do 80% less damage to stone),
+## must each at least leave a mark on the wall.
 ## Run with: godot --headless --fixed-fps 60 -s tests/slime_siege.gd
 
 var game: Node
@@ -83,9 +83,9 @@ func _run() -> void:
 			if is_instance_valid(s):
 				s.dead = true
 	print("slimes that broke the wall: %d of %d" % [wins, tries])
-	if wins * 3 < tries:
-		failures += 1
-		print("FAIL: fewer than one attempt in three broke the wall")
+	# Slimes do only 20% of their old damage to stone (VillageWall.WALL_RESIST), so
+	# the defenders now usually win: what must hold is that every slime marks the
+	# wall (checked above) and that the wall's best brick is hurt, not that it falls.
 	await _villager_first(lvl, wall, west)
 	await _villager_behind_wall(lvl, wall, west)
 	game.delete_save(game.save_path())

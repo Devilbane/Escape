@@ -24,7 +24,7 @@ extends Node3D
 ##
 ## At night they settle down: legs tucked, head folded away.
 ##
-## The bodies are built from a few primitive shapes, which share their meshes
+## The goats and geese are built from a few primitive shapes, which share their meshes
 ## and materials, so the whole herd costs little. Only bodies near the hero move
 ## and animate, and the ones far from the camera are hidden.
 
@@ -35,7 +35,7 @@ extends Node3D
 const KINDS := {
 	"goose": {"name": "goose", "shy": 4.5, "walk": 0.9, "run": 4.2, "roam": 3, "stride": 0.55, "scale": 1.15},
 	"goat": {"name": "goat", "shy": 4.0, "walk": 1.1, "run": 5.0, "roam": 4, "stride": 0.8, "scale": 1.0},
-	"sheep": {"name": "sheep", "shy": 4.0, "walk": 1.0, "run": 4.5, "roam": 3, "stride": 0.7, "scale": 1.0},
+	"sheep": {"name": "sheep", "shy": 4.0, "walk": 0.75, "run": 4.0, "roam": 3, "stride": 0.7, "scale": 1.0},
 	# Never shy: it picks fights instead (see the BILLY constants).
 	"billy": {"name": "red-horned goat", "shy": 0.0, "walk": 1.2, "run": 5.0, "roam": 4, "stride": 0.8, "scale": 1.12},
 	# The ones with a model of their own (see MODELS): the legs keep pace through Stride.
@@ -50,6 +50,8 @@ const MODELS := {
 	"dog": {"": ["ShibaInu", 0.26], "black": ["Husky", 0.3]},
 	"cow": {"": ["Cow", 0.3]},
 	"bull": {"": ["Bull", 0.32]},
+	# The alpaca, stockier and shorter in the leg (a Vector3 scales each axis): see _fleece.
+	"sheep": {"": ["Alpaca", Vector3(0.3, 0.19, 0.28)]},
 }
 ## A sneaking hero is noticed only this much closer.
 const SNEAK_FACTOR := 0.5
@@ -87,6 +89,7 @@ const LEG := {"goose": 0.22, "goat": 0.36, "billy": 0.36, "sheep": 0.3}
 
 static var _meshes := {}
 static var _mats := {}
+static var _sheep_mats := {}
 
 var level: Outdoor
 var kind := "goose"
@@ -569,7 +572,7 @@ func _pace(anim: String, speed: float) -> float:
 	if _anim == null:
 		return speed
 	var rig := Stride.rig_of(_model_name)
-	var size := _rig.scale.x
+	var size := _rig.scale.z
 	var moved := minf(speed, Stride.top_speed(rig, anim, size)) if anim == "Walk" else speed
 	_play(anim, Stride.playback(rig, anim, size, moved))
 	return moved
@@ -718,30 +721,55 @@ func _build_model() -> void:
 	_model_name = pick[0]
 	var model: Node3D = load("res://assets/animals/%s.glb" % _model_name).instantiate()
 	_rig.add_child(model)
-	_rig.scale = Vector3.ONE * float(pick[1])
+	var model_scale: Variant = pick[1]
+	_rig.scale = model_scale if model_scale is Vector3 else Vector3.ONE * float(model_scale)
+	if kind == "sheep":
+		_fleece(model)
 	_anim = model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walk", "Gallop", "Eating"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	_play("Idle", 1.0)
 
 
-## A sheep: a round, woolly body, a dark face and dark legs.
-func _build_sheep() -> void:
-	var wool := Color(0.93, 0.9, 0.82)
-	var dark := Color(0.2, 0.17, 0.15)
-	_part(_rig, "ball", wool, Vector3(0, 0.62, 0), Vector3(0.62, 0.52, 0.92))
-	_part(_rig, "ball", wool, Vector3(0.14, 0.72, -0.18), Vector3(0.42, 0.38, 0.5))
-	_part(_rig, "ball", wool, Vector3(-0.14, 0.72, 0.16), Vector3(0.42, 0.38, 0.5))
-	_tail = _pivot(_rig, Vector3(0, 0.66, -0.46))
-	_part(_tail, "ball", wool, Vector3(0, 0, -0.04), Vector3(0.16, 0.16, 0.16))
-	_head = _pivot(_rig, Vector3(0, 0.72, 0.4))
-	_part(_head, "stick", dark, Vector3(0, 0.08, 0.07), Vector3(0.13, 0.22, 0.13), Vector3(0.5, 0, 0))
-	var skull := _pivot(_head, Vector3(0, 0.2, 0.15))
-	_part(skull, "ball", dark, Vector3.ZERO, Vector3(0.2, 0.22, 0.28))
-	_part(skull, "ball", wool, Vector3(0, 0.12, -0.04), Vector3(0.2, 0.1, 0.16))
-	for side in [1.0, -1.0]:
-		_part(skull, "box", dark, Vector3(side * 0.13, 0.02, -0.04), Vector3(0.13, 0.04, 0.08), Vector3(0, 0, side * -0.3))
-		_part(skull, "ball", Color(0.9, 0.9, 0.85), Vector3(side * 0.08, 0.05, 0.1), Vector3(0.035, 0.035, 0.035))
-	for lx in [0.15, -0.15]:
-		for lz in [0.3, -0.3]:
-			_leg(Vector3(lx, 0.4, lz), 0.4, 0.07, dark, dark)
+## A sheep is the pack's alpaca made woolly. The model file has a puffed-up fleece
+## (clumpy and cream, with dark stockings; its vertex colours carry the clumps), and
+## here it gets the fleece material, a dark face and dark hooves. The materials are
+## built once and shared by the whole flock.
+func _fleece(model: Node3D) -> void:
+	if _sheep_mats.is_empty():
+		var wool := StandardMaterial3D.new()
+		wool.vertex_color_use_as_albedo = true
+		wool.albedo_texture = _fleece_texture()
+		wool.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		wool.uv1_triplanar = true
+		wool.uv1_scale = Vector3.ONE * 1.6
+		wool.roughness = 1.0
+		wool.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_sheep_mats["Main"] = wool
+		_sheep_mats["Main_Light"] = wool
+		_sheep_mats["Main_Dark"] = _mat(Color(0.19, 0.15, 0.12))
+		_sheep_mats["Hooves"] = _mat(Color(0.09, 0.07, 0.06))
+		_sheep_mats["Muzzle"] = _mat(Color(0.1, 0.08, 0.07))
+	for node in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		for s in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(s)
+			if m != null and _sheep_mats.has(m.resource_name):
+				mi.set_surface_override_material(s, _sheep_mats[m.resource_name])
+
+
+## A small tiling texture of soft clumps, light and dark, for the fleece.
+static func _fleece_texture() -> ImageTexture:
+	var noise := FastNoiseLite.new()
+	noise.noise_type = FastNoiseLite.TYPE_CELLULAR
+	noise.cellular_return_type = FastNoiseLite.RETURN_DISTANCE
+	noise.frequency = 0.09
+	noise.seed = 11
+	var src := noise.get_seamless_image(64, 64)
+	var img := Image.create(64, 64, false, Image.FORMAT_RGB8)
+	for y in 64:
+		for x in 64:
+			var v := 0.7 + 0.3 * (1.0 - src.get_pixel(x, y).r)
+			img.set_pixel(x, y, Color(v, v, v * 0.97))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)

@@ -12,3 +12,7 @@ http://creativecommons.org/publicdomain/zero/1.0/
 The models were converted from glTF to binary glTF (.glb) for the game and
 only the animations it plays were kept (Idle, Walk, Gallop, Eating).
 Nothing else was changed.
+
+Alpaca.glb additionally has a puffed-up, clumpy fleece (the torso and neck were
+pushed outwards a little and given cream vertex colours with dark stockings) so
+that it can serve as the village sheep. Its other animations were kept.

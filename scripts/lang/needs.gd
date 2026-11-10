@@ -13,6 +13,5 @@ const EN := {
 	"%s Stufe": "%s level",
 	"Gorm hat %d fertig, zum Kaufen unten": "Gorm has %d ready, to buy below",
 	"Gorm hat ein paar fertige Stücke im Regal. Du kannst sie kaufen, statt sie selbst zu schmieden. Jeden Morgen legt er ein paar nach.": "Gorm has a few finished pieces on the shelf. You can buy them instead of forging them yourself. Every morning he adds a few.",
-	"Geschmiedet: %s (%s)": "Forged: %s (%s)",
 	"Gorm schmiedet es dir sicher, ohne Fehlschlag.": "Gorm forges it for you with no risk of failure.",
 }

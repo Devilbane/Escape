@@ -236,6 +236,9 @@ func _physics_process(delta: float) -> void:
 		_alarm_flock(hero.global_position)
 	if kind == "dog" and alive and state != "flee":
 		_mind_hero(away.length())
+	# Day has come: whoever slept through the night gets up (the shy ones woke as the hero came near).
+	if _resting and not level.night:
+		_wake()
 	if _resting:
 		return
 	if kind == "billy" and alive and state in ["graze", "idle", "stroll"]:

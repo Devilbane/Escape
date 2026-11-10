@@ -1917,6 +1917,9 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		var stems: Array = leaves.get("stems", [])
 		for i in stems.size():
 			stems[i] = (stems[i] as Transform3D).translated(-offset)
+		var grapes: Array = leaves.get("grapes", [])
+		for i in grapes.size():
+			grapes[i] = (grapes[i] as Transform3D).translated(-offset)
 		var spot := Vector3.INF
 		if rng.randf() < nest_chance:
 			spot = AgedStone.nest_spot(tris, ground)
@@ -1930,6 +1933,12 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 			_ivy["stem_colours"] = []
 		_ivy.stems.append_array(done.leaves.stems)
 		_ivy.stem_colours.append_array(done.leaves.stem_colours)
+	if done.leaves.has("grapes"):
+		if not _ivy.has("grapes"):
+			_ivy["grapes"] = []
+			_ivy["grape_colours"] = []
+		_ivy.grapes.append_array(done.leaves.grapes)
+		_ivy.grape_colours.append_array(done.leaves.grape_colours)
 	if done.nest == Vector3.INF or nests.size() >= MAX_NESTS:
 		return
 	var nest := MeshInstance3D.new()

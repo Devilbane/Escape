@@ -2,6 +2,12 @@ extends RefCounted
 ## English texts: The smith's forge. Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
+	"Selbst schmieden": "Forge it yourself",
+	"Hier schmiedest du von Hand, was deine Schmiedekunst erlaubt. Es kann misslingen: Dann ist die Hälfte der Barren verloren und das Kupfer für die Arbeit ausgegeben. Gorm schmiedet dagegen immer sicher.": "Here you forge by hand whatever your Forging skill allows. It can fail: then half the bars are lost and the copper for the work is spent. Gorm, by contrast, always forges safely.",
+	"Alles da: du kannst es schmieden.": "Everything is here: you can forge it.",
+	"Chance: %d %%. Misslingt es: %d Barren verloren, %d Kupfer ausgegeben.": "Chance: %d%%. On a failure: %d bars lost, %d copper spent.",
+	"Geschmiedet: %s (%s). Wurf %s, gelungen.": "Forged: %s (%s). Roll %s, success.",
+	"Misslungen: %s. Wurf %s. %d Barren und %d Kupfer sind verloren.": "Failed: %s. Roll %s. %d bars and %d copper are lost.",
 	"Schmiede": "Smithy",
 	"Dagegenlaufen, um mit %s an der Esse zu arbeiten": "Walk into %s to work at the forge",
 	"Dein Kupfer: %d    Eisen: %d": "Your copper: %d    Iron: %d",

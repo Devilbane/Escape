@@ -8,7 +8,7 @@ extends Node
 ## Above ground, Game asks for the loops by where the hero stands (village,
 ## woods, beside the forge, the market, a campfire, the fields), the hour and the
 ## rain. Below ground, each floor has one loop by its setting (dungeon, cave,
-## mine, crystal, fire, ancient halls, the spire, the open Sternhall courtyard). The hero's own house has a quiet
+## mine, crystal, fire, ancient halls, the spire, the ruined Sternhall courtyard, which sounds like a cave and has no birds). The hero's own house has a quiet
 ## hearth fire and nothing else; other rooms and houses have none: there the old
 ## cave air (Game._ambience) keeps playing.
 
@@ -31,6 +31,10 @@ const LOOPS := {
 ## How strong the hearth's crackle is inside the hero's own house (0 to 1): a soft
 ## fire in the next corner, and the only sound there (the old cave air rests).
 const HOME_FIRE := 0.5
+## How much of the washy, echoing night-woods loop (Enchanted Forest, with its reverb baked in)
+## stays in the night woods (0 to 1). The rest is replaced by the drier daytime woods bed
+## (`amb_forest_deep`) so the night sounds less reverberant. Lower it for less reverb.
+const NIGHT_WOODS_REVERB := 0.7
 ## Words in a floor's name that make it a cave.
 const CAVE_NAMES := ["hoehle", "loch", "grotte", "tiefe", "nest"]
 
@@ -59,7 +63,7 @@ static func dungeon_loop(theme: String, walls: String, lair: bool, building: Str
 		"zinne":
 			return "amb_magic_0"
 		"sternhof":
-			return "amb_forest_deep"  # open sky over the ruins: wind and leaves, not a drone
+			return "amb_cave_%d" % (pick % 3)  # the ruined courtyard sounds like a cave: drips, low drone, echoes, no birds
 	if lair or walls in ["rock", "bone", "crystal", "obsidian"]:
 		return "amb_cave_%d" % (pick % 3)
 	for word in CAVE_NAMES:
@@ -79,9 +83,8 @@ static func outdoor_mix(village: bool, night: bool, near: Dictionary, rain: floa
 			mix["amb_townspeople"] = float(near.get("market", 0.0))
 		mix["amb_blacksmith"] = float(near.get("forge", 0.0)) * (0.0 if night else 1.0)
 	else:
-		mix["amb_forest_night" if night else "amb_forest_day"] = 1.0
-		if not night:
-			mix["amb_forest_deep"] = 0.4
+		mix["amb_forest_night" if night else "amb_forest_day"] = NIGHT_WOODS_REVERB if night else 1.0
+		mix["amb_forest_deep"] = (1.0 - NIGHT_WOODS_REVERB) * 0.5 if night else 0.4
 	mix["amb_farm"] = float(near.get("fields", 0.0)) * (0.0 if night else 1.0)
 	mix["amb_fire_camp"] = float(near.get("fire", 0.0))
 	if rain > 0.02:

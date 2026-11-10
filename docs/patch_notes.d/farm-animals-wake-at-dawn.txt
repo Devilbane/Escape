@@ -1,0 +1,1 @@
+- Fix the red-horned goat (and other farm animals) sleeping on after dawn: they now wake up in the morning.

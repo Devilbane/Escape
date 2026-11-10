@@ -24,6 +24,7 @@ func _initialize() -> void:
 		["", "", false, "", "die_zelle", "amb_dungeon_"],
 		["", "", false, "", "das_spinnenloch", "amb_cave_"],
 		["", "bone", false, "", "x", "amb_cave_"],
+		["sternhof", "", true, "stern1", "der_ruinenhof", "amb_cave_"],
 	]
 	for n in named:
 		var loop := Soundscape.dungeon_loop(n[0], n[1], n[2], n[3], n[4])

@@ -1860,6 +1860,19 @@ func _build_bench() -> void:
 		list.add_child(none)
 	for id in recipes:
 		list.add_child(_bench_row(id))
+	# The fine metalwork bench is where the hero forges by hand: every piece
+	# Gorm could forge, but with the d100 roll (see Forge.chance).
+	if bench == Forge.BENCH_CRAFT:
+		var head: Label = game._make_label(game.TEXT_FONT, 22, game.GOLD)
+		head.text = Lang.t("Selbst schmieden")
+		list.add_child(head)
+		var about: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+		about.text = Lang.t("Hier schmiedest du von Hand, was deine Schmiedekunst erlaubt. Es kann misslingen: Dann ist die Hälfte der Barren verloren und das Kupfer für die Arbeit ausgegeben. Gorm schmiedet dagegen immer sicher.")
+		about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		about.custom_minimum_size.x = BENCH_LIST_SIZE.x - 20
+		list.add_child(about)
+		for id in Forge.recipes():
+			list.add_child(_hand_forge_row(id))
 	_add_label(Lang.t("Deine Truhe und Gorms Esse stehen gleich nebenan."), 16, BLUE)
 
 
@@ -1916,6 +1929,70 @@ func _bench_row(id: String) -> Control:
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(button)
 	return row
+
+
+## One piece the hero can forge by hand at the fine metalwork bench: what it
+## takes (have / need), the chance of success, what a failure costs, and the
+## button. Rows keep one size whatever the state.
+func _hand_forge_row(id: String) -> Control:
+	var p: Player = game.player
+	var cost := Forge.forge_cost(id, game)
+	var level := Forge.craft_level(game, Forge.FORGING)
+	var need := Forge.forge_level(id)
+	var why := Forge.why_not_by_hand(game, id)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	var text := VBoxContainer.new()
+	text.add_theme_constant_override("separation", 2)
+	text.custom_minimum_size.x = 560
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(text)
+	var title: Label = game._make_label(game.TEXT_FONT, 20, game.GOLD)
+	title.text = "%s  ·  %s" % [Items.item_name(id), Items.describe(id)]
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.custom_minimum_size.x = 560
+	text.add_child(title)
+	var needs := HFlowContainer.new()
+	needs.add_theme_constant_override("h_separation", 18)
+	needs.add_theme_constant_override("v_separation", 2)
+	needs.custom_minimum_size.x = 560
+	text.add_child(needs)
+	if int(cost.iron) > 0:
+		needs.add_child(Needs.label(game, Lang.t("Eisen"), game.iron, int(cost.iron)))
+	if int(cost.steel) > 0:
+		needs.add_child(Needs.label(game, Lang.t("Stahl"), int(game.bars.get(Forge.STEEL, 0)), int(cost.steel)))
+	needs.add_child(Needs.label(game, Lang.t("Kupfer"), game.coins, int(cost.gold)))
+	if int(cost.ore) > 0:
+		needs.add_child(Needs.label(game, Lang.t("Donnererz"), p.bag.count(Forge.THUNDER_ORE), int(cost.ore)))
+	if need > 0:
+		needs.add_child(Needs.label(game, Lang.t("Schmiedekunst Stufe"), level, need))
+	var odds: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	odds.text = Forge.odds_text(game, id)
+	odds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	odds.custom_minimum_size.x = 560
+	text.add_child(odds)
+	var state: Label = game._make_label(game.TEXT_FONT, 16, Color(1.0, 0.75, 0.5) if why != "" else Color(0.4, 0.92, 0.4))
+	state.text = why if why != "" else Lang.t("Alles da: du kannst es schmieden.")
+	state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	state.custom_minimum_size.x = 560
+	text.add_child(state)
+	var button := _item_button(Lang.t("Schmieden"), _forge_by_hand.bind(id), why == "")
+	button.custom_minimum_size = Vector2(170, 54)
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(button)
+	return row
+
+
+func _forge_by_hand(id: String) -> void:
+	var why := Forge.forge(game, id)
+	if why != "":
+		_note = why
+	else:
+		_note = Forge.result_text(id)
+		Sfx.play(game, "hit" if Forge.last.success else "gear_metal_%d" % (randi() % 3))
+		game.player.refresh_stats()
+	game._update_hud()
+	_rebuild()
 
 
 func _make_recipe(id: String) -> void:
@@ -3084,7 +3161,7 @@ func _build_smithy() -> void:
 					lines.append(Needs.line(Lang.t("Donnererz"), p.bag.count(Forge.THUNDER_ORE), int(cost.ore)))
 				if need > 0:
 					lines.append(Needs.line(Lang.t("Schmiedekunst Stufe"), level, need))
-				lines.append([Lang.t("Chance %d%% (W100). Bei Fehlschlag ist die Hälfte der Barren verloren.") % Forge.chance(game), TradeWindow.BLUE])
+				lines.append([Lang.t("Gorm schmiedet es dir sicher, ohne Fehlschlag."), TradeWindow.BLUE])
 				if not room:
 					lines.append([Lang.t("✗ Deine Tasche ist voll"), TradeWindow.RED])
 				if Forge.in_stock(game, id) > 0:
@@ -3241,13 +3318,11 @@ func _show_forge_tab(tab: String) -> void:
 
 
 func _forge(id: String) -> void:
-	var why := Forge.forge(game, id)
+	var why := Forge.forge(game, id, true)
 	if why != "":
 		_note = why
-	elif Forge.last.success:
-		_note = Lang.t("Wurf %d gegen %d%%: Geschmiedet! %s (%s)") % [Forge.last.roll, Forge.last.chance, Items.item_name(id), Items.describe(id)]
 	else:
-		_note = Lang.t("Wurf %d gegen %d%%: Fehlschlag! %d Barren sind verdorben.") % [Forge.last.roll, Forge.last.chance, Forge.last.lost]
+		_note = Lang.t("Geschmiedet: %s (%s)") % [Items.item_name(id), Items.describe(id)]
 	if why == "":
 		Events.bus().traded.emit(game.trader_role)
 		Sfx.play(game, "hit" if Forge.last.success else "gear_metal_%d" % (randi() % 3))

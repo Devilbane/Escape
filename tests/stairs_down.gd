@@ -24,6 +24,17 @@ func _initialize() -> void:
 	var flight := StairsDown.build(holder, Vector3.ZERO, 4.0, Vector3(1, 0, 0))
 	check(flight.get_child_count() >= StairsDown.STEPS * 2, "every step has a tread and a riser")
 	check(flight.get_parent() == holder, "the flight hangs in the parent")
+	# The flight up in a house: every step the same size, climbing evenly to the north wall.
+	var up := WoodStairs.build_up(holder, Vector3.ZERO, 4.0)
+	check(up.get_child_count() == WoodStairs.UP_STEPS * 2, "every step up has a body and a tread")
+	var rise_ok := true
+	for i in WoodStairs.UP_STEPS:
+		var body: MeshInstance3D = up.get_child(i * 2)
+		var size: Vector3 = (body.mesh as BoxMesh).size
+		rise_ok = rise_ok and is_equal_approx(size.y, WoodStairs.UP_RISE * float(i + 1)) and is_equal_approx(size.z, WoodStairs.UP_RUN)
+	check(rise_ok, "the steps up rise by the same amount and are equally deep")
+	var top: MeshInstance3D = up.get_child(WoodStairs.UP_STEPS * 2 - 2)
+	check(is_equal_approx(top.position.z - WoodStairs.UP_RUN * 0.5, -2.0), "the top step meets the north wall")
 	var tex := StairsDown.doorway_texture()
 	check(tex != null and tex.get_height() > 0, "the doorway picture exists")
 	# The flight runs away from the open floor, never along a wall.

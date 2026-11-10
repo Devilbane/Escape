@@ -1,0 +1,1 @@
+- Gorm's forge never fails any more: forging at his menu always gives you the piece.

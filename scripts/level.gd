@@ -5575,16 +5575,17 @@ func _build_fireplaces() -> void:
 		fireplaces[storey] = HomeFireplace.build(self, _hearth_walls[storey])
 
 
-## Wooden planks, as in the houses of the village. The stairs down leave a
+## Worn wooden boards, the same as the stairs of the house. The stairs down leave a
 ## hole in the floor. The tiles kept for furniture stay plain boards.
 func _build_home_floor(c: Vector2i, ch: String) -> void:
 	if ch == ">":
 		return
 	if not _scenes.has("mat_home_wood"):
-		var wood := StandardMaterial3D.new()
-		wood.albedo_texture = load("res://assets/house/wood_floor.jpg")
-		wood.uv1_scale = Vector3(2, 2, 2)
-		wood.roughness = 0.85
+		# The same worn boards as the stairs (see WoodStairs). Its picture is twice as wide as
+		# tall, so a tile repeats it 3 x 6 times (whole repeats keep the boards running
+		# unbroken over the tile edges): boards as wide as the stairs' and not stretched.
+		var wood := WoodStairs.material()
+		wood.uv1_scale = Vector3(3, 6, 1)
 		_scenes["mat_home_wood"] = wood
 		var plank := PlaneMesh.new()
 		plank.size = Vector2(TILE, TILE)
@@ -5602,11 +5603,11 @@ func _build_stairs(c: Vector2i, up: bool) -> void:
 	var pos := cell_to_world(c)
 	stairs.append({"cell": c, "up": up, "storey": storey_of(c)})
 	if up:
-		var flight := _place("stairs", pos + Vector3(0, 0, -TILE * 0.5))
 		if is_home:
 			# The stairs of a house are worn wooden boards (see WoodStairs).
-			for mi: MeshInstance3D in flight.find_children("*", "MeshInstance3D", true, false):
-				mi.material_override = WoodStairs.material(Color.WHITE, true)
+			WoodStairs.build_up(self, pos, TILE)
+		else:
+			_place("stairs", pos + Vector3(0, 0, -TILE * 0.5))
 		return
 	var away := stairs_down_dir(c)
 	var look: Dictionary = StairsDown.LOOKS["wood"] if is_home else StairsDown.look(wall_style, theme)

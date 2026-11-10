@@ -26,6 +26,8 @@ const POST_COURSES := 3
 const HINGE := 1.2
 const LEAF_HEIGHT := 1.9
 const LEAF_TIME := 0.6
+## The longest a gate the hero opened stays open if he does not go through (seconds).
+const PASSAGE_TIME := 12.0
 ## The stones of one stretch: course, middle along the wall, and whether it is a half block.
 ## They fall in this order as the HP run down, each below its own share of the HP.
 const STONES := [
@@ -60,6 +62,13 @@ var _label := Label3D.new()
 var _swing: Tween
 var _mended := 0.0
 var _closedness := 1.0
+## The hero has opened this shut gate to pass (see let_through): it stays open
+## until he is through, then shuts again on its own while the village wants it shut.
+var passage_open := false
+## The station the hero bumps into to open the gate (see VillageWall.add).
+var station := {}
+var _passage_side := 0.0
+var _passage_time := 0.0
 
 
 func setup(owner_level: Outdoor, at: Vector2i, is_gate: bool, x_wise: bool) -> void:
@@ -73,6 +82,7 @@ func setup(owner_level: Outdoor, at: Vector2i, is_gate: bool, x_wise: bool) -> v
 
 func _ready() -> void:
 	add_to_group("village_wall")
+	set_physics_process(false)
 	add_child(_visual)
 	_visual.rotation.y = 0.0 if along_x else PI * 0.5
 	if gate:
@@ -240,6 +250,46 @@ func close(on: bool) -> void:
 	_leaf_shape.disabled = not blocks()
 	_move_leaves(1.0 if shut else 0.0)
 	level.village_wall.changed(self)
+
+
+## The hero opens the shut gate to pass. It shuts again by itself once he is
+## through (or has given up), see _physics_process. Returns whether it opened.
+func let_through(hero: Node3D) -> bool:
+	if not gate or not blocks():
+		return false
+	passage_open = true
+	_passage_side = _side_of(hero.global_position)
+	_passage_time = 0.0
+	set_physics_process(true)
+	shut = false
+	_leaf_shape.disabled = true
+	_move_leaves(0.0)
+	level.village_wall.changed(self)
+	return true
+
+
+## Which side of the gate a point is on (+1 or -1), across the way through it.
+func _side_of(point: Vector3) -> float:
+	var d := point.z - global_position.z if along_x else point.x - global_position.x
+	return -1.0 if d < 0.0 else 1.0
+
+
+func _physics_process(delta: float) -> void:
+	if not passage_open:
+		set_physics_process(false)
+		return
+	_passage_time += delta
+	var wall := level.village_wall
+	if not wall.shut_wanted:
+		# The danger is over: the gate is simply open, as in peaceful times.
+		passage_open = false
+		return
+	var hero: Node3D = level.player
+	var through: bool = hero != null and _side_of(hero.global_position) != _passage_side \
+			and Vector2(hero.global_position.x - global_position.x, hero.global_position.z - global_position.z).length() > VillageWall.GATE_ROOM
+	if (through or _passage_time > PASSAGE_TIME) and not VillageWall.someone_in(level, self):
+		passage_open = false
+		close(true)
 
 
 func _move_leaves(to: float) -> void:

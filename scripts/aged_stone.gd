@@ -59,6 +59,9 @@ const EDGE_ROOTS := 0.75
 const EDGE_ZONE := 0.9
 const EAVES_RUN_CHANCE := 0.7
 const IVY_BRANCHING := 0.12
+## Vines across a roof: how far (metres) up the slope one climbs, and how often it sends a runner out.
+const ROOF_VINE_LENGTH := Vector2(2.5, 6.0)
+const ROOF_BRANCH_CHANCE := 0.08
 ## The doorway itself stays free of leaves up to this height (metres) and
 ## this far (metres) from the door's spot, so the ivy frames a door.
 const DOOR_CLEAR := Vector2(1.4, 3.6)
@@ -433,7 +436,7 @@ static func _on_wall(wall: Dictionary, p: Vector3) -> bool:
 ## `foot_max` lets ivy root on walls standing that high (the castle's towers
 ## start well above the ground). `windows` are the middles of window panes (world space): their middle
 ## stays clear of leaves, so the ivy frames a window but never covers it.
-static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = [], foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false) -> void:
+static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, patches := IVY_PATCHES, old := false, windows: Array = [], foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0) -> void:
 	var all_walls := walls(tris, middle, ground)
 	var found := rooted(all_walls, ground, old, foot_max)
 	# A wall up on a stone base that looks the way a door does holds that
@@ -507,6 +510,9 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 			continue
 		_grow_patch(wall, all_walls, root, ground, rng, leaves, old, roofs, windows, thin, doors, proud, window_room, true)
 		grown += 1
+	# Vines across the roof itself, in branching patterns (the temple).
+	for i in roof_vines:
+		_roof_vine(roofs, rng, leaves, windows)
 
 
 ## A spot at the foot of the wall, a little above the ground.
@@ -653,6 +659,72 @@ static func _in_doorway(at: Vector3, doors: Array, ground: float) -> bool:
 		if Vector2(at.x - d.x, at.z - d.z).length() < DOOR_CLEAR.x and at.y - ground < DOOR_CLEAR.y:
 			return true
 	return false
+
+
+## A vine across the roof (see `roof_vines`): it roots at the ridge or the eaves, hugs that edge, climbs the
+## slope and sends runners out sideways that then climb on, so the roof is
+## covered in branching patterns with the tiles showing between, not in a carpet.
+static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Dictionary, windows: Array) -> void:
+	if roofs.is_empty():
+		return
+	# Start anywhere on the roof and run downhill to its eaves: the vine's root.
+	var t: Dictionary = roofs[rng.randi() % roofs.size()]
+	var r1 := rng.randf()
+	var r2 := rng.randf()
+	if r1 + r2 > 1.0:
+		r1 = 1.0 - r1
+		r2 = 1.0 - r2
+	var at: Vector3 = t.a + (t.b - t.a) * r1 + (t.c - t.a) * r2
+	var rn: Vector3 = t.n
+	# Ivy likes edges: a third of the vines root at the ridge and run along it, the
+	# rest at the eaves, where they first run along the edge before they climb.
+	var ridge := rng.randf() < 0.33
+	var slope := (Vector3.UP - rn * rn.y).normalized()
+	var step := slope if ridge else -slope
+	for i in 80:
+		var next_at := _roof_at(roofs, at + step * 0.12, at.y - 0.5, at.y + 0.5)
+		if next_at.is_empty():
+			break
+		at = next_at.p
+		rn = next_at.n
+		step = (Vector3.UP - rn * rn.y).normalized() * (1.0 if ridge else -1.0)
+	var run0 := rng.randi_range(BRANCH_RUN.x * 2, BRANCH_RUN.y * 2) if ridge else rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y)
+	var tips: Array = [{"p": at, "n": rn, "drift": rng.randf_range(-0.5, 0.5), "run": run0, "dir": 1.0 if rng.randf() < 0.5 else -1.0,
+			"left": run0 * 0.16 + (1.0 if ridge else rng.randf_range(ROOF_VINE_LENGTH.x, ROOF_VINE_LENGTH.y))}]
+	var done := 0
+	while done < tips.size() and done < 8:
+		var tip: Dictionary = tips[done]
+		done += 1
+		var pos: Vector3 = tip.p
+		var tn: Vector3 = tip.n
+		var drift: float = tip.drift
+		var run: int = tip.run
+		var left: float = tip.left
+		var total := left
+		while left > 0.0:
+			var along := Vector3.UP.cross(tn)
+			along = along.normalized() if along.length() > 0.01 else Vector3.RIGHT
+			var up := (Vector3.UP - tn * tn.y).normalized()
+			var fill := 0.55 + 0.45 * left / total
+			var spot := pos + along * rng.randf_range(-0.12, 0.12)
+			if not _on_pane(spot, tn, windows):
+				_leaf(spot, tn, along, rng, leaves, 0.8 * fill + 0.2)
+				if rng.randf() < 0.5:
+					_leaf(spot + along * rng.randf_range(-0.2, 0.2) + up * 0.08, tn, along, rng, leaves, 0.7)
+			drift = clampf(drift + rng.randf_range(-0.3, 0.3), -0.8, 0.8)
+			var next := pos + up * 0.16 + along * drift * 0.08
+			if run > 0:
+				run -= 1
+				next = pos + along * float(tip.dir) * 0.16 + up * rng.randf_range(0.0, 0.05)
+			elif rng.randf() < ROOF_BRANCH_CHANCE and tips.size() < 8:
+				# A runner out sideways; it climbs on from the end of its run.
+				tips.append({"p": pos, "n": tn, "drift": 0.0, "run": rng.randi_range(BRANCH_RUN.x, BRANCH_RUN.y), "dir": 1.0 if rng.randf() < 0.5 else -1.0, "left": left * 0.7})
+			var still := _roof_at(roofs, next, next.y - 0.3, next.y + 0.3)
+			if still.is_empty():
+				break
+			pos = still.p
+			tn = still.n
+			left -= 0.16
 
 
 ## Old ivy over the eaves: from the top of a wall (`p`, the wall looking

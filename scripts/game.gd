@@ -4326,7 +4326,30 @@ func sleep(at_camp_now := false) -> void:
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.6)
 	tween.tween_callback(func():
 		_stop_snoozing()
-		_show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!")))
+		_log_out(saved))
+
+
+## Set to false by tests that sleep and must live on afterwards.
+var quit_on_log_out := true
+## Sent when the player has slept and logged out, after the save was tried.
+signal logged_out(saved: bool)
+
+
+## The end of "sleep and log out": the game was saved first (see `sleep`), now
+## the desktop version closes. A browser tab shows its goodbye page instead.
+## If the save failed the game stays open on the title, so nothing is lost
+## unseen.
+func _log_out(saved: bool) -> void:
+	logged_out.emit(saved)
+	if not quit_on_log_out:
+		_show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"))
+		return
+	if not saved:
+		_show_start_title(Lang.t("Gute Nacht"), Lang.t("Speichern fehlgeschlagen!"))
+	elif OS.has_feature("web"):
+		_close_tab()
+	else:
+		get_tree().quit()
 
 
 ## The letters drifting up from a sleeping hero, one after the other.

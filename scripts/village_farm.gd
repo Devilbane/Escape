@@ -3,7 +3,7 @@ extends RefCounted
 ## Puts the village's animals out on its meadows (see FarmAnimal): a flock of
 ## geese on the south meadow, a few goats on the west meadow with the boy Pip
 ## and his friend Pippi, who look after them together (see Villager, "herds"), sheep on the north-west
-## meadow, two cows and a bull on the east meadow, and two dogs: a Shiba Inu
+## meadow, two cows and a bull in the fenced pen on the east meadow (see Corral), and two dogs: a Shiba Inu
 ## that keeps Pip's goats company and a Husky at the farm in the south-east corner.
 ## One red-horned goat among Pip's goats picks fights with the hero (see FarmAnimal).
 ##
@@ -12,7 +12,8 @@ extends RefCounted
 ## animals that find no such tile near it are left out, so a map that has been
 ## redrawn in the workshop never puts one inside a wall.
 
-## kind, home tile, how many, coat (see FarmAnimal.coat).
+## kind, home tile, how many, coat (see FarmAnimal.coat) and, for the cattle,
+## the pen they never leave (see Corral).
 const HERDS := [
 	{"kind": "goose", "at": Vector2i(46, 40), "count": 6, "coats": ["", "", "", "", "", "grey"]},
 	{"kind": "goat", "at": Vector2i(40, 30), "count": 4, "coats": ["", "brown", "", "black"]},
@@ -20,8 +21,8 @@ const HERDS := [
 	{"kind": "sheep", "at": Vector2i(40, 23), "count": 4, "coats": [""]},
 	{"kind": "dog", "at": Vector2i(41, 33), "count": 1, "coats": [""]},
 	{"kind": "dog", "at": Vector2i(57, 40), "count": 1, "coats": ["black"]},
-	{"kind": "cow", "at": Vector2i(59, 27), "count": 2, "coats": [""]},
-	{"kind": "bull", "at": Vector2i(58, 31), "count": 1, "coats": [""]},
+	{"kind": "cow", "at": Vector2i(59, 26), "count": 2, "coats": [""], "pen": Corral.PEN},
+	{"kind": "bull", "at": Vector2i(58, 26), "count": 1, "coats": [""], "pen": Corral.PEN},
 ]
 ## Where Pip stands to mind the goats, next to the herd's home tile.
 const PIP_AT := Vector2i(42, 31)
@@ -38,16 +39,17 @@ static func spawn(lvl: Outdoor) -> Array[FarmAnimal]:
 	for herd in HERDS:
 		var flock: Array[FarmAnimal] = []
 		var taken: Array[Vector2i] = []
-		var home := _place(lvl, herd.at, [])
+		var pen: Rect2i = herd.get("pen", Rect2i())
+		var home := _place(lvl, herd.at, [], pen)
 		if home == Vector2i(-1, -1):
 			continue
 		for i in int(herd.count):
-			var cell := _place(lvl, herd.at, taken)
+			var cell := _place(lvl, herd.at, taken, pen)
 			if cell == Vector2i(-1, -1):
 				continue
 			taken.append(cell)
 			var a := FarmAnimal.new()
-			a.setup(lvl, herd.kind, home, herd.coats[i % herd.coats.size()])
+			a.setup(lvl, herd.kind, home, herd.coats[i % herd.coats.size()], pen)
 			lvl.add_child(a)
 			a.global_position = lvl.cell_to_world(cell) + Vector3((i % 3 - 1) * 0.7, 0, (i / 3 - 0.5) * 0.7)
 			a.reset_physics_interpolation()
@@ -59,13 +61,15 @@ static func spawn(lvl: Outdoor) -> Array[FarmAnimal]:
 
 
 ## The nearest tile to `at` where an animal may stand and none stands yet.
-static func _place(lvl: Outdoor, at: Vector2i, taken: Array[Vector2i]) -> Vector2i:
+static func _place(lvl: Outdoor, at: Vector2i, taken: Array[Vector2i], pen := Rect2i()) -> Vector2i:
 	for r in range(0, SEARCH + 1):
 		for dy in range(-r, r + 1):
 			for dx in range(-r, r + 1):
 				if maxi(absi(dx), absi(dy)) != r:
 					continue
 				var c := at + Vector2i(dx, dy)
+				if pen.has_area() and not pen.has_point(c):
+					continue
 				if lvl.cell_char(c) == "." and FarmAnimal.may_stand(lvl, c) and not taken.has(c):
 					return c
 	return Vector2i(-1, -1)

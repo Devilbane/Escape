@@ -257,6 +257,8 @@ const EN := {
 	"Holzboden": "Wooden floor",
 	"Grab": "Grave",
 	"Friedhofszaun": "Graveyard fence",
+	"Viehkoppelzaun": "Cattle pen fence",
+	"Viehkoppeltor": "Cattle pen gate",
 	"Laterne": "Lantern",
 	"Fässer, Kisten und Säcke": "Barrels, crates and sacks",
 	"Bank zum Sitzen": "Bench",

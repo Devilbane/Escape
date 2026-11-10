@@ -1361,7 +1361,10 @@ func _walk(delta: float, hero: Node3D) -> void:
 func blocked_at(point: Vector3) -> bool:
 	if level == null or level.village_wall == null:
 		return false
-	var brick := level.village_wall.brick_at(level.world_to_cell(point))
+	var cell := level.world_to_cell(point)
+	if level.cell_char(cell) == Corral.FENCE:
+		return true
+	var brick := level.village_wall.brick_at(cell)
 	return brick != null and brick.blocks()
 
 

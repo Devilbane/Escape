@@ -91,6 +91,9 @@ static var _mats := {}
 var level: Outdoor
 var kind := "goose"
 var home := Vector2i.ZERO
+## The tiles the animal may never leave (a Rect2i with an area), or an empty
+## Rect2i for one that roams free. The cattle live in the pen (see Corral).
+var pen := Rect2i()
 ## "graze", "idle", "stroll", "flee", "greet" or "rest" (asleep at night).
 var state := "idle"
 ## The others of its flock: geese keep near them.
@@ -125,8 +128,9 @@ var _anim: AnimationPlayer
 var _playing := ""
 
 
-func setup(owner_level: Outdoor, animal_kind: String, cell: Vector2i, look := "") -> void:
+func setup(owner_level: Outdoor, animal_kind: String, cell: Vector2i, look := "", fenced_in := Rect2i()) -> void:
 	level = owner_level
+	pen = fenced_in
 	kind = animal_kind
 	home = cell
 	coat = look
@@ -441,6 +445,8 @@ func _pick_spot() -> Vector3:
 ## A tile it may stop on: standable ground of its own kind (geese and goats
 ## keep to the grass, dogs also use the paths and the square).
 func _ok(c: Vector2i) -> bool:
+	if pen.has_area() and not pen.has_point(c):
+		return false
 	if not may_stand(level, c):
 		return false
 	var ch := level.cell_char(c)

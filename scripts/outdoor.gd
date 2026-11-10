@@ -91,7 +91,7 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@'{}-/?"
+const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@'{}-/?¤"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS"
@@ -476,6 +476,8 @@ func build() -> void:
 			var c := Vector2i(x, y)
 			_build_outdoor_cell(c, cell_char(c))
 	_build_blocks()
+	if Corral.present(self):
+		Corral.build_props(self)
 	_pave_entrances()
 	_plant_bushes()
 	if not _ivy.xforms.is_empty():
@@ -759,6 +761,10 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_fence(c, false)
 		"a":
 			_build_fence(c, true)
+		"§":
+			Corral.build_fence(self, c)
+		"¤":
+			Corral.build_gate(self, c)
 		"(":
 			_build_hole(c)
 		"|":

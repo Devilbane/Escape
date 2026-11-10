@@ -494,16 +494,23 @@ var mend_brick: WallBrick = null
 ## Whether the stonemason is free to see to the wall: out at his work or just
 ## standing about, not running from a slime or listening to the herald.
 func can_mend() -> bool:
-	if role != "S" or eaten or at_home or not visible or threat != null:
+	if role != "S" or eaten or threat != null:
+		return false
+	# Asleep at night he is called out for a hurt wall (see works_late).
+	if (at_home or not visible) and not (night and at_home and level.village_wall.job(level) != null):
 		return false
 	if mend_brick != null and _task in ["walk", "mend"]:
 		return false
+	if at_home:
+		return true
 	return _task in ["work", "idle"] or (_task == "walk" and get_meta("then", "") in ["work", "idle"])
 
 
 ## Walks up to a hurt brick of the wall and builds it up (see VillageWall).
 func mend(brick: WallBrick) -> void:
 	mend_brick = brick
+	if at_home:
+		_hide_inside(false, true)
 	_walk_to(level.village_wall.stand_of(level, brick), WALK_SPEED * 1.3, "mend")
 
 
@@ -511,7 +518,7 @@ func _mend(delta: float) -> void:
 	var brick := mend_brick
 	var wall := level.village_wall
 	if brick == null or not is_instance_valid(brick) or not brick.is_damaged() or wall.shut_wanted \
-			or level.village_alarm.raised or level.night or VillageWall.slime_near(level, brick.global_position, VillageWall.MEND_SAFE):
+			or level.village_alarm.raised or VillageWall.slime_near(level, brick.global_position, VillageWall.MEND_SAFE):
 		_finish_mending()
 		return
 	# Shoved off his place: back to the wall.
@@ -526,7 +533,7 @@ func _mend(delta: float) -> void:
 		_anim.play(work, 0.15)
 		get_tree().create_timer(0.45).timeout.connect(func():
 			if is_inside_tree() and _task == "mend":
-				Sfx.play(self, "hit", -14.0, global_position, 0.8))
+				Sfx.play(self, "step_scree_%d" % _rng.randi_range(0, 5), -17.0, global_position, 1.5))
 	if brick.mend(VillageWall.MEND_PER_SECOND * delta):
 		_finish_mending()
 
@@ -1529,7 +1536,15 @@ func _turn_to(direction: Vector3, delta: float) -> void:
 
 ## Whether this villager sleeps at night (see NIGHT_OWLS).
 func goes_to_bed() -> bool:
-	return not role in NIGHT_OWLS
+	return not role in NIGHT_OWLS and not works_late()
+
+
+## The stonemason stays up (or gets up) at night while the wall has a hurt
+## brick he may safely work on: no alarm, no shut gates, no slime near it.
+func works_late() -> bool:
+	if role != "S" or level == null or level.village_wall == null:
+		return false
+	return mend_brick != null or level.village_wall.job(level) != null
 
 
 ## Night falls or the day breaks. At nightfall the villager walks to the
@@ -1538,7 +1553,7 @@ func goes_to_bed() -> bool:
 ## night finds the village already asleep).
 func set_night(on: bool, at_once := false) -> void:
 	night = on
-	if not goes_to_bed():
+	if role in NIGHT_OWLS or (on and works_late()):
 		return
 	if on:
 		_listen_to = Vector3.INF

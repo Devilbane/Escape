@@ -119,6 +119,8 @@ func _run() -> void:
 	# Never shut on somebody in the gate.
 	lvl.player.global_position = west.global_position
 	var slime2 := _slime(lvl, west.global_position + Vector3(-12, 0, 0))
+	# Only slimes of SlimeGrowth.WALL_LEVEL and up eat into the wall.
+	slime2.rated_level = Enemy.fit_level(slime2.kind, slime2._stats, slime2.hardening, SlimeGrowth.WALL_LEVEL, SlimeGrowth.MAX_LEVEL)
 	slime2._awake = false
 	wall.tick(lvl, 1.1)
 	check(wall.shut_wanted and not west.shut, "the gate stays open while the hero stands in it")

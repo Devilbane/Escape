@@ -2305,7 +2305,7 @@ func _plan_route(goal: Vector3, reach: float) -> bool:
 ## A slime hunting something it cannot reach for the village wall is in the way:
 ## it goes for the brick that stands between (see VillageWall.target_for).
 func _aim_at_wall(goal: Vector3) -> void:
-	if not SlimeGrowth.grows(kind) or not level is Outdoor:
+	if not SlimeGrowth.can_besiege(self) or not level is Outdoor:
 		return
 	var brick: WallBrick = (level as Outdoor).village_wall.target_for(self, goal)
 	if brick != null:
@@ -2316,7 +2316,7 @@ func _aim_at_wall(goal: Vector3) -> void:
 ## Sets out to eat into the wall towards a villager that cannot be reached: the
 ## brick nearest to them, else the nearest one in sight.
 func _siege_wall_for(goal: Vector3) -> void:
-	if not SlimeGrowth.grows(kind) or not level is Outdoor:
+	if not SlimeGrowth.can_besiege(self) or not level is Outdoor:
 		return
 	var wall := (level as Outdoor).village_wall
 	var brick: WallBrick = wall.target_for(self, goal)
@@ -2333,7 +2333,7 @@ func _siege_wall_for(goal: Vector3) -> void:
 ## hunt (no hero in sight, no rival, meal or villager) makes for the nearest
 ## brick. Looks about once a second. Returns whether it now has a brick.
 func _scout_wall(busy: bool, delta: float) -> bool:
-	if busy or not SlimeGrowth.grows(kind) or not level is Outdoor:
+	if busy or not SlimeGrowth.can_besiege(self) or not level is Outdoor:
 		return false
 	_siege_look -= delta
 	if _siege_look > 0.0:
@@ -2351,7 +2351,7 @@ func _scout_wall(busy: bool, delta: float) -> bool:
 
 ## A slime that runs into a brick of the wall while it hunts goes for the brick.
 func _note_wall() -> void:
-	if not SlimeGrowth.grows(kind) or _wall_target != null or not (_awake or foe != null or snack != null):
+	if not SlimeGrowth.can_besiege(self) or _wall_target != null or not (_awake or foe != null or snack != null):
 		return
 	for i in get_slide_collision_count():
 		var brick := get_slide_collision(i).get_collider() as WallBrick

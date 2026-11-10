@@ -119,6 +119,8 @@ func _run() -> void:
 	# Never shut on somebody in the gate.
 	lvl.player.global_position = west.global_position
 	var slime2 := _slime(lvl, west.global_position + Vector3(-12, 0, 0))
+	# Only slimes of SlimeGrowth.WALL_LEVEL and up eat into the wall.
+	slime2.rated_level = Enemy.fit_level(slime2.kind, slime2._stats, slime2.hardening, SlimeGrowth.WALL_LEVEL, SlimeGrowth.MAX_LEVEL)
 	slime2._awake = false
 	wall.tick(lvl, 1.1)
 	check(wall.shut_wanted and not west.shut, "the gate stays open while the hero stands in it")
@@ -141,7 +143,9 @@ func _run() -> void:
 		await _wait(10)
 		waited += 10
 	check(west.hp < hp_before, "a slime blocked by the gate eats into it (%d frames)" % waited)
-	check(hp_before - west.hp >= VillageWall.ACID * maxi(1, int(slime2._stats.damage)), "a slime's blow does ACID times its damage")
+	check(hp_before - west.hp >= VillageWall.wall_damage(int(slime2._stats.damage)), "a slime's blow does ACID times its damage, less what the stone shrugs off")
+	check(VillageWall.wall_damage(10) == roundi(10 * VillageWall.ACID * 0.2), "slimes do 20% of the damage to the wall they did before (80% less)")
+	check(VillageWall.wall_damage(0) == VillageWall.wall_damage(1) and VillageWall.wall_damage(1) >= 1, "a blow always scratches the wall")
 
 	# Defence: those outside are called in before the gate shuts, the brave take
 	# posts inside, and a slime at the wall is struck over it.
@@ -273,6 +277,51 @@ func _run() -> void:
 	check(mason.goes_to_bed(), "the mason goes back to bed once the wall is whole")
 	lvl.night = false
 	mason.set_night(false)
+
+	# A mason on the right tile but too far from his spot still goes to work (he used to stand there walking on the spot).
+	brick.hurt(300)
+	west.mend(float(WallBrick.MAX_HP))
+	var spot := wall.stand_of(lvl, brick)
+	mason.global_position = spot + Vector3(1.9, 0, 0)
+	mason.mend(brick)
+	var hp_then := brick.hp
+	await _wait(150)
+	check(mason.global_position.distance_to(spot) < 1.85, "a mason on the spot's tile but off his spot steps up to it (%.2f m away, task %s)" % [mason.global_position.distance_to(spot), mason._task])
+	check(brick.hp > hp_then, "and mends from there (%d to %d)" % [hp_then, brick.hp])
+	brick.mend(float(WallBrick.MAX_HP))
+	mason._finish_mending()
+
+	# The woodcutter lends a hand by day, on a different brick from the mason's.
+	var cutter: Villager = null
+	for v in lvl.villagers:
+		if v.role == "3":
+			cutter = v
+	check(cutter != null, "the village has a woodcutter")
+	cutter._start("idle", 5.0)
+	mason._start("idle", 5.0)
+	lvl.day += 1
+	brick.hurt(300)
+	west.hurt(100)
+	check(cutter.can_mend(), "the woodcutter is free to mend the wall by day")
+	wall.tick(lvl, 1.1)
+	check(mason.mend_brick != null and cutter.mend_brick != null, "mason and woodcutter both go to the wall")
+	check(mason.mend_brick != cutter.mend_brick, "they take different bricks")
+	# Together they build 50% faster than a mason alone.
+	check(wall.pace(lvl, mason) == 1.0, "nobody works beside the mason yet (they are still walking)")
+	mason._task = "mend"
+	cutter._task = "mend"
+	check(is_equal_approx(wall.pace(lvl, mason), 1.5) and is_equal_approx(wall.pace(lvl, cutter), 1.5), "the mason and the woodcutter mend 50% faster together")
+	cutter._task = "idle"
+	cutter._wield_wall_hammer(true)
+	var hammer: Node3D = cutter._model.find_child("WallHammer", true, false)
+	check(hammer != null and hammer.visible and not cutter._model.find_child("2H_Axe", true, false).visible, "the woodcutter takes up a hammer to mend the wall")
+	cutter._start("idle", 1.0)
+	check(not hammer.visible and cutter._model.find_child("2H_Axe", true, false).visible, "he has his axe back when the mending is done")
+	check(wall.pace(lvl, mason) == 1.0, "the mason alone mends at the normal pace")
+	cutter._finish_mending()
+	mason._finish_mending()
+	for b: WallBrick in wall.bricks.values():
+		b.mend(float(WallBrick.MAX_HP))
 
 	# A slime near the wall keeps him from it.
 	west.hurt(100)

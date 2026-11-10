@@ -220,8 +220,10 @@ prison_bars.gd | 60 | free | passfail | Prison bars (a cell's wall of bars is tu
 woods_life.gd | 180 | fixed | pass | Woods wildlife (birds in the treetops, squirrels that run up their trees)
 village_farm.gd | 300 | fixed | pass | Village geese, goats and dogs (wander, never block a door, bolt or greet, rest at night, Pip minds the goats)
 pips_friend.gd | 300 | fixed | pass | Pippi, Pip's red-haired friend with pigtails and freckles (herds geese and goats, plays and chats with Pip, blocks no way)
+kid_play.gd | 600 | fixed | passfail | Pip and Pippi play (chase, cartwheels, somersaults; never at night, in an alarm, into walls or the hero)
 villager_walls.gd | 120 | fixed | pass | Villagers never cross walls or shut gates
 goat_model.gd | 60 | free | passfail | The village goats are the sheep model dressed as goats (horns, red horns for the red-horned one, smooth coat)
 red_goat.gd | 120 | fixed | passfail | Red-horned goat (winds up and shouts, bumps without harm, retreats after 3 bumps, 10 minute cooldown, cannot be hurt)
 townsfolk_steps.gd | 60 | free | pass | Townsfolk footsteps (ground, volume, distance and crowd cap)
 log_out_quits.gd | 120 | fixed | passfail | Sleep and log out saves first, then closes the game
+glowworm_swarms.gd | 120 | fixed | passfail | glowworm swarms roaming the open air at night (more in the village, none by day or indoors)

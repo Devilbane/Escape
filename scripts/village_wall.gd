@@ -12,10 +12,11 @@ extends RefCounted
 ## Every slime outside the wall with nothing else to hunt makes for the nearest
 ## brick (see siege_brick); one that cannot get at what it hunts because the wall is in the way
 ## attacks the wall (see Enemy._plan_route). Each brick has 1000 HP and a
-## slime's blow does ACID times its damage to stone. Afterwards the village's
+## slime's blow does ACID times its damage to stone, less WALL_RESIST of it. Afterwards the village's
 ## stonemason (Villager "S") walks to the hurt bricks, one by one, and
 ## builds them up again, MEND_PER_SECOND HP a second, as long as no slime
 ## is about. There is no limit to his work: he mends as long as a brick is hurt.
+## The woodcutter (Villager "3") lends him a hand by day, on a different brick.
 
 const CHECK_EVERY := 1.0
 ## How near to a gate a slime sets the villagers shutting it (metres).
@@ -23,9 +24,16 @@ const WATCH_RANGE := 36.0
 const OPEN_AFTER := 8.0
 ## A slime's blow does this many times its damage to the wall.
 const ACID := 24
+## The share of that which the stone shrugs off: slimes and blobs do only
+## 1 - WALL_RESIST (20%) of it to the wall.
+const WALL_RESIST := 0.8
 ## The stonemason's work: HP built up per second, and how near a slime
 ## may be (metres) before he leaves the wall alone.
 const MEND_PER_SECOND := 4.0
+## While the woodcutter and the mason both work on the wall, the work goes this much faster.
+const TEAM_PACE := 1.5
+## The villagers (roles) who mend the wall.
+const MENDERS := ["S", "3"]
 const MEND_SAFE := 24.0
 ## Nobody stands within this distance of a gate that is about to shut (metres).
 const GATE_ROOM := 2.0
@@ -331,9 +339,14 @@ func siege_brick(slime: Node3D) -> WallBrick:
 	return best
 
 
+## What a slime's blow of `slime_damage` does to the stone (at least 1).
+static func wall_damage(slime_damage: int) -> int:
+	return maxi(1, roundi(maxi(1, slime_damage) * ACID * (1.0 - WALL_RESIST)))
+
+
 ## A slime's blow on a brick. Returns whether the brick is gone.
 func gnaw(o: Outdoor, brick: WallBrick, slime_damage: int) -> bool:
-	var damage := maxi(1, slime_damage) * ACID
+	var damage := wall_damage(slime_damage)
 	var at := brick.global_position + Vector3(0, WallBrick.COURSES * WallBrick.COURSE, 0)
 	Effects.float_text(o, at, "-%d" % damage, Color(0.6, 0.9, 0.4))
 	Sfx.play(o, "hit", -8.0, brick.global_position, 0.6)
@@ -351,24 +364,49 @@ func gnaw(o: Outdoor, brick: WallBrick, slime_damage: int) -> bool:
 
 ## Sends the stonemason to the worst hurt brick, when he is free and it is safe.
 func _send_mason(o: Outdoor) -> void:
-	var work := job(o)
-	if work == null:
-		return
+	var taken: Array[WallBrick] = []
 	for v in o.villagers:
-		if v.role == "S":
+		if v.role in MENDERS and v.mend_brick != null and is_instance_valid(v.mend_brick):
+			taken.append(v.mend_brick)
+	for role in MENDERS:
+		for v in o.villagers:
+			if v.role != role:
+				continue
 			if v.can_mend():
+				var work := job_for(o, role, taken)
+				if work == null:
+					return
 				v.mend(work)
-			return
+				taken.append(work)
+			break
+
+
+## How fast `who` builds: TEAM_PACE while another mender is at the wall too, else 1.
+func pace(o: Outdoor, who: Villager) -> float:
+	for v in o.villagers:
+		if v != who and v.role in MENDERS and v.mend_brick != null and v._task == "mend":
+			return TEAM_PACE
+	return 1.0
+
+
+## The brick a mender takes next: one nobody else is on, else (for the mason, who
+## must see the wall whole whatever happens to his helper) the worst hurt one.
+func job_for(o: Outdoor, role: String, taken: Array[WallBrick]) -> WallBrick:
+	var work := job(o, taken)
+	if work == null and role == "S":
+		work = job(o)
+	return work
 
 
 ## The brick the mason mends next: the worst hurt one that is safe to work on.
 ## Null when there is none, or while the gates are shut (a slime is near).
-func job(o: Outdoor) -> WallBrick:
+## Bricks in `taken` are already being mended by somebody else.
+func job(o: Outdoor, taken: Array[WallBrick] = []) -> WallBrick:
 	if shut_wanted or o.village_alarm.raised:
 		return null
 	var best: WallBrick = null
 	for b: WallBrick in bricks.values():
-		if not b.is_damaged() or slime_near(o, b.global_position, MEND_SAFE):
+		if not b.is_damaged() or b in taken or slime_near(o, b.global_position, MEND_SAFE):
 			continue
 		if best == null or b.hp < best.hp:
 			best = b

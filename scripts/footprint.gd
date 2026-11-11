@@ -44,6 +44,16 @@ static func radius_of(body: Node) -> float:
 	return 0.5
 
 
+## Whether a body is a peaceful animal: it has no hitbox of its own and claims no place from
+## anyone else (a hero, villager or monster may stand where it grazes). Peaceful animals only
+## ease away from each other so they do not pile up. The red-horned goat charges, so it claims
+## its place like the monsters do.
+static func peaceful(body: Node) -> bool:
+	if body is Animal or body is Squirrel or body is Pet:
+		return true
+	return body is FarmAnimal and body.kind != "billy"
+
+
 ## Whether a body counts at all right now: in the world, awake and on the ground.
 static func counts(body: Node) -> bool:
 	if not is_instance_valid(body) or not body.is_inside_tree() or not (body is Node3D):
@@ -159,6 +169,8 @@ static func resolve(level: Level) -> int:
 	for b in level.get_tree().get_nodes_in_group(GROUP):
 		if counts(b):
 			bodies.append(b)
+	# Who claims a place: not the peaceful animals (they are only eased apart from each other).
+	var claimers: Array = bodies.filter(func(x): return not peaceful(x))
 	var grid := {}
 	for b in bodies:
 		var c: Vector2i = level.world_to_cell(b.global_position)
@@ -187,16 +199,23 @@ static func resolve(level: Level) -> int:
 						mover = stayer
 					if not movable(mover):
 						continue
+					# A peaceful animal claims nothing from anyone but its own kind of easy-going company.
+					var soft := peaceful(mover) or peaceful(stayer)
+					if soft and not (peaceful(mover) and peaceful(stayer)):
+						continue
 					var gap := _flat(mover.global_position, stayer.global_position)
 					var room := (radius_of(mover) + radius_of(stayer)) * STACKED
-					if gap < (radius_of(mover) + radius_of(stayer)) * DEEP:
-						if settle(level, mover, bodies):
+					if not soft and gap < (radius_of(mover) + radius_of(stayer)) * DEEP:
+						if settle(level, mover, claimers):
 							done[mover] = true
 							moved += 1
 					else:
 						# Eased away from the other, never into a wall.
 						var away := mover.global_position - stayer.global_position
 						away.y = 0.0
+						if away.length() < 0.01:
+							var angle := float(mover.get_instance_id() % 628) / 100.0
+							away = Vector3(cos(angle), 0.0, sin(angle))
 						var step := minf(room - gap, NUDGE * EVERY / float(Engine.physics_ticks_per_second))
 						var to: Vector3 = mover.global_position + away.normalized() * step
 						if open_at(level, to):

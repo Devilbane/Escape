@@ -3,7 +3,8 @@ the name in golden letters with a bejewelled golden crown below it.
 
 Run:  python3 tools/make_cape_designs.py /path/to/CinzelDecorative-Black.ttf
 (PIL needs a .ttf; convert the game's woff2 with fontTools first.)
-Writes assets/logo/cape_sbinortz.png, 480 x 512 like the devilbane logo.
+Writes assets/logo/cape_sbinortz.png and cape_brikan.png (the name BRIKAN in gold with a
+striped wooden pull-along duck, the Tigerente, below it), 480 x 512 like the devilbane logo.
 """
 import sys
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -96,5 +97,64 @@ def main(font_path):
     img.save("assets/logo/cape_sbinortz.png")
 
 
+def smooth(pts, rounds=4):
+    """Chaikin corner cutting: a closed polygon with its corners rounded off."""
+    for _ in range(rounds):
+        out = []
+        for i, (x0, y0) in enumerate(pts):
+            x1, y1 = pts[(i + 1) % len(pts)]
+            out += [(0.75 * x0 + 0.25 * x1, 0.75 * y0 + 0.25 * y1), (0.25 * x0 + 0.75 * x1, 0.25 * y0 + 0.75 * y1)]
+        pts = out
+    return pts
+
+
+def brikan(font_path):
+    """BRIKAN in golden letters, a Tigerente (yellow duck with brown stripes, red wheels) below."""
+    big = (W * S, H * S)
+    BODY, STRIPE, RED = (250, 176, 30), (92, 48, 14), (214, 38, 40)
+    mask = Image.new("L", big, 0)
+    d = ImageDraw.Draw(mask)
+    size = 120
+    font = ImageFont.truetype(font_path, size * S)
+    while d.textlength("BRIKAN", font=font) > (W - 40) * S:
+        size -= 2
+        font = ImageFont.truetype(font_path, size * S)
+    tw = d.textlength("BRIKAN", font=font)
+    d.text(((W * S - tw) / 2, 50 * S), "BRIKAN", font=font, fill=255)
+    gold = gold_fill(big)
+    out = Image.new("RGBA", big, (0, 0, 0, 0))
+    out.paste(Image.new("RGBA", big, DARK + (255,)), (0, 0), mask.filter(ImageFilter.MaxFilter(9 * 2 + 1)))
+    out.paste(gold, (0, 0), mask)
+
+    # The duck, facing right: a round back rising to the head, a flat broad bill.
+    sil = [(70, 400), (60, 345), (85, 300), (150, 285), (215, 268), (235, 235), (262, 205), (310, 200),
+           (350, 212), (420, 226), (448, 250), (420, 280), (350, 292), (338, 330), (330, 370), (322, 400)]
+    sil = [(x * S, y * S) for x, y in smooth([(x, y) for x, y in sil])]
+    duck = Image.new("L", big, 0)
+    ImageDraw.Draw(duck).polygon(sil, fill=255)
+    body = Image.new("RGBA", big, BODY + (255,))
+    bd = ImageDraw.Draw(body)
+    for i in range(-2, 10):  # slanted dark stripes
+        x = (60 + i * 48) * S
+        bd.polygon([(x, 190 * S), (x + 24 * S, 190 * S), (x - 6 * S, 410 * S), (x - 30 * S, 410 * S)], fill=STRIPE + (255,))
+    # Wheels sit behind the body: red discs on a dark rim.
+    for wx in (125, 285):
+        r = 30 * S
+        wy = 400 * S
+        wd = ImageDraw.Draw(out)
+        wd.ellipse((wx * S - r - 4 * S, wy - r - 4 * S, wx * S + r + 4 * S, wy + r + 4 * S), fill=DARK + (255,))
+        wd.ellipse((wx * S - r, wy - r, wx * S + r, wy + r), fill=RED + (255,))
+        wd.ellipse((wx * S - r * 0.35, wy - r * 0.35, wx * S + r * 0.35, wy + r * 0.35), fill=(150, 20, 30, 255))
+        wd.ellipse((wx * S - r * 0.8, wy - r * 0.8, wx * S - r * 0.2, wy - r * 0.3), fill=(255, 140, 130, 140))
+    out.paste(Image.new("RGBA", big, DARK + (255,)), (0, 0), duck.filter(ImageFilter.MaxFilter(7 * 2 + 1)))
+    out.paste(body, (0, 0), duck)
+    d = ImageDraw.Draw(out)
+    ex, ey, er = 290 * S, 236 * S, 8 * S  # the eye
+    d.ellipse((ex - er, ey - er, ex + er, ey + er), fill=DARK + (255,))
+    d.ellipse((ex - er * 0.5, ey - er * 0.6, ex, ey - er * 0.1), fill=(255, 255, 255, 220))
+    out.resize((W, H), Image.LANCZOS).save("assets/logo/cape_brikan.png")
+
+
 if __name__ == "__main__":
     main(sys.argv[1])
+    brikan(sys.argv[1])

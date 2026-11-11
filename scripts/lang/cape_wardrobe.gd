@@ -11,6 +11,8 @@ const EN := {
 	"Der Name in goldenen Buchstaben, darunter eine edelsteinbesetzte goldene Krone.": "The name in golden letters, with a golden crown set with jewels below it.",
 	"Schlicht": "Plain",
 	"Ein ganz leerer Umhang.": "A cape with nothing on it.",
+	"BRIKAN": "BRIKAN",
+	"Der Name in goldenen Buchstaben, darunter eine Tigerente auf roten Rädern.": "The name in golden letters, with a striped Tigerente toy duck on red wheels below it.",
 	"Getragen": "Worn",
 	"Tragen": "Wear",
 	"Du trägst jetzt: %s": "You now wear: %s",

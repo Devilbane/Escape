@@ -1,7 +1,7 @@
 extends SceneTree
 ## Headless test for the cape wardrobe on the first floor of the hero's house (see CapeWardrobe,
 ## CapeDesigns): every house has one from the start, on the first floor and out of the way of the
-## stairs, the bed, the chest and the other furniture; its window shows the three designs and
+## stairs, the bed, the chest and the other furniture; its window shows the four designs and
 ## keeps its size when one is picked; the cape's back shows the design picked (the devilbane logo,
 ## the name "Sbinortz" with a crown, or nothing); the choice is kept in the saved game; and a game
 ## saved before the wardrobe wears the logo.
@@ -118,12 +118,13 @@ func _run() -> void:
 	# The hero starts with the devilbane logo.
 	check(p.cape_design == CapeDesigns.DEFAULT and CapeDesigns.DEFAULT == 0, "the first design is the default")
 	check(_logo(p).visible and _picture(p) == CapeDesigns.texture(0), "the cape shows the devilbane logo")
-	check(CapeDesigns.DESIGNS.size() == 3, "there are three designs")
+	check(CapeDesigns.DESIGNS.size() == 4, "there are four designs")
 	check(CapeDesigns.texture(1) != null and CapeDesigns.texture(1) != CapeDesigns.texture(0), "the second design has a picture of its own")
 	check(CapeDesigns.texture(2) == null, "the third design is blank")
+	check(CapeDesigns.texture(3) != null and CapeDesigns.texture(3) != CapeDesigns.texture(1), "the fourth design (BRIKAN) has a picture of its own")
 	check(CapeDesigns.checked(7) == 0 and CapeDesigns.checked(-1) == 0 and CapeDesigns.checked("x") == 0, "a nonsense design falls back to the first")
 
-	# The window: three cards, one size, whatever is worn.
+	# The window: four cards, one size, whatever is worn.
 	var menus: Menus = game.menus
 	var texts := {}
 	for lang in ["de", "en"]:
@@ -135,8 +136,8 @@ func _run() -> void:
 		check(Menus.fixed_size("umhangschrank") != Vector2.ZERO, "the window has a fixed size")
 		var before := menus._panel.get_global_rect()
 		var cards: Array = menus._box.find_children("*", "PanelContainer", true, false).filter(func(n): return n.custom_minimum_size == Menus.CAPE_CARD)
-		check(cards.size() == 3, "%s: the window shows three designs" % lang)
-		for design in [1, 2, 0]:
+		check(cards.size() == 4, "%s: the window shows four designs" % lang)
+		for design in [1, 2, 3, 0]:
 			menus._wear_cape(design)
 			await process_frame
 			await process_frame
@@ -153,6 +154,8 @@ func _run() -> void:
 	check(_logo(p).visible and _picture(p) == CapeDesigns.texture(1), "design 2 shows the name and the crown")
 	p.set_cape_design(2)
 	check(not _logo(p).visible, "design 3 shows nothing")
+	p.set_cape_design(3)
+	check(_logo(p).visible and _picture(p) == CapeDesigns.texture(3), "design 4 shows BRIKAN and the Tigerente")
 	p.set_cape_design(0)
 	check(_logo(p).visible and _picture(p) == CapeDesigns.texture(0), "design 1 shows the logo again")
 

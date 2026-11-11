@@ -217,6 +217,11 @@ func show_line(speaker: String, text: String, titled := false) -> void:
 	_apply()
 
 
+## A golden bubble (a flash of insight) in place of the paper one.
+func set_gold(on: bool) -> void:
+	_material.set_shader_parameter("paper", Color(1.0, 0.84, 0.3) if on else PAPER)
+
+
 ## Size of the bubble body in metres (without the tail).
 func body_size() -> Vector2:
 	return _size

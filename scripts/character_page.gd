@@ -253,7 +253,7 @@ static func _distance_to(rect: Rect2, point: Vector2) -> float:
 ## advanced skill), shown in gold. No chance while the skill is dimmed.
 func _skill_lines(id: String) -> Dictionary:
 	var enabled := player.skill_enabled(id)
-	var level := player.skill(id) if enabled else Training.skill_level(player.xp.get(id, 0.0), id)
+	var level := player.skill(id) if enabled else player.trained_level(id)
 	var name := Lang.t(Training.SKILLS[id].name)
 	var label := "%s %d" % [name, level]
 	var names := [label]
@@ -525,7 +525,7 @@ func _skill_details(id: String) -> Dictionary:
 	var skill: Dictionary = Training.SKILLS[id]
 	var enabled := player.skill_enabled(id)
 	var xp: float = player.xp.get(id, 0.0)
-	var level := player.skill(id) if enabled else Training.skill_level(xp, id)
+	var level := player.skill(id) if enabled else player.trained_level(id)
 	var lines := []
 	if Training.tier(id) == 2:
 		var rank := Training.rank(id, level)
@@ -544,8 +544,13 @@ func _skill_details(id: String) -> Dictionary:
 		lines.append(Lang.t(SKILL_EFFECTS[id]))
 	elif id == "werfen":
 		lines.append(Lang.t("Griffbereit: %d Wurfmesser (3, und eines mehr je zwei Stufen)") % player.knife_cap())
-	if Training.skill_level(xp, id) < Training.skill_max(id):
-		lines.append(Lang.t("Noch %d %% Übung bis zur nächsten Stufe.") % (100 - floori(Training.skill_progress(xp, id) * 100.0)))
+	# How the hero feels about it, in their own words: no bar, no number, and
+	# new only after a night away (see SleepRoll).
+	lines.append("„%s“" % SleepRoll.tip(player.sleep_state, id, player.xp))
+	var past := SleepRoll.history_lines(player.sleep_state, id)
+	if not past.is_empty():
+		lines.append(Lang.t("Bisher:"))
+		lines.append_array(past)
 	var note := ""
 	if enabled:
 		var average: String = values[0] if values.size() == 1 else "(%s) / %d" % [" + ".join(values), values.size()]
@@ -565,7 +570,7 @@ func _dimmed_reason(id: String) -> String:
 			return Lang.t("Gedimmt: braucht %s %d.") % [Lang.t(Training.ATTRIBUTES[a].name), int(requires[a])]
 	var needs: Dictionary = skill.get("needs", {})
 	for basic in needs:
-		if Training.skill_level(player.xp.get(basic, 0.0), basic) < int(needs[basic]):
+		if player.trained_level(basic) < int(needs[basic]):
 			return Lang.t("Gedimmt: braucht erst %s %d.") % [Lang.t(Training.SKILLS[basic].name), int(needs[basic])]
 	return Lang.t(GEAR_HINTS.get(id, "Gedimmt: braucht passende Ausrüstung"))
 

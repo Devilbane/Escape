@@ -1728,10 +1728,11 @@ func gain_xp(amount: int) -> int:
 
 ## Level and experience as they are kept with the training.
 func level_data() -> Dictionary:
-	return {"xp": hero_xp, "points": level_points.duplicate()}
+	return {"xp": hero_xp, "points": level_points.duplicate(), "sleep": sleep_state.duplicate(true)}
 
 
 func set_level_data(data: Dictionary) -> void:
+	sleep_state = SleepRoll.checked(data.get("sleep", {}))
 	hero_xp = int(data.get("xp", 0))
 	level_points = {}
 	var points = data.get("points", {})
@@ -1741,12 +1742,23 @@ func set_level_data(data: Dictionary) -> void:
 				level_points[id] = int(points[id])
 
 
+## What the nights have given the hero so far (see SleepRoll): practice makes
+## a skill ripe, a night turns it into a level.
+var sleep_state := SleepRoll.empty()
+
+
+## The level the hero has won in a skill: what training gave, held back until
+## a night has made the next level real (see SleepRoll).
+func trained_level(id: String) -> int:
+	return SleepRoll.earned(sleep_state, id, xp)
+
+
 ## A skill's level: what was trained plus what worn items add. 0 while the
 ## gear it needs is not worn.
 func skill(id: String) -> int:
 	if not skill_enabled(id):
 		return 0
-	var level_now := Training.skill_level(xp.get(id, 0.0), id)
+	var level_now := trained_level(id)
 	for slot in equipped:
 		level_now += int(Items.ALL[equipped[slot]].get("skills", {}).get(id, 0))
 	level_now += int(companion_perks.get("skills", {}).get(id, 0))
@@ -1760,7 +1772,7 @@ func skill_enabled(id: String) -> bool:
 	# An advanced skill builds on basic skills.
 	var needs: Dictionary = Training.SKILLS[id].get("needs", {})
 	for basic in needs:
-		if Training.skill_level(xp.get(basic, 0.0), basic) < int(needs[basic]):
+		if trained_level(basic) < int(needs[basic]):
 			return false
 	match id:
 		"klingen", "aexte":
@@ -1836,6 +1848,11 @@ func train(id: String, amount: float, need_gear := true) -> void:
 	if is_skill and need_gear and not is_craft and not skill_enabled(id):
 		return
 	var old_xp: float = xp.get(id, 0.0)
+	# A skill's new level waits for the night: practice only makes it ripe.
+	if Training.is_skill(id):
+		SleepRoll.practise(sleep_state, id, xp)
+		xp[id] = old_xp + amount
+		return
 	xp[id] = old_xp + amount
 	var before := Training.skill_level(old_xp, id) if is_skill else Training.attribute_value(id, old_xp)
 	var after := Training.skill_level(xp[id], id) if is_skill else Training.attribute_value(id, xp[id])

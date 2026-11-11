@@ -193,6 +193,21 @@ static func skill_progress(xp: float, id := "") -> float:
 	return progress(xp, SKILL_FIRST, SKILL_GROWTH, skill_max(id))
 
 
+## The training a skill needs in all to stand at `level`.
+static func skill_xp_for(level: int) -> float:
+	var total := 0.0
+	var cost := SKILL_FIRST
+	for i in level:
+		total += cost
+		cost *= SKILL_GROWTH
+	return total
+
+
+## What the step from `level` to the next one costs in training.
+static func skill_step_cost(level: int) -> float:
+	return SKILL_FIRST * pow(SKILL_GROWTH, level)
+
+
 ## The rank of an advanced skill at a level: Novice, Advanced or Master up to
 ## 9, "?" for the levels still to be defined, special knowledge above
 ## ADVANCED_MAX. Empty for basic skills and level 0.

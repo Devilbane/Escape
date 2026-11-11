@@ -4639,7 +4639,7 @@ func away_choices() -> Dictionary:
 		if player.attribute(id) < Training.ATTRIBUTES[id].max:
 			train.append(id)
 	for id in Training.SKILLS:
-		if player.skill_enabled(id) and Training.skill_level(player.xp.get(id, 0.0)) < Training.SKILL_MAX:
+		if player.skill_enabled(id) and player.trained_level(id) < Training.skill_max(id):
 			train.append(id)
 	var books := []
 	var owned: Array = player.bag.duplicate()
@@ -4665,6 +4665,7 @@ func _return_from_away(data: Dictionary) -> void:
 	var read := float(book_hours.get(String(plan.study), 0.0))
 	var result := Offline.simulate(plan, hours, HomeUpgrades.has(home_upgrades, "werkstatt"), read)
 	away_report = _apply_away(plan, result)
+	var night := _sleep_night(real_seconds, data)
 	away_report.push_front(Lang.t("Du warst %s weg, für %s vergingen %s.") % [
 			_real_time_text(real_seconds), hero_name, Offline.duration_text(hours)])
 	if real_seconds > Offline.MAX_REAL_SECONDS:
@@ -4673,6 +4674,92 @@ func _return_from_away(data: Dictionary) -> void:
 	save_game()
 	_update_hud()
 	menus.open("rueckkehr")
+	_tell_night(night)
+
+
+## The night after the player was away `real_seconds`: at least
+## SleepRoll.NIGHT_SECONDS, or any sleep while the hero is still new (see
+## SleepRoll). Rolls the ripe skills and returns what happened, with where and
+## how long the hero slept ({} if it was no night).
+func _sleep_night(real_seconds: float, data: Dictionary) -> Dictionary:
+	if real_seconds < SleepRoll.NIGHT_SECONDS and player.hero_level() > SleepRoll.FIRST_NIGHTS_LEVEL:
+		return {}
+	var place := "bed"
+	if level != null and level.inn:
+		place = "inn"
+	elif has_camp() and not Camp.from_save(data.get("camp")).is_empty():
+		place = "camp"
+	elif level is Outdoor and _home_given_now():
+		place = "home"
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var wisdom := player.attribute("weisheit")
+	var result := SleepRoll.night(player.sleep_state, player.xp, place, real_seconds / 3600.0, wisdom,
+			func(id: String) -> float: return player.skill_attribute_average(id), day, rng)
+	result.hours = real_seconds
+	result.place = place
+	result.lines = []
+	for id in result.practised:
+		if not result.missed.has(id) and not result.won.any(func(w): return w.id == id):
+			result.missed.append(id)
+	return result
+
+
+## The event board message "since your last logout" and the speech bubbles of
+## the levels the night gave (see SleepRoll): no summary window, no numbers.
+func _tell_night(night: Dictionary) -> void:
+	if night.is_empty():
+		return
+	var state: Dictionary = player.sleep_state
+	var lines: Array[String] = [Lang.t("Seit deiner letzten Abmeldung:"),
+			Lang.t("Geschlafen: %s (%s)") % [_real_time_text(float(night.hours)), Lang.t(SLEEP_PLACE_NAMES[night.place])]]
+	for w in night.won:
+		var line := Lang.t("%s: Stufe %d!") % [Lang.t(Training.SKILLS[w.id].name), w.level]
+		if w.flash:
+			line = Lang.t("Geistesblitz! ") + line
+		lines.append(line)
+		if CharacterPage.SKILL_EFFECTS.has(w.id):
+			lines.append("  " + Lang.t(CharacterPage.SKILL_EFFECTS[w.id]))
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var shown := 0
+	for id in night.missed:
+		if shown >= 4:
+			break
+		shown += 1
+		lines.append(Lang.t("Über %s: „%s“") % [Lang.t(Training.SKILLS[id].name), SleepRoll.short_line(state, id, rng)])
+	Events.found("\n".join(lines), GOLD)
+	Training.save_hero(hero_name, player.xp, player.level_data())
+	if not night.won.is_empty():
+		_show_breakthroughs(night.won)
+
+
+const SLEEP_PLACE_NAMES := {"ground": "unter freiem Himmel", "camp": "am Lagerfeuer", "bed": "im Bett", "inn": "im Gasthaus", "home": "im eigenen Bett"}
+
+
+## A speech bubble over the waking hero for every level the night gave, one
+## after the other; a flash of insight comes last, golden and longer.
+func _show_breakthroughs(won: Array) -> void:
+	var ordered := won.filter(func(w): return not w.flash)
+	ordered.append_array(won.filter(func(w): return w.flash))
+	var bubble := SpeechBubble.new()
+	bubble.position.y = 3.2
+	player.add_child(bubble)
+	for w in ordered:
+		if not is_instance_valid(player) or not is_instance_valid(bubble):
+			return
+		var who := "%s %d" % [Lang.t(Training.SKILLS[w.id].name), w.level]
+		bubble.set_gold(w.flash)
+		bubble.show_line(who, Lang.t(SleepRoll.EUREKA) if w.flash else Lang.t(SleepRoll.SHOUTS[randi() % SleepRoll.SHOUTS.size()]))
+		if w.flash:
+			Effects.float_text(level, player.global_position + Vector3(0, 4.2, 0), Lang.t(SleepRoll.EUREKA), Color(1.0, 0.85, 0.25))
+			Sfx.play(self, "key", -2.0)
+		await get_tree().create_timer(SleepRoll.EUREKA_SECONDS if w.flash else SleepRoll.BUBBLE_SECONDS).timeout
+		if is_instance_valid(bubble):
+			bubble.hide_line()
+			await get_tree().create_timer(0.4).timeout
+	if is_instance_valid(bubble):
+		bubble.queue_free()
 
 
 ## Gives the hero what the time away brought; returns a line for each thing.
@@ -4682,8 +4769,6 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 	var before := {}
 	for id in Training.ATTRIBUTES:
 		before[id] = player.attribute(id)
-	for id in Training.SKILLS:
-		before[id] = Training.skill_level(player.xp.get(id, 0.0))
 	# No floating texts for each new point: the window lists them all.
 	player.set_block_signals(true)
 	for id in result.xp:
@@ -4733,10 +4818,8 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 		if player.attribute(id) > before[id]:
 			var shown := ("%d%%" % player.attribute(id)) if id == "tempo" else str(player.attribute(id))
 			lines.append(Lang.t("%s steigt auf %s!") % [Lang.t(Training.ATTRIBUTES[id].name), shown])
-	for id in Training.SKILLS:
-		var now := Training.skill_level(player.xp.get(id, 0.0))
-		if now > before[id]:
-			lines.append(Lang.t("%s: Stufe %d!") % [Lang.t(Training.SKILLS[id].name), now])
+	# Skills do not level up from training: that waits for the night (see
+	# _sleep_night).
 	return lines
 
 

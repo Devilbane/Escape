@@ -30,6 +30,7 @@ const PARTS := [
 	preload("res://scripts/lang/trade_window.gd"),
 	preload("res://scripts/lang/items.gd"),
 	preload("res://scripts/lang/training.gd"),
+	preload("res://scripts/lang/sleep_roll.gd"),
 	preload("res://scripts/lang/character_page.gd"),
 	preload("res://scripts/lang/levels.gd"),
 	preload("res://scripts/lang/village.gd"),

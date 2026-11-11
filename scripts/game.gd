@@ -4834,7 +4834,7 @@ func _repair_gear(points: int) -> int:
 	var order: Array = player.equipped.values()
 	order.append_array(player.bag)
 	for id in order:
-		while done < points and player.wear.get(id, 0) > 0:
+		while done < points and player.wear.get(id, 0) > 0 and not Items.is_broken(id, player.wear[id]):
 			player.wear[id] -= 1
 			done += 1
 			if player.wear[id] <= 0:

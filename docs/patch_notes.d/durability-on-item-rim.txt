@@ -1,0 +1,1 @@
+- Item wear now shows on the rim of its slot: the rim darkens from the top down as durability drops. A piece at 0 is destroyed, cannot be worn or mended, and can only be melted down at the smith.

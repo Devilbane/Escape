@@ -554,6 +554,8 @@ static func stat_lines(id: String, worn := 0) -> Array:
 		lines.append([Lang.t("Blockchance: %d%%") % roundi(item.block * 100.0), Color.WHITE])
 	if item.has("durability"):
 		lines.append([Lang.t("Haltbarkeit: %d / %d") % [item.durability - worn, item.durability], Color.WHITE])
+		if worn >= item.durability:
+			lines.append([Lang.t("Zerstört: nur noch einzuschmelzen"), Color(0.95, 0.5, 0.45)])
 	if item.get("speed", 0.0) != 0.0:
 		lines.append([Lang.t("%+d%% Tempo") % roundi(item.speed * 100.0), BLUE])
 	if item.has("bag"):

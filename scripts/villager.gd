@@ -917,7 +917,6 @@ func alarm(slime: Enemy, called := false) -> void:
 ## The danger is over (the slime fell, went off, or swallowed them).
 func calm_down() -> void:
 	threat = null
-	knives = VillageArms.KNIVES
 	_sheathe_later()
 	if not at_home:
 		_start("idle", _rng.randf_range(0.5, 2.0))
@@ -1040,7 +1039,8 @@ func _fight(delta: float) -> void:
 
 var _casts := 0
 ## The throwing knives a fighter still has (see VillageArms.KNIVES): he throws
-## them at a slime from afar, then closes in with his blade. Pip never runs out.
+## them at a slime from afar, then closes in with his blade. Pip never runs
+## out; the rest get them back every night (see set_night).
 var knives := VillageArms.KNIVES
 
 
@@ -1724,6 +1724,8 @@ func works_late() -> bool:
 ## night finds the village already asleep).
 func set_night(on: bool, at_once := false) -> void:
 	night = on
+	if on:
+		knives = VillageArms.KNIVES
 	if role in NIGHT_OWLS or (on and works_late()):
 		return
 	if on:

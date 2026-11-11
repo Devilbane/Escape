@@ -45,8 +45,7 @@ const THROW_RANGE := 8.0
 const THROW_TIME := 1.6
 const KNIFE_BONUS := 0
 ## Every fighter who stands toe to toe carries this many throwing knives, thrown
-## at a slime from afar before he closes in; they are back in his belt once the
-## danger is over. Pip throws without end, Zarek casts and the priestess heals.
+## at a slime from afar before he closes in; they are back in his belt every night. Pip throws without end, Zarek casts and the priestess heals.
 const KNIVES := 3
 ## The priestess keeps this far from the slime, near enough to reach the
 ## fighters around it.

@@ -77,7 +77,7 @@ const FADE := 5.0
 
 ## Every night is a little dusty: the mist at its thinnest, this share of
 ## the thickness of real fog, fading in at dusk and out at dawn.
-const NIGHT_DUST := 0.3
+const NIGHT_DUST := 0.25
 
 ## Rain drops at full strength, and the box around the hero they fall in.
 const RAIN_DROPS := 700

@@ -141,6 +141,12 @@ var gift_constitution := 0
 var beginner_shrines_used := 0
 ## From the fourth shrine gift, which only a wise hero is offered.
 var gift_armor := 0
+## The temple's blessing (see Blessing): the god's id ("" for none), how many
+## thirds of its strength are left, and whether the hero ever had one (the
+## first is free).
+var blessing_god := ""
+var blessing_thirds := 0
+var blessed_before := false
 ## What the companion at the hero's side gives (Companions.SPECIES of its
 ## kind: "speed", "power", "skills"); {} without one. Set by the game.
 var companion_perks: Dictionary = {}
@@ -1892,6 +1898,9 @@ func reset_gifts() -> void:
 	gift_constitution = 0
 	beginner_shrines_used = 0
 	gift_armor = 0
+	blessing_god = ""
+	blessing_thirds = 0
+	blessed_before = false
 	companion_perks = {}
 	equipped = {}
 	wear.clear()
@@ -1917,13 +1926,19 @@ func refresh_stats() -> void:
 		armour_value += int(item.get("armour_value", 0))
 		block_chance += item.get("block", 0.0)
 	hardening += ArmourSets.hardening(equipped)
+	# The god's boon and burden, at the strength left (see Blessing).
+	hp_bonus += int(Blessing.amount(blessing_god, blessing_thirds, "hp"))
+	power_bonus += int(Blessing.amount(blessing_god, blessing_thirds, "power"))
+	speed_bonus += Blessing.amount(blessing_god, blessing_thirds, "speed")
+	hardening += int(Blessing.amount(blessing_god, blessing_thirds, "hardening"))
+	block_chance += Blessing.amount(blessing_god, blessing_thirds, "block")
 	armour_value = mini(armour_value, ARMOUR_VALUE_MAX)
 	if equipped.has("schild"):
 		block_chance += BLOCK_PER_LEVEL * skill("blocken")
 	var hero := hero_level()
 	hp_bonus += HeroLevel.life_bonus(hero)
 	speed_bonus += HeroLevel.speed_bonus(hero)
-	max_hp = MAX_HP + hp_bonus + attribute("konstitution") - Training.ATTRIBUTES.konstitution.start
+	max_hp = maxi(1, MAX_HP + hp_bonus + attribute("konstitution") - Training.ATTRIBUTES.konstitution.start)
 	power = 1 + power_bonus + attribute("staerke") - Training.ATTRIBUTES.staerke.start
 	base_speed_wanted = (1.0 + speed_bonus) * attribute("tempo") / 100.0
 	base_speed_capped = base_speed_wanted > BASE_SPEED_CAP + 0.0001

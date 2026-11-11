@@ -21,7 +21,7 @@ var shots := OS.get_environment("SHOTS")
 ## The windows and the villager each belongs to (for the goodwill line).
 const KINDS := {
 	"inventar": "", "lager": "", "metalltruhe": "", "zutatenbord": "", "buecherregal": "", "tresor": "", "bank": "", "haendler": "6", "schmied": "1",
-	"steinmetz": "S", "barbier": "Z", "wanderhaendler": "", "werkbank": "", "hauswerkbank": "",
+	"steinmetz": "S", "barbier": "Z", "tempel": "O", "wanderhaendler": "", "werkbank": "", "hauswerkbank": "",
 	"ausbau": "", "aushang": "", "trophaeen": "", "charakter": "", "gefaehrten": "", "umhangschrank": "", "wunsch": "",
 	"kampfstil": "", "kompendium": "", "karte": "", "auftraege": "",
 }

@@ -267,7 +267,7 @@ const HINT_SHOWINGS := 2
 var _hints_now := {}
 var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
-const PERSON_STATIONS := ["npc", "bank", "barbier", "haendler", "steinmetz", "schmied", "wanderhaendler"]
+const PERSON_STATIONS := ["npc", "bank", "barbier", "tempel", "haendler", "steinmetz", "schmied", "wanderhaendler"]
 ## Lives the hero gets back for climbing to the next level.
 const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
@@ -1759,7 +1759,10 @@ func _use_station(s: Dictionary) -> void:
 		# A villager who trades: a word, then the goods. A task handed out or
 		# finished comes first; the goods wait until the next time. While the
 		# last line still shows, the goods open without a new word.
-		if not busy and (quests.talk(s.npc, true) or reputation.tell_secret(s.npc)):
+		# The priestess still hands out her recipe and listens to wishes, like
+		# any villager, before her temple window opens.
+		var temple: bool = s.kind == "tempel"
+		if not busy and (quests.talk(s.npc, true) or reputation.tell_secret(s.npc) or (temple and (crafting.talk(s.npc) or wishes.talk(s.npc)))):
 			player.face(s.pos - player.global_position)
 			player.play("Idle")
 			return
@@ -3646,6 +3649,7 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_points = int(data.get("gift_points", 0))
 	player.gift_constitution = int(data.get("gift_constitution", 0))
 	player.beginner_shrines_used = int(data.get("beginner_shrines_used", 0))
+	Blessing.load_from(player, data.get("blessing", {}))
 	player.gift_spent = {}
 	var gift_spent = data.get("gift_spent", {})
 	if gift_spent is Dictionary:
@@ -3923,6 +3927,7 @@ func save_game(going_away := false) -> bool:
 		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution, "beginner_shrines_used": player.beginner_shrines_used,
+		"blessing": Blessing.for_save(player),
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "cape": player.cape_design, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "book_hours": book_hours, "escaped": escaped, "village_run": snappedf(player.ailments.get(VillageRun.KIND, 0.0), 0.1), "home": _home_given_now(), "claimed": home_claimed,
 		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(), "home_stores": HomeStores.for_save(home_stores),
@@ -6190,6 +6195,10 @@ func _on_player_defeated() -> void:
 	var fell_on := level
 	var lost := Rescue.drop_belongings(self)
 	lost.xp = Rescue.forget(player)
+	# The blessing grows thinner: a third of it is gone (see Blessing).
+	var god := player.blessing_god
+	lost.blessing = Blessing.weaken(player)
+	lost.god = god
 	_update_hud()
 	var eagle := Rescue.on_surface(level)
 	show_message(Lang.t("Du verlierst das Bewusstsein...") + "\n" + (Lang.t("Ein Adler stößt herab!") if eagle else Lang.t("Der Rettungstrupp der Zwerge ist unterwegs!")), 3.0)
@@ -6230,6 +6239,11 @@ func _rescued(eagle: bool, lost: Dictionary, fell_on: String) -> void:
 		text += "\n" + Lang.t("Deine Tasche, dein Zutatenbeutel und %d Münzen liegen noch dort, wo du gefallen bist: %s.") % [int(lost.coins), Lang.t(fell_on)]
 	if int(lost.get("xp", 0)) > 0:
 		text += "\n" + Lang.t("Gedächtnisverlust: %d Erfahrung vergessen.") % int(lost.xp)
+	if bool(lost.get("blessing", false)):
+		var left := player.blessing_thirds
+		var name := Lang.t(Blessing.GODS[lost.god].name)
+		text += "\n" + (Lang.t("Der Segen von %s wird schwächer: %d von %d Dritteln bleiben.") % [name, left, Blessing.FULL] if left > 0 \
+				else Lang.t("Der Segen von %s ist erloschen. Im Tempel kannst du dich neu segnen lassen.") % name)
 	show_message(text, 6.0)
 	Events.tell(text.replace("\n", " "), Color(1.0, 0.85, 0.45), 8.0)
 	Events.teach(Rescue.LORE)
@@ -6921,6 +6935,7 @@ func _process(delta: float) -> void:
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"bank": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
+			"tempel": Lang.t("Dagegenlaufen, um mit %s über den Segen der Götter zu reden") % station.npc.display_name if station.has("npc") else "",
 			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
 			"eingang": Lang.t("Dagegenlaufen, um in das dunkle Loch hinabzusteigen") if String(station.get("building", "")).begins_with("loch") or station.get("building", "") == TreasureMaps.CAVE else Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),

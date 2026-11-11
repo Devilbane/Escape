@@ -409,6 +409,8 @@ const HARDENING := "haertung"
 const ARMOUR := "ruestungswert"
 ## The entry for the armour set worn (see ArmourSets).
 const ARMOUR_SET := "ruestungsset"
+## The entry for the temple's blessing (see Blessing).
+const BLESSING := "segen"
 
 
 ## Why a skill is dimmed: the gear it needs.
@@ -430,6 +432,8 @@ func details(id: String) -> Dictionary:
 		return protection_details(id)
 	if id == ARMOUR_SET:
 		return set_details()
+	if id == BLESSING:
+		return blessing_details()
 	if Training.ATTRIBUTES.has(id):
 		return _attribute_details(id)
 	if Training.SKILLS.has(id):
@@ -459,6 +463,22 @@ func protection_details(id: String) -> Dictionary:
 			Lang.t("Leichte Treffer fängt die Rüstung so manchmal ganz ab."),
 			Lang.t("Höchstens %d %%.") % Player.ARMOUR_VALUE_MAX],
 		"note": Lang.t("Kommt von Helm, Rüstung, Handschuhen und Schuhen. Stoff schützt wenig, Stahl und Schuppen viel.")}
+
+
+## The blessing and what it gives now, or how to get one.
+func blessing_details() -> Dictionary:
+	if player.blessing_god == "":
+		return {"title": Lang.t("Ungesegnet"),
+			"lines": [Lang.t("Im Tempel des Dorfes segnet dich Priesterin Elsbeth im Namen eines Gottes."),
+				Lang.t("Der erste Segen ist umsonst.")],
+			"note": Lang.t("Jede Rettung nimmt ein Drittel des Segens. Nach drei Rettungen ist er fort.")}
+	var god: Dictionary = Blessing.GODS[player.blessing_god]
+	var lines := [Lang.t(god.tale)]
+	for line in Blessing.lines(player.blessing_god, player.blessing_thirds):
+		lines.append(line[0])
+	return {"title": Blessing.full_name(player.blessing_god),
+		"lines": lines,
+		"note": Lang.t("Noch %d von %d Dritteln. Jede Rettung nimmt eines; im Tempel kannst du den Segen erneuern.") % [player.blessing_thirds, Blessing.FULL]}
 
 
 ## The armour set worn and what it gives, or how close the hero is to one.

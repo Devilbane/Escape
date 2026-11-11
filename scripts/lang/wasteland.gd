@@ -34,7 +34,6 @@ const EN := {
 	"Der Schrein der Gnädigen Herrin ist wieder ganz. Du spürst ihren Segen.": "The Merciful Lady's shrine is whole again. You feel her blessing.",
 	# The window.
 	"Schrein der Gnädigen Herrin": "Shrine of the Merciful Lady",
-	"Beten": "Pray",
 	"Mirenna, Herrin der Gnade": "Mirenna, Lady of Mercy",
 	"Du wirst ganz geheilt, und Gift, Fluch und Blutung fallen von dir ab.": "You are healed completely, and poison, curses and bleeding fall from you.",
 	"Was kein Trank heilt, heilt Mirennas Hand: Auch eine schwere Verletzung verschwindet hier.": "What no potion heals, Mirenna's hand heals: even a grave injury vanishes here.",

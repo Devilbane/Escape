@@ -2409,7 +2409,7 @@ func bag_fits(id: String) -> bool:
 ## and so does an item whose swap would leave the bag with too few slots.
 ## Returns whether the item was put on.
 func equip(id: String) -> bool:
-	if Items.is_book(id) or Items.is_recipe_scroll(id) or Items.is_crate(id) or Items.is_stone(id) or Items.is_material(id) or Items.is_ammo(id) or Items.is_bedroll(id) or Items.is_potion(id) or not can_use(Items.ALL[id].get("requires", {})):
+	if Items.is_broken(id, wear.get(id, 0)) or Items.is_book(id) or Items.is_recipe_scroll(id) or Items.is_crate(id) or Items.is_stone(id) or Items.is_material(id) or Items.is_ammo(id) or Items.is_bedroll(id) or Items.is_potion(id) or not can_use(Items.ALL[id].get("requires", {})):
 		return false
 	var slot: String = Items.ALL[id].slot
 	if slot == "spezial":
@@ -2482,9 +2482,14 @@ func _wear_down(slot: String) -> void:
 		return
 	wear[id] = wear.get(id, 0) + 1
 	if wear[id] >= durability:
-		wear.erase(id)
-		equipped.erase(slot)
-		refresh_stats()
+		# Worn through: it comes off and stays in the bag, destroyed, to be melted down
+		# (see Forge.melt). With no room in the bag it falls apart for good.
+		if unequip(slot):
+			Events.tell(Lang.t("%s ist zerstört: nur noch einzuschmelzen.") % Items.item_name(id), Color(0.75, 0.8, 0.9))
+		else:
+			wear.erase(id)
+			equipped.erase(slot)
+			refresh_stats()
 		Effects.float_text(level, global_position + Vector3(0, 3.2, 0), Lang.t("%s zerbricht!") % Items.item_name(id), Color(0.75, 0.8, 0.9))
 		Sfx.play(self, "bones")
 

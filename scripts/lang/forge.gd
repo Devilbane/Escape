@@ -28,6 +28,7 @@ const EN := {
 	"%s %d / %d\n%d Kupfer": "%s %d / %d\n%d copper",
 	"Geschmiedet: %s (%s)": "Forged: %s (%s)",
 	"Eingeschmolzen: %s, +%d Eisen": "Melted down: %s, +%d iron",
+	"%s ist zerstört und lässt sich nur noch einschmelzen.": "%s is destroyed and can only be melted down.",
 	"Ausgebessert: %s, Haltbarkeit %d / %d": "Mended: %s, durability %d / %d",
 	"Gekauft: %d Eisenbarren": "Bought: %d iron bars",
 	"Da ist nichts.": "There is nothing there.",

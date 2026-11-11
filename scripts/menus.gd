@@ -694,6 +694,12 @@ func _item_slot(id: String, name: String, count: int, action: Callable, enabled 
 		if id == "":
 			icon.modulate = Color(1, 1, 1, 0.16)
 		b.add_child(icon)
+	if id != "" and Items.ALL.has(id) and Items.ALL[id].get("durability", 0) > 0:
+		# The rim shows how much is left: dimmed from the top down as the piece wears.
+		var worn: int = int(game.player.wear.get(id, 0))
+		b.add_child(DurabilityRim.make(Items.condition(id, worn), 5, 5))
+		if Items.is_broken(id, worn):
+			b.tooltip_text += "  (%s)" % Lang.t("zerstört")
 	if count > 1:
 		var n: Label = game._make_label(game.TEXT_FONT, 20, Color(1.0, 0.95, 0.81))
 		n.text = "×%d" % count
@@ -1480,6 +1486,8 @@ func _equip_selected() -> void:
 	if not p.can_use(requires):
 		var attr: String = requires.keys()[0]
 		_note = Lang.t("Dafür brauchst du %s %d.") % [Lang.t(Training.ATTRIBUTES[attr].name), requires[attr]]
+	elif Items.is_broken(id, int(p.wear.get(id, 0))):
+		_note = Lang.t("%s ist zerstört. Nur der Schmied kann es noch einschmelzen.") % Items.item_name(id)
 	elif not p.equip(id):
 		_note = Lang.t("In diesen Rucksack passt nicht alles aus deiner Tasche.") if Items.ALL[id].slot == "rucksack" else Lang.t("Deine Tasche ist voll.")
 	_selected = -1
@@ -3220,8 +3228,9 @@ func _build_smithy() -> void:
 		"einschmelzen":
 			var melt := []
 			for id in _kinds(p.bag):
-				var can := Forge.can_melt(id)
-				melt.append({"key": "melt:" + id, "id": id, "name": Items.item_name(id), "price": Forge.metals_text(Forge.melt_into(id), true) if can else Lang.t("Schmilzt nicht"), "price_ok": can,
+				var broken := Items.is_broken(id, int(p.wear.get(id, 0)))
+				var can := Forge.can_melt(id) or broken
+				melt.append({"key": "melt:" + id, "id": id, "name": Items.item_name(id), "price": Forge.metals_text(Forge.melt_into(id, broken), true) if can else Lang.t("Schmilzt nicht"), "price_ok": can,
 						"button": Lang.t("Einschmelzen"), "action": _melt.bind(p.bag.find(id)), "enabled": can, "count": p.bag.count(id)})
 			# The fine bars the hero has: Gorm buys them, one bar at a time.
 			var fine := []
@@ -3362,8 +3371,9 @@ func _buy_finished(id: String) -> void:
 
 func _melt(index: int) -> void:
 	var id: String = game.player.bag[index]
+	var broken := Items.is_broken(id, int(game.player.wear.get(id, 0)))
 	var why := Forge.melt(game, index)
-	_note = why if why != "" else Lang.t("Eingeschmolzen: %s, %s") % [Items.item_name(id), Forge.metals_text(Forge.melt_into(id), true)]
+	_note = why if why != "" else Lang.t("Eingeschmolzen: %s, %s") % [Items.item_name(id), Forge.metals_text(Forge.melt_into(id, broken), true)]
 	if why == "":
 		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
 	game.player.refresh_stats()

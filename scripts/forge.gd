@@ -521,7 +521,7 @@ static func worn_down(p: Player) -> Array:
 	var order: Array = p.equipped.values()
 	order.append_array(p.bag)
 	for id in order:
-		if int(p.wear.get(id, 0)) > 0 and not ids.has(id):
+		if int(p.wear.get(id, 0)) > 0 and not Items.is_broken(id, int(p.wear[id])) and not ids.has(id):
 			ids.append(id)
 	return ids
 
@@ -537,12 +537,14 @@ static func melt(game: Node, index: int) -> String:
 	if index < 0 or index >= p.bag.size():
 		return Lang.t("Da ist nichts.")
 	var id: String = p.bag[index]
-	if not can_melt(id):
+	var broken := Items.is_broken(id, int(p.wear.get(id, 0)))
+	if not can_melt(id) and not broken:
 		return Lang.t("%s lässt sich nicht einschmelzen.") % Items.item_name(id)
 	p.bag.remove_at(index)
 	if not p.bag.has(id) and not p.equipped.values().has(id):
 		p.wear.erase(id)
-	store(game, melt_into(id))
+	# A destroyed piece gives up its parts even when it is not metal.
+	store(game, melt_into(id, broken))
 	game.player.train(STEEL_MAKING, MELT_XP, false)
 	return ""
 
@@ -667,6 +669,8 @@ static func result_text(id: String) -> String:
 ## Mends a piece as far as the gold goes. Returns "" on success, else why not.
 static func mend(game: Node, id: String) -> String:
 	var p: Player = game.player
+	if Items.is_broken(id, int(p.wear.get(id, 0))):
+		return Lang.t("%s ist zerstört und lässt sich nur noch einschmelzen.") % Items.item_name(id)
 	if int(p.wear.get(id, 0)) <= 0:
 		return Lang.t("%s ist wie neu.") % Items.item_name(id)
 	var price := mend_price(id, game)

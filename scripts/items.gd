@@ -386,6 +386,19 @@ static func item_name(id: String) -> String:
 	return Lang.t(ALL[id].name) if ALL.has(id) else ""
 
 
+## How much of an item's durability is left, 0.0 to 1.0 (1.0 for what does not wear).
+static func condition(id: String, worn: int) -> float:
+	var durability: int = ALL.get(id, {}).get("durability", 0)
+	if durability <= 0:
+		return 1.0
+	return clampf(float(durability - worn) / durability, 0.0, 1.0)
+
+
+## Whether an item has worn through: it can no longer be used, only melted down.
+static func is_broken(id: String, worn: int) -> bool:
+	return ALL.get(id, {}).get("durability", 0) > 0 and condition(id, worn) <= 0.0
+
+
 ## A short line like "+1 Kampfkraft, +2 Leben".
 static func describe(id: String, worn := 0) -> String:
 	if not ALL.has(id):
@@ -404,6 +417,8 @@ static func describe(id: String, worn := 0) -> String:
 		parts.append(Lang.t("%d%% Blocken") % roundi(item.block * 100.0))
 	if item.has("durability"):
 		parts.append(Lang.t("Haltbarkeit %d / %d") % [item.durability - worn, item.durability])
+		if worn >= item.durability:
+			parts.append(Lang.t("Zerstört: nur noch einzuschmelzen"))
 	if item.get("speed", 0.0) > 0.0:
 		parts.append(Lang.t("+%d%% Tempo") % roundi(item.speed * 100.0))
 	elif item.get("speed", 0.0) < 0.0:

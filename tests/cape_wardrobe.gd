@@ -155,7 +155,7 @@ func _run() -> void:
 	p.set_cape_design(2)
 	check(not _logo(p).visible, "design 3 shows nothing")
 	p.set_cape_design(3)
-	check(_logo(p).visible and _picture(p) == CapeDesigns.texture(3), "design 4 shows BRIKAN and the Tigerente")
+	check(_logo(p).visible and _picture(p) == CapeDesigns.texture(3), "design 4 shows the BRIKAN crest")
 	p.set_cape_design(0)
 	check(_logo(p).visible and _picture(p) == CapeDesigns.texture(0), "design 1 shows the logo again")
 

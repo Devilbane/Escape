@@ -12,7 +12,7 @@ const EN := {
 	"Schlicht": "Plain",
 	"Ein ganz leerer Umhang.": "A cape with nothing on it.",
 	"BRIKAN": "BRIKAN",
-	"Der Name in goldenen Buchstaben, darunter eine Tigerente auf roten Rädern.": "The name in golden letters, with a striped Tigerente toy duck on red wheels below it.",
+	"Ein Wappen mit Zirkel, Säge und offenem Buch auf marineblauem Schild.": "A crest with a compass, a saw and an open book on a navy shield.",
 	"Getragen": "Worn",
 	"Tragen": "Wear",
 	"Du trägst jetzt: %s": "You now wear: %s",

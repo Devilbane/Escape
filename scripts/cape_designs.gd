@@ -13,6 +13,8 @@ const DESIGNS := [
 		"text": "Der Name in goldenen Buchstaben, darunter eine edelsteinbesetzte goldene Krone."},
 	{"name": "Schlicht", "picture": "",
 		"text": "Ein ganz leerer Umhang."},
+	{"name": "BRIKAN", "picture": "res://assets/logo/cape_brikan.png",
+		"text": "Der Name in goldenen Buchstaben, darunter eine Tigerente auf roten Rädern."},
 ]
 const DEFAULT := 0
 

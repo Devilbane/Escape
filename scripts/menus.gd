@@ -217,7 +217,7 @@ const WINDOW_SIZES := {
 	"trophaeen": Vector2(560, 360),
 	"charakter": Vector2(1024, 642),
 	"gefaehrten": Vector2(960, 530),
-	"umhangschrank": Vector2(780, 640),
+	"umhangschrank": Vector2(1060, 640),
 	"wunsch": Vector2(760, 560),
 	"kampfstil": Vector2(700, 330),
 	"kompendium": Vector2(990, 600),
@@ -2806,7 +2806,7 @@ func _build_wardrobe() -> void:
 	_add_label(Lang.t("Umhangschrank"), 38, game.GOLD, game.TITLE_FONT)
 	var intro := _add_label(Lang.t("Wähle das Bild auf dem Rücken deines Umhangs. Du kannst es jederzeit wechseln."), 18, ABOUT_COLOR)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	intro.custom_minimum_size.x = 3 * CAPE_CARD.x + 2 * 14
+	intro.custom_minimum_size.x = 4 * CAPE_CARD.x + 3 * 14
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER

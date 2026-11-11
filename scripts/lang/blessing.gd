@@ -15,6 +15,9 @@ const EN := {
 	"Der Gott der Zwerge macht die Haut hart wie Fels, und die Füße schwer.": "The god of the dwarves makes skin hard as rock, and feet heavy.",
 	"die Verhüllte": "the Veiled Lady",
 	"Schläge gleiten an ihren Schützlingen vorbei wie an einem Schatten.": "Blows glide past her wards as past a shadow.",
+	"Herrin der Gnade": "Lady of Mercy",
+	"Die Heilgöttin nimmt Verletzungen von dir, und ihre Schützlinge zahlen weniger dafür.": "The healing goddess takes injuries from you, and her wards pay less for it.",
+	"Heilung im Tempel %d %% billiger": "Temple healing %d %% cheaper",
 	"Fürst der Glut": "Ember Lord",
 	"Der Drachengott schenkt rohe Gewalt und nimmt dafür Leben.": "The dragon god grants raw might and takes life in return.",
 	# What a god gives.

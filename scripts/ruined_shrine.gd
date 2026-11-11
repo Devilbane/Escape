@@ -180,11 +180,17 @@ static func pray(game: Node) -> void:
 	if gain > 0:
 		Effects.float_text(game.level, p.global_position + Vector3(0, 2.6, 0), "+%d" % gain, Color(0.5, 1.0, 0.5))
 	var cured := p.cure()
+	# The pilgrimage's end: whatever injury the hero carries, a grave one
+	# included, is lifted (see Injury.pilgrimage_heal).
+	var mended := Injury.pilgrimage_heal(p)
+	if mended:
+		p.refresh_stats()
 	var burst := Effects.make_sparkles(LAMP_GOLD, true)
 	burst.position = p.global_position + Vector3(0, 1.0, 0)
 	game.level.add_child(burst)
 	Sfx.play(game, "secret", -6.0)
-	var text := Lang.t("Du kniest vor der Gnädigen Herrin nieder. Wärme fließt durch dich, und alles Übel fällt von dir ab.") if cured \
+	var text := Lang.t("Du kniest vor der Gnädigen Herrin nieder. Wärme fließt durch dich, und deine Verletzung ist verschwunden, auch die schwerste.") if mended \
+			else Lang.t("Du kniest vor der Gnädigen Herrin nieder. Wärme fließt durch dich, und alles Übel fällt von dir ab.") if cured \
 			else (Lang.t("Du kniest vor der Gnädigen Herrin nieder. Wärme fließt durch dich, und deine Wunden schließen sich.") if gain > 0 \
 			else Lang.t("Du kniest vor der Gnädigen Herrin nieder. Sie lächelt still: Dir fehlt nichts."))
 	Events.tell(text, Color(1.0, 0.9, 0.6), 5.0)

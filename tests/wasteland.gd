@@ -50,7 +50,10 @@ func _process(_delta: float) -> bool:
 			var prayed := [-1]
 			Events.bus().mercy_prayed.connect(func(n: int): prayed[0] = n)
 			game.player.hp = 1
+			game.player.injury = Injury.ARM
+			game.player.injury_severity = Injury.GRAVE
 			RuinedShrine.pray(game)
+			check(game.player.injury == "", "praying at the shrine cures even a grave injury")
 			check(game.player.hp == game.player.max_hp, "praying heals fully")
 			check(prayed[0] == 0, "the prayer is reported on the bus")
 			game.coins = 10

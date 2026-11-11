@@ -14,9 +14,20 @@ extends RefCounted
 
 const W := preload("res://scripts/weathered_props.gd")
 
-## How far the fireplace reaches out of its wall, and how wide it is.
-const DEPTH := 0.6
-const WIDTH := 2.3
+## How far the fireplace reaches out of its wall, and how wide it is. The firebox has
+## its own sooty back, FIREBOX_BACK metres out of the wall, so the plain wall never shows
+## behind the flames.
+const DEPTH := 1.1
+const WIDTH := 2.6
+const FIREBOX_BACK := 0.55
+## The fire: how many flame tongues (each in four layers, red to white) and how many sparks.
+const TONGUES := 7
+const SPARKS := 6
+## The roughness of the stone: how much each block's colour varies, and how far a block may
+## stand proud of its neighbours or lean (metres, radians).
+const STONE_VARIETY := 0.14
+const STONE_PROUD := 0.05
+const STONE_LEAN := 0.05
 ## The room's glow: warm, a little redder than a wall torch.
 const LIGHT_COLOUR := Color(1.0, 0.58, 0.26)
 const LIGHT_ENERGY := 3.0
@@ -72,52 +83,60 @@ static func build(level: Level, w: Dictionary) -> Node3D:
 	rng.seed = hash("fireplace:%d:%d" % [roundi(w.pos.x), roundi(w.pos.z)])
 	# Local frame: the wall is the plane z = 0 and the room lies towards +z.
 	var b := W.Builder.new()
-	var stone := W.STONES
-	var half := DEPTH * 0.5
-	var jamb := 0.42
+	var jamb := 0.5
 	var open := WIDTH - jamb * 2.0
-	for s in [-1.0, 1.0]:
-		b.box(Vector3(s * (open * 0.5 + jamb * 0.5), 0, half), Vector3(jamb, 1.55, DEPTH), W.vary(stone[0], rng), W.STONE)
-	# The back of the opening, sooty, and the floor of the hearth.
-	b.box(Vector3(0, 0, 0.06), Vector3(open, 1.55, 0.1), Color(0.16, 0.14, 0.13), W.STONE)
-	b.box(Vector3(0, 0, half + 0.3), Vector3(WIDTH + 0.3, 0.1, DEPTH + 0.6), W.vary(stone[2], rng), W.STONE)
-	b.box(Vector3(0, 0.1, 0.1 + 0.25), Vector3(open - 0.1, 0.06, 0.55), Color(0.12, 0.1, 0.09), W.STONE)
-	# The mantel shelf, and the chimney breast narrowing up into the ceiling.
-	b.box(Vector3(0, 1.55, half + 0.04), Vector3(WIDTH + 0.2, 0.2, DEPTH + 0.1), W.TIMBER[3] * 0.8, W.WOOD)
-	b.frustum(Vector3(0, 1.75, 0.3), Vector2(WIDTH - 0.2, 0.6), Vector2(1.1, 0.4), 1.9, stone[3] * Color(0.8, 0.78, 0.76), W.STONE)
-	# Two logs across a pair of irons, and some kindling.
+	var top := 1.5
+	var soot := Color(0.13, 0.115, 0.105)
+	# The dark core of the surround, so no gap between the rough blocks shows light
+	# or wall: the cheeks, the sooty back of the firebox and its floor.
+	for s: float in [-1.0, 1.0]:
+		b.box(Vector3(s * (open * 0.5 + jamb * 0.5), 0, DEPTH * 0.5), Vector3(jamb - 0.06, top, DEPTH - 0.06), soot, W.STONE)
+	b.box(Vector3(0, 0, FIREBOX_BACK * 0.5), Vector3(open + 0.1, top, FIREBOX_BACK), soot, W.STONE)
+	# Rough, sooty blocks lining the back and the cheeks inside the firebox.
+	_courses(b, rng, Vector3(-open * 0.5, 0.12, FIREBOX_BACK), Vector3(1, 0, 0), open, top - 0.12, 0.3, 0.5, Vector3(0, 0, 1), 0.08, 0.6)
+	for s: float in [-1.0, 1.0]:
+		var x := s * open * 0.5
+		_courses(b, rng, Vector3(x, 0.12, FIREBOX_BACK), Vector3(0, 0, 1), DEPTH - FIREBOX_BACK, top - 0.12, 0.3, 0.45, Vector3(-s, 0, 0), 0.08, 0.6)
+	# The hearth: a slab of rough flagstones that reaches out into the room.
+	b.box(Vector3(0, 0, FIREBOX_BACK + (DEPTH - FIREBOX_BACK) * 0.5 + 0.35), Vector3(WIDTH + 0.5, 0.1, DEPTH - FIREBOX_BACK + 0.7), soot, W.STONE)
+	_flags(b, rng, Vector3(-(WIDTH + 0.5) * 0.5, 0.1, 0.0), WIDTH + 0.5, DEPTH + 0.5)
+	# The jambs, laid in courses of rough blocks that stand a little proud or lean.
+	for s: float in [-1.0, 1.0]:
+		var x0 := s * (open * 0.5 + jamb * 0.5) - jamb * 0.5
+		_courses(b, rng, Vector3(x0, 0.1, DEPTH), Vector3(1, 0, 0), jamb, top - 0.1, 0.28, 0.5, Vector3(0, 0, 1), STONE_PROUD, 0.0)
+		# And the outer flank of each jamb, seen from the side.
+		_courses(b, rng, Vector3(s * WIDTH * 0.5, 0.1, 0.0), Vector3(0, 0, 1), DEPTH, top - 0.1, 0.28, 0.5, Vector3(s, 0, 0), STONE_PROUD, 0.0)
+	# The lintel: one long, heavy stone over the opening, and the mantel shelf of old oak.
+	b.box(Vector3(0, top, DEPTH * 0.5), Vector3(WIDTH, 0.3, DEPTH), W.vary(W.STONES[1], rng, STONE_VARIETY) * 0.9, W.STONE)
+	b.box(Vector3(0, top + 0.3, DEPTH * 0.5 + 0.04), Vector3(WIDTH + 0.25, 0.16, DEPTH + 0.14), W.TIMBER[3] * 0.75, W.WOOD)
+	# The chimney breast narrowing from the mantel up into the ceiling, in courses too.
+	var ch := W.vary(W.STONES[3], rng, 0.05) * Color(0.82, 0.8, 0.78)
+	b.frustum(Vector3(0, top + 0.46, DEPTH * 0.5 - 0.06), Vector2(WIDTH - 0.3, DEPTH - 0.2), Vector2(1.2, 0.45), 1.9, ch, W.STONE)
+	for i in 5:
+		var y := top + 0.62 + i * 0.4
+		var f := float(i) / 4.0
+		var wd := lerpf(WIDTH - 0.28, 1.2, f * 0.85) + 0.04
+		b.box(Vector3(0, y, DEPTH * 0.5 - 0.04), Vector3(wd, 0.05, lerpf(DEPTH - 0.2, 0.5, f * 0.85) + 0.04), W.vary(W.STONES[i % 4], rng, STONE_VARIETY) * 0.85, W.STONE)
+	# Two charred logs across a pair of iron dogs, and some kindling.
+	var lz := FIREBOX_BACK + 0.3
 	for i in 2:
-		var a := Vector3(-open * 0.38, 0.2 + i * 0.12, 0.3 + i * 0.12)
-		b.bar(a, a + Vector3(open * 0.76, 0.0, 0.0), 0.09, W.TIMBER[1] * 0.45, W.WOOD, 6)
+		var a := Vector3(-open * 0.4, 0.24 + i * 0.13, lz + i * 0.12)
+		b.bar(a, a + Vector3(open * 0.8, 0.0, 0.0), 0.1, Color(0.17, 0.11, 0.08), W.WOOD, 7)
+	for s: float in [-1.0, 1.0]:
+		b.bar(Vector3(s * open * 0.4, 0.1, lz - 0.15), Vector3(s * open * 0.4, 0.34, lz - 0.15), 0.03, W.IRON_COLOUR * 0.35, W.IRON, 5)
+		b.bar(Vector3(s * open * 0.4, 0.1, lz + 0.35), Vector3(s * open * 0.4, 0.34, lz + 0.35), 0.03, W.IRON_COLOUR * 0.35, W.IRON, 5)
 	b.finish(root, Vector3.ZERO)
-	# The coals under the logs and the flames over them: glowing shapes that
-	# flicker, plain (not added to the picture) so the fog cannot wash them out.
+	# The coals under the logs and the fire over them: glowing shapes that flicker,
+	# plain (not added to the picture) so the fog cannot wash them out.
 	var coals := MeshInstance3D.new()
 	var bed := BoxMesh.new()
-	bed.size = Vector3(open - 0.3, 0.05, 0.5)
+	bed.size = Vector3(open - 0.2, 0.06, 0.6)
 	coals.mesh = bed
 	coals.material_override = VillageProps.coals_material()
 	coals.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	coals.position = Vector3(0, 0.15, 0.4)
+	coals.position = Vector3(0, 0.13, lz + 0.05)
 	root.add_child(coals)
-	var flames: Array = []
-	for i in 5:
-		var tongue := MeshInstance3D.new()
-		var cone := CylinderMesh.new()
-		cone.top_radius = 0.0
-		cone.bottom_radius = rng.randf_range(0.11, 0.17)
-		cone.height = rng.randf_range(0.45, 0.75)
-		cone.radial_segments = 6
-		tongue.mesh = cone
-		tongue.material_override = _flame_material(i)
-		tongue.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		tongue.position = Vector3(-open * 0.3 + i * open * 0.15, 0.25 + cone.height * 0.5, 0.38 + rng.randf_range(-0.05, 0.05))
-		root.add_child(tongue)
-		flames.append(tongue)
-		var base := tongue.scale
-		var tween := tongue.create_tween().set_loops()
-		tween.tween_property(tongue, "scale", base * Vector3(1.0, rng.randf_range(1.15, 1.4), 1.0), rng.randf_range(0.18, 0.3))
-		tween.tween_property(tongue, "scale", base * Vector3(1.0, rng.randf_range(0.75, 0.95), 1.0), rng.randf_range(0.18, 0.3))
+	_flames(root, rng, open, lz)
 	# The warm light on the room, flickering like the flames.
 	var light := OmniLight3D.new()
 	light.name = "FireLight"
@@ -125,7 +144,7 @@ static func build(level: Level, w: Dictionary) -> Node3D:
 	light.light_energy = LIGHT_ENERGY
 	light.omni_range = LIGHT_RANGE
 	light.omni_attenuation = 1.3
-	light.position = Vector3(0, 0.9, 1.1)
+	light.position = Vector3(0, 0.9, DEPTH + 0.3)
 	root.add_child(light)
 	var glow := light.create_tween().set_loops()
 	glow.tween_property(light, "light_energy", LIGHT_ENERGY * 1.15, 0.22)
@@ -142,11 +161,110 @@ static func build(level: Level, w: Dictionary) -> Node3D:
 	return root
 
 
-static func _flame_material(i: int) -> StandardMaterial3D:
-	var key := "hearth_flame_%d" % (i % 2)
+## A face of rough blocks in staggered courses of about `row` metres, blocks of about `block`
+## metres, starting at `origin` and running along `along` for `length` and up for `height`. The
+## blocks face `out`, stand up to `proud` metres out of the face, lean a little and each has its
+## own shade of stone; `soot` (0 to 1) darkens them towards the colour of the firebox.
+static func _courses(b: W.Builder, rng: RandomNumberGenerator, origin: Vector3, along: Vector3, length: float, height: float, row: float, block: float, out: Vector3, proud: float, soot: float) -> void:
+	var y := 0.0
+	var r := 0
+	while y < height - 0.02:
+		var h := minf(row * rng.randf_range(0.8, 1.2), height - y)
+		var x := -(rng.randf() * block * 0.5) if r % 2 == 1 else 0.0
+		while x < length - 0.02:
+			var wd := block * rng.randf_range(0.6, 1.5)
+			var x0 := maxf(x, 0.0)
+			var x1 := minf(x + wd, length)
+			if x1 - x0 > 0.06:
+				var colour := W.vary(W.STONES[rng.randi() % 4], rng, STONE_VARIETY)
+				# Warmer or cooler, now and then a darker, mossier block.
+				colour = colour * Color(rng.randf_range(0.94, 1.05), rng.randf_range(0.96, 1.04), rng.randf_range(0.92, 1.04))
+				if rng.randf() < 0.18:
+					colour = colour * 0.78
+				colour = colour.lerp(Color(0.2, 0.18, 0.17), soot)
+				var gap := 0.025
+				var out_by := rng.randf_range(0.0, proud)
+				var mid := origin + along * ((x0 + x1) * 0.5) + Vector3(0, y + h * 0.5, 0) - out * 0.04 + out * (out_by * 0.5)
+				var depth := 0.1 + out_by
+				var size := Vector3(absf(along.x) * (x1 - x0 - gap) + absf(out.x) * depth, h - gap, absf(along.z) * (x1 - x0 - gap) + absf(out.z) * depth)
+				var basis := Basis.from_euler(Vector3(rng.randf_range(-1, 1) * STONE_LEAN, rng.randf_range(-1, 1) * STONE_LEAN, rng.randf_range(-1, 1) * STONE_LEAN))
+				b.box(mid - Vector3(0, size.y * 0.5, 0), size, colour, W.STONE, basis)
+			x += wd
+		y += h
+		r += 1
+
+
+## Rough flagstones over a rectangle on the ground: `width` across (x) from `origin`, `depth` out.
+static func _flags(b: W.Builder, rng: RandomNumberGenerator, origin: Vector3, width: float, depth: float) -> void:
+	var z := 0.0
+	while z < depth - 0.05:
+		var d := minf(rng.randf_range(0.35, 0.55), depth - z)
+		var x := 0.0
+		while x < width - 0.05:
+			var wd := minf(rng.randf_range(0.4, 0.8), width - x)
+			var colour := W.vary(W.STONES[rng.randi() % 4], rng, STONE_VARIETY) * 0.9
+			b.box(origin + Vector3(x + wd * 0.5, 0, z + d * 0.5), Vector3(wd - 0.03, rng.randf_range(0.03, 0.045), d - 0.03), colour, W.STONE)
+			x += wd
+		z += d
+
+
+## The fire: layered tongues (red outside, then orange, yellow and a pale core) that rise and
+## sway, a few sparks drifting up and fading out, all plain glowing shapes.
+static func _flames(root: Node3D, rng: RandomNumberGenerator, open: float, lz: float) -> void:
+	for i in TONGUES:
+		var x := -open * 0.32 + i * open * 0.64 / float(TONGUES - 1) + rng.randf_range(-0.05, 0.05)
+		var z := lz + rng.randf_range(-0.08, 0.1)
+		var tall := rng.randf_range(0.55, 0.95) * (1.0 - absf(x) / open * 0.7)
+		var tongue := Node3D.new()
+		tongue.position = Vector3(x, 0.3, z)
+		root.add_child(tongue)
+		for layer in 4:
+			var cone := CylinderMesh.new()
+			var k := 1.0 - layer * 0.22
+			cone.top_radius = 0.0
+			cone.bottom_radius = (0.17 * k) * rng.randf_range(0.85, 1.15)
+			cone.height = tall * k
+			cone.radial_segments = 8
+			var mi := MeshInstance3D.new()
+			mi.mesh = cone
+			mi.material_override = _flame_material(layer)
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.position = Vector3(0, cone.height * 0.5, layer * 0.012)
+			tongue.add_child(mi)
+		var lean := rng.randf_range(0.08, 0.22)
+		var sway := tongue.create_tween().set_loops()
+		var t := rng.randf_range(0.22, 0.4)
+		sway.tween_property(tongue, "scale", Vector3(rng.randf_range(0.9, 1.1), rng.randf_range(1.15, 1.4), 1.0), t)
+		sway.parallel().tween_property(tongue, "rotation:z", lean, t)
+		sway.tween_property(tongue, "scale", Vector3(rng.randf_range(0.85, 1.0), rng.randf_range(0.7, 0.92), 1.0), t * 1.2)
+		sway.parallel().tween_property(tongue, "rotation:z", -lean, t * 1.2)
+	for i in SPARKS:
+		var spark := MeshInstance3D.new()
+		var bit := SphereMesh.new()
+		bit.radius = 0.02
+		bit.height = 0.04
+		bit.radial_segments = 4
+		bit.rings = 2
+		spark.mesh = bit
+		spark.material_override = _flame_material(3)
+		spark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var from := Vector3(rng.randf_range(-open * 0.3, open * 0.3), 0.6, lz + rng.randf_range(-0.1, 0.1))
+		spark.position = from
+		root.add_child(spark)
+		var rise := spark.create_tween().set_loops()
+		rise.tween_interval(rng.randf_range(0.0, 1.2))
+		rise.tween_property(spark, "position", from + Vector3(rng.randf_range(-0.2, 0.2), 0.8, 0.0), rng.randf_range(0.9, 1.5))
+		rise.parallel().tween_property(spark, "scale", Vector3.ZERO, 1.2)
+		rise.tween_callback(func() -> void:
+			spark.position = from
+			spark.scale = Vector3.ONE)
+
+
+static func _flame_material(layer: int) -> StandardMaterial3D:
+	var key := "hearth_flame_%d" % layer
 	if not W._mats.has(key):
 		var m := StandardMaterial3D.new()
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		m.albedo_color = Color(1.0, 0.62, 0.18) if i % 2 == 0 else Color(1.0, 0.82, 0.38)
+		m.albedo_color = [Color(0.95, 0.28, 0.06), Color(1.0, 0.55, 0.12), Color(1.0, 0.8, 0.3), Color(1.0, 0.94, 0.7)][layer]
 		W._mats[key] = m
 	return W._mats[key]

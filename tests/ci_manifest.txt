@@ -234,3 +234,4 @@ window_spill.gd | 60 | free | pass | Lit windows throw a pool of light on the gr
 glowworm_swarms.gd | 120 | fixed | passfail | glowworm swarms roaming the open air at night (more in the village, none by day or indoors)
 home_fireplace.gd | 60 | free | pass | Hero's house: a fireplace with flames and light on every storey but the cellar
 sleep_roll.gd | 60 | free | pass | Sleep breakthroughs (practice ripens, nights roll, feelings have no numbers)
+blessing.gd | 120 | free | pass | Temple blessing (six gods, thirds lost per rescue, temple window, character title, save)

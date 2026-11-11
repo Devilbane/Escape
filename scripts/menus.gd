@@ -67,7 +67,7 @@ const LOAD_ROWS_SHOWN := 5
 var _info: RichTextLabel
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## The windows built as a TradeWindow.
-const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "barbier"]
+const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "barbier", "tempel"]
 ## The compact trading window of every merchant (see TradeWindow).
 var trade := TradeWindow.new()
 ## Every control, for the compendium: action and keys.
@@ -319,6 +319,8 @@ func _rebuild() -> void:
 			_build_bank()
 		"barbier":
 			_build_barber()
+		"tempel":
+			_build_temple()
 		"steinmetz":
 			_build_stonemason()
 		"ausbau":
@@ -833,7 +835,21 @@ func _build_character() -> void:
 	row.add_child(side)
 	var title: Label = game._make_label(game.TITLE_FONT, 38, game.GOLD)
 	title.text = Lang.t("Charakter")
-	side.add_child(title)
+	# The blessing sits beside the title, so the window keeps its height
+	# whether the hero is blessed or not.
+	var title_row := HBoxContainer.new()
+	title_row.add_theme_constant_override("separation", 12)
+	side.add_child(title_row)
+	title_row.add_child(title)
+	var blessing_line: Label = game._make_label(game.TEXT_FONT, 16, game.GOLD if p.blessing_god != "" else TradeWindow.GREY)
+	blessing_line.text = Blessing.title(p.blessing_god, p.blessing_thirds) if p.blessing_god != "" else Lang.t("Ungesegnet")
+	blessing_line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	blessing_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	blessing_line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	blessing_line.clip_text = true
+	blessing_line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_character_point(blessing_line, wheel, CharacterPage.BLESSING)
+	title_row.add_child(blessing_line)
 	# The list of what is not on the wheel, and beside it the hero's odds
 	# against a person of the same level, as the fight rolls them; pointing
 	# at the odds explains them in the card below.
@@ -3463,6 +3479,72 @@ func _buy_iron(count: int) -> void:
 	if why == "":
 		Sfx.play(game, "gear_metal_%d" % (randi() % 3))
 	game._update_hud()
+	_rebuild()
+
+
+# --- Temple -----------------------------------------------------------------
+
+## Priestess Elsbeth's window: the gods of the village and the blessing the
+## hero carries (see Blessing). One list, one row per god; the god the hero
+## is blessed by shows what is left, and the others wait until it is gone.
+func _build_temple() -> void:
+	var p: Player = game.player
+	_add_label(Lang.t("Tempel"), 38, game.GOLD, game.TITLE_FONT)
+	var blessed := p.blessing_god != ""
+	var now := {"title": Lang.t("Derzeit"), "name": Lang.t("Kein Segen"), "subtitle": Lang.t("Segen"), "icon": "kind:heal_potion",
+			"lines": [[Lang.t("Wähle einen Gott. Der erste Segen ist umsonst."), TradeWindow.GREY]]}
+	if blessed:
+		var held: Dictionary = Blessing.GODS[p.blessing_god]
+		now = {"title": Lang.t("Derzeit"), "name": Lang.t(held.name), "subtitle": Blessing.title(p.blessing_god, p.blessing_thirds),
+				"icon": held.icon, "lines": _blessing_lines(p.blessing_god, p.blessing_thirds)}
+	var entries := []
+	for id in Blessing.ORDER:
+		var god: Dictionary = Blessing.GODS[id]
+		var mine: bool = p.blessing_god == id
+		var price: int = Blessing.price_renew(p.blessing_thirds) if mine else Blessing.price_new(p.blessed_before)
+		var detail_lines := [[Lang.t(god.tale), TradeWindow.BLUE]] + _blessing_lines(id, Blessing.FULL)
+		detail_lines.append([Lang.t("Jede Rettung nimmt ein Drittel des Segens. Nach drei Rettungen ist er fort."), TradeWindow.GREY])
+		var can := false
+		var button := Lang.t("Segnen")
+		if mine:
+			button = Lang.t("Erneuern")
+			can = p.blessing_thirds < Blessing.FULL and game.coins >= price
+		elif blessed:
+			detail_lines.append([Lang.t("Du bist deinem Gott treu, bis sein Segen erlischt."), TradeWindow.ORANGE])
+		else:
+			can = game.coins >= price
+		entries.append({"key": "god:" + id, "icon": god.icon, "name": Lang.t(god.name),
+				"price": Lang.t("Umsonst") if price == 0 else Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price,
+				"button": button, "action": _bless.bind(id, price), "enabled": can,
+				"current": mine and p.blessing_thirds >= Blessing.FULL,
+				"detail": {"subtitle": Lang.t(god.title), "lines": detail_lines}, "compare": now})
+	_trade(Lang.t("Dein Kupfer: %d") % game.coins, [
+		{"key": "gods", "title": Lang.t("Die Götter"), "icon": "kind:heal_potion", "entries": entries},
+	], null, Lang.t("Wähle einen Gott und lass dich von Elsbeth segnen. Der Segen schützt dich, solange du ihn hast."))
+
+
+## The effect lines of a god at `thirds`, green for what helps, red for what costs.
+func _blessing_lines(god: String, thirds: int) -> Array:
+	var out := []
+	for line in Blessing.lines(god, thirds):
+		out.append([line[0], TradeWindow.GREEN if line[1] else TradeWindow.RED])
+	return out
+
+
+func _bless(god: String, price: int) -> void:
+	var p: Player = game.player
+	if game.coins < price:
+		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
+		_rebuild()
+		return
+	game.coins -= price
+	Blessing.bless(p, god)
+	Sfx.play(game, "secret", -6.0)
+	game._update_hud()
+	_note = Lang.t("Elsbeth legt die Hand auf deine Stirn: %s segnet dich.") % Lang.t(Blessing.GODS[god].name)
+	Events.tell(Lang.t("Du bist nun gesegnet von %s.") % Lang.t(Blessing.GODS[god].name), game.GOLD)
+	Events.teach(Blessing.LORE)
+	game.save_game()
 	_rebuild()
 
 

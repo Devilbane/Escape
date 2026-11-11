@@ -1065,6 +1065,11 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 	return best
 
 
+## Extra volume (dB) on the hero's footsteps inside a village, so they stand out
+## from the townsfolk's steps and the village ambience. Tune here.
+const VILLAGE_STEP_BOOST_DB := 6.0
+
+
 ## A step sounds each time a foot lands in the run animation, so the sound
 ## keeps the rhythm of the feet at any speed, and fits the ground underfoot.
 ## In a puddle it splashes.
@@ -1101,7 +1106,12 @@ func _footsteps(ground_speed: float) -> void:
 					if sneak and Surfaces.hard(ground):
 						Sfx.play(self, "sneak_%d" % (randi() % 4), -22.0)
 					else:
-						Sfx.play(self, Surfaces.step_sound(ground), -26.0 if sneak else (-17.0 if walk else -14.0))
+						var step_db := -26.0 if sneak else (-17.0 if walk else -14.0)
+						# In a village the hero's steps are lifted so they stand out
+						# from the townsfolk and the ambience (see VILLAGE_STEP_BOOST_DB).
+						if level is Outdoor and level._in_village(level.world_to_cell(global_position)):
+							step_db += VILLAGE_STEP_BOOST_DB
+						Sfx.play(self, Surfaces.step_sound(ground), step_db)
 	_last_phase = phase
 
 

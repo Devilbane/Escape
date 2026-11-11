@@ -43,6 +43,8 @@ func _run() -> void:
 	var slime := lvl.spawn_slime("schleim", spot + Vector3(3, 0, 0), {"hp": 80})
 	lvl.player.global_position = spot + Vector3(7, 0, 0)
 	await physics_frame
+	# The hero takes no part but the one blow below (no auto-attack knives at the slime).
+	lvl.player.set_physics_process(false)
 	slime.snack = villager
 	check(slime._hero_aggro == 0.0, "an unhit slime is not on the hero")
 	slime.take_hit(1, lvl.player.global_position)

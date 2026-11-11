@@ -917,6 +917,7 @@ func alarm(slime: Enemy, called := false) -> void:
 ## The danger is over (the slime fell, went off, or swallowed them).
 func calm_down() -> void:
 	threat = null
+	knives = VillageArms.KNIVES
 	_sheathe_later()
 	if not at_home:
 		_start("idle", _rng.randf_range(0.5, 2.0))
@@ -978,7 +979,7 @@ func _fight(delta: float) -> void:
 	var to := threat.global_position - global_position
 	to.y = 0.0
 	_turn_to(to, delta)
-	var throws := VillageArms.style(role) == "throw"
+	var throws := VillageArms.style(role) == "throw" or (VillageArms.style(role) == "melee" and knives > 0)
 	var casts := VillageArms.style(role) == "cast"
 	var reach := VillageArms.CAST_RANGE if casts else VillageArms.THROW_RANGE if throws else BLOW_REACH + threat.radius
 	if casts and to.length() < VillageArms.CAST_KEEP_AWAY:
@@ -1038,6 +1039,9 @@ func _fight(delta: float) -> void:
 
 
 var _casts := 0
+## The throwing knives a fighter still has (see VillageArms.KNIVES): he throws
+## them at a slime from afar, then closes in with his blade. Pip never runs out.
+var knives := VillageArms.KNIVES
 
 
 ## Whether the mage is as far from his wagon (his pitch, see home) as he goes.
@@ -1097,6 +1101,8 @@ func _hunt_slimes(delta: float) -> void:
 ## Pip's throw: a knife at the slime, then a pause (see VillageArms).
 func _throw_knife() -> void:
 	_blow_cool = VillageArms.THROW_TIME
+	if VillageArms.style(role) != "throw":
+		knives -= 1
 	_current_anim = "Throw"
 	_anim.play("Throw", 0.1)
 	var slime := threat

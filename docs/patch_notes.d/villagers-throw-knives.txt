@@ -1,0 +1,1 @@
+- Villagers now carry 3 throwing knives each and hurl them at a slime from afar before closing in with their blades.

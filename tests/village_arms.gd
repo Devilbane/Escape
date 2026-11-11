@@ -138,6 +138,17 @@ func _process(_delta: float) -> bool:
 			guard.alarm(slime)
 			check(guard.drawn() and not _visible_weapon(guard), "danger draws only the fighting blade")
 			guard.calm_down()
+			# Every fighter throws his 3 knives from afar, then closes in; calm refills them.
+			_out_and_about(guard)
+			slime.global_position = guard.global_position + Vector3(5.0, 0, 0)
+			guard.alarm(slime)
+			guard.knives = 3
+			for i in 3:
+				guard._blow_cool = 0.0
+				guard._fight(0.016)
+			check(guard.knives == 0, "the guard threw his 3 knives (%d left)" % guard.knives)
+			guard.calm_down()
+			check(guard.knives == VillageArms.KNIVES, "and has them back once calm")
 			_out_and_about(guard)
 			slime.global_position = guard.global_position + Vector3(1.5, 0, 0)
 			guard.alarm(slime)

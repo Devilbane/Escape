@@ -77,7 +77,7 @@ const FADE := 5.0
 
 ## Every night is a little dusty: the mist at its thinnest, this share of
 ## the thickness of real fog, fading in at dusk and out at dawn.
-const NIGHT_DUST := 0.3
+const NIGHT_DUST := 0.25
 
 ## Rain drops at full strength, and the box around the hero they fall in.
 const RAIN_DROPS := 700
@@ -96,6 +96,21 @@ const PUDDLE_DRY_HOURS := 3.0
 ## never piles on real fog: the thicker of the two wins.
 static func dusty_mist(weather_look: Dictionary, hour: float) -> float:
 	return maxf(float(weather_look.mist), NIGHT_DUST * DayNight.glow_at(hour))
+
+
+## The colour of the night's dust: the haze of fog is as dark as the ambient
+## light, which is next to black at night, so a thin dust in that colour
+## vanishes against the dark ground. The dust is moonlit instead, a cool
+## blue-grey a little brighter than the night around it.
+const DUST_COLOR := Color(0.32, 0.4, 0.58)
+
+
+## The colour of the haze: the fog's own, moonlit blue-grey where the night's
+## dust is what hangs in the air (`moon` is how bright the night's moon is, 0
+## to 1). Real fog keeps its colour.
+static func haze_color(fog_color: Color, weather_look: Dictionary, hour: float, moon := 1.0) -> Color:
+	var dust := DayNight.glow_at(hour) * (1.0 - clampf(float(weather_look.mist), 0.0, 1.0))
+	return fog_color.lerp(DUST_COLOR * (0.6 + 0.4 * clampf(moon, 0.0, 1.0)), dust)
 
 
 ## The part of the day the chances go by.

@@ -317,7 +317,8 @@ func _windup(delta: float, hero: Node3D) -> void:
 
 
 func _charge(delta: float, hero: Node3D) -> void:
-	var step := CHARGE_SPEED * delta
+	# The legs gallop at the pace of the charge (a model plays its Gallop, the primitive legs swing).
+	var step := _pace("Gallop", CHARGE_SPEED) * delta
 	var next := global_position + _dir * step
 	if not WalkRules.can_step(level, global_position, next, true):
 		_begin("recover", RECOVER)

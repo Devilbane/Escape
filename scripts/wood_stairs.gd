@@ -12,7 +12,7 @@ const WORN := Color(0.66, 0.5, 0.32)
 
 ## How far the dark tones of the house floor are lifted towards its mid wood (0 = the stairs'
 ## picture unchanged, 1 = the darkest grain as light as the mid wood). Only the floor uses it.
-const FLOOR_LIFT := 0.6
+const FLOOR_LIFT := 0.85
 
 static var _tex: Texture2D = null
 static var _floor_tex: Texture2D = null

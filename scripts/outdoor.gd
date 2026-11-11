@@ -107,7 +107,7 @@ const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
 	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
 	"E": "die Drachenhöhle", "[": "die Bergschenke", ")": "den Hort des Großen Alten", "<": "die Aschenzinne",
-	"|": "die Ruinen von Sternhall",
+	"|": "die Ruinen von Sternhall", "\"": "die Verlassene Wüste",
 }
 ## The mine entrances in the mountains (see "]" and Mines), west to east:
 ## the floor of mine n has the line "building: mine<n>".
@@ -784,6 +784,10 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			Corral.build_gate(self, c)
 		"(":
 			_build_hole(c)
+		"\"":
+			Wasteland.build_gate(self, c)
+		"°":
+			Wasteland.build_signpost(self, c)
 		"|":
 			SternGate.build_gate(self, c)
 		"`":

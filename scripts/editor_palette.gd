@@ -12,7 +12,7 @@ const GROUPS := [
 	["Wege", "PEDK<>^|/`)"],
 	["Fallen und Rätsel", "S_QTaz]}{-:["],
 	["Schätze", "cCkU&$"],
-	["Einrichtung", "bxotfHFBLmhV(§+NXyp*!I;\\'"],
+	["Einrichtung", "bxotfHFBLmhV(§+NXyp*!I;\\'\"°"],
 	["Monster", "MAZwGWrnlvsuqJOeigRYd@"],
 	["Eigene Geschöpfe", "1234567890"],
 ]
@@ -37,6 +37,7 @@ const NAMES := {
 	"]": "Sternrelief", "}": "Hohes Sternrelief", "{": "Schuttwall", "-": "Abgrund", ":": "Bröckelnde Steinplatte",
 	"[": "Lauschendes Auge", ")": "Alter Abfluss", "\\": "Lesepult mit Foliant", "'": "Trankregal",
 	"/": "Gittertür", "`": "Fallgitter",
+	"\"": "Verfallener Schrein der Gnädigen Herrin", "°": "Toter Baum",
 }
 
 ## What a few tiles need to work, shown under the palette when picked.
@@ -54,6 +55,7 @@ const NOTES := {
 	"|": "Senkt sich, wenn alle Druckplatten belegt sind.",
 	"W": "Trägt den Schlüssel, wenn keiner auf der Karte liegt.",
 	"H": "Der Held wählt hier eine Gabe.",
+	"\"": "Gehört vor eine Wand: Der Held betet hier, wird geheilt und kann den Schrein mit kleinen Gaben herrichten.",
 	"<": "Nur in Häusern: führt ins nächste Stockwerk.",
 	">": "Nur in Häusern: führt ins Stockwerk darunter.",
 	"R": "Ein Endgegner: gehört in eine Drachenhöhle.",
@@ -89,7 +91,7 @@ const GROUP_COLORS := [Color(0.42, 0.4, 0.38), Color(0.8, 0.7, 0.4), Color(0.75,
 const OUTDOOR_GROUPS := [
 	["Gelände", "#.,:~;='"],
 	["Natur", "Tdrtpy"],
-	["Wege und Eingänge", "PREa([])><|`"],
+	["Wege und Eingänge", "PREa([])><|`\"°"],
 	["Gebäude", "hjnmuskowb^IiBL"],
 	["Dorf und Lager", "gzlexqFv!@NfC+%*$?_\\§¤"],
 	["Dorfbewohner", "0123456789KOGMYZS"],
@@ -103,7 +105,7 @@ const OUTDOOR_NAMES := {
 	"T": "Baum", "d": "Toter Baum", "r": "Felsen", "t": "Baumstumpf mit Holz", "p": "Kürbisse", "y": "Kürbisfeld",
 	"P": "Start vor der Gruft", "R": "Die Gruft", "E": "Weg in die Drachenhöhle", "a": "Tor im Zaun",
 	"(": "Dunkles Loch", ">": "Findling über der verborgenen Grotte", "?": "Vergrabener Schatz", "[": "Bergschenke", "]": "Mineneingang", ")": "Höhle des Großen Alten", "<": "Tor der Aschenzinne",
-	"|": "Tor der Feste Sternhall", "`": "Rostiges Abflussgitter",
+	"|": "Tor der Feste Sternhall", "`": "Rostiges Abflussgitter", "\"": "Tor der Verlassenen Wüste", "°": "Wegweiser des Pilgerwegs",
 	"h": "Haus", "j": "Schmiede", "n": "Wirtshaus", "m": "Markt", "u": "Windmühle", "s": "Tempel",
 	"k": "Amt der Krone", "o": "Post", "w": "Abenteurergilde", "b": "Bank", "^": "Weberzeile",
 	"I": "Hauswand", "i": "Holzboden", "B": "Bett", "L": "Truhe",

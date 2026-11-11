@@ -581,10 +581,12 @@ func _litter_material(kind: String) -> Material:
 			m.albedo_texture = _patch_texture(23, 0.035)
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			m.roughness = 1.0
+			m.render_priority = FogClouds.UNDER_FOG
 		"moss", "lichen":
 			m.albedo_texture = _patch_texture(57 if kind == "moss" else 81, 0.09)
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			m.roughness = 1.0
+			m.render_priority = FogClouds.UNDER_FOG
 		"tuft":
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		"rubble", "pebble":

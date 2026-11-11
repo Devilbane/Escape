@@ -4,10 +4,14 @@ extends MeshInstance3D
 ## Weather and shaders/fog_clouds.gdshader). One full-screen pass with a tiling
 ## noise texture: no particles. The pass draws first among all see-through
 ## things (PRIORITY), so labels, bubbles and particles are never covered.
+## Only ground decals that lie under the fog draw before it (UNDER_FOG).
 
 ## Lower than every label and particle (damage numbers 19-20, bubbles 20-22,
 ## news over the fog of war 109-110).
-const PRIORITY := -128
+const PRIORITY := -127
+## Ground patches (bare earth, moss, lichen) draw first of all, so the clouds
+## drift over them like over the rest of the ground.
+const UNDER_FOG := -128
 ## Noise tile size in pixels.
 const NOISE_SIZE := 256
 ## How fast the wind carries the clouds (texture units per second).

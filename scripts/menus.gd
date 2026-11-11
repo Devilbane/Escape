@@ -67,7 +67,7 @@ const LOAD_ROWS_SHOWN := 5
 var _info: RichTextLabel
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## The windows built as a TradeWindow.
-const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "barbier", "tempel"]
+const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "barbier", "tempel", RuinedShrine.KIND]
 ## The compact trading window of every merchant (see TradeWindow).
 var trade := TradeWindow.new()
 ## Every control, for the compendium: action and keys.
@@ -321,6 +321,8 @@ func _rebuild() -> void:
 			_build_barber()
 		"tempel":
 			_build_temple()
+		RuinedShrine.KIND:
+			_build_ruined_shrine()
 		"steinmetz":
 			_build_stonemason()
 		"ausbau":
@@ -3521,6 +3523,58 @@ func _build_temple() -> void:
 	_trade(Lang.t("Dein Kupfer: %d") % game.coins, [
 		{"key": "gods", "title": Lang.t("Die Götter"), "icon": "kind:heal_potion", "entries": entries},
 	], null, Lang.t("Wähle einen Gott und lass dich von Elsbeth segnen. Der Segen schützt dich, solange du ihn hast."))
+
+
+# --- Mirenna's ruined shrine ------------------------------------------------
+
+## The window of the ruined shrine in the wasteland (see RuinedShrine): one
+## row to pray, then the three parts to mend in their order (a part needs
+## the ones before it). A mended part stays in its row, dimmed.
+func _build_ruined_shrine() -> void:
+	var level: Level = game.level
+	_add_label(Lang.t("Schrein der Gnädigen Herrin"), 38, game.GOLD, game.TITLE_FONT)
+	var pray := {"key": "pray", "icon": "kind:heart", "name": Lang.t("Beten"), "price": Lang.t("Umsonst"), "price_ok": true,
+			"button": Lang.t("Beten"), "action": _pray_at_shrine, "enabled": true,
+			"detail": {"subtitle": Lang.t("Mirenna, Herrin der Gnade"), "lines": [
+				[Lang.t("Du wirst ganz geheilt, und Gift, Fluch und Blutung fallen von dir ab."), TradeWindow.GREEN],
+				[Lang.t("Was kein Trank heilt, heilt Mirennas Hand."), TradeWindow.BLUE],
+				[Lang.t("Beten kostet nichts. Die Gaben unten stellen den Schrein nur wieder her."), TradeWindow.GREY]]}}
+	var steps := []
+	var open_step := RuinedShrine.next_step(level)
+	for step in RuinedShrine.STEPS:
+		var done := RuinedShrine.is_restored(level, step.id)
+		var is_next: bool = not open_step.is_empty() and open_step.id == step.id
+		var cost := int(step.cost)
+		var entry := {"key": "step:" + step.id, "icon": step.icon, "name": Lang.t(step.name),
+				"price": Lang.t("%d Kupfer") % cost, "price_ok": game.coins >= cost,
+				"detail": {"subtitle": Lang.t("Schrein herrichten"), "lines": [[Lang.t(step.text), TradeWindow.BLUE]]}}
+		if done:
+			entry.gone = Lang.t("Heil")
+		else:
+			entry.button = Lang.t("Spenden")
+			entry.action = _restore_shrine_step.bind(step.id)
+			entry.enabled = is_next and game.coins >= cost
+			if not is_next:
+				entry.detail.lines.append([Lang.t("Zuerst muss das Teil davor heil sein."), TradeWindow.ORANGE])
+		steps.append(entry)
+	_trade(Lang.t("Dein Kupfer: %d") % game.coins, [
+		{"key": "pray", "title": Lang.t("Gebet"), "icon": "kind:heart", "entries": [pray]},
+		{"key": "mend", "title": Lang.t("Den Schrein herrichten"), "icon": "kind:hammer_anvil", "entries": steps},
+	], null, Lang.t("Hier kannst du beten. Mit kleinen Gaben stellst du den verfallenen Schrein Stück für Stück wieder her."))
+
+
+func _pray_at_shrine() -> void:
+	RuinedShrine.pray(game)
+	game.save_game()
+	_rebuild()
+
+
+func _restore_shrine_step(id: String) -> void:
+	var why := RuinedShrine.restore(game, id)
+	_note = why
+	if why == "":
+		game.save_game()
+	_rebuild()
 
 
 ## The effect lines of a god at `thirds`, green for what helps, red for what costs.

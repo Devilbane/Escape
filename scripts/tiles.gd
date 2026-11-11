@@ -109,6 +109,9 @@ const DUNGEON := {
 	"'": "a shelf of healing potions, refilled every day (Sternhall)",
 	"/": "a barred door: opens with the key ring of the floor's warden (Sternhall)",
 	"`": "a portcullis: open until the tome is taken (Sternhall)",
+	# The Forsaken Wasteland (see Wasteland and RuinedShrine).
+	"\"": "the ruined shrine of Mirenna, Lady of Mercy: pray, heal, and mend it with small gifts (the wasteland)",
+	"°": "a dead tree (the wasteland)",
 	# Made in the map workshop: what each digit places is written in the
 	# map's own header (see Creations).
 	"1": "your own creation (header \"custom: 1 {...}\", see Creations)",
@@ -228,4 +231,7 @@ const OUTDOOR := {
 	# The ruins of Sternhall (see SternGate).
 	"|": "the gate of Sternhall's ruined keep, leads to \"building: stern1\"",
 	"`": "a rusty drain grate: the hidden way out of Sternhall's vault",
+	# The Forsaken Wasteland (see Wasteland).
+	"\"": "the gate of the Forsaken Wasteland, cut into the rock (leads to \"building: wueste1\")",
+	"°": "a signpost of the pilgrims' path",
 }

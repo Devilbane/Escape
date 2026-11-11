@@ -107,6 +107,13 @@ signal loot_carried_off(kind: String, id: String, count: int)
 signal village_alarmed(reason: String)
 
 
+## A hero prayed at Mirenna's ruined shrine in the wasteland (see
+## RuinedShrine); `restored` is how many of its three parts are mended (0 to
+## 3). The prayer itself heals and lifts ailments; whatever else Mirenna's
+## hand mends (the cure for grave injuries) connects here, in Game._bus_links().
+signal mercy_prayed(restored: int)
+
+
 static var _bus: Events = null
 
 

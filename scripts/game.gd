@@ -6926,6 +6926,7 @@ func _process(delta: float) -> void:
 	elif at_station:
 		_prompt.text = _hint(station.kind, {
 			"schrein": Lang.t("Dagegenlaufen, um den Schrein zu berühren"),
+			RuinedShrine.KIND: Lang.t("Dagegenlaufen, um am Schrein der Gnädigen Herrin zu beten"),
 			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
 			"metalltruhe": Lang.t("Dagegenlaufen, um die stahlbeschlagene Truhe für Metall und Edelsteine zu öffnen"),

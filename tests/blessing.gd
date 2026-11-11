@@ -110,6 +110,82 @@ func _test() -> void:
 	game.menus.close()
 	var wheel := CharacterPage.new(p, game.TEXT_FONT)
 	check(wheel.details(CharacterPage.BLESSING).title.begins_with("Korr"), "the blessing's card names the god")
+	_test_injury()
+
+
+## The injury a rescue leaves (see Injury).
+func _test_injury() -> void:
+	var p: Player = game.player
+	p.reset_gifts()
+	var base_hp := p.max_hp
+	var base_int := p.attribute("intelligenz")
+	check(Injury.severity_for(null, 0.0) == Injury.MINOR and Injury.severity_for(null, 0.99) == Injury.GRAVE, "an ordinary foe mostly leaves minor injuries, rarely a grave one")
+	check(Injury.severity_for(null, 0.7) == Injury.SERIOUS, "an ordinary foe can leave a serious one")
+	var chief := Enemy.new()
+	chief.kind = "hauptmann"
+	check(Injury.severity_for(chief, 0.1) == Injury.SERIOUS and Injury.severity_for(chief, 0.9) == Injury.GRAVE, "a boss leaves a serious or a grave injury")
+	chief.free()
+	for severity in Injury.SEVERITIES:
+		var sum := 0.0
+		for c in [Injury.CHANCES.normal[severity], Injury.CHANCES.boss[severity]]:
+			sum += c
+		check(sum > 0.0, "%s injuries can happen" % severity)
+	check(is_equal_approx(Injury.CHANCES.normal.values().reduce(func(a, b): return a + b), 1.0) and is_equal_approx(Injury.CHANCES.boss.values().reduce(func(a, b): return a + b), 1.0), "the chances add up to one")
+	# A broken leg: no jumping, no running from serious on.
+	check(Injury.give(p, Injury.LEG, Injury.MINOR) and Injury.cannot_jump(p) and not Injury.cannot_run(p), "a minor broken leg stops jumping only")
+	check(p.max_hp == base_hp - 2, "a minor injury costs life")
+	check(Injury.give(p, Injury.LEG, Injury.SERIOUS) and Injury.cannot_run(p) and p.max_hp == base_hp - 4, "a serious one stops running too and costs more")
+	check(not Injury.give(p, Injury.ARM, Injury.MINOR), "a milder injury does not replace a worse one")
+	Injury.heal(p)
+	check(p.max_hp == base_hp and not Injury.cannot_jump(p), "healing takes every effect away")
+	# A broken arm: no shield.
+	p.equipped["schild"] = "rundschild"
+	p.refresh_stats()
+	var with_shield := p.block_chance
+	Injury.give(p, Injury.ARM, Injury.MINOR)
+	check(with_shield > 0.0 and p.block_chance < with_shield, "a broken arm cannot use a shield")
+	Injury.heal(p)
+	p.equipped.erase("schild")
+	# A head wound: Intelligenz down. Scars: skills down.
+	Injury.give(p, Injury.HEAD, Injury.SERIOUS)
+	check(p.attribute("intelligenz") < base_int, "a head wound lowers Intelligenz")
+	Injury.heal(p)
+	check(p.attribute("intelligenz") == base_int, "and it comes back")
+	p.xp["klingen"] = 1000.0
+	var blade := p.skill("klingen")
+	Injury.give(p, Injury.SCARS, Injury.MINOR)
+	check(p.skill("klingen") == maxi(0, blade - 1), "scars lower the skills")
+	Injury.heal(p)
+	# Rest heals minor and serious, never grave; scars and legs take longer.
+	check(Injury.nights(Injury.ARM, Injury.MINOR) == 3 and Injury.nights(Injury.SCARS, Injury.MINOR) == 6 and Injury.nights(Injury.ARM, Injury.GRAVE) == 0, "each kind has its own healing time")
+	Injury.give(p, Injury.ARM, Injury.MINOR)
+	check(not Injury.rest(p) and not Injury.rest(p) and Injury.nights_left(p) == 1 and Injury.rest(p) and p.injury == "", "a minor injury mends after its nights")
+	Injury.give(p, Injury.HEAD, Injury.GRAVE)
+	for i in 30:
+		Injury.rest(p)
+	check(p.injury == Injury.HEAD, "rest never heals a grave injury")
+	check(not Injury.heals_at_village(p), "the village altar cannot heal a grave injury")
+	var saved := Injury.for_save(p)
+	Injury.load_from(p, {})
+	check(p.injury == "", "an old save has no injury")
+	Injury.load_from(p, JSON.parse_string(JSON.stringify(saved)))
+	check(p.injury == Injury.HEAD and p.injury_severity == Injury.GRAVE, "the injury comes back from a saved game")
+	check(Injury.pilgrimage_heal(p) and p.injury == "", "the pilgrimage heals a grave injury")
+	# The temple altar and Mirenna's mercy.
+	Injury.give(p, Injury.LEG, Injury.SERIOUS)
+	var price := Injury.prayer_price(p)
+	check(price == roundi(Injury.TUNING.serious.price * Injury.KINDS.leg.long), "the prayer costs what the tuning says")
+	Blessing.bless(p, Blessing.HEALER)
+	check(Injury.prayer_price(p) < price, "Mirenna's blessing makes healing cheaper")
+	game.coins = 1000
+	game.menus.open("tempel")
+	game.menus._pray_for_healing(Injury.prayer_price(p))
+	check(p.injury == "", "a prayer at the village altar heals a serious injury")
+	Injury.give(p, Injury.ARM, Injury.GRAVE)
+	game.menus._pray_for_healing(0)
+	check(p.injury == Injury.ARM, "the village altar leaves a grave injury alone")
+	game.menus.close()
+	Injury.heal(p)
 
 
 func _has_text(node: Node, text: String) -> bool:

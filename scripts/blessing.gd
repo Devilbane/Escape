@@ -40,12 +40,17 @@ const GODS := {
 	"veyl": {"name": "Veyl", "title": "die Verhüllte", "icon": "kind:cloak",
 		"tale": "Schläge gleiten an ihren Schützlingen vorbei wie an einem Schatten.",
 		"boon": {"block": 0.04}, "burden": {}},
+	"mirenna": {"name": "Mirenna", "title": "Herrin der Gnade", "icon": "kind:herb",
+		"tale": "Die Heilgöttin nimmt Verletzungen von dir, und ihre Schützlinge zahlen weniger dafür.",
+		"boon": {"mercy": 0.34}, "burden": {}},
 	"ashkar": {"name": "Ashkar", "title": "Fürst der Glut", "icon": "kind:flame",
 		"tale": "Der Drachengott schenkt rohe Gewalt und nimmt dafür Leben.",
 		"boon": {"power": 2}, "burden": {"hp": -1}},
 }
 ## The order the temple lists them in.
-const ORDER := ["aurel", "korr", "skyra", "dunmar", "veyl", "ashkar"]
+const ORDER := ["aurel", "mirenna", "korr", "skyra", "dunmar", "veyl", "ashkar"]
+## The goddess who heals injuries (see Injury): her altar is in the temple.
+const HEALER := "mirenna"
 
 ## One line for each effect: the sign and the text, "%s" being the amount.
 const EFFECT_TEXT := {
@@ -54,6 +59,7 @@ const EFFECT_TEXT := {
 	"hardening": "%s Härtung",
 	"speed": "%s Tempo",
 	"block": "%s Blockchance",
+	"mercy": "Heilung im Tempel %d %% billiger",
 }
 
 
@@ -92,6 +98,8 @@ static func amount(god: String, thirds: int, id: String) -> float:
 
 ## "+6 Leben" / "−6 % Tempo": how one effect reads.
 static func describe(id: String, value: float) -> String:
+	if id == "mercy":
+		return Lang.t(EFFECT_TEXT[id]) % roundi(value * 100.0)
 	var shown := ""
 	if id == "speed" or id == "block":
 		shown = "%+d %%" % roundi(value * 100.0)
@@ -111,6 +119,11 @@ static func lines(god: String, thirds: int) -> Array:
 
 
 ## What a blessing costs now: nothing for a hero's first, else the offering.
+## How much cheaper the goddess's healing is for a hero she blesses (0 to 1).
+static func mercy(hero: Player) -> float:
+	return clampf(amount(hero.blessing_god, hero.blessing_thirds, "mercy"), 0.0, 1.0)
+
+
 static func price_new(ever_blessed: bool) -> int:
 	return OFFERING if ever_blessed else 0
 

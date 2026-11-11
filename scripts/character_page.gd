@@ -411,6 +411,8 @@ const ARMOUR := "ruestungswert"
 const ARMOUR_SET := "ruestungsset"
 ## The entry for the temple's blessing (see Blessing).
 const BLESSING := "segen"
+## The entry for the injury a rescue left (see Injury).
+const INJURY := "verletzung"
 
 
 ## Why a skill is dimmed: the gear it needs.
@@ -434,6 +436,8 @@ func details(id: String) -> Dictionary:
 		return set_details()
 	if id == BLESSING:
 		return blessing_details()
+	if id == INJURY:
+		return injury_details()
 	if Training.ATTRIBUTES.has(id):
 		return _attribute_details(id)
 	if Training.SKILLS.has(id):
@@ -463,6 +467,20 @@ func protection_details(id: String) -> Dictionary:
 			Lang.t("Leichte Treffer fängt die Rüstung so manchmal ganz ab."),
 			Lang.t("Höchstens %d %%.") % Player.ARMOUR_VALUE_MAX],
 		"note": Lang.t("Kommt von Helm, Rüstung, Handschuhen und Schuhen. Stoff schützt wenig, Stahl und Schuppen viel.")}
+
+
+## The injury of the last rescue and how it heals.
+func injury_details() -> Dictionary:
+	if player.injury == "":
+		return {"title": Lang.t("Verletzung"),
+			"lines": [Lang.t("Du bist unverletzt."),
+				Lang.t("Wer bewusstlos gerettet wird, trägt eine Verletzung davon: nach einem Bosskampf meist eine schwere.")],
+			"note": Lang.t("Leichte und schwere Verletzungen heilen im Bett, schwere auch am Altar im Tempel. Eine bleibende heilt nur am fernen Schrein.")}
+	var lines := Injury.effect_lines(player.injury, player.injury_severity) + [Injury.how_to_heal(player.injury, player.injury_severity)]
+	if Injury.nights_left(player) > 0:
+		lines.append(Lang.t("Nächte Ruhe noch: %d") % Injury.nights_left(player))
+	return {"title": Injury.title(player.injury, player.injury_severity), "lines": lines,
+		"note": Lang.t("Heilgöttin Mirenna im Dorftempel heilt schwere Verletzungen gegen eine Gabe, eine bleibende nur der ferne, vergessene Schrein.")}
 
 
 ## The blessing and what it gives now, or how to get one.

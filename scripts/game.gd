@@ -3650,6 +3650,8 @@ func _apply_save(data: Dictionary) -> void:
 	player.gift_constitution = int(data.get("gift_constitution", 0))
 	player.beginner_shrines_used = int(data.get("beginner_shrines_used", 0))
 	Blessing.load_from(player, data.get("blessing", {}))
+	Injury.load_from(player, data.get("injury", {}))
+	player.refresh_stats()
 	player.gift_spent = {}
 	var gift_spent = data.get("gift_spent", {})
 	if gift_spent is Dictionary:
@@ -3927,7 +3929,7 @@ func save_game(going_away := false) -> bool:
 		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution, "beginner_shrines_used": player.beginner_shrines_used,
-		"blessing": Blessing.for_save(player),
+		"blessing": Blessing.for_save(player), "injury": Injury.for_save(player),
 		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "cape": player.cape_design, "bag": player.bag, "storage": storage, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "book_hours": book_hours, "escaped": escaped, "village_run": snappedf(player.ailments.get(VillageRun.KIND, 0.0), 0.1), "home": _home_given_now(), "claimed": home_claimed,
 		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(), "home_stores": HomeStores.for_save(home_stores),
@@ -4157,6 +4159,7 @@ func rest_till_morning() -> void:
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
 	tween.tween_callback(func():
 		_stop_snoozing()
+		_rest_injury()
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
 		world_hours += fposmod(DayNight.WAKE_HOUR - day_hour, 24.0)
@@ -4293,12 +4296,23 @@ func stay_awake() -> void:
 	menus.open("laden")
 
 
+## A night of rest mends what a rescue left (see Injury).
+func _rest_injury() -> void:
+	var had := player.injury
+	if had != "" and Injury.rest(player):
+		Events.tell(Lang.t("Deine Verletzung ist verheilt."), Color(0.55, 1.0, 0.6))
+		_update_hud()
+	elif had != "":
+		_update_hud()
+
+
 ## A night in the bed, or by the fire of the camp (`at_camp`, see Camp):
 ## the game is saved, the hero lies down and falls asleep, and the player
 ## logs out.
 func sleep(at_camp_now := false) -> void:
 	at_camp_now = at_camp_now and has_camp()
 	# A night in the bed: the hero wakes up the next morning.
+	_rest_injury()
 	if level.outdoor or level.building != "":
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
@@ -5055,6 +5069,9 @@ func hero_ailments() -> Array:
 	for kind in ["gift", "fluch", "brand", "netz", SlimeCoat.KIND, "angst"]:
 		if player.ailments.has(kind):
 			out.append([kind, ""])
+	# A rescue's injury: the nights of rest still to go, "!" when rest cannot mend it.
+	if player.injury != "":
+		out.append(["injury", str(Injury.nights_left(player)) if Injury.nights_left(player) > 0 else "!"])
 	if player.ailments.has(BloatedBelly.KIND):
 		out.append([BloatedBelly.KIND, BloatedBelly.countdown(player.ailments[BloatedBelly.KIND])])
 	# Slower only from a heavy load (the curse and the web that slow have their own icons,
@@ -5102,6 +5119,7 @@ func icon_text(kind: String, number: String) -> String:
 	match kind:
 		"blut": return Lang.t("Du blutest: Noch %s Leben fließen ab, eines pro Sekunde, doppelt so schnell, solange du läufst. Nie das letzte. Ein Brunnen, ein Schrein oder ein Heiltrank stillt die Blutung.") % number
 		"gift": return Lang.t("Vergiftet: Du verlierst alle paar Sekunden ein Leben, nie das letzte. Ein Brunnen, ein Schrein oder ein Heiltrank heilt es.")
+		"injury": return Injury.title(player.injury, player.injury_severity) + ": " + Injury.effect_text(player.injury, player.injury_severity) + "\n" + Injury.how_to_heal(player.injury, player.injury_severity) if player.injury != "" else ""
 		"fluch": return Lang.t("Verflucht: Du bist langsamer. Es vergeht bald; ein Brunnen, ein Schrein oder ein Heiltrank heilt es sofort.")
 		"brand": return Lang.t("Du brennst: Ein paar Sekunden lang verlierst du Leben, nie das letzte.")
 		"netz": return Lang.t("Eingesponnen: Spinnenseide klebt an dir. Ein paar Sekunden lang bist du viel langsamer.")
@@ -6199,6 +6217,13 @@ func _on_player_defeated() -> void:
 	var god := player.blessing_god
 	lost.blessing = Blessing.weaken(player)
 	lost.god = god
+	# The blow that felled the hero leaves an injury, worse after a boss (see Injury).
+	var felled_by: Node = player.felled_by if is_instance_valid(player.felled_by) else null
+	lost.injury = ""
+	var severity := Injury.severity_for(felled_by)
+	if Injury.give(player, Injury.random_kind(), severity):
+		lost.injury = player.injury
+		lost.severity = player.injury_severity
 	_update_hud()
 	var eagle := Rescue.on_surface(level)
 	show_message(Lang.t("Du verlierst das Bewusstsein...") + "\n" + (Lang.t("Ein Adler stößt herab!") if eagle else Lang.t("Der Rettungstrupp der Zwerge ist unterwegs!")), 3.0)
@@ -6239,6 +6264,8 @@ func _rescued(eagle: bool, lost: Dictionary, fell_on: String) -> void:
 		text += "\n" + Lang.t("Deine Tasche, dein Zutatenbeutel und %d Münzen liegen noch dort, wo du gefallen bist: %s.") % [int(lost.coins), Lang.t(fell_on)]
 	if int(lost.get("xp", 0)) > 0:
 		text += "\n" + Lang.t("Gedächtnisverlust: %d Erfahrung vergessen.") % int(lost.xp)
+	if String(lost.get("injury", "")) != "":
+		text += "\n" + Lang.t("Verletzung: %s (%s)") % [Injury.title(lost.injury, lost.severity), Injury.effect_text(lost.injury, lost.severity)]
 	if bool(lost.get("blessing", false)):
 		var left := player.blessing_thirds
 		var name := Lang.t(Blessing.GODS[lost.god].name)
@@ -6247,6 +6274,7 @@ func _rescued(eagle: bool, lost: Dictionary, fell_on: String) -> void:
 	show_message(text, 6.0)
 	Events.tell(text.replace("\n", " "), Color(1.0, 0.85, 0.45), 8.0)
 	Events.teach(Rescue.LORE)
+	Events.teach(Injury.LORE)
 	save_game()
 
 

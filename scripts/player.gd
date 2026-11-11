@@ -147,6 +147,14 @@ var gift_armor := 0
 var blessing_god := ""
 var blessing_thirds := 0
 var blessed_before := false
+## The injury a rescue left (see Injury): its id ("" for none) and the nights
+## of rest it has had.
+var injury := ""
+var injury_severity := ""
+var injury_rest := 0
+var _injury_said := -10000
+## Whether the blow that felled the hero came from a boss (set in take_damage).
+var felled_by: Node = null
 ## What the companion at the hero's side gives (Companions.SPECIES of its
 ## kind: "speed", "power", "skills"); {} without one. Set by the game.
 var companion_perks: Dictionary = {}
@@ -945,7 +953,7 @@ func _breathe(delta: float, moving: bool) -> void:
 	if stamina < 0.0:
 		stamina = full
 	var run_key := not typing and Input.is_physical_key_pressed(KEY_SHIFT)
-	sprinting = (wants_run or run_key) and moving and not sneaking and not winded and stamina > 0.0
+	sprinting = (wants_run or run_key) and moving and not sneaking and not winded and stamina > 0.0 and not Injury.cannot_run(self)
 	if sprinting:
 		stamina = maxf(0.0, stamina - delta)
 		# Running out of breath slowly hardens the body.
@@ -975,6 +983,9 @@ func is_running() -> bool:
 ## hero runs; a standing jump goes straight up.
 func jump() -> void:
 	stand_up()
+	if Injury.cannot_jump(self) and _can_jump():
+		_say_injury(Lang.t("Dein Bein erlaubt keinen Sprung!"))
+		return
 	if _jump_windup > 0.0 or not _can_jump():
 		return
 	_jump_windup = JUMP_WINDUP_RUN if is_running() else JUMP_WINDUP
@@ -987,6 +998,16 @@ func jump() -> void:
 ## True while the hero is in the half step before a jump leaves the ground.
 func is_winding_up() -> bool:
 	return _jump_windup > 0.0
+
+
+## A short word over the hero's head when the injury stops what they tried, at
+## most once in a while.
+func _say_injury(text: String) -> void:
+	var now := Time.get_ticks_msec()
+	if now - _injury_said < 2500:
+		return
+	_injury_said = now
+	Effects.head_text(level, self, 2.2, text, Color(1.0, 0.55, 0.45))
 
 
 func _can_jump() -> bool:
@@ -1669,14 +1690,14 @@ func explore_bonus(per_level: int) -> int:
 ## highest value.
 func attribute(id: String) -> int:
 	var value := Training.attribute_value(id, xp.get(id, 0.0))
-	var bonus: int = int(level_points.get(id, 0)) + int(gift_spent.get(id, 0))
+	var bonus: int = int(level_points.get(id, 0)) + int(gift_spent.get(id, 0)) - Injury.attribute_drop(self, id)
 	if id == "konstitution":
 		bonus += HeroLevel.constitution_bonus(hero_level()) + gift_constitution
 	elif id == "geschick":
 		bonus += ArmourSets.dexterity(equipped)
 	if bonus == 0:
 		return value
-	return mini(value + bonus * Training.ATTRIBUTES[id].step, Training.ATTRIBUTES[id].max)
+	return maxi(1, mini(value + bonus * Training.ATTRIBUTES[id].step, Training.ATTRIBUTES[id].max))
 
 
 ## The hero's level, from the experience earned (see HeroLevel).
@@ -1768,7 +1789,7 @@ func skill(id: String) -> int:
 	for slot in equipped:
 		level_now += int(Items.ALL[equipped[slot]].get("skills", {}).get(id, 0))
 	level_now += int(companion_perks.get("skills", {}).get(id, 0))
-	return level_now
+	return maxi(0, level_now - Injury.skill_drop(self))
 
 
 ## Whether the worn gear lets the hero use (and train) a skill.
@@ -1901,6 +1922,9 @@ func reset_gifts() -> void:
 	blessing_god = ""
 	blessing_thirds = 0
 	blessed_before = false
+	injury = ""
+	injury_severity = ""
+	injury_rest = 0
 	companion_perks = {}
 	equipped = {}
 	wear.clear()
@@ -1918,6 +1942,9 @@ func refresh_stats() -> void:
 	armour_value = 0
 	block_chance = 0.0
 	for slot in equipped:
+		# A broken arm cannot hold a shield: it does nothing while it is worn.
+		if slot == "schild" and Injury.cannot_use_shield(self):
+			continue
 		var item: Dictionary = Items.ALL[equipped[slot]]
 		hp_bonus += item.get("hp", 0)
 		power_bonus += item.get("power", 0)
@@ -1932,8 +1959,11 @@ func refresh_stats() -> void:
 	speed_bonus += Blessing.amount(blessing_god, blessing_thirds, "speed")
 	hardening += int(Blessing.amount(blessing_god, blessing_thirds, "hardening"))
 	block_chance += Blessing.amount(blessing_god, blessing_thirds, "block")
+	# An injury from a rescue (see Injury).
+	hp_bonus -= Injury.life_lost(self)
+	speed_bonus -= Injury.speed_lost(self)
 	armour_value = mini(armour_value, ARMOUR_VALUE_MAX)
-	if equipped.has("schild"):
+	if equipped.has("schild") and not Injury.cannot_use_shield(self):
 		block_chance += BLOCK_PER_LEVEL * skill("blocken")
 	var hero := hero_level()
 	hp_bonus += HeroLevel.life_bonus(hero)
@@ -2575,6 +2605,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	hurt.emit(amount)
 	if hp <= 0:
 		dead = true
+		felled_by = attacker
 		play_once("Death_A", 99.0)
 		# A fallen hero's eyes are crossed out in black, until they rise.
 		DeadEyes.put_on(_model)

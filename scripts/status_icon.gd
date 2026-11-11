@@ -119,6 +119,12 @@ func _draw() -> void:
 			draw_circle(c + Vector2(0, 3), 6.0, Color(0.4, 0.85, 0.3))
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -9), c + Vector2(5.6, 1.5), c + Vector2(-5.6, 1.5)]), Color(0.4, 0.85, 0.3))
 			draw_circle(c + Vector2(-2, 3), 1.6, Color(0.8, 1.0, 0.7))
+		"injury":
+			# A bandage across the limb: a pale strip with two stitches.
+			draw_set_transform(c + Vector2(-2, 0), -0.6)
+			draw_rect(Rect2(Vector2(-10, -4), Vector2(20, 8)), Color(0.93, 0.86, 0.7))
+			draw_rect(Rect2(Vector2(-3, -2), Vector2(6, 4)), Color(0.8, 0.45, 0.35))
+			draw_set_transform(Vector2.ZERO, 0.0)
 		"blut":
 			# A drop of blood, a little left of centre to leave room for the number.
 			var blood := Bleeding.COLOR

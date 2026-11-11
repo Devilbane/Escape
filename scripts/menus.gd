@@ -863,6 +863,10 @@ func _build_character() -> void:
 	grid.add_theme_constant_override("v_separation", 6)
 	top.add_child(grid)
 	_character_row(grid, wheel, "", Lang.t("Leben"), "%d / %d   %+.1f/s" % [p.hp, p.max_hp, p.life_regen()], Color(1.0, 0.55, 0.5))
+	# The injury a rescue left, always a row so the window keeps its shape.
+	_character_row(grid, wheel, CharacterPage.INJURY, Lang.t("Verletzung"),
+			Lang.t(Injury.KINDS[p.injury].name) if p.injury != "" else Lang.t("keine"),
+			Color(1.0, 0.55, 0.5) if p.injury != "" else TradeWindow.GREY)
 	for id in Training.ATTRIBUTES:
 		if not id in Training.MAIN_ATTRIBUTES:
 			_character_row(grid, wheel, id, Lang.t(Training.ATTRIBUTES[id].name),
@@ -3520,7 +3524,51 @@ func _build_temple() -> void:
 				"detail": {"subtitle": Lang.t(god.title), "lines": detail_lines}, "compare": now})
 	_trade(Lang.t("Dein Kupfer: %d") % game.coins, [
 		{"key": "gods", "title": Lang.t("Die Götter"), "icon": "kind:heal_potion", "entries": entries},
+		{"key": "healing", "title": Lang.t("Heilung"), "icon": "kind:herb", "entries": _healing_entries()},
 	], null, Lang.t("Wähle einen Gott und lass dich von Elsbeth segnen. Der Segen schützt dich, solange du ihn hast."))
+
+
+## The altar of the healing goddess (see Injury): one row, a prayer that
+## takes the injury away for an offering (less, with her blessing).
+func _healing_entries() -> Array:
+	var p: Player = game.player
+	var god: Dictionary = Blessing.GODS[Blessing.HEALER]
+	var price := Injury.prayer_price(p)
+	var lines := [[Lang.t("Mirenna nimmt Verletzungen von dir, auch die, die nie von selbst heilen."), TradeWindow.BLUE]]
+	var now := {"title": Lang.t("Derzeit"), "name": Lang.t("Keine Verletzung"), "subtitle": Lang.t("Verletzung"), "icon": "kind:herb", "lines": []}
+	var can := false
+	var button := Lang.t("Beten")
+	if p.injury != "":
+		now = {"title": Lang.t("Derzeit"), "name": Injury.title(p.injury, p.injury_severity), "subtitle": Lang.t("Verletzung"), "icon": "kind:herb",
+				"lines": [[Injury.effect_text(p.injury, p.injury_severity), TradeWindow.RED], [Injury.how_to_heal(p.injury, p.injury_severity), TradeWindow.GREY]]}
+		can = Injury.heals_at_village(p) and game.coins >= price
+		if not Injury.heals_at_village(p):
+			lines.append([Lang.t("Diese Wunde heilt nur am fernen, vergessenen Schrein."), TradeWindow.ORANGE])
+	else:
+		lines.append([Lang.t("Du bist unverletzt."), TradeWindow.GREY])
+	if Blessing.mercy(p) > 0.0:
+		lines.append([Lang.t("Dein Segen macht die Heilung billiger."), TradeWindow.GREEN])
+	return [{"key": "heal:prayer", "icon": god.icon, "name": Lang.t("Gebet an Mirenna"),
+			"price": Lang.t("Umsonst") if price == 0 else Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price,
+			"button": button, "action": _pray_for_healing.bind(price), "enabled": can,
+			"detail": {"subtitle": Lang.t(god.title), "lines": lines}, "compare": now}]
+
+
+func _pray_for_healing(price: int) -> void:
+	var p: Player = game.player
+	if not Injury.heals_at_village(p):
+		return
+	if game.coins < price:
+		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
+		_rebuild()
+		return
+	game.coins -= price
+	Injury.heal(p)
+	Sfx.play(game, "secret", -6.0)
+	game._update_hud()
+	_note = Lang.t("Du betest zu Mirenna. Deine Verletzung ist verschwunden.")
+	game.save_game()
+	_rebuild()
 
 
 ## The effect lines of a god at `thirds`, green for what helps, red for what costs.

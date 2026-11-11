@@ -32,6 +32,10 @@ func _finish() -> void:
 	var fog := Weather.look(Weather.FOG)
 	check(is_equal_approx(Weather.dusty_mist(clear, 0.0), Weather.NIGHT_DUST * fog.mist), "a clear night has 25% of fog's mist")
 	check(Weather.dusty_mist(clear, 12.0) == 0.0, "no dust by day")
+	var dark := Color(0.08, 0.08, 0.09)
+	check(Weather.haze_color(dark, clear, 0.0).b > 0.25, "the night's dust is moonlit, not black")
+	check(Weather.haze_color(dark, clear, 12.0) == dark, "no change to the haze by day")
+	check(Weather.haze_color(dark, fog, 0.0) == dark, "real fog keeps its colour")
 	check(Weather.dusty_mist(fog, 0.0) == fog.mist, "dust does not pile on fog")
 	game.delete_save(game.save_path())
 	if failures == 0:

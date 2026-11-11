@@ -14,7 +14,7 @@ const DESIGNS := [
 	{"name": "Schlicht", "picture": "",
 		"text": "Ein ganz leerer Umhang."},
 	{"name": "BRIKAN", "picture": "res://assets/logo/cape_brikan.png",
-		"text": "Der Name in goldenen Buchstaben, darunter eine Tigerente auf roten Rädern."},
+		"text": "Ein Wappen mit Zirkel, Säge und offenem Buch auf marineblauem Schild."},
 ]
 const DEFAULT := 0
 

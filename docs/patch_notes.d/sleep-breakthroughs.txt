@@ -1,0 +1,1 @@
+- Skills now level up in your sleep: practice makes a skill ripe, a night away (8+ hours) rolls the new level. Your hero tells you how they feel about each skill, wins are announced by a speech bubble (a golden "Eureka!" for a flash of insight), and the skill card keeps a history of past levels.

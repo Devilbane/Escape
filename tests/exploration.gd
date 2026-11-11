@@ -109,9 +109,11 @@ func _test() -> void:
 
 	# Each level helps to notice a secret lever.
 	p.xp["erkunden"] = 0.0
+	p.sleep_state.skills.erase("erkunden")
 	game.level.secret_sure = false
 	var base: int = game.level.secret_chance()
 	p.xp["erkunden"] = _xp_for(3)
+	p.sleep_state.skills.erase("erkunden")
 	check(p.skill("erkunden") == 3, "Erkunden reached level 3: %d" % p.skill("erkunden"))
 	check(game.level.secret_chance() == base + 3 * Training.EXPLORE_SECRET, "Erkunden 3 adds to the lever chance: %d -> %d" % [base, game.level.secret_chance()])
 
@@ -176,6 +178,7 @@ func _test() -> void:
 	game.load_level(0)
 	check(_torches_found(0) == 0, "without Erkunden no extra torch turns up")
 	p.xp["erkunden"] = _xp_for(10)
+	p.sleep_state.skills.erase("erkunden")
 	var found := _torches_found(10)
 	check(found > 0, "with Erkunden 10 searching turns up torches: %d of 100" % found)
 
@@ -229,6 +232,7 @@ func _test_lever_reach() -> void:
 func _torches_found(level: int) -> int:
 	var p: Player = game.player
 	p.xp["erkunden"] = _xp_for(level)
+	p.sleep_state.skills.erase("erkunden")
 	var torches := 0
 	for i in 100:
 		p.bag.clear()

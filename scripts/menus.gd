@@ -772,7 +772,7 @@ func _skills_text() -> String:
 	var p: Player = game.player
 	var parts := []
 	for id in Training.SKILLS:
-		var text := "%s %d" % [Lang.t(Training.SKILLS[id].name), p.skill(id) if p.skill_enabled(id) else Training.skill_level(p.xp.get(id, 0.0), id)]
+		var text := "%s %d" % [Lang.t(Training.SKILLS[id].name), p.skill(id) if p.skill_enabled(id) else p.trained_level(id)]
 		parts.append(text if p.skill_enabled(id) else "(%s)" % text)
 	return Lang.t("Fertigkeiten:") + " " + "   ".join(parts) + "\n" + Lang.t("In Klammern: braucht passende Ausrüstung")
 

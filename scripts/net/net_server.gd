@@ -6,7 +6,8 @@ extends RefCounted
 ## It knows nothing about the rules. A player first says hello with the
 ## protocol version and a name; until then nothing else they send counts.
 ## Every command is checked with Commands.check and a rate limit; the player
-## gets an ack (ok, or the reason it was refused) for each one. Call poll()
+## gets an ack (ok, or the reason it was refused) for each one. The welcome
+## carries the hero's record as the server keeps it (see HeroStore). Call poll()
 ## once per frame or tick.
 
 signal player_joined(id: int, name: String)
@@ -106,7 +107,7 @@ func _hello(from: int, msg: Dictionary) -> void:
 			return
 	_waiting.erase(from)
 	players[from] = {"name": name, "window": _now, "count": 0}
-	send(from, {"type": "welcome", "id": from, "shard": shard})
+	send(from, {"type": "welcome", "id": from, "shard": shard, "hero": HeroStore.load_hero(name)})
 	player_joined.emit(from, name)
 
 

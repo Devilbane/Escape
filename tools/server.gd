@@ -16,7 +16,7 @@ func _initialize() -> void:
 	config = ServerConfig.from_args(OS.get_cmdline_user_args())
 	Storage.use(Storage.Files.new(config.save_dir))
 	server.shard = config.shard
-	server.player_joined.connect(func(id: int, name: String) -> void: _log("%s joined (#%d)" % [name, id]))
+	server.player_joined.connect(func(id: int, name: String) -> void: _log("%s joined (#%d, %s)" % [name, id, "known hero" if HeroStore.has(name) else "new hero"]))
 	server.player_left.connect(func(id: int, name: String) -> void: _log("%s left (#%d)" % [name, id]))
 	server.command_received.connect(func(id: int, cmd: Dictionary) -> void: _log("#%d: %s" % [id, cmd.kind]))
 	var err := server.start(config.port, config.max_players)

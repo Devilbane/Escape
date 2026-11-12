@@ -3,7 +3,8 @@ extends RefCounted
 ## The game's side of the connection: says hello, sends commands and hears
 ## the server's answers. Call poll() once per frame.
 
-signal welcomed(id: int, shard: String)
+## `hero` is the record the server keeps for this hero (empty for a new one).
+signal welcomed(id: int, shard: String, hero: Dictionary)
 signal refused(reason: String)
 signal acked(seq: int, ok: bool, reason: String)
 signal disconnected()
@@ -49,11 +50,12 @@ func poll() -> void:
 	var peer := _peer
 	peer.poll()
 	while _peer != null and _peer.get_available_packet_count() > 0:
-		var msg := NetProtocol.decode(_peer.get_packet())
+		var msg := NetProtocol.decode(_peer.get_packet(), NetProtocol.MAX_FROM_SERVER)
 		match msg.get("type", ""):
 			"welcome":
 				id = int(msg.get("id", 0))
-				welcomed.emit(id, str(msg.get("shard", "")))
+				var hero = msg.get("hero", {})
+				welcomed.emit(id, str(msg.get("shard", "")), hero if hero is Dictionary else {})
 			"refused":
 				refused.emit(str(msg.get("reason", "")))
 			"ack":

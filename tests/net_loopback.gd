@@ -19,6 +19,7 @@ var b := NetClient.new()
 var old := NetClient.new()
 var twin := NetClient.new()
 var a_id := 0
+var heroes := {}
 
 
 func check(ok: bool, what: String) -> void:
@@ -41,12 +42,16 @@ func _initialize() -> void:
 	check(cfg.max_players == 4000, "max players is capped")
 	check(ServerConfig.from_args(PackedStringArray(["--port=80"])).port == 1024, "a system port is not used")
 
+	# The server keeps Brida's record; Alrik is new.
+	Storage.use(Storage.Memory.new())
+	HeroStore.save_hero({"version": SaveFormat.VERSION, "name": "Brida", "coins": 7})
 	server.shard = "Test"
 	check(server.start(port, 8) == OK, "the server opens its port")
 	server.player_joined.connect(func(id: int, name: String) -> void: joined.append(name))
 	server.command_received.connect(func(id: int, cmd: Dictionary) -> void: received.append([id, cmd]))
 	for client in [a, b, old, twin]:
 		client.acked.connect(func(seq: int, ok: bool, reason: String) -> void: acks[[client, seq]] = [ok, reason])
+		client.welcomed.connect(func(_id: int, shard: String, hero: Dictionary) -> void: heroes[client] = [shard, hero])
 		client.refused.connect(func(reason: String) -> void: refusals.append(reason))
 	check(a.connect_to("127.0.0.1", port, "Alrik") == OK, "a client connects")
 	check(b.connect_to("127.0.0.1", port, "Brida") == OK, "a second client connects")
@@ -63,6 +68,9 @@ func _process(delta: float) -> bool:
 				check(joined.size() == 2, "both players joined")
 				check(server.players.size() == 2, "the server knows both")
 				check(a.id != b.id, "players get their own ids")
+				check(heroes[a][0] == "Test", "the welcome names the shard")
+				check(heroes[a][1].is_empty(), "a new hero has no record yet")
+				check(int(heroes[b][1].get("coins", 0)) == 7, "a known hero gets their record")
 				# A name already in use is refused.
 				twin.connect_to("127.0.0.1", port, "Alrik")
 				# An old game is refused (it says hello with another version).
@@ -109,6 +117,7 @@ func _process(delta: float) -> bool:
 func _finish() -> bool:
 	b.leave()
 	server.stop()
+	Storage.use(null)
 	if failures == 0:
 		print("PASS: net loopback")
 	else:

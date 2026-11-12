@@ -3,15 +3,14 @@ extends RefCounted
 ## The list of finished runs on this computer, best first: deepest level
 ## reached, then most gold. Fallen heroes get a skull, escaped ones a crown.
 
-const FILE := "user://rangliste.json"
+## The record in Storage (a file in the user folder on a home computer).
+const RECORD := "rangliste"
 const SHOWN := 8
 const RED := Color(1.0, 0.45, 0.4)
 
 
 static func load_all() -> Array:
-	if not FileAccess.file_exists(FILE):
-		return []
-	var data = JSON.parse_string(FileAccess.get_file_as_string(FILE))
+	var data = Storage.read(RECORD)
 	return data if data is Array else []
 
 
@@ -22,9 +21,7 @@ static func add(hero: String, level: int, level_name: String, gold: int, escaped
 	var runs := load_all()
 	runs.append(entry)
 	runs.sort_custom(_better)
-	var file := FileAccess.open(FILE, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(runs.slice(0, 50)))
+	Storage.write(RECORD, runs.slice(0, 50))
 	return entry
 
 

@@ -18,6 +18,8 @@ signal command_received(id: int, cmd: Dictionary)
 
 ## Commands a player may send per second before the rest are refused.
 const RATE_LIMIT := 30
+## How often every player is told who is near them, per second.
+const SEEN_RATE := 10
 const MAX_NAME := 24
 
 var shard := "Lindenhain"
@@ -26,6 +28,9 @@ var _peer: ENetMultiplayerPeer = null
 var _waiting := {}  # peer id -> true, connected but no hello yet
 var _closing: Array[int] = []  # refused: let go once their answer is sent
 var _now := 0.0
+var _seen_due := 0.0
+## Where everyone is and who sees whom.
+var presence := NetPresence.new()
 
 
 func start(port: int, max_players := 32) -> Error:
@@ -69,14 +74,25 @@ func poll(delta := 0.0) -> void:
 		var from := _peer.get_packet_peer()
 		var msg := NetProtocol.decode(_peer.get_packet())
 		_handle(from, msg)
+	if _peer != null and _now >= _seen_due:
+		_seen_due = _now + 1.0 / SEEN_RATE
+		_tell_seen()
 
 
-func send(id: int, msg: Dictionary) -> void:
+func send(id: int, msg: Dictionary, mode := MultiplayerPeer.TRANSFER_MODE_RELIABLE) -> void:
 	if _peer == null:
 		return
 	_peer.set_target_peer(id)
-	_peer.set_transfer_mode(MultiplayerPeer.TRANSFER_MODE_RELIABLE)
+	_peer.set_transfer_mode(mode)
 	_peer.put_packet(NetProtocol.encode(msg))
+
+
+## Tells every player who is near them. Places go out unreliable: a lost one
+## is replaced by the next a tenth of a second later.
+func _tell_seen() -> void:
+	for id in players:
+		if not presence.place_of(id).is_empty():
+			send(id, {"type": "seen", "others": presence.seen_by(id)}, MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED)
 
 
 func _handle(from: int, msg: Dictionary) -> void:
@@ -108,6 +124,10 @@ func _hello(from: int, msg: Dictionary) -> void:
 	_waiting.erase(from)
 	players[from] = {"name": name, "window": _now, "count": 0}
 	send(from, {"type": "welcome", "id": from, "shard": shard, "hero": HeroStore.load_hero(name)})
+	for id in players:
+		if id != from:
+			send(id, {"type": "joined", "id": from, "name": name})
+			send(from, {"type": "joined", "id": id, "name": players[id].name})
 	player_joined.emit(from, name)
 
 
@@ -124,10 +144,16 @@ func _command(from: int, msg: Dictionary) -> void:
 		player.window = _now
 		player.count = 0
 	player.count += 1
-	var reason := "too fast" if player.count > RATE_LIMIT else Commands.check(msg.get("cmd"))
-	send(from, {"type": "ack", "seq": seq, "ok": reason == "", "reason": reason})
+	var cmd = msg.get("cmd")
+	var reason := "too fast" if player.count > RATE_LIMIT else Commands.check(cmd)
+	var is_where: bool = cmd is Dictionary and cmd.get("kind") == "where"
+	if reason == "" and is_where:
+		reason = presence.report(from, cmd.level, cmd.pos, float(cmd.facing), cmd.anim, _now)
+	# Places come many times a second: only a refused one is answered.
+	if reason != "" or not is_where:
+		send(from, {"type": "ack", "seq": seq, "ok": reason == "", "reason": reason})
 	if reason == "":
-		command_received.emit(from, msg.cmd)
+		command_received.emit(from, cmd)
 
 
 func _gone(id: int) -> void:
@@ -135,4 +161,7 @@ func _gone(id: int) -> void:
 	if players.has(id):
 		var name: String = players[id].name
 		players.erase(id)
+		presence.forget(id)
+		for other in players:
+			send(other, {"type": "left", "id": id})
 		player_left.emit(id, name)

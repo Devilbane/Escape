@@ -19,6 +19,7 @@ const KINDS := {
 	"equip": {"slot": TYPE_INT},
 	"drop_item": {"slot": TYPE_INT, "count": TYPE_INT},
 	"say": {"text": TYPE_STRING},
+	"where": {"level": TYPE_STRING, "pos": TYPE_VECTOR3, "facing": TYPE_FLOAT, "anim": TYPE_STRING},
 	"trade": {"merchant": TYPE_INT, "slot": TYPE_INT, "count": TYPE_INT, "buying": TYPE_BOOL},
 }
 
@@ -58,6 +59,10 @@ static func check(cmd) -> String:
 		return "bad count"
 	if cmd.has("slot") and cmd.slot < 0:
 		return "bad slot"
+	if cmd.has("level") and (cmd.level.is_empty() or cmd.level.length() > 64):
+		return "bad level"
+	if cmd.has("anim") and cmd.anim.length() > 32:
+		return "bad animation"
 	if cmd.has("text") and (cmd.text.is_empty() or cmd.text.length() > MAX_TEXT):
 		return "bad text"
 	return ""

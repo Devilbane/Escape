@@ -40,6 +40,9 @@ path is tested.
 1. **Versioned hero records** (started): `Game.hero_record()` builds the record a save file (or a server)
    keeps, and `SaveFormat.upgrade()` brings older records up to date step by step (`scripts/sim/save_format.gd`).
    A server keeps one record per hero with `HeroStore` and sends it with the welcome on login.
+1. **Seeing each other** (done on the server side): games report their hero's place with a `where` command;
+   `NetPresence` refuses impossible moves and tells each player who is near them (same map, within 60 m,
+   at most 24) ten times a second. Drawing the others in the game comes with the first playable online mode.
 2. **Rules out of `game.gd`**, one area at a time, behind the existing tests: inventory and bag, coins and
    bank, quests and bounties, reputation and factions, crafting, then combat resolution. Each becomes a plain
    class with `for_save()`/`load_from()` that `game.gd` calls. Coordinate with the skill and progression work so

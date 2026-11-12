@@ -8,6 +8,11 @@ signal welcomed(id: int, shard: String, hero: Dictionary)
 signal refused(reason: String)
 signal acked(seq: int, ok: bool, reason: String)
 signal disconnected()
+## The other players near this hero: [{id, pos, facing, anim}], several times a second.
+signal seen(others: Array)
+## Another player came onto the shard, or left it.
+signal player_joined(id: int, name: String)
+signal player_left(id: int)
 
 var id := 0
 ## The protocol version this game says hello with (a test can pretend to be old).
@@ -58,6 +63,14 @@ func poll() -> void:
 				welcomed.emit(id, str(msg.get("shard", "")), hero if hero is Dictionary else {})
 			"refused":
 				refused.emit(str(msg.get("reason", "")))
+			"seen":
+				var others = msg.get("others", [])
+				if others is Array:
+					seen.emit(others)
+			"joined":
+				player_joined.emit(int(msg.get("id", 0)), str(msg.get("name", "")))
+			"left":
+				player_left.emit(int(msg.get("id", 0)))
 			"ack":
 				acked.emit(int(msg.get("seq", 0)), bool(msg.get("ok", false)), str(msg.get("reason", "")))
 

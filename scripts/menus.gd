@@ -86,6 +86,7 @@ const SHORTCUTS := [
 	["Inventar", "I"],
 	["Kompendium", "H"],
 	["Charakter", "P"],
+	["Fertigkeiten", "Y"],
 	["Karte und Tagebuch", "N"],
 	["Aufträge", "O"],
 	["Nach Hause laufen", "X oder das Haus am rechten Rand, sobald du ein Zuhause hast; jeder eigene Schritt hält an"],
@@ -216,6 +217,7 @@ const WINDOW_SIZES := {
 	"aushang": Vector2(780, 400),
 	"trophaeen": Vector2(560, 360),
 	"charakter": Vector2(1024, 642),
+	"fertigkeiten": Vector2(900, 580),
 	"gefaehrten": Vector2(960, 530),
 	"umhangschrank": Vector2(1060, 640),
 	"wunsch": Vector2(760, 560),
@@ -363,6 +365,8 @@ func _rebuild() -> void:
 			_build_quests()
 		"charakter":
 			_build_character()
+		"fertigkeiten":
+			_build_skill_trees()
 		"beenden":
 			_build_quit()
 		"plan":
@@ -820,6 +824,62 @@ var _character_level: Label = null
 const CHARACTER_LEVEL_WIDTH := 200
 ## The armour set line (for tests).
 var _character_set: Label = null
+
+
+## The skill trees (key Y): one tab per tree, every skill of it on one canvas
+## of a fixed size (see SkillTreePage), and a details card below that keeps
+## its size whatever it shows.
+const SKILL_TREE_TAB_GAP := 6
+const SKILL_TREE_CARD_HEIGHT := 124
+const SKILL_TREE_TABS := 4
+## The tree on show and the skill picked in it; both survive a rebuild.
+var skill_tree := "kampf"
+var _skill_pick := ""
+
+
+func _build_skill_trees() -> void:
+	var p: Player = game.player
+	_add_label(Lang.t("Fertigkeiten"), 38, game.GOLD, game.TITLE_FONT)
+	var tabs := GridContainer.new()
+	tabs.columns = SKILL_TREE_TABS
+	tabs.add_theme_constant_override("h_separation", SKILL_TREE_TAB_GAP)
+	tabs.add_theme_constant_override("v_separation", SKILL_TREE_TAB_GAP)
+	tabs.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(tabs)
+	var tab_width := floorf((WINDOW_SIZES.fertigkeiten.x - SKILL_TREE_TAB_GAP * (SKILL_TREE_TABS - 1)) / SKILL_TREE_TABS)
+	for t in SkillTrees.TREES:
+		var b := _item_button(Lang.t(t[1]), func():
+			skill_tree = t[0]
+			_skill_pick = ""
+			_rebuild())
+		b.custom_minimum_size = Vector2(tab_width, 40)
+		b.modulate = Color(1.0, 0.9, 0.6) if skill_tree == t[0] else Color(0.75, 0.75, 0.8)
+		tabs.add_child(b)
+	var page := SkillTreePage.new(p, game.TEXT_FONT, skill_tree, _skill_pick)
+	_box.add_child(page)
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(WINDOW_SIZES.fertigkeiten.x, SKILL_TREE_CARD_HEIGHT)
+	card.add_theme_stylebox_override("panel", TradeWindow._style(Color(0.1, 0.07, 0.045, 0.97), TradeWindow.BORDER, 8, 12, 2))
+	_box.add_child(card)
+	var lines := VBoxContainer.new()
+	lines.add_theme_constant_override("separation", 4)
+	card.add_child(lines)
+	var card_title: Label = game._make_label(game.TITLE_FONT, 20, game.GOLD)
+	var card_body: Label = game._make_label(game.TEXT_FONT, 16, CHARACTER_TEXT)
+	var card_note: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	for l in [card_title, card_body, card_note]:
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size.x = WINDOW_SIZES.fertigkeiten.x - 28
+		l.add_theme_constant_override("line_spacing", 0)
+		lines.add_child(l)
+	var show := func(id: String) -> void:
+		var d: Dictionary = page.details(id)
+		card_title.text = d.title
+		card_body.text = "\n".join(d.lines)
+		card_note.text = d.note
+		_skill_pick = page.picked
+	show.call(page.shown())
+	page.shown_changed.connect(show)
 
 
 ## The wheel of attributes and skills (see CharacterPage). Beside it: what

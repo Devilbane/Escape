@@ -7,7 +7,8 @@ extends RefCounted
 ## side by side in the cellar for anyone to look at through the bars.
 ## (Once there is a server, the accounts can live there instead.)
 
-const FILE := "user://bank.json"
+## The record in Storage (a file in the user folder on a home computer).
+const RECORD := "bank"
 const VAULT_PRICE := 50
 const VAULT_SIZE := 8
 
@@ -20,17 +21,14 @@ static func _load() -> void:
 		return
 	_loaded = true
 	_data = {"accounts": {}, "vaults": []}
-	if FileAccess.file_exists(FILE):
-		var parsed = JSON.parse_string(FileAccess.get_file_as_string(FILE))
-		if parsed is Dictionary:
-			_data.accounts = parsed.get("accounts", {})
-			_data.vaults = parsed.get("vaults", [])
+	var parsed = Storage.read(RECORD)
+	if parsed is Dictionary:
+		_data.accounts = parsed.get("accounts", {})
+		_data.vaults = parsed.get("vaults", [])
 
 
 static func _save() -> void:
-	var file := FileAccess.open(FILE, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(_data))
+	Storage.write(RECORD, _data)
 
 
 ## Forgets what was read, so the next call reads the file again.

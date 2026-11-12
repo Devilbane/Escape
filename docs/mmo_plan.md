@@ -30,7 +30,10 @@ path is tested.
 
 ## Steps (each one a small PR that keeps the game playable)
 
-1. **Foundations** (this PR): `SimRng`, `SimClock`, `Commands`, this plan, a test.
+1. **Foundations** (done): `SimRng`, `SimClock`, `Commands`, this plan, a test.
+1. **Storage** (done for the bank, the house deeds and the ranking): `Storage` (`scripts/sim/storage.gd`)
+   keeps shared records by name; the backend is files in the user folder at home, a server folder or a
+   database later. `Training` (hero skills) moves over once the skill work settles.
 2. **Rules out of `game.gd`**, one area at a time, behind the existing tests: inventory and bag, coins and
    bank, quests and bounties, reputation and factions, crafting, then combat resolution. Each becomes a plain
    class with `for_save()`/`load_from()` that `game.gd` calls. Coordinate with the skill and progression work so

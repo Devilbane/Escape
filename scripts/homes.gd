@@ -9,7 +9,8 @@ extends RefCounted
 ## and their neighbours see it taken. (Once there is a server, the deeds can
 ## live there instead.)
 
-const FILE := "user://homes.json"
+## The record in Storage (a file in the user folder on a home computer).
+const RECORD := "homes"
 
 static var _owners := {}
 static var _loaded := false
@@ -20,18 +21,15 @@ static func _load() -> void:
 		return
 	_loaded = true
 	_owners = {}
-	if FileAccess.file_exists(FILE):
-		var parsed = JSON.parse_string(FileAccess.get_file_as_string(FILE))
-		if parsed is Dictionary and parsed.get("owners", {}) is Dictionary:
-			for key in parsed.owners:
-				if int(key) > 0:
-					_owners[str(int(key))] = str(parsed.owners[key])
+	var parsed = Storage.read(RECORD)
+	if parsed is Dictionary and parsed.get("owners", {}) is Dictionary:
+		for key in parsed.owners:
+			if int(key) > 0:
+				_owners[str(int(key))] = str(parsed.owners[key])
 
 
 static func _save() -> void:
-	var file := FileAccess.open(FILE, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify({"owners": _owners}))
+	Storage.write(RECORD, {"owners": _owners})
 
 
 ## Forgets what was read, so the next call reads the file again.

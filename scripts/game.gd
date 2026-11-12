@@ -3606,7 +3606,7 @@ static func save_time_text(time: float) -> String:
 
 func _read_save(path := "") -> Dictionary:
 	var data = JSON.parse_string(FileAccess.get_file_as_string(path if path != "" else save_path()))
-	return data if data is Dictionary else {}
+	return SaveFormat.upgrade(data) if data is Dictionary else {}
 
 
 func _apply_save(data: Dictionary) -> void:
@@ -3922,16 +3922,12 @@ func _home_given_now() -> bool:
 	return home_given
 
 
-## Writes everything needed to wake up in this safe room later. True when
-## the file is really there afterwards. Going away also writes the hero's
-## plan for the time away and when the player left.
-func save_game(going_away := false) -> bool:
-	if playtest_file != "":
-		return false
-	Training.save_hero(hero_name, player.xp, player.level_data())
+## The hero's whole record, as it is saved: on this computer a save file, on a
+## server the character it keeps. Its shape is versioned (see SaveFormat).
+func hero_record() -> Dictionary:
 	journal.catch_up()
 	var data := {
-		"version": 1, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution, "beginner_shrines_used": player.beginner_shrines_used,
 		"blessing": Blessing.for_save(player), "injury": Injury.for_save(player),
@@ -3957,6 +3953,17 @@ func save_game(going_away := false) -> bool:
 		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water,
 		"inn": level.inn,
 	}
+	return data
+
+
+## Writes everything needed to wake up in this safe room later. True when
+## the file is really there afterwards. Going away also writes the hero's
+## plan for the time away and when the player left.
+func save_game(going_away := false) -> bool:
+	if playtest_file != "":
+		return false
+	Training.save_hero(hero_name, player.xp, player.level_data())
+	var data := hero_record()
 	if has_camp():
 		# Saved at a camp: the game wakes up there. The floor is kept as
 		# the hero leaves it (monsters slain, doors open, the key), so it is

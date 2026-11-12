@@ -20,6 +20,8 @@ var old := NetClient.new()
 var twin := NetClient.new()
 var a_id := 0
 var heroes := {}
+var sights := {}
+var met := {}
 
 
 func check(ok: bool, what: String) -> void:
@@ -52,6 +54,8 @@ func _initialize() -> void:
 	for client in [a, b, old, twin]:
 		client.acked.connect(func(seq: int, ok: bool, reason: String) -> void: acks[[client, seq]] = [ok, reason])
 		client.welcomed.connect(func(_id: int, shard: String, hero: Dictionary) -> void: heroes[client] = [shard, hero])
+		client.seen.connect(func(others: Array) -> void: sights[client] = others)
+		client.player_joined.connect(func(id: int, name: String) -> void: met[client] = name)
 		client.refused.connect(func(reason: String) -> void: refusals.append(reason))
 	check(a.connect_to("127.0.0.1", port, "Alrik") == OK, "a client connects")
 	check(b.connect_to("127.0.0.1", port, "Brida") == OK, "a second client connects")
@@ -71,6 +75,14 @@ func _process(delta: float) -> bool:
 				check(heroes[a][0] == "Test", "the welcome names the shard")
 				check(heroes[a][1].is_empty(), "a new hero has no record yet")
 				check(int(heroes[b][1].get("coins", 0)) == 7, "a known hero gets their record")
+				a.send_command(Commands.make("where", {"level": "dorf", "pos": Vector3(0, 0, 0), "facing": 0.0, "anim": "idle"}))
+				b.send_command(Commands.make("where", {"level": "dorf", "pos": Vector3(3, 0, 0), "facing": 1.0, "anim": "walk"}))
+				step = 10
+		10:
+			if sights.get(a, []).size() == 1 and sights.get(b, []).size() == 1:
+				check(sights[a][0].id == b.id and sights[a][0].anim == "walk", "Alrik sees Brida walking")
+				check(sights[b][0].id == a.id, "Brida sees Alrik")
+				check(met.get(a, "") == "Brida" and met.get(b, "") == "Alrik", "players are told who else is on the shard")
 				# A name already in use is refused.
 				twin.connect_to("127.0.0.1", port, "Alrik")
 				# An old game is refused (it says hello with another version).
@@ -87,19 +99,20 @@ func _process(delta: float) -> bool:
 				b.send_command(Commands.make("say", {"text": "Hallo"}))
 				step = 2
 		2:
-			if acks.has([a, 2]) and acks.has([b, 1]):
-				check(acks[[a, 1]][0], "a good move is acked ok")
-				check(not acks[[a, 2]][0] and acks[[a, 2]][1] != "", "a bad command is refused with a reason")
-				check(acks[[b, 1]][0], "speech is acked ok")
-				check(received.size() == 2, "only good commands reach the world")
-				check(received[0][0] == a.id and received[0][1].kind == "move", "the world knows who moved")
+			if acks.has([a, 3]) and acks.has([b, 2]):
+				check(acks[[a, 2]][0], "a good move is acked ok")
+				check(not acks[[a, 3]][0] and acks[[a, 3]][1] != "", "a bad command is refused with a reason")
+				check(not acks.has([a, 1]), "a taken place is not answered")
+				check(acks[[b, 2]][0], "speech is acked ok")
+				check(received.size() == 4, "only good commands reach the world")
+				check(received.any(func(r): return r[0] == a.id and r[1].kind == "move"), "the world knows who moved")
 				for i in NetServer.RATE_LIMIT + 5:
 					b.send_command(Commands.make("say", {"text": "x"}))
 				step = 3
 		3:
-			var last := NetServer.RATE_LIMIT + 6
+			var last := NetServer.RATE_LIMIT + 7
 			if acks.has([b, last]):
-				check(acks[[b, 2]][0], "commands within the limit pass")
+				check(acks[[b, 3]][0], "commands within the limit pass")
 				check(not acks[[b, last]][0] and acks[[b, last]][1] == "too fast", "too many commands are refused")
 				a_id = a.id
 				a.leave()

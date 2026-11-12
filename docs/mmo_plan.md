@@ -37,6 +37,8 @@ path is tested.
 1. **Home server skeleton** (done): `tools/server.gd` runs headless with `ServerConfig`; `NetServer` and
    `NetClient` (`scripts/net/`) handle hello, version, unique names, command checks and a rate limit.
    How to run it: [server.md](server.md).
+1. **Versioned hero records** (started): `Game.hero_record()` builds the record a save file (or a server)
+   keeps, and `SaveFormat.upgrade()` brings older records up to date step by step (`scripts/sim/save_format.gd`).
 2. **Rules out of `game.gd`**, one area at a time, behind the existing tests: inventory and bag, coins and
    bank, quests and bounties, reputation and factions, crafting, then combat resolution. Each becomes a plain
    class with `for_save()`/`load_from()` that `game.gd` calls. Coordinate with the skill and progression work so

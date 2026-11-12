@@ -853,7 +853,7 @@ func _setup_drawer() -> void:
 	# (actions and sound) leave it out so they can be clicked again.
 	# Map, compendium, inventory, character and quests have their own icons
 	# on the menu's rail (QUICK_WINDOWS), so they are not repeated here.
-	var windows := [["Laden", "laden"]]
+	var windows := [["Laden", "laden"], ["Fertigkeiten", "fertigkeiten"]]
 	for w in windows:
 		buttons.add_child(_make_button(Lang.t(w[0]), _open_from_drawer.bind(w[1]), true))
 	# The game actions act the moment the pointer goes down (see _make_button).
@@ -7153,7 +7153,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					_choose_gift(event.physical_keycode - KEY_1)
 				return
 			if menus.is_open():
-				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_P, KEY_N, KEY_O, KEY_ESCAPE]:
+				if event is InputEventKey and event.physical_keycode in [KEY_I, KEY_H, KEY_P, KEY_N, KEY_O, KEY_Y, KEY_ESCAPE]:
 					menus.close()
 				return
 			# Any key or click of the player's own (but the sound, the menu
@@ -7184,6 +7184,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					KEY_P:
 						if player.can_act():
 							menus.open("charakter")
+					KEY_Y:
+						if player.can_act():
+							menus.open("fertigkeiten")
 					KEY_N:
 						if player.can_act():
 							menus.open("karte")

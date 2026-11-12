@@ -1,0 +1,1 @@
+- New skill trees window (key Y or the menu): all eight trees with every planned skill, what each needs and opens; your hero's skills carry over unchanged.

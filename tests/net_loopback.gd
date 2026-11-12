@@ -1,0 +1,117 @@
+extends SceneTree
+## Headless test for the server skeleton (scripts/net/): a server and two
+## clients on this computer. Players say hello, wrong versions and taken names
+## are refused, well-formed commands reach the world, bad ones are refused
+## with a reason, and too many at once hit the rate limit.
+## Run with: godot --headless -s tests/net_loopback.gd
+
+var failures := 0
+var server := NetServer.new()
+var port := 24590
+var frames := 0
+var joined: Array = []
+var received: Array = []
+var acks := {}
+var refusals: Array = []
+var step := 0
+var a := NetClient.new()
+var b := NetClient.new()
+var old := NetClient.new()
+var twin := NetClient.new()
+var a_id := 0
+
+
+func check(ok: bool, what: String) -> void:
+	if not ok:
+		failures += 1
+		print("FAIL: ", what)
+
+
+func _initialize() -> void:
+	# Packets: only plain dictionaries with a known type get through.
+	check(NetProtocol.decode(NetProtocol.encode({"type": "hello", "name": "x"})).name == "x", "a message round-trips")
+	check(NetProtocol.decode(NetProtocol.encode({"type": "steal"})).is_empty(), "an unknown type is dropped")
+	check(NetProtocol.decode(var_to_bytes([1, 2])).is_empty(), "a non-dictionary is dropped")
+	check(NetProtocol.decode(PackedByteArray([1, 2, 3])).is_empty(), "garbage is dropped")
+	check(NetProtocol.decode(PackedByteArray()).is_empty(), "an empty packet is dropped")
+
+	# Config: the command line wins over the defaults and stays in range.
+	var cfg := ServerConfig.from_args(PackedStringArray(["--port=25000", "--max-players=9999", "--shard=Test"]))
+	check(cfg.port == 25000 and cfg.shard == "Test", "the command line sets the port and shard")
+	check(cfg.max_players == 4000, "max players is capped")
+	check(ServerConfig.from_args(PackedStringArray(["--port=80"])).port == 1024, "a system port is not used")
+
+	server.shard = "Test"
+	check(server.start(port, 8) == OK, "the server opens its port")
+	server.player_joined.connect(func(id: int, name: String) -> void: joined.append(name))
+	server.command_received.connect(func(id: int, cmd: Dictionary) -> void: received.append([id, cmd]))
+	for client in [a, b, old, twin]:
+		client.acked.connect(func(seq: int, ok: bool, reason: String) -> void: acks[[client, seq]] = [ok, reason])
+		client.refused.connect(func(reason: String) -> void: refusals.append(reason))
+	check(a.connect_to("127.0.0.1", port, "Alrik") == OK, "a client connects")
+	check(b.connect_to("127.0.0.1", port, "Brida") == OK, "a second client connects")
+
+
+func _process(delta: float) -> bool:
+	frames += 1
+	server.poll(delta)
+	for client in [a, b, old, twin]:
+		client.poll()
+	match step:
+		0:
+			if a.is_welcomed() and b.is_welcomed():
+				check(joined.size() == 2, "both players joined")
+				check(server.players.size() == 2, "the server knows both")
+				check(a.id != b.id, "players get their own ids")
+				# A name already in use is refused.
+				twin.connect_to("127.0.0.1", port, "Alrik")
+				# An old game is refused (it says hello with another version).
+				old.version = NetProtocol.VERSION + 1
+				old.connect_to("127.0.0.1", port, "Old")
+				step = 1
+		1:
+			if refusals.size() >= 2:
+				check(refusals.has("name taken"), "a taken name is refused")
+				check(refusals.has("version"), "an old game is refused")
+				check(not twin.is_welcomed(), "the twin is not let in")
+				a.send_command(Commands.make("move", {"dir": Vector2(0, 1)}))
+				a.send_command(Commands.make("attack", {"target": "nobody"}))
+				b.send_command(Commands.make("say", {"text": "Hallo"}))
+				step = 2
+		2:
+			if acks.has([a, 2]) and acks.has([b, 1]):
+				check(acks[[a, 1]][0], "a good move is acked ok")
+				check(not acks[[a, 2]][0] and acks[[a, 2]][1] != "", "a bad command is refused with a reason")
+				check(acks[[b, 1]][0], "speech is acked ok")
+				check(received.size() == 2, "only good commands reach the world")
+				check(received[0][0] == a.id and received[0][1].kind == "move", "the world knows who moved")
+				for i in NetServer.RATE_LIMIT + 5:
+					b.send_command(Commands.make("say", {"text": "x"}))
+				step = 3
+		3:
+			var last := NetServer.RATE_LIMIT + 6
+			if acks.has([b, last]):
+				check(acks[[b, 2]][0], "commands within the limit pass")
+				check(not acks[[b, last]][0] and acks[[b, last]][1] == "too fast", "too many commands are refused")
+				a_id = a.id
+				a.leave()
+				step = 4
+		4:
+			if server.players.size() == 1:
+				check(not server.players.has(a_id) and a.id == 0, "a player who leaves is gone")
+				return _finish()
+	if frames > 600:
+		check(false, "timed out at step %d" % step)
+		return _finish()
+	return false
+
+
+func _finish() -> bool:
+	b.leave()
+	server.stop()
+	if failures == 0:
+		print("PASS: net loopback")
+	else:
+		print("FAILED: ", failures)
+	quit(1 if failures > 0 else 0)
+	return true

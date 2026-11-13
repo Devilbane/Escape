@@ -162,7 +162,7 @@ const GABLE_BRICK_V := Vector2(0.6, 0.92)
 ## The candlelight behind the temple's stained glass at night: still a little
 ## dimmer than the houses' windows, but bright enough that the panes shine in
 ## their own saturated colours without burning out to white.
-const CHAPEL_GLASS_LIGHT := Color(0.78, 0.68, 0.54)
+const CHAPEL_GLASS_LIGHT := Color(0.9, 0.8, 0.64)
 
 const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
@@ -1747,6 +1747,12 @@ func _build_chapel(center: Vector3, rot: float, room: Vector2) -> Node3D:
 		gable.position = Vector3(0, CHAPEL_EAVES, z)
 		chapel.add_child(gable)
 	_skin_chapel(chapel)
+	var spill := MeshInstance3D.new()
+	spill.name = "ChapelSpill"
+	spill.mesh = ChapelSpill.build_mesh()
+	spill.material_override = _chapel_spill_material()
+	spill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	chapel.add_child(spill)
 	# The kit is built to cathedral scale: shrink it to fit the block, and
 	# move it so that the steps in front of the door stay inside it too.
 	var s := minf(room.x / CHAPEL_FOOT.x, room.y / CHAPEL_FOOT.y)
@@ -1803,6 +1809,16 @@ func _spill_material() -> ShaderMaterial:
 		_scenes["mat_window_spill"] = mat
 		_window_mats[mat] = mat
 	return _scenes["mat_window_spill"]
+
+
+## The coloured pools of the temple's glass on the ground (see ChapelSpill);
+## they glow with the windows all night.
+func _chapel_spill_material() -> ShaderMaterial:
+	if not _scenes.has("mat_chapel_spill"):
+		var mat := ChapelSpill.material(WINDOW_GLOW)
+		_scenes["mat_chapel_spill"] = mat
+		_window_mats[mat] = mat
+	return _scenes["mat_chapel_spill"]
 
 
 ## The window panes of the villagers' houses: dark by day, warm at night

@@ -225,6 +225,7 @@ const WINDOW_SIZES := {
 	"kompendium": Vector2(990, 600),
 	"karte": Vector2(980, 616),
 	"auftraege": Vector2(760, 532),
+	CoopWindow.KIND: Vector2(720, 540),
 }
 
 
@@ -367,6 +368,8 @@ func _rebuild() -> void:
 			_build_character()
 		"fertigkeiten":
 			_build_skill_trees()
+		CoopWindow.KIND:
+			CoopWindow.build(self)
 		"beenden":
 			_build_quit()
 		"plan":

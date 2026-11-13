@@ -92,12 +92,12 @@ const EXPLORE_TORCH := 4
 const EXPLORE_WRITING := 8
 const EXPLORE_TRAP := 3
 ## Training for Erkunden: a whole map seen, a secret room, a wall writing.
-## A run that sees every map fully earns about nine levels.
-const EXPLORE_FULL_MAP := 30.0
-const EXPLORE_SECRET_FOUND := 4.0
-const EXPLORE_WRITING_FOUND := 3.0
+## Use weights as in the use table (a whole map is 150 uses, a wall writing 30).
+const EXPLORE_FULL_MAP := 150.0
+const EXPLORE_SECRET_FOUND := 20.0
+const EXPLORE_WRITING_FOUND := 30.0
 ## Training for Erkunden from a hidden trap spotted (see Traps).
-const EXPLORE_TRAP_FOUND := 2.0
+const EXPLORE_TRAP_FOUND := 10.0
 ## The crafts (Handwerk): making things at a workbench, from recipes (see
 ## Crafting). A craft is taught by a master in the village first and then
 ## trains only by working at it; it is not worn gear that enables it. Crafts
@@ -138,8 +138,20 @@ const ADVANCED_LEARNED := 9
 const RANK_SIZE := 3
 const RANKS := ["Novize", "Fortgeschritten", "Meister"]
 const SPECIAL_RANK := "Sonderwissen"
-const SKILL_FIRST := 8.0
-const SKILL_GROWTH := 1.45
+## What a level of a skill costs in uses (one landed blow is one use, see the
+## use weights in Player, Forge, Crafting and Training.EXPLORE_*): level 1 costs
+## SKILL_FIRST, each further level SKILL_GROWTH times the one before up to
+## level SKILL_EARLY, and SKILL_GROWTH_LATE times from there to level 20. Level
+## 5 is 1,156 uses in all, level 10 is 11,497 and level 20 is 92,694 (the
+## progression research, section 6). The game lets training reach SKILL_MAX
+## (10) for now; the levels above it are the Geselle rank, to come with the
+## trees.
+const SKILL_FIRST := 80.0
+const SKILL_GROWTH := 1.55
+const SKILL_GROWTH_LATE := 1.12
+const SKILL_EARLY := 10
+## The most levels the table has for a basic skill.
+const SKILL_TABLE_MAX := 20
 
 
 ## How many points a stock of training has earned: point n costs
@@ -185,27 +197,43 @@ static func skill_max(id: String) -> int:
 	return ADVANCED_LEARNED if SKILLS.has(id) and tier(id) == 2 else SKILL_MAX
 
 
+## Training that falls short of a level by less than this (rounding, a save
+## file's shortened decimals) still counts as having reached it.
+const SKILL_EPSILON := 0.001
+
+
 static func skill_level(xp: float, id := "") -> int:
-	return points(xp, SKILL_FIRST, SKILL_GROWTH, skill_max(id))
+	var cap := skill_max(id)
+	xp += SKILL_EPSILON
+	var n := 0
+	while n < cap and xp >= skill_step_cost(n):
+		xp -= skill_step_cost(n)
+		n += 1
+	return n
 
 
 static func skill_progress(xp: float, id := "") -> float:
-	return progress(xp, SKILL_FIRST, SKILL_GROWTH, skill_max(id))
+	var cap := skill_max(id)
+	xp += SKILL_EPSILON
+	var n := 0
+	while n < cap and xp >= skill_step_cost(n):
+		xp -= skill_step_cost(n)
+		n += 1
+	return 1.0 if n >= cap else maxf(0.0, xp - SKILL_EPSILON) / skill_step_cost(n)
 
 
 ## The training a skill needs in all to stand at `level`.
 static func skill_xp_for(level: int) -> float:
 	var total := 0.0
-	var cost := SKILL_FIRST
 	for i in level:
-		total += cost
-		cost *= SKILL_GROWTH
+		total += skill_step_cost(i)
 	return total
 
 
 ## What the step from `level` to the next one costs in training.
 static func skill_step_cost(level: int) -> float:
-	return SKILL_FIRST * pow(SKILL_GROWTH, level)
+	var n := level + 1
+	return SKILL_FIRST * pow(SKILL_GROWTH, mini(n, SKILL_EARLY) - 1) * pow(SKILL_GROWTH_LATE, maxi(0, n - SKILL_EARLY))
 
 
 ## The rank of an advanced skill at a level: Novice, Advanced or Master up to
@@ -256,15 +284,39 @@ static func _load_all() -> Dictionary:
 	return data if data is Dictionary else {}
 
 
+## The cost table a hero's training was counted in, kept beside it under
+## CURVE_KEY. A hero saved before the key was written (curve 1) was counted
+## in the old table, 8 uses for the first level, each level 1.45 times the
+## last; load_hero turns such training into the new table, level for level.
+const CURVE_KEY := "_kurve"
+const CURVE := 2
+const OLD_SKILL_FIRST := 8.0
+const OLD_SKILL_GROWTH := 1.45
+
+
+## The same level, and the same share of the way to the next, in the new
+## table, for training counted in the old one.
+static func skill_from_old_table(xp: float, id: String) -> float:
+	var cap := skill_max(id)
+	var level := points(xp, OLD_SKILL_FIRST, OLD_SKILL_GROWTH, cap)
+	var share := progress(xp, OLD_SKILL_FIRST, OLD_SKILL_GROWTH, cap)
+	if level >= cap:
+		return skill_xp_for(cap)
+	return skill_xp_for(level) + share * skill_step_cost(level)
+
+
 ## What the hero with this name has trained so far (empty for a new hero).
 static func load_hero(hero: String) -> Dictionary:
 	var all := _load_all()
 	var xp := {}
 	var stored = all.get(hero, {})
 	if stored is Dictionary:
+		var old_table: bool = int(stored.get(CURVE_KEY, 1)) < CURVE
 		for id in stored:
 			if ATTRIBUTES.has(id) or SKILLS.has(id) or CRAFTS.has(id):
 				xp[id] = float(stored[id])
+				if old_table and not ATTRIBUTES.has(id):
+					xp[id] = skill_from_old_table(xp[id], id)
 	return xp
 
 
@@ -293,6 +345,7 @@ static func save_hero(hero: String, xp: Dictionary, level = null) -> void:
 	var all := _load_all()
 	var old = all.get(hero, {})
 	var entry := xp.duplicate()
+	entry[CURVE_KEY] = CURVE
 	if level is Dictionary:
 		entry[LEVEL_KEY] = level
 	elif old is Dictionary and old.has(LEVEL_KEY):

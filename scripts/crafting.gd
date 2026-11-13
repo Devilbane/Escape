@@ -705,7 +705,7 @@ func talk(v: Villager) -> bool:
 # --- Making ---------------------------------------------------------------------
 
 ## Training a craft gets each time the hero makes something with it.
-const CRAFT_XP := 10.0
+const CRAFT_XP := 20.0
 
 
 ## The hero's level in a craft.

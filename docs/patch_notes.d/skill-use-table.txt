@@ -1,0 +1,1 @@
+- Skills now level on a longer, steadier table (about 11,500 uses for level 10), and crafts and exploring pay more per action to match; your saved hero keeps every level it has.

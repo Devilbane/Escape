@@ -97,9 +97,9 @@ const STEEL_MAKING := "stahlkochen"
 const STEEL_MAKING_LEVEL := 3
 const STEEL_FORGING_LEVEL := 4
 ## Training for each piece forged, each melt and each steel bar made.
-const FORGE_XP := 10.0
-const MELT_XP := 4.0
-const STEEL_XP := 6.0
+const FORGE_XP := 30.0
+const MELT_XP := 6.0
+const STEEL_XP := 10.0
 
 
 ## The slots of metal gear priced by the iron in it (see armour_iron):
@@ -561,7 +561,7 @@ const MIN_CHANCE := 5
 const MAX_CHANCE := 95
 ## A failed attempt teaches half as much, and spoils half of the metal bars
 ## (rounded up): the gold for the work is spent, the thunder ore is kept.
-const FAIL_XP := 5.0
+const FAIL_XP := 15.0
 ## For tests: when above 0, every forging rolls this (1 to 100). Not saved.
 static var rigged_roll := 0
 ## What the last forging was: {"roll": d100, "chance": percent, "success": bool,

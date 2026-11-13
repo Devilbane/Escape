@@ -43,6 +43,7 @@ func _process(_delta: float) -> bool:
 	_trading()
 	_saving()
 	_counting_days()
+	_map_pieces()
 	_finish()
 	return true
 
@@ -73,7 +74,7 @@ func _items() -> void:
 	for night in [1, 4, 7, 10]:
 		var wares := Wanderer.stock_for(night, HERO)
 		var ingredients := wares.filter(Wanderer.is_ingredient)
-		var gear := wares.filter(func(id): return not Wanderer.is_ingredient(id) and not Wanderer.SPECIALS.has(id) and not Wanderer.POTIONS.has(id))
+		var gear := wares.filter(func(id): return not Wanderer.is_ingredient(id) and not Wanderer.SPECIALS.has(id) and not Wanderer.POTIONS.has(id) and not Wanderer.PIECES.has(id))
 		var specials := wares.filter(func(id): return Wanderer.SPECIALS.has(id))
 		var kinds := {}
 		var staple := 0
@@ -90,8 +91,30 @@ func _items() -> void:
 		check(wares.any(func(id): return Wanderer.POTIONS.has(id)), "a healing potion on night %d" % night)
 		for id in gear:
 			check(Wanderer.is_gear_for_sale(id), "%s on night %d is basic gear or a book" % [id, night])
+		check(wares.filter(func(id): return Wanderer.PIECES.has(id)).size() == 1, "one map piece on night %d" % night)
 		check(wares == Wanderer.stock_for(night, HERO), "the same night brings the same wares")
 	check(Wanderer.stock_for(1, HERO) != Wanderer.stock_for(4, HERO) or Wanderer.stock_for(4, HERO) != Wanderer.stock_for(7, HERO), "another visit brings other wares")
+
+
+## Three visits bring all three map pieces; together they start the quest.
+func _map_pieces() -> void:
+	game.hero_name = HERO
+	game.coins = 1000
+	game.player.bag.clear()
+	game.quests.clear()
+	for night in [1, 4, 7]:
+		game.day = night
+		game.wanderer_night = -1
+		var wares: Array[String] = game.wanderer_wares()
+		var piece: String = wares.filter(func(id): return Wanderer.PIECES.has(id))[0]
+		game.menus._buy_from_wanderer(wares.find(piece))
+	check(not game.player.bag.has("kartenstueck_1") and game.player.bag.has("schatzkarte"), "the three pieces became one map")
+	check(game.quests.is_active(Wanderer.MAP_QUEST), "the map starts its quest")
+	game.day = 10
+	game.wanderer_night = -1
+	check(game.wanderer_wares().filter(func(id): return Wanderer.PIECES.has(id)).is_empty(), "no more pieces once the quest is taken")
+	game.quests.clear()
+	game.player.bag.clear()
 
 
 func _station() -> Dictionary:

@@ -35,6 +35,10 @@ const INGREDIENT_PRICES := {
 ## healing potion or two for the road.
 const SPECIALS := ["karawanenring", "sternenstaubamulett", "kompassarmreif", "staubumhang"]
 const SPECIAL_COUNT := 2
+## Torn pieces of a map: each visit he has one, in turn, so it takes three
+## visits to get them all. Together they start the quest MAP_QUEST (see Quests).
+const PIECES := ["kartenstueck_1", "kartenstueck_2", "kartenstueck_3"]
+const MAP_QUEST := "zarek_karte"
 const POTIONS := ["heiltrank_schwach", "heiltrank", "heiltrank_stark"]
 const POTION_COUNT := [1, 2]
 ## What he brings every visit, besides the kinds he picks at random: slime
@@ -91,6 +95,7 @@ static func stock_for(night: int, hero := "") -> Array[String]:
 	var specials: Array = SPECIALS.filter(func(id): return Items.ALL.has(id))
 	for i in mini(SPECIAL_COUNT, specials.size()):
 		out.append(specials.pop_at(rng.randi() % specials.size()))
+	out.append(PIECES[((night - FIRST) / EVERY) % PIECES.size()])
 	for n in rng.randi_range(POTION_COUNT[0], POTION_COUNT[1]):
 		out.append(POTIONS[rng.randi() % POTIONS.size()])
 	return out
@@ -100,6 +105,11 @@ static func stock_for(night: int, hero := "") -> Array[String]:
 ## smith's own work (only Gorm sells that).
 static func is_gear_for_sale(id: String) -> bool:
 	return Items.merchant_sells(id) and not Items.ALL[id].get("smith", false)
+
+
+## Whether a bag holds every piece of the map.
+static func has_all_pieces(bag: Array) -> bool:
+	return PIECES.all(func(id): return bag.has(id))
 
 
 ## Whether a ware is an ingredient (it goes into the pouch, not the bag).

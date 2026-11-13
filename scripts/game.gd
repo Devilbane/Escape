@@ -5488,6 +5488,9 @@ func wanderer_wares() -> Array[String]:
 	if day != wanderer_night:
 		wanderer_night = day
 		wanderer_stock = Wanderer.stock_for(day, hero_name)
+		# A hero who has the map quest needs no more pieces.
+		if quests.state.has(Wanderer.MAP_QUEST):
+			wanderer_stock = wanderer_stock.filter(func(id): return not Wanderer.PIECES.has(id))
 	return wanderer_stock
 
 

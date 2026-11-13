@@ -225,6 +225,12 @@ static var ALL := {
 	"karawanenring": {"name": "Karawanenring", "slot": "ring", "weight": 0.1, "hp": 1, "power": 1, "speed": 0.03, "magic": true, "price": 45, "no_loot": true, "wanderer": true},
 	"sternenstaubamulett": {"name": "Sternenstaub-Amulett", "slot": "amulett", "weight": 0.3, "hp": 1, "speed": 0.06, "skills": {"schleichen": 1}, "magic": true, "price": 50, "no_loot": true, "wanderer": true},
 	"kompassarmreif": {"name": "Kompassarmreif", "slot": "armreif", "weight": 0.4, "hp": 2, "magic": true, "price": 48, "no_loot": true, "wanderer": true},
+	# Torn pieces of an old map, sold by Zarek one at a time (see Wanderer.PIECES):
+	# put all three together and they make the treasure map of a quest.
+	"kartenstueck_1": {"name": "Kartenstück: Rand", "slot": "auftrag", "weight": 0.1, "price": 30, "no_loot": true, "wanderer": true, "effect": "Ein eingerissenes Stück einer alten Karte. Mit den anderen beiden Stücken ergibt es eine ganze Karte"},
+	"kartenstueck_2": {"name": "Kartenstück: Wald", "slot": "auftrag", "weight": 0.1, "price": 30, "no_loot": true, "wanderer": true, "effect": "Ein eingerissenes Stück einer alten Karte. Mit den anderen beiden Stücken ergibt es eine ganze Karte"},
+	"kartenstueck_3": {"name": "Kartenstück: Kreuz", "slot": "auftrag", "weight": 0.1, "price": 30, "no_loot": true, "wanderer": true, "effect": "Ein eingerissenes Stück einer alten Karte. Mit den anderen beiden Stücken ergibt es eine ganze Karte"},
+	"schatzkarte": {"name": "Alte Schatzkarte", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Aus drei Stücken zusammengesetzt. Der Gelehrte im Dorf kann sie lesen"},
 	"staubumhang": {"name": "Staubiger Reiseumhang", "slot": "umhang", "weight": 1, "hp": 1, "speed": 0.08, "magic": true, "price": 40, "tint": Color(0.62, 0.5, 0.36), "material": "cloth", "no_loot": true, "wanderer": true},
 }
 
@@ -571,6 +577,8 @@ const RARITY := {
 	"kiste": "normal", "steinblock": "normal", "fackel": "normal", "wurfmesser": "normal", "schlafrolle": "normal",
 	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal", "koerner": "normal",
 	"banditendolch": "normal", "brief": "normal", "kuerbis": "normal", "wetzstein": "normal", "wassereimer": "normal",
+	"kartenstueck_1": "ungewoehnlich", "kartenstueck_2": "ungewoehnlich", "kartenstueck_3": "ungewoehnlich", "schatzkarte": "selten",
+	"karawanenring": "selten", "sternenstaubamulett": "selten", "kompassarmreif": "selten", "staubumhang": "selten",
 	"alriks_siegelring": "normal", "foliant_der_kraft": "episch",
 	"donnererz": "selten",
 }

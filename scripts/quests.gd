@@ -148,6 +148,13 @@ const ALL := {
 		"offer": "Bring meinen Siegelring dem Gelehrten im Dorf. Er soll wissen, dass ich noch lebe.",
 		"remind": "Der Siegelring ist für den Gelehrten im Dorf.",
 		"done": "Alriks Ring! Er lebt? Im Kerker von Sternhall... Ich schicke sofort nach der Akademie. Nimm 60 Kupfer und diesen starken Heiltrank."},
+	# Put together from the three map pieces Zarek sells (see Wanderer.PIECES).
+	"zarek_karte": {"giver": "8", "found": true, "kind": "deliver", "item": "schatzkarte", "to": "8", "gold": 120, "reward": "heiltrank_stark",
+		"brief": "", "title": "Die zerrissene Karte",
+		"goal": "Bring die zusammengesetzte Schatzkarte zum Gelehrten Odo im Dorf. Er kann alte Karten lesen.",
+		"offer": "Drei Stücke einer Karte, ein Händler und ein Gelehrter.",
+		"remind": "Die Karte ist für den Gelehrten im Dorf.",
+		"done": "Eine Karte der alten Wege! Ich kenne diese Handschrift. Hier sind 120 Kupfer und ein starker Heiltrank für den Weg."},
 	# Found in the archive of the Ashen Spire (see AshSpire): Brother Orlan.
 	"ash_orlan": {"giver": "", "found": true, "kind": "potion", "gold": 0, "note": "Zwei verborgene Orte im Aschenturm",
 		"source": "Bruder Orlan im Archiv des Aschenturms",

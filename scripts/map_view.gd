@@ -148,7 +148,7 @@ func _draw() -> void:
 	var r := clampf(t * 0.55, 6.0, 11.0)
 	for s in journal.secrets.get(file, []):
 		_draw_star(o + (Vector2(s[0], s[1]) + Vector2(0.5, 0.5)) * t, r, Journal.MARK_COLORS.secret)
-	for f in journal.finds_on(file):
+	for f in journal.map_finds_on(file):
 		var p := o + (Vector2(f.x, f.y) + Vector2(0.5, 0.5)) * t
 		var k := r * 0.75
 		var diamond := PackedVector2Array([p + Vector2(0, -k), p + Vector2(k, 0), p + Vector2(0, k), p + Vector2(-k, 0)])

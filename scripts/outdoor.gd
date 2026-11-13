@@ -3818,7 +3818,11 @@ func weather_foes_alive() -> int:
 func strike() -> Vector3:
 	var at: Vector3 = (player.global_position if player else Vector3.ZERO) + Vector3(randf_range(-30, 30), 0, randf_range(-24, 24))
 	var ore_spot := Vector2i(-1, -1)
-	if not _rock_cells.is_empty() and randf() < 0.75:
+	# Now and then it seeks a creature about, instead of a rock (see LightningStrike).
+	var seek = LightningStrike.pick_target(self, player) if player and randf() < LightningStrike.SEEK_CHANCE else null
+	if seek != null:
+		at = seek
+	elif not _rock_cells.is_empty() and randf() < 0.75:
 		var rock: Vector2i = _rock_cells.pick_random()
 		at = cell_to_world(rock)
 		if randf() < ORE_CHANCE and ore_lying() < MAX_ORE:
@@ -3830,6 +3834,7 @@ func strike() -> Vector3:
 	_show_bolt(at)
 	lightning.emit(at)
 	Events.scare("blitz")
+	LightningStrike.hit(self, at, player)
 	if ore_spot.x >= 0:
 		var pos := cell_to_world(ore_spot).lerp(at, 0.35)
 		_drop_item(ORE, pos, false)

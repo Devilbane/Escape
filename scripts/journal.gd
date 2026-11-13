@@ -423,6 +423,13 @@ func finds_on(file: String) -> Array:
 	return finds.filter(func(f): return f.file == file)
 
 
+## The finds the map draws and lists: ingredients (herbs and the like) lie
+## everywhere and only cluttered it with light green spots, so they stay in
+## the journal but not on the map.
+func map_finds_on(file: String) -> Array:
+	return finds_on(file).filter(func(f): return f.kind != "ingredient")
+
+
 ## The tiles of a level file that a treasure map read but not yet done
 ## marks (see TreasureMaps.marked): a red cross on the map.
 func treasure_spots(file: String) -> Array[Vector2i]:

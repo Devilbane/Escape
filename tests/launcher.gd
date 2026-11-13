@@ -73,6 +73,16 @@ func _test_notes() -> void:
 	check(not parsed.is_empty() and parsed[0][0] == "h", "docs/patch_notes.txt starts with a heading")
 	var recent: String = LauncherScript.recent_notes(shipped)
 	check(recent.length() < LauncherScript.NOTES_MAX, "the shipped patch notes (newest two sections) fit the launcher's limit")
+	var release := {"notes": "## New in this build\n- c", "history": [
+		{"build": "12", "notes": "# h\n## New in this build\n- c"},
+		{"build": "11", "notes": "## New in this build\n- b1\n- b2"},
+		{"build": "10", "notes": "## New in this build\n- a"}]}
+	var since: Array = LauncherScript.parse_notes(LauncherScript.notes_since(release, "10"))
+	check(since == [["h", "Build 12"], ["li", "c"], ["h", "Build 11"], ["li", "b1"], ["li", "b2"]],
+		"an update shows every build since the installed one, newest first")
+	check(LauncherScript.notes_since(release, "12") == release.notes, "up to date: the newest build's notes")
+	check(LauncherScript.notes_since(release, "") == release.notes, "first install: the newest build's notes")
+	check(LauncherScript.notes_since({"notes": "x"}, "5") == "x", "no history: the newest build's notes")
 	check(LauncherScript.recent_notes("# c\n## A\n- 1\n## B\n- 2\n## C\n- 3\n").count("## ") == 2, "only the newest two sections ship")
 
 

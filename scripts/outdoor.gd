@@ -163,6 +163,10 @@ const GABLE_BRICK_V := Vector2(0.6, 0.92)
 ## dimmer than the houses' windows, but bright enough that the panes shine in
 ## their own saturated colours without burning out to white.
 const CHAPEL_GLASS_LIGHT := Color(0.9, 0.8, 0.64)
+## How strongly the temple's windows shine by day (a fraction of the night's glow),
+## and how much of that the coloured pools on the ground keep in daylight.
+const CHAPEL_DAY_GLOW := 0.45
+const CHAPEL_DAY_SPILL := 1.4
 
 const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
@@ -1752,13 +1756,15 @@ func _build_chapel(center: Vector3, rot: float, room: Vector2) -> Node3D:
 	spill.mesh = ChapelSpill.build_mesh()
 	spill.material_override = _chapel_spill_material()
 	spill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	chapel.add_child(spill)
+	# Not a part of the chapel itself: a sibling with the chapel's own placement.
+	add_child(spill)
 	# The kit is built to cathedral scale: shrink it to fit the block, and
 	# move it so that the steps in front of the door stay inside it too.
 	var s := minf(room.x / CHAPEL_FOOT.x, room.y / CHAPEL_FOOT.y)
 	chapel.scale = Vector3.ONE * s
 	chapel.rotation.y = rot
 	chapel.position = center - (Vector3(0, 0, CHAPEL_FOOT_MID) * s).rotated(Vector3.UP, rot)
+	spill.transform = chapel.transform
 	add_child(chapel)
 	return chapel
 
@@ -1787,8 +1793,7 @@ func _skin_chapel(chapel: Node) -> void:
 		_scenes["mat_chapel_trim"] = trim
 		_scenes["mat_chapel_glass"] = glass
 		_scenes["mat_chapel_wood"] = wood
-		# The windows light up with the houses' at night (see set_hour).
-		_window_mats[glass] = glass
+		# The temple's windows are lit by day and brighter still at night (see set_hour).
 	for mi: MeshInstance3D in chapel.find_children("*", "MeshInstance3D", true, false):
 		for i in mi.mesh.get_surface_count():
 			var mat := mi.mesh.surface_get_material(i)
@@ -1817,7 +1822,6 @@ func _chapel_spill_material() -> ShaderMaterial:
 	if not _scenes.has("mat_chapel_spill"):
 		var mat := ChapelSpill.material(WINDOW_GLOW)
 		_scenes["mat_chapel_spill"] = mat
-		_window_mats[mat] = mat
 	return _scenes["mat_chapel_spill"]
 
 
@@ -3103,6 +3107,14 @@ func set_hour(new_hour: float) -> void:
 			mat.set_shader_parameter("hour", hour)
 		else:
 			mat.emission_energy_multiplier = WINDOW_GLOW * glow
+	# The temple's windows are never dark: lit by day, at full strength at night.
+	var chapel_glow := WINDOW_GLOW * lerpf(CHAPEL_DAY_GLOW, 1.0, glow)
+	var chapel_glass: StandardMaterial3D = _scenes.get("mat_chapel_glass")
+	if chapel_glass:
+		chapel_glass.emission_energy_multiplier = chapel_glow
+	var chapel_spill: ShaderMaterial = _scenes.get("mat_chapel_spill")
+	if chapel_spill:
+		chapel_spill.set_shader_parameter("glow", chapel_glow * lerpf(CHAPEL_DAY_SPILL, 1.0, glow))
 	var dark := DayNight.is_night(hour)
 	var came := _mind_the_wanderer()
 	if not first:

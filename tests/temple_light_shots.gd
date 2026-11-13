@@ -45,7 +45,7 @@ func _run() -> void:
 	var lvl: Outdoor = game.level
 	for layer: CanvasLayer in game.find_children("*", "CanvasLayer", true, false):
 		layer.visible = false
-	var hour := 22.0
+	var hour := float(OS.get_environment("HOUR")) if OS.get_environment("HOUR") != "" else 22.0
 	if OS.get_environment("FOG") != "":
 		lvl.set_weather(Weather.FOG)
 	game.day_hour = hour

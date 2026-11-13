@@ -1,1 +1,1 @@
-- The temple's stained-glass windows now cast coloured light onto the ground outside at night and in fog.
+- The temple's stained-glass windows now shine by day and cast coloured light onto the ground outside, strongest at night and in fog.

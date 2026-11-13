@@ -142,7 +142,7 @@ func _run() -> void:
 	var chapel_glass: StandardMaterial3D = lvl._scenes.get("mat_chapel_glass")
 	lvl.set_hour(12.0)
 	check(is_zero_approx(float(house_glass.get_shader_parameter("glow"))), "house windows are dark by day")
-	check(chapel_glass != null and is_zero_approx(chapel_glass.emission_energy_multiplier), "the chapel's windows are dark by day")
+	check(chapel_glass != null and chapel_glass.emission_energy_multiplier > 0.5, "the chapel's windows are lit by day")
 	lvl.set_hour(23.0)
 	check(float(house_glass.get_shader_parameter("glow")) > 1.0, "house windows glow at night")
 	check(chapel_glass != null and chapel_glass.emission_energy_multiplier > 1.0, "the chapel's stained glass glows at night")

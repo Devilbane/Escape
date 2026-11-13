@@ -36,7 +36,7 @@ const GAME_EXE := "Escape.exe"
 const INSTALLED := "installed.json"
 ## The last patch notes seen, so they show even before (or without) a connection.
 const NOTES_FILE := "patch_notes.txt"
-const NOTES_MAX := 16000
+const NOTES_MAX := 40000
 const NO_NEWS := "Noch keine Neuigkeiten."
 const NOTES_HEIGHT := 160.0
 const NOTES_TEXT := Color(0.86, 0.83, 0.78)
@@ -142,6 +142,32 @@ static func recent_notes(text: String, keep: int = 2) -> String:
 				break
 		out.append(line)
 	return "\n".join(out).strip_edges(false, true) + "\n"
+
+
+## The notes to show for an update: every build newer than `have_build` (what is installed), newest
+## first, each under its own "## Build N" heading. version.json carries the notes of recent builds in
+## "history" ([{"build": "12", "notes": "..."}], newest first), because a build's own notes only
+## list what is new in it and a player may have skipped several builds. With nothing newer (or
+## nothing installed yet) the newest build's notes show on their own.
+static func notes_since(release: Dictionary, have_build: String) -> String:
+	var latest := String(release.get("notes", "")).strip_edges()
+	var history = release.get("history", [])
+	if not history is Array or not have_build.is_valid_int():
+		return latest
+	var parts := []
+	for entry in history:
+		if not entry is Dictionary or not String(entry.get("build", "")).is_valid_int():
+			continue
+		if int(entry.build) <= int(have_build):
+			continue
+		var lines := []
+		for raw in String(entry.get("notes", "")).split("\n"):
+			var line := raw.strip_edges()
+			if line.begins_with("- "):
+				lines.append(line)
+		if not lines.is_empty():
+			parts.append("## Build %s\n%s" % [entry.build, "\n".join(lines)])
+	return latest if parts.is_empty() else "\n\n".join(parts)
 
 
 ## Turns the patch notes text into lines to show: ["h", "Heading"], ["li", "A change"] or
@@ -310,7 +336,7 @@ func _on_manifest(ok: bool, body: PackedByteArray) -> void:
 		_offline()
 		return
 	manifest = data
-	var notes := String(data.get("notes", "")).strip_edges()
+	var notes := notes_since(data, String(installed.get("build", "")))
 	if notes != "":
 		show_notes(notes)
 		_save_notes(notes)

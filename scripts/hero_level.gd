@@ -117,6 +117,7 @@ const TASKS := {
 	"bounty:orks": [6, 7], "bounty:halsabschneider": [6, 6], "bounty:wilderer": [6, 5],
 	"bounty:schlaeger": [6, 7], "bounty:yeti": [8, 8], "bounty:bestien": [10, 7],
 	"sternhall_alrik": [40, 19], "ash_orlan": [4, 18],
+	"zarek_karte": [10, 5],
 }
 ## Riddles: minutes each takes; they are done where the hero stands.
 const RIDDLES := {"puzzle": 6, "secret": 3, "writing": 1, "rune": 5}

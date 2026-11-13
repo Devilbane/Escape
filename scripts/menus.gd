@@ -2396,7 +2396,7 @@ func _sell(index: int) -> void:
 
 # --- Wandering merchant -------------------------------------------------------
 
-const WANDERER_LEARN := "Wanderhändler Zarek kommt jede dritte Nacht mit seinem Karren ins Dorf und steht bis zum Morgengrauen am Markt. Er bringt Zutaten für Rezepte aus fernen Gegenden mit, dazu etwas einfache Ausrüstung, und jedes Mal andere Waren. Kaufen tut er nichts."
+const WANDERER_LEARN := "Wanderhändler Zarek kommt jede dritte Nacht mit seinem Karren ins Dorf und steht bis zum Morgengrauen am Markt. Er bringt Zutaten für Rezepte aus fernen Gegenden mit, dazu einfache Ausrüstung, ein paar Sonderstücke, Kartenstücke und Heiltränke, und jedes Mal andere Waren. Kaufen tut er nichts."
 
 
 ## Zarek sells tonight's wares and buys nothing: ingredients go into the
@@ -2467,6 +2467,12 @@ func _buy_from_wanderer(index: int) -> void:
 		else:
 			game.player.bag.append(id)
 			_note = Lang.t("Gekauft: %s (%s)") % [Items.item_name(id), Items.describe(id)]
+			if Wanderer.PIECES.has(id) and Wanderer.has_all_pieces(game.player.bag):
+				# The pieces fit: they become one map and the quest begins.
+				for piece in Wanderer.PIECES:
+					game.player.bag.erase(piece)
+				Events.tell(Lang.t("Die drei Kartenstücke passen zusammen!"), Color(1.0, 0.82, 0.4))
+				Events.bus().quest_found.emit(Wanderer.MAP_QUEST)
 		Sfx.play(game, "gear_soft_0", -2.0)
 	game._update_hud()
 	_rebuild()

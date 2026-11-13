@@ -27,16 +27,29 @@ const INGREDIENT_PRICES := {
 	"mondsilbererz": 30, "mondstein": 35, "glimmermoos": 18,
 	"baerlauch": 8, "steinpilz": 10, "hoehlenpilz": 10,
 	"schleimgelee": 6,
+	"edelweiss": 22, "grottenkristall": 28, "spinnenei": 7,
+	"ektoplasma": 14, "grabstaub": 12,
 }
+## Odd wares only he brings (items flagged "wanderer", see Items): he
+## carries SPECIAL_COUNT of them each visit, besides plain gear. Plus a
+## healing potion or two for the road.
+const SPECIALS := ["karawanenring", "sternenstaubamulett", "kompassarmreif", "staubumhang"]
+const SPECIAL_COUNT := 2
+## Torn pieces of a map: each visit he has one, in turn, so it takes three
+## visits to get them all. Together they start the quest MAP_QUEST (see Quests).
+const PIECES := ["kartenstueck_1", "kartenstueck_2", "kartenstueck_3"]
+const MAP_QUEST := "zarek_karte"
+const POTIONS := ["heiltrank_schwach", "heiltrank", "heiltrank_stark"]
+const POTION_COUNT := [1, 2]
 ## What he brings every visit, besides the kinds he picks at random: slime
 ## jelly, the base of every healing potion, STAPLE_COUNT lumps of it.
 const STAPLE := "schleimgelee"
 const STAPLE_COUNT := [2, 4]
 ## Each visit he brings this many kinds of ingredient, one to MAX_EACH pieces
 ## of each, and this many pieces of basic gear.
-const INGREDIENT_KINDS := 3
-const MAX_EACH := 2
-const GEAR_COUNT := 2
+const INGREDIENT_KINDS := 5
+const MAX_EACH := 3
+const GEAR_COUNT := 3
 
 
 ## Nights are counted like days (see Game.day): a day begins at dawn, so the
@@ -79,6 +92,12 @@ static func stock_for(night: int, hero := "") -> Array[String]:
 	var gear: Array = Items.ALL.keys().filter(is_gear_for_sale)
 	for i in mini(GEAR_COUNT, gear.size()):
 		out.append(gear.pop_at(rng.randi() % gear.size()))
+	var specials: Array = SPECIALS.filter(func(id): return Items.ALL.has(id))
+	for i in mini(SPECIAL_COUNT, specials.size()):
+		out.append(specials.pop_at(rng.randi() % specials.size()))
+	out.append(PIECES[((night - FIRST) / EVERY) % PIECES.size()])
+	for n in rng.randi_range(POTION_COUNT[0], POTION_COUNT[1]):
+		out.append(POTIONS[rng.randi() % POTIONS.size()])
 	return out
 
 
@@ -86,6 +105,11 @@ static func stock_for(night: int, hero := "") -> Array[String]:
 ## smith's own work (only Gorm sells that).
 static func is_gear_for_sale(id: String) -> bool:
 	return Items.merchant_sells(id) and not Items.ALL[id].get("smith", false)
+
+
+## Whether a bag holds every piece of the map.
+static func has_all_pieces(bag: Array) -> bool:
+	return PIECES.all(func(id): return bag.has(id))
 
 
 ## Whether a ware is an ingredient (it goes into the pouch, not the bag).

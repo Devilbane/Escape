@@ -2396,7 +2396,7 @@ func _sell(index: int) -> void:
 
 # --- Wandering merchant -------------------------------------------------------
 
-const WANDERER_LEARN := "Wanderhändler Zarek kommt jede dritte Nacht mit seinem Karren ins Dorf und steht bis zum Morgengrauen am Markt. Er bringt Zutaten für Rezepte aus fernen Gegenden mit, dazu etwas einfache Ausrüstung, und jedes Mal andere Waren. Kaufen tut er nichts."
+const WANDERER_LEARN := "Wanderhändler Zarek kommt jede dritte Nacht mit seinem Karren ins Dorf und steht bis zum Morgengrauen am Markt. Er bringt Zutaten für Rezepte aus fernen Gegenden mit, dazu einfache Ausrüstung, ein paar Sonderstücke und Heiltränke, und jedes Mal andere Waren. Kaufen tut er nichts."
 
 
 ## Zarek sells tonight's wares and buys nothing: ingredients go into the

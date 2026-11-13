@@ -1,0 +1,1 @@
+- Monsters now hit as hard as the armour, shield and dodging of well-equipped heroes call for, so fights above level 5 are riskier; the townsfolk fight stronger to keep up.

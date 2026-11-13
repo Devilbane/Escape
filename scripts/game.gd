@@ -402,6 +402,8 @@ var _pending_search := {}
 ## A crate the hero was sent to pick up with a click (see Crate).
 var _pending_crate: Crate = null
 var menus: Menus
+## Playing together with friends (see CoopSession); off unless the player hosts or joins.
+var coop: CoopSession
 ## Items left in the safe room's storage chest, and what the merchant sells.
 var storage: Array[String] = []
 var shop_stock: Array[String] = []
@@ -616,6 +618,10 @@ func _ready() -> void:
 	Music.start(self)
 	_update_music_controls()
 	menus.setup(self, _hud)
+	coop = CoopSession.new()
+	coop.game = self
+	add_child(coop)
+	coop.changed.connect(func(): if menus.current == CoopWindow.KIND: menus._rebuild())
 	player = Player.new()
 	add_child(player)
 	player.set_display_name(hero_name)
@@ -853,7 +859,7 @@ func _setup_drawer() -> void:
 	# (actions and sound) leave it out so they can be clicked again.
 	# Map, compendium, inventory, character and quests have their own icons
 	# on the menu's rail (QUICK_WINDOWS), so they are not repeated here.
-	var windows := [["Laden", "laden"], ["Fertigkeiten", "fertigkeiten"]]
+	var windows := [["Laden", "laden"], ["Fertigkeiten", "fertigkeiten"], ["Mitspielen", CoopWindow.KIND]]
 	for w in windows:
 		buttons.add_child(_make_button(Lang.t(w[0]), _open_from_drawer.bind(w[1]), true))
 	# The game actions act the moment the pointer goes down (see _make_button).

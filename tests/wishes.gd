@@ -126,8 +126,8 @@ func _test() -> void:
 	check(game.wishes.open_wishes("G")[0] == "axtreif", "the named style's wish comes first")
 	check(game.wishes.is_best_fit("axtreif") and not game.wishes.is_best_fit("klingenring"), "only the first wish is marked as fitting")
 	check(game.wishes.leading_style() == "aexte", "the named style leads before any training")
-	game.player.xp["klingen"] = 400.0
-	var blades := Training.skill_level(400.0, "klingen")
+	game.player.xp["klingen"] = Training.skill_xp_for(6)
+	var blades := Training.skill_level(Training.skill_xp_for(6), "klingen")
 	check(blades > Wishes.STATED_BONUS, "the blades are trained beyond the named style's bonus (%d)" % blades)
 	check(game.wishes.open_wishes("G")[0] == "klingenring", "a well trained skill puts its wish first")
 	check(game.wishes.leading_style() == "klingen", "what the hero really does leads now")

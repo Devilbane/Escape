@@ -35,8 +35,10 @@ const HATCH := "ash_luke"
 const PRISONER := "ash_gefangener"
 
 const SPELL := "magie"
-## Training for one level of Arkane Energie (Training.SKILL_FIRST).
-const BOOK_XP := 8.5
+## A spell cast is three uses (see Training.SKILL_FIRST).
+const SPELL_CAST_USES := 3.0
+## Training for one level of Arkane Energie (a little over Training.SKILL_FIRST).
+const BOOK_XP := Training.SKILL_FIRST * 1.0625
 ## What the supply cache holds, and how many hours until it is full again.
 const CACHE_POTIONS := 2
 const REFILL_HOURS := 10.0
@@ -114,7 +116,7 @@ static func cast(player: Player) -> void:
 		dir = player.facing()
 	player.face(dir)
 	player.play_once("Throw", 0.45)
-	player.train(SPELL, 1.0)
+	player.train(SPELL, SPELL_CAST_USES)
 	Sfx.play(player, "magic", -2.0, player.global_position, 1.1)
 	AshBolt.spawn(player.level, player.global_position + Vector3(0, 1.5, 0) + dir.normalized() * 0.6, dir, spell_power(player))
 

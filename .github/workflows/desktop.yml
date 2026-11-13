@@ -161,8 +161,23 @@ jobs:
           # The launcher shows these patch notes while it downloads (docs/patch_notes.txt + docs/patch_notes.d, tools/patch_notes.py).
           import subprocess
           notes = subprocess.check_output(["python3", "../tools/patch_notes.py", "build", subprocess.run(["git", "rev-parse", "-q", "--verify", "refs/tags/windows"], capture_output=True, text=True).stdout.strip()], text=True)
+          # A build's notes list only what is new in it, so the manifest also keeps the notes of the
+          # recent builds before it: a player who skipped builds sees all of them (launcher.gd notes_since).
+          history = [{"build": env["BUILD"], "notes": notes}]
+          try:
+              import urllib.request
+              with urllib.request.urlopen("https://github.com/" + env["GITHUB_REPOSITORY"] + "/releases/download/windows/version.json", timeout=30) as r:
+                  old = json.load(r)
+              history += old.get("history") or [{"build": old["build"], "notes": old.get("notes", "")}]
+          except Exception as e:
+              print("no earlier version.json:", e)
+          seen, kept = set(), []
+          for h in history:
+              if str(h["build"]) not in seen and len(kept) < 30:
+                  seen.add(str(h["build"]))
+                  kept.append(h)
           manifest = {
-              "version": env["VERSION"], "build": env["BUILD"], "notes": notes,
+              "version": env["VERSION"], "build": env["BUILD"], "notes": notes, "history": kept,
               "pack_size": os.path.getsize("release/Escape.pck"), "pack_sha256": sha("release/Escape.pck"),
               "launcher": env["REV"], "launcher_file": "Escape.exe",
               "launcher_size": os.path.getsize("release/Escape.exe"), "launcher_sha256": sha("release/Escape.exe"),

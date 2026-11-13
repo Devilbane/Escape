@@ -1,0 +1,1 @@
+- After an update the launcher shows the patch notes of every build since the one you last played, newest first, not only the latest.

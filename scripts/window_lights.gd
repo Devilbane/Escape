@@ -7,6 +7,10 @@ extends RefCounted
 ## The panes go dark in a short fade, and stay dark until the day breaks. The
 ## temple's windows do not use this: they burn all night.
 
+## Hours of the clock between which the first and the last window is lit in
+## the evening (each fades in over FADE; the dusk's own glow rises meanwhile).
+const ON_FROM := 18.0
+const ON_TO := 20.4
 ## Hours of the clock between which the first and the last window goes out.
 const OFF_FROM := 20.0
 const OFF_TO := 22.9
@@ -21,13 +25,15 @@ float window_lit(vec2 place) {
 	vec2 k = floor(place * 4.0 + 0.5);
 	float h = fract(sin(dot(k, vec2(12.9898, 78.233))) * 43758.5453);
 	float off = mix(%f, %f, h);
+	float h2 = fract(sin(dot(k, vec2(39.346, 11.135))) * 24634.6345);
+	float on = mix(%f, %f, h2);
 	// After midnight everyone sleeps; the glow itself fades with the dawn.
 	if (hour < 12.0) {
 		return 0.0;
 	}
-	return 1.0 - smoothstep(off, off + %f, hour);
+	return smoothstep(on, on + %f, hour) * (1.0 - smoothstep(off, off + %f, hour));
 }
-""" % [OFF_FROM, OFF_TO, FADE]
+""" % [OFF_FROM, OFF_TO, ON_FROM, ON_TO, FADE, FADE]
 
 const GLASS_SHADER := """
 shader_type spatial;

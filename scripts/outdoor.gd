@@ -1384,6 +1384,7 @@ func _build_terrace(block: Rect2i) -> void:
 		house.set_meta("block", block)
 		add_child(house)
 		WindowSpill.attach(house, _spill_material())
+		WindowLife.attach(house, _life_material())
 		town_houses.append(house)
 		var door := at + Vector3(float(house.get_meta("door_x")), 0, 0).rotated(Vector3.UP, rot) + out * deep * TILE * 0.5
 		doors["^" + str(number)] = door + out * 2.0
@@ -1803,6 +1804,16 @@ func _spill_material() -> ShaderMaterial:
 		_scenes["mat_window_spill"] = mat
 		_window_mats[mat] = mat
 	return _scenes["mat_window_spill"]
+
+
+## The curtains and passing figures behind Weavers' Lane's lit windows (see
+## WindowLife); set_hour drives it like the glass.
+func _life_material() -> ShaderMaterial:
+	if not _scenes.has("mat_window_life"):
+		var mat := WindowLife.material(WINDOW_LIGHT)
+		_scenes["mat_window_life"] = mat
+		_window_mats[mat] = mat
+	return _scenes["mat_window_life"]
 
 
 ## The window panes of the villagers' houses: dark by day, warm at night

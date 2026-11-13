@@ -551,11 +551,13 @@ static func fit_level(kind_id: String, stats: Dictionary, armour: int, target: i
 		step += 1
 		rated = rate.call()
 	step = 0
-	while rated > top and step < 80:
+	# One point at a time, so a strong monster lands on `top` and not a level
+	# or two below it.
+	while rated > top and step < 200:
 		if step % 2 == 0 and int(stats.damage) > 1:
 			stats.damage = int(stats.damage) - 1
 		elif int(stats.hp) > 1:
-			stats.hp = int(stats.hp) - maxi(1, int(stats.hp) / 10)
+			stats.hp = int(stats.hp) - 1
 		step += 1
 		rated = rate.call()
 	return rated

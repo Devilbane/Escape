@@ -4962,6 +4962,9 @@ func restore_floor() -> void:
 				continue
 			lay_find(str(entry[1]), pos, Color.html(str(entry[6])), int(entry[4]), bool(entry[5]))
 		elif Rescue.is_bundle(entry):
+			# The pack is kept as it is (not laid down anew), so it stays on
+			# the list: for the next save, the next visit and the map's mark.
+			floor_items.append(entry)
 			_bundle_pickup(entry)
 		elif str(entry[1]) == Items.KNIFE:
 			lay_knife(pos)

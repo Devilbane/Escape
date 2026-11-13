@@ -1,0 +1,1 @@
+- Fixed: after the eagle (or the dwarves) carried you off, your dropped backpack could vanish; it now stays where you fell and is marked on the map.

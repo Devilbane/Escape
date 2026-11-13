@@ -66,7 +66,7 @@ func _process(_delta: float) -> bool:
 			var probe := Villager.new()
 			probe.role = "%"
 			check(probe.fight_level() == 50, "Zarek is level 50")
-			check(probe.max_life() == 250 and probe.max_life() > Villager.LEVELS["4"] * Villager.LIFE_PER_LEVEL * 2, "his life follows the level formula, far above the guard's")
+			check(probe.max_life() == 50 * Villager.LIFE_PER_LEVEL and probe.max_life() > Villager.LEVELS["4"] * Villager.LIFE_PER_LEVEL * 2, "his life follows the level formula, far above the guard's")
 			check(probe.blow() * VillageArms.BOLT_FACTOR > 40, "his spells hit hard")
 			probe.free()
 			game.hero_name = "Zarek mage test"

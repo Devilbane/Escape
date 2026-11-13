@@ -783,18 +783,19 @@ const FIGHTING_SHELTERERS := ["O", "G", "7"]
 ## The villagers' levels: the guard, the guild master and the smith at the
 ## top, the mages and the priestess close behind, the women and the child
 ## at the bottom. Zarek the wandering merchant (level 50) is a mage far above
-## them all: 250 life and spells that cost a slime dozens of points.
+## them all: 400 life and spells that cost a slime dozens of points.
 const LEVELS := {"4": 20, "G": 20, "1": 18, "O": 18, "0": 17, "K": 16, "3": 16, "S": 16, "8": 15, "%": 50,
 	"Y": 12, "5": 12, "Z": 12, "M": 12, "2": 11, "6": 11, "9": 11, "7": 10}
 const DEFAULT_LEVEL := 12
 ## Townsfolk are made to put up a real fight against a slime of level 20 and
-## more (a Blob of about 200 life and 22 damage a blow, every 1.5 seconds):
-## a fighter has LIFE_PER_LEVEL life for each level (the guard 100, so five
-## blows fell even him) and strikes for 1 + level / BLOW_DIVISOR (the guard
-## 11). One alone is beaten, but not before he has taken a third of its life;
+## more (a Blob of about 380 life and 31 damage a blow, every 1.5 seconds,
+## now that monsters are rated against the hero's block, dodge and armour,
+## see HeroLevel.expected_harm): a fighter has LIFE_PER_LEVEL life for each
+## level (the guard 160) and strikes for 1 + level / BLOW_DIVISOR (the guard
+## 21). One alone is beaten, but not before he has taken a third of its life;
 ## three of them bring it down, and one of them may fall.
-const LIFE_PER_LEVEL := 5
-const BLOW_DIVISOR := 2
+const LIFE_PER_LEVEL := 8
+const BLOW_DIVISOR := 1
 const HEALERS := VillageArms.HEALERS
 ## How much the priestess heals, how often and how far she reaches. The
 ## hero is mended too, by HERO_HEAL (his life is counted in smaller steps).

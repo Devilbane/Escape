@@ -220,10 +220,40 @@ static func dress(player: Player, level: int) -> void:
 
 ## The share of a hero's life a fight with this monster costs, one on one:
 ## the time the hero needs to fell it, times what it deals per second.
+## The hero is counted with the defences of its reference gear too (see
+## expected_harm): block, dodge and the armour percent stop most blows before
+## they cost life, so a monster that is a fair fight has to hit much harder
+## than Härtung alone would say.
 static func fight_cost(level: int, hp: int, damage: int, hardening: int, cooldown: float) -> float:
 	var blows := ceili(float(hp) / Player.soak(expected_power(level), hardening))
-	var taken := blows * SWING * Player.soak(damage, expected_hardening(level)) / maxf(cooldown, 0.1)
+	var taken := blows * SWING * Player.soak(damage, expected_hardening(level)) * expected_harm(level) / maxf(cooldown, 0.1)
 	return taken / expected_life(level)
+
+
+## Blocken a hero of `level` typically has (with a shield on the arm), and the
+## share of the level points that go into Geschick: the rest of the points
+## beyond the half in Stärke are spread over Geschick and Intelligenz.
+const REFERENCE_BLOCK_SKILL := 0.4
+const REFERENCE_DEXTERITY_SHARE := 0.25
+
+
+## How much of a blow still costs the reference hero life: it is blocked with
+## the shield's chance (gear plus Blocken), else dodged with Geschick's chance,
+## else the armour percent (Rüstungswert) is taken off. 1.0 means no defence.
+static func expected_harm(level: int) -> float:
+	var block := 0.0
+	var armour_value := 0
+	var has_shield := false
+	for id in reference_gear(level):
+		var item: Dictionary = Items.ALL[id]
+		block += item.get("block", 0.0)
+		armour_value += int(item.get("armour_value", 0))
+		has_shield = has_shield or item.slot == "schild"
+	if has_shield:
+		block += Player.BLOCK_PER_LEVEL * mini(roundi(level * REFERENCE_BLOCK_SKILL), Training.SKILL_MAX)
+	armour_value = mini(armour_value, Player.ARMOUR_VALUE_MAX)
+	var dodge := clampf(Player.DODGE_PER_DEXTERITY * floorf(points_earned(level) * REFERENCE_DEXTERITY_SHARE), 0.0, Player.DODGE_MAX)
+	return (1.0 - clampf(block, 0.0, 1.0)) * (1.0 - dodge) * (1.0 - armour_value / 100.0)
 
 
 ## The lowest level for which a monster with these numbers is a fair fight

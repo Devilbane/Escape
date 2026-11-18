@@ -58,7 +58,7 @@ static func _pole() -> MeshInstance3D:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.32, 0.22, 0.14)
 	mat.roughness = 0.8
-	pole.material_override = mat
+	pole.set_surface_override_material(0, mat)
 	pole.position = Vector3(0, POLE_HEIGHT * 0.5 - 1.0, -PENGUIN_FRONT)
 	return pole
 
@@ -71,7 +71,8 @@ static func _penguin() -> Node3D:
 	mat.albedo_texture = TUX_TEXTURE
 	mat.roughness = 0.85
 	for mi: MeshInstance3D in tux.find_children("*", "MeshInstance3D", true, false):
-		mi.material_override = mat
+		for i in mi.mesh.get_surface_count():
+			mi.set_surface_override_material(i, mat)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# The model's middle is at its origin: lift it so that its feet rest on the tip.
 	var scale := PENGUIN_HEIGHT / 0.854

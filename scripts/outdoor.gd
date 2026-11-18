@@ -4001,8 +4001,8 @@ func strike() -> Vector3:
 func _show_bolt(at: Vector3) -> void:
 	var bolt := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.25
-	mesh.bottom_radius = 0.08
+	mesh.top_radius = 0.6
+	mesh.bottom_radius = 0.2
 	mesh.height = 40.0
 	bolt.mesh = mesh
 	var mat := StandardMaterial3D.new()
@@ -4010,24 +4010,46 @@ func _show_bolt(at: Vector3) -> void:
 	mat.albedo_color = Color(0.9, 0.94, 1.0)
 	mat.emission_enabled = true
 	mat.emission = Color(0.8, 0.88, 1.0)
-	mat.emission_energy_multiplier = 4.0
+	mat.emission_energy_multiplier = 8.0
 	bolt.material_override = mat
 	bolt.position = at + Vector3(0, 20.0, 0)
 	add_child(bolt)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(0.8, 0.88, 1.0)
-	glow.light_energy = 6.0
-	glow.omni_range = 14.0
+	glow.light_energy = 14.0
+	glow.omni_range = 24.0
 	glow.position = at + Vector3(0, 2.0, 0)
 	add_child(glow)
 	var sparks := Effects.make_sparkles(Color(0.8, 0.9, 1.0), true)
 	sparks.position = at + Vector3(0, 0.5, 0)
 	add_child(sparks)
+	# A scorch mark where it hit, fading over a while.
+	var scorch := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = 1.3
+	disc.bottom_radius = 1.3
+	disc.height = 0.02
+	scorch.mesh = disc
+	var burnt := StandardMaterial3D.new()
+	burnt.albedo_color = Color(0.03, 0.03, 0.03, 0.65)
+	burnt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	scorch.material_override = burnt
+	scorch.position = at + Vector3(0, 0.03, 0)
+	add_child(scorch)
+	# The bolt flickers: on, dark for a blink, on again, then gone.
 	var tween := create_tween()
-	tween.tween_interval(0.18)
+	tween.tween_interval(0.2)
+	tween.tween_callback(func(): bolt.visible = false)
+	tween.tween_interval(0.07)
+	tween.tween_callback(func(): bolt.visible = true)
+	tween.tween_interval(0.35)
 	tween.tween_callback(bolt.queue_free)
-	tween.tween_property(glow, "light_energy", 0.0, 0.4)
+	tween.tween_property(glow, "light_energy", 0.0, 1.0)
 	tween.tween_callback(glow.queue_free)
+	var fade := create_tween()
+	fade.tween_interval(8.0)
+	fade.tween_property(burnt, "albedo_color:a", 0.0, 12.0)
+	fade.tween_callback(scorch.queue_free)
 
 
 ## How many lumps of thunder ore lie about right now.

@@ -454,6 +454,12 @@ var _weather_foes: Array = []
 var puddles: Puddles
 ## The layer of snow on every surface that faces the sky (see SnowCover).
 var snow: SnowCover
+## How thickly the ponds are frozen over, 0 open water to 1 solid ice (see IceCover).
+var ice := 0.0
+var ice_cover: IceCover
+## Every pond tile (see IceCover).
+var _pond_waters: Array = []
+var _ground_mat: ShaderMaterial
 ## The snowman Pip and Pippi build in the snow (see Snowman), or null.
 var snowman: Snowman
 ## The bounds of the square and the graveyard fence, found once (see ground_at).
@@ -529,12 +535,13 @@ func build() -> void:
 	add_child(SurfaceLife.new(self))
 	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
 	add_child(puddles)
+	ice_cover = IceCover.new(self, _pond_waters, _ground_mat)
 	snow = SnowCover.new(self)
 	var roofed: Array = []
 	for hy in range(_house_rect.position.y, _house_rect.end.y):
 		for hx in range(_house_rect.position.x, _house_rect.end.x):
 			roofed.append(Vector2i(hx, hy))
-	snow.set_sky_mask(roofed, width, height, TILE)
+	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
 	var floor_shape := CollisionShape3D.new()
 	floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(floor_shape)
@@ -586,6 +593,7 @@ func _build_ground() -> void:
 	_ground_tex = ImageTexture.create_from_image(mask)
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/meadow.gdshader")
+	_ground_mat = mat
 	mat.set_shader_parameter("ground_mask", _ground_tex)
 	mat.set_shader_parameter("stone_mask", ImageTexture.create_from_image(stones))
 	mat.set_shader_parameter("grid_size", Vector2(width, height))
@@ -809,9 +817,11 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 		"?", ">":
 			TreasureMaps.place(self, c, ch)
 		"~", ";":
-			_add_solid(pos, Vector3(TILE, 1, TILE))
-			fishing_waters.append({"water": "teich" if ch == "~" else "senke", "pos": pos,
-					"reach": TILE * 0.5, "round": false, "surface": 0.04})
+			var pond_water := {"water": "teich" if ch == "~" else "senke", "pos": pos,
+					"reach": TILE * 0.5, "round": false, "surface": 0.04, "cell": c}
+			pond_water["shape"] = _add_box(_walls_body, pos + Vector3(0, 0.5, 0), Vector3(TILE, 1, TILE))
+			fishing_waters.append(pond_water)
+			_pond_waters.append(pond_water)
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.
 			for row in 2:
@@ -3828,6 +3838,14 @@ func set_snow(cover: float, daylight := 1.0) -> void:
 			snowman = null
 		else:
 			snowman.melt_to(cover)
+
+
+## How thickly the ponds are frozen, 0 open water to 1 solid ice (see IceCover and
+## Weather.ice): the hero can walk on the ice, and fish through its one hole.
+func set_ice(value: float) -> void:
+	ice = clampf(value, 0.0, 1.0)
+	if ice_cover != null:
+		ice_cover.set_amount(ice)
 
 
 ## A grey footprint in the snow that fades again; the hero and the villagers leave them while

@@ -25,6 +25,11 @@ uniform vec3 forest : source_color = vec3(0.11, 0.17, 0.08);
 uniform vec3 dirt : source_color = vec3(0.40, 0.31, 0.22);
 uniform vec3 grave_soil : source_color = vec3(0.20, 0.23, 0.14);
 uniform vec3 water : source_color = vec3(0.16, 0.30, 0.38);
+// Ice over the ponds (see IceCover): 0 open water to 1 frozen over. It creeps in from the banks,
+// and the holes (x, z, radius) stay open for fishing.
+uniform float ice : hint_range(0.0, 1.0) = 0.0;
+uniform vec3 ice_holes[4];
+uniform vec3 ice_color : source_color = vec3(0.62, 0.76, 0.82);
 uniform vec3 paving : source_color = vec3(0.50, 0.47, 0.43);
 // The graveyard (x0, z0, x1, z1 in metres): its paving is old, sunk and
 // overgrown, and fallen leaves lie on its turf. Empty by default.
@@ -314,6 +319,7 @@ void fragment() {
 		h = mix(h, he, path);
 	}
 	float rough = 0.95;
+	float wet_ice = 0.0;
 	if (square > 0.001) {
 		float hc;
 		vec3 c = cobbles(p, px, old, hc);
@@ -328,11 +334,33 @@ void fragment() {
 		float ripple = noise(p * 2.0 + vec2(TIME * 0.15, TIME * 0.1)) + 0.5 * noise(p * 5.0 - vec2(TIME * 0.2, 0.0));
 		vec3 pond = water * (0.85 + 0.15 * sin(TIME * 0.8 + p.x * 0.7 + p.y * 0.4));
 		pond *= 0.9 + 0.2 * fbm2(p * 0.6);
+		float frozen = 0.0;
+		if (ice > 0.001) {
+			// Ice grows from the banks inward, ragged where it meets the open water.
+			float depth = clamp((m.b - 0.5) * 2.0, 0.0, 1.0);
+			float edge = depth * 0.6 + (fbm2(p * 0.9 + 11.0) - 0.5) * 0.3;
+			frozen = smoothstep(edge, edge + 0.1, ice * 1.15);
+			float opening = 0.0;
+			float rim = 0.0;
+			for (int i = 0; i < 4; i++) {
+				float d = length(p - ice_holes[i].xy) + (fbm2(p * 3.0) - 0.5) * 0.25;
+				float r = ice_holes[i].z;
+				opening = max(opening, r > 0.0 ? 1.0 - smoothstep(r - 0.08, r + 0.08, d) : 0.0);
+				rim = max(rim, r > 0.0 ? 1.0 - smoothstep(r + 0.1, r + 0.7, d) : 0.0);
+			}
+			frozen *= 1.0 - opening;
+			// Frosted, scratched ice, a little whiter where it is thickest round the hole.
+			float frost = fbm2(p * 1.6 + 5.0);
+			float scratch = smoothstep(0.62, 0.7, noise(vec2(p.x * 7.0 + p.y * 2.0, p.y * 6.0 - p.x * 1.5)));
+			vec3 sheet = ice_color * (0.85 + 0.3 * frost) + vec3(0.18) * scratch + vec3(0.12) * rim;
+			pond = mix(pond, sheet, frozen);
+		}
 		col = mix(col, pond, wet);
-		h = mix(h, 0.004 * ripple, wet);
+		h = mix(h, mix(0.004 * ripple, 0.002 * noise(p * 9.0), frozen), wet);
+		wet_ice = frozen * wet;
 	}
 	ALBEDO = col;
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
-	ROUGHNESS = mix(rough, 0.12, wet);
+	ROUGHNESS = mix(rough, mix(0.12, 0.3, wet_ice), wet);
 	SPECULAR = mix(0.25, 0.6, wet);
 }

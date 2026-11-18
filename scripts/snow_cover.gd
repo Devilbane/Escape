@@ -32,10 +32,13 @@ func _init(world: Node) -> void:
 
 ## Tells the shader where roofs stand over the ground (tiles of the grid where `roofed`
 ## has a true), so nothing under a roof gets snow.
-func set_sky_mask(roofed: Array, width: int, height: int, tile: float) -> void:
-	var img := Image.create(width, height, false, Image.FORMAT_R8)
+## Pond tiles (`ponds`) are marked too: no snow settles on open water or on wind-swept ice.
+func set_sky_mask(roofed: Array, width: int, height: int, tile: float, ponds: Array = []) -> void:
+	var img := Image.create(width, height, false, Image.FORMAT_RG8)
 	for c: Vector2i in roofed:
 		img.set_pixel(c.x, c.y, Color(1, 0, 0, 1))
+	for c: Vector2i in ponds:
+		img.set_pixel(c.x, c.y, Color(0, 1, 0, 1))
 	material.set_shader_parameter("sky_mask", ImageTexture.create_from_image(img))
 	material.set_shader_parameter("grid_size", Vector2(width, height))
 	material.set_shader_parameter("tile", tile)

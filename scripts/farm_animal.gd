@@ -123,6 +123,8 @@ var _stats: Dictionary
 var _rng := RandomNumberGenerator.new()
 var _path: Array[Vector3] = []
 var _speed := 0.0
+## The way the body heads while it walks (zero at rest), see Turning.
+var _heading := Vector3.ZERO
 var _timer := 0.0
 var _check := 0.0
 var _phase := 0.0
@@ -211,6 +213,7 @@ static func may_stand(lvl: Outdoor, c: Vector2i) -> bool:
 func _begin(new_state: String, time: float) -> void:
 	state = new_state
 	_timer = time
+	_heading = Vector3.ZERO
 
 
 func _physics_process(delta: float) -> void:

@@ -1,78 +1,63 @@
 class_name ChapelSpill
 extends RefCounted
-## The coloured light the temple's stained glass throws onto the ground outside:
-## in front of each window a soft picture of its glass (a blue ground in lead
-## lines, red and green medallions on it, a border of gold and red beads), strongest
-## by the wall and dimmer than the glass itself. One additive mesh for the
-## whole temple, built in the temple's own metres. Its "glow" parameter is
-## driven with the glass at night (see Outdoor.set_hour); the temple's windows
-## burn all night. Fog is off for it, so the colours stay visible on foggy
-## nights instead of being washed out (and an additive quad would otherwise
-## add the fog colour over its whole rectangle).
+## The coloured light the temple's stained glass throws onto the lawn outside:
+## for every window a shiny, see-through picture of its own glass (the same shape
+## and colours, taken from the glass texture), lying on the ground in front of the
+## window. It starts away from the wall by as much as the window's sill is high,
+## ends 20% longer than the window is tall (the window's top is the far end) and
+## fades to 30% towards that end. One additive mesh for the whole temple, built in
+## the temple's own metres. Its "glow" parameter is driven with the glass at night
+## (see Outdoor.set_hour); the temple's windows burn all night. Fog is off for it,
+## so the colours stay visible on foggy nights instead of being washed out (and an
+## additive quad would otherwise add the fog colour over its whole rectangle).
 
-## Where each window is on the wall, in the temple's metres: middle on the
-## wall, and the way it faces. The rose window is at the back. The pools of
-## the right wall sit one pane (8 m) further north than the origins of its window
-## pieces, so that they run parallel to the pools of the left wall.
+const GLASS_TEXTURE := "res://assets/chapel/stained_glass_glow.png"
+
+## The two kinds of window, as the kit's pieces have them (kit metres): how wide
+## and tall the glass is, how high its bottom edge is above the ground, and where
+## the glass is on the texture (the outside row), as a rectangle in 0..1.
+const LANCETS := {"width": 4.35, "height": 8.65, "sill": 4.58, "uv": Rect2(0.0184, 0.0089, 0.2453, 0.4906)}
+const ROSE := {"width": 6.45, "height": 6.62, "sill": 4.69, "uv": Rect2(0.5517, 0.0474, 0.3966, 0.3966)}
+## Where each window is: the middle of the glass on the outside face of the wall,
+## the way it faces, and its kind. The six side windows sit at the same places on
+## both walls; the rose window is at the back.
 const WINDOWS := [
-	[Vector3(11, 0, 4), Vector3(1, 0, 0)], [Vector3(11, 0, -4), Vector3(1, 0, 0)], [Vector3(11, 0, -12), Vector3(1, 0, 0)],
-	[Vector3(-11, 0, -12), Vector3(-1, 0, 0)], [Vector3(-11, 0, -4), Vector3(-1, 0, 0)], [Vector3(-11, 0, 4), Vector3(-1, 0, 0)],
-	[Vector3(4, 0, -11), Vector3(0, 0, -1)],
+	[Vector3(12.44, 0, 8), Vector3(1, 0, 0), LANCETS], [Vector3(12.44, 0, 0), Vector3(1, 0, 0), LANCETS],
+	[Vector3(12.44, 0, -8), Vector3(1, 0, 0), LANCETS],
+	[Vector3(-12.44, 0, 8), Vector3(-1, 0, 0), LANCETS], [Vector3(-12.44, 0, 0), Vector3(-1, 0, 0), LANCETS],
+	[Vector3(-12.44, 0, -8), Vector3(-1, 0, 0), LANCETS],
+	[Vector3(0, 0, -12.37), Vector3(0, 0, -1), ROSE],
 ]
-## How far out the middle of a window's light lies, and its half width and half depth.
-const REACH := 6.0
-const HALF := Vector2(5.2, 6.5)
+## How much longer the picture is than the window, and how bright it is at its far end.
+const STRETCH := 1.2
+const FAR_BRIGHTNESS := 0.3
 const LIFT := 0.1
-## How bright the light is next to the glass itself (1.0 = as bright as the pools were before).
-const DIM := 1.0
+## How bright the light is next to the glass itself.
+const DIM := 1.3
 
 const SHADER := """
 shader_type spatial;
 render_mode blend_add, unshaded, fog_disabled, depth_draw_never, cull_disabled, shadows_disabled;
+uniform sampler2D glass : source_color, filter_linear_mipmap, repeat_disable;
 uniform float glow = 0.0;
 uniform float scale = 1.0;
-uniform float dim = 0.5;
-const vec3 ruby = vec3(0.85, 0.08, 0.1);
-const vec3 cobalt = vec3(0.12, 0.24, 0.9);
-const vec3 gold = vec3(1.0, 0.72, 0.16);
-const vec3 emerald = vec3(0.1, 0.7, 0.32);
+uniform float dim = 1.0;
+uniform float far_brightness = 0.3;
+varying vec2 pic;
+void vertex() {
+	// COLOR.rg: where on the glass texture this corner lies.
+	pic = COLOR.rg;
+}
 void fragment() {
-	vec2 p = UV * 2.0 - 1.0;
-	float d = clamp(1.0 - dot(p, p), 0.0, 1.0);
-	// Brightest next to the wall (UV.y = 0), fading away from it.
-	float along = 1.0 - UV.y * 0.55;
-	// Two tall panels side by side, each a column of the window's glass.
-	float col = fract(UV.x * 2.0);
-	float cx = abs(col - 0.5) * 2.0;
-	// Lead lines at the edges and between the panels, and a saddle bar across.
-	float lead = smoothstep(0.82, 0.95, cx) + (1.0 - smoothstep(0.0, 0.012, min(fract(UV.y * 4.0), 1.0 - fract(UV.y * 4.0))));
-	// Blue ground cut into small pieces of glass: most blue, some ruby, gold and green,
-	// each piece a little different in brightness, like a mosaic.
-	vec2 cell = vec2(col * 5.0, UV.y * 16.0);
-	cell.x += cell.y * 0.5;
-	vec2 id = floor(cell);
-	float h = fract(sin(dot(id + floor(UV.x * 2.0) * 7.0, vec2(12.9898, 78.233))) * 43758.5453);
-	vec3 c = cobalt;
-	c = h > 0.35 ? mix(cobalt, vec3(0.2, 0.55, 1.0), 0.6) : c;
-	c = h > 0.55 ? gold : c;
-	c = h > 0.75 ? ruby : c;
-	c = h > 0.90 ? emerald : c;
-	c *= 0.8 + 0.4 * fract(h * 37.0);
-	vec2 f = abs(fract(cell) - 0.5);
-	float piece_lead = smoothstep(0.42, 0.49, max(f.x, f.y));
-	lead = max(lead, piece_lead * 0.85);
-	// A border of gold and red beads along the edges of the panel.
-	float bead = step(0.74, cx) * step(0.5, fract(UV.y * 22.0));
-	c = mix(c, mix(gold, ruby, step(0.5, fract(UV.y * 11.0))), bead * step(cx, 0.82));
-	// Medallions on the blue, quartered in ruby and green round a gold boss.
-	vec2 m = vec2((col - 0.5) * 2.0 * 0.5, fract(UV.y * 3.0 + 0.15) - 0.5) * vec2(1.0, 1.0);
-	m.y *= 2.2;
-	float r = length(m);
-	vec3 med = (m.x * m.y > 0.0) ? ruby : emerald;
-	c = mix(c, med, (1.0 - smoothstep(0.26, 0.30, r)));
-	c = mix(c, gold, (1.0 - smoothstep(0.06, 0.09, r)));
-	c *= 1.0 - clamp(lead, 0.0, 1.0);
-	ALBEDO = c * d * along * glow / scale * dim;
+	vec3 c = texture(glass, pic).rgb;
+	// Fades along the picture from the wall's side (UV.y = 0) to the far end.
+	float fade = mix(1.0, far_brightness, UV.y);
+	// A little shine: the brightest colours turn towards white.
+	float lum = max(c.r, max(c.g, c.b));
+	c += vec3(lum * lum * 0.35);
+	// Soft ends, so the picture does not stop with a hard edge.
+	float ends = smoothstep(0.0, 0.03, UV.y) * smoothstep(1.0, 0.97, UV.y);
+	ALBEDO = c * fade * ends * glow / scale * dim;
 }
 """
 
@@ -82,32 +67,45 @@ static func material(glow_scale: float) -> ShaderMaterial:
 	var shader := Shader.new()
 	shader.code = SHADER
 	mat.shader = shader
+	mat.set_shader_parameter("glass", load(GLASS_TEXTURE))
 	mat.set_shader_parameter("scale", glow_scale)
 	mat.set_shader_parameter("dim", DIM)
+	mat.set_shader_parameter("far_brightness", FAR_BRIGHTNESS)
 	mat.set_shader_parameter("glow", 0.0)
 	return mat
 
 
-## The mesh of all the pools, in the temple's metres.
+## The mesh of all the pictures, in the temple's metres.
 static func build_mesh() -> ArrayMesh:
 	var verts := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	var cols := PackedColorArray()
 	for w: Array in WINDOWS:
 		var at: Vector3 = w[0]
 		var out: Vector3 = w[1]
+		var kind: Dictionary = w[2]
+		# The picture is seen from outside, looking at the wall: its right is "side".
 		var side := Vector3(out.z, 0, -out.x)
-		var mid := at + out * REACH + Vector3(0, LIFT, 0)
-		var a := side * HALF.x
-		var b := out * HALF.y
-		var quad := [mid - a - b, mid + a - b, mid + a + b, mid - a + b]
+		var near: float = kind["sill"]
+		var far: float = near + float(kind["height"]) * STRETCH
+		var half: float = float(kind["width"]) * 0.5
+		var rect: Rect2 = kind["uv"]
+		var base := at + Vector3(0, LIFT, 0)
+		# The window's bottom edge is the near end, its top edge the far end.
+		var quad := [base + out * near - side * half, base + out * near + side * half,
+			base + out * far + side * half, base + out * far - side * half]
 		var quv := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
+		var tex := [Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.end.y),
+			Vector2(rect.end.x, rect.position.y), Vector2(rect.position.x, rect.position.y)]
 		for k: int in [0, 1, 2, 0, 2, 3]:
 			verts.append(quad[k])
 			uvs.append(quv[k])
+			cols.append(Color((tex[k] as Vector2).x, (tex[k] as Vector2).y, 0.0))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_COLOR] = cols
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh

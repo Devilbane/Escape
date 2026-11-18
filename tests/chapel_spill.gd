@@ -14,10 +14,10 @@ func check(ok: bool, what: String) -> void:
 func _init() -> void:
 	var mesh := ChapelSpill.build_mesh()
 	var verts: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
-	check(verts.size() == ChapelSpill.WINDOWS.size() * 6, "every window gets one light picture")
+	check(verts.size() == ChapelSpill.WINDOWS.size() * 6, "every window gets one glass picture")
 	for v in verts:
-		check(v.y > 0.0 and v.y < 0.5, "pools lie on the ground")
+		check(v.y > 0.0 and v.y < 0.5, "pictures lie on the ground")
 	var mat := ChapelSpill.material(2.6)
-	check(mat.shader.code.contains("fog_disabled"), "pools stay visible in fog")
+	check(mat.shader.code.contains("fog_disabled"), "pictures stay visible in fog")
 	print("PASS" if failures == 0 else "FAILED: %d" % failures)
 	quit(failures)

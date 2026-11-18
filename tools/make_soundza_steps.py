@@ -4,8 +4,9 @@ step_<ground>_0 to step_<ground>_5 (see Surfaces.STEPS); each is one single step
 with several steps is cut at its heel strikes), faded at the ends and set to the loudness of the steps the ground
 had before, so the volumes tuned in the game still hold.
 
-Run from the tools folder, naming the folder that holds the sound libraries (the user's Desktop/assets/audio):
-  python3 make_soundza_steps.py "<audio library folder>"
+Run from the tools folder, naming the folder that holds the sound libraries (the user's Desktop/assets/audio),
+and optionally the grounds to build (all of them when none is named):
+  python3 make_soundza_steps.py "<audio library folder>" [ground ...]
 Needs ffmpeg and numpy. tools/make_footstep_preview.py builds the page to listen to all candidates."""
 import os, sys, wave
 import numpy as np
@@ -40,6 +41,11 @@ GROUNDS = {
 		("dirt/soundza-wet-soil-footstep.wav", 0), ("mud/soundza-footstep-on-mud.wav", 0),
 		("mud/soundza-footstep-on-mud-2.wav", 0), ("mud/soundza-muddy-boots-squishing.wav", 0),
 		("mud/soundza-muddy-boots-squishing.wav", 1), ("dirt/soundza-short-single-footstep-on-dirt-3.wav", 0)]),
+	# Crunching snow, for the steps while snow lies (see Surfaces.SNOW).
+	"snow": (0.0594, 0.42, [
+		("snow/soundza-crisp-snow-footstep.wav", 0), ("snow/soundza-crunchy-snow-step.wav", 0),
+		("snow/soundza-dense-snow-step.wav", 0), ("snow/soundza-footsteps-on-snow.wav", 0),
+		("snow/soundza-snow-footsteps.wav", 0), ("snow/soundza-fine-snow-footsteps.wav", 0)]),
 }
 
 
@@ -97,7 +103,10 @@ def save(name, y, loud):
 
 if __name__ == "__main__":
 	folder = os.path.join(sys.argv[1], PACK)
+	only = sys.argv[2:]
 	for ground, (loud, length, steps) in GROUNDS.items():
+		if only and ground not in only:
+			continue
 		for k, (file, number) in enumerate(steps):
 			save("step_%s_%d" % (ground, k), step(read(folder + file), number, length), loud)
 		print(ground, "built")

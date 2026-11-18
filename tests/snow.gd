@@ -153,6 +153,16 @@ func _prints() -> void:
 	for i in SnowPrints.MAX + 20:
 		lvl.snow_print(Vector3(i * 0.1, 0, 0), 0.0)
 	check(SnowPrints._live.size() <= SnowPrints.MAX, "only so many prints at once")
+	# Steps crunch in the snow, on any open ground, but the pace keeps to the ground beneath.
+	var spot: Vector3 = lvl.spots.square[0]
+	check(Surfaces.step_ground(lvl, spot) == Surfaces.SNOW, "a step in the snow crunches")
+	check(Surfaces.ground(lvl, spot) != Surfaces.SNOW, "the snow does not change the pace")
+	check(Surfaces.step_sound(Surfaces.SNOW).begins_with("step_snow_"), "snow plays its own steps")
+	for i in Surfaces.STEP_SOUNDS:
+		check(ResourceLoader.exists(Sfx.DIR + "step_snow_%d.wav" % i), "the snow step %d exists" % i)
+	game.snow_cover = 0.1
+	game._tick_clock(0.05)
+	check(Surfaces.step_ground(lvl, spot) != Surfaces.SNOW, "a dusting of snow does not crunch")
 
 
 func _breath() -> void:

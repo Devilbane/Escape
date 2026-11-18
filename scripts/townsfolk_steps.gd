@@ -41,7 +41,7 @@ static func sound_at(level: Level, p: Vector3, running: bool) -> Array:
 	if level != null and level.in_puddle(p):
 		var fill: float = level.puddle_fill(p)
 		return [Puddles.splash_sound(fill), db - 4.0 + Puddles.splash_volume(fill)]
-	return [Surfaces.step_sound(Surfaces.ground(level, p)), db]
+	return [Surfaces.step_sound(Surfaces.step_ground(level, p)), db]
 
 
 ## Counts the ground a villager has walked (`covered`, kept by the villager)

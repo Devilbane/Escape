@@ -327,7 +327,9 @@ func _clear_overlaps() -> void:
 					var large: Dictionary = s if small == o else o
 					var span := d.length() / APART - float(large.span)
 					var reach_small := LONG_REACH if small.long else 1.0
-					if span / reach_small < RADIUS.x or small.has("keep"):
+					# One that would shrink to a small puddle goes too: only the
+					# few kept ones are small (and never on a walkway).
+					if span / reach_small < RADIUS.x or small.has("keep") or span / reach_small <= SMALL_RADIUS:
 						_unregister(small)
 						(small.node as Node).queue_free()
 						small["gone"] = true

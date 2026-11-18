@@ -105,9 +105,6 @@ const NIGHT_DUST := 0.25
 const RAIN_DROPS := 700
 const RAIN_BOX := Vector3(22, 0.5, 16)
 const RAIN_HEIGHT := 16.0
-## Drifting leaves by day: how many, and the box around the hero they start in.
-const LEAVES := 36
-const LEAF_BOX := Vector3(16, 1.5, 11)
 ## Drifting patches of mist at full strength.
 const MIST_PATCHES := 28
 ## Rain puddles (see Puddles): how many hours of rain fill them up (a
@@ -374,50 +371,9 @@ static func make_snow() -> CPUParticles3D:
 	return p
 
 
-## Autumn leaves that drift gently down around the hero by day (keep them over
-## the hero, see Game): a few small leaves, slow, tumbling and swaying.
-static func make_leaves() -> CPUParticles3D:
-	var p := CPUParticles3D.new()
-	p.amount = LEAVES
-	# Its own random numbers: leaves must never shift the game's rolls (combat tests seed them).
-	p.use_fixed_seed = true
-	p.seed = 4242
-	p.lifetime = 8.0
-	p.preprocess = 8.0
-	p.local_coords = false
-	p.emitting = false
-	var leaf := QuadMesh.new()
-	leaf.size = Vector2(0.2, 0.2)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	mat.vertex_color_use_as_albedo = true
-	mat.albedo_texture = _leaf_texture()
-	mat.albedo_color = Color(1, 1, 1, 0.0)
-	leaf.material = mat
-	p.mesh = leaf
-	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	p.emission_box_extents = LEAF_BOX
-	p.direction = Vector3(0.6, -1.0, 0.25)
-	p.spread = 30.0
-	p.gravity = Vector3.ZERO
-	p.initial_velocity_min = 0.5
-	p.initial_velocity_max = 0.9
-	p.tangential_accel_min = -0.6
-	p.tangential_accel_max = 0.6
-	p.angle_min = 0.0
-	p.angle_max = 360.0
-	p.angular_velocity_min = -90.0
-	p.angular_velocity_max = 90.0
-	p.scale_amount_min = 0.7
-	p.scale_amount_max = 1.3
-	var tints := Gradient.new()
-	tints.colors = PackedColorArray([Color(0.78, 0.5, 0.16), Color(0.7, 0.28, 0.12), Color(0.55, 0.6, 0.2), Color(0.85, 0.65, 0.2)])
-	tints.offsets = PackedFloat32Array([0.0, 0.34, 0.67, 1.0])
-	p.color_initial_ramp = tints
-	Effects.start_cold(p)
-	return p
+## Autumn leaves that drift gently down around the hero by day (see LeafFall).
+static func make_leaves() -> LeafFall:
+	return LeafFall.new()
 
 
 static var _leaf: Texture2D
@@ -452,11 +408,10 @@ static func leaf_strength(weather_look: Dictionary, hour: float) -> float:
 
 ## Shows the leaves as strong as `strength` says (see leaf_strength), darker in
 ## dim light.
-static func show_leaves(leaves: CPUParticles3D, strength: float, light: float) -> void:
-	leaves.emitting = strength > 0.05
-	leaves.visible = leaves.emitting
+static func show_leaves(leaves: LeafFall, strength: float, light: float) -> void:
+	leaves.visible = strength > 0.05
 	var tone := clampf(0.4 + light, 0.4, 1.0)
-	((leaves.mesh as QuadMesh).material as StandardMaterial3D).albedo_color = Color(tone, tone, tone, 0.9 * strength)
+	leaves.material.albedo_color = Color(tone, tone, tone, 0.9 * strength)
 
 
 ## Soft grey patches of mist that drift slowly over the ground.

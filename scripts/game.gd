@@ -109,7 +109,7 @@ var _flash := 0.0
 var _rain: CPUParticles3D
 var _mist: CPUParticles3D
 var _snow: CPUParticles3D
-var _leaves: CPUParticles3D
+var _leaves: LeafFall
 var _clouds: FogClouds
 var _ambience: AudioStreamPlayer
 ## The ambient soundscape of the place the hero is in (see Soundscape).
@@ -2912,14 +2912,13 @@ func _show_weather() -> void:
 		_mist.visible = false
 		_snow.emitting = false
 		_snow.visible = false
-		_leaves.emitting = false
 		_leaves.visible = false
 		Weather.cold = false
 		_clouds.set_look(0.0, Weather.HAZE)
 		return
 	Weather.cold = snow_cover >= Weather.COLD_FROM or float(_weather_look.snow) > 0.3
 	_snow.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT * 0.6, 0)
-	_leaves.global_position = player.global_position + Vector3(0, 5.0, 0)
+	_leaves.anchor = player.global_position
 	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
 	var dusty := _weather_look.duplicate()

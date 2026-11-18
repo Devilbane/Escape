@@ -1111,7 +1111,7 @@ func _footsteps(ground_speed: float) -> void:
 					# Every ground has its own steps (see Surfaces.STEPS). Sneaking
 					# is only a very soft touch, barely to be heard: a brush of
 					# cloth on hard floors, a hushed step on anything softer.
-					var ground := Surfaces.ground(level, global_position)
+					var ground := Surfaces.step_ground(level, global_position)
 					if sneak and Surfaces.hard(ground):
 						Sfx.play(self, "sneak_%d" % (randi() % 4), -22.0)
 					else:

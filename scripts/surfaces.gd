@@ -17,6 +17,9 @@ const GRASS := "grass"
 const SOIL := "soil"
 const SCREE := "scree"
 const PUDDLE := "puddle"
+## Snow is not a ground of its own (it does not change the pace): while it lies thick enough to
+## take prints (see Weather.PRINT_FROM), every step in the open air crunches (see step_ground).
+const SNOW := "snow"
 
 ## Each ground and the share of the full pace it allows.
 const PACE := {
@@ -35,8 +38,8 @@ const PACE := {
 ## step_<name>_5 (an empty name is the plain step_0 to step_5, the stone steps).
 ## Stone (step_0 to step_5, recorded by Fantozzi) and dirt floors keep their own steps; paving rings
 ## brighter, paths and fields crunch softly, grass swishes, scree (gravel) crackles and planks give a
-## short, dry knock. A puddle splashes instead (see Player._footsteps). Grass, scree, wood, paving,
-## path and soil are cut from the Soundza recordings by tools/make_soundza_steps.py.
+## short, dry knock, snow crunches. A puddle splashes instead (see Player._footsteps). Grass, scree,
+## wood, paving, path, soil and snow are cut from the Soundza recordings by tools/make_soundza_steps.py.
 const STEPS := {
 	STONE: "",
 	PAVING: "paving",
@@ -46,6 +49,7 @@ const STEPS := {
 	SOIL: "soil",
 	GRASS: "grass",
 	SCREE: "scree",
+	SNOW: "snow",
 }
 ## How many recorded steps each ground has.
 const STEP_SOUNDS := 6
@@ -63,6 +67,17 @@ static func ground(level: Level, p: Vector3) -> String:
 	if outdoor and outdoor.in_puddle(p):
 		return PUDDLE
 	return level.ground_at(level.world_to_cell(p))
+
+
+## The ground a step at `p` sounds like: the ground itself, but snow crunches over all of it in
+## the open air while the snow lies thick (not over planks, which only stand under a roof, and not
+## in a puddle).
+static func step_ground(level: Level, p: Vector3) -> String:
+	var kind := ground(level, p)
+	var outdoor := level as Outdoor
+	if outdoor and kind != WOOD and kind != PUDDLE and outdoor.snow != null and outdoor.snow.amount >= Weather.PRINT_FROM:
+		return SNOW
+	return kind
 
 
 ## The share of the full pace at a spot.

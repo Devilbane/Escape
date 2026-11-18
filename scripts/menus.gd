@@ -4161,13 +4161,24 @@ func _build_places() -> void:
 		card.add_theme_constant_override("separation", 2)
 		list.add_child(card)
 		var title: Label = game._make_label(game.TEXT_FONT, 21, game.GOLD)
-		title.text = Lang.t("Ebene %d: %s") % [index + 1, Lang.t(info.name)]
+		title.text = Lang.t(info.name)
 		card.add_child(title)
 		var text: Label = game._make_label(game.TEXT_FONT, 16)
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text.custom_minimum_size.x = 740
 		text.text = Lang.t(info.hint)
 		card.add_child(text)
+		# The monsters read from the map: their levels, and who lives there.
+		var monsters := PlaceMonsters.of(game.level_files[index], index)
+		if not monsters.kinds.is_empty():
+			var range_label: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+			range_label.text = PlaceMonsters.range_text(monsters.low, monsters.high)
+			card.add_child(range_label)
+			var who: Label = game._make_label(game.TEXT_FONT, 16)
+			who.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			who.custom_minimum_size.x = 740
+			who.text = PlaceMonsters.list_text(monsters.kinds)
+			card.add_child(who)
 
 
 ## The recipe and ingredient book: every recipe found, its scroll with the

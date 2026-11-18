@@ -153,6 +153,11 @@ func _prints() -> void:
 	for i in SnowPrints.MAX + 20:
 		lvl.snow_print(Vector3(i * 0.1, 0, 0), 0.0)
 	check(SnowPrints._live.size() <= SnowPrints.MAX, "only so many prints at once")
+	# Every walker's print has a picture, and the toes lead the way it goes.
+	for kind in SnowPrints.KINDS:
+		check(SnowPrints.texture(kind) != null, "a %s print has a picture" % kind)
+	for kind in SnowTrail.FEET:
+		check(SnowPrints.KINDS.has(SnowTrail.FEET[kind][0]), "%s presses a known print" % kind)
 	# Steps crunch in the snow, on any open ground, but the pace keeps to the ground beneath.
 	var spot: Vector3 = lvl.spots.square[0]
 	check(Surfaces.step_ground(lvl, spot) == Surfaces.SNOW, "a step in the snow crunches")

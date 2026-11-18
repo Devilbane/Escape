@@ -105,7 +105,7 @@ const ROLES := {
 	"Y": {"name": "Bankier Goldwin", "model": "Mage", "show": ["Mage_Hat"],
 		"colors": [Color(0.25, 0.45, 0.3), Color(0.25, 0.25, 0.28), Color(0.2, 0.35, 0.25)], "plan": "work", "work": "Interact",
 		"lines": ["Kupfer ist bei uns sicherer als in jeder Truhe.", "Die Bank der Krone öffnet bald ihre Schalter für Abenteurer.", "Zinsen? Nur für treue Kunden."]},
-	"S": {"name": "Steinmetz Hagen", "model": "Barbarian", "show": ["1H_Axe"],
+	"S": {"name": "Steinmetz Hagen", "model": "Barbarian", "show": [], "tool": "hammer",
 		"colors": [Color(0.6, 0.58, 0.55), Color(0.4, 0.38, 0.36), Color(0.7, 0.68, 0.64)], "plan": "shop", "work": "1H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Steinblöcke, sauber behauen! Bau dir, was du willst.", "Eine Mauer hält länger als jeder Zaun.", "Stapel sie versetzt, dann hält die Mauer besser."]},
 	# Not one of the village's own: the wandering merchant who comes on
@@ -1626,7 +1626,7 @@ func _do(task: String, delta: float) -> void:
 	_bitten = false
 	_rebound = false
 	# The smith strikes a few times in a row before he takes a breath.
-	_blows = _rng.randi_range(1, 3) if smiths() else 0
+	_blows = _rng.randi_range(1, 3) if hammers() else 0
 	# The woodcutter's blow is heard when the blade bites (see _bite).
 	if _info.has("sound") and not chops():
 		get_tree().create_timer(0.45).timeout.connect(func():
@@ -1683,13 +1683,19 @@ func smiths() -> bool:
 	return role == "1"
 
 
+## Whether this villager strikes with a hammer on a block of his own: the
+## smith on his anvil, the stonemason on the rough stone at his quarry.
+func hammers() -> bool:
+	return role == "1" or role == "S"
+
+
 ## During a blow: when the blade reaches the trunk it stops there, stuck in
 ## the wood, chips fly and the chop is heard; a moment later he wrenches the
 ## axe out and stands back. The smith's hammer stops on the iron only for a
 ## beat, with sparks and the ring of the anvil, and springs back up (see
 ## HAMMER_REBOUND). True while the blow is held here.
 func _bite(delta: float) -> bool:
-	var smith := smiths()
+	var smith := hammers()
 	if not _bitten:
 		var at := HAMMER_TIME if smith else BITE_TIME
 		if _anim.current_animation_position < at:
@@ -1701,7 +1707,7 @@ func _bite(delta: float) -> bool:
 		_stuck = HAMMER_HOLD if smith else BITE_HOLD
 		if _chips:
 			_chips.restart()
-		Sfx.play(self, "anvil" if smith else "chop", -14.0 if smith else -12.0, global_position, _rng.randf_range(0.9, 1.1))
+		Sfx.play(self, "anvil" if smiths() else ("hit" if smith else "chop"), -14.0 if smith else -12.0, global_position, _rng.randf_range(0.9, 1.1))
 		return true
 	if _rebound:
 		if _anim.current_animation_position > HAMMER_RAISED:

@@ -30,7 +30,7 @@ const LOOPS := {
 }
 ## How strong the hearth's crackle is inside the hero's own house (0 to 1): a soft
 ## fire in the next corner, and the only sound there (the old cave air rests).
-const HOME_FIRE := 0.5
+const HOME_FIRE := 0.8
 ## How much of the washy, echoing night-woods loop (Enchanted Forest, with its reverb baked in)
 ## stays in the night woods (0 to 1). The rest is replaced by the drier daytime woods bed
 ## (`amb_forest_deep`) so the night sounds less reverberant. Lower it for less reverb.

@@ -481,6 +481,18 @@ var folk: Array = []
 ## added to its own, and how many it ate, each making it a little faster.
 var life_bonus := 0
 var meals := 0
+## A slime's life in the open air (see SlimeLife): seconds lived, seconds of
+## dry weather towards its next lost level, how dry and dull it looks (0..1),
+## whether it is on its way back to the pond, the bank it heads for, and
+## whether it is melting away or sinking.
+var slime_age := 0.0
+var dry_time := 0.0
+var dryness := 0.0
+var retreating := false
+var shore := Vector3.INF
+var vanishing := false
+var _retreat_time := 0.0
+var _shown_dryness := 0.0
 var _puddle_mat: StandardMaterial3D
 var _drops_mat: StandardMaterial3D
 
@@ -1056,10 +1068,69 @@ func _recolour() -> void:
 		_slime_mat.set_shader_parameter("deep_color", murk[0])
 		_slime_mat.set_shader_parameter("shallow_color", murk[1])
 		_slime_mat.set_shader_parameter("scum_color", murk[2])
+	_shown_dryness = -1.0
+	show_dryness()
+
+
+## Shows how dried out the slime is: its water turns dull and dusty (see
+## SlimeLife), and comes back with the rain.
+func show_dryness() -> void:
+	if absf(dryness - _shown_dryness) < 0.02:
+		return
+	_shown_dryness = dryness
+	var murk := SlimeLife.dulled(_slime_murk(), dryness)
+	if _slime_mat != null:
+		_slime_mat.set_shader_parameter("deep_color", murk[0])
+		_slime_mat.set_shader_parameter("shallow_color", murk[1])
+		_slime_mat.set_shader_parameter("scum_color", murk[2])
 	if _puddle_mat != null:
 		_puddle_mat.albedo_color = murk[1]
 	if _drops_mat != null:
 		_drops_mat.albedo_color = Color(murk[1], 0.85)
+
+
+## A faded Blob is a Blob no more: the edge of a Blob goes (see
+## SlimeGrowth.blob_up).
+func unblob() -> void:
+	if not blob:
+		return
+	blob = false
+	_stats.cooldown = float(_stats.cooldown) / SlimeGrowth.BLOB_PACE
+	_stats.poison = maxf(0.0, float(_stats.get("poison", 0.0)) - SlimeGrowth.BLOB_POISON)
+	if _sparkles != null:
+		_sparkles.queue_free()
+		_sparkles = null
+	if _slime_mat != null:
+		var glow: float = 0.35 if _stats.has("glow") else 0.12
+		_slime_mat.set_shader_parameter("glow", glow)
+
+
+## Walks to the bank of the pond it goes back to, and sinks in at the end.
+func _go_to_shore(delta: float) -> Vector3:
+	_retreat_time += delta
+	if shore == Vector3.INF or _retreat_time > SlimeLife.RETREAT_PATIENCE or _flat_distance_to(shore) < SlimeLife.SHORE_REACH:
+		SlimeLife.sink_into_pond(self)
+		return Vector3.ZERO
+	return _head_for(shore)
+
+
+func _flat_distance_to(at: Vector3) -> float:
+	return Vector2(at.x - global_position.x, at.z - global_position.z).length()
+
+
+## Melts away (or sinks into the pond) and is gone: no fall, no corpse, no
+## kill (see SlimeLife).
+func melt_away(into_pond: bool) -> void:
+	dead = true
+	collision_layer = 0
+	collision_mask = 0
+	remove_from_group("combatant")
+	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS).set_parallel()
+	if _model != null:
+		tween.tween_property(_model, "scale", Vector3.ONE * 0.05, SlimeLife.VANISH_TIME).set_ease(Tween.EASE_IN)
+	if into_pond:
+		tween.tween_property(self, "position:y", position.y - 1.0, SlimeLife.VANISH_TIME)
+	tween.chain().tween_callback(queue_free)
 
 
 ## A wet, glossy smear under the slime that goes where it goes.
@@ -2004,6 +2075,9 @@ func _physics_process(delta: float) -> void:
 	# Crippled by a vital hit, it needs longer between attacks.
 	_cooldown = maxf(0.0, _cooldown - delta / attack_slow / (SlimeCoat.ATTACK_SLOW if slimed > 0.0 else 1.0) * SlimeGrowth.strike_pace(meals))
 	_tick_slime(delta)
+	SlimeLife.tick(self, delta)
+	if dead:
+		return
 	_tick_burning(delta)
 	if dead:
 		return
@@ -2124,6 +2198,8 @@ func _physics_process(delta: float) -> void:
 	var move := _step_out() if _busy <= 0.0 and not through_walls else Vector3.ZERO
 	if move != Vector3.ZERO:
 		pass # Out of the furniture first.
+	elif retreating:
+		move = _go_to_shore(delta)
 	elif snacks and snack is Villager:
 		_wall_target = null
 		_siege = false

@@ -246,3 +246,4 @@ training_curve.gd | 60 | free | pass | Use table (the cost of the levels, and sa
 lightning_strike.gd | 120 | fixed | pass | Lightning glows, scares and hurts what it strikes
 place_monsters.gd | 60 | free | pass | Compendium places list their monsters' level range
 turning.gd | 60 | free | pass | Natural turns (limited turn rate, arcs)
+frozen_ponds.gd | 120 | free | pass | Frozen ponds with one fishing hole

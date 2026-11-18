@@ -236,6 +236,24 @@ static func snow_cover(cover: float, kind: String, delta: float, winter := false
 	return clampf(cover, 0.0, 1.0)
 
 
+## Hours of cold snow on the ground it takes the ponds to freeze over, and hours of milder
+## weather to thaw again (rain thaws it ICE_RAIN_THAW times as fast).
+const ICE_FREEZE_HOURS := 3.0
+const ICE_THAW_HOURS := 12.0
+const ICE_RAIN_THAW := 2.0
+
+
+## How thickly the ponds are frozen (0 open water to 1 solid, see IceCover) after `delta` real
+## seconds more: they freeze while snow lies (cold enough, see COLD_FROM) and thaw slowly after.
+static func ice(frozen: float, cover: float, kind: String, delta: float) -> float:
+	var hours := delta * 24.0 / DayNight.DAY_LENGTH
+	if cover >= COLD_FROM:
+		frozen += hours / ICE_FREEZE_HOURS
+	else:
+		frozen -= hours / ICE_THAW_HOURS * (ICE_RAIN_THAW if kind == RAIN or kind == STORM else 1.0)
+	return clampf(frozen, 0.0, 1.0)
+
+
 ## The look of a weather (see LOOKS).
 static func look(kind: String) -> Dictionary:
 	return (LOOKS.get(kind, LOOKS[CLEAR]) as Dictionary).duplicate()

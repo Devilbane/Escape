@@ -120,5 +120,7 @@ func _run() -> void:
 		var before := first.global_position.distance_to(second.global_position)
 		for i in 40:
 			Footprint.resolve(level)
+			first.ease_apart(1.0 / 60.0)
+			second.ease_apart(1.0 / 60.0)
 		var after := first.global_position.distance_to(second.global_position)
 		check(after > before + 0.2, "two peaceful animals ease apart (%.2f m to %.2f m)" % [before, after])

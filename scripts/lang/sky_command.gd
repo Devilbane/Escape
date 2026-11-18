@@ -14,4 +14,7 @@ const EN := {
 	"weather:<Wetter>-<Zeit>, z. B. weather:rain-noon. Wetter: clear, rain, fog, storm, snow.": "weather:<weather>-<time>, e.g. weather:rain-noon. Weather: clear, rain, fog, storm, snow.",
 	"Zeit: dawn, morning, noon, afternoon, dusk, evening, night, midnight oder eine Stunde wie 14 oder 14:30.": "Time: dawn, morning, noon, afternoon, dusk, evening, night, midnight or an hour like 14 or 14:30.",
 	"Jahreszeit: winter, spring. Jeder Teil geht auch allein: weather:snow, weather:-night, time:noon.": "Season: winter, spring. Either part alone works: weather:snow, weather:-night, time:noon.",
+	"Tour: weather:showcase zeigt jedes Wetter eine Minute lang durch einen ganzen Tag und Nacht, weather:stop beendet sie.": "Tour: weather:showcase shows each weather for a minute through a whole day and night, weather:stop ends it.",
+	"Himmelstour an: jedes Wetter eine Minute lang durch Tag und Nacht. \"weather:stop\" beendet sie.": "Sky tour on: each weather for a minute through day and night. \"weather:stop\" ends it.",
+	"Himmelstour beendet.": "Sky tour ended.",
 }

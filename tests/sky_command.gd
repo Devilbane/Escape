@@ -83,6 +83,24 @@ func _run() -> void:
 	game._hero_says("weather:spring")
 	check(not Weather.is_winter(game.day) and game.snow_cover == 0.0, "spring")
 
+	# The tour.
+	check(SkyCommand.parse("weather:showcase").tour == "showcase" and SkyCommand.parse("weather:stop").tour == "stop", "tour words")
+	check(SkyCommand.tour_at(0.0).weather == Weather.CLEAR and SkyCommand.tour_at(0.0).hour == 0.0, "tour starts clear at midnight")
+	check(SkyCommand.tour_at(30.0).hour == 12.0 and SkyCommand.tour_at(65.0).weather == Weather.RAIN, "tour sweeps a day per weather")
+	check(SkyCommand.tour_at(299.0).weather == Weather.SNOW and SkyCommand.tour_at(300.0).weather == Weather.CLEAR, "tour loops")
+	game._hero_says("weather:showcase")
+	check(game._tour_time == 0.0, "tour starts")
+	for i in 20:
+		await process_frame
+	check(game._tour_time > 0.0, "tour runs")
+	game._tick_tour(65.0)
+	check(game.weather == Weather.RAIN, "tour moves on to rain")
+	game._hero_says("weather:stop")
+	check(game._tour_time < 0.0, "stop ends the tour")
+	game._hero_says("weather:showcase")
+	game._hero_says("weather:fog")
+	check(game._tour_time < 0.0 and game.weather == Weather.FOG, "another command ends the tour")
+
 	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: sky_command")

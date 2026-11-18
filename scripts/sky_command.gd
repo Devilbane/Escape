@@ -39,6 +39,21 @@ const TIMES := {
 }
 ## How long a forced weather lasts, in hours of the day (5 real minutes).
 const HOLD_HOURS := 6.0
+## The showcase tour: every weather in turn, each for this many real seconds,
+## while the clock sweeps through a whole day and night (midnight to midnight).
+const TOUR_START := "showcase"
+const TOUR_STOP := "stop"
+const TOUR_SECONDS := 60.0
+const TOUR_WEATHERS := [Weather.CLEAR, Weather.RAIN, Weather.FOG, Weather.STORM, Weather.SNOW]
+
+
+## The weather and the hour the tour shows `seconds` after its start.
+static func tour_at(seconds: float) -> Dictionary:
+	var spell := int(seconds / TOUR_SECONDS)
+	return {
+		"weather": TOUR_WEATHERS[spell % TOUR_WEATHERS.size()],
+		"hour": fposmod(seconds, TOUR_SECONDS) / TOUR_SECONDS * 24.0,
+	}
 ## The first day of winter within a year, and the year (see Weather).
 const WINTER_FROM := Weather.YEAR_DAYS - Weather.WINTER_DAYS
 
@@ -59,12 +74,14 @@ static func parse(line: String) -> Variant:
 			break
 	if not found:
 		return null
-	var out := {"weather": "", "hour": -1.0, "winter": -1}
+	var out := {"weather": "", "hour": -1.0, "winter": -1, "tour": ""}
 	for word in rest.split("-", false):
 		word = word.strip_edges()
 		if word == "":
 			continue
-		if WEATHERS.has(word):
+		if word == TOUR_START or word == TOUR_STOP:
+			out.tour = word
+		elif WEATHERS.has(word):
 			out.weather = WEATHERS[word]
 		elif SEASONS.has(word):
 			out.winter = 1 if SEASONS[word] else 0
@@ -74,7 +91,7 @@ static func parse(line: String) -> Variant:
 			out.hour = hour_of(word)
 		else:
 			return {"error": word}
-	if out.weather == "" and out.hour < 0.0 and out.winter < 0:
+	if out.weather == "" and out.hour < 0.0 and out.winter < 0 and out.tour == "":
 		return {"error": ""}
 	return out
 
@@ -109,5 +126,6 @@ static func day_for(day: int, winter: bool) -> int:
 const HELP := [
 	"weather:<Wetter>-<Zeit>, z. B. weather:rain-noon. Wetter: clear, rain, fog, storm, snow.",
 	"Zeit: dawn, morning, noon, afternoon, dusk, evening, night, midnight oder eine Stunde wie 14 oder 14:30.",
+	"Tour: weather:showcase zeigt jedes Wetter eine Minute lang durch einen ganzen Tag und Nacht, weather:stop beendet sie.",
 	"Jahreszeit: winter, spring. Jeder Teil geht auch allein: weather:snow, weather:-night, time:noon.",
 ]

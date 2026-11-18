@@ -2625,7 +2625,9 @@ func _tick_clock(delta: float) -> void:
 		day_hour = DayNight.advance(day_hour, delta)
 		world_hours += delta * 24.0 / DayNight.DAY_LENGTH
 		level.world_hours = world_hours
-		if _dawn_between(before, day_hour):
+		if _tour_time >= 0.0:
+			_tick_tour(delta)
+		elif _dawn_between(before, day_hour):
 			_new_day()
 		_tick_weather(delta)
 		puddle_water = Weather.puddle_water(puddle_water, weather, delta)
@@ -5040,13 +5042,52 @@ func _toggle_godmode() -> void:
 ## of snow, so winter can be checked at once.
 func _sky_command(sky: Dictionary) -> void:
 	if sky.has("error"):
-		if sky.error != "":
-			Events.tell(Lang.t("Unbekanntes Wort \"%s\". Optionen:") % sky.error, TELEPORT_COLOR)
-		else:
-			Events.tell(Lang.t("Wetter und Zeit erzwingen. Optionen:"), TELEPORT_COLOR)
-		for line in SkyCommand.HELP:
-			Events.found(Lang.t(line), TELEPORT_COLOR)
+		_sky_help(sky)
 		return
+	# Any sky command ends a running tour; "showcase" starts a new one.
+	var was_touring := _tour_time >= 0.0
+	_tour_time = -1.0
+	if sky.tour == SkyCommand.TOUR_START:
+		_tour_time = 0.0
+		_tour_weather = ""
+		Events.tell(Lang.t("Himmelstour an: jedes Wetter eine Minute lang durch Tag und Nacht. \"weather:stop\" beendet sie."), TELEPORT_COLOR)
+		return
+	if sky.tour == SkyCommand.TOUR_STOP:
+		if was_touring:
+			Events.tell(Lang.t("Himmelstour beendet."), TELEPORT_COLOR)
+		return
+	_sky_force(sky)
+
+
+## Seconds into the sky tour, or -1 when none runs (see SkyCommand.tour_at).
+var _tour_time := -1.0
+var _tour_weather := ""
+
+
+## One step of the sky tour: the hour sweeps through the day, and the weather
+## changes each time it has swept a whole day.
+func _tick_tour(delta: float) -> void:
+	_tour_time += delta
+	var now := SkyCommand.tour_at(_tour_time)
+	day_hour = now.hour
+	if now.weather != _tour_weather:
+		_tour_weather = now.weather
+		set_weather(_tour_weather, SkyCommand.HOLD_HOURS)
+		if _tour_weather == Weather.SNOW:
+			snow_cover = 1.0
+
+
+func _sky_help(sky: Dictionary) -> void:
+	if sky.error != "":
+		Events.tell(Lang.t("Unbekanntes Wort \"%s\". Optionen:") % sky.error, TELEPORT_COLOR)
+	else:
+		Events.tell(Lang.t("Wetter und Zeit erzwingen. Optionen:"), TELEPORT_COLOR)
+	for line in SkyCommand.HELP:
+		Events.found(Lang.t(line), TELEPORT_COLOR)
+
+
+## Forces the weather, hour and season a command names.
+func _sky_force(sky: Dictionary) -> void:
 	var parts: Array[String] = []
 	var kind: String = sky.weather
 	if sky.winter >= 0:

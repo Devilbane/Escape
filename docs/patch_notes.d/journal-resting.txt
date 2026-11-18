@@ -1,0 +1,1 @@
+- Sleeping long enough for skill rolls now adds a "Resting" journal entry, plus one for every skill that breaks through.

@@ -150,6 +150,9 @@ const SEED_BITE := 0.8
 ## it (closer than to one on the ground: it trusts the feeder) and how big it
 ## is drawn there (the birds are big beside the people's heads).
 const PERCH_CHANCE := 0.5
+## Frozen Fritz as a perch: the seconds between two visits, and how far from him a bird comes from.
+const FROZEN_VISIT := Vector2(5.0, 14.0)
+const FROZEN_RANGE := 40.0
 const PERCH_STAY := Vector2(6.0, 14.0)
 const PERCH_SHY := 1.8
 const PERCH_SIZE := 0.72
@@ -436,6 +439,9 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 				b.hop = maxf(0.0, float(b.hop) - delta)
 				var k := 1.0 - float(b.hop) / HOP_TIME
 				b.at = (b.hop_from as Vector3).lerp(b.hop_to, k) + Vector3.UP * sin(PI * k) * HOP_HEIGHT
+				if b.hop <= 0.0 and level.has_method("snow_print"):
+					# The little feet land: a three-toed print in the snow.
+					level.snow_print(b.hop_to, atan2(b.hop_to.x - b.hop_from.x, b.hop_to.z - b.hop_from.z), 1.0, "bird")
 				return
 			if b.worm > 0.0:
 				# Tugging the worm out, then gulping it down, or off home
@@ -536,7 +542,12 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 					if _rng.randf() < 0.3:
 						b.turn = _rng.randf_range(-1.2, 1.2)
 			if b.wait <= 0.0:
-				if _rng.randf() < 0.5:
+				if feeding.get("frozen", false):
+					# Off home again, there is no seed to come down to.
+					_leave_perch(b)
+					b.seeds = false
+					_fly(b, b.home, "home")
+				elif _rng.randf() < 0.5:
 					# Down to the grains, making room for another.
 					_leave_perch(b)
 					_fly(b, _by_the_seed(), "peck")
@@ -701,6 +712,10 @@ func _pick_speed(b: Dictionary, delta: float) -> void:
 ## night falls, the herald calls), the birds on them fly off.
 func _mind_feeding(delta: float, night: bool) -> void:
 	if feeding.is_empty():
+		var ice := _frozen_one()
+		if ice != null and not night:
+			start_frozen_perch(ice)
+			return
 		_seed_wait -= delta
 		if _seed_wait > 0.0 or night:
 			return
@@ -708,8 +723,63 @@ func _mind_feeding(delta: float, night: bool) -> void:
 		start_feeding()
 		return
 	var by: Object = feeding.by
+	if feeding.get("frozen", false):
+		if night or not is_instance_valid(by) or not by.is_frozen():
+			end_feeding()
+			return
+		feeding.visit -= delta
+		if feeding.visit <= 0.0:
+			feeding.visit = _rng.randf_range(FROZEN_VISIT.x, FROZEN_VISIT.y)
+			_visit_frozen()
+		return
 	if night or not is_instance_valid(by) or not by.is_feeding():
 		end_feeding()
+
+
+## Zecher Fritz while he stands frozen on the market square (see FrozenFritz), or null.
+func _frozen_one() -> Node3D:
+	var people = level.get("villagers")
+	for v in (people if people is Array else []):
+		if is_instance_valid(v) and v.has_method("is_frozen") and v.is_frozen():
+			return v
+	return null
+
+
+## The frozen man is a perch for the birds, all day: a head, a mug and an arm to land on. They come
+## one by one, now and then, from the nests near enough (see _visit_frozen).
+func start_frozen_perch(by: Node3D) -> void:
+	if not feeding.is_empty():
+		return
+	var spot := to_local(by.global_position)
+	spot.y = 0.0
+	feeding = {"by": by, "spot": spot, "called": true, "perch": [-1, -1, -1], "frozen": true,
+			"visit": _rng.randf_range(FROZEN_VISIT.x * 0.3, FROZEN_VISIT.y * 0.5)}
+
+
+## The nearest bird at rest comes to land on a free place on the frozen man.
+func _visit_frozen() -> void:
+	var slots: Array = feeding.perch
+	var free := slots.find(-1)
+	if free < 0:
+		return
+	var best: Dictionary = {}
+	var best_d := FROZEN_RANGE
+	for b: Dictionary in birds:
+		if not b.state in ["sit", "peck"] or b.carry or b.feed > 0.0 or b.seeds or b.worm > 0.0:
+			continue
+		var d := _flat_distance(b.at, feeding.spot)
+		if d < best_d:
+			best_d = d
+			best = b
+	if best.is_empty():
+		return
+	best.seeds = true
+	best.market = false
+	best.dipping = 0.0
+	slots[free] = best.id
+	best.perch = free
+	_fly(best, _perch_at(free), "perch")
+	perched += 1
 
 
 ## Picks a villager free to feed the birds near enough to the nests (or the

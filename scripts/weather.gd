@@ -34,6 +34,9 @@ const KINDS := [CLEAR, RAIN, FOG, STORM, SNOW]
 ## least and at most (one hour is 50 real seconds, see DayNight.DAY_LENGTH).
 const MIN_HOURS := 1.5
 const MAX_HOURS := 3.5
+## Rain lasts long when it comes (it is rare, see RAIN_KEEP): twice as long as fog or a storm.
+const RAIN_MIN_HOURS := 3.0
+const RAIN_MAX_HOURS := 7.0
 ## Snow falls only briefly: a flurry lasts this many hours of the day.
 const SNOW_MIN_HOURS := 1.0
 const SNOW_MAX_HOURS := 2.0
@@ -49,16 +52,30 @@ const FIRST_HOURS := 4.0
 ## pick which bad weather comes; after bad weather, clear skies win most
 ## rolls.
 const CHANCES := {
-	"night": {CLEAR: 8.0, RAIN: 1.0, FOG: 2.0, STORM: 1.0, SNOW: 1.0},
-	"morning": {CLEAR: 8.0, RAIN: 0.75, FOG: 2.5, STORM: 0.25, SNOW: 0.75},
-	"day": {CLEAR: 14.0, RAIN: 1.5, FOG: 0.5, STORM: 0.5, SNOW: 1.0},
-	"evening": {CLEAR: 8.0, RAIN: 1.25, FOG: 0.5, STORM: 1.5, SNOW: 1.0},
+	"night": {CLEAR: 8.0, RAIN: 1.0, FOG: 2.0, STORM: 1.0},
+	"morning": {CLEAR: 8.0, RAIN: 0.75, FOG: 2.5, STORM: 0.25},
+	"day": {CLEAR: 14.0, RAIN: 1.5, FOG: 0.5, STORM: 0.5},
+	"evening": {CLEAR: 8.0, RAIN: 1.25, FOG: 0.5, STORM: 1.5},
 }
 
-## Rain is only a third as common as the weights above would make it: a roll
+## The year: WINTER_DAYS of winter at the end of every YEAR_DAYS days (a new game starts on day
+## 0, so the first winter comes on day 24). Snow falls only in winter, and there is no rain and no
+## thunderstorm then: snow comes in their place, often, and the snow on the ground melts slowly.
+const YEAR_DAYS := 32
+const WINTER_DAYS := 8
+const WINTER_CHANCES := {
+	"night": {CLEAR: 6.0, FOG: 2.0, SNOW: 5.0},
+	"morning": {CLEAR: 6.0, FOG: 2.5, SNOW: 4.0},
+	"day": {CLEAR: 8.0, FOG: 0.5, SNOW: 5.0},
+	"evening": {CLEAR: 6.0, FOG: 0.5, SNOW: 5.0},
+}
+## In winter the snow on the ground melts this many times slower.
+const WINTER_MELT := 4.0
+
+## Rain is only a thirtieth as common as the weights above would make it: a roll
 ## that lands on rain keeps it with this chance, and otherwise goes on to
 ## another weather (fog, a storm, or clear skies after bad weather).
-const RAIN_KEEP := 1.0 / 3.0
+const RAIN_KEEP := 1.0 / 30.0
 
 ## The look of each weather, laid over the light of the hour: how much of
 ## the sun (or moon) and of the ambient light is left, the colour
@@ -146,8 +163,8 @@ static func part_of_day(hour: float) -> String:
 
 ## Picks the next weather for an hour of the day. It is never the same as
 ## the weather before, so every change can be seen.
-static func roll(hour: float, rng: RandomNumberGenerator, before := "") -> String:
-	var chances: Dictionary = CHANCES[part_of_day(hour)]
+static func roll(hour: float, rng: RandomNumberGenerator, before := "", winter := false) -> String:
+	var chances: Dictionary = (WINTER_CHANCES if winter else CHANCES)[part_of_day(hour)]
 	var pick := _pick(chances, rng, before, "")
 	if pick == RAIN and rng.randf() >= RAIN_KEEP:
 		pick = _pick(chances, rng, before, RAIN)
@@ -177,7 +194,21 @@ static func spell(rng: RandomNumberGenerator, kind := RAIN) -> float:
 		return rng.randf_range(CLEAR_MIN_HOURS, CLEAR_MAX_HOURS)
 	if kind == SNOW:
 		return rng.randf_range(SNOW_MIN_HOURS, SNOW_MAX_HOURS)
+	if kind == RAIN:
+		return rng.randf_range(RAIN_MIN_HOURS, RAIN_MAX_HOURS)
 	return rng.randf_range(MIN_HOURS, MAX_HOURS)
+
+
+## Whether `day` (the game's count of days) is in winter (see YEAR_DAYS).
+static func is_winter(day: int) -> bool:
+	return posmod(day, YEAR_DAYS) >= YEAR_DAYS - WINTER_DAYS
+
+
+## The weather a winter allows: snow where rain or a storm would be.
+static func for_season(kind: String, winter: bool) -> String:
+	if winter and (kind == RAIN or kind == STORM):
+		return SNOW
+	return kind
 
 
 ## How much water lies in the puddles (0 dry to 1 full) after `delta` real
@@ -196,13 +227,31 @@ static func puddle_water(water: float, kind: String, delta: float) -> float:
 ## of `kind` weather: snowfall builds it up, other weather melts it, rain
 ## quickest. The snow lies on the ground and the roofs for a while after the
 ## flurry, so there is time to walk in it.
-static func snow_cover(cover: float, kind: String, delta: float) -> float:
+static func snow_cover(cover: float, kind: String, delta: float, winter := false) -> float:
 	var hours := delta * 24.0 / DayNight.DAY_LENGTH
 	if kind == SNOW:
 		cover += hours / SNOW_BUILD_HOURS
 	else:
-		cover -= hours / SNOW_MELT_HOURS * (SNOW_RAIN_MELT if kind == RAIN or kind == STORM else 1.0)
+		cover -= hours / SNOW_MELT_HOURS * (SNOW_RAIN_MELT if kind == RAIN or kind == STORM else 1.0) / (WINTER_MELT if winter else 1.0)
 	return clampf(cover, 0.0, 1.0)
+
+
+## Hours of cold snow on the ground it takes the ponds to freeze over, and hours of milder
+## weather to thaw again (rain thaws it ICE_RAIN_THAW times as fast).
+const ICE_FREEZE_HOURS := 3.0
+const ICE_THAW_HOURS := 12.0
+const ICE_RAIN_THAW := 2.0
+
+
+## How thickly the ponds are frozen (0 open water to 1 solid, see IceCover) after `delta` real
+## seconds more: they freeze while snow lies (cold enough, see COLD_FROM) and thaw slowly after.
+static func ice(frozen: float, cover: float, kind: String, delta: float) -> float:
+	var hours := delta * 24.0 / DayNight.DAY_LENGTH
+	if cover >= COLD_FROM:
+		frozen += hours / ICE_FREEZE_HOURS
+	else:
+		frozen -= hours / ICE_THAW_HOURS * (ICE_RAIN_THAW if kind == RAIN or kind == STORM else 1.0)
+	return clampf(frozen, 0.0, 1.0)
 
 
 ## The look of a weather (see LOOKS).

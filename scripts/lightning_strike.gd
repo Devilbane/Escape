@@ -20,8 +20,8 @@ const HERO_DAMAGE := 1
 const SEEK_CHANCE := 0.2
 const SEEK_RANGE := 30.0
 ## How long the glow takes to fade.
-const GLOW_TIME := 1.4
-const GLOW_COLOR := Color(0.75, 0.88, 1.0)
+const GLOW_TIME := 2.6
+const GLOW_COLOR := Color(0.8, 0.9, 1.0)
 const CRY := "AAAH!"
 
 
@@ -67,6 +67,11 @@ static func _alive(who: Node3D) -> bool:
 
 static func _strike_one(level: Outdoor, who: Node3D, at: Vector3) -> void:
 	glow(who)
+	# After the glow, a harmless oddity for a couple of minutes (see StruckAfterglow).
+	if who is Enemy or who is Animal or who is FarmAnimal or who is Villager or who is Player:
+		who.get_tree().create_timer(GLOW_TIME + 0.2).timeout.connect(func():
+			if is_instance_valid(who) and who.get("dead") != true:
+				StruckAfterglow.put_on(who))
 	Effects.head_text(level, who, 2.6, Lang.t(CRY), GLOW_COLOR)
 	Sfx.play(who, scream_of(who), -2.0, who.global_position, 1.0 if who is Player or who is Villager else 1.5)
 	if who is Player:
@@ -95,7 +100,7 @@ static func glow(who: Node3D) -> void:
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	mat.albedo_color = Color(GLOW_COLOR, 0.9)
+	mat.albedo_color = Color(GLOW_COLOR, 1.0)
 	var old := {}
 	for mesh in who.find_children("*", "MeshInstance3D", true, false):
 		var m := mesh as MeshInstance3D
@@ -103,8 +108,8 @@ static func glow(who: Node3D) -> void:
 		m.material_overlay = mat
 	var light := OmniLight3D.new()
 	light.light_color = GLOW_COLOR
-	light.light_energy = 3.0
-	light.omni_range = 5.0
+	light.light_energy = 6.0
+	light.omni_range = 8.0
 	light.position = Vector3(0, 1.2, 0)
 	who.add_child(light)
 	var sparks := Effects.make_sparkles(GLOW_COLOR, true)

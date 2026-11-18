@@ -135,6 +135,7 @@ var _legs: Array[Node3D] = []
 var _head: Node3D
 var _wings: Array[Node3D] = []
 var _model_name := ""
+var _trail: SnowTrail
 var _anim: AnimationPlayer
 var _playing := ""
 
@@ -227,6 +228,10 @@ func _physics_process(delta: float) -> void:
 		visible = away.length() < HIDE_RANGE
 	if away.length() > ACTIVE_RANGE:
 		return
+	if _trail == null and SnowTrail.FEET.has(kind):
+		_trail = SnowTrail.new(kind)
+	if _trail != null:
+		_trail.follow(level, global_position)
 	# A walk or a trot sets the swing to 1 again every tick. A model's legs stop at once
 	# (no gliding on a walk cycle); the primitive bodies let theirs settle.
 	_swing = 0.0 if _anim != null else move_toward(_swing, 0.0, delta * 6.0)

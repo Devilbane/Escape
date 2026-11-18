@@ -1,0 +1,43 @@
+name: Dev status
+
+# Keeps a one-line status of the development (open and recently merged pull requests) on the
+# `dev-status` branch, in `status.txt`. A Twitch Nightbot command reads it with
+#   $(urlfetch https://raw.githubusercontent.com/devilbane/escape/dev-status/status.txt)
+
+on:
+  pull_request_target:
+    types: [opened, reopened, closed, ready_for_review, converted_to_draft]
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dev-status
+  cancel-in-progress: false
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      # Only the default branch is checked out; code from a pull request is never run here.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Build the status line
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/dev_status.py "$RUNNER_TEMP/status.txt"
+      - name: Publish it on the dev-status branch
+        run: |
+          cd "$RUNNER_TEMP"
+          rm -rf pub && mkdir pub && cd pub
+          git init -q -b dev-status
+          cp ../status.txt status.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add status.txt
+          git commit -q -m "Update dev status"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" dev-status

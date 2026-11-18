@@ -29,6 +29,7 @@ func _process(_delta: float) -> bool:
 	_rules()
 	_world()
 	_prints()
+	_caps()
 	_breath()
 	_winter()
 	_dungeon()
@@ -155,6 +156,38 @@ func _world() -> void:
 	data.erase("snow")
 	game._apply_save(data)
 	check(game.snow_cover == 0.0, "an older saved game wakes up to bare ground")
+
+
+## The snow's body on the buildings: caps and icicles, hidden while the ground is bare and
+## shown once snow lies, every vertex with the way to its full place.
+func _caps() -> void:
+	var lvl: Outdoor = game.level
+	var caps: Array = SnowCaps.in_world(lvl)
+	var verts := 0
+	var ice := 0
+	for cap: MeshInstance3D in caps:
+		for i in cap.mesh.get_surface_count():
+			var n: int = (cap.mesh.surface_get_arrays(i)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+			verts += n
+			if cap.mesh.surface_get_material(i) == SnowCaps.ice_material():
+				ice += n
+	print("snow caps: %d buildings, %d vertices, %d of icicles" % [caps.size(), verts, ice])
+	check(caps.size() >= 5, "the buildings wear caps of snow")
+	check(ice > 0, "icicles hang from the eaves and windows")
+	game.snow_cover = 0.0
+	game._tick_clock(0.05)
+	check(caps.all(func(c: MeshInstance3D): return not c.visible), "no caps on bare roofs")
+	game.snow_cover = 1.0
+	game._tick_clock(0.05)
+	check(caps.all(func(c: MeshInstance3D): return c.visible), "the caps show while snow lies")
+	check(caps.all(func(c: MeshInstance3D): return c.material_overlay == null), "no overlay on the caps")
+	# The bush and ivy leaves take the cut-out snow, which keeps to their shape.
+	var leafy := 0
+	for leaves: GeometryInstance3D in lvl.find_children("Leaves_*", "MultiMeshInstance3D", true, false):
+		var over := leaves.material_overlay as ShaderMaterial
+		if over != null and over.shader == SnowCover.CUTOUT_SHADER:
+			leafy += 1
+	check(leafy > 0, "snow on the leaves of bushes and ivy")
 
 
 func _prints() -> void:

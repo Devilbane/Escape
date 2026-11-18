@@ -2663,7 +2663,9 @@ func _tick_clock(delta: float) -> void:
 		day_hour = DayNight.advance(day_hour, delta)
 		world_hours += delta * 24.0 / DayNight.DAY_LENGTH
 		level.world_hours = world_hours
-		if _dawn_between(before, day_hour):
+		if _tour_time >= 0.0:
+			_tick_tour(delta)
+		elif _dawn_between(before, day_hour):
 			_new_day()
 		_tick_weather(delta)
 		puddle_water = Weather.puddle_water(puddle_water, weather, delta)
@@ -5049,6 +5051,10 @@ func _hero_says(text: String) -> void:
 	if Godmode.is_command(text):
 		_toggle_godmode()
 		return
+	var sky: Variant = SkyCommand.parse(text)
+	if sky != null:
+		_sky_command(sky)
+		return
 	if _teleport_waits_for(text):
 		return
 	var pos := player.global_position
@@ -5069,6 +5075,87 @@ func _toggle_godmode() -> void:
 	if player.godmode:
 		player.hp = player.max_hp
 	Events.tell(Lang.t(Godmode.ON_TEXT) if player.godmode else Lang.t(Godmode.OFF_TEXT), TELEPORT_COLOR)
+
+
+## The chat line's weather and time commands (see SkyCommand): force the
+## weather, the hour and the season at once. A forced snow lays a full layer
+## of snow, so winter can be checked at once.
+func _sky_command(sky: Dictionary) -> void:
+	if sky.has("error"):
+		_sky_help(sky)
+		return
+	# Any sky command ends a running tour; "showcase" starts a new one.
+	var was_touring := _tour_time >= 0.0
+	_tour_time = -1.0
+	if sky.tour == SkyCommand.TOUR_START:
+		_tour_time = 0.0
+		_tour_weather = ""
+		Events.tell(Lang.t("Himmelstour an: jedes Wetter eine Minute lang durch Tag und Nacht. \"weather:stop\" beendet sie."), TELEPORT_COLOR)
+		return
+	if sky.tour == SkyCommand.TOUR_STOP:
+		if was_touring:
+			Events.tell(Lang.t("Himmelstour beendet."), TELEPORT_COLOR)
+		return
+	_sky_force(sky)
+
+
+## Seconds into the sky tour, or -1 when none runs (see SkyCommand.tour_at).
+var _tour_time := -1.0
+var _tour_weather := ""
+
+
+## One step of the sky tour: the hour sweeps through the day, and the weather
+## changes each time it has swept a whole day.
+func _tick_tour(delta: float) -> void:
+	_tour_time += delta
+	var now := SkyCommand.tour_at(_tour_time)
+	day_hour = now.hour
+	if now.weather != _tour_weather:
+		_tour_weather = now.weather
+		set_weather(_tour_weather, SkyCommand.HOLD_HOURS)
+		if _tour_weather == Weather.SNOW:
+			snow_cover = 1.0
+
+
+func _sky_help(sky: Dictionary) -> void:
+	if sky.error != "":
+		Events.tell(Lang.t("Unbekanntes Wort \"%s\". Optionen:") % sky.error, TELEPORT_COLOR)
+	else:
+		Events.tell(Lang.t("Wetter und Zeit erzwingen. Optionen:"), TELEPORT_COLOR)
+	for line in SkyCommand.HELP:
+		Events.found(Lang.t(line), TELEPORT_COLOR)
+
+
+## Forces the weather, hour and season a command names.
+func _sky_force(sky: Dictionary) -> void:
+	var parts: Array[String] = []
+	var kind: String = sky.weather
+	if sky.winter >= 0:
+		day = SkyCommand.day_for(day, sky.winter == 1)
+		parts.append(Lang.t("Winter an") if sky.winter == 1 else Lang.t("Winter aus"))
+	elif Weather.is_winter(day) and kind in [Weather.RAIN, Weather.STORM]:
+		# There is no rain or storm in winter (see Weather.for_season): end it.
+		day = SkyCommand.day_for(day, false)
+		parts.append(Lang.t("Kein Regen im Winter: der Winter wurde beendet."))
+	if sky.hour >= 0.0:
+		day_hour = sky.hour
+		parts.append(Lang.t("Uhrzeit: %s") % DayNight.clock_text(day_hour))
+	if kind != "":
+		set_weather(kind, SkyCommand.HOLD_HOURS)
+		parts.append(Lang.t("Wetter: %s") % Lang.t(Weather.word(weather)))
+		if weather == Weather.SNOW:
+			snow_cover = 1.0
+	if kind != "" or sky.winter >= 0:
+		# Show it at once, without the fade of the sky.
+		_weather_look = Weather.look(weather)
+	if sky.winter >= 0 and kind == "":
+		# Winter on lays snow on the ground; out of it, the ground is bare.
+		snow_cover = 1.0 if sky.winter == 1 else 0.0
+		if sky.winter == 1:
+			set_weather(Weather.SNOW, SkyCommand.HOLD_HOURS)
+			_weather_look = Weather.look(weather)
+	Events.tell(Lang.t("Himmel: %s") % ", ".join(parts), TELEPORT_COLOR)
+	_update_hud()
 
 
 ## The chat line's teleport command (see Teleport). "teleport" lists every

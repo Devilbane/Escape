@@ -22,6 +22,7 @@ const PARTS := [
 	preload("res://scripts/lang/villager_post.gd"),
 	preload("res://scripts/lang/elementals.gd"),
 	preload("res://scripts/lang/teleport.gd"),
+	preload("res://scripts/lang/sky_command.gd"),
 	preload("res://scripts/lang/godmode.gd"),
 	preload("res://scripts/lang/title.gd"),
 	preload("res://scripts/lang/floor_packs.gd"),

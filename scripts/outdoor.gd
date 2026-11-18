@@ -1991,8 +1991,16 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		var spot := Vector3.INF
 		if rng.randf() < nest_chance:
 			spot = AgedStone.nest_spot(tris, ground)
-		_dressed[key] = {"leaves": leaves, "nest": spot - offset if spot != Vector3.INF else spot, "turn": rng.randf() * TAU}
+		# Its snow with a body: caps on the roofs and ledges, icicles at the eaves and windows
+		# (shown only while snow lies, see SnowCaps), with dice of their own.
+		var ice_rng := RandomNumberGenerator.new()
+		ice_rng.seed = hash(key + "schnee")
+		var caps := SnowCaps.build(tris, ground, SnowCaps.windows_of(node, tris, WINDOW_UV), ice_rng, -offset)
+		_dressed[key] = {"leaves": leaves, "nest": spot - offset if spot != Vector3.INF else spot, "turn": rng.randf() * TAU, "caps": caps}
 	var done: Dictionary = _dressed[key]
+	var cap_node := SnowCaps.node_for(done.get("caps"))
+	if cap_node:
+		add_child(cap_node)
 	_ivy.xforms.append_array(done.leaves.xforms)
 	_ivy.colours.append_array(done.leaves.colours)
 	if done.leaves.has("stems"):

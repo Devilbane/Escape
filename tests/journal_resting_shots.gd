@@ -59,5 +59,5 @@ func _run() -> void:
 		game.menus.open("karte")
 		await _wait(20)
 		root.get_viewport().get_texture().get_image().save_png(shots.path_join("journal_resting.png"))
-	print("journal resting test: ", "OK" if failures == 0 else "%d FAILED" % failures)
+	print("PASS" if failures == 0 else "%d FAILED" % failures)
 	quit(failures)

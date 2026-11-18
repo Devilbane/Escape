@@ -2566,7 +2566,8 @@ func _build_quarry(v: Villager, cell: Vector2i) -> void:
 	for part in [[Vector3(0.9, 0, 0.9), 1], [Vector3(1.0, StoneBlock.HEIGHT, 0.9), 2], [Vector3(-1.4, 0, 0.1), 3]]:
 		var block := StoneBlock.make_model(StoneBlock.SHADES[part[1]])
 		block.position = part[0]
-		block.rotation.y = _rng.randf_range(-0.2, 0.2)
+		# Fixed turns, so the quarry never shifts the village's random numbers.
+		block.rotation.y = (part[1] - 2) * 0.1
 		spot.add_child(block)
 	var flake := BoxMesh.new()
 	flake.size = Vector3(0.12, 0.03, 0.08)

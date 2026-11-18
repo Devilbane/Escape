@@ -106,7 +106,9 @@ func _run() -> void:
 	for d: HouseDoor in lvl.house_doors:
 		if d.global_position.distance_to(home_door) < home_leaf.global_position.distance_to(home_door):
 			home_leaf = d
-	v.global_position = home_door
+	# Right at the door leaf: the leaf's exact spot depends on the village's
+	# random numbers, which any change to the forest shifts a little.
+	v.global_position = Vector3(home_leaf.global_position.x, 0.0, home_leaf.global_position.z)
 	v.at_home = false
 	v.visible = true
 	v._hide_inside(true, true)

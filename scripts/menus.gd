@@ -4009,6 +4009,8 @@ func _build_overwrite() -> void:
 ## The widest a compendium tab gets, and the gap between tabs.
 const COMPENDIUM_TAB := 240.0
 const COMPENDIUM_TAB_GAP := 10
+## With every page unlocked (six or seven tabs) the gap is smaller, so the row fits the window.
+const COMPENDIUM_TAB_GAP_FULL := 4
 
 
 ## Every control on one side, everything the hero has been told on the
@@ -4017,14 +4019,13 @@ func _build_compendium() -> void:
 	_add_label(Lang.t("Kompendium"), 38, game.GOLD, game.TITLE_FONT)
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
-	tabs.add_theme_constant_override("separation", COMPENDIUM_TAB_GAP)
 	_box.add_child(tabs)
 	var open_tasks := 0
 	for id in Quests.ALL:
 		if game.quests.is_active(id):
 			open_tasks += 1
 	open_tasks += game.bounties.taken.size()
-	var tabs_shown := [["wissen", Lang.t("Steuerung und Gelerntes")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks], ["ruf", Lang.t("Ruf")]]
+	var tabs_shown := [["wissen", Lang.t("Wissen")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks], ["ruf", Lang.t("Ruf")]]
 	# The chat commands keep their own page, always there, so the tab row never changes
 	# for them.
 	tabs_shown.append(["befehle", Lang.t("Befehle")])
@@ -4044,14 +4045,18 @@ func _build_compendium() -> void:
 		tabs_shown.append(["orte", Lang.t("Orte (%d)") % _visited_places().size()])
 	elif compendium_page == "orte":
 		compendium_page = "wissen"
+	var gap := COMPENDIUM_TAB_GAP if tabs_shown.size() < 6 else COMPENDIUM_TAB_GAP_FULL
+	tabs.add_theme_constant_override("separation", gap)
 	# All tabs share one width, narrower when there are more of them, so the
 	# row never grows past the window.
-	var tab_width := minf(COMPENDIUM_TAB, floorf((WINDOW_SIZES.kompendium.x - COMPENDIUM_TAB_GAP * (tabs_shown.size() - 1)) / tabs_shown.size()))
+	var tab_width := minf(COMPENDIUM_TAB, floorf((WINDOW_SIZES.kompendium.x - gap * (tabs_shown.size() - 1)) / tabs_shown.size()))
 	for tab in tabs_shown:
 		var b := _item_button(tab[1], func():
 			compendium_page = tab[0]
 			_rebuild())
 		b.custom_minimum_size = Vector2(tab_width, 44)
+		# A tab never grows past its share, so the row always fits the window.
+		b.clip_text = true
 		if compendium_page == tab[0]:
 			b.modulate = Color(1.0, 0.9, 0.6)
 		else:

@@ -3,9 +3,10 @@ extends RefCounted
 ## The coloured light the temple's stained glass throws onto the lawn outside:
 ## for every window a shiny, see-through picture of its own glass (the same shape
 ## and colours, taken from the glass texture), lying on the ground in front of the
-## window. It starts away from the wall by as much as the window's sill is high,
+## window. It starts away from the wall by half as much as the window's sill is high,
 ## ends 20% longer than the window is tall (the window's top is the far end) and
-## fades to 30% towards that end. One additive mesh for the whole temple, built in
+## fades out towards that end. Soft coloured rays of the same glass shine from the
+## window down to the picture, like light falling through dusty air. One additive mesh for the whole temple, built in
 ## the temple's own metres. Its "glow" parameter is driven with the glass at night
 ## (see Outdoor.set_hour); the temple's windows burn all night. Fog is off for it,
 ## so the colours stay visible on foggy nights instead of being washed out (and an
@@ -28,9 +29,19 @@ const WINDOWS := [
 	[Vector3(-12.44, 0, -8), Vector3(-1, 0, 0), LANCETS],
 	[Vector3(0, 0, -12.37), Vector3(0, 0, -1), ROSE],
 ]
-## How much longer the picture is than the window, and how bright it is at its far end.
+## How much longer the picture is than the window, how far from the wall it starts
+## (a fraction of the sill's height) and how bright it is at its far end.
 const STRETCH := 1.2
-const FAR_BRIGHTNESS := 0.3
+const GAP := 0.5
+const FAR_BRIGHTNESS := 0.04
+## The rays: ribbons across the beam at these heights of the window (0 = bottom,
+## 1 = top) and sheets along it at these places across the window (0 = left, 1 = right).
+const RIBBONS := [0.1, 0.3, 0.5, 0.7, 0.9]
+const SHEETS := [0.12, 0.37, 0.63, 0.88]
+## How bright the rays are against the picture.
+const RAY_STRENGTH := 0.38
+## How bright the picture on the lawn is (the rays have their own strength).
+const PICTURE_DIM := 0.55
 const LIFT := 0.1
 ## How bright the light is next to the glass itself.
 const DIM := 1.3
@@ -42,22 +53,37 @@ uniform sampler2D glass : source_color, filter_linear_mipmap, repeat_disable;
 uniform float glow = 0.0;
 uniform float scale = 1.0;
 uniform float dim = 1.0;
-uniform float far_brightness = 0.3;
+uniform float far_brightness = 0.04;
+uniform float ray_strength = 0.5;
+uniform float pic_dim = 1.0;
 varying vec2 pic;
+varying float is_ray;
 void vertex() {
-	// COLOR.rg: where on the glass texture this corner lies.
+	// COLOR.rg: where on the glass texture this corner lies; COLOR.b: 1 on a ray.
 	pic = COLOR.rg;
+	is_ray = COLOR.b;
 }
 void fragment() {
-	vec3 c = texture(glass, pic).rgb;
-	// Fades along the picture from the wall's side (UV.y = 0) to the far end.
-	float fade = mix(1.0, far_brightness, UV.y);
-	// A little shine: the brightest colours turn towards white.
-	float lum = max(c.r, max(c.g, c.b));
-	c += vec3(lum * lum * 0.35);
-	// Soft ends, so the picture does not stop with a hard edge.
-	float ends = smoothstep(0.0, 0.03, UV.y) * smoothstep(1.0, 0.97, UV.y);
-	ALBEDO = c * fade * ends * glow / scale * dim;
+	if (is_ray > 0.5) {
+		// A soft, blurred shaft of the glass's colours, streaky, strongest at the window.
+		vec3 rc = min(textureLod(glass, pic, 3.0).rgb * 1.8, vec3(0.75));
+		float streak = 0.7 + 0.3 * sin(UV.x * 37.0) * sin(UV.x * 17.0 + 1.0);
+		float edge = smoothstep(0.0, 0.15, UV.x) * smoothstep(1.0, 0.85, UV.x);
+		float along = (1.0 - UV.y * 0.55) * smoothstep(1.0, 0.9, UV.y);
+		ALBEDO = rc * streak * edge * along * ray_strength * (is_ray - 0.4) * 1.67 * glow / scale * dim;
+	} else {
+		vec3 c = texture(glass, pic).rgb;
+		// Fades along the picture from the wall's side (UV.y = 0) to the far end.
+		float fade = mix(1.0, far_brightness, smoothstep(0.0, 1.0, UV.y * 0.9 + UV.y * UV.y * 0.1));
+		// A little shine: the brightest colours turn towards white.
+		float lum = max(c.r, max(c.g, c.b));
+		c += vec3(lum * lum * 0.15);
+		// Softer colours: a part of each colour is traded for its grey.
+		c = mix(vec3(dot(c, vec3(0.33))), c, 0.8);
+		// Soft ends, so the picture does not stop with a hard edge.
+		float ends = smoothstep(0.0, 0.03, UV.y) * smoothstep(1.0, 0.97, UV.y);
+		ALBEDO = c * fade * ends * glow / scale * dim * pic_dim;
+	}
 }
 """
 
@@ -71,6 +97,8 @@ static func material(glow_scale: float) -> ShaderMaterial:
 	mat.set_shader_parameter("scale", glow_scale)
 	mat.set_shader_parameter("dim", DIM)
 	mat.set_shader_parameter("far_brightness", FAR_BRIGHTNESS)
+	mat.set_shader_parameter("ray_strength", RAY_STRENGTH)
+	mat.set_shader_parameter("pic_dim", PICTURE_DIM)
 	mat.set_shader_parameter("glow", 0.0)
 	return mat
 
@@ -86,7 +114,8 @@ static func build_mesh() -> ArrayMesh:
 		var kind: Dictionary = w[2]
 		# The picture is seen from outside, looking at the wall: its right is "side".
 		var side := Vector3(out.z, 0, -out.x)
-		var near: float = kind["sill"]
+		var sill: float = kind["sill"]
+		var near: float = sill * GAP
 		var far: float = near + float(kind["height"]) * STRETCH
 		var half: float = float(kind["width"]) * 0.5
 		var rect: Rect2 = kind["uv"]
@@ -101,6 +130,29 @@ static func build_mesh() -> ArrayMesh:
 			verts.append(quad[k])
 			uvs.append(quv[k])
 			cols.append(Color((tex[k] as Vector2).x, (tex[k] as Vector2).y, 0.0))
+		# The rays run from the glass (its bottom edge lands at the picture's near end,
+		# its top edge at the far end) down to the lawn.
+		var top: float = sill + float(kind["height"])
+		var up := Vector3.UP
+		for r: float in RIBBONS:
+			var y := lerpf(sill, top, r)
+			var d := lerpf(near, far, r)
+			var tv := lerpf(rect.end.y, rect.position.y, r)
+			var corners := [base + up * y - side * half, base + up * y + side * half,
+				base + out * d + side * half, base + out * d - side * half]
+			var cuv := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
+			var ctex := [Vector2(rect.position.x, tv), Vector2(rect.end.x, tv),
+				Vector2(rect.end.x, tv), Vector2(rect.position.x, tv)]
+			_add_quad(verts, uvs, cols, corners, cuv, ctex, 1.0)
+		for f: float in SHEETS:
+			var across := side * (f - 0.5) * 2.0 * half
+			var tu := lerpf(rect.position.x, rect.end.x, f)
+			var corners := [base + across + up * sill, base + across + up * top,
+				base + across + out * far, base + across + out * near]
+			var cuv := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
+			var ctex := [Vector2(tu, rect.end.y), Vector2(tu, rect.position.y),
+				Vector2(tu, rect.position.y), Vector2(tu, rect.end.y)]
+			_add_quad(verts, uvs, cols, corners, cuv, ctex, 0.7)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
@@ -109,3 +161,12 @@ static func build_mesh() -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
+
+
+## Adds one ray quad (blue above 0.5 in the colour marks it as a ray for the shader, and says how strong).
+static func _add_quad(verts: PackedVector3Array, uvs: PackedVector2Array, cols: PackedColorArray,
+		corners: Array, cuv: Array, ctex: Array, strength: float) -> void:
+	for k: int in [0, 1, 2, 0, 2, 3]:
+		verts.append(corners[k])
+		uvs.append(cuv[k])
+		cols.append(Color((ctex[k] as Vector2).x, (ctex[k] as Vector2).y, strength))

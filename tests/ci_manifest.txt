@@ -132,6 +132,8 @@ weapon_sounds.gd | 120 | fixed | pass | Sword and axe sounds test
 day_night.gd | 120 | fixed | pass | Day and night test
 wandering_merchant.gd | 120 | fixed | pass | Wandering merchant test
 weather.gd | 120 | fixed | pass | Weather test
+snow.gd | 180 | fixed | pass | Snow (snowfall, the snow layer and its melting, footprints, cold breath)
+snow_play.gd | 300 | fixed | pass | Play in the snow (snowball fights, one snowman that melts)
 puddles.gd | 120 | fixed | pass | Rain puddles test
 surfaces.gd | 120 | fixed | pass | Walking speed by ground test
 village_buildings.gd | 120 | fixed | pass | Village houses and chapel test

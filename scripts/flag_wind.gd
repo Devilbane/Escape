@@ -47,6 +47,7 @@ const WINDS := {
 	Weather.RAIN: Vector2(1.6, 6.2),
 	Weather.FOG: Vector2(0.4, 2.5),
 	Weather.STORM: Vector2(2.6, 8.5),
+	Weather.SNOW: Vector2(0.7, 3.6),
 }
 ## The shader for cloth that had a plain material.
 const CLOTH := preload("res://shaders/flutter_cloth.gdshader")

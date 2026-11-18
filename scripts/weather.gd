@@ -27,12 +27,16 @@ const CLEAR := "clear"
 const RAIN := "rain"
 const FOG := "fog"
 const STORM := "storm"
-const KINDS := [CLEAR, RAIN, FOG, STORM]
+const SNOW := "snow"
+const KINDS := [CLEAR, RAIN, FOG, STORM, SNOW]
 
 ## How many hours of the day one spell of rain, fog or storm lasts, at
 ## least and at most (one hour is 50 real seconds, see DayNight.DAY_LENGTH).
 const MIN_HOURS := 1.5
 const MAX_HOURS := 3.5
+## Snow falls only briefly: a flurry lasts this many hours of the day.
+const SNOW_MIN_HOURS := 1.0
+const SNOW_MAX_HOURS := 2.0
 ## Clear skies last longer, so they make up about two thirds of the time.
 const CLEAR_MIN_HOURS := 4.0
 const CLEAR_MAX_HOURS := 8.0
@@ -45,10 +49,10 @@ const FIRST_HOURS := 4.0
 ## pick which bad weather comes; after bad weather, clear skies win most
 ## rolls.
 const CHANCES := {
-	"night": {CLEAR: 8.0, RAIN: 1.0, FOG: 2.0, STORM: 1.0},
-	"morning": {CLEAR: 8.0, RAIN: 0.75, FOG: 2.5, STORM: 0.25},
-	"day": {CLEAR: 14.0, RAIN: 1.5, FOG: 0.5, STORM: 0.5},
-	"evening": {CLEAR: 8.0, RAIN: 1.25, FOG: 0.5, STORM: 1.5},
+	"night": {CLEAR: 8.0, RAIN: 1.0, FOG: 2.0, STORM: 1.0, SNOW: 1.0},
+	"morning": {CLEAR: 8.0, RAIN: 0.75, FOG: 2.5, STORM: 0.25, SNOW: 0.75},
+	"day": {CLEAR: 14.0, RAIN: 1.5, FOG: 0.5, STORM: 0.5, SNOW: 1.0},
+	"evening": {CLEAR: 8.0, RAIN: 1.25, FOG: 0.5, STORM: 1.5, SNOW: 1.0},
 }
 
 ## Rain is only a third as common as the weights above would make it: a roll
@@ -63,10 +67,11 @@ const RAIN_KEEP := 1.0 / 3.0
 ## over; the thick part of it hangs in drifting clouds (see FogClouds), which
 ## `mist` sets the thickness of.
 const LOOKS := {
-	CLEAR: {"sun": 1.0, "amb": 1.0, "sat": 1.0, "fog": 0.0, "rain": 0.0, "mist": 0.0},
-	RAIN: {"sun": 0.5, "amb": 0.85, "sat": 0.8, "fog": 0.006, "rain": 0.55, "mist": 0.0},
-	FOG: {"sun": 0.55, "amb": 1.05, "sat": 0.7, "fog": 0.007, "rain": 0.0, "mist": 1.0},
-	STORM: {"sun": 0.3, "amb": 0.7, "sat": 0.62, "fog": 0.01, "rain": 1.0, "mist": 0.0},
+	CLEAR: {"sun": 1.0, "amb": 1.0, "sat": 1.0, "fog": 0.0, "rain": 0.0, "mist": 0.0, "snow": 0.0},
+	RAIN: {"sun": 0.5, "amb": 0.85, "sat": 0.8, "fog": 0.006, "rain": 0.55, "mist": 0.0, "snow": 0.0},
+	FOG: {"sun": 0.55, "amb": 1.05, "sat": 0.7, "fog": 0.007, "rain": 0.0, "mist": 1.0, "snow": 0.0},
+	STORM: {"sun": 0.3, "amb": 0.7, "sat": 0.62, "fog": 0.01, "rain": 1.0, "mist": 0.0, "snow": 0.0},
+	SNOW: {"sun": 0.6, "amb": 1.0, "sat": 0.75, "fog": 0.005, "rain": 0.0, "mist": 0.0, "snow": 1.0},
 }
 ## The colour of fog and haze in full daylight; at night it darkens with
 ## the ambient light.
@@ -90,6 +95,21 @@ const MIST_PATCHES := 28
 ## they take to dry up again.
 const PUDDLE_FILL_HOURS := 0.8
 const PUDDLE_DRY_HOURS := 3.0
+
+## Snow (see SnowCover): flakes at full strength, and the box around the hero
+## they fall in. The layer of snow on the roofs and the ground builds up in
+## this many hours of snowfall and melts away again in this many hours of
+## dry weather (rain washes it off in a third of that).
+const SNOW_FLAKES := 650
+const SNOW_BUILD_HOURS := 0.5
+const SNOW_MELT_HOURS := 5.0
+const SNOW_RAIN_MELT := 3.0
+## Below this much snow on the ground the air is not cold enough to see
+## breath, and the footprints of a hero are not clear in the snow.
+const COLD_FROM := 0.15
+const PRINT_FROM := 0.3
+## True while it is cold above ground (set by Game): breath shows (see Breath).
+static var cold := false
 
 
 ## The mist of a look with the night's dust added (see NIGHT_DUST). The dust
@@ -155,6 +175,8 @@ static func _pick(chances: Dictionary, rng: RandomNumberGenerator, before: Strin
 static func spell(rng: RandomNumberGenerator, kind := RAIN) -> float:
 	if kind == CLEAR:
 		return rng.randf_range(CLEAR_MIN_HOURS, CLEAR_MAX_HOURS)
+	if kind == SNOW:
+		return rng.randf_range(SNOW_MIN_HOURS, SNOW_MAX_HOURS)
 	return rng.randf_range(MIN_HOURS, MAX_HOURS)
 
 
@@ -168,6 +190,19 @@ static func puddle_water(water: float, kind: String, delta: float) -> float:
 	else:
 		water -= hours / PUDDLE_DRY_HOURS
 	return clampf(water, 0.0, 1.0)
+
+
+## How thick the snow lies (0 bare to 1 deep) after `delta` real seconds more
+## of `kind` weather: snowfall builds it up, other weather melts it, rain
+## quickest. The snow lies on the ground and the roofs for a while after the
+## flurry, so there is time to walk in it.
+static func snow_cover(cover: float, kind: String, delta: float) -> float:
+	var hours := delta * 24.0 / DayNight.DAY_LENGTH
+	if kind == SNOW:
+		cover += hours / SNOW_BUILD_HOURS
+	else:
+		cover -= hours / SNOW_MELT_HOURS * (SNOW_RAIN_MELT if kind == RAIN or kind == STORM else 1.0)
+	return clampf(cover, 0.0, 1.0)
 
 
 ## The look of a weather (see LOOKS).
@@ -221,6 +256,8 @@ static func word(kind: String) -> String:
 		return "Nebel"
 	if kind == STORM:
 		return "Gewitter"
+	if kind == SNOW:
+		return "Schnee"
 	return "klar"
 
 
@@ -249,6 +286,38 @@ static func make_rain() -> CPUParticles3D:
 	p.gravity = Vector3(0, -9.8, 0)
 	p.initial_velocity_min = 18.0
 	p.initial_velocity_max = 22.0
+	Effects.start_cold(p)
+	return p
+
+
+## Snowflakes that drift down around the hero (keep them over the hero, see
+## Game): big soft flakes, slow, with a little wind.
+static func make_snow() -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = SNOW_FLAKES
+	p.lifetime = 9.0
+	p.preprocess = 9.0
+	p.local_coords = false
+	p.emitting = false
+	var flake := QuadMesh.new()
+	flake.size = Vector2(0.11, 0.11)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.albedo_texture = Effects._soft_dot()
+	mat.albedo_color = Color(1, 1, 1, 0.0)
+	flake.material = mat
+	p.mesh = flake
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = RAIN_BOX
+	p.direction = Vector3(0.35, -1.0, 0.12)
+	p.spread = 22.0
+	p.gravity = Vector3.ZERO
+	p.initial_velocity_min = 1.4
+	p.initial_velocity_max = 2.0
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.5
 	Effects.start_cold(p)
 	return p
 
@@ -293,7 +362,14 @@ static func make_mist() -> CPUParticles3D:
 
 
 ## Shows rain and mist as strong as the look says, darker by night.
-static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_look: Dictionary, light: float) -> void:
+static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_look: Dictionary, light: float, snow: CPUParticles3D = null) -> void:
+	if snow != null:
+		var f: float = weather_look.snow
+		snow.emitting = f > 0.02
+		snow.visible = snow.emitting
+		var snow_mat: StandardMaterial3D = (snow.mesh as QuadMesh).material
+		var tone := clampf(0.3 + light, 0.3, 1.0)
+		snow_mat.albedo_color = Color(tone, tone, minf(1.0, tone * 1.05), 0.9 * f)
 	var r: float = weather_look.rain
 	rain.emitting = r > 0.02
 	rain.visible = rain.emitting

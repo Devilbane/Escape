@@ -8,10 +8,11 @@ class_name QuarryHill
 ## flat-shaded style of the mountains (see Mountains). It is solid: one box
 ## per tile, as high as the rock there.
 
-## The tiles of the hill, relative to the mason's tile: columns -6..-2 on his
-## row and the two rows below him, and the column right beside him on the
-## row of the stone he works at.
-const ROWS := {-1: [-6, -2], 0: [-6, -1], 1: [-6, -1]}
+## The tiles of the hill, relative to the mason's tile: columns -6..-2 on the
+## row above him, on his own row and on the row below him. The column right
+## beside him (-1) stays open: it is the way from the door of the house above
+## to the rest of the village.
+const ROWS := {-1: [-6, -2], 0: [-6, -2], 1: [-6, -2]}
 ## How high the rock gets and how far in from its edge it takes to get there
 ## (metres). Gentle enough that the camera, looking from the south, never
 ## loses the hero behind it (see Mountains.SOUTH_SLOPE).

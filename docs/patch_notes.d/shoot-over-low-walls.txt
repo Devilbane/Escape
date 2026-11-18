@@ -1,0 +1,1 @@
+- Knives, arrows and spells can be shot over a wall of two stone-block layers (the village wall too); from three layers up, and at a shut gate, the wall stops them.

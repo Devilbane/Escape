@@ -3063,6 +3063,11 @@ func is_lit(pos: Vector3) -> bool:
 	return false
 
 
+## The shut gate of the village wall stops shots too (see VillageWall.shot_blocked).
+func shot_blocked(a: Vector3, b: Vector3) -> bool:
+	return super(a, b) or village_wall.shot_blocked(a, b)
+
+
 func is_opaque(c: Vector2i) -> bool:
 	var ch := cell_char(c)
 	return ch == "#" or ch == "=" or ch == "I" or BLOCK_CHARS.contains(ch)

@@ -981,9 +981,10 @@ func _fight(delta: float) -> void:
 	_turn_to(to, delta)
 	var throws := VillageArms.style(role) == "throw" or (VillageArms.style(role) == "melee" and knives > 0)
 	var casts := VillageArms.style(role) == "cast"
-	# The wall stops a knife or a spell: with a slime on the far side nothing is thrown or cast.
+	# A high wall (a shut gate, a stack of three blocks) stops a knife or a spell: with a slime on
+	# the far side nothing is thrown or cast. A wall of two layers can be shot over.
 	# A fighter with a blade goes for it with that; Pip and the mage wait for a clear shot.
-	var walled := (throws or casts) and level.village_wall.shot_blocked(global_position, threat.global_position)
+	var walled := (throws or casts) and level.shot_blocked(global_position, threat.global_position)
 	if walled and VillageArms.style(role) == "melee":
 		throws = false
 		walled = false
@@ -1103,7 +1104,7 @@ func _hunt_slimes(delta: float) -> void:
 		var post := level.cell_to_world(home)
 		if Vector2(e.global_position.x - post.x, e.global_position.z - post.z).length() > VillageArms.CAST_HUNT:
 			continue
-		if d < best_d and level.has_line_of_sight(global_position, e.global_position) and not level.village_wall.shot_blocked(global_position, e.global_position):
+		if d < best_d and level.has_line_of_sight(global_position, e.global_position) and not level.shot_blocked(global_position, e.global_position):
 			best = e
 			best_d = d
 	if best != null:

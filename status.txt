@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Make the house fireplace crackle louder; Brief snowfall, snow on everything under the sky, footprints, breath and snow play | Shipped this week: Fix dev status publishing (signed commits required); Make blocked goats and sheep turn around (+26 more)
+Escape! dev status | Working on: Let shots fly over low walls; only three layers stop them; Make the house fireplace crackle louder (+1 more) | Shipped this week: Fix dev status publishing (signed commits required); Make blocked goats and sheep turn around (+26 more)

@@ -56,11 +56,21 @@ func _run() -> void:
 		layer.visible = false
 	lvl.set_hour(12.0)
 	game.set_weather(Weather.SNOW, 3.0)
-	game.snow_cover = 1.0
+	game.snow_cover = 0.0 if OS.get_environment("NOSNOW") != "" else 1.0
 	var farm := lvl.cell_to_world(VillageFarm.pippi_home(lvl))
 	game.player.global_position = farm + Vector3(2, 0, 3)
 	await _wait(200)
 	if shots != "":
+		# Gorm's forge: the coals and the fire in its chimney stay clear of snow.
+		for w: Vector4 in lvl.warm_spots:
+			if is_equal_approx(w.w, 1.8):
+				var coals := Vector3(w.x, w.y, w.z)
+				await _shot("snow_forge", coals + Vector3(3.5, 3.6, 4.5), coals + Vector3(0, 1.0, 0), 55.0)
+		if OS.get_environment("ONLY") == "forge":
+			game.delete_save(game.save_path())
+			print("PASS: snow shots")
+			quit(0)
+			return
 		var p: Vector3 = game.player.global_position
 		# A trail of prints walking towards the camera, past the hero.
 		for i in 10:

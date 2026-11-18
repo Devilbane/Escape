@@ -300,6 +300,12 @@ const CANDLE_GLOW := 5.0
 var _lamps: Array[OmniLight3D] = []
 ## The bandits' campfires light up their camp at night too.
 var _fires: Array[Vector3] = []
+## Where something burns (campfires, the forge, smoking chimneys): xyz and how far round it no snow
+## settles (see SnowCover.set_warm).
+var warm_spots: Array[Vector4] = []
+## The fires of the smithy model (building_blacksmith_red): the logs in the furnace's mouth and the
+## fire on top of its chimney, in the model's own frame, with how far round them it is warm.
+const SMITHY_FIRES: Array[Vector4] = [Vector4(0.22, 0.14, 0.24, 0.24), Vector4(0.21, 0.91, -0.14, 0.14)]
 var _candles: Array[MeshInstance3D] = []
 var _candle_mat: StandardMaterial3D
 ## The glass of the street lamps' lanterns, glowing at night.
@@ -543,6 +549,7 @@ func build() -> void:
 		for hx in range(_house_rect.position.x, _house_rect.end.x):
 			roofed.append(Vector2i(hx, hy))
 	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
+	snow.set_warm(warm_spots)
 	var floor_shape := CollisionShape3D.new()
 	floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(floor_shape)
@@ -1062,6 +1069,7 @@ func _build_campfire(pos: Vector3) -> void:
 	light.position = pos + Vector3(0, 2.0, 0)
 	add_child(light)
 	_fires.append(pos)
+	warm_spots.append(Vector4(pos.x, pos.y + 0.3, pos.z, 2.4))
 	_add_solid(pos, Vector3(2.2, 1.5, 2.2))
 
 
@@ -1299,6 +1307,12 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		var s := minf(room.x / model_size.x, room.y / model_size.y)
 		var foot := (Vector3(box.position.x + box.size.x * 0.5, 0, box.position.z + box.size.z * 0.5) * s).rotated(Vector3.UP, rot)
 		node = _put(model, center - foot, rot, s)
+		if ch == "j":
+			# The smithy's furnace burns logs in its mouth and a fire on its chimney (spots in the
+			# model's own frame, where its texture glows): no snow on either.
+			for hot: Vector4 in SMITHY_FIRES:
+				var at: Vector3 = node.transform * Vector3(hot.x, hot.y, hot.z)
+				warm_spots.append(Vector4(at.x, at.y, at.z, hot.w * s))
 		if ch != "R":
 			_age_kit_building(node)
 		if ch == "u":
@@ -1348,6 +1362,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		var plume := ChimneySmoke.make()
 		plume.position = node.transform * (node.get_meta("chimney") as Vector3)
 		add_child(plume)
+		warm_spots.append(Vector4(plume.position.x, plume.position.y, plume.position.z, 0.8))
 		chimneys.append({"door": front, "smoke": plume})
 	elif ch == "R":
 		# Ivy up the old crypt (never over its door), and no nest on it.
@@ -2637,6 +2652,8 @@ func _build_forge(cell: Vector2i) -> void:
 	# top of the stack, and the same thin smoke the houses' chimneys give.
 	var top := coals + Vector3(0, 2.52, -0.42)
 	_chimney_fire(top)
+	warm_spots.append(Vector4(coals.x, coals.y, coals.z, 1.8))
+	warm_spots.append(Vector4(top.x, top.y, top.z, 1.6))
 	var plume := ChimneySmoke.make()
 	plume.position = top + Vector3(0, 0.25, 0)
 	_fixed_seed(plume, 3)

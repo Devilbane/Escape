@@ -80,6 +80,10 @@ const ROWS = ["basic", "advanced", "master"];
 let boxes = [], links = [], uidN = 1;
 let sel = null;            // {type:"box"|"link", ref}
 let view = { x: 0, y: 0, k: 1 };
+// The game's attribute keys (German) and the English names shown in this tool.
+const ATTR = { staerke: "Strength", geschick: "Dexterity", intelligenz: "Intelligence", konstitution: "Constitution", tempo: "Speed", intuition: "Intuition", weisheit: "Wisdom" };
+const attrKey = n => { n = n.toLowerCase(); return Object.keys(ATTR).find(k => k === n || ATTR[k].toLowerCase() === n) || slug(n); };
+const attrName = k => ATTR[attrKey(k)] || k;
 const KEY = "escape-skilltree-mindmap-v1";
 
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
@@ -241,7 +245,7 @@ function draw() {
     }
   }
 }
-function reqText(b) { return b.attrNeeds.split(',').map(x => x.trim()).filter(Boolean).map(x => x.replace(/\s*[:=]\s*/, ' ')).join(', '); }
+function reqText(b) { return b.attrNeeds.split(',').map(x => x.trim()).filter(Boolean).map(x => { const [k, v] = x.split(/\s*[:=\s]\s*/); return attrName(k) + (v ? ' ' + v : ''); }).join(', '); }
 function fit(t, maxW) { if (ctx.measureText(t).width <= maxW) return t; while (t.length > 1 && ctx.measureText(t + "…").width > maxW) t = t.slice(0, -1); return t + "…"; }
 function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 function gridStep() { let s = 50; while (s * view.k < 18) s *= 5; while (s * view.k > 90) s /= 5; return s; }
@@ -344,15 +348,15 @@ function renderPanel() {
     const b = sel.ref;
     panel.innerHTML = `<h2>Skill box</h2>${m}
       <label for="fName">Name</label><input id="fName" value="${esc(b.name)}" placeholder="e.g. Sword fighting">
-      <label for="fDesc">Description</label><textarea id="fDesc" placeholder="What does this skill do?">${esc(b.description)}</textarea>
-      <label for="fAN">Requirements (attribute value, comma separated)</label><input id="fAN" value="${esc(b.attrNeeds)}" placeholder="staerke 15, geschick 10">
+      <label for="fDesc">Description</label><textarea id="fDesc" placeholder="What does this skill do? (English)">${esc(b.description)}</textarea>
+      <label for="fAN">Requirements (Strength, Dexterity, Intelligence, Constitution, Speed, Intuition, Wisdom + value)</label><input id="fAN" value="${esc(b.attrNeeds)}" placeholder="Strength 15, Dexterity 10">
       <details open><summary>Game data</summary>
         <label for="fId">Id (used in the game data)</label><input id="fId" value="${esc(b.id)}">
         <div class="row2"><div><label for="fTree">Tree</label><input id="fTree" value="${esc(b.tree)}" placeholder="kampf"></div>
         <div><label for="fRow">Row</label><select id="fRow">${ROWS.map(r => `<option ${r === b.row ? "selected" : ""}>${r}</option>`).join("")}</select></div></div>
         <div class="row2"><div><label for="fLevels">Max levels</label><input id="fLevels" type="number" min="1" value="${b.levels}"></div>
         <div><label for="fInGame">In the game</label><select id="fInGame"><option value="0">not yet</option><option value="1" ${b.inGame ? "selected" : ""}>yes</option></select></div></div>
-        <label for="fAttr">Attributes (comma separated)</label><input id="fAttr" value="${esc(b.attributes)}" placeholder="staerke, geschick">
+        <label for="fAttr">Attributes (comma separated)</label><input id="fAttr" value="${esc(b.attributes)}" placeholder="Strength, Dexterity">
       </details>
       <p><button class="danger" id="fDel">Delete box (Del)</button></p>
       <p class="help">Drag the blue handle on the right edge to another box to add an arrow (this box is then a prerequisite of it). Drop it on empty space to create a new box.</p>`;
@@ -407,11 +411,11 @@ function download(name, text, type) {
 }
 function gdscript() {
   const q = s => '"' + String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
-  const list = s => "[" + s.split(",").map(x => x.trim()).filter(Boolean).map(q).join(", ") + "]";
+  const list = s => "[" + s.split(",").map(x => x.trim()).filter(Boolean).map(attrKey).map(q).join(", ") + "]";
   const out = [];
   for (const b of boxes) {
     const needs = links.filter(l => l.to === b.u).map(l => q(byU(l.from).id) + ": " + l.level).join(", ");
-    const an = b.attrNeeds.split(",").map(x => x.trim()).filter(Boolean).map(x => { const [k, v] = x.split(/\s*[:=\s]\s*/); return q(k.trim()) + ": " + (parseInt(v) || 1); }).join(", ");
+    const an = b.attrNeeds.split(",").map(x => x.trim()).filter(Boolean).map(x => { const [k, v] = x.split(/\s*[:=\s]\s*/); return q(attrKey(k.trim())) + ": " + (parseInt(v) || 1); }).join(", ");
     let s = `\t${q(b.id)}: {"name": ${q(b.name)}, "tree": ${q(b.tree)}, "row": ${q(b.row)}, "levels": ${b.levels}, "attributes": ${list(b.attributes)}`;
     if (needs) s += `, "needs": {${needs}}`; if (an) s += `, "attribute_needs": {${an}}`; if (b.inGame) s += `, "in_game": true`;
     out.push(s + ",},");

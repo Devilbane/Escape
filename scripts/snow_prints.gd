@@ -17,7 +17,7 @@ const HEIGHT := 0.085
 ## The pictures are toe-up (v = 0), which a flat quad lays towards -Z; a walker heading `h` goes
 ## towards (sin h, 0, cos h), so the quad turns half way round.
 const FRONT := PI
-const GREY := Color(0.5, 0.53, 0.6, 0.85)
+const GREY := Color(0.26, 0.29, 0.38, 0.92)
 
 static var _shapes := {}
 static var _textures := {}

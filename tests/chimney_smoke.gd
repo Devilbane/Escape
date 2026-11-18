@@ -68,7 +68,7 @@ func _rules() -> void:
 	# A cold plume is drawn all the same: its buffer must be blank, not
 	# whatever the graphics driver left in that memory (green and yellow
 	# balls over the roof on some machines).
-	for cold: CPUParticles3D in [plume, Effects.make_forge_sparks(), Effects.make_wood_chips(), Weather.make_rain(), Weather.make_mist()]:
+	for cold: CPUParticles3D in [plume, Effects.make_forge_sparks(), Effects.make_wood_chips(), Weather.make_rain(), Weather.make_mist(), Weather.make_leaves()]:
 		var buffer := RenderingServer.multimesh_get_buffer(cold.get_base())
 		check(buffer.size() == cold.amount * 20 and Array(buffer).all(func(x: float) -> bool: return x == 0.0),
 				"a particle effect that starts cold starts with a blank buffer")

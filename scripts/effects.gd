@@ -292,7 +292,7 @@ static func make_spray(color: Color) -> CPUParticles3D:
 ## Wood chips that fly off where an axe bites into a trunk: a burst of pale
 ## splinters thrown up and to the sides, tumbling down again. Waits until
 ## restart() is called for each blow.
-static func make_wood_chips() -> CPUParticles3D:
+static func make_wood_chips(colour := Color(0.86, 0.7, 0.48)) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.amount = 12
 	p.lifetime = 0.75
@@ -302,7 +302,7 @@ static func make_wood_chips() -> CPUParticles3D:
 	p.local_coords = false
 	var chip := BoxMesh.new()
 	chip.size = Vector3(0.1, 0.02, 0.06)
-	chip.material = _paint(Color(0.86, 0.7, 0.48), 0.9)
+	chip.material = _paint(colour, 0.9)
 	p.mesh = chip
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	p.emission_sphere_radius = 0.08
@@ -325,6 +325,11 @@ static func make_wood_chips() -> CPUParticles3D:
 	p.scale_amount_curve = shrink
 	start_cold(p)
 	return p
+
+
+## Grey flakes that fly off a rock under the mason's hammer.
+static func make_stone_chips() -> CPUParticles3D:
+	return make_wood_chips(Color(0.62, 0.6, 0.57))
 
 
 ## Sparks that fly off hot iron under the smith's hammer: a quick burst of

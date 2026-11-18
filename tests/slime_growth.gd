@@ -75,7 +75,9 @@ func _kept_slime_back(when: String) -> bool:
 			continue
 		check(e.rated_level == int(kept.level), "it keeps its level %s (%d, was %d)" % [when, e.rated_level, kept.level])
 		var tint: Color = e._stats.get("tint", Color.BLACK)
-		check(tint.is_equal_approx(kept.tint) or tint.to_html() == (kept.tint as Color).to_html(), "it keeps its colour %s" % when)
+		# The save keeps each channel to a thousandth, so the colour may differ by that.
+		var was: Color = kept.tint
+		check(absf(tint.r - was.r) <= 0.001 and absf(tint.g - was.g) <= 0.001 and absf(tint.b - was.b) <= 0.001, "it keeps its colour %s (%s, was %s)" % [when, tint, was])
 		var things := []
 		for meal in e.belly:
 			things.append_array(meal.loot)

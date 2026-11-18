@@ -2465,6 +2465,7 @@ func _spawn_villagers() -> void:
 				_build_barber_shop(c + Vector2i(0, -1))
 			elif ch == "S":
 				_build_stone_yard(c + Vector2i(0, -1))
+				_build_quarry(v, c)
 			elif ch == "1":
 				_build_forge(c + Vector2i(-1, 0))
 				_build_anvil(v, c, Vector3.LEFT)
@@ -2536,6 +2537,56 @@ func _build_stone_yard(cell: Vector2i) -> void:
 	board.position = pos + Vector3(-1.6, 0, 1.9)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.6, 0, 1.9), Vector3(0.5, 2.6, 0.5))
+
+
+## The stonemason's quarry: a small hill of rock west of him, cleared out of
+## the forest (see QuarryHill), with a rough block at its foot that he chips
+## with his hammer (see Villager.set_chopping) and a few cut blocks beside it.
+func _build_quarry(v: Villager, cell: Vector2i) -> void:
+	QuarryHill.build(self, cell)
+	var face := Vector3.LEFT
+	var stand := cell_to_world(cell)
+	var spot := Node3D.new()
+	spot.name = "QuarryBlock"
+	spot.position = stand
+	spot.rotation.y = atan2(face.x, face.z)
+	add_child(spot)
+	var rock := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.85, 0.95, 0.7)
+	rock.mesh = box
+	var rough := StandardMaterial3D.new()
+	rough.albedo_color = Color(0.5, 0.48, 0.45)
+	rough.roughness = 1.0
+	rock.material_override = rough
+	rock.position = Villager.ANVIL_AT + Vector3(0, 0.475, 0)
+	rock.rotation.y = 0.12
+	spot.add_child(rock)
+	# Cut blocks beside the rock, and flakes from earlier blows.
+	for part in [[Vector3(0.9, 0, 0.9), 1], [Vector3(1.0, StoneBlock.HEIGHT, 0.9), 2], [Vector3(-1.4, 0, 0.1), 3]]:
+		var block := StoneBlock.make_model(StoneBlock.SHADES[part[1]])
+		block.position = part[0]
+		# Fixed turns, so the quarry never shifts the village's random numbers.
+		block.rotation.y = (part[1] - 2) * 0.1
+		spot.add_child(block)
+	var flake := BoxMesh.new()
+	flake.size = Vector3(0.12, 0.03, 0.08)
+	var grey := StandardMaterial3D.new()
+	grey.albedo_color = Color(0.62, 0.6, 0.57)
+	for at in [Vector3(-0.2, 0, 0.9), Vector3(-1.0, 0, 1.0), Vector3(-0.5, 0, 1.8), Vector3(0.1, 0, 1.6), Vector3(-1.1, 0, 1.6)]:
+		var f := MeshInstance3D.new()
+		f.mesh = flake
+		f.material_override = grey
+		f.position = at + Vector3(0, 0.015, 0)
+		f.rotation.y = at.x * 7.0 + at.z * 3.0
+		spot.add_child(f)
+	var chips := Effects.make_stone_chips()
+	chips.position = Villager.HAMMER_POINT
+	spot.add_child(chips)
+	_add_solid(spot.to_global(Villager.ANVIL_AT), Vector3(0.7, 0.95, 0.85))
+	v.global_position = stand
+	v.rotation.y = spot.rotation.y
+	v.set_chopping(stand, face, chips)
 
 
 ## The smith's forge on the tile beside him: a hearth of rough stones with

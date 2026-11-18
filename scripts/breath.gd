@@ -1,7 +1,7 @@
 class_name Breath
 extends Node3D
 ## Frozen breath. In the cold (while snow falls or lies, see Weather.cold) the hero and every
-## villager breathe out a small white puff in front of the mouth every second or two, and it
+## villager breathe out a big white cloud in front of the mouth every second or two, and it
 ## drifts up and thins out. Out of the cold nothing shows. One puff is a few soft particles
 ## from one shared texture and material, so a whole village of breathers costs next to nothing.
 
@@ -48,28 +48,28 @@ static func _shared() -> StandardMaterial3D:
 
 func _ready() -> void:
 	_puff = CPUParticles3D.new()
-	_puff.amount = 5
-	_puff.lifetime = 1.3
+	_puff.amount = 8
+	_puff.lifetime = 2.1
 	_puff.one_shot = true
 	_puff.explosiveness = 0.55
 	_puff.local_coords = false
 	_puff.emitting = false
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.24, 0.24)
+	quad.size = Vector2(0.5, 0.5)
 	quad.material = _shared()
 	_puff.mesh = quad
 	_puff.direction = Vector3(0, 0.18, 1)
-	_puff.spread = 18.0
+	_puff.spread = 24.0
 	_puff.gravity = Vector3(0, 0.3, 0)
-	_puff.initial_velocity_min = 0.35
-	_puff.initial_velocity_max = 0.7
+	_puff.initial_velocity_min = 0.5
+	_puff.initial_velocity_max = 0.95
 	_puff.damping_min = 0.4
 	_puff.damping_max = 0.9
 	_puff.scale_amount_min = 0.5
 	_puff.scale_amount_max = 1.0
 	var grow := Curve.new()
 	grow.add_point(Vector2(0, 0.4))
-	grow.add_point(Vector2(1, 2.0))
+	grow.add_point(Vector2(1, 3.2))
 	_puff.scale_amount_curve = grow
 	var fade := Gradient.new()
 	fade.set_color(0, Color(1, 1, 1, 0.0))

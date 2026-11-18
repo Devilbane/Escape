@@ -2,7 +2,7 @@ class_name Breath
 extends Node3D
 ## Frozen breath. In the cold (while snow falls or lies, see Weather.cold) the hero and every
 ## villager breathe out a big white cloud in front of the mouth every second or two, and it
-## drifts up and thins out. Out of the cold nothing shows. One puff is a few soft particles
+## drifts up and thins out. Out of the cold nothing shows. One breath is a steady stream of soft particles
 ## from one shared texture and material, so a whole village of breathers costs next to nothing.
 
 ## How long between two breaths (seconds), at least and at most.
@@ -65,33 +65,33 @@ func _ready() -> void:
 ## breaths take turns on a few of them and each cloud drifts and fades out in full.
 func _make_puff() -> CPUParticles3D:
 	var puff := CPUParticles3D.new()
-	puff.amount = 8
-	puff.lifetime = 2.1
+	puff.amount = 20
+	puff.lifetime = 1.6
 	puff.one_shot = true
-	puff.explosiveness = 0.55
+	puff.explosiveness = 0.0
 	puff.local_coords = false
 	puff.emitting = false
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.5, 0.5)
+	quad.size = Vector2(0.4, 0.4)
 	quad.material = _shared()
 	puff.mesh = quad
 	puff.direction = Vector3(0, 0.18, 1)
-	puff.spread = 24.0
+	puff.spread = 7.0
 	puff.gravity = Vector3(0, 0.3, 0)
-	puff.initial_velocity_min = 0.5
-	puff.initial_velocity_max = 0.95
-	puff.damping_min = 0.4
-	puff.damping_max = 0.9
-	puff.scale_amount_min = 0.5
+	puff.initial_velocity_min = 0.7
+	puff.initial_velocity_max = 0.85
+	puff.damping_min = 0.3
+	puff.damping_max = 0.5
+	puff.scale_amount_min = 0.8
 	puff.scale_amount_max = 1.0
 	var grow := Curve.new()
-	grow.add_point(Vector2(0, 0.4))
-	grow.add_point(Vector2(1, 3.2))
+	grow.add_point(Vector2(0, 0.5))
+	grow.add_point(Vector2(1, 2.6))
 	puff.scale_amount_curve = grow
 	var fade := Gradient.new()
 	fade.set_color(0, Color(1, 1, 1, 0.0))
-	fade.add_point(0.15, Color(1, 1, 1, 1.0))
-	fade.add_point(0.5, Color(1, 1, 1, 0.6))
+	fade.add_point(0.2, Color(1, 1, 1, 0.55))
+	fade.add_point(0.55, Color(1, 1, 1, 0.35))
 	fade.set_color(fade.get_point_count() - 1, Color(1, 1, 1, 0.0))
 	puff.color_ramp = fade
 	puff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

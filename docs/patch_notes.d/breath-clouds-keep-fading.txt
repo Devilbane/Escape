@@ -1,1 +1,1 @@
-- Frozen breath clouds no longer vanish when the next breath starts; each one drifts and fades out fully.
+- Frozen breath is one smooth stream of misty air instead of separate puffs, and a cloud no longer vanishes when the next breath starts.

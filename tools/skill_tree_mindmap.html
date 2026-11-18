@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escape! Skill Tree Mind Map</title>
+<style>
+  :root {
+    --bg: #14111c; --panel: #1d1829; --line: #3a3150; --text: #ece8f5; --dim: #9d94b3;
+    --gold: #ffd166; --accent: #7aa2ff; --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #app { display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr 300px; height: 100%; }
+  #bar { grid-column: 1 / 3; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    padding: 8px 10px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  #bar .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+  button { background: #2a2340; color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 10px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.danger:hover { border-color: var(--danger); color: var(--danger); }
+  #stage { position: relative; overflow: hidden; min-width: 0; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: default; touch-action: none; }
+  #panel { background: var(--panel); border-left: 1px solid var(--line); padding: 12px; overflow-y: auto; }
+  #panel h2 { margin: 0 0 8px; font-size: 15px; }
+  #panel label { display: block; margin: 10px 0 3px; color: var(--dim); font-size: 12px; }
+  #panel input, #panel textarea, #panel select { width: 100%; background: #120f1b; color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px; font: inherit; }
+  #panel input:focus, #panel textarea:focus, #panel select:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+  #panel textarea { resize: vertical; min-height: 64px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  details { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+  summary { cursor: pointer; color: var(--dim); }
+  .help { color: var(--dim); }
+  .help li { margin-bottom: 6px; }
+  .help kbd { background: #2a2340; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font-size: 12px; }
+  #status { position: absolute; left: 10px; bottom: 8px; color: var(--dim); font-size: 12px;
+    background: rgba(20,17,28,.8); padding: 3px 8px; border-radius: 6px; pointer-events: none; }
+  .hidden { display: none; }
+  @media (max-width: 760px) {
+    #app { grid-template-columns: 1fr; grid-template-rows: auto 1fr 240px; }
+    #bar { grid-column: 1; } #panel { border-left: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <button id="bAdd" title="Add a box in the middle of the view">+ Box</button>
+    <button id="bUndo" title="Ctrl+Z">Undo</button>
+    <button id="bRedo" title="Ctrl+Y">Redo</button>
+    <span class="sep"></span>
+    <button id="bFit" title="F">Fit all</button>
+    <button id="bZoomIn">Zoom +</button>
+    <button id="bZoomOut">Zoom −</button>
+    <span class="sep"></span>
+    <button id="bSave">Save JSON</button>
+    <button id="bLoad">Load JSON</button>
+    <button id="bImportGd" title="Pick scripts/skill_trees.gd from the game">Import skill_trees.gd</button>
+    <button id="bCopyGd" title="Copy the boxes as entries for SkillTrees.ALL">Copy GDScript</button>
+    <span class="sep"></span>
+    <button id="bClear" class="danger">New</button>
+    <input id="file" type="file" class="hidden">
+  </div>
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="status"></div>
+  </div>
+  <div id="panel"></div>
+</div>
+
+<script>
+"use strict";
+// ---------- model ----------
+// box:  {u, id, name, description, tree, row, levels, attributes, attrNeeds, inGame, x, y}
+// link: {from, to, level}   from = prerequisite, to = the skill that needs it (arrow points at "to")
+const BW = 200, BH = 104;
+const ROWS = ["basic", "advanced", "master"];
+let boxes = [], links = [], uidN = 1;
+let sel = null;            // {type:"box"|"link", ref}
+let view = { x: 0, y: 0, k: 1 };
+// The game's attribute keys (German) and the English names shown in this tool.
+const ATTR = { staerke: "Strength", geschick: "Dexterity", intelligenz: "Intelligence", konstitution: "Constitution", tempo: "Speed", intuition: "Intuition", weisheit: "Wisdom" };
+const attrKey = n => { n = n.toLowerCase(); return Object.keys(ATTR).find(k => k === n || ATTR[k].toLowerCase() === n) || slug(n); };
+const attrName = k => ATTR[attrKey(k)] || k;
+const KEY = "escape-skilltree-mindmap-v1";
+
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const panel = document.getElementById("panel"), statusEl = document.getElementById("status");
+let dpr = 1, W = 0, H = 0;
+
+function snapshot() { return JSON.stringify(toJSON()); }
+let undoStack = [], redoStack = [];
+function commit() {            // call BEFORE a change
+  undoStack.push(snapshot()); if (undoStack.length > 200) undoStack.shift(); redoStack = [];
+}
+function restore(s) { fromJSON(JSON.parse(s)); sel = null; renderPanel(); draw(); autosave(); }
+function undo() { if (!undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); }
+function redo() { if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); }
+
+function toJSON() {
+  return { format: "escape-skilltree", version: 1,
+    boxes: boxes.map(b => ({ id: b.id, name: b.name, description: b.description, tree: b.tree, row: b.row,
+      levels: b.levels, attributes: b.attributes, attribute_needs: b.attrNeeds, in_game: b.inGame, x: Math.round(b.x), y: Math.round(b.y) })),
+    links: links.map(l => ({ from: byU(l.from).id, to: byU(l.to).id, level: l.level })) };
+}
+function fromJSON(j) {
+  boxes = []; links = []; uidN = 1;
+  const byId = {};
+  for (const b of j.boxes || []) {
+    const nb = mkBox(b.x || 0, b.y || 0, b.name || "");
+    Object.assign(nb, { id: b.id || nb.id, description: b.description || "", tree: b.tree || "", row: b.row || "basic",
+      levels: b.levels ?? 20, attributes: b.attributes || "", attrNeeds: b.attribute_needs || "", inGame: !!b.in_game });
+    byId[nb.id] = nb;
+  }
+  for (const l of j.links || []) if (byId[l.from] && byId[l.to] && byId[l.from] !== byId[l.to])
+    links.push({ from: byId[l.from].u, to: byId[l.to].u, level: l.level ?? 1 });
+}
+function mkBox(x, y, name) {
+  const b = { u: uidN++, id: "", name, description: "", tree: "", row: "basic", levels: 20, attributes: "", attrNeeds: "", inGame: false, x, y };
+  b.id = uniqueId(slug(name) || "skill");
+  boxes.push(b); return b;
+}
+const byU = u => boxes.find(b => b.u === u);
+function slug(s) {
+  return s.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+function uniqueId(base, except) {
+  let id = base, n = 2;
+  while (boxes.some(b => b !== except && b.id === id)) id = base + "_" + n++;
+  return id;
+}
+function autosave() { try { localStorage.setItem(KEY, snapshot()); } catch (e) {} }
+
+// ---------- geometry ----------
+const toScreen = (wx, wy) => [wx * view.k + view.x, wy * view.k + view.y];
+const toWorld = (sx, sy) => [(sx - view.x) / view.k, (sy - view.y) / view.k];
+const cx = b => b.x + BW / 2, cy = b => b.y + BH / 2;
+function boxAt(wx, wy) {
+  for (let i = boxes.length - 1; i >= 0; i--) { const b = boxes[i];
+    if (wx >= b.x && wx <= b.x + BW && wy >= b.y && wy <= b.y + BH) return b; }
+  return null;
+}
+function edgeEnds(l) {       // line between the two box borders
+  const a = byU(l.from), b = byU(l.to);
+  let dx = cx(b) - cx(a), dy = cy(b) - cy(a);
+  if (!dx && !dy) dx = 1;
+  const clip = (bx) => { const t = Math.min(dx ? (BW / 2) / Math.abs(dx) : 1e9, dy ? (BH / 2) / Math.abs(dy) : 1e9); return t; };
+  const t = clip();
+  return [cx(a) + dx * t, cy(a) + dy * t, cx(b) - dx * t, cy(b) - dy * t];
+}
+function distSeg(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1, len2 = dx * dx + dy * dy;
+  let t = len2 ? ((px - x1) * dx + (py - y1) * dy) / len2 : 0; t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+function linkAt(sx, sy) {
+  for (const l of links) { const e = edgeEnds(l);
+    const [ax, ay] = toScreen(e[0], e[1]), [bx, by] = toScreen(e[2], e[3]);
+    if (distSeg(sx, sy, ax, ay, bx, by) < 7) return l; }
+  return null;
+}
+function portOf(b) { return [b.x + BW, cy(b)]; }
+function portAt(b, sx, sy) { if (!b) return false; const [px, py] = toScreen(...portOf(b)); return Math.hypot(sx - px, sy - py) <= 11; }
+function reaches(fromU, toU) {   // is there a path fromU -> toU ?
+  const seen = new Set(), st = [fromU];
+  while (st.length) { const u = st.pop(); if (u === toU) return true; if (seen.has(u)) continue; seen.add(u);
+    for (const l of links) if (l.from === u) st.push(l.to); }
+  return false;
+}
+
+// ---------- drawing ----------
+function resize() {
+  dpr = window.devicePixelRatio || 1; const r = cv.getBoundingClientRect(); W = r.width; H = r.height;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); draw();
+}
+function wrap(text, maxW, maxLines) {
+  const out = []; let line = "";
+  for (const w of (text || "").split(/\s+/).filter(Boolean)) {
+    const t = line ? line + " " + w : w;
+    if (ctx.measureText(t).width <= maxW || !line) line = t; else { out.push(line); line = w; }
+  }
+  if (line) out.push(line);
+  if (out.length > maxLines) { out.length = maxLines; out[maxLines - 1] = out[maxLines - 1].replace(/.{0,2}$/, "…"); }
+  return out;
+}
+const rowColor = { basic: "#6bcB8a", advanced: "#7aa2ff", master: "#ffd166" };
+let hover = null, linking = null;     // linking: {from, x, y} (world)
+function draw() {
+  setStatus();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  // grid
+  const step = gridStep();
+  ctx.strokeStyle = "rgba(255,255,255,.045)"; ctx.lineWidth = 1; ctx.beginPath();
+  for (let wx = Math.floor(toWorld(0, 0)[0] / step) * step; toScreen(wx, 0)[0] < W; wx += step) { const s = Math.round(toScreen(wx, 0)[0]) + .5; ctx.moveTo(s, 0); ctx.lineTo(s, H); }
+  for (let wy = Math.floor(toWorld(0, 0)[1] / step) * step; toScreen(0, wy)[1] < H; wy += step) { const s = Math.round(toScreen(0, wy)[1]) + .5; ctx.moveTo(0, s); ctx.lineTo(W, s); }
+  ctx.stroke();
+
+  ctx.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.x, dpr * view.y);
+  const px = 1 / view.k;
+  // links
+  for (const l of links) {
+    const [x1, y1, x2, y2] = edgeEnds(l), isSel = sel && sel.ref === l;
+    ctx.strokeStyle = isSel ? "#ffd166" : "#a99bd0"; ctx.fillStyle = ctx.strokeStyle;
+    ctx.lineWidth = (isSel ? 3 : 2) * Math.min(px, 1.6 * px + 0.0); ctx.lineWidth = Math.max(ctx.lineWidth, (isSel ? 3 : 2) * px);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    const ang = Math.atan2(y2 - y1, x2 - x1), hs = Math.max(12, 11 * px);
+    ctx.beginPath(); ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - hs * Math.cos(ang - .4), y2 - hs * Math.sin(ang - .4));
+    ctx.lineTo(x2 - hs * Math.cos(ang + .4), y2 - hs * Math.sin(ang + .4)); ctx.closePath(); ctx.fill();
+    if (view.k > 0.25) {   // required level label
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2; ctx.font = "600 12px system-ui, sans-serif";
+      const t = "Lv " + l.level, tw = ctx.measureText(t).width + 8;
+      ctx.fillStyle = "#14111c"; ctx.fillRect(mx - tw / 2, my - 9, tw, 18);
+      ctx.fillStyle = isSel ? "#ffd166" : "#cfc6e8"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(t, mx, my + 1);
+    }
+  }
+  if (linking) {
+    const a = byU(linking.from); ctx.strokeStyle = "#7aa2ff"; ctx.lineWidth = 2 * px; ctx.setLineDash([8 * px, 6 * px]);
+    ctx.beginPath(); ctx.moveTo(cx(a), cy(a)); ctx.lineTo(linking.x, linking.y); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // boxes
+  for (const b of boxes) {
+    const isSel = sel && sel.ref === b, tgt = linking && hover === b && hover.u !== linking.from;
+    ctx.fillStyle = "#26203a"; ctx.strokeStyle = isSel ? "#ffd166" : tgt ? "#7aa2ff" : (b === hover ? "#8b7fb8" : "#4a3f6b");
+    ctx.lineWidth = (isSel || tgt ? 3 : 2) * px; rr(b.x, b.y, BW, BH, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = rowColor[b.row] || "#888"; ctx.fillRect(b.x + 1 * px, b.y + 10, 4, BH - 20);
+    if (view.k > 0.1) {
+      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      ctx.font = "700 16px system-ui, sans-serif"; ctx.fillStyle = "#f4f0ff";
+      ctx.fillText(fit(b.name || "(unnamed)", BW - 24), b.x + 14, b.y + 24);
+      ctx.font = "12px system-ui, sans-serif"; ctx.fillStyle = "#b5accb";
+      wrap(b.description, BW - 24, 2).forEach((t, i) => ctx.fillText(t, b.x + 14, b.y + 43 + i * 15));
+      ctx.font = "600 12px system-ui, sans-serif";
+      const rq = reqText(b); ctx.fillStyle = rq ? "#ffd166" : "#6d6486";
+      ctx.fillText(fit("Req: " + (rq || "–"), BW - 24), b.x + 14, b.y + BH - 25);
+      ctx.font = "11px system-ui, sans-serif"; ctx.fillStyle = "#8b82a3";
+      ctx.fillText([b.tree, b.row, b.levels ? "max " + b.levels : ""].filter(Boolean).join(" · "), b.x + 14, b.y + BH - 7);
+    }
+    if (b === hover || isSel) {   // output handle
+      const [hx, hy] = portOf(b); ctx.fillStyle = "#7aa2ff"; ctx.strokeStyle = "#14111c"; ctx.lineWidth = 2 * px;
+      ctx.beginPath(); ctx.arc(hx, hy, 9 * px < 6 ? 6 : 9 * px, 0, 7); ctx.fill(); ctx.stroke();
+    }
+  }
+}
+function reqText(b) { return b.attrNeeds.split(',').map(x => x.trim()).filter(Boolean).map(x => { const [k, v] = x.split(/\s*[:=\s]\s*/); return attrName(k) + (v ? ' ' + v : ''); }).join(', '); }
+function fit(t, maxW) { if (ctx.measureText(t).width <= maxW) return t; while (t.length > 1 && ctx.measureText(t + "…").width > maxW) t = t.slice(0, -1); return t + "…"; }
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function gridStep() { let s = 50; while (s * view.k < 18) s *= 5; while (s * view.k > 90) s /= 5; return s; }
+function setStatus() { statusEl.textContent = Math.round(view.k * 100) + " %  ·  " + boxes.length + " boxes, " + links.length + " arrows"; }
+
+// ---------- view ----------
+const K_MIN = 0.01, K_MAX = 80;
+function zoomAt(sx, sy, factor) {
+  const nk = Math.max(K_MIN, Math.min(K_MAX, view.k * factor)); factor = nk / view.k;
+  view.x = sx - (sx - view.x) * factor; view.y = sy - (sy - view.y) * factor; view.k = nk; draw(); setStatus();
+}
+function fitAll() {
+  if (!boxes.length) { view = { x: W / 2, y: H / 2, k: 1 }; draw(); setStatus(); return; }
+  const x0 = Math.min(...boxes.map(b => b.x)), y0 = Math.min(...boxes.map(b => b.y));
+  const x1 = Math.max(...boxes.map(b => b.x + BW)), y1 = Math.max(...boxes.map(b => b.y + BH));
+  const k = Math.max(K_MIN, Math.min(2, Math.min((W - 80) / (x1 - x0), (H - 80) / (y1 - y0))));
+  view = { k, x: (W - (x1 - x0) * k) / 2 - x0 * k, y: (H - (y1 - y0) * k) / 2 - y0 * k }; draw(); setStatus();
+}
+
+// ---------- mouse ----------
+let drag = null;   // {type:"pan"|"box", ...}
+const pos = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+cv.addEventListener("contextmenu", e => e.preventDefault());
+cv.addEventListener("wheel", e => { e.preventDefault(); const [sx, sy] = pos(e);
+  zoomAt(sx, sy, Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0018))); }, { passive: false });
+cv.addEventListener("mousedown", e => {
+  const [sx, sy] = pos(e), [wx, wy] = toWorld(sx, sy);
+  if (e.button === 1 || e.button === 2) { drag = { type: "pan", sx, sy, vx: view.x, vy: view.y }; cv.style.cursor = "grabbing"; e.preventDefault(); return; }
+  if (e.button !== 0) return;
+  const cand = [hover, sel && sel.type === "box" ? sel.ref : null].find(c => c && portAt(c, sx, sy));
+  if (cand) { linking = { from: cand.u, x: wx, y: wy }; return; }
+  const b = boxAt(wx, wy);
+  if (b) { select({ type: "box", ref: b }); boxes.splice(boxes.indexOf(b), 1); boxes.push(b);
+    drag = { type: "box", b, ox: wx - b.x, oy: wy - b.y, moved: false }; return; }
+  const l = linkAt(sx, sy);
+  if (l) { select({ type: "link", ref: l }); return; }
+  select(null); drag = { type: "pan", sx, sy, vx: view.x, vy: view.y }; cv.style.cursor = "grabbing";
+});
+window.addEventListener("mousemove", e => {
+  const [sx, sy] = pos(e), [wx, wy] = toWorld(sx, sy);
+  if (linking) { linking.x = wx; linking.y = wy; hover = boxAt(wx, wy); draw(); return; }
+  if (drag && drag.type === "pan") { view.x = drag.vx + sx - drag.sx; view.y = drag.vy + sy - drag.sy; draw(); return; }
+  if (drag && drag.type === "box") {
+    if (!drag.moved) { commit(); drag.moved = true; }
+    drag.b.x = wx - drag.ox; drag.b.y = wy - drag.oy; draw(); return; }
+  if (e.target !== cv) return;
+  const h = boxAt(wx, wy), onPort = [h, sel && sel.type === "box" ? sel.ref : null].some(c => c && portAt(c, sx, sy));
+  cv.style.cursor = onPort ? "crosshair" : h ? "move" : linkAt(sx, sy) ? "pointer" : "default";
+  if (h !== hover) { hover = h; draw(); }
+});
+window.addEventListener("mouseup", e => {
+  if (linking) {
+    const [sx, sy] = pos(e), [wx, wy] = toWorld(sx, sy), from = byU(linking.from), t = boxAt(wx, wy);
+    linking = null;
+    if (t && t !== from) {
+      if (links.some(l => l.from === from.u && l.to === t.u)) setMsg("That arrow already exists.");
+      else if (reaches(t.u, from.u)) setMsg("Not allowed: that arrow would make a loop.");
+      else { commit(); links.push({ from: from.u, to: t.u, level: 1 }); select({ type: "link", ref: links[links.length - 1] }); }
+    } else if (!t && sx >= 0 && sy >= 0 && sx <= W && sy <= H) {      // dropped on empty space: new box there
+      commit(); const nb = mkBox(wx - BW / 2, wy - BH / 2, "");
+      nb.tree = from.tree; nb.row = from.row === "basic" ? "advanced" : "master";
+      links.push({ from: from.u, to: nb.u, level: 1 }); select({ type: "box", ref: nb }); focusName();
+    }
+    draw(); autosave(); setStatus(); return;
+  }
+  if (drag) { if (drag.type === "box" && drag.moved) autosave(); drag = null; cv.style.cursor = "default"; }
+});
+cv.addEventListener("dblclick", e => {
+  const [sx, sy] = pos(e), [wx, wy] = toWorld(sx, sy);
+  if (boxAt(wx, wy) || linkAt(sx, sy)) return;
+  commit(); const nb = mkBox(wx - BW / 2, wy - BH / 2, ""); select({ type: "box", ref: nb }); focusName(); autosave(); setStatus();
+});
+window.addEventListener("keydown", e => {
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { if (!typing) { e.preventDefault(); e.shiftKey ? redo() : undo(); } return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { if (!typing) { e.preventDefault(); redo(); } return; }
+  if (typing) { if (e.key === "Escape") document.activeElement.blur(); return; }
+  if (e.key === "Delete" || e.key === "Backspace") deleteSel();
+  else if (e.key.toLowerCase() === "f") fitAll();
+  else if (e.key === "+" || e.key === "=") zoomAt(W / 2, H / 2, 1.4);
+  else if (e.key === "-") zoomAt(W / 2, H / 2, 1 / 1.4);
+  else if (e.key === "Escape") { select(null); }
+});
+
+// ---------- selection + side panel ----------
+let msg = "";
+function setMsg(t) { msg = t; renderPanel(); }
+function select(s) { sel = s; msg = ""; renderPanel(); draw(); }
+function deleteSel() {
+  if (!sel) return; commit();
+  if (sel.type === "box") { links = links.filter(l => l.from !== sel.ref.u && l.to !== sel.ref.u); boxes = boxes.filter(b => b !== sel.ref); }
+  else links = links.filter(l => l !== sel.ref);
+  sel = null; hover = null; renderPanel(); draw(); autosave(); setStatus();
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function focusName() { const n = document.getElementById("fName"); if (n) { n.focus(); n.select(); } }
+function renderPanel() {
+  const m = msg ? `<p style="color:var(--gold)">${esc(msg)}</p>` : "";
+  if (sel && sel.type === "box") {
+    const b = sel.ref;
+    panel.innerHTML = `<h2>Skill box</h2>${m}
+      <label for="fName">Name</label><input id="fName" value="${esc(b.name)}" placeholder="e.g. Sword fighting">
+      <label for="fDesc">Description</label><textarea id="fDesc" placeholder="What does this skill do? (English)">${esc(b.description)}</textarea>
+      <label for="fAN">Requirements (Strength, Dexterity, Intelligence, Constitution, Speed, Intuition, Wisdom + value)</label><input id="fAN" value="${esc(b.attrNeeds)}" placeholder="Strength 15, Dexterity 10">
+      <details open><summary>Game data</summary>
+        <label for="fId">Id (used in the game data)</label><input id="fId" value="${esc(b.id)}">
+        <div class="row2"><div><label for="fTree">Tree</label><input id="fTree" value="${esc(b.tree)}" placeholder="kampf"></div>
+        <div><label for="fRow">Row</label><select id="fRow">${ROWS.map(r => `<option ${r === b.row ? "selected" : ""}>${r}</option>`).join("")}</select></div></div>
+        <div class="row2"><div><label for="fLevels">Max levels</label><input id="fLevels" type="number" min="1" value="${b.levels}"></div>
+        <div><label for="fInGame">In the game</label><select id="fInGame"><option value="0">not yet</option><option value="1" ${b.inGame ? "selected" : ""}>yes</option></select></div></div>
+        <label for="fAttr">Attributes (comma separated)</label><input id="fAttr" value="${esc(b.attributes)}" placeholder="Strength, Dexterity">
+      </details>
+      <p><button class="danger" id="fDel">Delete box (Del)</button></p>
+      <p class="help">Drag the blue handle on the right edge to another box to add an arrow (this box is then a prerequisite of it). Drop it on empty space to create a new box.</p>`;
+    bind("fName", v => { b.name = v; }, true);
+    const nameEl = document.getElementById("fName");
+    nameEl.addEventListener("change", () => { if (!b.idTouched && b.name) { const nid = uniqueId(slug(b.name) || "skill", b); if (nid !== b.id) { b.id = nid; document.getElementById("fId").value = nid; autosave(); } } });
+    bind("fDesc", v => b.description = v, true);
+    bind("fId", v => { b.idTouched = true; b.id = uniqueId(slug(v) || "skill", b); }, true, true);
+    bind("fTree", v => b.tree = v.trim(), true);
+    bind("fRow", v => b.row = v, true);
+    bind("fLevels", v => b.levels = Math.max(1, parseInt(v) || 1), true);
+    bind("fInGame", v => b.inGame = v === "1", true);
+    bind("fAttr", v => b.attributes = v, true);
+    bind("fAN", v => b.attrNeeds = v, true);
+    document.getElementById("fDel").onclick = deleteSel;
+  } else if (sel && sel.type === "link") {
+    const l = sel.ref, a = byU(l.from), b = byU(l.to);
+    panel.innerHTML = `<h2>Arrow</h2>${m}
+      <p><b>${esc(a.name || a.id)}</b> → <b>${esc(b.name || b.id)}</b></p>
+      <p class="help">“${esc(b.name || b.id)}” needs “${esc(a.name || a.id)}” first.</p>
+      <label for="fLv">Required level of “${esc(a.name || a.id)}”</label><input id="fLv" type="number" min="1" value="${l.level}">
+      <p><button id="fSwap">Reverse direction</button> <button class="danger" id="fDel">Delete arrow (Del)</button></p>`;
+    bind("fLv", v => l.level = Math.max(1, parseInt(v) || 1), true);
+    document.getElementById("fDel").onclick = deleteSel;
+    document.getElementById("fSwap").onclick = () => {
+      if (links.some(o => o.from === l.to && o.to === l.from)) return setMsg("The reverse arrow already exists.");
+      commit(); [l.from, l.to] = [l.to, l.from]; renderPanel(); draw(); autosave(); };
+  } else {
+    panel.innerHTML = `<h2>Skill tree mind map</h2>${m}<ul class="help">
+      <li><kbd>Double-click</kbd> empty space: new box</li>
+      <li><kbd>Click</kbd> a box to select and edit its name and description</li>
+      <li>Drag a box to move it</li>
+      <li>Drag the <b style="color:var(--accent)">blue handle</b> of a box onto another box: prerequisite arrow</li>
+      <li>Click an arrow to set the required level or delete it</li>
+      <li><kbd>Mouse wheel</kbd> zoom (up to 8000 %), drag empty space or hold the right/middle button to pan</li>
+      <li><kbd>F</kbd> fit all, <kbd>Del</kbd> delete, <kbd>Ctrl+Z</kbd> undo</li>
+      <li>Everything is saved in this browser automatically. Use <b>Save JSON</b> for a file, <b>Copy GDScript</b> for entries to paste into <code>SkillTrees.ALL</code>.</li></ul>`;
+  }
+}
+function bind(id, set, undoable, noRedraw) {
+  const el = document.getElementById(id); let armed = true;
+  el.addEventListener("focus", () => { armed = true; });
+  const h = () => { if (armed && undoable) { /* snapshot of the state before this editing burst */ commit(); undoStack[undoStack.length - 1] = lastSnap; armed = false; } set(el.value); draw(); autosave(); };
+  el.addEventListener("focus", () => { lastSnap = snapshot(); });
+  el.addEventListener("input", h); el.addEventListener("change", h);
+}
+let lastSnap = "";
+
+// ---------- file io ----------
+function download(name, text, type) {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function gdscript() {
+  const q = s => '"' + String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+  const list = s => "[" + s.split(",").map(x => x.trim()).filter(Boolean).map(attrKey).map(q).join(", ") + "]";
+  const out = [];
+  for (const b of boxes) {
+    const needs = links.filter(l => l.to === b.u).map(l => q(byU(l.from).id) + ": " + l.level).join(", ");
+    const an = b.attrNeeds.split(",").map(x => x.trim()).filter(Boolean).map(x => { const [k, v] = x.split(/\s*[:=\s]\s*/); return q(attrKey(k.trim())) + ": " + (parseInt(v) || 1); }).join(", ");
+    let s = `\t${q(b.id)}: {"name": ${q(b.name)}, "tree": ${q(b.tree)}, "row": ${q(b.row)}, "levels": ${b.levels}, "attributes": ${list(b.attributes)}`;
+    if (needs) s += `, "needs": {${needs}}`; if (an) s += `, "attribute_needs": {${an}}`; if (b.inGame) s += `, "in_game": true`;
+    out.push(s + ",},");
+  }
+  return out.join("\n") + "\n";
+}
+function check() {
+  const warn = []; const seen = {};
+  for (const b of boxes) { if (!b.name) warn.push("A box has no name."); (seen[b.id] = seen[b.id] || []).push(b); }
+  for (const id in seen) if (seen[id].length > 1) warn.push("Duplicate id: " + id);
+  return warn;
+}
+function importGd(text) {
+  const nb = [], nl = [], pend = [];
+  const str = (s, k) => { const m = s.match(new RegExp('(?:^|,\\s*)"' + k + '":\\s*"((?:[^"\\\\]|\\\\.)*)"')); return m ? m[1].replace(/\\(.)/g, "$1") : ""; };
+  const num = (s, k) => { const m = s.match(new RegExp('"' + k + '":\\s*(\\d+)')); return m ? +m[1] : 0; };
+  const dict = (s, k) => { const m = s.match(new RegExp('(?:^|,\\s*)"' + k + '":\\s*\\{([^}]*)\\}')); const o = []; if (m) for (const p of m[1].matchAll(/"([^"]+)":\s*(\d+)/g)) o.push([p[1], +p[2]]); return o; };
+  let inAll = false;
+  for (const line of text.split("\n")) {
+    if (/^const ALL\b/.test(line)) { inAll = true; continue; }
+    if (!inAll) continue;
+    const m = line.match(/^\s*"([^"]+)":\s*\{(.*)\},?\s*$/); if (!m) continue;
+    const s = m[2], at = (s.match(/"attributes":\s*\[([^\]]*)\]/) || [, ""])[1].replace(/"/g, "").split(",").map(x => x.trim()).filter(Boolean).join(", ");
+    nb.push({ id: m[1], name: str(s, "name"), description: "", tree: str(s, "tree"), row: str(s, "row") || "basic", levels: num(s, "levels"), attributes: at,
+      attribute_needs: dict(s, "attribute_needs").map(p => p.join(":")).join(", "), in_game: /"in_game":\s*true/.test(s) });
+    for (const [k, v] of dict(s, "needs")) nl.push({ from: k, to: m[1], level: v });
+  }
+  if (!nb.length) throw new Error("No skills found in this file (is it scripts/skill_trees.gd?).");
+  // automatic layout: one column block per tree, masters on top
+  const trees = [...new Set(nb.map(b => b.tree))], rowY = { basic: 440, advanced: 220, master: 0 };
+  trees.forEach((t, ti) => { for (const r of ROWS) { const g = nb.filter(b => b.tree === t && b.row === r);
+    g.forEach((b, i) => { b.x = (ti % 4) * 1500 + i * 260 - ((g.length - 1) * 260) / 2 + 600; b.y = rowY[r] + Math.floor(ti / 4) * 800; }); } });
+  return { boxes: nb, links: nl.filter(l => nb.some(b => b.id === l.from)) };
+}
+function loadText(text, kind) {
+  let j; try { j = kind === "gd" ? importGd(text) : JSON.parse(text); } catch (e) { alert("Could not read the file: " + e.message); return; }
+  commit(); fromJSON(j); sel = null; renderPanel(); fitAll(); autosave();
+}
+let fileKind = "json";
+const fileEl = document.getElementById("file");
+fileEl.addEventListener("change", () => { const f = fileEl.files[0]; if (!f) return; const r = new FileReader();
+  r.onload = () => loadText(r.result, fileKind); r.readAsText(f); fileEl.value = ""; });
+const $ = id => document.getElementById(id);
+$("bAdd").onclick = () => { commit(); const [wx, wy] = toWorld(W / 2, H / 2); const nb = mkBox(wx - BW / 2, wy - BH / 2, ""); select({ type: "box", ref: nb }); focusName(); autosave(); setStatus(); };
+$("bUndo").onclick = undo; $("bRedo").onclick = redo; $("bFit").onclick = fitAll;
+$("bZoomIn").onclick = () => zoomAt(W / 2, H / 2, 1.6); $("bZoomOut").onclick = () => zoomAt(W / 2, H / 2, 1 / 1.6);
+$("bSave").onclick = () => { const w = check(); if (w.length && !confirm("Warnings:\n" + w.join("\n") + "\n\nSave anyway?")) return; download("skill_tree.json", JSON.stringify(toJSON(), null, 2), "application/json"); };
+$("bLoad").onclick = () => { fileKind = "json"; fileEl.accept = ".json"; fileEl.click(); };
+$("bImportGd").onclick = () => { fileKind = "gd"; fileEl.accept = ".gd"; fileEl.click(); };
+$("bCopyGd").onclick = async () => { const t = gdscript(), w = check();
+  try { await navigator.clipboard.writeText(t); setMsg("Copied " + boxes.length + " entries." + (w.length ? " Warnings: " + w.join(" ") : "")); }
+  catch (e) { download("skill_trees_entries.gd.txt", t, "text/plain"); setMsg("Clipboard blocked: downloaded as a file instead."); } };
+$("bClear").onclick = () => { if (!boxes.length || confirm("Start a new, empty mind map? (Undo can bring the old one back.)")) { commit(); boxes = []; links = []; sel = null; renderPanel(); draw(); autosave(); setStatus(); } };
+
+// ---------- start ----------
+window.addEventListener("resize", resize);
+try { const s = localStorage.getItem(KEY); if (s) fromJSON(JSON.parse(s)); } catch (e) {}
+renderPanel(); resize(); fitAll();
+window.skilltree = { toJSON, fromJSON, importGd, gdscript, get view() { return view; }, get boxes() { return boxes; }, get links() { return links; } };
+</script>
+</body>
+</html>

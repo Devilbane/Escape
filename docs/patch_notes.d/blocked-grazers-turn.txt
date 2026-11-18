@@ -1,0 +1,1 @@
+- Goats and sheep that cannot get on in the direction they are strolling now turn and head another way.

@@ -477,6 +477,18 @@ func _set_path(target: Vector3) -> bool:
 	return not _path.is_empty()
 
 
+## A stroll that is stuck gives up its goal and picks a spot that lies the other
+## way from the blocked direction (idles if none is reachable).
+func _turn_away_from(blocked: Vector3) -> void:
+	_path.clear()
+	var dir := _flat(blocked).normalized()
+	for i in 8:
+		var spot := _pick_spot()
+		if _flat(spot - global_position).normalized().dot(dir) < 0.2 and _set_path(spot):
+			return
+	_begin("idle", 1.0)
+
+
 func _walk(delta: float) -> void:
 	if _path.is_empty():
 		return
@@ -489,6 +501,10 @@ func _walk(delta: float) -> void:
 		_waiting += delta
 		if _waiting >= WalkRules.MAKE_WAY:
 			_waiting = 0.0
+			if state == "stroll":
+				# Cannot get on that way: strolls off in another direction instead.
+				_turn_away_from(to)
+				return
 			var goal: Vector3 = _path[_path.size() - 1]
 			if not _set_path(goal):
 				_begin("idle", 1.0)

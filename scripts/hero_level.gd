@@ -307,7 +307,13 @@ static func task_xp(id: String, hero: int) -> int:
 static func area_of(level: Level, kind: String) -> String:
 	if level == null:
 		return ""
-	if level.outdoor:
+	return area_for(level.outdoor, level.building, kind)
+
+
+## The same from what a map file says: whether it is the open air and which
+## building it lies in ("" for a dungeon floor).
+static func area_for(outdoor: bool, building: String, kind: String) -> String:
+	if outdoor:
 		var stats: Dictionary = Enemy.KINDS.get(kind, {})
 		if stats.get("mountain", false):
 			return "berge"
@@ -316,7 +322,7 @@ static func area_of(level: Level, kind: String) -> String:
 		if stats.get("beast", false) and not stats.get("horror", false):
 			return "senke"
 		return "loecher" if stats.get("horror", false) else "dorf"
-	return BUILDING_AREAS.get(level.building, "")
+	return BUILDING_AREAS.get(building, "")
 
 
 ## The level a monster of natural level `natural` is lifted to in `area`.

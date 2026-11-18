@@ -479,6 +479,65 @@ func _lift_onto_toes(delta: float) -> void:
 	_model.position.y = Stride.lift(_anim, _current_anim, _model.scale.x, speed)
 
 
+# --- Frozen in the snow (see FrozenFritz) ---------------------------------------
+
+## The ice on Fritz while he stands frozen on the market square, or null.
+var _ice: FrozenFritz
+var _frost_check := 0.0
+
+
+## Whether he stands frozen right now (see FrozenFritz).
+func is_frozen() -> bool:
+	return _task == "frozen"
+
+
+## Fritz goes to the market square when the snow lies thick, and back to the tavern when it
+## has melted. Looked at once a second.
+func _mind_frost(delta: float) -> void:
+	if role != FrozenFritz.ROLE:
+		return
+	_frost_check -= delta
+	if _frost_check > 0.0:
+		return
+	_frost_check = 1.0
+	var on_his_way: bool = _task == "walk" and get_meta("then", "") == "frozen"
+	var cold: bool = FrozenFritz.wants(level, _task == "frozen" or on_his_way)
+	if _task == "frozen" and not cold:
+		_start("idle", 1.0)
+	elif on_his_way and not cold:
+		_start("idle", 0.1)
+	elif cold and _task in ["work", "sit", "idle"] and chat_partner == null and _bubble_time <= 0.0:
+		var spot := FrozenFritz.spot(level)
+		if spot == Vector3.INF:
+			return
+		# Mid-song or not, the song is over.
+		singing = false
+		_walk_to(spot, WALK_SPEED * 1.2, "frozen")
+
+
+## Holds the toast: the pose stops mid-move, and the ice forms on it.
+func _freeze() -> void:
+	if _ice != null:
+		return
+	_stuck = 0.0
+	_rebound = false
+	_current_anim = "frozen"
+	_anim.speed_scale = 1.0
+	_anim.play(FrozenFritz.POSE, 0.0)
+	_anim.seek(FrozenFritz.POSE_TIME, true)
+	_anim.pause()
+	_model.position.y = 0.0
+	singing = false
+	_ice = FrozenFritz.freeze(self)
+
+
+func _thaw() -> void:
+	_ice.thaw()
+	_ice = null
+	_current_anim = ""
+	_anim.speed_scale = 1.0
+
+
 # --- The day's plan -----------------------------------------------------------
 
 ## Set while a game loaded at night puts the village to bed: no doors swing.
@@ -489,8 +548,10 @@ func _start(task: String, time: float) -> void:
 	_task = task
 	if task != "mend":
 		_wield_wall_hammer(false)
+	if task != "frozen" and _ice != null:
+		_thaw()
 	# Mending goes on until the brick is whole (see _mend), not for a set time.
-	_task_time = 600.0 if task in ["mend", "defend"] else time
+	_task_time = 600.0 if task in ["mend", "defend", "frozen"] else time
 	_work_pause = 0.0
 	if task in ["home", "hide"] and not at_home:
 		_hide_inside(true, true)
@@ -1444,6 +1505,11 @@ func _physics_process(delta: float) -> void:
 			_start("idle", 1.5)
 	_cast_fireball(delta)
 	_hunt_slimes(delta)
+	_mind_frost(delta)
+	if _task == "frozen":
+		# Frozen stiff: he neither turns to whoever talks to him nor moves a finger.
+		_freeze()
+		return
 	if _bubble_time > 0.0 and _look_at != Vector3.INF:
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:
@@ -1935,7 +2001,7 @@ func proclaim() -> void:
 
 ## The hero ran into us: say the next line.
 func talk(hero: Node3D) -> void:
-	var lines: Array = _info.lines
+	var lines: Array = FrozenFritz.MUFFLED if _task == "frozen" else _info.lines
 	meet()
 	say(Lang.t(lines[_line % lines.size()]), hero.global_position)
 	_line += 1
@@ -2157,6 +2223,8 @@ func hand_at() -> Vector3:
 ## 2 on the right one. The head turns and bobs with the animation, the birds
 ## with it.
 func perch_point(slot: int) -> Vector3:
+	if _ice != null and _ice.perches.size() > slot:
+		return _ice.perches[slot]
 	var bones := _bones()
 	if bones == null:
 		return Vector3(0.0, 2.3, 0.0) if slot == 0 else Vector3(0.45 * (1 if slot == 1 else -1), 1.3, 0.0)
@@ -2235,7 +2303,7 @@ func can_bump_chat() -> bool:
 func can_remark() -> bool:
 	if chat_partner != null or at_home or not visible or role == "%":
 		return false
-	return not _task in ["home", "listen", "chat"] and _bubble_time <= 0.0
+	return not _task in ["home", "listen", "chat", "frozen"] and _bubble_time <= 0.0
 
 
 ## Starts a chat with `partner`. `walk`: we go over to them (and stop a step

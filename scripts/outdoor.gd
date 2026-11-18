@@ -3887,7 +3887,7 @@ func set_ice(value: float) -> void:
 func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> void:
 	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree():
 		return
-	SnowPrints.leave(self, at, heading, size, kind)
+	SnowPrints.leave(self, at, heading, size, kind, snow.daylight)
 
 
 ## A wet footprint on dry ground, left by a hero fresh out of a puddle.

@@ -17,7 +17,10 @@ const HEIGHT := 0.085
 ## The pictures are toe-up (v = 0), which a flat quad lays towards -Z; a walker heading `h` goes
 ## towards (sin h, 0, cos h), so the quad turns half way round.
 const FRONT := PI
-const GREY := Color(0.26, 0.29, 0.38, 0.92)
+## The pressed grey at midnight and at noon. Prints are unshaded, so the light of the sun (or its
+## lack) can neither wash them out nor swallow them: they are always darker than the snow round them.
+const GREY_NIGHT := Color(0.03, 0.04, 0.09, 0.9)
+const GREY_DAY := Color(0.36, 0.4, 0.5, 0.92)
 
 static var _shapes := {}
 static var _textures := {}
@@ -104,14 +107,15 @@ static func _stroke(u: float, v: float, u0: float, v0: float, u1: float, v1: flo
 
 
 ## Presses a print at `at` facing `heading` (radians about the up axis).
-static func leave(world: Node3D, at: Vector3, heading: float, size := 1.0, kind := "boot") -> MeshInstance3D:
+static func leave(world: Node3D, at: Vector3, heading: float, size := 1.0, kind := "boot", daylight := 1.0) -> MeshInstance3D:
 	_live = _live.filter(func(n): return is_instance_valid(n))
 	while _live.size() >= MAX:
 		(_live.pop_front() as Node).queue_free()
 	var mat := StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_texture = texture(kind)
-	mat.albedo_color = GREY
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = GREY_NIGHT.lerp(GREY_DAY, clampf(daylight, 0.0, 1.0))
 	mat.roughness = 1.0
 	var mi := MeshInstance3D.new()
 	mi.mesh = _mesh(kind)

@@ -96,6 +96,8 @@ var puddle_water := 0.0
 ## How thick the snow lies above ground, 0 bare to 1 deep (see Weather.snow_cover and
 ## SnowCover). It builds up while it snows and melts again afterwards.
 var snow_cover := 0.0
+## How thickly the ponds are frozen over, 0 open water to 1 solid ice (see Weather.ice).
+var ice_cover := 0.0
 var weather_hours := Weather.FIRST_HOURS
 var _weather_rng := RandomNumberGenerator.new()
 ## The look of the sky as it moves towards the weather's own, and a stroke
@@ -2602,6 +2604,8 @@ func _clock_text() -> String:
 	# Down in the dungeon the time goes on, but sky and moon are out of sight.
 	if not (level.outdoor or level.building != ""):
 		return text
+	if Weather.is_winter(day):
+		text += ", " + Lang.t("Winter")
 	if weather != Weather.CLEAR:
 		text += ", " + Lang.t(Weather.word(weather))
 	# At night the clock names tonight's moon (see Moon).
@@ -2625,7 +2629,8 @@ func _tick_clock(delta: float) -> void:
 			_new_day()
 		_tick_weather(delta)
 		puddle_water = Weather.puddle_water(puddle_water, weather, delta)
-		snow_cover = Weather.snow_cover(snow_cover, weather, delta)
+		snow_cover = Weather.snow_cover(snow_cover, weather, delta, Weather.is_winter(day))
+		ice_cover = Weather.ice(ice_cover, snow_cover, weather, delta)
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
 		_moonlight()
@@ -2640,6 +2645,7 @@ func _tick_clock(delta: float) -> void:
 			level.set_weather(weather)
 			level.set_puddles(puddle_water, _weather_look.rain, clampf(_env.ambient_light_energy / 0.52, 0.05, 1.0))
 			level.set_snow(snow_cover, clampf(_env.ambient_light_energy / 0.52, 0.0, 1.0))
+			level.set_ice(ice_cover)
 			if level.moon_night >= 0 and (Moon.is_full(level.moon_night) or Moon.is_new(level.moon_night)):
 				learn(Moon.LORE)
 	if _clock_text() != _clock_shown:
@@ -2682,6 +2688,7 @@ static func _dawn_between(from: float, to: float) -> bool:
 ## finished in time are over.
 func _new_day(quiet := false) -> void:
 	day += 1
+	_turn_of_season()
 	Forge.restock(smith_stock, day, hero_name)
 	if level != null:
 		# Mined crystal clusters grow back with the morning.
@@ -2694,6 +2701,20 @@ func _new_day(quiet := false) -> void:
 	if expired > 0:
 		text += "\n" + Lang.t("Nicht erledigte Jagden vom Vortag sind verfallen: %d") % expired
 	quest_news(text, Color(1.0, 0.82, 0.4), 4.0)
+
+
+## The first morning of winter brings snow at once (and stops any rain); the first morning after
+## it says spring is back (see Weather.is_winter).
+func _turn_of_season() -> void:
+	var winter := Weather.is_winter(day)
+	if winter == Weather.is_winter(day - 1):
+		return
+	if winter:
+		set_weather(Weather.SNOW)
+		if escaped:
+			quest_news(Lang.t("Der Winter ist da! Acht Tage lang fällt Schnee statt Regen."), Color(0.8, 0.9, 1.0), 5.0)
+	elif escaped:
+		quest_news(Lang.t("Der Winter geht zu Ende. Der Schnee taut."), Color(0.7, 0.95, 0.7), 4.0)
 
 
 # --- The dragon's helpers ------------------------------------------------------
@@ -2826,13 +2847,13 @@ func _on_elder_awakened() -> void:
 func _tick_weather(delta: float) -> void:
 	weather_hours -= delta * 24.0 / DayNight.DAY_LENGTH
 	if weather_hours <= 0.0:
-		set_weather(Weather.roll(day_hour, _weather_rng, weather))
+		set_weather(Weather.roll(day_hour, _weather_rng, weather, Weather.is_winter(day)))
 
 
 ## Sets the weather for `hours` of the day (a random spell when not given).
 ## The open air follows in _tick_clock.
 func set_weather(kind: String, hours := -1.0) -> void:
-	weather = kind if kind in Weather.KINDS else Weather.CLEAR
+	weather = Weather.for_season(kind if kind in Weather.KINDS else Weather.CLEAR, Weather.is_winter(day))
 	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng, weather)
 
 
@@ -3304,6 +3325,7 @@ func begin_new_game() -> void:
 	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
 	puddle_water = 0.0
 	snow_cover = 0.0
+	ice_cover = 0.0
 	player.knives = 5
 	player.set_sex(_new_sex)
 	player.set_hair(HairLook.DEFAULT)
@@ -3775,6 +3797,7 @@ func _apply_save(data: Dictionary) -> void:
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
 	puddle_water = clampf(float(data.get("puddles", 0.0)), 0.0, 1.0)
 	snow_cover = clampf(float(data.get("snow", 0.0)), 0.0, 1.0)
+	ice_cover = clampf(float(data.get("ice", 0.0)), 0.0, 1.0)
 	_go_to_wake_place(_wake_place(data))
 	player.hp = clampi(int(data.hp), 1, player.max_hp)
 	player.cure()
@@ -3972,7 +3995,7 @@ func hero_record() -> Dictionary:
 		"hour": day_hour, "world_hours": world_hours,
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night, "smith_stock": smith_stock,
 		"hoard": hoard.for_save(),
-		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water, "snow": snow_cover,
+		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water, "snow": snow_cover, "ice": ice_cover,
 		"inn": level.inn,
 	}
 	return data
@@ -4198,10 +4221,11 @@ func rest_till_morning() -> void:
 			_new_day(true)
 		world_hours += fposmod(DayNight.WAKE_HOUR - day_hour, 24.0)
 		day_hour = DayNight.WAKE_HOUR
-		set_weather(Weather.roll(day_hour, _weather_rng))
-		# The puddles dried up overnight, and the snow melted.
+		set_weather(Weather.roll(day_hour, _weather_rng, "", Weather.is_winter(day)))
+		# The puddles dried up overnight, and the snow melted (in winter it stays).
 		puddle_water = 0.0
-		snow_cover = 0.0
+		if not Weather.is_winter(day):
+			snow_cover = 0.0
 		player.hp = player.max_hp
 		player.cure()
 		player.global_position = level.bed_side if level.bed_side != Vector3.ZERO else player.global_position
@@ -4354,9 +4378,10 @@ func sleep(at_camp_now := false) -> void:
 		world_hours += fposmod(DayNight.WAKE_HOUR - day_hour, 24.0)
 		day_hour = DayNight.WAKE_HOUR
 		# A new morning brings new weather, and the puddles dried up overnight.
-		set_weather(Weather.roll(day_hour, _weather_rng))
+		set_weather(Weather.roll(day_hour, _weather_rng, "", Weather.is_winter(day)))
 		puddle_water = 0.0
-		snow_cover = 0.0
+		if not Weather.is_winter(day):
+			snow_cover = 0.0
 	if level.inn:
 		# A night in an inn's bed: the hero gets up rested.
 		player.hp = player.max_hp

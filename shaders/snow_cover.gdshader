@@ -21,6 +21,9 @@ uniform vec2 grid_size = vec2(1.0);
 uniform float tile = 4.0;
 // The height under which a covered tile is not open to the sky.
 uniform float roof_height = 3.6;
+// Where something burns (xyz) and how far round it no snow settles (w), see SnowCover.set_warm.
+uniform vec4 warm[32];
+uniform int warm_count = 0;
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -55,7 +58,19 @@ void fragment() {
 	float lies = strength * 1.5 + (n - 0.5) * 0.55;
 	vec2 uv = (xz / tile + 0.5) / grid_size;
 	float roofed = texture(sky_mask, uv).r * (1.0 - step(roof_height, world_pos.y));
-	if (lies < 0.5 || roofed > 0.5 || up < 0.01) {
+	// Melted round fires, the forge and smoking chimneys, with a ragged edge.
+	// The heat rises: a column from a little below each spot to well above it (a chimney's cap,
+	// the branches over a campfire).
+	for (int i = 0; i < warm_count; i++) {
+		vec3 d = world_pos - warm[i].xyz;
+		float r = warm[i].w * (0.8 + 0.4 * n);
+		if (length(d.xz) < r && d.y > -r && d.y < warm[i].w * 2.5) {
+			discard;
+		}
+	}
+	// Open water and ice stay bare (G of the mask marks the pond tiles, only at ground level).
+	float pond = texture(sky_mask, uv).g * (1.0 - step(0.3, world_pos.y));
+	if (lies < 0.5 || roofed > 0.5 || pond > 0.5 || up < 0.01) {
 		discard;
 	}
 	// A touch of shade in the hollows of the drifts, so the layer is not flat white.

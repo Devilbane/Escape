@@ -56,16 +56,33 @@ func _run() -> void:
 		layer.visible = false
 	lvl.set_hour(12.0)
 	game.set_weather(Weather.SNOW, 3.0)
-	game.snow_cover = 1.0
+	game.snow_cover = 0.0 if OS.get_environment("NOSNOW") != "" else 1.0
 	var farm := lvl.cell_to_world(VillageFarm.pippi_home(lvl))
 	game.player.global_position = farm + Vector3(2, 0, 3)
 	await _wait(200)
 	if shots != "":
+		# Gorm's forge: the coals and the fire in its chimney stay clear of snow.
+		for w: Vector4 in lvl.warm_spots:
+			if is_equal_approx(w.w, 1.8):
+				var coals := Vector3(w.x, w.y, w.z)
+				await _shot("snow_forge", coals + Vector3(3.5, 3.6, 4.5), coals + Vector3(0, 1.0, 0), 55.0)
+		if OS.get_environment("ONLY") == "forge":
+			game.delete_save(game.save_path())
+			print("PASS: snow shots")
+			quit(0)
+			return
 		var p: Vector3 = game.player.global_position
 		# A trail of prints walking towards the camera, past the hero.
 		for i in 10:
 			var at: Vector3 = p + Vector3(-1.2 + 0.05 * i, 0, -3.0 + 0.55 * i)
 			lvl.snow_print(at + Vector3(0.09 if i % 2 == 0 else -0.09, 0, 0), 0.0)
+		# Animal tracks beside it, walking the same way: paws, hooves and bird feet.
+		for i in 8:
+			var z := -2.6 + 0.6 * i
+			lvl.snow_print(p + Vector3(1.0 + (0.05 if i % 2 == 0 else -0.05), 0, z), 0.0, 1.0, "paw")
+			lvl.snow_print(p + Vector3(2.0 + (0.06 if i % 2 == 0 else -0.06), 0, z), 0.0, 1.2, "hoof")
+			lvl.snow_print(p + Vector3(3.0 + (0.05 if i % 2 == 0 else -0.05), 0, z), 0.0, 1.0, "bird")
+		await _shot("snow_tracks", p + Vector3(2.2, 3.2, 4.2), p + Vector3(1.8, 0, -0.5), 55.0)
 		await _shot("snow_village", p + Vector3(7, 8, 9), p + Vector3(-1, 0, -2))
 		await _shot("snow_hero", p + Vector3(1.4, 1.8, 3.4), p + Vector3(0, 1.3, 0), 45.0)
 		await _shot("snow_prints", p + Vector3(1.0, 2.6, 3.0), p + Vector3(-1.0, 0, -0.5), 55.0)

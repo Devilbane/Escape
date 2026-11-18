@@ -184,24 +184,29 @@ func _rolls() -> void:
 	for hour in [2.0, 8.0, 13.0, 19.0]:
 		for i in 200:
 			var before: String = Weather.KINDS[i % Weather.KINDS.size()]
-			var next := Weather.roll(hour, rng, before)
+			var winter := i % 2 == 0
+			var next := Weather.roll(hour, rng, before, winter)
 			check(next in Weather.KINDS and next != before, "the next weather is a real change")
+			check(not winter or (next != Weather.RAIN and next != Weather.STORM), "no rain and no storm in winter")
+			check(winter or next != Weather.SNOW, "snow only in winter")
 			seen[next] = true
 	check(seen.size() == Weather.KINDS.size(), "every weather comes now and then")
-	# Rain is a third as common as the raw weights would make it.
+	# Rain is a thirtieth as common as the raw weights would make it (90 % rarer than it was).
 	var raw := 0
 	var kept := 0
-	for i in 6000:
+	for i in 60000:
 		var hr: float = [2.0, 8.0, 13.0, 19.0][i % 4]
 		if Weather.roll(hr, rng, Weather.CLEAR) == Weather.RAIN:
 			kept += 1
 		var chances: Dictionary = Weather.CHANCES[Weather.part_of_day(hr)]
 		if Weather._pick(chances, rng, Weather.CLEAR, "") == Weather.RAIN:
 			raw += 1
-	check(absf(float(kept) / float(raw) - 1.0 / 3.0) < 0.06, "rain comes a third as often (%d of %d)" % [kept, raw])
+	check(absf(float(kept) / float(raw) - Weather.RAIN_KEEP) < 0.012, "rain comes a thirtieth as often (%d of %d)" % [kept, raw])
 	for i in 50:
 		var h := Weather.spell(rng, Weather.RAIN)
-		check(h >= Weather.MIN_HOURS and h <= Weather.MAX_HOURS, "a spell of bad weather lasts a few hours")
+		check(h >= Weather.RAIN_MIN_HOURS and h <= Weather.RAIN_MAX_HOURS, "a spell of rain lasts long")
+		var f := Weather.spell(rng, Weather.FOG)
+		check(f >= Weather.MIN_HOURS and f <= Weather.MAX_HOURS, "a spell of fog lasts a few hours")
 		var c := Weather.spell(rng, Weather.CLEAR)
 		check(c >= Weather.CLEAR_MIN_HOURS and c <= Weather.CLEAR_MAX_HOURS, "clear skies last longer")
 	# Over many days, clear skies hold most of the time.

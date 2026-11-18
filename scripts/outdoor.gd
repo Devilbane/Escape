@@ -300,6 +300,12 @@ const CANDLE_GLOW := 5.0
 var _lamps: Array[OmniLight3D] = []
 ## The bandits' campfires light up their camp at night too.
 var _fires: Array[Vector3] = []
+## Where something burns (campfires, the forge, smoking chimneys): xyz and how far round it no snow
+## settles (see SnowCover.set_warm).
+var warm_spots: Array[Vector4] = []
+## The fires of the smithy model (building_blacksmith_red): the logs in the furnace's mouth and the
+## fire on top of its chimney, in the model's own frame, with how far round them it is warm.
+const SMITHY_FIRES: Array[Vector4] = [Vector4(0.22, 0.14, 0.24, 0.24), Vector4(0.21, 0.91, -0.14, 0.14)]
 var _candles: Array[MeshInstance3D] = []
 var _candle_mat: StandardMaterial3D
 ## The glass of the street lamps' lanterns, glowing at night.
@@ -455,6 +461,12 @@ var _weather_foes: Array = []
 var puddles: Puddles
 ## The layer of snow on every surface that faces the sky (see SnowCover).
 var snow: SnowCover
+## How thickly the ponds are frozen over, 0 open water to 1 solid ice (see IceCover).
+var ice := 0.0
+var ice_cover: IceCover
+## Every pond tile (see IceCover).
+var _pond_waters: Array = []
+var _ground_mat: ShaderMaterial
 ## The snowman Pip and Pippi build in the snow (see Snowman), or null.
 var snowman: Snowman
 ## The bounds of the square and the graveyard fence, found once (see ground_at).
@@ -530,12 +542,14 @@ func build() -> void:
 	add_child(SurfaceLife.new(self))
 	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
 	add_child(puddles)
+	ice_cover = IceCover.new(self, _pond_waters, _ground_mat)
 	snow = SnowCover.new(self)
 	var roofed: Array = []
 	for hy in range(_house_rect.position.y, _house_rect.end.y):
 		for hx in range(_house_rect.position.x, _house_rect.end.x):
 			roofed.append(Vector2i(hx, hy))
-	snow.set_sky_mask(roofed, width, height, TILE)
+	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
+	snow.set_warm(warm_spots)
 	var floor_shape := CollisionShape3D.new()
 	floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(floor_shape)
@@ -587,6 +601,7 @@ func _build_ground() -> void:
 	_ground_tex = ImageTexture.create_from_image(mask)
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/meadow.gdshader")
+	_ground_mat = mat
 	mat.set_shader_parameter("ground_mask", _ground_tex)
 	mat.set_shader_parameter("stone_mask", ImageTexture.create_from_image(stones))
 	mat.set_shader_parameter("grid_size", Vector2(width, height))
@@ -810,9 +825,11 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 		"?", ">":
 			TreasureMaps.place(self, c, ch)
 		"~", ";":
-			_add_solid(pos, Vector3(TILE, 1, TILE))
-			fishing_waters.append({"water": "teich" if ch == "~" else "senke", "pos": pos,
-					"reach": TILE * 0.5, "round": false, "surface": 0.04})
+			var pond_water := {"water": "teich" if ch == "~" else "senke", "pos": pos,
+					"reach": TILE * 0.5, "round": false, "surface": 0.04, "cell": c}
+			pond_water["shape"] = _add_box(_walls_body, pos + Vector3(0, 0.5, 0), Vector3(TILE, 1, TILE))
+			fishing_waters.append(pond_water)
+			_pond_waters.append(pond_water)
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.
 			for row in 2:
@@ -1052,6 +1069,7 @@ func _build_campfire(pos: Vector3) -> void:
 	light.position = pos + Vector3(0, 2.0, 0)
 	add_child(light)
 	_fires.append(pos)
+	warm_spots.append(Vector4(pos.x, pos.y + 0.3, pos.z, 2.4))
 	_add_solid(pos, Vector3(2.2, 1.5, 2.2))
 
 
@@ -1289,6 +1307,12 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		var s := minf(room.x / model_size.x, room.y / model_size.y)
 		var foot := (Vector3(box.position.x + box.size.x * 0.5, 0, box.position.z + box.size.z * 0.5) * s).rotated(Vector3.UP, rot)
 		node = _put(model, center - foot, rot, s)
+		if ch == "j":
+			# The smithy's furnace burns logs in its mouth and a fire on its chimney (spots in the
+			# model's own frame, where its texture glows): no snow on either.
+			for hot: Vector4 in SMITHY_FIRES:
+				var at: Vector3 = node.transform * Vector3(hot.x, hot.y, hot.z)
+				warm_spots.append(Vector4(at.x, at.y, at.z, hot.w * s))
 		if ch != "R":
 			_age_kit_building(node)
 		if ch == "u":
@@ -1338,6 +1362,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		var plume := ChimneySmoke.make()
 		plume.position = node.transform * (node.get_meta("chimney") as Vector3)
 		add_child(plume)
+		warm_spots.append(Vector4(plume.position.x, plume.position.y, plume.position.z, 0.8))
 		chimneys.append({"door": front, "smoke": plume})
 	elif ch == "R":
 		# Ivy up the old crypt (never over its door), and no nest on it.
@@ -2627,6 +2652,8 @@ func _build_forge(cell: Vector2i) -> void:
 	# top of the stack, and the same thin smoke the houses' chimneys give.
 	var top := coals + Vector3(0, 2.52, -0.42)
 	_chimney_fire(top)
+	warm_spots.append(Vector4(coals.x, coals.y, coals.z, 1.8))
+	warm_spots.append(Vector4(top.x, top.y, top.z, 1.6))
 	var plume := ChimneySmoke.make()
 	plume.position = top + Vector3(0, 0.25, 0)
 	_fixed_seed(plume, 3)
@@ -3831,12 +3858,21 @@ func set_snow(cover: float, daylight := 1.0) -> void:
 			snowman.melt_to(cover)
 
 
+## How thickly the ponds are frozen, 0 open water to 1 solid ice (see IceCover and
+## Weather.ice): the hero can walk on the ice, and fish through its one hole.
+func set_ice(value: float) -> void:
+	ice = clampf(value, 0.0, 1.0)
+	if ice_cover != null:
+		ice_cover.set_amount(ice)
+
+
 ## A grey footprint in the snow that fades again; the hero and the villagers leave them while
-## the snow lies thick enough (see Weather.PRINT_FROM). `size` 1 is a grown-up's boot.
-func snow_print(at: Vector3, heading: float, size := 1.0) -> void:
+## the snow lies thick enough (see Weather.PRINT_FROM). `size` 1 is a grown-up's boot; `kind`
+## is the shape (see SnowPrints.KINDS), the animals leave paws, hooves and bird feet.
+func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> void:
 	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree():
 		return
-	SnowPrints.leave(self, at, heading, size)
+	SnowPrints.leave(self, at, heading, size, kind)
 
 
 ## A wet footprint on dry ground, left by a hero fresh out of a puddle.
@@ -3983,8 +4019,8 @@ func strike() -> Vector3:
 func _show_bolt(at: Vector3) -> void:
 	var bolt := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.25
-	mesh.bottom_radius = 0.08
+	mesh.top_radius = 0.6
+	mesh.bottom_radius = 0.2
 	mesh.height = 40.0
 	bolt.mesh = mesh
 	var mat := StandardMaterial3D.new()
@@ -3992,24 +4028,46 @@ func _show_bolt(at: Vector3) -> void:
 	mat.albedo_color = Color(0.9, 0.94, 1.0)
 	mat.emission_enabled = true
 	mat.emission = Color(0.8, 0.88, 1.0)
-	mat.emission_energy_multiplier = 4.0
+	mat.emission_energy_multiplier = 8.0
 	bolt.material_override = mat
 	bolt.position = at + Vector3(0, 20.0, 0)
 	add_child(bolt)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(0.8, 0.88, 1.0)
-	glow.light_energy = 6.0
-	glow.omni_range = 14.0
+	glow.light_energy = 14.0
+	glow.omni_range = 24.0
 	glow.position = at + Vector3(0, 2.0, 0)
 	add_child(glow)
 	var sparks := Effects.make_sparkles(Color(0.8, 0.9, 1.0), true)
 	sparks.position = at + Vector3(0, 0.5, 0)
 	add_child(sparks)
+	# A scorch mark where it hit, fading over a while.
+	var scorch := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = 1.3
+	disc.bottom_radius = 1.3
+	disc.height = 0.02
+	scorch.mesh = disc
+	var burnt := StandardMaterial3D.new()
+	burnt.albedo_color = Color(0.03, 0.03, 0.03, 0.65)
+	burnt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	scorch.material_override = burnt
+	scorch.position = at + Vector3(0, 0.03, 0)
+	add_child(scorch)
+	# The bolt flickers: on, dark for a blink, on again, then gone.
 	var tween := create_tween()
-	tween.tween_interval(0.18)
+	tween.tween_interval(0.2)
+	tween.tween_callback(func(): bolt.visible = false)
+	tween.tween_interval(0.07)
+	tween.tween_callback(func(): bolt.visible = true)
+	tween.tween_interval(0.35)
 	tween.tween_callback(bolt.queue_free)
-	tween.tween_property(glow, "light_energy", 0.0, 0.4)
+	tween.tween_property(glow, "light_energy", 0.0, 1.0)
 	tween.tween_callback(glow.queue_free)
+	var fade := create_tween()
+	fade.tween_interval(8.0)
+	fade.tween_property(burnt, "albedo_color:a", 0.0, 12.0)
+	fade.tween_callback(scorch.queue_free)
 
 
 ## How many lumps of thunder ore lie about right now.

@@ -1,0 +1,1 @@
+- Slimes no longer leave a shiny spot on the ground: their puddle dries up a few seconds after they die.

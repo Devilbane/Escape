@@ -141,6 +141,7 @@ house_doors.gd | 120 | fixed | pass | House doors swing open before anyone goes 
 quarry_door.gd | 120 | fixed | pass | The house beside the stonemason's quarry can be reached on foot
 nest_chicks.gd | 120 | fixed | pass | Eggs and chicks in the village nests (begging, fed by parents and the hero)
 bird_feeding.gd | 180 | fixed | pass | Villagers feed the birds (seed scattered, birds peck and perch on the feeder)
+frozen_fritz.gd | 240 | fixed | pass | Fritz freezes on the market square in the snow (no singing, birds perch on him, thaws)
 journal.gd | 120 | free | pass | Map and journal test
 player_houses.gd | 120 | fixed | pass | Town houses for many heroes test
 home_run.gd | 300 | fixed | passfail | Run home test (the home button and the way home)
@@ -244,3 +245,4 @@ skill_trees.gd | 120 | free | pass | Skill trees (whole data, old heroes keep th
 training_curve.gd | 60 | free | pass | Use table (the cost of the levels, and saved heroes keep every level)
 lightning_strike.gd | 120 | fixed | pass | Lightning glows, scares and hurts what it strikes
 place_monsters.gd | 60 | free | pass | Compendium places list their monsters' level range
+frozen_ponds.gd | 120 | free | pass | Frozen ponds with one fishing hole

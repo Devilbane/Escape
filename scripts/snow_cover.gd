@@ -14,6 +14,8 @@ const SHADER := preload("res://shaders/snow_cover.gdshader")
 ## Nodes of these kinds (and everything below them) stay bare.
 const LEAVE_BARE := ["Villager", "Enemy", "Animal", "Pet", "Player", "FarmAnimal", "Projectile"]
 
+## How many burning spots the shader knows (see set_warm).
+const WARM_MAX := 32
 ## Single meshes narrower than this (metres) take no snow (see tiny).
 const SMALLEST := 0.6
 
@@ -21,6 +23,7 @@ var material := ShaderMaterial.new()
 var root: Node
 var amount := 0.0
 var _covered := false
+var _warm_src: Array[Vector4] = []
 var _meshes: Array[GeometryInstance3D] = []
 
 
@@ -32,13 +35,30 @@ func _init(world: Node) -> void:
 
 ## Tells the shader where roofs stand over the ground (tiles of the grid where `roofed`
 ## has a true), so nothing under a roof gets snow.
-func set_sky_mask(roofed: Array, width: int, height: int, tile: float) -> void:
-	var img := Image.create(width, height, false, Image.FORMAT_R8)
+## Pond tiles (`ponds`) are marked too: no snow settles on open water or on wind-swept ice.
+func set_sky_mask(roofed: Array, width: int, height: int, tile: float, ponds: Array = []) -> void:
+	var img := Image.create(width, height, false, Image.FORMAT_RG8)
 	for c: Vector2i in roofed:
 		img.set_pixel(c.x, c.y, Color(1, 0, 0, 1))
+	for c: Vector2i in ponds:
+		img.set_pixel(c.x, c.y, Color(0, 1, 0, 1))
 	material.set_shader_parameter("sky_mask", ImageTexture.create_from_image(img))
 	material.set_shader_parameter("grid_size", Vector2(width, height))
 	material.set_shader_parameter("tile", tile)
+
+
+## Where something burns: no snow settles within the radius (w) round each point (xyz), so fires,
+## the forge's coals and its chimney, and the smoking chimneys stay clear. At most WARM_MAX.
+func set_warm(spots: Array[Vector4]) -> void:
+	# Kept, so spots added later while the world is built are known when the snow comes (see _cover).
+	_warm_src = spots
+	var list := PackedVector4Array()
+	for i in mini(spots.size(), WARM_MAX):
+		list.append(spots[i])
+	while list.size() < WARM_MAX:
+		list.append(Vector4(0, -1000, 0, 0))
+	material.set_shader_parameter("warm", list)
+	material.set_shader_parameter("warm_count", mini(spots.size(), WARM_MAX))
 
 
 ## How thick the snow lies, 0 to 1, and how bright the light of the hour is.
@@ -59,6 +79,7 @@ func lies() -> bool:
 
 func _cover() -> void:
 	_covered = true
+	set_warm(_warm_src)
 	_add(root)
 	if root.is_inside_tree() and not root.get_tree().node_added.is_connected(_on_node_added):
 		root.get_tree().node_added.connect(_on_node_added)
@@ -104,8 +125,8 @@ static func tiny(gi: GeometryInstance3D) -> bool:
 	return maxf(ext.x, ext.z) < SMALLEST
 
 
-## Whether a mesh is drawn with see-through or cut-out parts (leaf cards, glass, water): the
-## overlay cannot see the holes, so it would cover the whole card in white. Those stay bare.
+## Whether a mesh is drawn with see-through or cut-out parts (leaf cards, glass, water), whose
+## holes the overlay cannot see (it would cover the whole card in white), or glows. Those stay bare.
 static func cut_out(gi: GeometryInstance3D) -> bool:
 	var mesh: Mesh = null
 	if gi is MeshInstance3D:
@@ -121,6 +142,9 @@ static func cut_out(gi: GeometryInstance3D) -> bool:
 	for m in mats:
 		var base := m as BaseMaterial3D
 		if base != null and base.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+			return true
+		# Glowing things (coals, embers, lit panes) are hot or lit from within: no snow on them.
+		if base != null and base.emission_enabled:
 			return true
 	return false
 

@@ -59,6 +59,27 @@ func _process(_delta: float) -> bool:
 		check(deer.state == "flee", "a struck animal bolts")
 		check(deer.is_inside_tree(), "an animal is not killed by it")
 
+	# The afterglow: each kind goes on, ends by itself, and soot comes off again.
+	for k in StruckAfterglow.KINDS:
+		var far_one := Enemy.new()
+		far_one.kind = "krieger"
+		far_one.level = lvl
+		lvl.add_child(far_one)
+		var a := StruckAfterglow.put_on(far_one, k)
+		check(a.kind == k and far_one.get_node_or_null("StruckAfterglow") == a, "the %s afterglow goes on" % k)
+		a._process(StruckAfterglow.LASTS + 1.0)
+		check(a.is_queued_for_deletion(), "the %s afterglow ends by itself" % k)
+		far_one.queue_free()
+	var coat := Enemy.new()
+	coat.kind = "krieger"
+	coat.level = lvl
+	lvl.add_child(coat)
+	var soot := StruckAfterglow.put_on(coat, "sooty")
+	var coated := coat.find_children("*", "MeshInstance3D", true, false).filter(func(m): return m.material_overlay != null).size()
+	check(coated > 0, "soot coats the body")
+	soot.free()
+	check(coat.find_children("*", "MeshInstance3D", true, false).all(func(m): return m.material_overlay == null), "the soot comes off again")
+
 	hero.global_position = spot + Vector3(0, 0, 100)
 	hero.hp = hero.max_hp
 	hero._invulnerable = 0.0

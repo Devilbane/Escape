@@ -43,7 +43,7 @@ func _run() -> void:
 	game.player.global_position = middle + Vector3(-14, 0, 16)
 	await _wait(240)
 	if shots != "":
-		var views := {"pen": [Vector3(14, 22, -14), Vector3(0, 0, 1)], "pen_close": [Vector3(-9, 9, -9), Vector3(1, 0, 1)]}
+		var views := {"pen": [Vector3(14, 22, -14), Vector3(0, 0, 1)], "pen_close": [Vector3(-9, 9, -9), Vector3(1, 0, 1)], "shelter": [Vector3(0, 5, 9), Vector3(6, 1.2, -4)], "top": [Vector3(6, 34, 0.5), Vector3(6, 0, 0)]}
 		for name: String in views:
 			var cam := Camera3D.new()
 			cam.fov = 60.0

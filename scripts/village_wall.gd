@@ -245,11 +245,11 @@ func post_of(o: Outdoor, brick: WallBrick, k: int) -> Vector3:
 	return brick.global_position + inward * 2.0 + along * offset
 
 
-## Whether a standing wall or a shut gate lies across the straight line from `a` to `b`
-## (so a knife or spell thrown that way would strike the stones, and nobody can aim over it).
+## Whether a standing stretch of wall high enough to stop a shot (StoneBlock.SHOT_STOP_LAYERS
+## courses: the shut gate, not the low wall of two courses) lies across the line from `a` to `b`.
 func shot_blocked(a: Vector3, b: Vector3) -> bool:
 	for brick: WallBrick in bricks.values():
-		if not brick.blocks():
+		if not brick.blocks() or (WallBrick.POST_COURSES if brick.gate else WallBrick.COURSES) < StoneBlock.SHOT_STOP_LAYERS:
 			continue
 		var p := brick.global_position
 		var half := Level.TILE * 0.5

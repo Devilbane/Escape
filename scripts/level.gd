@@ -6135,6 +6135,12 @@ func shot_blocked(a: Vector3, b: Vector3) -> bool:
 	for foot in shot_blockers:
 		if segment_hits_rect(from, to, foot):
 			return true
+	# Blocks the hero stacked: two layers can be shot over, the third layer stops the shot.
+	for s in stones:
+		if is_instance_valid(s) and s.layer + 1 >= StoneBlock.SHOT_STOP_LAYERS:
+			var size := Vector2(StoneBlock.CELL * 2.0, StoneBlock.CELL) if s.along_x else Vector2(StoneBlock.CELL, StoneBlock.CELL * 2.0)
+			if segment_hits_rect(from, to, Rect2(Vector2(s.cell) * StoneBlock.CELL, size).grow(SHOT_RADIUS)):
+				return true
 	return false
 
 

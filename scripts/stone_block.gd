@@ -19,6 +19,9 @@ const CELL := Crate.SIZE
 const HEIGHT := Crate.SIZE
 ## How many blocks fit on top of each other.
 const MAX_LAYERS := 5
+## From this many layers (or courses of a village wall) a stack is too high to shoot, throw or
+## cast over: it stops every shot. Two layers, like most of the village wall, can be shot over.
+const SHOT_STOP_LAYERS := 3
 ## Chamfer of the carved edges, and the gap left between neighbours so the
 ## joints between blocks show.
 const BEVEL := 0.06

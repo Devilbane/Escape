@@ -66,7 +66,52 @@ func _run() -> void:
 			if is_equal_approx(w.w, 1.8):
 				var coals := Vector3(w.x, w.y, w.z)
 				await _shot("snow_forge", coals + Vector3(3.5, 3.6, 4.5), coals + Vector3(0, 1.0, 0), 55.0)
-		if OS.get_environment("ONLY") == "forge":
+		# The snow's body: thick caps over the eaves, icicles, and a bush under snow.
+		var houses: Array = lvl.find_children("*", "Node3D", true, false).filter(
+				func(n: Node): return n.has_meta("village_house") or n.has_meta("town_house"))
+		if not houses.is_empty():
+			var house: Node3D = houses[0]
+			var front: Vector3 = house.global_transform.basis.z.normalized()
+			var mid: Vector3 = house.global_position
+			var top := 6.0
+			for cap in SnowCaps.in_world(lvl):
+				var cb: AABB = cap.global_transform * cap.get_aabb()
+				if cb.has_point(mid + Vector3(0, 3, 0)):
+					top = cb.end.y
+			var side := front.cross(Vector3.UP)
+			await _shot("snow_roof_house", mid + front * 11.0 + side * 4.0 + Vector3(0, top + 1.5, 0), mid + Vector3(0, top * 0.6, 0), 55.0)
+			await _shot("snow_eaves", mid + front * 6.0 + side * 2.0 + Vector3(0, top * 0.45, 0), mid + front * 1.0 + Vector3(0, top * 0.6, 0), 50.0)
+		# The highest icicle in the village, seen from close by.
+		var hi := Vector3(0, -100, 0)
+		var hi_cap: MeshInstance3D = null
+		for cap in SnowCaps.in_world(lvl):
+			for i in cap.mesh.get_surface_count():
+				if cap.mesh.surface_get_material(i) != SnowCaps.ice_material():
+					continue
+				for v: Vector3 in cap.mesh.surface_get_arrays(i)[Mesh.ARRAY_VERTEX]:
+					var w: Vector3 = cap.global_transform * v
+					if w.y > hi.y and w.y < 7.0:
+						hi = w
+						hi_cap = cap
+		if hi_cap:
+			var cb: AABB = hi_cap.global_transform * hi_cap.get_aabb()
+			var away := Vector3(hi.x - cb.get_center().x, 0, hi.z - cb.get_center().z).normalized()
+			await _shot("snow_icicles", hi + away * 3.5 + Vector3(0, -1.0, 0) + away.cross(Vector3.UP) * 1.5, hi + Vector3(0, -0.4, 0), 50.0)
+		var biggest: MeshInstance3D = null
+		for cap: MeshInstance3D in SnowCaps.in_world(lvl):
+			if biggest == null or cap.get_aabb().size.length() > biggest.get_aabb().size.length():
+				biggest = cap
+		if biggest:
+			var box: AABB = biggest.global_transform * biggest.get_aabb()
+			var c: Vector3 = box.get_center()
+			await _shot("snow_roof_kit", c + Vector3(box.size.x * 0.9, box.size.y * 0.6, box.size.z * 0.9), c, 55.0)
+		for leaves: Node3D in lvl.find_children("Leaves_*", "MultiMeshInstance3D", true, false):
+			var lbox: AABB = (leaves as GeometryInstance3D).global_transform * (leaves as GeometryInstance3D).get_aabb()
+			if lbox.size.y < 2.5:
+				var lc := lbox.get_center()
+				await _shot("snow_bush", lc + Vector3(3.0, 2.5, 3.0), lc, 50.0)
+				break
+		if OS.get_environment("ONLY") in ["forge", "roofs"]:
 			game.delete_save(game.save_path())
 			print("PASS: snow shots")
 			quit(0)

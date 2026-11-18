@@ -6089,7 +6089,7 @@ func refresh_vaults() -> void:
 ## True when nothing blocks the view between two points on the grid.
 ## A closed door blocks it too, even for someone standing in its doorway.
 func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
-	if door_between(a, b):
+	if door_between(a, b) or tall_stone_between(a, b):
 		return false
 	var from := Vector2(a.x, a.z) / TILE
 	var to := Vector2(b.x, b.z) / TILE
@@ -6145,7 +6145,15 @@ func shot_blocked(a: Vector3, b: Vector3) -> bool:
 	for foot in shot_blockers:
 		if segment_hits_rect(from, to, foot):
 			return true
-	# Blocks the hero stacked: two layers can be shot over, the third layer stops the shot.
+	return tall_stone_between(a, b)
+
+
+## Whether a stack of the hero's blocks three layers high (StoneBlock.SHOT_STOP_LAYERS) or more
+## stands across the line from `a` to `b`. Two layers, like most of the village wall, are low
+## enough to see and shoot over, the third layer stops both.
+func tall_stone_between(a: Vector3, b: Vector3) -> bool:
+	var from := Vector2(a.x, a.z)
+	var to := Vector2(b.x, b.z)
 	for s in stones:
 		if is_instance_valid(s) and s.layer + 1 >= StoneBlock.SHOT_STOP_LAYERS:
 			var size := Vector2(StoneBlock.CELL * 2.0, StoneBlock.CELL) if s.along_x else Vector2(StoneBlock.CELL, StoneBlock.CELL * 2.0)

@@ -10,7 +10,8 @@ extends Node
 ##     of skeleton (no dust or sound: both would draw on the shared random
 ##     numbers, and the level runs in tests/play_all_levels.gd depend on
 ##     that stream);
-##   melt (slimes): run out flat at once into a puddle that dries to a stain;
+##   melt (slimes): run out flat at once into a glossy puddle that dries up in
+##     a few seconds and leaves nothing behind;
 ##   wisp (fog wraiths and the ghosts of the dungeon): blow away in a moment
 ##     and leave nothing.
 ## For the web build only a few corpses lie about at once (MAX_CORPSES): a
@@ -33,7 +34,7 @@ const FOG_CHECK := 0.25
 const STYLES := {
 	"flesh": {"dark": 80.0, "black": 0.7, "sag": [6.0, 90.0], "flat": 0.3, "wide": 1.0, "end": 100.0, "gone": 8.0},
 	"bones": {"dark": 40.0, "black": 0.5, "sag": [20.0, 45.0], "flat": 0.6, "wide": 1.0, "end": 50.0, "gone": 6.0},
-	"melt": {"dark": 40.0, "black": 0.5, "sag": [0.0, 2.5], "flat": 0.14, "wide": 1.35, "end": 45.0, "gone": 5.0},
+	"melt": {"dark": 6.0, "black": 0.3, "sag": [0.0, 2.5], "flat": 0.14, "wide": 1.35, "end": 6.0, "gone": 3.0},
 	"wisp": {"dark": 2.0, "black": 0.2, "sag": [0.0, 2.0], "flat": 0.6, "wide": 0.0, "end": 0.0, "gone": 2.0},
 }
 const ROT := Color(0.09, 0.07, 0.05)
@@ -169,6 +170,9 @@ func _process(delta: float) -> void:
 			# the bones beneath, laid out as it lies, are what stays.
 			_leave_remnant()
 			var g := smoothstep(0.0, 1.0, gone)
+			# A slime's glossy puddle dries up with it (it is part of the body).
+			if style == "melt" and enemy._puddle_mat != null:
+				enemy._puddle_mat.albedo_color.a = 1.0 - g
 			shape.y *= lerpf(1.0, 0.04, g)
 			_set_rot(lerpf(_overlay.albedo_color.a, LAST_BLACK, g))
 			DeadEyes.fade(enemy._model, 1.0 - g)
@@ -205,7 +209,7 @@ func _finish() -> void:
 ## Lays out what is left (once, as its end begins): bones where the body's
 ## bones lie right now, and a stain under them, still see-through.
 func _leave_remnant() -> void:
-	if _remnant != null or style == "wisp":
+	if _remnant != null or style == "wisp" or style == "melt":
 		return
 	var level: Level = enemy.level
 	if level == null or not is_instance_valid(level):

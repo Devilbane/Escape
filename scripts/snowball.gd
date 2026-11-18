@@ -17,6 +17,9 @@ const HIT_LINES := [
 	"Na wartet, ihr zwei!",
 ]
 
+## Its own dice, so play in the snow never shifts the game's random rolls.
+static var _rng := RandomNumberGenerator.new()
+
 var target: Node3D
 var thrower: Node3D
 var world: Node3D
@@ -42,8 +45,8 @@ static func throw(level: Node3D, from: Vector3, at: Node3D, by: Node3D, miss := 
 func _launch(from: Vector3, miss: bool) -> void:
 	_from = from
 	if miss:
-		var side := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized()
-		_miss = side * randf_range(0.8, 1.4)
+		var side := Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)).normalized()
+		_miss = side * _rng.randf_range(0.8, 1.4)
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.07
 	mesh.height = 0.14
@@ -95,11 +98,11 @@ func _physics_process(delta: float) -> void:
 ## The ball bursts into snow where it lands; a grown-up who is hit grumbles.
 func _burst() -> void:
 	Snowball.puff(world, global_position)
-	Sfx.play(self, "step_grass_%d" % (randi() % 6), -10.0, global_position, 1.4)
+	Sfx.play(self, "step_grass_%d" % (_rng.randi() % 6), -10.0, global_position, 1.4)
 	if _miss == Vector3.ZERO and target is Villager and is_instance_valid(target):
 		var hit := target as Villager
 		if hit._info.get("pal", "") == "" and hit.chat_partner == null and not hit.night:
-			var line: String = HIT_LINES[randi() % HIT_LINES.size()]
+			var line: String = HIT_LINES[_rng.randi() % HIT_LINES.size()]
 			hit.say(Lang.t(line), thrower.global_position if is_instance_valid(thrower) else Vector3.INF, 2.5)
 	queue_free()
 

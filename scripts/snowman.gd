@@ -31,7 +31,7 @@ static func ensure(level: Outdoor, near: Vector3) -> Snowman:
 	level.add_child(man)
 	man.global_position = spot
 	# He looks south, towards the way the camera looks at the village, give or take a little.
-	man.rotation.y = randf_range(-0.5, 0.5)
+	man.rotation.y = Snowball._rng.randf_range(-0.5, 0.5)
 	level.snowman = man
 	return man
 

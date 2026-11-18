@@ -11,6 +11,8 @@ const EVERY := Vector2(1.3, 2.3)
 const MOUTH := Vector3(0, 1.32, 0.3)
 
 static var _material: StandardMaterial3D
+## Its own dice, so breathing never shifts the game's random rolls (hits, loot).
+static var _rng := RandomNumberGenerator.new()
 
 var _puff: CPUParticles3D
 var _timer := 0.0
@@ -77,7 +79,7 @@ func _ready() -> void:
 	_puff.color_ramp = fade
 	_puff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_puff)
-	_timer = randf_range(0.0, EVERY.y)
+	_timer = _rng.randf_range(0.0, EVERY.y)
 
 
 func _process(delta: float) -> void:
@@ -86,5 +88,5 @@ func _process(delta: float) -> void:
 	_timer -= delta
 	if _timer > 0.0 or not is_visible_in_tree():
 		return
-	_timer = randf_range(EVERY.x, EVERY.y)
+	_timer = _rng.randf_range(EVERY.x, EVERY.y)
 	_puff.restart()

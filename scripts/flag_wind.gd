@@ -21,6 +21,9 @@ extends Node
 ## way from there to the free end and the way it swings; and how far the free
 ## end swings, as a share of the cloth's length (in a breeze).
 const SHAPES := {
+	# The banner on the temple's tower (see ChapelPenguin): one unit wide, hung from its left edge.
+	"chapel_banner": {"mesh": "chapel_banner", "surfaces": [0], "root": Vector3(0, 0, 0),
+			"reach": Vector3(1, 0, 0), "push": Vector3(0, 0, 1), "flutter": 0.14},
 	# A pennant on a pole, flying out sideways from it.
 	"flag_red": {"mesh": "flag_red", "surfaces": [0], "root": Vector3(0, 0, -0.02),
 			"reach": Vector3(0, 0, -0.222), "push": Vector3(1, 0, 0), "flutter": 0.16},

@@ -1788,6 +1788,8 @@ func _build_chapel(center: Vector3, rot: float, room: Vector2) -> Node3D:
 		gable.position = Vector3(0, CHAPEL_EAVES, z)
 		chapel.add_child(gable)
 	_skin_chapel(chapel)
+	# An easter egg on the spire's peak: a penguin with a banner.
+	chapel.add_child(ChapelPenguin.build(self))
 	var spill := MeshInstance3D.new()
 	spill.name = "ChapelSpill"
 	spill.mesh = ChapelSpill.build_mesh()

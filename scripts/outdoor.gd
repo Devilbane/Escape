@@ -512,6 +512,8 @@ func build() -> void:
 	_build_blocks()
 	if Corral.present(self):
 		Corral.build_props(self)
+		if Corral.has_shelter(self):
+			Corral.build_shelter(self)
 	_pave_entrances()
 	_plant_bushes()
 	# No leaf covers any door, whichever building grew it.
@@ -548,6 +550,10 @@ func build() -> void:
 	for hy in range(_house_rect.position.y, _house_rect.end.y):
 		for hx in range(_house_rect.position.x, _house_rect.end.x):
 			roofed.append(Vector2i(hx, hy))
+	if Corral.has_shelter(self):
+		for sy in range(Corral.SHELTER.position.y, Corral.SHELTER.end.y):
+			for sx in range(Corral.SHELTER.position.x, Corral.SHELTER.end.x):
+				roofed.append(Vector2i(sx, sy))
 	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
 	snow.set_warm(warm_spots)
 	var floor_shape := CollisionShape3D.new()

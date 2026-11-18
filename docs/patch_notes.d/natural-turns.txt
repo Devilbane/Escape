@@ -1,0 +1,1 @@
+- Animals and monsters now swing round in a small arc when they change direction instead of snapping; big ones turn wider, and hunters that have spotted you still turn sharply.

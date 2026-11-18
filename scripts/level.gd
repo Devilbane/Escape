@@ -2698,7 +2698,7 @@ func splash_puddle(at: Vector3, _hard := true) -> void:
 
 
 ## A grey footprint in the snow (only the open air has snow, see Outdoor.snow_print).
-func snow_print(_at: Vector3, _heading: float, _size := 1.0) -> void:
+func snow_print(_at: Vector3, _heading: float, _size := 1.0, _kind := "boot") -> void:
 	pass
 
 

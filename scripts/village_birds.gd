@@ -436,6 +436,9 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 				b.hop = maxf(0.0, float(b.hop) - delta)
 				var k := 1.0 - float(b.hop) / HOP_TIME
 				b.at = (b.hop_from as Vector3).lerp(b.hop_to, k) + Vector3.UP * sin(PI * k) * HOP_HEIGHT
+				if b.hop <= 0.0 and level.has_method("snow_print"):
+					# The little feet land: a three-toed print in the snow.
+					level.snow_print(b.hop_to, atan2(b.hop_to.x - b.hop_from.x, b.hop_to.z - b.hop_from.z), 1.0, "bird")
 				return
 			if b.worm > 0.0:
 				# Tugging the worm out, then gulping it down, or off home

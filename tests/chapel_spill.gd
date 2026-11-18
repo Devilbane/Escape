@@ -14,7 +14,7 @@ func check(ok: bool, what: String) -> void:
 func _init() -> void:
 	var mesh := ChapelSpill.build_mesh()
 	var verts: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
-	check(verts.size() == ChapelSpill.WINDOWS.size() * ChapelSpill.COLOURS.size() * 6, "every window gets one pool per colour")
+	check(verts.size() == ChapelSpill.WINDOWS.size() * 6, "every window gets one light picture")
 	for v in verts:
 		check(v.y > 0.0 and v.y < 0.5, "pools lie on the ground")
 	var mat := ChapelSpill.material(2.6)

@@ -481,7 +481,8 @@ static func snapshot(level: Level) -> Array:
 			for thing in meal.loot:
 				belly.append(_thing_to_save(thing))
 		var kept := {"kind": e.kind, "x": snappedf(e.global_position.x, 0.01), "z": snappedf(e.global_position.z, 0.01),
-			"level": e.rated_level, "hp": e.hp, "bonus": e.life_bonus, "meals": e.meals, "jitter": snappedf(float(e._stats.get("size_jitter", 1.0)), 0.001), "belly": belly}
+			"level": e.rated_level, "hp": e.hp, "bonus": e.life_bonus, "meals": e.meals, "jitter": snappedf(float(e._stats.get("size_jitter", 1.0)), 0.001), "belly": belly,
+			"age": snappedf(e.slime_age, 0.1), "dry": snappedf(e.dry_time, 0.1), "dryness": snappedf(e.dryness, 0.01)}
 		if e._stats.has("tint"):
 			var tint: Color = e._stats.tint
 			kept.tint = [snappedf(tint.r, 0.001), snappedf(tint.g, 0.001), snappedf(tint.b, 0.001)]
@@ -503,6 +504,9 @@ static func restore(level: Outdoor, kept: Array) -> void:
 		var e := level.spawn_slime(str(k.kind), at, custom)
 		e.life_bonus = maxi(0, int(k.get("bonus", 0)))
 		e.meals = maxi(0, int(k.get("meals", 0)))
+		e.slime_age = maxf(0.0, float(k.get("age", 0.0)))
+		e.dry_time = clampf(float(k.get("dry", 0.0)), 0.0, SlimeLife.FADE_SECONDS)
+		e.dryness = clampf(float(k.get("dryness", 0.0)), 0.0, 1.0)
 		e.hp = clampi(int(k.get("hp", e.max_hp())), 1, e.max_hp())
 		var loot := []
 		for thing in k.get("belly", []):

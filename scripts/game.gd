@@ -5009,6 +5009,10 @@ func _hero_says(text: String) -> void:
 	if Godmode.is_command(text):
 		_toggle_godmode()
 		return
+	var sky: Variant = SkyCommand.parse(text)
+	if sky != null:
+		_sky_command(sky)
+		return
 	if _teleport_waits_for(text):
 		return
 	var pos := player.global_position
@@ -5029,6 +5033,48 @@ func _toggle_godmode() -> void:
 	if player.godmode:
 		player.hp = player.max_hp
 	Events.tell(Lang.t(Godmode.ON_TEXT) if player.godmode else Lang.t(Godmode.OFF_TEXT), TELEPORT_COLOR)
+
+
+## The chat line's weather and time commands (see SkyCommand): force the
+## weather, the hour and the season at once. A forced snow lays a full layer
+## of snow, so winter can be checked at once.
+func _sky_command(sky: Dictionary) -> void:
+	if sky.has("error"):
+		if sky.error != "":
+			Events.tell(Lang.t("Unbekanntes Wort \"%s\". Optionen:") % sky.error, TELEPORT_COLOR)
+		else:
+			Events.tell(Lang.t("Wetter und Zeit erzwingen. Optionen:"), TELEPORT_COLOR)
+		for line in SkyCommand.HELP:
+			Events.found(Lang.t(line), TELEPORT_COLOR)
+		return
+	var parts: Array[String] = []
+	var kind: String = sky.weather
+	if sky.winter >= 0:
+		day = SkyCommand.day_for(day, sky.winter == 1)
+		parts.append(Lang.t("Winter an") if sky.winter == 1 else Lang.t("Winter aus"))
+	elif Weather.is_winter(day) and kind in [Weather.RAIN, Weather.STORM]:
+		# There is no rain or storm in winter (see Weather.for_season): end it.
+		day = SkyCommand.day_for(day, false)
+		parts.append(Lang.t("Kein Regen im Winter: der Winter wurde beendet."))
+	if sky.hour >= 0.0:
+		day_hour = sky.hour
+		parts.append(Lang.t("Uhrzeit: %s") % DayNight.clock_text(day_hour))
+	if kind != "":
+		set_weather(kind, SkyCommand.HOLD_HOURS)
+		parts.append(Lang.t("Wetter: %s") % Lang.t(Weather.word(weather)))
+		if weather == Weather.SNOW:
+			snow_cover = 1.0
+	if kind != "" or sky.winter >= 0:
+		# Show it at once, without the fade of the sky.
+		_weather_look = Weather.look(weather)
+	if sky.winter >= 0 and kind == "":
+		# Winter on lays snow on the ground; out of it, the ground is bare.
+		snow_cover = 1.0 if sky.winter == 1 else 0.0
+		if sky.winter == 1:
+			set_weather(Weather.SNOW, SkyCommand.HOLD_HOURS)
+			_weather_look = Weather.look(weather)
+	Events.tell(Lang.t("Himmel: %s") % ", ".join(parts), TELEPORT_COLOR)
+	_update_hud()
 
 
 ## The chat line's teleport command (see Teleport). "teleport" lists every

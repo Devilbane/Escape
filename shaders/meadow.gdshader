@@ -275,12 +275,11 @@ void fragment() {
 	float soil = smoothstep(0.4, 0.7, m.g + (n - 0.5) * 0.3) * (1.0 - square);
 	float path = smoothstep(0.42, 0.6, m.r + (n - 0.5) * 0.3 + fray * 0.18) * (1.0 - square);
 	float wet = smoothstep(0.5, 0.62, m.b + (n - 0.5) * 0.15);
-	float bank = smoothstep(0.25, 0.5, m.b + (n - 0.5) * 0.15) * (1.0 - wet);
 
 	float h = 0.0;
 	float hg;
-	vec3 col = grass(p, px, n, max(soil, bank), hg);
-	col = flowers(p, px, col, (1.0 - soil) * (1.0 - wood) * (1.0 - path) * (1.0 - bank), hg);
+	vec3 col = grass(p, px, n, soil, hg);
+	col = flowers(p, px, col, (1.0 - soil) * (1.0 - wood) * (1.0 - path), hg);
 	h = hg;
 	if (wood > 0.001) {
 		float hf;
@@ -327,8 +326,6 @@ void fragment() {
 		h = mix(h, hc, square);
 		rough = mix(rough, 0.82, square);
 	}
-	// Muddy, dark banks round the water.
-	col = mix(col, col * vec3(0.6, 0.58, 0.55), bank * 0.8);
 	// Still water with slow ripples.
 	if (wet > 0.001) {
 		float ripple = noise(p * 2.0 + vec2(TIME * 0.15, TIME * 0.1)) + 0.5 * noise(p * 5.0 - vec2(TIME * 0.2, 0.0));

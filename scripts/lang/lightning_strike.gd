@@ -4,4 +4,7 @@ extends RefCounted
 
 const EN := {
 	"AAAH!": "AAAH!",
+	"Bzzt!": "Bzzt!",
+	"Hust!": "Cough!",
+	"Zzzap!": "Zzzap!",
 }

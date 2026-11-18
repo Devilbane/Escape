@@ -981,6 +981,12 @@ func _fight(delta: float) -> void:
 	_turn_to(to, delta)
 	var throws := VillageArms.style(role) == "throw" or (VillageArms.style(role) == "melee" and knives > 0)
 	var casts := VillageArms.style(role) == "cast"
+	# The wall stops a knife or a spell: with a slime on the far side nothing is thrown or cast.
+	# A fighter with a blade goes for it with that; Pip and the mage wait for a clear shot.
+	var walled := (throws or casts) and level.village_wall.shot_blocked(global_position, threat.global_position)
+	if walled and VillageArms.style(role) == "melee":
+		throws = false
+		walled = false
 	var reach := VillageArms.CAST_RANGE if casts else VillageArms.THROW_RANGE if throws else BLOW_REACH + threat.radius
 	if casts and to.length() < VillageArms.CAST_KEEP_AWAY:
 		# The mage steps back from a slime that gets too close.
@@ -991,13 +997,18 @@ func _fight(delta: float) -> void:
 		# Out of range and he will not leave his wagon: let it go.
 		calm_down()
 		return
-	if to.length() > reach or ((throws or casts) and not level.has_line_of_sight(global_position, threat.global_position)):
+	if walled and level.grid_path(level.world_to_cell(global_position), level.world_to_cell(threat.global_position)).size() < 2:
+		# Behind the wall with no way round: wait for a clear shot instead of throwing at the stones.
+		if not _anim.is_playing() or _current_anim != "Idle":
+			play("Idle")
+		return
+	if to.length() > reach or ((throws or casts) and (walled or not level.has_line_of_sight(global_position, threat.global_position))):
 		# Round the houses on the village's ways when it is further off.
 		_fight_repath -= delta
 		if _fight_repath <= 0.0:
 			_fight_repath = 1.0
 			_fight_path.clear()
-			if not level.has_line_of_sight(global_position, threat.global_position):
+			if walled or not level.has_line_of_sight(global_position, threat.global_position):
 				for c in level.grid_path(level.world_to_cell(global_position), level.world_to_cell(threat.global_position)).slice(1, -1):
 					_fight_path.append(level.cell_to_world(c))
 		var aim := threat.global_position
@@ -1092,7 +1103,7 @@ func _hunt_slimes(delta: float) -> void:
 		var post := level.cell_to_world(home)
 		if Vector2(e.global_position.x - post.x, e.global_position.z - post.z).length() > VillageArms.CAST_HUNT:
 			continue
-		if d < best_d and level.has_line_of_sight(global_position, e.global_position):
+		if d < best_d and level.has_line_of_sight(global_position, e.global_position) and not level.village_wall.shot_blocked(global_position, e.global_position):
 			best = e
 			best_d = d
 	if best != null:

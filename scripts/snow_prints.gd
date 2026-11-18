@@ -11,8 +11,9 @@ const HOLD := 3.5
 const FADE := 4.0
 ## At most this many prints at once; the oldest goes first.
 const MAX := 140
-## Just above the snow (which lies a few centimetres over the ground).
-const HEIGHT := 0.055
+## Just above the snow, which lies up to SnowCover's 0.06 m over the ground when it is deep
+## (snow_cover.gdshader lifts it by 0.03 + 0.03 * amount); lower prints are buried in it.
+const HEIGHT := 0.085
 ## The pictures are toe-up (v = 0), which a flat quad lays towards -Z; a walker heading `h` goes
 ## towards (sin h, 0, cos h), so the quad turns half way round.
 const FRONT := PI

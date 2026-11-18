@@ -202,6 +202,8 @@ func _prints() -> void:
 	game._tick_clock(0.05)
 	lvl.snow_print(Vector3(1, 0, 1), 0.0)
 	check(SnowPrints._live.size() == before + 1, "a print in the snow")
+	# The deepest snow lies 0.03 + 0.03 m above the ground (snow_cover.gdshader): prints stay above it.
+	check(SnowPrints.HEIGHT > 0.06, "prints lie above the deepest snow")
 	for i in SnowPrints.MAX + 20:
 		lvl.snow_print(Vector3(i * 0.1, 0, 0), 0.0)
 	check(SnowPrints._live.size() <= SnowPrints.MAX, "only so many prints at once")

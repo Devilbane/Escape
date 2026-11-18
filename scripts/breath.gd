@@ -33,11 +33,12 @@ static func attach(model: Node3D, mouth := MOUTH) -> Breath:
 	return b
 
 
-## How bright the puffs are: dim at night, as the air is. Call it every so often with 0 to 1.
+## How bright the puffs are: dark at night, as the air is. Call it every so often with 0 to 1.
 static func set_light(light: float) -> void:
-	var shade := clampf(0.35 + light, 0.35, 1.0)
+	# No glow of its own: in the dark the breath is as dark as the air around it.
+	var shade := clampf(light, 0.04, 1.0)
 	var mat := _shared()
-	mat.albedo_color = Color(shade, shade, minf(1.0, shade * 1.04), 0.75)
+	mat.albedo_color = Color(shade, shade, minf(1.0, shade * 1.04), 0.75 * clampf(0.3 + light, 0.3, 1.0))
 
 
 static func _shared() -> StandardMaterial3D:

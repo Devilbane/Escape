@@ -394,6 +394,9 @@ var _last_known := Vector3.ZERO
 var _lost := 0.0
 ## A guard at rest looks around now and then.
 var _look_angle := 0.0
+## The way the body heads while it moves (zero at rest); it swings towards the
+## way it wants at a limited rate, so turns are arcs (see Turning).
+var _heading := Vector3.ZERO
 var _look_timer := 0.0
 ## Where a guardian keeps looking while at its post.
 var _watch := Vector3.INF
@@ -2197,12 +2200,22 @@ func _physics_process(delta: float) -> void:
 	if strolling:
 		# No faster than the walk's feet can step (see Stride).
 		_meant_speed = minf(_meant_speed, Stride.top_speed(_rig, _anim_of(walk), _stride_size))
-	velocity = (move.normalized() * _meant_speed if move != Vector3.ZERO else Vector3.ZERO) + _knockback
+	var way := Vector3.ZERO
+	if move != Vector3.ZERO:
+		if _heading == Vector3.ZERO:
+			_heading = ahead()
+		# A hunter turns sharply; a stroller swings round in a wide arc.
+		_heading = Turning.steer(_heading, move, delta, Turning.rate(float(_stats.size), _awake))
+		way = _heading
+		_meant_speed *= Turning.pace(_heading, move)
+	else:
+		_heading = Vector3.ZERO
+	velocity = way * _meant_speed + _knockback
 	velocity.y = 0.0 if is_ghost() else -9.0
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 40.0)
 	move_and_slide()
 	if move != Vector3.ZERO:
-		_face(move, delta)
+		_face(way, delta)
 		_note_wall()
 	_check_stuck(delta, move)
 	var walker := is_human() and not is_ghost()

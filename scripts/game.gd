@@ -1767,6 +1767,8 @@ func _use_station(s: Dictionary) -> void:
 		_refresh_seals()
 	elif s.kind == Mines.CLUSTER:
 		_mine_crystals(s)
+	elif s.kind == QuarryRocks.KIND:
+		_break_stone(s)
 	elif s.has("npc") and _villager_unavailable(s):
 		pass
 	elif s.has("npc"):
@@ -1860,6 +1862,42 @@ func _mine_crystals(s: Dictionary) -> void:
 		if not names.is_empty():
 			text += "\n" + Lang.t("Neue Rezepte: %s") % ", ".join(names)
 		show_message(text, 4.0)
+
+
+## Running into a rock face of the stonemason's quarry: two blows, then it
+## gives its stone blocks (as many as fit in the bag) and lies in rubble until
+## the next morning (see QuarryRocks). A full bag leaves the rock whole.
+func _break_stone(s: Dictionary) -> void:
+	player.face(s.pos - player.global_position)
+	if s.spent:
+		player.play("Idle")
+		show_message(Lang.t("Hier liegt nur noch Geröll. Bis zum nächsten Morgen wächst der Fels nach."), 2.4)
+		return
+	if s.get("digging", false):
+		return
+	if player.bag_used() >= player.bag_size():
+		player.play("Idle")
+		show_message(Lang.t("Deine Tasche ist voll."), 2.0)
+		return
+	s.digging = true
+	player.path.clear()
+	for blow in 2:
+		player.play_once(Player.STRIKE_ANIM, DIG_BLOW * (2 - blow))
+		Sfx.play(self, "hit", -8.0, s.pos, 0.8 + blow * 0.1)
+		await get_tree().create_timer(DIG_BLOW).timeout
+	s.digging = false
+	if level == null or not level.stations.has(s):
+		return
+	var count := 0
+	while count < QuarryRocks.STONE_YIELD and player.bag_used() < player.bag_size():
+		player.bag.append(QuarryRocks.STONE)
+		count += 1
+	if count == 0 or not QuarryRocks.mark_broken(level, s, day):
+		return
+	Sfx.play(self, "gear_soft_0", -2.0, s.pos)
+	Effects.loot_text(level, s.pos + Vector3(0, 1.8, 0), "+%d %s" % [count, Items.item_name(QuarryRocks.STONE)], Color(0.75, 0.73, 0.7), DamageNumber.item_worth(QuarryRocks.STONE))
+	Events.found(Lang.t("%d Steinblöcke aus dem Steinbruch liegen in deiner Tasche.") % count, Color(0.75, 0.73, 0.7))
+	_update_hud()
 
 
 # --- Companions -----------------------------------------------------------------
@@ -2693,6 +2731,7 @@ func _new_day(quiet := false) -> void:
 	if level != null:
 		# Mined crystal clusters grow back with the morning.
 		Mines.refresh_crystals(level, day, true)
+		QuarryRocks.refresh(level, day, true)
 	_dragon_morning(quiet)
 	var expired := bounties.refresh(day)
 	if quiet or not escaped:
@@ -2955,6 +2994,7 @@ func load_level(index: int, restock := true) -> void:
 		wild_slimes = []
 	_slimes_fresh = false
 	Mines.refresh_crystals(level, day)
+	QuarryRocks.refresh(level, day)
 	level.restore_floor()
 	level.restore_stones()
 	level.key_collected.connect(_on_key_collected)
@@ -7045,6 +7085,7 @@ func _process(delta: float) -> void:
 			"eingang": Lang.t("Dagegenlaufen, um in das dunkle Loch hinabzusteigen") if String(station.get("building", "")).begins_with("loch") or station.get("building", "") == TreasureMaps.CAVE else Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
+			QuarryRocks.KIND: Lang.t("Dagegenlaufen, um Stein zu brechen"),
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
 			"hort": Lang.t("Dagegenlaufen, um deinen Hort zu betrachten"),

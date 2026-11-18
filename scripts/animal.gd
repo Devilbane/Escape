@@ -29,6 +29,8 @@ const KINDS := {
 ## Which map letter places which animal (see Outdoor).
 const LETTERS := {"D": "reh", "V": "hirsch", "&": "fuchs"}
 ## A sneaking hero is noticed only this much closer.
+## A path point counts as reached this close (metres), inside the turning circle.
+const ARRIVE := 0.5
 const SNEAK_FACTOR := 0.45
 ## How far a frightened animal runs from home at most (tiles), and how far
 ## the hero must be before it settles down again (times its shy distance).
@@ -51,6 +53,9 @@ var _anim: AnimationPlayer
 var _rng := RandomNumberGenerator.new()
 var _path: Array[Vector3] = []
 var _speed := 0.0
+## The way the body is heading while it walks (zero at rest); it swings towards
+## its goal at a limited rate, see Turning.
+var _heading := Vector3.ZERO
 var _timer := 0.0
 var _current_anim := ""
 var _repath := 0.0
@@ -129,6 +134,7 @@ func play(anim_name: String) -> void:
 func _begin(new_state: String, time: float) -> void:
 	state = new_state
 	_timer = time
+	_heading = Vector3.ZERO
 	_anim.speed_scale = 1.0
 	match state:
 		"graze":
@@ -263,14 +269,24 @@ func _flee_from(danger: Vector3) -> void:
 
 func _walk(delta: float) -> void:
 	if _path.is_empty():
+		_heading = Vector3.ZERO
 		return
 	var to := _flat(_path[0] - global_position)
-	var step := _stride("Gallop" if state == "flee" else "Walk", _speed) * delta
-	var target := Vector3(_path[0].x, global_position.y, _path[0].z) if to.length() <= step else global_position + to.normalized() * step
+	var want := to.normalized()
+	if _heading == Vector3.ZERO:
+		_heading = Vector3(sin(rotation.y), 0.0, cos(rotation.y))
+	var aside := Turning.steer(_heading, want, delta, Turning.rate(_model.scale.x / 0.4, state == "flee"))
+	var step := _stride("Gallop" if state == "flee" else "Walk", _speed) * Turning.pace(aside, want) * delta
+	# A waypoint is reached within a stride, or within the turning circle.
+	var arrived := to.length() <= maxf(step, ARRIVE)
+	var target := global_position + aside * step
+	if arrived and to.length() <= step:
+		target = Vector3(_path[0].x, global_position.y, _path[0].z)
 	if not WalkRules.can_step(level, global_position, target):
 		# A gate was shut (or a wall stands) ahead: stand, then find the way again.
 		play("Idle")
 		_anim.speed_scale = 1.0
+		_heading = Vector3.ZERO
 		_waiting += delta
 		if _waiting >= WalkRules.MAKE_WAY:
 			_waiting = 0.0
@@ -280,9 +296,10 @@ func _walk(delta: float) -> void:
 		return
 	_waiting = 0.0
 	global_position = target
-	if to.length() <= step:
+	_heading = aside
+	if arrived:
 		_path.pop_front()
-	_turn_to(to, delta)
+	rotation.y = atan2(aside.x, aside.z)
 
 
 ## Moves in `anim` at up to `speed`: a walk no faster than its legs step,

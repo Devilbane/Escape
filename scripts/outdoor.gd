@@ -2580,6 +2580,7 @@ func _build_stone_yard(cell: Vector2i) -> void:
 ## with his hammer (see Villager.set_chopping) and a few cut blocks beside it.
 func _build_quarry(v: Villager, cell: Vector2i) -> void:
 	QuarryHill.build(self, cell)
+	QuarryRocks.build(self, cell)
 	var face := Vector3.LEFT
 	var stand := cell_to_world(cell)
 	var spot := Node3D.new()

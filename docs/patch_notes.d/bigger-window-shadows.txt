@@ -1,0 +1,2 @@
+- The shadows of people moving behind Weavers' Lane's windows are now much larger and cross the window faster.
+- Curtains in Weavers' Lane are now drawn shut before a window's light goes out for the night.

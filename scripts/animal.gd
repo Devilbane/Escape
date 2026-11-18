@@ -55,6 +55,7 @@ var _timer := 0.0
 var _current_anim := ""
 var _repath := 0.0
 var _waiting := 0.0
+var _trail: SnowTrail
 
 
 func setup(owner_level: Level, animal_kind: String, cell: Vector2i) -> void:
@@ -72,6 +73,7 @@ func footprint_moved() -> void:
 
 func _ready() -> void:
 	SmoothMotion.follow_ticks(self)
+	_trail = SnowTrail.new(kind)
 	add_to_group(Footprint.GROUP)
 	_model = load("res://assets/animals/%s.glb" % _stats.model).instantiate()
 	_model.scale = Vector3.ONE * float(_stats.scale)
@@ -139,6 +141,7 @@ func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
 	var hero: Node3D = level.player
+	_trail.follow(level, global_position)
 	var away := global_position - hero.global_position
 	away.y = 0.0
 	if state == "eat":

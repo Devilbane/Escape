@@ -1,0 +1,1 @@
+- Villagers no longer throw knives or cast spells at slimes through the village wall: the wall stops the shot, so they wait for a clear throw.

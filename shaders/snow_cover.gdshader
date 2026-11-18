@@ -41,8 +41,10 @@ void fragment() {
 	float lies = up * amount * 1.5 + (n - 0.5) * 0.55;
 	vec2 uv = (xz / tile + 0.5) / grid_size;
 	float roofed = texture(sky_mask, uv).r * (1.0 - step(roof_height, world_pos.y));
-	// Melted round fires, the forge and smoking chimneys.
-	if (lies < 0.5 || roofed > 0.5 || up < 0.01 || snow_melted(world_pos, n)) {
+	// Melted round fires, the forge and smoking chimneys. Open water and ice stay bare (G of the
+	// mask marks the pond tiles, only at ground level).
+	float pond = texture(sky_mask, uv).g * (1.0 - step(0.3, world_pos.y));
+	if (lies < 0.5 || roofed > 0.5 || pond > 0.5 || up < 0.01 || snow_melted(world_pos, n)) {
 		discard;
 	}
 	snow_look(world_pos, world_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);

@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Draw temple window light as a stained-glass mosaic; Crunching footsteps in the snow (+31 more)
+Escape! dev status | Working on: Let monsters and villagers see over two-layer walls | Shipped this week: Draw temple window light as a stained-glass mosaic; Crunching footsteps in the snow (+30 more)

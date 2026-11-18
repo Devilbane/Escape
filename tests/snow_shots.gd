@@ -66,6 +66,13 @@ func _run() -> void:
 		for i in 10:
 			var at: Vector3 = p + Vector3(-1.2 + 0.05 * i, 0, -3.0 + 0.55 * i)
 			lvl.snow_print(at + Vector3(0.09 if i % 2 == 0 else -0.09, 0, 0), 0.0)
+		# Animal tracks beside it, walking the same way: paws, hooves and bird feet.
+		for i in 8:
+			var z := -2.6 + 0.6 * i
+			lvl.snow_print(p + Vector3(1.0 + (0.05 if i % 2 == 0 else -0.05), 0, z), 0.0, 1.0, "paw")
+			lvl.snow_print(p + Vector3(2.0 + (0.06 if i % 2 == 0 else -0.06), 0, z), 0.0, 1.2, "hoof")
+			lvl.snow_print(p + Vector3(3.0 + (0.05 if i % 2 == 0 else -0.05), 0, z), 0.0, 1.0, "bird")
+		await _shot("snow_tracks", p + Vector3(2.2, 3.2, 4.2), p + Vector3(1.8, 0, -0.5), 55.0)
 		await _shot("snow_village", p + Vector3(7, 8, 9), p + Vector3(-1, 0, -2))
 		await _shot("snow_hero", p + Vector3(1.4, 1.8, 3.4), p + Vector3(0, 1.3, 0), 45.0)
 		await _shot("snow_prints", p + Vector3(1.0, 2.6, 3.0), p + Vector3(-1.0, 0, -0.5), 55.0)

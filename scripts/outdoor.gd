@@ -3832,11 +3832,12 @@ func set_snow(cover: float, daylight := 1.0) -> void:
 
 
 ## A grey footprint in the snow that fades again; the hero and the villagers leave them while
-## the snow lies thick enough (see Weather.PRINT_FROM). `size` 1 is a grown-up's boot.
-func snow_print(at: Vector3, heading: float, size := 1.0) -> void:
+## the snow lies thick enough (see Weather.PRINT_FROM). `size` 1 is a grown-up's boot; `kind`
+## is the shape (see SnowPrints.KINDS), the animals leave paws, hooves and bird feet.
+func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> void:
 	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree():
 		return
-	SnowPrints.leave(self, at, heading, size)
+	SnowPrints.leave(self, at, heading, size, kind)
 
 
 ## A wet footprint on dry ground, left by a hero fresh out of a puddle.

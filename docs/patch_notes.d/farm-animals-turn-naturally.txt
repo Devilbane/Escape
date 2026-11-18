@@ -1,0 +1,1 @@
+- Farm animals (goats, sheep, cows, geese, dogs) now swing round in a small arc when they change direction, bigger ones wider, and a bolting one turns sharper.

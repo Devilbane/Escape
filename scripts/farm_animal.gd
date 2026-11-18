@@ -56,6 +56,8 @@ const MODELS := {
 	"goat": {"": ["Sheep", 0.22]},
 	"billy": {"": ["Sheep", 0.26]},
 }
+## A path point counts as reached this close (metres), inside the turning circle.
+const ARRIVE := 0.5
 ## A sneaking hero is noticed only this much closer.
 const SNEAK_FACTOR := 0.5
 ## How far a frightened animal runs from home at most (tiles), and how far
@@ -121,12 +123,16 @@ var _stats: Dictionary
 var _rng := RandomNumberGenerator.new()
 var _path: Array[Vector3] = []
 var _speed := 0.0
+## The way the body heads while it walks (zero at rest), see Turning.
+var _heading := Vector3.ZERO
 var _timer := 0.0
 var _check := 0.0
 var _phase := 0.0
 var _clock := 0.0
 var _swing := 0.0
 var _resting := false
+## On its way under the shelter's roof (see Corral).
+var _to_roof := false
 var _waiting := 0.0
 var _rig: Node3D
 var _legs: Array[Node3D] = []
@@ -208,7 +214,9 @@ static func may_stand(lvl: Outdoor, c: Vector2i) -> bool:
 
 func _begin(new_state: String, time: float) -> void:
 	state = new_state
+	_to_roof = false
 	_timer = time
+	_heading = Vector3.ZERO
 
 
 func _physics_process(delta: float) -> void:
@@ -242,12 +250,21 @@ func _physics_process(delta: float) -> void:
 	if kind == "dog" and alive and state != "flee":
 		_mind_hero(away.length())
 	# Day has come: whoever slept through the night gets up (the shy ones woke as the hero came near).
-	if _resting and not level.night:
+	if _resting and not _wants_rest():
 		_wake()
 	if _resting:
 		return
 	if kind == "billy" and alive and state in ["graze", "idle", "stroll"]:
 		_pick_fight(delta, away.length(), hero)
+	# A stroll that began before the rain or the dusk is given up: the shelter comes first.
+	if state == "stroll" and not _to_roof and _goes_under_roof():
+		_path.clear()
+		_begin("idle", 0.2)
+	# Under the roof at last: it lies down in its place.
+	if state == "stroll" and _to_roof and _under_roof():
+		_path.clear()
+		_rest(true)
+		return
 	match state:
 		"graze", "idle":
 			if shy > 0.0 and away.length() < shy * CALM_FACTOR:
@@ -388,6 +405,19 @@ func _greet(away: Vector3, delta: float) -> void:
 
 ## Calm again: graze a while, look around, or stroll to another spot.
 func _next() -> void:
+	if _goes_under_roof():
+		if _under_roof():
+			_rest(true)
+		elif _set_path(Corral.rest_spot(level, _rest_slot())):
+			# The way ends on the animal's own place, not on the middle of the tile, so the
+			# ones already lying there are not stepped on.
+			_path[_path.size() - 1] = Corral.rest_spot(level, _rest_slot())
+			state = "stroll"
+			_speed = _stats.walk
+			_to_roof = true
+		else:
+			_begin("idle", 2.0)
+		return
 	if level.night:
 		_rest()
 		return
@@ -404,8 +434,32 @@ func _next() -> void:
 		_speed = _stats.walk
 
 
-## Lies down for the night, on the spot.
-func _rest() -> void:
+## Whether the herd has a roof to go under right now: the cattle of the pen go to their
+## shelter at night and in rain or snow (see Corral).
+func _goes_under_roof() -> bool:
+	return (kind == "cow" or kind == "bull") and pen.has_area() and Corral.wants_shelter(level) and Corral.has_shelter(level)
+
+
+## The cattle that went under the roof stay down as long as the weather or the night lasts.
+func _wants_rest() -> bool:
+	return level.night or (_goes_under_roof() and _under_roof())
+
+
+## One resting place each under the roof: the cows by their place in the herd, the bull the last.
+func _rest_slot() -> int:
+	return maxi(mates.find(self), 0) if kind == "cow" else 2
+
+
+func _under_roof() -> bool:
+	return Corral.SHELTER.has_point(level.world_to_cell(global_position))
+
+
+## Lies down for the night, on the spot (or, under the roof, on the straw, facing out).
+func _rest(on_straw := false) -> void:
+	if on_straw:
+		global_position = Corral.rest_spot(level, _rest_slot())
+		rotation.y = 0.0
+		reset_physics_interpolation()
 	_resting = true
 	state = "rest"
 	_timer = _rng.randf_range(8.0, 16.0)
@@ -496,13 +550,24 @@ func _turn_away_from(blocked: Vector3) -> void:
 
 func _walk(delta: float) -> void:
 	if _path.is_empty():
+		_heading = Vector3.ZERO
 		return
 	var to := _flat(_path[0] - global_position)
-	var step := _pace("Gallop" if (state == "flee" or _speed > 3.0) else "Walk", _speed) * delta
-	var target := Vector3(_path[0].x, global_position.y, _path[0].z) if to.length() <= step else global_position + to.normalized() * step
+	var want := to.normalized()
+	if _heading == Vector3.ZERO:
+		_heading = Vector3(sin(rotation.y), 0.0, cos(rotation.y))
+	# The body swings round in an arc (bigger animals wider, a bolting one sharper).
+	var aside := Turning.steer(_heading, want, delta, Turning.rate(float(_stats.stride) * 1.2, state == "flee"))
+	var step := _pace("Gallop" if (state == "flee" or _speed > 3.0) else "Walk", _speed) * Turning.pace(aside, want) * delta
+	# A path point is reached within a stride, or within the turning circle.
+	var arrived := to.length() <= maxf(step, ARRIVE)
+	var target := global_position + aside * step
+	if arrived and to.length() <= step:
+		target = Vector3(_path[0].x, global_position.y, _path[0].z)
 	if not WalkRules.can_step(level, global_position, target):
 		# A gate was shut (or a wall stands) ahead: stand, then find the way again.
 		_swing = 0.0
+		_heading = Vector3.ZERO
 		_waiting += delta
 		if _waiting >= WalkRules.MAKE_WAY:
 			_waiting = 0.0
@@ -518,9 +583,10 @@ func _walk(delta: float) -> void:
 	_swing = 1.0
 	_phase += step / float(_stats.stride) * TAU * 0.5
 	global_position = target
-	if to.length() <= step:
+	_heading = aside
+	if arrived:
 		_path.pop_front()
-	_turn_to(to, delta)
+	rotation.y = atan2(aside.x, aside.z)
 
 
 func _turn_to(direction: Vector3, delta: float) -> void:

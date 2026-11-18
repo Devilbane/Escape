@@ -109,6 +109,7 @@ var _flash := 0.0
 var _rain: CPUParticles3D
 var _mist: CPUParticles3D
 var _snow: CPUParticles3D
+var _leaves: LeafFall
 var _clouds: FogClouds
 var _ambience: AudioStreamPlayer
 ## The ambient soundscape of the place the hero is in (see Soundscape).
@@ -754,6 +755,8 @@ func _setup_world() -> void:
 	add_child(_mist)
 	_snow = Weather.make_snow()
 	add_child(_snow)
+	_leaves = Weather.make_leaves()
+	add_child(_leaves)
 	_clouds = FogClouds.new()
 	add_child(_clouds)
 
@@ -2909,11 +2912,13 @@ func _show_weather() -> void:
 		_mist.visible = false
 		_snow.emitting = false
 		_snow.visible = false
+		_leaves.visible = false
 		Weather.cold = false
 		_clouds.set_look(0.0, Weather.HAZE)
 		return
 	Weather.cold = snow_cover >= Weather.COLD_FROM or float(_weather_look.snow) > 0.3
 	_snow.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT * 0.6, 0)
+	_leaves.anchor = player.global_position
 	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
 	var dusty := _weather_look.duplicate()
@@ -2925,6 +2930,7 @@ func _show_weather() -> void:
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
 	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(_weather_look.mist)) * 0.6)
 	Weather.show_particles(_rain, _mist, dusty, light, _snow)
+	Weather.show_leaves(_leaves, Weather.leaf_strength(_weather_look, day_hour), light)
 	Breath.set_light(light)
 
 

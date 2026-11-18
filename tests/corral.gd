@@ -117,5 +117,33 @@ func _run() -> void:
 				check(_in_pen(lvl, a), "%s stays in the pen (%s, %s)" % [a.kind, a.global_position, a.state])
 				ever_fled = ever_fled or a.is_fleeing()
 	check(ever_fled, "the herd was scared at least once")
+
+	# The shelter: the herd goes under its roof in snow and at night, lies down on the straw, and
+	# gets up and grazes again when the sky clears.
+	check(Corral.has_shelter(lvl), "the pen has its shelter")
+	hero.global_position = lvl.cell_to_world(Corral.PEN.position + Vector2i(-8, 6))
+	game.day_hour = 12.0
+	game.set_weather(Weather.CLEAR, 100.0)
+	await _wait(60)
+	for a: FarmAnimal in cattle:
+		check(not a._resting, "%s is up in clear weather" % a.kind)
+	for spell in [Weather.SNOW, Weather.RAIN]:
+		game.set_weather(spell, 100.0)
+		await _wait(60 * 60)
+		for a: FarmAnimal in cattle:
+			check(Corral.SHELTER.has_point(lvl.world_to_cell(a.global_position)), "%s is under the roof in %s (%s)" % [a.kind, spell, a.global_position])
+			check(a._resting and a.state == "rest", "%s lies down in %s (%s)" % [a.kind, spell, a.state])
+		game.set_weather(Weather.CLEAR, 100.0)
+		await _wait(120)
+		for a: FarmAnimal in cattle:
+			check(not a._resting, "%s gets up when the %s stops" % [a.kind, spell])
+	game.day_hour = 23.5
+	await _wait(60 * 60)
+	for a: FarmAnimal in cattle:
+		check(Corral.SHELTER.has_point(lvl.world_to_cell(a.global_position)) and a._resting, "%s sleeps under the roof at night" % a.kind)
+	game.day_hour = 12.0
+	await _wait(120)
+	for a: FarmAnimal in cattle:
+		check(not a._resting, "%s wakes at dawn" % a.kind)
 	print("PASS: the cattle pen" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)

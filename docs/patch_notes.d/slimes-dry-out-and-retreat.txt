@@ -1,0 +1,1 @@
+- Slimes dry out in dry weather, losing a level a minute, and after an hour retreat into the nearest pond, taking their loot with them but freeing any townsfolk.

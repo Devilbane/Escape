@@ -68,7 +68,9 @@ void fragment() {
 			discard;
 		}
 	}
-	if (lies < 0.5 || roofed > 0.5 || up < 0.01) {
+	// Open water and ice stay bare (G of the mask marks the pond tiles, only at ground level).
+	float pond = texture(sky_mask, uv).g * (1.0 - step(0.3, world_pos.y));
+	if (lies < 0.5 || roofed > 0.5 || pond > 0.5 || up < 0.01) {
 		discard;
 	}
 	// A touch of shade in the hollows of the drifts, so the layer is not flat white.

@@ -316,7 +316,7 @@ func cast(w: Dictionary, target := Vector3.INF) -> void:
 	_fly_float()
 	_draw_line()
 	_monster_due = -1.0
-	if w.water in MONSTER_WATERS and rng.randf() < MONSTER_CHANCE:
+	if w.water in MONSTER_WATERS and not w.get("ice", false) and rng.randf() < MONSTER_CHANCE:
 		# Some time while the hero waits, before a fish bites.
 		_monster_due = rng.randf_range(0.0, maxf(0.0, timer - 1.5))
 		_monster_steals = rng.randf() < MONSTER_STEALS
@@ -769,7 +769,7 @@ func _free_monster() -> void:
 ## up the bait at the end and takes the float under with it.
 func monster_rises(steals: bool) -> void:
 	_monster_due = -1.0
-	if state != WAITING or is_instance_valid(monster) or not (water.water in MONSTER_WATERS):
+	if state != WAITING or is_instance_valid(monster) or not (water.water in MONSTER_WATERS) or water.get("ice", false):
 		return
 	_monster_steals = steals
 	_monster_age = 0.0

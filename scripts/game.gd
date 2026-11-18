@@ -96,6 +96,8 @@ var puddle_water := 0.0
 ## How thick the snow lies above ground, 0 bare to 1 deep (see Weather.snow_cover and
 ## SnowCover). It builds up while it snows and melts again afterwards.
 var snow_cover := 0.0
+## How thickly the ponds are frozen over, 0 open water to 1 solid ice (see Weather.ice).
+var ice_cover := 0.0
 var weather_hours := Weather.FIRST_HOURS
 var _weather_rng := RandomNumberGenerator.new()
 ## The look of the sky as it moves towards the weather's own, and a stroke
@@ -2666,6 +2668,7 @@ func _tick_clock(delta: float) -> void:
 		_tick_weather(delta)
 		puddle_water = Weather.puddle_water(puddle_water, weather, delta)
 		snow_cover = Weather.snow_cover(snow_cover, weather, delta, Weather.is_winter(day))
+		ice_cover = Weather.ice(ice_cover, snow_cover, weather, delta)
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
 		_moonlight()
@@ -2680,6 +2683,7 @@ func _tick_clock(delta: float) -> void:
 			level.set_weather(weather)
 			level.set_puddles(puddle_water, _weather_look.rain, clampf(_env.ambient_light_energy / 0.52, 0.05, 1.0))
 			level.set_snow(snow_cover, clampf(_env.ambient_light_energy / 0.52, 0.0, 1.0))
+			level.set_ice(ice_cover)
 			if level.moon_night >= 0 and (Moon.is_full(level.moon_night) or Moon.is_new(level.moon_night)):
 				learn(Moon.LORE)
 	if _clock_text() != _clock_shown:
@@ -3361,6 +3365,7 @@ func begin_new_game() -> void:
 	set_weather(Weather.CLEAR, Weather.FIRST_HOURS)
 	puddle_water = 0.0
 	snow_cover = 0.0
+	ice_cover = 0.0
 	player.knives = 5
 	player.set_sex(_new_sex)
 	player.set_hair(HairLook.DEFAULT)
@@ -3832,6 +3837,7 @@ func _apply_save(data: Dictionary) -> void:
 	set_weather(str(data.get("weather", Weather.CLEAR)), float(data.get("weather_hours", Weather.FIRST_HOURS)))
 	puddle_water = clampf(float(data.get("puddles", 0.0)), 0.0, 1.0)
 	snow_cover = clampf(float(data.get("snow", 0.0)), 0.0, 1.0)
+	ice_cover = clampf(float(data.get("ice", 0.0)), 0.0, 1.0)
 	_go_to_wake_place(_wake_place(data))
 	player.hp = clampi(int(data.hp), 1, player.max_hp)
 	player.cure()
@@ -4029,7 +4035,7 @@ func hero_record() -> Dictionary:
 		"hour": day_hour, "world_hours": world_hours,
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night, "smith_stock": smith_stock,
 		"hoard": hoard.for_save(),
-		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water, "snow": snow_cover,
+		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water, "snow": snow_cover, "ice": ice_cover,
 		"inn": level.inn,
 	}
 	return data

@@ -1,0 +1,1 @@
+- The coloured light from the temple's right windows now falls level with the light from the left windows.

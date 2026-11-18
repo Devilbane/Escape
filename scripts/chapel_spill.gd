@@ -10,9 +10,11 @@ extends RefCounted
 ## add the fog colour over its whole rectangle).
 
 ## Where each window is on the wall, in the temple's metres: middle on the
-## wall, and the way it faces. The rose window is at the back.
+## wall, and the way it faces. The rose window is at the back. The pools of
+## the right wall sit one pane (8 m) further north than the origins of its window
+## pieces, so that they run parallel to the pools of the left wall.
 const WINDOWS := [
-	[Vector3(11, 0, 12), Vector3(1, 0, 0)], [Vector3(11, 0, 4), Vector3(1, 0, 0)], [Vector3(11, 0, -4), Vector3(1, 0, 0)],
+	[Vector3(11, 0, 4), Vector3(1, 0, 0)], [Vector3(11, 0, -4), Vector3(1, 0, 0)], [Vector3(11, 0, -12), Vector3(1, 0, 0)],
 	[Vector3(-11, 0, -12), Vector3(-1, 0, 0)], [Vector3(-11, 0, -4), Vector3(-1, 0, 0)], [Vector3(-11, 0, 4), Vector3(-1, 0, 0)],
 	[Vector3(4, 0, -11), Vector3(0, 0, -1)],
 ]

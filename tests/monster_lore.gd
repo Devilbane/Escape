@@ -242,9 +242,9 @@ func _test() -> void:
 		game.menus.open("kompendium")
 		await _wait(4)
 		var size: Vector2 = game.menus._panel.size
-		check(size.x <= Menus.WINDOW_SIZES.kompendium.x + 60, "the compendium keeps its width with five tabs: %s" % size)
+		check(size.x <= Menus.WINDOW_SIZES.kompendium.x + 60, "the compendium keeps its width with six tabs: %s" % size)
 		var tabs: HBoxContainer = game.menus._box.get_child(1)
-		check(tabs.get_child_count() == 5, "five tabs once monsters are known: %d" % tabs.get_child_count())
+		check(tabs.get_child_count() == 6, "six tabs once monsters are known: %d" % tabs.get_child_count())
 		for b: Button in tabs.get_children():
 			var font := b.get_theme_font("font")
 			var wide := font.get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, b.get_theme_font_size("font_size")).x

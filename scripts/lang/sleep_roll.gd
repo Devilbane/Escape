@@ -2,6 +2,8 @@ extends RefCounted
 ## English texts for the nights and breakthroughs (see SleepRoll).
 
 const EN := {
+	"Ausgeruht": "Resting",
+	"Durchbruch im Schlaf: %s, Stufe %s": "Breakthrough in sleep: %s, level %s",
 	"Noch ganz am Anfang.": "Just starting out.",
 	"Das dauert ewig.": "This will take ages.",
 	"Ich habe keine Ahnung, was ich da tue.": "I have no idea what I'm doing.",

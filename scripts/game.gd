@@ -4766,9 +4766,21 @@ func _tell_night(night: Dictionary) -> void:
 		shown += 1
 		lines.append(Lang.t("Über %s: „%s“") % [Lang.t(Training.SKILLS[id].name), SleepRoll.short_line(state, id, rng)])
 	Events.found("\n".join(lines), GOLD)
+	_journal_night(night)
 	Training.save_hero(hero_name, player.xp, player.level_data())
 	if not night.won.is_empty():
 		_show_breakthroughs(night.won)
+
+
+## The journal notes a night that gave the skills a roll ("Resting"), and a
+## line for every skill that broke through. Failed rolls get no line.
+func _journal_night(night: Dictionary) -> void:
+	if night.practised.is_empty() and night.won.is_empty() and night.missed.is_empty():
+		return
+	var file := journal.current_file()
+	journal.write("Ausgeruht", [], file)
+	for w in night.won:
+		journal.write("Durchbruch im Schlaf: %s, Stufe %s", [Training.SKILLS[w.id].name, str(w.level)], file)
 
 
 const SLEEP_PLACE_NAMES := {"ground": "unter freiem Himmel", "camp": "am Lagerfeuer", "bed": "im Bett", "inn": "im Gasthaus", "home": "im eigenen Bett"}

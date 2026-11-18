@@ -379,6 +379,9 @@ static func make_snow() -> CPUParticles3D:
 static func make_leaves() -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.amount = LEAVES
+	# Its own random numbers: leaves must never shift the game's rolls (combat tests seed them).
+	p.use_fixed_seed = true
+	p.seed = 4242
 	p.lifetime = 8.0
 	p.preprocess = 8.0
 	p.local_coords = false

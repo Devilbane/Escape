@@ -504,6 +504,29 @@ func _fit_area() -> void:
 	rated_level = fit_level(kind, _stats, hardening, HeroLevel.area_target(area, rated_level), HeroLevel.AREAS[area].max)
 
 
+## The level a monster of `kind` has on a floor numbered `depth` of a map, as
+## _ready and _fit_area work it out, for a plain one: no rolled gear, no elite,
+## no night. For the compendium (see PlaceMonsters). `custom` is what a monster
+## made in the map workshop sets by hand.
+static func typical_level(kind_id: String, depth: int, outdoor: bool, building: String, custom := {}) -> int:
+	var stats: Dictionary = KINDS[kind_id].duplicate()
+	stats.merge(custom, true)
+	if kind_id not in ["drache", "hauptmann", "bergkoenig", "grosser_alter", "spinnenkoenigin"]:
+		var deep := clampi(depth, 0, DEEPEST)
+		stats.hp += deep / HP_EVERY_LEVELS
+		stats.damage += deep / DAMAGE_EVERY_LEVELS
+	var armour: int = stats.get("armor", 0)
+	var rated := HeroLevel.rate(kind_id, int(stats.hp), int(stats.damage), armour, float(stats.cooldown))
+	if HeroLevel.FIXED.has(kind_id) or custom.has("hp") or custom.has("damage"):
+		return rated
+	var area := HeroLevel.area_for(outdoor, building, kind_id)
+	if area == "":
+		if not outdoor and building == "" and not kind_id in HORRORS and rated > HeroLevel.DUNGEON_TOP:
+			rated = fit_level(kind_id, stats, armour, rated, HeroLevel.DUNGEON_TOP)
+		return rated
+	return fit_level(kind_id, stats, armour, HeroLevel.area_target(area, rated), HeroLevel.AREAS[area].max)
+
+
 ## A named monster (one given a name in the map workshop, shown over its head)
 ## that is not a warden or a boss is a step above its plain kin: NAMED_HP_MULT
 ## times the life, NAMED_DAMAGE_MULT times the blow (at least one more) and

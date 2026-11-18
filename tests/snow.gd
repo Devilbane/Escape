@@ -30,6 +30,7 @@ func _process(_delta: float) -> bool:
 	_world()
 	_prints()
 	_breath()
+	_winter()
 	_dungeon()
 	game.delete_save(game.save_path())
 	if failures == 0:
@@ -60,8 +61,20 @@ func _rules() -> void:
 		check(hours <= Weather.MAX_HOURS * 0.6, "snowfall is shorter than other spells")
 	var seen := {}
 	for i in 600:
-		seen[Weather.roll(12.0 + (i % 12), rng, Weather.CLEAR)] = true
-	check(seen.has(Weather.SNOW), "snow comes up in the rolls")
+		seen[Weather.roll(12.0 + (i % 12), rng, Weather.CLEAR, true)] = true
+	check(seen.has(Weather.SNOW), "snow comes up in the winter rolls")
+	check(not seen.has(Weather.RAIN) and not seen.has(Weather.STORM), "no rain and no storm in winter")
+	# The year: eight days of winter at the end of every one.
+	var winter_days := 0
+	for d in Weather.YEAR_DAYS:
+		if Weather.is_winter(d):
+			winter_days += 1
+	check(winter_days == 8, "winter lasts 8 days (%d)" % winter_days)
+	check(not Weather.is_winter(0) and Weather.is_winter(Weather.YEAR_DAYS - 1), "a year starts out of winter and ends in it")
+	check(not Weather.is_winter(Weather.YEAR_DAYS), "the next year starts out of winter")
+	check(Weather.for_season(Weather.RAIN, true) == Weather.SNOW and Weather.for_season(Weather.STORM, true) == Weather.SNOW, "in winter snow comes instead of rain")
+	check(Weather.for_season(Weather.RAIN, false) == Weather.RAIN, "out of winter rain is rain")
+	check(Weather.snow_cover(1.0, Weather.CLEAR, 60.0, true) > Weather.snow_cover(1.0, Weather.CLEAR, 60.0), "the snow melts slower in winter")
 	check(Weather.word(Weather.SNOW) == "Schnee", "the HUD names the snow")
 	# The layer builds up while it snows and melts after it, rain washes it off faster.
 	var cover := 0.0
@@ -109,6 +122,12 @@ func _world() -> void:
 	check(covered > 20, "roofs, ground and props wear the snow layer (%d meshes)" % covered)
 	check(bare_wrong == 0, "no creature is covered in snow")
 	var shaded: ShaderMaterial = lvl.snow.material
+	check(lvl.warm_spots.size() >= 3 and int(shaded.get_shader_parameter("warm_count")) == mini(lvl.warm_spots.size(), SnowCover.WARM_MAX), "fires, the forge and the chimneys keep the snow off (%d spots)" % lvl.warm_spots.size())
+	var glowing := 0
+	for mi: MeshInstance3D in lvl.find_children("*", "MeshInstance3D", true, false):
+		if mi.material_overlay == lvl.snow.material and mi.material_override is BaseMaterial3D and (mi.material_override as BaseMaterial3D).emission_enabled:
+			glowing += 1
+	check(glowing == 0, "nothing glowing (coals, embers) wears snow")
 	check(float(shaded.get_shader_parameter("amount")) > 0.5, "the shader knows how thick the snow lies")
 	# A new thing built while it snows gets its coat too.
 	var late := MeshInstance3D.new()
@@ -191,6 +210,25 @@ func _breath() -> void:
 	game.snow_cover = 0.05
 	game._show_weather()
 	check(not Weather.cold, "no breath to see once the snow is nearly gone")
+
+
+func _winter() -> void:
+	var before: int = game.day
+	game.escaped = true
+	game.day = Weather.YEAR_DAYS - Weather.WINTER_DAYS - 1
+	game.set_weather(Weather.RAIN, 4.0)
+	game._new_day(true)
+	check(Weather.is_winter(game.day), "the first day of winter")
+	check(game.weather == Weather.SNOW, "winter begins with snow, the rain stops")
+	game.set_weather(Weather.STORM, 2.0)
+	check(game.weather == Weather.SNOW, "no storm in winter")
+	check(game._clock_text().contains(Lang.t("Winter")), "the clock says it is winter")
+	game.day = Weather.YEAR_DAYS - 1
+	game._new_day(true)
+	check(not Weather.is_winter(game.day), "winter ends after 8 days")
+	game.set_weather(Weather.RAIN, 2.0)
+	check(game.weather == Weather.RAIN, "after winter it can rain again")
+	game.day = before
 
 
 func _dungeon() -> void:

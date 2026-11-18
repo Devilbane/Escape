@@ -165,7 +165,7 @@ func _physics_process(delta: float) -> void:
 	global_position += step
 	# A wall, a closed door or a pillar (statue, crate stack) stops it.
 	if _age > (LIFETIME * 2.0 if magic else LIFETIME) or level.is_opaque(level.world_to_cell(global_position)) \
-			or level.shot_blocked(was, global_position):
+			or level.shot_blocked(was, global_position) or (at_rival and level is Outdoor and level.village_wall.shot_blocked(was, global_position)):
 		_land(was)
 		return
 	if from_player:

@@ -245,6 +245,21 @@ func post_of(o: Outdoor, brick: WallBrick, k: int) -> Vector3:
 	return brick.global_position + inward * 2.0 + along * offset
 
 
+## Whether a standing wall or a shut gate lies across the straight line from `a` to `b`
+## (so a knife or spell thrown that way would strike the stones, and nobody can aim over it).
+func shot_blocked(a: Vector3, b: Vector3) -> bool:
+	for brick: WallBrick in bricks.values():
+		if not brick.blocks():
+			continue
+		var p := brick.global_position
+		var half := Level.TILE * 0.5
+		var from := Vector2(p.x - half, p.z) if brick.along_x else Vector2(p.x, p.z - half)
+		var to := Vector2(p.x + half, p.z) if brick.along_x else Vector2(p.x, p.z + half)
+		if Geometry2D.segment_intersects_segment(Vector2(a.x, a.z), Vector2(b.x, b.z), from, to) != null:
+			return true
+	return false
+
+
 ## Whether a living slime is within WATCH_RANGE of any stretch of the wall.
 func slime_at_the_wall(o: Outdoor) -> bool:
 	for e in o.enemies:

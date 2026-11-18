@@ -164,9 +164,10 @@ const GABLE_BRICK_V := Vector2(0.6, 0.92)
 ## their own saturated colours without burning out to white.
 const CHAPEL_GLASS_LIGHT := Color(0.9, 0.8, 0.64)
 ## How strongly the temple's windows shine by day (a fraction of the night's glow),
-## and how much of that the coloured pools on the ground keep in daylight.
+## and how much of its night strength the coloured picture on the lawn keeps at high noon
+## (half; it fades in and out with the daylight).
 const CHAPEL_DAY_GLOW := 0.45
-const CHAPEL_DAY_SPILL := 1.4
+const CHAPEL_DAY_SPILL := 0.5
 
 const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
@@ -3197,7 +3198,7 @@ func set_hour(new_hour: float) -> void:
 		chapel_glass.emission_energy_multiplier = chapel_glow
 	var chapel_spill: ShaderMaterial = _scenes.get("mat_chapel_spill")
 	if chapel_spill:
-		chapel_spill.set_shader_parameter("glow", chapel_glow * lerpf(CHAPEL_DAY_SPILL, 1.0, glow))
+		chapel_spill.set_shader_parameter("glow", WINDOW_GLOW * lerpf(CHAPEL_DAY_SPILL, 1.0, glow))
 	var dark := DayNight.is_night(hour)
 	var came := _mind_the_wanderer()
 	if not first:

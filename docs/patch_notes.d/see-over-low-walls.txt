@@ -1,0 +1,1 @@
+- Monsters and villagers see over walls of two stone layers (like the village wall) and shoot over them; three layers and a shut gate block sight and shots alike.

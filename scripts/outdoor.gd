@@ -3078,6 +3078,12 @@ func shot_blocked(a: Vector3, b: Vector3) -> bool:
 	return super(a, b) or village_wall.shot_blocked(a, b)
 
 
+## The shut gate of the village wall (three courses) hides what is behind it; the wall itself,
+## two courses high, does not: villagers and monsters see over it (see VillageWall.shot_blocked).
+func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
+	return super(a, b) and not village_wall.shot_blocked(a, b)
+
+
 func is_opaque(c: Vector2i) -> bool:
 	var ch := cell_char(c)
 	return ch == "#" or ch == "=" or ch == "I" or BLOCK_CHARS.contains(ch)

@@ -371,6 +371,49 @@ static func make_snow() -> CPUParticles3D:
 	return p
 
 
+## Autumn leaves that drift gently down around the hero by day (see LeafFall).
+static func make_leaves() -> LeafFall:
+	return LeafFall.new()
+
+
+static var _leaf: Texture2D
+
+
+## A small pointed leaf, white so the particle's tint colours it.
+static func _leaf_texture() -> Texture2D:
+	if _leaf == null:
+		var n := 32
+		var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+		for y in n:
+			for x in n:
+				var u := (x + 0.5) / n * 2.0 - 1.0
+				var v := (y + 0.5) / n * 2.0 - 1.0
+				# A lens shape along the diagonal, with a slightly darker midrib.
+				var along := (u + v) * 0.7071
+				var across := (u - v) * 0.7071
+				var half := 0.38 * (1.0 - absf(along) * absf(along)) if absf(along) < 1.0 else 0.0
+				var a := clampf((half - absf(across)) * 16.0, 0.0, 1.0)
+				var rib := 1.0 - 0.25 * clampf(1.0 - absf(across) * 14.0, 0.0, 1.0)
+				img.set_pixel(x, y, Color(rib, rib, rib, a))
+		_leaf = ImageTexture.create_from_image(img)
+	return _leaf
+
+
+## How many leaves are about (0 to 1): by day only, never in rain, fog or snow.
+## The weather look fades between weathers, so the leaves fade with it.
+static func leaf_strength(weather_look: Dictionary, hour: float) -> float:
+	var calm := 1.0 - clampf(maxf(float(weather_look.rain), maxf(float(weather_look.mist), float(weather_look.snow))) * 2.0, 0.0, 1.0)
+	return (1.0 - DayNight.glow_at(hour)) * calm
+
+
+## Shows the leaves as strong as `strength` says (see leaf_strength), darker in
+## dim light.
+static func show_leaves(leaves: LeafFall, strength: float, light: float) -> void:
+	leaves.visible = strength > 0.05
+	var tone := clampf(0.4 + light, 0.4, 1.0)
+	leaves.material.albedo_color = Color(tone, tone, tone, 0.9 * strength)
+
+
 ## Soft grey patches of mist that drift slowly over the ground.
 static func make_mist() -> CPUParticles3D:
 	var p := CPUParticles3D.new()

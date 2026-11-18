@@ -14,6 +14,12 @@ static var _material: StandardMaterial3D
 ## Its own dice, so breathing never shifts the game's random rolls (hits, loot).
 static var _rng := RandomNumberGenerator.new()
 
+## Enough emitters that the oldest cloud has died out before its turn comes round again.
+const PUFFS := 3
+
+var _pool: Array[CPUParticles3D] = []
+var _next := 0
+## The emitter that breathed last.
 var _puff: CPUParticles3D
 var _timer := 0.0
 
@@ -47,39 +53,49 @@ static func _shared() -> StandardMaterial3D:
 
 
 func _ready() -> void:
-	_puff = CPUParticles3D.new()
-	_puff.amount = 8
-	_puff.lifetime = 2.1
-	_puff.one_shot = true
-	_puff.explosiveness = 0.55
-	_puff.local_coords = false
-	_puff.emitting = false
+	for i in PUFFS:
+		var puff := _make_puff()
+		add_child(puff)
+		_pool.append(puff)
+	_puff = _pool[0]
+	_timer = _rng.randf_range(0.0, EVERY.y)
+
+
+## One emitter. A one-shot emitter that is restarted wipes its own live particles, so the
+## breaths take turns on a few of them and each cloud drifts and fades out in full.
+func _make_puff() -> CPUParticles3D:
+	var puff := CPUParticles3D.new()
+	puff.amount = 8
+	puff.lifetime = 2.1
+	puff.one_shot = true
+	puff.explosiveness = 0.55
+	puff.local_coords = false
+	puff.emitting = false
 	var quad := QuadMesh.new()
 	quad.size = Vector2(0.5, 0.5)
 	quad.material = _shared()
-	_puff.mesh = quad
-	_puff.direction = Vector3(0, 0.18, 1)
-	_puff.spread = 24.0
-	_puff.gravity = Vector3(0, 0.3, 0)
-	_puff.initial_velocity_min = 0.5
-	_puff.initial_velocity_max = 0.95
-	_puff.damping_min = 0.4
-	_puff.damping_max = 0.9
-	_puff.scale_amount_min = 0.5
-	_puff.scale_amount_max = 1.0
+	puff.mesh = quad
+	puff.direction = Vector3(0, 0.18, 1)
+	puff.spread = 24.0
+	puff.gravity = Vector3(0, 0.3, 0)
+	puff.initial_velocity_min = 0.5
+	puff.initial_velocity_max = 0.95
+	puff.damping_min = 0.4
+	puff.damping_max = 0.9
+	puff.scale_amount_min = 0.5
+	puff.scale_amount_max = 1.0
 	var grow := Curve.new()
 	grow.add_point(Vector2(0, 0.4))
 	grow.add_point(Vector2(1, 3.2))
-	_puff.scale_amount_curve = grow
+	puff.scale_amount_curve = grow
 	var fade := Gradient.new()
 	fade.set_color(0, Color(1, 1, 1, 0.0))
 	fade.add_point(0.15, Color(1, 1, 1, 1.0))
 	fade.add_point(0.5, Color(1, 1, 1, 0.6))
 	fade.set_color(fade.get_point_count() - 1, Color(1, 1, 1, 0.0))
-	_puff.color_ramp = fade
-	_puff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(_puff)
-	_timer = _rng.randf_range(0.0, EVERY.y)
+	puff.color_ramp = fade
+	puff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return puff
 
 
 func _process(delta: float) -> void:
@@ -89,4 +105,12 @@ func _process(delta: float) -> void:
 	if _timer > 0.0 or not is_visible_in_tree():
 		return
 	_timer = _rng.randf_range(EVERY.x, EVERY.y)
+	exhale()
+
+
+## Breathes one cloud out now, on the emitter that has been idle longest, so the clouds
+## still in the air are left alone.
+func exhale() -> void:
+	_next = (_next + 1) % _pool.size()
+	_puff = _pool[_next]
 	_puff.restart()

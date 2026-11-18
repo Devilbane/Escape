@@ -1,0 +1,1 @@
+- Frozen breath clouds no longer vanish when the next breath starts; each one drifts and fades out fully.

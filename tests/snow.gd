@@ -244,6 +244,9 @@ func _breath() -> void:
 		puff._timer = 0.0
 		puff._process(0.016)
 		check(puff._puff.emitting, "a villager breathes out a cloud in the cold")
+		var first: CPUParticles3D = puff._puff
+		puff.exhale()
+		check(first.emitting and puff._puff != first, "the next breath leaves the cloud in the air alone")
 	game.set_weather(Weather.CLEAR, 4.0)
 	game.snow_cover = 0.05
 	game._show_weather()

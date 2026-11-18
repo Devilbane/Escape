@@ -28,10 +28,10 @@ const LOWEST := 0.6
 const ROLL_STEP := 0.22
 const ROLL_SIDES := 8
 ## The gap between two icicles under the eaves, and their length.
-const ICICLE_GAP := Vector2(0.12, 0.34)
-const ICICLE_LONG := Vector2(0.07, 0.42)
+const ICICLE_GAP := Vector2(0.08, 0.24)
+const ICICLE_LONG := Vector2(0.16, 0.8)
 ## How thick an icicle is at its root.
-const ICICLE_THICK := Vector2(0.018, 0.04)
+const ICICLE_THICK := Vector2(0.032, 0.07)
 
 static var _cap_mat: ShaderMaterial
 static var _ice_mat: ShaderMaterial
@@ -339,12 +339,12 @@ static func _roll(s: _Surface, ice: _Surface, e: Dictionary, depth: Dictionary, 
 	# Icicles under the roll, here and there, of many lengths.
 	var spot := rng.randf_range(0.05, ICICLE_GAP.y)
 	while spot < length - 0.05:
-		if rng.randf() < 0.8:
+		if rng.randf() < 0.9:
 			var at := a + along * spot
 			var hang := side * (lean + r * 0.35) + Vector3.UP * (rise - r * 0.75)
 			var long := rng.randf_range(ICICLE_LONG.x, ICICLE_LONG.y)
 			if rng.randf() < 0.2:
-				long *= 1.6
+				long *= 1.7
 			_icicle(ice, at, hang, long, rng.randf_range(ICICLE_THICK.x, ICICLE_THICK.y), rng)
 		spot += rng.randf_range(ICICLE_GAP.x, ICICLE_GAP.y)
 
@@ -354,11 +354,11 @@ static func _window_icicles(ice: _Surface, w: Dictionary, rng: RandomNumberGener
 	var look: Vector3 = w.out
 	var side := Vector3.UP.cross(look).normalized()
 	var wide: float = w.wide
-	var count := rng.randi_range(2, 5)
+	var count := rng.randi_range(3, 7)
 	for i in count:
 		var at: Vector3 = (w.top as Vector3) + side * rng.randf_range(-0.45, 0.45) * wide
-		var long := rng.randf_range(0.05, 0.24)
-		_icicle(ice, at, Vector3.ZERO, long, rng.randf_range(0.012, 0.026), rng)
+		var long := rng.randf_range(0.1, 0.45)
+		_icicle(ice, at, Vector3.ZERO, long, rng.randf_range(0.022, 0.045), rng)
 
 
 ## One icicle hanging from `root`: it rides on the snow (`hang`, how far the snow carries its

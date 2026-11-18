@@ -6,6 +6,8 @@ const EN := {
 	"Regen": "rain",
 	"Nebel": "fog",
 	"Gewitter": "thunderstorm",
+	"Schnee": "snow",
+	"Es schneit! Dicke Flocken fallen, und auf Dächern und Wiesen bleibt der Schnee liegen.": "It is snowing! Big flakes fall, and the snow settles on roofs and meadows.",
 	"Es fängt an zu regnen. Am Teich im Wald kriechen Schleime aus dem Wasser.": "It starts to rain. Slimes crawl out of the pond in the woods.",
 	"Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, am Teich kriechen Schleime, und wer schleicht, bleibt ungesehen.": "Fog rolls in. Fog wraiths drift among the dead trees, slimes crawl by the pond, and whoever sneaks stays unseen.",
 	"Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, Schleime kriechen aus dem Teich, und wo der Blitz einschlägt, glimmt Donnererz.": "A thunderstorm is coming! Bats swarm around the rocks, slimes crawl out of the pond, and where lightning strikes, thunder ore glows.",

@@ -330,6 +330,7 @@ func _ready() -> void:
 	_model = load("res://assets/characters/%s.glb" % _info.model).instantiate()
 	_model.scale = Vector3.ONE * _info.get("scale", 1.0) * BodyLook.scale_of(_info.get("sex", BodyLook.DEFAULT))
 	add_child(_model)
+	Breath.attach(_model)
 	_dress()
 	# A woman built on the Rogue model gets her own body (see BodyLook); the
 	# dyes stay on, they belong to the parts, not to the meshes.
@@ -1285,7 +1286,7 @@ func _next_task() -> void:
 		"wander":
 			if _task == "walk" or _rng.randf() < 0.5:
 				_start("work" if _rng.randf() < 0.4 else "idle", _rng.randf_range(1.5, 4.0))
-			elif _info.has("pal") and _rng.randf() < 0.3 and KidPlay.fine_day(self) and _play_spot() != Vector3.INF:
+			elif _info.has("pal") and _rng.randf() < (0.75 if KidPlay.snowy(self) else 0.3) and KidPlay.fine_day(self) and _play_spot() != Vector3.INF:
 				# Off to play with the friend: a run to their side, then a game (see KidPlay).
 				_walk_to(_play_spot(), RUN_SPEED, "play")
 			elif _info.get("herds", false) and _rng.randf() < 0.45 and VillageFarm.herd_spot(level, role, _rng.randf()) != Vector3.INF:
@@ -1395,6 +1396,31 @@ func _walk_to(target: Vector3, speed: float, then: String) -> void:
 
 # --- Every frame --------------------------------------------------------------
 
+## Where the last footprint in the snow was left, and which foot it was.
+var _print_from := Vector3.INF
+var _print_left := false
+
+
+## A grey print in the snow every stride, left and right foot a little apart (see Outdoor.snow_print).
+func _leave_prints() -> void:
+	if not (level is Outdoor) or level.snow == null or level.snow.amount < Weather.PRINT_FROM or not visible:
+		_print_from = Vector3.INF
+		return
+	var here := global_position
+	if _print_from == Vector3.INF:
+		_print_from = here
+		return
+	var step := here - _print_from
+	step.y = 0.0
+	if step.length() < 0.7 * _model.scale.x:
+		return
+	var heading := atan2(step.x, step.z)
+	_print_left = not _print_left
+	var apart := Vector3(cos(heading), 0, -sin(heading)) * (0.08 if _print_left else -0.08) * _model.scale.x
+	level.snow_print(here + apart, heading, _model.scale.x)
+	_print_from = here
+
+
 func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
@@ -1408,6 +1434,7 @@ func _physics_process(delta: float) -> void:
 	_mind_torch(delta)
 	station.pos = global_position
 	station.cell = level.world_to_cell(global_position)
+	_leave_prints()
 	_update_bubble(delta)
 	var hero: Node3D = level.player
 	# Play ends when anything else comes first: a task of another kind, or a word with the hero.

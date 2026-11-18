@@ -386,6 +386,7 @@ func _ready() -> void:
 	# The body comes first: everything else dresses whichever body it is.
 	BodyLook.apply(_model, sex)
 	_model.scale = Vector3.ONE * BodyLook.scale_of(sex)
+	Breath.attach(_model)
 	_add_cape_logo()
 	_add_trim()
 	GearLook.dress(_model.find_child("handslot_r", true, false).get_node("Knife"), "mixed") # The hero's own knife.
@@ -1073,6 +1074,9 @@ const VILLAGE_STEP_BOOST_DB := 6.0
 ## A step sounds each time a foot lands in the run animation, so the sound
 ## keeps the rhythm of the feet at any speed, and fits the ground underfoot.
 ## In a puddle it splashes.
+var _foot_left := false
+
+
 func _footsteps(ground_speed: float) -> void:
 	var sneak := _current_anim == SNEAK_ANIM
 	var walk := _current_anim == WALK_ANIM
@@ -1099,6 +1103,11 @@ func _footsteps(ground_speed: float) -> void:
 					if _wet_steps > 0:
 						_wet_steps -= 1
 						level.wet_print(global_position, _model.rotation.y)
+					# In snow every step leaves a grey print, the left and the right foot a little apart.
+					_foot_left = not _foot_left
+					var heading := _model.rotation.y
+					var apart := Vector3(cos(heading), 0, -sin(heading)) * (0.09 if _foot_left else -0.09)
+					level.snow_print(global_position + apart, heading)
 					# Every ground has its own steps (see Surfaces.STEPS). Sneaking
 					# is only a very soft touch, barely to be heard: a brush of
 					# cloth on hard floors, a hushed step on anything softer.

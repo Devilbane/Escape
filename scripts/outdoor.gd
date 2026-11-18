@@ -452,6 +452,10 @@ const ORE_NOTICE_RANGE := 36.0
 var _weather_foes: Array = []
 ## The rain puddles on the open ground (see Puddles).
 var puddles: Puddles
+## The layer of snow on every surface that faces the sky (see SnowCover).
+var snow: SnowCover
+## The snowman Pip and Pippi build in the snow (see Snowman), or null.
+var snowman: Snowman
 ## The bounds of the square and the graveyard fence, found once (see ground_at).
 var _ground_rects := {}
 var _strike_timer := 0.0
@@ -525,6 +529,12 @@ func build() -> void:
 	add_child(SurfaceLife.new(self))
 	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
 	add_child(puddles)
+	snow = SnowCover.new(self)
+	var roofed: Array = []
+	for hy in range(_house_rect.position.y, _house_rect.end.y):
+		for hx in range(_house_rect.position.x, _house_rect.end.x):
+			roofed.append(Vector2i(hx, hy))
+	snow.set_sky_mask(roofed, width, height, TILE)
 	var floor_shape := CollisionShape3D.new()
 	floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(floor_shape)
@@ -3748,6 +3758,8 @@ func set_weather(kind: String) -> void:
 		notice.emit(Lang.t("Es fängt an zu regnen. Am Teich im Wald kriechen Schleime aus dem Wasser."), 4.5)
 	elif kind == Weather.FOG:
 		notice.emit(Lang.t("Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, am Teich kriechen Schleime, und wer schleicht, bleibt ungesehen."), 4.5)
+	elif kind == Weather.SNOW:
+		notice.emit(Lang.t("Es schneit! Dicke Flocken fallen, und auf Dächern und Wiesen bleibt der Schnee liegen."), 4.5)
 	elif kind == Weather.STORM:
 		notice.emit(Lang.t("Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, Schleime kriechen aus dem Teich, und wo der Blitz einschlägt, glimmt Donnererz."), 5.0)
 	else:
@@ -3797,6 +3809,27 @@ func puddle_fill(p: Vector3) -> float:
 func splash_puddle(at: Vector3, hard := true) -> void:
 	if puddles:
 		puddles.splash(at, hard)
+
+
+## How thick the snow lies on the open air, 0 to 1 (see SnowCover), and how bright
+## the light of the hour is on it.
+func set_snow(cover: float, daylight := 1.0) -> void:
+	if snow:
+		snow.set_amount(cover, daylight)
+	if snowman != null and is_instance_valid(snowman):
+		if cover < Snowman.MELTED:
+			snowman.queue_free()
+			snowman = null
+		else:
+			snowman.melt_to(cover)
+
+
+## A grey footprint in the snow that fades again; the hero and the villagers leave them while
+## the snow lies thick enough (see Weather.PRINT_FROM). `size` 1 is a grown-up's boot.
+func snow_print(at: Vector3, heading: float, size := 1.0) -> void:
+	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree():
+		return
+	SnowPrints.leave(self, at, heading, size)
 
 
 ## A wet footprint on dry ground, left by a hero fresh out of a puddle.

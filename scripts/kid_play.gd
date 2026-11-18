@@ -6,6 +6,9 @@ extends RefCounted
 ##
 ## The tricks are procedural: the body is turned about the hip (see pose) while it travels over the
 ## ground in physics ticks, so the model needs no extra animation clips.
+## When the snow lies thick (see snowy) they play in it instead: they build a snowman (see
+## Snowman), throw snowballs at each other (and now and then at a grown-up close by, or the hero),
+## dodge to the side between throws, and run round their snowman and cheer in front of it.
 ## Rules (see can_join and tick): no play at night, during an alarm, indoors or away from the
 ## children's own ground; the play ends the moment anybody talks to a child, and nobody runs or
 ## flips into the hero, a wall, a shut gate or ground that is not open (FarmAnimal.may_stand).
@@ -29,6 +32,22 @@ const TRICKS := {
 	"cartwheel": {"time": 1.2, "dist": 2.2, "rise": 0.12},
 	"somersault": {"time": 1.3, "dist": 1.6, "rise": 0.04},
 }
+## Snow play: the snow must lie this thick; the children keep between these distances apart for a
+## snowball fight (metres); a throw takes this long, the ball leaves the hand at RELEASE; they
+## throw again after a pause picked between THROW_PAUSE; after a few throws they run round the
+## snowman for a while. A throw goes at somebody else close by (within OTHERS metres) with
+## OTHER_CHANCE, at the hero with HERO_CHANCE, and misses with MISS_CHANCE.
+const SNOW_FROM := 0.45
+const FIGHT_RANGE := Vector2(3.0, 6.5)
+const THROW_TIME := 0.9
+const RELEASE := 0.38
+const THROW_PAUSE := Vector2(1.4, 2.8)
+const THROWS := Vector2i(4, 7)
+const ROUND_TIME := Vector2(4.5, 7.0)
+const OTHERS := 9.0
+const OTHER_CHANCE := 0.25
+const HERO_CHANCE := 0.06
+const MISS_CHANCE := 0.3
 ## Directions tried for a run away (degrees off straight away from the chaser).
 const FLEE_TURNS := [0, 35, -35, 70, -70, 110, -110, 150, -150]
 
@@ -46,6 +65,18 @@ var _tag_pause := 0.0
 ## Where the play began: the arena is round it.
 var centre := Vector3.ZERO
 var _rng := RandomNumberGenerator.new()
+## Snow play: the snowman, seconds till the next throw, how far into a throw (-1 when not
+## throwing), whether the ball has left the hand, at whom, throws left before a run round the
+## snowman, which way round, and a dodge to the side.
+var snowman: Snowman
+var _next_throw := 0.0
+var _throw_t := -1.0
+var _thrown := false
+var _target: Node3D
+var _throws_left := 0
+var _round_dir := 1.0
+var _dodge := Vector3.ZERO
+var _dodge_t := 0.0
 
 
 func _init(child: Villager) -> void:
@@ -62,6 +93,12 @@ static func pal_of(child: Villager) -> Villager:
 		if o.role == want and o != child:
 			return o
 	return null
+
+
+## Whether the snow lies thick enough to play in.
+static func snowy(child: Villager) -> bool:
+	var lvl = child.level
+	return lvl is Outdoor and lvl.snow != null and lvl.snow.amount >= SNOW_FROM
 
 
 ## Whether it is a time and place for play: day, no alarm, outdoors, awake, not afraid, not in a
@@ -95,12 +132,28 @@ func begin() -> bool:
 			or absi(v.home.y - v.level.world_to_cell(v.global_position).y) > HOME_RANGE:
 		return false
 	centre = (v.global_position + pal.global_position) * 0.5
+	if snowy(v):
+		snowman = Snowman.ensure(v.level, centre)
+		if snowman != null:
+			centre = snowman.global_position
 	chaser = true
 	active = true
-	phase = "run"
-	_clock = _rng.randf_range(RUN_TIME.x, RUN_TIME.y)
+	_begin_phase()
 	pal.join_play(v, centre, v._task_time)
 	return true
+
+
+## The first phase of a game: a snowball fight in the snow, a chase otherwise.
+func _begin_phase() -> void:
+	if snowy(v):
+		phase = "ball"
+		_throws_left = _rng.randi_range(THROWS.x, THROWS.y)
+		_next_throw = _rng.randf_range(0.5, 1.5)
+		_throw_t = -1.0
+		_round_dir = 1.0 if chaser else -1.0
+	else:
+		phase = "run"
+		_clock = _rng.randf_range(RUN_TIME.x, RUN_TIME.y)
 
 
 ## Joins a game another child began, as the one who is chased.
@@ -109,8 +162,8 @@ func join(other: Villager, at: Vector3) -> void:
 	centre = at
 	chaser = false
 	active = true
-	phase = "run"
-	_clock = _rng.randf_range(RUN_TIME.x, RUN_TIME.y)
+	snowman = v.level.snowman if v.level is Outdoor else null
+	_begin_phase()
 
 
 ## Ends the game for this child: the body stands upright again.
@@ -118,6 +171,7 @@ func stop() -> void:
 	active = false
 	phase = "run"
 	trick = ""
+	_throw_t = -1.0
 	reset_pose()
 
 
@@ -147,6 +201,10 @@ func tick(delta: float) -> bool:
 			_do_trick(delta)
 		"cheer":
 			_cheer(delta)
+		"ball":
+			_ball(delta)
+		"round":
+			_round(delta)
 	return true
 
 
@@ -288,8 +346,7 @@ func _cheer(delta: float) -> void:
 	_clock -= delta
 	v.play("Cheer")
 	if _clock <= 0.0:
-		phase = "run"
-		_clock = _rng.randf_range(RUN_TIME.x, RUN_TIME.y)
+		_begin_phase()
 
 
 ## The model's basis and position (in the body's own frame) at `t` (0 to 1) through a trick, with
@@ -321,3 +378,115 @@ static func pose(kind: String, t: float, dir: Vector3, yaw: float, s: float) -> 
 	var basis := spin * Basis.from_scale(Vector3(s, s * squash, s))
 	var hip := Vector3(0, pivot, 0)
 	return {"basis": basis, "position": hip - spin * hip + Vector3(0, rise, 0)}
+
+
+# --- Play in the snow ----------------------------------------------------------
+
+## A snowball fight: keep a throw apart, dodge to the side, throw now and then.
+func _ball(delta: float) -> void:
+	if _throw_t >= 0.0:
+		_throwing(delta)
+		return
+	var to := pal.global_position - v.global_position
+	to.y = 0.0
+	var d := to.length()
+	if d < FIGHT_RANGE.x:
+		_flee(-to.normalized(), delta)
+	elif d > FIGHT_RANGE.y:
+		_step(to.normalized(), Villager.RUN_SPEED * 0.6, delta)
+	elif _dodge_t > 0.0:
+		_dodge_t -= delta
+		if _fits(v.global_position + _dodge * 0.6):
+			_step(_dodge, Villager.RUN_SPEED * 0.7, delta)
+		else:
+			_dodge_t = 0.0
+	else:
+		v._turn_to(to, delta)
+		v.play("Idle")
+	_next_throw -= delta
+	if _next_throw > 0.0:
+		return
+	if _throws_left <= 0 and snowman != null and is_instance_valid(snowman):
+		phase = "round"
+		_clock = _rng.randf_range(ROUND_TIME.x, ROUND_TIME.y)
+		return
+	_target = _pick_target()
+	_throw_t = 0.0
+	_thrown = false
+	_throws_left -= 1
+	_next_throw = _rng.randf_range(THROW_PAUSE.x, THROW_PAUSE.y)
+	v._current_anim = "Throw"
+	v._anim.play("Throw", 0.1)
+
+
+## Mid-throw: face the target, let go of the ball at RELEASE, then a dodge to one side.
+func _throwing(delta: float) -> void:
+	_throw_t += delta
+	if _target != null and is_instance_valid(_target):
+		v._turn_to(_target.global_position - v.global_position, delta)
+	if not _thrown and _throw_t >= RELEASE:
+		_thrown = true
+		if _target != null and is_instance_valid(_target):
+			Sfx.play(v, "swing", -16.0, v.global_position, 1.3)
+			Snowball.throw(v.level, v.hand_at(), _target, v, _rng.randf() < MISS_CHANCE)
+	if _throw_t >= THROW_TIME:
+		_throw_t = -1.0
+		v.play("Idle", 0.15)
+		var forward := Vector3(sin(v.rotation.y), 0, cos(v.rotation.y))
+		_dodge = Vector3(forward.z, 0, -forward.x) * (1.0 if _rng.randf() < 0.5 else -1.0)
+		_dodge_t = _rng.randf_range(0.3, 0.7)
+
+
+## Whom the next ball is for: mostly the friend, sometimes a grown-up close by, rarely the hero.
+func _pick_target() -> Node3D:
+	var roll := _rng.randf()
+	var hero: Node3D = v.level.player
+	if roll < HERO_CHANCE and hero != null and _hero_flat(v.global_position) < OTHERS \
+			and v.level.has_line_of_sight(v.global_position, hero.global_position):
+		return hero
+	if roll < HERO_CHANCE + OTHER_CHANCE:
+		var other := grown_up_near(v, OTHERS)
+		if other != null:
+			return other
+	return pal
+
+
+## A grown-up near `child` who may be pelted: out and about, not in a talk or a fight, in sight.
+static func grown_up_near(child: Villager, reach: float) -> Villager:
+	var best: Villager = null
+	var best_d := reach
+	for o: Villager in child.level.villagers:
+		if o == child or o._info.get("pal", "") != "" or o.at_home or not o.visible or o.night:
+			continue
+		if o.chat_partner != null or o.threat != null or o._task in ["fight", "defend", "home", "hide"]:
+			continue
+		var d := o.global_position.distance_to(child.global_position)
+		if d < best_d and child.level.has_line_of_sight(child.global_position, o.global_position):
+			best = o
+			best_d = d
+	return best
+
+
+## A run round the snowman, the two of them going opposite ways, then a cheer in front of him.
+func _round(delta: float) -> void:
+	if snowman == null or not is_instance_valid(snowman):
+		_begin_phase()
+		return
+	var off := v.global_position - snowman.global_position
+	off.y = 0.0
+	if off.length() < 0.05:
+		off = Vector3(1, 0, 0)
+	var around := Vector3(-off.z, 0, off.x).normalized() * _round_dir
+	var pull := -off.normalized() * (off.length() - Snowman.RING) * 1.5
+	var way := (around + pull).normalized()
+	if _fits(v.global_position + way * 0.6, HERO_ROOM):
+		_step(way, Villager.RUN_SPEED * 0.85, delta)
+	else:
+		_round_dir = -_round_dir
+		v.play("Idle")
+	_clock -= delta
+	if _clock <= 0.0:
+		v._turn_to(-off, delta)
+		phase = "cheer"
+		_clock = CHEER_TIME * 1.5
+		v.play("Cheer", 0.1)

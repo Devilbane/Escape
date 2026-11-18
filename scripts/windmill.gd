@@ -19,6 +19,7 @@ const SPEEDS := {
 	Weather.RAIN: 0.6,
 	Weather.FOG: 0.12,
 	Weather.STORM: 1.5,
+	Weather.SNOW: 0.25,
 }
 ## How long the sails take to come most of the way to a new speed (seconds).
 const EASE := 6.0

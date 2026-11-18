@@ -2697,6 +2697,16 @@ func splash_puddle(at: Vector3, _hard := true) -> void:
 		life.splash(at)
 
 
+## A grey footprint in the snow (only the open air has snow, see Outdoor.snow_print).
+func snow_print(_at: Vector3, _heading: float, _size := 1.0) -> void:
+	pass
+
+
+## Snow on the world (only the open air has any, see Outdoor.set_snow).
+func set_snow(_cover: float, _daylight := 1.0) -> void:
+	pass
+
+
 ## A wet footprint on dry ground (only the open air shows them).
 func wet_print(_at: Vector3, _heading: float) -> void:
 	pass

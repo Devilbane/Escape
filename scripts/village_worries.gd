@@ -203,7 +203,7 @@ func conditions(village: Outdoor) -> Array:
 		Weather.FOG: out.append("nebel")
 		Weather.STORM: out.append("gewitter")
 	var hour: float = village.hour
-	if village.night or (hour >= DayNight.NIGHT_UNTIL and hour < CHILL_UNTIL):
+	if village.weather == Weather.SNOW or village.night or (hour >= DayNight.NIGHT_UNTIL and hour < CHILL_UNTIL):
 		out.append("kalt")
 	if village.night and village.moon_night >= 0 and Moon.phase(village.moon_night) in DARK_PHASES:
 		out.append("dunkel")

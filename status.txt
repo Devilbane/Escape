@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Give the mouse cursor a larger Devilbane crystal look; Denser winter breath while moving | Shipped this week: Spread temple window light wider away from the wall; Make night fog dark bluish cloud that follows the moon (+48 more)
+Escape! dev status | Working on: Give the mouse cursor a larger Devilbane crystal look | Shipped this week: Denser winter breath while moving; Spread temple window light wider away from the wall; Make night fog dark bluish cloud that follows the moon (+47 more)

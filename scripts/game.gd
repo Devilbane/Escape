@@ -274,7 +274,7 @@ const HINT_SHOWINGS := 2
 var _hints_now := {}
 var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
-const PERSON_STATIONS := ["npc", "bank", "barbier", "tempel", "haendler", "steinmetz", "schmied", "wanderhaendler"]
+const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, "barbier", "tempel", "haendler", "steinmetz", "schmied", "wanderhaendler"]
 ## Lives the hero gets back for climbing to the next level.
 const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
@@ -409,6 +409,8 @@ var _pending_search := {}
 ## A crate the hero was sent to pick up with a click (see Crate).
 var _pending_crate: Crate = null
 var menus: Menus
+## Shows the building plots on the open map and marks out new ones (see Plots).
+var plot_marker: PlotMarker
 ## Playing together with friends (see CoopSession); off unless the player hosts or joins.
 var coop: CoopSession
 ## Items left in the safe room's storage chest, and what the merchant sells.
@@ -3011,6 +3013,11 @@ func load_level(index: int, restock := true) -> void:
 	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
 	add_child(level)
 	level.build()
+	plot_marker = null
+	if level is Outdoor:
+		plot_marker = PlotMarker.new()
+		plot_marker.game = self
+		level.add_child(plot_marker)
 	# The fog of war remembers what the hero saw here before (see Journal).
 	journal.restore_fog(level)
 	level.player = player
@@ -7083,6 +7090,10 @@ func _anyone_hunting() -> bool:
 
 
 func _process(delta: float) -> void:
+	if plot_marker != null and plot_marker.marking():
+		var ground = _mouse_to_floor(get_viewport().get_mouse_position())
+		if ground != null:
+			plot_marker.hover(ground)
 	_update_quick_bar()
 	_eerie(delta)
 	_tick_clock(delta)
@@ -7207,6 +7218,7 @@ func _process(delta: float) -> void:
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
 			QuarryRocks.KIND: Lang.t("Dagegenlaufen, um Stein zu brechen"),
+			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
 			"hort": Lang.t("Dagegenlaufen, um deinen Hort zu betrachten"),
@@ -7466,7 +7478,10 @@ func _unhandled_input(event: InputEvent) -> void:
 						if no_room != "":
 							show_message(no_room, 1.6)
 					KEY_ESCAPE:
-						if playtest_file != "":
+						if plot_marker != null and plot_marker.marking():
+							plot_marker.cancel()
+							show_message(Lang.t("Abstecken abgebrochen."), 1.6)
+						elif playtest_file != "":
 							back_to_editor()
 						elif _drawer_open:
 							# The pull-out menu goes first, as a window would.
@@ -7476,6 +7491,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif event is InputEventMouseButton:
 				var point = _mouse_to_floor(event.position)
 				if point == null:
+					return
+				if plot_marker != null and plot_marker.marking():
+					if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+						plot_marker.click(point)
+					get_viewport().set_input_as_handled()
 					return
 				if event.button_index == MOUSE_BUTTON_RIGHT and _drag_stone != null:
 					# Turns the dragged block a quarter round.

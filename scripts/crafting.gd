@@ -76,6 +76,9 @@ const INGREDIENTS := {
 		"where": "Spinnen tragen sie unter dem Leib. Manchmal bleibt eines heil, wenn eine fällt."},
 	"schleimgelee": {"name": "Schleimgelee", "tier": "normal", "region": "Verlies", "when": "", "source": "Beute der Schleime, Angeln, Zarek",
 		"where": "Ein zäher, essbarer Klumpen, den die meisten Schleime zurücklassen. Bei Regen kriechen sie am Waldteich aus dem Wasser. Wer im Dorfteich oder in der Wolfssenke angelt, zieht manchmal eine alte Flasche voller Teichschleim heraus, und Zarek hat auf seinem Karren immer ein paar Klumpen."},
+	# What a slime leaves when it shatters in winter (see SlimeShatter): it never melts.
+	"schleimkristall": {"name": "Schleimkristall", "tier": "ungewoehnlich", "region": "Wildnis", "when": "nur im Winter", "source": "Beute der Schleime im Winter",
+		"where": "Im Winter gefrieren die Schleime im Freien durch. Ein erschlagener Schleim zerspringt dann wie Glas und lässt einen oder mehrere Kristalle zurück, die nie schmelzen."},
 	"ektoplasma": {"name": "Ektoplasma", "tier": "normal", "region": "Verlies", "when": "", "source": "Beute der Geister",
 		"where": "Ein kalter, schimmernder Rest, der manchmal bleibt, wenn ein Totengeist oder eine Banshee verweht."},
 	"grabstaub": {"name": "Grabstaub", "tier": "normal", "region": "Verlies", "when": "", "source": "Beute der Ghule",
@@ -323,6 +326,15 @@ const RECIPES := {
 			{"id": "lauch", "text": "Ein Bund Bärlauch, den nur ein Fuchs im Gras der Wiesen findet."},
 			{"id": "gelee", "text": "Ein Klumpen Schleimgelee als Grund, damit der Trank im Leib bleibt."},
 			{"id": "kunst", "text": "Wer klug ist und die Alchemie übt, braut ihn stärker."},
+		]},
+	# Cold brewing: the first slime crystal teaches it. A strong healing potion, whatever the brewer's skill.
+	"frosttrank": {"name": "Frosttrank", "giver": "", "found": "schleimkristall",
+		"craft": "alchemie", "craft_level": 0, "result": "heiltrank_stark",
+		"effect": "Ein starker Heiltrank: heilt sofort 40 bis 60 % deiner Leben, dann 20 Sekunden lang 1 Leben pro Sekunde",
+		"ingredients": {"schleimkristall": 1, "baerlauch": 1},
+		"lines": [
+			{"id": "kristall", "text": "Ein Schleimkristall, im Winter aus einem zersprungenen Schleim geborgen."},
+			{"id": "lauch", "text": "Ein Bund Bärlauch, damit der Trank im Leib warm bleibt."},
 		]},
 }
 

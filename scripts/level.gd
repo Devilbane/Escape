@@ -4490,6 +4490,9 @@ func drop_kill_loot(e: Enemy, gold := 0, roll := -1.0, ore_roll := -1.0, body_ro
 				if not _swallowing:
 					Sfx.play_gear(self, found, 0.0, spot)
 					Sfx.play_rarity(self, found, 0.3, spot)
+		# A slime that froze through in winter shatters into slime crystals (see SlimeShatter).
+		if SlimeShatter.applies(e):
+			lay_find(SlimeShatter.CRYSTAL, pos, SlimeShatter.COLOUR, SlimeShatter.crystals(e.rated_level), true)
 		# A slime's own body: mostly its jelly, now and then a finer find.
 		if e.kind in Loot.SWALLOWS:
 			var body := Loot.slime_find(e.kind, tough, body_roll, "normal" if beginner_dungeon else Loot.TOP_TIER)

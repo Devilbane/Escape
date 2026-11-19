@@ -1,0 +1,1 @@
+- Frozen Fritz stays frozen when the village alarm sounds.

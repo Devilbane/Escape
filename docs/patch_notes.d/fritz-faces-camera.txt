@@ -1,0 +1,1 @@
+- Frozen Fritz now stands facing the screen, so you can see his face.

@@ -528,6 +528,9 @@ func _freeze() -> void:
 	_anim.pause()
 	_model.position.y = 0.0
 	singing = false
+	# He freezes with his face to the screen (the camera looks along -Z), so the player sees it.
+	global_rotation.y = 0.0
+	reset_physics_interpolation()
 	_ice = FrozenFritz.freeze(self)
 
 
@@ -761,6 +764,8 @@ func can_defend() -> bool:
 
 ## Out of the wall's reach: run in through the gate before it shuts.
 func go_inside(way_in: Vector3) -> void:
+	if is_frozen():
+		return
 	if _task in ["fight", "hide"] or at_home or eaten:
 		return
 	_walk_to(way_in, RUN_SPEED, "idle")
@@ -768,6 +773,8 @@ func go_inside(way_in: Vector3) -> void:
 
 ## Draws a blade and takes a post by the wall (see VillageWall).
 func defend(post: Vector3) -> void:
+	if is_frozen():
+		return
 	mend_brick = null
 	leave_chat()
 	_listen_to = Vector3.INF
@@ -946,6 +953,9 @@ func heals() -> bool:
 ## arms (`called`, see VillageAlarm): the brave draw a blade and fight, the
 ## rest run into the nearest house until it is gone.
 func alarm(slime: Enemy, called := false) -> void:
+	# Frozen solid, Fritz stays where he stands whatever the alarm says.
+	if is_frozen():
+		return
 	if eaten or at_home or slime == null or not is_instance_valid(slime) or slime.dead:
 		return
 	# A slime sniffing at a defender over the wall does not scare them off their post; only the

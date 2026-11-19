@@ -1,0 +1,1 @@
+- The windmill's turning sails no longer show fixed snow cover in winter.

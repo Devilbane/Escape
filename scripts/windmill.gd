@@ -57,6 +57,8 @@ static func attach(outdoor: Node, model: Node3D) -> Windmill:
 	var mill := Windmill.new()
 	mill.name = "Windmill"
 	mill.sails = found[0]
+	# The sails turn, so snow laid on them in the world would stay put while they move.
+	mill.sails.set_meta("no_snow", true)
 	mill._outdoor = outdoor
 	mill._groan_timer = randf_range(GROAN_MIN * 0.5, GROAN_MAX)
 	model.add_child(mill)

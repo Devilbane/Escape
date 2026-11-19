@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Squirrels: no snow overlay, paw prints in snow; Bigger, natural village pond without green winter rim | Shipped this week: Keep villagers from piling up: smooth separation with a visible gap (+49 more)
+Escape! dev status | Working on: Graveyard gates open with a rusty iron creak; Give the dungeon gates in the open a winter look; Squirrels: no snow overlay, paw prints in snow (+1 more) | Shipped this week: Keep villagers from piling up: smooth separation with a visible gap (+49 more)

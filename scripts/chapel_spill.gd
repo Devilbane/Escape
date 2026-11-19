@@ -42,7 +42,10 @@ const SHEETS := [0.12, 0.37, 0.63, 0.88]
 const RAY_STRENGTH := 0.38
 ## How bright the picture on the lawn is (the rays have their own strength).
 const PICTURE_DIM := 0.55
-const LIFT := 0.1
+## How high above the ground the picture lies, in kit metres (the temple is scaled down, so
+## this is a little less in the world). Winter snow lies up to about 0.06 m thick (see
+## SnowCover), so the light floats clear above it and is not buried.
+const LIFT := 0.3
 ## How bright the light is next to the glass itself.
 const DIM := 1.3
 

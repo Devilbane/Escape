@@ -2706,7 +2706,7 @@ func _tick_clock(delta: float) -> void:
 			level.set_hour(day_hour)
 			level.set_weather(weather)
 			level.set_puddles(puddle_water, _weather_look.rain, clampf(_env.ambient_light_energy / 0.52, 0.05, 1.0))
-			level.set_snow(snow_cover, clampf(_env.ambient_light_energy / 0.52, 0.0, 1.0), lerpf(0.12, 1.0, Moon.light(day)) * DayNight.moon_at(day_hour))
+			level.set_snow(snow_cover, clampf(_env.ambient_light_energy / 0.52, 0.0, 1.0), lerpf(0.25, 1.0, Moon.light(day)) * DayNight.moon_at(day_hour))
 			level.set_ice(ice_cover)
 			if level.moon_night >= 0 and (Moon.is_full(level.moon_night) or Moon.is_new(level.moon_night)):
 				learn(Moon.LORE)

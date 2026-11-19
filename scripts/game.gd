@@ -724,13 +724,17 @@ func _setup_world() -> void:
 	moon.shadow_enabled = true
 	# Shadows reach all the way to the camera's far plane, so the mountains'
 	# shadows are always fully drawn instead of building up (or fading in)
-	# as the hero walks towards them. The splits keep the near cascades as
-	# sharp as they were when the range was 70 m; only the last one is wide.
+	# as the hero walks towards them. The camera hangs about 27 m from the hero, so the
+	# first ring reaches past everything around the hero (46 m): a prop on the hero's
+	# side of a ring edge used to be shaded differently from one on the other side, and
+	# a bench flipped between the two as the hero walked past it. Only the far rings are wide.
 	moon.directional_shadow_max_distance = 200.0
 	moon.directional_shadow_fade_start = 1.0
-	moon.directional_shadow_split_1 = 0.04
-	moon.directional_shadow_split_2 = 0.1
-	moon.directional_shadow_split_3 = 0.25
+	moon.directional_shadow_split_1 = 0.23
+	moon.directional_shadow_split_2 = 0.4
+	moon.directional_shadow_split_3 = 0.6
+	# Blend the rings so no hard edge of shade sweeps over the props as the hero walks.
+	moon.directional_shadow_blend_splits = true
 	add_child(moon)
 
 	camera = Camera3D.new()

@@ -33,6 +33,7 @@ static func ensure(level: Outdoor, near: Vector3) -> Snowman:
 	# He looks south, towards the way the camera looks at the village, give or take a little.
 	man.rotation.y = Snowball._rng.randf_range(-0.5, 0.5)
 	level.snowman = man
+	man.set_daylight(level.snow.daylight)
 	return man
 
 
@@ -221,7 +222,9 @@ func _part(mesh: Mesh, mat: Material) -> MeshInstance3D:
 ## the snowman must not glow in the night (`daylight` 0 night to 1 day).
 func set_daylight(daylight: float) -> void:
 	if _snow != null:
-		_snow.emission_energy_multiplier = SPARKLE_ENERGY * clampf(daylight, 0.0, 1.0)
+		var d := clampf(daylight, 0.0, 1.0)
+		_snow.emission_enabled = d > 0.05
+		_snow.emission_energy_multiplier = SPARKLE_ENERGY * d
 
 
 func melt_to(cover: float) -> void:

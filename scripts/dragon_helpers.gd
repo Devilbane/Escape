@@ -30,6 +30,8 @@ const SHY := 3.5
 const MODEL_SCALE := 0.16
 ## How near (metres) to a tile point of their way they count it as reached.
 const WAY_REACHED := 0.6
+## What a tile beside an obstacle costs, against an open one (see way_round).
+const CLOSE := 4.0
 const TINT := Color(1.0, 0.55, 0.3)
 
 var level: Level
@@ -202,7 +204,7 @@ func _via(h: Dictionary, goal: Vector3) -> Variant:
 	var leg: int = 1 if h.home else 0
 	if h.get("leg", -1) != leg:
 		h["leg"] = leg
-		h["way"] = WalkRules.path(level, node.global_position, goal, null, true)
+		h["way"] = way_round(level, node.global_position, goal)
 	var way: Array = h["way"]
 	while way.size() > 1 and _flat(way[0] - node.global_position) < WAY_REACHED:
 		way.pop_front()
@@ -210,6 +212,44 @@ func _via(h: Dictionary, goal: Vector3) -> Variant:
 	if way.size() <= 1:
 		return null
 	return way[0]
+
+
+## The way to `to` on the tiles, steering clear of buildings, trees and walls
+## where the lanes allow: the dragonling's wings and the eaves reach further
+## than a tile's own edge, so a walker's path hugging a wall would clip it. A
+## tile beside an obstacle costs CLOSE times as much as an open one, so the way
+## squeezes along a wall only where there is no roomier way round.
+static func way_round(lvl: Level, from: Vector3, to: Vector3) -> Array[Vector3]:
+	var a := lvl.world_to_cell(from)
+	var b := lvl.world_to_cell(to)
+	var grid := AStarGrid2D.new()
+	grid.region = lvl.astar.region
+	grid.cell_size = lvl.astar.cell_size
+	grid.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+	grid.update()
+	var size := grid.region.size
+	for y in size.y:
+		for x in size.x:
+			var c := Vector2i(x, y)
+			if not lvl.astar.is_point_solid(c):
+				continue
+			grid.set_point_solid(c, true)
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					var n := c + Vector2i(dx, dy)
+					if grid.is_in_boundsv(n):
+						grid.set_point_weight_scale(n, CLOSE)
+	if not grid.is_in_boundsv(a) or not grid.is_in_boundsv(b):
+		return WalkRules.path(lvl, from, to, null, true)
+	# Where it sets out it may stand in a solid tile (the arch).
+	grid.set_point_solid(a, false)
+	var cells := grid.get_id_path(a, b, true)
+	if cells.is_empty():
+		return WalkRules.path(lvl, from, to, null, true)
+	var out: Array[Vector3] = []
+	for c: Vector2i in cells.slice(1):
+		out.append(lvl.cell_to_world(c))
+	return out
 
 
 ## Snatches the thing up: off the floor, held under the helper, and away.

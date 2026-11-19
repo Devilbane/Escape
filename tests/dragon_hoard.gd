@@ -71,6 +71,7 @@ func _run_helpers(helpers: DragonHelpers, seconds: float) -> void:
 
 
 func _test() -> void:
+	_test_way_round()
 	# What becomes of what.
 	check(DragonHoard.fate("item", "schwert") == "melt", "a sword is melted down")
 	check(DragonHoard.fate("item", "fechtbuch") == "burn", "a book burns")
@@ -273,3 +274,53 @@ func _test() -> void:
 	check(int(game.metal_grams.get("bronze", 0)) == int(hoard_metals.get("g:bronze", 0)) and hoard_metals.has("g:bronze"), "the bronze to the hero's metal in grams (%s)" % str(game.metal_grams))
 	check(game.crafting.have("mondsilbererz") == 1, "the moon silver into the pouch")
 	check(game.hoard.is_empty(), "the hoard is empty again")
+
+
+## The dragonlings' way squeezes along obstacles less than a walker's plain path does.
+func _test_way_round() -> void:
+	game.hero_name = "Hoard test"
+	game.escaped = true
+	game.floors.clear()
+	game.day_hour = 12.0
+	game.load_level(game._outdoor_index(), false)
+	var lvl: Outdoor = game.level
+	var den: Vector3 = lvl.doors.E
+	var roomy := 0
+	var plain := 0
+	var n := 0
+	var ways := 0
+	for y in lvl.height:
+		for x in lvl.width:
+			var c := Vector2i(x, y)
+			if lvl.astar.is_point_solid(c):
+				continue
+			n += 1
+			if n % 7 != 0:
+				continue
+			var to := lvl.cell_to_world(c)
+			var mine := DragonHelpers.way_round(lvl, den, to)
+			var walk := WalkRules.path(lvl, den, to, null, true)
+			if mine.size() < 6:
+				continue
+			ways += 1
+			roomy += _hugging(lvl, mine)
+			plain += _hugging(lvl, walk)
+			# Never through a solid tile.
+			for p in mine.slice(0, mine.size() - 1):
+				check(not lvl.astar.is_point_solid(lvl.world_to_cell(p)), "a dragonling's way crosses no solid tile")
+	check(ways > 20, "there are long ways to test (%d)" % ways)
+	check(roomy * 10 < plain * 7, "their ways hug buildings less than a walker's (%d against %d tiles)" % [roomy, plain])
+
+
+## How many tiles of a way lie beside a solid tile.
+func _hugging(lvl: Level, way: Array) -> int:
+	var count := 0
+	for p in way:
+		var cell := lvl.world_to_cell(p)
+		var near := false
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				if lvl.astar.is_point_solid(cell + Vector2i(dx, dy)):
+					near = true
+		count += 1 if near else 0
+	return count

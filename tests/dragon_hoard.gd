@@ -17,6 +17,7 @@ extends SceneTree
 var failures := 0
 var game: Node
 var frames := 0
+var solid_hits := 0
 
 
 func check(ok: bool, what: String) -> void:
@@ -36,6 +37,7 @@ func _process(_delta: float) -> bool:
 		return false
 	_test()
 	game.delete_save(game.save_path())
+	check(solid_hits == 0, "no dragonling flew through a building (%d ticks)" % solid_hits)
 	if failures == 0:
 		print("PASS: dragon hoard")
 	else:
@@ -54,6 +56,14 @@ func _run_helpers(helpers: DragonHelpers, seconds: float) -> void:
 	while t < seconds:
 		helpers._process(0.1)
 		t += 0.1
+		# They fly round the buildings, never through one.
+		var lvl: Level = helpers.level
+		for h in helpers.helpers:
+			if is_instance_valid(h.node) and h.node.scale.x > 0.5:
+				var c: Vector2i = lvl.world_to_cell(h.node.global_position)
+				var near_den := DragonHelpers._flat(h.node.global_position - helpers.den) < 4.0
+				if not near_den and lvl.astar.is_in_boundsv(c) and lvl.astar.is_point_solid(c):
+					solid_hits += 1
 
 
 func _test() -> void:

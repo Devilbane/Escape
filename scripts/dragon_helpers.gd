@@ -28,6 +28,8 @@ const FLY_HEIGHT := 3.2
 const SHY := 3.5
 ## The size of the dragon's model on them, and their ember-red tint.
 const MODEL_SCALE := 0.16
+## How near (metres) to a tile point of their way they count it as reached.
+const WAY_REACHED := 0.6
 const TINT := Color(1.0, 0.55, 0.3)
 
 var level: Level
@@ -173,6 +175,11 @@ func _fly(h: Dictionary, delta: float) -> void:
 		goal = Vector3(at.x, lerpf(at.y + 0.6, FLY_HEIGHT, clampf(left / 6.0, 0.0, 1.0)), at.z)
 	var step := goal - node.global_position
 	var move := SPEED * delta
+	# Round the buildings: follow the way on the tiles; only the last stretch is straight.
+	var via: Variant = _via(h, goal)
+	if via != null:
+		var to_via: Vector3 = via - node.global_position
+		step = Vector3(to_via.x, step.y, to_via.z)
 	if step.length() > 0.01:
 		var flat := Vector3(step.x, 0, step.z)
 		if flat.length() > 0.05:
@@ -185,6 +192,24 @@ func _fly(h: Dictionary, delta: float) -> void:
 			_snatch(h)
 		return
 	node.global_position += step.normalized() * move
+
+
+## The next tile point on the way round buildings and other obstacles to the
+## goal, or null when the way is straight (or none is found). The way is found
+## once per leg (to the thing, then home), with no random numbers.
+func _via(h: Dictionary, goal: Vector3) -> Variant:
+	var node: Node3D = h.node
+	var leg: int = 1 if h.home else 0
+	if h.get("leg", -1) != leg:
+		h["leg"] = leg
+		h["way"] = WalkRules.path(level, node.global_position, goal, null, true)
+	var way: Array = h["way"]
+	while way.size() > 1 and _flat(way[0] - node.global_position) < WAY_REACHED:
+		way.pop_front()
+	# The last tile point is the goal's own tile: head for the goal itself from there.
+	if way.size() <= 1:
+		return null
+	return way[0]
 
 
 ## Snatches the thing up: off the floor, held under the helper, and away.

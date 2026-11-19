@@ -1794,8 +1794,14 @@ func _walk(delta: float, hero: Node3D) -> void:
 	var way := to.normalized()
 	# (Not on the last stretch to the goal: a door or a seat is reached however busy it is.)
 	if to.length() > step and not (_path.size() == 1 and to.length() < ARRIVE_FREE):
-		way = (way + _separation() * SEPARATION_WEIGHT).normalized()
+		# Only aside, never back: a walker leans out of the way but keeps going on.
+		var lean := _separation() * SEPARATION_WEIGHT
+		lean -= way * minf(0.0, lean.dot(way))
+		way = (way + lean).normalized()
 	var target := Vector3(_path[0].x, 0, _path[0].z) if to.length() <= step else global_position + way * step
+	if blocked_at(target) and to.length() > step:
+		# The bend leads into a wall: straight on instead.
+		target = global_position + to.normalized() * step
 	if blocked_at(target) and not blocked_at(global_position):
 		# A gate was shut (or a wall stands) ahead: wait, then find the way again.
 		play("Idle")

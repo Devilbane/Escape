@@ -15,6 +15,8 @@ uniform float strength = 0.0;
 // How much of the ground the clouds cover (0 to 1); the rest is clear air.
 uniform float coverage = 0.5;
 uniform vec2 drift = vec2(0.0);
+// 0 = patchy clouds with clear gaps, 1 = one soft, even haze.
+uniform float even = 0.0;
 uniform float breathe = 0.0;
 uniform float max_distance = 90.0;
 
@@ -37,6 +39,8 @@ void fragment() {
 	// Soft, irregular edges: a wide ramp from clear to cloud.
 	float lo = 1.0 - coverage - 0.12;
 	float body = smoothstep(lo, lo + 0.3, c);
+	// An even haze keeps only a faint swell of the noise and fills the gaps.
+	body = mix(body, 0.8 + 0.2 * c, even);
 	// Ground-hugging: thick at the feet, thin higher up.
 	float low = exp(-max(world.y, 0.0) * 0.3);
 	// Nothing on the sky or far away.

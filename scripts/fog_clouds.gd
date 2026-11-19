@@ -55,8 +55,11 @@ static func make_noise() -> ImageTexture:
 
 ## Thickness of the clouds (0 none to 1 full) and their colour. Hidden, and
 ## not drawn at all, when there are none.
-func set_look(strength: float, haze: Color) -> void:
+## `even` (0 to 1) smooths the clouds into one soft, even haze with no clear gaps (winter fog, where
+## gaps and dark clumps over the snow read as blotches).
+func set_look(strength: float, haze: Color, even := 0.0) -> void:
 	visible = strength > 0.02
+	_mat.set_shader_parameter("even", even)
 	_mat.set_shader_parameter("strength", strength)
 	_mat.set_shader_parameter("haze", Vector3(haze.r, haze.g, haze.b))
 

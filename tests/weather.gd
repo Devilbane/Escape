@@ -41,6 +41,10 @@ func _finish() -> void:
 	check(Weather.moonlit_haze(dark, 12.0) == dark, "fog by day keeps its colour")
 	check(Weather.moonlit_haze(dark, 0.0, 0.01).b < Weather.moonlit_haze(dark, 0.0, 1.0).b, "a brighter moon lights the fog more")
 	check(Weather.moonlit_haze(dark, 0.0, 1.0).b < 0.7, "moonlit fog is dark blue, never white")
+	var wn := Weather.winter_haze(dark, 0.0, 1.0, 0.0)
+	check(wn.b > 0.4 and wn.b > wn.r, "winter fog at night is a cool, light haze, not dark blue")
+	check(Weather.winter_haze(dark, 12.0, 1.0).b > Weather.winter_haze(dark, 0.0, 1.0).b, "winter fog is brighter by day")
+	check(Weather.winter_haze(dark, 0.0, 0.0) == dark, "no fog, no winter haze")
 	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: weather")

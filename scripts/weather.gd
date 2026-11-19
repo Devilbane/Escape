@@ -163,6 +163,19 @@ static func moonlit_haze(haze: Color, hour: float, moon := 1.0) -> Color:
 			maxf(haze.b, lerpf(haze.b, lit.b, night)), haze.a)
 
 
+## The cool white of winter fog. Over snow, a dark blue haze reads as dirty blotches, so winter
+## fog is a soft, even haze in this colour, dimmed a little at night (more with a dim moon).
+const WINTER_HAZE := Color(0.7, 0.77, 0.88)
+
+
+## The haze of fog in winter: cool white, never dark. `fog` is how thick the fog is (0 to 1).
+static func winter_haze(haze: Color, hour: float, fog: float, moon := 1.0) -> Color:
+	var night := DayNight.glow_at(hour)
+	var bright := lerpf(1.0, 0.5 + 0.2 * clampf(moon, 0.0, 1.0), night)
+	var white := Color(WINTER_HAZE.r * bright, WINTER_HAZE.g * bright, WINTER_HAZE.b * bright, haze.a)
+	return haze.lerp(white, clampf(fog, 0.0, 1.0))
+
+
 ## The part of the day the chances go by.
 static func part_of_day(hour: float) -> String:
 	if DayNight.is_night(hour):

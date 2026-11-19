@@ -97,7 +97,7 @@ func _burst() -> void:
 	var hit_body := _miss == Vector3.ZERO and target != null and is_instance_valid(target)
 	Snowball.puff(world, global_position, 34 if hit_body else 14, 0.12 if hit_body else 0.07)
 	if hit_body:
-		Snowball.cling(target, global_position)
+		Snowball.cling(target, global_position, world)
 	Sfx.play(self, "step_grass_%d" % (_rng.randi() % 6), -10.0, global_position, 1.4)
 	if _miss == Vector3.ZERO and target is Villager and is_instance_valid(target):
 		var hit := target as Villager
@@ -159,11 +159,11 @@ static func puff(world: Node3D, at: Vector3, amount := 14, crumb := 0.07) -> voi
 
 
 ## A blob of snow that sticks to `body` where the ball hit (`at`), melts away. It is a child
-## of the body, so it goes along when the body moves.
-static func cling(body: Node3D, at: Vector3) -> void:
+## of the body, so it goes along when the body moves; `level` gives it the light of the hour.
+static func cling(body: Node3D, at: Vector3, level: Node = null) -> void:
 	if body == null or not body.is_inside_tree():
 		return
-	var mat := Snowball.snow_material(body.get_parent())
+	var mat := Snowball.snow_material(level)
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.12
 	mesh.height = 0.12

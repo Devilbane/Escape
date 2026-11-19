@@ -119,8 +119,8 @@ const PUDDLE_DRY_HOURS := 3.0
 const SNOW_FLAKES := 650
 ## In winter a few small flakes fall in any weather (clear, fog): this many, at this strength
 ## (the share of a full snowfall's look). A real snowfall brings all SNOW_FLAKES.
-const WINTER_FLAKES := 70
-const WINTER_FLURRY := 0.55
+const WINTER_FLAKES := 450
+const WINTER_FLURRY := 0.85
 const SNOW_BUILD_HOURS := 0.5
 const SNOW_MELT_HOURS := 5.0
 const SNOW_RAIN_MELT := 3.0

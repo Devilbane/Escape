@@ -46,6 +46,10 @@ func _initialize() -> void:
 			cuts[cut] = info.name
 	check(glasses >= 3, "some townsfolk wear glasses")
 	check(Villager.ROLES["7"].hair == {"style": "spiky", "color": "blond"}, "Pip keeps his hair")
+	# The glasses sit on the eyes whatever the model's head box is (the Knight's is taller).
+	for box in [AABB(Vector3(-0.54, 1.17, -0.5), Vector3(1.08, 1.02, 1.0)), AABB(Vector3(-0.54, 1.22, -0.49), Vector3(1.09, 1.1, 1.02)), AABB(Vector3(-0.54, 1.07, -0.75), Vector3(1.09, 1.14, 1.27))]:
+		var rim := TownsfolkLook.glasses_mesh("round", box, Color.BLACK).get_aabb()
+		check(absf(rim.get_center().y - TownsfolkLook.EYE_Y) < 0.05, "glasses sit on the eyes, not on the head box %s" % box)
 	# Someone who is not in the table still gets a fixed look of their own.
 	var stranger := {"name": "x", "model": "Mage", "show": [], "colors": [Color.WHITE, Color.WHITE, Color.WHITE]}
 	check(TownsfolkLook.look_for("~", stranger) == TownsfolkLook.look_for("~", stranger), "a stranger's look is fixed")

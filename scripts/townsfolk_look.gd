@@ -11,6 +11,9 @@ extends RefCounted
 ## low-poly shapes of WinterWear and hung from the head bone, so they move with the head.
 
 const TAG := "Glasses"
+## Where the eyes are in the skeleton's rest space: the same on every model (measured from renders of
+## the Rogue, Mage and Knight faces), while the head's box differs from model to model.
+const EYE_Y := 1.585
 
 ## Skin tones, a multiplier on the model's own skin (white keeps it).
 const FAIR := Color(1.0, 0.94, 0.9)
@@ -147,11 +150,11 @@ static func _put_on_glasses(model: Node3D, kind: String, frame: Color) -> void:
 	slot.add_child(mi)
 
 
-## The frames in the skeleton's rest space, sized by the head's box (the face looks along +Z).
+## The frames in the skeleton's rest space, at the eyes (see EYE_Y), as wide as the head's box allows (the face looks along +Z).
 static func glasses_mesh(kind: String, box: AABB, frame: Color) -> ArrayMesh:
 	var st := WinterWear._start()
 	var cx := box.get_center().x
-	var eye := box.end.y - 0.5
+	var eye := EYE_Y
 	var z := box.end.z + 0.03
 	var rx := box.size.x * 0.5
 	var gap := 0.2

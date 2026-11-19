@@ -274,7 +274,9 @@ func _physics_process(delta: float) -> void:
 		_wake()
 	if _resting:
 		return
-	ease_apart(delta)
+	# Cattle heading for their places under the roof keep to them: the straw is shared by design.
+	if not _to_roof:
+		ease_apart(delta)
 	if kind == "billy" and alive and state in ["graze", "idle", "stroll"]:
 		_pick_fight(delta, away.length(), hero)
 	# A stroll that began before the rain or the dusk is given up: the shelter comes first.
@@ -583,7 +585,9 @@ func _walk(delta: float) -> void:
 		return
 	var to := _flat(_path[0] - global_position)
 	# Neighbours bend the wish a little away from them, so a herd flows round itself.
-	var want := (to.normalized() + separation() * SEPARATION_WEIGHT).normalized()
+	var want := to.normalized()
+	if not _to_roof:
+		want = (want + separation() * SEPARATION_WEIGHT).normalized()
 	if _heading == Vector3.ZERO:
 		_heading = Vector3(sin(rotation.y), 0.0, cos(rotation.y))
 	# The body swings round in an arc (bigger animals wider, a bolting one sharper).

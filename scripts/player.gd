@@ -404,6 +404,8 @@ func _ready() -> void:
 	_lantern.light_color = Color(1.0, 0.75, 0.5)
 	_lantern.light_energy = 1.1
 	_lantern.omni_range = 8.5
+	# A soft falloff: no hard-edged disc of light on the snow.
+	_lantern.omni_attenuation = 1.8
 	_lantern.position = Vector3(0, 3.2, 0.6)
 	add_child(_lantern)
 	# A cool fill in front of the face, only at night (see _light_lantern): the
@@ -486,7 +488,7 @@ func _light_lantern() -> void:
 	# At night the lantern sits lower and further forward, so it lights the face
 	# as much as the hair, and a gentle cool fill keeps the hero readable.
 	_lantern.position = Vector3(0, lerpf(3.2, 2.3, night_dim), lerpf(0.6, 1.2, night_dim))
-	_fill.light_energy = 0.55 * night_dim * (0.6 if sneaking else 1.0)
+	_fill.light_energy = 0.35 * night_dim * (0.6 if sneaking else 1.0)
 	_fill.visible = night_dim > 0.05
 
 

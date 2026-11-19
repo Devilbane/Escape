@@ -1149,9 +1149,12 @@ func _build_lantern(pos: Vector3) -> void:
 	if frost:
 		add_child(frost)
 	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.68, 0.38)
+	# A natural, gentler orange, and a falloff that fades out softly instead of ending in a hard
+	# edge on the snow (attenuation above 1 pulls the light in toward the lamp).
+	light.light_color = Color(1.0, 0.74, 0.48)
 	light.light_energy = 2.2
 	light.omni_range = 11.0
+	light.omni_attenuation = 1.8
 	light.position = pos + LAMP_LIGHT_AT
 	add_child(light)
 	_lamps.append(light)

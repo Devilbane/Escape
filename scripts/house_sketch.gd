@@ -25,6 +25,18 @@ const WINDOW := "window"
 const KINDS := [WALL, DOOR, WINDOW]
 const SKETCH := "sketch"
 const BUILT := "built"
+## A built piece the hero has marked to be taken down (see erase).
+const DEMOLISH := "demolish"
+## What a piece costs in building materials, and how much of it comes back
+## when it is taken down again.
+const STONE := "steinblock"
+const TIMBER := "bauholz"
+const COST := {
+	WALL: {STONE: 2},
+	DOOR: {STONE: 1, TIMBER: 2},
+	WINDOW: {STONE: 1, TIMBER: 1},
+}
+const MATERIALS := [STONE, TIMBER]
 const ORIENT_X := "x"
 const ORIENT_Y := "y"
 ## How many edits undo remembers.
@@ -37,8 +49,10 @@ static var _loaded := false
 var plot := Rect2i()
 ## key -> {"kind": WALL / DOOR / WINDOW, "state": SKETCH / BUILT}
 var pieces := {}
-## The hero told the character to build (see the construction phase).
+## The hero told the character to build (see build_next).
 var ordered := false
+## The materials delivered to the plot (id -> count), used up as pieces are built.
+var stock := {}
 var _undo: Array = []
 var _redo: Array = []
 
@@ -145,7 +159,7 @@ func problem(x: int, y: int, orient: String, kind: String, storey := 0) -> Strin
 	if not KINDS.has(kind):
 		return "kind"
 	var had := piece(x, y, orient, storey)
-	if had.get("state", SKETCH) == BUILT:
+	if had.get("state", SKETCH) != SKETCH:
 		return "built"
 	if kind != WALL and had.is_empty():
 		return "needs wall"
@@ -170,16 +184,28 @@ func sketch(edges: Array, kind: String, storey := 0) -> int:
 	return step.size()
 
 
-## Takes sketched pieces off their edges as one step. Built pieces stay.
+## Takes sketched pieces off their edges as one step. A built piece is marked
+## to be taken down instead: the character does that when ordered, and the
+## materials come back (see build_next). Erasing a piece marked for demolition
+## keeps it. Returns how many changed.
 func erase(edges: Array, storey := 0) -> int:
 	var step := []
 	for e in edges:
 		var key := key_of(e[0], e[1], e[2], storey)
 		var before = pieces.get(key, null)
-		if before == null or before.state == BUILT:
+		if before == null:
 			continue
-		pieces.erase(key)
-		step.append({"key": key, "before": before, "after": null})
+		if before.state == SKETCH:
+			pieces.erase(key)
+			step.append({"key": key, "before": before, "after": null})
+		elif before.state == BUILT:
+			var after := {"kind": before.kind, "state": DEMOLISH}
+			pieces[key] = after
+			step.append({"key": key, "before": before, "after": after})
+		elif before.state == DEMOLISH:
+			var kept := {"kind": before.kind, "state": BUILT}
+			pieces[key] = kept
+			step.append({"key": key, "before": before, "after": kept})
 	_push(step)
 	return step.size()
 
@@ -241,17 +267,118 @@ func is_empty() -> bool:
 	return pieces.is_empty()
 
 
-## "plan" while there is something to sketch or nothing is ordered yet,
-## "build" once the character has been told to build and pieces are still
-## unbuilt, "done" when everything sketched stands.
-func stage() -> String:
+## The pieces still to do: sketches to build and built pieces to take down.
+func open_pieces() -> int:
 	var open := 0
 	for key in pieces:
-		if pieces[key].state == SKETCH:
+		if pieces[key].state != BUILT:
 			open += 1
-	if open > 0:
+	return open
+
+
+## "plan" while there is something to sketch and nothing is ordered, "build"
+## from the order until the last piece is done, "done" when everything
+## sketched stands. A new sketch after "done" is the next "plan".
+func stage() -> String:
+	if open_pieces() > 0:
 		return "build" if ordered else "plan"
 	return "done" if not pieces.is_empty() else "plan"
+
+
+## The materials the open sketches still need beyond the stock: id -> missing.
+func missing() -> Dictionary:
+	var need := {}
+	for key in pieces:
+		if pieces[key].state == SKETCH:
+			for id in COST[pieces[key].kind]:
+				need[id] = int(need.get(id, 0)) + int(COST[pieces[key].kind][id])
+	var out := {}
+	for id in need:
+		var short: int = int(need[id]) - int(stock.get(id, 0))
+		if short > 0:
+			out[id] = short
+	return out
+
+
+## What the open sketches need in all: id -> count.
+func needs() -> Dictionary:
+	var need := {}
+	for key in pieces:
+		if pieces[key].state == SKETCH:
+			for id in COST[pieces[key].kind]:
+				need[id] = int(need.get(id, 0)) + int(COST[pieces[key].kind][id])
+	return need
+
+
+func deposit(id: String, count: int) -> void:
+	if MATERIALS.has(id) and count > 0:
+		stock[id] = int(stock.get(id, 0)) + count
+
+
+func _affordable(kind: String) -> bool:
+	for id in COST[kind]:
+		if int(stock.get(id, 0)) < int(COST[kind][id]):
+			return false
+	return true
+
+
+## The order to build: from now on the character works through the open pieces.
+func order() -> bool:
+	if open_pieces() == 0:
+		return false
+	ordered = true
+	return true
+
+
+## The character does one piece of work: takes down a piece marked for
+## demolition (its materials go back into the stock) or builds the next
+## sketch the stock pays for, walls before doors and windows. Returns
+## {"edge": [x, y, orient], "kind": ..., "did": "built" / "demolished"}, or
+## {"why": "materials"} when only sketches the stock cannot pay for are left,
+## or {} when there is nothing to do (the order ends with the last piece).
+func build_next() -> Dictionary:
+	if not ordered:
+		return {}
+	var result := {}
+	for key in pieces:
+		if pieces[key].state == DEMOLISH:
+			var kind: String = pieces[key].kind
+			for id in COST[kind]:
+				stock[id] = int(stock.get(id, 0)) + int(COST[kind][id])
+			pieces.erase(key)
+			var p := parts_of(key)
+			result = {"edge": [p[1], p[2], p[3]], "kind": kind, "did": "demolished"}
+			break
+	if result.is_empty():
+		var chosen := ""
+		for kind in KINDS:
+			for key in pieces:
+				if pieces[key].state == SKETCH and pieces[key].kind == kind and _affordable(kind):
+					chosen = key
+					break
+			if chosen != "":
+				break
+		if chosen == "":
+			var waiting := false
+			for key in pieces:
+				if pieces[key].state == SKETCH:
+					waiting = true
+			if not waiting:
+				ordered = false
+				return {}
+			return {"why": "materials"}
+		var kind: String = pieces[chosen].kind
+		for id in COST[kind]:
+			stock[id] = int(stock.get(id, 0)) - int(COST[kind][id])
+		pieces[chosen].state = BUILT
+		var p := parts_of(chosen)
+		result = {"edge": [p[1], p[2], p[3]], "kind": kind, "did": "built"}
+	# What was done cannot be undone with the plan's undo.
+	_undo.clear()
+	_redo.clear()
+	if open_pieces() == 0:
+		ordered = false
+	return result
 
 
 # --- The books ----------------------------------------------------------------
@@ -279,6 +406,11 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 	var saved = _books.get(Homes.deed_name(hero), {})
 	if saved is Dictionary:
 		s.ordered = bool(saved.get("ordered", false))
+		var raw_stock = saved.get("stock", {})
+		if raw_stock is Dictionary:
+			for id in raw_stock:
+				if MATERIALS.has(str(id)):
+					s.stock[str(id)] = maxi(0, int(raw_stock[id]))
 		var raw = saved.get("pieces", {})
 		if raw is Dictionary:
 			for key in raw:
@@ -296,5 +428,5 @@ func save(hero: String) -> void:
 	var raw := {}
 	for key in pieces:
 		raw[key] = [pieces[key].kind, pieces[key].state]
-	_books[Homes.deed_name(hero)] = {"pieces": raw, "ordered": ordered}
+	_books[Homes.deed_name(hero)] = {"pieces": raw, "ordered": ordered, "stock": stock}
 	Storage.write(RECORD, {"houses": _books})

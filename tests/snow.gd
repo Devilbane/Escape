@@ -54,6 +54,18 @@ func _rules() -> void:
 		check(Weather.look(kind).has("snow"), "every look says how hard it snows: " + kind)
 	check(float(Weather.look(Weather.SNOW).snow) > 0.9 and float(Weather.look(Weather.CLEAR).snow) == 0.0, "only the snow look has snowfall")
 	check(float(Weather.look(Weather.SNOW).rain) == 0.0, "snow is not rain")
+	# In winter a thin flurry falls in any weather; a snowfall brings the full count.
+	var rain := Weather.make_rain()
+	var mist := Weather.make_mist()
+	var flakes := Weather.make_snow()
+	Weather.show_particles(rain, mist, Weather.look(Weather.CLEAR), 1.0, flakes, true)
+	check(flakes.emitting and flakes.amount == Weather.WINTER_FLAKES, "a clear winter day has a few flakes")
+	Weather.show_particles(rain, mist, Weather.look(Weather.SNOW), 1.0, flakes, true)
+	check(flakes.emitting and flakes.amount == Weather.SNOW_FLAKES, "a winter snowfall brings them all")
+	Weather.show_particles(rain, mist, Weather.look(Weather.CLEAR), 1.0, flakes, false)
+	check(not flakes.emitting and flakes.amount == Weather.SNOW_FLAKES, "a clear day out of winter has none")
+	for node: Node in [rain, mist, flakes]:
+		node.free()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
 	for i in 40:
@@ -215,7 +227,7 @@ func _prints() -> void:
 			var m := pr.material_override as StandardMaterial3D
 			check(is_equal_approx(pr.global_position.y, SnowPrints.HEIGHT), "a %s print lies at the fixed height" % kind)
 			check(m.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED, "a %s print is unshaded" % kind)
-			check(m.albedo_color.v < snow_white * 0.6 and m.albedo_color.a > 0.8, "a %s print shows at light %.2f" % [kind, light])
+			check(m.albedo_color.v < snow_white * 0.75 and m.albedo_color.a > 0.8, "a %s print shows at light %.2f" % [kind, light])
 	game.snow_cover = 1.0
 	game._tick_clock(0.05)
 	# The evening at 19:45, as the clock really brings it: the hero's boot shows there too.
@@ -227,7 +239,7 @@ func _prints() -> void:
 	var evening: MeshInstance3D = SnowPrints._live.back() if SnowPrints._live.size() > 0 else null
 	check(evening != null, "a print at 19:45")
 	if evening != null:
-		check((evening.material_override as StandardMaterial3D).albedo_color.v < 0.54, "the print at 19:45 is darker than the snow")
+		check((evening.material_override as StandardMaterial3D).albedo_color.v < 0.7, "the print at 19:45 is darker than the snow")
 	check(SnowPrints.KINDS.has("bug"), "beetles press tiny tracks")
 	var crawlers := SurfaceLife.new(lvl)
 	crawlers._spawn("beetle", Vector3(5, 0, 5), "forest")
@@ -244,6 +256,8 @@ func _prints() -> void:
 	# Every walker's print has a picture, and the toes lead the way it goes.
 	for kind in SnowPrints.KINDS:
 		check(SnowPrints.texture(kind) != null, "a %s print has a picture" % kind)
+	for species in Companions.SPECIES:
+		check(SnowTrail.FEET.has(species), "the companion %s leaves tracks" % species)
 	for kind in SnowTrail.FEET:
 		check(SnowPrints.KINDS.has(SnowTrail.FEET[kind][0]), "%s presses a known print" % kind)
 	# Steps crunch in the snow, on any open ground, but the pace keeps to the ground beneath.

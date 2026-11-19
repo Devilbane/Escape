@@ -19,8 +19,8 @@ const HEIGHT := 0.085
 const FRONT := PI
 ## The pressed grey at midnight and at noon. Prints are unshaded, so the light of the sun (or its
 ## lack) can neither wash them out nor swallow them: they are always darker than the snow round them.
-const GREY_NIGHT := Color(0.03, 0.04, 0.09, 0.9)
-const GREY_DAY := Color(0.36, 0.4, 0.5, 0.92)
+const GREY_NIGHT := Color(0.06, 0.08, 0.14, 0.9)
+const GREY_DAY := Color(0.5, 0.54, 0.62, 0.92)
 
 static var _shapes := {}
 static var _textures := {}

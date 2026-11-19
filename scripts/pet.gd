@@ -108,6 +108,8 @@ var _timer := 0.0
 var _target: Dictionary = {}
 var _current_anim := ""
 var _placed := false
+## Its paw or hoof tracks in the snow (see SnowTrail), made once the kind is known.
+var _trail: SnowTrail
 ## How far each pose is faded in (0..1), and how long the hero stood still.
 var _pose := {"sit": 0.0, "lie": 0.0, "sleep": 0.0}
 var _hero_still := 0.0
@@ -229,6 +231,10 @@ func _physics_process(delta: float) -> void:
 	var hero := _hero()
 	if hero == null or state == "climb" or state == "wake":
 		return
+	if _trail == null and SnowTrail.FEET.has(kind):
+		_trail = SnowTrail.new(kind)
+	if _trail != null and _placed:
+		_trail.follow(level, global_position)
 	if state == "bed":
 		_to_bed(delta)
 		return

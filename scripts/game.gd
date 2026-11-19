@@ -2939,12 +2939,13 @@ func _show_weather() -> void:
 	var dusty := _weather_look.duplicate()
 	dusty.mist = Weather.dusty_mist(_weather_look, day_hour)
 	var haze := Weather.haze_color(_env.fog_light_color, _weather_look, day_hour, Moon.light(day))
+	haze = Weather.moonlit_haze(haze, day_hour, Moon.light(day))
 	_clouds.set_look(dusty.mist, haze)
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
 	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(_weather_look.mist)) * 0.6)
-	Weather.show_particles(_rain, _mist, dusty, light, _snow)
+	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(day))
 	Weather.show_leaves(_leaves, Weather.leaf_strength(_weather_look, day_hour), light)
 	Breath.set_light(light)
 

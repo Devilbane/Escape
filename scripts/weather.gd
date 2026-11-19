@@ -117,6 +117,10 @@ const PUDDLE_DRY_HOURS := 3.0
 ## this many hours of snowfall and melts away again in this many hours of
 ## dry weather (rain washes it off in a third of that).
 const SNOW_FLAKES := 650
+## In winter a few small flakes fall in any weather (clear, fog): this many, at this strength
+## (the share of a full snowfall's look). A real snowfall brings all SNOW_FLAKES.
+const WINTER_FLAKES := 70
+const WINTER_FLURRY := 0.55
 const SNOW_BUILD_HOURS := 0.5
 const SNOW_MELT_HOURS := 5.0
 const SNOW_RAIN_MELT := 3.0
@@ -147,6 +151,15 @@ const DUST_COLOR := Color(0.32, 0.4, 0.58)
 static func haze_color(fog_color: Color, weather_look: Dictionary, hour: float, moon := 1.0) -> Color:
 	var dust := DayNight.glow_at(hour) * (1.0 - clampf(float(weather_look.mist), 0.0, 1.0))
 	return fog_color.lerp(DUST_COLOR * (0.6 + 0.4 * clampf(moon, 0.0, 1.0)), dust)
+
+
+## The haze lifted to moonlit blue-grey at night, for fog too: a haze as dark as the night's
+## ambient light read as black smoke over the pale snow. It never gets darker than it was.
+static func moonlit_haze(haze: Color, hour: float, moon := 1.0) -> Color:
+	var night := DayNight.glow_at(hour)
+	var lit := DUST_COLOR * (0.6 + 0.4 * clampf(moon, 0.0, 1.0))
+	return Color(maxf(haze.r, lerpf(haze.r, lit.r, night)), maxf(haze.g, lerpf(haze.g, lit.g, night)),
+			maxf(haze.b, lerpf(haze.b, lit.b, night)), haze.a)
 
 
 ## The part of the day the chances go by.
@@ -453,9 +466,18 @@ static func make_mist() -> CPUParticles3D:
 
 
 ## Shows rain and mist as strong as the look says, darker by night.
-static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_look: Dictionary, light: float, snow: CPUParticles3D = null) -> void:
+static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_look: Dictionary, light: float, snow: CPUParticles3D = null, winter := false) -> void:
 	if snow != null:
 		var f: float = weather_look.snow
+		# A thin flurry in winter whatever the weather; the heavy fall keeps its own look. The
+		# particles' own count only changes between the two (it restarts them), never every frame.
+		if winter:
+			var want := SNOW_FLAKES if f > WINTER_FLURRY else WINTER_FLAKES
+			if snow.amount != want:
+				snow.amount = want
+			f = maxf(f, WINTER_FLURRY)
+		elif snow.amount != SNOW_FLAKES:
+			snow.amount = SNOW_FLAKES
 		snow.emitting = f > 0.02
 		snow.visible = snow.emitting
 		var snow_mat: StandardMaterial3D = (snow.mesh as QuadMesh).material
@@ -471,4 +493,7 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 	mist.emitting = m > 0.02
 	mist.visible = mist.emitting
 	var mist_mat: StandardMaterial3D = (mist.mesh as QuadMesh).material
-	mist_mat.albedo_color = Color(shade, shade, shade, m)
+	# Mist is pale and bluish, never black: the patches are unshaded and drawn over the snow, so
+	# a dark tone at night showed as dark smoke.
+	var pale := clampf(0.55 + light * 0.45, 0.55, 1.0)
+	mist_mat.albedo_color = Color(pale * 0.92, pale * 0.96, pale, m)

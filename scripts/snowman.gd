@@ -50,9 +50,20 @@ static func find_spot(level: Outdoor, near: Vector3) -> Vector3:
 				if maxi(absi(dx), absi(dy)) != r:
 					continue
 				var c := at + Vector2i(dx, dy)
-				if _roomy(level, c):
+				if _roomy(level, c) and not _someone_at(level, level.cell_to_world(c)):
 					return level.cell_to_world(c)
 	return Vector3.INF
+
+
+## Whether somebody (the hero or a villager) stands where he would be built, so he would stand in them.
+static func _someone_at(level: Outdoor, spot: Vector3) -> bool:
+	var folk: Array = level.people().duplicate()
+	if level.player != null:
+		folk.append(level.player)
+	for o: Node3D in folk:
+		if Vector2(o.global_position.x - spot.x, o.global_position.z - spot.z).length() < RADIUS + 0.6:
+			return true
+	return false
 
 
 static func _roomy(level: Outdoor, c: Vector2i) -> bool:

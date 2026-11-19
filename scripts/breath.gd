@@ -1,12 +1,12 @@
 class_name Breath
 extends Node3D
 ## Frozen breath. In the cold (while snow falls or lies, see Weather.cold) the hero and every
-## villager breathe out a big white cloud in front of the mouth every second or two, and it
+## villager breathe out a big white cloud in front of the mouth every few seconds, and it
 ## drifts up and thins out. Out of the cold nothing shows. One breath is a steady stream of soft particles
 ## from one shared texture and material, so a whole village of breathers costs next to nothing.
 
 ## How long between two breaths (seconds), at least and at most.
-const EVERY := Vector2(1.3, 2.3)
+const EVERY := Vector2(3.9, 6.9)
 ## Where the mouth is on a model of full size (the model's own frame: +Z forward).
 const MOUTH := Vector3(0, 1.32, 0.3)
 
@@ -15,7 +15,7 @@ static var _material: StandardMaterial3D
 static var _rng := RandomNumberGenerator.new()
 
 ## How long one breath lasts (seconds).
-const BLOW := 0.7
+const BLOW := 1.6
 
 ## While the breather walks or runs, the same emitter puts out three times as many particles,
 ## so the breath reads as one soft cloud trailing behind instead of single puffs left at every
@@ -23,8 +23,8 @@ const BLOW := 0.7
 ## made, which would shift every roll after it.)
 const MOVING_SPEED := 0.5
 const STILL_SPEED := 0.25
-const IDLE_AMOUNT := 20
-const MOVING_AMOUNT := 64
+const IDLE_AMOUNT := 32
+const MOVING_AMOUNT := 100
 
 var _puff: CPUParticles3D
 var _timer := 0.0
@@ -77,7 +77,7 @@ func _ready() -> void:
 func _make_puff() -> CPUParticles3D:
 	var puff := CPUParticles3D.new()
 	puff.amount = IDLE_AMOUNT
-	puff.lifetime = 1.6
+	puff.lifetime = 2.6
 	puff.one_shot = false
 	puff.explosiveness = 0.0
 	puff.local_coords = false

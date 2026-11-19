@@ -1,0 +1,1 @@
+- Villagers now leave their houses one by one in the morning, at random moments, instead of all at once.

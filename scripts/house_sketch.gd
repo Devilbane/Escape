@@ -30,13 +30,29 @@ const KINDS := [WALL, DOOR, WINDOW]
 const DIG := "dig"
 const STAIRS := "stairs"
 const CELLAR_KINDS := [DIG, STAIRS]
+## Above ground. A "slab" is the floor between two storeys, or a flat roof
+## you can walk on, over one grid cell; it belongs to the storey below it (key
+## storey 0: it is the ceiling of the ground floor and the floor of the upper
+## storey). A "saddle" is a pitched roof over one cell, its ridge running east
+## to west (orient "rx") or north to south ("ry"). "upstairs" is a ramp of two
+## cells from the ground up to a slab cell, keyed like the cellar stairs.
+const SLAB := "slab"
+const SADDLE := "saddle"
+const UPSTAIRS := "upstairs"
+const CELL_KINDS := [DIG, STAIRS, SLAB, SADDLE, UPSTAIRS]
+const MAX_STOREY := 1
+## From the floor of a storey to the floor of the next, and how thick a slab is.
+const STOREY_HEIGHT := 3.0
+const SLAB_THICK := 0.4
+const ROOF_RISE := 1.6
+const SADDLE_ORIENTS := ["rx", "ry"]
 const CELLAR_STOREY := -1
 const CELL_ORIENT := "c"
 const DEPTH := 2.6
 ## Stairs go down towards east, west, north or south: letter -> step in cells.
 const DOWN := {"e": Vector2i(1, 0), "w": Vector2i(-1, 0), "n": Vector2i(0, -1), "s": Vector2i(0, 1)}
 ## Building order: dig first, then stairs, then walls before doors and windows.
-const BUILD_ORDER := [DIG, STAIRS, WALL, DOOR, WINDOW]
+const BUILD_ORDER := [DIG, STAIRS, WALL, DOOR, WINDOW, SLAB, UPSTAIRS, SADDLE]
 ## What covers the floor and the walls of dug cells: "" is the bare earth.
 const SURFACES := ["", "stone", "wood"]
 const SURFACE_COST := {"": {}, "stone": {"steinblock": 1}, "wood": {"bauholz": 1}}
@@ -56,6 +72,9 @@ const COST := {
 	# of a dug cell are added by cost_of.
 	DIG: {},
 	STAIRS: {TIMBER: 2},
+	SLAB: {TIMBER: 1},
+	SADDLE: {TIMBER: 2},
+	UPSTAIRS: {TIMBER: 3},
 }
 const MATERIALS := [STONE, TIMBER]
 const ORIENT_X := "x"
@@ -182,6 +201,8 @@ func problem(x: int, y: int, orient: String, kind: String, storey := 0) -> Strin
 		return "outside"
 	if not KINDS.has(kind):
 		return "kind"
+	if storey < 0 or storey > MAX_STOREY:
+		return "storey"
 	var had := piece(x, y, orient, storey)
 	if had.get("state", SKETCH) != SKETCH:
 		return "built"
@@ -377,13 +398,131 @@ func erase_cell(x: int, y: int) -> String:
 	return ""
 
 
-## Stairs are built only once the dug cell below them is.
+## The order pieces are built in: the cellar first, then storey by storey,
+## each with its walls before doors and windows, then slab, stairs and roof.
+func priority(key: String) -> int:
+	var p := parts_of(key)
+	return int(p[0]) * 100 + BUILD_ORDER.find(pieces[key].kind)
+
+
+## Stairs are built only once the cell they lead to is.
 func _can_build(key: String) -> bool:
 	var p := parts_of(key)
-	if pieces[key].kind != STAIRS:
-		return true
-	var end: Vector2i = stairs_cells(p[1], p[2], p[3])[2]
-	return is_dug(end.x, end.y, true)
+	var end: Vector2i = stairs_cells(p[1], p[2], p[3])[2] if DOWN.has(p[3]) else Vector2i.ZERO
+	if pieces[key].kind == STAIRS:
+		return is_dug(end.x, end.y, true)
+	if pieces[key].kind == UPSTAIRS:
+		return not slab_at(end.x, end.y, p[0]).is_empty() and slab_at(end.x, end.y, p[0]).state != SKETCH
+	return true
+
+
+# --- Floors, roofs and the stairs up -----------------------------------------------
+
+func slab_at(x: int, y: int, storey: int) -> Dictionary:
+	return pieces.get(key_of(x, y, CELL_ORIENT, storey), {})
+
+
+## The key of the slab or saddle over a cell of a storey, or "".
+func roof_key(x: int, y: int, storey: int) -> String:
+	for orient in [CELL_ORIENT] + SADDLE_ORIENTS:
+		var key := key_of(x, y, orient, storey)
+		if pieces.has(key):
+			return key
+	return ""
+
+
+## The key of the stairs up that hold a ground cell open, or "".
+func up_key(x: int, y: int) -> String:
+	for dir in DOWN:
+		for back in 2:
+			var c: Vector2i = Vector2i(x, y) - (DOWN[dir] as Vector2i) * back
+			var key := key_of(c.x, c.y, dir, 0)
+			if pieces.has(key) and pieces[key].kind == UPSTAIRS:
+				return key
+	return ""
+
+
+## Why a slab or saddle cannot go over a cell of a storey, or "".
+func problem_roof(x: int, y: int, storey: int) -> String:
+	if not cell_in_plot(x, y):
+		return "outside"
+	if storey < 0 or storey > MAX_STOREY:
+		return "storey"
+	if roof_key(x, y, storey) != "":
+		return "taken"
+	if storey == 0 and up_key(x, y) != "":
+		return "taken"
+	return ""
+
+
+## Sketches slabs or saddles over cells (`cells` are [x, y, ...]) as one step.
+## `orient` is CELL_ORIENT for a slab, or a ridge direction of SADDLE_ORIENTS.
+func sketch_roof(cells: Array, kind: String, storey: int, orient := CELL_ORIENT) -> int:
+	var step := []
+	for c in cells:
+		if problem_roof(c[0], c[1], storey) != "":
+			continue
+		var key := key_of(c[0], c[1], orient, storey)
+		var after := {"kind": kind, "state": SKETCH}
+		pieces[key] = after
+		step.append({"key": key, "before": null, "after": after})
+	_push(step)
+	return step.size()
+
+
+## Why stairs up cannot start at cell (x, y) going `dir`, or "": two free
+## ground cells and a slab after them (sketched or built).
+func problem_upstairs(x: int, y: int, dir: String) -> String:
+	var cells := stairs_cells(x, y, dir)
+	for i in 2:
+		var c: Vector2i = cells[i]
+		if not cell_in_plot(c.x, c.y):
+			return "outside"
+		if hole_key(c.x, c.y) != "" or up_key(c.x, c.y) != "" or roof_key(c.x, c.y, 0) != "":
+			return "taken"
+	var end: Vector2i = cells[2]
+	if not cell_in_plot(end.x, end.y) or slab_at(end.x, end.y, 0).get("kind", "") != SLAB:
+		return "no slab"
+	return ""
+
+
+func upstairs_dir(x: int, y: int) -> String:
+	for dir in DOWN:
+		if problem_upstairs(x, y, dir) == "":
+			return dir
+	return ""
+
+
+func sketch_upstairs(x: int, y: int, dir: String) -> bool:
+	if problem_upstairs(x, y, dir) != "":
+		return false
+	var key := key_of(x, y, dir, 0)
+	var after := {"kind": UPSTAIRS, "state": SKETCH}
+	pieces[key] = after
+	_push([{"key": key, "before": null, "after": after}])
+	return true
+
+
+## Takes back or marks for removal the slab, saddle or stairs up at a cell of
+## a storey (the stairs cover two cells). A slab the stairs lead up to stays
+## until the stairs are gone. Returns "" when something changed or why not:
+## "empty" or "needed".
+func erase_above(x: int, y: int, storey: int) -> String:
+	var key := roof_key(x, y, storey)
+	if key == "" and storey == 0:
+		key = up_key(x, y)
+	if key == "":
+		return "empty"
+	var p := parts_of(key)
+	if pieces[key].kind == SLAB:
+		for other in pieces:
+			var q := parts_of(other)
+			if pieces[other].kind == UPSTAIRS and q[0] == storey:
+				var end: Vector2i = stairs_cells(q[1], q[2], q[3])[2]
+				if end == Vector2i(x, y):
+					return "needed"
+	erase([[p[1], p[2], p[3]]], p[0])
+	return ""
 
 
 func _push(step: Array) -> void:
@@ -543,13 +682,11 @@ func build_next() -> Dictionary:
 			break
 	if result.is_empty():
 		var chosen := ""
-		for kind in BUILD_ORDER:
-			for key in pieces:
-				if pieces[key].state == SKETCH and pieces[key].kind == kind and _affordable(pieces[key]) and _can_build(key):
-					chosen = key
-					break
-			if chosen != "":
-				break
+		var best := 1 << 30
+		for key in pieces:
+			if pieces[key].state == SKETCH and _affordable(pieces[key]) and _can_build(key) and priority(key) < best:
+				best = priority(key)
+				chosen = key
 		if chosen == "":
 			var waiting := false
 			for key in pieces:
@@ -610,7 +747,7 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 				var p = raw[key]
 				if p is Array and p.size() >= 2:
 					var parts := parts_of(str(key))
-					if KINDS.has(str(p[0])) and p.size() == 2 and s.in_plot(parts[1], parts[2], parts[3]):
+					if KINDS.has(str(p[0])) and p.size() == 2 and parts[0] >= 0 and parts[0] <= MAX_STOREY and s.in_plot(parts[1], parts[2], parts[3]):
 						s.pieces[str(key)] = {"kind": str(p[0]), "state": str(p[1])}
 					elif str(p[0]) == DIG and p.size() == 4 and parts[0] == CELLAR_STOREY and s.cell_in_plot(parts[1], parts[2]):
 						s.pieces[str(key)] = {"kind": DIG, "state": str(p[1]),
@@ -618,6 +755,10 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 					elif str(p[0]) == STAIRS and p.size() == 2 and DOWN.has(parts[3]) and parts[0] == CELLAR_STOREY \
 							and s.cell_in_plot(parts[1], parts[2]):
 						s.pieces[str(key)] = {"kind": STAIRS, "state": str(p[1])}
+					elif p.size() == 2 and s.cell_in_plot(parts[1], parts[2]) and parts[0] >= 0 and parts[0] <= MAX_STOREY \
+							and ((str(p[0]) == SLAB and parts[3] == CELL_ORIENT) or (str(p[0]) == SADDLE and SADDLE_ORIENTS.has(parts[3])) \
+							or (str(p[0]) == UPSTAIRS and DOWN.has(parts[3]) and parts[0] == 0)):
+						s.pieces[str(key)] = {"kind": str(p[0]), "state": str(p[1])}
 		s.floor_surface = str(saved.get("floor", ""))
 		s.wall_surface = str(saved.get("wall", ""))
 		if not SURFACES.has(s.floor_surface):

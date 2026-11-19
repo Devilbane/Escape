@@ -1,0 +1,1 @@
+- New: build a second floor, a flat roof you can walk on or a saddle roof; the roof and upper floors fade away while you stand inside, so you can see out through the windows.

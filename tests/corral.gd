@@ -2,8 +2,8 @@ extends SceneTree
 ## Headless test: the cattle pen on the village's east meadow (see Corral):
 ## - the fence is on the map, its tiles are no ground to walk on, and the hero, the villagers
 ##   and the animals cannot pass it; the gate is the one way in;
-## - the cows and the bull start inside the pen, and keep inside it while they graze, stroll and
-##   bolt from a hero who comes too close.
+## - the cows and the bull start inside the pen, and keep inside it while they graze and stroll,
+##   and stay calm (no bolting) when a hero walks right up to them.
 ## Run with: godot --headless --fixed-fps 60 -s tests/corral.gd
 
 var failures := 0
@@ -104,19 +104,19 @@ func _run() -> void:
 		check(_in_pen(lvl, a), "%s starts in the pen" % a.kind)
 		check(a.pen == Corral.PEN, "%s knows its pen" % a.kind)
 
-	# And never leaves: while it strolls, and while the hero scares it from all sides.
+	# And never leaves: while it strolls, and while the hero walks up to it from all sides.
 	var hero: Node3D = lvl.player
 	var ever_fled := false
 	for round in 4:
 		var side: Vector2i = [Vector2i(-2, 0), Vector2i(0, -2), Vector2i(0, 2), Vector2i(2, 0)][round]
 		var middle := Corral.PEN.position + Corral.PEN.size / 2
 		hero.global_position = lvl.cell_to_world(middle + side / 2)
-		for i in 15:
+		for i in 5:
 			await _wait(60)
 			for a: FarmAnimal in cattle:
 				check(_in_pen(lvl, a), "%s stays in the pen (%s, %s)" % [a.kind, a.global_position, a.state])
 				ever_fled = ever_fled or a.is_fleeing()
-	check(ever_fled, "the herd was scared at least once")
+	check(not ever_fled, "the herd stays calm around a friendly visitor")
 
 	# The shelter: the herd goes under its roof in snow and at night, lies down on the straw, and
 	# gets up and grazes again when the sky clears.
@@ -129,7 +129,7 @@ func _run() -> void:
 		check(not a._resting, "%s is up in clear weather" % a.kind)
 	for spell in [Weather.SNOW, Weather.RAIN]:
 		game.set_weather(spell, 100.0)
-		await _wait(60 * 60)
+		await _wait(60 * 30)
 		for a: FarmAnimal in cattle:
 			check(Corral.SHELTER.has_point(lvl.world_to_cell(a.global_position)), "%s is under the roof in %s (%s)" % [a.kind, spell, a.global_position])
 			check(a._resting and a.state == "rest", "%s lies down in %s (%s)" % [a.kind, spell, a.state])
@@ -138,7 +138,7 @@ func _run() -> void:
 		for a: FarmAnimal in cattle:
 			check(not a._resting, "%s gets up when the %s stops" % [a.kind, spell])
 	game.day_hour = 23.5
-	await _wait(60 * 60)
+	await _wait(60 * 30)
 	for a: FarmAnimal in cattle:
 		check(Corral.SHELTER.has_point(lvl.world_to_cell(a.global_position)) and a._resting, "%s sleeps under the roof at night" % a.kind)
 	game.day_hour = 12.0

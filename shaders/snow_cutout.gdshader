@@ -45,5 +45,5 @@ void fragment() {
 		NORMAL = -NORMAL;
 	}
 	ROUGHNESS = 0.85;
-	SPECULAR = 0.3;
+	SPECULAR = 0.3 * mix(0.4, 1.0, daylight);
 }

@@ -64,9 +64,13 @@ void snow_look(vec3 p, vec3 wn, mat4 view, float time, out vec3 albedo, out vec3
 	float flat_top = smoothstep(0.45, 1.0, wn.y);
 	float light = clamp(0.35 + 0.4 * flat_top + 0.35 * drift, 0.0, 1.0);
 	albedo = mix(hollow_color, snow_color, light) * (0.93 + 0.07 * grain);
+	// Snow at night is dim blue-grey, not bright white: the moon on pale snow, and the bloom on it,
+	// read as the snow glowing by itself next to the dark things round it.
+	albedo *= mix(0.55, 1.0, daylight);
 	vec2 cell_id = floor(mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)) * xz * 30.0);
 	float cell = snow_hash(cell_id + floor(time * 0.7 + snow_hash(cell_id) * 8.0));
-	float glint = step(0.996, cell) * daylight;
+	// Glints are the sun on ice: none at night, where they showed as many very white spots.
+	float glint = step(0.996, cell) * smoothstep(0.6, 0.95, daylight);
 	// No glow of its own at night: the snow is lit by the light of the hour and the lamps, like all else.
 	emission = vec3(0.9, 0.95, 1.0) * glint * 0.12;
 }

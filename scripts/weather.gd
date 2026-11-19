@@ -495,7 +495,7 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 		snow.emitting = f > 0.02
 		snow.visible = snow.emitting
 		var snow_mat: StandardMaterial3D = (snow.mesh as QuadMesh).material
-		var tone := clampf(0.3 + light, 0.3, 1.0)
+		var tone := clampf(0.2 + light, 0.2, 1.0)
 		snow_mat.albedo_color = Color(tone, tone, minf(1.0, tone * 1.05), 0.9 * f)
 	var r: float = weather_look.rain
 	rain.emitting = r > 0.02

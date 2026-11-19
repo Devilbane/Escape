@@ -42,8 +42,9 @@ const UPSTAIRS := "upstairs"
 const CELL_KINDS := [DIG, STAIRS, SLAB, SADDLE, UPSTAIRS]
 const MAX_STOREY := 1
 ## From the floor of a storey to the floor of the next, and how thick a slab is.
-const STOREY_HEIGHT := 3.0
-const SLAB_THICK := 0.4
+## 3.2 m is four layers of stone blocks, so blocks stack evenly on a roof.
+const STOREY_HEIGHT := 3.2
+const SLAB_THICK := 0.6
 const ROOF_RISE := 1.6
 const SADDLE_ORIENTS := ["rx", "ry"]
 const CELLAR_STOREY := -1

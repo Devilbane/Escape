@@ -3037,10 +3037,24 @@ func _sync_built() -> void:
 			built.append([s.cell.x, s.cell.y, s.layer, 1 if s.along_x else 0])
 
 
+## Grid cells (see StoneBlock) whose floor is raised above the ground, by how
+## many block layers: a player's slab or flat roof. Blocks lie on top of it, and
+## a pile there may be MAX_LAYERS high.
+var roof_layers := {}
+
+
+## The layer the floor under a block's two cells is at.
+func stone_base(first: Vector2i, x_wise: bool) -> int:
+	var base := 0
+	for c in StoneBlock.cells_of(first, x_wise):
+		base = maxi(base, int(roof_layers.get(c, 0)))
+	return base
+
+
 ## How many layers of blocks stand on a grid cell: the layer a new block
 ## there would lie on. `except` is left out (the block being moved).
 func stone_column(c: Vector2i, except: StoneBlock = null) -> int:
-	var h := 0
+	var h: int = roof_layers.get(c, 0)
 	for s in stones:
 		if s != except and is_instance_valid(s) and s.cells().has(c):
 			h = maxi(h, s.layer + 1)
@@ -3070,7 +3084,7 @@ func stone_free(stone: StoneBlock) -> bool:
 ## Whether a block would fit there: not too high, and touching no wall,
 ## furniture, crate, hero, skeleton or other block.
 func stone_fits(first: Vector2i, x_wise: bool, on_layer: int, except: StoneBlock = null, ignore: Node3D = null) -> bool:
-	if on_layer >= StoneBlock.MAX_LAYERS:
+	if on_layer - stone_base(first, x_wise) >= StoneBlock.MAX_LAYERS:
 		return false
 	var box := BoxShape3D.new()
 	box.size = Vector3(StoneBlock.CELL * 2.0, StoneBlock.HEIGHT, StoneBlock.CELL) - Vector3.ONE * 0.1

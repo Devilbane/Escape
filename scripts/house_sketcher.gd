@@ -742,6 +742,7 @@ func _redraw() -> void:
 		_solid_cellar(house, holes)
 		_solid_above(house)
 	game.level.set_floor_holes(holes)
+	_raise_roofs()
 	if plan == null:
 		return
 	for key in plan.pieces:
@@ -847,6 +848,43 @@ func _saddle(mid: Vector3, eave: float, ridge_x: bool, demolish: bool) -> void:
 			prism.rotation.y = PI * 0.5
 		prism.set_meta("ymin", eave)
 		_solid.add_child(prism)
+
+
+## Tells the map which stone-block cells stand on a slab (a flat roof or an
+## upper floor), so blocks and the hero's own pile can be set down up there.
+## Blocks that lost the slab under them go back into the plot's stock.
+func _raise_roofs() -> void:
+	var level: Level = game.level
+	var raised := {}
+	for deed in Plots.all():
+		var house := plan if plan != null and deed.rect == _plot else HouseSketch.of(deed.owner, deed.rect)
+		for key in house.pieces:
+			var piece: Dictionary = house.pieces[key]
+			if piece.kind != HouseSketch.SLAB or piece.state == HouseSketch.SKETCH:
+				continue
+			var p := HouseSketch.parts_of(key)
+			var corner := house.node_world(p[1], p[2])
+			var layer := roundi((p[0] + 1) * HouseSketch.STOREY_HEIGHT / StoneBlock.HEIGHT)
+			for cx in range(floori(corner.x / StoneBlock.CELL), ceili((corner.x + HouseSketch.CELL) / StoneBlock.CELL)):
+				for cz in range(floori(corner.z / StoneBlock.CELL), ceili((corner.z + HouseSketch.CELL) / StoneBlock.CELL)):
+					var middle := Vector2((cx + 0.5) * StoneBlock.CELL, (cz + 0.5) * StoneBlock.CELL)
+					if middle.x >= corner.x and middle.x < corner.x + HouseSketch.CELL and middle.y >= corner.z and middle.y < corner.z + HouseSketch.CELL:
+						raised[Vector2i(cx, cz)] = maxi(int(raised.get(Vector2i(cx, cz), 0)), layer)
+	var before: Dictionary = level.roof_layers
+	level.roof_layers = raised
+	for stone: StoneBlock in level.stones.duplicate():
+		if not is_instance_valid(stone) or stone.layer == 0:
+			continue
+		var was := 0
+		var now := 0
+		for c in stone.cells():
+			was = maxi(was, int(before.get(c, 0)))
+			now = maxi(now, int(raised.get(c, 0)))
+		if was > now and stone.layer >= was:
+			level.take_stone(stone)
+			if plan != null:
+				plan.deposit(HouseSketch.STONE, 1)
+	level._sync_built()
 
 
 ## Notes that a built slab or roof lies over a ground cell, for _update_fade.

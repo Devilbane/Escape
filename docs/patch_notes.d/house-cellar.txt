@@ -1,0 +1,1 @@
+- New: dig a cellar under your house: plan it in the blueprint tool, choose stone, wood or bare earth for floor and walls, add stairs, and your hero digs and builds it.

@@ -19,6 +19,9 @@ uniform sampler2D ground_mask : filter_linear, repeat_disable;
 uniform sampler2D stone_mask : filter_linear, repeat_disable, hint_default_black;
 uniform vec2 grid_size = vec2(16.0, 16.0);
 uniform float tile = 4.0;
+// Holes in the ground (a player's cellar): one pixel per 2 m cell of the map.
+uniform sampler2D hole_mask : filter_nearest, repeat_disable, hint_default_black;
+uniform bool holes_on = false;
 uniform vec3 grass_a : source_color = vec3(0.22, 0.33, 0.14);
 uniform vec3 grass_b : source_color = vec3(0.31, 0.40, 0.17);
 uniform vec3 forest : source_color = vec3(0.11, 0.17, 0.08);
@@ -262,6 +265,12 @@ void vertex() {
 
 void fragment() {
 	vec2 p = world_pos.xz;
+	if (holes_on) {
+		vec2 hole_uv = (p + vec2(0.5 * tile)) / (grid_size * tile);
+		if (hole_uv.x >= 0.0 && hole_uv.y >= 0.0 && hole_uv.x <= 1.0 && hole_uv.y <= 1.0 && texture(hole_mask, hole_uv).r > 0.5) {
+			discard;
+		}
+	}
 	float px = length(fwidth(world_pos));
 	vec2 uv = (p / tile + 0.5) / grid_size;
 	vec4 m = texture(ground_mask, uv);

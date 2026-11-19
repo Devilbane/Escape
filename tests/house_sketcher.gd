@@ -91,6 +91,31 @@ func _process(_delta: float) -> bool:
 	# The plan is in the books.
 	HouseSketch.reload()
 	check(HouseSketch.of(game.hero_name, found).pieces.size() == plan.pieces.size(), "the plan was saved")
+	# The cellar: drag a dig, put stairs, build; the ground opens and the pit has a floor.
+	plan.erase([[1, 1, "x"], [2, 1, "x"]])
+	plan.deposit("steinblock", 20)
+	plan.deposit("bauholz", 10)
+	sketcher.select_tool(HouseSketcher.TOOL_DIG)
+	sketcher.mouse(plan.cell_world(3, 3), true, MOUSE_BUTTON_LEFT)
+	sketcher.mouse(plan.cell_world(4, 4), false, MOUSE_BUTTON_LEFT)
+	check(plan.count("dig") == 4, "dragging with the dig tool sketches a rectangle of cells")
+	sketcher.select_tool(HouseSketcher.TOOL_STAIRS)
+	sketcher.mouse(plan.cell_world(1, 3), true, MOUSE_BUTTON_LEFT)
+	check(plan.count("stairs") == 1, "the stairs tool puts a ramp down to the cellar")
+	plan.ordered = true
+	for i in 8:
+		sketcher.work_once()
+	check(plan.count("dig", "built") == 4 and plan.count("stairs", "built") == 1, "the character digs the cellar and builds the stairs")
+	check(game.level._floor_slabs.get_child_count() > 0, "the ground is cut open over the cellar")
+	check(sketcher._body.get_child_count() >= 5, "the pit has a floor under every cell and a ramp")
+	sketcher.select_tool(HouseSketcher.TOOL_ERASE)
+	sketcher.mouse(plan.cell_world(1, 3), true, MOUSE_BUTTON_LEFT)
+	check(plan.pieces["-1:1:3:e"].state == "demolish", "the eraser marks built stairs to be taken down")
+	plan.ordered = true
+	for i in 8:
+		sketcher.work_once()
+	plan.sketch([[1, 1, "x"]], "wall")
+	plan.save(game.hero_name)
 	# Away: the build block builds what the stock pays for.
 	check(game.away_choices().build == [Offline.BUILD_HOUSE], "the planner offers the house while pieces are open")
 	var lines: Array[String] = game._build_away(5, 10.0)

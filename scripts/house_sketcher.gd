@@ -23,7 +23,16 @@ const TOOL_WALL := "wall"
 const TOOL_DOOR := "door"
 const TOOL_WINDOW := "window"
 const TOOL_ERASE := "erase"
+const TOOL_DIG := "dig"
+const TOOL_STAIRS := "stairs"
 const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_ERASE]
+## The cellar's tools (their own row in the tool bar).
+const CELLAR_TOOLS := [TOOL_DIG, TOOL_STAIRS]
+const SURFACE_NAMES := {"": "roh", "stone": "aus Stein", "wood": "aus Holz"}
+const DIG_COLOR := Color(0.62, 0.45, 0.25, 0.5)
+const STAIRS_COLOR := Color(1.0, 0.8, 0.4, 0.55)
+const EARTH_COLOR := Color(0.28, 0.2, 0.13)
+const PLANK_COLOR := Color(0.5, 0.34, 0.18)
 const WALL_HEIGHT := 2.6
 const THICK := 0.2
 const DOOR_HEIGHT := 2.0
@@ -74,6 +83,8 @@ var _bar: PanelContainer
 var _stage_labels := {}
 var _tool_buttons := {}
 var _undo_button: Button
+var _floor_button: Button
+var _wall_button: Button
 var _redo_button: Button
 var _status: Label
 var _hover_key := ""
@@ -250,6 +261,28 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 		return
 	if button != MOUSE_BUTTON_LEFT:
 		return
+	if tool == TOOL_DIG:
+		if pressed:
+			drag_from = plan.cell_at(point)
+			hover(point)
+		elif drag_from.x >= 0:
+			var cells := plan.cells_between(drag_from, plan.cell_at(point))
+			drag_from = Vector2i(-1, -1)
+			_clear(_ghost)
+			if plan.sketch_dig(cells) == 0:
+				_say(Lang.t("Dort ist schon gegraben oder gebaut."))
+			_changed()
+		return
+	if tool == TOOL_STAIRS:
+		if pressed:
+			var c := plan.cell_at(point)
+			var dir := plan.stairs_dir(c.x, c.y)
+			if dir == "":
+				_say(reason("no cellar"))
+			else:
+				plan.sketch_stairs(c.x, c.y, dir)
+				_changed()
+		return
 	if tool == TOOL_WALL:
 		if pressed:
 			drag_from = plan.node_at(point)
@@ -267,7 +300,17 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 		return
 	if not pressed:
 		return
-	var edge := plan.edge_near(point)
+	var edge := plan.edge_near(point, HouseSketch.CELL * 0.3) if tool == TOOL_ERASE else plan.edge_near(point)
+	if tool == TOOL_ERASE and edge.is_empty():
+		var c := plan.cell_at(point)
+		var was_built: bool = plan.hole_key(c.x, c.y) != "" and plan.pieces[plan.hole_key(c.x, c.y)].state == HouseSketch.BUILT
+		var why_not := plan.erase_cell(c.x, c.y)
+		if why_not == "needed":
+			_say(Lang.t("Die Treppe führt hierher: Nimm zuerst die Treppe zurück."))
+		elif why_not == "" and was_built:
+			_say(Lang.t("Zum Zuschütten vorgemerkt: Dein Held füllt es auf und bekommt das Material zurück."))
+		_changed()
+		return
 	if edge.is_empty():
 		return
 	if tool == TOOL_ERASE:
@@ -289,6 +332,28 @@ func hover(point: Vector3) -> void:
 	if not active or plan == null:
 		return
 	var key := ""
+	if tool == TOOL_DIG or tool == TOOL_STAIRS:
+		var c := plan.cell_at(point)
+		var from_cell := drag_from if drag_from.x >= 0 and tool == TOOL_DIG else c
+		key = "c:%s:%s" % [from_cell, c]
+		if key == _hover_key:
+			return
+		_hover_key = key
+		_clear(_ghost)
+		if tool == TOOL_DIG:
+			var cells := plan.cells_between(from_cell, c)
+			for cell in cells:
+				_cell_quad(_ghost, Vector2i(cell[0], cell[1]), OK_COLOR if plan.problem_dig(cell[0], cell[1]) == "" else BAD_COLOR)
+			_say(Lang.t("Keller: %d Felder") % cells.size() if drag_from.x >= 0 else "")
+		else:
+			var dir := plan.stairs_dir(c.x, c.y)
+			if dir == "":
+				_cell_quad(_ghost, c, BAD_COLOR)
+			else:
+				for cell in HouseSketch.stairs_cells(c.x, c.y, dir).slice(0, 2):
+					_cell_quad(_ghost, cell, OK_COLOR)
+			_say("")
+		return
 	if tool == TOOL_WALL:
 		var to := plan.node_at(point)
 		var from := drag_from if drag_from.x >= 0 else to
@@ -305,13 +370,17 @@ func hover(point: Vector3) -> void:
 		else:
 			_marker(_ghost, to)
 		return
-	var edge := plan.edge_near(point)
+	var edge := plan.edge_near(point, HouseSketch.CELL * 0.3) if tool == TOOL_ERASE else plan.edge_near(point)
 	key = "e:%s" % [edge]
 	if key == _hover_key:
 		return
 	_hover_key = key
 	_clear(_ghost)
 	if edge.is_empty():
+		if tool == TOOL_ERASE:
+			var cell := plan.cell_at(point)
+			if plan.hole_key(cell.x, cell.y) != "":
+				_cell_quad(_ghost, cell, DEMOLISH_COLOR)
 		_say("")
 		return
 	if tool == TOOL_ERASE:
@@ -331,6 +400,10 @@ static func reason(why: String) -> String:
 			return Lang.t("Hier fehlt eine Wand: Zeichne erst die Wand.")
 		"built":
 			return Lang.t("Das ist schon gebaut. Reiß es mit dem Radierer ab, um es zu ändern.")
+		"taken":
+			return Lang.t("Dort ist schon gegraben oder gebaut.")
+		"no cellar":
+			return Lang.t("Eine Treppe braucht zwei freie Felder und danach einen gegrabenen Keller.")
 	return ""
 
 
@@ -398,6 +471,22 @@ func _build_bar() -> void:
 	var done: Button = UiKit.button(Lang.t("Schließen"), leave)
 	done.custom_minimum_size = Vector2(110, 48)
 	tools.add_child(done)
+	var cellar := HBoxContainer.new()
+	cellar.alignment = BoxContainer.ALIGNMENT_CENTER
+	cellar.add_theme_constant_override("separation", 8)
+	box.add_child(cellar)
+	var cellar_names := {TOOL_DIG: "Keller graben", TOOL_STAIRS: "Kellertreppe"}
+	for t in CELLAR_TOOLS:
+		var b: Button = UiKit.button(Lang.t(cellar_names[t]), select_tool.bind(t))
+		b.custom_minimum_size = Vector2(170, 48)
+		cellar.add_child(b)
+		_tool_buttons[t] = b
+	_floor_button = UiKit.button("", cycle_floor)
+	_floor_button.custom_minimum_size = Vector2(190, 48)
+	cellar.add_child(_floor_button)
+	_wall_button = UiKit.button("", cycle_wall)
+	_wall_button.custom_minimum_size = Vector2(230, 48)
+	cellar.add_child(_wall_button)
 	var actions := HBoxContainer.new()
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	actions.add_theme_constant_override("separation", 8)
@@ -432,7 +521,7 @@ func _update_bar() -> void:
 	var stage := plan.stage() if plan != null else "plan"
 	for s in STAGES:
 		_stage_labels[s].add_theme_color_override("font_color", ON_COLOR if s == stage else OFF_COLOR)
-	for t in TOOLS:
+	for t in TOOLS + CELLAR_TOOLS:
 		var b: Button = _tool_buttons[t]
 		var on: bool = t == tool
 		b.add_theme_color_override("font_color", ON_COLOR if on else Color(1, 1, 1, 0.75))
@@ -441,6 +530,8 @@ func _update_bar() -> void:
 	_undo_button.disabled = plan == null or not plan.can_undo()
 	_redo_button.disabled = plan == null or not plan.can_redo()
 	if plan != null:
+		_floor_button.text = Lang.t("Kellerboden: %s") % Lang.t(SURFACE_NAMES[plan.floor_surface])
+		_wall_button.text = Lang.t("Kellerwände: %s") % Lang.t(SURFACE_NAMES[plan.wall_surface])
 		_status.text = _hint()
 		var have := plan.stock
 		var short := plan.missing()
@@ -451,6 +542,25 @@ func _update_bar() -> void:
 		_order_button.disabled = not plan.ordered and plan.open_pieces() == 0
 		var carried: int = game.player.bag.count(HouseSketch.STONE) + game.player.bag.count(HouseSketch.TIMBER)
 		_deposit_button.disabled = carried == 0
+
+
+## The surface the next dug cells get on their floor; "roh" leaves the earth bare.
+func cycle_floor() -> void:
+	if plan == null:
+		return
+	plan.floor_surface = _next_surface(plan.floor_surface)
+	_changed()
+
+
+func cycle_wall() -> void:
+	if plan == null:
+		return
+	plan.wall_surface = _next_surface(plan.wall_surface)
+	_changed()
+
+
+func _next_surface(now: String) -> String:
+	return HouseSketch.SURFACES[(HouseSketch.SURFACES.find(now) + 1) % HouseSketch.SURFACES.size()]
 
 
 ## The hero hands over the stone blocks and timber in their bag.
@@ -499,6 +609,10 @@ func _hint() -> String:
 			return Lang.t("Tür: Klicke eine Wand an.")
 		TOOL_WINDOW:
 			return Lang.t("Fenster: Klicke eine Wand an.")
+		TOOL_DIG:
+			return Lang.t("Graben: Maustaste halten und ein Rechteck aufziehen. Boden und Wand wählst du vorher.")
+		TOOL_STAIRS:
+			return Lang.t("Treppe: Klicke ein Feld vor dem Keller an. Sie führt vier Meter nach unten.")
 	return Lang.t("Radierer: Klicke ein Stück an, um es zurückzunehmen.")
 
 
@@ -523,19 +637,118 @@ func _redraw() -> void:
 	if game == null or not game.level is Outdoor:
 		return
 	# Everyone's built pieces stand on the map for all to see.
+	var holes := []
 	for deed in Plots.all():
 		var house := plan if plan != null and deed.rect == _plot else HouseSketch.of(deed.owner, deed.rect)
 		for key in house.pieces:
 			var p := HouseSketch.parts_of(key)
 			var piece: Dictionary = house.pieces[key]
-			if piece.state != HouseSketch.SKETCH:
+			if piece.state != HouseSketch.SKETCH and not HouseSketch.CELLAR_KINDS.has(piece.kind):
 				_solid_piece(house, [p[1], p[2], p[3]], piece.kind, piece.state == HouseSketch.DEMOLISH)
+		_solid_cellar(house, holes)
+	game.level.set_floor_holes(holes)
 	if plan == null:
 		return
 	for key in plan.pieces:
 		if plan.pieces[key].state == HouseSketch.SKETCH:
 			var p := HouseSketch.parts_of(key)
-			_segment(_built, [p[1], p[2], p[3]], plan.pieces[key].kind, Color(0, 0, 0, 0))
+			if HouseSketch.CELLAR_KINDS.has(plan.pieces[key].kind):
+				if plan.pieces[key].kind == HouseSketch.DIG:
+					_cell_quad(_built, Vector2i(p[1], p[2]), DIG_COLOR)
+				else:
+					for c in HouseSketch.stairs_cells(p[1], p[2], p[3]).slice(0, 2):
+						_cell_quad(_built, c, STAIRS_COLOR)
+			else:
+				_segment(_built, [p[1], p[2], p[3]], plan.pieces[key].kind, Color(0, 0, 0, 0))
+
+
+## The cellar of a house: the ground opens over every built cell, the pit gets
+## a floor, walls and stairs, and `holes` collects the open cells (Rect2 in
+## world x/z) so the map can cut its ground there.
+func _solid_cellar(house: HouseSketch, holes: Array) -> void:
+	var open := {}
+	for key in house.pieces:
+		var piece: Dictionary = house.pieces[key]
+		if piece.state == HouseSketch.SKETCH or not HouseSketch.CELLAR_KINDS.has(piece.kind):
+			continue
+		var p := HouseSketch.parts_of(key)
+		if piece.kind == HouseSketch.DIG:
+			open[Vector2i(p[1], p[2])] = piece
+		else:
+			for c in HouseSketch.stairs_cells(p[1], p[2], p[3]).slice(0, 2):
+				open[c] = piece
+	for c: Vector2i in open:
+		var piece: Dictionary = open[c]
+		var demolish: bool = piece.state == HouseSketch.DEMOLISH
+		var corner := house.node_world(c.x, c.y)
+		holes.append(Rect2(corner.x, corner.z, HouseSketch.CELL, HouseSketch.CELL))
+		var middle := house.cell_world(c.x, c.y)
+		var is_dig: bool = piece.kind == HouseSketch.DIG
+		if is_dig:
+			var floor_mat := _solid_material(DEMOLISH_COLOR if demolish else _surface_color(piece.get("floor", "")))
+			_visual_box(middle + Vector3(0, -HouseSketch.DEPTH - 0.04, 0), Vector3(HouseSketch.CELL, 0.08, HouseSketch.CELL), floor_mat)
+			_collide(middle + Vector3(0, -HouseSketch.DEPTH - 0.25, 0), Vector3(HouseSketch.CELL, 0.5, HouseSketch.CELL))
+		var wall_mat := _solid_material(DEMOLISH_COLOR if demolish else _surface_color(piece.get("wall", "") if is_dig else ""))
+		for dir in HouseSketch.DOWN:
+			var step: Vector2i = HouseSketch.DOWN[dir]
+			if open.has(c + step):
+				continue
+			var side := Vector3(step.x, 0, step.y) * (HouseSketch.CELL * 0.5 - 0.05)
+			var size := Vector3(0.1, HouseSketch.DEPTH, HouseSketch.CELL) if step.x != 0 else Vector3(HouseSketch.CELL, HouseSketch.DEPTH, 0.1)
+			_visual_box(middle + side + Vector3(0, -HouseSketch.DEPTH * 0.5, 0), size, wall_mat)
+	for key in house.pieces:
+		var piece: Dictionary = house.pieces[key]
+		if piece.kind == HouseSketch.STAIRS and piece.state != HouseSketch.SKETCH:
+			var p := HouseSketch.parts_of(key)
+			_ramp(house, p[1], p[2], p[3], piece.state == HouseSketch.DEMOLISH)
+
+
+## The ramp of a stairs piece: it runs from the ground at the top of its first
+## cell down to the cellar floor at the end of its second.
+func _ramp(house: HouseSketch, x: int, y: int, dir: String, demolish: bool) -> void:
+	var step: Vector2i = HouseSketch.DOWN[dir]
+	var flat := Vector3(step.x, 0, step.y)
+	var start := house.cell_world(x, y) - flat * (HouseSketch.CELL * 0.5)
+	var run := HouseSketch.CELL * 2.0
+	var slope := Vector3(0, -HouseSketch.DEPTH, 0) + flat * run
+	var length := slope.length()
+	var along := slope / length
+	var up := (Vector3.UP - along * along.dot(Vector3.UP)).normalized()
+	var basis := Basis(along, up, along.cross(up))
+	var thick := 0.3
+	var at := Transform3D(basis, start + slope * 0.5 - up * thick * 0.5)
+	var size := Vector3(length, thick, HouseSketch.CELL) if step.x != 0 else Vector3(HouseSketch.CELL, thick, length)
+	if step.x == 0:
+		# The box's long side must run along the slope: turn it for north and south.
+		basis = Basis(up.cross(along), up, along)
+		at = Transform3D(basis, start + slope * 0.5 - up * thick * 0.5)
+	var m := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	m.mesh = box
+	m.material_override = _solid_material(DEMOLISH_COLOR if demolish else PLANK_COLOR)
+	m.transform = at
+	_solid.add_child(m)
+	var shape := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = size
+	shape.shape = bs
+	shape.transform = at
+	_body.add_child(shape)
+
+
+func _surface_color(surface: String) -> Color:
+	match surface:
+		"stone":
+			return STONE_COLOR
+		"wood":
+			return PLANK_COLOR
+	return EARTH_COLOR
+
+
+## A flat tinted square over a grid cell (the blueprint of a dug cell).
+func _cell_quad(parent: Node3D, cell: Vector2i, colour: Color) -> void:
+	_box(parent, plan.cell_world(cell.x, cell.y) + Vector3(0, 0.07, 0), Vector3(HouseSketch.CELL - 0.1, 0.04, HouseSketch.CELL - 0.1), _material(colour))
 
 
 ## A built piece: solid stone, a doorway with a wooden lintel, or a window

@@ -1477,6 +1477,14 @@ func _build_terrace(block: Rect2i) -> void:
 	_add_solid(center, Vector3(block.size.x * TILE, 4, block.size.y * TILE) * Vector3(1.0 if across.x != 0 else 0.86, 1, 1.0 if across.y != 0 else 0.86))
 
 
+## Dresses a dungeon gate with winter (see SnowCaps.gate_node): caps on its tops, drifts at its
+## foot and icicles under its lintel, all shown only while snow lies.
+func gate_snow(parts: Array, tag: String) -> void:
+	var node := SnowCaps.gate_node(parts, level_name + tag)
+	if node:
+		add_child(node)
+
+
 ## The way down into the dragon's lair: an old stone arch from Quaternius'
 ## dungeon kit set into the foot of a rocky mountain (see LairMountain) with
 ## its door hanging open, a black hole and stairs going down behind it,
@@ -1525,6 +1533,16 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	glow.position = front + Vector3(0, 1.2, -0.8)
 	add_child(glow)
 	_add_solid(center, Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86))
+	var top := _aabb_of("lair/Arch")
+	var post := _aabb_of("lair/Column2")
+	var gate_parts: Array = [
+		{"at": front + Vector3(top.get_center().x, top.end.y, top.get_center().z), "size": Vector2(top.size.x * 0.55, top.size.z * 0.8)},
+		{"at": front + Vector3(-3.7, 0.12, 1.2), "size": Vector2(1.8, 1.4)},
+		{"at": front + Vector3(3.7, 0.12, 1.0), "size": Vector2(1.6, 1.4)},
+	]
+	for side in [-1.0, 1.0]:
+		gate_parts.append({"at": front + Vector3(side * 2.9 + post.get_center().x * 0.9, post.end.y * 0.9, -0.1 + post.get_center().z * 0.9), "size": Vector2(post.size.x * 0.6, post.size.z * 0.6) * 0.9})
+	gate_snow(gate_parts, "lair")
 	arch.set_meta("block", block)
 	doors["E"] = front + Vector3(0, 0, 2.0)
 	if interiors.has("E"):
@@ -1590,6 +1608,12 @@ func _build_mine_entrance(block: Rect2i) -> void:
 	sign.position = front + Vector3(0, 3.95, 0.3)
 	add_child(sign)
 	_build_lantern(front + Vector3(3.1, 0, 0.9))
+	gate_snow([
+		{"at": front + Vector3(0, 4.2, 0), "size": Vector2(4.6, 0.55), "under": 3.7},
+		{"at": front + Vector3(0, 4.175, -0.9), "size": Vector2(4.4, 0.45)},
+		{"at": front + Vector3(-2.6, 0.12, 0.6), "size": Vector2(1.5, 1.1)},
+		{"at": front + Vector3(2.5, 0.12, 0.5), "size": Vector2(1.3, 1.0)},
+	], "mine%d" % number)
 	_put("resource_stone", front + Vector3(-3.0, 0, 1.4), _rng.randf() * TAU, PROP_SCALE)
 	_put("wheelbarrow", front + Vector3(-2.6, 0, 3.0), 0.6 + _rng.randf_range(-0.3, 0.3), PROP_SCALE)
 	var glow := OmniLight3D.new()
@@ -1662,6 +1686,11 @@ func _build_elder_cave(block: Rect2i) -> void:
 	_put("lair/Skull", front + Vector3(-width * 0.3, 0, 1.6), 0.6, 3.2)
 	for i in 4:
 		_put("lair/Skull", front + Vector3(rng.randf_range(-width * 0.35, width * 0.35), 0, rng.randf_range(2.0, 4.5)), rng.randf() * TAU, 0.9)
+	gate_snow([
+		{"at": front + Vector3(0, 7.3, -1.9), "size": Vector2(width * 0.9, 1.6), "under": 6.8, "long": 1.6},
+		{"at": front + Vector3(-width * 0.3, 0.12, 2.6), "size": Vector2(2.6, 1.8)},
+		{"at": front + Vector3(width * 0.3, 0.12, 2.8), "size": Vector2(2.4, 1.8)},
+	], "elder")
 	var glow := OmniLight3D.new()
 	glow.light_color = ElderLair.VIOLET
 	glow.light_energy = 1.8
@@ -1719,6 +1748,14 @@ func _build_spire_gate(block: Rect2i) -> void:
 		rock.position = front + Vector3(rng.randf_range(-width * 0.45, width * 0.45), chunk.size.y * 0.5, rng.randf_range(1.2, 4.0))
 		rock.rotation.y = rng.randf() * TAU
 		add_child(rock)
+	gate_snow([
+		{"at": front + Vector3(-2.2, 6.8, -1.4), "size": Vector2(1.4, 1.6)},
+		{"at": front + Vector3(2.3, 4.8, -1.4), "size": Vector2(1.2, 1.6)},
+		{"at": front + Vector3(0.1, 5.4, -1.4), "size": Vector2(3.2, 1.6), "under": 4.4},
+		{"at": front + Vector3(-3.0, 0.12, 0.8), "size": Vector2(1.6, 1.2)},
+		{"at": front + Vector3(3.2, 0.12, 1.0), "size": Vector2(1.4, 1.2)},
+		{"at": front + Vector3(0.0, 0.12, 2.6), "size": Vector2(2.2, 1.2)},
+	], "spire")
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(0.62, 0.4, 1.0)
 	glow.light_energy = 1.6

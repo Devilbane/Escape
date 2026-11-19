@@ -187,6 +187,9 @@ func _caps() -> void:
 	print("snow caps: %d buildings, %d vertices, %d of icicles" % [caps.size(), verts, ice])
 	check(caps.size() >= 5, "the buildings wear caps of snow")
 	check(ice > 0, "icicles hang from the eaves and windows")
+	var gates := lvl.find_children("GateSnow", "MeshInstance3D", true, false)
+	check(gates.size() >= 1, "the dungeon gates wear snow, drifts and icicles")
+	check(gates.all(func(g: MeshInstance3D): return g.is_in_group(SnowCaps.GROUP)), "gate snow melts with the rest")
 	game.snow_cover = 0.0
 	game._tick_clock(0.05)
 	check(caps.all(func(c: MeshInstance3D): return not c.visible), "no caps on bare roofs")

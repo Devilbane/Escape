@@ -723,9 +723,8 @@ static func spikes_mesh(crop: PackedVector3Array) -> ArrayMesh:
 				b = 1.0 - b
 			var root := crop[t] + (crop[t + 1] - crop[t]) * a + (crop[t + 2] - crop[t]) * b
 			var out := ((root - SKULL_CENTER) / SKULL_RADII).normalized()
-			# The back of the head starts its tufts lower, so it bristles too.
 			var back := clampf(-out.z, 0.0, 1.0)
-			var from := lerpf(TUFTS_FROM, 0.13, back)
+			var from := TUFTS_FROM
 			if out.y < from or (pass_back == 1 and back < 0.15):
 				continue
 			placed += 1

@@ -2939,6 +2939,7 @@ func _show_weather() -> void:
 	var dusty := _weather_look.duplicate()
 	dusty.mist = Weather.dusty_mist(_weather_look, day_hour)
 	var haze := Weather.haze_color(_env.fog_light_color, _weather_look, day_hour, Moon.light(day))
+	haze = Weather.moonlit_haze(haze, day_hour, Moon.light(day))
 	_clouds.set_look(dusty.mist, haze)
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.

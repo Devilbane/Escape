@@ -153,6 +153,15 @@ static func haze_color(fog_color: Color, weather_look: Dictionary, hour: float, 
 	return fog_color.lerp(DUST_COLOR * (0.6 + 0.4 * clampf(moon, 0.0, 1.0)), dust)
 
 
+## The haze lifted to moonlit blue-grey at night, for fog too: a haze as dark as the night's
+## ambient light read as black smoke over the pale snow. It never gets darker than it was.
+static func moonlit_haze(haze: Color, hour: float, moon := 1.0) -> Color:
+	var night := DayNight.glow_at(hour)
+	var lit := DUST_COLOR * (0.6 + 0.4 * clampf(moon, 0.0, 1.0))
+	return Color(maxf(haze.r, lerpf(haze.r, lit.r, night)), maxf(haze.g, lerpf(haze.g, lit.g, night)),
+			maxf(haze.b, lerpf(haze.b, lit.b, night)), haze.a)
+
+
 ## The part of the day the chances go by.
 static func part_of_day(hour: float) -> String:
 	if DayNight.is_night(hour):
@@ -484,4 +493,7 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 	mist.emitting = m > 0.02
 	mist.visible = mist.emitting
 	var mist_mat: StandardMaterial3D = (mist.mesh as QuadMesh).material
-	mist_mat.albedo_color = Color(shade, shade, shade, m)
+	# Mist is pale and bluish, never black: the patches are unshaded and drawn over the snow, so
+	# a dark tone at night showed as dark smoke.
+	var pale := clampf(0.55 + light * 0.45, 0.55, 1.0)
+	mist_mat.albedo_color = Color(pale * 0.92, pale * 0.96, pale, m)

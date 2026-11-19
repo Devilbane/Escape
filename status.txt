@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Keep winter snow off coins and floor pickups | Shipped this week: Update the corral test for calm cattle; Light the hero evenly at night; Give the snowman the snow look of the ground tiles (+47 more)
+Escape! dev status | Shipped this week: Keep winter snow off coins and floor pickups; Update the corral test for calm cattle; Light the hero evenly at night (+47 more)

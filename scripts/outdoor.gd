@@ -91,10 +91,10 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@'{}-/?¤"
+const WALK := ".,Pai:0123456789KOGMYZS¢cAXQWHJUDV&@'{}-/?¤"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
-const VILLAGERS := "0123456789KOGMYZS"
+const VILLAGERS := "0123456789KOGMYZS¢"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -2286,6 +2286,11 @@ func _pave_entrances() -> void:
 	_ground_tex.update(_ground_img)
 
 
+## Whether a tile lies within the village's reach (see Plots: no building plots there).
+func near_village(c: Vector2i) -> bool:
+	return _in_village(c)
+
+
 ## Whether a tile lies within the village: close to one of its buildings.
 func _in_village(c: Vector2i) -> bool:
 	if _village_near.is_empty():
@@ -2629,7 +2634,7 @@ func _spawn_villagers() -> void:
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied"}.get(ch, "npc")
+			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "¢": PlotOffice.KIND}.get(ch, "npc")
 			var station := {"kind": kind, "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)

@@ -1,0 +1,35 @@
+extends RefCounted
+## English texts: building plots and the land registry (see Plots, PlotMarker, PlotOffice).
+## Merged into Lang.EN (see Lang.PARTS).
+
+const EN := {
+	"Erste Ecke gesetzt. Klicke die gegenüberliegende Ecke. Esc bricht ab.": "First corner set. Click the opposite corner. Esc cancels.",
+	"Grundstück abgesteckt: %d x %d Felder. Lass es beim Amt der Krone eintragen (%d Kupfer).": "Plot marked out: %d x %d tiles. Have it registered at the Crown Office (%d copper).",
+	"Zu klein: mindestens %d x %d Felder.": "Too small: at least %d x %d tiles.",
+	"Zu groß: höchstens %d x %d Felder.": "Too big: at most %d x %d tiles.",
+	"Hier ist der Boden nicht eben und frei: nur blanke Wiese.": "The ground here is not even and free: bare grass only.",
+	"Zu nah am Dorf: Das Land gehört der Gemeinde.": "Too close to the village: this land belongs to the parish.",
+	"Dieses Land gehört schon jemandem.": "Someone already owns this land.",
+	"Du besitzt schon ein Grundstück.": "You already own a plot.",
+	"Abstecken abgebrochen.": "Marking cancelled.",
+	"Dagegenlaufen, um mit %s über Land zu reden": "Run into %s to talk about land",
+	"Amt der Krone: Grundbuch": "Crown Office: Land Registry",
+	"Im Beutel: %d Kupfer": "In your purse: %d copper",
+	"Dein Grundstück: %d x %d Felder, eingetragen.": "Your plot: %d x %d tiles, registered.",
+	"Du besitzt noch kein Grundstück.": "You do not own a plot yet.",
+	"Mehr als ein Grundstück vergibt die Krone nicht.": "The Crown grants only one plot.",
+	"Abgesteckt: %d x %d Felder. Gebühr: %d Kupfer.": "Marked out: %d x %d tiles. Fee: %d copper.",
+	"Noch nichts abgesteckt.": "Nothing marked out yet.",
+	"Land abstecken": "Mark out land",
+	"Eintragen lassen": "Register",
+	"Eintragen lassen (%d Kupfer)": "Register (%d copper)",
+	"So geht's: Schnur nehmen, zwei gegenüberliegende Ecken auf blanker Wiese anklicken (%d x %d bis %d x %d Felder), dann hier eintragen lassen. Die Gebühr beträgt %d Kupfer je Feld.": "How it works: take the cord, click two opposite corners on bare grass (%d x %d to %d x %d tiles), then have it registered here. The fee is %d copper per tile.",
+	"Klicke eine Ecke deines Grundstücks auf der Wiese. Esc bricht ab.": "Click a corner of your plot on the grass. Esc cancels.",
+	"Das Grundstück ist eingetragen: %d x %d Felder für %d Kupfer.": "The plot is registered: %d x %d tiles for %d copper.",
+	"Eingetragen. Das Land gehört dir.": "Registered. The land is yours.",
+	"Will jedes Stück Land sauber im Grundbuch eingetragen sehen, bevor der erste Stein gesetzt wird.": "Wants every piece of land entered in the registry before the first stone is laid.",
+	"Amtmann Gero": "Clerk Gero",
+	"Land ohne Eintrag ist Land ohne Besitzer. Kommt zu mir, wenn Ihr bauen wollt.": "Land without an entry is land without an owner. Come to me if you want to build.",
+	"Steckt Euer Grundstück ab, dann trage ich es ins Grundbuch ein.": "Mark out your plot and I will enter it in the land registry.",
+	"Die Gebühr richtet sich nach der Größe des Landes.": "The fee depends on the size of the land.",
+}

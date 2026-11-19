@@ -190,6 +190,7 @@ const OUTDOOR := {
 	"8": "scholar",
 	"9": "water carrier",
 	"K": "herald of the crown",
+	"¢": "clerk of the land registry (Amtmann Gero, see PlotOffice)",
 	"O": "priestess",
 	"G": "guild master",
 	"M": "postmaster",

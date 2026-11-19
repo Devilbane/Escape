@@ -249,3 +249,4 @@ place_monsters.gd | 60 | free | pass | Compendium places list their monsters' le
 turning.gd | 60 | free | pass | Natural turns (limited turn rate, arcs)
 frozen_ponds.gd | 120 | free | pass | Frozen ponds with one fishing hole
 winter_wear.gd | 120 | fixed | PASS:_winter_wear | Winter clothes for the villagers
+plots.gd | 60 | free | pass | Building plots: rules, fee, deeds, the clerk

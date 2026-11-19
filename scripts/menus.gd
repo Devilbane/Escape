@@ -226,13 +226,14 @@ const WINDOW_SIZES := {
 	"karte": Vector2(980, 616),
 	"auftraege": Vector2(760, 532),
 	CoopWindow.KIND: Vector2(720, 540),
+	PlotOffice.KIND: Vector2(640, 430),
 }
 
 
 ## The windows (besides the merchants') that can leave a note after a
 ## click; they keep its line from the start.
 const NOTE_WINDOWS := ["inventar", "lager", "bodenrucksack", "metalltruhe", "zutatenbord", "buecherregal", "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
-	"aushang", "gefaehrten", "wunsch", "umhangschrank"]
+	"aushang", "gefaehrten", "wunsch", "umhangschrank", PlotOffice.KIND]
 
 
 ## The fixed content size of a kind of window, or zero for one that fits
@@ -370,6 +371,8 @@ func _rebuild() -> void:
 			_build_skill_trees()
 		CoopWindow.KIND:
 			CoopWindow.build(self)
+		PlotOffice.KIND:
+			PlotOffice.build(self)
 		"beenden":
 			_build_quit()
 		"plan":

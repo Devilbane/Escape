@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Keep snow cover off the turning windmill sails; Kids throw snowballs at villagers and the hero much more often | Shipped this week: Keep snow footprints through a trip indoors; Let the hero blow the village alarm horn; Make temple window light longer, with constant colour (+47 more)
+Escape! dev status | Working on: Keep snow cover off the turning windmill sails | Shipped this week: Kids throw snowballs at villagers and the hero much more often; Keep snow footprints through a trip indoors (+48 more)

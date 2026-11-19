@@ -48,6 +48,8 @@ const AWARE := 1.8
 const SEPARATION_WEIGHT := 1.2
 ## Only villagers this close (metres) are looked at, looked up again every few ticks.
 const NEAR := 3.5
+## Within this distance (metres) of the last point of its path a walker is no longer bent aside.
+const ARRIVE_FREE := 2.0
 
 ## A rosier face for a Rogue (see HairLook.tint_skin): the model's own skin
 ## turns pale yellow in the midday sun.
@@ -1788,7 +1790,8 @@ func _walk(delta: float, hero: Node3D) -> void:
 	var step := walked * delta
 	# Others close by bend the way a little aside, so a street flows round its people.
 	var way := to.normalized()
-	if to.length() > step:
+	# (Not on the last stretch to the goal: a door or a seat is reached however busy it is.)
+	if to.length() > step and not (_path.size() == 1 and to.length() < ARRIVE_FREE):
 		way = (way + _separation() * SEPARATION_WEIGHT).normalized()
 	var target := Vector3(_path[0].x, 0, _path[0].z) if to.length() <= step else global_position + way * step
 	if blocked_at(target) and not blocked_at(global_position):

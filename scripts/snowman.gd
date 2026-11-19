@@ -60,8 +60,18 @@ static func _roomy(level: Outdoor, c: Vector2i) -> bool:
 
 func _ready() -> void:
 	var snow := StandardMaterial3D.new()
-	snow.albedo_color = Color(0.93, 0.95, 1.0)
-	snow.roughness = 0.85
+	snow.albedo_color = Color(1, 1, 1)
+	snow.roughness = 0.8
+	snow.albedo_texture = _snow_texture(false)
+	snow.normal_enabled = true
+	snow.normal_texture = _snow_texture(true)
+	snow.normal_scale = 0.9
+	snow.emission_enabled = true
+	snow.emission = Color(1, 1, 1)
+	snow.emission_energy_multiplier = 0.9
+	snow.emission_texture = _sparkle_texture()
+	snow.uv1_scale = Vector3(3, 2, 1)
+	snow.uv1_triplanar = false
 	var coal := StandardMaterial3D.new()
 	coal.albedo_color = Color(0.06, 0.06, 0.07)
 	coal.roughness = 0.6
@@ -109,6 +119,71 @@ func _ready() -> void:
 	var t := _part(tail, scarf)
 	t.position = Vector3(0.14, 1.36, 0.3)
 	t.rotation.z = 0.15
+	# An old, battered top hat, worn at a jaunty tilt.
+	var felt := StandardMaterial3D.new()
+	felt.albedo_color = Color(0.1, 0.09, 0.1)
+	felt.roughness = 0.9
+	var band := StandardMaterial3D.new()
+	band.albedo_color = Color(0.5, 0.12, 0.14)
+	band.roughness = 0.8
+	var hat := Node3D.new()
+	hat.set_meta("no_snow", true)
+	hat.position = Vector3(0, 1.93, 0)
+	hat.rotation = Vector3(0.0, 0.0, 0.14)
+	add_child(hat)
+	_hat_part(hat, _cyl(0.27, 0.27, 0.03), Vector3(0, 0, 0), felt)
+	_hat_part(hat, _cyl(0.16, 0.18, 0.3), Vector3(0, 0.165, 0), felt)
+	_hat_part(hat, _cyl(0.183, 0.183, 0.06), Vector3(0, 0.06, 0), band)
+
+
+func _cyl(top: float, bottom: float, height: float) -> CylinderMesh:
+	var c := CylinderMesh.new()
+	c.top_radius = top
+	c.bottom_radius = bottom
+	c.height = height
+	c.radial_segments = 20
+	return c
+
+
+func _hat_part(parent: Node3D, mesh: Mesh, at: Vector3, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.position = at
+	mi.set_meta("no_snow", true)
+	parent.add_child(mi)
+
+
+## Packed snow: soft lumps in a fixed noise (no random numbers drawn, the game's dice stay as they
+## are). As a normal map it dents the balls; as a colour it shades them a touch blue in the dips.
+static func _snow_texture(as_normal: bool) -> ImageTexture:
+	var n := FastNoiseLite.new()
+	n.seed = 7
+	n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	n.frequency = 0.035
+	n.fractal_octaves = 4
+	var img := n.get_seamless_image(128, 128)
+	if as_normal:
+		img.bump_map_to_normal_map(5.0)
+	else:
+		for y in 128:
+			for x in 128:
+				var v := img.get_pixel(x, y).r
+				img.set_pixel(x, y, Color(0.8, 0.86, 0.96).lerp(Color(1, 1, 1), v))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+## Sparkle: a few bright flecks on black, picked by a hash of the pixel, not by a random number.
+static func _sparkle_texture() -> ImageTexture:
+	var img := Image.create(128, 128, true, Image.FORMAT_RGB8)
+	img.fill(Color(0, 0, 0))
+	for y in 128:
+		for x in 128:
+			if (x * 73856093 ^ y * 19349663) % 61 == 0:
+				img.set_pixel(x, y, Color(0.75, 0.85, 1.0))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
 
 
 func _ball(radius: float, y: float, mat: Material) -> void:

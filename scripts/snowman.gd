@@ -11,6 +11,8 @@ const BUILD_FROM := 0.45
 const MELTED := 0.12
 ## How far round him the children run (metres).
 const RING := 1.7
+## How far from his middle he is solid (metres), the width of his bottom ball; it shrinks as he melts.
+const RADIUS := 0.6
 
 var _size := 1.0
 
@@ -33,6 +35,8 @@ static func ensure(level: Outdoor, near: Vector3) -> Snowman:
 	# He looks south, towards the way the camera looks at the village, give or take a little.
 	man.rotation.y = Snowball._rng.randf_range(-0.5, 0.5)
 	level.snowman = man
+	# He stands in the way: paths lead round his tile (freed again when he melts, see Outdoor.set_snow).
+	level.astar.set_point_solid(level.world_to_cell(spot), true)
 	man.set_daylight(level.snow.daylight, level.snow.moon_glow)
 	return man
 
@@ -62,7 +66,22 @@ static func _roomy(level: Outdoor, c: Vector2i) -> bool:
 var _snow: ShaderMaterial
 
 
+## Whether a flat point lies inside him: nobody walks through a snowman (see WalkRules.blocked_at).
+func blocks(point: Vector3) -> bool:
+	return Vector2(point.x - global_position.x, point.z - global_position.z).length() < RADIUS * scale.x
+
+
 func _ready() -> void:
+	# A solid body for the hero (and shots), as wide as his bottom ball.
+	var body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var cyl := CylinderShape3D.new()
+	cyl.radius = RADIUS
+	cyl.height = 2.0
+	shape.shape = cyl
+	shape.position.y = 1.0
+	body.add_child(shape)
+	add_child(body)
 	# The same snow as the ground tiles (see snow.gdshaderinc).
 	var snow := ShaderMaterial.new()
 	snow.shader = load("res://shaders/snowman_snow.gdshader")

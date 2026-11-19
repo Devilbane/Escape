@@ -1,0 +1,1 @@
+- The graveyard gates now swing open with a rusty iron creak when you approach, and close again behind you.

@@ -139,6 +139,8 @@ static func glow_of(count: int) -> Dictionary:
 ## Builds what a pile of `count` coins of `metal` looks like into `holder`
 ## (cleared first): the coins, their glints and the glow under them.
 static func dress(holder: Node3D, count: int, metal: String, level: Node) -> void:
+	# Lying coins keep no snow: a heap of coins reads as coins, not as a white mound.
+	holder.set_meta("no_snow", true)
 	for child in holder.get_children():
 		holder.remove_child(child)
 		child.queue_free()

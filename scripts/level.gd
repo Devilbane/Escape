@@ -1623,6 +1623,7 @@ func _build_coin(pos: Vector3) -> void:
 	add_child(holder)
 	CoinPile.dress(holder, 1, CoinPile.MONEY, self)
 	var c := world_to_cell(pos)
+	holder.set_meta("no_snow", true)
 	_pickups.append({"node": holder, "kind": "coin", "radius": 1.5, "id": "coin:%d,%d" % [c.x, c.y]})
 
 
@@ -4782,6 +4783,7 @@ func lay_find(id: String, pos: Vector3, colour := Color(0.55, 0.75, 0.35), count
 	var entry := _remember_on_floor("find", id, pos)
 	entry.append_array([count, loot, colour.to_html()])
 	pickup.floor = entry
+	pickup.node.set_meta("no_snow", true)
 	_pickups.append(pickup)
 
 
@@ -4869,6 +4871,7 @@ func _coin_pile(pos: Vector3, count: int, metal: String, own: int) -> Dictionary
 	var entry := _remember_on_floor("coin", metal, pos)
 	entry.append_array([count, own])
 	var pile := {"node": holder, "kind": "coin", "metal": metal, "radius": 1.5, "floor": entry}
+	pile.node.set_meta("no_snow", true)
 	_pickups.append(pile)
 	_set_pile(pile, count, own)
 	return pile
@@ -4906,6 +4909,7 @@ func lay_knife(pos: Vector3, heading := Vector3.ZERO) -> void:
 		"floor": _remember_on_floor("item", Items.KNIFE, pos)}
 	if player and _flat_distance(player.global_position, holder.global_position) <= pickup.radius:
 		pickup.wait = true
+	pickup.node.set_meta("no_snow", true)
 	_pickups.append(pickup)
 
 
@@ -5142,6 +5146,7 @@ func _bundle_pickup(entry: Array) -> void:
 	var holder := Rescue.bundle_model(Rescue.is_pouch(entry))
 	holder.position = Vector3(float(entry[2]), 0.0, float(entry[3]))
 	add_child(holder)
+	holder.set_meta("no_snow", true)
 	_pickups.append({"node": holder, "kind": "bundle", "radius": 1.6, "flat": true, "floor": entry})
 
 
@@ -5193,6 +5198,7 @@ func _drop_item(id: String, pos: Vector3, keep := true) -> void:
 	var pickup := {"node": holder, "kind": "item", "id": id, "radius": 1.6}
 	if keep:
 		pickup.floor = _remember_on_floor("item", id, pos)
+	pickup.node.set_meta("no_snow", true)
 	_pickups.append(pickup)
 
 

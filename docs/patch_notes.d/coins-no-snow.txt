@@ -1,0 +1,1 @@
+- Coins and small loot lying on the ground no longer get covered with snow in winter.

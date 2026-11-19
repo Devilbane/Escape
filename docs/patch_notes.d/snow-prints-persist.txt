@@ -1,0 +1,1 @@
+- Footprints in the snow now survive a trip into a house or dungeon and stay until the next morning.

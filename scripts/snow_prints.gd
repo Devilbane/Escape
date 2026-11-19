@@ -1,8 +1,8 @@
 class_name SnowPrints
 extends RefCounted
 ## Brief grey footprints in the snow. A print is a soft grey shape pressed into the white
-## layer (see SnowCover); it stays all day and is wiped away when a new day starts (or when the snow melts, see `clear`). Prints are
-## cheap quads, and only so many exist at once. Besides the hero's boot
+## layer (see SnowCover); it stays all day, also across a trip into a house, and is wiped away when a new day starts (or when the snow
+## melts, see `clear`). Prints are cheap quads sharing one material per kind, and only so many exist at once. Besides the hero's boot
 ## there are the tracks of the animals: a paw (fox, dog), a cloven hoof (deer, goat, sheep, cow)
 ## and a bird's foot (three toes forward, one back). Every texture is drawn toe-up, and `leave`
 ## turns it so the toes lead the way the walker goes.
@@ -124,7 +124,9 @@ static func _drop_one() -> void:
 		if rank < worst_rank:
 			worst_rank = rank
 			worst = i
-	(_live.pop_at(worst) as Node).queue_free()
+	var gone: Node = _live.pop_at(worst)
+	_records.erase(gone.get_meta("print_rec", null))
+	gone.queue_free()
 
 
 ## The snow is gone, or a new day starts: every print goes.
@@ -133,22 +135,48 @@ static func clear() -> void:
 		if is_instance_valid(n):
 			(n as Node).queue_free()
 	_live.clear()
+	_records.clear()
+
+
+## The prints of the day are kept as plain records, so they outlast the world they were pressed in:
+## going into a house or a dungeon frees the open air, and coming back lays them down again.
+static var _records: Array = []
+## The world the live prints belong to.
+static var _world: Node3D = null
+
+
+## Lays the day's prints down again in `world` when it is not the one they were pressed in.
+static func restore(world: Node3D) -> void:
+	if not world.is_inside_tree():
+		return
+	if is_instance_valid(_world) and _world == world:
+		return
+	_world = world
+	_live.clear()
+	for rec: Array in _records:
+		_spawn(world, rec)
 
 
 ## Presses a print at `at` facing `heading` (radians about the up axis).
 static func leave(world: Node3D, at: Vector3, heading: float, size := 1.0, kind := "boot", _daylight := 1.0) -> MeshInstance3D:
+	restore(world)
 	_live = _live.filter(func(n): return is_instance_valid(n))
 	while _live.size() >= MAX:
 		_drop_one()
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_texture = texture(kind)
-	mat.albedo_color = GREY
-	mat.roughness = 1.0
-	mat.metallic_specular = 0.0
+	var rec := [kind, at.x, at.z, heading, size]
+	_records.append(rec)
+	return _spawn(world, rec)
+
+
+## One print of a record, as a node in `world`.
+static func _spawn(world: Node3D, rec: Array) -> MeshInstance3D:
+	var kind: String = rec[0]
+	var at := Vector3(rec[1], 0.0, rec[2])
+	var heading: float = rec[3]
+	var size: float = rec[4]
 	var mi := MeshInstance3D.new()
 	mi.mesh = _mesh(kind)
-	mi.material_override = mat
+	mi.material_override = _material(kind)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.set_meta("no_snow", true)
 	world.add_child(mi)
@@ -156,5 +184,22 @@ static func leave(world: Node3D, at: Vector3, heading: float, size := 1.0, kind 
 	mi.rotation.y = heading + FRONT
 	mi.scale = Vector3(size, 1.0, size)
 	mi.set_meta("print_kind", kind)
+	mi.set_meta("print_rec", rec)
 	_live.append(mi)
 	return mi
+
+
+static var _materials := {}
+
+
+## The one material every print of a kind shares (they no longer fade one by one).
+static func _material(kind: String) -> StandardMaterial3D:
+	if not _materials.has(kind):
+		var mat := StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_texture = texture(kind)
+		mat.albedo_color = GREY
+		mat.roughness = 1.0
+		mat.metallic_specular = 0.0
+		_materials[kind] = mat
+	return _materials[kind]

@@ -273,6 +273,13 @@ func _prints() -> void:
 	check(SnowPrints._live.is_empty(), "a new day wipes the prints")
 	for i in 3:
 		lvl.snow_print(Vector3(i, 0, 0), 0.0)
+	# Going into a house frees the open air; coming back lays the day's prints down again.
+	var other := Node3D.new()
+	lvl.get_parent().add_child(other)
+	SnowPrints.restore(other)
+	check(SnowPrints._live.size() == 3 and SnowPrints._live[0].get_parent() == other, "the day's prints come back in a rebuilt world")
+	SnowPrints.restore(lvl)
+	other.free()
 	# With the pool full, a new boot print pushes out a beetle's dot, not the other way round.
 	SnowPrints.clear()
 	for i in SnowPrints.MAX - 1:

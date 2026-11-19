@@ -1,0 +1,1 @@
+- Fog at night no longer lights up the scenery: it is as dark as the night and only hides things; fog at night and in winter is one even haze.

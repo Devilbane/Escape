@@ -221,7 +221,8 @@ func _prints() -> void:
 	# The deepest snow lies 0.03 + 0.03 m above the ground (snow_cover.gdshader): prints stay above it.
 	check(SnowPrints.HEIGHT > 0.06, "prints lie above the deepest snow")
 	# Every walker's print (hero, townsfolk, animals, birds, monsters) goes through snow_print: it
-	# lies at the fixed height, unshaded, and darker than the snow at night, morning, noon and dusk.
+	# lies at the fixed height, is lit like the snow (so it takes the colour of the hour's light, never a cold
+	# grey of its own), and is a neutral grey darker than the snow at night, morning, noon and dusk.
 	var snow_white := 0.9
 	for light in [0.0, 0.25, 0.5, 0.75, 1.0]:
 		lvl.snow.set_amount(1.0, light)
@@ -229,7 +230,8 @@ func _prints() -> void:
 			var pr: MeshInstance3D = SnowPrints.leave(lvl, Vector3(2, 0, 2), 0.0, 1.0, kind, lvl.snow.daylight)
 			var m := pr.material_override as StandardMaterial3D
 			check(is_equal_approx(pr.global_position.y, SnowPrints.HEIGHT), "a %s print lies at the fixed height" % kind)
-			check(m.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED, "a %s print is unshaded" % kind)
+			check(m.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED, "a %s print is lit like the snow" % kind)
+			check(is_equal_approx(m.albedo_color.r, m.albedo_color.b), "a %s print is a neutral grey, not blue" % kind)
 			check(m.albedo_color.v < snow_white * 0.75 and m.albedo_color.a > 0.8, "a %s print shows at light %.2f" % [kind, light])
 	game.snow_cover = 1.0
 	game._tick_clock(0.05)

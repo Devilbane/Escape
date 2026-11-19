@@ -24,9 +24,16 @@ static func build_gate(outdoor: Outdoor, c: Vector2i) -> void:
 	# What is left of the wall on both sides: broken, mossy stone.
 	var stone := AgedStone.ruin_material(Color(0.44, 0.43, 0.42))
 	var moss := AgedStone.ruin_material(Color(0.3, 0.38, 0.26))
+	var snow: Array = []
 	for side in [-1.0, 1.0]:
-		SternParts._box(outdoor, Vector3(5.0, rng.randf_range(2.6, 3.6), 1.4), stone, pos + Vector3(side * 5.4, 1.5, -0.9))
-		SternParts._box(outdoor, Vector3(2.0, 0.3, 1.5), moss, pos + Vector3(side * 4.4, rng.randf_range(2.8, 3.2), -0.9))
+		var high := rng.randf_range(2.6, 3.6)
+		SternParts._box(outdoor, Vector3(5.0, high, 1.4), stone, pos + Vector3(side * 5.4, 1.5, -0.9))
+		var moss_y := rng.randf_range(2.8, 3.2)
+		SternParts._box(outdoor, Vector3(2.0, 0.3, 1.5), moss, pos + Vector3(side * 4.4, moss_y, -0.9))
+		# Snow on the broken wall: on the moss slab and on the far stub of the wall.
+		snow.append({"at": pos + Vector3(side * 4.4, moss_y + 0.15, -0.9), "size": Vector2(2.0, 1.5)})
+		snow.append({"at": pos + Vector3(side * 6.9, 1.5 + high * 0.5, -0.9), "size": Vector2(2.0, 1.4)})
+		snow.append({"at": pos + Vector3(side * 2.8, 0.12, 2.6), "size": Vector2(2.2, 1.6)})
 	for i in 5:
 		var at := pos + Vector3(rng.randf_range(-6.0, 6.0), 0.3, rng.randf_range(1.5, 4.5))
 		if absf(at.x - pos.x) < 1.8:
@@ -42,6 +49,7 @@ static func build_gate(outdoor: Outdoor, c: Vector2i) -> void:
 	var star := SternParts._mesh(outdoor, SternParts.star_mesh(0.7, 0.3, 0.08), SternParts.material(SternParts.STAR_GOLD, 0.6), pos + Vector3(0, 6.2, -0.5))
 	star.rotation.y = 0.0
 	SternParts._light(outdoor, SternParts.VIOLET, 1.4, 6.0, pos + Vector3(0, 1.4, -0.2))
+	outdoor.gate_snow(snow, "stern")
 	outdoor._add_solid(pos + Vector3(0, 0, -0.9), Vector3(16.0, 4.0, 1.6))
 	outdoor._add_solid(pos + Vector3(-4.2, 0, 3.2), Vector3(3.2, 1.0, 1.2))
 	outdoor.doors[BUILDING] = pos + Vector3(0, 0, Level.TILE * 0.8)

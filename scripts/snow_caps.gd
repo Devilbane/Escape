@@ -390,6 +390,46 @@ static func board_node(pos: Vector3) -> MeshInstance3D:
 	return node_for(mesh)
 
 
+## The snow of a dungeon gate in the open (a mine, the lair, the spire, the keep's gate): a cap
+## on each flat top it has, a low drift on the ground, and icicles under the lintels. `parts` are
+## boxes in the frame of the level, each {"at": the middle of its top face, "size": Vector2 of its
+## top (x, z)}. A part with "under" (the y of its underside) also hangs icicles from its front
+## edge (+z), their length scaled by "long". Parts with no "under" and a top near the ground are
+## drifts. Null when nothing is given.
+static func gate_node(parts: Array, tag: String) -> MeshInstance3D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("gatesnow:" + tag)
+	var tris: Array = []
+	var ice := _Surface.new()
+	for p: Dictionary in parts:
+		var at: Vector3 = p.at
+		var size: Vector2 = p.size
+		var h := size * 0.5
+		var a := at + Vector3(-h.x, 0, -h.y)
+		var b := at + Vector3(h.x, 0, -h.y)
+		var c := at + Vector3(h.x, 0, h.y)
+		var d := at + Vector3(-h.x, 0, h.y)
+		for t: Array in [[a, b, c], [a, c, d]]:
+			tris.append({"a": t[0], "b": t[1], "c": t[2], "n": Vector3.UP, "area": size.x * size.y * 0.5})
+		if p.has("under"):
+			var grow := float(p.get("long", 1.0))
+			var x := -h.x + rng.randf_range(0.1, 0.3)
+			while x < h.x - 0.1:
+				if rng.randf() < 0.75:
+					var root := Vector3(at.x + x, float(p.under), at.z + h.y - rng.randf_range(0.05, 0.15))
+					_icicle(ice, root, Vector3.ZERO, rng.randf_range(0.18, 0.55) * grow, rng.randf_range(0.03, 0.055) * grow, rng)
+				x += rng.randf_range(0.15, 0.35)
+	var mesh := build(tris, 0.0, [], rng, Vector3.ZERO, 0.1)
+	if not ice.empty():
+		if mesh == null:
+			mesh = ArrayMesh.new()
+		ice.commit(mesh, ice_material(), Vector3.ZERO)
+	var node := node_for(mesh)
+	if node:
+		node.name = "GateSnow"
+	return node
+
+
 ## Icicles under a window's top, shorter than those of the eaves.
 static func _window_icicles(ice: _Surface, w: Dictionary, rng: RandomNumberGenerator) -> void:
 	var look: Vector3 = w.out

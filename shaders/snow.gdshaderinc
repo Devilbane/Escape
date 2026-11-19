@@ -48,7 +48,7 @@ bool snow_melted(vec3 p, float n) {
 }
 
 // The look of the snow at world spot `p` with world normal `wn`: its colour (albedo), its bumped
-// normal in view space (normal) and a faint glow at night and glints of ice by day (emission).
+// normal in view space (normal) and small glints of ice by day (emission).
 void snow_look(vec3 p, vec3 wn, mat4 view, float time, out vec3 albedo, out vec3 normal, out vec3 emission) {
 	vec2 xz = p.xz;
 	float drift = snow_drift(xz * 0.8);
@@ -67,5 +67,6 @@ void snow_look(vec3 p, vec3 wn, mat4 view, float time, out vec3 albedo, out vec3
 	vec2 cell_id = floor(mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)) * xz * 30.0);
 	float cell = snow_hash(cell_id + floor(time * 0.7 + snow_hash(cell_id) * 8.0));
 	float glint = step(0.996, cell) * daylight;
-	emission = vec3(0.5, 0.6, 0.9) * 0.05 * (1.0 - daylight) + vec3(0.9, 0.95, 1.0) * glint * 0.25;
+	// No glow of its own at night: the snow is lit by the light of the hour and the lamps, like all else.
+	emission = vec3(0.9, 0.95, 1.0) * glint * 0.12;
 }

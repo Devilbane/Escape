@@ -3970,6 +3970,7 @@ func set_snow(cover: float, daylight := 1.0) -> void:
 			snowman = null
 		else:
 			snowman.melt_to(cover)
+			snowman.set_daylight(daylight)
 	# The children's angels and rolled balls melt too (see SnowGames).
 	SnowGames.melt(self, cover)
 

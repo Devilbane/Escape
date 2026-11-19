@@ -1,0 +1,1 @@
+- Snow and the snowman no longer glow at night; they are lit by the light of the hour like everything else.

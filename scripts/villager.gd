@@ -634,6 +634,10 @@ var _settling := false
 
 
 func _start(task: String, time: float) -> void:
+	# Nothing but the thaw (see _mind_frost) takes a frozen Fritz off his spot: not the alarm, a
+	# slime, a chat nor anyone calling him calm.
+	if _task == "frozen" and task != "frozen" and FrozenFritz.wants(level, true):
+		return
 	_task = task
 	if task != "mend":
 		_wield_wall_hammer(false)

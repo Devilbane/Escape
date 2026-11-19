@@ -289,6 +289,8 @@ static func can_snack(n) -> bool:
 		return false
 	if n is Villager and ((n as Villager).eaten or (n as Villager).at_home):
 		return false
+	if n is Villager and (n as Villager).is_frozen():
+		return false # Frozen solid in ice: nothing for a slime to bite.
 	if n.has_meta("eaten"):
 		return false # An animal on its way into a slime.
 	return snack_key(n) != ""

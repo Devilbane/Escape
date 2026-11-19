@@ -32,19 +32,20 @@ func _finish() -> void:
 	var fog := Weather.look(Weather.FOG)
 	check(is_equal_approx(Weather.dusty_mist(clear, 0.0), Weather.NIGHT_DUST * fog.mist), "a clear night has 25% of fog's mist")
 	check(Weather.dusty_mist(clear, 12.0) == 0.0, "no dust by day")
-	var dark := Color(0.08, 0.08, 0.09)
-	check(Weather.haze_color(dark, clear, 0.0).b > 0.25, "the night's dust is moonlit, not black")
-	check(Weather.haze_color(dark, clear, 12.0) == dark, "no change to the haze by day")
-	check(Weather.haze_color(dark, fog, 0.0) == dark, "real fog keeps its colour")
 	check(Weather.dusty_mist(fog, 0.0) == fog.mist, "dust does not pile on fog")
-	check(Weather.moonlit_haze(dark, 0.0).b > 0.25, "fog at night is moonlit, not black")
-	check(Weather.moonlit_haze(dark, 12.0) == dark, "fog by day keeps its colour")
-	check(Weather.moonlit_haze(dark, 0.0, 0.01).b < Weather.moonlit_haze(dark, 0.0, 1.0).b, "a brighter moon lights the fog more")
-	check(Weather.moonlit_haze(dark, 0.0, 1.0).b < 0.7, "moonlit fog is dark blue, never white")
-	var wn := Weather.winter_haze(dark, 0.0, 1.0, 0.0)
-	check(wn.b > 0.4 and wn.b > wn.r, "winter fog at night is a cool, light haze, not dark blue")
-	check(Weather.winter_haze(dark, 12.0, 1.0).b > Weather.winter_haze(dark, 0.0, 1.0).b, "winter fog is brighter by day")
-	check(Weather.winter_haze(dark, 0.0, 0.0) == dark, "no fog, no winter haze")
+	# Fog never lights the scenery up: at night its colour is never brighter than the dark air.
+	var night_air := Color(0.04, 0.04, 0.05)
+	for winter in [false, true]:
+		var h := Weather.fog_haze(night_air, 1.0, winter)
+		check(maxf(h.r, maxf(h.g, h.b)) <= 0.05 + 0.0001, "night fog is no brighter than the night (winter %s)" % winter)
+	var wn := Weather.fog_haze(night_air, 1.0, true)
+	check(wn.b > wn.r, "winter fog is tinted cool")
+	check(Weather.fog_haze(night_air, 1.0, false) == night_air, "fog keeps the air's colour")
+	# The mist particles at night are dark, too.
+	var mist := Weather.make_mist()
+	Weather.show_particles(Weather.make_rain(), mist, fog, 0.3)
+	var mc: Color = (mist.mesh as QuadMesh).material.albedo_color
+	check(maxf(mc.r, maxf(mc.g, mc.b)) < 0.2, "night mist is dark")
 	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: weather")

@@ -126,6 +126,8 @@ func _run() -> void:
 		var box := _bounds(chapel)
 		var area := _block_area(lvl, chapel.get_meta("block"))
 		check(area.grow(0.3).encloses(Rect2(box.position.x, box.position.z, box.size.x, box.size.z)), "the chapel stays inside its block")
+		var wall_lamps := lvl.find_children("TempleLamp*", "Node3D", false, false)
+		check(wall_lamps.size() == 2, "the temple has two wall lamps beside its door")
 		check(box.size.y > 15.0, "the chapel's spire rises over the village (%.1f m)" % box.size.y)
 		var dark := 0
 		for mi: MeshInstance3D in chapel.find_children("*", "MeshInstance3D", true, false):

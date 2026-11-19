@@ -13,6 +13,9 @@ const W := preload("res://scripts/weathered_props.gd")
 ## The street lamp: where its lantern hangs from the post's foot (the light
 ## and the candle sit there, see Outdoor._build_lantern).
 const LANTERN_AT := Vector3(0, 2.05, 1.0)
+## The wall lamp (see build_wall_lamp): where its lantern hangs from the wall plate it
+## is fixed to, which faces +z.
+const WALL_LANTERN_AT := Vector3(0, -0.4, 0.5)
 ## The smith's anvil (see build_anvil): how high its stump is, and so its
 ## face; where the hot iron lies on the face and how thick it is; how far
 ## back the stump stands from under the face (x) and its radius (y).
@@ -272,6 +275,32 @@ static func build_lamp(parent: Node3D, pos: Vector3, panes: Material) -> void:
 	b.cylinder(lantern + Vector3(0, 0.34, 0), 0.04, 0.04, 0.05, iron, W.IRON, 6)
 	b.finish(parent, pos)
 	# The glass, one thin box inside the frame: it glows at night.
+	var glass := MeshInstance3D.new()
+	var pane := BoxMesh.new()
+	pane.size = Vector3(0.24, 0.34, 0.24)
+	glass.mesh = pane
+	glass.material_override = panes
+	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	glass.position = pos + lantern - Vector3(0, 0.03, 0)
+	parent.add_child(glass)
+
+
+## A lamp fixed to a wall: an iron plate, a bracket arm running out along +z and
+## the same lantern as the street lamps hanging from its end. Its glass glows at night.
+static func build_wall_lamp(parent: Node3D, pos: Vector3, panes: Material) -> void:
+	var b := WeatheredProps.Builder.new()
+	var iron := W.IRON_COLOUR * 0.8
+	# The plate lies flat on the wall (z from 0 to 0.06), the arm and brace run out from it.
+	b.box(Vector3(0, -0.3, 0.03), Vector3(0.18, 0.6, 0.06), W.IRON_COLOUR, W.IRON)
+	b.box(Vector3(0, 0.12, 0.25), Vector3(0.06, 0.06, 0.5), W.IRON_COLOUR, W.IRON)
+	b.bar(Vector3(0, -0.2, 0.03), Vector3(0, 0.1, 0.45), 0.025, W.IRON_COLOUR, W.IRON, 4)
+	var lantern := WALL_LANTERN_AT
+	b.bar(Vector3(0, 0.12, lantern.z), lantern + Vector3(0, 0.42, 0), 0.015, W.IRON_COLOUR, W.IRON, 4)
+	b.frustum(lantern + Vector3(0, -0.26, 0), Vector2(0.18, 0.18), Vector2(0.3, 0.3), 0.06, iron, W.IRON)
+	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		b.box(lantern + Vector3(corner.x * 0.13, -0.2, corner.y * 0.13), Vector3(0.03, 0.36, 0.03), iron, W.IRON)
+	b.frustum(lantern + Vector3(0, 0.16, 0), Vector2(0.34, 0.34), Vector2(0.06, 0.06), 0.18, iron, W.IRON)
+	b.finish(parent, pos)
 	var glass := MeshInstance3D.new()
 	var pane := BoxMesh.new()
 	pane.size = Vector3(0.24, 0.34, 0.24)

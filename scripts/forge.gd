@@ -152,9 +152,9 @@ static func make_steel(game: Node) -> String:
 ## Buys charcoal into the pouch. Returns "" on success, else why not.
 static func buy_charcoal(game: Node, count: int) -> String:
 	var price := charcoal_price(game)
-	if count <= 0 or game.coins < price * count:
+	if count <= 0 or not Payment.can_pay(game, price * count):
 		return Lang.t("Dafür reicht dein Kupfer nicht.")
-	game.coins -= price * count
+	Payment.pay(game, price * count)
 	game.crafting.add(CHARCOAL, count, false)
 	return ""
 
@@ -418,11 +418,11 @@ static func buy(game: Node, id: String) -> String:
 	if not wares().has(id):
 		return Lang.t("Das verkauft Gorm nicht.")
 	var price := ware_price(game, id)
-	if game.coins < price:
+	if not Payment.can_pay(game, price):
 		return Lang.t("Dafür reicht dein Kupfer nicht.")
 	if p.bag_used() >= p.bag_size():
 		return Lang.t("Deine Tasche ist voll.")
-	game.coins -= price
+	Payment.pay(game, price)
 	p.bag.append(id)
 	return ""
 
@@ -461,7 +461,7 @@ static func forge_level(id: String) -> int:
 ## aside).
 static func can_afford(game: Node, id: String) -> bool:
 	var cost := forge_cost(id, game)
-	return game.iron >= cost.iron and int(game.bars.get(STEEL, 0)) >= cost.steel and game.coins >= cost.gold \
+	return game.iron >= cost.iron and int(game.bars.get(STEEL, 0)) >= cost.steel and Payment.can_pay(game, cost.gold) \
 			and game.player.bag.count(THUNDER_ORE) >= cost.ore and craft_level(game, FORGING) >= forge_level(id)
 
 
@@ -498,11 +498,11 @@ static func buy_finished(game: Node, id: String) -> String:
 	if in_stock(game, id) <= 0:
 		return Lang.t("Davon hat Gorm gerade keins fertig.")
 	var price := ware_price(game, id)
-	if game.coins < price:
+	if not Payment.can_pay(game, price):
 		return Lang.t("Dafür reicht dein Kupfer nicht.")
 	if not p.bag_fits(id):
 		return Lang.t("Deine Tasche ist voll.")
-	game.coins -= price
+	Payment.pay(game, price)
 	game.smith_stock[id] = in_stock(game, id) - 1
 	if int(game.smith_stock[id]) <= 0:
 		game.smith_stock.erase(id)
@@ -597,7 +597,7 @@ static func forge(game: Node, id: String, by_smith := false) -> String:
 		return Lang.t("Dafür hast du zu wenig Eisen.")
 	if int(game.bars.get(STEEL, 0)) < cost.steel:
 		return Lang.t("Dafür hast du zu wenig Stahl.")
-	if game.coins < cost.gold:
+	if not Payment.can_pay(game, cost.gold):
 		return Lang.t("Dafür reicht dein Kupfer nicht.")
 	if p.bag.count(THUNDER_ORE) < cost.ore:
 		return Lang.t("Dafür hast du zu wenig Donnererz. Es glimmt nur bei Gewitter neben den Felsen.")
@@ -618,7 +618,7 @@ static func forge(game: Node, id: String, by_smith := false) -> String:
 		game.bars[STEEL] = int(game.bars[STEEL]) - lost_steel
 		if int(game.bars[STEEL]) <= 0:
 			game.bars.erase(STEEL)
-	game.coins -= cost.gold
+	Payment.pay(game, cost.gold)
 	if success:
 		p.bag.append(id)
 	else:
@@ -643,7 +643,7 @@ static func why_not_by_hand(game: Node, id: String) -> String:
 		return Lang.t("Dafür hast du zu wenig Eisen.")
 	if int(game.bars.get(STEEL, 0)) < cost.steel:
 		return Lang.t("Dafür hast du zu wenig Stahl.")
-	if game.coins < cost.gold:
+	if not Payment.can_pay(game, cost.gold):
 		return Lang.t("Dafür reicht dein Kupfer nicht.")
 	if game.player.bag.count(THUNDER_ORE) < cost.ore:
 		return Lang.t("Dafür hast du zu wenig Donnererz. Es glimmt nur bei Gewitter neben den Felsen.")
@@ -674,11 +674,11 @@ static func mend(game: Node, id: String) -> String:
 	if int(p.wear.get(id, 0)) <= 0:
 		return Lang.t("%s ist wie neu.") % Items.item_name(id)
 	var price := mend_price(id, game)
-	if game.coins < price:
+	if not Payment.can_pay(game, price):
 		return Lang.t("Dafür reicht dein Kupfer nicht.")
-	while int(p.wear.get(id, 0)) > 0 and game.coins >= price:
+	while int(p.wear.get(id, 0)) > 0 and Payment.can_pay(game, price):
 		p.wear[id] = int(p.wear[id]) - 1
-		game.coins -= price
+		Payment.pay(game, price)
 	if int(p.wear[id]) <= 0:
 		p.wear.erase(id)
 	return ""
@@ -687,8 +687,8 @@ static func mend(game: Node, id: String) -> String:
 ## Buys iron bars. Returns "" on success, else why not.
 static func buy_iron(game: Node, count: int) -> String:
 	var price := iron_price(game)
-	if count <= 0 or game.coins < price * count:
+	if count <= 0 or not Payment.can_pay(game, price * count):
 		return Lang.t("Dafür reicht dein Kupfer nicht.")
-	game.coins -= price * count
+	Payment.pay(game, price * count)
 	game.iron += count
 	return ""

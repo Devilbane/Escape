@@ -274,7 +274,7 @@ const HINT_SHOWINGS := 2
 var _hints_now := {}
 var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
-const PERSON_STATIONS := ["npc", "bank", "barbier", "tempel", "haendler", "steinmetz", "schmied", "wanderhaendler"]
+const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, "barbier", "tempel", "haendler", "steinmetz", "schmied", "wanderhaendler"]
 ## Lives the hero gets back for climbing to the next level.
 const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
@@ -409,6 +409,10 @@ var _pending_search := {}
 ## A crate the hero was sent to pick up with a click (see Crate).
 var _pending_crate: Crate = null
 var menus: Menus
+## Shows the building plots on the open map and marks out new ones (see Plots).
+var plot_marker: PlotMarker
+## The blueprint tool on the hero's plot (see HouseSketch).
+var house_sketcher: HouseSketcher
 ## Playing together with friends (see CoopSession); off unless the player hosts or joins.
 var coop: CoopSession
 ## Items left in the safe room's storage chest, and what the merchant sells.
@@ -892,6 +896,7 @@ func _setup_drawer() -> void:
 	buttons.add_child(_make_button(Lang.t("Schlagen"), do_strike, true))
 	buttons.add_child(_make_button(Lang.t("Kiste"), do_crate, true))
 	buttons.add_child(_make_button(Lang.t("Stein"), do_stone, true))
+	buttons.add_child(_make_button(Lang.t("Land"), plot_action, true))
 	buttons.add_child(_make_button(Lang.t("Angeln"), fish_action, true))
 	buttons.add_child(_make_button(Lang.t("Schenken"), gift_action, true))
 	buttons.add_child(_make_button(Lang.t("Lager"), _camp_from_drawer, true))
@@ -1795,6 +1800,9 @@ func _use_station(s: Dictionary) -> void:
 		player.face(s.pos - player.global_position)
 		trader_role = s.npc.role
 		menus.open(s.kind)
+	elif s.kind == HouseSketcher.KIND:
+		player.face(s.pos - player.global_position)
+		house_sketcher.enter()
 	elif s.kind == "schrein":
 		_open_shrine(s)
 	elif s.kind == WarHorn.KIND:
@@ -2944,12 +2952,11 @@ func _show_weather() -> void:
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
 	var dusty := _weather_look.duplicate()
 	dusty.mist = Weather.dusty_mist(_weather_look, day_hour)
-	var haze := Weather.haze_color(_env.fog_light_color, _weather_look, day_hour, Moon.light(day))
-	haze = Weather.moonlit_haze(haze, day_hour, Moon.light(day))
 	var winter_fog := Weather.is_winter(day)
-	if winter_fog:
-		haze = Weather.winter_haze(haze, day_hour, float(_weather_look.mist), Moon.light(day))
-	_clouds.set_look(dusty.mist, haze, float(_weather_look.mist) if winter_fog else 0.0)
+	var haze := Weather.fog_haze(_env.fog_light_color, float(_weather_look.mist), winter_fog)
+	# One even haze at night and over the winter snow; patchy clouds only by day.
+	var even := float(_weather_look.mist) if (winter_fog or DayNight.glow_at(day_hour) > 0.5) else 0.0
+	_clouds.set_look(dusty.mist, haze, even)
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
@@ -3011,6 +3018,16 @@ func load_level(index: int, restock := true) -> void:
 	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
 	add_child(level)
 	level.build()
+	plot_marker = null
+	house_sketcher = null
+	if level is Outdoor:
+		plot_marker = PlotMarker.new()
+		plot_marker.game = self
+		level.add_child(plot_marker)
+		house_sketcher = HouseSketcher.new()
+		house_sketcher.game = self
+		level.add_child(house_sketcher)
+		plot_marker.refresh()
 	# The fog of war remembers what the hero saw here before (see Journal).
 	journal.restore_fog(level)
 	level.player = player
@@ -5389,7 +5406,7 @@ func hero_notices() -> Array:
 	if worn > 0:
 		out.append(["repair", str(worn)])
 	for id in HomeUpgrades.ALL:
-		if HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, coins) == "":
+		if HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, Payment.worth(self)) == "":
 			out.append(["upgrade", ""])
 			break
 	return out
@@ -6297,6 +6314,18 @@ func _on_player_trained(id: String, value: int) -> void:
 	_update_hud()
 
 
+## The drawer's "Land" button: start marking a building plot, or start again
+## (see PlotMarker). It works anywhere on the open map, so the hero does not
+## have to go back to the clerk each time.
+func plot_action() -> void:
+	if state != State.PLAYING or menus.is_open() or not player.can_act():
+		return
+	if plot_marker == null:
+		show_message(Lang.t("Land abstecken geht nur im Freien."), 2.0)
+		return
+	plot_marker.start()
+
+
 ## Double click or C: sneak (slow, silent, hard to see) or walk normally.
 func _toggle_sneak() -> void:
 	if player.dead or not player.controllable:
@@ -7083,6 +7112,14 @@ func _anyone_hunting() -> bool:
 
 
 func _process(delta: float) -> void:
+	if plot_marker != null and plot_marker.marking():
+		var ground = _mouse_to_floor(get_viewport().get_mouse_position())
+		if ground != null:
+			plot_marker.hover(ground)
+	elif house_sketcher != null and house_sketcher.active:
+		var spot = _mouse_to_floor(get_viewport().get_mouse_position())
+		if spot != null:
+			house_sketcher.hover(spot)
 	_update_quick_bar()
 	_eerie(delta)
 	_tick_clock(delta)
@@ -7207,6 +7244,8 @@ func _process(delta: float) -> void:
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
 			QuarryRocks.KIND: Lang.t("Dagegenlaufen, um Stein zu brechen"),
+			HouseSketcher.KIND: Lang.t("Dagegenlaufen, um den Bauplan deines Hauses zu zeichnen"),
+			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
 			"hort": Lang.t("Dagegenlaufen, um deinen Hort zu betrachten"),
@@ -7466,7 +7505,12 @@ func _unhandled_input(event: InputEvent) -> void:
 						if no_room != "":
 							show_message(no_room, 1.6)
 					KEY_ESCAPE:
-						if playtest_file != "":
+						if house_sketcher != null and house_sketcher.active:
+							house_sketcher.leave()
+						elif plot_marker != null and plot_marker.marking():
+							plot_marker.cancel()
+							show_message(Lang.t("Abstecken abgebrochen."), 1.6)
+						elif playtest_file != "":
 							back_to_editor()
 						elif _drawer_open:
 							# The pull-out menu goes first, as a window would.
@@ -7476,6 +7520,15 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif event is InputEventMouseButton:
 				var point = _mouse_to_floor(event.position)
 				if point == null:
+					return
+				if house_sketcher != null and house_sketcher.active:
+					house_sketcher.mouse(point, event.pressed, event.button_index)
+					get_viewport().set_input_as_handled()
+					return
+				if plot_marker != null and plot_marker.marking():
+					if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+						plot_marker.click(point)
+					get_viewport().set_input_as_handled()
 					return
 				if event.button_index == MOUSE_BUTTON_RIGHT and _drag_stone != null:
 					# Turns the dragged block a quarter round.
@@ -7609,10 +7662,10 @@ func gift_action() -> void:
 		return
 	var count := int(info.count)
 	if info.gift == "gold":
-		if coins < count:
+		if not Payment.can_pay(self, count):
 			show_message(Lang.t(info.wish), 2.6)
 			return
-		coins -= count
+		Payment.pay(self, count)
 		Sfx.play_coins(self, count)
 	else:
 		if crafting.have(info.gift) < count:
@@ -7762,11 +7815,11 @@ func apply_home_bonus() -> void:
 
 ## Hagen builds an upgrade onto the house: "" when done, else why not.
 func build_home_upgrade(id: String) -> String:
-	var why := HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, coins)
+	var why := HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, Payment.worth(self))
 	if why != "":
 		return why
 	HomeUpgrades.pay_stones(id, player.bag, storage)
-	coins -= int(HomeUpgrades.ALL[id].gold)
+	Payment.pay(self, int(HomeUpgrades.ALL[id].gold))
 	home_upgrades[id] = true
 	learn(HomeUpgrades.LEARN)
 	apply_home_bonus()

@@ -1,0 +1,1 @@
+- New: plan your house on your registered plot: run into the blueprint sign, drag walls along the grid, turn them into doors and windows, with undo. It is only a sketch for now.

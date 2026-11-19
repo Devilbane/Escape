@@ -283,6 +283,7 @@ const EN := {
 	"Gelehrter": "Scholar",
 	"Wasserträgerin": "Water carrier",
 	"Herold der Krone": "Herald of the crown",
+	"Amtmann des Grundbuchs": "Land registry clerk",
 	"Priesterin": "Priestess",
 	"Gildenmeister": "Guild master",
 	"Postmeister": "Postmaster",

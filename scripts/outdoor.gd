@@ -91,10 +91,10 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZScAXQWHJUDV&@'{}-/?¤"
+const WALK := ".,Pai:0123456789KOGMYZS¢cAXQWHJUDV&@'{}-/?¤"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
-const VILLAGERS := "0123456789KOGMYZS"
+const VILLAGERS := "0123456789KOGMYZS¢"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -155,6 +155,12 @@ const CHAPEL_PARTS := [
 ## Half the nave's width (x) and length (z), the height of its walls and of
 ## the gables under the roof, all in kit metres.
 const CHAPEL_HALF := Vector2(12, 12)
+## The wall lamps beside the door (kit metres, measured from doorway_01 and wall_01): the door
+## opening is 4 wide around x = 0 and its jambs reach out to 2.5, so the lamps stand 3.5 either side of
+## the middle (x), at 5.5 high (y) on the front wall's face, flush with it (z = 11 + the wall's 1).
+const TEMPLE_LAMP_X := [-3.5, 3.5]
+const TEMPLE_LAMP_Y := 5.5
+const TEMPLE_LAMP_Z := 12.0
 const CHAPEL_EAVES := 16.0
 const CHAPEL_GABLE_HEIGHT := 13.0
 ## The ground the chapel covers, steps included (kit metres), and the middle
@@ -1133,6 +1139,18 @@ func _build_bench(c: Vector2i) -> void:
 ## hanging from its arm (see VillageProps.build_lamp), its panes and the
 ## candle in it glowing at night.
 func _build_lantern(pos: Vector3) -> void:
+	VillageProps.build_lamp(self, pos, _lantern_panes())
+	# A few icicles on it while snow lies (see SnowCaps).
+	var frost := SnowCaps.lamp_node(pos, VillageProps.LANTERN_AT)
+	if frost:
+		add_child(frost)
+	_lantern_glow(pos + LAMP_LIGHT_AT, pos + VillageProps.LANTERN_AT)
+	_add_solid(pos, Vector3(0.7, 3, 0.7))
+
+
+## The glass of the lanterns, shared by all of them: lit at nightfall with the
+## windows of the village (see set_hour).
+func _lantern_panes() -> StandardMaterial3D:
 	if _pane_mat == null:
 		_pane_mat = StandardMaterial3D.new()
 		_pane_mat.albedo_color = Color(0.32, 0.3, 0.24, 0.55)
@@ -1141,13 +1159,13 @@ func _build_lantern(pos: Vector3) -> void:
 		_pane_mat.emission_enabled = true
 		_pane_mat.emission = Color(1.0, 0.68, 0.34)
 		_pane_mat.emission_energy_multiplier = 0.0
-		# Lit at nightfall with the windows of the village.
 		_window_mats[_pane_mat] = _pane_mat
-	VillageProps.build_lamp(self, pos, _pane_mat)
-	# A few icicles on it while snow lies (see SnowCaps).
-	var frost := SnowCaps.lamp_node(pos, VillageProps.LANTERN_AT)
-	if frost:
-		add_child(frost)
+	return _pane_mat
+
+
+## What makes a lantern shine: the light that set_hour dims by day and
+## brightens at night, and a candle in the lantern that glows once it fades.
+func _lantern_glow(light_at: Vector3, candle_at: Vector3) -> void:
 	var light := OmniLight3D.new()
 	# A natural, gentler orange, and a falloff that fades out softly instead of ending in a hard
 	# edge on the snow (attenuation above 1 pulls the light in toward the lamp).
@@ -1155,10 +1173,9 @@ func _build_lantern(pos: Vector3) -> void:
 	light.light_energy = 2.2
 	light.omni_range = 11.0
 	light.omni_attenuation = 1.8
-	light.position = pos + LAMP_LIGHT_AT
+	light.position = light_at
 	add_child(light)
 	_lamps.append(light)
-	# A candle in the lantern that glows once the light fades.
 	if _candle_mat == null:
 		_candle_mat = StandardMaterial3D.new()
 		_candle_mat.albedo_color = Color(1.0, 0.8, 0.5)
@@ -1172,11 +1189,27 @@ func _build_lantern(pos: Vector3) -> void:
 	candle.mesh = ball
 	candle.material_override = _candle_mat
 	candle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	candle.position = pos + VillageProps.LANTERN_AT
+	candle.position = candle_at
 	candle.visible = false
 	add_child(candle)
 	_candles.append(candle)
-	_add_solid(pos, Vector3(0.7, 3, 0.7))
+
+
+## Two wall lamps on the temple's front wall, one each side of the door. They
+## are not parts of the chapel (its pieces all wear the kit's textures), but
+## siblings placed with the chapel's own transform.
+func _build_temple_lamps(chapel: Node3D) -> void:
+	var panes := _lantern_panes()
+	for x: float in TEMPLE_LAMP_X:
+		var holder := Node3D.new()
+		holder.name = "TempleLamp%d" % int(x > 0.0)
+		holder.position = chapel.transform * Vector3(x, TEMPLE_LAMP_Y, TEMPLE_LAMP_Z)
+		holder.rotation.y = chapel.rotation.y
+		add_child(holder)
+		VillageProps.build_wall_lamp(holder, Vector3.ZERO, panes)
+		# The light and the candle sit in the middle of the lantern's glass, turned with the wall.
+		var glass_at := holder.position + (VillageProps.WALL_LANTERN_AT - Vector3(0, 0.03, 0)).rotated(Vector3.UP, holder.rotation.y)
+		_lantern_glow(glass_at, glass_at)
 
 
 ## A leafy tree, or near the graveyard an autumn pine or a bare one.
@@ -1889,6 +1922,7 @@ func _build_chapel(center: Vector3, rot: float, room: Vector2) -> Node3D:
 	chapel.position = center - (Vector3(0, 0, CHAPEL_FOOT_MID) * s).rotated(Vector3.UP, rot)
 	spill.transform = chapel.transform
 	add_child(chapel)
+	_build_temple_lamps(chapel)
 	return chapel
 
 
@@ -2254,6 +2288,11 @@ func _pave_entrances() -> void:
 	_ground_tex.update(_ground_img)
 
 
+## Whether a tile lies within the village's reach (see Plots: no building plots there).
+func near_village(c: Vector2i) -> bool:
+	return _in_village(c)
+
+
 ## Whether a tile lies within the village: close to one of its buildings.
 func _in_village(c: Vector2i) -> bool:
 	if _village_near.is_empty():
@@ -2597,7 +2636,7 @@ func _spawn_villagers() -> void:
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied"}.get(ch, "npc")
+			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "¢": PlotOffice.KIND}.get(ch, "npc")
 			var station := {"kind": kind, "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)

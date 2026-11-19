@@ -138,42 +138,22 @@ static func dusty_mist(weather_look: Dictionary, hour: float) -> float:
 	return maxf(float(weather_look.mist), NIGHT_DUST * DayNight.glow_at(hour))
 
 
-## The colour of the night's dust: the haze of fog is as dark as the ambient
-## light, which is next to black at night, so a thin dust in that colour
-## vanishes against the dark ground. The dust is moonlit instead, a cool
-## blue-grey a little brighter than the night around it.
-const DUST_COLOR := Color(0.32, 0.4, 0.58)
-
-
-## The colour of the haze: the fog's own, moonlit blue-grey where the night's
-## dust is what hangs in the air (`moon` is how bright the night's moon is, 0
-## to 1). Real fog keeps its colour.
-static func haze_color(fog_color: Color, weather_look: Dictionary, hour: float, moon := 1.0) -> Color:
-	var dust := DayNight.glow_at(hour) * (1.0 - clampf(float(weather_look.mist), 0.0, 1.0))
-	return fog_color.lerp(DUST_COLOR * (0.3 + 0.7 * clampf(moon, 0.0, 1.0)), dust)
-
-
-## The haze lifted to a dark moonlit blue at night, for fog too: a haze as dark as the night's
-## ambient light read as black smoke over the pale snow. The moon sets how much: a bright moon
-## makes it a dim blue, a new moon lets it sink into the dark. It never gets darker than it was.
-static func moonlit_haze(haze: Color, hour: float, moon := 1.0) -> Color:
-	var night := DayNight.glow_at(hour)
-	var lit := DUST_COLOR * (0.3 + 0.7 * clampf(moon, 0.0, 1.0))
-	return Color(maxf(haze.r, lerpf(haze.r, lit.r, night)), maxf(haze.g, lerpf(haze.g, lit.g, night)),
-			maxf(haze.b, lerpf(haze.b, lit.b, night)), haze.a)
-
-
-## The cool white of winter fog. Over snow, a dark blue haze reads as dirty blotches, so winter
-## fog is a soft, even haze in this colour, dimmed a little at night (more with a dim moon).
+## The cool white of winter fog: only its tint, the brightness is the haze's own.
 const WINTER_HAZE := Color(0.7, 0.77, 0.88)
 
 
-## The haze of fog in winter: cool white, never dark. `fog` is how thick the fog is (0 to 1).
-static func winter_haze(haze: Color, hour: float, fog: float, moon := 1.0) -> Color:
-	var night := DayNight.glow_at(hour)
-	var bright := lerpf(1.0, 0.5 + 0.2 * clampf(moon, 0.0, 1.0), night)
-	var white := Color(WINTER_HAZE.r * bright, WINTER_HAZE.g * bright, WINTER_HAZE.b * bright, haze.a)
-	return haze.lerp(white, clampf(fog, 0.0, 1.0))
+## The colour fog is drawn in (clouds and mist). Fog never adds light: the haze is the colour of the
+## air around it (`air`, the environment's fog colour, which is as dark as the ambient light, so
+## next to black at night) and so only hides things in the dark, it never lights the scenery up.
+## In winter it is tinted cool white over the snow, with the same brightness. No channel is ever
+## brighter than the air's brightest one.
+static func fog_haze(air: Color, fog: float, winter: bool) -> Color:
+	if not winter:
+		return air
+	var lum := maxf(air.r, maxf(air.g, air.b))
+	var cool := Color(WINTER_HAZE.r, WINTER_HAZE.g, WINTER_HAZE.b, air.a) * (lum / WINTER_HAZE.b)
+	cool.a = air.a
+	return air.lerp(cool, clampf(fog, 0.0, 1.0))
 
 
 ## The part of the day the chances go by.
@@ -507,9 +487,7 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 	mist.emitting = m > 0.02
 	mist.visible = mist.emitting
 	var mist_mat: StandardMaterial3D = (mist.mesh as QuadMesh).material
-	# Mist by day is pale. At night it is dark bluish cloud: as bright as the moonlight (`light`
-	# carries the moon's phase) makes it, sinking into the dark without a moon, never white and
-	# never black smoke.
-	var pale := clampf(0.12 + light * 1.6, 0.12, 1.0)
-	var night := clampf(1.0 - light * 2.0, 0.0, 1.0)
-	mist_mat.albedo_color = Color(pale * lerpf(0.95, 0.7, night), pale * lerpf(0.97, 0.86, night), pale, m)
+	# Mist by day is pale. At night it is no brighter than the dark around it (it never lights the
+	# scenery up, it only hides it): its brightness follows the light of the hour, which is low.
+	var pale := clampf(light * light * 1.6, 0.03, 1.0)
+	mist_mat.albedo_color = Color(pale * 0.95, pale * 0.97, pale, m)

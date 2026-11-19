@@ -1,0 +1,67 @@
+extends SceneTree
+## Headless test for the compendium's chat commands page (see ChatCommands,
+## Menus._build_chat_commands): every command that is switched on has an
+## entry with an English text, the page builds, and it keeps the window's size.
+## Run with: godot --headless --fixed-fps 60 -s tests/chat_commands.gd
+
+var failures := 0
+var game: Node
+var frames := 0
+var started := false
+
+
+func check(ok: bool, what: String) -> void:
+	if not ok:
+		failures += 1
+		print("FAIL: ", what)
+
+
+func _initialize() -> void:
+	game = load("res://scenes/main.tscn").instantiate()
+	root.add_child(game)
+
+
+func _process(_delta: float) -> bool:
+	frames += 1
+	if frames == 5 and not started:
+		started = true
+		_run()
+	return false
+
+
+func _run() -> void:
+	if game.state == game.State.TITLE:
+		game._start_playing()
+	for i in 10:
+		await process_frame
+	var all := ChatCommands.entries()
+	check(all.size() >= 4, "godmode, teleport, weather and the tour are listed")
+	var names := all.map(func(e): return e.name)
+	check("Gottmodus" in names and "Teleport" in names and "Wetter und Zeit" in names and "Himmelstour" in names, "the entries: %s" % str(names))
+	for e in all:
+		check(Lang.EN.has(e.name) and Lang.EN.has(e.text), "%s has English texts" % e.name)
+		check(not e.examples.is_empty() and e.syntax != "", "%s has syntax and examples" % e.name)
+	# Every example is a command that the game takes as one.
+	for e in all:
+		for ex in e.examples:
+			var line: String = ex
+			check(Godmode.is_command(line) or Teleport.parse(line) != null or SkyCommand.parse(line) != null, "example '%s' is a command" % line)
+	check(Lang.EN.has("Befehle") and Lang.EN.has("Beispiele"), "page texts have English")
+
+	# The page.
+	var menus = game.menus
+	menus.compendium_page = "wissen"
+	menus.open("kompendium")
+	await process_frame
+	menus.compendium_page = "befehle"
+	menus._rebuild()
+	await process_frame
+	check(menus.is_open(), "the page opens")
+	menus.close()
+
+	game.delete_save(game.save_path())
+	if failures == 0:
+		print("PASS: chat_commands")
+	else:
+		print("FAILED: ", failures)
+	quit(1 if failures > 0 else 0)

@@ -411,6 +411,8 @@ var _pending_crate: Crate = null
 var menus: Menus
 ## Shows the building plots on the open map and marks out new ones (see Plots).
 var plot_marker: PlotMarker
+## The blueprint tool on the hero's plot (see HouseSketch).
+var house_sketcher: HouseSketcher
 ## Playing together with friends (see CoopSession); off unless the player hosts or joins.
 var coop: CoopSession
 ## Items left in the safe room's storage chest, and what the merchant sells.
@@ -1797,6 +1799,9 @@ func _use_station(s: Dictionary) -> void:
 		player.face(s.pos - player.global_position)
 		trader_role = s.npc.role
 		menus.open(s.kind)
+	elif s.kind == HouseSketcher.KIND:
+		player.face(s.pos - player.global_position)
+		house_sketcher.enter()
 	elif s.kind == "schrein":
 		_open_shrine(s)
 	elif s.kind == WarHorn.KIND:
@@ -3014,10 +3019,15 @@ func load_level(index: int, restock := true) -> void:
 	add_child(level)
 	level.build()
 	plot_marker = null
+	house_sketcher = null
 	if level is Outdoor:
 		plot_marker = PlotMarker.new()
 		plot_marker.game = self
 		level.add_child(plot_marker)
+		house_sketcher = HouseSketcher.new()
+		house_sketcher.game = self
+		level.add_child(house_sketcher)
+		plot_marker.refresh()
 	# The fog of war remembers what the hero saw here before (see Journal).
 	journal.restore_fog(level)
 	level.player = player
@@ -7094,6 +7104,10 @@ func _process(delta: float) -> void:
 		var ground = _mouse_to_floor(get_viewport().get_mouse_position())
 		if ground != null:
 			plot_marker.hover(ground)
+	elif house_sketcher != null and house_sketcher.active:
+		var spot = _mouse_to_floor(get_viewport().get_mouse_position())
+		if spot != null:
+			house_sketcher.hover(spot)
 	_update_quick_bar()
 	_eerie(delta)
 	_tick_clock(delta)
@@ -7218,6 +7232,7 @@ func _process(delta: float) -> void:
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
 			QuarryRocks.KIND: Lang.t("Dagegenlaufen, um Stein zu brechen"),
+			HouseSketcher.KIND: Lang.t("Dagegenlaufen, um den Bauplan deines Hauses zu zeichnen"),
 			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
@@ -7478,7 +7493,9 @@ func _unhandled_input(event: InputEvent) -> void:
 						if no_room != "":
 							show_message(no_room, 1.6)
 					KEY_ESCAPE:
-						if plot_marker != null and plot_marker.marking():
+						if house_sketcher != null and house_sketcher.active:
+							house_sketcher.leave()
+						elif plot_marker != null and plot_marker.marking():
 							plot_marker.cancel()
 							show_message(Lang.t("Abstecken abgebrochen."), 1.6)
 						elif playtest_file != "":
@@ -7491,6 +7508,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif event is InputEventMouseButton:
 				var point = _mouse_to_floor(event.position)
 				if point == null:
+					return
+				if house_sketcher != null and house_sketcher.active:
+					house_sketcher.mouse(point, event.pressed, event.button_index)
+					get_viewport().set_input_as_handled()
 					return
 				if plot_marker != null and plot_marker.marking():
 					if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:

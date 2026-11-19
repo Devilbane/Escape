@@ -23,5 +23,5 @@ func _init() -> void:
 	p = Payment.plan(300, 0, 20, 1)
 	check(p.goldmuenze == 0 and p.silbermuenze == 12 and p.change == 0, "silver is used before gold")
 	check(Payment.plan(300, 0, 1, 0).is_empty(), "too poor pays nothing")
-	print("payment: ", "ok" if failed == 0 else "%d failed" % failed)
+	print("PASS" if failed == 0 else "payment: %d failed" % failed)
 	quit(1 if failed else 0)

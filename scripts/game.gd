@@ -2684,6 +2684,9 @@ func _tick_clock(delta: float) -> void:
 		Weather.apply(_env, _moon, _weather_look, flicker)
 		if level is Outdoor:
 			level.day = day
+			# The winter clothes change in the night, with the village asleep: from dusk on it is
+			# already tomorrow's season that counts (the day turns at dawn).
+			level.set_winter_wear(Weather.is_winter(day + (1 if DayNight.is_night(day_hour) else 0)))
 			level.set_hour(day_hour)
 			level.set_weather(weather)
 			level.set_puddles(puddle_water, _weather_look.rain, clampf(_env.ambient_light_energy / 0.52, 0.05, 1.0))
@@ -2747,12 +2750,20 @@ func _new_day(quiet := false) -> void:
 	quest_news(text, Color(1.0, 0.82, 0.4), 4.0)
 
 
+## How many hours after the first morning of a season the villagers talk about it.
+const SEASON_TALK_HOURS := 3.0
+
+
 ## The first morning of winter brings snow at once (and stops any rain); the first morning after
 ## it says spring is back (see Weather.is_winter).
 func _turn_of_season() -> void:
 	var winter := Weather.is_winter(day)
 	if winter == Weather.is_winter(day - 1):
 		return
+	if level is Outdoor:
+		# The villagers have a word about it when they step out (see Villager.season_remark).
+		level.season_talk = "winter" if winter else "spring"
+		level.season_talk_until = world_hours + SEASON_TALK_HOURS
 	if winter:
 		set_weather(Weather.SNOW)
 		if escaped:
@@ -5138,6 +5149,9 @@ func _sky_force(sky: Dictionary) -> void:
 	var kind: String = sky.weather
 	if sky.winter >= 0:
 		day = SkyCommand.day_for(day, sky.winter == 1)
+		if level is Outdoor:
+			# The command is instant: everyone is dressed (or undressed) on the spot.
+			level.set_winter_wear(sky.winter == 1, true)
 		parts.append(Lang.t("Winter an") if sky.winter == 1 else Lang.t("Winter aus"))
 	elif Weather.is_winter(day) and kind in [Weather.RAIN, Weather.STORM]:
 		# There is no rain or storm in winter (see Weather.for_season): end it.

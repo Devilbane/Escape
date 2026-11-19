@@ -248,3 +248,4 @@ lightning_strike.gd | 120 | fixed | pass | Lightning glows, scares and hurts wha
 place_monsters.gd | 60 | free | pass | Compendium places list their monsters' level range
 turning.gd | 60 | free | pass | Natural turns (limited turn rate, arcs)
 frozen_ponds.gd | 120 | free | pass | Frozen ponds with one fishing hole
+winter_wear.gd | 120 | fixed | PASS:_winter_wear | Winter clothes for the villagers

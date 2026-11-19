@@ -83,7 +83,7 @@ const RUMOURS := {
 		"tell": ["Ein alter Abenteurer hat mir verraten: Im Verlies ist manche Fackel gar keine Fackel, sondern ein Hebel.",
 			"An den Wänden des Verlieses stehen alte Schriften. Lies sie, sie verraten manches Geheimnis."],
 		"chat": [["Im Verlies soll es Räume geben, die keiner findet.", "Weil keiner an den Fackeln zieht, sagt Odo.", "Odo sagt viel, wenn der Tag lang ist."]]},
-	"hauptmann": {"who": ["4", "6", "K", "Y"], "slain": "hauptmann", "quest": "hauptmann",
+	"hauptmann": {"who": ["4", "6", "K", "Y", "¢"], "slain": "hauptmann", "quest": "hauptmann",
 		"tell": ["Der Räuberhauptmann am Pass trägt einen Schild so groß wie eine Tür. Wenn er anstürmt, spring zur Seite!",
 			"Die Gilde zahlt gut für den Kopf des Räuberhauptmanns. Frag Ragna, wenn du dich traust."],
 		"chat": [["Wieder ein Händler am Pass überfallen.", "Das war der Hauptmann mit seinem Riesenschild.", "Irgendwer muss ihm das Handwerk legen."]],

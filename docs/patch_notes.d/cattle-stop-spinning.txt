@@ -1,0 +1,1 @@
+- Cows, the bull and the other farm animals no longer spin on the spot to watch a hero walking past: they turn slowly, and only when the hero is well to the side.

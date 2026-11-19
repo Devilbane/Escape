@@ -68,6 +68,8 @@ const SEPARATION_WEIGHT := 1.6
 const EASE_SPEED := 1.2
 ## Animals farther apart than this (metres) are never looked at.
 const NEAR := 3.5
+## An animal that keeps an eye on the hero turns its body only when the hero is this far (radians) off its nose.
+const WATCH_DEADZONE := 0.9
 ## Every farm animal in the world, so neighbours are found without a scene search.
 static var _all: Array[FarmAnimal] = []
 ## A sneaking hero is noticed only this much closer.
@@ -292,7 +294,7 @@ func _physics_process(delta: float) -> void:
 		"graze", "idle":
 			if shy > 0.0 and away.length() < shy * CALM_FACTOR:
 				# Wary: stops grazing and keeps an eye on the hero.
-				_turn_to(-away, delta)
+				_watch(-away, delta)
 			_timer -= delta
 			if _timer <= 0.0:
 				_next()
@@ -681,6 +683,20 @@ func ease_apart(delta: float) -> bool:
 		return false
 	global_position = to
 	return true
+
+
+## Keeps an eye on something without spinning on the spot: the body turns at the slow rate of
+## its size (a cow takes its time, see Turning.rate) and only once the thing is well off to the
+## side, so a hero walking by does not make the animal pirouette.
+func _watch(direction: Vector3, delta: float) -> void:
+	var flat := _flat(direction)
+	if flat.length() < 0.01:
+		return
+	var facing := Vector3(sin(rotation.y), 0.0, cos(rotation.y))
+	if facing.angle_to(flat) < WATCH_DEADZONE:
+		return
+	var heading := Turning.steer(facing, flat, delta, Turning.rate(float(_stats.stride) * 1.2, false))
+	rotation.y = atan2(heading.x, heading.z)
 
 
 func _turn_to(direction: Vector3, delta: float) -> void:

@@ -1,0 +1,1 @@
+- Squirrels no longer get the snow-cover overlay and leave small paw prints in the snow.

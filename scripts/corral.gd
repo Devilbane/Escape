@@ -152,6 +152,62 @@ static func build_props(lvl: Outdoor) -> void:
 	lvl._put("bucket_water", lvl.cell_to_world(Vector2i(PEN.position.x + 2, south)) + Vector3(1.0, 0, 1.0), 0.6, Outdoor.PROP_SCALE * 0.5)
 
 
+## The thatch of the shelter's roof in `roof`: courses of straw bundles from the eaves up, each lying
+## a little higher than the one below and fraying at its lower edge, then loose strands along the
+## slope and a roll of straw over the ridge. `at` and `slope` place the roof's middle and its tilt.
+static func _thatch(roof: WeatheredProps.Builder, at: Vector3, slope: Basis, width: float, length: float, rng: RandomNumberGenerator) -> void:
+	var straw := Color(0.76, 0.62, 0.32)
+	var courses := 6
+	var step := length / courses
+	for i in courses:
+		var z := length * 0.5 - step * (i + 0.2)
+		var raise := 0.1 + 0.045 * i
+		var x := -width * 0.5 - 0.1
+		while x < width * 0.5 + 0.1:
+			var w := rng.randf_range(0.35, 0.65)
+			var ragged := rng.randf_range(-0.14, 0.2) if i == 0 else rng.randf_range(-0.05, 0.1)
+			var local := Vector3(x + w * 0.5, raise, z + ragged * 0.5)
+			var bundle := Basis(Vector3.UP, rng.randf_range(-0.07, 0.07)) * Basis(Vector3.RIGHT, rng.randf_range(-0.04, 0.04))
+			roof.box(at + slope * local, Vector3(w + 0.03, 0.16, step * 1.5 + ragged), W.vary(straw, rng, 0.1), W.FRESH, slope * bundle)
+			x += w
+	# Hanging fringe along the eaves.
+	var x2 := -width * 0.5
+	while x2 < width * 0.5:
+		var local2 := Vector3(x2, 0.1, length * 0.5 + 0.05)
+		roof.box(at + slope * local2, Vector3(rng.randf_range(0.08, 0.2), 0.1, rng.randf_range(0.2, 0.45)), W.vary(straw, rng, 0.12), W.FRESH, slope * Basis(Vector3.RIGHT, rng.randf_range(0.2, 0.7)))
+		x2 += rng.randf_range(0.1, 0.28)
+	# Loose strands that run down the slope.
+	for k in 360:
+		var local3 := Vector3(rng.randf_range(-width * 0.5, width * 0.5), 0.1 + 0.045 * courses * rng.randf() + 0.1, rng.randf_range(-length * 0.5, length * 0.5))
+		var c := W.vary(straw.lerp(Color(0.92, 0.8, 0.45), rng.randf()), rng, 0.1)
+		roof.box(at + slope * local3, Vector3(0.035, 0.02, rng.randf_range(0.4, 0.9)), c, W.FRESH, slope * Basis(Vector3.UP, rng.randf_range(-0.12, 0.12)))
+	# The ridge: a thick roll along the top edge.
+	var ridge := at + slope * Vector3(0, 0.3, -length * 0.5 + 0.1)
+	roof.cylinder(ridge - Vector3(width * 0.5 + 0.1, 0, 0), 0.22, 0.2, width + 0.2, W.vary(straw, rng, 0.05), W.FRESH, 8, Basis(Vector3.BACK, -PI / 2.0))
+
+
+## Gives the roof its snow caps (see SnowCaps): built from one stand-in slab, so the many bundles
+## of the thatch need not be searched.
+static func _snow_on_roof(lvl: Outdoor, at: Vector3, roof_at: Vector3, slope: Basis, width: float, length: float) -> void:
+	var top := 0.5
+	var corners: Array[Vector3] = []
+	for c in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		corners.append(lvl.global_position + at + roof_at + slope * Vector3(c.x * width * 0.5, top, c.y * length * 0.5))
+	var n := (slope * Vector3.UP).normalized()
+	var tris: Array = []
+	for t in [[0, 1, 2], [0, 2, 3]]:
+		var a: Vector3 = corners[t[0]]
+		var b: Vector3 = corners[t[1]]
+		var c: Vector3 = corners[t[2]]
+		tris.append({"a": a, "b": b, "c": c, "n": n, "area": (b - a).cross(c - a).length() * 0.5})
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("shelter snow")
+	var caps := SnowCaps.build(tris, lvl.global_position.y, [], rng, -lvl.global_position, 0.6)
+	var node := SnowCaps.node_for(caps)
+	if node:
+		lvl.add_child(node)
+
+
 ## The shelter: four posts, a back wall of boards, a thatched roof sloping to the front, a floor of
 ## straw and a long trough along the back. Open to the pen on the south side and to both ends.
 static func build_shelter(lvl: Outdoor) -> void:
@@ -173,19 +229,28 @@ static func build_shelter(lvl: Outdoor) -> void:
 	b.box(Vector3(0, front_top - 0.25, front), Vector3(half_x * 2.0, 0.22, 0.2), W.DARK_TIMBER, W.WOOD)
 	for h in [0.2, 0.85, 1.5, 2.15]:
 		b.box(Vector3(0, h, back - 0.12), Vector3(half_x * 2.0, 0.55, 0.1), W.vary(W.TIMBER[rng.randi() % W.TIMBER.size()], rng, 0.08), W.WOOD)
-	# The roof: planks under a thick layer of thatch.
+	# The roof: planks under a thatch of overlapping courses of straw bundles (see _thatch).
 	var slope := Basis(Vector3.RIGHT, tilt)
 	var middle_z := (back + front) * 0.5
 	var roof_at := Vector3(0, (back_top + front_top) * 0.5 - 0.06, middle_z)
-	b.box(roof_at, Vector3(Outdoor.TILE * SHELTER.size.x - 0.1, 0.16, front - back + 0.9), W.vary(W.TIMBER[3], rng, 0.06), W.WOOD, slope)
+	var roof_w := Outdoor.TILE * SHELTER.size.x
+	var roof_l := front - back + 1.0
+	b.box(roof_at, Vector3(roof_w - 0.1, 0.16, roof_l), W.vary(W.TIMBER[3], rng, 0.06), W.WOOD, slope)
 	var thatch := Color(0.74, 0.6, 0.3)
-	b.box(roof_at + slope.y * 0.16, Vector3(Outdoor.TILE * SHELTER.size.x + 0.2, 0.22, front - back + 1.1), W.vary(thatch, rng, 0.06), W.FRESH, slope)
-	b.box(roof_at + slope.y * 0.34, Vector3(Outdoor.TILE * SHELTER.size.x + 0.1, 0.1, front - back + 0.9), W.vary(thatch, rng, 0.1), W.FRESH, slope)
-	# The floor: a mat of straw with loose heaps and stalks.
-	b.box(Vector3(0, 0, 0), Vector3(half_x * 2.0 - 0.2, 0.06, (front - back) - 0.1), W.vary(thatch, rng, 0.05), W.FRESH)
-	for k in 55:
-		var p := Vector3(rng.randf_range(-half_x, half_x), 0.06, rng.randf_range(back + 0.5, front + 0.2))
-		b.box(p, Vector3(rng.randf_range(0.35, 0.8), 0.05 + rng.randf() * 0.04, 0.1), W.vary(thatch, rng, 0.12), W.FRESH, Basis(Vector3.UP, rng.randf() * TAU))
+	var roof := WeatheredProps.Builder.new()
+	_thatch(roof, roof_at, slope, roof_w, roof_l, rng)
+	var roof_mesh := roof.finish(lvl, at)
+	# Snow lies on it as real caps (SnowCaps), not as the flat white the overlay paints.
+	roof_mesh.set_meta("no_snow", true)
+	_snow_on_roof(lvl, at, roof_at, slope, roof_w, roof_l)
+	# The floor: a thick mat of straw, its edge frayed over the grass, with loose strands on top.
+	var fw := roof_w - 0.1
+	var fd := Outdoor.TILE * SHELTER.size.y - 0.1
+	b.box(Vector3(0, 0, 0), Vector3(fw, 0.05, fd), W.vary(thatch, rng, 0.05), W.FRESH)
+	for k in 420:
+		var p := Vector3(rng.randf_range(-fw * 0.5 - 0.2, fw * 0.5 + 0.2), 0.05 + rng.randf() * 0.06, rng.randf_range(-fd * 0.5 - 0.2, fd * 0.5 + 0.2))
+		var c := W.vary(thatch.lerp(Color(0.9, 0.78, 0.42), rng.randf() * 0.7), rng, 0.1)
+		b.box(p, Vector3(rng.randf_range(0.5, 1.3), 0.018, 0.045), c, W.FRESH, Basis(Vector3.UP, rng.randf() * TAU))
 	for x in [-3.2, 3.1]:
 		b.frustum(Vector3(x, 0.06, back + 0.7), Vector2(1.0, 0.8), Vector2(0.3, 0.3), 0.4, W.vary(thatch, rng, 0.08), W.FRESH, Basis(Vector3.UP, rng.randf() * TAU))
 	# The trough along the back: water at one end, hay in the rest.

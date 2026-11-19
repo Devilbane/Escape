@@ -45,7 +45,7 @@ var _delete_asked := ""
 ## "ok" or "failed", "" when it was opened to load a game.
 var saved_now := ""
 ## Which page of the compendium shows: "wissen" (controls and everything
-## learned), "auftraege" (the villagers' tasks), "ruf" (the villagers'
+## learned), "befehle" (the chat commands), "auftraege" (the villagers' tasks), "ruf" (the villagers'
 ## opinion of the hero) or "rezepte" (the recipes found and the ingredient pouch).
 var compendium_page := "wissen"
 ## The inventory's open tab: "tasche" (the bag) or "beutel" (the ingredient pouch).
@@ -4009,6 +4009,8 @@ func _build_overwrite() -> void:
 ## The widest a compendium tab gets, and the gap between tabs.
 const COMPENDIUM_TAB := 240.0
 const COMPENDIUM_TAB_GAP := 10
+## With every page unlocked (six or seven tabs) the gap is smaller, so the row fits the window.
+const COMPENDIUM_TAB_GAP_FULL := 4
 
 
 ## Every control on one side, everything the hero has been told on the
@@ -4017,14 +4019,16 @@ func _build_compendium() -> void:
 	_add_label(Lang.t("Kompendium"), 38, game.GOLD, game.TITLE_FONT)
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
-	tabs.add_theme_constant_override("separation", COMPENDIUM_TAB_GAP)
 	_box.add_child(tabs)
 	var open_tasks := 0
 	for id in Quests.ALL:
 		if game.quests.is_active(id):
 			open_tasks += 1
 	open_tasks += game.bounties.taken.size()
-	var tabs_shown := [["wissen", Lang.t("Steuerung und Gelerntes")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks], ["ruf", Lang.t("Ruf")]]
+	var tabs_shown := [["wissen", Lang.t("Wissen")], ["auftraege", Lang.t("Aufträge (%d offen)") % open_tasks], ["ruf", Lang.t("Ruf")]]
+	# The chat commands keep their own page, always there, so the tab row never changes
+	# for them.
+	tabs_shown.append(["befehle", Lang.t("Befehle")])
 	# The recipes get a page of their own once the first one is found.
 	if not game.crafting.entries().is_empty():
 		tabs_shown.append(["rezepte", Lang.t("Rezeptbuch (%d)") % game.crafting.entries().size()])
@@ -4041,14 +4045,18 @@ func _build_compendium() -> void:
 		tabs_shown.append(["orte", Lang.t("Orte (%d)") % _visited_places().size()])
 	elif compendium_page == "orte":
 		compendium_page = "wissen"
+	var gap := COMPENDIUM_TAB_GAP if tabs_shown.size() < 6 else COMPENDIUM_TAB_GAP_FULL
+	tabs.add_theme_constant_override("separation", gap)
 	# All tabs share one width, narrower when there are more of them, so the
 	# row never grows past the window.
-	var tab_width := minf(COMPENDIUM_TAB, floorf((WINDOW_SIZES.kompendium.x - COMPENDIUM_TAB_GAP * (tabs_shown.size() - 1)) / tabs_shown.size()))
+	var tab_width := minf(COMPENDIUM_TAB, floorf((WINDOW_SIZES.kompendium.x - gap * (tabs_shown.size() - 1)) / tabs_shown.size()))
 	for tab in tabs_shown:
 		var b := _item_button(tab[1], func():
 			compendium_page = tab[0]
 			_rebuild())
 		b.custom_minimum_size = Vector2(tab_width, 44)
+		# A tab never grows past its share, so the row always fits the window.
+		b.clip_text = true
 		if compendium_page == tab[0]:
 			b.modulate = Color(1.0, 0.9, 0.6)
 		else:
@@ -4056,6 +4064,9 @@ func _build_compendium() -> void:
 		tabs.add_child(b)
 	if compendium_page == "auftraege":
 		_build_quest_log()
+		return
+	if compendium_page == "befehle":
+		_build_chat_commands()
 		return
 	if compendium_page == "rezepte":
 		_build_recipes()
@@ -4132,6 +4143,50 @@ func _build_compendium() -> void:
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l.text = Lang.t(tips[i])
 		list.add_child(l)
+
+
+## The compendium's page of chat commands: a short note, then one block per
+## switched-on command (see ChatCommands) in a region of the same height as
+## the other pages, so switching tabs never reshapes the window.
+func _build_chat_commands() -> void:
+	var note: Label = game._make_label(game.TEXT_FONT, 16)
+	note.text = Lang.t("Befehle für Tests. Schreibe sie in die Chatzeile (Enter) und schicke sie mit Enter ab.")
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size.x = WINDOW_SIZES.kompendium.x - 80
+	_box.add_child(note)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(WINDOW_SIZES.kompendium.x - 80, 380)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 14)
+	scroll.add_child(list)
+	var all := ChatCommands.entries()
+	if all.is_empty():
+		var none: Label = game._make_label(game.TEXT_FONT, 16)
+		none.text = Lang.t("Keine Befehle eingeschaltet.")
+		list.add_child(none)
+	for entry in all:
+		var block := VBoxContainer.new()
+		block.add_theme_constant_override("separation", 2)
+		list.add_child(block)
+		var title: Label = game._make_label(game.TEXT_FONT, 20, game.GOLD)
+		title.text = Lang.t(entry.name)
+		block.add_child(title)
+		var syntax: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+		syntax.text = entry.syntax
+		block.add_child(syntax)
+		var text: Label = game._make_label(game.TEXT_FONT, 16)
+		text.text = Lang.t(entry.text)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.custom_minimum_size.x = WINDOW_SIZES.kompendium.x - 100
+		block.add_child(text)
+		var examples: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+		examples.text = "%s: %s" % [Lang.t("Beispiele"), "   ".join(entry.examples)]
+		examples.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		examples.custom_minimum_size.x = WINDOW_SIZES.kompendium.x - 100
+		block.add_child(examples)
 
 
 ## The floors and places the hero has entered, by their number in the game.

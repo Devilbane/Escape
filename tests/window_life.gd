@@ -20,6 +20,8 @@ func _init() -> void:
 	check(WindowLife.CURTAIN_CHANCE + WindowLife.FIGURE_CHANCE < 0.5, "most cycles hold no event")
 	check(WindowLights.ON_FROM < WindowLights.ON_TO, "windows light up over a stretch of time")
 	check(WindowLights.ON_TO < WindowLights.OFF_TO, "the last window lights before the last one goes out")
+	check(life.shader.code.contains("window_off"), "curtains close before the light goes out")
+	check(WindowLife.CLOSE_BEFORE > 0.1 + WindowLights.FADE, "the curtain is shut before the light starts to fade")
 	var glass := WindowLights.glass_material(Color(1.0, 0.7, 0.36))
 	var house := VillageHouse.build_narrow(Vector2(4, 8), 1, RandomNumberGenerator.new(), glass)
 	WindowLife.attach(house, life)

@@ -51,16 +51,17 @@ func _run() -> void:
 		cam.look_at(mid + Vector3(0, 3.6, 0))
 		cam.make_current()
 		game.player.global_position = mid + out * 14.0
-		# Normal odds, and a boosted set so the events are easy to catch.
-		for variant: String in ["busy", "normal"]:
-			mat.set_shader_parameter("curtain_chance", 0.22 if variant == "normal" else 0.5)
-			mat.set_shader_parameter("figure_chance", 0.1 if variant == "normal" else 0.5)
-			for hour: float in [20.6, 21.8]:
-				game.day_hour = hour
-				DayNight.apply(game._env, game._moon, hour)
-				lvl.set_hour(hour)
-				await _wait(6)
+		# One boosted figure shot, and one just before bedtime, curtains only.
+		for variant: String in ["figure", "bedtime"]:
+			mat.set_shader_parameter("curtain_chance", 0.0)
+			mat.set_shader_parameter("figure_chance", 1.0 if variant == "figure" else 0.0)
+			var hour := 20.6 if variant == "figure" else 21.5
+			game.day_hour = hour
+			DayNight.apply(game._env, game._moon, hour)
+			lvl.set_hour(hour)
+			for i in (6 if variant == "figure" else 1):
+				await _wait(6 if i == 0 else 40)
 				await RenderingServer.frame_post_draw
-				root.get_texture().get_image().save_png(shots.path_join("%s_%02d.png" % [variant, int(hour * 10)]))
+				root.get_texture().get_image().save_png(shots.path_join("%s%d.png" % [variant, i]))
 	game.delete_save(game.save_path())
 	print("PASS: window life shots")

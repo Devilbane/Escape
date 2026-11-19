@@ -1,0 +1,1 @@
+- The compendium has a new Commands page that lists every chat command with its syntax, a short description and examples.

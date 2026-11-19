@@ -21,10 +21,14 @@ const FADE := 0.1
 ## is the pane's place in its house plus the house's place in the world.
 const LIT_FUNCTION := """
 uniform float hour = 12.0;
-float window_lit(vec2 place) {
+float window_off(vec2 place) {
 	vec2 k = floor(place * 4.0 + 0.5);
 	float h = fract(sin(dot(k, vec2(12.9898, 78.233))) * 43758.5453);
-	float off = mix(%f, %f, h);
+	return mix(%f, %f, h);
+}
+float window_lit(vec2 place) {
+	vec2 k = floor(place * 4.0 + 0.5);
+	float off = window_off(place);
 	float h2 = fract(sin(dot(k, vec2(39.346, 11.135))) * 24634.6345);
 	float on = mix(%f, %f, h2);
 	// After midnight everyone sleeps; the glow itself fades with the dawn.

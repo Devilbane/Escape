@@ -63,9 +63,15 @@ func _winds() -> void:
 
 ## Every model with cloth, dressed as the game dresses it.
 func _models() -> void:
-	check(MODELS.size() == FlagWind.SHAPES.size(), "every model with cloth is tested")
+	# The models from files, and the banner on the temple tower, which the game builds itself.
+	check(MODELS.size() + 1 == FlagWind.SHAPES.size(), "every model with cloth is tested")
 	var level := Node3D.new()
 	root.add_child(level)
+	var banner := ChapelPenguin._banner()
+	level.add_child(banner)
+	FlagWind.attach(banner, ChapelPenguin.BANNER_NODE, level)
+	var banner_mat := banner.get_active_material(0) as ShaderMaterial
+	check(banner_mat != null and float(banner_mat.get_shader_parameter("flutter")) > 0.0, "the temple's banner flutters")
 	for model: String in MODELS:
 		var node: Node3D = load(MODELS[model]).instantiate()
 		level.add_child(node)

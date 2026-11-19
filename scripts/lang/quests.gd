@@ -61,7 +61,6 @@ const EN := {
 	"Neuer Auftrag: %s": "New quest: %s",
 	"Auftrag erfüllt: %s\nGeh zurück zu %s.": "Quest complete: %s\nGo back to %s.",
 	"Auftrag abgeschlossen: %s\nBelohnung: %s": "Quest finished: %s\nReward: %s",
-	"Steuerung und Gelerntes": "Controls and learned",
 	"Aufträge (%d offen)": "Quests (%d open)",
 	"Noch keine Aufträge. Sprich mit den Leuten im Dorf: Manche haben Arbeit für dich.": "No quests yet. Talk to the people in the village: some have work for you.",
 	"erledigt": "done",

@@ -14,14 +14,12 @@ static var _material: StandardMaterial3D
 ## Its own dice, so breathing never shifts the game's random rolls (hits, loot).
 static var _rng := RandomNumberGenerator.new()
 
-## Enough emitters that the oldest cloud has died out before its turn comes round again.
-const PUFFS := 3
+## How long one breath lasts (seconds).
+const BLOW := 0.7
 
-var _pool: Array[CPUParticles3D] = []
-var _next := 0
-## The emitter that breathed last.
 var _puff: CPUParticles3D
 var _timer := 0.0
+var _blow := 0.0
 
 
 ## Gives the model (a body's child) a breath of its own at its mouth.
@@ -54,21 +52,20 @@ static func _shared() -> StandardMaterial3D:
 
 
 func _ready() -> void:
-	for i in PUFFS:
-		var puff := _make_puff()
-		add_child(puff)
-		_pool.append(puff)
-	_puff = _pool[0]
+	_puff = _make_puff()
+	add_child(_puff)
 	_timer = _rng.randf_range(0.0, EVERY.y)
 
 
-## One emitter. A one-shot emitter that is restarted wipes its own live particles, so the
-## breaths take turns on a few of them and each cloud drifts and fades out in full.
+## The one emitter. It runs on and off instead of being restarted: a restart wipes the
+## particles still in the air, while switching it off only stops new ones, so each breath
+## is a stream that drifts and fades out in full as the next one starts. (One emitter per
+## breather, as before: every particle node draws from the game's random stream when made.)
 func _make_puff() -> CPUParticles3D:
 	var puff := CPUParticles3D.new()
 	puff.amount = 20
 	puff.lifetime = 1.6
-	puff.one_shot = true
+	puff.one_shot = false
 	puff.explosiveness = 0.0
 	puff.local_coords = false
 	puff.emitting = false
@@ -104,6 +101,10 @@ func _make_puff() -> CPUParticles3D:
 
 
 func _process(delta: float) -> void:
+	if _blow > 0.0:
+		_blow -= delta
+		if _blow <= 0.0:
+			_puff.emitting = false
 	if not Weather.cold:
 		return
 	_timer -= delta
@@ -113,9 +114,7 @@ func _process(delta: float) -> void:
 	exhale()
 
 
-## Breathes one cloud out now, on the emitter that has been idle longest, so the clouds
-## still in the air are left alone.
+## Breathes out now: the stream starts and stops by itself, clouds still in the air stay.
 func exhale() -> void:
-	_next = (_next + 1) % _pool.size()
-	_puff = _pool[_next]
-	_puff.restart()
+	_blow = BLOW
+	_puff.emitting = true

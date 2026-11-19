@@ -244,6 +244,161 @@ func _breath() -> void:
 		puff._timer = 0.0
 		puff._process(0.016)
 		check(puff._puff.emitting, "a villager breathes out a cloud in the cold")
+		puff._process(Breath.BLOW + 0.1)
+		check(not puff._puff.emitting, "the breath stops by itself, the cloud drifts on")
+		puff.exhale()
+		check(puff._puff.emitting, "the next breath starts without restarting the emitter")
+	game.set_weather(Weather.CLEAR, 4.0)
+	game.snow_cover = 0.0
+	game.load_level(game._outdoor_index(), false)
+	_settle()
+	var lvl: Outdoor = game.level
+	check(lvl.snow != null and not lvl.snow.lies(), "a clear day has no snow")
+	check(not Weather.cold and not game._snow.emitting, "no cold and no flakes on a clear day")
+	game.set_weather(Weather.SNOW, 3.0)
+	game.snow_cover = 0.6
+	for i in 30:
+		game._tick_clock(0.05)
+	game._show_weather()
+	check(lvl.snow.lies(), "the world is under snow")
+	check(game._snow.emitting and game._snow.visible, "flakes fall")
+	check(Weather.cold, "it is cold while it snows")
+	var covered := 0
+	var bare_wrong := 0
+	for mi: MeshInstance3D in lvl.find_children("*", "MeshInstance3D", true, false):
+		if mi.material_overlay == lvl.snow.material:
+			covered += 1
+			var up: Node = mi
+			while up != null and up != lvl:
+				if SnowCover.bare(up):
+					bare_wrong += 1
+					break
+				up = up.get_parent()
+	print("snow overlays: %d meshes" % covered)
+	check(covered > 20, "roofs, ground and props wear the snow layer (%d meshes)" % covered)
+	check(bare_wrong == 0, "no creature is covered in snow")
+	var shaded: ShaderMaterial = lvl.snow.material
+	check(lvl.warm_spots.size() >= 3 and int(shaded.get_shader_parameter("warm_count")) == mini(lvl.warm_spots.size(), SnowCover.WARM_MAX), "fires, the forge and the chimneys keep the snow off (%d spots)" % lvl.warm_spots.size())
+	var glowing := 0
+	for mi: MeshInstance3D in lvl.find_children("*", "MeshInstance3D", true, false):
+		if mi.material_overlay == lvl.snow.material and mi.material_override is BaseMaterial3D and (mi.material_override as BaseMaterial3D).emission_enabled:
+			glowing += 1
+	check(glowing == 0, "nothing glowing (coals, embers) wears snow")
+	check(float(shaded.get_shader_parameter("amount")) > 0.5, "the shader knows how thick the snow lies")
+	# A new thing built while it snows gets its coat too.
+	var late := MeshInstance3D.new()
+	late.mesh = BoxMesh.new()
+	lvl.add_child(late)
+	check(late.material_overlay == lvl.snow.material, "a roof built in the snow is covered")
+	# It melts away and the overlays come off again.
+	game.set_weather(Weather.CLEAR, 4.0)
+	game.snow_cover = 0.0
+	game._tick_clock(0.05)
+	check(not lvl.snow.lies(), "the snow is gone")
+	var left := 0
+	for mi: MeshInstance3D in lvl.find_children("*", "MeshInstance3D", true, false):
+		if mi.material_overlay == lvl.snow.material:
+			left += 1
+	check(left == 0, "no overlay is left once the snow melted")
+	# The layer is kept in the saved game.
+	game.snow_cover = 0.7
+	check(game.save_game(), "the game is saved")
+	var data: Dictionary = game._read_save(game.save_path())
+	check(is_equal_approx(float(data.get("snow", -1.0)), 0.7), "the saved game holds the snow")
+	game.snow_cover = 0.0
+	game._apply_save(data)
+	check(is_equal_approx(game.snow_cover, 0.7), "loading brings the snow back")
+	data.erase("snow")
+	game._apply_save(data)
+	check(game.snow_cover == 0.0, "an older saved game wakes up to bare ground")
+
+
+## The snow's body on the buildings: caps and icicles, hidden while the ground is bare and
+## shown once snow lies, every vertex with the way to its full place.
+func _caps() -> void:
+	var lvl: Outdoor = game.level
+	var caps: Array = SnowCaps.in_world(lvl)
+	var verts := 0
+	var ice := 0
+	for cap: MeshInstance3D in caps:
+		for i in cap.mesh.get_surface_count():
+			var n: int = (cap.mesh.surface_get_arrays(i)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+			verts += n
+			if cap.mesh.surface_get_material(i) == SnowCaps.ice_material():
+				ice += n
+	print("snow caps: %d buildings, %d vertices, %d of icicles" % [caps.size(), verts, ice])
+	check(caps.size() >= 5, "the buildings wear caps of snow")
+	check(ice > 0, "icicles hang from the eaves and windows")
+	game.snow_cover = 0.0
+	game._tick_clock(0.05)
+	check(caps.all(func(c: MeshInstance3D): return not c.visible), "no caps on bare roofs")
+	game.snow_cover = 1.0
+	game._tick_clock(0.05)
+	check(caps.all(func(c: MeshInstance3D): return c.visible), "the caps show while snow lies")
+	check(caps.all(func(c: MeshInstance3D): return c.material_overlay == null), "no overlay on the caps")
+	# The bush and ivy leaves take the cut-out snow, which keeps to their shape.
+	var leafy := 0
+	for leaves: GeometryInstance3D in lvl.find_children("Leaves_*", "MultiMeshInstance3D", true, false):
+		var over := leaves.material_overlay as ShaderMaterial
+		if over != null and over.shader == SnowCover.CUTOUT_SHADER:
+			leafy += 1
+	check(leafy > 0, "snow on the leaves of bushes and ivy")
+
+
+func _prints() -> void:
+	var lvl: Outdoor = game.level
+	game.set_weather(Weather.SNOW, 3.0)
+	game.snow_cover = 0.1
+	game._tick_clock(0.05)
+	var before := SnowPrints._live.size()
+	lvl.snow_print(Vector3(1, 0, 1), 0.0)
+	check(SnowPrints._live.size() == before, "no prints in a dusting of snow")
+	game.snow_cover = 1.0
+	game._tick_clock(0.05)
+	lvl.snow_print(Vector3(1, 0, 1), 0.0)
+	check(SnowPrints._live.size() == before + 1, "a print in the snow")
+	for i in SnowPrints.MAX + 20:
+		lvl.snow_print(Vector3(i * 0.1, 0, 0), 0.0)
+	check(SnowPrints._live.size() <= SnowPrints.MAX, "only so many prints at once")
+	# Every walker's print has a picture, and the toes lead the way it goes.
+	for kind in SnowPrints.KINDS:
+		check(SnowPrints.texture(kind) != null, "a %s print has a picture" % kind)
+	for kind in SnowTrail.FEET:
+		check(SnowPrints.KINDS.has(SnowTrail.FEET[kind][0]), "%s presses a known print" % kind)
+	# Steps crunch in the snow, on any open ground, but the pace keeps to the ground beneath.
+	var spot: Vector3 = lvl.spots.square[0]
+	check(Surfaces.step_ground(lvl, spot) == Surfaces.SNOW, "a step in the snow crunches")
+	check(Surfaces.ground(lvl, spot) != Surfaces.SNOW, "the snow does not change the pace")
+	check(Surfaces.step_sound(Surfaces.SNOW).begins_with("step_snow_"), "snow plays its own steps")
+	for i in Surfaces.STEP_SOUNDS:
+		check(ResourceLoader.exists(Sfx.DIR + "step_snow_%d.wav" % i), "the snow step %d exists" % i)
+	game.snow_cover = 0.1
+	game._tick_clock(0.05)
+	check(Surfaces.step_ground(lvl, spot) != Surfaces.SNOW, "a dusting of snow does not crunch")
+
+
+func _breath() -> void:
+	var lvl: Outdoor = game.level
+	game.snow_cover = 1.0
+	game.set_weather(Weather.SNOW, 3.0)
+	game._tick_clock(0.05)
+	game._show_weather()
+	check(game.player.find_children("*", "Breath", true, false).size() == 1, "the hero has a breath")
+	var breathers := 0
+	for v: Villager in lvl.villagers:
+		breathers += v.find_children("*", "Breath", true, false).size()
+	check(breathers >= lvl.villagers.size() and breathers > 0, "every villager has a breath")
+	var puff: Breath = null
+	for v: Villager in lvl.villagers:
+		for b: Breath in v.find_children("*", "Breath", true, false):
+			if b.is_visible_in_tree():
+				puff = b
+	check(puff != null, "someone out in the village breathes")
+	check(Weather.cold, "it is cold")
+	if puff != null:
+		puff._timer = 0.0
+		puff._process(0.016)
+		check(puff._puff.emitting, "a villager breathes out a cloud in the cold")
 		var first: CPUParticles3D = puff._puff
 		puff.exhale()
 		check(first.emitting and puff._puff != first, "the next breath leaves the cloud in the air alone")

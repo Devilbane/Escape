@@ -66,6 +66,29 @@ func _run() -> void:
 			if is_equal_approx(w.w, 1.8):
 				var coals := Vector3(w.x, w.y, w.z)
 				await _shot("snow_forge", coals + Vector3(3.5, 3.6, 4.5), coals + Vector3(0, 1.0, 0), 55.0)
+		if OS.get_environment("ONLY") == "balls":
+			# Snowballs bursting on a grown-up and on the ground: only a white puff, soon gone.
+			var grown: Villager = null
+			for o: Villager in lvl.villagers:
+				if o._info.get("pal", "") == "" and o.visible and not o.at_home:
+					grown = o
+					break
+			var at: Vector3 = grown.global_position
+			grown._start("idle", 60.0)
+			# With the speech bubbles and the rest of the screen showing.
+			for layer: CanvasLayer in game.find_children("*", "CanvasLayer", true, false):
+				layer.visible = true
+			game._title.visible = false
+			for k in 6:
+				Snowball.throw(lvl, at + Vector3(3.0, 1.2, 1.0 + k * 0.3), grown, game.player, k % 2 == 1)
+				await _wait(6)
+			await _shot("snow_balls_burst", at + Vector3(2.5, 2.0, 3.5), at + Vector3(0, 0.8, 0), 50.0)
+			await _wait(90)
+			await _shot("snow_balls_after", at + Vector3(2.5, 2.0, 3.5), at + Vector3(0, 0.8, 0), 50.0)
+			game.delete_save(game.save_path())
+			print("PASS: snow shots")
+			quit(0)
+			return
 		if OS.get_environment("ONLY") == "games":
 			# The children's games: an angel and a rolled ball by the snowman, birds on a lamp post.
 			lvl.set_winter_wear(true, true)

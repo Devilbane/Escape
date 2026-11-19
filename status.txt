@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Give the snowman the snow look of the ground tiles; Make the fox dig up ingredients less often; Fix coloured balls in winter breath | Shipped this week: Make cows and bulls calm around visitors; Keep snow cover off the turning windmill sails (+48 more)
+Escape! dev status | Working on: Give the snowman the snow look of the ground tiles; Make the fox dig up ingredients less often | Shipped this week: Fix coloured balls in winter breath; Make cows and bulls calm around visitors; Keep snow cover off the turning windmill sails (+47 more)

@@ -30,7 +30,7 @@ static func build(menus: Menus) -> void:
 	var pending: Rect2i = marker.pending if marker != null else Rect2i()
 	var has_pending := pending.size != Vector2i.ZERO
 	menus._add_label(Lang.t("Amt der Krone: Grundbuch"), 38, game.GOLD, game.TITLE_FONT)
-	_line(menus, Lang.t("Im Beutel: %d Kupfer") % game.coins)
+	_line(menus, Lang.t("Im Beutel: %d Kupfer") % Payment.worth(game))
 	if mine.size != Vector2i.ZERO:
 		_line(menus, Lang.t("Dein Grundstück: %d x %d Felder, eingetragen.") % [mine.size.x, mine.size.y], GREEN)
 	else:
@@ -48,7 +48,7 @@ static func build(menus: Menus) -> void:
 	var mark: Button = menus._item_button(Lang.t("Land abstecken"), func(): _mark(menus), mine.size == Vector2i.ZERO)
 	mark.custom_minimum_size = Vector2(240, 54)
 	row.add_child(mark)
-	var can_pay: bool = has_pending and mine.size == Vector2i.ZERO and game.coins >= Plots.fee(pending)
+	var can_pay: bool = has_pending and mine.size == Vector2i.ZERO and Payment.can_pay(game, Plots.fee(pending))
 	var label := Lang.t("Eintragen lassen") if not has_pending else Lang.t("Eintragen lassen (%d Kupfer)") % Plots.fee(pending)
 	var register: Button = menus._item_button(label, func(): _register(menus), can_pay)
 	register.custom_minimum_size = Vector2(300, 54)
@@ -72,7 +72,7 @@ static func _register(menus: Menus) -> void:
 	var marker: PlotMarker = game.plot_marker
 	var rect := marker.pending
 	var fee := Plots.fee(rect)
-	if game.coins < fee:
+	if not Payment.can_pay(game, fee):
 		menus._note = Lang.t("Dafür reicht dein Kupfer nicht.")
 		menus._rebuild()
 		return
@@ -83,7 +83,7 @@ static func _register(menus: Menus) -> void:
 		menus._note = PlotMarker.reason(why)
 		menus._rebuild()
 		return
-	game.coins -= fee
+	Payment.pay(game, fee)
 	marker.pending = Rect2i()
 	marker.refresh()
 	Sfx.play_coins(game, mini(fee, 20))

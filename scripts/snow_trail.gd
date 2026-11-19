@@ -9,8 +9,8 @@ const NEAR := 26.0
 
 ## Which print each animal presses: [shape, size, stride in metres, sideways spread in metres].
 const FEET := {
-	"reh": ["hoof", 1.0, 0.75, 0.06],
-	"hirsch": ["hoof", 1.15, 0.8, 0.07],
+	"reh": ["hoof", 1.6, 0.6, 0.07],
+	"hirsch": ["hoof", 1.8, 0.65, 0.08],
 	"fuchs": ["paw", 1.0, 0.45, 0.05],
 	"goat": ["hoof", 0.8, 0.5, 0.05],
 	"billy": ["hoof", 0.9, 0.55, 0.05],

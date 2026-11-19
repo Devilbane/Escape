@@ -247,9 +247,10 @@ func post_of(o: Outdoor, brick: WallBrick, k: int) -> Vector3:
 
 ## Whether a standing stretch of wall high enough to stop a shot (StoneBlock.SHOT_STOP_LAYERS
 ## courses: the shut gate, not the low wall of two courses) lies across the line from `a` to `b`.
-func shot_blocked(a: Vector3, b: Vector3) -> bool:
+## With `any_height` any standing wall counts, the low one too (a knife is lobbed over that).
+func shot_blocked(a: Vector3, b: Vector3, any_height := false) -> bool:
 	for brick: WallBrick in bricks.values():
-		if not brick.blocks() or (WallBrick.POST_COURSES if brick.gate else WallBrick.COURSES) < StoneBlock.SHOT_STOP_LAYERS:
+		if not brick.blocks() or (not any_height and (WallBrick.POST_COURSES if brick.gate else WallBrick.COURSES) < StoneBlock.SHOT_STOP_LAYERS):
 			continue
 		var p := brick.global_position
 		var half := Level.TILE * 0.5

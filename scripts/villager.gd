@@ -913,6 +913,18 @@ func _defend(delta: float) -> void:
 	to.y = 0.0
 	_turn_to(to, delta)
 	var reach := WALL_REACH + slime.radius
+	# Pip, and a fighter with a knife left in his belt, throw over the wall at a slime out of
+	# blade's reach: a wall of two layers is low enough to throw over (see VillageWall.shot_blocked).
+	var knifer := VillageArms.style(role) == "throw" or (VillageArms.style(role) == "melee" and knives > 0)
+	if knifer and (VillageArms.style(role) == "throw" or to.length() > reach) \
+			and to.length() <= VillageArms.THROW_RANGE and level.has_clear_shot(global_position, slime.global_position):
+		_blow_cool -= delta
+		if _blow_cool > 0.0:
+			if not _anim.is_playing() or _current_anim != "Throw":
+				play("Idle")
+			return
+		_throw_knife(slime)
+		return
 	if to.length() > reach:
 		# Along the inside of the wall towards it, never out through it.
 		var next := global_position + to.normalized() * _stride("Running_A", RUN_SPEED) * delta
@@ -1289,17 +1301,20 @@ func _hunt_slimes(delta: float) -> void:
 
 
 ## Pip's throw: a knife at the slime, then a pause (see VillageArms).
-func _throw_knife() -> void:
+func _throw_knife(target: Enemy = null) -> void:
 	_blow_cool = VillageArms.THROW_TIME
 	if VillageArms.style(role) != "throw":
 		knives -= 1
 	_current_anim = "Throw"
 	_anim.play("Throw", 0.1)
-	var slime := threat
+	var slime := target if target != null else threat
 	get_tree().create_timer(0.3, false, true).timeout.connect(func():
 		if eaten or not is_inside_tree() or slime == null or not is_instance_valid(slime) or slime.dead:
 			return
 		var origin := global_position + Vector3(0, 1.0, 0)
+		# With the wall in between the knife is lobbed high, clear of the stones.
+		if level.village_wall.shot_blocked(global_position, slime.global_position, true):
+			origin.y = WallBrick.COURSES * WallBrick.COURSE + 0.4
 		Sfx.play(self, "swing", -8.0, global_position)
 		Projectile.village_knife(level, origin, slime.global_position - origin, slime, blow() + VillageArms.KNIFE_BONUS))
 

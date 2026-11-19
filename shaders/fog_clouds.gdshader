@@ -46,5 +46,6 @@ void fragment() {
 	// Nothing on the sky or far away.
 	float reach = 1.0 - smoothstep(max_distance * 0.7, max_distance, length(view.xyz));
 	ALBEDO = haze;
-	ALPHA = clamp(body * low * reach * strength * 0.8, 0.0, 0.85);
+	// An even haze covers everything, so it is lighter than patchy clouds.
+	ALPHA = clamp(body * low * reach * strength * 0.8 * mix(1.0, 0.6, even), 0.0, 0.85);
 }

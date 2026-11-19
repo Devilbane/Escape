@@ -72,6 +72,10 @@ func _make_puff() -> CPUParticles3D:
 	puff.explosiveness = 0.0
 	puff.local_coords = false
 	puff.emitting = false
+	# Particles otherwise draw their seed from the game's own random stream and would shift
+	# every roll after them (hits, loot): this one takes its seed from the breath's own dice.
+	puff.use_fixed_seed = true
+	puff.seed = _rng.randi()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(0.4, 0.4)
 	quad.material = _shared()

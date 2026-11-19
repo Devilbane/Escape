@@ -872,6 +872,7 @@ func _raise_roofs() -> void:
 						raised[Vector2i(cx, cz)] = maxi(int(raised.get(Vector2i(cx, cz), 0)), layer)
 	var before: Dictionary = level.roof_layers
 	level.roof_layers = raised
+	var dropped := false
 	for stone: StoneBlock in level.stones.duplicate():
 		if not is_instance_valid(stone) or stone.layer == 0:
 			continue
@@ -882,9 +883,13 @@ func _raise_roofs() -> void:
 			now = maxi(now, int(raised.get(c, 0)))
 		if was > now and stone.layer >= was:
 			level.take_stone(stone)
+			dropped = true
 			if plan != null:
 				plan.deposit(HouseSketch.STONE, 1)
-	level._sync_built()
+	# Only then: the saved list of blocks (level.built) is read back after the
+	# level is built, so it must not be rewritten from a still empty level.
+	if dropped:
+		level._sync_built()
 
 
 ## Notes that a built slab or roof lies over a ground cell, for _update_fade.

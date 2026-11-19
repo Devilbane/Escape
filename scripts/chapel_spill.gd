@@ -4,7 +4,7 @@ extends RefCounted
 ## for every window a shiny, see-through picture of its own glass (the same shape
 ## and colours, taken from the glass texture), lying on the ground in front of the
 ## window. It starts away from the wall by half as much as the window's sill is high,
-## ends 50% longer than the window is tall (the window's top is the far end) and
+## ends 72.5% longer than the window is tall (the window's top is the far end) and
 ## keeps its colours all along (it only softens at its two ends). Soft coloured rays of the same glass shine from the
 ## window down to the picture, like light falling through dusty air. One additive mesh for the whole temple, built in
 ## the temple's own metres. Its "glow" parameter is driven with the glass at night
@@ -31,7 +31,7 @@ const WINDOWS := [
 ]
 ## How much longer the picture is than the window, how far from the wall it starts
 ## (a fraction of the sill's height) and how bright it is at its far end (1 = the same all along).
-const STRETCH := 1.5
+const STRETCH := 1.725
 const GAP := 0.5
 const FAR_BRIGHTNESS := 1.0
 ## How many times wider the picture is at its far end than at the wall's side: the light spreads

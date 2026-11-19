@@ -46,6 +46,13 @@ const BODY_GAP := 1.15
 const EASE_SPEED := 1.6
 const AWARE := 1.8
 const SEPARATION_WEIGHT := 1.2
+## Someone who has been squeezed against others this long (seconds) without getting free
+## is no longer eased aside but walks off to an open spot nearby (see _break_free).
+const CROWDED_LIMIT := 4.0
+## In the morning each villager steps out of their house after a random wait of up to this many seconds.
+const MORNING_SPREAD := 25.0
+## The spread in use: tests that wake the village at a stroke set it to 0.
+static var morning_spread := MORNING_SPREAD
 ## Only villagers this close (metres) are looked at, looked up again every few ticks.
 const NEAR := 3.5
 ## Within this distance (metres) of the last point of its path a walker is no longer bent aside.
@@ -297,6 +304,8 @@ var _chop_face := Vector3.FORWARD
 var _chips: CPUParticles3D
 var _bitten := false
 var _stuck := 0.0
+## How long this villager has stood too close to someone (see _keep_apart).
+var _crowded := 0.0
 ## The smith's hammer on its way back up after a blow (the swing played
 ## backwards), and how many more blows follow before he rests.
 var _rebound := false
@@ -1589,9 +1598,11 @@ func _mixing_with(o: Villager) -> bool:
 ## spot never steps aside. Asleep at home, nobody is in the way.
 func _keep_apart(delta: float) -> void:
 	if at_home or keeps_spot():
+		_crowded = 0.0
 		return
 	var push := Vector3.ZERO
 	var stand := Vector3.ZERO
+	var squeezed := false
 	for other in _close_by():
 		if not is_instance_valid(other):
 			continue
@@ -1604,15 +1615,61 @@ func _keep_apart(delta: float) -> void:
 		var dist := away.length()
 		if dist >= room:
 			continue
-		var dir := away / dist if dist >= 0.01 else Vector3(cos(rotation.y), 0, sin(rotation.y))
+		squeezed = true
+		var dir := away / dist if dist >= 0.01 else _apart_dir(o)
 		# Two walking about share the step.
 		if o.keeps_spot():
 			# A shopkeeper's place is not given up: stepped out of at once, however fast the walker runs.
 			stand += dir * (room - dist)
 		else:
 			push += dir * (room - dist) * 0.5
+	if not squeezed:
+		_crowded = 0.0
+		return
 	if push.length() > 0.001 or stand.length() > 0.001:
-		_move_to(global_position + stand + push.limit_length(EASE_SPEED * delta))
+		_slide_to(global_position, stand + push.limit_length(EASE_SPEED * delta))
+	# Still in the crowd after all that pushing (a corner, a tie that cancels out): leave it.
+	_crowded += delta
+	if _crowded >= CROWDED_LIMIT:
+		_crowded = 0.0
+		_break_free()
+
+
+## Which way to step away from someone standing exactly on this villager. Each of the two
+## gets the opposite way (by who came first), never both the way they happen to face, which
+## would keep them stacked for ever.
+func _apart_dir(o: Villager) -> Vector3:
+	var a := float(get_instance_id() % 997) / 997.0 * TAU
+	var b := float(o.get_instance_id() % 997) / 997.0 * TAU
+	var angle := (a + b) * 0.5 + (0.0 if get_instance_id() < o.get_instance_id() else PI)
+	return Vector3(cos(angle), 0, sin(angle))
+
+
+## Moves by `step` from `from`, and where that way is blocked slides along a wall or turns to
+## the side, so a crowd against a wall or building still comes apart.
+func _slide_to(from: Vector3, step: Vector3) -> bool:
+	for turn in [0.0, 0.5, -0.5, 1.2, -1.2]:
+		var s: Vector3 = step.rotated(Vector3.UP, turn)
+		if _move_to(from + s):
+			return true
+	return false
+
+
+## Leaves a crowd that would not come apart: a short walk to an open tile nearby, then the
+## day goes on. Only for one standing about (idle, at work or sitting): a walker moves on anyway.
+func _break_free() -> void:
+	if not _task in ["idle", "work", "sit"] or chat_partner != null:
+		return
+	var here := level.world_to_cell(global_position)
+	for i in 24:
+		var c := here + Vector2i(_rng.randi_range(-4, 4), _rng.randi_range(-4, 4))
+		if c == here or not level.is_open(c) or _spot_taken(c):
+			continue
+		var point: Vector3 = level.cell_to_world(c)
+		if point.distance_to(global_position) < PASSING_SPACE * 2.0:
+			continue
+		_walk_to(point, WALK_SPEED, "idle")
+		return
 
 
 ## The lean away from walkers who are close, flat: a path bends round people instead of
@@ -2066,12 +2123,26 @@ func set_night(on: bool, at_once := false) -> void:
 		elif _task != "home":
 			_walk_to(_house_door(), WALK_SPEED * 1.15, "home")
 	elif at_home:
-		update_wear(true)
-		_hide_inside(false, true)
-		_start("idle", _rng.randf_range(0.5, 4.0))
-		_plan_remark()
+		# Each one comes out at a time of their own, so a whole village never steps
+		# into the street at the same moment and piles up at the doors.
+		var wait := 0.0 if at_once or not is_inside_tree() else _rng.randf_range(0.0, morning_spread)
+		if wait < 0.2:
+			_come_out()
+		else:
+			get_tree().create_timer(wait).timeout.connect(_come_out)
 	elif _task == "walk" and get_meta("then", "") == "home":
 		_start("idle", 0.5)
+
+
+## Steps out of the house into the morning (see set_night). Does nothing if night has
+## fallen again or they are already out.
+func _come_out() -> void:
+	if night or not at_home or not is_instance_valid(self) or level == null:
+		return
+	update_wear(true)
+	_hide_inside(false, true)
+	_start("idle", _rng.randf_range(0.5, 4.0))
+	_plan_remark()
 
 
 ## Whether the villager walks about with a torch right now: at night, out

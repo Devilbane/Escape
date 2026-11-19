@@ -105,6 +105,8 @@ func _process(_delta: float) -> bool:
 
 
 func _by_day() -> void:
+	# The village wakes at a stroke here (see Villager.MORNING_SPREAD for the real, staggered morning).
+	Villager.morning_spread = 0.0
 	game.hero_name = HERO
 	game.day_hour = 12.0
 	game.load_level(game._outdoor_index(), false)

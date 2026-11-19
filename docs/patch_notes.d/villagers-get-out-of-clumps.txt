@@ -1,0 +1,1 @@
+- Villagers who end up crowded together now always get free: they step apart even when standing exactly on each other, slide along walls, and walk off to an open spot if they stay squeezed.

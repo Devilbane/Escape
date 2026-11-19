@@ -1534,6 +1534,9 @@ func _spot_taken(c: Vector2i) -> bool:
 func _space_for(o: Villager) -> float:
 	if o.keeps_spot():
 		return PERSONAL_SPACE
+	# Two in a chat stand a conversation apart, not shoulder to shoulder.
+	if chat_partner == o and in_chat_place() and o.in_chat_place():
+		return CHAT_GAP * 0.85
 	return maxf(PASSING_SPACE, (radius + o.radius) * BODY_GAP)
 
 
@@ -1569,7 +1572,7 @@ func _keep_apart(delta: float) -> void:
 		if not is_instance_valid(other):
 			continue
 		var o: Villager = other
-		if o.at_home or (_mixing_with(o) and not o.keeps_spot()):
+		if o.at_home or (_mixing_with(o) and not (in_chat_place() and o.in_chat_place())):
 			continue
 		var away := global_position - o.global_position
 		away.y = 0.0

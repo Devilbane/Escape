@@ -20,14 +20,14 @@ const BLOW := 0.7
 ## While the breather walks, a second emitter lays a soft plume along the path, so the breath
 ## reads as one cloud trailing behind instead of single puffs left at every few steps.
 const MOVING_SPEED := 0.4
-## Breaths come closer together and last longer while moving, so the plume hardly breaks.
-const MOVING_EVERY := 0.55
-const MOVING_BLOW := 1.3
+## The plume runs on past the breath while moving, so it bridges to the next one.
+const TRAIL_BLOW := 2.0
 
 var _puff: CPUParticles3D
 var _trail: CPUParticles3D
 var _timer := 0.0
 var _blow := 0.0
+var _trail_blow := 0.0
 var _last_pos := Vector3.ZERO
 var _speed := 0.0
 
@@ -163,17 +163,19 @@ func _process(delta: float) -> void:
 		if _blow <= 0.0:
 			_puff.emitting = false
 	# The plume follows the breath, but only while the breather is actually walking.
-	_trail.emitting = _blow > 0.0 and moving
+	_trail_blow = maxf(0.0, _trail_blow - delta)
+	_trail.emitting = _trail_blow > 0.0 and moving
 	if not Weather.cold:
 		return
 	_timer -= delta
 	if _timer > 0.0 or not is_visible_in_tree():
 		return
-	_timer = _rng.randf_range(EVERY.x, EVERY.y) * (MOVING_EVERY / EVERY.x if moving else 1.0)
-	exhale(MOVING_BLOW if moving else BLOW)
+	_timer = _rng.randf_range(EVERY.x, EVERY.y)
+	exhale()
 
 
 ## Breathes out now: the stream starts and stops by itself, clouds still in the air stay.
-func exhale(blow := BLOW) -> void:
-	_blow = blow
+func exhale() -> void:
+	_blow = BLOW
+	_trail_blow = TRAIL_BLOW
 	_puff.emitting = true

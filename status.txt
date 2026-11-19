@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Make the village snowman solid | Shipped this week: House building: set things down on your flat roof; House building, phase 5: upper floor, roofs, stairs up and see-through roof (+48 more)
+Escape! dev status | Working on: Put villagers' glasses on their eyes; Make the village snowman solid | Shipped this week: House building: set things down on your flat roof; House building, phase 5: upper floor, roofs, stairs up and see-through roof (+48 more)

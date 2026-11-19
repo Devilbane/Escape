@@ -271,6 +271,7 @@ const FIGHT_SNEAK_BLOCK := 2.0
 const SNEAK_SPEED := 0.16
 const SNEAK_ANIM := "Walking_C"
 var _lantern: OmniLight3D
+var _fill: OmniLight3D
 ## See set_night_dim: how far the night closes in on the lantern, and what
 ## is left of its brightness and reach on a moonless night.
 var night_dim := 0.0
@@ -405,6 +406,15 @@ func _ready() -> void:
 	_lantern.omni_range = 8.5
 	_lantern.position = Vector3(0, 3.2, 0.6)
 	add_child(_lantern)
+	# A cool fill in front of the face, only at night (see _light_lantern): the
+	# lantern hangs above the head, so without it the hair glows and the face goes black.
+	_fill = OmniLight3D.new()
+	_fill.light_color = Color(0.72, 0.82, 1.0)
+	_fill.omni_range = 3.2
+	_fill.shadow_enabled = false
+	_fill.position = Vector3(0, 1.7, 1.5)
+	_fill.visible = false
+	add_child(_fill)
 	# A hand torch for the pitch-black places (see HandTorch).
 	torch = HandTorch.new(self)
 	add_child(torch)
@@ -473,6 +483,11 @@ func set_night_dim(dim: float) -> void:
 func _light_lantern() -> void:
 	_lantern.light_energy = (0.45 if sneaking else 1.1) * lerpf(1.0, NIGHT_LANTERN_ENERGY, night_dim)
 	_lantern.omni_range = (5.0 if sneaking else 8.5) * lerpf(1.0, NIGHT_LANTERN_RANGE, night_dim)
+	# At night the lantern sits lower and further forward, so it lights the face
+	# as much as the hair, and a gentle cool fill keeps the hero readable.
+	_lantern.position = Vector3(0, lerpf(3.2, 2.3, night_dim), lerpf(0.6, 1.2, night_dim))
+	_fill.light_energy = 0.55 * night_dim * (0.6 if sneaking else 1.0)
+	_fill.visible = night_dim > 0.05
 
 
 ## Whether skeletons could see the hero by some light, the lantern included.

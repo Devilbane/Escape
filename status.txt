@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Make the village snowman solid | Shipped this week: Put villagers' glasses on their eyes; House building: set things down on your flat roof (+48 more)
+Escape! dev status | Working on: Cellar planning: clearer squares, hints, faster digging; Make the village snowman solid | Shipped this week: Put villagers' glasses on their eyes; House building: set things down on your flat roof (+48 more)

@@ -34,6 +34,9 @@ const WINDOWS := [
 const STRETCH := 1.2
 const GAP := 0.5
 const FAR_BRIGHTNESS := 0.04
+## How many times wider the picture is at its far end than at the wall's side: the light spreads
+## out the farther it travels, like real light through a window.
+const SPREAD := 1.7
 ## The rays: ribbons across the beam at these heights of the window (0 = bottom,
 ## 1 = top) and sheets along it at these places across the window (0 = left, 1 = right).
 const RIBBONS := [0.1, 0.3, 0.5, 0.7, 0.9]
@@ -125,7 +128,7 @@ static func build_mesh() -> ArrayMesh:
 		var base := at + Vector3(0, LIFT, 0)
 		# The window's bottom edge is the near end, its top edge the far end.
 		var quad := [base + out * near - side * half, base + out * near + side * half,
-			base + out * far + side * half, base + out * far - side * half]
+			base + out * far + side * half * SPREAD, base + out * far - side * half * SPREAD]
 		var quv := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
 		var tex := [Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.end.y),
 			Vector2(rect.end.x, rect.position.y), Vector2(rect.position.x, rect.position.y)]
@@ -141,8 +144,9 @@ static func build_mesh() -> ArrayMesh:
 			var y := lerpf(sill, top, r)
 			var d := lerpf(near, far, r)
 			var tv := lerpf(rect.end.y, rect.position.y, r)
+			var wide := lerpf(1.0, SPREAD, r)
 			var corners := [base + up * y - side * half, base + up * y + side * half,
-				base + out * d + side * half, base + out * d - side * half]
+				base + out * d + side * half * wide, base + out * d - side * half * wide]
 			var cuv := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
 			var ctex := [Vector2(rect.position.x, tv), Vector2(rect.end.x, tv),
 				Vector2(rect.end.x, tv), Vector2(rect.position.x, tv)]
@@ -151,7 +155,7 @@ static func build_mesh() -> ArrayMesh:
 			var across := side * (f - 0.5) * 2.0 * half
 			var tu := lerpf(rect.position.x, rect.end.x, f)
 			var corners := [base + across + up * sill, base + across + up * top,
-				base + across + out * far, base + across + out * near]
+				base + across * SPREAD + out * far, base + across + out * near]
 			var cuv := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
 			var ctex := [Vector2(tu, rect.end.y), Vector2(tu, rect.position.y),
 				Vector2(tu, rect.position.y), Vector2(tu, rect.end.y)]

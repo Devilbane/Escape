@@ -88,8 +88,9 @@ static func node_for(mesh: ArrayMesh) -> MeshInstance3D:
 ## The caps of one building from its triangles (world space, see AgedStone.triangles), its
 ## ground height and its windows: each {"top": where an icicle hangs from, "out": the way the
 ## window looks, "wide": how wide it is}. The mesh is moved by `shift` (into the level's own
-## frame). Null when nothing on it faces the sky.
-static func build(tris: Array, ground: float, windows: Array, rng: RandomNumberGenerator, shift := Vector3.ZERO, lowest := LOWEST) -> ArrayMesh:
+## frame). Null when nothing on it faces the sky. With `ledge_ice` (stone buildings) a few icicles
+## also hang under their ledges and cornices, not only under the eaves.
+static func build(tris: Array, ground: float, windows: Array, rng: RandomNumberGenerator, shift := Vector3.ZERO, lowest := LOWEST, ledge_ice := false) -> ArrayMesh:
 	var tops := _open_tops(tris, ground, lowest)
 	var caps := _Surface.new()
 	var ice := _Surface.new()
@@ -99,7 +100,7 @@ static func build(tris: Array, ground: float, windows: Array, rng: RandomNumberG
 		for t: Dictionary in tops:
 			_slab(caps, t, depth)
 		for e: Dictionary in edges:
-			_roll(caps, ice, e, depth, rng)
+			_roll(caps, ice, e, depth, rng, ledge_ice)
 	for w: Dictionary in windows:
 		_window_icicles(ice, w, rng)
 	if caps.empty() and ice.empty():
@@ -297,7 +298,7 @@ static func _slab(s: _Surface, t: Dictionary, depth: Dictionary) -> void:
 
 ## The roll of snow along one open edge: round, lumpy, a little thinner towards its ends, and
 ## leaning out over the edge, furthest at an eave. Icicles hang under an eave's roll.
-static func _roll(s: _Surface, ice: _Surface, e: Dictionary, depth: Dictionary, rng: RandomNumberGenerator) -> void:
+static func _roll(s: _Surface, ice: _Surface, e: Dictionary, depth: Dictionary, rng: RandomNumberGenerator, ledge_ice := false) -> void:
 	var a: Vector3 = e.a
 	var b: Vector3 = e.b
 	var out: Vector3 = e.out
@@ -334,12 +335,13 @@ static func _roll(s: _Surface, ice: _Surface, e: Dictionary, depth: Dictionary, 
 		for k in ROLL_SIDES:
 			var k2 := (k + 1) % ROLL_SIDES
 			s.quad(rings[i] + k, rings[i] + k2, rings[i + 1] + k2, rings[i + 1] + k)
-	if not eave:
+	if not eave and not ledge_ice:
 		return
-	# Icicles under the roll, here and there, of many lengths.
+	# Icicles under the roll, here and there, of many lengths; under a ledge only a few.
+	var chance := 0.9 if eave else 0.3
 	var spot := rng.randf_range(0.05, ICICLE_GAP.y)
 	while spot < length - 0.05:
-		if rng.randf() < 0.9:
+		if rng.randf() < chance:
 			var at := a + along * spot
 			var hang := side * (lean + r * 0.35) + Vector3.UP * (rise - r * 0.75)
 			var long := rng.randf_range(ICICLE_LONG.x, ICICLE_LONG.y)
@@ -347,6 +349,45 @@ static func _roll(s: _Surface, ice: _Surface, e: Dictionary, depth: Dictionary, 
 				long *= 1.7
 			_icicle(ice, at, hang, long, rng.randf_range(ICICLE_THICK.x, ICICLE_THICK.y), rng)
 		spot += rng.randf_range(ICICLE_GAP.x, ICICLE_GAP.y)
+
+
+## The icicles of one street lamp at `pos` (in the frame of the level): a few under its arm and
+## round the lantern, from dice seeded by the place. Null node when nothing hangs.
+static func lamp_node(pos: Vector3, lantern: Vector3) -> MeshInstance3D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("lampice:%d:%d" % [roundi(pos.x * 10.0), roundi(pos.z * 10.0)])
+	var ice := _Surface.new()
+	for i in rng.randi_range(2, 4):
+		var at := pos + Vector3(rng.randf_range(-0.04, 0.04), 2.72, rng.randf_range(0.1, 1.15))
+		_icicle(ice, at, Vector3.ZERO, rng.randf_range(0.14, 0.42), rng.randf_range(0.02, 0.035), rng)
+	for i in rng.randi_range(1, 3):
+		var ang := rng.randf() * TAU
+		var at := pos + lantern + Vector3(cos(ang) * 0.24, -0.22, sin(ang) * 0.24)
+		_icicle(ice, at, Vector3.ZERO, rng.randf_range(0.1, 0.3), rng.randf_range(0.016, 0.026), rng)
+	var mesh := ArrayMesh.new()
+	ice.commit(mesh, ice_material(), Vector3.ZERO)
+	return node_for(mesh)
+
+
+## The icicles of the bounty board at `pos` (in the frame of the level): along the front and
+## back eaves of its little roof and under its top rail, from dice seeded by the place.
+static func board_node(pos: Vector3) -> MeshInstance3D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("boardice:%d:%d" % [roundi(pos.x * 10.0), roundi(pos.z * 10.0)])
+	var ice := _Surface.new()
+	for face in [-1.0, 1.0]:
+		var x := -1.2 + rng.randf_range(0.0, 0.2)
+		while x < 1.25:
+			if rng.randf() < 0.75:
+				var at := pos + Vector3(x, 2.66, face * rng.randf_range(0.38, 0.42))
+				_icicle(ice, at, Vector3.ZERO, rng.randf_range(0.18, 0.55), rng.randf_range(0.025, 0.045), rng)
+			x += rng.randf_range(0.14, 0.32)
+	for i in rng.randi_range(2, 4):
+		var at := pos + Vector3(rng.randf_range(-1.0, 1.0), 2.3, rng.randf_range(-0.08, 0.08))
+		_icicle(ice, at, Vector3.ZERO, rng.randf_range(0.1, 0.3), rng.randf_range(0.018, 0.03), rng)
+	var mesh := ArrayMesh.new()
+	ice.commit(mesh, ice_material(), Vector3.ZERO)
+	return node_for(mesh)
 
 
 ## Icicles under a window's top, shorter than those of the eaves.

@@ -950,6 +950,10 @@ func _build_bounty_board(c: Vector2i) -> void:
 		sheet.rotation.z = n[1]
 		add_child(sheet)
 		_add_mesh_box(pos + n[0] + Vector3(0, 0.24, 0.02), Vector3(0.08, 0.08, 0.02), seal)
+	# Icicles hang from its roof while snow lies (see SnowCaps).
+	var frost := SnowCaps.board_node(pos)
+	if frost:
+		add_child(frost)
 	_add_solid(pos, Vector3(2.4, 2.6, 1.0))
 	stations.append({"kind": "aushang", "cell": c, "pos": pos, "used": false})
 	_board_mark = Label3D.new()
@@ -1123,6 +1127,10 @@ func _build_lantern(pos: Vector3) -> void:
 		# Lit at nightfall with the windows of the village.
 		_window_mats[_pane_mat] = _pane_mat
 	VillageProps.build_lamp(self, pos, _pane_mat)
+	# A few icicles on it while snow lies (see SnowCaps).
+	var frost := SnowCaps.lamp_node(pos, VillageProps.LANTERN_AT)
+	if frost:
+		add_child(frost)
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.68, 0.38)
 	light.light_energy = 2.2
@@ -1977,6 +1985,7 @@ func _standalone(block: Rect2i) -> bool:
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
 func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST) -> void:
+	# Stone buildings (old) also carry icicles under their ledges.
 	if old:
 		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
 	var key := "%s|%s|%s|%s|%s|%s" % [level_name, middle, _bounds_in(node), old, foot_max, proud]
@@ -2012,7 +2021,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		# (shown only while snow lies, see SnowCaps), with dice of their own.
 		var ice_rng := RandomNumberGenerator.new()
 		ice_rng.seed = hash(key + "schnee")
-		var caps := SnowCaps.build(tris, ground, SnowCaps.windows_of(node, tris, WINDOW_UV), ice_rng, -offset, cap_from)
+		var caps := SnowCaps.build(tris, ground, SnowCaps.windows_of(node, tris, WINDOW_UV), ice_rng, -offset, cap_from, old)
 		_dressed[key] = {"leaves": leaves, "nest": spot - offset if spot != Vector3.INF else spot, "turn": rng.randf() * TAU, "caps": caps}
 	var done: Dictionary = _dressed[key]
 	var cap_node := SnowCaps.node_for(done.get("caps"))

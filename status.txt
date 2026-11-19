@@ -1,1 +1,1 @@
-Escape! dev status | Working on: House building, phase 4: dig a cellar with stairs and surfaces | Shipped this week: Draw no fog weather at night; Villagers that pile up always get free; House building, phase 3b: the hero builds your house while you are away (+47 more)
+Escape! dev status | Shipped this week: House building, phase 4: dig a cellar with stairs and surfaces; Draw no fog weather at night; Villagers that pile up always get free (+47 more)

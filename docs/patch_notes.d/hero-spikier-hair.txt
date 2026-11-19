@@ -1,1 +1,1 @@
-- The hero's spiky hair has more spikes, especially on the back of the head.
+- The hero's spiky hair now covers the back of the head fully, with no bare patches.

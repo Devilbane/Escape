@@ -69,6 +69,8 @@ const CREST_BACK := 1.5
 
 ## Spikes: how many tufts grow out of the short crop's hair.
 const SPIKES := 160
+## Extra tufts packed over the back of the head.
+const BACK_SPIKES := 110
 ## How high up the head (0 at the ears, 1 on top) the tufts begin.
 const TUFTS_FROM := 0.2
 ## The crop is shaved below this height, so no hair shows outside the tufts.
@@ -705,36 +707,40 @@ static func spikes_mesh(crop: PackedVector3Array) -> ArrayMesh:
 		areas.append(total)
 	if total <= 0.0:
 		return st.commit()
-	var placed := 0
-	var tries := 0
-	while placed < SPIKES and tries < SPIKES * 20:
-		tries += 1
-		var t := areas.bsearch(rng.randf() * total) * 3
-		var a := rng.randf()
-		var b := rng.randf()
-		if a + b > 1.0:
-			a = 1.0 - a
-			b = 1.0 - b
-		var root := crop[t] + (crop[t + 1] - crop[t]) * a + (crop[t + 2] - crop[t]) * b
-		var out := ((root - SKULL_CENTER) / SKULL_RADII).normalized()
-		# The back of the head starts its tufts lower, so it bristles too.
-		var back := clampf(-out.z, 0.0, 1.0)
-		var from := lerpf(TUFTS_FROM, 0.05, back)
-		if out.y < from:
-			continue
-		placed += 1
-		var normal := skull_normal(on_skull(root))
-		# How high up: 0 where the tufts start, 1 on top; and how far forward.
-		var up := clampf((out.y - from) / (1.0 - from), 0.0, 1.0)
-		var front := clampf(out.z, 0.0, 1.0)
-		var lock_length := lerpf(0.12, 0.3, smoothstep(0.0, 0.7, up)) * (0.85 + 0.3 * rng.randf()) * (1.0 + 0.25 * back)
-		# Over the forehead they stand up rather than into the eyes; the
-		# lowest ones lean back over the crop.
-		var dir := (normal + Vector3.UP * (0.25 + 0.6 * front) * up + Vector3(0.0, 0.0, -0.4 - 0.2 * front)).normalized()
-		dir = (dir + Vector3(rng.randfn(0.0, 0.12), rng.randfn(0.0, 0.08), rng.randfn(0.0, 0.12))).normalized()
-		var radius := lerpf(0.08, 0.11, up) * (0.85 + 0.3 * rng.randf())
-		_tuft(st, root - dir * 0.03, dir, lock_length, radius,
-				Color(rng.randf(), rng.randf(), clampf(0.5 - out.z * 0.6, 0.0, 1.0)), Vector3(0.0, -0.03, -0.05))
+	# Pass 0 spreads tufts over the whole crop; pass 1 packs extra ones over the
+	# back of the head, so no bare scalp shows between them there.
+	for pass_back in 2:
+		var placed := 0
+		var tries := 0
+		var wanted := BACK_SPIKES if pass_back == 1 else SPIKES
+		while placed < wanted and tries < wanted * 40:
+			tries += 1
+			var t := areas.bsearch(rng.randf() * total) * 3
+			var a := rng.randf()
+			var b := rng.randf()
+			if a + b > 1.0:
+				a = 1.0 - a
+				b = 1.0 - b
+			var root := crop[t] + (crop[t + 1] - crop[t]) * a + (crop[t + 2] - crop[t]) * b
+			var out := ((root - SKULL_CENTER) / SKULL_RADII).normalized()
+			# The back of the head starts its tufts lower, so it bristles too.
+			var back := clampf(-out.z, 0.0, 1.0)
+			var from := lerpf(TUFTS_FROM, 0.05, back)
+			if out.y < from or (pass_back == 1 and back < 0.15):
+				continue
+			placed += 1
+			var normal := skull_normal(on_skull(root))
+			# How high up: 0 where the tufts start, 1 on top; and how far forward.
+			var up := clampf((out.y - from) / (1.0 - from), 0.0, 1.0)
+			var front := clampf(out.z, 0.0, 1.0)
+			var lock_length := lerpf(0.12, 0.3, smoothstep(0.0, 0.7, up)) * (0.85 + 0.3 * rng.randf()) * (1.0 + 0.25 * back)
+			# Over the forehead they stand up rather than into the eyes; the
+			# lowest ones lean back over the crop.
+			var dir := (normal + Vector3.UP * (0.25 + 0.6 * front) * up + Vector3(0.0, 0.0, -0.4 - 0.2 * front)).normalized()
+			dir = (dir + Vector3(rng.randfn(0.0, 0.12), rng.randfn(0.0, 0.08), rng.randfn(0.0, 0.12))).normalized()
+			var radius := lerpf(0.08, 0.11, up) * (0.85 + 0.3 * rng.randf())
+			_tuft(st, root - dir * 0.03, dir, lock_length, radius,
+					Color(rng.randf(), rng.randf(), clampf(0.5 - out.z * 0.6, 0.0, 1.0)), Vector3(0.0, -0.03, -0.05))
 	return st.commit()
 
 

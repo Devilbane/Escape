@@ -186,6 +186,9 @@ static func resolve(level: Level) -> int:
 				for o in grid.get(c + Vector2i(dx, dy), []):
 					if o == b or done.has(b) or done.has(o) or not stacked(b, o):
 						continue
+					# Farm animals slide apart on their own every tick (see FarmAnimal.ease_apart); a jump here would show as a snap.
+					if b is FarmAnimal and o is FarmAnimal and peaceful(b) and peaceful(o):
+						continue
 					# A pet keeps its own gap to the hero (see Pet.FOLLOW_GAP): hopping out of its basket beside the hero is no stacking.
 					if (b is Player and o is Pet) or (b is Pet and o is Player):
 						continue

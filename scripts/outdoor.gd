@@ -3915,7 +3915,7 @@ func splash_puddle(at: Vector3, hard := true) -> void:
 ## How thick the snow lies on the open air, 0 to 1 (see SnowCover), and how bright
 ## the light of the hour is on it.
 func set_snow(cover: float, daylight := 1.0) -> void:
-	# Prints last minutes now, so they must not outlive the snow they are pressed into.
+	# Prints stay all day, but must not outlive the snow they are pressed into.
 	if cover < Weather.PRINT_FROM and not SnowPrints._live.is_empty():
 		SnowPrints.clear()
 	if snow:

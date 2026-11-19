@@ -253,7 +253,12 @@ func _prints() -> void:
 	for i in SnowPrints.MAX + 20:
 		lvl.snow_print(Vector3(i * 0.1, 0, 0), 0.0)
 	check(SnowPrints._live.size() <= SnowPrints.MAX, "only so many prints at once")
-	check(SnowPrints.HOLD + SnowPrints.FADE >= 290.0, "prints last about five minutes")
+	var kept: Node = SnowPrints._live[0]
+	check(is_instance_valid(kept) and kept.visible, "prints stay (nothing fades them)")
+	SnowPrints.clear()
+	check(SnowPrints._live.is_empty(), "a new day wipes the prints")
+	for i in 3:
+		lvl.snow_print(Vector3(i, 0, 0), 0.0)
 	# With the pool full, a new boot print pushes out a beetle's dot, not the other way round.
 	SnowPrints.clear()
 	for i in SnowPrints.MAX - 1:

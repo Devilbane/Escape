@@ -1,1 +1,1 @@
-- Footprints in the snow are a neutral soft grey now, no longer light blue at some hours of the day.
+- Footprints in the snow are a neutral soft grey now (no blue cast), stay all day and are wiped away when a new day starts.

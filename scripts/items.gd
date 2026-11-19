@@ -187,7 +187,7 @@ static var ALL := {
 	"alriks_siegelring": {"name": "Alriks Siegelring", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Für den Gelehrten im Dorf"},
 	# The tome from Sternhall's vault (see SternHall): read once, its spell is
 	# the hero's for good (see ArcaneBolt); the book itself is a keepsake.
-	"foliant_der_kraft": {"name": "Foliant der Entfesselten Kraft", "slot": "buch", "weight": 2, "price": 300, "no_loot": true, "unique": true, "effect": "Einzigartig: aus dem Sternengewölbe. Wer ihn gelesen hat, beherrscht die Entfesselte Kraft (Taste 2)"},
+	"foliant_der_kraft": {"name": "Foliant der Entfesselten Kraft", "slot": "buch", "weight": 2, "price": 300, "no_loot": true, "unique": true, "store": "buecher", "effect": "Einzigartig: aus dem Sternengewölbe. Wer ihn gelesen hat, beherrscht die Entfesselte Kraft (Taste 2)"},
 	"wetzstein": {"name": "Wetzstein", "slot": "auftrag", "weight": 1, "price": 1, "no_loot": true, "effect": "Für Schmied Gorm an seiner Esse"},
 	# Thunder ore: lightning leaves it glowing beside the rocks in a storm, and
 	# it fades once the storm has passed (see Weather). Never found as loot.

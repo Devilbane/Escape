@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Keep villagers from piling up: smooth separation with a visible gap | Shipped this week: Winter play and winter birds: snow angels, rolled snowballs, slides, empty nests, birds on lamp posts; Turn frozen Fritz 45° to the left (+48 more)
+Escape! dev status | Shipped this week: Keep villagers from piling up: smooth separation with a visible gap (+49 more)

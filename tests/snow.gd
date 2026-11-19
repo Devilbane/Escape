@@ -54,6 +54,18 @@ func _rules() -> void:
 		check(Weather.look(kind).has("snow"), "every look says how hard it snows: " + kind)
 	check(float(Weather.look(Weather.SNOW).snow) > 0.9 and float(Weather.look(Weather.CLEAR).snow) == 0.0, "only the snow look has snowfall")
 	check(float(Weather.look(Weather.SNOW).rain) == 0.0, "snow is not rain")
+	# In winter a thin flurry falls in any weather; a snowfall brings the full count.
+	var rain := Weather.make_rain()
+	var mist := Weather.make_mist()
+	var flakes := Weather.make_snow()
+	Weather.show_particles(rain, mist, Weather.look(Weather.CLEAR), 1.0, flakes, true)
+	check(flakes.emitting and flakes.amount == Weather.WINTER_FLAKES, "a clear winter day has a few flakes")
+	Weather.show_particles(rain, mist, Weather.look(Weather.SNOW), 1.0, flakes, true)
+	check(flakes.emitting and flakes.amount == Weather.SNOW_FLAKES, "a winter snowfall brings them all")
+	Weather.show_particles(rain, mist, Weather.look(Weather.CLEAR), 1.0, flakes, false)
+	check(not flakes.emitting and flakes.amount == Weather.SNOW_FLAKES, "a clear day out of winter has none")
+	for node: Node in [rain, mist, flakes]:
+		node.free()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
 	for i in 40:

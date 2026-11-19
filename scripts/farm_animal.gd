@@ -651,11 +651,8 @@ func separation() -> Vector3:
 		var dist := d.length()
 		if dist >= room * AWARE or absf(global_position.y - o.global_position.y) > Footprint.HEIGHT_GAP:
 			continue
-		if dist < 0.01:
-			var angle := float(get_instance_id() % 628) / 100.0
-			d = Vector3(cos(angle), 0.0, sin(angle))
-			dist = 0.01
-		push += d / dist * (1.0 - (dist - room) / (room * (AWARE - 1.0)) if dist > room else 1.0 + (room - dist) / room)
+		var dir := d / dist if dist >= 0.01 else Vector3(cos(float(get_instance_id() % 628) / 100.0), 0.0, sin(float(get_instance_id() % 628) / 100.0))
+		push += dir * (1.0 - (dist - room) / (room * (AWARE - 1.0)) if dist > room else 1.0 + (room - dist) / room)
 	return push
 
 

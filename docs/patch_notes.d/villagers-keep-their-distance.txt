@@ -1,0 +1,1 @@
+- Villagers keep a visible gap between each other: they slide apart smoothly when they get too close, and bend their way round people on the street instead of walking into them.

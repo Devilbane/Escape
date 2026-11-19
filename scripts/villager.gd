@@ -390,6 +390,91 @@ func _dress() -> void:
 	sheathe_weapons(_model, _info)
 
 
+# --- Winter clothes (see WinterWear) ---------------------------------------------
+
+## Whether the winter clothes are on right now.
+var wears_winter := false
+var _wear_check := 0.0
+## The first morning of a season: the time left until the remark about it, and the season it is on.
+var _remark_in := -1.0
+var _remark_for := ""
+
+## Lines a villager says on the first morning of winter, and of spring (see Outdoor.season_talk).
+## The roles in WINTER_OWN have lines of their own besides.
+const WINTER_LINES := [
+	"Brr! Die ganze Nacht hat es geschneit!",
+	"Der Winter ist da. Gut, dass der Pelz aus der Truhe ist!",
+	"Schau nur, wie der Schnee glitzert!",
+	"Meine Nase ist schon ganz rot.",
+	"Mein Atem steht als Wolke in der Luft.",
+	"Der erste Schnee! Heute Nacht kam er ganz leise.",
+	"Die Kälte kriecht einem in die Knochen.",
+	"Wer hat den Winter bestellt? Ich nicht!",
+]
+const WINTER_OWN := {
+	"1": ["Die Esse wärmt mich wenigstens. Der Rest friert."],
+	"2": ["Unter dem Schnee schlafen meine Kürbisse jetzt."],
+	"5": ["Ein Bier wärmt von innen. Sagt man."],
+	"7": ["Schnee! Schnee! Fang mich im Schnee!"],
+	"pippi": ["Schneeball-Zeit! Wer traut sich?"],
+	"9": ["Das Wasser im Eimer ist fast gefroren!"],
+	"3": ["Frisch verschneit: Das Holz macht sich schwerer."],
+	"4": ["Auf Posten im Schnee. Zum Glück habe ich meinen Pelz."],
+}
+const SPRING_LINES := [
+	"Der Schnee taut. Endlich wieder Frühling!",
+	"Die Pelze kommen zurück in die Truhe.",
+	"Hörst du das Tropfen? Der Winter ist vorbei.",
+]
+
+
+## Puts the winter clothes on or takes them off, when the village's wardrobe (Outdoor.winter_wear)
+## differs from what we wear: at once when asked, or when nobody can see it (at home, or far from
+## the hero); otherwise as soon as we go home to sleep.
+func update_wear(at_once := false) -> void:
+	if level == null or _model == null or wears_winter == level.winter_wear:
+		return
+	var unseen := (at_home and not visible) or not visible or level.player == null \
+		or global_position.distance_to(level.player.global_position) > WEAR_UNSEEN
+	if not (at_once or unseen):
+		return
+	wears_winter = level.winter_wear
+	if wears_winter:
+		WinterWear.put_on(_model, WinterWear.look_for(role, _info))
+	else:
+		WinterWear.take_off(_model)
+	# A bird perches on the top of the head, hat or no hat (see _top_of_head).
+	_head_top = -1.0
+
+
+## Farther from the hero than this the clothes change in the open.
+const WEAR_UNSEEN := 45.0
+
+
+## The first morning of a season: a word about it a little after stepping out of the door.
+func _plan_remark() -> void:
+	if level.season_talk == "" or level.world_hours > level.season_talk_until or _remark_for == level.season_talk and _remark_in >= 0.0:
+		return
+	_remark_for = level.season_talk
+	_remark_in = _rng.randf_range(6.0, 60.0)
+
+
+func _season_remark(delta: float) -> void:
+	if _remark_in < 0.0:
+		return
+	_remark_in -= delta
+	if _remark_in > 0.0:
+		return
+	if at_home or not visible or is_talking() or _task == "fight" or _task == "hide" or threat != null:
+		_remark_in = 5.0
+		return
+	_remark_in = -1.0
+	var lines: Array = WINTER_LINES + WINTER_OWN.get(role, []) if _remark_for == "winter" else SPRING_LINES
+	if _remark_for == "winter" and _rng.randf() < 0.4 and WINTER_OWN.has(role):
+		lines = WINTER_OWN[role]
+	say(Lang.t(lines[_rng.randi() % lines.size()]), Vector3.INF, 3.5)
+
+
 ## Blades and axes are put away until there is danger (see _draw_blade): the
 ## model's own weapon is hidden, except for the tool of a trade that swings it
 ## all day (the woodcutter's and the mason's axe). Shields and helmets stay.
@@ -1503,6 +1588,11 @@ func _physics_process(delta: float) -> void:
 	bump_cool = maxf(0.0, bump_cool - delta)
 	_keep_apart()
 	_mind_torch(delta)
+	_season_remark(delta)
+	_wear_check -= delta
+	if _wear_check <= 0.0:
+		_wear_check = 1.0
+		update_wear()
 	station.pos = global_position
 	station.cell = level.world_to_cell(global_position)
 	_leave_prints()
@@ -1849,6 +1939,10 @@ func set_night(on: bool, at_once := false) -> void:
 	if on:
 		knives = VillageArms.KNIVES
 	if role in NIGHT_OWLS or (on and works_late()):
+		if not on:
+			# Whoever kept watch all night changes at the turn of the shift.
+			update_wear(true)
+			_plan_remark()
 		return
 	if on:
 		_listen_to = Vector3.INF
@@ -1861,8 +1955,10 @@ func set_night(on: bool, at_once := false) -> void:
 		elif _task != "home":
 			_walk_to(_house_door(), WALK_SPEED * 1.15, "home")
 	elif at_home:
+		update_wear(true)
 		_hide_inside(false, true)
 		_start("idle", _rng.randf_range(0.5, 4.0))
+		_plan_remark()
 	elif _task == "walk" and get_meta("then", "") == "home":
 		_start("idle", 0.5)
 

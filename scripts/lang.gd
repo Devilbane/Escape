@@ -13,6 +13,7 @@ const SETTINGS_FILE := "user://einstellungen.json"
 
 ## The English texts, one script per feature, each with its own `EN` table.
 const PARTS := [
+	preload("res://scripts/lang/winter_wear.gd"),
 	preload("res://scripts/lang/chapel_penguin.gd"),
 	preload("res://scripts/lang/quarry.gd"),
 	preload("res://scripts/lang/frozen_fritz.gd"),

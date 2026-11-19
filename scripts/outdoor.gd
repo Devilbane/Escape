@@ -420,6 +420,14 @@ var _risen: Array = []
 ## The day the world's clock is on (see Game.day): with the hour it tells
 ## which night it is, and whether the wandering merchant is in the village.
 var day := 0
+## Whether the village wears its winter clothes (see WinterWear), set by Game from the day and the
+## hour: the clothes change in the night, so the village is asleep when they do.
+var winter_wear := false
+var _wear_known := false
+## "winter" or "spring" on the first morning of a season, until the villagers have had their say
+## about it (see Villager.season_remark), and the world hour it lasts until.
+var season_talk := ""
+var season_talk_until := 0.0
 ## Zarek, the wandering merchant, while he is in the village (else null),
 ## his pitch, and his cart with its lantern and its solid shapes.
 var wanderer: Villager
@@ -3132,6 +3140,19 @@ func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
 func is_opaque(c: Vector2i) -> bool:
 	var ch := cell_char(c)
 	return ch == "#" or ch == "=" or ch == "I" or BLOCK_CHARS.contains(ch)
+
+
+## Winter clothes on (or off). Whoever is out of sight changes at once; the rest change as they go
+## home to sleep (see Villager.update_wear). `at_once` (a game being loaded, the sky command) changes
+## everyone on the spot.
+func set_winter_wear(on: bool, at_once := false) -> void:
+	var first := not _wear_known
+	if on == winter_wear and not first and not at_once:
+		return
+	winter_wear = on
+	_wear_known = true
+	for v in villagers:
+		v.update_wear(first or at_once)
 
 
 ## Whether a tile is walkable ground (for villagers picking where to go).

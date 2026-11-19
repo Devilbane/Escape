@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Make dragonlings fly around buildings; Keep breath clouds from vanishing on the next breath | Shipped this week: Fix missing footprints in snow (buried in deep snow, washed out by light); Keep winter snow lying until spring, and cap the temple steps (+48 more)
+Escape! dev status | Working on: Make dragonlings fly around buildings | Shipped this week: Keep breath clouds from vanishing on the next breath; Fix missing footprints in snow (buried in deep snow, washed out by light) (+48 more)

@@ -2935,7 +2935,7 @@ func _show_weather() -> void:
 		_snow.visible = false
 		_leaves.visible = false
 		Weather.cold = false
-		_clouds.set_look(0.0, Weather.HAZE)
+		_clouds.set_look(0.0, Weather.HAZE, 0.0)
 		return
 	Weather.cold = snow_cover >= Weather.COLD_FROM or float(_weather_look.snow) > 0.3
 	_snow.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT * 0.6, 0)
@@ -2946,7 +2946,10 @@ func _show_weather() -> void:
 	dusty.mist = Weather.dusty_mist(_weather_look, day_hour)
 	var haze := Weather.haze_color(_env.fog_light_color, _weather_look, day_hour, Moon.light(day))
 	haze = Weather.moonlit_haze(haze, day_hour, Moon.light(day))
-	_clouds.set_look(dusty.mist, haze)
+	var winter_fog := Weather.is_winter(day)
+	if winter_fog:
+		haze = Weather.winter_haze(haze, day_hour, float(_weather_look.mist), Moon.light(day))
+	_clouds.set_look(dusty.mist, haze, float(_weather_look.mist) if winter_fog else 0.0)
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3

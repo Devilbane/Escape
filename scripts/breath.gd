@@ -2,7 +2,7 @@ class_name Breath
 extends Node3D
 ## Frozen breath. In the cold (while snow falls or lies, see Weather.cold) the hero and every
 ## villager breathe out a big white cloud in front of the mouth every second or two, and it
-## drifts up and thins out. Out of the cold nothing shows. One puff is a few soft particles
+## drifts up and thins out. Out of the cold nothing shows. One breath is a steady stream of soft particles
 ## from one shared texture and material, so a whole village of breathers costs next to nothing.
 
 ## How long between two breaths (seconds), at least and at most.
@@ -14,8 +14,12 @@ static var _material: StandardMaterial3D
 ## Its own dice, so breathing never shifts the game's random rolls (hits, loot).
 static var _rng := RandomNumberGenerator.new()
 
+## How long one breath lasts (seconds).
+const BLOW := 0.7
+
 var _puff: CPUParticles3D
 var _timer := 0.0
+var _blow := 0.0
 
 
 ## Gives the model (a body's child) a breath of its own at its mouth.
@@ -27,11 +31,12 @@ static func attach(model: Node3D, mouth := MOUTH) -> Breath:
 	return b
 
 
-## How bright the puffs are: dim at night, as the air is. Call it every so often with 0 to 1.
+## How bright the puffs are: dark at night, as the air is. Call it every so often with 0 to 1.
 static func set_light(light: float) -> void:
-	var shade := clampf(0.35 + light, 0.35, 1.0)
+	# No glow of its own: in the dark the breath is as dark as the air around it.
+	var shade := clampf(light, 0.04, 1.0)
 	var mat := _shared()
-	mat.albedo_color = Color(shade, shade, minf(1.0, shade * 1.04), 0.75)
+	mat.albedo_color = Color(shade, shade, minf(1.0, shade * 1.04), 0.75 * clampf(0.3 + light, 0.3, 1.0))
 
 
 static func _shared() -> StandardMaterial3D:
@@ -47,46 +52,69 @@ static func _shared() -> StandardMaterial3D:
 
 
 func _ready() -> void:
-	_puff = CPUParticles3D.new()
-	_puff.amount = 8
-	_puff.lifetime = 2.1
-	_puff.one_shot = true
-	_puff.explosiveness = 0.55
-	_puff.local_coords = false
-	_puff.emitting = false
-	var quad := QuadMesh.new()
-	quad.size = Vector2(0.5, 0.5)
-	quad.material = _shared()
-	_puff.mesh = quad
-	_puff.direction = Vector3(0, 0.18, 1)
-	_puff.spread = 24.0
-	_puff.gravity = Vector3(0, 0.3, 0)
-	_puff.initial_velocity_min = 0.5
-	_puff.initial_velocity_max = 0.95
-	_puff.damping_min = 0.4
-	_puff.damping_max = 0.9
-	_puff.scale_amount_min = 0.5
-	_puff.scale_amount_max = 1.0
-	var grow := Curve.new()
-	grow.add_point(Vector2(0, 0.4))
-	grow.add_point(Vector2(1, 3.2))
-	_puff.scale_amount_curve = grow
-	var fade := Gradient.new()
-	fade.set_color(0, Color(1, 1, 1, 0.0))
-	fade.add_point(0.15, Color(1, 1, 1, 1.0))
-	fade.add_point(0.5, Color(1, 1, 1, 0.6))
-	fade.set_color(fade.get_point_count() - 1, Color(1, 1, 1, 0.0))
-	_puff.color_ramp = fade
-	_puff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_puff = _make_puff()
 	add_child(_puff)
 	_timer = _rng.randf_range(0.0, EVERY.y)
 
 
+## The one emitter. It runs on and off instead of being restarted: a restart wipes the
+## particles still in the air, while switching it off only stops new ones, so each breath
+## is a stream that drifts and fades out in full as the next one starts. (One emitter per
+## breather, as before: every particle node draws from the game's random stream when made.)
+func _make_puff() -> CPUParticles3D:
+	var puff := CPUParticles3D.new()
+	puff.amount = 20
+	puff.lifetime = 1.6
+	puff.one_shot = false
+	puff.explosiveness = 0.0
+	puff.local_coords = false
+	puff.emitting = false
+	# Particles otherwise draw their seed from the game's own random stream and would shift
+	# every roll after them (hits, loot): this one takes its seed from the breath's own dice.
+	puff.use_fixed_seed = true
+	puff.seed = _rng.randi()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.4, 0.4)
+	quad.material = _shared()
+	puff.mesh = quad
+	puff.direction = Vector3(0, 0.18, 1)
+	puff.spread = 7.0
+	puff.gravity = Vector3(0, 0.3, 0)
+	puff.initial_velocity_min = 0.7
+	puff.initial_velocity_max = 0.85
+	puff.damping_min = 0.3
+	puff.damping_max = 0.5
+	puff.scale_amount_min = 0.8
+	puff.scale_amount_max = 1.0
+	var grow := Curve.new()
+	grow.add_point(Vector2(0, 0.5))
+	grow.add_point(Vector2(1, 2.6))
+	puff.scale_amount_curve = grow
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 0.0))
+	fade.add_point(0.2, Color(1, 1, 1, 0.55))
+	fade.add_point(0.55, Color(1, 1, 1, 0.35))
+	fade.set_color(fade.get_point_count() - 1, Color(1, 1, 1, 0.0))
+	puff.color_ramp = fade
+	puff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return puff
+
+
 func _process(delta: float) -> void:
+	if _blow > 0.0:
+		_blow -= delta
+		if _blow <= 0.0:
+			_puff.emitting = false
 	if not Weather.cold:
 		return
 	_timer -= delta
 	if _timer > 0.0 or not is_visible_in_tree():
 		return
 	_timer = _rng.randf_range(EVERY.x, EVERY.y)
-	_puff.restart()
+	exhale()
+
+
+## Breathes out now: the stream starts and stops by itself, clouds still in the air stay.
+func exhale() -> void:
+	_blow = BLOW
+	_puff.emitting = true

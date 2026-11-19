@@ -11,12 +11,16 @@ const HOLD := 3.5
 const FADE := 4.0
 ## At most this many prints at once; the oldest goes first.
 const MAX := 140
-## Just above the snow (which lies a few centimetres over the ground).
-const HEIGHT := 0.055
+## Just above the snow, which lies up to SnowCover's 0.06 m over the ground when it is deep
+## (snow_cover.gdshader lifts it by 0.03 + 0.03 * amount); lower prints are buried in it.
+const HEIGHT := 0.085
 ## The pictures are toe-up (v = 0), which a flat quad lays towards -Z; a walker heading `h` goes
 ## towards (sin h, 0, cos h), so the quad turns half way round.
 const FRONT := PI
-const GREY := Color(0.5, 0.53, 0.6, 0.85)
+## The pressed grey at midnight and at noon. Prints are unshaded, so the light of the sun (or its
+## lack) can neither wash them out nor swallow them: they are always darker than the snow round them.
+const GREY_NIGHT := Color(0.03, 0.04, 0.09, 0.9)
+const GREY_DAY := Color(0.36, 0.4, 0.5, 0.92)
 
 static var _shapes := {}
 static var _textures := {}
@@ -30,6 +34,7 @@ const KINDS := {
 	"paw": Vector2(0.14, 0.14),
 	"hoof": Vector2(0.12, 0.16),
 	"bird": Vector2(0.1, 0.12),
+	"bug": Vector2(0.05, 0.07),
 }
 
 
@@ -81,6 +86,13 @@ static func _alpha(kind: String, u: float, v: float) -> float:
 			a = maxf(a, _stroke(u, v, 0.0, 0.62, 0.0, 0.04))
 			a = maxf(a, _stroke(u, v, 0.0, 0.62, 0.8, 0.12))
 			return maxf(a, _stroke(u, v, 0.0, 0.62, 0.0, 0.95))
+		"bug":
+			# A beetle's tracks: three tiny dots each side of its line.
+			var a := 0.0
+			for side in [-1.0, 1.0]:
+				for row in [0.2, 0.5, 0.8]:
+					a = maxf(a, _blob(u, v, float(side) * 0.55, row, 0.22, 0.12))
+			return a
 		_:
 			# The boot: the broad sole in front, a gap, the heel behind, soft at the edges.
 			var sole := Vector2(u / 0.9, (v - 0.32) / 0.3).length()
@@ -103,14 +115,15 @@ static func _stroke(u: float, v: float, u0: float, v0: float, u1: float, v1: flo
 
 
 ## Presses a print at `at` facing `heading` (radians about the up axis).
-static func leave(world: Node3D, at: Vector3, heading: float, size := 1.0, kind := "boot") -> MeshInstance3D:
+static func leave(world: Node3D, at: Vector3, heading: float, size := 1.0, kind := "boot", daylight := 1.0) -> MeshInstance3D:
 	_live = _live.filter(func(n): return is_instance_valid(n))
 	while _live.size() >= MAX:
 		(_live.pop_front() as Node).queue_free()
 	var mat := StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_texture = texture(kind)
-	mat.albedo_color = GREY
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = GREY_NIGHT.lerp(GREY_DAY, clampf(daylight, 0.0, 1.0))
 	mat.roughness = 1.0
 	var mi := MeshInstance3D.new()
 	mi.mesh = _mesh(kind)

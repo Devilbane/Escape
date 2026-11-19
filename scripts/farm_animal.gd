@@ -58,6 +58,18 @@ const MODELS := {
 }
 ## A path point counts as reached this close (metres), inside the turning circle.
 const ARRIVE := 0.5
+## Every farm animal keeps a personal space of its radius plus its neighbour's, times this,
+## and starts steering around a neighbour from AWARE times that. Walkers lean away from
+## neighbours gradually (never a jump); a pair that still overlaps slides apart at up to
+## EASE_SPEED m/s (spread over every physics tick, so nothing snaps).
+const SPACE := 1.15
+const AWARE := 1.9
+const SEPARATION_WEIGHT := 1.6
+const EASE_SPEED := 1.2
+## Animals farther apart than this (metres) are never looked at.
+const NEAR := 3.5
+## Every farm animal in the world, so neighbours are found without a scene search.
+static var _all: Array[FarmAnimal] = []
 ## A sneaking hero is noticed only this much closer.
 const SNEAK_FACTOR := 0.5
 ## How far a frightened animal runs from home at most (tiles), and how far
@@ -134,6 +146,9 @@ var _resting := false
 ## On its way under the shelter's roof (see Corral).
 var _to_roof := false
 var _waiting := 0.0
+## The animals close by and the physics tick to look them up again at (see _neighbours).
+var _near: Array = []
+var _near_until := 0
 var _rig: Node3D
 var _legs: Array[Node3D] = []
 var _head: Node3D
@@ -154,6 +169,10 @@ func setup(owner_level: Outdoor, animal_kind: String, cell: Vector2i, look := ""
 	_rng.seed = hash(kind) + cell.x * 131 + cell.y * 7 + hash(look)
 
 
+func _exit_tree() -> void:
+	_all.erase(self)
+
+
 ## Called after the footprint pass moved this animal to a free spot: the way on from there is found again.
 func footprint_moved() -> void:
 	_path.clear()
@@ -161,6 +180,7 @@ func footprint_moved() -> void:
 
 func _ready() -> void:
 	add_to_group(Footprint.GROUP)
+	_all.append(self)
 	SmoothMotion.follow_ticks(self)
 	_rig = Node3D.new()
 	add_child(_rig)
@@ -254,6 +274,9 @@ func _physics_process(delta: float) -> void:
 		_wake()
 	if _resting:
 		return
+	# Cattle heading for their places under the roof keep to them: the straw is shared by design.
+	if not _to_roof:
+		ease_apart(delta)
 	if kind == "billy" and alive and state in ["graze", "idle", "stroll"]:
 		_pick_fight(delta, away.length(), hero)
 	# A stroll that began before the rain or the dusk is given up: the shelter comes first.
@@ -515,9 +538,17 @@ func _pick_spot() -> Vector3:
 	var radius: int = _stats.roam
 	for i in 20:
 		var c := centre + Vector2i(_rng.randi_range(-radius, radius), _rng.randi_range(-radius, radius))
-		if _ok(c) and maxi(absi(c.x - home.x), absi(c.y - home.y)) <= int(_stats.roam) + 3:
+		if _ok(c) and maxi(absi(c.x - home.x), absi(c.y - home.y)) <= int(_stats.roam) + 3 and not _crowded_at(level.cell_to_world(c)):
 			return level.cell_to_world(c)
 	return level.cell_to_world(home)
+
+
+## Whether another farm animal already stands (or sits) near a spot, so that nobody picks it as a goal.
+func _crowded_at(spot: Vector3) -> bool:
+	for o in _all:
+		if o != self and is_instance_valid(o) and Footprint.counts(o) and _flat(spot - o.global_position).length() < (Footprint.radius_of(self) + Footprint.radius_of(o)) * 2.0:
+			return true
+	return false
 
 
 ## A tile it may stop on: standable ground of its own kind (geese and goats
@@ -553,7 +584,10 @@ func _walk(delta: float) -> void:
 		_heading = Vector3.ZERO
 		return
 	var to := _flat(_path[0] - global_position)
+	# Neighbours bend the wish a little away from them, so a herd flows round itself.
 	var want := to.normalized()
+	if not _to_roof:
+		want = (want + separation() * SEPARATION_WEIGHT).normalized()
 	if _heading == Vector3.ZERO:
 		_heading = Vector3(sin(rotation.y), 0.0, cos(rotation.y))
 	# The body swings round in an arc (bigger animals wider, a bolting one sharper).
@@ -587,6 +621,66 @@ func _walk(delta: float) -> void:
 	if arrived:
 		_path.pop_front()
 	rotation.y = atan2(aside.x, aside.z)
+
+
+## The farm animals within NEAR metres, looked up again every few physics ticks only (the
+## herd moves slowly, and this runs for every animal on every tick).
+func _neighbours() -> Array:
+	var frame := Engine.get_physics_frames()
+	if frame >= _near_until:
+		_near_until = frame + 8 + get_instance_id() % 4
+		_near.clear()
+		var mine := global_position
+		for o in _all:
+			if o != self and Footprint.counts(o) and absf(o.global_position.x - mine.x) < NEAR and absf(o.global_position.z - mine.z) < NEAR:
+				_near.append(o)
+	return _near
+
+
+## The lean away from nearby animals, flat: zero when nobody is close, growing as a
+## neighbour comes inside its personal space (length at most about 1.5).
+func separation() -> Vector3:
+	var push := Vector3.ZERO
+	for o in _neighbours():
+		if not is_instance_valid(o):
+			continue
+		var d := _flat(global_position - o.global_position)
+		var room := (Footprint.radius_of(self) + Footprint.radius_of(o)) * SPACE
+		var dist := d.length()
+		if dist >= room * AWARE or absf(global_position.y - o.global_position.y) > Footprint.HEIGHT_GAP:
+			continue
+		if dist < 0.01:
+			var angle := float(get_instance_id() % 628) / 100.0
+			d = Vector3(cos(angle), 0.0, sin(angle))
+			dist = 0.01
+		push += d / dist * (1.0 - (dist - room) / (room * (AWARE - 1.0)) if dist > room else 1.0 + (room - dist) / room)
+	return push
+
+
+## Slides this animal out of anyone it overlaps, a little each physics tick (no jumps, never
+## into a wall, the fence or out of its pen). Returns whether it moved.
+func ease_apart(delta: float) -> bool:
+	var push := Vector3.ZERO
+	for o in _neighbours():
+		if not is_instance_valid(o):
+			continue
+		var d := _flat(global_position - o.global_position)
+		var room := (Footprint.radius_of(self) + Footprint.radius_of(o)) * Footprint.STACKED
+		if d.length() >= room or absf(global_position.y - o.global_position.y) > Footprint.HEIGHT_GAP:
+			continue
+		if d.length() < 0.01:
+			var angle := float(get_instance_id() % 628) / 100.0
+			d = Vector3(cos(angle), 0.0, sin(angle)) * 0.01
+		push += d.normalized() * (room - d.length()) / room
+	if push.length() < 0.001:
+		return false
+	var to := global_position + push.limit_length(1.0) * EASE_SPEED * delta
+	if not Footprint.open_at(level, to):
+		return false
+	if pen.has_area() and not pen.has_point(level.world_to_cell(to)):
+		return false
+	global_position = to
+	return true
 
 
 func _turn_to(direction: Vector3, delta: float) -> void:

@@ -333,6 +333,9 @@ var hardening := 0
 var ranged := false
 var hp := 3
 var dead := false
+## The tracks it presses in the snow (see SnowTrail), null for ghosts and slimes.
+var _trail: SnowTrail
+var _trail_made := false
 var _stats: Dictionary
 ## The spot the skeleton takes up (see Level.push_apart).
 var radius := 0.6
@@ -2100,6 +2103,11 @@ func _physics_process(delta: float) -> void:
 	visible = level.fog == null or level.fog.is_cell_visible(level.world_to_cell(global_position))
 	if is_ghost():
 		_haunt(delta)
+	if _trail == null and not _trail_made:
+		_trail_made = true
+		_trail = SnowTrail.for_monster(kind, String(_stats.model), is_ghost(), float(_stats.size))
+	if _trail != null:
+		_trail.follow(level, global_position)
 	var friendly := is_friend()
 	_calmed = maxf(0.0, _calmed - delta)
 	_hero_aggro = maxf(0.0, _hero_aggro - delta)

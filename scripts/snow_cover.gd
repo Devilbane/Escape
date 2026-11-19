@@ -24,6 +24,8 @@ const SMALLEST := 0.6
 var material := ShaderMaterial.new()
 var root: Node
 var amount := 0.0
+## How bright the light of the hour is on the snow, 0 night to 1 day (see set_amount).
+var daylight := 1.0
 var _covered := false
 var _warm_src: Array[Vector4] = []
 var _meshes: Array[GeometryInstance3D] = []
@@ -76,10 +78,11 @@ func set_warm(spots: Array[Vector4]) -> void:
 
 
 ## How thick the snow lies, 0 to 1, and how bright the light of the hour is.
-func set_amount(value: float, daylight := 1.0) -> void:
+func set_amount(value: float, daylight_in := 1.0) -> void:
 	amount = clampf(value, 0.0, 1.0)
+	daylight = clampf(daylight_in, 0.0, 1.0)
 	_param("amount", amount)
-	_param("daylight", clampf(daylight, 0.0, 1.0))
+	_param("daylight", daylight)
 	if amount > 0.001 and not _covered:
 		_cover()
 	elif amount <= 0.001 and _covered:

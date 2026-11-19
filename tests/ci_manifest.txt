@@ -56,6 +56,7 @@ slime_prey.gd | 300 | fixed | pass | Slime prey test (townsfolk and animals, fig
 village_wall.gd | 300 | fixed | pass | Village wall test (gates, slimes eating the wall, the stonemason mending it)
 wall_cracks.gd | 300 | free | pass | Wall cracks test (three crack stages that grow with a brick's damage)
 village_arms.gd | 300 | fixed | pass | Village arms test (weapons for each villager, Pip's knives, the priestess heals)
+townsfolk_look.gd | 60 | free | passfail | Every villager has a look of their own (skin, haircut, glasses, hat colour)
 slime_belly.gd | 300 | fixed | pass | Slime belly test
 floor_items.gd | 120 | free | pass | Floor items test
 floor_packs.gd | 120 | free | pass | Floor packs test

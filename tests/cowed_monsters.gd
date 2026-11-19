@@ -88,6 +88,8 @@ func _process(_delta: float) -> bool:
 			game.escaped = true
 			game.load_level(game._outdoor_index(), false)
 			game.state = game.State.PLAYING
+			# The village's own dice (one more villager moves them) must not decide this test.
+			seed(7)
 			Factions.clear()
 			var probe := Enemy.new()
 			probe.kind = "wolf"

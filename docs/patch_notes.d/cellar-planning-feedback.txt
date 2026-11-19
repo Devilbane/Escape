@@ -1,0 +1,1 @@
+- Cellar planning is clearer: planned squares have a dark frame and a brighter colour, a hint tells you to order the build, and digging is faster than building walls.

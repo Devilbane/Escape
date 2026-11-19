@@ -399,6 +399,21 @@ func erase_cell(x: int, y: int) -> String:
 	return ""
 
 
+## The kind of piece the character works on next (a piece marked for
+## demolition first), or "" when there is nothing to do right now.
+func next_kind() -> String:
+	for key in pieces:
+		if pieces[key].state == DEMOLISH:
+			return pieces[key].kind
+	var best := 1 << 30
+	var kind := ""
+	for key in pieces:
+		if pieces[key].state == SKETCH and _affordable(pieces[key]) and _can_build(key) and priority(key) < best:
+			best = priority(key)
+			kind = pieces[key].kind
+	return kind
+
+
 ## The order pieces are built in: the cellar first, then storey by storey,
 ## each with its walls before doors and windows, then slab, stairs and roof.
 func priority(key: String) -> int:

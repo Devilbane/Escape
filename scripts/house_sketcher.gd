@@ -37,11 +37,11 @@ const ROOF_TOOLS := [TOOL_SLAB, TOOL_SADDLE, TOOL_UP]
 ## Tools that drag a rectangle of cells.
 const RECT_TOOLS := [TOOL_DIG, TOOL_SLAB, TOOL_SADDLE]
 const LEVEL_NAMES := {-1: "im Keller", 0: "im Erdgeschoss", 1: "im Obergeschoss"}
-const SLAB_COLOR := Color(0.85, 0.7, 0.45, 0.45)
+const SLAB_COLOR := Color(0.9, 0.75, 0.4, 0.7)
 const ROOF_COLOR := Color(0.55, 0.22, 0.16)
 const SURFACE_NAMES := {"": "roh", "stone": "aus Stein", "wood": "aus Holz"}
-const DIG_COLOR := Color(0.62, 0.45, 0.25, 0.5)
-const STAIRS_COLOR := Color(1.0, 0.8, 0.4, 0.55)
+const DIG_COLOR := Color(0.9, 0.55, 0.15, 0.8)
+const STAIRS_COLOR := Color(1.0, 0.85, 0.3, 0.8)
 const EARTH_COLOR := Color(0.28, 0.2, 0.13)
 const PLANK_COLOR := Color(0.5, 0.34, 0.18)
 const WALL_HEIGHT := 2.6
@@ -65,6 +65,8 @@ const STATUS_WIDTH := 640.0
 ## The character builds one piece this often (seconds) while the hero is near
 ## the plot, and works only within this many metres of its middle.
 const BUILD_SECONDS := 12.0
+## Digging a square of the cellar goes faster than raising a wall.
+const DIG_SECONDS := 3.0
 const BUILD_RANGE := 16.0
 const STONE_COLOR := Color(0.5, 0.48, 0.44)
 const WOOD_COLOR := Color(0.4, 0.27, 0.15)
@@ -137,7 +139,7 @@ func _process(delta: float) -> void:
 	if Vector2(game.player.global_position.x - middle.x, game.player.global_position.z - middle.z).length() > BUILD_RANGE + plan.nodes().length() * HouseSketch.CELL * 0.25:
 		return
 	_work += delta
-	if _work < BUILD_SECONDS:
+	if _work < (DIG_SECONDS if plan.next_kind() == HouseSketch.DIG else BUILD_SECONDS):
 		return
 	_work = 0.0
 	work_once()
@@ -306,9 +308,11 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 					done = plan.sketch_roof(cells, HouseSketch.SLAB, storey)
 				_:
 					done = plan.sketch_roof(cells, HouseSketch.SADDLE, storey, "rx" if wide else "ry")
+			_changed()
 			if done == 0:
 				_say(Lang.t("Dort ist schon gegraben oder gebaut."))
-			_changed()
+			else:
+				_say(Lang.t("%d Felder vorgemerkt. Beauftrage den Bau: Dein Held baut es dann.") % done)
 		return
 	if tool == TOOL_UP:
 		if pressed:
@@ -319,6 +323,7 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 			else:
 				plan.sketch_upstairs(c.x, c.y, dir)
 				_changed()
+				_say(Lang.t("Treppe vorgemerkt. Beauftrage den Bau: Dein Held baut sie dann."))
 		return
 	if tool == TOOL_STAIRS:
 		if pressed:
@@ -329,6 +334,7 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 			else:
 				plan.sketch_stairs(c.x, c.y, dir)
 				_changed()
+				_say(Lang.t("Treppe vorgemerkt. Beauftrage den Bau: Dein Held baut sie dann."))
 		return
 	if tool == TOOL_WALL:
 		if pressed:
@@ -971,7 +977,14 @@ func _surface_color(surface: String) -> Color:
 
 ## A flat tinted square over a grid cell (the blueprint of a dug cell).
 func _cell_quad(parent: Node3D, cell: Vector2i, colour: Color, high := 0.0) -> void:
-	_box(parent, plan.cell_world(cell.x, cell.y) + Vector3(0, 0.07 + high, 0), Vector3(HouseSketch.CELL - 0.1, 0.04, HouseSketch.CELL - 0.1), _material(colour))
+	var mid := plan.cell_world(cell.x, cell.y) + Vector3(0, 0.07 + high, 0)
+	_box(parent, mid, Vector3(HouseSketch.CELL - 0.1, 0.04, HouseSketch.CELL - 0.1), _material(colour))
+	# A dark frame, so a planned square stands out from the grass.
+	var frame := _material(Color(0.1, 0.07, 0.03, 0.9))
+	var edge := HouseSketch.CELL * 0.5 - 0.05
+	for sign_ in [-1.0, 1.0]:
+		_box(parent, mid + Vector3(edge * sign_, 0.01, 0), Vector3(0.08, 0.05, HouseSketch.CELL - 0.1), frame)
+		_box(parent, mid + Vector3(0, 0.01, edge * sign_), Vector3(HouseSketch.CELL - 0.1, 0.05, 0.08), frame)
 
 
 ## A built piece: solid stone, a doorway with a wooden lintel, or a window

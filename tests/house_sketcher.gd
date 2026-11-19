@@ -96,9 +96,13 @@ func _process(_delta: float) -> bool:
 	plan.deposit("steinblock", 20)
 	plan.deposit("bauholz", 10)
 	sketcher.select_tool(HouseSketcher.TOOL_DIG)
+	sketcher.storey = -1
 	sketcher.mouse(plan.cell_world(3, 3), true, MOUSE_BUTTON_LEFT)
 	sketcher.mouse(plan.cell_world(4, 4), false, MOUSE_BUTTON_LEFT)
-	check(plan.count("dig") == 4, "dragging with the dig tool sketches a rectangle of cells")
+	sketcher.storey = 0
+	check(plan.count("dig") == 4, "dragging with the dig tool sketches a rectangle of cells, with the level on the cellar")
+	check(sketcher._status.text.contains("4") or sketcher._status.text.contains(Lang.t("%d Felder vorgemerkt. Beauftrage den Bau: Dein Held baut es dann.") % 4), "the status says four squares are planned")
+	check(plan.next_kind() == "" or plan.next_kind() == "dig", "the next piece to build is a dig")
 	sketcher.select_tool(HouseSketcher.TOOL_STAIRS)
 	sketcher.mouse(plan.cell_world(1, 3), true, MOUSE_BUTTON_LEFT)
 	check(plan.count("stairs") == 1, "the stairs tool puts a ramp down to the cellar")

@@ -5,7 +5,7 @@ extends RefCounted
 ## and colours, taken from the glass texture), lying on the ground in front of the
 ## window. It starts away from the wall by half as much as the window's sill is high,
 ## ends 50% longer than the window is tall (the window's top is the far end) and
-## fades out towards that end. Soft coloured rays of the same glass shine from the
+## keeps its colours all along (it only softens at its two ends). Soft coloured rays of the same glass shine from the
 ## window down to the picture, like light falling through dusty air. One additive mesh for the whole temple, built in
 ## the temple's own metres. Its "glow" parameter is driven with the glass at night
 ## (see Outdoor.set_hour); the temple's windows burn all night. Fog is off for it,

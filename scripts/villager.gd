@@ -51,6 +51,8 @@ const SEPARATION_WEIGHT := 1.2
 const CROWDED_LIMIT := 4.0
 ## In the morning each villager steps out of their house after a random wait of up to this many seconds.
 const MORNING_SPREAD := 25.0
+## The spread in use: tests that wake the village at a stroke set it to 0.
+static var morning_spread := MORNING_SPREAD
 ## Only villagers this close (metres) are looked at, looked up again every few ticks.
 const NEAR := 3.5
 ## Within this distance (metres) of the last point of its path a walker is no longer bent aside.
@@ -2118,7 +2120,7 @@ func set_night(on: bool, at_once := false) -> void:
 	elif at_home:
 		# Each one comes out at a time of their own, so a whole village never steps
 		# into the street at the same moment and piles up at the doors.
-		var wait := 0.0 if at_once or not is_inside_tree() else _rng.randf_range(0.0, MORNING_SPREAD)
+		var wait := 0.0 if at_once or not is_inside_tree() else _rng.randf_range(0.0, morning_spread)
 		if wait < 0.2:
 			_come_out()
 		else:

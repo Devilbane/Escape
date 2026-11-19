@@ -147,6 +147,22 @@ func _run() -> void:
 	for v: Villager in pair:
 		v.leave_chat()
 
+	# 6. In the morning the village comes out of its houses one by one, not all in one tick.
+	Villager.morning_spread = Villager.MORNING_SPREAD
+	var sleepers := []
+	for v: Villager in lvl.villagers:
+		if v.goes_to_bed() and not v.keeps_spot():
+			sleepers.append(v)
+	for v: Villager in sleepers:
+		v._hide_inside(true)
+		v._start("home", 600.0)
+	for v: Villager in sleepers:
+		v.set_night(false)
+	var out_now := sleepers.filter(func(v): return not v.at_home).size()
+	check(out_now < sleepers.size() and sleepers.size() >= 4, "not everyone steps out at the same moment (%d of %d out at once)" % [out_now, sleepers.size()])
+	await _wait(int(60.0 * (Villager.MORNING_SPREAD + 3.0)))
+	check(sleepers.all(func(v): return not v.at_home), "everyone is out of their house within the morning spread")
+
 	if failures == 0:
 		print("PASS: villager crowd")
 	else:

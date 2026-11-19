@@ -1,1 +1,0 @@
-- Fog no longer looks like black smoke at night: it is pale, moonlit blue-grey.

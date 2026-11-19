@@ -52,10 +52,7 @@ func _launch(from: Vector3, miss: bool) -> void:
 	mesh.height = 0.14
 	mesh.radial_segments = 10
 	mesh.rings = 6
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.95, 0.97, 1.0)
-	mat.roughness = 0.9
-	mesh.material = mat
+	mesh.material = Snowball.snow_material(world)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -97,7 +94,10 @@ func _physics_process(delta: float) -> void:
 
 ## The ball bursts into snow where it lands; a grown-up who is hit grumbles.
 func _burst() -> void:
-	Snowball.puff(world, global_position)
+	var hit_body := _miss == Vector3.ZERO and target != null and is_instance_valid(target)
+	Snowball.puff(world, global_position, 34 if hit_body else 14, 0.12 if hit_body else 0.07)
+	if hit_body:
+		Snowball.cling(target, global_position, world)
 	Sfx.play(self, "step_grass_%d" % (_rng.randi() % 6), -10.0, global_position, 1.4)
 	if _miss == Vector3.ZERO and target is Villager and is_instance_valid(target):
 		var hit := target as Villager
@@ -107,18 +107,31 @@ func _burst() -> void:
 	queue_free()
 
 
+## The snow of the ground tiles (see snowman_snow.gdshader), lit by the light of the hour as the
+## ground is, for the ball and the snow that clings. `level` is asked for its snow's daylight.
+static func snow_material(level: Node) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/snowman_snow.gdshader")
+	var snow = level.get("snow") if level != null else null
+	if snow != null:
+		mat.set_shader_parameter("daylight", clampf(snow.daylight, 0.0, 1.0))
+	return mat
+
+
 ## A burst of snow at `at`: white crumbs that fly out and fall. It frees itself.
-static func puff(world: Node3D, at: Vector3) -> void:
+## A hit gets more and bigger crumbs (`amount`, `crumb` in metres), made by the mesh size and
+## never by scaling the node, so the crumbs stay white.
+static func puff(world: Node3D, at: Vector3, amount := 14, crumb := 0.07) -> void:
 	if world == null or not world.is_inside_tree():
 		return
 	var p := CPUParticles3D.new()
-	p.amount = 14
+	p.amount = amount
 	p.lifetime = 0.7
 	p.one_shot = true
 	p.explosiveness = 0.95
 	p.local_coords = false
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.07, 0.07)
+	quad.size = Vector2(crumb, crumb)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -143,3 +156,27 @@ static func puff(world: Node3D, at: Vector3) -> void:
 	p.global_position = at
 	p.emitting = true
 	p.finished.connect(p.queue_free)
+
+
+## A blob of snow that sticks to `body` where the ball hit (`at`), melts away. It is a child
+## of the body, so it goes along when the body moves; `level` gives it the light of the hour.
+static func cling(body: Node3D, at: Vector3, level: Node = null) -> void:
+	if body == null or not body.is_inside_tree():
+		return
+	var mat := Snowball.snow_material(level)
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.12
+	mesh.height = 0.12
+	mesh.radial_segments = 10
+	mesh.rings = 4
+	mesh.material = mat
+	var blob := MeshInstance3D.new()
+	blob.mesh = mesh
+	blob.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	blob.set_meta("no_snow", true)
+	body.add_child(blob)
+	blob.global_position = at
+	var tw := blob.create_tween()
+	tw.tween_interval(0.8)
+	tw.tween_property(blob, "scale", Vector3.ONE * 0.05, 1.2)
+	tw.tween_callback(blob.queue_free)

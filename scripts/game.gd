@@ -1742,7 +1742,11 @@ func _use_station(s: Dictionary) -> void:
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not wishes.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc) and not village_rumours.tell(s.npc):
+		# Frozen solid, Fritz takes no quest, gossip or news: he only mumbles and stays as he is.
+		if s.npc.is_frozen():
+			if not busy:
+				s.npc.talk(player)
+		elif not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not wishes.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc) and not village_rumours.tell(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building, s.get("house", 0), s.get("leaf"))
@@ -2952,12 +2956,11 @@ func _show_weather() -> void:
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
 	var dusty := _weather_look.duplicate()
 	dusty.mist = Weather.dusty_mist(_weather_look, day_hour)
-	var haze := Weather.haze_color(_env.fog_light_color, _weather_look, day_hour, Moon.light(day))
-	haze = Weather.moonlit_haze(haze, day_hour, Moon.light(day))
 	var winter_fog := Weather.is_winter(day)
-	if winter_fog:
-		haze = Weather.winter_haze(haze, day_hour, float(_weather_look.mist), Moon.light(day))
-	_clouds.set_look(dusty.mist, haze, float(_weather_look.mist) if winter_fog else 0.0)
+	var haze := Weather.fog_haze(_env.fog_light_color, float(_weather_look.mist), winter_fog)
+	# One even haze at night and over the winter snow; patchy clouds only by day.
+	var even := float(_weather_look.mist) if (winter_fog or DayNight.glow_at(day_hour) > 0.5) else 0.0
+	_clouds.set_look(dusty.mist, haze, even)
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3

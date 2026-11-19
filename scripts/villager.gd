@@ -254,6 +254,8 @@ var _mark_base := 0.0
 var _mark_time := 0.0
 var _line := 0
 var _current_anim := ""
+## What sets this person apart from the rest of the village (see TownsfolkLook).
+var _look := {}
 var _look_at := Vector3.INF
 var _greeted := false
 ## Who the villager listens to while gathered on the square.
@@ -353,15 +355,18 @@ func _ready() -> void:
 	# A woman built on the Rogue model gets her own body (see BodyLook); the
 	# dyes stay on, they belong to the parts, not to the meshes.
 	BodyLook.apply(_model, _info.get("sex", BodyLook.DEFAULT))
+	_look = TownsfolkLook.look_for(role, _info)
 	# Everyone on the Rogue model has combed hair, some a haircut of their own.
 	if _info.has("hair") or _info.model == "Rogue":
-		HairLook.apply(_model, HairLook.checked(_info.get("hair", HairLook.DEFAULT)))
+		HairLook.apply(_model, TownsfolkLook.hair_of(_info, _look))
 		if _info.has("skin"):
 			HairLook.tint_skin(_model, _info.skin)
 	if _info.get("cap", "") == "post":
 		PostCap.put_on(_model)
 	# Weave, leather grain and scratched metal on the clothes (see GearLook).
 	GearLook.dress_body(_model, "outfit")
+	# Their own skin tone, hat colour and glasses (see TownsfolkLook).
+	TownsfolkLook.apply(_model, _info, _look)
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walking_A", "Walking_B", "Running_A", "Sit_Floor_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR

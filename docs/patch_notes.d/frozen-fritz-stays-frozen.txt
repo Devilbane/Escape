@@ -1,0 +1,1 @@
+- Fritz stays frozen when you bump into him or greet him: no quests, gossip or news, only his frozen mumble.

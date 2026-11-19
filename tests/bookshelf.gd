@@ -99,6 +99,9 @@ func _run() -> void:
 		if Items.is_book(id):
 			books.append(id)
 			check(HomeStores.store_of(id) == HomeStores.BOOKS, "the book %s goes on the shelf" % id)
+		elif id == SternHall.TOME:
+			# The tome is a keepsake with no lesson, but it is a book too.
+			check(HomeStores.store_of(id) == HomeStores.BOOKS, "the tome goes on the shelf")
 		elif HomeStores.store_of(id) == HomeStores.BOOKS:
 			check(false, "%s is no book and must not go on the shelf" % id)
 	check(books.size() >= 6, "there are books to store (%d)" % books.size())

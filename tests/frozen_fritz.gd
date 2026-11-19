@@ -90,6 +90,11 @@ func _run() -> void:
 	check(fritz._bubble_time > 0.0, "he mumbles something when talked to")
 	await _wait(30)
 	check(is_equal_approx(turned, fritz.rotation.y) and fritz._current_anim == "frozen", "he stays stiff when talked to")
+	# Bumped via the station path, or greeted: still frozen, still the same pose.
+	game._use_station({"kind": "npc", "npc": fritz, "pos": fritz.global_position})
+	game.hero_chat.answer(fritz, "hallo")
+	await _wait(10)
+	check(fritz.is_frozen() and fritz._ice != null and fritz._current_anim == "frozen", "a bump or a greeting leaves him frozen")
 	# He cannot sing: no song starts for him.
 	check(not fritz.can_chat(), "frozen Fritz is not free for a song")
 	game.drinking_songs.stop()

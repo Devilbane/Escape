@@ -38,7 +38,7 @@ const TRICKS := {
 ## snowball fight (metres); a throw takes this long, the ball leaves the hand at RELEASE; they
 ## throw again after a pause picked between THROW_PAUSE; after a few throws they run round the
 ## snowman for a while. A throw goes at somebody else close by (within OTHERS metres) with
-## OTHER_CHANCE, at the hero with HERO_CHANCE, and misses with MISS_CHANCE.
+## OTHER_CHANCE, at the hero (within OTHERS metres too) with HERO_CHANCE, and misses with MISS_CHANCE.
 const SNOW_FROM := 0.45
 const FIGHT_RANGE := Vector2(3.0, 6.5)
 const THROW_TIME := 0.9
@@ -46,9 +46,9 @@ const RELEASE := 0.38
 const THROW_PAUSE := Vector2(0.9, 2.0)
 const THROWS := Vector2i(5, 9)
 const ROUND_TIME := Vector2(4.5, 7.0)
-const OTHERS := 9.0
-const OTHER_CHANCE := 0.25
-const HERO_CHANCE := 0.06
+const OTHERS := 12.0
+const OTHER_CHANCE := 0.4
+const HERO_CHANCE := 0.22
 const MISS_CHANCE := 0.3
 ## The games in the snow after the first fight, and how often each is picked (see _begin_phase).
 const SNOW_GAMES := {"ball": 3.0, "angel": 1.0, "roll": 1.2, "slide": 1.2}

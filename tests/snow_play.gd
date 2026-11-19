@@ -168,6 +168,38 @@ func _run() -> void:
 	await _wait(3)
 	check(lvl.find_children("*", "Snowman", true, false).size() == 1, "a new game builds no second snowman")
 
+	# The balls often go at a grown-up close by and at the hero, not only at the friend.
+	var near_grown: Villager = null
+	for o: Villager in lvl.villagers:
+		if o._info.get("pal", "") == "" and o.visible and not o.at_home and o.chat_partner == null and o.threat == null \
+				and not o._task in ["fight", "defend", "home", "hide"]:
+			near_grown = o
+			break
+	if near_grown != null:
+		_kick_off(lvl, pip, pippi)
+		await _wait(3)
+		var at := pip.global_position
+		near_grown.global_position = at + Vector3(4.0, 0, 0)
+		near_grown.reset_physics_interpolation()
+		game.player.global_position = at + Vector3(-5.0, 0, 0)
+		game.player.reset_physics_interpolation()
+		await _wait(2)
+		var picks := {"hero": 0, "grown": 0, "pal": 0}
+		for i in 400:
+			var who: Node3D = pip._kid._pick_target()
+			if who == game.player:
+				picks.hero += 1
+			elif who == pippi:
+				picks.pal += 1
+			else:
+				picks.grown += 1
+		print("snowball targets: ", picks)
+		check(picks.hero >= 60, "the hero gets pelted often (%d of 400)" % picks.hero)
+		check(picks.grown >= 120, "the grown-ups close by get pelted often (%d of 400)" % picks.grown)
+		check(picks.pal >= 80, "plenty still go at the friend (%d of 400)" % picks.pal)
+		game.player.global_position = lvl.spots.square[0] + Vector3(20, 0, 0)
+		game.player.reset_physics_interpolation()
+
 	# A grown-up hit by a snowball grumbles.
 	var grown: Villager = null
 	for v: Villager in lvl.villagers:

@@ -1,0 +1,1 @@
+- You can now pay copper prices with silver or gold coins when your copper is short; the merchant gives the change back in copper.

@@ -896,6 +896,7 @@ func _setup_drawer() -> void:
 	buttons.add_child(_make_button(Lang.t("Schlagen"), do_strike, true))
 	buttons.add_child(_make_button(Lang.t("Kiste"), do_crate, true))
 	buttons.add_child(_make_button(Lang.t("Stein"), do_stone, true))
+	buttons.add_child(_make_button(Lang.t("Land"), plot_action, true))
 	buttons.add_child(_make_button(Lang.t("Angeln"), fish_action, true))
 	buttons.add_child(_make_button(Lang.t("Schenken"), gift_action, true))
 	buttons.add_child(_make_button(Lang.t("Lager"), _camp_from_drawer, true))
@@ -5406,7 +5407,7 @@ func hero_notices() -> Array:
 	if worn > 0:
 		out.append(["repair", str(worn)])
 	for id in HomeUpgrades.ALL:
-		if HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, coins) == "":
+		if HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, Payment.worth(self)) == "":
 			out.append(["upgrade", ""])
 			break
 	return out
@@ -6312,6 +6313,18 @@ func _on_player_trained(id: String, value: int) -> void:
 		Events.gain(text, SKILL_GAIN_COLOR)
 	learn("Eigenschaften wachsen sehr langsam durch Tun: Kämpfen macht stärker (Stärke: +1 Schaden im Nahkampf je Punkt, Lasten wiegen weniger), Treffer einstecken macht zäher (Konstitution, +1 Leben je Punkt), Laufen und Springen machen schneller (Tempo bis 150 %), Springen, Werfen und Fallen machen geschickter (Geschick: +1 Schaden mit Wurfmessern und +4 % Ausweichen je Punkt, weiter springen), Durchsuchen und Geheimnisse schärfen das Gespür (Intuition, +2 % je Punkt, Geheimräume zu entdecken), und alles, was du durchstehst, macht dich weiser (Weisheit: du lernst 5 % schneller je Punkt, ab 12 bieten Schreine eine vierte Gabe), und Neues zu verstehen macht klüger (Intelligenz: Fertigkeiten lernen 10 % schneller und 3 % mehr Erfahrung je Punkt; manche Dinge wie der Zauberhut brauchen sie). Fertigkeiten wachsen schneller, aber nur mit der passenden Ausrüstung. Alles bleibt deinem Helden über alle Läufe.")
 	_update_hud()
+
+
+## The drawer's "Land" button: start marking a building plot, or start again
+## (see PlotMarker). It works anywhere on the open map, so the hero does not
+## have to go back to the clerk each time.
+func plot_action() -> void:
+	if state != State.PLAYING or menus.is_open() or not player.can_act():
+		return
+	if plot_marker == null:
+		show_message(Lang.t("Land abstecken geht nur im Freien."), 2.0)
+		return
+	plot_marker.start()
 
 
 ## Double click or C: sneak (slow, silent, hard to see) or walk normally.
@@ -7650,10 +7663,10 @@ func gift_action() -> void:
 		return
 	var count := int(info.count)
 	if info.gift == "gold":
-		if coins < count:
+		if not Payment.can_pay(self, count):
 			show_message(Lang.t(info.wish), 2.6)
 			return
-		coins -= count
+		Payment.pay(self, count)
 		Sfx.play_coins(self, count)
 	else:
 		if crafting.have(info.gift) < count:
@@ -7803,11 +7816,11 @@ func apply_home_bonus() -> void:
 
 ## Hagen builds an upgrade onto the house: "" when done, else why not.
 func build_home_upgrade(id: String) -> String:
-	var why := HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, coins)
+	var why := HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, Payment.worth(self))
 	if why != "":
 		return why
 	HomeUpgrades.pay_stones(id, player.bag, storage)
-	coins -= int(HomeUpgrades.ALL[id].gold)
+	Payment.pay(self, int(HomeUpgrades.ALL[id].gold))
 	home_upgrades[id] = true
 	learn(HomeUpgrades.LEARN)
 	apply_home_bonus()

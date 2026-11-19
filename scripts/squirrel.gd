@@ -198,6 +198,10 @@ func _physics_process(delta: float) -> void:
 	# Far from the hero it keeps still (nobody sees it).
 	if away.length() > 90.0:
 		return
+	if is_up_a_tree():
+		_trail._from = Vector3.INF
+	else:
+		_trail.follow(level, global_position)
 	_clock += delta
 	var night: bool = level.get("night") == true
 	var near: bool = away.length() < shy_distance() and not hero.get("dead")
@@ -338,6 +342,9 @@ func _walk(delta: float, speed: float, hop: float, height: float) -> void:
 
 
 var _hop_height := 0.1
+
+## Its small paw prints in the snow (see SnowTrail).
+var _trail := SnowTrail.new("squirrel")
 
 
 ## The pose of the body from the state: the bounding arc, sitting up, or

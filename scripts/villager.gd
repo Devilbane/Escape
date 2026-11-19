@@ -1565,8 +1565,11 @@ func _keep_apart(delta: float) -> void:
 		return
 	var push := Vector3.ZERO
 	var stand := Vector3.ZERO
-	for o: Villager in _close_by():
-		if not is_instance_valid(o) or o.at_home or (_mixing_with(o) and not o.keeps_spot()):
+	for other in _close_by():
+		if not is_instance_valid(other):
+			continue
+		var o: Villager = other
+		if o.at_home or (_mixing_with(o) and not o.keeps_spot()):
 			continue
 		var away := global_position - o.global_position
 		away.y = 0.0
@@ -1574,15 +1577,13 @@ func _keep_apart(delta: float) -> void:
 		var dist := away.length()
 		if dist >= room:
 			continue
-		if dist < 0.01:
-			away = Vector3(cos(rotation.y), 0, sin(rotation.y))
-			dist = 0.01
+		var dir := away / dist if dist >= 0.01 else Vector3(cos(rotation.y), 0, sin(rotation.y))
 		# Two walking about share the step.
 		if o.keeps_spot():
 			# A shopkeeper's place is not given up: stepped out of at once, however fast the walker runs.
-			stand += away / dist * (room - dist)
+			stand += dir * (room - dist)
 		else:
-			push += away / dist * (room - dist) * 0.5
+			push += dir * (room - dist) * 0.5
 	if push.length() > 0.001 or stand.length() > 0.001:
 		_move_to(global_position + stand + push.limit_length(EASE_SPEED * delta))
 
@@ -1591,8 +1592,11 @@ func _keep_apart(delta: float) -> void:
 ## running into them. (Those who keep their spot are left out: see _crowds_spot.)
 func _separation() -> Vector3:
 	var lean := Vector3.ZERO
-	for o: Villager in _close_by():
-		if not is_instance_valid(o) or o.at_home or o.keeps_spot() or _mixing_with(o):
+	for other in _close_by():
+		if not is_instance_valid(other):
+			continue
+		var o: Villager = other
+		if o.at_home or o.keeps_spot() or _mixing_with(o):
 			continue
 		var away := global_position - o.global_position
 		away.y = 0.0
@@ -1600,10 +1604,8 @@ func _separation() -> Vector3:
 		var dist := away.length()
 		if dist >= room * AWARE:
 			continue
-		if dist < 0.01:
-			away = Vector3(cos(rotation.y), 0, sin(rotation.y))
-			dist = 0.01
-		lean += away / dist * (1.0 - (dist - room) / (room * (AWARE - 1.0)) if dist > room else 1.0)
+		var dir := away / dist if dist >= 0.01 else Vector3(cos(rotation.y), 0, sin(rotation.y))
+		lean += dir * (1.0 - (dist - room) / (room * (AWARE - 1.0)) if dist > room else 1.0)
 	return lean
 
 

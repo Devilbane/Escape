@@ -117,6 +117,8 @@ static func _dress(mi: MeshInstance3D, model: String, shape: Dictionary) -> void
 	for s in count:
 		mats.append(mi.get_active_material(s))
 	mi.material_override = null
+	# Cloth that flutters in the wind keeps no snow.
+	mi.set_meta("no_snow", true)
 	var key := [mesh, model]
 	if not _meshes.has(key):
 		_meshes[key] = _cut(mesh, shape)

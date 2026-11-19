@@ -33,6 +33,7 @@ static func ensure(level: Outdoor, near: Vector3) -> Snowman:
 	# He looks south, towards the way the camera looks at the village, give or take a little.
 	man.rotation.y = Snowball._rng.randf_range(-0.5, 0.5)
 	level.snowman = man
+	man.set_daylight(level.snow.daylight)
 	return man
 
 
@@ -58,8 +59,13 @@ static func _roomy(level: Outdoor, c: Vector2i) -> bool:
 	return true
 
 
+const SPARKLE_ENERGY := 0.3
+var _snow: StandardMaterial3D
+
+
 func _ready() -> void:
 	var snow := StandardMaterial3D.new()
+	_snow = snow
 	snow.albedo_color = Color(1, 1, 1)
 	snow.roughness = 0.8
 	snow.albedo_texture = _snow_texture(false)
@@ -68,7 +74,7 @@ func _ready() -> void:
 	snow.normal_scale = 0.9
 	snow.emission_enabled = true
 	snow.emission = Color(1, 1, 1)
-	snow.emission_energy_multiplier = 0.9
+	snow.emission_energy_multiplier = SPARKLE_ENERGY
 	snow.emission_texture = _sparkle_texture()
 	snow.uv1_scale = Vector3(3, 2, 1)
 	snow.uv1_triplanar = false
@@ -212,6 +218,15 @@ func _part(mesh: Mesh, mat: Material) -> MeshInstance3D:
 
 
 ## Shrinks with the melting snow: full size while the snow lies thick, gone at MELTED.
+## Only the flecks of ice catch the light, so they sparkle by day and go dark with the sun:
+## the snowman must not glow in the night (`daylight` 0 night to 1 day).
+func set_daylight(daylight: float) -> void:
+	if _snow != null:
+		var d := clampf(daylight, 0.0, 1.0)
+		_snow.emission_enabled = d > 0.05
+		_snow.emission_energy_multiplier = SPARKLE_ENERGY * d
+
+
 func melt_to(cover: float) -> void:
 	_size = clampf((cover - MELTED) / (BUILD_FROM - MELTED), 0.0, 1.0)
 	var s := lerpf(0.35, 1.0, _size)

@@ -1534,7 +1534,8 @@ func _nearby(radius: int) -> Vector3:
 ## herald. Others walk round them and are pushed off their spot, never the
 ## other way round, so their shop or word is always there to bump into.
 func keeps_spot() -> bool:
-	return _info.plan in ["shop", "stay"]
+	# Someone frozen stiff in the cold stands as still as a shopkeeper.
+	return _info.plan in ["shop", "stay"] or _task == "frozen"
 
 
 ## Whether a tile is next to the spot of someone else who keeps to it.

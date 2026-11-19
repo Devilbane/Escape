@@ -1,0 +1,1 @@
+- Villagers who are frozen stiff in winter now count as fixed obstacles, so others keep clear of them.

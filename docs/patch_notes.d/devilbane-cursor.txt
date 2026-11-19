@@ -1,0 +1,1 @@
+- The mouse cursor is now twice as large and drawn as a crystal arrow in the Devilbane logo's blue, turning gold with a starry glint over anything you can press.

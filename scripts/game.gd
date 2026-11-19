@@ -4823,7 +4823,24 @@ func away_choices() -> Dictionary:
 		if Items.is_book(id) and not id in books and not Offline.book_used_up(book_hours, id):
 			books.append(id)
 	var crafts := Offline.RECIPES.keys().filter(reputation.can_craft)
-	return {"job": jobs, "train": train, "study": books, "craft": crafts}
+	var house := []
+	if _house_work_open():
+		house.append(Offline.BUILD_HOUSE)
+	return {"job": jobs, "train": train, "study": books, "craft": crafts, "build": house}
+
+
+## The hero's house sketch, or null without a plot.
+func _house_plan() -> HouseSketch:
+	var plot := Plots.plot_of(hero_name)
+	if plot.size == Vector2i.ZERO:
+		return null
+	return HouseSketch.of(hero_name, plot)
+
+
+## True while the hero's sketch has pieces to build or to take down.
+func _house_work_open() -> bool:
+	var house := _house_plan()
+	return house != null and house.open_pieces() > 0
 
 
 ## Back after a sleep in the bed: the hero has lived the planned day for as
@@ -4993,6 +5010,8 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 		else:
 			made = Lang.t("%d Punkte Haltbarkeit") % repaired
 		lines.append(Lang.t("%s: %s, %s") % [Lang.t(Offline.RECIPES[plan.craft].name), Offline.duration_text(spent.craft), made])
+	if spent.build > 0.0:
+		lines.append_array(_build_away(int(result.get("pieces", 0)), spent.build))
 	if spent.rest > 0.0:
 		# Each hour of rest heals an eighth of the hero's life; a full night
 		# also cures poison and curses.
@@ -5006,6 +5025,40 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 			lines.append(Lang.t("%s steigt auf %s!") % [Lang.t(Training.ATTRIBUTES[id].name), shown])
 	# Skills do not level up from training: that waits for the night (see
 	# _sleep_night).
+	return lines
+
+
+## The hero works on the house while the player is away: up to `pieces`
+## pieces, as far as the plot's stock pays for them.
+func _build_away(pieces: int, hours: float) -> Array[String]:
+	var lines: Array[String] = []
+	var house := _house_plan()
+	if house == null:
+		return lines
+	house.ordered = house.open_pieces() > 0
+	var built := 0
+	var demolished := 0
+	var waiting := false
+	for i in pieces:
+		var step := house.build_next()
+		if step.is_empty():
+			break
+		if step.has("why"):
+			waiting = true
+			break
+		if step.did == "built":
+			built += 1
+		else:
+			demolished += 1
+	house.save(hero_name)
+	if house_sketcher != null:
+		house_sketcher.plan = null
+		house_sketcher.refresh()
+	lines.append(Lang.t("Hausbau: %s, %d Teile gebaut, %d abgerissen") % [Offline.duration_text(hours), built, demolished])
+	if waiting:
+		lines.append(Lang.t("Der Bau ruht: Es fehlt Material auf dem Grundstück."))
+	elif house.open_pieces() == 0:
+		lines.append(Lang.t("Das Haus steht, wie du es geplant hast."))
 	return lines
 
 

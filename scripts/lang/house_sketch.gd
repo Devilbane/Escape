@@ -42,4 +42,10 @@ const EN := {
 	"Gekauft: %d Bauholz": "Bought: %d timber",
 	"Dagegenlaufen, um bei %s Bauholz zu kaufen": "Run into %s to buy timber",
 	"Dagegenlaufen, um den Bauplan deines Hauses zu zeichnen": "Run into it to draw the blueprint of your house",
+	"Hausbau": "House building",
+	"Dein Haus nach dem Bauplan bauen": "Build your house from the blueprint",
+	"Nichts zu bauen (Bauplan und Grundstück nötig)": "Nothing to build (needs a blueprint and a plot)",
+	"Hausbau: %s, %d Teile gebaut, %d abgerissen": "House building: %s, %d pieces built, %d taken down",
+	"Der Bau ruht: Es fehlt Material auf dem Grundstück.": "Building has stopped: the plot is out of material.",
+	"Das Haus steht, wie du es geplant hast.": "The house stands as you planned it.",
 }

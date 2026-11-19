@@ -15,6 +15,8 @@ extends RefCounted
 ##   study  (Lernen)    read a book the hero owns: it teaches its skill even
 ##                       without the gear, and a little Intelligenz.
 ##   craft  (Handwerk)  make something from RECIPES.
+##   build  (Hausbau)   the hero builds the open pieces of their house sketch
+##                       (see HouseSketch), one piece per BUILD_PIECE_HOURS.
 ##   rest   (Ruhe)      at least REST_HOURS, every day. Heals the hero.
 ##   free   (Freizeit)  whatever is left of the 24 hours.
 ## A day cut short by the player's return is lived from the top, so a short
@@ -75,7 +77,12 @@ const RECIPES := {
 ## Stone blocks cut in one absence, at most (they wait in the storage chest).
 const MAX_STONES := 20
 
-const BLOCKS := ["job", "train", "study", "craft", "rest"]
+## In-game hours the hero needs for one piece of the house (a wall, a door, a window).
+const BUILD_PIECE_HOURS := 2.0
+## The one choice of the build block.
+const BUILD_HOUSE := "haus"
+
+const BLOCKS := ["job", "train", "study", "craft", "build", "rest"]
 
 
 ## A day with nothing planned but sleep.
@@ -83,6 +90,7 @@ static func empty_plan() -> Dictionary:
 	return {
 		"job": "", "job_hours": 0, "train": "", "train_hours": 0,
 		"study": "", "study_hours": 0, "craft": "", "craft_hours": 0,
+			"build": "", "build_hours": 0,
 		"rest_hours": REST_HOURS,
 	}
 
@@ -121,20 +129,20 @@ static func xp_per_hour(id: String, rate: float) -> float:
 
 ## A plan that keeps the rules: a known choice for every block, the job no
 ## longer than JOB_MAX_HOURS, at least REST_HOURS of rest and no more than a
-## day in all. `allowed` maps "job", "train", "study" and "craft" to the
+## day in all. `allowed` maps "job", "train", "study", "craft" and "build" to the
 ## choices the hero has right now (see Game.away_choices); a block whose
 ## choice is gone gets no hours. When the day is too full, the blocks at the
 ## end lose hours first.
 static func normalized(plan: Dictionary, allowed: Dictionary) -> Dictionary:
 	var out := empty_plan()
-	for block in ["job", "train", "study", "craft"]:
+	for block in ["job", "train", "study", "craft", "build"]:
 		var choice := String(plan.get(block, ""))
 		if choice in allowed.get(block, []):
 			out[block] = choice
 			out[block + "_hours"] = maxi(0, int(plan.get(block + "_hours", 0)))
 	out.job_hours = mini(out.job_hours, JOB_MAX_HOURS)
 	out.rest_hours = clampi(int(plan.get("rest_hours", REST_HOURS)), REST_HOURS, DAY_HOURS)
-	for block in ["rest", "craft", "study", "train", "job"]:
+	for block in ["rest", "build", "craft", "study", "train", "job"]:
 		var over := planned_hours(out) - DAY_HOURS
 		if over <= 0:
 			break
@@ -152,12 +160,14 @@ static func normalized(plan: Dictionary, allowed: Dictionary) -> Dictionary:
 ##   xp: training id -> amount, before the hero's Weisheit bonus
 ##   study_xp: training id -> amount that needs no gear (from books)
 ##   knives, repairs, stones: pieces crafted
+##   pieces: house pieces the hero had time to build (the game builds as many
+##   as the plot's stock pays for)
 ##   study_read: hours of the book that really counted (a book holds only
 ##   BOOK_HOURS in all; `book_read` is how many it has already given)
 ## With `workshop` (the workbench at home, see HomeUpgrades), every crafted
 ## piece takes only HomeUpgrades.WORKSHOP_CRAFT of its hours.
 static func simulate(plan: Dictionary, hours: float, workshop := false, book_read := 0.0) -> Dictionary:
-	var spent := {"job": 0.0, "train": 0.0, "study": 0.0, "craft": 0.0, "rest": 0.0, "free": 0.0}
+	var spent := {"job": 0.0, "train": 0.0, "study": 0.0, "craft": 0.0, "build": 0.0, "rest": 0.0, "free": 0.0}
 	var left := maxf(0.0, hours)
 	var day: Array = []
 	for block in BLOCKS:
@@ -172,7 +182,7 @@ static func simulate(plan: Dictionary, hours: float, workshop := false, book_rea
 				break
 	var result := {
 		"hours": hours, "days": floori(hours / DAY_HOURS), "spent": spent,
-		"gold": 0, "xp": {}, "study_xp": {}, "study_read": 0.0, "knives": 0, "repairs": 0, "stones": 0,
+		"gold": 0, "xp": {}, "study_xp": {}, "study_read": 0.0, "knives": 0, "repairs": 0, "stones": 0, "pieces": 0,
 	}
 	if plan.get("job", "") != "" and JOBS.has(plan.job):
 		var job: Dictionary = JOBS[plan.job]
@@ -200,6 +210,8 @@ static func simulate(plan: Dictionary, hours: float, workshop := false, book_rea
 		elif recipe.makes == "stone":
 			result.stones = mini(pieces, MAX_STONES)
 		_add_rates(result.xp, recipe.get("train", {}), spent.craft)
+	if plan.get("build", "") == BUILD_HOUSE:
+		result.pieces = floori(spent.build / BUILD_PIECE_HOURS + 0.0001)
 	return result
 
 

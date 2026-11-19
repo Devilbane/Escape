@@ -1,0 +1,1 @@
+- Cows and bulls are relaxed now: they no longer bolt or spin when someone walks up to them.

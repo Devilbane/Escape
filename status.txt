@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Give the mouse cursor a larger Devilbane crystal look; Denser winter breath while moving; Spread temple window light wider away from the wall (+47 more)
+Escape! dev status | Working on: Slower, longer breathing in winter | Shipped this week: Give the mouse cursor a larger Devilbane crystal look; Denser winter breath while moving; Spread temple window light wider away from the wall (+47 more)

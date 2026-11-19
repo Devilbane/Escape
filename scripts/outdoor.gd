@@ -166,6 +166,9 @@ const CHAPEL_GLASS_LIGHT := Color(0.9, 0.8, 0.64)
 ## How strongly the temple's windows shine by day (a fraction of the night's glow),
 ## and how much of its night strength the coloured picture on the lawn keeps at high noon
 ## (half; it fades in and out with the daylight).
+## From how far above the ground the temple's surfaces carry a cap of snow: low enough for the
+## treads of its front steps (other buildings start at SnowCaps.LOWEST, which skips doorsteps).
+const TEMPLE_STEP_SNOW := 0.05
 const CHAPEL_DAY_GLOW := 0.45
 const CHAPEL_DAY_SPILL := 0.5
 
@@ -1342,7 +1345,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for x in [-2.0, 0.0, 2.0]:
 				for z in [0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
-			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES)
+			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW)
 		elif ch == "w" or ch == "k":
 			# The gate's passage runs from the front in to the middle: all of it stays free of ivy.
 			var gate := [0.0, 0.25, 0.5, 0.75, 1.0].map(func(t: float): return front.lerp(center, t))
@@ -1965,7 +1968,7 @@ func _standalone(block: Rect2i) -> bool:
 ## time; and what was found is kept, so when the hero steps out of the crypt
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
-func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0) -> void:
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST) -> void:
 	if old:
 		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
 	var key := "%s|%s|%s|%s|%s|%s" % [level_name, middle, _bounds_in(node), old, foot_max, proud]
@@ -2001,7 +2004,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		# (shown only while snow lies, see SnowCaps), with dice of their own.
 		var ice_rng := RandomNumberGenerator.new()
 		ice_rng.seed = hash(key + "schnee")
-		var caps := SnowCaps.build(tris, ground, SnowCaps.windows_of(node, tris, WINDOW_UV), ice_rng, -offset)
+		var caps := SnowCaps.build(tris, ground, SnowCaps.windows_of(node, tris, WINDOW_UV), ice_rng, -offset, cap_from)
 		_dressed[key] = {"leaves": leaves, "nest": spot - offset if spot != Vector3.INF else spot, "turn": rng.randf() * TAU, "caps": caps}
 	var done: Dictionary = _dressed[key]
 	var cap_node := SnowCaps.node_for(done.get("caps"))

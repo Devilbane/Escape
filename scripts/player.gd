@@ -1122,7 +1122,7 @@ func _footsteps(ground_speed: float) -> void:
 					_foot_left = not _foot_left
 					var heading := _model.rotation.y
 					var apart := Vector3(cos(heading), 0, -sin(heading)) * (0.09 if _foot_left else -0.09)
-					level.snow_print(global_position + apart, heading)
+					level.snow_print(global_position + apart, heading, 1.0, "hero")
 					# Every ground has its own steps (see Surfaces.STEPS). Sneaking
 					# is only a very soft touch, barely to be heard: a brush of
 					# cloth on hard floors, a hushed step on anything softer.

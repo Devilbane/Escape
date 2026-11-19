@@ -59,25 +59,14 @@ static func _roomy(level: Outdoor, c: Vector2i) -> bool:
 	return true
 
 
-const SPARKLE_ENERGY := 0.3
-var _snow: StandardMaterial3D
+var _snow: ShaderMaterial
 
 
 func _ready() -> void:
-	var snow := StandardMaterial3D.new()
+	# The same snow as the ground tiles (see snow.gdshaderinc).
+	var snow := ShaderMaterial.new()
+	snow.shader = load("res://shaders/snowman_snow.gdshader")
 	_snow = snow
-	snow.albedo_color = Color(1, 1, 1)
-	snow.roughness = 0.8
-	snow.albedo_texture = _snow_texture(false)
-	snow.normal_enabled = true
-	snow.normal_texture = _snow_texture(true)
-	snow.normal_scale = 0.9
-	snow.emission_enabled = true
-	snow.emission = Color(1, 1, 1)
-	snow.emission_energy_multiplier = SPARKLE_ENERGY
-	snow.emission_texture = _sparkle_texture()
-	snow.uv1_scale = Vector3(3, 2, 1)
-	snow.uv1_triplanar = false
 	var coal := StandardMaterial3D.new()
 	coal.albedo_color = Color(0.06, 0.06, 0.07)
 	coal.roughness = 0.6
@@ -160,38 +149,6 @@ func _hat_part(parent: Node3D, mesh: Mesh, at: Vector3, mat: Material) -> void:
 	parent.add_child(mi)
 
 
-## Packed snow: soft lumps in a fixed noise (no random numbers drawn, the game's dice stay as they
-## are). As a normal map it dents the balls; as a colour it shades them a touch blue in the dips.
-static func _snow_texture(as_normal: bool) -> ImageTexture:
-	var n := FastNoiseLite.new()
-	n.seed = 7
-	n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	n.frequency = 0.035
-	n.fractal_octaves = 4
-	var img := n.get_seamless_image(128, 128)
-	if as_normal:
-		img.bump_map_to_normal_map(5.0)
-	else:
-		for y in 128:
-			for x in 128:
-				var v := img.get_pixel(x, y).r
-				img.set_pixel(x, y, Color(0.8, 0.86, 0.96).lerp(Color(1, 1, 1), v))
-	img.generate_mipmaps()
-	return ImageTexture.create_from_image(img)
-
-
-## Sparkle: a few bright flecks on black, picked by a hash of the pixel, not by a random number.
-static func _sparkle_texture() -> ImageTexture:
-	var img := Image.create(128, 128, true, Image.FORMAT_RGB8)
-	img.fill(Color(0, 0, 0))
-	for y in 128:
-		for x in 128:
-			if (x * 73856093 ^ y * 19349663) % 61 == 0:
-				img.set_pixel(x, y, Color(0.75, 0.85, 1.0))
-	img.generate_mipmaps()
-	return ImageTexture.create_from_image(img)
-
-
 func _ball(radius: float, y: float, mat: Material) -> void:
 	var m := SphereMesh.new()
 	m.radius = radius
@@ -218,13 +175,11 @@ func _part(mesh: Mesh, mat: Material) -> MeshInstance3D:
 
 
 ## Shrinks with the melting snow: full size while the snow lies thick, gone at MELTED.
-## Only the flecks of ice catch the light, so they sparkle by day and go dark with the sun:
-## the snowman must not glow in the night (`daylight` 0 night to 1 day).
+## Tells the snow how bright the light of the hour is (`daylight` 0 night to 1 day), as the
+## ground tiles are told: his glints of ice show by day only, and he never glows at night.
 func set_daylight(daylight: float) -> void:
 	if _snow != null:
-		var d := clampf(daylight, 0.0, 1.0)
-		_snow.emission_enabled = d > 0.05
-		_snow.emission_energy_multiplier = SPARKLE_ENERGY * d
+		_snow.set_shader_parameter("daylight", clampf(daylight, 0.0, 1.0))
 
 
 func melt_to(cover: float) -> void:

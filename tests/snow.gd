@@ -251,7 +251,7 @@ func _prints() -> void:
 	var beetle: Node = crawlers.get_child(crawlers.get_child_count() - 1)
 	check(SnowCover.bare(beetle), "a beetle wears no snow coat")
 	crawlers.free()
-	# A walking deer or stag, wild or companion, presses its hooves one stride after the other.
+	# Animals, wild or companion, leave no tracks in the snow.
 	for deer in ["reh", "hirsch"]:
 		var trail := SnowTrail.new(deer)
 		var at: Vector3 = lvl.player.global_position + Vector3(4, 0, 0)
@@ -259,7 +259,13 @@ func _prints() -> void:
 		trail.follow(lvl, at)
 		trail.follow(lvl, at + Vector3(0, 0, 1.0))
 		trail.follow(lvl, at + Vector3(0, 0, 2.0))
-		check(SnowPrints._live.size() > pressed, "a walking %s leaves hoof prints" % deer)
+		check(SnowPrints._live.size() == pressed, "a walking %s leaves no prints" % deer)
+	var walker := SnowTrail.new("walker")
+	var pressed_by_walker := SnowPrints._live.size()
+	var wat: Vector3 = lvl.player.global_position + Vector3(4, 0, 0)
+	for z in 3:
+		walker.follow(lvl, wat + Vector3(0, 0, float(z)))
+	check(SnowPrints._live.size() > pressed_by_walker, "a skeleton on two legs still presses boots")
 	check(SnowTrail.for_monster("krieger", "Skeleton_Warrior", false, 1.0) != null, "a skeleton leaves tracks")
 	check(SnowTrail.for_monster("wolf", "Wolf", false, 1.0) != null, "a wolf leaves tracks")
 	check(SnowTrail.for_monster("totengeist", "Skeleton_Rogue", true, 1.0) == null, "a ghost leaves none")

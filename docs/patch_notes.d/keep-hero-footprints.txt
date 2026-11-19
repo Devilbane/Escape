@@ -1,1 +1,1 @@
-- Your footprints in the snow now last all day instead of vanishing one by one while you walk about.
+- Animals no longer leave tracks in the snow (they never showed up well); your own footprints last all day.

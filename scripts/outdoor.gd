@@ -133,6 +133,11 @@ const FOREST_DEPTH := 4
 ## Ground pieces are this many tiles across. Each piece is lit by the
 ## lanterns near it only, so many lanterns can burn at once.
 const GROUND_CHUNK := 12
+## The ground is drawn in squares of this many tiles. The renderer lights each object with a
+## limited set of the lights that touch it, so one big square put a hard, straight edge of
+## different lighting across the snow where its lamps and lanterns were cut off; small squares
+## see few lights each, and their lighting changes in small steps nobody notices.
+const GROUND_PIECE := 4
 const TREE_SHADER := preload("res://shaders/tree.gdshader")
 ## The temple: a chapel from the Modular Cathedral Kit (see _build_chapel).
 ## Pieces in the kit's own metres, with the door looking south (+z): name,
@@ -628,9 +633,9 @@ func _build_ground() -> void:
 		mat.set_shader_parameter("old_paving", Vector4((fence.position.x - 0.5) * TILE, (fence.position.y - 0.5) * TILE,
 				(fence.end.x - 0.5) * TILE, (fence.end.y - 0.5) * TILE))
 	var margin := 10
-	var size := GROUND_CHUNK * TILE
-	for cy in range(-margin, height + margin, GROUND_CHUNK):
-		for cx in range(-margin, width + margin, GROUND_CHUNK):
+	var size := GROUND_PIECE * TILE
+	for cy in range(-margin, height + margin, GROUND_PIECE):
+		for cx in range(-margin, width + margin, GROUND_PIECE):
 			var plane := PlaneMesh.new()
 			plane.size = Vector2(size, size)
 			var piece := MeshInstance3D.new()

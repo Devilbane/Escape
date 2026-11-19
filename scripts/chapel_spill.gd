@@ -4,8 +4,8 @@ extends RefCounted
 ## for every window a shiny, see-through picture of its own glass (the same shape
 ## and colours, taken from the glass texture), lying on the ground in front of the
 ## window. It starts away from the wall by half as much as the window's sill is high,
-## ends 20% longer than the window is tall (the window's top is the far end) and
-## fades out towards that end. Soft coloured rays of the same glass shine from the
+## ends 72.5% longer than the window is tall (the window's top is the far end) and
+## keeps its colours all along (it only softens at its two ends). Soft coloured rays of the same glass shine from the
 ## window down to the picture, like light falling through dusty air. One additive mesh for the whole temple, built in
 ## the temple's own metres. Its "glow" parameter is driven with the glass at night
 ## (see Outdoor.set_hour); the temple's windows burn all night. Fog is off for it,
@@ -30,13 +30,13 @@ const WINDOWS := [
 	[Vector3(0, 0, -12.37), Vector3(0, 0, -1), ROSE],
 ]
 ## How much longer the picture is than the window, how far from the wall it starts
-## (a fraction of the sill's height) and how bright it is at its far end.
-const STRETCH := 1.2
+## (a fraction of the sill's height) and how bright it is at its far end (1 = the same all along).
+const STRETCH := 1.725
 const GAP := 0.5
-const FAR_BRIGHTNESS := 0.04
+const FAR_BRIGHTNESS := 1.0
 ## How many times wider the picture is at its far end than at the wall's side: the light spreads
 ## out the farther it travels, like real light through a window.
-const SPREAD := 1.7
+const SPREAD := 1.3
 ## The rays: ribbons across the beam at these heights of the window (0 = bottom,
 ## 1 = top) and sheets along it at these places across the window (0 = left, 1 = right).
 const RIBBONS := [0.1, 0.3, 0.5, 0.7, 0.9]

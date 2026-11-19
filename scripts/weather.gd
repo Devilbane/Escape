@@ -60,7 +60,7 @@ const CHANCES := {
 
 ## The year: WINTER_DAYS of winter at the end of every YEAR_DAYS days (a new game starts on day
 ## 0, so the first winter comes on day 24). Snow falls only in winter, and there is no rain and no
-## thunderstorm then: snow comes in their place, often, and the snow on the ground melts slowly.
+## thunderstorm then: snow comes in their place, often, and the snow on the ground stays until spring.
 const YEAR_DAYS := 32
 const WINTER_DAYS := 8
 const WINTER_CHANCES := {
@@ -69,8 +69,7 @@ const WINTER_CHANCES := {
 	"day": {CLEAR: 8.0, FOG: 0.5, SNOW: 5.0},
 	"evening": {CLEAR: 6.0, FOG: 0.5, SNOW: 5.0},
 }
-## In winter the snow on the ground melts this many times slower.
-const WINTER_MELT := 4.0
+## In winter the snow on the ground does not melt in dry weather at all: it lies until spring.
 
 ## Rain is only a thirtieth as common as the weights above would make it: a roll
 ## that lands on rain keeps it with this chance, and otherwise goes on to
@@ -231,8 +230,8 @@ static func snow_cover(cover: float, kind: String, delta: float, winter := false
 	var hours := delta * 24.0 / DayNight.DAY_LENGTH
 	if kind == SNOW:
 		cover += hours / SNOW_BUILD_HOURS
-	else:
-		cover -= hours / SNOW_MELT_HOURS * (SNOW_RAIN_MELT if kind == RAIN or kind == STORM else 1.0) / (WINTER_MELT if winter else 1.0)
+	elif not winter:
+		cover -= hours / SNOW_MELT_HOURS * (SNOW_RAIN_MELT if kind == RAIN or kind == STORM else 1.0)
 	return clampf(cover, 0.0, 1.0)
 
 

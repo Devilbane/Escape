@@ -75,7 +75,8 @@ func _rules() -> void:
 	check(not Weather.is_winter(Weather.YEAR_DAYS), "the next year starts out of winter")
 	check(Weather.for_season(Weather.RAIN, true) == Weather.SNOW and Weather.for_season(Weather.STORM, true) == Weather.SNOW, "in winter snow comes instead of rain")
 	check(Weather.for_season(Weather.RAIN, false) == Weather.RAIN, "out of winter rain is rain")
-	check(Weather.snow_cover(1.0, Weather.CLEAR, 60.0, true) > Weather.snow_cover(1.0, Weather.CLEAR, 60.0), "the snow melts slower in winter")
+	check(Weather.snow_cover(1.0, Weather.CLEAR, 100000.0, true) == 1.0, "winter snow does not melt in dry weather")
+	check(Weather.snow_cover(1.0, Weather.CLEAR, 100000.0) == 0.0, "out of winter it melts")
 	check(Weather.word(Weather.SNOW) == "Schnee", "the HUD names the snow")
 	# The layer builds up while it snows and melts after it, rain washes it off faster.
 	var cover := 0.0

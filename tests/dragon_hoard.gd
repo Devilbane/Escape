@@ -62,7 +62,10 @@ func _run_helpers(helpers: DragonHelpers, seconds: float) -> void:
 			if is_instance_valid(h.node) and h.node.scale.x > 0.5:
 				var c: Vector2i = lvl.world_to_cell(h.node.global_position)
 				var near_den := DragonHelpers._flat(h.node.global_position - helpers.den) < 4.0
-				if not near_den and lvl.astar.is_in_boundsv(c) and lvl.astar.is_point_solid(c):
+				# The last stretch to a thing lying right beside a wall or a tree may end in the solid tile.
+				var spot: Array = h.target.floor
+				var near_thing := Vector2(spot[2] - h.node.global_position.x, spot[3] - h.node.global_position.z).length() < 3.0
+				if not near_den and not near_thing and lvl.astar.is_in_boundsv(c) and lvl.astar.is_point_solid(c):
 					solid_hits += 1
 
 

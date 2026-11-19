@@ -23,9 +23,10 @@ void fragment() {
 	}
 	// Bluish, see-through ice, clearer towards the tip and bright at its edges.
 	float rim = pow(1.0 - abs(dot(NORMAL, VIEW)), 2.0);
-	ALBEDO = mix(vec3(0.62, 0.74, 0.86), vec3(0.92, 0.96, 1.0), rim);
-	ALPHA = 0.55 + 0.35 * rim;
+	ALBEDO = mix(vec3(0.45, 0.78, 0.98), vec3(0.85, 0.97, 1.0), rim);
+	ALPHA = 0.6 + 0.35 * rim;
 	ROUGHNESS = 0.08;
 	SPECULAR = 0.9;
-	EMISSION = vec3(0.4, 0.55, 0.8) * 0.04 * (1.0 - daylight);
+	// A soft crystal glow, stronger at the rim, so the ice reads as glinting by day and night.
+	EMISSION = vec3(0.35, 0.7, 1.0) * (0.12 + 0.25 * rim) + vec3(0.4, 0.55, 0.8) * 0.04 * (1.0 - daylight);
 }

@@ -2669,8 +2669,8 @@ func _build_forge(cell: Vector2i) -> void:
 	# top of the stack, and the same thin smoke the houses' chimneys give.
 	var top := coals + Vector3(0, 2.52, -0.42)
 	_chimney_fire(top)
-	warm_spots.append(Vector4(coals.x, coals.y, coals.z, 1.8))
-	warm_spots.append(Vector4(top.x, top.y, top.z, 1.6))
+	warm_spots.append(Vector4(coals.x, coals.y, coals.z, 0.9))
+	warm_spots.append(Vector4(top.x, top.y, top.z, 0.7))
 	var plume := ChimneySmoke.make()
 	plume.position = top + Vector3(0, 0.25, 0)
 	_fixed_seed(plume, 3)

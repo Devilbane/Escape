@@ -731,6 +731,8 @@ func _setup_world() -> void:
 	moon.directional_shadow_split_1 = 0.04
 	moon.directional_shadow_split_2 = 0.1
 	moon.directional_shadow_split_3 = 0.25
+	# Blend the rings so no hard edge of shade sweeps over the props as the hero walks.
+	moon.directional_shadow_blend_splits = true
 	add_child(moon)
 
 	camera = Camera3D.new()

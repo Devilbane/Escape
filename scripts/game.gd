@@ -2944,7 +2944,7 @@ func _show_weather() -> void:
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
 	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(_weather_look.mist)) * 0.6)
-	Weather.show_particles(_rain, _mist, dusty, light, _snow)
+	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(day))
 	Weather.show_leaves(_leaves, Weather.leaf_strength(_weather_look, day_hour), light)
 	Breath.set_light(light)
 

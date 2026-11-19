@@ -117,6 +117,10 @@ const PUDDLE_DRY_HOURS := 3.0
 ## this many hours of snowfall and melts away again in this many hours of
 ## dry weather (rain washes it off in a third of that).
 const SNOW_FLAKES := 650
+## In winter a few small flakes fall in any weather (clear, fog): this many, at this strength
+## (the share of a full snowfall's look). A real snowfall brings all SNOW_FLAKES.
+const WINTER_FLAKES := 70
+const WINTER_FLURRY := 0.55
 const SNOW_BUILD_HOURS := 0.5
 const SNOW_MELT_HOURS := 5.0
 const SNOW_RAIN_MELT := 3.0
@@ -453,9 +457,18 @@ static func make_mist() -> CPUParticles3D:
 
 
 ## Shows rain and mist as strong as the look says, darker by night.
-static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_look: Dictionary, light: float, snow: CPUParticles3D = null) -> void:
+static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_look: Dictionary, light: float, snow: CPUParticles3D = null, winter := false) -> void:
 	if snow != null:
 		var f: float = weather_look.snow
+		# A thin flurry in winter whatever the weather; the heavy fall keeps its own look. The
+		# particles' own count only changes between the two (it restarts them), never every frame.
+		if winter:
+			var want := SNOW_FLAKES if f > WINTER_FLURRY else WINTER_FLAKES
+			if snow.amount != want:
+				snow.amount = want
+			f = maxf(f, WINTER_FLURRY)
+		elif snow.amount != SNOW_FLAKES:
+			snow.amount = SNOW_FLAKES
 		snow.emitting = f > 0.02
 		snow.visible = snow.emitting
 		var snow_mat: StandardMaterial3D = (snow.mesh as QuadMesh).material

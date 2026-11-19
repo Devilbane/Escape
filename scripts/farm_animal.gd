@@ -146,6 +146,9 @@ var _resting := false
 ## On its way under the shelter's roof (see Corral).
 var _to_roof := false
 var _waiting := 0.0
+## The animals close by and the physics tick to look them up again at (see _neighbours).
+var _near: Array = []
+var _near_until := 0
 var _rig: Node3D
 var _legs: Array[Node3D] = []
 var _head: Node3D
@@ -616,17 +619,28 @@ func _walk(delta: float) -> void:
 	rotation.y = atan2(aside.x, aside.z)
 
 
+## The farm animals within NEAR metres, looked up again every few physics ticks only (the
+## herd moves slowly, and this runs for every animal on every tick).
+func _neighbours() -> Array:
+	var frame := Engine.get_physics_frames()
+	if frame >= _near_until:
+		_near_until = frame + 8 + get_instance_id() % 4
+		_near.clear()
+		var mine := global_position
+		for o in _all:
+			if o != self and Footprint.counts(o) and absf(o.global_position.x - mine.x) < NEAR and absf(o.global_position.z - mine.z) < NEAR:
+				_near.append(o)
+	return _near
+
+
 ## The lean away from nearby animals, flat: zero when nobody is close, growing as a
 ## neighbour comes inside its personal space (length at most about 1.5).
 func separation() -> Vector3:
 	var push := Vector3.ZERO
-	for o in _all:
-		if o == self:
+	for o in _neighbours():
+		if not is_instance_valid(o):
 			continue
 		var d := _flat(global_position - o.global_position)
-		# Far animals are skipped before anything else is looked at (this runs every tick).
-		if d.length_squared() > NEAR * NEAR or not Footprint.counts(o):
-			continue
 		var room := (Footprint.radius_of(self) + Footprint.radius_of(o)) * SPACE
 		var dist := d.length()
 		if dist >= room * AWARE or absf(global_position.y - o.global_position.y) > Footprint.HEIGHT_GAP:
@@ -643,12 +657,10 @@ func separation() -> Vector3:
 ## into a wall, the fence or out of its pen). Returns whether it moved.
 func ease_apart(delta: float) -> bool:
 	var push := Vector3.ZERO
-	for o in _all:
-		if o == self:
+	for o in _neighbours():
+		if not is_instance_valid(o):
 			continue
 		var d := _flat(global_position - o.global_position)
-		if d.length_squared() > NEAR * NEAR or not Footprint.counts(o):
-			continue
 		var room := (Footprint.radius_of(self) + Footprint.radius_of(o)) * Footprint.STACKED
 		if d.length() >= room or absf(global_position.y - o.global_position.y) > Footprint.HEIGHT_GAP:
 			continue

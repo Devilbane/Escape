@@ -45,6 +45,18 @@ func begin() -> void:
 	pending = Rect2i()
 
 
+## The "Land" button: marks out land from the start, again and again, while the
+## hero has no plot. Leaves the blueprint tool first if it is open.
+func start() -> void:
+	if Plots.has_plot(game.hero_name):
+		game.show_message(reason("have"), 2.0)
+		return
+	if game.house_sketcher != null:
+		game.house_sketcher.leave()
+	begin()
+	game.show_message(Lang.t("Klicke eine Ecke deines Grundstücks auf der Wiese. Esc bricht ab."), 4.0)
+
+
 func cancel() -> void:
 	stage = Stage.OFF
 	_clear_ghost()

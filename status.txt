@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Stop cows, the bull and other farm animals spinning on the spot | Shipped this week: Make dragonlings fly around buildings; Keep breath clouds from vanishing on the next breath (+48 more)
+Escape! dev status | Working on: Give the companion fox, doe and stag tracks in the snow; Stop cows, the bull and other farm animals spinning on the spot | Shipped this week: Make dragonlings fly around buildings; Keep breath clouds from vanishing on the next breath (+48 more)

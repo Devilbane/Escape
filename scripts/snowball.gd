@@ -52,10 +52,7 @@ func _launch(from: Vector3, miss: bool) -> void:
 	mesh.height = 0.14
 	mesh.radial_segments = 10
 	mesh.rings = 6
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.95, 0.97, 1.0)
-	mat.roughness = 0.9
-	mesh.material = mat
+	mesh.material = Snowball.snow_material(world)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -110,6 +107,17 @@ func _burst() -> void:
 	queue_free()
 
 
+## The snow of the ground tiles (see snowman_snow.gdshader), lit by the light of the hour as the
+## ground is, for the ball and the snow that clings. `level` is asked for its snow's daylight.
+static func snow_material(level: Node) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/snowman_snow.gdshader")
+	var snow = level.get("snow") if level != null else null
+	if snow != null:
+		mat.set_shader_parameter("daylight", clampf(snow.daylight, 0.0, 1.0))
+	return mat
+
+
 ## A burst of snow at `at`: white crumbs that fly out and fall. It frees itself.
 ## A hit gets more and bigger crumbs (`amount`, `crumb` in metres), made by the mesh size and
 ## never by scaling the node, so the crumbs stay white.
@@ -150,15 +158,12 @@ static func puff(world: Node3D, at: Vector3, amount := 14, crumb := 0.07) -> voi
 	p.finished.connect(p.queue_free)
 
 
-## A blob of snow that sticks to `body` where the ball hit (`at`), then melts away. It is a child
+## A blob of snow that sticks to `body` where the ball hit (`at`), melts away. It is a child
 ## of the body, so it goes along when the body moves.
 static func cling(body: Node3D, at: Vector3) -> void:
 	if body == null or not body.is_inside_tree():
 		return
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.97, 0.98, 1.0, 1.0)
+	var mat := Snowball.snow_material(body.get_parent())
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.12
 	mesh.height = 0.12
@@ -173,5 +178,5 @@ static func cling(body: Node3D, at: Vector3) -> void:
 	blob.global_position = at
 	var tw := blob.create_tween()
 	tw.tween_interval(0.8)
-	tw.tween_property(mat, "albedo_color:a", 0.0, 1.2)
+	tw.tween_property(blob, "scale", Vector3.ONE * 0.05, 1.2)
 	tw.tween_callback(blob.queue_free)

@@ -89,8 +89,8 @@ static func node_for(mesh: ArrayMesh) -> MeshInstance3D:
 ## ground height and its windows: each {"top": where an icicle hangs from, "out": the way the
 ## window looks, "wide": how wide it is}. The mesh is moved by `shift` (into the level's own
 ## frame). Null when nothing on it faces the sky.
-static func build(tris: Array, ground: float, windows: Array, rng: RandomNumberGenerator, shift := Vector3.ZERO) -> ArrayMesh:
-	var tops := _open_tops(tris, ground)
+static func build(tris: Array, ground: float, windows: Array, rng: RandomNumberGenerator, shift := Vector3.ZERO, lowest := LOWEST) -> ArrayMesh:
+	var tops := _open_tops(tris, ground, lowest)
 	var caps := _Surface.new()
 	var ice := _Surface.new()
 	if not tops.is_empty():
@@ -157,7 +157,7 @@ static func windows_of(node: Node3D, tris: Array, window_uv: Vector2) -> Array:
 
 ## The triangles that face the sky with nothing of the building over them, high enough off
 ## the ground: each with its points, normal, and how wide it is across (see _depths).
-static func _open_tops(tris: Array, ground: float) -> Array:
+static func _open_tops(tris: Array, ground: float, lowest := LOWEST) -> Array:
 	var ups: Array = []
 	for t: Dictionary in tris:
 		var n: Vector3 = t.n
@@ -166,7 +166,7 @@ static func _open_tops(tris: Array, ground: float) -> Array:
 		var a: Vector3 = t.a
 		var b: Vector3 = t.b
 		var c: Vector3 = t.c
-		if minf(a.y, minf(b.y, c.y)) < ground + LOWEST:
+		if minf(a.y, minf(b.y, c.y)) < ground + lowest:
 			continue
 		ups.append({"a": a, "b": b, "c": c, "n": n, "mid": (a + b + c) / 3.0, "area": t.area})
 	var open: Array = []

@@ -249,6 +249,15 @@ func _prints() -> void:
 	var beetle: Node = crawlers.get_child(crawlers.get_child_count() - 1)
 	check(SnowCover.bare(beetle), "a beetle wears no snow coat")
 	crawlers.free()
+	# A walking deer or stag, wild or companion, presses its hooves one stride after the other.
+	for deer in ["reh", "hirsch"]:
+		var trail := SnowTrail.new(deer)
+		var at: Vector3 = lvl.player.global_position + Vector3(4, 0, 0)
+		var pressed := SnowPrints._live.size()
+		trail.follow(lvl, at)
+		trail.follow(lvl, at + Vector3(0, 0, 1.0))
+		trail.follow(lvl, at + Vector3(0, 0, 2.0))
+		check(SnowPrints._live.size() > pressed, "a walking %s leaves hoof prints" % deer)
 	check(SnowTrail.for_monster("krieger", "Skeleton_Warrior", false, 1.0) != null, "a skeleton leaves tracks")
 	check(SnowTrail.for_monster("wolf", "Wolf", false, 1.0) != null, "a wolf leaves tracks")
 	check(SnowTrail.for_monster("totengeist", "Skeleton_Rogue", true, 1.0) == null, "a ghost leaves none")
@@ -256,7 +265,12 @@ func _prints() -> void:
 	for i in SnowPrints.MAX + 20:
 		lvl.snow_print(Vector3(i * 0.1, 0, 0), 0.0)
 	check(SnowPrints._live.size() <= SnowPrints.MAX, "only so many prints at once")
-	check(SnowPrints.HOLD + SnowPrints.FADE >= 290.0, "prints last about five minutes")
+	var kept: Node = SnowPrints._live[0]
+	check(is_instance_valid(kept) and kept.visible, "prints stay (nothing fades them)")
+	SnowPrints.clear()
+	check(SnowPrints._live.is_empty(), "a new day wipes the prints")
+	for i in 3:
+		lvl.snow_print(Vector3(i, 0, 0), 0.0)
 	# With the pool full, a new boot print pushes out a beetle's dot, not the other way round.
 	SnowPrints.clear()
 	for i in SnowPrints.MAX - 1:

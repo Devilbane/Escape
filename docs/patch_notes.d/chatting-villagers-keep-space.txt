@@ -1,0 +1,1 @@
+- Villagers who stop for a chat now step apart and stand a comfortable distance from each other, facing one another, instead of overlapping.

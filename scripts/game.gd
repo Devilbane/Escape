@@ -2739,6 +2739,8 @@ static func _dawn_between(from: float, to: float) -> bool:
 ## finished in time are over.
 func _new_day(quiet := false) -> void:
 	day += 1
+	# The morning wipes the footprints out of the snow.
+	SnowPrints.clear()
 	_turn_of_season()
 	Forge.restock(smith_stock, day, hero_name)
 	if level != null:

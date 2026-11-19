@@ -217,6 +217,16 @@ func _prints() -> void:
 			check(m.albedo_color.v < snow_white * 0.5 and m.albedo_color.a > 0.8, "a %s print shows at light %.2f" % [kind, light])
 	game.snow_cover = 1.0
 	game._tick_clock(0.05)
+	# The evening at 19:45, as the clock really brings it: the hero's boot shows there too.
+	game.day_hour = 19.75
+	game._tick_clock(0.05)
+	game.snow_cover = 1.0
+	game._tick_clock(0.05)
+	lvl.snow_print(Vector3(3, 0, 3), 0.0)
+	var evening: MeshInstance3D = SnowPrints._live.back() if SnowPrints._live.size() > 0 else null
+	check(evening != null, "a print at 19:45")
+	if evening != null:
+		check((evening.material_override as StandardMaterial3D).albedo_color.v < 0.5, "the print at 19:45 is darker than the snow")
 	check(SnowTrail.for_monster("krieger", "Skeleton_Warrior", false, 1.0) != null, "a skeleton leaves tracks")
 	check(SnowTrail.for_monster("wolf", "Wolf", false, 1.0) != null, "a wolf leaves tracks")
 	check(SnowTrail.for_monster("totengeist", "Skeleton_Rogue", true, 1.0) == null, "a ghost leaves none")

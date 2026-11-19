@@ -84,7 +84,8 @@ func answer(who: Villager, text: String) -> void:
 	if VillageTalk._flat(who.global_position, game.player.global_position) > REPLY_RANGE * 1.5:
 		return
 	var reply := reply_to(text)
-	if reply == "":
+	# Frozen solid, he only mumbles whatever was said.
+	if reply == "" or who.is_frozen():
 		who.talk(game.player)
 		return
 	who.say(Lang.t(reply), game.player.global_position, VillageTalk.line_time(reply))

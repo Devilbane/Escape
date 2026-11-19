@@ -1742,7 +1742,11 @@ func _use_station(s: Dictionary) -> void:
 	if s.kind == "npc":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
-		if not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not wishes.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc) and not village_rumours.tell(s.npc):
+		# Frozen solid, Fritz takes no quest, gossip or news: he only mumbles and stays as he is.
+		if s.npc.is_frozen():
+			if not busy:
+				s.npc.talk(player)
+		elif not busy and not quests.talk(s.npc) and not crafting.talk(s.npc) and not wishes.talk(s.npc) and not reputation.tell_secret(s.npc) and not reputation.gossip(s.npc) and not village_rumours.tell(s.npc):
 			s.npc.talk(player)
 	elif s.kind == "eingang":
 		go_inside(s.building, s.get("house", 0), s.get("leaf"))

@@ -493,6 +493,10 @@ var pond_reeds: PondReeds
 ## Every pond tile (see IceCover).
 var _pond_waters: Array = []
 var _ground_mat: ShaderMaterial
+## The ground's collision: an endless plane, or while there are holes in the
+## ground (see set_floor_holes) a thick slab of boxes around them.
+var _floor_shape: CollisionShape3D
+var _floor_slabs := StaticBody3D.new()
 ## The snowman Pip and Pippi build in the snow (see Snowman), or null.
 var snowman: Snowman
 ## The bounds of the square and the graveyard fence, found once (see ground_at).
@@ -590,9 +594,9 @@ func build() -> void:
 				roofed.append(Vector2i(sx, sy))
 	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
 	snow.set_warm(warm_spots)
-	var floor_shape := CollisionShape3D.new()
-	floor_shape.shape = WorldBoundaryShape3D.new()
-	_walls_body.add_child(floor_shape)
+	_floor_shape = CollisionShape3D.new()
+	_floor_shape.shape = WorldBoundaryShape3D.new()
+	_walls_body.add_child(_floor_shape)
 	_spawn_villagers()
 	_build_war_horn()
 	_spawn_wild()
@@ -662,6 +666,79 @@ func _build_ground() -> void:
 			piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			piece.position = Vector3((cx - 0.5) * TILE + size * 0.5, 0, (cy - 0.5) * TILE + size * 0.5)
 			add_child(piece)
+
+
+## How far the slab round the holes reaches beyond the map (metres), and how
+## thick it is.
+const SLAB_REACH := 120.0
+const SLAB_THICK := 8.0
+## The side of the lattice the holes lie on (a house's grid cell, metres).
+const HOLE_CELL := 2.0
+
+
+## Opens holes in the ground (a player's cellar): `holes` are Rect2 in world
+## x/z, each on the 2 m lattice of the map (see HouseSketch.CELL). The ground is
+## not drawn there and the hero can fall in; with no holes everything is as
+## before. Walkable floors inside the holes are the cellar's own business.
+func set_floor_holes(holes: Array) -> void:
+	if _floor_slabs.get_parent() == null:
+		_walls_body.add_child(_floor_slabs)
+	for child in _floor_slabs.get_children():
+		child.free()
+	var plane := _floor_shape.shape as WorldBoundaryShape3D
+	# The picture: a mask with a pixel for each 2 m cell of the map.
+	var mask := Image.create(width * 2, height * 2, false, Image.FORMAT_R8)
+	var lattice := {}
+	var lo := Vector2i(1 << 30, 1 << 30)
+	var hi := Vector2i(-(1 << 30), -(1 << 30))
+	for r: Rect2 in holes:
+		var first := Vector2i(roundi((r.position.x + TILE * 0.5) / HOLE_CELL), roundi((r.position.y + TILE * 0.5) / HOLE_CELL))
+		var cells := Vector2i(roundi(r.size.x / HOLE_CELL), roundi(r.size.y / HOLE_CELL))
+		for y in range(first.y, first.y + cells.y):
+			for x in range(first.x, first.x + cells.x):
+				lattice[Vector2i(x, y)] = true
+				lo = Vector2i(mini(lo.x, x), mini(lo.y, y))
+				hi = Vector2i(maxi(hi.x, x), maxi(hi.y, y))
+				if x >= 0 and y >= 0 and x < width * 2 and y < height * 2:
+					mask.set_pixel(x, y, Color(1, 0, 0, 1))
+	if _ground_mat != null:
+		_ground_mat.set_shader_parameter("hole_mask", ImageTexture.create_from_image(mask))
+		_ground_mat.set_shader_parameter("holes_on", not lattice.is_empty())
+	if lattice.is_empty():
+		plane.plane = Plane(Vector3.UP, 0.0)
+		return
+	# The endless plane drops far below; slabs carry the ground instead.
+	plane.plane = Plane(Vector3.UP, -SLAB_THICK - 40.0)
+	var origin := Vector2(lo.x * HOLE_CELL - TILE * 0.5, lo.y * HOLE_CELL - TILE * 0.5)
+	var rows := hi.y - lo.y + 1
+	var cols := hi.x - lo.x + 1
+	var reach := Vector2(SLAB_REACH, SLAB_REACH)
+	var all := Rect2(Vector2(-TILE * 0.5, -TILE * 0.5) - reach, Vector2(width * TILE, height * TILE) + reach * 2.0)
+	var inner := Rect2(origin, Vector2(cols, rows) * HOLE_CELL)
+	_slab(Rect2(all.position, Vector2(all.size.x, inner.position.y - all.position.y)))
+	_slab(Rect2(Vector2(all.position.x, inner.end.y), Vector2(all.size.x, all.end.y - inner.end.y)))
+	_slab(Rect2(Vector2(all.position.x, inner.position.y), Vector2(inner.position.x - all.position.x, inner.size.y)))
+	_slab(Rect2(Vector2(inner.end.x, inner.position.y), Vector2(all.end.x - inner.end.x, inner.size.y)))
+	for ry in rows:
+		var run := -1
+		for cx in range(cols + 1):
+			var open := cx < cols and not lattice.has(Vector2i(lo.x + cx, lo.y + ry))
+			if open and run < 0:
+				run = cx
+			elif not open and run >= 0:
+				_slab(Rect2(origin + Vector2(run, ry) * HOLE_CELL, Vector2(cx - run, 1) * HOLE_CELL))
+				run = -1
+
+
+func _slab(area: Rect2) -> void:
+	if area.size.x <= 0.0 or area.size.y <= 0.0:
+		return
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(area.size.x, SLAB_THICK, area.size.y)
+	shape.shape = box
+	shape.position = Vector3(area.get_center().x, -SLAB_THICK * 0.5, area.get_center().y)
+	_floor_slabs.add_child(shape)
 
 
 ## The smallest rectangle around all tiles of one kind.

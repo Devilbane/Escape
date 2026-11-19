@@ -23,6 +23,23 @@ const WALL := "wall"
 const DOOR := "door"
 const WINDOW := "window"
 const KINDS := [WALL, DOOR, WINDOW]
+## The cellar (storey CELLAR_STOREY): a "dig" piece is one grid cell dug out of
+## the ground, DEPTH metres deep; a "stairs" piece is a ramp of two cells from the
+## ground down to a dug cell. Cell pieces are keyed by the cell (x, y) and the
+## orient letter CELL for a dug cell, or the direction the stairs go down.
+const DIG := "dig"
+const STAIRS := "stairs"
+const CELLAR_KINDS := [DIG, STAIRS]
+const CELLAR_STOREY := -1
+const CELL_ORIENT := "c"
+const DEPTH := 2.6
+## Stairs go down towards east, west, north or south: letter -> step in cells.
+const DOWN := {"e": Vector2i(1, 0), "w": Vector2i(-1, 0), "n": Vector2i(0, -1), "s": Vector2i(0, 1)}
+## Building order: dig first, then stairs, then walls before doors and windows.
+const BUILD_ORDER := [DIG, STAIRS, WALL, DOOR, WINDOW]
+## What covers the floor and the walls of dug cells: "" is the bare earth.
+const SURFACES := ["", "stone", "wood"]
+const SURFACE_COST := {"": {}, "stone": {"steinblock": 1}, "wood": {"bauholz": 1}}
 const SKETCH := "sketch"
 const BUILT := "built"
 ## A built piece the hero has marked to be taken down (see erase).
@@ -35,6 +52,10 @@ const COST := {
 	WALL: {STONE: 2},
 	DOOR: {STONE: 1, TIMBER: 2},
 	WINDOW: {STONE: 1, TIMBER: 1},
+	# Digging costs work, not material; the stairs are timber, the surfaces
+	# of a dug cell are added by cost_of.
+	DIG: {},
+	STAIRS: {TIMBER: 2},
 }
 const MATERIALS := [STONE, TIMBER]
 const ORIENT_X := "x"
@@ -53,6 +74,9 @@ var pieces := {}
 var ordered := false
 ## The materials delivered to the plot (id -> count), used up as pieces are built.
 var stock := {}
+## What the next dug cells get on their floor and walls (see SURFACES).
+var floor_surface := ""
+var wall_surface := ""
 var _undo: Array = []
 var _redo: Array = []
 
@@ -199,15 +223,167 @@ func erase(edges: Array, storey := 0) -> int:
 			pieces.erase(key)
 			step.append({"key": key, "before": before, "after": null})
 		elif before.state == BUILT:
-			var after := {"kind": before.kind, "state": DEMOLISH}
+			var after: Dictionary = before.duplicate()
+			after.state = DEMOLISH
 			pieces[key] = after
 			step.append({"key": key, "before": before, "after": after})
 		elif before.state == DEMOLISH:
-			var kept := {"kind": before.kind, "state": BUILT}
+			var kept: Dictionary = before.duplicate()
+			kept.state = BUILT
 			pieces[key] = kept
 			step.append({"key": key, "before": before, "after": kept})
 	_push(step)
 	return step.size()
+
+
+# --- The cellar ----------------------------------------------------------------
+
+## Whether a grid cell (x, y) lies inside the plot.
+func cell_in_plot(x: int, y: int) -> bool:
+	var n := nodes()
+	return x >= 0 and y >= 0 and x < n.x and y < n.y
+
+
+## The grid cell under a world point, clamped into the plot.
+func cell_at(point: Vector3) -> Vector2i:
+	var origin := node_world(0, 0)
+	var n := nodes()
+	return Vector2i(clampi(floori((point.x - origin.x) / CELL), 0, n.x - 1), clampi(floori((point.z - origin.z) / CELL), 0, n.y - 1))
+
+
+## The world position of a cell's middle, at ground level.
+func cell_world(x: int, y: int) -> Vector3:
+	return node_world(x, y) + Vector3(CELL * 0.5, 0, CELL * 0.5)
+
+
+## The cells a rectangle between two cells covers, as [x, y, CELL_ORIENT].
+func cells_between(a: Vector2i, b: Vector2i) -> Array:
+	var out := []
+	for y in range(mini(a.y, b.y), maxi(a.y, b.y) + 1):
+		for x in range(mini(a.x, b.x), maxi(a.x, b.x) + 1):
+			out.append([x, y, CELL_ORIENT])
+	return out
+
+
+## The cells a stairs piece covers: its top and the one below it, and the dug
+## cell it leads down to (the third).
+static func stairs_cells(x: int, y: int, dir: String) -> Array:
+	var step: Vector2i = DOWN[dir]
+	return [Vector2i(x, y), Vector2i(x, y) + step, Vector2i(x, y) + step * 2]
+
+
+## The piece that holds a cell open (a dug cell or one of a stairs' two
+## cells), as its key, or "" when the ground is whole there.
+func hole_key(x: int, y: int) -> String:
+	var dug := key_of(x, y, CELL_ORIENT, CELLAR_STOREY)
+	if pieces.has(dug):
+		return dug
+	for dir in DOWN:
+		for back in 2:
+			var c: Vector2i = Vector2i(x, y) - (DOWN[dir] as Vector2i) * back
+			var key := key_of(c.x, c.y, dir, CELLAR_STOREY)
+			if pieces.has(key):
+				return key
+	return ""
+
+
+## Whether a cell is dug out and the digging is done.
+func is_dug(x: int, y: int, built_only := false) -> bool:
+	var p: Dictionary = pieces.get(key_of(x, y, CELL_ORIENT, CELLAR_STOREY), {})
+	return not p.is_empty() and (not built_only or p.state != SKETCH)
+
+
+## The direction a stairs piece at cell (x, y) can go down, or "" when none
+## can: its two cells must be free ground inside the plot and the cell after
+## them must be dug.
+func stairs_dir(x: int, y: int) -> String:
+	for dir in DOWN:
+		if problem_stairs(x, y, dir) == "":
+			return dir
+	return ""
+
+
+## Why stairs cannot go down from cell (x, y) in a direction, or "".
+func problem_stairs(x: int, y: int, dir: String) -> String:
+	var cells := stairs_cells(x, y, dir)
+	for i in 2:
+		if not cell_in_plot(cells[i].x, cells[i].y):
+			return "outside"
+		if hole_key(cells[i].x, cells[i].y) != "":
+			return "taken"
+	if not cell_in_plot(cells[2].x, cells[2].y) or not is_dug(cells[2].x, cells[2].y):
+		return "no cellar"
+	return ""
+
+
+## Why a cell cannot be dug, or "".
+func problem_dig(x: int, y: int) -> String:
+	if not cell_in_plot(x, y):
+		return "outside"
+	if hole_key(x, y) != "":
+		return "taken"
+	return ""
+
+
+## Sketches dug cells (`cells` are [x, y, CELL_ORIENT]) with the current
+## surfaces, as one step. Returns how many changed.
+func sketch_dig(cells: Array) -> int:
+	var step := []
+	for c in cells:
+		if problem_dig(c[0], c[1]) != "":
+			continue
+		var key := key_of(c[0], c[1], CELL_ORIENT, CELLAR_STOREY)
+		var after := {"kind": DIG, "state": SKETCH, "floor": floor_surface, "wall": wall_surface}
+		pieces[key] = after
+		step.append({"key": key, "before": null, "after": after})
+	_push(step)
+	return step.size()
+
+
+## Sketches a stairs piece from cell (x, y) going `dir`; returns whether it did.
+func sketch_stairs(x: int, y: int, dir: String) -> bool:
+	if problem_stairs(x, y, dir) != "":
+		return false
+	var key := key_of(x, y, dir, CELLAR_STOREY)
+	var after := {"kind": STAIRS, "state": SKETCH}
+	pieces[key] = after
+	_push([{"key": key, "before": null, "after": after}])
+	return true
+
+
+## The stairs (a key) that lead down to a dug cell, or "".
+func stairs_to(x: int, y: int) -> String:
+	for key in pieces:
+		var p := parts_of(key)
+		if p[0] == CELLAR_STOREY and pieces[key].kind == STAIRS:
+			var end: Vector2i = stairs_cells(p[1], p[2], p[3])[2]
+			if end == Vector2i(x, y):
+				return key
+	return ""
+
+
+## Takes back or marks for filling in the cellar piece at a cell (a dug cell
+## or either cell of stairs). A dug cell the stairs lead down to stays until
+## the stairs are gone. Returns "" when something changed, or why not:
+## "empty" or "needed".
+func erase_cell(x: int, y: int) -> String:
+	var key := hole_key(x, y)
+	if key == "":
+		return "empty"
+	var p := parts_of(key)
+	if pieces[key].kind == DIG and stairs_to(x, y) != "":
+		return "needed"
+	erase([[p[1], p[2], p[3]]], CELLAR_STOREY)
+	return ""
+
+
+## Stairs are built only once the dug cell below them is.
+func _can_build(key: String) -> bool:
+	var p := parts_of(key)
+	if pieces[key].kind != STAIRS:
+		return true
+	var end: Vector2i = stairs_cells(p[1], p[2], p[3])[2]
+	return is_dug(end.x, end.y, true)
 
 
 func _push(step: Array) -> void:
@@ -290,8 +466,9 @@ func missing() -> Dictionary:
 	var need := {}
 	for key in pieces:
 		if pieces[key].state == SKETCH:
-			for id in COST[pieces[key].kind]:
-				need[id] = int(need.get(id, 0)) + int(COST[pieces[key].kind][id])
+			var cost := cost_of(pieces[key])
+			for id in cost:
+				need[id] = int(need.get(id, 0)) + int(cost[id])
 	var out := {}
 	for id in need:
 		var short: int = int(need[id]) - int(stock.get(id, 0))
@@ -305,8 +482,9 @@ func needs() -> Dictionary:
 	var need := {}
 	for key in pieces:
 		if pieces[key].state == SKETCH:
-			for id in COST[pieces[key].kind]:
-				need[id] = int(need.get(id, 0)) + int(COST[pieces[key].kind][id])
+			var cost := cost_of(pieces[key])
+			for id in cost:
+				need[id] = int(need.get(id, 0)) + int(cost[id])
 	return need
 
 
@@ -315,9 +493,22 @@ func deposit(id: String, count: int) -> void:
 		stock[id] = int(stock.get(id, 0)) + count
 
 
-func _affordable(kind: String) -> bool:
-	for id in COST[kind]:
-		if int(stock.get(id, 0)) < int(COST[kind][id]):
+## What one piece costs in materials: its kind's cost, and for a dug cell its
+## floor and wall surfaces (a piece without them costs the kind's cost only).
+static func cost_of(p: Dictionary) -> Dictionary:
+	var out: Dictionary = COST[p.kind].duplicate()
+	if p.kind == DIG:
+		for surface in [p.get("floor", ""), p.get("wall", "")]:
+			var extra: Dictionary = SURFACE_COST.get(surface, {})
+			for id in extra:
+				out[id] = int(out.get(id, 0)) + int(extra[id])
+	return out
+
+
+func _affordable(p: Dictionary) -> bool:
+	var cost := cost_of(p)
+	for id in cost:
+		if int(stock.get(id, 0)) < int(cost[id]):
 			return false
 	return true
 
@@ -343,17 +534,18 @@ func build_next() -> Dictionary:
 	for key in pieces:
 		if pieces[key].state == DEMOLISH:
 			var kind: String = pieces[key].kind
-			for id in COST[kind]:
-				stock[id] = int(stock.get(id, 0)) + int(COST[kind][id])
+			var refund := cost_of(pieces[key])
+			for id in refund:
+				stock[id] = int(stock.get(id, 0)) + int(refund[id])
 			pieces.erase(key)
 			var p := parts_of(key)
 			result = {"edge": [p[1], p[2], p[3]], "kind": kind, "did": "demolished"}
 			break
 	if result.is_empty():
 		var chosen := ""
-		for kind in KINDS:
+		for kind in BUILD_ORDER:
 			for key in pieces:
-				if pieces[key].state == SKETCH and pieces[key].kind == kind and _affordable(kind):
+				if pieces[key].state == SKETCH and pieces[key].kind == kind and _affordable(pieces[key]) and _can_build(key):
 					chosen = key
 					break
 			if chosen != "":
@@ -368,8 +560,9 @@ func build_next() -> Dictionary:
 				return {}
 			return {"why": "materials"}
 		var kind: String = pieces[chosen].kind
-		for id in COST[kind]:
-			stock[id] = int(stock.get(id, 0)) - int(COST[kind][id])
+		var price := cost_of(pieces[chosen])
+		for id in price:
+			stock[id] = int(stock.get(id, 0)) - int(price[id])
 		pieces[chosen].state = BUILT
 		var p := parts_of(chosen)
 		result = {"edge": [p[1], p[2], p[3]], "kind": kind, "did": "built"}
@@ -415,10 +608,22 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 		if raw is Dictionary:
 			for key in raw:
 				var p = raw[key]
-				if p is Array and p.size() == 2 and KINDS.has(str(p[0])):
+				if p is Array and p.size() >= 2:
 					var parts := parts_of(str(key))
-					if s.in_plot(parts[1], parts[2], parts[3]):
+					if KINDS.has(str(p[0])) and p.size() == 2 and s.in_plot(parts[1], parts[2], parts[3]):
 						s.pieces[str(key)] = {"kind": str(p[0]), "state": str(p[1])}
+					elif str(p[0]) == DIG and p.size() == 4 and parts[0] == CELLAR_STOREY and s.cell_in_plot(parts[1], parts[2]):
+						s.pieces[str(key)] = {"kind": DIG, "state": str(p[1]),
+								"floor": str(p[2]) if SURFACES.has(str(p[2])) else "", "wall": str(p[3]) if SURFACES.has(str(p[3])) else ""}
+					elif str(p[0]) == STAIRS and p.size() == 2 and DOWN.has(parts[3]) and parts[0] == CELLAR_STOREY \
+							and s.cell_in_plot(parts[1], parts[2]):
+						s.pieces[str(key)] = {"kind": STAIRS, "state": str(p[1])}
+		s.floor_surface = str(saved.get("floor", ""))
+		s.wall_surface = str(saved.get("wall", ""))
+		if not SURFACES.has(s.floor_surface):
+			s.floor_surface = ""
+		if not SURFACES.has(s.wall_surface):
+			s.wall_surface = ""
 	return s
 
 
@@ -427,6 +632,7 @@ func save(hero: String) -> void:
 	_load()
 	var raw := {}
 	for key in pieces:
-		raw[key] = [pieces[key].kind, pieces[key].state]
-	_books[Homes.deed_name(hero)] = {"pieces": raw, "ordered": ordered, "stock": stock}
+		var p: Dictionary = pieces[key]
+		raw[key] = [p.kind, p.state, p.get("floor", ""), p.get("wall", "")] if p.kind == DIG else [p.kind, p.state]
+	_books[Homes.deed_name(hero)] = {"pieces": raw, "ordered": ordered, "stock": stock, "floor": floor_surface, "wall": wall_surface}
 	Storage.write(RECORD, {"houses": _books})

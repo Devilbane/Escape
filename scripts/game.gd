@@ -1797,6 +1797,9 @@ func _use_station(s: Dictionary) -> void:
 		menus.open(s.kind)
 	elif s.kind == "schrein":
 		_open_shrine(s)
+	elif s.kind == WarHorn.KIND:
+		player.face(s.pos - player.global_position)
+		show_message(WarHorn.hero_blow(level as Outdoor), 3.0)
 	elif s.kind == "brunnen":
 		# Pushing on against the fountain drinks one sip at a time.
 		if not belly_sips.still_drinking(_clock_now()):
@@ -7217,6 +7220,7 @@ func _process(delta: float) -> void:
 			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
+			WarHorn.KIND: Lang.t("Dagegenlaufen, um ins Horn zu stoßen und das Dorf zu versammeln"),
 		}.get(station.kind, AshSpire.prompt(station.kind)))
 	elif _prompt.text == "" and at_camp():
 		_prompt.text = _hint("camp", Lang.t("U: Lager"))

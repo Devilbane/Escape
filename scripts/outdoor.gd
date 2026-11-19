@@ -2558,11 +2558,24 @@ func wake_at_home() -> void:
 	_entered_once = true
 
 
-## The alarm horn the guard blows, just inside the west gate (see WarHorn).
+## The alarm horn the guard blows, just inside the west gate (see WarHorn). The hero
+## can blow it too: it is a station (WarHorn.KIND).
 func _build_war_horn() -> void:
 	war_horn_at = WarHorn.spot(self)
 	if war_horn_at != Vector3.INF:
 		VillageProps.build_war_horn(self, war_horn_at, WarHorn.facing(self, war_horn_at))
+		_add_solid(war_horn_at, Vector3(1.4, 1.0, 1.4))
+		stations.append({"kind": WarHorn.KIND, "cell": world_to_cell(war_horn_at), "pos": war_horn_at, "used": false})
+
+
+## The hero's horn call: everyone in the village who has time comes to the square
+## around the herald (see _call_the_village). Returns whether anyone was called
+## (false without a herald out on the square).
+func gather_village() -> bool:
+	if _herald == null or _herald.at_home or not _herald.visible or night:
+		return false
+	_call_the_village(INF, false)
+	return true
 
 
 # --- Villagers ----------------------------------------------------------------
@@ -3282,9 +3295,10 @@ func _process(delta: float) -> void:
 
 ## The herald rings the news across the square, and everyone in the village
 ## comes over to listen for a while: a reason to gather.
-func _call_the_village() -> void:
+func _call_the_village(reach := 22.0 * TILE * 0.5, proclaim := true) -> void:
 	var stand: Vector3 = _herald.global_position
-	_herald.proclaim()
+	if proclaim:
+		_herald.proclaim()
 	var ring: Array[Vector3] = []
 	var at := world_to_cell(stand)
 	for dy in range(-1, 5):
@@ -3297,11 +3311,11 @@ func _call_the_village() -> void:
 	for v in villagers:
 		if v == _herald or not v.comes_to_listen() or i >= ring.size():
 			continue
-		if _flat_distance(v.global_position, stand) > 22.0 * TILE * 0.5:
+		if _flat_distance(v.global_position, stand) > reach:
 			continue
 		v.gather_at(ring[i], stand)
 		i += 1
-	if player and _flat_distance(player.global_position, stand) < 30.0:
+	if proclaim and player and _flat_distance(player.global_position, stand) < 30.0:
 		notice.emit(Lang.t("Der Herold ruft auf dem Marktplatz aus. Das Dorf kommt zusammen."), 3.0)
 
 

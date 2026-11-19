@@ -101,6 +101,17 @@ func _run() -> void:
 	guard.global_position = lvl.war_horn_at + Vector3(WarHorn.REACH + 10.0, 0, 0)
 	check(WarHorn.guard(lvl) == null, "a guard too far from the horn does not blow it")
 	VillageBell.reset()
+
+	# The hero can blow the horn too, with a cooldown, and the villagers gather.
+	WarHorn._sounded = true
+	WarHorn.reset_hero()
+	var st := lvl.station_at(lvl.war_horn_at)
+	check(st.get("kind", "") == WarHorn.KIND, "the horn is a station the hero can use")
+	var first := WarHorn.hero_blow(lvl, 5000.0)
+	check(first != Lang.t(WarHorn.TOO_SOON) and first != Lang.t(WarHorn.BUSY), "the hero blows the horn")
+	check(WarHorn.hero_blow(lvl, 5000.0 + WarHorn.HERO_COOLDOWN - 1.0) == Lang.t(WarHorn.TOO_SOON), "the horn has a cooldown")
+	check(WarHorn.hero_blow(lvl, 5000.0 + WarHorn.HERO_COOLDOWN + 1.0) != Lang.t(WarHorn.TOO_SOON), "the horn sounds again after the cooldown")
+	WarHorn.reset_hero()
 	game.delete_save(game.save_path())
 	print("PASS: war horn" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)

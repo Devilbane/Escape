@@ -10,6 +10,14 @@ extends RefCounted
 ## eaten, in his house) the bell tolls alone.
 
 const SOUND := "war_horn"
+## The station kind of the horn the hero can blow.
+const KIND := "kriegshorn"
+## Seconds before the hero may blow the horn again.
+const HERO_COOLDOWN := 60.0
+const BLOWN := "Du stößt ins Horn. Das Dorf versammelt sich auf dem Marktplatz."
+const BLOWN_ALONE := "Du stößt ins Horn. Niemand scheint es zu hören."
+const TOO_SOON := "Das Horn braucht noch einen Moment, bis es wieder erschallt."
+const BUSY := "Die Wache bläst gerade schon ins Horn."
 ## The loudness of the horn, in dB (it carries over the whole village).
 const VOLUME_DB := 2.0
 ## How long the horn sounds (seconds), and the quiet before the bell follows.
@@ -92,3 +100,24 @@ static func sound(o: Outdoor) -> void:
 	_sounded = true
 	Sfx.play(o, SOUND, VOLUME_DB, o.war_horn_at)
 	Sfx.play_after(o, LENGTH + GAP, VillageBell.SOUND, VillageBell.VOLUME_DB)
+
+
+static var _hero_last := -INF
+
+
+## Forgets when the hero last blew the horn (a new game, a test).
+static func reset_hero() -> void:
+	_hero_last = -INF
+
+
+## The hero blows the horn: it sounds, and the villagers gather on the square.
+## Returns the text to show the hero (the horn sounded unless it is on cooldown
+## or the guard is blowing it now).
+static func hero_blow(o: Outdoor, now := Time.get_ticks_msec() / 1000.0) -> String:
+	if not _sounded:
+		return Lang.t(BUSY)
+	if now - _hero_last < HERO_COOLDOWN:
+		return Lang.t(TOO_SOON)
+	_hero_last = now
+	Sfx.play(o, SOUND, VOLUME_DB, o.war_horn_at)
+	return Lang.t(BLOWN) if o.gather_village() else Lang.t(BLOWN_ALONE)

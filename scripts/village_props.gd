@@ -290,7 +290,8 @@ static func build_lamp(parent: Node3D, pos: Vector3, panes: Material) -> void:
 static func build_wall_lamp(parent: Node3D, pos: Vector3, panes: Material) -> void:
 	var b := WeatheredProps.Builder.new()
 	var iron := W.IRON_COLOUR * 0.8
-	b.box(Vector3(0, -0.3, 0), Vector3(0.16, 0.6, 0.06), W.IRON_COLOUR, W.IRON)
+	# The plate lies flat on the wall (z from 0 to 0.06), the arm and brace run out from it.
+	b.box(Vector3(0, -0.3, 0.03), Vector3(0.18, 0.6, 0.06), W.IRON_COLOUR, W.IRON)
 	b.box(Vector3(0, 0.12, 0.25), Vector3(0.06, 0.06, 0.5), W.IRON_COLOUR, W.IRON)
 	b.bar(Vector3(0, -0.2, 0.03), Vector3(0, 0.1, 0.45), 0.025, W.IRON_COLOUR, W.IRON, 4)
 	var lantern := WALL_LANTERN_AT

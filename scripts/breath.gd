@@ -17,9 +17,21 @@ static var _rng := RandomNumberGenerator.new()
 ## How long one breath lasts (seconds).
 const BLOW := 0.7
 
+## While the breather walks or runs, the same emitter puts out three times as many particles,
+## so the breath reads as one soft cloud trailing behind instead of single puffs left at every
+## few steps. (No second emitter: every particle node draws from the game's random stream when
+## made, which would shift every roll after it.)
+const MOVING_SPEED := 0.5
+const STILL_SPEED := 0.25
+const IDLE_AMOUNT := 20
+const MOVING_AMOUNT := 64
+
 var _puff: CPUParticles3D
 var _timer := 0.0
 var _blow := 0.0
+var _moving := false
+var _last_pos := Vector3.ZERO
+var _speed := 0.0
 
 
 ## Gives the model (a body's child) a breath of its own at its mouth.
@@ -54,6 +66,7 @@ static func _shared() -> StandardMaterial3D:
 func _ready() -> void:
 	_puff = _make_puff()
 	add_child(_puff)
+	_last_pos = global_position
 	_timer = _rng.randf_range(0.0, EVERY.y)
 
 
@@ -63,7 +76,7 @@ func _ready() -> void:
 ## breather, as before: every particle node draws from the game's random stream when made.)
 func _make_puff() -> CPUParticles3D:
 	var puff := CPUParticles3D.new()
-	puff.amount = 20
+	puff.amount = IDLE_AMOUNT
 	puff.lifetime = 1.6
 	puff.one_shot = false
 	puff.explosiveness = 0.0
@@ -101,6 +114,14 @@ func _make_puff() -> CPUParticles3D:
 
 
 func _process(delta: float) -> void:
+	if delta > 0.0:
+		var here := global_position
+		_speed = lerpf(_speed, here.distance_to(_last_pos) / delta, minf(1.0, delta * 8.0))
+		_last_pos = here
+	if not _moving and _speed > MOVING_SPEED:
+		_set_moving(true)
+	elif _moving and _speed < STILL_SPEED:
+		_set_moving(false)
 	if _blow > 0.0:
 		_blow -= delta
 		if _blow <= 0.0:
@@ -112,6 +133,15 @@ func _process(delta: float) -> void:
 		return
 	_timer = _rng.randf_range(EVERY.x, EVERY.y)
 	exhale()
+
+
+## Walkers get a denser stream with slower, wider-spread puffs that overlap along the path.
+func _set_moving(moving: bool) -> void:
+	_moving = moving
+	_puff.amount = MOVING_AMOUNT if moving else IDLE_AMOUNT
+	_puff.initial_velocity_min = 0.3 if moving else 0.7
+	_puff.initial_velocity_max = 0.45 if moving else 0.85
+	_puff.spread = 12.0 if moving else 7.0
 
 
 ## Breathes out now: the stream starts and stops by itself, clouds still in the air stay.

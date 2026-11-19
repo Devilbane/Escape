@@ -274,7 +274,10 @@ void fragment() {
 	float square = smoothstep(0.55, 0.7, min(m.r, m.g) + (n - 0.5) * 0.1 + fray * 0.12);
 	float soil = smoothstep(0.4, 0.7, m.g + (n - 0.5) * 0.3) * (1.0 - square);
 	float path = smoothstep(0.42, 0.6, m.r + (n - 0.5) * 0.3 + fray * 0.18) * (1.0 - square);
-	float wet = smoothstep(0.5, 0.62, m.b + (n - 0.5) * 0.15);
+	// While the ponds are icing over, the water reaches a little past the bank's ragged edge, so no
+	// strip of bare grass shows round the ice where the snow leaves the pond tiles clear.
+	float reach = 0.16 * smoothstep(0.0, 0.5, ice);
+	float wet = smoothstep(0.5 - reach, 0.62 - reach, m.b + (n - 0.5) * 0.15);
 
 	float h = 0.0;
 	float hg;

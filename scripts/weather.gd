@@ -150,14 +150,15 @@ const DUST_COLOR := Color(0.32, 0.4, 0.58)
 ## to 1). Real fog keeps its colour.
 static func haze_color(fog_color: Color, weather_look: Dictionary, hour: float, moon := 1.0) -> Color:
 	var dust := DayNight.glow_at(hour) * (1.0 - clampf(float(weather_look.mist), 0.0, 1.0))
-	return fog_color.lerp(DUST_COLOR * (0.6 + 0.4 * clampf(moon, 0.0, 1.0)), dust)
+	return fog_color.lerp(DUST_COLOR * (0.3 + 0.7 * clampf(moon, 0.0, 1.0)), dust)
 
 
-## The haze lifted to moonlit blue-grey at night, for fog too: a haze as dark as the night's
-## ambient light read as black smoke over the pale snow. It never gets darker than it was.
+## The haze lifted to a dark moonlit blue at night, for fog too: a haze as dark as the night's
+## ambient light read as black smoke over the pale snow. The moon sets how much: a bright moon
+## makes it a dim blue, a new moon lets it sink into the dark. It never gets darker than it was.
 static func moonlit_haze(haze: Color, hour: float, moon := 1.0) -> Color:
 	var night := DayNight.glow_at(hour)
-	var lit := DUST_COLOR * (0.6 + 0.4 * clampf(moon, 0.0, 1.0))
+	var lit := DUST_COLOR * (0.3 + 0.7 * clampf(moon, 0.0, 1.0))
 	return Color(maxf(haze.r, lerpf(haze.r, lit.r, night)), maxf(haze.g, lerpf(haze.g, lit.g, night)),
 			maxf(haze.b, lerpf(haze.b, lit.b, night)), haze.a)
 
@@ -493,7 +494,9 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 	mist.emitting = m > 0.02
 	mist.visible = mist.emitting
 	var mist_mat: StandardMaterial3D = (mist.mesh as QuadMesh).material
-	# Mist is pale and bluish, never black: the patches are unshaded and drawn over the snow, so
-	# a dark tone at night showed as dark smoke.
-	var pale := clampf(0.55 + light * 0.45, 0.55, 1.0)
-	mist_mat.albedo_color = Color(pale * 0.92, pale * 0.96, pale, m)
+	# Mist by day is pale. At night it is dark bluish cloud: as bright as the moonlight (`light`
+	# carries the moon's phase) makes it, sinking into the dark without a moon, never white and
+	# never black smoke.
+	var pale := clampf(0.12 + light * 1.6, 0.12, 1.0)
+	var night := clampf(1.0 - light * 2.0, 0.0, 1.0)
+	mist_mat.albedo_color = Color(pale * lerpf(0.95, 0.7, night), pale * lerpf(0.97, 0.86, night), pale, m)

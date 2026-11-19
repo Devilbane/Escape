@@ -613,8 +613,9 @@ func _freeze() -> void:
 	_anim.pause()
 	_model.position.y = 0.0
 	singing = false
-	# He freezes with his face to the screen (the camera looks along -Z), so the player sees it.
-	global_rotation.y = 0.0
+	# He freezes with his face towards the screen (the camera looks along -Z), turned 45 degrees
+	# to the left as the player sees it (towards -X), so the player sees his face.
+	global_rotation.y = deg_to_rad(-45.0)
 	reset_physics_interpolation()
 	_ice = FrozenFritz.freeze(self)
 
@@ -633,6 +634,10 @@ var _settling := false
 
 
 func _start(task: String, time: float) -> void:
+	# Nothing but the thaw (see _mind_frost) takes a frozen Fritz off his spot: not the alarm, a
+	# slime, a chat nor anyone calling him calm.
+	if _task == "frozen" and task != "frozen" and FrozenFritz.wants(level, true):
+		return
 	_task = task
 	if task != "mend":
 		_wield_wall_hammer(false)

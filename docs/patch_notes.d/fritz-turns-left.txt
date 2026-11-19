@@ -1,0 +1,2 @@
+- Frozen Fritz is turned a quarter-step to the left on screen.
+- Frozen Fritz is left alone by slimes and the alarm, and never wakes up before winter ends.

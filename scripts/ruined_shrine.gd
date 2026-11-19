@@ -205,9 +205,9 @@ static func restore(game: Node, id: String) -> String:
 	var step := next_step(lvl)
 	if step.is_empty() or step.id != id:
 		return Lang.t("Dieses Stück ist schon heil, oder ein anderes ist zuerst dran.")
-	if game.coins < int(step.cost):
+	if not Payment.can_pay(game, int(step.cost)):
 		return Lang.t("Dafür reicht dein Kupfer nicht.")
-	game.coins -= int(step.cost)
+	Payment.pay(game, int(step.cost))
 	lvl.taken[key_of(id)] = true
 	for s in lvl.stations:
 		if s.kind == KIND:

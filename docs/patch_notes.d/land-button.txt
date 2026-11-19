@@ -1,0 +1,1 @@
+- New: a "Land" button in the menu starts marking a building plot at any time, so you do not have to walk back to the clerk to repeat it.

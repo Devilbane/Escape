@@ -15,6 +15,7 @@ const SETTINGS_FILE := "user://einstellungen.json"
 const PARTS := [
 	preload("res://scripts/lang/house_sketch.gd"),
 	preload("res://scripts/lang/plots.gd"),
+	preload("res://scripts/lang/payment.gd"),
 	preload("res://scripts/lang/winter_wear.gd"),
 	preload("res://scripts/lang/chapel_penguin.gd"),
 	preload("res://scripts/lang/quarry.gd"),

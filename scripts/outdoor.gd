@@ -155,6 +155,11 @@ const CHAPEL_PARTS := [
 ## Half the nave's width (x) and length (z), the height of its walls and of
 ## the gables under the roof, all in kit metres.
 const CHAPEL_HALF := Vector2(12, 12)
+## The wall lamps beside the door (kit metres): how far each stands to the side of the
+## doorway's middle (x), how high (y) and where the front wall's face is (z).
+const TEMPLE_LAMP_X := [-9.4, 1.4]
+const TEMPLE_LAMP_Y := 6.0
+const TEMPLE_LAMP_Z := 11.5
 const CHAPEL_EAVES := 16.0
 const CHAPEL_GABLE_HEIGHT := 13.0
 ## The ground the chapel covers, steps included (kit metres), and the middle
@@ -1133,6 +1138,18 @@ func _build_bench(c: Vector2i) -> void:
 ## hanging from its arm (see VillageProps.build_lamp), its panes and the
 ## candle in it glowing at night.
 func _build_lantern(pos: Vector3) -> void:
+	VillageProps.build_lamp(self, pos, _lantern_panes())
+	# A few icicles on it while snow lies (see SnowCaps).
+	var frost := SnowCaps.lamp_node(pos, VillageProps.LANTERN_AT)
+	if frost:
+		add_child(frost)
+	_lantern_glow(pos + LAMP_LIGHT_AT, pos + VillageProps.LANTERN_AT)
+	_add_solid(pos, Vector3(0.7, 3, 0.7))
+
+
+## The glass of the lanterns, shared by all of them: lit at nightfall with the
+## windows of the village (see set_hour).
+func _lantern_panes() -> StandardMaterial3D:
 	if _pane_mat == null:
 		_pane_mat = StandardMaterial3D.new()
 		_pane_mat.albedo_color = Color(0.32, 0.3, 0.24, 0.55)
@@ -1141,13 +1158,13 @@ func _build_lantern(pos: Vector3) -> void:
 		_pane_mat.emission_enabled = true
 		_pane_mat.emission = Color(1.0, 0.68, 0.34)
 		_pane_mat.emission_energy_multiplier = 0.0
-		# Lit at nightfall with the windows of the village.
 		_window_mats[_pane_mat] = _pane_mat
-	VillageProps.build_lamp(self, pos, _pane_mat)
-	# A few icicles on it while snow lies (see SnowCaps).
-	var frost := SnowCaps.lamp_node(pos, VillageProps.LANTERN_AT)
-	if frost:
-		add_child(frost)
+	return _pane_mat
+
+
+## What makes a lantern shine: the light that set_hour dims by day and
+## brightens at night, and a candle in the lantern that glows once it fades.
+func _lantern_glow(light_at: Vector3, candle_at: Vector3) -> void:
 	var light := OmniLight3D.new()
 	# A natural, gentler orange, and a falloff that fades out softly instead of ending in a hard
 	# edge on the snow (attenuation above 1 pulls the light in toward the lamp).
@@ -1155,10 +1172,9 @@ func _build_lantern(pos: Vector3) -> void:
 	light.light_energy = 2.2
 	light.omni_range = 11.0
 	light.omni_attenuation = 1.8
-	light.position = pos + LAMP_LIGHT_AT
+	light.position = light_at
 	add_child(light)
 	_lamps.append(light)
-	# A candle in the lantern that glows once the light fades.
 	if _candle_mat == null:
 		_candle_mat = StandardMaterial3D.new()
 		_candle_mat.albedo_color = Color(1.0, 0.8, 0.5)
@@ -1172,11 +1188,26 @@ func _build_lantern(pos: Vector3) -> void:
 	candle.mesh = ball
 	candle.material_override = _candle_mat
 	candle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	candle.position = pos + VillageProps.LANTERN_AT
+	candle.position = candle_at
 	candle.visible = false
 	add_child(candle)
 	_candles.append(candle)
-	_add_solid(pos, Vector3(0.7, 3, 0.7))
+
+
+## Two wall lamps on the temple's front wall, one each side of the door. They
+## are not parts of the chapel (its pieces all wear the kit's textures), but
+## siblings placed with the chapel's own transform.
+func _build_temple_lamps(chapel: Node3D) -> void:
+	var panes := _lantern_panes()
+	for x: float in TEMPLE_LAMP_X:
+		var holder := Node3D.new()
+		holder.name = "TempleLamp%d" % int(x > 0.0)
+		holder.position = chapel.transform * Vector3(x, TEMPLE_LAMP_Y, TEMPLE_LAMP_Z)
+		holder.rotation.y = chapel.rotation.y
+		add_child(holder)
+		VillageProps.build_wall_lamp(holder, Vector3.ZERO, panes)
+		_lantern_glow(holder.position + VillageProps.WALL_LANTERN_AT.rotated(Vector3.UP, holder.rotation.y), \
+				holder.position + VillageProps.WALL_LANTERN_AT.rotated(Vector3.UP, holder.rotation.y))
 
 
 ## A leafy tree, or near the graveyard an autumn pine or a bare one.
@@ -1889,6 +1920,7 @@ func _build_chapel(center: Vector3, rot: float, room: Vector2) -> Node3D:
 	chapel.position = center - (Vector3(0, 0, CHAPEL_FOOT_MID) * s).rotated(Vector3.UP, rot)
 	spill.transform = chapel.transform
 	add_child(chapel)
+	_build_temple_lamps(chapel)
 	return chapel
 
 

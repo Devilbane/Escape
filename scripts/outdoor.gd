@@ -1266,7 +1266,9 @@ func _build_fence(c: Vector2i, gate: bool) -> void:
 	var rot := 0.0 if across else PI * 0.5
 	var along := Vector3(1, 0, 0) if across else Vector3(0, 0, 1)
 	if gate:
-		_age_graveyard(_put("arch_gate", pos, rot), false)
+		var arch := _put("arch_gate", pos, rot)
+		_age_graveyard(arch, false)
+		GraveGate.attach(arch, self)
 		_add_solid(pos + along * 1.9, Vector3(0.5, 4, 0.5))
 		_add_solid(pos - along * 1.9, Vector3(0.5, 4, 0.5))
 		return

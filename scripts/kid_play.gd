@@ -8,7 +8,9 @@ extends RefCounted
 ## ground in physics ticks, so the model needs no extra animation clips.
 ## When the snow lies thick (see snowy) they play in it instead: they build a snowman (see
 ## Snowman), throw snowballs at each other (and now and then at a grown-up close by, or the hero),
-## dodge to the side between throws, and run round their snowman and cheer in front of it.
+## dodge to the side between throws, and run round their snowman and cheer in front of it. Between
+## the fights they make snow angels (SnowGames.angel), roll big balls of snow along and leave them
+## standing (SnowGames.lump), and take a run-up and slide over the snow.
 ## Rules (see can_join and tick): no play at night, during an alarm, indoors or away from the
 ## children's own ground; the play ends the moment anybody talks to a child, and nobody runs or
 ## flips into the hero, a wall, a shut gate or ground that is not open (FarmAnimal.may_stand).
@@ -41,13 +43,28 @@ const SNOW_FROM := 0.45
 const FIGHT_RANGE := Vector2(3.0, 6.5)
 const THROW_TIME := 0.9
 const RELEASE := 0.38
-const THROW_PAUSE := Vector2(1.4, 2.8)
-const THROWS := Vector2i(4, 7)
+const THROW_PAUSE := Vector2(0.9, 2.0)
+const THROWS := Vector2i(5, 9)
 const ROUND_TIME := Vector2(4.5, 7.0)
 const OTHERS := 9.0
 const OTHER_CHANCE := 0.25
 const HERO_CHANCE := 0.06
 const MISS_CHANCE := 0.3
+## The games in the snow after the first fight, and how often each is picked (see _begin_phase).
+const SNOW_GAMES := {"ball": 3.0, "angel": 1.0, "roll": 1.2, "slide": 1.2}
+## A snow angel: how long lying down (and getting up) takes, how long the arms and legs sweep, and
+## how long the body is (metres, at full size).
+const ANGEL_DOWN := 0.45
+const ANGEL_SWEEP := Vector2(2.4, 3.4)
+const BODY := 1.8
+## Rolling a ball of snow: how far (metres), how fast, and how big it grows (its radius, metres).
+const ROLL_DIST := Vector2(2.0, 3.2)
+const ROLL_SPEED := 0.85
+const LUMP := Vector2(0.14, 0.42)
+## A slide: the run-up (seconds, at this speed), then the glide (seconds), slowing to a stop.
+const SLIDE_RUN := 0.7
+const SLIDE_SPEED := 2.6
+const SLIDE_TIME := 1.3
 ## Directions tried for a run away (degrees off straight away from the chaser).
 const FLEE_TURNS := [0, 35, -35, 70, -70, 110, -110, 150, -150]
 
@@ -77,6 +94,17 @@ var _throws_left := 0
 var _round_dir := 1.0
 var _dodge := Vector3.ZERO
 var _dodge_t := 0.0
+## The other games in the snow: how many games so far, where to (flat), how long the angel's
+## sweep lasts and whether its shape is left yet, how far is still to roll and the ball, and the
+## speed of the glide.
+var _games := 0
+var _way := Vector3.ZERO
+var _sweep := 0.0
+var _marked := false
+var _roll_left := 0.0
+var _roll_all := 1.0
+var _lump: MeshInstance3D
+var _glide := 0.0
 
 
 func _init(child: Villager) -> void:
@@ -146,6 +174,11 @@ func begin() -> bool:
 ## The first phase of a game: a snowball fight in the snow, a chase otherwise.
 func _begin_phase() -> void:
 	if snowy(v):
+		var game := "ball" if _games == 0 else _pick_game()
+		_games += 1
+		if (game == "angel" and _start_angel()) or (game == "roll" and _start_roll()) \
+				or (game == "slide" and _start_slide()):
+			return
 		phase = "ball"
 		_throws_left = _rng.randi_range(THROWS.x, THROWS.y)
 		_next_throw = _rng.randf_range(0.5, 1.5)
@@ -172,6 +205,7 @@ func stop() -> void:
 	phase = "run"
 	trick = ""
 	_throw_t = -1.0
+	_lump = null
 	reset_pose()
 
 
@@ -205,6 +239,12 @@ func tick(delta: float) -> bool:
 			_ball(delta)
 		"round":
 			_round(delta)
+		"angel":
+			_angel(delta)
+		"roll":
+			_roll(delta)
+		"slide":
+			_slide(delta)
 	return true
 
 
@@ -490,3 +530,168 @@ func _round(delta: float) -> void:
 		phase = "cheer"
 		_clock = CHEER_TIME * 1.5
 		v.play("Cheer", 0.1)
+
+
+# --- More games in the snow ----------------------------------------------------
+
+## The next game in the snow, by the weights of SNOW_GAMES.
+func _pick_game() -> String:
+	var total := 0.0
+	for g: String in SNOW_GAMES:
+		total += float(SNOW_GAMES[g])
+	var roll := _rng.randf() * total
+	for g: String in SNOW_GAMES:
+		roll -= float(SNOW_GAMES[g])
+		if roll <= 0.0:
+			return g
+	return "ball"
+
+
+func _forward() -> Vector3:
+	return Vector3(sin(v.rotation.y), 0, cos(v.rotation.y))
+
+
+## Ways to go from here, turned round the way the child faces, the first towards the middle of
+## the play when `inward`.
+func _ways(inward := false) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	var start := _forward()
+	if inward:
+		var to := centre - v.global_position
+		to.y = 0.0
+		if to.length() > 0.3:
+			start = to.normalized()
+	for turn_by: int in [0, 45, -45, 90, -90, 135, -135, 180]:
+		out.append(start.rotated(Vector3.UP, deg_to_rad(turn_by + _rng.randf_range(-15.0, 15.0))))
+	return out
+
+
+## Lies down on the back in the snow where there is room behind for the whole body.
+func _start_angel() -> bool:
+	if _hero_flat(v.global_position) < HERO_ROOM_TRICK:
+		return false
+	var length := BODY * v._model.scale.x
+	for dir in _ways():
+		# `dir` is where the head goes: the child looks the other way.
+		if _clear_way(dir, length):
+			_way = dir
+			v.rotation.y = atan2(-dir.x, -dir.z)
+			_sweep = _rng.randf_range(ANGEL_SWEEP.x, ANGEL_SWEEP.y)
+			_marked = false
+			_clock = 0.0
+			phase = "angel"
+			return true
+	return false
+
+
+## Down on the back, arms and legs sweeping, up again, and there is the angel.
+func _angel(delta: float) -> void:
+	_clock += delta
+	var total := ANGEL_DOWN * 2.0 + _sweep
+	var down := smoothstep(0.0, ANGEL_DOWN, _clock) * (1.0 - smoothstep(total - ANGEL_DOWN, total, _clock))
+	# Waving arms while lying flat sweeps the wings.
+	v.play("Cheer" if down > 0.95 else "Idle", 0.15)
+	var p := lie_pose(down, v._model.scale.x)
+	v._model.basis = p.basis
+	v._model.position = p.position
+	if not _marked and _clock >= total - ANGEL_DOWN:
+		_marked = true
+		var length := BODY * v._model.scale.x
+		SnowGames.angel(v.level, v.global_position + _way * length * 0.5, _way, length)
+	if _clock >= total:
+		reset_pose()
+		phase = "cheer"
+		_clock = CHEER_TIME
+		v.play("Cheer", 0.1)
+
+
+## The model lying back (`down` 0 standing to 1 flat on the back) about the feet, the face to the
+## sky, the back a little over the snow, at `s` times full size.
+static func lie_pose(down: float, s: float) -> Dictionary:
+	var tilt := Basis(Vector3.RIGHT, -PI * 0.5 * down)
+	return {"basis": tilt * Basis.from_scale(Vector3(s, s, s)), "position": Vector3(0, 0.14 * s * down, 0)}
+
+
+## Starts a ball of snow at the feet and pushes it off where there is room to roll it.
+func _start_roll() -> bool:
+	var dist := _rng.randf_range(ROLL_DIST.x, ROLL_DIST.y)
+	for dir in _ways(true):
+		if _clear_way(dir, dist + LUMP.y * 2.0 + 0.4):
+			_way = dir
+			_roll_all = dist
+			_roll_left = dist
+			_lump = SnowGames.lump(v.level, _lump_spot(LUMP.x), LUMP.x)
+			_clock = 0.0
+			phase = "roll"
+			return true
+	return false
+
+
+func _lump_spot(radius: float) -> Vector3:
+	return v.global_position + _way * (0.35 + radius)
+
+
+## Bent over the ball, pushing it along slowly as it grows; it stays where the push ends.
+func _roll(delta: float) -> void:
+	if _lump == null or not is_instance_valid(_lump):
+		_end_game()
+		return
+	var walked: float = v._stride("Walking_A", ROLL_SPEED)
+	var step := walked * delta
+	var target := v.global_position + _way * step
+	var grown := lerpf(LUMP.x, LUMP.y, 1.0 - _roll_left / _roll_all)
+	var ahead := target + _way * (0.35 + grown * 2.0)
+	if _roll_left <= 0.0 or _hero_flat(ahead) < HERO_ROOM or not _fits(ahead) or not v._move_to(target):
+		_lump = null
+		_end_game()
+		return
+	v._turn_to(_way, delta)
+	_roll_left -= step
+	SnowGames.set_lump(_lump, _lump_spot(grown), grown)
+	# Leaning into the push.
+	var s: float = v._model.scale.x
+	v._model.basis = Basis(Vector3.RIGHT, 0.35) * Basis.from_scale(Vector3(s, s, s))
+
+
+## A run-up where there is a long clear way, then a glide over the snow.
+func _start_slide() -> bool:
+	var total := SLIDE_SPEED * (SLIDE_RUN + SLIDE_TIME * 0.5) + 0.4
+	for dir in _ways(true):
+		if _clear_way(dir, total):
+			_way = dir
+			_clock = 0.0
+			_glide = 0.0
+			phase = "slide"
+			return true
+	return false
+
+
+func _slide(delta: float) -> void:
+	_clock += delta
+	var speed := 0.0
+	if _clock < SLIDE_RUN:
+		speed = v._stride("Running_A", SLIDE_SPEED)
+		_glide = speed
+	else:
+		var t := (_clock - SLIDE_RUN) / SLIDE_TIME
+		if t >= 1.0:
+			_end_game()
+			return
+		speed = _glide * (1.0 - t)
+		# Arms out, leaning back a little, the feet gliding.
+		v.play("Cheer", 0.1)
+		var s: float = v._model.scale.x
+		v._model.basis = Basis(Vector3.RIGHT, -0.22 * (1.0 - t * 0.5)) * Basis.from_scale(Vector3(s, s, s))
+	var target := v.global_position + _way * speed * delta
+	if _hero_flat(target) < HERO_ROOM or not _fits(target) or not v._move_to(target):
+		_end_game()
+		return
+	v._turn_to(_way, delta)
+
+
+## A snow game is over: upright again, and a cheer.
+func _end_game() -> void:
+	reset_pose()
+	phase = "cheer"
+	_clock = CHEER_TIME
+	v.play("Cheer", 0.1)

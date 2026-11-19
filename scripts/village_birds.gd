@@ -26,7 +26,7 @@ extends Node3D
 ## the hero comes close (WILD_SHY).
 ##
 ## Some nests hold a clutch of eggs (now and then one rocks, as if about to
-## hatch), others a brood of chicks. Hungry chicks stretch up, gape and
+## hatch), others a brood of chicks (but not in winter, see set_winter). Hungry chicks stretch up, gape and
 ## cheep; their parents bring them the worms they find (see "carry"), and
 ## the hero can toss them a handful of grain (SEEDS) from below the nest.
 ##
@@ -150,6 +150,18 @@ const SEED_BITE := 0.8
 ## it (closer than to one on the ground: it trusts the feeder) and how big it
 ## is drawn there (the birds are big beside the people's heads).
 const PERCH_CHANCE := 0.5
+## Winter (see set_winter): the birds fly far less. Most of the times one would set off it sits on
+## (WINTER_STILL), now on its roof, now on a lamp post (winter_perches, WINTER_PERCH of those), and
+## sits WINTER_SIT times as long. The villagers throw out seed far more often (WINTER_SEED times the
+## wait), and the birds come to it from further off (WINTER_SEED_RANGE times SEED_RANGE).
+const WINTER_STILL := 0.9
+const WINTER_PERCH := 0.3
+const WINTER_SIT := 5.0
+const WINTER_SEED := 0.35
+const WINTER_SEED_RANGE := 1.6
+## How high the grains and the birds' feet are over the ground while snow lies on it (metres),
+## over the top of the snow layer (as the footprints are, see SnowPrints.HEIGHT).
+const ON_SNOW := 0.09
 ## Frozen Fritz as a perch: the seconds between two visits, and how far from him a bird comes from.
 const FROZEN_VISIT := Vector2(5.0, 14.0)
 const FROZEN_RANGE := 40.0
@@ -185,6 +197,10 @@ var nests: Array[Vector3] = []
 ## "rock", "rocking", "pose" (a chick's body, head and lower beak as last
 ## drawn)}], one per chick or egg)}.
 var broods: Array = []
+## Winter: the nests stand empty, no eggs or chicks in them (see set_winter).
+var winter := false
+## Where the birds sit in winter besides their roofs: the tops of the lamp posts and their arms.
+var winter_perches: Array[Vector3] = []
 ## The brood in each nest, or {} (by nest index).
 var _brood_of: Array = []
 ## Spots on the ground where the birds land to peck.
@@ -309,8 +325,51 @@ func _process(delta: float) -> void:
 		_think(birds[i], delta, night)
 		_beat(birds[i], delta)
 		_show(i)
-	for brood: Dictionary in broods:
-		_tend(brood, delta, night, hero_at)
+	if not winter:
+		for brood: Dictionary in broods:
+			_tend(brood, delta, night, hero_at)
+
+
+## A bird done sitting in winter mostly sits on: on where it is, or over on a lamp post. False
+## when it sets off as in the warm months after all.
+func _winter_sit(b: Dictionary) -> bool:
+	if _rng.randf() >= WINTER_STILL:
+		return false
+	var home: Vector3 = b.home
+	var near := winter_perches.filter(func(p: Vector3): return _flat_distance(p, home) < RANGE * 1.5)
+	if not near.is_empty() and _rng.randf() < WINTER_PERCH:
+		var spot: Vector3 = near[_rng.randi() % near.size()]
+		_fly(b, spot + Vector3(_rng.randf_range(-0.04, 0.04), 0.0, _rng.randf_range(-0.04, 0.04)), "sit")
+	else:
+		b.wait = _rng.randf_range(SIT.x, SIT.y) * WINTER_SIT
+	return true
+
+
+## Whether snow lies on the ground of this flock's world.
+func _snowy() -> bool:
+	var snow = level.get("snow")
+	return snow != null and snow.lies()
+
+
+## How high a bird's feet are on the ground (over the snow while it lies), and the grains.
+func _feet_y() -> float:
+	return ON_SNOW if _snowy() else 0.05
+
+
+func _grain_y() -> float:
+	return ON_SNOW if _snowy() else 0.03
+
+
+## No eggs or chicks in winter: the nests stand empty, nobody cheeps or is fed, and the parents
+## carry no worms home. In spring the broods are back as they were.
+func set_winter(on: bool) -> void:
+	if on == winter:
+		return
+	winter = on
+	for node_name: String in ["ChickBodies", "ChickHeads", "ChickBeaks", "Eggs"]:
+		var node := get_node_or_null(node_name) as Node3D
+		if node:
+			node.visible = not on
 
 
 ## Birds on the ground take off when the hero walks up to them, and the
@@ -403,7 +462,7 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 				elif b.to == b.home:
 					b.state = "sit"
 					b.market = false
-					b.wait = _rng.randf_range(SIT.x, SIT.y)
+					b.wait = _rng.randf_range(SIT.x, SIT.y) * (WINTER_SIT if winter else 1.0)
 					if b.carry:
 						# Down to the chicks with the worm.
 						b.feed = FEED_TIME
@@ -416,7 +475,7 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 					b.dip = _rng.randf_range(DIP_EVERY.x, DIP_EVERY.y)
 				else:
 					b.state = "sit"
-					b.wait = _rng.randf_range(SIT.x, SIT.y) * 0.6
+					b.wait = _rng.randf_range(SIT.x, SIT.y) * (WINTER_SIT if winter else 0.6)
 				return
 			var p := _path_at(b, b.t)
 			var dir := p - (b.at as Vector3)
@@ -501,9 +560,18 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 			if b.wait > 0.0:
 				return
 			if b.at != b.home:
+				if winter and not _to_seeds(b) and _rng.randf() < WINTER_STILL * 0.7:
+					# Sitting on the lamp post a while longer, fluffed up against the cold.
+					b.wait = _rng.randf_range(SIT.x, SIT.y) * WINTER_SIT
+					return
+				if winter and b.seeds:
+					# Off to the seed instead.
+					return
 				_fly(b, b.home, "home")
 				return
 			if _to_seeds(b):
+				return
+			if winter and _winter_sit(b):
 				return
 			var roll := _rng.randf()
 			if roll < MARKET_CHANCE and _to_market(b):
@@ -511,7 +579,7 @@ func _think(b: Dictionary, delta: float, night: bool) -> void:
 			var near_ground := ground.filter(func(g: Vector3): return g.distance_to(b.home) < RANGE)
 			if roll < 0.7 and not near_ground.is_empty():
 				var spot: Vector3 = near_ground[_rng.randi() % near_ground.size()]
-				_fly(b, spot + Vector3(_rng.randf_range(-1.5, 1.5), 0.05, _rng.randf_range(-1.5, 1.5)), "peck")
+				_fly(b, spot + Vector3(_rng.randf_range(-1.5, 1.5), _feet_y(), _rng.randf_range(-1.5, 1.5)), "peck")
 			elif roll < 0.88 and nests.size() > 1:
 				var other: Vector3 = nests[_rng.randi() % nests.size()]
 				if other.distance_to(b.home) < RANGE * 1.5 and other.distance_to(b.home) > 1.0:
@@ -631,7 +699,7 @@ func _to_market(b: Dictionary) -> bool:
 ## chicks are hungry and their other parent is not already on the way.
 func _wants_worm(b: Dictionary) -> bool:
 	var brood: Dictionary = _brood_of[int(b.nest)]
-	if brood.is_empty() or not brood.chicks or brood.full > 0.0:
+	if winter or brood.is_empty() or not brood.chicks or brood.full > 0.0:
 		return false
 	return not birds.any(func(o: Dictionary): return not is_same(o, b) and o.nest == b.nest and o.carry)
 
@@ -719,7 +787,7 @@ func _mind_feeding(delta: float, night: bool) -> void:
 		_seed_wait -= delta
 		if _seed_wait > 0.0 or night:
 			return
-		_seed_wait = _rng.randf_range(SEED_EVERY.x, SEED_EVERY.y)
+		_seed_wait = _rng.randf_range(SEED_EVERY.x, SEED_EVERY.y) * (WINTER_SEED if winter else 1.0)
 		start_feeding()
 		return
 	var by: Object = feeding.by
@@ -794,7 +862,7 @@ func start_feeding(by: Node3D = null) -> bool:
 		for v in (people if people is Array else []):
 			if is_instance_valid(v) and v.has_method("can_feed_birds") and v.can_feed_birds():
 				var at := to_local(v.global_position)
-				if nests.any(func(n: Vector3): return _flat_distance(n, at) < SEED_RANGE * 0.8):
+				if nests.any(func(n: Vector3): return _flat_distance(n, at) < SEED_RANGE * (WINTER_SEED_RANGE if winter else 0.8)):
 					free.append(v)
 		if free.is_empty():
 			_seed_wait = _rng.randf_range(5.0, 12.0)
@@ -838,7 +906,7 @@ func _on_seeds_tossed(from: Vector3, to: Vector3) -> void:
 	for k in SEED_GRAINS:
 		var a := _rng.randf() * TAU
 		var r := sqrt(_rng.randf()) * SEED_SPREAD
-		var g := {"from": start, "to": land + Vector3(cos(a) * r, 0.03, sin(a) * r), "t": -k * 0.012, "eaten": false}
+		var g := {"from": start, "to": land + Vector3(cos(a) * r, _grain_y(), sin(a) * r), "t": -k * 0.012, "eaten": false}
 		if not free.is_empty():
 			grains[free.pop_back()] = g
 		elif grains.size() < _grains.instance_count:
@@ -858,7 +926,7 @@ func _on_seeds_tossed(from: Vector3, to: Vector3) -> void:
 func _to_seeds(b: Dictionary) -> bool:
 	if feeding.is_empty() or not feeding.called or b.carry or b.feed > 0.0 or b.seeds:
 		return false
-	if _flat_distance(b.home, feeding.spot) > SEED_RANGE:
+	if _flat_distance(b.home, feeding.spot) > SEED_RANGE * (WINTER_SEED_RANGE if winter else 1.0):
 		return false
 	if birds.filter(func(o: Dictionary): return o.seeds).size() >= SEED_BIRDS:
 		return false
@@ -882,7 +950,7 @@ func _to_seeds(b: Dictionary) -> bool:
 func _by_the_seed() -> Vector3:
 	var a := _rng.randf() * TAU
 	var r := sqrt(_rng.randf()) * SEED_SPREAD
-	return (feeding.spot as Vector3) + Vector3(cos(a) * r, 0.05, sin(a) * r)
+	return (feeding.spot as Vector3) + Vector3(cos(a) * r, _feet_y(), sin(a) * r)
 
 
 ## Where a bird sits on the feeder in this slot (see Villager.perch_point),

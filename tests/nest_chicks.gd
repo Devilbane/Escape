@@ -141,6 +141,22 @@ func _run() -> void:
 		birds._process(1.0 / 30.0)
 	check(chicks.all(func(b: Dictionary): return b.beg < 0.1 or birds.birds.any(func(p: Dictionary): return p.nest == b.nest and p.feed > 0.0)), "at night the chicks sleep")
 	lvl.night = false
+
+	# No eggs or chicks in winter: the nests stand empty and nobody begs; in spring they are back.
+	lvl.set_winter_wear(true, true)
+	check(birds.winter, "the birds know it is winter")
+	for node_name: String in ["ChickBodies", "ChickHeads", "ChickBeaks", "Eggs"]:
+		var node := birds.get_node_or_null(node_name) as Node3D
+		check(node == null or not node.visible, "no %s in winter" % node_name)
+	for b: Dictionary in chicks:
+		b.full = 0.0
+		b.beg = 0.0
+	for i in 90:
+		birds._process(1.0 / 30.0)
+	check(chicks.all(func(b: Dictionary): return b.beg < 0.01), "nobody begs from an empty nest")
+	check(not birds.birds.any(func(p: Dictionary): return birds._wants_worm(p)), "no worms carried home in winter")
+	lvl.set_winter_wear(false, true)
+	check(not birds.winter and (birds.get_node("ChickBodies") as Node3D).visible, "in spring the chicks are back")
 	_finish()
 
 

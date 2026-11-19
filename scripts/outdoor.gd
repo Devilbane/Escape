@@ -301,6 +301,8 @@ const LAMP_NIGHT := 3.2
 const LAMP_REACH := 8.0
 const CANDLE_GLOW := 5.0
 var _lamps: Array[OmniLight3D] = []
+## Where a street lamp's light hangs over its foot (in its lantern).
+const LAMP_LIGHT_AT := Vector3(0, 2.6, 1.1)
 ## The bandits' campfires light up their camp at night too.
 var _fires: Array[Vector3] = []
 ## Where something burns (campfires, the forge, smoking chimneys): xyz and how far round it no snow
@@ -537,6 +539,13 @@ func build() -> void:
 		var market: Array[Vector3] = []
 		market.assign(spots.market)
 		birds = VillageBirds.new(self, nests, pecking, market, hash(level_name + "voegel"))
+		# In winter they sit about on the lamp posts: the top of the post and its arm (see
+		# VillageProps.build_lamp: the post 3.1 m high, the arm at 2.9 m running out along +Z).
+		for lamp in _lamps:
+			var foot := lamp.position - LAMP_LIGHT_AT
+			birds.winter_perches.append(foot + Vector3(0, 3.11, 0))
+			birds.winter_perches.append(foot + Vector3(0, 2.91, 0.5))
+			birds.winter_perches.append(foot + Vector3(0, 2.91, 0.95))
 		add_child(birds)
 	Mountains.build(self, hash(level_name + "berge"))
 	_build_forest()
@@ -1127,7 +1136,7 @@ func _build_lantern(pos: Vector3) -> void:
 	light.light_color = Color(1.0, 0.68, 0.38)
 	light.light_energy = 2.2
 	light.omni_range = 11.0
-	light.position = pos + Vector3(0, 2.6, 1.1)
+	light.position = pos + LAMP_LIGHT_AT
 	add_child(light)
 	_lamps.append(light)
 	# A candle in the lantern that glows once the light fades.
@@ -3149,6 +3158,9 @@ func is_opaque(c: Vector2i) -> bool:
 ## home to sleep (see Villager.update_wear). `at_once` (a game being loaded, the sky command) changes
 ## everyone on the spot.
 func set_winter_wear(on: bool, at_once := false) -> void:
+	# No eggs or chicks in the nests in winter: they come back in spring (see VillageBirds).
+	if birds:
+		birds.set_winter(on)
 	var first := not _wear_known
 	if on == winter_wear and not first and not at_once:
 		return
@@ -3897,6 +3909,8 @@ func set_snow(cover: float, daylight := 1.0) -> void:
 			snowman = null
 		else:
 			snowman.melt_to(cover)
+	# The children's angels and rolled balls melt too (see SnowGames).
+	SnowGames.melt(self, cover)
 
 
 ## How thickly the ponds are frozen, 0 open water to 1 solid ice (see IceCover and

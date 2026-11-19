@@ -56,7 +56,7 @@ const LIE_AFTER := 4.0
 ## long it rests its nose after a find (seconds).
 const NOSE_RANGE := 14.0
 const DIG_TIME := 2.0
-const SNIFF_REST := 12.0
+const SNIFF_REST := 45.0
 ## A spot it cannot reach in this time is given up for now.
 const GIVE_UP := 10.0
 const SCALE := 0.4

@@ -896,6 +896,7 @@ func _setup_drawer() -> void:
 	buttons.add_child(_make_button(Lang.t("Schlagen"), do_strike, true))
 	buttons.add_child(_make_button(Lang.t("Kiste"), do_crate, true))
 	buttons.add_child(_make_button(Lang.t("Stein"), do_stone, true))
+	buttons.add_child(_make_button(Lang.t("Land"), plot_action, true))
 	buttons.add_child(_make_button(Lang.t("Angeln"), fish_action, true))
 	buttons.add_child(_make_button(Lang.t("Schenken"), gift_action, true))
 	buttons.add_child(_make_button(Lang.t("Lager"), _camp_from_drawer, true))
@@ -6312,6 +6313,18 @@ func _on_player_trained(id: String, value: int) -> void:
 		Events.gain(text, SKILL_GAIN_COLOR)
 	learn("Eigenschaften wachsen sehr langsam durch Tun: Kämpfen macht stärker (Stärke: +1 Schaden im Nahkampf je Punkt, Lasten wiegen weniger), Treffer einstecken macht zäher (Konstitution, +1 Leben je Punkt), Laufen und Springen machen schneller (Tempo bis 150 %), Springen, Werfen und Fallen machen geschickter (Geschick: +1 Schaden mit Wurfmessern und +4 % Ausweichen je Punkt, weiter springen), Durchsuchen und Geheimnisse schärfen das Gespür (Intuition, +2 % je Punkt, Geheimräume zu entdecken), und alles, was du durchstehst, macht dich weiser (Weisheit: du lernst 5 % schneller je Punkt, ab 12 bieten Schreine eine vierte Gabe), und Neues zu verstehen macht klüger (Intelligenz: Fertigkeiten lernen 10 % schneller und 3 % mehr Erfahrung je Punkt; manche Dinge wie der Zauberhut brauchen sie). Fertigkeiten wachsen schneller, aber nur mit der passenden Ausrüstung. Alles bleibt deinem Helden über alle Läufe.")
 	_update_hud()
+
+
+## The drawer's "Land" button: start marking a building plot, or start again
+## (see PlotMarker). It works anywhere on the open map, so the hero does not
+## have to go back to the clerk each time.
+func plot_action() -> void:
+	if state != State.PLAYING or menus.is_open() or not player.can_act():
+		return
+	if plot_marker == null:
+		show_message(Lang.t("Land abstecken geht nur im Freien."), 2.0)
+		return
+	plot_marker.start()
 
 
 ## Double click or C: sneak (slow, silent, hard to see) or walk normally.

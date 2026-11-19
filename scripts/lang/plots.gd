@@ -28,6 +28,8 @@ const EN := {
 	"Das Grundstück ist eingetragen: %d x %d Felder für %d Kupfer.": "The plot is registered: %d x %d tiles for %d copper.",
 	"Eingetragen. Das Land gehört dir.": "Registered. The land is yours.",
 	"Will jedes Stück Land sauber im Grundbuch eingetragen sehen, bevor der erste Stein gesetzt wird.": "Wants every piece of land entered in the registry before the first stone is laid.",
+	"Land": "Land",
+	"Land abstecken geht nur im Freien.": "Marking land only works out in the open.",
 	"Amtmann Gero": "Clerk Gero",
 	"Land ohne Eintrag ist Land ohne Besitzer. Kommt zu mir, wenn Ihr bauen wollt.": "Land without an entry is land without an owner. Come to me if you want to build.",
 	"Steckt Euer Grundstück ab, dann trage ich es ins Grundbuch ein.": "Mark out your plot and I will enter it in the land registry.",

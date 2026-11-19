@@ -66,7 +66,7 @@ func _run() -> void:
 	var lvl: Outdoor = game.level
 	var open_waters := lvl.fishing_waters.size()
 	var ponds := lvl._pond_waters.size()
-	check(ponds == 12, "twelve pond tiles")
+	check(ponds == 34, "thirty-four pond tiles")
 	check(lvl.ice_cover.holes.size() == 2, "one hole in each of the two ponds")
 
 	game.ice_cover = 0.5

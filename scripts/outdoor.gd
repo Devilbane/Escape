@@ -482,6 +482,8 @@ var snow: SnowCover
 ## How thickly the ponds are frozen over, 0 open water to 1 solid ice (see IceCover).
 var ice := 0.0
 var ice_cover: IceCover
+## Reeds and cattails round the ponds, with their caps of snow (see PondReeds).
+var pond_reeds: PondReeds
 ## Every pond tile (see IceCover).
 var _pond_waters: Array = []
 var _ground_mat: ShaderMaterial
@@ -569,6 +571,7 @@ func build() -> void:
 	add_child(SurfaceLife.new(self))
 	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
 	add_child(puddles)
+	pond_reeds = PondReeds.grow(self, _pond_waters)
 	ice_cover = IceCover.new(self, _pond_waters, _ground_mat)
 	snow = SnowCover.new(self)
 	var roofed: Array = []
@@ -3959,6 +3962,8 @@ func set_snow(cover: float, daylight := 1.0) -> void:
 		SnowPrints.clear()
 	if snow:
 		snow.set_amount(cover, daylight)
+	if pond_reeds != null:
+		pond_reeds.set_snow(cover)
 	if snowman != null and is_instance_valid(snowman):
 		if cover < Snowman.MELTED:
 			snowman.queue_free()

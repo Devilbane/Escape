@@ -6,7 +6,7 @@ extends Node3D
 ## boots and icicles hanging from the raised arm and the mug. Frozen, he cannot sing (see
 ## DrinkingSongs, which only asks a villager who is free to chat) and can only mumble when
 ## talked to. Birds like to land on him (see VillageBirds.start_frozen_perch). When the snow
-## has melted he thaws and goes back to his seat at the tavern.
+## has melted and winter is over he thaws and goes back to his seat at the tavern.
 ##
 ## The villager side of it (walking to the square, holding the pose, thawing) is Villager's
 ## "frozen" task; this node is only what is drawn on and round him.
@@ -45,6 +45,9 @@ var _tinted: Array[MeshInstance3D] = []
 static func wants(level: Outdoor, frozen: bool) -> bool:
 	if level == null or level.snow == null:
 		return false
+	# Once frozen he stays so for the whole winter, whatever the weather does to the snow.
+	if frozen and Weather.is_winter(level.day):
+		return true
 	return level.snow.amount >= (THAW_BELOW if frozen else FREEZE_FROM)
 
 

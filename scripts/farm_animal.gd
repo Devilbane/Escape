@@ -40,8 +40,9 @@ const KINDS := {
 	"billy": {"name": "red-horned goat", "shy": 0.0, "walk": 1.2, "run": 5.0, "roam": 4, "stride": 0.8, "scale": 1.12},
 	# The ones with a model of their own (see MODELS): the legs keep pace through Stride.
 	"dog": {"name": "dog", "shy": 0.0, "walk": 1.6, "run": 5.5, "roam": 7, "stride": 0.8, "scale": 1.0, "notice": 11.0},
-	"cow": {"name": "cow", "shy": 5.0, "walk": 1.0, "run": 4.5, "roam": 3, "stride": 1.0, "scale": 1.0},
-	"bull": {"name": "bull", "shy": 6.5, "walk": 1.0, "run": 4.5, "roam": 2, "stride": 1.0, "scale": 1.0},
+	# Cows and bulls are calm: visitors never make them bolt or turn on the spot.
+	"cow": {"name": "cow", "shy": 0.0, "walk": 1.0, "run": 4.5, "roam": 3, "stride": 1.0, "scale": 1.0},
+	"bull": {"name": "bull", "shy": 0.0, "walk": 1.0, "run": 4.5, "roam": 2, "stride": 1.0, "scale": 1.0},
 }
 ## The models of "Ultimate Animated Animals" by Quaternius (CC0, see
 ## assets/animals/LICENSE.txt), by kind and coat: file and scale. The model's own

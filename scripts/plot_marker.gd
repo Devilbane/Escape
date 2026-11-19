@@ -115,6 +115,8 @@ func refresh() -> void:
 		_deeds.add_child(_fence(deed.rect, DEED_COLOR, false))
 	if pending.size != Vector2i.ZERO and not Plots.has_plot(game.hero_name):
 		_show(pending, true)
+	if game.house_sketcher != null:
+		game.house_sketcher.refresh()
 
 
 func _clear_ghost() -> void:

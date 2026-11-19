@@ -1,7 +1,7 @@
 class_name Breath
 extends Node3D
 ## Frozen breath. In the cold (while snow falls or lies, see Weather.cold) the hero and every
-## villager breathe out a big white cloud in front of the mouth every second or two, and it
+## villager breathe out a big white cloud in front of the mouth every few seconds, and it
 ## drifts up and thins out. Out of the cold nothing shows. One breath is a steady stream of soft particles
 ## from one shared texture and material, so a whole village of breathers costs next to nothing.
 

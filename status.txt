@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Keep the hero's snow footprints all day; Make winter fog a soft, even, cool-white haze | Shipped this week: Keep winter snow off coins and floor pickups; Update the corral test for calm cattle; Light the hero evenly at night (+47 more)
+Escape! dev status | Working on: Keep the hero's snow footprints all day | Shipped this week: Make winter fog a soft, even, cool-white haze; Keep winter snow off coins and floor pickups; Update the corral test for calm cattle (+47 more)

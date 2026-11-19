@@ -203,6 +203,41 @@ func _prints() -> void:
 	game._tick_clock(0.05)
 	lvl.snow_print(Vector3(1, 0, 1), 0.0)
 	check(SnowPrints._live.size() == before + 1, "a print in the snow")
+	# The deepest snow lies 0.03 + 0.03 m above the ground (snow_cover.gdshader): prints stay above it.
+	check(SnowPrints.HEIGHT > 0.06, "prints lie above the deepest snow")
+	# Every walker's print (hero, townsfolk, animals, birds, monsters) goes through snow_print: it
+	# lies at the fixed height, unshaded, and darker than the snow at night, morning, noon and dusk.
+	var snow_white := 0.9
+	for light in [0.0, 0.25, 0.5, 0.75, 1.0]:
+		lvl.snow.set_amount(1.0, light)
+		for kind in SnowPrints.KINDS:
+			var pr: MeshInstance3D = SnowPrints.leave(lvl, Vector3(2, 0, 2), 0.0, 1.0, kind, lvl.snow.daylight)
+			var m := pr.material_override as StandardMaterial3D
+			check(is_equal_approx(pr.global_position.y, SnowPrints.HEIGHT), "a %s print lies at the fixed height" % kind)
+			check(m.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED, "a %s print is unshaded" % kind)
+			check(m.albedo_color.v < snow_white * 0.6 and m.albedo_color.a > 0.8, "a %s print shows at light %.2f" % [kind, light])
+	game.snow_cover = 1.0
+	game._tick_clock(0.05)
+	# The evening at 19:45, as the clock really brings it: the hero's boot shows there too.
+	game.day_hour = 19.75
+	game._tick_clock(0.05)
+	game.snow_cover = 1.0
+	game._tick_clock(0.05)
+	lvl.snow_print(Vector3(3, 0, 3), 0.0)
+	var evening: MeshInstance3D = SnowPrints._live.back() if SnowPrints._live.size() > 0 else null
+	check(evening != null, "a print at 19:45")
+	if evening != null:
+		check((evening.material_override as StandardMaterial3D).albedo_color.v < 0.54, "the print at 19:45 is darker than the snow")
+	check(SnowPrints.KINDS.has("bug"), "beetles press tiny tracks")
+	var crawlers := SurfaceLife.new(lvl)
+	crawlers._spawn("beetle", Vector3(5, 0, 5), "forest")
+	var beetle: Node = crawlers.get_child(crawlers.get_child_count() - 1)
+	check(SnowCover.bare(beetle), "a beetle wears no snow coat")
+	crawlers.free()
+	check(SnowTrail.for_monster("krieger", "Skeleton_Warrior", false, 1.0) != null, "a skeleton leaves tracks")
+	check(SnowTrail.for_monster("wolf", "Wolf", false, 1.0) != null, "a wolf leaves tracks")
+	check(SnowTrail.for_monster("totengeist", "Skeleton_Rogue", true, 1.0) == null, "a ghost leaves none")
+	check(SnowTrail.for_monster("slime", "Slime", false, 1.0) == null, "a slime leaves none")
 	for i in SnowPrints.MAX + 20:
 		lvl.snow_print(Vector3(i * 0.1, 0, 0), 0.0)
 	check(SnowPrints._live.size() <= SnowPrints.MAX, "only so many prints at once")

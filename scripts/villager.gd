@@ -1542,13 +1542,10 @@ func _close_by() -> Array:
 	return _near
 
 
-## Whether this villager stands close to someone on purpose: a chat, a game of the children.
+## Whether this villager stands close to someone on purpose: in a chat. (The children at play
+## keep their distance too: they never stand inside each other.)
 func _mixing_with(o: Villager) -> bool:
-	return chat_partner == o or o.chat_partner == self or _task == "play" or o.get_task() == "play"
-
-
-func get_task() -> String:
-	return _task
+	return chat_partner == o or o.chat_partner == self
 
 
 ## Slides out of the way of everyone this villager has to make room for: all who keep their

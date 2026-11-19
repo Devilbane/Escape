@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Pay copper prices with silver or gold; House building, phase 2: blueprint sketch tool on your plot | Shipped this week: House building, phase 1: mark a plot and register it at the Crown Office; Hang two lit wall lamps beside the temple door (+48 more)
+Escape! dev status | Working on: Pay copper prices with silver or gold | Shipped this week: House building, phase 2: blueprint sketch tool on your plot; House building, phase 1: mark a plot and register it at the Crown Office (+48 more)

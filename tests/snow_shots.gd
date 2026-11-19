@@ -37,7 +37,7 @@ func _shot(name: String, from: Vector3, to: Vector3, fov := 60.0) -> void:
 	await _wait(8)
 	# Everyone breathes out just before the picture, so the cold shows.
 	for b: Breath in game.find_children("*", "Breath", true, false):
-		b._puff.restart()
+		b.exhale()
 	await _wait(9)
 	root.get_texture().get_image().save_png(shots.path_join(name + ".png"))
 	cam.queue_free()

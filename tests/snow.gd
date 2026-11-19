@@ -280,6 +280,10 @@ func _breath() -> void:
 		puff._timer = 0.0
 		puff._process(0.016)
 		check(puff._puff.emitting, "a villager breathes out a cloud in the cold")
+		puff._process(Breath.BLOW + 0.1)
+		check(not puff._puff.emitting, "the breath stops by itself, the cloud drifts on")
+		puff.exhale()
+		check(puff._puff.emitting, "the next breath starts without restarting the emitter")
 	game.set_weather(Weather.CLEAR, 4.0)
 	game.snow_cover = 0.05
 	game._show_weather()

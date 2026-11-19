@@ -1,2 +1,2 @@
-- The edge of the moon and sun shadows no longer sweeps over props as you walk.
-- Lamps, workbench lights and windows near the square no longer switch off and on as you walk past, which made benches look shaded.
+- Props around you keep the same shadows as you walk past them, instead of getting an extra layer of shade from one side.
+- Lamps, workbench lights and windows near the square no longer switch off and on as you walk past.

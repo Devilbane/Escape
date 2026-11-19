@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Hang two lit wall lamps beside the temple door | Shipped this week: Make dragonlings steer clear of buildings; Stop snow glowing and sparkling white at night; Keep the hero's snow footprints all day (+47 more)
+Escape! dev status | Shipped this week: Hang two lit wall lamps beside the temple door; Make dragonlings steer clear of buildings; Stop snow glowing and sparkling white at night (+47 more)

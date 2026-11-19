@@ -49,6 +49,8 @@ const SEPARATION_WEIGHT := 1.2
 ## Someone who has been squeezed against others this long (seconds) without getting free
 ## is no longer eased aside but walks off to an open spot nearby (see _break_free).
 const CROWDED_LIMIT := 4.0
+## In the morning each villager steps out of their house after a random wait of up to this many seconds.
+const MORNING_SPREAD := 25.0
 ## Only villagers this close (metres) are looked at, looked up again every few ticks.
 const NEAR := 3.5
 ## Within this distance (metres) of the last point of its path a walker is no longer bent aside.
@@ -2114,12 +2116,26 @@ func set_night(on: bool, at_once := false) -> void:
 		elif _task != "home":
 			_walk_to(_house_door(), WALK_SPEED * 1.15, "home")
 	elif at_home:
-		update_wear(true)
-		_hide_inside(false, true)
-		_start("idle", _rng.randf_range(0.5, 4.0))
-		_plan_remark()
+		# Each one comes out at a time of their own, so a whole village never steps
+		# into the street at the same moment and piles up at the doors.
+		var wait := 0.0 if at_once or not is_inside_tree() else _rng.randf_range(0.0, MORNING_SPREAD)
+		if wait < 0.2:
+			_come_out()
+		else:
+			get_tree().create_timer(wait).timeout.connect(_come_out)
 	elif _task == "walk" and get_meta("then", "") == "home":
 		_start("idle", 0.5)
+
+
+## Steps out of the house into the morning (see set_night). Does nothing if night has
+## fallen again or they are already out.
+func _come_out() -> void:
+	if night or not at_home or not is_instance_valid(self) or level == null:
+		return
+	update_wear(true)
+	_hide_inside(false, true)
+	_start("idle", _rng.randf_range(0.5, 4.0))
+	_plan_remark()
 
 
 ## Whether the villager walks about with a torch right now: at night, out

@@ -1,16 +1,20 @@
 class_name SnowPrints
 extends RefCounted
 ## Brief grey footprints in the snow. A print is a soft grey shape pressed into the white
-## layer (see SnowCover); it stays a few seconds, then the snow fills in again. Prints are
+## layer (see SnowCover); it stays about five minutes, then the snow fills in again (or at once when the snow melts). Prints are
 ## cheap quads that free themselves, and only so many exist at once. Besides the hero's boot
 ## there are the tracks of the animals: a paw (fox, dog), a cloven hoof (deer, goat, sheep, cow)
 ## and a bird's foot (three toes forward, one back). Every texture is drawn toe-up, and `leave`
 ## turns it so the toes lead the way the walker goes.
 
-const HOLD := 3.5
-const FADE := 4.0
-## At most this many prints at once; the oldest goes first.
-const MAX := 140
+## A print stays about five real minutes, then the snow fills in again over FADE seconds.
+const HOLD := 290.0
+const FADE := 10.0
+## At most this many prints at once. When the pool is full the oldest print of the least
+## important kind goes first (see PRIORITY), so the hero's own boots outlast the beetles' dots.
+const MAX := 700
+## Which kinds are kept longest when the pool is full.
+const PRIORITY := {"bug": 0, "bird": 1, "paw": 2, "hoof": 2, "boot": 3}
 ## Just above the snow, which lies up to SnowCover's 0.06 m over the ground when it is deep
 ## (snow_cover.gdshader lifts it by 0.03 + 0.03 * amount); lower prints are buried in it.
 const HEIGHT := 0.085
@@ -114,11 +118,31 @@ static func _stroke(u: float, v: float, u0: float, v0: float, u1: float, v1: flo
 	return 1.0 - smoothstep(0.1, 0.22, (p - d * t).length())
 
 
+## Frees the oldest print of the least important kind.
+static func _drop_one() -> void:
+	var worst := 0
+	var worst_rank := 99
+	for i in _live.size():
+		var rank: int = PRIORITY.get(String((_live[i] as Node).get_meta("print_kind", "boot")), 3)
+		if rank < worst_rank:
+			worst_rank = rank
+			worst = i
+	(_live.pop_at(worst) as Node).queue_free()
+
+
+## The snow is gone: every print goes with it.
+static func clear() -> void:
+	for n in _live:
+		if is_instance_valid(n):
+			(n as Node).queue_free()
+	_live.clear()
+
+
 ## Presses a print at `at` facing `heading` (radians about the up axis).
 static func leave(world: Node3D, at: Vector3, heading: float, size := 1.0, kind := "boot", daylight := 1.0) -> MeshInstance3D:
 	_live = _live.filter(func(n): return is_instance_valid(n))
 	while _live.size() >= MAX:
-		(_live.pop_front() as Node).queue_free()
+		_drop_one()
 	var mat := StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_texture = texture(kind)
@@ -134,6 +158,7 @@ static func leave(world: Node3D, at: Vector3, heading: float, size := 1.0, kind 
 	mi.global_position = Vector3(at.x, HEIGHT, at.z)
 	mi.rotation.y = heading + FRONT
 	mi.scale = Vector3(size, 1.0, size)
+	mi.set_meta("print_kind", kind)
 	_live.append(mi)
 	var tw := mi.create_tween()
 	tw.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)

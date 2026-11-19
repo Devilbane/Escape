@@ -17,5 +17,5 @@ void vertex() {
 void fragment() {
 	snow_look(world_pos, world_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);
 	ROUGHNESS = 0.85;
-	SPECULAR = 0.3;
+	SPECULAR = 0.3 * mix(0.4, 1.0, daylight);
 }

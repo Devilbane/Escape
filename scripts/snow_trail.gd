@@ -51,6 +51,9 @@ static func for_monster(kind: String, model: String, ghost: bool, size: float) -
 
 ## Called every physics tick with where the animal is; presses a print once it has gone a stride.
 func follow(level: Node, here: Vector3) -> void:
+	# Animals leave no tracks (they never showed up well); only the monsters on two legs press boots.
+	if _feet[0] != "boot":
+		return
 	if not level.has_method("snow_print") or level.get("snow") == null or level.snow.amount < Weather.PRINT_FROM:
 		_from = Vector3.INF
 		return

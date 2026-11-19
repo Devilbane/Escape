@@ -1156,7 +1156,7 @@ func _lantern_panes() -> StandardMaterial3D:
 		_pane_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		_pane_mat.roughness = 0.25
 		_pane_mat.emission_enabled = true
-		_pane_mat.emission = Color(1.0, 0.68, 0.38)
+		_pane_mat.emission = Color(1.0, 0.68, 0.34)
 		_pane_mat.emission_energy_multiplier = 0.0
 		_window_mats[_pane_mat] = _pane_mat
 	return _pane_mat
@@ -1166,9 +1166,12 @@ func _lantern_panes() -> StandardMaterial3D:
 ## brightens at night, and a candle in the lantern that glows once it fades.
 func _lantern_glow(light_at: Vector3, candle_at: Vector3) -> void:
 	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.68, 0.38)
+	# A natural, gentler orange, and a falloff that fades out softly instead of ending in a hard
+	# edge on the snow (attenuation above 1 pulls the light in toward the lamp).
+	light.light_color = Color(1.0, 0.74, 0.48)
 	light.light_energy = 2.2
 	light.omni_range = 11.0
+	light.omni_attenuation = 1.8
 	light.position = light_at
 	add_child(light)
 	_lamps.append(light)

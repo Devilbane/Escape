@@ -66,6 +66,33 @@ func _run() -> void:
 			if is_equal_approx(w.w, 1.8):
 				var coals := Vector3(w.x, w.y, w.z)
 				await _shot("snow_forge", coals + Vector3(3.5, 3.6, 4.5), coals + Vector3(0, 1.0, 0), 55.0)
+		if OS.get_environment("ONLY") == "games":
+			# The children's games: an angel and a rolled ball by the snowman, birds on a lamp post.
+			lvl.set_winter_wear(true, true)
+			var kid_spot: Vector3 = lvl.cell_to_world(VillageFarm.pippi_home(lvl))
+			var man := Snowman.ensure(lvl, kid_spot)
+			var mid: Vector3 = man.global_position if man else kid_spot
+			SnowGames.angel(lvl, mid + Vector3(2.2, 0, 0.6), Vector3(0, 0, -1), 1.3)
+			SnowGames.angel(lvl, mid + Vector3(3.4, 0, 0.9), Vector3(0.3, 0, -1).normalized(), 1.2)
+			SnowGames.lump(lvl, mid + Vector3(-1.8, 0, 1.2), 0.42)
+			SnowGames.lump(lvl, mid + Vector3(-2.6, 0, -0.4), 0.3)
+			await _shot("snow_games", mid + Vector3(1.0, 3.2, 6.0), mid + Vector3(0.5, 0.3, 0.5), 55.0)
+			if not lvl.birds.winter_perches.is_empty():
+				var perch: Vector3 = lvl.birds.winter_perches[0]
+				var k := 0
+				for b: Dictionary in lvl.birds.birds:
+					if k >= 3:
+						break
+					b.state = "sit"
+					b.at = lvl.birds.winter_perches[k]
+					b.wait = 999.0
+					k += 1
+				var wp := lvl.to_global(perch)
+				await _shot("snow_lamp_birds", wp + Vector3(2.0, -0.6, 2.4), wp + Vector3(0, -0.1, 0.4), 45.0)
+			game.delete_save(game.save_path())
+			print("PASS: snow shots")
+			quit(0)
+			return
 		# The snow's body: thick caps over the eaves, icicles, and a bush under snow.
 		var houses: Array = lvl.find_children("*", "Node3D", true, false).filter(
 				func(n: Node): return n.has_meta("village_house") or n.has_meta("town_house"))

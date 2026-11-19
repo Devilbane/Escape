@@ -1445,9 +1445,10 @@ func _next_task() -> void:
 			else:
 				_walk_to(_nearby(4), WALK_SPEED * 0.7, "work")
 		"wander":
-			if _task == "walk" or _rng.randf() < 0.5:
+			# In the snow the children are off to play far more often.
+			if _task == "walk" or _rng.randf() < (0.25 if _info.has("pal") and KidPlay.snowy(self) else 0.5):
 				_start("work" if _rng.randf() < 0.4 else "idle", _rng.randf_range(1.5, 4.0))
-			elif _info.has("pal") and _rng.randf() < (0.75 if KidPlay.snowy(self) else 0.3) and KidPlay.fine_day(self) and _play_spot() != Vector3.INF:
+			elif _info.has("pal") and _rng.randf() < (0.95 if KidPlay.snowy(self) else 0.3) and KidPlay.fine_day(self) and _play_spot() != Vector3.INF:
 				# Off to play with the friend: a run to their side, then a game (see KidPlay).
 				_walk_to(_play_spot(), RUN_SPEED, "play")
 			elif _info.get("herds", false) and _rng.randf() < 0.45 and VillageFarm.herd_spot(level, role, _rng.randf()) != Vector3.INF:
@@ -1689,7 +1690,8 @@ func _walk(delta: float, hero: Node3D) -> void:
 		if then in ["work", "sit"]:
 			time = _rng.randf_range(8.0, 16.0)
 		elif then == "play":
-			time = _rng.randf_range(14.0, 24.0)
+			# The snow keeps them at it twice as long.
+			time = _rng.randf_range(14.0, 24.0) * (2.0 if KidPlay.snowy(self) else 1.0)
 		elif then == "listen":
 			time = LISTEN_TIME + _rng.randf_range(-2.0, 2.0)
 		elif then == "watch":

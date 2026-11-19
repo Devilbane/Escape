@@ -98,6 +98,8 @@ func _run() -> void:
 	var rounds := false
 	var worst_blocked := 0
 	var seen := {}
+	var games := {}
+	var flat := false
 	for i in 60 * 50:
 		await process_frame
 		for b: Snowball in lvl.find_children("*", "Snowball", false, false):
@@ -108,13 +110,58 @@ func _run() -> void:
 			if c._task == "play" and c._kid != null and c._kid.active:
 				if c._kid.phase == "round":
 					rounds = true
+				games[c._kid.phase] = true
+				if c._kid.phase == "angel" and c._kid._clock > KidPlay.ANGEL_DOWN + 0.2 \
+						and c._kid._clock < KidPlay.ANGEL_DOWN + c._kid._sweep:
+					flat = flat or c._model.basis.y.normalized().y < 0.2
 				var cell := lvl.world_to_cell(c.global_position)
 				if Outdoor.BLOCK_CHARS.contains(lvl.cell_char(cell)) or c.blocked_at(c.global_position):
 					worst_blocked += 1
 		if pip._task != "play" and pippi._task != "play":
 			_kick_off(lvl, pip, pippi)
-	check(balls >= 4, "snowballs fly (%d)" % balls)
+	check(balls >= 8, "snowballs fly often (%d)" % balls)
 	check(rounds, "they run round their snowman")
+	# Other games between the fights: snow angels, rolling balls of snow, slides.
+	print("snow games played: ", games.keys())
+	check(games.size() >= 4, "they play other games in the snow too (%s)" % [games.keys()])
+	if games.has("angel"):
+		check(flat, "a snow angel is made lying flat on the back")
+	# Each game in turn, from its start to the cheer at its end.
+	for game: String in ["angel", "roll", "slide"]:
+		var made := SnowGames.marks(lvl).size()
+		_kick_off(lvl, pip, pippi)
+		await _wait(3)
+		pip.global_position = man.global_position + Vector3(2.2, 0, 0)
+		pip.reset_physics_interpolation()
+		var kid: KidPlay = pip._kid
+		var from := pip.global_position
+		var started: bool = kid.call("_start_" + game)
+		check(started, "%s: there is room to start it" % game)
+		var lay := false
+		for i in 60 * 8:
+			await process_frame
+			if kid.phase != game:
+				break
+			lay = lay or pip._model.basis.y.normalized().y < 0.2
+		check(kid.phase != game, "%s: it ends" % game)
+		check(pip._model.basis.y.normalized().y > 0.95 or kid.phase in ["angel", "roll", "slide"], "%s: upright again after it" % game)
+		match game:
+			"angel":
+				check(lay, "angel: made lying flat on the back")
+				check(SnowGames.marks(lvl).size() > made or made >= SnowGames.MAX_ANGELS, "angel: its shape stays in the snow")
+			"roll":
+				check(_flat(pip.global_position, from) > 1.0, "roll: the ball is pushed along")
+				var lumps := SnowGames.marks(lvl).filter(func(n): return n.get_meta("snow_game") == "lump")
+				check(not lumps.is_empty() and float(lumps[-1].get_meta("radius")) > KidPlay.LUMP.x + 0.1, "roll: a big ball of snow is left")
+			"slide":
+				check(_flat(pip.global_position, from) > 2.5, "slide: a run-up and a glide (%.1f m)" % _flat(pip.global_position, from))
+	var left := SnowGames.marks(lvl)
+	check(not left.is_empty(), "they leave angels or rolled balls in the snow (%d)" % left.size())
+	check(left.filter(func(n): return n.get_meta("snow_game") == "angel").size() <= SnowGames.MAX_ANGELS, "only so many angels")
+	check(left.filter(func(n): return n.get_meta("snow_game") == "lump").size() <= SnowGames.MAX_LUMPS, "only so many rolled balls")
+	for c: Villager in [pip, pippi]:
+		if c._kid != null and not c._kid.active:
+			check(c._model.basis.y.normalized().y > 0.99, "upright again after the game")
 	check(worst_blocked == 0, "nobody plays in a wall (%d ticks)" % worst_blocked)
 	check(lvl.snowman == man, "the same snowman stays")
 	_kick_off(lvl, pip, pippi)
@@ -143,6 +190,10 @@ func _run() -> void:
 	game.snow_cover = 0.05
 	await _wait(2)
 	check(not is_instance_valid(man) and lvl.snowman == null, "the snowman is gone with the snow")
+	await _wait(2)
+	check(SnowGames.marks(lvl).is_empty(), "the angels and the rolled balls melt with the snow")
+	# In the snow they go off to play more often, and for longer.
+	check(KidPlay.THROW_PAUSE.y <= 2.0 and KidPlay.THROWS.y >= 9, "snowballs fly thick and fast")
 	_finish()
 
 

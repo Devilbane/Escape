@@ -68,7 +68,7 @@ const CREST_FRONT := -0.95
 const CREST_BACK := 1.5
 
 ## Spikes: how many tufts grow out of the short crop's hair.
-const SPIKES := 110
+const SPIKES := 160
 ## How high up the head (0 at the ears, 1 on top) the tufts begin.
 const TUFTS_FROM := 0.2
 ## The crop is shaved below this height, so no hair shows outside the tufts.
@@ -717,14 +717,17 @@ static func spikes_mesh(crop: PackedVector3Array) -> ArrayMesh:
 			b = 1.0 - b
 		var root := crop[t] + (crop[t + 1] - crop[t]) * a + (crop[t + 2] - crop[t]) * b
 		var out := ((root - SKULL_CENTER) / SKULL_RADII).normalized()
-		if out.y < TUFTS_FROM:
+		# The back of the head starts its tufts lower, so it bristles too.
+		var back := clampf(-out.z, 0.0, 1.0)
+		var from := lerpf(TUFTS_FROM, 0.05, back)
+		if out.y < from:
 			continue
 		placed += 1
 		var normal := skull_normal(on_skull(root))
 		# How high up: 0 where the tufts start, 1 on top; and how far forward.
-		var up := clampf((out.y - TUFTS_FROM) / (1.0 - TUFTS_FROM), 0.0, 1.0)
+		var up := clampf((out.y - from) / (1.0 - from), 0.0, 1.0)
 		var front := clampf(out.z, 0.0, 1.0)
-		var lock_length := lerpf(0.12, 0.3, smoothstep(0.0, 0.7, up)) * (0.85 + 0.3 * rng.randf())
+		var lock_length := lerpf(0.12, 0.3, smoothstep(0.0, 0.7, up)) * (0.85 + 0.3 * rng.randf()) * (1.0 + 0.25 * back)
 		# Over the forehead they stand up rather than into the eyes; the
 		# lowest ones lean back over the crop.
 		var dir := (normal + Vector3.UP * (0.25 + 0.6 * front) * up + Vector3(0.0, 0.0, -0.4 - 0.2 * front)).normalized()

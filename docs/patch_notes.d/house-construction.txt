@@ -1,0 +1,1 @@
+- New: your hero now builds the house you sketched: hand stone blocks (mason) and timber (woodcutter) in at the blueprint sign, order the build, and walls, doors and windows turn solid one by one while you are near. Erase a built piece to have it taken down and get the material back.

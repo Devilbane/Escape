@@ -71,6 +71,21 @@ func _process(_delta: float) -> bool:
 	check(plan.count("wall") == 0, "the eraser takes a piece back")
 	sketcher.undo()
 	check(plan.count("wall") == 1, "undo brings it back")
+	# The character builds: with material the sketch turns solid.
+	plan.deposit("steinblock", 10)
+	plan.deposit("bauholz", 10)
+	check(plan.order(), "the build is ordered")
+	var before := sketcher._body.get_child_count()
+	check(sketcher.work_once(), "the character builds a piece")
+	check(sketcher._body.get_child_count() > before, "a built piece blocks the way")
+	sketcher.select_tool(HouseSketcher.TOOL_ERASE)
+	var built_key := ""
+	for key in plan.pieces:
+		if plan.pieces[key].state == "built":
+			built_key = key
+	var bp := HouseSketch.parts_of(built_key)
+	sketcher.mouse(plan.node_world(bp[1], bp[2]) + (Vector3(1.0, 0, 0) if bp[3] == "x" else Vector3(0, 0, 1.0)), true, MOUSE_BUTTON_LEFT)
+	check(plan.piece(bp[1], bp[2], bp[3]).state == "demolish", "the eraser marks a built piece for demolition")
 	sketcher.leave()
 	check(not sketcher.active, "the tool closes")
 	# The plan is in the books.

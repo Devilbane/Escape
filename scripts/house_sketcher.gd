@@ -8,8 +8,12 @@ extends Node3D
 ## message line says why), and undo and redo take edits back.
 ##
 ## The sketch is only a blueprint: faint, see-through pieces without collision.
-## Building it solid is the character's work (see the construction phase). The
-## stage banner shows the cycle: Plan, Build, Done, and Done leads back to Plan.
+## Building it solid is the character's work: the hero hands stone blocks and
+## timber over at the sign, orders the build, and while they are near the plot
+## the character turns one sketched piece after another solid (every BUILD_SECONDS),
+## using up the material. Erasing a built piece marks it for demolition: the
+## character takes it down and the material comes back. The stage banner shows
+## the cycle: Plan, Build, Done, and Done leads back to Plan.
 ##
 ## The tool bar sits at the bottom of the screen with fixed sizes, so a tool or
 ## a stage never reshapes it.
@@ -35,7 +39,15 @@ const STAGES := ["plan", "build", "done"]
 const STAGE_NAMES := {"plan": "Planen", "build": "Bauen", "done": "Fertig"}
 const ON_COLOR := Color(1.0, 0.82, 0.4)
 const OFF_COLOR := Color(1, 1, 1, 0.4)
-const STATUS_WIDTH := 520.0
+const STATUS_WIDTH := 640.0
+## The character builds one piece this often (seconds) while the hero is near
+## the plot, and works only within this many metres of its middle.
+const BUILD_SECONDS := 12.0
+const BUILD_RANGE := 16.0
+const STONE_COLOR := Color(0.5, 0.48, 0.44)
+const WOOD_COLOR := Color(0.4, 0.27, 0.15)
+const GLASS_COLOR := Color(0.6, 0.8, 0.9, 0.35)
+const DEMOLISH_COLOR := Color(1.0, 0.45, 0.35, 0.6)
 
 var game: Node
 var active := false
@@ -45,6 +57,14 @@ var plan: HouseSketch
 var drag_from := Vector2i(-1, -1)
 var _plot := Rect2i()
 var _built := Node3D.new()
+## The built pieces of every house on the map, drawn solid, and their collision.
+var _solid := Node3D.new()
+var _body := StaticBody3D.new()
+var _work := 0.0
+var _warned := false
+var _order_button: Button
+var _deposit_button: Button
+var _stock_label: Label
 var _ghost := Node3D.new()
 var _grid := MeshInstance3D.new()
 var _sign: Node3D
@@ -61,6 +81,8 @@ var _hover_key := ""
 
 func _ready() -> void:
 	add_child(_built)
+	add_child(_solid)
+	add_child(_body)
 	add_child(_ghost)
 	_grid.visible = false
 	add_child(_grid)
@@ -71,6 +93,49 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if is_instance_valid(_bar):
 		_bar.queue_free()
+
+
+# --- The character builds ---------------------------------------------------
+
+func _process(delta: float) -> void:
+	if plan == null or not plan.ordered or game.state != game.State.PLAYING or not game.player.can_act():
+		return
+	var middle := plan.node_world(plan.nodes().x / 2, plan.nodes().y / 2)
+	if Vector2(game.player.global_position.x - middle.x, game.player.global_position.z - middle.z).length() > BUILD_RANGE + plan.nodes().length() * HouseSketch.CELL * 0.25:
+		return
+	_work += delta
+	if _work < BUILD_SECONDS:
+		return
+	_work = 0.0
+	work_once()
+
+
+## One piece of the character's work: builds or takes down a piece, and says so.
+## Returns whether a piece was done.
+func work_once() -> bool:
+	if plan == null:
+		return false
+	var result := plan.build_next()
+	if result.is_empty():
+		_changed()
+		return false
+	if result.has("why"):
+		if not _warned:
+			_warned = true
+			game.show_message(Lang.t("Dein Held wartet auf Material für den Bau: Gib Steinblöcke und Bauholz am Bauplan-Schild ab."), 5.0)
+		_update_bar()
+		return false
+	_warned = false
+	game.player.play_once("Interact", 0.55)
+	Sfx.play(game, "swing", -4.0, node_pos(result.edge))
+	if plan.stage() == "done":
+		Events.tell(Lang.t("Dein Haus ist fertig gebaut. Skizziere neue Teile, wenn du es ändern willst."), Color(1.0, 0.82, 0.4))
+	_changed()
+	return true
+
+
+func node_pos(edge: Array) -> Vector3:
+	return plan.node_world(edge[0], edge[1])
 
 
 # --- The plot and its sign ----------------------------------------------------
@@ -206,8 +271,9 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 	if edge.is_empty():
 		return
 	if tool == TOOL_ERASE:
-		if plan.erase([edge]) == 0:
-			_say(Lang.t("Das ist schon gebaut: Es lässt sich nicht wegradieren."))
+		var had := plan.piece(edge[0], edge[1], edge[2])
+		if plan.erase([edge]) > 0 and had.get("state", "") == HouseSketch.BUILT:
+			_say(Lang.t("Zum Abriss vorgemerkt: Dein Held reißt es ab und bekommt das Material zurück."))
 		_changed()
 		return
 	var why := plan.problem(edge[0], edge[1], edge[2], tool)
@@ -250,8 +316,7 @@ func hover(point: Vector3) -> void:
 		return
 	if tool == TOOL_ERASE:
 		var had := plan.piece(edge[0], edge[1], edge[2])
-		var ok: bool = not had.is_empty() and had.state == HouseSketch.SKETCH
-		_segment(_ghost, edge, had.get("kind", HouseSketch.WALL), OK_COLOR if ok else BAD_COLOR)
+		_segment(_ghost, edge, had.get("kind", HouseSketch.WALL), BAD_COLOR if had.is_empty() else (DEMOLISH_COLOR if had.state != HouseSketch.SKETCH else OK_COLOR))
 		return
 	var why := plan.problem(edge[0], edge[1], edge[2], tool)
 	_segment(_ghost, edge, tool, OK_COLOR if why == "" else BAD_COLOR)
@@ -265,7 +330,7 @@ static func reason(why: String) -> String:
 		"needs wall":
 			return Lang.t("Hier fehlt eine Wand: Zeichne erst die Wand.")
 		"built":
-			return Lang.t("Das ist schon gebaut.")
+			return Lang.t("Das ist schon gebaut. Reiß es mit dem Radierer ab, um es zu ändern.")
 	return ""
 
 
@@ -333,6 +398,22 @@ func _build_bar() -> void:
 	var done: Button = UiKit.button(Lang.t("Schließen"), leave)
 	done.custom_minimum_size = Vector2(110, 48)
 	tools.add_child(done)
+	var actions := HBoxContainer.new()
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	actions.add_theme_constant_override("separation", 8)
+	box.add_child(actions)
+	_deposit_button = UiKit.button(Lang.t("Material abgeben"), deposit_materials)
+	_deposit_button.custom_minimum_size = Vector2(250, 48)
+	actions.add_child(_deposit_button)
+	_order_button = UiKit.button(Lang.t("Bau beauftragen"), toggle_order)
+	_order_button.custom_minimum_size = Vector2(250, 48)
+	actions.add_child(_order_button)
+	_stock_label = UiKit.label(UiKit.TEXT_FONT, 16, Color(0.8, 0.9, 1.0))
+	_stock_label.custom_minimum_size = Vector2(STATUS_WIDTH, 26)
+	_stock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_stock_label.clip_text = true
+	_stock_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	box.add_child(_stock_label)
 	_status = UiKit.label(UiKit.TEXT_FONT, 16, Color(1.0, 0.75, 0.5))
 	_status.custom_minimum_size = Vector2(STATUS_WIDTH, 26)
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -361,6 +442,53 @@ func _update_bar() -> void:
 	_redo_button.disabled = plan == null or not plan.can_redo()
 	if plan != null:
 		_status.text = _hint()
+		var have := plan.stock
+		var short := plan.missing()
+		_stock_label.text = Lang.t("Vorrat: %d Steinblöcke, %d Bauholz. Es fehlen noch: %d Steinblöcke, %d Bauholz.") % [
+				int(have.get(HouseSketch.STONE, 0)), int(have.get(HouseSketch.TIMBER, 0)),
+				int(short.get(HouseSketch.STONE, 0)), int(short.get(HouseSketch.TIMBER, 0))]
+		_order_button.text = Lang.t("Bau anhalten") if plan.ordered else Lang.t("Bau beauftragen")
+		_order_button.disabled = not plan.ordered and plan.open_pieces() == 0
+		var carried: int = game.player.bag.count(HouseSketch.STONE) + game.player.bag.count(HouseSketch.TIMBER)
+		_deposit_button.disabled = carried == 0
+
+
+## The hero hands over the stone blocks and timber in their bag.
+func deposit_materials() -> void:
+	if plan == null:
+		return
+	var moved := 0
+	for id in HouseSketch.MATERIALS:
+		var n: int = game.player.bag.count(id)
+		for i in n:
+			game.player.bag.erase(id)
+		plan.deposit(id, n)
+		moved += n
+	if moved == 0:
+		_say(Lang.t("Du trägst weder Steinblöcke noch Bauholz."))
+		return
+	Sfx.play(game, "gear_soft_0", -2.0)
+	game._update_hud()
+	plan.save(game.hero_name)
+	# The bag and the plot's stock must agree, or the material could be had twice.
+	game.save_game()
+	_say(Lang.t("%d Stück Material abgegeben.") % moved)
+	_update_bar()
+
+
+## The order to build, or the order to stop.
+func toggle_order() -> void:
+	if plan == null:
+		return
+	if plan.ordered:
+		plan.ordered = false
+		_say(Lang.t("Der Bau ruht."))
+	elif plan.order():
+		_work = BUILD_SECONDS
+		_warned = false
+		_say(Lang.t("Dein Held baut, solange du in der Nähe bist."))
+	plan.save(game.hero_name)
+	_update_bar()
 
 
 func _hint() -> String:
@@ -389,11 +517,87 @@ func _clear(node: Node3D) -> void:
 
 func _redraw() -> void:
 	_clear(_built)
+	_clear(_solid)
+	for child in _body.get_children():
+		child.queue_free()
+	if game == null or not game.level is Outdoor:
+		return
+	# Everyone's built pieces stand on the map for all to see.
+	for deed in Plots.all():
+		var house := plan if plan != null and deed.rect == _plot else HouseSketch.of(deed.owner, deed.rect)
+		for key in house.pieces:
+			var p := HouseSketch.parts_of(key)
+			var piece: Dictionary = house.pieces[key]
+			if piece.state != HouseSketch.SKETCH:
+				_solid_piece(house, [p[1], p[2], p[3]], piece.kind, piece.state == HouseSketch.DEMOLISH)
 	if plan == null:
 		return
 	for key in plan.pieces:
-		var p := HouseSketch.parts_of(key)
-		_segment(_built, [p[1], p[2], p[3]], plan.pieces[key].kind, Color(0, 0, 0, 0))
+		if plan.pieces[key].state == HouseSketch.SKETCH:
+			var p := HouseSketch.parts_of(key)
+			_segment(_built, [p[1], p[2], p[3]], plan.pieces[key].kind, Color(0, 0, 0, 0))
+
+
+## A built piece: solid stone, a doorway with a wooden lintel, or a window
+## with a pane. A piece marked for demolition is tinted red. Walls, jambs and
+## lintels stop the hero; the doorway stays open.
+func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool) -> void:
+	var a := house.node_world(edge[0], edge[1])
+	var along_x: bool = edge[2] == HouseSketch.ORIENT_X
+	var mid := a + (Vector3(HouseSketch.CELL * 0.5, 0, 0) if along_x else Vector3(0, 0, HouseSketch.CELL * 0.5))
+	var flat := Vector3(HouseSketch.CELL + THICK, 0, THICK) if along_x else Vector3(THICK, 0, HouseSketch.CELL + THICK)
+	var stone := _solid_material(DEMOLISH_COLOR if demolish else STONE_COLOR)
+	var wood := _solid_material(DEMOLISH_COLOR if demolish else WOOD_COLOR)
+	match kind:
+		HouseSketch.DOOR:
+			var jamb := Vector3(0.3, DOOR_HEIGHT, 0.3)
+			var span := HouseSketch.CELL * 0.5 - 0.15
+			var step := Vector3(span, 0, 0) if along_x else Vector3(0, 0, span)
+			var lintel := flat + Vector3(0, WALL_HEIGHT - DOOR_HEIGHT, 0)
+			for sign_ in [-1.0, 1.0]:
+				_solid_box(mid + step * sign_ + Vector3(0, DOOR_HEIGHT * 0.5, 0), jamb, stone)
+			_solid_box(mid + Vector3(0, (DOOR_HEIGHT + WALL_HEIGHT) * 0.5, 0), lintel, wood)
+		HouseSketch.WINDOW:
+			_solid_box(mid + Vector3(0, SILL * 0.5, 0), flat + Vector3(0, SILL, 0), stone)
+			_solid_box(mid + Vector3(0, (WINDOW_TOP + WALL_HEIGHT) * 0.5, 0), flat + Vector3(0, WALL_HEIGHT - WINDOW_TOP, 0), stone)
+			_visual_box(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat * 0.5 + Vector3(0, WINDOW_TOP - SILL, 0), _solid_material(GLASS_COLOR))
+			# The pane itself stops the hero too: a window is no way through.
+			_collide(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat + Vector3(0, WINDOW_TOP - SILL, 0))
+		_:
+			_solid_box(mid + Vector3(0, WALL_HEIGHT * 0.5, 0), flat + Vector3(0, WALL_HEIGHT, 0), stone)
+
+
+func _solid_box(at: Vector3, size: Vector3, mat: Material) -> void:
+	_visual_box(at, size, mat)
+	_collide(at, size)
+
+
+func _visual_box(at: Vector3, size: Vector3, mat: Material) -> void:
+	var m := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	m.mesh = box
+	m.material_override = mat
+	m.position = at
+	_solid.add_child(m)
+
+
+func _collide(at: Vector3, size: Vector3) -> void:
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	shape.position = at
+	_body.add_child(shape)
+
+
+func _solid_material(colour: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = colour
+	mat.roughness = 0.9
+	if colour.a < 1.0:
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	return mat
 
 
 func _draw_grid() -> void:

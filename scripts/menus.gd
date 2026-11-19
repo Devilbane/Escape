@@ -67,7 +67,7 @@ const LOAD_ROWS_SHOWN := 5
 var _info: RichTextLabel
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## The windows built as a TradeWindow.
-const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "barbier", "tempel", RuinedShrine.KIND]
+const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "holzfaeller", "barbier", "tempel", RuinedShrine.KIND]
 ## The compact trading window of every merchant (see TradeWindow).
 var trade := TradeWindow.new()
 ## Every control, for the compendium: action and keys.
@@ -329,6 +329,8 @@ func _rebuild() -> void:
 			_build_ruined_shrine()
 		"steinmetz":
 			_build_stonemason()
+		"holzfaeller":
+			_build_woodcutter()
 		"ausbau":
 			_build_upgrades()
 		"hauswerkbank":
@@ -2541,6 +2543,68 @@ func _sell_stone() -> void:
 		p.bag.erase(STONE)
 		game.coins += sell_price(STONE)
 		_note = Lang.t("Verkauft: %s für %d Kupfer") % [Items.item_name(STONE), sell_price(STONE)]
+	game._update_hud()
+	_rebuild()
+
+
+# --- The woodcutter's timber (see HouseSketch.COST) ----------------------------
+
+const TIMBER := "bauholz"
+
+
+func _build_woodcutter() -> void:
+	var p: Player = game.player
+	var price: int = game.trader_price(Items.buy_price(TIMBER))
+	var room: int = p.bag_size() - p.bag_used()
+	_add_label(Lang.t("Holzfäller"), 38, game.GOLD, game.TITLE_FONT)
+	var header := Lang.t("Dein Kupfer: %d") % game.coins
+	var all := mini(room, game.coins / price) if price > 0 else room
+	var have := p.bag.count(TIMBER)
+	var detail := {"subtitle": TradeWindow.subtitle(TIMBER), "lines": TradeWindow.stat_lines(TIMBER) + [
+			[Lang.t("Bauholz für Türen und Fenster. Gib es am Bauplan-Schild auf deinem Grundstück ab: Dort baut dein Held damit dein Haus."), TradeWindow.BLUE]]}
+	var compare := {"title": Lang.t("In deiner Tasche"), "name": Lang.t("Bauholz: %d") % have, "icon": TIMBER,
+			"subtitle": Lang.t("Platz für %d weitere") % room}
+	_trade(header, [
+		{"key": "timber", "title": Lang.t("Bauholz"), "icon": "kind:stone", "entries": [
+			{"key": "back", "id": TIMBER, "name": Lang.t("1 zurückgeben"), "price": "+" + Lang.t("%d Kupfer") % sell_price(TIMBER),
+					"button": Lang.t("Verkaufen"), "action": _sell_timber, "enabled": have > 0, "detail": detail, "compare": compare},
+		] if _shop_page == "verkaufen" else [
+			{"key": "one", "id": TIMBER, "name": Lang.t("1 Bauholz"), "price": Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price,
+					"action": _buy_timber.bind(1), "enabled": room > 0 and game.coins >= price, "detail": detail, "compare": compare},
+			{"key": "all", "id": TIMBER, "name": Lang.t("%d Bauholz") % maxi(all, 1), "price": Lang.t("%d Kupfer") % (maxi(all, 1) * price),
+					"price_ok": all > 0, "action": _buy_timber.bind(all), "enabled": all > 0, "detail": detail, "compare": compare},
+		]},
+	], _shop_pages())
+
+
+func _buy_timber(count: int) -> void:
+	var p: Player = game.player
+	var price: int = game.trader_price(Items.buy_price(TIMBER))
+	var bought := 0
+	for i in count:
+		if game.coins < price or p.bag_used() >= p.bag_size():
+			break
+		game.coins -= price
+		p.bag.append(TIMBER)
+		bought += 1
+	if bought > 0:
+		Events.bus().traded.emit(game.trader_role)
+		_note = Lang.t("Gekauft: %d Bauholz") % bought
+		Sfx.play(game, "gear_soft_0", -2.0)
+	elif p.bag_used() >= p.bag_size():
+		_note = Lang.t("Deine Tasche ist voll.")
+	else:
+		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
+	game._update_hud()
+	_rebuild()
+
+
+func _sell_timber() -> void:
+	var p: Player = game.player
+	if p.bag.has(TIMBER):
+		p.bag.erase(TIMBER)
+		game.coins += sell_price(TIMBER)
+		_note = Lang.t("Verkauft: %s für %d Kupfer") % [Items.item_name(TIMBER), sell_price(TIMBER)]
 	game._update_hud()
 	_rebuild()
 

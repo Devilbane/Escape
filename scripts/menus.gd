@@ -4814,7 +4814,7 @@ func camp_risk_text() -> String:
 var rest_window := "bett"
 
 ## The blocks of the day plan, as shown: block, heading.
-const PLAN_ROWS := [["job", "Arbeit"], ["train", "Training"], ["study", "Lernen"], ["craft", "Handwerk"], ["rest", "Ruhe"]]
+const PLAN_ROWS := [["job", "Arbeit"], ["train", "Training"], ["study", "Lernen"], ["craft", "Handwerk"], ["build", "Hausbau"], ["rest", "Ruhe"]]
 
 
 ## One line like "Stadtwache 8 Std. · Training Stärke 4 Std. · Ruhe 8 Std.".
@@ -4843,6 +4843,8 @@ func _choice_name(block: String, id: String) -> String:
 			return Lang.t("%s (%s, noch %d Std.)") % [Items.item_name(id), Lang.t(Training.SKILLS[Items.ALL[id].teaches].name), ceili(Offline.book_left(game.book_hours, id))]
 		"craft":
 			return Lang.t(Offline.RECIPES[id].name)
+		"build":
+			return Lang.t("Dein Haus nach dem Bauplan bauen")
 	return id
 
 
@@ -4912,6 +4914,8 @@ func _no_choice_text(block: String) -> String:
 			return Lang.t("Kein Buch dabei (Bücher findest du in Truhen und beim Händler)")
 		"train":
 			return Lang.t("Nichts mehr zu üben")
+		"build":
+			return Lang.t("Nichts zu bauen (Bauplan und Grundstück nötig)")
 	return Lang.t("nichts")
 
 

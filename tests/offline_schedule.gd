@@ -16,6 +16,7 @@ func check(ok: bool, what: String) -> void:
 
 func _initialize() -> void:
 	_test_time()
+	_test_build_block()
 	_test_rules()
 	_test_results()
 	game = load("res://scenes/main.tscn").instantiate()
@@ -35,6 +36,14 @@ func _process(_delta: float) -> bool:
 		print("FAILED: ", failures)
 	quit(1 if failures > 0 else 0)
 	return true
+
+
+func _test_build_block() -> void:
+	var plan := Offline.normalized({"build": "haus", "build_hours": 6}, {"build": ["haus"]})
+	check(plan.build == "haus" and plan.build_hours == 6, "a build block is kept when the hero has a house to build")
+	check(Offline.normalized({"build": "haus", "build_hours": 6}, {"build": []}).build_hours == 0, "no build block without open pieces")
+	check(Offline.simulate(plan, 24.0).pieces == 3, "6 hours of building at 2 hours a piece make 3 pieces")
+	check(Offline.simulate(plan, 3.0).pieces == 0 or Offline.simulate(plan, 3.0).pieces == 1, "a short absence builds at most what fits")
 
 
 func _test_time() -> void:

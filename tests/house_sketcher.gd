@@ -91,6 +91,10 @@ func _process(_delta: float) -> bool:
 	# The plan is in the books.
 	HouseSketch.reload()
 	check(HouseSketch.of(game.hero_name, found).pieces.size() == plan.pieces.size(), "the plan was saved")
+	# Away: the build block builds what the stock pays for.
+	check(game.away_choices().build == [Offline.BUILD_HOUSE], "the planner offers the house while pieces are open")
+	var lines: Array[String] = game._build_away(5, 10.0)
+	check(not lines.is_empty() and HouseSketch.of(game.hero_name, found).open_pieces() == 0, "the hero builds the open pieces while away")
 	Plots.release(game.hero_name)
 	game.delete_save(game.save_path())
 	print("PASS: house sketcher" if failures == 0 else "FAILED: %d" % failures)

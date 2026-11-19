@@ -253,6 +253,22 @@ func _prints() -> void:
 	for i in SnowPrints.MAX + 20:
 		lvl.snow_print(Vector3(i * 0.1, 0, 0), 0.0)
 	check(SnowPrints._live.size() <= SnowPrints.MAX, "only so many prints at once")
+	check(SnowPrints.HOLD + SnowPrints.FADE >= 290.0, "prints last about five minutes")
+	# With the pool full, a new boot print pushes out a beetle's dot, not the other way round.
+	SnowPrints.clear()
+	for i in SnowPrints.MAX - 1:
+		SnowPrints.leave(lvl, Vector3(i * 0.05, 0, 6), 0.0, 1.0, "boot")
+	var dot := SnowPrints.leave(lvl, Vector3(0, 0, 7), 0.0, 1.0, "bug")
+	SnowPrints.leave(lvl, Vector3(1, 0, 7), 0.0, 1.0, "boot")
+	check(SnowPrints._live.size() == SnowPrints.MAX and not SnowPrints._live.has(dot), "the beetle's dot goes first")
+	SnowPrints.leave(lvl, Vector3(2, 0, 7), 0.0, 1.0, "bug")
+	check(SnowPrints._live.size() == SnowPrints.MAX, "a full pool stays at its cap")
+	# The snow melts: the prints go with it.
+	game.snow_cover = 0.0
+	game._tick_clock(0.05)
+	check(SnowPrints._live.is_empty(), "the prints melt away with the snow")
+	game.snow_cover = 1.0
+	game._tick_clock(0.05)
 	# Every walker's print has a picture, and the toes lead the way it goes.
 	for kind in SnowPrints.KINDS:
 		check(SnowPrints.texture(kind) != null, "a %s print has a picture" % kind)

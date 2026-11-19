@@ -569,6 +569,7 @@ func build() -> void:
 	add_child(SurfaceLife.new(self))
 	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
 	add_child(puddles)
+	PondReeds.grow(self, _pond_waters)
 	ice_cover = IceCover.new(self, _pond_waters, _ground_mat)
 	snow = SnowCover.new(self)
 	var roofed: Array = []

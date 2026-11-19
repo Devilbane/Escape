@@ -2059,7 +2059,7 @@ func _hand_forge_row(id: String) -> Control:
 		needs.add_child(Needs.label(game, Lang.t("Eisen"), game.iron, int(cost.iron)))
 	if int(cost.steel) > 0:
 		needs.add_child(Needs.label(game, Lang.t("Stahl"), int(game.bars.get(Forge.STEEL, 0)), int(cost.steel)))
-	needs.add_child(Needs.label(game, Lang.t("Kupfer"), game.coins, int(cost.gold)))
+	needs.add_child(Needs.label(game, Lang.t("Kupfer"), Payment.worth(game), int(cost.gold)))
 	if int(cost.ore) > 0:
 		needs.add_child(Needs.label(game, Lang.t("Donnererz"), p.bag.count(Forge.THUNDER_ORE), int(cost.ore)))
 	if need > 0:
@@ -2349,8 +2349,8 @@ func _show_shop_page(page: String) -> void:
 ## A row for something on sale: grey when the gold or the bag falls short.
 func _ware_entry(key: String, id: String, price: int, action: Callable) -> Dictionary:
 	var p: Player = game.player
-	return {"key": key, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price,
-			"button": Lang.t("Kaufen"), "action": action, "enabled": game.coins >= price and p.bag_fits(id)}
+	return {"key": key, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Kupfer") % price, "price_ok": Payment.can_pay(game, price),
+			"button": Lang.t("Kaufen"), "action": action, "enabled": Payment.can_pay(game, price) and p.bag_fits(id)}
 
 
 ## Books, stone, ore and the like: things that are not worn.
@@ -2362,12 +2362,12 @@ static func _is_consumable(id: String) -> bool:
 func _buy(index: int) -> void:
 	var id: String = game.shop_stock[index]
 	var price: int = game.trader_price(Items.buy_price(id))
-	if game.coins < price:
+	if not Payment.can_pay(game, price):
 		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
 	elif not game.player.bag_fits(id):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
-		game.coins -= price
+		Payment.pay(game, price)
 		Events.bus().traded.emit(game.trader_role)
 		game.player.bag.append(id)
 		# The shop never runs out of animal food: it stays in stock.
@@ -2446,8 +2446,8 @@ func _ingredient_entry(id: String, left: int, index: int) -> Dictionary:
 	for line in game.crafting.describe_ingredient(id).split("\n").slice(1):
 		lines.append([line, TradeWindow.BLUE])
 	return {"key": "herb:%s" % id, "id": id, "icon": icon, "name": Wanderer.ware_name(id),
-			"price": Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price, "action": _buy_from_wanderer.bind(index),
-			"enabled": game.coins >= price,
+			"price": Lang.t("%d Kupfer") % price, "price_ok": Payment.can_pay(game, price), "action": _buy_from_wanderer.bind(index),
+			"enabled": Payment.can_pay(game, price),
 			"detail": {"subtitle": Lang.t("Zutat für Rezepte, noch %d da") % left, "lines": lines},
 			"compare": {"title": Lang.t("In deinem Zutatenbeutel"), "name": "%s: %d" % [Wanderer.ware_name(id), game.crafting.have(id)], "icon": icon}}
 
@@ -2459,12 +2459,12 @@ func _buy_from_wanderer(index: int) -> void:
 	var id: String = wares[index]
 	var cost := Wanderer.price(id)
 	var ingredient := Wanderer.is_ingredient(id)
-	if game.coins < cost:
+	if not Payment.can_pay(game, cost):
 		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
 	elif not ingredient and not game.player.bag_fits(id):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
-		game.coins -= cost
+		Payment.pay(game, cost)
 		wares.remove_at(index)
 		if ingredient:
 			game.crafting.add(id)
@@ -2496,7 +2496,7 @@ func _build_stonemason() -> void:
 	var room: int = p.bag_size() - p.bag_used()
 	_add_label(Lang.t("Steinmetz"), 38, game.GOLD, game.TITLE_FONT)
 	var header := Lang.t("Dein Kupfer: %d") % game.coins
-	var all := mini(room, game.coins / price) if price > 0 else room
+	var all := mini(room, Payment.worth(game) / price) if price > 0 else room
 	var have := p.bag.count(STONE)
 	var detail := {"subtitle": TradeWindow.subtitle(STONE), "lines": TradeWindow.stat_lines(STONE) + [
 			[Lang.t("Behauene Steinblöcke zum Bauen: Mauern, Stufen, Türme. Abstellen mit B oder im Inventar, verschieben mit der Maus: greifen, ziehen, loslassen."), TradeWindow.BLUE]]}
@@ -2507,8 +2507,8 @@ func _build_stonemason() -> void:
 			{"key": "back", "id": STONE, "name": Lang.t("1 zurückgeben"), "price": "+" + Lang.t("%d Kupfer") % sell_price(STONE),
 					"button": Lang.t("Verkaufen"), "action": _sell_stone, "enabled": have > 0, "detail": detail, "compare": compare},
 		] if _shop_page == "verkaufen" else [
-			{"key": "one", "id": STONE, "name": Lang.t("1 Steinblock"), "price": Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price,
-					"action": _buy_stones.bind(1), "enabled": room > 0 and game.coins >= price, "detail": detail, "compare": compare},
+			{"key": "one", "id": STONE, "name": Lang.t("1 Steinblock"), "price": Lang.t("%d Kupfer") % price, "price_ok": Payment.can_pay(game, price),
+					"action": _buy_stones.bind(1), "enabled": room > 0 and Payment.can_pay(game, price), "detail": detail, "compare": compare},
 			{"key": "all", "id": STONE, "name": Lang.t("%d Steinblöcke") % maxi(all, 1), "price": Lang.t("%d Kupfer") % (maxi(all, 1) * price),
 					"price_ok": all > 0, "action": _buy_stones.bind(all), "enabled": all > 0, "detail": detail, "compare": compare},
 		]},
@@ -2520,9 +2520,9 @@ func _buy_stones(count: int) -> void:
 	var price: int = game.trader_price(Items.buy_price(STONE))
 	var bought := 0
 	for i in count:
-		if game.coins < price or p.bag_used() >= p.bag_size():
+		if not Payment.can_pay(game, price) or p.bag_used() >= p.bag_size():
 			break
-		game.coins -= price
+		Payment.pay(game, price)
 		p.bag.append(STONE)
 		bought += 1
 	if bought > 0:
@@ -2671,9 +2671,9 @@ func _build_upgrades() -> void:
 			needs.add_theme_constant_override("h_separation", 18)
 			info.add_child(needs)
 			needs.add_child(Needs.label(game, Lang.t("Steinblöcke"), HomeUpgrades.stones_owned(p.bag, game.storage), int(up.stones)))
-			needs.add_child(Needs.label(game, Lang.t("Kupfer"), game.coins, int(up.gold)))
+			needs.add_child(Needs.label(game, Lang.t("Kupfer"), Payment.worth(game), int(up.gold)))
 		var label := Lang.t("Gebaut") if built else Lang.t("Bauen\n%d Steine, %d Kupfer") % [up.stones, up.gold]
-		var ok := HomeUpgrades.why_not(id, game.home_upgrades, p.bag, game.storage, game.coins) == ""
+		var ok := HomeUpgrades.why_not(id, game.home_upgrades, p.bag, game.storage, Payment.worth(game)) == ""
 		var b := _item_button(label, _build_upgrade.bind(id), ok)
 		b.custom_minimum_size = Vector2(200, 58)
 		row.add_child(b)
@@ -3307,14 +3307,14 @@ func _build_smithy() -> void:
 				var cost := Forge.forge_cost(id, game)
 				var ok := Forge.can_afford(game, id)
 				var entry := {"key": id, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Eisen, %d Kupfer") % [cost.iron, cost.gold],
-						"price_ok": game.iron >= cost.iron and game.coins >= cost.gold, "button": Lang.t("Schmieden"), "action": _forge.bind(id), "enabled": ok and room}
+						"price_ok": game.iron >= cost.iron and Payment.can_pay(game, cost.gold), "button": Lang.t("Schmieden"), "action": _forge.bind(id), "enabled": ok and room}
 				var level := Forge.craft_level(game, Forge.FORGING)
 				var need := Forge.forge_level(id)
 				if Forge.is_steel(id):
 					# Steel gear: steel bars in place of iron, and a level of
 					# Schmiedekunst. Until the hero has it, the price line says so.
 					entry.price = Lang.t("%d Stahl, %d Kupfer") % [cost.steel, cost.gold] if level >= need else Lang.t("Braucht Schmiedekunst %d") % need
-					entry.price_ok = level >= need and int(game.bars.get(Forge.STEEL, 0)) >= int(cost.steel) and game.coins >= cost.gold
+					entry.price_ok = level >= need and int(game.bars.get(Forge.STEEL, 0)) >= int(cost.steel) and Payment.can_pay(game, cost.gold)
 				# Every piece lists what it takes and what is still missing, the same
 				# lines for all (see Needs).
 				var lines := TradeWindow.stat_lines(id)
@@ -3322,7 +3322,7 @@ func _build_smithy() -> void:
 					lines.append(Needs.line(Lang.t("Eisen"), game.iron, int(cost.iron)))
 				if int(cost.steel) > 0:
 					lines.append(Needs.line(Lang.t("Stahl"), int(game.bars.get(Forge.STEEL, 0)), int(cost.steel)))
-				lines.append(Needs.line(Lang.t("Kupfer"), game.coins, int(cost.gold)))
+				lines.append(Needs.line(Lang.t("Kupfer"), Payment.worth(game), int(cost.gold)))
 				if int(cost.ore) > 0:
 					lines.append(Needs.line(Lang.t("Donnererz"), p.bag.count(Forge.THUNDER_ORE), int(cost.ore)))
 				if need > 0:
@@ -3342,18 +3342,18 @@ func _build_smithy() -> void:
 					continue
 				var ready_price := Forge.ware_price(game, id)
 				var lines := TradeWindow.stat_lines(id)
-				lines.append(Needs.line(Lang.t("Kupfer"), game.coins, ready_price))
+				lines.append(Needs.line(Lang.t("Kupfer"), Payment.worth(game), ready_price))
 				if not room:
 					lines.append([Lang.t("✗ Deine Tasche ist voll"), TradeWindow.RED])
 				ready.append({"key": "ready:" + id, "id": id, "name": Items.item_name(id), "price": Lang.t("%d Kupfer") % ready_price,
-						"price_ok": game.coins >= ready_price, "button": Lang.t("Kaufen"), "action": _buy_finished.bind(id),
-						"enabled": game.coins >= ready_price and room, "count": n,
+						"price_ok": Payment.can_pay(game, ready_price), "button": Lang.t("Kaufen"), "action": _buy_finished.bind(id),
+						"enabled": Payment.can_pay(game, ready_price) and room, "count": n,
 						"detail": {"subtitle": TradeWindow.subtitle(id), "lines": lines}})
 			var iron := []
 			for count in [1, 5]:
 				var price: int = count * Forge.iron_price(game)
 				iron.append({"key": "iron%d" % count, "icon": "kind:iron", "name": Lang.t("%d Eisenbarren") % count, "price": Lang.t("%d Kupfer") % price,
-						"price_ok": game.coins >= price, "action": _buy_iron.bind(count), "enabled": game.coins >= price,
+						"price_ok": Payment.can_pay(game, price), "action": _buy_iron.bind(count), "enabled": Payment.can_pay(game, price),
 						"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t("Aus Eisen und etwas Kupfer schmiedet Gorm dir neue Waffen, Schilde und Rüstungen."), TradeWindow.BLUE]]},
 						"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("Eisen: %d") % game.iron, "icon": "kind:iron"}})
 			sections = [
@@ -3425,9 +3425,9 @@ func _build_smithy() -> void:
 				var durability: int = Items.ALL[id].durability
 				var left: int = durability - int(p.wear[id])
 				mend.append({"key": id, "id": id, "name": "%s  %d / %d" % [Items.item_name(id), left, durability],
-						"price": Lang.t("%d Kupfer") % Forge.mend_cost(p, id, game), "price_ok": game.coins >= Forge.mend_price(id, game),
-						"button": Lang.t("Ausbessern"), "action": _mend.bind(id), "enabled": game.coins >= Forge.mend_price(id, game),
-						"detail": {"subtitle": TradeWindow.subtitle(id), "lines": TradeWindow.stat_lines(id, int(p.wear[id])) + [Needs.line(Lang.t("Kupfer"), game.coins, Forge.mend_cost(p, id, game))]}})
+						"price": Lang.t("%d Kupfer") % Forge.mend_cost(p, id, game), "price_ok": Payment.can_pay(game, Forge.mend_price(id, game)),
+						"button": Lang.t("Ausbessern"), "action": _mend.bind(id), "enabled": Payment.can_pay(game, Forge.mend_price(id, game)),
+						"detail": {"subtitle": TradeWindow.subtitle(id), "lines": TradeWindow.stat_lines(id, int(p.wear[id])) + [Needs.line(Lang.t("Kupfer"), Payment.worth(game), Forge.mend_cost(p, id, game))]}})
 			sections = [{"key": "mend", "title": Lang.t("Ausbessern"), "icon": "kind:hammer_anvil", "entries": mend, "gone": Lang.t("Wie neu"),
 					"empty": Lang.t("Deine Ausrüstung ist heil.")}]
 	_trade(Lang.t("Dein Kupfer: %d    Eisen: %d    Stahl: %d") % [game.coins, game.iron, int(game.bars.get(Forge.STEEL, 0))], sections, tabs, Lang.t(FORGE_ABOUT[_forge_tab]))
@@ -3453,7 +3453,7 @@ func _steel_entries() -> Array:
 	for count in [1, 5]:
 		var price: int = count * Forge.charcoal_price(game)
 		out.append({"key": "charcoal%d" % count, "icon": Forge.CHARCOAL, "name": Lang.t("%d Holzkohle") % count, "price": Lang.t("%d Kupfer") % price,
-				"price_ok": game.coins >= price, "action": _buy_charcoal.bind(count), "enabled": game.coins >= price,
+				"price_ok": Payment.can_pay(game, price), "action": _buy_charcoal.bind(count), "enabled": Payment.can_pay(game, price),
 				"detail": {"subtitle": Lang.t("Rohstoff"), "lines": [[Lang.t(Crafting.INGREDIENTS[Forge.CHARCOAL].where), TradeWindow.BLUE]]},
 				"compare": {"title": Lang.t("Dein Vorrat"), "name": Lang.t("%s: %d") % [Crafting.ingredient_name(Forge.CHARCOAL), game.crafting.have(Forge.CHARCOAL)], "icon": Forge.CHARCOAL}})
 	return out
@@ -3660,13 +3660,13 @@ func _build_temple() -> void:
 		var button := Lang.t("Segnen")
 		if mine:
 			button = Lang.t("Erneuern")
-			can = p.blessing_thirds < Blessing.FULL and game.coins >= price
+			can = p.blessing_thirds < Blessing.FULL and Payment.can_pay(game, price)
 		elif blessed:
 			detail_lines.append([Lang.t("Du bist deinem Gott treu, bis sein Segen erlischt."), TradeWindow.ORANGE])
 		else:
-			can = game.coins >= price
+			can = Payment.can_pay(game, price)
 		entries.append({"key": "god:" + id, "icon": god.icon, "name": Lang.t(god.name),
-				"price": Lang.t("Umsonst") if price == 0 else Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price,
+				"price": Lang.t("Umsonst") if price == 0 else Lang.t("%d Kupfer") % price, "price_ok": Payment.can_pay(game, price),
 				"button": button, "action": _bless.bind(id, price), "enabled": can,
 				"current": mine and p.blessing_thirds >= Blessing.FULL,
 				"detail": {"subtitle": Lang.t(god.title), "lines": detail_lines}, "compare": now})
@@ -3689,7 +3689,7 @@ func _healing_entries() -> Array:
 	if p.injury != "":
 		now = {"title": Lang.t("Derzeit"), "name": Injury.title(p.injury, p.injury_severity), "subtitle": Lang.t("Verletzung"), "icon": "kind:herb",
 				"lines": [[Injury.effect_text(p.injury, p.injury_severity), TradeWindow.RED], [Injury.how_to_heal(p.injury, p.injury_severity), TradeWindow.GREY]]}
-		can = Injury.heals_at_village(p) and game.coins >= price
+		can = Injury.heals_at_village(p) and Payment.can_pay(game, price)
 		if not Injury.heals_at_village(p):
 			lines.append([Lang.t("Diese Wunde heilt nur am fernen, vergessenen Schrein."), TradeWindow.ORANGE])
 	else:
@@ -3697,7 +3697,7 @@ func _healing_entries() -> Array:
 	if Blessing.mercy(p) > 0.0:
 		lines.append([Lang.t("Dein Segen macht die Heilung billiger."), TradeWindow.GREEN])
 	return [{"key": "heal:prayer", "icon": god.icon, "name": Lang.t("Gebet an Mirenna"),
-			"price": Lang.t("Umsonst") if price == 0 else Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price,
+			"price": Lang.t("Umsonst") if price == 0 else Lang.t("%d Kupfer") % price, "price_ok": Payment.can_pay(game, price),
 			"button": button, "action": _pray_for_healing.bind(price), "enabled": can,
 			"detail": {"subtitle": Lang.t(god.title), "lines": lines}, "compare": now}]
 
@@ -3706,11 +3706,11 @@ func _pray_for_healing(price: int) -> void:
 	var p: Player = game.player
 	if not Injury.heals_at_village(p):
 		return
-	if game.coins < price:
+	if not Payment.can_pay(game, price):
 		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
 		_rebuild()
 		return
-	game.coins -= price
+	Payment.pay(game, price)
 	Injury.heal(p)
 	Sfx.play(game, "secret", -6.0)
 	game._update_hud()
@@ -3740,14 +3740,14 @@ func _build_ruined_shrine() -> void:
 		var is_next: bool = not open_step.is_empty() and open_step.id == step.id
 		var cost := int(step.cost)
 		var entry := {"key": "step:" + step.id, "icon": step.icon, "name": Lang.t(step.name),
-				"price": Lang.t("%d Kupfer") % cost, "price_ok": game.coins >= cost,
+				"price": Lang.t("%d Kupfer") % cost, "price_ok": Payment.can_pay(game, cost),
 				"detail": {"subtitle": Lang.t("Schrein herrichten"), "lines": [[Lang.t(step.text), TradeWindow.BLUE]]}}
 		if done:
 			entry.gone = Lang.t("Heil")
 		else:
 			entry.button = Lang.t("Spenden")
 			entry.action = _restore_shrine_step.bind(step.id)
-			entry.enabled = is_next and game.coins >= cost
+			entry.enabled = is_next and Payment.can_pay(game, cost)
 			if not is_next:
 				entry.detail.lines.append([Lang.t("Zuerst muss das Teil davor heil sein."), TradeWindow.ORANGE])
 		steps.append(entry)
@@ -3781,11 +3781,11 @@ func _blessing_lines(god: String, thirds: int) -> Array:
 
 func _bless(god: String, price: int) -> void:
 	var p: Player = game.player
-	if game.coins < price:
+	if not Payment.can_pay(game, price):
 		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
 		_rebuild()
 		return
-	game.coins -= price
+	Payment.pay(game, price)
 	Blessing.bless(p, god)
 	Sfx.play(game, "secret", -6.0)
 	game._update_hud()
@@ -3831,11 +3831,11 @@ func _build_barber() -> void:
 		{"key": "color", "title": Lang.t("Farbe"), "icon": "kind:hair:fire", "entries": _barber_entries(BARBER_COLORS, "color")},
 		{"key": "tattoo", "title": Lang.t("Tätowierung"), "icon": "kind:needle", "extra": _tattoo_editor, "entries": [
 			{"key": "ink", "icon": "kind:needle", "name": Lang.t("Stechen"), "price": Lang.t("%d Kupfer") % ink,
-					"price_ok": game.coins >= ink, "button": Lang.t("Stechen"), "action": _ink_tattoo,
-					"enabled": game.coins >= ink, "detail": ink_detail, "compare": ink_compare},
+					"price_ok": Payment.can_pay(game, ink), "button": Lang.t("Stechen"), "action": _ink_tattoo,
+					"enabled": Payment.can_pay(game, ink), "detail": ink_detail, "compare": ink_compare},
 			{"key": "remove", "icon": "kind:needle", "name": Lang.t("Entfernen"), "price": Lang.t("%d Kupfer") % remove,
-					"price_ok": game.coins >= remove, "button": Lang.t("Entfernen"), "action": _remove_tattoo,
-					"enabled": p.hair.tattoo != "" and game.coins >= remove,
+					"price_ok": Payment.can_pay(game, remove), "button": Lang.t("Entfernen"), "action": _remove_tattoo,
+					"enabled": p.hair.tattoo != "" and Payment.can_pay(game, remove),
 					"detail": {"subtitle": Lang.t("Tätowierung"), "lines": [[Lang.t("Die Tätowierung ist weg."), TradeWindow.BLUE]]}, "compare": ink_compare},
 		]},
 	])
@@ -3887,18 +3887,18 @@ func _barber_entries(choices: Array, field: String) -> Array:
 		var price: int = game.trader_price(c[2])
 		var line := Lang.t("Sieht man nur ohne Hut.") if field == "style" else Lang.t("Färbt dein Haar.")
 		entries.append({"key": field + ":" + c[0], "icon": "kind:scissors" if field == "style" else "kind:hair:" + String(c[0]), "name": Lang.t(c[1]),
-				"price": Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price, "action": _restyle.bind(field, c[0], price),
-				"enabled": game.coins >= price, "current": current,
+				"price": Lang.t("%d Kupfer") % price, "price_ok": Payment.can_pay(game, price), "action": _restyle.bind(field, c[0], price),
+				"enabled": Payment.can_pay(game, price), "current": current,
 				"detail": {"subtitle": kind, "lines": [[line, TradeWindow.BLUE]]}, "compare": compare})
 	return entries
 
 
 func _restyle(field: String, id: String, price: int) -> void:
-	if game.coins < price:
+	if not Payment.can_pay(game, price):
 		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
 		_rebuild()
 		return
-	game.coins -= price
+	Payment.pay(game, price)
 	Events.bus().traded.emit(game.trader_role)
 	var look: Dictionary = game.player.hair.duplicate()
 	look[field] = id
@@ -3920,10 +3920,10 @@ func _ink_tattoo() -> void:
 	var word := _tattoo_word.strip_edges()
 	if word == "":
 		_note = Lang.t("Sag mir erst, welches Wort ich stechen soll.")
-	elif game.coins < game.trader_price(TATTOO_PRICE):
+	elif not Payment.can_pay(game, game.trader_price(TATTOO_PRICE)):
 		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
 	else:
-		game.coins -= game.trader_price(TATTOO_PRICE)
+		Payment.pay(game, game.trader_price(TATTOO_PRICE))
 		Events.bus().traded.emit(game.trader_role)
 		var look: Dictionary = game.player.hair.duplicate()
 		look.tattoo = word
@@ -3937,10 +3937,10 @@ func _ink_tattoo() -> void:
 
 
 func _remove_tattoo() -> void:
-	if game.coins < game.trader_price(TATTOO_REMOVE_PRICE):
+	if not Payment.can_pay(game, game.trader_price(TATTOO_REMOVE_PRICE)):
 		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
 	else:
-		game.coins -= game.trader_price(TATTOO_REMOVE_PRICE)
+		Payment.pay(game, game.trader_price(TATTOO_REMOVE_PRICE))
 		var look: Dictionary = game.player.hair.duplicate()
 		look.tattoo = ""
 		game.player.set_hair(look)

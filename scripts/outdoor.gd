@@ -155,11 +155,12 @@ const CHAPEL_PARTS := [
 ## Half the nave's width (x) and length (z), the height of its walls and of
 ## the gables under the roof, all in kit metres.
 const CHAPEL_HALF := Vector2(12, 12)
-## The wall lamps beside the door (kit metres): how far each stands to the side of the
-## doorway's middle (x), how high (y) and where the front wall's face is (z).
-const TEMPLE_LAMP_X := [-9.4, 1.4]
-const TEMPLE_LAMP_Y := 6.0
-const TEMPLE_LAMP_Z := 11.5
+## The wall lamps beside the door (kit metres, measured from doorway_01 and wall_01): the door
+## opening is 4 wide around x = 0 and its jambs reach out to 2.5, so the lamps stand 3.5 either side of
+## the middle (x), at 5.5 high (y) on the front wall's face, flush with it (z = 11 + the wall's 1).
+const TEMPLE_LAMP_X := [-3.5, 3.5]
+const TEMPLE_LAMP_Y := 5.5
+const TEMPLE_LAMP_Z := 12.0
 const CHAPEL_EAVES := 16.0
 const CHAPEL_GABLE_HEIGHT := 13.0
 ## The ground the chapel covers, steps included (kit metres), and the middle
@@ -1206,8 +1207,9 @@ func _build_temple_lamps(chapel: Node3D) -> void:
 		holder.rotation.y = chapel.rotation.y
 		add_child(holder)
 		VillageProps.build_wall_lamp(holder, Vector3.ZERO, panes)
-		_lantern_glow(holder.position + VillageProps.WALL_LANTERN_AT.rotated(Vector3.UP, holder.rotation.y), \
-				holder.position + VillageProps.WALL_LANTERN_AT.rotated(Vector3.UP, holder.rotation.y))
+		# The light and the candle sit in the middle of the lantern's glass, turned with the wall.
+		var glass_at := holder.position + (VillageProps.WALL_LANTERN_AT - Vector3(0, 0.03, 0)).rotated(Vector3.UP, holder.rotation.y)
+		_lantern_glow(glass_at, glass_at)
 
 
 ## A leafy tree, or near the graveyard an autumn pine or a bare one.

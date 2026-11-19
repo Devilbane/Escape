@@ -5407,7 +5407,7 @@ func hero_notices() -> Array:
 	if worn > 0:
 		out.append(["repair", str(worn)])
 	for id in HomeUpgrades.ALL:
-		if HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, coins) == "":
+		if HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, Payment.worth(self)) == "":
 			out.append(["upgrade", ""])
 			break
 	return out
@@ -7664,10 +7664,10 @@ func gift_action() -> void:
 		return
 	var count := int(info.count)
 	if info.gift == "gold":
-		if coins < count:
+		if not Payment.can_pay(self, count):
 			show_message(Lang.t(info.wish), 2.6)
 			return
-		coins -= count
+		Payment.pay(self, count)
 		Sfx.play_coins(self, count)
 	else:
 		if crafting.have(info.gift) < count:
@@ -7817,11 +7817,11 @@ func apply_home_bonus() -> void:
 
 ## Hagen builds an upgrade onto the house: "" when done, else why not.
 func build_home_upgrade(id: String) -> String:
-	var why := HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, coins)
+	var why := HomeUpgrades.why_not(id, home_upgrades, player.bag, storage, Payment.worth(self))
 	if why != "":
 		return why
 	HomeUpgrades.pay_stones(id, player.bag, storage)
-	coins -= int(HomeUpgrades.ALL[id].gold)
+	Payment.pay(self, int(HomeUpgrades.ALL[id].gold))
 	home_upgrades[id] = true
 	learn(HomeUpgrades.LEARN)
 	apply_home_bonus()

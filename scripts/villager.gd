@@ -36,8 +36,18 @@ const BUMP_COOLDOWN := 45.0
 ## bump hit him instead of her shop. Small enough for a path past a stall,
 ## big enough that the two bodies never overlap.
 const PERSONAL_SPACE := 1.3
-## Villagers who walk about keep at least this far from one another.
+## Villagers who walk about keep at least this far from one another (metres, centre to
+## centre): never less than PASSING_SPACE, and their two radii times BODY_GAP, so there is
+## always a visible gap between two bodies.
 const PASSING_SPACE := 0.8
+const BODY_GAP := 1.15
+## They slide apart at up to EASE_SPEED m/s (spread over the physics ticks, never a jump),
+## and a walker bends its way away from anyone within AWARE times that space.
+const EASE_SPEED := 1.6
+const AWARE := 1.8
+const SEPARATION_WEIGHT := 1.2
+## Only villagers this close (metres) are looked at, looked up again every few ticks.
+const NEAR := 3.5
 
 ## A rosier face for a Rogue (see HairLook.tint_skin): the model's own skin
 ## turns pale yellow in the midday sun.
@@ -223,6 +233,9 @@ var _stepped := 0.0
 ## Where the villager stood at the last tick (see _lift_onto_toes).
 var _last_spot := Vector3.INF
 var _waiting := 0.0
+## The villagers close by, and the physics tick to look them up again at (see _neighbours).
+var _near: Array = []
+var _near_until := 0
 var _bubble: SpeechBubble
 var _bubble_time := 0.0
 ## How long the current line still holds before a new bump may replace it.
@@ -1509,32 +1522,84 @@ func _spot_taken(c: Vector2i) -> bool:
 	return false
 
 
-## How much room this villager leaves the other one.
+## How much room this villager leaves the other one (centre to centre).
 func _space_for(o: Villager) -> float:
-	return PERSONAL_SPACE if o.keeps_spot() else PASSING_SPACE
+	if o.keeps_spot():
+		return PERSONAL_SPACE
+	return maxf(PASSING_SPACE, (radius + o.radius) * BODY_GAP)
 
 
-## Steps out of the way of everyone this villager has to make room for: all
-## who keep their spot, and, a little, anyone else walking about. One who
-## keeps their own spot never steps aside. Asleep at home, nobody is in the
-## way.
-func _keep_apart() -> void:
+## The villagers within NEAR metres, looked up again every few physics ticks only: the village
+## is slow, and this runs for every villager on every tick.
+func _neighbours() -> Array:
+	var frame := Engine.get_physics_frames()
+	if frame >= _near_until:
+		_near_until = frame + 8 + get_instance_id() % 4
+		_near.clear()
+		for o: Villager in level.people():
+			if o != self and absf(o.global_position.x - global_position.x) < NEAR and absf(o.global_position.z - global_position.z) < NEAR:
+				_near.append(o)
+	return _near
+
+
+## Whether this villager stands close to someone on purpose: a chat, a game of the children.
+func _mixing_with(o: Villager) -> bool:
+	return chat_partner == o or o.chat_partner == self or _task == "play" or o.get_task() == "play"
+
+
+func get_task() -> String:
+	return _task
+
+
+## Slides out of the way of everyone this villager has to make room for: all who keep their
+## spot, and, a little, anyone else walking about, so that two bodies never end up inside each
+## other or touching. A little each tick (EASE_SPEED), never a jump. One who keeps their own
+## spot never steps aside. Asleep at home, nobody is in the way.
+func _keep_apart(delta: float) -> void:
 	if at_home or keeps_spot():
 		return
-	for o: Villager in level.people():
-		if o == self or o.at_home:
+	var push := Vector3.ZERO
+	var stand := Vector3.ZERO
+	for o: Villager in _neighbours():
+		if not is_instance_valid(o) or o.at_home or (_mixing_with(o) and not o.keeps_spot()):
 			continue
 		var away := global_position - o.global_position
 		away.y = 0.0
 		var room := _space_for(o)
-		if away.length() >= room:
+		var dist := away.length()
+		if dist >= room:
 			continue
-		if away.length() < 0.01:
+		if dist < 0.01:
 			away = Vector3(cos(rotation.y), 0, sin(rotation.y))
-		# Two walking about share the step; from a shopkeeper the walker
-		# steps away all by himself.
-		var share := 1.0 if o.keeps_spot() else 0.5
-		_move_to(global_position + away.normalized() * (room - away.length()) * share)
+			dist = 0.01
+		# Two walking about share the step.
+		if o.keeps_spot():
+			# A shopkeeper's place is not given up: stepped out of at once, however fast the walker runs.
+			stand += away / dist * (room - dist)
+		else:
+			push += away / dist * (room - dist) * 0.5
+	if push.length() > 0.001 or stand.length() > 0.001:
+		_move_to(global_position + stand + push.limit_length(EASE_SPEED * delta))
+
+
+## The lean away from walkers who are close, flat: a path bends round people instead of
+## running into them. (Those who keep their spot are left out: see _crowds_spot.)
+func _separation() -> Vector3:
+	var lean := Vector3.ZERO
+	for o: Villager in _neighbours():
+		if not is_instance_valid(o) or o.at_home or o.keeps_spot() or _mixing_with(o):
+			continue
+		var away := global_position - o.global_position
+		away.y = 0.0
+		var room := _space_for(o)
+		var dist := away.length()
+		if dist >= room * AWARE:
+			continue
+		if dist < 0.01:
+			away = Vector3(cos(rotation.y), 0, sin(rotation.y))
+			dist = 0.01
+		lean += away / dist * (1.0 - (dist - room) / (room * (AWARE - 1.0)) if dist > room else 1.0)
+	return lean
 
 
 func _walk_to(target: Vector3, speed: float, then: String) -> void:
@@ -1586,7 +1651,7 @@ func _physics_process(delta: float) -> void:
 		if _sheathe_in < 0.0:
 			_draw_blade(false)
 	bump_cool = maxf(0.0, bump_cool - delta)
-	_keep_apart()
+	_keep_apart(delta)
 	_mind_torch(delta)
 	_season_remark(delta)
 	_wear_check -= delta
@@ -1717,7 +1782,11 @@ func _walk(delta: float, hero: Node3D) -> void:
 	_waiting = 0.0
 	var walked := _stride("Running_A" if _speed >= RUN_SPEED else ("Walking_B" if _speed < WALK_SPEED else "Walking_A"), _speed)
 	var step := walked * delta
-	var target := Vector3(_path[0].x, 0, _path[0].z) if to.length() <= step else global_position + to.normalized() * step
+	# Others close by bend the way a little aside, so a street flows round its people.
+	var way := to.normalized()
+	if to.length() > step:
+		way = (way + _separation() * SEPARATION_WEIGHT).normalized()
+	var target := Vector3(_path[0].x, 0, _path[0].z) if to.length() <= step else global_position + way * step
 	if blocked_at(target) and not blocked_at(global_position):
 		# A gate was shut (or a wall stands) ahead: wait, then find the way again.
 		play("Idle")
@@ -1732,7 +1801,7 @@ func _walk(delta: float, hero: Node3D) -> void:
 	_stepped = TownsfolkSteps.walk(self, level, _stepped, before.distance_to(target), _speed >= RUN_SPEED)
 	if to.length() <= step:
 		_path.pop_front()
-	_turn_to(to, delta)
+	_turn_to(way, delta)
 
 
 ## Whether a point is inside a wall brick that stops everyone: a standing wall or a shut gate.

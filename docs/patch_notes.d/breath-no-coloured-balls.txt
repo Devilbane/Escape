@@ -1,0 +1,1 @@
+- Fixed little coloured balls showing up in the winter breath when villagers stopped to talk.

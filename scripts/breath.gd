@@ -17,14 +17,15 @@ static var _rng := RandomNumberGenerator.new()
 ## How long one breath lasts (seconds).
 const BLOW := 1.6
 
-## While the breather walks or runs, the same emitter puts out three times as many particles,
-## so the breath reads as one soft cloud trailing behind instead of single puffs left at every
-## few steps. (No second emitter: every particle node draws from the game's random stream when
+## The stream is dense enough that, while the breather walks or runs, the slower, wider puffs
+## overlap into one soft cloud trailing behind instead of single puffs left at every few steps. (No second emitter: every particle node draws from the game's random stream when
 ## made, which would shift every roll after it.)
 const MOVING_SPEED := 0.5
 const STILL_SPEED := 0.25
-const IDLE_AMOUNT := 32
-const MOVING_AMOUNT := 100
+## Fixed for the emitter's whole life: changing `amount` on a running CPUParticles3D reallocates its
+## buffer, and the fresh instances can show as stray coloured balls until they are first drawn
+## (it happened whenever a villager stopped to talk). Only plain parameters change below.
+const AMOUNT := 56
 
 var _puff: CPUParticles3D
 var _timer := 0.0
@@ -76,7 +77,7 @@ func _ready() -> void:
 ## breather, as before: every particle node draws from the game's random stream when made.)
 func _make_puff() -> CPUParticles3D:
 	var puff := CPUParticles3D.new()
-	puff.amount = IDLE_AMOUNT
+	puff.amount = AMOUNT
 	puff.lifetime = 2.6
 	puff.one_shot = false
 	puff.explosiveness = 0.0
@@ -138,7 +139,6 @@ func _process(delta: float) -> void:
 ## Walkers get a denser stream with slower, wider-spread puffs that overlap along the path.
 func _set_moving(moving: bool) -> void:
 	_moving = moving
-	_puff.amount = MOVING_AMOUNT if moving else IDLE_AMOUNT
 	_puff.initial_velocity_min = 0.3 if moving else 0.7
 	_puff.initial_velocity_max = 0.45 if moving else 0.85
 	_puff.spread = 12.0 if moving else 7.0

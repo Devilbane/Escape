@@ -33,7 +33,7 @@ static func ensure(level: Outdoor, near: Vector3) -> Snowman:
 	# He looks south, towards the way the camera looks at the village, give or take a little.
 	man.rotation.y = Snowball._rng.randf_range(-0.5, 0.5)
 	level.snowman = man
-	man.set_daylight(level.snow.daylight)
+	man.set_daylight(level.snow.daylight, level.snow.moon_glow)
 	return man
 
 
@@ -177,9 +177,10 @@ func _part(mesh: Mesh, mat: Material) -> MeshInstance3D:
 ## Shrinks with the melting snow: full size while the snow lies thick, gone at MELTED.
 ## Tells the snow how bright the light of the hour is (`daylight` 0 night to 1 day), as the
 ## ground tiles are told: his glints of ice show by day only, and he never glows at night.
-func set_daylight(daylight: float) -> void:
+func set_daylight(daylight: float, moon := 0.0) -> void:
 	if _snow != null:
 		_snow.set_shader_parameter("daylight", clampf(daylight, 0.0, 1.0))
+		_snow.set_shader_parameter("moon_glow", clampf(moon, 0.0, 1.0))
 
 
 func melt_to(cover: float) -> void:

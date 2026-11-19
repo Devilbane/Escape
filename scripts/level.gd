@@ -2704,7 +2704,7 @@ func snow_print(_at: Vector3, _heading: float, _size := 1.0, _kind := "boot") ->
 
 
 ## Snow on the world (only the open air has any, see Outdoor.set_snow).
-func set_snow(_cover: float, _daylight := 1.0) -> void:
+func set_snow(_cover: float, _daylight := 1.0, _moon := 0.0) -> void:
 	pass
 
 

@@ -227,6 +227,12 @@ func _prints() -> void:
 	check(evening != null, "a print at 19:45")
 	if evening != null:
 		check((evening.material_override as StandardMaterial3D).albedo_color.v < 0.54, "the print at 19:45 is darker than the snow")
+	check(SnowPrints.KINDS.has("bug"), "beetles press tiny tracks")
+	var crawlers := SurfaceLife.new(lvl)
+	crawlers._spawn("beetle", Vector3(5, 0, 5), "forest")
+	var beetle: Node = crawlers.get_child(crawlers.get_child_count() - 1)
+	check(SnowCover.bare(beetle), "a beetle wears no snow coat")
+	crawlers.free()
 	check(SnowTrail.for_monster("krieger", "Skeleton_Warrior", false, 1.0) != null, "a skeleton leaves tracks")
 	check(SnowTrail.for_monster("wolf", "Wolf", false, 1.0) != null, "a wolf leaves tracks")
 	check(SnowTrail.for_monster("totengeist", "Skeleton_Rogue", true, 1.0) == null, "a ghost leaves none")

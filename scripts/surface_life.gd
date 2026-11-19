@@ -722,6 +722,8 @@ func _spawn(kind: String, at: Vector3, biome: String) -> void:
 			node = _worm_model()
 	node.position = at
 	node.rotation.y = _rng.randf() * TAU
+	# The little creatures stay free of snow; they press tiny tracks instead (see _track).
+	node.set_meta("no_snow", true)
 	add_child(node)
 	var cr := {
 		"node": node, "kind": kind, "target": at, "wait": _rng.randf_range(0.0, 3.0), "speed": 0.0,
@@ -999,8 +1001,29 @@ func _update_crawler(cr: Dictionary, delta: float, hero: Vector3) -> void:
 	node.position = next
 	node.rotation.y = lerp_angle(node.rotation.y, atan2(step.x, step.z), minf(1.0, delta * 14.0))
 	_wiggle(cr, cr.speed, delta)
+	_track(cr, step, hero)
 	if lizard and node.has_meta("tail"):
 		(node.get_meta("tail") as Node3D).rotation.y = sin(cr.step * 0.5) * 0.4
+
+
+## Tiny tracks in the snow: dots in a row for a beetle, a small paw for a lizard, one every
+## TRACK_STRIDE metres, and only near the hero so they do not use up the prints of his own steps.
+const TRACK_STRIDE := 0.22
+const TRACK_NEAR := 9.0
+
+
+func _track(cr: Dictionary, step: Vector3, hero: Vector3) -> void:
+	if not level.has_method("snow_print") or _flat(cr.node.position, hero) > TRACK_NEAR:
+		return
+	cr.walked = float(cr.get("walked", 0.0)) + step.length()
+	if cr.walked < TRACK_STRIDE:
+		return
+	cr.walked = 0.0
+	var heading := atan2(step.x, step.z)
+	if cr.kind == "lizard":
+		level.snow_print(cr.node.global_position, heading, 0.4, "paw")
+	else:
+		level.snow_print(cr.node.global_position, heading, 1.0, "bug")
 
 
 func _pick_target(cr: Dictionary) -> void:

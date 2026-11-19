@@ -34,6 +34,7 @@ const KINDS := {
 	"paw": Vector2(0.14, 0.14),
 	"hoof": Vector2(0.12, 0.16),
 	"bird": Vector2(0.1, 0.12),
+	"bug": Vector2(0.05, 0.07),
 }
 
 
@@ -85,6 +86,13 @@ static func _alpha(kind: String, u: float, v: float) -> float:
 			a = maxf(a, _stroke(u, v, 0.0, 0.62, 0.0, 0.04))
 			a = maxf(a, _stroke(u, v, 0.0, 0.62, 0.8, 0.12))
 			return maxf(a, _stroke(u, v, 0.0, 0.62, 0.0, 0.95))
+		"bug":
+			# A beetle's tracks: three tiny dots each side of its line.
+			var a := 0.0
+			for side in [-1.0, 1.0]:
+				for row in [0.2, 0.5, 0.8]:
+					a = maxf(a, _blob(u, v, float(side) * 0.55, row, 0.22, 0.12))
+			return a
 		_:
 			# The boot: the broad sole in front, a gap, the heel behind, soft at the edges.
 			var sole := Vector2(u / 0.9, (v - 0.32) / 0.3).length()

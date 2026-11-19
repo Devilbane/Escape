@@ -97,7 +97,10 @@ func _physics_process(delta: float) -> void:
 
 ## The ball bursts into snow where it lands; a grown-up who is hit grumbles.
 func _burst() -> void:
-	Snowball.puff(world, global_position)
+	var hit_body := _miss == Vector3.ZERO and target != null and is_instance_valid(target)
+	Snowball.puff(world, global_position, 34 if hit_body else 14, 0.12 if hit_body else 0.07)
+	if hit_body:
+		Snowball.cling(target, global_position)
 	Sfx.play(self, "step_grass_%d" % (_rng.randi() % 6), -10.0, global_position, 1.4)
 	if _miss == Vector3.ZERO and target is Villager and is_instance_valid(target):
 		var hit := target as Villager
@@ -108,17 +111,19 @@ func _burst() -> void:
 
 
 ## A burst of snow at `at`: white crumbs that fly out and fall. It frees itself.
-static func puff(world: Node3D, at: Vector3) -> void:
+## A hit gets more and bigger crumbs (`amount`, `crumb` in metres), made by the mesh size and
+## never by scaling the node, so the crumbs stay white.
+static func puff(world: Node3D, at: Vector3, amount := 14, crumb := 0.07) -> void:
 	if world == null or not world.is_inside_tree():
 		return
 	var p := CPUParticles3D.new()
-	p.amount = 14
+	p.amount = amount
 	p.lifetime = 0.7
 	p.one_shot = true
 	p.explosiveness = 0.95
 	p.local_coords = false
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.07, 0.07)
+	quad.size = Vector2(crumb, crumb)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -143,3 +148,30 @@ static func puff(world: Node3D, at: Vector3) -> void:
 	p.global_position = at
 	p.emitting = true
 	p.finished.connect(p.queue_free)
+
+
+## A blob of snow that sticks to `body` where the ball hit (`at`), then melts away. It is a child
+## of the body, so it goes along when the body moves.
+static func cling(body: Node3D, at: Vector3) -> void:
+	if body == null or not body.is_inside_tree():
+		return
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.97, 0.98, 1.0, 1.0)
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.12
+	mesh.height = 0.12
+	mesh.radial_segments = 10
+	mesh.rings = 4
+	mesh.material = mat
+	var blob := MeshInstance3D.new()
+	blob.mesh = mesh
+	blob.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	blob.set_meta("no_snow", true)
+	body.add_child(blob)
+	blob.global_position = at
+	var tw := blob.create_tween()
+	tw.tween_interval(0.8)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 1.2)
+	tw.tween_callback(blob.queue_free)

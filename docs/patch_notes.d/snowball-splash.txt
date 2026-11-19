@@ -1,0 +1,1 @@
+- Snowballs now burst into a clear white splash when they hit you, and a little snow clings to you for a moment.

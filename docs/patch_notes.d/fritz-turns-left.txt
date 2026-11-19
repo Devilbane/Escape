@@ -1,0 +1,1 @@
+- Frozen Fritz is turned a quarter-step to the left on screen.

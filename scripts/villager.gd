@@ -528,6 +528,9 @@ func _freeze() -> void:
 	_anim.pause()
 	_model.position.y = 0.0
 	singing = false
+	# He freezes with his face to the screen (the camera looks along -Z), so the player sees it.
+	global_rotation.y = 0.0
+	reset_physics_interpolation()
 	_ice = FrozenFritz.freeze(self)
 
 

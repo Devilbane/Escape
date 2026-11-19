@@ -34,6 +34,9 @@ uniform float spread = %f;
 varying vec2 key;
 """ % [CURTAIN_CHANCE, FIGURE_CHANCE, MIN_CYCLE, SPREAD]
 
+## How many hours before a window goes out its curtain starts to close.
+const CLOSE_BEFORE := 0.35
+
 const SHADER := HEAD + WindowLights.LIT_FUNCTION + """
 float rnd(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
@@ -59,6 +62,9 @@ void fragment() {
 	// the middle and back again in the cycles that hold a curtain event.
 	float event = step(rnd(cycle + vec2(1.3, 4.1)), curtain_chance);
 	float shut = event * smoothstep(0.12, 0.2, f) * (1.0 - smoothstep(0.6, 0.68, f));
+	// Before its light goes out for the night, every curtain is drawn shut.
+	float bedtime = window_off(key);
+	shut = max(shut, smoothstep(bedtime - %f, bedtime - %f, hour));
 	float reach = mix(0.1, 0.52, shut);
 	float cover = smoothstep(0.5 - reach - 0.02, 0.5 - reach + 0.02, abs(p.x));
 	float folds = 0.5 + 0.5 * sin(p.x * 38.0 + p.y * 3.0);
@@ -68,12 +74,12 @@ void fragment() {
 	// The figure: crosses the pane once, slowest in the middle, in the
 	// cycles that hold no curtain event.
 	float who = step(rnd(cycle + vec2(6.2, 2.2)), figure_chance) * (1.0 - event);
-	float u = clamp((f - 0.3) / 0.3, 0.0, 1.0);
+	float u = clamp((f - 0.3) / 0.14, 0.0, 1.0);
 	float dir = rnd(cycle + vec2(9.1, 3.3)) > 0.5 ? 1.0 : -1.0;
-	float x = dir * 0.7 * (2.0 * (u + 0.15 * sin(6.2832 * u)) - 1.0);
-	float bob = 0.012 * sin(u * 40.0);
-	float head = 1.0 - smoothstep(0.073, 0.097, length(p - vec2(x, 0.1 + bob)));
-	float body = 1.0 - smoothstep(0.85, 1.0, length((p - vec2(x, -0.22 + bob)) / vec2(0.2, 0.32)));
+	float x = dir * 0.95 * (2.0 * (u + 0.15 * sin(6.2832 * u)) - 1.0);
+	float bob = 0.02 * sin(u * 28.0);
+	float head = 1.0 - smoothstep(0.135, 0.17, length(p - vec2(x, 0.17 + bob)));
+	float body = 1.0 - smoothstep(0.85, 1.0, length((p - vec2(x, -0.32 + bob)) / vec2(0.36, 0.5)));
 	float a_fig = max(head, body) * 0.85 * who * (1.0 - cover);
 
 	float a_cloth = cover;
@@ -81,7 +87,7 @@ void fragment() {
 	ALBEDO = mix(vec3(0.03, 0.02, 0.015), cloth_col, w);
 	ALPHA = (1.0 - (1.0 - a_cloth) * (1.0 - a_fig)) * clamp(lit, 0.0, 1.0);
 }
-"""
+""" % [CLOSE_BEFORE, CLOSE_BEFORE - 0.1]
 
 
 ## The shared material; "glow" and "hour" are driven by the village, like the glass's.

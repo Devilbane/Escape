@@ -14,7 +14,7 @@ const SHADER := preload("res://shaders/snow_cover.gdshader")
 ## The same snow for cut-out cards (leaves of bushes and ivy), keeping to their shape.
 const CUTOUT_SHADER := preload("res://shaders/snow_cutout.gdshader")
 ## Nodes of these kinds (and everything below them) stay bare.
-const LEAVE_BARE := ["Villager", "Enemy", "Animal", "Pet", "Player", "FarmAnimal", "Projectile", "VillageBirds", "Squirrel"]
+const LEAVE_BARE := ["Villager", "Enemy", "Animal", "Pet", "Player", "FarmAnimal", "Projectile", "VillageBirds", "Squirrel", "Eagle", "Rescue", "DragonFlyover", "Dragon"]
 
 ## How many burning spots the shader knows (see set_warm).
 const WARM_MAX := 32

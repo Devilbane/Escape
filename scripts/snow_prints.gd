@@ -9,9 +9,9 @@ extends RefCounted
 
 ## At most this many prints at once. When the pool is full the oldest print of the least
 ## important kind goes first (see PRIORITY), so the hero's own boots outlast the beetles' dots.
-const MAX := 700
+const MAX := 1600
 ## Which kinds are kept longest when the pool is full.
-const PRIORITY := {"bug": 0, "bird": 1, "paw": 2, "hoof": 2, "boot": 3}
+const PRIORITY := {"bug": 0, "bird": 1, "paw": 2, "hoof": 2, "boot": 3, "hero": 4}
 ## Just above the snow, which lies up to SnowCover's 0.06 m over the ground when it is deep
 ## (snow_cover.gdshader lifts it by 0.03 + 0.03 * amount); lower prints are buried in it.
 const HEIGHT := 0.085
@@ -32,6 +32,8 @@ static var _live: Array = []
 ## others are square) and the grey it presses (the hero's boots are the darkest).
 const KINDS := {
 	"boot": Vector2(0.16, 0.32),
+	## The hero's own boots: the same picture, but the last prints to be given up.
+	"hero": Vector2(0.16, 0.32),
 	"paw": Vector2(0.14, 0.14),
 	"hoof": Vector2(0.12, 0.16),
 	"bird": Vector2(0.1, 0.12),
@@ -179,6 +181,8 @@ static func _spawn(world: Node3D, rec: Array) -> MeshInstance3D:
 	mi.material_override = _material(kind)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.set_meta("no_snow", true)
+	# Far prints are not drawn at all, which keeps a big pool cheap.
+	mi.visibility_range_end = 45.0
 	world.add_child(mi)
 	mi.global_position = Vector3(at.x, HEIGHT, at.z)
 	mi.rotation.y = heading + FRONT

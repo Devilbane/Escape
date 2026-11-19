@@ -23,5 +23,5 @@ func _initialize() -> void:
 			"empty ground left of and above the tip")
 	var src := FileAccess.get_file_as_string("res://scripts/game.gd")
 	check(src.contains("Cursors.setup()"), "the game sets the cursors up")
-	print("cursors: ", "OK" if failures == 0 else "%d failures" % failures)
+	print("PASS: cursors" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)

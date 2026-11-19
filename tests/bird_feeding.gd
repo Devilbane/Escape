@@ -177,6 +177,47 @@ func _run() -> void:
 		by._start("idle", 0.0)
 		by._next_task()
 	birds._mind_feeding(0.1, false)
+
+	# Winter: the birds fly far less and sit about, some on the lamp posts; the villagers throw out
+	# seed far more often, and it lies on top of the snow.
+	check(not birds.winter_perches.is_empty(), "the lamp posts are perches in winter")
+	var moves := func(on: bool) -> int:
+		lvl.set_winter_wear(on, true)
+		var flights := 0
+		for b: Dictionary in birds.birds:
+			b.state = "sit"
+			b.at = b.home
+			b.wait = 0.0
+			b.seeds = false
+		for i in 60 * 40:
+			var before := birds.birds.filter(func(b: Dictionary): return b.state == "fly").size()
+			birds._process(1.0 / 60.0)
+			flights += maxi(0, birds.birds.filter(func(b: Dictionary): return b.state == "fly").size() - before)
+		return flights
+	birds._seed_wait = 9999.0
+	var summer: int = moves.call(false)
+	birds._seed_wait = 9999.0
+	var winter: int = moves.call(true)
+	check(winter * 3 < summer, "in winter the birds fly far less (%d flights, %d in summer)" % [winter, summer])
+	var on_lamp := false
+	for i in 200:
+		for b: Dictionary in birds.birds:
+			b.wait = 0.0
+			if b.state == "sit":
+				birds._think(b, 0.0, false)
+			if b.state == "fly" and birds.winter_perches.any(func(p: Vector3): return p.distance_to(b.to) < 0.1):
+				on_lamp = true
+		if on_lamp:
+			break
+	check(on_lamp, "in winter a bird flies over to sit on a lamp post")
+	birds._seed_wait = 0.0
+	birds._mind_feeding(0.1, false)
+	check(birds._seed_wait <= VillageBirds.SEED_EVERY.y * VillageBirds.WINTER_SEED, "in winter seed is thrown out far more often")
+	game.snow_cover = 1.0
+	lvl.set_snow(1.0)
+	check(birds._grain_y() >= SnowPrints.HEIGHT and birds._feet_y() >= SnowPrints.HEIGHT, "the grains and the birds' feet are on top of the snow")
+	lvl.set_snow(0.0)
+	lvl.set_winter_wear(false, true)
 	_finish()
 
 

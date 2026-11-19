@@ -43,7 +43,7 @@ const INGREDIENT_ICONS := {
 	"baerlauch": "garlic", "glimmermoos": "moss", "mondblume": "moonflower", "edelweiss": "edelweiss",
 	"steinpilz": "porcini", "trueffel": "truffle", "hoehlenpilz": "cave_mushroom",
 	"barsch": "perch", "goldkarpfen": "carp", "silberhecht": "pike", "mondforelle": "trout",
-	"mondsilbererz": "ore", "mondstein": "gem", "grottenkristall": "crystal",
+	"mondsilbererz": "ore", "mondstein": "gem", "grottenkristall": "crystal", "schleimkristall": "crystal",
 	"holzkohle": "coal", "kalkstein": "lime",
 	"wildfleisch": "meat", "spinnenei": "spider_egg", "schleimgelee": "slime_jelly", "ektoplasma": "ectoplasm",
 	"grabstaub": "grave_dust", "wolfsfell": "pelt", "yetifell": "snow_pelt", "giftdruese": "venom_gland",

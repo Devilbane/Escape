@@ -109,6 +109,7 @@ const PARTS := [
 	preload("res://scripts/lang/hero_level.gd"),
 	preload("res://scripts/lang/slime_growth.gd"),
 	preload("res://scripts/lang/slime_life.gd"),
+	preload("res://scripts/lang/slime_shatter.gd"),
 	preload("res://scripts/lang/slime_coat.gd"),
 	preload("res://scripts/lang/tutorial.gd"),
 	preload("res://scripts/lang/editor.gd"),

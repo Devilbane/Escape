@@ -1,6 +1,6 @@
 extends SceneTree
 ## Screenshots of the village's cattle pen (see Corral): the whole pen from the south-west, and the gate.
-## Run with: SHOTS=<folder> godot -s tests/corral_shots.gd (needs a display); without SHOTS it only builds the village.
+## With SNOWY=1 it snows. Run with: SHOTS=<folder> godot -s tests/corral_shots.gd (needs a display); without SHOTS it only builds the village.
 
 var game: Node
 var frames := 0
@@ -39,6 +39,9 @@ func _run() -> void:
 	for layer: CanvasLayer in game.find_children("*", "CanvasLayer", true, false):
 		layer.visible = false
 	lvl.set_hour(12.0)
+	if OS.get_environment("SNOWY") != "":
+		game.set_weather(Weather.SNOW, 3.0)
+		game.snow_cover = 1.0
 	var middle := lvl.cell_to_world(Vector2i(59, 26))
 	game.player.global_position = middle + Vector3(-14, 0, 16)
 	await _wait(240)

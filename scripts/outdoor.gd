@@ -133,6 +133,11 @@ const FOREST_DEPTH := 4
 ## Ground pieces are this many tiles across. Each piece is lit by the
 ## lanterns near it only, so many lanterns can burn at once.
 const GROUND_CHUNK := 12
+## The ground is drawn in squares of this many tiles. The renderer lights each object with a
+## limited set of the lights that touch it, so one big square put a hard, straight edge of
+## different lighting across the snow where its lamps and lanterns were cut off; small squares
+## see few lights each, and their lighting changes in small steps nobody notices.
+const GROUND_PIECE := 4
 const TREE_SHADER := preload("res://shaders/tree.gdshader")
 ## The temple: a chapel from the Modular Cathedral Kit (see _build_chapel).
 ## Pieces in the kit's own metres, with the door looking south (+z): name,
@@ -301,6 +306,8 @@ const LAMP_NIGHT := 3.2
 const LAMP_REACH := 8.0
 const CANDLE_GLOW := 5.0
 var _lamps: Array[OmniLight3D] = []
+## Where a street lamp's light hangs over its foot (in its lantern).
+const LAMP_LIGHT_AT := Vector3(0, 2.6, 1.1)
 ## The bandits' campfires light up their camp at night too.
 var _fires: Array[Vector3] = []
 ## Where something burns (campfires, the forge, smoking chimneys): xyz and how far round it no snow
@@ -537,6 +544,13 @@ func build() -> void:
 		var market: Array[Vector3] = []
 		market.assign(spots.market)
 		birds = VillageBirds.new(self, nests, pecking, market, hash(level_name + "voegel"))
+		# In winter they sit about on the lamp posts: the top of the post and its arm (see
+		# VillageProps.build_lamp: the post 3.1 m high, the arm at 2.9 m running out along +Z).
+		for lamp in _lamps:
+			var foot := lamp.position - LAMP_LIGHT_AT
+			birds.winter_perches.append(foot + Vector3(0, 3.11, 0))
+			birds.winter_perches.append(foot + Vector3(0, 2.91, 0.5))
+			birds.winter_perches.append(foot + Vector3(0, 2.91, 0.95))
 		add_child(birds)
 	Mountains.build(self, hash(level_name + "berge"))
 	_build_forest()
@@ -628,9 +642,9 @@ func _build_ground() -> void:
 		mat.set_shader_parameter("old_paving", Vector4((fence.position.x - 0.5) * TILE, (fence.position.y - 0.5) * TILE,
 				(fence.end.x - 0.5) * TILE, (fence.end.y - 0.5) * TILE))
 	var margin := 10
-	var size := GROUND_CHUNK * TILE
-	for cy in range(-margin, height + margin, GROUND_CHUNK):
-		for cx in range(-margin, width + margin, GROUND_CHUNK):
+	var size := GROUND_PIECE * TILE
+	for cy in range(-margin, height + margin, GROUND_PIECE):
+		for cx in range(-margin, width + margin, GROUND_PIECE):
 			var plane := PlaneMesh.new()
 			plane.size = Vector2(size, size)
 			var piece := MeshInstance3D.new()
@@ -950,6 +964,10 @@ func _build_bounty_board(c: Vector2i) -> void:
 		sheet.rotation.z = n[1]
 		add_child(sheet)
 		_add_mesh_box(pos + n[0] + Vector3(0, 0.24, 0.02), Vector3(0.08, 0.08, 0.02), seal)
+	# Icicles hang from its roof while snow lies (see SnowCaps).
+	var frost := SnowCaps.board_node(pos)
+	if frost:
+		add_child(frost)
 	_add_solid(pos, Vector3(2.4, 2.6, 1.0))
 	stations.append({"kind": "aushang", "cell": c, "pos": pos, "used": false})
 	_board_mark = Label3D.new()
@@ -1123,11 +1141,15 @@ func _build_lantern(pos: Vector3) -> void:
 		# Lit at nightfall with the windows of the village.
 		_window_mats[_pane_mat] = _pane_mat
 	VillageProps.build_lamp(self, pos, _pane_mat)
+	# A few icicles on it while snow lies (see SnowCaps).
+	var frost := SnowCaps.lamp_node(pos, VillageProps.LANTERN_AT)
+	if frost:
+		add_child(frost)
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.68, 0.38)
 	light.light_energy = 2.2
 	light.omni_range = 11.0
-	light.position = pos + Vector3(0, 2.6, 1.1)
+	light.position = pos + LAMP_LIGHT_AT
 	add_child(light)
 	_lamps.append(light)
 	# A candle in the lantern that glows once the light fades.
@@ -1977,6 +1999,7 @@ func _standalone(block: Rect2i) -> bool:
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
 func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST) -> void:
+	# Stone buildings (old) also carry icicles under their ledges.
 	if old:
 		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
 	var key := "%s|%s|%s|%s|%s|%s" % [level_name, middle, _bounds_in(node), old, foot_max, proud]
@@ -2012,7 +2035,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		# (shown only while snow lies, see SnowCaps), with dice of their own.
 		var ice_rng := RandomNumberGenerator.new()
 		ice_rng.seed = hash(key + "schnee")
-		var caps := SnowCaps.build(tris, ground, SnowCaps.windows_of(node, tris, WINDOW_UV), ice_rng, -offset, cap_from)
+		var caps := SnowCaps.build(tris, ground, SnowCaps.windows_of(node, tris, WINDOW_UV), ice_rng, -offset, cap_from, old)
 		_dressed[key] = {"leaves": leaves, "nest": spot - offset if spot != Vector3.INF else spot, "turn": rng.randf() * TAU, "caps": caps}
 	var done: Dictionary = _dressed[key]
 	var cap_node := SnowCaps.node_for(done.get("caps"))
@@ -3149,6 +3172,9 @@ func is_opaque(c: Vector2i) -> bool:
 ## home to sleep (see Villager.update_wear). `at_once` (a game being loaded, the sky command) changes
 ## everyone on the spot.
 func set_winter_wear(on: bool, at_once := false) -> void:
+	# No eggs or chicks in the nests in winter: they come back in spring (see VillageBirds).
+	if birds:
+		birds.set_winter(on)
 	var first := not _wear_known
 	if on == winter_wear and not first and not at_once:
 		return
@@ -3889,6 +3915,9 @@ func splash_puddle(at: Vector3, hard := true) -> void:
 ## How thick the snow lies on the open air, 0 to 1 (see SnowCover), and how bright
 ## the light of the hour is on it.
 func set_snow(cover: float, daylight := 1.0) -> void:
+	# Prints last minutes now, so they must not outlive the snow they are pressed into.
+	if cover < Weather.PRINT_FROM and not SnowPrints._live.is_empty():
+		SnowPrints.clear()
 	if snow:
 		snow.set_amount(cover, daylight)
 	if snowman != null and is_instance_valid(snowman):
@@ -3897,6 +3926,8 @@ func set_snow(cover: float, daylight := 1.0) -> void:
 			snowman = null
 		else:
 			snowman.melt_to(cover)
+	# The children's angels and rolled balls melt too (see SnowGames).
+	SnowGames.melt(self, cover)
 
 
 ## How thickly the ponds are frozen, 0 open water to 1 solid ice (see IceCover and

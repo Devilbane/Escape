@@ -66,6 +66,8 @@ const SPACE := 1.15
 const AWARE := 1.9
 const SEPARATION_WEIGHT := 1.6
 const EASE_SPEED := 1.2
+## Animals farther apart than this (metres) are never looked at.
+const NEAR := 3.5
 ## Every farm animal in the world, so neighbours are found without a scene search.
 static var _all: Array[FarmAnimal] = []
 ## A sneaking hero is noticed only this much closer.
@@ -619,9 +621,12 @@ func _walk(delta: float) -> void:
 func separation() -> Vector3:
 	var push := Vector3.ZERO
 	for o in _all:
-		if o == self or not is_instance_valid(o) or not Footprint.counts(o):
+		if o == self:
 			continue
 		var d := _flat(global_position - o.global_position)
+		# Far animals are skipped before anything else is looked at (this runs every tick).
+		if d.length_squared() > NEAR * NEAR or not Footprint.counts(o):
+			continue
 		var room := (Footprint.radius_of(self) + Footprint.radius_of(o)) * SPACE
 		var dist := d.length()
 		if dist >= room * AWARE or absf(global_position.y - o.global_position.y) > Footprint.HEIGHT_GAP:
@@ -639,9 +644,11 @@ func separation() -> Vector3:
 func ease_apart(delta: float) -> bool:
 	var push := Vector3.ZERO
 	for o in _all:
-		if o == self or not is_instance_valid(o) or not Footprint.counts(o):
+		if o == self:
 			continue
 		var d := _flat(global_position - o.global_position)
+		if d.length_squared() > NEAR * NEAR or not Footprint.counts(o):
+			continue
 		var room := (Footprint.radius_of(self) + Footprint.radius_of(o)) * Footprint.STACKED
 		if d.length() >= room or absf(global_position.y - o.global_position.y) > Footprint.HEIGHT_GAP:
 			continue

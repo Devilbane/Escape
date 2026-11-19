@@ -1196,9 +1196,9 @@ func _lantern_glow(light_at: Vector3, candle_at: Vector3) -> void:
 ## siblings placed with the chapel's own transform.
 func _build_temple_lamps(chapel: Node3D) -> void:
 	var panes := _lantern_panes()
-	for x in TEMPLE_LAMP_X:
+	for x: float in TEMPLE_LAMP_X:
 		var holder := Node3D.new()
-		holder.name = "TempleLamp"
+		holder.name = "TempleLamp%d" % int(x > 0.0)
 		holder.position = chapel.transform * Vector3(x, TEMPLE_LAMP_Y, TEMPLE_LAMP_Z)
 		holder.rotation.y = chapel.rotation.y
 		add_child(holder)

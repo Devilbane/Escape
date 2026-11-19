@@ -559,6 +559,7 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	Lang.setup()
+	Cursors.setup()
 	# Text that sets no size of its own follows the game's text scale too.
 	if get_window().theme == null:
 		var base := Theme.new()

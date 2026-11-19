@@ -32,7 +32,8 @@ func _finish() -> void:
 	var fog := Weather.look(Weather.FOG)
 	check(is_equal_approx(Weather.dusty_mist(clear, 0.0), Weather.NIGHT_DUST * fog.mist), "a clear night has 25% of fog's mist")
 	check(Weather.dusty_mist(clear, 12.0) == 0.0, "no dust by day")
-	check(Weather.dusty_mist(fog, 0.0) == fog.mist, "dust does not pile on fog")
+	check(is_equal_approx(Weather.dusty_mist(fog, 0.0), Weather.NIGHT_DUST), "the fog weather is not drawn at night, only the dust")
+	check(Weather.dusty_mist(fog, 12.0) == fog.mist, "fog by day is as it was")
 	# Fog never lights the scenery up: at night its colour is never brighter than the dark air.
 	var night_air := Color(0.04, 0.04, 0.05)
 	for winter in [false, true]:

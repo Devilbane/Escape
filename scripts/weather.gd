@@ -132,10 +132,12 @@ const PRINT_FROM := 0.3
 static var cold := false
 
 
-## The mist of a look with the night's dust added (see NIGHT_DUST). The dust
-## never piles on real fog: the thicker of the two wins.
+## The mist of a look as it is drawn: real fog by day, only the night's dust (see NIGHT_DUST) at night.
 static func dusty_mist(weather_look: Dictionary, hour: float) -> float:
-	return maxf(float(weather_look.mist), NIGHT_DUST * DayNight.glow_at(hour))
+	# The fog weather itself is never drawn at night (it only made the dark look blotchy): by night
+	# its mist fades out and only the thin dust is left.
+	var night := DayNight.glow_at(hour)
+	return maxf(float(weather_look.mist) * (1.0 - night), NIGHT_DUST * night)
 
 
 ## The cool white of winter fog: only its tint, the brightness is the haze's own.

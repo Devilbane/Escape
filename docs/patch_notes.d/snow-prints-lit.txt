@@ -1,0 +1,1 @@
+- Snow footprints are lit like the snow around them, so they no longer read as cold blue-grey dots in the evening light.

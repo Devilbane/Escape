@@ -3973,7 +3973,7 @@ func splash_puddle(at: Vector3, hard := true) -> void:
 
 ## How thick the snow lies on the open air, 0 to 1 (see SnowCover), and how bright
 ## the light of the hour is on it.
-func set_snow(cover: float, daylight := 1.0) -> void:
+func set_snow(cover: float, daylight := 1.0, moon := 0.0) -> void:
 	# Prints stay all day (the world may be rebuilt meanwhile), but must not outlive the snow.
 	if cover < Weather.PRINT_FROM:
 		if not SnowPrints._records.is_empty():
@@ -3982,7 +3982,7 @@ func set_snow(cover: float, daylight := 1.0) -> void:
 		# Back from a house or a dungeon the day's prints lie in the snow again.
 		SnowPrints.restore(self)
 	if snow:
-		snow.set_amount(cover, daylight)
+		snow.set_amount(cover, daylight, moon)
 	if pond_reeds != null:
 		pond_reeds.set_snow(cover)
 	if snowman != null and is_instance_valid(snowman):
@@ -3991,7 +3991,7 @@ func set_snow(cover: float, daylight := 1.0) -> void:
 			snowman = null
 		else:
 			snowman.melt_to(cover)
-			snowman.set_daylight(daylight)
+			snowman.set_daylight(daylight, moon)
 	# The children's angels and rolled balls melt too (see SnowGames).
 	SnowGames.melt(self, cover)
 

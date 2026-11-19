@@ -26,6 +26,8 @@ var root: Node
 var amount := 0.0
 ## How bright the light of the hour is on the snow, 0 night to 1 day (see set_amount).
 var daylight := 1.0
+## How bright the moon is on the snow, 0 to 1 (see snow.gdshaderinc).
+var moon_glow := 0.0
 var _covered := false
 var _warm_src: Array[Vector4] = []
 var _meshes: Array[GeometryInstance3D] = []
@@ -78,11 +80,13 @@ func set_warm(spots: Array[Vector4]) -> void:
 
 
 ## How thick the snow lies, 0 to 1, and how bright the light of the hour is.
-func set_amount(value: float, daylight_in := 1.0) -> void:
+func set_amount(value: float, daylight_in := 1.0, moon := 0.0) -> void:
 	amount = clampf(value, 0.0, 1.0)
 	daylight = clampf(daylight_in, 0.0, 1.0)
+	moon_glow = clampf(moon, 0.0, 1.0)
 	_param("amount", amount)
 	_param("daylight", daylight)
+	_param("moon_glow", clampf(moon, 0.0, 1.0))
 	if amount > 0.001 and not _covered:
 		_cover()
 	elif amount <= 0.001 and _covered:
@@ -196,7 +200,7 @@ func _cutout_for(gi: GeometryInstance3D) -> ShaderMaterial:
 		m.set_shader_parameter("uv_offset", base.uv1_offset)
 		m.set_shader_parameter("alpha_scissor", base.alpha_scissor_threshold if base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR else 0.5)
 		# Copy what the others know so far.
-		for param: String in ["amount", "daylight", "warm", "warm_count"]:
+		for param: String in ["amount", "daylight", "moon_glow", "warm", "warm_count"]:
 			m.set_shader_parameter(param, material.get_shader_parameter(param))
 		_cutouts[key] = m
 		_all.append(m)

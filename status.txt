@@ -1,1 +1,1 @@
-Escape! dev status | Working on: House building, phase 3b: the hero builds your house while you are away; Villagers that pile up always get free | Shipped this week: Show night snow by moonlight, scaled by the moon's phase; House building, phase 3: the character builds your sketch (+48 more)
+Escape! dev status | Working on: Villagers that pile up always get free | Shipped this week: House building, phase 3b: the hero builds your house while you are away; Show night snow by moonlight, scaled by the moon's phase (+48 more)

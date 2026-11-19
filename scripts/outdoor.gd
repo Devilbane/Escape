@@ -950,6 +950,10 @@ func _build_bounty_board(c: Vector2i) -> void:
 		sheet.rotation.z = n[1]
 		add_child(sheet)
 		_add_mesh_box(pos + n[0] + Vector3(0, 0.24, 0.02), Vector3(0.08, 0.08, 0.02), seal)
+	# Icicles hang from its roof while snow lies (see SnowCaps).
+	var frost := SnowCaps.board_node(pos)
+	if frost:
+		add_child(frost)
 	_add_solid(pos, Vector3(2.4, 2.6, 1.0))
 	stations.append({"kind": "aushang", "cell": c, "pos": pos, "used": false})
 	_board_mark = Label3D.new()

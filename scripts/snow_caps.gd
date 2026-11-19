@@ -369,6 +369,27 @@ static func lamp_node(pos: Vector3, lantern: Vector3) -> MeshInstance3D:
 	return node_for(mesh)
 
 
+## The icicles of the bounty board at `pos` (in the frame of the level): along the front and
+## back eaves of its little roof and under its top rail, from dice seeded by the place.
+static func board_node(pos: Vector3) -> MeshInstance3D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("boardice:%d:%d" % [roundi(pos.x * 10.0), roundi(pos.z * 10.0)])
+	var ice := _Surface.new()
+	for face in [-1.0, 1.0]:
+		var x := -1.2 + rng.randf_range(0.0, 0.2)
+		while x < 1.25:
+			if rng.randf() < 0.75:
+				var at := pos + Vector3(x, 2.66, face * rng.randf_range(0.38, 0.42))
+				_icicle(ice, at, Vector3.ZERO, rng.randf_range(0.18, 0.55), rng.randf_range(0.025, 0.045), rng)
+			x += rng.randf_range(0.14, 0.32)
+	for i in rng.randi_range(2, 4):
+		var at := pos + Vector3(rng.randf_range(-1.0, 1.0), 2.3, rng.randf_range(-0.08, 0.08))
+		_icicle(ice, at, Vector3.ZERO, rng.randf_range(0.1, 0.3), rng.randf_range(0.018, 0.03), rng)
+	var mesh := ArrayMesh.new()
+	ice.commit(mesh, ice_material(), Vector3.ZERO)
+	return node_for(mesh)
+
+
 ## Icicles under a window's top, shorter than those of the eaves.
 static func _window_icicles(ice: _Surface, w: Dictionary, rng: RandomNumberGenerator) -> void:
 	var look: Vector3 = w.out

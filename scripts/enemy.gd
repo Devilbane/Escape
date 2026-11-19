@@ -1762,6 +1762,10 @@ func _die() -> void:
 		swallowed_by.swallow(self)
 		_slide_into(swallowed_by)
 		return
+	# In winter a slime of the open air shatters like glass and leaves a crystal.
+	if SlimeShatter.applies(self):
+		SlimeShatter.shatter(self)
+		return
 	SlimeGrowth.release_folk(self)
 	Elementals.on_death(self)
 	# The body stays where it fell and rots away (see Corpse).

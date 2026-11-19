@@ -1,0 +1,1 @@
+- Dragonlings now fly a way that keeps a whole tile clear of buildings, so their wings no longer clip walls and roofs.

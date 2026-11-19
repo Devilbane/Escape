@@ -3,14 +3,20 @@ extends RefCounted
 ## Reeds and cattails along the bank of the village ponds, so the water looks like a real pond
 ## and not a cut-out. They stand on the open ground just outside the water (never on the pond
 ## tiles, which turn into ice walkable in winter) and keep their straw colour all year; snow
-## settles on them like on everything else (see SnowCover).
+## wear caps of snow while snow lies (see set_snow), growing with the snow and melting with it.
+
+## The caps of snow on the cattail heads and the tips of the stems, or null without reeds.
+var snow_caps: MultiMeshInstance3D
+var _full: Array[Transform3D] = []
+
 
 ## Clumps per metre of bank.
 const CLUMPS_PER_METRE := 0.5
 const STEMS := 5
 
 ## Grows the reeds round every pond tile in `ponds` (see Outdoor._pond_waters) in `level`.
-static func grow(level: Outdoor, ponds: Array) -> void:
+static func grow(level: Outdoor, ponds: Array) -> PondReeds:
+	var reeds := PondReeds.new()
 	var water := {}
 	for w: Dictionary in ponds:
 		water[w.cell] = true
@@ -42,6 +48,46 @@ static func grow(level: Outdoor, ponds: Array) -> void:
 						heads.append(Transform3D(lean, p + lean * Vector3(0, tall * 0.85, 0)))
 	_spawn(level, stems, 0.025, 1.0, Color(0.5, 0.52, 0.25), true)
 	_spawn(level, heads, 0.06, 0.32, Color(0.36, 0.22, 0.12), false)
+	# A cap of snow on every head, and a smaller one on the tip of every stem.
+	for t in heads:
+		reeds._full.append(Transform3D(t.basis, t.origin + t.basis * Vector3(0, 0.17, 0)))
+	for t in stems:
+		reeds._full.append(Transform3D(t.basis, t.origin + t.basis * Vector3(0, 0.5, 0)))
+	var ball := SphereMesh.new()
+	ball.radius = 0.09
+	ball.height = 0.12
+	ball.radial_segments = 6
+	ball.rings = 3
+	var white := StandardMaterial3D.new()
+	white.albedo_color = Color(0.94, 0.96, 1.0)
+	white.roughness = 0.9
+	ball.material = white
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = ball
+	multi.instance_count = reeds._full.size()
+	reeds.snow_caps = MultiMeshInstance3D.new()
+	reeds.snow_caps.name = "PondReedSnow"
+	reeds.snow_caps.multimesh = multi
+	reeds.snow_caps.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	reeds.snow_caps.visible = false
+	level.add_child(reeds.snow_caps)
+	reeds.set_snow(0.0)
+	return reeds
+
+
+## Snow lies on the reeds: the caps swell with `amount` (0 to 1) and are gone while it is thin.
+func set_snow(amount: float) -> void:
+	if snow_caps == null:
+		return
+	snow_caps.visible = amount > 0.05
+	if not snow_caps.visible:
+		return
+	var k := clampf(amount, 0.0, 1.0)
+	var multi := snow_caps.multimesh
+	for i in _full.size():
+		var t := _full[i]
+		multi.set_instance_transform(i, Transform3D(t.basis.scaled(Vector3(k, k, k)), t.origin))
 
 
 static func _spawn(level: Node3D, list: Array[Transform3D], radius: float, length: float, colour: Color, thin: bool) -> void:

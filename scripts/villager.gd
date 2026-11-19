@@ -233,7 +233,7 @@ var _stepped := 0.0
 ## Where the villager stood at the last tick (see _lift_onto_toes).
 var _last_spot := Vector3.INF
 var _waiting := 0.0
-## The villagers close by, and the physics tick to look them up again at (see _neighbours).
+## The villagers close by, and the physics tick to look them up again at (see _close_by).
 var _near: Array = []
 var _near_until := 0
 var _bubble: SpeechBubble
@@ -1531,7 +1531,7 @@ func _space_for(o: Villager) -> float:
 
 ## The villagers within NEAR metres, looked up again every few physics ticks only: the village
 ## is slow, and this runs for every villager on every tick.
-func _neighbours() -> Array:
+func _close_by() -> Array:
 	var frame := Engine.get_physics_frames()
 	if frame >= _near_until:
 		_near_until = frame + 8 + get_instance_id() % 4
@@ -1560,7 +1560,7 @@ func _keep_apart(delta: float) -> void:
 		return
 	var push := Vector3.ZERO
 	var stand := Vector3.ZERO
-	for o: Villager in _neighbours():
+	for o: Villager in _close_by():
 		if not is_instance_valid(o) or o.at_home or (_mixing_with(o) and not o.keeps_spot()):
 			continue
 		var away := global_position - o.global_position
@@ -1586,7 +1586,7 @@ func _keep_apart(delta: float) -> void:
 ## running into them. (Those who keep their spot are left out: see _crowds_spot.)
 func _separation() -> Vector3:
 	var lean := Vector3.ZERO
-	for o: Villager in _neighbours():
+	for o: Villager in _close_by():
 		if not is_instance_valid(o) or o.at_home or o.keeps_spot() or _mixing_with(o):
 			continue
 		var away := global_position - o.global_position

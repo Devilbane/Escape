@@ -17,9 +17,19 @@ static var _rng := RandomNumberGenerator.new()
 ## How long one breath lasts (seconds).
 const BLOW := 0.7
 
+## While the breather walks, a second emitter lays a soft plume along the path, so the breath
+## reads as one cloud trailing behind instead of single puffs left at every few steps.
+const MOVING_SPEED := 0.4
+## Breaths come closer together and last longer while moving, so the plume hardly breaks.
+const MOVING_EVERY := 0.55
+const MOVING_BLOW := 1.3
+
 var _puff: CPUParticles3D
+var _trail: CPUParticles3D
 var _timer := 0.0
 var _blow := 0.0
+var _last_pos := Vector3.ZERO
+var _speed := 0.0
 
 
 ## Gives the model (a body's child) a breath of its own at its mouth.
@@ -54,6 +64,9 @@ static func _shared() -> StandardMaterial3D:
 func _ready() -> void:
 	_puff = _make_puff()
 	add_child(_puff)
+	_trail = _make_trail()
+	add_child(_trail)
+	_last_pos = global_position
 	_timer = _rng.randf_range(0.0, EVERY.y)
 
 
@@ -100,21 +113,67 @@ func _make_puff() -> CPUParticles3D:
 	return puff
 
 
+## The plume for a walker: many small overlapping particles that stay where they were
+## breathed out, so a moving mouth draws a continuous trail.
+func _make_trail() -> CPUParticles3D:
+	var t := CPUParticles3D.new()
+	t.amount = 64
+	t.lifetime = 1.2
+	t.one_shot = false
+	t.explosiveness = 0.0
+	t.local_coords = false
+	t.emitting = false
+	t.use_fixed_seed = true
+	t.seed = _rng.randi()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.4, 0.4)
+	quad.material = _shared()
+	t.mesh = quad
+	t.direction = Vector3(0, 0.25, 1)
+	t.spread = 12.0
+	t.gravity = Vector3(0, 0.25, 0)
+	t.initial_velocity_min = 0.1
+	t.initial_velocity_max = 0.35
+	t.damping_min = 0.3
+	t.damping_max = 0.5
+	t.scale_amount_min = 0.7
+	t.scale_amount_max = 1.0
+	var grow := Curve.new()
+	grow.add_point(Vector2(0, 0.6))
+	grow.add_point(Vector2(1, 2.4))
+	t.scale_amount_curve = grow
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 0.0))
+	fade.add_point(0.15, Color(1, 1, 1, 0.4))
+	fade.add_point(0.5, Color(1, 1, 1, 0.28))
+	fade.set_color(fade.get_point_count() - 1, Color(1, 1, 1, 0.0))
+	t.color_ramp = fade
+	t.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return t
+
+
 func _process(delta: float) -> void:
+	if delta > 0.0:
+		var here := global_position
+		_speed = lerpf(_speed, here.distance_to(_last_pos) / delta, minf(1.0, delta * 8.0))
+		_last_pos = here
+	var moving := _speed > MOVING_SPEED
 	if _blow > 0.0:
 		_blow -= delta
 		if _blow <= 0.0:
 			_puff.emitting = false
+	# The plume follows the breath, but only while the breather is actually walking.
+	_trail.emitting = _blow > 0.0 and moving
 	if not Weather.cold:
 		return
 	_timer -= delta
 	if _timer > 0.0 or not is_visible_in_tree():
 		return
-	_timer = _rng.randf_range(EVERY.x, EVERY.y)
-	exhale()
+	_timer = _rng.randf_range(EVERY.x, EVERY.y) * (MOVING_EVERY / EVERY.x if moving else 1.0)
+	exhale(MOVING_BLOW if moving else BLOW)
 
 
 ## Breathes out now: the stream starts and stops by itself, clouds still in the air stay.
-func exhale() -> void:
-	_blow = BLOW
+func exhale(blow := BLOW) -> void:
+	_blow = blow
 	_puff.emitting = true

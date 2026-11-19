@@ -109,7 +109,9 @@ func _process(_delta: float) -> bool:
 	check(game.level._floor_slabs.get_child_count() > 0, "the ground is cut open over the cellar")
 	check(sketcher._body.get_child_count() >= 5, "the pit has a floor under every cell and a ramp")
 	sketcher.select_tool(HouseSketcher.TOOL_ERASE)
+	sketcher.storey = -1
 	sketcher.mouse(plan.cell_world(1, 3), true, MOUSE_BUTTON_LEFT)
+	sketcher.storey = 0
 	check(plan.pieces["-1:1:3:e"].state == "demolish", "the eraser marks built stairs to be taken down")
 	plan.ordered = true
 	for i in 8:

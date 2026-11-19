@@ -244,6 +244,8 @@ func _prints() -> void:
 	# Every walker's print has a picture, and the toes lead the way it goes.
 	for kind in SnowPrints.KINDS:
 		check(SnowPrints.texture(kind) != null, "a %s print has a picture" % kind)
+	for species in Companions.SPECIES:
+		check(SnowTrail.FEET.has(species), "the companion %s leaves tracks" % species)
 	for kind in SnowTrail.FEET:
 		check(SnowPrints.KINDS.has(SnowTrail.FEET[kind][0]), "%s presses a known print" % kind)
 	# Steps crunch in the snow, on any open ground, but the pace keeps to the ground beneath.

@@ -25,11 +25,19 @@ const LIFE_SHARE := 0.1
 const LOOK := 0.25
 ## Where the bow sits above the ballista's foot.
 const BOW_HEIGHT := 1.25
-const WOOD := Color(0.45, 0.3, 0.16)
-const DARK_WOOD := Color(0.3, 0.2, 0.1)
-const STONE := Color(0.5, 0.48, 0.44)
-const IRON := Color(0.32, 0.33, 0.36)
-const STRING := Color(0.85, 0.8, 0.65)
+## The colours of the model, before the weathering (see WeatheredProps): old
+## timber, dark iron, and twisted sinew rope for the springs and the string.
+const IRON := Color(0.36, 0.37, 0.4)
+const ROPE := Color(0.74, 0.64, 0.48)
+const SINEW := Color(0.62, 0.52, 0.38)
+## Where the springs (and so the roots of the arms) sit on the head, how long
+## an arm is, and how far back it is bent at rest.
+const SPRING_X := 0.27
+const HEAD_Z := 0.95
+const ARM_LENGTH := 1.05
+const ARM_REST := 0.45
+## Where the string's nock rests, drawn back, behind the loaded bolt.
+const NOCK_Z := -0.06
 const RING_COLOR := Color(1.0, 0.55, 0.3, 0.55)
 const DEMOLISH_COLOR := Color(1.0, 0.45, 0.35, 0.6)
 const LEARN := "Balliste: Eine Balliste auf deinem Grundstück schießt von selbst auf jeden Schleim, der ihr zu nahe kommt (18 Meter). Ihre schweren Bolzen treffen immer und kosten einen Schleim einen Zehntel seines Lebens und mehr; nach jedem Schuss spannt sie zweieinhalb Sekunden lang nach. Andere Wesen lässt sie in Ruhe. Du planst sie im Bauplan, auf dem Boden oder auf einem Flachdach."
@@ -44,6 +52,7 @@ var shots := 0
 var _yaw := Node3D.new()
 var _bolt_on_stock: Node3D
 var _arms: Array = []
+var _string: Node3D
 var _ring: MeshInstance3D
 var _reload := 0.0
 var _look := 0.0
@@ -135,43 +144,59 @@ func fire() -> void:
 		var tween := arm.create_tween()
 		tween.tween_property(arm, "rotation:y", rest * 0.35, 0.06)
 		tween.tween_property(arm, "rotation:y", rest, RELOAD * 0.8).set_trans(Tween.TRANS_SINE)
+	# The string goes taut between the tips, then is wound back to the nock.
+	var shot_tip := _tip(ARM_REST * 0.35)
+	var rest_tip := _tip(ARM_REST)
+	var pull := create_tween().set_parallel()
+	pull.tween_property(_string, "position:z", shot_tip.z, 0.06)
+	pull.tween_property(_string, "scale", Vector3(shot_tip.x / rest_tip.x, 1, 0.02), 0.06)
+	pull.chain().tween_property(_string, "position:z", rest_tip.z, RELOAD * 0.8).set_trans(Tween.TRANS_SINE)
+	pull.tween_property(_string, "scale", Vector3.ONE, RELOAD * 0.8).set_trans(Tween.TRANS_SINE)
 	if shots == 1:
 		Events.teach(LEARN)
 
 
 # --- The model -----------------------------------------------------------------
+#
+# A small siege ballista as the Romans built them: a turning post on a stone
+# footing, braced by four struts on a cross of beams; on it a fork holding the
+# stock, with a windlass at the back to wind it; at the front a timber head
+# with two springs of twisted sinew, iron washers on their ends, and an arm
+# rising out of each; the string runs from the arm tips to the nock behind the
+# bolt. Every still part is one mesh in the weathered material of the village
+# props (see WeatheredProps), so the timber shows its grain and the iron rust.
+
+## Where an arm's tip is (in the turning part), turned `angle` back.
+static func _tip(angle: float) -> Vector3:
+	return Vector3(SPRING_X + ARM_LENGTH * cos(angle), 0.0, HEAD_Z - ARM_LENGTH * sin(angle))
+
 
 func _build_model() -> void:
-	var stone := _mat(DEMOLISH_COLOR if demolish else STONE)
-	var wood := _mat(DEMOLISH_COLOR if demolish else WOOD)
-	var dark := _mat(DEMOLISH_COLOR if demolish else DARK_WOOD)
-	var iron := _mat(DEMOLISH_COLOR if demolish else IRON)
-	# A low stone plinth and a thick post it turns on.
-	_box(self, Vector3(0, 0.15, 0), Vector3(1.5, 0.3, 1.5), stone)
-	_box(self, Vector3(0, 0.65, 0), Vector3(0.35, 0.7, 0.35), dark)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	_build_stand(rng)
 	_yaw.position = Vector3(0, BOW_HEIGHT, 0)
 	add_child(_yaw)
-	# The stock points along +z, the way the yaw faces.
-	_box(_yaw, Vector3(0, -0.1, 0.1), Vector3(0.28, 0.22, 2.0), wood)
-	_box(_yaw, Vector3(0, -0.28, -0.6), Vector3(0.5, 0.18, 0.4), dark)
-	_box(_yaw, Vector3(0, 0.0, 1.0), Vector3(0.36, 0.3, 0.2), iron)
-	# Two bow arms bent back from the head, and the string between their tips.
+	_build_bow(rng)
 	for side in [-1.0, 1.0]:
 		var arm := Node3D.new()
-		arm.position = Vector3(0.18 * side, 0.0, 0.95)
-		arm.rotation.y = 0.45 * side
+		arm.name = "Arm"
+		arm.position = Vector3(SPRING_X * side, 0.0, HEAD_Z)
+		arm.rotation.y = ARM_REST * side
 		arm.set_meta("rest", arm.rotation.y)
 		_yaw.add_child(arm)
-		_box(arm, Vector3(0.6 * side, 0, 0), Vector3(1.2, 0.12, 0.14), wood)
-		_box(arm, Vector3(1.2 * side, 0, 0), Vector3(0.1, 0.16, 0.16), iron)
+		_build_arm(arm, side, rng)
 		_arms.append(arm)
-	var string := _box(_yaw, Vector3(0, 0.02, 0.1), Vector3(2.0, 0.03, 0.03), _mat(STRING))
-	string.name = "String"
-	# The loaded bolt: a shaft with an iron head and fletching.
+	_build_string()
+	# The loaded bolt lies in the groove, its tail in the nock.
 	_bolt_on_stock = Node3D.new()
 	_bolt_on_stock.position = Vector3(0, 0.08, 0.5)
 	_yaw.add_child(_bolt_on_stock)
 	Bolt.dress(_bolt_on_stock)
+	if demolish:
+		var red := _mat(DEMOLISH_COLOR)
+		for mi: MeshInstance3D in find_children("*", "MeshInstance3D", true, false):
+			mi.material_override = red
 	# The reach, as a faint circle round its foot (only while the blueprint is open).
 	_ring = MeshInstance3D.new()
 	var torus := TorusMesh.new()
@@ -190,15 +215,126 @@ func _build_model() -> void:
 	add_child(_ring)
 
 
-static func _box(parent: Node3D, at: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
-	var m := MeshInstance3D.new()
-	var b := BoxMesh.new()
-	b.size = size
-	m.mesh = b
-	m.material_override = mat
-	m.position = at
-	parent.add_child(m)
-	return m
+func _timber(rng: RandomNumberGenerator) -> Color:
+	return WeatheredProps.vary(WeatheredProps.TIMBER[rng.randi() % WeatheredProps.TIMBER.size()], rng, 0.05)
+
+
+## The still stand: a footing of fitted stones, a cross of beams, the post with
+## its iron bands and four struts, and the iron turntable on top.
+func _build_stand(rng: RandomNumberGenerator) -> void:
+	var b := WeatheredProps.Builder.new()
+	var st := WeatheredProps.STONE
+	# Four squared stones and a cap stone, not one smooth slab.
+	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		var c := WeatheredProps.vary(WeatheredProps.STONES[rng.randi() % WeatheredProps.STONES.size()], rng, 0.06)
+		var h := 0.2 + rng.randf_range(-0.02, 0.02)
+		b.frustum(Vector3(corner.x * 0.36, 0, corner.y * 0.36), Vector2(0.7, 0.7), Vector2(0.64, 0.64), h, c, st)
+	b.frustum(Vector3(0, 0.18, 0), Vector2(1.08, 1.08), Vector2(1.0, 1.0), 0.08,
+			WeatheredProps.vary(WeatheredProps.STONES[0], rng, 0.04), st)
+	# A cross of sleepers, one laid over the other, pinned with iron.
+	var dark := WeatheredProps.DARK_TIMBER
+	b.box(Vector3(0, 0.26, 0), Vector3(1.5, 0.14, 0.2), _timber(rng))
+	b.box(Vector3(0, 0.4, 0), Vector3(0.2, 0.14, 1.5), _timber(rng))
+	for end in [Vector3(0.66, 0.4, 0), Vector3(-0.66, 0.4, 0), Vector3(0, 0.54, 0.66), Vector3(0, 0.54, -0.66)]:
+		b.cylinder(end, 0.035, 0.03, 0.02, IRON, WeatheredProps.IRON, 6)
+	# The post, eight-sided, with two iron bands.
+	b.cylinder(Vector3(0, 0.54, 0), 0.17, 0.15, 0.44, dark, WeatheredProps.WOOD, 8)
+	for y in [0.62, 0.9]:
+		b.cylinder(Vector3(0, y, 0), 0.18, 0.165, 0.04, IRON, WeatheredProps.IRON, 8)
+	# Four struts from the ends of the sleepers up to the post.
+	for d in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)]:
+		var low := 0.33 if d.x != 0.0 else 0.47
+		b.bar(d * 0.62 + Vector3(0, low, 0), d * 0.12 + Vector3(0, 0.84, 0), 0.045, _timber(rng), WeatheredProps.WOOD, 6)
+	# The iron turntable the bow turns on.
+	b.cylinder(Vector3(0, 0.98, 0), 0.25, 0.23, 0.05, IRON, WeatheredProps.IRON, 12)
+	b.finish(self)
+
+
+## The turning part: the fork and stock, the windlass, and the head with its
+## springs, all one mesh, laid out as if it stood on the ground (see Builder.lift).
+func _build_bow(rng: RandomNumberGenerator) -> void:
+	var b := WeatheredProps.Builder.new()
+	b.lift = Vector3(0, BOW_HEIGHT, 0)
+	var dark := WeatheredProps.DARK_TIMBER
+	var iron := WeatheredProps.IRON
+	# The fork: a block on the turntable and two cheeks with an iron pin.
+	b.box(Vector3(0, -0.22, -0.05), Vector3(0.46, 0.08, 0.42), dark)
+	for side in [-1.0, 1.0]:
+		b.frustum(Vector3(0.19 * side, -0.14, -0.05), Vector2(0.07, 0.4), Vector2(0.07, 0.26), 0.18, _timber(rng))
+	b.bar(Vector3(-0.25, -0.06, -0.05), Vector3(0.25, -0.06, -0.05), 0.03, IRON, iron, 8)
+	# The stock: a long beam with two rails forming the groove the bolt lies in.
+	var stock := _timber(rng)
+	b.box(Vector3(0, -0.14, 0.05), Vector3(0.22, 0.15, 1.95), stock)
+	for side in [-1.0, 1.0]:
+		b.box(Vector3(0.085 * side, 0.01, 0.12), Vector3(0.05, 0.035, 1.6), WeatheredProps.vary(stock, rng, 0.06))
+	for z in [-0.62, -0.1, 0.55]:
+		b.box(Vector3(0, -0.15, z), Vector3(0.24, 0.17, 0.05), IRON, iron)
+	# The trigger claw that holds the string, and its lever under the stock.
+	b.box(Vector3(0, 0.01, NOCK_Z - 0.07), Vector3(0.1, 0.07, 0.1), IRON, iron)
+	b.bar(Vector3(0, -0.14, NOCK_Z - 0.04), Vector3(0, -0.32, NOCK_Z - 0.2), 0.02, IRON, iron, 6)
+	# The windlass at the back: a drum wound with rope, an iron axle, and a
+	# wheel of four spokes on each end.
+	var wz := -0.78
+	b.bar(Vector3(-0.32, -0.12, wz), Vector3(0.32, -0.12, wz), 0.025, IRON, iron, 8)
+	for side in [-1.0, 1.0]:
+		b.box(Vector3(0.14 * side, -0.24, wz), Vector3(0.05, 0.2, 0.14), dark)
+		var hub := Vector3(0.3 * side, -0.12, wz)
+		b.bar(hub - Vector3(0.03 * side, 0, 0), hub + Vector3(0.03 * side, 0, 0), 0.05, dark, WeatheredProps.WOOD, 8)
+		for k in 4:
+			var ang := k * PI / 4.0 + 0.3
+			var dir := Vector3(0, sin(ang), cos(ang))
+			b.bar(hub - dir * 0.19, hub + dir * 0.19, 0.016, _timber(rng), WeatheredProps.WOOD, 5)
+	b.bar(Vector3(-0.1, -0.12, wz), Vector3(0.1, -0.12, wz), 0.05, SINEW, WeatheredProps.WOOD, 8)
+	# The head: a frame of two beams and four stiles, the springs between them.
+	var frame := _timber(rng)
+	for y in [-0.3, 0.17]:
+		b.box(Vector3(0, y, HEAD_Z), Vector3(0.98, 0.09, 0.2), WeatheredProps.vary(frame, rng, 0.05))
+	for x in [-0.46, -0.11, 0.11, 0.46]:
+		b.box(Vector3(x, -0.21, HEAD_Z), Vector3(0.07, 0.38, 0.17), WeatheredProps.vary(frame, rng, 0.05))
+	# Iron plates on the corners of the frame.
+	for x in [-0.46, 0.46]:
+		for y in [-0.31, 0.16]:
+			b.box(Vector3(x, y, HEAD_Z + 0.105), Vector3(0.12, 0.11, 0.01), IRON, iron)
+	for side in [-1.0, 1.0]:
+		var at := Vector3(SPRING_X * side, 0, HEAD_Z)
+		# The spring: a thick bundle of twisted sinew, bound twice round.
+		b.cylinder(at + Vector3(0, -0.36, 0), 0.075, 0.075, 0.62, SINEW, WeatheredProps.WOOD, 10)
+		for y in [-0.2, 0.06]:
+			b.cylinder(at + Vector3(0, y, 0), 0.082, 0.082, 0.03, ROPE, WeatheredProps.WOOD, 10)
+		# An iron washer on each end, with the lever that twists it.
+		for y in [0.215, -0.395]:
+			b.cylinder(at + Vector3(0, y, 0), 0.1, 0.095, 0.045, IRON, iron, 12)
+			b.box(at + Vector3(0, y + 0.045, 0), Vector3(0.26, 0.03, 0.04), IRON, iron)
+	b.finish(_yaw, -b.lift)
+
+
+## One arm: a tapering timber limb out of the spring, bound with iron where it
+## leaves it and capped with iron at the tip, where the string is tied.
+func _build_arm(arm: Node3D, side: float, rng: RandomNumberGenerator) -> void:
+	var b := WeatheredProps.Builder.new()
+	b.lift = Vector3(0, BOW_HEIGHT, 0)
+	var out := Vector3(side, 0, 0)
+	var along := Basis(Vector3(0, 0, 1).cross(out), out, Vector3(0, 0, 1))
+	b.frustum(Vector3.ZERO, Vector2(0.09, 0.12), Vector2(0.055, 0.075), ARM_LENGTH, _timber(rng), WeatheredProps.WOOD, along)
+	b.frustum(out * 0.08, Vector2(0.11, 0.14), Vector2(0.11, 0.14), 0.05, IRON, WeatheredProps.IRON, along)
+	b.frustum(out * (ARM_LENGTH - 0.08), Vector2(0.07, 0.09), Vector2(0.05, 0.07), 0.1, IRON, WeatheredProps.IRON, along)
+	b.finish(arm, -b.lift)
+
+
+## The string, from tip to tip by way of the nock. It stands where the tips
+## are, so that firing only has to slide it forward and flatten it.
+func _build_string() -> void:
+	_string = Node3D.new()
+	_string.name = "String"
+	var tip := _tip(ARM_REST)
+	_string.position = Vector3(0, 0.03, tip.z)
+	_yaw.add_child(_string)
+	var b := WeatheredProps.Builder.new()
+	b.lift = Vector3(0, BOW_HEIGHT, 0)
+	var nock := Vector3(0, 0.03, NOCK_Z - tip.z)
+	for side in [-1.0, 1.0]:
+		b.bar(Vector3(tip.x * side, 0, 0), nock, 0.012, ROPE, WeatheredProps.WOOD, 5)
+	b.finish(_string, -b.lift, false)
 
 
 static func _mat(colour: Color) -> StandardMaterial3D:
@@ -220,10 +356,24 @@ class Bolt extends Node3D:
 	var _aim := Vector3.ZERO
 	var _age := 0.0
 
+	## A round ash shaft, a four-sided iron head and three leather vanes,
+	## the head on +z.
 	static func dress(parent: Node3D) -> void:
-		HouseBallista._box(parent, Vector3(0, 0, 0), Vector3(0.07, 0.07, 1.1), HouseBallista._mat(Color(0.55, 0.4, 0.22)))
-		HouseBallista._box(parent, Vector3(0, 0, 0.6), Vector3(0.14, 0.14, 0.18), HouseBallista._mat(HouseBallista.IRON))
-		HouseBallista._box(parent, Vector3(0, 0, -0.5), Vector3(0.22, 0.02, 0.16), HouseBallista._mat(Color(0.9, 0.88, 0.8)))
+		var b := WeatheredProps.Builder.new()
+		b.lift = Vector3(0, HouseBallista.BOW_HEIGHT, 0)
+		var ahead := Basis(Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(0, -1, 0))
+		b.cylinder(Vector3(0, 0, -0.55), 0.03, 0.03, 1.02, Color(0.7, 0.56, 0.4), WeatheredProps.WOOD, 6, ahead)
+		b.frustum(Vector3(0, 0, 0.44), Vector2(0.05, 0.05), Vector2(0.075, 0.075), 0.05, HouseBallista.IRON, WeatheredProps.IRON, ahead)
+		b.frustum(Vector3(0, 0, 0.49), Vector2(0.075, 0.075), Vector2(0.004, 0.004), 0.17, HouseBallista.IRON, WeatheredProps.IRON, ahead)
+		for k in 3:
+			var ang := k * TAU / 3.0 + PI / 2.0
+			var out := Vector3(cos(ang), sin(ang), 0)
+			# A thin vane, so it gets a face on each side.
+			for face in [1.0, -1.0]:
+				b.quad(Vector3(0, 0, -0.54) + out * 0.025, Vector3(0, 0, -0.32) + out * 0.025,
+						Vector3(0, 0, -0.36) + out * 0.085, Vector3(0, 0, -0.52) + out * 0.09,
+						Color(0.5, 0.38, 0.26), WeatheredProps.WOOD, out.cross(Vector3(0, 0, 1)) * face)
+		b.finish(parent, -b.lift, false)
 
 	func _ready() -> void:
 		dress(self)

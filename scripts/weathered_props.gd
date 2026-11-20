@@ -149,6 +149,10 @@ static func vary(colour: Color, rng: RandomNumberGenerator, amount := 0.08) -> C
 class Builder:
 	var _st := SurfaceTool.new()
 	var _empty := true
+	## Added to every corner: lay out a part that hangs high above its own
+	## origin (a turning bow) as if it stood on the ground, then finish it
+	## that far down, so its grime and moss gather where the real ground is.
+	var lift := Vector3.ZERO
 
 	func _init() -> void:
 		_st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -164,11 +168,11 @@ class Builder:
 			nb = nc
 			nc = tn
 		_st.set_normal(na if na != Vector3.ZERO else n)
-		_st.add_vertex(a)
+		_st.add_vertex(a + lift)
 		_st.set_normal(nb if nb != Vector3.ZERO else n)
-		_st.add_vertex(b)
+		_st.add_vertex(b + lift)
 		_st.set_normal(nc if nc != Vector3.ZERO else n)
-		_st.add_vertex(c)
+		_st.add_vertex(c + lift)
 		_empty = false
 
 	func _quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3) -> void:

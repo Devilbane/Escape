@@ -66,6 +66,7 @@ func _process(_delta: float) -> bool:
 	_clears_up()
 	_rolls()
 	_bolt()
+	_fog_rolls_in()
 	_clock_and_saving()
 	_dungeon()
 	_finish()
@@ -286,6 +287,23 @@ func _bolt() -> void:
 	check(bolt.get_child_count() == 2 and (bolt.get_child(0) as MeshInstance3D).mesh.get_surface_count() == 1, "the bolt is a core and a glow")
 	bolt.free()
 	check(LightningBolt.lasts() >= 1.2, "the bolt stays a moment (%.2f s)" % LightningBolt.lasts())
+
+
+## Fog rolls in slowly, thickening evenly over FOG_BUILD seconds, and lifts at the usual pace.
+func _fog_rolls_in() -> void:
+	var look := Weather.look(Weather.CLEAR)
+	var fog := Weather.look(Weather.FOG)
+	var seen := []
+	for i in 60:
+		look = Weather.ease_look(look, fog, Weather.FOG_BUILD / 60.0)
+		seen.append(float(look.mist))
+	check(seen[5] < 0.15 and seen[29] > 0.4 and seen[29] < 0.6, "the fog thickens slowly (%.2f after a tenth, %.2f halfway)" % [seen[5], seen[29]])
+	check(is_equal_approx(seen[59], 1.0) and is_equal_approx(float(look.fog), float(fog.fog)), "the fog reaches its full thickness after FOG_BUILD")
+	check(float(look.sun) < 0.6, "the light dims at the usual pace")
+	for i in 30:
+		look = Weather.ease_look(look, Weather.look(Weather.CLEAR), 1.0)
+	check(float(look.mist) < 0.01, "the fog lifts within the usual fade")
+	check(Weather.make_mist().preprocess == 0.0, "the mist starts without a burst of particles")
 
 
 func _clock_and_saving() -> void:

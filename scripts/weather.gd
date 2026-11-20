@@ -122,6 +122,10 @@ const HAZE := Color(0.66, 0.68, 0.72)
 ## How long the look takes to move most of the way to a new weather
 ## (real seconds).
 const FADE := 5.0
+## Fog rolls in slowly: the mist and the haze thicken evenly from nothing to their full
+## strength over this many real seconds (see ease_look), instead of within FADE. Clearing up
+## still takes FADE.
+const FOG_BUILD := 60.0
 
 ## Every night is a little dusty: the mist at its thinnest, this share of
 ## the thickness of real fog, fading in at dusk and out at dawn.
@@ -319,6 +323,19 @@ static func look(kind: String) -> Dictionary:
 
 
 ## A look partway (t from 0 to 1) from one to another.
+## The look `delta` real seconds further on its way from `from` to the look of the weather
+## `to`: most of the way within FADE, but the mist and the haze only thicken at the pace of
+## FOG_BUILD, so fog rolls in slowly.
+static func ease_look(from: Dictionary, to: Dictionary, delta: float) -> Dictionary:
+	var out := blend(from, to, 1.0 - exp(-delta / FADE))
+	var full: Dictionary = LOOKS[FOG]
+	for key in ["mist", "fog"]:
+		var was := float(from.get(key, 0.0))
+		if float(to[key]) > was:
+			out[key] = move_toward(was, float(to[key]), float(full[key]) * delta / FOG_BUILD)
+	return out
+
+
 static func blend(from: Dictionary, to: Dictionary, t: float) -> Dictionary:
 	var out := {}
 	for key in to:
@@ -480,7 +497,8 @@ static func make_mist() -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.amount = MIST_PATCHES
 	p.lifetime = 12.0
-	p.preprocess = 12.0
+	# No preprocess: fog rolls in slowly (see FOG_BUILD), so the patches can drift in as it
+	# thickens, and starting them costs no burst of twelve seconds of particles in one frame.
 	p.local_coords = false
 	p.emitting = false
 	var patch := QuadMesh.new()

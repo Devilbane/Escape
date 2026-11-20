@@ -1,0 +1,1 @@
+- Fog now rolls in slowly over about a minute instead of appearing at once.

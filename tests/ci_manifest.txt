@@ -265,7 +265,7 @@ house_cellar_floor.gd | 120 | free | pass | House cellar: ground opens over dug 
 house_cellar_ceiling.gd | 120 | free | pass | House cellar ceiling: wood or stone floor over dug cells, stairs stay open, snow and items on it
 house_ladder.gd | 120 | fixed | passfail | House ladder: one cell against a slab or pit wall, built after it, the hero climbs up and down it
 bare_earth.gd | 120 | fixed | passfail | Bare earth: a bare cellar looks like dug soil (varied, shared material)
-house_looks_shots.gd | 120 | fixed | passfail | House looks: stone in the temple's blocks, flagstone and plank floors, stair-board walls
+house_looks_shots.gd | 120 | fixed | passfail | House looks: stone walls, flagstone and plank floors, stair-board walls
 storm_build.gd | 120 | fixed | pass | Lightning while building a cellar: nothing calls into a freed node
 house_roof_items.gd | 120 | free | pass | Things on a flat roof: stone blocks and crates stand on a built slab, blocks go back when it goes
 house_upper.gd | 120 | free | pass | House upper floor: slabs, flat and saddle roofs, stairs up, solid ground at every level, roof fading
@@ -281,3 +281,4 @@ reach_walls.gd | 300 | fixed | passfail | Nothing is picked up or used through a
 house_hiding.gd | 300 | fixed | passfail | Monsters neither see, hear, strike nor shoot a hero inside a built house unless a window or open door lets them, and the hero inside sees out only that way too
 light_shadows.gd | 120 | fixed | passfail | Walls block light (nearest lamps cast shadows within a budget; house torches flush on the wall)
 click_spots.gd | 120 | fixed | pass | Beds and workbenches open only on their pillow or bench top
+stone_look_shots.gd | 180 | fixed | passfail | Natural stonework: village buildings carry their rounded edges, built houses and cellars are stone

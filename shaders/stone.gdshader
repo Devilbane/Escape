@@ -7,6 +7,7 @@ shader_type spatial;
 
 #include "res://shaders/detail.gdshaderinc"
 #include "res://shaders/reveal.gdshaderinc"
+#include "res://shaders/masonry.gdshaderinc"
 
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -21,11 +22,21 @@ uniform float desaturate = 0.0;
 // the hero (see WallFade). Pixels drop out in a fine even pattern, so the
 // wall stays an ordinary solid one in the opaque pass.
 instance uniform float fade = 0.0;
+// The dungeon walls in natural stonework (see StoneLook): their upright faces are
+// laid in stones of differing size in world space, in the colour of the kit's
+// stone (stone_tint), instead of the kit's even bricks.
+uniform float masonry = 0.0;
+uniform float course = 0.3;
+uniform float irregular = 0.0;
+uniform float edge_round = 0.0;
+uniform vec3 stone_tint : source_color = vec3(0.34, 0.325, 0.31);
 
 varying vec3 world_pos;
+varying vec3 world_nrm;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 
 void fragment() {
@@ -39,10 +50,19 @@ void fragment() {
 	float shade = 1.0 + strength * (0.24 * (stains - 0.5) + 0.16 * (grit - 0.5) - 0.14 * pits + 0.08 * sand);
 	vec3 c = texture(albedo_tex, UV).rgb;
 	c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))), desaturate);
-	ALBEDO = c * albedo_color * shade;
 	float h = strength * (grit * 0.02 * band(5.0, px) - pits * 0.004 + sand * 0.0015);
+	// Upright faces in natural stonework (the tops keep the kit's slabs).
+	float laid = masonry > 0.5 ? 1.0 - smoothstep(0.5, 0.7, abs(world_nrm.y)) : 0.0;
+	if (laid > 0.0) {
+		vec3 wn = abs(world_nrm);
+		vec2 along = wn.x > wn.z ? vec2(p.z, p.y) : vec2(p.x, p.y);
+		vec4 st = natural_stone(along, stone_tint, course, irregular, px);
+		c = mix(c, st.rgb / max(albedo_color, vec3(0.01)), laid);
+		h += st.a * 0.015 * band(1.0 / course, px) * laid;
+	}
+	ALBEDO = c * albedo_color * shade;
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
-	if (use_normal_map) {
+	if (use_normal_map && laid < 0.5) {
 		NORMAL_MAP = texture(normal_tex, UV).rgb;
 	}
 	ROUGHNESS = 0.92 + 0.08 * grit;

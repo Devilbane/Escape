@@ -1,0 +1,1 @@
+- Stone walls (village buildings, your own house, garden and cellar walls, dungeon walls) are laid in stones of differing size, and the hard edges of stone buildings are rounded off. The villagers' houses keep their old stone.

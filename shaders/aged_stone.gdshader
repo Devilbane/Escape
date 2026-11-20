@@ -28,6 +28,7 @@ shader_type spatial;
 // piece (blocks = 0), older still, greyer, and spotted with lichen.
 
 #include "res://shaders/detail.gdshaderinc"
+#include "res://shaders/masonry.gdshaderinc"
 
 uniform sampler2D palette : source_color, filter_linear_mipmap, repeat_enable;
 uniform bool use_palette = true;
@@ -63,6 +64,14 @@ uniform bool canvas = false;
 uniform sampler2D canvas_shadow : hint_default_black, filter_linear;
 uniform vec4 canvas_rect = vec4(-0.5, -0.5, 1.0, 1.0);
 uniform float canvas_dark = 0.55;
+// Natural stonework (see StoneLook and masonry.gdshaderinc): 1 lays the walls in
+// stones of differing size instead of the trim sheet's even blocks; how high a
+// course stands (metres) and how rough the stone is; how round (metres) the
+// building's outer edges are.
+uniform float masonry = 0.0;
+uniform float course = 0.3;
+uniform float irregular = 0.0;
+uniform float edge_round = 0.0;
 
 // The four rows of stone blocks on the trim sheet (v, top and bottom), the
 // metres one copy of them covers across and up, and the red roof tiles.
@@ -74,6 +83,9 @@ const vec2 TILES_SIZE = vec2(2.4, 1.2);
 // and its mean brightness as painted.
 const vec2 WOOD_SIZE = vec2(2.0, 0.9);
 const float WOOD_MEAN = 0.333;
+// How light the natural stonework is against the stone's tint (to match the
+// trim sheet's blocks), and the warmth it takes on.
+const vec3 STONE_SHADE = vec3(0.7, 0.66, 0.6);
 
 varying vec3 wpos;
 varying vec3 wnrm;
@@ -82,9 +94,11 @@ varying vec3 grain_dir;
 varying float has_dir;
 varying vec3 obj_pos;
 varying float obj_scale;
+varying vec4 edge_d;
 
 void vertex() {
 	obj_pos = VERTEX;
+	edge_d = CUSTOM0;
 	obj_scale = length(MODEL_MATRIX[0].xyz);
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	wnrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
@@ -153,6 +167,14 @@ void fragment() {
 	float grain = fbm(wpos * 2.2 + 3.0);
 	float pits = vnoise(wpos * 17.0);
 	vec3 solid = tint * (0.74 + 0.32 * grain) * (0.94 + 0.12 * pits * band(17.0, px));
+	if (masonry > 0.5) {
+		// Natural stonework: stones of differing size with rounded corners.
+		vec4 side = natural_stone(along, tint * STONE_SHADE, course, irregular, px);
+		vec4 top = natural_stone(my, tint * STONE_SHADE, course, irregular, px);
+		vec4 laid = mix(side, top, w.y);
+		stone = laid.rgb;
+		relief = laid.a * 0.55;
+	}
 	stone = mix(solid, stone, blocks);
 	relief = mix(0.35 * grain + 0.25 * pits * band(17.0, px), relief, blocks);
 
@@ -263,6 +285,8 @@ void fragment() {
 	// Relief: the joints between the blocks sink in.
 	float bump = mix(0.6, 0.3, soft_joints);
 	float height = weave_h * 0.4 * sail + (relief * wall + tiles * 0.15 * roof * (1.0 - woody)) * band(2.0, px) + woody * wl * 0.6 * band(30.0, px);
-	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * bump, dFdy(height) * bump), 0.0)).xyz);
+	// The rounded outer edges of the building (see StoneLook.edge_data).
+	vec2 bevel = edge_bevel(edge_d * obj_scale, edge_round);
+	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * bump + bevel.x, dFdy(height) * bump + bevel.y), 0.0)).xyz);
 	EMISSION = glow_colour * window * glow;
 }

@@ -3041,6 +3041,9 @@ func _sync_built() -> void:
 ## many block layers: a player's slab or flat roof. Blocks lie on top of it, and
 ## a pile there may be MAX_LAYERS high.
 var roof_layers := {}
+## Where a companion can walk round the houses with a cellar or an upper floor
+## (see HouseFloors), or null where there are none.
+var house_floors: HouseFloors = null
 
 
 ## The layer the floor under a block's two cells is at.

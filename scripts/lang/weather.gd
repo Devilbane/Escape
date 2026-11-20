@@ -8,7 +8,7 @@ const EN := {
 	"Gewitter": "thunderstorm",
 	"Schnee": "snow",
 	"Winter": "winter",
-	"Der Winter ist da! Acht Tage lang fällt Schnee statt Regen.": "Winter is here! For eight days snow falls instead of rain.",
+	"Der Winter ist da! Eine Woche lang fällt Schnee statt Regen.": "Winter is here! For a week snow falls instead of rain.",
 	"Der Winter geht zu Ende. Der Schnee taut.": "Winter is ending. The snow thaws.",
 	"Es schneit! Dicke Flocken fallen, und auf Dächern und Wiesen bleibt der Schnee liegen.": "It is snowing! Big flakes fall, and the snow settles on roofs and meadows.",
 	"Es fängt an zu regnen. Am Teich im Wald kriechen Schleime aus dem Wasser.": "It starts to rain. Slimes crawl out of the pond in the woods.",

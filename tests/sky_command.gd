@@ -61,7 +61,7 @@ func _run() -> void:
 		check(Lang.EN.has(line), "help has an English text: " + line)
 	# The seasons.
 	check(Weather.is_winter(SkyCommand.day_for(3, true)) and not Weather.is_winter(SkyCommand.day_for(26, false)), "season days")
-	check(SkyCommand.day_for(26, false) == 32, "spring is the next year's start")
+	check(SkyCommand.day_for(26, false) == Weather.YEAR_DAYS, "spring is the next year's start")
 
 	# The game.
 	var news: Array = game.event_log.entries()
@@ -75,13 +75,13 @@ func _run() -> void:
 	game._hero_says("time:0")
 	check(is_equal_approx(game.day_hour, 0.0) and game.weather == Weather.RAIN, "time keeps the weather")
 	game._hero_says("weather:winter")
-	check(Weather.is_winter(game.day) and game.weather == Weather.SNOW and game.snow_cover == 1.0, "winter on")
+	check(Weather.is_winter(game.season_day()) and game.weather == Weather.SNOW and game.snow_cover == 1.0, "winter on")
 	game._hero_says("weather:storm")
-	check(not Weather.is_winter(game.day) and game.weather == Weather.STORM, "a storm ends the winter")
+	check(not Weather.is_winter(game.season_day()) and game.weather == Weather.STORM, "a storm ends the winter")
 	game._hero_says("weather:hail")
 	check(game.event_log.entries()[-1].contains("weather:"), "options listed")
 	game._hero_says("weather:spring")
-	check(not Weather.is_winter(game.day) and game.snow_cover == 0.0, "spring")
+	check(not Weather.is_winter(game.season_day()) and game.snow_cover == 0.0, "spring")
 
 	# The tour.
 	check(SkyCommand.parse("weather:showcase").tour == "showcase" and SkyCommand.parse("weather:stop").tour == "stop", "tour words")

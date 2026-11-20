@@ -8,7 +8,7 @@ extends RefCounted
 ##   weather:snow         snow now (and a full layer of snow on the ground)
 ##   weather:-night       the night, the weather stays
 ##   time:14              14:00 (also "14:30"), the weather stays
-##   weather:winter-snow  the winter (day 24 of the year) with snow
+##   weather:winter-snow  the winter (the first day of winter) with snow
 ##   weather:spring       out of winter (the first day of the next spring)
 ##
 ## "weather:" and "time:" are the same command: after the colon come words
@@ -118,8 +118,8 @@ static func hour_of(word: String) -> float:
 	return hour
 
 
-## The day that starts the wanted season, counting on from `day`: the first
-## day of the winter of this year, or the first day of the next year.
+## The season day (see Seasons) that starts the wanted season, counting on from `day`: the first
+## day of the winter of this year, or the first day of the next year (spring).
 static func day_for(day: int, winter: bool) -> int:
 	var year_start := day - posmod(day, Weather.YEAR_DAYS)
 	if winter:
@@ -127,7 +127,7 @@ static func day_for(day: int, winter: bool) -> int:
 	return year_start + Weather.YEAR_DAYS
 
 
-## A day in autumn, counting on from `day`: `day` itself in autumn, else the next day of autumn on
+## A season day in autumn, counting on from `day`: `day` itself in autumn, else the next day of autumn on
 ## which the vines have turned red and gold (see IvySeasons.TURN_DAYS).
 static func autumn_from(day: int) -> int:
 	if Weather.is_autumn(day):

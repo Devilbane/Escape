@@ -224,6 +224,8 @@ var villagers: Array = []
 ## Every living tree of the woods, for the birds and squirrels in them (see
 ## WoodsLife): where it stands and how tall it is.
 var _wood_trees: Array = []
+## The season's stage the trees' leaves were last dressed for (see set_season, IvySeasons.stage).
+var _tree_stage := IvySeasons.SUMMER
 ## The birds and squirrels of the woods (see WoodsLife).
 var woods: WoodsLife
 ## The glowworm swarms that roam the night (see GlowwormSwarms).
@@ -473,6 +475,8 @@ var _wear_known := false
 ## "winter" or "spring" on the first morning of a season, until the villagers have had their say
 ## about it (see Villager.season_remark), and the world hour it lasts until.
 var season_talk := ""
+## The season day the world is on (see Seasons, Game.season_day): what winter and autumn go by.
+var season_day := 0
 var season_talk_until := 0.0
 ## Zarek, the wandering merchant, while he is in the village (else null),
 ## his pitch, and his cart with its lantern and its solid shapes.
@@ -896,6 +900,9 @@ func _tree_material(mat: Material, wind := true) -> Material:
 		bark.shader = TREE_SHADER
 		bark.set_shader_parameter("albedo_tex", tex)
 		bark.set_shader_parameter("wind", 1.0 if wind else 0.0)
+		var turn := IvySeasons.tree_turn(_tree_stage)
+		bark.set_shader_parameter("autumn", turn.x)
+		bark.set_shader_parameter("wither", turn.y)
 		_scenes[key] = bark
 	return _scenes[key]
 
@@ -3593,6 +3600,16 @@ func set_winter_wear(on: bool, at_once := false) -> void:
 ## in winter (see IvySeasons). `season_day` is the day whose season counts (from dusk on tomorrow's).
 func set_season(season_day: int) -> void:
 	IvySeasons.apply(ivy, season_day)
+	# The leafy trees turn with the vines (see tree.gdshader).
+	var at := IvySeasons.stage(season_day)
+	if at == _tree_stage:
+		return
+	_tree_stage = at
+	var turn := IvySeasons.tree_turn(at)
+	for key in _scenes:
+		if String(key).begins_with("mat_tree_"):
+			(_scenes[key] as ShaderMaterial).set_shader_parameter("autumn", turn.x)
+			(_scenes[key] as ShaderMaterial).set_shader_parameter("wither", turn.y)
 
 
 ## Whether a tile is walkable ground (for villagers picking where to go).

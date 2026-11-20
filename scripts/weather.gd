@@ -58,13 +58,19 @@ const CHANCES := {
 	"evening": {CLEAR: 8.0, RAIN: 1.25, FOG: 0.5, STORM: 1.5},
 }
 
-## The year: WINTER_DAYS of winter at the end of every YEAR_DAYS days (a new game starts on day
-## 0, so the first winter comes on day 24). Snow falls only in winter, and there is no rain and no
-## thunderstorm then: snow comes in their place, often, and the snow on the ground stays until spring.
-const YEAR_DAYS := 32
-const WINTER_DAYS := 8
-## The AUTUMN_DAYS before winter are autumn: the vines on the houses turn red and gold (see IvySeasons).
-const AUTUMN_DAYS := 8
+## The year: four seasons of SEASON_DAYS real days each, spring, summer, autumn and winter, counted
+## in season days (see Seasons: the real calendar, one real week a season). Snow falls only in winter,
+## and there is no rain and no thunderstorm then: snow comes in their place, often, and the snow on
+## the ground stays until spring.
+const SEASON_DAYS := 7
+const YEAR_DAYS := 4 * SEASON_DAYS
+const SPRING_DAYS := SEASON_DAYS
+const WINTER_DAYS := SEASON_DAYS
+## Autumn comes just before winter: the leaves of the trees and the vines on the houses turn red,
+## brown and gold (see IvySeasons, tree.gdshader).
+const AUTUMN_DAYS := SEASON_DAYS
+## The season day of the year on which autumn starts.
+const AUTUMN_FROM := YEAR_DAYS - WINTER_DAYS - AUTUMN_DAYS
 const WINTER_CHANCES := {
 	"night": {CLEAR: 6.0, FOG: 2.0, SNOW: 5.0},
 	"morning": {CLEAR: 6.0, FOG: 2.5, SNOW: 4.0},
@@ -209,7 +215,12 @@ static func spell(rng: RandomNumberGenerator, kind := RAIN) -> float:
 	return rng.randf_range(MIN_HOURS, MAX_HOURS)
 
 
-## Whether `day` (the game's count of days) is in winter (see YEAR_DAYS).
+## Whether season day `day` (see Seasons) is in spring, the SPRING_DAYS that open the year.
+static func is_spring(day: int) -> bool:
+	return posmod(day, YEAR_DAYS) < SPRING_DAYS
+
+
+## Whether season day `day` (see Seasons) is in winter (see YEAR_DAYS).
 static func is_winter(day: int) -> bool:
 	return posmod(day, YEAR_DAYS) >= YEAR_DAYS - WINTER_DAYS
 

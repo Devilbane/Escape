@@ -468,6 +468,9 @@ var _risen: Array = []
 ## The day the world's clock is on (see Game.day): with the hour it tells
 ## which night it is, and whether the wandering merchant is in the village.
 var day := 0
+## The season day the world is on (see Seasons, Game.season_day, set_season): what winter, autumn
+## and the flowers in the gardens go by.
+var season_day := 0
 ## Whether the village wears its winter clothes (see WinterWear), set by Game from the day and the
 ## hour: the clothes change in the night, so the village is asleep when they do.
 var winter_wear := false
@@ -475,8 +478,6 @@ var _wear_known := false
 ## "winter" or "spring" on the first morning of a season, until the villagers have had their say
 ## about it (see Villager.season_remark), and the world hour it lasts until.
 var season_talk := ""
-## The season day the world is on (see Seasons, Game.season_day): what winter and autumn go by.
-var season_day := 0
 var season_talk_until := 0.0
 ## Zarek, the wandering merchant, while he is in the village (else null),
 ## his pitch, and his cart with its lantern and its solid shapes.
@@ -2778,7 +2779,8 @@ func _build_house() -> void:
 			if ch == "B":
 				_place("bed_decorated", cell_to_world(c), 0.0)
 				_add_solid(cell_to_world(c), Vector3(3.2, 1.5, 3.2))
-				stations.append({"kind": "bett", "cell": c, "pos": cell_to_world(c), "rot": 0.0, "used": false})
+				stations.append({"kind": "bett", "cell": c, "pos": cell_to_world(c), "rot": 0.0, "used": false,
+						"spot": pillow_spot(cell_to_world(c), 0.0)})
 				home_spot = cell_to_world(c + Vector2i(0, 1))
 				fox_beds.append(home_spot + Vector3(1.2, 0, -0.6))
 			elif ch == "L":
@@ -3500,11 +3502,11 @@ func _npc_station_near(point: Vector3, reach: float) -> Dictionary:
 
 ## A click near a villager walks up to the trader among them first, like a
 ## bump (see _npc_station_near); anything else as anywhere.
-func nearest_station(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
+func nearest_station(from: Vector3, max_distance := SEARCH_RANGE, skip_spots := false) -> Dictionary:
 	var npc := _npc_station_near(from, max_distance)
 	if not npc.is_empty() and npc.kind != "npc":
 		return npc
-	var other := super(from, max_distance)
+	var other := super(from, max_distance, skip_spots)
 	if other.is_empty() or (not npc.is_empty() and other.has("npc")):
 		return npc
 	return other
@@ -3598,11 +3600,13 @@ func set_winter_wear(on: bool, at_once := false) -> void:
 
 
 ## The vines on the houses turn with the seasons: red and gold in autumn, snowy and without grapes
-## in winter (see IvySeasons). `season_day` is the day whose season counts (from dusk on tomorrow's).
-func set_season(season_day: int) -> void:
-	IvySeasons.apply(ivy, season_day)
+## in winter (see IvySeasons); the leafy trees turn with them. `day_of_season` is the season day
+## (see Seasons).
+func set_season(day_of_season: int) -> void:
+	season_day = day_of_season
+	IvySeasons.apply(ivy, day_of_season)
 	# The leafy trees turn with the vines (see tree.gdshader).
-	var at := IvySeasons.stage(season_day)
+	var at := IvySeasons.stage(day_of_season)
 	if at == _tree_stage:
 		return
 	_tree_stage = at

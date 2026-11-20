@@ -16,6 +16,7 @@ const FLOOR_LIFT := 0.85
 
 static var _tex: Texture2D = null
 static var _floor_tex: Texture2D = null
+static var _riser: StandardMaterial3D = null
 
 
 ## The picture of one tread or riser: boards running across it (left to right), each a little
@@ -130,6 +131,52 @@ static func build_up(parent: Node3D, pos: Vector3, tile: float) -> Node3D:
 		_box(holder, Vector3(UP_WIDTH, top, UP_RUN), Vector3(0, top * 0.5, z), riser_mat)
 		_box(holder, Vector3(UP_TREAD_WIDTH, 0.06, UP_RUN + 0.04), Vector3(0, top + 0.03, z - 0.02), tread_mat)
 	return holder
+
+
+## How high one step of a built flight rises at most (metres); see build_flight.
+const FLIGHT_STEP := 0.3
+
+
+## A flight of the same wooden steps for stairs the hero builds in a house of their own
+## (see HouseSketcher._ramp): `start` is the middle of its top (for a flight down) or foot
+## (for a flight up) edge, at the ground, `flat` the level direction it runs in, `length`
+## how far and `rise` how much it climbs (negative goes down). Each step is a dark block
+## under a pale tread board a little narrower than the flight, as on Weavers' Lane. The
+## treads sit half a step around the straight slope from `start` to its end, so feet
+## walking that slope stay on them. `tread_mat` and `riser_mat` replace the wood (for
+## stairs about to be pulled down). Returns the flight's node, already under `parent`.
+static func build_flight(parent: Node3D, start: Vector3, flat: Vector3, length: float, rise: float,
+		width: float, tread_mat: Material = null, riser_mat: Material = null) -> Node3D:
+	var holder := Node3D.new()
+	parent.add_child(holder)
+	# Locally the flight runs along -z, its steps as wide as x, like build_up's.
+	holder.transform = Transform3D(Basis.looking_at(flat), start)
+	if tread_mat == null:
+		tread_mat = material(Color(1.0, 0.97, 0.92))
+	if riser_mat == null:
+		riser_mat = flight_riser()
+	var steps := maxi(2, ceili(absf(rise) / FLIGHT_STEP))
+	var run := length / float(steps)
+	var bottom := minf(0.0, rise)
+	# The tread board juts out over the riser below it, towards the lower end.
+	var nose := 0.04 * (1.0 if rise > 0.0 else -1.0)
+	for i in steps:
+		var top := rise * (float(i) + 0.5) / float(steps)
+		var z := -run * (float(i) + 0.5)
+		var high := top - bottom
+		_box(holder, Vector3(width, high, run), Vector3(0, bottom + high * 0.5, z), riser_mat)
+		_box(holder, Vector3(width - 0.25, 0.06, run + absf(nose)), Vector3(0, top + 0.03, z + nose * 0.5), tread_mat)
+	return holder
+
+
+## The blocks under a built flight's treads: the treads' wood, darker, its boards laid
+## level in world space (as HouseLooks.stair_wood lays them on a wall), so the tall
+## sides of a flight show courses of boards instead of one stretched picture.
+static func flight_riser() -> StandardMaterial3D:
+	if _riser == null:
+		_riser = HouseLooks.stair_wood().duplicate()
+		_riser.albedo_color = Color(0.62, 0.56, 0.5)
+	return _riser
 
 
 static func _box(parent: Node3D, size: Vector3, at: Vector3, mat: Material) -> void:

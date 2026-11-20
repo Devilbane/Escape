@@ -80,7 +80,8 @@ static func build(level: Level, c: Vector2i, ch: String) -> void:
 	var bench: Dictionary = BENCHES[ch]
 	_add_sign(level, pos, Lang.t(bench.sign), bench.icon)
 	level._add_solid(pos + Vector3(-0.5, 0, 0), Vector3(2.0, 1.2, 3.0))
-	level.stations.append({"kind": "werkbank", "craft": bench.craft, "cell": c, "pos": pos, "used": false})
+	level.stations.append({"kind": "werkbank", "craft": bench.craft, "cell": c, "pos": pos, "used": false,
+			"spot": pos + TOP})
 
 
 ## The bench of a craft letter and what lies on it, at `pos` in `parent`: the worker stands to its
@@ -90,7 +91,7 @@ static func build_bench(parent: Node, pos: Vector3, ch: String, seed_value: int)
 	rng.seed = seed_value
 	var b := WeatheredProps.Builder.new()
 	VillageProps.build_workbench(b, Vector3(-0.7, 0, 0), rng)
-	var top := Vector3(-0.7, 0.98, 0)
+	var top := TOP
 	match ch:
 		"+":
 			VillageProps.dress_metalwork(b, top, rng)
@@ -105,6 +106,10 @@ static func build_bench(parent: Node, pos: Vector3, ch: String, seed_value: int)
 
 
 # --- Pieces -------------------------------------------------------------------
+
+## The middle of the bench top, from the middle of the tile: the only spot a click opens the
+## bench on (see Level.station_clicked).
+const TOP := Vector3(-0.7, 0.98, 0)
 
 ## Where the alchemist's cauldron stands, from the middle of the tile: in
 ## front of the south end of the bench.

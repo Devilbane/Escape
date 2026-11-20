@@ -1,0 +1,2 @@
+- Stairs you build in your house are now real wooden steps, like those in the town houses on Weavers' Lane, instead of a flat plank ramp.
+- You no longer get stuck at the top of your cellar stairs when a floor is laid where they come up.

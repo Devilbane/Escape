@@ -4,7 +4,7 @@ extends SceneTree
 ## blueprint bar still fits the screen with the ballista tool.
 ## Run with: godot --headless --fixed-fps 60 -s tests/house_ballista_shots.gd
 ## With SHOTS=<folder> and a display it also saves pictures of the house, a bolt
-## in flight and the blueprint with the ballista's reach.
+## in flight, a close look at one and the blueprint with the ballista's reach.
 
 var failures := 0
 var game: Node
@@ -89,6 +89,14 @@ func _run() -> void:
 	var mid := plan.node_world(n.x / 2, n.y / 2)
 	game.player.global_position = mid + Vector3(-4, 0, Level.TILE * 2)
 	await _shot("ballista_house", mid + Vector3(10, 9, 14), mid + Vector3(0, 2, 0))
+	# Close up on the one in the garden, from the front and from behind.
+	var garden: HouseBallista = sketcher.ballistae()[0]
+	for gun: HouseBallista in sketcher.ballistae():
+		if gun.global_position.y < garden.global_position.y:
+			garden = gun
+	var foot := garden.global_position
+	await _shot("ballista_close", foot + Vector3(-2.6, 2.1, 3.0), foot + Vector3(0, 0.9, 0.2))
+	await _shot("ballista_back", foot + Vector3(-2.2, 2.0, -2.8), foot + Vector3(0, 0.9, 0.3))
 	# A slime comes near: both turn to it and shoot.
 	var slime := lvl.spawn_slime("schleim", mid + Vector3(12, 0, -3), {})
 	slime.rated_level = Enemy.fit_level(slime.kind, slime._stats, slime.hardening, 18, SlimeGrowth.MAX_LEVEL)

@@ -5,6 +5,8 @@ extends SceneTree
 ##   a window and a garden wall two blocks high do not.
 ## - An item lying just inside a house wall is not picked up from outside,
 ##   only once the hero stands inside.
+## - Nothing on another floor is in reach (the room above the cellar, the storey
+##   above), and a bump uses a piece only when it hits that piece itself.
 ## - The blocks of the village's buildings stop it too; open ground does not.
 ## Run with: godot --headless --fixed-fps 60 -s tests/reach_walls.gd
 
@@ -145,6 +147,26 @@ func _run() -> void:
 				check(level.can_reach(level.cell_to_world(Vector2i(x - 1, y)), level.cell_to_world(Vector2i(x + 1, y))),
 						"open ground does not")
 	check(blocked and open, "the village has buildings and open ground to try")
+
+	# Only from its own floor: nothing in the room above from down in the cellar
+	# (HouseSketch.DEPTH below), nor on the storey above or below.
+	var room := inside + Vector3(0, 0, -0.5)
+	check(not level.can_reach(room + Vector3(0, -HouseSketch.DEPTH, 0), inside), "nothing on the floor above is reached from the cellar")
+	check(not level.can_reach(room, inside + Vector3(0, -HouseSketch.DEPTH, 0)), "nothing down in the cellar is reached from the floor above")
+	check(not level.can_reach(room, inside + Vector3(0, HouseSketch.STOREY_HEIGHT + HouseSketch.SLAB_THICK, 0)), "nothing on the upper floor is reached from below")
+	check(level.can_reach(room, inside + Vector3(0, 1.0, 0)), "a thing a metre up on the same floor is in reach")
+	level.built_floors.append({"rect": Rect2(room.x - 2.0, room.z - 2.0, 4.0, 4.0), "y": room.y + 0.9})
+	check(not level.can_reach(room, inside + Vector3(0, 1.4, 0)), "a floor between the hero and a thing stops the hand")
+	level.built_floors.pop_back()
+
+	# A piece of furniture is used only by running into it, not into a candle stand beside it.
+	var spot := room + Vector3(0, -0.1, 0)
+	var station := {"kind": "test", "cell": level.world_to_cell(spot), "pos": spot, "used": false, "touch": 2.4,
+			"touch_rects": [Rect2(spot.x - 0.8, spot.z - 0.4, 1.6, 0.8)]}
+	level.stations.append(station)
+	check(level.station_at(spot + Vector3(0.5, 1.0, 0.3)) == station, "running into the piece uses it")
+	check(level.station_at(spot + Vector3(1.6, 1.0, 0.0)).is_empty(), "running into something beside it does not")
+	level.stations.erase(station)
 	_end()
 
 

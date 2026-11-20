@@ -274,6 +274,8 @@ built_doors.gd | 180 | fixed | passfail | Built doors and gates: tall doorway, l
 house_ballista.gd | 120 | fixed | passfail | House ballista: planned on the ground or a flat roof, built after its roof, shoots slimes in reach and winds up again
 wall_clearance.gd | 180 | fixed | passfail | The hero's head, hat, cape, belly and gear stay out of walls, and doorways stay open
 house_furniture.gd | 120 | free | passfail | House furniture: the furnisher sells it, the tool puts it down indoors (floor, roof, walls, doors), placed pieces are stations, torches light, roof gone sends them back
+house_garden.gd | 120 | free | passfail | House garden: flowers, garden torches, a lamp and a grill stand only outdoors on the plot, light it at night, follow the seasons, and the grill cooks food into life
 reach_walls.gd | 300 | fixed | passfail | Nothing is picked up or used through a wall solid from floor to ceiling
 house_hiding.gd | 300 | fixed | passfail | Monsters neither see, hear, strike nor shoot a hero inside a built house unless a window or open door lets them, and the hero inside sees out only that way too
 light_shadows.gd | 120 | fixed | passfail | Walls block light (nearest lamps cast shadows within a budget; house torches flush on the wall)
+click_spots.gd | 120 | fixed | pass | Beds and workbenches open only on their pillow or bench top

@@ -23,8 +23,10 @@ extends Node3D
 const SHORT := {"bett": "Bett", "truhe": "Truhe", "regal": "Regal", "kamin": "Kamin", "trophaeen": "Trophäen",
 	"werkbank": "Werkbank", "feinbank": "Feinbank", "schleifrad": "Schleifstein", "alchemie": "Alchemie",
 	"leuchter": "Leuchter", "fackel": "Wandfackel", "bild_berge": "Bild: Berge", "bild_see": "Bild: See", "bild_drache": "Bild: Drache",
-	"schrein_maija": "Schrein: Maija"}
-## The tool bar's second row: light, the walls and the shrines. Everything else is on the first.
+	"schrein_maija": "Schrein: Maija",
+	"blumenbeet": "Blumenbeet", "blumenkuebel": "Kübel", "gartenfackel": "Stabfackel", "gartenlaterne": "Laterne", "grill": "Grill"}
+## The tool bar's second row: light, the walls and the shrines; the garden has the third. Everything
+## else is on the first.
 const SECOND_ROW := ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache", "schrein_maija"]
 ## The light of a candle stand and a torch: the dungeon's wall torch, a little softer indoors.
 const LIGHT_ENERGY := 2.4
@@ -34,8 +36,9 @@ const TORCH_BACK := 0.025
 ## A painting's frame (across, high) and how high its middle hangs (metres).
 const PAINTING := Vector2(1.3, 1.0)
 const PAINTING_HEIGHT := 1.55
-## The painted pictures, made once (see _painting_texture).
-static var _paintings := {}
+## The painted pictures, by motif (see _painting_texture).
+const PAINTINGS := ["res://assets/house/painting_mountains.jpg", "res://assets/house/painting_lake.jpg",
+	"res://assets/house/painting_dragon.jpg"]
 const PICK_UP := "aufheben"
 const LEVEL_NAMES := {-1: "im Keller", 0: "im Erdgeschoss", 1: "im Obergeschoss"}
 const KIND_BUTTON := Vector2(130, 32)
@@ -46,10 +49,14 @@ const ON_COLOR := Color(1.0, 0.82, 0.4)
 ## How close the hero must come to a piece to use it, from its middle (metres).
 const TOUCH := {"bett": 2.6, "regal": 2.4, "feinbank": 2.4, "schleifrad": 2.4, "alchemie": 2.4}
 const TOUCH_DEFAULT := 1.8
+## How far outside its solid a bump still counts as running into a piece (metres).
+const TOUCH_MARGIN := 0.4
 ## The scale of the pieces that are too big or too tall for a 2 m cell and a 2.6 m storey.
 const SHELF_SCALE := 0.75
 const FIRE_SCALE := 0.72
 const TABLE_SCALE := 0.8
+## The season the garden's flowers were last drawn in (see GardenDecor.stage), -1 before.
+var _garden_stage := -1
 ## Where the hero lies down in the bed, from its middle (see Game._climb_into_bed), and gets up.
 const BED_OFFSET := Vector3(-0.55, 0, -0.44)
 
@@ -106,6 +113,9 @@ func _exit_tree() -> void:
 
 func _process(_delta: float) -> void:
 	_fade()
+	# The flowers in the gardens follow the seasons.
+	if game != null and game.level is Outdoor and _garden_stage != GardenDecor.stage(game.level.season_day):
+		refresh()
 	if not active:
 		return
 	if _frame_pending and game.house_sketcher != null:
@@ -145,6 +155,7 @@ func refresh() -> void:
 		_body.remove_child(child)
 		child.queue_free()
 	furniture = HouseFurniture.of(game.hero_name)
+	_garden_stage = GardenDecor.stage(game.level.season_day)
 	var own := plan()
 	if own != null:
 		var moved := furniture.settle(own)
@@ -200,9 +211,19 @@ func _draw_piece(house: HouseSketch, p: Dictionary, is_mine: bool) -> void:
 	station.cell = game.level.world_to_cell(station.pos)
 	station.used = false
 	station.touch = TOUCH.get(p.kind, TOUCH_DEFAULT)
+	# Only running into the piece itself uses it: not a candle stand or a chest that stands
+	# within its touch beside it (see Level.station_at).
+	var rects: Array[Rect2] = []
+	for box in root.get_meta("solids", []):
+		var aabb: AABB = root.transform * AABB(box.at - Vector3(box.size.x, 0, box.size.z) * 0.5, box.size)
+		rects.append(Rect2(aabb.position.x, aabb.position.z, aabb.size.x, aabb.size.z).grow(TOUCH_MARGIN))
+	if not rects.is_empty():
+		station.touch_rects = rects
 	station.furniture = p.kind
 	if station.has("side"):
 		station.side = root.transform * station.side
+	if station.has("spot"):
+		station.spot = root.transform * station.spot
 	if station.has("rot"):
 		station.rot = root.rotation.y
 	game.level.stations.append(station)
@@ -227,6 +248,7 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 			station.pos = BED_OFFSET
 			station.rot = 0.0
 			station.side = Vector3(0, 0, 1.6)
+			station.spot = Level.pillow_spot(BED_OFFSET, 0.0)
 		"truhe":
 			level._place("chest", Vector3(0, 0, -0.35), 0.0, root)
 			solids.append({"at": Vector3(0, 0, 0), "size": Vector3(1.7, 1.2, 1.8)})
@@ -249,6 +271,7 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 			var stool := level._place("stool", Vector3(0, 0, 0.75), PI, root)
 			stool.scale = Vector3.ONE * TABLE_SCALE
 			solids.append({"at": Vector3(0, 0, -0.2), "size": Vector3(1.6, 1.2, 1.6)})
+			station.spot = Vector3(0, Level.TABLE_TOP * TABLE_SCALE, -0.2)
 		"feinbank", "schleifrad", "alchemie":
 			# The bench of the crafting square faces east; turned so its front is the piece's front.
 			var turn := Node3D.new()
@@ -258,6 +281,8 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 			CraftingSquare.build_bench(turn, Vector3.ZERO, info.bench, hash("home bench:" + kind))
 			solids.append({"at": Vector3(0, 0, 0), "size": Vector3(3.0, 1.2, 2.0)})
 			station.craft = CraftingSquare.BENCHES[info.bench].craft
+			# The bench top's middle, turned with the bench like its model.
+			station.spot = turn.transform * CraftingSquare.TOP
 		"leuchter":
 			var iron := HomeStoreFurniture._mat(Color(0.18, 0.17, 0.16), 0.5, 0.6)
 			HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(0.35, 0.4, 0.06), iron, Vector3(0, 0.03, 0))
@@ -280,7 +305,12 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 		"bild_berge", "bild_see", "bild_drache":
 			_build_painting(root, int(info.painting))
 		_:
-			if info.has("goddess"):
+			if info.get("garden", false):
+				var lights := []
+				solids.append_array(GardenDecor.build(root, kind, maxi(_garden_stage, 0), level, lights))
+				for l in lights:
+					_add_light(l[0], Vector3.ZERO, l[1], l[2], l[3])
+			elif info.has("goddess"):
 				solids.append_array(HouseholdGods.build_shrine(root, info.goddess))
 	root.set_meta("solids", solids)
 	return station
@@ -288,18 +318,21 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 
 ## A warm light like a wall torch's, a little softer, that flickers. Its place counts as lit at
 ## night (see Outdoor.is_lit and refresh).
-func _add_light(parent: Node3D, at: Vector3) -> void:
+## A garden lamp's light is steady (`flicker` off) and its own lantern's colour.
+func _add_light(parent: Node3D, at: Vector3, energy := LIGHT_ENERGY, reach := LIGHT_RANGE, flicker := true) -> void:
 	var light := OmniLight3D.new()
 	light.name = "FurnitureLight"
-	light.light_color = Level.TORCH_COLOUR
-	light.light_energy = LIGHT_ENERGY
-	light.omni_range = LIGHT_RANGE
+	light.light_color = Level.TORCH_COLOUR if flicker else GardenDecor.LAMP_COLOUR
+	light.light_energy = energy
+	light.omni_range = reach
 	light.omni_attenuation = Level.TORCH_ATTENUATION
 	light.position = at
 	parent.add_child(light)
+	if not flicker:
+		return
 	var glow := light.create_tween().set_loops()
-	glow.tween_property(light, "light_energy", LIGHT_ENERGY * 1.1, 0.25)
-	glow.tween_property(light, "light_energy", LIGHT_ENERGY * 0.88, 0.32)
+	glow.tween_property(light, "light_energy", energy * 1.1, 0.25)
+	glow.tween_property(light, "light_energy", energy * 0.88, 0.32)
 
 
 ## A framed painting on the wall behind the piece: a dark oak frame with a gilt edge and the
@@ -323,84 +356,10 @@ func _build_painting(root: Node3D, motif: int) -> void:
 	root.add_child(canvas)
 
 
-## The picture of a motif, painted once into a small texture: 0 the mountains at dusk, 1 a lake
-## under the moon, 2 a dragon over the village.
-static func _painting_texture(motif: int) -> ImageTexture:
-	if _paintings.has(motif):
-		return _paintings[motif]
-	var w := 128
-	var h := 96
-	var img := Image.create(w, h, false, Image.FORMAT_RGB8)
-	var skies := [[Color(0.98, 0.62, 0.32), Color(0.42, 0.25, 0.45)], [Color(0.12, 0.16, 0.32), Color(0.03, 0.05, 0.14)],
-			[Color(0.75, 0.82, 0.92), Color(0.45, 0.6, 0.85)]]
-	var sky: Array = skies[motif]
-	for y in h:
-		for x in w:
-			img.set_pixel(x, y, (sky[1] as Color).lerp(sky[0], float(y) / h))
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7 + motif
-	match motif:
-		0:
-			_disc(img, Vector2(92, 40), 11, Color(1.0, 0.85, 0.5))
-			for m in [[20, 30, 46], [64, 22, 60], [108, 34, 42]]:
-				_peak(img, m[0], m[1], m[2], Color(0.25, 0.2, 0.3), Color(0.92, 0.9, 0.95))
-			_band(img, 76, h, Color(0.2, 0.32, 0.18), Color(0.12, 0.2, 0.1))
-		1:
-			_disc(img, Vector2(36, 24), 9, Color(0.95, 0.95, 0.85))
-			for i in 40:
-				img.set_pixel(rng.randi_range(0, w - 1), rng.randi_range(0, 50), Color(0.9, 0.9, 1.0))
-			_peak(img, 90, 40, 70, Color(0.06, 0.08, 0.14), Color(0.06, 0.08, 0.14))
-			_band(img, 62, h, Color(0.1, 0.18, 0.32), Color(0.04, 0.08, 0.18))
-			for y in range(64, 92, 3):
-				for x in range(32 - (y - 62) / 4, 40 + (y - 62) / 4):
-					img.set_pixel(x, y, Color(0.75, 0.78, 0.7))
-		2:
-			_band(img, 70, h, Color(0.35, 0.5, 0.25), Color(0.25, 0.38, 0.18))
-			for i in 5:
-				var hx := 14 + i * 22
-				img.fill_rect(Rect2i(hx, 58, 14, 14), Color(0.8, 0.72, 0.6))
-				for r in 8:
-					img.fill_rect(Rect2i(hx - 2 + r, 50 + r, 18 - r * 2, 1), Color(0.6, 0.2, 0.15))
-			# The dragon: a red body and two wings against the sky.
-			var red := Color(0.7, 0.12, 0.08)
-			img.fill_rect(Rect2i(52, 26, 30, 6), red)
-			img.fill_rect(Rect2i(80, 22, 8, 7), red)
-			img.fill_rect(Rect2i(36, 30, 18, 3), red)
-			for r in 14:
-				img.fill_rect(Rect2i(58 + r / 2, 12 + r, 14 - r / 2, 1), red.darkened(0.2))
-			_disc(img, Vector2(88, 24), 1, Color(1.0, 0.85, 0.3))
-	# A few brush strokes of noise, so it looks painted rather than printed.
-	for i in 600:
-		var x := rng.randi_range(0, w - 2)
-		var y := rng.randi_range(0, h - 1)
-		img.set_pixel(x, y, img.get_pixel(x, y).lerp(img.get_pixel(x + 1, y), 0.5).darkened(rng.randf_range(-0.06, 0.08)))
-	var tex := ImageTexture.create_from_image(img)
-	_paintings[motif] = tex
-	return tex
-
-
-static func _disc(img: Image, at: Vector2, r: int, colour: Color) -> void:
-	for y in range(-r, r + 1):
-		for x in range(-r, r + 1):
-			if x * x + y * y <= r * r:
-				var p := Vector2i(at) + Vector2i(x, y)
-				if p.x >= 0 and p.y >= 0 and p.x < img.get_width() and p.y < img.get_height():
-					img.set_pixelv(p, colour)
-
-
-## A mountain peak at x with its top at `top` and half its foot `half` wide, snow on its tip.
-static func _peak(img: Image, x0: int, top: int, half: int, rock: Color, snow: Color) -> void:
-	for y in range(top, img.get_height()):
-		var span := int(float(y - top) / (img.get_height() - top) * half * 2.0)
-		for x in range(x0 - span, x0 + span + 1):
-			if x >= 0 and x < img.get_width():
-				img.set_pixel(x, y, snow if y < top + 8 else rock)
-
-
-static func _band(img: Image, from_y: int, to_y: int, top: Color, bottom: Color) -> void:
-	for y in range(from_y, to_y):
-		for x in img.get_width():
-			img.set_pixel(x, y, top.lerp(bottom, float(y - from_y) / maxf(1.0, to_y - from_y)))
+## The picture of a motif: 0 snowy peaks at dusk, 1 a lake under the full moon, 2 a dragon over
+## the village. Oil paintings at 1040 x 800, made by tools/make_paintings.py.
+static func _painting_texture(motif: int) -> Texture2D:
+	return load(PAINTINGS[clampi(motif, 0, PAINTINGS.size() - 1)])
 
 
 ## A trophy stand: an oak shelf on a low plinth with a back board and two small banners. Returns
@@ -509,6 +468,10 @@ func _first_waiting() -> String:
 
 func select(next: String) -> void:
 	tool = next
+	# Garden pieces stand only outdoors on the ground floor's level: the tool shows it.
+	if HouseFurniture.in_garden(next) and storey != 0:
+		storey = 0
+		game.house_sketcher.view_storey = storey
 	_clear_ghost()
 	_update_bar()
 
@@ -917,16 +880,17 @@ func _build_bar() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
 	_bar.add_child(box)
-	# Rows 1 and 2: the pieces, each with the number waiting to be put down; light and the walls
-	# on the second row.
+	# Rows 1 to 3: the pieces, each with the number waiting to be put down; light and the walls
+	# on the second row, the garden on the third.
 	var kinds := _row(box)
 	var lights := _row(box)
+	var garden := _row(box)
 	for kind in HouseFurniture.KINDS:
 		var b := _small_button("", select.bind(kind), KIND_BUTTON.x)
 		b.tooltip_text = Lang.t(HouseFurniture.KINDS[kind].name)
-		(lights if kind in SECOND_ROW else kinds).add_child(b)
+		(garden if HouseFurniture.in_garden(kind) else lights if kind in SECOND_ROW else kinds).add_child(b)
 		_kind_buttons[kind] = b
-	# Row 3: the storey, turning, picking up, back to the blueprint, close.
+	# Row 4: the storey, turning, picking up, back to the blueprint, close.
 	var options := _row(box)
 	_level_button = _small_button("", cycle_level, 250)
 	options.add_child(_level_button)

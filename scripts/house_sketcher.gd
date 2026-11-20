@@ -71,6 +71,10 @@ const COVER_COLOR := Color(0.75, 0.6, 0.35, 0.8)
 const DIG_COLOR := Color(0.9, 0.55, 0.15, 0.8)
 const STAIRS_COLOR := Color(1.0, 0.85, 0.3, 0.8)
 const PLANK_COLOR := Color(0.5, 0.34, 0.18)
+## A cellar's side wall reaches this far either side of the rim, and its top lies this far
+## under the ground (see _solid_cellar).
+const RIM_THICK := 0.2
+const RIM_SINK := 0.01
 const WALL_HEIGHT := 2.6
 const THICK := 0.2
 ## The doorway: high enough for the hero to walk through upright (2.4 m with
@@ -1359,9 +1363,12 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> v
 			var step: Vector2i = HouseSketch.DOWN[dir]
 			if open.has(c + step):
 				continue
-			var side := Vector3(step.x, 0, step.y) * (HouseSketch.CELL * 0.5 - 0.05)
-			var size := Vector3(0.1, HouseSketch.DEPTH, HouseSketch.CELL) if step.x != 0 else Vector3(HouseSketch.CELL, HouseSketch.DEPTH, 0.1)
-			_visual_box(middle + side + Vector3(0, -HouseSketch.DEPTH * 0.5, 0), size, wall_mat)
+			# The wall straddles the rim and its top lies just under the ground, so no
+			# crack opens between the cut ground and the wall (it showed as a fine light line).
+			var side := Vector3(step.x, 0, step.y) * (HouseSketch.CELL * 0.5)
+			var high := HouseSketch.DEPTH - RIM_SINK
+			var size := Vector3(RIM_THICK, high, HouseSketch.CELL + RIM_THICK) if step.x != 0 else Vector3(HouseSketch.CELL + RIM_THICK, high, RIM_THICK)
+			_visual_box(middle + side + Vector3(0, -RIM_SINK - high * 0.5, 0), size, wall_mat)
 	for key in house.pieces:
 		var piece: Dictionary = house.pieces[key]
 		if piece.state == HouseSketch.SKETCH:

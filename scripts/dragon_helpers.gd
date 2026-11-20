@@ -8,11 +8,11 @@ extends Node3D
 ## They are shy: they wait while the hero stands right beside a thing, so
 ## nothing is snatched from under the hero's feet, and what the hero picks
 ## up first stays the hero's. They leave nothing behind: the more lies
-## about, the more of them come out and the quicker (see out_limit), and
-## what is still on the ground at daybreak they come back for in the
-## morning twilight (see dawn) until all of it is home. Only then do they
-## stay in the mountain for the day. They are no foes: they cannot be fought
-## and do no harm.
+## about, the more of them come out and the quicker (see out_limit). They
+## collect only at night: at daybreak whoever is still out flies home (with
+## what it already holds), and what still lies about waits on the ground for
+## the next night. By day they stay in the mountain. They are no foes: they
+## cannot be fought and do no harm.
 
 ## At least this many out at once, one more every SPAWN_GAP seconds; with
 ## much lying about up to MAX_OUT, one every MIN_GAP seconds.
@@ -40,9 +40,6 @@ var den := Vector3.ZERO
 ## The helpers out now: {"node", "target" (the pickup), "carry" (its node,
 ## once snatched), "home" (flying back)}.
 var helpers: Array = []
-## What was still lying about when the day broke: they finish fetching it
-## in the morning (see dawn). Floor entries ([kind, id, x, z]).
-var leftovers: Array = []
 var _spawn_timer := 0.0
 
 
@@ -56,18 +53,9 @@ func is_night() -> bool:
 	return level is Outdoor and (level as Outdoor).night
 
 
-## Whether they are out at work: all night, and after daybreak while
-## something left over from the night still lies about.
+## Whether they are out at work: only at night.
 func at_work() -> bool:
-	if is_night():
-		leftovers.clear()
-		return true
-	return not leftovers.is_empty()
-
-
-## The day broke: what still lies about they fetch in the morning twilight.
-func dawn() -> void:
-	leftovers = level.floor_pickups().map(func(p): return p.floor)
+	return is_night()
 
 
 ## How many may be out at once: more the more lies about.
@@ -91,19 +79,11 @@ func _process(delta: float) -> void:
 				_spawn_timer = spawn_gap(lying)
 	for h in helpers.duplicate():
 		_fly(h, delta)
-	if not is_night() and not leftovers.is_empty():
-		# Done with what the night left once it is all gone (or by the hero's feet).
-		var still := level.floor_pickups().map(func(p): return p.floor)
-		leftovers = leftovers.filter(func(e): return still.any(func(f): return is_same(f, e)))
 
 
-## What they are after now: everything on the floor list by night, only
-## what the night left in the morning.
+## What they are after now: everything on the floor list.
 func _wanted() -> Array:
-	var all := level.floor_pickups()
-	if is_night():
-		return all
-	return all.filter(func(p): return leftovers.any(func(e): return is_same(e, p.floor)))
+	return level.floor_pickups()
 
 
 ## The nearest thing on the ground to the den no helper is after yet and the
@@ -167,8 +147,8 @@ func _fly(h: Dictionary, delta: float) -> void:
 	if h.home:
 		goal = den + Vector3(0, 1.4, 0)
 	else:
-		# The hero picked it up first, or walked up to it: back home.
-		if not level._pickups.has(h.target) or not is_instance_valid(h.target.node) or _hero_near(h.target.node.global_position):
+		# The day broke, the hero picked it up first, or walked up to it: back home.
+		if not at_work() or not level._pickups.has(h.target) or not is_instance_valid(h.target.node) or _hero_near(h.target.node.global_position):
 			h.home = true
 			return
 		var at: Vector3 = h.target.node.global_position

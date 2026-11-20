@@ -2825,8 +2825,8 @@ func _on_loot_carried_off(kind: String, id: String, count := 1) -> void:
 
 
 ## The morning after a night: the helpers leave nothing lying, anywhere.
-## In the open air before the hero's eyes they come back for what is left
-## in the morning twilight (see DragonHelpers.dawn). On any other map the
+## In the open air before the hero's eyes they fly home at daybreak, and
+## what is left waits for the next night (see DragonHelpers). On any other map the
 ## hero is on, or asleep, it is gone from the ground by morning, all but
 ## what lies right beside the awake hero. Every other map and building they
 ## swept unseen (see DragonHoard.sweep). Then the event log tells what the
@@ -2836,9 +2836,7 @@ func _dragon_morning(asleep := false) -> void:
 	var reached_inside := false
 	if level != null:
 		var helpers: DragonHelpers = level.get_node_or_null("DragonHelpers")
-		if helpers != null and not asleep and level is Outdoor:
-			helpers.dawn()
-		else:
+		if helpers == null or asleep or not level is Outdoor:
 			var things := 0
 			for p in level.floor_pickups():
 				if not asleep and player != null and DragonHelpers._flat(player.global_position - p.node.global_position) < DragonHelpers.SHY:

@@ -158,8 +158,8 @@ func _test() -> void:
 	check(int(game.hoard.tonight.things) == 0, "the tally starts afresh")
 	check(game.hoard.gold == gold_before, "nothing more went at dawn")
 
-	# A great heap of things: more helpers come, and what is left at daybreak
-	# they fetch in the morning twilight, all of it.
+	# A great heap of things: more helpers come; at daybreak they fly home,
+	# and what is still lying about waits for the next night.
 	lvl.set_hour(4.0)
 	game.day_hour = 4.0
 	for i in 24:
@@ -170,10 +170,18 @@ func _test() -> void:
 	game.day_hour = 7.0
 	check(not lvl.night, "the day broke")
 	game._new_day()
-	check(not helpers.leftovers.is_empty(), "something was still lying about at daybreak")
+	var at_daybreak: int = lvl.floor_pickups().size()
+	check(at_daybreak > 0, "something was still lying about at daybreak")
 	_run_helpers(helpers, 120.0)
-	check(lvl.floor_pickups().is_empty(), "in the morning twilight they fetched the rest (%d left)" % lvl.floor_pickups().size())
-	check(helpers.leftovers.is_empty() and helpers.helpers.is_empty(), "then they stay home for the day")
+	check(helpers.helpers.is_empty(), "at daybreak they all fly home")
+	check(lvl.floor_pickups().size() == at_daybreak, "by day they collect nothing (%d of %d left)" % [lvl.floor_pickups().size(), at_daybreak])
+	lvl.set_hour(23.0)
+	game.day_hour = 23.0
+	_run_helpers(helpers, 120.0)
+	check(lvl.floor_pickups().is_empty(), "the next night they fetch the rest (%d left)" % lvl.floor_pickups().size())
+	check(helpers.helpers.is_empty(), "and go home again")
+	lvl.set_hour(12.0)
+	game.day_hour = 12.0
 	lvl._drop_item("axt", den + Vector3(10.0, 0, 10.0))
 	_run_helpers(helpers, 10.0)
 	check(_floor_ids(lvl).has("axt"), "what falls by day waits for the night")

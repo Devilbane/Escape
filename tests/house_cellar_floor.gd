@@ -72,6 +72,14 @@ func _process(_delta: float) -> bool:
 	var mask: Image = (snow_material.get_shader_parameter("hole_mask") as Texture2D).get_image()
 	var cell := Vector2i(floori((pit.x + game.level.TILE * 0.5) / 2.0), floori((pit.z + game.level.TILE * 0.5) / 2.0))
 	check(mask.get_pixelv(cell).r > 0.5, "the snow mask is open over the pit")
+	# Whatever lies on a dug square is cleared: litter lifted away, dropped things moved to the grass.
+	game.level._drop_item(Items.KNIFE, pit + Vector3(0.3, 0, 0.3), false)
+	game.house_sketcher._redraw()
+	var pickup: Dictionary = game.level._pickups.back()
+	var spot: Vector3 = (pickup.node as Node3D).position
+	check(Vector2(spot.x - pit.x, spot.z - pit.z).length() > 1.0, "a dropped item is moved out of the pit")
+	game.level.surface_life._clear_around_loot()
+	check(game.level.surface_life.litter_near(pit, 0.9) == 0, "no leaves or twigs lie on the pit")
 	print("PASS: house cellar floor" if failures == 0 else "FAILED: %d" % failures)
 	Plots.release(game.hero_name)
 	game.delete_save(game.save_path())

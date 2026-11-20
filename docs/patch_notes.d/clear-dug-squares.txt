@@ -1,0 +1,1 @@
+- Digging a cellar clears the leaves, twigs and pebbles off the dug squares, and anything you dropped there is moved onto the grass.

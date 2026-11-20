@@ -1,0 +1,1 @@
+- The map zooms in until every tile is clearly visible (mouse wheel, + and −, or the new buttons on the map; drag to move it), and player-built houses now show on it as they are built.

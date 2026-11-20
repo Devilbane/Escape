@@ -6235,6 +6235,12 @@ func built_between(a: Vector3, b: Vector3, glass := false) -> bool:
 	return false
 
 
+## Whether the hero sees what stands at `pos` (feet). Anywhere but indoors on
+## the open-air map this is true: the fog of war decides the rest (see Outdoor.hero_sees).
+func hero_sees(_pos: Vector3) -> bool:
+	return true
+
+
 ## Whether a monster's blow from `a` cannot land on someone at `b` (both feet):
 ## a closed door, or a built house's wall, window, shut door or floor between
 ## them. Inside their house with the door shut, the hero is out of reach; in

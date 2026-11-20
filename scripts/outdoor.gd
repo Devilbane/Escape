@@ -284,6 +284,10 @@ var _roof: Node3D
 ## the hero while the hero is inside (see WallFade).
 var _house_fade := WallFade.new()
 var _inside := false
+## Whether the hero stands inside a house (built or their own), seeing out only
+## through windows and open doors (see hero_sees). Set each frame.
+var hero_indoors := false
+var _inside_view := InsideView.new()
 var _entered_once := false
 var _marker: Node3D
 ## The hero's town house on Weavers' Lane (see Homes), once the elder has
@@ -3545,6 +3549,14 @@ func is_sheltered(pos: Vector3) -> bool:
 	return HouseGround.sheltered(shelters, pos)
 
 
+## Inside a built house or their own village house the hero sees out only
+## through its windows and open doors (see InsideView); outside, everything shows.
+func hero_sees(pos: Vector3) -> bool:
+	if player == null or not hero_indoors:
+		return true
+	return has_line_of_sight(player.global_position, pos)
+
+
 ## The shut gate of the village wall stops shots too (see VillageWall.shot_blocked).
 func shot_blocked(a: Vector3, b: Vector3) -> bool:
 	return super(a, b) or village_wall.shot_blocked(a, b)
@@ -3611,6 +3623,8 @@ func _process(delta: float) -> void:
 			_marker = null
 	if inside:
 		_house_fade.update(self, player, get_viewport().get_camera_3d())
+	hero_indoors = inside or is_sheltered(player.global_position)
+	_inside_view.tick(self, delta)
 	if glowworms and hour >= 0.0:
 		glowworms.tick(delta, player.global_position, hour, inside)
 	_mind_the_wild(delta)

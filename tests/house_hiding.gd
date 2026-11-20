@@ -7,6 +7,8 @@ extends SceneTree
 ##   standing in the open doorway can be struck.
 ## - A monster outside neither sees nor hears a hero walking about indoors,
 ##   but does once the hero steps out.
+## - From inside, the hero sees out only through a window or an open door:
+##   monsters and villagers behind the walls are hidden (see InsideView).
 ## Run with: godot --headless --fixed-fps 60 -s tests/house_hiding.gd
 
 var failures := 0
@@ -141,6 +143,38 @@ func _run() -> void:
 	sees = level.has_line_of_sight(e.global_position, hero.global_position)
 	check(e._notices(hero, to, to.length(), sees), "out of the house it hears the hero again")
 
+	# The other way round: from inside, the hero sees out only through a window or an open door.
+	var walker: Villager = null
+	for v in (level as Outdoor).villagers:
+		if v.visible and not v.at_home:
+			walker = v
+			break
+	hero.global_position = middle
+	hero.reset_physics_interpolation()
+	await _wait(2)
+	await process_frame
+	check((level as Outdoor).hero_indoors, "the hero is indoors")
+	check(not level.hero_sees(e.global_position), "from inside, the hero does not see a monster behind the wall")
+	check(level.hero_sees(east), "but sees out of the window")
+	if walker != null:
+		walker.global_position = e.global_position + Vector3(1.0, 0, 0)
+		for i in 10:
+			await process_frame
+		check(not walker.visible, "a villager behind the wall is hidden from the hero inside")
+		hero.global_position = wall_mid + Vector3(0, 0.1, 1.2)
+		hero.reset_physics_interpolation()
+		await _wait(2)
+		for i in 10:
+			await process_frame
+		check(not (level as Outdoor).hero_indoors and walker.visible, "and shows again once the hero steps out")
+	else:
+		check(false, "a villager walks the street to try")
+	hero.global_position = behind
+	hero.reset_physics_interpolation()
+	await _wait(2)
+	await process_frame
+	check(not level.hero_sees(front + Vector3(0, 0, 5.0)), "a shut door hides the street from the hero inside")
+
 	if door != null:
 		door.use(door_mid + Vector3(0, 0, 2.0))
 		for i in 120:
@@ -150,6 +184,7 @@ func _run() -> void:
 		check(door.is_open(), "the door swings open")
 		check(level.has_line_of_sight(front + Vector3(0, 0, 5.0), behind), "through the open door the hero is seen")
 		check(not level.blow_blocked(front, door_mid), "and in the open doorway can be struck")
+		check(level.hero_sees(front + Vector3(0, 0, 5.0)), "and the hero inside looks out through it")
 	_end()
 
 

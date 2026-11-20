@@ -38,7 +38,8 @@ const SILVER := Color(0.74, 0.76, 0.8)
 
 ## skin: tone; glasses: kind or none; frame: its colour; hat: the colour of the hat, helmet or cape
 ## (the third of the role's colours when it is not given); hair: haircut and colour of a Rogue
-## model whose role names none.
+## model whose role names none; dye: a hair colour (a key of HairLook.COLORS) for a model whose hair
+## is painted into its texture (the Knight), so two of them with bare heads do not look alike.
 const LOOKS := {
 	"0": {"skin": PALE},
 	"1": {"skin": BRONZE},
@@ -49,8 +50,8 @@ const LOOKS := {
 	"6": {"skin": WARM, "glasses": "round", "frame": GOLD, "hair": {"style": "natural", "color": "silver"}},
 	"8": {"skin": ASHEN, "glasses": "monocle", "frame": GOLD, "hat": Color(0.22, 0.2, 0.46)},
 	"9": {"skin": FAIR},
-	"K": {"skin": BROWN},
-	"¢": {"skin": Color(0.97, 0.88, 0.8), "glasses": "square", "frame": IRON},
+	"K": {"skin": BROWN, "dye": "black"},
+	"¢": {"skin": Color(0.97, 0.88, 0.8), "glasses": "square", "frame": IRON, "dye": "silver"},
 	"µ": {"skin": Color(0.98, 0.8, 0.7), "glasses": "round", "frame": SILVER},
 	"O": {"skin": DARK},
 	"G": {"skin": Color(0.72, 0.52, 0.4)},
@@ -63,7 +64,8 @@ const LOOKS := {
 
 
 ## The look of one person: {} for someone whose own look stays (Pip, Pippi), otherwise skin, glasses
-## ("" for none), frame, hat (a Color, or null for the role's own) and hair ({} for the role's own).
+## ("" for none), frame, hat (a Color, or null for the role's own), hair ({} for the role's own) and
+## dye ("" for the model's own painted hair).
 ## Someone who is not in the table gets a look from the letter alone, the same every time.
 static func look_for(role: String, info: Dictionary) -> Dictionary:
 	if info.has("skin"):
@@ -81,6 +83,7 @@ static func look_for(role: String, info: Dictionary) -> Dictionary:
 		"frame": base.get("frame", IRON),
 		"hat": base.get("hat", null),
 		"hair": hair,
+		"dye": base.get("dye", "") if info.model != "Rogue" else "",
 	}
 
 
@@ -89,6 +92,8 @@ static func apply(model: Node3D, info: Dictionary, look: Dictionary) -> void:
 	if look.is_empty():
 		return
 	_tint_skin(model, info, look.skin)
+	if look.get("dye", "") != "":
+		_dye_hair(model, look.dye)
 	if look.hat != null:
 		_dye_hat(model, info, look.hat)
 	if look.glasses != "":
@@ -114,6 +119,45 @@ static func _tint_skin(model: Node3D, info: Dictionary, tone: Color) -> void:
 			var dyed: StandardMaterial3D = mat.duplicate()
 			dyed.albedo_color = dyed.albedo_color * tone
 			mi.material_override = dyed
+
+
+## Dyes the hair painted into the head's texture (and the eyebrows, painted in the same spot) with
+## a hair colour of HairLook: a detail layer over the hair's patch of the texture, so the texture
+## itself is never read back. Root colour at the bottom of the patch, tips at the top.
+static func _dye_hair(model: Node3D, colour: String) -> void:
+	for mi: MeshInstance3D in model.find_children("*_Head", "MeshInstance3D", true, false):
+		var mat := mi.material_override if mi.material_override != null else mi.get_active_material(0)
+		if not mat is StandardMaterial3D:
+			continue
+		var dyed: StandardMaterial3D = mat if mi.material_override == mat else mat.duplicate()
+		dyed.detail_enabled = true
+		dyed.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+		dyed.detail_uv_layer = BaseMaterial3D.DETAIL_UV_1
+		dyed.detail_albedo = dye_texture(colour)
+		mi.material_override = dyed
+
+
+static var _dyes := {}
+
+
+## A texture as big as the head's atlas in small: clear everywhere but the hair's patch
+## (HairLook.HAIR_UV), which holds the colour's root-to-tip gradient.
+static func dye_texture(colour: String) -> Texture2D:
+	if _dyes.has(colour):
+		return _dyes[colour]
+	const SIZE := 64
+	var shades: Array = HairLook.COLORS.get(colour, HairLook.COLORS.natural)
+	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var patch := Rect2i(HairLook.HAIR_UV.position * SIZE, HairLook.HAIR_UV.size * SIZE)
+	for y in range(patch.position.y, patch.end.y):
+		var t := 1.0 - float(y - patch.position.y) / float(patch.size.y - 1)
+		var c: Color = shades[0].lerp(shades[1], t * 2.0) if t < 0.5 else shades[1].lerp(shades[2], t * 2.0 - 1.0)
+		for x in range(patch.position.x, patch.end.x):
+			img.set_pixel(x, y, c)
+	var tex := ImageTexture.create_from_image(img)
+	_dyes[colour] = tex
+	return tex
 
 
 ## Dyes the hat, helmet or cape the role shows.

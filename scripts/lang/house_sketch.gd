@@ -18,8 +18,8 @@ const EN := {
 	"Rückgängig": "Undo",
 	"Wiederholen": "Redo",
 	"Wand: Maustaste halten und auf dem Raster ziehen. Rechtsklick oder Esc beendet.": "Wall: hold the mouse button and drag along the grid. Right click or Esc leaves.",
-	"Tür: Klicke eine Wand an. In einer Gartenmauer wird sie zum Gartentor.": "Door: click a wall. In a garden wall it becomes a garden gate.",
-	"Fenster: Klicke eine Wand an.": "Window: click a wall.",
+	"Tür: Klicke eine Wand an, auch eine schon gebaute. In einer Gartenmauer wird sie zum Gartentor.": "Door: click a wall, even one already built. In a garden wall it becomes a gate.",
+	"Fenster: Klicke eine Wand an, auch eine schon gebaute.": "Window: click a wall, even one already built.",
 	"Radierer: Klicke ein Stück an, um es zurückzunehmen.": "Eraser: click a piece to take it back.",
 	"Zum Abriss vorgemerkt: Dein Held reißt es ab und bekommt das Material zurück.": "Marked for demolition: your hero takes it down and gets the material back.",
 	"Das ist schon gebaut. Reiß es mit dem Radierer ab, um es zu ändern.": "That is already built. Tear it down with the eraser to change it.",
@@ -112,4 +112,11 @@ const EN := {
 	"Über diesem Kellerfeld liegt ein Boden: Dort kommt keine Leiter hinauf.": "A floor lies over this cellar square: no ladder can go up there.",
 	"Auf dem Obergeschoss steht eine Leiter auf einem Flachdach.": "On the upper floor a ladder stands on a flat roof.",
 	"Oben an der Leiter muss fester Boden sein, keine Grube oder Treppe.": "The top of the ladder needs firm ground, not a pit or stairs.",
+	# Setting a door, window or gate into a built wall (see HouseSketch.CHANGES).
+	"Umbau zurückgenommen: Das Stück bleibt, wie es gebaut ist.": "Rebuild called off: the piece stays as it was built.",
+	"Umbau vorgemerkt, ohne Material. Beauftrage den Bau: Dein Held baut es dann um.": "Rebuild planned, no material needed. Order the build: your hero then rebuilds it.",
+	"Klicken: Umbau zurücknehmen.": "Click: call the rebuild off.",
+	"Klicken: Dein Held baut hier eine Tür ein, ohne Material und ohne Abriss.": "Click: your hero sets a door in here, with no material and no tearing down.",
+	"Klicken: Dein Held baut hier ein Fenster ein, ohne Material und ohne Abriss.": "Click: your hero sets a window in here, with no material and no tearing down.",
+	"Klicken: Dein Held baut hier ein Gartentor ein, ohne Material und ohne Abriss.": "Click: your hero sets a gate in here, with no material and no tearing down.",
 }
